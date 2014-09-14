@@ -14,6 +14,7 @@
  */
 #include "switch/LabelSplicer.h"
 #include "util/Endian.h"
+#include "util/Constant.h"
 
 #include "util/Assert.h"
 #include <stdio.h>
@@ -26,14 +27,9 @@ static void unsplice()
 
 static void splice()
 {
-    // 000000100
-    uint64_t goHere = 1<<2;
-
-    // 000000100
-    uint64_t viaHere = 1<<2;
-
-    // 000010000
-    uint64_t expected = 1<<4;
+    uint64_t goHere =   Constant_base2(000000100);
+    uint64_t viaHere =  Constant_base2(000000100);
+    uint64_t expected = Constant_base2(000010000);
 
     uint64_t out = LabelSplicer_splice(goHere, viaHere);
 
@@ -56,13 +52,32 @@ static void isOneHop()
 
 static void routesThrough()
 {
-    // 0000000000000000100100000000101011101010100101011100101001010101
-    uint64_t dest = 0x0000900aea95ca55llu;
-    // 0000000000000000000000010110010100100110001110011100011001010101
-    uint64_t mid =  0x000001652639c655llu;
-    Assert_true(!LabelSplicer_routesThrough(dest, mid));
+    uint64_t dst = Constant_base2(0000000000000000100100000000101011101010100101011100101001010101);
+    uint64_t mid = Constant_base2(0000000000000000000000010110010100100110001110011100011001010101);
+    Assert_true(!LabelSplicer_routesThrough(dst, mid));
+    Assert_true(LabelSplicer_routesThrough(dst, 1));
+}
 
-    Assert_true(LabelSplicer_routesThrough(dest, 1));
+static void findErrorSender()
+{
+    uint64_t fwd;
+    uint64_t err;
+    uint64_t exp;
+
+    fwd = Constant_base2(0000000000000000100100000000101011101010100101011100101001010101);
+    err = Constant_base2(0100011011010101010100000000000000001001000000001010111010101001);
+    exp = Constant_base2(0000000000000000000000000000000000000000000101011100101001010101);
+    Assert_true(exp == LabelSplicer_findErrorHop(fwd, err));
+
+    fwd = Constant_base2(0000000000000000100100000000101011101010100101011100101001010101);
+    err = Constant_base2(1101101110101010100010101101010100000000000000001001000000001010);
+    exp = Constant_base2(0000000000000000000000000000000111101010100101011100101001010101);
+    Assert_true(exp == LabelSplicer_findErrorHop(fwd, err));
+
+    fwd = Constant_base2(0000000000000000100100000000101011101010100101011100101001010101);
+    err = Constant_base2(1111101000000000000000010010000000010101110101010010101110010100);
+    exp = Constant_base2(0000000000000000000000000000000000000000000000000000000011010101);
+    Assert_true(exp == LabelSplicer_findErrorHop(fwd, err));
 }
 
 int main()
@@ -71,5 +86,6 @@ int main()
     isOneHop();
     routesThrough();
     unsplice();
+    findErrorSender();
     return 0;
 }

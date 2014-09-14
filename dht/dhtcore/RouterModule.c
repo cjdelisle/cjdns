@@ -638,15 +638,6 @@ struct RouterModule_Promise* RouterModule_getPeers(struct Address* addr,
     return promise;
 }
 
-struct Node_Two* RouterModule_lookup(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
-                                     struct RouterModule* module)
-{
-    struct Address addr = { .path = 0 };
-    Bits_memcpyConst(addr.ip6.bytes, targetAddr, Address_SEARCH_TARGET_SIZE);
-
-    return NodeStore_getBest(&addr, module->nodeStore);
-}
-
 struct Node_Two* RouterModule_nodeForPath(uint64_t path, struct RouterModule* module)
 {
     struct Node_Link* link = NodeStore_linkForPath(module->nodeStore, path);
@@ -654,10 +645,10 @@ struct Node_Two* RouterModule_nodeForPath(uint64_t path, struct RouterModule* mo
     return link->child;
 }
 
-void RouterModule_brokenPath(const uint64_t path, struct RouterModule* module)
+/*void RouterModule_brokenPath(const uint64_t path, struct RouterModule* module)
 {
     NodeStore_brokenPath(path, module->nodeStore);
-}
+}*/
 
 uint32_t RouterModule_globalMeanResponseTime(struct RouterModule* module)
 {

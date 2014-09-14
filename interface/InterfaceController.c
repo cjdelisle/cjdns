@@ -16,6 +16,7 @@
 #include "crypto/CryptoAuth_pvt.h"
 #include "interface/InterfaceController.h"
 #include "dht/dhtcore/RumorMill.h"
+#include "dht/dhtcore/Router.h"
 #include "memory/Allocator.h"
 #include "net/SwitchPinger.h"
 #include "util/Base32.h"
@@ -75,8 +76,7 @@ struct InterfaceController_pvt
     /** Switch for adding nodes when they are discovered. */
     struct SwitchCore* const switchCore;
 
-    /** Router needed to inject newly added nodes to bootstrap the system. */
-    struct RouterModule* const routerModule;
+    struct Router* const router;
 
     struct Random* const rand;
 
@@ -152,13 +152,13 @@ static void onPingResponse(struct SwitchPinger_Response* resp, void* onResponseC
         // We've never heard from this machine before (or we've since forgotten about it)
         // This is here because we want the tests to function without the janitor present.
         // Other than that, it just makes a slightly more synchronous/guaranteed setup.
-        RouterModule_getPeers(&addr, 0, 0, ic->routerModule, ic->allocator);
+        Router_sendGetPeers(ic->router, &addr, 0, 0, ic->allocator);
     } else {
-        struct Node_Two* nn = RouterModule_nodeForPath(resp->label, ic->routerModule);
-        if (!nn) {
+        struct Node_Link* link = Router_linkForPath(ic->router, resp->label);
+        if (!link) {
             RumorMill_addNode(ic->rumorMill, &addr);
-        } else if (!Node_getBestParent(nn)) {
-            RouterModule_peerIsReachable(resp->label, resp->milliseconds, ic->routerModule);
+        } else if (!Node_getBestParent(link->child)) {
+            Assert_failure("peers should never be in ffff state");
         }
     }
 
@@ -235,15 +235,13 @@ static void pingCallback(void* vic)
                 // because it causes the RumorMill to be filled with this node over and over.
                 continue;
             }
-            // This is here because of a pathological state where the connection is in ESTABLISHED
-            // state but the *direct peer* has somehow been dropped from the routing table
-            // usually because of a call to NodeStore_brokenPath()
-            struct Node_Two* peerNode = RouterModule_nodeForPath(ep->switchLabel, ic->routerModule);
+
+            struct Node_Link* link = Router_linkForPath(ic->router, ep->switchLabel);
             // It exists, it's parent is the self-node, and it's label is equal to the switchLabel.
-            if (peerNode
-                && Node_getBestParent(peerNode)
-                && Node_getBestParent(peerNode)->parent->address.path == 1
-                && Node_getBestParent(peerNode)->cannonicalLabel == ep->switchLabel)
+            if (link
+                && Node_getBestParent(link->child)
+                && Node_getBestParent(link->child)->parent->address.path == 1
+                && Node_getBestParent(link->child)->cannonicalLabel == ep->switchLabel)
             {
                 continue;
             }
@@ -266,8 +264,8 @@ static void pingCallback(void* vic)
 
         bool unresponsive = (now > ep->timeOfLastMessage + ic->unresponsiveAfterMilliseconds);
         if (unresponsive) {
-            // flush the peer from the table...
-            RouterModule_brokenPath(ep->switchLabel, ic->routerModule);
+            // our link to the peer is broken...
+            Router_disconnectedPeer(ic->router, ep->switchLabel);
 
             // Lets skip 87% of pings when they're really down.
             if (ep->pingCount % 8) {
@@ -306,7 +304,7 @@ static void moveEndpointIfNeeded(struct InterfaceController_Peer* ep,
             Log_info(ic->logger, "Moving endpoint to merge new session with old.");
 
             // flush out the new entry if needed.
-            RouterModule_brokenPath(ep->switchLabel, ic->routerModule);
+            Router_disconnectedPeer(ic->router, ep->switchLabel);
             ep->switchLabel = thisEp->switchLabel;
             SwitchCore_swapInterfaces(&thisEp->switchIf, &ep->switchIf);
             Allocator_free(thisEp->external->allocator);
@@ -410,7 +408,7 @@ static int closeInterface(struct Allocator_OnFreeJob* job)
     struct InterfaceController_pvt* ic = ifcontrollerForPeer(toClose);
 
     // flush the peer from the table...
-    RouterModule_brokenPath(toClose->switchLabel, ic->routerModule);
+    Router_disconnectedPeer(ic->router, toClose->switchLabel);
 
     int index = Map_OfIFCPeerByExernalIf_indexForHandle(toClose->handle, &ic->peerMap);
     Assert_true(index >= 0);
@@ -602,7 +600,7 @@ int InterfaceController_disconnectPeer(struct InterfaceController* ifController,
 
 struct InterfaceController* InterfaceController_new(struct CryptoAuth* ca,
                                                     struct SwitchCore* switchCore,
-                                                    struct RouterModule* routerModule,
+                                                    struct Router* router,
                                                     struct RumorMill* rumorMill,
                                                     struct Log* logger,
                                                     struct EventBase* eventBase,
@@ -620,7 +618,7 @@ struct InterfaceController* InterfaceController_new(struct CryptoAuth* ca,
         .ca = ca,
         .rand = rand,
         .switchCore = switchCore,
-        .routerModule = routerModule,
+        .router = router,
         .rumorMill = rumorMill,
         .logger = logger,
         .eventBase = eventBase,

@@ -20,8 +20,7 @@
 #include "dht/DHTModule.h"
 #include "dht/DHTModuleRegistry.h"
 #include "dht/dhtcore/Node.h"
-#include "dht/dhtcore/RouterModule.h"
-#include "dht/dhtcore/SearchRunner.h"
+#include "dht/dhtcore/Router.h"
 #include "dht/dhtcore/RumorMill.h"
 #include "interface/tuntap/TUNMessageType.h"
 #include "interface/Interface.h"
@@ -476,7 +475,7 @@ static inline uint8_t incomingFromTun(struct Message* message,
     }
 
     struct Ducttape_MessageHeader* dtHeader = getDtHeader(message, true);
-    struct Node_Two* bestNext = RouterModule_lookup(header->destinationAddr, context->routerModule);
+    struct Node_Two* bestNext = Router_lookup(context->router, header->destinationAddr);
     struct SessionManager_Session* nextHopSession;
     if (bestNext) {
         nextHopSession = SessionManager_getSession(bestNext->address.ip6.bytes,
@@ -572,7 +571,7 @@ static uint8_t sendToNode(struct Message* message, struct Interface* iface)
     struct Ducttape_MessageHeader* dtHeader = getDtHeader(message, true);
     struct IpTunnel_PacketInfoHeader* header = (struct IpTunnel_PacketInfoHeader*) message->bytes;
     Message_shift(message, -IpTunnel_PacketInfoHeader_SIZE, NULL);
-    struct Node_Two* n = RouterModule_lookup(header->nodeIp6Addr, context->routerModule);
+    struct Node_Two* n = Router_lookup(context->router, header->nodeIp6Addr);
     if (n) {
         if (!Bits_memcmp(header->nodeKey, n->address.key, 32)) {
             // Found the node.
@@ -605,7 +604,7 @@ static uint8_t sendToNode(struct Message* message, struct Interface* iface)
     uint64_t now = Time_currentTimeMilliseconds(context->eventBase);
     if (context->timeOfLastSearch + context->timeBetweenSearches < now) {
         context->timeOfLastSearch = now;
-        SearchRunner_search(header->nodeIp6Addr, context->searchRunner, context->alloc);
+        Router_searchForNode(context->router, header->nodeIp6Addr, context->alloc);
     }
     return 0;
 }
@@ -684,7 +683,7 @@ static inline int core(struct Message* message,
 
     struct SessionManager_Session* nextHopSession = NULL;
     if (!dtHeader->nextHopReceiveHandle || !dtHeader->switchLabel) {
-        struct Node_Two* n = RouterModule_lookup(ip6Header->destinationAddr, context->routerModule);
+        struct Node_Two* n = Router_lookup(context->router, ip6Header->destinationAddr);
         if (n) {
             nextHopSession =
                 SessionManager_getSession(n->address.ip6.bytes, n->address.key, context->sm);
@@ -933,7 +932,8 @@ static uint8_t handleControlMessage(struct Ducttape_pvt* context,
 
         uint64_t path = Endian_bigEndianToHost64(switchHeader->label_be);
         if (!LabelSplicer_isOneHop(path)) {
-            RouterModule_brokenPath(path, context->routerModule);
+            uint64_t labelAtStop = Endian_bigEndianToHost64(ctrl->content.error.cause.label_be);
+            Router_brokenLink(context->router, path, labelAtStop);
         }
 
         // Determine whether the "cause" packet is a control message.
@@ -1207,8 +1207,7 @@ static uint8_t incomingFromPinger(struct Message* message, struct Interface* ifa
 
 struct Ducttape* Ducttape_register(uint8_t privateKey[32],
                                    struct DHTModuleRegistry* registry,
-                                   struct RouterModule* routerModule,
-                                   struct SearchRunner* searchRunner,
+                                   struct Router* router,
                                    struct SwitchCore* switchCore,
                                    struct EventBase* eventBase,
                                    struct Allocator* allocator,
@@ -1218,11 +1217,10 @@ struct Ducttape* Ducttape_register(uint8_t privateKey[32],
 {
     struct Ducttape_pvt* context = Allocator_calloc(allocator, sizeof(struct Ducttape_pvt), 1);
     context->registry = registry;
-    context->routerModule = routerModule;
+    context->router = router;
     context->logger = logger;
     context->eventBase = eventBase;
     context->alloc = allocator;
-    context->searchRunner = searchRunner;
     Bits_memcpyConst(&context->pub.magicInterface, (&(struct Interface) {
         .sendMessage = magicInterfaceSendMessage,
         .allocator = allocator

@@ -19,7 +19,7 @@
 #include "util/version/Version.h"
 #include "dht/DHTModule.h"
 #include "dht/DHTModuleRegistry.h"
-#include "dht/dhtcore/RouterModule.h"
+#include "dht/dhtcore/Router.h"
 #include "interface/Interface.h"
 #include "util/log/Log.h"
 #include "net/Ducttape.h"
@@ -53,10 +53,7 @@ struct Ducttape_pvt
     /** The registry to call when a message comes in. */
     struct DHTModuleRegistry* registry;
 
-    /** The DHT router module. */
-    struct RouterModule* routerModule;
-
-    struct SearchRunner* searchRunner;
+    struct Router* router;
 
     /** The interface which interacts with the switch core. */
     struct Interface switchInterface;

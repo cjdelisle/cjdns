@@ -34,6 +34,7 @@
 #include "dht/dhtcore/SearchRunner_admin.h"
 #include "dht/dhtcore/NodeStore_admin.h"
 #include "dht/dhtcore/Janitor.h"
+#include "dht/dhtcore/Router_new.h"
 #include "exception/Jmp.h"
 #include "interface/addressable/AddrInterface.h"
 #include "interface/addressable/UDPAddrInterface.h"
@@ -408,10 +409,11 @@ void Core_init(struct Allocator* alloc,
 
     struct IpTunnel* ipTun = IpTunnel_new(logger, eventBase, alloc, rand, hermes);
 
+    struct Router* router = Router_new(routerModule, nodeStore, searchRunner, alloc);
+
     struct Ducttape* dt = Ducttape_register(privateKey,
                                             registry,
-                                            routerModule,
-                                            searchRunner,
+                                            router,
                                             switchCore,
                                             eventBase,
                                             alloc,
@@ -424,7 +426,7 @@ void Core_init(struct Allocator* alloc,
 
     // Interfaces.
     struct InterfaceController* ifController =
-        InterfaceController_new(cryptoAuth, switchCore, routerModule, rumorMill,
+        InterfaceController_new(cryptoAuth, switchCore, router, rumorMill,
                                 logger, eventBase, sp, rand, alloc);
 
     // ------------------- DNS -------------------------//
@@ -448,7 +450,7 @@ void Core_init(struct Allocator* alloc,
     ETHInterface_admin_register(eventBase, alloc, logger, admin, ifController);
 #endif
     NodeStore_admin_register(nodeStore, admin, alloc);
-    RouterModule_admin_register(routerModule, admin, alloc);
+    RouterModule_admin_register(routerModule, router, admin, alloc);
     SearchRunner_admin_register(searchRunner, admin, alloc);
     AuthorizedPasswords_init(admin, cryptoAuth, alloc);
     Admin_registerFunction("ping", adminPing, admin, false, NULL, admin);

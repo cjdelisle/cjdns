@@ -12,19 +12,17 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef RouterModule_admin_H
-#define RouterModule_admin_H
+#ifndef Router_new_H
+#define Router_new_H
 
-#include "admin/Admin.h"
-#include "dht/dhtcore/RouterModule.h"
-#include "dht/dhtcore/Router.h"
 #include "memory/Allocator.h"
-#include "util/Linker.h"
-Linker_require("dht/dhtcore/RouterModule_admin.c")
+#include "dht/dhtcore/Router.h"
+#include "dht/dhtcore/RouterModule.h"
+#include "dht/dhtcore/NodeStore.h"
+#include "dht/dhtcore/SearchRunner.h"
 
-void RouterModule_admin_register(struct RouterModule* module,
-                                 struct Router* router,
-                                 struct Admin* admin,
-                                 struct Allocator* alloc);
-
+struct Router* Router_new(struct RouterModule* rm,
+                          struct NodeStore* ns,
+                          struct SearchRunner* sr,
+                          struct Allocator* alloc);
 #endif

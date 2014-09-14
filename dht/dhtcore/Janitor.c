@@ -227,7 +227,7 @@ static void keyspaceMaintainenceGlobal(struct Janitor* janitor)
         addr.key[0] = addr.key[0] ^ 0x80;
 
         // See if we know a valid next hop.
-        struct Node_Two* node = RouterModule_lookup(addr.ip6.bytes, janitor->routerModule);
+        struct Node_Two* node = NodeStore_getBest(janitor->nodeStore, addr.ip6.bytes);
 
         if (!node) {
             if (foundHole) {
@@ -266,7 +266,7 @@ static void keyspaceMaintainenceLocal(struct Janitor* janitor)
         return;
     }
 
-    struct Node_Two* node = RouterModule_lookup(addr.ip6.bytes, janitor->routerModule);
+    struct Node_Two* node = NodeStore_getBest(janitor->nodeStore, addr.ip6.bytes);
     if (node) {
         // We know a valid next hop, so let's ping it to check its health.
         // TODO(arceliar): try to find better path? (how?)
@@ -565,7 +565,7 @@ static void maintanenceCycle(void* vcontext)
     // Make this a valid address.
     addr.ip6.bytes[0] = 0xfc;
 
-    struct Node_Two* n = RouterModule_lookup(addr.ip6.bytes, janitor->routerModule);
+    struct Node_Two* n = NodeStore_getBest(janitor->nodeStore, addr.ip6.bytes);
 
     // If the best next node doesn't exist or has 0 reach, run a local maintenance search.
     if (n == NULL || Node_getReach(n) == 0) {

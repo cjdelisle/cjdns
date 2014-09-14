@@ -20,6 +20,7 @@
 #include "dht/dhtcore/SearchRunner.h"
 #include "dht/SerializationModule.h"
 #include "dht/EncodingSchemeModule.h"
+#include "dht/dhtcore/Router_new.h"
 #include "io/Writer.h"
 #include "io/FileWriter.h"
 #include "util/log/Log.h"
@@ -139,8 +140,10 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
 
     struct IpTunnel* ipTun = IpTunnel_new(logger, base, allocator, rand, NULL);
 
+    struct Router* router = Router_new(routerModule, nodeStore, searchRunner, allocator);
+
     struct Ducttape* dt =
-        Ducttape_register((uint8_t*)privateKey, registry, routerModule, searchRunner,
+        Ducttape_register((uint8_t*)privateKey, registry, router,
                           switchCore, base, allocator, logger, ipTun, rand);
 
     struct SwitchPinger* sp =
@@ -148,7 +151,7 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
 
     // Interfaces.
     struct InterfaceController* ifController =
-        InterfaceController_new(ca, switchCore, routerModule, rumorMill,
+        InterfaceController_new(ca, switchCore, router, rumorMill,
                                 logger, base, sp, rand, allocator);
 
     struct TestFramework* tf = Allocator_clone(allocator, (&(struct TestFramework) {

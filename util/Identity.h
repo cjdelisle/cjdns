@@ -16,9 +16,9 @@
 #define Identity_H
 
 #include "util/Assert.h"
-#include "util/CompileTimeRandom.h"
+#include "util/Constant.h"
 
-<?js file.Identity_hash = "0x" + CompileTimeRandom_hexString(16) + "ull"; ?>
+<?js file.Identity_hash = "0x" + Constant_randHexString(16) + "ull"; ?>
 
 #define Identity_MAGIC ((unsigned long) <?js return file.Identity_hash ?>)
 

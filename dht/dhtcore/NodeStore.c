@@ -234,6 +234,9 @@ static void _verifyNode(struct Node_Two* node, struct NodeStore_pvt* store, char
     if (Node_getBestParent(node)) {
         Assert_fileLine(node == NodeStore_closestNode(&store->pub, node->address.path), file, line);
     }
+
+    // #4 no persistant markings are allowed.
+    Assert_true(!node->marked);
 }
 #define verifyNode(node, store) _verifyNode(node, store, Gcc_SHORT_FILE, Gcc_LINE)
 
@@ -317,22 +320,18 @@ static void update(struct Node_Link* link,
     }
 }
 
+static bool isPeer(struct Node_Two* node, struct NodeStore_pvt* store)
+{
+    if (!Node_getBestParent(node)) { return false; }
+    return Node_getBestParent(node)->parent == store->pub.selfNode
+        && LabelSplicer_isOneHop(Node_getBestParent(node)->cannonicalLabel);
+}
+
 static void unreachable(struct Node_Two* node, struct NodeStore_pvt* store)
 {
+    Assert_true(!isPeer(node, store) || node->marked);
+
     struct Node_Link* next = NULL;
-
-    if (Defined(Log_INFO)) {
-        for (next = node->reversePeers; next; next = next->nextPeer) {
-            if (next->parent == store->pub.selfNode
-                && LabelSplicer_isOneHop(next->cannonicalLabel))
-            {
-                uint8_t addr[40];
-                AddrTools_printIp(addr, node->address.ip6.bytes);
-                Log_info(store->logger, "Direct peer [%s] is unreachable", addr);
-            }
-        }
-    }
-
     RB_FOREACH_REVERSE(next, PeerRBTree, &node->peerTree) {
         if (Node_getBestParent(next->child) == next) { unreachable(next->child, store); }
     }
@@ -928,13 +927,6 @@ static void freePendingLinks(struct NodeStore_pvt* store)
     }
 }
 
-static bool isPeer(struct Node_Two* node, struct NodeStore_pvt* store)
-{
-    if (!Node_getBestParent(node)) { return false; }
-    return Node_getBestParent(node)->parent == store->pub.selfNode
-        && LabelSplicer_isOneHop(Node_getBestParent(node)->cannonicalLabel);
-}
-
 static struct Node_Link* discoverLinkC(struct NodeStore_pvt* store,
                                        struct Node_Link* closestKnown,
                                        uint64_t pathKnownParentChild,
@@ -1354,6 +1346,10 @@ static struct Node_Two* getWorstNode(struct NodeStore_pvt* store)
 static void destroyNode(struct Node_Two* node, struct NodeStore_pvt* store)
 {
     bool peer = isPeer(node, store);
+    if (peer) {
+        // unreachable() demands that the node be marked if it is a peer.
+        node->marked = true;
+    }
 
     // careful, undefined unless debug is enabled...
     uint8_t address_debug[60];
@@ -1780,10 +1776,10 @@ struct Node_Two* NodeStore_getNextNode(struct NodeStore* nodeStore, struct Node_
 }
 
 static struct Node_Two* getBestCycleB(struct Node_Two* node,
-                                      struct Address* target,
+                                      uint8_t target[16],
                                       struct NodeStore_pvt* store)
 {
-    uint32_t targetPfx = Address_getPrefix(target);
+    uint32_t targetPfx = Address_prefixForIp6(target);
     uint32_t ourDistance = Address_getPrefix(store->pub.selfAddress) ^ targetPfx;
     struct Node_Link* next = NULL;
     RB_FOREACH_REVERSE(next, PeerRBTree, &node->peerTree) {
@@ -1797,7 +1793,7 @@ static struct Node_Two* getBestCycleB(struct Node_Two* node,
 }
 
 static int getBestCycle(struct Node_Two* node,
-                        struct Address* target,
+                        uint8_t target[16],
                         struct Node_Two** output,
                         int limit,
                         int cycle,
@@ -1819,10 +1815,10 @@ static int getBestCycle(struct Node_Two* node,
     return 1;
 }
 
-struct Node_Two* NodeStore_getBest(struct Address* targetAddress, struct NodeStore* nodeStore)
+struct Node_Two* NodeStore_getBest(struct NodeStore* nodeStore, uint8_t targetAddress[16])
 {
     struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
-    struct Node_Two* n = NodeStore_nodeForAddr(nodeStore, targetAddress->ip6.bytes);
+    struct Node_Two* n = NodeStore_nodeForAddr(nodeStore, targetAddress);
     if (n && Node_getBestParent(n)) { return n; }
 
     for (int i = 0; i < 10000; i++) {
@@ -1953,41 +1949,68 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* nodeStore,
     return out;
 }
 
-// TODO(cjd): There's no such thing as a "broken path", there's a broken *link* but we don't
-//            know exactly which link is broken, we need to interpret the incoming error message
-//            better and determine which link is likely broken and then send a getPeers message
-//            to the node before it to check if the next link is nolonger valid.
-void NodeStore_brokenPath(uint64_t path, struct NodeStore* nodeStore)
+void NodeStore_disconnectedPeer(struct NodeStore* nodeStore, uint64_t path)
 {
     struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
     verify(store);
+    struct Node_Link* nl = NodeStore_linkForPath(nodeStore, path);
+    if (!nl) { return; }
     if (Defined(Log_DEBUG)) {
         uint8_t pathStr[20];
         AddrTools_printPath(pathStr, path);
-        Log_debug(store->logger, "NodeStore_brokenPath(%s)", pathStr);
+        Log_debug(store->logger, "NodeStore_disconnectedPeer(%s)", pathStr);
     }
-    struct Node_Link* nl = NodeStore_linkForPath(nodeStore, path);
+    Assert_true(isPeer(nl->child, store));
+    destroyNode(nl->child, store);
+    verify(store);
+}
 
-    if (!nl) { return; }
+static void brokenLink(struct NodeStore_pvt* store, struct Node_Link* brokenLink)
+{
+    verify(store);
+    if (brokenLink == Node_getBestParent(brokenLink->child)) {
+        handleBadNews(brokenLink->child, 0, store);
+    }
+    verify(store);
+}
 
-    if (isPeer(nl->child, store)) {
-        destroyNode(nl->child, store);
-        verify(store);
+void NodeStore_brokenLink(struct NodeStore* nodeStore, uint64_t path, uint64_t pathAtErrorHop)
+{
+    struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
+    if (Defined(Log_DEBUG)) {
+        uint8_t pathStr[20];
+        uint8_t pathAtErrorHopStr[20];
+        AddrTools_printPath(pathStr, path);
+        AddrTools_printPath(pathAtErrorHopStr, pathAtErrorHop);
+        Log_debug(store->logger, "NodeStore_brokenLink(%s, %s)", pathStr, pathAtErrorHopStr);
+    }
+
+    // determine at which hop the error occured.
+    uint64_t pathToErrorHop = LabelSplicer_findErrorHop(path, pathAtErrorHop);
+    if (pathToErrorHop == UINT64_MAX) {
+        Log_debug(store->logger, "NodeStore_brokenLink() Cannot find point where link broke!");
+Assert_failure("pathToErrorHop == UINT64_MAX");
         return;
     }
 
-    if (nl == Node_getBestParent(nl->child) && Node_getReach(nl->child) > 0) {
-        handleBadNews(nl->child, 0, store);
+    struct Node_Link* linkToErrorHop = NodeStore_linkForPath(nodeStore, pathToErrorHop);
+    if (!linkToErrorHop) {
+        Log_debug(store->logger, "NodeStore_brokenLink() Cannot follow path to error hop");
+        return;
     }
 
-    /* This workaround can lock the rumorMill in a bad state.
-    if (nl->parent != store->pub.selfNode) {
-        // XXX(arceliar): Temporary workaround to the above TODO(cjd) statement.
-        // This should often recursively find the problematic node.
-        RumorMill_addNode(store->renumberMill, &nl->parent->address);
-    }*/
+    uint64_t cannonicalPathAtErrorHop =
+        EncodingScheme_convertLabel(linkToErrorHop->child->encodingScheme,
+                                    pathAtErrorHop,
+                                    EncodingScheme_convertLabel_convertTo_CANNONICAL);
 
-    verify(store);
+    struct Node_Link* nextHop = NULL;
+    firstHopInPath(cannonicalPathAtErrorHop, &nextHop, linkToErrorHop, store);
+    if (!nextHop) {
+        Log_debug(store->logger, "NodeStore_brokenLink() No known next hop");
+        return;
+    }
+    brokenLink(store, nextHop);
 }
 
 // When a response comes in, we need to pay attention to the path used.

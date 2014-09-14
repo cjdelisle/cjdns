@@ -19,7 +19,7 @@
 #include "interface/Interface.h"
 #include "wire/Headers.h"
 #include "crypto/CryptoAuth.h"
-#include "dht/dhtcore/RouterModule.h"
+#include "dht/dhtcore/Router.h"
 #include "dht/dhtcore/RumorMill.h"
 #include "interface/Interface.h"
 #include "memory/Allocator.h"
@@ -234,10 +234,9 @@ int InterfaceController_getPeerStats(struct InterfaceController* ic,
                                      struct Allocator* alloc,
                                      struct InterfaceController_peerStats** statsOut);
 
-
 struct InterfaceController* InterfaceController_new(struct CryptoAuth* ca,
                                                     struct SwitchCore* switchCore,
-                                                    struct RouterModule* routerModule,
+                                                    struct Router* router,
                                                     struct RumorMill* rumorMill,
                                                     struct Log* logger,
                                                     struct EventBase* eventBase,

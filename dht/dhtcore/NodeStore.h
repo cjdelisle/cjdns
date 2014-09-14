@@ -145,11 +145,11 @@ char* NodeStore_getRouteLabel_strerror(uint64_t returnVal);
  * (versions above it's own are considered the same as it's version). It breaks ties of the
  * above two by which node has non-zero reach and finally shortest label fragment wins.
  *
- * @param targetAddress the address used for comparing distance
  * @param store the NodeStore
+ * @param targetAddress the address used for comparing distance
  * @return the node w/ address closest to targetAddress or NULL if myAddress is closest
  */
-struct Node_Two* NodeStore_getBest(struct Address* targetAddress, struct NodeStore* store);
+struct Node_Two* NodeStore_getBest(struct NodeStore* nodeStore, uint8_t targetAddress[16]);
 
 /**
  * Get direct peers of this node.
@@ -192,7 +192,11 @@ void NodeStore_pathTimeout(struct NodeStore* nodeStore, uint64_t path);
  * @param path the label part in host order.
  * @param store the node store.
  */
-void NodeStore_brokenPath(uint64_t path, struct NodeStore* store);
+//void NodeStore_brokenPath(uint64_t path, struct NodeStore* store);
+
+void NodeStore_brokenLink(struct NodeStore* nodeStore, uint64_t path, uint64_t pathAtErrorPoint);
+
+void NodeStore_disconnectedPeer(struct NodeStore* nodeStore, uint64_t path);
 
 struct Node_Two* NodeStore_getNextNode(struct NodeStore* nodeStore, struct Node_Two* lastNode);
 

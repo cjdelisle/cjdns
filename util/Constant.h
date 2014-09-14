@@ -12,19 +12,17 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef RouterModule_admin_H
-#define RouterModule_admin_H
+#ifndef Constant_H
+#define Constant_H
 
-#include "admin/Admin.h"
-#include "dht/dhtcore/RouterModule.h"
-#include "dht/dhtcore/Router.h"
-#include "memory/Allocator.h"
-#include "util/Linker.h"
-Linker_require("dht/dhtcore/RouterModule_admin.c")
+<?js file.Constant_JS = require("../util/Constant.js"); ?>
 
-void RouterModule_admin_register(struct RouterModule* module,
-                                 struct Router* router,
-                                 struct Admin* admin,
-                                 struct Allocator* alloc);
+#define Constant_base2(num) <?js return file.Constant_JS.base2( #num ) ?>
+
+#define Constant_rand64() <?js return file.Constant_JS.rand64(); ?>
+
+#define Constant_rand32() <?js return file.Constant_JS.rand32(); ?>
+
+#define Constant_randHexString(len) <?js return file.Constant_JS.randHexString(#len); ?>
 
 #endif

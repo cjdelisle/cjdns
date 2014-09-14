@@ -691,8 +691,8 @@ struct Allocator* Allocator_new(unsigned long sizeLimit,
                 .lineNum = lineNum,
             },
             #ifdef Allocator_USE_CANARIES
-            .canary = (unsigned long) CompileTimeRandom_uint64(),
-            .nextCanary = (unsigned long) CompileTimeRandom_uint64(),
+            .canary = (unsigned long) Constant_rand64(),
+            .nextCanary = (unsigned long) Constant_rand64(),
             #endif
         }
     };

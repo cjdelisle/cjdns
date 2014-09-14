@@ -150,7 +150,8 @@ static void searchReplyCallback(struct RouterModule_Promise* promise,
         }
 
         struct Node_Two* nn =
-            RouterModule_lookup(nodeList->elems[i].ip6.bytes, search->runner->router);
+            NodeStore_getBest(search->runner->nodeStore, nodeList->elems[i].ip6.bytes);
+
         if (!nn) {
             RumorMill_addNode(search->runner->rumorMill, &nodeList->elems[i]);
         }
@@ -201,7 +202,7 @@ static void searchStep(struct SearchRunner_Search* search)
             return;
         }
 
-        node = NodeStore_getBest(&nextSearchNode->address, ctx->nodeStore);
+        node = NodeStore_getBest(ctx->nodeStore, nextSearchNode->address.ip6.bytes);
 
         if (!node) { continue; }
         if (node == ctx->nodeStore->selfNode) { continue; }

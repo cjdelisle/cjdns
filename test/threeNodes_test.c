@@ -27,6 +27,7 @@
 #include "util/Hex.h"
 #include "util/events/Time.h"
 #include "util/events/Timeout.h"
+#include "dht/dhtcore/NodeStore.h"
 
 #include <stdio.h>
 
