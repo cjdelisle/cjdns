@@ -153,13 +153,15 @@ static void onPingResponse(struct SwitchPinger_Response* resp, void* onResponseC
         // This is here because we want the tests to function without the janitor present.
         // Other than that, it just makes a slightly more synchronous/guaranteed setup.
         Router_sendGetPeers(ic->router, &addr, 0, 0, ic->allocator);
+    }
+
+    struct Node_Link* link = Router_linkForPath(ic->router, resp->label);
+    if (!link) {
+        RumorMill_addNode(ic->rumorMill, &addr);
+    } else if (!Node_getBestParent(link->child)) {
+        Assert_failure("peers should never be in ffff state");
     } else {
-        struct Node_Link* link = Router_linkForPath(ic->router, resp->label);
-        if (!link) {
-            RumorMill_addNode(ic->rumorMill, &addr);
-        } else if (!Node_getBestParent(link->child)) {
-            Assert_failure("peers should never be in ffff state");
-        }
+        Log_debug(ic->logger, "link exists");
     }
 
     ep->timeOfLastPing = Time_currentTimeMilliseconds(ic->eventBase);
