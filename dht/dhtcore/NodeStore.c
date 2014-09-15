@@ -1295,8 +1295,7 @@ static struct Node_Two* getWorstNode(struct NodeStore_pvt* store)
     struct Node_Two* worst = NULL;
     struct Node_Two* nn = NULL;
     RB_FOREACH(nn, NodeRBTree, &store->nodeTree) {
-        // first cycle we clear all markings as we go and set markings
-        // so markings remain if they are behind us
+        // first cycle we set markings so markings remain if they are behind us
         struct Node_Link* parentLink = Node_getBestParent(nn);
         if (parentLink) {
             parentLink->parent->marked = 1;
@@ -1305,23 +1304,20 @@ static struct Node_Two* getWorstNode(struct NodeStore_pvt* store)
             worst = nn;
         }
     }
-    if (worst) { return worst; }
+    if (worst) {
+        RB_FOREACH(nn, NodeRBTree, &store->nodeTree) {
+            if (nn->marked) { nn->marked = false; }
+        }
+        return worst;
+    }
 
     // Mark the nodes that we need to protect for keyspace reasons.
     markKeyspaceNodes(store);
 
     RB_FOREACH(nn, NodeRBTree, &store->nodeTree) {
-        // second cycle we set the markings as we go but if they are behind the
-        // node which would have marked them, they are already set.
-        struct Node_Link* parentLink = Node_getBestParent(nn);
-        if (parentLink) {
-            parentLink->parent->marked = 1;
-        }
         if (nn->marked) {
             nn->marked = false;
-            continue;
-        }
-        if (!worst || whichIsWorse(nn, worst, store) == nn) {
+        } else if (!worst || whichIsWorse(nn, worst, store) == nn) {
             worst = nn;
         }
     }
@@ -1963,6 +1959,7 @@ void NodeStore_disconnectedPeer(struct NodeStore* nodeStore, uint64_t path)
         Log_debug(store->logger, "NodeStore_disconnectedPeer(%s)", pathStr);
     }
     Assert_true(isPeer(nl->child, store));
+    // TODO(cjd): This is wrong, peers should be brokenLink'd just like everyone else.
     destroyNode(nl->child, store);
     verify(store);
 }
@@ -2010,6 +2007,11 @@ Assert_failure("pathToErrorHop == UINT64_MAX");
     firstHopInPath(cannonicalPathAtErrorHop, &nextHop, linkToErrorHop, store);
     if (!nextHop) {
         Log_debug(store->logger, "NodeStore_brokenLink() No known next hop");
+        return;
+    }
+    if (nextHop->parent == store->pub.selfNode) {
+        // TODO(cjd): This is not the right thing to do, this function should work on peers too.
+        Log_debug(store->logger, "NodeStore_brokenLink() Attempted to remove peer");
         return;
     }
     brokenLink(store, nextHop);
