@@ -329,8 +329,6 @@ static bool isPeer(struct Node_Two* node, struct NodeStore_pvt* store)
 
 static void unreachable(struct Node_Two* node, struct NodeStore_pvt* store)
 {
-    Assert_true(!isPeer(node, store) || node->marked);
-
     struct Node_Link* next = NULL;
     RB_FOREACH_REVERSE(next, PeerRBTree, &node->peerTree) {
         if (Node_getBestParent(next->child) == next) { unreachable(next->child, store); }
@@ -624,13 +622,14 @@ void NodeStore_unlinkNodes(struct NodeStore* nodeStore, struct Node_Link* link)
     struct Node_Two* parent = Identity_check(link->parent);
     check(store);
 
-    if (Defined(Log_INFO) &&
-        parent == store->pub.selfNode &&
-        LabelSplicer_isOneHop(link->cannonicalLabel))
-    {
-        uint8_t addr[40];
-        AddrTools_printIp(addr, child->address.ip6.bytes);
-        Log_info(store->logger, "Direct peer [%s] has been removed from NodeStore", addr);
+    if (parent == store->pub.selfNode) {
+        Assert_true(LabelSplicer_isOneHop(link->cannonicalLabel));
+        store->pub.peerCount--;
+        if (Defined(Log_INFO)) {
+            uint8_t addr[60];
+            Address_print(addr, &child->address);
+            Log_info(store->logger, "Direct peer [%s] has been unlinked", addr);
+        }
     }
 
     // Change the best parent and path if necessary
@@ -780,6 +779,16 @@ static struct Node_Link* linkNodes(struct Node_Two* parent,
 
     // update the child's link state and possibly change it's preferred path
     update(link, linkStateDiff, store);
+
+    if (parent == store->pub.selfNode) {
+        Assert_true(LabelSplicer_isOneHop(cannonicalLabel) || cannonicalLabel == 1);
+        store->pub.peerCount++;
+        if (Defined(Log_DEBUG)) {
+            uint8_t addr[60];
+            Address_print(addr, &child->address);
+            Log_info(store->logger, "Direct peer [%s] has been linked", addr);
+        }
+    }
 
     check(store);
     return link;
@@ -1015,13 +1024,6 @@ static struct Node_Link* discoverLinkC(struct NodeStore_pvt* store,
         checkNode(child, store);
         RB_INSERT(NodeRBTree, &store->nodeTree, child);
         store->pub.nodeCount++;
-
-        if (isPeer(child, store)) {
-            uint8_t address[60];
-            Address_print(address, &child->address);
-            Log_debug(store->logger, "Created peer [%s]", address);
-            store->pub.peerCount++;
-        }
     }
 
     check(store);
@@ -1343,12 +1345,6 @@ static struct Node_Two* getWorstNode(struct NodeStore_pvt* store)
 
 static void destroyNode(struct Node_Two* node, struct NodeStore_pvt* store)
 {
-    bool peer = isPeer(node, store);
-    if (peer) {
-        // unreachable() demands that the node be marked if it is a peer.
-        node->marked = true;
-    }
-
     // careful, undefined unless debug is enabled...
     uint8_t address_debug[60];
     if (Defined(Log_DEBUG)) {
@@ -1381,10 +1377,6 @@ static void destroyNode(struct Node_Two* node, struct NodeStore_pvt* store)
     Assert_ifParanoid(node == RB_FIND(NodeRBTree, &store->nodeTree, node));
     RB_REMOVE(NodeRBTree, &store->nodeTree, node);
     store->pub.nodeCount--;
-    if (peer) {
-        Log_debug(store->logger, "Destroyed peer [%s]", address_debug);
-        store->pub.peerCount--;
-    }
 
     Allocator_free(node->alloc);
 }
@@ -1950,7 +1942,6 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* nodeStore,
 void NodeStore_disconnectedPeer(struct NodeStore* nodeStore, uint64_t path)
 {
     struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
-    verify(store);
     struct Node_Link* nl = NodeStore_linkForPath(nodeStore, path);
     if (!nl) { return; }
     if (Defined(Log_DEBUG)) {
@@ -1958,19 +1949,12 @@ void NodeStore_disconnectedPeer(struct NodeStore* nodeStore, uint64_t path)
         AddrTools_printPath(pathStr, path);
         Log_debug(store->logger, "NodeStore_disconnectedPeer(%s)", pathStr);
     }
-    Assert_true(isPeer(nl->child, store));
-    // TODO(cjd): This is wrong, peers should be brokenLink'd just like everyone else.
-    destroyNode(nl->child, store);
-    verify(store);
+    NodeStore_unlinkNodes(&store->pub, nl);
 }
 
 static void brokenLink(struct NodeStore_pvt* store, struct Node_Link* brokenLink)
 {
-    verify(store);
-    if (brokenLink == Node_getBestParent(brokenLink->child)) {
-        handleBadNews(brokenLink->child, 0, store);
-    }
-    verify(store);
+    NodeStore_unlinkNodes(&store->pub, brokenLink);
 }
 
 void NodeStore_brokenLink(struct NodeStore* nodeStore, uint64_t path, uint64_t pathAtErrorHop)
@@ -1988,7 +1972,6 @@ void NodeStore_brokenLink(struct NodeStore* nodeStore, uint64_t path, uint64_t p
     uint64_t pathToErrorHop = LabelSplicer_findErrorHop(path, pathAtErrorHop);
     if (pathToErrorHop == UINT64_MAX) {
         Log_debug(store->logger, "NodeStore_brokenLink() Cannot find point where link broke!");
-Assert_failure("pathToErrorHop == UINT64_MAX");
         return;
     }
 
