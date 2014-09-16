@@ -780,8 +780,8 @@ static struct Node_Link* linkNodes(struct Node_Two* parent,
     // update the child's link state and possibly change it's preferred path
     update(link, linkStateDiff, store);
 
-    if (parent == store->pub.selfNode) {
-        Assert_true(LabelSplicer_isOneHop(cannonicalLabel) || cannonicalLabel == 1);
+    if (parent == store->pub.selfNode && child != store->pub.selfNode) {
+        Assert_true(LabelSplicer_isOneHop(cannonicalLabel));
         store->pub.peerCount++;
         if (Defined(Log_DEBUG)) {
             uint8_t addr[60];
