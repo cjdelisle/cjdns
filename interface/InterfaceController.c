@@ -156,10 +156,8 @@ static void onPingResponse(struct SwitchPinger_Response* resp, void* onResponseC
     }
 
     struct Node_Link* link = Router_linkForPath(ic->router, resp->label);
-    if (!link) {
+    if (!link || !Node_getBestParent(link->child)) {
         RumorMill_addNode(ic->rumorMill, &addr);
-    } else if (!Node_getBestParent(link->child)) {
-        Assert_failure("peers should never be in ffff state");
     } else {
         Log_debug(ic->logger, "link exists");
     }
