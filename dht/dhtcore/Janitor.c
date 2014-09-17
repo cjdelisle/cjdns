@@ -404,6 +404,15 @@ static struct Node_Two* getRandomNode(struct Random* rand, struct NodeStore* sto
 
 static void getPeersMill(struct Janitor* janitor, struct Address* addr)
 {
+    // If we have a node in the store and we ping the same path with a different address
+    // it can cause an error packet which causes the *good* link to be destroyed.
+    // Therefore we will always ping the node which we believe to be at the end of the
+    // path and if there is an error, we will flush the link rediscover the path later.
+    struct Node_Link* nl = NodeStore_linkForPath(janitor->nodeStore, addr->path);
+    if (nl) {
+        addr = &nl->child->address;
+    }
+
     struct RouterModule_Promise* rp =
         RouterModule_getPeers(addr,
                               Random_uint32(janitor->rand),
