@@ -1976,30 +1976,43 @@ void NodeStore_brokenLink(struct NodeStore* nodeStore, uint64_t path, uint64_t p
     uint64_t thisPath = path;
     for (;;) {
         uint64_t nextPath = firstHopInPath(thisPath, &link, link, store);
-        uint64_t mask = ((((uint64_t)1) << (Bits_log2x64(thisPath) + 1)) - 1);
+        uint64_t mask = (((uint64_t)1) << (Bits_log2x64(thisPath) + 1)) - 1;
 
-        uint8_t maskStr[20];
-        uint8_t pathStr[20];
-        AddrTools_printPath(pathStr, nextPath);
-        AddrTools_printPath(maskStr, mask);
-        Log_debug(store->logger, "NodeStore_brokenLink() nextPath = [%s] mask = [%s]",
-                  pathStr, maskStr);
+        if (Defined(Log_DEBUG)) {
+            uint8_t maskStr[20];
+            uint8_t pathStr[20];
+            AddrTools_printPath(pathStr, nextPath);
+            AddrTools_printPath(maskStr, mask);
+            Log_debug(store->logger, "NodeStore_brokenLink() nextPath = [%s] mask = [%s]",
+                      pathStr, maskStr);
+        }
 
-        if ((pathAtErrorHop & mask) == thisPath) {
-            Log_debug(store->logger, "NodeStore_brokenLink() Great Success!");
-            brokenLink(store, link);
-        } else if (firstHopInPath_NO_NEXT_LINK == nextPath) {
+        if ((pathAtErrorHop & mask) > nextPath) {
+            uint64_t cannThisPath =
+                EncodingScheme_convertLabel(link->child->encodingScheme,
+                                            thisPath,
+                                            EncodingScheme_convertLabel_convertTo_CANNONICAL);
+            if ((pathAtErrorHop & mask) == cannThisPath) {
+                Log_debug(store->logger, "NodeStore_brokenLink() Great Success!");
+                brokenLink(store, link);
+                return;
+            }
+        }
+
+        if (firstHopInPath_NO_NEXT_LINK == nextPath) {
             Log_debug(store->logger, "NodeStore_brokenLink() firstHopInPath_NO_NEXT_LINK");
             // kind of expensive...
             Assert_ifParanoid(!NodeStore_linkForPath(nodeStore, path));
-        } else if (firstHopInPath_INVALID == nextPath) {
-            Log_debug(store->logger, "NodeStore_brokenLink() firstHopInPath_INVALID");
-        } else {
-            Assert_true(link);
-            thisPath = nextPath;
-            continue;
+            return;
         }
-        return;
+
+        if (firstHopInPath_INVALID == nextPath) {
+            Log_debug(store->logger, "NodeStore_brokenLink() firstHopInPath_INVALID");
+            return;
+        }
+
+        Assert_true(link);
+        thisPath = nextPath;
     }
 }
 
