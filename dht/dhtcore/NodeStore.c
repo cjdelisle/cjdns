@@ -623,6 +623,10 @@ void NodeStore_unlinkNodes(struct NodeStore* nodeStore, struct Node_Link* link)
     check(store);
 
     if (parent == store->pub.selfNode) {
+
+        // yuh ok
+        if (link == store->selfLink) { return; }
+
         Assert_true(LabelSplicer_isOneHop(link->cannonicalLabel));
         store->pub.peerCount--;
         if (Defined(Log_INFO)) {
