@@ -108,34 +108,4 @@ static inline bool LabelSplicer_routesThrough(uint64_t destination, uint64_t mid
     return (destination & mask) == (midPath & mask);
 }
 
-/**
- * When a switch fails to forward a packet, it sends back an error.
- * The error contains the original packet header (the state of the label when it reached the
- * node who could not forward it further). And of course since error packet is forwarded
- * over the switch mesh like any other packet, it has an "outer" label.
- *
- * @param origDest the "outer" label.
- * @param labelAtErrorHop the label as it was captured when the error frame was created.
- * @return a path to the node which was unable to forward the packet further.
- */
-static inline uint64_t LabelSplicer_findErrorHop(uint64_t origDest, uint64_t labelAtErrorHop)
-{
-    int shift = 63 - Bits_log2x64(origDest);
-    origDest <<= shift;
-    labelAtErrorHop <<= shift;
-    uint64_t mask = UINT64_MAX << shift;
-    for (int i = 0; i < 64; i++) {
-        if (labelAtErrorHop == (mask & origDest)) {
-            mask = ~mask;
-            origDest &= mask;
-            origDest |= mask+1;
-            origDest >>= shift;
-            return origDest;
-        }
-        mask <<= 1;
-        labelAtErrorHop <<= 1;
-    }
-    return UINT64_MAX;
-}
-
 #endif

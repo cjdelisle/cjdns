@@ -1968,36 +1968,35 @@ void NodeStore_brokenLink(struct NodeStore* nodeStore, uint64_t path, uint64_t p
         Log_debug(store->logger, "NodeStore_brokenLink(%s, %s)", pathStr, pathAtErrorHopStr);
     }
 
-    // determine at which hop the error occured.
-    uint64_t pathToErrorHop = LabelSplicer_findErrorHop(path, pathAtErrorHop);
-    if (pathToErrorHop == UINT64_MAX) {
-        Log_debug(store->logger, "NodeStore_brokenLink() Cannot find point where link broke!");
-        return;
-    }
+    struct Node_Link* link = store->selfLink;
+    uint64_t thisPath = path;
+    for (;;) {
+        uint64_t nextPath = firstHopInPath(thisPath, &link, link, store);
+        uint64_t mask = ((((uint64_t)1) << (Bits_log2x64(thisPath) + 1)) - 1);
 
-    struct Node_Link* linkToErrorHop = NodeStore_linkForPath(nodeStore, pathToErrorHop);
-    if (!linkToErrorHop) {
-        Log_debug(store->logger, "NodeStore_brokenLink() Cannot follow path to error hop");
-        return;
-    }
+        uint8_t maskStr[20];
+        uint8_t pathStr[20];
+        AddrTools_printPath(pathStr, nextPath);
+        AddrTools_printPath(maskStr, mask);
+        Log_debug(store->logger, "NodeStore_brokenLink() nextPath = [%s] mask = [%s]",
+                  pathStr, maskStr);
 
-    uint64_t cannonicalPathAtErrorHop =
-        EncodingScheme_convertLabel(linkToErrorHop->child->encodingScheme,
-                                    pathAtErrorHop,
-                                    EncodingScheme_convertLabel_convertTo_CANNONICAL);
-
-    struct Node_Link* nextHop = NULL;
-    firstHopInPath(cannonicalPathAtErrorHop, &nextHop, linkToErrorHop, store);
-    if (!nextHop) {
-        Log_debug(store->logger, "NodeStore_brokenLink() No known next hop");
+        if ((pathAtErrorHop & mask) == thisPath) {
+            Log_debug(store->logger, "NodeStore_brokenLink() Great Success!");
+            brokenLink(store, link);
+        } else if (firstHopInPath_NO_NEXT_LINK == nextPath) {
+            Log_debug(store->logger, "NodeStore_brokenLink() firstHopInPath_NO_NEXT_LINK");
+            // kind of expensive...
+            Assert_ifParanoid(!NodeStore_linkForPath(nodeStore, path));
+        } else if (firstHopInPath_INVALID == nextPath) {
+            Log_debug(store->logger, "NodeStore_brokenLink() firstHopInPath_INVALID");
+        } else {
+            Assert_true(link);
+            thisPath = nextPath;
+            continue;
+        }
         return;
     }
-    if (nextHop->parent == store->pub.selfNode) {
-        // TODO(cjd): This is not the right thing to do, this function should work on peers too.
-        Log_debug(store->logger, "NodeStore_brokenLink() Attempted to remove peer");
-        return;
-    }
-    brokenLink(store, nextHop);
 }
 
 // When a response comes in, we need to pay attention to the path used.

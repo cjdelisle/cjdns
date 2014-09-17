@@ -58,34 +58,11 @@ static void routesThrough()
     Assert_true(LabelSplicer_routesThrough(dst, 1));
 }
 
-static void findErrorSender()
-{
-    uint64_t fwd;
-    uint64_t err;
-    uint64_t exp;
-
-    fwd = Constant_base2(0000000000000000100100000000101011101010100101011100101001010101);
-    err = Constant_base2(0100011011010101010100000000000000001001000000001010111010101001);
-    exp = Constant_base2(0000000000000000000000000000000000000000000101011100101001010101);
-    Assert_true(exp == LabelSplicer_findErrorHop(fwd, err));
-
-    fwd = Constant_base2(0000000000000000100100000000101011101010100101011100101001010101);
-    err = Constant_base2(1101101110101010100010101101010100000000000000001001000000001010);
-    exp = Constant_base2(0000000000000000000000000000000111101010100101011100101001010101);
-    Assert_true(exp == LabelSplicer_findErrorHop(fwd, err));
-
-    fwd = Constant_base2(0000000000000000100100000000101011101010100101011100101001010101);
-    err = Constant_base2(1111101000000000000000010010000000010101110101010010101110010100);
-    exp = Constant_base2(0000000000000000000000000000000000000000000000000000000011010101);
-    Assert_true(exp == LabelSplicer_findErrorHop(fwd, err));
-}
-
 int main()
 {
     splice();
     isOneHop();
     routesThrough();
     unsplice();
-    findErrorSender();
     return 0;
 }
