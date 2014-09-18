@@ -197,5 +197,32 @@ void NetPlatform_setMTU(const char* interfaceName,
                         struct Log* logger,
                         struct Except* eh)
 {
-    Except_throw(eh, "unimplemented");
+
+    // I looked all through the Windows API and setting the MTU is beyond me.
+    // But I do know how to do it through netsh.
+
+    // We know the connection names on Windows can't have any badly-behaved
+    // characters that would need escaping.
+    const char* format = ("netsh interface ipv6 set subinterface "
+        "\"%s\" mtu=%d");
+
+    // How much space do we need to fit the pattern substituted with the
+    // interface name? We ought to use _vscprintf, but the compiler chokes on
+    // its variable arguiment list. For now we overestimate: pattern length +
+    // interrface name length + estimated size of the MTU number according to
+    // <http://stackoverflow.com/a/3920025/402891> + a byte for the null
+    // terminator.
+    uint32_t totalSize = strlen(format) + strlen(interfaceName) +
+        (CHAR_BIT * sizeof(uint32_t)) / 3 + 3 + 1;
+
+    // Make a buffer to prepare our command in
+    char buffer[totalSize];
+
+    // Fill in the interface name
+    snprintf(buffer, totalSize, format, interfaceName, mtu);
+
+    Log_debug(logger, "Going to run command: %s", buffer);
+
+    // Make the netsh call, and die if it returns the wrong thing.
+    WinFail_check(eh, system(buffer));
 }
