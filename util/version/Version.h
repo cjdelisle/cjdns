@@ -237,18 +237,25 @@ Version_COMPAT(8, ([5,6,7]))
  */
 Version_COMPAT(9, ([5,6,7,8]))
 
+/*
+ * Version 10:
+ * September 18, 2014
+ *
+ * Drop support for pre-v7
+ */
+Version_COMPAT(10, ([7,8,9]))
+
 /**
  * The current protocol version.
  */
-#define Version_CURRENT_PROTOCOL 9
-#define Version_5_COMPAT
-#define Version_6_COMPAT
+#define Version_CURRENT_PROTOCOL 10
 #define Version_7_COMPAT
 #define Version_8_COMPAT
 #define Version_9_COMPAT
+#define Version_10_COMPAT
 
-#define Version_MINIMUM_COMPATIBLE 5
-#define Version_DEFAULT_ASSUMPTION 5
+#define Version_MINIMUM_COMPATIBLE 7
+#define Version_DEFAULT_ASSUMPTION 7
 
 /**
  * Check the compatibility matrix and return whether two versions are compatible.
