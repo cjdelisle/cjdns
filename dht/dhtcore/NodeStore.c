@@ -1990,7 +1990,7 @@ void NodeStore_brokenLink(struct NodeStore* nodeStore, uint64_t path, uint64_t p
         if ((pathAtErrorHop & mask) >= nextPath) {
             uint64_t cannPathAtErrorHop =
                 EncodingScheme_convertLabel(link->child->encodingScheme,
-                                            pathAtErrorHop,
+                                            (pathAtErrorHop & mask),
                                             EncodingScheme_convertLabel_convertTo_CANNONICAL);
 
             uint8_t cannPathAtErrorHopStr[20];
@@ -1998,14 +1998,13 @@ void NodeStore_brokenLink(struct NodeStore* nodeStore, uint64_t path, uint64_t p
             Log_debug(store->logger, "NodeStore_brokenLink() converted pathAtErrorHop to [%s]",
                       cannPathAtErrorHopStr);
 
-            if ((cannPathAtErrorHop & mask) == thisPath) {
+            if (cannPathAtErrorHop !== UINT64_MAX && (cannPathAtErrorHop & mask) == thisPath) {
                 Log_debug(store->logger, "NodeStore_brokenLink() Great Success!");
                 brokenLink(store, link);
                 return;
             }
-        } else if (firstHopInPath_NO_NEXT_LINK == nextPath && (pathAtErrorHop & mask) == 1) {
+        } else if (firstHopInPath_NO_NEXT_LINK == nextPath && thisPath == 1) {
             Log_debug(store->logger, "NodeStore_brokenLink() Great Success! (1link)");
-            Assert_true(thisPath == 1);
             Assert_ifParanoid(NodeStore_linkForPath(nodeStore, path) == link);
             brokenLink(store, link);
             return;
@@ -2013,7 +2012,8 @@ void NodeStore_brokenLink(struct NodeStore* nodeStore, uint64_t path, uint64_t p
 
         if (firstHopInPath_NO_NEXT_LINK == nextPath) {
             Log_debug(store->logger, "NodeStore_brokenLink() firstHopInPath_NO_NEXT_LINK");
-            // kind of expensive...
+
+            // fails if pathAtErrorHop is garbage.
             Assert_ifParanoid(!NodeStore_linkForPath(nodeStore, path));
             return;
         }
