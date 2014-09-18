@@ -1998,7 +1998,7 @@ void NodeStore_brokenLink(struct NodeStore* nodeStore, uint64_t path, uint64_t p
             Log_debug(store->logger, "NodeStore_brokenLink() converted pathAtErrorHop to [%s]",
                       cannPathAtErrorHopStr);
 
-            if (cannPathAtErrorHop !== UINT64_MAX && (cannPathAtErrorHop & mask) == thisPath) {
+            if (cannPathAtErrorHop != UINT64_MAX && (cannPathAtErrorHop & mask) == thisPath) {
                 Log_debug(store->logger, "NodeStore_brokenLink() Great Success!");
                 brokenLink(store, link);
                 return;
