@@ -1988,11 +1988,17 @@ void NodeStore_brokenLink(struct NodeStore* nodeStore, uint64_t path, uint64_t p
         }
 
         if ((pathAtErrorHop & mask) >= nextPath) {
-            uint64_t cannThisPath =
+            uint64_t cannPathAtErrorHop =
                 EncodingScheme_convertLabel(link->child->encodingScheme,
-                                            thisPath,
+                                            pathAtErrorHop,
                                             EncodingScheme_convertLabel_convertTo_CANNONICAL);
-            if ((pathAtErrorHop & mask) == cannThisPath) {
+
+            uint8_t cannPathAtErrorHopStr[20];
+            AddrTools_printPath(cannPathAtErrorHopStr, cannPathAtErrorHop);
+            Log_debug(store->logger, "NodeStore_brokenLink() converted pathAtErrorHop to [%s]",
+                      cannPathAtErrorHopStr);
+
+            if ((cannPathAtErrorHop & mask) == thisPath) {
                 Log_debug(store->logger, "NodeStore_brokenLink() Great Success!");
                 brokenLink(store, link);
                 return;
