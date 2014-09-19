@@ -2014,7 +2014,7 @@ void NodeStore_brokenLink(struct NodeStore* nodeStore, uint64_t path, uint64_t p
             Log_debug(store->logger, "NodeStore_brokenLink() firstHopInPath_NO_NEXT_LINK");
 
             // fails if pathAtErrorHop is garbage.
-            Assert_ifParanoid(!NodeStore_linkForPath(nodeStore, path));
+            Assert_ifTesting(!NodeStore_linkForPath(nodeStore, path));
             return;
         }
 
