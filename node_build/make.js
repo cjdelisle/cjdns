@@ -82,7 +82,6 @@ Builder.configure({
 
     if (builder.config.systemName === 'win32') {
         builder.config.cflags.push('-Wno-format');
-        builder.config.libs.push('-lssp');
     } else if (builder.config.systemName === 'linux') {
         builder.config.ldflags.push('-Wl,-z,relro,-z,now,-z,noexecstack');
         builder.config.cflags.push('-DHAS_ETH_INTERFACE=1');
@@ -146,9 +145,9 @@ Builder.configure({
 
     var uclibc = process.env['UCLIBC'] == '1';
     var libssp = process.env['SSP_SUPPORT'] == 'y';
-    if ((!uclibc && builder.config.systemName !== 'win32' && builder.config.systemName !== 'sunos')
-        || libssp)
-    {
+    if (builder.config.systemName == 'win32') {
+        builder.config.libs.push('-lssp');
+    } else if ((!uclibc && builder.config.systemName !== 'sunos') || libssp) {
         builder.config.cflags.push(
             // Broken GCC patch makes -fstack-protector-all not work
             // workaround is to give -fno-stack-protector first.
