@@ -351,8 +351,9 @@ Builder.configure({
         Codestyle.lint(fileName, file, callback);
     });
 
+    var testcjdroute = builder.buildExecutable('test/testcjdroute.c');
     if (builder.config.crossCompiling) {
-        console.log("Cross compiling.  Test disabled.");
+        console.log("Cross compiling. Building, but not running tests.");
         return;
     }
 
@@ -360,7 +361,7 @@ Builder.configure({
     if (process.env['REMOTE_TEST']) {
         testRunner = TestRunner.remote(process.env['REMOTE_TEST'], ['all']);
     }
-    builder.buildTest('test/testcjdroute.c', testRunner);
+    builder.runTest(testcjdroute, testRunner);
 
 }).success(function (builder, waitFor) {
 
