@@ -14,6 +14,7 @@
 /node_build/node_modules/jshint
 /node_build/node_modules/.bin
 /randombytes*
+/testcjdroute*
 *.pyc
 .clang_complete
 *~

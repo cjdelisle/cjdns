@@ -146,11 +146,11 @@ var mkBuilder = function (state) {
             var temp = state.buildDir + '/' + getExecutableFile(cFile);
             compile(cFile, temp, builder, builder.waitFor());
             builder.executables.push([temp, outputFile]);
+
+            return temp;
         },
 
-        buildTest: function (cFile, testRunner) {
-            var outFile = state.buildDir + '/' + getExecutableFile(cFile);
-            compile(cFile, outFile, builder, builder.waitFor());
+        runTest: function (outFile, testRunner) {
             builder.tests.push(function (cb) { testRunner(outFile, cb); });
         },
 
