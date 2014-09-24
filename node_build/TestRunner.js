@@ -15,6 +15,8 @@ var Spawn = require('child_process').spawn;
 var Http = require("http");
 var Fs = require("fs");
 
+var TIMEOUT = 15000;
+
 var parseURL = function (url)
 {
     url = url.replace(/[a-zA-Z]*:\/\//, '');
@@ -125,7 +127,7 @@ var local = module.exports.local = function (argv) {
             }
             output.push(err);
             callback(output.join('\n'), (code !== 0));
-        }, 10000);
+        }, TIMEOUT);
     };
 };
 
@@ -157,7 +159,7 @@ var server = function (url, tempDir) {
             var fileName = tempDir + "/test-" + String(Math.random()).substring(2) + ".exe";
             request.pipe(Fs.createWriteStream(fileName));
             request.on("end", function() {
-                runTest(fileName, args, response, 10000);
+                runTest(fileName, args, response, TIMEOUT);
             });
         } else {
             response.end();
