@@ -291,6 +291,9 @@ Builder.configure({
             }
 
             var gyp = Spawn(python, args, {env:env, stdio:'inherit'});
+            gyp.on('error', function () {
+                console.error("couldn't launch gyp [" + python + "]");
+            });
             gyp.on('close', waitFor(function () {
                 var args = [
                     '-j', builder.processors,
@@ -350,7 +353,7 @@ Builder.configure({
         Codestyle.lint(fileName, file, callback);
     });
 
-    var testcjdroute = builder.buildExecutable('test/testcjdroute.c');
+    var testcjdroute = builder.buildTest('test/testcjdroute.c');
     if (builder.config.crossCompiling) {
         console.log("Cross compiling. Building, but not running tests.");
         return;
