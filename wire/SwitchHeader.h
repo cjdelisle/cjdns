@@ -31,8 +31,13 @@
  *    +                         Switch Label                          +
  *  4 |                                                               |
  *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *  8 |   Congest   |S|                  Priority                     |
+ *  8 |   Congest   |S| V |               Penalty                     |
  *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *
+ *                                    Penalty Breakdown (See PenaltyFloat.h)
+ *                        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *                        | Exponent  |       Penalty Mantissa        |
+ *                        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  *
  * Versions <= 7 byte number 8 is message type but the only 2 defined types were 0 (data)
  * and 1 (control).
@@ -70,6 +75,23 @@ struct SwitchHeader
 Assert_compileTime(sizeof(struct SwitchHeader) == SwitchHeader_SIZE);
 #pragma pack(pop)
 
+#define SwitchHeader_MASK(x) ( (1 << (x)) - 1 )
+
+#define SwitchHeader_CURRENT_VERSION 1
+
+static inline uint32_t SwitchHeader_getVersion(const struct SwitchHeader* header)
+{
+    return Endian_bigEndianToHost32(header->lowBits_be) << 8 >> 22;
+}
+
+static inline void SwitchHeader_setVersion(struct SwitchHeader* header, uint32_t version)
+{
+    Assert_true(version < 4);
+    uint32_t lowBits = Endian_bigEndianToHost32(header->lowBits_be);
+    lowBits = (lowBits & 0xff3fffff) | version << 22;
+    header->lowBits_be = Endian_hostToBigEndian32(lowBits);
+}
+
 static inline uint32_t SwitchHeader_getCongestion(const struct SwitchHeader* header)
 {
     return Endian_bigEndianToHost32(header->lowBits_be) >> 25;
@@ -79,20 +101,23 @@ static inline void SwitchHeader_setCongestion(struct SwitchHeader* header, uint3
 {
     Assert_true(cong <= 127);
     if (!cong) { cong++; }
-    header->lowBits_be &= Endian_hostToBigEndian32( ~0xfe000000 );
-    header->lowBits_be |= Endian_hostToBigEndian32( cong << 25 );
+    uint32_t lowBits = Endian_bigEndianToHost32(header->lowBits_be);
+    lowBits = (lowBits << 7 >> 7) | (cong << 25);
+    header->lowBits_be = Endian_hostToBigEndian32(lowBits);
 }
 
-static inline uint32_t SwitchHeader_getPriority(const struct SwitchHeader* header)
+static inline uint32_t SwitchHeader_getPackedPenalty(const struct SwitchHeader* header)
 {
-    return Endian_bigEndianToHost32(header->lowBits_be) & ((1 << 24) - 1);
+    return Endian_bigEndianToHost32(header->lowBits_be) & SwitchHeader_MASK(22);
 }
 
-static inline void SwitchHeader_setPriority(struct SwitchHeader* header, uint32_t priority)
+static inline void SwitchHeader_setPackedPenalty(struct SwitchHeader* header,
+                                                 uint32_t packedPenalty)
 {
-    Assert_true(priority <= ((1 << 24) - 1) );
-    header->lowBits_be &= Endian_hostToBigEndian32( ~((1 << 24) - 1) );
-    header->lowBits_be |= Endian_hostToBigEndian32( priority & ((1 << 24) - 1) );
+    Assert_true(packedPenalty <= SwitchHeader_MASK(22));
+    uint32_t lowBits = Endian_bigEndianToHost32(header->lowBits_be);
+    lowBits = (lowBits >> 22 << 22) | packedPenalty;
+    header->lowBits_be = Endian_hostToBigEndian32(lowBits);
 }
 
 static inline bool SwitchHeader_getSuppressErrors(const struct SwitchHeader* header)

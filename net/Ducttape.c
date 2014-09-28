@@ -1110,7 +1110,8 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     switchHeader->label_be = Bits_bitReverse64(switchHeader->label_be);
 
     #ifdef Version_7_COMPAT
-    if (SwitchHeader_getMessageType(switchHeader) == SwitchHeader_TYPE_CONTROL) {
+    // The v7 method of signaling that a packet is a ctrl packet...
+    if (SwitchHeader_getSuppressErrors(switchHeader) && !SwitchHeader_getCongestion(switchHeader)) {
         return handleControlMessage(context, message, switchHeader, switchIf, false);
     }
     #endif

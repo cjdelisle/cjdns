@@ -12,6 +12,21 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
+struct Penalty_Entry
+{
+    uint32_t packedPenalty;
+    uint32_t timeLoggedMilliseconds;
+};
+
+struct Penalty_pvt
+{
+    struct Penalty_Entry entries[1024];
+    Identity
+};
+
+uint64_t
+
 #include "memory/Allocator.h"
 #include "interface/Interface.h"
 #include "util/log/Log.h"

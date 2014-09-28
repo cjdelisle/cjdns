@@ -250,10 +250,17 @@ static void sendPing(String* data, void* sendPingContext)
     struct SwitchHeader* switchHeader = (struct SwitchHeader*) msg->bytes;
     switchHeader->label_be = Endian_hostToBigEndian64(p->label);
 
-    SwitchHeader_setPriority(switchHeader, 0);
+    SwitchHeader_setVersion(switchHeader, SwitchHeader_CURRENT_VERSION);
+    SwitchHeader_setPackedPenalty(switchHeader, 0);
     SwitchHeader_setCongestion(switchHeader, 0);
+
     #ifdef Version_7_COMPAT
-        SwitchHeader_setPriorityAndMessageType(switchHeader, 0, SwitchHeader_TYPE_CONTROL);
+        // v7 detects ctrl packets by the bit which has been
+        // re-appropriated for suppression of errors.
+        SwitchHeader_setSuppressErrors(switchHeader, 1);
+        uint32_t lowbits = Endian_bigEndianToHost32(switchHeader->lowBits_be) << 7 >> 7;
+        switchHeader->lowBits_be = Endian_hostToBigEndian32(lowbits);
+        SwitchHeader_setVersion(switchHeader, 0);
     #endif
 
     p->context->iface->sendMessage(msg, p->context->iface);
