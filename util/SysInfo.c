@@ -17,23 +17,31 @@
 #include "util/Seccomp.h"
 #include "util/CString.h"
 #include "util/Bits.h"
+#include "util/Defined.h"
 
 #include <stdio.h>
 
 struct SysInfo SysInfo_detect()
 {
     struct SysInfo out = { .os = 0 };
-    #ifdef linux
+    if (Defined(linux)) {
         out.os = SysInfo_Os_LINUX;
-    #elif sunos
+
+    } else if (Defined(sunos)) {
         out.os = SysInfo_Os_SUNOS;
-    #elif darwin
+
+    } else if (Defined(darwin)) {
         out.os = SysInfo_Os_DARWIN;
-    #elif freebsd
+
+    } else if (Defined(freebsd)) {
         out.os = SysInfo_Os_FREEBSD;
-    #elif win32
+
+    } else if (Defined(win32)) {
         out.os = SysInfo_Os_WIN32;
-    #endif
+
+    } else {
+        out.os = SysInfo_Os_UNKNOWN;
+    }
 
     out.seccomp = Seccomp_exists();
 
