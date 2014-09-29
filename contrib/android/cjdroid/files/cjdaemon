@@ -5,54 +5,68 @@ CJDPATH="/sdcard/cjdns"
 
 # Function to output status messages and log if configured to do so
 logmessage() {
-    if [ -n "$CJDLOG" ]; then echo "$(date) - $1" >> "${CJDPATH}/cjdaemon.log"; fi
+    if [ -n "$CJDLOG" ]; then
+        echo "`date` - $1" >> "$CJDPATH"/cjdaemon.log
+    fi
 }
 
 # Create the daemon folder if it doesn't exist
-if [ ! -e "$CJDPATH" ]; then mkdir -p "$CJDPATH" || exit 1; fi
+if [ ! -e "$CJDPATH" ]; then
+    install -d "$CJDPATH" \
+        || exit 1
+fi
 
 # Fail if the daemon is already running
-if [ -f "${CJDPATH}/.cjdaemon.pid" ]; then
-    if [ -d "/proc/$(cat ${CJDPATH}/.cjdaemon.pid)" ]; then
+if [ -f "$CJDPATH"/.cjdaemon.pid ]; then
+    if [ -d /proc/`cat "$CJDPATH"/.cjdaemon.pid` ]; then
         logmessage "Error! Daemon already running"
         exit 1
     fi
 fi
 
 # Set a pid file for the daemon so we know what to kill if it starts causing issues
-echo "$$" > "${CJDPATH}/.cjdaemon.pid"
+echo "$$" > "$CJDPATH"/.cjdaemon.pid
 
 # Create cjdaemon.conf if it's missing
-if [ ! -f "${CJDPATH}/cjdaemon.conf" ]; then
-    touch "${CJDPATH}/cjdaemon.conf" || exit 1
-    echo -e 'CJDCFG="cjdroute.conf"\nCJDLOG=0' > "${CJDPATH}/cjdaemon.conf"
+if [ ! -f "$CJDPATH"/cjdaemon.conf ]; then
+    touch "$CJDPATH"/cjdaemon.conf \
+        || exit 1
+
+    echo -e 'CJDCFG="cjdroute.conf"\nCJDLOG=0' \
+        > "$CJDPATH"/cjdaemon.conf
 fi
 
 # Source cjdaemon.conf to load user settings
-source "${CJDPATH}/cjdaemon.conf"
+source "$CJDPATH"/cjdaemon.conf
 
 # Set $CJDCFG to the default if it wasn't set by cjdaemon.conf
-if [ -z "$CJDCFG" ]; then CJDCFG="cjdroute.conf"; fi
+if [ -z "$CJDCFG" ]; then
+    CJDCFG="cjdroute.conf"
+fi
 
 # Create the log if it doesn't exist, and if it can't be created disable logging
 if [ -n "$CJDLOG" ]; then
-    if [ ! -f "${CJDPATH}/cjdaemon.log" ]; then
-        touch "${CJDPATH}/cjdaemon.log" || unset CJDLOG
+    if [ ! -f "$CJDPATH"/cjdaemon.log ]; then
+        touch "$CJDPATH"/cjdaemon.log \
+            || unset CJDLOG
     fi
 fi
 
 # Function used to start cjdroute
 cjdstart() {
     # Exit if the lock file is missing
-    if [ ! -f "${CJDPATH}/.lock" ]; then exit; fi
+    if [ ! -f "$CJDPATH"/.lock ]; then
+        exit 0
+    fi
 
     # Start cjdroute and output/log results
     if [ -f "${CJDPATH}/${CJDCFG}" ]; then
-        if [ $(pgrep cjdroute | wc -l) -eq 0 ]; then
+        if [ `pgrep cjdroute | wc -l` -eq 0 ]; then
             LOGMSG="Running: cjdroute < ${CJDPATH}/${CJDCFG}..."
             cjdroute < "${CJDPATH}/${CJDCFG}" &> /dev/null 2>&1
             sleep 1
-            if [ $(pgrep cjdroute | wc -l) -gt 0 ]; then
+
+            if [ `pgrep cjdroute | wc -l` -gt 0 ]; then
                 LOGMSG="${LOGMSG} Success!"
             else
                 LOGMSG="${LOGMSG} Error! Failed to start cjdroute"
@@ -63,6 +77,7 @@ cjdstart() {
     else
         LOGMSG="${LOGMSG} Error! Failed to start cjdroute, config missing @ ${CJDPATH}/${CJDCFG}"
     fi
+
     logmessage "$LOGMSG"
     unset LOGMSG
 }
@@ -70,21 +85,25 @@ cjdstart() {
 # Function used to stop cjdroute
 cjdstop() {
     # Exit if the lock file is missing
-    if [ ! -f "${CJDPATH}/.lock" ]; then exit; fi
+    if [ ! -f "$CJDPATH"/.lock ]; then
+        exit 0
+    fi
 
     # Kill cjdroute and output/log results
-    if [ $(pgrep cjdroute | wc -l) -gt 0 ]; then
+    if [ `pgrep cjdroute | wc -l` -gt 0 ]; then
         LOGMSG="Running: killall cjdroute..."
         killall cjdroute
         sleep 1
-        if [ $(pgrep cjdroute | wc -l) -eq 0 ]; then
+
+        if [ `pgrep cjdroute | wc -l` -eq 0 ]; then
             LOGMSG="${LOGMSG} Success!"
         else
-            LOGMSG="${LOGMSG} Error: Failed to stop cjdroute"
+            LOGMSG="${LOGMSG} Error! Failed to stop cjdroute"
         fi
     else
         LOGMSG="${LOGMSG} Error! Failed to stop cjdroute, already stopped"
     fi
+
     logmessage "$LOGMSG"
     unset LOGMSG
 }
@@ -94,7 +113,6 @@ while :; do
     # Wait until the phone is awake, then start cjdroute
     cat /sys/power/wait_for_fb_wake > /dev/null
     cjdstart
-
     sleep 1
 
     # Wait until the phone sleeps, then stop cjdns
