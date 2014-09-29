@@ -541,7 +541,7 @@ static void uv__to_stat(struct stat* src, uv_stat_t* dst) {
   dst->st_birthtim.tv_nsec = src->st_birthtimespec.tv_nsec;
   dst->st_flags = src->st_flags;
   dst->st_gen = src->st_gen;
-#elif defined(_BSD_SOURCE) || defined(_SVID_SOURCE) || defined(_XOPEN_SOURCE)
+#elif !defined(__ANDROID__) && (defined(_BSD_SOURCE) || defined(_SVID_SOURCE) || defined(_XOPEN_SOURCE))
   dst->st_atim.tv_sec = src->st_atim.tv_sec;
   dst->st_atim.tv_nsec = src->st_atim.tv_nsec;
   dst->st_mtim.tv_sec = src->st_mtim.tv_sec;
