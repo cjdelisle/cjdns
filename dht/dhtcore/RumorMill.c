@@ -94,7 +94,7 @@ void RumorMill__addNode(struct RumorMill* mill, struct Address* addr, const char
     }
 
     for (int i = 0; i < rm->pub.count; i++) {
-        if (rm->addresses[i].path == addr->path ||
+        if (rm->addresses[i].path == addr->path &&
             !Bits_memcmp(rm->addresses[i].key, addr->key, 32))
         {
             return;
