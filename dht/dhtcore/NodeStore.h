@@ -200,4 +200,10 @@ void NodeStore_disconnectedPeer(struct NodeStore* nodeStore, uint64_t path);
 
 struct Node_Two* NodeStore_getNextNode(struct NodeStore* nodeStore, struct Node_Two* lastNode);
 
+// Used for DHT maintenance.
+#define NodeStore_bucketSize 8
+#define NodeStore_bucketNumber 128
+struct Address NodeStore_addrForBucket(struct Address* source, uint8_t bucket);
+uint8_t NodeStore_bucketForAddr(struct Address* source, struct Address* dest);
+
 #endif

@@ -283,7 +283,7 @@ Builder.configure({
 
             //args.push('--root-target=libuv');
             if (/.*android.*/.test(builder.config.gcc)) {
-                args.push('-Dtarget_arch=arm', '-DOS=android');
+                args.push('-DOS=android');
             }
 
             if (builder.config.systemName === 'win32') {

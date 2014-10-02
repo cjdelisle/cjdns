@@ -65,7 +65,7 @@ struct Janitor
     struct RumorMill* nodeMill;
 
     // Just used to keep track of nodes that we need to check on for DHT health.
-    struct RumorMill* searchMill;
+    struct RumorMill* dhtMill;
 
     struct Timeout* timeout;
 
@@ -86,10 +86,6 @@ struct Janitor
 
     /** Number of concurrent searches taking place. */
     int searches;
-
-    // Used to keep dht healthy
-    uint8_t keyspaceMaintainenceCounter;
-    uint8_t keyspaceHoleDepthCounter;
 
     Identity
 };
@@ -188,93 +184,91 @@ static void searchNoDupe(uint8_t target[Address_SEARCH_TARGET_SIZE], struct Jani
     #endif
 }
 
+static void dhtResponseCallback(struct RouterModule_Promise* promise,
+                                uint32_t lagMilliseconds,
+                                struct Address* from,
+                                Dict* result)
+{
+    struct Janitor* janitor = Identity_check((struct Janitor*)promise->userData);
+    if (!from) { return; }
+    struct Address_List* addresses =
+        ReplySerializer_parse(from, result, janitor->logger, promise->alloc);
+
+    struct Node_Two* parent = NodeStore_nodeForAddr(janitor->nodeStore, from->ip6.bytes);
+    if (!parent) { return; }
+
+    struct Address* selfAddr = janitor->nodeStore->selfAddress;
+    for (int i = 0; addresses && i < addresses->length; i++) {
+        if (Address_closest(selfAddr, from, &addresses->elems[i]) < 0) {
+            // Address is further from us than the node we asked. Skip it.
+            continue;
+        }
+
+        // Possibly interesting for dht reasons.
+        RumorMill_addNode(janitor->dhtMill, &addresses->elems[i]);
+    }
+}
+
+
 /**
  * For a Distributed Hash Table to work, each node must know a valid next hop for every possible
  * lookup, unless no such node exists in the network (i.e. the final hop is either us or offline).
  *
- * This function fills a list (RumorMill) of addresses which characterize a valid next hop.
+ * This function queries other nodes to find valid next hops for any address.
  */
-static void keyspaceMaintainenceGlobal(struct Janitor* janitor)
+static void keyspaceMaintenance(struct Janitor* janitor)
 {
-    if (janitor->searchMill->count) {
-        // We still have nodes to check from earlier maintenance cycles.
-        // Don't do anything.
-        return;
-    }
-
-    int byte = 0;
-    int bit = 0;
-    bool foundHole = false;
-    for (uint8_t i = 0; i < 128 ; i++) {
-        // Bitwise walk across keyspace
-        if (63 < i && i < 72) {
-            // We want to leave the 0xfc alone
-            continue;
-        }
-
-        // Figure out which bit of our address to flip for this step in keyspace.
-        // This looks ugly because of the rot64 done in distance calculations.
-        if (i < 64) { byte = 8 + (i/8); }
-        else        { byte = (i/8) - 8; }
-        bit = (i % 8);
-
-        // Create an address with that bit flipped.
-        struct Address addr = *janitor->nodeStore->selfAddress;
-        addr.ip6.bytes[byte] = addr.ip6.bytes[byte] ^ (0x80 >> bit);
-
-        // Keep the rumorMill code happy. We only use this for searches, so it's OK.
-        addr.path = i;
-        addr.key[0] = addr.key[0] ^ 0x80;
-
-        // See if we know a valid next hop.
-        struct Node_Two* node = NodeStore_getBest(janitor->nodeStore, addr.ip6.bytes);
-
-        if (!node) {
-            if (foundHole) {
-                // We don't already know a node for this keyspace address, and we've
-                // already found at least one hole.
-                continue;
-            } else {
-                // This is the first hole we've found.
-                // Signal that we've found it, so we know to break when find more.
-                foundHole = true;
-            }
-        } else {
-            if (foundHole) {
-                // Oops, it looks like that last hole was one that opened up in the
-                // middle of keyspace.
-                // So we need to keep checking later holes.
-                foundHole = false;
-            }
-        }
-
-        // Add to mill.
-        RumorMill_addNode(janitor->searchMill, &addr);
-    }
-}
-
-/* Searches for a valid next hop or better route to existing hop for each node in the searchMill */
-static void keyspaceMaintainenceLocal(struct Janitor* janitor)
-{
-    if (janitor->searches) {
-        // Searches are expensive, wait till they finish before doing anything.
-        return;
-    }
     struct Address addr;
-    if (!RumorMill_getNode(janitor->searchMill, &addr)) {
-        // There's nothing to search for.
+    struct Address* selfAddr = janitor->nodeStore->selfAddress;
+    if (!RumorMill_getNode(janitor->dhtMill, &addr)) {
+        // Try to fill the dhtMill for next time.
+        for (uint8_t bucket = 0; bucket < NodeStore_bucketNumber ; bucket++) {
+            // Check if there's a valid next hop for this bit in keyspace.
+            struct Address target = NodeStore_addrForBucket(selfAddr, bucket);
+            struct Node_Two* node = NodeStore_getBest(janitor->nodeStore, target.ip6.bytes);
+            if (!node) { continue; }
+
+            // There's a valid next hop.
+            // TODO(arceliar): Ask for the NodeStore_bucketSize best nodes?
+            // By best I mean, of the nodes that are closer, those with highest reach.
+            // (Not the closest.)
+            RumorMill_addNode(janitor->dhtMill, &node->address);
+        }
         return;
     }
 
-    struct Node_Two* node = NodeStore_getBest(janitor->nodeStore, addr.ip6.bytes);
-    if (node) {
-        // We know a valid next hop, so let's ping it to check its health.
-        // TODO(arceliar): try to find better path? (how?)
-        RouterModule_pingNode(&node->address, 0, janitor->routerModule, janitor->allocator);
+    if (NodeStore_nodeForAddr(janitor->nodeStore, addr.ip6.bytes)) {
+        // Address falls in our N'th bucket.
+        // Ask for nodes from their N'th bucket.
+        // Responses are good for our N+1'th or later bucket.
+        uint8_t bucket = NodeStore_bucketForAddr(selfAddr, &addr);
+        struct Address target = NodeStore_addrForBucket(&addr, bucket);
+        struct RouterModule_Promise* rp = RouterModule_findNode(&addr,
+                                                                target.ip6.bytes,
+                                                                0,
+                                                                janitor->routerModule,
+                                                                janitor->allocator);
+        rp->callback = dhtResponseCallback;
+        rp->userData = janitor;
+        #ifdef Log_DEBUG
+            uint8_t addrStr[60];
+            Address_print(addrStr, &addr);
+            Log_debug(janitor->logger, "Sending findNode to [%s] from "
+                                       "dht-checking RumorMill", addrStr);
+        #endif
     } else {
-        // We don't know a valid next hop, so let's try to find one.
-        searchNoDupe(addr.ip6.bytes, janitor);
+        // Node not already in our routing table.
+        // Ping them. If they're good, we'll ask them to findNodes our next round.
+        RouterModule_pingNode(&addr, 0, janitor->routerModule, janitor->allocator);
+        #ifdef Log_DEBUG
+            uint8_t addrStr[60];
+            Address_print(addrStr, &addr);
+            Log_debug(janitor->logger, "Pinging possible node [%s] from "
+                                       "dht-checking RumorMill", addrStr);
+        #endif
     }
+    return;
+    searchNoDupe(addr.ip6.bytes, janitor); // The last search, unaccessible.
 }
 
 static void peersResponseCallback(struct RouterModule_Promise* promise,
@@ -371,7 +365,7 @@ static void checkPeers(struct Janitor* janitor, struct Node_Two* n)
 // Iterate over all nodes in the table. Try to split any split-able links.
 static void splitLinks(struct Janitor* janitor)
 {
-    return; // TODO(cjd): Disabled until we figure out if it's still needed.
+    //return; // TODO(cjd): Enabled until we figure out if it's still needed.
 
     struct Node_Two* node = NodeStore_getNextNode(janitor->nodeStore, NULL);
     while (node) {
@@ -586,7 +580,7 @@ static void maintanenceCycle(void* vcontext)
         checkPeers(janitor, n);
     }
 
-    keyspaceMaintainenceLocal(janitor);
+    keyspaceMaintenance(janitor);
 
     Log_debug(janitor->logger,
               "Global Mean Response Time: %u nodes [%d] links [%d]",
@@ -596,7 +590,6 @@ static void maintanenceCycle(void* vcontext)
 
     if (now > janitor->timeOfNextGlobalMaintainence) {
         //search(addr.ip6.bytes, janitor);
-        keyspaceMaintainenceGlobal(janitor);
         splitLinks(janitor);
         janitor->timeOfNextGlobalMaintainence += janitor->globalMaintainenceMilliseconds;
     }
@@ -623,8 +616,6 @@ struct Janitor* Janitor_new(uint64_t localMaintainenceMilliseconds,
         .logger = logger,
         .globalMaintainenceMilliseconds = globalMaintainenceMilliseconds,
         .localMaintainenceMilliseconds = localMaintainenceMilliseconds,
-        .keyspaceMaintainenceCounter = 0,
-        .keyspaceHoleDepthCounter = 0,
         .allocator = alloc,
         .rand = rand
     }));
@@ -632,7 +623,7 @@ struct Janitor* Janitor_new(uint64_t localMaintainenceMilliseconds,
 
     janitor->linkMill = RumorMill_new(alloc, nodeStore->selfAddress, 64, logger, "linkMill");
     janitor->nodeMill = RumorMill_new(alloc, nodeStore->selfAddress, 64, logger, "nodeMill");
-    janitor->searchMill = RumorMill_new(alloc, nodeStore->selfAddress, 64, logger, "searchMill");
+    janitor->dhtMill = RumorMill_new(alloc, nodeStore->selfAddress, 64, logger, "dhtMill");
 
     janitor->timeOfNextGlobalMaintainence = Time_currentTimeMilliseconds(eventBase);
 
