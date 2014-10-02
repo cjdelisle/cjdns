@@ -35,7 +35,7 @@ struct SwitchInterface
 
     struct SwitchCore* core;
 
-    
+    struct Penalty* penalty;
 
     struct Allocator_OnFreeJob* onFree;
 };
@@ -79,7 +79,7 @@ static inline void sendError7(struct SwitchInterface* iface,
 {
     struct SwitchHeader* header = (struct SwitchHeader*) cause->bytes;
 
-    if (SwitchHeader_getMessageType(header) == SwitchHeader_TYPE_CONTROL
+    if (SwitchHeader_isV7Ctrl(header)
         && ((struct ErrorPacket7*) cause->bytes)->ctrl.type_be == Control_ERROR_be)
     {
         // Errors never cause other errors to be sent.
@@ -100,7 +100,7 @@ static inline void sendError7(struct SwitchInterface* iface,
     SwitchHeader_setSuppressErrors(&err->switchHeader, true);
     // set version to 0 so that other node will not change congestion field.
     SwitchHeader_setVersion(&err->switchHeader, 0);
-    SwitchHeader_setPackedPenalty(&err->switchHeader, 0);
+    SwitchHeader_setPenalty(&err->switchHeader, 0);
     SwitchHeader_setCongestion(&err->switchHeader, 0);
 
     err->ctrl.type_be = Control_ERROR_be;
@@ -150,7 +150,7 @@ static inline void sendError8(struct SwitchInterface* iface,
     err->switchHeader.label_be = Bits_bitReverse64(header->label_be);
     SwitchHeader_setSuppressErrors(header, true);
     SwitchHeader_setVersion(header, SwitchHeader_CURRENT_VERSION);
-    SwitchHeader_setPackedPenalty(header, 0);
+    SwitchHeader_setPenalty(header, 0);
     SwitchHeader_setCongestion(header, 0);
 
     err->handle = 0xffffffff;
@@ -292,8 +292,6 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
     uint64_t sourceLabel = Bits_bitReverse64(NumberCompress_getCompressed(sourceIndex, bits));
     uint64_t targetLabel = (label >> bits) | sourceLabel;
 
-    header->label_be = Endian_hostToBigEndian64(targetLabel);
-
     /* Too much noise.
     Log_debug(sourceIf->core->logger,
                "Forwarding packet ([%u] to [%u]), labels [0x%016" PRIx64 "] -> [0x%016" PRIx64 "]",
@@ -304,6 +302,17 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
         message->length : Control_Error_MAX_SIZE;
     uint8_t messageClone[Control_Error_MAX_SIZE];
     Bits_memcpy(messageClone, message->bytes, cloneLength);
+
+    // Update the header
+    header->label_be = Endian_hostToBigEndian64(targetLabel);
+    uint32_t labelShift = SwitchHeader_getLabelShift(header) + bits;
+    if (labelShift > 63) {
+        // TODO(cjd): hmm should we return an error packet?
+        Log_debug(sourceIf->core->logger, "Label rolled over");
+        return Error_NONE;
+    }
+    SwitchHeader_setLabelShift(header, labelShift);
+    Penalty_apply(sourceIf->penalty, header, message->length, );
 
     const uint16_t err = sendMessage(&core->interfaces[destIndex], message, sourceIf->core->logger);
     if (err) {
@@ -317,8 +326,6 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
         Message_shift(message, Control_Error_MAX_SIZE, NULL);
         Bits_memcpy(message->bytes, messageClone, cloneLength);
         message->length = cloneLength;
-        header = (struct SwitchHeader*) message->bytes;
-        header->label_be = Endian_bigEndianToHost64(label);
         sendError(sourceIf, message, err, sourceIf->core->logger);
         return Error_NONE;
     }

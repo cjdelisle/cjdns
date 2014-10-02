@@ -89,7 +89,7 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
     if (handle != 0xffffffff) {
         Message_push32(msg, handle, NULL);
         handle = 0xffffffff;
-        Assert_true(SwitchHeader_getMessageType(switchHeader) == SwitchHeader_TYPE_CONTROL);
+        Assert_true(SwitchHeader_isV7Ctrl(switchHeader));
     }
     #endif
     Assert_true(handle == 0xffffffff);
@@ -251,15 +251,13 @@ static void sendPing(String* data, void* sendPingContext)
     switchHeader->label_be = Endian_hostToBigEndian64(p->label);
 
     SwitchHeader_setVersion(switchHeader, SwitchHeader_CURRENT_VERSION);
-    SwitchHeader_setPackedPenalty(switchHeader, 0);
+    SwitchHeader_setPenalty(switchHeader, 0);
     SwitchHeader_setCongestion(switchHeader, 0);
 
     #ifdef Version_7_COMPAT
         // v7 detects ctrl packets by the bit which has been
         // re-appropriated for suppression of errors.
-        SwitchHeader_setSuppressErrors(switchHeader, 1);
-        uint32_t lowbits = Endian_bigEndianToHost32(switchHeader->lowBits_be) << 7 >> 7;
-        switchHeader->lowBits_be = Endian_hostToBigEndian32(lowbits);
+        switchHeader->congestAndSuppressErrors = 1;
         SwitchHeader_setVersion(switchHeader, 0);
     #endif
 

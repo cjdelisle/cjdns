@@ -939,13 +939,9 @@ static uint8_t handleControlMessage(struct Ducttape_pvt* context,
         // Determine whether the "cause" packet is a control message.
         bool isCtrlCause = false;
         #ifdef Version_7_COMPAT
-            if (SwitchHeader_TYPE_CONTROL ==
-                SwitchHeader_getMessageType(&ctrl->content.error.cause))
-            {
+            if (SwitchHeader_isV7Ctrl(&ctrl->content.error.cause)) {
                 isCtrlCause = true;
-            } else if (SwitchHeader_TYPE_DATA <
-                SwitchHeader_getMessageType(&ctrl->content.error.cause))
-            {
+            } else {
         #endif
         if (ctrl->content.error.causeHandle == 0xffffffff) {
             isCtrlCause = true;
@@ -1110,8 +1106,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     switchHeader->label_be = Bits_bitReverse64(switchHeader->label_be);
 
     #ifdef Version_7_COMPAT
-    // The v7 method of signaling that a packet is a ctrl packet...
-    if (SwitchHeader_getSuppressErrors(switchHeader) && !SwitchHeader_getCongestion(switchHeader)) {
+    if (SwitchHeader_isV7Ctrl(switchHeader)) {
         return handleControlMessage(context, message, switchHeader, switchIf, false);
     }
     #endif
