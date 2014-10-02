@@ -38,6 +38,11 @@
  *                        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  *                        | Exponent  |       Penalty Mantissa        |
  *                        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+ *                                    Penalty Breakdown (See PenaltyFloat.h)
+ *                        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *                        |labelShift |     exp   |   Mantissa        |
+ *                        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  *
  * Versions <= 7 byte number 8 is message type but the only 2 defined types were 0 (data)
  * and 1 (control).
