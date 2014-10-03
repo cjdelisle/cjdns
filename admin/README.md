@@ -17,7 +17,7 @@ back a bencoded response.
     echo -n 'd1:q4:pinge' | nc6 -u -t 1 -n -w3 127.0.0.1 11234
 
 If you are more comfortable writing json then benc, you can use benc2json in reverse mode to
-preprocess your message.
+preprocess your message. **Note**: benc2json has been removed in 2821c81d49 to speed up the build.
 
     echo '{ "q": "ping" }' | ./build/benc2json -r
 
