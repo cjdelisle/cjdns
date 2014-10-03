@@ -184,6 +184,7 @@ allows you to call cjdns functions from shell scripts or the command line as fol
     AuthorizedPasswords_remove(user)
     Core_exit()
     Core_initTunnel(desiredTunName=0)
+    Core_pid()
     ETHInterface_beacon(interfaceNumber='', state='')
     ETHInterface_beginConnection(publicKey, macAddress, interfaceNumber='', password=0)
     ETHInterface_new(bindDevice)
