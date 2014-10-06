@@ -19,14 +19,8 @@
  *                     1               2               3
  *     0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
  *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *  0 |R|U|          Packed Penalty (host order)      |     cycle     |
+ *  0 |  Packed Penalty (host order)  |  size   |  timeMilliseconds   |
  *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *
- * The penalty entry contains a cycle which is based on the periodic cleanup
- * cycles that ensure that a penalty entry will not last much longer than one second.
- *
- * R is a rollover flag to use subtraction in order to determine which value is larger.
- * U is unused :)
  */
 
 #define ENTRY_COUNT 1024
@@ -35,16 +29,47 @@ struct Penalty_pvt
 {
     struct Penalty pub;
     struct Timeout* maintanenceTimeout;
+    uint32_t unpenalizedKbps;
     uint8_t currentCycle;
     int lastReplaced;
     uint32_t entries[ENTRY_COUNT];
+    
     Identity
 };
 
-uint32_t Penalty_handlePacket(struct Penalty* penalty, uint32_t currentPackedPenalty)
+#define EXPIRE_AFTER_MILLISECONDS 1024
+
+#define PENALTY_TIME(penaltyEntry) ((penaltyEntry) << 21 >> 21)
+
+#define UNPENALIZED_PPS 1024
+
+static uint32_t createPenaltyEntry(uint16_t packedPenalty, uint32_t timeMilliseconds)
+{
+    return PENALTY_TIME(timeMilliseconds) | (((uint32_t)packedPenalty) << 15);
+}
+
+static bool isOlderThan(uint32_t penaltyEntry, uint32_t milliseconds)
+{
+    return PENALTY_TIME(penaltyEntry) < PENALTY_TIME(milliseconds);
+}
+
+void Penalty_apply(struct Penalty* penalty, struct SwitchHeader* switchHeader, int messageLen)
+{
+    if (penalty)
+}
+
+uint32_t Penalty_handlePacket(struct Penalty* penalty,
+                              uint32_t currentPackedPenalty,
+                              int messageLength)
 {
     struct Penalty_pvt* p = Identity_check((struct Penalty_pvt*) penalty);
+    uint32_t now = Time_currentTimeMilliseconds(p->eventBase);
     uint64_t unpackedPenalty = PenaltyFloat_unpack(currentPackedPenalty);
+    uint32_t newPenaltyEntry =
+        (PenaltyFloat_pack(unpackedPenalty) << 16) |
+        (((messageLength / 128) & ((1<<5)-1)) << 11) |
+        (now & ((1<<11)-1));
+
     currentPackedPenalty <<= 8;
     for (int i = 0; i < ENTRY_COUNT; i++) {
         // greater-than-or-equal-to without invoking a branch
@@ -59,14 +84,14 @@ uint32_t Penalty_handlePacket(struct Penalty* penalty, uint32_t currentPackedPen
 void maintanence(void* vPenalty)
 {
     struct Penalty_pvt* p = Identity_check((struct Penalty_pvt*) vPenalty);
-    p->currentCycle++;
+    uint32_t now = Time_currentTimeMilliseconds(p->eventBase);
+    uint32_t tooOld = PENALTY_TIME(now - EXPIRE_AFTER_MILLISECONDS);
+    now = PENALTY_TIME(now);
+
     for (int i = 0; i < ENTRY_COUNT; i++) {
-        uint8_t ecycle = p->entries[i] & 0xff;
-        if (++ecycle != p->currentCycle &&
-            ++ecycle != p->currentCycle &&
-            ++ecycle != p->currentCycle)
-        {
-            p->entries[i] = 0x3fffff00 | p->currentCycle;
+        if (PENALTY_TIME(p->entries[i]) < tooOld) {
+            // set to max penalty.
+            p->entries[i] = (PenaltyFloat_MAX << 15) | now;
         }
     }
 }
@@ -74,5 +99,5 @@ void maintanence(void* vPenalty)
 struct Penalty* Penalty_new(struct Allocator* alloc, struct EventBase* base)
 {
     struct Penalty_pvt* p = Allocator_calloc(alloc, sizeof(struct Penalty_pvt), 1);
-    p->maintanenceTimeout = Timeout_setInterval(maintanence, p, 250, base, alloc);
+    p->maintanenceTimeout = Timeout_setInterval(maintanence, p, 1024, base, alloc);
 }

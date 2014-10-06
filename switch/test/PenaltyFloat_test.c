@@ -31,6 +31,7 @@ static void packUnpack(struct Random* rand)
         Assert_true(c1 == c2);
         Assert_true(p1 == p2);
     }
+    Assert_true(PenaltyFloat_MAX == PenaltyFloat_pack(UINT64_MAX));
 }
 
 int main()
