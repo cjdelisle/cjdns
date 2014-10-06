@@ -25,7 +25,7 @@
  *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  */
 
-#define PenaltyFloat_MAX 0xffff
+#define PenaltyFloat_MAX 0xdbff
 
 static inline uint64_t PenaltyFloat_unpack(uint16_t penalty)
 {
@@ -39,7 +39,7 @@ static inline uint64_t PenaltyFloat_unpack(uint16_t penalty)
  */
 static inline uint16_t PenaltyFloat_pack(uint64_t penalty)
 {
-    int shift = Bits_log2x64(penalty) - 15;
+    int shift = Bits_log2x64(penalty) - 9;
     if (shift <= 0) { return penalty; }
     return (shift << 10) | (penalty >> shift);
 }

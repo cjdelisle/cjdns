@@ -18,6 +18,7 @@
 #include "interface/Interface.h"
 #include "util/log/Log.h"
 #include "wire/Message.h"
+#include "util/events/EventBase.h"
 #include "util/Linker.h"
 Linker_require("switch/SwitchCore.c")
 
@@ -32,7 +33,9 @@ struct SwitchCore;
  * @param logger what to log output to.
  * @param allocator the memory allocator to use for allocating the core context and interfaces.
  */
-struct SwitchCore* SwitchCore_new(struct Log* logger, struct Allocator* allocator);
+struct SwitchCore* SwitchCore_new(struct Log* logger,
+                                  struct Allocator* allocator,
+                                  struct EventBase* base);
 
 /**
  * Register a new interface.

@@ -17,6 +17,7 @@
 #include "util/log/Log.h"
 #include "switch/SwitchCore.h"
 #include "switch/NumberCompress.h"
+#include "switch/Penalty.h"
 #include "util/Bits.h"
 #include "util/Checksum.h"
 #include "util/Endian.h"
@@ -38,6 +39,8 @@ struct SwitchInterface
     struct Penalty* penalty;
 
     struct Allocator_OnFreeJob* onFree;
+
+    Identity
 };
 
 struct SwitchCore
@@ -46,16 +49,20 @@ struct SwitchCore
     uint32_t interfaceCount;
     bool routerAdded;
     struct Log* logger;
+    struct EventBase* eventBase;
 
     struct Allocator* allocator;
 };
 
-struct SwitchCore* SwitchCore_new(struct Log* logger, struct Allocator* allocator)
+struct SwitchCore* SwitchCore_new(struct Log* logger,
+                                  struct Allocator* allocator,
+                                  struct EventBase* base)
 {
     struct SwitchCore* core = Allocator_calloc(allocator, sizeof(struct SwitchCore), 1);
     core->allocator = allocator;
     core->interfaceCount = 0;
     core->logger = logger;
+    core->eventBase = base;
     return core;
 }
 
@@ -198,7 +205,8 @@ static inline void sendError(struct SwitchInterface* iface,
 /** This never returns an error, it sends an error packet instead. */
 static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
 {
-    struct SwitchInterface* sourceIf = (struct SwitchInterface*) iface->receiverContext;
+    struct SwitchInterface* sourceIf =
+        Identity_check((struct SwitchInterface*) iface->receiverContext);
 
     if (message->length < SwitchHeader_SIZE) {
         Log_debug(sourceIf->core->logger, "DROP runt packet.");
@@ -312,7 +320,7 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
         return Error_NONE;
     }
     SwitchHeader_setLabelShift(header, labelShift);
-    Penalty_apply(sourceIf->penalty, header, message->length, );
+    Penalty_apply(sourceIf->penalty, header, message->length);
 
     const uint16_t err = sendMessage(&core->interfaces[destIndex], message, sourceIf->core->logger);
     if (err) {
@@ -335,15 +343,15 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
 
 static int removeInterface(struct Allocator_OnFreeJob* job)
 {
-    struct SwitchInterface* si = (struct SwitchInterface*) job->userData;
+    struct SwitchInterface* si = Identity_check((struct SwitchInterface*) job->userData);
     Bits_memset(si, 0, sizeof(struct SwitchInterface));
     return 0;
 }
 
 void SwitchCore_swapInterfaces(struct Interface* if1, struct Interface* if2)
 {
-    struct SwitchInterface* si1 = (struct SwitchInterface*) if1->receiverContext;
-    struct SwitchInterface* si2 = (struct SwitchInterface*) if2->receiverContext;
+    struct SwitchInterface* si1 = Identity_check((struct SwitchInterface*) if1->receiverContext);
+    struct SwitchInterface* si2 = Identity_check((struct SwitchInterface*) if2->receiverContext);
 
     Assert_true(Allocator_cancelOnFree(si1->onFree) > -1);
     Assert_true(Allocator_cancelOnFree(si2->onFree) > -1);
@@ -400,7 +408,9 @@ int SwitchCore_addInterface(struct Interface* iface,
         .core = core
     }), sizeof(struct SwitchInterface));
 
+    newIf->penalty = Penalty_new(iface->allocator, core->eventBase);
     newIf->onFree = Allocator_onFree(iface->allocator, removeInterface, newIf);
+    Identity_set(newIf);
 
     iface->receiverContext = &core->interfaces[ifIndex];
     iface->receiveMessage = receiveMessage;
@@ -420,6 +430,8 @@ int SwitchCore_setRouterInterface(struct Interface* iface, struct SwitchCore* co
         .core = core
     }), sizeof(struct SwitchInterface));
 
+    Identity_set(&core->interfaces[1]);
+    core->interfaces[1].penalty = Penalty_new(iface->allocator, core->eventBase);
     iface->receiverContext = &core->interfaces[1];
     iface->receiveMessage = receiveMessage;
     core->interfaceCount++;

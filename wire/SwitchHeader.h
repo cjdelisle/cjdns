@@ -20,6 +20,7 @@
 #include "util/version/Version.h"
 
 #include <stdint.h>
+#include <stdbool.h>
 
 /**
  * The header which switches use to decide where to route traffic.

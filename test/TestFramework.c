@@ -113,7 +113,7 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
     Bits_memcpyConst(myAddress->key, publicKey, 32);
     AddressCalc_addressForPublicKey(myAddress->ip6.bytes, publicKey);
 
-    struct SwitchCore* switchCore = SwitchCore_new(logger, allocator);
+    struct SwitchCore* switchCore = SwitchCore_new(logger, allocator, base);
     struct CryptoAuth* ca = CryptoAuth_new(allocator, (uint8_t*)privateKey, base, logger, rand);
 
     struct DHTModuleRegistry* registry = DHTModuleRegistry_new(allocator);

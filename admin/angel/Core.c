@@ -368,7 +368,7 @@ void Core_init(struct Allocator* alloc,
 
     struct Sockaddr* myAddr = Sockaddr_fromBytes(addr.ip6.bytes, Sockaddr_AF_INET6, alloc);
 
-    struct SwitchCore* switchCore = SwitchCore_new(logger, alloc);
+    struct SwitchCore* switchCore = SwitchCore_new(logger, alloc, eventBase);
     struct DHTModuleRegistry* registry = DHTModuleRegistry_new(alloc);
     ReplyModule_register(registry, alloc);
 

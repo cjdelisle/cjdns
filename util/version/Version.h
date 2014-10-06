@@ -245,14 +245,23 @@ Version_COMPAT(9, ([5,6,7,8]))
  */
 Version_COMPAT(10, ([7,8,9]))
 
+/*
+ * Version 11:
+ * October 7, 2014
+ *
+ * New QoS system and changes to SwitchHeader structure, see SwitchHeader.h
+ */
+Version_COMPAT(11, ([7,8,9,10]))
+
 /**
  * The current protocol version.
  */
-#define Version_CURRENT_PROTOCOL 10
+#define Version_CURRENT_PROTOCOL 11
 #define Version_7_COMPAT
 #define Version_8_COMPAT
 #define Version_9_COMPAT
 #define Version_10_COMPAT
+#define Version_11_COMPAT
 
 #define Version_MINIMUM_COMPATIBLE 7
 #define Version_DEFAULT_ASSUMPTION 7
