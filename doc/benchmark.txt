@@ -1499,3 +1499,67 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
 linaro@linaro-ubuntu-desktop:~/cjdns/cjdns-master$$ git log | head -1
 commit 9a3db93cd3ea5b3583ecc3b741518dd0e6ec8764
+
+
+
+
+
+
+
+
+
+here you have a new benchmark. It's this cheap ADSL router:
+http://wiki.openwrt.org/toh/comtrend/ar5387un
+
+The cjdns code is as e9bcb0f9f06870d6f4904149e1c15eca09c7ed8a
+(That's mentioned in the meshbox thing I used in openwrt to build it:
+https://github.com/SeattleMeshnet/meshbox/blob/master/cjdns/Makefile )
+
+The results (better than my 1.2GHz ARM Sheevaplug!):
+-------------------
+1412636955 INFO RandomSeed.c:42 Attempting to seed random number generator
+1412636955 INFO RandomSeed.c:50 Trying random seed [/dev/urandom] Success
+1412636955 INFO RandomSeed.c:56 Trying random seed [sysctl(RANDOM_UUID) (Linux)] Failed
+1412636955 INFO RandomSeed.c:50 Trying random seed [/proc/sys/kernel/random/uuid (Linux)] Success
+1412636955 INFO RandomSeed.c:64 Seeding random number generator succeeded with [2] sources
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+Test sending 1000 64 byte       hello packets
+        Finished in 10645ms. 48 Kb/s
+
+Test sending 1000 1500 byte     hello packets
+        Finished in 11206ms. 1070 Kb/s
+
+Test sending 1000 64 byte       key packets
+        Finished in 10600ms. 48 Kb/s
+
+Test sending 1000 1500 byte     key packets
+        Finished in 11243ms. 1067 Kb/s
+
+Test sending 100000 64 byte     data packets
+        Finished in 9632ms. 5315 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput:
+Test sending 100000 1500 byte   data packets
+        Finished in 70792ms. 16951 Kb/s
+
+                                                             
+/proc/cpuinfo:                                               
+system type             : bcm63xx/96328A-1441N1 (0x6328/0xB0)
+machine                 : Comtrend AR-5387un     
+processor               : 0                      
+cpu model               : Broadcom BMIPS4350 V7.5
+BogoMIPS                : 319.74
+wait instruction        : yes
+microsecond timers      : yes
+tlb_entries             : 32 
+extra interrupt vector  : yes                 
+hardware watchpoint     : no                  
+isa                     : mips1 mips2 mips32r1
+ASEs implemented        :  
+shadow register sets    : 1
+kscratch registers      : 0            
+core                    : 0            
+VCED exceptions         : not available
+VCEI exceptions         : not available
+-------------------
