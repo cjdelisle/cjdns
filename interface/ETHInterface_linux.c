@@ -48,7 +48,7 @@
 // 2 last 0x00 of .sll_addr are removed from original size (20)
 #define SOCKADDR_LL_LEN 18
 
-/** Wait 16 seconds between sending beacon messages. */
+/** Wait 32 seconds between sending beacon messages. */
 #define BEACON_INTERVAL 32768
 
 struct ETHInterface
@@ -77,6 +77,8 @@ struct ETHInterface
      * This will prevent new eth frames from being confused with old frames from an expired session.
      */
     uint16_t id;
+
+    String* ifName;
 
     Identity
 };
@@ -127,8 +129,8 @@ static uint8_t sendMessage(struct Message* message, struct Interface* ethIf)
                 return Error_LINK_LIMIT_EXCEEDED;
 
             default:;
-                Log_info(context->logger, "Got error sending to socket [%s]",
-                         strerror(errno));
+                Log_info(context->logger, "[%s] Got error sending to socket [%s]",
+                         context->ifName->bytes, strerror(errno));
         }
     }
     return 0;
@@ -138,7 +140,8 @@ static void handleBeacon(struct Message* msg, struct ETHInterface* context)
 {
     if (!context->beaconState) {
         // accepting beacons disabled.
-        Log_debug(context->logger, "Dropping beacon because beaconing is disabled");
+        Log_debug(context->logger, "[%s] Dropping beacon because beaconing is disabled",
+                  context->ifName->bytes);
         return;
     }
 
@@ -147,8 +150,8 @@ static void handleBeacon(struct Message* msg, struct ETHInterface* context)
     Message_pop(msg, addr.sll_addr, 8, NULL);
     if (msg->length < Headers_Beacon_SIZE) {
         // Oversize messages are ok because beacons may contain more information in the future.
-        Log_debug(context->logger, "Dropping wrong size beacon, expected [%d] got [%d]",
-                  Headers_Beacon_SIZE, msg->length);
+        Log_debug(context->logger, "[%s] Dropping wrong size beacon, expected [%d] got [%d]",
+                  context->ifName->bytes, Headers_Beacon_SIZE, msg->length);
         return;
     }
     struct Headers_Beacon* beacon = (struct Headers_Beacon*) msg->bytes;
@@ -158,9 +161,9 @@ static void handleBeacon(struct Message* msg, struct ETHInterface* context)
         #ifdef Log_DEBUG
             uint8_t mac[18];
             AddrTools_printMac(mac, addr.sll_addr);
-            Log_debug(context->logger, "Dropped beacon from [%s] which was version [%d] "
+            Log_debug(context->logger, "[%s] Dropped beacon from [%s] which was version [%d] "
                       "our version is [%d] making them incompatable",
-                      mac, theirVersion, Version_CURRENT_PROTOCOL);
+                      context->ifName->bytes, mac, theirVersion, Version_CURRENT_PROTOCOL);
         #endif
         return;
     }
@@ -168,7 +171,7 @@ static void handleBeacon(struct Message* msg, struct ETHInterface* context)
     #ifdef Log_DEBUG
         uint8_t mac[18];
         AddrTools_printMac(mac, addr.sll_addr);
-        Log_debug(context->logger, "Got beacon from [%s]", mac);
+        Log_debug(context->logger, "[%s] Got beacon from [%s]", context->ifName->bytes, mac);
     #endif
 
     String passStr = { .bytes = (char*) beacon->password, .len = Headers_Beacon_PASSWORD_LEN };
@@ -182,17 +185,22 @@ static void handleBeacon(struct Message* msg, struct ETHInterface* context)
     if (ret != 0) {
         uint8_t mac[18];
         AddrTools_printMac(mac, addr.sll_addr);
-        Log_info(context->logger, "Got beacon from [%s] and registerPeer returned [%d]", mac, ret);
+        Log_info(context->logger, "[%s] Got beacon from [%s] and registerPeer returned [%d]",
+                 context->ifName->bytes, mac, ret);
     }
 }
 
 static void sendBeacon(void* vcontext)
 {
     struct ETHInterface* context = Identity_check((struct ETHInterface*) vcontext);
+
     if (context->beaconState != ETHInterface_beacon_ACCEPTING_AND_SENDING) {
+        Log_debug(context->logger, "sendBeacon(%s) -> beaconing disabled", context->ifName->bytes);
         // beaconing disabled
         return;
     }
+
+    Log_debug(context->logger, "sendBeacon(%s)", context->ifName->bytes);
 
     struct {
         struct sockaddr_ll addr;
@@ -339,6 +347,7 @@ struct ETHInterface* ETHInterface_new(struct EventBase* base,
         Except_throw(exHandler, "call to socket() failed. [%s]", strerror(errno));
     }
     CString_strncpy(ifr.ifr_name, bindDevice, IFNAMSIZ - 1);
+    context->ifName = String_new(bindDevice, allocator);
 
     if (ioctl(context->socket, SIOCGIFINDEX, &ifr) == -1) {
         Except_throw(exHandler, "failed to find interface index [%s]", strerror(errno));
