@@ -1,5 +1,7 @@
 # cjdns
 
+## ABANDONED - This version is no longer in use and bug reports will be closed.
+
 Русская версия Readme: [README_RU.md](README_RU.md)
 
 #### *Networking Reinvented*
