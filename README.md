@@ -1,5 +1,7 @@
 # cjdns
 
+## ABANDONED - This version is no longer in use and bug reports will be closed.
+
 [![Build Status](https://travis-ci.org/cjdelisle/cjdns.png?branch=master)](https://travis-ci.org/cjdelisle/cjdns)
 
 Encrypted networking for regular people.
