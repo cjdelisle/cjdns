@@ -17,7 +17,7 @@ back a bencoded response.
     echo -n 'd1:q4:pinge' | nc6 -u -t 1 -n -w3 127.0.0.1 11234
 
 If you are more comfortable writing json then benc, you can use benc2json in reverse mode to
-preprocess your message.
+preprocess your message. **Note**: benc2json has been removed in 2821c81d49 to speed up the build.
 
     echo '{ "q": "ping" }' | ./build/benc2json -r
 
@@ -177,13 +177,14 @@ allows you to call cjdns functions from shell scripts or the command line as fol
     user@ubnta8:~/wrk/cjdns$ ./contrib/python/cexec 'functions()' | sort
     Admin_asyncEnabled()
     Admin_availableFunctions(page='')
-    AdminLog_subscribe(line='', file=0, level=0)
-    AdminLog_unsubscribe(streamId)
-    AuthorizedPasswords_add(password, user, authType='')
+    Allocator_bytesAllocated()
+    Allocator_snapshot(includeAllocations='')
+    AuthorizedPasswords_add(password, user, authType='', ipv6=0)
     AuthorizedPasswords_list()
     AuthorizedPasswords_remove(user)
     Core_exit()
     Core_initTunnel(desiredTunName=0)
+    Core_pid()
     ETHInterface_beacon(interfaceNumber='', state='')
     ETHInterface_beginConnection(publicKey, macAddress, interfaceNumber='', password=0)
     ETHInterface_new(bindDevice)
@@ -196,12 +197,24 @@ allows you to call cjdns functions from shell scripts or the command line as fol
     IpTunnel_showConnection(connection)
     memory()
     NodeStore_dumpTable(page)
+    NodeStore_getLink(parent, linkNum)
+    NodeStore_getRouteLabel(pathParentToChild, pathToParent)
+    NodeStore_nodeForAddr(ip=0)
     ping()
+    RainflyClient_addKey(ident)
+    RainflyClient_addServer(addr)
+    RainflyClient_minSignatures(count)
+    RouterModule_findNode(nodeToQuery, target, timeout='')
+    RouterModule_getPeers(path, nearbyPath=0, timeout='')
     RouterModule_lookup(address)
     RouterModule_pingNode(path, timeout='')
-    Security_noFiles()
+    SearchRunner_showActiveSearch(number)
+    Security_checkPermissions()
+    Security_dropPermissions()
     Security_setUser(user)
-    SwitchPinger_ping(path, data=0, timeout='')
+    SessionManager_getHandles(page='')
+    SessionManager_sessionStats(handle)
+    SwitchPinger_ping(path, data=0, keyPing='', timeout='')
     UDPInterface_beginConnection(publicKey, address, interfaceNumber='', password=0)
     UDPInterface_new(bindAddress=0)
 

@@ -137,6 +137,13 @@ static void adminPing(Dict* input, void* vadmin, String* txid, struct Allocator*
     Admin_sendMessage(&d, txid, (struct Admin*) vadmin);
 }
 
+static void adminPid(Dict* input, void* vadmin, String* txid, struct Allocator* requestAlloc)
+{
+    int pid = getpid();
+    Dict d = Dict_CONST(String_CONST("pid"), Int_OBJ(pid), NULL);
+    Admin_sendMessage(&d, txid, (struct Admin*) vadmin);
+}
+
 struct Context
 {
     struct Allocator* allocator;
@@ -469,8 +476,9 @@ void Core_init(struct Allocator* alloc,
         .base = eventBase,
     }));
     Admin_registerFunction("Core_exit", adminExit, ctx, true, NULL, admin);
-}
 
+    Admin_registerFunction("Core_pid", adminPid, admin, false, NULL, admin);
+}
 
 int Core_main(int argc, char** argv)
 {
