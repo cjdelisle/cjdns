@@ -374,4 +374,10 @@ Builder.configure({
     console.log('\033[1;31mFailed to build cjdns.\033[0m');
     process.exit(1);
 
+}).complete(function (builder, waitFor) {
+
+    if (builder.failure) {
+        process.exit(1);
+    }
+
 });
