@@ -140,6 +140,8 @@ int main(int argc, char** argv)
     #ifdef win32
         Assert_true(CString_strstr(path, ":\\") == path + 1); /* C:\ */
         Assert_true(CString_strstr(path, ".exe"));
+    #elif openbsd
+        Assert_true(path[0] == 'b'); // Process_getPath returns relative paths on openbsd
     #else
         Assert_true(path[0] == '/');
     #endif
