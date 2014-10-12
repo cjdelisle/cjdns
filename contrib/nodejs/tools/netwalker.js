@@ -28,10 +28,12 @@ var print = function (map) {
         if (!entry || done.indexOf(key) > -1) { return; }
         done.push(key);
         console.log(spaces + id);
-        for (var i = 0; i < entry.peers.length; i++) {
-            var k = getKey(entry.peers[i]);
-            if (k === key || map[k].bestParent != key) { continue; }
-            p(k, entry.peers[i], spaces + '  ');
+        if (typeof(entry.peers) !== 'undefined') {
+            for (var i = 0; i < entry.peers.length; i++) {
+                var k = getKey(entry.peers[i]);
+                if (k === key || map[k].bestParent != key) { continue; }
+                p(k, entry.peers[i], spaces + '  ');
+            }
         }
     };
     p(getKey(map.selfNode), map.selfNode, '')
