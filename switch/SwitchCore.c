@@ -300,12 +300,6 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
     uint64_t sourceLabel = Bits_bitReverse64(NumberCompress_getCompressed(sourceIndex, bits));
     uint64_t targetLabel = (label >> bits) | sourceLabel;
 
-    /* Too much noise.
-    Log_debug(sourceIf->core->logger,
-               "Forwarding packet ([%u] to [%u]), labels [0x%016" PRIx64 "] -> [0x%016" PRIx64 "]",
-               sourceIndex, destIndex, label, targetLabel);
-    */
-
     int cloneLength = (message->length < Control_Error_MAX_SIZE) ?
         message->length : Control_Error_MAX_SIZE;
     uint8_t messageClone[Control_Error_MAX_SIZE];
@@ -408,7 +402,7 @@ int SwitchCore_addInterface(struct Interface* iface,
         .core = core
     }), sizeof(struct SwitchInterface));
 
-    newIf->penalty = Penalty_new(iface->allocator, core->eventBase);
+    newIf->penalty = Penalty_new(iface->allocator, core->eventBase, core->logger);
     newIf->onFree = Allocator_onFree(iface->allocator, removeInterface, newIf);
     Identity_set(newIf);
 
@@ -431,7 +425,7 @@ int SwitchCore_setRouterInterface(struct Interface* iface, struct SwitchCore* co
     }), sizeof(struct SwitchInterface));
 
     Identity_set(&core->interfaces[1]);
-    core->interfaces[1].penalty = Penalty_new(iface->allocator, core->eventBase);
+    core->interfaces[1].penalty = Penalty_new(iface->allocator, core->eventBase, core->logger);
     iface->receiverContext = &core->interfaces[1];
     iface->receiveMessage = receiveMessage;
     core->interfaceCount++;

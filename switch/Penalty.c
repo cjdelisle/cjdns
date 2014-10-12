@@ -17,6 +17,7 @@
 #include "switch/PenaltyFloat.h"
 #include "util/events/Time.h"
 #include "util/events/Timeout.h"
+#include "util/log/Log.h"
 
 /**
  * Penalty entry
@@ -35,6 +36,7 @@ struct Penalty_pvt
     struct Penalty pub;
     struct Timeout* maintanenceTimeout;
     struct EventBase* eventBase;
+    struct Log* log;
     int lastReplaced;
     uint32_t entries[ENTRY_COUNT];
     Identity
@@ -67,7 +69,14 @@ static uint16_t handlePacket(struct Penalty_pvt* p,
     p->entries[p->lastReplaced] = newPenaltyEntry;
 
     uint16_t newPackedPenalty = PenaltyFloat_pack(unpackedPenalty);
-    if (newPackedPenalty > currentPackedPenalty) { return newPackedPenalty; }
+    if (newPackedPenalty > currentPackedPenalty) {
+        /* Per packet logging...
+        Log_debug(p->log, "Adjusting penalty [%016llx] -> [%016llx]",
+                  (long long)PenaltyFloat_unpack((uint16_t)currentPackedPenalty),
+                  (long long)unpackedPenalty);
+        */
+        return newPackedPenalty;
+    }
     return (uint16_t)currentPackedPenalty;
 }
 
@@ -93,11 +102,12 @@ static void maintanence(void* vPenalty)
     }
 }
 
-struct Penalty* Penalty_new(struct Allocator* alloc, struct EventBase* base)
+struct Penalty* Penalty_new(struct Allocator* alloc, struct EventBase* base, struct Log* log)
 {
     struct Penalty_pvt* p = Allocator_calloc(alloc, sizeof(struct Penalty_pvt), 1);
     p->eventBase = base;
     p->maintanenceTimeout = Timeout_setInterval(maintanence, p, 1024, base, alloc);
+    p->log = log;
     Identity_set(p);
     uint32_t now = Time_currentTimeMilliseconds(p->eventBase);
     for (int i = 0; i < ENTRY_COUNT; i++) {

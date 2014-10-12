@@ -18,6 +18,7 @@
 #include "wire/SwitchHeader.h"
 #include "memory/Allocator.h"
 #include "util/events/EventBase.h"
+#include "util/log/Log.h"
 #include "util/Linker.h"
 Linker_require("switch/Penalty.c")
 
@@ -27,6 +28,6 @@ struct Penalty
 };
 
 void Penalty_apply(struct Penalty* penalty, struct SwitchHeader* switchHeader, int messageLen);
-struct Penalty* Penalty_new(struct Allocator* alloc, struct EventBase* base);
+struct Penalty* Penalty_new(struct Allocator* alloc, struct EventBase* base, struct Log* log);
 
 #endif
