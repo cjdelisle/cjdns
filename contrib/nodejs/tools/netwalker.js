@@ -28,10 +28,12 @@ var print = function (map) {
         if (!entry || done.indexOf(key) > -1) { return; }
         done.push(key);
         console.log(spaces + id);
-        for (var i = 0; i < entry.peers.length; i++) {
-            var k = getKey(entry.peers[i]);
-            if (k === key || map[k].bestParent != key) { continue; }
-            p(k, entry.peers[i], spaces + '  ');
+        if (typeof(entry.peers) !== 'undefined') {
+            for (var i = 0; i < entry.peers.length; i++) {
+                var k = getKey(entry.peers[i]);
+                if (k === key || map[k].bestParent != key) { continue; }
+                p(k, entry.peers[i], spaces + '  ');
+            }
         }
     };
     p(getKey(map.selfNode), map.selfNode, '')
@@ -64,8 +66,8 @@ Cjdns.connectWithAdminInfo(function (cjdns) {
             var key = getKey(addr);
             cjdns.RouterModule_getPeers(addr, 200, waitFor(function (err, ret) {
                 if (err) { throw err; }
-console.log(addr + ' -> ' + JSON.stringify(ret, null, '  '));
-if (typeof(ret.peers) === 'undefined') { return; }
+                console.log(addr + ' -> ' + JSON.stringify(ret, null, '  '));
+                if (typeof(ret.peers) === 'undefined') { return; }
                 if (ret.error !== 'none') { throw new Error(ret.error); }
                 for (var i = 0; i < ret.peers.length; i++) {
                     var ckey = getKey(ret.peers[i]);
@@ -74,7 +76,7 @@ if (typeof(ret.peers) === 'undefined') { return; }
                         queried.push(ckey);
                         again(ret.peers[i]);
                     }
-//console.log(ret.peers[i]);
+                //console.log(ret.peers[i]);
                 }
                 (map[key] = map[key] || {}).peers = ret.peers;
             }));
