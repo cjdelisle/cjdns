@@ -839,6 +839,7 @@ var configure = module.exports.configure = function (params, configFunc) {
     var packStage = function () {};
     var successStage = function () {};
     var failureStage = function () {};
+    var invalidStage = function () {};
     var completeStage = function () {};
 
     nThen(function (waitFor) {
@@ -1002,7 +1003,7 @@ var configure = module.exports.configure = function (params, configFunc) {
                             linter(fileName, ret, waitFor(function (out, isErr) {
                                 if (isErr) {
                                     debug(out);
-                                    builder.failure = true;
+                                    builder.invalid = true;
                                 }
                             }));
                         });
@@ -1065,9 +1066,17 @@ var configure = module.exports.configure = function (params, configFunc) {
 
     }).nThen(function (waitFor) {
 
-        if (builder.failure) { return; }
+        if (builder.failure || builder.invalid) {
+            return;
+        }
 
         stage(successStage, builder, waitFor);
+
+    }).nThen(function (waitFor) {
+
+        if (!builder.invalid) { return; }
+
+        stage(invalidStage, builder, waitFor);
 
     }).nThen(function (waitFor) {
 
@@ -1086,6 +1095,7 @@ var configure = module.exports.configure = function (params, configFunc) {
         test:     function (x) { testStage = x;     return out; },
         pack:     function (x) { packStage = x;     return out; },
         failure:  function (x) { failureStage = x;  return out; },
+        invalid:  function (x) { invalidStage = x;  return out; },
         success:  function (x) { successStage = x;  return out; },
         complete: function (x) { completeStage = x; return out; },
     };

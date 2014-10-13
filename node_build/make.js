@@ -374,10 +374,16 @@ Builder.configure({
     console.log('\033[1;31mFailed to build cjdns.\033[0m');
     process.exit(1);
 
+}).invalid(function (builder, waitFor) {
+
+    console.log('\033[1;33mBuild compiled successfully but there was some errors.\033[0m');
+
 }).complete(function (builder, waitFor) {
 
     if (builder.failure) {
         process.exit(1);
+    } else if (builder.invalid) {
+        process.exit(2);
     }
 
 });
