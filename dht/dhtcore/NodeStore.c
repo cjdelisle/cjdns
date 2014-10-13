@@ -1199,22 +1199,21 @@ static struct Node_Two* whichIsWorse(struct Node_Two* one,
     return two;
 }
 
-static bool markBestNodes(struct NodeStore_pvt* store,
-                          struct Address* targetAddress,
-                          const uint32_t count)
+struct NodeList* NodeStore_getNodesForBucket(struct NodeStore* nodeStore,
+                                             struct Allocator* allocator,
+                                             uint16_t bucket,
+                                             const uint32_t count)
 {
-    struct Allocator* nodeListAlloc = Allocator_child(store->alloc);
-    struct NodeList* nodeList = Allocator_malloc(nodeListAlloc, sizeof(struct NodeList));
-    nodeList->nodes = Allocator_calloc(nodeListAlloc, count, sizeof(char*));
+    struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
+    struct NodeList* nodeList = Allocator_malloc(allocator, sizeof(struct NodeList));
+    nodeList->nodes = Allocator_calloc(allocator, count, sizeof(char*));
     nodeList->size = 0;
-
     struct Node_Two* nn = NULL;
     RB_FOREACH(nn, NodeRBTree, &store->nodeTree) {
-        if (Address_closest(targetAddress, store->pub.selfAddress, &nn->address) > 0) {
-            // This node is closer to the destination than we are.
+        if (NodeStore_bucketForAddr(store->pub.selfAddress, &nn->address) == bucket) {
             struct Node_Two* newNode = nn;
             struct Node_Two* tempNode = NULL;
-            for (uint32_t i = 0 ; i < count ; i++) {
+            for (uint32_t i = 0 ; i <= count ; i++) {
                 if (nodeList->size < i+1) {
                     // The list isn't full yet, so insert at the end.
                     nodeList->size = i+1;
@@ -1226,7 +1225,7 @@ static bool markBestNodes(struct NodeStore_pvt* store,
                     // If we've already marked nodes because they're a bestParent,
                     // lets give them priority in the bucket since we need to keep
                     // them either way.
-                    // Otherwise, highest reach wins.
+                    // Otherwise, decide based on whichIsWorse().
                     // Insertion sorted list.
                     tempNode = nodeList->nodes[i];
                     nodeList->nodes[i] = newNode;
@@ -1235,7 +1234,18 @@ static bool markBestNodes(struct NodeStore_pvt* store,
             }
         }
     }
+    return nodeList;
+}
 
+static bool markNodesForBucket(struct NodeStore_pvt* store,
+                          uint16_t bucket,
+                          const uint32_t count)
+{
+    struct Allocator* nodeListAlloc = Allocator_child(store->alloc);
+    struct NodeList* nodeList = NodeStore_getNodesForBucket(&store->pub,
+                                                            nodeListAlloc,
+                                                            bucket,
+                                                            count);
     bool retVal = false;
     if (nodeList->size > 0) { retVal = true; }
 
@@ -1253,15 +1263,8 @@ static bool markBestNodes(struct NodeStore_pvt* store,
 
 static void markKeyspaceNodes(struct NodeStore_pvt* store)
 {
-    for (uint8_t i = 0; i < NodeStore_bucketNumber ; i++) {
-        // Bitwise walk across keyspace
-        if (63 < i && i < 72) {
-            // We want to leave the 0xfc alone
-            continue;
-        }
-
-        struct Address addr = NodeStore_addrForBucket(store->pub.selfAddress, i);
-        markBestNodes(store, &addr, NodeStore_bucketSize);
+    for (uint16_t bucket = 0; bucket < NodeStore_bucketNumber ; bucket++) {
+        markNodesForBucket(store, bucket, NodeStore_bucketSize);
     }
 }
 
@@ -2135,46 +2138,50 @@ void NodeStore_pathTimeout(struct NodeStore* nodeStore, uint64_t path)
 }
 
 /* Find the address that describes the source's Nth furthest-away bucket. */
-struct Address NodeStore_addrForBucket(struct Address* source, uint8_t bucket)
+struct Address NodeStore_addrForBucket(struct Address* source, uint16_t bucket)
 {
     if (bucket >= NodeStore_bucketNumber) {
         // This does not exist.
         return *source;
 
-    } else if (63 < bucket && bucket < 72) {
-        // We want to leave the 0xfc alone
-        // We also want a RouterModule_lookup() to succeed.
-        // Lets just return the furthest possible bucket.
-        return NodeStore_addrForBucket(source, 0);
-
     } else {
-        uint8_t bit;
+        uint8_t bitmask;
         uint8_t byte;
         struct Address addr = *source;
 
-        // Figure out which bit of our address to flip for this step in keyspace.
-        // This looks ugly because of the rot64 done in distance calculations.
-        if (bucket < 64) { byte = 8 + (bucket/8); }
-        else             { byte = (bucket/8) - 8; }
-        bit = (bucket % 8);
+        // Figure out which bits of our address to flip for this step in keyspace.
+        // This looks extra ugly because of the rot64 done in distance calculations.
+        // Note: This assumes NodeStore_bucketNumber == 512
+        // (Some of those, i.e. the fc, don't actually do anything)
+        Assert_compileTime(NodeStore_bucketNumber == 512);
+        if (bucket < 256) { byte = 8 + (bucket/32); }
+        else              { byte = (bucket/32) - 8; }
 
-        addr.ip6.bytes[byte] = addr.ip6.bytes[byte] ^ (0x80 >> bit);
+        // This part is ugly because how bucket and bucket+1 relate is important.
+        bitmask = (0x0F - (bucket % 16)) << 4 >> 4*((bucket % 32) >> 4);
 
-        // Needed in case source == selfNode->address, and we want to put this in a RumorMill.
-        addr.key[0] = addr.key[0] ^ 0x80;
+        addr.ip6.bytes[byte] = addr.ip6.bytes[byte] ^ bitmask;
+
+        // Needed in case source == selfNode->address, and we may want to put this in a RumorMill.
+        //addr.key[0] = addr.key[0] ^ 0x80;
 
         // Hack, store bucket # in path, in case we need to check this.
-        addr.path = bucket;
+        //addr.path = bucket;
 
+        // Note: The other representations of the address (ints and logs) are in a union with
+        // the byte array, so I'm assuming those are safe...
         return addr;
     }
 }
 
-uint8_t NodeStore_bucketForAddr(struct Address* source, struct Address* dest)
+uint16_t NodeStore_bucketForAddr(struct Address* source, struct Address* dest)
 {
-    uint64_t partDist;
-    partDist = source->ip6.longs.one_be ^ dest->ip6.longs.one_be;
-    if (partDist) { return 63 - Bits_log2x64(partDist); }
-    partDist = source->ip6.longs.two_be ^ dest->ip6.longs.two_be;
-    return 127 - Bits_log2x64(partDist);
+    //TODO(arceliar): Write a not-terrible version of this (no need to loop).
+    for (uint16_t bucket = 0 ; bucket < NodeStore_bucketNumber; bucket++) {
+        struct Address addr = NodeStore_addrForBucket(source, bucket);
+        if (Address_closest(&addr, source, dest) > 0) {
+            return bucket;
+        }
+    }
+    return NodeStore_bucketNumber;
 }

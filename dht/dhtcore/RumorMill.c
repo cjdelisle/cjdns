@@ -86,13 +86,6 @@ void RumorMill__addNode(struct RumorMill* mill, struct Address* addr, const char
 
     Address_getPrefix(addr);
 
-    if (Defined(Log_DEBUG)) {
-        uint8_t addrStr[60];
-        Address_print(addrStr, addr);
-        Log_debug(rm->log, "[%s] addNode(%s) count[%d] from [%s:%d]",
-                           rm->name, addrStr, rm->pub.count, file, line);
-    }
-
     for (int i = 0; i < rm->pub.count; i++) {
         if (rm->addresses[i].path == addr->path &&
             !Bits_memcmp(rm->addresses[i].key, addr->key, 32))
@@ -110,6 +103,13 @@ void RumorMill__addNode(struct RumorMill* mill, struct Address* addr, const char
         replace = getWorst(rm);
     }
     Bits_memcpyConst(replace, addr, sizeof(struct Address));
+
+    if (Defined(Log_DEBUG)) {
+        uint8_t addrStr[60];
+        Address_print(addrStr, addr);
+        Log_debug(rm->log, "[%s] addNode(%s) count[%d] from [%s:%d]",
+                           rm->name, addrStr, rm->pub.count, file, line);
+    }
 }
 
 bool RumorMill_getNode(struct RumorMill* mill, struct Address* output)
