@@ -199,9 +199,13 @@ static void dhtResponseCallback(struct RouterModule_Promise* promise,
 
     struct Address* selfAddr = janitor->nodeStore->selfAddress;
     for (int i = 0; addresses && i < addresses->length; i++) {
+        if (addresses->elems[i].path == NodeStore_optimizePath_INVALID) {
+            // Impossible to ping this (label is probably too large).
+            continue;
+        }
         if (Address_closest(selfAddr, from, &addresses->elems[i]) < 0) {
             // Address is further from us than the node we asked. Skip it.
-            // Not completely sure that this is always the right thing to do.
+            // FIXME(arceliar): Probably need stronger requirements than this.
             continue;
         }
 
@@ -209,7 +213,7 @@ static void dhtResponseCallback(struct RouterModule_Promise* promise,
                                                        addresses->elems[i].path);
         if (link) {
             // We already know about this path and mill space is precious. Skip it.
-            //continue;
+            continue;
         }
 
         // Possibly interesting for dht reasons.
@@ -237,8 +241,10 @@ static void keyspaceMaintenance(struct Janitor* janitor)
                                                                     nodeListAlloc,
                                                                     bucket,
                                                                     NodeStore_bucketSize);
+            struct Address target = NodeStore_addrForBucket(selfAddr, bucket);
             for (uint32_t i = 0 ; i < nodeList->size ; i++) {
                 if (nodeList->nodes[i] == janitor->nodeStore->selfNode) { continue; }
+                Assert_true(Address_closest(&target, &nodeList->nodes[i]->address, selfAddr) < 0);
 
                 // There's a valid next hop.
                 RumorMill_addNode(janitor->dhtMill, &nodeList->nodes[i]->address);
@@ -250,8 +256,8 @@ static void keyspaceMaintenance(struct Janitor* janitor)
 
     struct Node_Two* node = NodeStore_nodeForAddr(janitor->nodeStore, addr.ip6.bytes);
     if (node && node->address.path == addr.path) {
-        uint16_t bucket = NodeStore_bucketForAddr(selfAddr, &addr);
         //FIXME(arceliar): This target probably isn't optimal.
+        uint16_t bucket = NodeStore_bucketForAddr(selfAddr, &addr);
         struct Address target = NodeStore_addrForBucket(&addr, bucket);
         struct RouterModule_Promise* rp = RouterModule_findNode(&addr,
                                                                 target.ip6.bytes,
@@ -633,7 +639,11 @@ struct Janitor* Janitor_new(uint64_t localMaintainenceMilliseconds,
 
     janitor->linkMill = RumorMill_new(alloc, nodeStore->selfAddress, 64, logger, "linkMill");
     janitor->nodeMill = RumorMill_new(alloc, nodeStore->selfAddress, 64, logger, "nodeMill");
-    janitor->dhtMill = RumorMill_new(alloc, nodeStore->selfAddress, 64, logger, "dhtMill");
+    janitor->dhtMill = RumorMill_new(alloc,
+                                     nodeStore->selfAddress,
+                                     (NodeStore_bucketNumber * NodeStore_bucketSize),
+                                     logger,
+                                     "dhtMill");
 
     janitor->timeOfNextGlobalMaintainence = Time_currentTimeMilliseconds(eventBase);
 

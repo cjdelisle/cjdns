@@ -1213,7 +1213,7 @@ struct NodeList* NodeStore_getNodesForBucket(struct NodeStore* nodeStore,
         if (NodeStore_bucketForAddr(store->pub.selfAddress, &nn->address) == bucket) {
             struct Node_Two* newNode = nn;
             struct Node_Two* tempNode = NULL;
-            for (uint32_t i = 0 ; i <= count ; i++) {
+            for (uint32_t i = 0 ; i < count ; i++) {
                 if (nodeList->size < i+1) {
                     // The list isn't full yet, so insert at the end.
                     nodeList->size = i+1;
@@ -2162,26 +2162,21 @@ struct Address NodeStore_addrForBucket(struct Address* source, uint16_t bucket)
 
         addr.ip6.bytes[byte] = addr.ip6.bytes[byte] ^ bitmask;
 
-        // Needed in case source == selfNode->address, and we may want to put this in a RumorMill.
-        //addr.key[0] = addr.key[0] ^ 0x80;
-
-        // Hack, store bucket # in path, in case we need to check this.
-        //addr.path = bucket;
-
-        // Note: The other representations of the address (ints and logs) are in a union with
-        // the byte array, so I'm assuming those are safe...
         return addr;
     }
 }
 
 uint16_t NodeStore_bucketForAddr(struct Address* source, struct Address* dest)
 {
-    //TODO(arceliar): Write a not-terrible version of this (no need to loop).
+    //TODO(arceliar): Write a less terrible version of this (no need to loop?).
+    uint16_t retVal = 0;
+    struct Address best = *source;
     for (uint16_t bucket = 0 ; bucket < NodeStore_bucketNumber; bucket++) {
         struct Address addr = NodeStore_addrForBucket(source, bucket);
-        if (Address_closest(&addr, source, dest) > 0) {
-            return bucket;
+        if (Address_closest(dest, &best, &addr) > 0) {
+            best = addr;
+            retVal = bucket;
         }
     }
-    return NodeStore_bucketNumber;
+    return retVal;
 }
