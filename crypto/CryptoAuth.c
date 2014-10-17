@@ -631,11 +631,14 @@ static uint8_t sendMessage(struct Message* message, struct Interface* interface)
 /** Call the external interface and tell it that a message has been received. */
 static inline uint8_t callReceivedMessage(struct CryptoAuth_Wrapper* wrapper,
                                           struct Message* message,
-                                          bool updateTimeOfLastPacket)
+                                          bool updateTimeOfLastPacket,
+                                          uint32_t nonce)
 {
     if (updateTimeOfLastPacket) {
         wrapper->timeOfLastPacket = Time_currentTimeSeconds(wrapper->context->eventBase);
     }
+
+    Message_push(message, &nonce, 4, NULL);
 
     uint8_t ret = 0;
     if (wrapper->externalInterface.receiveMessage != NULL) {
@@ -954,7 +957,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
     Bits_memset(&wrapper->replayProtector, 0, sizeof(struct ReplayProtector));
 
     setRequiredPadding(wrapper);
-    return callReceivedMessage(wrapper, message, false);
+    return callReceivedMessage(wrapper, message, false, nonce);
 }
 
 static uint8_t receiveMessage(struct Message* received, struct Interface* interface)
@@ -1009,7 +1012,7 @@ static uint8_t receiveMessage(struct Message* received, struct Interface* interf
                 Bits_memset(wrapper->herTempPubKey, 0, 32);
                 wrapper->established = true;
 
-                return callReceivedMessage(wrapper, received, true);
+                return callReceivedMessage(wrapper, received, true, nonce);
             }
             CryptoAuth_reset(&wrapper->externalInterface);
             cryptoAuthDebug0(wrapper, "DROP Final handshake step failed");
@@ -1022,7 +1025,7 @@ static uint8_t receiveMessage(struct Message* received, struct Interface* interf
     } else if (nonce > 3 && nonce != UINT32_MAX) {
         Assert_ifParanoid(!Bits_isZero(wrapper->sharedSecret, 32));
         if (decryptMessage(wrapper, nonce, received, wrapper->sharedSecret)) {
-            return callReceivedMessage(wrapper, received, true);
+            return callReceivedMessage(wrapper, received, true, nonce);
         } else {
             cryptoAuthDebug0(wrapper, "DROP Failed to decrypt message");
             return Error_UNDELIVERABLE;

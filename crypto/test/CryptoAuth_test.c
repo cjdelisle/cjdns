@@ -90,6 +90,7 @@ static uint8_t sendMessageToIf1(struct Message* message, struct Interface* iface
 
 static uint8_t recvMessageOnIf1(struct Message* message, struct Interface* iface)
 {
+    Message_pop(message, NULL, 4, NULL);
     if1Messages++;
     fputs("if1 got message! ", stdout);
     fwrite(message->bytes, 1, message->length, stdout);
@@ -100,6 +101,7 @@ static uint8_t recvMessageOnIf1(struct Message* message, struct Interface* iface
 
 static uint8_t recvMessageOnIf2(struct Message* message, struct Interface* iface)
 {
+    Message_pop(message, NULL, 4, NULL);
     if2Messages++;
     fputs("if2 got message! ", stdout);
     fwrite(message->bytes, 1, message->length, stdout);

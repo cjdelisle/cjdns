@@ -133,6 +133,9 @@ struct CryptoAuth* CryptoAuth_new(struct Allocator* allocator,
  *       Empty packets are used for signaling during the handshake so they can
  *       only be used while the session is in state ESTABLISHED.
  *
+ * NOTE2: Every received packet is prefixed by the 4 byte *nonce* for that packet
+ *        in host endian order.
+ *
  * @param toWarp the interface to wrap
  * @param herPublicKey the public key of the other party or NULL if unknown.
  * @param herIp6 the ipv6 address of the other party

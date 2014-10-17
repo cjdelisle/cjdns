@@ -320,6 +320,9 @@ static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cr
         Identity_check((struct InterfaceController_Peer*) cryptoAuthIf->receiverContext);
     struct InterfaceController_pvt* ic = ifcontrollerForPeer(ep);
 
+    // nonce added by the CryptoAuth session.
+    Message_pop(msg, NULL, 4, NULL);
+
     ep->bytesIn += msg->length;
 
     int caState = CryptoAuth_getState(cryptoAuthIf);

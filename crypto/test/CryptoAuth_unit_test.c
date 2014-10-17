@@ -88,6 +88,7 @@ static void createNew()
 
 static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
 {
+    Message_pop(message, NULL, 4, NULL);
     *((struct Message**)iface->receiverContext) = message;
     return Error_NONE;
 }

@@ -144,6 +144,9 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
     struct SessionManager_Session_pvt* ss =
         Identity_check((struct SessionManager_Session_pvt*)iface->receiverContext);
 
+    // nonce added by CryptoAuth
+    Message_pop(msg, NULL, 4, NULL);
+
     uint64_t timeOfLastIn = ss->pub.timeOfLastIn;
     ss->pub.timeOfLastIn = Time_currentTimeMilliseconds(ss->sm->eventBase);
     int prevState = ss->pub.cryptoAuthState;
