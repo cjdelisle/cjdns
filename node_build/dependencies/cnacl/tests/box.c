@@ -48,7 +48,7 @@ unsigned char m[163] = {
 
 unsigned char c[163];
 
-main()
+int main()
 {
   int i;
   crypto_box_curve25519xsalsa20poly1305(

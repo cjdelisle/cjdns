@@ -12,7 +12,7 @@ unsigned char m[10000];
 unsigned char c[10000];
 unsigned char m2[10000];
 
-main()
+int main()
 {
   int mlen;
   int i;
