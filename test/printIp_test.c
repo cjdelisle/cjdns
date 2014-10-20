@@ -12,39 +12,38 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 #include "crypto/random/Random.h"
 #include "memory/MallocAllocator.h"
-#include "crypto/AddressCalc.h"
 #include "util/AddrTools.h"
-#include "util/Base32.h"
-#include "util/Hex.h"
-
-#include "crypto_scalarmult_curve25519.h"
+#include "util/Assert.h"
 
 #include <stdio.h>
 
-int main(int argc, char** argv)
+int main()
 {
     struct Allocator* alloc = MallocAllocator_new(1<<22);
     struct Random* rand = Random_new(alloc, NULL, NULL);
 
-    uint8_t privateKey[32];
-    uint8_t publicKey[32];
-    uint8_t publicKeyBase32[53];
     uint8_t ip[16];
-    uint8_t hexPrivateKey[65];
     uint8_t printedIp[40];
+    uint8_t printedShortIp[40];
+    uint8_t ipFromFull[16];
+    uint8_t ipFromShort[16];
 
-    for (;;) {
-        Random_bytes(rand, privateKey, 32);
-        crypto_scalarmult_curve25519_base(publicKey, privateKey);
-        if (AddressCalc_addressForPublicKey(ip, publicKey)) {
-            Hex_encode(hexPrivateKey, 65, privateKey, 32);
-            Base32_encode(publicKeyBase32, 53, publicKey, 32);
-            AddrTools_printShortIp(printedIp, ip);
-            printf("%s %s %s.k\n", hexPrivateKey, printedIp, publicKeyBase32);
-        }
+    for (int i = 0; i < 1024; ++i) {
+        Random_bytes(rand, ip, 16);
+
+        AddrTools_printIp(printedIp, ip);
+        AddrTools_printShortIp(printedShortIp, ip);
+        printf("%s\n%s\n\n", printedIp, printedShortIp);
+
+        AddrTools_parseIp(ipFromFull, printedIp);
+        AddrTools_parseIp(ipFromShort, printedShortIp);
+
+        Assert_true(0 == Bits_memcmp(ip, ipFromFull, 16));
+        Assert_true(0 == Bits_memcmp(ipFromFull, ipFromShort, 16));
     }
+
     return 0;
 }
-

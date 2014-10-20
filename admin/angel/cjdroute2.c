@@ -80,7 +80,7 @@ static int genAddress(uint8_t addressOut[40],
         if (AddressCalc_addressForPublicKey(address.ip6.bytes, address.key)) {
             Hex_encode(privateKeyHexOut, 65, privateKey, 32);
             Base32_encode(publicKeyBase32Out, 53, address.key, 32);
-            Address_printIp(addressOut, &address);
+            Address_printShortIp(addressOut, &address);
             return 0;
         }
     }

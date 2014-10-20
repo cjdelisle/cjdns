@@ -73,7 +73,7 @@ int main(int argc, char** argv)
     AddressCalc_addressForPublicKey(address.ip6.bytes, address.key);
     if (address.ip6.bytes[0] == 0xFC) {
         Base32_encode(publicKeyBase32Out, 53, address.key, 32);
-        Address_printIp(addressOut, &address);
+        Address_printShortIp(addressOut, &address);
         printf(    "Input privkey: %s\n"
             "Matching pubkey: %s.k\n"
             "Resulting address: %s\n"
