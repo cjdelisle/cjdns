@@ -34,9 +34,14 @@ int main()
     for (int i = 0; i < 1024; ++i) {
         Random_bytes(rand, ip, 16);
 
+        for (int j = 0; j < 16; j++) {
+            // make the random result have lots of zeros since that's what we're looking for.
+            ip[j] = (ip[j] % 2) ? 0 : ip[j];
+        }
+
         AddrTools_printIp(printedIp, ip);
         AddrTools_printShortIp(printedShortIp, ip);
-        printf("%s\n%s\n\n", printedIp, printedShortIp);
+        //printf("%s\n%s\n\n", printedIp, printedShortIp);
 
         AddrTools_parseIp(ipFromFull, printedIp);
         AddrTools_parseIp(ipFromShort, printedShortIp);

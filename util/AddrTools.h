@@ -151,8 +151,8 @@ static inline void AddrTools_printShortIp(uint8_t output[40], const uint8_t binI
      */
 
     char *p = output;
-
-    for (int i = 0; i < 16;) {
+    int i = 0;
+    for (; i < 16;) {
         if ((size_t)p != (size_t)output) {
             *p++= ':';
         }
@@ -176,6 +176,9 @@ static inline void AddrTools_printShortIp(uint8_t output[40], const uint8_t binI
         p += 2;
     }
     *p = '\0';
+
+    Assert_true((size_t)p <= ((size_t)output + 40));
+    Assert_true(i <= 16);
 }
 
 /**
