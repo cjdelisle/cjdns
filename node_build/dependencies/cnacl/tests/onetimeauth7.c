@@ -7,7 +7,7 @@ unsigned char key[32];
 unsigned char c[10000];
 unsigned char a[16];
 
-main()
+int main()
 {
   int clen;
   int i;

@@ -20,7 +20,7 @@ unsigned char c[16] = {
 
 unsigned char secondkey[32];
 
-main()
+int main()
 {
   int i;
   crypto_core_hsalsa20(secondkey,nonceprefix,firstkey,c);

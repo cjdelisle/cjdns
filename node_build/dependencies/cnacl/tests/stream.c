@@ -19,7 +19,7 @@ unsigned char output[4194304];
 
 unsigned char h[32];
 
-main()
+int main()
 {
   int i;
   crypto_stream_xsalsa20(output,4194304,nonce,firstkey);

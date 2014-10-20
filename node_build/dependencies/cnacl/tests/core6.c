@@ -32,7 +32,7 @@ void print(unsigned char *x,unsigned char *y)
   }
 }
 
-main()
+int main()
 {
   crypto_core_salsa20(out,in,k,c);
   print(out,c);

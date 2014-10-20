@@ -10,7 +10,7 @@ unsigned char alicesk[32] = {
 
 unsigned char alicepk[32];
 
-main()
+int main()
 {
   int i;
   crypto_scalarmult_curve25519_base(alicepk,alicesk);
