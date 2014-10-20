@@ -48,7 +48,7 @@ int main(int argc, char** argv)
     }
 
     uint8_t output[40] = {0};
-    AddrTools_printIp(output, ip6Bytes);
+    AddrTools_printShortIp(output, ip6Bytes);
     printf("%s\n", output);
     return 0;
 }

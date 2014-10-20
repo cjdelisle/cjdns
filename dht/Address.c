@@ -102,6 +102,12 @@ void Address_printIp(uint8_t output[40], struct Address* addr)
     AddrTools_printIp(output, addr->ip6.bytes);
 }
 
+void Address_printShortIp(uint8_t output[40], struct Address* addr)
+{
+    Address_getPrefix(addr);
+    AddrTools_printShortIp(output, addr->ip6.bytes);
+}
+
 void Address_print(uint8_t output[60], struct Address* addr)
 {
     Address_printIp(output, addr);

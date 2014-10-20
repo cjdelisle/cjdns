@@ -41,4 +41,6 @@ bool Hex_isHexEntity(const uint8_t character);
 
 int Hex_decodeByte(const uint8_t highNibble, const uint8_t lowNibble);
 
+uint8_t Hex_encodeLowNibble(const uint8_t nibble);
+
 #endif
