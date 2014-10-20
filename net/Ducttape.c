@@ -227,7 +227,7 @@ static inline bool isRouterTraffic(struct Message* message, struct Headers_IP6He
 #define debugHandles(logger, session, message, ...) \
     do {                                                                               \
         uint8_t ip[40];                                                                \
-        AddrTools_printShortIp(ip, session->ip6);                                      \
+        AddrTools_printIp(ip, session->ip6);                                      \
         Log_debug(logger, "ver[%u] send[%d] recv[%u] ip[%s] " message,                 \
                   session->version,                                                    \
                   Endian_hostToBigEndian32(session->sendHandle_be),                    \
@@ -447,7 +447,7 @@ static inline uint8_t incomingFromTun(struct Message* message,
     } else if (!AddressCalc_validAddress(header->destinationAddr)) {
         #ifdef Log_INFO
             uint8_t dst[40];
-            AddrTools_printShortIp(dst, header->destinationAddr);
+            AddrTools_printIp(dst, header->destinationAddr);
             Log_warn(context->logger, "DROP packet to [%s] because it must begin with fc", dst);
         #endif
         return Error_INVALID;
@@ -505,8 +505,8 @@ static inline uint8_t incomingFromTun(struct Message* message,
         #ifdef Log_WARN
             uint8_t thisAddr[40];
             uint8_t destAddr[40];
-            AddrTools_printShortIp(thisAddr, context->myAddr.ip6.bytes);
-            AddrTools_printShortIp(destAddr, header->destinationAddr);
+            AddrTools_printIp(thisAddr, context->myAddr.ip6.bytes);
+            AddrTools_printIp(destAddr, header->destinationAddr);
             Log_warn(context->logger,
                      "DROP message from TUN because this node [%s] is closest to dest [%s]",
                      thisAddr, destAddr);
@@ -516,7 +516,7 @@ static inline uint8_t incomingFromTun(struct Message* message,
 /*
     #ifdef Log_DEBUG
         uint8_t destAddr[40];
-        AddrTools_printShortIp(destAddr, header->destinationAddr);
+        AddrTools_printIp(destAddr, header->destinationAddr);
         uint8_t nhAddr[60];
         Address_print(nhAddr, &bestNext->address);
         Log_debug(context->logger, "Sending to [%s] via [%s]", destAddr, nhAddr);
@@ -596,7 +596,7 @@ static uint8_t sendToNode(struct Message* message, struct Interface* iface)
 
     #ifdef Log_DEBUG
         uint8_t printedIp6[40];
-        AddrTools_printShortIp(printedIp6, header->nodeIp6Addr);
+        AddrTools_printIp(printedIp6, header->nodeIp6Addr);
         Log_debug(context->logger, "DROP Couldn't find node [%s] for sending to.", printedIp6);
     #endif
 
@@ -658,7 +658,7 @@ static inline int core(struct Message* message,
             /* Per packet logging...
             #ifdef Log_DEBUG
                 uint8_t addr[40];
-                AddrTools_printShortIp(addr, ip6Header->sourceAddr);
+                AddrTools_printIp(addr, ip6Header->sourceAddr);
                 Log_debug(context->logger, "Incoming layer3 message, ostensibly from [%s]", addr);
             #endif */
 

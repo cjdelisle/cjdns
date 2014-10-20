@@ -130,7 +130,7 @@ static void search(uint8_t target[16], struct Janitor* janitor)
     }
     #ifdef Log_DEBUG
         uint8_t targetStr[40];
-        AddrTools_printShortIp(targetStr, target);
+        AddrTools_printIp(targetStr, target);
         Log_debug(janitor->logger, "Beginning search for [%s]", targetStr);
     #endif
 
@@ -179,7 +179,7 @@ static void searchNoDupe(uint8_t target[Address_SEARCH_TARGET_SIZE], struct Jani
     search(target, janitor);
     #ifdef Log_DEBUG
         uint8_t addrStr[40];
-        AddrTools_printShortIp(addrStr, target);
+        AddrTools_printIp(addrStr, target);
         Log_debug(janitor->logger, "No active search for [%s], starting one.", addrStr);
     #endif
 }

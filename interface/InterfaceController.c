@@ -519,7 +519,7 @@ int InterfaceController_registerPeer(struct InterfaceController* ifController,
     if (herPublicKey) {
         #ifdef Log_INFO
             uint8_t printAddr[60];
-            AddrTools_printShortIp(printAddr, ip6);
+            AddrTools_printIp(printAddr, ip6);
             Log_info(ic->logger, "Adding peer [%s]", printAddr);
         #endif
     } else {

@@ -206,7 +206,7 @@ static uint8_t requestAddresses(struct IpTunnel_Connection* conn,
 {
     #ifdef Log_DEBUG
         uint8_t addr[40];
-        AddrTools_printShortIp(addr, conn->header.nodeIp6Addr);
+        AddrTools_printIp(addr, conn->header.nodeIp6Addr);
         Log_debug(context->logger, "Requesting addresses from [%s] for connection [%d]",
                   addr, conn->number);
     #endif
@@ -240,7 +240,7 @@ int IpTunnel_connectTo(uint8_t publicKeyOfNodeToConnectTo[32], struct IpTunnel* 
 
     #ifdef Log_DEBUG
         uint8_t addr[40];
-        AddrTools_printShortIp(addr, conn->header.nodeIp6Addr);
+        AddrTools_printIp(addr, conn->header.nodeIp6Addr);
         Log_debug(context->logger, "Trying to connect to [%s]", addr);
     #endif
 
@@ -301,7 +301,7 @@ static uint8_t requestForAddresses(Dict* request,
 {
     #ifdef Log_DEBUG
         uint8_t addr[40];
-        AddrTools_printShortIp(addr, conn->header.nodeIp6Addr);
+        AddrTools_printIp(addr, conn->header.nodeIp6Addr);
         Log_debug(context->logger, "Got request for addresses from [%s]", addr);
     #endif
 
@@ -470,7 +470,7 @@ static uint8_t incomingControlMessage(struct Message* message,
 {
     #ifdef Log_DEBUG
         uint8_t addr[40];
-        AddrTools_printShortIp(addr, conn->header.nodeIp6Addr);
+        AddrTools_printIp(addr, conn->header.nodeIp6Addr);
         Log_debug(context->logger, "Got incoming message from [%s]", addr);
     #endif
 
@@ -666,7 +666,7 @@ static uint8_t incomingFromNode(struct Message* message, struct Interface* nodeI
     if (!conn) {
         #ifdef Log_DEBUG
             uint8_t addr[40];
-            AddrTools_printShortIp(addr, header->nodeIp6Addr);
+            AddrTools_printIp(addr, header->nodeIp6Addr);
             Log_debug(context->logger, "Got message from unrecognized node [%s]", addr);
         #endif
         return 0;
@@ -683,7 +683,7 @@ static uint8_t incomingFromNode(struct Message* message, struct Interface* nodeI
 
     #ifdef Log_DEBUG
         uint8_t addr[40];
-        AddrTools_printShortIp(addr, header->nodeIp6Addr);
+        AddrTools_printIp(addr, header->nodeIp6Addr);
         Log_debug(context->logger,
                   "Got message of unknown type, length: [%d], IP version [%d] from [%s]",
                   message->length,
