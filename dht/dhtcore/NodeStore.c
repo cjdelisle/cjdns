@@ -117,8 +117,8 @@ static void logLink(struct NodeStore_pvt* store,
     }
     uint8_t parent[40];
     uint8_t child[40];
-    AddrTools_printIp(parent, link->parent->address.ip6.bytes);
-    AddrTools_printIp(child, link->child->address.ip6.bytes);
+    AddrTools_printShortIp(parent, link->parent->address.ip6.bytes);
+    AddrTools_printShortIp(child, link->child->address.ip6.bytes);
     uint8_t path[20];
     AddrTools_printPath(path, link->cannonicalLabel);
     Log_debug(store->logger, "link[%s]->[%s] [%s] %s", parent, child, path, message);
@@ -437,7 +437,7 @@ static int updateBestParentCycle(struct Node_Link* newBestLink,
             uint8_t pathStr[20];
             AddrTools_printPath(pathStr, bestPath);
             uint8_t addrStr[40];
-            AddrTools_printIp(addrStr, node->address.ip6.bytes);
+            AddrTools_printShortIp(addrStr, node->address.ip6.bytes);
             Log_debug(store->logger, "New best path [%s@%s]", addrStr, pathStr);
         }
     }*/
@@ -698,8 +698,8 @@ static struct Node_Link* linkNodes(struct Node_Two* parent,
     if (Defined(Log_DEBUG)) {
         uint8_t parentIp[40];
         uint8_t childIp[40];
-        AddrTools_printIp(parentIp, parent->address.ip6.bytes);
-        AddrTools_printIp(childIp, child->address.ip6.bytes);
+        AddrTools_printShortIp(parentIp, parent->address.ip6.bytes);
+        AddrTools_printShortIp(childIp, child->address.ip6.bytes);
         uint8_t printedLabel[20];
         AddrTools_printPath(printedLabel, cannonicalLabel);
         Log_debug(store->logger, "Linking [%s] with [%s] with label fragment [%s]",
@@ -962,8 +962,8 @@ static struct Node_Link* discoverLinkC(struct NodeStore_pvt* store,
         uint8_t childStr[40];
         uint8_t pathStr[20];
 
-        AddrTools_printIp(parentStr, parent->address.ip6.bytes);
-        AddrTools_printIp(childStr, child->address.ip6.bytes);
+        AddrTools_printShortIp(parentStr, parent->address.ip6.bytes);
+        AddrTools_printShortIp(childStr, child->address.ip6.bytes);
         AddrTools_printPath(pathStr, pathParentChild);
         Log_debug(store->logger, "discoverLinkC( [%s]->[%s] [%s] )", parentStr, childStr, pathStr);
     }
@@ -1525,7 +1525,7 @@ struct Node_Two* NodeStore_nodeForAddr(struct NodeStore* nodeStore, uint8_t addr
     if (n && n->address.path == UINT64_MAX) {
         if (Defined(Log_DEBUG)) {
             uint8_t addrStr[40];
-            AddrTools_printIp(addrStr, n->address.ip6.bytes);
+            AddrTools_printShortIp(addrStr, n->address.ip6.bytes);
             Log_debug(store->logger, "No way to represent path to [%s]", addrStr);
         }
         return NULL;

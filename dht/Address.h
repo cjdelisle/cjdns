@@ -94,6 +94,8 @@ void Address_forKey(struct Address* out, const uint8_t key[Address_KEY_SIZE]);
 
 void Address_printIp(uint8_t output[40], struct Address* addr);
 
+void Address_printShortIp(uint8_t output[40], struct Address* addr);
+
 void Address_print(uint8_t output[60], struct Address* addr);
 
 String* Address_toString(struct Address* addr, struct Allocator* alloc);

@@ -29,6 +29,8 @@ static const uint8_t numForAscii[] =
     99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,
 };
 
+static const char* hexEntities = "0123456789abcdef";
+
 int Hex_encode(uint8_t* output,
                const uint32_t outputLength,
                const uint8_t* in,
@@ -39,8 +41,6 @@ int Hex_encode(uint8_t* output,
     } else if (outputLength > inputLength * 2) {
         output[inputLength * 2] = '\0';
     }
-
-    static const char* hexEntities = "0123456789abcdef";
 
     for (uint32_t i = 0; i < inputLength; i++) {
         output[i * 2] = hexEntities[in[i] >> 4];
@@ -87,4 +87,9 @@ int Hex_decode(uint8_t* output,
     }
 
     return length / 2;
+}
+
+uint8_t Hex_encodeLowNibble(const uint8_t nibble)
+{
+    return hexEntities[nibble & 15];
 }
