@@ -1793,9 +1793,30 @@ static int getBestCycle(struct Node_Two* node,
 struct Node_Two* NodeStore_getBest(struct NodeStore* nodeStore, uint8_t targetAddress[16])
 {
     struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
+
+    // First try to find the node directly
     struct Node_Two* n = NodeStore_nodeForAddr(nodeStore, targetAddress);
     if (n && Node_getBestParent(n)) { return n; }
 
+    // Next try to find the best node in the correct bucket
+    struct Address fakeAddr;
+    Bits_memcpyConst(fakeAddr.ip6.bytes, targetAddress, 16);
+    uint16_t bucket = NodeStore_bucketForAddr(&store->pub.selfNode->address, &fakeAddr);
+    struct Allocator* nodeListAlloc = Allocator_child(store->alloc);
+    struct NodeList* nodeList = NodeStore_getNodesForBucket(&store->pub,
+                                                            nodeListAlloc,
+                                                            bucket,
+                                                            NodeStore_bucketSize);
+    for (uint32_t i = 0 ; i < nodeList->size ; i++) {
+        if (Node_getBestParent(nodeList->nodes[i])) {
+            n = nodeList->nodes[i];
+            break;
+        }
+    }
+    Allocator_free(nodeListAlloc);
+    if (n && Node_getBestParent(n)) { return n; }
+
+    // Finally try to find the best node that is a valid next hop (closer in keyspace)
     for (int i = 0; i < 10000; i++) {
         int ret = getBestCycle(store->pub.selfNode, targetAddress, &n, i, 0, store);
         if (n || !ret) {
@@ -1804,6 +1825,7 @@ struct Node_Two* NodeStore_getBest(struct NodeStore* nodeStore, uint8_t targetAd
         }
     }
 
+    // Apparently there are no valid next hops
     return NULL;
 }
 
