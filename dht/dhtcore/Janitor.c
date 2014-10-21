@@ -241,10 +241,8 @@ static void keyspaceMaintenance(struct Janitor* janitor)
                                                                     nodeListAlloc,
                                                                     bucket,
                                                                     NodeStore_bucketSize);
-            struct Address target = NodeStore_addrForBucket(selfAddr, bucket);
             for (uint32_t i = 0 ; i < nodeList->size ; i++) {
                 if (nodeList->nodes[i] == janitor->nodeStore->selfNode) { continue; }
-                Assert_true(Address_closest(&target, &nodeList->nodes[i]->address, selfAddr) < 0);
 
                 // There's a valid next hop.
                 RumorMill_addNode(janitor->dhtMill, &nodeList->nodes[i]->address);

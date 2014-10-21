@@ -25,6 +25,7 @@
 #include "switch/LabelSplicer.h"
 #include "util/Gcc.h"
 #include "util/Defined.h"
+#include "util/Endian.h"
 
 #include <tree.h>
 
@@ -2137,7 +2138,7 @@ void NodeStore_pathTimeout(struct NodeStore* nodeStore, uint64_t path)
     }*/
 }
 
-/* Find the address that describes the source's Nth furthest-away bucket. */
+/* Find the address that describes the source's Nth (furthest-away) bucket. */
 struct Address NodeStore_addrForBucket(struct Address* source, uint16_t bucket)
 {
     if (bucket >= NodeStore_bucketNumber) {
@@ -2145,22 +2146,24 @@ struct Address NodeStore_addrForBucket(struct Address* source, uint16_t bucket)
         return *source;
 
     } else {
-        uint8_t bitmask;
-        uint8_t byte;
         struct Address addr = *source;
 
         // Figure out which bits of our address to flip for this step in keyspace.
-        // This looks extra ugly because of the rot64 done in distance calculations.
         // Note: This assumes NodeStore_bucketNumber == 512
-        // (Some of those, i.e. the fc, don't actually do anything)
+        // (Some of those, the fc and every 16th bucket, won't actually have nodes)
         Assert_compileTime(NodeStore_bucketNumber == 512);
-        if (bucket < 256) { byte = 8 + (bucket/32); }
-        else              { byte = (bucket/32) - 8; }
+        uint64_t extras = 15 - ((bucket % 256)/16);
+        uint64_t prefix = 0x0F - (bucket % 16);
+        uint64_t bitmask = prefix << (4*extras);
 
-        // This part is ugly because how bucket and bucket+1 relate is important.
-        bitmask = (0x0F - (bucket % 16)) << 4 >> 4*((bucket % 32) >> 4);
+        // We have the bitmask for this bucket, now we need to apply it.
+        uint64_t* addrPart = (bucket < 256) ? &addr.ip6.longs.one_be : &addr.ip6.longs.two_be;
+        *addrPart = Endian_bigEndianToHost64(*addrPart);
+        *addrPart ^= bitmask;
+        *addrPart = Endian_hostToBigEndian64(*addrPart);
 
-        addr.ip6.bytes[byte] = addr.ip6.bytes[byte] ^ bitmask;
+        // Just to be sure...
+        Assert_ifParanoid((bucket % 16) == 15 || NodeStore_bucketForAddr(source, &addr) == bucket);
 
         return addr;
     }
@@ -2168,15 +2171,22 @@ struct Address NodeStore_addrForBucket(struct Address* source, uint16_t bucket)
 
 uint16_t NodeStore_bucketForAddr(struct Address* source, struct Address* dest)
 {
-    //TODO(arceliar): Write a less terrible version of this (no need to loop?).
     uint16_t retVal = 0;
-    struct Address best = *source;
-    for (uint16_t bucket = 0 ; bucket < NodeStore_bucketNumber; bucket++) {
-        struct Address addr = NodeStore_addrForBucket(source, bucket);
-        if (Address_closest(dest, &best, &addr) > 0) {
-            best = addr;
-            retVal = bucket;
-        }
+
+    // This is a place where the implementation depends on how buckets work.
+    Assert_compileTime(NodeStore_bucketNumber == 512);
+    uint64_t addrPart = source->ip6.longs.one_be ^ dest->ip6.longs.one_be;
+    if (!addrPart) {
+        // We're apparently close enough in keyspace to use two_be instead.
+        addrPart = source->ip6.longs.two_be ^ dest->ip6.longs.two_be;
+        retVal += 256;
     }
+
+    addrPart = Endian_bigEndianToHost64(addrPart);
+    uint64_t extras = Bits_log2x64(addrPart)/4;
+    uint64_t prefix = addrPart >> (4*extras);
+    retVal += (15 - extras)*16;
+    retVal += 0x0F - prefix;
+
     return retVal;
 }
