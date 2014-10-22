@@ -390,6 +390,13 @@ static uint8_t sendFromSwitch(struct Message* msg, struct Interface* switchIf)
         ret = Interface_sendMessage(ep->cryptoAuthIf, msg);
     }
 
+    // TODO(cjd): this is not quite right
+    // We don't always trust the UDP interface to be accurate
+    // short spurious failures and packet-backup should not cause us to treat a link as dead
+    if (ret == Error_UNDELIVERABLE) {
+        ret = 0;
+    }
+
     // If this node is unresponsive then return an error.
     if (ret || now - ep->timeOfLastMessage > ic->unresponsiveAfterMilliseconds) {
         return ret ? ret : Error_UNDELIVERABLE;

@@ -92,7 +92,7 @@ static void failure(struct Allocator_pvt* context,
                     const char* fileName,
                     int lineNum)
 {
-    Allocator_snapshot(&context->pub, 0);
+    Allocator_snapshot(&context->pub, 1);
     Assert_failure("%s:%d Fatal error: [%s]", fileName, lineNum, message);
 }
 

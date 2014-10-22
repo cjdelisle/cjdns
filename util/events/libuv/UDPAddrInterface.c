@@ -81,8 +81,7 @@ static uint8_t sendMessage(struct Message* m, struct Interface* iface)
 
     if (context->queueLen > UDPAddrInterface_MAX_QUEUE) {
         Log_warn(context->logger, "DROP Maximum queue length reached");
-        return Error_NONE;
-        //return Error_UNDELIVERABLE;
+        return Error_UNDELIVERABLE;
     }
 
     // This allocator will hold the message allocator in existance after it is freed.
@@ -119,8 +118,7 @@ static uint8_t sendMessage(struct Message* m, struct Interface* iface)
         Log_info(context->logger, "DROP Failed writing to UDPAddrInterface [%s]",
                  uv_strerror(ret));
         Allocator_free(req->alloc);
-        return Error_NONE;
-        //return Error_UNDELIVERABLE;
+        return Error_UNDELIVERABLE;
     }
     context->queueLen += m->length;
 

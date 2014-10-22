@@ -27,6 +27,7 @@
 #include "util/Hex.h"
 #include "util/Identity.h"
 #include "util/events/Time.h"
+#include "util/events/Timeout.h"
 
 #define MAX_SUBSCRIPTIONS 64
 #define FILE_NAME_COUNT 32
@@ -45,6 +46,12 @@ struct Subscription
     /** True if file can be compared with pointer comparison instead of strcmp. */
     bool internalFile;
 
+    /**
+     * Dropped messages because they are being sent too fast for UDP interface to handle.
+     * Reset when the pipes unclog an a message is sent reporting the number of dropped messages.
+     */
+    int dropped;
+
     /** The transaction ID of the message which solicited this stream of logs. */
     String* txid;
 
@@ -59,10 +66,12 @@ struct AdminLog
 {
     struct Log pub;
     struct Subscription subscriptions[MAX_SUBSCRIPTIONS];
-    uint32_t subscriptionCount;
+    int subscriptionCount;
 
     /** non-zero if we are logging at this very moment (reentrent logging is not allowed!) */
     int logging;
+
+    struct Timeout* unpause;
 
     struct Admin* admin;
     struct Allocator* alloc;
@@ -147,6 +156,30 @@ static void removeSubscription(struct AdminLog* log, struct Subscription* sub)
                      sizeof(struct Subscription));
 }
 
+static void unpause(void* vAdminLog)
+{
+    struct AdminLog* log = Identity_check((struct AdminLog*) vAdminLog);
+    // dirty reentrence.
+    Assert_true(!log->logging);
+    bool noneDropped = true;
+    for (int i = log->subscriptionCount - 1; i >= 0; i--) {
+        int dropped = log->subscriptions[i].dropped;
+        if (!dropped) { continue; }
+        noneDropped = false;
+        log->subscriptions[i].dropped = 0;
+        Log_warn((struct Log*) log,
+                 "UDPInterface cannot handle the logging, [%d] messages dropped", dropped);
+        if (log->subscriptions[i].dropped) {
+            // oh well, we'll try again later.
+            log->subscriptions[i].dropped += dropped;
+        }
+    }
+    if (noneDropped && false) {
+        Timeout_clearTimeout(log->unpause);
+        log->unpause = NULL;
+    }
+}
+
 static void doLog(struct Log* genericLog,
                   enum Log_Level logLevel,
                   const char* fullFilePath,
@@ -161,8 +194,12 @@ static void doLog(struct Log* genericLog,
     if (log->logging) { return; }
     log->logging++;
 
-    for (int i = 0; i < (int)log->subscriptionCount; i++) {
+    for (int i = log->subscriptionCount - 1; i >= 0; i--) {
         if (!isMatch(&log->subscriptions[i], log, logLevel, fullFilePath, line)) { continue; }
+        if (log->subscriptions[i].dropped) {
+            log->subscriptions[i].dropped++;
+            continue;
+        }
         if (!message) {
             logLineAlloc = Allocator_child(log->alloc);
             message = makeLogMessage(&log->subscriptions[i],
@@ -175,7 +212,10 @@ static void doLog(struct Log* genericLog,
                                      logLineAlloc);
         }
         if (Admin_sendMessage(message, log->subscriptions[i].txid, log->admin)) {
-            removeSubscription(log, &log->subscriptions[i]);
+            log->subscriptions[i].dropped++;
+            if (!log->unpause) {
+                log->unpause = Timeout_setInterval(unpause, log, 10, log->base, log->alloc);
+            }
         }
     }
     if (logLineAlloc) {
@@ -283,8 +323,8 @@ static void subscriptions(Dict* args, void* vcontext, String* txid, struct Alloc
             Dict_putString(entry, STR_FILE, String_new(sub->file, alloc), alloc);
         }
         Dict_putInt(entry, LINE, sub->lineNum, alloc);
+        Dict_putInt(entry, String_CONST("dropped"), sub->dropped, alloc);
         Dict_putInt(entry, String_CONST("internalFile"), sub->internalFile, alloc);
-        Dict_putString(entry, String_CONST("_txid"), sub->txid, alloc);
         Dict_putString(entry, String_CONST("streamId"), sub->streamId, alloc);
         List_addDict(entries, entry, alloc);
     }

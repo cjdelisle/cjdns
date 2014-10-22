@@ -182,7 +182,6 @@ int Admin_sendMessage(Dict* message, String* txid, struct Admin* admin)
     // if this is an async call, check if we've got any input from that client.
     // if the client is nresponsive then fail the call so logs don't get sent
     // out forever after a disconnection.
-    struct Allocator* alloc;
     if (!admin->currentRequest) {
         struct Sockaddr* addrPtr = (struct Sockaddr*) &addr.addr;
         int index = Map_LastMessageTimeByAddr_indexForKey(&addrPtr, &admin->map);
@@ -190,10 +189,9 @@ int Admin_sendMessage(Dict* message, String* txid, struct Admin* admin)
         if (index < 0 || checkAddress(admin, index, now)) {
             return -1;
         }
-        alloc = Allocator_child(admin->allocator);
-    } else {
-        alloc = admin->currentRequest->alloc;
     }
+
+    struct Allocator* alloc = Allocator_child(admin->allocator);
 
     // Bounce back the user-supplied txid.
     String userTxid = {
@@ -206,9 +204,7 @@ int Admin_sendMessage(Dict* message, String* txid, struct Admin* admin)
 
     int ret = sendBenc(message, &addr.addr, alloc, admin);
 
-    if (!admin->currentRequest) {
-        Allocator_free(alloc);
-    }
+    Allocator_free(alloc);
 
     return ret;
 }
@@ -227,7 +223,7 @@ static inline bool authValid(Dict* message, struct Message* messageBytes, struct
         return false;
     }
 
-    uint8_t* hashPtr = (uint8_t*) CString_strstr((char*) messageBytes->bytes, submittedHash->bytes);
+    uint8_t* hashPtr = CString_strstr(messageBytes->bytes, submittedHash->bytes);
 
     if (!hashPtr || !admin->password) {
         return false;
