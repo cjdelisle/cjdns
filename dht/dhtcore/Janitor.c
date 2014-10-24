@@ -199,8 +199,20 @@ static void dhtResponseCallback(struct RouterModule_Promise* promise,
 
     struct Address* selfAddr = janitor->nodeStore->selfAddress;
     for (int i = 0; addresses && i < addresses->length; i++) {
+        if (addresses->elems[i].path == NodeStore_optimizePath_INVALID) {
+            // Impossible to ping this (label is probably too large).
+            continue;
+        }
         if (Address_closest(selfAddr, from, &addresses->elems[i]) < 0) {
             // Address is further from us than the node we asked. Skip it.
+            // FIXME(arceliar): Probably need stronger requirements than this.
+            continue;
+        }
+
+        struct Node_Link* link = NodeStore_linkForPath(janitor->nodeStore,
+                                                       addresses->elems[i].path);
+        if (link) {
+            // We already know about this path and mill space is precious. Skip it.
             continue;
         }
 
@@ -222,26 +234,28 @@ static void keyspaceMaintenance(struct Janitor* janitor)
     struct Address* selfAddr = janitor->nodeStore->selfAddress;
     if (!RumorMill_getNode(janitor->dhtMill, &addr)) {
         // Try to fill the dhtMill for next time.
-        for (uint8_t bucket = 0; bucket < NodeStore_bucketNumber ; bucket++) {
+        for (uint16_t bucket = 0; bucket < NodeStore_bucketNumber ; bucket++) {
             // Check if there's a valid next hop for this bit in keyspace.
-            struct Address target = NodeStore_addrForBucket(selfAddr, bucket);
-            struct Node_Two* node = NodeStore_getBest(janitor->nodeStore, target.ip6.bytes);
-            if (!node) { continue; }
+            struct Allocator* nodeListAlloc = Allocator_child(janitor->allocator);
+            struct NodeList* nodeList = NodeStore_getNodesForBucket(janitor->nodeStore,
+                                                                    nodeListAlloc,
+                                                                    bucket,
+                                                                    NodeStore_bucketSize);
+            for (uint32_t i = 0 ; i < nodeList->size ; i++) {
+                if (nodeList->nodes[i] == janitor->nodeStore->selfNode) { continue; }
 
-            // There's a valid next hop.
-            // TODO(arceliar): Ask for the NodeStore_bucketSize best nodes?
-            // By best I mean, of the nodes that are closer, those with highest reach.
-            // (Not the closest.)
-            RumorMill_addNode(janitor->dhtMill, &node->address);
+                // There's a valid next hop.
+                RumorMill_addNode(janitor->dhtMill, &nodeList->nodes[i]->address);
+            }
+            Allocator_free(nodeListAlloc);
         }
         return;
     }
 
-    if (NodeStore_nodeForAddr(janitor->nodeStore, addr.ip6.bytes)) {
-        // Address falls in our N'th bucket.
-        // Ask for nodes from their N'th bucket.
-        // Responses are good for our N+1'th or later bucket.
-        uint8_t bucket = NodeStore_bucketForAddr(selfAddr, &addr);
+    struct Node_Two* node = NodeStore_nodeForAddr(janitor->nodeStore, addr.ip6.bytes);
+    if (node && node->address.path == addr.path) {
+        //FIXME(arceliar): This target probably isn't optimal.
+        uint16_t bucket = NodeStore_bucketForAddr(selfAddr, &addr);
         struct Address target = NodeStore_addrForBucket(&addr, bucket);
         struct RouterModule_Promise* rp = RouterModule_findNode(&addr,
                                                                 target.ip6.bytes,
@@ -623,7 +637,11 @@ struct Janitor* Janitor_new(uint64_t localMaintainenceMilliseconds,
 
     janitor->linkMill = RumorMill_new(alloc, nodeStore->selfAddress, 64, logger, "linkMill");
     janitor->nodeMill = RumorMill_new(alloc, nodeStore->selfAddress, 64, logger, "nodeMill");
-    janitor->dhtMill = RumorMill_new(alloc, nodeStore->selfAddress, 64, logger, "dhtMill");
+    janitor->dhtMill = RumorMill_new(alloc,
+                                     nodeStore->selfAddress,
+                                     (NodeStore_bucketNumber * NodeStore_bucketSize),
+                                     logger,
+                                     "dhtMill");
 
     janitor->timeOfNextGlobalMaintainence = Time_currentTimeMilliseconds(eventBase);
 
