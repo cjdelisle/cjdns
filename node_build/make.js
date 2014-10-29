@@ -91,7 +91,15 @@ Builder.configure({
         && builder.config.systemName !== 'win32')
     {
         builder.config.cflags.push('-fPIE');
-        builder.config.ldflags.push('-pie');
+
+        // just using `-pie` on OS X >= 10.10 results in this warning:
+        // clang: warning: argument unused during compilation: '-pie'
+        if (builder.config.systemName !== "darwin")
+        {
+            builder.config.ldflags.push('-pie');
+        } else {
+            builder.config.ldflags.push('-Wl,-pie');
+        }
     }
 
     if (/clang/i.test(builder.config.gcc) || builder.config.systemName === 'darwin') {
