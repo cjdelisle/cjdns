@@ -91,7 +91,11 @@ Builder.configure({
         && builder.config.systemName !== 'win32')
     {
         builder.config.cflags.push('-fPIE');
-        builder.config.ldflags.push('-pie');
+        if (builder.config.systemName === 'darwin') {
+            builder.config.ldflags.push('-Wl,-pie');
+        } else {
+            builder.config.ldflags.push('-pie');
+        }
     }
 
     if (/clang/i.test(builder.config.gcc) || builder.config.systemName === 'darwin') {
