@@ -187,7 +187,7 @@ int Admin_sendMessage(Dict* message, String* txid, struct Admin* admin)
         int index = Map_LastMessageTimeByAddr_indexForKey(&addrPtr, &admin->map);
         uint64_t now = Time_currentTimeMilliseconds(admin->eventBase);
         if (index < 0 || checkAddress(admin, index, now)) {
-            return -1;
+            return Admin_sendMessage_CHANNEL_CLOSED;
         }
     }
 

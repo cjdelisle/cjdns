@@ -211,7 +211,10 @@ static void doLog(struct Log* genericLog,
                                      args,
                                      logLineAlloc);
         }
-        if (Admin_sendMessage(message, log->subscriptions[i].txid, log->admin)) {
+        int ret = Admin_sendMessage(message, log->subscriptions[i].txid, log->admin);
+        if (ret == Admin_sendMessage_CHANNEL_CLOSED) {
+            removeSubscription(log, &log->subscriptions[i]);
+        } else if (ret) {
             log->subscriptions[i].dropped++;
             if (!log->unpause) {
                 log->unpause = Timeout_setInterval(unpause, log, 10, log->base, log->alloc);
