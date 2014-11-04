@@ -50,7 +50,7 @@ getNode()
     elif [ "${PLATFORM}-${MARCH}" = "linux-x86" ]; then
         NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.24/node-v0.10.24-linux-x86.tar.gz"
         NODE_SHA="fb6487e72d953451d55e28319c446151c1812ed21919168b82ab1664088ecf46"
-    elif [ "${PLATFORM}-${MARCH}" = "linux-armv6l" ]; then #Raspberry Pi
+    elif [ "${PLATFORM}-${MARCH}" = "linux-armv6l" ] || [ "${PLATFORM}-${MARCH}" = "linux-armv7l" ]; then #Raspberry Pi or Cubieboard
         NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.24/node-v0.10.24-linux-arm-pi.tar.gz"
         NODE_SHA="bdd5e253132c363492fa24ed9985873733a10558240fd45b0a4a15989ab8da90"
     elif [ "${PLATFORM}-${MARCH}" = "darwin-x86_64" ]; then
