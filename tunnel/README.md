@@ -89,18 +89,27 @@ it is for later.
                 // Bill Smith's connection
                 {
                     "publicKey": "f64hfl7c4uxt6krmhPutTheRealAddressOfANodeHere7kfm5m0.k",
-                    "ip6Address": "1111:1111:1111:1111::4"
+                    "ip6Address": "1111:1111:1111:1111::4",
+                    "ip6Prefix": 0
                 }
             ]
+
+Note the `ip6Prefix` field: it specifies the netmask that the client should use.
+We have set it to 0, so the client will think the entire IPv6 addfress space is
+accessible over the tunnel (which it is, since we're building a
+cjdns-to-clearnet gateway). This avoids us having to set up an IPv6 default
+gateway manually on the client node. If you want to advertise a smaller network
+to your clients (like just the `1111:1111:1111:1111::/64` network), set this to
+the appropriate value (in this case, 64).
 
 When you start cjdroute, the IP address for the TUN device will *not* be set automatically,
 so you must set that next with the following command:
 
     ip -6 addr add dev tun0 1111:1111:1111:1111::3
 
-Now that your tun device has an address, your client may or may not be able to connect and
+Now that your tun device has an address, your client should be able to connect to and
 ping `1111:1111:1111:1111::3`, but it definitely won't be able to reach the rest of the
-world until you add a static route to your ISP's router's address: `1111:1111:1111:1111::1`.
+world until you add a static route on the gateway to your ISP's router's address: `1111:1111:1111:1111::1`.
 This will make it route over the ethernet device and add a static route to allow the rest of
 your /64 to route down the TUN device. Once you're finished, you'll want to set a default
 route via your ISP's router's address so outgoing IPv6 packets are forwarded correctly.

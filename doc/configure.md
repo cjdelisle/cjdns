@@ -198,20 +198,24 @@ IP Tunneling will allow you to connect from the cjdns network to another outside
         {
             // Nodes allowed to connect to us.
             // When a node with the given public key connects, give them the
-            // ip4 and/or ip6 addresses listed.
+            // ip4 and/or ip6 addresses and prefix lengths listed.
             "allowedConnections":
             [
+                // Give the client an address on 192.168.1.0/24, and an address
+                // it thinks has all of IPv6 behind it.
                 // {
                 //     "publicKey": "f64hfl7c4uxt6krmhPutTheRealAddressOfANodeHere7kfm5m0.k",
                 //     "ip4Address": "192.168.1.24",
-                //     "ip6Address": "2001:123:ab::10"
+                //     "ip4Prefix": 24,
+                //     "ip6Address": "2001:123:ab::10",
+                //     "ip6Prefix": 0
                 // },
 
                 // It's ok to only specify one address.
                 // {
                 //     "publicKey": "ydq8csdk8p8ThisIsJustAnExampleAddresstxuyqdf27hvn2z0.k",
-                //     "ip4Address": "192.168.1.24",
-                //     "ip6Address": "2001:123:ab::10"
+                //     "ip4Address": "192.168.1.25",
+                //     "ip4Prefix": 24
                 // }
             ],
 
