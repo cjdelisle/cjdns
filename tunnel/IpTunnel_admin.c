@@ -168,7 +168,7 @@ static void showConn(struct IpTunnel_Connection* conn,
         Bits_memcpyConst(address, conn->connectionIp6, 16);
         char* printedAddr = Sockaddr_print(addr, alloc);
         Dict_putString(d, String_CONST("ip6Address"), String_CONST(printedAddr), alloc);
-        Dict_putInt(d, String_CONST("ip6Address"), conn->connectionIp6Prefix, alloc);
+        Dict_putInt(d, String_CONST("ip6Prefix"), conn->connectionIp6Prefix, alloc);
     }
 
     if (!Bits_isZero(conn->connectionIp4, 4)) {
