@@ -22,6 +22,7 @@ struct Context
     struct Admin* admin;
     struct CryptoAuth* ca;
     struct Allocator* allocator;
+    Identity
 };
 
 static void sendResponse(String* msg, struct Admin* admin, String* txid, struct Allocator* alloc)
@@ -33,7 +34,7 @@ static void sendResponse(String* msg, struct Admin* admin, String* txid, struct 
 
 static void add(Dict* args, void* vcontext, String* txid, struct Allocator* alloc)
 {
-    struct Context* context = (struct Context*) vcontext;
+    struct Context* context = Identity_check((struct Context*) vcontext);
 
     String* passwd = Dict_getString(args, String_CONST("password"));
     int64_t* authType = Dict_getInt(args, String_CONST("authType"));
@@ -74,7 +75,7 @@ static void add(Dict* args, void* vcontext, String* txid, struct Allocator* allo
 
 static void remove(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
-    struct Context* context = (struct Context*) vcontext;
+    struct Context* context = Identity_check((struct Context*) vcontext);
     String* user = Dict_getString(args, String_CONST("user"));
 
     int32_t ret = CryptoAuth_removeUsers(context->ca, user);
@@ -87,7 +88,7 @@ static void remove(Dict* args, void* vcontext, String* txid, struct Allocator* r
 
 static void list(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
-    struct Context* context = (struct Context*) vcontext;
+    struct Context* context = Identity_check((struct Context*) vcontext);
     struct Allocator* child = Allocator_child(context->allocator);
 
     List* users = CryptoAuth_getUsers(context->ca, child);
@@ -111,6 +112,7 @@ void AuthorizedPasswords_init(struct Admin* admin,
     context->admin = admin;
     context->allocator = allocator;
     context->ca = ca;
+    Identity_set(context);
 
     Admin_registerFunction("AuthorizedPasswords_add", add, context, true,
         ((struct Admin_FunctionArg[]){

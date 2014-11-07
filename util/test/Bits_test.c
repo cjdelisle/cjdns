@@ -21,12 +21,23 @@
 #include <stdio.h>
 #include "util/Assert.h"
 
+static void log2x64(struct Random* rand)
+{
+    Assert_true(Bits_log2x64(1) == 0);
+    Assert_true(Bits_log2x64_stupid(1) == Bits_log2x64(1));
+    Assert_true(Bits_log2x64_stupid(0) == Bits_log2x64(0));
+    for (int i = 0; i < 1000; i++) {
+        uint64_t num = Random_uint64(rand);
+        Assert_true(Bits_log2x64_stupid(num) == Bits_log2x64(num));
+    }
+}
+
 int main()
 {
     struct Allocator* alloc = MallocAllocator_new(20000);
     struct Random* rand = Random_new(alloc, NULL, NULL);
 
-    Assert_true(Bits_log2x64(1)==0);
+    log2x64(rand);
 
     uint64_t x;
     Random_bytes(rand, (uint8_t*) &x, 8);

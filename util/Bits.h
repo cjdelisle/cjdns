@@ -56,14 +56,19 @@ static inline int Bits_popCountx32(uint32_t number)
     return out;
 }
 
-// TODO(cjd): this is hot, optimize this to use the ASM instruction.
-static inline int Bits_log2x64(uint64_t number)
+static inline int Bits_log2x64_stupid(uint64_t number)
 {
     int out = 0;
     while (number >>= 1) {
         out++;
     }
     return out;
+}
+
+static inline int Bits_log2x64(uint64_t number)
+{
+    if (!number) { return 0; }
+    return 63 - __builtin_clzll(number);
 }
 
 /** Largest possible number whose log2 is bitCount. */

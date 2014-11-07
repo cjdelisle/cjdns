@@ -25,6 +25,7 @@
 #include "switch/LabelSplicer.h"
 #include "util/Gcc.h"
 #include "util/Defined.h"
+#include "util/Endian.h"
 
 #include <tree.h>
 
@@ -1199,19 +1200,18 @@ static struct Node_Two* whichIsWorse(struct Node_Two* one,
     return two;
 }
 
-static bool markBestNodes(struct NodeStore_pvt* store,
-                          struct Address* targetAddress,
-                          const uint32_t count)
+struct NodeList* NodeStore_getNodesForBucket(struct NodeStore* nodeStore,
+                                             struct Allocator* allocator,
+                                             uint16_t bucket,
+                                             const uint32_t count)
 {
-    struct Allocator* nodeListAlloc = Allocator_child(store->alloc);
-    struct NodeList* nodeList = Allocator_malloc(nodeListAlloc, sizeof(struct NodeList));
-    nodeList->nodes = Allocator_calloc(nodeListAlloc, count, sizeof(char*));
+    struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
+    struct NodeList* nodeList = Allocator_malloc(allocator, sizeof(struct NodeList));
+    nodeList->nodes = Allocator_calloc(allocator, count, sizeof(char*));
     nodeList->size = 0;
-
     struct Node_Two* nn = NULL;
     RB_FOREACH(nn, NodeRBTree, &store->nodeTree) {
-        if (Address_closest(targetAddress, store->pub.selfAddress, &nn->address) > 0) {
-            // This node is closer to the destination than we are.
+        if (NodeStore_bucketForAddr(store->pub.selfAddress, &nn->address) == bucket) {
             struct Node_Two* newNode = nn;
             struct Node_Two* tempNode = NULL;
             for (uint32_t i = 0 ; i < count ; i++) {
@@ -1226,7 +1226,7 @@ static bool markBestNodes(struct NodeStore_pvt* store,
                     // If we've already marked nodes because they're a bestParent,
                     // lets give them priority in the bucket since we need to keep
                     // them either way.
-                    // Otherwise, highest reach wins.
+                    // Otherwise, decide based on whichIsWorse().
                     // Insertion sorted list.
                     tempNode = nodeList->nodes[i];
                     nodeList->nodes[i] = newNode;
@@ -1235,7 +1235,18 @@ static bool markBestNodes(struct NodeStore_pvt* store,
             }
         }
     }
+    return nodeList;
+}
 
+static bool markNodesForBucket(struct NodeStore_pvt* store,
+                          uint16_t bucket,
+                          const uint32_t count)
+{
+    struct Allocator* nodeListAlloc = Allocator_child(store->alloc);
+    struct NodeList* nodeList = NodeStore_getNodesForBucket(&store->pub,
+                                                            nodeListAlloc,
+                                                            bucket,
+                                                            count);
     bool retVal = false;
     if (nodeList->size > 0) { retVal = true; }
 
@@ -1253,15 +1264,8 @@ static bool markBestNodes(struct NodeStore_pvt* store,
 
 static void markKeyspaceNodes(struct NodeStore_pvt* store)
 {
-    for (uint8_t i = 0; i < NodeStore_bucketNumber ; i++) {
-        // Bitwise walk across keyspace
-        if (63 < i && i < 72) {
-            // We want to leave the 0xfc alone
-            continue;
-        }
-
-        struct Address addr = NodeStore_addrForBucket(store->pub.selfAddress, i);
-        markBestNodes(store, &addr, NodeStore_bucketSize);
+    for (uint16_t bucket = 0; bucket < NodeStore_bucketNumber ; bucket++) {
+        markNodesForBucket(store, bucket, NodeStore_bucketSize);
     }
 }
 
@@ -1789,9 +1793,30 @@ static int getBestCycle(struct Node_Two* node,
 struct Node_Two* NodeStore_getBest(struct NodeStore* nodeStore, uint8_t targetAddress[16])
 {
     struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
+
+    // First try to find the node directly
     struct Node_Two* n = NodeStore_nodeForAddr(nodeStore, targetAddress);
     if (n && Node_getBestParent(n)) { return n; }
 
+    // Next try to find the best node in the correct bucket
+    struct Address fakeAddr;
+    Bits_memcpyConst(fakeAddr.ip6.bytes, targetAddress, 16);
+    uint16_t bucket = NodeStore_bucketForAddr(&store->pub.selfNode->address, &fakeAddr);
+    struct Allocator* nodeListAlloc = Allocator_child(store->alloc);
+    struct NodeList* nodeList = NodeStore_getNodesForBucket(&store->pub,
+                                                            nodeListAlloc,
+                                                            bucket,
+                                                            NodeStore_bucketSize);
+    for (uint32_t i = 0 ; i < nodeList->size ; i++) {
+        if (Node_getBestParent(nodeList->nodes[i])) {
+            n = nodeList->nodes[i];
+            break;
+        }
+    }
+    Allocator_free(nodeListAlloc);
+    if (n && Node_getBestParent(n)) { return n; }
+
+    // Finally try to find the best node that is a valid next hop (closer in keyspace)
     for (int i = 0; i < 10000; i++) {
         int ret = getBestCycle(store->pub.selfNode, targetAddress, &n, i, 0, store);
         if (n || !ret) {
@@ -1800,6 +1825,7 @@ struct Node_Two* NodeStore_getBest(struct NodeStore* nodeStore, uint8_t targetAd
         }
     }
 
+    // Apparently there are no valid next hops
     return NULL;
 }
 
@@ -2134,47 +2160,55 @@ void NodeStore_pathTimeout(struct NodeStore* nodeStore, uint64_t path)
     }*/
 }
 
-/* Find the address that describes the source's Nth furthest-away bucket. */
-struct Address NodeStore_addrForBucket(struct Address* source, uint8_t bucket)
+/* Find the address that describes the source's Nth (furthest-away) bucket. */
+struct Address NodeStore_addrForBucket(struct Address* source, uint16_t bucket)
 {
     if (bucket >= NodeStore_bucketNumber) {
         // This does not exist.
         return *source;
 
-    } else if (63 < bucket && bucket < 72) {
-        // We want to leave the 0xfc alone
-        // We also want a RouterModule_lookup() to succeed.
-        // Lets just return the furthest possible bucket.
-        return NodeStore_addrForBucket(source, 0);
-
     } else {
-        uint8_t bit;
-        uint8_t byte;
         struct Address addr = *source;
 
-        // Figure out which bit of our address to flip for this step in keyspace.
-        // This looks ugly because of the rot64 done in distance calculations.
-        if (bucket < 64) { byte = 8 + (bucket/8); }
-        else             { byte = (bucket/8) - 8; }
-        bit = (bucket % 8);
+        // Figure out which bits of our address to flip for this step in keyspace.
+        // Note: This assumes NodeStore_bucketNumber == 512
+        // (Some of those, the fc and every 16th bucket, won't actually have nodes)
+        Assert_compileTime(NodeStore_bucketNumber == 512);
+        uint64_t extras = 15 - ((bucket % 256)/16);
+        uint64_t prefix = 0x0F - (bucket % 16);
+        uint64_t bitmask = prefix << (4*extras);
 
-        addr.ip6.bytes[byte] = addr.ip6.bytes[byte] ^ (0x80 >> bit);
+        // We have the bitmask for this bucket, now we need to apply it.
+        uint64_t* addrPart = (bucket < 256) ? &addr.ip6.longs.one_be : &addr.ip6.longs.two_be;
+        *addrPart = Endian_bigEndianToHost64(*addrPart);
+        *addrPart ^= bitmask;
+        *addrPart = Endian_hostToBigEndian64(*addrPart);
 
-        // Needed in case source == selfNode->address, and we want to put this in a RumorMill.
-        addr.key[0] = addr.key[0] ^ 0x80;
-
-        // Hack, store bucket # in path, in case we need to check this.
-        addr.path = bucket;
+        // Just to be sure...
+        Assert_ifParanoid((bucket % 16) == 15 || NodeStore_bucketForAddr(source, &addr) == bucket);
 
         return addr;
     }
 }
 
-uint8_t NodeStore_bucketForAddr(struct Address* source, struct Address* dest)
+uint16_t NodeStore_bucketForAddr(struct Address* source, struct Address* dest)
 {
-    uint64_t partDist;
-    partDist = source->ip6.longs.one_be ^ dest->ip6.longs.one_be;
-    if (partDist) { return 63 - Bits_log2x64(partDist); }
-    partDist = source->ip6.longs.two_be ^ dest->ip6.longs.two_be;
-    return 127 - Bits_log2x64(partDist);
+    uint16_t retVal = 0;
+
+    // This is a place where the implementation depends on how buckets work.
+    Assert_compileTime(NodeStore_bucketNumber == 512);
+    uint64_t addrPart = source->ip6.longs.one_be ^ dest->ip6.longs.one_be;
+    if (!addrPart) {
+        // We're apparently close enough in keyspace to use two_be instead.
+        addrPart = source->ip6.longs.two_be ^ dest->ip6.longs.two_be;
+        retVal += 256;
+    }
+
+    addrPart = Endian_bigEndianToHost64(addrPart);
+    uint64_t extras = Bits_log2x64(addrPart)/4;
+    uint64_t prefix = addrPart >> (4*extras);
+    retVal += (15 - extras)*16;
+    retVal += 0x0F - prefix;
+
+    return retVal;
 }

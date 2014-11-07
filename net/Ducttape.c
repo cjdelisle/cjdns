@@ -664,7 +664,14 @@ static inline int core(struct Message* message,
 
             dtHeader->receiveHandle = Endian_bigEndianToHost32(session->receiveHandle_be);
             dtHeader->layer = Ducttape_SessionLayer_INNER;
-            return Interface_receiveMessage(&session->external, message);
+            int ret = Interface_receiveMessage(&session->external, message);
+            if (ret == Error_AUTHENTICATION) {
+                uint8_t addr[40];
+                AddrTools_printIp(addr, ip6Header->sourceAddr);
+                Log_debug(context->logger, "error handling layer3 message from [%s]", addr);
+                ret = 0;
+            }
+            return ret;
         } else {
             // double encrypted, inner layer plaintext.
             // The session is still set from the router-to-router traffic and that is the one we use
