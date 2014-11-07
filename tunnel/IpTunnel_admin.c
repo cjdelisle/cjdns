@@ -93,9 +93,9 @@ static void allowConnection(Dict* args,
     } else {
         int conn = IpTunnel_allowConnection(pubKey,
                                             (ip6Address) ? &ip6ToGive.addr : NULL,
-                                            (ip6Prefix) ? (uint8_t) *ip6Prefix : 0,
+                                            (ip6Prefix) ? (uint8_t) (*ip6Prefix) : 0,
                                             (ip4Address) ? &ip4ToGive.addr : NULL,
-                                            (ip4Prefix) ? (uint8_t) *ip4Prefix : 0,
+                                            (ip4Prefix) ? (uint8_t) (*ip4Prefix) : 0,
                                             context->ipTun);
         sendResponse(conn, txid, context->admin);
         return;

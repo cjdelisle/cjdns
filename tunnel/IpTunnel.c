@@ -131,6 +131,8 @@ int IpTunnel_allowConnection(uint8_t publicKeyOfAuthorizedNode[32],
 {
     struct IpTunnel_pvt* context = Identity_check((struct IpTunnel_pvt*)tunnel);
 
+    Log_debug(context->logger, "IPv4 Prefix to allow: %d", ip4Prefix);
+
     uint8_t* ip6Address = NULL;
     uint8_t* ip4Address = NULL;
     if (ip6Addr) {
