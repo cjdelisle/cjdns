@@ -64,6 +64,7 @@ static uint8_t responseWithIpCallback(struct Message* message, struct Interface*
     char* expectedResponse =
         "9:addresses" "d"
             "3:ip6" "16:\xfd\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1"
+            "9:ip6Prefix" "i0e"
           "e"
           "4:txid" "4:abcd"
         "e";
@@ -98,7 +99,7 @@ int main()
     struct IpTunnel* ipTun = IpTunnel_new(logger, eb, alloc, rand, NULL);
     struct Sockaddr_storage ip6ToGive;
     Sockaddr_parse("fd01:0101:0101:0101:0101:0101:0101:0101", &ip6ToGive);
-    IpTunnel_allowConnection(fakePubKey, &ip6ToGive.addr, NULL, ipTun);
+    IpTunnel_allowConnection(fakePubKey, &ip6ToGive.addr, 0, NULL, 0, ipTun);
 
     struct Message* message;
     Message_STACK(message, 64, 512);
