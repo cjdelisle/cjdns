@@ -2146,18 +2146,25 @@ void NodeStore_pathTimeout(struct NodeStore* nodeStore, uint64_t path)
                   newReach);
     }
     handleNews(node, newReach, store);
-    if (newReach > 1024) {
-        // Keep checking until we're sure it's either OK or down.
-        RumorMill_addNode(store->renumberMill, &node->address);
-    }
 
-    /* This workaround can lock the rumorMill in a bad state.
+    if (node->address.path != path) { return; }
+
+    // TODO(cjd): What we really should be doing here is storing this link in a
+    //            potentially-down-list, after pinging the parent, if the parent does not respond
+    //            and then we replace the link with the parent's link and walk backwards up
+    //            the tree. If the parent does respond then we keep pinging the child of the path
+    //            hoping it will respond or die and as it's link-state is destroyed by subsequent
+    //            lost packets, children will be re-parented to other paths.
+
+    // Keep checking until we're sure it's either OK or down.
+    RumorMill_addNode(store->renumberMill, &node->address);
+
     if (link->parent != store->pub.selfNode) {
         // All we know for sure is that link->child didn't respond.
         // That could be because an earlier link is down.
         // Same idea as the workaround in NodeStore_brokenPath();
         RumorMill_addNode(store->renumberMill, &link->parent->address);
-    }*/
+    }
 }
 
 /* Find the address that describes the source's Nth (furthest-away) bucket. */
