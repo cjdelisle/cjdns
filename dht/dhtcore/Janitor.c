@@ -243,6 +243,7 @@ static void keyspaceMaintenance(struct Janitor* janitor)
                                                                     NodeStore_bucketSize);
             for (uint32_t i = 0 ; i < nodeList->size ; i++) {
                 if (nodeList->nodes[i] == janitor->nodeStore->selfNode) { continue; }
+                if (nodeList->nodes[i]->address.path == UINT64_MAX) { continue; }
 
                 // There's a valid next hop.
                 RumorMill_addNode(janitor->dhtMill, &nodeList->nodes[i]->address);
@@ -379,7 +380,7 @@ static void checkPeers(struct Janitor* janitor, struct Node_Two* n)
 // Iterate over all nodes in the table. Try to split any split-able links.
 static void splitLinks(struct Janitor* janitor)
 {
-    //return; // TODO(cjd): Enabled until we figure out if it's still needed.
+    return; // TODO(cjd): Enabled until we figure out if it's still needed.
 
     struct Node_Two* node = NodeStore_getNextNode(janitor->nodeStore, NULL);
     while (node) {
