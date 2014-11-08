@@ -292,7 +292,11 @@ static void ipTunnel(Dict* ifaceConf, struct Allocator* tempAlloc, struct Contex
         for (int i = 0; (d = List_getDict(incoming, i)) != NULL; i++) {
             String* key = Dict_getString(d, String_CONST("publicKey"));
             String* ip4 = Dict_getString(d, String_CONST("ip4Address"));
+            // Note that the prefix length has to be a proper int in the config
+            // (not quoted!)
+            int64_t* ip4Prefix = Dict_getInt(d, String_CONST("ip4Prefix"));
             String* ip6 = Dict_getString(d, String_CONST("ip6Address"));
+            int64_t* ip6Prefix = Dict_getInt(d, String_CONST("ip6Prefix"));
             if (!key) {
                 Log_critical(ctx->logger, "In router.ipTunnel.allowedConnections[%d]"
                                           "'publicKey' required.", i);
@@ -300,10 +304,39 @@ static void ipTunnel(Dict* ifaceConf, struct Allocator* tempAlloc, struct Contex
             }
             if (!ip4 && !ip6) {
                 Log_critical(ctx->logger, "In router.ipTunnel.allowedConnections[%d]"
-                                           "either ip4Address or ip6Address required.", i);
+                                          "either 'ip4Address' or 'ip6Address' required.", i);
+                exit(1);
+            } else if (ip4Prefix && !ip4) {
+                Log_critical(ctx->logger, "In router.ipTunnel.allowedConnections[%d]"
+                                          "'ip4Address' required with 'ip4Prefix'.", i);
+                exit(1);
+            } else if (ip6Prefix && !ip6) {
+                Log_critical(ctx->logger, "In router.ipTunnel.allowedConnections[%d]"
+                                          "'ip6Address' required with 'ip6Prefix'.", i);
                 exit(1);
             }
             Log_debug(ctx->logger, "Allowing IpTunnel connections from [%s]", key->bytes);
+
+            if (ip4) {
+                Log_debug(ctx->logger, "Issue IPv4 address %s", ip4->bytes);
+                if (ip4Prefix) {
+                    Log_debug(ctx->logger, "Issue IPv4 netmask/prefix length /%d",
+                        (int) *ip4Prefix);
+                } else {
+                    Log_debug(ctx->logger, "Use default netmask/prefix length /0");
+                }
+            }
+
+            if (ip6) {
+                Log_debug(ctx->logger, "Issue IPv6 address [%s]", ip6->bytes);
+                if (ip6Prefix) {
+                    Log_debug(ctx->logger, "Issue IPv6 netmask/prefix length /%d",
+                        (int) *ip6Prefix);
+                } else {
+                    Log_debug(ctx->logger, "Use default netmask/prefix length /0");
+                }
+            }
+
             Dict_putString(d, String_CONST("publicKeyOfAuthorizedNode"), key, tempAlloc);
             rpcCall0(String_CONST("IpTunnel_allowConnection"), d, ctx, tempAlloc, true);
         }

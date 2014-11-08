@@ -118,16 +118,20 @@ static struct IpTunnel_Connection* connectionByPubKey(uint8_t pubKey[32],
  *
  * @param publicKeyOfAuthorizedNode the key for the node which will be allowed to connect.
  * @param ip6Addr the IPv6 address which the node will be issued or NULL.
+ * @param ip6Prefix the IPv6 netmask/prefix length.
  * @param ip4Addr the IPv4 address which the node will be issued or NULL.
+ * @param ip4Prefix the IPv4 netmask/prefix length.
  * @param tunnel the IpTunnel.
  * @return an connection number which is usable with IpTunnel_remove().
  */
 int IpTunnel_allowConnection(uint8_t publicKeyOfAuthorizedNode[32],
-                             struct Sockaddr* ip6Addr,
-                             struct Sockaddr* ip4Addr,
+                             struct Sockaddr* ip6Addr, uint8_t ip6Prefix,
+                             struct Sockaddr* ip4Addr, uint8_t ip4Prefix,
                              struct IpTunnel* tunnel)
 {
     struct IpTunnel_pvt* context = Identity_check((struct IpTunnel_pvt*)tunnel);
+
+    Log_debug(context->logger, "IPv4 Prefix to allow: %d", ip4Prefix);
 
     uint8_t* ip6Address = NULL;
     uint8_t* ip4Address = NULL;
@@ -143,9 +147,11 @@ int IpTunnel_allowConnection(uint8_t publicKeyOfAuthorizedNode[32],
     AddressCalc_addressForPublicKey(conn->header.nodeIp6Addr, publicKeyOfAuthorizedNode);
     if (ip4Address) {
         Bits_memcpyConst(conn->connectionIp4, ip4Address, 4);
+        conn->connectionIp4Prefix = ip4Prefix;
     }
     if (ip6Address) {
         Bits_memcpyConst(conn->connectionIp6, ip6Address, 16);
+        conn->connectionIp6Prefix = ip6Prefix;
     }
     return conn->number;
 }
@@ -316,6 +322,9 @@ static uint8_t requestForAddresses(Dict* request,
                        String_CONST("ip6"),
                        String_newBinary((char*)conn->connectionIp6, 16, requestAlloc),
                        requestAlloc);
+        Dict_putInt(addresses,
+                    String_CONST("ip6Prefix"), (int64_t)conn->connectionIp6Prefix,
+                    requestAlloc);
         noAddresses = false;
     }
     if (!Bits_isZero(conn->connectionIp4, 4)) {
@@ -323,6 +332,9 @@ static uint8_t requestForAddresses(Dict* request,
                        String_CONST("ip4"),
                        String_newBinary((char*)conn->connectionIp4, 4, requestAlloc),
                        requestAlloc);
+        Dict_putInt(addresses,
+                    String_CONST("ip4Prefix"), (int64_t)conn->connectionIp4Prefix,
+                    requestAlloc);
         noAddresses = false;
     }
     if (noAddresses) {
@@ -360,14 +372,8 @@ static void addAddressCallback(Dict* responseMessage, void* vcontext)
     }
 }
 
-static void addAddress(char* printedAddr, struct IpTunnel_pvt* ctx)
+static void addAddress(char* printedAddr, uint8_t prefixLen, struct IpTunnel_pvt* ctx)
 {
-#ifdef Darwin
-    int prefixLen = 3;
-#else
-    int prefixLen = 0;
-#endif
-// Apple doesn't handle prefix length of 0 properly. 3 covers all IPv6 unicast space.
     if (!ctx->ifName) {
         Log_error(ctx->logger, "Failed to set IP address because TUN interface is not setup");
         return;
@@ -431,8 +437,15 @@ static int incomingAddresses(Dict* d,
     Dict* addresses = Dict_getDict(d, String_CONST("addresses"));
 
     String* ip4 = Dict_getString(addresses, String_CONST("ip4"));
+    int64_t* ip4Prefix = Dict_getInt(addresses, String_CONST("ip4Prefix"));
     if (ip4 && ip4->len == 4) {
         Bits_memcpyConst(conn->connectionIp4, ip4->bytes, 4);
+
+        if (ip4Prefix && *ip4Prefix >= 0 && *ip4Prefix <= 32) {
+            conn->connectionIp4Prefix = (uint8_t) *ip4Prefix;
+        } else {
+            conn->connectionIp4Prefix = 0;
+        }
 
         struct Sockaddr* sa = Sockaddr_clone(Sockaddr_LOOPBACK, alloc);
         uint8_t* addrBytes = NULL;
@@ -440,15 +453,30 @@ static int incomingAddresses(Dict* d,
         Bits_memcpy(addrBytes, ip4->bytes, 4);
         char* printedAddr = Sockaddr_print(sa, alloc);
 
-        Log_info(context->logger, "Got issued address [%s] for connection [%d]",
-                 printedAddr, conn->number);
+        Log_info(context->logger, "Got issued address [%s/%d] for connection [%d]",
+                 printedAddr, conn->connectionIp4Prefix, conn->number);
 
-        addAddress(printedAddr, context);
+        addAddress(printedAddr, conn->connectionIp4Prefix, context);
     }
 
     String* ip6 = Dict_getString(addresses, String_CONST("ip6"));
+    int64_t* ip6Prefix = Dict_getInt(addresses, String_CONST("ip6Prefix"));
     if (ip6 && ip6->len == 16) {
         Bits_memcpyConst(conn->connectionIp6, ip6->bytes, 16);
+
+        if (ip6Prefix && *ip6Prefix >= 0 && *ip6Prefix <= 128) {
+            conn->connectionIp6Prefix = (uint8_t) *ip6Prefix;
+        } else {
+            conn->connectionIp6Prefix = 0;
+        }
+
+        #ifdef Darwin
+            if (conn->connectionIp6Prefix < 3) {
+                // Apple doesn't handle prefix length of 0 properly. 3 covers
+                // all IPv6 unicast space.
+                conn->connectionIp6Prefix = 3;
+            }
+        #endif
 
         struct Sockaddr* sa = Sockaddr_clone(Sockaddr_LOOPBACK6, alloc);
         uint8_t* addrBytes = NULL;
@@ -456,10 +484,10 @@ static int incomingAddresses(Dict* d,
         Bits_memcpy(addrBytes, ip6->bytes, 16);
         char* printedAddr = Sockaddr_print(sa, alloc);
 
-        Log_info(context->logger, "Got issued address [%s] for connection [%d]",
-                 printedAddr, conn->number);
+        Log_info(context->logger, "Got issued address [%s/%d] for connection [%d]",
+                 printedAddr, conn->connectionIp6Prefix, conn->number);
 
-        addAddress(printedAddr, context);
+        addAddress(printedAddr, conn->connectionIp6Prefix, context);
     }
     return 0;
 }

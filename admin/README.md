@@ -398,7 +398,9 @@ Returns:
 * Int **outgoing**: 1 if the connection is outgoing, 0 if it's incoming.
 * String **key**: the cjdns public key of the foreign node.
 * String **ip6Address**: the IPv6 address which is assigned to this IPTunnel if applicable.
+* Int **ip6Prefix**: the IPv6 netmask/prefix length which is assigned to this IPTunnel if applicable.
 * String **ip4Address**: the IPv4 address which is assigned to this IPTunnel if applicable.
+* Int **ip4Prefix**: the IPv4 netmask/prefix length which is assigned to this IPTunnel if applicable.
 * String **error**: `none` unless the connection number is invalid.
 
 Examples:

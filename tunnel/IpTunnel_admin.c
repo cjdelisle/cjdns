@@ -57,7 +57,9 @@ static void allowConnection(Dict* args,
     String* publicKeyOfAuthorizedNode =
         Dict_getString(args, String_CONST("publicKeyOfAuthorizedNode"));
     String* ip6Address = Dict_getString(args, String_CONST("ip6Address"));
+    int64_t* ip6Prefix = Dict_getInt(args, String_CONST("ip6Prefix"));
     String* ip4Address = Dict_getString(args, String_CONST("ip4Address"));
+    int64_t* ip4Prefix = Dict_getInt(args, String_CONST("ip4Prefix"));
     uint8_t pubKey[32];
     uint8_t ip6Addr[16];
 
@@ -70,6 +72,14 @@ static void allowConnection(Dict* args,
         error = "Must specify ip6Address or ip4Address";
     } else if ((ret = Key_parse(publicKeyOfAuthorizedNode, pubKey, ip6Addr)) != 0) {
         error = Key_parse_strerror(ret);
+    } else if (ip6Prefix && !ip6Address) {
+        error = "Must specify ip6Address with ip6Prefix";
+    } else if (ip6Prefix && (*ip6Prefix > 128 || *ip6Prefix < 0)) {
+        error = "ip6Prefix out of range: must be 0 to 128";
+    } else if (ip4Prefix && (*ip4Prefix > 32 || *ip4Prefix < 0)) {
+        error = "ip4Prefix out of range: must be 0 to 32";
+    } else if (ip4Prefix && !ip4Address) {
+        error = "Must specify ip4Address with ip4Prefix";
     } else if (ip6Address
         && (Sockaddr_parse(ip6Address->bytes, &ip6ToGive)
             || Sockaddr_getFamily(&ip6ToGive.addr) != Sockaddr_AF_INET6))
@@ -83,7 +93,9 @@ static void allowConnection(Dict* args,
     } else {
         int conn = IpTunnel_allowConnection(pubKey,
                                             (ip6Address) ? &ip6ToGive.addr : NULL,
+                                            (ip6Prefix) ? (uint8_t) (*ip6Prefix) : 0,
                                             (ip4Address) ? &ip4ToGive.addr : NULL,
+                                            (ip4Prefix) ? (uint8_t) (*ip4Prefix) : 0,
                                             context->ipTun);
         sendResponse(conn, txid, context->admin);
         return;
@@ -156,6 +168,7 @@ static void showConn(struct IpTunnel_Connection* conn,
         Bits_memcpyConst(address, conn->connectionIp6, 16);
         char* printedAddr = Sockaddr_print(addr, alloc);
         Dict_putString(d, String_CONST("ip6Address"), String_CONST(printedAddr), alloc);
+        Dict_putInt(d, String_CONST("ip6Prefix"), conn->connectionIp6Prefix, alloc);
     }
 
     if (!Bits_isZero(conn->connectionIp4, 4)) {
@@ -165,6 +178,7 @@ static void showConn(struct IpTunnel_Connection* conn,
         Bits_memcpyConst(address, conn->connectionIp4, 4);
         char* printedAddr = Sockaddr_print(addr, alloc);
         Dict_putString(d, String_CONST("ip4Address"), String_CONST(printedAddr), alloc);
+        Dict_putInt(d, String_CONST("ip4Prefix"), conn->connectionIp4Prefix, alloc);
     }
 
     Dict_putString(d, String_CONST("key"), Key_stringify(conn->header.nodeKey, alloc), alloc);
@@ -199,7 +213,9 @@ void IpTunnel_admin_register(struct IpTunnel* ipTun, struct Admin* admin, struct
         ((struct Admin_FunctionArg[]) {
             { .name = "publicKeyOfAuthorizedNode", .required = 1, .type = "String" },
             { .name = "ip6Address", .required = 0, .type = "String" },
+            { .name = "ip6Prefix", .required = 0, .type = "Int" },
             { .name = "ip4Address", .required = 0, .type = "String" },
+            { .name = "ip4Prefix", .required = 0, .type = "Int" },
         }), admin);
 
     Admin_registerFunction("IpTunnel_connectTo", connectTo, context, true,
