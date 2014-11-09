@@ -23,6 +23,7 @@
 #include "dht/dhtcore/ReplySerializer.h"
 #include "benc/Object.h"
 #include "memory/Allocator.h"
+#include "switch/LabelSplicer.h"
 #include "util/AddrTools.h"
 #include "util/AverageRoller.h"
 #include "util/Bits.h"
@@ -221,71 +222,6 @@ static void dhtResponseCallback(struct RouterModule_Promise* promise,
     }
 }
 
-
-/**
- * For a Distributed Hash Table to work, each node must know a valid next hop for every possible
- * lookup, unless no such node exists in the network (i.e. the final hop is either us or offline).
- *
- * This function queries other nodes to find valid next hops for any address.
- */
-static void keyspaceMaintenance(struct Janitor* janitor)
-{
-    struct Address addr;
-    struct Address* selfAddr = janitor->nodeStore->selfAddress;
-    if (!RumorMill_getNode(janitor->dhtMill, &addr)) {
-        // Try to fill the dhtMill for next time.
-        for (uint16_t bucket = 0; bucket < NodeStore_bucketNumber ; bucket++) {
-            // Check if there's a valid next hop for this bit in keyspace.
-            struct Allocator* nodeListAlloc = Allocator_child(janitor->allocator);
-            struct NodeList* nodeList = NodeStore_getNodesForBucket(janitor->nodeStore,
-                                                                    nodeListAlloc,
-                                                                    bucket,
-                                                                    NodeStore_bucketSize);
-            for (uint32_t i = 0 ; i < nodeList->size ; i++) {
-                if (nodeList->nodes[i] == janitor->nodeStore->selfNode) { continue; }
-                if (nodeList->nodes[i]->address.path == UINT64_MAX) { continue; }
-
-                // There's a valid next hop.
-                RumorMill_addNode(janitor->dhtMill, &nodeList->nodes[i]->address);
-            }
-            Allocator_free(nodeListAlloc);
-        }
-        return;
-    }
-
-    struct Node_Two* node = NodeStore_nodeForAddr(janitor->nodeStore, addr.ip6.bytes);
-    if (node && node->address.path == addr.path) {
-        //FIXME(arceliar): This target probably isn't optimal.
-        uint16_t bucket = NodeStore_bucketForAddr(selfAddr, &addr);
-        struct Address target = NodeStore_addrForBucket(&addr, bucket);
-        struct RouterModule_Promise* rp = RouterModule_findNode(&addr,
-                                                                target.ip6.bytes,
-                                                                0,
-                                                                janitor->routerModule,
-                                                                janitor->allocator);
-        rp->callback = dhtResponseCallback;
-        rp->userData = janitor;
-        #ifdef Log_DEBUG
-            uint8_t addrStr[60];
-            Address_print(addrStr, &addr);
-            Log_debug(janitor->logger, "Sending findNode to [%s] from "
-                                       "dht-checking RumorMill", addrStr);
-        #endif
-    } else {
-        // Node not already in our routing table.
-        // Ping them. If they're good, we'll ask them to findNodes our next round.
-        RouterModule_pingNode(&addr, 0, janitor->routerModule, janitor->allocator);
-        #ifdef Log_DEBUG
-            uint8_t addrStr[60];
-            Address_print(addrStr, &addr);
-            Log_debug(janitor->logger, "Pinging possible node [%s] from "
-                                       "dht-checking RumorMill", addrStr);
-        #endif
-    }
-    return;
-    searchNoDupe(addr.ip6.bytes, janitor); // The last search, unaccessible.
-}
-
 static void peersResponseCallback(struct RouterModule_Promise* promise,
                                   uint32_t lagMilliseconds,
                                   struct Address* from,
@@ -315,7 +251,36 @@ static void peersResponseCallback(struct RouterModule_Promise* promise,
             if (node) {
                 RumorMill_addNode(janitor->linkMill, &addresses->elems[i]);
             } else {
-                RumorMill_addNode(janitor->nodeMill, &addresses->elems[i]);
+                // First check if this node would be useful for keyspace reasons.
+                uint16_t bucketNodes = 0;
+                uint16_t bucket = NodeStore_bucketForAddr(janitor->nodeStore->selfAddress,
+                                                          &addresses->elems[i]);
+                struct Allocator* nodeListAlloc = Allocator_child(janitor->allocator);
+                struct NodeList* nodeList = NodeStore_getNodesForBucket(janitor->nodeStore,
+                                                                        nodeListAlloc,
+                                                                        bucket,
+                                                                        NodeStore_bucketSize);
+                for (uint32_t i = 0 ; i < nodeList->size ; i++) {
+                    if (nodeList->nodes[i] == janitor->nodeStore->selfNode) { continue; }
+                    if (nodeList->nodes[i]->address.path == UINT64_MAX) { continue; }
+                    bucketNodes++;
+                }
+                Allocator_free(nodeListAlloc);
+                if (bucketNodes < NodeStore_bucketSize) {
+                    // Add it and move on to the next address.
+                    RumorMill_addNode(janitor->nodeMill, &addresses->elems[i]);
+                    continue;
+                }
+
+                // If it's not required for keyspace, then check if it can split a path.
+                node = NodeStore_getNextNode(janitor->nodeStore, NULL);
+                while (node) {
+                    if (LabelSplicer_routesThrough(node->address.path, addresses->elems[i].path)) {
+                        RumorMill_addNode(janitor->nodeMill, &addresses->elems[i]);
+                        break;
+                    }
+                    node = NodeStore_getNextNode(janitor->nodeStore, node);
+                }
             }
         } else if (!Address_isSameIp(&addresses->elems[i], &nl->child->address)) {
             if (nl->parent != parent) {
@@ -375,6 +340,72 @@ static void checkPeers(struct Janitor* janitor, struct Node_Two* n)
             }
         } while (l);
     }
+}
+
+/**
+ * For a Distributed Hash Table to work, each node must know a valid next hop for every possible
+ * lookup, unless no such node exists in the network (i.e. the final hop is either us or offline).
+ *
+ * This function queries other nodes to find valid next hops for any address.
+ */
+static void keyspaceMaintenance(struct Janitor* janitor)
+{
+    struct Address addr;
+    struct Address* selfAddr = janitor->nodeStore->selfAddress;
+    if (!RumorMill_getNode(janitor->dhtMill, &addr)) {
+        // Try to fill the dhtMill for next time.
+        for (uint16_t bucket = 0; bucket < NodeStore_bucketNumber ; bucket++) {
+            // Check if there's a valid next hop for this bit in keyspace.
+            struct Allocator* nodeListAlloc = Allocator_child(janitor->allocator);
+            struct NodeList* nodeList = NodeStore_getNodesForBucket(janitor->nodeStore,
+                                                                    nodeListAlloc,
+                                                                    bucket,
+                                                                    NodeStore_bucketSize);
+            for (uint32_t i = 0 ; i < nodeList->size ; i++) {
+                if (nodeList->nodes[i] == janitor->nodeStore->selfNode) { continue; }
+                if (nodeList->nodes[i]->address.path == UINT64_MAX) { continue; }
+
+                // There's a valid next hop.
+                RumorMill_addNode(janitor->dhtMill, &nodeList->nodes[i]->address);
+            }
+            Allocator_free(nodeListAlloc);
+        }
+        return;
+    }
+
+    struct Node_Two* node = NodeStore_nodeForAddr(janitor->nodeStore, addr.ip6.bytes);
+    if (node && node->address.path == addr.path) {
+        // There may be non-one-hop links. We should split them.
+        checkPeers(janitor, node);
+        //FIXME(arceliar): This target probably isn't optimal.
+        uint16_t bucket = NodeStore_bucketForAddr(selfAddr, &addr);
+        struct Address target = NodeStore_addrForBucket(&addr, bucket);
+        struct RouterModule_Promise* rp = RouterModule_findNode(&addr,
+                                                                target.ip6.bytes,
+                                                                0,
+                                                                janitor->routerModule,
+                                                                janitor->allocator);
+        rp->callback = dhtResponseCallback;
+        rp->userData = janitor;
+        #ifdef Log_DEBUG
+            uint8_t addrStr[60];
+            Address_print(addrStr, &addr);
+            Log_debug(janitor->logger, "Sending findNode to [%s] from "
+                                       "dht-checking RumorMill", addrStr);
+        #endif
+    } else {
+        // Node not already in our routing table.
+        // Ping them. If they're good, we'll ask them to findNodes our next round.
+        RouterModule_pingNode(&addr, 0, janitor->routerModule, janitor->allocator);
+        #ifdef Log_DEBUG
+            uint8_t addrStr[60];
+            Address_print(addrStr, &addr);
+            Log_debug(janitor->logger, "Pinging possible node [%s] from "
+                                       "dht-checking RumorMill", addrStr);
+        #endif
+    }
+    return;
+    searchNoDupe(addr.ip6.bytes, janitor); // The last search, unaccessible.
 }
 
 // Iterate over all nodes in the table. Try to split any split-able links.
