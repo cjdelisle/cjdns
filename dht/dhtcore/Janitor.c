@@ -314,7 +314,7 @@ static void peersResponseCallback(struct RouterModule_Promise* promise,
     }
 }
 
-static void checkPeers(struct Janitor* janitor, struct Node_Two* n)
+static bool checkPeers(struct Janitor* janitor, struct Node_Two* n)
 {
     // Lets check for non-one-hop links at each node along the path between us and this node.
     uint64_t path = n->address.path;
@@ -323,7 +323,7 @@ static void checkPeers(struct Janitor* janitor, struct Node_Two* n)
 
     for (;;) {
         link = NodeStore_firstHopInPath(janitor->nodeStore, path, &path, link);
-        if (!link) { return; }
+        if (!link) { break; }
         if (link->parent == janitor->nodeStore->selfNode) { continue; }
 
         struct Node_Link* l = NULL;
@@ -336,10 +336,11 @@ static void checkPeers(struct Janitor* janitor, struct Node_Two* n)
                 rp->callback = peersResponseCallback;
                 rp->userData = janitor;
                 // Only send max 1 getPeers req per second.
-                return;
+                return true;
             }
         } while (l);
     }
+    return false;
 }
 
 /**
@@ -375,8 +376,12 @@ static void keyspaceMaintenance(struct Janitor* janitor)
 
     struct Node_Two* node = NodeStore_nodeForAddr(janitor->nodeStore, addr.ip6.bytes);
     if (node && node->address.path == addr.path) {
-        // There may be non-one-hop links. We should split them.
-        checkPeers(janitor, node);
+        if (checkPeers(janitor, node)) {
+            // If the mills never empty, then returning here can block the dht.
+            // This would be a sign that the nodeStore is too small for the network size.
+            // Also blocked if we fail to correctly split the link when we find a hop in the middle.
+            //return;
+        }
         //FIXME(arceliar): This target probably isn't optimal.
         uint16_t bucket = NodeStore_bucketForAddr(selfAddr, &addr);
         struct Address target = NodeStore_addrForBucket(&addr, bucket);
@@ -479,6 +484,7 @@ static bool tryExistingNode(struct Janitor* janitor)
         node = NodeStore_getNextNode(janitor->nodeStore, node);
     }
     if (node) {
+        if (checkPeers(janitor, node)) { return true; }
         getPeersMill(janitor, &node->address);
         debugAddr(janitor, "Pinging existing node", &node->address);
         return true;
@@ -590,21 +596,22 @@ static void maintanenceCycle(void* vcontext)
     struct Address addr = { .protocolVersion = 0 };
 
     if (tryExternalMill(janitor)) {
-        // always try the external mill first, this is low-traffic.
+        // Always try the external mill first, this is low-traffic.
 
     } else if (Random_uint8(janitor->rand) < janitor->nodeStore->linkedNodes &&
         tryExistingNode(janitor))
     {
-        // up to 50% of the time, try to ping an existing node or find a new one.
+        // Up to 50% of the time, try to ping an existing node or find a new one.
 
-    } else if (!(Random_uint8(janitor->rand) % 4) && tryLinkMill(janitor)) {
-        // 25% of the time, try to optimize a link
-
-    } else if (Random_uint8(janitor->rand) % 4 && tryRandomLink(janitor)) {
-        // 75% of the time, ping a random link from a random node.
+    } else if (tryLinkMill(janitor)) {
+        // Try to find a new link to a known node.
 
     } else if (tryNodeMill(janitor)) {
-        // the rest of the time, try to find a new node.
+        // Try to find a new node.
+
+    } else if (tryRandomLink(janitor)) {
+        // Ping a random link from a random node.
+
     } else {
         Log_debug(janitor->logger, "Could not find anything to do");
     }
