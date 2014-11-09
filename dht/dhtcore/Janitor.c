@@ -380,7 +380,7 @@ static void keyspaceMaintenance(struct Janitor* janitor)
             // If the mills never empty, then returning here can block the dht.
             // This would be a sign that the nodeStore is too small for the network size.
             // Also blocked if we fail to correctly split the link when we find a hop in the middle.
-            //return;
+            return;
         }
         //FIXME(arceliar): This target probably isn't optimal.
         uint16_t bucket = NodeStore_bucketForAddr(selfAddr, &addr);
