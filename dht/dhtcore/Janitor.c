@@ -598,16 +598,16 @@ static void maintanenceCycle(void* vcontext)
     if (tryExternalMill(janitor)) {
         // Always try the external mill first, this is low-traffic.
 
-    } else if (Random_uint8(janitor->rand) < janitor->nodeStore->linkedNodes &&
-        tryExistingNode(janitor))
-    {
-        // Up to 50% of the time, try to ping an existing node or find a new one.
-
     } else if (tryLinkMill(janitor)) {
         // Try to find a new link to a known node.
 
     } else if (tryNodeMill(janitor)) {
         // Try to find a new node.
+
+    } else if (Random_uint8(janitor->rand) < janitor->nodeStore->linkedNodes &&
+        tryExistingNode(janitor))
+    {
+        // Up to 50% of the time, try to ping an existing node or find a new one.
 
     } else if (tryRandomLink(janitor)) {
         // Ping a random link from a random node.
