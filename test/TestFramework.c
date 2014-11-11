@@ -121,7 +121,7 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
 
     struct RumorMill* rumorMill = RumorMill_new(allocator, myAddress, 64, logger, "");
 
-    struct NodeStore* nodeStore = NodeStore_new(myAddress, allocator, logger, rumorMill);
+    struct NodeStore* nodeStore = NodeStore_new(myAddress, allocator, base, logger, rumorMill);
 
     struct RouterModule* routerModule =
         RouterModule_register(registry, allocator, publicKey, base, logger, rand, nodeStore);

@@ -26,6 +26,7 @@
 #include "util/Gcc.h"
 #include "util/Defined.h"
 #include "util/Endian.h"
+#include "util/events/Time.h"
 
 #include <tree.h>
 
@@ -54,6 +55,9 @@ struct NodeStore_pvt
 
     /** The means for this node store to log. */
     struct Log* logger;
+
+    /** To track time, for e.g. figuring out when nodes were last pinged */
+    struct EventBase* eventBase;
 
     Identity
 };
@@ -1446,6 +1450,7 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
         child->alloc = alloc;
         Bits_memcpyConst(&child->address, addr, sizeof(struct Address));
         child->encodingScheme = EncodingScheme_clone(scheme, child->alloc);
+        child->timeOfLastPing = 0;
         Identity_set(child);
     }
 
@@ -1686,6 +1691,7 @@ struct Node_Link* NodeStore_nextLink(struct Node_Two* parent, struct Node_Link* 
 /** See: NodeStore.h */
 struct NodeStore* NodeStore_new(struct Address* myAddress,
                                 struct Allocator* allocator,
+                                struct EventBase* eventBase,
                                 struct Log* logger,
                                 struct RumorMill* renumberMill)
 {
@@ -1698,6 +1704,7 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
         },
         .renumberMill = renumberMill,
         .logger = logger,
+        .eventBase = eventBase,
         .alloc = alloc
     }));
     Identity_set(out);
@@ -2218,4 +2225,10 @@ uint16_t NodeStore_bucketForAddr(struct Address* source, struct Address* dest)
     retVal += 0x0F - prefix;
 
     return retVal;
+}
+
+uint64_t NodeStore_timeSinceLastPing(struct NodeStore* nodeStore, struct Node_Two* node)
+{
+    struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
+    return Time_currentTimeMilliseconds(store->eventBase) - node->timeOfLastPing;
 }

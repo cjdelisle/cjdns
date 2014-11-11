@@ -60,6 +60,14 @@ static void dumpTable(Dict* args, void* vcontext, String* txid, struct Allocator
         Dict_putInt(nodeDict, String_CONST("link"), Node_getReach(nn), requestAlloc);
         Dict_putInt(nodeDict, String_CONST("version"), nn->address.protocolVersion, requestAlloc);
 
+        // Time we last pinged this node
+        if (!nn->timeOfLastPing) {
+            Dict_putString(nodeDict, String_CONST("time"), String_CONST("never"), requestAlloc);
+        } else {
+            uint64_t timeSinceLastPing = NodeStore_timeSinceLastPing(ctx->store, nn);
+            Dict_putInt(nodeDict, String_CONST("time"), timeSinceLastPing, requestAlloc);
+        }
+
         List_addDict(table, nodeDict, requestAlloc);
     }
     Dict_putList(out, String_CONST("routingTable"), table, requestAlloc);

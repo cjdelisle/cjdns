@@ -22,6 +22,7 @@
 #include "memory/Allocator.h"
 #include "switch/EncodingScheme.h"
 #include "util/Linker.h"
+#include "util/events/EventBase.h"
 Linker_require("dht/dhtcore/NodeStore.c")
 
 #include <stdint.h>
@@ -55,6 +56,7 @@ struct NodeStore
  */
 struct NodeStore* NodeStore_new(struct Address* myAddress,
                                 struct Allocator* allocator,
+                                struct EventBase* eventBase,
                                 struct Log* logger,
                                 struct RumorMill* renumberMill);
 
@@ -199,6 +201,8 @@ void NodeStore_brokenLink(struct NodeStore* nodeStore, uint64_t path, uint64_t p
 void NodeStore_disconnectedPeer(struct NodeStore* nodeStore, uint64_t path);
 
 struct Node_Two* NodeStore_getNextNode(struct NodeStore* nodeStore, struct Node_Two* lastNode);
+
+uint64_t NodeStore_timeSinceLastPing(struct NodeStore* nodeStore, struct Node_Two* node);
 
 // Used for DHT maintenance.
 #define NodeStore_bucketSize 4

@@ -52,6 +52,7 @@ void Node_setParentReachAndPath(struct Node_Two* node,
     node->bestParent_pvt = bestParent;
     node->reach_pvt = reach;
     node->address.path = path;
+    node->timeOfLastPing = 0;
 }
 
 bool Node_isOneHopLink(struct Node_Link* link)

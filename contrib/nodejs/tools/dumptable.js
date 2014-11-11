@@ -32,7 +32,7 @@ Cjdns.connectWithAdminInfo(function (cjdns) {
             } else {
                 list.sort(function (a,b) { return a.path < b.path ? -1 : 1; });
                 list.forEach(function (r) {
-                    console.log(r.ip + ' ' + r.path + ' ' + r.link + ' ' + r.version);
+                    console.log(r.ip + ' ' + r.path + ' ' + r.link + ' ' + r.version + ' ' + r.time);
                 });
 
                 console.log(table.count + ' nodes ' + table.peers + ' peers');
