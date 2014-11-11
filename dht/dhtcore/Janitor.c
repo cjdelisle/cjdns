@@ -23,6 +23,7 @@
 #include "dht/dhtcore/ReplySerializer.h"
 #include "benc/Object.h"
 #include "memory/Allocator.h"
+#include "switch/LabelSplicer.h"
 #include "util/AddrTools.h"
 #include "util/AverageRoller.h"
 #include "util/Bits.h"
@@ -221,6 +222,126 @@ static void dhtResponseCallback(struct RouterModule_Promise* promise,
     }
 }
 
+static void peersResponseCallback(struct RouterModule_Promise* promise,
+                                  uint32_t lagMilliseconds,
+                                  struct Address* from,
+                                  Dict* result)
+{
+    struct Janitor* janitor = Identity_check((struct Janitor*)promise->userData);
+    if (!from) { return; }
+    struct Address_List* addresses =
+        ReplySerializer_parse(from, result, janitor->logger, promise->alloc);
+
+    struct Node_Two* parent = NodeStore_nodeForAddr(janitor->nodeStore, from->ip6.bytes);
+    if (!parent) { return; }
+
+    int loopCount = 0;
+    for (int i = 0; addresses && i < addresses->length; i++) {
+
+        // they're telling us about themselves, how helpful...
+        if (!Bits_memcmp(addresses->elems[i].key, from->key, 32)) { continue; }
+
+        struct Node_Link* nl = NodeStore_linkForPath(janitor->nodeStore, addresses->elems[i].path);
+        if (!nl || Bits_memcmp(nl->child->address.ip6.bytes,
+                               addresses->elems[i].ip6.bytes,
+                               Address_SEARCH_TARGET_SIZE))
+        {
+            struct Node_Two* node = NodeStore_nodeForAddr(janitor->nodeStore,
+                                                          addresses->elems[i].ip6.bytes);
+            if (node) {
+                RumorMill_addNode(janitor->linkMill, &addresses->elems[i]);
+            } else {
+                // First check if this node would be useful for keyspace reasons.
+                uint16_t bucketNodes = 0;
+                uint16_t bucket = NodeStore_bucketForAddr(janitor->nodeStore->selfAddress,
+                                                          &addresses->elems[i]);
+                struct Allocator* nodeListAlloc = Allocator_child(janitor->allocator);
+                struct NodeList* nodeList = NodeStore_getNodesForBucket(janitor->nodeStore,
+                                                                        nodeListAlloc,
+                                                                        bucket,
+                                                                        NodeStore_bucketSize);
+                for (uint32_t i = 0 ; i < nodeList->size ; i++) {
+                    if (nodeList->nodes[i] == janitor->nodeStore->selfNode) { continue; }
+                    if (nodeList->nodes[i]->address.path == UINT64_MAX) { continue; }
+                    bucketNodes++;
+                }
+                Allocator_free(nodeListAlloc);
+                if (bucketNodes < NodeStore_bucketSize) {
+                    // Add it and move on to the next address.
+                    RumorMill_addNode(janitor->nodeMill, &addresses->elems[i]);
+                    continue;
+                }
+
+                // If it's not required for keyspace, then check if it can split a path.
+                node = NodeStore_getNextNode(janitor->nodeStore, NULL);
+                while (node) {
+                    if (LabelSplicer_routesThrough(node->address.path, addresses->elems[i].path)) {
+                        RumorMill_addNode(janitor->nodeMill, &addresses->elems[i]);
+                        break;
+                    }
+                    node = NodeStore_getNextNode(janitor->nodeStore, node);
+                }
+            }
+        } else if (!Address_isSameIp(&addresses->elems[i], &nl->child->address)) {
+            if (nl->parent != parent) {
+                #ifdef Log_INFO
+                    uint8_t newAddr[60];
+                    Address_print(newAddr, from);
+                    uint8_t labelStr[20];
+                    AddrTools_printPath(labelStr, nl->cannonicalLabel);
+                    Log_info(janitor->logger, "Apparently [%s] reported [%s] as it's peer",
+                             newAddr, labelStr);
+                #endif
+                continue;
+            }
+            #ifdef Log_INFO
+                uint8_t newAddr[60];
+                Address_print(newAddr, from);
+                Log_info(janitor->logger, "Apparently [%s] has renumbered it's switch", newAddr);
+            #endif
+            struct Node_Link* link = NodeStore_nextLink(parent, NULL);
+            while (link) {
+                struct Node_Link* nextLink = NodeStore_nextLink(parent, link);
+                NodeStore_unlinkNodes(janitor->nodeStore, link);
+                link = nextLink;
+                // restart from the beginning...
+                i = 0;
+                Assert_true(!loopCount);
+            }
+            Assert_true(!NodeStore_nextLink(parent, NULL));
+            loopCount++;
+        }
+    }
+}
+
+static bool checkPeers(struct Janitor* janitor, struct Node_Two* n)
+{
+    // Lets check for non-one-hop links at each node along the path between us and this node.
+    uint64_t path = n->address.path;
+
+    struct Node_Link* link = NULL;
+
+    for (;;) {
+        link = NodeStore_firstHopInPath(janitor->nodeStore, path, &path, link);
+        if (!link) { break; }
+        if (link->parent == janitor->nodeStore->selfNode) { continue; }
+
+        struct Node_Link* l = NULL;
+        do {
+            l = NodeStore_nextLink(link->child, l);
+            if (l && (!Node_isOneHopLink(l) || Node_getReach(link->parent) == 0)) {
+                struct RouterModule_Promise* rp =
+                    RouterModule_getPeers(&link->parent->address, l->cannonicalLabel, 0,
+                                          janitor->routerModule, janitor->allocator);
+                rp->callback = peersResponseCallback;
+                rp->userData = janitor;
+                // Only send max 1 getPeers req per second.
+                return true;
+            }
+        } while (l);
+    }
+    return false;
+}
 
 /**
  * For a Distributed Hash Table to work, each node must know a valid next hop for every possible
@@ -255,6 +376,12 @@ static void keyspaceMaintenance(struct Janitor* janitor)
 
     struct Node_Two* node = NodeStore_nodeForAddr(janitor->nodeStore, addr.ip6.bytes);
     if (node && node->address.path == addr.path) {
+        if (checkPeers(janitor, node)) {
+            // If the mills never empty, then returning here can block the dht.
+            // This would be a sign that the nodeStore is too small for the network size.
+            // Also blocked if we fail to correctly split the link when we find a hop in the middle.
+            return;
+        }
         //FIXME(arceliar): This target probably isn't optimal.
         uint16_t bucket = NodeStore_bucketForAddr(selfAddr, &addr);
         struct Address target = NodeStore_addrForBucket(&addr, bucket);
@@ -284,97 +411,6 @@ static void keyspaceMaintenance(struct Janitor* janitor)
     }
     return;
     searchNoDupe(addr.ip6.bytes, janitor); // The last search, unaccessible.
-}
-
-static void peersResponseCallback(struct RouterModule_Promise* promise,
-                                  uint32_t lagMilliseconds,
-                                  struct Address* from,
-                                  Dict* result)
-{
-    struct Janitor* janitor = Identity_check((struct Janitor*)promise->userData);
-    if (!from) { return; }
-    struct Address_List* addresses =
-        ReplySerializer_parse(from, result, janitor->logger, promise->alloc);
-
-    struct Node_Two* parent = NodeStore_nodeForAddr(janitor->nodeStore, from->ip6.bytes);
-    if (!parent) { return; }
-
-    int loopCount = 0;
-    for (int i = 0; addresses && i < addresses->length; i++) {
-
-        // they're telling us about themselves, how helpful...
-        if (!Bits_memcmp(addresses->elems[i].key, from->key, 32)) { continue; }
-
-        struct Node_Link* nl = NodeStore_linkForPath(janitor->nodeStore, addresses->elems[i].path);
-        if (!nl || Bits_memcmp(nl->child->address.ip6.bytes,
-                               addresses->elems[i].ip6.bytes,
-                               Address_SEARCH_TARGET_SIZE))
-        {
-            struct Node_Two* node = NodeStore_nodeForAddr(janitor->nodeStore,
-                                                          addresses->elems[i].ip6.bytes);
-            if (node) {
-                RumorMill_addNode(janitor->linkMill, &addresses->elems[i]);
-            } else {
-                RumorMill_addNode(janitor->nodeMill, &addresses->elems[i]);
-            }
-        } else if (!Address_isSameIp(&addresses->elems[i], &nl->child->address)) {
-            if (nl->parent != parent) {
-                #ifdef Log_INFO
-                    uint8_t newAddr[60];
-                    Address_print(newAddr, from);
-                    uint8_t labelStr[20];
-                    AddrTools_printPath(labelStr, nl->cannonicalLabel);
-                    Log_info(janitor->logger, "Apparently [%s] reported [%s] as it's peer",
-                             newAddr, labelStr);
-                #endif
-                continue;
-            }
-            #ifdef Log_INFO
-                uint8_t newAddr[60];
-                Address_print(newAddr, from);
-                Log_info(janitor->logger, "Apparently [%s] has renumbered it's switch", newAddr);
-            #endif
-            struct Node_Link* link = NodeStore_nextLink(parent, NULL);
-            while (link) {
-                struct Node_Link* nextLink = NodeStore_nextLink(parent, link);
-                NodeStore_unlinkNodes(janitor->nodeStore, link);
-                link = nextLink;
-                // restart from the beginning...
-                i = 0;
-                Assert_true(!loopCount);
-            }
-            Assert_true(!NodeStore_nextLink(parent, NULL));
-            loopCount++;
-        }
-    }
-}
-
-static void checkPeers(struct Janitor* janitor, struct Node_Two* n)
-{
-    // Lets check for non-one-hop links at each node along the path between us and this node.
-    uint64_t path = n->address.path;
-
-    struct Node_Link* link = NULL;
-
-    for (;;) {
-        link = NodeStore_firstHopInPath(janitor->nodeStore, path, &path, link);
-        if (!link) { return; }
-        if (link->parent == janitor->nodeStore->selfNode) { continue; }
-
-        struct Node_Link* l = NULL;
-        do {
-            l = NodeStore_nextLink(link->child, l);
-            if (l && (!Node_isOneHopLink(l) || Node_getReach(link->parent) == 0)) {
-                struct RouterModule_Promise* rp =
-                    RouterModule_getPeers(&link->parent->address, l->cannonicalLabel, 0,
-                                          janitor->routerModule, janitor->allocator);
-                rp->callback = peersResponseCallback;
-                rp->userData = janitor;
-                // Only send max 1 getPeers req per second.
-                return;
-            }
-        } while (l);
-    }
 }
 
 // Iterate over all nodes in the table. Try to split any split-able links.
@@ -448,6 +484,7 @@ static bool tryExistingNode(struct Janitor* janitor)
         node = NodeStore_getNextNode(janitor->nodeStore, node);
     }
     if (node) {
+        if (checkPeers(janitor, node)) { return true; }
         getPeersMill(janitor, &node->address);
         debugAddr(janitor, "Pinging existing node", &node->address);
         return true;
@@ -559,21 +596,22 @@ static void maintanenceCycle(void* vcontext)
     struct Address addr = { .protocolVersion = 0 };
 
     if (tryExternalMill(janitor)) {
-        // always try the external mill first, this is low-traffic.
+        // Always try the external mill first, this is low-traffic.
+
+    } else if (tryLinkMill(janitor)) {
+        // Try to find a new link to a known node.
+
+    } else if (tryNodeMill(janitor)) {
+        // Try to find a new node.
 
     } else if (Random_uint8(janitor->rand) < janitor->nodeStore->linkedNodes &&
         tryExistingNode(janitor))
     {
-        // up to 50% of the time, try to ping an existing node or find a new one.
+        // Up to 50% of the time, try to ping an existing node or find a new one.
 
-    } else if (!(Random_uint8(janitor->rand) % 4) && tryLinkMill(janitor)) {
-        // 25% of the time, try to optimize a link
+    } else if (tryRandomLink(janitor)) {
+        // Ping a random link from a random node.
 
-    } else if (Random_uint8(janitor->rand) % 4 && tryRandomLink(janitor)) {
-        // 75% of the time, ping a random link from a random node.
-
-    } else if (tryNodeMill(janitor)) {
-        // the rest of the time, try to find a new node.
     } else {
         Log_debug(janitor->logger, "Could not find anything to do");
     }
