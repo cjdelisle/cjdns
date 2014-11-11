@@ -1522,6 +1522,7 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
     }
 
     verify(store);
+    Assert_ifParanoid(!link || link == NodeStore_linkForPath(nodeStore, addr->path));
     return link;
 }
 
