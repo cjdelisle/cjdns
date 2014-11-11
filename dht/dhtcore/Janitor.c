@@ -491,7 +491,7 @@ static bool tryExistingNode(struct Janitor* janitor)
         node = NodeStore_getNextNode(janitor->nodeStore, node);
     }
     if (worst) {
-        getPeersMill(janitor, &node->address);
+        getPeersMill(janitor, &worst->address);
         debugAddr(janitor, "Pinging existing node", &node->address);
         return true;
     }
