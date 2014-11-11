@@ -23,7 +23,6 @@
 #include "memory/Allocator.h"
 #include "switch/EncodingScheme.h"
 #include "util/AddrTools.h"
-#include "util/events/Time.h"
 #include "util/version/Version.h"
 
 struct Context {
@@ -65,8 +64,7 @@ static void dumpTable(Dict* args, void* vcontext, String* txid, struct Allocator
         if (!nn->timeOfLastPing) {
             Dict_putString(nodeDict, String_CONST("time"), String_CONST("never"), requestAlloc);
         } else {
-            uint64_t now = Time_currentTimeMilliseconds(ctx->store->eventBase);
-            uint64_t timeSinceLastPing = now - nn->timeOfLastPing;
+            uint64_t timeSinceLastPing = NodeStore_timeSinceLastPing(ctx->store, nn);
             Dict_putInt(nodeDict, String_CONST("time"), timeSinceLastPing, requestAlloc);
         }
 

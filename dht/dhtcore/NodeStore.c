@@ -26,6 +26,7 @@
 #include "util/Gcc.h"
 #include "util/Defined.h"
 #include "util/Endian.h"
+#include "util/events/Time.h"
 
 #include <tree.h>
 
@@ -54,6 +55,9 @@ struct NodeStore_pvt
 
     /** The means for this node store to log. */
     struct Log* logger;
+
+    /** To track time, for e.g. figuring out when nodes were last pinged */
+    struct EventBase* eventBase;
 
     Identity
 };
@@ -1698,12 +1702,12 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
 
     struct NodeStore_pvt* out = Allocator_clone(alloc, (&(struct NodeStore_pvt) {
         .pub = {
-            .eventBase = eventBase,
             .nodeCapacity = NodeStore_DEFAULT_NODE_CAPACITY,
             .linkCapacity = NodeStore_DEFAULT_LINK_CAPACITY
         },
         .renumberMill = renumberMill,
         .logger = logger,
+        .eventBase = eventBase,
         .alloc = alloc
     }));
     Identity_set(out);
@@ -2224,4 +2228,10 @@ uint16_t NodeStore_bucketForAddr(struct Address* source, struct Address* dest)
     retVal += 0x0F - prefix;
 
     return retVal;
+}
+
+uint64_t NodeStore_timeSinceLastPing(struct NodeStore* nodeStore, struct Node_Two* node)
+{
+    struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
+    return Time_currentTimeMilliseconds(store->eventBase) - node->timeOfLastPing;
 }
