@@ -479,12 +479,18 @@ static void getPeersMill(struct Janitor* janitor, struct Address* addr)
 
 static bool tryExistingNode(struct Janitor* janitor)
 {
-    struct Node_Two* node = getRandomNode(janitor->rand, janitor->nodeStore);
-    while (node && (node->address.path == UINT64_MAX || node->address.path == 1)) {
+    struct Node_Two* worst = NULL;
+    struct Node_Two* node = NodeStore_getNextNode(janitor->nodeStore, NULL);
+    while (node) {
+        if (node == janitor->nodeStore->selfNode) {
+            // No reason to ping the selfNode.
+        } else if (!worst || (node->address.path != UINT64_MAX &&
+                              node->timeOfLastPing < worst->timeOfLastPing)) {
+            worst = node;
+        }
         node = NodeStore_getNextNode(janitor->nodeStore, node);
     }
-    if (node) {
-        if (checkPeers(janitor, node)) { return true; }
+    if (worst) {
         getPeersMill(janitor, &node->address);
         debugAddr(janitor, "Pinging existing node", &node->address);
         return true;
