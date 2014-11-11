@@ -1446,6 +1446,7 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
         child->alloc = alloc;
         Bits_memcpyConst(&child->address, addr, sizeof(struct Address));
         child->encodingScheme = EncodingScheme_clone(scheme, child->alloc);
+        child->timeOfLastPing = 0;
         Identity_set(child);
     }
 
@@ -1686,6 +1687,7 @@ struct Node_Link* NodeStore_nextLink(struct Node_Two* parent, struct Node_Link* 
 /** See: NodeStore.h */
 struct NodeStore* NodeStore_new(struct Address* myAddress,
                                 struct Allocator* allocator,
+                                struct EventBase* eventBase,
                                 struct Log* logger,
                                 struct RumorMill* renumberMill)
 {
@@ -1693,6 +1695,7 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
 
     struct NodeStore_pvt* out = Allocator_clone(alloc, (&(struct NodeStore_pvt) {
         .pub = {
+            .eventBase = eventBase,
             .nodeCapacity = NodeStore_DEFAULT_NODE_CAPACITY,
             .linkCapacity = NodeStore_DEFAULT_LINK_CAPACITY
         },

@@ -516,6 +516,9 @@ static void onResponseOrTimeout(String* data, uint32_t milliseconds, void* vping
         return;
     }
 
+    // Update ping time of the node.
+    node->timeOfLastPing = Time_currentTimeMilliseconds(module->eventBase);
+
     #ifdef Log_DEBUG
         String* versionBin = Dict_getString(message->asDict, CJDHTConstants_VERSION);
         if (versionBin && versionBin->len == 20) {

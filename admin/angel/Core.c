@@ -381,7 +381,7 @@ void Core_init(struct Allocator* alloc,
 
     struct RumorMill* rumorMill = RumorMill_new(alloc, &addr, RUMORMILL_CAPACITY, logger, "extern");
 
-    struct NodeStore* nodeStore = NodeStore_new(&addr, alloc, logger, rumorMill);
+    struct NodeStore* nodeStore = NodeStore_new(&addr, alloc, eventBase, logger, rumorMill);
 
     struct RouterModule* routerModule = RouterModule_register(registry,
                                                               alloc,

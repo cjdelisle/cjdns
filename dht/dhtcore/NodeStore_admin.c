@@ -23,6 +23,7 @@
 #include "memory/Allocator.h"
 #include "switch/EncodingScheme.h"
 #include "util/AddrTools.h"
+#include "util/events/Time.h"
 #include "util/version/Version.h"
 
 struct Context {
@@ -59,6 +60,15 @@ static void dumpTable(Dict* args, void* vcontext, String* txid, struct Allocator
 
         Dict_putInt(nodeDict, String_CONST("link"), Node_getReach(nn), requestAlloc);
         Dict_putInt(nodeDict, String_CONST("version"), nn->address.protocolVersion, requestAlloc);
+
+        // Time we last pinged this node
+        if (!nn->timeOfLastPing) {
+            Dict_putString(nodeDict, String_CONST("time"), String_CONST("never"), requestAlloc);
+        } else {
+            uint64_t now = Time_currentTimeMilliseconds(ctx->store->eventBase);
+            uint64_t timeSinceLastPing = now - nn->timeOfLastPing;
+            Dict_putInt(nodeDict, String_CONST("time"), timeSinceLastPing, requestAlloc);
+        }
 
         List_addDict(table, nodeDict, requestAlloc);
     }

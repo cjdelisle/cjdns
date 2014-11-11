@@ -33,6 +33,8 @@ struct NodeStore
 
     struct Node_Two* selfNode;
 
+    struct EventBase* eventBase;
+
     int peerCount;
     int linkedNodes;
 
@@ -55,6 +57,7 @@ struct NodeStore
  */
 struct NodeStore* NodeStore_new(struct Address* myAddress,
                                 struct Allocator* allocator,
+                                struct EventBase* eventBase,
                                 struct Log* logger,
                                 struct RumorMill* renumberMill);
 

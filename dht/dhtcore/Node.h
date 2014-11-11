@@ -33,6 +33,9 @@ struct Node_Two
      */
     uint32_t reach_pvt;
 
+    /** Time the node was last pinged, reset on path changes. */
+    uint64_t timeOfLastPing;
+
     /** This is used to mark/sweep nodes in getWorstNode(), it's meaningless otherwise. */
     int marked;
 
