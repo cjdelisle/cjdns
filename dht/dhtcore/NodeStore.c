@@ -1361,7 +1361,7 @@ static void destroyNode(struct Node_Two* node, struct NodeStore_pvt* store)
         link = nextLink;
     }
 
-    Assert_ifParanoid(!Node_getBestParent(node));
+    Assert_true(!Node_getBestParent(node));
 
     Assert_ifParanoid(node == RB_FIND(NodeRBTree, &store->nodeTree, node));
     RB_REMOVE(NodeRBTree, &store->nodeTree, node);
@@ -1519,11 +1519,14 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
 
         Assert_true(!isPeer(worst, store));
 
+        if (link && (worst == link->parent || worst == link->child)) { link = NULL; }
+
         destroyNode(worst, store);
         freePendingLinks(store);
     }
 
     verify(store);
+    Assert_ifParanoid(!link || link == NodeStore_linkForPath(nodeStore, addr->path));
     return link;
 }
 
