@@ -484,6 +484,25 @@ static void updateBestParent(struct Node_Link* newBestParent,
     Assert_true(0);
 }
 
+// Queues the node at the end of a link to be pinged.
+// If the link is better than the current best parent, this should cause it to switch.
+// You should generally check that linkState != 0 before calling tryLink.
+void tryLink(struct NodeStore_pvt* store, struct Node_Link* link)
+{
+    struct Address addr = link->child->address;
+    addr.path = NodeStore_getRouteLabel(&store->pub,
+                                        link->parent->address.path,
+                                        link->cannonicalLabel);
+    if (addr.path == NodeStore_getRouteLabel_PARENT_NOT_FOUND) { return; }
+    if (addr.path == NodeStore_getRouteLabel_CHILD_NOT_FOUND) { return; }
+    if (addr.path == NodeStore_optimizePath_INVALID) { return; }
+    RumorMill_addNode(store->renumberMill, &addr);
+
+    // We penalize link state to make such checks prevent spamming the same links.
+    // (Without it, the mill tends to flood.)
+    link->linkState /= 2;
+}
+
 static void handleGoodNews(struct Node_Two* node,
                            uint32_t newReach,
                            struct NodeStore_pvt* store)
@@ -509,7 +528,8 @@ static void handleGoodNews(struct Node_Two* node,
         if (!childBestParent || Node_getReach(childBestParent->parent) < newReach) {
             uint32_t nextReach = guessReachOfChild(link);
             if (Node_getReach(child) > nextReach) { continue; }
-            updateBestParent(link, nextReach, store);
+            if (!link->linkState) { continue; }
+            tryLink(store, link);
         }
     }
 }
@@ -552,9 +572,7 @@ static void handleBadNewsTwo(struct Node_Link* link, struct NodeStore_pvt* store
     if (nextReach <= Node_getReach(node)) { return; }
     Assert_true(Node_getReach(node) < Node_getReach(best->parent));
 
-    check(store);
-    updateBestParent(best, nextReach, store);
-    check(store);
+    tryLink(store, best);
 }
 
 /**
@@ -2085,11 +2103,28 @@ static void updatePathReach(struct NodeStore_pvt* store, const uint64_t path, ui
                                    ? (guessedLinkState - link->linkState)
                                    : 1;
             update(link, linkStateDiff, store);
+        } else {
+            // Well we at least know it's not dead.
+            update(link, 1, store);
         }
 
         pathFrag = nextPath;
         link = nextLink;
     }
+
+    /*struct Address addr1 = link->child->address;
+    struct Address addr2 = link->child->address;
+    addr2.path = path;
+    uint8_t addrStr1[60];
+    uint8_t addrStr2[60];
+    Address_print(addrStr1, &addr1);
+    Address_print(addrStr2, &addr2);
+    Log_debug(store->logger,
+              "WhiteWhale, [%s] [%u] <- [%s] [%u]",
+              addrStr1,
+              Node_getReach(link->child),
+              addrStr2,
+              newReach);*/
 
     // Now we have to unconditionally update the reach for the last link in the chain.
     if (link->child && link->child->address.path == path) {
@@ -2100,6 +2135,23 @@ static void updatePathReach(struct NodeStore_pvt* store, const uint64_t path, ui
         handleNews(link->child, newReach, store);
         uint32_t newLinkState = subReach(Node_getReach(link->parent), newReach);
         update(link, newLinkState - link->linkState, store);
+
+    } else {
+        // This path doesn't lead through the node's current best parent.
+        // Check if it's better than the node's bestParent, and if so then update.
+        if (!link->parent) { return; }
+        if (!link->child) { return; }
+        if (newReach < Node_getReach(link->child)) { return; }
+        uint64_t newPath = NodeStore_getRouteLabel(&store->pub,
+                                                   link->parent->address.path,
+                                                   link->cannonicalLabel);
+        if (path != newPath) { return; }
+
+        // This path apparently gives us a better route than our current bestParent.
+        if (Node_getReach(link->parent) <= newReach) {
+            handleNews(link->parent, newReach+1, store);
+        }
+        updateBestParent(link, newReach, store);
     }
 }
 
@@ -2111,8 +2163,9 @@ void NodeStore_pathResponse(struct NodeStore* nodeStore, uint64_t path, uint64_t
     struct Node_Two* node = link->child;
     uint32_t newReach;
     if (node->address.path == path) {
-        // Use old reach value to calculate new reach
-        newReach = calcNextReach(Node_getReach(node), milliseconds);
+        // Use old reach value to calculate new reach--or not.
+        //newReach = calcNextReach(Node_getReach(node), milliseconds);
+        newReach = calcNextReach(0, milliseconds);
     }
     else {
         // Old reach value doesn't relate to this path, so we should do something different
@@ -2143,7 +2196,7 @@ void NodeStore_pathTimeout(struct NodeStore* nodeStore, uint64_t path)
             // TODO(arceliar): Something sane. We don't know which link on the path is bad.
             // For now, just penalize them all.
             // The good ones will be rewarded again when they relay another ping.
-            update(link, -link->linkState/2, store);
+            update(link, -(link->linkState - link->linkState/2), store);
         }
 
         pathFrag = nextPath;
