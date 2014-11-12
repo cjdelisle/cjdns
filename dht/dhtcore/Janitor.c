@@ -212,7 +212,7 @@ static void dhtResponseCallback(struct RouterModule_Promise* promise,
 
         struct Node_Link* link = NodeStore_linkForPath(janitor->nodeStore,
                                                        addresses->elems[i].path);
-        if (link) {
+        if (link && Node_getBestParent(link->child)) {
             // We already know about this path and mill space is precious. Skip it.
             continue;
         }
@@ -242,9 +242,9 @@ static void peersResponseCallback(struct RouterModule_Promise* promise,
         if (!Bits_memcmp(addresses->elems[i].key, from->key, 32)) { continue; }
 
         struct Node_Link* nl = NodeStore_linkForPath(janitor->nodeStore, addresses->elems[i].path);
-        if (!nl || Bits_memcmp(nl->child->address.ip6.bytes,
-                               addresses->elems[i].ip6.bytes,
-                               Address_SEARCH_TARGET_SIZE))
+        if (!nl || !Node_getBestParent(nl->child) || Bits_memcmp(nl->child->address.ip6.bytes,
+                                                     addresses->elems[i].ip6.bytes,
+                                                     Address_SEARCH_TARGET_SIZE))
         {
             struct Node_Two* node = NodeStore_nodeForAddr(janitor->nodeStore,
                                                           addresses->elems[i].ip6.bytes);
