@@ -1233,6 +1233,7 @@ struct NodeList* NodeStore_getNodesForBucket(struct NodeStore* nodeStore,
     nodeList->size = 0;
     struct Node_Two* nn = NULL;
     RB_FOREACH(nn, NodeRBTree, &store->nodeTree) {
+        if (!Node_getReach(nn)) { continue; }
         if (NodeStore_bucketForAddr(store->pub.selfAddress, &nn->address) == bucket) {
             struct Node_Two* newNode = nn;
             struct Node_Two* tempNode = NULL;
