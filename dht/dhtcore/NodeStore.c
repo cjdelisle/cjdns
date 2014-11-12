@@ -1503,6 +1503,10 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
         updateBestParent(link, reach, store);
     }
 
+    #ifdef PARANOIA
+        struct Node_Two* parent = link->parent;
+    #endif
+
     handleNews(link->child, reach, store);
     freePendingLinks(store);
 
@@ -1526,7 +1530,11 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
     }
 
     verify(store);
-    Assert_ifParanoid(!link || link == NodeStore_linkForPath(nodeStore, addr->path));
+
+    // This should test that link == NodeStore_linkForPath(path) but that is not guaranteed
+    // to work because links are not healed up when a node is removed from the store
+    Assert_ifParanoid(!link || RB_FIND(PeerRBTree, &parent->peerTree, link) == link);
+
     return link;
 }
 
