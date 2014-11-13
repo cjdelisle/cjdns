@@ -484,8 +484,9 @@ static bool tryExistingNode(struct Janitor* janitor)
     while (node) {
         if (node == janitor->nodeStore->selfNode) {
             // No reason to ping the selfNode.
-        } else if (!worst || (node->address.path != UINT64_MAX &&
-                              node->timeOfLastPing < worst->timeOfLastPing)) {
+        } else if (node->address.path != UINT64_MAX &&
+                   (!worst || node->timeOfLastPing < worst->timeOfLastPing))
+        {
             worst = node;
         }
         node = NodeStore_getNextNode(janitor->nodeStore, node);
@@ -610,10 +611,9 @@ static void maintanenceCycle(void* vcontext)
     } else if (tryNodeMill(janitor)) {
         // Try to find a new node.
 
-    } else if (Random_uint8(janitor->rand) < janitor->nodeStore->linkedNodes &&
-        tryExistingNode(janitor))
+    } else if (Random_uint8(janitor->rand) % 2 && tryExistingNode(janitor))
     {
-        // Up to 50% of the time, try to ping an existing node or find a new one.
+        // 50% of the time, try to ping an existing node or find a new one.
 
     } else if (tryRandomLink(janitor)) {
         // Ping a random link from a random node.

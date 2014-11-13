@@ -126,6 +126,12 @@ struct Node_Link
     /** The path which the incoming packet followed when this node was discovered. */
     uint64_t discoveredPath;
 
+    /** The best path through this link at the time we last explicitly tested it. */
+    uint64_t linkPathWhenTested;
+
+    /** The best path to the child at the time we last explicitly tested this link. */
+    uint64_t childPathWhenTested;
+
     Identity
 };
 
