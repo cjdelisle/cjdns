@@ -2113,20 +2113,6 @@ static void updatePathReach(struct NodeStore_pvt* store, const uint64_t path, ui
         link = nextLink;
     }
 
-    /*struct Address addr1 = link->child->address;
-    struct Address addr2 = link->child->address;
-    addr2.path = path;
-    uint8_t addrStr1[60];
-    uint8_t addrStr2[60];
-    Address_print(addrStr1, &addr1);
-    Address_print(addrStr2, &addr2);
-    Log_debug(store->logger,
-              "WhiteWhale, [%s] [%u] <- [%s] [%u]",
-              addrStr1,
-              Node_getReach(link->child),
-              addrStr2,
-              newReach);*/
-
     // Now we have to unconditionally update the reach for the last link in the chain.
     if (link->child && link->child->address.path == path) {
 
