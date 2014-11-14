@@ -33,8 +33,8 @@ struct Node_Two
      */
     uint32_t reach_pvt;
 
-    /** Time the node was last pinged, reset on path changes. */
-    uint64_t timeOfLastPing;
+    /** Time the node was last pinged, *not* reset on path changes. */
+    uint64_t timeLastPinged;
 
     /** This is used to mark/sweep nodes in getWorstNode(), it's meaningless otherwise. */
     int marked;
@@ -99,6 +99,9 @@ struct Node_Link
      */
     uint32_t linkState;
 
+    /** The time this link was last seen carrying traffic. (Currently limited to ping traffic.) */
+    uint64_t timeLastSeen;
+
     /** The parent of this peer, this is where the root of the RBTree is. */
     struct Node_Two* parent;
 
@@ -125,12 +128,6 @@ struct Node_Link
 
     /** The path which the incoming packet followed when this node was discovered. */
     uint64_t discoveredPath;
-
-    /** The best path through this link at the time we last explicitly tested it. */
-    uint64_t linkPathWhenTested;
-
-    /** The best path to the child at the time we last explicitly tested this link. */
-    uint64_t childPathWhenTested;
 
     Identity
 };

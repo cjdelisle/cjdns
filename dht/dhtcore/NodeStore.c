@@ -399,6 +399,13 @@ static uint32_t guessReachOfChild(struct Node_Link* link)
         r = guess;
     }
 
+    // Try to reduce oscillation based on guesses.
+    struct Node_Link* bp = Node_getBestParent(link->child);
+    if (bp && bp != link) {
+        uint32_t bpGuess = guessReachOfChild(bp);
+        if (r > bpGuess) { r = bpGuess; }
+    }
+
     Assert_true(r < Node_getReach(link->parent) && r != 0);
     return r;
 }
@@ -484,38 +491,6 @@ static void updateBestParent(struct Node_Link* newBestParent,
     Assert_true(0);
 }
 
-// To prevent us from repeatedly testing the same link when paths haven't changed.
-// FIXME(arceliar): This is probably not always the right way to decide.
-static bool linkNeedsTesting(struct NodeStore_pvt* store, struct Node_Link* link)
-{
-    struct Address addr = link->child->address;
-    addr.path = NodeStore_getRouteLabel(&store->pub,
-                                        link->parent->address.path,
-                                        link->cannonicalLabel);
-    bool addrIsOK = true;
-    if (addr.path == NodeStore_getRouteLabel_PARENT_NOT_FOUND) { addrIsOK = false; }
-    if (addr.path == NodeStore_getRouteLabel_CHILD_NOT_FOUND) { addrIsOK = false; }
-    if (addr.path == NodeStore_optimizePath_INVALID) { addrIsOK = false; }
-    return (addrIsOK && link->linkPathWhenTested != addr.path) ||
-           (link->childPathWhenTested != link->child->address.path);
-}
-
-// Queues the node at the end of a link to be pinged.
-// If the link is better than the current best parent, this should cause it to switch.
-static void tryLink(struct NodeStore_pvt* store, struct Node_Link* link)
-{
-    struct Address addr = link->child->address;
-    addr.path = NodeStore_getRouteLabel(&store->pub,
-                                        link->parent->address.path,
-                                        link->cannonicalLabel);
-    if (addr.path == NodeStore_getRouteLabel_PARENT_NOT_FOUND) { return; }
-    if (addr.path == NodeStore_getRouteLabel_CHILD_NOT_FOUND) { return; }
-    if (addr.path == NodeStore_optimizePath_INVALID) { return; }
-    link->linkPathWhenTested = addr.path;
-    link->childPathWhenTested = link->child->address.path;
-    RumorMill_addNode(store->renumberMill, &addr);
-}
-
 static void handleGoodNews(struct Node_Two* node,
                            uint32_t newReach,
                            struct NodeStore_pvt* store)
@@ -541,8 +516,7 @@ static void handleGoodNews(struct Node_Two* node,
         if (!childBestParent || Node_getReach(childBestParent->parent) < newReach) {
             uint32_t nextReach = guessReachOfChild(link);
             if (Node_getReach(child) > nextReach) { continue; }
-            if (!linkNeedsTesting(store, link)) { continue; }
-            tryLink(store, link);
+            updateBestParent(link, nextReach, store);
         }
     }
 }
@@ -569,9 +543,7 @@ static void handleBadNewsTwo(struct Node_Link* link, struct NodeStore_pvt* store
     struct Node_Link* rp = link->child->reversePeers;
     struct Node_Link* best = Node_getBestParent(node);
     while (rp) {
-        if (Node_getReach(rp->parent) >= Node_getReach(best->parent) &&
-            linkNeedsTesting(store, rp))
-        {
+        if (Node_getReach(rp->parent) >= Node_getReach(best->parent)) {
             if (Node_getReach(rp->parent) > Node_getReach(best->parent)
                 || rp->parent->address.path < best->parent->address.path)
             {
@@ -587,7 +559,9 @@ static void handleBadNewsTwo(struct Node_Link* link, struct NodeStore_pvt* store
     if (nextReach <= Node_getReach(node)) { return; }
     Assert_true(Node_getReach(node) < Node_getReach(best->parent));
 
-    tryLink(store, best);
+    check(store);
+    updateBestParent(best, nextReach, store);
+    check(store);
 }
 
 /**
@@ -801,8 +775,7 @@ static struct Node_Link* linkNodes(struct Node_Two* parent,
     link->parent = parent;
     link->discoveredPath = discoveredPath;
     link->linkState = 0;
-    link->linkPathWhenTested = discoveredPath;
-    link->childPathWhenTested = discoveredPath;
+    link->timeLastSeen = Time_currentTimeMilliseconds(store->eventBase);
     Identity_set(link);
 
     // reverse link
@@ -1486,7 +1459,7 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
         child->alloc = alloc;
         Bits_memcpyConst(&child->address, addr, sizeof(struct Address));
         child->encodingScheme = EncodingScheme_clone(scheme, child->alloc);
-        child->timeOfLastPing = 0;
+        child->timeLastPinged = Time_currentTimeMilliseconds(store->eventBase);
         Identity_set(child);
     }
 
@@ -1766,6 +1739,7 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
     out->pub.selfNode = selfNode;
     struct Node_Link* selfLink = linkNodes(selfNode, selfNode, 1, 0xffffffffu, 0, 1, out);
     Node_setParentReachAndPath(selfNode, selfLink, UINT32_MAX, 1);
+    selfNode->timeLastPinged = Time_currentTimeMilliseconds(out->eventBase);
     out->selfLink = selfLink;
     RB_INSERT(NodeRBTree, &out->nodeTree, selfNode);
 
@@ -2090,6 +2064,7 @@ static void updatePathReach(struct NodeStore_pvt* store, const uint64_t path, ui
 {
     struct Node_Link* link = store->selfLink;
     uint64_t pathFrag = path;
+    uint64_t now = Time_currentTimeMilliseconds(store->eventBase);
     for (;;) {
         struct Node_Link* nextLink = NULL;
         uint64_t nextPath = firstHopInPath(pathFrag, &nextLink, link, store);
@@ -2099,6 +2074,21 @@ static void updatePathReach(struct NodeStore_pvt* store, const uint64_t path, ui
 
         // expecting behavior of nextLinkOnPath()
         Assert_ifParanoid(nextLink->parent == link->child);
+
+        if (Node_getBestParent(nextLink->child) != nextLink) {
+            // If nextLink->child->bestParent is worse than nextLink, we should replace it.
+            uint64_t newPath = extendRoute(nextLink->parent->address.path,
+                                           nextLink->parent->encodingScheme,
+                                           nextLink->cannonicalLabel,
+                                           link->inverseLinkEncodingFormNumber);
+            if (newPath != extendRoute_INVALID &&
+                Node_getReach(nextLink->child) < newReach &&
+                Node_getReach(nextLink->parent) > newReach)
+            {
+                // This path apparently gives us a better route than our current bestParent.
+                updateBestParent(nextLink, newReach, store);
+            }
+        }
 
         if (Node_getBestParent(nextLink->child) == nextLink) {
             // This is a performance hack, if nextLink->child->bestParent->parent is this node
@@ -2110,24 +2100,6 @@ static void updatePathReach(struct NodeStore_pvt* store, const uint64_t path, ui
             // selfNode reach == UINT32_MAX so this case handles it.
         } else if (!LabelSplicer_routesThrough(path, link->child->address.path)) {
             // The path the packet came in on is not actually the best known path to the node.
-            // See if that's because it's better than the current bestParent.
-            if (link != Node_getBestParent(link->child)) {
-                bool pathIsOK = true;
-                uint64_t newPath = NodeStore_getRouteLabel(&store->pub,
-                                                           link->parent->address.path,
-                                                           link->cannonicalLabel);
-                if (newPath == NodeStore_getRouteLabel_PARENT_NOT_FOUND) { pathIsOK = false; }
-                if (newPath == NodeStore_getRouteLabel_CHILD_NOT_FOUND) { pathIsOK = false; }
-                if (newPath == NodeStore_optimizePath_INVALID) { pathIsOK = false; }
-
-                if (pathIsOK && Node_getReach(link->child) < newReach) {
-                    // This path apparently gives us a better route than our current bestParent.
-                    if (Node_getReach(link->parent) <= newReach) {
-                        handleNews(link->parent, newReach+1, store);
-                    }
-                    updateBestParent(link, newReach, store);
-                }
-            }
         } else {
             handleNews(link->child, newReach, store);
         }
@@ -2144,6 +2116,8 @@ static void updatePathReach(struct NodeStore_pvt* store, const uint64_t path, ui
             update(link, 1, store);
         }
 
+        nextLink->timeLastSeen = now;
+
         pathFrag = nextPath;
         link = nextLink;
     }
@@ -2157,27 +2131,8 @@ static void updatePathReach(struct NodeStore_pvt* store, const uint64_t path, ui
         handleNews(link->child, newReach, store);
         uint32_t newLinkState = subReach(Node_getReach(link->parent), newReach);
         update(link, newLinkState - link->linkState, store);
-
-    } else {
-        // This path doesn't lead through the node's current best parent.
-        // Check if it's better than the node's bestParent, and if so then update.
-        if (!link->parent) { return; }
-        if (!link->child) { return; }
-        if (newReach < Node_getReach(link->child)) { return; }
-        uint64_t newPath = NodeStore_getRouteLabel(&store->pub,
-                                                   link->parent->address.path,
-                                                   link->cannonicalLabel);
-        if (newPath == NodeStore_getRouteLabel_PARENT_NOT_FOUND) { return; }
-        if (newPath == NodeStore_getRouteLabel_CHILD_NOT_FOUND) { return; }
-        if (newPath == NodeStore_optimizePath_INVALID) { return; }
-        if (path != newPath && Node_getBestParent(link->child)) { return; }
-
-        // This path apparently gives us a better route than our current bestParent.
-        if (Node_getReach(link->parent) <= newReach) {
-            handleNews(link->parent, newReach+1, store);
-        }
-        updateBestParent(link, newReach, store);
     }
+    link->child->timeLastPinged = Time_currentTimeMilliseconds(store->eventBase);
 }
 
 void NodeStore_pathResponse(struct NodeStore* nodeStore, uint64_t path, uint64_t milliseconds)
@@ -2188,9 +2143,8 @@ void NodeStore_pathResponse(struct NodeStore* nodeStore, uint64_t path, uint64_t
     struct Node_Two* node = link->child;
     uint32_t newReach;
     if (node->address.path == path) {
-        // Use old reach value to calculate new reach--or not.
-        //newReach = calcNextReach(Node_getReach(node), milliseconds);
-        newReach = calcNextReach(0, milliseconds);
+        // Use old reach value to calculate new reach.
+        newReach = calcNextReach(Node_getReach(node), milliseconds);
     }
     else {
         // Old reach value doesn't relate to this path, so we should do something different
@@ -2319,5 +2273,12 @@ uint16_t NodeStore_bucketForAddr(struct Address* source, struct Address* dest)
 uint64_t NodeStore_timeSinceLastPing(struct NodeStore* nodeStore, struct Node_Two* node)
 {
     struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
-    return Time_currentTimeMilliseconds(store->eventBase) - node->timeOfLastPing;
+    uint64_t now = Time_currentTimeMilliseconds(store->eventBase);
+    uint64_t lastSeen = node->timeLastPinged;
+    struct Node_Link* link = Node_getBestParent(node);
+    while (link && link != store->selfLink) {
+        lastSeen = (link->timeLastSeen < lastSeen) ? link->timeLastSeen : lastSeen;
+        link = Node_getBestParent(link->parent);
+    }
+    return now - lastSeen;
 }

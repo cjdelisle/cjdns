@@ -212,7 +212,7 @@ static void dhtResponseCallback(struct RouterModule_Promise* promise,
 
         struct Node_Link* link = NodeStore_linkForPath(janitor->nodeStore,
                                                        addresses->elems[i].path);
-        if (link && Node_getBestParent(link->child)) {
+        if (link) {
             // We already know about this path and mill space is precious. Skip it.
             continue;
         }
@@ -242,9 +242,9 @@ static void peersResponseCallback(struct RouterModule_Promise* promise,
         if (!Bits_memcmp(addresses->elems[i].key, from->key, 32)) { continue; }
 
         struct Node_Link* nl = NodeStore_linkForPath(janitor->nodeStore, addresses->elems[i].path);
-        if (!nl || !Node_getBestParent(nl->child) || Bits_memcmp(nl->child->address.ip6.bytes,
-                                                     addresses->elems[i].ip6.bytes,
-                                                     Address_SEARCH_TARGET_SIZE))
+        if (!nl || Bits_memcmp(nl->child->address.ip6.bytes,
+                               addresses->elems[i].ip6.bytes,
+                               Address_SEARCH_TARGET_SIZE))
         {
             struct Node_Two* node = NodeStore_nodeForAddr(janitor->nodeStore,
                                                           addresses->elems[i].ip6.bytes);
@@ -480,14 +480,17 @@ static void getPeersMill(struct Janitor* janitor, struct Address* addr)
 static bool tryExistingNode(struct Janitor* janitor)
 {
     struct Node_Two* worst = NULL;
+    uint64_t worstTime = 0;
     struct Node_Two* node = NodeStore_getNextNode(janitor->nodeStore, NULL);
     while (node) {
+        uint64_t nodeTime = NodeStore_timeSinceLastPing(janitor->nodeStore, node);
         if (node == janitor->nodeStore->selfNode) {
             // No reason to ping the selfNode.
         } else if (node->address.path != UINT64_MAX &&
-                   (!worst || node->timeOfLastPing < worst->timeOfLastPing))
+                  (!worst || nodeTime > worstTime))
         {
             worst = node;
+            worstTime = nodeTime;
         }
         node = NodeStore_getNextNode(janitor->nodeStore, node);
     }
@@ -611,16 +614,18 @@ static void maintanenceCycle(void* vcontext)
     } else if (tryNodeMill(janitor)) {
         // Try to find a new node.
 
-    } else if (Random_uint8(janitor->rand) % 2 && tryExistingNode(janitor))
-    {
-        // 50% of the time, try to ping an existing node or find a new one.
-
     } else if (tryRandomLink(janitor)) {
         // Ping a random link from a random node.
 
     } else {
         Log_debug(janitor->logger, "Could not find anything to do");
     }
+
+    // Try to ping the existing node we have heard from least recently.
+    tryExistingNode(janitor);
+
+    // Look for better nodes for the dht.
+    keyspaceMaintenance(janitor);
 
     // random search
     Random_bytes(janitor->rand, addr.ip6.bytes, 16);
@@ -638,8 +643,6 @@ static void maintanenceCycle(void* vcontext)
     } else {
         checkPeers(janitor, n);
     }
-
-    keyspaceMaintenance(janitor);
 
     Log_debug(janitor->logger,
               "Global Mean Response Time: %u nodes [%d] links [%d]",
