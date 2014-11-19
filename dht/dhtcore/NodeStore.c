@@ -1388,13 +1388,12 @@ static uint32_t reachAfterDecay(const uint32_t oldReach)
 {
     // Reduce the reach by 1/Xth where X = NodeStore_latencyWindow
     // This is used to keep a weighted rolling average
-    return (oldReach - (oldReach / NodeStore_latencyWindow));
+    return (uint64_t)oldReach * (NodeStore_latencyWindow - 1) / (NodeStore_latencyWindow);
 }
 
 static uint32_t reachAfterTimeout(const uint32_t oldReach)
 {
-    // TODO(arceliar) just use reachAfterDecay?... would be less penalty for timeouts...
-    return (oldReach / 2);
+    return reachAfterDecay(oldReach);
 }
 
 static uint32_t calcNextReach(const uint32_t oldReach, const uint32_t millisecondsLag)
@@ -2083,7 +2082,8 @@ static void updatePathReach(struct NodeStore_pvt* store, const uint64_t path, ui
                                            link->inverseLinkEncodingFormNumber);
             if (newPath != extendRoute_INVALID &&
                 Node_getReach(nextLink->child) < newReach &&
-                Node_getReach(nextLink->parent) > newReach)
+                Node_getReach(nextLink->parent) > newReach &&
+                Node_getReach(nextLink->child) < guessReachOfChild(nextLink))
             {
                 // This path apparently gives us a better route than our current bestParent.
                 updateBestParent(nextLink, newReach, store);
@@ -2175,7 +2175,7 @@ void NodeStore_pathTimeout(struct NodeStore* nodeStore, uint64_t path)
             // TODO(arceliar): Something sane. We don't know which link on the path is bad.
             // For now, just penalize them all.
             // The good ones will be rewarded again when they relay another ping.
-            update(link, -(link->linkState - link->linkState/2), store);
+            update(link, reachAfterTimeout(link->linkState)-link->linkState, store);
         }
 
         pathFrag = nextPath;
@@ -2186,6 +2186,21 @@ void NodeStore_pathTimeout(struct NodeStore* nodeStore, uint64_t path)
     if (!link || link->child->address.path != path) { return; }
     struct Node_Two* node = link->child;
     uint32_t newReach = reachAfterTimeout(Node_getReach(node));
+    if (!newReach) {
+        // The node hasn't responded in a really long time.
+        // Possible causes:
+        // 1) The node is offline, and for some reason we're not getting an error packet back.
+        // 2) The node is behind a node that's offline, and for some reason we're not getting error.
+        // 3) The node is online, but in a bad state, where it cannot respond to pings.
+        //    (E.g. Our CA session broke and it refuses to reset, known bug in old versions.)
+        // If we don't do something, we'll guessReachOfChild to re-discover a path through the link.
+        // Doing that can get the node store stuck in a bad state where this node is blackholed.
+        // As a workaround, break the link. That prevents re-discovering the same broken path.
+        // If 2), we might accidentally break a valid link, but we should re-discover it the
+        // next time we successfully contact link->child (via another path).
+        brokenLink(store, link);
+        return;
+    }
     if (Defined(Log_DEBUG)) {
         uint8_t addr[60];
         Address_print(addr, &node->address);
