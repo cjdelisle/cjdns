@@ -111,6 +111,12 @@ struct Node_Two* RouterModule_nodeForPath(uint64_t path, struct RouterModule* mo
 
 uint32_t RouterModule_globalMeanResponseTime(struct RouterModule* module);
 
+struct RouterModule_Promise* RouterModule_nextHop(struct Address* whoToAsk,
+                                                  uint8_t target[16],
+                                                  uint32_t timeoutMilliseconds,
+                                                  struct RouterModule* module,
+                                                  struct Allocator* alloc);
+
 struct RouterModule_Promise* RouterModule_getPeers(struct Address* addr,
                                                    uint64_t nearbyLabel,
                                                    uint32_t timeoutMilliseconds,

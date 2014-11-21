@@ -286,6 +286,38 @@ static void findNode(Dict* args, void* vctx, String* txid, struct Allocator* req
     rp->callback = findNodeResponse;
 }
 
+static void nextHop(Dict* args, void* vctx, String* txid, struct Allocator* requestAlloc)
+{
+    struct Context* ctx = Identity_check((struct Context*) vctx);
+    String* nodeToQueryStr = Dict_getString(args, String_CONST("nodeToQuery"));
+    String* targetStr = Dict_getString(args, String_CONST("target"));
+    int64_t* timeoutPtr = Dict_getInt(args, String_CONST("timeout"));
+    uint32_t timeout = (timeoutPtr && *timeoutPtr > 0) ? *timeoutPtr : 0;
+
+    char* err = NULL;
+    struct Address* nodeToQuery = getNode(nodeToQueryStr, ctx, &err, requestAlloc);
+    uint8_t target[16];
+
+    if (!err && AddrTools_parseIp(target, targetStr->bytes)) { err = "parse_target"; }
+
+    if (err) {
+        Dict errDict = Dict_CONST(String_CONST("error"), String_OBJ(String_CONST(err)), NULL);
+        Admin_sendMessage(&errDict, txid, ctx->admin);
+        return;
+    }
+
+    struct RouterModule_Promise* rp =
+        RouterModule_nextHop(nodeToQuery, target, timeout, ctx->module, ctx->allocator);
+
+    struct Ping* ping = Allocator_calloc(rp->alloc, sizeof(struct Ping), 1);
+    Identity_set(ping);
+    ping->txid = String_clone(txid, rp->alloc);
+    ping->rp = rp;
+    ping->ctx = ctx;
+    rp->userData = ping;
+    rp->callback = findNodeResponse;
+}
+
 void RouterModule_admin_register(struct RouterModule* module,
                                  struct Router* router,
                                  struct Admin* admin,
@@ -300,6 +332,13 @@ void RouterModule_admin_register(struct RouterModule* module,
         .router = router
     }));
     Identity_set(ctx);
+
+    Admin_registerFunction("RouterModule_nextHop", nextHop, ctx, true,
+        ((struct Admin_FunctionArg[]) {
+            { .name = "nodeToQuery", .required = 1, .type = "String" },
+            { .name = "target", .required = 1, .type = "String" },
+            { .name = "timeout", .required = 0, .type = "Int" }
+        }), admin);
 
     Admin_registerFunction("RouterModule_lookup", lookup, ctx, true,
         ((struct Admin_FunctionArg[]) {

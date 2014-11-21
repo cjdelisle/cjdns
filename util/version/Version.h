@@ -253,15 +253,25 @@ Version_COMPAT(10, ([7,8,9]))
  */
 Version_COMPAT(11, ([7,8,9,10]))
 
+/*
+ * Version 12:
+ * November 21, 2014
+ *
+ * New inter-router API "nh" which has same semantics as "fn" but gets the next hop in
+ * a hypothetical packet forwarding operation.
+ */
+Version_COMPAT(12, ([7,8,9,10,11]))
+
 /**
  * The current protocol version.
  */
-#define Version_CURRENT_PROTOCOL 11
+#define Version_CURRENT_PROTOCOL 12
 #define Version_7_COMPAT
 #define Version_8_COMPAT
 #define Version_9_COMPAT
 #define Version_10_COMPAT
 #define Version_11_COMPAT
+#define Version_12_COMPAT
 
 #define Version_MINIMUM_COMPATIBLE 7
 #define Version_DEFAULT_ASSUMPTION 7

@@ -21,6 +21,9 @@
 // Signifying that this message is a query and defining the query type.
 static String* const CJDHTConstants_QUERY = String_CONST_SO("q");
 
+// Get the next hop in a (hypothetical) packet forward operation
+static String* const CJDHTConstants_QUERY_NH = String_CONST_SO("nh");
+
 // Find nodes query. "fn"
 static String* const CJDHTConstants_QUERY_FN = String_CONST_SO("fn");
 
