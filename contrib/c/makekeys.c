@@ -36,7 +36,9 @@ int main(int argc, char** argv)
     uint8_t hexPrivateKey[65];
     uint8_t printedIp[40];
 
+#ifndef win32
     signal(SIGPIPE,SIG_DFL);
+#endif
 
     for (;;) {
         Random_bytes(rand, privateKey, 32);
