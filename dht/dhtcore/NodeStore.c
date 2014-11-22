@@ -1825,6 +1825,10 @@ struct Node_Two* NodeStore_getBest(struct NodeStore* nodeStore, uint8_t targetAd
     struct Node_Two* n = NodeStore_nodeForAddr(nodeStore, targetAddress);
     if (n && Node_getBestParent(n)) { return n; }
 
+    /**
+     * The network is small enough that a per-bucket lookup is inefficient
+     * Basically, the first bucket is likely to route through an "edge" node
+     * In theory, it scales better if the network is large.
     // Next try to find the best node in the correct bucket
     struct Address fakeAddr;
     Bits_memcpyConst(fakeAddr.ip6.bytes, targetAddress, 16);
@@ -1846,6 +1850,7 @@ struct Node_Two* NodeStore_getBest(struct NodeStore* nodeStore, uint8_t targetAd
     }
     Allocator_free(nodeListAlloc);
     if (n && Node_getBestParent(n)) { return n; }
+    */
 
     // Finally try to find the best node that is a valid next hop (closer in keyspace)
     for (int i = 0; i < 10000; i++) {
