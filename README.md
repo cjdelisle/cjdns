@@ -461,7 +461,7 @@ You can access the admin API with:
 [Hyperboria]: http://hyperboria.net
 [Project Meshnet]: https://projectmeshnet.org
 [/r/darknetplan]: http://www.reddit.com/r/darknetplan
-[#cjdns on Twitter]: https://twitter.com/hashtag/hyperboria
+[#cjdns on Twitter]: https://twitter.com/hashtag/cjdns
 [Project Meshnet Map]: http://map.projectmeshnet.org
 [Buildbots]: https://buildbot.meshwith.me/cjdns/waterfall
 
