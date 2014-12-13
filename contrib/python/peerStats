@@ -13,7 +13,7 @@
 
 import cjdnsadmin.adminTools as at
 
-cjdns=at.connect()
+cjdns=at.anonConnect()
 
 at.peerStats(cjdns,verbose=True);
 
