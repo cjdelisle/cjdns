@@ -1,3 +1,10 @@
+cjdns (0.12.1) unstable; urgency=low
+
+  * New upstream release with protocol revisions.
+  * Using incremental patch version numbers, until a more formal system is established upstream.
+
+ -- Jacob Henner <code@ventricle.us>  Sat, 13 Dec 2014 03:37:00 -0400
+
 cjdns (0.7) unstable; urgency=low
 
   * New upstream release.

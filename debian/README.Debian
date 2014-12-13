@@ -9,3 +9,4 @@ In this package cjdns is controlled by Upstart, which means:
    via its admin interface. You can change that in the config file.
 
  -- Sergey "Shnatsel" Davidoff <shnatsel@gmail.com>  Sat, 27 Jul 2013 14:22:22 +0400
+ -- Jacob Henner <code@ventricle.us>
