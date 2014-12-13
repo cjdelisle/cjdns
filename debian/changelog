@@ -1,7 +1,7 @@
-cjdns (0.12.f176d2c) unstable; urgency=low
+cjdns (0.12.1) unstable; urgency=low
 
   * New upstream release with protocol revisions.
-  * Using git hashes in version number until tagged releases resume.
+  * Using incremental patch version numbers, until a more formal system is established upstream.
 
  -- Jacob Henner <code@ventricle.us>  Sat, 13 Dec 2014 03:37:00 -0400
 
