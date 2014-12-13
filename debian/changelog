@@ -1,3 +1,10 @@
+cjdns (0.12.f176d2c) unstable; urgency=low
+
+  * New upstream release with protocol revisions.
+  * Using git hashes in version number until tagged releases resume.
+
+ -- Jacob Henner <code@ventricle.us>  Sat, 13 Dec 2014 03:37:00 -0400
+
 cjdns (0.7) unstable; urgency=low
 
   * New upstream release.
