@@ -168,7 +168,7 @@ void InterfaceController_admin_register(struct InterfaceController* ic,
     }));
     Identity_set(ctx);
 
-    Admin_registerFunction("InterfaceController_peerStats", adminPeerStats, ctx, true,
+    Admin_registerFunction("InterfaceController_peerStats", adminPeerStats, ctx, false,
         ((struct Admin_FunctionArg[]) {
             { .name = "page", .required = 0, .type = "Int" }
         }), admin);
