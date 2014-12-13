@@ -16,7 +16,7 @@
 var Cjdns = require('../cjdnsadmin/cjdnsadmin');
 var PublicToIp6 = require('./lib/publicToIp6');
 
-Cjdns.connectWithAdminInfo(function (cjdns) {
+Cjdns.connectAsAnon(function (cjdns) {
 
     var again = function (i) {
         cjdns.InterfaceController_peerStats(i, function (err, ret) {
