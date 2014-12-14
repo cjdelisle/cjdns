@@ -63,19 +63,15 @@ def _callFunc(session, funcName, password, args):
     cookie = msg['cookie']
     txid = _randomString()
     req = {
-        'q': funcName,
+        'q': 'auth',
+        'aq': funcName,
         'hash': hashlib.sha256(password + cookie).hexdigest(),
         'cookie': cookie,
         'args': args,
         'txid': txid
     }
-
-    if password:
-        req['aq'] = req['q']
-        req['q'] = 'auth'
-        reqBenc = bencode(req)
-        req['hash'] = hashlib.sha256(reqBenc).hexdigest()
-
+    reqBenc = bencode(req)
+    req['hash'] = hashlib.sha256(reqBenc).hexdigest()
     reqBenc = bencode(req)
     sock.send(reqBenc)
     return _getMessage(session, txid)

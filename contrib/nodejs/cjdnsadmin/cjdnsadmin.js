@@ -50,20 +50,16 @@ var callFunc = function (sock, addr, port, pass, func, args, callback) {
         if (typeof(cookie) !== 'string') { throw new Error("invalid cookie in [" + ret + "]"); }
         var json = {
             txid: String(sock.counter++),
-            q: func,
+            q: 'auth',
+            aq: func,
             args: {}
         };
         Object.keys(args).forEach(function (arg) {
             json.args[arg] = args[arg];
         });
-        if (pass) {
-            json.aq = json.q;
-            json.q = 'auth';
-
-            json.cookie = cookie;
-            json.hash = Crypto.createHash('sha256').update(pass + cookie).digest('hex');
-            json.hash = Crypto.createHash('sha256').update(Bencode.encode(json)).digest('hex');
-        }
+        json.cookie = cookie;
+        json.hash = Crypto.createHash('sha256').update(pass + cookie).digest('hex');
+        json.hash = Crypto.createHash('sha256').update(Bencode.encode(json)).digest('hex');
         sendmsg(sock, addr, port, new Buffer(Bencode.encode(json)), json.txid, callback);
     });
 };
@@ -214,10 +210,4 @@ var connectWithAdminInfo = module.exports.connectWithAdminInfo = function (callb
     }).nThen(function (waitFor) {
         connect(cjdnsAdmin.addr, cjdnsAdmin.port, cjdnsAdmin.password, callback);
     });
-};
-
-var connectAsAnon = module.exports.connectAsAnon = function (callback, addr, port) {
-    addr = addr || '127.0.0.1';
-    port = port || 11234;
-    connect(addr, port, null, callback);
 };
