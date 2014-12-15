@@ -450,7 +450,7 @@ void Core_init(struct Allocator* alloc,
 
 
     // ------------------- Register RPC functions ----------------------- //
-    InterfaceController_admin_register(ifController, admin, alloc);
+    InterfaceController_admin_register(ifController, nodeStore, admin, alloc);
     SwitchPinger_admin_register(sp, admin, alloc);
     UDPInterface_admin_register(eventBase, alloc, logger, admin, ifController);
 #ifdef HAS_ETH_INTERFACE

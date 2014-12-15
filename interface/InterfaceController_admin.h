@@ -16,12 +16,14 @@
 #define InterfaceController_admin_H
 
 #include "admin/Admin.h"
+#include "dht/dhtcore/NodeStore.h"
 #include "interface/InterfaceController.h"
 #include "memory/Allocator.h"
 #include "util/Linker.h"
 Linker_require("interface/InterfaceController_admin.c")
 
 void InterfaceController_admin_register(struct InterfaceController* ic,
+                                        struct NodeStore* store,
                                         struct Admin* admin,
                                         struct Allocator* alloc);
 
