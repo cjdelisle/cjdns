@@ -17,7 +17,9 @@
 #include "benc/Dict.h"
 #include "benc/List.h"
 #include "benc/Int.h"
+#include "crypto/AddressCalc.h"
 #include "crypto/Key.h"
+#include "dht/dhtcore/NodeStore.h"
 #include "interface/InterfaceController.h"
 #include "interface/InterfaceController_admin.h"
 #include "util/AddrTools.h"
@@ -26,6 +28,7 @@ struct Context
 {
     struct Allocator* alloc;
     struct InterfaceController* ic;
+    struct NodeStore* store;
     struct Admin* admin;
     Identity
 };
@@ -50,6 +53,7 @@ static void adminPeerStats(Dict* args, void* vcontext, String* txid, struct Allo
     String* switchLabel = String_CONST("switchLabel");
     String* isIncoming = String_CONST("isIncoming");
     String* user = String_CONST("user");
+    String* version = String_CONST("version");
 
     String* duplicates = String_CONST("duplicates");
     String* lostPackets = String_CONST("lostPackets");
@@ -78,6 +82,15 @@ static void adminPeerStats(Dict* args, void* vcontext, String* txid, struct Allo
 
         if (stats[i].isIncomingConnection) {
             Dict_putString(d, user, stats[i].user, alloc);
+        }
+
+        uint8_t address[16];
+        AddressCalc_addressForPublicKey(address, stats[i].pubKey);
+        struct Node_Two* node = NodeStore_nodeForAddr(context->store, address);
+        if (node) {
+            Dict_putInt(d, version, node->address.protocolVersion, alloc);
+        } else {
+            Dict_putInt(d, version, 0, alloc);
         }
 
         List_addDict(list, d, alloc);
@@ -158,12 +171,14 @@ static resetSession(Dict* args, void* vcontext, String* txid, struct Allocator* 
 }*/
 
 void InterfaceController_admin_register(struct InterfaceController* ic,
+                                        struct NodeStore* nodeStore,
                                         struct Admin* admin,
                                         struct Allocator* alloc)
 {
     struct Context* ctx = Allocator_clone(alloc, (&(struct Context) {
         .alloc = alloc,
         .ic = ic,
+        .store = nodeStore,
         .admin = admin
     }));
     Identity_set(ctx);
