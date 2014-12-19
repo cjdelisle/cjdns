@@ -162,6 +162,10 @@ Advanced configuration:
 * [Setup a cjdns NAT gateway for your LAN](doc/nat-gateway.md)
 * [Install cjdns on OpenIndiana](doc/open-indiana.md)
 
+### License
+
+[Available here](LICENSE)
+
 Thank you for your time and interest,
 
 The cjdns developers.
@@ -209,7 +213,7 @@ If you use [Macports](https://www.macports.org/):
     sudo port install git-core nodejs
 
 Or if you use neither and would like to install the binaries from their websites:
-
+doc
 - Node.js: [http://nodejs.org/download/](http://nodejs.org/download/)
 - git: [http://git-scm.com/download](http://git-scm.com/download)
 
