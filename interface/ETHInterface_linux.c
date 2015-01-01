@@ -292,7 +292,7 @@ static void handleEventV12(struct ETHInterface* ctx, struct Message* msg, struct
 {
     Message_push16(msg, 0, NULL);
     Message_push(msg, addr->sll_addr, 6, NULL);
-    Assert_true(!(msg->bytes % 4) && "Alignment fault");
+    Assert_true(!((uintptr_t)msg->bytes % 4) && "Alignment fault");
 
     if (addr->sll_pkttype == PACKET_BROADCAST) {
         handleBeacon(msg, ctx);
@@ -360,7 +360,7 @@ static void handleEvent2(struct ETHInterface* context, struct Allocator* message
     Message_push16(msg, 0, NULL);
     Message_push(msg, addr.sll_addr, 6, NULL);
 
-    Assert_true(!(msg->bytes % 4) && "Alignment fault");
+    Assert_true(!((uintptr_t)msg->bytes % 4) && "Alignment fault");
 
     Interface_receiveMessage(&context->generic, msg);
 }
