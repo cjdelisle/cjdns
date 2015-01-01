@@ -80,15 +80,16 @@ struct ETHInterface
 
     int beaconState;
 
-    /**
-     * A unique(ish) id which will be different every time the router starts.
-     * This will prevent new eth frames from being confused with old frames from an expired session.
-     */
-    uint16_t id;
-
     String* ifName;
 
     #ifdef Version_12_COMPAT
+        /**
+         * A unique(ish) id which will be different every time the router starts.
+         * This will prevent new eth frames from being confused with old frames from an expired
+         * session.
+         */
+        uint16_t id;
+
         struct Map_isV12ByMacAddr v12Map;
     #endif
 
@@ -160,9 +161,9 @@ static uint8_t sendMessage(struct Message* msg, struct Interface* ethIf)
 
     struct ETHInterface_Header hdr = {
         .version = Version_CURRENT_PROTOCOL & 0xff,
-        .id = ctx->id,
+        .zero = 0,
         .length_be = Endian_hostToBigEndian16(msg->length + ETHInterface_Header_SIZE),
-        .unused = 0
+        .fc00_be = Endian_hostToBigEndian16(0xfc00)
     };
     Message_push(msg, &hdr, ETHInterface_Header_SIZE, NULL);
     Message_push(msg, &addr, 6, NULL);
@@ -352,10 +353,14 @@ static void handleEvent2(struct ETHInterface* context, struct Allocator* message
     reportedLength -= ETHInterface_Header_SIZE;
     if (msg->length != reportedLength) {
         if (msg->length < reportedLength) {
-            Log_debug(context->logger, "size field in eth frame is larger than frame");
+            Log_debug(context->logger, "DROP size field is larger than frame");
             return;
         }
         msg->length = reportedLength;
+    }
+    if (header.fc00_be != Endian_hostToBigEndian16(0xfc00)) {
+        Log_debug(context->logger, "DROP bad magic");
+        return;
     }
     Message_push16(msg, 0, NULL);
     Message_push(msg, addr.sll_addr, 6, NULL);
@@ -429,11 +434,11 @@ struct ETHInterface* ETHInterface_new(struct EventBase* base,
             .allocator = allocator
         },
         .logger = logger,
-        .ic = ic,
-        .id = getpid()
+        .ic = ic
     }));
 
     #ifdef Version_12_COMPAT
+        context->id = getpid();
         context->v12Map.allocator = allocator;
     #endif
 

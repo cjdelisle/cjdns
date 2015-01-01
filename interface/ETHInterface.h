@@ -31,15 +31,14 @@ struct ETHInterface_Header
     /** The version number of the sending node, modulo 256 */
     uint8_t version;
 
-    /** number which should change every time a node restarts. */
-    uint8_t id;
+    /** padding and for future use. */
+    uint8_t zero;
 
     /** Length of the content (excluding header) */
     uint16_t length_be;
 
-    /** Pad to align boundry. */
-    uint16_t unused;
-
+    /** Pad to align boundry, also magic. */
+    uint16_t fc00_be;
 };
 #define ETHInterface_Header_SIZE 6
 Assert_compileTime(sizeof(struct ETHInterface_Header) == ETHInterface_Header_SIZE);
