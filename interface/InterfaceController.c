@@ -433,14 +433,14 @@ int InterfaceController_registerPeer(struct InterfaceController* ifController,
                                      bool isIncomingConnection,
                                      struct Interface* externalInterface)
 {
-    struct InterfaceController_pvt* ic =
-        Identity_check((struct InterfaceController_pvt*) ifController);
-
     // This function is overridden by some tests...
     if (ifController->registerPeer) {
         return ifController->registerPeer(ifController, herPublicKey, password, requireAuth,
                                           isIncomingConnection, externalInterface);
     }
+
+    struct InterfaceController_pvt* ic =
+        Identity_check((struct InterfaceController_pvt*) ifController);
 
     if (Map_OfIFCPeerByExernalIf_indexForKey(&externalInterface, &ic->peerMap) > -1) {
         return 0;
