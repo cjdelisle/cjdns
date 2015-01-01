@@ -181,6 +181,8 @@ static void handleBeacon(struct Message* msg, struct ETHInterface* context)
     struct sockaddr_ll addr;
     Bits_memcpyConst(&addr, &context->addrBase, sizeof(struct sockaddr_ll));
     Message_pop(msg, addr.sll_addr, 8, NULL);
+    addr.sll_addr[6] = 0;
+    addr.sll_addr[7] = 0;
     if (msg->length < Headers_Beacon_SIZE) {
         // Oversize messages are ok because beacons may contain more information in the future.
         Log_debug(context->logger, "[%s] Dropping wrong size beacon, expected [%d] got [%d]",
@@ -279,9 +281,7 @@ static int isVersion12(struct ETHInterface* ctx,
         // unused 2 bytes for alignment
         uint16_t verAndId = Message_pop16(msg, NULL);
         uint32_t version = Message_pop32(msg, NULL);
-        if (version < 13) {
-            ctx->v12Map.values[idx] = 1;
-        }
+        ctx->v12Map.values[idx] = (version < 13);
         Message_push32(msg, version, NULL);
         Message_push16(msg, verAndId, NULL);
     }
@@ -289,12 +289,7 @@ static int isVersion12(struct ETHInterface* ctx,
 }
 static void handleEventV12(struct ETHInterface* ctx, struct Message* msg, struct sockaddr_ll* addr)
 {
-    // Pop the first 2 bytes of the message containing the node id and amount of padding.
-    uint16_t idAndPadding = Message_pop16(msg, NULL);
-    msg->length = msg->length - ((idAndPadding & 7) * 8);
-    uint16_t id = idAndPadding >> 3;
-
-    Message_push(msg, &id, 2, NULL);
+    Message_push16(msg, 0, NULL);
     Message_push(msg, addr->sll_addr, 6, NULL);
 
     if (addr->sll_pkttype == PACKET_BROADCAST) {
@@ -343,6 +338,8 @@ static void handleEvent2(struct ETHInterface* context, struct Allocator* message
 
     if (addr.sll_pkttype == PACKET_BROADCAST) {
         Message_pop16(msg, NULL);
+        Message_push16(msg, 0, NULL);
+        Message_push(msg, addr.sll_addr, 6, NULL);
         handleBeacon(msg, context);
         return;
     }
