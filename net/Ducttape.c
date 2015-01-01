@@ -381,7 +381,7 @@ static inline uint8_t sendToSwitch(struct Message* message,
 
     Assert_true(message->bytes == (uint8_t*)dtHeader->switchHeader);
 
-    Assert_true(!(message->capacity % 4));
+    Assert_true(!((uintptr_t)message->bytes % 4));
 
     return context->switchInterface.receiveMessage(message, &context->switchInterface);
 }
@@ -1123,7 +1123,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
         return Error_INVALID;
     }
 
-    Assert_true(!(message->capacity % 4));
+    Assert_true(!((uintptr_t)message->bytes % 4));
 
     // #1 try to get the session using the handle.
 
