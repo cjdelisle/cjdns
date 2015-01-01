@@ -60,7 +60,7 @@ Fs.readFile(process.argv[process.argv.length-1], function (err, ret) {
     if (err) { throw err; }
     var keys = ret.toString('utf8').split('\n');
     for (var i = keys.length-1; i >= 0; i--) {
-        if (!(/^[a-f0-9]{64} [a-f0-9:]{39}$/.test(keys[i]))) {
+        if (!(/^[a-f0-9]{64} [a-f0-9:]{39}.*$/.test(keys[i]))) {
             keys.splice(i, 1);
         }
     }
