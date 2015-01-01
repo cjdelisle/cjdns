@@ -235,7 +235,7 @@ static void subscribe(Dict* args, void* vcontext, String* txid, struct Allocator
     enum Log_Level level = (levelName) ? Log_levelForName(levelName->bytes) : Log_Level_DEBUG;
     int64_t* lineNumPtr = Dict_getInt(args, String_CONST("line"));
     String* fileStr = Dict_getString(args, String_CONST("file"));
-    if (!fileStr->len) { fileStr = NULL; }
+    if (fileStr && !fileStr->len) { fileStr = NULL; }
     char* error = "2+2=5";
     if (level == Log_Level_INVALID) {
         level = Log_Level_KEYS;
