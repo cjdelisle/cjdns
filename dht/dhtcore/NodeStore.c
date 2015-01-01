@@ -316,7 +316,7 @@ static void update(struct Node_Link* link,
 {
     if (linkStateDiff + link->linkState > UINT32_MAX) {
         link->linkState = UINT32_MAX;
-        logLink(store, link, "link state set to maximum");
+        //logLink(store, link, "link state set to maximum");
     } else if (linkStateDiff + link->linkState < 0) {
         link->linkState = 0;
         logLink(store, link, "link state set to zero");
