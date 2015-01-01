@@ -1,0 +1,99 @@
+#!/usr/bin/env node
+/* -*- Mode:js */
+/* vim: set expandtab ts=4 sw=4: */
+/*
+ * You may redistribute this program and/or modify it under the terms of
+ * the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+var Cjdns = require('../cjdnsadmin/cjdnsadmin');
+var nThen = require('../cjdnsadmin/nthen');
+var PubToIp6 = require('./lib/publicToIp6');
+
+var nodeToIP6 = function (nodeDesc) {
+    var key = nodeDesc.replace(/.*\.([^.]*\.k)$/, function (all, one) { return one; });
+    return PubToIp6.convert(key);
+};
+
+var tracePath = function (target, queryNode, cjdns, cb, doneCb) {
+    var lastNode = queryNode;
+    var again = function () {
+        cjdns.RouterModule_nextHop(target, lastNode, function (err, ret) {
+            if (err) { throw err; }
+            ret.from = lastNode;
+            ret.fromIP6 = nodeToIP6(lastNode);
+            cb(ret);
+            if (ret.error !== 'none' || !ret.nodes || !ret.nodes.length) {
+                doneCb(false);
+                return;
+            }
+            if (ret.fromIP6 === target) {
+                doneCb(true);
+                return;
+            }
+            lastNode = ret.nodes[0];
+            again();
+        });
+    };
+    again();
+};
+
+var main = function (target) {
+
+    var cjdns;
+    var self;
+    var lastRet;
+    nThen(function (waitFor) {
+
+        Cjdns.connectWithAdminInfo(waitFor(function (c) { cjdns = c; }));
+
+    }).nThen(function (waitFor) {
+
+        cjdns.RouterModule_getPeers("0000.0000.0000.0001", waitFor(function (err, ret) {
+            if (err) { throw err; }
+            self = ret.peers[0];
+        }));
+
+    }).nThen(function (waitFor) {
+
+        process.stdout.write(self);
+        tracePath(target, self, cjdns, function (ret) {
+            lastRet = ret;
+            process.stdout.write('  ' + ret.ms + 'ms\n');
+            if (ret.nodes.length === 0) {
+                console.log('cornered');
+            } else if (ret.nodes[0] !== ret.from) {
+                process.stdout.write(ret.nodes[0]);
+            }
+        }, waitFor());
+
+    }).nThen(function (waitFor) {
+
+        if (!lastRet || lastRet.nodes[0] !== lastRet.from) { return; }
+        console.log('success, trying reverse trace');
+        process.stdout.write(lastRet.from);
+        tracePath(nodeToIP6(self), lastRet.from, cjdns, function (ret) {
+            lastRet = ret;
+            process.stdout.write('  ' + ret.ms + 'ms\n');
+            if (ret.nodes.length === 0) {
+                console.log('cornered');
+            } else if (ret.nodes[0] !== ret.from) {
+                process.stdout.write(ret.nodes[0]);
+            }
+        }, waitFor());
+
+    }).nThen(function (waitFor) {
+        console.log();
+        cjdns.disconnect();
+    });
+};
+
+main(process.argv[process.argv.length-1]);
