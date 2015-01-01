@@ -290,9 +290,9 @@ static int isVersion12(struct ETHInterface* ctx,
 }
 static void handleEventV12(struct ETHInterface* ctx, struct Message* msg, struct sockaddr_ll* addr)
 {
+    Message_pop16(msg, NULL);
     Message_push16(msg, 0, NULL);
     Message_push(msg, addr->sll_addr, 6, NULL);
-    Assert_true(!((uintptr_t)msg->bytes % 4) && "Alignment fault");
 
     if (addr->sll_pkttype == PACKET_BROADCAST) {
         handleBeacon(msg, ctx);
