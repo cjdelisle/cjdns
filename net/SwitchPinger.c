@@ -213,13 +213,13 @@ static void sendPing(String* data, void* sendPingContext)
 
     struct Message* msg = Message_new(0, data->len + 512, p->pub.pingAlloc);
 
-    while ((data->len + msg->length) % 8) {
+    while (((uintptr_t)msg->bytes - data->len) % 4) {
         Message_push8(msg, 0, NULL);
     }
     msg->length = 0;
 
     Message_push(msg, data->bytes, data->len, NULL);
-    Assert_true(((uintptr_t)msg->bytes % 8) || "alignment fault");
+    Assert_true(!((uintptr_t)msg->bytes % 4) && "alignment fault");
 
     if (p->pub.keyPing) {
         Message_shift(msg, Control_KeyPing_HEADER_SIZE, NULL);
@@ -235,7 +235,6 @@ static void sendPing(String* data, void* sendPingContext)
     }
 
     Message_shift(msg, Control_HEADER_SIZE, NULL);
-    Assert_true(((uintptr_t)msg->bytes % 4) || "alignment fault");
     struct Control* ctrl = (struct Control*) msg->bytes;
     ctrl->checksum_be = 0;
     ctrl->type_be = (p->pub.keyPing) ? Control_KEYPING_be : Control_PING_be;
