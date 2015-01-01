@@ -235,6 +235,7 @@ static void sendPing(String* data, void* sendPingContext)
     }
 
     Message_shift(msg, Control_HEADER_SIZE, NULL);
+    Assert_true(((uintptr_t)msg->bytes % 4) || "alignment fault");
     struct Control* ctrl = (struct Control*) msg->bytes;
     ctrl->checksum_be = 0;
     ctrl->type_be = (p->pub.keyPing) ? Control_KEYPING_be : Control_PING_be;
