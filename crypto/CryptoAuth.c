@@ -1239,10 +1239,18 @@ void CryptoAuth_setAuth(const String* password,
 {
     struct CryptoAuth_Wrapper* wrapper =
         Identity_check((struct CryptoAuth_Wrapper*)wrappedInterface->senderContext);
-    wrapper->password = (password != NULL)
-        ? String_newBinary(password->bytes, password->len, wrappedInterface->allocator)
-        : NULL;
-    wrapper->authType = (password != NULL) ? authType : 0;
+    if (!password && (wrapper->password || wrapper->authType)) {
+        wrapper->password = NULL;
+        wrapper->authType = 0;
+        CryptoAuth_reset(wrappedInterface);
+    } else if (!wrapper->password || !String_equals(wrapper->password, password)) {
+        wrapper->password = String_clone(password, wrappedInterface->allocator);
+        wrapper->authType = authType;
+        CryptoAuth_reset(wrappedInterface);
+    } else if (authType != wrapper->authType) {
+        wrapper->authType = authType;
+        CryptoAuth_reset(wrappedInterface);
+    }
 }
 
 uint8_t* CryptoAuth_getHerPublicKey(struct Interface* interface)

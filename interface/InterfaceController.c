@@ -442,7 +442,11 @@ int InterfaceController_registerPeer(struct InterfaceController* ifController,
     struct InterfaceController_pvt* ic =
         Identity_check((struct InterfaceController_pvt*) ifController);
 
-    if (Map_OfIFCPeerByExernalIf_indexForKey(&externalInterface, &ic->peerMap) > -1) {
+    int epIndex = Map_OfIFCPeerByExernalIf_indexForKey(&externalInterface, &ic->peerMap);
+    if (epIndex > -1) {
+        // The password might have changed!
+        struct InterfaceController_Peer* ep = ic->peerMap.values[epIndex];
+        CryptoAuth_setAuth(password, 1, ep->cryptoAuthIf);
         return 0;
     }
 
