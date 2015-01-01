@@ -124,7 +124,7 @@ static void genericResponse(struct RouterModule_Promise* promise,
             ReplySerializer_parse(from, responseDict, NULL, promise->alloc);
 
         List* nodes = List_new(promise->alloc);
-        for (int i = 0; i < addrs->length; i++) {
+        for (int i = 0; addrs && i < addrs->length; i++) {
             String* addr = Address_toString(&addrs->elems[i], promise->alloc);
             List_addString(nodes, addr, promise->alloc);
         }
