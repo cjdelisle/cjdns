@@ -222,6 +222,7 @@ static void handleBeacon(struct Message* msg, struct ETHInterface* context)
         AddrTools_printMac(mac, addr.sll_addr);
         Log_info(context->logger, "[%s] Got beacon from [%s] and registerPeer returned [%d]",
                  context->ifName->bytes, mac, ret);
+        Allocator_free(iface->allocator);
     }
 }
 
