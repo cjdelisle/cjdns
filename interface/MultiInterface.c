@@ -103,6 +103,7 @@ static int removePeer(struct Allocator_OnFreeJob* job)
 {
     struct Peer* p = Identity_check((struct Peer*) job->userData);
     struct MultiInterface_pvt* mif = Identity_check((struct MultiInterface_pvt*) p->multiIface);
+    Log_debug(mif->logger, "Disconnecting peer");
     struct Map_OfPeersByKey* peerMap = &mif->peerMap;
     for (int i = 0; i < (int)peerMap->count; i++) {
         if (peerMap->values[i] == p) {
@@ -152,7 +153,9 @@ static inline struct Peer* peerForKey(struct MultiInterface_pvt* mif,
     Allocator_onFree(alloc, removePeer, peer);
 
     if (regIfNew) {
-        InterfaceController_registerPeer(mif->ic, NULL, NULL, true, true, &peer->internalIf);
+        Assert_true(
+            !InterfaceController_registerPeer(mif->ic, NULL, NULL, true, true, &peer->internalIf)
+        );
     }
     return peer;
 }
