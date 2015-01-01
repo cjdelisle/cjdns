@@ -176,9 +176,8 @@ static inline void sendError(struct SwitchInterface* iface,
                              uint32_t code,
                              struct Log* logger)
 {
-    struct SwitchHeader* header = (struct SwitchHeader*) cause->bytes;
-
     #ifdef Version_8_COMPAT
+        struct SwitchHeader* header = (struct SwitchHeader*) cause->bytes;
         if (SwitchHeader_getCongestion(header)) {
             // new version packet.
             sendError8(iface, cause, code, logger);

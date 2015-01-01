@@ -28,6 +28,9 @@
 #define Gcc_PURE \
     __attribute__ ((__pure__))
 
+#define Gcc_PACKED \
+    __attribute__ ((packed))
+
 
 #else
 
@@ -35,6 +38,7 @@
 #define Gcc_NORETURN
 #define Gcc_NONNULL(num)
 #define Gcc_PURE
+#define Gcc_PACKED
 
 #endif
 

@@ -262,19 +262,35 @@ Version_COMPAT(11, ([7,8,9,10]))
  */
 Version_COMPAT(12, ([7,8,9,10,11]))
 
+/*
+ * Version 13:
+ * December 30, 2014
+ *
+ * 1. Drop nodes older than 12.
+ *
+ * 2. Change of ETHInterface protocol.
+ * We determined that the ETHInterface frame format was not possible to evolve
+ * so we determined to add the low 16 bits of the version number to the header.
+ * This was brought about by a need to include the message length in the header
+ * to fix ethernet cards which fail to strip the CRC from the received message.
+ *
+ * The beacon contains a version number so if an old node is beaconing then the
+ * new node can still speak the old protocol. If the new node is beaconing and
+ * an old node receives it and responds, it will fail as we have determined that
+ * there is no reasonable way for the new node to determine that an old format
+ * message is old. It will begin working again if the old node sends a beacon.
+ */
+Version_COMPAT(13, ([12]))
+
 /**
  * The current protocol version.
  */
-#define Version_CURRENT_PROTOCOL 12
-#define Version_7_COMPAT
-#define Version_8_COMPAT
-#define Version_9_COMPAT
-#define Version_10_COMPAT
-#define Version_11_COMPAT
+#define Version_CURRENT_PROTOCOL 13
 #define Version_12_COMPAT
+#define Version_13_COMPAT
 
-#define Version_MINIMUM_COMPATIBLE 7
-#define Version_DEFAULT_ASSUMPTION 7
+#define Version_MINIMUM_COMPATIBLE 12
+#define Version_DEFAULT_ASSUMPTION 12
 
 /**
  * Check the compatibility matrix and return whether two versions are compatible.

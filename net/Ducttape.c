@@ -1112,7 +1112,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     // another switch ready to parse more bits, bit reversing the label yields the source address.
     switchHeader->label_be = Bits_bitReverse64(switchHeader->label_be);
 
-    #ifdef Version_7_COMPAT
+    #ifdef Version_12_COMPAT
     if (SwitchHeader_isV7Ctrl(switchHeader)) {
         return handleControlMessage(context, message, switchHeader, switchIf, false);
     }

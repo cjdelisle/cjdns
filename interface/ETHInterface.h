@@ -18,10 +18,31 @@
 #include "util/events/EventBase.h"
 #include "interface/Interface.h"
 #include "interface/InterfaceController.h"
+#include "util/Gcc.h"
+#include "util/Assert.h"
 #include "util/log/Log.h"
 #include "memory/Allocator.h"
 #include "util/Linker.h"
 Linker_require("interface/ETHInterface_" + builder.config.systemName + ".c")
+
+Gcc_PACKED
+struct ETHInterface_Header
+{
+    /** The version number of the sending node, modulo 256 */
+    uint8_t version;
+
+    /** number which should change every time a node restarts. */
+    uint8_t id;
+
+    /** Length of the content (excluding header) */
+    uint16_t length_be;
+
+    /** Pad to align boundry. */
+    uint16_t unused;
+
+};
+#define ETHInterface_Header_SIZE 6
+Assert_compileTime(sizeof(struct ETHInterface_Header) == ETHInterface_Header_SIZE);
 
 struct ETHInterface;
 
