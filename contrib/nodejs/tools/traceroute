@@ -23,6 +23,11 @@ var nodeToIP6 = function (nodeDesc) {
     return PubToIp6.convert(key);
 };
 
+var highBits = function (nodeDesc) {
+    var ip6 = nodeToIP6(nodeDesc);
+    return ip6.substring(20,29);
+}
+
 var tracePath = function (target, queryNode, cjdns, cb, doneCb) {
     var lastNode = queryNode;
     var again = function () {
@@ -64,14 +69,14 @@ var main = function (target) {
 
     }).nThen(function (waitFor) {
 
-        process.stdout.write(self);
+        process.stdout.write(self + ' ' + highBits(self));
         tracePath(target, self, cjdns, function (ret) {
             lastRet = ret;
             process.stdout.write('  ' + ret.ms + 'ms\n');
             if (ret.nodes.length === 0) {
                 console.log('cornered');
             } else if (ret.nodes[0] !== ret.from) {
-                process.stdout.write(ret.nodes[0]);
+                process.stdout.write(ret.nodes[0] + ' ' + highBits(ret.nodes[0]));
             }
         }, waitFor());
 

@@ -1,0 +1,95 @@
+#!/usr/bin/env node
+/* -*- Mode:js */
+/* vim: set expandtab ts=4 sw=4: */
+/*
+ * You may redistribute this program and/or modify it under the terms of
+ * the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+var Cjdns = require('../cjdnsadmin/cjdnsadmin');
+var nThen = require('../cjdnsadmin/nthen');
+
+var WAIT_TIME = 5000;
+var INTERVAL = 1000;
+
+var now = function () { return (new Date()).getTime(); };
+var nowSeconds = function () { return Math.floor(now() / 1000); };
+
+var main = function (argv) {
+
+    var switchMode = (argv.indexOf('-s') !== -1);
+    var data = '';
+    if (argv.indexOf('-d') !== -1) {
+        data = argv[argv.indexOf('-d') + 1];
+        if (!switchMode) {
+            console.log('-d data flag not possible without -s');
+            return;
+        }
+    }
+    var target = argv[argv.length-1];
+
+    var cjdns;
+    nThen(function (waitFor) {
+
+        Cjdns.connectWithAdminInfo(waitFor(function (c) { cjdns = c; }));
+
+    }).nThen(function (waitFor) {
+
+        var routerPing = function () {
+            var startTime = now();
+            cjdns.RouterModule_pingNode(target, WAIT_TIME, waitFor(function (err, ret) {
+                if (err) { throw err; }
+                if (ret.result === 'timeout') {
+                    console.log(
+                        nowSeconds() + ' timeout  p' + ret.version + ' ' + ret.ms + 'ms');
+                } else if (ret.result === 'pong') {
+                    console.log(
+                        nowSeconds() + ' ' + ret.from + '  p' + ret.protocol + ' ' + ret.ms + 'ms');
+                } else if (ret.error === 'not_found') {
+                    console.log(nowSeconds() + " No route to host");
+                } else {
+                    console.log(ret);
+                }
+                var pingIn = INTERVAL - (now() - startTime);
+                if (pingIn < 0) { pingIn = 0; }
+                setTimeout(routerPing, pingIn);
+            }));
+        };
+
+        var switchPing = function () {
+            var startTime = now();
+            cjdns.SwitchPinger_ping(target, WAIT_TIME, 0, data, waitFor(function (err, ret) {
+                if (err) { throw err; }
+
+                if (ret.result === 'timeout') {
+                    console.log(nowSeconds() + ' switchPing timeout ' + ret.ms + 'ms');
+                } else if (ret.result === 'pong') {
+                    console.log(nowSeconds() + ' switchPing ' + ret.path + '  p' +
+                        ret.version + ' ' + ret.ms + 'ms');
+                } else {
+                    console.log(nowSeconds() + ' switchPing  ' + ret);
+                }
+
+                var pingIn = INTERVAL - (now() - startTime);
+                if (pingIn < 0) { pingIn = 0; }
+                setTimeout(switchPing, pingIn);
+            }));
+        };
+
+        if (switchMode) {
+            switchPing();
+        } else {
+            routerPing();
+        }
+    });
+};
+
+main(process.argv);
