@@ -13,13 +13,13 @@
 
 from time import sleep
 
-def connect(ip='',port=0,password=''):
-    from cjdnsadmin import connect, connectWithAdminInfo
-    try:
-        cjdns = connect(ip,int(port), password)
-    except:
-        cjdns = connectWithAdminInfo()
-    return cjdns
+def anonConnect(ip='127.0.0.1', port=11234):
+    from cjdnsadmin import connect
+    return connect(ip, int(port), '')
+
+def connect(ip='127.0.0.1', port=11234, password=''):
+    from cjdnsadmin import connectWithAdminInfo
+    return connectWithAdminInfo()
 
 def disconnect(cjdns):
     cjdns.disconnect()
