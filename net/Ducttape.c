@@ -145,7 +145,7 @@ static int handleOutgoing(struct DHTMessage* dmessage, void* vcontext)
 
     // Sending a message to yourself?
     // Short circuit because setting up a CA session with yourself causes problems.
-    if (dmessage->address->path == 1) {
+    if (!Bits_memcmp(dmessage->address->key, context->myAddr.key, 32)) {
         struct Allocator* alloc = Allocator_child(context->alloc);
         Allocator_adopt(alloc, dmessage->binMessage->alloc);
         incomingDHT(dmessage->binMessage, dmessage->address, context);
@@ -1079,16 +1079,17 @@ static uint8_t handleControlMessage(struct Ducttape_pvt* context,
 
     } else {
         Log_info(context->logger,
-                  "control packet of unknown type from [%s], type [%d]",
+                  "DROP control packet of unknown type from [%s], type [%d]",
                   labelStr, Endian_bigEndianToHost16(ctrl->type_be));
     }
 
     if (pong && context->pub.switchPingerIf.receiveMessage) {
-        if (isFormV8) {
-            Message_shift(message, 4, NULL);
+        if (!isFormV8) {
+            Log_debug(context->logger, "DROP [%s] responded to ping with v7 response", labelStr);
+            return Error_NONE;
         }
         // Shift back over the header
-        Message_shift(message, SwitchHeader_SIZE, NULL);
+        Message_shift(message, 4 + SwitchHeader_SIZE, NULL);
         Interface_receiveMessage(&context->pub.switchPingerIf, message);
     }
     return Error_NONE;
