@@ -1843,14 +1843,10 @@ struct Node_Two* NodeStore_getBest(struct NodeStore* nodeStore, uint8_t targetAd
                                                             bucket,
                                                             NodeStore_bucketSize);
     for (uint32_t i = 0 ; i < nodeList->size ; i++) {
-        if (nodeList->nodes[i]->address.protocolVersion < Version_CURRENT_PROTOCOL ||
-            !Node_getBestParent(nodeList->nodes[i]))
-        {
-            // This node is either too old or orphaned.
-            continue;
+        if (Node_getBestParent(nodeList->nodes[i])) {
+            n = nodeList->nodes[i];
+            break;
         }
-        n = nodeList->nodes[i];
-        break;
     }
     Allocator_free(nodeListAlloc);
     if (n && Node_getBestParent(n)) { return n; }
