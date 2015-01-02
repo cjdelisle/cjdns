@@ -1433,6 +1433,10 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
         Log_debug(store->logger, "Discover node [%s]", printedAddr);
     }
 
+    if (child && child == store->selfLink->child) {
+        return NULL;
+    }
+
     if (child && EncodingScheme_compare(child->encodingScheme, scheme)) {
         // Shit.
         // Box reset *and* they just updated and changed their encoding scheme.
