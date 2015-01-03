@@ -86,7 +86,7 @@ static int genAddress(uint8_t addressOut[40],
     }
 }
 
-static int genconf(struct Random* rand)
+static int genconf(struct Random* rand, bool eth)
 {
     uint8_t password[32];
     uint8_t password2[32];
@@ -184,9 +184,11 @@ static int genconf(struct Random* rand)
            "            }\n"
            "        ]\n");
 #ifdef HAS_ETH_INTERFACE
-    printf("\n"
-           "        /*\n"
-           "        \"ETHInterface\":\n"
+    printf("\n");
+    if (!eth) {
+        printf("        /*\n");
+    }
+    printf("        \"ETHInterface\":\n"
            "        [\n"
            "            {\n"
            "                // Bind to this device (interface name, not MAC etc.)\n"
@@ -216,9 +218,11 @@ static int genconf(struct Random* rand)
            "                    // \"01:02:03:04:05:06\":{\"password\":\"a\",\"publicKey\":\"b\"}\n"
            "                }\n"
            "            }\n"
-           "        ]\n"
-           "        */\n"
-           "\n");
+           "        ]\n");
+    if (!eth) {
+        printf("        */\n"
+    }
+    printf("\n");
 #endif
     printf("    },\n"
            "\n"
@@ -453,12 +457,18 @@ int main(int argc, char** argv)
     struct Random* rand = Random_new(allocator, NULL, eh);
     struct EventBase* eventBase = EventBase_new(allocator);
 
-    if (argc == 2) {
+    if (argc >= 2) {
         // one argument
         if ((CString_strcmp(argv[1], "--help") == 0) || (CString_strcmp(argv[1], "-h") == 0)) {
             return usage(allocator, argv[0]);
         } else if (CString_strcmp(argv[1], "--genconf") == 0) {
-            return genconf(rand);
+            bool eth = 0;
+            for (int i = 1; i < argc; i++) {
+                if (!CString_strcmp(argv[i], "--eth")) {
+                    eth = 1;
+                }
+            }
+            return genconf(rand, eth);
         } else if (CString_strcmp(argv[1], "--pidfile") == 0) {
             // deprecated
             fprintf(stderr, "'--pidfile' option is deprecated.\n");
