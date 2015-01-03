@@ -220,7 +220,7 @@ static int genconf(struct Random* rand, bool eth)
            "            }\n"
            "        ]\n");
     if (!eth) {
-        printf("        */\n"
+        printf("        */\n");
     }
     printf("\n");
 #endif
