@@ -307,6 +307,7 @@ static int genconf(struct Random* rand)
            "    \"noBackground\":0,\n"
            "\n");
     printf("    // DNS, this server will be available at address fc00::1\n"
+           "    /*\n"
            "    \"dns\":\n"
            "    {\n"
            "        // Who to trust\n"
@@ -328,6 +329,7 @@ static int genconf(struct Random* rand)
            "        // At least this many of \"keys\" must agree or else the request will fail.\n"
            "        \"minSignatures\":2\n"
            "    }\n"
+           "    */\n"
            "\n"
            "}\n");
 
