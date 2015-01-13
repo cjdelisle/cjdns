@@ -279,7 +279,7 @@ void NodeStore_admin_register(struct NodeStore* nodeStore,
             { .name = "parent", .required = 1, .type = "String" },
             { .name = "linkNum", .required = 1, .type = "Int" },
         }), admin);
-    Admin_registerFunction("NodeStore_nodeForAddr", nodeForAddr, ctx, true,
+    Admin_registerFunction("NodeStore_nodeForAddr", nodeForAddr, ctx, false,
         ((struct Admin_FunctionArg[]) {
             { .name = "ip", .required = 0, .type = "String" },
         }), admin);
