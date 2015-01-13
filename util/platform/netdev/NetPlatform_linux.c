@@ -32,8 +32,9 @@
 /**
  * This hack exists because linux/in.h and linux/in6.h define
  * the same structures, leading to redefinition errors.
+ * For the second operand, we're grateful to android/bionic, platform level 21.
  */
-#ifndef _LINUX_IN6_H
+#if !defined(_LINUX_IN6_H) && !defined(_UAPI_LINUX_IN6_H)
     struct in6_ifreq
     {
         struct in6_addr ifr6_addr;
