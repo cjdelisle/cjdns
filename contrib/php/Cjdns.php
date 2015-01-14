@@ -1,5 +1,14 @@
-<?
+<?php
 
+/**
+ *
+ * PHP Cjdns Admin API 
+ *
+  */
+
+function endsWith($haystack, $needle) {
+return $needle === "" || strpos($haystack, $needle, strlen($haystack) - strlen($needle)) !== FALSE;
+}
 class Cjdns {
     public $buffersize = 69632;
     public $keepalive = 2;
@@ -22,13 +31,13 @@ class Cjdns {
             $data = fread($this->socket, $this->buffersize);
             if($data != "") {
                 try {
-                    $decoded = bdecode($data);
+                    $decoded = Bencode::decode($data, 'TYPE_ARRAY');
                 }
                 catch(Exception $e) {
                     die("Failed to decode: ".$data);
                 }
             }
-            $this->responses[$decoded['txid']] = $decoded;
+            $this->responses[$decoded['txid']] = @$decoded;
         }
         $response = $this->responses[$txid];
         unset($this->response[$txid]);
@@ -42,7 +51,7 @@ class Cjdns {
         } else {
             $txid = $message['txid'];
         }
-        fwrite($this->socket, bencode($message));
+        fwrite($this->socket, Bencode::encode($message));
         return $txid;
     }
 
@@ -68,29 +77,29 @@ class Cjdns {
                 "txid" => $txid
                 );
         }
-        $requestBencoded = bencode($request);
+        $requestBencoded = Bencode::encode($request);
         $request['hash'] = hash("sha256", $requestBencoded);
         $this->send_raw($request);
         return $this->receive($txid);
     }
 
-    function __construct($password=NULL, $host="127.0.0.1", $port=11234) {
+    function __construct($password=NULL, $host="127.0.0.1", $port=10010) {
         $this->socket = stream_socket_client("udp://".$host.":".$port, $errorno, $errorstr);
         if(!$this->socket) {
             die("Failed to connect, Error #$errorno: $errorstr");
         }
-        fwrite($this->socket, bencode(array("q"=>"ping")));   // Try to ping it
+        fwrite($this->socket, Bencode::encode(array("q"=>"ping")));   // Try to ping it
         $returndata = fread($this->socket, $this->buffersize);
-        if($returndata != "d1:q4:ponge") {
-            die("Looks like $host:$port isn't a cjdns admin port");
+        if(!endsWith($returndata, "1:q4:ponge")) {
+            die("$returndata");
         }
         $this->password = $password;
         $page = 0;
         while(True) {
             $request = array("q" => "Admin_availableFunctions",
                 "args" => array("page" => $page));
-            fwrite($this->socket, bencode($request));
-            $result = bdecode(fread($this->socket, $this->buffersize));
+            fwrite($this->socket, Bencode::encode($request));
+            $result = Bencode::decode(fread($this->socket, $this->buffersize));
             foreach($result['availableFunctions'] as $function => $description) {
                 $this->functions[$function] = $description;
             }
