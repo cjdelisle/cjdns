@@ -26,4 +26,4 @@ print_r($ping);
 
 Bugs
 -------------
-Please report any bugs you find to thefinn93. IRC is fine, as is github.
+Please report any bugs you find to derp. IRC is fine, as is github.
