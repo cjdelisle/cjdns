@@ -21,7 +21,7 @@ if [ "x$enabled_log" == "x1" ]; then
   echo Compiler CC: $CC > $cross_log
   echo Compiler CFLAGS: $CFLAGS >> $cross_log
   echo Compiler LDFLAGS: $LDFLAGS >> $cross_log
-  time ./do &>> $cross_log
+  time ./do >> $cross_log 2>&1
   mv cjdroute ${log_filename}_cjdroute
 else
   echo Compiler CC: $CC

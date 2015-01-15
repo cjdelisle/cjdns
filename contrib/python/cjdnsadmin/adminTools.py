@@ -95,13 +95,13 @@ def peerStats(cjdns,up=False,verbose=False):
         i += 1
 
     if verbose:
-        STAT_FORMAT = '%s\t%s\tin %d\tout %d\t%s\tdup %d los %d oor %d'
+        STAT_FORMAT = '%s\tv%s\t%s\tin %d\tout %d\t%s\tdup %d los %d oor %d'
 
         for peer in allPeers:
             ip = PublicToIp6_convert(peer['publicKey'])
 
-            p = STAT_FORMAT % (ip, peer['switchLabel'], peer['bytesIn'],
-                               peer['bytesOut'], peer['state'],
+            p = STAT_FORMAT % (ip, peer['version'], peer['switchLabel'],
+                               peer['bytesIn'], peer['bytesOut'], peer['state'],
                                peer['duplicates'], peer['lostPackets'],
                                peer['receivedOutOfRange'])
 
