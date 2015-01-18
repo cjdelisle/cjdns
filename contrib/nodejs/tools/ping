@@ -25,7 +25,8 @@ var nowSeconds = function () { return Math.floor(now() / 1000); };
 
 var main = function (argv) {
 
-    var switchMode = (argv.indexOf('-s') !== -1);
+    var keyPing = (argv.indexOf('-k') !== -1);
+    var switchMode = (argv.indexOf('-s') !== -1) || keyPing;
     var data = '';
     if (argv.indexOf('-d') !== -1) {
         data = argv[argv.indexOf('-d') + 1];
@@ -64,19 +65,23 @@ var main = function (argv) {
             }));
         };
 
-        var switchPing = function () {
+        var switchPing = function (keyPing) {
             var startTime = now();
-            cjdns.SwitchPinger_ping(target, WAIT_TIME, 0, data, waitFor(function (err, ret) {
+            cjdns.SwitchPinger_ping(target, WAIT_TIME, keyPing^0, data, waitFor(function (err, ret) {
                 if (err) { throw err; }
 
+                var out = nowSeconds() + ' switchPing ';
                 if (ret.result === 'timeout') {
-                    console.log(nowSeconds() + ' switchPing timeout ' + ret.ms + 'ms');
+                    out += 'timeout ' + ret.ms + 'ms';
                 } else if (ret.result === 'pong') {
-                    console.log(nowSeconds() + ' switchPing ' + ret.path + '  p' +
-                        ret.version + ' ' + ret.ms + 'ms');
+                    out += ret.path + '  p' + ret.version + ' ' + ret.ms + 'ms';
+                    if (ret.key) {
+                         out += ' ' + ret.key;
+                    }
                 } else {
-                    console.log(nowSeconds() + ' switchPing  ' + ret);
+                    out += JSON.stringify(ret);
                 }
+                console.log(out);
 
                 var pingIn = INTERVAL - (now() - startTime);
                 if (pingIn < 0) { pingIn = 0; }
@@ -85,7 +90,7 @@ var main = function (argv) {
         };
 
         if (switchMode) {
-            switchPing();
+            switchPing(keyPing);
         } else {
             routerPing();
         }

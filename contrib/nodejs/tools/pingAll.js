@@ -50,6 +50,7 @@ Cjdns.connectWithAdminInfo(function (cjdns) {
             }
         });
 
+        var switchLabel;
         var nt = nThen;
         uniques.forEach(function (node) {
             nt = nt(function (waitFor) {
@@ -58,18 +59,40 @@ Cjdns.connectWithAdminInfo(function (cjdns) {
                     process.stdout.write(node.ip + '@' + ret.result.routeLabel);
                 }));
             }).nThen(function (waitFor) {
+                switchLabel = null;
                 cjdns.RouterModule_pingNode(node.ip, 3000, waitFor(function (err, ret) {
                     if (err) { throw err; }
                     if (ret.result === 'pong') {
-                        process.stdout.write('  ' + ret.ms + 'ms  linkq:' + node.link);
+                        process.stdout.write('  ' + ret.ms + 'ms v'+ret.protocol+' linkq:' + node.link);
                         lags.push(Number(ret.ms));
+                        switchLabel = ret.from.replace(/.*@/, '');
                     } else if (ret.error === 'not_found') {
                         process.stdout.write('  not_found');
                     } else {
                         process.stdout.write('  ' + JSON.stringify(ret));
                         lags.push(3000);
                     }
+                }));
+            }).nThen(function (waitFor) {
+                if (switchLabel === null) {
                     process.stdout.write('\n');
+                    return
+                }
+                cjdns.SwitchPinger_ping(switchLabel, 3000, 0, '', waitFor(function (err, ret) {
+                    if (err) { throw err; }
+
+                    var out = ' switchPing ';
+                    if (ret.result === 'timeout') {
+                        out += 'timeout ' + ret.ms + 'ms';
+                    } else if (ret.result === 'pong') {
+                        out += ret.path + '  p' + ret.version + ' ' + ret.ms + 'ms';
+                        if (ret.key) {
+                             out += ' ' + ret.key;
+                        }
+                    } else {
+                        out += ret;
+                    }
+                    process.stdout.write(out + '\n');
                 }));
             }).nThen;
         });
