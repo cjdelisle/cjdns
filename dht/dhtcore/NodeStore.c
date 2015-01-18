@@ -1871,22 +1871,26 @@ struct NodeList* NodeStore_getPeers(uint64_t label,
                                     struct NodeStore* nodeStore)
 {
     struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
-
-    // truncate the label to the part which this node uses...
-    label &= Bits_maxBits64(NumberCompress_bitsUsedForLabel(label));
-
+    Log_debug(store->logger, "getPeers request for [%lx]", label);
+    // truncate the label to the part which this node uses PLUS
+    // the self-interface bit for the next hop
+    if (label > 1) {
+        int bitsUsed = NumberCompress_bitsUsedForLabel(label);
+        label = (label & Bits_maxBits64(bitsUsed)) | 1 << bitsUsed;
+    }
     struct NodeList* out = Allocator_calloc(allocator, sizeof(struct NodeList), 1);
     out->nodes = Allocator_calloc(allocator, sizeof(char*), max);
 
     struct Node_Link* next = NULL;
-    RB_FOREACH_REVERSE(next, PeerRBTree, &store->pub.selfNode->peerTree) {
+    RB_FOREACH(next, PeerRBTree, &store->pub.selfNode->peerTree) {
         uint64_t p = next->child->address.path;
-        if (p > (((uint64_t)1)<<63)) { continue; }
+        if (!LabelSplicer_isOneHop(p) && p != 1) { continue; }
+        if (p < label) { continue; }
         int j;
         for (j = 0; j < (int)max; j++) {
-            if (out->nodes[j] && (out->nodes[j]->address.path ^ label) < (p ^ label)) {
-                break;
-            }
+            if (!out->nodes[j]) { continue; }
+            if ((out->nodes[j]->address.path - label) > (p - label)) { continue; }
+            break;
         }
         switch (j) {
             default: Bits_memmove(out->nodes, &out->nodes[1], (j - 1) * sizeof(char*));
