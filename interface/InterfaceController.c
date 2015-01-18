@@ -426,6 +426,46 @@ static int closeInterface(struct Allocator_OnFreeJob* job)
     return 0;
 }
 
+
+
+
+struct InterfaceController_Iface
+{
+    String* name;
+};
+
+struct InterfaceController_Header
+{
+    uint8_t isBeacon;
+
+    uint8_t pad;
+};
+
+/**
+ * Register an Ethernet-like interface.
+ * Ethernet-like means the interface is capable of sending messages to one or more nodes
+ * and differentiates between them using an address.
+ *
+ * @param ifc the interface controller
+ * @param addrIface the interface
+ * @param addrLen the size in bytes of the addresses used by this Addressable Interface.
+ * @param beaconAddr the address to send in order to indicate that a broadcasted "beacon"
+ *                   message should be sent. NULL if this interface does not support beaconing.
+ * @return a structure which can be used to unregister the interface.
+ */
+struct InterfaceController_Iface* InterfaceController_regIface(struct InterfaceController* ifc,
+                                                               struct Interface* addrIface,
+                                                               int addrLen,
+                                                               uint8_t* beaconAddr)
+{
+    return NULL;
+}
+
+
+
+
+
+
 int InterfaceController_registerPeer(struct InterfaceController* ifController,
                                      uint8_t herPublicKey[32],
                                      String* password,
