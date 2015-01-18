@@ -322,10 +322,14 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
 
         // be careful, the message could have decrypted content in it
         // and we don't want to spill it out over the wire.
+
         message->length = message->capacity;
         Message_shift(message, -message->length, NULL);
-        Message_shift(message, Control_Error_MAX_SIZE, NULL);
-        Bits_memcpy(message->bytes, messageClone, cloneLength);
+        // alignment issues
+        while ((((uintptr_t)message->bytes) - cloneLength) % 4) {
+            Message_push8(message, 0, NULL);
+        }
+        Message_push(message, messageClone, cloneLength, NULL);
         message->length = cloneLength;
         sendError(sourceIf, message, err, sourceIf->core->logger);
         return Error_NONE;
