@@ -250,11 +250,9 @@ static void sendPing(String* data, void* sendPingContext)
 
     Message_shift(msg, SwitchHeader_SIZE, NULL);
     struct SwitchHeader* switchHeader = (struct SwitchHeader*) msg->bytes;
+    Bits_memset(switchHeader, 0, SwitchHeader_SIZE);
     switchHeader->label_be = Endian_hostToBigEndian64(p->label);
-
     SwitchHeader_setVersion(switchHeader, SwitchHeader_CURRENT_VERSION);
-    SwitchHeader_setPenalty(switchHeader, 0);
-    SwitchHeader_setCongestion(switchHeader, 0);
 
     #ifdef Version_7_COMPAT
         // v7 detects ctrl packets by the bit which has been

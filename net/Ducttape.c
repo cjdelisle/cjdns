@@ -110,12 +110,12 @@ static inline uint8_t sendToRouter(struct Message* message,
     } else {
         dtHeader->switchHeader = (struct SwitchHeader*) message->bytes;
         Bits_memset(dtHeader->switchHeader, 0, SwitchHeader_SIZE);
-        SwitchHeader_setCongestion(dtHeader->switchHeader, 1);
     }
     Message_shift(message, -safeDistance, NULL);
 
+    SwitchHeader_setVersion(dtHeader->switchHeader, SwitchHeader_CURRENT_VERSION);
+    SwitchHeader_setLabelShift(dtHeader->switchHeader, 0);
     dtHeader->switchHeader->label_be = Endian_hostToBigEndian64(dtHeader->switchLabel);
-
 
     // This comes out in outgoingFromCryptoAuth() then sendToSwitch()
     dtHeader->receiveHandle = Endian_bigEndianToHost32(session->receiveHandle_be);
@@ -891,6 +891,9 @@ static void changeToVersion8(struct Message* msg)
     Message_push32(msg, 0xffffffff, NULL);
     SwitchHeader_setCongestion(&sh, 0);
     SwitchHeader_setSuppressErrors(&sh, false);
+    SwitchHeader_setVersion(&sh, SwitchHeader_CURRENT_VERSION);
+    SwitchHeader_setLabelShift(&sh, 0);
+    SwitchHeader_setCongestion(&sh, 0);
     Message_push(msg, &sh, SwitchHeader_SIZE, NULL);
     Message_shift(msg, -SwitchHeader_SIZE, NULL);
 }
@@ -914,6 +917,7 @@ static uint8_t handleControlMessage(struct Ducttape_pvt* context,
     uint8_t labelStr[20];
     uint64_t label = Endian_bigEndianToHost64(switchHeader->label_be);
     AddrTools_printPath(labelStr, label);
+    Log_debug(context->logger, "ctrl packet from [%s]", labelStr);
     if (message->length < Control_HEADER_SIZE) {
         Log_info(context->logger, "DROP runt ctrl packet from [%s]", labelStr);
         return Error_NONE;
@@ -1024,13 +1028,15 @@ static uint8_t handleControlMessage(struct Ducttape_pvt* context,
 
         if (isFormV8) {
             Message_shift(message, 4, NULL);
+            Assert_true(((uint32_t*)message->bytes)[0] == 0xffffffff);
         } else if (herVersion >= 8) {
             changeToVersion8(message);
         }
         Message_shift(message, SwitchHeader_SIZE, NULL);
 
         Log_debug(context->logger, "got switch ping from [%s]", labelStr);
-
+        SwitchHeader_setLabelShift(switchHeader, 0);
+        SwitchHeader_setCongestion(switchHeader, 0);
         Interface_receiveMessage(switchIf, message);
 
     } else if (ctrl->type_be == Control_KEYPONG_be) {
@@ -1070,11 +1076,13 @@ static uint8_t handleControlMessage(struct Ducttape_pvt* context,
 
         if (isFormV8) {
             Message_shift(message, 4, NULL);
+            Assert_true(((uint32_t*)message->bytes)[0] == 0xffffffff);
         } else if (herVersion >= 8) {
             changeToVersion8(message);
         }
         Message_shift(message, SwitchHeader_SIZE, NULL);
-
+        SwitchHeader_setLabelShift(switchHeader, 0);
+        SwitchHeader_setCongestion(switchHeader, 0);
         Interface_receiveMessage(switchIf, message);
 
     } else {
@@ -1088,6 +1096,7 @@ static uint8_t handleControlMessage(struct Ducttape_pvt* context,
             Log_debug(context->logger, "DROP [%s] responded to ping with v7 response", labelStr);
             return Error_NONE;
         }
+        Log_debug(context->logger, "got switch pong from [%s]", labelStr);
         // Shift back over the header
         Message_shift(message, 4 + SwitchHeader_SIZE, NULL);
         Interface_receiveMessage(&context->pub.switchPingerIf, message);
