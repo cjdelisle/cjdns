@@ -193,7 +193,7 @@ static void dhtResponseCallback(struct RouterModule_Promise* promise,
     struct Janitor* janitor = Identity_check((struct Janitor*)promise->userData);
     if (!from) { return; }
     struct Address_List* addresses =
-        ReplySerializer_parse(from, result, janitor->logger, promise->alloc);
+        ReplySerializer_parse(from, result, janitor->logger, true, promise->alloc);
 
     struct Node_Two* parent = NodeStore_nodeForAddr(janitor->nodeStore, from->ip6.bytes);
     if (!parent) { return; }
@@ -230,7 +230,7 @@ static void peersResponseCallback(struct RouterModule_Promise* promise,
     struct Janitor* janitor = Identity_check((struct Janitor*)promise->userData);
     if (!from) { return; }
     struct Address_List* addresses =
-        ReplySerializer_parse(from, result, janitor->logger, promise->alloc);
+        ReplySerializer_parse(from, result, janitor->logger, true, promise->alloc);
 
     struct Node_Two* parent = NodeStore_nodeForAddr(janitor->nodeStore, from->ip6.bytes);
     if (!parent) { return; }

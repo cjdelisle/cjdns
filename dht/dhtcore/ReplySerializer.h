@@ -28,6 +28,7 @@ Linker_require("dht/dhtcore/ReplySerializer.c")
 struct Address_List* ReplySerializer_parse(struct Address* fromNode,
                                            Dict* result,
                                            struct Log* log,
+                                           bool splicePath,
                                            struct Allocator* alloc);
 
 #endif

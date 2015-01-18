@@ -660,7 +660,9 @@ struct RouterModule_Promise* RouterModule_getPeers(struct Address* addr,
     Dict_putString(d, CJDHTConstants_QUERY, CJDHTConstants_QUERY_GP, promise->alloc);
 
     uint64_t nearbyLabel_be = Endian_hostToBigEndian64(nearbyLabel);
-    String* target = String_newBinary((char*)&nearbyLabel_be, 8, promise->alloc);
+    uint8_t nearbyLabelBytes[8];
+    Bits_memcpyConst(nearbyLabelBytes, &nearbyLabel_be, 8);
+    String* target = String_newBinary(nearbyLabelBytes, 8, promise->alloc);
     Dict_putString(d, CJDHTConstants_TARGET, target, promise->alloc);
 
     RouterModule_sendMessage(promise, d);

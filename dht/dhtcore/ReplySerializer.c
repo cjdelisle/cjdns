@@ -31,6 +31,7 @@
 struct Address_List* ReplySerializer_parse(struct Address* fromNode,
                                            Dict* result,
                                            struct Log* log,
+                                           bool splicePath,
                                            struct Allocator* alloc)
 {
     String* nodes = Dict_getString(result, CJDHTConstants_NODES);
@@ -64,22 +65,25 @@ struct Address_List* ReplySerializer_parse(struct Address* fromNode,
         // calculate the ipv6
         Address_getPrefix(&addr);
 
-        // We need to splice the given address on to the end of the
-        // address of the node which gave it to us.
-        uint64_t path = LabelSplicer_splice(addr.path, fromNode->path);
+        if (splicePath) {
+            // We need to splice the given address on to the end of the
+            // address of the node which gave it to us.
+            uint64_t path = LabelSplicer_splice(addr.path, fromNode->path);
 
-        if (path == UINT64_MAX) {
-            /* common, lots of noise
-            uint8_t discovered[60];
-            uint8_t fromAddr[60];
-            Address_print(discovered, &addr);
-            Address_print(fromAddr, fromNode);
-            Log_debug(log, "Dropping response [%s] from [%s] because route could not be spliced",
-                      discovered, fromAddr);*/
-            continue;
+            if (path == UINT64_MAX) {
+                /* common, lots of noise
+                uint8_t discovered[60];
+                uint8_t fromAddr[60];
+                Address_print(discovered, &addr);
+                Address_print(fromAddr, fromNode);
+                Log_debug(log,
+                          "Dropping response [%s] from [%s] because route could not be spliced",
+                          discovered, fromAddr);*/
+                continue;
+            }
+
+            addr.path = path;
         }
-
-        addr.path = path;
 
         /*#ifdef Log_DEBUG
             uint8_t printedAddr[60];

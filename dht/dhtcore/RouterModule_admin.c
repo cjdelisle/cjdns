@@ -112,7 +112,8 @@ static void genericResponse(struct RouterModule_Promise* promise,
                             uint32_t lag,
                             struct Address* from,
                             Dict* responseDict,
-                            String* name)
+                            String* name,
+                            bool splicePath)
 {
     struct Ping* ping = Identity_check((struct Ping*)promise->userData);
     Dict* out = Dict_new(promise->alloc);
@@ -121,7 +122,7 @@ static void genericResponse(struct RouterModule_Promise* promise,
 
     if (responseDict) {
         struct Address_List* addrs =
-            ReplySerializer_parse(from, responseDict, NULL, promise->alloc);
+            ReplySerializer_parse(from, responseDict, NULL, splicePath, promise->alloc);
 
         List* nodes = List_new(promise->alloc);
         for (int i = 0; addrs && i < addrs->length; i++) {
@@ -143,7 +144,7 @@ static void getPeersResponse(struct RouterModule_Promise* promise,
                              struct Address* from,
                              Dict* responseDict)
 {
-    genericResponse(promise, lag, from, responseDict, String_CONST("peers"));
+    genericResponse(promise, lag, from, responseDict, String_CONST("peers"), false);
 }
 
 static void findNodeResponse(struct RouterModule_Promise* promise,
@@ -151,7 +152,7 @@ static void findNodeResponse(struct RouterModule_Promise* promise,
                              struct Address* from,
                              Dict* responseDict)
 {
-    genericResponse(promise, lag, from, responseDict, String_CONST("nodes"));
+    genericResponse(promise, lag, from, responseDict, String_CONST("nodes"), true);
 }
 
 static struct Address* getNode(String* pathStr,

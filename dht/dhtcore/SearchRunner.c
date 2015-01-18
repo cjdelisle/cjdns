@@ -131,7 +131,7 @@ static void searchReplyCallback(struct RouterModule_Promise* promise,
         Identity_check((struct SearchRunner_Search*)promise->userData);
 
     struct Address_List* nodeList =
-        ReplySerializer_parse(from, result, search->runner->logger, promise->alloc);
+        ReplySerializer_parse(from, result, search->runner->logger, true, promise->alloc);
 
     for (int i = 0; nodeList && i < nodeList->length; i++) {
         if (isDuplicateEntry(nodeList, i)) {
