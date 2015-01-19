@@ -52,22 +52,41 @@
  */
 #define FORGET_AFTER_MILLISECONDS (256*1024)
 
-/*--------------------Structs--------------------*/
 
-
-#define Map_NAME OfIFCPeerByExernalIf
+// ---------------- Map ----------------
+struct LLAddress {
+    uint8_t length;
+    uint8_t bytes[7];
+};
+#define LLAddress_OVERHEAD 2
+#define LLAddress_SIZE (6 + LLAddress_OVERHEAD)
+Assert_compileTime(LLAddress_SIZE == sizeof(struct LLAddress));
+#define Map_NAME Map_OfIFCPeerByLLAddress
 #define Map_ENABLE_HANDLES
-#define Map_KEY_TYPE struct Interface*
+#define Map_KEY_TYPE struct LLAddress*
 #define Map_VALUE_TYPE struct InterfaceController_Peer*
+#define Map_USE_HASH
+#define Map_USE_COMPARATOR
 #include "util/Map.h"
+static inline uint32_t Map_OfIFCPeerByLLAddress_hash(struct LLAddress** key)
+{
+    return ((uint32_t*) *key)[0];
+}
+static inline int Map_OfIFCPeerByLLAddress_compare(struct LLAddress** keyA, struct LLAddress** keyB)
+{
+    return Bits_memcmp(*keyA, *keyB, (*keyA)->length);
+}
+// ---------------- EndMap ----------------
+
+#define ArrayList_TYPE struct InterfaceController_Iface_pvt
+#define ArrayList_NAME OfIfaces
+#include "util/ArrayList.h"
+
 
 struct InterfaceController_pvt
 {
     /** Public functions and fields for this ifcontroller. */
     struct InterfaceController pub;
-
-    /** Used to get a peer by its handle. */
-    struct Map_OfIFCPeerByExernalIf peerMap;
 
     struct Allocator* const allocator;
 
@@ -104,6 +123,8 @@ struct InterfaceController_pvt
     /** For pinging lazy/unresponsive nodes. */
     struct SwitchPinger* const switchPinger;
 
+    struct ArrayList_OfIfaces* icis;
+
     /** A password which is generated per-startup and sent out in beacon messages. */
     uint8_t beaconPassword[Headers_Beacon_PASSWORD_LEN];
 
@@ -115,7 +136,7 @@ struct InterfaceController_pvt
 static inline struct InterfaceController_pvt* ifcontrollerForPeer(
     struct InterfaceController_Peer* ep)
 {
-    return Identity_check((struct InterfaceController_pvt*) ep->switchIf.senderContext);
+    return Identity_check(ep->ici->ic);
 }
 
 static void onPingResponse(struct SwitchPinger_Response* resp, void* onResponseContext)
@@ -207,27 +228,19 @@ static void sendPing(struct InterfaceController_Peer* ep)
     ping->onResponseContext = ep;
 }
 
-/**
- * Check the table for nodes which might need to be pinged, ping a node if necessary.
- * If a node has not responded in unresponsiveAfterMilliseconds then mark them as unresponsive
- * and if the connection is incoming and the node has not responded in forgetAfterMilliseconds
- * then drop them entirely.
- * This is called every PING_INTERVAL_MILLISECONDS but pingCallback is a misleading name.
- */
-static void pingCallback(void* vic)
+static void iciPing(struct InterfaceController_Iface_pvt* ici, struct InterfaceController_pvt* ic)
 {
-    struct InterfaceController_pvt* ic = Identity_check((struct InterfaceController_pvt*) vic);
-    if (!ic->peerMap.count) { return; }
-
+    if (!ici->peerMap.count) { return; }
+    struct InterfaceController_pvt* ic = ici->ic;
     uint64_t now = Time_currentTimeMilliseconds(ic->eventBase);
 
     // scan for endpoints have not sent anything recently.
-    uint32_t startAt = Random_uint32(ic->rand) % ic->peerMap.count;
-    for (uint32_t i = startAt, count = 0; count < ic->peerMap.count;) {
-        i = (i + 1) % ic->peerMap.count;
+    uint32_t startAt = Random_uint32(ic->rand) % ici->peerMap.count;
+    for (uint32_t i = startAt, count = 0; count < ici->peerMap.count;) {
+        i = (i + 1) % ici->peerMap.count;
         count++;
 
-        struct InterfaceController_Peer* ep = ic->peerMap.values[i];
+        struct InterfaceController_Peer* ep = ici->peerMap.values[i];
 
         if (now < ep->timeOfLastMessage + ic->pingAfterMilliseconds) {
             if (now < ep->timeOfLastPing + ic->pingAfterMilliseconds) {
@@ -290,24 +303,39 @@ static void pingCallback(void* vic)
     }
 }
 
-/** If there's already an endpoint with the same public key, merge the new one with the old one. */
-static void moveEndpointIfNeeded(struct InterfaceController_Peer* ep,
-                                 struct InterfaceController_pvt* ic)
+/**
+ * Check the table for nodes which might need to be pinged, ping a node if necessary.
+ * If a node has not responded in unresponsiveAfterMilliseconds then mark them as unresponsive
+ * and if the connection is incoming and the node has not responded in forgetAfterMilliseconds
+ * then drop them entirely.
+ * This is called every PING_INTERVAL_MILLISECONDS but pingCallback is a misleading name.
+ */
+static void pingCallback(void* vic)
 {
-    Log_debug(ic->logger, "Checking for old sessions to merge with.");
+    struct InterfaceController_pvt* ic = Identity_check((struct InterfaceController_pvt*) vic);
+    for (int i = 0; i < ic->icis->length; i++) {
+        struct InterfaceController_Iface_pvt* ici = ArrayList_OfIfaces_get(ic->icis, i);
+        iciPing(ici, ic);
+    }
+}
 
+/** If there's already an endpoint with the same public key, merge the new one with the old one. */
+static void moveEndpointIfNeeded(struct InterfaceController_Peer* ep)
+{
+    struct InterfaceController_Iface_pvt* ici = ep->ici;
+    Log_debug(ici->ic->logger, "Checking for old sessions to merge with.");
     uint8_t* key = CryptoAuth_getHerPublicKey(ep->cryptoAuthIf);
-    for (uint32_t i = 0; i < ic->peerMap.count; i++) {
-        struct InterfaceController_Peer* thisEp = ic->peerMap.values[i];
+    for (uint32_t i = 0; i < ici->peerMap.count; i++) {
+        struct InterfaceController_Peer* thisEp = ici->peerMap.values[i];
         uint8_t* thisKey = CryptoAuth_getHerPublicKey(thisEp->cryptoAuthIf);
         if (thisEp != ep && !Bits_memcmp(thisKey, key, 32)) {
-            Log_info(ic->logger, "Moving endpoint to merge new session with old.");
+            Log_info(ici->ic->logger, "Moving endpoint to merge new session with old.");
 
             // flush out the new entry if needed.
-            Router_disconnectedPeer(ic->router, ep->switchLabel);
+            Router_disconnectedPeer(ici->ic->router, ep->switchLabel);
             ep->switchLabel = thisEp->switchLabel;
             SwitchCore_swapInterfaces(&thisEp->switchIf, &ep->switchIf);
-            Allocator_free(thisEp->external->allocator);
+            Allocator_free(thisEp->alloc);
             return;
         }
     }
@@ -330,7 +358,7 @@ static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cr
         // EP states track CryptoAuth states...
         ep->state = caState;
         if (caState == CryptoAuth_ESTABLISHED) {
-            moveEndpointIfNeeded(ep, ic);
+            moveEndpointIfNeeded(ep);
         } else {
             // prevent some kinds of nasty things which could be done with packet replay.
             // This is checking the message switch header and will drop it unless the label
@@ -420,26 +448,246 @@ static int closeInterface(struct Allocator_OnFreeJob* job)
     // flush the peer from the table...
     Router_disconnectedPeer(ic->router, toClose->switchLabel);
 
-    int index = Map_OfIFCPeerByExernalIf_indexForHandle(toClose->handle, &ic->peerMap);
+    int index = Map_OfIFCPeerByLLAddress_indexForHandle(toClose->handle, &ep->ici->peerMap);
     Assert_true(index >= 0);
-    Map_OfIFCPeerByExernalIf_remove(index, &ic->peerMap);
+    Map_OfIFCPeerByLLAddress_remove(index, &ep->ici->peerMap);
     return 0;
 }
 
 
 
 
-struct InterfaceController_Iface
+
+
+
+
+
+
+
+
+
+struct InterfaceController_Iface_pvt
 {
-    String* name;
+    struct InterfaceController pub;
+    struct Map_OfEndpointsByLLAddress* peerMap;
+    struct InterfaceController_pvt* ic;
+    struct Interface* addrIface;
+    struct Allocator* alloc;
 };
 
-struct InterfaceController_Header
+static uint8_t sendAfterCryptoAuth(struct Message* msg, struct Interface* externalIf)
 {
-    uint8_t isBeacon;
+    struct InterfaceController_Peer* ep =
+        Identity_check((struct InterfaceController_Peer*) (
+            ((uint8_t*)externalIf)[-offsetof(struct InterfaceController_Peer, externalIf)]));
 
-    uint8_t pad;
-};
+    // push the lladdr...
+    Message_push(msg, ep->lladdr->bytes, ep->lladdr->length, NULL);
+
+    // this is not a beacon message
+    Message_push8(msg, 0, NULL);
+
+    return Interface_sendMessage(ep->ici->addrIface, msg);
+}
+
+/**
+ * Expects [ struct LLAddress ][ beacon ]
+ */
+static uint8_t handleBeacon(struct Message* msg, struct InterfaceController_Iface_pvt* ici)
+{
+    if (!ici->beaconState) {
+        // accepting beacons disabled.
+        Log_debug(context->logger, "[%s] Dropping beacon because beaconing is disabled",
+                  ici->pub.name->bytes);
+        return 0;
+    }
+
+    struct LLAddress* lladdr = (struct LLAddress*) msg->bytes;
+    Message_shift(msg, -lladdr->length, NULL);
+
+    struct Headers_Beacon beacon;
+    Message_pop(msg, &beacon, Headers_Beacon_SIZE, NULL);
+
+    struct Address addr;
+    Bits_memset(&addr, 0, sizeof(struct Address));
+    Bits_memcpyConst(addr.key, beacon.publicKey, 32);
+    addr.protocolVersion = Endian_bigEndianToHost32(beacon.version_be);
+    Address_getPrefix(&addr);
+    String* printedAddr = Address_stringify(&addr, msg->allocator);
+
+    if (!addr.ip6.bytes[0] != 0xfc || !Bits_memcmp(ic->ca->publicKey, addr.key, 32)) {
+        Log_debug(ic->logger, "handleBeacon invalid key [%s]", printedAddr->bytes);
+        return 0;
+    }
+
+    if (!Version_isCompatible(addr.protocolVersion, Version_CURRENT_PROTOCOL)) {
+        if (Defined(Log_DEBUG)) {
+            Log_debug(ici->ic->logger, "[%s] DROP beacon from [%s] which was version [%d] "
+                      "our version is [%d] making them incompatable", ici->pub.name.bytes,
+                      printedAddr->bytes, addr.protocolVersion, Version_CURRENT_PROTOCOL);
+        }
+        return 0;
+    }
+
+    String* beaconPass =
+        String_newBinary(beacon.password, Headers_Beacon_PASSWORD_LEN, msg->allocator);
+    int epIndex = Map_OfIFCPeerByLLAddress_indexForKey(&lladdr, &ici->peerMap);
+    if (epIndex > -1) {
+        // The password might have changed!
+        struct InterfaceController_Peer* ep = ici->peerMap.values[epIndex];
+        CryptoAuth_setAuth(beaconPass, 1, ep->cryptoAuthIf);
+        return 0;
+    }
+
+    struct Allocator* epAlloc = Allocator_child(ici->alloc);
+    struct InterfaceController_Peer* ep =
+        Allocator_calloc(epAlloc, sizeof(struct InterfaceController_Peer), 1);
+    struct LLAddress* lladdrB = Allocator_malloc(epAlloc, lladdr->length);
+    Bits_memcpy(lladdrB, lladdr, lladdr->length);
+    ep->ici = ici;
+    ep->lladdr = lladdr;
+    int setIndex = Map_OfIFCPeerByLLAddress_put(&lladdrB, &ep, &ici->peerMap);
+    ep->handle = ici->peerMap.handles[setIndex];
+    ep->isIncomingConnection = true;
+    Identity_set(ep);
+    Allocator_onFree(epAlloc, closeInterface, ep);
+
+    ep->externalIf.sendMessage = sendAfterCryptoAuth;
+    ep->externalIf.allocator = epAlloc;
+
+    ep->cryptoAuthIf =
+        CryptoAuth_wrapInterface(&ep->externalIf, beacon.publicKey, NULL, false, "outer", ic->ca);
+    ep->cryptoAuthIf->receiveMessage = receivedAfterCryptoAuth;
+    ep->cryptoAuthIf->receiverContext = ep;
+    CryptoAuth_setAuth(beaconPass, 1, ep->cryptoAuthIf);
+
+    ep->switchIf.sendMessage = sendFromSwitch;
+    ep->switchIf.allocator = epAlloc;
+
+    int ret = SwitchCore_addInterface(&ep->switchIf, 0, &ep->switchLabel, ic->switchCore);
+    if (ret == SwitchCore_addInterface_OUT_OF_SPACE) {
+        Log_debug(ic->logger, "handleBeacon SwitchCore out of space");
+        Allocator_free(epAlloc);
+        return 0;
+    } else if (ret) {
+        Log_debug(ic->logger, "handleBeacon SwitchCore something went wrong ret[%d]", ret);
+        Allocator_free(epAlloc);
+        return 0;
+    }
+    addr.path = ep->switchLabel;
+
+    // We want the node to immedietly be pinged but we don't want it to appear unresponsive because
+    // the pinger will only ping every (PING_INTERVAL * 8) so we set timeOfLastMessage to
+    // (now - pingAfterMilliseconds - 1) so it will be considered a "lazy node".
+    ep->timeOfLastMessage =
+        Time_currentTimeMilliseconds(ic->eventBase) - ic->pingAfterMilliseconds - 1;
+
+    Log_info(ic->logger, "Added peer [%s] from beacon", printedPubKey->bytes);
+
+    Router_sendGetPeers(ic->router, &addr, 0, 0, ic->allocator);
+    return 0;
+}
+
+/**
+ * Incoming message from someone we don't know, maybe someone responding to a beacon?
+ * expects: [ struct LLAddress ][ content ]
+ */
+static uint8_t handleUnexpectedIncoming(struct Message* msg,
+                                        struct InterfaceController_Iface_pvt* ici)
+{
+    struct InterfaceController_pvt* ic = ici->ic;
+
+    struct Allocator* epAlloc = Allocator_child(ici->alloc);
+
+    struct LLAddress* lladdr = (struct LLAddress*) msg->bytes;
+    Message_shift(msg, -lladdr->length, NULL);
+    {
+        struct LLAddress* lladdrB = Allocator_malloc(epAlloc, lladdr->length);
+        Bits_memcpy(lladdrB, lladdr, lladdr->length);
+        lladdr = lladdrB;
+    }
+
+    struct InterfaceController_Peer* ep =
+        Allocator_calloc(epAlloc, sizeof(struct InterfaceController_Peer), 1);
+    ep->ici = ici;
+    ep->handle = ici->peerMap.handles[Map_OfIFCPeerByLLAddress_put(&lladdr, &ep, &ici->peerMap)];
+    Identity_set(ep);
+    Allocator_onFree(epAlloc, closeInterface, ep);
+
+    ep->state = InterfaceController_PeerState_UNAUTHENTICATED;
+    ep->isIncomingConnection = true;
+
+    ep->externalIf.sendMessage = sendAfterCryptoAuth;
+    ep->externalIf.allocator = epAlloc;
+
+    ep->cryptoAuthIf = CryptoAuth_wrapInterface(&ep->externalIf,
+                                                NULL,
+                                                NULL,
+                                                true,
+                                                "outer",
+                                                ic->ca);
+
+    ep->cryptoAuthIf->receiveMessage = receivedAfterCryptoAuth;
+    ep->cryptoAuthIf->receiverContext = ep;
+
+    ep->switchIf.sendMessage = sendFromSwitch;
+    ep->switchIf.allocator = epAlloc;
+
+    int ret = SwitchCore_addInterface(&ep->switchIf, 0, &ep->switchLabel, ic->switchCore);
+    if (ret) {
+        Allocator_free(epAlloc);
+        return 0;
+    }
+
+    // We want the node to immedietly be pinged but we don't want it to appear unresponsive because
+    // the pinger will only ping every (PING_INTERVAL * 8) so we set timeOfLastMessage to
+    // (now - pingAfterMilliseconds - 1) so it will be considered a "lazy node".
+    ep->timeOfLastMessage =
+        Time_currentTimeMilliseconds(ic->eventBase) - ic->pingAfterMilliseconds - 1;
+
+    Log_info(ic->logger, "Adding peer with unknown key");
+
+    if (Interface_receiveMessage(ep->cryptoAuthIf, msg)) {
+        // If the first message is a dud, drop all state for this peer.
+        // probably some random crap that wandered in the socket.
+        Allocator_free(epAlloc);
+    }
+
+    return 0;
+}
+
+static uint8_t handleIncomingFromWire(struct Message* msg, struct Interface* iface)
+{
+    struct InterfaceController_Iface_pvt* ici =
+        Identity_check((struct InterfaceController_Iface_pvt*) iface->receiverContext);
+
+    if (msg->length < InterfaceController_Header_SIZE + ici->pub.addrLen) {
+        Log_debug(ici->ic->logger, "DROP runt");
+        return 0;
+    }
+
+    struct InterfaceController_Header hdr;
+    Message_pop(msg, &hdr, InterfaceController_Header_SIZE);
+
+    Message_push8(msg, ici->pub.addrLen + LLAddress_OVERHEAD, NULL);
+
+    if (hdr->isBeacon) {
+        return handleBeacon(msg, ici);
+    }
+
+    struct LLAddress* lladdr = (struct LLAddress*) msg->bytes;
+    int epIndex = Map_OfIFCPeerByLLAddress_indexForKey(&lladdr, &ici->peerMap);
+    if (epIndex == -1) {
+        return handleUnexpectedIncoming(msg, ici);
+    }
+
+    struct InterfaceController_Peer* ep =
+        Identity_check((struct InterfaceController_Peer*) ici->peerMap.values[epIndex]);
+
+    Message_shift(msg, -lladdr->length, NULL);
+
+    return Interface_receiveMessage(ep->cryptoAuthIf, msg);
+}
 
 /**
  * Register an Ethernet-like interface.
@@ -449,116 +697,114 @@ struct InterfaceController_Header
  * @param ifc the interface controller
  * @param addrIface the interface
  * @param addrLen the size in bytes of the addresses used by this Addressable Interface.
- * @param beaconAddr the address to send in order to indicate that a broadcasted "beacon"
- *                   message should be sent. NULL if this interface does not support beaconing.
- * @return a structure which can be used to unregister the interface.
+ * @param name a name for the interface, must be globally unique
+ * @param alloc an allocator, the interface will be removed when this is freed.
+ * @return the number of the interface in the interface table.
  */
-struct InterfaceController_Iface* InterfaceController_regIface(struct InterfaceController* ifc,
-                                                               struct Interface* addrIface,
-                                                               int addrLen,
-                                                               uint8_t* beaconAddr)
+int InterfaceController_regIface(struct InterfaceController* ifc,
+                                 struct Interface* addrIface,
+                                 int addrLen,
+                                 String* name,
+                                 struct Allocator* alloc)
 {
-    return NULL;
+    struct InterfaceController_pvt* ic = Identity_check((struct InterfaceController_pvt*) ifc);
+
+    struct InterfaceController_Iface_pvt* ici =
+        Allocator_calloc(alloc, sizeof(struct InterfaceController_Iface_pvt), 1);
+    ici->pub.name = String_clone(name, alloc);
+    ici->pub.addrLen = addrLen;
+    ici->peerMap.allocator = alloc;
+    ici->ic = ic;
+    ici->addrIface = addrIface;
+    ici->alloc = alloc;
+
+    Identity_set(ici);
+
+    addrIface->receiveMessage = handleIncomingFromWire;
+    addrIface->receiverContext = ici;
+
+    return ArrayList_OfIfaces_add(ic->icis, ici);
 }
 
-
-
-
-
-
-int InterfaceController_registerPeer(struct InterfaceController* ifController,
-                                     uint8_t herPublicKey[32],
-                                     String* password,
-                                     bool requireAuth,
-                                     bool isIncomingConnection,
-                                     struct Interface* externalInterface)
+static void freeAlloc(void* valloc)
 {
-    // This function is overridden by some tests...
-    if (ifController->registerPeer) {
-        return ifController->registerPeer(ifController, herPublicKey, password, requireAuth,
-                                          isIncomingConnection, externalInterface);
-    }
+    struct Allocator* alloc = (struct Allocator*) valloc;
+    Allocator_free(alloc);
+}
 
+#define InterfaceController_bootstrapPeer_BAD_IFNUM    -1
+#define InterfaceController_bootstrapPeer_BAD_KEY      -2
+#define InterfaceController_bootstrapPeer_OUT_OF_SPACE -3
+#define InterfaceController_bootstrapPeer_INTERNAL     -4
+int InterfaceController_bootstrapPeer(struct InterfaceController* ifc,
+                                      int interfaceNumber,
+                                      uint8_t* herPublicKey,
+                                      uint8_t* lladdr,
+                                      String* password,
+                                      struct Allocator* alloc)
+{
     struct InterfaceController_pvt* ic =
-        Identity_check((struct InterfaceController_pvt*) ifController);
+        Identity_check((struct InterfaceController_pvt*) ifc);
 
-    int epIndex = Map_OfIFCPeerByExernalIf_indexForKey(&externalInterface, &ic->peerMap);
-    if (epIndex > -1) {
-        // The password might have changed!
-        struct InterfaceController_Peer* ep = ic->peerMap.values[epIndex];
-        CryptoAuth_setAuth(password, 1, ep->cryptoAuthIf);
-        return 0;
+    Assert_true(herPublicKey);
+    Assert_true(password);
+
+    struct InterfaceController_Iface_pvt* ici = ArrayList_OfIfaces_get(ic->icis, ici);
+
+    if (!ici) {
+        return InterfaceController_bootstrapPeer_BAD_IFNUM;
     }
 
-    Log_debug(ic->logger, "registerPeer [%p] total [%u]",
-              (void*)externalInterface, ic->peerMap.count);
+    struct Allocator* tempAlloc = Allocator_child(alloc);
+
+    Log_debug(ic->logger, "bootstrapPeer total [%u]", ici->peerMap.count);
 
     uint8_t ip6[16];
-    if (herPublicKey) {
-        AddressCalc_addressForPublicKey(ip6, herPublicKey);
-        if (!AddressCalc_validAddress(ip6)) {
-            return InterfaceController_registerPeer_BAD_KEY;
-        }
-
-        if (!Bits_memcmp(ic->ca->publicKey, herPublicKey, 32)) {
-            // can't link with yourself, wiseguy
-            return InterfaceController_registerPeer_BAD_KEY;
-        }
-    } else {
-        Assert_true(requireAuth);
+    AddressCalc_addressForPublicKey(ip6, herPublicKey);
+    if (!AddressCalc_validAddress(ip6) ||
+        !Bits_memcmp(ic->ca->publicKey, herPublicKey, 32))
+    {
+        return InterfaceController_bootstrapPeer_BAD_KEY;
     }
 
-    struct Allocator* epAllocator = externalInterface->allocator;
+    struct Allocator* epAlloc = Allocator_child(ici->alloc);
+
+    struct LLAddress* lladdr = Allocator_malloc(epAlloc, ici->pub.addrLen + LLAddress_OVERHEAD);
+    Bits_memcpy(lladdr->bytes, lladdr, ici->pub.addrLen);
+    lladdr->length = ici->pub.addrLen + LLAddress_OVERHEAD;
+
     struct InterfaceController_Peer* ep =
         Allocator_calloc(epAllocator, sizeof(struct InterfaceController_Peer), 1);
-    ep->bytesOut = 0;
-    ep->bytesIn = 0;
-    ep->external = externalInterface;
-    int setIndex = Map_OfIFCPeerByExernalIf_put(&externalInterface, &ep, &ic->peerMap);
-    ep->handle = ic->peerMap.handles[setIndex];
+    ep->handle = ic->peerMap.handles[Map_OfIFCPeerByLLAddress_put(&lladdr, &ep, &ici->peerMap)];
+    ep->lladdr = lladdr;
+    ep->isIncomingConnection = false;
     Identity_set(ep);
-    Allocator_onFree(epAllocator, closeInterface, ep);
+    Allocator_onFree(epAlloc, closeInterface, ep);
+    Allocator_onFree(alloc, freeAlloc, epAlloc);
 
-    // If the other end need needs to supply a valid password to connect
-    // we will set the connection state to UNAUTHENTICATED so that if the
-    // packet is invalid, the connection will be dropped right away.
-    if (requireAuth) {
-        ep->state = InterfaceController_PeerState_UNAUTHENTICATED;
-    }
+    ep->externalIf.sendMessage = sendAfterCryptoAuth;
+    ep->externalIf.allocator = epAlloc;
 
-    ep->cryptoAuthIf = CryptoAuth_wrapInterface(externalInterface,
+    ep->cryptoAuthIf = CryptoAuth_wrapInterface(&ep->externalIf,
                                                 herPublicKey,
                                                 NULL,
-                                                requireAuth,
+                                                false,
                                                 "outer",
                                                 ic->ca);
 
     ep->cryptoAuthIf->receiveMessage = receivedAfterCryptoAuth;
     ep->cryptoAuthIf->receiverContext = ep;
+    CryptoAuth_setAuth(password, 1, ep->cryptoAuthIf);
 
-    // Always use authType 1 until something else comes along, then we'll have to refactor.
-    if (password) {
-        CryptoAuth_setAuth(password, 1, ep->cryptoAuthIf);
-    }
-
-    ep->isIncomingConnection = isIncomingConnection;
-
-    Bits_memcpyConst(&ep->switchIf, (&(struct Interface) {
-        .sendMessage = sendFromSwitch,
-
-        // ifcontrollerForPeer uses this.
-        // sendFromSwitch relies on the fact that the
-        // switchIf is the same memory location as the Peer.
-        .senderContext = ic,
-
-        .allocator = epAllocator
-    }), sizeof(struct Interface));
+    ep->switchIf.sendMessage = sendFromSwitch;
+    ep->switchIf.allocator = epAlloc;
 
     int ret = SwitchCore_addInterface(&ep->switchIf, 0, &ep->switchLabel, ic->switchCore);
     if (ret) {
+        Allocator_free(epAlloc);
         return (ret == SwitchCore_addInterface_OUT_OF_SPACE)
-            ? InterfaceController_registerPeer_OUT_OF_SPACE
-            : InterfaceController_registerPeer_INTERNAL;
+            ? InterfaceController_bootstrapPeer_OUT_OF_SPACE
+            : InterfaceController_bootstrapPeer_INTERNAL;
     }
 
     // We want the node to immedietly be pinged but we don't want it to appear unresponsive because
@@ -567,14 +813,10 @@ int InterfaceController_registerPeer(struct InterfaceController* ifController,
     ep->timeOfLastMessage =
         Time_currentTimeMilliseconds(ic->eventBase) - ic->pingAfterMilliseconds - 1;
 
-    if (herPublicKey) {
-        #ifdef Log_INFO
-            uint8_t printAddr[60];
-            AddrTools_printIp(printAddr, ip6);
-            Log_info(ic->logger, "Adding peer [%s]", printAddr);
-        #endif
-    } else {
-        Log_info(ic->logger, "Adding peer with unknown key");
+    if (Defined(Log_INFO)) {
+        uint8_t printAddr[60];
+        AddrTools_printIp(printAddr, ip6);
+        Log_info(ic->logger, "Adding peer [%s]", printAddr);
     }
 
     // We can't just add the node directly to the routing table because we do not know
@@ -585,51 +827,43 @@ int InterfaceController_registerPeer(struct InterfaceController* ifController,
     return 0;
 }
 
-struct InterfaceController_Peer* InterfaceController_getPeer(struct InterfaceController* ifc,
-                                                             struct Interface* iface)
-{
-    if (ifc->getPeer) { return ifc->getPeer(ifc, iface); }
-    struct Interface* cryptoAuthIf = CryptoAuth_getConnectedInterface(iface);
-    return Identity_check((struct InterfaceController_Peer*) cryptoAuthIf->receiverContext);
-}
-
-void InterfaceController_populateBeacon(struct InterfaceController* ifc,
-                                        struct Headers_Beacon* beacon)
-{
-    struct InterfaceController_pvt* ic = Identity_check((struct InterfaceController_pvt*) ifc);
-    beacon->version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL);
-    Bits_memcpyConst(beacon->password, ic->beaconPassword, Headers_Beacon_PASSWORD_LEN);
-    Bits_memcpyConst(beacon->publicKey, ic->ca->publicKey, 32);
-}
-
 int InterfaceController_getPeerStats(struct InterfaceController* ifController,
                                      struct Allocator* alloc,
                                      struct InterfaceController_peerStats** statsOut)
 {
     struct InterfaceController_pvt* ic =
         Identity_check((struct InterfaceController_pvt*) ifController);
-    int count = ic->peerMap.count;
+
+    int count = 0;
+    for (int i = 0; i < ic->icis->length; i++) {
+        struct InterfaceController_Iface_pvt* ici = ArrayList_OfIfaces_get(ic->icis, i);
+        count += ici->peerMap.count;
+    }
+
     struct InterfaceController_peerStats* stats =
         Allocator_malloc(alloc, sizeof(struct InterfaceController_peerStats)*count);
 
-    for (int i = 0; i < count; i++) {
-        struct InterfaceController_Peer* peer = ic->peerMap.values[i];
-        struct InterfaceController_peerStats* s = &stats[i];
-        s->pubKey = CryptoAuth_getHerPublicKey(peer->cryptoAuthIf);
-        s->bytesOut = peer->bytesOut;
-        s->bytesIn = peer->bytesIn;
-        s->timeOfLastMessage = peer->timeOfLastMessage;
-        s->state = peer->state;
-        s->switchLabel = peer->switchLabel;
-        s->isIncomingConnection = peer->isIncomingConnection;
-        s->user = NULL;
-        if (s->isIncomingConnection) {
-            s->user = CryptoAuth_getUser(peer->cryptoAuthIf);
+    for (int j = 0; j < ic->icis->length; j++) {
+        struct InterfaceController_Iface_pvt* ici = ArrayList_OfIfaces_get(ic->icis, j);
+        for (int i = 0; i < ici->peerMap.count; i++) {
+            struct InterfaceController_Peer* peer = ic->peerMap.values[i];
+            struct InterfaceController_peerStats* s = &stats[i];
+            s->pubKey = CryptoAuth_getHerPublicKey(peer->cryptoAuthIf);
+            s->bytesOut = peer->bytesOut;
+            s->bytesIn = peer->bytesIn;
+            s->timeOfLastMessage = peer->timeOfLastMessage;
+            s->state = peer->state;
+            s->switchLabel = peer->switchLabel;
+            s->isIncomingConnection = peer->isIncomingConnection;
+            s->user = NULL;
+            if (s->isIncomingConnection) {
+                s->user = CryptoAuth_getUser(peer->cryptoAuthIf);
+            }
+            struct ReplayProtector* rp = CryptoAuth_getReplayProtector(peer->cryptoAuthIf);
+            s->duplicates = rp->duplicates;
+            s->lostPackets = rp->lostPackets;
+            s->receivedOutOfRange = rp->receivedOutOfRange;
         }
-        struct ReplayProtector* rp = CryptoAuth_getReplayProtector(peer->cryptoAuthIf);
-        s->duplicates = rp->duplicates;
-        s->lostPackets = rp->lostPackets;
-        s->receivedOutOfRange = rp->receivedOutOfRange;
     }
 
     *statsOut = stats;
@@ -665,9 +899,6 @@ struct InterfaceController* InterfaceController_new(struct CryptoAuth* ca,
     struct InterfaceController_pvt* out =
         Allocator_malloc(allocator, sizeof(struct InterfaceController_pvt));
     Bits_memcpyConst(out, (&(struct InterfaceController_pvt) {
-        .peerMap = {
-            .allocator = allocator
-        },
         .allocator = allocator,
         .ca = ca,
         .rand = rand,

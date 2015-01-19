@@ -107,16 +107,32 @@ struct InterfaceController
                                                  struct Interface* iface);
 };
 
+struct InterfaceController_Iface
+{
+    String* name;
+    int addrLen;
+};
+
+struct InterfaceController_Header
+{
+    uint8_t isBeacon;
+};
+#define InterfaceController_Header_SIZE 2
+Assert_compileTime(sizeof(struct InterfaceController_Header) == InterfaceController_Header_SIZE);
+
 struct InterfaceController_Peer
 {
     /** The interface which is registered with the switch. */
     struct Interface switchIf;
 
+    /** Between CryptoAuth and external, needed to add address to message. */
+    struct Interface externalIf;
+
     /** The internal (wrapped by CryptoAuth) interface. */
     struct Interface* cryptoAuthIf;
 
-    /** The external (network side) interface. */
-    struct Interface* external;
+    /** The interface which this peer belongs to. */
+    struct InterfaceController_Iface* ici;
 
     /** The label for this endpoint, needed to ping the endpoint. */
     uint64_t switchLabel;
@@ -152,45 +168,53 @@ struct InterfaceController_Peer
 };
 
 /**
+ * Register an Ethernet-like interface.
+ * Ethernet-like means the interface is capable of sending messages to one or more nodes
+ * and differentiates between them using an address.
+ *
+ * @param ifc the interface controller
+ * @param addrIface the interface
+ * @param addrLen the size in bytes of the addresses used by this Addressable Interface.
+ * @param name a name for the interface, must be globally unique
+ * @param alloc an allocator, the interface will be removed when this is freed.
+ * @return the number of the interface in the interface table.
+ */
+int InterfaceController_regIface(struct InterfaceController* ifc,
+                                 struct Interface* addrIface,
+                                 int addrLen,
+                                 String* name,
+                                 struct Allocator* alloc);
+
+/**
  * Add a new peer.
  * Called from the network interface when it is asked to make a connection or it autoconnects.
  * If the peer which is connected to becomes unresponsive, IC will *not* remove it but will
  * set it's state to UNRESPONSIVE and it is the job of the caller to remove the peer by freeing
  * the allocator which is provided with iface.
  *
- * BEWARE: the interface allocator you provide here may be freed by this code!
- *
- *   The following cases will cause the allocator to be freed:
- *
- *     1. If a peer is registered and it turns out to have the same cryptographic key as an
- *        existing peer, the existing one will be freed by the IC and the new one will take it's
- *        place.
- *
- *     2. If a peer which is registered as "transient" and is unresponsive for more than
- *        FORGET_AFTER_MILLISECONDS milliseconds then the session will be removed.
- *
- * @param ic the interface controller.
+ * @param ifc the interface controller.
+ * @param interfaceNumber a number for the interface to use, see regIface.
  * @param herPublicKey the public key of the foreign node, NULL if unknown.
- * @param password the password for authenticating with the other node or NULL if unspecified.
- * @param requireAuth true if the other node must authenticate (incoming connection).
- * @param transient if true then this peer may be forgotten.
- * @param iface an interface which pipes messages to/from this peer. The peer will be
- *        deregistered if this allocator is freed.
+ * @param lladdr the link level address, must be the size given by the interface for interfaceNumber
+ * @param password the password for authenticating with the other node.
+ * @param alloc the peer will be dropped if this is freed.
  *
  * @return 0 if all goes well.
- *         InterfaceController_registerPeer_OUT_OF_SPACE if there is no space to store the peer.
- *         InterfaceController_registerPeer_BAD_KEY the provided herPublicKey is not valid.
- *         InterfaceController_registerPeer_INTERNAL unspecified error.
+ *         InterfaceController_bootstrapPeer_BAD_IFNUM if there is no such interface for this num.
+ *         InterfaceController_bootstrapPeer_OUT_OF_SPACE if there is no space to store the peer.
+ *         InterfaceController_bootstrapPeer_BAD_KEY the provided herPublicKey is not valid.
+ *         InterfaceController_bootstrapPeer_INTERNAL unspecified error.
  */
-#define InterfaceController_registerPeer_INTERNAL -3
-#define InterfaceController_registerPeer_BAD_KEY -2
-#define InterfaceController_registerPeer_OUT_OF_SPACE -1
-int InterfaceController_registerPeer(struct InterfaceController* ifController,
-                                     uint8_t herPublicKey[32],
-                                     String* password,
-                                     bool requireAuth,
-                                     bool isIncomingConnection,
-                                     struct Interface* externalInterface);
+#define InterfaceController_bootstrapPeer_BAD_IFNUM    -1
+#define InterfaceController_bootstrapPeer_BAD_KEY      -2
+#define InterfaceController_bootstrapPeer_OUT_OF_SPACE -3
+#define InterfaceController_bootstrapPeer_INTERNAL     -4
+int InterfaceController_bootstrapPeer(struct InterfaceController* ifc,
+                                      int interfaceNumber,
+                                      uint8_t* herPublicKey,
+                                      uint8_t* lladdr,
+                                      String* password,
+                                      struct Allocator* alloc);
 
 /**
  * Disconnect a previously registered peer.
@@ -203,24 +227,6 @@ int InterfaceController_registerPeer(struct InterfaceController* ifController,
 #define InterfaceController_disconnectPeer_NOTFOUND -1
 int InterfaceController_disconnectPeer(struct InterfaceController* ifController,
                                        uint8_t herPublicKey[32]);
-
-/**
- * Populate an empty beacon with password, public key, and version.
- * Each startup, a password is generated consisting of Headers_Beacon_PASSWORD_LEN bytes.
- * If beaconing is enabled for an interface, this password is sent out in each beacon message
- * so that others can connect.
- * NOTE: Anyone can connect to any interface, even those not beaconing, using this password.
- * The public key attached to the beacon message is the public key for this node.
- *
- * @param ic the if controller
- * @param beacon an empty buffer to place the beacon information in.
- */
-void InterfaceController_populateBeacon(struct InterfaceController* ifc,
-                                        struct Headers_Beacon* beacon);
-
-/** Get the IfController peer for a registered interface. */
-struct InterfaceController_Peer* InterfaceController_getPeer(struct InterfaceController* ifc,
-                                                             struct Interface* iface);
 
 /**
  * Get stats for the connected peers.

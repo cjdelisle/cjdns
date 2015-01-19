@@ -30,14 +30,6 @@ Linker_require("crypto/AddressCalc.c")
 bool AddressCalc_addressForPublicKey(uint8_t addressOut[16], const uint8_t key[32]);
 
 /**
- * Check if an address is valid given the key.
- *
- * @param key the 256 bit curve25519 key.
- * @return true if the key hashes to a valid cjdns address.
- */
-bool AddressCalc_validKey(const uint8_t key[32]);
-
-/**
  * Check if an address is valid given the IPv6
  *
  * @return true if the IPv6 is a valid cjdns address.
