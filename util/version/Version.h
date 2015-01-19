@@ -303,4 +303,9 @@ Version_COMPAT(13, ([12]))
  */
 int Version_isCompatible(uint32_t one, uint32_t two);
 
+/**
+ * Made available via `cjdroute --git`. See /do.
+ */
+#define Version_GIT_COMMIT "<?js return builder.config.gitCommit; ?>"
+
 #endif
