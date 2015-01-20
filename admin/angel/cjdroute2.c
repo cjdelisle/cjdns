@@ -64,6 +64,7 @@
 #include <unistd.h>
 
 #define DEFAULT_TUN_DEV "tun0"
+#define DEFAULT_ETH_INTERFACE "eth0"
 
 static int genAddress(uint8_t addressOut[40],
                       uint8_t privateKeyHexOut[65],
@@ -86,7 +87,7 @@ static int genAddress(uint8_t addressOut[40],
     }
 }
 
-static int genconf(struct Random* rand, bool eth)
+static int genconf(struct Random* rand, bool eth, char *interface)
 {
     uint8_t password[32];
     uint8_t password2[32];
@@ -192,8 +193,8 @@ static int genconf(struct Random* rand, bool eth)
            "        [\n"
            "            {\n"
            "                // Bind to this device (interface name, not MAC etc.)\n"
-           "                \"bind\": \"eth0\",\n"
-           "\n"
+           "                \"bind\": \"%s\",\n", interface);
+    printf("\n"
            "                // Auto-connect to other cjdns nodes on the same network.\n"
            "                // Options:\n"
            "                //\n"
@@ -465,12 +466,27 @@ int main(int argc, char** argv)
             return usage(allocator, argv[0]);
         } else if (CString_strcmp(argv[1], "--genconf") == 0) {
             bool eth = 0;
+            char *iface = NULL;
+
             for (int i = 1; i < argc; i++) {
                 if (!CString_strcmp(argv[i], "--eth")) {
                     eth = 1;
+                    if (i + 1 < argc) {
+                        char *iface_arg = argv[i+1];
+
+                        int k = 0;
+                        while (iface_arg[k++]) {
+                            if (iface_arg[k] == '"') {
+                                iface_arg[k] = 0;
+                            }
+                        }
+
+                        iface = iface_arg;
+                    }
                 }
             }
-            return genconf(rand, eth);
+
+            return genconf(rand, eth, iface ? iface : DEFAULT_ETH_INTERFACE);
         } else if (CString_strcmp(argv[1], "--pidfile") == 0) {
             // deprecated
             fprintf(stderr, "'--pidfile' option is deprecated.\n");
