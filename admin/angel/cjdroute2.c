@@ -481,7 +481,7 @@ int main(int argc, char** argv)
                             }
                         }
 
-                        iface = argv[i + 1];
+                        iface = iface_arg;
                     }
                 }
             }
