@@ -1,5 +1,6 @@
 #!/bin/sh
 # A script to start cjdroute with its config as an argument
+# Maintainer: Jack L. Frost <fbt@fleshless.org>
 
 # Functions
 usage() { echo "Usage: run-cjdroute [/path/to/cjdroute.conf] (/etc/cjdroute.conf by default)"; }
