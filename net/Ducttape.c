@@ -544,6 +544,7 @@ static inline uint8_t incomingFromTun(struct Message* message,
         // now push the receive handle *under* the CA header.
         Message_push(message, &session->receiveHandle_be, 4, NULL);
         debugHandles0(context->logger, session, "layer3 sending start message");
+        debugHandles0(context->logger, nextHopSession, "handoff");
     } else {
         // shift, copy, shift because shifting asserts that there is enough buffer space.
         Message_shift(message, 20, NULL);

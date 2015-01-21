@@ -25,6 +25,7 @@
 #include "memory/Allocator.h"
 #include "switch/SwitchCore.h"
 #include "net/SwitchPinger.h"
+#include "util/platform/Sockaddr.h"
 #include "util/log/Log.h"
 #include "util/Linker.h"
 Linker_require("interface/InterfaceController.c")
@@ -74,7 +75,7 @@ static inline char* InterfaceController_stateString(enum InterfaceController_Pee
 /**
  * Stats about a peer
  */
-struct InterfaceController_peerStats
+struct InterfaceController_PeerStats
 {
     uint8_t* pubKey;
     int state;
@@ -93,78 +94,7 @@ struct InterfaceController_peerStats
 
 struct InterfaceController
 {
-    /** If set, this will override the default registerPeer function */
-    int (* registerPeer)(struct InterfaceController* ifController,
-                         uint8_t herPublicKey[32],
-                         String* password,
-                         bool requireAuth,
-                         bool isIncomingConnection,
-                         struct Interface* externalInterface);
-
-
-    /** If set, this will override the default getPeer function. */
-    struct InterfaceController_Peer* (* getPeer)(struct InterfaceController* ifc,
-                                                 struct Interface* iface);
-};
-
-struct InterfaceController_Iface
-{
-    String* name;
-    int addrLen;
-};
-
-struct InterfaceController_Header
-{
-    uint8_t isBeacon;
-};
-#define InterfaceController_Header_SIZE 2
-Assert_compileTime(sizeof(struct InterfaceController_Header) == InterfaceController_Header_SIZE);
-
-struct InterfaceController_Peer
-{
-    /** The interface which is registered with the switch. */
-    struct Interface switchIf;
-
-    /** Between CryptoAuth and external, needed to add address to message. */
-    struct Interface externalIf;
-
-    /** The internal (wrapped by CryptoAuth) interface. */
-    struct Interface* cryptoAuthIf;
-
-    /** The interface which this peer belongs to. */
-    struct InterfaceController_Iface* ici;
-
-    /** The label for this endpoint, needed to ping the endpoint. */
-    uint64_t switchLabel;
-
-    /** Milliseconds since the epoch when the last *valid* message was received. */
-    uint64_t timeOfLastMessage;
-
-    /** Time when the last switch ping response was received from this node. */
-    uint64_t timeOfLastPing;
-
-    /** A counter to allow for 3/4 of all pings to be skipped when a node is definitely down. */
-    uint32_t pingCount;
-
-    /** The handle which can be used to look up this endpoint in the endpoint set. */
-    uint32_t handle;
-
-    /** True if we should forget about the peer if they do not respond. */
-    bool isIncomingConnection;
-
-    /**
-     * If InterfaceController_PeerState_UNAUTHENTICATED, no permanent state will be kept.
-     * During transition from HANDSHAKE to ESTABLISHED, a check is done for a registeration of a
-     * node which is already registered in a different switch slot, if there is one and the
-     * handshake completes, it will be moved.
-     */
-    enum InterfaceController_PeerState state;
-
-    // traffic counters
-    uint64_t bytesOut;
-    uint64_t bytesIn;
-
-    Identity
+    int unused;
 };
 
 /**
@@ -181,7 +111,6 @@ struct InterfaceController_Peer
  */
 int InterfaceController_regIface(struct InterfaceController* ifc,
                                  struct Interface* addrIface,
-                                 int addrLen,
                                  String* name,
                                  struct Allocator* alloc);
 
@@ -212,9 +141,18 @@ int InterfaceController_regIface(struct InterfaceController* ifc,
 int InterfaceController_bootstrapPeer(struct InterfaceController* ifc,
                                       int interfaceNumber,
                                       uint8_t* herPublicKey,
-                                      uint8_t* lladdr,
+                                      const struct Sockaddr* lladdr,
                                       String* password,
                                       struct Allocator* alloc);
+
+#define InterfaceController_beaconState_newState_OFF    0
+#define InterfaceController_beaconState_newState_ACCEPT 1
+#define InterfaceController_beaconState_newState_SEND   2
+#define InterfaceController_beaconState_NO_SUCH_IFACE -1
+#define InterfaceController_beaconState_INVALID_STATE -2
+int InterfaceController_beaconState(struct InterfaceController* ifc,
+                                    int interfaceNumber,
+                                    int newState);
 
 /**
  * Disconnect a previously registered peer.
@@ -238,7 +176,7 @@ int InterfaceController_disconnectPeer(struct InterfaceController* ifController,
  */
 int InterfaceController_getPeerStats(struct InterfaceController* ic,
                                      struct Allocator* alloc,
-                                     struct InterfaceController_peerStats** statsOut);
+                                     struct InterfaceController_PeerStats** statsOut);
 
 struct InterfaceController* InterfaceController_new(struct CryptoAuth* ca,
                                                     struct SwitchCore* switchCore,

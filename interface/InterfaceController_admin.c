@@ -38,7 +38,7 @@ struct Context
 static void adminPeerStats(Dict* args, void* vcontext, String* txid, struct Allocator* alloc)
 {
     struct Context* context = Identity_check((struct Context*)vcontext);
-    struct InterfaceController_peerStats* stats = NULL;
+    struct InterfaceController_PeerStats* stats = NULL;
 
     int64_t* page = Dict_getInt(args, String_CONST("page"));
     int i = (page) ? *page * ENTRIES_PER_PAGE : 0;

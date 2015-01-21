@@ -93,3 +93,12 @@ uint8_t Hex_encodeLowNibble(const uint8_t nibble)
 {
     return hexEntities[nibble & 15];
 }
+
+char* Hex_print(void* bytes, uint32_t length, struct Allocator* alloc)
+{
+    int outLen = length * 2;
+    char* outBuf = Allocator_malloc(alloc, outLen+1);
+    Assert_true(Hex_encode(outBuf, outLen, (uint8_t*) bytes, length) == outLen);
+    outBuf[outLen] = '\0';
+    return outBuf;
+}

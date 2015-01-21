@@ -41,6 +41,8 @@ struct TestFramework_Link
     struct Interface destIf;
     struct TestFramework* src;
     struct TestFramework* dest;
+    int serverIfNum;
+    int clientIfNum;
     Identity
 };
 
@@ -209,19 +211,22 @@ void TestFramework_linkNodes(struct TestFramework* client, struct TestFramework*
     }), sizeof(struct TestFramework_Link));
     Identity_set(link);
 
-    // server knows nothing about the client.
-    InterfaceController_registerPeer(server->ifController, NULL, NULL, true, false, &link->destIf);
+    link->clientIfNum = InterfaceController_regIface(
+        client->ifController, &link->srcIf, String_CONST("testA"), client->alloc);
+
+    link->serverIfNum = InterfaceController_regIface(
+        server->ifController, &link->destIf, String_CONST("testB"), server->alloc);
 
     // Except that it has an authorizedPassword added.
     CryptoAuth_addUser(String_CONST("abcdefg1234"), 1, String_CONST("TEST"), server->cryptoAuth);
 
     // Client has pubKey and passwd for the server.
-    InterfaceController_registerPeer(client->ifController,
-                                     server->publicKey,
-                                     String_CONST("abcdefg1234"),
-                                     false,
-                                     false,
-                                     &link->srcIf);
+    InterfaceController_bootstrapPeer(client->ifController,
+                                      link->clientIfNum,
+                                      server->publicKey,
+                                      Sockaddr_LOOPBACK,
+                                      String_CONST("abcdefg1234"),
+                                      client->alloc);
 }
 
 void TestFramework_craftIPHeader(struct Message* msg, uint8_t srcAddr[16], uint8_t destAddr[16])

@@ -12,13 +12,18 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#define ArrayList_NOCREATE
 #include "util/ArrayList.h"
+
+#include <stddef.h>
 
 struct ArrayList_pvt
 {
-    struct ArrayList pub;
+    /** AckTung: The fields in ArrayList.h (struct ArrayList_NAME) must be reflected here first. */
+    int length;
+
     int capacity;
-    void** elements
+    void** elements;
     struct Allocator* alloc;
 
     Identity
@@ -26,9 +31,10 @@ struct ArrayList_pvt
 
 void* ArrayList_new(struct Allocator* alloc, int initialCapacity)
 {
-    struct ArrayList_pvt* l = Allocator_malloc(alloc, sizeof(struct ArrayList_pvt));
+    struct ArrayList_pvt* l = Allocator_calloc(alloc, sizeof(struct ArrayList_pvt), 1);
     l->elements = Allocator_calloc(alloc, sizeof(char*), initialCapacity);
     l->capacity = initialCapacity;
+    l->alloc = alloc;
     Identity_set(l);
     return l;
 }
@@ -36,23 +42,23 @@ void* ArrayList_new(struct Allocator* alloc, int initialCapacity)
 void* ArrayList_get(void* vlist, int number)
 {
     struct ArrayList_pvt* list = Identity_check((struct ArrayList_pvt*) vlist);
-    if (number >= list->pub.length || number < 0) { return NULL; }
+    if (number >= list->length || number < 0) { return NULL; }
     return list->elements[number];
 }
 
 int ArrayList_put(void* vlist, int number, void* val)
 {
     struct ArrayList_pvt* list = Identity_check((struct ArrayList_pvt*) vlist);
-    if (number < 0 || number > list->pub.length) { return -1; }
+    if (number < 0 || number > list->length) { return -1; }
     if (number >= list->capacity) {
         int capacity = list->capacity * 2;
-        list->elements = Allocator_realloc(list->alloc, list->elements, list->capacity, capacity);
+        list->elements = Allocator_realloc(list->alloc, list->elements, capacity);
         for (int i = list->capacity; i < capacity; i++) {
             list->elements[i] = NULL;
         }
         list->capacity = capacity;
     }
     list->elements[number] = val;
-    if (number == list->pub.length) { list->pub.length++; }
+    if (number == list->length) { list->length++; }
     return number;
 }

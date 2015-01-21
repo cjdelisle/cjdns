@@ -15,6 +15,8 @@
 #ifndef Hex_H
 #define Hex_H
 
+#include "memory/Allocator.h"
+
 #include "util/Linker.h"
 Linker_require("util/Hex.c")
 
@@ -42,5 +44,7 @@ bool Hex_isHexEntity(const uint8_t character);
 int Hex_decodeByte(const uint8_t highNibble, const uint8_t lowNibble);
 
 uint8_t Hex_encodeLowNibble(const uint8_t nibble);
+
+char* Hex_print(void* bytes, uint32_t length, struct Allocator* alloc);
 
 #endif
