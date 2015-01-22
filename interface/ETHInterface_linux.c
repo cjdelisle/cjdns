@@ -17,7 +17,6 @@
 #include "interface/ETHInterface.h"
 #include "memory/Allocator.h"
 #include "interface/InterfaceController.h"
-#include "interface/MultiInterface.h"
 #include "wire/Headers.h"
 #include "wire/Message.h"
 #include "wire/Error.h"
@@ -48,14 +47,11 @@
 // 2 last 0x00 of .sll_addr are removed from original size (20)
 #define SOCKADDR_LL_LEN 18
 
-/** Wait 32 seconds between sending beacon messages. */
-#define BEACON_INTERVAL 32768
-
 #ifdef Version_12_COMPAT
     struct EightBytes { uint8_t bytes[8]; };
-    #define Map_NAME isV12ByMacAddr
+    #define Map_NAME versionByMac
     #define Map_KEY_TYPE struct EightBytes
-    #define Map_VALUE_TYPE uint32_t
+    #define Map_VALUE_TYPE int32_t
     #include "util/Map.h"
 #endif
 
@@ -65,20 +61,12 @@ struct ETHInterface
 
     Socket socket;
 
-    uint8_t messageBuff[PADDING + MAX_PACKET_SIZE];
-
     /** The unix interface index which is used to identify the eth device. */
     int ifindex;
 
     struct Log* logger;
 
-    struct InterfaceController* ic;
-
-    struct MultiInterface* multiIface;
-
     struct sockaddr_ll addrBase;
-
-    int beaconState;
 
     String* ifName;
 
@@ -90,13 +78,18 @@ struct ETHInterface
          */
         uint16_t id;
 
-        struct Map_isV12ByMacAddr v12Map;
+        struct Map_versionByMac versionMap;
+    #endif
+
+    #ifdef Version_13_COMPAT
+        /** hack: when odd, the beacon will use the old version. */
+        uint32_t counter;
     #endif
 
     Identity
 };
 
-#ifdef Version_12_COMPAT
+#ifdef Version_13_COMPAT
 static uint16_t getIdAndPadding(int msgLength, struct ETHInterface* context)
 {
     int pad = 0;
@@ -108,15 +101,13 @@ static uint16_t getIdAndPadding(int msgLength, struct ETHInterface* context)
 }
 #endif
 
-static uint8_t sendMessageInternal(struct Message* message, struct ETHInterface* context)
+static uint8_t sendMessageInternal(struct Message* message,
+                                   struct sockaddr_ll* addr,
+                                   struct ETHInterface* context)
 {
-    struct sockaddr_ll addr;
-    Bits_memcpyConst(&addr, &context->addrBase, sizeof(struct sockaddr_ll));
-    Message_pop(message, addr.sll_addr, 6, NULL);
-
     /* Cut down on the noise
-    uint8_t buff[sizeof(addr) * 2 + 1] = {0};
-    Hex_encode(buff, sizeof(buff), (uint8_t*)&addr, sizeof(addr));
+    uint8_t buff[sizeof(*addr) * 2 + 1] = {0};
+    Hex_encode(buff, sizeof(buff), (uint8_t*)addr, sizeof(*addr));
     Log_debug(context->logger, "Sending ethernet frame to [%s]", buff);
     */
 
@@ -124,7 +115,7 @@ static uint8_t sendMessageInternal(struct Message* message, struct ETHInterface*
                message->bytes,
                message->length,
                0,
-               (struct sockaddr*) &addr,
+               (struct sockaddr*) addr,
                sizeof(struct sockaddr_ll)) < 0)
     {
         switch (errno) {
@@ -146,16 +137,33 @@ static uint8_t sendMessageInternal(struct Message* message, struct ETHInterface*
 static uint8_t sendMessage(struct Message* msg, struct Interface* ethIf)
 {
     struct ETHInterface* ctx = Identity_check((struct ETHInterface*) ethIf);
-    struct EightBytes addr = { .bytes = { 0 } };
-    Message_pop(msg, addr.bytes, 6, NULL);
-    Message_shift(msg, -2, NULL);
+
+    struct ETHInterface_Sockaddr sockaddr;
+    Message_pop(msg, &sockaddr, ETHInterface_Sockaddr_SIZE, NULL);
+
+    struct sockaddr_ll addr;
+    Bits_memcpyConst(&addr, &ctx->addrBase, sizeof(struct sockaddr_ll));
+
+    if (sockaddr.generic.flags & Sockaddr_flags_BCAST) {
+        Bits_memset(addr.sll_addr, 0xff, 6);
+        #ifdef Version_13_COMPAT
+            if (ctx->counter++ % 2) {
+                Message_push16(msg, getIdAndPadding(msg->length, ctx), NULL);
+                return sendMessageInternal(msg, &addr, ctx);
+            }
+        #endif
+    } else {
+        Bits_memcpyConst(addr.sll_addr, sockaddr.mac, 6);
+    }
 
     #ifdef Version_12_COMPAT
-    int idx = Map_isV12ByMacAddr_indexForKey(&addr, &ctx->v12Map);
-    if (idx > -1 && ctx->v12Map.values[idx]) {
+    struct EightBytes key = { .bytes = { 0 } };
+    Bits_memcpyConst(&key, addr.sll_addr, 6);
+    int idx = Map_versionByMac_indexForKey(&key, &ctx->versionMap);
+    if (idx > -1 && ctx->versionMap.values[idx] == 12) {
         Message_push16(msg, getIdAndPadding(msg->length, ctx), NULL);
         Message_push(msg, &addr, 6, NULL);
-        return sendMessageInternal(msg, ctx);
+        return sendMessageInternal(msg, &addr, ctx);
     }
     #endif
 
@@ -166,141 +174,48 @@ static uint8_t sendMessage(struct Message* msg, struct Interface* ethIf)
         .fc00_be = Endian_hostToBigEndian16(0xfc00)
     };
     Message_push(msg, &hdr, ETHInterface_Header_SIZE, NULL);
-    Message_push(msg, &addr, 6, NULL);
-    return sendMessageInternal(msg, ctx);
-}
-
-static void handleBeacon(struct Message* msg, struct ETHInterface* context)
-{
-    if (!context->beaconState) {
-        // accepting beacons disabled.
-        Log_debug(context->logger, "[%s] Dropping beacon because beaconing is disabled",
-                  context->ifName->bytes);
-        return;
-    }
-
-    struct sockaddr_ll addr;
-    Bits_memcpyConst(&addr, &context->addrBase, sizeof(struct sockaddr_ll));
-    Message_pop(msg, addr.sll_addr, 8, NULL);
-    addr.sll_addr[6] = 0;
-    addr.sll_addr[7] = 0;
-    if (msg->length < Headers_Beacon_SIZE) {
-        // Oversize messages are ok because beacons may contain more information in the future.
-        Log_debug(context->logger, "[%s] Dropping wrong size beacon, expected [%d] got [%d]",
-                  context->ifName->bytes, Headers_Beacon_SIZE, msg->length);
-        return;
-    }
-    struct Headers_Beacon* beacon = (struct Headers_Beacon*) msg->bytes;
-
-    uint32_t theirVersion = Endian_bigEndianToHost32(beacon->version_be);
-    if (!Version_isCompatible(theirVersion, Version_CURRENT_PROTOCOL)) {
-        #ifdef Log_DEBUG
-            uint8_t mac[18];
-            AddrTools_printMac(mac, addr.sll_addr);
-            Log_debug(context->logger, "[%s] Dropped beacon from [%s] which was version [%d] "
-                      "our version is [%d] making them incompatable",
-                      context->ifName->bytes, mac, theirVersion, Version_CURRENT_PROTOCOL);
-        #endif
-        return;
-    }
-
-    #ifdef Log_DEBUG
-        uint8_t mac[18];
-        AddrTools_printMac(mac, addr.sll_addr);
-        Log_debug(context->logger, "[%s] Got beacon from [%s]", context->ifName->bytes, mac);
-    #endif
-
-    String passStr = { .bytes = (char*) beacon->password, .len = Headers_Beacon_PASSWORD_LEN };
-    struct Interface* iface = MultiInterface_ifaceForKey(context->multiIface, addr.sll_addr);
-    int ret = InterfaceController_registerPeer(context->ic,
-                                               beacon->publicKey,
-                                               &passStr,
-                                               false,
-                                               true,
-                                               iface);
-    if (ret != 0) {
-        uint8_t mac[18];
-        AddrTools_printMac(mac, addr.sll_addr);
-        Log_info(context->logger, "[%s] Got beacon from [%s] and registerPeer returned [%d]",
-                 context->ifName->bytes, mac, ret);
-        Allocator_free(iface->allocator);
-    }
-}
-
-static void sendBeacon(void* vcontext)
-{
-    struct ETHInterface* context = Identity_check((struct ETHInterface*) vcontext);
-
-    if (context->beaconState != ETHInterface_beacon_ACCEPTING_AND_SENDING) {
-        Log_debug(context->logger, "sendBeacon(%s) -> beaconing disabled", context->ifName->bytes);
-        // beaconing disabled
-        return;
-    }
-
-    Log_debug(context->logger, "sendBeacon(%s)", context->ifName->bytes);
-
-    struct {
-        uint32_t ffffffff;
-        uint16_t ffff;
-        uint16_t firstTwo;
-        struct Headers_Beacon beacon;
-    } content = {
-        .ffffffff = 0xffffffff,
-        .ffff = 0xffff
-    };
-
-    #ifdef Version_12_COMPAT
-        content.firstTwo = Endian_hostToBigEndian16(getIdAndPadding(Headers_Beacon_SIZE, context));
-    #endif
-
-    InterfaceController_populateBeacon(context->ic, &content.beacon);
-
-    struct Message m = {
-        .bytes = (uint8_t*) &content,
-        .padding = 0,
-        .length= sizeof(content)
-    };
-
-    int ret;
-    if ((ret = sendMessageInternal(&m, context)) != 0) {
-        Log_info(context->logger, "Got error [%d] sending beacon [%s]", ret, strerror(errno));
-    }
+    return sendMessageInternal(msg, &addr, ctx);
 }
 
 #ifdef Version_12_COMPAT
-static int isVersion12(struct ETHInterface* ctx,
-                       struct sockaddr_ll* srcAddr,
-                       struct Message* msg)
+static int detectLegacyVersion(struct ETHInterface* ctx,
+                               struct sockaddr_ll* srcAddr,
+                               struct Message* msg)
 {
     struct EightBytes addr = { .bytes = { 0 } };
     Bits_memcpyConst(addr.bytes, srcAddr->sll_addr, 6);
-    int idx = Map_isV12ByMacAddr_indexForKey(&addr, &ctx->v12Map);
+    int idx = Map_versionByMac_indexForKey(&addr, &ctx->versionMap);
     if (idx < 0) {
-        uint32_t zero = 0;
-        idx = Map_isV12ByMacAddr_put(&addr, &zero, &ctx->v12Map);
+        int32_t ver = -1;
+        idx = Map_versionByMac_put(&addr, &ver, &ctx->versionMap);
     }
     if (srcAddr->sll_pkttype == PACKET_BROADCAST) {
         // unused 2 bytes for alignment
         uint16_t verAndId = Message_pop16(msg, NULL);
         uint32_t version = Message_pop32(msg, NULL);
-        ctx->v12Map.values[idx] = (version < 13);
+        ctx->versionMap.values[idx] = version;
         Message_push32(msg, version, NULL);
         Message_push16(msg, verAndId, NULL);
+    } else if (-1 == ctx->versionMap.values[idx]) {
+        struct ETHInterface_Header* hdr = (struct ETHInterface_Header*) msg->bytes;
+        if (hdr->fc00_be != Endian_hostToBigEndian16(0xfc00)) {
+            ctx->versionMap.values[idx] = 12;
+        } else if (msg->length - Endian_bigEndianToHost16(hdr->length_be) < 24) {
+            ctx->versionMap.values[idx] = hdr->version;
+        }
+        return 12;
     }
-    return ctx->v12Map.values[idx];
+    return ctx->versionMap.values[idx];
 }
-static void handleEventV12(struct ETHInterface* ctx, struct Message* msg, struct sockaddr_ll* addr)
+static void convertLegacy(struct ETHInterface* ctx, struct Message* msg, struct sockaddr_ll* addr)
 {
     Message_pop16(msg, NULL);
-    Message_push16(msg, 0, NULL);
-    Message_push(msg, addr->sll_addr, 6, NULL);
-
-    if (addr->sll_pkttype == PACKET_BROADCAST) {
-        handleBeacon(msg, ctx);
-        return;
-    }
-
-    Interface_receiveMessage(&ctx->generic, msg);
+    struct ETHInterface_Header hdr = { .zero = 0 };
+    hdr.fc00_be = Endian_hostToBigEndian16(0xfc00);
+    hdr.version = 12;
+    hdr.length_be = Endian_hostToBigEndian16(msg->length + ETHInterface_Header_SIZE);
+    Assert_true(!((uintptr_t)msg->bytes % 4) && "alignment fault");
+    Message_push(msg, &hdr, ETHInterface_Header_SIZE, NULL);
 }
 #endif
 
@@ -322,7 +237,7 @@ static void handleEvent2(struct ETHInterface* context, struct Allocator* message
                       (struct sockaddr*) &addr,
                       &addrLen);
 
-    if (rc < 0) {
+    if (rc < ETHInterface_Header_SIZE) {
         Log_debug(context->logger, "Failed to receive eth frame");
         return;
     }
@@ -333,23 +248,15 @@ static void handleEvent2(struct ETHInterface* context, struct Allocator* message
     //Assert_true(addrLen == SOCKADDR_LL_LEN);
 
     #ifdef Version_12_COMPAT
-    if (isVersion12(context, &addr, msg)) {
-        handleEventV12(context, msg, &addr);
-        return;
+    int assumedVersion = detectLegacyVersion(context, &addr, msg);
+    if (assumedVersion == 12 || (assumedVersion == 13 && addr.sll_pkttype == PACKET_BROADCAST)) {
+        convertLegacy(context, msg, &addr);
     }
     #endif
 
-    if (addr.sll_pkttype == PACKET_BROADCAST) {
-        Message_pop16(msg, NULL);
-        Message_push16(msg, 0, NULL);
-        Message_push(msg, addr.sll_addr, 6, NULL);
-        handleBeacon(msg, context);
-        return;
-    }
-
-    struct ETHInterface_Header header;
-    Message_pop(msg, &header, ETHInterface_Header_SIZE, NULL);
-    uint16_t reportedLength = Endian_bigEndianToHost16(header.length_be);
+    struct ETHInterface_Header hdr;
+    Message_pop(msg, &hdr, ETHInterface_Header_SIZE, NULL);
+    uint16_t reportedLength = Endian_bigEndianToHost16(hdr.length_be);
     reportedLength -= ETHInterface_Header_SIZE;
     if (msg->length != reportedLength) {
         if (msg->length < reportedLength) {
@@ -358,12 +265,20 @@ static void handleEvent2(struct ETHInterface* context, struct Allocator* message
         }
         msg->length = reportedLength;
     }
-    if (header.fc00_be != Endian_hostToBigEndian16(0xfc00)) {
+    if (hdr.fc00_be != Endian_hostToBigEndian16(0xfc00)) {
         Log_debug(context->logger, "DROP bad magic");
         return;
     }
-    Message_push16(msg, 0, NULL);
-    Message_push(msg, addr.sll_addr, 6, NULL);
+
+    struct ETHInterface_Sockaddr sockaddr = { .zero = 0 };
+    Bits_memcpyConst(sockaddr.mac, addr.sll_addr, 6);
+    sockaddr.version = hdr.version;
+    sockaddr.generic.addrLen = ETHInterface_Sockaddr_SIZE;
+    if (addr.sll_pkttype == PACKET_BROADCAST) {
+        sockaddr.generic.flags |= Sockaddr_flags_BCAST;
+    }
+
+    Message_push(msg, &sockaddr, ETHInterface_Sockaddr_SIZE, NULL);
 
     Assert_true(!((uintptr_t)msg->bytes % 4) && "Alignment fault");
 
@@ -378,87 +293,42 @@ static void handleEvent(void* vcontext)
     Allocator_free(messageAlloc);
 }
 
-int ETHInterface_beginConnection(const char* macAddress,
-                                 uint8_t cryptoKey[32],
-                                 String* password,
-                                 struct ETHInterface* ethIf)
+struct Interface* ETHInterface_new(struct EventBase* eventBase,
+                                   const char* bindDevice,
+                                   struct Allocator* alloc,
+                                   struct Except* exHandler,
+                                   struct Log* logger)
 {
-    Identity_check(ethIf);
-    struct sockaddr_ll addr;
-    Bits_memcpyConst(&addr, &ethIf->addrBase, sizeof(struct sockaddr_ll));
-    if (AddrTools_parseMac(addr.sll_addr, (const uint8_t*)macAddress)) {
-        return ETHInterface_beginConnection_BAD_MAC;
-    }
-
-    struct Interface* iface = MultiInterface_ifaceForKey(ethIf->multiIface, &addr);
-    int ret = InterfaceController_registerPeer(ethIf->ic, cryptoKey, password, false, false, iface);
-    if (ret) {
-        Allocator_free(iface->allocator);
-        switch(ret) {
-            case InterfaceController_registerPeer_BAD_KEY:
-                return ETHInterface_beginConnection_BAD_KEY;
-
-            case InterfaceController_registerPeer_OUT_OF_SPACE:
-                return ETHInterface_beginConnection_OUT_OF_SPACE;
-
-            default:
-                return ETHInterface_beginConnection_UNKNOWN_ERROR;
-        }
-    }
-    return 0;
-}
-
-int ETHInterface_beacon(struct ETHInterface* ethIf, int* state)
-{
-    Identity_check(ethIf);
-    if (state) {
-        ethIf->beaconState = *state;
-        // Send out a beacon right away so we don't have to wait.
-        if (ethIf->beaconState == ETHInterface_beacon_ACCEPTING_AND_SENDING) {
-            sendBeacon(ethIf);
-        }
-    }
-    return ethIf->beaconState;
-}
-
-struct ETHInterface* ETHInterface_new(struct EventBase* base,
-                                      const char* bindDevice,
-                                      struct Allocator* allocator,
-                                      struct Except* exHandler,
-                                      struct Log* logger,
-                                      struct InterfaceController* ic)
-{
-    struct ETHInterface* context = Allocator_clone(allocator, (&(struct ETHInterface) {
-        .generic = {
-            .sendMessage = sendMessage,
-            .allocator = allocator
-        },
-        .logger = logger,
-        .ic = ic
-    }));
+    struct ETHInterface* ctx =
+        Allocator_clone(alloc, (&(struct ETHInterface) {
+            .generic = {
+                .sendMessage = sendMessage,
+                .allocator = alloc
+            },
+            .logger = logger
+        }));
+    Identity_set(ctx);
 
     #ifdef Version_12_COMPAT
-        context->id = getpid();
-        context->v12Map.allocator = allocator;
+        ctx->id = getpid();
+        ctx->versionMap.allocator = alloc;
     #endif
-
-    Identity_set(context);
 
     struct ifreq ifr = { .ifr_ifindex = 0 };
 
-    context->socket = socket(AF_PACKET, SOCK_DGRAM, Ethernet_TYPE_CJDNS);
-    if (context->socket == -1) {
+    ctx->socket = socket(AF_PACKET, SOCK_DGRAM, Ethernet_TYPE_CJDNS);
+    if (ctx->socket == -1) {
         Except_throw(exHandler, "call to socket() failed. [%s]", strerror(errno));
     }
     CString_strncpy(ifr.ifr_name, bindDevice, IFNAMSIZ - 1);
-    context->ifName = String_new(bindDevice, allocator);
+    ctx->ifName = String_new(bindDevice, alloc);
 
-    if (ioctl(context->socket, SIOCGIFINDEX, &ifr) == -1) {
+    if (ioctl(ctx->socket, SIOCGIFINDEX, &ifr) == -1) {
         Except_throw(exHandler, "failed to find interface index [%s]", strerror(errno));
     }
-    context->ifindex = ifr.ifr_ifindex;
+    ctx->ifindex = ifr.ifr_ifindex;
 
-    if (ioctl(context->socket, SIOCGIFHWADDR, &ifr) == -1) {
+    if (ioctl(ctx->socket, SIOCGIFHWADDR, &ifr) == -1) {
        Except_throw(exHandler, "failed to find mac address of interface [%s]",
                     strerror(errno));
     }
@@ -467,31 +337,26 @@ struct ETHInterface* ETHInterface_new(struct EventBase* base,
     Bits_memcpyConst(srcMac, ifr.ifr_hwaddr.sa_data, 6);
 
     // TODO(cjd): is the node's mac addr private information?
-    Log_info(context->logger, "found MAC for device %s [%i]: %02x:%02x:%02x:%02x:%02x:%02x\n",
-            bindDevice, context->ifindex,
+    Log_info(ctx->logger, "found MAC for device %s [%i]: %02x:%02x:%02x:%02x:%02x:%02x\n",
+            bindDevice, ctx->ifindex,
             srcMac[0], srcMac[1], srcMac[2], srcMac[3], srcMac[4], srcMac[5]);
 
-    context->addrBase = (struct sockaddr_ll) {
+    ctx->addrBase = (struct sockaddr_ll) {
         .sll_family = AF_PACKET,
         .sll_protocol = Ethernet_TYPE_CJDNS,
-        .sll_ifindex = context->ifindex,
+        .sll_ifindex = ctx->ifindex,
         .sll_hatype = ARPHRD_ETHER,
         .sll_pkttype = PACKET_OTHERHOST,
         .sll_halen = ETH_ALEN
     };
 
-    if (bind(context->socket, (struct sockaddr*) &context->addrBase, sizeof(struct sockaddr_ll))) {
+    if (bind(ctx->socket, (struct sockaddr*) &ctx->addrBase, sizeof(struct sockaddr_ll))) {
         Except_throw(exHandler, "call to bind() failed [%s]", strerror(errno));
     }
 
-    Socket_makeNonBlocking(context->socket);
+    Socket_makeNonBlocking(ctx->socket);
 
-    Event_socketRead(handleEvent, context, context->socket, base, allocator, exHandler);
+    Event_socketRead(handleEvent, ctx, ctx->socket, eventBase, alloc, exHandler);
 
-    // size of key is 8, 6 for mac + 2 for id.
-    context->multiIface = MultiInterface_new(8, &context->generic, ic, logger);
-
-    Timeout_setInterval(sendBeacon, context, BEACON_INTERVAL, base, allocator);
-
-    return context;
+    return &ctx->generic;
 }
