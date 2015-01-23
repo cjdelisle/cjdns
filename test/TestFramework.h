@@ -57,7 +57,9 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
                                           struct Random* rand,
                                           struct Log* logger);
 
-void TestFramework_linkNodes(struct TestFramework* client, struct TestFramework* server);
+void TestFramework_linkNodes(struct TestFramework* client,
+                             struct TestFramework* server,
+                             bool beacon);
 
 void TestFramework_craftIPHeader(struct Message* msg, uint8_t srcAddr[16], uint8_t destAddr[16]);
 

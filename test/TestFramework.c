@@ -189,7 +189,9 @@ void TestFramework_assertLastMessageUnaltered(struct TestFramework* tf)
     Assert_true(!Bits_memcmp(a->bytes, b->bytes, a->length));
 }
 
-void TestFramework_linkNodes(struct TestFramework* client, struct TestFramework* server)
+void TestFramework_linkNodes(struct TestFramework* client,
+                             struct TestFramework* server,
+                             bool beacon)
 {
     // ifaceA is the client, ifaceB is the server
     struct TestFramework_Link* link =
@@ -217,16 +219,28 @@ void TestFramework_linkNodes(struct TestFramework* client, struct TestFramework*
     link->serverIfNum = InterfaceController_regIface(
         server->ifController, &link->destIf, String_CONST("testB"), server->alloc);
 
-    // Except that it has an authorizedPassword added.
-    CryptoAuth_addUser(String_CONST("abcdefg1234"), 1, String_CONST("TEST"), server->cryptoAuth);
+    if (beacon) {
+        int ret = InterfaceController_beaconState(client->ifController,
+                                                  link->clientIfNum,
+                                                  InterfaceController_beaconState_newState_ACCEPT);
+        Assert_true(!ret);
 
-    // Client has pubKey and passwd for the server.
-    InterfaceController_bootstrapPeer(client->ifController,
-                                      link->clientIfNum,
-                                      server->publicKey,
-                                      Sockaddr_LOOPBACK,
-                                      String_CONST("abcdefg1234"),
-                                      client->alloc);
+        ret = InterfaceController_beaconState(server->ifController,
+                                              link->serverIfNum,
+                                              InterfaceController_beaconState_newState_SEND);
+        Assert_true(!ret);
+    } else {
+        // Except that it has an authorizedPassword added.
+        CryptoAuth_addUser(String_CONST("abcdefg123"), 1, String_CONST("TEST"), server->cryptoAuth);
+
+        // Client has pubKey and passwd for the server.
+        InterfaceController_bootstrapPeer(client->ifController,
+                                          link->clientIfNum,
+                                          server->publicKey,
+                                          Sockaddr_LOOPBACK,
+                                          String_CONST("abcdefg123"),
+                                          client->alloc);
+    }
 }
 
 void TestFramework_craftIPHeader(struct Message* msg, uint8_t srcAddr[16], uint8_t destAddr[16])

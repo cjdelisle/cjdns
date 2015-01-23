@@ -31,17 +31,9 @@
 
 #include <stdio.h>
 
-#define TUNC 3
+
 #define TUNB 2
 #define TUNA 1
-static uint8_t incomingTunC(struct Message* msg, struct Interface* iface)
-{
-    Assert_true(TUNMessageType_pop(msg, NULL) == Ethernet_TYPE_IP6);
-    Message_shift(msg, -Headers_IP6Header_SIZE, NULL);
-    printf("Message from TUN in node C [%s] [%d]\n", msg->bytes, msg->length);
-    *((int*)iface->senderContext) = TUNC;
-    return 0;
-}
 
 static uint8_t incomingTunB(struct Message* msg, struct Interface* iface)
 {
@@ -63,15 +55,12 @@ static uint8_t incomingTunA(struct Message* msg, struct Interface* iface)
     return 0;
 }
 
-struct ThreeNodes;
+struct TwoNodes;
 
-typedef void (RunTest)(struct ThreeNodes* ctx);
+typedef void (RunTest)(struct TwoNodes* ctx);
 
-struct ThreeNodes
+struct TwoNodes
 {
-    struct Interface tunIfC;
-    struct TestFramework* nodeC;
-
     struct Interface tunIfB;
     struct TestFramework* nodeB;
 
@@ -83,10 +72,6 @@ struct ThreeNodes
     struct Log* logger;
     struct EventBase* base;
 
-#define ThreeNodes_state_AB_COMPLETE 1
-#define ThreeNodes_state_CB_COMPLETE 2
-    int state;
-
     uint64_t startTime;
 
     RunTest* runTest;
@@ -94,32 +79,22 @@ struct ThreeNodes
     Identity
 };
 
-static void notLinkedYet(struct ThreeNodes* ctx)
+static void notLinkedYet(struct TwoNodes* ctx)
 {
     uint64_t now = Time_currentTimeMilliseconds(ctx->base);
     if ((now - ctx->startTime) > 5000) {
-        Assert_failure("three nodes failed to link in 5 seconds");
+        Assert_failure("Failed to link in 5 seconds");
     }
 }
 
-static void checkLinkage(void* vThreeNodes)
+static void checkLinkage(void* vTwoNodes)
 {
-    struct ThreeNodes* ctx = Identity_check((struct ThreeNodes*) vThreeNodes);
+    struct TwoNodes* ctx = Identity_check((struct TwoNodes*) vTwoNodes);
 
     if (ctx->nodeA->nodeStore->nodeCount < 1) { notLinkedYet(ctx); return; }
-    if (ctx->state < ThreeNodes_state_AB_COMPLETE) {
-        ctx->state = ThreeNodes_state_AB_COMPLETE;
-        Log_debug(ctx->logger, "Link A and B complete");
-    }
-
-    if (ctx->nodeC->nodeStore->nodeCount < 1) { notLinkedYet(ctx); return; }
-    if (ctx->state < ThreeNodes_state_CB_COMPLETE) {
-        ctx->state = ThreeNodes_state_CB_COMPLETE;
-        Log_debug(ctx->logger, "Link C and B complete");
-    }
-
-    if (ctx->nodeB->nodeStore->nodeCount < 2) { notLinkedYet(ctx); return; }
-    Log_debug(ctx->logger, "Link C with B and A complete");
+    Log_debug(ctx->logger, "A seems to be linked with B");
+    if (ctx->nodeB->nodeStore->nodeCount < 1) { notLinkedYet(ctx); return; }
+    Log_debug(ctx->logger, "B seems to be linked with A");
     Log_debug(ctx->logger, "\n\nSetup Complete\n\n");
 
     Timeout_clearTimeout(ctx->checkLinkageTimeout);
@@ -141,38 +116,25 @@ static void start(struct Allocator* alloc,
     //"ipv6": "fc41:94b5:0925:7ba9:3959:11ab:a006:367a",
 
     struct TestFramework* b =
-        TestFramework_setUp("\xea\x8d\x34\x04\xa9\x7c\xe4\xf9\xca\x7e\x24\xe6\xf1\x85\xb9\x3f"
-                            "\x01\x37\xb7\xa1\xf5\x2c\xce\xc0\x2c\xae\x03\xf1\x83\x38\x13\x24",
-                            alloc, base, rand, logger);
-    // This address was found by brute force for one which falls between A and C without being
-    // closer in either direction (XOR is bidirectional address space distance)
-    // ipv6: fc2e:3273:644e:426f:283d:e3c7:c87c:41c1
-
-    struct TestFramework* c =
         TestFramework_setUp("\xd8\x54\x3e\x70\xb9\xae\x7c\x41\xbc\x18\xa4\x9a\x9c\xee\xca\x9c"
                             "\xdc\x45\x01\x96\x6b\xbd\x7e\x76\xcf\x3a\x9f\xbc\x12\xed\x8b\xb4",
                             alloc, base, rand, logger);
     //"publicKey": "vz21tg07061s8v9mckrvgtfds7j2u5lst8cwl6nqhp81njrh5wg0.k",
     //"ipv6": "fc1f:5b96:e1c5:625d:afde:2523:a7fa:383a",
 
+
+
     Log_debug(a->logger, "Linking A and B");
-    TestFramework_linkNodes(b, a, false);
+    TestFramework_linkNodes(b, a, true);
 
-    Log_debug(a->logger, "Linking B and C");
-    TestFramework_linkNodes(c, b, false);
-
-    struct ThreeNodes* out = Allocator_calloc(alloc, sizeof(struct ThreeNodes), 1);
+    struct TwoNodes* out = Allocator_calloc(alloc, sizeof(struct TwoNodes), 1);
     Identity_set(out);
-    out->tunIfC.allocator = alloc;
     out->tunIfB.allocator = alloc;
     out->tunIfA.allocator = alloc;
-    out->tunIfC.sendMessage = incomingTunC;
     out->tunIfB.sendMessage = incomingTunB;
     out->tunIfA.sendMessage = incomingTunA;
-    out->tunIfC.senderContext = &out->messageFrom;
     out->tunIfB.senderContext = &out->messageFrom;
     out->tunIfA.senderContext = &out->messageFrom;
-    out->nodeC = c;
     out->nodeB = b;
     out->nodeA = a;
     out->logger = logger;
@@ -181,14 +143,13 @@ static void start(struct Allocator* alloc,
     out->startTime = Time_currentTimeMilliseconds(base);
     out->runTest = runTest;
 
-    Ducttape_setUserInterface(c->ducttape, &out->tunIfC);
     Ducttape_setUserInterface(b->ducttape, &out->tunIfB);
     Ducttape_setUserInterface(a->ducttape, &out->tunIfA);
 
     Log_debug(a->logger, "Waiting for nodes to link asynchronously...");
 }
 
-static void sendMessage(struct ThreeNodes* tn,
+static void sendMessage(struct TwoNodes* tn,
                         char* message,
                         struct TestFramework* from,
                         struct TestFramework* to)
@@ -209,8 +170,6 @@ static void sendMessage(struct ThreeNodes* tn,
         fromIf = &tn->tunIfA;
     } else if (from == tn->nodeB) {
         fromIf = &tn->tunIfB;
-    } else if (from == tn->nodeC) {
-        fromIf = &tn->tunIfC;
     } else {
         Assert_true(false);
     }
@@ -222,34 +181,31 @@ static void sendMessage(struct ThreeNodes* tn,
         Assert_true(tn->messageFrom == TUNA);
     } else if (to == tn->nodeB) {
         Assert_true(tn->messageFrom == TUNB);
-    } else if (to == tn->nodeC) {
-        Assert_true(tn->messageFrom == TUNC);
     } else {
         Assert_true(false);
     }
 
     TestFramework_assertLastMessageUnaltered(tn->nodeA);
     TestFramework_assertLastMessageUnaltered(tn->nodeB);
-    TestFramework_assertLastMessageUnaltered(tn->nodeC);
 
     tn->messageFrom = 0;
 }
 
-static void runTest(struct ThreeNodes* tn)
+static void runTest(struct TwoNodes* tn)
 {
-    sendMessage(tn, "Hello World!", tn->nodeA, tn->nodeC);
-    sendMessage(tn, "Hello cjdns!", tn->nodeC, tn->nodeA);
-    sendMessage(tn, "send", tn->nodeA, tn->nodeC);
-    sendMessage(tn, "a", tn->nodeC, tn->nodeA);
-    sendMessage(tn, "few", tn->nodeA, tn->nodeC);
-    sendMessage(tn, "packets", tn->nodeC, tn->nodeA);
-    sendMessage(tn, "to", tn->nodeA, tn->nodeC);
-    sendMessage(tn, "make", tn->nodeC, tn->nodeA);
-    sendMessage(tn, "sure", tn->nodeA, tn->nodeC);
-    sendMessage(tn, "the", tn->nodeC, tn->nodeA);
-    sendMessage(tn, "cryptoauth", tn->nodeA, tn->nodeC);
-    sendMessage(tn, "can", tn->nodeC, tn->nodeA);
-    sendMessage(tn, "establish", tn->nodeA, tn->nodeC);
+    sendMessage(tn, "Hello World!", tn->nodeA, tn->nodeB);
+    sendMessage(tn, "Hello cjdns!", tn->nodeB, tn->nodeA);
+    sendMessage(tn, "send", tn->nodeA, tn->nodeB);
+    sendMessage(tn, "a", tn->nodeB, tn->nodeA);
+    sendMessage(tn, "few", tn->nodeA, tn->nodeB);
+    sendMessage(tn, "packets", tn->nodeB, tn->nodeA);
+    sendMessage(tn, "to", tn->nodeA, tn->nodeB);
+    sendMessage(tn, "make", tn->nodeB, tn->nodeA);
+    sendMessage(tn, "sure", tn->nodeA, tn->nodeB);
+    sendMessage(tn, "the", tn->nodeB, tn->nodeA);
+    sendMessage(tn, "cryptoauth", tn->nodeA, tn->nodeB);
+    sendMessage(tn, "can", tn->nodeB, tn->nodeA);
+    sendMessage(tn, "establish", tn->nodeA, tn->nodeB);
 
     Log_debug(tn->logger, "\n\nTest passed, shutting down\n\n");
     EventBase_endLoop(tn->base);

@@ -528,7 +528,8 @@ static uint8_t sendAfterCryptoAuth(struct Message* msg, struct Interface* extern
     // push the lladdr...
     Message_push(msg, ep->lladdr, ep->lladdr->addrLen, NULL);
 
-    if (Defined(Log_DEBUG)) {
+    // very noisy
+    if (Defined(Log_DEBUG) && false) {
         char* printedAddr =
             Hex_print(&ep->lladdr[1], ep->lladdr->addrLen - Sockaddr_OVERHEAD, msg->alloc);
         Log_debug(ep->ici->ic->logger, "Outgoing message to [%s]", printedAddr);
@@ -550,11 +551,21 @@ static uint8_t handleBeacon(struct Message* msg, struct Iface* ici)
         return 0;
     }
 
+    if (msg->length < Headers_Beacon_SIZE) {
+        Log_debug(ic->logger, "[%s] Dropping runt beacon", ici->name->bytes);
+        return 0;
+    }
+
     struct Sockaddr* lladdrInmsg = (struct Sockaddr*) msg->bytes;
     Message_shift(msg, -lladdrInmsg->addrLen, NULL);
 
     struct Headers_Beacon beacon;
     Message_pop(msg, &beacon, Headers_Beacon_SIZE, NULL);
+
+    if (Defined(Log_DEBUG)) {
+        char* content = Hex_print(&beacon, Headers_Beacon_SIZE, msg->alloc);
+        Log_debug(ici->ic->logger, "RECV BEACON CONTENT[%s]", content);
+    }
 
     struct Address addr;
     Bits_memset(&addr, 0, sizeof(struct Address));
@@ -563,7 +574,7 @@ static uint8_t handleBeacon(struct Message* msg, struct Iface* ici)
     Address_getPrefix(&addr);
     String* printedAddr = Address_toString(&addr, msg->alloc);
 
-    if (!addr.ip6.bytes[0] != 0xfc || !Bits_memcmp(ic->ca->publicKey, addr.key, 32)) {
+    if (addr.ip6.bytes[0] != 0xfc || !Bits_memcmp(ic->ca->publicKey, addr.key, 32)) {
         Log_debug(ic->logger, "handleBeacon invalid key [%s]", printedAddr->bytes);
         return 0;
     }
@@ -710,7 +721,8 @@ static uint8_t handleIncomingFromWire(struct Message* msg, struct Interface* ifa
     Assert_true(!((uintptr_t)msg->bytes % 4) && "alignment fault");
     Assert_true(!((uintptr_t)lladdr->addrLen % 4) && "alignment fault");
 
-    if (Defined(Log_DEBUG)) {
+    // noisy
+    if (Defined(Log_DEBUG) && false) {
         char* printedAddr = Hex_print(&lladdr[1], lladdr->addrLen - Sockaddr_OVERHEAD, msg->alloc);
         Log_debug(ici->ic->logger, "Incoming message from [%s]", printedAddr);
     }
@@ -782,6 +794,11 @@ static void sendBeacon(struct Iface* ici, struct Allocator* tempAlloc)
     struct Message* msg = Message_new(0, 128, tempAlloc);
     Message_push(msg, &ici->ic->beacon, Headers_Beacon_SIZE, NULL);
 
+    if (Defined(Log_DEBUG)) {
+        char* content = Hex_print(msg->bytes, msg->length, tempAlloc);
+        Log_debug(ici->ic->logger, "SEND BEACON CONTENT[%s]", content);
+    }
+
     struct Sockaddr sa = {
         .addrLen = Sockaddr_OVERHEAD,
         .flags = Sockaddr_flags_BCAST
@@ -818,14 +835,14 @@ int InterfaceController_beaconState(struct InterfaceController* ifc,
     if (!ici) {
         return InterfaceController_beaconState_NO_SUCH_IFACE;
     }
+    char* val = NULL;
     switch (newState) {
         default: return InterfaceController_beaconState_INVALID_STATE;
-        case InterfaceController_beaconState_newState_OFF:
-        case InterfaceController_beaconState_newState_ACCEPT:
-        case InterfaceController_beaconState_newState_SEND:
-            ici->beaconState = newState;
+        case InterfaceController_beaconState_newState_OFF: val = "OFF"; break;
+        case InterfaceController_beaconState_newState_ACCEPT: val = "ACCEPT"; break;
+        case InterfaceController_beaconState_newState_SEND: val = "SEND"; break;
     }
-    if (ici->beaconState == newState) { return 0; }
+    Log_debug(ic->logger, "InterfaceController_beaconState(%s, %s)", ici->name->bytes, val);
     ici->beaconState = newState;
     if (newState == InterfaceController_beaconState_newState_SEND) {
         // Send out a beacon right away so we don't have to wait.
