@@ -1871,7 +1871,7 @@ struct NodeList* NodeStore_getPeers(uint64_t label,
                                     struct NodeStore* nodeStore)
 {
     struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
-    Log_debug(store->logger, "getPeers request for [%lx]", label);
+    Log_debug(store->logger, "getPeers request for [%llx]", (unsigned long long) label);
     // truncate the label to the part which this node uses PLUS
     // the self-interface bit for the next hop
     if (label > 1) {
