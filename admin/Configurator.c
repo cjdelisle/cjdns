@@ -24,6 +24,7 @@
 #include "util/log/Log.h"
 #include "util/platform/Sockaddr.h"
 #include "util/Defined.h"
+#include "util/events/Timeout.h"
 
 #include <stdlib.h>
 #include <stdbool.h>
@@ -488,6 +489,45 @@ static void security(struct Allocator* tempAlloc, struct Context* ctx)
     rpcCall(String_CONST("Security_dropPermissions"), d, ctx, tempAlloc);
 }
 
+static int tryPing(struct Allocator* tempAlloc, struct Context* ctx)
+{
+    Dict* resp = NULL;
+    Dict* d = Dict_new(tempAlloc);
+    rpcCall0(String_CONST("ping"), d, ctx, tempAlloc, &resp, false);
+    if (!resp) { return -1; }
+    String* q = Dict_getString(resp, String_CONST("q"));
+    if (String_equals(q, String_CONST("pong"))) {
+        return true;
+    }
+    return false;
+}
+
+static void awaken(void* vcontext)
+{
+    struct Context* ctx = vcontext;
+    EventBase_endLoop(ctx->base);
+}
+
+static void sleep(int milliseconds, struct Context* ctx, struct Allocator* temp)
+{
+    Timeout_setTimeout(awaken, ctx, milliseconds, ctx->base, temp);
+    EventBase_beginLoop(ctx->base);
+}
+
+static void waitUntilPong(struct Context* ctx)
+{
+    for (int i = 0; i < 10; i++) {
+        struct Allocator* temp = Allocator_child(ctx->alloc);
+        if (tryPing(temp, ctx)) {
+            Allocator_free(temp);
+            return;
+        }
+        sleep(200, ctx, temp);
+        Allocator_free(temp);
+    }
+    Assert_failure("Failed connecting to core (perhaps you have a firewall on loopback device?)");
+}
+
 void Configurator_config(Dict* config,
                          struct Sockaddr* sockAddr,
                          String* adminPassword,
@@ -506,6 +546,8 @@ void Configurator_config(Dict* config,
         .client = client,
         .base = eventBase,
     };
+
+    waitUntilPong(&ctx);
 
     List* authedPasswords = Dict_getList(config, String_CONST("authorizedPasswords"));
     if (authedPasswords) {
