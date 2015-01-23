@@ -82,7 +82,7 @@ struct ETHInterface
         struct Map_versionByMac versionMap;
     #endif
 
-    #ifdef Version_13_COMPAT
+    #ifdef Version_14_COMPAT
         /** hack: when odd, the beacon will use the old version. */
         uint32_t counter;
     #endif
@@ -90,7 +90,7 @@ struct ETHInterface
     Identity
 };
 
-#ifdef Version_13_COMPAT
+#ifdef Version_14_COMPAT
 static uint16_t getIdAndPadding(int msgLength, struct ETHInterface* context)
 {
     int pad = 0;
@@ -147,7 +147,7 @@ static uint8_t sendMessage(struct Message* msg, struct Interface* ethIf)
 
     if (sockaddr.generic.flags & Sockaddr_flags_BCAST) {
         Bits_memset(addr.sll_addr, 0xff, 6);
-        #ifdef Version_13_COMPAT
+        #ifdef Version_14_COMPAT
             if (ctx->counter++ % 2) {
                 Message_push16(msg, getIdAndPadding(msg->length, ctx), NULL);
                 return sendMessageInternal(msg, &addr, ctx);
