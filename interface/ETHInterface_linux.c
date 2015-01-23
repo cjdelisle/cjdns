@@ -143,7 +143,7 @@ static uint8_t sendMessage(struct Message* msg, struct Interface* ethIf)
     Assert_true(msg->length >= Sockaddr_OVERHEAD);
     Assert_true(sa->addrLen <= ETHInterface_Sockaddr_SIZE);
 
-    struct ETHInterface_Sockaddr sockaddr = { .generic.addrLen = 0 };
+    struct ETHInterface_Sockaddr sockaddr = { .generic = { .addrLen = 0 } };
     Message_pop(msg, &sockaddr, sa->addrLen, NULL);
 
     struct sockaddr_ll addr;
