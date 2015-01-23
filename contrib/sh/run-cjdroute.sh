@@ -3,6 +3,7 @@
 # Maintainer: Jack L. Frost <fbt@fleshless.org>
 
 # Functions
+echo() { printf '%s\n' "$*"; }
 usage() { echo "Usage: run-cjdroute [/path/to/cjdroute.conf] (/etc/cjdroute.conf by default)"; }
 
 err() { echo "$1" >&2; }
