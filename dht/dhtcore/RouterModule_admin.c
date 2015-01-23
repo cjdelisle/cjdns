@@ -170,7 +170,7 @@ static struct Address* getNode(String* pathStr,
         } else {
             Bits_memcpyConst(&addr, &nl->child->address, sizeof(struct Address));
         }
-    } else if (pathStr->len == 39 && !AddrTools_parseIp(addr.ip6.bytes, pathStr->bytes)) {
+    } else if (!AddrTools_parseIp(addr.ip6.bytes, pathStr->bytes)) {
         struct Node_Two* n = Router_lookup(ctx->router, addr.ip6.bytes);
         if (!n || Bits_memcmp(addr.ip6.bytes, n->address.ip6.bytes, 16)) {
             *errOut = "not_found";
