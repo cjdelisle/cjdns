@@ -652,7 +652,7 @@ static uint8_t handleUnexpectedIncoming(struct Message* msg, struct Iface* ici)
     struct Peer* ep = Allocator_calloc(epAlloc, sizeof(struct Peer), 1);
     ep->ici = ici;
     ep->lladdr = lladdr;
-    Assert_true(Map_EndpointsBySockaddr_indexForKey(&lladdr, %ici->peerMap) == -1);
+    Assert_true(Map_EndpointsBySockaddr_indexForKey(&lladdr, &ici->peerMap) == -1);
     int index = Map_EndpointsBySockaddr_put(&lladdr, &ep, &ici->peerMap);
     Assert_true(index >= 0);
     ep->handle = ici->peerMap.handles[index];
