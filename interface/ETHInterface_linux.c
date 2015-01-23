@@ -139,8 +139,12 @@ static uint8_t sendMessage(struct Message* msg, struct Interface* ethIf)
 {
     struct ETHInterface* ctx = Identity_check((struct ETHInterface*) ethIf);
 
-    struct ETHInterface_Sockaddr sockaddr;
-    Message_pop(msg, &sockaddr, ETHInterface_Sockaddr_SIZE, NULL);
+    struct Sockaddr* sa = (struct Sockaddr*) msg->bytes;
+    Assert_true(msg->length >= Sockaddr_OVERHEAD);
+    Assert_true(sa->addrLen <= ETHInterface_Sockaddr_SIZE);
+
+    struct ETHInterface_Sockaddr sockaddr = { .generic.addrLen = 0 };
+    Message_pop(msg, &sockaddr, sa->addrLen, NULL);
 
     struct sockaddr_ll addr;
     Bits_memcpyConst(&addr, &ctx->addrBase, sizeof(struct sockaddr_ll));
