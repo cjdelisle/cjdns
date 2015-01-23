@@ -528,13 +528,11 @@ static uint8_t sendAfterCryptoAuth(struct Message* msg, struct Interface* extern
     // push the lladdr...
     Message_push(msg, ep->lladdr, ep->lladdr->addrLen, NULL);
 
-    #if 0
     if (Defined(Log_DEBUG)) {
         char* printedAddr =
             Hex_print(&ep->lladdr[1], ep->lladdr->addrLen - Sockaddr_OVERHEAD, msg->alloc);
         Log_debug(ep->ici->ic->logger, "Outgoing message to [%s]", printedAddr);
     }
-    #endif
 
     return Interface_sendMessage(ep->ici->addrIface, msg);
 }
@@ -654,6 +652,7 @@ static uint8_t handleUnexpectedIncoming(struct Message* msg, struct Iface* ici)
     struct Peer* ep = Allocator_calloc(epAlloc, sizeof(struct Peer), 1);
     ep->ici = ici;
     ep->lladdr = lladdr;
+    Assert_true(Map_EndpointsBySockaddr_indexForKey(&lladdr, %ici->peerMap) == -1);
     int index = Map_EndpointsBySockaddr_put(&lladdr, &ep, &ici->peerMap);
     Assert_true(index >= 0);
     ep->handle = ici->peerMap.handles[index];
@@ -666,12 +665,8 @@ static uint8_t handleUnexpectedIncoming(struct Message* msg, struct Iface* ici)
     ep->externalIf.sendMessage = sendAfterCryptoAuth;
     ep->externalIf.allocator = epAlloc;
 
-    ep->cryptoAuthIf = CryptoAuth_wrapInterface(&ep->externalIf,
-                                                NULL,
-                                                NULL,
-                                                true,
-                                                "outer",
-                                                ic->ca);
+    ep->cryptoAuthIf =
+        CryptoAuth_wrapInterface(&ep->externalIf, NULL, NULL, true, "outer", ic->ca);
 
     ep->cryptoAuthIf->receiveMessage = receivedAfterCryptoAuth;
     ep->cryptoAuthIf->receiverContext = ep;
@@ -712,14 +707,13 @@ static uint8_t handleIncomingFromWire(struct Message* msg, struct Interface* ifa
         return 0;
     }
 
-    Assert_true(!(((uintptr_t)msg->bytes + lladdr->addrLen) % 4) && "alignment fault");
+    Assert_true(!((uintptr_t)msg->bytes % 4) && "alignment fault");
+    Assert_true(!((uintptr_t)lladdr->addrLen % 4) && "alignment fault");
 
-    #if 0
     if (Defined(Log_DEBUG)) {
         char* printedAddr = Hex_print(&lladdr[1], lladdr->addrLen - Sockaddr_OVERHEAD, msg->alloc);
         Log_debug(ici->ic->logger, "Incoming message from [%s]", printedAddr);
     }
-    #endif
 
     if (lladdr->flags & Sockaddr_flags_BCAST) {
         return handleBeacon(msg, ici);
