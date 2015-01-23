@@ -282,12 +282,25 @@ Version_COMPAT(12, ([7,8,9,10,11]))
  */
 Version_COMPAT(13, ([12]))
 
+/*
+ * Version 14:
+ * January 23, 2014
+ *
+ * Cerimonial version 14 to indicate a bug-fix in the getPeers function which
+ * previously returned the same list of peers every time. Furthermore the switch
+ * pinger was fixed to set the labelShift field correctly, fixing a bug which
+ * caused spurious loss of switch ping packets (culminating in peers "missing"
+ * from the routing table).
+ */
+Version_COMPAT(14, ([12,13]))
+
 /**
  * The current protocol version.
  */
-#define Version_CURRENT_PROTOCOL 13
+#define Version_CURRENT_PROTOCOL 14
 #define Version_12_COMPAT
 #define Version_13_COMPAT
+#define Version_14_COMPAT
 
 #define Version_MINIMUM_COMPATIBLE 12
 #define Version_DEFAULT_ASSUMPTION 12
