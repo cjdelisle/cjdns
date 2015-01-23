@@ -12,6 +12,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "interface/ETHInterface_admin.h"
+#include "admin/angel/Hermes.h"
 #include "benc/Int.h"
 #include "admin/Admin.h"
 #include "crypto/Key.h"
@@ -20,6 +22,7 @@
 #include "memory/Allocator.h"
 #include "interface/InterfaceController.h"
 #include "util/AddrTools.h"
+#include "util/Identity.h"
 
 struct Context
 {
@@ -28,6 +31,8 @@ struct Context
     struct Log* logger;
     struct Admin* admin;
     struct InterfaceController* ic;
+    struct Hermes* hermes;
+    Identity
 };
 
 static void beginConnection(Dict* args,
@@ -35,7 +40,7 @@ static void beginConnection(Dict* args,
                             String* txid,
                             struct Allocator* requestAlloc)
 {
-    struct Context* ctx = vcontext;
+    struct Context* ctx = Identity_check((struct Context*) vcontext);
 
     String* password = Dict_getString(args, String_CONST("password"));
     String* publicKey = Dict_getString(args, String_CONST("publicKey"));
@@ -78,7 +83,7 @@ static void beginConnection(Dict* args,
 
 static void newInterface(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
-    struct Context* const ctx = vcontext;
+    struct Context* const ctx = Identity_check((struct Context*) vcontext);
     String* const bindDevice = Dict_getString(args, String_CONST("bindDevice"));
     struct Allocator* const alloc = Allocator_child(ctx->alloc);
 
@@ -112,7 +117,7 @@ static void beacon(Dict* args, void* vcontext, String* txid, struct Allocator* r
     int64_t* ifNumP = Dict_getInt(args, String_CONST("interfaceNumber"));
     uint32_t ifNum = (ifNumP) ? ((uint32_t) *ifNumP) : 0;
     uint32_t state = (stateP) ? ((uint32_t) *stateP) : 0xffffffff;
-    struct Context* ctx = (struct Context*) vcontext;
+    struct Context* ctx = Identity_check((struct Context*) vcontext);
 
     char* error = NULL;
     int ret = InterfaceController_beaconState(ctx->ic, ifNum, state);
@@ -146,19 +151,62 @@ static void beacon(Dict* args, void* vcontext, String* txid, struct Allocator* r
     Admin_sendMessage(&out, txid, ctx->admin);
 }
 
+
+// We don't have the security clearences in this process to run ETHInterface_listDevices() directly.
+// So we send a message to the angel process which will do it for us.
+
+struct ListDevicesCtx {
+    struct Allocator* alloc;
+    String* txid;
+    struct Context* ctx;
+    Identity
+};
+
+static void listDevicesCallback(Dict* responseMessage, void* context)
+{
+    struct ListDevicesCtx* ldc = Identity_check((struct ListDevicesCtx*) context);
+    Admin_sendMessage(responseMessage, ldc->txid, ldc->ctx->admin);
+    Allocator_free(ldc->alloc);
+}
+
+static void listDevices(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
+{
+    struct Context* const ctx = Identity_check((struct Context*) vcontext);
+    struct Allocator* const respAlloc = Allocator_child(ctx->alloc);
+    struct ListDevicesCtx* const ldc = Allocator_malloc(respAlloc, sizeof(struct ListDevicesCtx));
+    ldc->alloc = respAlloc;
+    ldc->txid = String_clone(txid, respAlloc);
+    ldc->ctx = ctx;
+    Identity_set(ldc);
+    Dict* const call = Dict_new(respAlloc);
+    Dict_putString(call, String_CONST("q"), String_CONST("ETHInterface_listDevices"), respAlloc);
+    struct Jmp jmp;
+    Jmp_try(jmp) {
+        Hermes_callAngel(call, listDevicesCallback, ldc, respAlloc, &jmp.handler, ctx->hermes);
+    } Jmp_catch {
+        Dict* out = Dict_new(requestAlloc);
+        Dict_putString(out, String_CONST("error"), String_CONST(jmp.message), requestAlloc);
+        Admin_sendMessage(out, txid, ctx->admin);
+        return;
+    }
+}
+
 void ETHInterface_admin_register(struct EventBase* base,
                                  struct Allocator* alloc,
                                  struct Log* logger,
                                  struct Admin* admin,
-                                 struct InterfaceController* ic)
+                                 struct InterfaceController* ic,
+                                 struct Hermes* hermes)
 {
     struct Context* ctx = Allocator_clone(alloc, (&(struct Context) {
         .eventBase = base,
         .alloc = alloc,
         .logger = logger,
         .admin = admin,
-        .ic = ic
+        .ic = ic,
+        .hermes = hermes
     }));
+    Identity_set(ctx);
 
     Admin_registerFunction("ETHInterface_new", newInterface, ctx, true,
         ((struct Admin_FunctionArg[]) {
@@ -178,4 +226,6 @@ void ETHInterface_admin_register(struct EventBase* base,
             { .name = "interfaceNumber", .required = 0, .type = "Int" },
             { .name = "state", .required = 0, .type = "Int" }
         }), admin);
+
+    Admin_registerFunction("ETHInterface_listDevices", listDevices, ctx, true, NULL, admin);
 }

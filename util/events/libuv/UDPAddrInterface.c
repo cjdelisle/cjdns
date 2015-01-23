@@ -79,6 +79,12 @@ static uint8_t sendMessage(struct Message* m, struct Interface* iface)
 {
     struct UDPAddrInterface_pvt* context = Identity_check((struct UDPAddrInterface_pvt*) iface);
 
+    Assert_true(m->length >= Sockaddr_OVERHEAD);
+    if (((struct Sockaddr*)m->bytes)->flags & Sockaddr_flags_BCAST) {
+        // bcast not supported.
+        return Error_UNDELIVERABLE;
+    }
+
     if (context->queueLen > UDPAddrInterface_MAX_QUEUE) {
         Log_warn(context->logger, "DROP Maximum queue length reached");
         return Error_UNDELIVERABLE;

@@ -21,6 +21,9 @@
 #include "util/platform/netdev/NetDev.h"
 #include "interface/Interface.h"
 #include "interface/addressable/AddrInterfaceAdapter.h"
+#ifdef HAS_ETH_INTERFACE
+#include "interface/ETHInterface.h"
+#endif
 #include "util/events/EventBase.h"
 #include "util/log/Log.h"
 #include "util/Identity.h"
@@ -93,6 +96,28 @@ static void adminAddIp(Dict* args, void* vcontext, String* txid, struct Allocato
     }
 }
 
+#ifdef HAS_ETH_INTERFACE
+static void ethListDevices(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
+{
+    struct AngelContext* ctx = Identity_check((struct AngelContext*) vcontext);
+    List* devices = NULL;
+    struct Jmp jmp;
+    Jmp_try(jmp) {
+        devices = ETHInterface_listDevices(requestAlloc, &jmp.handler);
+    } Jmp_catch {
+        Dict* out = Dict_new(requestAlloc);
+        Dict_putString(out, String_CONST("error"), String_CONST(jmp.message), requestAlloc);
+        Admin_sendMessage(out, txid, ctx->admin);
+        return;
+    }
+
+    Dict* out = Dict_new(requestAlloc);
+    Dict_putString(out, String_CONST("error"), String_CONST("none"), requestAlloc);
+    Dict_putList(out, String_CONST("devices"), devices, requestAlloc);
+    Admin_sendMessage(out, txid, ctx->admin);
+}
+#endif
+
 void Angel_start(struct Interface* coreIface,
                  struct EventBase* eventBase,
                  struct Log* logger,
@@ -112,6 +137,11 @@ void Angel_start(struct Interface* coreIface,
     ctx.admin = Admin_new(addrIf, alloc, NULL, eventBase, passwd);
 
     Admin_registerFunction("Angel_exit", adminExit, &ctx, false, NULL, ctx.admin);
+
+    #ifdef HAS_ETH_INTERFACE
+        Admin_registerFunction(
+            "ETHInterface_listDevices", ethListDevices, &ctx, false, NULL, ctx.admin);
+    #endif
 
     Admin_registerFunction("Angel_addIp", adminAddIp, &ctx, false, ((struct Admin_FunctionArg[]) {
         { .name = "interfaceName", .required = 1, .type = "String" },

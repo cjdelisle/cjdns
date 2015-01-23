@@ -155,7 +155,7 @@ void Hermes_callAngel(Dict* message,
     // Remove the txid string so there is not a dangling pointer in the message.
     Dict_remove(message, String_CONST("txid"));
 
-    Log_debug(hermes->logger, "Sending [%d] bytes to angel [%s].", m->length, m->bytes);
+    Log_debug(hermes->logger, "Sending [%d] bytes to angel", m->length);
 
     int ret = Interface_sendMessage(hermes->iface, m);
     if (ret) {

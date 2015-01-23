@@ -15,6 +15,7 @@
 #ifndef ETHInterface_H
 #define ETHInterface_H
 
+#include "benc/List.h"
 #include "util/events/EventBase.h"
 #include "interface/Interface.h"
 #include "interface/InterfaceController.h"
@@ -69,5 +70,7 @@ struct Interface* ETHInterface_new(struct EventBase* eventBase,
                                    struct Allocator* alloc,
                                    struct Except* exHandler,
                                    struct Log* logger);
+
+List* ETHInterface_listDevices(struct Allocator* alloc, struct Except* eh);
 
 #endif

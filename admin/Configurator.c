@@ -23,6 +23,7 @@
 #include "util/Bits.h"
 #include "util/log/Log.h"
 #include "util/platform/Sockaddr.h"
+#include "util/Defined.h"
 
 #include <stdlib.h>
 #include <stdbool.h>
@@ -73,6 +74,7 @@ static int rpcCall0(String* function,
                     Dict* args,
                     struct Context* ctx,
                     struct Allocator* alloc,
+                    Dict** resultP,
                     bool exitIfError)
 {
     ctx->currentReqAlloc = Allocator_child(alloc);
@@ -108,14 +110,19 @@ static int rpcCall0(String* function,
         ret = 1;
     }
 
-    Allocator_free(ctx->currentReqAlloc);
+    if (resultP) {
+        *resultP = res->responseDict;
+    } else {
+        Allocator_free(ctx->currentReqAlloc);
+    }
     ctx->currentReqAlloc = NULL;
+
     return ret;
 }
 
 static void rpcCall(String* function, Dict* args, struct Context* ctx, struct Allocator* alloc)
 {
-    rpcCall0(function, args, ctx, alloc, true);
+    rpcCall0(function, args, ctx, alloc, NULL, true);
 }
 
 static void authorizedPasswords(List* list, struct Context* ctx)
@@ -219,7 +226,9 @@ static void udpInterface(Dict* config, struct Context* ctx)
         if (bindStr) {
             Dict_putString(d, String_CONST("bindAddress"), bindStr, ctx->alloc);
         }
-        rpcCall(String_CONST("UDPInterface_new"), d, ctx, ctx->alloc);
+        Dict* resp = NULL;
+        rpcCall0(String_CONST("UDPInterface_new"), d, ctx, ctx->alloc, &resp, true);
+        int ifNum = *(Dict_getInt(resp, String_CONST("interfaceNumber")));
 
         // Make the connections.
         Dict* connectTo = Dict_getDict(udp, String_CONST("connectTo"));
@@ -258,6 +267,7 @@ static void udpInterface(Dict* config, struct Context* ctx)
                         continue;
                     }
                 }
+                Dict_putInt(value, String_CONST("interfaceNumber"), ifNum, perCallAlloc);
                 Dict_putString(value, String_CONST("address"), key, perCallAlloc);
                 rpcCall(String_CONST("UDPInterface_beginConnection"), value, ctx, perCallAlloc);
                 entry = entry->next;
@@ -281,7 +291,7 @@ static void tunInterface(Dict* ifaceConf, struct Allocator* tempAlloc, struct Co
     if (device) {
         Dict_putString(args, String_CONST("desiredTunName"), device, tempAlloc);
     }
-    rpcCall0(String_CONST("Core_initTunnel"), args, ctx, tempAlloc, false);
+    rpcCall0(String_CONST("Core_initTunnel"), args, ctx, tempAlloc, NULL, false);
 }
 
 static void ipTunnel(Dict* ifaceConf, struct Allocator* tempAlloc, struct Context* ctx)
@@ -338,7 +348,7 @@ static void ipTunnel(Dict* ifaceConf, struct Allocator* tempAlloc, struct Contex
             }
 
             Dict_putString(d, String_CONST("publicKeyOfAuthorizedNode"), key, tempAlloc);
-            rpcCall0(String_CONST("IpTunnel_allowConnection"), d, ctx, tempAlloc, true);
+            rpcCall0(String_CONST("IpTunnel_allowConnection"), d, ctx, tempAlloc, NULL, true);
         }
     }
 
@@ -349,7 +359,7 @@ static void ipTunnel(Dict* ifaceConf, struct Allocator* tempAlloc, struct Contex
             Log_debug(ctx->logger, "Initiating IpTunnel connection to [%s]", s->bytes);
             Dict requestDict =
                 Dict_CONST(String_CONST("publicKeyOfNodeToConnectTo"), String_OBJ(s), NULL);
-            rpcCall0(String_CONST("IpTunnel_connectTo"), &requestDict, ctx, tempAlloc, true);
+            rpcCall0(String_CONST("IpTunnel_connectTo"), &requestDict, ctx, tempAlloc, NULL, true);
         }
     }
 }
@@ -360,7 +370,23 @@ static void routerConfig(Dict* routerConf, struct Allocator* tempAlloc, struct C
     ipTunnel(Dict_getDict(routerConf, String_CONST("ipTunnel")), tempAlloc, ctx);
 }
 
-#ifdef HAS_ETH_INTERFACE
+static void ethInterfaceSetBeacon(int ifNum, Dict* eth, struct Context* ctx)
+{
+    int64_t* beaconP = Dict_getInt(eth, String_CONST("beacon"));
+    if (beaconP) {
+        int64_t beacon = *beaconP;
+        if (beacon > 3 || beacon < 0) {
+            Log_error(ctx->logger, "interfaces.ETHInterface.beacon may only be 0, 1,or 2");
+        } else {
+            // We can cast beacon to an int here because we know it's small enough
+            Log_info(ctx->logger, "Setting beacon mode on ETHInterface to [%d].", (int) beacon);
+            Dict d = Dict_CONST(String_CONST("interfaceNumber"), Int_OBJ(ifNum),
+                     Dict_CONST(String_CONST("state"), Int_OBJ(beacon), NULL));
+            rpcCall(String_CONST("ETHInterface_beacon"), &d, ctx, ctx->alloc);
+        }
+    }
+}
+
 static void ethInterface(Dict* config, struct Context* ctx)
 {
     List* ifaces = Dict_getList(config, String_CONST("ETHInterface"));
@@ -370,11 +396,42 @@ static void ethInterface(Dict* config, struct Context* ctx)
     }
 
     uint32_t count = List_size(ifaces);
+
     for (uint32_t i = 0; i < count; i++) {
         Dict *eth = List_getDict(ifaces, i);
-        if (!eth) {
-            continue;
+        if (!eth) { continue; }
+        String* deviceStr = Dict_getString(eth, String_CONST("bind"));
+        if (!deviceStr || !String_equals(String_CONST("all"), deviceStr)) { continue; }
+        Log_info(ctx->logger, "Setting up all ETHInterfaces...");
+        Dict* res = NULL;
+        Dict* d = Dict_new(ctx->alloc);
+        if (rpcCall0(String_CONST("ETHInterface_listDevices"), d, ctx, ctx->alloc, &res, false)) {
+            Log_info(ctx->logger, "Getting device list failed");
+            break;
         }
+        List* devs = Dict_getList(res, String_CONST("devices"));
+        uint32_t devCount = List_size(devs);
+        for (uint32_t j = 0; j < devCount; j++) {
+            Dict* d = Dict_new(ctx->alloc);
+            String* deviceName = List_getString(devs, j);
+            // skip loopback...
+            if (String_equals(String_CONST("lo"), deviceName)) { continue; }
+            Dict_putString(d, String_CONST("bindDevice"), deviceName, ctx->alloc);
+            Dict* resp;
+            Log_info(ctx->logger, "Creating new ETHInterface [%s]", deviceName->bytes);
+            if (rpcCall0(String_CONST("ETHInterface_new"), d, ctx, ctx->alloc, &resp, false)) {
+                Log_warn(ctx->logger, "Failed to create ETHInterface.");
+                continue;
+            }
+            int ifNum = *(Dict_getInt(resp, String_CONST("interfaceNumber")));
+            ethInterfaceSetBeacon(ifNum, eth, ctx);
+        }
+        return;
+    }
+
+    for (uint32_t i = 0; i < count; i++) {
+        Dict *eth = List_getDict(ifaces, i);
+        if (!eth) { continue; }
         // Setup the interface.
         String* deviceStr = Dict_getString(eth, String_CONST("bind"));
         Log_info(ctx->logger, "Setting up ETHInterface [%d].", i);
@@ -383,10 +440,13 @@ static void ethInterface(Dict* config, struct Context* ctx)
             Log_info(ctx->logger, "Binding to device [%s].", deviceStr->bytes);
             Dict_putString(d, String_CONST("bindDevice"), deviceStr, ctx->alloc);
         }
-        if (rpcCall0(String_CONST("ETHInterface_new"), d, ctx, ctx->alloc, false)) {
+        Dict* resp = NULL;
+        if (rpcCall0(String_CONST("ETHInterface_new"), d, ctx, ctx->alloc, &resp, false)) {
             Log_warn(ctx->logger, "Failed to create ETHInterface.");
             continue;
         }
+        int ifNum = *(Dict_getInt(resp, String_CONST("interfaceNumber")));
+        ethInterfaceSetBeacon(ifNum, eth, ctx);
 
         // Make the connections.
         Dict* connectTo = Dict_getDict(eth, String_CONST("connectTo"));
@@ -408,37 +468,22 @@ static void ethInterface(Dict* config, struct Context* ctx)
                 // Turn the dict from the config into our RPC args dict by filling in all
                 // the arguments,
                 Dict_putString(value, String_CONST("macAddress"), key, perCallAlloc);
-                Dict_putInt(value, String_CONST("interfaceNumber"), i, perCallAlloc);
+                Dict_putInt(value, String_CONST("interfaceNumber"), ifNum, perCallAlloc);
                 rpcCall(String_CONST("ETHInterface_beginConnection"), value, ctx, perCallAlloc);
                 Allocator_free(perCallAlloc);
 
                 entry = entry->next;
             }
         }
-
-        int64_t* beaconP = Dict_getInt(eth, String_CONST("beacon"));
-        if (beaconP) {
-            int64_t beacon = *beaconP;
-            if (beacon > 3 || beacon < 0) {
-                Log_error(ctx->logger, "interfaces.ETHInterface.beacon may only be 0, 1,or 2");
-            } else {
-                // We can cast beacon to an int here because we know it's small enough
-                Log_info(ctx->logger, "Setting beacon mode on ETHInterface to [%d].", (int) beacon);
-                Dict d = Dict_CONST(String_CONST("interfaceNumber"), Int_OBJ(i),
-                         Dict_CONST(String_CONST("state"), Int_OBJ(beacon), NULL));
-                rpcCall(String_CONST("ETHInterface_beacon"), &d, ctx, ctx->alloc);
-            }
-        }
     }
 }
-#endif
 
 static void security(struct Allocator* tempAlloc, struct Context* ctx)
 {
     Dict* d = Dict_new(tempAlloc);
     Dict_putString(d, String_CONST("user"), String_CONST("nobody"), tempAlloc);
     // it's ok if this fails
-    rpcCall0(String_CONST("Security_setUser"), d, ctx, tempAlloc, false);
+    rpcCall0(String_CONST("Security_setUser"), d, ctx, tempAlloc, NULL, false);
     d = Dict_new(tempAlloc);
     rpcCall(String_CONST("Security_dropPermissions"), d, ctx, tempAlloc);
 }
@@ -470,9 +515,9 @@ void Configurator_config(Dict* config,
     Dict* ifaces = Dict_getDict(config, String_CONST("interfaces"));
     udpInterface(ifaces, &ctx);
 
-    #ifdef HAS_ETH_INTERFACE
+    if (Defined(HAS_ETH_INTERFACE)) {
         ethInterface(ifaces, &ctx);
-    #endif
+    }
 
     Dict* routerConf = Dict_getDict(config, String_CONST("router"));
     routerConfig(routerConf, tempAlloc, &ctx);

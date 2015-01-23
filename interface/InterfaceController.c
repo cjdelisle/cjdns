@@ -55,6 +55,9 @@
  */
 #define FORGET_AFTER_MILLISECONDS (256*1024)
 
+/** Wait 32 seconds between sending beacon messages. */
+#define BEACON_INTERVAL 32768
+
 
 // ---------------- Map ----------------
 #define Map_NAME EndpointsBySockaddr
@@ -175,6 +178,9 @@ struct InterfaceController_pvt
     /** After this number of milliseconds, an incoming connection is forgotten entirely. */
     uint32_t forgetAfterMilliseconds;
 
+    /** How often to send beacon messages (milliseconds). */
+    uint32_t beaconInterval;
+
     /** The timeout event to use for pinging potentially unresponsive neighbors. */
     struct Timeout* const pingInterval;
 
@@ -185,6 +191,8 @@ struct InterfaceController_pvt
 
     /** A password which is generated per-startup and sent out in beacon messages. */
     uint8_t beaconPassword[Headers_Beacon_PASSWORD_LEN];
+
+    struct Headers_Beacon beacon;
 
     Identity
 };
@@ -325,9 +333,7 @@ static void iciPing(struct Iface* ici, struct InterfaceController_pvt* ic)
               Base32_encode(key, 56, CryptoAuth_getHerPublicKey(ep->cryptoAuthIf), 32);
         #endif
 
-        if (ep->isIncomingConnection
-            && now > ep->timeOfLastMessage + ic->forgetAfterMilliseconds)
-        {
+        if (ep->isIncomingConnection && now > ep->timeOfLastMessage + ic->forgetAfterMilliseconds) {
             Log_debug(ic->logger, "Unresponsive peer [%s.k] has not responded in [%u] "
                                   "seconds, dropping connection",
                                   key, ic->forgetAfterMilliseconds / 1024);
@@ -403,8 +409,7 @@ static void moveEndpointIfNeeded(struct Peer* ep)
 // Incoming message which has passed through the cryptoauth and needs to be forwarded to the switch.
 static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cryptoAuthIf)
 {
-    struct Peer* ep =
-        Identity_check((struct Peer*) cryptoAuthIf->receiverContext);
+    struct Peer* ep = Identity_check((struct Peer*) cryptoAuthIf->receiverContext);
     struct InterfaceController_pvt* ic = ifcontrollerForPeer(ep);
 
     // nonce added by the CryptoAuth session.
@@ -512,20 +517,6 @@ static int closeInterface(struct Allocator_OnFreeJob* job)
     return 0;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 static uint8_t sendAfterCryptoAuth(struct Message* msg, struct Interface* externalIf)
 {
     struct Peer* ep =
@@ -537,11 +528,13 @@ static uint8_t sendAfterCryptoAuth(struct Message* msg, struct Interface* extern
     // push the lladdr...
     Message_push(msg, ep->lladdr, ep->lladdr->addrLen, NULL);
 
+    #if 0
     if (Defined(Log_DEBUG)) {
         char* printedAddr =
             Hex_print(&ep->lladdr[1], ep->lladdr->addrLen - Sockaddr_OVERHEAD, msg->alloc);
         Log_debug(ep->ici->ic->logger, "Outgoing message to [%s]", printedAddr);
     }
+    #endif
 
     return Interface_sendMessage(ep->ici->addrIface, msg);
 }
@@ -721,10 +714,12 @@ static uint8_t handleIncomingFromWire(struct Message* msg, struct Interface* ifa
 
     Assert_true(!(((uintptr_t)msg->bytes + lladdr->addrLen) % 4) && "alignment fault");
 
+    #if 0
     if (Defined(Log_DEBUG)) {
         char* printedAddr = Hex_print(&lladdr[1], lladdr->addrLen - Sockaddr_OVERHEAD, msg->alloc);
         Log_debug(ici->ic->logger, "Incoming message from [%s]", printedAddr);
     }
+    #endif
 
     if (lladdr->flags & Sockaddr_flags_BCAST) {
         return handleBeacon(msg, ici);
@@ -735,11 +730,8 @@ static uint8_t handleIncomingFromWire(struct Message* msg, struct Interface* ifa
         return handleUnexpectedIncoming(msg, ici);
     }
 
-    struct Peer* ep =
-        Identity_check((struct Peer*) ici->peerMap.values[epIndex]);
-
+    struct Peer* ep = Identity_check((struct Peer*) ici->peerMap.values[epIndex]);
     Message_shift(msg, -lladdr->addrLen, NULL);
-
     return Interface_receiveMessage(&ep->externalIf, msg);
 }
 
@@ -784,6 +776,45 @@ static int freeAlloc(struct Allocator_OnFreeJob* job)
     return 0;
 }
 
+static void sendBeacon(struct Iface* ici, struct Allocator* tempAlloc)
+{
+    if (ici->beaconState < InterfaceController_beaconState_newState_SEND) {
+        Log_debug(ici->ic->logger, "sendBeacon(%s) -> beaconing disabled", ici->name->bytes);
+        return;
+    }
+
+    Log_debug(ici->ic->logger, "sendBeacon(%s)", ici->name->bytes);
+
+    struct Message* msg = Message_new(0, 128, tempAlloc);
+    Message_push(msg, &ici->ic->beacon, Headers_Beacon_SIZE, NULL);
+
+    struct Sockaddr sa = {
+        .addrLen = Sockaddr_OVERHEAD,
+        .flags = Sockaddr_flags_BCAST
+    };
+    Message_push(msg, &sa, Sockaddr_OVERHEAD, NULL);
+
+    int ret;
+    if ((ret = Interface_sendMessage(ici->addrIface, msg)) != 0) {
+        Log_info(ici->ic->logger, "Got error [%d] sending beacon to [%s]", ret, ici->name->bytes);
+    }
+}
+
+static void beaconInterval(void* vIfController)
+{
+    struct InterfaceController_pvt* ic =
+        Identity_check((struct InterfaceController_pvt*) vIfController);
+
+    struct Allocator* alloc = Allocator_child(ic->allocator);
+    for (int i = 0; i < ic->icis->length; i++) {
+        struct Iface* ici = ArrayList_OfIfaces_get(ic->icis, i);
+        sendBeacon(ici, alloc);
+    }
+    Allocator_free(alloc);
+
+    Timeout_setTimeout(beaconInterval, ic, ic->beaconInterval, ic->eventBase, ic->allocator);
+}
+
 int InterfaceController_beaconState(struct InterfaceController* ifc,
                                     int interfaceNumber,
                                     int newState)
@@ -799,6 +830,14 @@ int InterfaceController_beaconState(struct InterfaceController* ifc,
         case InterfaceController_beaconState_newState_ACCEPT:
         case InterfaceController_beaconState_newState_SEND:
             ici->beaconState = newState;
+    }
+    if (ici->beaconState == newState) { return 0; }
+    ici->beaconState = newState;
+    if (newState == InterfaceController_beaconState_newState_SEND) {
+        // Send out a beacon right away so we don't have to wait.
+        struct Allocator* alloc = Allocator_child(ici->alloc);
+        sendBeacon(ici, alloc);
+        Allocator_free(alloc);
     }
     return 0;
 }
@@ -946,8 +985,8 @@ int InterfaceController_disconnectPeer(struct InterfaceController* ifController,
         for (int i = 0; i < (int)ici->peerMap.count; i++) {
             struct Peer* peer = ici->peerMap.values[i];
             if (!Bits_memcmp(herPublicKey, CryptoAuth_getHerPublicKey(peer->cryptoAuthIf), 32)) {
-              Allocator_free(peer->externalIf.allocator);
-              return 0;
+                Allocator_free(peer->externalIf.allocator);
+                return 0;
             }
         }
     }
@@ -980,6 +1019,7 @@ struct InterfaceController* InterfaceController_new(struct CryptoAuth* ca,
         .pingAfterMilliseconds = PING_AFTER_MILLISECONDS,
         .timeoutMilliseconds = TIMEOUT_MILLISECONDS,
         .forgetAfterMilliseconds = FORGET_AFTER_MILLISECONDS,
+        .beaconInterval = BEACON_INTERVAL,
 
         .pingInterval = (switchPinger)
             ? Timeout_setInterval(pingCallback,
@@ -995,12 +1035,16 @@ struct InterfaceController* InterfaceController_new(struct CryptoAuth* ca,
     out->icis = ArrayList_OfIfaces_new(allocator);
 
     // Add the beaconing password.
-    Random_bytes(rand, out->beaconPassword, Headers_Beacon_PASSWORD_LEN);
-    String strPass = { .bytes=(char*)out->beaconPassword, .len=Headers_Beacon_PASSWORD_LEN };
+    Random_bytes(rand, out->beacon.password, Headers_Beacon_PASSWORD_LEN);
+    String strPass = { .bytes=(char*)out->beacon.password, .len=Headers_Beacon_PASSWORD_LEN };
     int ret = CryptoAuth_addUser(&strPass, 1, String_CONST("Local Peers"), ca);
     if (ret) {
         Log_warn(logger, "CryptoAuth_addUser() returned [%d]", ret);
     }
+    Bits_memcpyConst(out->beacon.publicKey, ca->publicKey, 32);
+    out->beacon.version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL);
+
+    Timeout_setTimeout(beaconInterval, out, BEACON_INTERVAL, eventBase, allocator);
 
     return &out->pub;
 }

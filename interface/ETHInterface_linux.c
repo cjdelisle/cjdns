@@ -38,6 +38,7 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 #include <errno.h>
+#include <ifaddrs.h>
 
 #define MAX_PACKET_SIZE 1496
 #define MIN_PACKET_SIZE 46
@@ -293,6 +294,29 @@ static void handleEvent(void* vcontext)
     Allocator_free(messageAlloc);
 }
 
+List* ETHInterface_listDevices(struct Allocator* alloc, struct Except* eh)
+{
+    struct ifaddrs* ifaddr = NULL;
+    if (getifaddrs(&ifaddr) || ifaddr == NULL) {
+        Except_throw(eh, "getifaddrs() -> errno:%d [%s]", errno, strerror(errno));
+    }
+    List* out = List_new(alloc);
+    for (struct ifaddrs* ifa = ifaddr; ifa; ifa = ifa->ifa_next) {
+        if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_PACKET) {
+            List_addString(out, String_new(ifa->ifa_name, alloc), alloc);
+        }
+    }
+    freeifaddrs(ifaddr);
+    return out;
+}
+
+static int closeSocket(struct Allocator_OnFreeJob* j)
+{
+    struct ETHInterface* ctx = Identity_check((struct ETHInterface*) j->userData);
+    close(ctx->socket);
+    return 0;
+}
+
 struct Interface* ETHInterface_new(struct EventBase* eventBase,
                                    const char* bindDevice,
                                    struct Allocator* alloc,
@@ -320,6 +344,8 @@ struct Interface* ETHInterface_new(struct EventBase* eventBase,
     if (ctx->socket == -1) {
         Except_throw(exHandler, "call to socket() failed. [%s]", strerror(errno));
     }
+    Allocator_onFree(alloc, closeSocket, ctx);
+
     CString_strncpy(ifr.ifr_name, bindDevice, IFNAMSIZ - 1);
     ctx->ifName = String_new(bindDevice, alloc);
 
@@ -328,18 +354,16 @@ struct Interface* ETHInterface_new(struct EventBase* eventBase,
     }
     ctx->ifindex = ifr.ifr_ifindex;
 
-    if (ioctl(ctx->socket, SIOCGIFHWADDR, &ifr) == -1) {
-       Except_throw(exHandler, "failed to find mac address of interface [%s]",
-                    strerror(errno));
+    if (ioctl(ctx->socket, SIOCGIFFLAGS, &ifr) < 0) {
+        Except_throw(exHandler, "ioctl(SIOCGIFFLAGS) [%s]", strerror(errno));
     }
-
-    uint8_t srcMac[6];
-    Bits_memcpyConst(srcMac, ifr.ifr_hwaddr.sa_data, 6);
-
-    // TODO(cjd): is the node's mac addr private information?
-    Log_info(ctx->logger, "found MAC for device %s [%i]: %02x:%02x:%02x:%02x:%02x:%02x\n",
-            bindDevice, ctx->ifindex,
-            srcMac[0], srcMac[1], srcMac[2], srcMac[3], srcMac[4], srcMac[5]);
+    if (!((ifr.ifr_flags & IFF_UP) && (ifr.ifr_flags & IFF_RUNNING))) {
+        Log_info(logger, "Bringing up interface [%s]", ifr.ifr_name);
+        ifr.ifr_flags |= IFF_UP | IFF_RUNNING;
+        if (ioctl(ctx->socket, SIOCSIFFLAGS, &ifr) < 0) {
+            Except_throw(exHandler, "ioctl(SIOCSIFFLAGS) [%s]", strerror(errno));
+        }
+    }
 
     ctx->addrBase = (struct sockaddr_ll) {
         .sll_family = AF_PACKET,
