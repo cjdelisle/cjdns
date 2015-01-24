@@ -63,6 +63,10 @@ static void callback(String* data, struct Ping* ping)
 static void timeoutCallback(void* vping)
 {
     struct Ping* p = Identity_check((struct Ping*) vping);
+    if (!p->timeSent) {
+        // The ping came in at the same time that the timeout was scheduled to happen.
+        return;
+    }
     int64_t now = Time_currentTimeMilliseconds(p->pinger->eventBase);
     long long diff = ((long long) now) - ((long long)p->timeSent);
     Assert_true(diff < 1000000000);
