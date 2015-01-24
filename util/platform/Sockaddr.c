@@ -69,7 +69,7 @@ const struct Sockaddr* const Sockaddr_LOOPBACK6 =
 
 struct Sockaddr* Sockaddr_fromNative(const void* ss, int addrLen, struct Allocator* alloc)
 {
-    struct Sockaddr_pvt* out = Allocator_malloc(alloc, addrLen + Sockaddr_OVERHEAD);
+    struct Sockaddr_pvt* out = Allocator_calloc(alloc, addrLen + Sockaddr_OVERHEAD, 1);
     Bits_memcpy(&out->ss, ss, addrLen);
     out->pub.addrLen = addrLen + Sockaddr_OVERHEAD;
     Sockaddr_normalizeNative(&out->ss);
