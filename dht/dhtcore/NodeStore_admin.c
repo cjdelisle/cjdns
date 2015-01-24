@@ -274,7 +274,7 @@ void NodeStore_admin_register(struct NodeStore* nodeStore,
             { .name = "page", .required = 1, .type = "Int" },
         }), admin);
 
-    Admin_registerFunction("NodeStore_getLink", getLink, ctx, true,
+    Admin_registerFunction("NodeStore_getLink", getLink, ctx, false,
         ((struct Admin_FunctionArg[]) {
             { .name = "parent", .required = 1, .type = "String" },
             { .name = "linkNum", .required = 1, .type = "Int" },
