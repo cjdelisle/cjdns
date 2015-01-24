@@ -161,13 +161,13 @@ static void incoming(uv_udp_t* handle,
         m->capacity = buf->len;
         m->bytes = (uint8_t*)buf->base;
         m->alloc = alloc;
-        Message_push(m, addr, context->pub.addr->addrLen - 8, NULL);
+        Message_push(m, addr, context->pub.addr->addrLen - Sockaddr_OVERHEAD, NULL);
 
         // make sure the sockaddr doesn't have crap in it which will
         // prevent it from being used as a lookup key
         Sockaddr_normalizeNative((struct sockaddr*) m->bytes);
 
-        Message_push(m, &context->pub.addr->addrLen, 8, NULL);
+        Message_push(m, context->pub.addr, Sockaddr_OVERHEAD, NULL);
 
         /*uint8_t buff[256] = {0};
         Assert_true(Hex_encode(buff, 255, m->bytes, context->pub.addr->addrLen));
