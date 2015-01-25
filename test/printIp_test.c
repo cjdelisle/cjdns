@@ -17,6 +17,7 @@
 #include "memory/MallocAllocator.h"
 #include "util/AddrTools.h"
 #include "util/Assert.h"
+#include "util/Bits.h"
 
 #include <stdio.h>
 

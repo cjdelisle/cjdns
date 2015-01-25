@@ -25,6 +25,7 @@
 #include "dht/CJDHTConstants.h"
 #include "memory/Allocator.h"
 #include "util/AddrTools.h"
+#include "util/Hex.h"
 
 struct Context {
     struct Admin* admin;
