@@ -1,0 +1,63 @@
+#!/usr/bin/env node
+/* -*- Mode:Js */
+/* vim: set expandtab ts=4 sw=4: */
+/*
+ * You may redistribute this program and/or modify it under the terms of
+ * the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+var Cjdns = require('../contrib/nodejs/cjdnsadmin/cjdnsadmin');
+var nThen = require('../contrib/nodejs/cjdnsadmin/nthen');
+
+var printSession = function (session) {
+    var state = session.state.replace(/CryptoAuth_/,'');
+    while (state.length < ('ESTABLISHED').length) { state = state + ' ' }
+    var out = [ 'v', session.version, '.', session.publicKey, ' ', state, ' ', session.handle ];
+    if (Number(session.duplicates) !== 0) { out.push(' DUP ', session.duplicates); }
+    if (Number(session.lostPackets) !== 0) { out.push(' LOS ', session.lostPackets); }
+    if (Number(session.receivedOutOfRange) !== 0) { out.push(' OOR ', session.receivedOutOfRange); }
+    console.log(out.join(''));
+};
+
+var cjdns;
+var handles = [];
+
+nThen(function (waitFor) {
+
+    Cjdns.connectWithAdminInfo(waitFor(function (c) { cjdns = c; }));
+
+}).nThen(function (waitFor) {
+
+    var more = function (i) {
+        cjdns.SessionManager_getHandles(i, waitFor(function (err, ret) {
+            if (err) { throw err; }
+            handles.push.apply(handles, ret.handles);
+            if (handles.more) { more(i+1); }
+        }));
+    };
+    more(0);
+
+}).nThen(function (waitFor) {
+
+    var next = function (i) {
+        cjdns.SessionManager_sessionStats(Number(handles[i]), waitFor(function (err, ret) {
+            if (err) { throw err; }
+            printSession(ret);
+            i++
+            if (i < handles.length) { next(i); }
+        }));
+    };
+    next(0);
+
+}).nThen(function (waitFor) {
+    cjdns.disconnect();
+});
