@@ -209,8 +209,7 @@ static void onPingResponse(struct SwitchPinger_Response* resp, void* onResponseC
     if (SwitchPinger_Result_OK != resp->res) {
         return;
     }
-    struct Peer* ep =
-        Identity_check((struct Peer*) onResponseContext);
+    struct Peer* ep = Identity_check((struct Peer*) onResponseContext);
     struct InterfaceController_pvt* ic = ifcontrollerForPeer(ep);
 
     struct Address addr;
@@ -279,7 +278,7 @@ static void sendPing(struct Peer* ep)
                              String_CONST(""),
                              ic->timeoutMilliseconds,
                              onPingResponse,
-                             ic->allocator,
+                             ep->externalIf.allocator,
                              ic->switchPinger);
 
     if (Defined(Log_DEBUG)) {
