@@ -19,8 +19,8 @@
 #include "memory/Allocator.h"
 
 static void InterfaceWrapper_wrap(struct Interface* toWrap,
-                                  Interface_CALLBACK(sendMessage),
-                                  Interface_CALLBACK(receiveMessage),
+                                  Interface_Callback sendMessage,
+                                  Interface_Callback receiveMessage,
                                   struct Interface* output)
 {
     toWrap->receiveMessage = receiveMessage;
