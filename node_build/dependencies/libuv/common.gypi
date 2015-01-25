@@ -47,7 +47,7 @@
       'Release': {
         'defines': [ 'NDEBUG' ],
         'cflags': [
-          '-O3',
+## This will be passed from make.js          '-O3',
           '-fstrict-aliasing',
           '-fomit-frame-pointer',
           '-fdata-sections',

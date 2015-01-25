@@ -142,13 +142,10 @@ Builder.configure({
                 '-flto',
                 builder.config.optimizeLevel
             );
-
-            // No optimization while building since actual compile happens during linking.
-            builder.config.cflags.push('-O0');
         } else {
             console.log("Link time optimization not supported [" + err + "]");
-            builder.config.cflags.push(builder.config.optimizeLevel);
         }
+        builder.config.cflags.push(builder.config.optimizeLevel);
     });
 
     var uclibc = process.env['UCLIBC'] == '1';
@@ -213,7 +210,7 @@ Builder.configure({
                     args.unshift('-fPIC');
                 }
 
-                args.unshift('-O2', '-fomit-frame-pointer');
+                args.unshift(builder.config.optimizeLevel, '-fomit-frame-pointer');
 
                 if (CFLAGS) {
                     [].push.apply(args, CFLAGS.split(' '));
@@ -311,10 +308,12 @@ Builder.configure({
                     'CXX=' + builder.config.gcc,
                     'V=1'
                 ];
+                var cflags = [builder.config.optimizeLevel];
 
                 if (!(/darwin|win32/i.test(builder.config.systemName))) {
-                    args.push('CFLAGS=-fPIC');
+                    cflags.push('-fPIC');
                 }
+                args.push('CFLAGS=' + cflags.join(' '));
 
                 var makeCommand = ['freebsd', 'openbsd'].indexOf(builder.config.systemName) >= 0 ? 'gmake' : 'make';
                 var make = Spawn(makeCommand, args, {stdio: 'inherit'});
