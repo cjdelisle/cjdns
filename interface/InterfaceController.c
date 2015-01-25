@@ -502,8 +502,7 @@ static uint8_t sendFromSwitch(struct Message* msg, struct Interface* switchIf)
 
 static int closeInterface(struct Allocator_OnFreeJob* job)
 {
-    struct Peer* toClose =
-        Identity_check((struct Peer*) job->userData);
+    struct Peer* toClose = Identity_check((struct Peer*) job->userData);
 
     struct InterfaceController_pvt* ic = ifcontrollerForPeer(toClose);
 
@@ -960,7 +959,7 @@ int InterfaceController_getPeerStats(struct InterfaceController* ifController,
     for (int j = 0; j < ic->icis->length; j++) {
         struct Iface* ici = ArrayList_OfIfaces_get(ic->icis, j);
         for (int i = 0; i < (int)ici->peerMap.count; i++) {
-            struct Peer* peer = ici->peerMap.values[i];
+            struct Peer* peer = Identity_check((struct Peer*) ici->peerMap.values[i]);
             struct InterfaceController_PeerStats* s = &stats[i];
             s->pubKey = CryptoAuth_getHerPublicKey(peer->cryptoAuthIf);
             s->bytesOut = peer->bytesOut;

@@ -1255,7 +1255,9 @@ void CryptoAuth_setAuth(const String* password,
 
 uint8_t* CryptoAuth_getHerPublicKey(struct Interface* interface)
 {
-    return ((struct CryptoAuth_Wrapper*) interface->senderContext)->herPerminentPubKey;
+    struct CryptoAuth_Wrapper* wrapper =
+        Identity_check((struct CryptoAuth_Wrapper*)interface->senderContext);
+    return wrapper->herPerminentPubKey;
 }
 
 void CryptoAuth_reset(struct Interface* interface)
