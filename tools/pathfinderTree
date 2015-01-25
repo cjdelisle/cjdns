@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* -*- Mode:Js */
 /* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
@@ -13,9 +14,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-var Cjdns = require('../cjdnsadmin/cjdnsadmin');
-var nThen = require('../cjdnsadmin/nthen');
+var Cjdns = require('../contrib/nodejs/cjdnsadmin/cjdnsadmin');
+var nThen = require('../contrib/nodejs/cjdnsadmin/nthen');
 
 var getAddresses = function (cjdns, callback) {
     var addresses = [];
