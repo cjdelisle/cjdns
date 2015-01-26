@@ -48,14 +48,6 @@
 // 2 last 0x00 of .sll_addr are removed from original size (20)
 #define SOCKADDR_LL_LEN 18
 
-#ifdef Version_12_COMPAT
-    struct EightBytes { uint8_t bytes[8]; };
-    #define Map_NAME versionByMac
-    #define Map_KEY_TYPE struct EightBytes
-    #define Map_VALUE_TYPE int32_t
-    #include "util/Map.h"
-#endif
-
 struct ETHInterface
 {
     struct Interface generic;
@@ -71,36 +63,8 @@ struct ETHInterface
 
     String* ifName;
 
-    #ifdef Version_12_COMPAT
-        /**
-         * A unique(ish) id which will be different every time the router starts.
-         * This will prevent new eth frames from being confused with old frames from an expired
-         * session.
-         */
-        uint16_t id;
-
-        struct Map_versionByMac versionMap;
-    #endif
-
-    #ifdef Version_14_COMPAT
-        /** hack: when odd, the beacon will use the old version. */
-        uint32_t counter;
-    #endif
-
     Identity
 };
-
-#ifdef Version_14_COMPAT
-static uint16_t getIdAndPadding(int msgLength, struct ETHInterface* context)
-{
-    int pad = 0;
-    for (int length = msgLength; length+2 < MIN_PACKET_SIZE; length += 8) {
-        pad++;
-    }
-    Assert_true(pad < 8);
-    return (context->id << 3) | pad;
-}
-#endif
 
 static uint8_t sendMessageInternal(struct Message* message,
                                    struct sockaddr_ll* addr,
@@ -151,26 +115,9 @@ static uint8_t sendMessage(struct Message* msg, struct Interface* ethIf)
 
     if (sockaddr.generic.flags & Sockaddr_flags_BCAST) {
         Bits_memset(addr.sll_addr, 0xff, 6);
-        #ifdef Version_14_COMPAT
-            if (ctx->counter++ % 2) {
-                Message_push16(msg, getIdAndPadding(msg->length, ctx), NULL);
-                return sendMessageInternal(msg, &addr, ctx);
-            }
-        #endif
     } else {
         Bits_memcpyConst(addr.sll_addr, sockaddr.mac, 6);
     }
-
-    #ifdef Version_12_COMPAT
-    struct EightBytes key = { .bytes = { 0 } };
-    Bits_memcpyConst(&key, addr.sll_addr, 6);
-    int idx = Map_versionByMac_indexForKey(&key, &ctx->versionMap);
-    if (idx > -1 && ctx->versionMap.values[idx] == 12) {
-        Message_push16(msg, getIdAndPadding(msg->length, ctx), NULL);
-        Message_push(msg, &addr, 6, NULL);
-        return sendMessageInternal(msg, &addr, ctx);
-    }
-    #endif
 
     struct ETHInterface_Header hdr = {
         .version = Version_CURRENT_PROTOCOL & 0xff,
@@ -181,48 +128,6 @@ static uint8_t sendMessage(struct Message* msg, struct Interface* ethIf)
     Message_push(msg, &hdr, ETHInterface_Header_SIZE, NULL);
     return sendMessageInternal(msg, &addr, ctx);
 }
-
-#ifdef Version_12_COMPAT
-static int detectLegacyVersion(struct ETHInterface* ctx,
-                               struct sockaddr_ll* srcAddr,
-                               struct Message* msg)
-{
-    struct EightBytes addr = { .bytes = { 0 } };
-    Bits_memcpyConst(addr.bytes, srcAddr->sll_addr, 6);
-    int idx = Map_versionByMac_indexForKey(&addr, &ctx->versionMap);
-    if (idx < 0) {
-        int32_t ver = -1;
-        idx = Map_versionByMac_put(&addr, &ver, &ctx->versionMap);
-    }
-    if (srcAddr->sll_pkttype == PACKET_BROADCAST) {
-        // unused 2 bytes for alignment
-        uint16_t verAndId = Message_pop16(msg, NULL);
-        uint32_t version = Message_pop32(msg, NULL);
-        ctx->versionMap.values[idx] = version;
-        Message_push32(msg, version, NULL);
-        Message_push16(msg, verAndId, NULL);
-    } else if (-1 == ctx->versionMap.values[idx]) {
-        struct ETHInterface_Header* hdr = (struct ETHInterface_Header*) msg->bytes;
-        if (hdr->fc00_be != Endian_hostToBigEndian16(0xfc00)) {
-            ctx->versionMap.values[idx] = 12;
-        } else if (msg->length - Endian_bigEndianToHost16(hdr->length_be) < 24) {
-            ctx->versionMap.values[idx] = hdr->version;
-        }
-        return 12;
-    }
-    return ctx->versionMap.values[idx];
-}
-static void convertLegacy(struct ETHInterface* ctx, struct Message* msg, struct sockaddr_ll* addr)
-{
-    Message_pop16(msg, NULL);
-    struct ETHInterface_Header hdr = { .zero = 0 };
-    hdr.fc00_be = Endian_hostToBigEndian16(0xfc00);
-    hdr.version = 12;
-    hdr.length_be = Endian_hostToBigEndian16(msg->length + ETHInterface_Header_SIZE);
-    Assert_true(!((uintptr_t)msg->bytes % 4) && "alignment fault");
-    Message_push(msg, &hdr, ETHInterface_Header_SIZE, NULL);
-}
-#endif
 
 static void handleEvent2(struct ETHInterface* context, struct Allocator* messageAlloc)
 {
@@ -251,13 +156,6 @@ static void handleEvent2(struct ETHInterface* context, struct Allocator* message
     msg->length = rc;
 
     //Assert_true(addrLen == SOCKADDR_LL_LEN);
-
-    #ifdef Version_12_COMPAT
-    int assumedVersion = detectLegacyVersion(context, &addr, msg);
-    if (assumedVersion == 12 || (assumedVersion == 13 && addr.sll_pkttype == PACKET_BROADCAST)) {
-        convertLegacy(context, msg, &addr);
-    }
-    #endif
 
     struct ETHInterface_Header hdr;
     Message_pop(msg, &hdr, ETHInterface_Header_SIZE, NULL);
@@ -336,11 +234,6 @@ struct Interface* ETHInterface_new(struct EventBase* eventBase,
             .logger = logger
         }));
     Identity_set(ctx);
-
-    #ifdef Version_12_COMPAT
-        ctx->id = getpid();
-        ctx->versionMap.allocator = alloc;
-    #endif
 
     struct ifreq ifr = { .ifr_ifindex = 0 };
 
