@@ -82,7 +82,7 @@ static void adminPeerStats(Dict* args, void* vcontext, String* txid, struct Allo
         Dict_putInt(d, lostPackets, stats[i].lostPackets, alloc);
         Dict_putInt(d, receivedOutOfRange, stats[i].receivedOutOfRange, alloc);
 
-        if (stats[i].isIncomingConnection) {
+        if (stats[i].user) {
             Dict_putString(d, user, stats[i].user, alloc);
         }
 

@@ -951,13 +951,15 @@ int InterfaceController_getPeerStats(struct InterfaceController* ifController,
     }
 
     struct InterfaceController_PeerStats* stats =
-        Allocator_malloc(alloc, sizeof(struct InterfaceController_PeerStats)*count);
+        Allocator_calloc(alloc, sizeof(struct InterfaceController_PeerStats), count);
 
+    int xcount = 0;
     for (int j = 0; j < ic->icis->length; j++) {
         struct Iface* ici = ArrayList_OfIfaces_get(ic->icis, j);
         for (int i = 0; i < (int)ici->peerMap.count; i++) {
             struct Peer* peer = Identity_check((struct Peer*) ici->peerMap.values[i]);
-            struct InterfaceController_PeerStats* s = &stats[i];
+            struct InterfaceController_PeerStats* s = &stats[xcount];
+            xcount++;
             Bits_memcpyConst(&s->addr, &peer->addr, sizeof(struct Address));
             s->bytesOut = peer->bytesOut;
             s->bytesIn = peer->bytesIn;
@@ -965,8 +967,9 @@ int InterfaceController_getPeerStats(struct InterfaceController* ifController,
             s->state = peer->state;
             s->isIncomingConnection = peer->isIncomingConnection;
             s->user = NULL;
-            if (s->isIncomingConnection) {
-                s->user = CryptoAuth_getUser(peer->cryptoAuthIf);
+            String* user = CryptoAuth_getUser(peer->cryptoAuthIf);
+            if (user) {
+                s->user = String_clone(user, alloc);
             }
             struct ReplayProtector* rp = CryptoAuth_getReplayProtector(peer->cryptoAuthIf);
             s->duplicates = rp->duplicates;
@@ -974,6 +977,8 @@ int InterfaceController_getPeerStats(struct InterfaceController* ifController,
             s->receivedOutOfRange = rp->receivedOutOfRange;
         }
     }
+
+    Assert_true(xcount == count);
 
     *statsOut = stats;
     return count;
