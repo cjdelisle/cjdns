@@ -182,7 +182,6 @@ static void handleEvent2(struct ETHInterface* context, struct Allocator* message
 
     struct ETHInterface_Sockaddr sockaddr = { .zero = 0 };
     Bits_memcpyConst(sockaddr.mac, addr.sll_addr, 6);
-    sockaddr.version = hdr.version;
     sockaddr.generic.addrLen = ETHInterface_Sockaddr_SIZE;
     if (addr.sll_pkttype == PACKET_BROADCAST) {
         sockaddr.generic.flags |= Sockaddr_flags_BCAST;
