@@ -298,17 +298,15 @@ int main()
         Allocator_free(tempAlloc);
     }
 
-    for (int i = 0; i <= 256; i++) {
-        struct Allocator* tempAlloc = Allocator_child(alloc);
-        struct EncodingScheme* scheme = NumberCompress_v3x5x8_defineScheme(alloc);
-
+    struct Allocator* tempAlloc = Allocator_child(alloc);
+    struct EncodingScheme* scheme = NumberCompress_v3x5x8_defineScheme(alloc);
+    for (int i = 0; i < NumberCompress_v3x5x8_INTERFACES; i++) {
         int bits = NumberCompress_bitsUsedForNumber(i);
         uint64_t expected = NumberCompress_getCompressed(i, bits);
-        Assert_true(expected = EncodingScheme_convertLabel(scheme, expected,
+        Assert_true(expected == EncodingScheme_convertLabel(scheme, expected,
                     EncodingScheme_convertLabel_convertTo_CANNONICAL));
-
-        Allocator_free(tempAlloc);
     }
+    Allocator_free(tempAlloc);
 
     return 0;
 }
