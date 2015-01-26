@@ -474,6 +474,9 @@ static inline uint8_t incomingFromTun(struct Message* message,
         return Interface_receiveMessage(&context->pub.magicInterface, message);
     }
 
+    struct SessionManager_Session* session =
+        SessionManager_getSession(header->destinationAddr, NULL, context->sm);
+
     struct Ducttape_MessageHeader* dtHeader = getDtHeader(message, true);
     struct Node_Two* bestNext = Router_lookup(context->router, header->destinationAddr);
     struct SessionManager_Session* nextHopSession;
@@ -497,6 +500,11 @@ static inline uint8_t incomingFromTun(struct Message* message,
                 Log_debug(context->logger, "Forwarding data to %s (last hop)\n", nhAddr);
             #endif*/
             return sendToRouter(message, dtHeader, nextHopSession, context);
+        } else if (session->knownSwitchLabel) {
+            // Do a direct send using a discovered label...
+            dtHeader->switchLabel = bestNext->address.path;
+            dtHeader->nextHopReceiveHandle = Endian_bigEndianToHost32(session->receiveHandle_be);
+            return sendToRouter(message, dtHeader, session, context);
         }
         // else { the message will need to be 3 layer encrypted but since we already did a lookup
         // of the best node to forward to, we can skip doing another lookup by storing a pointer
@@ -522,8 +530,6 @@ static inline uint8_t incomingFromTun(struct Message* message,
         Log_debug(context->logger, "Sending to [%s] via [%s]", destAddr, nhAddr);
     #endif
 */
-    struct SessionManager_Session* session =
-        SessionManager_getSession(header->destinationAddr, NULL, context->sm);
 
     // Copy the IP6 header back from where the CA header will be placed.
     // this is a mess.
@@ -1196,6 +1202,9 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     // This is needed so that the priority and other information
     // from the switch header can be passed on properly.
     dtHeader->switchHeader = switchHeader;
+
+    // Keep track of a known path to the node so we can always answer them.
+    session->knownSwitchLabel = Endian_bigEndianToHost64(switchHeader->label_be);
 
     // This goes to incomingFromCryptoAuth()
     // then incomingFromRouter() then core()

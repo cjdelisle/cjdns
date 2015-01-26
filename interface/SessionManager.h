@@ -53,6 +53,9 @@ struct SessionManager_Session
 
     /** The IPv6 address of the other node. */
     uint8_t ip6[16];
+
+    /** Some label which is known to go to this node... */
+    uint64_t knownSwitchLabel;
 };
 
 struct SessionManager_HandleList

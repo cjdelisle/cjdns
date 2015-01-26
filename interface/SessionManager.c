@@ -28,7 +28,7 @@
 #include <stdint.h>
 
 /** The number of seconds of inactivity before a session should expire. */
-#define SESSION_TIMEOUT_SECONDS 600
+#define SESSION_TIMEOUT_SECONDS 180
 
 /** The number of seconds between cleanup cycles. */
 #define CLEANUP_CYCLE_SECONDS 20
