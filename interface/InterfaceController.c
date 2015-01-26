@@ -111,8 +111,7 @@ struct Peer
     /** The address within the interface of this peer. */
     struct Sockaddr* lladdr;
 
-    /** The label for this endpoint, needed to ping the endpoint. */
-    uint64_t switchLabel;
+    struct Address addr;
 
     /** Milliseconds since the epoch when the last *valid* message was received. */
     uint64_t timeOfLastMessage;
@@ -212,23 +211,20 @@ static void onPingResponse(struct SwitchPinger_Response* resp, void* onResponseC
     struct Peer* ep = Identity_check((struct Peer*) onResponseContext);
     struct InterfaceController_pvt* ic = ifcontrollerForPeer(ep);
 
-    struct Address addr;
-    Bits_memset(&addr, 0, sizeof(struct Address));
-    Bits_memcpyConst(addr.key, CryptoAuth_getHerPublicKey(ep->cryptoAuthIf), 32);
-    addr.path = ep->switchLabel;
-    addr.protocolVersion = resp->version;
+    ep->addr.protocolVersion = resp->version;
 
     if (Defined(Log_DEBUG)) {
-        uint8_t addrStr[60];
-        Address_print(addrStr, &addr);
-        uint8_t key[56];
-        Base32_encode(key, 56, CryptoAuth_getHerPublicKey(ep->cryptoAuthIf), 32);
+        String* addr = Address_toString(&ep->addr, resp->ping->pingAlloc);
         if (!Version_isCompatible(Version_CURRENT_PROTOCOL, resp->version)) {
-            Log_debug(ic->logger, "got switch pong from node [%s] with incompatible version [%d]",
-                      key, resp->version);
+            Log_debug(ic->logger, "got switch pong from node [%s] with incompatible version",
+                                  addr->bytes);
+        } else if (ep->addr.path != resp->label) {
+            uint8_t sl[20];
+            AddrTools_printPath(sl, resp->label);
+            Log_debug(ic->logger, "got switch pong from node [%s] mismatch label [%s]",
+                                  addr->bytes, sl);
         } else {
-            Log_debug(ic->logger, "got switch pong from node [%s] with version [%d]",
-                      key, resp->version);
+            Log_debug(ic->logger, "got switch pong from node [%s]", addr->bytes);
         }
     }
 
@@ -240,12 +236,12 @@ static void onPingResponse(struct SwitchPinger_Response* resp, void* onResponseC
         // We've never heard from this machine before (or we've since forgotten about it)
         // This is here because we want the tests to function without the janitor present.
         // Other than that, it just makes a slightly more synchronous/guaranteed setup.
-        Router_sendGetPeers(ic->router, &addr, 0, 0, ic->allocator);
+        Router_sendGetPeers(ic->router, &ep->addr, 0, 0, ic->allocator);
     }
 
     struct Node_Link* link = Router_linkForPath(ic->router, resp->label);
     if (!link || !Node_getBestParent(link->child)) {
-        RumorMill_addNode(ic->rumorMill, &addr);
+        RumorMill_addNode(ic->rumorMill, &ep->addr);
     } else {
         Log_debug(ic->logger, "link exists");
     }
@@ -253,14 +249,9 @@ static void onPingResponse(struct SwitchPinger_Response* resp, void* onResponseC
     ep->timeOfLastPing = Time_currentTimeMilliseconds(ic->eventBase);
 
     if (Defined(Log_DEBUG)) {
-        // This will be false if it times out.
-        //Assert_true(label == ep->switchLabel);
-        uint8_t path[20];
-        AddrTools_printPath(path, resp->label);
-        uint8_t sl[20];
-        AddrTools_printPath(sl, ep->switchLabel);
-        Log_debug(ic->logger, "Received [%s] from lazy endpoint [%s]  [%s]",
-                  SwitchPinger_resultString(resp->res)->bytes, path, sl);
+        String* addr = Address_toString(&ep->addr, resp->ping->pingAlloc);
+        Log_debug(ic->logger, "Received [%s] from lazy endpoint [%s]",
+                  SwitchPinger_resultString(resp->res)->bytes, addr->bytes);
     }
 }
 
@@ -274,7 +265,7 @@ static void sendPing(struct Peer* ep)
     ep->pingCount++;
 
     struct SwitchPinger_Ping* ping =
-        SwitchPinger_newPing(ep->switchLabel,
+        SwitchPinger_newPing(ep->addr.path,
                              String_CONST(""),
                              ic->timeoutMilliseconds,
                              onPingResponse,
@@ -316,12 +307,12 @@ static void iciPing(struct Iface* ici, struct InterfaceController_pvt* ic)
                 continue;
             }
 
-            struct Node_Link* link = Router_linkForPath(ic->router, ep->switchLabel);
+            struct Node_Link* link = Router_linkForPath(ic->router, ep->addr.path);
             // It exists, it's parent is the self-node, and it's label is equal to the switchLabel.
             if (link
                 && Node_getBestParent(link->child)
                 && Node_getBestParent(link->child)->parent->address.path == 1
-                && Node_getBestParent(link->child)->cannonicalLabel == ep->switchLabel)
+                && Node_getBestParent(link->child)->cannonicalLabel == ep->addr.path)
             {
                 continue;
             }
@@ -343,7 +334,7 @@ static void iciPing(struct Iface* ici, struct InterfaceController_pvt* ic)
         bool unresponsive = (now > ep->timeOfLastMessage + ic->unresponsiveAfterMilliseconds);
         if (unresponsive) {
             // our link to the peer is broken...
-            Router_disconnectedPeer(ic->router, ep->switchLabel);
+            Router_disconnectedPeer(ic->router, ep->addr.path);
 
             // Lets skip 87% of pings when they're really down.
             if (ep->pingCount % 8) {
@@ -388,16 +379,14 @@ static void moveEndpointIfNeeded(struct Peer* ep)
 {
     struct Iface* ici = ep->ici;
     Log_debug(ici->ic->logger, "Checking for old sessions to merge with.");
-    uint8_t* key = CryptoAuth_getHerPublicKey(ep->cryptoAuthIf);
     for (uint32_t i = 0; i < ici->peerMap.count; i++) {
         struct Peer* thisEp = ici->peerMap.values[i];
-        uint8_t* thisKey = CryptoAuth_getHerPublicKey(thisEp->cryptoAuthIf);
-        if (thisEp != ep && !Bits_memcmp(thisKey, key, 32)) {
+        if (thisEp != ep && !Bits_memcmp(thisEp->addr.key, ep->addr.key, 32)) {
             Log_info(ici->ic->logger, "Moving endpoint to merge new session with old.");
 
             // flush out the new entry if needed.
-            Router_disconnectedPeer(ici->ic->router, ep->switchLabel);
-            ep->switchLabel = thisEp->switchLabel;
+            Router_disconnectedPeer(ici->ic->router, ep->addr.path);
+            ep->addr.path = thisEp->addr.path;
             SwitchCore_swapInterfaces(&thisEp->switchIf, &ep->switchIf);
             Allocator_free(thisEp->externalIf.allocator);
             return;
@@ -420,6 +409,11 @@ static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cr
     if (ep->state < InterfaceController_PeerState_ESTABLISHED) {
         // EP states track CryptoAuth states...
         ep->state = caState;
+
+        uint8_t* hpk = CryptoAuth_getHerPublicKey(ep->cryptoAuthIf);
+        Bits_memcpyConst(ep->addr.key, hpk, 32);
+        Address_getPrefix(&ep->addr);
+
         if (caState == CryptoAuth_ESTABLISHED) {
             moveEndpointIfNeeded(ep);
         } else {
@@ -507,7 +501,7 @@ static int closeInterface(struct Allocator_OnFreeJob* job)
     struct InterfaceController_pvt* ic = ifcontrollerForPeer(toClose);
 
     // flush the peer from the table...
-    Router_disconnectedPeer(ic->router, toClose->switchLabel);
+    Router_disconnectedPeer(ic->router, toClose->addr.path);
 
     int index = Map_EndpointsBySockaddr_indexForHandle(toClose->handle, &toClose->ici->peerMap);
     Assert_true(index >= 0);
@@ -603,6 +597,7 @@ static uint8_t handleBeacon(struct Message* msg, struct Iface* ici)
     int setIndex = Map_EndpointsBySockaddr_put(&lladdr, &ep, &ici->peerMap);
     ep->handle = ici->peerMap.handles[setIndex];
     ep->isIncomingConnection = true;
+    Bits_memcpyConst(&ep->addr, &addr, sizeof(struct Address));
     Identity_set(ep);
     Allocator_onFree(epAlloc, closeInterface, ep);
 
@@ -618,7 +613,7 @@ static uint8_t handleBeacon(struct Message* msg, struct Iface* ici)
     ep->switchIf.sendMessage = sendFromSwitch;
     ep->switchIf.allocator = epAlloc;
 
-    int ret = SwitchCore_addInterface(&ep->switchIf, 0, &ep->switchLabel, ic->switchCore);
+    int ret = SwitchCore_addInterface(&ep->switchIf, 0, &ep->addr.path, ic->switchCore);
     if (ret == SwitchCore_addInterface_OUT_OF_SPACE) {
         Log_debug(ic->logger, "handleBeacon SwitchCore out of space");
         Allocator_free(epAlloc);
@@ -628,7 +623,6 @@ static uint8_t handleBeacon(struct Message* msg, struct Iface* ici)
         Allocator_free(epAlloc);
         return 0;
     }
-    addr.path = ep->switchLabel;
 
     // We want the node to immedietly be pinged but we don't want it to appear unresponsive because
     // the pinger will only ping every (PING_INTERVAL * 8) so we set timeOfLastMessage to
@@ -638,7 +632,7 @@ static uint8_t handleBeacon(struct Message* msg, struct Iface* ici)
 
     Log_info(ic->logger, "Added peer [%s] from beacon", printedAddr->bytes);
 
-    Router_sendGetPeers(ic->router, &addr, 0, 0, ic->allocator);
+    Router_sendGetPeers(ic->router, &ep->addr, 0, 0, ic->allocator);
     return 0;
 }
 
@@ -683,7 +677,7 @@ static uint8_t handleUnexpectedIncoming(struct Message* msg, struct Iface* ici)
     ep->switchIf.sendMessage = sendFromSwitch;
     ep->switchIf.allocator = epAlloc;
 
-    int ret = SwitchCore_addInterface(&ep->switchIf, 0, &ep->switchLabel, ic->switchCore);
+    int ret = SwitchCore_addInterface(&ep->switchIf, 0, &ep->addr.path, ic->switchCore);
     if (ret) {
         Allocator_free(epAlloc);
         return 0;
@@ -891,6 +885,8 @@ int InterfaceController_bootstrapPeer(struct InterfaceController* ifc,
     ep->lladdr = lladdr;
     ep->ici = ici;
     ep->isIncomingConnection = false;
+    Bits_memcpyConst(ep->addr.key, herPublicKey, 32);
+    Address_getPrefix(&ep->addr);
     Identity_set(ep);
     Allocator_onFree(epAlloc, closeInterface, ep);
     Allocator_onFree(alloc, freeAlloc, epAlloc);
@@ -912,7 +908,7 @@ int InterfaceController_bootstrapPeer(struct InterfaceController* ifc,
     ep->switchIf.sendMessage = sendFromSwitch;
     ep->switchIf.allocator = epAlloc;
 
-    int ret = SwitchCore_addInterface(&ep->switchIf, 0, &ep->switchLabel, ic->switchCore);
+    int ret = SwitchCore_addInterface(&ep->switchIf, 0, &ep->addr.path, ic->switchCore);
     if (ret) {
         Allocator_free(epAlloc);
         return (ret == SwitchCore_addInterface_OUT_OF_SPACE)
@@ -927,9 +923,10 @@ int InterfaceController_bootstrapPeer(struct InterfaceController* ifc,
         Time_currentTimeMilliseconds(ic->eventBase) - ic->pingAfterMilliseconds - 1;
 
     if (Defined(Log_INFO)) {
-        uint8_t printAddr[60];
-        AddrTools_printIp(printAddr, ip6);
-        Log_info(ic->logger, "Adding peer [%s]", printAddr);
+        struct Allocator* tempAlloc = Allocator_child(alloc);
+        String* addrStr = Address_toString(&ep->addr, tempAlloc);
+        Log_info(ic->logger, "Adding peer [%s]", addrStr->bytes);
+        Allocator_free(tempAlloc);
     }
 
     // We can't just add the node directly to the routing table because we do not know
@@ -961,12 +958,11 @@ int InterfaceController_getPeerStats(struct InterfaceController* ifController,
         for (int i = 0; i < (int)ici->peerMap.count; i++) {
             struct Peer* peer = Identity_check((struct Peer*) ici->peerMap.values[i]);
             struct InterfaceController_PeerStats* s = &stats[i];
-            s->pubKey = CryptoAuth_getHerPublicKey(peer->cryptoAuthIf);
+            Bits_memcpyConst(&s->addr, &peer->addr, sizeof(struct Address));
             s->bytesOut = peer->bytesOut;
             s->bytesIn = peer->bytesIn;
             s->timeOfLastMessage = peer->timeOfLastMessage;
             s->state = peer->state;
-            s->switchLabel = peer->switchLabel;
             s->isIncomingConnection = peer->isIncomingConnection;
             s->user = NULL;
             if (s->isIncomingConnection) {

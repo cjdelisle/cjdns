@@ -21,6 +21,7 @@
 #include "crypto/CryptoAuth.h"
 #include "dht/dhtcore/Router.h"
 #include "dht/dhtcore/RumorMill.h"
+#include "dht/Address.h"
 #include "interface/Interface.h"
 #include "memory/Allocator.h"
 #include "switch/SwitchCore.h"
@@ -77,12 +78,11 @@ static inline char* InterfaceController_stateString(enum InterfaceController_Pee
  */
 struct InterfaceController_PeerStats
 {
-    uint8_t* pubKey;
+    struct Address addr;
     int state;
     uint64_t timeOfLastMessage;
     uint64_t bytesOut;
     uint64_t bytesIn;
-    uint64_t switchLabel;
     bool isIncomingConnection;
     String* user;
 

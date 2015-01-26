@@ -33,7 +33,7 @@ struct Context {
 };
 
 
-#define ENTRIES_PER_PAGE 8
+#define ENTRIES_PER_PAGE 4
 static void dumpTable(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* ctx = Identity_check((struct Context*) vcontext);
@@ -52,6 +52,9 @@ static void dumpTable(Dict* args, void* vcontext, String* txid, struct Allocator
         String* ip = String_newBinary(NULL, 39, requestAlloc);
         Address_printIp(ip->bytes, &nn->address);
         Dict_putString(nodeDict, String_CONST("ip"), ip, requestAlloc);
+
+        String* addr = Address_toString(&nn->address, requestAlloc);
+        Dict_putString(nodeDict, String_CONST("addr"), addr, requestAlloc);
 
         String* path = String_newBinary(NULL, 19, requestAlloc);
         AddrTools_printPath(path->bytes, nn->address.path);
@@ -74,6 +77,9 @@ static void dumpTable(Dict* args, void* vcontext, String* txid, struct Allocator
     }
     Dict_putInt(out, String_CONST("count"), ctx->store->nodeCount, requestAlloc);
     Dict_putInt(out, String_CONST("peers"), ctx->store->peerCount, requestAlloc);
+
+    Dict_putString(out, String_CONST("deprecation"),
+        String_CONST("ip,path,version will soon be removed"), requestAlloc);
 
     Admin_sendMessage(out, txid, ctx->admin);
 }

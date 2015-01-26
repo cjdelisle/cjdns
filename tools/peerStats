@@ -23,13 +23,18 @@ Cjdns.connectAsAnon(function (cjdns) {
         cjdns.InterfaceController_peerStats(i, function (err, ret) {
             if (err) { throw err; }
             ret.peers.forEach(function (peer) {
-                p = (PublicToIp6.convert(peer['publicKey']) + '\t' +
-                     'v' + peer['version'] + '\t' + peer['switchLabel'] +
-                     '\tin ' + peer['bytesIn'] + '\tout ' + peer['bytesOut'] + '\t' +
-                     peer['state'] +
-                     '\tdup ' + peer['duplicates'] +
-                     ' los ' + peer['lostPackets'] +
-                     ' oor ' + peer['receivedOutOfRange']);
+                p = peer['addr'] + ' ' + peer['state'] +
+                    ' in ' + peer['bytesIn'] + ' out ' + peer['bytesOut'];
+
+                    if (Number(peer['duplicates']) !== 0) {
+                        p += ' ' + ' DUP ' + peer['duplicates'];
+                    }
+                    if (Number(peer['lostPackets']) !== 0) {
+                        p += ' ' + ' LOS ' + peer['lostPackets'];
+                    }
+                    if (Number(peer['receivedOutOfRange']) !== 0) {
+                        p += ' ' + ' OOR ' + peer['receivedOutOfRange'];
+                    }
                 if (typeof(peer.user) === 'string') {
                     p += ' "' + peer['user'] + '"';
                 }

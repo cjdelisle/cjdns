@@ -43,7 +43,7 @@ var main = function (argv) {
 
         Cjdns.connectWithAdminInfo(waitFor(function (c) { cjdns = c; }));
 
-        if ( !(/^[0-9a-f\.\:]*$/.test(target)) ) {
+        if ( !(/^[0-9a-f\.\:]*\|.*\.k$/.test(target)) ) {
             Dns.lookup(target, 6, waitFor(function (err, res) {
                 if (err) { throw err; }
                 console.log(target + ' has ip address ' + res);
@@ -61,8 +61,7 @@ var main = function (argv) {
                     console.log(
                         nowSeconds() + ' timeout  p' + ret.version + ' ' + ret.ms + 'ms');
                 } else if (ret.result === 'pong') {
-                    console.log(
-                        nowSeconds() + ' ' + ret.from + '  p' + ret.protocol + ' ' + ret.ms + 'ms');
+                    console.log(nowSeconds() + ' ' + ret.addr + ' ' + ret.ms + 'ms');
                 } else if (ret.error === 'not_found') {
                     console.log(nowSeconds() + " No route to host");
                 } else {

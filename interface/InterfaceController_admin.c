@@ -48,6 +48,7 @@ static void adminPeerStats(Dict* args, void* vcontext, String* txid, struct Allo
     String* bytesIn = String_CONST("bytesIn");
     String* bytesOut = String_CONST("bytesOut");
     String* pubKey = String_CONST("publicKey");
+    String* addr = String_CONST("addr");
     String* state = String_CONST("state");
     String* last = String_CONST("last");
     String* switchLabel = String_CONST("switchLabel");
@@ -64,7 +65,8 @@ static void adminPeerStats(Dict* args, void* vcontext, String* txid, struct Allo
         Dict* d = Dict_new(alloc);
         Dict_putInt(d, bytesIn, stats[i].bytesIn, alloc);
         Dict_putInt(d, bytesOut, stats[i].bytesOut, alloc);
-        Dict_putString(d, pubKey, Key_stringify(stats[i].pubKey, alloc), alloc);
+        Dict_putString(d, addr, Address_toString(&stats[i].addr, alloc), alloc);
+        Dict_putString(d, pubKey, Key_stringify(stats[i].addr.key, alloc), alloc);
 
         String* stateString = String_new(InterfaceController_stateString(stats[i].state), alloc);
         Dict_putString(d, state, stateString, alloc);
@@ -72,7 +74,7 @@ static void adminPeerStats(Dict* args, void* vcontext, String* txid, struct Allo
         Dict_putInt(d, last, stats[i].timeOfLastMessage, alloc);
 
         uint8_t labelStack[20];
-        AddrTools_printPath(labelStack, stats[i].switchLabel);
+        AddrTools_printPath(labelStack, stats[i].addr.path);
         Dict_putString(d, switchLabel, String_new((char*)labelStack, alloc), alloc);
 
         Dict_putInt(d, isIncoming, stats[i].isIncomingConnection, alloc);
@@ -85,13 +87,8 @@ static void adminPeerStats(Dict* args, void* vcontext, String* txid, struct Allo
         }
 
         uint8_t address[16];
-        AddressCalc_addressForPublicKey(address, stats[i].pubKey);
-        struct Node_Two* node = NodeStore_nodeForAddr(context->store, address);
-        if (node) {
-            Dict_putInt(d, version, node->address.protocolVersion, alloc);
-        } else {
-            Dict_putInt(d, version, 0, alloc);
-        }
+        AddressCalc_addressForPublicKey(address, stats[i].addr.key);
+        Dict_putInt(d, version, stats[i].addr.protocolVersion, alloc);
 
         List_addDict(list, d, alloc);
     }
@@ -103,6 +100,9 @@ static void adminPeerStats(Dict* args, void* vcontext, String* txid, struct Allo
     if (i < count) {
         Dict_putInt(resp, String_CONST("more"), 1, alloc);
     }
+
+    Dict_putString(resp, String_CONST("deprecation"),
+        String_CONST("publicKey,switchLabel,version will soon be removed"), alloc);
 
     Admin_sendMessage(resp, txid, context->admin);
 }

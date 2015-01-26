@@ -104,7 +104,12 @@ static void pingResponse(struct RouterModule_Promise* promise,
         uint8_t fromStr[60] = "";
         Address_print(fromStr, from);
         Dict_putString(resp, String_CONST("from"), String_new(fromStr, tempAlloc), tempAlloc);
+        String* addr = Address_toString(from, tempAlloc);
+        Dict_putString(resp, String_CONST("addr"), addr, tempAlloc);
     }
+
+    Dict_putString(resp, String_CONST("deprecation"),
+        String_CONST("from,protocol,version will soon be removed"), tempAlloc);
 
     Admin_sendMessage(resp, ping->txid, ping->ctx->admin);
 }
