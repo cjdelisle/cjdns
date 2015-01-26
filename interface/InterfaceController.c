@@ -624,6 +624,9 @@ static uint8_t handleBeacon(struct Message* msg, struct Iface* ici)
         return 0;
     }
 
+    // Update printedAddr since addr now contains path.
+    printedAddr = Address_toString(&ep->addr, msg->alloc);
+
     // We want the node to immedietly be pinged but we don't want it to appear unresponsive because
     // the pinger will only ping every (PING_INTERVAL * 8) so we set timeOfLastMessage to
     // (now - pingAfterMilliseconds - 1) so it will be considered a "lazy node".
