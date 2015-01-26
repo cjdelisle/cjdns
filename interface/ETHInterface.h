@@ -29,7 +29,7 @@ Linker_require("interface/ETHInterface_" + builder.config.systemName + ".c")
 Gcc_PACKED
 struct ETHInterface_Header
 {
-    /** The version number of the sending node, modulo 256 */
+    /** ETHInterface_CURRENT_VERSION, no communication is possible with different versions. */
     uint8_t version;
 
     /** padding and for future use. */
@@ -49,11 +49,12 @@ struct ETHInterface_Sockaddr
 {
     struct Sockaddr generic;
     uint8_t mac[6];
-    uint8_t version;
-    uint8_t zero;
+    uint16_t zero;
 };
 #define ETHInterface_Sockaddr_SIZE 16
 Assert_compileTime(sizeof(struct ETHInterface_Sockaddr) == ETHInterface_Sockaddr_SIZE);
+
+#define ETHInterface_CURRENT_VERSION 0
 
 /**
  * @param base the LibEvent context.

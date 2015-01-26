@@ -120,7 +120,7 @@ static uint8_t sendMessage(struct Message* msg, struct Interface* ethIf)
     }
 
     struct ETHInterface_Header hdr = {
-        .version = Version_CURRENT_PROTOCOL & 0xff,
+        .version = ETHInterface_CURRENT_VERSION,
         .zero = 0,
         .length_be = Endian_hostToBigEndian16(msg->length + ETHInterface_Header_SIZE),
         .fc00_be = Endian_hostToBigEndian16(0xfc00)
@@ -159,6 +159,13 @@ static void handleEvent2(struct ETHInterface* context, struct Allocator* message
 
     struct ETHInterface_Header hdr;
     Message_pop(msg, &hdr, ETHInterface_Header_SIZE, NULL);
+
+    // here we could put a switch statement to handle different versions differently.
+    if (hdr.version != ETHInterface_CURRENT_VERSION) {
+        Log_debug(context->logger, "DROP unknown version");
+        return;
+    }
+
     uint16_t reportedLength = Endian_bigEndianToHost16(hdr.length_be);
     reportedLength -= ETHInterface_Header_SIZE;
     if (msg->length != reportedLength) {
