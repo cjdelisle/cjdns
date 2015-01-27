@@ -549,6 +549,10 @@ static uint8_t handleBeacon(struct Message* msg, struct Iface* ici)
     }
 
     struct Sockaddr* lladdrInmsg = (struct Sockaddr*) msg->bytes;
+
+    // clear the bcast flag
+    lladdrInmsg->flags = 0;
+
     Message_shift(msg, -lladdrInmsg->addrLen, NULL);
 
     struct Headers_Beacon beacon;
