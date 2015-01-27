@@ -40,7 +40,7 @@ struct DataHeader
     #define DataHeader_RESPOND_TO_ME (1<<7)
 
     /**
-     * Version is set to the version of the data as per Version.h
+     * Version is set to DataHeader_CURRENT_VERSION version.
      * If the number is over 255, it wraps
      */
     uint8_t versionAndFlags;
@@ -51,6 +51,8 @@ struct DataHeader
 };
 #define DataHeader_SIZE 4
 Assert_compileTime(sizeof(struct DataHeader) == DataHeader_SIZE);
+
+#define DataHeader_CURRENT_VERSION 0
 
 enum DataHeader_ContentType
 {
