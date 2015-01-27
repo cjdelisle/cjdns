@@ -599,6 +599,13 @@ static uint8_t sendToNode(struct Message* message, struct Interface* iface)
             dtHeader->switchLabel = n->address.path;
             return sendToRouter(message, dtHeader, session, context);
         }
+    } else {
+        struct SessionManager_Session* session =
+            SessionManager_getSession(header->nodeIp6Addr, header->nodeKey, context->sm);
+        if (session->knownSwitchLabel) {
+            dtHeader->switchLabel = session->knownSwitchLabel;
+            return sendToRouter(message, dtHeader, session, context);
+        }
     }
 
     #ifdef Log_DEBUG
