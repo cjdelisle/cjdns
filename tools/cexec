@@ -14,12 +14,22 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 var Cjdns = require('../contrib/nodejs/cjdnsadmin/cjdnsadmin');
+var nThen = require('../contrib/nodejs/cjdnsadmin/nthen');
 
-Cjdns.connectWithAdminInfo(function (cjdns) {
-    var code = process.argv[process.argv.length-1].replace(/\).*$/, ',cb);');
-    code = code.replace('(,cb);', '(cb);');
+var cjdns;
+nThen(function (waitFor) {
+    Cjdns.connectWithAdminInfo(waitFor(function (c) { cjdns = c; }));
+}).nThen(function (waitFor) {
+    var code;
+    if (process.argv[process.argv.length-1].indexOf('cexec') !== -1) {
+        code = 'functions(cb)';
+        console.log("Usage: ./tools/cexec 'ping()' ## For example to send a ping request");
+        console.log("List of available RPC requests with parameters is as follows:");
+    } else {
+        code = process.argv[process.argv.length-1].replace(/\).*$/, ',cb);');
+        code = code.replace('(,cb);', '(cb);');
+    }
     var f = new Function('x', 'cb', 'x.' + code);
     f(cjdns, function (err, ret) {
         if (err) { throw err; }
