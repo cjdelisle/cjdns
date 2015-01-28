@@ -23,7 +23,8 @@ Cjdns.connectAsAnon(function (cjdns) {
         cjdns.InterfaceController_peerStats(i, function (err, ret) {
             if (err) { throw err; }
             ret.peers.forEach(function (peer) {
-                p = peer['addr'] + ' ' + peer['state'] +
+                var addr = PublicToIp6.convert(peer.publicKey);
+                p = addr + ' ' + peer['state'] +
                     ' in ' + peer['bytesIn'] + ' out ' + peer['bytesOut'];
 
                     if (Number(peer['duplicates']) !== 0) {
