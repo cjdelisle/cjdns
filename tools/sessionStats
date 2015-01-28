@@ -57,7 +57,11 @@ nThen(function (waitFor) {
             if (i < handles.length) { next(i); }
         }));
     };
-    next(0);
+    if (handles.length) {
+        next(0);
+    } else {
+        console.log("No active sessions");
+    }
 
 }).nThen(function (waitFor) {
     cjdns.disconnect();
