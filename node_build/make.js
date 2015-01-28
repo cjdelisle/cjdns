@@ -45,7 +45,8 @@ Builder.configure({
     gcc:            GCC,
     tempDir:        '/tmp',
     optimizeLevel:  '-O2',
-    logLevel:       process.env['Log_LEVEL'] || 'DEBUG'
+    logLevel:       process.env['Log_LEVEL'] || 'DEBUG',
+    gitCommit:      process.env['Version_GIT_COMMIT'] || 'HEAD'
 }, function (builder, waitFor) {
     builder.config.cflags.push(
         '-std=c99',

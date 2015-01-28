@@ -458,6 +458,9 @@ int main(int argc, char** argv)
         {
             printf("Cjdns protocol version: %d\n", Version_CURRENT_PROTOCOL);
             return 0;
+        } else if (CString_strcmp(argv[1], "--git") == 0) {
+            printf("Cjdns git commit: %s\n", Version_GIT_COMMIT);
+            return 0;
         } else if (CString_strcmp(argv[1], "--cleanconf") == 0) {
             // Performed after reading configuration
         } else if (CString_strcmp(argv[1], "--nobg") == 0) {
