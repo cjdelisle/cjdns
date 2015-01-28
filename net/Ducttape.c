@@ -1236,6 +1236,19 @@ static uint8_t incomingFromPinger(struct Message* message, struct Interface* ifa
     return context->switchInterface.receiveMessage(message, &context->switchInterface);
 }
 
+static void checkStateOfSessions(void* vducttape)
+{
+    struct Ducttape_pvt* ctx = Identity_check((struct Ducttape_pvt*) vducttape);
+    struct Allocator* alloc = Allocator_child(ctx->alloc);
+    struct SessionManager_HandleList* handles = SessionManager_getHandleList(ctx->sm, alloc);
+    for (int i = 0; i < handles->count; i++) {
+        struct SessionManager_Session* sess =
+            SessionManager_sessionForHandle(handles->handles[i], ctx->sm);
+        if (sess->cryptoAuthState == CryptoAuth_ESTABLISHED) { continue; }
+        
+    }
+}
+
 struct Ducttape* Ducttape_register(uint8_t privateKey[32],
                                    struct DHTModuleRegistry* registry,
                                    struct Router* router,
