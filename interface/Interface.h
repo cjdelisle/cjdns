@@ -86,4 +86,52 @@ static inline uint8_t Interface_sendMessage(struct Interface* iface, struct Mess
 }
 
 
+
+
+struct Interface_Two;
+
+/**
+ * @param thisInterface the interface which contains the sendMessage function pointer.
+ * @param message the message
+ */
+typedef int (* Interface_Callback2)(struct Interface_Two* thisInterface, struct Message* message);
+
+struct Interface_Two
+{
+    /**
+     * Send a message through this interface.
+     *
+     * @return 0 If all goes well, non-zero in case of an error.
+     *           See Error.h for more information about interface error codes.
+     */
+    Interface_Callback2 sendMessage;
+
+    /** Interface to which this one is connected (if connected) */
+    struct Interface_Two* connectedIf;
+};
+
+static inline int Interface_sendMessage2(struct Interface_Two* iface, struct Message* msg)
+{
+    struct Interface_Two* conn = iface->connectedIf;
+    if (!conn) { return Interface_ERROR_WRONG_STATE; }
+    Assert_true(conn->sendMessage);
+    return conn->sendMessage(conn, msg, iface);
+}
+
+static inline void Interface_plumb(struct Interface_Two* a, struct Interface_Two* b)
+{
+    Assert_true(!a->connectedIf);
+    Assert_true(!b->connectedIf);
+    a->connectedIf = b;
+    b->connectedIf = a;
+}
+
+static inline void Interface_unplumb(struct Interface_Two* a)
+{
+    Assert_true(a->connectedIf);
+    Assert_true(a->connectedIf->connectedIf == a);
+    a->connectedIf->connectedIf = NULL;
+    a->connectedIf = NULL;
+}
+
 #endif
