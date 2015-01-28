@@ -58,6 +58,7 @@ struct SessionManager_Session
     uint64_t knownSwitchLabel;
 };
 
+// TODO(cjd): ArrayList.h
 struct SessionManager_HandleList
 {
     uint32_t count;

@@ -490,6 +490,8 @@ static inline uint8_t incomingFromTun(struct Message* message,
                 ? bestNext->address.protocolVersion : nextHopSession->version;
 
         dtHeader->switchLabel = bestNext->address.path;
+
+        // This only matters if we fall out of the if block and do 3 layer send...
         dtHeader->nextHopReceiveHandle = Endian_bigEndianToHost32(nextHopSession->receiveHandle_be);
 
         if (!Bits_memcmp(header->destinationAddr, bestNext->address.ip6.bytes, 16)) {
@@ -502,8 +504,7 @@ static inline uint8_t incomingFromTun(struct Message* message,
             return sendToRouter(message, dtHeader, nextHopSession, context);
         } else if (session->knownSwitchLabel) {
             // Do a direct send using a discovered label...
-            dtHeader->switchLabel = bestNext->address.path;
-            dtHeader->nextHopReceiveHandle = Endian_bigEndianToHost32(session->receiveHandle_be);
+            dtHeader->switchLabel = session->knownSwitchLabel;
             return sendToRouter(message, dtHeader, session, context);
         }
         // else { the message will need to be 3 layer encrypted but since we already did a lookup
