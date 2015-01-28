@@ -53,12 +53,14 @@ struct SearchRunner
  * then it will be called with 0 milliseconds lag and NULL response indicating the search is over.
  *
  * @param searchTarget the address to search for.
+ * @param maxRequests the number of requests to make before terminating the search.
  * @param runner the search runner
  * @param alloc an allocator for the search, free this to cancel the search
  */
-struct RouterModule_Promise* SearchRunner_search(uint8_t searchTarget[16],
-                                                 struct SearchRunner* runner,
-                                                 struct Allocator* alloc);
+struct RouterModule_Promise* SearchRunner_search(uint8_t target[16],
+                                                 int maxRequests,
+                                                 struct SearchRunner* searchRunner,
+                                                 struct Allocator* allocator);
 
 /**
  * Show an active search.

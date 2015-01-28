@@ -108,6 +108,11 @@ static void search(Dict* args, void* vctx, String* txid, struct Allocator* reqAl
 {
     struct Context* ctx = Identity_check((struct Context*) vctx);
     String* addrStr = Dict_getString(args, String_CONST("ipv6"));
+
+    int maxRequests = -1;
+    uint64_t* maxRequestsPtr = Dict_getInt(args, String_CONST("maxRequests"));
+    if (maxRequestsPtr) { maxRequests = *maxRequestsPtr; }
+
     uint8_t addr[16];
     if (AddrTools_parseIp(addr, (uint8_t*) addrStr->bytes)) {
         Dict* resp = Dict_new(reqAlloc);
@@ -116,11 +121,19 @@ static void search(Dict* args, void* vctx, String* txid, struct Allocator* reqAl
     } else {
         struct Allocator* alloc = Allocator_child(ctx->allocator);
         struct Search* s = Allocator_calloc(alloc, sizeof(struct Search), 1);
-        s->promise = SearchRunner_search(addr, ctx->runner, alloc);
+        s->promise = SearchRunner_search(addr, maxRequests, ctx->runner, alloc);
         s->ctx = ctx;
         s->txid = String_clone(txid, alloc);
         s->alloc = alloc;
         Identity_set(s);
+
+        if (!s->promise) {
+            Dict* resp = Dict_new(reqAlloc);
+            Dict_putString(resp, String_CONST("error"), String_CONST("creating search"), reqAlloc);
+            Admin_sendMessage(resp, txid, ctx->admin);
+            Allocator_free(alloc);
+            return;
+        }
 
         s->promise->userData = s;
         s->promise->callback = searchResponse;
@@ -146,6 +159,7 @@ void SearchRunner_admin_register(struct SearchRunner* runner,
 
     Admin_registerFunction("SearchRunner_search", search, ctx, true,
         ((struct Admin_FunctionArg[]) {
-            { .name = "ipv6", .required = 1, .type = "String" }
+            { .name = "ipv6", .required = 1, .type = "String" },
+            { .name = "maxRequests", .required = 0, .type = "Int" }
         }), admin);
 }

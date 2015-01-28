@@ -34,6 +34,11 @@ var equalsIp = function (ip, fullAddr) {
 
 var main = function (argv) {
 
+    var count = -1;
+    if (argv.indexOf('-c') !== -1) {
+        count = Number(argv[argv.indexOf('-c')+1]);
+    }
+
     var target = argv[argv.length-1];
 
     var cjdns;
@@ -64,6 +69,10 @@ var main = function (argv) {
         var timeOfFirstFind;
         var handleMessage = function (err, msg) {
             if (err) { throw err; }
+            if (msg.error && msg.error !== 'none') {
+                cjdns.disconnect();
+                console.log(msg);
+            }
             if (msg.complete === "1") {
                 cjdns.disconnect();
                 console.log("Done -- first result in " + (timeOfFirstFind - startTime) + "ms." +
@@ -85,7 +94,7 @@ var main = function (argv) {
         };
 
         cjdns.setDefaultHandler(handleMessage);
-        cjdns.SearchRunner_search(target, handleMessage);
+        cjdns.SearchRunner_search(target, count, handleMessage);
     });
 };
 

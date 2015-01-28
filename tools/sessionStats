@@ -30,6 +30,7 @@ var printSession = function (session) {
 
 var cjdns;
 var handles = [];
+var sessions = [];
 
 nThen(function (waitFor) {
 
@@ -51,7 +52,7 @@ nThen(function (waitFor) {
     var next = function (i) {
         cjdns.SessionManager_sessionStats(Number(handles[i]), waitFor(function (err, ret) {
             if (err) { throw err; }
-            printSession(ret);
+            sessions.push(ret);
             i++
             if (i < handles.length) { next(i); }
         }));
@@ -60,4 +61,12 @@ nThen(function (waitFor) {
 
 }).nThen(function (waitFor) {
     cjdns.disconnect();
+
+    sessions.sort(function (a, b) {
+        return (a.addr.substring(a.addr.indexOf('.')) < b.addr.substring(b.addr.indexOf('.')))
+            ? -1 : 1;
+    });
+    for (var i = 0; i < sessions.length; i++) {
+        printSession(sessions[i]);
+    }
 });
