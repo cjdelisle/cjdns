@@ -36,6 +36,7 @@ var validTarget = function (target) {
 
 var main = function (argv) {
 
+    var maxCount = Math.Infinity;
     var keyPing = (argv.indexOf('-k') !== -1);
     var switchMode = (argv.indexOf('-s') !== -1) || keyPing;
     var data = '';
@@ -45,6 +46,9 @@ var main = function (argv) {
             console.log('-d data flag not possible without -s');
             return;
         }
+    }
+    if (argv.indexOf('-c') !== -1) {
+        maxCount = argv[argv.indexOf('-c') + 1];
     }
     var target = argv[argv.length-1];
 
@@ -63,7 +67,9 @@ var main = function (argv) {
 
     }).nThen(function (waitFor) {
 
+        var count = 0;
         var routerPing = function () {
+            if (count++ >= maxCount) { return; }
             var startTime = now();
             cjdns.RouterModule_pingNode(target, WAIT_TIME, waitFor(function (err, ret) {
                 if (err) { throw err; }
@@ -79,11 +85,12 @@ var main = function (argv) {
                 }
                 var pingIn = INTERVAL - (now() - startTime);
                 if (pingIn < 0) { pingIn = 0; }
-                setTimeout(routerPing, pingIn);
+                setTimeout(waitFor(routerPing), pingIn);
             }));
         };
 
         var switchPing = function (keyPing) {
+            if (count++ >= maxCount) { return; }
             var startTime = now();
             cjdns.SwitchPinger_ping(target, WAIT_TIME, keyPing^0, data, waitFor(function (err, ret) {
                 if (err) { throw err; }
@@ -103,7 +110,7 @@ var main = function (argv) {
 
                 var pingIn = INTERVAL - (now() - startTime);
                 if (pingIn < 0) { pingIn = 0; }
-                setTimeout(switchPing, pingIn);
+                setTimeout(waitFor(switchPing), pingIn);
             }));
         };
 
@@ -112,6 +119,8 @@ var main = function (argv) {
         } else {
             routerPing();
         }
+    }).nThen(function (waitFor) {
+        cjdns.disconnect();
     });
 };
 
