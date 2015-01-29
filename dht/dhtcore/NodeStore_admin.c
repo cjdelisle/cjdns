@@ -120,7 +120,7 @@ static void getLink(Dict* args, void* vcontext, String* txid, struct Allocator* 
     String* ipStr = Dict_getString(args, String_new("parent", alloc));
     int64_t* linkNum = Dict_getInt(args, String_new("linkNum", alloc));
     uint8_t ip[16];
-    if (ipStr->len != 39 || AddrTools_parseIp(ip, ipStr->bytes)) {
+    if (AddrTools_parseIp(ip, ipStr->bytes)) {
         Dict_remove(ret, String_CONST("result"));
         Dict_putString(ret,
                        String_new("error", alloc),
@@ -172,7 +172,7 @@ static void nodeForAddr(Dict* args, void* vcontext, String* txid, struct Allocat
     String* ipStr = Dict_getString(args, String_new("ip", alloc));
     uint8_t ip[16];
     while (ipStr) {
-        if (ipStr->len != 39 || AddrTools_parseIp(ip, ipStr->bytes)) {
+        if (AddrTools_parseIp(ip, ipStr->bytes)) {
             Dict_remove(ret, String_CONST("result"));
             Dict_putString(ret,
                            String_new("error", alloc),
