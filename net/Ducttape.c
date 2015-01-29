@@ -1248,9 +1248,13 @@ static void checkStateOfSessions(void* vducttape)
             SessionManager_sessionForHandle(handles->handles[i], ctx->sm);
         if (sess->cryptoAuthState == CryptoAuth_ESTABLISHED) { continue; }
         if (!sess->knownSwitchLabel) { continue; }
+        if (!sess->version) { continue; }
         uint8_t* hpk = CryptoAuth_getHerPublicKey(sess->internal);
         if (Bits_isZero(hpk, 32)) { continue; }
-        struct Address addr = { .path = sess->knownSwitchLabel };
+        struct Address addr = {
+            .path = sess->knownSwitchLabel,
+            .protocolVersion = sess->version
+        };
         Bits_memcpyConst(addr.key, hpk, 32);
         Address_getPrefix(&addr);
         RumorMill_addNode(ctx->sessionMill, &addr);
