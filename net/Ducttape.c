@@ -35,6 +35,7 @@
 #include "util/Checksum.h"
 #include "util/version/Version.h"
 #include "util/Assert.h"
+#include "util/events/Timeout.h"
 #include "tunnel/IpTunnel.h"
 #include "util/events/Time.h"
 #include "util/Defined.h"
@@ -490,6 +491,8 @@ static inline uint8_t incomingFromTun(struct Message* message,
                 ? bestNext->address.protocolVersion : nextHopSession->version;
 
         dtHeader->switchLabel = bestNext->address.path;
+
+        // This only matters if we fall out of the if block and do 3 layer send...
         dtHeader->nextHopReceiveHandle = Endian_bigEndianToHost32(nextHopSession->receiveHandle_be);
 
         if (!Bits_memcmp(header->destinationAddr, bestNext->address.ip6.bytes, 16)) {
@@ -502,8 +505,7 @@ static inline uint8_t incomingFromTun(struct Message* message,
             return sendToRouter(message, dtHeader, nextHopSession, context);
         } else if (session->knownSwitchLabel) {
             // Do a direct send using a discovered label...
-            dtHeader->switchLabel = bestNext->address.path;
-            dtHeader->nextHopReceiveHandle = Endian_bigEndianToHost32(session->receiveHandle_be);
+            dtHeader->switchLabel = session->knownSwitchLabel;
             return sendToRouter(message, dtHeader, session, context);
         }
         // else { the message will need to be 3 layer encrypted but since we already did a lookup
@@ -1235,6 +1237,30 @@ static uint8_t incomingFromPinger(struct Message* message, struct Interface* ifa
     return context->switchInterface.receiveMessage(message, &context->switchInterface);
 }
 
+static void checkStateOfSessions(void* vducttape)
+{
+    struct Ducttape_pvt* ctx = Identity_check((struct Ducttape_pvt*) vducttape);
+    if (!ctx->sessionMill) { return; }
+    struct Allocator* alloc = Allocator_child(ctx->alloc);
+    struct SessionManager_HandleList* handles = SessionManager_getHandleList(ctx->sm, alloc);
+    for (int i = 0; i < (int)handles->count; i++) {
+        struct SessionManager_Session* sess =
+            SessionManager_sessionForHandle(handles->handles[i], ctx->sm);
+        if (sess->cryptoAuthState == CryptoAuth_ESTABLISHED) { continue; }
+        if (!sess->knownSwitchLabel) { continue; }
+        if (!sess->version) { continue; }
+        uint8_t* hpk = CryptoAuth_getHerPublicKey(sess->internal);
+        if (Bits_isZero(hpk, 32)) { continue; }
+        struct Address addr = {
+            .path = sess->knownSwitchLabel,
+            .protocolVersion = sess->version
+        };
+        Bits_memcpyConst(addr.key, hpk, 32);
+        Address_getPrefix(&addr);
+        RumorMill_addNode(ctx->sessionMill, &addr);
+    }
+}
+
 struct Ducttape* Ducttape_register(uint8_t privateKey[32],
                                    struct DHTModuleRegistry* registry,
                                    struct Router* router,
@@ -1243,7 +1269,8 @@ struct Ducttape* Ducttape_register(uint8_t privateKey[32],
                                    struct Allocator* allocator,
                                    struct Log* logger,
                                    struct IpTunnel* ipTun,
-                                   struct Random* rand)
+                                   struct Random* rand,
+                                   struct RumorMill* sessionMill)
 {
     struct Ducttape_pvt* context = Allocator_calloc(allocator, sizeof(struct Ducttape_pvt), 1);
     context->registry = registry;
@@ -1251,6 +1278,7 @@ struct Ducttape* Ducttape_register(uint8_t privateKey[32],
     context->logger = logger;
     context->eventBase = eventBase;
     context->alloc = allocator;
+    context->sessionMill = sessionMill;
     Bits_memcpyConst(&context->pub.magicInterface, (&(struct Interface) {
         .sendMessage = magicInterfaceSendMessage,
         .allocator = allocator
@@ -1301,6 +1329,8 @@ struct Ducttape* Ducttape_register(uint8_t privateKey[32],
         .sendMessage = incomingFromPinger,
         .senderContext = context
     }), sizeof(struct Interface));
+
+    Timeout_setInterval(checkStateOfSessions, context, 10000, eventBase, allocator);
 
     return &context->pub;
 }

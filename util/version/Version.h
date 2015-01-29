@@ -295,12 +295,23 @@ Version_COMPAT(13, ([12]))
 Version_COMPAT(14, ([12,13]))
 
 /**
+ * Version 15:
+ * January 29, 2014
+ *
+ * Cerimonial version 15 to indicate a change in routing behavior, for each incoming
+ * packet, remember the path it took, if no path to the return node is known,
+ * use the path that the incoming packet took for the response.
+ */
+Version_COMPAT(15, ([12,13,14]))
+
+/**
  * The current protocol version.
  */
-#define Version_CURRENT_PROTOCOL 14
+#define Version_CURRENT_PROTOCOL 15
 #define Version_12_COMPAT
 #define Version_13_COMPAT
 #define Version_14_COMPAT
+#define Version_15_COMPAT
 
 #define Version_MINIMUM_COMPATIBLE 12
 #define Version_DEFAULT_ASSUMPTION 12

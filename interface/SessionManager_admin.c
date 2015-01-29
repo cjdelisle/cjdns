@@ -18,6 +18,7 @@
 #include "benc/List.h"
 #include "crypto/Key.h"
 #include "crypto/ReplayProtector.h"
+#include "dht/Address.h"
 #include "interface/SessionManager.h"
 #include "interface/SessionManager_admin.h"
 #include "util/AddrTools.h"
@@ -94,7 +95,14 @@ static void sessionStats(Dict* args,
     Dict_putInt(r, String_CONST("lostPackets"), rp->lostPackets, alloc);
     Dict_putInt(r, String_CONST("receivedOutOfRange"), rp->receivedOutOfRange, alloc);
 
+    struct Address addr;
     uint8_t* key = CryptoAuth_getHerPublicKey(session->internal);
+    Bits_memcpyConst(addr.key, key, 32);
+    addr.path = session->knownSwitchLabel;
+    addr.protocolVersion = session->version;
+
+    Dict_putString(r, String_CONST("addr"), Address_toString(&addr, alloc), alloc);
+
     Dict_putString(r, String_CONST("publicKey"), Key_stringify(key, alloc), alloc);
     Dict_putInt(r, String_CONST("version"), session->version, alloc);
     Dict_putInt(r, String_CONST("handle"),
@@ -104,6 +112,9 @@ static void sessionStats(Dict* args,
 
     Dict_putInt(r, String_CONST("timeOfLastIn"), session->timeOfLastIn, alloc);
     Dict_putInt(r, String_CONST("timeOfLastOut"), session->timeOfLastOut, alloc);
+
+    Dict_putString(r, String_CONST("deprecation"),
+        String_CONST("publicKey,version will soon be removed"), alloc);
 
     Admin_sendMessage(r, txid, context->admin);
     return;

@@ -17,6 +17,7 @@
 #include "util/Security.h"
 #include "util/Seccomp.h"
 #include "memory/Allocator.h"
+#include "util/Bits.h"
 
 #include <sys/resource.h>
 #include <sys/types.h>
@@ -100,9 +101,16 @@ static unsigned long getReportedMaxMemory(struct Except* eh)
     }
 #endif // RLIM_INFINITY
 
-    if (lim.rlim_max + 1 < lim.rlim_max) { // Systems without RLIM_INFINITY.
-        return 0;
+    struct rlimit lim2 = { -1, -1 };
+    if (lim2.rlim_max > 0) {
+        // unsigned
+        if (lim2.rlim_max == lim.rlim_max) { return 0; }
+        return lim.rlim_max;
     }
+
+    // signed
+    lim2.rlim_max = Bits_maxBits64((sizeof(lim2.rlim_max) * 8) - 1);
+    if (lim2.rlim_max == lim.rlim_max) { return 0; }
 
     return lim.rlim_max;
 }

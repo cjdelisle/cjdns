@@ -18,6 +18,7 @@
 #include "dht/Address.h"
 #include "dht/dhtcore/SearchRunner_admin.h"
 #include "dht/dhtcore/SearchRunner.h"
+#include "dht/dhtcore/ReplySerializer.h"
 #include "dht/Address.h"
 #include "memory/Allocator.h"
 #include "util/AddrTools.h"
@@ -61,6 +62,85 @@ static void showActiveSearch(Dict* args, void* vctx, String* txid, struct Alloca
     Admin_sendMessage(dict, txid, ctx->admin);
 }
 
+struct Search
+{
+    String* txid;
+    struct RouterModule_Promise* promise;
+    struct Context* ctx;
+    struct Allocator* alloc;
+    Identity
+};
+
+static void searchResponse(struct RouterModule_Promise* promise,
+                           uint32_t lag,
+                           struct Address* from,
+                           Dict* responseDict)
+{
+    struct Search* search = Identity_check((struct Search*) promise->userData);
+    struct Allocator* alloc = Allocator_child(search->alloc);
+
+    Dict* resp = Dict_new(alloc);
+    if (!from) {
+        Dict_putString(resp, String_CONST("error"), String_CONST("none"), alloc);
+        Dict_putInt(resp, String_CONST("complete"), 1, alloc);
+        Admin_sendMessage(resp, search->txid, search->ctx->admin);
+        Allocator_free(search->alloc);
+        return;
+    }
+
+    String* fromStr = Address_toString(from, alloc);
+    Dict_putString(resp, String_CONST("from"), fromStr, alloc);
+
+    Dict_putInt(resp, String_CONST("ms"), lag, alloc);
+
+    struct Address_List* addrs = ReplySerializer_parse(from, responseDict, NULL, true, alloc);
+    List* nodes = List_new(alloc);
+    for (int i = 0; addrs && i < addrs->length; i++) {
+        String* addr = Address_toString(&addrs->elems[i], alloc);
+        List_addString(nodes, addr, alloc);
+    }
+    Dict_putList(resp, String_CONST("nodes"), nodes, alloc);
+
+    Admin_sendMessage(resp, search->txid, search->ctx->admin);
+}
+
+static void search(Dict* args, void* vctx, String* txid, struct Allocator* reqAlloc)
+{
+    struct Context* ctx = Identity_check((struct Context*) vctx);
+    String* addrStr = Dict_getString(args, String_CONST("ipv6"));
+
+    int maxRequests = -1;
+    uint64_t* maxRequestsPtr = Dict_getInt(args, String_CONST("maxRequests"));
+    if (maxRequestsPtr) { maxRequests = *maxRequestsPtr; }
+
+    uint8_t addr[16];
+    if (AddrTools_parseIp(addr, (uint8_t*) addrStr->bytes)) {
+        Dict* resp = Dict_new(reqAlloc);
+        Dict_putString(resp, String_CONST("error"), String_CONST("ipv6 invalid"), reqAlloc);
+        Admin_sendMessage(resp, txid, ctx->admin);
+    } else {
+        struct Allocator* alloc = Allocator_child(ctx->allocator);
+        struct Search* s = Allocator_calloc(alloc, sizeof(struct Search), 1);
+        s->promise = SearchRunner_search(addr, maxRequests, ctx->runner, alloc);
+        s->ctx = ctx;
+        s->txid = String_clone(txid, alloc);
+        s->alloc = alloc;
+        Identity_set(s);
+
+        if (!s->promise) {
+            Dict* resp = Dict_new(reqAlloc);
+            Dict_putString(resp, String_CONST("error"), String_CONST("creating search"), reqAlloc);
+            Admin_sendMessage(resp, txid, ctx->admin);
+            Allocator_free(alloc);
+            return;
+        }
+
+        s->promise->userData = s;
+        s->promise->callback = searchResponse;
+    }
+}
+
+
 void SearchRunner_admin_register(struct SearchRunner* runner,
                                  struct Admin* admin,
                                  struct Allocator* alloc)
@@ -75,5 +155,11 @@ void SearchRunner_admin_register(struct SearchRunner* runner,
     Admin_registerFunction("SearchRunner_showActiveSearch", showActiveSearch, ctx, true,
         ((struct Admin_FunctionArg[]) {
             { .name = "number", .required = 1, .type = "Int" }
+        }), admin);
+
+    Admin_registerFunction("SearchRunner_search", search, ctx, true,
+        ((struct Admin_FunctionArg[]) {
+            { .name = "ipv6", .required = 1, .type = "String" },
+            { .name = "maxRequests", .required = 0, .type = "Int" }
         }), admin);
 }

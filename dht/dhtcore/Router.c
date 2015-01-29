@@ -59,7 +59,7 @@ void Router_brokenLink(struct Router* r, uint64_t path, uint64_t labelAtErrorHop
 void Router_searchForNode(struct Router* r, uint8_t ip6[16], struct Allocator* alloc)
 {
     struct Router_pvt* rr = Identity_check((struct Router_pvt*)r);
-    SearchRunner_search(ip6, rr->searchRunner, alloc);
+    SearchRunner_search(ip6, -1, rr->searchRunner, alloc);
 }
 
 void Router_disconnectedPeer(struct Router* r, uint64_t path)

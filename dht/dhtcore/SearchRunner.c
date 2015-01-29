@@ -28,10 +28,8 @@
 #include "util/events/Timeout.h"
 #include "util/version/Version.h"
 
-
 /** The maximum number of requests to make before calling a search failed. */
-#define MAX_REQUESTS_PER_SEARCH 8
-
+#define DEFAULT_MAX_REQUESTS_PER_SEARCH 8
 
 struct SearchRunner_pvt
 {
@@ -70,6 +68,9 @@ struct SearchRunner_Search
 
     /** The number of requests which have been sent out so far for this search. */
     uint32_t totalRequests;
+
+    /** Maximum number of requests to make before terminating the search. */
+    uint32_t maxRequests;
 
     /** The address which we are searching for. */
     struct Address target;
@@ -194,7 +195,7 @@ static void searchStep(struct SearchRunner_Search* search)
         nextSearchNode = SearchStore_getNextNode(search->search);
 
         // If the number of requests sent has exceeded the max search requests, let's stop there.
-        if (search->totalRequests >= MAX_REQUESTS_PER_SEARCH || nextSearchNode == NULL) {
+        if (search->totalRequests >= search->maxRequests || nextSearchNode == NULL) {
             if (search->pub.callback) {
                 search->pub.callback(&search->pub, 0, NULL, NULL);
             }
@@ -283,6 +284,7 @@ struct SearchRunner_SearchData* SearchRunner_showActiveSearch(struct SearchRunne
 }
 
 struct RouterModule_Promise* SearchRunner_search(uint8_t target[16],
+                                                 int maxRequests,
                                                  struct SearchRunner* searchRunner,
                                                  struct Allocator* allocator)
 {
@@ -294,6 +296,10 @@ struct RouterModule_Promise* SearchRunner_search(uint8_t target[16],
         return NULL;
     }
 
+    if (maxRequests < 1) {
+        maxRequests = DEFAULT_MAX_REQUESTS_PER_SEARCH;
+    }
+
     struct Allocator* alloc = Allocator_child(allocator);
 
     struct Address targetAddr = { .path = 0 };
@@ -302,7 +308,7 @@ struct RouterModule_Promise* SearchRunner_search(uint8_t target[16],
     struct NodeList* nodes =
         NodeStore_getClosestNodes(runner->nodeStore,
                                   &targetAddr,
-                                  MAX_REQUESTS_PER_SEARCH,
+                                  maxRequests,
                                   Version_CURRENT_PROTOCOL,
                                   alloc);
 
@@ -323,7 +329,8 @@ struct RouterModule_Promise* SearchRunner_search(uint8_t target[16],
             .alloc = alloc
         },
         .runner = runner,
-        .search = sss
+        .search = sss,
+        .maxRequests = maxRequests
     }));
     Identity_set(search);
     runner->searches++;

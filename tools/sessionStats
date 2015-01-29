@@ -21,7 +21,7 @@ var nThen = require('../contrib/nodejs/cjdnsadmin/nthen');
 var printSession = function (session) {
     var state = session.state.replace(/CryptoAuth_/,'');
     while (state.length < ('ESTABLISHED').length) { state = state + ' ' }
-    var out = [ 'v', session.version, '.', session.publicKey, ' ', state, ' ', session.handle ];
+    var out = [ session.addr, ' ', state, ' ', session.handle, ' ', session.sendHandle ];
     if (Number(session.duplicates) !== 0) { out.push(' DUP ', session.duplicates); }
     if (Number(session.lostPackets) !== 0) { out.push(' LOS ', session.lostPackets); }
     if (Number(session.receivedOutOfRange) !== 0) { out.push(' OOR ', session.receivedOutOfRange); }
@@ -30,6 +30,7 @@ var printSession = function (session) {
 
 var cjdns;
 var handles = [];
+var sessions = [];
 
 nThen(function (waitFor) {
 
@@ -41,7 +42,7 @@ nThen(function (waitFor) {
         cjdns.SessionManager_getHandles(i, waitFor(function (err, ret) {
             if (err) { throw err; }
             handles.push.apply(handles, ret.handles);
-            if (handles.more) { more(i+1); }
+            if (ret.more) { more(i+1); }
         }));
     };
     more(0);
@@ -51,13 +52,25 @@ nThen(function (waitFor) {
     var next = function (i) {
         cjdns.SessionManager_sessionStats(Number(handles[i]), waitFor(function (err, ret) {
             if (err) { throw err; }
-            printSession(ret);
+            sessions.push(ret);
             i++
             if (i < handles.length) { next(i); }
         }));
     };
-    next(0);
+    if (handles.length) {
+        next(0);
+    } else {
+        console.log("No active sessions");
+    }
 
 }).nThen(function (waitFor) {
     cjdns.disconnect();
+
+    sessions.sort(function (a, b) {
+        return (a.addr.substring(a.addr.indexOf('.')) < b.addr.substring(b.addr.indexOf('.')))
+            ? -1 : 1;
+    });
+    for (var i = 0; i < sessions.length; i++) {
+        printSession(sessions[i]);
+    }
 });

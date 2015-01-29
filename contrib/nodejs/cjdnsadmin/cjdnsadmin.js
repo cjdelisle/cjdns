@@ -116,7 +116,8 @@ var makeFunction = function (sock, addr, port, pass, funcName, func) {
             var arg = arguments[i];
             if (!args[i].required && (arg === null || arg === undefined)) { continue; }
             if (!compatibleType(args[i].type, arg)) {
-                throw new Error("argument [" + i + "] [" + args[i].type + " " + args[i].name + "]" +
+                throw new Error("argument [" + i + "] ([" + arguments[i] + "]) [" +
+                                args[i].type + " " + args[i].name + "]" +
                                 " is of type [" + typeof(arg) + "] which is not compatible with " +
                                 "required type " + args[i].type);
             }

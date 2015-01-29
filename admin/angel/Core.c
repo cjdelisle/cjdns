@@ -426,7 +426,8 @@ void Core_init(struct Allocator* alloc,
                                             alloc,
                                             logger,
                                             ipTun,
-                                            rand);
+                                            rand,
+                                            rumorMill);
 
     struct SwitchPinger* sp =
         SwitchPinger_new(&dt->switchPingerIf, eventBase, rand, logger, &addr, alloc);

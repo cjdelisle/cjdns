@@ -1,0 +1,101 @@
+#!/usr/bin/env node
+/* -*- Mode:js */
+/* vim: set expandtab ts=4 sw=4: */
+/*
+ * You may redistribute this program and/or modify it under the terms of
+ * the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+var Cjdns = require('../contrib/nodejs/cjdnsadmin/cjdnsadmin');
+var nThen = require('../contrib/nodejs/cjdnsadmin/nthen');
+var PublicToIP6 = require('./lib/publicToIp6');
+var Dns =  require('dns');
+
+var WAIT_TIME = 5000;
+var INTERVAL = 1000;
+
+var now = function () { return (new Date()).getTime(); };
+var nowSeconds = function () { return Math.floor(now() / 1000); };
+
+var IP6_REGEX = new RegExp('^' + new Array(9).join(':[0-9a-f]{1,4}').substring(1) + '$');
+
+var equalsIp = function (ip, fullAddr) {
+    var key = fullAddr.replace(/.*\.([^\.]*\.k)/, function (all, one) { return one; });
+    return (PublicToIP6.convert(key) === ip);
+};
+
+var main = function (argv) {
+
+    var count = -1;
+    if (argv.indexOf('-c') !== -1) {
+        count = Number(argv[argv.indexOf('-c')+1]);
+    }
+
+    var target = argv[argv.length-1];
+
+    var cjdns;
+    nThen(function (waitFor) {
+
+        Cjdns.connectWithAdminInfo(waitFor(function (c) { cjdns = c; }));
+
+        if (!IP6_REGEX.test(target)) {
+            Dns.lookup(target, 6, waitFor(function (err, res) {
+                if (err) { throw err; }
+                console.log(target + ' has ip address ' + res);
+                target = res;
+            }));
+        }
+
+    }).nThen(function (waitFor) {
+
+        // Cannonicalize the ipv6...
+        var arr = target.split(':');
+        for (var i = 0; i < arr.length; i++) {
+            while (arr[i].length < 4) { arr[i] = '0' + arr[i]; }
+        }
+        target = arr.join(':');
+
+    }).nThen(function (waitFor) {
+
+        var startTime = (new Date()).getTime();
+        var timeOfFirstFind;
+        var handleMessage = function (err, msg) {
+            if (err) { throw err; }
+            if (msg.error && msg.error !== 'none') {
+                cjdns.disconnect();
+                console.log(msg);
+            }
+            if (msg.complete === "1") {
+                cjdns.disconnect();
+                console.log("Done -- first result in " + (timeOfFirstFind - startTime) + "ms." +
+                            " total: " + ((new Date()).getTime() - startTime) + "ms.");
+                return;
+            }
+
+            console.log();
+            console.log(msg.from + ' ' + msg.ms + 'ms ' + msg.nodes.length + ' results');
+
+            var addresses = [msg.from];
+            addresses.push.apply(addresses, msg.nodes);
+            for (var i = 0; i < addresses.length; i++) {
+                if (equalsIp(target, addresses[i])) {
+                    console.log("    found " + addresses[i]);
+                    if (!timeOfFirstFind) { timeOfFirstFind = (new Date()).getTime(); }
+                }
+            }
+        };
+
+        cjdns.setDefaultHandler(handleMessage);
+        cjdns.SearchRunner_search(target, count, handleMessage);
+    });
+};
+
+main(process.argv);
