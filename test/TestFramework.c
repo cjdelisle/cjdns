@@ -146,7 +146,7 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
 
     struct Ducttape* dt =
         Ducttape_register((uint8_t*)privateKey, registry, router,
-                          switchCore, base, allocator, logger, ipTun, rand);
+                          switchCore, base, allocator, logger, ipTun, rand, rumorMill);
 
     struct SwitchPinger* sp =
         SwitchPinger_new(&dt->switchPingerIf, base, rand, logger, myAddress, allocator);

@@ -70,6 +70,8 @@ struct Ducttape_pvt
 
     struct EventBase* eventBase;
 
+    struct RumorMill* sessionMill;
+
     struct Log* logger;
 
     /** For tunneling IPv4 and ICANN IPv6 packets. */

@@ -35,6 +35,7 @@
 #include "util/Checksum.h"
 #include "util/version/Version.h"
 #include "util/Assert.h"
+#include "util/events/Timeout.h"
 #include "tunnel/IpTunnel.h"
 #include "util/events/Time.h"
 #include "util/Defined.h"
@@ -1239,13 +1240,20 @@ static uint8_t incomingFromPinger(struct Message* message, struct Interface* ifa
 static void checkStateOfSessions(void* vducttape)
 {
     struct Ducttape_pvt* ctx = Identity_check((struct Ducttape_pvt*) vducttape);
+    if (!ctx->sessionMill) { return; }
     struct Allocator* alloc = Allocator_child(ctx->alloc);
     struct SessionManager_HandleList* handles = SessionManager_getHandleList(ctx->sm, alloc);
-    for (int i = 0; i < handles->count; i++) {
+    for (int i = 0; i < (int)handles->count; i++) {
         struct SessionManager_Session* sess =
             SessionManager_sessionForHandle(handles->handles[i], ctx->sm);
         if (sess->cryptoAuthState == CryptoAuth_ESTABLISHED) { continue; }
-        
+        if (!sess->knownSwitchLabel) { continue; }
+        uint8_t* hpk = CryptoAuth_getHerPublicKey(sess->internal);
+        if (Bits_isZero(hpk, 32)) { continue; }
+        struct Address addr = { .path = sess->knownSwitchLabel };
+        Bits_memcpyConst(addr.key, hpk, 32);
+        Address_getPrefix(&addr);
+        RumorMill_addNode(ctx->sessionMill, &addr);
     }
 }
 
@@ -1257,7 +1265,8 @@ struct Ducttape* Ducttape_register(uint8_t privateKey[32],
                                    struct Allocator* allocator,
                                    struct Log* logger,
                                    struct IpTunnel* ipTun,
-                                   struct Random* rand)
+                                   struct Random* rand,
+                                   struct RumorMill* sessionMill)
 {
     struct Ducttape_pvt* context = Allocator_calloc(allocator, sizeof(struct Ducttape_pvt), 1);
     context->registry = registry;
@@ -1265,6 +1274,7 @@ struct Ducttape* Ducttape_register(uint8_t privateKey[32],
     context->logger = logger;
     context->eventBase = eventBase;
     context->alloc = allocator;
+    context->sessionMill = sessionMill;
     Bits_memcpyConst(&context->pub.magicInterface, (&(struct Interface) {
         .sendMessage = magicInterfaceSendMessage,
         .allocator = allocator
@@ -1315,6 +1325,8 @@ struct Ducttape* Ducttape_register(uint8_t privateKey[32],
         .sendMessage = incomingFromPinger,
         .senderContext = context
     }), sizeof(struct Interface));
+
+    Timeout_setInterval(checkStateOfSessions, context, 10000, eventBase, allocator);
 
     return &context->pub;
 }
