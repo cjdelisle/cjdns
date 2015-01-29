@@ -29,7 +29,10 @@ Linker_require("net/Ducttape.c")
 
 struct Ducttape
 {
-    struct Interface switchPingerIf;
+    struct Interface controlIf;
+    struct Interface switchIf;
+
+
     struct Interface magicInterface;
     struct SessionManager* sessionManager;
 };

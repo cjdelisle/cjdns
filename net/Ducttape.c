@@ -52,14 +52,9 @@
 
 #define FC_ONE "\xfc\0\0\0\0\0\0\0\0\0\0\0\0\0\0\1"
 
-/**
- * In order to easily tell the incoming connection requests from messages which
- * are addressed to a specific interface by its handle, the most significant bit
- * in the big endian representation of the handle shall be cleared to indicate
- * that a session is new and set otherwise.
- */
-#define HANDLE_FLAG_BIT (0x80000000)
-#define HANDLE_FLAG_BIT_be Endian_hostToBigEndian32(HANDLE_FLAG_BIT)
+#define DUCTTAPE_FOR_IFACE(iface) \
+    Identity_check((struct Ducttape_pvt*)                                  \
+        ((uint8_t*)(iface))[-offsetof(struct Ducttape, (iface))])
 
 /*--------------------Prototypes--------------------*/
 static int handleOutgoing(struct DHTMessage* message,
@@ -895,239 +890,13 @@ static uint8_t outgoingFromCryptoAuth(struct Message* message, struct Interface*
 }
 
 /**
- * Take a CTRL message in v7 form  [ switch header ][ ctrl header ]
- * and change to v8 form   [ switch header ][ 0xffffffff ][ ctrl header ]
- * message pointer is at beginning of ctrl header.
- */
-static void changeToVersion8(struct Message* msg)
-{
-    struct SwitchHeader sh;
-    Message_shift(msg, SwitchHeader_SIZE, NULL);
-    Message_pop(msg, &sh, SwitchHeader_SIZE, NULL);
-    Message_push32(msg, 0xffffffff, NULL);
-    SwitchHeader_setCongestion(&sh, 0);
-    SwitchHeader_setSuppressErrors(&sh, false);
-    SwitchHeader_setVersion(&sh, SwitchHeader_CURRENT_VERSION);
-    SwitchHeader_setLabelShift(&sh, 0);
-    SwitchHeader_setCongestion(&sh, 0);
-    Message_push(msg, &sh, SwitchHeader_SIZE, NULL);
-    Message_shift(msg, -SwitchHeader_SIZE, NULL);
-}
-
-/**
- * Handle an incoming control message from a switch.
- *
- * @param context the ducttape context.
- * @param message the control message, this should be alligned on the beginning of the content,
- *                that is to say, after the end of the switch header.
- * @param switchHeader the header.
- * @param switchIf the interface which leads to the switch.
- * @param isFormV8 true if the control message is in the form specified by protocol version 8+
- */
-static uint8_t handleControlMessage(struct Ducttape_pvt* context,
-                                    struct Message* message,
-                                    struct SwitchHeader* switchHeader,
-                                    struct Interface* switchIf,
-                                    bool isFormV8)
-{
-    uint8_t labelStr[20];
-    uint64_t label = Endian_bigEndianToHost64(switchHeader->label_be);
-    AddrTools_printPath(labelStr, label);
-    Log_debug(context->logger, "ctrl packet from [%s]", labelStr);
-    if (message->length < Control_HEADER_SIZE) {
-        Log_info(context->logger, "DROP runt ctrl packet from [%s]", labelStr);
-        return Error_NONE;
-    }
-    struct Control* ctrl = (struct Control*) message->bytes;
-
-    if (Checksum_engine(message->bytes, message->length)) {
-        if (Defined(Version_8_COMPAT) && isFormV8) {
-            Log_debug(context->logger, "ctrl packet from [%s] with invalid checksum v8compat",
-                                       labelStr);
-        } else {
-            Log_info(context->logger, "DROP ctrl packet from [%s] with invalid checksum", labelStr);
-            return Error_NONE;
-        }
-    }
-
-    bool pong = false;
-    if (ctrl->type_be == Control_ERROR_be) {
-        if (message->length < Control_Error_MIN_SIZE) {
-            Log_info(context->logger, "DROP runt error packet from [%s]", labelStr);
-            return Error_NONE;
-        }
-
-        uint64_t path = Endian_bigEndianToHost64(switchHeader->label_be);
-        if (!LabelSplicer_isOneHop(path)) {
-            uint64_t labelAtStop = Endian_bigEndianToHost64(ctrl->content.error.cause.label_be);
-            Router_brokenLink(context->router, path, labelAtStop);
-        }
-
-        // Determine whether the "cause" packet is a control message.
-        bool isCtrlCause = false;
-        #ifdef Version_7_COMPAT
-            if (SwitchHeader_isV7Ctrl(&ctrl->content.error.cause)) {
-                isCtrlCause = true;
-            } else {
-        #endif
-        if (ctrl->content.error.causeHandle == 0xffffffff) {
-            isCtrlCause = true;
-        }
-        #ifdef Version_7_COMPAT
-            }
-        #endif
-
-        if (isCtrlCause) {
-            if (message->length < Control_Error_MIN_SIZE + Control_HEADER_SIZE) {
-                Log_info(context->logger,
-                          "error packet from [%s] containing runt cause packet",
-                          labelStr);
-                return Error_NONE;
-            }
-            struct Control* causeCtrl = (struct Control*) &(&ctrl->content.error.cause)[1];
-            if (causeCtrl->type_be != Control_PING_be && causeCtrl->type_be != Control_KEYPING_be) {
-                #ifdef Log_INFO
-                    uint32_t errorType =
-                        Endian_bigEndianToHost32(ctrl->content.error.errorType_be);
-                    Log_info(context->logger,
-                              "error packet from [%s] caused by [%s] packet ([%s])",
-                              labelStr,
-                              Control_typeString(causeCtrl->type_be),
-                              Error_strerror(errorType));
-                #endif
-            } else {
-                if (LabelSplicer_isOneHop(label)
-                    && ctrl->content.error.errorType_be
-                        == Endian_hostToBigEndian32(Error_UNDELIVERABLE))
-                {
-                    // this is our own InterfaceController complaining
-                    // because the node isn't responding to pings.
-                    return Error_NONE;
-                }
-                Log_debug(context->logger,
-                           "error packet from [%s] in response to ping, err [%u], length: [%u].",
-                           labelStr,
-                           Endian_bigEndianToHost32(ctrl->content.error.errorType_be),
-                           message->length);
-                // errors resulting from pings are forwarded back to the pinger.
-                pong = true;
-            }
-        } else {
-            uint32_t errorType = Endian_bigEndianToHost32(ctrl->content.error.errorType_be);
-            if (errorType != Error_RETURN_PATH_INVALID && false /* TODO(cjd): testing */) {
-                // Error_RETURN_PATH_INVALID is impossible to prevent so will appear all the time.
-                Log_info(context->logger,
-                         "error packet from [%s] [%s]",
-                         labelStr,
-                         Error_strerror(errorType));
-            }
-        }
-    } else if (ctrl->type_be == Control_PONG_be) {
-        pong = true;
-    } else if (ctrl->type_be == Control_PING_be) {
-
-        Message_shift(message, -Control_HEADER_SIZE, NULL);
-
-        if (message->length < Control_Ping_MIN_SIZE) {
-            Log_info(context->logger, "DROP runt ping");
-            return Error_INVALID;
-        }
-        struct Control_Ping* ping = (struct Control_Ping*) message->bytes;
-        uint32_t herVersion = Endian_bigEndianToHost32(ping->version_be);
-        ping->magic = Control_Pong_MAGIC;
-        ping->version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL);
-        Message_shift(message, Control_HEADER_SIZE, NULL);
-
-        ctrl->type_be = Control_PONG_be;
-        ctrl->checksum_be = 0;
-        ctrl->checksum_be = Checksum_engine(message->bytes, message->length);
-
-        if (isFormV8) {
-            Message_shift(message, 4, NULL);
-            Assert_true(((uint32_t*)message->bytes)[0] == 0xffffffff);
-        } else if (herVersion >= 8) {
-            changeToVersion8(message);
-        }
-        Message_shift(message, SwitchHeader_SIZE, NULL);
-
-        Log_debug(context->logger, "got switch ping from [%s]", labelStr);
-        SwitchHeader_setLabelShift(switchHeader, 0);
-        SwitchHeader_setCongestion(switchHeader, 0);
-        Interface_receiveMessage(switchIf, message);
-
-    } else if (ctrl->type_be == Control_KEYPONG_be) {
-        pong = true;
-    } else if (ctrl->type_be == Control_KEYPING_be) {
-
-        Message_shift(message, -Control_HEADER_SIZE, NULL);
-
-        if (message->length < Control_KeyPing_HEADER_SIZE
-            || message->length > Control_KeyPing_MAX_SIZE)
-        {
-            Log_info(context->logger, "DROP incorrect size keyping");
-            return Error_INVALID;
-        }
-
-        struct Control_KeyPing* keyPing = (struct Control_KeyPing*) message->bytes;
-
-        #ifdef Log_DEBUG
-            struct Address herAddr = {
-                .protocolVersion = Endian_bigEndianToHost32(keyPing->version_be),
-                .path = label
-            };
-            Bits_memcpyConst(herAddr.key, keyPing->key, 32);
-            String* addrStr = Address_toString(&herAddr, message->alloc);
-            Log_debug(context->logger, "got switch keyPing from [%s]", addrStr->bytes);
-        #endif
-
-        keyPing->magic = Control_KeyPong_MAGIC;
-        uint32_t herVersion = Endian_bigEndianToHost32(keyPing->version_be);
-        keyPing->version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL);
-        Bits_memcpyConst(keyPing->key, context->myAddr.key, 32);
-        Message_shift(message, Control_HEADER_SIZE, NULL);
-
-        ctrl->type_be = Control_KEYPONG_be;
-        ctrl->checksum_be = 0;
-        ctrl->checksum_be = Checksum_engine(message->bytes, message->length);
-
-        if (isFormV8) {
-            Message_shift(message, 4, NULL);
-            Assert_true(((uint32_t*)message->bytes)[0] == 0xffffffff);
-        } else if (herVersion >= 8) {
-            changeToVersion8(message);
-        }
-        Message_shift(message, SwitchHeader_SIZE, NULL);
-        SwitchHeader_setLabelShift(switchHeader, 0);
-        SwitchHeader_setCongestion(switchHeader, 0);
-        Interface_receiveMessage(switchIf, message);
-
-    } else {
-        Log_info(context->logger,
-                  "DROP control packet of unknown type from [%s], type [%d]",
-                  labelStr, Endian_bigEndianToHost16(ctrl->type_be));
-    }
-
-    if (pong && context->pub.switchPingerIf.receiveMessage) {
-        if (!isFormV8) {
-            Log_debug(context->logger, "DROP [%s] responded to ping with v7 response", labelStr);
-            return Error_NONE;
-        }
-        Log_debug(context->logger, "got switch pong from [%s]", labelStr);
-        // Shift back over the header
-        Message_shift(message, 4 + SwitchHeader_SIZE, NULL);
-        Interface_receiveMessage(&context->pub.switchPingerIf, message);
-    }
-    return Error_NONE;
-}
-
-/**
  * This is called as sendMessage() by the switch.
  * There is only one switch interface which sends all traffic.
  * message is aligned on the beginning of the switch header.
  */
 static uint8_t incomingFromSwitch(struct Message* message, struct Interface* switchIf)
 {
-    struct Ducttape_pvt* context = Identity_check((struct Ducttape_pvt*)switchIf->senderContext);
+    struct Ducttape_pvt* context = DUCTTAPE_FOR_IFACE(switchIf);
 
     struct Ducttape_MessageHeader* dtHeader = getDtHeader(message, true);
 
@@ -1137,12 +906,6 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     // The label comes in reversed from the switch because the switch doesn't know that we aren't
     // another switch ready to parse more bits, bit reversing the label yields the source address.
     switchHeader->label_be = Bits_bitReverse64(switchHeader->label_be);
-
-    #ifdef Version_12_COMPAT
-    if (SwitchHeader_isV7Ctrl(switchHeader)) {
-        return handleControlMessage(context, message, switchHeader, switchIf, false);
-    }
-    #endif
 
     if (message->length < 8) {
         Log_info(context->logger, "runt");
@@ -1158,10 +921,11 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     struct SessionManager_Session* session = NULL;
 
     if (nonceOrHandle > 3) {
-        Message_shift(message, -4, NULL);
         if (nonceOrHandle == 0xffffffff) {
-            return handleControlMessage(context, message, switchHeader, switchIf, true);
+            Message_shift(message, SwitchHeader_SIZE, NULL);
+            return Interface_receiveMessage(context->controlIf, message);
         }
+        Message_shift(message, -4, NULL);
 
         // Run message, it's a handle.
         session = SessionManager_sessionForHandle(nonceOrHandle, context->sm);
@@ -1231,10 +995,10 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     return 0;
 }
 
-static uint8_t incomingFromPinger(struct Message* message, struct Interface* iface)
+static uint8_t incomingFromControlHandler(struct Message* message, struct Interface* controlIf)
 {
-    struct Ducttape_pvt* context = Identity_check((struct Ducttape_pvt*)iface->senderContext);
-    return context->switchInterface.receiveMessage(message, &context->switchInterface);
+    struct Ducttape_pvt* ctx = DUCTTAPE_FOR_IFACE(controlIf);
+    return Interface_receiveMessage(ctx->switchIf, message);
 }
 
 static void checkStateOfSessions(void* vducttape)
@@ -1264,7 +1028,6 @@ static void checkStateOfSessions(void* vducttape)
 struct Ducttape* Ducttape_register(uint8_t privateKey[32],
                                    struct DHTModuleRegistry* registry,
                                    struct Router* router,
-                                   struct SwitchCore* switchCore,
                                    struct EventBase* eventBase,
                                    struct Allocator* allocator,
                                    struct Log* logger,
@@ -1312,23 +1075,16 @@ struct Ducttape* Ducttape_register(uint8_t privateKey[32],
         .handleOutgoing = handleOutgoing
     }), sizeof(struct DHTModule));
 
-    Bits_memcpyConst(&context->switchInterface, (&(struct Interface) {
-        .sendMessage = incomingFromSwitch,
-        .senderContext = context,
-        .allocator = allocator
-    }), sizeof(struct Interface));
-
-    if (DHTModuleRegistry_register(&context->module, context->registry)
-        || SwitchCore_setRouterInterface(&context->switchInterface, switchCore))
-    {
+    if (DHTModuleRegistry_register(&context->module, context->registry)) {
         return NULL;
     }
 
+    context->pub.switchIf.sendMessage = incomingFromSwitch;
+    context->pub.switchIf.senderContext = context;
+    context->pub.switchIf.allocator = allocator;
+
     // setup the switch pinger interface.
-    Bits_memcpyConst(&context->pub.switchPingerIf, (&(struct Interface) {
-        .sendMessage = incomingFromPinger,
-        .senderContext = context
-    }), sizeof(struct Interface));
+    context->pub.controlIf.sendMessage = incomingFromControlHandler;
 
     Timeout_setInterval(checkStateOfSessions, context, 10000, eventBase, allocator);
 

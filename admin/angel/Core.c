@@ -421,13 +421,14 @@ void Core_init(struct Allocator* alloc,
     struct Ducttape* dt = Ducttape_register(privateKey,
                                             registry,
                                             router,
-                                            switchCore,
                                             eventBase,
                                             alloc,
                                             logger,
                                             ipTun,
                                             rand,
                                             rumorMill);
+
+    SwitchCore_setRouterInterface(&dt->switchIf, switchCore)
 
     struct SwitchPinger* sp =
         SwitchPinger_new(&dt->switchPingerIf, eventBase, rand, logger, &addr, alloc);
