@@ -307,7 +307,7 @@ Version_COMPAT(15, ([12,13,14]))
 /**
  * The current protocol version.
  */
-#define Version_CURRENT_PROTOCOL 14
+#define Version_CURRENT_PROTOCOL 15
 #define Version_12_COMPAT
 #define Version_13_COMPAT
 #define Version_14_COMPAT
