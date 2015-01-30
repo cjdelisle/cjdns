@@ -995,10 +995,10 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     return 0;
 }
 
-static uint8_t incomingFromControlHandler(struct Message* message, struct Interface* controlIf)
+static int incomingFromControlHandler(struct Interface_Two* controlIf, struct Message* message)
 {
-    struct Ducttape_pvt* ctx = DUCTTAPE_FOR_IFACE(controlIf);
-    return Interface_receiveMessage(ctx->switchIf, message);
+    struct Ducttape_pvt* ctx = DUCTTAPE_FOR_IFACE2(controlIf);
+    return Interface_receiveMessage(&ctx->pub.switchIf, message);
 }
 
 static void checkStateOfSessions(void* vducttape)

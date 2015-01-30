@@ -29,7 +29,7 @@ Linker_require("net/Ducttape.c")
 
 struct Ducttape
 {
-    struct Interface controlIf;
+    struct Interface_Two controlIf;
     struct Interface switchIf;
 
 

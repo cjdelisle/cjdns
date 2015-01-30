@@ -328,4 +328,15 @@ static inline uint32_t NumberCompress_v4x8_bitsUsedForNumber(const uint32_t numb
 #define NumberCompress_decompress(label) \
     NumberCompress_getDecompressed(label, NumberCompress_bitsUsedForLabel(label))
 
+/**
+ * Determine if the node at the end of the given label is one hop away.
+ *
+ * @param label the label to test in host byte order.
+ * @return true if the node is 1 hop away, false otherwise.
+ */
+static inline bool NumberCompress_isOneHop(uint64_t label)
+{
+    return (int)NumberCompress_bitsUsedForLabel(label) == Bits_log2x64(label);
+}
+
 #endif

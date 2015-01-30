@@ -1,13 +1,20 @@
 
 struct ControlHandler
 {
-    
+    /** This interface expects and sends [ SwitchHeader ][ 0xffffffff ][ CTRL frame ] */
+    struct Interface_Two coreIf;
+
+    /** This interface expects and sends [ SwitchHeader ][ 0xffffffff ][ CTRL frame (ping/pong) ] */
+    struct Interface_Two switchPingerIf;
 };
 
 struct ControlHandler_pvt
 {
     struct ControlHandler pub;
     struct Log* log;
+    struct Allocator* alloc;
+    struct Router* router;
+    Identity
 };
 
 /**
@@ -20,60 +27,44 @@ struct ControlHandler_pvt
  * @param switchIf the interface which leads to the switch.
  * @param isFormV8 true if the control message is in the form specified by protocol version 8+
  */
-static uint8_t handleControlMessage(struct Ducttape_pvt* context,
-                                    struct Message* message,
-                                    struct SwitchHeader* switchHeader,
-                                    struct Interface* switchIf,
-                                    bool isFormV8)
+static int incomingFromCore(struct Interface_Two* coreIf, struct Message* msg)
 {
+    struct ControlHandler_pvt* ch = Identity_check((struct ControlHandler_pvt*) coreIf);
+
     uint8_t labelStr[20];
     uint64_t label = Endian_bigEndianToHost64(switchHeader->label_be);
     AddrTools_printPath(labelStr, label);
-    Log_debug(context->logger, "ctrl packet from [%s]", labelStr);
-    if (message->length < Control_HEADER_SIZE) {
-        Log_info(context->logger, "DROP runt ctrl packet from [%s]", labelStr);
+    Log_debug(ch->logger, "ctrl packet from [%s]", labelStr);
+
+    if (msg->length < SwitchHeader_SIZE + 4 + Control_HEADER_SIZE) {
+        Log_info(ch->logger, "DROP runt ctrl packet from [%s]", labelStr);
         return Error_NONE;
     }
-    struct Control* ctrl = (struct Control*) message->bytes;
+    struct SwitchHeader* switchHeader = (struct SwitchHeader*) msg->bytes;
+    Message_shift(msg, -SwitchHeader_SIZE, NULL);
+    Assert_true(Message_pop32(msg, NULL) == 0xffffffff);
+    struct Control* ctrl = (struct Control*) msg->bytes;
 
-    if (Checksum_engine(message->bytes, message->length)) {
-        if (Defined(Version_8_COMPAT) && isFormV8) {
-            Log_debug(context->logger, "ctrl packet from [%s] with invalid checksum v8compat",
-                                       labelStr);
-        } else {
-            Log_info(context->logger, "DROP ctrl packet from [%s] with invalid checksum", labelStr);
-            return Error_NONE;
-        }
+    if (Checksum_engine(msg->bytes, msg->length)) {
+        Log_info(ch->logger, "DROP ctrl packet from [%s] with invalid checksum", labelStr);
+        return Error_NONE;
     }
 
     bool pong = false;
     if (ctrl->type_be == Control_ERROR_be) {
-        if (message->length < Control_Error_MIN_SIZE) {
-            Log_info(context->logger, "DROP runt error packet from [%s]", labelStr);
+        if (msg->length < Control_Error_MIN_SIZE) {
+            Log_info(ch->logger, "DROP runt error packet from [%s]", labelStr);
             return Error_NONE;
         }
 
         uint64_t path = Endian_bigEndianToHost64(switchHeader->label_be);
-        if (!LabelSplicer_isOneHop(path)) {
+        if (!NumberCompress_isOneHop(path)) {
             uint64_t labelAtStop = Endian_bigEndianToHost64(ctrl->content.error.cause.label_be);
-            Router_brokenLink(context->router, path, labelAtStop);
+            Router_brokenLink(ch->router, path, labelAtStop);
         }
 
-        // Determine whether the "cause" packet is a control message.
-        bool isCtrlCause = false;
-        #ifdef Version_7_COMPAT
-            if (SwitchHeader_isV7Ctrl(&ctrl->content.error.cause)) {
-                isCtrlCause = true;
-            } else {
-        #endif
         if (ctrl->content.error.causeHandle == 0xffffffff) {
-            isCtrlCause = true;
-        }
-        #ifdef Version_7_COMPAT
-            }
-        #endif
-
-        if (isCtrlCause) {
+            // Determine whether the "cause" packet is a control message.
             if (message->length < Control_Error_MIN_SIZE + Control_HEADER_SIZE) {
                 Log_info(context->logger,
                           "error packet from [%s] containing runt cause packet",
