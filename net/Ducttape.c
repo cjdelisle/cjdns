@@ -581,26 +581,24 @@ static uint8_t sendToNode(struct Message* message, struct Interface* iface)
     struct IpTunnel_PacketInfoHeader* header = (struct IpTunnel_PacketInfoHeader*) message->bytes;
     Message_shift(message, -IpTunnel_PacketInfoHeader_SIZE, NULL);
     struct Node_Two* n = Router_lookup(context->router, header->nodeIp6Addr);
-    if (n) {
-        if (!Bits_memcmp(header->nodeKey, n->address.key, 32)) {
-            // Found the node.
-            /* noisy
-            #ifdef Log_DEBUG
-                uint8_t nhAddr[60];
-                Address_print(nhAddr, &n->address);
-                Log_debug(context->logger, "Sending arbitrary data to [%s]", nhAddr);
-            #endif*/
+    if (n && !Bits_memcmp(header->nodeKey, n->address.key, 32)) {
+        // Found the node.
+        /* noisy
+        #ifdef Log_DEBUG
+            uint8_t nhAddr[60];
+            Address_print(nhAddr, &n->address);
+            Log_debug(context->logger, "Sending arbitrary data to [%s]", nhAddr);
+        #endif*/
 
-            struct SessionManager_Session* session =
-                SessionManager_getSession(n->address.ip6.bytes, n->address.key, context->sm);
+        struct SessionManager_Session* session =
+            SessionManager_getSession(n->address.ip6.bytes, n->address.key, context->sm);
 
-            n->address.protocolVersion = session->version =
-                (n->address.protocolVersion > session->version)
-                    ? n->address.protocolVersion : session->version;
+        n->address.protocolVersion = session->version =
+            (n->address.protocolVersion > session->version)
+                ? n->address.protocolVersion : session->version;
 
-            dtHeader->switchLabel = n->address.path;
-            return sendToRouter(message, dtHeader, session, context);
-        }
+        dtHeader->switchLabel = n->address.path;
+        return sendToRouter(message, dtHeader, session, context);
     } else {
         struct SessionManager_Session* session =
             SessionManager_getSession(header->nodeIp6Addr, header->nodeKey, context->sm);
