@@ -15,6 +15,8 @@
 #include "exception/Except.h"
 #include "util/platform/netdev/NetPlatform.h"
 #include "util/AddrTools.h"
+#include "util/platform/Sockaddr.h"
+#include "util/Assert.h"
 
 #include <errno.h>
 #include <stdio.h>
