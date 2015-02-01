@@ -166,9 +166,6 @@ struct SessionManager_Session* SessionManager_getSession(uint8_t* lookupKey,
 {
     int ifaceIndex = Map_OfSessionsByIp6_indexForKey((struct Ip6*)lookupKey, &sm->ifaceMap);
     if (ifaceIndex == -1) {
-        // Make sure cleanup() doesn't get behind.
-        cleanup(sm);
-
         struct Allocator* ifAlloc = Allocator_child(sm->allocator);
         struct SessionManager_Session_pvt* ss =
             Allocator_clone(ifAlloc, (&(struct SessionManager_Session_pvt) {
