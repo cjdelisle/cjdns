@@ -238,14 +238,6 @@ Miscellaneous
 
 This section contains the security section for configuring program options and a few other miscellaneous things that don't fit in with a broader category elsewhere.
 ````javascript
-    // Tear down inactive CryptoAuth sessions after this number of seconds
-    // to make them more forgiving in the event that they become desynchronized.
-    "resetAfterInactivitySeconds": 100,
-
-    // Save the pid of the running process to this file.
-    // If this file cannot be opened for writing, the router will not start.
-    //"pidFile": "cjdroute.pid",
-
     // Dropping permissions.
     "security":
     [
@@ -258,9 +250,6 @@ This section contains the security section for configuring program options and a
         // Change the user id to this user after starting up and getting resources.
         {"setuser": "nobody"}
      ],
-
-    // Version of the config file, used internally for migration.
-    "version": 1
 }
 ````
 
