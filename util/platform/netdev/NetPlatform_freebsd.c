@@ -16,6 +16,7 @@
 #include "exception/Except.h"
 #include "interface/Interface.h"
 #include "util/AddrTools.h"
+#include "util/platform/Sockaddr.h"
 
 #include <errno.h>
 #include <ctype.h>

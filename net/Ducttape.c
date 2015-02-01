@@ -470,43 +470,33 @@ static inline uint8_t incomingFromTun(struct Message* message,
         return Interface_receiveMessage(&context->pub.magicInterface, message);
     }
 
-    struct SessionManager_Session* session =
-        SessionManager_getSession(header->destinationAddr, NULL, context->sm);
-
     struct Ducttape_MessageHeader* dtHeader = getDtHeader(message, true);
     struct Node_Two* bestNext = Router_lookup(context->router, header->destinationAddr);
-    struct SessionManager_Session* nextHopSession;
-    if (bestNext) {
-        nextHopSession = SessionManager_getSession(bestNext->address.ip6.bytes,
-                                                   bestNext->address.key,
-                                                   context->sm);
+    if (bestNext && !Bits_memcmp(header->destinationAddr, bestNext->address.ip6.bytes, 16)) {
+        struct SessionManager_Session* sess =
+            SessionManager_getSession(bestNext->address.ip6.bytes,
+                                      bestNext->address.key,
+                                      context->sm);
 
-        bestNext->address.protocolVersion = nextHopSession->version =
-            (bestNext->address.protocolVersion > nextHopSession->version)
-                ? bestNext->address.protocolVersion : nextHopSession->version;
+        bestNext->address.protocolVersion = sess->version =
+            (bestNext->address.protocolVersion > sess->version)
+                ? bestNext->address.protocolVersion : sess->version;
 
         dtHeader->switchLabel = bestNext->address.path;
 
         // This only matters if we fall out of the if block and do 3 layer send...
-        dtHeader->nextHopReceiveHandle = Endian_bigEndianToHost32(nextHopSession->receiveHandle_be);
+        dtHeader->nextHopReceiveHandle = Endian_bigEndianToHost32(sess->receiveHandle_be);
 
-        if (!Bits_memcmp(header->destinationAddr, bestNext->address.ip6.bytes, 16)) {
-            // Direct send, skip the innermost layer of encryption.
-            /*#ifdef Log_DEBUG
-                uint8_t nhAddr[60];
-                Address_print(nhAddr, &bestNext->address);
-                Log_debug(context->logger, "Forwarding data to %s (last hop)\n", nhAddr);
-            #endif*/
-            return sendToRouter(message, dtHeader, nextHopSession, context);
-        } else if (session->knownSwitchLabel) {
-            // Do a direct send using a discovered label...
-            dtHeader->switchLabel = session->knownSwitchLabel;
-            return sendToRouter(message, dtHeader, session, context);
-        }
-        // else { the message will need to be 3 layer encrypted but since we already did a lookup
-        // of the best node to forward to, we can skip doing another lookup by storing a pointer
-        // to that node in the context (bestNext).
-    } else {
+        return sendToRouter(message, dtHeader, sess, context);
+    }
+
+    struct SessionManager_Session* session =
+        SessionManager_getSession(header->destinationAddr, NULL, context->sm);
+    if (session->knownSwitchLabel) {
+        // Do a direct send using a discovered label...
+        dtHeader->switchLabel = session->knownSwitchLabel;
+        return sendToRouter(message, dtHeader, session, context);
+    } else if (!bestNext) {
         #ifdef Log_WARN
             uint8_t thisAddr[40];
             uint8_t destAddr[40];
@@ -518,6 +508,11 @@ static inline uint8_t incomingFromTun(struct Message* message,
         #endif
         return Error_UNDELIVERABLE;
     }
+
+    struct SessionManager_Session* nextHopSession =
+        SessionManager_getSession(bestNext->address.ip6.bytes,
+                                  bestNext->address.key,
+                                  context->sm);
 /*
     #ifdef Log_DEBUG
         uint8_t destAddr[40];
@@ -576,26 +571,24 @@ static uint8_t sendToNode(struct Message* message, struct Interface* iface)
     struct IpTunnel_PacketInfoHeader* header = (struct IpTunnel_PacketInfoHeader*) message->bytes;
     Message_shift(message, -IpTunnel_PacketInfoHeader_SIZE, NULL);
     struct Node_Two* n = Router_lookup(context->router, header->nodeIp6Addr);
-    if (n) {
-        if (!Bits_memcmp(header->nodeKey, n->address.key, 32)) {
-            // Found the node.
-            /* noisy
-            #ifdef Log_DEBUG
-                uint8_t nhAddr[60];
-                Address_print(nhAddr, &n->address);
-                Log_debug(context->logger, "Sending arbitrary data to [%s]", nhAddr);
-            #endif*/
+    if (n && !Bits_memcmp(header->nodeKey, n->address.key, 32)) {
+        // Found the node.
+        /* noisy
+        #ifdef Log_DEBUG
+            uint8_t nhAddr[60];
+            Address_print(nhAddr, &n->address);
+            Log_debug(context->logger, "Sending arbitrary data to [%s]", nhAddr);
+        #endif*/
 
-            struct SessionManager_Session* session =
-                SessionManager_getSession(n->address.ip6.bytes, n->address.key, context->sm);
+        struct SessionManager_Session* session =
+            SessionManager_getSession(n->address.ip6.bytes, n->address.key, context->sm);
 
-            n->address.protocolVersion = session->version =
-                (n->address.protocolVersion > session->version)
-                    ? n->address.protocolVersion : session->version;
+        n->address.protocolVersion = session->version =
+            (n->address.protocolVersion > session->version)
+                ? n->address.protocolVersion : session->version;
 
-            dtHeader->switchLabel = n->address.path;
-            return sendToRouter(message, dtHeader, session, context);
-        }
+        dtHeader->switchLabel = n->address.path;
+        return sendToRouter(message, dtHeader, session, context);
     } else {
         struct SessionManager_Session* session =
             SessionManager_getSession(header->nodeIp6Addr, header->nodeKey, context->sm);
