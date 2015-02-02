@@ -18,6 +18,7 @@
 #include "util/Identity.h"
 #include "util/Assert.h"
 #include "util/Bits.h"
+#include "util/Endian.h"
 #include "util/Defined.h"
 
 /**

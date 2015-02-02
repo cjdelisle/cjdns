@@ -17,6 +17,7 @@
 #include "memory/Allocator.h"
 #include "switch/EncodingScheme.h"
 #include "util/Bits.h"
+#include "util/Endian.h"
 #include "util/Hex.h"
 
 int EncodingScheme_getFormNum(struct EncodingScheme* scheme, uint64_t routeLabel)
