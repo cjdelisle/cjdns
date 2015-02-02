@@ -1,10 +1,27 @@
+/* vim: set expandtab ts=4 sw=4: */
+/*
+ * You may redistribute this program and/or modify it under the terms of
+ * the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
 struct ControlHandler
 {
     /** This interface expects and sends [ SwitchHeader ][ 0xffffffff ][ CTRL frame ] */
     struct Interface_Two coreIf;
 
-    /** This interface expects and sends [ SwitchHeader ][ 0xffffffff ][ CTRL frame (ping/pong) ] */
+    /**
+     * This interface expects and sends [ SwitchHeader ][ 0xffffffff ][ CTRL frame ]
+     * May send a pong or an error caused by a ping.
+     */
     struct Interface_Two switchPingerIf;
 };
 
@@ -31,6 +48,8 @@ static int incomingFromCore(struct Interface_Two* coreIf, struct Message* msg)
 {
     struct ControlHandler_pvt* ch = Identity_check((struct ControlHandler_pvt*) coreIf);
 
+    struct SwitchHeader* switchHeader = (struct SwitchHeader*) msg->bytes;
+    Assert_true(msg->length >= SwitchHeader_SIZE);
     uint8_t labelStr[20];
     uint64_t label = Endian_bigEndianToHost64(switchHeader->label_be);
     AddrTools_printPath(labelStr, label);
@@ -40,7 +59,7 @@ static int incomingFromCore(struct Interface_Two* coreIf, struct Message* msg)
         Log_info(ch->logger, "DROP runt ctrl packet from [%s]", labelStr);
         return Error_NONE;
     }
-    struct SwitchHeader* switchHeader = (struct SwitchHeader*) msg->bytes;
+
     Message_shift(msg, -SwitchHeader_SIZE, NULL);
     Assert_true(Message_pop32(msg, NULL) == 0xffffffff);
     struct Control* ctrl = (struct Control*) msg->bytes;
@@ -67,8 +86,8 @@ static int incomingFromCore(struct Interface_Two* coreIf, struct Message* msg)
             // Determine whether the "cause" packet is a control message.
             if (message->length < Control_Error_MIN_SIZE + Control_HEADER_SIZE) {
                 Log_info(context->logger,
-                          "error packet from [%s] containing runt cause packet",
-                          labelStr);
+                         "error packet from [%s] containing runt cause packet",
+                         labelStr);
                 return Error_NONE;
             }
             struct Control* causeCtrl = (struct Control*) &(&ctrl->content.error.cause)[1];
@@ -101,7 +120,7 @@ static int incomingFromCore(struct Interface_Two* coreIf, struct Message* msg)
             }
         } else {
             uint32_t errorType = Endian_bigEndianToHost32(ctrl->content.error.errorType_be);
-            if (errorType != Error_RETURN_PATH_INVALID && false /* TODO(cjd): testing */) {
+            if (errorType != Error_RETURN_PATH_INVALID) {
                 // Error_RETURN_PATH_INVALID is impossible to prevent so will appear all the time.
                 Log_info(context->logger,
                          "error packet from [%s] [%s]",
@@ -177,12 +196,9 @@ static int incomingFromCore(struct Interface_Two* coreIf, struct Message* msg)
         ctrl->checksum_be = 0;
         ctrl->checksum_be = Checksum_engine(message->bytes, message->length);
 
-        if (isFormV8) {
-            Message_shift(message, 4, NULL);
-            Assert_true(((uint32_t*)message->bytes)[0] == 0xffffffff);
-        } else if (herVersion >= 8) {
-            changeToVersion8(message);
-        }
+        Message_shift(message, 4, NULL);
+        Assert_true(((uint32_t*)message->bytes)[0] == 0xffffffff);
+
         Message_shift(message, SwitchHeader_SIZE, NULL);
         SwitchHeader_setLabelShift(switchHeader, 0);
         SwitchHeader_setCongestion(switchHeader, 0);
@@ -194,19 +210,31 @@ static int incomingFromCore(struct Interface_Two* coreIf, struct Message* msg)
                   labelStr, Endian_bigEndianToHost16(ctrl->type_be));
     }
 
-    if (pong && context->pub.switchPingerIf.receiveMessage) {
-        if (!isFormV8) {
-            Log_debug(context->logger, "DROP [%s] responded to ping with v7 response", labelStr);
-            return Error_NONE;
-        }
+    if (pong) {
         Log_debug(context->logger, "got switch pong from [%s]", labelStr);
         // Shift back over the header
         Message_shift(message, 4 + SwitchHeader_SIZE, NULL);
-        Interface_receiveMessage(&context->pub.switchPingerIf, message);
+        return Interface_send(&context->pub.switchPingerIf, message);
     }
     return Error_NONE;
 }
 
-struct ControlHandler* ControlHandler_new(struct Allocator* alloc, struct Log* logger)
+// Forward from switch pinger directly to core.
+static int incomingFromSwitchPinger(struct Interface_Two* switchPingerIf, struct Message* msg)
 {
+    struct ControlHandler_pvt* ch =
+        Identity_check(&((struct ControlHandler_pvt*) switchPingerIf)[-1]);
+    return Interface_send(ch->coreIf, msg);
+}
+
+struct ControlHandler* ControlHandler_new(struct Allocator* alloc,
+                                          struct Log* logger,
+                                          struct Router* router)
+{
+    struct ControlHandler_pvt* ch = Allocator_calloc(alloc, sizeof(struct ControlHandler_pvt), 1);
+    ch->alloc = alloc;
+    ch->log = logger;
+    ch->router = router;
+    ch->pub.coreIf.send = incomingFromCore;
+    ch->pub.switchPoingerIf.send = incomingFromSwitchPinger;
 }

@@ -916,7 +916,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     if (nonceOrHandle > 3) {
         if (nonceOrHandle == 0xffffffff) {
             Message_shift(message, SwitchHeader_SIZE, NULL);
-            return Interface_receiveMessage(context->controlIf, message);
+            return Interface_send(&context->controlIf, message);
         }
         Message_shift(message, -4, NULL);
 
@@ -1076,8 +1076,8 @@ struct Ducttape* Ducttape_register(uint8_t privateKey[32],
     context->pub.switchIf.senderContext = context;
     context->pub.switchIf.allocator = allocator;
 
-    // setup the switch pinger interface.
-    context->pub.controlIf.sendMessage = incomingFromControlHandler;
+    // setup the control frame interface.
+    context->pub.controlIf.send = incomingFromControlHandler;
 
     Timeout_setInterval(checkStateOfSessions, context, 10000, eventBase, allocator);
 

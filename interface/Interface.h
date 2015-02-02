@@ -104,18 +104,18 @@ struct Interface_Two
      * @return 0 If all goes well, non-zero in case of an error.
      *           See Error.h for more information about interface error codes.
      */
-    Interface_Callback2 sendMessage;
+    Interface_Callback2 send;
 
     /** Interface to which this one is connected (if connected) */
     struct Interface_Two* connectedIf;
 };
 
-static inline int Interface_sendMessage2(struct Interface_Two* iface, struct Message* msg)
+static inline int Interface_send(struct Interface_Two* iface, struct Message* msg)
 {
     struct Interface_Two* conn = iface->connectedIf;
     if (!conn) { return Interface_ERROR_WRONG_STATE; }
-    Assert_true(conn->sendMessage);
-    return conn->sendMessage(conn, msg, iface);
+    Assert_true(conn->send);
+    return conn->send(conn, msg, iface);
 }
 
 static inline void Interface_plumb(struct Interface_Two* a, struct Interface_Two* b)
