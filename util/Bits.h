@@ -16,8 +16,9 @@
 #define Bits_H
 
 #include "util/Assert.h"
-#include "util/Endian.h"
 #include "util/Gcc.h"
+#include "util/Linker.h"
+Linker_require("util/Bits.c")
 
 #include <stdint.h>
 #include <stddef.h>
@@ -56,20 +57,12 @@ static inline int Bits_popCountx32(uint32_t number)
     return out;
 }
 
-static inline int Bits_log2x64_stupid(uint64_t number)
-{
-    int out = 0;
-    while (number >>= 1) {
-        out++;
-    }
-    return out;
-}
-
 static inline int Bits_log2x64(uint64_t number)
 {
     if (!number) { return 0; }
     return 63 - __builtin_clzll(number);
 }
+int Bits_log2x64_stupid(uint64_t number);
 
 /** Largest possible number whose log2 is bitCount. */
 static inline uint64_t Bits_maxBits64(uint32_t bitCount)
@@ -87,11 +80,6 @@ static inline int Bits_log2x32(uint32_t number)
     return out;
 }
 
-static inline int Bits_log2x64_be(uint64_t number)
-{
-    return Bits_log2x64(Endian_bigEndianToHost64(number));
-}
-
 /**
  * Bitwise reversal of the a number.
  * This is endian safe.
@@ -104,11 +92,7 @@ static inline uint64_t Bits_bitReverse64(uint64_t toReverse)
     Bits_rotateAndMask(0x5555555555555555ull,  1);
     Bits_rotateAndMask(0x3333333333333333ull,  2);
     Bits_rotateAndMask(0x0F0F0F0F0F0F0F0Full,  4);
-    Bits_rotateAndMask(0x00FF00FF00FF00FFull,  8);
-    Bits_rotateAndMask(0x0000FFFF0000FFFFull, 16);
-    Bits_rotateAndMask(0x00000000FFFFFFFFull, 32);
-
-    return toReverse;
+    return __builtin_bswap64(toReverse);
 
     #undef Bits_rotateAndMask
 }
@@ -129,40 +113,14 @@ static inline int Bits_isZero(void* buffer, size_t length)
     return 1;
 }
 
-
-static inline void* Bits_memmove(void* dest, const void* src, size_t length)
-{
-    #ifndef memmove
-        void* memmove(void* dest, const void* src, size_t length);
-    #endif
-    return memmove(dest, src, length);
-}
-
-static inline void* Bits_memset(void* location, int byte, size_t count)
-{
-    #ifndef memset
-        void* memset(void* location, int byte, size_t count);
-    #endif
-    return memset(location, byte, count);
-}
-
-static inline int Bits_memcmp(const void* loc1, const void* loc2, size_t length)
-{
-    #ifndef memcmp
-        int memcmp(const void* loc1, const void* loc2, size_t length);
-    #endif
-    return memcmp(loc1, loc2, length);
-}
-
-static inline void* Bits_memcpyNoDebug(void* restrict out, const void* restrict in, size_t length)
-{
-    #ifndef memcpy
-        void* memcpy(void* restrict out, const void* restrict in, size_t length);
-    #endif
-    return memcpy(out, in, length);
-}
+#define Bits_memmove(a,b,c) __builtin_memmove(a,b,c)
+#define Bits_memset(a,b,c) __builtin_memset(a,b,c)
+#define Bits_memcmp(a,b,c) __builtin_memcmp(a,b,c)
 
 /**
+ * Bits_memcpy()
+ * Alias to POSIX memcpy(), allows for extra debugging checks.
+ *
  * @param out buffer to write to.
  * @param in buffer to read from.
  * @param length number of bytes to copy.
@@ -171,11 +129,12 @@ static inline void* Bits_memcpyNoDebug(void* restrict out, const void* restrict 
  * @param constant true if the length should be checked for being constant.
  * @return out
  */
-static inline void* Bits_memcpyDebug(void* out,
-                                     const void* in,
-                                     size_t length,
-                                     char* file,
-                                     int line)
+#define Bits_memcpy(a,b,c) Bits__memcpy(a,b,c,Gcc_SHORT_FILE,Gcc_LINE)
+static inline void* Bits__memcpy(void* out,
+                                 const void* in,
+                                 size_t length,
+                                 char* file,
+                                 int line)
 {
     const char* inc = in;
     const char* outc = out;
@@ -183,22 +142,8 @@ static inline void* Bits_memcpyDebug(void* out,
     if (outc >= inc && outc < inc + length) {
         Assert_failure(file, line, "memcpy() pointers alias each other");
     }
-    return Bits_memcpyNoDebug(out, in, length);
+    return __builtin_memcpy(out, in, length);
 }
-
-/**
- * Bits_memcpy()
- * Alias to POSIX memcpy(), allows for extra debugging checks.
- *
- * @param out the buffer to write to.
- * @param in the buffer to read from.
- * @param length the number of bytes to copy.
- */
-#ifdef PARANOIA
-    #define Bits_memcpy(a, b, c) Bits_memcpyDebug(a, b, c, Gcc_SHORT_FILE, Gcc_LINE)
-#else
-    #define Bits_memcpy(a,b,c) Bits_memcpyNoDebug(a,b,c)
-#endif
 
 /**
  * Bits_memcpyConst()
@@ -210,41 +155,20 @@ static inline void* Bits_memcpyDebug(void* out,
  * @param in the buffer to read from.
  * @param length the number of bytes to copy.
  */
-#ifdef HAS_BUILTIN_CONSTANT_P
-    #define Bits_memcpyConst(a, b, c) \
-        Assert_compileTime(__builtin_constant_p(c) == 1); \
-        Bits_memcpy(a, b, c)
+#define Bits_memcpyConst(a,b,c) \
+    do {                                       \
+        Assert_true(__builtin_constant_p(c));  \
+        Bits_memcpy(a,b,c);                    \
+    } while (0)
+// CHECKFILES_IGNORE
 
-    #define Bits_memmoveConst(a,b,c) \
-        Assert_compileTime(__builtin_constant_p(c) == 1); \
-        Bits_memmove(a,b,c)
-#else
-    #define Bits_memcpyConst(a, b, c) Bits_memcpy(a, b, c)
-#endif
+#define Bits_memmoveConst(a,b,c) \
+    do {                                       \
+        Assert_true(__builtin_constant_p(c));  \
+        Bits_memmove(a,b,c);                   \
+    } while (0)
+// CHECKFILES_IGNORE
 
-static inline void* Bits_memmem(const void* haystack,
-                                const void* needle,
-                                size_t haystackLen,
-                                size_t needleLen)
-{
-        uint8_t* needleC = (uint8_t*) needle;
-        uint8_t* haystackC = (uint8_t*) haystack;
-        uint8_t* stopAt = haystackC + haystackLen - needleLen;
-
-        if (!(haystack && needle && haystackLen && needleLen)) {
-            return NULL;
-        }
-
-        while (haystackC <= stopAt) {
-            if (*haystackC == *needleC
-                && !__builtin_memcmp(haystackC, needleC, needleLen))
-            {
-                return haystackC;
-            }
-            haystackC++;
-        }
-
-        return NULL;
-}
+void* Bits_memmem(const void* haystack, size_t haystackLen, const void* needle, size_t needleLen);
 
 #endif

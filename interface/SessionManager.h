@@ -39,6 +39,9 @@ struct SessionManager_Session
     /** When the last message was sent on this session (milliseconds since epoch). */
     uint64_t timeOfLastOut;
 
+    /** When this session was created. */
+    uint64_t timeOfCreation;
+
     /** The CryptoAuth state as of the last message. See: CryptoAuth_getState() */
     int cryptoAuthState;
 

@@ -20,6 +20,7 @@
 
 #include "memory/Allocator.h"
 #include "util/Bits.h"
+#include "util/Endian.h"
 #include "util/UniqueName.h"
 
 struct Message
