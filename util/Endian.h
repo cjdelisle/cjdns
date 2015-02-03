@@ -47,7 +47,7 @@
     #define Endian_isBigEndian() 1
 #endif
 
-#if defined __GNUC__ && __GNUC__ >= 2 && __GNUC_PREREQ(4, 8) && 0
+#if defined __GNUC__ && __GNUC__ >= 2 && __GNUC_PREREQ(4, 8)
     #define Endian_byteSwapNoCast16(x) __builtin_bswap16(x)
 #else
     #define Endian_byteSwapNoCast16(x) \
