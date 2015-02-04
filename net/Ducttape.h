@@ -40,7 +40,6 @@ struct Ducttape
 struct Ducttape* Ducttape_register(uint8_t privateKey[32],
                                    struct DHTModuleRegistry* registry,
                                    struct Router* router,
-                                   struct SwitchCore* switchCore,
                                    struct EventBase* eventBase,
                                    struct Allocator* allocator,
                                    struct Log* logger,

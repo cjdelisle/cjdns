@@ -31,6 +31,7 @@
 #include "util/log/WriterLog.h"
 #include "util/events/EventBase.h"
 #include "net/SwitchPinger.h"
+#include "net/ControlHandler.h"
 #include "interface/InterfaceController.h"
 
 #include "crypto_scalarmult_curve25519.h"
@@ -146,10 +147,12 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
 
     struct Ducttape* dt =
         Ducttape_register((uint8_t*)privateKey, registry, router,
-                          switchCore, base, allocator, logger, ipTun, rand, rumorMill);
+                          base, allocator, logger, ipTun, rand, rumorMill);
 
-    struct SwitchPinger* sp =
-        SwitchPinger_new(&dt->switchPingerIf, base, rand, logger, myAddress, allocator);
+    struct ControlHandler* controlHandler = ControlHandler_new(allocator, logger, router);
+    Interface_plumb(&controlHandler->coreIf, &dt->controlIf);
+    struct SwitchPinger* sp = SwitchPinger_new(base, rand, logger, myAddress, allocator);
+    Interface_plumb(&controlHandler->switchPingerIf, &sp->controlHandlerIf);
 
     // Interfaces.
     struct InterfaceController* ifController =

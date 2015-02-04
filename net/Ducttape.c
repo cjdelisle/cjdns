@@ -53,8 +53,9 @@
 #define FC_ONE "\xfc\0\0\0\0\0\0\0\0\0\0\0\0\0\0\1"
 
 #define DUCTTAPE_FOR_IFACE(iface) \
-    Identity_check((struct Ducttape_pvt*)                                  \
-        ((uint8_t*)(iface))[-offsetof(struct Ducttape, (iface))])
+    Identity_check( (struct Ducttape_pvt*)                                      \
+            ((uint8_t*)(iface) - offsetof(struct Ducttape, iface))              \
+    )
 
 /*--------------------Prototypes--------------------*/
 static int handleOutgoing(struct DHTMessage* message,
@@ -916,7 +917,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     if (nonceOrHandle > 3) {
         if (nonceOrHandle == 0xffffffff) {
             Message_shift(message, SwitchHeader_SIZE, NULL);
-            return Interface_send(&context->controlIf, message);
+            return Interface_send(&context->pub.controlIf, message);
         }
         Message_shift(message, -4, NULL);
 
@@ -990,7 +991,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
 
 static int incomingFromControlHandler(struct Interface_Two* controlIf, struct Message* message)
 {
-    struct Ducttape_pvt* ctx = DUCTTAPE_FOR_IFACE2(controlIf);
+    struct Ducttape_pvt* ctx = DUCTTAPE_FOR_IFACE(controlIf);
     return Interface_receiveMessage(&ctx->pub.switchIf, message);
 }
 

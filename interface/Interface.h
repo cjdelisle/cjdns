@@ -115,7 +115,7 @@ static inline int Interface_send(struct Interface_Two* iface, struct Message* ms
     struct Interface_Two* conn = iface->connectedIf;
     if (!conn) { return Interface_ERROR_WRONG_STATE; }
     Assert_true(conn->send);
-    return conn->send(conn, msg, iface);
+    return conn->send(conn, msg);
 }
 
 static inline void Interface_plumb(struct Interface_Two* a, struct Interface_Two* b)

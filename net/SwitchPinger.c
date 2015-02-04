@@ -26,9 +26,9 @@
 #include "wire/Error.h"
 
 
-struct SwitchPinger
+struct SwitchPinger_pvt
 {
-    struct Interface* iface;
+    struct SwitchPinger pub;
 
     struct Pinger* pinger;
 
@@ -68,7 +68,7 @@ struct Ping
     struct SwitchPinger_Ping pub;
     uint64_t label;
     String* data;
-    struct SwitchPinger* context;
+    struct SwitchPinger_pvt* context;
     SwitchPinger_ResponseCallback onResponse;
     void* onResponseContext;
     struct Pinger_Ping* pingerPing;
@@ -76,9 +76,9 @@ struct Ping
 };
 
 // incoming message from network, pointing to the beginning of the switch header.
-static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
+static int messageFromControlHandler(struct Interface_Two* iface, struct Message* msg)
 {
-    struct SwitchPinger* ctx = Identity_check((struct SwitchPinger*) iface->receiverContext);
+    struct SwitchPinger_pvt* ctx = Identity_check((struct SwitchPinger_pvt*) iface);
     struct SwitchHeader* switchHeader = (struct SwitchHeader*) msg->bytes;
     ctx->incomingLabel = Endian_bigEndianToHost64(switchHeader->label_be);
     ctx->incomingVersion = 0;
@@ -261,7 +261,7 @@ static void sendPing(String* data, void* sendPingContext)
         SwitchHeader_setVersion(switchHeader, 0);
     #endif
 
-    p->context->iface->sendMessage(msg, p->context->iface);
+    Interface_send(&p->context->pub.controlHandlerIf, msg);
 }
 
 static String* RESULT_STRING_OK =             String_CONST_SO("pong");
@@ -301,7 +301,7 @@ String* SwitchPinger_resultString(enum SwitchPinger_Result result)
 static int onPingFree(struct Allocator_OnFreeJob* job)
 {
     struct Ping* ping = Identity_check((struct Ping*)job->userData);
-    struct SwitchPinger* ctx = Identity_check(ping->context);
+    struct SwitchPinger_pvt* ctx = Identity_check(ping->context);
     ctx->outstandingPings--;
     Assert_true(ctx->outstandingPings >= 0);
     return 0;
@@ -312,8 +312,9 @@ struct SwitchPinger_Ping* SwitchPinger_newPing(uint64_t label,
                                                uint32_t timeoutMilliseconds,
                                                SwitchPinger_ResponseCallback onResponse,
                                                struct Allocator* alloc,
-                                               struct SwitchPinger* ctx)
+                                               struct SwitchPinger* context)
 {
+    struct SwitchPinger_pvt* ctx = Identity_check((struct SwitchPinger_pvt*)context);
     if (data && data->len > Control_Ping_MAX_SIZE) {
         return NULL;
     }
@@ -345,24 +346,25 @@ struct SwitchPinger_Ping* SwitchPinger_newPing(uint64_t label,
     return &ping->pub;
 }
 
-struct SwitchPinger* SwitchPinger_new(struct Interface* iface,
-                                      struct EventBase* eventBase,
+struct SwitchPinger* SwitchPinger_new(struct EventBase* eventBase,
                                       struct Random* rand,
                                       struct Log* logger,
                                       struct Address* myAddr,
                                       struct Allocator* alloc)
 {
-    struct SwitchPinger* sp = Allocator_malloc(alloc, sizeof(struct SwitchPinger));
-    Bits_memcpyConst(sp, (&(struct SwitchPinger) {
-        .iface = iface,
+    struct SwitchPinger_pvt* sp = Allocator_malloc(alloc, sizeof(struct SwitchPinger_pvt));
+    Bits_memcpyConst(sp, (&(struct SwitchPinger_pvt) {
+        .pub = {
+            .controlHandlerIf = {
+                .send = messageFromControlHandler
+            }
+        },
         .pinger = Pinger_new(eventBase, rand, logger, alloc),
         .logger = logger,
         .allocator = alloc,
         .myAddr = myAddr,
         .maxConcurrentPings = SwitchPinger_DEFAULT_MAX_CONCURRENT_PINGS,
-    }), sizeof(struct SwitchPinger));
-    iface->receiveMessage = receiveMessage;
-    iface->receiverContext = sp;
+    }), sizeof(struct SwitchPinger_pvt));
     Identity_set(sp);
-    return sp;
+    return &sp->pub;
 }

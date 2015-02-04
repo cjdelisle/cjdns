@@ -95,7 +95,10 @@ struct SwitchPinger_Ping
     void* onResponseContext;
 };
 
-struct SwitchPinger;
+struct SwitchPinger
+{
+    struct Interface_Two controlHandlerIf;
+};
 
 String* SwitchPinger_resultString(enum SwitchPinger_Result result);
 
@@ -117,8 +120,7 @@ struct SwitchPinger_Ping* SwitchPinger_newPing(uint64_t label,
                                                struct Allocator* alloc,
                                                struct SwitchPinger* ctx);
 
-struct SwitchPinger* SwitchPinger_new(struct Interface* iface,
-                                      struct EventBase* eventBase,
+struct SwitchPinger* SwitchPinger_new(struct EventBase* eventBase,
                                       struct Random* rand,
                                       struct Log* logger,
                                       struct Address* myAddr,
