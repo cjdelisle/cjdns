@@ -1,0 +1,30 @@
+diff --git a/interface/ETHInterface_linux.c b/interface/ETHInterface_linux.c
+index 987aaf7..a13c247 100644
+--- a/interface/ETHInterface_linux.c
++++ b/interface/ETHInterface_linux.c
+@@ -38,7 +38,6 @@
+ #include <sys/ioctl.h>
+ #include <unistd.h>
+ #include <errno.h>
+-#include <ifaddrs.h>
+ 
+ #define MAX_PACKET_SIZE 1496
+ #define MIN_PACKET_SIZE 46
+@@ -204,17 +203,7 @@ static void handleEvent(void* vcontext)
+ 
+ List* ETHInterface_listDevices(struct Allocator* alloc, struct Except* eh)
+ {
+-    struct ifaddrs* ifaddr = NULL;
+-    if (getifaddrs(&ifaddr) || ifaddr == NULL) {
+-        Except_throw(eh, "getifaddrs() -> errno:%d [%s]", errno, strerror(errno));
+-    }
+     List* out = List_new(alloc);
+-    for (struct ifaddrs* ifa = ifaddr; ifa; ifa = ifa->ifa_next) {
+-        if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_PACKET) {
+-            List_addString(out, String_new(ifa->ifa_name, alloc), alloc);
+-        }
+-    }
+-    freeifaddrs(ifaddr);
+     return out;
+ }
+ 
