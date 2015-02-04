@@ -14,7 +14,11 @@
  */
 #include "net/ControlHandler.h"
 #include "util/Identity.h"
+#include "util/AddrTools.h"
+#include "util/Checksum.h"
 #include "wire/Control.h"
+#include "wire/Error.h"
+#include "switch/NumberCompress.h"
 
 struct ControlHandler_pvt
 {
@@ -22,6 +26,7 @@ struct ControlHandler_pvt
     struct Log* log;
     struct Allocator* alloc;
     struct Router* router;
+    struct Address* myAddr;
     Identity
 };
 
@@ -39,21 +44,20 @@ static int handleError(struct ControlHandler_pvt* ch,
         return 0;
     }
     struct Control* ctrl = (struct Control*) msg->bytes;
-    struct Control_Error* err = ctrl->content.error;
+    struct Control_Error* err = &ctrl->content.error;
     struct SwitchHeader* causeHeader = &err->cause;
     uint64_t causeLabel = Endian_bigEndianToHost64(causeHeader->label_be);
     uint32_t errorType = Endian_bigEndianToHost32(err->errorType_be);
 
     if (!NumberCompress_isOneHop(label)) {
         Router_brokenLink(ch->router, label, causeLabel);
-    } else (errorType == Error_UNDELIVERABLE) {
+    } else if (errorType == Error_UNDELIVERABLE) {
         // this is our own InterfaceController complaining
         // because the node isn't responding to pings.
         return 0;
     }
 
-    Log_debug(context->log,
-              "error packet from [%s] [%s]%s",
+    Log_debug(ch->log, "error packet from [%s] [%s]%s",
               labelStr,
               Error_strerror(errorType),
               ((err->causeHandle == 0xffffffff) ? " caused by ctrl" : ""));
@@ -80,10 +84,10 @@ static int handlePing(struct ControlHandler_pvt* ch,
     Message_shift(msg, -Control_HEADER_SIZE, NULL);
 
     // Ping and keyPing share version location
-    struct Control_Ping* ping = (struct Control_Ping*) message->bytes;
+    struct Control_Ping* ping = (struct Control_Ping*) msg->bytes;
     uint32_t herVersion = Endian_bigEndianToHost32(ping->version_be);
     if (!Version_isCompatible(Version_CURRENT_PROTOCOL, herVersion)) {
-        Log_debug(ch->log, "DROP ping from incompatible version [%s]", herVersion);
+        Log_debug(ch->log, "DROP ping from incompatible version [%d]", herVersion);
         return 0;
     }
 
@@ -106,10 +110,10 @@ static int handlePing(struct ControlHandler_pvt* ch,
         struct Control_KeyPing* keyPing = (struct Control_KeyPing*) msg->bytes;
         keyPing->magic = Control_KeyPong_MAGIC;
         ctrl->type_be = Control_KEYPONG_be;
-        Bits_memcpyConst(keyPing->key, ch->myAddr.key, 32);
+        Bits_memcpyConst(keyPing->key, ch->myAddr->key, 32);
 
     } else if (messageType_be == Control_PING_be) {
-        Log_debug(ch->log, "got switch keyPing from [%s]", labelStr);
+        Log_debug(ch->log, "got switch ping from [%s]", labelStr);
         if (ping->magic != Control_Ping_MAGIC) {
             Log_debug(ch->log, "DROP ping (bad magic)");
             return 0;
@@ -123,19 +127,21 @@ static int handlePing(struct ControlHandler_pvt* ch,
 
     ping->version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL);
 
-    Message_shift(message, Control_HEADER_SIZE, NULL);
+    Message_shift(msg, Control_HEADER_SIZE, NULL);
 
     ctrl->checksum_be = 0;
-    ctrl->checksum_be = Checksum_engine(message->bytes, message->length);
+    ctrl->checksum_be = Checksum_engine(msg->bytes, msg->length);
 
-    Message_shift(message, SwitchHeader_SIZE, NULL);
+    Message_push32(msg, 0xffffffff, NULL);
+
+    Message_shift(msg, SwitchHeader_SIZE, NULL);
 
     struct SwitchHeader* switchHeader = (struct SwitchHeader*) msg->bytes;
     Bits_memset(switchHeader, 0, SwitchHeader_SIZE);
     SwitchHeader_setVersion(switchHeader, SwitchHeader_CURRENT_VERSION);
     switchHeader->label_be = Endian_hostToBigEndian64(label);
 
-    Interface_send(ch->coreIf, msg);
+    Interface_send(&ch->pub.coreIf, msg);
     return 0;
 }
 
@@ -182,13 +188,13 @@ static int incomingFromCore(struct Interface_Two* coreIf, struct Message* msg)
 
         case Control_KEYPONG_be:
         case Control_PONG_be: {
-            Log_debug(context->log, "got switch pong from [%s]", labelStr);
+            Log_debug(ch->log, "got switch pong from [%s]", labelStr);
             // Shift back over the header
-            Message_shift(message, 4 + SwitchHeader_SIZE, NULL);
-            return Interface_send(&context->pub.switchPingerIf, message);
+            Message_shift(msg, 4 + SwitchHeader_SIZE, NULL);
+            return Interface_send(&ch->pub.switchPingerIf, msg);
         }
 
-        default:
+        default:;
     }
 
     Log_info(ch->log, "DROP control packet of unknown type from [%s], type [%d]",
@@ -201,18 +207,22 @@ static int incomingFromCore(struct Interface_Two* coreIf, struct Message* msg)
 static int incomingFromSwitchPinger(struct Interface_Two* switchPingerIf, struct Message* msg)
 {
     struct ControlHandler_pvt* ch =
-        Identity_check(&((struct ControlHandler_pvt*) switchPingerIf)[-1]);
-    return Interface_send(ch->coreIf, msg);
+        Identity_check( (struct ControlHandler_pvt*) (&switchPingerIf[-1]) );
+    return Interface_send(&ch->pub.coreIf, msg);
 }
 
 struct ControlHandler* ControlHandler_new(struct Allocator* alloc,
                                           struct Log* logger,
-                                          struct Router* router)
+                                          struct Router* router,
+                                          struct Address* myAddr)
 {
     struct ControlHandler_pvt* ch = Allocator_calloc(alloc, sizeof(struct ControlHandler_pvt), 1);
     ch->alloc = alloc;
     ch->log = logger;
     ch->router = router;
+    ch->myAddr = myAddr;
     ch->pub.coreIf.send = incomingFromCore;
-    ch->pub.switchPoingerIf.send = incomingFromSwitchPinger;
+    ch->pub.switchPingerIf.send = incomingFromSwitchPinger;
+    Identity_set(ch);
+    return &ch->pub;
 }

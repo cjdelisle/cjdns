@@ -380,7 +380,7 @@ static inline uint8_t sendToSwitch(struct Message* message,
 
     Assert_true(!((uintptr_t)message->bytes % 4));
 
-    return context->switchInterface.receiveMessage(message, &context->switchInterface);
+    return Interface_receiveMessage(&context->pub.switchIf, message);
 }
 
 static inline bool validEncryptedIP6(struct Message* message)
@@ -398,11 +398,9 @@ static inline bool isForMe(struct Message* message, struct Ducttape_pvt* context
     return (Bits_memcmp(header->destinationAddr, context->myAddr.ip6.bytes, 16) == 0);
 }
 
-static uint8_t magicInterfaceSendMessage(struct Message* msg, struct Interface* iface)
+static uint8_t magicInterfaceSendMessage(struct Message* msg, struct Interface* magicInterface)
 {
-    struct Ducttape_pvt* ctx =
-        Identity_check((struct Ducttape_pvt*)
-            &((uint8_t*)iface)[-offsetof(struct Ducttape, magicInterface)]);
+    struct Ducttape_pvt* ctx = DUCTTAPE_FOR_IFACE(magicInterface);
 
     Assert_ifParanoid(msg->length >= Headers_IP6Header_SIZE);
     #ifdef PARANOIA
@@ -891,6 +889,7 @@ static uint8_t outgoingFromCryptoAuth(struct Message* message, struct Interface*
 static uint8_t incomingFromSwitch(struct Message* message, struct Interface* switchIf)
 {
     struct Ducttape_pvt* context = DUCTTAPE_FOR_IFACE(switchIf);
+Log_debug(context->logger, "Got message...");
 
     struct Ducttape_MessageHeader* dtHeader = getDtHeader(message, true);
 
@@ -992,6 +991,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
 static int incomingFromControlHandler(struct Interface_Two* controlIf, struct Message* message)
 {
     struct Ducttape_pvt* ctx = DUCTTAPE_FOR_IFACE(controlIf);
+    Assert_true(ctx->pub.switchIf.receiveMessage);
     return Interface_receiveMessage(&ctx->pub.switchIf, message);
 }
 
@@ -1074,7 +1074,6 @@ struct Ducttape* Ducttape_register(uint8_t privateKey[32],
     }
 
     context->pub.switchIf.sendMessage = incomingFromSwitch;
-    context->pub.switchIf.senderContext = context;
     context->pub.switchIf.allocator = allocator;
 
     // setup the control frame interface.

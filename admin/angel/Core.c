@@ -370,23 +370,24 @@ void Core_init(struct Allocator* alloc,
     }
 
     // CryptoAuth
-    struct Address addr = { .protocolVersion = Version_CURRENT_PROTOCOL };
-    parsePrivateKey(privateKey, &addr, eh);
+    struct Address* addr = Allocator_calloc(alloc, sizeof(struct Address), 1);
+    addr->protocolVersion = Version_CURRENT_PROTOCOL;
+    parsePrivateKey(privateKey, addr, eh);
     struct CryptoAuth* cryptoAuth = CryptoAuth_new(alloc, privateKey, eventBase, logger, rand);
 
-    struct Sockaddr* myAddr = Sockaddr_fromBytes(addr.ip6.bytes, Sockaddr_AF_INET6, alloc);
+    struct Sockaddr* myAddr = Sockaddr_fromBytes(addr->ip6.bytes, Sockaddr_AF_INET6, alloc);
 
     struct SwitchCore* switchCore = SwitchCore_new(logger, alloc, eventBase);
     struct DHTModuleRegistry* registry = DHTModuleRegistry_new(alloc);
     ReplyModule_register(registry, alloc);
 
-    struct RumorMill* rumorMill = RumorMill_new(alloc, &addr, RUMORMILL_CAPACITY, logger, "extern");
+    struct RumorMill* rumorMill = RumorMill_new(alloc, addr, RUMORMILL_CAPACITY, logger, "extern");
 
-    struct NodeStore* nodeStore = NodeStore_new(&addr, alloc, eventBase, logger, rumorMill);
+    struct NodeStore* nodeStore = NodeStore_new(addr, alloc, eventBase, logger, rumorMill);
 
     struct RouterModule* routerModule = RouterModule_register(registry,
                                                               alloc,
-                                                              addr.key,
+                                                              addr->key,
                                                               eventBase,
                                                               logger,
                                                               rand,
@@ -396,7 +397,7 @@ void Core_init(struct Allocator* alloc,
                                                          logger,
                                                          eventBase,
                                                          routerModule,
-                                                         addr.ip6.bytes,
+                                                         addr->ip6.bytes,
                                                          rumorMill,
                                                          alloc);
 
@@ -431,9 +432,9 @@ void Core_init(struct Allocator* alloc,
 
     SwitchCore_setRouterInterface(&dt->switchIf, switchCore);
 
-    struct ControlHandler* controlHandler = ControlHandler_new(alloc, logger, router);
+    struct ControlHandler* controlHandler = ControlHandler_new(alloc, logger, router, addr);
     Interface_plumb(&controlHandler->coreIf, &dt->controlIf);
-    struct SwitchPinger* sp = SwitchPinger_new(eventBase, rand, logger, &addr, alloc);
+    struct SwitchPinger* sp = SwitchPinger_new(eventBase, rand, logger, addr, alloc);
     Interface_plumb(&controlHandler->switchPingerIf, &sp->controlHandlerIf);
 
     // Interfaces.

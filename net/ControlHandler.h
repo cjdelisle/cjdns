@@ -36,6 +36,7 @@ struct ControlHandler
 
 struct ControlHandler* ControlHandler_new(struct Allocator* alloc,
                                           struct Log* logger,
-                                          struct Router* router);
+                                          struct Router* router,
+                                          struct Address* myAddr);
 
 #endif

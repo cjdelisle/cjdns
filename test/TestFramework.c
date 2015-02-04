@@ -149,7 +149,10 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
         Ducttape_register((uint8_t*)privateKey, registry, router,
                           base, allocator, logger, ipTun, rand, rumorMill);
 
-    struct ControlHandler* controlHandler = ControlHandler_new(allocator, logger, router);
+    SwitchCore_setRouterInterface(&dt->switchIf, switchCore);
+
+    struct ControlHandler* controlHandler =
+        ControlHandler_new(allocator, logger, router, myAddress);
     Interface_plumb(&controlHandler->coreIf, &dt->controlIf);
     struct SwitchPinger* sp = SwitchPinger_new(base, rand, logger, myAddress, allocator);
     Interface_plumb(&controlHandler->switchPingerIf, &sp->controlHandlerIf);

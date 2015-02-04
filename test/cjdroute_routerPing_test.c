@@ -63,8 +63,8 @@ int main()
 
     CString_strncpy((char*)(udp + 1), pingBenc, CString_strlen(pingBenc));
 
-    dt->switchInterface.receiveMessage = catchResponse;
-    dt->switchInterface.receiverContext = NULL;
+    dt->pub.switchIf.receiveMessage = catchResponse;
+    dt->pub.switchIf.receiverContext = NULL;
 
     // bad checksum
     udp->checksum_be = 1;
@@ -75,7 +75,7 @@ int main()
         .alloc = alloc
     };
     Ducttape_injectIncomingForMe(&m, &dt->pub, herPublicKey);
-    Assert_true(!dt->switchInterface.receiverContext);
+    Assert_true(!dt->pub.switchIf.receiverContext);
 
     // zero checksum
     udp->checksum_be = 0;
@@ -86,7 +86,7 @@ int main()
         .alloc = alloc
     };
     Ducttape_injectIncomingForMe(&m2, &dt->pub, herPublicKey);
-    Assert_true(!dt->switchInterface.receiverContext);
+    Assert_true(!dt->pub.switchIf.receiverContext);
 
     // good checksum
     udp->checksum_be =
@@ -100,7 +100,7 @@ int main()
         .alloc = alloc
     };
     Ducttape_injectIncomingForMe(&m3, &dt->pub, herPublicKey);
-    Assert_true(dt->switchInterface.receiverContext);
+    Assert_true(dt->pub.switchIf.receiverContext);
 
     Allocator_free(alloc);
     Allocator_free(allocator);
