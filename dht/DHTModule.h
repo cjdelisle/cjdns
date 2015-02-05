@@ -42,8 +42,7 @@ struct DHTModule {
      *         -1 if the message is known invalid and should not be passed
      *            to any more handlers.
      */
-    int (* const handleIncoming)(struct DHTMessage* message,
-                                 void* context);
+    int (* handleIncoming)(struct DHTMessage* message, void* context);
 
     /**
      * @param message the message which will be sent to the peer.
@@ -51,8 +50,7 @@ struct DHTModule {
      * @return -1 if the message should not be propigated to any more modules.
      *            use with caution as it may be interpreted as network loss.
      */
-    int (* const handleOutgoing)(struct DHTMessage* message,
-                                 void* context);
+    int (* handleOutgoing)(struct DHTMessage* message, void* context);
 };
 
 #endif

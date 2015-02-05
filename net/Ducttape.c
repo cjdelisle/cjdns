@@ -136,6 +136,11 @@ static struct Ducttape_MessageHeader* getDtHeader(struct Message* message, bool 
     return dtHeader;
 }
 
+static int incomingFromDHTInterface(struct Interface_Two* dhtIf, struct Message* msg)
+{
+    struct Ducttape_pvt* ctx = DUCTTAPE_FOR_IFACE(dhtif);
+}
+
 static int handleOutgoing(struct DHTMessage* dmessage, void* vcontext)
 {
     struct Ducttape_pvt* context = Identity_check((struct Ducttape_pvt*) vcontext);
@@ -398,9 +403,9 @@ static inline bool isForMe(struct Message* message, struct Ducttape_pvt* context
     return (Bits_memcmp(header->destinationAddr, context->myAddr.ip6.bytes, 16) == 0);
 }
 
-static uint8_t magicInterfaceSendMessage(struct Message* msg, struct Interface* magicInterface)
+static uint8_t incomingFromMagicInterface(struct Interface* magicIf, struct Message* msg)
 {
-    struct Ducttape_pvt* ctx = DUCTTAPE_FOR_IFACE(magicInterface);
+    struct Ducttape_pvt* ctx = DUCTTAPE_FOR_IFACE(magicIf);
 
     Assert_ifParanoid(msg->length >= Headers_IP6Header_SIZE);
     #ifdef PARANOIA
@@ -466,7 +471,7 @@ static inline uint8_t incomingFromTun(struct Message* message,
     }
 
     if (!Bits_memcmp(header->destinationAddr, FC_ONE, 16)) {
-        return Interface_receiveMessage(&context->pub.magicInterface, message);
+        return Interface_send(&context->pub.magicIf, message);
     }
 
     struct Ducttape_MessageHeader* dtHeader = getDtHeader(message, true);
@@ -1036,10 +1041,7 @@ struct Ducttape* Ducttape_register(uint8_t privateKey[32],
     context->eventBase = eventBase;
     context->alloc = allocator;
     context->sessionMill = sessionMill;
-    Bits_memcpyConst(&context->pub.magicInterface, (&(struct Interface) {
-        .sendMessage = magicInterfaceSendMessage,
-        .allocator = allocator
-    }), sizeof(struct Interface));
+    context->pub.magicInterface.send = incomingFromMagicInterface;
     Identity_set(context);
 
     context->ipTunnel = ipTun;
