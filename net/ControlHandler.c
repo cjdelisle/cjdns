@@ -180,21 +180,20 @@ static int incomingFromCore(struct Interface_Two* coreIf, struct Message* msg)
 
     struct Control* ctrl = (struct Control*) msg->bytes;
 
-    switch (ctrl->type_be) {
-        case Control_ERROR_be: return handleError(ch, msg, label, labelStr);
+    if (ctrl->type_be == Control_ERROR_be) {
+        return handleError(ch, msg, label, labelStr);
 
-        case Control_KEYPING_be:
-        case Control_PING_be: return handlePing(ch, msg, label, labelStr, ctrl->type_be);
+    } else if (ctrl->type_be == Control_KEYPING_be
+            || ctrl->type_be == Control_PING_be) {
+        return handlePing(ch, msg, label, labelStr, ctrl->type_be);
 
-        case Control_KEYPONG_be:
-        case Control_PONG_be: {
+    } else if (ctrl->type_be == Control_KEYPONG_be
+            || ctrl->type_be == Control_PONG_be) {
             Log_debug(ch->log, "got switch pong from [%s]", labelStr);
             // Shift back over the header
             Message_shift(msg, 4 + SwitchHeader_SIZE, NULL);
             return Interface_send(&ch->pub.switchPingerIf, msg);
-        }
 
-        default:;
     }
 
     Log_info(ch->log, "DROP control packet of unknown type from [%s], type [%d]",
