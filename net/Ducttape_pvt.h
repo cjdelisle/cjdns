@@ -17,7 +17,6 @@
 
 #include "dht/Address.h"
 #include "util/version/Version.h"
-#include "dht/DHTModule.h"
 #include "dht/dhtcore/Router.h"
 #include "interface/Interface.h"
 #include "util/log/Log.h"
@@ -45,9 +44,6 @@ struct Ducttape_pvt
 {
     /** the public fields. */
     struct Ducttape pub;
-
-    /** The network module for the DHT. */
-    struct DHTModule module;
 
     struct Router* router;
 
