@@ -241,7 +241,6 @@ static inline uint8_t incomingForMe(struct Message* message,
                                     uint8_t herPublicKey[32])
 {
     struct Address addr = { .protocolVersion = session->version };
-    //Bits_memcpyConst(addr.ip6.bytes, session->ip6, 16);
     addr.path = Endian_bigEndianToHost64(dtHeader->switchHeader->label_be);
     Bits_memcpyConst(addr.key, herPublicKey, 32);
     AddressCalc_addressForPublicKey(addr.ip6.bytes, herPublicKey);
@@ -281,11 +280,11 @@ static inline uint8_t incomingForMe(struct Message* message,
         // Shift off the UDP header.
         Message_shift(message, -Headers_UDPHeader_SIZE, NULL);
         Message_push(message, &addr, Address_SIZE, NULL);
-        Interface_send(&context->pub.dhtIf, message);
+        return Interface_send(&context->pub.dhtIf, message);
     }
 
     if (!context->userIf) {
-        Log_warn(context->logger, "DROP packet because there is no router interface configured");
+        Log_warn(context->logger, "DROP packet because there is no TUN interface configured");
         return Error_UNDELIVERABLE;
     }
 
