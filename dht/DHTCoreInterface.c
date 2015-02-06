@@ -12,13 +12,15 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "dht/CoreInterfaceModule.h"
+#include "dht/DHTCoreInterface.h"
+#include "dht/DHTModule.h"
+#include "dht/Address.h"
 
-///////////////////// [ PeerVersion (0 = unknown) ][ PeerPublicKey ][ SwitchLabel ][ content... ]
+///////////////////// [ Address ][ content... ]
 
-struct CoreInterfaceModule_pvt
+struct DHTCoreInterface_pvt
 {
-    struct CoreInterfaceModule pub;
+    struct DHTCoreInterface pub;
     struct DHTModule module;
     struct Allocator* alloc;
     struct Log* log;
@@ -28,47 +30,51 @@ struct CoreInterfaceModule_pvt
 
 static int incomingFromDHT(struct DHTMessage* dmessage, void* vcim)
 {
-    struct CoreInterfaceModule_pvt* cim = Identity_check((struct CoreInterfaceModule_pvt*) vcim);
+    struct DHTCoreInterface_pvt* cim = Identity_check((struct DHTCoreInterface_pvt*) vcim);
     struct Message* msg = dmessage->binMessage;
-    Message_push64(msg, dmessage->address.path, NULL);
-    Message_push(msg, dmessage->address.key, 32, NULL);
-    Message_push32(msg, dmessage->address.protocolVersion, NULL);
-    Interface_send(&cim->pub.coreIf, msg);
+    struct Address* addr = dmessage->address;
+
+    // Sanity check (make sure the addr was actually calculated)
+    Assert_true(addr->ip6.bytes[0] == 0xfc && addr->padding == 0);
+
+    Message_push(msg, addr, Address_SIZE, NULL);
+    return Interface_send(&cim->pub.coreIf, msg);
 }
 
 static int incomingFromCore(struct Interface_Two* coreIf, struct Message* msg)
 {
-    struct CoreInterfaceModule_pvt* cim = Identity_check((struct CoreInterfaceModule_pvt*) coreIf);
+    struct DHTCoreInterface_pvt* cim = Identity_check((struct DHTCoreInterface_pvt*) coreIf);
 
-    struct Address addr = { .protocolVersion = 0; };
-    addr.protocolVersion = Message_pop32(msg, NULL);
-    Message_pop(msg, addr.key, 32, NULL);
-    addr.path = Message_pop64(msg, NULL);
-    Address_getPrefix(&addr);
+    struct Address addr;
+    Message_pop(msg, &addr, Address_SIZE, NULL);
+
+    // Sanity check (make sure the addr was actually calculated)
+    Assert_true(addr.ip6.bytes[0] == 0xfc && addr.padding == 0);
 
     struct DHTMessage dht = {
-        .address = addr,
+        .address = &addr,
         .binMessage = msg,
         .allocator = msg->alloc
     };
 
     DHTModuleRegistry_handleIncoming(&dht, cim->registry);
+
+    return 0;
 }
 
-struct CoreInterfaceModule* CoreInterfaceModule_register(struct Allocator* alloc,
-                                                         struct Log* logger,
-                                                         struct DHTModuleRegistry* registry)
+struct DHTCoreInterface* DHTCoreInterface_register(struct Allocator* alloc,
+                                                   struct Log* logger,
+                                                   struct DHTModuleRegistry* registry)
 {
-    struct CoreInterfaceModule_pvt* cim =
-        Allocator_calloc(alloc, sizeof(struct CoreInterfaceModule_pvt), 1);
+    struct DHTCoreInterface_pvt* cim =
+        Allocator_calloc(alloc, sizeof(struct DHTCoreInterface_pvt), 1);
     cim->alloc = alloc;
     cim->log = logger;
     cim->registry = registry;
     cim->pub.coreIf.send = incomingFromCore;
-    cim->module.name = "CoreInterfaceModule";
     cim->module.context = cim;
     cim->module.handleOutgoing = incomingFromDHT;
-    Assert_true(!DHTModuleRegistry_register(&context->module, context->registry));
+    Assert_true(!DHTModuleRegistry_register(&cim->module, cim->registry));
     Identity_set(cim);
     return &cim->pub;
 }

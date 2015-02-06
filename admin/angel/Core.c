@@ -35,6 +35,7 @@
 #include "dht/dhtcore/NodeStore_admin.h"
 #include "dht/dhtcore/Janitor.h"
 #include "dht/dhtcore/Router_new.h"
+#include "dht/DHTCoreInterface.h"
 #include "exception/Jmp.h"
 #include "interface/addressable/AddrInterface.h"
 #include "interface/addressable/UDPAddrInterface.h"
@@ -420,20 +421,17 @@ void Core_init(struct Allocator* alloc,
 
     struct Router* router = Router_new(routerModule, nodeStore, searchRunner, alloc);
 
-    struct Ducttape* dt = Ducttape_register(privateKey,
-                                            registry,
-                                            router,
-                                            eventBase,
-                                            alloc,
-                                            logger,
-                                            ipTun,
-                                            rand,
-                                            rumorMill);
+    struct Ducttape* dt =
+        Ducttape_new(privateKey, router, eventBase, alloc, logger, ipTun, rand, rumorMill);
 
     SwitchCore_setRouterInterface(&dt->switchIf, switchCore);
 
+    struct DHTCoreInterface* dhtCore = DHTCoreInterface_register(alloc, logger, registry);
+    Interface_plumb(&dhtCore->coreIf, &dt->dhtIf);
+
     struct ControlHandler* controlHandler = ControlHandler_new(alloc, logger, router, addr);
     Interface_plumb(&controlHandler->coreIf, &dt->controlIf);
+
     struct SwitchPinger* sp = SwitchPinger_new(eventBase, rand, logger, addr, alloc);
     Interface_plumb(&controlHandler->switchPingerIf, &sp->controlHandlerIf);
 
@@ -450,9 +448,10 @@ void Core_init(struct Allocator* alloc,
         UDPAddrInterface_new(eventBase, &rainflyAddr.addr, alloc, eh, logger);
     struct RainflyClient* rainfly = RainflyClient_new(rainflyIface, eventBase, rand, logger);
     Assert_true(!Sockaddr_parse("[fc00::1]:53", &rainflyAddr));
-    struct AddrInterface* magicUDP =
-        PacketHeaderToUDPAddrInterface_new(&dt->magicInterface, alloc, &rainflyAddr.addr);
-    DNSServer_new(magicUDP, logger, rainfly);
+    struct PacketHeaderToUDPAddrInterface* magicUDP =
+        PacketHeaderToUDPAddrInterface_new(alloc, &rainflyAddr.addr);
+    Interface_plumb(&magicUDP->headerIf, &dt->magicIf);
+    DNSServer_new(&magicUDP->udpIf, logger, rainfly);
 
 
     // ------------------- Register RPC functions ----------------------- //

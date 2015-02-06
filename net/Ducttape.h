@@ -15,7 +15,6 @@
 #ifndef Ducttape_H
 #define Ducttape_H
 
-#include "dht/DHTModuleRegistry.h"
 #include "dht/dhtcore/Router.h"
 #include "dht/dhtcore/RumorMill.h"
 #include "switch/SwitchCore.h"
@@ -37,7 +36,7 @@ struct Ducttape
 
     /**
      * Interface which receives and sends messages to other routers.
-     * Content is: [ PeerVersion (0 = unknown) ][ PeerPublicKey ][ SwitchLabel ][ content... ]
+     * Content is: [ Address ][ content... ]
      */
     struct Interface_Two dhtIf;
 
@@ -52,15 +51,14 @@ struct Ducttape
     struct SessionManager* sessionManager;
 };
 
-struct Ducttape* Ducttape_register(uint8_t privateKey[32],
-                                   struct DHTModuleRegistry* registry,
-                                   struct Router* router,
-                                   struct EventBase* eventBase,
-                                   struct Allocator* allocator,
-                                   struct Log* logger,
-                                   struct IpTunnel* ipTun,
-                                   struct Random* rand,
-                                   struct RumorMill* sessionMill);
+struct Ducttape* Ducttape_new(uint8_t privateKey[32],
+                              struct Router* router,
+                              struct EventBase* eventBase,
+                              struct Allocator* allocator,
+                              struct Log* logger,
+                              struct IpTunnel* ipTun,
+                              struct Random* rand,
+                              struct RumorMill* sessionMill);
 
 /**
  * Set the interface which the user will use to communicate with the network.

@@ -16,9 +16,6 @@
 #include "crypto/CryptoAuth.h"
 #include "util/log/Log.h"
 #include "dht/Address.h"
-#include "dht/DHTMessage.h"
-#include "dht/DHTModule.h"
-#include "dht/DHTModuleRegistry.h"
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/Router.h"
 #include "dht/dhtcore/RumorMill.h"
@@ -56,26 +53,6 @@
     Identity_check( (struct Ducttape_pvt*)                                      \
             ((uint8_t*)(iface) - offsetof(struct Ducttape, iface))              \
     )
-
-/*--------------------Prototypes--------------------*/
-static int handleOutgoing(struct DHTMessage* message,
-                          void* vcontext);
-
-static inline uint8_t incomingDHT(struct Message* message,
-                                  struct Address* addr,
-                                  struct Ducttape_pvt* context)
-{
-    struct DHTMessage dht = {
-        .address = addr,
-        .binMessage = message,
-        .allocator = message->alloc
-    };
-
-    DHTModuleRegistry_handleIncoming(&dht, context->registry);
-
-    // TODO(cjd): return something meaningful.
-    return Error_NONE;
-}
 
 /** Header must not be encrypted and must be aligned on the beginning of the ipv6 header. */
 static inline uint8_t sendToRouter(struct Message* message,
@@ -136,35 +113,35 @@ static struct Ducttape_MessageHeader* getDtHeader(struct Message* message, bool 
     return dtHeader;
 }
 
+// [ struct Address ][ content (benc) ]
+// see ducttape.h -> dhtIf
 static int incomingFromDHTInterface(struct Interface_Two* dhtIf, struct Message* msg)
 {
-    struct Ducttape_pvt* ctx = DUCTTAPE_FOR_IFACE(dhtif);
-}
+    struct Ducttape_pvt* ctx = DUCTTAPE_FOR_IFACE(dhtIf);
 
-static int handleOutgoing(struct DHTMessage* dmessage, void* vcontext)
-{
-    struct Ducttape_pvt* context = Identity_check((struct Ducttape_pvt*) vcontext);
+    struct Address addr;
+    Message_pop(msg, &addr, Address_SIZE, NULL);
+
+    // Sanity check (make sure the addr was actually calculated)
+    Assert_true(addr.ip6.bytes[0] == 0xfc && addr.padding == 0);
 
     // Sending a message to yourself?
     // Short circuit because setting up a CA session with yourself causes problems.
-    if (!Bits_memcmp(dmessage->address->key, context->myAddr.key, 32)) {
-        struct Allocator* alloc = Allocator_child(context->alloc);
-        Allocator_adopt(alloc, dmessage->binMessage->alloc);
-        incomingDHT(dmessage->binMessage, dmessage->address, context);
+    if (!Bits_memcmp(addr.key, ctx->myAddr.key, 32)) {
+        struct Allocator* alloc = Allocator_child(ctx->alloc);
+        Allocator_adopt(alloc, msg->alloc);
+        Message_push(msg, &addr, Address_SIZE, NULL);
+        Interface_send(dhtIf, msg);
         Allocator_free(alloc);
         return 0;
     }
 
-    struct Message* msg = dmessage->binMessage;
-
-    {
-        Message_push(msg, (&(struct Headers_UDPHeader) {
-            .srcPort_be = 0,
-            .destPort_be = 0,
-            .length_be = Endian_hostToBigEndian16(msg->length),
-            .checksum_be = 0,
-        }), Headers_UDPHeader_SIZE, NULL);
-    }
+    Message_push(msg, (&(struct Headers_UDPHeader) {
+        .srcPort_be = 0,
+        .destPort_be = 0,
+        .length_be = Endian_hostToBigEndian16(msg->length),
+        .checksum_be = 0,
+    }), Headers_UDPHeader_SIZE, NULL);
 
     struct Headers_UDPHeader* uh = (struct Headers_UDPHeader*) msg->bytes;
 
@@ -178,10 +155,10 @@ static int handleOutgoing(struct DHTMessage* dmessage, void* vcontext)
             .sourceAddr = {0}
         };
         Bits_memcpyConst(ip.sourceAddr,
-                         context->myAddr.ip6.bytes,
+                         ctx->myAddr.ip6.bytes,
                          Address_SEARCH_TARGET_SIZE);
         Bits_memcpyConst(ip.destinationAddr,
-                         dmessage->address->ip6.bytes,
+                         addr.ip6.bytes,
                          Address_SEARCH_TARGET_SIZE);
         Message_push(msg, &ip, Headers_IP6Header_SIZE, NULL);
     }
@@ -196,17 +173,16 @@ static int handleOutgoing(struct DHTMessage* dmessage, void* vcontext)
 
     struct Ducttape_MessageHeader* dtHeader = getDtHeader(msg, true);
     dtHeader->ip6Header = ip;
-    dtHeader->switchLabel = dmessage->address->path;
+    dtHeader->switchLabel = addr.path;
 
     struct SessionManager_Session* session =
-        SessionManager_getSession(dmessage->address->ip6.bytes,
-                                  dmessage->address->key,
-                                  context->sm);
+        SessionManager_getSession(addr.ip6.bytes, addr.key, ctx->sm);
 
-    session->version = dmessage->address->protocolVersion;
+    // At the router level, we never send anything to anyone w/o knowing their protocol version.
+    session->version = addr.protocolVersion;
     Assert_true(session->version);
 
-    sendToRouter(msg, dtHeader, session, context);
+    sendToRouter(msg, dtHeader, session, ctx);
 
     return 0;
 }
@@ -266,6 +242,7 @@ static inline uint8_t incomingForMe(struct Message* message,
 {
     struct Address addr = { .protocolVersion = session->version };
     //Bits_memcpyConst(addr.ip6.bytes, session->ip6, 16);
+    addr.path = Endian_bigEndianToHost64(dtHeader->switchHeader->label_be);
     Bits_memcpyConst(addr.key, herPublicKey, 32);
     AddressCalc_addressForPublicKey(addr.ip6.bytes, herPublicKey);
     Assert_true(!Bits_memcmp(session->ip6, addr.ip6.bytes, 16));
@@ -303,9 +280,8 @@ static inline uint8_t incomingForMe(struct Message* message,
 
         // Shift off the UDP header.
         Message_shift(message, -Headers_UDPHeader_SIZE, NULL);
-        addr.path = Endian_bigEndianToHost64(dtHeader->switchHeader->label_be);
-        Bits_memcpyConst(addr.key, herPublicKey, 32);
-        return incomingDHT(message, &addr, context);
+        Message_push(message, &addr, Address_SIZE, NULL);
+        Interface_send(&context->pub.dhtIf, message);
     }
 
     if (!context->userIf) {
@@ -403,7 +379,7 @@ static inline bool isForMe(struct Message* message, struct Ducttape_pvt* context
     return (Bits_memcmp(header->destinationAddr, context->myAddr.ip6.bytes, 16) == 0);
 }
 
-static uint8_t incomingFromMagicInterface(struct Interface* magicIf, struct Message* msg)
+static int incomingFromMagicInterface(struct Interface_Two* magicIf, struct Message* msg)
 {
     struct Ducttape_pvt* ctx = DUCTTAPE_FOR_IFACE(magicIf);
 
@@ -1024,24 +1000,23 @@ static void checkStateOfSessions(void* vducttape)
     }
 }
 
-struct Ducttape* Ducttape_register(uint8_t privateKey[32],
-                                   struct DHTModuleRegistry* registry,
-                                   struct Router* router,
-                                   struct EventBase* eventBase,
-                                   struct Allocator* allocator,
-                                   struct Log* logger,
-                                   struct IpTunnel* ipTun,
-                                   struct Random* rand,
-                                   struct RumorMill* sessionMill)
+struct Ducttape* Ducttape_new(uint8_t privateKey[32],
+                              struct Router* router,
+                              struct EventBase* eventBase,
+                              struct Allocator* allocator,
+                              struct Log* logger,
+                              struct IpTunnel* ipTun,
+                              struct Random* rand,
+                              struct RumorMill* sessionMill)
 {
     struct Ducttape_pvt* context = Allocator_calloc(allocator, sizeof(struct Ducttape_pvt), 1);
-    context->registry = registry;
     context->router = router;
     context->logger = logger;
     context->eventBase = eventBase;
     context->alloc = allocator;
     context->sessionMill = sessionMill;
-    context->pub.magicInterface.send = incomingFromMagicInterface;
+    context->pub.magicIf.send = incomingFromMagicInterface;
+    context->pub.dhtIf.send = incomingFromDHTInterface;
     Identity_set(context);
 
     context->ipTunnel = ipTun;
@@ -1064,16 +1039,6 @@ struct Ducttape* Ducttape_register(uint8_t privateKey[32],
                                      rand,
                                      allocator);
     context->pub.sessionManager = context->sm;
-
-    Bits_memcpyConst(&context->module, (&(struct DHTModule) {
-        .name = "Ducttape",
-        .context = context,
-        .handleOutgoing = handleOutgoing
-    }), sizeof(struct DHTModule));
-
-    if (DHTModuleRegistry_register(&context->module, context->registry)) {
-        return NULL;
-    }
 
     context->pub.switchIf.sendMessage = incomingFromSwitch;
     context->pub.switchIf.allocator = allocator;

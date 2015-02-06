@@ -22,7 +22,13 @@
 #include "util/Linker.h"
 Linker_require("interface/addressable/PacketHeaderToUDPAddrInterface.c")
 
-struct AddrInterface* PacketHeaderToUDPAddrInterface_new(struct Interface* toWrap,
-                                                         struct Allocator* alloc,
-                                                         struct Sockaddr* addr);
+struct PacketHeaderToUDPAddrInterface
+{
+    struct AddrInterface udpIf;
+    struct Interface_Two headerIf;
+};
+
+struct PacketHeaderToUDPAddrInterface* PacketHeaderToUDPAddrInterface_new(struct Allocator* alloc,
+                                                                          struct Sockaddr* addr);
+
 #endif

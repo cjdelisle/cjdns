@@ -18,7 +18,6 @@
 #include "dht/Address.h"
 #include "util/version/Version.h"
 #include "dht/DHTModule.h"
-#include "dht/DHTModuleRegistry.h"
 #include "dht/dhtcore/Router.h"
 #include "interface/Interface.h"
 #include "util/log/Log.h"
@@ -49,9 +48,6 @@ struct Ducttape_pvt
 
     /** The network module for the DHT. */
     struct DHTModule module;
-
-    /** The registry to call when a message comes in. */
-    struct DHTModuleRegistry* registry;
 
     struct Router* router;
 

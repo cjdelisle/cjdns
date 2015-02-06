@@ -21,6 +21,7 @@
 #include "dht/SerializationModule.h"
 #include "dht/EncodingSchemeModule.h"
 #include "dht/dhtcore/Router_new.h"
+#include "dht/DHTCoreInterface.h"
 #include "io/Writer.h"
 #include "io/FileWriter.h"
 #include "util/log/Log.h"
@@ -146,14 +147,17 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
     struct Router* router = Router_new(routerModule, nodeStore, searchRunner, allocator);
 
     struct Ducttape* dt =
-        Ducttape_register((uint8_t*)privateKey, registry, router,
-                          base, allocator, logger, ipTun, rand, rumorMill);
+        Ducttape_new((uint8_t*)privateKey, router, base, allocator, logger, ipTun, rand, rumorMill);
 
     SwitchCore_setRouterInterface(&dt->switchIf, switchCore);
+
+    struct DHTCoreInterface* dhtCore = DHTCoreInterface_register(allocator, logger, registry);
+    Interface_plumb(&dhtCore->coreIf, &dt->dhtIf);
 
     struct ControlHandler* controlHandler =
         ControlHandler_new(allocator, logger, router, myAddress);
     Interface_plumb(&controlHandler->coreIf, &dt->controlIf);
+
     struct SwitchPinger* sp = SwitchPinger_new(base, rand, logger, myAddress, allocator);
     Interface_plumb(&controlHandler->switchPingerIf, &sp->controlHandlerIf);
 

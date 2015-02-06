@@ -25,8 +25,7 @@
 
 struct PacketHeaderToUDPAddrInterface_pvt
 {
-    struct AddrInterface pub;
-    struct Interface* wrapped;
+    struct PacketHeaderToUDPAddrInterface pub;
     Identity
 };
 
@@ -36,11 +35,11 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
         Identity_check((struct PacketHeaderToUDPAddrInterface_pvt*) iface);
 
     struct Sockaddr_storage ss;
-    Message_pop(message, &ss, context->pub.addr->addrLen, NULL);
+    Message_pop(message, &ss, context->pub.udpIf.addr->addrLen, NULL);
     struct Sockaddr* addr = &ss.addr;
 
     struct Headers_UDPHeader udp;
-    udp.srcPort_be = Endian_hostToBigEndian16(Sockaddr_getPort(context->pub.addr));
+    udp.srcPort_be = Endian_hostToBigEndian16(Sockaddr_getPort(context->pub.udpIf.addr));
     udp.destPort_be = Endian_hostToBigEndian16(Sockaddr_getPort(addr));
     udp.length_be = Endian_hostToBigEndian16(message->length + Headers_UDPHeader_SIZE);
     udp.checksum_be = 0;
@@ -55,7 +54,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
     uint8_t* addrPtr = NULL;
     Assert_true(Sockaddr_getAddress(addr, &addrPtr) == 16);
     Bits_memcpyConst(ip.destinationAddr, addrPtr, 16);
-    Assert_true(Sockaddr_getAddress(context->pub.addr, &addrPtr) == 16);
+    Assert_true(Sockaddr_getAddress(context->pub.udpIf.addr, &addrPtr) == 16);
     Bits_memcpyConst(ip.sourceAddr, addrPtr, 16);
 
     uint16_t checksum = Checksum_udpIp6(ip.sourceAddr, message->bytes, message->length);
@@ -63,13 +62,14 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
 
     Message_push(message, &ip, sizeof(struct Headers_IP6Header), NULL);
 
-    return Interface_sendMessage(context->wrapped, message);
+    return Interface_send(&context->pub.headerIf, message);
 }
 
-static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
+static int incomingFromHeaderIf(struct Interface_Two* iface, struct Message* message)
 {
     struct PacketHeaderToUDPAddrInterface_pvt* context =
-        Identity_check((struct PacketHeaderToUDPAddrInterface_pvt*) iface->receiverContext);
+        Identity_check((struct PacketHeaderToUDPAddrInterface_pvt*)
+            ((uint8_t*)(iface) - offsetof(struct PacketHeaderToUDPAddrInterface, headerIf)));
 
     if (message->length < Headers_IP6Header_SIZE + Headers_UDPHeader_SIZE) {
         // runt
@@ -84,7 +84,7 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
     }
 
     struct Allocator* alloc = Allocator_child(message->alloc);
-    struct Sockaddr* addr = Sockaddr_clone(context->pub.addr, alloc);
+    struct Sockaddr* addr = Sockaddr_clone(context->pub.udpIf.addr, alloc);
     uint8_t* addrPtr = NULL;
     Assert_true(Sockaddr_getAddress(addr, &addrPtr) == 16);
     Bits_memcpyConst(addrPtr, ip->sourceAddr, 16);
@@ -92,7 +92,7 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
     struct Headers_UDPHeader* udp = (struct Headers_UDPHeader*) (&ip[1]);
     Sockaddr_setPort(addr, Endian_bigEndianToHost16(udp->srcPort_be));
 
-    if (Sockaddr_getPort(context->pub.addr) != Endian_bigEndianToHost16(udp->destPort_be)) {
+    if (Sockaddr_getPort(context->pub.udpIf.addr) != Endian_bigEndianToHost16(udp->destPort_be)) {
         // not the right port
         return Error_NONE;
     }
@@ -100,31 +100,32 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
     Message_shift(message, -(Headers_IP6Header_SIZE + Headers_UDPHeader_SIZE), NULL);
     Message_push(message, addr, addr->addrLen, NULL);
 
-    return Interface_receiveMessage(&context->pub.generic, message);
+    return Interface_receiveMessage(&context->pub.udpIf.generic, message);
 }
 
-struct AddrInterface* PacketHeaderToUDPAddrInterface_new(struct Interface* toWrap,
-                                                         struct Allocator* alloc,
-                                                         struct Sockaddr* addr)
+struct PacketHeaderToUDPAddrInterface* PacketHeaderToUDPAddrInterface_new(struct Allocator* alloc,
+                                                                          struct Sockaddr* addr)
 {
     struct PacketHeaderToUDPAddrInterface_pvt* context =
         Allocator_malloc(alloc, sizeof(struct PacketHeaderToUDPAddrInterface_pvt));
 
     Bits_memcpyConst(context, (&(struct PacketHeaderToUDPAddrInterface_pvt) {
         .pub = {
-            .generic = {
-                .sendMessage = sendMessage,
-                .senderContext = context,
-                .allocator = alloc
+            .udpIf = {
+                .generic = {
+                    .sendMessage = sendMessage,
+                    .senderContext = context,
+                    .allocator = alloc
+                }
+            },
+            .headerIf = {
+                .send = incomingFromHeaderIf
             }
         },
-        .wrapped = toWrap
     }), sizeof(struct PacketHeaderToUDPAddrInterface_pvt));
     Identity_set(context);
 
-    context->pub.addr = Sockaddr_clone(addr, alloc);
-    toWrap->receiveMessage = receiveMessage;
-    toWrap->receiverContext = context;
+    context->pub.udpIf.addr = Sockaddr_clone(addr, alloc);
 
     return &context->pub;
 }

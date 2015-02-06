@@ -12,27 +12,27 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef CoreInterfaceModule_H
-#define CoreInterfaceModule_H
+#ifndef DHTCoreInterface_H
+#define DHTCoreInterface_H
 
 #include "dht/DHTModuleRegistry.h"
 #include "interface/Interface.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
 #include "util/Linker.h"
-Linker_require("dht/CoreInterfaceModule.c")
+Linker_require("dht/DHTCoreInterface.c")
 
-struct CoreInterfaceModule
+struct DHTCoreInterface
 {
     /**
      * Communicates with the core.
-     * Content: [ PeerVersion (0 = unknown) ][ PeerPublicKey ][ SwitchLabel ][ content... ]
+     * Content: [ struct Address ][ content... ]
      */
     struct Interface_Two coreIf;
 };
 
-struct CoreInterfaceModule* CoreInterfaceModule_register(struct Allocator* alloc,
-                                                         struct Log* logger,
-                                                         struct DHTModuleRegistry* registry);
+struct DHTCoreInterface* DHTCoreInterface_register(struct Allocator* alloc,
+                                                   struct Log* logger,
+                                                   struct DHTModuleRegistry* registry);
 
 #endif
