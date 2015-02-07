@@ -65,7 +65,6 @@ enum ContentType
      * not fit in a 16 bit DataHeader ContentType field.
      */
     ContentType_SWITCH =        0xffff + 1,
-    ContentType_SWITCH =        0xffff + 1,
 };
 
 #endif

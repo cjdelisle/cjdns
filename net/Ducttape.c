@@ -869,7 +869,6 @@ static uint8_t outgoingFromCryptoAuth(struct Message* message, struct Interface*
 static uint8_t incomingFromSwitch(struct Message* message, struct Interface* switchIf)
 {
     struct Ducttape_pvt* context = DUCTTAPE_FOR_IFACE(switchIf);
-Log_debug(context->logger, "Got message...");
 
     struct Ducttape_MessageHeader* dtHeader = getDtHeader(message, true);
 

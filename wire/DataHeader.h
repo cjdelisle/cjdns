@@ -17,6 +17,7 @@
 
 #include "util/Assert.h"
 #include "util/Endian.h"
+#include "wire/ContentType.h"
 
 /**
  *                     1               2               3
@@ -35,7 +36,7 @@ struct DataHeader
     /**
      * If set, the receiving node should respond within 10 milliseconds, if in the next 10
      * milliseconds it has something else to send back, this is acceptable, otherwise it should
-     * synthisize a control packet to respond with.
+     * synthisize a packet to respond with.
      */
     #define DataHeader_RESPOND_TO_ME (1<<7)
 
@@ -54,59 +55,13 @@ Assert_compileTime(sizeof(struct DataHeader) == DataHeader_SIZE);
 
 #define DataHeader_CURRENT_VERSION 0
 
-enum DataHeader_ContentType
-{
-    /**
-     * The lowest 255 message types are reserved for cjdns/IPv6 packets.
-     * AKA: packets where the IP address is within the FC00::/8 block.
-     * Any packet sent in this way will have the IPv6 header deconstructed and this
-     * field will come from the nextHeader field in the IPv6 header.
-     */
-    DataHeader_ContentType_IP6_IP =        0,
-    DataHeader_ContentType_IP6_ICMP =      1,
-    DataHeader_ContentType_IP6_IGMP =      2,
-    DataHeader_ContentType_IP6_IPIP =      4,
-    DataHeader_ContentType_IP6_TCP =       6,
-    DataHeader_ContentType_IP6_EGP =       8,
-    DataHeader_ContentType_IP6_PUP =       12,
-    DataHeader_ContentType_IP6_UDP =       17,
-    DataHeader_ContentType_IP6_IDP =       22,
-    DataHeader_ContentType_IP6_TP =        29,
-    DataHeader_ContentType_IP6_DCCP =      33,
-    DataHeader_ContentType_IP6_IPV6 =      41,
-    DataHeader_ContentType_IP6_RSVP =      46,
-    DataHeader_ContentType_IP6_GRE =       47,
-    DataHeader_ContentType_IP6_ESP =       50,
-    DataHeader_ContentType_IP6_AH =        51,
-    DataHeader_ContentType_IP6_MTP =       92,
-    DataHeader_ContentType_IP6_BEETPH =    94,
-    DataHeader_ContentType_IP6_ENCAP =     98,
-    DataHeader_ContentType_IP6_PIM =       103,
-    DataHeader_ContentType_IP6_COMP =      108,
-    DataHeader_ContentType_IP6_SCTP =      132,
-    DataHeader_ContentType_IP6_UDPLITE =   136,
-    DataHeader_ContentType_IP6_RAW =       255,
 
-    /** Bencoded inter-router CTRL messages. */
-    DataHeader_ContentType_CTRL =          256,
-
-    /**
-     * Content types in the AVAILABLE range are not defined and can be used
-     * like port numbers for subsystems of cjdns to communicate with subsystems within
-     * cjdns on other machines, providing they first agree on which numbers to use via
-     * CTRL messages.
-     */
-    DataHeader_ContentType_AVAILABLE =     257),
-    DataHeader_ContentType_AVAILABLE_MAX = 0xffff
-};
-
-static inline enum DataHeader_ContentType DataHeader_getContentType(struct DataHeader* hdr)
+static inline enum ContentType DataHeader_getContentType(struct DataHeader* hdr)
 {
     return Endian_bigEndianToHost16(hdr->contentType_be);
 }
 
-static inline void DataHeader_setContentType(struct DataHeader* hdr,
-                                             enum DataHeader_ContentType type)
+static inline void DataHeader_setContentType(struct DataHeader* hdr, enum ContentType type)
 {
     Assert_true(type <= DataHeader_ContentType_AVAILABLE_MAX);
     hdr->contentType_be = Endian_hostToBigEndian16(type);

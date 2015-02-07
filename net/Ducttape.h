@@ -46,6 +46,11 @@ struct Ducttape
      */
     struct Interface_Two magicIf;
 
+    /**
+     * 
+     */
+    struct Interface_Two tunIf;
+
     struct Interface switchIf;
 
     struct SessionManager* sessionManager;
