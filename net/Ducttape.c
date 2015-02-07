@@ -1017,6 +1017,7 @@ static void checkStateOfSessions(void* vducttape)
         Address_getPrefix(&addr);
         RumorMill_addNode(ctx->sessionMill, &addr);
     }
+    Allocator_free(alloc);
 }
 
 struct Ducttape* Ducttape_register(uint8_t privateKey[32],
