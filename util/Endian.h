@@ -47,13 +47,9 @@
     #define Endian_isBigEndian() 1
 #endif
 
-#if defined(__GNUC__) && __GNUC__ >= 2
-    // Don't check __GNUC_PREREQ unless we're sure we're using gcc
-    #if __GNUC_PREREQ(4, 8)
-        #define Endian_byteSwapNoCast16(x) __builtin_bswap16(x)
-    #endif
-#endif
-#ifndef Endian_byteSwapNoCast16
+#if defined(__GNUC__) && __GNUC__ >= 4 && __GNUC_MINOR__ >= 8
+    #define Endian_byteSwapNoCast16(x) __builtin_bswap16(x)
+#else
     #define Endian_byteSwapNoCast16(x) \
         (__extension__ ({              \
             uint16_t _x = (x);         \
