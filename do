@@ -81,8 +81,10 @@ getNode()
         wget -O - "${NODE_DOWNLOAD}" > node.tar.gz
     elif curl --version > /dev/null 2>&1; then
         curl "${NODE_DOWNLOAD}" > node.tar.gz
+    elif [ -x fetch ]; then
+        fetch "${NODE_DOWNLOAD}" -o node.tar.gz
     else
-        echo 'wget or curl is required download node.js but you have neither!'
+        echo 'wget/curl/fetch is required download node.js but you have none!'
         return 1
     fi
 
