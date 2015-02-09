@@ -819,7 +819,10 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
         return Error_AUTHENTICATION;
     }
 
-    Assert_ifParanoid(!Bits_isZero(header->handshake.encryptedTempKey, 32));
+    if (Bits_isZero(header->handshake.encryptedTempKey, 32)) {
+        // we need to reject 0 public keys outright because they will be confused with "unknown"
+        return Error_AUTHENTICATION;
+    }
 
     #ifdef Log_KEYS
         uint8_t tempKeyHex[65];
