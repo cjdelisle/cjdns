@@ -15,18 +15,23 @@
 #ifndef EventEmitter_H
 #define EventEmitter_H
 
-enum EventEmitter_Events
-{
-    EventEmitter_Events_DISCOVERED_NODE,
-    EventEmitter_Events_
-}
+#include "interface/Interface.h"
+#include "memory/Allocator.h"
+#include "util/Event.h"
+#include "util/Linker.h"
+Linker_require("net/EventEmitter.c")
 
 struct EventEmitter
 {
     int unused;
 };
 
-EventEmitter_on(
+/**
+ * Register an interface to listen for (and fire) events.
+ * The same interface may be registered multiple times.
+ * If you only intend to fire events, just register with Event_INVALID.
+ */
+void EventEmitter_regIface(struct EventEmitter* ee, struct Interface_Two* iface, enum Event ev);
 
 struct EventEmitter* EventEmitter_new(struct Allocator* alloc);
 

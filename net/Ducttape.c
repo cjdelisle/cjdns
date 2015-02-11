@@ -49,11 +49,6 @@
 
 #define FC_ONE "\xfc\0\0\0\0\0\0\0\0\0\0\0\0\0\0\1"
 
-#define DUCTTAPE_FOR_IFACE(iface) \
-    Identity_check( (struct Ducttape_pvt*)                                      \
-            ((uint8_t*)(iface) - offsetof(struct Ducttape, iface))              \
-    )
-
 /** Header must not be encrypted and must be aligned on the beginning of the ipv6 header. */
 static inline uint8_t sendToRouter(struct Message* message,
                                    struct Ducttape_MessageHeader* dtHeader,
@@ -117,7 +112,7 @@ static struct Ducttape_MessageHeader* getDtHeader(struct Message* message, bool 
 // see ducttape.h -> dhtIf
 static int incomingFromDHTInterface(struct Interface_Two* dhtIf, struct Message* msg)
 {
-    struct Ducttape_pvt* ctx = DUCTTAPE_FOR_IFACE(dhtIf);
+    struct Ducttape_pvt* ctx = Identity_containerOf(dhtIf, struct Ducttape_pvt, pub.dhtIf);
 
     struct Address addr;
     Message_pop(msg, &addr, Address_SIZE, NULL);
@@ -380,7 +375,7 @@ static inline bool isForMe(struct Message* message, struct Ducttape_pvt* context
 
 static int incomingFromMagicInterface(struct Interface_Two* magicIf, struct Message* msg)
 {
-    struct Ducttape_pvt* ctx = DUCTTAPE_FOR_IFACE(magicIf);
+    struct Ducttape_pvt* ctx = Identity_containerOf(magicIf, struct Ducttape_pvt, pub.magicIf);
 
     Assert_ifParanoid(msg->length >= Headers_IP6Header_SIZE);
     #ifdef PARANOIA
@@ -868,7 +863,7 @@ static uint8_t outgoingFromCryptoAuth(struct Message* message, struct Interface*
  */
 static uint8_t incomingFromSwitch(struct Message* message, struct Interface* switchIf)
 {
-    struct Ducttape_pvt* context = DUCTTAPE_FOR_IFACE(switchIf);
+    struct Ducttape_pvt* ctx = Identity_containerOf(switchIf, struct Ducttape_pvt, pub.switchIf);
 
     struct Ducttape_MessageHeader* dtHeader = getDtHeader(message, true);
 
@@ -903,11 +898,6 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
         session = SessionManager_sessionForHandle(nonceOrHandle, context->sm);
 
         if (session) {
-            uint32_t nonce = Endian_bigEndianToHost32(((uint32_t*)message->bytes)[0]);
-            if (nonce == ~0u) {
-                Log_debug(context->logger, "DROP connectToMe packet at switch layer");
-                return 0;
-            }
             /*
             debugHandlesAndLabel(context->logger, session,
                                  Endian_bigEndianToHost64(switchHeader->label_be),
@@ -969,7 +959,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
 
 static int incomingFromControlHandler(struct Interface_Two* controlIf, struct Message* message)
 {
-    struct Ducttape_pvt* ctx = DUCTTAPE_FOR_IFACE(controlIf);
+    struct Ducttape_pvt* ctx = Identity_containerOf(controlIf, struct Ducttape_pvt, pub.controlIf);
     Assert_true(ctx->pub.switchIf.receiveMessage);
     return Interface_receiveMessage(&ctx->pub.switchIf, message);
 }

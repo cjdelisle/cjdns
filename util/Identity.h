@@ -57,4 +57,10 @@
     #define Identity_ncheck(pointer) Identity_check(pointer)
 #endif
 
+#define Identity_containerOf(ptr, type, member) \
+    (__extension__ ({                                                          \
+	    const __typeof__(((type*)0)->member)*__mptr = (ptr);                   \
+	    Identity_check( (type*)((char*)__mptr - offsetof(type, member)) );     \
+    })
+
 #endif

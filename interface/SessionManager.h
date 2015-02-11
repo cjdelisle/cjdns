@@ -48,8 +48,8 @@ struct SessionManager_Session
     /** The handle which will be used to lookup this session on our side, big endian. */
     uint32_t receiveHandle_be;
 
-    /** The handle which we are expected to send to identify ourselves, big endian. */
-    uint32_t sendHandle_be;
+    /** The handle which we are expected to send to identify ourselves */
+    uint32_t sendHandle;
 
     /** The version of the other node. */
     uint32_t version;
@@ -59,9 +59,14 @@ struct SessionManager_Session
 
     /** Some label which is known to go to this node... */
     uint64_t knownSwitchLabel;
+
+    /** Quality of switch label. */
+    uint32_t metric;
+
+    /** 
+    uint32_t timeDiscoveredSeconds;
 };
 
-// TODO(cjd): ArrayList.h
 struct SessionManager_HandleList
 {
     uint32_t count;
