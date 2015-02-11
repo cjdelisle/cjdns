@@ -85,7 +85,7 @@ var writeOPIHeader = function (protos, opi, onComplete) {
  */
 var writeOPHeader = function (protos, opi, onComplete) {
   var o_p = opi[0] + "_" + opi[1];
-  var o_p_i = o_p + "_" + opi[2];
+  var o_p_i = o_p + "_" + opi[2].replace(/[\.-\/]/g, '_');
   var out = [
     "#ifndef " + opi[0] + "_H",
     "#define " + opi[0] + "_H",
@@ -201,7 +201,7 @@ var buildCompileQueue = function(impls, onComplete) {
       if (err) { throw err; }
       files.forEach(function(file) {
         if (!file.match(/\.[csS]$/)) { return; }
-        var dotO = OBJ_DIR + '/' + impl.join('_') + '_' + file + '.o';
+        var dotO = OBJ_DIR + '/' + impl.join('_').replace(/\//g, '_') + '_' + file + '.o';
         var args = [
           '-I', BUILD_DIR + '/include',
           '-I', BUILD_DIR + '/include_internal',

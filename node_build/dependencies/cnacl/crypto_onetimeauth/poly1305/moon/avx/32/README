@@ -1,0 +1,1 @@
+This is non-portable on its own! It is part of https://github.com/floodyberry/poly1305-opt, a portable, dynamically dispatched Poly1305 library
