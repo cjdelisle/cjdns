@@ -151,8 +151,6 @@
 .align 4
 .global _crypto_onetimeauth_poly1305_neon2_blocks
 .global crypto_onetimeauth_poly1305_neon2_blocks
-.type _crypto_onetimeauth_poly1305_neon2_blocks STT_FUNC
-.type crypto_onetimeauth_poly1305_neon2_blocks STT_FUNC
 _crypto_onetimeauth_poly1305_neon2_blocks:
 crypto_onetimeauth_poly1305_neon2_blocks:
 vpush {q4,q5,q6,q7}

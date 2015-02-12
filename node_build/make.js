@@ -80,6 +80,8 @@ Builder.configure({
         builder.config.cflags.push('-D', 'TESTING=1');
     }
 
+    if (!builder.config.crossCompiling) { builder.config.cflags.push('-march=native'); }
+
     if (builder.config.systemName === 'win32') {
         builder.config.cflags.push('-Wno-format');
     } else if (builder.config.systemName === 'linux') {
@@ -215,6 +217,8 @@ Builder.configure({
                 if (CFLAGS) {
                     [].push.apply(args, CFLAGS.split(' '));
                 }
+
+                if (!builder.config.crossCompiling) { args.push('-march=native'); }
 
                 builder.cc(args, callback);
             }, waitFor(function () {

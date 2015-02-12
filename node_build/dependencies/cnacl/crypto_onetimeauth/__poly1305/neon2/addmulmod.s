@@ -97,8 +97,6 @@
 .align 2
 .global _crypto_onetimeauth_poly1305_neon2_addmulmod
 .global crypto_onetimeauth_poly1305_neon2_addmulmod
-.type _crypto_onetimeauth_poly1305_neon2_addmulmod STT_FUNC
-.type crypto_onetimeauth_poly1305_neon2_addmulmod STT_FUNC
 _crypto_onetimeauth_poly1305_neon2_addmulmod:
 crypto_onetimeauth_poly1305_neon2_addmulmod:
 sub sp,sp,#0
