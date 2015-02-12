@@ -335,6 +335,8 @@ sigma:
 .align 2
 .global _crypto_stream_salsa20_armneon6_xor
 .global crypto_stream_salsa20_armneon6_xor
+.type _crypto_stream_salsa20_armneon6_xor STT_FUNC
+.type crypto_stream_salsa20_armneon6_xor STT_FUNC
 _crypto_stream_salsa20_armneon6_xor:
 crypto_stream_salsa20_armneon6_xor:
 vpush {q4,q5,q6,q7}

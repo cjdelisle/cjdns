@@ -1,5 +1,5 @@
 /*
-version 20080913
+version 20140420
 D. J. Bernstein
 Public domain.
 */
@@ -19,16 +19,18 @@ int crypto_stream(
 {
   unsigned char in[16];
   unsigned char block[64];
+  unsigned char kcopy[32];
   int i;
   unsigned int u;
 
   if (!clen) return 0;
 
+  for (i = 0;i < 32;++i) kcopy[i] = k[i];
   for (i = 0;i < 8;++i) in[i] = n[i];
   for (i = 8;i < 16;++i) in[i] = 0;
 
   while (clen >= 64) {
-    crypto_core_salsa20(c,in,k,sigma);
+    crypto_core_salsa20(c,in,kcopy,sigma);
 
     u = 1;
     for (i = 8;i < 16;++i) {
@@ -42,7 +44,7 @@ int crypto_stream(
   }
 
   if (clen) {
-    crypto_core_salsa20(block,in,k,sigma);
+    crypto_core_salsa20(block,in,kcopy,sigma);
     for (i = 0;i < clen;++i) c[i] = block[i];
   }
   return 0;

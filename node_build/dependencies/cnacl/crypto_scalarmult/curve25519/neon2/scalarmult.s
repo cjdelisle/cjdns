@@ -493,6 +493,8 @@
 .align 4
 .global _crypto_scalarmult_curve25519_neon2
 .global crypto_scalarmult_curve25519_neon2
+.type _crypto_scalarmult_curve25519_neon2 STT_FUNC
+.type crypto_scalarmult_curve25519_neon2 STT_FUNC
 _crypto_scalarmult_curve25519_neon2:
 crypto_scalarmult_curve25519_neon2:
 vpush {q4,q5,q6,q7}

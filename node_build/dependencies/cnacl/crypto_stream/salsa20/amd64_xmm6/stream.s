@@ -333,6 +333,8 @@
 
 # qhasm: stack64 bytes_backup
 
+# qhasm: stack64 counter
+
 # qhasm: enter crypto_stream_salsa20_amd64_xmm6
 .text
 .p2align 5
@@ -342,43 +344,43 @@ _crypto_stream_salsa20_amd64_xmm6:
 crypto_stream_salsa20_amd64_xmm6:
 mov %rsp,%r11
 and $31,%r11
-add $480,%r11
+add $512,%r11
 sub %r11,%rsp
 
 # qhasm: r11_stack = r11_caller
 # asm 1: movq <r11_caller=int64#9,>r11_stack=stack64#1
-# asm 2: movq <r11_caller=%r11,>r11_stack=352(%rsp)
-movq %r11,352(%rsp)
+# asm 2: movq <r11_caller=%r11,>r11_stack=416(%rsp)
+movq %r11,416(%rsp)
 
 # qhasm: r12_stack = r12_caller
 # asm 1: movq <r12_caller=int64#10,>r12_stack=stack64#2
-# asm 2: movq <r12_caller=%r12,>r12_stack=360(%rsp)
-movq %r12,360(%rsp)
+# asm 2: movq <r12_caller=%r12,>r12_stack=424(%rsp)
+movq %r12,424(%rsp)
 
 # qhasm: r13_stack = r13_caller
 # asm 1: movq <r13_caller=int64#11,>r13_stack=stack64#3
-# asm 2: movq <r13_caller=%r13,>r13_stack=368(%rsp)
-movq %r13,368(%rsp)
+# asm 2: movq <r13_caller=%r13,>r13_stack=432(%rsp)
+movq %r13,432(%rsp)
 
 # qhasm: r14_stack = r14_caller
 # asm 1: movq <r14_caller=int64#12,>r14_stack=stack64#4
-# asm 2: movq <r14_caller=%r14,>r14_stack=376(%rsp)
-movq %r14,376(%rsp)
+# asm 2: movq <r14_caller=%r14,>r14_stack=440(%rsp)
+movq %r14,440(%rsp)
 
 # qhasm: r15_stack = r15_caller
 # asm 1: movq <r15_caller=int64#13,>r15_stack=stack64#5
-# asm 2: movq <r15_caller=%r15,>r15_stack=384(%rsp)
-movq %r15,384(%rsp)
+# asm 2: movq <r15_caller=%r15,>r15_stack=448(%rsp)
+movq %r15,448(%rsp)
 
 # qhasm: rbx_stack = rbx_caller
 # asm 1: movq <rbx_caller=int64#14,>rbx_stack=stack64#6
-# asm 2: movq <rbx_caller=%rbx,>rbx_stack=392(%rsp)
-movq %rbx,392(%rsp)
+# asm 2: movq <rbx_caller=%rbx,>rbx_stack=456(%rsp)
+movq %rbx,456(%rsp)
 
 # qhasm: rbp_stack = rbp_caller
 # asm 1: movq <rbp_caller=int64#15,>rbp_stack=stack64#7
-# asm 2: movq <rbp_caller=%rbp,>rbp_stack=400(%rsp)
-movq %rbp,400(%rsp)
+# asm 2: movq <rbp_caller=%rbp,>rbp_stack=464(%rsp)
+movq %rbp,464(%rsp)
 
 # qhasm: bytes = arg2
 # asm 1: mov  <arg2=int64#2,>bytes=int64#6
@@ -445,43 +447,43 @@ _crypto_stream_salsa20_amd64_xmm6_xor:
 crypto_stream_salsa20_amd64_xmm6_xor:
 mov %rsp,%r11
 and $31,%r11
-add $480,%r11
+add $512,%r11
 sub %r11,%rsp
 
 # qhasm: r11_stack = r11_caller
 # asm 1: movq <r11_caller=int64#9,>r11_stack=stack64#1
-# asm 2: movq <r11_caller=%r11,>r11_stack=352(%rsp)
-movq %r11,352(%rsp)
+# asm 2: movq <r11_caller=%r11,>r11_stack=416(%rsp)
+movq %r11,416(%rsp)
 
 # qhasm: r12_stack = r12_caller
 # asm 1: movq <r12_caller=int64#10,>r12_stack=stack64#2
-# asm 2: movq <r12_caller=%r12,>r12_stack=360(%rsp)
-movq %r12,360(%rsp)
+# asm 2: movq <r12_caller=%r12,>r12_stack=424(%rsp)
+movq %r12,424(%rsp)
 
 # qhasm: r13_stack = r13_caller
 # asm 1: movq <r13_caller=int64#11,>r13_stack=stack64#3
-# asm 2: movq <r13_caller=%r13,>r13_stack=368(%rsp)
-movq %r13,368(%rsp)
+# asm 2: movq <r13_caller=%r13,>r13_stack=432(%rsp)
+movq %r13,432(%rsp)
 
 # qhasm: r14_stack = r14_caller
 # asm 1: movq <r14_caller=int64#12,>r14_stack=stack64#4
-# asm 2: movq <r14_caller=%r14,>r14_stack=376(%rsp)
-movq %r14,376(%rsp)
+# asm 2: movq <r14_caller=%r14,>r14_stack=440(%rsp)
+movq %r14,440(%rsp)
 
 # qhasm: r15_stack = r15_caller
 # asm 1: movq <r15_caller=int64#13,>r15_stack=stack64#5
-# asm 2: movq <r15_caller=%r15,>r15_stack=384(%rsp)
-movq %r15,384(%rsp)
+# asm 2: movq <r15_caller=%r15,>r15_stack=448(%rsp)
+movq %r15,448(%rsp)
 
 # qhasm: rbx_stack = rbx_caller
 # asm 1: movq <rbx_caller=int64#14,>rbx_stack=stack64#6
-# asm 2: movq <rbx_caller=%rbx,>rbx_stack=392(%rsp)
-movq %rbx,392(%rsp)
+# asm 2: movq <rbx_caller=%rbx,>rbx_stack=456(%rsp)
+movq %rbx,456(%rsp)
 
 # qhasm: rbp_stack = rbp_caller
 # asm 1: movq <rbp_caller=int64#15,>rbp_stack=stack64#7
-# asm 2: movq <rbp_caller=%rbp,>rbp_stack=400(%rsp)
-movq %rbp,400(%rsp)
+# asm 2: movq <rbp_caller=%rbp,>rbp_stack=464(%rsp)
+movq %rbp,464(%rsp)
 
 # qhasm: out = arg1
 # asm 1: mov  <arg1=int64#1,>out=int64#1
@@ -543,23 +545,23 @@ movl   16(%r10),%r11d
 
 # qhasm:   ((uint32 *)&x1)[0] = in12
 # asm 1: movl <in12=int64#4d,>x1=stack128#1
-# asm 2: movl <in12=%ecx,>x1=0(%rsp)
-movl %ecx,0(%rsp)
+# asm 2: movl <in12=%ecx,>x1=64(%rsp)
+movl %ecx,64(%rsp)
 
 # qhasm:   ((uint32 *)&x1)[1] = in1
 # asm 1: movl <in1=int64#5d,4+<x1=stack128#1
-# asm 2: movl <in1=%r8d,4+<x1=0(%rsp)
-movl %r8d,4+0(%rsp)
+# asm 2: movl <in1=%r8d,4+<x1=64(%rsp)
+movl %r8d,4+64(%rsp)
 
 # qhasm:   ((uint32 *)&x1)[2] = in6
 # asm 1: movl <in6=int64#7d,8+<x1=stack128#1
-# asm 2: movl <in6=%eax,8+<x1=0(%rsp)
-movl %eax,8+0(%rsp)
+# asm 2: movl <in6=%eax,8+<x1=64(%rsp)
+movl %eax,8+64(%rsp)
 
 # qhasm:   ((uint32 *)&x1)[3] = in11
 # asm 1: movl <in11=int64#9d,12+<x1=stack128#1
-# asm 2: movl <in11=%r11d,12+<x1=0(%rsp)
-movl %r11d,12+0(%rsp)
+# asm 2: movl <in11=%r11d,12+<x1=64(%rsp)
+movl %r11d,12+64(%rsp)
 
 # qhasm:   in8 = 0
 # asm 1: mov  $0,>in8=int64#4
@@ -581,25 +583,30 @@ movl   4(%r10),%eax
 # asm 2: movl   4(<iv=%rdx),>in7=%edx
 movl   4(%rdx),%edx
 
+# qhasm:   counter = in8
+# asm 1: movq <in8=int64#4,>counter=stack64#8
+# asm 2: movq <in8=%rcx,>counter=472(%rsp)
+movq %rcx,472(%rsp)
+
 # qhasm:   ((uint32 *)&x2)[0] = in8
 # asm 1: movl <in8=int64#4d,>x2=stack128#2
-# asm 2: movl <in8=%ecx,>x2=16(%rsp)
-movl %ecx,16(%rsp)
+# asm 2: movl <in8=%ecx,>x2=80(%rsp)
+movl %ecx,80(%rsp)
 
 # qhasm:   ((uint32 *)&x2)[1] = in13
 # asm 1: movl <in13=int64#5d,4+<x2=stack128#2
-# asm 2: movl <in13=%r8d,4+<x2=16(%rsp)
-movl %r8d,4+16(%rsp)
+# asm 2: movl <in13=%r8d,4+<x2=80(%rsp)
+movl %r8d,4+80(%rsp)
 
 # qhasm:   ((uint32 *)&x2)[2] = in2
 # asm 1: movl <in2=int64#7d,8+<x2=stack128#2
-# asm 2: movl <in2=%eax,8+<x2=16(%rsp)
-movl %eax,8+16(%rsp)
+# asm 2: movl <in2=%eax,8+<x2=80(%rsp)
+movl %eax,8+80(%rsp)
 
 # qhasm:   ((uint32 *)&x2)[3] = in7
 # asm 1: movl <in7=int64#3d,12+<x2=stack128#2
-# asm 2: movl <in7=%edx,12+<x2=16(%rsp)
-movl %edx,12+16(%rsp)
+# asm 2: movl <in7=%edx,12+<x2=80(%rsp)
+movl %edx,12+80(%rsp)
 
 # qhasm:   in4 = *(uint32 *) (k + 12)
 # asm 1: movl   12(<k=int64#8),>in4=int64#3d
@@ -623,23 +630,23 @@ movl   8(%r10),%eax
 
 # qhasm:   ((uint32 *)&x3)[0] = in4
 # asm 1: movl <in4=int64#3d,>x3=stack128#3
-# asm 2: movl <in4=%edx,>x3=32(%rsp)
-movl %edx,32(%rsp)
+# asm 2: movl <in4=%edx,>x3=96(%rsp)
+movl %edx,96(%rsp)
 
 # qhasm:   ((uint32 *)&x3)[1] = in9
 # asm 1: movl <in9=int64#4d,4+<x3=stack128#3
-# asm 2: movl <in9=%ecx,4+<x3=32(%rsp)
-movl %ecx,4+32(%rsp)
+# asm 2: movl <in9=%ecx,4+<x3=96(%rsp)
+movl %ecx,4+96(%rsp)
 
 # qhasm:   ((uint32 *)&x3)[2] = in14
 # asm 1: movl <in14=int64#5d,8+<x3=stack128#3
-# asm 2: movl <in14=%r8d,8+<x3=32(%rsp)
-movl %r8d,8+32(%rsp)
+# asm 2: movl <in14=%r8d,8+<x3=96(%rsp)
+movl %r8d,8+96(%rsp)
 
 # qhasm:   ((uint32 *)&x3)[3] = in3
 # asm 1: movl <in3=int64#7d,12+<x3=stack128#3
-# asm 2: movl <in3=%eax,12+<x3=32(%rsp)
-movl %eax,12+32(%rsp)
+# asm 2: movl <in3=%eax,12+<x3=96(%rsp)
+movl %eax,12+96(%rsp)
 
 # qhasm:   in0 = 1634760805
 # asm 1: mov  $1634760805,>in0=int64#3
@@ -663,23 +670,23 @@ mov  $1797285236,%rax
 
 # qhasm:   ((uint32 *)&x0)[0] = in0
 # asm 1: movl <in0=int64#3d,>x0=stack128#4
-# asm 2: movl <in0=%edx,>x0=48(%rsp)
-movl %edx,48(%rsp)
+# asm 2: movl <in0=%edx,>x0=112(%rsp)
+movl %edx,112(%rsp)
 
 # qhasm:   ((uint32 *)&x0)[1] = in5
 # asm 1: movl <in5=int64#4d,4+<x0=stack128#4
-# asm 2: movl <in5=%ecx,4+<x0=48(%rsp)
-movl %ecx,4+48(%rsp)
+# asm 2: movl <in5=%ecx,4+<x0=112(%rsp)
+movl %ecx,4+112(%rsp)
 
 # qhasm:   ((uint32 *)&x0)[2] = in10
 # asm 1: movl <in10=int64#5d,8+<x0=stack128#4
-# asm 2: movl <in10=%r8d,8+<x0=48(%rsp)
-movl %r8d,8+48(%rsp)
+# asm 2: movl <in10=%r8d,8+<x0=112(%rsp)
+movl %r8d,8+112(%rsp)
 
 # qhasm:   ((uint32 *)&x0)[3] = in15
 # asm 1: movl <in15=int64#7d,12+<x0=stack128#4
-# asm 2: movl <in15=%eax,12+<x0=48(%rsp)
-movl %eax,12+48(%rsp)
+# asm 2: movl <in15=%eax,12+<x0=112(%rsp)
+movl %eax,12+112(%rsp)
 
 # qhasm:                               unsigned<? bytes - 256
 # asm 1: cmp  $256,<bytes=int64#6
@@ -692,8 +699,8 @@ jb ._bytesbetween1and255
 
 # qhasm:   z0 = x0
 # asm 1: movdqa <x0=stack128#4,>z0=int6464#1
-# asm 2: movdqa <x0=48(%rsp),>z0=%xmm0
-movdqa 48(%rsp),%xmm0
+# asm 2: movdqa <x0=112(%rsp),>z0=%xmm0
+movdqa 112(%rsp),%xmm0
 
 # qhasm:   z5 = z0[1,1,1,1]
 # asm 1: pshufd $0x55,<z0=int6464#1,>z5=int6464#2
@@ -717,28 +724,28 @@ pshufd $0x00,%xmm0,%xmm0
 
 # qhasm:   orig5 = z5
 # asm 1: movdqa <z5=int6464#2,>orig5=stack128#5
-# asm 2: movdqa <z5=%xmm1,>orig5=64(%rsp)
-movdqa %xmm1,64(%rsp)
+# asm 2: movdqa <z5=%xmm1,>orig5=128(%rsp)
+movdqa %xmm1,128(%rsp)
 
 # qhasm:   orig10 = z10
 # asm 1: movdqa <z10=int6464#3,>orig10=stack128#6
-# asm 2: movdqa <z10=%xmm2,>orig10=80(%rsp)
-movdqa %xmm2,80(%rsp)
+# asm 2: movdqa <z10=%xmm2,>orig10=144(%rsp)
+movdqa %xmm2,144(%rsp)
 
 # qhasm:   orig15 = z15
 # asm 1: movdqa <z15=int6464#4,>orig15=stack128#7
-# asm 2: movdqa <z15=%xmm3,>orig15=96(%rsp)
-movdqa %xmm3,96(%rsp)
+# asm 2: movdqa <z15=%xmm3,>orig15=160(%rsp)
+movdqa %xmm3,160(%rsp)
 
 # qhasm:   orig0 = z0
 # asm 1: movdqa <z0=int6464#1,>orig0=stack128#8
-# asm 2: movdqa <z0=%xmm0,>orig0=112(%rsp)
-movdqa %xmm0,112(%rsp)
+# asm 2: movdqa <z0=%xmm0,>orig0=176(%rsp)
+movdqa %xmm0,176(%rsp)
 
 # qhasm:   z1 = x1
 # asm 1: movdqa <x1=stack128#1,>z1=int6464#1
-# asm 2: movdqa <x1=0(%rsp),>z1=%xmm0
-movdqa 0(%rsp),%xmm0
+# asm 2: movdqa <x1=64(%rsp),>z1=%xmm0
+movdqa 64(%rsp),%xmm0
 
 # qhasm:   z6 = z1[2,2,2,2]
 # asm 1: pshufd $0xaa,<z1=int6464#1,>z6=int6464#2
@@ -762,28 +769,28 @@ pshufd $0x55,%xmm0,%xmm0
 
 # qhasm:   orig6 = z6
 # asm 1: movdqa <z6=int6464#2,>orig6=stack128#9
-# asm 2: movdqa <z6=%xmm1,>orig6=128(%rsp)
-movdqa %xmm1,128(%rsp)
+# asm 2: movdqa <z6=%xmm1,>orig6=192(%rsp)
+movdqa %xmm1,192(%rsp)
 
 # qhasm:   orig11 = z11
 # asm 1: movdqa <z11=int6464#3,>orig11=stack128#10
-# asm 2: movdqa <z11=%xmm2,>orig11=144(%rsp)
-movdqa %xmm2,144(%rsp)
+# asm 2: movdqa <z11=%xmm2,>orig11=208(%rsp)
+movdqa %xmm2,208(%rsp)
 
 # qhasm:   orig12 = z12
 # asm 1: movdqa <z12=int6464#4,>orig12=stack128#11
-# asm 2: movdqa <z12=%xmm3,>orig12=160(%rsp)
-movdqa %xmm3,160(%rsp)
+# asm 2: movdqa <z12=%xmm3,>orig12=224(%rsp)
+movdqa %xmm3,224(%rsp)
 
 # qhasm:   orig1 = z1
 # asm 1: movdqa <z1=int6464#1,>orig1=stack128#12
-# asm 2: movdqa <z1=%xmm0,>orig1=176(%rsp)
-movdqa %xmm0,176(%rsp)
+# asm 2: movdqa <z1=%xmm0,>orig1=240(%rsp)
+movdqa %xmm0,240(%rsp)
 
 # qhasm:   z2 = x2
 # asm 1: movdqa <x2=stack128#2,>z2=int6464#1
-# asm 2: movdqa <x2=16(%rsp),>z2=%xmm0
-movdqa 16(%rsp),%xmm0
+# asm 2: movdqa <x2=80(%rsp),>z2=%xmm0
+movdqa 80(%rsp),%xmm0
 
 # qhasm:   z7 = z2[3,3,3,3]
 # asm 1: pshufd $0xff,<z2=int6464#1,>z7=int6464#2
@@ -802,23 +809,23 @@ pshufd $0xaa,%xmm0,%xmm0
 
 # qhasm:   orig7 = z7
 # asm 1: movdqa <z7=int6464#2,>orig7=stack128#13
-# asm 2: movdqa <z7=%xmm1,>orig7=192(%rsp)
-movdqa %xmm1,192(%rsp)
+# asm 2: movdqa <z7=%xmm1,>orig7=256(%rsp)
+movdqa %xmm1,256(%rsp)
 
 # qhasm:   orig13 = z13
 # asm 1: movdqa <z13=int6464#3,>orig13=stack128#14
-# asm 2: movdqa <z13=%xmm2,>orig13=208(%rsp)
-movdqa %xmm2,208(%rsp)
+# asm 2: movdqa <z13=%xmm2,>orig13=272(%rsp)
+movdqa %xmm2,272(%rsp)
 
 # qhasm:   orig2 = z2
 # asm 1: movdqa <z2=int6464#1,>orig2=stack128#15
-# asm 2: movdqa <z2=%xmm0,>orig2=224(%rsp)
-movdqa %xmm0,224(%rsp)
+# asm 2: movdqa <z2=%xmm0,>orig2=288(%rsp)
+movdqa %xmm0,288(%rsp)
 
 # qhasm:   z3 = x3
 # asm 1: movdqa <x3=stack128#3,>z3=int6464#1
-# asm 2: movdqa <x3=32(%rsp),>z3=%xmm0
-movdqa 32(%rsp),%xmm0
+# asm 2: movdqa <x3=96(%rsp),>z3=%xmm0
+movdqa 96(%rsp),%xmm0
 
 # qhasm:   z4 = z3[0,0,0,0]
 # asm 1: pshufd $0x00,<z3=int6464#1,>z4=int6464#2
@@ -837,56 +844,51 @@ pshufd $0xff,%xmm0,%xmm0
 
 # qhasm:   orig4 = z4
 # asm 1: movdqa <z4=int6464#2,>orig4=stack128#16
-# asm 2: movdqa <z4=%xmm1,>orig4=240(%rsp)
-movdqa %xmm1,240(%rsp)
+# asm 2: movdqa <z4=%xmm1,>orig4=304(%rsp)
+movdqa %xmm1,304(%rsp)
 
 # qhasm:   orig14 = z14
 # asm 1: movdqa <z14=int6464#3,>orig14=stack128#17
-# asm 2: movdqa <z14=%xmm2,>orig14=256(%rsp)
-movdqa %xmm2,256(%rsp)
+# asm 2: movdqa <z14=%xmm2,>orig14=320(%rsp)
+movdqa %xmm2,320(%rsp)
 
 # qhasm:   orig3 = z3
 # asm 1: movdqa <z3=int6464#1,>orig3=stack128#18
-# asm 2: movdqa <z3=%xmm0,>orig3=272(%rsp)
-movdqa %xmm0,272(%rsp)
+# asm 2: movdqa <z3=%xmm0,>orig3=336(%rsp)
+movdqa %xmm0,336(%rsp)
 
 # qhasm: bytesatleast256:
 ._bytesatleast256:
 
-# qhasm:   in8 = ((uint32 *)&x2)[0]
-# asm 1: movl <x2=stack128#2,>in8=int64#3d
-# asm 2: movl <x2=16(%rsp),>in8=%edx
-movl 16(%rsp),%edx
+# qhasm:   in8 = counter
+# asm 1: movq <counter=stack64#8,>in8=int64#3
+# asm 2: movq <counter=472(%rsp),>in8=%rdx
+movq 472(%rsp),%rdx
 
-# qhasm:   in9 = ((uint32 *)&x3)[1]
-# asm 1: movl 4+<x3=stack128#3,>in9=int64#4d
-# asm 2: movl 4+<x3=32(%rsp),>in9=%ecx
-movl 4+32(%rsp),%ecx
+# qhasm:   in9 = in8
+# asm 1: mov  <in8=int64#3,>in9=int64#4
+# asm 2: mov  <in8=%rdx,>in9=%rcx
+mov  %rdx,%rcx
+
+# qhasm:   (uint64) in9 >>= 32
+# asm 1: shr  $32,<in9=int64#4
+# asm 2: shr  $32,<in9=%rcx
+shr  $32,%rcx
 
 # qhasm:   ((uint32 *) &orig8)[0] = in8
 # asm 1: movl <in8=int64#3d,>orig8=stack128#19
-# asm 2: movl <in8=%edx,>orig8=288(%rsp)
-movl %edx,288(%rsp)
+# asm 2: movl <in8=%edx,>orig8=352(%rsp)
+movl %edx,352(%rsp)
 
 # qhasm:   ((uint32 *) &orig9)[0] = in9
 # asm 1: movl <in9=int64#4d,>orig9=stack128#20
-# asm 2: movl <in9=%ecx,>orig9=304(%rsp)
-movl %ecx,304(%rsp)
+# asm 2: movl <in9=%ecx,>orig9=368(%rsp)
+movl %ecx,368(%rsp)
 
 # qhasm:   in8 += 1
 # asm 1: add  $1,<in8=int64#3
 # asm 2: add  $1,<in8=%rdx
 add  $1,%rdx
-
-# qhasm:   in9 <<= 32
-# asm 1: shl  $32,<in9=int64#4
-# asm 2: shl  $32,<in9=%rcx
-shl  $32,%rcx
-
-# qhasm:   in8 += in9
-# asm 1: add  <in9=int64#4,<in8=int64#3
-# asm 2: add  <in9=%rcx,<in8=%rdx
-add  %rcx,%rdx
 
 # qhasm:   in9 = in8
 # asm 1: mov  <in8=int64#3,>in9=int64#4
@@ -900,28 +902,18 @@ shr  $32,%rcx
 
 # qhasm:   ((uint32 *) &orig8)[1] = in8
 # asm 1: movl <in8=int64#3d,4+<orig8=stack128#19
-# asm 2: movl <in8=%edx,4+<orig8=288(%rsp)
-movl %edx,4+288(%rsp)
+# asm 2: movl <in8=%edx,4+<orig8=352(%rsp)
+movl %edx,4+352(%rsp)
 
 # qhasm:   ((uint32 *) &orig9)[1] = in9
 # asm 1: movl <in9=int64#4d,4+<orig9=stack128#20
-# asm 2: movl <in9=%ecx,4+<orig9=304(%rsp)
-movl %ecx,4+304(%rsp)
+# asm 2: movl <in9=%ecx,4+<orig9=368(%rsp)
+movl %ecx,4+368(%rsp)
 
 # qhasm:   in8 += 1
 # asm 1: add  $1,<in8=int64#3
 # asm 2: add  $1,<in8=%rdx
 add  $1,%rdx
-
-# qhasm:   in9 <<= 32
-# asm 1: shl  $32,<in9=int64#4
-# asm 2: shl  $32,<in9=%rcx
-shl  $32,%rcx
-
-# qhasm:   in8 += in9
-# asm 1: add  <in9=int64#4,<in8=int64#3
-# asm 2: add  <in9=%rcx,<in8=%rdx
-add  %rcx,%rdx
 
 # qhasm:   in9 = in8
 # asm 1: mov  <in8=int64#3,>in9=int64#4
@@ -935,28 +927,18 @@ shr  $32,%rcx
 
 # qhasm:   ((uint32 *) &orig8)[2] = in8
 # asm 1: movl <in8=int64#3d,8+<orig8=stack128#19
-# asm 2: movl <in8=%edx,8+<orig8=288(%rsp)
-movl %edx,8+288(%rsp)
+# asm 2: movl <in8=%edx,8+<orig8=352(%rsp)
+movl %edx,8+352(%rsp)
 
 # qhasm:   ((uint32 *) &orig9)[2] = in9
 # asm 1: movl <in9=int64#4d,8+<orig9=stack128#20
-# asm 2: movl <in9=%ecx,8+<orig9=304(%rsp)
-movl %ecx,8+304(%rsp)
+# asm 2: movl <in9=%ecx,8+<orig9=368(%rsp)
+movl %ecx,8+368(%rsp)
 
 # qhasm:   in8 += 1
 # asm 1: add  $1,<in8=int64#3
 # asm 2: add  $1,<in8=%rdx
 add  $1,%rdx
-
-# qhasm:   in9 <<= 32
-# asm 1: shl  $32,<in9=int64#4
-# asm 2: shl  $32,<in9=%rcx
-shl  $32,%rcx
-
-# qhasm:   in8 += in9
-# asm 1: add  <in9=int64#4,<in8=int64#3
-# asm 2: add  <in9=%rcx,<in8=%rdx
-add  %rcx,%rdx
 
 # qhasm:   in9 = in8
 # asm 1: mov  <in8=int64#3,>in9=int64#4
@@ -970,28 +952,18 @@ shr  $32,%rcx
 
 # qhasm:   ((uint32 *) &orig8)[3] = in8
 # asm 1: movl <in8=int64#3d,12+<orig8=stack128#19
-# asm 2: movl <in8=%edx,12+<orig8=288(%rsp)
-movl %edx,12+288(%rsp)
+# asm 2: movl <in8=%edx,12+<orig8=352(%rsp)
+movl %edx,12+352(%rsp)
 
 # qhasm:   ((uint32 *) &orig9)[3] = in9
 # asm 1: movl <in9=int64#4d,12+<orig9=stack128#20
-# asm 2: movl <in9=%ecx,12+<orig9=304(%rsp)
-movl %ecx,12+304(%rsp)
+# asm 2: movl <in9=%ecx,12+<orig9=368(%rsp)
+movl %ecx,12+368(%rsp)
 
 # qhasm:   in8 += 1
 # asm 1: add  $1,<in8=int64#3
 # asm 2: add  $1,<in8=%rdx
 add  $1,%rdx
-
-# qhasm:   in9 <<= 32
-# asm 1: shl  $32,<in9=int64#4
-# asm 2: shl  $32,<in9=%rcx
-shl  $32,%rcx
-
-# qhasm:   in8 += in9
-# asm 1: add  <in9=int64#4,<in8=int64#3
-# asm 2: add  <in9=%rcx,<in8=%rdx
-add  %rcx,%rdx
 
 # qhasm:   in9 = in8
 # asm 1: mov  <in8=int64#3,>in9=int64#4
@@ -1005,18 +977,23 @@ shr  $32,%rcx
 
 # qhasm:   ((uint32 *)&x2)[0] = in8
 # asm 1: movl <in8=int64#3d,>x2=stack128#2
-# asm 2: movl <in8=%edx,>x2=16(%rsp)
-movl %edx,16(%rsp)
+# asm 2: movl <in8=%edx,>x2=80(%rsp)
+movl %edx,80(%rsp)
 
 # qhasm:   ((uint32 *)&x3)[1] = in9
 # asm 1: movl <in9=int64#4d,4+<x3=stack128#3
-# asm 2: movl <in9=%ecx,4+<x3=32(%rsp)
-movl %ecx,4+32(%rsp)
+# asm 2: movl <in9=%ecx,4+<x3=96(%rsp)
+movl %ecx,4+96(%rsp)
+
+# qhasm:   counter = in8
+# asm 1: movq <in8=int64#3,>counter=stack64#8
+# asm 2: movq <in8=%rdx,>counter=472(%rsp)
+movq %rdx,472(%rsp)
 
 # qhasm:   bytes_backup = bytes
-# asm 1: movq <bytes=int64#6,>bytes_backup=stack64#8
-# asm 2: movq <bytes=%r9,>bytes_backup=408(%rsp)
-movq %r9,408(%rsp)
+# asm 1: movq <bytes=int64#6,>bytes_backup=stack64#9
+# asm 2: movq <bytes=%r9,>bytes_backup=480(%rsp)
+movq %r9,480(%rsp)
 
 # qhasm: i = 20
 # asm 1: mov  $20,>i=int64#3
@@ -1025,96 +1002,96 @@ mov  $20,%rdx
 
 # qhasm:   z5 = orig5
 # asm 1: movdqa <orig5=stack128#5,>z5=int6464#1
-# asm 2: movdqa <orig5=64(%rsp),>z5=%xmm0
-movdqa 64(%rsp),%xmm0
+# asm 2: movdqa <orig5=128(%rsp),>z5=%xmm0
+movdqa 128(%rsp),%xmm0
 
 # qhasm:   z10 = orig10
 # asm 1: movdqa <orig10=stack128#6,>z10=int6464#2
-# asm 2: movdqa <orig10=80(%rsp),>z10=%xmm1
-movdqa 80(%rsp),%xmm1
+# asm 2: movdqa <orig10=144(%rsp),>z10=%xmm1
+movdqa 144(%rsp),%xmm1
 
 # qhasm:   z15 = orig15
 # asm 1: movdqa <orig15=stack128#7,>z15=int6464#3
-# asm 2: movdqa <orig15=96(%rsp),>z15=%xmm2
-movdqa 96(%rsp),%xmm2
+# asm 2: movdqa <orig15=160(%rsp),>z15=%xmm2
+movdqa 160(%rsp),%xmm2
 
 # qhasm:   z14 = orig14
 # asm 1: movdqa <orig14=stack128#17,>z14=int6464#4
-# asm 2: movdqa <orig14=256(%rsp),>z14=%xmm3
-movdqa 256(%rsp),%xmm3
+# asm 2: movdqa <orig14=320(%rsp),>z14=%xmm3
+movdqa 320(%rsp),%xmm3
 
 # qhasm:   z3 = orig3
 # asm 1: movdqa <orig3=stack128#18,>z3=int6464#5
-# asm 2: movdqa <orig3=272(%rsp),>z3=%xmm4
-movdqa 272(%rsp),%xmm4
+# asm 2: movdqa <orig3=336(%rsp),>z3=%xmm4
+movdqa 336(%rsp),%xmm4
 
 # qhasm:   z6 = orig6
 # asm 1: movdqa <orig6=stack128#9,>z6=int6464#6
-# asm 2: movdqa <orig6=128(%rsp),>z6=%xmm5
-movdqa 128(%rsp),%xmm5
+# asm 2: movdqa <orig6=192(%rsp),>z6=%xmm5
+movdqa 192(%rsp),%xmm5
 
 # qhasm:   z11 = orig11
 # asm 1: movdqa <orig11=stack128#10,>z11=int6464#7
-# asm 2: movdqa <orig11=144(%rsp),>z11=%xmm6
-movdqa 144(%rsp),%xmm6
+# asm 2: movdqa <orig11=208(%rsp),>z11=%xmm6
+movdqa 208(%rsp),%xmm6
 
 # qhasm:   z1 = orig1
 # asm 1: movdqa <orig1=stack128#12,>z1=int6464#8
-# asm 2: movdqa <orig1=176(%rsp),>z1=%xmm7
-movdqa 176(%rsp),%xmm7
+# asm 2: movdqa <orig1=240(%rsp),>z1=%xmm7
+movdqa 240(%rsp),%xmm7
 
 # qhasm:   z7 = orig7
 # asm 1: movdqa <orig7=stack128#13,>z7=int6464#9
-# asm 2: movdqa <orig7=192(%rsp),>z7=%xmm8
-movdqa 192(%rsp),%xmm8
+# asm 2: movdqa <orig7=256(%rsp),>z7=%xmm8
+movdqa 256(%rsp),%xmm8
 
 # qhasm:   z13 = orig13
 # asm 1: movdqa <orig13=stack128#14,>z13=int6464#10
-# asm 2: movdqa <orig13=208(%rsp),>z13=%xmm9
-movdqa 208(%rsp),%xmm9
+# asm 2: movdqa <orig13=272(%rsp),>z13=%xmm9
+movdqa 272(%rsp),%xmm9
 
 # qhasm:   z2 = orig2
 # asm 1: movdqa <orig2=stack128#15,>z2=int6464#11
-# asm 2: movdqa <orig2=224(%rsp),>z2=%xmm10
-movdqa 224(%rsp),%xmm10
+# asm 2: movdqa <orig2=288(%rsp),>z2=%xmm10
+movdqa 288(%rsp),%xmm10
 
 # qhasm:   z9 = orig9
 # asm 1: movdqa <orig9=stack128#20,>z9=int6464#12
-# asm 2: movdqa <orig9=304(%rsp),>z9=%xmm11
-movdqa 304(%rsp),%xmm11
+# asm 2: movdqa <orig9=368(%rsp),>z9=%xmm11
+movdqa 368(%rsp),%xmm11
 
 # qhasm:   z0 = orig0
 # asm 1: movdqa <orig0=stack128#8,>z0=int6464#13
-# asm 2: movdqa <orig0=112(%rsp),>z0=%xmm12
-movdqa 112(%rsp),%xmm12
+# asm 2: movdqa <orig0=176(%rsp),>z0=%xmm12
+movdqa 176(%rsp),%xmm12
 
 # qhasm:   z12 = orig12
 # asm 1: movdqa <orig12=stack128#11,>z12=int6464#14
-# asm 2: movdqa <orig12=160(%rsp),>z12=%xmm13
-movdqa 160(%rsp),%xmm13
+# asm 2: movdqa <orig12=224(%rsp),>z12=%xmm13
+movdqa 224(%rsp),%xmm13
 
 # qhasm:   z4 = orig4
 # asm 1: movdqa <orig4=stack128#16,>z4=int6464#15
-# asm 2: movdqa <orig4=240(%rsp),>z4=%xmm14
-movdqa 240(%rsp),%xmm14
+# asm 2: movdqa <orig4=304(%rsp),>z4=%xmm14
+movdqa 304(%rsp),%xmm14
 
 # qhasm:   z8 = orig8
 # asm 1: movdqa <orig8=stack128#19,>z8=int6464#16
-# asm 2: movdqa <orig8=288(%rsp),>z8=%xmm15
-movdqa 288(%rsp),%xmm15
+# asm 2: movdqa <orig8=352(%rsp),>z8=%xmm15
+movdqa 352(%rsp),%xmm15
 
 # qhasm: mainloop1:
 ._mainloop1:
 
 # qhasm: 						z10_stack = z10
 # asm 1: movdqa <z10=int6464#2,>z10_stack=stack128#21
-# asm 2: movdqa <z10=%xmm1,>z10_stack=320(%rsp)
-movdqa %xmm1,320(%rsp)
+# asm 2: movdqa <z10=%xmm1,>z10_stack=384(%rsp)
+movdqa %xmm1,384(%rsp)
 
 # qhasm: 								z15_stack = z15
 # asm 1: movdqa <z15=int6464#3,>z15_stack=stack128#22
-# asm 2: movdqa <z15=%xmm2,>z15_stack=336(%rsp)
-movdqa %xmm2,336(%rsp)
+# asm 2: movdqa <z15=%xmm2,>z15_stack=400(%rsp)
+movdqa %xmm2,400(%rsp)
 
 # qhasm: 		y4 = z12
 # asm 1: movdqa <z12=int6464#14,>y4=int6464#2
@@ -1363,13 +1340,13 @@ pxor  %xmm2,%xmm12
 
 # qhasm: 						z10 = z10_stack
 # asm 1: movdqa <z10_stack=stack128#21,>z10=int6464#2
-# asm 2: movdqa <z10_stack=320(%rsp),>z10=%xmm1
-movdqa 320(%rsp),%xmm1
+# asm 2: movdqa <z10_stack=384(%rsp),>z10=%xmm1
+movdqa 384(%rsp),%xmm1
 
 # qhasm: 		z0_stack = z0
 # asm 1: movdqa <z0=int6464#13,>z0_stack=stack128#21
-# asm 2: movdqa <z0=%xmm12,>z0_stack=320(%rsp)
-movdqa %xmm12,320(%rsp)
+# asm 2: movdqa <z0=%xmm12,>z0_stack=384(%rsp)
+movdqa %xmm12,384(%rsp)
 
 # qhasm: 				y5 = z13
 # asm 1: movdqa <z13=int6464#10,>y5=int6464#3
@@ -1443,13 +1420,13 @@ pxor  %xmm12,%xmm3
 
 # qhasm: 								z15 = z15_stack
 # asm 1: movdqa <z15_stack=stack128#22,>z15=int6464#3
-# asm 2: movdqa <z15_stack=336(%rsp),>z15=%xmm2
-movdqa 336(%rsp),%xmm2
+# asm 2: movdqa <z15_stack=400(%rsp),>z15=%xmm2
+movdqa 400(%rsp),%xmm2
 
 # qhasm: 				z5_stack = z5
 # asm 1: movdqa <z5=int6464#1,>z5_stack=stack128#22
-# asm 2: movdqa <z5=%xmm0,>z5_stack=336(%rsp)
-movdqa %xmm0,336(%rsp)
+# asm 2: movdqa <z5=%xmm0,>z5_stack=400(%rsp)
+movdqa %xmm0,400(%rsp)
 
 # qhasm: 								y3 = z11
 # asm 1: movdqa <z11=int6464#7,>y3=int6464#1
@@ -1663,13 +1640,13 @@ pxor  %xmm12,%xmm1
 
 # qhasm: 		z0 = z0_stack
 # asm 1: movdqa <z0_stack=stack128#21,>z0=int6464#1
-# asm 2: movdqa <z0_stack=320(%rsp),>z0=%xmm0
-movdqa 320(%rsp),%xmm0
+# asm 2: movdqa <z0_stack=384(%rsp),>z0=%xmm0
+movdqa 384(%rsp),%xmm0
 
 # qhasm: 						z10_stack = z10
 # asm 1: movdqa <z10=int6464#2,>z10_stack=stack128#21
-# asm 2: movdqa <z10=%xmm1,>z10_stack=320(%rsp)
-movdqa %xmm1,320(%rsp)
+# asm 2: movdqa <z10=%xmm1,>z10_stack=384(%rsp)
+movdqa %xmm1,384(%rsp)
 
 # qhasm: 		y1 = z3
 # asm 1: movdqa <z3=int6464#5,>y1=int6464#2
@@ -1743,13 +1720,13 @@ pxor  %xmm12,%xmm2
 
 # qhasm: 				z5 = z5_stack
 # asm 1: movdqa <z5_stack=stack128#22,>z5=int6464#13
-# asm 2: movdqa <z5_stack=336(%rsp),>z5=%xmm12
-movdqa 336(%rsp),%xmm12
+# asm 2: movdqa <z5_stack=400(%rsp),>z5=%xmm12
+movdqa 400(%rsp),%xmm12
 
 # qhasm: 								z15_stack = z15
 # asm 1: movdqa <z15=int6464#3,>z15_stack=stack128#22
-# asm 2: movdqa <z15=%xmm2,>z15_stack=336(%rsp)
-movdqa %xmm2,336(%rsp)
+# asm 2: movdqa <z15=%xmm2,>z15_stack=400(%rsp)
+movdqa %xmm2,400(%rsp)
 
 # qhasm: 				y6 = z4
 # asm 1: movdqa <z4=int6464#15,>y6=int6464#2
@@ -1963,13 +1940,13 @@ pxor  %xmm2,%xmm0
 
 # qhasm: 						z10 = z10_stack
 # asm 1: movdqa <z10_stack=stack128#21,>z10=int6464#2
-# asm 2: movdqa <z10_stack=320(%rsp),>z10=%xmm1
-movdqa 320(%rsp),%xmm1
+# asm 2: movdqa <z10_stack=384(%rsp),>z10=%xmm1
+movdqa 384(%rsp),%xmm1
 
 # qhasm: 		z0_stack = z0
 # asm 1: movdqa <z0=int6464#1,>z0_stack=stack128#21
-# asm 2: movdqa <z0=%xmm0,>z0_stack=320(%rsp)
-movdqa %xmm0,320(%rsp)
+# asm 2: movdqa <z0=%xmm0,>z0_stack=384(%rsp)
+movdqa %xmm0,384(%rsp)
 
 # qhasm: 				y5 = z7
 # asm 1: movdqa <z7=int6464#9,>y5=int6464#1
@@ -2043,13 +2020,13 @@ pxor  %xmm2,%xmm6
 
 # qhasm: 								z15 = z15_stack
 # asm 1: movdqa <z15_stack=stack128#22,>z15=int6464#3
-# asm 2: movdqa <z15_stack=336(%rsp),>z15=%xmm2
-movdqa 336(%rsp),%xmm2
+# asm 2: movdqa <z15_stack=400(%rsp),>z15=%xmm2
+movdqa 400(%rsp),%xmm2
 
 # qhasm: 				z5_stack = z5
 # asm 1: movdqa <z5=int6464#13,>z5_stack=stack128#22
-# asm 2: movdqa <z5=%xmm12,>z5_stack=336(%rsp)
-movdqa %xmm12,336(%rsp)
+# asm 2: movdqa <z5=%xmm12,>z5_stack=400(%rsp)
+movdqa %xmm12,400(%rsp)
 
 # qhasm: 								y12 = z14
 # asm 1: movdqa <z14=int6464#4,>y12=int6464#1
@@ -2298,13 +2275,13 @@ pxor  %xmm12,%xmm2
 
 # qhasm: 		z0 = z0_stack
 # asm 1: movdqa <z0_stack=stack128#21,>z0=int6464#13
-# asm 2: movdqa <z0_stack=320(%rsp),>z0=%xmm12
-movdqa 320(%rsp),%xmm12
+# asm 2: movdqa <z0_stack=384(%rsp),>z0=%xmm12
+movdqa 384(%rsp),%xmm12
 
 # qhasm: 				z5 = z5_stack
 # asm 1: movdqa <z5_stack=stack128#22,>z5=int6464#1
-# asm 2: movdqa <z5_stack=336(%rsp),>z5=%xmm0
-movdqa 336(%rsp),%xmm0
+# asm 2: movdqa <z5_stack=400(%rsp),>z5=%xmm0
+movdqa 400(%rsp),%xmm0
 
 # qhasm:                   unsigned>? i -= 2
 # asm 1: sub  $2,<i=int64#3
@@ -2317,23 +2294,23 @@ ja ._mainloop1
 
 # qhasm:   uint32323232 z0 += orig0
 # asm 1: paddd <orig0=stack128#8,<z0=int6464#13
-# asm 2: paddd <orig0=112(%rsp),<z0=%xmm12
-paddd 112(%rsp),%xmm12
+# asm 2: paddd <orig0=176(%rsp),<z0=%xmm12
+paddd 176(%rsp),%xmm12
 
 # qhasm:   uint32323232 z1 += orig1
 # asm 1: paddd <orig1=stack128#12,<z1=int6464#8
-# asm 2: paddd <orig1=176(%rsp),<z1=%xmm7
-paddd 176(%rsp),%xmm7
+# asm 2: paddd <orig1=240(%rsp),<z1=%xmm7
+paddd 240(%rsp),%xmm7
 
 # qhasm:   uint32323232 z2 += orig2
 # asm 1: paddd <orig2=stack128#15,<z2=int6464#11
-# asm 2: paddd <orig2=224(%rsp),<z2=%xmm10
-paddd 224(%rsp),%xmm10
+# asm 2: paddd <orig2=288(%rsp),<z2=%xmm10
+paddd 288(%rsp),%xmm10
 
 # qhasm:   uint32323232 z3 += orig3
 # asm 1: paddd <orig3=stack128#18,<z3=int6464#5
-# asm 2: paddd <orig3=272(%rsp),<z3=%xmm4
-paddd 272(%rsp),%xmm4
+# asm 2: paddd <orig3=336(%rsp),<z3=%xmm4
+paddd 336(%rsp),%xmm4
 
 # qhasm:   in0 = z0
 # asm 1: movd   <z0=int6464#13,>in0=int64#3
@@ -2637,23 +2614,23 @@ movl   %r9d,204(%rdi)
 
 # qhasm:   uint32323232 z4 += orig4
 # asm 1: paddd <orig4=stack128#16,<z4=int6464#15
-# asm 2: paddd <orig4=240(%rsp),<z4=%xmm14
-paddd 240(%rsp),%xmm14
+# asm 2: paddd <orig4=304(%rsp),<z4=%xmm14
+paddd 304(%rsp),%xmm14
 
 # qhasm:   uint32323232 z5 += orig5
 # asm 1: paddd <orig5=stack128#5,<z5=int6464#1
-# asm 2: paddd <orig5=64(%rsp),<z5=%xmm0
-paddd 64(%rsp),%xmm0
+# asm 2: paddd <orig5=128(%rsp),<z5=%xmm0
+paddd 128(%rsp),%xmm0
 
 # qhasm:   uint32323232 z6 += orig6
 # asm 1: paddd <orig6=stack128#9,<z6=int6464#6
-# asm 2: paddd <orig6=128(%rsp),<z6=%xmm5
-paddd 128(%rsp),%xmm5
+# asm 2: paddd <orig6=192(%rsp),<z6=%xmm5
+paddd 192(%rsp),%xmm5
 
 # qhasm:   uint32323232 z7 += orig7
 # asm 1: paddd <orig7=stack128#13,<z7=int6464#9
-# asm 2: paddd <orig7=192(%rsp),<z7=%xmm8
-paddd 192(%rsp),%xmm8
+# asm 2: paddd <orig7=256(%rsp),<z7=%xmm8
+paddd 256(%rsp),%xmm8
 
 # qhasm:   in4 = z4
 # asm 1: movd   <z4=int6464#15,>in4=int64#3
@@ -2957,23 +2934,23 @@ movl   %r9d,220(%rdi)
 
 # qhasm:   uint32323232 z8 += orig8
 # asm 1: paddd <orig8=stack128#19,<z8=int6464#16
-# asm 2: paddd <orig8=288(%rsp),<z8=%xmm15
-paddd 288(%rsp),%xmm15
+# asm 2: paddd <orig8=352(%rsp),<z8=%xmm15
+paddd 352(%rsp),%xmm15
 
 # qhasm:   uint32323232 z9 += orig9
 # asm 1: paddd <orig9=stack128#20,<z9=int6464#12
-# asm 2: paddd <orig9=304(%rsp),<z9=%xmm11
-paddd 304(%rsp),%xmm11
+# asm 2: paddd <orig9=368(%rsp),<z9=%xmm11
+paddd 368(%rsp),%xmm11
 
 # qhasm:   uint32323232 z10 += orig10
 # asm 1: paddd <orig10=stack128#6,<z10=int6464#2
-# asm 2: paddd <orig10=80(%rsp),<z10=%xmm1
-paddd 80(%rsp),%xmm1
+# asm 2: paddd <orig10=144(%rsp),<z10=%xmm1
+paddd 144(%rsp),%xmm1
 
 # qhasm:   uint32323232 z11 += orig11
 # asm 1: paddd <orig11=stack128#10,<z11=int6464#7
-# asm 2: paddd <orig11=144(%rsp),<z11=%xmm6
-paddd 144(%rsp),%xmm6
+# asm 2: paddd <orig11=208(%rsp),<z11=%xmm6
+paddd 208(%rsp),%xmm6
 
 # qhasm:   in8 = z8
 # asm 1: movd   <z8=int6464#16,>in8=int64#3
@@ -3277,23 +3254,23 @@ movl   %r9d,236(%rdi)
 
 # qhasm:   uint32323232 z12 += orig12
 # asm 1: paddd <orig12=stack128#11,<z12=int6464#14
-# asm 2: paddd <orig12=160(%rsp),<z12=%xmm13
-paddd 160(%rsp),%xmm13
+# asm 2: paddd <orig12=224(%rsp),<z12=%xmm13
+paddd 224(%rsp),%xmm13
 
 # qhasm:   uint32323232 z13 += orig13
 # asm 1: paddd <orig13=stack128#14,<z13=int6464#10
-# asm 2: paddd <orig13=208(%rsp),<z13=%xmm9
-paddd 208(%rsp),%xmm9
+# asm 2: paddd <orig13=272(%rsp),<z13=%xmm9
+paddd 272(%rsp),%xmm9
 
 # qhasm:   uint32323232 z14 += orig14
 # asm 1: paddd <orig14=stack128#17,<z14=int6464#4
-# asm 2: paddd <orig14=256(%rsp),<z14=%xmm3
-paddd 256(%rsp),%xmm3
+# asm 2: paddd <orig14=320(%rsp),<z14=%xmm3
+paddd 320(%rsp),%xmm3
 
 # qhasm:   uint32323232 z15 += orig15
 # asm 1: paddd <orig15=stack128#7,<z15=int6464#3
-# asm 2: paddd <orig15=96(%rsp),<z15=%xmm2
-paddd 96(%rsp),%xmm2
+# asm 2: paddd <orig15=160(%rsp),<z15=%xmm2
+paddd 160(%rsp),%xmm2
 
 # qhasm:   in12 = z12
 # asm 1: movd   <z12=int6464#14,>in12=int64#3
@@ -3596,9 +3573,9 @@ movl   %r8d,248(%rdi)
 movl   %r9d,252(%rdi)
 
 # qhasm:   bytes = bytes_backup
-# asm 1: movq <bytes_backup=stack64#8,>bytes=int64#6
-# asm 2: movq <bytes_backup=408(%rsp),>bytes=%r9
-movq 408(%rsp),%r9
+# asm 1: movq <bytes_backup=stack64#9,>bytes=int64#6
+# asm 2: movq <bytes_backup=480(%rsp),>bytes=%r9
+movq 480(%rsp),%r9
 
 # qhasm:   bytes -= 256
 # asm 1: sub  $256,<bytes=int64#6
@@ -3653,8 +3630,8 @@ mov  %rdi,%rdx
 
 # qhasm:     out = &tmp
 # asm 1: leaq <tmp=stack512#1,>out=int64#1
-# asm 2: leaq <tmp=416(%rsp),>out=%rdi
-leaq 416(%rsp),%rdi
+# asm 2: leaq <tmp=0(%rsp),>out=%rdi
+leaq 0(%rsp),%rdi
 
 # qhasm:     i = bytes
 # asm 1: mov  <bytes=int64#6,>i=int64#4
@@ -3666,42 +3643,42 @@ rep movsb
 
 # qhasm:     out = &tmp
 # asm 1: leaq <tmp=stack512#1,>out=int64#1
-# asm 2: leaq <tmp=416(%rsp),>out=%rdi
-leaq 416(%rsp),%rdi
+# asm 2: leaq <tmp=0(%rsp),>out=%rdi
+leaq 0(%rsp),%rdi
 
 # qhasm:     m = &tmp
 # asm 1: leaq <tmp=stack512#1,>m=int64#2
-# asm 2: leaq <tmp=416(%rsp),>m=%rsi
-leaq 416(%rsp),%rsi
+# asm 2: leaq <tmp=0(%rsp),>m=%rsi
+leaq 0(%rsp),%rsi
 # comment:fp stack unchanged by fallthrough
 
 # qhasm:   nocopy:
 ._nocopy:
 
 # qhasm:   bytes_backup = bytes
-# asm 1: movq <bytes=int64#6,>bytes_backup=stack64#8
-# asm 2: movq <bytes=%r9,>bytes_backup=408(%rsp)
-movq %r9,408(%rsp)
+# asm 1: movq <bytes=int64#6,>bytes_backup=stack64#9
+# asm 2: movq <bytes=%r9,>bytes_backup=480(%rsp)
+movq %r9,480(%rsp)
 
 # qhasm: diag0 = x0
 # asm 1: movdqa <x0=stack128#4,>diag0=int6464#1
-# asm 2: movdqa <x0=48(%rsp),>diag0=%xmm0
-movdqa 48(%rsp),%xmm0
+# asm 2: movdqa <x0=112(%rsp),>diag0=%xmm0
+movdqa 112(%rsp),%xmm0
 
 # qhasm: diag1 = x1
 # asm 1: movdqa <x1=stack128#1,>diag1=int6464#2
-# asm 2: movdqa <x1=0(%rsp),>diag1=%xmm1
-movdqa 0(%rsp),%xmm1
+# asm 2: movdqa <x1=64(%rsp),>diag1=%xmm1
+movdqa 64(%rsp),%xmm1
 
 # qhasm: diag2 = x2
 # asm 1: movdqa <x2=stack128#2,>diag2=int6464#3
-# asm 2: movdqa <x2=16(%rsp),>diag2=%xmm2
-movdqa 16(%rsp),%xmm2
+# asm 2: movdqa <x2=80(%rsp),>diag2=%xmm2
+movdqa 80(%rsp),%xmm2
 
 # qhasm: diag3 = x3
 # asm 1: movdqa <x3=stack128#3,>diag3=int6464#4
-# asm 2: movdqa <x3=32(%rsp),>diag3=%xmm3
-movdqa 32(%rsp),%xmm3
+# asm 2: movdqa <x3=96(%rsp),>diag3=%xmm3
+movdqa 96(%rsp),%xmm3
 
 # qhasm:                     a0 = diag1
 # asm 1: movdqa <diag1=int6464#2,>a0=int6464#5
@@ -4352,23 +4329,23 @@ ja ._mainloop2
 
 # qhasm: uint32323232 diag0 += x0
 # asm 1: paddd <x0=stack128#4,<diag0=int6464#1
-# asm 2: paddd <x0=48(%rsp),<diag0=%xmm0
-paddd 48(%rsp),%xmm0
+# asm 2: paddd <x0=112(%rsp),<diag0=%xmm0
+paddd 112(%rsp),%xmm0
 
 # qhasm: uint32323232 diag1 += x1
 # asm 1: paddd <x1=stack128#1,<diag1=int6464#2
-# asm 2: paddd <x1=0(%rsp),<diag1=%xmm1
-paddd 0(%rsp),%xmm1
+# asm 2: paddd <x1=64(%rsp),<diag1=%xmm1
+paddd 64(%rsp),%xmm1
 
 # qhasm: uint32323232 diag2 += x2
 # asm 1: paddd <x2=stack128#2,<diag2=int6464#3
-# asm 2: paddd <x2=16(%rsp),<diag2=%xmm2
-paddd 16(%rsp),%xmm2
+# asm 2: paddd <x2=80(%rsp),<diag2=%xmm2
+paddd 80(%rsp),%xmm2
 
 # qhasm: uint32323232 diag3 += x3
 # asm 1: paddd <x3=stack128#3,<diag3=int6464#4
-# asm 2: paddd <x3=32(%rsp),<diag3=%xmm3
-paddd 32(%rsp),%xmm3
+# asm 2: paddd <x3=96(%rsp),<diag3=%xmm3
+paddd 96(%rsp),%xmm3
 
 # qhasm: in0 = diag0
 # asm 1: movd   <diag0=int6464#1,>in0=int64#4
@@ -4671,34 +4648,19 @@ movl   %r9d,28(%rdi)
 movl   %eax,12(%rdi)
 
 # qhasm:   bytes = bytes_backup
-# asm 1: movq <bytes_backup=stack64#8,>bytes=int64#6
-# asm 2: movq <bytes_backup=408(%rsp),>bytes=%r9
-movq 408(%rsp),%r9
+# asm 1: movq <bytes_backup=stack64#9,>bytes=int64#6
+# asm 2: movq <bytes_backup=480(%rsp),>bytes=%r9
+movq 480(%rsp),%r9
 
-# qhasm:   in8 = ((uint32 *)&x2)[0]
-# asm 1: movl <x2=stack128#2,>in8=int64#4d
-# asm 2: movl <x2=16(%rsp),>in8=%ecx
-movl 16(%rsp),%ecx
-
-# qhasm:   in9 = ((uint32 *)&x3)[1]
-# asm 1: movl 4+<x3=stack128#3,>in9=int64#5d
-# asm 2: movl 4+<x3=32(%rsp),>in9=%r8d
-movl 4+32(%rsp),%r8d
+# qhasm:   in8 = counter
+# asm 1: movq <counter=stack64#8,>in8=int64#4
+# asm 2: movq <counter=472(%rsp),>in8=%rcx
+movq 472(%rsp),%rcx
 
 # qhasm:   in8 += 1
 # asm 1: add  $1,<in8=int64#4
 # asm 2: add  $1,<in8=%rcx
 add  $1,%rcx
-
-# qhasm:   in9 <<= 32
-# asm 1: shl  $32,<in9=int64#5
-# asm 2: shl  $32,<in9=%r8
-shl  $32,%r8
-
-# qhasm:   in8 += in9
-# asm 1: add  <in9=int64#5,<in8=int64#4
-# asm 2: add  <in9=%r8,<in8=%rcx
-add  %r8,%rcx
 
 # qhasm:   in9 = in8
 # asm 1: mov  <in8=int64#4,>in9=int64#5
@@ -4712,13 +4674,18 @@ shr  $32,%r8
 
 # qhasm:   ((uint32 *)&x2)[0] = in8
 # asm 1: movl <in8=int64#4d,>x2=stack128#2
-# asm 2: movl <in8=%ecx,>x2=16(%rsp)
-movl %ecx,16(%rsp)
+# asm 2: movl <in8=%ecx,>x2=80(%rsp)
+movl %ecx,80(%rsp)
 
 # qhasm:   ((uint32 *)&x3)[1] = in9
 # asm 1: movl <in9=int64#5d,4+<x3=stack128#3
-# asm 2: movl <in9=%r8d,4+<x3=32(%rsp)
-movl %r8d,4+32(%rsp)
+# asm 2: movl <in9=%r8d,4+<x3=96(%rsp)
+movl %r8d,4+96(%rsp)
+
+# qhasm:   counter = in8
+# asm 1: movq <in8=int64#4,>counter=stack64#8
+# asm 2: movq <in8=%rcx,>counter=472(%rsp)
+movq %rcx,472(%rsp)
 
 # qhasm:                          unsigned>? unsigned<? bytes - 64
 # asm 1: cmp  $64,<bytes=int64#6
@@ -4761,43 +4728,43 @@ rep movsb
 
 # qhasm:     r11_caller = r11_stack
 # asm 1: movq <r11_stack=stack64#1,>r11_caller=int64#9
-# asm 2: movq <r11_stack=352(%rsp),>r11_caller=%r11
-movq 352(%rsp),%r11
+# asm 2: movq <r11_stack=416(%rsp),>r11_caller=%r11
+movq 416(%rsp),%r11
 
 # qhasm:     r12_caller = r12_stack
 # asm 1: movq <r12_stack=stack64#2,>r12_caller=int64#10
-# asm 2: movq <r12_stack=360(%rsp),>r12_caller=%r12
-movq 360(%rsp),%r12
+# asm 2: movq <r12_stack=424(%rsp),>r12_caller=%r12
+movq 424(%rsp),%r12
 
 # qhasm:     r13_caller = r13_stack
 # asm 1: movq <r13_stack=stack64#3,>r13_caller=int64#11
-# asm 2: movq <r13_stack=368(%rsp),>r13_caller=%r13
-movq 368(%rsp),%r13
+# asm 2: movq <r13_stack=432(%rsp),>r13_caller=%r13
+movq 432(%rsp),%r13
 
 # qhasm:     r14_caller = r14_stack
 # asm 1: movq <r14_stack=stack64#4,>r14_caller=int64#12
-# asm 2: movq <r14_stack=376(%rsp),>r14_caller=%r14
-movq 376(%rsp),%r14
+# asm 2: movq <r14_stack=440(%rsp),>r14_caller=%r14
+movq 440(%rsp),%r14
 
 # qhasm:     r15_caller = r15_stack
 # asm 1: movq <r15_stack=stack64#5,>r15_caller=int64#13
-# asm 2: movq <r15_stack=384(%rsp),>r15_caller=%r15
-movq 384(%rsp),%r15
+# asm 2: movq <r15_stack=448(%rsp),>r15_caller=%r15
+movq 448(%rsp),%r15
 
 # qhasm:     rbx_caller = rbx_stack
 # asm 1: movq <rbx_stack=stack64#6,>rbx_caller=int64#14
-# asm 2: movq <rbx_stack=392(%rsp),>rbx_caller=%rbx
-movq 392(%rsp),%rbx
+# asm 2: movq <rbx_stack=456(%rsp),>rbx_caller=%rbx
+movq 456(%rsp),%rbx
 
 # qhasm:     rbp_caller = rbp_stack
 # asm 1: movq <rbp_stack=stack64#7,>rbp_caller=int64#15
-# asm 2: movq <rbp_stack=400(%rsp),>rbp_caller=%rbp
-movq 400(%rsp),%rbp
+# asm 2: movq <rbp_stack=464(%rsp),>rbp_caller=%rbp
+movq 464(%rsp),%rbp
 
 # qhasm:     leave
 add %r11,%rsp
 xor %rax,%rax
-xor %rdx,%rdx
+mov %rsi,%rdx
 ret
 
 # qhasm:   bytesatleast65:

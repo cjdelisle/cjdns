@@ -8,7 +8,7 @@
  * http://code.google.com/p/curve25519-donna/
  *
  * Adam Langley <agl@imperialviolet.org>
- *
+ * Parts optimised by floodyberry
  * Derived from public domain C code by Daniel J. Bernstein <djb@cr.yp.to>
  *
  * More information about curve25519 can be found here
@@ -27,75 +27,63 @@
 #include "crypto_scalarmult.h"
 
 typedef uint8_t u8;
-typedef uint64_t felem;
+typedef uint64_t limb;
+typedef limb felem[5];
 // This is a special gcc mode for 128-bit integers. It's implemented on 64-bit
 // platforms only as far as I know.
 typedef unsigned uint128_t __attribute__((mode(TI)));
 
+#undef force_inline
+#define force_inline __attribute__((always_inline))
+
 /* Sum two numbers: output += in */
-static void fsum(felem *output, const felem *in) {
-  unsigned i;
-  for (i = 0; i < 5; ++i) output[i] += in[i];
+static void force_inline
+fsum(limb *output, const limb *in) {
+  output[0] += in[0];
+  output[1] += in[1];
+  output[2] += in[2];
+  output[3] += in[3];
+  output[4] += in[4];
 }
 
 /* Find the difference of two numbers: output = in - output
  * (note the order of the arguments!)
+ *
+ * Assumes that out[i] < 2**52
+ * On return, out[i] < 2**55
  */
-static void fdifference_backwards(felem *ioutput, const felem *iin) {
-  static const int64_t twotothe51 = (1l << 51);
-  const int64_t *in = (const int64_t *) iin;
-  int64_t *out = (int64_t *) ioutput;
+static void force_inline
+fdifference_backwards(felem out, const felem in) {
+  /* 152 is 19 << 3 */
+  static const limb two54m152 = (((limb)1) << 54) - 152;
+  static const limb two54m8 = (((limb)1) << 54) - 8;
 
-  out[0] = in[0] - out[0];
-  out[1] = in[1] - out[1];
-  out[2] = in[2] - out[2];
-  out[3] = in[3] - out[3];
-  out[4] = in[4] - out[4];
-
-  // An arithmetic shift right of 63 places turns a positive number to 0 and a
-  // negative number to all 1's. This gives us a bitmask that lets us avoid
-  // side-channel prone branches.
-  int64_t t;
-
-#define NEGCHAIN(a,b) \
-  t = out[a] >> 63; \
-  out[a] += twotothe51 & t; \
-  out[b] -= 1 & t;
-
-#define NEGCHAIN19(a,b) \
-  t = out[a] >> 63; \
-  out[a] += twotothe51 & t; \
-  out[b] -= 19 & t;
-
-  NEGCHAIN(0, 1);
-  NEGCHAIN(1, 2);
-  NEGCHAIN(2, 3);
-  NEGCHAIN(3, 4);
-  NEGCHAIN19(4, 0);
-  NEGCHAIN(0, 1);
-  NEGCHAIN(1, 2);
-  NEGCHAIN(2, 3);
-  NEGCHAIN(3, 4);
+  out[0] = in[0] + two54m152 - out[0];
+  out[1] = in[1] + two54m8 - out[1];
+  out[2] = in[2] + two54m8 - out[2];
+  out[3] = in[3] + two54m8 - out[3];
+  out[4] = in[4] + two54m8 - out[4];
 }
 
 /* Multiply a number by a scalar: output = in * scalar */
-static void fscalar_product(felem *output, const felem *in, const felem scalar) {
+static void force_inline
+fscalar_product(felem output, const felem in, const limb scalar) {
   uint128_t a;
 
   a = ((uint128_t) in[0]) * scalar;
-  output[0] = a & 0x7ffffffffffff;
+  output[0] = ((limb)a) & 0x7ffffffffffff;
 
-  a = ((uint128_t) in[1]) * scalar + (a >> 51);
-  output[1] = a & 0x7ffffffffffff;
+  a = ((uint128_t) in[1]) * scalar + ((limb) (a >> 51));
+  output[1] = ((limb)a) & 0x7ffffffffffff;
 
-  a = ((uint128_t) in[2]) * scalar + (a >> 51);
-  output[2] = a & 0x7ffffffffffff;
+  a = ((uint128_t) in[2]) * scalar + ((limb) (a >> 51));
+  output[2] = ((limb)a) & 0x7ffffffffffff;
 
-  a = ((uint128_t) in[3]) * scalar + (a >> 51);
-  output[3] = a & 0x7ffffffffffff;
+  a = ((uint128_t) in[3]) * scalar + ((limb) (a >> 51));
+  output[3] = ((limb)a) & 0x7ffffffffffff;
 
-  a = ((uint128_t) in[4]) * scalar + (a >> 51);
-  output[4] = a & 0x7ffffffffffff;
+  a = ((uint128_t) in[4]) * scalar + ((limb) (a >> 51));
+  output[4] = ((limb)a) & 0x7ffffffffffff;
 
   output[0] += (a >> 51) * 19;
 }
@@ -104,111 +92,104 @@ static void fscalar_product(felem *output, const felem *in, const felem scalar) 
  *
  * output must be distinct to both inputs. The inputs are reduced coefficient
  * form, the output is not.
+ *
+ * Assumes that in[i] < 2**55 and likewise for in2.
+ * On return, output[i] < 2**52
  */
-static void fmul(felem *output, const felem *in2, const felem *in) {
-  uint128_t t[9];
+static void force_inline
+fmul(felem output, const felem in2, const felem in) {
+  uint128_t t[5];
+  limb r0,r1,r2,r3,r4,s0,s1,s2,s3,s4,c;
 
-  t[0] = ((uint128_t) in[0]) * in2[0];
-  t[1] = ((uint128_t) in[0]) * in2[1] +
-         ((uint128_t) in[1]) * in2[0];
-  t[2] = ((uint128_t) in[0]) * in2[2] +
-         ((uint128_t) in[2]) * in2[0] +
-         ((uint128_t) in[1]) * in2[1];
-  t[3] = ((uint128_t) in[0]) * in2[3] +
-         ((uint128_t) in[3]) * in2[0] +
-         ((uint128_t) in[1]) * in2[2] +
-         ((uint128_t) in[2]) * in2[1];
-  t[4] = ((uint128_t) in[0]) * in2[4] +
-         ((uint128_t) in[4]) * in2[0] +
-         ((uint128_t) in[3]) * in2[1] +
-         ((uint128_t) in[1]) * in2[3] +
-         ((uint128_t) in[2]) * in2[2];
-  t[5] = ((uint128_t) in[4]) * in2[1] +
-         ((uint128_t) in[1]) * in2[4] +
-         ((uint128_t) in[2]) * in2[3] +
-         ((uint128_t) in[3]) * in2[2];
-  t[6] = ((uint128_t) in[4]) * in2[2] +
-         ((uint128_t) in[2]) * in2[4] +
-         ((uint128_t) in[3]) * in2[3];
-  t[7] = ((uint128_t) in[3]) * in2[4] +
-         ((uint128_t) in[4]) * in2[3];
-  t[8] = ((uint128_t) in[4]) * in2[4];
+  r0 = in[0];
+  r1 = in[1];
+  r2 = in[2];
+  r3 = in[3];
+  r4 = in[4];
 
-  t[0] += t[5] * 19;
-  t[1] += t[6] * 19;
-  t[2] += t[7] * 19;
-  t[3] += t[8] * 19;
+  s0 = in2[0];
+  s1 = in2[1];
+  s2 = in2[2];
+  s3 = in2[3];
+  s4 = in2[4];
 
-  t[1] += t[0] >> 51;
-  t[0] &= 0x7ffffffffffff;
-  t[2] += t[1] >> 51;
-  t[1] &= 0x7ffffffffffff;
-  t[3] += t[2] >> 51;
-  t[2] &= 0x7ffffffffffff;
-  t[4] += t[3] >> 51;
-  t[3] &= 0x7ffffffffffff;
-  t[0] += 19 * (t[4] >> 51);
-  t[4] &= 0x7ffffffffffff;
-  t[1] += t[0] >> 51;
-  t[0] &= 0x7ffffffffffff;
-  t[2] += t[1] >> 51;
-  t[1] &= 0x7ffffffffffff;
+  t[0]  =  ((uint128_t) r0) * s0;
+  t[1]  =  ((uint128_t) r0) * s1 + ((uint128_t) r1) * s0;
+  t[2]  =  ((uint128_t) r0) * s2 + ((uint128_t) r2) * s0 + ((uint128_t) r1) * s1;
+  t[3]  =  ((uint128_t) r0) * s3 + ((uint128_t) r3) * s0 + ((uint128_t) r1) * s2 + ((uint128_t) r2) * s1;
+  t[4]  =  ((uint128_t) r0) * s4 + ((uint128_t) r4) * s0 + ((uint128_t) r3) * s1 + ((uint128_t) r1) * s3 + ((uint128_t) r2) * s2;
 
-  output[0] = t[0];
-  output[1] = t[1];
-  output[2] = t[2];
-  output[3] = t[3];
-  output[4] = t[4];
+  r4 *= 19;
+  r1 *= 19;
+  r2 *= 19;
+  r3 *= 19;
+
+  t[0] += ((uint128_t) r4) * s1 + ((uint128_t) r1) * s4 + ((uint128_t) r2) * s3 + ((uint128_t) r3) * s2;
+  t[1] += ((uint128_t) r4) * s2 + ((uint128_t) r2) * s4 + ((uint128_t) r3) * s3;
+  t[2] += ((uint128_t) r4) * s3 + ((uint128_t) r3) * s4;
+  t[3] += ((uint128_t) r4) * s4;
+
+                  r0 = (limb)t[0] & 0x7ffffffffffff; c = (limb)(t[0] >> 51);
+  t[1] += c;      r1 = (limb)t[1] & 0x7ffffffffffff; c = (limb)(t[1] >> 51);
+  t[2] += c;      r2 = (limb)t[2] & 0x7ffffffffffff; c = (limb)(t[2] >> 51);
+  t[3] += c;      r3 = (limb)t[3] & 0x7ffffffffffff; c = (limb)(t[3] >> 51);
+  t[4] += c;      r4 = (limb)t[4] & 0x7ffffffffffff; c = (limb)(t[4] >> 51);
+  r0 +=   c * 19; c = r0 >> 51; r0 = r0 & 0x7ffffffffffff;
+  r1 +=   c;      c = r1 >> 51; r1 = r1 & 0x7ffffffffffff;
+  r2 +=   c;
+
+  output[0] = r0;
+  output[1] = r1;
+  output[2] = r2;
+  output[3] = r3;
+  output[4] = r4;
 }
 
-static void
-fsquare(felem *output, const felem *in) {
-  uint128_t t[9];
+static void force_inline
+fsquare_times(felem output, const felem in, limb count) {
+  uint128_t t[5];
+  limb r0,r1,r2,r3,r4,c;
+  limb d0,d1,d2,d4,d419;
 
-  t[0] = ((uint128_t) in[0]) * in[0];
-  t[1] = ((uint128_t) in[0]) * in[1] * 2;
-  t[2] = ((uint128_t) in[0]) * in[2] * 2 +
-         ((uint128_t) in[1]) * in[1];
-  t[3] = ((uint128_t) in[0]) * in[3] * 2 +
-         ((uint128_t) in[1]) * in[2] * 2;
-  t[4] = ((uint128_t) in[0]) * in[4] * 2 +
-         ((uint128_t) in[3]) * in[1] * 2 +
-         ((uint128_t) in[2]) * in[2];
-  t[5] = ((uint128_t) in[4]) * in[1] * 2 +
-         ((uint128_t) in[2]) * in[3] * 2;
-  t[6] = ((uint128_t) in[4]) * in[2] * 2 +
-         ((uint128_t) in[3]) * in[3];
-  t[7] = ((uint128_t) in[3]) * in[4] * 2;
-  t[8] = ((uint128_t) in[4]) * in[4];
+  r0 = in[0];
+  r1 = in[1];
+  r2 = in[2];
+  r3 = in[3];
+  r4 = in[4];
 
-  t[0] += t[5] * 19;
-  t[1] += t[6] * 19;
-  t[2] += t[7] * 19;
-  t[3] += t[8] * 19;
+  do {
+    d0 = r0 * 2;
+    d1 = r1 * 2;
+    d2 = r2 * 2 * 19;
+    d419 = r4 * 19;
+    d4 = d419 * 2;
 
-  t[1] += t[0] >> 51;
-  t[0] &= 0x7ffffffffffff;
-  t[2] += t[1] >> 51;
-  t[1] &= 0x7ffffffffffff;
-  t[3] += t[2] >> 51;
-  t[2] &= 0x7ffffffffffff;
-  t[4] += t[3] >> 51;
-  t[3] &= 0x7ffffffffffff;
-  t[0] += 19 * (t[4] >> 51);
-  t[4] &= 0x7ffffffffffff;
-  t[1] += t[0] >> 51;
-  t[0] &= 0x7ffffffffffff;
+    t[0] = ((uint128_t) r0) * r0 + ((uint128_t) d4) * r1 + (((uint128_t) d2) * (r3     ));
+    t[1] = ((uint128_t) d0) * r1 + ((uint128_t) d4) * r2 + (((uint128_t) r3) * (r3 * 19));
+    t[2] = ((uint128_t) d0) * r2 + ((uint128_t) r1) * r1 + (((uint128_t) d4) * (r3     ));
+    t[3] = ((uint128_t) d0) * r3 + ((uint128_t) d1) * r2 + (((uint128_t) r4) * (d419   ));
+    t[4] = ((uint128_t) d0) * r4 + ((uint128_t) d1) * r3 + (((uint128_t) r2) * (r2     ));
 
-  output[0] = t[0];
-  output[1] = t[1];
-  output[2] = t[2];
-  output[3] = t[3];
-  output[4] = t[4];
+                    r0 = (limb)t[0] & 0x7ffffffffffff; c = (limb)(t[0] >> 51);
+    t[1] += c;      r1 = (limb)t[1] & 0x7ffffffffffff; c = (limb)(t[1] >> 51);
+    t[2] += c;      r2 = (limb)t[2] & 0x7ffffffffffff; c = (limb)(t[2] >> 51);
+    t[3] += c;      r3 = (limb)t[3] & 0x7ffffffffffff; c = (limb)(t[3] >> 51);
+    t[4] += c;      r4 = (limb)t[4] & 0x7ffffffffffff; c = (limb)(t[4] >> 51);
+    r0 +=   c * 19; c = r0 >> 51; r0 = r0 & 0x7ffffffffffff;
+    r1 +=   c;      c = r1 >> 51; r1 = r1 & 0x7ffffffffffff;
+    r2 +=   c;
+  } while(--count);
+
+  output[0] = r0;
+  output[1] = r1;
+  output[2] = r2;
+  output[3] = r3;
+  output[4] = r4;
 }
 
 /* Take a little-endian, 32-byte number and expand it into polynomial form */
 static void
-fexpand(felem *output, const u8 *in) {
+fexpand(limb *output, const u8 *in) {
   output[0] = *((const uint64_t *)(in)) & 0x7ffffffffffff;
   output[1] = (*((const uint64_t *)(in+6)) >> 3) & 0x7ffffffffffff;
   output[2] = (*((const uint64_t *)(in+12)) >> 6) & 0x7ffffffffffff;
@@ -220,7 +201,7 @@ fexpand(felem *output, const u8 *in) {
  * little-endian, 32-byte array
  */
 static void
-fcontract(u8 *output, const felem *input) {
+fcontract(u8 *output, const felem input) {
   uint128_t t[5];
 
   t[0] = input[0];
@@ -284,32 +265,32 @@ fcontract(u8 *output, const felem *input) {
  *   qmqp: short form, preserved
  */
 static void
-fmonty(felem *x2, felem *z2, /* output 2Q */
-       felem *x3, felem *z3, /* output Q + Q' */
-       felem *x, felem *z,   /* input Q */
-       felem *xprime, felem *zprime, /* input Q' */
-       const felem *qmqp /* input Q - Q' */) {
-  felem origx[5], origxprime[5], zzz[5], xx[5], zz[5], xxprime[5],
+fmonty(limb *x2, limb *z2, /* output 2Q */
+       limb *x3, limb *z3, /* output Q + Q' */
+       limb *x, limb *z,   /* input Q */
+       limb *xprime, limb *zprime, /* input Q' */
+       const limb *qmqp /* input Q - Q' */) {
+  limb origx[5], origxprime[5], zzz[5], xx[5], zz[5], xxprime[5],
         zzprime[5], zzzprime[5];
 
-  memcpy(origx, x, 5 * sizeof(felem));
+  memcpy(origx, x, 5 * sizeof(limb));
   fsum(x, z);
   fdifference_backwards(z, origx);  // does x - z
 
-  memcpy(origxprime, xprime, sizeof(felem) * 5);
+  memcpy(origxprime, xprime, sizeof(limb) * 5);
   fsum(xprime, zprime);
   fdifference_backwards(zprime, origxprime);
   fmul(xxprime, xprime, z);
   fmul(zzprime, x, zprime);
-  memcpy(origxprime, xxprime, sizeof(felem) * 5);
+  memcpy(origxprime, xxprime, sizeof(limb) * 5);
   fsum(xxprime, zzprime);
   fdifference_backwards(zzprime, origxprime);
-  fsquare(x3, xxprime);
-  fsquare(zzzprime, zzprime);
+  fsquare_times(x3, xxprime, 1);
+  fsquare_times(zzzprime, zzprime, 1);
   fmul(z3, zzzprime, qmqp);
 
-  fsquare(xx, x);
-  fsquare(zz, z);
+  fsquare_times(xx, x, 1);
+  fsquare_times(zz, z, 1);
   fmul(x2, xx, zz);
   fdifference_backwards(zz, xx);  // does zz = xx - zz
   fscalar_product(zzz, zz, 121665);
@@ -318,19 +299,19 @@ fmonty(felem *x2, felem *z2, /* output 2Q */
 }
 
 // -----------------------------------------------------------------------------
-// Maybe swap the contents of two felem arrays (@a and @b), each @len elements
+// Maybe swap the contents of two limb arrays (@a and @b), each @len elements
 // long. Perform the swap iff @swap is non-zero.
 //
 // This function performs the swap without leaking any side-channel
 // information.
 // -----------------------------------------------------------------------------
 static void
-swap_conditional(felem *a, felem *b, unsigned len, felem iswap) {
+swap_conditional(limb a[5], limb b[5], limb iswap) {
   unsigned i;
-  const felem swap = -iswap;
+  const limb swap = -iswap;
 
-  for (i = 0; i < len; ++i) {
-    const felem x = swap & (a[i] ^ b[i]);
+  for (i = 0; i < 5; ++i) {
+    const limb x = swap & (a[i] ^ b[i]);
     a[i] ^= x;
     b[i] ^= x;
   }
@@ -343,30 +324,30 @@ swap_conditional(felem *a, felem *b, unsigned len, felem iswap) {
  *   q: a point of the curve (short form)
  */
 static void
-cmult(felem *resultx, felem *resultz, const u8 *n, const felem *q) {
-  felem a[5] = {0}, b[5] = {1}, c[5] = {1}, d[5] = {0};
-  felem *nqpqx = a, *nqpqz = b, *nqx = c, *nqz = d, *t;
-  felem e[5] = {0}, f[5] = {1}, g[5] = {0}, h[5] = {1};
-  felem *nqpqx2 = e, *nqpqz2 = f, *nqx2 = g, *nqz2 = h;
+cmult(limb *resultx, limb *resultz, const u8 *n, const limb *q) {
+  limb a[5] = {0}, b[5] = {1}, c[5] = {1}, d[5] = {0};
+  limb *nqpqx = a, *nqpqz = b, *nqx = c, *nqz = d, *t;
+  limb e[5] = {0}, f[5] = {1}, g[5] = {0}, h[5] = {1};
+  limb *nqpqx2 = e, *nqpqz2 = f, *nqx2 = g, *nqz2 = h;
 
   unsigned i, j;
 
-  memcpy(nqpqx, q, sizeof(felem) * 5);
+  memcpy(nqpqx, q, sizeof(limb) * 5);
 
   for (i = 0; i < 32; ++i) {
     u8 byte = n[31 - i];
     for (j = 0; j < 8; ++j) {
-      const felem bit = byte >> 7;
+      const limb bit = byte >> 7;
 
-      swap_conditional(nqx, nqpqx, 5, bit);
-      swap_conditional(nqz, nqpqz, 5, bit);
+      swap_conditional(nqx, nqpqx, bit);
+      swap_conditional(nqz, nqpqz, bit);
       fmonty(nqx2, nqz2,
              nqpqx2, nqpqz2,
              nqx, nqz,
              nqpqx, nqpqz,
              q);
-      swap_conditional(nqx2, nqpqx2, 5, bit);
-      swap_conditional(nqz2, nqpqz2, 5, bit);
+      swap_conditional(nqx2, nqpqx2, bit);
+      swap_conditional(nqz2, nqpqz2, bit);
 
       t = nqx;
       nqx = nqx2;
@@ -385,89 +366,53 @@ cmult(felem *resultx, felem *resultz, const u8 *n, const felem *q) {
     }
   }
 
-  memcpy(resultx, nqx, sizeof(felem) * 5);
-  memcpy(resultz, nqz, sizeof(felem) * 5);
+  memcpy(resultx, nqx, sizeof(limb) * 5);
+  memcpy(resultz, nqz, sizeof(limb) * 5);
 }
 
+
 // -----------------------------------------------------------------------------
-// Shamelessly copied from djb's code
+// Shamelessly copied from djb's code, tightened a little
 // -----------------------------------------------------------------------------
 static void
-crecip(felem *out, const felem *z) {
-  felem z2[5];
-  felem z9[5];
-  felem z11[5];
-  felem z2_5_0[5];
-  felem z2_10_0[5];
-  felem z2_20_0[5];
-  felem z2_50_0[5];
-  felem z2_100_0[5];
-  felem t0[5];
-  felem t1[5];
-  int i;
+crecip(felem out, const felem z) {
+  felem a,t0,b,c;
 
-  /* 2 */ fsquare(z2,z);
-  /* 4 */ fsquare(t1,z2);
-  /* 8 */ fsquare(t0,t1);
-  /* 9 */ fmul(z9,t0,z);
-  /* 11 */ fmul(z11,z9,z2);
-  /* 22 */ fsquare(t0,z11);
-  /* 2^5 - 2^0 = 31 */ fmul(z2_5_0,t0,z9);
-
-  /* 2^6 - 2^1 */ fsquare(t0,z2_5_0);
-  /* 2^7 - 2^2 */ fsquare(t1,t0);
-  /* 2^8 - 2^3 */ fsquare(t0,t1);
-  /* 2^9 - 2^4 */ fsquare(t1,t0);
-  /* 2^10 - 2^5 */ fsquare(t0,t1);
-  /* 2^10 - 2^0 */ fmul(z2_10_0,t0,z2_5_0);
-
-  /* 2^11 - 2^1 */ fsquare(t0,z2_10_0);
-  /* 2^12 - 2^2 */ fsquare(t1,t0);
-  /* 2^20 - 2^10 */ for (i = 2;i < 10;i += 2) { fsquare(t0,t1); fsquare(t1,t0); }
-  /* 2^20 - 2^0 */ fmul(z2_20_0,t1,z2_10_0);
-
-  /* 2^21 - 2^1 */ fsquare(t0,z2_20_0);
-  /* 2^22 - 2^2 */ fsquare(t1,t0);
-  /* 2^40 - 2^20 */ for (i = 2;i < 20;i += 2) { fsquare(t0,t1); fsquare(t1,t0); }
-  /* 2^40 - 2^0 */ fmul(t0,t1,z2_20_0);
-
-  /* 2^41 - 2^1 */ fsquare(t1,t0);
-  /* 2^42 - 2^2 */ fsquare(t0,t1);
-  /* 2^50 - 2^10 */ for (i = 2;i < 10;i += 2) { fsquare(t1,t0); fsquare(t0,t1); }
-  /* 2^50 - 2^0 */ fmul(z2_50_0,t0,z2_10_0);
-
-  /* 2^51 - 2^1 */ fsquare(t0,z2_50_0);
-  /* 2^52 - 2^2 */ fsquare(t1,t0);
-  /* 2^100 - 2^50 */ for (i = 2;i < 50;i += 2) { fsquare(t0,t1); fsquare(t1,t0); }
-  /* 2^100 - 2^0 */ fmul(z2_100_0,t1,z2_50_0);
-
-  /* 2^101 - 2^1 */ fsquare(t1,z2_100_0);
-  /* 2^102 - 2^2 */ fsquare(t0,t1);
-  /* 2^200 - 2^100 */ for (i = 2;i < 100;i += 2) { fsquare(t1,t0); fsquare(t0,t1); }
-  /* 2^200 - 2^0 */ fmul(t1,t0,z2_100_0);
-
-  /* 2^201 - 2^1 */ fsquare(t0,t1);
-  /* 2^202 - 2^2 */ fsquare(t1,t0);
-  /* 2^250 - 2^50 */ for (i = 2;i < 50;i += 2) { fsquare(t0,t1); fsquare(t1,t0); }
-  /* 2^250 - 2^0 */ fmul(t0,t1,z2_50_0);
-
-  /* 2^251 - 2^1 */ fsquare(t1,t0);
-  /* 2^252 - 2^2 */ fsquare(t0,t1);
-  /* 2^253 - 2^3 */ fsquare(t1,t0);
-  /* 2^254 - 2^4 */ fsquare(t0,t1);
-  /* 2^255 - 2^5 */ fsquare(t1,t0);
-  /* 2^255 - 21 */ fmul(out,t1,z11);
+  /* 2 */ fsquare_times(a, z, 1); // a = 2
+  /* 8 */ fsquare_times(t0, a, 2);
+  /* 9 */ fmul(b, t0, z); // b = 9
+  /* 11 */ fmul(a, b, a); // a = 11
+  /* 22 */ fsquare_times(t0, a, 1);
+  /* 2^5 - 2^0 = 31 */ fmul(b, t0, b);
+  /* 2^10 - 2^5 */ fsquare_times(t0, b, 5);
+  /* 2^10 - 2^0 */ fmul(b, t0, b);
+  /* 2^20 - 2^10 */ fsquare_times(t0, b, 10);
+  /* 2^20 - 2^0 */ fmul(c, t0, b);
+  /* 2^40 - 2^20 */ fsquare_times(t0, c, 20);
+  /* 2^40 - 2^0 */ fmul(t0, t0, c);
+  /* 2^50 - 2^10 */ fsquare_times(t0, t0, 10);
+  /* 2^50 - 2^0 */ fmul(b, t0, b);
+  /* 2^100 - 2^50 */ fsquare_times(t0, b, 50);
+  /* 2^100 - 2^0 */ fmul(c, t0, b);
+  /* 2^200 - 2^100 */ fsquare_times(t0, c, 100);
+  /* 2^200 - 2^0 */ fmul(t0, t0, c);
+  /* 2^250 - 2^50 */ fsquare_times(t0, t0, 50);
+  /* 2^250 - 2^0 */ fmul(t0, t0, b);
+  /* 2^255 - 2^5 */ fsquare_times(t0, t0, 5);
+  /* 2^255 - 21 */ fmul(out, t0, a);
 }
 
 int
 crypto_scalarmult(u8 *mypublic, const u8 *secret, const u8 *basepoint) {
-  felem bp[5], x[5], z[5], zmone[5];
-  unsigned char e[32];
+  limb bp[5], x[5], z[5], zmone[5];
+  uint8_t e[32];
   int i;
+
   for (i = 0;i < 32;++i) e[i] = secret[i];
   e[0] &= 248;
   e[31] &= 127;
   e[31] |= 64;
+
   fexpand(bp, basepoint);
   cmult(x, z, e, bp);
   crecip(zmone, z);

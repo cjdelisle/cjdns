@@ -3,6 +3,7 @@ version 20081011
 Matthew Dempsky
 Public domain.
 Derived from public domain code by D. J. Bernstein.
+20140216 tweak: Mask top bit of point input.
 */
 
 #include "crypto_scalarmult.h"
@@ -256,6 +257,7 @@ int crypto_scalarmult(unsigned char *q,
   e[31] &= 127;
   e[31] |= 64;
   for (i = 0;i < 32;++i) work[i] = p[i];
+  work[31] &= 127;
   mainloop(work,e);
   recip(work + 32,work + 32);
   mult(work + 64,work,work + 32);
