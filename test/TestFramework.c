@@ -161,7 +161,7 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
     SwitchCore_setRouterInterface(&switchAdapter->switchIf, switchCore);
 
     struct ConverterV15* v15conv =
-        ConverterV15_new(allocator, logger, balingWire->sessionManager, myAddress->ip6.bytes);
+        ConverterV15_new(allocator, logger, balingWire->sessionTable, myAddress->ip6.bytes);
     Interface_plumb(&v15conv->balingWireIf, &balingWire->insideIf);
 
     struct UpperDistributor* upper = UpperDistributor_new(allocator, logger);

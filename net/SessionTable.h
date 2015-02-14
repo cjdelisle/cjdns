@@ -12,8 +12,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef SessionManager_H
-#define SessionManager_H
+#ifndef SessionTable_H
+#define SessionTable_H
 
 #include "crypto/CryptoAuth.h"
 #include "crypto/random/Random.h"
@@ -21,13 +21,13 @@
 #include "memory/Allocator.h"
 #include "util/events/EventBase.h"
 #include "util/Linker.h"
-Linker_require("interface/SessionManager.c")
+Linker_require("net/SessionTable.c")
 
 #include <stdint.h>
 
-struct SessionManager;
+struct SessionTable;
 
-struct SessionManager_Session
+struct SessionTable_Session
 {
     struct Interface external;
 
@@ -67,7 +67,7 @@ struct SessionManager_Session
     uint32_t timeDiscovered;
 };
 
-struct SessionManager_HandleList
+struct SessionTable_HandleList
 {
     uint32_t count;
     uint32_t* handles;
@@ -88,7 +88,7 @@ struct SessionManager_HandleList
  * @param allocator means of getting memory.
  * @return a session manager.
  */
-struct SessionManager* SessionManager_new(Interface_Callback decryptedIncoming,
+struct SessionTable* SessionTable_new(Interface_Callback decryptedIncoming,
                                           Interface_Callback encryptedOutgoing,
                                           void* interfaceContext,
                                           struct EventBase* eventBase,
@@ -100,13 +100,13 @@ struct SessionManager* SessionManager_new(Interface_Callback decryptedIncoming,
  * Get a session from the session manager.
  * If there is no session for the lookup key, it will be created.
  *
- * @param lookupKey this must be the size given by keySize in SessionManager_new().
+ * @param lookupKey this must be the size given by keySize in SessionTable_new().
  * @param cryptoKey optional encryption key if it is known, otherwise NULL.
  * @param sm the session manager.
  */
-struct SessionManager_Session* SessionManager_getSession(uint8_t* lookupKey,
+struct SessionTable_Session* SessionTable_getSession(uint8_t* lookupKey,
                                                          uint8_t cryptoKey[32],
-                                                         struct SessionManager* sm);
+                                                         struct SessionTable* sm);
 
 /**
  * Get a session by its handle.
@@ -115,11 +115,11 @@ struct SessionManager_Session* SessionManager_getSession(uint8_t* lookupKey,
  * @param sm the session manager.
  * @return the sesssion if there is one by that handle or null.
  */
-struct SessionManager_Session* SessionManager_sessionForHandle(uint32_t handle,
-                                                               struct SessionManager* sm);
+struct SessionTable_Session* SessionTable_sessionForHandle(uint32_t handle,
+                                                               struct SessionTable* sm);
 
-struct SessionManager_Session* SessionManager_sessionForIp6(uint8_t* lookupKey,
-                                                            struct SessionManager* sm);
+struct SessionTable_Session* SessionTable_sessionForIp6(uint8_t* lookupKey,
+                                                            struct SessionTable* sm);
 
 /**
  * Get the IPv6 address for a session.
@@ -128,12 +128,12 @@ struct SessionManager_Session* SessionManager_sessionForIp6(uint8_t* lookupKey,
  * @param sm the session manager
  * @return a binary ipv6 address or NULL.
  */
-uint8_t* SessionManager_getIp6(uint32_t handle, struct SessionManager* sm);
+uint8_t* SessionTable_getIp6(uint32_t handle, struct SessionTable* sm);
 
 /**
  * Get the list of all handles.
  */
-struct SessionManager_HandleList* SessionManager_getHandleList(struct SessionManager* sm,
+struct SessionTable_HandleList* SessionTable_getHandleList(struct SessionTable* sm,
                                                                struct Allocator* alloc);
 
 #endif

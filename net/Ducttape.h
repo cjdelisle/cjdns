@@ -53,7 +53,7 @@ struct Ducttape
 
     struct Interface switchIf;
 
-    struct SessionManager* sessionManager;
+    struct SessionTable* sessionTable;
 };
 
 struct Ducttape* Ducttape_new(uint8_t privateKey[32],

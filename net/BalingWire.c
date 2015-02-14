@@ -49,7 +49,7 @@ struct BalingWire_pvt
     struct EventBase* eventBase;
 
     /** global crap about the "active message" (Passing data around cryptoAuth) */
-    struct SessionManager_Session* currentSession;
+    struct SessionTable_Session* currentSession;
     bool currentMessageSetup;
     struct SwitchHeader* currentSwitchHeader;
 
@@ -80,7 +80,7 @@ static uint8_t incomingFromSwitchPostCryptoAuth(struct Message* msg, struct Inte
 {
     struct BalingWire_pvt* bw = Identity_check((struct BalingWire_pvt*) iface->receiverContext);
 
-    struct SessionManager_Session* session = bw->currentSession;
+    struct SessionTable_Session* session = bw->currentSession;
     struct SwitchHeader* sh = bw->currentSwitchHeader;
     bw->currentSession = NULL;
     bw->currentSwitchHeader = NULL;
@@ -135,11 +135,11 @@ static int incomingFromSwitchIf(struct Interface_Two* iface, struct Message* msg
     struct SwitchHeader* switchHeader = (struct SwitchHeader*) msg->bytes;
     Message_shift(msg, -SwitchHeader_SIZE, NULL);
 
-    struct SessionManager_Session* session;
+    struct SessionTable_Session* session;
     uint32_t nonceOrHandle = Endian_bigEndianToHost32(((uint32_t*)msg->bytes)[0]);
     if (nonceOrHandle > 3) {
         // > 3 it's a handle.
-        session = SessionManager_sessionForHandle(nonceOrHandle, bw->pub.sessionManager);
+        session = SessionTable_sessionForHandle(nonceOrHandle, bw->pub.sessionTable);
         if (!session) {
             Log_debug(bw->log, "DROP message with unrecognized handle");
             return 0;
@@ -165,7 +165,7 @@ static int incomingFromSwitchIf(struct Interface_Two* iface, struct Message* msg
             return 0;
         }
 
-        session = SessionManager_getSession(ip6, herKey, bw->pub.sessionManager);
+        session = SessionTable_getSession(ip6, herKey, bw->pub.sessionTable);
 
         debugHandlesAndLabel(bw->log, session,
                              Endian_bigEndianToHost64(switchHeader->label_be),
@@ -257,7 +257,7 @@ static uint8_t readyToSendPostCryptoAuth(struct Message* msg, struct Interface* 
 {
     struct BalingWire_pvt* bw = Identity_check((struct BalingWire_pvt*) iface->senderContext);
     struct SwitchHeader* sh = bw->currentSwitchHeader;
-    struct SessionManager_Session* sess = bw->currentSession;
+    struct SessionTable_Session* sess = bw->currentSession;
     bw->currentSession = NULL;
     bw->currentSwitchHeader = NULL;
     if (CryptoAuth_getState(sess->internal) >= CryptoAuth_HANDSHAKE3) {
@@ -283,7 +283,7 @@ static uint8_t readyToSendPostCryptoAuth(struct Message* msg, struct Interface* 
 }
 
 static int readyToSend(struct BalingWire_pvt* bw,
-                       struct SessionManager_Session* sess,
+                       struct SessionTable_Session* sess,
                        struct Message* msg)
 {
     struct BalingWire_InsideHeader* header = (struct BalingWire_InsideHeader*) msg->bytes;
@@ -320,12 +320,12 @@ static int incomingFromInsideIf(struct Interface_Two* iface, struct Message* msg
     Assert_true(msg->length >= BalingWire_InsideHeader_SIZE);
     struct BalingWire_InsideHeader* header = (struct BalingWire_InsideHeader*) msg->bytes;
 
-    struct SessionManager_Session* sess =
-        SessionManager_sessionForIp6(header->ip6, bw->pub.sessionManager);
+    struct SessionTable_Session* sess =
+        SessionTable_sessionForIp6(header->ip6, bw->pub.sessionTable);
     if (!sess) {
         if (!Bits_isZero(header->publicKey, 32)) {
             sess =
-                SessionManager_getSession(header->ip6, header->publicKey, bw->pub.sessionManager);
+                SessionTable_getSession(header->ip6, header->publicKey, bw->pub.sessionTable);
         } else {
             return needsLookup(bw, msg);
         }
@@ -382,16 +382,16 @@ static int incomingFromEventIf(struct Interface_Two* iface, struct Message* msg)
     int index = Map_BufferedMessages_indexForKey(&ip6, &bw->bufMap);
 
     if (ev == Event_DISCOVERY) {
-        struct SessionManager_Session* sess;
+        struct SessionTable_Session* sess;
         if (index == -1) {
-            sess = SessionManager_sessionForIp6(ip6.bytes, bw->pub.sessionManager);
+            sess = SessionTable_sessionForIp6(ip6.bytes, bw->pub.sessionTable);
             // If we discovered a node we're not interested in ...
             if (!sess) { return 0; }
             Message_pop(msg, NULL, 32, NULL);
         } else {
             uint8_t publicKey[32];
             Message_pop(msg, publicKey, 32, NULL);
-            sess = SessionManager_getSession(ip6.bytes, publicKey, bw->pub.sessionManager);
+            sess = SessionTable_getSession(ip6.bytes, publicKey, bw->pub.sessionTable);
         }
 
         uint64_t path = Message_pop64(msg, NULL);
@@ -472,7 +472,7 @@ struct BalingWire* BalingWire_new(struct Allocator* alloc,
     EventEmitter_regIface(ee, &bw->eventIf, Event_SEARCH_BEGIN);
     EventEmitter_regIface(ee, &bw->eventIf, Event_SEARCH_END);
 
-    bw->pub.sessionManager = SessionManager_new(incomingFromSwitchPostCryptoAuth,
+    bw->pub.sessionTable = SessionTable_new(incomingFromSwitchPostCryptoAuth,
                                                 readyToSendPostCryptoAuth,
                                                 bw,
                                                 eventBase,

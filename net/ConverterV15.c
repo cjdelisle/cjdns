@@ -28,7 +28,7 @@
 struct ConverterV15_pvt
 {
     struct ConverterV15 pub;
-    struct SessionManager* sm;
+    struct SessionTable* sm;
     uint8_t myIp6[16];
     struct Log* log;
     Identity
@@ -47,7 +47,7 @@ static int incomingFromUpperDistributorIf(struct Interface_Two* upperDistributor
     Assert_true(msg->length >= DataHeader_SIZE + BalingWire_InsideHeader_SIZE);
 
     struct BalingWire_InsideHeader* hdr = (struct BalingWire_InsideHeader*) msg->bytes;
-    struct SessionManager_Session* sess = SessionManager_sessionForIp6(hdr->ip6, conv->sm);
+    struct SessionTable_Session* sess = SessionTable_sessionForIp6(hdr->ip6, conv->sm);
     if (!hdr->version && (!sess->version || sess->version > 15)) {
         // If nothing is known about a node, fuckit, assume it's new !
         return Interface_send(&conv->pub.balingWireIf, msg);
@@ -206,7 +206,7 @@ static int incomingFromBalingWireIf(struct Interface_Two* balingWireIf, struct M
 
 struct ConverterV15* ConverterV15_new(struct Allocator* alloc,
                                       struct Log* log,
-                                      struct SessionManager* sm,
+                                      struct SessionTable* sm,
                                       uint8_t myIp6[16])
 {
     struct ConverterV15_pvt* out = Allocator_calloc(alloc, sizeof(struct ConverterV15_pvt), 1);

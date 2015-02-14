@@ -12,7 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "interface/SessionManager.h"
+#include "net/SessionTable.h"
 #include "crypto/CryptoAuth.h"
 #include "crypto/AddressCalc.h"
 #include "interface/Interface.h"
@@ -41,10 +41,10 @@
 
 #define MAX_FIRST_HANDLE 100000
 
-struct SessionManager_Session_pvt
+struct SessionTable_Session_pvt
 {
-    struct SessionManager_Session pub;
-    struct SessionManager* const sm;
+    struct SessionTable_Session pub;
+    struct SessionTable* const sm;
     Identity
 };
 
@@ -54,15 +54,15 @@ struct Ip6
 };
 #define Map_NAME OfSessionsByIp6
 #define Map_KEY_TYPE struct Ip6
-#define Map_VALUE_TYPE struct SessionManager_Session_pvt*
+#define Map_VALUE_TYPE struct SessionTable_Session_pvt*
 #define Map_ENABLE_HANDLES
 #include "util/Map.h"
 
 
 /**
- * A SessionManager is a mechanism for getting a crypto session based on a given key.
+ * A SessionTable is a mechanism for getting a crypto session based on a given key.
  */
-struct SessionManager
+struct SessionTable
 {
     /** Trick interface which is used for receiving and sending to the inside/outside world. */
     struct Interface iface;
@@ -87,11 +87,11 @@ struct SessionManager
 
 static void cleanup(void* vsm)
 {
-    struct SessionManager* sm = (struct SessionManager*) vsm;
+    struct SessionTable* sm = (struct SessionTable*) vsm;
     uint64_t cutoffTime =
         Time_currentTimeMilliseconds(sm->eventBase) - (SESSION_TIMEOUT_SECONDS * 1000);
     for (uint32_t i = 0; i < sm->ifaceMap.count; i++) {
-        struct SessionManager_Session* sess = &sm->ifaceMap.values[i]->pub;
+        struct SessionTable_Session* sess = &sm->ifaceMap.values[i]->pub;
 
         // Received a message since cutoff time.
         if (sess->timeOfLastIn > cutoffTime) { continue; }
@@ -106,7 +106,7 @@ static void cleanup(void* vsm)
     }
 }
 
-static void check(struct SessionManager* sm, int mapIndex)
+static void check(struct SessionTable* sm, int mapIndex)
 {
     Assert_true(sm->ifaceMap.keys[mapIndex].bytes[0] == 0xfc);
     uint8_t* herPubKey = CryptoAuth_getHerPublicKey(sm->ifaceMap.values[mapIndex]->pub.internal);
@@ -117,7 +117,7 @@ static void check(struct SessionManager* sm, int mapIndex)
     }
 }
 
-static void stateChange(struct SessionManager_Session_pvt* ss,
+static void stateChange(struct SessionTable_Session_pvt* ss,
                         uint64_t prevTimeOfLastIn,
                         uint64_t prevTimeOfLastOut,
                         int prevCryptoAuthState)
@@ -126,8 +126,8 @@ static void stateChange(struct SessionManager_Session_pvt* ss,
 
 static uint8_t sendMessage(struct Message* msg, struct Interface* iface)
 {
-    struct SessionManager_Session_pvt* ss =
-        Identity_check((struct SessionManager_Session_pvt*)iface);
+    struct SessionTable_Session_pvt* ss =
+        Identity_check((struct SessionTable_Session_pvt*)iface);
 
     uint64_t timeOfLastOut = ss->pub.timeOfLastOut;
     ss->pub.timeOfLastOut = Time_currentTimeMilliseconds(ss->sm->eventBase);
@@ -144,8 +144,8 @@ static uint8_t sendMessage(struct Message* msg, struct Interface* iface)
 
 static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
 {
-    struct SessionManager_Session_pvt* ss =
-        Identity_check((struct SessionManager_Session_pvt*)iface->receiverContext);
+    struct SessionTable_Session_pvt* ss =
+        Identity_check((struct SessionTable_Session_pvt*)iface->receiverContext);
 
     uint64_t timeOfLastIn = ss->pub.timeOfLastIn;
     ss->pub.timeOfLastIn = Time_currentTimeMilliseconds(ss->sm->eventBase);
@@ -160,27 +160,27 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
     return Interface_receiveMessage(&ss->sm->iface, msg);
 }
 
-struct SessionManager_Session* SessionManager_sessionForIp6(uint8_t* lookupKey,
-                                                            struct SessionManager* sm)
+struct SessionTable_Session* SessionTable_sessionForIp6(uint8_t* lookupKey,
+                                                            struct SessionTable* sm)
 {
     int ifaceIndex = Map_OfSessionsByIp6_indexForKey((struct Ip6*)lookupKey, &sm->ifaceMap);
     if (ifaceIndex == -1) { return NULL; }
     check(sm, ifaceIndex);
-    struct SessionManager_Session_pvt* sess = Identity_check(sm->ifaceMap.values[ifaceIndex]);
+    struct SessionTable_Session_pvt* sess = Identity_check(sm->ifaceMap.values[ifaceIndex]);
     return &sess->pub;
 }
 
-struct SessionManager_Session* SessionManager_getSession(uint8_t* lookupKey,
+struct SessionTable_Session* SessionTable_getSession(uint8_t* lookupKey,
                                                          uint8_t cryptoKey[32],
-                                                         struct SessionManager* sm)
+                                                         struct SessionTable* sm)
 {
     Assert_true(cryptoKey);
-    struct SessionManager_Session* sess = SessionManager_sessionForIp6(lookupKey, sm);
+    struct SessionTable_Session* sess = SessionTable_sessionForIp6(lookupKey, sm);
     if (sess) { return sess; }
 
     struct Allocator* ifAlloc = Allocator_child(sm->allocator);
-    struct SessionManager_Session_pvt* ss =
-        Allocator_clone(ifAlloc, (&(struct SessionManager_Session_pvt) {
+    struct SessionTable_Session_pvt* ss =
+        Allocator_clone(ifAlloc, (&(struct SessionTable_Session_pvt) {
             .pub = {
                 .version = Version_DEFAULT_ASSUMPTION,
                 .external = {
@@ -218,8 +218,8 @@ struct SessionManager_Session* SessionManager_getSession(uint8_t* lookupKey,
     return &Identity_check(sm->ifaceMap.values[ifaceIndex])->pub;
 }
 
-struct SessionManager_Session* SessionManager_sessionForHandle(uint32_t handle,
-                                                               struct SessionManager* sm)
+struct SessionTable_Session* SessionTable_sessionForHandle(uint32_t handle,
+                                                               struct SessionTable* sm)
 {
     int index = Map_OfSessionsByIp6_indexForHandle(handle - sm->first, &sm->ifaceMap);
     if (index < 0) { return NULL; }
@@ -227,7 +227,7 @@ struct SessionManager_Session* SessionManager_sessionForHandle(uint32_t handle,
     return &Identity_check(sm->ifaceMap.values[index])->pub;
 }
 
-uint8_t* SessionManager_getIp6(uint32_t handle, struct SessionManager* sm)
+uint8_t* SessionTable_getIp6(uint32_t handle, struct SessionTable* sm)
 {
     int index = Map_OfSessionsByIp6_indexForHandle(handle - sm->first, &sm->ifaceMap);
     if (index < 0) { return NULL; }
@@ -235,11 +235,11 @@ uint8_t* SessionManager_getIp6(uint32_t handle, struct SessionManager* sm)
     return sm->ifaceMap.keys[index].bytes;
 }
 
-struct SessionManager_HandleList* SessionManager_getHandleList(struct SessionManager* sm,
+struct SessionTable_HandleList* SessionTable_getHandleList(struct SessionTable* sm,
                                                                struct Allocator* alloc)
 {
-    struct SessionManager_HandleList* out =
-        Allocator_malloc(alloc, sizeof(struct SessionManager_HandleList));
+    struct SessionTable_HandleList* out =
+        Allocator_malloc(alloc, sizeof(struct SessionTable_HandleList));
     uint32_t* buff = Allocator_malloc(alloc, 4 * sm->ifaceMap.count);
     Bits_memcpy(buff, sm->ifaceMap.handles, 4 * sm->ifaceMap.count);
     out->handles = buff;
@@ -250,7 +250,7 @@ struct SessionManager_HandleList* SessionManager_getHandleList(struct SessionMan
     return out;
 }
 
-struct SessionManager* SessionManager_new(Interface_Callback decryptedIncoming,
+struct SessionTable* SessionTable_new(Interface_Callback decryptedIncoming,
                                           Interface_Callback encryptedOutgoing,
                                           void* interfaceContext,
                                           struct EventBase* eventBase,
@@ -258,8 +258,8 @@ struct SessionManager* SessionManager_new(Interface_Callback decryptedIncoming,
                                           struct Random* rand,
                                           struct Allocator* allocator)
 {
-    struct SessionManager* sm = Allocator_malloc(allocator, sizeof(struct SessionManager));
-    Bits_memcpyConst(sm, (&(struct SessionManager) {
+    struct SessionTable* sm = Allocator_malloc(allocator, sizeof(struct SessionTable));
+    Bits_memcpyConst(sm, (&(struct SessionTable) {
         .iface = {
             .receiveMessage = decryptedIncoming,
             .receiverContext = interfaceContext,
@@ -275,7 +275,7 @@ struct SessionManager* SessionManager_new(Interface_Callback decryptedIncoming,
         .first = (Random_uint32(rand) % (MAX_FIRST_HANDLE - MIN_FIRST_HANDLE)) + MIN_FIRST_HANDLE,
         .cleanupInterval =
             Timeout_setInterval(cleanup, sm, 1000 * CLEANUP_CYCLE_SECONDS, eventBase, allocator)
-    }), sizeof(struct SessionManager));
+    }), sizeof(struct SessionTable));
 
     return sm;
 }

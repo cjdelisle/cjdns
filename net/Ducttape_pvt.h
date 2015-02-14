@@ -52,7 +52,7 @@ struct Ducttape_pvt
 
     struct Address myAddr;
 
-    struct SessionManager* sm;
+    struct SessionTable* sm;
 
     struct EventBase* eventBase;
 

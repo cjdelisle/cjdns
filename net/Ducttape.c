@@ -21,7 +21,7 @@
 #include "dht/dhtcore/RumorMill.h"
 #include "interface/tuntap/TUNMessageType.h"
 #include "interface/Interface.h"
-#include "interface/SessionManager.h"
+#include "net/SessionTable.h"
 #include "util/log/Log.h"
 #include "memory/Allocator.h"
 #include "net/Ducttape_pvt.h"
@@ -52,7 +52,7 @@
 /** Header must not be encrypted and must be aligned on the beginning of the ipv6 header. */
 static inline uint8_t sendToRouter(struct Message* message,
                                    struct Ducttape_MessageHeader* dtHeader,
-                                   struct SessionManager_Session* session,
+                                   struct SessionTable_Session* session,
                                    struct Ducttape_pvt* context)
 {
     int safeDistance = SwitchHeader_SIZE;
@@ -170,8 +170,8 @@ static int incomingFromDHTInterface(struct Interface_Two* dhtIf, struct Message*
     dtHeader->ip6Header = ip;
     dtHeader->switchLabel = addr.path;
 
-    struct SessionManager_Session* session =
-        SessionManager_getSession(addr.ip6.bytes, addr.key, ctx->sm);
+    struct SessionTable_Session* session =
+        SessionTable_getSession(addr.ip6.bytes, addr.key, ctx->sm);
 
     // At the router level, we never send anything to anyone w/o knowing their protocol version.
     session->version = addr.protocolVersion;
@@ -231,7 +231,7 @@ static inline bool isRouterTraffic(struct Message* message, struct Headers_IP6He
  */
 static inline uint8_t incomingForMe(struct Message* message,
                                     struct Ducttape_MessageHeader* dtHeader,
-                                    struct SessionManager_Session* session,
+                                    struct SessionTable_Session* session,
                                     struct Ducttape_pvt* context,
                                     uint8_t herPublicKey[32])
 {
@@ -322,7 +322,7 @@ uint8_t Ducttape_injectIncomingForMe(struct Message* message,
     dtHeader->ip6Header = &ip6;
     Message_shift(message, -Headers_IP6Header_SIZE, NULL);
 
-    struct SessionManager_Session s;
+    struct SessionTable_Session s;
     AddressCalc_addressForPublicKey(s.ip6, herPublicKey);
     s.version = Version_CURRENT_PROTOCOL;
 
@@ -335,7 +335,7 @@ uint8_t Ducttape_injectIncomingForMe(struct Message* message,
  */
 static inline uint8_t sendToSwitch(struct Message* message,
                                    struct Ducttape_MessageHeader* dtHeader,
-                                   struct SessionManager_Session* session,
+                                   struct SessionTable_Session* session,
                                    struct Ducttape_pvt* context)
 {
     uint64_t label = dtHeader->switchLabel;
@@ -447,8 +447,8 @@ static inline uint8_t incomingFromTun(struct Message* message,
     struct Ducttape_MessageHeader* dtHeader = getDtHeader(message, true);
     struct Node_Two* bestNext = Router_lookup(context->router, header->destinationAddr);
     if (bestNext && !Bits_memcmp(header->destinationAddr, bestNext->address.ip6.bytes, 16)) {
-        struct SessionManager_Session* sess =
-            SessionManager_getSession(bestNext->address.ip6.bytes,
+        struct SessionTable_Session* sess =
+            SessionTable_getSession(bestNext->address.ip6.bytes,
                                       bestNext->address.key,
                                       context->sm);
 
@@ -464,8 +464,8 @@ static inline uint8_t incomingFromTun(struct Message* message,
         return sendToRouter(message, dtHeader, sess, context);
     }
 
-    struct SessionManager_Session* session =
-        SessionManager_getSession(header->destinationAddr, NULL, context->sm);
+    struct SessionTable_Session* session =
+        SessionTable_getSession(header->destinationAddr, NULL, context->sm);
     if (session->knownSwitchLabel) {
         // Do a direct send using a discovered label...
         dtHeader->switchLabel = session->knownSwitchLabel;
@@ -483,8 +483,8 @@ static inline uint8_t incomingFromTun(struct Message* message,
         return Error_UNDELIVERABLE;
     }
 
-    struct SessionManager_Session* nextHopSession =
-        SessionManager_getSession(bestNext->address.ip6.bytes,
+    struct SessionTable_Session* nextHopSession =
+        SessionTable_getSession(bestNext->address.ip6.bytes,
                                   bestNext->address.key,
                                   context->sm);
 /*
@@ -554,8 +554,8 @@ static uint8_t sendToNode(struct Message* message, struct Interface* iface)
             Log_debug(context->logger, "Sending arbitrary data to [%s]", nhAddr);
         #endif*/
 
-        struct SessionManager_Session* session =
-            SessionManager_getSession(n->address.ip6.bytes, n->address.key, context->sm);
+        struct SessionTable_Session* session =
+            SessionTable_getSession(n->address.ip6.bytes, n->address.key, context->sm);
 
         n->address.protocolVersion = session->version =
             (n->address.protocolVersion > session->version)
@@ -564,8 +564,8 @@ static uint8_t sendToNode(struct Message* message, struct Interface* iface)
         dtHeader->switchLabel = n->address.path;
         return sendToRouter(message, dtHeader, session, context);
     } else {
-        struct SessionManager_Session* session =
-            SessionManager_getSession(header->nodeIp6Addr, header->nodeKey, context->sm);
+        struct SessionTable_Session* session =
+            SessionTable_getSession(header->nodeIp6Addr, header->nodeKey, context->sm);
         if (session->knownSwitchLabel) {
             dtHeader->switchLabel = session->knownSwitchLabel;
             return sendToRouter(message, dtHeader, session, context);
@@ -618,7 +618,7 @@ static uint8_t sendToTun(struct Message* message, struct Interface* iface)
  */
 static inline int core(struct Message* message,
                        struct Ducttape_MessageHeader* dtHeader,
-                       struct SessionManager_Session* session,
+                       struct SessionTable_Session* session,
                        struct Ducttape_pvt* context)
 {
     struct Headers_IP6Header* ip6Header = (struct Headers_IP6Header*) message->bytes;
@@ -630,8 +630,8 @@ static inline int core(struct Message* message,
         if (Bits_memcmp(session->ip6, ip6Header->sourceAddr, 16)) {
             // triple encrypted
             // This call goes to incomingForMe()
-            struct SessionManager_Session* session =
-                SessionManager_getSession(ip6Header->sourceAddr, NULL, context->sm);
+            struct SessionTable_Session* session =
+                SessionTable_getSession(ip6Header->sourceAddr, NULL, context->sm);
 
             /* Per packet logging...
             #ifdef Log_DEBUG
@@ -666,17 +666,17 @@ static inline int core(struct Message* message,
     }
     ip6Header->hopLimit--;
 
-    struct SessionManager_Session* nextHopSession = NULL;
+    struct SessionTable_Session* nextHopSession = NULL;
     if (!dtHeader->nextHopReceiveHandle || !dtHeader->switchLabel) {
         struct Node_Two* n = Router_lookup(context->router, ip6Header->destinationAddr);
         if (n) {
             nextHopSession =
-                SessionManager_getSession(n->address.ip6.bytes, n->address.key, context->sm);
+                SessionTable_getSession(n->address.ip6.bytes, n->address.key, context->sm);
             dtHeader->switchLabel = n->address.path;
         }
     } else {
         nextHopSession =
-            SessionManager_sessionForHandle(dtHeader->nextHopReceiveHandle, context->sm);
+            SessionTable_sessionForHandle(dtHeader->nextHopReceiveHandle, context->sm);
     }
 
     if (nextHopSession) {
@@ -722,7 +722,7 @@ static inline int core(struct Message* message,
  */
 static inline uint8_t outgoingFromMe(struct Message* message,
                                      struct Ducttape_MessageHeader* dtHeader,
-                                     struct SessionManager_Session* session,
+                                     struct SessionTable_Session* session,
                                      struct Ducttape_pvt* context)
 {
     // Move back to the beginning of the ip6Header behind the crypto.
@@ -757,7 +757,7 @@ static inline uint8_t outgoingFromMe(struct Message* message,
 
 static inline int incomingFromRouter(struct Message* message,
                                      struct Ducttape_MessageHeader* dtHeader,
-                                     struct SessionManager_Session* session,
+                                     struct SessionTable_Session* session,
                                      struct Ducttape_pvt* context)
 {
     uint8_t* pubKey = CryptoAuth_getHerPublicKey(session->internal);
@@ -792,8 +792,8 @@ static uint8_t incomingFromCryptoAuth(struct Message* message, struct Interface*
     struct Ducttape_MessageHeader* dtHeader = getDtHeader(message, false);
     enum Ducttape_SessionLayer layer = dtHeader->layer;
     dtHeader->layer = Ducttape_SessionLayer_INVALID;
-    struct SessionManager_Session* session =
-        SessionManager_sessionForHandle(dtHeader->receiveHandle, context->sm);
+    struct SessionTable_Session* session =
+        SessionTable_sessionForHandle(dtHeader->receiveHandle, context->sm);
 
     if (!session) {
         // This should never happen but there's no strong preventitive.
@@ -834,8 +834,8 @@ static uint8_t outgoingFromCryptoAuth(struct Message* message, struct Interface*
 {
     struct Ducttape_pvt* context = Identity_check((struct Ducttape_pvt*) iface->senderContext);
     struct Ducttape_MessageHeader* dtHeader = getDtHeader(message, false);
-    struct SessionManager_Session* session =
-        SessionManager_sessionForHandle(dtHeader->receiveHandle, context->sm);
+    struct SessionTable_Session* session =
+        SessionTable_sessionForHandle(dtHeader->receiveHandle, context->sm);
 
     enum Ducttape_SessionLayer layer = dtHeader->layer;
     dtHeader->layer = Ducttape_SessionLayer_INVALID;
@@ -885,7 +885,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
 
     uint32_t nonceOrHandle = Endian_bigEndianToHost32(((uint32_t*)message->bytes)[0]);
 
-    struct SessionManager_Session* session = NULL;
+    struct SessionTable_Session* session = NULL;
 
     if (nonceOrHandle > 3) {
         if (nonceOrHandle == 0xffffffff) {
@@ -895,7 +895,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
         Message_shift(message, -4, NULL);
 
         // Run message, it's a handle.
-        session = SessionManager_sessionForHandle(nonceOrHandle, context->sm);
+        session = SessionTable_sessionForHandle(nonceOrHandle, context->sm);
 
         if (session) {
             /*
@@ -915,7 +915,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
         AddressCalc_addressForPublicKey(ip6, herKey);
         // a packet which claims to be "from us" causes problems
         if (AddressCalc_validAddress(ip6) && Bits_memcmp(ip6, &context->myAddr, 16)) {
-            session = SessionManager_getSession(ip6, herKey, context->sm);
+            session = SessionTable_getSession(ip6, herKey, context->sm);
             debugHandlesAndLabel(context->logger, session,
                                  Endian_bigEndianToHost64(switchHeader->label_be),
                                  "new session nonce[%d]", nonceOrHandle);
@@ -969,10 +969,10 @@ static void checkStateOfSessions(void* vducttape)
     struct Ducttape_pvt* ctx = Identity_check((struct Ducttape_pvt*) vducttape);
     if (!ctx->sessionMill) { return; }
     struct Allocator* alloc = Allocator_child(ctx->alloc);
-    struct SessionManager_HandleList* handles = SessionManager_getHandleList(ctx->sm, alloc);
+    struct SessionTable_HandleList* handles = SessionTable_getHandleList(ctx->sm, alloc);
     for (int i = 0; i < (int)handles->count; i++) {
-        struct SessionManager_Session* sess =
-            SessionManager_sessionForHandle(handles->handles[i], ctx->sm);
+        struct SessionTable_Session* sess =
+            SessionTable_sessionForHandle(handles->handles[i], ctx->sm);
         if (sess->cryptoAuthState == CryptoAuth_ESTABLISHED) { continue; }
         if (!sess->knownSwitchLabel) { continue; }
         if (!sess->version) { continue; }
@@ -1020,14 +1020,14 @@ struct Ducttape* Ducttape_new(uint8_t privateKey[32],
     Bits_memcpyConst(context->myAddr.key, cryptoAuth->publicKey, 32);
     Address_getPrefix(&context->myAddr);
 
-    context->sm = SessionManager_new(incomingFromCryptoAuth,
+    context->sm = SessionTable_new(incomingFromCryptoAuth,
                                      outgoingFromCryptoAuth,
                                      context,
                                      eventBase,
                                      cryptoAuth,
                                      rand,
                                      allocator);
-    context->pub.sessionManager = context->sm;
+    context->pub.sessionTable = context->sm;
 
     context->pub.switchIf.sendMessage = incomingFromSwitch;
     context->pub.switchIf.allocator = allocator;

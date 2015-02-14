@@ -16,7 +16,7 @@
 #define BalingWire_H
 
 #include "interface/Interface.h"
-#include "interface/SessionManager.h"
+#include "net/SessionTable.h"
 #include "memory/Allocator.h"
 #include "net/Event.h"
 #include "net/EventEmitter.h"
@@ -51,7 +51,7 @@ struct BalingWire
      */
     struct Interface_Two insideIf;
 
-    struct SessionManager* sessionManager;
+    struct SessionTable* sessionTable;
 
     /**
      * Maximum number of packets to hold in buffer before summarily dropping...
