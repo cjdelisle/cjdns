@@ -12,16 +12,16 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef SessionTable_admin_H
-#define SessionTable_admin_H
+#ifndef SessionManager_admin_H
+#define SessionManager_admin_H
 
 #include "admin/Admin.h"
-#include "net/SessionTable.h"
+#include "net/SessionManager.h"
 #include "memory/Allocator.h"
 #include "util/Linker.h"
-Linker_require("net/SessionTable_admin.c")
+Linker_require("net/SessionManager_admin.c")
 
-void SessionTable_admin_register(struct SessionTable* sm,
+void SessionManager_admin_register(struct SessionManager* sm,
                                    struct Admin* admin,
                                    struct Allocator* alloc);
 

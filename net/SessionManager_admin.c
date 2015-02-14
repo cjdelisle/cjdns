@@ -20,26 +20,29 @@
 #include "crypto/ReplayProtector.h"
 #include "dht/Address.h"
 #include "net/SessionTable.h"
-#include "net/SessionTable_admin.h"
+#include "net/SessionManager_admin.h"
 #include "util/AddrTools.h"
+#include "util/Identity.h"
 
 struct Context
 {
     struct Allocator* alloc;
-    struct SessionTable* sm;
+    struct SessionManager* sm;
     struct Admin* admin;
+    Identity
 };
 
 // typical peer record is around 140 benc chars, so can't have very many in 1023
 #define ENTRIES_PER_PAGE 64
 static void getHandles(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
-    struct Context* context = vcontext;
+    struct Context* context = Identity_check((struct Context*) vcontext);
     struct Allocator* alloc = Allocator_child(context->alloc);
 
     int64_t* page = Dict_getInt(args, String_CONST("page"));
     uint32_t i = (page) ? *page * ENTRIES_PER_PAGE : 0;
-    struct SessionTable_HandleList* hList = SessionTable_getHandleList(context->sm, alloc);
+    struct SessionTable_HandleList* hList =
+        SessionTable_getHandleList(context->sm->sessionTable, alloc);
 
     List* list = List_new(alloc);
     for (int counter=0; i < hList->count && counter++ < ENTRIES_PER_PAGE; i++) {
@@ -65,12 +68,13 @@ static void sessionStats(Dict* args,
                          String* txid,
                          struct Allocator* alloc)
 {
-    struct Context* context = vcontext;
+    struct Context* context = Identity_check((struct Context*) vcontext);
     int64_t* handleP = Dict_getInt(args, String_CONST("handle"));
     uint32_t handle = *handleP;
 
-    struct SessionTable_Session* session = SessionTable_sessionForHandle(handle, context->sm);
-    uint8_t* ip6 = SessionTable_getIp6(handle, context->sm);
+    struct SessionTable_Session* session =
+        SessionTable_sessionForHandle(handle, context->sm->sessionTable);
+    uint8_t* ip6 = SessionTable_getIp6(handle, context->sm->sessionTable);
 
     Dict* r = Dict_new(alloc);
     if (!session) {
@@ -119,7 +123,7 @@ static void sessionStats(Dict* args,
     return;
 }
 
-void SessionTable_admin_register(struct SessionTable* sm,
+void SessionManager_admin_register(struct SessionManager* sm,
                                    struct Admin* admin,
                                    struct Allocator* alloc)
 {
@@ -128,13 +132,14 @@ void SessionTable_admin_register(struct SessionTable* sm,
         .sm = sm,
         .admin = admin
     }));
+    Identity_set(ctx);
 
-    Admin_registerFunction("SessionTable_getHandles", getHandles, ctx, true,
+    Admin_registerFunction("SessionManager_getHandles", getHandles, ctx, true,
         ((struct Admin_FunctionArg[]) {
             { .name = "page", .required = 0, .type = "Int" }
         }), admin);
 
-    Admin_registerFunction("SessionTable_sessionStats", sessionStats, ctx, true,
+    Admin_registerFunction("SessionManager_sessionStats", sessionStats, ctx, true,
         ((struct Admin_FunctionArg[]) {
             { .name = "handle", .required = 1, .type = "Int" }
         }), admin);

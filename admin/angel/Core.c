@@ -75,7 +75,7 @@
 #include "util/Security_admin.h"
 #include "util/Security.h"
 #include "util/version/Version.h"
-#include "net/SessionTable_admin.h"
+#include "net/SessionManager_admin.h"
 #include "wire/SwitchHeader.h"
 #include "wire/CryptoHeader.h"
 
@@ -472,7 +472,7 @@ void Core_init(struct Allocator* alloc,
 //    Core_admin_register(myAddr, dtAAAAAAAAAAAAAA, logger, ipTun, alloc, admin, eventBase);
     Security_admin_register(alloc, logger, admin);
     IpTunnel_admin_register(ipTun, admin, alloc);
-//    SessionTable_admin_register(dtAAAAAAAAAAAAAA->sessionTable, admin, alloc);
+    SessionManager_admin_register(sessionManager, admin, alloc);
     RainflyClient_admin_register(rainfly, admin, alloc);
     Allocator_admin_register(alloc, admin);
 
