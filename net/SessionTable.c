@@ -20,7 +20,6 @@
 #include "util/Bits.h"
 #include "util/events/Time.h"
 #include "util/events/Timeout.h"
-#include "util/version/Version.h"
 #include "wire/Error.h"
 #include "wire/Headers.h"
 #include "wire/Message.h"
@@ -182,7 +181,7 @@ struct SessionTable_Session* SessionTable_getSession(uint8_t* lookupKey,
     struct SessionTable_Session_pvt* ss =
         Allocator_clone(ifAlloc, (&(struct SessionTable_Session_pvt) {
             .pub = {
-                .version = Version_DEFAULT_ASSUMPTION,
+                .version = 0,
                 .external = {
                     .sendMessage = sendMessage,
                     .allocator = ifAlloc
