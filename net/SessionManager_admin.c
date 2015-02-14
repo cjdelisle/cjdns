@@ -32,7 +32,6 @@ struct Context
     Identity
 };
 
-// typical peer record is around 140 benc chars, so can't have very many in 1023
 #define ENTRIES_PER_PAGE 64
 static void getHandles(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
