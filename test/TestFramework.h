@@ -15,7 +15,6 @@
 #ifndef TestFramework_H
 #define TestFramework_H
 
-#include "net/Ducttape.h"
 #include "util/Linker.h"
 Linker_require("test/TestFramework.c")
 
@@ -26,7 +25,6 @@ struct TestFramework
     struct EventBase* eventBase;
     struct Log* logger;
     struct SwitchCore* switchCore;
-    struct Ducttape* ducttape;
     struct CryptoAuth* cryptoAuth;
     struct RouterModule* router;
     struct SwitchPinger* switchPinger;

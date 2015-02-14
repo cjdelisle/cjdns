@@ -15,7 +15,6 @@
 #include "crypto/AddressCalc.h"
 #include "memory/MallocAllocator.h"
 #include "memory/Allocator.h"
-#include "net/Ducttape.h"
 #include "util/CString.h"
 #include "wire/SwitchHeader.h"
 #include "test/TestFramework.h"

@@ -48,8 +48,13 @@ enum ContentType
     ContentType_IP6_UDPLITE =   136,
     ContentType_IP6_RAW =       255,
 
-    /** Bencoded inter-router CTRL messages. */
-    ContentType_CTRL =          256,
+    /** Bencoded inter-router DHT messages. */
+    ContentType_CJDHT =         256,
+    ContentType_IPTUN =         257,
+
+    /** Reserved for future allocation. */
+    ContentType_RESERVED =      258,
+    ContentType_RESERVED_MAX =  0x7fff,
 
     /**
      * Content types in the AVAILABLE range are not defined and can be used
@@ -57,14 +62,8 @@ enum ContentType
      * cjdns on other machines, providing they first agree on which numbers to use via
      * CTRL messages.
      */
-    ContentType_AVAILABLE =     257,
-    ContentType_AVAILABLE_MAX = 0xffff,
-
-    /**
-     * Numbers beyond 65535 are only usable for INTRA-node communication as they will
-     * not fit in a 16 bit DataHeader ContentType field.
-     */
-    ContentType_SWITCH =        0xffff + 1,
+    ContentType_AVAILABLE =     0x8000,
+    ContentType_MAX = 0xffff
 };
 
 #endif

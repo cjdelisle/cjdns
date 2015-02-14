@@ -18,45 +18,53 @@
 #include "net/EventEmitter.h"
 #include "util/Identity.h"
 
+#include <stdbool.h>
+
+#define ArrayList_TYPE struct Interface_Two*
+#define ArrayList_NAME Ifaces
+#include "util/ArrayList.h"
+
 struct EventEmitter_pvt
 {
     struct EventEmitter pub;
     struct Interface_Two trickIf;
     struct Allocator* alloc;
-    struct List_Ifaces* listTable[Event_INVALID];
+    struct ArrayList_Ifaces* listTable[Event_INVALID];
     Identity
 };
 
-static struct List_Ifaces* getHandlers(struct EventEmitter_pvt* ee enum Event ev, bool create)
+static struct ArrayList_Ifaces* getHandlers(struct EventEmitter_pvt* ee, enum Event ev, bool create)
 {
     // enums are signed D:
     ev &= 0xffff;
     if (ev >= Event_INVALID) { return NULL; }
-    struct List_Ifaces* out = ee->listTable[ev];
+    struct ArrayList_Ifaces* out = ee->listTable[ev];
     if (!out) {
-        out = ee->listTable[ev] = List_Ifaces_new(ee->alloc);
+        out = ee->listTable[ev] = ArrayList_Ifaces_new(ee->alloc);
     }
     return out;
 }
 
-int incoming(struct Interface_Two* trickIf, struct Message* msg)
+static int incoming(struct Interface_Two* trickIf, struct Message* msg)
 {
     struct EventEmitter_pvt* ee = Identity_containerOf(trickIf, struct EventEmitter_pvt, trickIf);
     Assert_true(msg->length >= 4);
-    Assert_true(!(msg->bytes % 4) && "alignment");
+    Assert_true(!((uintptr_t)msg->bytes % 4) && "alignment");
     enum Event ev = Message_pop32(msg, NULL);
-    struct List_Ifaces* handlers = getHandlers(ee, ev, false);
+    struct ArrayList_Ifaces* handlers = getHandlers(ee, ev, false);
     if (!handlers) { return 0; }
     for (int i = 0; i < handlers->length; i++) {
         struct Message* messageClone = msg;
         if (handlers->length > i+1) {
             // if only one handler, no need to copy the message...
-            messageClone = Message_clone(msg, msg->allocator);
+            messageClone = Message_clone(msg, msg->alloc);
         }
+        struct Interface_Two** iface = ArrayList_Ifaces_get(handlers, i);
         // We have to call this manually because we don't have an interface handy which is
         // actually plumbed with this one.
-        Assert_true(e->iface.send);
-        e->iface.send(&e->iface, messageClone);
+        Assert_true(iface[0]);
+        Assert_true(iface[0]->send);
+        iface[0]->send(iface[0], messageClone);
     }
     return 0;
 }
@@ -64,10 +72,10 @@ int incoming(struct Interface_Two* trickIf, struct Message* msg)
 void EventEmitter_regIface(struct EventEmitter* emitter, struct Interface_Two* iface, enum Event ev)
 {
     struct EventEmitter_pvt* ee = Identity_check((struct EventEmitter_pvt*) emitter);
-    iface->connectedIf = ee->trickIf;
-    struct List_Ifaces* l = getHandlers(ee, ev, true);
+    iface->connectedIf = &ee->trickIf;
+    struct ArrayList_Ifaces* l = getHandlers(ee, ev, true);
     if (!l) { return; }
-    List_Ifaces_add(l, iface);
+    ArrayList_Ifaces_add(l, &iface);
 }
 
 struct EventEmitter* EventEmitter_new(struct Allocator* alloc)
@@ -75,6 +83,6 @@ struct EventEmitter* EventEmitter_new(struct Allocator* alloc)
     struct EventEmitter_pvt* ee = Allocator_calloc(alloc, sizeof(struct EventEmitter_pvt), 1);
     ee->alloc = alloc;
     ee->trickIf.send = incoming;
-    Identity_set(br);
-    return &br->pub;
+    Identity_set(ee);
+    return &ee->pub;
 }

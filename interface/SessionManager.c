@@ -147,9 +147,6 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
     struct SessionManager_Session_pvt* ss =
         Identity_check((struct SessionManager_Session_pvt*)iface->receiverContext);
 
-    // nonce added by CryptoAuth
-    Message_pop(msg, NULL, 4, NULL);
-
     uint64_t timeOfLastIn = ss->pub.timeOfLastIn;
     ss->pub.timeOfLastIn = Time_currentTimeMilliseconds(ss->sm->eventBase);
     int prevState = ss->pub.cryptoAuthState;
@@ -163,54 +160,58 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
     return Interface_receiveMessage(&ss->sm->iface, msg);
 }
 
+struct SessionManager_Session* SessionManager_sessionForIp6(uint8_t* lookupKey,
+                                                            struct SessionManager* sm)
+{
+    int ifaceIndex = Map_OfSessionsByIp6_indexForKey((struct Ip6*)lookupKey, &sm->ifaceMap);
+    if (ifaceIndex == -1) { return NULL; }
+    check(sm, ifaceIndex);
+    struct SessionManager_Session_pvt* sess = Identity_check(sm->ifaceMap.values[ifaceIndex]);
+    return &sess->pub;
+}
+
 struct SessionManager_Session* SessionManager_getSession(uint8_t* lookupKey,
                                                          uint8_t cryptoKey[32],
                                                          struct SessionManager* sm)
 {
-    int ifaceIndex = Map_OfSessionsByIp6_indexForKey((struct Ip6*)lookupKey, &sm->ifaceMap);
-    if (ifaceIndex == -1) {
-        struct Allocator* ifAlloc = Allocator_child(sm->allocator);
-        struct SessionManager_Session_pvt* ss =
-            Allocator_clone(ifAlloc, (&(struct SessionManager_Session_pvt) {
-                .pub = {
-                    .version = Version_DEFAULT_ASSUMPTION,
-                    .external = {
-                        .sendMessage = sendMessage,
-                        .allocator = ifAlloc
-                    },
+    Assert_true(cryptoKey);
+    struct SessionManager_Session* sess = SessionManager_sessionForIp6(lookupKey, sm);
+    if (sess) { return sess; }
+
+    struct Allocator* ifAlloc = Allocator_child(sm->allocator);
+    struct SessionManager_Session_pvt* ss =
+        Allocator_clone(ifAlloc, (&(struct SessionManager_Session_pvt) {
+            .pub = {
+                .version = Version_DEFAULT_ASSUMPTION,
+                .external = {
+                    .sendMessage = sendMessage,
+                    .allocator = ifAlloc
                 },
-                .sm = sm
-            }));
-        Identity_set(ss);
+            },
+            .sm = sm
+        }));
+    Identity_set(ss);
 
-        ss->pub.timeOfCreation = Time_currentTimeMilliseconds(sm->eventBase);
+    ss->pub.timeOfCreation = Time_currentTimeMilliseconds(sm->eventBase);
 
-        // const hack
-        Bits_memcpyConst((void*)&ss->pub.external.senderContext, &ss, sizeof(char*));
+    // const hack
+    Bits_memcpyConst((void*)&ss->pub.external.senderContext, &ss, sizeof(char*));
 
-        Bits_memcpyConst(ss->pub.ip6, lookupKey, 16);
-        ss->pub.internal = CryptoAuth_wrapInterface(&ss->pub.external,
-                                                    cryptoKey,
-                                                    lookupKey,
-                                                    false,
-                                                    "inner",
-                                                    sm->cryptoAuth);
+    Bits_memcpyConst(ss->pub.ip6, lookupKey, 16);
+    ss->pub.internal = CryptoAuth_wrapInterface(&ss->pub.external,
+                                                cryptoKey,
+                                                lookupKey,
+                                                false,
+                                                "inner",
+                                                sm->cryptoAuth);
 
-        ss->pub.internal->receiveMessage = receiveMessage;
-        ss->pub.internal->receiverContext = ss;
+    ss->pub.internal->receiveMessage = receiveMessage;
+    ss->pub.internal->receiverContext = ss;
 
-        ifaceIndex = Map_OfSessionsByIp6_put((struct Ip6*)lookupKey, &ss, &sm->ifaceMap);
+    int ifaceIndex = Map_OfSessionsByIp6_put((struct Ip6*)lookupKey, &ss, &sm->ifaceMap);
 
-        ss->pub.receiveHandle_be =
-            Endian_hostToBigEndian32(sm->ifaceMap.handles[ifaceIndex] + sm->first);
-
-    } else {
-        uint8_t* herPubKey =
-            CryptoAuth_getHerPublicKey(sm->ifaceMap.values[ifaceIndex]->pub.internal);
-        if (Bits_isZero(herPubKey, 32) && cryptoKey) {
-            Bits_memcpyConst(herPubKey, cryptoKey, 32);
-        }
-    }
+    ss->pub.receiveHandle_be =
+        Endian_hostToBigEndian32(sm->ifaceMap.handles[ifaceIndex] + sm->first);
 
     check(sm, ifaceIndex);
 

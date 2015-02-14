@@ -12,27 +12,30 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef EventEmitter_H
-#define EventEmitter_H
+#ifndef UpperDistributor_H
+#define UpperDistributor_H
 
 #include "interface/Interface.h"
 #include "memory/Allocator.h"
-#include "net/Event.h"
+#include "util/log/Log.h"
 #include "util/Linker.h"
-Linker_require("net/EventEmitter.c")
-
-struct EventEmitter
-{
-    int unused;
-};
+Linker_require("net/UpperDistributor.c")
 
 /**
- * Register an interface to listen for and fire events.
- * The same interface may be registered multiple times.
- * If you only intend to fire events, just register with Event_INVALID.
+ * Connects the TUN, DHT and IpTunnel (and other?) handlers to the BalingWire.
+ * All packets must have BalingWire_UpperHeader on them.
  */
-void EventEmitter_regIface(struct EventEmitter* ee, struct Interface_Two* iface, enum Event ev);
+struct UpperDistributor
+{
+    struct Interface_Two balingWireIf;
 
-struct EventEmitter* EventEmitter_new(struct Allocator* alloc);
+    struct Interface_Two dhtIf;
+
+    struct Interface_Two tunIf;
+
+    struct Interface_Two ipTunnelIf;
+};
+
+struct UpperDistributor* UpperDistributor_new(struct Allocator* alloc, struct Log* log);
 
 #endif

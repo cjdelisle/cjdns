@@ -305,13 +305,23 @@ Version_COMPAT(14, ([12,13]))
 Version_COMPAT(15, ([12,13,14]))
 
 /**
+ * Version 16:
+ * February 13, 2014
+ *
+ * Verschlumbesserung
+ * 
+ */
+Version_COMPAT(16, ([12,13,14,15]))
+
+/**
  * The current protocol version.
  */
-#define Version_CURRENT_PROTOCOL 15
+#define Version_CURRENT_PROTOCOL 16
 #define Version_12_COMPAT
 #define Version_13_COMPAT
 #define Version_14_COMPAT
 #define Version_15_COMPAT
+#define Version_16_COMPAT
 
 #define Version_MINIMUM_COMPATIBLE 12
 #define Version_DEFAULT_ASSUMPTION 12

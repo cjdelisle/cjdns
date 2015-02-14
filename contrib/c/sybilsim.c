@@ -16,6 +16,7 @@
 #include "benc/serialization/standard/BencMessageWriter.h"
 #include "benc/serialization/json/JsonBencSerializer.h"
 #include "benc/serialization/BencSerializer.h"
+#include "benc/List.h"
 #include "io/ArrayReader.h"
 #include "admin/angel/Core.h"
 #include "admin/AdminClient.h"

@@ -20,7 +20,6 @@
 #include "util/Checksum.h"
 #include "util/log/WriterLog.h"
 #include "test/TestFramework.h"
-#include "net/Ducttape_pvt.h"
 #include "wire/Headers.h"
 #include "wire/Ethernet.h"
 #include "interface/tuntap/TUNMessageType.h"

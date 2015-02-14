@@ -54,11 +54,13 @@
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
 #include "memory/Allocator_admin.h"
-#include "net/Ducttape.h"
 #include "interface/InterfaceController.h"
 #include "net/SwitchPinger.h"
 #include "net/SwitchPinger_admin.h"
 #include "net/ControlHandler.h"
+#include "net/EventEmitter.h"
+#include "net/BalingWire.h"
+#include "net/SwitchAdapter.h"
 #include "switch/SwitchCore.h"
 #include "tunnel/IpTunnel.h"
 #include "tunnel/IpTunnel_admin.h"
@@ -195,7 +197,6 @@ static void angelDied(struct Pipe* p, int status)
 struct Core_Context
 {
     struct Sockaddr* ipAddr;
-    struct Ducttape* ducttape;
     struct Log* logger;
     struct Allocator* alloc;
     struct Admin* admin;
@@ -222,7 +223,6 @@ static void initTunnel(Dict* args, void* vcontext, String* txid, struct Allocato
         Core_initTunnel(Dict_getString(args, String_CONST("desiredTunName")),
                         ctx->ipAddr,
                         8,
-                        ctx->ducttape,
                         ctx->logger,
                         ctx->ipTunnel,
                         ctx->eventBase,
@@ -238,7 +238,6 @@ static void initTunnel(Dict* args, void* vcontext, String* txid, struct Allocato
 }
 
 void Core_admin_register(struct Sockaddr* ipAddr,
-                         struct Ducttape* dt,
                          struct Log* logger,
                          struct IpTunnel* ipTunnel,
                          struct Allocator* alloc,
@@ -247,7 +246,6 @@ void Core_admin_register(struct Sockaddr* ipAddr,
 {
     struct Core_Context* ctx = Allocator_malloc(alloc, sizeof(struct Core_Context));
     ctx->ipAddr = ipAddr;
-    ctx->ducttape = dt;
     ctx->logger = logger;
     ctx->alloc = alloc;
     ctx->admin = admin;
@@ -273,7 +271,6 @@ static Dict* getInitialConfig(struct Interface* iface,
 void Core_initTunnel(String* desiredDeviceName,
                      struct Sockaddr* addr,
                      uint8_t addressPrefix,
-                     struct Ducttape* dt,
                      struct Log* logger,
                      struct IpTunnel* ipTunnel,
                      struct EventBase* eventBase,
@@ -282,18 +279,19 @@ void Core_initTunnel(String* desiredDeviceName,
 {
     Log_debug(logger, "Initializing TUN device [%s]",
               (desiredDeviceName) ? desiredDeviceName->bytes : "<auto>");
-
+Assert_true(0);
+/*
     char assignedTunName[TUNInterface_IFNAMSIZ];
     char* desiredName = (desiredDeviceName) ? desiredDeviceName->bytes : NULL;
+
     struct Interface* tun =
         TUNInterface_new(desiredName, assignedTunName, 0, eventBase, logger, eh, alloc);
 
     IpTunnel_setTunName(assignedTunName, ipTunnel);
 
-    Ducttape_setUserInterface(dt, tun);
-
     NetDev_addAddress(assignedTunName, addr, addressPrefix, logger, eh);
     NetDev_setMTU(assignedTunName, DEFAULT_MTU, logger, eh);
+*/
 }
 
 /** This is a response from a call which is intended only to send information to the angel. */
@@ -370,13 +368,16 @@ void Core_init(struct Allocator* alloc,
         logger = adminLogger;
     }
 
+    // EventEmitter
+    struct EventEmitter* eventEmitter = EventEmitter_new(alloc);
+
     // CryptoAuth
     struct Address* addr = Allocator_calloc(alloc, sizeof(struct Address), 1);
     addr->protocolVersion = Version_CURRENT_PROTOCOL;
     parsePrivateKey(privateKey, addr, eh);
     struct CryptoAuth* cryptoAuth = CryptoAuth_new(alloc, privateKey, eventBase, logger, rand);
 
-    struct Sockaddr* myAddr = Sockaddr_fromBytes(addr->ip6.bytes, Sockaddr_AF_INET6, alloc);
+    /*struct Sockaddr* myAddr = */Sockaddr_fromBytes(addr->ip6.bytes, Sockaddr_AF_INET6, alloc);
 
     struct SwitchCore* switchCore = SwitchCore_new(logger, alloc, eventBase);
     struct DHTModuleRegistry* registry = DHTModuleRegistry_new(alloc);
@@ -421,16 +422,18 @@ void Core_init(struct Allocator* alloc,
 
     struct Router* router = Router_new(routerModule, nodeStore, searchRunner, alloc);
 
-    struct Ducttape* dt =
-        Ducttape_new(privateKey, router, eventBase, alloc, logger, ipTun, rand, rumorMill);
+    struct BalingWire* balingWire =
+        BalingWire_new(alloc, eventBase, cryptoAuth, rand, logger, eventEmitter);
 
-    SwitchCore_setRouterInterface(&dt->switchIf, switchCore);
-
-    struct DHTCoreInterface* dhtCore = DHTCoreInterface_register(alloc, logger, registry);
-    Interface_plumb(&dhtCore->coreIf, &dt->dhtIf);
+    struct SwitchAdapter* switchAdapter = SwitchAdapter_new(alloc, logger);
+    Interface_plumb(&balingWire->switchIf, &switchAdapter->balingWireIf);
+    SwitchCore_setRouterInterface(&switchAdapter->switchIf, switchCore);
 
     struct ControlHandler* controlHandler = ControlHandler_new(alloc, logger, router, addr);
-    Interface_plumb(&controlHandler->coreIf, &dt->controlIf);
+    Interface_plumb(&controlHandler->coreIf, &switchAdapter->controlIf);
+
+    /*struct DHTCoreInterface* dhtCore =*/ DHTCoreInterface_register(alloc, logger, registry);
+    // TODO...
 
     struct SwitchPinger* sp = SwitchPinger_new(eventBase, rand, logger, addr, alloc);
     Interface_plumb(&controlHandler->switchPingerIf, &sp->controlHandlerIf);
@@ -450,7 +453,7 @@ void Core_init(struct Allocator* alloc,
     Assert_true(!Sockaddr_parse("[fc00::1]:53", &rainflyAddr));
     struct PacketHeaderToUDPAddrInterface* magicUDP =
         PacketHeaderToUDPAddrInterface_new(alloc, &rainflyAddr.addr);
-    Interface_plumb(&magicUDP->headerIf, &dt->magicIf);
+//    Interface_plumb(&magicUDP->headerIf, &dtAAAAAAAAAAAAAA->magicIf);
     DNSServer_new(&magicUDP->udpIf, logger, rainfly);
 
 
@@ -466,10 +469,10 @@ void Core_init(struct Allocator* alloc,
     SearchRunner_admin_register(searchRunner, admin, alloc);
     AuthorizedPasswords_init(admin, cryptoAuth, alloc);
     Admin_registerFunction("ping", adminPing, admin, false, NULL, admin);
-    Core_admin_register(myAddr, dt, logger, ipTun, alloc, admin, eventBase);
+//    Core_admin_register(myAddr, dtAAAAAAAAAAAAAA, logger, ipTun, alloc, admin, eventBase);
     Security_admin_register(alloc, logger, admin);
     IpTunnel_admin_register(ipTun, admin, alloc);
-    SessionManager_admin_register(dt->sessionManager, admin, alloc);
+//    SessionManager_admin_register(dtAAAAAAAAAAAAAA->sessionManager, admin, alloc);
     RainflyClient_admin_register(rainfly, admin, alloc);
     Allocator_admin_register(alloc, admin);
 

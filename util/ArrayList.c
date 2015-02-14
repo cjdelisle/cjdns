@@ -49,7 +49,7 @@ void* ArrayList_get(void* vlist, int number)
 int ArrayList_put(void* vlist, int number, void* val)
 {
     struct ArrayList_pvt* list = Identity_check((struct ArrayList_pvt*) vlist);
-    if (number < 0 || number > list->length) { return -1; }
+    Assert_true(number >= 0 && number <= list->length);
     if (number >= list->capacity) {
         int capacity = list->capacity * 2;
         list->elements = Allocator_realloc(list->alloc, list->elements, capacity);

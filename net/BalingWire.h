@@ -12,19 +12,21 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef BailingWire_H
-#define BailingWire_H
+#ifndef BalingWire_H
+#define BalingWire_H
 
 #include "interface/Interface.h"
 #include "interface/SessionManager.h"
 #include "memory/Allocator.h"
 #include "net/Event.h"
 #include "net/EventEmitter.h"
+#include "wire/SwitchHeader.h"
+#include "wire/CryptoHeader.h"
 #include "util/Linker.h"
-Linker_require("net/BailingWire.c")
+Linker_require("net/BalingWire.c")
 
 /**
- * Called BailingWire because I can't think of what this should be called.
+ * Called BalingWire because I can't think of what this should be called.
  * Purpose of this module is to take packets from "the inside" which contain ipv6 address and
  * skeleton switch header and find an appropriate CryptoAuth session for them or begin one.
  * If a key for this node cannot be found then the packet will be blocked and a search will be
@@ -33,14 +35,14 @@ Linker_require("net/BailingWire.c")
  * already buffered, the packet will be dropped instead).
  * Incoming messages from the outside will be decrypted and their key and path will be stored.
  */
-struct BailingWire
+struct BalingWire
 {
     /** Sends and handles packets prepped to/from switch. */
     struct Interface_Two switchIf;
 
     /**
-     * Sends and handles packets with BailingWire_InsideHeader on top.
-     * When sending a packet to BailingWire:
+     * Sends and handles packets with BalingWire_InsideHeader on top.
+     * When sending a packet to BalingWire:
      *     header.sh.label_be may be zero
      *     version may be zero
      *     publicKey may be zero
@@ -49,14 +51,28 @@ struct BailingWire
      */
     struct Interface_Two insideIf;
 
+    struct SessionManager* sessionManager;
+
     /**
      * Maximum number of packets to hold in buffer before summarily dropping...
      */
+    #define BalingWire_MAX_BUFFERED_MESSAGES_DEFAULT 30
     int maxBufferedMessages;
+
+    /**
+     * Number of milliseconds it takes for metric to halve (value of UINT32_MAX - metric halves)
+     * This allows less good routes to supplant better ones if the "better" ones have not been
+     * tested in a long time (maybe down).
+     */
+    #define BalingWire_METRIC_HALFLIFE_MILLISECONDS_DEFAULT 250000
+    uint32_t metricHalflifeMilliseconds;
 };
 
-struct BailingWire_InsideHeader
+struct BalingWire_InsideHeader
 {
+    /** public key of peer node, 0 if unknown, always send from BailingWire. */
+    uint8_t publicKey[32];
+
     /**
      * The switch header to use.
      * label_be may be zero if unknown.
@@ -64,30 +80,26 @@ struct BailingWire_InsideHeader
      */
     struct SwitchHeader sh;
 
-    /** Protocol version of peer node, 0 if unknown. */
+    /** Protocol version of peer node, 0 if unknown, sometimes 0 from BailingWire. */
     uint32_t version;
+
+    /**
+     * Create a layout which puts the SwitchHeader 24 bytes behind the end of the header
+     * allowing it to be in exactly the right place after encryption.
+     */
+    uint32_t pad;
 
     /** IPv6 of peer node REQUIRED */
     uint8_t ip6[16];
-
-    /** public key of peer node. */
-    uint8_t publicKey[32];
-
-    /** 0 if the publicKey is unknown and 'publicKey' holds nothing of value. */
-    uint32_t publicKeyKnown;
-
-    /**
-     * Pads out the size of the inside header to prevent the SwitchHeader possibly being
-     * clobbered by the cryptoAuth so that the switch header will not be clobbered.
-     * Largest overhead:  [ CryptoHeader ][ encrypted Handle (4) ][ encrypted content ..... ]
-     */
-    uint8_t padding[68];
 };
-#define BailingWire_InsideHeader_SIZE (CryptoHeader_SIZE + 4 + SwitchHeader_SIZE)
-Assert_compileTime(BailingWire_InsideHeader_SIZE == sizeof(struct BailingWire_InsideHeader));
+#define BalingWire_InsideHeader_SIZE (56 + SwitchHeader_SIZE)
+Assert_compileTime(BalingWire_InsideHeader_SIZE == sizeof(struct BalingWire_InsideHeader));
 
-struct BailingWire* BailingWire_new(struct Allocator* alloc,
-                                    struct SessionManager* sm,
-                                    struct EventEmitter* ee);
+struct BalingWire* BalingWire_new(struct Allocator* alloc,
+                                  struct EventBase* eventBase,
+                                  struct CryptoAuth* cryptoAuth,
+                                  struct Random* rand,
+                                  struct Log* log,
+                                  struct EventEmitter* ee);
 
 #endif

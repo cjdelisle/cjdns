@@ -12,27 +12,32 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef EventEmitter_H
-#define EventEmitter_H
+#ifndef ConverterV15_H
+#define ConverterV15_H
 
 #include "interface/Interface.h"
 #include "memory/Allocator.h"
-#include "net/Event.h"
+#include "interface/SessionManager.h"
+#include "util/log/Log.h"
 #include "util/Linker.h"
-Linker_require("net/EventEmitter.c")
-
-struct EventEmitter
-{
-    int unused;
-};
+Linker_require("net/ConverterV15.c")
 
 /**
- * Register an interface to listen for and fire events.
- * The same interface may be registered multiple times.
- * If you only intend to fire events, just register with Event_INVALID.
+ * Convert between v15 version packets which contained full IPv6 headers and v16+ packets with
+ * cjdns DataHeader.
  */
-void EventEmitter_regIface(struct EventEmitter* ee, struct Interface_Two* iface, enum Event ev);
+struct ConverterV15
+{
+    /** talks v15 */
+    struct Interface_Two balingWireIf;
 
-struct EventEmitter* EventEmitter_new(struct Allocator* alloc);
+    /** talks v16 */
+    struct Interface_Two upperDistributorIf;
+};
+
+struct ConverterV15* ConverterV15_new(struct Allocator* alloc,
+                                      struct Log* log,
+                                      struct SessionManager* sm,
+                                      uint8_t myIp6[16]);
 
 #endif

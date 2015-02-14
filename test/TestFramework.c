@@ -34,6 +34,12 @@
 #include "net/SwitchPinger.h"
 #include "net/ControlHandler.h"
 #include "interface/InterfaceController.h"
+#include "tunnel/IpTunnel.h"
+#include "net/EventEmitter.h"
+#include "net/BalingWire.h"
+#include "net/SwitchAdapter.h"
+#include "net/ConverterV15.h"
+#include "net/UpperDistributor.h"
 
 #include "crypto_scalarmult_curve25519.h"
 
@@ -142,21 +148,31 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
 
     SerializationModule_register(registry, logger, allocator);
 
-    struct IpTunnel* ipTun = IpTunnel_new(logger, base, allocator, rand, NULL);
+    /*struct IpTunnel* ipTun = */IpTunnel_new(logger, base, allocator, rand, NULL);
 
     struct Router* router = Router_new(routerModule, nodeStore, searchRunner, allocator);
 
-    struct Ducttape* dt =
-        Ducttape_new((uint8_t*)privateKey, router, base, allocator, logger, ipTun, rand, rumorMill);
+    struct EventEmitter* eventEmitter = EventEmitter_new(allocator);
 
-    SwitchCore_setRouterInterface(&dt->switchIf, switchCore);
+    struct BalingWire* balingWire = BalingWire_new(allocator, base, ca, rand, logger, eventEmitter);
+    struct SwitchAdapter* switchAdapter = SwitchAdapter_new(allocator, logger);
+    Interface_plumb(&switchAdapter->balingWireIf, &balingWire->switchIf);
+
+    SwitchCore_setRouterInterface(&switchAdapter->switchIf, switchCore);
+
+    struct ConverterV15* v15conv =
+        ConverterV15_new(allocator, logger, balingWire->sessionManager, myAddress->ip6.bytes);
+    Interface_plumb(&v15conv->balingWireIf, &balingWire->insideIf);
+
+    struct UpperDistributor* upper = UpperDistributor_new(allocator, logger);
+    Interface_plumb(&v15conv->upperDistributorIf, &upper->balingWireIf);
 
     struct DHTCoreInterface* dhtCore = DHTCoreInterface_register(allocator, logger, registry);
-    Interface_plumb(&dhtCore->coreIf, &dt->dhtIf);
+    Interface_plumb(&dhtCore->coreIf, &upper->dhtIf);
 
     struct ControlHandler* controlHandler =
         ControlHandler_new(allocator, logger, router, myAddress);
-    Interface_plumb(&controlHandler->coreIf, &dt->controlIf);
+    Interface_plumb(&controlHandler->coreIf, &switchAdapter->controlIf);
 
     struct SwitchPinger* sp = SwitchPinger_new(base, rand, logger, myAddress, allocator);
     Interface_plumb(&controlHandler->switchPingerIf, &sp->controlHandlerIf);
@@ -172,7 +188,6 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
         .eventBase = base,
         .logger = logger,
         .switchCore = switchCore,
-        .ducttape = dt,
         .cryptoAuth = ca,
         .router = routerModule,
         .switchPinger = sp,

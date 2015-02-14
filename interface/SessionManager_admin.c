@@ -107,8 +107,7 @@ static void sessionStats(Dict* args,
     Dict_putInt(r, String_CONST("version"), session->version, alloc);
     Dict_putInt(r, String_CONST("handle"),
                 Endian_bigEndianToHost32(session->receiveHandle_be), alloc);
-    Dict_putInt(r, String_CONST("sendHandle"),
-                Endian_bigEndianToHost32(session->sendHandle_be), alloc);
+    Dict_putInt(r, String_CONST("sendHandle"), session->sendHandle, alloc);
 
     Dict_putInt(r, String_CONST("timeOfLastIn"), session->timeOfLastIn, alloc);
     Dict_putInt(r, String_CONST("timeOfLastOut"), session->timeOfLastOut, alloc);

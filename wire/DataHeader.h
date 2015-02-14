@@ -23,27 +23,15 @@
  *                     1               2               3
  *     0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
  *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *  0 | ver |R| unused|    unused     |         Content Type          |
+ *  0 |  ver  | unusd |     unused    |         Content Type          |
  *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  *
- * The DataHeader is protected from the switches by the l2 encryption layer and from the
- * routers by the l3 layer of encryption. It's primary uses are to tell the endpoint enough
- * information to route the packet to the correct cjdns subsystem and (maybe) reconstruct
- * the IPv6 header.
+ * The DataHeader is protected from the switches by the l2 encryption layer.
+ * It's primary use is to tell the endpoint the protocol of the content.
  */
 struct DataHeader
 {
-    /**
-     * If set, the receiving node should respond within 10 milliseconds, if in the next 10
-     * milliseconds it has something else to send back, this is acceptable, otherwise it should
-     * synthisize a packet to respond with.
-     */
-    #define DataHeader_RESPOND_TO_ME (1<<7)
-
-    /**
-     * Version is set to DataHeader_CURRENT_VERSION version.
-     * If the number is over 255, it wraps
-     */
+    /** Version is set to DataHeader_CURRENT_VERSION version. */
     uint8_t versionAndFlags;
 
     uint8_t unused;
@@ -63,29 +51,18 @@ static inline enum ContentType DataHeader_getContentType(struct DataHeader* hdr)
 
 static inline void DataHeader_setContentType(struct DataHeader* hdr, enum ContentType type)
 {
-    Assert_true(type <= DataHeader_ContentType_AVAILABLE_MAX);
+    Assert_true(type <= 0xffff);
     hdr->contentType_be = Endian_hostToBigEndian16(type);
-}
-
-static inline void DataHeader_setRespondToMe(struct DataHeader* hdr, bool rtm)
-{
-    type->versionAndFlags = (type->versionAndFlags & ~DataHeader_RESPOND_TO_ME) |
-        (rtm) ? DataHeader_RESPOND_TO_ME : 0;
-}
-
-static inline bool DataHeader_getRespondToMe(struct DataHeader* hdr)
-{
-    return type->versionAndFlags & DataHeader_RESPOND_TO_ME;
 }
 
 static inline void DataHeader_setVersion(struct DataHeader* hdr, uint8_t version)
 {
-    type->versionAndFlags = (type->versionAndFlags & 0x1f) | ((version % 8) << 5);
+    hdr->versionAndFlags = (hdr->versionAndFlags & 0x0f) | (version << 4);
 }
 
 static inline uint8_t DataHeader_getVersion(struct DataHeader* hdr)
 {
-    return type->versionAndFlags >> 5;
+    return hdr->versionAndFlags >> 4;
 }
 
 #endif

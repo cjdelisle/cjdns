@@ -12,27 +12,36 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef EventEmitter_H
-#define EventEmitter_H
+#ifndef SwitchAdapter_H
+#define SwitchAdapter_H
 
 #include "interface/Interface.h"
 #include "memory/Allocator.h"
-#include "net/Event.h"
+#include "util/log/Log.h"
 #include "util/Linker.h"
-Linker_require("net/EventEmitter.c")
-
-struct EventEmitter
-{
-    int unused;
-};
+Linker_require("net/SwitchAdapter.c")
 
 /**
- * Register an interface to listen for and fire events.
- * The same interface may be registered multiple times.
- * If you only intend to fire events, just register with Event_INVALID.
+ * Connects the actual switch interface to the BalingWire and the ControlHandler.
  */
-void EventEmitter_regIface(struct EventEmitter* ee, struct Interface_Two* iface, enum Event ev);
+struct SwitchAdapter
+{
+    /** Sends and handles packets to/from switch. */
+    struct Interface switchIf;
 
-struct EventEmitter* EventEmitter_new(struct Allocator* alloc);
+    /**
+     * Sends forth the packets with control headers (0xffffffff) under the switch header.
+     * Directs all input to the switch.
+     */
+    struct Interface_Two controlIf;
+
+    /**
+     * Sends all packets which are not control frames.
+     * Directs all input to the switch.
+     */
+    struct Interface_Two balingWireIf;
+};
+
+struct SwitchAdapter* SwitchAdapter_new(struct Allocator* alloc, struct Log* log);
 
 #endif

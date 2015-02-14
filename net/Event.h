@@ -51,10 +51,10 @@ struct Event_DiscoveryHeader
 
     uint64_t path_be;
 
-    uint32_t version_be;
-
     /** Quality of path represented by switch label (0:best ffffffff:worst) */
     uint32_t metric_be;
+
+    uint32_t version_be;
 };
 
 #endif

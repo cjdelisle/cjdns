@@ -16,11 +16,12 @@
 #include "io/FileWriter.h"
 #include "memory/MallocAllocator.h"
 #include "memory/Allocator.h"
+#include "crypto/random/Random.h"
+#include "interface/Interface.h"
 #include "util/Base32.h"
 #include "util/Checksum.h"
 #include "util/log/WriterLog.h"
 #include "test/TestFramework.h"
-#include "net/Ducttape_pvt.h"
 #include "wire/Headers.h"
 #include "wire/Ethernet.h"
 #include "interface/tuntap/TUNMessageType.h"
@@ -143,8 +144,8 @@ static void start(struct Allocator* alloc,
     out->startTime = Time_currentTimeMilliseconds(base);
     out->runTest = runTest;
 
-    Ducttape_setUserInterface(b->ducttape, &out->tunIfB);
-    Ducttape_setUserInterface(a->ducttape, &out->tunIfA);
+//    Ducttape_setUserInterface(b->ducttape, &out->tunIfB);
+//    Ducttape_setUserInterface(a->ducttape, &out->tunIfA);
 
     Log_debug(a->logger, "Waiting for nodes to link asynchronously...");
 }

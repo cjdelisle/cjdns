@@ -19,7 +19,6 @@
 #include "util/Checksum.h"
 #include "util/CString.h"
 #include "test/TestFramework.h"
-#include "net/Ducttape_pvt.h"
 #include "wire/SwitchHeader.h"
 
 #include <stdio.h>

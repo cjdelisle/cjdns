@@ -63,8 +63,8 @@ struct SessionManager_Session
     /** Quality of switch label. */
     uint32_t metric;
 
-    /** 
-    uint32_t timeDiscoveredSeconds;
+    /** Milliseconds since the epoch when this switch label was discovered. */
+    uint32_t timeDiscovered;
 };
 
 struct SessionManager_HandleList
@@ -117,6 +117,9 @@ struct SessionManager_Session* SessionManager_getSession(uint8_t* lookupKey,
  */
 struct SessionManager_Session* SessionManager_sessionForHandle(uint32_t handle,
                                                                struct SessionManager* sm);
+
+struct SessionManager_Session* SessionManager_sessionForIp6(uint8_t* lookupKey,
+                                                            struct SessionManager* sm);
 
 /**
  * Get the IPv6 address for a session.

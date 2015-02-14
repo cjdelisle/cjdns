@@ -15,6 +15,8 @@
 #include "dht/DHTCoreInterface.h"
 #include "dht/DHTModule.h"
 #include "dht/Address.h"
+#include "net/BalingWire.h"
+#include "wire/DataHeader.h"
 
 ///////////////////// [ Address ][ content... ]
 
@@ -37,7 +39,22 @@ static int incomingFromDHT(struct DHTMessage* dmessage, void* vcim)
     // Sanity check (make sure the addr was actually calculated)
     Assert_true(addr->ip6.bytes[0] == 0xfc && addr->padding == 0);
 
-    Message_push(msg, addr, Address_SIZE, NULL);
+    Message_shift(msg, BalingWire_InsideHeader_SIZE + DataHeader_SIZE, NULL);
+    struct BalingWire_InsideHeader* hdr = (struct BalingWire_InsideHeader*) msg->bytes;
+    struct DataHeader* dh = (struct DataHeader*) &hdr[1];
+
+    Bits_memset(dh, 0, DataHeader_SIZE);
+    DataHeader_setVersion(dh, DataHeader_CURRENT_VERSION);
+    DataHeader_setContentType(dh, ContentType_CJDHT);
+
+    Bits_memcpyConst(hdr->ip6, addr->ip6.bytes, 16);
+    hdr->version = addr->protocolVersion;
+    Bits_memset(&hdr->sh, 0, SwitchHeader_SIZE);
+    hdr->sh.label_be = Endian_hostToBigEndian64(addr->path);
+    Bits_memcpyConst(hdr->publicKey, addr->key, 32);
+
+    Log_debug(cim->log, "Outgoing DHT");
+
     return Interface_send(&cim->pub.coreIf, msg);
 }
 
@@ -46,10 +63,15 @@ static int incomingFromCore(struct Interface_Two* coreIf, struct Message* msg)
     struct DHTCoreInterface_pvt* cim = Identity_check((struct DHTCoreInterface_pvt*) coreIf);
 
     struct Address addr;
-    Message_pop(msg, &addr, Address_SIZE, NULL);
+    struct BalingWire_InsideHeader* hdr = (struct BalingWire_InsideHeader*) msg->bytes;
+    Message_shift(msg, -(BalingWire_InsideHeader_SIZE + DataHeader_SIZE), NULL);
+    Bits_memcpyConst(addr.ip6.bytes, hdr->ip6, 16);
+    Bits_memcpyConst(addr.key, hdr->publicKey, 32);
+    addr.protocolVersion = hdr->version;
+    addr.padding = 0;
+    addr.path = Endian_bigEndianToHost64(hdr->sh.label_be);
 
-    // Sanity check (make sure the addr was actually calculated)
-    Assert_true(addr.ip6.bytes[0] == 0xfc && addr.padding == 0);
+    Log_debug(cim->log, "Incoming DHT");
 
     struct DHTMessage dht = {
         .address = &addr,
