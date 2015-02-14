@@ -36,7 +36,7 @@
 #include "interface/InterfaceController.h"
 #include "tunnel/IpTunnel.h"
 #include "net/EventEmitter.h"
-#include "net/BalingWire.h"
+#include "net/SessionManager.h"
 #include "net/SwitchAdapter.h"
 #include "net/ConverterV15.h"
 #include "net/UpperDistributor.h"
@@ -154,18 +154,18 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
 
     struct EventEmitter* eventEmitter = EventEmitter_new(allocator);
 
-    struct BalingWire* balingWire = BalingWire_new(allocator, base, ca, rand, logger, eventEmitter);
+    struct SessionManager* sessionManager = SessionManager_new(allocator, base, ca, rand, logger, eventEmitter);
     struct SwitchAdapter* switchAdapter = SwitchAdapter_new(allocator, logger);
-    Interface_plumb(&switchAdapter->balingWireIf, &balingWire->switchIf);
+    Interface_plumb(&switchAdapter->sessionManagerIf, &sessionManager->switchIf);
 
     SwitchCore_setRouterInterface(&switchAdapter->switchIf, switchCore);
 
     struct ConverterV15* v15conv =
-        ConverterV15_new(allocator, logger, balingWire->sessionTable, myAddress->ip6.bytes);
-    Interface_plumb(&v15conv->balingWireIf, &balingWire->insideIf);
+        ConverterV15_new(allocator, logger, sessionManager->sessionTable, myAddress->ip6.bytes);
+    Interface_plumb(&v15conv->sessionManagerIf, &sessionManager->insideIf);
 
     struct UpperDistributor* upper = UpperDistributor_new(allocator, logger);
-    Interface_plumb(&v15conv->upperDistributorIf, &upper->balingWireIf);
+    Interface_plumb(&v15conv->upperDistributorIf, &upper->sessionManagerIf);
 
     struct DHTCoreInterface* dhtCore = DHTCoreInterface_register(allocator, logger, registry);
     Interface_plumb(&dhtCore->coreIf, &upper->dhtIf);

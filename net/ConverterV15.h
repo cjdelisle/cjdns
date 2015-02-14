@@ -29,7 +29,7 @@ Linker_require("net/ConverterV15.c")
 struct ConverterV15
 {
     /** talks v15 */
-    struct Interface_Two balingWireIf;
+    struct Interface_Two sessionManagerIf;
 
     /** talks v16 */
     struct Interface_Two upperDistributorIf;

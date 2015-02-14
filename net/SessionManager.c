@@ -15,12 +15,13 @@
 #include "interface/Interface.h"
 #include "memory/Allocator.h"
 #include "net/Event.h"
-#include "net/BalingWire.h"
+#include "net/SessionManager.h"
 #include "crypto/AddressCalc.h"
 #include "util/AddrTools.h"
 #include "wire/Error.h"
 #include "util/events/Time.h"
 #include "util/Defined.h"
+#include "wire/RouteHeader.h"
 
 struct BufferedMessage
 {
@@ -38,9 +39,9 @@ struct Ip6 {
 #define Map_NAME BufferedMessages
 #include "util/Map.h"
 
-struct BalingWire_pvt
+struct SessionManager_pvt
 {
-    struct BalingWire pub;
+    struct SessionManager pub;
     struct Interface_Two eventIf;
     struct Allocator* alloc;
     struct Map_BufferedMessages bufMap;
@@ -78,7 +79,7 @@ struct BalingWire_pvt
 
 static uint8_t incomingFromSwitchPostCryptoAuth(struct Message* msg, struct Interface* iface)
 {
-    struct BalingWire_pvt* bw = Identity_check((struct BalingWire_pvt*) iface->receiverContext);
+    struct SessionManager_pvt* bw = Identity_check((struct SessionManager_pvt*) iface->receiverContext);
 
     struct SessionTable_Session* session = bw->currentSession;
     struct SwitchHeader* sh = bw->currentSwitchHeader;
@@ -94,8 +95,8 @@ static uint8_t incomingFromSwitchPostCryptoAuth(struct Message* msg, struct Inte
         session->sendHandle = Message_pop32(msg, NULL);
     }
 
-    Message_shift(msg, BalingWire_InsideHeader_SIZE, NULL);
-    struct BalingWire_InsideHeader* header = (struct BalingWire_InsideHeader*) msg->bytes;
+    Message_shift(msg, RouteHeader_SIZE, NULL);
+    struct RouteHeader* header = (struct RouteHeader*) msg->bytes;
 
     if (currentMessageSetup) {
         Bits_memcpyConst(&header->sh, sh, SwitchHeader_SIZE);
@@ -104,7 +105,7 @@ static uint8_t incomingFromSwitchPostCryptoAuth(struct Message* msg, struct Inte
                               Endian_bigEndianToHost64(sh->label_be),
                               "received start message");
     } else {
-        // BalingWire_InsideHeader is laid out such that no copy of switch header should be needed.
+        // RouteHeader is laid out such that no copy of switch header should be needed.
         Assert_true(&header->sh == sh);
         debugHandlesAndLabel0(bw->log,
                               session,
@@ -112,7 +113,7 @@ static uint8_t incomingFromSwitchPostCryptoAuth(struct Message* msg, struct Inte
                               "received run message");
     }
 
-    header->version = session->version;
+    header->version_be = Endian_hostToBigEndian32(session->version);
     Bits_memcpyConst(header->ip6, session->ip6, 16);
     uint8_t* pubKey = CryptoAuth_getHerPublicKey(session->internal);
     Bits_memcpyConst(header->publicKey, pubKey, 32);
@@ -124,7 +125,7 @@ static uint8_t incomingFromSwitchPostCryptoAuth(struct Message* msg, struct Inte
 
 static int incomingFromSwitchIf(struct Interface_Two* iface, struct Message* msg)
 {
-    struct BalingWire_pvt* bw = Identity_containerOf(iface, struct BalingWire_pvt, pub.switchIf);
+    struct SessionManager_pvt* bw = Identity_containerOf(iface, struct SessionManager_pvt, pub.switchIf);
 
     // SwitchHeader, handle, small cryptoAuth header
     if (msg->length < SwitchHeader_SIZE + 4 + 20) {
@@ -200,9 +201,9 @@ static int incomingFromSwitchIf(struct Interface_Two* iface, struct Message* msg
  * the search has somehow gone missing. If the search was not confirmed to have begun,
  * do not keep for more than 1 second.
  */
-static void checkTimedOutBuffers(void* vBalingWire)
+static void checkTimedOutBuffers(void* vSessionManager)
 {
-    struct BalingWire_pvt* bw = Identity_check((struct BalingWire_pvt*) vBalingWire);
+    struct SessionManager_pvt* bw = Identity_check((struct SessionManager_pvt*) vSessionManager);
     for (int i = 0; i < (int)bw->bufMap.count; i++) {
         struct BufferedMessage* buffered = bw->bufMap.values[i];
         uint64_t lag = Time_currentTimeSeconds(bw->eventBase) - buffered->timeSent;
@@ -213,9 +214,9 @@ static void checkTimedOutBuffers(void* vBalingWire)
     }
 }
 
-static int needsLookup(struct BalingWire_pvt* bw, struct Message* msg)
+static int needsLookup(struct SessionManager_pvt* bw, struct Message* msg)
 {
-    struct BalingWire_InsideHeader* header = (struct BalingWire_InsideHeader*) msg->bytes;
+    struct RouteHeader* header = (struct RouteHeader*) msg->bytes;
     if (Defined(Log_DEBUG)) {
         uint8_t ipStr[40];
         AddrTools_printIp(ipStr, header->ip6);
@@ -255,7 +256,7 @@ static int needsLookup(struct BalingWire_pvt* bw, struct Message* msg)
 
 static uint8_t readyToSendPostCryptoAuth(struct Message* msg, struct Interface* iface)
 {
-    struct BalingWire_pvt* bw = Identity_check((struct BalingWire_pvt*) iface->senderContext);
+    struct SessionManager_pvt* bw = Identity_check((struct SessionManager_pvt*) iface->senderContext);
     struct SwitchHeader* sh = bw->currentSwitchHeader;
     struct SessionTable_Session* sess = bw->currentSession;
     bw->currentSession = NULL;
@@ -282,12 +283,12 @@ static uint8_t readyToSendPostCryptoAuth(struct Message* msg, struct Interface* 
     return Interface_send(&bw->pub.switchIf, msg);
 }
 
-static int readyToSend(struct BalingWire_pvt* bw,
+static int readyToSend(struct SessionManager_pvt* bw,
                        struct SessionTable_Session* sess,
                        struct Message* msg)
 {
-    struct BalingWire_InsideHeader* header = (struct BalingWire_InsideHeader*) msg->bytes;
-    Message_shift(msg, -BalingWire_InsideHeader_SIZE, NULL);
+    struct RouteHeader* header = (struct RouteHeader*) msg->bytes;
+    Message_shift(msg, -RouteHeader_SIZE, NULL);
     Assert_true(!bw->currentSession);
     Assert_true(!bw->currentSwitchHeader);
     bw->currentSession = sess;
@@ -316,9 +317,9 @@ static int readyToSend(struct BalingWire_pvt* bw,
 
 static int incomingFromInsideIf(struct Interface_Two* iface, struct Message* msg)
 {
-    struct BalingWire_pvt* bw = Identity_containerOf(iface, struct BalingWire_pvt, pub.insideIf);
-    Assert_true(msg->length >= BalingWire_InsideHeader_SIZE);
-    struct BalingWire_InsideHeader* header = (struct BalingWire_InsideHeader*) msg->bytes;
+    struct SessionManager_pvt* bw = Identity_containerOf(iface, struct SessionManager_pvt, pub.insideIf);
+    Assert_true(msg->length >= RouteHeader_SIZE);
+    struct RouteHeader* header = (struct RouteHeader*) msg->bytes;
 
     struct SessionTable_Session* sess =
         SessionTable_sessionForIp6(header->ip6, bw->pub.sessionTable);
@@ -331,7 +332,7 @@ static int incomingFromInsideIf(struct Interface_Two* iface, struct Message* msg
         }
     }
 
-    if (header->version) { sess->version = header->version; }
+    if (header->version_be) { sess->version = Endian_bigEndianToHost32(header->version_be); }
 
     if (header->sh.label_be) {
         // fallthrough
@@ -374,7 +375,7 @@ static uint32_t getEffectiveMetric(uint64_t nowMilliseconds,
 
 static int incomingFromEventIf(struct Interface_Two* iface, struct Message* msg)
 {
-    struct BalingWire_pvt* bw = Identity_containerOf(iface, struct BalingWire_pvt, eventIf);
+    struct SessionManager_pvt* bw = Identity_containerOf(iface, struct SessionManager_pvt, eventIf);
     enum Event ev = Message_pop32(msg, NULL);
 
     struct Ip6 ip6;
@@ -448,14 +449,14 @@ static int incomingFromEventIf(struct Interface_Two* iface, struct Message* msg)
     Assert_failure("2+2=5");
 }
 
-struct BalingWire* BalingWire_new(struct Allocator* alloc,
+struct SessionManager* SessionManager_new(struct Allocator* alloc,
                                   struct EventBase* eventBase,
                                   struct CryptoAuth* cryptoAuth,
                                   struct Random* rand,
                                   struct Log* log,
                                   struct EventEmitter* ee)
 {
-    struct BalingWire_pvt* bw = Allocator_calloc(alloc, sizeof(struct BalingWire_pvt), 1);
+    struct SessionManager_pvt* bw = Allocator_calloc(alloc, sizeof(struct SessionManager_pvt), 1);
     bw->alloc = alloc;
     bw->pub.switchIf.send = incomingFromSwitchIf;
     bw->pub.insideIf.send = incomingFromInsideIf;
@@ -465,8 +466,8 @@ struct BalingWire* BalingWire_new(struct Allocator* alloc,
     bw->ca = cryptoAuth;
     bw->eventBase = eventBase;
 
-    bw->pub.metricHalflifeMilliseconds = BalingWire_METRIC_HALFLIFE_MILLISECONDS_DEFAULT;
-    bw->pub.maxBufferedMessages = BalingWire_MAX_BUFFERED_MESSAGES_DEFAULT;
+    bw->pub.metricHalflifeMilliseconds = SessionManager_METRIC_HALFLIFE_MILLISECONDS_DEFAULT;
+    bw->pub.maxBufferedMessages = SessionManager_MAX_BUFFERED_MESSAGES_DEFAULT;
 
     EventEmitter_regIface(ee, &bw->eventIf, Event_DISCOVERY);
     EventEmitter_regIface(ee, &bw->eventIf, Event_SEARCH_BEGIN);

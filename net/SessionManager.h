@@ -12,8 +12,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef BalingWire_H
-#define BalingWire_H
+#ifndef SessionManager_H
+#define SessionManager_H
 
 #include "interface/Interface.h"
 #include "net/SessionTable.h"
@@ -23,10 +23,10 @@
 #include "wire/SwitchHeader.h"
 #include "wire/CryptoHeader.h"
 #include "util/Linker.h"
-Linker_require("net/BalingWire.c")
+Linker_require("net/SessionManager.c")
 
 /**
- * Called BalingWire because I can't think of what this should be called.
+ * Called SessionManager because I can't think of what this should be called.
  * Purpose of this module is to take packets from "the inside" which contain ipv6 address and
  * skeleton switch header and find an appropriate CryptoAuth session for them or begin one.
  * If a key for this node cannot be found then the packet will be blocked and a search will be
@@ -35,14 +35,14 @@ Linker_require("net/BalingWire.c")
  * already buffered, the packet will be dropped instead).
  * Incoming messages from the outside will be decrypted and their key and path will be stored.
  */
-struct BalingWire
+struct SessionManager
 {
     /** Sends and handles packets prepped to/from switch. */
     struct Interface_Two switchIf;
 
     /**
-     * Sends and handles packets with BalingWire_InsideHeader on top.
-     * When sending a packet to BalingWire:
+     * Sends and handles packets with RouteHeader on top.
+     * When sending a packet to SessionManager:
      *     header.sh.label_be may be zero
      *     version may be zero
      *     publicKey may be zero
@@ -56,7 +56,7 @@ struct BalingWire
     /**
      * Maximum number of packets to hold in buffer before summarily dropping...
      */
-    #define BalingWire_MAX_BUFFERED_MESSAGES_DEFAULT 30
+    #define SessionManager_MAX_BUFFERED_MESSAGES_DEFAULT 30
     int maxBufferedMessages;
 
     /**
@@ -64,42 +64,15 @@ struct BalingWire
      * This allows less good routes to supplant better ones if the "better" ones have not been
      * tested in a long time (maybe down).
      */
-    #define BalingWire_METRIC_HALFLIFE_MILLISECONDS_DEFAULT 250000
+    #define SessionManager_METRIC_HALFLIFE_MILLISECONDS_DEFAULT 250000
     uint32_t metricHalflifeMilliseconds;
 };
 
-struct BalingWire_InsideHeader
-{
-    /** public key of peer node, 0 if unknown, always send from BailingWire. */
-    uint8_t publicKey[32];
-
-    /**
-     * The switch header to use.
-     * label_be may be zero if unknown.
-     * version will be automatically set to the node's current version.
-     */
-    struct SwitchHeader sh;
-
-    /** Protocol version of peer node, 0 if unknown, sometimes 0 from BailingWire. */
-    uint32_t version;
-
-    /**
-     * Create a layout which puts the SwitchHeader 24 bytes behind the end of the header
-     * allowing it to be in exactly the right place after encryption.
-     */
-    uint32_t pad;
-
-    /** IPv6 of peer node REQUIRED */
-    uint8_t ip6[16];
-};
-#define BalingWire_InsideHeader_SIZE (56 + SwitchHeader_SIZE)
-Assert_compileTime(BalingWire_InsideHeader_SIZE == sizeof(struct BalingWire_InsideHeader));
-
-struct BalingWire* BalingWire_new(struct Allocator* alloc,
-                                  struct EventBase* eventBase,
-                                  struct CryptoAuth* cryptoAuth,
-                                  struct Random* rand,
-                                  struct Log* log,
-                                  struct EventEmitter* ee);
+struct SessionManager* SessionManager_new(struct Allocator* alloc,
+                                          struct EventBase* eventBase,
+                                          struct CryptoAuth* cryptoAuth,
+                                          struct Random* rand,
+                                          struct Log* log,
+                                          struct EventEmitter* ee);
 
 #endif

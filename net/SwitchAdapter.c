@@ -41,10 +41,10 @@ static int incomingFromControlIf(struct Interface_Two* controlIf, struct Message
     return Interface_receiveMessage(&sa->pub.switchIf, msg);
 }
 
-static int incomingFromBalingWireIf(struct Interface_Two* balingWireIf, struct Message* msg)
+static int incomingFromSessionManagerIf(struct Interface_Two* sessionManagerIf, struct Message* msg)
 {
     struct SwitchAdapter_pvt* sa =
-        Identity_containerOf(balingWireIf, struct SwitchAdapter_pvt, pub.balingWireIf);
+        Identity_containerOf(sessionManagerIf, struct SwitchAdapter_pvt, pub.sessionManagerIf);
     return Interface_receiveMessage(&sa->pub.switchIf, msg);
 }
 
@@ -67,14 +67,14 @@ static uint8_t incomingFromSwitchIf(struct Message* msg, struct Interface* switc
     if (hdr->handle_be == 0xffffffff) {
         return Interface_send(&sa->pub.controlIf, msg);
     }
-    return Interface_send(&sa->pub.balingWireIf, msg);
+    return Interface_send(&sa->pub.sessionManagerIf, msg);
 }
 
 struct SwitchAdapter* SwitchAdapter_new(struct Allocator* alloc, struct Log* log)
 {
     struct SwitchAdapter_pvt* out = Allocator_calloc(alloc, sizeof(struct SwitchAdapter_pvt), 1);
     out->pub.controlIf.send = incomingFromControlIf;
-    out->pub.balingWireIf.send = incomingFromBalingWireIf;
+    out->pub.sessionManagerIf.send = incomingFromSessionManagerIf;
     out->pub.switchIf.sendMessage = incomingFromSwitchIf;
     out->pub.switchIf.allocator = alloc;
     out->log = log;

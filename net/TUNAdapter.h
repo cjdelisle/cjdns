@@ -22,12 +22,12 @@
 Linker_require("net/UpperDistributor.c")
 
 /**
- * Connects the TUN, DHT and IpTunnel (and other?) handlers to the BalingWire.
- * All packets must have BalingWire_UpperHeader on them.
+ * Connects the TUN, DHT and IpTunnel (and other?) handlers to the SessionManager.
+ * All packets must have SessionManager_UpperHeader on them.
  */
 struct UpperDistributor
 {
-    struct Interface_Two balingWireIf;
+    struct Interface_Two sessionManagerIf;
 
     struct Interface_Two tunIf;
 

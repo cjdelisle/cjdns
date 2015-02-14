@@ -59,7 +59,7 @@
 #include "net/SwitchPinger_admin.h"
 #include "net/ControlHandler.h"
 #include "net/EventEmitter.h"
-#include "net/BalingWire.h"
+#include "net/SessionManager.h"
 #include "net/SwitchAdapter.h"
 #include "switch/SwitchCore.h"
 #include "tunnel/IpTunnel.h"
@@ -422,11 +422,11 @@ void Core_init(struct Allocator* alloc,
 
     struct Router* router = Router_new(routerModule, nodeStore, searchRunner, alloc);
 
-    struct BalingWire* balingWire =
-        BalingWire_new(alloc, eventBase, cryptoAuth, rand, logger, eventEmitter);
+    struct SessionManager* sessionManager =
+        SessionManager_new(alloc, eventBase, cryptoAuth, rand, logger, eventEmitter);
 
     struct SwitchAdapter* switchAdapter = SwitchAdapter_new(alloc, logger);
-    Interface_plumb(&balingWire->switchIf, &switchAdapter->balingWireIf);
+    Interface_plumb(&sessionManager->switchIf, &switchAdapter->sessionManagerIf);
     SwitchCore_setRouterInterface(&switchAdapter->switchIf, switchCore);
 
     struct ControlHandler* controlHandler = ControlHandler_new(alloc, logger, router, addr);

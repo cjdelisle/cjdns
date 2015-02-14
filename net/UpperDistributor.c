@@ -17,8 +17,9 @@
 #include "util/Identity.h"
 #include "wire/SwitchHeader.h"
 #include "net/UpperDistributor.h"
-#include "net/BalingWire.h"
+#include "net/SessionManager.h"
 #include "wire/DataHeader.h"
+#include "wire/RouteHeader.h"
 
 struct UpperDistributor_pvt
 {
@@ -31,37 +32,37 @@ static int incomingFromDhtIf(struct Interface_Two* dhtIf, struct Message* msg)
 {
     struct UpperDistributor_pvt* ud =
         Identity_containerOf(dhtIf, struct UpperDistributor_pvt, pub.dhtIf);
-    return Interface_send(&ud->pub.balingWireIf, msg);
+    return Interface_send(&ud->pub.sessionManagerIf, msg);
 }
 
 static int incomingFromTunIf(struct Interface_Two* tunIf, struct Message* msg)
 {
     struct UpperDistributor_pvt* ud =
         Identity_containerOf(tunIf, struct UpperDistributor_pvt, pub.tunIf);
-    return Interface_send(&ud->pub.balingWireIf, msg);
+    return Interface_send(&ud->pub.sessionManagerIf, msg);
 }
 
 static int incomingFromIpTunnelIf(struct Interface_Two* ipTunnelIf, struct Message* msg)
 {
     struct UpperDistributor_pvt* ud =
         Identity_containerOf(ipTunnelIf, struct UpperDistributor_pvt, pub.ipTunnelIf);
-    return Interface_send(&ud->pub.balingWireIf, msg);
+    return Interface_send(&ud->pub.sessionManagerIf, msg);
 }
 
 
-static int incomingFromBalingWireIf(struct Interface_Two* balingWireIf, struct Message* msg)
+static int incomingFromSessionManagerIf(struct Interface_Two* sessionManagerIf, struct Message* msg)
 {
     struct UpperDistributor_pvt* ud =
-        Identity_containerOf(balingWireIf, struct UpperDistributor_pvt, pub.balingWireIf);
-    Assert_true(msg->length >= BalingWire_InsideHeader_SIZE + DataHeader_SIZE);
-    struct BalingWire_InsideHeader* hdr = (struct BalingWire_InsideHeader*) msg->bytes;
+        Identity_containerOf(sessionManagerIf, struct UpperDistributor_pvt, pub.sessionManagerIf);
+    Assert_true(msg->length >= RouteHeader_SIZE + DataHeader_SIZE);
+    struct RouteHeader* hdr = (struct RouteHeader*) msg->bytes;
     struct DataHeader* dh = (struct DataHeader*) &hdr[1];
     enum ContentType type = DataHeader_getContentType(dh);
     if (type <= ContentType_IP6_RAW) {
         return Interface_send(&ud->pub.tunIf, msg);
     }
     if (type == ContentType_CJDHT) {
-        Log_debug(ud->log, "UD_incomingFromBalingWireIf");
+        Log_debug(ud->log, "UD_incomingFromSessionManagerIf");
         return Interface_send(&ud->pub.dhtIf, msg);
     }
     if (type == ContentType_IPTUN) {
@@ -78,7 +79,7 @@ struct UpperDistributor* UpperDistributor_new(struct Allocator* alloc, struct Lo
     out->pub.dhtIf.send = incomingFromDhtIf;
     out->pub.tunIf.send = incomingFromTunIf;
     out->pub.ipTunnelIf.send = incomingFromIpTunnelIf;
-    out->pub.balingWireIf.send = incomingFromBalingWireIf;
+    out->pub.sessionManagerIf.send = incomingFromSessionManagerIf;
     out->log = log;
     Identity_set(out);
     return &out->pub;

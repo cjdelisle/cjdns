@@ -22,7 +22,7 @@
 Linker_require("net/SwitchAdapter.c")
 
 /**
- * Connects the actual switch interface to the BalingWire and the ControlHandler.
+ * Connects the actual switch interface to the SessionManager and the ControlHandler.
  */
 struct SwitchAdapter
 {
@@ -39,7 +39,7 @@ struct SwitchAdapter
      * Sends all packets which are not control frames.
      * Directs all input to the switch.
      */
-    struct Interface_Two balingWireIf;
+    struct Interface_Two sessionManagerIf;
 };
 
 struct SwitchAdapter* SwitchAdapter_new(struct Allocator* alloc, struct Log* log);

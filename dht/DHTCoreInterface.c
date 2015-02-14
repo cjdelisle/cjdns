@@ -15,8 +15,9 @@
 #include "dht/DHTCoreInterface.h"
 #include "dht/DHTModule.h"
 #include "dht/Address.h"
-#include "net/BalingWire.h"
+#include "net/SessionManager.h"
 #include "wire/DataHeader.h"
+#include "wire/RouteHeader.h"
 
 ///////////////////// [ Address ][ content... ]
 
@@ -39,8 +40,8 @@ static int incomingFromDHT(struct DHTMessage* dmessage, void* vcim)
     // Sanity check (make sure the addr was actually calculated)
     Assert_true(addr->ip6.bytes[0] == 0xfc && addr->padding == 0);
 
-    Message_shift(msg, BalingWire_InsideHeader_SIZE + DataHeader_SIZE, NULL);
-    struct BalingWire_InsideHeader* hdr = (struct BalingWire_InsideHeader*) msg->bytes;
+    Message_shift(msg, RouteHeader_SIZE + DataHeader_SIZE, NULL);
+    struct RouteHeader* hdr = (struct RouteHeader*) msg->bytes;
     struct DataHeader* dh = (struct DataHeader*) &hdr[1];
 
     Bits_memset(dh, 0, DataHeader_SIZE);
@@ -48,7 +49,7 @@ static int incomingFromDHT(struct DHTMessage* dmessage, void* vcim)
     DataHeader_setContentType(dh, ContentType_CJDHT);
 
     Bits_memcpyConst(hdr->ip6, addr->ip6.bytes, 16);
-    hdr->version = addr->protocolVersion;
+    hdr->version_be = Endian_hostToBigEndian32(addr->protocolVersion);
     Bits_memset(&hdr->sh, 0, SwitchHeader_SIZE);
     hdr->sh.label_be = Endian_hostToBigEndian64(addr->path);
     Bits_memcpyConst(hdr->publicKey, addr->key, 32);
@@ -63,11 +64,11 @@ static int incomingFromCore(struct Interface_Two* coreIf, struct Message* msg)
     struct DHTCoreInterface_pvt* cim = Identity_check((struct DHTCoreInterface_pvt*) coreIf);
 
     struct Address addr;
-    struct BalingWire_InsideHeader* hdr = (struct BalingWire_InsideHeader*) msg->bytes;
-    Message_shift(msg, -(BalingWire_InsideHeader_SIZE + DataHeader_SIZE), NULL);
+    struct RouteHeader* hdr = (struct RouteHeader*) msg->bytes;
+    Message_shift(msg, -(RouteHeader_SIZE + DataHeader_SIZE), NULL);
     Bits_memcpyConst(addr.ip6.bytes, hdr->ip6, 16);
     Bits_memcpyConst(addr.key, hdr->publicKey, 32);
-    addr.protocolVersion = hdr->version;
+    addr.protocolVersion = Endian_bigEndianToHost32(hdr->version_be);
     addr.padding = 0;
     addr.path = Endian_bigEndianToHost64(hdr->sh.label_be);
 

@@ -85,11 +85,6 @@ static inline uint32_t SwitchHeader_getVersion(const struct SwitchHeader* header
     return header->versionAndLabelShift >> 6;
 }
 
-static inline bool SwitchHeader_isV7Ctrl(const struct SwitchHeader* header)
-{
-    return !SwitchHeader_getVersion(header) && (header->congestAndSuppressErrors == 1);
-}
-
 static inline void SwitchHeader_setVersion(struct SwitchHeader* header, uint8_t version)
 {
     Assert_true(version < 4);
