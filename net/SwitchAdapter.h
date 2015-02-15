@@ -16,6 +16,7 @@
 #define SwitchAdapter_H
 
 #include "interface/Interface.h"
+#include "interface/Iface.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
 #include "util/Linker.h"
@@ -33,13 +34,13 @@ struct SwitchAdapter
      * Sends forth the packets with control headers (0xffffffff) under the switch header.
      * Directs all input to the switch.
      */
-    struct Interface_Two controlIf;
+    struct Iface controlIf;
 
     /**
      * Sends all packets which are not control frames.
      * Directs all input to the switch.
      */
-    struct Interface_Two sessionManagerIf;
+    struct Iface sessionManagerIf;
 };
 
 struct SwitchAdapter* SwitchAdapter_new(struct Allocator* alloc, struct Log* log);

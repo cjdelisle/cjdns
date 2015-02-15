@@ -27,11 +27,11 @@ Linker_require("net/UpperDistributor.c")
  */
 struct UpperDistributor
 {
-    struct Interface_Two sessionManagerIf;
+    struct Iface sessionManagerIf;
 
-    struct Interface_Two tunIf;
+    struct Iface tunIf;
 
-    struct Interface_Two ipTunnelIf;
+    struct Iface ipTunnelIf;
 };
 
 struct UpperDistributor* UpperDistributor_new(struct Allocator* alloc, struct Log* log);

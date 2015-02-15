@@ -16,7 +16,7 @@
 #define DHTCoreInterface_H
 
 #include "dht/DHTModuleRegistry.h"
-#include "interface/Interface.h"
+#include "interface/Iface.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
 #include "util/Linker.h"
@@ -28,7 +28,7 @@ struct DHTCoreInterface
      * Communicates with the core.
      * Content: [ struct Address ][ content... ]
      */
-    struct Interface_Two coreIf;
+    struct Iface coreIf;
 };
 
 struct DHTCoreInterface* DHTCoreInterface_register(struct Allocator* alloc,

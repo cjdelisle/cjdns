@@ -25,18 +25,18 @@ Linker_require("net/ControlHandler.c")
 struct ControlHandler
 {
     /** This interface expects and sends [ SwitchHeader ][ 0xffffffff ][ CTRL frame ] */
-    struct Interface_Two coreIf;
+    struct Iface coreIf;
 
     /**
      * This interface expects and sends [ SwitchHeader ][ 0xffffffff ][ CTRL frame ]
      * May send a pong or an error caused by a ping.
      */
-    struct Interface_Two switchPingerIf;
+    struct Iface switchPingerIf;
 };
 
 struct ControlHandler* ControlHandler_new(struct Allocator* alloc,
                                           struct Log* logger,
                                           struct EventEmitter* ee,
-                                          struct Address* myAddr);
+                                          uint8_t myPublicKey[32]);
 
 #endif

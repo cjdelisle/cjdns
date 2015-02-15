@@ -26,8 +26,8 @@ struct ControlHandler_pvt
     struct Log* log;
     struct Allocator* alloc;
     struct Router* router;
-    struct Address* myAddr;
-    struct Interface_Two eventIface;
+    uint8_t myPublicKey[32];
+    struct Iface eventIf;
     Identity
 };
 
@@ -35,33 +35,33 @@ struct ControlHandler_pvt
  * Expects [ Ctrl ][ Error ][ cause SwitchHeader ][ cause handle ][ cause etc.... ]
  */
 #define handleError_MIN_SIZE (Control_Header_SIZE + Control_Error_MIN_SIZE + SwitchHeader_SIZE + 4)
-static int handleError(struct ControlHandler_pvt* ch,
-                       struct Message* msg,
-                       uint64_t label,
-                       uint8_t* labelStr)
+static Iface_DEFUN handleError(struct Message* msg,
+                               struct ControlHandler_pvt* ch,
+                               uint64_t label,
+                               uint8_t* labelStr)
 {
     if (msg->length < handleError_MIN_SIZE) {
         Log_info(ch->log, "DROP runt error packet from [%s]", labelStr);
-        return 0;
+        return NULL;
     }
     Message_shift(msg, SwitchHeader_SIZE + 4, NULL);
     Message_push32(msg, Event_Core_SWITCH_ERR, NULL);
-    return Interface_sent(&ch->eventIf, msg);
+    return Iface_next(&ch->eventIf, msg);
 }
 
 /**
  * Expects [ SwitchHeader ][ Ctrl ][ (key)Ping ][ data etc.... ]
  */
 #define handlePing_MIN_SIZE (Control_Header_SIZE + Control_Ping_MIN_SIZE)
-static int handlePing(struct ControlHandler_pvt* ch,
-                      struct Message* msg,
-                      uint64_t label,
-                      uint8_t* labelStr,
-                      uint16_t messageType_be)
+static Iface_DEFUN handlePing(struct Message* msg,
+                              struct ControlHandler_pvt* ch,
+                              uint64_t label,
+                              uint8_t* labelStr,
+                              uint16_t messageType_be)
 {
     if (msg->length < handlePing_MIN_SIZE) {
         Log_info(ch->log, "DROP runt ping");
-        return 0;
+        return NULL;
     }
 
     struct Control* ctrl = (struct Control*) msg->bytes;
@@ -72,7 +72,7 @@ static int handlePing(struct ControlHandler_pvt* ch,
     uint32_t herVersion = Endian_bigEndianToHost32(ping->version_be);
     if (!Version_isCompatible(Version_CURRENT_PROTOCOL, herVersion)) {
         Log_debug(ch->log, "DROP ping from incompatible version [%d]", herVersion);
-        return 0;
+        return NULL;
     }
 
     if (messageType_be == Control_KEYPING_be) {
@@ -80,27 +80,27 @@ static int handlePing(struct ControlHandler_pvt* ch,
         if (msg->length < Control_KeyPing_HEADER_SIZE) {
             // min keyPing size is longer
             Log_debug(ch->log, "DROP runt keyPing");
-            return 0;
+            return NULL;
         }
         if (msg->length > Control_KeyPing_MAX_SIZE) {
             Log_debug(ch->log, "DROP long keyPing");
-            return 0;
+            return NULL;
         }
         if (ping->magic != Control_KeyPing_MAGIC) {
             Log_debug(ch->log, "DROP keyPing (bad magic)");
-            return 0;
+            return NULL;
         }
 
         struct Control_KeyPing* keyPing = (struct Control_KeyPing*) msg->bytes;
         keyPing->magic = Control_KeyPong_MAGIC;
         ctrl->header.type_be = Control_KEYPONG_be;
-        Bits_memcpyConst(keyPing->key, ch->myAddr->key, 32);
+        Bits_memcpyConst(keyPing->key, ch->myPublicKey, 32);
 
     } else if (messageType_be == Control_PING_be) {
         Log_debug(ch->log, "got switch ping from [%s]", labelStr);
         if (ping->magic != Control_Ping_MAGIC) {
             Log_debug(ch->log, "DROP ping (bad magic)");
-            return 0;
+            return NULL;
         }
         ping->magic = Control_Pong_MAGIC;
         ctrl->header.type_be = Control_PONG_be;
@@ -125,8 +125,7 @@ static int handlePing(struct ControlHandler_pvt* ch,
     SwitchHeader_setVersion(switchHeader, SwitchHeader_CURRENT_VERSION);
     switchHeader->label_be = Endian_hostToBigEndian64(label);
 
-    Interface_send(&ch->pub.coreIf, msg);
-    return 0;
+    return Iface_next(&ch->pub.coreIf, msg);
 }
 
 /**
@@ -139,7 +138,7 @@ static int handlePing(struct ControlHandler_pvt* ch,
  * @param switchIf the interface which leads to the switch.
  * @param isFormV8 true if the control message is in the form specified by protocol version 8+
  */
-static int incomingFromCore(struct Interface_Two* coreIf, struct Message* msg)
+static Iface_DEFUN incomingFromCore(struct Iface* coreIf, struct Message* msg)
 {
     struct ControlHandler_pvt* ch = Identity_check((struct ControlHandler_pvt*) coreIf);
 
@@ -152,61 +151,61 @@ static int incomingFromCore(struct Interface_Two* coreIf, struct Message* msg)
 
     if (msg->length < 4 + Control_Header_SIZE) {
         Log_info(ch->log, "DROP runt ctrl packet from [%s]", labelStr);
-        return Error_NONE;
+        return NULL;
     }
 
     Assert_true(Message_pop32(msg, NULL) == 0xffffffff);
 
     if (Checksum_engine(msg->bytes, msg->length)) {
         Log_info(ch->log, "DROP ctrl packet from [%s] with invalid checksum", labelStr);
-        return Error_NONE;
+        return NULL;
     }
 
     struct Control* ctrl = (struct Control*) msg->bytes;
 
     if (ctrl->header.type_be == Control_ERROR_be) {
-        return handleError(ch, msg, label, labelStr);
+        return handleError(msg, ch, label, labelStr);
 
     } else if (ctrl->header.type_be == Control_KEYPING_be
-            || ctrl->header.type_be == Control_PING_be) {
-        return handlePing(ch, msg, label, labelStr, ctrl->header.type_be);
+            || ctrl->header.type_be == Control_PING_be)
+    {
+        return handlePing(msg, ch, label, labelStr, ctrl->header.type_be);
 
     } else if (ctrl->header.type_be == Control_KEYPONG_be
-            || ctrl->header.type_be == Control_PONG_be) {
-            Log_debug(ch->log, "got switch pong from [%s]", labelStr);
-            // Shift back over the header
-            Message_shift(msg, 4 + SwitchHeader_SIZE, NULL);
-            return Interface_send(&ch->pub.switchPingerIf, msg);
-
+            || ctrl->header.type_be == Control_PONG_be)
+    {
+        Log_debug(ch->log, "got switch pong from [%s]", labelStr);
+        // Shift back over the header
+        Message_shift(msg, 4 + SwitchHeader_SIZE, NULL);
+        return Iface_next(&ch->pub.switchPingerIf, msg);
     }
 
     Log_info(ch->log, "DROP control packet of unknown type from [%s], type [%d]",
              labelStr, Endian_bigEndianToHost16(ctrl->header.type_be));
 
-    return 0;
+    return NULL;
 }
 
 // Forward from switch pinger directly to core.
-static int incomingFromSwitchPinger(struct Interface_Two* switchPingerIf, struct Message* msg)
+static Iface_DEFUN incomingFromSwitchPinger(struct Iface* switchPingerIf, struct Message* msg)
 {
     struct ControlHandler_pvt* ch =
-        Identity_check( (struct ControlHandler_pvt*) (&switchPingerIf[-1]) );
-    return Interface_send(&ch->pub.coreIf, msg);
+        Identity_containerOf(switchPingerIf, struct ControlHandler_pvt, pub.switchPingerIf);
+    return Iface_next(&ch->pub.coreIf, msg);
 }
 
 struct ControlHandler* ControlHandler_new(struct Allocator* alloc,
                                           struct Log* logger,
                                           struct EventEmitter* ee,
-                                          struct Address* myAddr)
+                                          uint8_t myPublicKey[32])
 {
     struct ControlHandler_pvt* ch = Allocator_calloc(alloc, sizeof(struct ControlHandler_pvt), 1);
     ch->alloc = alloc;
     ch->log = logger;
-    ch->router = router;
-    ch->myAddr = myAddr;
+    Bits_memcpyConst(ch->myPublicKey, myPublicKey, 32);
     ch->pub.coreIf.send = incomingFromCore;
     ch->pub.switchPingerIf.send = incomingFromSwitchPinger;
-    EventEmitter_regCore(ee, Event_Core_INVALID, &ch->eventIface)
+    EventEmitter_regCore(ee, &ch->eventIf, Event_Pathfinder_INVALID);
     Identity_set(ch);
     return &ch->pub;
 }

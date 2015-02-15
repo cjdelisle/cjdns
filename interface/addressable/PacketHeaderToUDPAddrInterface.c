@@ -62,10 +62,11 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
 
     Message_push(message, &ip, sizeof(struct Headers_IP6Header), NULL);
 
-    return Interface_send(&context->pub.headerIf, message);
+    Iface_send(&context->pub.headerIf, message);
+    return 0;
 }
 
-static int incomingFromHeaderIf(struct Interface_Two* iface, struct Message* message)
+static Iface_DEFUN incomingFromHeaderIf(struct Iface* iface, struct Message* message)
 {
     struct PacketHeaderToUDPAddrInterface_pvt* context =
         Identity_check((struct PacketHeaderToUDPAddrInterface_pvt*)
@@ -73,14 +74,14 @@ static int incomingFromHeaderIf(struct Interface_Two* iface, struct Message* mes
 
     if (message->length < Headers_IP6Header_SIZE + Headers_UDPHeader_SIZE) {
         // runt
-        return Error_NONE;
+        return NULL;
     }
 
     struct Headers_IP6Header* ip = (struct Headers_IP6Header*) message->bytes;
 
     // udp
     if (ip->nextHeader != 17) {
-        return Error_NONE;
+        return NULL;
     }
 
     struct Allocator* alloc = Allocator_child(message->alloc);
@@ -94,13 +95,14 @@ static int incomingFromHeaderIf(struct Interface_Two* iface, struct Message* mes
 
     if (Sockaddr_getPort(context->pub.udpIf.addr) != Endian_bigEndianToHost16(udp->destPort_be)) {
         // not the right port
-        return Error_NONE;
+        return NULL;
     }
 
     Message_shift(message, -(Headers_IP6Header_SIZE + Headers_UDPHeader_SIZE), NULL);
     Message_push(message, addr, addr->addrLen, NULL);
 
-    return Interface_receiveMessage(&context->pub.udpIf.generic, message);
+    Interface_receiveMessage(&context->pub.udpIf.generic, message);
+    return NULL;
 }
 
 struct PacketHeaderToUDPAddrInterface* PacketHeaderToUDPAddrInterface_new(struct Allocator* alloc,

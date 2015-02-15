@@ -110,7 +110,7 @@ static struct Ducttape_MessageHeader* getDtHeader(struct Message* message, bool 
 
 // [ struct Address ][ content (benc) ]
 // see ducttape.h -> dhtIf
-static int incomingFromDHTInterface(struct Interface_Two* dhtIf, struct Message* msg)
+static Iface_DEFUN incomingFromDHTInterface(struct Iface* dhtIf, struct Message* msg)
 {
     struct Ducttape_pvt* ctx = Identity_containerOf(dhtIf, struct Ducttape_pvt, pub.dhtIf);
 
@@ -126,7 +126,7 @@ static int incomingFromDHTInterface(struct Interface_Two* dhtIf, struct Message*
         struct Allocator* alloc = Allocator_child(ctx->alloc);
         Allocator_adopt(alloc, msg->alloc);
         Message_push(msg, &addr, Address_SIZE, NULL);
-        Interface_send(dhtIf, msg);
+        Iface_send(dhtIf, msg);
         Allocator_free(alloc);
         return 0;
     }
@@ -275,7 +275,7 @@ static inline uint8_t incomingForMe(struct Message* message,
         // Shift off the UDP header.
         Message_shift(message, -Headers_UDPHeader_SIZE, NULL);
         Message_push(message, &addr, Address_SIZE, NULL);
-        return Interface_send(&context->pub.dhtIf, message);
+        return Iface_send(&context->pub.dhtIf, message);
     }
 
     if (!context->userIf) {
@@ -373,7 +373,7 @@ static inline bool isForMe(struct Message* message, struct Ducttape_pvt* context
     return (Bits_memcmp(header->destinationAddr, context->myAddr.ip6.bytes, 16) == 0);
 }
 
-static int incomingFromMagicInterface(struct Interface_Two* magicIf, struct Message* msg)
+static Iface_DEFUN incomingFromMagicInterface(struct Iface* magicIf, struct Message* msg)
 {
     struct Ducttape_pvt* ctx = Identity_containerOf(magicIf, struct Ducttape_pvt, pub.magicIf);
 
@@ -441,7 +441,7 @@ static inline uint8_t incomingFromTun(struct Message* message,
     }
 
     if (!Bits_memcmp(header->destinationAddr, FC_ONE, 16)) {
-        return Interface_send(&context->pub.magicIf, message);
+        return Iface_send(&context->pub.magicIf, message);
     }
 
     struct Ducttape_MessageHeader* dtHeader = getDtHeader(message, true);
@@ -890,7 +890,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     if (nonceOrHandle > 3) {
         if (nonceOrHandle == 0xffffffff) {
             Message_shift(message, SwitchHeader_SIZE, NULL);
-            return Interface_send(&context->pub.controlIf, message);
+            return Iface_send(&context->pub.controlIf, message);
         }
         Message_shift(message, -4, NULL);
 
@@ -957,7 +957,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     return 0;
 }
 
-static int incomingFromControlHandler(struct Interface_Two* controlIf, struct Message* message)
+static Iface_DEFUN incomingFromControlHandler(struct Iface* controlIf, struct Message* message)
 {
     struct Ducttape_pvt* ctx = Identity_containerOf(controlIf, struct Ducttape_pvt, pub.controlIf);
     Assert_true(ctx->pub.switchIf.receiveMessage);

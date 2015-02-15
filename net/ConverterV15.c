@@ -39,7 +39,7 @@ struct ConverterV15_pvt
  * Incoming packet with a SessionManager header followed by a ContentHeader and then whatever
  * content.
  */
-static int incomingFromUpperDistributorIf(struct Interface_Two* upperDistributorIf,
+static Iface_DEFUN incomingFromUpperDistributorIf(struct Iface* upperDistributorIf,
                                           struct Message* msg)
 {
     struct ConverterV15_pvt* conv =
@@ -55,7 +55,7 @@ static int incomingFromUpperDistributorIf(struct Interface_Two* upperDistributor
         // session thinks it's old
     } else {
         // nothing is known about a node, fuckit, assume it's new !
-        return Interface_send(&conv->pub.sessionManagerIf, msg);
+        return Iface_send(&conv->pub.sessionManagerIf, msg);
     }
 
     struct DataHeader* dh = (struct DataHeader*) &hdr[1];
@@ -83,7 +83,7 @@ static int incomingFromUpperDistributorIf(struct Interface_Two* upperDistributor
 
 
     if (type == ContentType_IPTUN) {
-        return Interface_send(&conv->pub.sessionManagerIf, msg);
+        return Iface_send(&conv->pub.sessionManagerIf, msg);
     }
 
     struct Headers_IP6Header* ip6 = (struct Headers_IP6Header*) &hdr[1];
@@ -116,7 +116,7 @@ static int incomingFromUpperDistributorIf(struct Interface_Two* upperDistributor
 
     //Log_debug(conv->log, "send [%s]", Hex_print(ip6, 32, msg->alloc));
 
-    return Interface_send(&conv->pub.sessionManagerIf, msg);
+    return Iface_send(&conv->pub.sessionManagerIf, msg);
 }
 
 //// --------------- Incoming, convert v15 to v16 --------------- ////
@@ -144,7 +144,7 @@ static inline bool tryConvertDHT(struct Message* msg, struct Headers_IP6Header* 
  * Incoming packet with a SessionManager header and under that either an ipv6 or ipv4 header
  * depending on whether it's destine for TUN/DHT or IpTunnel.
  */
-static int incomingFromSessionManagerIf(struct Interface_Two* sessionManagerIf, struct Message* msg)
+static Iface_DEFUN incomingFromSessionManagerIf(struct Iface* sessionManagerIf, struct Message* msg)
 {
     struct ConverterV15_pvt* conv =
         Identity_containerOf(sessionManagerIf, struct ConverterV15_pvt, pub.sessionManagerIf);
@@ -165,7 +165,7 @@ static int incomingFromSessionManagerIf(struct Interface_Two* sessionManagerIf, 
     int ipVer = Headers_getIpVersion(ipPtr);
     if (ipVer == DataHeader_CURRENT_VERSION) {
     Log_debug(conv->log, "0");
-        return Interface_send(&conv->pub.upperDistributorIf, msg);
+        return Iface_send(&conv->pub.upperDistributorIf, msg);
     }
 
     if (ipVer == 6) {
@@ -177,7 +177,7 @@ static int incomingFromSessionManagerIf(struct Interface_Two* sessionManagerIf, 
         if (ip6->sourceAddr[0] == 0xfc && ip6->destinationAddr[0] == 0xfc) {
     Log_debug(conv->log, "tryConvertDHT()");
             if (tryConvertDHT(msg, ip6)) {
-                return Interface_send(&conv->pub.upperDistributorIf, msg);
+                return Iface_send(&conv->pub.upperDistributorIf, msg);
             }
     Log_debug(conv->log, "tryConvertDHT(fail)");
             Message_pop(msg, NULL, RouteHeader_SIZE + Headers_IP6Header_SIZE, NULL);
@@ -188,7 +188,7 @@ static int incomingFromSessionManagerIf(struct Interface_Two* sessionManagerIf, 
             Message_push(msg, &dh, DataHeader_SIZE, NULL);
             Message_shift(msg, RouteHeader_SIZE, NULL);
             Bits_memmoveConst(msg->bytes, bih, RouteHeader_SIZE);
-            return Interface_send(&conv->pub.upperDistributorIf, msg);
+            return Iface_send(&conv->pub.upperDistributorIf, msg);
         }
     Log_debug(conv->log, "iptunnel?");
     } else if (ipVer != 4) {
@@ -206,7 +206,7 @@ static int incomingFromSessionManagerIf(struct Interface_Two* sessionManagerIf, 
     Bits_memset(dh, 0, DataHeader_SIZE);
     dh->contentType_be = Endian_hostToBigEndian16(ContentType_IPTUN);
     dh->versionAndFlags = DataHeader_CURRENT_VERSION << 4;
-    return Interface_send(&conv->pub.upperDistributorIf, msg);
+    return Iface_send(&conv->pub.upperDistributorIf, msg);
 }
 
 struct ConverterV15* ConverterV15_new(struct Allocator* alloc,

@@ -24,19 +24,9 @@
 #include "crypto/AddressCalc.h"
 #include "crypto/random/Random.h"
 #include "crypto/random/libuv/LibuvEntropyProvider.h"
-#include "dht/ReplyModule.h"
-#include "dht/EncodingSchemeModule.h"
-#include "dht/SerializationModule.h"
-#include "dht/dhtcore/RouterModule.h"
-#include "dht/dhtcore/RouterModule_admin.h"
-#include "dht/dhtcore/RumorMill.h"
-#include "dht/dhtcore/SearchRunner.h"
-#include "dht/dhtcore/SearchRunner_admin.h"
-#include "dht/dhtcore/NodeStore_admin.h"
-#include "dht/dhtcore/Janitor.h"
-#include "dht/dhtcore/Router_new.h"
-#include "dht/DHTCoreInterface.h"
+#include "dht/Pathfinder.h"
 #include "exception/Jmp.h"
+#include "interface/Iface.h"
 #include "interface/addressable/AddrInterface.h"
 #include "interface/addressable/UDPAddrInterface.h"
 #include "interface/UDPInterface_admin.h"
@@ -86,17 +76,6 @@
 
 // Failsafe: abort if more than 2^23 bytes are allocated (8MB)
 #define ALLOCATOR_FAILSAFE (1<<23)
-
-/** The number of milliseconds between attempting local maintenance searches. */
-#define LOCAL_MAINTENANCE_SEARCH_MILLISECONDS 1000
-
-/**
- * The number of milliseconds to pass between global maintainence searches.
- * These are searches for random targets which are used to discover new nodes.
- */
-#define GLOBAL_MAINTENANCE_SEARCH_MILLISECONDS 30000
-
-#define RUMORMILL_CAPACITY 64
 
 /**
  * The worst possible packet overhead.
@@ -368,80 +347,41 @@ void Core_init(struct Allocator* alloc,
         logger = adminLogger;
     }
 
-    // EventEmitter
-    struct EventEmitter* eventEmitter = EventEmitter_new(alloc, logger);
-
     // CryptoAuth
     struct Address* addr = Allocator_calloc(alloc, sizeof(struct Address), 1);
     addr->protocolVersion = Version_CURRENT_PROTOCOL;
     parsePrivateKey(privateKey, addr, eh);
     struct CryptoAuth* cryptoAuth = CryptoAuth_new(alloc, privateKey, eventBase, logger, rand);
 
+    // EventEmitter
+    struct EventEmitter* eventEmitter = EventEmitter_new(alloc, logger, cryptoAuth->publicKey);
+
     /*struct Sockaddr* myAddr = */Sockaddr_fromBytes(addr->ip6.bytes, Sockaddr_AF_INET6, alloc);
 
     struct SwitchCore* switchCore = SwitchCore_new(logger, alloc, eventBase);
-    struct DHTModuleRegistry* registry = DHTModuleRegistry_new(alloc);
-    ReplyModule_register(registry, alloc);
-
-    struct RumorMill* rumorMill = RumorMill_new(alloc, addr, RUMORMILL_CAPACITY, logger, "extern");
-
-    struct NodeStore* nodeStore = NodeStore_new(addr, alloc, eventBase, logger, rumorMill);
-
-    struct RouterModule* routerModule = RouterModule_register(registry,
-                                                              alloc,
-                                                              addr->key,
-                                                              eventBase,
-                                                              logger,
-                                                              rand,
-                                                              nodeStore);
-
-    struct SearchRunner* searchRunner = SearchRunner_new(nodeStore,
-                                                         logger,
-                                                         eventBase,
-                                                         routerModule,
-                                                         addr->ip6.bytes,
-                                                         rumorMill,
-                                                         alloc);
-
-    Janitor_new(LOCAL_MAINTENANCE_SEARCH_MILLISECONDS,
-                GLOBAL_MAINTENANCE_SEARCH_MILLISECONDS,
-                routerModule,
-                nodeStore,
-                searchRunner,
-                rumorMill,
-                logger,
-                alloc,
-                eventBase,
-                rand);
-
-    EncodingSchemeModule_register(registry, logger, alloc);
-
-    SerializationModule_register(registry, logger, alloc);
 
     struct IpTunnel* ipTun = IpTunnel_new(logger, eventBase, alloc, rand, hermes);
-
-    struct Router* router = Router_new(routerModule, nodeStore, searchRunner, alloc);
 
     struct SessionManager* sessionManager =
         SessionManager_new(alloc, eventBase, cryptoAuth, rand, logger, eventEmitter);
 
     struct SwitchAdapter* switchAdapter = SwitchAdapter_new(alloc, logger);
-    Interface_plumb(&sessionManager->switchIf, &switchAdapter->sessionManagerIf);
+    Iface_plumb(&sessionManager->switchIf, &switchAdapter->sessionManagerIf);
     SwitchCore_setRouterInterface(&switchAdapter->switchIf, switchCore);
 
-    struct ControlHandler* controlHandler = ControlHandler_new(alloc, logger, router, addr);
-    Interface_plumb(&controlHandler->coreIf, &switchAdapter->controlIf);
-
-    /*struct DHTCoreInterface* dhtCore =*/ DHTCoreInterface_register(alloc, logger, registry);
-    // TODO...
+    struct ControlHandler* controlHandler =
+        ControlHandler_new(alloc, logger, eventEmitter, addr->key);
+    Iface_plumb(&controlHandler->coreIf, &switchAdapter->controlIf);
 
     struct SwitchPinger* sp = SwitchPinger_new(eventBase, rand, logger, addr, alloc);
-    Interface_plumb(&controlHandler->switchPingerIf, &sp->controlHandlerIf);
+    Iface_plumb(&controlHandler->switchPingerIf, &sp->controlHandlerIf);
 
     // Interfaces.
     struct InterfaceController* ifController =
-        InterfaceController_new(cryptoAuth, switchCore, router, rumorMill,
-                                logger, eventBase, sp, rand, alloc);
+        InterfaceController_new(cryptoAuth, switchCore,
+                                logger, eventBase, sp, rand, alloc, eventEmitter);
+
+    Pathfinder_register(alloc, logger, eventBase, rand, admin, eventEmitter);
 
     // ------------------- DNS -------------------------//
 
@@ -453,20 +393,18 @@ void Core_init(struct Allocator* alloc,
     Assert_true(!Sockaddr_parse("[fc00::1]:53", &rainflyAddr));
     struct PacketHeaderToUDPAddrInterface* magicUDP =
         PacketHeaderToUDPAddrInterface_new(alloc, &rainflyAddr.addr);
-//    Interface_plumb(&magicUDP->headerIf, &dtAAAAAAAAAAAAAA->magicIf);
+//    Iface_plumb(&magicUDP->headerIf, &dtAAAAAAAAAAAAAA->magicIf);
     DNSServer_new(&magicUDP->udpIf, logger, rainfly);
 
 
     // ------------------- Register RPC functions ----------------------- //
-    InterfaceController_admin_register(ifController, nodeStore, admin, alloc);
+    InterfaceController_admin_register(ifController, admin, alloc);
     SwitchPinger_admin_register(sp, admin, alloc);
     UDPInterface_admin_register(eventBase, alloc, logger, admin, ifController);
 #ifdef HAS_ETH_INTERFACE
     ETHInterface_admin_register(eventBase, alloc, logger, admin, ifController, hermes);
 #endif
-    NodeStore_admin_register(nodeStore, admin, alloc);
-    RouterModule_admin_register(routerModule, router, admin, alloc);
-    SearchRunner_admin_register(searchRunner, admin, alloc);
+
     AuthorizedPasswords_init(admin, cryptoAuth, alloc);
     Admin_registerFunction("ping", adminPing, admin, false, NULL, admin);
 //    Core_admin_register(myAddr, dtAAAAAAAAAAAAAA, logger, ipTun, alloc, admin, eventBase);

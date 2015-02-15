@@ -133,4 +133,6 @@ uint8_t* SessionTable_getIp6(uint32_t handle, struct SessionTable* sm);
 struct SessionTable_HandleList* SessionTable_getHandleList(struct SessionTable* sm,
                                                                struct Allocator* alloc);
 
+void* SessionTable_getInterfaceContext(struct SessionTable_Session* session);
+
 #endif

@@ -32,24 +32,24 @@ struct Ducttape
      * Interface which sends and receives (switch level) CTRL frames.
      * Content is: [ SwitchHeader ][ 0xffffffff ][ ctrl header ][ content... ]
      */
-    struct Interface_Two controlIf;
+    struct Iface controlIf;
 
     /**
      * Interface which receives and sends messages to other routers.
      * Content is: [ Address ][ content... ]
      */
-    struct Interface_Two dhtIf;
+    struct Iface dhtIf;
 
     /**
      * Interface which receives packets (from tun) that are addressed to "magic address" fc00::1
      * Content is: [ IPv6 header ][ content... ]
      */
-    struct Interface_Two magicIf;
+    struct Iface magicIf;
 
     /**
      * 
      */
-    struct Interface_Two tunIf;
+    struct Iface tunIf;
 
     struct Interface switchIf;
 

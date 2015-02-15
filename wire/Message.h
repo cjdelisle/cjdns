@@ -37,6 +37,11 @@ struct Message
     /** Amount of bytes of storage space available in the message. */
     int32_t capacity;
 
+    #ifdef PARANOIA
+        /** This is used inside of Iface.h to support Iface_next() */
+        struct Iface* currentIface;
+    #endif
+
     /** The allocator which allocated space for this message. */
     struct Allocator* alloc;
 };

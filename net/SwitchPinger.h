@@ -18,7 +18,7 @@
 #include "benc/String.h"
 #include "dht/Address.h"
 #include "crypto/random/Random.h"
-#include "interface/Interface.h"
+#include "interface/Iface.h"
 #include "util/events/EventBase.h"
 #include "util/log/Log.h"
 #include "util/Linker.h"
@@ -97,7 +97,7 @@ struct SwitchPinger_Ping
 
 struct SwitchPinger
 {
-    struct Interface_Two controlHandlerIf;
+    struct Iface controlHandlerIf;
 };
 
 String* SwitchPinger_resultString(enum SwitchPinger_Result result);

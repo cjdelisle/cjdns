@@ -56,10 +56,10 @@ static int incomingFromDHT(struct DHTMessage* dmessage, void* vcim)
 
     Log_debug(cim->log, "Outgoing DHT");
 
-    return Interface_send(&cim->pub.coreIf, msg);
+    return Iface_send(&cim->pub.coreIf, msg);
 }
 
-static int incomingFromCore(struct Interface_Two* coreIf, struct Message* msg)
+static Iface_DEFUN incomingFromCore(struct Iface* coreIf, struct Message* msg)
 {
     struct DHTCoreInterface_pvt* cim = Identity_check((struct DHTCoreInterface_pvt*) coreIf);
 

@@ -29,10 +29,10 @@ Linker_require("net/ConverterV15.c")
 struct ConverterV15
 {
     /** talks v15 */
-    struct Interface_Two sessionManagerIf;
+    struct Iface sessionManagerIf;
 
     /** talks v16 */
-    struct Interface_Two upperDistributorIf;
+    struct Iface upperDistributorIf;
 };
 
 struct ConverterV15* ConverterV15_new(struct Allocator* alloc,

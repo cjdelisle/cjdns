@@ -34,18 +34,20 @@ struct Header {
 #define Header_SIZE 16
 Assert_compileTime(sizeof(struct Header) == Header_SIZE);
 
-static int incomingFromControlIf(struct Interface_Two* controlIf, struct Message* msg)
+static Iface_DEFUN incomingFromControlIf(struct Iface* controlIf, struct Message* msg)
 {
     struct SwitchAdapter_pvt* sa =
         Identity_containerOf(controlIf, struct SwitchAdapter_pvt, pub.controlIf);
-    return Interface_receiveMessage(&sa->pub.switchIf, msg);
+    Interface_receiveMessage(&sa->pub.switchIf, msg);
+    return NULL;
 }
 
-static int incomingFromSessionManagerIf(struct Interface_Two* sessionManagerIf, struct Message* msg)
+static Iface_DEFUN incomingFromSessionManagerIf(struct Iface* sessionManagerIf, struct Message* msg)
 {
     struct SwitchAdapter_pvt* sa =
         Identity_containerOf(sessionManagerIf, struct SwitchAdapter_pvt, pub.sessionManagerIf);
-    return Interface_receiveMessage(&sa->pub.switchIf, msg);
+    Interface_receiveMessage(&sa->pub.switchIf, msg);
+    return NULL;
 }
 
 static uint8_t incomingFromSwitchIf(struct Message* msg, struct Interface* switchIf)
@@ -65,9 +67,11 @@ static uint8_t incomingFromSwitchIf(struct Message* msg, struct Interface* switc
     hdr->sh.label_be = Bits_bitReverse64(hdr->sh.label_be);
 
     if (hdr->handle_be == 0xffffffff) {
-        return Interface_send(&sa->pub.controlIf, msg);
+        Iface_send(&sa->pub.controlIf, msg);
+        return 0;
     }
-    return Interface_send(&sa->pub.sessionManagerIf, msg);
+    Iface_send(&sa->pub.sessionManagerIf, msg);
+    return 0;
 }
 
 struct SwitchAdapter* SwitchAdapter_new(struct Allocator* alloc, struct Log* log)

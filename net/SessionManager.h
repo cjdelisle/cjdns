@@ -37,7 +37,7 @@ Linker_require("net/SessionManager.c")
 struct SessionManager
 {
     /** Sends and handles packets prepped to/from switch. */
-    struct Interface_Two switchIf;
+    struct Iface switchIf;
 
     /**
      * Sends and handles packets with RouteHeader on top.
@@ -48,7 +48,7 @@ struct SessionManager
      * If these values are not known, the packet will be taken from the cache or a search will
      * be triggered.
      */
-    struct Interface_Two insideIf;
+    struct Iface insideIf;
 
     struct SessionTable* sessionTable;
 

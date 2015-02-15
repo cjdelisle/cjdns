@@ -27,29 +27,29 @@ struct UpperDistributor_pvt
     Identity
 };
 
-static int incomingFromDhtIf(struct Interface_Two* dhtIf, struct Message* msg)
+static Iface_DEFUN incomingFromDhtIf(struct Iface* dhtIf, struct Message* msg)
 {
     struct UpperDistributor_pvt* ud =
         Identity_containerOf(dhtIf, struct UpperDistributor_pvt, pub.dhtIf);
-    return Interface_send(&ud->pub.sessionManagerIf, msg);
+    return Iface_send(&ud->pub.sessionManagerIf, msg);
 }
 
-static int incomingFromTunIf(struct Interface_Two* tunIf, struct Message* msg)
+static Iface_DEFUN incomingFromTunIf(struct Iface* tunIf, struct Message* msg)
 {
     struct UpperDistributor_pvt* ud =
         Identity_containerOf(tunIf, struct UpperDistributor_pvt, pub.tunIf);
-    return Interface_send(&ud->pub.sessionManagerIf, msg);
+    return Iface_send(&ud->pub.sessionManagerIf, msg);
 }
 
-static int incomingFromIpTunnelIf(struct Interface_Two* ipTunnelIf, struct Message* msg)
+static Iface_DEFUN incomingFromIpTunnelIf(struct Iface* ipTunnelIf, struct Message* msg)
 {
     struct UpperDistributor_pvt* ud =
         Identity_containerOf(ipTunnelIf, struct UpperDistributor_pvt, pub.ipTunnelIf);
-    return Interface_send(&ud->pub.sessionManagerIf, msg);
+    return Iface_send(&ud->pub.sessionManagerIf, msg);
 }
 
 
-static int incomingFromSessionManagerIf(struct Interface_Two* sessionManagerIf, struct Message* msg)
+static Iface_DEFUN incomingFromSessionManagerIf(struct Iface* sessionManagerIf, struct Message* msg)
 {
     struct UpperDistributor_pvt* ud =
         Identity_containerOf(sessionManagerIf, struct UpperDistributor_pvt, pub.sessionManagerIf);
@@ -58,14 +58,14 @@ static int incomingFromSessionManagerIf(struct Interface_Two* sessionManagerIf, 
     struct DataHeader* dh = (struct DataHeader*) &hdr[1];
     enum ContentType type = DataHeader_getContentType(dh);
     if (type <= ContentType_IP6_RAW) {
-        return Interface_send(&ud->pub.tunIf, msg);
+        return Iface_send(&ud->pub.tunIf, msg);
     }
     if (type == ContentType_CJDHT) {
         Log_debug(ud->log, "UD_incomingFromSessionManagerIf");
-        return Interface_send(&ud->pub.dhtIf, msg);
+        return Iface_send(&ud->pub.dhtIf, msg);
     }
     if (type == ContentType_IPTUN) {
-        return Interface_send(&ud->pub.ipTunnelIf, msg);
+        return Iface_send(&ud->pub.ipTunnelIf, msg);
     }
     Log_debug(ud->log, "DROP message with unknown type [%d]", type);
     return 0;

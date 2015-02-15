@@ -16,6 +16,7 @@
 #define PacketHeaderToUDPAddrInterface_H
 
 #include "interface/Interface.h"
+#include "interface/Iface.h"
 #include "interface/addressable/AddrInterface.h"
 #include "memory/Allocator.h"
 #include "util/platform/Sockaddr.h"
@@ -25,7 +26,7 @@ Linker_require("interface/addressable/PacketHeaderToUDPAddrInterface.c")
 struct PacketHeaderToUDPAddrInterface
 {
     struct AddrInterface udpIf;
-    struct Interface_Two headerIf;
+    struct Iface headerIf;
 };
 
 struct PacketHeaderToUDPAddrInterface* PacketHeaderToUDPAddrInterface_new(struct Allocator* alloc,

@@ -21,13 +21,6 @@
 #include "wire/SwitchHeader.h"
 #include "wire/Control.h"
 
-struct Event_Ip6
-{
-    uint8_t ipv6[16];
-};
-#define Event_Ip6_SIZE 16
-Assert_compileTime(sizeof(struct Event_Ip6) == Event_Ip6_SIZE);
-
 struct Event_Node
 {
     uint8_t ip6[16];
@@ -50,7 +43,9 @@ struct Event_Msg
     struct DataHeader data;
     // ...content follows...
 };
-#pragma GCC poison Event_Msg_SIZE // Contains more data...
+#define Event_Msg_MIN_SIZE (RouteHeader_SIZE + DataHeader_SIZE)
+Assert_compileTime(sizeof(struct Event_Msg) == Event_Msg_MIN_SIZE);
+#pragma GCC poison Event_Msg_SIZE
 
 struct Event_Ping
 {
@@ -136,7 +131,7 @@ enum Event_Pathfinder
 
     /**
      * Get all sessions.
-     * TODO
+     * (Received by: SessionManager.c)
      */
     Event_Pathfinder_SESSIONS,
 
@@ -153,18 +148,6 @@ enum Event_Pathfinder
     Event_Pathfinder_PATHFINDERS,
 
     Event_Pathfinder_INVALID
-};
-
-static const int Event_Pathfinder_SIZES[] = {
-    [Event_Pathfinder_CONNECT]      = 4 + Event_Pathfinder_Connect_SIZE,
-    [Event_Pathfinder_SUPERIORITY]  = 4 + Event_Pathfinder_Superiority_SIZE,
-    [Event_Pathfinder_NODE]         = 4 + Event_Node_SIZE,
-    [Event_Pathfinder_SENDMSG]      = -(4 + (int)sizeof(struct Event_Msg)),
-    [Event_Pathfinder_PING]         = 4 + Event_Ping_SIZE,
-    [Event_Pathfinder_PONG]         = 4 + Event_Ping_SIZE,
-    [Event_Pathfinder_SESSIONS]     = 4,
-    [Event_Pathfinder_PEERS]        = 4,
-    [Event_Pathfinder_PATHFINDERS]  = 4
 };
 
 struct Event_FromPathfinder
@@ -190,9 +173,14 @@ struct Event_FromPathfinder
 enum Event_Core
 {
     /**
+     * This message is sent in response to an Event_Pathfinder_CONNECT message and is
+     * guaranteed to be sent before any other message.
+     * (emitted by: EventEmitter.c)
+     */
+    Event_Core_CONNECT,
+
+    /**
      * Emitted when a pathfinder connects or if Event_Pathfinder_PATHFINDERS is sent.
-     * This message is guaranteed to be sent before any other message and the first instance
-     * refers to "you" the pathfinder which just connected.
      * (emitted by: EventEmitter.c)
      */
     Event_Core_PATHFINDER,
@@ -204,16 +192,16 @@ enum Event_Core
     Event_Core_PATHFINDER_GONE,
 
     /**
-     * Emitted if the core wants the pathfinder to begin searching for a node.
-     * (emitted by: SessionManager.c)
-     */
-    Event_Core_SEARCH_REQ,
-
-    /**
      * Emitted if a switch error is received, no matter what type of packet causes it.
      * (emitted by: ControlHandler.c)
      */
     Event_Core_SWITCH_ERR,
+
+    /**
+     * Emitted if the core wants the pathfinder to begin searching for a node.
+     * (emitted by: SessionManager.c)
+     */
+    Event_Core_SEARCH_REQ,
 
     /**
      * Emitted when a peer connects (becomes state ESTABLISHED) or
@@ -229,16 +217,22 @@ enum Event_Core
     Event_Core_PEER_GONE,
 
     /**
-     * Emitted if a new session begins,
-     * emitted for every active session of Event_Pathfinder_SESSIONS is sent.
-     * TODO
+     * Emitted if a new session begins, also emitted for every active session of
+     * Event_Pathfinder_SESSIONS is sent.
+     * (emitted by: SessionManager.c)
      */ 
     Event_Core_SESSION,
 
-    /** Emitted when a session ends. TODO */
+    /**
+     * Emitted when a session ends.
+     * (emitted by: SessionManager.c)
+     */
     Event_Core_SESSION_ENDED,
 
-    /** Emitted when SessionManager sees an incoming packet with a new path. TODO */
+    /**
+     * Emitted when SessionManager sees an incoming packet with a new path.
+     * (emitted by: SessionManager.c)
+     */
     Event_Core_DISCOVERED_PATH,
 
     /** Emitted for each incoming DHT message. TODO */
@@ -246,6 +240,7 @@ enum Event_Core
 
     /**
      * Emitted from time to time in order to verify the pathfinder is alive.
+     * Must be responded to by an Event_Pathfinder_PONG.
      * (emitted by: EventEmitter.c)
      */
     Event_Core_PING,
@@ -258,6 +253,13 @@ enum Event_Core
 
     Event_Core_INVALID
 };
+
+struct Event_Core_SearchReq
+{
+    uint8_t ipv6[16];
+};
+#define Event_Core_SearchReq_SIZE 16
+Assert_compileTime(sizeof(struct Event_Core_SearchReq) == Event_Core_SearchReq_SIZE);
 
 struct Event_Core_Pathfinder
 {
@@ -273,6 +275,17 @@ struct Event_Core_Pathfinder
 #define Event_Core_Pathfinder_SIZE 72
 Assert_compileTime(sizeof(struct Event_Core_Pathfinder) == Event_Core_Pathfinder_SIZE);
 
+struct Event_Core_Connect
+{
+    /** The public key of this cjdns node. */
+    uint8_t publicKey[32];
+
+    /** This pathfinder's ID. */
+    uint32_t pathfinderId_be;
+};
+#define Event_Core_Connect_SIZE 36
+Assert_compileTime(sizeof(struct Event_Core_Connect) == Event_Core_Connect_SIZE);
+
 struct Event_Core_SwitchErr
 {
     struct SwitchHeader sh;
@@ -281,10 +294,10 @@ struct Event_Core_SwitchErr
     struct Control_Error ctrlErr;
 };
 #pragma GCC poison Event_Core_SwitchErr_SIZE
-Assert_compileTime(sizeof(struct Event_Core_SwitchErr) ==
-    (SwitchHeader_SIZE + 4 + Control_Header_SIZE + Control_Error_MIN_SIZE));
+#define Event_Core_SwitchErr_MIN_SIZE \
+    (SwitchHeader_SIZE + 4 + Control_Header_SIZE + Control_Error_MIN_SIZE)
+Assert_compileTime(sizeof(struct Event_Core_SwitchErr) == Event_Core_SwitchErr_MIN_SIZE);
 
-#define Event_FromCore_MAGIC 0x1337babe
 struct Event_FromCore
 {
     enum Event_Core event_be;
@@ -293,10 +306,11 @@ struct Event_FromCore
     uint8_t target_be;
 
     union {
+        struct Event_Core_Connect connect;
         struct Event_Core_Pathfinder pathfinder;
         struct Event_Core_Pathfinder pathfinderGone;
-        struct Event_Ip6 searchReq;
         struct Event_Core_SwitchErr switchErr;
+        struct Event_Core_SearchReq searchReq;
         struct Event_Node peer;
         struct Event_Node peerGone;
         struct Event_Node session;

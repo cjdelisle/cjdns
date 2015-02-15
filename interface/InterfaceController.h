@@ -19,13 +19,13 @@
 #include "interface/Interface.h"
 #include "wire/Headers.h"
 #include "crypto/CryptoAuth.h"
-#include "dht/dhtcore/Router.h"
-#include "dht/dhtcore/RumorMill.h"
 #include "dht/Address.h"
-#include "interface/Interface.h"
+#include "interface/Iface.h"
 #include "memory/Allocator.h"
 #include "switch/SwitchCore.h"
 #include "net/SwitchPinger.h"
+#include "net/Event.h"
+#include "net/EventEmitter.h"
 #include "util/platform/Sockaddr.h"
 #include "util/log/Log.h"
 #include "util/Linker.h"
@@ -180,12 +180,11 @@ int InterfaceController_getPeerStats(struct InterfaceController* ic,
 
 struct InterfaceController* InterfaceController_new(struct CryptoAuth* ca,
                                                     struct SwitchCore* switchCore,
-                                                    struct Router* router,
-                                                    struct RumorMill* rumorMill,
                                                     struct Log* logger,
                                                     struct EventBase* eventBase,
                                                     struct SwitchPinger* switchPinger,
                                                     struct Random* rand,
-                                                    struct Allocator* allocator);
+                                                    struct Allocator* allocator,
+                                                    struct EventEmitter* ee);
 
 #endif

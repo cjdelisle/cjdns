@@ -34,6 +34,7 @@
 #include "net/SwitchPinger.h"
 #include "net/ControlHandler.h"
 #include "interface/InterfaceController.h"
+#include "interface/Iface.h"
 #include "tunnel/IpTunnel.h"
 #include "net/EventEmitter.h"
 #include "net/SessionManager.h"
@@ -126,70 +127,40 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
     struct SwitchCore* switchCore = SwitchCore_new(logger, allocator, base);
     struct CryptoAuth* ca = CryptoAuth_new(allocator, (uint8_t*)privateKey, base, logger, rand);
 
-
-// allocator, myAddress, logger, base, publicKey, rand
-    do {
-
-    struct DHTModuleRegistry* registry = DHTModuleRegistry_new(allocator);
-    ReplyModule_register(registry, allocator);
-
-    struct RumorMill* rumorMill = RumorMill_new(allocator, myAddress, 64, logger, "");
-
-    struct NodeStore* nodeStore = NodeStore_new(myAddress, allocator, base, logger, rumorMill);
-
-    struct RouterModule* routerModule =
-        RouterModule_register(registry, allocator, publicKey, base, logger, rand, nodeStore);
-
-    struct SearchRunner* searchRunner = SearchRunner_new(nodeStore,
-                                                         logger,
-                                                         base,
-                                                         routerModule,
-                                                         myAddress->ip6.bytes,
-                                                         rumorMill,
-                                                         allocator);
-
-    EncodingSchemeModule_register(registry, logger, allocator);
-
-    SerializationModule_register(registry, logger, allocator);
-
-    struct Router* router = Router_new(routerModule, nodeStore, searchRunner, allocator);
-
-    } while (0);
+    struct EventEmitter* eventEmitter = EventEmitter_new(allocator, logger, publicKey);
 
     /*struct IpTunnel* ipTun = */IpTunnel_new(logger, base, allocator, rand, NULL);
-
-
-
-    struct EventEmitter* eventEmitter = EventEmitter_new(allocator, logger);
 
     struct SessionManager* sessionManager =
         SessionManager_new(allocator, base, ca, rand, logger, eventEmitter);
     struct SwitchAdapter* switchAdapter = SwitchAdapter_new(allocator, logger);
-    Interface_plumb(&switchAdapter->sessionManagerIf, &sessionManager->switchIf);
+    Iface_plumb(&switchAdapter->sessionManagerIf, &sessionManager->switchIf);
 
     SwitchCore_setRouterInterface(&switchAdapter->switchIf, switchCore);
 
     struct ConverterV15* v15conv =
         ConverterV15_new(allocator, logger, sessionManager->sessionTable, myAddress->ip6.bytes);
-    Interface_plumb(&v15conv->sessionManagerIf, &sessionManager->insideIf);
+    Iface_plumb(&v15conv->sessionManagerIf, &sessionManager->insideIf);
 
     struct UpperDistributor* upper = UpperDistributor_new(allocator, logger);
-    Interface_plumb(&v15conv->upperDistributorIf, &upper->sessionManagerIf);
+    Iface_plumb(&v15conv->upperDistributorIf, &upper->sessionManagerIf);
 
     struct DHTCoreInterface* dhtCore = DHTCoreInterface_register(allocator, logger, registry);
-    Interface_plumb(&dhtCore->coreIf, &upper->dhtIf);
+    Iface_plumb(&dhtCore->coreIf, &upper->dhtIf);
 
     struct ControlHandler* controlHandler =
         ControlHandler_new(allocator, logger, eventEmitter, myAddress);
-    Interface_plumb(&controlHandler->coreIf, &switchAdapter->controlIf);
+    Iface_plumb(&controlHandler->coreIf, &switchAdapter->controlIf);
 
     struct SwitchPinger* sp = SwitchPinger_new(base, rand, logger, myAddress, allocator);
-    Interface_plumb(&controlHandler->switchPingerIf, &sp->controlHandlerIf);
+    Iface_plumb(&controlHandler->switchPingerIf, &sp->controlHandlerIf);
 
     // Interfaces.
     struct InterfaceController* ifController =
-        InterfaceController_new(ca, switchCore, router, rumorMill,
-                                logger, base, sp, rand, allocator);
+        InterfaceController_new(ca, switchCore, rumorMill,
+                                logger, base, sp, rand, allocator, eventEmitter);
+
+    Pathfinder_register(allocator, logger, base, rand, NULL, eventEmitter);
 
     struct TestFramework* tf = Allocator_clone(allocator, (&(struct TestFramework) {
         .alloc = allocator,

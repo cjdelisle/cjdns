@@ -12,30 +12,29 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef UpperDistributor_H
-#define UpperDistributor_H
+#ifndef Pathfinder_H
+#define Pathfinder_H
 
-#include "interface/Interface.h"
+#include "interface/Iface.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
+#include "util/events/EventBase.h"
+#include "crypto/random/Random.h"
+#include "admin/Admin.h"
+#include "net/EventEmitter.h"
 #include "util/Linker.h"
-Linker_require("net/UpperDistributor.c")
+Linker_require("dht/Pathfinder.c")
 
-/**
- * Connects the TUN, DHT and IpTunnel (and other?) handlers to the SessionManager.
- * All packets must have SessionManager_UpperHeader on them.
- */
-struct UpperDistributor
+struct Pathfinder
 {
-    struct Iface sessionManagerIf;
-
-    struct Iface dhtIf;
-
-    struct Iface tunIf;
-
-    struct Iface ipTunnelIf;
+    int unused;
 };
 
-struct UpperDistributor* UpperDistributor_new(struct Allocator* alloc, struct Log* log);
+struct Pathfinder* Pathfinder_register(struct Allocator* alloc,
+                                       struct Log* logger,
+                                       struct EventBase* base,
+                                       struct Random* rand,
+                                       struct Admin* admin,
+                                       struct EventEmitter* ee);
 
 #endif

@@ -19,7 +19,6 @@
 #include "benc/Int.h"
 #include "crypto/AddressCalc.h"
 #include "crypto/Key.h"
-#include "dht/dhtcore/NodeStore.h"
 #include "interface/InterfaceController.h"
 #include "interface/InterfaceController_admin.h"
 #include "util/AddrTools.h"
@@ -28,7 +27,6 @@ struct Context
 {
     struct Allocator* alloc;
     struct InterfaceController* ic;
-    struct NodeStore* store;
     struct Admin* admin;
     Identity
 };
@@ -171,14 +169,12 @@ static resetSession(Dict* args, void* vcontext, String* txid, struct Allocator* 
 }*/
 
 void InterfaceController_admin_register(struct InterfaceController* ic,
-                                        struct NodeStore* nodeStore,
                                         struct Admin* admin,
                                         struct Allocator* alloc)
 {
     struct Context* ctx = Allocator_clone(alloc, (&(struct Context) {
         .alloc = alloc,
         .ic = ic,
-        .store = nodeStore,
         .admin = admin
     }));
     Identity_set(ctx);

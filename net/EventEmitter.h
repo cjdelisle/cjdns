@@ -15,7 +15,7 @@
 #ifndef EventEmitter_H
 #define EventEmitter_H
 
-#include "interface/Interface.h"
+#include "interface/Iface.h"
 #include "memory/Allocator.h"
 #include "net/Event.h"
 #include "util/log/Log.h"
@@ -33,11 +33,11 @@ struct EventEmitter
  * If you only intend to fire events, just register with Event_Pathfinder_INVALID.
  */
 void EventEmitter_regCore(struct EventEmitter* ee,
-                          struct Interface_Two* iface,
+                          struct Iface* iface,
                           enum Event_Pathfinder ev);
 
-void EventEmitter_regPathfinderIface(struct EventEmitter* ee, struct Interface_Two* iface);
+void EventEmitter_regPathfinderIface(struct EventEmitter* ee, struct Iface* iface);
 
-struct EventEmitter* EventEmitter_new(struct Allocator* alloc, struct Log* log);
+struct EventEmitter* EventEmitter_new(struct Allocator* alloc, struct Log* log, uint8_t* publicKey);
 
 #endif

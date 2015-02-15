@@ -170,12 +170,11 @@ struct SessionTable_Session* SessionTable_sessionForIp6(uint8_t* lookupKey,
 }
 
 struct SessionTable_Session* SessionTable_getSession(uint8_t* lookupKey,
-                                                         uint8_t cryptoKey[32],
-                                                         struct SessionTable* sm)
+                                                     uint8_t cryptoKey[32],
+                                                     struct SessionTable* sm)
 {
     Assert_true(cryptoKey);
-    struct SessionTable_Session* sess = SessionTable_sessionForIp6(lookupKey, sm);
-    if (sess) { return sess; }
+    Assert_true(!SessionTable_sessionForIp6(lookupKey, sm));
 
     struct Allocator* ifAlloc = Allocator_child(sm->allocator);
     struct SessionTable_Session_pvt* ss =
@@ -232,8 +231,15 @@ uint8_t* SessionTable_getIp6(uint32_t handle, struct SessionTable* sm)
     return sm->ifaceMap.keys[index].bytes;
 }
 
+void* SessionTable_getInterfaceContext(struct SessionTable_Session* session)
+{
+    struct SessionTable_Session_pvt* sess =
+        Identity_check((struct SessionTable_Session_pvt*) session);
+    return sess->sm->interfaceContext;
+}
+
 struct SessionTable_HandleList* SessionTable_getHandleList(struct SessionTable* sm,
-                                                               struct Allocator* alloc)
+                                                           struct Allocator* alloc)
 {
     struct SessionTable_HandleList* out =
         Allocator_malloc(alloc, sizeof(struct SessionTable_HandleList));
@@ -248,12 +254,12 @@ struct SessionTable_HandleList* SessionTable_getHandleList(struct SessionTable* 
 }
 
 struct SessionTable* SessionTable_new(Interface_Callback decryptedIncoming,
-                                          Interface_Callback encryptedOutgoing,
-                                          void* interfaceContext,
-                                          struct EventBase* eventBase,
-                                          struct CryptoAuth* cryptoAuth,
-                                          struct Random* rand,
-                                          struct Allocator* allocator)
+                                      Interface_Callback encryptedOutgoing,
+                                      void* interfaceContext,
+                                      struct EventBase* eventBase,
+                                      struct CryptoAuth* cryptoAuth,
+                                      struct Random* rand,
+                                      struct Allocator* allocator)
 {
     struct SessionTable* sm = Allocator_malloc(allocator, sizeof(struct SessionTable));
     Bits_memcpyConst(sm, (&(struct SessionTable) {
