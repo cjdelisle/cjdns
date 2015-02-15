@@ -1583,25 +1583,24 @@ CPU part        : 0xc07
 CPU revision    : 5
 
 
-Benchmark:
-These metrics are speed of encryption and decryption similar to the usage
-pattern
+Benchmark (gcc 4.6, CFLAGS="-march=armv7-a -mfpu=neon-vfpv4 -mfloat-abi=hard"):
+These metrics are speed of encryption and decryption similar to the usage pattern
 when decrypting a packet, switching it, and re-encrypting it with another key.
 Test sending 1000 64 byte       hello packets
-        Finished in 44381ms. 11 Kb/s
+        Finished in 2373ms. 215 Kb/s
 
 Test sending 1000 1500 byte     hello packets
-        Finished in 44555ms. 269 Kb/s
+        Finished in 2398ms. 5003 Kb/s
 
 Test sending 1000 64 byte       key packets
-        Finished in 44403ms. 11 Kb/s
+        Finished in 2329ms. 219 Kb/s
 
 Test sending 1000 1500 byte     key packets
-        Finished in 44622ms. 268 Kb/s
+        Finished in 2400ms. 4999 Kb/s
 
 Test sending 100000 64 byte     data packets
-        Finished in 3104ms. 16494 Kb/s
+        Finished in 1904ms. 26890 Kb/s
 
 This is the switch configuration so this indicates expected switch throughput:
 Test sending 100000 1500 byte   data packets
-        Finished in 24222ms. 49541 Kb/s
+        Finished in 8532ms. 140646 Kb/s
