@@ -18,7 +18,7 @@
 #include "interface/Interface.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
-#include "dht/dhtcore/Router.h"
+#include "net/EventEmitter.h"
 #include "util/Linker.h"
 Linker_require("net/ControlHandler.c")
 
@@ -36,7 +36,7 @@ struct ControlHandler
 
 struct ControlHandler* ControlHandler_new(struct Allocator* alloc,
                                           struct Log* logger,
-                                          struct Router* router,
+                                          struct EventEmitter* ee,
                                           struct Address* myAddr);
 
 #endif

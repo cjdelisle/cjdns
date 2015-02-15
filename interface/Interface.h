@@ -87,6 +87,9 @@ static inline uint8_t Interface_sendMessage(struct Interface* iface, struct Mess
 
 
 
+typedef int Interface_Ret;
+
+#define Interface_RET 0
 
 struct Interface_Two;
 
@@ -94,7 +97,8 @@ struct Interface_Two;
  * @param thisInterface the interface which contains the sendMessage function pointer.
  * @param message the message
  */
-typedef int (* Interface_Callback2)(struct Interface_Two* thisInterface, struct Message* message);
+typedef Interface_RetVal (* Interface_Callback2)(struct Interface_Two* thisInterface,
+                                                 struct Message* message);
 
 struct Interface_Two
 {

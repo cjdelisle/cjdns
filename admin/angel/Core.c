@@ -369,7 +369,7 @@ void Core_init(struct Allocator* alloc,
     }
 
     // EventEmitter
-    struct EventEmitter* eventEmitter = EventEmitter_new(alloc);
+    struct EventEmitter* eventEmitter = EventEmitter_new(alloc, logger);
 
     // CryptoAuth
     struct Address* addr = Allocator_calloc(alloc, sizeof(struct Address), 1);

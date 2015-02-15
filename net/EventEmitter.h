@@ -18,6 +18,7 @@
 #include "interface/Interface.h"
 #include "memory/Allocator.h"
 #include "net/Event.h"
+#include "util/log/Log.h"
 #include "util/Linker.h"
 Linker_require("net/EventEmitter.c")
 
@@ -29,10 +30,14 @@ struct EventEmitter
 /**
  * Register an interface to listen for and fire events.
  * The same interface may be registered multiple times.
- * If you only intend to fire events, just register with Event_INVALID.
+ * If you only intend to fire events, just register with Event_Pathfinder_INVALID.
  */
-void EventEmitter_regIface(struct EventEmitter* ee, struct Interface_Two* iface, enum Event ev);
+void EventEmitter_regCore(struct EventEmitter* ee,
+                          struct Interface_Two* iface,
+                          enum Event_Pathfinder ev);
 
-struct EventEmitter* EventEmitter_new(struct Allocator* alloc);
+void EventEmitter_regPathfinderIface(struct EventEmitter* ee, struct Interface_Two* iface);
+
+struct EventEmitter* EventEmitter_new(struct Allocator* alloc, struct Log* log);
 
 #endif

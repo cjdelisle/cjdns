@@ -209,16 +209,14 @@ struct SessionTable_Session* SessionTable_getSession(uint8_t* lookupKey,
 
     int ifaceIndex = Map_OfSessionsByIp6_put((struct Ip6*)lookupKey, &ss, &sm->ifaceMap);
 
-    ss->pub.receiveHandle_be =
-        Endian_hostToBigEndian32(sm->ifaceMap.handles[ifaceIndex] + sm->first);
+    ss->pub.receiveHandle = sm->ifaceMap.handles[ifaceIndex] + sm->first;
 
     check(sm, ifaceIndex);
 
     return &Identity_check(sm->ifaceMap.values[ifaceIndex])->pub;
 }
 
-struct SessionTable_Session* SessionTable_sessionForHandle(uint32_t handle,
-                                                               struct SessionTable* sm)
+struct SessionTable_Session* SessionTable_sessionForHandle(uint32_t handle, struct SessionTable* sm)
 {
     int index = Map_OfSessionsByIp6_indexForHandle(handle - sm->first, &sm->ifaceMap);
     if (index < 0) { return NULL; }

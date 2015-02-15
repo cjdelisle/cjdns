@@ -101,15 +101,14 @@ static void sessionStats(Dict* args,
     struct Address addr;
     uint8_t* key = CryptoAuth_getHerPublicKey(session->internal);
     Bits_memcpyConst(addr.key, key, 32);
-    addr.path = session->knownSwitchLabel;
+    addr.path = session->sendSwitchLabel;
     addr.protocolVersion = session->version;
 
     Dict_putString(r, String_CONST("addr"), Address_toString(&addr, alloc), alloc);
 
     Dict_putString(r, String_CONST("publicKey"), Key_stringify(key, alloc), alloc);
     Dict_putInt(r, String_CONST("version"), session->version, alloc);
-    Dict_putInt(r, String_CONST("handle"),
-                Endian_bigEndianToHost32(session->receiveHandle_be), alloc);
+    Dict_putInt(r, String_CONST("handle"), session->receiveHandle, alloc);
     Dict_putInt(r, String_CONST("sendHandle"), session->sendHandle, alloc);
 
     Dict_putInt(r, String_CONST("timeOfLastIn"), session->timeOfLastIn, alloc);

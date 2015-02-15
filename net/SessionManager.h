@@ -26,7 +26,6 @@
 Linker_require("net/SessionManager.c")
 
 /**
- * Called SessionManager because I can't think of what this should be called.
  * Purpose of this module is to take packets from "the inside" which contain ipv6 address and
  * skeleton switch header and find an appropriate CryptoAuth session for them or begin one.
  * If a key for this node cannot be found then the packet will be blocked and a search will be

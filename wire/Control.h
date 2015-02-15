@@ -121,6 +121,19 @@ static inline char* Control_typeString(uint16_t type_be)
     }
 }
 
+struct Control_Header
+{
+    /**
+     * This should be the one's complement checksum
+     * of the control packet with 0'd checksum field.
+     */
+    uint16_t checksum_be;
+
+    /** The type of control message, eg: Control_ERROR. */
+    uint16_t type_be;
+};
+#define Control_Header_SIZE 4
+Assert_compileTime(sizeof(struct Control_Header) == Control_Header_SIZE);
 
 /**
  * A return message which is treated specially by switches.
@@ -135,17 +148,9 @@ static inline char* Control_typeString(uint16_t type_be)
  *  8 |                                                               |
  *
  */
-#define Control_HEADER_SIZE 4
 struct Control
 {
-    /**
-     * This should be the one's complement checksum
-     * of the control packet with 0'd checksum field.
-     */
-    uint16_t checksum_be;
-
-    /** The type of control message, eg: Control_ERROR. */
-    uint16_t type_be;
+    struct Control_Header header;
 
     union {
         struct Control_Error error;
@@ -159,6 +164,6 @@ struct Control
     } content;
 };
 // Control_KeyPing is the largest structure and thus defines the length of the "content" union.
-Assert_compileTime(sizeof(struct Control) == Control_HEADER_SIZE + Control_KeyPing_HEADER_SIZE);
+Assert_compileTime(sizeof(struct Control) == Control_Header_SIZE + Control_KeyPing_HEADER_SIZE);
 
 #endif

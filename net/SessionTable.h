@@ -45,8 +45,8 @@ struct SessionTable_Session
     /** The CryptoAuth state as of the last message. See: CryptoAuth_getState() */
     int cryptoAuthState;
 
-    /** The handle which will be used to lookup this session on our side, big endian. */
-    uint32_t receiveHandle_be;
+    /** The handle which will be used to lookup this session on our side. */
+    uint32_t receiveHandle;
 
     /** The handle which we are expected to send to identify ourselves */
     uint32_t sendHandle;
@@ -57,14 +57,11 @@ struct SessionTable_Session
     /** The IPv6 address of the other node. */
     uint8_t ip6[16];
 
-    /** Some label which is known to go to this node... */
-    uint64_t knownSwitchLabel;
+    /** The best known switch label for reaching this node. */
+    uint64_t sendSwitchLabel;
 
-    /** Quality of switch label. */
-    uint32_t metric;
-
-    /** Milliseconds since the epoch when this switch label was discovered. */
-    uint32_t timeDiscovered;
+    /** The switch label which this node uses for reaching us. */
+    uint64_t recvSwitchLabel;
 };
 
 struct SessionTable_HandleList

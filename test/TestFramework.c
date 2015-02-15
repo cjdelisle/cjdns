@@ -126,6 +126,10 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
     struct SwitchCore* switchCore = SwitchCore_new(logger, allocator, base);
     struct CryptoAuth* ca = CryptoAuth_new(allocator, (uint8_t*)privateKey, base, logger, rand);
 
+
+// allocator, myAddress, logger, base, publicKey, rand
+    do {
+
     struct DHTModuleRegistry* registry = DHTModuleRegistry_new(allocator);
     ReplyModule_register(registry, allocator);
 
@@ -148,13 +152,18 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
 
     SerializationModule_register(registry, logger, allocator);
 
-    /*struct IpTunnel* ipTun = */IpTunnel_new(logger, base, allocator, rand, NULL);
-
     struct Router* router = Router_new(routerModule, nodeStore, searchRunner, allocator);
 
-    struct EventEmitter* eventEmitter = EventEmitter_new(allocator);
+    } while (0);
 
-    struct SessionManager* sessionManager = SessionManager_new(allocator, base, ca, rand, logger, eventEmitter);
+    /*struct IpTunnel* ipTun = */IpTunnel_new(logger, base, allocator, rand, NULL);
+
+
+
+    struct EventEmitter* eventEmitter = EventEmitter_new(allocator, logger);
+
+    struct SessionManager* sessionManager =
+        SessionManager_new(allocator, base, ca, rand, logger, eventEmitter);
     struct SwitchAdapter* switchAdapter = SwitchAdapter_new(allocator, logger);
     Interface_plumb(&switchAdapter->sessionManagerIf, &sessionManager->switchIf);
 
@@ -171,7 +180,7 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
     Interface_plumb(&dhtCore->coreIf, &upper->dhtIf);
 
     struct ControlHandler* controlHandler =
-        ControlHandler_new(allocator, logger, router, myAddress);
+        ControlHandler_new(allocator, logger, eventEmitter, myAddress);
     Interface_plumb(&controlHandler->coreIf, &switchAdapter->controlIf);
 
     struct SwitchPinger* sp = SwitchPinger_new(base, rand, logger, myAddress, allocator);

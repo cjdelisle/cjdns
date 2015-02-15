@@ -27,13 +27,14 @@ struct ControlHandler_pvt
     struct Allocator* alloc;
     struct Router* router;
     struct Address* myAddr;
+    struct Interface_Two eventIface;
     Identity
 };
 
 /**
  * Expects [ Ctrl ][ Error ][ cause SwitchHeader ][ cause handle ][ cause etc.... ]
  */
-#define handleError_MIN_SIZE (Control_HEADER_SIZE + Control_Error_MIN_SIZE + SwitchHeader_SIZE + 4)
+#define handleError_MIN_SIZE (Control_Header_SIZE + Control_Error_MIN_SIZE + SwitchHeader_SIZE + 4)
 static int handleError(struct ControlHandler_pvt* ch,
                        struct Message* msg,
                        uint64_t label,
@@ -43,32 +44,15 @@ static int handleError(struct ControlHandler_pvt* ch,
         Log_info(ch->log, "DROP runt error packet from [%s]", labelStr);
         return 0;
     }
-    struct Control* ctrl = (struct Control*) msg->bytes;
-    struct Control_Error* err = &ctrl->content.error;
-    struct SwitchHeader* causeHeader = &err->cause;
-    uint64_t causeLabel = Endian_bigEndianToHost64(causeHeader->label_be);
-    uint32_t errorType = Endian_bigEndianToHost32(err->errorType_be);
-
-    if (!NumberCompress_isOneHop(label)) {
-        Router_brokenLink(ch->router, label, causeLabel);
-    } else if (errorType == Error_UNDELIVERABLE) {
-        // this is our own InterfaceController complaining
-        // because the node isn't responding to pings.
-        return 0;
-    }
-
-    Log_debug(ch->log, "error packet from [%s] [%s]%s",
-              labelStr,
-              Error_strerror(errorType),
-              ((err->causeHandle == 0xffffffff) ? " caused by ctrl" : ""));
-
-    return 0;
+    Message_shift(msg, SwitchHeader_SIZE + 4, NULL);
+    Message_push32(msg, Event_Core_SWITCH_ERR, NULL);
+    return Interface_sent(&ch->eventIf, msg);
 }
 
 /**
  * Expects [ SwitchHeader ][ Ctrl ][ (key)Ping ][ data etc.... ]
  */
-#define handlePing_MIN_SIZE (Control_HEADER_SIZE + Control_Ping_MIN_SIZE)
+#define handlePing_MIN_SIZE (Control_Header_SIZE + Control_Ping_MIN_SIZE)
 static int handlePing(struct ControlHandler_pvt* ch,
                       struct Message* msg,
                       uint64_t label,
@@ -81,7 +65,7 @@ static int handlePing(struct ControlHandler_pvt* ch,
     }
 
     struct Control* ctrl = (struct Control*) msg->bytes;
-    Message_shift(msg, -Control_HEADER_SIZE, NULL);
+    Message_shift(msg, -Control_Header_SIZE, NULL);
 
     // Ping and keyPing share version location
     struct Control_Ping* ping = (struct Control_Ping*) msg->bytes;
@@ -109,7 +93,7 @@ static int handlePing(struct ControlHandler_pvt* ch,
 
         struct Control_KeyPing* keyPing = (struct Control_KeyPing*) msg->bytes;
         keyPing->magic = Control_KeyPong_MAGIC;
-        ctrl->type_be = Control_KEYPONG_be;
+        ctrl->header.type_be = Control_KEYPONG_be;
         Bits_memcpyConst(keyPing->key, ch->myAddr->key, 32);
 
     } else if (messageType_be == Control_PING_be) {
@@ -119,7 +103,7 @@ static int handlePing(struct ControlHandler_pvt* ch,
             return 0;
         }
         ping->magic = Control_Pong_MAGIC;
-        ctrl->type_be = Control_PONG_be;
+        ctrl->header.type_be = Control_PONG_be;
 
     } else {
         Assert_failure("2+2=5");
@@ -127,10 +111,10 @@ static int handlePing(struct ControlHandler_pvt* ch,
 
     ping->version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL);
 
-    Message_shift(msg, Control_HEADER_SIZE, NULL);
+    Message_shift(msg, Control_Header_SIZE, NULL);
 
-    ctrl->checksum_be = 0;
-    ctrl->checksum_be = Checksum_engine(msg->bytes, msg->length);
+    ctrl->header.checksum_be = 0;
+    ctrl->header.checksum_be = Checksum_engine(msg->bytes, msg->length);
 
     Message_push32(msg, 0xffffffff, NULL);
 
@@ -166,7 +150,7 @@ static int incomingFromCore(struct Interface_Two* coreIf, struct Message* msg)
     AddrTools_printPath(labelStr, label);
     Log_debug(ch->log, "ctrl packet from [%s]", labelStr);
 
-    if (msg->length < SwitchHeader_SIZE + 4 + Control_HEADER_SIZE) {
+    if (msg->length < 4 + Control_Header_SIZE) {
         Log_info(ch->log, "DROP runt ctrl packet from [%s]", labelStr);
         return Error_NONE;
     }
@@ -180,15 +164,15 @@ static int incomingFromCore(struct Interface_Two* coreIf, struct Message* msg)
 
     struct Control* ctrl = (struct Control*) msg->bytes;
 
-    if (ctrl->type_be == Control_ERROR_be) {
+    if (ctrl->header.type_be == Control_ERROR_be) {
         return handleError(ch, msg, label, labelStr);
 
-    } else if (ctrl->type_be == Control_KEYPING_be
-            || ctrl->type_be == Control_PING_be) {
-        return handlePing(ch, msg, label, labelStr, ctrl->type_be);
+    } else if (ctrl->header.type_be == Control_KEYPING_be
+            || ctrl->header.type_be == Control_PING_be) {
+        return handlePing(ch, msg, label, labelStr, ctrl->header.type_be);
 
-    } else if (ctrl->type_be == Control_KEYPONG_be
-            || ctrl->type_be == Control_PONG_be) {
+    } else if (ctrl->header.type_be == Control_KEYPONG_be
+            || ctrl->header.type_be == Control_PONG_be) {
             Log_debug(ch->log, "got switch pong from [%s]", labelStr);
             // Shift back over the header
             Message_shift(msg, 4 + SwitchHeader_SIZE, NULL);
@@ -197,7 +181,7 @@ static int incomingFromCore(struct Interface_Two* coreIf, struct Message* msg)
     }
 
     Log_info(ch->log, "DROP control packet of unknown type from [%s], type [%d]",
-             labelStr, Endian_bigEndianToHost16(ctrl->type_be));
+             labelStr, Endian_bigEndianToHost16(ctrl->header.type_be));
 
     return 0;
 }
@@ -212,7 +196,7 @@ static int incomingFromSwitchPinger(struct Interface_Two* switchPingerIf, struct
 
 struct ControlHandler* ControlHandler_new(struct Allocator* alloc,
                                           struct Log* logger,
-                                          struct Router* router,
+                                          struct EventEmitter* ee,
                                           struct Address* myAddr)
 {
     struct ControlHandler_pvt* ch = Allocator_calloc(alloc, sizeof(struct ControlHandler_pvt), 1);
@@ -222,6 +206,7 @@ struct ControlHandler* ControlHandler_new(struct Allocator* alloc,
     ch->myAddr = myAddr;
     ch->pub.coreIf.send = incomingFromCore;
     ch->pub.switchPingerIf.send = incomingFromSwitchPinger;
+    EventEmitter_regCore(ee, Event_Core_INVALID, &ch->eventIface)
     Identity_set(ch);
     return &ch->pub;
 }

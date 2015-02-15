@@ -155,15 +155,14 @@ struct InterfaceController_pvt
     /** Switch for adding nodes when they are discovered. */
     struct SwitchCore* const switchCore;
 
-    struct Router* const router;
-
     struct Random* const rand;
-
-    struct RumorMill* const rumorMill;
 
     struct Log* const logger;
 
     struct EventBase* const eventBase;
+
+    /** For communicating with the Pathfinder. */
+    struct Interface_Two eventEmitterIf;
 
     /** After this number of milliseconds, a neoghbor will be regarded as unresponsive. */
     uint32_t unresponsiveAfterMilliseconds;
@@ -196,11 +195,21 @@ struct InterfaceController_pvt
     Identity
 };
 
-//---------------//
-
-static inline struct InterfaceController_pvt* ifcontrollerForPeer(struct Peer* ep)
+static void sendEvent(struct InterfaceController_pvt* ic, enum Event_Core ev, struct Peer* p)
 {
-    return Identity_check(ep->ici->ic);
+        /**
+     * Emitted when a peer connects (becomes state ESTABLISHED) or
+     * emitted for every peer if Event_Pathfinder_PEERS is sent.
+     * (emitted by: InterfaceController.c)
+     */
+    Event_Core_PEER,
+
+    /**
+     * Emitted when a peer disconnects (or becomes state UNRESPONSIVE)
+     * (emitted by: InterfaceController.c)
+     */
+    Event_Core_PEER_GONE,
+
 }
 
 static void onPingResponse(struct SwitchPinger_Response* resp, void* onResponseContext)
@@ -209,7 +218,7 @@ static void onPingResponse(struct SwitchPinger_Response* resp, void* onResponseC
         return;
     }
     struct Peer* ep = Identity_check((struct Peer*) onResponseContext);
-    struct InterfaceController_pvt* ic = ifcontrollerForPeer(ep);
+    struct InterfaceController_pvt* ic = Identity_check(ep->ici->ic);
 
     ep->addr.protocolVersion = resp->version;
 
@@ -260,7 +269,7 @@ static void onPingResponse(struct SwitchPinger_Response* resp, void* onResponseC
  */
 static void sendPing(struct Peer* ep)
 {
-    struct InterfaceController_pvt* ic = ifcontrollerForPeer(ep);
+    struct InterfaceController_pvt* ic = Identity_check(ep->ici->ic);
 
     ep->pingCount++;
 
@@ -304,16 +313,6 @@ static void iciPing(struct Iface* ici, struct InterfaceController_pvt* ic)
             if (now < ep->timeOfLastPing + ic->pingAfterMilliseconds) {
                 // Possibly an out-of-date node which is mangling packets, don't ping too often
                 // because it causes the RumorMill to be filled with this node over and over.
-                continue;
-            }
-
-            struct Node_Link* link = Router_linkForPath(ic->router, ep->addr.path);
-            // It exists, it's parent is the self-node, and it's label is equal to the switchLabel.
-            if (link
-                && Node_getBestParent(link->child)
-                && Node_getBestParent(link->child)->parent->address.path == 1
-                && Node_getBestParent(link->child)->cannonicalLabel == ep->addr.path)
-            {
                 continue;
             }
         }
@@ -398,7 +397,7 @@ static void moveEndpointIfNeeded(struct Peer* ep)
 static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cryptoAuthIf)
 {
     struct Peer* ep = Identity_check((struct Peer*) cryptoAuthIf->receiverContext);
-    struct InterfaceController_pvt* ic = ifcontrollerForPeer(ep);
+    struct InterfaceController_pvt* ic = Identity_check(ep->ici->ic);
 
     // nonce added by the CryptoAuth session.
     Message_pop(msg, NULL, 4, NULL);
@@ -459,7 +458,7 @@ static uint8_t sendFromSwitch(struct Message* msg, struct Interface* switchIf)
 
     ep->bytesOut += msg->length;
 
-    struct InterfaceController_pvt* ic = ifcontrollerForPeer(ep);
+    struct InterfaceController_pvt* ic = Identity_check(ep->ici->ic);
     uint8_t ret;
     uint64_t now = Time_currentTimeMilliseconds(ic->eventBase);
     if (now - ep->timeOfLastMessage > ic->unresponsiveAfterMilliseconds) {
@@ -498,7 +497,7 @@ static int closeInterface(struct Allocator_OnFreeJob* job)
 {
     struct Peer* toClose = Identity_check((struct Peer*) job->userData);
 
-    struct InterfaceController_pvt* ic = ifcontrollerForPeer(toClose);
+    struct InterfaceController_pvt* ic = Identity_check(ep->ici->ic);
 
     // flush the peer from the table...
     Router_disconnectedPeer(ic->router, toClose->addr.path);
@@ -1010,25 +1009,31 @@ int InterfaceController_disconnectPeer(struct InterfaceController* ifController,
     return InterfaceController_disconnectPeer_NOTFOUND;
 }
 
+static int incomingFromEventEmitterIf(struct Interface_Two* eventEmitterIf, struct Message* msg)
+{
+    struct InterfaceController_pvt* ic =
+         Identity_containerOf(eventEmitterIf, struct InterfaceController_pvt, eventEmitterIf);
+    Assert_true(Message_pop32(msg, NULL) == Event_Pathfinder_PEERS);
+    
+}
+
 struct InterfaceController* InterfaceController_new(struct CryptoAuth* ca,
                                                     struct SwitchCore* switchCore,
-                                                    struct Router* router,
-                                                    struct RumorMill* rumorMill,
                                                     struct Log* logger,
                                                     struct EventBase* eventBase,
                                                     struct SwitchPinger* switchPinger,
                                                     struct Random* rand,
-                                                    struct Allocator* allocator)
+                                                    struct Allocator* allocator,
+                                                    struct EventEmitter* ee)
 {
     struct InterfaceController_pvt* out =
         Allocator_malloc(allocator, sizeof(struct InterfaceController_pvt));
     Bits_memcpyConst(out, (&(struct InterfaceController_pvt) {
         .allocator = allocator,
         .ca = ca,
+        .ee = ee,
         .rand = rand,
         .switchCore = switchCore,
-        .router = router,
-        .rumorMill = rumorMill,
         .logger = logger,
         .eventBase = eventBase,
         .switchPinger = switchPinger,
@@ -1050,6 +1055,9 @@ struct InterfaceController* InterfaceController_new(struct CryptoAuth* ca,
     Identity_set(out);
 
     out->icis = ArrayList_OfIfaces_new(allocator);
+
+    out->eventEmitterIf.send = incomingFromEventEmitterIf;
+    EventEmitter_regCore(ee, &out->eventEmitterIf, Event_Pathfinder_PEERS);
 
     // Add the beaconing password.
     Random_bytes(rand, out->beacon.password, Headers_Beacon_PASSWORD_LEN);

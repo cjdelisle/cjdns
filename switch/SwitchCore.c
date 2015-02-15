@@ -99,7 +99,7 @@ static inline void sendError7(struct SwitchInterface* iface,
 
     // Shift back so we can add another header.
     Message_shift(cause,
-                  SwitchHeader_SIZE + Control_HEADER_SIZE + Control_Error_HEADER_SIZE,
+                  SwitchHeader_SIZE + Control_Header_SIZE + Control_Error_HEADER_SIZE,
                   NULL);
     struct ErrorPacket7* err = (struct ErrorPacket7*) cause->bytes;
 
@@ -150,7 +150,7 @@ static inline void sendError8(struct SwitchInterface* iface,
 
     // Shift back so we can add another header.
     Message_shift(cause,
-                  SwitchHeader_SIZE + 4 + Control_HEADER_SIZE + Control_Error_HEADER_SIZE,
+                  SwitchHeader_SIZE + 4 + Control_Header_SIZE + Control_Error_HEADER_SIZE,
                   NULL);
     struct ErrorPacket8* err = (struct ErrorPacket8*) cause->bytes;
 
@@ -161,11 +161,11 @@ static inline void sendError8(struct SwitchInterface* iface,
     SwitchHeader_setCongestion(header, 0);
 
     err->handle = 0xffffffff;
-    err->ctrl.type_be = Control_ERROR_be;
+    err->ctrl.header.type_be = Control_ERROR_be;
     err->ctrl.content.error.errorType_be = Endian_hostToBigEndian32(code);
-    err->ctrl.checksum_be = 0;
+    err->ctrl.header.checksum_be = 0;
 
-    err->ctrl.checksum_be =
+    err->ctrl.header.checksum_be =
         Checksum_engine((uint8_t*) &err->ctrl, cause->length - SwitchHeader_SIZE - 4);
 
     sendMessage(iface, cause, logger);

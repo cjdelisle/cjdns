@@ -22,13 +22,13 @@
 #include "util/events/Time.h"
 #include "util/Defined.h"
 #include "wire/RouteHeader.h"
+#include "util/events/Timeout.h"
 
 struct BufferedMessage
 {
     struct Message* msg;
     struct Allocator* alloc;
     uint32_t timeSent;
-    bool confirmed;
 };
 
 struct Ip6 {
@@ -67,7 +67,7 @@ struct SessionManager_pvt
         Log_debug(logger, "ver[%u] send[%d] recv[%u] ip[%s] path[%s] " message,        \
                   session->version,                                                    \
                   session->sendHandle,                                                 \
-                  Endian_hostToBigEndian32(session->receiveHandle_be),                 \
+                  session->receiveHandle,                                              \
                   ip,                                                                  \
                   path,                                                                \
                   __VA_ARGS__);                                                        \
@@ -117,6 +117,23 @@ static uint8_t incomingFromSwitchPostCryptoAuth(struct Message* msg, struct Inte
     Bits_memcpyConst(header->ip6, session->ip6, 16);
     uint8_t* pubKey = CryptoAuth_getHerPublicKey(session->internal);
     Bits_memcpyConst(header->publicKey, pubKey, 32);
+
+    uint64_t path = Endian_bigEndianToHost64(sh->label_be);
+    if (!session->sendSwitchLabel) {
+        session->sendSwitchLabel = path;
+    }
+    if (path != session->recvSwitchLabel) {
+        session->recvSwitchLabel = path;
+        struct Message* eventMsg = Message_new(Event_Node_SIZE, 512, msg->alloc);
+        struct Event_Node* node = (struct Event_Node*) eventMsg->bytes;
+        Bits_memcpyConst(node->ip6, session->ip6, 16);
+        Bits_memcpyConst(node->publicKey, pubKey, 32);
+        node->path_be = sh->label_be;
+        node->metric_be = 0xffffffff;
+        node->version_be = header->version_be;
+        Message_push32(eventMsg, Event_Core_SEARCH_REQ, NULL);
+        Interface_send(&bw->eventIf, eventMsg);
+    }
 
     Interface_send(&bw->pub.insideIf, msg);
     // Never return errors here because they can cause unencrypted stuff to be returned as an error.
@@ -196,18 +213,13 @@ static int incomingFromSwitchIf(struct Interface_Two* iface, struct Message* msg
     return 0;
 }
 
-/**
- * If an unsent buffer sits around for more than 120 seconds, it must be removed because
- * the search has somehow gone missing. If the search was not confirmed to have begun,
- * do not keep for more than 1 second.
- */
 static void checkTimedOutBuffers(void* vSessionManager)
 {
     struct SessionManager_pvt* bw = Identity_check((struct SessionManager_pvt*) vSessionManager);
     for (int i = 0; i < (int)bw->bufMap.count; i++) {
         struct BufferedMessage* buffered = bw->bufMap.values[i];
         uint64_t lag = Time_currentTimeSeconds(bw->eventBase) - buffered->timeSent;
-        if ((buffered->confirmed || lag < 1) && lag < 120) { continue; }
+        if (lag < 10) { continue; }
         Map_BufferedMessages_remove(i, &bw->bufMap);
         Allocator_free(buffered->alloc);
         i--;
@@ -224,8 +236,10 @@ static int needsLookup(struct SessionManager_pvt* bw, struct Message* msg)
     }
     int index = Map_BufferedMessages_indexForKey((struct Ip6*)header->ip6, &bw->bufMap);
     if (index > -1) {
-        Log_debug(bw->log, "DROP message which needs lookup because one is in progress");
-        return 0;
+        struct BufferedMessage* buffered = bw->bufMap.values[index];
+        Map_BufferedMessages_remove(index, &bw->bufMap);
+        Allocator_free(buffered->alloc);
+        Log_debug(bw->log, "DROP message which needs lookup because new one received");
     }
     if ((int)bw->bufMap.count >= bw->pub.maxBufferedMessages) {
         checkTimedOutBuffers(bw);
@@ -247,7 +261,7 @@ static int needsLookup(struct SessionManager_pvt* bw, struct Message* msg)
     struct Allocator* eventAlloc = Allocator_child(lookupAlloc);
     struct Message* eventMsg = Message_new(0, 512, eventAlloc);
     Message_push(eventMsg, header->ip6, 16, NULL);
-    Message_push32(eventMsg, Event_SEARCH, NULL);
+    Message_push32(eventMsg, Event_Core_SEARCH_REQ, NULL);
     Interface_send(&bw->eventIf, eventMsg);
     Allocator_free(eventAlloc);
 
@@ -296,7 +310,7 @@ static int readyToSend(struct SessionManager_pvt* bw,
     CryptoAuth_resetIfTimeout(sess->internal);
     if (CryptoAuth_getState(sess->internal) < CryptoAuth_HANDSHAKE3) {
         // Put the handle into the message so that it's authenticated.
-        Message_push(msg, &sess->receiveHandle_be, 4, NULL);
+        Message_push32(msg, sess->receiveHandle, NULL);
 
         // Copy back the SwitchHeader so it is not clobbered.
         Message_shift(msg, (CryptoHeader_SIZE + SwitchHeader_SIZE), NULL);
@@ -336,8 +350,8 @@ static int incomingFromInsideIf(struct Interface_Two* iface, struct Message* msg
 
     if (header->sh.label_be) {
         // fallthrough
-    } else if (sess->knownSwitchLabel) {
-        header->sh.label_be = Endian_hostToBigEndian64(sess->knownSwitchLabel);
+    } else if (sess->sendSwitchLabel) {
+        header->sh.label_be = Endian_hostToBigEndian64(sess->sendSwitchLabel);
     } else {
         return needsLookup(bw, msg);
     }
@@ -345,6 +359,7 @@ static int incomingFromInsideIf(struct Interface_Two* iface, struct Message* msg
     return readyToSend(bw, sess, msg);
 }
 
+/* too good to toss!
 static uint32_t getEffectiveMetric(uint64_t nowMilliseconds,
                                    uint32_t metricHalflifeMilliseconds,
                                    uint32_t metric,
@@ -372,81 +387,48 @@ static uint32_t getEffectiveMetric(uint64_t nowMilliseconds,
 
     return UINT32_MAX - out;
 }
+*/
 
-static int incomingFromEventIf(struct Interface_Two* iface, struct Message* msg)
+static Interface_Ret sessions(struct Interface_Two* iface, struct Message* msg)
+{
+    
+}
+
+static Interface_Ret incomingFromEventIf(struct Interface_Two* iface, struct Message* msg)
 {
     struct SessionManager_pvt* bw = Identity_containerOf(iface, struct SessionManager_pvt, eventIf);
-    enum Event ev = Message_pop32(msg, NULL);
-
-    struct Ip6 ip6;
-    Message_pop(msg, &ip6, 16, NULL);
-    int index = Map_BufferedMessages_indexForKey(&ip6, &bw->bufMap);
-
-    if (ev == Event_DISCOVERY) {
-        struct SessionTable_Session* sess;
-        if (index == -1) {
-            sess = SessionTable_sessionForIp6(ip6.bytes, bw->pub.sessionTable);
-            // If we discovered a node we're not interested in ...
-            if (!sess) { return 0; }
-            Message_pop(msg, NULL, 32, NULL);
-        } else {
-            uint8_t publicKey[32];
-            Message_pop(msg, publicKey, 32, NULL);
-            sess = SessionTable_getSession(ip6.bytes, publicKey, bw->pub.sessionTable);
-        }
-
-        uint64_t path = Message_pop64(msg, NULL);
-        uint32_t metric = Message_pop32(msg, NULL);
-        sess->version = Message_pop32(msg, NULL);
+    enum Event_Pathfinder ev = Message_pop32(msg, NULL);
+    uint32_t sourcePf = Message_pop32(msg, NULL);
+    if (ev == Event_Pathfinder_SESSIONS) {
         Assert_true(!msg->length);
+        return sessions(bw, sourcePf);
+    }
+    Assert_true(ev == Event_Pathfinder_NODE);
 
-        uint64_t now = Time_currentTimeMilliseconds(bw->eventBase);
-
-        if (!sess->knownSwitchLabel) {
-            sess->knownSwitchLabel = path;
-            sess->metric = metric;
-            sess->timeDiscovered = now;
-        } else {
-            uint32_t effectiveMetric = getEffectiveMetric(now,
-                                                          bw->pub.metricHalflifeMilliseconds,
-                                                          sess->metric,
-                                                          sess->timeDiscovered);
-            if (metric < effectiveMetric) {
-                sess->knownSwitchLabel = path;
-                sess->metric = metric;
-                sess->timeDiscovered = now;
-            }
-        }
-
-        // Send what's on the buffer...
-        if (index > -1) {
-            struct BufferedMessage* bm = bw->bufMap.values[index];
-            readyToSend(bw, sess, bm->msg);
-            Map_BufferedMessages_remove(index, &bw->bufMap);
-            Allocator_free(bm->alloc);
-        }
-        return 0;
+    struct Event_Node node;
+    Message_pop(msg, &node, Event_Node_SIZE, NULL);
+    Assert_true(!msg->length);
+    int index = Map_BufferedMessages_indexForKey((struct Ip6*)node.ip6, &bw->bufMap);
+    struct SessionTable_Session* sess;
+    if (index == -1) {
+        sess = SessionTable_sessionForIp6(node.ip6, bw->pub.sessionTable);
+        // If we discovered a node we're not interested in ...
+        if (!sess) { return Interface_RET; }
+    } else {
+        sess = SessionTable_getSession(node.ip6, node.publicKey, bw->pub.sessionTable);
     }
 
-    // It has to be a SEARCH_BEGIN or SEARCH_END so it must be exhaused.
-    Assert_true(!msg->length);
+    sess->sendSwitchLabel = Endian_bigEndianToHost64(node.path_be);
+    sess->version = Endian_bigEndianToHost64(node.version_be);
 
-    if (index == -1) { return 0; }
-    struct BufferedMessage* bm = bw->bufMap.values[index];
-    if (ev == Event_SEARCH_BEGIN) {
-        bm->confirmed = true;
-        return 0;
-    } else if (ev == Event_SEARCH_END) {
-        if (Defined(Log_DEBUG)) {
-            uint8_t ipStr[40];
-            AddrTools_printIp(ipStr, ip6.bytes);
-            Log_debug(bw->log, "DROP buffered packet to [%s] because search found nothing", ipStr);
-        }
+    // Send what's on the buffer...
+    if (index > -1) {
+        struct BufferedMessage* bm = bw->bufMap.values[index];
+        readyToSend(bw, sess, bm->msg);
         Map_BufferedMessages_remove(index, &bw->bufMap);
         Allocator_free(bm->alloc);
-        return 0;
     }
-    Assert_failure("2+2=5");
+    return Interface_RET;
 }
 
 struct SessionManager* SessionManager_new(struct Allocator* alloc,
@@ -460,7 +442,6 @@ struct SessionManager* SessionManager_new(struct Allocator* alloc,
     bw->alloc = alloc;
     bw->pub.switchIf.send = incomingFromSwitchIf;
     bw->pub.insideIf.send = incomingFromInsideIf;
-    bw->eventIf.send = incomingFromEventIf;
     bw->bufMap.allocator = alloc;
     bw->log = log;
     bw->ca = cryptoAuth;
@@ -469,17 +450,18 @@ struct SessionManager* SessionManager_new(struct Allocator* alloc,
     bw->pub.metricHalflifeMilliseconds = SessionManager_METRIC_HALFLIFE_MILLISECONDS_DEFAULT;
     bw->pub.maxBufferedMessages = SessionManager_MAX_BUFFERED_MESSAGES_DEFAULT;
 
-    EventEmitter_regIface(ee, &bw->eventIf, Event_DISCOVERY);
-    EventEmitter_regIface(ee, &bw->eventIf, Event_SEARCH_BEGIN);
-    EventEmitter_regIface(ee, &bw->eventIf, Event_SEARCH_END);
+    bw->eventIf.send = incomingFromEventIf;
+    EventEmitter_regCore(ee, &bw->eventIf, Event_Pathfinder_NODE);
 
     bw->pub.sessionTable = SessionTable_new(incomingFromSwitchPostCryptoAuth,
-                                                readyToSendPostCryptoAuth,
-                                                bw,
-                                                eventBase,
-                                                cryptoAuth,
-                                                rand,
-                                                alloc);
+                                            readyToSendPostCryptoAuth,
+                                            bw,
+                                            eventBase,
+                                            cryptoAuth,
+                                            rand,
+                                            alloc);
+
+    Timeout_setInterval(checkTimedOutBuffers, bw, 10000, eventBase, alloc);
 
     Identity_set(bw);
 
