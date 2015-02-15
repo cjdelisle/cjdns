@@ -106,6 +106,8 @@ static int incomingFromDHT(struct DHTMessage* dmessage, void* vpf)
 
 static Iface_DEFUN connected(struct Pathfinder_pvt* pf, struct Message* msg)
 {
+    Log_debug(pf->log, "INIT");
+
     struct PFChan_Core_Connect conn;
     Message_pop(msg, &conn, PFChan_Core_Connect_SIZE, NULL);
     Assert_true(!msg->length);
@@ -122,8 +124,7 @@ static Iface_DEFUN connected(struct Pathfinder_pvt* pf, struct Message* msg)
     struct RumorMill* rumorMill =
         RumorMill_new(pf->alloc, &pf->myAddr, RUMORMILL_CAPACITY, pf->log, "extern");
 
-    struct NodeStore* nodeStore =
-        NodeStore_new(&pf->myAddr, pf->alloc, pf->base, pf->log, rumorMill);
+    pf->nodeStore = NodeStore_new(&pf->myAddr, pf->alloc, pf->base, pf->log, rumorMill);
 
     struct RouterModule* routerModule = RouterModule_register(pf->registry,
                                                               pf->alloc,
@@ -131,9 +132,9 @@ static Iface_DEFUN connected(struct Pathfinder_pvt* pf, struct Message* msg)
                                                               pf->base,
                                                               pf->log,
                                                               pf->rand,
-                                                              nodeStore);
+                                                              pf->nodeStore);
 
-    struct SearchRunner* searchRunner = SearchRunner_new(nodeStore,
+    struct SearchRunner* searchRunner = SearchRunner_new(pf->nodeStore,
                                                          pf->log,
                                                          pf->base,
                                                          routerModule,
@@ -144,7 +145,7 @@ static Iface_DEFUN connected(struct Pathfinder_pvt* pf, struct Message* msg)
     Janitor_new(LOCAL_MAINTENANCE_SEARCH_MILLISECONDS,
                 GLOBAL_MAINTENANCE_SEARCH_MILLISECONDS,
                 routerModule,
-                nodeStore,
+                pf->nodeStore,
                 searchRunner,
                 rumorMill,
                 pf->log,
@@ -160,8 +161,8 @@ static Iface_DEFUN connected(struct Pathfinder_pvt* pf, struct Message* msg)
 
     // Now the admin stuff...
     if (pf->admin) {
-        struct Router* router = Router_new(routerModule, nodeStore, searchRunner, pf->alloc);
-        NodeStore_admin_register(nodeStore, pf->admin, pf->alloc);
+        struct Router* router = Router_new(routerModule, pf->nodeStore, searchRunner, pf->alloc);
+        NodeStore_admin_register(pf->nodeStore, pf->admin, pf->alloc);
         RouterModule_admin_register(routerModule, router, pf->admin, pf->alloc);
         SearchRunner_admin_register(searchRunner, pf->admin, pf->alloc);
     }

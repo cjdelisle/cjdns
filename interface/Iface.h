@@ -57,10 +57,13 @@ static inline void Iface_send(struct Iface* iface, struct Message* msg)
         #ifdef PARANOIA
             struct Iface* ifaceNext = conn->send(conn, msg);
             msg->currentIface = NULL;
-            iface = ifaceNext;
             iface->currentMsg = NULL;
+            iface = ifaceNext;
         #else
             iface = conn->send(conn, msg);
+        #endif
+        #ifndef STUPID_OPTIMIZATIONS
+            Assert_true(!iface);
         #endif
     } while (iface);
 }

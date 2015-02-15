@@ -89,17 +89,20 @@ Assert_compileTime(
 
 enum PFChan_Pathfinder
 {
+    /** Below the lowest valid value. */
+    PFChan_Pathfinder__TOO_LOW = 511,
+
     /**
      * Must be emitted before any other messages.
      * (Received by: EventEmitter.c)
      */
-    PFChan_Pathfinder_CONNECT,
+    PFChan_Pathfinder_CONNECT = 512,
 
     /**
      * See PFChan_Pathfinder_Superiority for more information about this event.
      * (Received by: EventEmitter.c)
      */
-    PFChan_Pathfinder_SUPERIORITY,
+    PFChan_Pathfinder_SUPERIORITY = 513,
 
     /**
      * Emit to indicate the discovery of a node or a new best path to the node.
@@ -107,25 +110,25 @@ enum PFChan_Pathfinder
      * there are active sessions.
      * (Received by: SessionManager.c)
      */
-    PFChan_Pathfinder_NODE,
+    PFChan_Pathfinder_NODE = 514,
 
     /**
      * Send a DHT message to another node.
      * (Received by: UpperDistributor.c)
      */
-    PFChan_Pathfinder_SENDMSG,
+    PFChan_Pathfinder_SENDMSG = 515,
 
     /**
      * PFChan_Pathfinder_PING will elicit an PFChan_Core_PONG
      * (Received by: EventEmitter.c)
      */
-    PFChan_Pathfinder_PING,
+    PFChan_Pathfinder_PING = 516,
 
     /**
      * PFChan_Pathfinder_PONG must be sent if core sends a PFChan_Core_PING
      * (Received by: EventEmitter.c)
      */
-    PFChan_Pathfinder_PONG,
+    PFChan_Pathfinder_PONG = 517,
 
     // The following events have no content.
 
@@ -133,21 +136,21 @@ enum PFChan_Pathfinder
      * Get all sessions.
      * (Received by: SessionManager.c)
      */
-    PFChan_Pathfinder_SESSIONS,
+    PFChan_Pathfinder_SESSIONS = 518,
 
     /**
      * Get all peers.
      * (Received by: InterfaceController.c)
      */
-    PFChan_Pathfinder_PEERS,
+    PFChan_Pathfinder_PEERS = 519,
 
     /**
      * Get all registered pathfinders
      * (Received by: EventEmitter.c)
      */
-    PFChan_Pathfinder_PATHFINDERS,
+    PFChan_Pathfinder_PATHFINDERS = 520,
 
-    PFChan_Pathfinder_INVALID
+    PFChan_Pathfinder__TOO_HIGH = 521,
 };
 
 struct PFChan_FromPathfinder
@@ -172,89 +175,92 @@ struct PFChan_FromPathfinder
 
 enum PFChan_Core
 {
+    /** This is below the lowest valid value */
+    PFChan_Core__TOO_LOW = 1023,
+
     /**
      * This message is sent in response to an PFChan_Pathfinder_CONNECT message and is
      * guaranteed to be sent before any other message.
      * (emitted by: EventEmitter.c)
      */
-    PFChan_Core_CONNECT,
+    PFChan_Core_CONNECT = 1024,
 
     /**
      * Emitted when a pathfinder connects or if PFChan_Pathfinder_PATHFINDERS is sent.
      * (emitted by: EventEmitter.c)
      */
-    PFChan_Core_PATHFINDER,
+    PFChan_Core_PATHFINDER = 1025,
 
     /**
      * Emitted when a pathfinder disconnects from the core
      * (emitted by: EventEmitter.c)
      */
-    PFChan_Core_PATHFINDER_GONE,
+    PFChan_Core_PATHFINDER_GONE = 1026,
 
     /**
      * Emitted if a switch error is received, no matter what type of packet causes it.
      * (emitted by: ControlHandler.c)
      */
-    PFChan_Core_SWITCH_ERR,
+    PFChan_Core_SWITCH_ERR = 1027,
 
     /**
      * Emitted if the core wants the pathfinder to begin searching for a node.
      * (emitted by: SessionManager.c)
      */
-    PFChan_Core_SEARCH_REQ,
+    PFChan_Core_SEARCH_REQ = 1028,
 
     /**
      * Emitted when a peer connects (becomes state ESTABLISHED) or
      * emitted for every peer if PFChan_Pathfinder_PEERS is sent.
      * (emitted by: InterfaceController.c)
      */
-    PFChan_Core_PEER,
+    PFChan_Core_PEER = 1029,
 
     /**
      * Emitted when a peer disconnects (or becomes state UNRESPONSIVE)
      * (emitted by: InterfaceController.c)
      */
-    PFChan_Core_PEER_GONE,
+    PFChan_Core_PEER_GONE = 1030,
 
     /**
      * Emitted if a new session begins, also emitted for every active session of
      * PFChan_Pathfinder_SESSIONS is sent.
      * (emitted by: SessionManager.c)
      */
-    PFChan_Core_SESSION,
+    PFChan_Core_SESSION = 1031,
 
     /**
      * Emitted when a session ends.
      * (emitted by: SessionManager.c)
      */
-    PFChan_Core_SESSION_ENDED,
+    PFChan_Core_SESSION_ENDED = 1032,
 
     /**
      * Emitted when SessionManager sees an incoming packet with a new path.
      * (emitted by: SessionManager.c)
      */
-    PFChan_Core_DISCOVERED_PATH,
+    PFChan_Core_DISCOVERED_PATH = 1033,
 
     /**
      * Emitted for each incoming DHT message.
      * (emitted by: UpperDistributor.c)
      */
-    PFChan_Core_MSG,
+    PFChan_Core_MSG = 1034,
 
     /**
      * Emitted from time to time in order to verify the pathfinder is alive.
      * Must be responded to by an PFChan_Pathfinder_PONG.
      * (emitted by: EventEmitter.c)
      */
-    PFChan_Core_PING,
+    PFChan_Core_PING = 1035,
 
     /**
      * Will be emitted if the pathfinder emits an PFChan_Pathfinder_PING.
      * (emitted by: EventEmitter.c)
      */
-    PFChan_Core_PONG,
+    PFChan_Core_PONG = 1036,
 
-    PFChan_Core_INVALID
+    PFChan_Core__TOO_HIGH = 1037,
 };
 
 struct PFChan_Core_SearchReq

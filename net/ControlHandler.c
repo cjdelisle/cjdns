@@ -205,7 +205,7 @@ struct ControlHandler* ControlHandler_new(struct Allocator* alloc,
     Bits_memcpyConst(ch->myPublicKey, myPublicKey, 32);
     ch->pub.coreIf.send = incomingFromCore;
     ch->pub.switchPingerIf.send = incomingFromSwitchPinger;
-    EventEmitter_regCore(ee, &ch->eventIf, PFChan_Pathfinder_INVALID);
+    EventEmitter_regCore(ee, &ch->eventIf, 0);
     Identity_set(ch);
     return &ch->pub;
 }

@@ -30,7 +30,7 @@ struct EventEmitter
 /**
  * Register an interface to listen for and fire events.
  * The same interface may be registered multiple times.
- * If you only intend to fire events, just register with PFChan_Pathfinder_INVALID.
+ * If you only intend to fire events, just register with 0 as the event.
  */
 void EventEmitter_regCore(struct EventEmitter* ee,
                           struct Iface* iface,
