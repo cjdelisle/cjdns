@@ -15,7 +15,7 @@
 #ifndef ConverterV15_H
 #define ConverterV15_H
 
-#include "interface/Interface.h"
+#include "interface/Iface.h"
 #include "memory/Allocator.h"
 #include "net/SessionTable.h"
 #include "util/log/Log.h"

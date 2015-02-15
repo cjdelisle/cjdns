@@ -18,7 +18,7 @@
 #include "interface/Interface.h"
 #include "net/SessionTable.h"
 #include "memory/Allocator.h"
-#include "net/Event.h"
+#include "wire/PFChan.h"
 #include "net/EventEmitter.h"
 #include "wire/SwitchHeader.h"
 #include "wire/CryptoHeader.h"

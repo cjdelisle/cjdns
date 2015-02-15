@@ -12,8 +12,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef Event_H
-#define Event_H
+#ifndef PFChan_H
+#define PFChan_H
 
 #include "util/Assert.h"
 #include "wire/RouteHeader.h"
@@ -21,7 +21,7 @@
 #include "wire/SwitchHeader.h"
 #include "wire/Control.h"
 
-struct Event_Node
+struct PFChan_Node
 {
     uint8_t ip6[16];
 
@@ -34,32 +34,32 @@ struct Event_Node
 
     uint32_t version_be;
 };
-#define Event_Node_SIZE 64
-Assert_compileTime(sizeof(struct Event_Node) == Event_Node_SIZE);
+#define PFChan_Node_SIZE 64
+Assert_compileTime(sizeof(struct PFChan_Node) == PFChan_Node_SIZE);
 
-struct Event_Msg
+struct PFChan_Msg
 {
     struct RouteHeader route;
     struct DataHeader data;
     // ...content follows...
 };
-#define Event_Msg_MIN_SIZE (RouteHeader_SIZE + DataHeader_SIZE)
-Assert_compileTime(sizeof(struct Event_Msg) == Event_Msg_MIN_SIZE);
-#pragma GCC poison Event_Msg_SIZE
+#define PFChan_Msg_MIN_SIZE (RouteHeader_SIZE + DataHeader_SIZE)
+Assert_compileTime(sizeof(struct PFChan_Msg) == PFChan_Msg_MIN_SIZE);
+#pragma GCC poison PFChan_Msg_SIZE
 
-struct Event_Ping
+struct PFChan_Ping
 {
     uint64_t cookie;
 };
-#define Event_Ping_SIZE 8
-Assert_compileTime(sizeof(struct Event_Ping) == Event_Ping_SIZE);
+#define PFChan_Ping_SIZE 8
+Assert_compileTime(sizeof(struct PFChan_Ping) == PFChan_Ping_SIZE);
 
-struct Event_Pathfinder_Connect
+struct PFChan_Pathfinder_Connect
 {
     /**
-     * See Event_Pathfinder_Superiority for more information about this field.
+     * See PFChan_Pathfinder_Superiority for more information about this field.
      * It is recommended that you pass zero at first and then pass a higher number once your table
-     * has populated. Use an Event_Pathfinder_SUPERIORITY event to alter it.
+     * has populated. Use an PFChan_Pathfinder_SUPERIORITY event to alter it.
      */
     uint32_t superiority_be;
 
@@ -69,37 +69,37 @@ struct Event_Pathfinder_Connect
     /** Description of the pathfinder in ASCII text. */
     uint8_t userAgent[64];
 };
-#define Event_Pathfinder_Connect_SIZE 72
-Assert_compileTime(sizeof(struct Event_Pathfinder_Connect) == Event_Pathfinder_Connect_SIZE);
+#define PFChan_Pathfinder_Connect_SIZE 72
+Assert_compileTime(sizeof(struct PFChan_Pathfinder_Connect) == PFChan_Pathfinder_Connect_SIZE);
 
 /**
- * Sending a Event_Pathfinder_SUPERIORITY event will cause Event_Core_PATHFINDER event to be sent
+ * Sending a PFChan_Pathfinder_SUPERIORITY event will cause PFChan_Core_PATHFINDER event to be sent
  * again for your pathfinder with the updated superiority. Superiority is a way for multiple
  * connected pathfinders to operate together by ones which have lower superiority switching
  * to an "idle" mode, relying on the responses to the DHT pings and searches sent by the higher
  * superiority pathfinder.
  */
-struct Event_Pathfinder_Superiority
+struct PFChan_Pathfinder_Superiority
 {
     uint32_t superiority_be;
 };
-#define Event_Pathfinder_Superiority_SIZE 4
+#define PFChan_Pathfinder_Superiority_SIZE 4
 Assert_compileTime(
-    sizeof(struct Event_Pathfinder_Superiority) == Event_Pathfinder_Superiority_SIZE);
+    sizeof(struct PFChan_Pathfinder_Superiority) == PFChan_Pathfinder_Superiority_SIZE);
 
-enum Event_Pathfinder
+enum PFChan_Pathfinder
 {
     /**
      * Must be emitted before any other messages.
      * (Received by: EventEmitter.c)
      */
-    Event_Pathfinder_CONNECT,
+    PFChan_Pathfinder_CONNECT,
 
     /**
-     * See Event_Pathfinder_Superiority for more information about this event.
+     * See PFChan_Pathfinder_Superiority for more information about this event.
      * (Received by: EventEmitter.c)
      */
-    Event_Pathfinder_SUPERIORITY,
+    PFChan_Pathfinder_SUPERIORITY,
 
     /**
      * Emit to indicate the discovery of a node or a new best path to the node.
@@ -107,25 +107,25 @@ enum Event_Pathfinder
      * there are active sessions.
      * (Received by: SessionManager.c)
      */
-    Event_Pathfinder_NODE,
+    PFChan_Pathfinder_NODE,
 
     /**
      * Send a DHT message to another node.
-     * TODO
+     * (Received by: UpperDistributor.c)
      */
-    Event_Pathfinder_SENDMSG,
+    PFChan_Pathfinder_SENDMSG,
 
     /**
-     * Event_Pathfinder_PING will elicit an Event_Core_PONG
+     * PFChan_Pathfinder_PING will elicit an PFChan_Core_PONG
      * (Received by: EventEmitter.c)
      */
-    Event_Pathfinder_PING,
+    PFChan_Pathfinder_PING,
 
     /**
-     * Event_Pathfinder_PONG must be sent if core sends a Event_Core_PING
+     * PFChan_Pathfinder_PONG must be sent if core sends a PFChan_Core_PING
      * (Received by: EventEmitter.c)
      */
-    Event_Pathfinder_PONG,
+    PFChan_Pathfinder_PONG,
 
     // The following events have no content.
 
@@ -133,137 +133,140 @@ enum Event_Pathfinder
      * Get all sessions.
      * (Received by: SessionManager.c)
      */
-    Event_Pathfinder_SESSIONS,
+    PFChan_Pathfinder_SESSIONS,
 
     /**
      * Get all peers.
      * (Received by: InterfaceController.c)
      */
-    Event_Pathfinder_PEERS,
+    PFChan_Pathfinder_PEERS,
 
     /**
      * Get all registered pathfinders
      * (Received by: EventEmitter.c)
      */
-    Event_Pathfinder_PATHFINDERS,
+    PFChan_Pathfinder_PATHFINDERS,
 
-    Event_Pathfinder_INVALID
+    PFChan_Pathfinder_INVALID
 };
 
-struct Event_FromPathfinder
+struct PFChan_FromPathfinder
 {
-    enum Event_Pathfinder event_be;
+    enum PFChan_Pathfinder event_be;
 
     /* Number of the Pathfinder which sent this event, added by EventEmitter.c */
     uint8_t target_be;
 
     union {
-        struct Event_Pathfinder_Connect connect;
-        struct Event_Pathfinder_Superiority superiority;
-        struct Event_Node node;
-        struct Event_Msg sendmsg;
-        struct Event_Ping ping;
-        struct Event_Ping pong;
+        struct PFChan_Pathfinder_Connect connect;
+        struct PFChan_Pathfinder_Superiority superiority;
+        struct PFChan_Node node;
+        struct PFChan_Msg sendmsg;
+        struct PFChan_Ping ping;
+        struct PFChan_Ping pong;
         uint8_t bytes[1];
     } content;
 };
 
 //// ------------------------- Core Events ------------------------- ////
 
-enum Event_Core
+enum PFChan_Core
 {
     /**
-     * This message is sent in response to an Event_Pathfinder_CONNECT message and is
+     * This message is sent in response to an PFChan_Pathfinder_CONNECT message and is
      * guaranteed to be sent before any other message.
      * (emitted by: EventEmitter.c)
      */
-    Event_Core_CONNECT,
+    PFChan_Core_CONNECT,
 
     /**
-     * Emitted when a pathfinder connects or if Event_Pathfinder_PATHFINDERS is sent.
+     * Emitted when a pathfinder connects or if PFChan_Pathfinder_PATHFINDERS is sent.
      * (emitted by: EventEmitter.c)
      */
-    Event_Core_PATHFINDER,
+    PFChan_Core_PATHFINDER,
 
     /**
      * Emitted when a pathfinder disconnects from the core
      * (emitted by: EventEmitter.c)
      */
-    Event_Core_PATHFINDER_GONE,
+    PFChan_Core_PATHFINDER_GONE,
 
     /**
      * Emitted if a switch error is received, no matter what type of packet causes it.
      * (emitted by: ControlHandler.c)
      */
-    Event_Core_SWITCH_ERR,
+    PFChan_Core_SWITCH_ERR,
 
     /**
      * Emitted if the core wants the pathfinder to begin searching for a node.
      * (emitted by: SessionManager.c)
      */
-    Event_Core_SEARCH_REQ,
+    PFChan_Core_SEARCH_REQ,
 
     /**
      * Emitted when a peer connects (becomes state ESTABLISHED) or
-     * emitted for every peer if Event_Pathfinder_PEERS is sent.
+     * emitted for every peer if PFChan_Pathfinder_PEERS is sent.
      * (emitted by: InterfaceController.c)
      */
-    Event_Core_PEER,
+    PFChan_Core_PEER,
 
     /**
      * Emitted when a peer disconnects (or becomes state UNRESPONSIVE)
      * (emitted by: InterfaceController.c)
      */
-    Event_Core_PEER_GONE,
+    PFChan_Core_PEER_GONE,
 
     /**
      * Emitted if a new session begins, also emitted for every active session of
-     * Event_Pathfinder_SESSIONS is sent.
+     * PFChan_Pathfinder_SESSIONS is sent.
      * (emitted by: SessionManager.c)
-     */ 
-    Event_Core_SESSION,
+     */
+    PFChan_Core_SESSION,
 
     /**
      * Emitted when a session ends.
      * (emitted by: SessionManager.c)
      */
-    Event_Core_SESSION_ENDED,
+    PFChan_Core_SESSION_ENDED,
 
     /**
      * Emitted when SessionManager sees an incoming packet with a new path.
      * (emitted by: SessionManager.c)
      */
-    Event_Core_DISCOVERED_PATH,
+    PFChan_Core_DISCOVERED_PATH,
 
-    /** Emitted for each incoming DHT message. TODO */
-    Event_Core_MSG,
+    /**
+     * Emitted for each incoming DHT message.
+     * (emitted by: UpperDistributor.c)
+     */
+    PFChan_Core_MSG,
 
     /**
      * Emitted from time to time in order to verify the pathfinder is alive.
-     * Must be responded to by an Event_Pathfinder_PONG.
+     * Must be responded to by an PFChan_Pathfinder_PONG.
      * (emitted by: EventEmitter.c)
      */
-    Event_Core_PING,
+    PFChan_Core_PING,
 
     /**
-     * Will be emitted if the pathfinder emits an Event_Pathfinder_PING.
+     * Will be emitted if the pathfinder emits an PFChan_Pathfinder_PING.
      * (emitted by: EventEmitter.c)
      */
-    Event_Core_PONG,
+    PFChan_Core_PONG,
 
-    Event_Core_INVALID
+    PFChan_Core_INVALID
 };
 
-struct Event_Core_SearchReq
+struct PFChan_Core_SearchReq
 {
     uint8_t ipv6[16];
 };
-#define Event_Core_SearchReq_SIZE 16
-Assert_compileTime(sizeof(struct Event_Core_SearchReq) == Event_Core_SearchReq_SIZE);
+#define PFChan_Core_SearchReq_SIZE 16
+Assert_compileTime(sizeof(struct PFChan_Core_SearchReq) == PFChan_Core_SearchReq_SIZE);
 
-struct Event_Core_Pathfinder
+struct PFChan_Core_Pathfinder
 {
-    /** See struct Event_Pathfinder_Superiority for more information */
+    /** See struct PFChan_Pathfinder_Superiority for more information */
     uint32_t superiority_be;
 
     /** The number of this pathfinder. */
@@ -272,57 +275,60 @@ struct Event_Core_Pathfinder
     /** Description of the pathfinder in ASCII text. */
     uint8_t userAgent[64];
 };
-#define Event_Core_Pathfinder_SIZE 72
-Assert_compileTime(sizeof(struct Event_Core_Pathfinder) == Event_Core_Pathfinder_SIZE);
+#define PFChan_Core_Pathfinder_SIZE 72
+Assert_compileTime(sizeof(struct PFChan_Core_Pathfinder) == PFChan_Core_Pathfinder_SIZE);
 
-struct Event_Core_Connect
+struct PFChan_Core_Connect
 {
-    /** The public key of this cjdns node. */
-    uint8_t publicKey[32];
+    /** The core's version (Version.h). */
+    uint32_t version_be;
 
     /** This pathfinder's ID. */
     uint32_t pathfinderId_be;
-};
-#define Event_Core_Connect_SIZE 36
-Assert_compileTime(sizeof(struct Event_Core_Connect) == Event_Core_Connect_SIZE);
 
-struct Event_Core_SwitchErr
+    /** The public key of this cjdns node. */
+    uint8_t publicKey[32];
+};
+#define PFChan_Core_Connect_SIZE 40
+Assert_compileTime(sizeof(struct PFChan_Core_Connect) == PFChan_Core_Connect_SIZE);
+
+struct PFChan_Core_SwitchErr
 {
     struct SwitchHeader sh;
     uint32_t ffffffff;
     struct Control_Header ctrlHeader;
     struct Control_Error ctrlErr;
 };
-#pragma GCC poison Event_Core_SwitchErr_SIZE
-#define Event_Core_SwitchErr_MIN_SIZE \
+#pragma GCC poison PFChan_Core_SwitchErr_SIZE
+#define PFChan_Core_SwitchErr_MIN_SIZE \
     (SwitchHeader_SIZE + 4 + Control_Header_SIZE + Control_Error_MIN_SIZE)
-Assert_compileTime(sizeof(struct Event_Core_SwitchErr) == Event_Core_SwitchErr_MIN_SIZE);
+Assert_compileTime(sizeof(struct PFChan_Core_SwitchErr) == PFChan_Core_SwitchErr_MIN_SIZE);
 
-struct Event_FromCore
+struct PFChan_FromCore
 {
-    enum Event_Core event_be;
+    enum PFChan_Core event_be;
 
     /* Number of the Pathfinder to send this event to, 0xffffffff sends to all. */
     uint8_t target_be;
 
     union {
-        struct Event_Core_Connect connect;
-        struct Event_Core_Pathfinder pathfinder;
-        struct Event_Core_Pathfinder pathfinderGone;
-        struct Event_Core_SwitchErr switchErr;
-        struct Event_Core_SearchReq searchReq;
-        struct Event_Node peer;
-        struct Event_Node peerGone;
-        struct Event_Node session;
-        struct Event_Node sessionEnded;
-        struct Event_Node discoveredPath;
-        struct Event_Msg msg;
-        struct Event_Ping ping;
-        struct Event_Ping pong;
+        struct PFChan_Core_Connect connect;
+        struct PFChan_Core_Pathfinder pathfinder;
+        struct PFChan_Core_Pathfinder pathfinderGone;
+        struct PFChan_Core_SwitchErr switchErr;
+        struct PFChan_Core_SearchReq searchReq;
+        struct PFChan_Node peer;
+        struct PFChan_Node peerGone;
+        struct PFChan_Node session;
+        struct PFChan_Node sessionEnded;
+        struct PFChan_Node discoveredPath;
+        struct PFChan_Msg msg;
+        struct PFChan_Ping ping;
+        struct PFChan_Ping pong;
         uint8_t bytes[4];
     } content;
 };
-// Event_FromCore contains a union so it's size is not useful.
-#pragma GCC poison Event_FromCore_SIZE
+// PFChan_FromCore contains a union so it's size is not useful.
+#pragma GCC poison PFChan_FromCore_SIZE
 
 #endif

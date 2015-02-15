@@ -17,7 +17,7 @@
 
 #include "interface/Iface.h"
 #include "memory/Allocator.h"
-#include "net/Event.h"
+#include "wire/PFChan.h"
 #include "util/log/Log.h"
 #include "util/Linker.h"
 Linker_require("net/EventEmitter.c")
@@ -30,11 +30,11 @@ struct EventEmitter
 /**
  * Register an interface to listen for and fire events.
  * The same interface may be registered multiple times.
- * If you only intend to fire events, just register with Event_Pathfinder_INVALID.
+ * If you only intend to fire events, just register with PFChan_Pathfinder_INVALID.
  */
 void EventEmitter_regCore(struct EventEmitter* ee,
                           struct Iface* iface,
-                          enum Event_Pathfinder ev);
+                          enum PFChan_Pathfinder ev);
 
 void EventEmitter_regPathfinderIface(struct EventEmitter* ee, struct Iface* iface);
 

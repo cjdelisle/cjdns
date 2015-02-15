@@ -17,6 +17,7 @@
 
 #include "interface/Interface.h"
 #include "memory/Allocator.h"
+#include "net/EventEmitter.h"
 #include "util/log/Log.h"
 #include "util/Linker.h"
 Linker_require("net/UpperDistributor.c")
@@ -29,13 +30,13 @@ struct UpperDistributor
 {
     struct Iface sessionManagerIf;
 
-    struct Iface dhtIf;
-
     struct Iface tunIf;
 
     struct Iface ipTunnelIf;
 };
 
-struct UpperDistributor* UpperDistributor_new(struct Allocator* alloc, struct Log* log);
+struct UpperDistributor* UpperDistributor_new(struct Allocator* alloc,
+                                              struct Log* log,
+                                              struct EventEmitter* ee);
 
 #endif

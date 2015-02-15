@@ -14,7 +14,7 @@
  */
 #include "interface/Interface.h"
 #include "memory/Allocator.h"
-#include "net/Event.h"
+#include "wire/PFChan.h"
 #include "net/SessionManager.h"
 #include "crypto/AddressCalc.h"
 #include "util/AddrTools.h"
@@ -81,10 +81,10 @@ static void sendSession(struct SessionManager_pvt* sm,
                         struct SessionTable_Session* sess,
                         uint64_t path,
                         uint32_t destPf,
-                        enum Event_Core ev,
+                        enum PFChan_Core ev,
                         struct Allocator* alloc)
 {
-    struct Event_Node session = {
+    struct PFChan_Node session = {
         .path_be = path,
         .metric_be = 0xffffffff,
         .version_be = Endian_hostToBigEndian32(sess->version)
@@ -93,8 +93,8 @@ static void sendSession(struct SessionManager_pvt* sm,
     uint8_t* publicKey = CryptoAuth_getHerPublicKey(sess->internal);
     Bits_memcpyConst(session.publicKey, publicKey, 32);
 
-    struct Message* msg = Message_new(0, Event_Node_SIZE + 512, alloc);
-    Message_push(msg, &session, Event_Node_SIZE, NULL);
+    struct Message* msg = Message_new(0, PFChan_Node_SIZE + 512, alloc);
+    Message_push(msg, &session, PFChan_Node_SIZE, NULL);
     Message_push32(msg, destPf, NULL);
     Message_push32(msg, ev, NULL);
     Iface_send(&sm->eventIf, msg);
@@ -102,7 +102,8 @@ static void sendSession(struct SessionManager_pvt* sm,
 
 static uint8_t incomingFromSwitchPostCryptoAuth(struct Message* msg, struct Interface* iface)
 {
-    struct SessionManager_pvt* sm = Identity_check((struct SessionManager_pvt*) iface->receiverContext);
+    struct SessionManager_pvt* sm =
+        Identity_check((struct SessionManager_pvt*) iface->receiverContext);
 
     struct SessionTable_Session* session = sm->currentSession;
     struct SwitchHeader* sh = sm->currentSwitchHeader;
@@ -146,7 +147,7 @@ static uint8_t incomingFromSwitchPostCryptoAuth(struct Message* msg, struct Inte
         session->sendSwitchLabel = path;
     }
     if (path != session->recvSwitchLabel) {
-        sendSession(sm, session, path, 0xffffffff, Event_Core_DISCOVERED_PATH, msg->alloc);
+        sendSession(sm, session, path, 0xffffffff, PFChan_Core_DISCOVERED_PATH, msg->alloc);
     }
 
     Iface_send(&sm->pub.insideIf, msg);
@@ -161,7 +162,7 @@ static int sessionCleanup(struct Allocator_OnFreeJob* job)
     void* vsm = SessionTable_getInterfaceContext(sess);
     struct SessionManager_pvt* sm = Identity_check((struct SessionManager_pvt*) vsm);
     struct Allocator* alloc = Allocator_child(sm->alloc);
-    sendSession(sm, sess, sess->sendSwitchLabel, 0xffffffff, Event_Core_SESSION_ENDED, alloc);
+    sendSession(sm, sess, sess->sendSwitchLabel, 0xffffffff, PFChan_Core_SESSION_ENDED, alloc);
     Allocator_free(alloc);
     return 0;
 }
@@ -182,7 +183,7 @@ static struct SessionTable_Session* getSession(struct SessionManager_pvt* sm,
         sess->sendSwitchLabel = label;
         Allocator_onFree(sess->external.allocator, sessionCleanup, sess);
         struct Allocator* alloc = Allocator_child(sm->alloc);
-        sendSession(sm, sess, label, 0xffffffff, Event_Core_SESSION, alloc);
+        sendSession(sm, sess, label, 0xffffffff, PFChan_Core_SESSION, alloc);
         Allocator_free(alloc);
     }
     return sess;
@@ -310,14 +311,15 @@ static void needsLookup(struct SessionManager_pvt* sm, struct Message* msg)
     struct Message* eventMsg = Message_new(0, 512, eventAlloc);
     Message_push(eventMsg, header->ip6, 16, NULL);
     Message_push32(eventMsg, 0xffffffff, NULL);
-    Message_push32(eventMsg, Event_Core_SEARCH_REQ, NULL);
+    Message_push32(eventMsg, PFChan_Core_SEARCH_REQ, NULL);
     Iface_send(&sm->eventIf, eventMsg);
     Allocator_free(eventAlloc);
 }
 
 static uint8_t readyToSendPostCryptoAuth(struct Message* msg, struct Interface* iface)
 {
-    struct SessionManager_pvt* sm = Identity_check((struct SessionManager_pvt*) iface->senderContext);
+    struct SessionManager_pvt* sm =
+        Identity_check((struct SessionManager_pvt*) iface->senderContext);
     struct SwitchHeader* sh = sm->currentSwitchHeader;
     struct SessionTable_Session* sess = sm->currentSession;
     sm->currentSession = NULL;
@@ -454,7 +456,7 @@ static Iface_DEFUN sessions(struct SessionManager_pvt* sm,
         struct SessionTable_Session* sess =
             SessionTable_sessionForHandle(handles->handles[i], sm->pub.sessionTable);
         struct Allocator* alloc = Allocator_child(tempAlloc);
-        sendSession(sm, sess, sess->sendSwitchLabel, sourcePf, Event_Core_SESSION, alloc);
+        sendSession(sm, sess, sess->sendSwitchLabel, sourcePf, PFChan_Core_SESSION, alloc);
         Allocator_free(alloc);
     }
     return NULL;
@@ -463,16 +465,16 @@ static Iface_DEFUN sessions(struct SessionManager_pvt* sm,
 static Iface_DEFUN incomingFromEventIf(struct Iface* iface, struct Message* msg)
 {
     struct SessionManager_pvt* sm = Identity_containerOf(iface, struct SessionManager_pvt, eventIf);
-    enum Event_Pathfinder ev = Message_pop32(msg, NULL);
+    enum PFChan_Pathfinder ev = Message_pop32(msg, NULL);
     uint32_t sourcePf = Message_pop32(msg, NULL);
-    if (ev == Event_Pathfinder_SESSIONS) {
+    if (ev == PFChan_Pathfinder_SESSIONS) {
         Assert_true(!msg->length);
         return sessions(sm, sourcePf, msg->alloc);
     }
-    Assert_true(ev == Event_Pathfinder_NODE);
+    Assert_true(ev == PFChan_Pathfinder_NODE);
 
-    struct Event_Node node;
-    Message_pop(msg, &node, Event_Node_SIZE, NULL);
+    struct PFChan_Node node;
+    Message_pop(msg, &node, PFChan_Node_SIZE, NULL);
     Assert_true(!msg->length);
     int index = Map_BufferedMessages_indexForKey((struct Ip6*)node.ip6, &sm->bufMap);
     struct SessionTable_Session* sess;
@@ -520,8 +522,8 @@ struct SessionManager* SessionManager_new(struct Allocator* alloc,
     sm->pub.maxBufferedMessages = SessionManager_MAX_BUFFERED_MESSAGES_DEFAULT;
 
     sm->eventIf.send = incomingFromEventIf;
-    EventEmitter_regCore(ee, &sm->eventIf, Event_Pathfinder_NODE);
-    EventEmitter_regCore(ee, &sm->eventIf, Event_Pathfinder_SESSIONS);
+    EventEmitter_regCore(ee, &sm->eventIf, PFChan_Pathfinder_NODE);
+    EventEmitter_regCore(ee, &sm->eventIf, PFChan_Pathfinder_SESSIONS);
 
     sm->pub.sessionTable = SessionTable_new(incomingFromSwitchPostCryptoAuth,
                                             readyToSendPostCryptoAuth,

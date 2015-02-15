@@ -45,7 +45,7 @@ static Iface_DEFUN handleError(struct Message* msg,
         return NULL;
     }
     Message_shift(msg, SwitchHeader_SIZE + 4, NULL);
-    Message_push32(msg, Event_Core_SWITCH_ERR, NULL);
+    Message_push32(msg, PFChan_Core_SWITCH_ERR, NULL);
     return Iface_next(&ch->eventIf, msg);
 }
 
@@ -205,7 +205,7 @@ struct ControlHandler* ControlHandler_new(struct Allocator* alloc,
     Bits_memcpyConst(ch->myPublicKey, myPublicKey, 32);
     ch->pub.coreIf.send = incomingFromCore;
     ch->pub.switchPingerIf.send = incomingFromSwitchPinger;
-    EventEmitter_regCore(ee, &ch->eventIf, Event_Pathfinder_INVALID);
+    EventEmitter_regCore(ee, &ch->eventIf, PFChan_Pathfinder_INVALID);
     Identity_set(ch);
     return &ch->pub;
 }

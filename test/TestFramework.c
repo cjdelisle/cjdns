@@ -15,13 +15,7 @@
 #include "crypto/random/Random.h"
 #include "crypto/CryptoAuth.h"
 #include "crypto/AddressCalc.h"
-#include "dht/ReplyModule.h"
-#include "dht/dhtcore/RouterModule.h"
-#include "dht/dhtcore/SearchRunner.h"
-#include "dht/SerializationModule.h"
-#include "dht/EncodingSchemeModule.h"
-#include "dht/dhtcore/Router_new.h"
-#include "dht/DHTCoreInterface.h"
+#include "dht/Pathfinder.h"
 #include "io/Writer.h"
 #include "io/FileWriter.h"
 #include "util/log/Log.h"
@@ -142,14 +136,11 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
         ConverterV15_new(allocator, logger, sessionManager->sessionTable, myAddress->ip6.bytes);
     Iface_plumb(&v15conv->sessionManagerIf, &sessionManager->insideIf);
 
-    struct UpperDistributor* upper = UpperDistributor_new(allocator, logger);
+    struct UpperDistributor* upper = UpperDistributor_new(allocator, logger, eventEmitter);
     Iface_plumb(&v15conv->upperDistributorIf, &upper->sessionManagerIf);
 
-    struct DHTCoreInterface* dhtCore = DHTCoreInterface_register(allocator, logger, registry);
-    Iface_plumb(&dhtCore->coreIf, &upper->dhtIf);
-
     struct ControlHandler* controlHandler =
-        ControlHandler_new(allocator, logger, eventEmitter, myAddress);
+        ControlHandler_new(allocator, logger, eventEmitter, myAddress->key);
     Iface_plumb(&controlHandler->coreIf, &switchAdapter->controlIf);
 
     struct SwitchPinger* sp = SwitchPinger_new(base, rand, logger, myAddress, allocator);
@@ -157,10 +148,9 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
 
     // Interfaces.
     struct InterfaceController* ifController =
-        InterfaceController_new(ca, switchCore, rumorMill,
-                                logger, base, sp, rand, allocator, eventEmitter);
+        InterfaceController_new(ca, switchCore, logger, base, sp, rand, allocator, eventEmitter);
 
-    Pathfinder_register(allocator, logger, base, rand, NULL, eventEmitter);
+    struct Pathfinder* pf = Pathfinder_register(allocator, logger, base, rand, NULL, eventEmitter);
 
     struct TestFramework* tf = Allocator_clone(allocator, (&(struct TestFramework) {
         .alloc = allocator,
@@ -169,11 +159,10 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
         .logger = logger,
         .switchCore = switchCore,
         .cryptoAuth = ca,
-        .router = routerModule,
         .switchPinger = sp,
         .ifController = ifController,
         .publicKey = publicKey,
-        .nodeStore = nodeStore,
+        .pathfinder = pf,
         .ip = myAddress->ip6.bytes
     }));
 

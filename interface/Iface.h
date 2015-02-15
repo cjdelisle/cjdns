@@ -54,10 +54,13 @@ static inline void Iface_send(struct Iface* iface, struct Message* msg)
             msg->currentIface = iface;
             iface->currentMsg = msg;
         #endif
-        iface = conn->send(conn, msg);
         #ifdef PARANOIA
+            struct Iface* ifaceNext = conn->send(conn, msg);
             msg->currentIface = NULL;
+            iface = ifaceNext;
             iface->currentMsg = NULL;
+        #else
+            iface = conn->send(conn, msg);
         #endif
     } while (iface);
 }
@@ -86,6 +89,7 @@ static inline Iface_DEFUN Iface_next(struct Iface* iface, struct Message* msg)
         struct Iface* Iface_x = func(msg, __VA_ARGS__);       \
         if (Iface_x) { Iface_send(Iface_x, msg); }            \
     } while (0)
+// CHECKFILES_IGNORE missing ;
 
 static inline void Iface_plumb(struct Iface* a, struct Iface* b)
 {

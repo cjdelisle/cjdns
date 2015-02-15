@@ -15,7 +15,6 @@
 #ifndef Pathfinder_H
 #define Pathfinder_H
 
-#include "interface/Iface.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
 #include "util/events/EventBase.h"

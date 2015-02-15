@@ -29,6 +29,7 @@
 #include "util/events/Time.h"
 #include "util/events/Timeout.h"
 #include "dht/dhtcore/NodeStore.h"
+#include "dht/Pathfinder_pvt.h"
 
 #include <stdio.h>
 
@@ -92,9 +93,15 @@ static void checkLinkage(void* vTwoNodes)
 {
     struct TwoNodes* ctx = Identity_check((struct TwoNodes*) vTwoNodes);
 
-    if (ctx->nodeA->nodeStore->nodeCount < 1) { notLinkedYet(ctx); return; }
+    if (Pathfinder_getNodeStore(ctx->nodeA->pathfinder)->nodeCount < 1) {
+        notLinkedYet(ctx);
+        return;
+    }
     Log_debug(ctx->logger, "A seems to be linked with B");
-    if (ctx->nodeB->nodeStore->nodeCount < 1) { notLinkedYet(ctx); return; }
+    if (Pathfinder_getNodeStore(ctx->nodeB->pathfinder)->nodeCount < 1) {
+        notLinkedYet(ctx);
+        return;
+    }
     Log_debug(ctx->logger, "B seems to be linked with A");
     Log_debug(ctx->logger, "\n\nSetup Complete\n\n");
 

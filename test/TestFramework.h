@@ -26,10 +26,9 @@ struct TestFramework
     struct Log* logger;
     struct SwitchCore* switchCore;
     struct CryptoAuth* cryptoAuth;
-    struct RouterModule* router;
     struct SwitchPinger* switchPinger;
     struct InterfaceController* ifController;
-    struct NodeStore* nodeStore;
+    struct Pathfinder* pathfinder;
 
     /** The last message which this node sent. */
     struct Message* lastMsg;

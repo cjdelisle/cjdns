@@ -24,7 +24,7 @@
 #include "memory/Allocator.h"
 #include "switch/SwitchCore.h"
 #include "net/SwitchPinger.h"
-#include "net/Event.h"
+#include "wire/PFChan.h"
 #include "net/EventEmitter.h"
 #include "util/platform/Sockaddr.h"
 #include "util/log/Log.h"

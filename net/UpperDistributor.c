@@ -12,41 +12,44 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "interface/Interface.h"
+#include "interface/Iface.h"
 #include "memory/Allocator.h"
 #include "util/Identity.h"
-#include "wire/SwitchHeader.h"
 #include "net/UpperDistributor.h"
 #include "net/SessionManager.h"
+#include "net/EventEmitter.h"
 #include "wire/DataHeader.h"
 #include "wire/RouteHeader.h"
 
 struct UpperDistributor_pvt
 {
     struct UpperDistributor pub;
+    struct Iface eventIf;
     struct Log* log;
     Identity
 };
 
-static Iface_DEFUN incomingFromDhtIf(struct Iface* dhtIf, struct Message* msg)
+static Iface_DEFUN incomingFromEventIf(struct Iface* eventIf, struct Message* msg)
 {
     struct UpperDistributor_pvt* ud =
-        Identity_containerOf(dhtIf, struct UpperDistributor_pvt, pub.dhtIf);
-    return Iface_send(&ud->pub.sessionManagerIf, msg);
+        Identity_containerOf(eventIf, struct UpperDistributor_pvt, eventIf);
+    Assert_true(Message_pop32(msg, NULL) == PFChan_Pathfinder_SENDMSG);
+    Message_pop32(msg, NULL);
+    return Iface_next(&ud->pub.sessionManagerIf, msg);
 }
 
 static Iface_DEFUN incomingFromTunIf(struct Iface* tunIf, struct Message* msg)
 {
     struct UpperDistributor_pvt* ud =
         Identity_containerOf(tunIf, struct UpperDistributor_pvt, pub.tunIf);
-    return Iface_send(&ud->pub.sessionManagerIf, msg);
+    return Iface_next(&ud->pub.sessionManagerIf, msg);
 }
 
 static Iface_DEFUN incomingFromIpTunnelIf(struct Iface* ipTunnelIf, struct Message* msg)
 {
     struct UpperDistributor_pvt* ud =
         Identity_containerOf(ipTunnelIf, struct UpperDistributor_pvt, pub.ipTunnelIf);
-    return Iface_send(&ud->pub.sessionManagerIf, msg);
+    return Iface_next(&ud->pub.sessionManagerIf, msg);
 }
 
 
@@ -59,28 +62,35 @@ static Iface_DEFUN incomingFromSessionManagerIf(struct Iface* sessionManagerIf, 
     struct DataHeader* dh = (struct DataHeader*) &hdr[1];
     enum ContentType type = DataHeader_getContentType(dh);
     if (type <= ContentType_IP6_RAW) {
-        return Iface_send(&ud->pub.tunIf, msg);
+        return Iface_next(&ud->pub.tunIf, msg);
     }
     if (type == ContentType_CJDHT) {
         Log_debug(ud->log, "UD_incomingFromSessionManagerIf");
-        return Iface_send(&ud->pub.dhtIf, msg);
+        Message_push32(msg, 0xffffffff, NULL);
+        Message_push32(msg, PFChan_Core_MSG, NULL);
+        return Iface_next(&ud->eventIf, msg);
     }
     if (type == ContentType_IPTUN) {
-        return Iface_send(&ud->pub.ipTunnelIf, msg);
+        return Iface_next(&ud->pub.ipTunnelIf, msg);
     }
     Log_debug(ud->log, "DROP message with unknown type [%d]", type);
-    return 0;
+    return NULL;
 }
 
-struct UpperDistributor* UpperDistributor_new(struct Allocator* alloc, struct Log* log)
+struct UpperDistributor* UpperDistributor_new(struct Allocator* alloc,
+                                              struct Log* log,
+                                              struct EventEmitter* ee)
 {
     struct UpperDistributor_pvt* out =
         Allocator_calloc(alloc, sizeof(struct UpperDistributor_pvt), 1);
-    out->pub.dhtIf.send = incomingFromDhtIf;
+    out->eventIf.send = incomingFromEventIf;
     out->pub.tunIf.send = incomingFromTunIf;
     out->pub.ipTunnelIf.send = incomingFromIpTunnelIf;
     out->pub.sessionManagerIf.send = incomingFromSessionManagerIf;
     out->log = log;
     Identity_set(out);
+
+    EventEmitter_regCore(ee, &out->eventIf, PFChan_Pathfinder_SENDMSG);
+
     return &out->pub;
 }

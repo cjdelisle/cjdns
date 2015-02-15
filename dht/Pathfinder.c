@@ -64,9 +64,16 @@ struct Pathfinder_pvt
     // After begin connected, these fields will be filled.
     struct Address myAddr;
     struct DHTModuleRegistry* registry;
+    struct NodeStore* nodeStore;
 
     Identity
 };
+
+struct NodeStore* Pathfinder_getNodeStore(struct Pathfinder* pathfinder)
+{
+    struct Pathfinder_pvt* pf = Identity_check((struct Pathfinder_pvt*) pathfinder);
+    return pf->nodeStore;
+}
 
 static int incomingFromDHT(struct DHTMessage* dmessage, void* vpf)
 {
@@ -77,9 +84,9 @@ static int incomingFromDHT(struct DHTMessage* dmessage, void* vpf)
     // Sanity check (make sure the addr was actually calculated)
     Assert_true(addr->ip6.bytes[0] == 0xfc && addr->padding == 0);
 
-    Message_shift(msg, Event_Msg_MIN_SIZE, NULL);
-    struct Event_Msg* emsg = (struct Event_Msg*) msg->bytes;
-    Bits_memset(emsg, 0, Event_Msg_MIN_SIZE);
+    Message_shift(msg, PFChan_Msg_MIN_SIZE, NULL);
+    struct PFChan_Msg* emsg = (struct PFChan_Msg*) msg->bytes;
+    Bits_memset(emsg, 0, PFChan_Msg_MIN_SIZE);
 
     DataHeader_setVersion(&emsg->data, DataHeader_CURRENT_VERSION);
     DataHeader_setContentType(&emsg->data, ContentType_CJDHT);
@@ -89,7 +96,7 @@ static int incomingFromDHT(struct DHTMessage* dmessage, void* vpf)
     emsg->route.sh.label_be = Endian_hostToBigEndian64(addr->path);
     Bits_memcpyConst(emsg->route.publicKey, addr->key, 32);
 
-    Message_push32(msg, Event_Pathfinder_SENDMSG, NULL);
+    Message_push32(msg, PFChan_Pathfinder_SENDMSG, NULL);
 
     Log_debug(pf->log, "Outgoing DHT");
 
@@ -99,8 +106,8 @@ static int incomingFromDHT(struct DHTMessage* dmessage, void* vpf)
 
 static Iface_DEFUN connected(struct Pathfinder_pvt* pf, struct Message* msg)
 {
-    struct Event_Core_Connect conn;
-    Message_pop(msg, &conn, Event_Core_Connect_SIZE, NULL);
+    struct PFChan_Core_Connect conn;
+    Message_pop(msg, &conn, PFChan_Core_Connect_SIZE, NULL);
     Assert_true(!msg->length);
 
     Bits_memcpyConst(pf->myAddr.key, conn.publicKey, 32);
@@ -166,8 +173,8 @@ static Iface_DEFUN connected(struct Pathfinder_pvt* pf, struct Message* msg)
 
 static void addressForNode(struct Address* addrOut, struct Message* msg)
 {
-    struct Event_Node node;
-    Message_pop(msg, &node, Event_Node_SIZE, NULL);
+    struct PFChan_Node node;
+    Message_pop(msg, &node, PFChan_Node_SIZE, NULL);
     Assert_true(!msg->length);
     addrOut->protocolVersion = Endian_bigEndianToHost32(node.version_be);
     addrOut->path = Endian_bigEndianToHost64(node.path_be);
@@ -177,8 +184,8 @@ static void addressForNode(struct Address* addrOut, struct Message* msg)
 
 static Iface_DEFUN switchErr(struct Message* msg, struct Pathfinder_pvt* pf)
 {
-    struct Event_Core_SwitchErr switchErr;
-    Message_pop(msg, &switchErr, Event_Core_SwitchErr_MIN_SIZE, NULL);
+    struct PFChan_Core_SwitchErr switchErr;
+    Message_pop(msg, &switchErr, PFChan_Core_SwitchErr_MIN_SIZE, NULL);
 
     uint8_t pathStr[20];
     AddrTools_printPath(pathStr, Endian_bigEndianToHost64(switchErr.sh.label_be));
@@ -246,7 +253,7 @@ static Iface_DEFUN discoveredPath(struct Message* msg, struct Pathfinder_pvt* pf
 static Iface_DEFUN handlePing(struct Message* msg, struct Pathfinder_pvt* pf)
 {
     Log_debug(pf->log, "Received ping");
-    Message_push32(msg, Event_Pathfinder_PONG, NULL);
+    Message_push32(msg, PFChan_Pathfinder_PONG, NULL);
     return Iface_next(&pf->eventIf, msg);
 }
 
@@ -283,28 +290,28 @@ static Iface_DEFUN incomingMsg(struct Message* msg, struct Pathfinder_pvt* pf)
 static Iface_DEFUN incomingFromEventIf(struct Iface* eventIf, struct Message* msg)
 {
     struct Pathfinder_pvt* pf = Identity_containerOf(eventIf, struct Pathfinder_pvt, eventIf);
-    enum Event_Core ev = Message_pop32(msg, NULL);
+    enum PFChan_Core ev = Message_pop32(msg, NULL);
     if (Pathfinder_pvt_state_INITIALIZING == pf->state) {
-        Assert_true(ev == Event_Core_CONNECT);
+        Assert_true(ev == PFChan_Core_CONNECT);
         return connected(pf, msg);
     }
     switch (ev) {
-        case Event_Core_SWITCH_ERR: return switchErr(msg, pf);
-        case Event_Core_SEARCH_REQ: return searchReq(msg, pf);
-        case Event_Core_PEER: return peer(msg, pf);
-        case Event_Core_PEER_GONE: return peerGone(msg, pf);
-        case Event_Core_SESSION: return session(msg, pf);
-        case Event_Core_SESSION_ENDED: return sessionEnded(msg, pf);
-        case Event_Core_DISCOVERED_PATH: return discoveredPath(msg, pf);
-        case Event_Core_MSG: return incomingMsg(msg, pf);
-        case Event_Core_PING: return handlePing(msg, pf);
-        case Event_Core_PONG: return handlePong(msg, pf);
+        case PFChan_Core_SWITCH_ERR: return switchErr(msg, pf);
+        case PFChan_Core_SEARCH_REQ: return searchReq(msg, pf);
+        case PFChan_Core_PEER: return peer(msg, pf);
+        case PFChan_Core_PEER_GONE: return peerGone(msg, pf);
+        case PFChan_Core_SESSION: return session(msg, pf);
+        case PFChan_Core_SESSION_ENDED: return sessionEnded(msg, pf);
+        case PFChan_Core_DISCOVERED_PATH: return discoveredPath(msg, pf);
+        case PFChan_Core_MSG: return incomingMsg(msg, pf);
+        case PFChan_Core_PING: return handlePing(msg, pf);
+        case PFChan_Core_PONG: return handlePong(msg, pf);
         default:;
     }
     Assert_failure("unexpected event [%d]", ev);
 }
 
-static void sendEvent(struct Pathfinder_pvt* pf, enum Event_Pathfinder ev, void* data, int size)
+static void sendEvent(struct Pathfinder_pvt* pf, enum PFChan_Pathfinder ev, void* data, int size)
 {
     struct Allocator* alloc = Allocator_child(pf->alloc);
     struct Message* msg = Message_new(0, 512+size, alloc);
@@ -336,12 +343,12 @@ struct Pathfinder* Pathfinder_register(struct Allocator* alloc,
     pf->dhtModule.context = pf;
     pf->dhtModule.handleOutgoing = incomingFromDHT;
 
-    struct Event_Pathfinder_Connect conn = {
+    struct PFChan_Pathfinder_Connect conn = {
         .superiority_be = Endian_hostToBigEndian32(1),
         .version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL)
     };
     CString_strncpy(conn.userAgent, "Cjdns internal pathfinder", 64);
-    sendEvent(pf, Event_Pathfinder_CONNECT, &conn, Event_Pathfinder_Connect_SIZE);
+    sendEvent(pf, PFChan_Pathfinder_CONNECT, &conn, PFChan_Pathfinder_Connect_SIZE);
 
     return &pf->pub;
 }
