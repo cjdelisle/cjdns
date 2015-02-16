@@ -30,7 +30,7 @@ struct UpperDistributor
 {
     struct Iface sessionManagerIf;
 
-    struct Iface tunIf;
+    struct Iface tunAdapterIf;
 
     struct Iface ipTunnelIf;
 };

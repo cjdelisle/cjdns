@@ -12,28 +12,24 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef UpperDistributor_H
-#define UpperDistributor_H
+#ifndef TUNAdapter_H
+#define TUNAdapter_H
 
-#include "interface/Interface.h"
+#include "interface/Iface.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
 #include "util/Linker.h"
-Linker_require("net/UpperDistributor.c")
+Linker_require("net/TUNAdapter.c")
 
-/**
- * Connects the TUN, DHT and IpTunnel (and other?) handlers to the SessionManager.
- * All packets must have SessionManager_UpperHeader on them.
- */
-struct UpperDistributor
+struct TUNAdapter
 {
-    struct Iface sessionManagerIf;
+    struct Iface upperDistributorIf;
 
     struct Iface tunIf;
 
     struct Iface ipTunnelIf;
 };
 
-struct UpperDistributor* UpperDistributor_new(struct Allocator* alloc, struct Log* log);
+struct TUNAdapter* TUNAdapter_new(struct Allocator* alloc, struct Log* log, uint8_t myAddr[16]);
 
 #endif

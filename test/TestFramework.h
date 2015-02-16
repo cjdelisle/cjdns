@@ -29,6 +29,7 @@ struct TestFramework
     struct SwitchPinger* switchPinger;
     struct InterfaceController* ifController;
     struct Pathfinder* pathfinder;
+    struct Iface* tunIf;
 
     /** The last message which this node sent. */
     struct Message* lastMsg;

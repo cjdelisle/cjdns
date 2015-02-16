@@ -38,10 +38,10 @@ static Iface_DEFUN incomingFromEventIf(struct Iface* eventIf, struct Message* ms
     return Iface_next(&ud->pub.sessionManagerIf, msg);
 }
 
-static Iface_DEFUN incomingFromTunIf(struct Iface* tunIf, struct Message* msg)
+static Iface_DEFUN incomingFromTunAdapterIf(struct Iface* tunAdapterIf, struct Message* msg)
 {
     struct UpperDistributor_pvt* ud =
-        Identity_containerOf(tunIf, struct UpperDistributor_pvt, pub.tunIf);
+        Identity_containerOf(tunAdapterIf, struct UpperDistributor_pvt, pub.tunAdapterIf);
     return Iface_next(&ud->pub.sessionManagerIf, msg);
 }
 
@@ -62,7 +62,7 @@ static Iface_DEFUN incomingFromSessionManagerIf(struct Iface* sessionManagerIf, 
     struct DataHeader* dh = (struct DataHeader*) &hdr[1];
     enum ContentType type = DataHeader_getContentType(dh);
     if (type <= ContentType_IP6_RAW) {
-        return Iface_next(&ud->pub.tunIf, msg);
+        return Iface_next(&ud->pub.tunAdapterIf, msg);
     }
     if (type == ContentType_CJDHT) {
         Log_debug(ud->log, "UD_incomingFromSessionManagerIf");
@@ -84,7 +84,7 @@ struct UpperDistributor* UpperDistributor_new(struct Allocator* alloc,
     struct UpperDistributor_pvt* out =
         Allocator_calloc(alloc, sizeof(struct UpperDistributor_pvt), 1);
     out->eventIf.send = incomingFromEventIf;
-    out->pub.tunIf.send = incomingFromTunIf;
+    out->pub.tunAdapterIf.send = incomingFromTunAdapterIf;
     out->pub.ipTunnelIf.send = incomingFromIpTunnelIf;
     out->pub.sessionManagerIf.send = incomingFromSessionManagerIf;
     out->log = log;

@@ -35,6 +35,7 @@
 #include "net/SwitchAdapter.h"
 #include "net/ConverterV15.h"
 #include "net/UpperDistributor.h"
+#include "net/TUNAdapter.h"
 
 #include "crypto_scalarmult_curve25519.h"
 
@@ -139,6 +140,9 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
     struct UpperDistributor* upper = UpperDistributor_new(allocator, logger, eventEmitter);
     Iface_plumb(&v15conv->upperDistributorIf, &upper->sessionManagerIf);
 
+    struct TUNAdapter* tunAdapter = TUNAdapter_new(allocator, logger, myAddress->ip6.bytes);
+    Iface_plumb(&tunAdapter->upperDistributorIf, &upper->tunAdapterIf);
+
     struct ControlHandler* controlHandler =
         ControlHandler_new(allocator, logger, eventEmitter, myAddress->key);
     Iface_plumb(&controlHandler->coreIf, &switchAdapter->controlIf);
@@ -152,19 +156,19 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
 
     struct Pathfinder* pf = Pathfinder_register(allocator, logger, base, rand, NULL, eventEmitter);
 
-    struct TestFramework* tf = Allocator_clone(allocator, (&(struct TestFramework) {
-        .alloc = allocator,
-        .rand = rand,
-        .eventBase = base,
-        .logger = logger,
-        .switchCore = switchCore,
-        .cryptoAuth = ca,
-        .switchPinger = sp,
-        .ifController = ifController,
-        .publicKey = publicKey,
-        .pathfinder = pf,
-        .ip = myAddress->ip6.bytes
-    }));
+    struct TestFramework* tf = Allocator_calloc(allocator, sizeof(struct TestFramework), 1);
+    tf->alloc = allocator;
+    tf->rand = rand;
+    tf->eventBase = base;
+    tf->logger = logger;
+    tf->switchCore = switchCore;
+    tf->cryptoAuth = ca;
+    tf->switchPinger = sp;
+    tf->ifController = ifController;
+    tf->publicKey = publicKey;
+    tf->pathfinder = pf;
+    tf->ip = myAddress->ip6.bytes;
+    tf->tunIf = &tunAdapter->tunIf;
 
     Identity_set(tf);
 

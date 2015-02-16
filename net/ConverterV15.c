@@ -149,9 +149,7 @@ static Iface_DEFUN incomingFromSessionManagerIf(struct Iface* sessionManagerIf, 
     struct ConverterV15_pvt* conv =
         Identity_containerOf(sessionManagerIf, struct ConverterV15_pvt, pub.sessionManagerIf);
 
-    Log_debug(conv->log, "incomingFromSessionManagerIf");
-
-    if (msg->length < RouteHeader_SIZE + 8) {
+    if (msg->length < RouteHeader_SIZE + DataHeader_SIZE) {
         Log_debug(conv->log, "DROP runt");
         return NULL;
     }
@@ -164,7 +162,6 @@ static Iface_DEFUN incomingFromSessionManagerIf(struct Iface* sessionManagerIf, 
 
     int ipVer = Headers_getIpVersion(ipPtr);
     if (ipVer == DataHeader_CURRENT_VERSION) {
-    Log_debug(conv->log, "0");
         return Iface_next(&conv->pub.upperDistributorIf, msg);
     }
 
@@ -175,11 +172,9 @@ static Iface_DEFUN incomingFromSessionManagerIf(struct Iface* sessionManagerIf, 
         }
         struct Headers_IP6Header* ip6 = (struct Headers_IP6Header*) ipPtr;
         if (ip6->sourceAddr[0] == 0xfc && ip6->destinationAddr[0] == 0xfc) {
-    Log_debug(conv->log, "tryConvertDHT()");
             if (tryConvertDHT(msg, ip6)) {
                 return Iface_next(&conv->pub.upperDistributorIf, msg);
             }
-    Log_debug(conv->log, "tryConvertDHT(fail)");
             Message_pop(msg, NULL, RouteHeader_SIZE + Headers_IP6Header_SIZE, NULL);
             struct DataHeader dh = {
                 .contentType_be = Endian_hostToBigEndian16(ip6->nextHeader),
@@ -190,7 +185,6 @@ static Iface_DEFUN incomingFromSessionManagerIf(struct Iface* sessionManagerIf, 
             Bits_memmoveConst(msg->bytes, bih, RouteHeader_SIZE);
             return Iface_next(&conv->pub.upperDistributorIf, msg);
         }
-    Log_debug(conv->log, "iptunnel?");
     } else if (ipVer != 4) {
         Log_debug(conv->log, "DROP unknown packet ip version");
         return NULL;

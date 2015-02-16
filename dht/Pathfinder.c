@@ -65,6 +65,9 @@ struct Pathfinder_pvt
     struct Address myAddr;
     struct DHTModuleRegistry* registry;
     struct NodeStore* nodeStore;
+    struct Router* router;
+    struct SearchRunner* searchRunner;
+    struct RumorMill* rumorMill;
 
     Identity
 };
@@ -82,7 +85,7 @@ static int incomingFromDHT(struct DHTMessage* dmessage, void* vpf)
     struct Address* addr = dmessage->address;
 
     // Sanity check (make sure the addr was actually calculated)
-    Assert_true(addr->ip6.bytes[0] == 0xfc && addr->padding == 0);
+    Assert_true(addr->ip6.bytes[0] == 0xfc);
 
     Message_shift(msg, PFChan_Msg_MIN_SIZE, NULL);
     struct PFChan_Msg* emsg = (struct PFChan_Msg*) msg->bytes;
@@ -121,10 +124,9 @@ static Iface_DEFUN connected(struct Pathfinder_pvt* pf, struct Message* msg)
     pf->registry = DHTModuleRegistry_new(pf->alloc);
     ReplyModule_register(pf->registry, pf->alloc);
 
-    struct RumorMill* rumorMill =
-        RumorMill_new(pf->alloc, &pf->myAddr, RUMORMILL_CAPACITY, pf->log, "extern");
+    pf->rumorMill = RumorMill_new(pf->alloc, &pf->myAddr, RUMORMILL_CAPACITY, pf->log, "extern");
 
-    pf->nodeStore = NodeStore_new(&pf->myAddr, pf->alloc, pf->base, pf->log, rumorMill);
+    pf->nodeStore = NodeStore_new(&pf->myAddr, pf->alloc, pf->base, pf->log, pf->rumorMill);
 
     struct RouterModule* routerModule = RouterModule_register(pf->registry,
                                                               pf->alloc,
@@ -134,20 +136,20 @@ static Iface_DEFUN connected(struct Pathfinder_pvt* pf, struct Message* msg)
                                                               pf->rand,
                                                               pf->nodeStore);
 
-    struct SearchRunner* searchRunner = SearchRunner_new(pf->nodeStore,
-                                                         pf->log,
-                                                         pf->base,
-                                                         routerModule,
-                                                         pf->myAddr.ip6.bytes,
-                                                         rumorMill,
-                                                         pf->alloc);
+    pf->searchRunner = SearchRunner_new(pf->nodeStore,
+                                        pf->log,
+                                        pf->base,
+                                        routerModule,
+                                        pf->myAddr.ip6.bytes,
+                                        pf->rumorMill,
+                                        pf->alloc);
 
     Janitor_new(LOCAL_MAINTENANCE_SEARCH_MILLISECONDS,
                 GLOBAL_MAINTENANCE_SEARCH_MILLISECONDS,
                 routerModule,
                 pf->nodeStore,
-                searchRunner,
-                rumorMill,
+                pf->searchRunner,
+                pf->rumorMill,
                 pf->log,
                 pf->alloc,
                 pf->base,
@@ -159,12 +161,13 @@ static Iface_DEFUN connected(struct Pathfinder_pvt* pf, struct Message* msg)
 
     DHTModuleRegistry_register(&pf->dhtModule, pf->registry);
 
+    pf->router = Router_new(routerModule, pf->nodeStore, pf->searchRunner, pf->alloc);
+
     // Now the admin stuff...
     if (pf->admin) {
-        struct Router* router = Router_new(routerModule, pf->nodeStore, searchRunner, pf->alloc);
         NodeStore_admin_register(pf->nodeStore, pf->admin, pf->alloc);
-        RouterModule_admin_register(routerModule, router, pf->admin, pf->alloc);
-        SearchRunner_admin_register(searchRunner, pf->admin, pf->alloc);
+        RouterModule_admin_register(routerModule, pf->router, pf->admin, pf->alloc);
+        SearchRunner_admin_register(pf->searchRunner, pf->admin, pf->alloc);
     }
 
     pf->state = Pathfinder_pvt_state_RUNNING;
@@ -192,6 +195,7 @@ static Iface_DEFUN switchErr(struct Message* msg, struct Pathfinder_pvt* pf)
     AddrTools_printPath(pathStr, Endian_bigEndianToHost64(switchErr.sh.label_be));
     int err = Endian_bigEndianToHost32(switchErr.ctrlErr.errorType_be);
     Log_debug(pf->log, "switch err from [%s] type [%s][%d]", pathStr, Error_strerror(err), err);
+// TODO: something useful?
     return NULL;
 }
 
@@ -203,6 +207,8 @@ static Iface_DEFUN searchReq(struct Message* msg, struct Pathfinder_pvt* pf)
     uint8_t printedAddr[40];
     AddrTools_printIp(printedAddr, addr);
     Log_debug(pf->log, "Search req [%s]", printedAddr);
+
+    SearchRunner_search(addr, 20, pf->searchRunner, pf->alloc);
     return NULL;
 }
 
@@ -212,6 +218,18 @@ static Iface_DEFUN peer(struct Message* msg, struct Pathfinder_pvt* pf)
     addressForNode(&addr, msg);
     String* str = Address_toString(&addr, msg->alloc);
     Log_debug(pf->log, "Peer [%s]", str->bytes);
+
+    struct Node_Link* link = Router_linkForPath(pf->router, addr.path);
+    // It exists, it's parent is the self-node, and it's label is equal to the switchLabel.
+    if (link
+        && Node_getBestParent(link->child)
+        && Node_getBestParent(link->child)->parent->address.path == 1
+        && Node_getBestParent(link->child)->cannonicalLabel == addr.path)
+    {
+        return NULL;
+    }
+    //RumorMill_addNode(pf->rumorMill, &addr);
+    Router_sendGetPeers(pf->router, &addr, 0, 0, pf->alloc);
     return NULL;
 }
 
@@ -221,6 +239,7 @@ static Iface_DEFUN peerGone(struct Message* msg, struct Pathfinder_pvt* pf)
     addressForNode(&addr, msg);
     String* str = Address_toString(&addr, msg->alloc);
     Log_debug(pf->log, "Peer gone [%s]", str->bytes);
+    Router_disconnectedPeer(pf->router, addr.path);
     return NULL;
 }
 
@@ -248,6 +267,7 @@ static Iface_DEFUN discoveredPath(struct Message* msg, struct Pathfinder_pvt* pf
     addressForNode(&addr, msg);
     String* str = Address_toString(&addr, msg->alloc);
     Log_debug(pf->log, "Discovered path [%s]", str->bytes);
+    RumorMill_addNode(pf->rumorMill, &addr);
     return NULL;
 }
 

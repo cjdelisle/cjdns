@@ -12,74 +12,135 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "interface/Interface.h"
+#include "interface/Iface.h"
 #include "memory/Allocator.h"
 #include "util/Identity.h"
-#include "wire/SwitchHeader.h"
-#include "net/UpperDistributor.h"
-#include "net/SessionManager.h"
+#include "net/TUNAdapter.h"
 #include "wire/DataHeader.h"
+#include "wire/RouteHeader.h"
+#include "wire/Headers.h"
+#include "interface/tuntap/TUNMessageType.h"
+#include "wire/Ethernet.h"
+#include "crypto/AddressCalc.h"
+#include "util/Defined.h"
+#include "util/AddrTools.h"
 
-struct UpperDistributor_pvt
+struct TUNAdapter_pvt
 {
-    struct UpperDistributor pub;
+    struct TUNAdapter pub;
     struct Log* log;
+    uint8_t myIp6[16];
     Identity
 };
 
-static Iface_DEFUN incomingFromDhtIf(struct Iface* dhtIf, struct Message* msg)
-{
-    struct UpperDistributor_pvt* ud =
-        Identity_containerOf(dhtIf, struct UpperDistributor_pvt, pub.dhtIf);
-    return Iface_send(&ud->pub.sessionManagerIf, msg);
-}
-
 static Iface_DEFUN incomingFromTunIf(struct Iface* tunIf, struct Message* msg)
 {
-    struct UpperDistributor_pvt* ud =
-        Identity_containerOf(tunIf, struct UpperDistributor_pvt, pub.tunIf);
-    return Iface_send(&ud->pub.sessionManagerIf, msg);
+    struct TUNAdapter_pvt* ud = Identity_containerOf(tunIf, struct TUNAdapter_pvt, pub.tunIf);
+
+    uint16_t ethertype = TUNMessageType_pop(msg, NULL);
+
+    int version = Headers_getIpVersion(msg->bytes);
+    if ((ethertype == Ethernet_TYPE_IP4 && version != 4)
+        || (ethertype == Ethernet_TYPE_IP6 && version != 6))
+    {
+        Log_debug(ud->log, "DROP packet because ip version [%d] "
+                  "doesn't match ethertype [%u].", version, Endian_bigEndianToHost16(ethertype));
+        return NULL;
+    }
+
+    if (msg->length < Headers_IP6Header_SIZE) {
+        Log_debug(ud->log, "DROP runt");
+        return NULL;
+    }
+
+    struct Headers_IP6Header* header = (struct Headers_IP6Header*) msg->bytes;
+    if (!AddressCalc_validAddress(header->destinationAddr)) {
+        if (Defined(Log_DEBUG)) {
+            uint8_t dst[40];
+            AddrTools_printIp(dst, header->destinationAddr);
+            Log_debug(ud->log, "DROP packet to [%s] because it must begin with fc", dst);
+        }
+        return NULL;
+    }
+    if (Bits_memcmp(header->sourceAddr, ud->myIp6, 16)) {
+        if (Defined(Log_DEBUG)) {
+            uint8_t expectedSource[40];
+            AddrTools_printIp(expectedSource, ud->myIp6);
+            uint8_t packetSource[40];
+            AddrTools_printIp(packetSource, header->sourceAddr);
+            Log_debug(ud->log,
+                      "DROP packet from [%s] because all messages must have source address [%s]",
+                      packetSource, expectedSource);
+        }
+        return NULL;
+    }
+    if (!Bits_memcmp(header->destinationAddr, ud->myIp6, 16)) {
+        // I'm Gonna Sit Right Down and Write Myself a Letter
+        TUNMessageType_push(msg, ethertype, NULL);
+        return Iface_next(tunIf, msg);
+    }
+
+    // first move the dest addr to the right place.
+    Bits_memmoveConst(&header->destinationAddr[-DataHeader_SIZE], header->destinationAddr, 16);
+
+    Message_shift(msg, DataHeader_SIZE + RouteHeader_SIZE - Headers_IP6Header_SIZE, NULL);
+    struct RouteHeader* rh = (struct RouteHeader*) msg->bytes;
+
+    struct DataHeader* dh = (struct DataHeader*) &rh[1];
+    Bits_memset(dh, 0, DataHeader_SIZE);
+    DataHeader_setContentType(dh, header->nextHeader);
+    DataHeader_setVersion(dh, DataHeader_CURRENT_VERSION);
+
+    // Other than the ipv6 addr at the end, everything is zeros right down the line.
+    Bits_memset(rh, 0, RouteHeader_SIZE - 16);
+
+    return Iface_next(&ud->pub.upperDistributorIf, msg);
 }
 
 static Iface_DEFUN incomingFromIpTunnelIf(struct Iface* ipTunnelIf, struct Message* msg)
 {
-    struct UpperDistributor_pvt* ud =
-        Identity_containerOf(ipTunnelIf, struct UpperDistributor_pvt, pub.ipTunnelIf);
-    return Iface_send(&ud->pub.sessionManagerIf, msg);
+//    struct TUNAdapter_pvt* ud =
+  //      Identity_containerOf(ipTunnelIf, struct TUNAdapter_pvt, pub.ipTunnelIf);
+    Assert_failure("unimplemented");
+    return NULL;
 }
 
 
-static Iface_DEFUN incomingFromSessionManagerIf(struct Iface* sessionManagerIf, struct Message* msg)
+static Iface_DEFUN incomingFromUpperDistributorIf(struct Iface* upperDistributorIf,
+                                                  struct Message* msg)
 {
-    struct UpperDistributor_pvt* ud =
-        Identity_containerOf(sessionManagerIf, struct UpperDistributor_pvt, pub.sessionManagerIf);
+    struct TUNAdapter_pvt* ud =
+        Identity_containerOf(upperDistributorIf, struct TUNAdapter_pvt, pub.upperDistributorIf);
     Assert_true(msg->length >= RouteHeader_SIZE + DataHeader_SIZE);
     struct RouteHeader* hdr = (struct RouteHeader*) msg->bytes;
     struct DataHeader* dh = (struct DataHeader*) &hdr[1];
     enum ContentType type = DataHeader_getContentType(dh);
-    if (type <= ContentType_IP6_RAW) {
-        return Iface_send(&ud->pub.tunIf, msg);
-    }
-    if (type == ContentType_CJDHT) {
-        Log_debug(ud->log, "UD_incomingFromSessionManagerIf");
-        return Iface_send(&ud->pub.dhtIf, msg);
-    }
-    if (type == ContentType_IPTUN) {
-        return Iface_send(&ud->pub.ipTunnelIf, msg);
-    }
-    Log_debug(ud->log, "DROP message with unknown type [%d]", type);
-    return 0;
+    Assert_true(type <= ContentType_IP6_RAW);
+
+    // Shift ip address into destination slot.
+    Bits_memmoveConst(&hdr->ip6[DataHeader_SIZE - 16], hdr->ip6, 16);
+    // put my address as destination.
+    Bits_memcpyConst(&hdr->ip6[DataHeader_SIZE], ud->myIp6, 16);
+
+    Message_shift(msg, Headers_IP6Header_SIZE - DataHeader_SIZE - RouteHeader_SIZE, NULL);
+    struct Headers_IP6Header* ip6 = (struct Headers_IP6Header*) msg->bytes;
+    Bits_memset(ip6, 0, Headers_IP6Header_SIZE - 32);
+    Headers_setIpVersion(ip6);
+    ip6->payloadLength_be = Endian_bigEndianToHost16(msg->length - Headers_IP6Header_SIZE);
+    ip6->nextHeader = type;
+    ip6->hopLimit = 42;
+    TUNMessageType_push(msg, Ethernet_TYPE_IP6, NULL);
+    return Iface_next(&ud->pub.tunIf, msg);
 }
 
-struct UpperDistributor* UpperDistributor_new(struct Allocator* alloc, struct Log* log)
+struct TUNAdapter* TUNAdapter_new(struct Allocator* alloc, struct Log* log, uint8_t myIp6[16])
 {
-    struct UpperDistributor_pvt* out =
-        Allocator_calloc(alloc, sizeof(struct UpperDistributor_pvt), 1);
-    out->pub.dhtIf.send = incomingFromDhtIf;
+    struct TUNAdapter_pvt* out = Allocator_calloc(alloc, sizeof(struct TUNAdapter_pvt), 1);
     out->pub.tunIf.send = incomingFromTunIf;
     out->pub.ipTunnelIf.send = incomingFromIpTunnelIf;
-    out->pub.sessionManagerIf.send = incomingFromSessionManagerIf;
+    out->pub.upperDistributorIf.send = incomingFromUpperDistributorIf;
     out->log = log;
     Identity_set(out);
+    Bits_memcpyConst(out->myIp6, myIp6, 16);
     return &out->pub;
 }

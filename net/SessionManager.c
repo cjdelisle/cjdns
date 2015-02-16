@@ -85,7 +85,7 @@ static void sendSession(struct SessionManager_pvt* sm,
                         struct Allocator* alloc)
 {
     struct PFChan_Node session = {
-        .path_be = path,
+        .path_be = Endian_hostToBigEndian64(path),
         .metric_be = 0xffffffff,
         .version_be = Endian_hostToBigEndian32(sess->version)
     };
@@ -147,6 +147,7 @@ static uint8_t incomingFromSwitchPostCryptoAuth(struct Message* msg, struct Inte
         session->sendSwitchLabel = path;
     }
     if (path != session->recvSwitchLabel) {
+        session->recvSwitchLabel = path;
         sendSession(sm, session, path, 0xffffffff, PFChan_Core_DISCOVERED_PATH, msg->alloc);
     }
 
@@ -395,7 +396,7 @@ static Iface_DEFUN incomingFromInsideIf(struct Iface* iface, struct Message* msg
                               header->ip6,
                               header->publicKey,
                               Endian_bigEndianToHost32(header->version_be),
-                              Endian_hostToBigEndian64(sess->sendSwitchLabel));
+                              Endian_bigEndianToHost64(header->sh.label_be));
         } else {
             needsLookup(sm, msg);
             return NULL;

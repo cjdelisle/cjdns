@@ -68,8 +68,6 @@ struct SessionTable
 
     Interface_Callback encryptedOutgoing;
 
-    void* const interfaceContext;
-
     struct EventBase* const eventBase;
 
     struct Map_OfSessionsByIp6 ifaceMap;
@@ -235,7 +233,7 @@ void* SessionTable_getInterfaceContext(struct SessionTable_Session* session)
 {
     struct SessionTable_Session_pvt* sess =
         Identity_check((struct SessionTable_Session_pvt*) session);
-    return sess->sm->interfaceContext;
+    return sess->sm->iface.senderContext;
 }
 
 struct SessionTable_HandleList* SessionTable_getHandleList(struct SessionTable* sm,
