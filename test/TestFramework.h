@@ -27,7 +27,7 @@ struct TestFramework
     struct SwitchCore* switchCore;
     struct CryptoAuth* cryptoAuth;
     struct SwitchPinger* switchPinger;
-    struct InterfaceController* ifController;
+    struct IfController* ifController;
     struct Pathfinder* pathfinder;
     struct Iface* tunIf;
 

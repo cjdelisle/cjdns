@@ -27,7 +27,7 @@
 #include "util/events/EventBase.h"
 #include "net/SwitchPinger.h"
 #include "net/ControlHandler.h"
-#include "interface/InterfaceController.h"
+#include "net/IfController.h"
 #include "interface/Iface.h"
 #include "tunnel/IpTunnel.h"
 #include "net/EventEmitter.h"
@@ -151,8 +151,8 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
     Iface_plumb(&controlHandler->switchPingerIf, &sp->controlHandlerIf);
 
     // Interfaces.
-    struct InterfaceController* ifController =
-        InterfaceController_new(ca, switchCore, logger, base, sp, rand, allocator, eventEmitter);
+    struct IfController* ifController =
+        IfController_new(ca, switchCore, logger, base, sp, rand, allocator, eventEmitter);
 
     struct Pathfinder* pf = Pathfinder_register(allocator, logger, base, rand, NULL, eventEmitter);
 
@@ -211,28 +211,28 @@ void TestFramework_linkNodes(struct TestFramework* client,
     }), sizeof(struct TestFramework_Link));
     Identity_set(link);
 
-    link->clientIfNum = InterfaceController_regIface(
+    link->clientIfNum = IfController_regIface(
         client->ifController, &link->srcIf, String_CONST("testA"), client->alloc);
 
-    link->serverIfNum = InterfaceController_regIface(
+    link->serverIfNum = IfController_regIface(
         server->ifController, &link->destIf, String_CONST("testB"), server->alloc);
 
     if (beacon) {
-        int ret = InterfaceController_beaconState(client->ifController,
+        int ret = IfController_beaconState(client->ifController,
                                                   link->clientIfNum,
-                                                  InterfaceController_beaconState_newState_ACCEPT);
+                                                  IfController_beaconState_newState_ACCEPT);
         Assert_true(!ret);
 
-        ret = InterfaceController_beaconState(server->ifController,
+        ret = IfController_beaconState(server->ifController,
                                               link->serverIfNum,
-                                              InterfaceController_beaconState_newState_SEND);
+                                              IfController_beaconState_newState_SEND);
         Assert_true(!ret);
     } else {
         // Except that it has an authorizedPassword added.
         CryptoAuth_addUser(String_CONST("abcdefg123"), 1, String_CONST("TEST"), server->cryptoAuth);
 
         // Client has pubKey and passwd for the server.
-        InterfaceController_bootstrapPeer(client->ifController,
+        IfController_bootstrapPeer(client->ifController,
                                           link->clientIfNum,
                                           server->publicKey,
                                           Sockaddr_LOOPBACK,

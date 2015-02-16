@@ -18,12 +18,11 @@
 #include "benc/Dict.h"
 #include "benc/String.h"
 #include "benc/Int.h"
-#include "interface/addressable/UDPAddrInterface.h"
 #include "interface/tuntap/TUNInterface.h"
 #include "interface/tuntap/TUNMessageType.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
-#include "interface/InterfaceController.h"
+#include "net/IfController.h"
 #include "io/FileWriter.h"
 #include "io/Writer.h"
 #include "util/Assert.h"
@@ -46,6 +45,12 @@ static const uint8_t testAddrB[4] = {11, 0, 0, 2};
  * Setup a UDPAddrInterface and a TUNInterface, test sending traffic between them.
  */
 
+struct TUNInterfaceIp4Context
+{
+    struct Iface udpReceiver;
+    
+    Identity
+};
 
 static int receivedMessageTUNCount = 0;
 static uint8_t receiveMessageTUN(struct Message* msg, struct Interface* iface)
@@ -72,17 +77,17 @@ static uint8_t receiveMessageTUN(struct Message* msg, struct Interface* iface)
     return iface->sendMessage(msg, iface);
 }
 
-static uint8_t receiveMessageUDP(struct Message* msg, struct Interface* iface)
+static Iface_DEFUN receiveMessageUDP(struct Iface* iface, struct Message* msg)
 {
     if (!receivedMessageTUNCount) {
-        return 0;
+        return NULL;
     }
 
     // Got the message, test successful, tear everything down by freeing the root alloc.
     struct Allocator* alloc = iface->receiverContext;
     Allocator_free(alloc);
 
-    return 0;
+    return NULL;
 }
 
 static void fail(void* ignored)
@@ -110,15 +115,16 @@ int main(int argc, char** argv)
 
     struct Sockaddr_storage ss;
     Assert_true(!Sockaddr_parse("0.0.0.0", &ss));
-    struct AddrInterface* udp = TUNTools_setupUDP(base, &ss.addr, alloc, logger);
+    struct AddrIface* udp = TUNTools_setupUDP(base, &ss.addr, alloc, logger);
 
     struct Sockaddr* dest = Sockaddr_clone(udp->addr, alloc);
     uint8_t* addr;
     Assert_true(4 == Sockaddr_getAddress(dest, &addr));
     Bits_memcpy(addr, testAddrB, 4);
 
-    udp->generic.receiveMessage = receiveMessageUDP;
-    udp->generic.receiverContext = alloc;
+    struct Iface* udpReceiver = Allocator_calloc(alloc, sizeof(struct Iface), 1);
+    udpReceiver.send = receiveMessageUDP;
+    Iface_plumb(udpReceiver, &udp->iface);
     tun->receiveMessage = receiveMessageTUN;
 
     TUNTools_sendHelloWorld(udp, dest, base, alloc);

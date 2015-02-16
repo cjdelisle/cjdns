@@ -18,7 +18,7 @@
 #include "benc/List.h"
 #include "util/events/EventBase.h"
 #include "interface/Interface.h"
-#include "interface/InterfaceController.h"
+#include "net/IfController.h"
 #include "util/Gcc.h"
 #include "util/Assert.h"
 #include "util/log/Log.h"

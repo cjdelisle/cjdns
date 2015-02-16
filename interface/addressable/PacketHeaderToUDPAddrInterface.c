@@ -29,10 +29,10 @@ struct PacketHeaderToUDPAddrInterface_pvt
     Identity
 };
 
-static uint8_t sendMessage(struct Message* message, struct Interface* iface)
+static Iface_DEFUN incomingFromUdpIf(struct Iface* udpIf, struct Message* message)
 {
     struct PacketHeaderToUDPAddrInterface_pvt* context =
-        Identity_check((struct PacketHeaderToUDPAddrInterface_pvt*) iface);
+        Identity_containerOf(udpIf, struct PacketHeaderToUDPAddrInterface_pvt, pub.udpIf);
 
     struct Sockaddr_storage ss;
     Message_pop(message, &ss, context->pub.udpIf.addr->addrLen, NULL);
@@ -62,8 +62,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
 
     Message_push(message, &ip, sizeof(struct Headers_IP6Header), NULL);
 
-    Iface_send(&context->pub.headerIf, message);
-    return 0;
+    return Iface_next(&context->pub.headerIf, message);
 }
 
 static Iface_DEFUN incomingFromHeaderIf(struct Iface* iface, struct Message* message)
@@ -101,8 +100,7 @@ static Iface_DEFUN incomingFromHeaderIf(struct Iface* iface, struct Message* mes
     Message_shift(message, -(Headers_IP6Header_SIZE + Headers_UDPHeader_SIZE), NULL);
     Message_push(message, addr, addr->addrLen, NULL);
 
-    Interface_receiveMessage(&context->pub.udpIf.generic, message);
-    return NULL;
+    return Iface_next(&context->pub.udpIf.iface, message);
 }
 
 struct PacketHeaderToUDPAddrInterface* PacketHeaderToUDPAddrInterface_new(struct Allocator* alloc,
@@ -114,11 +112,7 @@ struct PacketHeaderToUDPAddrInterface* PacketHeaderToUDPAddrInterface_new(struct
     Bits_memcpyConst(context, (&(struct PacketHeaderToUDPAddrInterface_pvt) {
         .pub = {
             .udpIf = {
-                .generic = {
-                    .sendMessage = sendMessage,
-                    .senderContext = context,
-                    .allocator = alloc
-                }
+                .send = incomingFromUdpIf
             },
             .headerIf = {
                 .send = incomingFromHeaderIf

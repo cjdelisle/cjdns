@@ -18,9 +18,11 @@
 #include "benc/Dict.h"
 #include "benc/String.h"
 #include "memory/Allocator.h"
-#include "interface/addressable/AddrInterface.h"
+#include "interface/Iface.h"
+#include "interface/addressable/AddrIface.h"
 #include "util/log/Log.h"
 #include "util/events/EventBase.h"
+#include "util/platform/Sockaddr.h"
 #include "crypto/random/Random.h"
 #include "util/Linker.h"
 Linker_require("interface/RainflyClient.c")
@@ -30,6 +32,7 @@ Linker_require("interface/RainflyClient.c")
 
 struct RainflyClient
 {
+    struct Iface addrIf;
     int minSignatures;
     int maxTries;
 };
@@ -65,9 +68,8 @@ int RainflyClient_addKey(struct RainflyClient* client, uint8_t key[32]);
 #define RainflyClient_addServer_WRONG_ADDRESS_TYPE -1
 int RainflyClient_addServer(struct RainflyClient* client, struct Sockaddr* addr);
 
-struct RainflyClient* RainflyClient_new(struct AddrInterface* iface,
+struct RainflyClient* RainflyClient_new(struct AddrIface* iface,
                                         struct EventBase* base,
                                         struct Random* rand,
                                         struct Log* logger);
-
 #endif

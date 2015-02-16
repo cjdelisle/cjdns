@@ -86,7 +86,7 @@ struct DNSServer_Message
 struct DNSServer_pvt
 {
     struct DNSServer pub;
-    struct Interface* iface;
+    struct Iface iface;
     struct Log* logger;
     struct RainflyClient* rainfly;
     struct Sockaddr* addr;
@@ -601,13 +601,12 @@ int DNSServer_addServer(struct DNSServer* dns, struct Sockaddr* addr)
     return 0;
 }
 
-struct DNSServer* DNSServer_new(struct AddrInterface* iface,
+struct DNSServer* DNSServer_new(struct AddrIface* iface,
                                 struct Log* logger,
                                 struct RainflyClient* rainfly)
 {
     struct DNSServer_pvt* context =
-        Allocator_clone(iface->generic.allocator, (&(struct DNSServer_pvt) {
-            .iface = &iface->generic,
+        Allocator_clone(iface->alloc (&(struct DNSServer_pvt) {
             .logger = logger,
             .rainfly = rainfly,
             .addr = iface->addr,
@@ -615,8 +614,8 @@ struct DNSServer* DNSServer_new(struct AddrInterface* iface,
         }));
     Identity_set(context);
 
-    iface->generic.receiveMessage = receiveMessage;
-    iface->generic.receiverContext = context;
+    context->iface.send = receiveMessage;
+    Iface_plumb(&context->iface, &iface->iface);
 
     return &context->pub;
 }

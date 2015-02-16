@@ -12,28 +12,17 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef AddrInterface_H
-#define AddrInterface_H
+#ifndef IfController_admin_H
+#define IfController_admin_H
 
-#include "interface/Interface.h"
-#include "util/platform/Sockaddr.h"
+#include "admin/Admin.h"
+#include "net/IfController.h"
+#include "memory/Allocator.h"
+#include "util/Linker.h"
+Linker_require("net/IfController_admin.c")
 
-/**
- * An AddrInterface, short for "Adderssable Interface" is an interface which
- * sends and accepts an address as the header of the messages sent to and
- * recieved from it.
- */
-struct AddrInterface
-{
-    /** As a generic interface. */
-    struct Interface generic;
-
-    /**
-     * The address of this node if applicable to the implementation.
-     * addr->addrLen will always tell how many of the first bytes of each
-     * message are reserved for the address.
-     */
-    struct Sockaddr* addr;
-};
+void IfController_admin_register(struct IfController* ic,
+                                        struct Admin* admin,
+                                        struct Allocator* alloc);
 
 #endif

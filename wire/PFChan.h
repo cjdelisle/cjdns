@@ -140,7 +140,7 @@ enum PFChan_Pathfinder
 
     /**
      * Get all peers.
-     * (Received by: InterfaceController.c)
+     * (Received by: IfController.c)
      */
     PFChan_Pathfinder_PEERS = 519,
 
@@ -212,13 +212,13 @@ enum PFChan_Core
     /**
      * Emitted when a peer connects (becomes state ESTABLISHED) or
      * emitted for every peer if PFChan_Pathfinder_PEERS is sent.
-     * (emitted by: InterfaceController.c)
+     * (emitted by: IfController.c)
      */
     PFChan_Core_PEER = 1029,
 
     /**
      * Emitted when a peer disconnects (or becomes state UNRESPONSIVE)
-     * (emitted by: InterfaceController.c)
+     * (emitted by: IfController.c)
      */
     PFChan_Core_PEER_GONE = 1030,
 

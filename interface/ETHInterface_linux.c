@@ -16,7 +16,7 @@
 #include "interface/Interface.h"
 #include "interface/ETHInterface.h"
 #include "memory/Allocator.h"
-#include "interface/InterfaceController.h"
+#include "net/IfController.h"
 #include "wire/Headers.h"
 #include "wire/Message.h"
 #include "wire/Error.h"

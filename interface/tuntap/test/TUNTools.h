@@ -15,7 +15,7 @@
 #ifndef TUNTools_H
 #define TUNTools_H
 
-#include "interface/addressable/AddrInterface.h"
+#include "interface/addressable/AddrIface.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
 #include "util/platform/Sockaddr.h"
@@ -23,12 +23,12 @@
 #include "util/Linker.h"
 Linker_require("interface/tuntap/test/TUNTools.c")
 
-struct AddrInterface* TUNTools_setupUDP(struct EventBase* base,
-                                        struct Sockaddr* bindAddr,
-                                        struct Allocator* allocator,
-                                        struct Log* logger);
+struct AddrIface* TUNTools_setupUDP(struct EventBase* base,
+                                    struct Sockaddr* bindAddr,
+                                    struct Allocator* allocator,
+                                    struct Log* logger);
 
-struct Timeout* TUNTools_sendHelloWorld(struct AddrInterface* iface,
+struct Timeout* TUNTools_sendHelloWorld(struct AddrIface* iface,
                                         struct Sockaddr* dest,
                                         struct EventBase* base,
                                         struct Allocator* alloc);

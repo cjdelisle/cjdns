@@ -27,15 +27,14 @@
 #include "dht/Pathfinder.h"
 #include "exception/Jmp.h"
 #include "interface/Iface.h"
-#include "interface/addressable/AddrInterface.h"
-#include "interface/addressable/UDPAddrInterface.h"
+#include "util/events/UDPAddrIface.h"
 #include "interface/UDPInterface_admin.h"
 #ifdef HAS_ETH_INTERFACE
 #include "interface/ETHInterface_admin.h"
 #endif
 #include "interface/tuntap/TUNInterface.h"
 #include "interface/InterfaceConnector.h"
-#include "interface/InterfaceController_admin.h"
+#include "net/IfController_admin.h"
 #include "interface/FramingInterface.h"
 #include "interface/RainflyClient.h"
 #include "interface/RainflyClient_admin.h"
@@ -44,7 +43,7 @@
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
 #include "memory/Allocator_admin.h"
-#include "interface/InterfaceController.h"
+#include "net/IfController.h"
 #include "net/SwitchPinger.h"
 #include "net/SwitchPinger_admin.h"
 #include "net/ControlHandler.h"
@@ -320,12 +319,11 @@ void Core_init(struct Allocator* alloc,
         Except_throw(eh, "bind address [%s] unparsable", bind->bytes);
     }
 
-    struct AddrInterface* udpAdmin =
-        UDPAddrInterface_new(eventBase, &bindAddr.addr, alloc, eh, logger);
+    struct UDPAddrIface* udpAdmin = UDPAddrIface_new(eventBase, &bindAddr.addr, alloc, eh, logger);
+    struct Admin* admin = Admin_new(alloc, logger, eventBase, pass);
+    Iface_plumb(&udpAdmin->generic.iface, &admin->addrIf);
 
-    struct Admin* admin = Admin_new(udpAdmin, alloc, logger, eventBase, pass);
-
-    char* boundAddr = Sockaddr_print(udpAdmin->addr, tempAlloc);
+    char* boundAddr = Sockaddr_print(udpAdmin->generic.addr, tempAlloc);
     Dict adminResponse = Dict_CONST(
         String_CONST("bind"), String_OBJ(String_CONST(boundAddr)), NULL
     );
@@ -377,8 +375,8 @@ void Core_init(struct Allocator* alloc,
     Iface_plumb(&controlHandler->switchPingerIf, &sp->controlHandlerIf);
 
     // Interfaces.
-    struct InterfaceController* ifController =
-        InterfaceController_new(cryptoAuth, switchCore,
+    struct IfController* ifController =
+        IfController_new(cryptoAuth, switchCore,
                                 logger, eventBase, sp, rand, alloc, eventEmitter);
 
     Pathfinder_register(alloc, logger, eventBase, rand, admin, eventEmitter);
@@ -387,9 +385,10 @@ void Core_init(struct Allocator* alloc,
 
     struct Sockaddr_storage rainflyAddr;
     Assert_true(!Sockaddr_parse("::", &rainflyAddr));
-    struct AddrInterface* rainflyIface =
-        UDPAddrInterface_new(eventBase, &rainflyAddr.addr, alloc, eh, logger);
-    struct RainflyClient* rainfly = RainflyClient_new(rainflyIface, eventBase, rand, logger);
+    struct UDPAddrIface* rainflyIface =
+        UDPAddrIface_new(eventBase, &rainflyAddr.addr, alloc, eh, logger);
+    struct RainflyClient* rainfly =
+        RainflyClient_new(&rainflyIface->generic, eventBase, rand, logger);
     Assert_true(!Sockaddr_parse("[fc00::1]:53", &rainflyAddr));
     struct PacketHeaderToUDPAddrInterface* magicUDP =
         PacketHeaderToUDPAddrInterface_new(alloc, &rainflyAddr.addr);
@@ -398,7 +397,7 @@ void Core_init(struct Allocator* alloc,
 
 
     // ------------------- Register RPC functions ----------------------- //
-    InterfaceController_admin_register(ifController, admin, alloc);
+    IfController_admin_register(ifController, admin, alloc);
     SwitchPinger_admin_register(sp, admin, alloc);
     UDPInterface_admin_register(eventBase, alloc, logger, admin, ifController);
 #ifdef HAS_ETH_INTERFACE

@@ -16,13 +16,12 @@
 #include "benc/serialization/standard/BencMessageReader.h"
 #include "benc/serialization/standard/BencMessageWriter.h"
 #include "benc/serialization/cloner/Cloner.h"
-#include "interface/addressable/AddrInterface.h"
-#include "interface/addressable/UDPAddrInterface.h"
 #include "exception/Except.h"
 #include "util/Bits.h"
 #include "util/Endian.h"
 #include "util/Hex.h"
 #include "util/events/Timeout.h"
+#include "util/events/UDPAddrIface.h"
 #include "util/Identity.h"
 #include "wire/Message.h"
 
@@ -64,7 +63,7 @@ struct Context
 {
     struct AdminClient pub;
     struct EventBase* eventBase;
-    struct AddrInterface* addrIface;
+    struct Iface addrIface;
     struct Sockaddr* targetAddr;
     struct Log* logger;
     String* password;
@@ -115,9 +114,9 @@ static void timeout(void* vreq)
     done((struct Request*) vreq, AdminClient_Error_TIMEOUT);
 }
 
-static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
+static Iface_DEFUN receiveMessage(struct Iface* addrIface, struct Message* msg)
 {
-    struct Context* ctx = Identity_check((struct Context*) iface->receiverContext);
+    struct Context* ctx = Identity_containerOf(addrIface, struct Context, addrIface);
 
     struct Sockaddr_storage source;
     Message_pop(msg, &source, ctx->targetAddr->addrLen, NULL);
@@ -125,7 +124,7 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
         Log_info(ctx->logger, "Got spurious message from [%s], expecting messages from [%s]",
                  Sockaddr_print(&source.addr, msg->alloc),
                  Sockaddr_print(ctx->targetAddr, msg->alloc));
-        return 0;
+        return NULL;
     }
 
     // we don't yet know with which message this data belongs,
@@ -135,17 +134,17 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
     int origLen = msg->length;
     Dict* d = NULL;
     char* err = BencMessageReader_readNoExcept(msg, alloc, &d);
-    if (err) { return 0; }
+    if (err) { return NULL; }
     Message_shift(msg, origLen, NULL);
 
     String* txid = Dict_getString(d, String_CONST("txid"));
-    if (!txid || txid->len != 8) { return 0; }
+    if (!txid || txid->len != 8) { return NULL; }
 
     // look up the result
     uint32_t handle = ~0u;
     Hex_decode((uint8_t*)&handle, 4, txid->bytes, 8);
     int idx = Map_OfRequestByHandle_indexForHandle(handle, &ctx->outstandingRequests);
-    if (idx < 0) { return 0; }
+    if (idx < 0) { return NULL; }
 
     struct Request* req = ctx->outstandingRequests.values[idx];
 
@@ -159,7 +158,7 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
     Bits_memset(req->res.messageBytes, 0, AdminClient_MAX_MESSAGE_SIZE);
     Bits_memcpy(req->res.messageBytes, msg->bytes, len);
     done(req, AdminClient_Error_NONE);
-    return 0;
+    return NULL;
 }
 
 static int requestOnFree(struct Allocator_OnFreeJob* job)
@@ -213,7 +212,7 @@ static struct Request* sendRaw(Dict* messageDict,
 
     Message_push(msg, ctx->targetAddr, ctx->targetAddr->addrLen, NULL);
 
-    Interface_sendMessage(&ctx->addrIface->generic, msg);
+    Iface_send(&ctx->addrIface, msg);
     Allocator_free(child);
 
     return req;
@@ -318,6 +317,7 @@ struct AdminClient* AdminClient_new(struct Sockaddr* connectToAddress,
         },
         .alloc = alloc
     }));
+    context->addrIface.send = receiveMessage;
     Identity_set(context);
 
     context->targetAddr = Sockaddr_clone(connectToAddress, alloc);
@@ -332,9 +332,8 @@ struct AdminClient* AdminClient_new(struct Sockaddr* connectToAddress,
     }
     Log_debug(logger, "Connecting to [%s]", Sockaddr_print(context->targetAddr, alloc));
 
-    context->addrIface = UDPAddrInterface_new(eventBase, NULL, alloc, NULL, logger);
-    context->addrIface->generic.receiveMessage = receiveMessage;
-    context->addrIface->generic.receiverContext = context;
+    struct UDPAddrIface* udp = UDPAddrIface_new(eventBase, NULL, alloc, NULL, logger);
+    Iface_plumb(&udp->generic.iface, &context->addrIface);
 
     return &context->pub;
 }

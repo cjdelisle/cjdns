@@ -16,7 +16,7 @@
 #include "admin/Admin.h"
 #include "exception/Jmp.h"
 #include "memory/Allocator.h"
-#include "interface/InterfaceController.h"
+#include "net/IfController.h"
 #include "interface/addressable/UDPAddrInterface.h"
 #include "util/events/EventBase.h"
 #include "util/platform/Sockaddr.h"
@@ -29,7 +29,7 @@ struct Context
     struct Log* logger;
     struct Admin* admin;
     struct AddrInterface* udpIf;
-    struct InterfaceController* ic;
+    struct IfController* ic;
 };
 
 static void beginConnection(Dict* args,
@@ -83,21 +83,21 @@ static void beginConnection(Dict* args,
         }
 
         int ret =
-            InterfaceController_bootstrapPeer(ctx->ic, ifNum, pkBytes, addr, password, ctx->alloc);
+            IfController_bootstrapPeer(ctx->ic, ifNum, pkBytes, addr, password, ctx->alloc);
 
         Allocator_free(tempAlloc);
 
         if (ret) {
             switch(ret) {
-                case InterfaceController_bootstrapPeer_BAD_IFNUM:
+                case IfController_bootstrapPeer_BAD_IFNUM:
                     error = String_CONST("no such interface for interfaceNumber");
                     break;
 
-                case InterfaceController_bootstrapPeer_BAD_KEY:
+                case IfController_bootstrapPeer_BAD_KEY:
                     error = String_CONST("invalid cjdns public key.");
                     break;
 
-                case InterfaceController_bootstrapPeer_OUT_OF_SPACE:
+                case IfController_bootstrapPeer_OUT_OF_SPACE:
                     error = String_CONST("no more space to register with the switch.");
                     break;
 
@@ -133,11 +133,12 @@ static void newInterface2(struct Context* ctx,
     }
 
     ctx->udpIf = udpIf;
-    int ifNum = InterfaceController_regIface(ctx->ic, &udpIf->generic, String_CONST("UDP"), alloc);
+    struct IfController_Iface* ici = IfController_getIface(ctx->ic, String_CONST("UDP"), alloc);
+    Iface_plumb(&ici->addrIf, &udpIf->generic);
 
     Dict* out = Dict_new(requestAlloc);
     Dict_putString(out, String_CONST("error"), String_CONST("none"), requestAlloc);
-    Dict_putInt(out, String_CONST("interfaceNumber"), ifNum, requestAlloc);
+    Dict_putInt(out, String_CONST("interfaceNumber"), ici->ifNum, requestAlloc);
     char* printedAddr = Sockaddr_print(udpIf->addr, requestAlloc);
     Dict_putString(out,
                    String_CONST("bindAddress"),
@@ -166,7 +167,7 @@ void UDPInterface_admin_register(struct EventBase* base,
                                  struct Allocator* alloc,
                                  struct Log* logger,
                                  struct Admin* admin,
-                                 struct InterfaceController* ic)
+                                 struct IfController* ic)
 {
     struct Context* ctx = Allocator_clone(alloc, (&(struct Context) {
         .eventBase = base,

@@ -13,7 +13,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "interface/tuntap/test/TUNTools.h"
-#include "interface/addressable/UDPAddrInterface.h"
+#include "util/events/UDPAddrIface.h"
 #include "exception/Jmp.h"
 #include "util/events/Timeout.h"
 
@@ -24,24 +24,25 @@
     #include <unistd.h>
 #endif
 
-static struct AddrInterface* setupUDP2(struct EventBase* base,
-                                       struct Sockaddr* bindAddr,
-                                       struct Allocator* allocator,
-                                       struct Log* logger)
+static struct AddrIface* setupUDP2(struct EventBase* base,
+                                   struct Sockaddr* bindAddr,
+                                   struct Allocator* allocator,
+                                   struct Log* logger)
 {
     struct Jmp jmp;
     Jmp_try(jmp) {
-        return UDPAddrInterface_new(base, bindAddr, allocator, &jmp.handler, logger);
+        struct UDPAddrIface* ua = UDPAddrIface_new(base, bindAddr, allocator, &jmp.handler, logger);
+        return &ua->generic;
     } Jmp_catch {
         sleep(1);
         return NULL;
     }
 }
 
-struct AddrInterface* TUNTools_setupUDP(struct EventBase* base,
-                                        struct Sockaddr* bindAddr,
-                                        struct Allocator* allocator,
-                                        struct Log* logger)
+struct AddrIface* TUNTools_setupUDP(struct EventBase* base,
+                                    struct Sockaddr* bindAddr,
+                                    struct Allocator* allocator,
+                                    struct Log* logger)
 {
     // Mac OSX and BSD do not set up their TUN devices synchronously.
     // We'll just keep on trying until this works.
@@ -57,7 +58,7 @@ struct AddrInterface* TUNTools_setupUDP(struct EventBase* base,
 
 struct TUNTools_pvt
 {
-    struct AddrInterface* iface;
+    struct Iface iface;
     struct Sockaddr* dest;
     Identity
 };
@@ -69,18 +70,26 @@ static void sendHello(void* vctx)
     Message_STACK(msg, 0, 64);
     Message_push(msg, "Hello World", 12, NULL);
     Message_push(msg, ctx->dest, ctx->dest->addrLen, NULL);
-    Interface_sendMessage(&ctx->iface->generic, msg);
+    Iface_send(&ctx->iface, msg);
 }
 
-struct Timeout* TUNTools_sendHelloWorld(struct AddrInterface* iface,
+static Iface_DEFUN handleMessage(struct Iface* iface, struct Message* msg)
+{
+    Assert_failure("unexpected message");
+    return NULL;
+}
+
+struct Timeout* TUNTools_sendHelloWorld(struct AddrIface* iface,
                                         struct Sockaddr* dest,
                                         struct EventBase* base,
                                         struct Allocator* alloc)
 {
     struct TUNTools_pvt* ctx = Allocator_clone(alloc, (&(struct TUNTools_pvt) {
-        .dest = dest,
-        .iface = iface
+        .dest = dest
     }));
+    ctx->iface.send = handleMessage;
+    Iface_plumb(&ctx->iface, &iface->iface);
+    
     Identity_set(ctx);
     return Timeout_setInterval(sendHello, ctx, 1000, base, alloc);
 }

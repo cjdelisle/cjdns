@@ -306,14 +306,13 @@ static void handleHotKeysReply(struct Message* msg, struct RainflyClient_pvt* ct
     } while (i != start);
 }
 
-static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
+static Iface_DEFUN receiveMessage(struct Iface* iface, struct Message* msg)
 {
-    struct RainflyClient_pvt* ctx =
-        Identity_check((struct RainflyClient_pvt*)iface->receiverContext);
+    struct RainflyClient_pvt* ctx = Identity_check((struct RainflyClient_pvt*)iface);
 
     if (msg->length < ctx->addr->addrLen + 4) {
         Log_debug(ctx->logger, "runt");
-        return Error_NONE;
+        return NULL;
     }
 
     Message_shift(msg, -ctx->addr->addrLen, NULL);
@@ -328,13 +327,13 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
     Log_debug(ctx->logger, "Got a reply [%d]", operation);
 
     switch (operation) {
-        case RequestType_PING: return Error_NONE;
-        case RequestType_HOT_KEYS: handleHotKeysReply(msg, ctx); return Error_NONE;
-        case RequestType_LOOKUP: handleLookupReply(msg, ctx); return Error_NONE;
+        case RequestType_PING: return NULL;
+        case RequestType_HOT_KEYS: handleHotKeysReply(msg, ctx); return NULL;
+        case RequestType_LOOKUP: handleLookupReply(msg, ctx); return NULL;
         default: Log_debug(ctx->logger, "Got a message with unrecognized type [%d]", operation);
     }
 
-    return Error_NONE;
+    return NULL;
 }
 
 static void sendHotKeysRequest(void* vRainflyClient)
@@ -515,13 +514,13 @@ int RainflyClient_addServer(struct RainflyClient* client, struct Sockaddr* addr)
     return 0;
 }
 
-struct RainflyClient* RainflyClient_new(struct AddrInterface* iface,
+struct RainflyClient* RainflyClient_new(struct AddrIface* iface,
                                         struct EventBase* base,
                                         struct Random* rand,
                                         struct Log* logger)
 {
     struct RainflyClient_pvt* ctx =
-        Allocator_clone(iface->generic.allocator, (&(struct RainflyClient_pvt) {
+        Allocator_clone(iface->alloc, (&(struct RainflyClient_pvt) {
             .pub = {
                 .minSignatures = RainflyClient_DEFAULT_MIN_SIGNATURES,
                 .maxTries = RainflyClient_DEFAULT_MAX_TRIES,
@@ -529,16 +528,15 @@ struct RainflyClient* RainflyClient_new(struct AddrInterface* iface,
             .iface = &iface->generic,
             .logger = logger,
             .addr = iface->addr,
-            .alloc = iface->generic.allocator,
+            .alloc = alloc,
             .rand = rand,
             .eventBase = base,
         }));
+    ctx->pub.addrIf.send = receiveMessage;
+    Iface_plumb(&ctx->pub.addrIf, &iface->generic);
     Identity_set(ctx);
 
     ctx->hotKeysTimeout = Timeout_setInterval(sendHotKeysRequest, ctx, 1000, base, ctx->alloc);
-
-    iface->generic.receiveMessage = receiveMessage;
-    iface->generic.receiverContext = ctx;
 
     return &ctx->pub;
 }

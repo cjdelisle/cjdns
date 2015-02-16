@@ -19,14 +19,14 @@
 #include "benc/Int.h"
 #include "crypto/AddressCalc.h"
 #include "crypto/Key.h"
-#include "interface/InterfaceController.h"
-#include "interface/InterfaceController_admin.h"
+#include "net/IfController.h"
+#include "net/IfController_admin.h"
 #include "util/AddrTools.h"
 
 struct Context
 {
     struct Allocator* alloc;
-    struct InterfaceController* ic;
+    struct IfController* ic;
     struct Admin* admin;
     Identity
 };
@@ -36,12 +36,12 @@ struct Context
 static void adminPeerStats(Dict* args, void* vcontext, String* txid, struct Allocator* alloc)
 {
     struct Context* context = Identity_check((struct Context*)vcontext);
-    struct InterfaceController_PeerStats* stats = NULL;
+    struct IfController_PeerStats* stats = NULL;
 
     int64_t* page = Dict_getInt(args, String_CONST("page"));
     int i = (page) ? *page * ENTRIES_PER_PAGE : 0;
 
-    int count = InterfaceController_getPeerStats(context->ic, alloc, &stats);
+    int count = IfController_getPeerStats(context->ic, alloc, &stats);
 
     String* bytesIn = String_CONST("bytesIn");
     String* bytesOut = String_CONST("bytesOut");
@@ -66,7 +66,7 @@ static void adminPeerStats(Dict* args, void* vcontext, String* txid, struct Allo
         Dict_putString(d, addr, Address_toString(&stats[i].addr, alloc), alloc);
         Dict_putString(d, pubKey, Key_stringify(stats[i].addr.key, alloc), alloc);
 
-        String* stateString = String_new(InterfaceController_stateString(stats[i].state), alloc);
+        String* stateString = String_new(IfController_stateString(stats[i].state), alloc);
         Dict_putString(d, state, stateString, alloc);
 
         Dict_putInt(d, last, stats[i].timeOfLastMessage, alloc);
@@ -123,7 +123,7 @@ static void adminDisconnectPeer(Dict* args,
         errorMsg = "bad key";
     } else {
         //  try to remove the peer if the key is valid
-        error = InterfaceController_disconnectPeer(context->ic,pubkey);
+        error = IfController_disconnectPeer(context->ic,pubkey);
         if (error) {
             errorMsg = "no peer found for that key";
         }
@@ -153,7 +153,7 @@ static resetSession(Dict* args, void* vcontext, String* txid, struct Allocator* 
         errorMsg = "bad key";
     } else {
         //  try to remove the peer if the key is valid
-        error = InterfaceController_disconnectPeer(context->ic,pubkey);
+        error = IfController_disconnectPeer(context->ic,pubkey);
         if (error) {
             errorMsg = "no peer found for that key";
         }
@@ -168,7 +168,7 @@ static resetSession(Dict* args, void* vcontext, String* txid, struct Allocator* 
     Admin_sendMessage(response, txid, context->admin);
 }*/
 
-void InterfaceController_admin_register(struct InterfaceController* ic,
+void IfController_admin_register(struct IfController* ic,
                                         struct Admin* admin,
                                         struct Allocator* alloc)
 {
@@ -179,12 +179,12 @@ void InterfaceController_admin_register(struct InterfaceController* ic,
     }));
     Identity_set(ctx);
 
-    Admin_registerFunction("InterfaceController_peerStats", adminPeerStats, ctx, false,
+    Admin_registerFunction("IfController_peerStats", adminPeerStats, ctx, false,
         ((struct Admin_FunctionArg[]) {
             { .name = "page", .required = 0, .type = "Int" }
         }), admin);
 
-    Admin_registerFunction("InterfaceController_disconnectPeer", adminDisconnectPeer, ctx, true,
+    Admin_registerFunction("IfController_disconnectPeer", adminDisconnectPeer, ctx, true,
         ((struct Admin_FunctionArg[]) {
             { .name = "pubkey", .required = 1, .type = "String" }
         }), admin);

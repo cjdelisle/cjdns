@@ -20,7 +20,7 @@
 #include "exception/Jmp.h"
 #include "interface/ETHInterface.h"
 #include "memory/Allocator.h"
-#include "interface/InterfaceController.h"
+#include "net/IfController.h"
 #include "util/AddrTools.h"
 #include "util/Identity.h"
 
@@ -30,7 +30,7 @@ struct Context
     struct Allocator* alloc;
     struct Log* logger;
     struct Admin* admin;
-    struct InterfaceController* ic;
+    struct IfController* ic;
     struct Hermes* hermes;
     Identity
 };
@@ -62,17 +62,17 @@ static void beginConnection(Dict* args,
     } else if (macAddress->len < 17 || AddrTools_parseMac(sockaddr.mac, macAddress->bytes)) {
         error = "invalid macAddress";
     } else {
-        int ret = InterfaceController_bootstrapPeer(
+        int ret = IfController_bootstrapPeer(
             ctx->ic, ifNum, pkBytes, &sockaddr.generic, password, ctx->alloc);
 
-        if (ret == InterfaceController_bootstrapPeer_BAD_IFNUM) {
+        if (ret == IfController_bootstrapPeer_BAD_IFNUM) {
             error = "invalid interfaceNumber";
-        } else if (ret == InterfaceController_bootstrapPeer_BAD_KEY) {
+        } else if (ret == IfController_bootstrapPeer_BAD_KEY) {
             error = "invalid publicKey";
-        } else if (ret == InterfaceController_bootstrapPeer_OUT_OF_SPACE) {
+        } else if (ret == IfController_bootstrapPeer_OUT_OF_SPACE) {
             error = "no more space to register with the switch.";
         } else if (ret) {
-            error = "InterfaceController_bootstrapPeer(internal_error)";
+            error = "IfController_bootstrapPeer(internal_error)";
         }
     }
 
@@ -102,7 +102,7 @@ static void newInterface(Dict* args, void* vcontext, String* txid, struct Alloca
 
     String* ifname = String_printf(requestAlloc, "ETH/%s", bindDevice->bytes);
 
-    int ifNum = InterfaceController_regIface(ctx->ic, ethIf, ifname, alloc);
+    int ifNum = IfController_regIface(ctx->ic, ethIf, ifname, alloc);
 
     Dict* out = Dict_new(requestAlloc);
     Dict_putString(out, String_CONST("error"), String_CONST("none"), requestAlloc);
@@ -120,10 +120,10 @@ static void beacon(Dict* args, void* vcontext, String* txid, struct Allocator* r
     struct Context* ctx = Identity_check((struct Context*) vcontext);
 
     char* error = NULL;
-    int ret = InterfaceController_beaconState(ctx->ic, ifNum, state);
-    if (ret == InterfaceController_beaconState_NO_SUCH_IFACE) {
+    int ret = IfController_beaconState(ctx->ic, ifNum, state);
+    if (ret == IfController_beaconState_NO_SUCH_IFACE) {
         error = "invalid interfaceNumber";
-    } else if (ret == InterfaceController_beaconState_INVALID_STATE) {
+    } else if (ret == IfController_beaconState_INVALID_STATE) {
         error = "invalid state";
     } else if (ret) {
         error = "internal";
@@ -137,9 +137,9 @@ static void beacon(Dict* args, void* vcontext, String* txid, struct Allocator* r
     }
 
     char* stateStr = "disabled";
-    if (state == InterfaceController_beaconState_newState_ACCEPT) {
+    if (state == IfController_beaconState_newState_ACCEPT) {
         stateStr = "accepting";
-    } else if (state == InterfaceController_beaconState_newState_SEND) {
+    } else if (state == IfController_beaconState_newState_SEND) {
         stateStr = "sending and accepting";
     }
 
@@ -195,7 +195,7 @@ void ETHInterface_admin_register(struct EventBase* base,
                                  struct Allocator* alloc,
                                  struct Log* logger,
                                  struct Admin* admin,
-                                 struct InterfaceController* ic,
+                                 struct IfController* ic,
                                  struct Hermes* hermes)
 {
     struct Context* ctx = Allocator_clone(alloc, (&(struct Context) {
