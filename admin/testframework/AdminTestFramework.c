@@ -24,10 +24,10 @@
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
 #include "interface/FramingInterface.h"
-#include "interface/addressable/UDPAddrInterface.h"
 #include "io/FileWriter.h"
 #include "io/Writer.h"
 #include "util/events/EventBase.h"
+#include "util/events/UDPAddrIface.h"
 #include "util/events/Pipe.h"
 #include "util/events/Process.h"
 #include "util/Assert.h"
@@ -145,8 +145,7 @@ struct AdminTestFramework* AdminTestFramework_setUp(int argc, char** argv, char*
     Assert_true(!Sockaddr_parse("127.0.0.1", &addr));
 
     Log_info(logger, "Binding UDP admin socket");
-    struct AddrInterface* udpAdmin =
-        UDPAddrInterface_new(eventBase, &addr.addr, alloc, NULL, logger);
+    struct AddrIface* udpAdmin = UDPAddrIface_new(eventBase, &addr.addr, alloc, NULL, logger);
 
     String* password = String_new("abcd", alloc);
     struct Admin* admin = Admin_new(udpAdmin, alloc, logger, eventBase, password);

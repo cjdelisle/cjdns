@@ -17,7 +17,7 @@
 #include "exception/Jmp.h"
 #include "memory/Allocator.h"
 #include "net/IfController.h"
-#include "interface/addressable/UDPAddrInterface.h"
+#include "util/events/UDPAddrIface.h"
 #include "util/events/EventBase.h"
 #include "util/platform/Sockaddr.h"
 #include "crypto/Key.h"
@@ -28,7 +28,7 @@ struct Context
     struct Allocator* alloc;
     struct Log* logger;
     struct Admin* admin;
-    struct AddrInterface* udpIf;
+    struct AddrIface* udpIf;
     struct IfController* ic;
 };
 
@@ -120,10 +120,10 @@ static void newInterface2(struct Context* ctx,
                           struct Allocator* requestAlloc)
 {
     struct Allocator* const alloc = Allocator_child(ctx->alloc);
-    struct AddrInterface* udpIf = NULL;
+    struct UDPAddrIface* udpIf = NULL;
     struct Jmp jmp;
     Jmp_try(jmp) {
-        udpIf = UDPAddrInterface_new(ctx->eventBase, addr, alloc, &jmp.handler, ctx->logger);
+        udpIf = UDPAddrIface_new(ctx->eventBase, addr, alloc, &jmp.handler, ctx->logger);
     } Jmp_catch {
         String* errStr = String_CONST(jmp.message);
         Dict out = Dict_CONST(String_CONST("error"), String_OBJ(errStr), NULL);
@@ -132,14 +132,14 @@ static void newInterface2(struct Context* ctx,
         return;
     }
 
-    ctx->udpIf = udpIf;
-    struct IfController_Iface* ici = IfController_getIface(ctx->ic, String_CONST("UDP"), alloc);
-    Iface_plumb(&ici->addrIf, &udpIf->generic);
+    struct AddrIface* ai = ctx->udpIf = &udpIf->generic;
+    struct IfController_Iface* ici = IfController_newIface(ctx->ic, String_CONST("UDP"), alloc);
+    Iface_plumb(&ici->addrIf, &ai->iface);
 
     Dict* out = Dict_new(requestAlloc);
     Dict_putString(out, String_CONST("error"), String_CONST("none"), requestAlloc);
     Dict_putInt(out, String_CONST("interfaceNumber"), ici->ifNum, requestAlloc);
-    char* printedAddr = Sockaddr_print(udpIf->addr, requestAlloc);
+    char* printedAddr = Sockaddr_print(ai->addr, requestAlloc);
     Dict_putString(out,
                    String_CONST("bindAddress"),
                    String_CONST(printedAddr),

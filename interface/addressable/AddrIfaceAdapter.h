@@ -12,19 +12,20 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef Angel_H
-#define Angel_H
+#ifndef AddrInterfaceAdapter_H
+#define AddrInterfaceAdapter_H
 
+#include "interface/addressable/AddrIface.h"
 #include "memory/Allocator.h"
-#include "util/log/Log.h"
-#include "interface/Interface.h"
-#include "util/events/EventBase.h"
 #include "util/Linker.h"
-Linker_require("admin/angel/Angel.c")
+Linker_require("interface/addressable/AddrIfaceAdapter.c")
 
-void Angel_start(struct Iface* coreIface,
-                 struct EventBase* eventBase,
-                 struct Log* logger,
-                 struct Allocator* alloc);
+struct AddrIfaceAdapter
+{
+    struct AddrIface generic;
+    struct Iface inputIf;
+};
+
+struct AddrIface* AddrIfaceAdapter_new(struct Allocator* alloc);
 
 #endif

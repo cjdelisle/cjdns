@@ -48,9 +48,9 @@
 // 2 last 0x00 of .sll_addr are removed from original size (20)
 #define SOCKADDR_LL_LEN 18
 
-struct ETHInterface
+struct ETHAddrIface_pvt
 {
-    struct Interface generic;
+    struct ETHAddrIface pub;
 
     Socket socket;
 
@@ -66,9 +66,9 @@ struct ETHInterface
     Identity
 };
 
-static uint8_t sendMessageInternal(struct Message* message,
-                                   struct sockaddr_ll* addr,
-                                   struct ETHInterface* context)
+static void sendMessageInternal(struct Message* message,
+                                struct sockaddr_ll* addr,
+                                struct ETHAddrIface_pvt* context)
 {
     /* Cut down on the noise
     uint8_t buff[sizeof(*addr) * 2 + 1] = {0};
@@ -84,30 +84,29 @@ static uint8_t sendMessageInternal(struct Message* message,
                sizeof(struct sockaddr_ll)) < 0)
     {
         switch (errno) {
-            case EMSGSIZE:
-                return Error_OVERSIZE_MESSAGE;
-
-            case ENOBUFS:
-            case EAGAIN:
-                return Error_LINK_LIMIT_EXCEEDED;
-
             default:;
                 Log_info(context->logger, "[%s] Got error sending to socket [%s]",
                          context->ifName->bytes, strerror(errno));
+
+            case EMSGSIZE:
+            case ENOBUFS:
+            case EAGAIN:
+                // todo: care
         }
     }
-    return 0;
+    return;
 }
 
-static uint8_t sendMessage(struct Message* msg, struct Interface* ethIf)
+static Iface_DEFUN sendMessage(struct Iface* iface, struct Message* msg)
 {
-    struct ETHInterface* ctx = Identity_check((struct ETHInterface*) ethIf);
+    struct ETHAddrIface_pvt* ctx =
+        Identity_containerOf(iface, struct ETHAddrIface_pvt, pub.generic.iface);
 
     struct Sockaddr* sa = (struct Sockaddr*) msg->bytes;
     Assert_true(msg->length >= Sockaddr_OVERHEAD);
     Assert_true(sa->addrLen <= ETHInterface_Sockaddr_SIZE);
 
-    struct ETHInterface_Sockaddr sockaddr = { .generic = { .addrLen = 0 } };
+    struct ETHAddrIface_pvt_Sockaddr sockaddr = { .generic = { .addrLen = 0 } };
     Message_pop(msg, &sockaddr, sa->addrLen, NULL);
 
     struct sockaddr_ll addr;
@@ -119,17 +118,18 @@ static uint8_t sendMessage(struct Message* msg, struct Interface* ethIf)
         Bits_memcpyConst(addr.sll_addr, sockaddr.mac, 6);
     }
 
-    struct ETHInterface_Header hdr = {
+    struct ETHAddrIface_pvt_Header hdr = {
         .version = ETHInterface_CURRENT_VERSION,
         .zero = 0,
         .length_be = Endian_hostToBigEndian16(msg->length + ETHInterface_Header_SIZE),
         .fc00_be = Endian_hostToBigEndian16(0xfc00)
     };
     Message_push(msg, &hdr, ETHInterface_Header_SIZE, NULL);
-    return sendMessageInternal(msg, &addr, ctx);
+    sendMessageInternal(msg, &addr, ctx);
+    return NULL;
 }
 
-static void handleEvent2(struct ETHInterface* context, struct Allocator* messageAlloc)
+static void handleEvent2(struct ETHAddrIface_pvt* context, struct Allocator* messageAlloc)
 {
     struct Message* msg = Message_new(MAX_PACKET_SIZE, PADDING, messageAlloc);
 
@@ -157,7 +157,7 @@ static void handleEvent2(struct ETHInterface* context, struct Allocator* message
 
     //Assert_true(addrLen == SOCKADDR_LL_LEN);
 
-    struct ETHInterface_Header hdr;
+    struct ETHAddrIface_pvt_Header hdr;
     Message_pop(msg, &hdr, ETHInterface_Header_SIZE, NULL);
 
     // here we could put a switch statement to handle different versions differently.
@@ -180,7 +180,7 @@ static void handleEvent2(struct ETHInterface* context, struct Allocator* message
         return;
     }
 
-    struct ETHInterface_Sockaddr sockaddr = { .zero = 0 };
+    struct ETHAddrIface_pvt_Sockaddr sockaddr = { .zero = 0 };
     Bits_memcpyConst(sockaddr.mac, addr.sll_addr, 6);
     sockaddr.generic.addrLen = ETHInterface_Sockaddr_SIZE;
     if (addr.sll_pkttype == PACKET_BROADCAST) {
@@ -191,12 +191,12 @@ static void handleEvent2(struct ETHInterface* context, struct Allocator* message
 
     Assert_true(!((uintptr_t)msg->bytes % 4) && "Alignment fault");
 
-    Interface_receiveMessage(&context->generic, msg);
+    Iface_send(&context->pub.generic.iface, msg);
 }
 
 static void handleEvent(void* vcontext)
 {
-    struct ETHInterface* context = Identity_check((struct ETHInterface*) vcontext);
+    struct ETHAddrIface_pvt* context = Identity_check((struct ETHAddrIface_pvt*) vcontext);
     struct Allocator* messageAlloc = Allocator_child(context->generic.allocator);
     handleEvent2(context, messageAlloc);
     Allocator_free(messageAlloc);
@@ -220,26 +220,22 @@ List* ETHInterface_listDevices(struct Allocator* alloc, struct Except* eh)
 
 static int closeSocket(struct Allocator_OnFreeJob* j)
 {
-    struct ETHInterface* ctx = Identity_check((struct ETHInterface*) j->userData);
+    struct ETHAddrIface_pvt* ctx = Identity_check((struct ETHAddrIface_pvt*) j->userData);
     close(ctx->socket);
     return 0;
 }
 
-struct Interface* ETHInterface_new(struct EventBase* eventBase,
-                                   const char* bindDevice,
-                                   struct Allocator* alloc,
-                                   struct Except* exHandler,
-                                   struct Log* logger)
+struct ETHAddrIface* ETHInterface_new(struct EventBase* eventBase,
+                                      const char* bindDevice,
+                                      struct Allocator* alloc,
+                                      struct Except* exHandler,
+                                      struct Log* logger)
 {
-    struct ETHInterface* ctx =
-        Allocator_clone(alloc, (&(struct ETHInterface) {
-            .generic = {
-                .sendMessage = sendMessage,
-                .allocator = alloc
-            },
-            .logger = logger
-        }));
+    struct ETHAddrIface_pvt* ctx = Allocator_calloc(alloc, sizeof(struct ETHAddrIface_pvt), 1);
     Identity_set(ctx);
+    ctx->pub.generic.iface.send = sendMessage;
+    ctx->pub.generic.alloc = alloc;
+    ctx->logger = logger;
 
     struct ifreq ifr = { .ifr_ifindex = 0 };
 

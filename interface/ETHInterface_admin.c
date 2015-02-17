@@ -87,7 +87,7 @@ static void newInterface(Dict* args, void* vcontext, String* txid, struct Alloca
     String* const bindDevice = Dict_getString(args, String_CONST("bindDevice"));
     struct Allocator* const alloc = Allocator_child(ctx->alloc);
 
-    struct Interface* ethIf = NULL;
+    struct ETHAddrIface* ethIf = NULL;
     struct Jmp jmp;
     Jmp_try(jmp) {
         ethIf = ETHInterface_new(
@@ -102,11 +102,12 @@ static void newInterface(Dict* args, void* vcontext, String* txid, struct Alloca
 
     String* ifname = String_printf(requestAlloc, "ETH/%s", bindDevice->bytes);
 
-    int ifNum = IfController_regIface(ctx->ic, ethIf, ifname, alloc);
+    struct IfController_Iface* ici = IfController_newIface(ctx->ic, ifname, alloc);
+    Iface_plumb(&ici->addrIf, &ethIf->generic.iface);
 
     Dict* out = Dict_new(requestAlloc);
     Dict_putString(out, String_CONST("error"), String_CONST("none"), requestAlloc);
-    Dict_putInt(out, String_CONST("interfaceNumber"), ifNum, requestAlloc);
+    Dict_putInt(out, String_CONST("interfaceNumber"), ici->ifNum, requestAlloc);
 
     Admin_sendMessage(out, txid, ctx->admin);
 }

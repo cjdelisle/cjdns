@@ -20,6 +20,7 @@
 #include "wire/Message.h"
 
 /// OLD: use interface/Iface.h instead!
+#error poisoned
 
 #define Interface_ERROR_WRONG_STATE 256
 

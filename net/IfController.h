@@ -112,7 +112,7 @@ struct IfController_Iface
  * @param name a string which will identify this interface
  * @param alloc an allocator, the interface will be removed when this is freed.
  */
-struct IfController_Iface* IfController_getIface(struct IfController* ifc,
+struct IfController_Iface* IfController_newIface(struct IfController* ifc,
                                                  String* name,
                                                  struct Allocator* alloc);
 

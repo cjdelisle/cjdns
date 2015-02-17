@@ -45,17 +45,19 @@ static const uint8_t testAddrB[4] = {11, 0, 0, 2};
  * Setup a UDPAddrInterface and a TUNInterface, test sending traffic between them.
  */
 
-struct TUNInterfaceIp4Context
+struct Context
 {
-    struct Iface udpReceiver;
-    
+    struct Iface iface;
+    struct Allocator* alloc;
+    int receivedMessageTUNCount;
     Identity
 };
 
-static int receivedMessageTUNCount = 0;
 static uint8_t receiveMessageTUN(struct Message* msg, struct Interface* iface)
 {
-    receivedMessageTUNCount++;
+    struct Context* ctx = Identity_check((struct Context*) iface->receiverContext);
+
+    ctx->receivedMessageTUNCount++;
     uint16_t ethertype = TUNMessageType_pop(msg, NULL);
     if (ethertype != Ethernet_TYPE_IP4) {
         printf("Spurious packet with ethertype [%u]\n", Endian_bigEndianToHost16(ethertype));
@@ -79,13 +81,12 @@ static uint8_t receiveMessageTUN(struct Message* msg, struct Interface* iface)
 
 static Iface_DEFUN receiveMessageUDP(struct Iface* iface, struct Message* msg)
 {
-    if (!receivedMessageTUNCount) {
-        return NULL;
-    }
+    struct Context* ctx = Identity_containerOf(iface, struct Context, iface);
 
-    // Got the message, test successful, tear everything down by freeing the root alloc.
-    struct Allocator* alloc = iface->receiverContext;
-    Allocator_free(alloc);
+    if (ctx->receivedMessageTUNCount) {
+        // Got the message, test successful, tear everything down by freeing the root alloc.
+        Allocator_free(ctx->alloc);
+    }
 
     return NULL;
 }
@@ -122,10 +123,12 @@ int main(int argc, char** argv)
     Assert_true(4 == Sockaddr_getAddress(dest, &addr));
     Bits_memcpy(addr, testAddrB, 4);
 
-    struct Iface* udpReceiver = Allocator_calloc(alloc, sizeof(struct Iface), 1);
-    udpReceiver.send = receiveMessageUDP;
-    Iface_plumb(udpReceiver, &udp->iface);
+    struct Context* udpReceiver =
+        Allocator_calloc(alloc, sizeof(struct Context), 1);
+    udpReceiver->iface.send = receiveMessageUDP;
+    Iface_plumb(&udpReceiver->iface, &udp->iface);
     tun->receiveMessage = receiveMessageTUN;
+    tun->receiverContext = udpReceiver;
 
     TUNTools_sendHelloWorld(udp, dest, base, alloc);
     Timeout_setTimeout(fail, NULL, 1000, base, alloc);

@@ -32,7 +32,7 @@ struct PacketHeaderToUDPAddrInterface_pvt
 static Iface_DEFUN incomingFromUdpIf(struct Iface* udpIf, struct Message* message)
 {
     struct PacketHeaderToUDPAddrInterface_pvt* context =
-        Identity_containerOf(udpIf, struct PacketHeaderToUDPAddrInterface_pvt, pub.udpIf);
+        Identity_containerOf(udpIf, struct PacketHeaderToUDPAddrInterface_pvt, pub.udpIf.iface);
 
     struct Sockaddr_storage ss;
     Message_pop(message, &ss, context->pub.udpIf.addr->addrLen, NULL);
@@ -108,20 +108,11 @@ struct PacketHeaderToUDPAddrInterface* PacketHeaderToUDPAddrInterface_new(struct
 {
     struct PacketHeaderToUDPAddrInterface_pvt* context =
         Allocator_malloc(alloc, sizeof(struct PacketHeaderToUDPAddrInterface_pvt));
-
-    Bits_memcpyConst(context, (&(struct PacketHeaderToUDPAddrInterface_pvt) {
-        .pub = {
-            .udpIf = {
-                .send = incomingFromUdpIf
-            },
-            .headerIf = {
-                .send = incomingFromHeaderIf
-            }
-        },
-    }), sizeof(struct PacketHeaderToUDPAddrInterface_pvt));
     Identity_set(context);
 
     context->pub.udpIf.addr = Sockaddr_clone(addr, alloc);
+    context->pub.udpIf.iface.send = incomingFromUdpIf;
+    context->pub.headerIf.send = incomingFromHeaderIf;
 
     return &context->pub;
 }

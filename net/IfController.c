@@ -737,7 +737,7 @@ static Iface_DEFUN handleIncomingFromWire(struct Iface* addrIf, struct Message* 
     return NULL;
 }
 
-struct IfController_Iface* IfController_regIface(struct IfController* ifc,
+struct IfController_Iface* IfController_newIface(struct IfController* ifc,
                                                  String* name,
                                                  struct Allocator* alloc)
 {

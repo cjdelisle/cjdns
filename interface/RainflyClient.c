@@ -58,7 +58,6 @@ struct RainflyClient_Lookup_pvt
 struct RainflyClient_pvt
 {
     struct RainflyClient pub;
-    struct Interface* iface;
     struct Log* logger;
     struct EventBase* eventBase;
     struct Allocator* alloc;
@@ -143,13 +142,13 @@ static int compare(String* a, String* b)
     return 0;
 }
 
-static void handleLookupReply(struct Message* msg, struct RainflyClient_pvt* ctx)
+static Iface_DEFUN handleLookupReply(struct Message* msg, struct RainflyClient_pvt* ctx)
 {
     Log_debug(ctx->logger, "lookup reply!");
 
     if (msg->length < 10) {
         Log_debug(ctx->logger, "runt");
-        return;
+        return NULL;
     }
 
     uint32_t cookie = Message_pop8(msg, NULL);
@@ -161,13 +160,13 @@ static void handleLookupReply(struct Message* msg, struct RainflyClient_pvt* ctx
 
     if (!namesAndValue) {
         Log_debug(ctx->logger, "runt");
-        return;
+        return NULL;
     }
 
     int count = msg->length / 64;
     if (msg->length != (count * 64)) {
         Log_debug(ctx->logger, "invalid message size");
-        return;
+        return NULL;
     }
 
     struct RainflyClient_Sig* sigs = Allocator_malloc(msg->alloc, msg->length);
@@ -187,7 +186,7 @@ static void handleLookupReply(struct Message* msg, struct RainflyClient_pvt* ctx
     }
     if (!lookup) {
         Log_debug(ctx->logger, "Response to unasked question");
-        return;
+        return NULL;
     }
 
     enum RainflyClient_ResponseCode code = RainflyClient_ResponseCode_NO_ERROR;
@@ -199,14 +198,14 @@ static void handleLookupReply(struct Message* msg, struct RainflyClient_pvt* ctx
             if (compare(domain, namesAndValue[0]) != 1 && compare(namesAndValue[1], domain) != 1) {
                 Log_debug(ctx->logger, "Invalid NXDOMAIN with last entry [%s] -> [%s] req: [%s]",
                           namesAndValue[0]->bytes, namesAndValue[1]->bytes, domain->bytes);
-                return;
+                return NULL;
             }
         } else if (compare(domain, namesAndValue[0]) != 1
             || compare(namesAndValue[1], domain) != 1)
         {
             Log_debug(ctx->logger, "Invalid NXDOMAIN, domain not in range [%s] -> [%s] req: [%s]",
                       namesAndValue[0]->bytes, namesAndValue[1]->bytes, domain->bytes);
-            return;
+            return NULL;
         }
         Log_debug(ctx->logger, "Domain [%s] Nonexistant [%s] -> [%s]",
                   domain->bytes, namesAndValue[0]->bytes, namesAndValue[1]->bytes);
@@ -234,7 +233,7 @@ static void handleLookupReply(struct Message* msg, struct RainflyClient_pvt* ctx
 
     if (validSigs < ctx->pub.minSignatures) {
         Log_debug(ctx->logger, "Not enough signatures");
-        return;
+        return NULL;
     }
 
     struct Reader* r = ArrayReader_new(namesAndValue[2]->bytes, namesAndValue[2]->len, msg->alloc);
@@ -251,33 +250,34 @@ static void handleLookupReply(struct Message* msg, struct RainflyClient_pvt* ctx
     }
 
     Allocator_free(lookup->pub.alloc);
+    return NULL;
 }
 
-static void handleHotKeysReply(struct Message* msg, struct RainflyClient_pvt* ctx)
+static Iface_DEFUN handleHotKeysReply(struct Message* msg, struct RainflyClient_pvt* ctx)
 {
     Log_debug(ctx->logger, "hotkeys reply");
 
     if (msg->length < 7) {
         Log_debug(ctx->logger, "runt");
-        return;
+        return NULL;
     }
 
     uint8_t keyCount = Message_pop8(msg, NULL);
     uint16_t start = Message_pop16(msg, NULL);
     if (keyCount > ctx->keyCount) {
         Log_debug(ctx->logger, "keycount too high");
-        return;
+        return NULL;
     }
     if (start > keyCount) {
         Log_debug(ctx->logger, "start too high");
-        return;
+        return NULL;
     }
 
     uint32_t bitField = Message_pop32(msg, NULL);
 
     if ((Bits_popCountx32(bitField) * (64+32)) != msg->length) {
         Log_debug(ctx->logger, "incorrect message size");
-        return;
+        return NULL;
     }
 
     uint32_t i = start;
@@ -304,6 +304,7 @@ static void handleHotKeysReply(struct Message* msg, struct RainflyClient_pvt* ct
             Log_debug(ctx->logger, "invalid signature [%d]", i);
         }
     } while (i != start);
+    return NULL;
 }
 
 static Iface_DEFUN receiveMessage(struct Iface* iface, struct Message* msg)
@@ -328,8 +329,8 @@ static Iface_DEFUN receiveMessage(struct Iface* iface, struct Message* msg)
 
     switch (operation) {
         case RequestType_PING: return NULL;
-        case RequestType_HOT_KEYS: handleHotKeysReply(msg, ctx); return NULL;
-        case RequestType_LOOKUP: handleLookupReply(msg, ctx); return NULL;
+        case RequestType_HOT_KEYS: return handleHotKeysReply(msg, ctx);
+        case RequestType_LOOKUP: return handleLookupReply(msg, ctx);
         default: Log_debug(ctx->logger, "Got a message with unrecognized type [%d]", operation);
     }
 
@@ -379,7 +380,7 @@ static void sendHotKeysRequest(void* vRainflyClient)
     Log_debug(ctx->logger, "Sending hotkeys request to [%s]",
               Sockaddr_print(ctx->servers[server], alloc));
 
-    Interface_sendMessage(ctx->iface, msg);
+    Iface_send(&ctx->pub.addrIf, msg);
     Allocator_free(alloc);
 }
 
@@ -438,7 +439,7 @@ static void tryNextServer(void* vLookup)
     Log_debug(ctx->logger, "Sending lookup request to [%s]",
               Sockaddr_print(ctx->servers[server], alloc));
 
-    Interface_sendMessage(ctx->iface, msg);
+    Iface_send(&ctx->pub.addrIf, msg);
     Allocator_free(alloc);
 }
 
@@ -520,21 +521,17 @@ struct RainflyClient* RainflyClient_new(struct AddrIface* iface,
                                         struct Log* logger)
 {
     struct RainflyClient_pvt* ctx =
-        Allocator_clone(iface->alloc, (&(struct RainflyClient_pvt) {
-            .pub = {
-                .minSignatures = RainflyClient_DEFAULT_MIN_SIGNATURES,
-                .maxTries = RainflyClient_DEFAULT_MAX_TRIES,
-            },
-            .iface = &iface->generic,
-            .logger = logger,
-            .addr = iface->addr,
-            .alloc = alloc,
-            .rand = rand,
-            .eventBase = base,
-        }));
-    ctx->pub.addrIf.send = receiveMessage;
-    Iface_plumb(&ctx->pub.addrIf, &iface->generic);
+        Allocator_calloc(iface->alloc, sizeof(struct RainflyClient_pvt), 1);
     Identity_set(ctx);
+    ctx->pub.minSignatures = RainflyClient_DEFAULT_MIN_SIGNATURES;
+    ctx->pub.maxTries = RainflyClient_DEFAULT_MAX_TRIES;
+    ctx->logger = logger;
+    ctx->addr = iface->addr;
+    ctx->alloc = iface->alloc;
+    ctx->rand = rand;
+    ctx->eventBase = base;
+    ctx->pub.addrIf.send = receiveMessage;
+    Iface_plumb(&ctx->pub.addrIf, &iface->iface);
 
     ctx->hotKeysTimeout = Timeout_setInterval(sendHotKeysRequest, ctx, 1000, base, ctx->alloc);
 

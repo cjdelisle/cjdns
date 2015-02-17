@@ -27,7 +27,7 @@
 
 struct UDPAddrIface_pvt
 {
-    struct Iface pub;
+    struct UDPAddrIface pub;
 
     struct Allocator* allocator;
 
@@ -110,8 +110,8 @@ static Iface_DEFUN incomingFromIface(struct Iface* iface, struct Message* m)
     Identity_set(req);
 
     struct Sockaddr_storage ss;
-    Message_pop(m, &ss, context->pub.addr->addrLen, NULL);
-    Assert_true(ss.addr.addrLen == context->pub.addr->addrLen);
+    Message_pop(m, &ss, context->pub.generic.addr->addrLen, NULL);
+    Assert_true(ss.addr.addrLen == context->pub.generic.addr->addrLen);
 
     req->length = m->length;
 
@@ -160,11 +160,11 @@ static void incoming(uv_udp_t* handle,
     } else {
         struct Message* m = Allocator_malloc(alloc, sizeof(struct Message));
         m->length = nread;
-        m->padding = UDPAddrIface_PADDING_AMOUNT + context->pub.addr->addrLen;
+        m->padding = UDPAddrIface_PADDING_AMOUNT + context->pub.generic.addr->addrLen;
         m->capacity = buf->len;
         m->bytes = (uint8_t*)buf->base;
         m->alloc = alloc;
-        Message_push(m, addr, context->pub.addr->addrLen - Sockaddr_OVERHEAD, NULL);
+        Message_push(m, addr, context->pub.generic.addr->addrLen - Sockaddr_OVERHEAD, NULL);
 
         // make sure the sockaddr doesn't have crap in it which will
         // prevent it from being used as a lookup key
@@ -173,10 +173,10 @@ static void incoming(uv_udp_t* handle,
         Message_push(m, context->addr, Sockaddr_OVERHEAD, NULL);
 
         /*uint8_t buff[256] = {0};
-        Assert_true(Hex_encode(buff, 255, m->bytes, context->pub.addr->addrLen));
+        Assert_true(Hex_encode(buff, 255, m->bytes, context->pub.generic.addr->addrLen));
         Log_debug(context->logger, "Message from [%s]", buff);*/
 
-        Iface_send(&context->pub.generic, m);
+        Iface_send(&context->pub.generic.iface, m);
     }
 
     if (alloc) {
@@ -194,11 +194,11 @@ static void allocate(uv_handle_t* handle, size_t size, uv_buf_t* buf)
     struct UDPAddrIface_pvt* context = ifaceForHandle((uv_udp_t*)handle);
 
     size = UDPAddrIface_BUFFER_CAP;
-    size_t fullSize = size + UDPAddrIface_PADDING_AMOUNT + context->pub.addr->addrLen;
+    size_t fullSize = size + UDPAddrIface_PADDING_AMOUNT + context->pub.generic.addr->addrLen;
 
     struct Allocator* child = Allocator_child(context->allocator);
     char* buff = Allocator_malloc(child, fullSize);
-    buff += UDPAddrIface_PADDING_AMOUNT + context->pub.addr->addrLen;
+    buff += UDPAddrIface_PADDING_AMOUNT + context->pub.generic.addr->addrLen;
 
     ALLOC(buff) = child;
 
@@ -233,11 +233,11 @@ static int blockFreeInsideCallback(struct Allocator_OnFreeJob* job)
     return Allocator_ONFREE_ASYNC;
 }
 
-struct AddrInterface* UDPAddrIface_new(struct EventBase* eventBase,
-                                           struct Sockaddr* addr,
-                                           struct Allocator* alloc,
-                                           struct Except* exHandler,
-                                           struct Log* logger)
+struct UDPAddrIface* UDPAddrIface_new(struct EventBase* eventBase,
+                                      struct Sockaddr* addr,
+                                      struct Allocator* alloc,
+                                      struct Except* exHandler,
+                                      struct Log* logger)
 {
     struct EventBase_pvt* base = EventBase_privatize(eventBase);
 
@@ -246,7 +246,7 @@ struct AddrInterface* UDPAddrIface_new(struct EventBase* eventBase,
             .logger = logger,
             .allocator = alloc
         }));
-    context->pub.generic.send = incomingFromIface;
+    context->pub.generic.iface.send = incomingFromIface;
     Identity_set(context);
 
     if (addr) {
@@ -288,8 +288,8 @@ struct AddrInterface* UDPAddrIface_new(struct EventBase* eventBase,
     }
     ss.addr.addrLen = nameLen + 8;
 
-    context->pub.addr = Sockaddr_clone(&ss.addr, alloc);
-    Log_debug(logger, "Bound to address [%s]", Sockaddr_print(context->pub.addr, alloc));
+    context->pub.generic.addr = Sockaddr_clone(&ss.addr, alloc);
+    Log_debug(logger, "Bound to address [%s]", Sockaddr_print(context->pub.generic.addr, alloc));
 
     Allocator_onFree(alloc, closeHandleOnFree, context);
     Allocator_onFree(alloc, blockFreeInsideCallback, context);
