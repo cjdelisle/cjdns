@@ -90,7 +90,7 @@ static inline Iface_DEFUN Iface_next(struct Iface* iface, struct Message* msg)
 #define Iface_CALL(func, msg, ...) \
     do {                                                      \
         struct Iface* Iface_x = func(msg, __VA_ARGS__);       \
-        if (Iface_x) { Iface_send(msg, Iface_x); }            \
+        if (Iface_x) { Iface_send(Iface_x, msg); }            \
     } while (0)
 // CHECKFILES_IGNORE missing ;
 
