@@ -21,7 +21,7 @@
 struct Aligner_pvt
 {
     struct Aligner pub;
-    struct Interface* wrapped;
+    struct Iface* wrapped;
     uint32_t alignmentBytes;
     Identity
 };
@@ -43,22 +43,22 @@ static void alignMessage(struct Message* msg, uint32_t alignmentBytes)
     msg->length = length;
 }
 
-static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
+static uint8_t receiveMessage(struct Message* msg, struct Iface* iface)
 {
     struct Aligner_pvt* al = Identity_check((struct Aligner_pvt*)iface->receiverContext);
     alignMessage(msg, al->alignmentBytes);
-    Interface_receiveMessage(&al->pub.generic, msg);
+    Iface_send(&al->pub.generic, msg);
     return 0;
 }
 
-static uint8_t sendMessage(struct Message* msg, struct Interface* iface)
+static uint8_t sendMessage(struct Message* msg, struct Iface* iface)
 {
     struct Aligner_pvt* al = Identity_check((struct Aligner_pvt*)iface);
     alignMessage(msg, al->alignmentBytes);
     return Interface_sendMessage(al->wrapped, msg);
 }
 
-struct Aligner* Aligner_new(struct Interface* external,
+struct Aligner* Aligner_new(struct Iface* external,
                             struct Allocator* alloc,
                             uint32_t alignmentBytes)
 {

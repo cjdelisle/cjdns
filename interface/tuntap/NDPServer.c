@@ -26,7 +26,7 @@
 struct NDPServer_pvt
 {
     struct NDPServer pub;
-    struct Interface* wrapped;
+    struct Iface* wrapped;
     struct Log* log;
     uint8_t localMac[Ethernet_ADDRLEN];
     Identity
@@ -207,7 +207,7 @@ static int tryAsSolicitation(struct Message* msg, struct NDPServer_pvt* ns)
     return 1;
 }
 
-static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
+static uint8_t receiveMessage(struct Message* msg, struct Iface* iface)
 {
     struct NDPServer_pvt* ns = Identity_check((struct NDPServer_pvt*)iface->receiverContext);
 
@@ -218,16 +218,16 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
         }
         TUNMessageType_push(msg, ethertype, NULL);
     }
-    return Interface_receiveMessage(&ns->pub.generic, msg);
+    return Iface_send(&ns->pub.generic, msg);
 }
 
-static uint8_t sendMessage(struct Message* msg, struct Interface* iface)
+static uint8_t sendMessage(struct Message* msg, struct Iface* iface)
 {
     struct NDPServer_pvt* ns = Identity_check((struct NDPServer_pvt*)iface);
     return Interface_sendMessage(ns->wrapped, msg);
 }
 
-struct NDPServer* NDPServer_new(struct Interface* external,
+struct NDPServer* NDPServer_new(struct Iface* external,
                                 struct Log* log,
                                 uint8_t localMac[Ethernet_ADDRLEN],
                                 struct Allocator* alloc)

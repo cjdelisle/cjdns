@@ -20,7 +20,6 @@
 #include "dht/dhtcore/Router.h"
 #include "dht/dhtcore/RumorMill.h"
 #include "interface/tuntap/TUNMessageType.h"
-#include "interface/Interface.h"
 #include "net/SessionTable.h"
 #include "util/log/Log.h"
 #include "memory/Allocator.h"
@@ -355,7 +354,7 @@ static inline uint8_t sendToSwitch(struct Message* message,
 
     Assert_true(!((uintptr_t)message->bytes % 4));
 
-    return Interface_receiveMessage(&context->pub.switchIf, message);
+    return Iface_send(&context->pub.switchIf, message);
 }
 
 static inline bool validEncryptedIP6(struct Message* message)
@@ -394,7 +393,7 @@ static Iface_DEFUN incomingFromMagicInterface(struct Iface* magicIf, struct Mess
 
 // Called by the TUN device.
 static inline uint8_t incomingFromTun(struct Message* message,
-                                      struct Interface* iface)
+                                      struct Iface* iface)
 {
     struct Ducttape_pvt* context = Identity_check((struct Ducttape_pvt*) iface->receiverContext);
 
@@ -538,7 +537,7 @@ static inline uint8_t incomingFromTun(struct Message* message,
  * @param message to be sent, must be prefixed with IpTunnel_PacketInfoHeader.
  * @param iface an interface for which receiverContext is the ducttape.
  */
-static uint8_t sendToNode(struct Message* message, struct Interface* iface)
+static uint8_t sendToNode(struct Message* message, struct Iface* iface)
 {
     struct Ducttape_pvt* context = Identity_check((struct Ducttape_pvt*)iface->receiverContext);
     struct Ducttape_MessageHeader* dtHeader = getDtHeader(message, true);
@@ -593,7 +592,7 @@ static uint8_t sendToNode(struct Message* message, struct Interface* iface)
  * @param message to be sent.
  * @param iface an interface for which receiverContext is the ducttape.
  */
-static uint8_t sendToTun(struct Message* message, struct Interface* iface)
+static uint8_t sendToTun(struct Message* message, struct Iface* iface)
 {
     struct Ducttape_pvt* context = Identity_check((struct Ducttape_pvt*)iface->receiverContext);
     uint16_t msgType = TUNMessageType_pop(message, NULL);
@@ -642,7 +641,7 @@ static inline int core(struct Message* message,
 
             dtHeader->receiveHandle = Endian_bigEndianToHost32(session->receiveHandle_be);
             dtHeader->layer = Ducttape_SessionLayer_INNER;
-            int ret = Interface_receiveMessage(&session->external, message);
+            int ret = Iface_send(&session->external, message);
             if (ret == Error_AUTHENTICATION) {
                 uint8_t addr[40];
                 AddrTools_printIp(addr, ip6Header->sourceAddr);
@@ -772,7 +771,7 @@ static inline int incomingFromRouter(struct Message* message,
         Bits_memcpyConst(header->nodeIp6Addr, addr, 16);
         Bits_memcpyConst(header->nodeKey, pubKey, 32);
 
-        struct Interface* ipTun = &context->ipTunnel->nodeInterface;
+        struct Iface* ipTun = &context->ipTunnel->nodeInterface;
         return ipTun->sendMessage(message, ipTun);
     }
 
@@ -786,7 +785,7 @@ static inline int incomingFromRouter(struct Message* message,
 }
 
 
-static uint8_t incomingFromCryptoAuth(struct Message* message, struct Interface* iface)
+static uint8_t incomingFromCryptoAuth(struct Message* message, struct Iface* iface)
 {
     struct Ducttape_pvt* context = Identity_check((struct Ducttape_pvt*) iface->receiverContext);
     struct Ducttape_MessageHeader* dtHeader = getDtHeader(message, false);
@@ -830,7 +829,7 @@ static uint8_t incomingFromCryptoAuth(struct Message* message, struct Interface*
     return 0;
 }
 
-static uint8_t outgoingFromCryptoAuth(struct Message* message, struct Interface* iface)
+static uint8_t outgoingFromCryptoAuth(struct Message* message, struct Iface* iface)
 {
     struct Ducttape_pvt* context = Identity_check((struct Ducttape_pvt*) iface->senderContext);
     struct Ducttape_MessageHeader* dtHeader = getDtHeader(message, false);
@@ -861,7 +860,7 @@ static uint8_t outgoingFromCryptoAuth(struct Message* message, struct Interface*
  * There is only one switch interface which sends all traffic.
  * message is aligned on the beginning of the switch header.
  */
-static uint8_t incomingFromSwitch(struct Message* message, struct Interface* switchIf)
+static uint8_t incomingFromSwitch(struct Message* message, struct Iface* switchIf)
 {
     struct Ducttape_pvt* ctx = Identity_containerOf(switchIf, struct Ducttape_pvt, pub.switchIf);
 
@@ -945,7 +944,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     // then incomingFromRouter() then core()
     dtHeader->layer = Ducttape_SessionLayer_OUTER;
 
-    if (Interface_receiveMessage(&session->external, message) == Error_AUTHENTICATION) {
+    if (Iface_send(&session->external, message) == Error_AUTHENTICATION) {
         debugHandlesAndLabel(context->logger, session,
                              Endian_bigEndianToHost64(switchHeader->label_be),
                              "DROP Failed decrypting message NoH[%d] state[%s]",
@@ -961,7 +960,7 @@ static Iface_DEFUN incomingFromControlHandler(struct Iface* controlIf, struct Me
 {
     struct Ducttape_pvt* ctx = Identity_containerOf(controlIf, struct Ducttape_pvt, pub.controlIf);
     Assert_true(ctx->pub.switchIf.receiveMessage);
-    return Interface_receiveMessage(&ctx->pub.switchIf, message);
+    return Iface_send(&ctx->pub.switchIf, message);
 }
 
 static void checkStateOfSessions(void* vducttape)
@@ -1040,7 +1039,7 @@ struct Ducttape* Ducttape_new(uint8_t privateKey[32],
     return &context->pub;
 }
 
-void Ducttape_setUserInterface(struct Ducttape* dt, struct Interface* userIf)
+void Ducttape_setUserInterface(struct Ducttape* dt, struct Iface* userIf)
 {
     struct Ducttape_pvt* context = Identity_check((struct Ducttape_pvt*) dt);
     context->userIf = userIf;

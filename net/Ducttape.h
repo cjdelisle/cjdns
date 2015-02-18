@@ -51,7 +51,7 @@ struct Ducttape
      */
     struct Iface tunIf;
 
-    struct Interface switchIf;
+    struct Iface switchIf;
 
     struct SessionTable* sessionTable;
 };
@@ -71,7 +71,7 @@ struct Ducttape* Ducttape_new(uint8_t privateKey[32],
  * @param dt the ducttape struct.
  * @param userIf the (TUN) interface which will be used to send and receive packets.
  */
-void Ducttape_setUserInterface(struct Ducttape* dt, struct Interface* userIf);
+void Ducttape_setUserInterface(struct Ducttape* dt, struct Iface* userIf);
 
 /**
  * The structure of data which should be the beginning

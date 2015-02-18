@@ -12,26 +12,23 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef TAPInterface_H
-#define TAPInterface_H
+#ifndef PacketHeaderToUDPAddrIface_H
+#define PacketHeaderToUDPAddrIface_H
 
-#include "exception/Except.h"
+#include "interface/Iface.h"
+#include "interface/addressable/AddrIface.h"
 #include "memory/Allocator.h"
-#include "util/log/Log.h"
-#include "util/events/EventBase.h"
+#include "util/platform/Sockaddr.h"
 #include "util/Linker.h"
-Linker_require("interface/tuntap/windows/TAPInterface.c")
+Linker_require("interface/addressable/PacketHeaderToUDPAddrIface.c")
 
-struct TAPInterface
+struct PacketHeaderToUDPAddrIface
 {
-    struct Iface generic;
-    char* assignedName;
+    struct AddrIface udpIf;
+    struct Iface headerIf;
 };
 
-struct TAPInterface* TAPInterface_new(const char* preferredName,
-                                      struct Except* eh,
-                                      struct Log* logger,
-                                      struct EventBase* base,
-                                      struct Allocator* alloc);
+struct PacketHeaderToUDPAddrIface* PacketHeaderToUDPAddrIface_new(struct Allocator* alloc,
+                                                                  struct Sockaddr* addr);
 
 #endif

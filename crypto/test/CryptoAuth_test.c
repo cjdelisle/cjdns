@@ -36,12 +36,12 @@ static uint8_t* publicKey = (uint8_t*)
     "\x2f\xb2\xd0\x88\x20\xbb\xf3\xf0\x6f\xcd\xe5\x85\x30\xe0\x08\x34";
 
 static struct CryptoAuth* ca1;
-static struct Interface* if1;
-static struct Interface* cif1;
+static struct Iface* if1;
+static struct Iface* cif1;
 
 static struct CryptoAuth* ca2;
-static struct Interface* if2;
-static struct Interface* cif2;
+static struct Iface* if2;
+static struct Iface* cif2;
 
 static struct Message msg;
 
@@ -66,7 +66,7 @@ static int if1Messages = 0;
 static int if2Messages = 0;
 
 
-static uint8_t sendMessageToIf2(struct Message* message, struct Interface* iface)
+static uint8_t sendMessageToIf2(struct Message* message, struct Iface* iface)
 {
     uint32_t nonce = Endian_bigEndianToHost32(((uint32_t*)message->bytes)[0]);
     printf("sent message -->  nonce=%d%s\n", nonce, suppressMessages ? " SUPPRESSED" : "");
@@ -77,7 +77,7 @@ static uint8_t sendMessageToIf2(struct Message* message, struct Interface* iface
     return Error_NONE;
 }
 
-static uint8_t sendMessageToIf1(struct Message* message, struct Interface* iface)
+static uint8_t sendMessageToIf1(struct Message* message, struct Iface* iface)
 {
     uint32_t nonce = Endian_bigEndianToHost32(((uint32_t*)message->bytes)[0]);
     printf("sent message <--  nonce=%d%s\n", nonce, suppressMessages ? " SUPPRESSED" : "");
@@ -88,7 +88,7 @@ static uint8_t sendMessageToIf1(struct Message* message, struct Interface* iface
     return Error_NONE;
 }
 
-static uint8_t recvMessageOnIf1(struct Message* message, struct Interface* iface)
+static uint8_t recvMessageOnIf1(struct Message* message, struct Iface* iface)
 {
     Message_pop(message, NULL, 4, NULL);
     if1Messages++;
@@ -99,7 +99,7 @@ static uint8_t recvMessageOnIf1(struct Message* message, struct Interface* iface
     return Error_NONE;
 }
 
-static uint8_t recvMessageOnIf2(struct Message* message, struct Interface* iface)
+static uint8_t recvMessageOnIf2(struct Message* message, struct Iface* iface)
 {
     Message_pop(message, NULL, 4, NULL);
     if2Messages++;
@@ -124,7 +124,7 @@ static int init(const uint8_t* privateKey,
     struct EventBase* base = EventBase_new(allocator);
 
     ca1 = CryptoAuth_new(allocator, NULL, base, logger, rand);
-    if1 = Allocator_clone(allocator, (&(struct Interface) {
+    if1 = Allocator_clone(allocator, (&(struct Iface) {
         .sendMessage = sendMessageToIf2,
         .receiveMessage = recvMessageOnIf2,
         .allocator = allocator
@@ -139,7 +139,7 @@ static int init(const uint8_t* privateKey,
         CryptoAuth_setAuth(&passStr, 1, cif1);
         CryptoAuth_addUser(&passStr, 1, String_new(userObj, allocator), ca2);
     }
-    if2 = Allocator_clone(allocator, (&(struct Interface) {
+    if2 = Allocator_clone(allocator, (&(struct Iface) {
         .sendMessage = sendMessageToIf1,
         .allocator = allocator
     }));

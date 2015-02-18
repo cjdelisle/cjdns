@@ -12,14 +12,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "interface/Interface.h"
-#include "interface/tuntap/TUNInterface.h"
-#include "interface/tuntap/windows/TAPInterface.h"
 #include "interface/tuntap/TAPWrapper.h"
 #include "interface/tuntap/NDPServer.h"
 #include "util/CString.h"
 
-struct Interface* TUNInterface_new(const char* interfaceName,
+struct Iface* TUNInterface_new(const char* interfaceName,
                                    char assignedInterfaceName[TUNInterface_IFNAMSIZ],
                                    int isTapMode,
                                    struct EventBase* base,

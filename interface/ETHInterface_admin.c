@@ -18,7 +18,6 @@
 #include "admin/Admin.h"
 #include "crypto/Key.h"
 #include "exception/Jmp.h"
-#include "interface/ETHInterface.h"
 #include "memory/Allocator.h"
 #include "net/IfController.h"
 #include "util/AddrTools.h"

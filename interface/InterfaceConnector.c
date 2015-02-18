@@ -12,12 +12,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "interface/Interface.h"
 #include "wire/Message.h"
 
-static uint8_t transferMessage(struct Message* msg, struct Interface* iface)
+static uint8_t transferMessage(struct Message* msg, struct Iface* iface)
 {
-    struct Interface* other = (struct Interface*) iface->receiverContext;
+    struct Iface* other = (struct Iface*) iface->receiverContext;
     return other->sendMessage(msg, other);
 }
 
@@ -28,7 +27,7 @@ static uint8_t transferMessage(struct Message* msg, struct Interface* iface)
  * @param a one interface.
  * @param b another interface.
  */
-void InterfaceConnector_connect(struct Interface* a, struct Interface* b)
+void InterfaceConnector_connect(struct Iface* a, struct Iface* b)
 {
     a->receiveMessage = transferMessage;
     a->receiverContext = b;

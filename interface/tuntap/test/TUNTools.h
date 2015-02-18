@@ -23,14 +23,32 @@
 #include "util/Linker.h"
 Linker_require("interface/tuntap/test/TUNTools.c")
 
-struct AddrIface* TUNTools_setupUDP(struct EventBase* base,
-                                    struct Sockaddr* bindAddr,
-                                    struct Allocator* allocator,
-                                    struct Log* logger);
+struct TUNTools;
 
-struct Timeout* TUNTools_sendHelloWorld(struct AddrIface* iface,
-                                        struct Sockaddr* dest,
-                                        struct EventBase* base,
-                                        struct Allocator* alloc);
+typedef Iface_DEFUN (* TUNTools_Callback)(struct TUNTools* tt, struct Message* msg);
+
+TUNTools_Callback TUNTools_genericIP6Echo;
+
+const uint8_t* TUNTools_testIP6AddrA;
+const uint8_t* TUNTools_testIP6AddrB;
+
+struct TUNTools
+{
+    struct Iface tunIface;
+    struct Iface udpIface;
+    struct Sockaddr tunDestAddr;
+    struct Sockaddr udpBindTo;
+    struct Allocator* alloc;
+    TUNTools_Callback cb;
+    int receivedMessageTUNCount;
+};
+
+void TUNTools_echoTest(struct Sockaddr* udpBindTo,
+                       struct Sockaddr* tunDestAddr,
+                       TUNTools_Callback tunMessageHandler,
+                       struct Iface* tun,
+                       struct EventBase* base,
+                       struct Log* logger,
+                       struct Allocator* alloc);
 
 #endif

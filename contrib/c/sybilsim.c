@@ -24,7 +24,6 @@
 #include "memory/Allocator.h"
 #include "util/log/FileWriterLog.h"
 #include "wire/Message.h"
-#include "interface/Interface.h"
 #include "util/events/EventBase.h"
 #include "crypto/random/Random.h"
 #include "crypto/random/libuv/LibuvEntropyProvider.h"
@@ -41,7 +40,7 @@
 #include <unistd.h> // isatty()
 
 struct NodeContext {
-    struct Interface angelIface;
+    struct Iface angelIface;
     struct Sockaddr* boundAddr;
     struct Allocator* alloc;
     struct EventBase* base;
@@ -67,7 +66,7 @@ struct NodeContext {
     Identity
 };
 
-static uint8_t messageToAngel(struct Message* msg, struct Interface* iface)
+static Iface_DEFUN messageToAngel(struct Iface* iface, struct Message* msg)
 {
     struct NodeContext* ctx = Identity_check((struct NodeContext*) iface);
     if (ctx->boundAddr) { return 0; }
@@ -107,7 +106,7 @@ static void sendFirstMessageToCore(void* vcontext)
 
     BencMessageWriter_write(d, msg, NULL);
 
-    Interface_receiveMessage(&ctx->angelIface, msg);
+    Iface_send(&ctx->angelIface, msg);
     Allocator_free(alloc);
 }
 
@@ -205,7 +204,7 @@ static struct NodeContext* startNode(char* nodeName,
 {
     struct NodeContext* node = Allocator_clone(ctx->alloc, (&(struct NodeContext) {
         .angelIface = {
-            .sendMessage = messageToAngel
+            .send = messageToAngel
         },
         .alloc = ctx->alloc,
         .base = ctx->base,

@@ -19,8 +19,7 @@
 #include "benc/serialization/standard/BencMessageReader.h"
 #include "benc/serialization/standard/BencMessageWriter.h"
 #include "crypto/random/Random.h"
-#include "interface/Interface.h"
-#include "interface/FramingInterface.h"
+#include "interface/FramingIface.h"
 #include "io/FileWriter.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
@@ -59,16 +58,12 @@ static void initCore(char* coreBinaryPath,
     }
 }
 
-static void sendConfToCore(struct Interface* toCoreInterface,
-                           struct Allocator* tempAlloc,
-                           Dict* config,
-                           struct Except* eh,
-                           struct Log* logger)
+static void sendTo(struct Iface* iface, struct Message* msg)
 {
-    struct Message* msg = Message_new(0, 1024, tempAlloc);
-    BencMessageWriter_write(config, msg, eh);
-    Log_keys(logger, "Sent [%d] bytes to core", msg->length);
-    toCoreInterface->sendMessage(msg, toCoreInterface);
+    struct Iface myIface = { .send = NULL };
+    Iface_plumb(&myIface, iface);
+    Iface_send(&myIface, msg);
+    Iface_unplumb(&myIface, iface);
 }
 
 static void setUser(char* user, struct Log* logger, struct Except* eh)
@@ -190,7 +185,7 @@ int AngelInit_main(int argc, char** argv)
     struct Pipe* corePipe = Pipe_named(corePipeName->bytes, eventBase, eh, alloc);
     corePipe->logger = logger;
     corePipe->onClose = coreDied;
-    struct Interface* coreIface = FramingInterface_new(65535, &corePipe->iface, alloc);
+    struct Iface* coreIface = FramingIface_new(65535, &corePipe->iface, alloc);
 
     if (core) {
         Log_info(logger, "Initializing core [%s]", core->bytes);
@@ -199,12 +194,14 @@ int AngelInit_main(int argc, char** argv)
 
     Log_debug(logger, "Sending pre-configuration to core.");
 
-
-    sendConfToCore(coreIface, tempAlloc, config, eh, logger);
+    struct Message* msg = Message_new(0, 1024, tempAlloc);
+    BencMessageWriter_write(config, msg, eh);
+    Log_keys(logger, "Sent [%d] bytes to core", msg->length);
+    sendTo(coreIface, msg);
 
     struct Message* coreResponse = InterfaceWaiter_waitForData(coreIface, eventBase, tempAlloc, eh);
 
-    Interface_sendMessage(&clientPipe->iface, coreResponse);
+    sendTo(&clientPipe->iface, coreResponse);
 
     #ifdef Log_KEYS
         uint8_t lastChar = coreResponse->bytes[coreResponse->length-1];

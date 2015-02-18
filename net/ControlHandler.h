@@ -15,7 +15,6 @@
 #ifndef ControlHandler_H
 #define ControlHandler_H
 
-#include "interface/Interface.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
 #include "net/EventEmitter.h"

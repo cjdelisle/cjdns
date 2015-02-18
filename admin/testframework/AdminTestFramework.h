@@ -32,7 +32,7 @@ struct AdminTestFramework
     struct EventBase* eventBase;
     struct Log* logger;
     struct Sockaddr* addr;
-    struct Interface* angelInterface;
+    struct Iface* angelInterface;
 };
 
 struct AdminTestFramework* AdminTestFramework_setUp(int argc, char** argv, char* testName);

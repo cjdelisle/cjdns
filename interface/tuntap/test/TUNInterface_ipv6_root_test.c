@@ -12,21 +12,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "admin/testframework/AdminTestFramework.h"
-#include "admin/Admin.h"
-#include "admin/AdminClient.h"
-#include "benc/Dict.h"
-#include "benc/String.h"
-#include "benc/Int.h"
 #include "interface/tuntap/TUNInterface.h"
 #include "interface/tuntap/TUNMessageType.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
-#include "io/FileWriter.h"
-#include "io/Writer.h"
 #include "util/Assert.h"
 #include "util/log/Log.h"
-#include "util/log/WriterLog.h"
+#include "util/log/FileWriterLog.h"
 #include "util/events/Timeout.h"
 #include "wire/Ethernet.h"
 #include "wire/Headers.h"
@@ -34,108 +26,19 @@
 #include "test/RootTest.h"
 #include "interface/tuntap/test/TUNTools.h"
 
-#include <unistd.h>
-#include <stdlib.h>
-
-#ifdef win32
-    #include <windows.h>
-    #define sleep(x) Sleep(1000*x)
-#endif
-
-static const uint8_t testAddrA[] = {0xfd,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1};
-static const uint8_t testAddrB[] = {0xfd,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2};
-
-/*
- * Setup a UDPInterface and a TUNInterface, test sending traffic between them.
- */
-struct Context
-{
-    struct Iface iface;
-    struct Allocator* alloc;
-    int receivedMessageTUNCount;
-    Identity
-};
-
-static uint8_t receiveMessageTUN(struct Message* msg, struct Interface* iface)
-{
-    struct Context* ctx =
-        Identity_check((struct Context*) iface->receiverContext);
-
-    ctx->receivedMessageTUNCount++;
-    uint16_t ethertype = TUNMessageType_pop(msg, NULL);
-    if (ethertype != Ethernet_TYPE_IP6) {
-        printf("Spurious packet with ethertype [%04x]\n", Endian_bigEndianToHost16(ethertype));
-        return 0;
-    }
-
-    struct Headers_IP6Header* header = (struct Headers_IP6Header*) msg->bytes;
-
-    if (msg->length != Headers_IP6Header_SIZE + Headers_UDPHeader_SIZE + 12) {
-        int type = (msg->length >= Headers_IP6Header_SIZE) ? header->nextHeader : -1;
-        printf("Message of unexpected length [%u] ip6->nextHeader: [%d]\n", msg->length, type);
-        return 0;
-    }
-
-    Assert_true(!Bits_memcmp(header->destinationAddr, testAddrB, 16));
-    Assert_true(!Bits_memcmp(header->sourceAddr, testAddrA, 16));
-
-    Bits_memcpyConst(header->destinationAddr, testAddrA, 16);
-    Bits_memcpyConst(header->sourceAddr, testAddrB, 16);
-
-    TUNMessageType_push(msg, ethertype, NULL);
-
-    return iface->sendMessage(msg, iface);
-}
-
-static Iface_DEFUN receiveMessageUDP(struct Iface* iface, struct Message* msg)
-{
-    struct Context* ctx = Identity_containerOf(iface, struct Context, iface);
-
-    if (ctx->receivedMessageTUNCount) {
-        // Got the message, test successful.
-        Allocator_free(ctx->alloc);
-    }
-    return NULL;
-}
-
-static void fail(void* ignored)
-{
-    Assert_true(!"timeout");
-}
-
 int main(int argc, char** argv)
 {
     struct Allocator* alloc = MallocAllocator_new(1<<20);
     struct EventBase* base = EventBase_new(alloc);
-    struct Writer* logWriter = FileWriter_new(stdout, alloc);
-    struct Log* logger = WriterLog_new(logWriter, alloc);
+    struct Log* logger = FileWriterLog_new(stdout, alloc);
 
-    struct Sockaddr* addrA = Sockaddr_fromBytes(testAddrA, Sockaddr_AF_INET6, alloc);
+    struct Sockaddr* addrA = Sockaddr_fromBytes(TUNTools_testIP6AddrA, Sockaddr_AF_INET6, alloc);
+    struct Sockaddr* addrB = Sockaddr_fromBytes(TUNTools_testIP6AddrB, Sockaddr_AF_INET6, alloc);
 
     char assignedIfName[TUNInterface_IFNAMSIZ];
-    struct Interface* tun = TUNInterface_new(NULL, assignedIfName, 0, base, logger, NULL, alloc);
+    struct Iface* tun = TUNInterface_new(NULL, assignedIfName, 0, base, logger, NULL, alloc);
     NetDev_addAddress(assignedIfName, addrA, 126, logger, NULL);
 
-    struct Sockaddr_storage addr;
-    Assert_true(!Sockaddr_parse("[fd00::1]", &addr));
-
-    struct AddrIface* udp = TUNTools_setupUDP(base, &addr.addr, alloc, logger);
-
-    struct Sockaddr* dest = Sockaddr_clone(udp->addr, alloc);
-    uint8_t* addrBytes;
-    Assert_true(16 == Sockaddr_getAddress(dest, &addrBytes));
-    Bits_memcpy(addrBytes, testAddrB, 16);
-
-    struct Context* udpReceiver =
-        Allocator_calloc(alloc, sizeof(struct Context), 1);
-    udpReceiver->iface.send = receiveMessageUDP;
-    Iface_plumb(&udpReceiver->iface, &udp->iface);
-    tun->receiveMessage = receiveMessageTUN;
-    tun->receiverContext = udpReceiver;
-
-    TUNTools_sendHelloWorld(udp, dest, base, alloc);
-    Timeout_setTimeout(fail, NULL, 10000, base, alloc);
-
-    EventBase_beginLoop(base);
+    TUNTools_echoTest(addrA, addrB, TUNTools_genericIP6Echo, tun, base, logger, alloc);
     return 0;
 }

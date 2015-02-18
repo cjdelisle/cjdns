@@ -18,13 +18,11 @@ int main(int argc, char** argv)
     return 0;
 }
 #else
-#include "interface/tuntap/windows/TAPInterface.h"
 #include "interface/tuntap/windows/NDPServer.h"
 #include "exception/Except.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
 #include "util/events/EventBase.h"
-#include "interface/Interface.h"
 #include "util/log/Log.h"
 #include "util/log/FileWriterLog.h"
 #include "util/Hex.h"
@@ -32,7 +30,7 @@ int main(int argc, char** argv)
 #include "util/platform/Sockaddr.h"
 #include "util/platform/netdev/NetDev.h"
 
-static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
+static uint8_t receiveMessage(struct Message* msg, struct Iface* iface)
 {
     struct Allocator* alloc = iface->receiverContext;
     if (msg->length < 20) {
@@ -109,7 +107,7 @@ printf("init test");
     struct EventBase* base = EventBase_new(alloc);
 
     char* ifName;
-    struct Interface* iface = TAPInterface_new(NULL, &ifName, NULL, logger, base, alloc);
+    struct Iface* iface = TAPInterface_new(NULL, &ifName, NULL, logger, base, alloc);
     struct NDPServer* ndp = NDPServer_new(iface, alloc);
     ndp->generic.receiveMessage = receiveMessage;
     ndp->generic.receiverContext = alloc;

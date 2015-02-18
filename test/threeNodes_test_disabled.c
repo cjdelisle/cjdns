@@ -33,7 +33,7 @@
 #define TUNC 3
 #define TUNB 2
 #define TUNA 1
-static uint8_t incomingTunC(struct Message* msg, struct Interface* iface)
+static uint8_t incomingTunC(struct Message* msg, struct Iface* iface)
 {
     Assert_true(TUNMessageType_pop(msg, NULL) == Ethernet_TYPE_IP6);
     Message_shift(msg, -Headers_IP6Header_SIZE, NULL);
@@ -42,7 +42,7 @@ static uint8_t incomingTunC(struct Message* msg, struct Interface* iface)
     return 0;
 }
 
-static uint8_t incomingTunB(struct Message* msg, struct Interface* iface)
+static uint8_t incomingTunB(struct Message* msg, struct Iface* iface)
 {
     Assert_true(TUNMessageType_pop(msg, NULL) == Ethernet_TYPE_IP6);
     Message_shift(msg, -Headers_IP6Header_SIZE, NULL);
@@ -51,7 +51,7 @@ static uint8_t incomingTunB(struct Message* msg, struct Interface* iface)
     return 0;
 }
 
-static uint8_t incomingTunA(struct Message* msg, struct Interface* iface)
+static uint8_t incomingTunA(struct Message* msg, struct Iface* iface)
 {
     Assert_true(TUNMessageType_pop(msg, NULL) == Ethernet_TYPE_IP6);
     Message_shift(msg, -Headers_IP6Header_SIZE, NULL);
@@ -68,13 +68,13 @@ typedef void (RunTest)(struct ThreeNodes* ctx);
 
 struct ThreeNodes
 {
-    struct Interface tunIfC;
+    struct Iface tunIfC;
     struct TestFramework* nodeC;
 
-    struct Interface tunIfB;
+    struct Iface tunIfB;
     struct TestFramework* nodeB;
 
-    struct Interface tunIfA;
+    struct Iface tunIfA;
     struct TestFramework* nodeA;
     int messageFrom;
 
@@ -202,7 +202,7 @@ static void sendMessage(struct ThreeNodes* tn,
 
     msg = Message_clone(msg, from->alloc);
 
-    struct Interface* fromIf;
+    struct Iface* fromIf;
 
     if (from == tn->nodeA) {
         fromIf = &tn->tunIfA;

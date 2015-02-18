@@ -12,8 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "interface/Interface.h"
-#include "interface/FramingInterface.h"
 #include "interface/InterfaceWrapper.h"
 #include "memory/Allocator.h"
 #include "util/Identity.h"
@@ -25,9 +23,9 @@ struct MessageList {
     struct MessageList* next;
 };
 
-struct FramingInterface_pvt {
-    struct Interface generic;
-    struct Interface* const wrapped;
+struct FramingIface_pvt {
+    struct Iface generic;
+    struct Iface* const wrapped;
     const uint32_t maxMessageSize;
     struct Allocator* alloc;
 
@@ -45,7 +43,7 @@ struct FramingInterface_pvt {
     Identity
 };
 
-static struct Message* mergeMessage(struct FramingInterface_pvt* fi, struct Message* last)
+static struct Message* mergeMessage(struct FramingIface_pvt* fi, struct Message* last)
 {
     int length = last->length;
 
@@ -75,10 +73,10 @@ static struct Message* mergeMessage(struct FramingInterface_pvt* fi, struct Mess
     return out;
 }
 
-static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
+static uint8_t receiveMessage(struct Message* msg, struct Iface* iface)
 {
-    struct FramingInterface_pvt* fi =
-        Identity_check((struct FramingInterface_pvt*)iface->receiverContext);
+    struct FramingIface_pvt* fi =
+        Identity_check((struct FramingIface_pvt*)iface->receiverContext);
 
     if (fi->bytesRemaining > fi->maxMessageSize) {
         return Error_OVERSIZE_MESSAGE;
@@ -123,14 +121,14 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
         }
 
         if (fi->bytesRemaining == (uint32_t)msg->length) {
-            Interface_receiveMessage(&fi->generic, msg);
+            Iface_send(&fi->generic, msg);
             fi->bytesRemaining = 0;
             return Error_NONE;
 
         } else if (fi->bytesRemaining <= (uint32_t)msg->length) {
             struct Message* m = Allocator_clone(msg->alloc, msg);
             m->length = fi->bytesRemaining;
-            Interface_receiveMessage(&fi->generic, m);
+            Iface_send(&fi->generic, m);
             Message_shift(msg, -fi->bytesRemaining, NULL);
             fi->bytesRemaining = 0;
             continue;
@@ -154,9 +152,9 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
     }
 }
 
-static uint8_t sendMessage(struct Message* msg, struct Interface* iface)
+static uint8_t sendMessage(struct Message* msg, struct Iface* iface)
 {
-    struct FramingInterface_pvt* fi = Identity_check((struct FramingInterface_pvt*)iface);
+    struct FramingIface_pvt* fi = Identity_check((struct FramingIface_pvt*)iface);
 
     int32_t length_be = Endian_hostToBigEndian32((uint32_t)msg->length);
     Message_push(msg, &length_be, 4, NULL);
@@ -164,12 +162,12 @@ static uint8_t sendMessage(struct Message* msg, struct Interface* iface)
     return Interface_sendMessage(fi->wrapped, msg);
 }
 
-struct Interface* FramingInterface_new(uint32_t maxMessageSize,
-                                       struct Interface* toWrap,
+struct Iface* FramingIface_new(uint32_t maxMessageSize,
+                                       struct Iface* toWrap,
                                        struct Allocator* alloc)
 {
-    struct FramingInterface_pvt* context =
-        Allocator_clone(alloc, (&(struct FramingInterface_pvt) {
+    struct FramingIface_pvt* context =
+        Allocator_clone(alloc, (&(struct FramingIface_pvt) {
             .maxMessageSize = maxMessageSize,
             .alloc = alloc,
             .wrapped = toWrap

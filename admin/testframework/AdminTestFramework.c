@@ -23,7 +23,6 @@
 #include "crypto/random/Random.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
-#include "interface/FramingInterface.h"
 #include "io/FileWriter.h"
 #include "io/Writer.h"
 #include "util/events/EventBase.h"
@@ -53,7 +52,7 @@ static void spawnAngel(char* testName,
 
 /** @return a string representing the address and port to connect to. */
 static void initAngel(struct Pipe* asClientPipe,
-                      struct Interface* asCoreIface,
+                      struct Iface* asCoreIface,
                       char* asCorePipeName,
                       struct EventBase* eventBase,
                       struct Log* logger,
@@ -134,7 +133,7 @@ struct AdminTestFramework* AdminTestFramework_setUp(int argc, char** argv, char*
     Random_base32(rand, (uint8_t*)asCorePipeName, 31);
     struct Pipe* asCorePipe = Pipe_named(asCorePipeName, eventBase, NULL, alloc);
     asCorePipe->logger = logger;
-    struct Interface* asCoreIface = FramingInterface_new(65535, &asCorePipe->iface, alloc);
+    struct Iface* asCoreIface = FramingInterface_new(65535, &asCorePipe->iface, alloc);
 
     spawnAngel(testName, asClientPipeName, eventBase, alloc);
 

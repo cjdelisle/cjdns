@@ -14,17 +14,16 @@
  */
 #ifndef Aligner_H
 #define Aligner_H
-#include "interface/Interface.h"
 #include "memory/Allocator.h"
 #include "util/Linker.h"
 Linker_require("interface/Aligner.c")
 
 struct Aligner
 {
-    struct Interface generic;
+    struct Iface generic;
 };
 
-struct Aligner* Aligner_new(struct Interface* external,
+struct Aligner* Aligner_new(struct Iface* external,
                             struct Allocator* alloc,
                             uint32_t alignmentBytes);
 

@@ -13,7 +13,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "interface/tuntap/BSDMessageTypeWrapper.h"
-#include "interface/Interface.h"
 #include "interface/InterfaceWrapper.h"
 #include "util/platform/Sockaddr.h"
 #include "memory/Allocator.h"
@@ -31,15 +30,15 @@
 
 struct BSDMessageTypeWrapper_pvt
 {
-    struct Interface generic;
-    struct Interface* const wrapped;
+    struct Iface generic;
+    struct Iface* const wrapped;
     const uint16_t afInet_be;
     const uint16_t afInet6_be;
     struct Log* const logger;
     Identity
 };
 
-static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
+static uint8_t receiveMessage(struct Message* msg, struct Iface* iface)
 {
     struct BSDMessageTypeWrapper_pvt* ctx =
         Identity_check((struct BSDMessageTypeWrapper_pvt*)iface->receiverContext);
@@ -62,10 +61,10 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
     ((uint16_t*) msg->bytes)[0] = 0;
     ((uint16_t*) msg->bytes)[1] = ethertype;
 
-    return Interface_receiveMessage(&ctx->generic, msg);
+    return Iface_send(&ctx->generic, msg);
 }
 
-static uint8_t sendMessage(struct Message* msg, struct Interface* iface)
+static uint8_t sendMessage(struct Message* msg, struct Iface* iface)
 {
     struct BSDMessageTypeWrapper_pvt* ctx =
         Identity_check((struct BSDMessageTypeWrapper_pvt*)iface);
@@ -87,7 +86,7 @@ static uint8_t sendMessage(struct Message* msg, struct Interface* iface)
     return Interface_sendMessage(ctx->wrapped, msg);
 }
 
-struct Interface* BSDMessageTypeWrapper_new(struct Interface* wrapped, struct Log* logger)
+struct Iface* BSDMessageTypeWrapper_new(struct Iface* wrapped, struct Log* logger)
 {
     struct BSDMessageTypeWrapper_pvt* context =
         Allocator_clone(wrapped->allocator, (&(struct BSDMessageTypeWrapper_pvt) {

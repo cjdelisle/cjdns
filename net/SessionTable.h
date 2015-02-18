@@ -17,7 +17,6 @@
 
 #include "crypto/CryptoAuth.h"
 #include "crypto/random/Random.h"
-#include "interface/Interface.h"
 #include "memory/Allocator.h"
 #include "util/events/EventBase.h"
 #include "util/Linker.h"
@@ -29,9 +28,9 @@ struct SessionTable;
 
 struct SessionTable_Session
 {
-    struct Interface external;
+    struct Iface external;
 
-    struct Interface* internal;
+    struct Iface* internal;
 
     /** When the last message was received on this session (milliseconds since epoch). */
     uint64_t timeOfLastIn;
@@ -85,8 +84,8 @@ struct SessionTable_HandleList
  * @param allocator means of getting memory.
  * @return a session manager.
  */
-struct SessionTable* SessionTable_new(Interface_Callback decryptedIncoming,
-                                          Interface_Callback encryptedOutgoing,
+struct SessionTable* SessionTable_new(Iface_Callback decryptedIncoming,
+                                          Iface_Callback encryptedOutgoing,
                                           void* interfaceContext,
                                           struct EventBase* eventBase,
                                           struct CryptoAuth* cryptoAuth,

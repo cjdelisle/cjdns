@@ -13,7 +13,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "exception/Except.h"
-#include "interface/Interface.h"
 #include "util/platform/netdev/NetPlatform.h"
 #include "util/AddrTools.h"
 

@@ -12,7 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "interface/Interface.h"
 #include "memory/Allocator.h"
 #include "wire/PFChan.h"
 #include "net/SessionManager.h"
@@ -100,7 +99,7 @@ static void sendSession(struct SessionManager_pvt* sm,
     Iface_send(&sm->eventIf, msg);
 }
 
-static uint8_t incomingFromSwitchPostCryptoAuth(struct Message* msg, struct Interface* iface)
+static uint8_t incomingFromSwitchPostCryptoAuth(struct Message* msg, struct Iface* iface)
 {
     struct SessionManager_pvt* sm =
         Identity_check((struct SessionManager_pvt*) iface->receiverContext);
@@ -245,7 +244,7 @@ static Iface_DEFUN incomingFromSwitchIf(struct Iface* iface, struct Message* msg
     sm->currentSession = session;
     sm->currentSwitchHeader = switchHeader;
     // --> incomingFromSwitchPostCryptoAuth
-    int ret = Interface_receiveMessage(&session->external, msg);
+    int ret = Iface_send(&session->external, msg);
     if (ret) {
         sm->currentSession = NULL;
         sm->currentSwitchHeader = NULL;
@@ -317,7 +316,7 @@ static void needsLookup(struct SessionManager_pvt* sm, struct Message* msg)
     Allocator_free(eventAlloc);
 }
 
-static uint8_t readyToSendPostCryptoAuth(struct Message* msg, struct Interface* iface)
+static uint8_t readyToSendPostCryptoAuth(struct Message* msg, struct Iface* iface)
 {
     struct SessionManager_pvt* sm =
         Identity_check((struct SessionManager_pvt*) iface->senderContext);

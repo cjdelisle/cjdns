@@ -16,7 +16,6 @@
 #define CryptoAuth_pvt_H
 #include "crypto/CryptoAuth.h"
 #include "crypto/ReplayProtector.h"
-#include "interface/Interface.h"
 #include "benc/Object.h"
 #include "util/log/Log.h"
 #include "memory/Allocator.h"
@@ -113,10 +112,10 @@ struct CryptoAuth_Wrapper
     struct CryptoAuth_pvt* const context;
 
     /** The internal interface which we are wrapping. */
-    struct Interface* const wrappedInterface;
+    struct Iface* const wrappedInterface;
 
     /** The interface which this wrapper provides. */
-    struct Interface externalInterface;
+    struct Iface externalInterface;
 
     /** A name for the wrapper which will appear in logs. */
     char* name;
@@ -125,7 +124,7 @@ struct CryptoAuth_Wrapper
 };
 
 
-uint8_t CryptoAuth_receiveMessage(struct Message* received, struct Interface* interface);
+uint8_t CryptoAuth_receiveMessage(struct Message* received, struct Iface* interface);
 
 uint8_t CryptoAuth_encryptHandshake(struct Message* message,
                                     struct CryptoAuth_Wrapper* wrapper,

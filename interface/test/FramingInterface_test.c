@@ -12,8 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "interface/Interface.h"
-#include "interface/FramingInterface.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
 #include "util/Endian.h"
@@ -27,7 +25,7 @@ union MessageLength
     uint8_t bytes[4];
 };
 
-static uint8_t messageOut(struct Message* msg, struct Interface* iface)
+static uint8_t messageOut(struct Message* msg, struct Iface* iface)
 {
     struct Message** msgPtr = iface->receiverContext;
     Allocator_adopt((*msgPtr)->alloc, msg->alloc);
@@ -35,19 +33,19 @@ static uint8_t messageOut(struct Message* msg, struct Interface* iface)
     return 0;
 }
 
-static void send(struct Interface* sendTo, struct Message* toSend, struct Allocator* cloneWith)
+static void send(struct Iface* sendTo, struct Message* toSend, struct Allocator* cloneWith)
 {
     struct Allocator* child = Allocator_child(cloneWith);
     toSend = Message_clone(toSend, child);
-    Interface_receiveMessage(sendTo, toSend);
+    Iface_send(sendTo, toSend);
     Allocator_free(child);
 }
 
 int main()
 {
     struct Allocator* alloc = MallocAllocator_new(1<<20);
-    struct Interface dummy = { .sendMessage = NULL };
-    struct Interface* fi = FramingInterface_new(1024, &dummy, alloc);
+    struct Iface dummy = { .sendMessage = NULL };
+    struct Iface* fi = FramingInterface_new(1024, &dummy, alloc);
     fi->receiveMessage = messageOut;
     struct Message* output = NULL;
     fi->receiverContext = &output;

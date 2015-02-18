@@ -12,7 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "interface/Interface.h"
 #include "interface/addressable/AddrInterfaceAdapter.h"
 #include "memory/Allocator.h"
 #include "util/platform/Sockaddr.h"
@@ -27,11 +26,11 @@
 struct AddrInterfaceAdapter_pvt
 {
     struct AddrInterface pub;
-    struct Interface* wrapped;
+    struct Iface* wrapped;
     Identity
 };
 
-static uint8_t sendMessage(struct Message* message, struct Interface* iface)
+static uint8_t sendMessage(struct Message* message, struct Iface* iface)
 {
     struct AddrInterfaceAdapter_pvt* context =
         Identity_check((struct AddrInterfaceAdapter_pvt*) iface);
@@ -40,16 +39,16 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
     return Interface_sendMessage(context->wrapped, message);
 }
 
-static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
+static uint8_t receiveMessage(struct Message* message, struct Iface* iface)
 {
     struct AddrInterfaceAdapter_pvt* context =
         Identity_check((struct AddrInterfaceAdapter_pvt*) iface->receiverContext);
 
     Message_push(message, context->pub.addr, context->pub.addr->addrLen, NULL);
-    return Interface_receiveMessage(&context->pub.generic, message);
+    return Iface_send(&context->pub.generic, message);
 }
 
-struct AddrInterface* AddrInterfaceAdapter_new(struct Interface* toWrap, struct Allocator* alloc)
+struct AddrInterface* AddrInterfaceAdapter_new(struct Iface* toWrap, struct Allocator* alloc)
 {
     struct AddrInterfaceAdapter_pvt* context =
         Allocator_malloc(alloc, sizeof(struct AddrInterfaceAdapter_pvt));

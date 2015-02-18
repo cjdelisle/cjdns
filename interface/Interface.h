@@ -24,9 +24,9 @@
 
 #define Interface_ERROR_WRONG_STATE 256
 
-struct Interface;
+struct Iface;
 
-typedef uint8_t (* Interface_Callback)(struct Message*, struct Interface*);
+typedef uint8_t (* Interface_Callback)(struct Message*, struct Iface*);
 
 /**
  * An interface.
@@ -34,7 +34,7 @@ typedef uint8_t (* Interface_Callback)(struct Message*, struct Interface*);
  * If you have multiple direct connections (eg nodes in an ethernet),
  * you must register an interface for each.
  */
-struct Interface
+struct Iface
 {
     /** Arbitarary data which belongs to the wire side of this interface. */
     void* senderContext;
@@ -74,7 +74,7 @@ struct Interface
     Interface_Callback receiveMessage;
 };
 
-static inline uint8_t Interface_receiveMessage(struct Interface* iface, struct Message* msg)
+static inline uint8_t Iface_send(struct Iface* iface, struct Message* msg)
 {
     if (iface->receiveMessage) {
         return iface->receiveMessage(msg, iface);
@@ -82,7 +82,7 @@ static inline uint8_t Interface_receiveMessage(struct Interface* iface, struct M
     return 0;
 }
 
-static inline uint8_t Interface_sendMessage(struct Interface* iface, struct Message* msg)
+static inline uint8_t Interface_sendMessage(struct Iface* iface, struct Message* msg)
 {
     Assert_true(iface->sendMessage);
     return iface->sendMessage(msg, iface);

@@ -16,8 +16,8 @@
 #define InterfaceWaiter_H
 
 #include "memory/Allocator.h"
-#include "interface/Interface.h"
 #include "exception/Except.h"
+#include "interface/Iface.h"
 #include "util/events/EventBase.h"
 #include "util/Linker.h"
 Linker_require("admin/angel/InterfaceWaiter.c")
@@ -31,7 +31,7 @@ Linker_require("admin/angel/InterfaceWaiter.c")
  * @param eh an exception handler in case something goes wrong.
  * @return the message.
  */
-struct Message* InterfaceWaiter_waitForData(struct Interface* iface,
+struct Message* InterfaceWaiter_waitForData(struct Iface* iface,
                                             struct EventBase* eventBase,
                                             struct Allocator* alloc,
                                             struct Except* eh);

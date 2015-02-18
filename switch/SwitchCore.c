@@ -13,7 +13,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "memory/Allocator.h"
-#include "interface/Interface.h"
 #include "util/log/Log.h"
 #include "switch/SwitchCore.h"
 #include "switch/NumberCompress.h"
@@ -32,7 +31,7 @@
 
 struct SwitchInterface
 {
-    struct Interface* iface;
+    struct Iface* iface;
 
     struct SwitchCore* core;
 
@@ -202,7 +201,7 @@ static inline void sendError(struct SwitchInterface* iface,
     Log_debug(logger, message " ([%u] to [%u])", sourceIndex, destIndex)
 
 /** This never returns an error, it sends an error packet instead. */
-static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
+static uint8_t receiveMessage(struct Message* message, struct Iface* iface)
 {
     struct SwitchInterface* sourceIf =
         Identity_check((struct SwitchInterface*) iface->receiverContext);
@@ -345,7 +344,7 @@ static int removeInterface(struct Allocator_OnFreeJob* job)
     return 0;
 }
 
-void SwitchCore_swapInterfaces(struct Interface* if1, struct Interface* if2)
+void SwitchCore_swapInterfaces(struct Iface* if1, struct Iface* if2)
 {
     struct SwitchInterface* si1 = Identity_check((struct SwitchInterface*) if1->receiverContext);
     struct SwitchInterface* si2 = Identity_check((struct SwitchInterface*) if2->receiverContext);
@@ -373,7 +372,7 @@ void SwitchCore_swapInterfaces(struct Interface* if1, struct Interface* if2)
  *                 in host endian order.
  * @return 0 if all goes well, -1 if the list is full.
  */
-int SwitchCore_addInterface(struct Interface* iface,
+int SwitchCore_addInterface(struct Iface* iface,
                             const uint64_t trust,
                             uint64_t* labelOut,
                             struct SwitchCore* core)
@@ -420,7 +419,7 @@ int SwitchCore_addInterface(struct Interface* iface,
     return 0;
 }
 
-int SwitchCore_setRouterInterface(struct Interface* iface, struct SwitchCore* core)
+int SwitchCore_setRouterInterface(struct Iface* iface, struct SwitchCore* core)
 {
     Bits_memcpyConst(&core->interfaces[1], (&(struct SwitchInterface) {
         .iface = iface,

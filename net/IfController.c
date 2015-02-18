@@ -91,7 +91,7 @@ struct IfController_Iface_pvt
     int beaconState;
     struct Map_EndpointsBySockaddr peerMap;
     struct IfController_pvt* ic;
-    struct Interface* addrIface;
+    struct Iface* addrIface;
     struct Allocator* alloc;
     Identity
 };
@@ -99,13 +99,13 @@ struct IfController_Iface_pvt
 struct Peer
 {
     /** The interface which is registered with the switch. */
-    struct Interface switchIf;
+    struct Iface switchIf;
 
     /** Between CryptoAuth and external, needed to add address to message. */
-    struct Interface externalIf;
+    struct Iface externalIf;
 
     /** The internal (wrapped by CryptoAuth) interface. */
-    struct Interface* cryptoAuthIf;
+    struct Iface* cryptoAuthIf;
 
     /** The interface which this peer belongs to. */
     struct IfController_Iface_pvt* ici;
@@ -388,7 +388,7 @@ static void moveEndpointIfNeeded(struct Peer* ep)
 }
 
 // Incoming message which has passed through the cryptoauth and needs to be forwarded to the switch.
-static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cryptoAuthIf)
+static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Iface* cryptoAuthIf)
 {
     struct Peer* ep = Identity_check((struct Peer*) cryptoAuthIf->receiverContext);
     struct IfController_pvt* ic = Identity_check(ep->ici->ic);
@@ -443,11 +443,11 @@ static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cr
 
     Identity_check(ep);
     Assert_true(!(msg->capacity % 4));
-    return Interface_receiveMessage(&ep->switchIf, msg);
+    return Iface_send(&ep->switchIf, msg);
 }
 
 // This is directly called from SwitchCore, message is not encrypted.
-static uint8_t sendFromSwitch(struct Message* msg, struct Interface* switchIf)
+static uint8_t sendFromSwitch(struct Message* msg, struct Iface* switchIf)
 {
     struct Peer* ep = Identity_check((struct Peer*) switchIf);
 
@@ -501,7 +501,7 @@ static int closeInterface(struct Allocator_OnFreeJob* job)
     return 0;
 }
 
-static uint8_t sendAfterCryptoAuth(struct Message* msg, struct Interface* externalIf)
+static uint8_t sendAfterCryptoAuth(struct Message* msg, struct Iface* externalIf)
 {
     struct Peer* ep =
         Identity_check((struct Peer*) &(
@@ -693,7 +693,7 @@ static Iface_DEFUN handleUnexpectedIncoming(struct Message* msg, struct IfContro
 
     Log_info(ic->logger, "Adding peer with unknown key");
 
-    if (Interface_receiveMessage(&ep->externalIf, msg)) {
+    if (Iface_send(&ep->externalIf, msg)) {
         // If the first message is a dud, drop all state for this peer.
         // probably some random crap that wandered in the socket.
         Allocator_free(epAlloc);
@@ -733,7 +733,7 @@ static Iface_DEFUN handleIncomingFromWire(struct Iface* addrIf, struct Message* 
 
     struct Peer* ep = Identity_check((struct Peer*) ici->peerMap.values[epIndex]);
     Message_shift(msg, -lladdr->addrLen, NULL);
-    Interface_receiveMessage(&ep->externalIf, msg);
+    Iface_send(&ep->externalIf, msg);
     return NULL;
 }
 

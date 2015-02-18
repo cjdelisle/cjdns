@@ -14,8 +14,6 @@
  */
 #include "util/events/libuv/UvWrapper.h"
 #include "exception/Except.h"
-#include "interface/Interface.h"
-#include "interface/addressable/UDPAddrInterface.h"
 #include "memory/Allocator.h"
 #include "util/events/libuv/EventBase_pvt.h"
 #include "util/platform/Sockaddr.h"
@@ -26,7 +24,7 @@
 
 #define Map_NAME OfInterfacesByAddr
 #define Map_KEY_TYPE struct Sockaddr*
-#define Map_VALUE_TYPE struct Interface*
+#define Map_VALUE_TYPE struct Iface*
 #include "util/Map.h"
 
 struct FakeUDPAddrInterface {

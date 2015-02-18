@@ -16,7 +16,6 @@
 #define IfController_H
 
 #include "benc/String.h"
-#include "interface/Interface.h"
 #include "crypto/CryptoAuth.h"
 #include "dht/Address.h"
 #include "interface/Iface.h"

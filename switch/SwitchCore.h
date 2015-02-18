@@ -15,7 +15,6 @@
 #ifndef SwitchCore_H
 #define SwitchCore_H
 
-#include "interface/Interface.h"
 #include "util/log/Log.h"
 #include "wire/Message.h"
 #include "util/events/EventBase.h"
@@ -49,7 +48,7 @@ struct SwitchCore* SwitchCore_new(struct Log* logger,
  * @return 0 on success, SwitchCore_addInterface_OUT_OF_SPACE if there are no more interface slots.
  */
 #define SwitchCore_addInterface_OUT_OF_SPACE -1
-int SwitchCore_addInterface(struct Interface* iface,
+int SwitchCore_addInterface(struct Iface* iface,
                             const uint64_t trust,
                             uint64_t* labelOut_be,
                             struct SwitchCore* core);
@@ -63,8 +62,8 @@ int SwitchCore_addInterface(struct Interface* iface,
  * @param core the switchcore.
  * @return 0
  */
-int SwitchCore_setRouterInterface(struct Interface* iface, struct SwitchCore* core);
+int SwitchCore_setRouterInterface(struct Iface* iface, struct SwitchCore* core);
 
-void SwitchCore_swapInterfaces(struct Interface* if1, struct Interface* if2);
+void SwitchCore_swapInterfaces(struct Iface* if1, struct Iface* if2);
 
 #endif

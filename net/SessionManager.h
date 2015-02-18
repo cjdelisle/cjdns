@@ -15,7 +15,6 @@
 #ifndef SessionManager_H
 #define SessionManager_H
 
-#include "interface/Interface.h"
 #include "net/SessionTable.h"
 #include "memory/Allocator.h"
 #include "wire/PFChan.h"

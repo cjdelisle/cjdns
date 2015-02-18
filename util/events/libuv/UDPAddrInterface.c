@@ -14,8 +14,6 @@
  */
 #include "util/events/libuv/UvWrapper.h"
 #include "exception/Except.h"
-#include "interface/Interface.h"
-#include "interface/addressable/UDPAddrInterface.h"
 #include "memory/Allocator.h"
 #include "util/events/libuv/EventBase_pvt.h"
 #include "util/platform/Sockaddr.h"
@@ -75,7 +73,7 @@ static void sendComplete(uv_udp_send_t* uvReq, int error)
 }
 
 
-static uint8_t sendMessage(struct Message* m, struct Interface* iface)
+static uint8_t sendMessage(struct Message* m, struct Iface* iface)
 {
     struct UDPAddrInterface_pvt* context = Identity_check((struct UDPAddrInterface_pvt*) iface);
 
@@ -173,7 +171,7 @@ static void incoming(uv_udp_t* handle,
         Assert_true(Hex_encode(buff, 255, m->bytes, context->pub.addr->addrLen));
         Log_debug(context->logger, "Message from [%s]", buff);*/
 
-        Interface_receiveMessage(&context->pub.generic, m);
+        Iface_send(&context->pub.generic, m);
     }
 
     if (alloc) {

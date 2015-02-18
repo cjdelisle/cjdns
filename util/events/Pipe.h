@@ -17,7 +17,7 @@
 
 #include "memory/Allocator.h"
 #include "exception/Except.h"
-#include "interface/Interface.h"
+#include "interface/Iface.h"
 #include "util/events/EventBase.h"
 #include "util/Linker.h"
 Linker_require("util/events/libuv/Pipe.c")
@@ -27,7 +27,7 @@ typedef void (* Pipe_callback)(struct Pipe* p, int status);
 
 struct Pipe
 {
-    struct Interface iface;
+    struct Iface iface;
 
     /** the name as provided by the user eg: "foo" */
     const char* const name;
@@ -37,6 +37,8 @@ struct Pipe
 
     /** A pointer to the platform dependent file descriptor or handle. */
     void* fd;
+
+    void* userData;
 
     struct EventBase* const base;
 

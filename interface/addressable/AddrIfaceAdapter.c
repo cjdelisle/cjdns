@@ -12,7 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "interface/Interface.h"
 #include "interface/addressable/AddrIfaceAdapter.h"
 #include "memory/Allocator.h"
 #include "util/platform/Sockaddr.h"
@@ -48,7 +47,7 @@ static Iface_DEFUN incomingFromInputIf(struct Iface* inputIf, struct Message* ms
     return Iface_next(&ctx->pub.generic.iface, msg);
 }
 
-struct AddrInterface* AddrIfaceAdapter_new(struct Interface* toWrap, struct Allocator* alloc)
+struct AddrInterface* AddrIfaceAdapter_new(struct Iface* toWrap, struct Allocator* alloc)
 {
     struct AddrIfaceAdapter_pvt* context =
         Allocator_malloc(alloc, sizeof(struct AddrIfaceAdapter_pvt));

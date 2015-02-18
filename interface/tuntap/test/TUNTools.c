@@ -39,10 +39,10 @@ static struct AddrIface* setupUDP2(struct EventBase* base,
     }
 }
 
-struct AddrIface* TUNTools_setupUDP(struct EventBase* base,
-                                    struct Sockaddr* bindAddr,
-                                    struct Allocator* allocator,
-                                    struct Log* logger)
+static struct AddrIface* setupUDP(struct EventBase* base,
+                                  struct Sockaddr* bindAddr,
+                                  struct Allocator* allocator,
+                                  struct Log* logger)
 {
     // Mac OSX and BSD do not set up their TUN devices synchronously.
     // We'll just keep on trying until this works.
@@ -58,8 +58,7 @@ struct AddrIface* TUNTools_setupUDP(struct EventBase* base,
 
 struct TUNTools_pvt
 {
-    struct Iface iface;
-    struct Sockaddr* dest;
+    struct TUNTools pub;
     Identity
 };
 
@@ -69,27 +68,94 @@ static void sendHello(void* vctx)
     struct Message* msg;
     Message_STACK(msg, 0, 64);
     Message_push(msg, "Hello World", 12, NULL);
-    Message_push(msg, ctx->dest, ctx->dest->addrLen, NULL);
-    Iface_send(&ctx->iface, msg);
+    Message_push(msg, ctx->pub.tunAddr, ctx->pub.tunAddr->addrLen, NULL);
+    Iface_send(&ctx->udpIface, msg);
 }
 
-static Iface_DEFUN handleMessage(struct Iface* iface, struct Message* msg)
+const uint8_t* TUNTools_testIP6AddrA = {0xfd,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1};
+const uint8_t* TUNTools_testIP6AddrB = {0xfd,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2};
+
+static Iface_DEFUN TUNTools_genericIP6Echo(struct TUNTools* tt, struct Message* msg)
 {
-    Assert_failure("unexpected message");
+    uint16_t ethertype = TUNMessageType_pop(msg, NULL);
+    if (ethertype != Ethernet_TYPE_IP6) {
+        printf("Spurious packet with ethertype [%04x]\n", Endian_bigEndianToHost16(ethertype));
+        return 0;
+    }
+
+    struct Headers_IP6Header* header = (struct Headers_IP6Header*) msg->bytes;
+
+    if (msg->length != Headers_IP6Header_SIZE + Headers_UDPHeader_SIZE + 12) {
+        int type = (msg->length >= Headers_IP6Header_SIZE) ? header->nextHeader : -1;
+        printf("Message of unexpected length [%u] ip6->nextHeader: [%d]\n", msg->length, type);
+        return 0;
+    }
+
+    Assert_true(!Bits_memcmp(header->destinationAddr, testAddrB, 16));
+    Assert_true(!Bits_memcmp(header->sourceAddr, testAddrA, 16));
+
+    Bits_memcpyConst(header->destinationAddr, testAddrA, 16);
+    Bits_memcpyConst(header->sourceAddr, testAddrB, 16);
+
+    TUNMessageType_push(msg, ethertype, NULL);
+
+    return Iface_next(tt->tunIface, msg);
+}
+
+static Iface_DEFUN receiveMessageTUN(struct Iface* tunIface, struct Message* msg)
+{
+    struct TUNTools_pvt* ctx = Identity_containerOf(tunIface, struct TUNTools_pvt, pub.tunIface);
+    ctx->pub.receivedMessageTUNCount++;
+    return ctx->pub.cb(ctx, msg);
+}
+
+static Iface_DEFUN receiveMessageUDP(struct Iface* udpIface, struct Message* msg)
+{
+    struct Context* ctx = Identity_containerOf(udpIface, struct Context, pub.udpIface);
+
+    if (ctx->pub.receivedMessageTUNCount) {
+        // Got the message, test successful, tear everything down by freeing the root alloc.
+        Allocator_free(ctx->alloc);
+    }
+
     return NULL;
 }
 
-struct Timeout* TUNTools_sendHelloWorld(struct AddrIface* iface,
-                                        struct Sockaddr* dest,
-                                        struct EventBase* base,
-                                        struct Allocator* alloc)
+static void fail(void* ignored)
 {
-    struct TUNTools_pvt* ctx = Allocator_clone(alloc, (&(struct TUNTools_pvt) {
-        .dest = dest
-    }));
-    ctx->iface.send = handleMessage;
-    Iface_plumb(&ctx->iface, &iface->iface);
-    
+    Assert_true(!"timeout");
+}
+
+void TUNTools_echoTest(struct Sockaddr* udpBindTo,
+                       struct Sockaddr* tunDestAddr,
+                       TUNTools_Callback tunMessageHandler,
+                       struct Iface* tun,
+                       struct EventBase* base,
+                       struct Log* logger,
+                       struct Allocator* alloc)
+{
+    struct AddrIface* udp = TUNTools_setupUDP(base, udpBindTo, alloc, logger);
+
+    struct Sockaddr* dest = Sockaddr_clone(udp->addr, alloc);
+    uint8_t* tunDestAddrBytes = NULL;
+    uint8_t* udpDestPointer = NULL;
+    int len = Sockaddr_getAddress(dest, &udpDestPointer);
+    Assert_true(len && len == Sockaddr_getAddress(tunDestAddr, &tunDestAddrBytes));
+    Bits_memcpy(udpDestPointer, tunDestAddrBytes, len);
+
+    struct Context* ctx = Allocator_calloc(alloc, sizeof(struct Context), 1);
     Identity_set(ctx);
-    return Timeout_setInterval(sendHello, ctx, 1000, base, alloc);
+    ctx->pub.udpIface.send = receiveMessageUDP;
+    ctx->pub.tunIface.send = messageFromTUN;
+    Iface_plumb(&ctx->udpIface, &udp->iface);
+    Iface_plumb(&ctx->tunIface, tun);
+    ctx->pub.cb = tunMessageHandler;
+    ctx->pub.tunDestAddr = dest;
+    ctx->pub.udpBindTo = udpBindTo;
+    ctx->pub.alloc = alloc;
+
+    Timeout_setInterval(sendHello, ctx, 1000, base, alloc);
+    Timeout_setTimeout(fail, NULL, 5000, base, alloc);
+
+    EventBase_beginLoop(base);
 }

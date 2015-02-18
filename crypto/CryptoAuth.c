@@ -16,7 +16,6 @@
 #include "crypto/AddressCalc.h"
 #include "crypto/ReplayProtector.h"
 #include "crypto/random/Random.h"
-#include "interface/Interface.h"
 #include "benc/Dict.h"
 #include "benc/List.h"
 #include "benc/String.h"
@@ -390,7 +389,7 @@ static uint8_t genReverseHandshake(struct Message* message,
     return wrapper->wrappedInterface->sendMessage(message, wrapper->wrappedInterface);
 }
 
-static uint8_t sendMessage(struct Message* message, struct Interface* interface);
+static uint8_t sendMessage(struct Message* message, struct Iface* interface);
 
 static uint8_t encryptHandshake(struct Message* message,
                                 struct CryptoAuth_Wrapper* wrapper,
@@ -583,7 +582,7 @@ static inline uint8_t encryptMessage(struct Message* message,
     return wrapper->wrappedInterface->sendMessage(message, wrapper->wrappedInterface);
 }
 
-static uint8_t sendMessage(struct Message* message, struct Interface* interface)
+static uint8_t sendMessage(struct Message* message, struct Iface* interface)
 {
     struct CryptoAuth_Wrapper* wrapper =
         Identity_check((struct CryptoAuth_Wrapper*) interface->senderContext);
@@ -963,7 +962,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
     return callReceivedMessage(wrapper, message, false, nonce);
 }
 
-static uint8_t receiveMessage(struct Message* received, struct Interface* interface)
+static uint8_t receiveMessage(struct Message* received, struct Iface* interface)
 {
     struct CryptoAuth_Wrapper* wrapper =
         Identity_check((struct CryptoAuth_Wrapper*) interface->receiverContext);
@@ -1172,7 +1171,7 @@ List* CryptoAuth_getUsers(struct CryptoAuth* context, struct Allocator* alloc)
     return users;
 }
 
-String* CryptoAuth_getUser(struct Interface* interface)
+String* CryptoAuth_getUser(struct Iface* interface)
 {
     struct CryptoAuth_Wrapper* wrapper =
         Identity_check((struct CryptoAuth_Wrapper*)interface->senderContext);
@@ -1191,7 +1190,7 @@ String* CryptoAuth_getUser(struct Interface* interface)
     return NULL;
 }
 
-struct Interface* CryptoAuth_wrapInterface(struct Interface* toWrap,
+struct Iface* CryptoAuth_wrapInterface(struct Iface* toWrap,
                                            const uint8_t herPublicKey[32],
                                            const uint8_t herIp6[16],
                                            const bool requireAuth,
@@ -1214,12 +1213,12 @@ struct Interface* CryptoAuth_wrapInterface(struct Interface* toWrap,
     toWrap->receiverContext = wrapper;
     toWrap->receiveMessage = receiveMessage;
 
-    struct Interface iface = {
+    struct Iface iface = {
         .senderContext = wrapper,
         .sendMessage = sendMessage,
         .allocator = toWrap->allocator
     };
-    Bits_memcpyConst(&wrapper->externalInterface, &iface, sizeof(struct Interface));
+    Bits_memcpyConst(&wrapper->externalInterface, &iface, sizeof(struct Iface));
 
     if (herPublicKey != NULL) {
         Bits_memcpyConst(wrapper->herPerminentPubKey, herPublicKey, 32);
@@ -1238,7 +1237,7 @@ struct Interface* CryptoAuth_wrapInterface(struct Interface* toWrap,
 
 void CryptoAuth_setAuth(const String* password,
                         const uint8_t authType,
-                        struct Interface* wrappedInterface)
+                        struct Iface* wrappedInterface)
 {
     struct CryptoAuth_Wrapper* wrapper =
         Identity_check((struct CryptoAuth_Wrapper*)wrappedInterface->senderContext);
@@ -1256,21 +1255,21 @@ void CryptoAuth_setAuth(const String* password,
     }
 }
 
-uint8_t* CryptoAuth_getHerPublicKey(struct Interface* interface)
+uint8_t* CryptoAuth_getHerPublicKey(struct Iface* interface)
 {
     struct CryptoAuth_Wrapper* wrapper =
         Identity_check((struct CryptoAuth_Wrapper*)interface->senderContext);
     return wrapper->herPerminentPubKey;
 }
 
-void CryptoAuth_reset(struct Interface* interface)
+void CryptoAuth_reset(struct Iface* interface)
 {
     struct CryptoAuth_Wrapper* wrapper =
         Identity_check((struct CryptoAuth_Wrapper*)interface->senderContext);
     reset(wrapper);
 }
 
-int CryptoAuth_getState(struct Interface* interface)
+int CryptoAuth_getState(struct Iface* interface)
 {
     struct CryptoAuth_Wrapper* wrapper =
         Identity_check((struct CryptoAuth_Wrapper*)interface->senderContext);
@@ -1297,7 +1296,7 @@ int CryptoAuth_getState(struct Interface* interface)
     }
 }
 
-void CryptoAuth_resetIfTimeout(struct Interface* iface)
+void CryptoAuth_resetIfTimeout(struct Iface* iface)
 {
     struct CryptoAuth_Wrapper* wrapper =
         Identity_check((struct CryptoAuth_Wrapper*)iface->senderContext);
@@ -1319,7 +1318,7 @@ void CryptoAuth_resetIfTimeout(struct Interface* iface)
     }
 }
 
-struct Interface* CryptoAuth_getConnectedInterface(struct Interface* iface)
+struct Iface* CryptoAuth_getConnectedInterface(struct Iface* iface)
 {
     if (iface->sendMessage == sendMessage) {
         // internal (plaintext side)
@@ -1334,7 +1333,7 @@ struct Interface* CryptoAuth_getConnectedInterface(struct Interface* iface)
     return NULL;
 }
 
-struct ReplayProtector* CryptoAuth_getReplayProtector(struct Interface* iface)
+struct ReplayProtector* CryptoAuth_getReplayProtector(struct Iface* iface)
 {
     struct CryptoAuth_Wrapper* wrapper =
         Identity_check((struct CryptoAuth_Wrapper*)iface->senderContext);
@@ -1359,7 +1358,7 @@ uint8_t CryptoAuth_encryptHandshake(struct Message* message,
     return encryptHandshake(message, wrapper, setupMessage);
 }
 
-uint8_t CryptoAuth_receiveMessage(struct Message* received, struct Interface* interface)
+uint8_t CryptoAuth_receiveMessage(struct Message* received, struct Iface* interface)
 {
     return receiveMessage(received, interface);
 }

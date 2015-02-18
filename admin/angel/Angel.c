@@ -19,10 +19,8 @@
 #include "exception/Jmp.h"
 #include "memory/Allocator.h"
 #include "util/platform/netdev/NetDev.h"
-#include "interface/Interface.h"
 #include "interface/addressable/AddrIfaceAdapter.h"
 #ifdef HAS_ETH_INTERFACE
-#include "interface/ETHInterface.h"
 #endif
 #include "util/events/EventBase.h"
 #include "util/log/Log.h"
@@ -32,7 +30,7 @@
 
 struct AngelContext
 {
-    struct Interface* coreIface;
+    struct Iface* coreIface;
     struct EventBase* eventBase;
     struct Allocator* alloc;
     struct Log* logger;

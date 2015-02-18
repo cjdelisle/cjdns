@@ -18,7 +18,6 @@
 #include "dht/Address.h"
 #include "util/version/Version.h"
 #include "dht/dhtcore/Router.h"
-#include "interface/Interface.h"
 #include "util/log/Log.h"
 #include "net/Ducttape.h"
 #include "util/events/EventBase.h"
@@ -48,7 +47,7 @@ struct Ducttape_pvt
     struct Router* router;
 
     /** The interface which is used by the operator of the node to communicate in the network. */
-    struct Interface* userIf;
+    struct Iface* userIf;
 
     struct Address myAddr;
 

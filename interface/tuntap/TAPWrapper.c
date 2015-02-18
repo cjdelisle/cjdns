@@ -25,12 +25,12 @@
 struct TAPWrapper_pvt
 {
     struct TAPWrapper pub;
-    struct Interface* wrapped;
+    struct Iface* wrapped;
     struct Log* log;
     Identity
 };
 
-static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
+static uint8_t receiveMessage(struct Message* msg, struct Iface* iface)
 {
     struct TAPWrapper_pvt* tw = Identity_check((struct TAPWrapper_pvt*)iface->receiverContext);
 
@@ -70,11 +70,11 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
         }
     }
     TUNMessageType_push(msg, eth.ethertype, NULL);
-    Interface_receiveMessage(&tw->pub.generic, msg);
+    Iface_send(&tw->pub.generic, msg);
     return 0;
 }
 
-static uint8_t sendMessage(struct Message* msg, struct Interface* iface)
+static uint8_t sendMessage(struct Message* msg, struct Iface* iface)
 {
     struct TAPWrapper_pvt* tw = Identity_check((struct TAPWrapper_pvt*)iface);
 
@@ -94,7 +94,7 @@ static uint8_t sendMessage(struct Message* msg, struct Interface* iface)
     return Interface_sendMessage(tw->wrapped, msg);
 }
 
-struct TAPWrapper* TAPWrapper_new(struct Interface* external,
+struct TAPWrapper* TAPWrapper_new(struct Iface* external,
                                   struct Log* log,
                                   struct Allocator* alloc)
 {

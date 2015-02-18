@@ -38,10 +38,10 @@ struct TestContext
     struct CryptoAuth* bob;
 
     /** For sending plain message from Alice. */
-    struct Interface* aliceInternalIf;
+    struct Iface* aliceInternalIf;
 
     /** For sending encrypted messages to Alice. */
-    struct Interface aliceExternalIf;
+    struct Iface aliceExternalIf;
 
     /** When Alice tries to send a message, this will be set to the message. */
     struct Message* aliceCryptMsg;
@@ -50,10 +50,10 @@ struct TestContext
     struct Message* aliceMsg;
 
     /** For sending plain messages from Bob. */
-    struct Interface* bobInternalIf;
+    struct Iface* bobInternalIf;
 
     /** For sending encrypted messages to Bob. */
-    struct Interface bobExternalIf;
+    struct Iface bobExternalIf;
 
     /** When Bob tries to send a message, this will be set to the message. */
     struct Message* bobCryptMsg;
@@ -64,7 +64,7 @@ struct TestContext
     Identity
 };
 
-static uint8_t sendMessageAlice(struct Message* msg, struct Interface* iface)
+static uint8_t sendMessageAlice(struct Message* msg, struct Iface* iface)
 {
     struct TestContext* tctx = Identity_check((struct TestContext*)
         (((char*)iface) - offsetof(struct TestContext, aliceExternalIf)));
@@ -72,7 +72,7 @@ static uint8_t sendMessageAlice(struct Message* msg, struct Interface* iface)
     return 0;
 }
 
-static uint8_t sendMessageBob(struct Message* msg, struct Interface* iface)
+static uint8_t sendMessageBob(struct Message* msg, struct Iface* iface)
 {
     struct TestContext* tctx = Identity_check((struct TestContext*)
         (((char*)iface) - offsetof(struct TestContext, bobExternalIf)));
@@ -80,7 +80,7 @@ static uint8_t sendMessageBob(struct Message* msg, struct Interface* iface)
     return 0;
 }
 
-static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
+static uint8_t receiveMessage(struct Message* msg, struct Iface* iface)
 {
     struct Message** msgP = iface->receiverContext;
     *msgP = msg;
@@ -133,7 +133,7 @@ static struct TestContext* setUp(struct Allocator* alloc, struct Context* ctx, b
     return out;
 }
 
-static void sendMsg(const char* x, struct Interface* iface)
+static void sendMsg(const char* x, struct Iface* iface)
 {
     struct Message* msg = Message_new(0, 512, iface->allocator);
     Message_push(msg, "        ", 8 - (CString_strlen(x) % 8), NULL);
@@ -145,20 +145,20 @@ static void twoKeyPackets(struct Allocator* alloc, struct Context* ctx)
 {
     struct TestContext* tctx = setUp(alloc, ctx, true);
     sendMsg("hello bob", tctx->aliceInternalIf);
-    Interface_receiveMessage(&tctx->bobExternalIf, tctx->aliceCryptMsg);
+    Iface_send(&tctx->bobExternalIf, tctx->aliceCryptMsg);
 
     sendMsg("hello alice (key packet)", tctx->bobInternalIf);
-    Interface_receiveMessage(&tctx->aliceExternalIf, tctx->bobCryptMsg);
+    Iface_send(&tctx->aliceExternalIf, tctx->bobCryptMsg);
 
     sendMsg("hello again alice (repeat key packet)", tctx->bobInternalIf);
 
     // Now alice responds
     sendMsg("how's it going bob? (initial data packet)", tctx->aliceInternalIf);
-    Interface_receiveMessage(&tctx->bobExternalIf, tctx->aliceCryptMsg);
+    Iface_send(&tctx->bobExternalIf, tctx->aliceCryptMsg);
 
     // and now the stray repeat key packet is sent
     tctx->aliceMsg = NULL;
-    Interface_receiveMessage(&tctx->aliceExternalIf, tctx->bobCryptMsg);
+    Iface_send(&tctx->aliceExternalIf, tctx->bobCryptMsg);
     Assert_true(tctx->aliceMsg);
 }
 
@@ -172,7 +172,7 @@ static void sendToAlice(char* msg, struct TestContext* tctx)
     clearMessages(tctx);
     sendMsg(msg, tctx->bobInternalIf);
     Assert_true(tctx->bobCryptMsg);
-    Interface_receiveMessage(&tctx->aliceExternalIf, tctx->bobCryptMsg);
+    Iface_send(&tctx->aliceExternalIf, tctx->bobCryptMsg);
     Assert_true(tctx->aliceMsg);
     clearMessages(tctx);
 }
@@ -182,7 +182,7 @@ static void sendToBob(char* msg, struct TestContext* tctx)
     clearMessages(tctx);
     sendMsg(msg, tctx->aliceInternalIf);
     Assert_true(tctx->aliceCryptMsg);
-    Interface_receiveMessage(&tctx->bobExternalIf, tctx->aliceCryptMsg);
+    Iface_send(&tctx->bobExternalIf, tctx->aliceCryptMsg);
     Assert_true(tctx->bobMsg);
     clearMessages(tctx);
 }
@@ -202,12 +202,12 @@ static void reset(struct Allocator* alloc, struct Context* ctx)
 
     // Bob is reset and Alice is still jabbering
     sendMsg("A bunch of crap which Bob is totally not going to hear", tctx->aliceInternalIf);
-    Interface_receiveMessage(&tctx->bobExternalIf, tctx->aliceCryptMsg);
+    Iface_send(&tctx->bobExternalIf, tctx->aliceCryptMsg);
     Assert_true(!tctx->bobMsg);
 
     // Bob sends a new hello packet to Alice but it will be dropped because a session is live.
     sendMsg("Have to drop this because it might be a replay attack etc", tctx->bobInternalIf);
-    Interface_receiveMessage(&tctx->aliceExternalIf, tctx->bobCryptMsg);
+    Iface_send(&tctx->aliceExternalIf, tctx->bobCryptMsg);
     Assert_true(!tctx->aliceMsg);
 
     CryptoAuth_reset(tctx->aliceInternalIf);
@@ -242,8 +242,8 @@ static void crossedOnTheWire(struct Allocator* alloc, struct Context* ctx)
     sendMsg("Hi Bob!", tctx->aliceInternalIf);
     sendMsg("Hi Alice!", tctx->bobInternalIf);
 
-    Interface_receiveMessage(&tctx->aliceExternalIf, tctx->bobCryptMsg);
-    Interface_receiveMessage(&tctx->bobExternalIf, tctx->aliceCryptMsg);
+    Iface_send(&tctx->aliceExternalIf, tctx->bobCryptMsg);
+    Iface_send(&tctx->bobExternalIf, tctx->aliceCryptMsg);
 
     sendToBob("hello bob", tctx);
     sendToAlice("hi alice", tctx);
@@ -261,13 +261,13 @@ static void replayKeyPacket(struct Allocator* alloc, struct Context* ctx)
 
     sendMsg("Hi Alice!", tctx->bobInternalIf);
     struct Message* toReplay = Message_clone(tctx->bobCryptMsg, alloc);
-    Interface_receiveMessage(&tctx->aliceExternalIf, tctx->bobCryptMsg);
+    Iface_send(&tctx->aliceExternalIf, tctx->bobCryptMsg);
 
     sendMsg("Hi Bob!", tctx->aliceInternalIf);
     struct Message* m1 = tctx->aliceCryptMsg;
 
     // packet replay
-    Interface_receiveMessage(&tctx->aliceExternalIf, toReplay);
+    Iface_send(&tctx->aliceExternalIf, toReplay);
 
     sendMsg("Hi Bob!", tctx->aliceInternalIf);
     struct Message* m2 = tctx->aliceCryptMsg;

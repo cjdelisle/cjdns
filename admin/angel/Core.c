@@ -32,14 +32,13 @@
 #ifdef HAS_ETH_INTERFACE
 #include "interface/ETHInterface_admin.h"
 #endif
-#include "interface/tuntap/TUNInterface.h"
 #include "interface/InterfaceConnector.h"
 #include "net/IfController_admin.h"
-#include "interface/FramingInterface.h"
+#include "interface/addressable/PacketHeaderToUDPAddrIface.h"
+#include "interface/FramingIface.h"
 #include "interface/RainflyClient.h"
 #include "interface/RainflyClient_admin.h"
 #include "interface/DNSServer.h"
-#include "interface/addressable/PacketHeaderToUDPAddrInterface.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
 #include "memory/Allocator_admin.h"
@@ -237,7 +236,7 @@ void Core_admin_register(struct Sockaddr* ipAddr,
 }
 
 
-static Dict* getInitialConfig(struct Interface* iface,
+static Dict* getInitialConfig(struct Iface* iface,
                               struct EventBase* eventBase,
                               struct Allocator* alloc,
                               struct Except* eh)
@@ -262,7 +261,7 @@ Assert_true(0);
     char assignedTunName[TUNInterface_IFNAMSIZ];
     char* desiredName = (desiredDeviceName) ? desiredDeviceName->bytes : NULL;
 
-    struct Interface* tun =
+    struct Iface* tun =
         TUNInterface_new(desiredName, assignedTunName, 0, eventBase, logger, eh, alloc);
 
     IpTunnel_setTunName(assignedTunName, ipTunnel);
@@ -281,7 +280,7 @@ static void angelResponse(Dict* resp, void* vNULL)
 void Core_init(struct Allocator* alloc,
                struct Log* logger,
                struct EventBase* eventBase,
-               struct Interface* angelIface,
+               struct Iface* angelIface,
                struct Random* rand,
                struct Except* eh)
 {
@@ -390,8 +389,8 @@ void Core_init(struct Allocator* alloc,
     struct RainflyClient* rainfly =
         RainflyClient_new(&rainflyIface->generic, eventBase, rand, logger);
     Assert_true(!Sockaddr_parse("[fc00::1]:53", &rainflyAddr));
-    struct PacketHeaderToUDPAddrInterface* magicUDP =
-        PacketHeaderToUDPAddrInterface_new(alloc, &rainflyAddr.addr);
+    struct PacketHeaderToUDPAddrIface* magicUDP =
+        PacketHeaderToUDPAddrIface_new(alloc, &rainflyAddr.addr);
 //    Iface_plumb(&magicUDP->headerIf, &dtAAAAAAAAAAAAAA->magicIf);
     DNSServer_new(&magicUDP->udpIf, logger, rainfly);
 
@@ -452,7 +451,7 @@ int Core_main(int argc, char** argv)
     angelPipe->logger = logger;
     angelPipe->onClose = angelDied;
 
-    struct Interface* angelIface = FramingInterface_new(65535, &angelPipe->iface, alloc);
+    struct Iface* angelIface = FramingIface_new(65535, &angelPipe->iface, alloc);
 
     Core_init(alloc, logger, eventBase, angelIface, rand, eh);
     EventBase_beginLoop(eventBase);

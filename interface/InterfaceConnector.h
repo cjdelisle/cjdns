@@ -25,6 +25,6 @@ Linker_require("interface/InterfaceConnector.c")
  * @param a one interface.
  * @param b another interface.
  */
-void InterfaceConnector_connect(struct Interface* a, struct Interface* b);
+void InterfaceConnector_connect(struct Iface* a, struct Iface* b);
 
 #endif

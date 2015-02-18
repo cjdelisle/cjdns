@@ -102,12 +102,12 @@ static inline void Iface_plumb(struct Iface* a, struct Iface* b)
     b->connectedIf = a;
 }
 
-static inline void Iface_unplumb(struct Iface* a)
+static inline void Iface_unplumb(struct Iface* a, struct Iface* b)
 {
-    Assert_true(a->connectedIf);
-    Assert_true(a->connectedIf->connectedIf == a);
-    a->connectedIf->connectedIf = NULL;
+    Assert_true(a->connectedIf == b);
+    Assert_true(b->connectedIf == a);
     a->connectedIf = NULL;
+    b->connectedIf = NULL;
 }
 
 #endif

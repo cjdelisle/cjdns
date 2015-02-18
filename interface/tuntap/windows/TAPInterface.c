@@ -21,7 +21,6 @@
 #include "exception/WinFail.h"
 #include "memory/Allocator.h"
 #include "interface/tuntap/windows/TAPDevice.h"
-#include "interface/tuntap/windows/TAPInterface.h"
 #include "util/events/EventBase.h"
 #include "util/platform/netdev/NetDev.h"
 #include "wire/Error.h"
@@ -145,7 +144,7 @@ static void readCallbackB(struct TAPInterface_pvt* tap)
     }
     msg->length = bytesRead;
     Log_debug(tap->log, "Read [%d] bytes", msg->length);
-    Interface_receiveMessage(&tap->pub.generic, msg);
+    Iface_send(&tap->pub.generic, msg);
     Allocator_free(msg->alloc);
     postRead(tap);
 }
@@ -218,7 +217,7 @@ static void writeCallback(uv_iocp_t* writeIocp)
     writeCallbackB(tap);
 }
 
-static uint8_t sendMessage(struct Message* msg, struct Interface* iface)
+static uint8_t sendMessage(struct Message* msg, struct Iface* iface)
 {
     struct TAPInterface_pvt* tap = Identity_check((struct TAPInterface_pvt*) iface);
     if (tap->writeMessageCount >= WRITE_MESSAGE_SLOTS) {

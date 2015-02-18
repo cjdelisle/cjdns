@@ -13,8 +13,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "exception/Except.h"
-#include "interface/Interface.h"
-#include "interface/tuntap/TUNInterface.h"
 #include "interface/tuntap/BSDMessageTypeWrapper.h"
 #include "util/AddrTools.h"
 #include "util/events/Pipe.h"
@@ -40,7 +38,7 @@
 
 /* Tun Configurator for OpenBSD. */
 
-struct Interface* TUNInterface_new(const char* interfaceName,
+struct Iface* TUNInterface_new(const char* interfaceName,
                                    char assignedInterfaceName[TUNInterface_IFNAMSIZ],
                                    int isTapMode,
                                    struct EventBase* base,

@@ -86,14 +86,14 @@ static void createNew()
     Allocator_free(allocator);
 }
 
-static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
+static uint8_t receiveMessage(struct Message* message, struct Iface* iface)
 {
     Message_pop(message, NULL, 4, NULL);
     *((struct Message**)iface->receiverContext) = message;
     return Error_NONE;
 }
 
-static uint8_t sendMessage(struct Message* message, struct Interface* iface)
+static uint8_t sendMessage(struct Message* message, struct Iface* iface)
 {
     *((struct Message**)iface->senderContext) = message;
     return Error_NONE;
@@ -110,7 +110,7 @@ static struct CryptoAuth_Wrapper* setUp(uint8_t* myPrivateKey,
     struct CryptoAuth* ca =
         CryptoAuth_new(allocator, myPrivateKey, eventBase, logger, evilRandom(allocator, logger));
 
-    struct Interface* iface = Allocator_clone(allocator, (&(struct Interface) {
+    struct Iface* iface = Allocator_clone(allocator, (&(struct Iface) {
         .sendMessage = sendMessage,
         .senderContext = resultMessage
     }));
@@ -124,7 +124,7 @@ static struct CryptoAuth_Wrapper* setUp(uint8_t* myPrivateKey,
     #endif
 
     if (authPassword) {
-        struct Interface temp = {
+        struct Iface temp = {
             .senderContext = wrapper,
             .allocator = allocator
         };
@@ -212,7 +212,7 @@ static void receiveHelloWithNoAuth()
     wrapper->externalInterface.receiveMessage = receiveMessage;
     wrapper->externalInterface.receiverContext = &finalOut;
 
-    CryptoAuth_receiveMessage(&incoming, &(struct Interface) { .receiverContext = wrapper } );
+    CryptoAuth_receiveMessage(&incoming, &(struct Iface) { .receiverContext = wrapper } );
 
     Assert_true(finalOut);
     Assert_true(finalOut->length == 12);
@@ -229,7 +229,7 @@ static void repeatHello()
        CryptoAuth_new(allocator, NULL, eventBase, logger, evilRandom(allocator, logger));
 
     struct Message* out = NULL;
-    struct Interface iface = {
+    struct Iface iface = {
         .sendMessage = sendMessage,
         .senderContext = &out
     };
@@ -273,7 +273,7 @@ static void repeatHello()
         wrapper2.Identity_verifier = ((struct CryptoAuth_pvt*)ca)->Identity_verifier;
     #endif
 
-    CryptoAuth_receiveMessage(out, &(struct Interface) { .receiverContext = &wrapper2 } );
+    CryptoAuth_receiveMessage(out, &(struct Iface) { .receiverContext = &wrapper2 } );
 
     Assert_true(finalOut);
     Assert_true(finalOut->length == 12);

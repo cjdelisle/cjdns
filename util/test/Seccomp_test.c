@@ -23,6 +23,14 @@
 #include "util/CString.h"
 #include "crypto/random/Random.h"
 
+struct Context
+{
+    struct Iface iface;
+    struct Allocator* alloc;
+    struct EventBase* eventBase;
+    Identity
+};
+
 static void childComplete(void* vEventBase)
 {
     EventBase_endLoop((struct EventBase*)vEventBase);
@@ -31,7 +39,7 @@ static void childComplete(void* vEventBase)
 static void onConnectionChild(struct Pipe* p, int status)
 {
     // hax
-    struct Allocator* alloc = (struct Allocator*) p->iface.receiverContext;
+    struct Allocator* alloc = (struct Allocator*) p->userData;
     struct Log* logger = p->logger;
 
     Seccomp_dropPermissions(alloc, logger, NULL);
@@ -40,7 +48,9 @@ static void onConnectionChild(struct Pipe* p, int status)
     struct Message* ok = Message_new(0, 512, alloc);
     Message_push(ok, "OK", 3, NULL);
 
-    Interface_sendMessage(&p->iface, ok);
+    struct Iface iface = { .send = NULL };
+    Iface_plumb(&p->iface, &iface);
+    Iface_send(&iface, ok);
 
     // just set a timeout long enough that we're pretty sure the parent will get the message
     // before we quit.
@@ -58,7 +68,7 @@ static int child(char* pipeName, struct Allocator* alloc, struct Log* logger)
     struct Pipe* pipe = Pipe_named(pipeName, eb, NULL, alloc);
     pipe->onConnection = onConnectionChild;
     pipe->logger = logger;
-    pipe->iface.receiverContext = alloc;
+    pipe->userData = alloc;
 
     Timeout_setTimeout(timeout, eb, 2000, eb, alloc);
     EventBase_beginLoop(eb);
@@ -66,11 +76,12 @@ static int child(char* pipeName, struct Allocator* alloc, struct Log* logger)
     return 0;
 }
 
-static uint8_t receiveMessageParent(struct Message* msg, struct Interface* iface)
+static Iface_DEFUN receiveMessageParent(struct Iface* iface, struct Message* msg)
 {
+    struct Context* ctx = Identity_check((struct Context*) iface);
     Assert_true(msg->length == 3);
     Assert_true(!Bits_memcmp(msg->bytes, "OK", 3));
-    EventBase_endLoop(iface->receiverContext);
+    EventBase_endLoop(ctx->eventBase);
     return 0;
 }
 
@@ -94,10 +105,14 @@ int main(int argc, char** argv)
     char name[32] = {0};
     Random_base32(rand, (uint8_t*)name, 31);
 
+    struct Context* ctx = Allocator_calloc(alloc, sizeof(struct Context), 1);
+    Identity_set(ctx);
+    ctx->alloc = alloc;
+    ctx->iface.send = receiveMessageParent;
+    ctx->eventBase = eb;
+
     struct Pipe* pipe = Pipe_named(name, eb, NULL, alloc);
     pipe->logger = logger;
-    pipe->iface.receiveMessage = receiveMessageParent;
-    pipe->iface.receiverContext = eb;
 
     char* path = Process_getPath(alloc);
     char* args[] = { "Seccomp_test", "child", name, NULL };

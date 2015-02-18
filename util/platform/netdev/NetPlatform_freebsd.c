@@ -14,7 +14,6 @@
  */
 #include "util/platform/netdev/NetPlatform.h"
 #include "exception/Except.h"
-#include "interface/Interface.h"
 #include "util/AddrTools.h"
 #include "util/platform/Sockaddr.h"
 

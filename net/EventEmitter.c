@@ -12,7 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "interface/Interface.h"
 #include "memory/Allocator.h"
 #include "wire/PFChan.h"
 #include "net/EventEmitter.h"

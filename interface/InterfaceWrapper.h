@@ -15,20 +15,19 @@
 #ifndef InterfaceWrapper_H
 #define InterfaceWrapper_H
 
-#include "interface/Interface.h"
 #include "memory/Allocator.h"
 
-static void InterfaceWrapper_wrap(struct Interface* toWrap,
+static void InterfaceWrapper_wrap(struct Iface* toWrap,
                                   Interface_Callback sendMessage,
                                   Interface_Callback receiveMessage,
-                                  struct Interface* output)
+                                  struct Iface* output)
 {
     toWrap->receiveMessage = receiveMessage;
     toWrap->receiverContext = output;
 
-    Bits_memcpyConst(output, (&(struct Interface) {
+    Bits_memcpyConst(output, (&(struct Iface) {
         .sendMessage = sendMessage,
-    }), sizeof(struct Interface));
+    }), sizeof(struct Iface));
 }
 
 

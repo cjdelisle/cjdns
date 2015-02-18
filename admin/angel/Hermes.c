@@ -18,7 +18,6 @@
 #include "benc/serialization/standard/BencMessageWriter.h"
 #include "benc/serialization/standard/BencMessageReader.h"
 #include "memory/Allocator.h"
-#include "interface/Interface.h"
 #include "util/events/Event.h"
 #include "util/events/EventBase.h"
 #include "util/log/Log.h"
@@ -45,7 +44,7 @@ struct Request
 
 struct Hermes
 {
-    struct Interface* iface;
+    struct Iface iface;
     struct Allocator* alloc;
     struct EventBase* eventBase;
     struct Map_RequestSet requestSet;
@@ -75,8 +74,10 @@ static void timeout(void* vrequest)
     Allocator_free(req->alloc);
 }
 
-static void receiveMessage2(struct Message* msg, struct Hermes* hermes, struct Allocator* tempAlloc)
+static Iface_DEFUN receiveMessage(struct Iface* iface, struct Message* msg)
 {
+    struct Hermes* hermes = Identity_check((struct Hermes*) iface);
+    struct Allocator* tempAlloc = msg->alloc;
     #ifdef Log_KEYS
         char lastChr = msg->bytes[msg->length - 1];
         msg->bytes[msg->length - 1] = '\0';
@@ -90,7 +91,7 @@ static void receiveMessage2(struct Message* msg, struct Hermes* hermes, struct A
     char* err = BencMessageReader_readNoExcept(msg, tempAlloc, &d);
     if (err) {
         Log_warn(hermes->logger, "Failed to parse message from angel [%s]", err);
-        return;
+        return 0;
     }
 
     String* txid = Dict_getString(d, String_CONST("txid"));
@@ -98,26 +99,18 @@ static void receiveMessage2(struct Message* msg, struct Hermes* hermes, struct A
     if (!txid || txid->len != 8 || 4 != Hex_decode((uint8_t*)&handle, 4, (uint8_t*)txid->bytes, 8))
     {
         Log_warn(hermes->logger, "Message from angel; txid missing or unrecognized");
-        return;
+        return 0;
     }
 
     int index = Map_RequestSet_indexForHandle(handle, &hermes->requestSet);
     if (index < 0) {
         Log_warn(hermes->logger, "Message from angel references nonexistant request");
-        return;
+        return 0;
     }
 
     struct Request* req = Identity_check((struct Request*) hermes->requestSet.values[index]);
     req->onResponse(d, req->onResponseContext);
     Allocator_free(req->alloc);
-}
-
-static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
-{
-    struct Hermes* hermes = Identity_check((struct Hermes*) iface->receiverContext);
-    struct Allocator* alloc = Allocator_child(hermes->alloc);
-    receiveMessage2(msg, hermes, alloc);
-    Allocator_free(alloc);
     return 0;
 }
 
@@ -157,23 +150,20 @@ void Hermes_callAngel(Dict* message,
 
     Log_debug(hermes->logger, "Sending [%d] bytes to angel", m->length);
 
-    int ret = Interface_sendMessage(hermes->iface, m);
-    if (ret) {
-        Except_throw(eh, "Failed to send message to angel [%d]", ret);
-    }
+    Iface_send(&hermes->iface, m);
 
     // Use interval as defensive programming
     // the Allocator_free() in the timeout callback deactivates it.
     Timeout_setInterval(timeout, req, REQ_TIMEOUT, hermes->eventBase, reqAlloc);
 }
 
-struct Hermes* Hermes_new(struct Interface* angelIface,
+struct Hermes* Hermes_new(struct Iface* angelIface,
                           struct EventBase* eventBase,
                           struct Log* logger,
                           struct Allocator* alloc)
 {
     struct Hermes* out = Allocator_clone(alloc, (&(struct Hermes) {
-        .iface = angelIface,
+        .iface = { .send = receiveMessage },
         .alloc = alloc,
         .eventBase = eventBase,
         .requestSet = {
@@ -182,7 +172,6 @@ struct Hermes* Hermes_new(struct Interface* angelIface,
         .logger = logger
     }));
     Identity_set(out);
-    angelIface->receiveMessage = receiveMessage;
-    angelIface->receiverContext = out;
+    Iface_plumb(angelIface, &out->iface);
     return out;
 }

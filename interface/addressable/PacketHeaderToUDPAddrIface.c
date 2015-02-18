@@ -12,8 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "interface/Interface.h"
-#include "interface/addressable/PacketHeaderToUDPAddrInterface.h"
 #include "memory/Allocator.h"
 #include "util/platform/Sockaddr.h"
 #include "util/Assert.h"
@@ -23,16 +21,16 @@
 #include "wire/Message.h"
 #include "wire/Error.h"
 
-struct PacketHeaderToUDPAddrInterface_pvt
+struct PacketHeaderToUDPAddrIface_pvt
 {
-    struct PacketHeaderToUDPAddrInterface pub;
+    struct PacketHeaderToUDPAddrIface pub;
     Identity
 };
 
 static Iface_DEFUN incomingFromUdpIf(struct Iface* udpIf, struct Message* message)
 {
-    struct PacketHeaderToUDPAddrInterface_pvt* context =
-        Identity_containerOf(udpIf, struct PacketHeaderToUDPAddrInterface_pvt, pub.udpIf.iface);
+    struct PacketHeaderToUDPAddrIface_pvt* context =
+        Identity_containerOf(udpIf, struct PacketHeaderToUDPAddrIface_pvt, pub.udpIf.iface);
 
     struct Sockaddr_storage ss;
     Message_pop(message, &ss, context->pub.udpIf.addr->addrLen, NULL);
@@ -67,9 +65,9 @@ static Iface_DEFUN incomingFromUdpIf(struct Iface* udpIf, struct Message* messag
 
 static Iface_DEFUN incomingFromHeaderIf(struct Iface* iface, struct Message* message)
 {
-    struct PacketHeaderToUDPAddrInterface_pvt* context =
-        Identity_check((struct PacketHeaderToUDPAddrInterface_pvt*)
-            ((uint8_t*)(iface) - offsetof(struct PacketHeaderToUDPAddrInterface, headerIf)));
+    struct PacketHeaderToUDPAddrIface_pvt* context =
+        Identity_check((struct PacketHeaderToUDPAddrIface_pvt*)
+            ((uint8_t*)(iface) - offsetof(struct PacketHeaderToUDPAddrIface, headerIf)));
 
     if (message->length < Headers_IP6Header_SIZE + Headers_UDPHeader_SIZE) {
         // runt
@@ -103,11 +101,11 @@ static Iface_DEFUN incomingFromHeaderIf(struct Iface* iface, struct Message* mes
     return Iface_next(&context->pub.udpIf.iface, message);
 }
 
-struct PacketHeaderToUDPAddrInterface* PacketHeaderToUDPAddrInterface_new(struct Allocator* alloc,
+struct PacketHeaderToUDPAddrIface* PacketHeaderToUDPAddrIface_new(struct Allocator* alloc,
                                                                           struct Sockaddr* addr)
 {
-    struct PacketHeaderToUDPAddrInterface_pvt* context =
-        Allocator_malloc(alloc, sizeof(struct PacketHeaderToUDPAddrInterface_pvt));
+    struct PacketHeaderToUDPAddrIface_pvt* context =
+        Allocator_malloc(alloc, sizeof(struct PacketHeaderToUDPAddrIface_pvt));
     Identity_set(context);
 
     context->pub.udpIf.addr = Sockaddr_clone(addr, alloc);

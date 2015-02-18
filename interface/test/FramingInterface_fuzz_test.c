@@ -13,8 +13,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "crypto/random/Random.h"
-#include "interface/Interface.h"
-#include "interface/FramingInterface.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
 #include "util/Bits.h"
@@ -33,7 +31,7 @@ struct Context
     Identity
 };
 
-static uint8_t messageOut(struct Message* msg, struct Interface* iface)
+static uint8_t messageOut(struct Message* msg, struct Iface* iface)
 {
     struct Context* ctx = Identity_check((struct Context*) iface->receiverContext);
     Assert_true(ctx->currentMessage < ctx->messageCount);
@@ -72,8 +70,8 @@ int main()
     struct Context* ctx = Allocator_malloc(mainAlloc, sizeof(struct Context));
     Identity_set(ctx);
 
-    struct Interface iface = { .sendMessage = NULL };
-    struct Interface* fi = FramingInterface_new(4096, &iface, mainAlloc);
+    struct Iface iface = { .sendMessage = NULL };
+    struct Iface* fi = FramingInterface_new(4096, &iface, mainAlloc);
     fi->receiveMessage = messageOut;
     fi->receiverContext = ctx;
 
@@ -119,7 +117,7 @@ int main()
             struct Allocator* msgAlloc = Allocator_child(alloc);
             struct Message* m = Message_new(nextMessageSize, 0, msgAlloc);
             Message_pop(msg, m->bytes, nextMessageSize, NULL);
-            Interface_receiveMessage(&iface, m);
+            Iface_send(&iface, m);
             Allocator_free(msgAlloc);
         } while (msg->length);
 

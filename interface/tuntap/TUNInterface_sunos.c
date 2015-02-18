@@ -12,9 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "interface/Interface.h"
 #include "interface/InterfaceWrapper.h"
-#include "interface/tuntap/TUNInterface.h"
 #include "util/AddrTools.h"
 #include "util/Identity.h"
 #include "util/events/Pipe.h"
@@ -46,7 +44,8 @@
 
 struct TUNInterface_Illumos_pvt
 {
-    struct Interface generic;
+    struct Iface internalIf;
+    struct Iface externalIf;
     struct Pipe* const pipe;
     Identity
 };
@@ -60,25 +59,26 @@ static uint16_t ethertypeForPacketType(uint8_t highByte)
     return ((highByte >> 4) == 6) ? Ethernet_TYPE_IP6 : Ethernet_TYPE_IP4;
 }
 
-static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
+static Iface_DEFUN incomingFromWire(struct Iface* externalIf, struct Message* message)
 {
     struct TUNInterface_Illumos_pvt* ctx =
-        Identity_check((struct TUNInterface_Illumos_pvt*)iface->receiverContext);
+        Identity_containerOf(externalIf, struct TUNInterface_Illumos_pvt, externalIf);
 
     if (message->length < 4) {
-        return Error_NONE;
+        return 0;
     }
 
     Message_shift(message, 4, NULL);
     ((uint16_t*) message->bytes)[0] = 0;
     ((uint16_t*) message->bytes)[1] = ethertypeForPacketType(message->bytes[4]);
 
-    return Interface_receiveMessage(&ctx->generic, message);
+    return Iface_next(&ctx->internalIf, message);
 }
 
-static uint8_t sendMessage(struct Message* message, struct Interface* iface)
+static Iface_DEFUN incomingFromUs(struct Iface* internalIf, struct Message* message)
 {
-    struct TUNInterface_Illumos_pvt* ctx = Identity_check((struct TUNInterface_Illumos_pvt*)iface);
+    struct TUNInterface_Illumos_pvt* ctx =
+        Identity_containerOf(internalIf, struct TUNInterface_Illumos_pvt, internalIf);
 
     Message_shift(message, -4, NULL);
     uint16_t ethertype = ((uint16_t*) message->bytes)[-1];
@@ -86,10 +86,10 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
         Assert_true(!"Unsupported ethertype");
     }
 
-    return Interface_sendMessage(&ctx->pipe->iface, message);
+    return Iface_next(&ctx->externalIf, message);
 }
 
-struct Interface* TUNInterface_new(const char* interfaceName,
+struct Iface* TUNInterface_new(const char* interfaceName,
                                    char assignedInterfaceName[TUNInterface_IFNAMSIZ],
                                    int isTapMode,
                                    struct EventBase* base,
@@ -188,11 +188,12 @@ struct Interface* TUNInterface_new(const char* interfaceName,
 
     struct TUNInterface_Illumos_pvt* ctx =
         Allocator_clone(alloc, (&(struct TUNInterface_Illumos_pvt) {
-            .pipe = p
+            .pipe = p,
+            .externalIf = { .send = incomingFromWire },
+            .internalIf = { .send = incomingFromUs },
         }));
+    Iface_plumb(&ctx->externalIf, p);
     Identity_set(ctx);
-
-    InterfaceWrapper_wrap(&p->iface, sendMessage, receiveMessage, &ctx->generic);
 
     return &ctx->generic;
 }

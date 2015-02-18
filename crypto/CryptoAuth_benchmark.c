@@ -43,21 +43,30 @@ struct Context
     struct CryptoAuth* ca1;
     struct CryptoAuth* ca2;
 
-    struct Interface if1;
-    struct Interface* cif1;
+    struct Iface if1;
+    struct Iface* cif1;
     struct Message* if1Incoming;
 
-    struct Interface if2;
-    struct Interface* cif2;
+    struct Iface if2;
+    struct Iface* cif2;
     struct Message* if2Incoming;
 
     struct EventBase* base;
+    Identity
 };
 
-static inline uint8_t transferMessage(struct Message* message, struct Interface* iface)
+static Iface_DEFUN transferMessage1(struct Iface* iface, struct Message* message)
 {
-    struct Interface* otherIface = iface->senderContext;
+    struct Context* ctx = Identity_containerOf(iface, struct Context, if1);
     return otherIface->receiveMessage(message, otherIface);
+}
+
+static Iface_DEFUN transferMessage2(struct Iface* iface, struct Message* message)
+{
+    struct Context* ctx = Identity_containerOf(iface, struct Context, if2);
+// XXX
+    Iface_next(&ctx->if1, message);
+    return 0;
 }
 
 static inline void setupMessage(struct Context* ctx, uint16_t length)
@@ -116,14 +125,10 @@ void CryptoAuth_benchmark(struct EventBase* base,
         .ca1 = CryptoAuth_new(alloc, NULL, base, NULL, rand),
         .ca2 = CryptoAuth_new(alloc, privateKey, base, NULL, rand),
         .if1 = {
-            .sendMessage = transferMessage,
-            .senderContext = &ctx.if2,
-            .allocator = alloc
+            .send = transferMessage1
         },
         .if2 = {
-            .sendMessage = transferMessage,
-            .senderContext = &ctx.if1,
-            .allocator = alloc
+            .send = transferMessage2
         },
         .base = base
     };

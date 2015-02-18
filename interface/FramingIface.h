@@ -12,24 +12,26 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef PacketHeaderToUDPAddrInterface_H
-#define PacketHeaderToUDPAddrInterface_H
+#ifndef FramingIface_H
+#define FramingIface_H
 
-#include "interface/Interface.h"
-#include "interface/Iface.h"
-#include "interface/addressable/AddrIface.h"
 #include "memory/Allocator.h"
-#include "util/platform/Sockaddr.h"
 #include "util/Linker.h"
-Linker_require("interface/addressable/PacketHeaderToUDPAddrInterface.c")
+Linker_require("interface/FramingIface.c")
 
-struct PacketHeaderToUDPAddrInterface
-{
-    struct AddrIface udpIf;
-    struct Iface headerIf;
-};
-
-struct PacketHeaderToUDPAddrInterface* PacketHeaderToUDPAddrInterface_new(struct Allocator* alloc,
-                                                                          struct Sockaddr* addr);
+/**
+ * Framed message format:
+ * [4 bytes length][ <length> bytes content ....... ]
+ * The length is of only the content, not including the beginning 4 bytes
+ * which represents the length itself.
+ *
+ * @param maxMessageSize how large of a framed message to allow
+ * @param wrappedIface the stream interface which will be used to
+ *                     communicate framed messages to a peer.
+ * @param alloc
+ */
+struct Iface* FramingIface_new(uint32_t maxMessageSize,
+                                       struct Iface* wrappedIface,
+                                       struct Allocator* alloc);
 
 #endif

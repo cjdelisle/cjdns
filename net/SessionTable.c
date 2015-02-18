@@ -15,7 +15,6 @@
 #include "net/SessionTable.h"
 #include "crypto/CryptoAuth.h"
 #include "crypto/AddressCalc.h"
-#include "interface/Interface.h"
 #include "memory/Allocator.h"
 #include "util/Bits.h"
 #include "util/events/Time.h"
@@ -64,7 +63,7 @@ struct Ip6
 struct SessionTable
 {
     /** Trick interface which is used for receiving and sending to the inside/outside world. */
-    struct Interface iface;
+    struct Iface iface;
 
     Interface_Callback encryptedOutgoing;
 
@@ -121,7 +120,7 @@ static void stateChange(struct SessionTable_Session_pvt* ss,
 {
 }
 
-static uint8_t sendMessage(struct Message* msg, struct Interface* iface)
+static uint8_t sendMessage(struct Message* msg, struct Iface* iface)
 {
     struct SessionTable_Session_pvt* ss =
         Identity_check((struct SessionTable_Session_pvt*)iface);
@@ -139,7 +138,7 @@ static uint8_t sendMessage(struct Message* msg, struct Interface* iface)
     return Interface_sendMessage(&ss->sm->iface, msg);
 }
 
-static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
+static uint8_t receiveMessage(struct Message* msg, struct Iface* iface)
 {
     struct SessionTable_Session_pvt* ss =
         Identity_check((struct SessionTable_Session_pvt*)iface->receiverContext);
@@ -154,7 +153,7 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
         stateChange(ss, timeOfLastIn, ss->pub.timeOfLastOut, prevState);
     }
 
-    return Interface_receiveMessage(&ss->sm->iface, msg);
+    return Iface_send(&ss->sm->iface, msg);
 }
 
 struct SessionTable_Session* SessionTable_sessionForIp6(uint8_t* lookupKey,

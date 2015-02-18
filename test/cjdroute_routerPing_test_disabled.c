@@ -25,7 +25,7 @@
 
 #define PADDING 512
 
-static uint8_t catchResponse(struct Message* msg, struct Interface* iface)
+static uint8_t catchResponse(struct Message* msg, struct Iface* iface)
 {
     iface->receiverContext = msg;
     return 0;

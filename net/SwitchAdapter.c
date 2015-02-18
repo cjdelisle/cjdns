@@ -12,7 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "interface/Interface.h"
 #include "memory/Allocator.h"
 #include "net/SwitchAdapter.h"
 #include "util/Identity.h"
@@ -38,7 +37,7 @@ static Iface_DEFUN incomingFromControlIf(struct Iface* controlIf, struct Message
 {
     struct SwitchAdapter_pvt* sa =
         Identity_containerOf(controlIf, struct SwitchAdapter_pvt, pub.controlIf);
-    Interface_receiveMessage(&sa->pub.switchIf, msg);
+    Iface_send(&sa->pub.switchIf, msg);
     return NULL;
 }
 
@@ -46,11 +45,11 @@ static Iface_DEFUN incomingFromSessionManagerIf(struct Iface* sessionManagerIf, 
 {
     struct SwitchAdapter_pvt* sa =
         Identity_containerOf(sessionManagerIf, struct SwitchAdapter_pvt, pub.sessionManagerIf);
-    Interface_receiveMessage(&sa->pub.switchIf, msg);
+    Iface_send(&sa->pub.switchIf, msg);
     return NULL;
 }
 
-static uint8_t incomingFromSwitchIf(struct Message* msg, struct Interface* switchIf)
+static uint8_t incomingFromSwitchIf(struct Message* msg, struct Iface* switchIf)
 {
     struct SwitchAdapter_pvt* sa =
         Identity_containerOf(switchIf, struct SwitchAdapter_pvt, pub.switchIf);

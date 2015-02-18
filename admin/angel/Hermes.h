@@ -18,7 +18,7 @@
 #include "benc/Dict.h"
 #include "memory/Allocator.h"
 #include "exception/Except.h"
-#include "interface/Interface.h"
+#include "interface/Iface.h"
 #include "util/log/Log.h"
 #include "util/events/EventBase.h"
 #include "util/Linker.h"
@@ -59,7 +59,7 @@ void Hermes_callAngel(Dict* message,
                       struct Hermes* hermes);
 
 
-struct Hermes* Hermes_new(struct Interface* angelIface,
+struct Hermes* Hermes_new(struct Iface* angelIface,
                           struct EventBase* eventBase,
                           struct Log* logger,
                           struct Allocator* alloc);

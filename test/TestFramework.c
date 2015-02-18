@@ -41,8 +41,8 @@
 
 struct TestFramework_Link
 {
-    struct Interface srcIf;
-    struct Interface destIf;
+    struct Iface srcIf;
+    struct Iface destIf;
     struct TestFramework* src;
     struct TestFramework* dest;
     int serverIfNum;
@@ -50,7 +50,7 @@ struct TestFramework_Link
     Identity
 };
 
-static uint8_t sendTo(struct Message* msg, struct Interface* iface)
+static uint8_t sendTo(struct Message* msg, struct Iface* iface)
 {
     struct TestFramework_Link* link =
         Identity_check((struct TestFramework_Link*)iface->senderContext);
@@ -59,7 +59,7 @@ static uint8_t sendTo(struct Message* msg, struct Interface* iface)
     Assert_true(!(msg->capacity % 4) || !"length fault");
     Assert_true(((int)msg->capacity >= msg->length) || !"length fault0");
 
-    struct Interface* dest;
+    struct Iface* dest;
     struct TestFramework* srcTf;
     if (&link->destIf == iface) {
         dest = &link->srcIf;

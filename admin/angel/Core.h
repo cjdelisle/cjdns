@@ -34,7 +34,7 @@ void Core_initTunnel(String* desiredDeviceName,
 void Core_init(struct Allocator* alloc,
                struct Log* logger,
                struct EventBase* eventBase,
-               struct Interface* angelIface,
+               struct Iface* angelIface,
                struct Random* rand,
                struct Except* eh);
 

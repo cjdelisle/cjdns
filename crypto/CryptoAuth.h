@@ -17,7 +17,6 @@
 
 #include "benc/Object.h"
 #include "crypto/random/Random.h"
-#include "interface/Interface.h"
 #include "memory/Allocator.h"
 #include "util/Endian.h"
 #include "util/log/Log.h"
@@ -107,7 +106,7 @@ List* CryptoAuth_getUsers(struct CryptoAuth* context, struct Allocator* alloc);
  * @return the user object added by calling CryptoAuth_addUser() or NULL if this session is not
  *         authenticated.
  */
-String* CryptoAuth_getUser(struct Interface* iface);
+String* CryptoAuth_getUser(struct Iface* iface);
 
 /**
  * Create a new crypto authenticator.
@@ -145,7 +144,7 @@ struct CryptoAuth* CryptoAuth_new(struct Allocator* allocator,
  * @param name a name for this CA which will appear in logs.
  * @param context the CryptoAuth context.
  */
-struct Interface* CryptoAuth_wrapInterface(struct Interface* toWrap,
+struct Iface* CryptoAuth_wrapInterface(struct Iface* toWrap,
                                            const uint8_t herPublicKey[32],
                                            const uint8_t herIp6[16],
                                            const bool requireAuth,
@@ -164,15 +163,15 @@ struct Interface* CryptoAuth_wrapInterface(struct Interface* toWrap,
  */
 void CryptoAuth_setAuth(const String* password,
                         const uint8_t authType,
-                        struct Interface* wrappedInterface);
+                        struct Iface* wrappedInterface);
 
 /** @return a pointer to the other party's public key. */
-uint8_t* CryptoAuth_getHerPublicKey(struct Interface* iface);
+uint8_t* CryptoAuth_getHerPublicKey(struct Iface* iface);
 
 /** Reset the session's state to CryptoAuth_NEW, a new connection will be negotiated. */
-void CryptoAuth_reset(struct Interface* iface);
+void CryptoAuth_reset(struct Iface* iface);
 
-void CryptoAuth_resetIfTimeout(struct Interface* iface);
+void CryptoAuth_resetIfTimeout(struct Iface* iface);
 
 /** New CryptoAuth session, has not sent or received anything. */
 #define CryptoAuth_NEW         0
@@ -213,7 +212,7 @@ static inline char* CryptoAuth_stateString(int state)
  *                CryptoAuth_HANDSHAKE2 or
  *                CryptoAuth_ESTABLISHED
  */
-int CryptoAuth_getState(struct Interface* iface);
+int CryptoAuth_getState(struct Iface* iface);
 
 /**
  * Get the interface on the other side of this CryptoAuth session.
@@ -224,11 +223,11 @@ int CryptoAuth_getState(struct Interface* iface);
  * @param iface the wrapped or wrapper iface.
  * @return the opposite.
  */
-struct Interface* CryptoAuth_getConnectedInterface(struct Interface* iface);
+struct Iface* CryptoAuth_getConnectedInterface(struct Iface* iface);
 
 /**
  * Get the structure which is used to protect against packet replay attacks.
  */
-struct ReplayProtector* CryptoAuth_getReplayProtector(struct Interface* iface);
+struct ReplayProtector* CryptoAuth_getReplayProtector(struct Iface* iface);
 
 #endif

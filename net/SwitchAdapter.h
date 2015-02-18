@@ -15,7 +15,6 @@
 #ifndef SwitchAdapter_H
 #define SwitchAdapter_H
 
-#include "interface/Interface.h"
 #include "interface/Iface.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
@@ -28,7 +27,7 @@ Linker_require("net/SwitchAdapter.c")
 struct SwitchAdapter
 {
     /** Sends and handles packets to/from switch. */
-    struct Interface switchIf;
+    struct Iface switchIf;
 
     /**
      * Sends forth the packets with control headers (0xffffffff) under the switch header.

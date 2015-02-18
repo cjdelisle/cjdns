@@ -25,9 +25,9 @@
 #include "benc/serialization/standard/BencMessageReader.h"
 #include "benc/serialization/standard/BencMessageWriter.h"
 #include "crypto/AddressCalc.h"
-#include "crypto/CryptoAuth_benchmark.h"
 #include "dht/Address.h"
 #include "exception/Except.h"
+#include "interface/Iface.h"
 #include "io/FileReader.h"
 #include "io/FileWriter.h"
 #include "io/Reader.h"
@@ -333,11 +333,14 @@ static int usage(struct Allocator* alloc, char* appName)
 
 static int benchmark()
 {
+Assert_failure("unimplemented");
+/*
     struct Allocator* alloc = MallocAllocator_new(1<<22);
     struct EventBase* base = EventBase_new(alloc);
     struct Writer* logWriter = FileWriter_new(stdout, alloc);
     struct Log* logger = WriterLog_new(logWriter, alloc);
     CryptoAuth_benchmark(base, logger, alloc);
+*/
     return 0;
 }
 
@@ -582,7 +585,7 @@ int main(int argc, char** argv)
 
     struct Message* toAngelMsg = Message_new(0, 1024, allocator);
     BencMessageWriter_write(preConf, toAngelMsg, eh);
-    Interface_sendMessage(&angelPipe->iface, toAngelMsg);
+    Iface_send(&angelPipe->iface, toAngelMsg);
 
     Log_debug(logger, "Sent [%d] bytes to angel process", toAngelMsg->length);
 

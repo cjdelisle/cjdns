@@ -34,15 +34,17 @@
 #define MESSAGEB "INDEED"
 
 struct Context {
+    struct Iface iface;
     struct Allocator* alloc;
     struct EventBase* base;
     struct Log* log;
+    Identity
 };
 
 static void onConnectionParent(struct Pipe* p, int status)
 {
     Assert_true(!status);
-    struct Context* c = p->iface.receiverContext;
+    struct Context* c = Identity_check((struct Context*) p->userData);
 
     struct Allocator* alloc = Allocator_child(c->alloc);
     uint8_t* bytes = Allocator_calloc(alloc, CString_strlen(MESSAGE) + 1, 1);
@@ -55,17 +57,17 @@ static void onConnectionParent(struct Pipe* p, int status)
         .bytes = bytes
     }));
     printf("Parent sending message [%s]\n", bytes);
-    Interface_sendMessage(&p->iface, m);
+    Iface_send(&c->iface, m);
     Allocator_free(alloc);
 }
 
-static uint8_t receiveMessageParent(struct Message* msg, struct Interface* iface)
+static Iface_DEFUN receiveMessageParent(struct Iface* iface, struct Message* msg)
 {
-    struct Context* c = iface->receiverContext;
+    struct Context* c = Identity_check((struct Context*) iface);
     Assert_true(msg->length == (int)CString_strlen(MESSAGEB));
     Assert_true(!Bits_memcmp(msg->bytes, MESSAGEB, CString_strlen(MESSAGEB)));
     Allocator_free(c->alloc);
-    return Error_NONE;
+    return NULL;
 }
 
 static void timeout(void* vNULL)
@@ -79,8 +81,9 @@ static void onConnectionChild(struct Pipe* p, int status)
     printf("Child connected\n");
 }
 
-static uint8_t receiveMessageChild(struct Message* m, struct Interface* iface)
+static Iface_DEFUN receiveMessageChild(struct Iface* iface, struct Message* m)
 {
+    struct Context* c = Identity_check((struct Context*) iface);
     printf("Child received message\n");
     Assert_true(m->length == (int)CString_strlen(MESSAGE));
     Assert_true(!Bits_memcmp(m->bytes, MESSAGE, CString_strlen(MESSAGE)));
@@ -88,22 +91,22 @@ static uint8_t receiveMessageChild(struct Message* m, struct Interface* iface)
     Message_shift(m, -((int)CString_strlen(MESSAGE)), NULL);
     Message_push(m, MESSAGEB, CString_strlen(MESSAGEB), NULL);
 
-    Interface_sendMessage(iface, m);
+    Iface_send(&c->iface, m);
 
     // shutdown
-    struct Context* ctx = iface->receiverContext;
-    Allocator_free(ctx->alloc);
+    Allocator_free(c->alloc);
 
-    return Error_NONE;
+    return NULL;
 }
 
 static void child(char* name, struct Context* ctx)
 {
     struct Pipe* pipe = Pipe_named(name, ctx->base, NULL, ctx->alloc);
     pipe->logger = ctx->log;
-    pipe->iface.receiveMessage = receiveMessageChild;
-    pipe->iface.receiverContext = ctx;
     pipe->onConnection = onConnectionChild;
+    pipe->userData = ctx;
+    ctx->iface.send = receiveMessageChild;
+    Iface_plumb(&ctx->iface, &pipe->iface);
     Timeout_setTimeout(timeout, NULL, 2000, ctx->base, ctx->alloc);
     EventBase_beginLoop(ctx->base);
 }
@@ -117,6 +120,7 @@ int main(int argc, char** argv)
     ctx->alloc = alloc;
     ctx->base = eb;
     ctx->log = log;
+    ctx->iface.send = receiveMessageParent;
 
     if (argc > 3 && !CString_strcmp("Process_test", argv[1]) && !CString_strcmp("child", argv[2])) {
         child(argv[3], ctx);
@@ -129,10 +133,9 @@ int main(int argc, char** argv)
 
     struct Pipe* pipe = Pipe_named(name, eb, NULL, alloc);
     pipe->logger = log;
-    pipe->iface.receiveMessage = receiveMessageParent;
-    pipe->iface.receiverContext = ctx;
+    pipe->userData = ctx;
     pipe->onConnection = onConnectionParent;
-
+    Iface_plumb(&ctx->iface, &pipe->iface);
 
     char* path = Process_getPath(alloc);
 

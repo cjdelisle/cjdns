@@ -15,7 +15,6 @@
 #ifndef UpperDistributor_H
 #define UpperDistributor_H
 
-#include "interface/Interface.h"
 #include "memory/Allocator.h"
 #include "net/EventEmitter.h"
 #include "util/log/Log.h"

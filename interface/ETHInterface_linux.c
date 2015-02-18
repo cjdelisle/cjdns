@@ -13,8 +13,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "exception/Except.h"
-#include "interface/Interface.h"
-#include "interface/ETHInterface.h"
 #include "memory/Allocator.h"
 #include "net/IfController.h"
 #include "wire/Headers.h"

@@ -24,11 +24,14 @@
 
 struct Context
 {
+    struct Iface iface;
     struct EventBase* eventBase;
     struct Message* message;
     struct Allocator* alloc;
     struct Timeout* timeout;
     int timedOut;
+    int messageReceived;
+    Identity
 };
 
 static void timeout(void* vcontext)
@@ -38,9 +41,10 @@ static void timeout(void* vcontext)
     EventBase_endLoop(ctx->eventBase);
 }
 
-static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
+static Iface_DEFUN receiveMessage(struct Iface* iface, struct Message* message)
 {
-    struct Context* ctx = iface->receiverContext;
+    struct Context* ctx = Identity_check((struct Context*) iface);
+    if (ctx->messageReceived) { return 0; }
     ctx->message = Message_clone(message, ctx->alloc);
 
     Timeout_clearTimeout(ctx->timeout);
@@ -49,25 +53,24 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
     return 0;
 }
 
-struct Message* InterfaceWaiter_waitForData(struct Interface* iface,
+struct Message* InterfaceWaiter_waitForData(struct Iface* iface,
                                             struct EventBase* eventBase,
                                             struct Allocator* alloc,
                                             struct Except* eh)
 {
     struct Context ctx = {
+        .iface = { .send = receiveMessage },
         .eventBase = eventBase,
         .alloc = alloc
     };
+    Identity_set(&ctx);
+    Iface_plumb(iface, &ctx.iface);
 
     struct Allocator* tempAlloc = Allocator_child(alloc);
-
-    iface->receiverContext = &ctx;
-    iface->receiveMessage = receiveMessage;
-
     ctx.timeout = Timeout_setTimeout(timeout, &ctx, 2000, eventBase, tempAlloc);
     EventBase_beginLoop(eventBase);
 
-    iface->receiveMessage = NULL;
+    Iface_unplumb(iface, &ctx.iface);
 
     Allocator_free(tempAlloc);
     if (ctx.timedOut) {

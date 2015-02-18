@@ -17,7 +17,6 @@
 
 #include "benc/List.h"
 #include "util/events/EventBase.h"
-#include "interface/Interface.h"
 #include "net/IfController.h"
 #include "util/Gcc.h"
 #include "util/Assert.h"
@@ -66,7 +65,7 @@ Assert_compileTime(sizeof(struct ETHInterface_Sockaddr) == ETHInterface_Sockaddr
  *           and use when starting connections.
  * @return a new ETHInterface.
  */
-struct Interface* ETHInterface_new(struct EventBase* eventBase,
+struct Iface* ETHInterface_new(struct EventBase* eventBase,
                                    const char* bindDevice,
                                    struct Allocator* alloc,
                                    struct Except* exHandler,
