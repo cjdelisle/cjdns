@@ -52,7 +52,7 @@ struct Ip6
 };
 #define Map_NAME OfSessionsByIp6
 #define Map_KEY_TYPE struct Ip6
-#define Map_VALUE_TYPE struct SessionTable_Session_pvt*
+#define Map_VALUE_TYPE struct SessionTable_Session*
 #define Map_ENABLE_HANDLES
 #include "util/Map.h"
 
@@ -99,24 +99,22 @@ static void cleanup(void* vsm)
 
 static int removeSession(struct Allocator_OnFreeJob* job)
 {
-    struct SessionTable_Session_pvt* s =
-        Identity_check((struct SessionTable_Session_pvt*) job->userData);
-    Assert_true(st == s->sm);
-    int index =
-        Map_OfSessionsByIp6_indexForHandle(sess->receiveHandle - s->sm.first, &s->sm.ifaceMap);
+    struct SessionTable_Session* s = (struct SessionTable_Session*) job->userData;
+    struct SessionTable* st = Identity_check((struct SessionTable*) s->sessionTable);
+    int index = Map_OfSessionsByIp6_indexForHandle(s->receiveHandle - st->first, &st->ifaceMap);
     Assert_true(index >= 0);
-    Map_OfSessionsByIp6_remove(index, &s->sm.ifaceMap);
+    Map_OfSessionsByIp6_remove(index, &st->ifaceMap);
     return 0;
 }
 
-static void check(struct SessionTable* sm, int mapIndex)
+static void check(struct SessionTable* st, int mapIndex)
 {
-    Assert_true(sm->ifaceMap.keys[mapIndex].bytes[0] == 0xfc);
-    uint8_t* herPubKey = CryptoAuth_getHerPublicKey(sm->ifaceMap.values[mapIndex]->pub.internal);
+    Assert_true(st->ifaceMap.keys[mapIndex].bytes[0] == 0xfc);
+    uint8_t* herPubKey = st->ifaceMap.values[mapIndex].caSession->herPublicKey;
     if (!Bits_isZero(herPubKey, 32)) {
         uint8_t ip6[16];
         AddressCalc_addressForPublicKey(ip6, herPubKey);
-        Assert_true(!Bits_memcmp(&sm->ifaceMap.keys[mapIndex], ip6, 16));
+        Assert_true(!Bits_memcmp(&st->ifaceMap.keys[mapIndex], ip6, 16));
     }
 }
 /*
@@ -163,62 +161,50 @@ static uint8_t receiveMessage(struct Message* msg, struct Iface* iface)
     return Iface_send(&ss->sm->iface, msg);
 }*/
 
-struct SessionTable_Session* SessionTable_sessionForIp6(uint8_t* lookupKey,
-                                                            struct SessionTable* sm)
+struct SessionTable_Session* SessionTable_sessionForIp6(uint8_t* ip6, struct SessionTable* st)
 {
-    int ifaceIndex = Map_OfSessionsByIp6_indexForKey((struct Ip6*)lookupKey, &sm->ifaceMap);
+    int ifaceIndex = Map_OfSessionsByIp6_indexForKey((struct Ip6*)ip6, &st->ifaceMap);
     if (ifaceIndex == -1) { return NULL; }
-    check(sm, ifaceIndex);
-    struct SessionTable_Session_pvt* sess = Identity_check(sm->ifaceMap.values[ifaceIndex]);
-    return &sess->pub;
+    check(st, ifaceIndex);
+    return st->ifaceMap.values[ifaceIndex];
 }
 
-struct SessionTable_Session* SessionTable_newSession(uint8_t* lookupKey,
-                                                     uint8_t cryptoKey[32],
-                                                     struct Allocator* alloc,
-                                                     struct SessionTable* sm)
+void SessionTable_regSession(uint8_t* ip6,
+                             uint8_t cryptoKey[32],
+                             struct SessionTable_Session* session,
+                             struct Allocator* alloc,
+                             struct SessionTable* st)
 {
     Assert_true(cryptoKey);
-    Assert_true(!SessionTable_sessionForIp6(lookupKey, sm));
-
-    struct SessionTable_Session_pvt* ss =
-        Allocator_calloc(alloc, sizeof(struct SessionTable_Session_pvt), 1);
-    Identity_set(ss);
-    ss->sm = sm;
-    ss->pub.alloc = alloc;
-
-    ss->pub.caSession = CryptoAuth_newSession(cryptoKey, lookupKey, false, "inner", sm->cryptoAuth);
-
-    int ifaceIndex = Map_OfSessionsByIp6_put((struct Ip6*)lookupKey, &ss, &sm->ifaceMap);
-
-    ss->pub.receiveHandle = sm->ifaceMap.handles[ifaceIndex] + sm->first;
-
-    check(sm, ifaceIndex);
-
-    Allocator_onFree(alloc, removeSession, ss);
-
+    Assert_true(!SessionTable_sessionForIp6(ip6, st));
+    session->sessionTable = st;
+    session->caSession = CryptoAuth_newSession(cryptoKey, ip6, false, "inner", st->cryptoAuth);
+    int ifaceIndex = Map_OfSessionsByIp6_put((struct Ip6*)ip6, &ss, &st->ifaceMap);
+    session->receiveHandle = st->ifaceMap.handles[ifaceIndex] + st->first;
+    check(st, ifaceIndex);
+    Allocator_onFree(alloc, removeSession, session);
     return &Identity_check(sm->ifaceMap.values[ifaceIndex])->pub;
 }
 
-struct SessionTable_Session* SessionTable_sessionForHandle(uint32_t handle, struct SessionTable* sm)
+struct SessionTable_Session* SessionTable_sessionForHandle(uint32_t handle, struct SessionTable* st)
 {
-    int index = Map_OfSessionsByIp6_indexForHandle(handle - sm->first, &sm->ifaceMap);
+    int index = Map_OfSessionsByIp6_indexForHandle(handle - st->first, &st->ifaceMap);
     if (index < 0) { return NULL; }
-    check(sm, index);
-    return &Identity_check(sm->ifaceMap.values[index])->pub;
+    check(st, index);
+    return st->ifaceMap.values[index];
 }
 
-struct SessionTable_HandleList* SessionTable_getHandleList(struct SessionTable* sm,
+struct SessionTable_HandleList* SessionTable_getHandleList(struct SessionTable* st,
                                                            struct Allocator* alloc)
 {
     struct SessionTable_HandleList* out =
         Allocator_malloc(alloc, sizeof(struct SessionTable_HandleList));
-    uint32_t* buff = Allocator_malloc(alloc, 4 * sm->ifaceMap.count);
-    Bits_memcpy(buff, sm->ifaceMap.handles, 4 * sm->ifaceMap.count);
+    uint32_t* buff = Allocator_malloc(alloc, 4 * st->ifaceMap.count);
+    Bits_memcpy(buff, st->ifaceMap.handles, 4 * st->ifaceMap.count);
     out->handles = buff;
-    out->count = sm->ifaceMap.count;
+    out->count = st->ifaceMap.count;
     for (int i = 0; i < (int)out->count; i++) {
-        buff[i] += sm->first;
+        buff[i] += st->first;
     }
     return out;
 }

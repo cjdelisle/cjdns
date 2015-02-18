@@ -73,13 +73,13 @@ static struct Message* mergeMessage(struct FramingIface_pvt* fi, struct Message*
     return out;
 }
 
-static uint8_t receiveMessage(struct Message* msg, struct Iface* iface)
+static Iface_DEFUN receiveMessage(struct Iface* iface, struct Message* msg)
 {
-    struct FramingIface_pvt* fi =
-        Identity_check((struct FramingIface_pvt*)iface->receiverContext);
+    struct FramingIface_pvt* fi = Identity_containerOf(streamIf, struct FramingIface_pvt, streamIf);
 
     if (fi->bytesRemaining > fi->maxMessageSize) {
-        return Error_OVERSIZE_MESSAGE;
+        // Oversize message
+        return NULL;
     }
 
     if (fi->frameParts) {
@@ -152,29 +152,24 @@ static uint8_t receiveMessage(struct Message* msg, struct Iface* iface)
     }
 }
 
-static uint8_t sendMessage(struct Message* msg, struct Iface* iface)
+static Iface_DEFUN sendMessage(struct Iface* messageIf, struct Message* msg)
 {
-    struct FramingIface_pvt* fi = Identity_check((struct FramingIface_pvt*)iface);
-
-    int32_t length_be = Endian_hostToBigEndian32((uint32_t)msg->length);
-    Message_push(msg, &length_be, 4, NULL);
-
-    return Interface_sendMessage(fi->wrapped, msg);
+    struct FramingIface_pvt* fi =
+        Identity_containerOf(messageIf, struct FramingIface_pvt, messageIf);
+    Message_32(msg, msg->length, NULL);
+    return Iface_next(&fi->streamIf, msg);
 }
 
-struct Iface* FramingIface_new(uint32_t maxMessageSize,
-                                       struct Iface* toWrap,
-                                       struct Allocator* alloc)
+struct Iface* FramingIface_new(uint32_t maxMsgSize, struct Iface* toWrap, struct Allocator* alloc)
 {
     struct FramingIface_pvt* context =
         Allocator_clone(alloc, (&(struct FramingIface_pvt) {
-            .maxMessageSize = maxMessageSize,
+            .maxMessageSize = maxMsgSize,
             .alloc = alloc,
-            .wrapped = toWrap
+            .streamIf = { .send = receiveMessage },
+            .messageIf = { .send = sendMessage }
         }));
     Identity_set(context);
-
-    InterfaceWrapper_wrap(toWrap, sendMessage, receiveMessage, &context->generic);
-
-    return &context->generic;
+    Iface_plumb(toWrap, &context->streamIf);
+    return &context->messageIf;
 }

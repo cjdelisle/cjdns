@@ -390,11 +390,11 @@ struct DNSServer_RainflyRequest
     Identity
 };
 
-static Iface_DEFUN onRainflyReplyB(struct DNSServer_RainflyRequest* lookup,
-                                   struct DNSServer_pvt* ctx,
-                                   Dict* value,
-                                   enum RainflyClient_ResponseCode code,
-                                   struct Except* eh)
+static void onRainflyReplyB(struct DNSServer_RainflyRequest* lookup,
+                            struct DNSServer_pvt* ctx,
+                            Dict* value,
+                            enum RainflyClient_ResponseCode code,
+                            struct Except* eh)
 {
     struct DNSServer_Message* dmesg = lookup->dmesg;
     struct DNSServer_Question* q = dmesg->questions[0];
@@ -428,7 +428,8 @@ static Iface_DEFUN onRainflyReplyB(struct DNSServer_RainflyRequest* lookup,
         dmesg->additionals = NULL;
         Bits_memset(&dmesg->flags, 0, sizeof(struct DNSServer_Flags));
         dmesg->flags.responseCode = ResponseCode_NO_ERROR;
-        return sendResponse(lookup->msg, dmesg, lookup->addr, ctx, eh);
+        Iface_CALL(sendResponse, lookup->msg, dmesg, lookup->addr, ctx, eh);
+        return;
     }
 
     Bits_memset(&dmesg->flags, 0, sizeof(struct DNSServer_Flags));
@@ -436,7 +437,7 @@ static Iface_DEFUN onRainflyReplyB(struct DNSServer_RainflyRequest* lookup,
     dmesg->answers = NULL;
     dmesg->authorities = NULL;
     dmesg->additionals = NULL;
-    return sendResponse(lookup->msg, dmesg, lookup->addr, ctx, eh);
+    Iface_CALL(sendResponse, lookup->msg, dmesg, lookup->addr, ctx, eh);
 }
 
 

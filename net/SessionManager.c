@@ -23,6 +23,11 @@
 #include "wire/RouteHeader.h"
 #include "util/events/Timeout.h"
 
+/** Handle numbers 0-3 are reserved for CryptoAuth nonces. */
+#define MIN_FIRST_HANDLE 4
+
+#define MAX_FIRST_HANDLE 100000
+
 struct BufferedMessage
 {
     struct Message* msg;
@@ -38,6 +43,12 @@ struct Ip6 {
 #define Map_NAME BufferedMessages
 #include "util/Map.h"
 
+#define Map_KEY_TYPE struct Ip6
+#define Map_VALUE_TYPE struct SessionManager_Session_pvt*
+#define Map_NAME OfSessionsByIp6
+#define Map_ENABLE_HANDLES
+#include "util/Map.h"
+
 struct SessionManager_pvt
 {
     struct SessionManager pub;
@@ -47,6 +58,18 @@ struct SessionManager_pvt
     struct Log* log;
     struct CryptoAuth* ca;
     struct EventBase* eventBase;
+    uint32_t firstHandle;
+    Identity
+};
+
+struct SessionManager_Session_pvt
+{
+    struct SessionManager_Session pub;
+
+    struct SessionManager_pvt* sessionManager;
+
+    struct Allocator* alloc;
+
     Identity
 };
 
@@ -70,63 +93,114 @@ struct SessionManager_pvt
 #define debugHandlesAndLabel0(logger, session, label, message) \
     debugHandlesAndLabel(logger, session, label, "%s", message)
 
-static void sendSession(struct SessionManager_pvt* sm,
-                        struct SessionTable_Session* sess,
+static void sendSession(struct SessionManager_Session_pvt* sess,
                         uint64_t path,
                         uint32_t destPf,
-                        enum PFChan_Core ev,
-                        struct Allocator* alloc)
+                        enum PFChan_Core ev)
 {
     struct PFChan_Node session = {
         .path_be = Endian_hostToBigEndian64(path),
         .metric_be = 0xffffffff,
-        .version_be = Endian_hostToBigEndian32(sess->version)
+        .version_be = Endian_hostToBigEndian32(sess->pub.version)
     };
-    Bits_memcpyConst(session.ip6, sess->caSession->herIp6, 16);
-    Bits_memcpyConst(session.publicKey, sess->caSession->herPublicKey, 32);
+    Bits_memcpyConst(session.ip6, sess->pub.caSession->herIp6, 16);
+    Bits_memcpyConst(session.publicKey, sess->pub.caSession->herPublicKey, 32);
 
+    struct Allocator* alloc = Allocator_child(sess->alloc);
     struct Message* msg = Message_new(0, PFChan_Node_SIZE + 512, alloc);
     Message_push(msg, &session, PFChan_Node_SIZE, NULL);
     Message_push32(msg, destPf, NULL);
     Message_push32(msg, ev, NULL);
-    Iface_send(&sm->eventIf, msg);
+    Iface_send(&sess->sessionManager->eventIf, msg);
+    Allocator_free(alloc);
 }
 
 static int sessionCleanup(struct Allocator_OnFreeJob* job)
 {
-    struct SessionTable_Session* sess = job->userData;
-    void* vsm = SessionTable_getInterfaceContext(sess);
-    struct SessionManager_pvt* sm = Identity_check((struct SessionManager_pvt*) vsm);
-    struct Allocator* alloc = Allocator_child(sm->alloc);
-    sendSession(sm, sess, sess->sendSwitchLabel, 0xffffffff, PFChan_Core_SESSION_ENDED, alloc);
-    Allocator_free(alloc);
+    struct SessionManager_Session_pvt* sess =
+        Identity_check((struct SessionManager_Session_pvt*) job->userData);
+    sendSession(sess, sess->pub.sendSwitchLabel, 0xffffffff, PFChan_Core_SESSION_ENDED);
     return 0;
 }
 
-static struct SessionTable_Session* getSession(struct SessionManager_pvt* sm,
-                                               uint8_t ip6[16],
-                                               uint8_t pubKey[32],
-                                               uint32_t version,
-                                               uint64_t label)
+static inline struct SessionManager_Session_pvt* sessionForHandle(uint32_t handle,
+                                                                  struct SessionManager_pvt* sm)
 {
-    struct SessionTable_Session* sess = SessionTable_sessionForIp6(ip6, sm->pub.sessionTable);
-    if (sess) {
-        sess->version = (sess->version) ? sess->version : version;
-        sess->sendSwitchLabel = (sess->sendSwitchLabel) ? sess->sendSwitchLabel : label;
-    } else {
-        struct Allocator* alloc = Allocator_child(sm->alloc);
-        sess = SessionTable_newSession(ip6, pubKey, alloc, sm->pub.sessionTable);
-        sess->version = version;
-        sess->timeOfCreation = Time_currentTimeMilliseconds(sm->eventBase);
-        sess->sendSwitchLabel = label;
-        Allocator_onFree(sess->external.allocator, sessionCleanup, sess);
-        struct Allocator* alloc = Allocator_child(sm->alloc);
-        sendSession(sm, sess, label, 0xffffffff, PFChan_Core_SESSION, alloc);
-        Allocator_free(alloc);
-    }
-    return sess;
+    int index = Map_OfSessionsByIp6_indexForHandle(handle - sm->firstHandle, &sm->ifaceMap);
+    if (index < 0) { return NULL; }
+    check(sm, index);
+    return Identity_check(sm->ifaceMap.values[index]);
 }
 
+struct SessionManager_Session* SessionManager_sessionForHandle(uint32_t handle,
+                                                               struct SessionManager* manager)
+{
+    struct SessionManager_pvt* sm = Identity_check((struct SessionManager_pvt*) manager);
+    return sessionForHandle(handle, sm);
+}
+
+static inline struct SessionManager_Session* sessionForIp6(uint8_t ip6[16],
+                                                           struct SessionManager_pvt* sm)
+{
+    int ifaceIndex = Map_OfSessionsByIp6_indexForKey((struct Ip6*)ip6, &sm->ifaceMap);
+    if (ifaceIndex == -1) { return NULL; }
+    check(st, ifaceIndex);
+    return Identity_check(sm->ifaceMap.values[ifaceIndex]);
+}
+
+struct SessionManager_Session* SessionManager_sessionForIp6(uint8_t* ip6,
+                                                            struct SessionManager* sm)
+{
+    struct SessionManager_pvt* sm = Identity_check((struct SessionManager_pvt*) manager);
+    return sessionForIp6(ip6, sm);
+}
+
+struct SessionManager_HandleList* SessionManager_getHandleList(struct SessionManager* st,
+                                                               struct Allocator* alloc)
+{
+    struct SessionManager_HandleList* out =
+        Allocator_calloc(alloc, sizeof(struct SessionManager_HandleList), 1);
+    uint32_t* buff = Allocator_calloc(alloc, 4, st->ifaceMap.count);
+    Bits_memcpy(buff, st->ifaceMap.handles, 4 * st->ifaceMap.count);
+    out->handles = buff;
+    out->count = st->ifaceMap.count;
+    for (int i = 0; i < out->length; i++) {
+        buff[i] += st->first;
+    }
+    return out;
+}
+
+
+static struct SessionManager_Session_pvt* getSession(struct SessionManager_pvt* sm,
+                                                     uint8_t ip6[16],
+                                                     uint8_t pubKey[32],
+                                                     uint32_t version,
+                                                     uint64_t label)
+{
+    struct SessionManager_Session_pvt* sess = sessionForIp6(ip6, sm);
+    if (sess) {
+        sess->pub.version = (sess->pub.version) ? sess->pub.version : version;
+        sess->pub.sendSwitchLabel = (sess->pub.sendSwitchLabel) ? sess->pub.sendSwitchLabel : label;
+        return sess;
+    }
+    struct Allocator* alloc = Allocator_child(sm->alloc);
+    sess = Allocator_calloc(alloc, sizeof(struct SessionManager_Session_pvt), 1);
+    Identity_set(sess);
+
+    sess->pub.caSession = CryptoAuth_newSession(pubKey, ip6, false, "inner", sm->cryptoAuth);
+    int ifaceIndex = Map_OfSessionsByIp6_put((struct Ip6*)ip6, &ss, &sm->ifaceMap);
+    sess->receiveHandle = sm->ifaceMap.handles[ifaceIndex] + sm->firstHandle;
+    check(sm, ifaceIndex);
+
+    sess->alloc = alloc;
+    sess->sessionManager = sm;
+    sess->pub.version = version;
+    sess->pub.timeOfCreation = Time_currentTimeMilliseconds(sm->eventBase);
+    sess->pub.sendSwitchLabel = label;
+    Allocator_onFree(alloc, sessionCleanup, sess);
+    sendSession(sess, label, 0xffffffff, PFChan_Core_SESSION);
+    return sess;
+}
 
 static Iface_DEFUN incomingFromSwitchIf(struct Iface* iface, struct Message* msg)
 {
@@ -142,11 +216,11 @@ static Iface_DEFUN incomingFromSwitchIf(struct Iface* iface, struct Message* msg
     struct SwitchHeader* switchHeader = (struct SwitchHeader*) msg->bytes;
     Message_shift(msg, -SwitchHeader_SIZE, NULL);
 
-    struct SessionTable_Session* session;
+    struct SessionManager_Session* session;
     uint32_t nonceOrHandle = Endian_bigEndianToHost32(((uint32_t*)msg->bytes)[0]);
     if (nonceOrHandle > 3) {
         // > 3 it's a handle.
-        session = SessionTable_sessionForHandle(nonceOrHandle, sm->pub.sessionTable);
+        session = sessionForHandle(nonceOrHandle, sm);
         if (!session) {
             Log_debug(sm->log, "DROP message with unrecognized handle");
             return NULL;
@@ -182,7 +256,7 @@ static Iface_DEFUN incomingFromSwitchIf(struct Iface* iface, struct Message* msg
                              Endian_bigEndianToHost64(switchHeader->label_be),
                              "DROP Failed decrypting message NoH[%d] state[%s]",
                              nonceOrHandle,
-                             CryptoAuth_stateString(CryptoAuth_getState(session->internal)));
+                             CryptoAuth_stateString(CryptoAuth_getState(session->caSession)));
         return NULL;
     }
 
@@ -211,9 +285,8 @@ static Iface_DEFUN incomingFromSwitchIf(struct Iface* iface, struct Message* msg
     }
 
     header->version_be = Endian_hostToBigEndian32(session->version);
-    Bits_memcpyConst(header->ip6, session->ip6, 16);
-    uint8_t* pubKey = CryptoAuth_getHerPublicKey(session->internal);
-    Bits_memcpyConst(header->publicKey, pubKey, 32);
+    Bits_memcpyConst(header->ip6, session->caSession->herIp6, 16);
+    Bits_memcpyConst(header->publicKey, session->caSession->herPublicKey, 32);
 
     uint64_t path = Endian_bigEndianToHost64(switchHeader->label_be);
     if (!session->sendSwitchLabel) {
@@ -221,7 +294,7 @@ static Iface_DEFUN incomingFromSwitchIf(struct Iface* iface, struct Message* msg
     }
     if (path != session->recvSwitchLabel) {
         session->recvSwitchLabel = path;
-        sendSession(sm, session, path, 0xffffffff, PFChan_Core_DISCOVERED_PATH, msg->alloc);
+        sendSession(sm, session, path, 0xffffffff, PFChan_Core_DISCOVERED_PATH);
     }
 
     return Iface_next(&sm->pub.insideIf, msg);
@@ -281,14 +354,29 @@ static void needsLookup(struct SessionManager_pvt* sm, struct Message* msg)
     Allocator_free(eventAlloc);
 }
 
-static uint8_t readyToSendPostCryptoAuth(struct Message* msg, struct Iface* iface)
+static Iface_DEFUN readyToSend(struct Message* msg,
+                               struct SessionManager_pvt* sm,
+                               struct SessionManager_Session* sess)
 {
-    struct SessionManager_pvt* sm =
-        Identity_check((struct SessionManager_pvt*) iface->senderContext);
-    struct SwitchHeader* sh = sm->currentSwitchHeader;
-    struct SessionTable_Session* sess = sm->currentSession;
-    sm->currentSession = NULL;
-    sm->currentSwitchHeader = NULL;
+    Message_shift(msg, -RouteHeader_SIZE, NULL);
+    struct SwitchHeader* sh;
+    CryptoAuth_resetIfTimeout(sess->internal);
+    if (CryptoAuth_getState(sess->internal) < CryptoAuth_HANDSHAKE3) {
+        // Put the handle into the message so that it's authenticated.
+        Message_push32(msg, sess->receiveHandle, NULL);
+
+        // Copy back the SwitchHeader so it is not clobbered.
+        Message_shift(msg, (CryptoHeader_SIZE + SwitchHeader_SIZE), NULL);
+        Bits_memcpyConst(msg->bytes, &header->sh, SwitchHeader_SIZE);
+        sh = (struct SwitchHeader*) msg->bytes;
+        Message_shift(msg, -(CryptoHeader_SIZE + SwitchHeader_SIZE), NULL);
+    } else {
+        struct RouteHeader* header = (struct RouteHeader*) &msg->bytes[-RouteHeader_SIZE];
+        sh = &header->sh;
+    }
+
+    Assert_true(!CryptoAuth_encrypt(sess->caSession, msg));
+
     if (CryptoAuth_getState(sess->internal) >= CryptoAuth_HANDSHAKE3) {
         //if (0) { // Noisy
             debugHandlesAndLabel0(sm->log,
@@ -308,41 +396,7 @@ static uint8_t readyToSendPostCryptoAuth(struct Message* msg, struct Iface* ifac
     Message_shift(msg, SwitchHeader_SIZE, NULL);
     Assert_true((uint8_t*)sh == msg->bytes);
 
-    Iface_send(&sm->pub.switchIf, msg);
-    return 0;
-}
-
-static Iface_DEFUN readyToSend(struct Message* msg,
-                               struct SessionManager_pvt* sm,
-                               struct SessionTable_Session* sess)
-{
-    struct RouteHeader* header = (struct RouteHeader*) msg->bytes;
-    Message_shift(msg, -RouteHeader_SIZE, NULL);
-    Assert_true(!sm->currentSession);
-    Assert_true(!sm->currentSwitchHeader);
-    sm->currentSession = sess;
-
-    CryptoAuth_resetIfTimeout(sess->internal);
-    if (CryptoAuth_getState(sess->internal) < CryptoAuth_HANDSHAKE3) {
-        // Put the handle into the message so that it's authenticated.
-        Message_push32(msg, sess->receiveHandle, NULL);
-
-        // Copy back the SwitchHeader so it is not clobbered.
-        Message_shift(msg, (CryptoHeader_SIZE + SwitchHeader_SIZE), NULL);
-        Bits_memcpyConst(msg->bytes, &header->sh, SwitchHeader_SIZE);
-        sm->currentSwitchHeader = (struct SwitchHeader*) msg->bytes;
-        Message_shift(msg, -(CryptoHeader_SIZE + SwitchHeader_SIZE), NULL);
-    } else {
-        sm->currentSwitchHeader = &header->sh;
-    }
-
-    // --> readyToSendPostCryptoAuth
-    Interface_sendMessage(sess->internal, msg);
-
-    Assert_true(!sm->currentSession);
-    Assert_true(!sm->currentSwitchHeader);
-
-    return NULL;
+    return Iface_next(&sm->pub.switchIf, msg);
 }
 
 static Iface_DEFUN incomingFromInsideIf(struct Iface* iface, struct Message* msg)
@@ -352,8 +406,7 @@ static Iface_DEFUN incomingFromInsideIf(struct Iface* iface, struct Message* msg
     Assert_true(msg->length >= RouteHeader_SIZE);
     struct RouteHeader* header = (struct RouteHeader*) msg->bytes;
 
-    struct SessionTable_Session* sess =
-        SessionTable_sessionForIp6(header->ip6, sm->pub.sessionTable);
+    struct SessionManager_Session* sess = sessionForIp6(header->ip6, sm);
     if (!sess) {
         if (!Bits_isZero(header->publicKey, 32)) {
             sess = getSession(sm,
@@ -418,8 +471,7 @@ static Iface_DEFUN sessions(struct SessionManager_pvt* sm,
     struct SessionTable_HandleList* handles =
         SessionTable_getHandleList(sm->pub.sessionTable, tempAlloc);
     for (int i = 0; i < (int)handles->count; i++) {
-        struct SessionTable_Session* sess =
-            SessionTable_sessionForHandle(handles->handles[i], sm->pub.sessionTable);
+        struct SessionManager_Session* sess = sessionForHandle(handles->handles[i], sm);
         struct Allocator* alloc = Allocator_child(tempAlloc);
         sendSession(sm, sess, sess->sendSwitchLabel, sourcePf, PFChan_Core_SESSION, alloc);
         Allocator_free(alloc);
@@ -442,9 +494,9 @@ static Iface_DEFUN incomingFromEventIf(struct Iface* iface, struct Message* msg)
     Message_pop(msg, &node, PFChan_Node_SIZE, NULL);
     Assert_true(!msg->length);
     int index = Map_BufferedMessages_indexForKey((struct Ip6*)node.ip6, &sm->bufMap);
-    struct SessionTable_Session* sess;
+    struct SessionManager_Session* sess;
     if (index == -1) {
-        sess = SessionTable_sessionForIp6(node.ip6, sm->pub.sessionTable);
+        sess = sessionForIp6(node.ip6, sm);
         // If we discovered a node we're not interested in ...
         if (!sess) { return NULL; }
         sess->sendSwitchLabel = Endian_bigEndianToHost64(node.path_be);
@@ -490,13 +542,10 @@ struct SessionManager* SessionManager_new(struct Allocator* alloc,
     EventEmitter_regCore(ee, &sm->eventIf, PFChan_Pathfinder_NODE);
     EventEmitter_regCore(ee, &sm->eventIf, PFChan_Pathfinder_SESSIONS);
 
-    sm->pub.sessionTable = SessionTable_new(incomingFromSwitchPostCryptoAuth,
-                                            readyToSendPostCryptoAuth,
-                                            sm,
-                                            eventBase,
-                                            cryptoAuth,
-                                            rand,
-                                            alloc);
+    sm->firstHandle =
+        (Random_uint32(rand) % (MAX_FIRST_HANDLE - MIN_FIRST_HANDLE)) + MIN_FIRST_HANDLE;
+
+    sm->pub.sessionTable = SessionTable_new(cryptoAuth, rand, alloc);
 
     Timeout_setInterval(checkTimedOutBuffers, sm, 10000, eventBase, alloc);
 

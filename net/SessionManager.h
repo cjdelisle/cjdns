@@ -15,7 +15,8 @@
 #ifndef SessionManager_H
 #define SessionManager_H
 
-#include "net/SessionTable.h"
+#include "crypto/random/Random.h"
+#include "crypto/CryptoAuth.h"
 #include "memory/Allocator.h"
 #include "wire/PFChan.h"
 #include "net/EventEmitter.h"
@@ -49,8 +50,6 @@ struct SessionManager
      */
     struct Iface insideIf;
 
-    struct SessionTable* sessionTable;
-
     /**
      * Maximum number of packets to hold in buffer before summarily dropping...
      */
@@ -65,6 +64,67 @@ struct SessionManager
     #define SessionManager_METRIC_HALFLIFE_MILLISECONDS_DEFAULT 250000
     uint32_t metricHalflifeMilliseconds;
 };
+
+struct SessionManager_Session
+{
+    struct CryptoAuth_Session* caSession;
+
+    /** When the last message was received on this session (milliseconds since epoch). */
+    uint64_t timeOfLastIn;
+
+    /** When the last message was sent on this session (milliseconds since epoch). */
+    uint64_t timeOfLastOut;
+
+    uint64_t bytesOut;
+
+    uint64_t bytesIn;
+
+    /** When this session was created. */
+    //uint64_t timeOfCreation;
+
+    /** The CryptoAuth state as of the last message. See: CryptoAuth_getState() */
+    //int cryptoAuthState;
+
+    /** The handle which will be used to lookup this session on our side. */
+    uint32_t receiveHandle;
+
+    /** The handle which we are expected to send to identify ourselves */
+    uint32_t sendHandle;
+
+    /** The version of the other node. */
+    uint32_t version;
+
+    /** The best known switch label for reaching this node. */
+    uint64_t sendSwitchLabel;
+
+    /** The switch label which this node uses for reaching us. */
+    uint64_t recvSwitchLabel;
+};
+
+struct SessionManager_HandleList
+{
+    int length;
+    uint32_t* handles;
+};
+
+/**
+ * Get a session by its handle.
+ *
+ * @param handle an opaque handle associated with the session.
+ * @param sm the session manager.
+ * @return the sesssion if there is one by that handle or null.
+ */
+struct SessionManager_Session* SessionManager_sessionForHandle(uint32_t handle,
+                                                               struct SessionManager* sm);
+
+struct SessionManager_Session* SessionManager_sessionForIp6(uint8_t* lookupKey,
+                                                            struct SessionManager* sm);
+
+/**
+ * Get the list of all handles.
+ */
+struct SessionManager_HandleList* SessionManager_getHandleList(struct SessionManager* sm,
+                                                               struct Allocator* alloc);
 
 struct SessionManager* SessionManager_new(struct Allocator* alloc,
                                           struct EventBase* eventBase,

@@ -19,7 +19,7 @@
 #include "crypto/Key.h"
 #include "crypto/ReplayProtector.h"
 #include "dht/Address.h"
-#include "net/SessionTable.h"
+#include "net/SessionManager.h"
 #include "net/SessionManager_admin.h"
 #include "util/AddrTools.h"
 #include "util/Identity.h"
@@ -39,21 +39,20 @@ static void getHandles(Dict* args, void* vcontext, String* txid, struct Allocato
     struct Allocator* alloc = Allocator_child(context->alloc);
 
     int64_t* page = Dict_getInt(args, String_CONST("page"));
-    uint32_t i = (page) ? *page * ENTRIES_PER_PAGE : 0;
-    struct SessionTable_HandleList* hList =
-        SessionTable_getHandleList(context->sm->sessionTable, alloc);
+    int i = (page) ? *page * ENTRIES_PER_PAGE : 0;
+    struct SessionManager_HandleList* hList = SessionManager_getHandleList(context->sm, alloc);
 
     List* list = List_new(alloc);
-    for (int counter=0; i < hList->count && counter++ < ENTRIES_PER_PAGE; i++) {
+    for (int counter = 0; i > 0 && i < hList->length && counter++ < ENTRIES_PER_PAGE; i++) {
         List_addInt(list, hList->handles[i], alloc);
     }
 
     Dict* r = Dict_new(alloc);
     Dict_putList(r, String_CONST("handles"), list, alloc);
-    Dict_putInt(r, String_CONST("total"), hList->count, alloc);
+    Dict_putInt(r, String_CONST("total"), hList->length, alloc);
 
     String* more = String_CONST("more");
-    if (i < hList->count) {
+    if (i < hList->length) {
       Dict_putInt(r, more, 1, alloc);
     }
 
@@ -71,8 +70,7 @@ static void sessionStats(Dict* args,
     int64_t* handleP = Dict_getInt(args, String_CONST("handle"));
     uint32_t handle = *handleP;
 
-    struct SessionTable_Session* session =
-        SessionTable_sessionForHandle(handle, context->sm->sessionTable);
+    struct SessionManager_Session* session = SessionManager_sessionForHandle(handle, context->sm);
 
     Dict* r = Dict_new(alloc);
     if (!session) {
@@ -85,10 +83,9 @@ static void sessionStats(Dict* args,
     AddrTools_printIp(printedAddr, session->caSession->herIp6);
     Dict_putString(r, String_CONST("ip6"), String_new(printedAddr, alloc), alloc);
 
-    Dict_putString(r,
-                   String_CONST("state"),
-                   String_new(CryptoAuth_stateString(session->cryptoAuthState), alloc),
-                   alloc);
+    String* state =
+        String_new(CryptoAuth_stateString(CryptoAuth_getState(session->caSession)), alloc);
+    Dict_putString(r, String_CONST("state"), state, alloc);
 
     struct ReplayProtector* rp = &session->caSession->replayProtector;
     Dict_putInt(r, String_CONST("duplicates"), rp->duplicates, alloc);
