@@ -160,7 +160,7 @@ static bool PFChan_Core_sizeOk(enum PFChan_Core ev, int size)
 Assert_compileTime(PFChan_Core__TOO_LOW == 1023);
 Assert_compileTime(PFChan_Core__TOO_HIGH == 1037);
 
-static Iface_DEFUN incomingFromCore(struct Iface* trickIf, struct Message* msg)
+static Iface_DEFUN incomingFromCore(struct Message* msg, struct Iface* trickIf)
 {
     struct EventEmitter_pvt* ee = Identity_containerOf(trickIf, struct EventEmitter_pvt, trickIf);
     Assert_true(!((uintptr_t)msg->bytes % 4) && "alignment");
@@ -267,7 +267,7 @@ static int handleFromPathfinder(enum PFChan_Pathfinder ev,
     return true;
 }
 
-static Iface_DEFUN incomingFromPathfinder(struct Iface* iface, struct Message* msg)
+static Iface_DEFUN incomingFromPathfinder(struct Message* msg, struct Iface* iface)
 {
     struct Pathfinder* pf = Identity_containerOf(iface, struct Pathfinder, iface);
     struct EventEmitter_pvt* ee = Identity_check((struct EventEmitter_pvt*) pf->ee);

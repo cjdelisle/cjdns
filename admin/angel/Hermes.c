@@ -74,7 +74,7 @@ static void timeout(void* vrequest)
     Allocator_free(req->alloc);
 }
 
-static Iface_DEFUN receiveMessage(struct Iface* iface, struct Message* msg)
+static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* iface)
 {
     struct Hermes* hermes = Identity_check((struct Hermes*) iface);
     struct Allocator* tempAlloc = msg->alloc;

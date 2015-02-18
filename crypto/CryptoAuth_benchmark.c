@@ -55,13 +55,13 @@ struct Context
     Identity
 };
 
-static Iface_DEFUN transferMessage1(struct Iface* iface, struct Message* message)
+static Iface_DEFUN transferMessage1(struct Message* message, struct Iface* iface)
 {
     struct Context* ctx = Identity_containerOf(iface, struct Context, if1);
     return otherIface->receiveMessage(message, otherIface);
 }
 
-static Iface_DEFUN transferMessage2(struct Iface* iface, struct Message* message)
+static Iface_DEFUN transferMessage2(struct Message* message, struct Iface* iface)
 {
     struct Context* ctx = Identity_containerOf(iface, struct Context, if2);
 // XXX

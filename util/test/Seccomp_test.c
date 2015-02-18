@@ -76,7 +76,7 @@ static int child(char* pipeName, struct Allocator* alloc, struct Log* logger)
     return 0;
 }
 
-static Iface_DEFUN receiveMessageParent(struct Iface* iface, struct Message* msg)
+static Iface_DEFUN receiveMessageParent(struct Message* msg, struct Iface* iface)
 {
     struct Context* ctx = Identity_check((struct Context*) iface);
     Assert_true(msg->length == 3);

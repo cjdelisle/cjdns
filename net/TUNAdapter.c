@@ -33,7 +33,7 @@ struct TUNAdapter_pvt
     Identity
 };
 
-static Iface_DEFUN incomingFromTunIf(struct Iface* tunIf, struct Message* msg)
+static Iface_DEFUN incomingFromTunIf(struct Message* msg, struct Iface* tunIf)
 {
     struct TUNAdapter_pvt* ud = Identity_containerOf(tunIf, struct TUNAdapter_pvt, pub.tunIf);
 
@@ -97,7 +97,7 @@ static Iface_DEFUN incomingFromTunIf(struct Iface* tunIf, struct Message* msg)
     return Iface_next(&ud->pub.upperDistributorIf, msg);
 }
 
-static Iface_DEFUN incomingFromIpTunnelIf(struct Iface* ipTunnelIf, struct Message* msg)
+static Iface_DEFUN incomingFromIpTunnelIf(struct Message* msg, struct Iface* ipTunnelIf)
 {
 //    struct TUNAdapter_pvt* ud =
   //      Identity_containerOf(ipTunnelIf, struct TUNAdapter_pvt, pub.ipTunnelIf);

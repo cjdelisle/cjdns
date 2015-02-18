@@ -102,14 +102,14 @@ static Iface_DEFUN TUNTools_genericIP6Echo(struct TUNTools* tt, struct Message* 
     return Iface_next(tt->tunIface, msg);
 }
 
-static Iface_DEFUN receiveMessageTUN(struct Iface* tunIface, struct Message* msg)
+static Iface_DEFUN receiveMessageTUN(struct Message* msg, struct Iface* tunIface)
 {
     struct TUNTools_pvt* ctx = Identity_containerOf(tunIface, struct TUNTools_pvt, pub.tunIface);
     ctx->pub.receivedMessageTUNCount++;
     return ctx->pub.cb(ctx, msg);
 }
 
-static Iface_DEFUN receiveMessageUDP(struct Iface* udpIface, struct Message* msg)
+static Iface_DEFUN receiveMessageUDP(struct Message* msg, struct Iface* udpIface)
 {
     struct Context* ctx = Identity_containerOf(udpIface, struct Context, pub.udpIface);
 

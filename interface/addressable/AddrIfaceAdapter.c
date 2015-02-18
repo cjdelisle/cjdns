@@ -29,7 +29,7 @@ struct AddrIfaceAdapter_pvt
     Identity
 };
 
-static Iface_DEFUN incomingFromAddrIf(struct Iface* addrIf, struct Message* msg)
+static Iface_DEFUN incomingFromAddrIf(struct Message* msg, struct Iface* addrIf)
 {
     struct AddrIfaceAdapter_pvt* ctx =
         Identity_containerOf(addrIf, struct AddrIfaceAdapter_pvt, pub.generic.iface);
@@ -38,7 +38,7 @@ static Iface_DEFUN incomingFromAddrIf(struct Iface* addrIf, struct Message* msg)
     return Iface_next(&ctx->pub.inputIf, msg);
 }
 
-static Iface_DEFUN incomingFromInputIf(struct Iface* inputIf, struct Message* msg)
+static Iface_DEFUN incomingFromInputIf(struct Message* msg, struct Iface* inputIf)
 {
     struct AddrIfaceAdapter_pvt* ctx =
         Identity_containerOf(inputIf, struct AddrIfaceAdapter_pvt, pub.inputIf);

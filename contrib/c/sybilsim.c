@@ -66,7 +66,7 @@ struct NodeContext {
     Identity
 };
 
-static Iface_DEFUN messageToAngel(struct Iface* iface, struct Message* msg)
+static Iface_DEFUN messageToAngel(struct Message* msg, struct Iface* iface)
 {
     struct NodeContext* ctx = Identity_check((struct NodeContext*) iface);
     if (ctx->boundAddr) { return 0; }

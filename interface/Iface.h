@@ -25,7 +25,7 @@ struct Iface;
  * @param thisInterface the interface which contains the sendMessage function pointer.
  * @param message the message
  */
-typedef struct Iface* (* Iface_Callback)(struct Iface* thisInterface, struct Message* message);
+typedef struct Iface* (* Iface_Callback)(struct Message* message, struct Iface* thisInterface);
 
 #define Iface_DEFUN __attribute__ ((warn_unused_result)) struct Iface*
 
@@ -55,7 +55,7 @@ static inline void Iface_send(struct Iface* iface, struct Message* msg)
             iface->currentMsg = msg;
         #endif
         #ifdef PARANOIA
-            struct Iface* ifaceNext = conn->send(conn, msg);
+            struct Iface* ifaceNext = conn->send(msg, conn);
             msg->currentIface = NULL;
             iface->currentMsg = NULL;
             iface = ifaceNext;
@@ -90,7 +90,7 @@ static inline Iface_DEFUN Iface_next(struct Iface* iface, struct Message* msg)
 #define Iface_CALL(func, msg, ...) \
     do {                                                      \
         struct Iface* Iface_x = func(msg, __VA_ARGS__);       \
-        if (Iface_x) { Iface_send(Iface_x, msg); }            \
+        if (Iface_x) { Iface_send(msg, Iface_x); }            \
     } while (0)
 // CHECKFILES_IGNORE missing ;
 

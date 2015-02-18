@@ -143,7 +143,7 @@ static inline bool tryConvertDHT(struct Message* msg, struct Headers_IP6Header* 
  * Incoming packet with a SessionManager header and under that either an ipv6 or ipv4 header
  * depending on whether it's destine for TUN/DHT or IpTunnel.
  */
-static Iface_DEFUN incomingFromSessionManagerIf(struct Iface* sessionManagerIf, struct Message* msg)
+static Iface_DEFUN incomingFromSessionManagerIf(struct Message* msg, struct Iface* sessionManagerIf)
 {
     struct ConverterV15_pvt* conv =
         Identity_containerOf(sessionManagerIf, struct ConverterV15_pvt, pub.sessionManagerIf);

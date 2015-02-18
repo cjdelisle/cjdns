@@ -58,7 +58,7 @@ static int incomingFromDHT(struct DHTMessage* dmessage, void* vcim)
     return Iface_send(&cim->pub.coreIf, msg);
 }
 
-static Iface_DEFUN incomingFromCore(struct Iface* coreIf, struct Message* msg)
+static Iface_DEFUN incomingFromCore(struct Message* msg, struct Iface* coreIf)
 {
     struct DHTCoreInterface_pvt* cim = Identity_check((struct DHTCoreInterface_pvt*) coreIf);
 

@@ -27,7 +27,7 @@ struct PacketHeaderToUDPAddrIface_pvt
     Identity
 };
 
-static Iface_DEFUN incomingFromUdpIf(struct Iface* udpIf, struct Message* message)
+static Iface_DEFUN incomingFromUdpIf(struct Message* message, struct Iface* udpIf)
 {
     struct PacketHeaderToUDPAddrIface_pvt* context =
         Identity_containerOf(udpIf, struct PacketHeaderToUDPAddrIface_pvt, pub.udpIf.iface);
@@ -63,7 +63,7 @@ static Iface_DEFUN incomingFromUdpIf(struct Iface* udpIf, struct Message* messag
     return Iface_next(&context->pub.headerIf, message);
 }
 
-static Iface_DEFUN incomingFromHeaderIf(struct Iface* iface, struct Message* message)
+static Iface_DEFUN incomingFromHeaderIf(struct Message* message, struct Iface* iface)
 {
     struct PacketHeaderToUDPAddrIface_pvt* context =
         Identity_check((struct PacketHeaderToUDPAddrIface_pvt*)

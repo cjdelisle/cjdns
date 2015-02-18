@@ -33,21 +33,21 @@ struct Header {
 #define Header_SIZE 16
 Assert_compileTime(sizeof(struct Header) == Header_SIZE);
 
-static Iface_DEFUN incomingFromControlIf(struct Iface* controlIf, struct Message* msg)
+static Iface_DEFUN incomingFromControlIf(struct Message* msg, struct Iface* controlIf)
 {
     struct SwitchAdapter_pvt* sa =
         Identity_containerOf(controlIf, struct SwitchAdapter_pvt, pub.controlIf);
     return Iface_next(&sa->pub.switchIf, msg);
 }
 
-static Iface_DEFUN incomingFromSessionManagerIf(struct Iface* sessionManagerIf, struct Message* msg)
+static Iface_DEFUN incomingFromSessionManagerIf(struct Message* msg, struct Iface* sessionManagerIf)
 {
     struct SwitchAdapter_pvt* sa =
         Identity_containerOf(sessionManagerIf, struct SwitchAdapter_pvt, pub.sessionManagerIf);
     return Iface_next(&sa->pub.switchIf, msg);
 }
 
-static Iface_DEFUN incomingFromSwitchIf(struct Iface* switchIf, struct Message* msg)
+static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* switchIf)
 {
     struct SwitchAdapter_pvt* sa =
         Identity_containerOf(switchIf, struct SwitchAdapter_pvt, pub.switchIf);

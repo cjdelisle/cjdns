@@ -202,7 +202,7 @@ static struct SessionManager_Session_pvt* getSession(struct SessionManager_pvt* 
     return sess;
 }
 
-static Iface_DEFUN incomingFromSwitchIf(struct Iface* iface, struct Message* msg)
+static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface)
 {
     struct SessionManager_pvt* sm =
         Identity_containerOf(iface, struct SessionManager_pvt, pub.switchIf);
@@ -399,7 +399,7 @@ static Iface_DEFUN readyToSend(struct Message* msg,
     return Iface_next(&sm->pub.switchIf, msg);
 }
 
-static Iface_DEFUN incomingFromInsideIf(struct Iface* iface, struct Message* msg)
+static Iface_DEFUN incomingFromInsideIf(struct Message* msg, struct Iface* iface)
 {
     struct SessionManager_pvt* sm =
         Identity_containerOf(iface, struct SessionManager_pvt, pub.insideIf);
@@ -479,7 +479,7 @@ static Iface_DEFUN sessions(struct SessionManager_pvt* sm,
     return NULL;
 }
 
-static Iface_DEFUN incomingFromEventIf(struct Iface* iface, struct Message* msg)
+static Iface_DEFUN incomingFromEventIf(struct Message* msg, struct Iface* iface)
 {
     struct SessionManager_pvt* sm = Identity_containerOf(iface, struct SessionManager_pvt, eventIf);
     enum PFChan_Pathfinder ev = Message_pop32(msg, NULL);

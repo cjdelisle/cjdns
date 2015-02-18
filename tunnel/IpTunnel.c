@@ -592,7 +592,7 @@ static struct IpTunnel_Connection* getConnection(struct IpTunnel_Connection* con
     return NULL;
 }
 
-static Iface_DEFUN incomingFromTun(struct Iface* tunIf, struct Message* message)
+static Iface_DEFUN incomingFromTun(struct Message* message, struct Iface* tunIf)
 {
     struct IpTunnel_pvt* context = Identity_check((struct IpTunnel_pvt*)tunIf);
 
@@ -668,7 +668,7 @@ static Iface_DEFUN ip4FromNode(struct Message* message,
     return Iface_next(&context->pub.tunInterface, message);
 }
 
-static Iface_DEFUN incomingFromNode(struct Iface* nodeIf, struct Message* message)
+static Iface_DEFUN incomingFromNode(struct Message* message, struct Iface* nodeIf)
 {
     struct IpTunnel_pvt* context =
         Identity_containerOf(nodeIf, struct IpTunnel_pvt, pub.nodeInterface);

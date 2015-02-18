@@ -59,7 +59,7 @@ struct TwoNodes
 #define TUNB 2
 #define TUNA 1
 
-static Iface_DEFUN incomingTunB(struct Iface* tunB, struct Message* msg)
+static Iface_DEFUN incomingTunB(struct Message* msg, struct Iface* tunB)
 {
     struct TwoNodes* tn = Identity_containerOf(tunB, struct TwoNodes, tunB);
     Assert_true(TUNMessageType_pop(msg, NULL) == Ethernet_TYPE_IP6);
@@ -69,7 +69,7 @@ static Iface_DEFUN incomingTunB(struct Iface* tunB, struct Message* msg)
     return 0;
 }
 
-static Iface_DEFUN incomingTunA(struct Iface* tunA, struct Message* msg)
+static Iface_DEFUN incomingTunA(struct Message* msg, struct Iface* tunA)
 {
     struct TwoNodes* tn = Identity_containerOf(tunA, struct TwoNodes, tunA);
     Assert_true(TUNMessageType_pop(msg, NULL) == Ethernet_TYPE_IP6);

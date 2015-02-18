@@ -41,7 +41,7 @@ static void timeout(void* vcontext)
     EventBase_endLoop(ctx->eventBase);
 }
 
-static Iface_DEFUN receiveMessage(struct Iface* iface, struct Message* message)
+static Iface_DEFUN receiveMessage(struct Message* message, struct Iface* iface)
 {
     struct Context* ctx = Identity_check((struct Context*) iface);
     if (ctx->messageReceived) { return 0; }

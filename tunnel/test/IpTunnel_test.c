@@ -34,7 +34,7 @@ static uint8_t nodeCjdnsIp6[16];
 static uint8_t* fakeIp6ToGive = (uint8_t*) "\xfd\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1";
 static int called = 0;
 
-static Iface_DEFUN responseWithIpCallback(struct Iface* iface, struct Message* message)
+static Iface_DEFUN responseWithIpCallback(struct Message* message, struct Iface* iface)
 {
     struct RouteHeader* rh = (struct RouteHeader*) message->bytes;
     Assert_true(!Bits_memcmp(nodeCjdnsIp6, rh->ip6, 16));
@@ -74,7 +74,7 @@ static Iface_DEFUN responseWithIpCallback(struct Iface* iface, struct Message* m
     return 0;
 }
 
-static Iface_DEFUN messageToTun(struct Iface* iface, struct Message* message)
+static Iface_DEFUN messageToTun(struct Message* message, struct Iface* iface)
 {
     Assert_true(TUNMessageType_pop(message, NULL) == Ethernet_TYPE_IP6);
     struct Headers_IP6Header* ip = (struct Headers_IP6Header*) message->bytes;

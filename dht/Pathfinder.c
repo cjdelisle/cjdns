@@ -308,7 +308,7 @@ static Iface_DEFUN incomingMsg(struct Message* msg, struct Pathfinder_pvt* pf)
     return NULL;
 }
 
-static Iface_DEFUN incomingFromEventIf(struct Iface* eventIf, struct Message* msg)
+static Iface_DEFUN incomingFromEventIf(struct Message* msg, struct Iface* eventIf)
 {
     struct Pathfinder_pvt* pf = Identity_containerOf(eventIf, struct Pathfinder_pvt, eventIf);
     enum PFChan_Core ev = Message_pop32(msg, NULL);

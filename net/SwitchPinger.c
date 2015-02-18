@@ -76,7 +76,7 @@ struct Ping
 };
 
 // incoming message from network, pointing to the beginning of the switch header.
-static Iface_DEFUN messageFromControlHandler(struct Iface* iface, struct Message* msg)
+static Iface_DEFUN messageFromControlHandler(struct Message* msg, struct Iface* iface)
 {
     struct SwitchPinger_pvt* ctx = Identity_check((struct SwitchPinger_pvt*) iface);
     struct SwitchHeader* switchHeader = (struct SwitchHeader*) msg->bytes;

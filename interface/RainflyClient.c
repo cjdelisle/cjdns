@@ -307,7 +307,7 @@ static Iface_DEFUN handleHotKeysReply(struct Message* msg, struct RainflyClient_
     return NULL;
 }
 
-static Iface_DEFUN receiveMessage(struct Iface* iface, struct Message* msg)
+static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* iface)
 {
     struct RainflyClient_pvt* ctx = Identity_check((struct RainflyClient_pvt*)iface);
 

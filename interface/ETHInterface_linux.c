@@ -95,7 +95,7 @@ static void sendMessageInternal(struct Message* message,
     return;
 }
 
-static Iface_DEFUN sendMessage(struct Iface* iface, struct Message* msg)
+static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* iface)
 {
     struct ETHAddrIface_pvt* ctx =
         Identity_containerOf(iface, struct ETHAddrIface_pvt, pub.generic.iface);

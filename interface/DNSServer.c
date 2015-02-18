@@ -559,7 +559,7 @@ static Iface_DEFUN receiveB(struct Message* msg, struct DNSServer_pvt* ctx, stru
     }
 }
 
-static Iface_DEFUN receiveMessage(struct Iface* iface, struct Message* msg)
+static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* iface)
 {
     struct DNSServer_pvt* const ctx = Identity_containerOf(iface, struct DNSServer_pvt, iface);
 

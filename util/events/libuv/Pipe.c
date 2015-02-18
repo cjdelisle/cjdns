@@ -103,7 +103,7 @@ static uint8_t sendMessage2(struct Pipe_WriteRequest_pvt* req)
     return Error_NONE;
 }
 
-static Iface_DEFUN sendMessage(struct Iface* iface, struct Message* m)
+static Iface_DEFUN sendMessage(struct Message* m, struct Iface* iface)
 {
     struct Pipe_pvt* pipe = Identity_check((struct Pipe_pvt*) iface);
 

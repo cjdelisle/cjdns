@@ -29,7 +29,7 @@ struct UpperDistributor_pvt
     Identity
 };
 
-static Iface_DEFUN incomingFromEventIf(struct Iface* eventIf, struct Message* msg)
+static Iface_DEFUN incomingFromEventIf(struct Message* msg, struct Iface* eventIf)
 {
     struct UpperDistributor_pvt* ud =
         Identity_containerOf(eventIf, struct UpperDistributor_pvt, eventIf);
@@ -38,14 +38,14 @@ static Iface_DEFUN incomingFromEventIf(struct Iface* eventIf, struct Message* ms
     return Iface_next(&ud->pub.sessionManagerIf, msg);
 }
 
-static Iface_DEFUN incomingFromTunAdapterIf(struct Iface* tunAdapterIf, struct Message* msg)
+static Iface_DEFUN incomingFromTunAdapterIf(struct Message* msg, struct Iface* tunAdapterIf)
 {
     struct UpperDistributor_pvt* ud =
         Identity_containerOf(tunAdapterIf, struct UpperDistributor_pvt, pub.tunAdapterIf);
     return Iface_next(&ud->pub.sessionManagerIf, msg);
 }
 
-static Iface_DEFUN incomingFromIpTunnelIf(struct Iface* ipTunnelIf, struct Message* msg)
+static Iface_DEFUN incomingFromIpTunnelIf(struct Message* msg, struct Iface* ipTunnelIf)
 {
     struct UpperDistributor_pvt* ud =
         Identity_containerOf(ipTunnelIf, struct UpperDistributor_pvt, pub.ipTunnelIf);
@@ -53,7 +53,7 @@ static Iface_DEFUN incomingFromIpTunnelIf(struct Iface* ipTunnelIf, struct Messa
 }
 
 
-static Iface_DEFUN incomingFromSessionManagerIf(struct Iface* sessionManagerIf, struct Message* msg)
+static Iface_DEFUN incomingFromSessionManagerIf(struct Message* msg, struct Iface* sessionManagerIf)
 {
     struct UpperDistributor_pvt* ud =
         Identity_containerOf(sessionManagerIf, struct UpperDistributor_pvt, pub.sessionManagerIf);

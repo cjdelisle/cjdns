@@ -444,7 +444,7 @@ static void handleMessage(struct Message* message,
     handleRequest(messageDict, message, src, alloc, admin);
 }
 
-static Iface_DEFUN receiveMessage(struct Iface* iface, struct Message* message)
+static Iface_DEFUN receiveMessage(struct Message* message, struct Iface* iface)
 {
     struct Admin_pvt* admin = Identity_check((struct Admin_pvt*) iface);
 

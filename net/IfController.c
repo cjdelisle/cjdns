@@ -702,7 +702,7 @@ static Iface_DEFUN handleUnexpectedIncoming(struct Message* msg, struct IfContro
     return NULL;
 }
 
-static Iface_DEFUN handleIncomingFromWire(struct Iface* addrIf, struct Message* msg)
+static Iface_DEFUN handleIncomingFromWire(struct Message* msg, struct Iface* addrIf)
 {
     struct IfController_Iface_pvt* ici =
         Identity_containerOf(addrIf, struct IfController_Iface_pvt, pub.addrIf);
@@ -990,7 +990,7 @@ int IfController_disconnectPeer(struct IfController* ifController,
     return IfController_disconnectPeer_NOTFOUND;
 }
 
-static Iface_DEFUN incomingFromEventEmitterIf(struct Iface* eventEmitterIf, struct Message* msg)
+static Iface_DEFUN incomingFromEventEmitterIf(struct Message* msg, struct Iface* eventEmitterIf)
 {
     struct IfController_pvt* ic =
          Identity_containerOf(eventEmitterIf, struct IfController_pvt, eventEmitterIf);

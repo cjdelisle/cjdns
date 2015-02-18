@@ -73,7 +73,7 @@ static struct Message* mergeMessage(struct FramingIface_pvt* fi, struct Message*
     return out;
 }
 
-static Iface_DEFUN receiveMessage(struct Iface* iface, struct Message* msg)
+static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* iface)
 {
     struct FramingIface_pvt* fi = Identity_containerOf(streamIf, struct FramingIface_pvt, streamIf);
 
@@ -91,9 +91,8 @@ static Iface_DEFUN receiveMessage(struct Iface* iface, struct Message* msg)
             struct Allocator* frameAlloc = fi->frameAlloc;
             fi->frameAlloc = NULL;
             // Run the message through again since it's almost certainly not perfect size.
-            uint8_t ret = receiveMessage(wholeMessage, iface);
+            Iface_CALL(receiveMessage, wholeMessage, iface);
             Allocator_free(frameAlloc);
-            return ret;
         }
         fi->bytesRemaining -= msg->length;
         Allocator_adopt(fi->frameAlloc, msg->alloc);
@@ -101,13 +100,13 @@ static Iface_DEFUN receiveMessage(struct Iface* iface, struct Message* msg)
         parts->msg = msg;
         parts->next = fi->frameParts;
         fi->frameParts = parts;
-        return Error_NONE;
+        return NULL;
     }
 
     for (;;) {
         while (fi->headerIndex < 4) {
             if (!msg->length) {
-                return Error_NONE;
+                return NULL;
             }
             fi->header.bytes[fi->headerIndex] = msg->bytes[0];
             Message_shift(msg, -1, NULL);
@@ -117,13 +116,14 @@ static Iface_DEFUN receiveMessage(struct Iface* iface, struct Message* msg)
 
         fi->bytesRemaining = Endian_bigEndianToHost32(fi->header.length_be);
         if (fi->bytesRemaining > fi->maxMessageSize) {
-            return Error_OVERSIZE_MESSAGE;
+            // oversize
+            return NULL;
         }
 
         if (fi->bytesRemaining == (uint32_t)msg->length) {
             Iface_send(&fi->generic, msg);
             fi->bytesRemaining = 0;
-            return Error_NONE;
+            return NULL;
 
         } else if (fi->bytesRemaining <= (uint32_t)msg->length) {
             struct Message* m = Allocator_clone(msg->alloc, msg);
@@ -148,11 +148,11 @@ static Iface_DEFUN receiveMessage(struct Iface* iface, struct Message* msg)
             fi->frameParts->msg = m;
             fi->frameParts->next = NULL;
         }
-        return Error_NONE;
+        return NULL;
     }
 }
 
-static Iface_DEFUN sendMessage(struct Iface* messageIf, struct Message* msg)
+static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* messageIf)
 {
     struct FramingIface_pvt* fi =
         Identity_containerOf(messageIf, struct FramingIface_pvt, messageIf);

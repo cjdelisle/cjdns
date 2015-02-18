@@ -59,7 +59,7 @@ static uint16_t ethertypeForPacketType(uint8_t highByte)
     return ((highByte >> 4) == 6) ? Ethernet_TYPE_IP6 : Ethernet_TYPE_IP4;
 }
 
-static Iface_DEFUN incomingFromWire(struct Iface* externalIf, struct Message* message)
+static Iface_DEFUN incomingFromWire(struct Message* message, struct Iface* externalIf)
 {
     struct TUNInterface_Illumos_pvt* ctx =
         Identity_containerOf(externalIf, struct TUNInterface_Illumos_pvt, externalIf);
@@ -75,7 +75,7 @@ static Iface_DEFUN incomingFromWire(struct Iface* externalIf, struct Message* me
     return Iface_next(&ctx->internalIf, message);
 }
 
-static Iface_DEFUN incomingFromUs(struct Iface* internalIf, struct Message* message)
+static Iface_DEFUN incomingFromUs(struct Message* message, struct Iface* internalIf)
 {
     struct TUNInterface_Illumos_pvt* ctx =
         Identity_containerOf(internalIf, struct TUNInterface_Illumos_pvt, internalIf);

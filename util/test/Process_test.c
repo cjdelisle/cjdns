@@ -61,7 +61,7 @@ static void onConnectionParent(struct Pipe* p, int status)
     Allocator_free(alloc);
 }
 
-static Iface_DEFUN receiveMessageParent(struct Iface* iface, struct Message* msg)
+static Iface_DEFUN receiveMessageParent(struct Message* msg, struct Iface* iface)
 {
     struct Context* c = Identity_check((struct Context*) iface);
     Assert_true(msg->length == (int)CString_strlen(MESSAGEB));
@@ -81,7 +81,7 @@ static void onConnectionChild(struct Pipe* p, int status)
     printf("Child connected\n");
 }
 
-static Iface_DEFUN receiveMessageChild(struct Iface* iface, struct Message* m)
+static Iface_DEFUN receiveMessageChild(struct Message* m, struct Iface* iface)
 {
     struct Context* c = Identity_check((struct Context*) iface);
     printf("Child received message\n");

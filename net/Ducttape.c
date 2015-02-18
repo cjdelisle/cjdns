@@ -109,7 +109,7 @@ static struct Ducttape_MessageHeader* getDtHeader(struct Message* message, bool 
 
 // [ struct Address ][ content (benc) ]
 // see ducttape.h -> dhtIf
-static Iface_DEFUN incomingFromDHTInterface(struct Iface* dhtIf, struct Message* msg)
+static Iface_DEFUN incomingFromDHTInterface(struct Message* msg, struct Iface* dhtIf)
 {
     struct Ducttape_pvt* ctx = Identity_containerOf(dhtIf, struct Ducttape_pvt, pub.dhtIf);
 
@@ -372,7 +372,7 @@ static inline bool isForMe(struct Message* message, struct Ducttape_pvt* context
     return (Bits_memcmp(header->destinationAddr, context->myAddr.ip6.bytes, 16) == 0);
 }
 
-static Iface_DEFUN incomingFromMagicInterface(struct Iface* magicIf, struct Message* msg)
+static Iface_DEFUN incomingFromMagicInterface(struct Message* msg, struct Iface* magicIf)
 {
     struct Ducttape_pvt* ctx = Identity_containerOf(magicIf, struct Ducttape_pvt, pub.magicIf);
 
@@ -956,7 +956,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Iface* switchI
     return 0;
 }
 
-static Iface_DEFUN incomingFromControlHandler(struct Iface* controlIf, struct Message* message)
+static Iface_DEFUN incomingFromControlHandler(struct Message* message, struct Iface* controlIf)
 {
     struct Ducttape_pvt* ctx = Identity_containerOf(controlIf, struct Ducttape_pvt, pub.controlIf);
     Assert_true(ctx->pub.switchIf.receiveMessage);

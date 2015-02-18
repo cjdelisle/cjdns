@@ -138,7 +138,7 @@ static Iface_DEFUN handlePing(struct Message* msg,
  * @param switchIf the interface which leads to the switch.
  * @param isFormV8 true if the control message is in the form specified by protocol version 8+
  */
-static Iface_DEFUN incomingFromCore(struct Iface* coreIf, struct Message* msg)
+static Iface_DEFUN incomingFromCore(struct Message* msg, struct Iface* coreIf)
 {
     struct ControlHandler_pvt* ch = Identity_check((struct ControlHandler_pvt*) coreIf);
 
@@ -187,7 +187,7 @@ static Iface_DEFUN incomingFromCore(struct Iface* coreIf, struct Message* msg)
 }
 
 // Forward from switch pinger directly to core.
-static Iface_DEFUN incomingFromSwitchPinger(struct Iface* switchPingerIf, struct Message* msg)
+static Iface_DEFUN incomingFromSwitchPinger(struct Message* msg, struct Iface* switchPingerIf)
 {
     struct ControlHandler_pvt* ch =
         Identity_containerOf(switchPingerIf, struct ControlHandler_pvt, pub.switchPingerIf);

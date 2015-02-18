@@ -78,7 +78,7 @@ static void sendComplete(uv_udp_send_t* uvReq, int error)
 }
 
 
-static Iface_DEFUN incomingFromIface(struct Iface* iface, struct Message* m)
+static Iface_DEFUN incomingFromIface(struct Message* m, struct Iface* iface)
 {
     struct UDPAddrIface_pvt* context = Identity_check((struct UDPAddrIface_pvt*) iface);
 

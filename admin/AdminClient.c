@@ -114,7 +114,7 @@ static void timeout(void* vreq)
     done((struct Request*) vreq, AdminClient_Error_TIMEOUT);
 }
 
-static Iface_DEFUN receiveMessage(struct Iface* addrIface, struct Message* msg)
+static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* addrIface)
 {
     struct Context* ctx = Identity_containerOf(addrIface, struct Context, addrIface);
 
