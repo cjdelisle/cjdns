@@ -170,7 +170,7 @@ static void incoming(uv_udp_t* handle,
         // prevent it from being used as a lookup key
         Sockaddr_normalizeNative((struct sockaddr*) m->bytes);
 
-        Message_push(m, context->addr, Sockaddr_OVERHEAD, NULL);
+        Message_push(m, context->pub.generic.addr, Sockaddr_OVERHEAD, NULL);
 
         /*uint8_t buff[256] = {0};
         Assert_true(Hex_encode(buff, 255, m->bytes, context->pub.generic.addr->addrLen));

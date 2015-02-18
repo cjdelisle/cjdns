@@ -28,9 +28,9 @@ struct SessionTable;
 
 struct SessionTable_Session
 {
-    struct Iface external;
+    struct CryptoAuth_Session* caSession;
 
-    struct Iface* internal;
+    struct Allocator* alloc;
 
     /** When the last message was received on this session (milliseconds since epoch). */
     uint64_t timeOfLastIn;
@@ -53,9 +53,6 @@ struct SessionTable_Session
     /** The version of the other node. */
     uint32_t version;
 
-    /** The IPv6 address of the other node. */
-    uint8_t ip6[16];
-
     /** The best known switch label for reaching this node. */
     uint64_t sendSwitchLabel;
 
@@ -75,34 +72,19 @@ struct SessionTable_HandleList
  * of bytes between the beginning of each message and the beginning of the ip address and keySize
  * is the number of bytes in the address.
  *
- * @param decryptedIncoming the callback to call with incoming data after it has been decrypted.
- * @param encryptedOutgoing the callback to call with outgoing data after it has been encrypted.
- * @param interfaceContext the context which will become the senderContext and receiverContext for
- *                         encryptedOutgoing and decryptedIncoming respectively.
  * @param eventBase the libevent event base.
  * @param cryptoAuth the cryptoauthenticator for the sessions.
  * @param allocator means of getting memory.
  * @return a session manager.
  */
-struct SessionTable* SessionTable_new(Iface_Callback decryptedIncoming,
-                                          Iface_Callback encryptedOutgoing,
-                                          void* interfaceContext,
-                                          struct EventBase* eventBase,
-                                          struct CryptoAuth* cryptoAuth,
-                                          struct Random* rand,
-                                          struct Allocator* allocator);
+struct SessionTable* SessionTable_new(struct CryptoAuth* cryptoAuth,
+                                      struct Random* rand,
+                                      struct Allocator* allocator);
 
-/**
- * Get a session from the session manager.
- * If there is no session for the lookup key, it will be created.
- *
- * @param lookupKey this must be the size given by keySize in SessionTable_new().
- * @param cryptoKey optional encryption key if it is known, otherwise NULL.
- * @param sm the session manager.
- */
-struct SessionTable_Session* SessionTable_getSession(uint8_t* lookupKey,
-                                                         uint8_t cryptoKey[32],
-                                                         struct SessionTable* sm);
+struct SessionTable_Session* SessionTable_newSession(uint8_t* lookupKey,
+                                                     uint8_t cryptoKey[32],
+                                                     struct Allocator* alloc,
+                                                     struct SessionTable* sm);
 
 /**
  * Get a session by its handle.
@@ -118,20 +100,11 @@ struct SessionTable_Session* SessionTable_sessionForIp6(uint8_t* lookupKey,
                                                             struct SessionTable* sm);
 
 /**
- * Get the IPv6 address for a session.
- *
- * @param handle the handle for the session
- * @param sm the session manager
- * @return a binary ipv6 address or NULL.
- */
-uint8_t* SessionTable_getIp6(uint32_t handle, struct SessionTable* sm);
-
-/**
  * Get the list of all handles.
  */
 struct SessionTable_HandleList* SessionTable_getHandleList(struct SessionTable* sm,
                                                                struct Allocator* alloc);
 
-void* SessionTable_getInterfaceContext(struct SessionTable_Session* session);
+void SessionTable_remove(struct SessionTable* sessionTable, struct SessionTable_Session* session);
 
 #endif

@@ -181,7 +181,8 @@ static void showConn(struct IpTunnel_Connection* conn,
         Dict_putInt(d, String_CONST("ip4Prefix"), conn->connectionIp4Prefix, alloc);
     }
 
-    Dict_putString(d, String_CONST("key"), Key_stringify(conn->header.nodeKey, alloc), alloc);
+    Dict_putString(d, String_CONST("key"),
+                      Key_stringify(conn->routeHeader.publicKey, alloc), alloc);
     Dict_putInt(d, String_CONST("outgoing"), (conn->isOutgoing) ? 1 : 0, alloc);
     Dict_putString(d, String_CONST("error"), String_CONST("none"), alloc);
 

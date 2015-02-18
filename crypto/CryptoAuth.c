@@ -313,14 +313,14 @@ static inline void setRequiredPadding(struct CryptoAuth_Wrapper* wrapper)
 
 static inline bool knowHerKey(struct CryptoAuth_Wrapper* wrapper)
 {
-    return !Bits_isZero(wrapper->herPerminentPubKey, 32);
+    return !Bits_isZero(wrapper->pub.herPublicKey, 32);
 }
 
 static void getIp6(struct CryptoAuth_Wrapper* wrapper, uint8_t* addr)
 {
     if (knowHerKey(wrapper)) {
         uint8_t ip6[16];
-        AddressCalc_addressForPublicKey(ip6, wrapper->herPerminentPubKey);
+        AddressCalc_addressForPublicKey(ip6, wrapper->pub.herPublicKey);
         AddrTools_printIp(addr, ip6);
     }
 }
@@ -410,12 +410,12 @@ static uint8_t encryptHandshake(struct Message* message,
         return genReverseHandshake(message, wrapper, header);
     }
     uint8_t calculatedIp6[16];
-    AddressCalc_addressForPublicKey(calculatedIp6, wrapper->herPerminentPubKey);
-    if (!Bits_isZero(wrapper->herIp6, 16)) {
+    AddressCalc_addressForPublicKey(calculatedIp6, wrapper->pub.herPublicKey);
+    if (!Bits_isZero(wrapper->pub.herIp6, 16)) {
         // If someone starts a CA session and then discovers the key later and memcpy's it into the
         // result of getHerPublicKey() then we want to make sure they didn't memcpy in an invalid
         // key.
-        Assert_true(!Bits_memcmp(wrapper->herIp6, calculatedIp6, 16));
+        Assert_true(!Bits_memcmp(wrapper->pub.herIp6, calculatedIp6, 16));
     }
     uint8_t* restrictedToip6 = wrapper->restrictedToip6;
     if (restrictedToip6) {
@@ -506,7 +506,7 @@ static uint8_t encryptHandshake(struct Message* message,
     if (wrapper->nextNonce < 2) {
         getSharedSecret(sharedSecret,
                         wrapper->context->privateKey,
-                        wrapper->herPerminentPubKey,
+                        wrapper->pub.herPublicKey,
                         passwordHash,
                         wrapper->context->logger);
 
@@ -682,14 +682,14 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
     // nextNonce >3: handshake complete
 
     if (knowHerKey(wrapper)) {
-        if (Bits_memcmp(wrapper->herPerminentPubKey, header->handshake.publicKey, 32)) {
+        if (Bits_memcmp(wrapper->pub.herPublicKey, header->handshake.publicKey, 32)) {
             cryptoAuthDebug0(wrapper, "DROP a packet with different public key than this session");
             return Error_AUTHENTICATION;
         }
-    } else if (!Bits_isZero(wrapper->herIp6, 16)) {
+    } else if (!Bits_isZero(wrapper->pub.herIp6, 16)) {
         uint8_t calculatedIp6[16];
         AddressCalc_addressForPublicKey(calculatedIp6, header->handshake.publicKey);
-        if (Bits_memcmp(wrapper->herIp6, calculatedIp6, 16)) {
+        if (Bits_memcmp(wrapper->pub.herIp6, calculatedIp6, 16)) {
             cryptoAuthDebug0(wrapper, "DROP packet with public key not matching ip6 for session");
             return Error_AUTHENTICATION;
         }
@@ -701,7 +701,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
         // have received a valid packet from them.
         // We can't allow the upper layer to see this message because it's not authenticated.
         if (!knowHerKey(wrapper)) {
-            Bits_memcpyConst(wrapper->herPerminentPubKey, header->handshake.publicKey, 32);
+            Bits_memcpyConst(wrapper->pub.herPublicKey, header->handshake.publicKey, 32);
         }
         Message_shift(message, -CryptoHeader_SIZE, NULL);
         message->length = 0;
@@ -754,7 +754,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
                 }
             #endif
         } else {
-            herPermKey = wrapper->herPerminentPubKey;
+            herPermKey = wrapper->pub.herPublicKey;
             if (Bits_memcmp(header->handshake.publicKey, herPermKey, 32)) {
                 cryptoAuthDebug0(wrapper, "DROP packet contains different perminent key");
                 return Error_AUTHENTICATION;
@@ -775,7 +775,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
         } else {
             cryptoAuthDebug(wrapper, "Received a packet of unknown type! nonce=%u", nonce);
         }
-        if (Bits_memcmp(header->handshake.publicKey, wrapper->herPerminentPubKey, 32)) {
+        if (Bits_memcmp(header->handshake.publicKey, wrapper->pub.herPublicKey, 32)) {
             cryptoAuthDebug0(wrapper, "DROP packet contains different perminent key");
             return Error_AUTHENTICATION;
         }
@@ -786,7 +786,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
         // We sent the hello, this is a key
         getSharedSecret(sharedSecret,
                         wrapper->ourTempPrivKey,
-                        wrapper->herPerminentPubKey,
+                        wrapper->pub.herPublicKey,
                         passwordHash,
                         wrapper->context->logger);
         nextNonce = 4;
@@ -934,8 +934,8 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
         cryptoAuthDebug0(wrapper, "Incoming hello from node with higher key, not resetting");
     }
 
-    if (herPermKey && herPermKey != wrapper->herPerminentPubKey) {
-        Bits_memcpyConst(wrapper->herPerminentPubKey, herPermKey, 32);
+    if (herPermKey && herPermKey != wrapper->pub.herPublicKey) {
+        Bits_memcpyConst(wrapper->pub.herPublicKey, herPermKey, 32);
     }
 
     // If this is a handshake which was initiated in reverse because we
@@ -1221,15 +1221,15 @@ struct Iface* CryptoAuth_wrapInterface(struct Iface* toWrap,
     Bits_memcpyConst(&wrapper->externalInterface, &iface, sizeof(struct Iface));
 
     if (herPublicKey != NULL) {
-        Bits_memcpyConst(wrapper->herPerminentPubKey, herPublicKey, 32);
+        Bits_memcpyConst(wrapper->pub.herPublicKey, herPublicKey, 32);
         uint8_t calculatedIp6[16];
         AddressCalc_addressForPublicKey(calculatedIp6, herPublicKey);
-        Bits_memcpyConst(wrapper->herIp6, calculatedIp6, 16);
+        Bits_memcpyConst(wrapper->pub.herIp6, calculatedIp6, 16);
         if (herIp6 != NULL) {
             Assert_true(!Bits_memcmp(calculatedIp6, herIp6, 16));
         }
     } else if (herIp6) {
-        Bits_memcpyConst(wrapper->herIp6, herIp6, 16);
+        Bits_memcpyConst(wrapper->pub.herIp6, herIp6, 16);
     }
 
     return &wrapper->externalInterface;
@@ -1253,13 +1253,6 @@ void CryptoAuth_setAuth(const String* password,
         wrapper->authType = authType;
         CryptoAuth_reset(wrappedInterface);
     }
-}
-
-uint8_t* CryptoAuth_getHerPublicKey(struct Iface* interface)
-{
-    struct CryptoAuth_Wrapper* wrapper =
-        Identity_check((struct CryptoAuth_Wrapper*)interface->senderContext);
-    return wrapper->herPerminentPubKey;
 }
 
 void CryptoAuth_reset(struct Iface* interface)

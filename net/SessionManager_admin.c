@@ -73,7 +73,6 @@ static void sessionStats(Dict* args,
 
     struct SessionTable_Session* session =
         SessionTable_sessionForHandle(handle, context->sm->sessionTable);
-    uint8_t* ip6 = SessionTable_getIp6(handle, context->sm->sessionTable);
 
     Dict* r = Dict_new(alloc);
     if (!session) {
@@ -81,11 +80,9 @@ static void sessionStats(Dict* args,
         Admin_sendMessage(r, txid, context->admin);
         return;
     }
-    // both or neither
-    Assert_true(ip6);
 
     uint8_t printedAddr[40];
-    AddrTools_printIp(printedAddr, ip6);
+    AddrTools_printIp(printedAddr, session->caSession->herIp6);
     Dict_putString(r, String_CONST("ip6"), String_new(printedAddr, alloc), alloc);
 
     Dict_putString(r,
@@ -93,20 +90,20 @@ static void sessionStats(Dict* args,
                    String_new(CryptoAuth_stateString(session->cryptoAuthState), alloc),
                    alloc);
 
-    struct ReplayProtector* rp = CryptoAuth_getReplayProtector(session->internal);
+    struct ReplayProtector* rp = &session->caSession->replayProtector;
     Dict_putInt(r, String_CONST("duplicates"), rp->duplicates, alloc);
     Dict_putInt(r, String_CONST("lostPackets"), rp->lostPackets, alloc);
     Dict_putInt(r, String_CONST("receivedOutOfRange"), rp->receivedOutOfRange, alloc);
 
     struct Address addr;
-    uint8_t* key = CryptoAuth_getHerPublicKey(session->internal);
-    Bits_memcpyConst(addr.key, key, 32);
+    Bits_memcpyConst(addr.key, session->caSession->herPublicKey, 32);
     addr.path = session->sendSwitchLabel;
     addr.protocolVersion = session->version;
 
     Dict_putString(r, String_CONST("addr"), Address_toString(&addr, alloc), alloc);
 
-    Dict_putString(r, String_CONST("publicKey"), Key_stringify(key, alloc), alloc);
+    Dict_putString(r, String_CONST("publicKey"),
+                      Key_stringify(session->caSession->herPublicKey, alloc), alloc);
     Dict_putInt(r, String_CONST("version"), session->version, alloc);
     Dict_putInt(r, String_CONST("handle"), session->receiveHandle, alloc);
     Dict_putInt(r, String_CONST("sendHandle"), session->sendHandle, alloc);

@@ -37,19 +37,17 @@ static Iface_DEFUN incomingFromControlIf(struct Iface* controlIf, struct Message
 {
     struct SwitchAdapter_pvt* sa =
         Identity_containerOf(controlIf, struct SwitchAdapter_pvt, pub.controlIf);
-    Iface_send(&sa->pub.switchIf, msg);
-    return NULL;
+    return Iface_next(&sa->pub.switchIf, msg);
 }
 
 static Iface_DEFUN incomingFromSessionManagerIf(struct Iface* sessionManagerIf, struct Message* msg)
 {
     struct SwitchAdapter_pvt* sa =
         Identity_containerOf(sessionManagerIf, struct SwitchAdapter_pvt, pub.sessionManagerIf);
-    Iface_send(&sa->pub.switchIf, msg);
-    return NULL;
+    return Iface_next(&sa->pub.switchIf, msg);
 }
 
-static uint8_t incomingFromSwitchIf(struct Message* msg, struct Iface* switchIf)
+static Iface_DEFUN incomingFromSwitchIf(struct Iface* switchIf, struct Message* msg)
 {
     struct SwitchAdapter_pvt* sa =
         Identity_containerOf(switchIf, struct SwitchAdapter_pvt, pub.switchIf);
@@ -66,11 +64,9 @@ static uint8_t incomingFromSwitchIf(struct Message* msg, struct Iface* switchIf)
     hdr->sh.label_be = Bits_bitReverse64(hdr->sh.label_be);
 
     if (hdr->handle_be == 0xffffffff) {
-        Iface_send(&sa->pub.controlIf, msg);
-        return 0;
+        return Iface_next(&sa->pub.controlIf, msg);
     }
-    Iface_send(&sa->pub.sessionManagerIf, msg);
-    return 0;
+    return Iface_next(&sa->pub.sessionManagerIf, msg);
 }
 
 struct SwitchAdapter* SwitchAdapter_new(struct Allocator* alloc, struct Log* log)
@@ -78,8 +74,7 @@ struct SwitchAdapter* SwitchAdapter_new(struct Allocator* alloc, struct Log* log
     struct SwitchAdapter_pvt* out = Allocator_calloc(alloc, sizeof(struct SwitchAdapter_pvt), 1);
     out->pub.controlIf.send = incomingFromControlIf;
     out->pub.sessionManagerIf.send = incomingFromSessionManagerIf;
-    out->pub.switchIf.sendMessage = incomingFromSwitchIf;
-    out->pub.switchIf.allocator = alloc;
+    out->pub.switchIf.send = incomingFromSwitchIf;
     out->log = log;
     Identity_set(out);
     return &out->pub;

@@ -47,12 +47,6 @@ struct SessionManager_pvt
     struct Log* log;
     struct CryptoAuth* ca;
     struct EventBase* eventBase;
-
-    /** global crap about the "active message" (Passing data around cryptoAuth) */
-    struct SessionTable_Session* currentSession;
-    bool currentMessageSetup;
-    struct SwitchHeader* currentSwitchHeader;
-
     Identity
 };
 
@@ -88,9 +82,8 @@ static void sendSession(struct SessionManager_pvt* sm,
         .metric_be = 0xffffffff,
         .version_be = Endian_hostToBigEndian32(sess->version)
     };
-    Bits_memcpyConst(session.ip6, sess->ip6, 16);
-    uint8_t* publicKey = CryptoAuth_getHerPublicKey(sess->internal);
-    Bits_memcpyConst(session.publicKey, publicKey, 32);
+    Bits_memcpyConst(session.ip6, sess->caSession->herIp6, 16);
+    Bits_memcpyConst(session.publicKey, sess->caSession->herPublicKey, 32);
 
     struct Message* msg = Message_new(0, PFChan_Node_SIZE + 512, alloc);
     Message_push(msg, &session, PFChan_Node_SIZE, NULL);
@@ -98,63 +91,6 @@ static void sendSession(struct SessionManager_pvt* sm,
     Message_push32(msg, ev, NULL);
     Iface_send(&sm->eventIf, msg);
 }
-
-static uint8_t incomingFromSwitchPostCryptoAuth(struct Message* msg, struct Iface* iface)
-{
-    struct SessionManager_pvt* sm =
-        Identity_check((struct SessionManager_pvt*) iface->receiverContext);
-
-    struct SessionTable_Session* session = sm->currentSession;
-    struct SwitchHeader* sh = sm->currentSwitchHeader;
-    sm->currentSession = NULL;
-    sm->currentSwitchHeader = NULL;
-
-    // CryptoAuth exports the nonce...
-    uint32_t nonce = ((uint32_t*)msg->bytes)[0];
-    Message_shift(msg, -4, NULL);
-    bool currentMessageSetup = (nonce <= 3);
-
-    if (currentMessageSetup) {
-        session->sendHandle = Message_pop32(msg, NULL);
-    }
-
-    Message_shift(msg, RouteHeader_SIZE, NULL);
-    struct RouteHeader* header = (struct RouteHeader*) msg->bytes;
-
-    if (currentMessageSetup) {
-        Bits_memcpyConst(&header->sh, sh, SwitchHeader_SIZE);
-        debugHandlesAndLabel0(sm->log,
-                              session,
-                              Endian_bigEndianToHost64(sh->label_be),
-                              "received start message");
-    } else {
-        // RouteHeader is laid out such that no copy of switch header should be needed.
-        Assert_true(&header->sh == sh);
-        debugHandlesAndLabel0(sm->log,
-                              session,
-                              Endian_bigEndianToHost64(sh->label_be),
-                              "received run message");
-    }
-
-    header->version_be = Endian_hostToBigEndian32(session->version);
-    Bits_memcpyConst(header->ip6, session->ip6, 16);
-    uint8_t* pubKey = CryptoAuth_getHerPublicKey(session->internal);
-    Bits_memcpyConst(header->publicKey, pubKey, 32);
-
-    uint64_t path = Endian_bigEndianToHost64(sh->label_be);
-    if (!session->sendSwitchLabel) {
-        session->sendSwitchLabel = path;
-    }
-    if (path != session->recvSwitchLabel) {
-        session->recvSwitchLabel = path;
-        sendSession(sm, session, path, 0xffffffff, PFChan_Core_DISCOVERED_PATH, msg->alloc);
-    }
-
-    Iface_send(&sm->pub.insideIf, msg);
-    // Never return errors here because they can cause unencrypted stuff to be returned as an error.
-    return 0;
-}
-
 
 static int sessionCleanup(struct Allocator_OnFreeJob* job)
 {
@@ -178,8 +114,10 @@ static struct SessionTable_Session* getSession(struct SessionManager_pvt* sm,
         sess->version = (sess->version) ? sess->version : version;
         sess->sendSwitchLabel = (sess->sendSwitchLabel) ? sess->sendSwitchLabel : label;
     } else {
-        sess = SessionTable_getSession(ip6, pubKey, sm->pub.sessionTable);
+        struct Allocator* alloc = Allocator_child(sm->alloc);
+        sess = SessionTable_newSession(ip6, pubKey, alloc, sm->pub.sessionTable);
         sess->version = version;
+        sess->timeOfCreation = Time_currentTimeMilliseconds(sm->eventBase);
         sess->sendSwitchLabel = label;
         Allocator_onFree(sess->external.allocator, sessionCleanup, sess);
         struct Allocator* alloc = Allocator_child(sm->alloc);
@@ -239,16 +177,7 @@ static Iface_DEFUN incomingFromSwitchIf(struct Iface* iface, struct Message* msg
         debugHandlesAndLabel(sm->log, session, label, "new session nonce[%d]", nonceOrHandle);
     }
 
-    Assert_true(NULL == sm->currentSession);
-    Assert_true(NULL == sm->currentSwitchHeader);
-    sm->currentSession = session;
-    sm->currentSwitchHeader = switchHeader;
-    // --> incomingFromSwitchPostCryptoAuth
-    int ret = Iface_send(&session->external, msg);
-    if (ret) {
-        sm->currentSession = NULL;
-        sm->currentSwitchHeader = NULL;
-
+    if (CryptoAuth_decrypt(session->caSession, msg)) {
         debugHandlesAndLabel(sm->log, session,
                              Endian_bigEndianToHost64(switchHeader->label_be),
                              "DROP Failed decrypting message NoH[%d] state[%s]",
@@ -256,10 +185,46 @@ static Iface_DEFUN incomingFromSwitchIf(struct Iface* iface, struct Message* msg
                              CryptoAuth_stateString(CryptoAuth_getState(session->internal)));
         return NULL;
     }
-    Assert_true(NULL == sm->currentSession);
-    Assert_true(NULL == sm->currentSwitchHeader);
 
-    return NULL;
+    bool currentMessageSetup = (nonceOrHandle <= 3);
+
+    if (currentMessageSetup) {
+        session->sendHandle = Message_pop32(msg, NULL);
+    }
+
+    Message_shift(msg, RouteHeader_SIZE, NULL);
+    struct RouteHeader* header = (struct RouteHeader*) msg->bytes;
+
+    if (currentMessageSetup) {
+        Bits_memcpyConst(&header->sh, switchHeader, SwitchHeader_SIZE);
+        debugHandlesAndLabel0(sm->log,
+                              session,
+                              Endian_bigEndianToHost64(switchHeader->label_be),
+                              "received start message");
+    } else {
+        // RouteHeader is laid out such that no copy of switch header should be needed.
+        Assert_true(&header->sh == switchHeader);
+        debugHandlesAndLabel0(sm->log,
+                              session,
+                              Endian_bigEndianToHost64(switchHeader->label_be),
+                              "received run message");
+    }
+
+    header->version_be = Endian_hostToBigEndian32(session->version);
+    Bits_memcpyConst(header->ip6, session->ip6, 16);
+    uint8_t* pubKey = CryptoAuth_getHerPublicKey(session->internal);
+    Bits_memcpyConst(header->publicKey, pubKey, 32);
+
+    uint64_t path = Endian_bigEndianToHost64(switchHeader->label_be);
+    if (!session->sendSwitchLabel) {
+        session->sendSwitchLabel = path;
+    }
+    if (path != session->recvSwitchLabel) {
+        session->recvSwitchLabel = path;
+        sendSession(sm, session, path, 0xffffffff, PFChan_Core_DISCOVERED_PATH, msg->alloc);
+    }
+
+    return Iface_next(&sm->pub.insideIf, msg);
 }
 
 static void checkTimedOutBuffers(void* vSessionManager)
