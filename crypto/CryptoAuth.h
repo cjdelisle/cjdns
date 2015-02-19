@@ -148,6 +148,7 @@ struct CryptoAuth* CryptoAuth_new(struct Allocator* allocator,
  * @param context the CryptoAuth context.
  */
 struct CryptoAuth_Session* CryptoAuth_newSession(struct CryptoAuth* ca,
+                                                 struct Allocator* alloc,
                                                  const uint8_t herPublicKey[32],
                                                  const uint8_t herIp6[16],
                                                  const bool requireAuth,

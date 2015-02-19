@@ -12,10 +12,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "interface/InterfaceWrapper.h"
+#include "interface/Iface.h"
 #include "memory/Allocator.h"
 #include "util/Identity.h"
 #include "wire/Error.h"
+
+#define REQUIRED_PADDING 512
 
 struct MessageList;
 struct MessageList {
@@ -24,8 +26,8 @@ struct MessageList {
 };
 
 struct FramingIface_pvt {
-    struct Iface generic;
-    struct Iface* const wrapped;
+    struct Iface messageIf;
+    struct Iface streamIf;
     const uint32_t maxMessageSize;
     struct Allocator* alloc;
 
@@ -54,7 +56,7 @@ static struct Message* mergeMessage(struct FramingIface_pvt* fi, struct Message*
         length += part->msg->length;
     }
 
-    int fullLength = length + fi->generic.requiredPadding;
+    int fullLength = length + REQUIRED_PADDING;
     uint8_t* msgBuff = Allocator_malloc(fi->frameAlloc, fullLength);
     struct Message* out = Allocator_calloc(fi->frameAlloc, sizeof(struct Message), 1);
     out->bytes = msgBuff + fullLength;
@@ -73,7 +75,7 @@ static struct Message* mergeMessage(struct FramingIface_pvt* fi, struct Message*
     return out;
 }
 
-static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* iface)
+static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* streamIf)
 {
     struct FramingIface_pvt* fi = Identity_containerOf(streamIf, struct FramingIface_pvt, streamIf);
 
@@ -91,7 +93,7 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* iface)
             struct Allocator* frameAlloc = fi->frameAlloc;
             fi->frameAlloc = NULL;
             // Run the message through again since it's almost certainly not perfect size.
-            Iface_CALL(receiveMessage, wholeMessage, iface);
+            Iface_CALL(receiveMessage, wholeMessage, streamIf);
             Allocator_free(frameAlloc);
         }
         fi->bytesRemaining -= msg->length;
@@ -121,14 +123,14 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* iface)
         }
 
         if (fi->bytesRemaining == (uint32_t)msg->length) {
-            Iface_send(&fi->generic, msg);
+            Iface_send(&fi->messageIf, msg);
             fi->bytesRemaining = 0;
             return NULL;
 
         } else if (fi->bytesRemaining <= (uint32_t)msg->length) {
             struct Message* m = Allocator_clone(msg->alloc, msg);
             m->length = fi->bytesRemaining;
-            Iface_send(&fi->generic, m);
+            Iface_send(&fi->messageIf, m);
             Message_shift(msg, -fi->bytesRemaining, NULL);
             fi->bytesRemaining = 0;
             continue;
@@ -156,7 +158,7 @@ static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* messageIf)
 {
     struct FramingIface_pvt* fi =
         Identity_containerOf(messageIf, struct FramingIface_pvt, messageIf);
-    Message_32(msg, msg->length, NULL);
+    Message_push32(msg, msg->length, NULL);
     return Iface_next(&fi->streamIf, msg);
 }
 

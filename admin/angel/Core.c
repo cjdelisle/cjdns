@@ -32,7 +32,6 @@
 #ifdef HAS_ETH_INTERFACE
 #include "interface/ETHInterface_admin.h"
 #endif
-#include "interface/InterfaceConnector.h"
 #include "net/IfController_admin.h"
 #include "interface/addressable/PacketHeaderToUDPAddrIface.h"
 #include "interface/FramingIface.h"

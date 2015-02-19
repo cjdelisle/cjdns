@@ -32,8 +32,7 @@
 #include "util/Hex.h"
 #include "wire/Error.h"
 #include "wire/Message.h"
-
-#include <stddef.h> // offsetof
+#include "wire/Headers.h"
 
 /** After this number of milliseconds, a node will be regarded as unresponsive. */
 #define UNRESPONSIVE_AFTER_MILLISECONDS (20*1024)
@@ -91,7 +90,6 @@ struct IfController_Iface_pvt
     int beaconState;
     struct Map_EndpointsBySockaddr peerMap;
     struct IfController_pvt* ic;
-    struct Iface* addrIface;
     struct Allocator* alloc;
     Identity
 };
@@ -101,11 +99,9 @@ struct Peer
     /** The interface which is registered with the switch. */
     struct Iface switchIf;
 
-    /** Between CryptoAuth and external, needed to add address to message. */
-    struct Iface externalIf;
+    struct Allocator* alloc;
 
-    /** The internal (wrapped by CryptoAuth) interface. */
-    struct Iface* cryptoAuthIf;
+    struct CryptoAuth_Session* caSession;
 
     /** The interface which this peer belongs to. */
     struct IfController_Iface_pvt* ici;
@@ -150,7 +146,7 @@ struct IfController_pvt
     /** Public functions and fields for this ifcontroller. */
     struct IfController pub;
 
-    struct Allocator* const allocator;
+    struct Allocator* const alloc;
 
     struct CryptoAuth* const ca;
 
@@ -197,13 +193,12 @@ struct IfController_pvt
     Identity
 };
 
-static void sendPeer(struct IfController_pvt* ic,
-                     uint32_t pathfinderId,
+static void sendPeer(uint32_t pathfinderId,
                      enum PFChan_Core ev,
-                     struct Peer* peer,
-                     struct Allocator* parentAlloc)
+                     struct Peer* peer)
 {
-    struct Allocator* alloc = Allocator_child(parentAlloc);
+    struct IfController_pvt* ic = Identity_check(peer->ici->ic);
+    struct Allocator* alloc = Allocator_child(ic->alloc);
     struct Message* msg = Message_new(PFChan_Node_SIZE, 512, alloc);
     struct PFChan_Node* node = (struct PFChan_Node*) msg->bytes;
     Bits_memcpyConst(node->ip6, peer->addr.ip6.bytes, 16);
@@ -247,7 +242,7 @@ static void onPingResponse(struct SwitchPinger_Response* resp, void* onResponseC
     }
 
     if (ep->state == IfController_PeerState_ESTABLISHED) {
-        sendPeer(ic, 0xffffffff, PFChan_Core_PEER, ep, ep->externalIf.allocator);
+        sendPeer(0xffffffff, PFChan_Core_PEER, ep);
     }
 
     ep->timeOfLastPing = Time_currentTimeMilliseconds(ic->eventBase);
@@ -273,12 +268,12 @@ static void sendPing(struct Peer* ep)
                              String_CONST(""),
                              ic->timeoutMilliseconds,
                              onPingResponse,
-                             ep->externalIf.allocator,
+                             ep->alloc,
                              ic->switchPinger);
 
     if (Defined(Log_DEBUG)) {
         uint8_t key[56];
-        Base32_encode(key, 56, CryptoAuth_getHerPublicKey(ep->cryptoAuthIf), 32);
+        Base32_encode(key, 56, ep->caSession->herPublicKey, 32);
         if (!ping) {
             Log_debug(ic->logger, "Failed to ping [%s.k], out of ping slots", key);
         } else {
@@ -314,22 +309,22 @@ static void iciPing(struct IfController_Iface_pvt* ici, struct IfController_pvt*
 
         #ifdef Log_DEBUG
               uint8_t key[56];
-              Base32_encode(key, 56, CryptoAuth_getHerPublicKey(ep->cryptoAuthIf), 32);
+              Base32_encode(key, 56, ep->caSession->herPublicKey, 32);
         #endif
 
         if (ep->isIncomingConnection && now > ep->timeOfLastMessage + ic->forgetAfterMilliseconds) {
             Log_debug(ic->logger, "Unresponsive peer [%s.k] has not responded in [%u] "
                                   "seconds, dropping connection",
                                   key, ic->forgetAfterMilliseconds / 1024);
-            sendPeer(ic, 0xffffffff, PFChan_Core_PEER_GONE, ep, ep->externalIf.allocator);
-            Allocator_free(ep->externalIf.allocator);
+            sendPeer(0xffffffff, PFChan_Core_PEER_GONE, ep);
+            Allocator_free(ep->alloc);
             continue;
         }
 
         bool unresponsive = (now > ep->timeOfLastMessage + ic->unresponsiveAfterMilliseconds);
         if (unresponsive) {
             // our link to the peer is broken...
-            sendPeer(ic, 0xffffffff, PFChan_Core_PEER_GONE, ep, ep->externalIf.allocator);
+            sendPeer(0xffffffff, PFChan_Core_PEER_GONE, ep);
 
             // Lets skip 87% of pings when they're really down.
             if (ep->pingCount % 8) {
@@ -381,42 +376,37 @@ static void moveEndpointIfNeeded(struct Peer* ep)
 
             ep->addr.path = thisEp->addr.path;
             SwitchCore_swapInterfaces(&thisEp->switchIf, &ep->switchIf);
-            Allocator_free(thisEp->externalIf.allocator);
+            Allocator_free(thisEp->alloc);
             return;
         }
     }
 }
 
 // Incoming message which has passed through the cryptoauth and needs to be forwarded to the switch.
-static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Iface* cryptoAuthIf)
+static Iface_DEFUN receivedPostCryptoAuth(struct Message* msg,
+                                          struct Peer* ep,
+                                          struct IfController_pvt* ic)
 {
-    struct Peer* ep = Identity_check((struct Peer*) cryptoAuthIf->receiverContext);
-    struct IfController_pvt* ic = Identity_check(ep->ici->ic);
-
-    // nonce added by the CryptoAuth session.
-    Message_pop(msg, NULL, 4, NULL);
-
     ep->bytesIn += msg->length;
 
-    int caState = CryptoAuth_getState(cryptoAuthIf);
+    int caState = CryptoAuth_getState(ep->caSession);
     if (ep->state < IfController_PeerState_ESTABLISHED) {
         // EP states track CryptoAuth states...
         ep->state = caState;
 
-        uint8_t* hpk = CryptoAuth_getHerPublicKey(ep->cryptoAuthIf);
-        Bits_memcpyConst(ep->addr.key, hpk, 32);
+        Bits_memcpyConst(ep->addr.key, ep->caSession->herPublicKey, 32);
         Address_getPrefix(&ep->addr);
 
         if (caState == CryptoAuth_ESTABLISHED) {
             moveEndpointIfNeeded(ep);
-            sendPeer(ic, 0xffffffff, PFChan_Core_PEER, ep, ep->externalIf.allocator);
+            sendPeer(0xffffffff, PFChan_Core_PEER, ep);
         } else {
             // prevent some kinds of nasty things which could be done with packet replay.
             // This is checking the message switch header and will drop it unless the label
             // directs it to *this* router.
             if (msg->length < 8 || msg->bytes[7] != 1) {
                 Log_info(ic->logger, "DROP message because CA is not established.");
-                return Error_NONE;
+                return 0;
             } else {
                 // When a "server" gets a new connection from a "client" the router doesn't
                 // know about that client so if the client sends a packet to the server, the
@@ -443,69 +433,17 @@ static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Iface* crypto
 
     Identity_check(ep);
     Assert_true(!(msg->capacity % 4));
-    return Iface_send(&ep->switchIf, msg);
+    return Iface_next(&ep->switchIf, msg);
 }
 
 // This is directly called from SwitchCore, message is not encrypted.
-static uint8_t sendFromSwitch(struct Message* msg, struct Iface* switchIf)
+static Iface_DEFUN sendFromSwitch(struct Message* msg, struct Iface* switchIf)
 {
     struct Peer* ep = Identity_check((struct Peer*) switchIf);
 
     ep->bytesOut += msg->length;
 
-    struct IfController_pvt* ic = Identity_check(ep->ici->ic);
-    uint8_t ret;
-    uint64_t now = Time_currentTimeMilliseconds(ic->eventBase);
-    if (now - ep->timeOfLastMessage > ic->unresponsiveAfterMilliseconds) {
-        // TODO(cjd): This is a hack because if the time of last message exceeds the
-        //            unresponsive time, we need to send back an error and that means
-        //            mangling the message which would otherwise be in the queue.
-        struct Allocator* tempAlloc = Allocator_child(ic->allocator);
-        struct Message* toSend = Message_clone(msg, tempAlloc);
-        ret = Interface_sendMessage(ep->cryptoAuthIf, toSend);
-        Allocator_free(tempAlloc);
-    } else {
-        ret = Interface_sendMessage(ep->cryptoAuthIf, msg);
-    }
-
-    // TODO(cjd): this is not quite right
-    // We don't always trust the UDP interface to be accurate
-    // short spurious failures and packet-backup should not cause us to treat a link as dead
-    if (ret == Error_UNDELIVERABLE) {
-        ret = 0;
-    }
-
-    // If this node is unresponsive then return an error.
-    if (ret || now - ep->timeOfLastMessage > ic->unresponsiveAfterMilliseconds) {
-        return ret ? ret : Error_UNDELIVERABLE;
-    } else {
-        /* Way way way too much noise
-        Log_debug(ic->logger,  "Sending to neighbor, last message from this node was [%u] ms ago.",
-                  (now - ep->timeOfLastMessage));
-        */
-    }
-
-    return Error_NONE;
-}
-
-static int closeInterface(struct Allocator_OnFreeJob* job)
-{
-    struct Peer* toClose = Identity_check((struct Peer*) job->userData);
-    struct IfController_pvt* ic = Identity_check(toClose->ici->ic);
-
-    sendPeer(ic, 0xffffffff, PFChan_Core_PEER_GONE, toClose, toClose->externalIf.allocator);
-
-    int index = Map_EndpointsBySockaddr_indexForHandle(toClose->handle, &toClose->ici->peerMap);
-    Assert_true(index >= 0 && toClose->ici->peerMap.values[index] == toClose);
-    Map_EndpointsBySockaddr_remove(index, &toClose->ici->peerMap);
-    return 0;
-}
-
-static uint8_t sendAfterCryptoAuth(struct Message* msg, struct Iface* externalIf)
-{
-    struct Peer* ep =
-        Identity_check((struct Peer*) &(
-            ((uint8_t*)externalIf)[-offsetof(struct Peer, externalIf)]));
+    Assert_true(!CryptoAuth_encrypt(ep->caSession, msg));
 
     Assert_true(!(((uintptr_t)msg->bytes) % 4) && "alignment fault");
 
@@ -519,7 +457,18 @@ static uint8_t sendAfterCryptoAuth(struct Message* msg, struct Iface* externalIf
         Log_debug(ep->ici->ic->logger, "Outgoing message to [%s]", printedAddr);
     }
 
-    Iface_send(&ep->ici->pub.addrIf, msg);
+    return Iface_next(&ep->ici->pub.addrIf, msg);
+}
+
+static int closeInterface(struct Allocator_OnFreeJob* job)
+{
+    struct Peer* toClose = Identity_check((struct Peer*) job->userData);
+
+    sendPeer(0xffffffff, PFChan_Core_PEER_GONE, toClose);
+
+    int index = Map_EndpointsBySockaddr_indexForHandle(toClose->handle, &toClose->ici->peerMap);
+    Assert_true(index >= 0 && toClose->ici->peerMap.values[index] == toClose);
+    Map_EndpointsBySockaddr_remove(index, &toClose->ici->peerMap);
     return 0;
 }
 
@@ -561,7 +510,11 @@ static Iface_DEFUN handleBeacon(struct Message* msg, struct IfController_Iface_p
     Bits_memcpyConst(addr.key, beacon.publicKey, 32);
     addr.protocolVersion = Endian_bigEndianToHost32(beacon.version_be);
     Address_getPrefix(&addr);
-    String* printedAddr = Address_toString(&addr, msg->alloc);
+
+    String* printedAddr = NULL;
+    if (Defined(Log_DEBUG)) {
+        printedAddr = Address_toString(&addr, msg->alloc);
+    }
 
     if (addr.ip6.bytes[0] != 0xfc || !Bits_memcmp(ic->ca->publicKey, addr.key, 32)) {
         Log_debug(ic->logger, "handleBeacon invalid key [%s]", printedAddr->bytes);
@@ -582,13 +535,14 @@ static Iface_DEFUN handleBeacon(struct Message* msg, struct IfController_Iface_p
     if (epIndex > -1) {
         // The password might have changed!
         struct Peer* ep = ici->peerMap.values[epIndex];
-        CryptoAuth_setAuth(beaconPass, 1, ep->cryptoAuthIf);
+        CryptoAuth_setAuth(beaconPass, 1, ep->caSession);
         return NULL;
     }
 
     struct Allocator* epAlloc = Allocator_child(ici->alloc);
     struct Peer* ep = Allocator_calloc(epAlloc, sizeof(struct Peer), 1);
     struct Sockaddr* lladdr = Sockaddr_clone(lladdrInmsg, epAlloc);
+    ep->alloc = epAlloc;
     ep->ici = ici;
     ep->lladdr = lladdr;
     int setIndex = Map_EndpointsBySockaddr_put(&lladdr, &ep, &ici->peerMap);
@@ -598,31 +552,22 @@ static Iface_DEFUN handleBeacon(struct Message* msg, struct IfController_Iface_p
     Identity_set(ep);
     Allocator_onFree(epAlloc, closeInterface, ep);
 
-    ep->externalIf.sendMessage = sendAfterCryptoAuth;
-    ep->externalIf.allocator = epAlloc;
+    ep->caSession =
+        CryptoAuth_newSession(ic->ca, epAlloc, beacon.publicKey, addr.ip6.bytes, false, "outer");
+    CryptoAuth_setAuth(beaconPass, 1, ep->caSession);
 
-    ep->cryptoAuthIf =
-        CryptoAuth_wrapInterface(&ep->externalIf, beacon.publicKey, NULL, false, "outer", ic->ca);
-    ep->cryptoAuthIf->receiveMessage = receivedAfterCryptoAuth;
-    ep->cryptoAuthIf->receiverContext = ep;
-    CryptoAuth_setAuth(beaconPass, 1, ep->cryptoAuthIf);
-
-    ep->switchIf.sendMessage = sendFromSwitch;
-    ep->switchIf.allocator = epAlloc;
+    ep->switchIf.send = sendFromSwitch;
 
     int ret = SwitchCore_addInterface(&ep->switchIf, 0, &ep->addr.path, ic->switchCore);
-    if (ret == SwitchCore_addInterface_OUT_OF_SPACE) {
-        Log_debug(ic->logger, "handleBeacon SwitchCore out of space");
-        Allocator_free(epAlloc);
-        return NULL;
-    } else if (ret) {
-        Log_debug(ic->logger, "handleBeacon SwitchCore something went wrong ret[%d]", ret);
+    if (ret) {
+        if (ret == SwitchCore_addInterface_OUT_OF_SPACE) {
+            Log_debug(ic->logger, "handleBeacon SwitchCore out of space");
+        } else {
+            Log_debug(ic->logger, "handleBeacon SwitchCore something went wrong ret[%d]", ret);
+        }
         Allocator_free(epAlloc);
         return NULL;
     }
-
-    // Update printedAddr since addr now contains path.
-    printedAddr = Address_toString(&ep->addr, msg->alloc);
 
     // We want the node to immedietly be pinged but we don't want it to appear unresponsive because
     // the pinger will only ping every (PING_INTERVAL * 8) so we set timeOfLastMessage to
@@ -630,11 +575,12 @@ static Iface_DEFUN handleBeacon(struct Message* msg, struct IfController_Iface_p
     ep->timeOfLastMessage =
         Time_currentTimeMilliseconds(ic->eventBase) - ic->pingAfterMilliseconds - 1;
 
-    Log_info(ic->logger, "Added peer [%s] from beacon", printedAddr->bytes);
+    Log_info(ic->logger, "Added peer [%s] from beacon",
+        Address_toString(&ep->addr, msg->alloc)->bytes);
 
     // This should be safe because this is an outgoing request and we're sure the node will not
     // be relocated by moveEndpointIfNeeded()
-    sendPeer(ic, 0xffffffff, PFChan_Core_PEER, ep, ep->externalIf.allocator);
+    sendPeer(0xffffffff, PFChan_Core_PEER, ep);
     return NULL;
 }
 
@@ -655,29 +601,26 @@ static Iface_DEFUN handleUnexpectedIncoming(struct Message* msg, struct IfContro
     Assert_true(!((uintptr_t)msg->bytes % 4) && "alignment fault");
 
     struct Peer* ep = Allocator_calloc(epAlloc, sizeof(struct Peer), 1);
+    Identity_set(ep);
     ep->ici = ici;
     ep->lladdr = lladdr;
+    ep->alloc = epAlloc;
+    ep->caSession = CryptoAuth_newSession(ic->ca, epAlloc, NULL, NULL, true, "outer");
+    if (CryptoAuth_decrypt(ep->caSession, msg)) {
+        // If the first message is a dud, drop all state for this peer.
+        // probably some random crap that wandered in the socket.
+        Allocator_free(epAlloc);
+        return NULL;
+    }
+    Assert_true(!Bits_isZero(ep->caSession->herPublicKey, 32));
     Assert_true(Map_EndpointsBySockaddr_indexForKey(&lladdr, &ici->peerMap) == -1);
     int index = Map_EndpointsBySockaddr_put(&lladdr, &ep, &ici->peerMap);
     Assert_true(index >= 0);
     ep->handle = ici->peerMap.handles[index];
-    Identity_set(ep);
     Allocator_onFree(epAlloc, closeInterface, ep);
-
     ep->state = IfController_PeerState_UNAUTHENTICATED;
     ep->isIncomingConnection = true;
-
-    ep->externalIf.sendMessage = sendAfterCryptoAuth;
-    ep->externalIf.allocator = epAlloc;
-
-    ep->cryptoAuthIf =
-        CryptoAuth_wrapInterface(&ep->externalIf, NULL, NULL, true, "outer", ic->ca);
-
-    ep->cryptoAuthIf->receiveMessage = receivedAfterCryptoAuth;
-    ep->cryptoAuthIf->receiverContext = ep;
-
-    ep->switchIf.sendMessage = sendFromSwitch;
-    ep->switchIf.allocator = epAlloc;
+    ep->switchIf.send = sendFromSwitch;
 
     int ret = SwitchCore_addInterface(&ep->switchIf, 0, &ep->addr.path, ic->switchCore);
     if (ret) {
@@ -692,14 +635,15 @@ static Iface_DEFUN handleUnexpectedIncoming(struct Message* msg, struct IfContro
         Time_currentTimeMilliseconds(ic->eventBase) - ic->pingAfterMilliseconds - 1;
 
     Log_info(ic->logger, "Adding peer with unknown key");
-
-    if (Iface_send(&ep->externalIf, msg)) {
-        // If the first message is a dud, drop all state for this peer.
-        // probably some random crap that wandered in the socket.
-        Allocator_free(epAlloc);
+    if (Defined(Log_INFO)) {
+        struct Address addr = { .protocolVersion = 0 };
+        Bits_memcpyConst(addr.key, ep->caSession->herPublicKey, 32);
+        Bits_memcpyConst(addr.ip6.bytes, ep->caSession->herIp6, 16);
+        Log_info(ic->logger, "Added peer [%s] from incoming message",
+            Address_toString(&ep->addr, msg->alloc)->bytes);
     }
 
-    return NULL;
+    return receivedPostCryptoAuth(msg, ep, ic);
 }
 
 static Iface_DEFUN handleIncomingFromWire(struct Message* msg, struct Iface* addrIf)
@@ -733,8 +677,10 @@ static Iface_DEFUN handleIncomingFromWire(struct Message* msg, struct Iface* add
 
     struct Peer* ep = Identity_check((struct Peer*) ici->peerMap.values[epIndex]);
     Message_shift(msg, -lladdr->addrLen, NULL);
-    Iface_send(&ep->externalIf, msg);
-    return NULL;
+    if (CryptoAuth_decrypt(ep->caSession, msg)) {
+        return NULL;
+    }
+    return receivedPostCryptoAuth(msg, ep, ici->ic);
 }
 
 struct IfController_Iface* IfController_newIface(struct IfController* ifc,
@@ -787,7 +733,7 @@ static void sendBeacon(struct IfController_Iface_pvt* ici, struct Allocator* tem
     };
     Message_push(msg, &sa, Sockaddr_OVERHEAD, NULL);
 
-    Iface_send(ici->pub.addrIf, msg);
+    Iface_send(&ici->pub.addrIf, msg);
 }
 
 static void beaconInterval(void* vIfController)
@@ -795,14 +741,14 @@ static void beaconInterval(void* vIfController)
     struct IfController_pvt* ic =
         Identity_check((struct IfController_pvt*) vIfController);
 
-    struct Allocator* alloc = Allocator_child(ic->allocator);
+    struct Allocator* alloc = Allocator_child(ic->alloc);
     for (int i = 0; i < ic->icis->length; i++) {
         struct IfController_Iface_pvt* ici = ArrayList_OfIfaces_get(ic->icis, i);
         sendBeacon(ici, alloc);
     }
     Allocator_free(alloc);
 
-    Timeout_setTimeout(beaconInterval, ic, ic->beaconInterval, ic->eventBase, ic->allocator);
+    Timeout_setTimeout(beaconInterval, ic, ic->beaconInterval, ic->eventBase, ic->alloc);
 }
 
 int IfController_beaconState(struct IfController* ifc,
@@ -833,14 +779,13 @@ int IfController_beaconState(struct IfController* ifc,
 }
 
 int IfController_bootstrapPeer(struct IfController* ifc,
-                                      int interfaceNumber,
-                                      uint8_t* herPublicKey,
-                                      const struct Sockaddr* lladdrParm,
-                                      String* password,
-                                      struct Allocator* alloc)
+                               int interfaceNumber,
+                               uint8_t* herPublicKey,
+                               const struct Sockaddr* lladdrParm,
+                               String* password,
+                               struct Allocator* alloc)
 {
-    struct IfController_pvt* ic =
-        Identity_check((struct IfController_pvt*) ifc);
+    struct IfController_pvt* ic = Identity_check((struct IfController_pvt*) ifc);
 
     Assert_true(herPublicKey);
     Assert_true(password);
@@ -855,9 +800,7 @@ int IfController_bootstrapPeer(struct IfController* ifc,
 
     uint8_t ip6[16];
     AddressCalc_addressForPublicKey(ip6, herPublicKey);
-    if (!AddressCalc_validAddress(ip6) ||
-        !Bits_memcmp(ic->ca->publicKey, herPublicKey, 32))
-    {
+    if (!AddressCalc_validAddress(ip6) || !Bits_memcmp(ic->ca->publicKey, herPublicKey, 32)) {
         return IfController_bootstrapPeer_BAD_KEY;
     }
 
@@ -892,8 +835,7 @@ int IfController_bootstrapPeer(struct IfController* ifc,
     ep->cryptoAuthIf->receiverContext = ep;
     CryptoAuth_setAuth(password, 1, ep->cryptoAuthIf);
 
-    ep->switchIf.sendMessage = sendFromSwitch;
-    ep->switchIf.allocator = epAlloc;
+    ep->switchIf.send = sendFromSwitch;
 
     int ret = SwitchCore_addInterface(&ep->switchIf, 0, &ep->addr.path, ic->switchCore);
     if (ret) {
@@ -982,7 +924,7 @@ int IfController_disconnectPeer(struct IfController* ifController,
         for (int i = 0; i < (int)ici->peerMap.count; i++) {
             struct Peer* peer = ici->peerMap.values[i];
             if (!Bits_memcmp(herPublicKey, CryptoAuth_getHerPublicKey(peer->cryptoAuthIf), 32)) {
-                Allocator_free(peer->externalIf.allocator);
+                Allocator_free(peer->alloc);
                 return 0;
             }
         }
@@ -1003,7 +945,7 @@ static Iface_DEFUN incomingFromEventEmitterIf(struct Message* msg, struct Iface*
         for (int i = 0; i < (int)ici->peerMap.count; i++) {
             struct Peer* peer = Identity_check((struct Peer*) ici->peerMap.values[i]);
             if (peer->state != IfController_PeerState_ESTABLISHED) { continue; }
-            sendPeer(ic, pathfinderId, PFChan_Core_PEER, peer, msg->alloc);
+            sendPeer(pathfinderId, PFChan_Core_PEER, peer);
         }
     }
     return NULL;
@@ -1021,7 +963,7 @@ struct IfController* IfController_new(struct CryptoAuth* ca,
     struct IfController_pvt* out =
         Allocator_malloc(allocator, sizeof(struct IfController_pvt));
     Bits_memcpyConst(out, (&(struct IfController_pvt) {
-        .allocator = allocator,
+        .alloc = allocator,
         .ca = ca,
         .rand = rand,
         .switchCore = switchCore,

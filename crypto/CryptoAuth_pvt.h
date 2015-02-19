@@ -59,9 +59,6 @@ struct CryptoAuth_Session_pvt
 {
     struct CryptoAuth_Session pub;
 
-    /** The public key of the other node, all zeros is taken to mean "don't know" */
-    uint8_t herPerminentPubKey[32];
-
     /**
      * If an object was associated with a password and the remote host authed
      * with the password this will be the object, otherwise it will be null.
@@ -78,14 +75,8 @@ struct CryptoAuth_Session_pvt
 
     uint8_t ourTempPubKey[32];
 
-    /** An outgoing message which is buffered in the event that a reverse handshake is required. */
-    struct Message* bufferedMessage;
-
     /** A password to use for authing with the other party. */
     String* password;
-
-    /** Used for preventing replay attacks. */
-    struct ReplayProtector replayProtector;
 
     /** The next nonce to use. */
     uint32_t nextNonce;
@@ -94,7 +85,7 @@ struct CryptoAuth_Session_pvt
     uint32_t timeOfLastPacket;
 
     /** The method to use for trying to auth with the server. */
-    uint8_t authType;
+    int authType : 8;
 
     /** True if this node began the conversation. */
     bool isInitiator : 1;
@@ -107,13 +98,7 @@ struct CryptoAuth_Session_pvt
     /** A pointer back to the main cryptoauth context. */
     struct CryptoAuth_pvt* const context;
 
-    /** The internal interface which we are wrapping. */
-    struct Iface* const wrappedInterface;
-
-    /** The interface which this wrapper provides. */
-    struct Iface externalInterface;
-
-    /** A name for the wrapper which will appear in logs. */
+    /** A name for the session which will appear in logs. */
     char* name;
 
     Identity
@@ -122,9 +107,9 @@ struct CryptoAuth_Session_pvt
 
 uint8_t CryptoAuth_receiveMessage(struct Message* received, struct Iface* interface);
 
-uint8_t CryptoAuth_encryptHandshake(struct Message* message,
-                                    struct CryptoAuth_Wrapper* wrapper,
-                                    int setupMessage);
+//uint8_t CryptoAuth_encryptHandshake(struct Message* message,
+//                                    struct CryptoAuth_Wrapper* wrapper,
+//                                    int setupMessage);
 
 int CryptoAuth_decryptRndNonce(uint8_t nonce[24], struct Message* msg, uint8_t secret[32]);
 

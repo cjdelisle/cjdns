@@ -15,6 +15,8 @@
 #ifndef InterfaceConnector_H
 #define InterfaceConnector_H
 
+#error poison
+
 #include "util/Linker.h"
 Linker_require("interface/InterfaceConnector.c")
 

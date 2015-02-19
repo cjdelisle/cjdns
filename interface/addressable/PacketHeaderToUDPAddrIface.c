@@ -13,6 +13,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "memory/Allocator.h"
+#include "interface/addressable/PacketHeaderToUDPAddrIface.h"
 #include "util/platform/Sockaddr.h"
 #include "util/Assert.h"
 #include "util/Identity.h"
