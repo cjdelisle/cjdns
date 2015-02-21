@@ -33,6 +33,7 @@
 #define PRIVATEKEY "0123456789abcdefghijklmnopqrstuv"
 #define HERPUBKEY  "wxyzabcdefghijklmnopqrstuv987654"
 #define HELLOWORLD "Hello World"
+#define HELLOWORLDLOWER "hello world"
 #define HELLOWORLDLEN 12
 
 static void encryptRndNonceTest()
@@ -47,7 +48,7 @@ static void encryptRndNonceTest()
     Bits_memset(secret, 0, 32);
 
     struct Message m = { .bytes=&buff[32], .length=HELLOWORLDLEN, .padding=32};
-    CString_strcpy((char*) m.bytes, HELLOWORLD);
+    CString_strcpy((char*) m.bytes, HELLOWORLDLOWER);
 
     CryptoAuth_encryptRndNonce(nonce, &m, secret);
 
@@ -55,11 +56,11 @@ static void encryptRndNonceTest()
     uint8_t output[57];
     Hex_encode(output, 57, m.bytes, m.length);
 
-    //printf("\n%s\n%s\n", (char*) expected, (char*) output);
+    printf("\n%s\n%s\n", (char*) expected, (char*) output);
     Assert_true(!Bits_memcmp(expected, output, 56));
 
     Assert_true(!CryptoAuth_decryptRndNonce(nonce, &m, secret));
-    Assert_true(m.length == HELLOWORLDLEN && !Bits_memcmp(m.bytes, HELLOWORLD, m.length));
+    Assert_true(m.length == HELLOWORLDLEN && !Bits_memcmp(m.bytes, HELLOWORLDLOWER, m.length));
 }
 
 static struct Random* evilRandom(struct Allocator* alloc, struct Log* logger)
@@ -120,7 +121,7 @@ static void testHello(uint8_t* password, uint8_t* expectedOutput)
 static void helloNoAuth()
 {
     testHello(NULL,
-        "00000000007691d3802a9d04fc403525497a185dabda71739c1f35465fac3448"
+        "00000000007691d3802a9d04fc400000497a185dabda71739c1f35465fac3448"
         "b92a0c36ebff1cf7050383c91e7d56ec2336c09739fa8e91d8dc5bec63e8fad0"
         "74bee22a90642a6b4188f374afd90ccc97bb61873b5d8a3b4a6071b60b26a8c7"
         "2d6484634df315c4d3ad63de42fe3e4ebfd83bcdab2e1f5f40dc5a08eda4e6c6"
@@ -130,7 +131,7 @@ static void helloNoAuth()
 static void helloWithAuth()
 {
     testHello("password",
-        "0000000001641c99f7719f5780003eb1497a185dabda71739c1f35465fac3448"
+        "0000000001641c99f7719f5780000000497a185dabda71739c1f35465fac3448"
         "b92a0c36ebff1cf7050383c91e7d56ec2336c09739fa8e91d8dc5bec63e8fad0"
         "74bee22a90642a6b022e089e0550ca84b86884af6a0263fa5fff9ba07583aea4"
         "acb000dbe4115623cf335c63981b9645b6c89fbdc3ad757744879751de0f215d"
@@ -141,13 +142,13 @@ static void receiveHelloWithNoAuth()
 {
     struct Allocator* alloc = MallocAllocator_new(1<<20);
     struct Context* ctx = setUp(PRIVATEKEY, NULL, NULL, alloc);
-    struct Message* msg = Message_new(0, 132, alloc);
-    Message_push(msg,
+    struct Message* msg = Message_new(132, 0, alloc);
+    Assert_true(Hex_decode(msg->bytes, msg->length, 
         "0000000000ffffffffffffff7fffffffffffffffffffffffffffffffffffffff"
         "ffffffffffffffff847c0d2c375234f365e660955187a3735a0f7613d1609d3a"
         "6a4d8c53aeaa5a22ea9cf275eee0185edf7f211192f12e8e642a325ed76925fe"
         "3c76d313b767a10aca584ca0b979dee990a737da7d68366fa3846d43d541de91"
-        "29ea3e12", 132, NULL);
+        "29ea3e12", 132*2) > 0);
     Assert_true(!CryptoAuth_decrypt(ctx->sess, msg));
     Assert_true(msg->length == HELLOWORLDLEN);
     Assert_true(Bits_memcmp(HELLOWORLD, msg->bytes, HELLOWORLDLEN) == 0);
@@ -158,14 +159,14 @@ static void receiveHelloWithNoAuth()
 static void repeatHello()
 {
     uint8_t* expectedOutput =
-        "0000000101641c99f7719f5780003eb1497a185dabda71739c1f35465fac3448"
-        "b92a0c36ebff1cf7050383c91e7d56ec2336c09739fa8e91d8dc5bec63e8fad0"
-        "74bee22a90642a6b022e089e0550ca84b86884af6a0263fa5fff9ba07583aea4"
-        "acb000dbe4115623cf335c63981b9645b6c89fbdc3ad757744879751de0f215d"
-        "2479131d";
+        "0000000101641c99f7719f5780000000a693a9fd3f0e27e81ab1100b57b37259"
+        "4c2adca8671f1fdd050383c91e7d56ec2336c09739fa8e91d8dc5bec63e8fad0"
+        "74bee22a90642a6ba8555be84c5e35970c5270e8f31f2a5978e0fbdee4542882"
+        "97568f25a3fc2801aa707d954c78eccb970bcc8cb26867e9dbf0c9d6ef1b3f27"
+        "24e7e550";
 
     struct Allocator* alloc = MallocAllocator_new(1<<20);
-    struct Context* ctx = setUp(NULL, HERPUBKEY, "balahblahpassword ", alloc);
+    struct Context* ctx = setUp(NULL, HERPUBKEY, "password", alloc);
     struct Message* msg = Message_new(0, CryptoHeader_SIZE + HELLOWORLDLEN, alloc);
     Message_push(msg, HELLOWORLD, HELLOWORLDLEN, NULL);
 
