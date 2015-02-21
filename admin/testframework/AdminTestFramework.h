@@ -24,6 +24,8 @@
 #include "util/Linker.h"
 Linker_require("admin/testframework/AdminTestFramework.c")
 
+#error poisoned
+
 struct AdminTestFramework
 {
     struct Admin* admin;

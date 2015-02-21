@@ -106,8 +106,8 @@ static Iface_DEFUN incomingFromIpTunnelIf(struct Message* msg, struct Iface* ipT
 }
 
 
-static Iface_DEFUN incomingFromUpperDistributorIf(struct Iface* upperDistributorIf,
-                                                  struct Message* msg)
+static Iface_DEFUN incomingFromUpperDistributorIf(struct Message* msg,
+                                                  struct Iface* upperDistributorIf)
 {
     struct TUNAdapter_pvt* ud =
         Identity_containerOf(upperDistributorIf, struct TUNAdapter_pvt, pub.upperDistributorIf);

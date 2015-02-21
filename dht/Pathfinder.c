@@ -195,7 +195,7 @@ static Iface_DEFUN switchErr(struct Message* msg, struct Pathfinder_pvt* pf)
     AddrTools_printPath(pathStr, Endian_bigEndianToHost64(switchErr.sh.label_be));
     int err = Endian_bigEndianToHost32(switchErr.ctrlErr.errorType_be);
     Log_debug(pf->log, "switch err from [%s] type [%s][%d]", pathStr, Error_strerror(err), err);
-// TODO: something useful?
+// TODO(cjd): something useful?
     return NULL;
 }
 

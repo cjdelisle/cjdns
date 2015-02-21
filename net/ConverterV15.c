@@ -28,7 +28,7 @@
 struct ConverterV15_pvt
 {
     struct ConverterV15 pub;
-    struct SessionTable* sm;
+    struct SessionManager* sm;
     uint8_t myIp6[16];
     struct Log* log;
     Identity
@@ -38,8 +38,8 @@ struct ConverterV15_pvt
  * Incoming packet with a SessionManager header followed by a ContentHeader and then whatever
  * content.
  */
-static Iface_DEFUN incomingFromUpperDistributorIf(struct Iface* upperDistributorIf,
-                                          struct Message* msg)
+static Iface_DEFUN incomingFromUpperDistributorIf(struct Message* msg,
+                                                  struct Iface* upperDistributorIf)
 {
     struct ConverterV15_pvt* conv =
         Identity_containerOf(upperDistributorIf, struct ConverterV15_pvt, pub.upperDistributorIf);
@@ -47,7 +47,7 @@ static Iface_DEFUN incomingFromUpperDistributorIf(struct Iface* upperDistributor
     Assert_true(msg->length >= DataHeader_SIZE + RouteHeader_SIZE);
 
     struct RouteHeader* hdr = (struct RouteHeader*) msg->bytes;
-    struct SessionTable_Session* sess = SessionTable_sessionForIp6(hdr->ip6, conv->sm);
+    struct SessionManager_Session* sess = SessionManager_sessionForIp6(hdr->ip6, conv->sm);
     if (hdr->version_be && Endian_bigEndianToHost32(hdr->version_be) < 16) {
         // definitely old
     } else if (!hdr->version_be && sess->version && sess->version < 16) {
@@ -65,9 +65,12 @@ static Iface_DEFUN incomingFromUpperDistributorIf(struct Iface* upperDistributor
         return NULL;
     }
 
-    // My fears, come alive, in this place where I once died
-    // daemons dreamin', goin' eyed, I just needed to
-    // RE-ALIGN
+    //      My fears, come alive,
+    // in this place where I once died
+    //        demons dreamin',
+    //          Knowing I,
+    //        I just needed to
+    //          _RE_ALIGN_
     Message_shift(msg, -(DataHeader_SIZE + RouteHeader_SIZE), NULL);
     if (type == ContentType_CJDHT) {
         // push a udp header and then an ip header and then checksum the udp
@@ -204,7 +207,7 @@ static Iface_DEFUN incomingFromSessionManagerIf(struct Message* msg, struct Ifac
 
 struct ConverterV15* ConverterV15_new(struct Allocator* alloc,
                                       struct Log* log,
-                                      struct SessionTable* sm,
+                                      struct SessionManager* sm,
                                       uint8_t myIp6[16])
 {
     struct ConverterV15_pvt* out = Allocator_calloc(alloc, sizeof(struct ConverterV15_pvt), 1);

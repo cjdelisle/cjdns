@@ -14,10 +14,9 @@
  */
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
-#include "io/FileWriter.h"
 #include "interface/tuntap/TUNMessageType.h"
 #include "util/log/Log.h"
-#include "util/log/WriterLog.h"
+#include "util/log/FileWriterLog.h"
 #include "util/events/EventBase.h"
 #include "crypto/random/Random.h"
 #include "crypto/AddressCalc.h"
@@ -25,6 +24,7 @@
 #include "util/Bits.h"
 #include "util/Checksum.h"
 #include "util/CString.h"
+#include "wire/DataHeader.h"
 #include "wire/Message.h"
 #include "wire/Headers.h"
 #include "wire/Ethernet.h"
@@ -40,7 +40,7 @@ static Iface_DEFUN responseWithIpCallback(struct Message* message, struct Iface*
     Assert_true(!Bits_memcmp(nodeCjdnsIp6, rh->ip6, 16));
     Assert_true(!Bits_memcmp(fakePubKey, rh->publicKey, 32));
 
-    Message_shift(message, -IpTunnel_PacketInfoHeader_SIZE, NULL);
+    Message_shift(message, -(RouteHeader_SIZE + DataHeader_SIZE), NULL);
     struct Headers_IP6Header* ip = (struct Headers_IP6Header*) message->bytes;
     Assert_true(Headers_getIpVersion(ip) == 6);
     uint16_t length = Endian_bigEndianToHost16(ip->payloadLength_be);
@@ -91,8 +91,7 @@ int main()
 {
     AddressCalc_addressForPublicKey(nodeCjdnsIp6, fakePubKey);
     struct Allocator* alloc = MallocAllocator_new(1<<20);
-    struct Writer* w = FileWriter_new(stdout, alloc);
-    struct Log* logger = WriterLog_new(w, alloc);
+    struct Log* logger = FileWriterLog_new(stdout, alloc);
     struct Random* rand = Random_new(alloc, logger, NULL);
     struct EventBase* eb = EventBase_new(alloc);
 

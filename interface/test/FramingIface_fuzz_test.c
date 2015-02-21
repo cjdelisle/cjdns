@@ -12,6 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "interface/FramingIface.h"
 #include "crypto/random/Random.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
@@ -21,6 +22,8 @@
 
 struct Context
 {
+    struct Iface internalIf;
+
     int currentMessage;
 
     // the expected output
@@ -31,9 +34,9 @@ struct Context
     Identity
 };
 
-static uint8_t messageOut(struct Message* msg, struct Iface* iface)
+static Iface_DEFUN messageOut(struct Message* msg, struct Iface* iface)
 {
-    struct Context* ctx = Identity_check((struct Context*) iface->receiverContext);
+    struct Context* ctx = Identity_check((struct Context*) iface);
     Assert_true(ctx->currentMessage < ctx->messageCount);
 
     // The list is populated backwards so we have to count down...
@@ -69,11 +72,10 @@ int main()
     struct Random* rand = Random_new(mainAlloc, log, NULL);
     struct Context* ctx = Allocator_malloc(mainAlloc, sizeof(struct Context));
     Identity_set(ctx);
-
-    struct Iface iface = { .sendMessage = NULL };
-    struct Iface* fi = FramingInterface_new(4096, &iface, mainAlloc);
-    fi->receiveMessage = messageOut;
-    fi->receiverContext = ctx;
+    ctx->internalIf.send = messageOut;
+    struct Iface externalIf = { .send = NULL };
+    struct Iface* fi = FramingIface_new(4096, &externalIf, mainAlloc);
+    Iface_plumb(fi, &ctx->internalIf);
 
     for (int i = 0; i < CYCLES; i++) {
         struct Allocator* alloc = Allocator_child(mainAlloc);
@@ -117,7 +119,7 @@ int main()
             struct Allocator* msgAlloc = Allocator_child(alloc);
             struct Message* m = Message_new(nextMessageSize, 0, msgAlloc);
             Message_pop(msg, m->bytes, nextMessageSize, NULL);
-            Iface_send(&iface, m);
+            Iface_send(&externalIf, m);
             Allocator_free(msgAlloc);
         } while (msg->length);
 

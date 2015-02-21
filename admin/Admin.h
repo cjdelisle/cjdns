@@ -16,6 +16,7 @@
 #define Admin_H
 
 #include "interface/Iface.h"
+#include "interface/addressable/AddrIface.h"
 #include "benc/Dict.h"
 #include "exception/Except.h"
 #include "memory/Allocator.h"
@@ -32,7 +33,7 @@ typedef void (* Admin_Function)
 
 struct Admin
 {
-    struct Iface addrIf;
+    int unused;
 };
 
 struct Admin_FunctionArg
@@ -71,7 +72,7 @@ void Admin_registerFunctionWithArgCount(char* name,
 #define Admin_sendMessage_CHANNEL_CLOSED -1
 int Admin_sendMessage(Dict* message, String* txid, struct Admin* admin);
 
-struct Admin* Admin_new(struct Allocator* alloc,
+struct Admin* Admin_new(struct AddrIface* ai,
                         struct Log* logger,
                         struct EventBase* eventBase,
                         String* password);

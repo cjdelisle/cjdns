@@ -17,7 +17,7 @@
 
 #include "interface/Iface.h"
 #include "memory/Allocator.h"
-#include "net/SessionTable.h"
+#include "net/SessionManager.h"
 #include "util/log/Log.h"
 #include "util/Linker.h"
 Linker_require("net/ConverterV15.c")
@@ -37,7 +37,7 @@ struct ConverterV15
 
 struct ConverterV15* ConverterV15_new(struct Allocator* alloc,
                                       struct Log* log,
-                                      struct SessionTable* sm,
+                                      struct SessionManager* sm,
                                       uint8_t myIp6[16]);
 
 #endif

@@ -12,6 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "interface/tuntap/TUNInterface.h"
 #include "exception/Except.h"
 #include "memory/Allocator.h"
 #include "util/events/EventBase.h"

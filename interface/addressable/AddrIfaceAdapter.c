@@ -43,18 +43,18 @@ static Iface_DEFUN incomingFromInputIf(struct Message* msg, struct Iface* inputI
     struct AddrIfaceAdapter_pvt* ctx =
         Identity_containerOf(inputIf, struct AddrIfaceAdapter_pvt, pub.inputIf);
 
-    Message_push(msg, ctx->pub.generic.addr, context->pub.generic.addr->addrLen, NULL);
+    Message_push(msg, ctx->pub.generic.addr, ctx->pub.generic.addr->addrLen, NULL);
     return Iface_next(&ctx->pub.generic.iface, msg);
 }
 
-struct AddrInterface* AddrIfaceAdapter_new(struct Iface* toWrap, struct Allocator* alloc)
+struct AddrIfaceAdapter* AddrIfaceAdapter_new(struct Allocator* alloc)
 {
     struct AddrIfaceAdapter_pvt* context =
         Allocator_malloc(alloc, sizeof(struct AddrIfaceAdapter_pvt));
     context->pub.generic.addr = Sockaddr_clone(Sockaddr_LOOPBACK, alloc);
     context->pub.generic.alloc = alloc;
     context->pub.generic.iface.send = incomingFromAddrIf;
-    context->pub.input.send = incomingFromInputIf;
+    context->pub.inputIf.send = incomingFromInputIf;
     Identity_set(context);
     return &context->pub;
 }

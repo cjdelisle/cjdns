@@ -14,7 +14,6 @@
  */
 #include "crypto/random/Random.h"
 #include "crypto/CryptoAuth.h"
-#include "io/FileWriter.h"
 #include "benc/String.h"
 #include "memory/MallocAllocator.h"
 #include "util/events/EventBase.h"
@@ -22,307 +21,355 @@
 #include "util/Bits.h"
 #include "util/Hex.h"
 #include "util/Endian.h"
-#include "util/log/WriterLog.h"
-#include "wire/Error.h"
+#include "util/log/FileWriterLog.h"
+#include "wire/CryptoHeader.h"
 
-#include <stdio.h>
+#define PRIVATEKEY ( \
+    "\x20\xca\x45\xd9\x5b\xbf\xca\xe7\x35\x3c\xd2\xdf\xfa\x12\x84\x4b" \
+    "\x4e\xff\xbe\x7d\x39\xd8\x4d\x8e\x14\x2b\x9d\x21\x89\x5b\x38\x09" )
 
-static uint8_t* privateKey = (uint8_t*)
-    "\x20\xca\x45\xd9\x5b\xbf\xca\xe7\x35\x3c\xd2\xdf\xfa\x12\x84\x4b"
-    "\x4e\xff\xbe\x7d\x39\xd8\x4d\x8e\x14\x2b\x9d\x21\x89\x5b\x38\x09";
+#define PUBLICKEY ( \
+    "\x51\xaf\x8d\xd9\x35\xe8\x61\x86\x3e\x94\x2b\x1b\x6d\x21\x22\xe0" \
+    "\x2f\xb2\xd0\x88\x20\xbb\xf3\xf0\x6f\xcd\xe5\x85\x30\xe0\x08\x34" )
 
-static uint8_t* publicKey = (uint8_t*)
-    "\x51\xaf\x8d\xd9\x35\xe8\x61\x86\x3e\x94\x2b\x1b\x6d\x21\x22\xe0"
-    "\x2f\xb2\xd0\x88\x20\xbb\xf3\xf0\x6f\xcd\xe5\x85\x30\xe0\x08\x34";
+#define USEROBJ "This represents a user"
 
-static struct CryptoAuth* ca1;
-static struct Iface* if1;
-static struct Iface* cif1;
-
-static struct CryptoAuth* ca2;
-static struct Iface* if2;
-static struct Iface* cif2;
-
-static struct Message msg;
-
-#define BUFFER_SIZE 400
-static uint8_t* textBuff;
-#define ALIGNED_LEN(x) (CString_strlen(x) + 4 - (CString_strlen(x) % 4))
-#define MK_MSG(x) \
-    Bits_memset(textBuff, 0, BUFFER_SIZE);                                      \
-    Bits_memcpy(&textBuff[BUFFER_SIZE - ALIGNED_LEN(x)], x, CString_strlen(x));         \
-    msg.length = CString_strlen(x);                                                     \
-    msg.capacity = ALIGNED_LEN(x);                                                      \
-    msg.bytes = textBuff + BUFFER_SIZE - ALIGNED_LEN(x);                        \
-    msg.padding = BUFFER_SIZE - ALIGNED_LEN(x)
-
-static uint8_t* if1Msg;
-static uint8_t* if2Msg;
-
-static char* userObj = "This represents a user";
-
-static bool suppressMessages = false;
-static int if1Messages = 0;
-static int if2Messages = 0;
-
-
-static uint8_t sendMessageToIf2(struct Message* message, struct Iface* iface)
+struct Context
 {
-    uint32_t nonce = Endian_bigEndianToHost32(((uint32_t*)message->bytes)[0]);
-    printf("sent message -->  nonce=%d%s\n", nonce, suppressMessages ? " SUPPRESSED" : "");
-    if (!suppressMessages) {
-        Assert_true(message->length + message->padding <= BUFFER_SIZE);
-        if2->receiveMessage(message, if2);
-    }
-    return Error_NONE;
-}
+    struct CryptoAuth* ca1;
+    struct CryptoAuth_Session* sess1;
 
-static uint8_t sendMessageToIf1(struct Message* message, struct Iface* iface)
+    struct CryptoAuth* ca2;
+    struct CryptoAuth_Session* sess2;
+
+    struct Allocator* alloc;
+    struct Log* log;
+    struct Random* rand;
+    struct EventBase* base;
+};
+
+static struct Context* init(uint8_t* privateKey, uint8_t* herPublicKey, uint8_t* password)
 {
-    uint32_t nonce = Endian_bigEndianToHost32(((uint32_t*)message->bytes)[0]);
-    printf("sent message <--  nonce=%d%s\n", nonce, suppressMessages ? " SUPPRESSED" : "");
-    if (!suppressMessages) {
-        Assert_true(message->length + message->padding <= BUFFER_SIZE);
-        if1->receiveMessage(message, if1);
-    }
-    return Error_NONE;
-}
+    struct Allocator* alloc = MallocAllocator_new(1048576);
+    struct Context* ctx = Allocator_calloc(alloc, sizeof(struct Context), 1);
+    ctx->alloc = alloc;
+    struct Log* logger = ctx->log = FileWriterLog_new(stdout, alloc);
+    struct Random* rand = ctx->rand = Random_new(alloc, logger, NULL);
+    struct EventBase* base = ctx->base = EventBase_new(alloc);
 
-static uint8_t recvMessageOnIf1(struct Message* message, struct Iface* iface)
-{
-    Message_pop(message, NULL, 4, NULL);
-    if1Messages++;
-    fputs("if1 got message! ", stdout);
-    fwrite(message->bytes, 1, message->length, stdout);
-    puts("");
-    if1Msg = Message_clone(message, iface->allocator)->bytes;
-    return Error_NONE;
-}
+    ctx->ca1 = CryptoAuth_new(alloc, NULL, base, logger, rand);
+    ctx->sess1 = CryptoAuth_newSession(ctx->ca1, alloc, herPublicKey, NULL, false, "cif1");
 
-static uint8_t recvMessageOnIf2(struct Message* message, struct Iface* iface)
-{
-    Message_pop(message, NULL, 4, NULL);
-    if2Messages++;
-    fputs("if2 got message! ", stdout);
-    fwrite(message->bytes, 1, message->length, stdout);
-    puts("");
-    if2Msg = Message_clone(message, iface->allocator)->bytes;
-    return Error_NONE;
-}
-
-static int init(const uint8_t* privateKey,
-                uint8_t* publicKey,
-                const uint8_t* password)
-{
-    printf("\nSetting up:\n");
-    struct Allocator* allocator = MallocAllocator_new(1048576);
-    textBuff = Allocator_malloc(allocator, BUFFER_SIZE);
-    struct Writer* logwriter = FileWriter_new(stdout, allocator);
-    struct Log* logger = WriterLog_new(logwriter, allocator);
-    struct Random* rand = Random_new(allocator, logger, NULL);
-
-    struct EventBase* base = EventBase_new(allocator);
-
-    ca1 = CryptoAuth_new(allocator, NULL, base, logger, rand);
-    if1 = Allocator_clone(allocator, (&(struct Iface) {
-        .sendMessage = sendMessageToIf2,
-        .receiveMessage = recvMessageOnIf2,
-        .allocator = allocator
-    }));
-    cif1 = CryptoAuth_wrapInterface(if1, publicKey, NULL, false, "cif1", ca1);
-    cif1->receiveMessage = recvMessageOnIf1;
-
-
-    ca2 = CryptoAuth_new(allocator, privateKey, base, logger, rand);
+    ctx->ca2 = CryptoAuth_new(alloc, privateKey, base, logger, rand);
     if (password) {
-        String passStr = {.bytes=(char*)password,.len=CString_strlen((char*)password)};
-        CryptoAuth_setAuth(&passStr, 1, cif1);
-        CryptoAuth_addUser(&passStr, 1, String_new(userObj, allocator), ca2);
+        String* passStr = String_CONST(password);
+        CryptoAuth_setAuth(passStr, 1, ctx->sess1);
+        CryptoAuth_addUser(passStr, 1, String_new(USEROBJ, alloc), ctx->ca2);
     }
-    if2 = Allocator_clone(allocator, (&(struct Iface) {
-        .sendMessage = sendMessageToIf1,
-        .allocator = allocator
-    }));
-    cif2 = CryptoAuth_wrapInterface(if2, NULL, NULL, false, "cif2", ca2);
-    cif2->receiveMessage = recvMessageOnIf2;
+    ctx->sess2 = CryptoAuth_newSession(ctx->ca2, alloc, NULL, NULL, false, "cif2");
 
-    return 0;
+    return ctx;
 }
 
-static int simpleInit()
+static struct Context* simpleInit()
 {
     return init(NULL, NULL, NULL);
 }
 
-static int sendToIf1(const char* x)
+static struct Message* encryptMsg(struct Context* ctx,
+                                  struct CryptoAuth_Session* encryptWith,
+                                  const char* x)
 {
-    if1Msg = NULL;
-    MK_MSG(x);
-    cif2->sendMessage(&msg, cif2);
-    if (!suppressMessages) {
-        Assert_true(if1Msg);
-        if (CString_strncmp((char*)if1Msg, x, CString_strlen(x)) != 0) {
-            printf("expected %s, got %s\n", x, (char*)if1Msg);
-            Assert_true(0);
-        }
+    struct Allocator* alloc = Allocator_child(ctx->alloc);
+    struct Message* msg = Message_new(1, CString_strlen(x) + CryptoHeader_SIZE, alloc);
+    msg->bytes[0] = '\0';
+    Message_push(msg, x, CString_strlen(x), NULL);
+    Assert_true(!CryptoAuth_encrypt(encryptWith, msg));
+    Assert_true(msg->length > ((int)CString_strlen(x) + 4));
+    return msg;
+}
+
+static void decryptMsg(struct Context* ctx,
+                       struct Message* msg,
+                       struct CryptoAuth_Session* decryptWith,
+                       const char* x)
+{
+    if (!x) {
+        // x is null implying it is expected to fail.
+        Assert_true(CryptoAuth_decrypt(decryptWith, msg));
     } else {
-        Assert_true(!if1Msg);
-    }
-    return 0;
-}
-
-static int sendToIf2(const char* x)
-{
-    if2Msg = NULL;
-    MK_MSG(x);
-    cif1->sendMessage(&msg, cif1);
-    if (!suppressMessages) {
-        Assert_true(if2Msg);
-        if (CString_strncmp((char*)if2Msg, x, CString_strlen(x)) != 0) {
-            printf("expected %s, got %s\n", x, (char*)if2Msg);
-            Assert_true(0);
+        Assert_true(!CryptoAuth_decrypt(decryptWith, msg));
+        if ((int)CString_strlen(x) != msg->length || CString_strncmp(msg->bytes, x, msg->length)) {
+            Assert_failure("expected %s, got %s\n", x, msg->bytes);
         }
-    } else {
-        Assert_true(!if2Msg);
     }
-    return 0;
 }
 
-static int normal()
+static void sendToIf1(struct Context* ctx, const char* x)
 {
-    simpleInit();
-    return
-        sendToIf2("hello world")
-      | sendToIf1("hello cjdns")
-      | sendToIf2("hai")
-      | sendToIf1("goodbye");
+    struct Message* msg = encryptMsg(ctx, ctx->sess2, x);
+    decryptMsg(ctx, msg, ctx->sess1, x);
+    Allocator_free(msg->alloc);
 }
 
-static int repeatKey()
+static void sendToIf2(struct Context* ctx, const char* x)
 {
-    simpleInit();
-    return
-        sendToIf2("hello world")
-      | sendToIf2("r u thar?")
-      | sendToIf1("hello cjdns")
-      | sendToIf2("hai")
-      | sendToIf1("goodbye");
+    struct Message* msg = encryptMsg(ctx, ctx->sess1, x);
+    decryptMsg(ctx, msg, ctx->sess2, x);
+    Allocator_free(msg->alloc);
 }
 
-static int repeatHello()
+static void normal()
 {
-    init(privateKey, publicKey, NULL);
-    return
-        sendToIf2("hello world")
-      | sendToIf2("r u thar?")
-      | sendToIf1("hello cjdns")
-      | sendToIf2("hai")
-      | sendToIf1("goodbye");
+    struct Context* ctx = simpleInit();
+    sendToIf2(ctx, "hello world");
+    sendToIf1(ctx, "hello cjdns");
+    sendToIf2(ctx, "hai");
+    sendToIf1(ctx, "goodbye");
+    Allocator_free(ctx->alloc);
 }
 
-static int chatter()
+static void repeatKey()
 {
-    simpleInit();
-    return
-        sendToIf2("hello world")
-      | sendToIf1("hello cjdns")
-      | sendToIf2("hai")
-      | sendToIf1("goodbye")
-      | sendToIf1("hello cjdns")
-      | sendToIf2("hai")
-      | sendToIf1("goodbye")
-      | sendToIf1("hello cjdns")
-      | sendToIf2("hai")
-      | sendToIf1("goodbye")
-      | sendToIf1("hello cjdns")
-      | sendToIf2("hai")
-      | sendToIf1("goodbye");
+    struct Context* ctx = simpleInit();
+    sendToIf2(ctx, "hello world");
+    sendToIf2(ctx, "r u thar?");
+    sendToIf1(ctx, "hello cjdns");
+    sendToIf2(ctx, "hai");
+    sendToIf1(ctx, "goodbye");
+    Allocator_free(ctx->alloc);
 }
 
-static int auth()
+static void repeatHello()
 {
-    init(privateKey, publicKey, (uint8_t*)"password");
-    return
-        sendToIf2("hello world")
-      | sendToIf1("hello cjdns")
-      | sendToIf2("hai")
-      | sendToIf1("goodbye");
+    struct Context* ctx = init(PRIVATEKEY, PUBLICKEY, NULL);
+    sendToIf2(ctx, "hello world");
+    sendToIf2(ctx, "r u thar?");
+    sendToIf1(ctx, "hello cjdns");
+    sendToIf2(ctx, "hai");
+    sendToIf1(ctx, "goodbye");
+    Allocator_free(ctx->alloc);
 }
 
-static int authWithoutKey()
+static void chatter()
 {
-    init(NULL, NULL, (uint8_t*)"password");
-    return
-        sendToIf2("hello world")
-      | sendToIf1("hello cjdns")
-      | sendToIf2("hai")
-      | sendToIf1("goodbye");
+    struct Context* ctx = simpleInit();
+    sendToIf2(ctx, "hello world");
+    sendToIf1(ctx, "hello cjdns");
+    sendToIf2(ctx, "hai");
+    sendToIf1(ctx, "goodbye");
+    sendToIf1(ctx, "hello cjdns");
+    sendToIf2(ctx, "hai");
+    sendToIf1(ctx, "goodbye");
+    sendToIf1(ctx, "hello cjdns");
+    sendToIf2(ctx, "hai");
+    sendToIf1(ctx, "goodbye");
+    sendToIf1(ctx, "hello cjdns");
+    sendToIf2(ctx, "hai");
+    sendToIf1(ctx, "goodbye");
+    Allocator_free(ctx->alloc);
 }
 
-static int poly1305()
+static void auth()
 {
-    init(privateKey, publicKey, NULL);
-    return
-        sendToIf2("hello world")
-      | sendToIf1("hello cjdns")
-      | sendToIf2("hai")
-      | sendToIf1("goodbye");
+    struct Context* ctx = init(PRIVATEKEY, PUBLICKEY, "password");
+    sendToIf2(ctx, "hello world");
+    sendToIf1(ctx, "hello cjdns");
+    sendToIf2(ctx, "hai");
+    sendToIf1(ctx, "goodbye");
+    Allocator_free(ctx->alloc);
 }
 
-static int poly1305UnknownKey()
+static void authWithoutKey()
 {
-    init(NULL, NULL, NULL);
-    return
-        sendToIf2("hello world")
-      | sendToIf1("hello cjdns")
-      | sendToIf2("hai")
-      | sendToIf1("goodbye");
+    struct Context* ctx = init(NULL, NULL, "password");
+    sendToIf2(ctx, "hello world");
+    sendToIf1(ctx, "hello cjdns");
+    sendToIf2(ctx, "hai");
+    sendToIf1(ctx, "goodbye");
+    Allocator_free(ctx->alloc);
 }
 
-static int poly1305AndPassword()
+static void poly1305()
 {
-    init(privateKey, publicKey, (uint8_t*)"aPassword");
-    return
-        sendToIf2("hello world")
-      | sendToIf1("hello cjdns")
-      | sendToIf2("hai")
-      | sendToIf1("goodbye");
+    struct Context* ctx = init(PRIVATEKEY, PUBLICKEY, NULL);
+    sendToIf2(ctx, "hello world");
+    sendToIf1(ctx, "hello cjdns");
+    sendToIf2(ctx, "hai");
+    sendToIf1(ctx, "goodbye");
+    Allocator_free(ctx->alloc);
 }
 
-static int poly1305UnknownKeyAndPassword()
+static void poly1305UnknownKey()
 {
-    init(NULL, NULL, (uint8_t*)"anotherPassword");
-    return
-        sendToIf2("hello world")
-      | sendToIf1("hello cjdns")
-      | sendToIf2("hai")
-      | sendToIf1("goodbye");
+    struct Context* ctx = init(NULL, NULL, NULL);
+    sendToIf2(ctx, "hello world");
+    sendToIf1(ctx, "hello cjdns");
+    sendToIf2(ctx, "hai");
+    sendToIf1(ctx, "goodbye");
+    Allocator_free(ctx->alloc);
+}
+
+static void poly1305AndPassword()
+{
+    struct Context* ctx = init(PRIVATEKEY, PUBLICKEY, "aPassword");
+    sendToIf2(ctx, "hello world");
+    sendToIf1(ctx, "hello cjdns");
+    sendToIf2(ctx, "hai");
+    sendToIf1(ctx, "goodbye");
+    Allocator_free(ctx->alloc);
+}
+
+static void poly1305UnknownKeyAndPassword()
+{
+    struct Context* ctx = init(NULL, NULL, "anotherPassword");
+    sendToIf2(ctx, "hello world");
+    sendToIf1(ctx, "hello cjdns");
+    sendToIf2(ctx, "hai");
+    sendToIf1(ctx, "goodbye");
+    Allocator_free(ctx->alloc);
 }
 
 static void connectToMe()
 {
-    simpleInit();
-    sendToIf1("hello world");
-    sendToIf1("hello cjdns");
-    sendToIf2("hai");
-    sendToIf1("goodbye");
+    struct Context* ctx = simpleInit();
+    sendToIf1(ctx, "hello world");
+    sendToIf1(ctx, "hello cjdns");
+    sendToIf2(ctx, "hai");
+    sendToIf1(ctx, "goodbye");
+    Allocator_free(ctx->alloc);
 }
 
 static void connectToMeDropMsg()
 {
-    simpleInit();
+    struct Context* ctx = simpleInit();
+
     // send a message which is lost in the network.
-    suppressMessages = true;
-    sendToIf1("hello world");
-    suppressMessages = false;
+    encryptMsg(ctx, ctx->sess2, "hello world");
 
     // Now we learn their key some other way...
-    uint8_t* pk = CryptoAuth_getHerPublicKey(cif2);
-    Bits_memcpyConst(pk, ca1->publicKey, 32);
+    Bits_memcpyConst(ctx->sess2->herPublicKey, ctx->ca1->publicKey, 32);
 
-    sendToIf1("hello again world");
-    sendToIf2("hai");
-    sendToIf1("goodbye");
+    sendToIf1(ctx, "hello again world");
+    sendToIf2(ctx, "hai");
+    sendToIf1(ctx, "goodbye");
+    Allocator_free(ctx->alloc);
+}
+
+static void replayKeyPacket(int scenario)
+{
+    struct Context* ctx = simpleInit();
+
+    sendToIf1(ctx, "hello world");
+
+    struct Message* msg = encryptMsg(ctx, ctx->sess2, "hello replay key");
+    struct Message* toReplay = Message_clone(msg, ctx->alloc);
+    decryptMsg(ctx, msg, ctx->sess2, "hello replay key");
+
+    if (scenario == 1) {
+        // If we replay at this stage, the packet makes it and is decrypted.
+        decryptMsg(ctx, toReplay, ctx->sess2, "hello replay key");
+    }
+
+    sendToIf1(ctx, "first traffic packet");
+
+    if (scenario == 2) {
+        // If we replay at this stage, the packet still makes it and is decrypted.
+        decryptMsg(ctx, toReplay, ctx->sess2, "hello replay key");
+    }
+
+    sendToIf2(ctx, "second traffic packet");
+
+    if (scenario == 3) {
+        // If we replay at this stage, the packet is dropped as a stray key
+        decryptMsg(ctx, toReplay, ctx->sess2, NULL);
+    }
+
+    Allocator_free(ctx->alloc);
+}
+
+/**
+ * Alice and Bob both decided they wanted to talk to eachother at precisely the same time.
+ * This means two Hello packets crossed on the wire. Both arrived at their destination but
+ * if each triggers a re-initialization of the CA session, nobody will be synchronized!
+ */
+static void hellosCrossedOnTheWire()
+{
+    struct Context* ctx = simpleInit();
+    Bits_memcpyConst(ctx->sess2->herPublicKey, ctx->ca1->publicKey, 32);
+
+    struct Message* hello2 = encryptMsg(ctx, ctx->sess2, "hello2");
+    struct Message* hello1 = encryptMsg(ctx, ctx->sess1, "hello1");
+
+    decryptMsg(ctx, hello2, ctx->sess1, "hello2");
+    decryptMsg(ctx, hello1, ctx->sess2, "hello1");
+
+    sendToIf2(ctx, "hello world");
+    sendToIf1(ctx, "hello cjdns");
+    sendToIf2(ctx, "hai");
+    sendToIf1(ctx, "goodbye");
+
+    Allocator_free(ctx->alloc);
+}
+
+static void reset()
+{
+    struct Context* ctx = simpleInit();
+    sendToIf2(ctx, "hello world");
+    sendToIf1(ctx, "hello cjdns");
+    sendToIf2(ctx, "hai");
+    sendToIf1(ctx, "brb");
+
+    Assert_true(CryptoAuth_getState(ctx->sess1) == CryptoAuth_ESTABLISHED);
+    Assert_true(CryptoAuth_getState(ctx->sess2) == CryptoAuth_ESTABLISHED);
+
+    CryptoAuth_reset(ctx->sess1);
+
+    // sess2 still talking to sess1 but sess1 is reset and cannot read the packets.
+    decryptMsg(ctx, encryptMsg(ctx, ctx->sess2, "will be lost"), ctx->sess1, NULL);
+    decryptMsg(ctx, encryptMsg(ctx, ctx->sess2, "lost"), ctx->sess1, NULL);
+
+    // This is because we want to prevent replay attacks from tearing down a session.
+    decryptMsg(ctx, encryptMsg(ctx, ctx->sess1, "hello which must be dropped"), ctx->sess2, NULL);
+    decryptMsg(ctx, encryptMsg(ctx, ctx->sess1, "hello which must also drop"), ctx->sess2, NULL);
+
+    CryptoAuth_reset(ctx->sess2);
+
+    sendToIf1(ctx, "hello again");
+    sendToIf2(ctx, "hai");
+    sendToIf1(ctx, "ok works");
+    sendToIf2(ctx, "yup");
+
+    Assert_true(CryptoAuth_getState(ctx->sess1) == CryptoAuth_ESTABLISHED);
+    Assert_true(CryptoAuth_getState(ctx->sess2) == CryptoAuth_ESTABLISHED);
+
+    Allocator_free(ctx->alloc);
+}
+
+// This is slightly different from replayKeyPacket because the second key packet is valid,
+// it's just delayed.
+static void twoKeyPackets(int scenario)
+{
+    struct Context* ctx = simpleInit();
+
+    sendToIf2(ctx, "hello world");
+    sendToIf1(ctx, "key packet 1");
+    struct Message* key2 = encryptMsg(ctx, ctx->sess2, "key packet 2");
+
+    if (scenario == 1) {
+        sendToIf1(ctx, "key packet 3");
+        decryptMsg(ctx, key2, ctx->sess1, "key packet 2");
+    } else if (scenario == 2) {
+        sendToIf2(ctx, "initial data packet");
+        decryptMsg(ctx, key2, ctx->sess1, "key packet 2");
+        sendToIf1(ctx, "second data packet");
+        sendToIf2(ctx, "third data packet");
+    } else if (scenario == 3) {
+        sendToIf2(ctx, "initial data packet");
+        sendToIf1(ctx, "second data packet");
+        decryptMsg(ctx, key2, ctx->sess1, NULL);
+    }
+    Allocator_free(ctx->alloc);
 }
 
 int main()
@@ -339,5 +386,13 @@ int main()
     poly1305UnknownKeyAndPassword();
     connectToMe();
     connectToMeDropMsg();
+    replayKeyPacket(1);
+    replayKeyPacket(2);
+    replayKeyPacket(3);
+    hellosCrossedOnTheWire();
+    reset();
+    twoKeyPackets(1);
+    twoKeyPackets(2);
+    twoKeyPackets(3);
     return 0;
 }

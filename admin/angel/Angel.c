@@ -21,6 +21,7 @@
 #include "util/platform/netdev/NetDev.h"
 #include "interface/addressable/AddrIfaceAdapter.h"
 #ifdef HAS_ETH_INTERFACE
+#include "interface/ETHInterface.h"
 #endif
 #include "util/events/EventBase.h"
 #include "util/log/Log.h"
@@ -130,11 +131,10 @@ void Angel_start(struct Iface* coreIface,
     Identity_set(&ctx);
 
     struct AddrIfaceAdapter* addrIfAdapt = AddrIfaceAdapter_new(alloc);
-    Iface_plumb(&addrIf->inputIf, coreIface);
+    Iface_plumb(&addrIfAdapt->inputIf, coreIface);
     // this is inside of a pipe so the password is unimportant.
     String* passwd = String_new("null", alloc);
-    ctx.admin = Admin_new(alloc, NULL, eventBase, passwd);
-    Iface_plumb(&addrIfAdapt->generic.iface, &ctx.admin.addrIf);
+    ctx.admin = Admin_new(&addrIfAdapt->generic, NULL, eventBase, passwd);
 
     Admin_registerFunction("Angel_exit", adminExit, &ctx, false, NULL, ctx.admin);
 

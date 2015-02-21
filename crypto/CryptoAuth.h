@@ -175,9 +175,11 @@ void CryptoAuth_setAuth(const String* password,
                         struct CryptoAuth_Session* session);
 
 /** Reset the session's state to CryptoAuth_NEW, a new connection will be negotiated. */
-void CryptoAuth_reset(struct CryptoAuth_Session* session);
+//void CryptoAuth_reset(struct CryptoAuth_Session* session);
 
 void CryptoAuth_resetIfTimeout(struct CryptoAuth_Session* session);
+
+void CryptoAuth_reset(struct CryptoAuth_Session* caSession);
 
 /** New CryptoAuth session, has not sent or received anything. */
 #define CryptoAuth_NEW         0

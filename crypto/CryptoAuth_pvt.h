@@ -59,12 +59,7 @@ struct CryptoAuth_Session_pvt
 {
     struct CryptoAuth_Session pub;
 
-    /**
-     * If an object was associated with a password and the remote host authed
-     * with the password this will be the object, otherwise it will be null.
-     */
-    String* user;
-    uint8_t* restrictedToip6;
+    struct Allocator* alloc;
 
     /** The shared secret. */
     uint8_t sharedSecret[32];
@@ -96,7 +91,7 @@ struct CryptoAuth_Session_pvt
     bool established : 1;
 
     /** A pointer back to the main cryptoauth context. */
-    struct CryptoAuth_pvt* const context;
+    struct CryptoAuth_pvt* context;
 
     /** A name for the session which will appear in logs. */
     char* name;
@@ -105,7 +100,7 @@ struct CryptoAuth_Session_pvt
 };
 
 
-uint8_t CryptoAuth_receiveMessage(struct Message* received, struct Iface* interface);
+//uint8_t CryptoAuth_receiveMessage(struct Message* received, struct Iface* interface);
 
 //uint8_t CryptoAuth_encryptHandshake(struct Message* message,
 //                                    struct CryptoAuth_Wrapper* wrapper,

@@ -30,7 +30,7 @@
 static const uint8_t testAddrA[4] = {11, 0, 0, 1};
 static const uint8_t testAddrB[4] = {11, 0, 0, 2};
 
-static Iface_DEFUN receiveMessageTUN(struct TUNTools* tt, struct Message* msg)
+static Iface_DEFUN receiveMessageTUN(struct Message* msg, struct TUNTools* tt)
 {
     uint16_t ethertype = TUNMessageType_pop(msg, NULL);
     if (ethertype != Ethernet_TYPE_IP4) {
@@ -72,5 +72,6 @@ int main(int argc, char** argv)
     NetDev_addAddress(assignedIfName, addrA, 30, logger, NULL);
 
     TUNTools_echoTest(addrA, addrB, receiveMessageTUN, tun, base, logger, alloc);
+    Allocator_free(alloc);
     return 0;
 }

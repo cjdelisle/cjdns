@@ -57,7 +57,7 @@ struct IpTunnel
 
     /**
      * The interface used to send and receive messages to other nodes.
-     * All messages sent on this interface shall be preceeded with the IpTunnel_PacketInfoHeader.
+     * All messages sent on this interface shall be preceeded with the RouterHeader and DataHeader.
      */
     struct Iface nodeInterface;
 

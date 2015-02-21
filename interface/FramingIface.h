@@ -15,6 +15,7 @@
 #ifndef FramingIface_H
 #define FramingIface_H
 
+#include "interface/Iface.h"
 #include "memory/Allocator.h"
 #include "util/Linker.h"
 Linker_require("interface/FramingIface.c")

@@ -15,6 +15,7 @@
 #ifndef NDPServer_H
 #define NDPServer_H
 
+#include "interface/Iface.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
 #include "wire/Ethernet.h"
@@ -23,7 +24,7 @@ Linker_require("interface/tuntap/NDPServer.c")
 
 struct NDPServer
 {
-    struct Iface generic;
+    struct Iface internal;
     uint8_t advertisePrefix[16];
     uint8_t prefixLen;
 };

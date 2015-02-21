@@ -31,9 +31,11 @@
 
 struct SwitchInterface
 {
-    struct Iface* iface;
+    struct Iface iface;
 
-    struct SwitchCore* core;
+    struct Allocator* alloc;
+
+    struct SwitchCore_pvt* core;
 
     struct Penalty* penalty;
 
@@ -42,83 +44,17 @@ struct SwitchInterface
     Identity
 };
 
-struct SwitchCore
+struct SwitchCore_pvt
 {
+    struct SwitchCore pub;
     struct SwitchInterface interfaces[NumberCompress_INTERFACES];
-    uint32_t interfaceCount;
     bool routerAdded;
     struct Log* logger;
     struct EventBase* eventBase;
 
     struct Allocator* allocator;
+    Identity
 };
-
-struct SwitchCore* SwitchCore_new(struct Log* logger,
-                                  struct Allocator* allocator,
-                                  struct EventBase* base)
-{
-    struct SwitchCore* core = Allocator_calloc(allocator, sizeof(struct SwitchCore), 1);
-    core->allocator = allocator;
-    core->interfaceCount = 0;
-    core->logger = logger;
-    core->eventBase = base;
-    return core;
-}
-
-static inline uint16_t sendMessage(const struct SwitchInterface* switchIf,
-                                   struct Message* toSend,
-                                   struct Log* logger)
-{
-    return Interface_sendMessage(switchIf->iface, toSend);
-}
-
-#ifdef Version_7_COMPAT
-struct ErrorPacket7 {
-    struct SwitchHeader switchHeader;
-    struct Control ctrl;
-};
-Assert_compileTime(sizeof(struct ErrorPacket7) == SwitchHeader_SIZE + sizeof(struct Control));
-static inline void sendError7(struct SwitchInterface* iface,
-                              struct Message* cause,
-                              uint32_t code,
-                              struct Log* logger)
-{
-    struct SwitchHeader* header = (struct SwitchHeader*) cause->bytes;
-
-    if (SwitchHeader_isV7Ctrl(header)
-        && ((struct ErrorPacket7*) cause->bytes)->ctrl.type_be == Control_ERROR_be)
-    {
-        // Errors never cause other errors to be sent.
-        return;
-    }
-
-    // limit of 256 bytes
-    cause->length =
-        (cause->length < Control_Error_MAX_SIZE) ? cause->length : Control_Error_MAX_SIZE;
-
-    // Shift back so we can add another header.
-    Message_shift(cause,
-                  SwitchHeader_SIZE + Control_Header_SIZE + Control_Error_HEADER_SIZE,
-                  NULL);
-    struct ErrorPacket7* err = (struct ErrorPacket7*) cause->bytes;
-
-    err->switchHeader.label_be = Bits_bitReverse64(header->label_be);
-    SwitchHeader_setSuppressErrors(&err->switchHeader, true);
-    // set version to 0 so that other node will not change congestion field.
-    SwitchHeader_setVersion(&err->switchHeader, 0);
-    SwitchHeader_setPenalty(&err->switchHeader, 0);
-    SwitchHeader_setCongestion(&err->switchHeader, 0);
-
-    err->ctrl.type_be = Control_ERROR_be;
-    err->ctrl.content.error.errorType_be = Endian_hostToBigEndian32(code);
-    err->ctrl.checksum_be = 0;
-
-    err->ctrl.checksum_be =
-        Checksum_engine((uint8_t*) &err->ctrl, cause->length - SwitchHeader_SIZE);
-
-    sendMessage(iface, cause, logger);
-}
-#endif
 
 struct ErrorPacket8 {
     struct SwitchHeader switchHeader;
@@ -126,21 +62,22 @@ struct ErrorPacket8 {
     struct Control ctrl;
 };
 Assert_compileTime(sizeof(struct ErrorPacket8) == SwitchHeader_SIZE + 4 + sizeof(struct Control));
-static inline void sendError8(struct SwitchInterface* iface,
-                              struct Message* cause,
-                              uint32_t code,
-                              struct Log* logger)
+
+static inline Iface_DEFUN sendError(struct SwitchInterface* iface,
+                                    struct Message* cause,
+                                    uint32_t code,
+                                    struct Log* logger)
 {
     if (cause->length < SwitchHeader_SIZE + 4) {
         Log_debug(logger, "runt");
-        return;
+        return NULL;
     }
 
     struct SwitchHeader* header = (struct SwitchHeader*) cause->bytes;
 
     if (SwitchHeader_getSuppressErrors(header)) {
         // don't send errors if they're asking us to suppress them!
-        return;
+        return NULL;
     }
 
     // limit of 256 bytes
@@ -167,51 +104,23 @@ static inline void sendError8(struct SwitchInterface* iface,
     err->ctrl.header.checksum_be =
         Checksum_engine((uint8_t*) &err->ctrl, cause->length - SwitchHeader_SIZE - 4);
 
-    sendMessage(iface, cause, logger);
-}
-
-static inline void sendError(struct SwitchInterface* iface,
-                             struct Message* cause,
-                             uint32_t code,
-                             struct Log* logger)
-{
-    #ifdef Version_8_COMPAT
-        struct SwitchHeader* header = (struct SwitchHeader*) cause->bytes;
-        if (SwitchHeader_getCongestion(header)) {
-            // new version packet.
-            sendError8(iface, cause, code, logger);
-            return;
-        } else if (cause->length > SwitchHeader_SIZE + 4 &&
-            ((uint32_t*)(&header[1]))[0] == 0xffffffff)
-        {
-            // ctrl packet which is being sent to a possibly-old-version node.
-            sendError8(iface, cause, code, logger);
-            return;
-        }
-        #ifdef Version_7_COMPAT
-            sendError7(iface, cause, code, logger);
-            return;
-        #endif
-    #endif
-
-    sendError8(iface, cause, code, logger);
+    return Iface_next(&iface->iface, cause);
 }
 
 #define DEBUG_SRC_DST(logger, message) \
     Log_debug(logger, message " ([%u] to [%u])", sourceIndex, destIndex)
 
 /** This never returns an error, it sends an error packet instead. */
-static uint8_t receiveMessage(struct Message* message, struct Iface* iface)
+static Iface_DEFUN receiveMessage(struct Message* message, struct Iface* iface)
 {
-    struct SwitchInterface* sourceIf =
-        Identity_check((struct SwitchInterface*) iface->receiverContext);
+    struct SwitchInterface* sourceIf = Identity_check((struct SwitchInterface*) iface);
+    struct SwitchCore_pvt* core = Identity_check(sourceIf->core);
 
     if (message->length < SwitchHeader_SIZE) {
-        Log_debug(sourceIf->core->logger, "DROP runt packet.");
-        return Error_NONE;
+        Log_debug(core->logger, "DROP runt");
+        return NULL;
     }
 
-    struct SwitchCore* core = sourceIf->core;
     struct SwitchHeader* header = (struct SwitchHeader*) message->bytes;
     const uint64_t label = Endian_bigEndianToHost64(header->label_be);
     uint32_t bits = NumberCompress_bitsUsedForLabel(label);
@@ -222,16 +131,12 @@ static uint8_t receiveMessage(struct Message* message, struct Iface* iface)
     Assert_true(destIndex < NumberCompress_INTERFACES);
     Assert_true(sourceIndex < NumberCompress_INTERFACES);
 
-    if (1 == destIndex) {
-        if (1 != (label & 0xf)) {
-            /* routing interface: must always be compressed as 0001 */
-            DEBUG_SRC_DST(sourceIf->core->logger,
-                            "DROP packet for this router because the destination "
-                            "discriminator was wrong");
-            sendError(sourceIf, message, Error_MALFORMED_ADDRESS, sourceIf->core->logger);
-            return Error_NONE;
-        }
-        //Assert_true(bits == 4);
+    if (1 == destIndex && 1 != (label & 0xf)) {
+        // routing interface: must always be compressed as 0001
+        DEBUG_SRC_DST(core->logger,
+                        "DROP packet for this router because the destination "
+                        "discriminator was wrong");
+        return sendError(sourceIf, message, Error_MALFORMED_ADDRESS, core->logger);
     }
 
     if (sourceBits > bits) {
@@ -252,11 +157,10 @@ static uint8_t receiveMessage(struct Message* message, struct Iface* iface)
                 // If this router and switch communicated using labels with "64 + four less
                 // than the number of bits in largest discriminator" bits wide, it could handle
                 // this situation, this solution is obviously non-trivial.
-                DEBUG_SRC_DST(sourceIf->core->logger,
+                DEBUG_SRC_DST(core->logger,
                               "DROP packet for this router because there is no way to "
                               "represent the return path.");
-                sendError(sourceIf, message, Error_RETURN_PATH_INVALID, sourceIf->core->logger);
-                return Error_NONE;
+                return sendError(sourceIf, message, Error_RETURN_PATH_INVALID, core->logger);
             }
             bits = sourceBits;
         } else if (1 == sourceIndex) {
@@ -267,32 +171,28 @@ static uint8_t receiveMessage(struct Message* message, struct Iface* iface)
             //   can overlap as "10001" (or "100001" or ...)
             if (0 != label >> (bits + 64 - sourceBits)) {
                 // not enough zeroes
-                DEBUG_SRC_DST(sourceIf->core->logger, "DROP packet because source address is "
+                DEBUG_SRC_DST(core->logger, "DROP packet because source address is "
                                                       "larger than destination address.");
-                sendError(sourceIf, message, Error_MALFORMED_ADDRESS, sourceIf->core->logger);
-                return Error_NONE;
+                return sendError(sourceIf, message, Error_MALFORMED_ADDRESS, core->logger);
             }
         } else {
-            Log_info(sourceIf->core->logger, "source exceeds dest");
-            DEBUG_SRC_DST(sourceIf->core->logger, "DROP packet because source address is "
+            Log_info(core->logger, "source exceeds dest");
+            DEBUG_SRC_DST(core->logger, "DROP packet because source address is "
                                                   "larger than destination address.");
-            sendError(sourceIf, message, Error_MALFORMED_ADDRESS, sourceIf->core->logger);
-            return Error_NONE;
+            return sendError(sourceIf, message, Error_MALFORMED_ADDRESS, core->logger);
         }
     }
 
-    if (core->interfaces[destIndex].iface == NULL) {
-        Log_info(sourceIf->core->logger, "no such iface");
-        DEBUG_SRC_DST(sourceIf->core->logger, "DROP packet because there is no interface "
+    if (core->interfaces[destIndex].alloc == NULL) {
+        Log_info(core->logger, "no such iface");
+        DEBUG_SRC_DST(core->logger, "DROP packet because there is no interface "
                                               "where the bits specify.");
-        sendError(sourceIf, message, Error_MALFORMED_ADDRESS, sourceIf->core->logger);
-        return Error_NONE;
+        return sendError(sourceIf, message, Error_MALFORMED_ADDRESS, core->logger);
     }
 
     /*if (sourceIndex == destIndex && sourceIndex != 1) {
-        DEBUG_SRC_DST(sourceIf->core->logger, "DROP Packet with redundant route.");
-        sendError(sourceIf, message, Error_LOOP_ROUTE, sourceIf->core->logger);
-        return Error_NONE;
+        DEBUG_SRC_DST(core->logger, "DROP Packet with redundant route.");
+        return sendError(sourceIf, message, Error_LOOP_ROUTE, core->logger);
     }*/
 
     uint64_t sourceLabel = Bits_bitReverse64(NumberCompress_getCompressed(sourceIndex, bits));
@@ -308,33 +208,16 @@ static uint8_t receiveMessage(struct Message* message, struct Iface* iface)
     uint32_t labelShift = SwitchHeader_getLabelShift(header) + bits;
     if (labelShift > 63) {
         // TODO(cjd): hmm should we return an error packet?
-        Log_debug(sourceIf->core->logger, "Label rolled over");
-        return Error_NONE;
+        Log_debug(core->logger, "Label rolled over");
+        return NULL;
     }
     SwitchHeader_setLabelShift(header, labelShift);
-    Penalty_apply(sourceIf->penalty, header, message->length);
-
-    const uint16_t err = sendMessage(&core->interfaces[destIndex], message, sourceIf->core->logger);
-    if (err) {
-        Log_debug(sourceIf->core->logger, "Sending packet caused an error [%s]",
-                  Error_strerror(err));
-
-        // be careful, the message could have decrypted content in it
-        // and we don't want to spill it out over the wire.
-
-        message->length = message->capacity;
-        Message_shift(message, -message->length, NULL);
-        // alignment issues
-        while ((((uintptr_t)message->bytes) - cloneLength) % 4) {
-            Message_push8(message, 0, NULL);
-        }
-        Message_push(message, messageClone, cloneLength, NULL);
-        message->length = cloneLength;
-        sendError(sourceIf, message, err, sourceIf->core->logger);
-        return Error_NONE;
+    if (sourceIndex != 1) {
+        // no penalty for our own packets
+        Penalty_apply(sourceIf->penalty, header, message->length);
     }
 
-    return Error_NONE;
+    return Iface_next(&core->interfaces[destIndex].iface, message);
 }
 
 static int removeInterface(struct Allocator_OnFreeJob* job)
@@ -344,10 +227,13 @@ static int removeInterface(struct Allocator_OnFreeJob* job)
     return 0;
 }
 
-void SwitchCore_swapInterfaces(struct Iface* if1, struct Iface* if2)
+void SwitchCore_swapInterfaces(struct Iface* userIf1, struct Iface* userIf2)
 {
-    struct SwitchInterface* si1 = Identity_check((struct SwitchInterface*) if1->receiverContext);
-    struct SwitchInterface* si2 = Identity_check((struct SwitchInterface*) if2->receiverContext);
+    struct SwitchInterface* si1 = Identity_check((struct SwitchInterface*) userIf1->connectedIf);
+    struct SwitchInterface* si2 = Identity_check((struct SwitchInterface*) userIf2->connectedIf);
+
+    Iface_unplumb(userIf1, &si1->iface);
+    Iface_unplumb(userIf2, &si2->iface);
 
     Assert_true(Allocator_cancelOnFree(si1->onFree) > -1);
     Assert_true(Allocator_cancelOnFree(si2->onFree) > -1);
@@ -358,80 +244,57 @@ void SwitchCore_swapInterfaces(struct Iface* if1, struct Iface* if2)
     Bits_memcpyConst(si2, &si3, sizeof(struct SwitchInterface));
 
     // Now the if#'s are in reverse order :)
-    si1->onFree = Allocator_onFree(if2->allocator, removeInterface, si1);
-    si2->onFree = Allocator_onFree(if1->allocator, removeInterface, si2);
+    si1->onFree = Allocator_onFree(si2->alloc, removeInterface, si1);
+    si2->onFree = Allocator_onFree(si1->alloc, removeInterface, si2);
 
-    if1->receiverContext = si2;
-    if2->receiverContext = si1;
+    Iface_plumb(userIf2, &si1->iface);
+    Iface_plumb(userIf1, &si2->iface);
 }
 
-/**
- * @param trust a positive integer representing how much you trust the
- *              connected node not to send a flood.
- * @param labelOut an integer pointer which will be set to the path to the newly added node
- *                 in host endian order.
- * @return 0 if all goes well, -1 if the list is full.
- */
-int SwitchCore_addInterface(struct Iface* iface,
-                            const uint64_t trust,
-                            uint64_t* labelOut,
-                            struct SwitchCore* core)
+int SwitchCore_addInterface(struct SwitchCore* switchCore,
+                            struct Iface* iface,
+                            struct Allocator* alloc,
+                            uint64_t* labelOut)
 {
-    // This is some hackery to make sure the router interface is always index 1.
-    uint32_t ifIndex = core->interfaceCount;
-    if (ifIndex > 0 && !core->routerAdded) {
-        ifIndex++;
-    } else if (ifIndex == 1) {
-        ifIndex--;
-    }
-
+    struct SwitchCore_pvt* core = Identity_check((struct SwitchCore_pvt*)switchCore);
+    int ifIndex = 0;
     // If there's a vacent spot where another iface was before it was removed, use that.
-    for (uint32_t i = 0; i < ifIndex; i++) {
-        if (core->interfaces[i].iface == NULL && i != 1) {
-            ifIndex = i;
-            break;
-        }
-    }
-
-    if (ifIndex == NumberCompress_INTERFACES) {
-        return SwitchCore_addInterface_OUT_OF_SPACE;
+    for (;;ifIndex++) {
+        if (!core->interfaces[ifIndex].iface.send) { break; }
+        if (ifIndex == NumberCompress_INTERFACES) { return SwitchCore_addInterface_OUT_OF_SPACE; }
     }
 
     struct SwitchInterface* newIf = &core->interfaces[ifIndex];
-
-    Bits_memcpyConst(newIf, (&(struct SwitchInterface) {
-        .iface = iface,
-        .core = core
-    }), sizeof(struct SwitchInterface));
-
-    newIf->penalty = Penalty_new(iface->allocator, core->eventBase, core->logger);
-    newIf->onFree = Allocator_onFree(iface->allocator, removeInterface, newIf);
     Identity_set(newIf);
-
-    iface->receiverContext = &core->interfaces[ifIndex];
-    iface->receiveMessage = receiveMessage;
+    newIf->iface.send = receiveMessage;
+    newIf->core = core;
+    newIf->alloc = alloc;
+    newIf->penalty = Penalty_new(alloc, core->eventBase, core->logger);
+    newIf->onFree = Allocator_onFree(alloc, removeInterface, newIf);
+    Iface_plumb(iface, &newIf->iface);
 
     uint32_t bits = NumberCompress_bitsUsedForNumber(ifIndex);
     *labelOut = NumberCompress_getCompressed(ifIndex, bits) | (1 << bits);
 
-    core->interfaceCount++;
-
     return 0;
 }
 
-int SwitchCore_setRouterInterface(struct Iface* iface, struct SwitchCore* core)
+struct SwitchCore* SwitchCore_new(struct Log* logger,
+                                  struct Allocator* allocator,
+                                  struct EventBase* base)
 {
-    Bits_memcpyConst(&core->interfaces[1], (&(struct SwitchInterface) {
-        .iface = iface,
-        .core = core
-    }), sizeof(struct SwitchInterface));
+    struct SwitchCore_pvt* core = Allocator_calloc(allocator, sizeof(struct SwitchCore_pvt), 1);
+    Identity_set(core);
+    core->allocator = allocator;
+    core->logger = logger;
+    core->eventBase = base;
 
-    Identity_set(&core->interfaces[1]);
-    core->interfaces[1].penalty = Penalty_new(iface->allocator, core->eventBase, core->logger);
-    iface->receiverContext = &core->interfaces[1];
-    iface->receiveMessage = receiveMessage;
-    core->interfaceCount++;
-    core->routerAdded = true;
+    struct SwitchInterface* routerIf = &core->interfaces[1];
+    Identity_set(routerIf);
+    routerIf->iface.send = receiveMessage;
+    routerIf->core = core;
+    routerIf->alloc = allocator;
+    core->pub.routerIf = &routerIf->iface;
 
-    return 0;
+    return &core->pub;
 }

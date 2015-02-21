@@ -231,7 +231,7 @@ static int handleFromPathfinder(enum PFChan_Pathfinder ev,
             Message_shift(msg, -8, NULL);
             pf->superiority = Message_pop32(msg, NULL);
             struct Message* resp = pathfinderMsg(PFChan_Core_PATHFINDER, pf, msg->alloc);
-            incomingFromCore(&ee->trickIf, resp);
+            Iface_CALL(incomingFromCore, resp, &ee->trickIf);
             break;
         }
 
@@ -246,7 +246,7 @@ static int handleFromPathfinder(enum PFChan_Pathfinder ev,
             if (cookie != PING_MAGIC || count > pf->bytesSinceLastPing) {
                 pf->state = Pathfinder_state_ERROR;
                 struct Message* resp = pathfinderMsg(PFChan_Core_PATHFINDER_GONE, pf, msg->alloc);
-                incomingFromCore(&ee->trickIf, resp);
+                Iface_CALL(incomingFromCore, resp, &ee->trickIf);
             } else {
                 pf->bytesSinceLastPing -= count;
             }
@@ -312,7 +312,7 @@ static Iface_DEFUN incomingFromPathfinder(struct Message* msg, struct Iface* ifa
         // actually plumbed with this one.
         Assert_true(iface);
         Assert_true(iface->send);
-        iface->send(iface, messageClone);
+        Iface_CALL(iface->send, messageClone, iface);
     }
     return NULL;
 }

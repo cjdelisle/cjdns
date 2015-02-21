@@ -12,10 +12,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "interface/tuntap/TUNMessageType.h"
 #include "interface/tuntap/test/TUNTools.h"
 #include "util/events/UDPAddrIface.h"
 #include "exception/Jmp.h"
 #include "util/events/Timeout.h"
+#include "wire/Ethernet.h"
+#include "wire/Headers.h"
 
 #ifdef win32
     #include <windows.h>
@@ -46,7 +49,7 @@ static struct AddrIface* setupUDP(struct EventBase* base,
 {
     // Mac OSX and BSD do not set up their TUN devices synchronously.
     // We'll just keep on trying until this works.
-    struct AddrInterface* udp = NULL;
+    struct AddrIface* udp = NULL;
     for (int i = 0; i < 20; i++) {
         if ((udp = setupUDP2(base, bindAddr, allocator, logger))) {
             break;
@@ -68,18 +71,19 @@ static void sendHello(void* vctx)
     struct Message* msg;
     Message_STACK(msg, 0, 64);
     Message_push(msg, "Hello World", 12, NULL);
-    Message_push(msg, ctx->pub.tunAddr, ctx->pub.tunAddr->addrLen, NULL);
-    Iface_send(&ctx->udpIface, msg);
+    Message_push(msg, &ctx->pub.tunDestAddr, ctx->pub.tunDestAddr->addrLen, NULL);
+    Iface_send(&ctx->pub.udpIface, msg);
 }
 
-const uint8_t* TUNTools_testIP6AddrA = {0xfd,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1};
-const uint8_t* TUNTools_testIP6AddrB = {0xfd,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2};
+const uint8_t* TUNTools_testIP6AddrA = (uint8_t[]){0xfd,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1};
+const uint8_t* TUNTools_testIP6AddrB = (uint8_t[]){0xfd,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2};
 
-static Iface_DEFUN TUNTools_genericIP6Echo(struct TUNTools* tt, struct Message* msg)
+Iface_DEFUN TUNTools_genericIP6Echo(struct Message* msg, struct TUNTools* tt)
 {
     uint16_t ethertype = TUNMessageType_pop(msg, NULL);
     if (ethertype != Ethernet_TYPE_IP6) {
-        printf("Spurious packet with ethertype [%04x]\n", Endian_bigEndianToHost16(ethertype));
+        Log_debug(tt->log, "Spurious packet with ethertype [%04x]\n",
+                  Endian_bigEndianToHost16(ethertype));
         return 0;
     }
 
@@ -87,35 +91,36 @@ static Iface_DEFUN TUNTools_genericIP6Echo(struct TUNTools* tt, struct Message* 
 
     if (msg->length != Headers_IP6Header_SIZE + Headers_UDPHeader_SIZE + 12) {
         int type = (msg->length >= Headers_IP6Header_SIZE) ? header->nextHeader : -1;
-        printf("Message of unexpected length [%u] ip6->nextHeader: [%d]\n", msg->length, type);
+        Log_debug(tt->log, "Message of unexpected length [%u] ip6->nextHeader: [%d]\n",
+                  msg->length, type);
         return 0;
     }
 
-    Assert_true(!Bits_memcmp(header->destinationAddr, testAddrB, 16));
-    Assert_true(!Bits_memcmp(header->sourceAddr, testAddrA, 16));
+    Assert_true(!Bits_memcmp(header->destinationAddr, TUNTools_testIP6AddrB, 16));
+    Assert_true(!Bits_memcmp(header->sourceAddr, TUNTools_testIP6AddrA, 16));
 
-    Bits_memcpyConst(header->destinationAddr, testAddrA, 16);
-    Bits_memcpyConst(header->sourceAddr, testAddrB, 16);
+    Bits_memcpyConst(header->destinationAddr, TUNTools_testIP6AddrA, 16);
+    Bits_memcpyConst(header->sourceAddr, TUNTools_testIP6AddrB, 16);
 
     TUNMessageType_push(msg, ethertype, NULL);
 
-    return Iface_next(tt->tunIface, msg);
+    return Iface_next(&tt->tunIface, msg);
 }
 
 static Iface_DEFUN receiveMessageTUN(struct Message* msg, struct Iface* tunIface)
 {
     struct TUNTools_pvt* ctx = Identity_containerOf(tunIface, struct TUNTools_pvt, pub.tunIface);
     ctx->pub.receivedMessageTUNCount++;
-    return ctx->pub.cb(ctx, msg);
+    return ctx->pub.cb(msg, &ctx->pub);
 }
 
 static Iface_DEFUN receiveMessageUDP(struct Message* msg, struct Iface* udpIface)
 {
-    struct Context* ctx = Identity_containerOf(udpIface, struct Context, pub.udpIface);
+    struct TUNTools_pvt* ctx = Identity_containerOf(udpIface, struct TUNTools_pvt, pub.udpIface);
 
     if (ctx->pub.receivedMessageTUNCount) {
         // Got the message, test successful, tear everything down by freeing the root alloc.
-        Allocator_free(ctx->alloc);
+        Allocator_free(ctx->pub.alloc);
     }
 
     return NULL;
@@ -132,9 +137,10 @@ void TUNTools_echoTest(struct Sockaddr* udpBindTo,
                        struct Iface* tun,
                        struct EventBase* base,
                        struct Log* logger,
-                       struct Allocator* alloc)
+                       struct Allocator* allocator)
 {
-    struct AddrIface* udp = TUNTools_setupUDP(base, udpBindTo, alloc, logger);
+    struct Allocator* alloc = Allocator_child(allocator);
+    struct AddrIface* udp = setupUDP(base, udpBindTo, alloc, logger);
 
     struct Sockaddr* dest = Sockaddr_clone(udp->addr, alloc);
     uint8_t* tunDestAddrBytes = NULL;
@@ -143,16 +149,17 @@ void TUNTools_echoTest(struct Sockaddr* udpBindTo,
     Assert_true(len && len == Sockaddr_getAddress(tunDestAddr, &tunDestAddrBytes));
     Bits_memcpy(udpDestPointer, tunDestAddrBytes, len);
 
-    struct Context* ctx = Allocator_calloc(alloc, sizeof(struct Context), 1);
+    struct TUNTools_pvt* ctx = Allocator_calloc(alloc, sizeof(struct TUNTools_pvt), 1);
     Identity_set(ctx);
     ctx->pub.udpIface.send = receiveMessageUDP;
-    ctx->pub.tunIface.send = messageFromTUN;
-    Iface_plumb(&ctx->udpIface, &udp->iface);
-    Iface_plumb(&ctx->tunIface, tun);
+    ctx->pub.tunIface.send = receiveMessageTUN;
+    Iface_plumb(&ctx->pub.udpIface, &udp->iface);
+    Iface_plumb(&ctx->pub.tunIface, tun);
     ctx->pub.cb = tunMessageHandler;
-    ctx->pub.tunDestAddr = dest;
-    ctx->pub.udpBindTo = udpBindTo;
+    ctx->pub.tunDestAddr = Sockaddr_clone(dest, alloc);
+    ctx->pub.udpBindTo = Sockaddr_clone(udpBindTo, alloc);
     ctx->pub.alloc = alloc;
+    ctx->pub.log = logger;
 
     Timeout_setInterval(sendHello, ctx, 1000, base, alloc);
     Timeout_setTimeout(fail, NULL, 5000, base, alloc);

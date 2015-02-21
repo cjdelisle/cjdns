@@ -558,13 +558,8 @@ static Iface_DEFUN handleBeacon(struct Message* msg, struct IfController_Iface_p
 
     ep->switchIf.send = sendFromSwitch;
 
-    int ret = SwitchCore_addInterface(&ep->switchIf, 0, &ep->addr.path, ic->switchCore);
-    if (ret) {
-        if (ret == SwitchCore_addInterface_OUT_OF_SPACE) {
-            Log_debug(ic->logger, "handleBeacon SwitchCore out of space");
-        } else {
-            Log_debug(ic->logger, "handleBeacon SwitchCore something went wrong ret[%d]", ret);
-        }
+    if (SwitchCore_addInterface(ic->switchCore, &ep->switchIf, epAlloc, &ep->addr.path)) {
+        Log_debug(ic->logger, "handleBeacon() SwitchCore out of space");
         Allocator_free(epAlloc);
         return NULL;
     }
@@ -622,8 +617,8 @@ static Iface_DEFUN handleUnexpectedIncoming(struct Message* msg, struct IfContro
     ep->isIncomingConnection = true;
     ep->switchIf.send = sendFromSwitch;
 
-    int ret = SwitchCore_addInterface(&ep->switchIf, 0, &ep->addr.path, ic->switchCore);
-    if (ret) {
+    if (SwitchCore_addInterface(ic->switchCore, &ep->switchIf, epAlloc, &ep->addr.path)) {
+        Log_debug(ic->logger, "handleUnexpectedIncoming() SwitchCore out of space");
         Allocator_free(epAlloc);
         return NULL;
     }
@@ -821,28 +816,16 @@ int IfController_bootstrapPeer(struct IfController* ifc,
     Allocator_onFree(epAlloc, closeInterface, ep);
     Allocator_onFree(alloc, freeAlloc, epAlloc);
 
-    ep->externalIf.sendMessage = sendAfterCryptoAuth;
-    ep->externalIf.allocator = epAlloc;
-
-    ep->cryptoAuthIf = CryptoAuth_wrapInterface(&ep->externalIf,
-                                                herPublicKey,
-                                                NULL,
-                                                false,
-                                                "outer",
-                                                ic->ca);
-
-    ep->cryptoAuthIf->receiveMessage = receivedAfterCryptoAuth;
-    ep->cryptoAuthIf->receiverContext = ep;
-    CryptoAuth_setAuth(password, 1, ep->cryptoAuthIf);
+    ep->caSession =
+        CryptoAuth_newSession(ic->ca, epAlloc, herPublicKey, ep->addr.ip6.bytes, false, "outer");
+    CryptoAuth_setAuth(password, 1, ep->caSession);
 
     ep->switchIf.send = sendFromSwitch;
 
-    int ret = SwitchCore_addInterface(&ep->switchIf, 0, &ep->addr.path, ic->switchCore);
-    if (ret) {
+    if (SwitchCore_addInterface(ic->switchCore, &ep->switchIf, epAlloc, &ep->addr.path)) {
+        Log_debug(ic->logger, "bootstrapPeer() SwitchCore out of space");
         Allocator_free(epAlloc);
-        return (ret == SwitchCore_addInterface_OUT_OF_SPACE)
-            ? IfController_bootstrapPeer_OUT_OF_SPACE
-            : IfController_bootstrapPeer_INTERNAL;
+        return IfController_bootstrapPeer_OUT_OF_SPACE;
     }
 
     // We want the node to immedietly be pinged but we don't want it to appear unresponsive because
@@ -854,7 +837,7 @@ int IfController_bootstrapPeer(struct IfController* ifc,
     if (Defined(Log_INFO)) {
         struct Allocator* tempAlloc = Allocator_child(alloc);
         String* addrStr = Address_toString(&ep->addr, tempAlloc);
-        Log_info(ic->logger, "Adding peer [%s]", addrStr->bytes);
+        Log_info(ic->logger, "Adding peer [%s] from bootstrapPeer()", addrStr->bytes);
         Allocator_free(tempAlloc);
     }
 
@@ -867,8 +850,8 @@ int IfController_bootstrapPeer(struct IfController* ifc,
 }
 
 int IfController_getPeerStats(struct IfController* ifController,
-                                     struct Allocator* alloc,
-                                     struct IfController_PeerStats** statsOut)
+                              struct Allocator* alloc,
+                              struct IfController_PeerStats** statsOut)
 {
     struct IfController_pvt* ic =
         Identity_check((struct IfController_pvt*) ifController);
@@ -895,12 +878,10 @@ int IfController_getPeerStats(struct IfController* ifController,
             s->timeOfLastMessage = peer->timeOfLastMessage;
             s->state = peer->state;
             s->isIncomingConnection = peer->isIncomingConnection;
-            s->user = NULL;
-            String* user = CryptoAuth_getUser(peer->cryptoAuthIf);
-            if (user) {
-                s->user = String_clone(user, alloc);
+            if (peer->caSession->userName) {
+                s->user = String_clone(peer->caSession->userName, alloc);
             }
-            struct ReplayProtector* rp = CryptoAuth_getReplayProtector(peer->cryptoAuthIf);
+            struct ReplayProtector* rp = &peer->caSession->replayProtector;
             s->duplicates = rp->duplicates;
             s->lostPackets = rp->lostPackets;
             s->receivedOutOfRange = rp->receivedOutOfRange;
@@ -923,7 +904,7 @@ int IfController_disconnectPeer(struct IfController* ifController,
         struct IfController_Iface_pvt* ici = ArrayList_OfIfaces_get(ic->icis, j);
         for (int i = 0; i < (int)ici->peerMap.count; i++) {
             struct Peer* peer = ici->peerMap.values[i];
-            if (!Bits_memcmp(herPublicKey, CryptoAuth_getHerPublicKey(peer->cryptoAuthIf), 32)) {
+            if (!Bits_memcmp(herPublicKey, peer->caSession->herPublicKey, 32)) {
                 Allocator_free(peer->alloc);
                 return 0;
             }

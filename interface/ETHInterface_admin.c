@@ -87,7 +87,7 @@ static void newInterface(Dict* args, void* vcontext, String* txid, struct Alloca
     String* const bindDevice = Dict_getString(args, String_CONST("bindDevice"));
     struct Allocator* const alloc = Allocator_child(ctx->alloc);
 
-    struct ETHAddrIface* ethIf = NULL;
+    struct ETHInterface* ethIf = NULL;
     struct Jmp jmp;
     Jmp_try(jmp) {
         ethIf = ETHInterface_new(

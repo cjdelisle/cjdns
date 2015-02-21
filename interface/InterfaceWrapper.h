@@ -15,6 +15,8 @@
 #ifndef InterfaceWrapper_H
 #define InterfaceWrapper_H
 
+#error poisoned
+
 #include "memory/Allocator.h"
 
 static void InterfaceWrapper_wrap(struct Iface* toWrap,

@@ -19,7 +19,7 @@
 #include "memory/MallocAllocator.h"
 
 #include <stdio.h>
-/*
+
 <?js require("./test/testcjdroute.js").generate(file, builder, this.async()); ?>
 
 <?js return file.testcjdroute_prototypes; ?>
@@ -93,5 +93,3 @@ int main(int argc, char** argv)
     Allocator_free(alloc);
     return 0;
 }
-*/
-int main () { return 0; }

@@ -12,8 +12,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef AddrInterfaceAdapter_H
-#define AddrInterfaceAdapter_H
+#ifndef AddrIfaceAdapter_H
+#define AddrIfaceAdapter_H
 
 #include "interface/addressable/AddrIface.h"
 #include "memory/Allocator.h"
@@ -26,6 +26,6 @@ struct AddrIfaceAdapter
     struct Iface inputIf;
 };
 
-struct AddrIface* AddrIfaceAdapter_new(struct Allocator* alloc);
+struct AddrIfaceAdapter* AddrIfaceAdapter_new(struct Allocator* alloc);
 
 #endif

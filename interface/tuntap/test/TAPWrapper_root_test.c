@@ -37,12 +37,13 @@ int main(int argc, char** argv)
     struct TAPWrapper* tapWrapper = TAPWrapper_new(tap, log, alloc);
 
     // Now setup the NDP server so the tun will work correctly.
-    struct NDPServer* ndp = NDPServer_new(&tapWrapper->generic, log, TAPWrapper_LOCAL_MAC, alloc);
+    struct NDPServer* ndp = NDPServer_new(&tapWrapper->internal, log, TAPWrapper_LOCAL_MAC, alloc);
     ndp->advertisePrefix[0] = 0xfd;
     ndp->prefixLen = 8;
 
     NetDev_addAddress(assignedIfName, addrA, 126, log, NULL);
 
-    TUNTools_echoTest(addrA, addrB, TUNTools_genericIP6Echo, &ndp->generic, base, log, alloc);
+    TUNTools_echoTest(addrA, addrB, TUNTools_genericIP6Echo, &ndp->internal, base, log, alloc);
+    Allocator_free(alloc);
     return 0;
 }

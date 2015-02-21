@@ -12,6 +12,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "interface/Iface.h"
+#include "interface/FramingIface.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
 #include "util/Endian.h"
@@ -25,12 +27,21 @@ union MessageLength
     uint8_t bytes[4];
 };
 
-static uint8_t messageOut(struct Message* msg, struct Iface* iface)
+struct Context
 {
-    struct Message** msgPtr = iface->receiverContext;
-    Allocator_adopt((*msgPtr)->alloc, msg->alloc);
-    *msgPtr = msg;
-    return 0;
+    struct Iface iface;
+    struct Message** receivedMsg;
+    struct Allocator* childAlloc;
+    struct Iface dummyIf;
+    Identity
+};
+
+static Iface_DEFUN messageOut(struct Message* msg, struct Iface* iface)
+{
+    struct Context* ctx = Identity_check((struct Context*) iface);
+    Allocator_adopt(ctx->receivedMsg[0]->alloc, msg->alloc);
+    ctx->receivedMsg[0] = msg;
+    return NULL;
 }
 
 static void send(struct Iface* sendTo, struct Message* toSend, struct Allocator* cloneWith)
@@ -44,11 +55,12 @@ static void send(struct Iface* sendTo, struct Message* toSend, struct Allocator*
 int main()
 {
     struct Allocator* alloc = MallocAllocator_new(1<<20);
-    struct Iface dummy = { .sendMessage = NULL };
-    struct Iface* fi = FramingInterface_new(1024, &dummy, alloc);
-    fi->receiveMessage = messageOut;
+    struct Context* ctx = Allocator_calloc(alloc, sizeof(struct Context), 1);
+    struct Iface* fi = FramingIface_new(1024, &ctx->dummyIf, alloc);
+    ctx->iface.send = messageOut;
+    Iface_plumb(&ctx->iface, fi);
     struct Message* output = NULL;
-    fi->receiverContext = &output;
+    ctx->receivedMsg = &output;
 
     char* text = "Hello World!";
     Assert_true(12 == CString_strlen(text));
@@ -56,47 +68,37 @@ int main()
 
     struct Message* msg;
 
-    {
-        // first 2 bytes of length
-        Message_STACK(msg, 0, 2);
-        Message_push(msg, ml.bytes, 2, NULL);
-        send(&dummy, msg, alloc);
-    }
+    // first 2 bytes of length
+    msg = Message_new(0, 2, alloc);
+    Message_push(msg, ml.bytes, 2, NULL);
+    send(&ctx->dummyIf, msg, alloc);
 
-    {
-        // last 2 bytes of length and first 5 bytes of message "Hello"
-        Message_STACK(msg, 0, 7);
-        Message_push(msg, text, 5, NULL);
-        Message_push(msg, &ml.bytes[2], 2, NULL);
-        send(&dummy, msg, alloc);
-    }
+    // last 2 bytes of length and first 5 bytes of message "Hello"
+    msg = Message_new(0, 7, alloc);
+    Message_push(msg, text, 5, NULL);
+    Message_push(msg, &ml.bytes[2], 2, NULL);
+    send(&ctx->dummyIf, msg, alloc);
 
     Assert_true(output == NULL);
-    struct Allocator* child = Allocator_child(alloc);
-    output = &(struct Message) { .alloc = child };
+    ctx->childAlloc = Allocator_child(alloc);
 
-    {
-        // last 7 bytes of message " World!" and first byte of length of second message.
-        Message_STACK(msg, 0, 8);
-        Message_push(msg, ml.bytes, 1, NULL);
-        Message_push(msg, &text[5], 7, NULL);
-        send(&dummy, msg, alloc);
-    }
+    // last 7 bytes of message " World!" and first byte of length of second message.
+    msg = Message_new(0, 8, alloc);
+    Message_push(msg, ml.bytes, 1, NULL);
+    Message_push(msg, &text[5], 7, NULL);
+    send(&ctx->dummyIf, msg, alloc);
 
     Assert_true(output && output->length == (int)CString_strlen(text));
     Assert_true(!Bits_memcmp(output->bytes, text, CString_strlen(text)));
 
-    Allocator_free(child);
-    child = Allocator_child(alloc);
-    output = &(struct Message) { .alloc = child };
+    Allocator_free(ctx->childAlloc);
+    ctx->childAlloc = Allocator_child(alloc);
 
-    {
-        // Send last 3 bytes of length and entire message.
-        Message_STACK(msg, 0, 15);
-        Message_push(msg, text, 12, NULL);
-        Message_push(msg, &ml.bytes[1], 3, NULL);
-        send(&dummy, msg, alloc);
-    }
+    // Send last 3 bytes of length and entire message.
+    msg = Message_new(0, 15, alloc);
+    Message_push(msg, text, 12, NULL);
+    Message_push(msg, &ml.bytes[1], 3, NULL);
+    send(&ctx->dummyIf, msg, alloc);
 
     Assert_true(output && output->length == (int)CString_strlen(text));
     Assert_true(!Bits_memcmp(output->bytes, text, CString_strlen(text)));

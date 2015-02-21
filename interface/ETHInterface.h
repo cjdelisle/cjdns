@@ -56,12 +56,12 @@ Assert_compileTime(sizeof(struct ETHInterface_Sockaddr) == ETHInterface_Sockaddr
 
 #define ETHInterface_CURRENT_VERSION 0
 
-struct ETHAddrIface
+struct ETHInterface
 {
     struct AddrIface generic;
 };
 
-struct ETHAddrIface* ETHInterface_new(struct EventBase* eventBase,
+struct ETHInterface* ETHInterface_new(struct EventBase* eventBase,
                                       const char* bindDevice,
                                       struct Allocator* alloc,
                                       struct Except* exHandler,

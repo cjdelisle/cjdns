@@ -14,10 +14,10 @@
  */
 #include "interface/tuntap/TAPWrapper.h"
 #include "interface/tuntap/TUNMessageType.h"
-#include "interface/InterfaceWrapper.h"
 #include "util/Bits.h"
 #include "util/Identity.h"
 #include "util/AddrTools.h"
+#include "util/Defined.h"
 #include "wire/Message.h"
 #include "wire/Ethernet.h"
 #include "wire/Error.h"
@@ -25,14 +25,14 @@
 struct TAPWrapper_pvt
 {
     struct TAPWrapper pub;
-    struct Iface* wrapped;
+    struct Iface external;
     struct Log* log;
     Identity
 };
 
-static uint8_t receiveMessage(struct Message* msg, struct Iface* iface)
+static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* external)
 {
-    struct TAPWrapper_pvt* tw = Identity_check((struct TAPWrapper_pvt*)iface->receiverContext);
+    struct TAPWrapper_pvt* tw = Identity_containerOf(external, struct TAPWrapper_pvt, external);
 
     if (msg->length < Ethernet_SIZE-2) {
         Log_debug(tw->log, "runt");
@@ -49,11 +49,11 @@ static uint8_t receiveMessage(struct Message* msg, struct Iface* iface)
     if (Bits_memcmp(eth.destAddr, TAPWrapper_LOCAL_MAC, Ethernet_ADDRLEN)
         && !(eth.destAddr[0] & 0x01))
     {
-        #ifdef Log_DEBUG
+        if (Defined(Log_DEBUG)) {
             uint8_t printedMac[18];
             AddrTools_printMac(printedMac, eth.destAddr);
             Log_debug(tw->log, "Packet destine for unknown ethernet MAC [%s]", printedMac);
-        #endif
+        }
         //return 0;
     }
 
@@ -70,13 +70,12 @@ static uint8_t receiveMessage(struct Message* msg, struct Iface* iface)
         }
     }
     TUNMessageType_push(msg, eth.ethertype, NULL);
-    Iface_send(&tw->pub.generic, msg);
-    return 0;
+    return Iface_next(&tw->pub.internal, msg);
 }
 
-static uint8_t sendMessage(struct Message* msg, struct Iface* iface)
+static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* internal)
 {
-    struct TAPWrapper_pvt* tw = Identity_check((struct TAPWrapper_pvt*)iface);
+    struct TAPWrapper_pvt* tw = Identity_containerOf(internal, struct TAPWrapper_pvt, pub.internal);
 
     uint16_t etherType = TUNMessageType_pop(msg, NULL);
     struct Ethernet eth = { .ethertype = etherType };
@@ -84,25 +83,26 @@ static uint8_t sendMessage(struct Message* msg, struct Iface* iface)
     Bits_memcpyConst(eth.destAddr, tw->pub.peerAddress, Ethernet_ADDRLEN);
     if (Bits_isZero(tw->pub.peerAddress, Ethernet_ADDRLEN)) {
         Log_debug(tw->log, "DROP Packet because peers MAC is not yet known");
-        return Error_UNDELIVERABLE;
+        return NULL;
     }
 
     Message_push(msg, &eth, sizeof(struct Ethernet), NULL);
 
+    // struct Ethernet contains 2 bytes of padding at the beginning.
     Message_shift(msg, -2, NULL);
 
-    return Interface_sendMessage(tw->wrapped, msg);
+    return Iface_next(&tw->external, msg);
 }
 
 struct TAPWrapper* TAPWrapper_new(struct Iface* external,
                                   struct Log* log,
                                   struct Allocator* alloc)
 {
-    struct TAPWrapper_pvt* out = Allocator_clone(alloc, (&(struct TAPWrapper_pvt) {
-        .wrapped = external,
-        .log = log
-    }));
+    struct TAPWrapper_pvt* out = Allocator_calloc(alloc, sizeof(struct TAPWrapper_pvt), 1);
     Identity_set(out);
-    InterfaceWrapper_wrap(external, sendMessage, receiveMessage, &out->pub.generic);
+    out->log = log;
+    out->external.send = receiveMessage;
+    out->pub.internal.send = sendMessage;
+    Iface_plumb(external, &out->external);
     return &out->pub;
 }

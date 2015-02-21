@@ -18,13 +18,17 @@
 #include "util/log/Log.h"
 #include "wire/Message.h"
 #include "util/events/EventBase.h"
+#include "interface/Iface.h"
 #include "util/Linker.h"
 Linker_require("switch/SwitchCore.c")
 
 #include <stdint.h>
 
 /** The switch core which is opaque to users. */
-struct SwitchCore;
+struct SwitchCore
+{
+    struct Iface* routerIf;
+};
 
 /**
  * Create a new router core.
@@ -36,33 +40,11 @@ struct SwitchCore* SwitchCore_new(struct Log* logger,
                                   struct Allocator* allocator,
                                   struct EventBase* base);
 
-/**
- * Register a new interface.
- * All interfaces are point to point so messages sent down an interface.
- *
- * @param iface the interface to add.
- * @param trust the amount that you trust the connected node.
- * @param labelOut_be a buffer which will be filled with the label part for getting
- *                    to the newly added node. It will be set to the big endian value.
- * @param core the switchcore.
- * @return 0 on success, SwitchCore_addInterface_OUT_OF_SPACE if there are no more interface slots.
- */
 #define SwitchCore_addInterface_OUT_OF_SPACE -1
-int SwitchCore_addInterface(struct Iface* iface,
-                            const uint64_t trust,
-                            uint64_t* labelOut_be,
-                            struct SwitchCore* core);
-
-/**
- * Set the router interface.
- * This interface is needed by all switches because a switch cannot function without a router.
- * Do not send messages before registering this interface and at least one other.
- *
- * @param iface the router interface.
- * @param core the switchcore.
- * @return 0
- */
-int SwitchCore_setRouterInterface(struct Iface* iface, struct SwitchCore* core);
+int SwitchCore_addInterface(struct SwitchCore* switchCore,
+                            struct Iface* iface,
+                            struct Allocator* alloc,
+                            uint64_t* labelOut);
 
 void SwitchCore_swapInterfaces(struct Iface* if1, struct Iface* if2);
 

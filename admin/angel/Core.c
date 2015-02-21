@@ -41,17 +41,8 @@
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
 #include "memory/Allocator_admin.h"
-#include "net/IfController.h"
-#include "net/SwitchPinger.h"
 #include "net/SwitchPinger_admin.h"
-#include "net/ControlHandler.h"
-#include "net/EventEmitter.h"
-#include "net/SessionManager.h"
-#include "net/SwitchAdapter.h"
-#include "switch/SwitchCore.h"
-#include "tunnel/IpTunnel.h"
 #include "tunnel/IpTunnel_admin.h"
-#include "util/events/Timeout.h"
 #include "util/events/EventBase.h"
 #include "util/events/Pipe.h"
 #include "util/events/Timeout.h"
@@ -65,6 +56,7 @@
 #include "net/SessionManager_admin.h"
 #include "wire/SwitchHeader.h"
 #include "wire/CryptoHeader.h"
+#include "net/NetCore.h"
 
 #include <crypto_scalarmult_curve25519.h>
 
@@ -99,17 +91,6 @@
   + CryptoHeader_SIZE /* Linux won't let set the MTU below 1280.
   TODO(cjd): make sure we never hand off to a node for which the CA session is expired. */ \
 )
-
-static void parsePrivateKey(uint8_t privateKey[32],
-                            struct Address* addr,
-                            struct Except* eh)
-{
-    crypto_scalarmult_curve25519_base(addr->key, privateKey);
-    AddressCalc_addressForPublicKey(addr->ip6.bytes, addr->key);
-    if (!AddressCalc_validAddress(addr->ip6.bytes)) {
-        Except_throw(eh, "Ip address outside of the FC00/8 range, invalid private key.");
-    }
-}
 
 static void adminPing(Dict* input, void* vadmin, String* txid, struct Allocator* requestAlloc)
 {
@@ -318,8 +299,7 @@ void Core_init(struct Allocator* alloc,
     }
 
     struct UDPAddrIface* udpAdmin = UDPAddrIface_new(eventBase, &bindAddr.addr, alloc, eh, logger);
-    struct Admin* admin = Admin_new(alloc, logger, eventBase, pass);
-    Iface_plumb(&udpAdmin->generic.iface, &admin->addrIf);
+    struct Admin* admin = Admin_new(&udpAdmin->generic, logger, eventBase, pass);
 
     char* boundAddr = Sockaddr_print(udpAdmin->generic.addr, tempAlloc);
     Dict adminResponse = Dict_CONST(
@@ -343,41 +323,9 @@ void Core_init(struct Allocator* alloc,
         logger = adminLogger;
     }
 
-    // CryptoAuth
-    struct Address* addr = Allocator_calloc(alloc, sizeof(struct Address), 1);
-    addr->protocolVersion = Version_CURRENT_PROTOCOL;
-    parsePrivateKey(privateKey, addr, eh);
-    struct CryptoAuth* cryptoAuth = CryptoAuth_new(alloc, privateKey, eventBase, logger, rand);
+    struct NetCore* nc = NetCore_new(privateKey, alloc, eventBase, rand, logger);
 
-    // EventEmitter
-    struct EventEmitter* eventEmitter = EventEmitter_new(alloc, logger, cryptoAuth->publicKey);
-
-    /*struct Sockaddr* myAddr = */Sockaddr_fromBytes(addr->ip6.bytes, Sockaddr_AF_INET6, alloc);
-
-    struct SwitchCore* switchCore = SwitchCore_new(logger, alloc, eventBase);
-
-    struct IpTunnel* ipTun = IpTunnel_new(logger, eventBase, alloc, rand, hermes);
-
-    struct SessionManager* sessionManager =
-        SessionManager_new(alloc, eventBase, cryptoAuth, rand, logger, eventEmitter);
-
-    struct SwitchAdapter* switchAdapter = SwitchAdapter_new(alloc, logger);
-    Iface_plumb(&sessionManager->switchIf, &switchAdapter->sessionManagerIf);
-    SwitchCore_setRouterInterface(&switchAdapter->switchIf, switchCore);
-
-    struct ControlHandler* controlHandler =
-        ControlHandler_new(alloc, logger, eventEmitter, addr->key);
-    Iface_plumb(&controlHandler->coreIf, &switchAdapter->controlIf);
-
-    struct SwitchPinger* sp = SwitchPinger_new(eventBase, rand, logger, addr, alloc);
-    Iface_plumb(&controlHandler->switchPingerIf, &sp->controlHandlerIf);
-
-    // Interfaces.
-    struct IfController* ifController =
-        IfController_new(cryptoAuth, switchCore,
-                                logger, eventBase, sp, rand, alloc, eventEmitter);
-
-    Pathfinder_register(alloc, logger, eventBase, rand, admin, eventEmitter);
+    Pathfinder_register(alloc, logger, eventBase, rand, admin, nc->ee);
 
     // ------------------- DNS -------------------------//
 
@@ -395,19 +343,19 @@ void Core_init(struct Allocator* alloc,
 
 
     // ------------------- Register RPC functions ----------------------- //
-    IfController_admin_register(ifController, admin, alloc);
-    SwitchPinger_admin_register(sp, admin, alloc);
-    UDPInterface_admin_register(eventBase, alloc, logger, admin, ifController);
+    IfController_admin_register(nc->ifController, admin, alloc);
+    SwitchPinger_admin_register(nc->sp, admin, alloc);
+    UDPInterface_admin_register(eventBase, alloc, logger, admin, nc->ifController);
 #ifdef HAS_ETH_INTERFACE
-    ETHInterface_admin_register(eventBase, alloc, logger, admin, ifController, hermes);
+    ETHInterface_admin_register(eventBase, alloc, logger, admin, nc->ifController, hermes);
 #endif
 
-    AuthorizedPasswords_init(admin, cryptoAuth, alloc);
+    AuthorizedPasswords_init(admin, nc->ca, alloc);
     Admin_registerFunction("ping", adminPing, admin, false, NULL, admin);
 //    Core_admin_register(myAddr, dtAAAAAAAAAAAAAA, logger, ipTun, alloc, admin, eventBase);
     Security_admin_register(alloc, logger, admin);
-    IpTunnel_admin_register(ipTun, admin, alloc);
-    SessionManager_admin_register(sessionManager, admin, alloc);
+    IpTunnel_admin_register(nc->ipTunnel, admin, alloc);
+    SessionManager_admin_register(nc->sm, admin, alloc);
     RainflyClient_admin_register(rainfly, admin, alloc);
     Allocator_admin_register(alloc, admin);
 

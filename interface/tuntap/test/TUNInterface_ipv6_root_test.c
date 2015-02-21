@@ -40,5 +40,6 @@ int main(int argc, char** argv)
     NetDev_addAddress(assignedIfName, addrA, 126, logger, NULL);
 
     TUNTools_echoTest(addrA, addrB, TUNTools_genericIP6Echo, tun, base, logger, alloc);
+    Allocator_free(alloc);
     return 0;
 }

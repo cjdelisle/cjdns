@@ -25,9 +25,9 @@ Linker_require("interface/tuntap/test/TUNTools.c")
 
 struct TUNTools;
 
-typedef Iface_DEFUN (* TUNTools_Callback)(struct TUNTools* tt, struct Message* msg);
+typedef Iface_DEFUN (* TUNTools_Callback)(struct Message* msg, struct TUNTools* tt);
 
-TUNTools_Callback TUNTools_genericIP6Echo;
+Iface_DEFUN TUNTools_genericIP6Echo(struct Message* msg, struct TUNTools* tt);
 
 const uint8_t* TUNTools_testIP6AddrA;
 const uint8_t* TUNTools_testIP6AddrB;
@@ -36,9 +36,10 @@ struct TUNTools
 {
     struct Iface tunIface;
     struct Iface udpIface;
-    struct Sockaddr tunDestAddr;
-    struct Sockaddr udpBindTo;
+    struct Sockaddr* tunDestAddr;
+    struct Sockaddr* udpBindTo;
     struct Allocator* alloc;
+    struct Log* log;
     TUNTools_Callback cb;
     int receivedMessageTUNCount;
 };

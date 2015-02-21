@@ -115,7 +115,7 @@ static void sendSession(struct SessionManager_Session_pvt* sess,
     Iface_send(&sess->sessionManager->eventIf, msg);
     Allocator_free(alloc);
 }
-
+/* TODO: we're not trashing old sessions!
 static int sessionCleanup(struct Allocator_OnFreeJob* job)
 {
     struct SessionManager_Session_pvt* sess =
@@ -123,7 +123,7 @@ static int sessionCleanup(struct Allocator_OnFreeJob* job)
     sendSession(sess, sess->pub.sendSwitchLabel, 0xffffffff, PFChan_Core_SESSION_ENDED);
     return 0;
 }
-
+*/
 static inline void check(struct SessionManager_pvt* sm, int mapIndex)
 {
     Assert_true(sm->ifaceMap.keys[mapIndex].bytes[0] == 0xfc);
@@ -209,7 +209,7 @@ static struct SessionManager_Session_pvt* getSession(struct SessionManager_pvt* 
     sess->pub.version = version;
     //sess->pub.timeOfCreation = Time_currentTimeMilliseconds(sm->eventBase);
     sess->pub.sendSwitchLabel = label;
-    Allocator_onFree(alloc, sessionCleanup, sess);
+    //Allocator_onFree(alloc, sessionCleanup, sess);
     sendSession(sess, label, 0xffffffff, PFChan_Core_SESSION);
     check(sm, ifaceIndex);
     return sess;
