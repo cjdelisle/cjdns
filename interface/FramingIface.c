@@ -123,9 +123,8 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* streamIf)
         }
 
         if (fi->bytesRemaining == (uint32_t)msg->length) {
-            Iface_send(&fi->messageIf, msg);
             fi->bytesRemaining = 0;
-            return NULL;
+            return Iface_next(&fi->messageIf, msg);
 
         } else if (fi->bytesRemaining <= (uint32_t)msg->length) {
             struct Message* m = Allocator_clone(msg->alloc, msg);

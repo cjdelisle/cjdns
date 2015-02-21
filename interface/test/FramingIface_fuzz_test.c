@@ -70,7 +70,7 @@ int main()
     struct Allocator* mainAlloc = MallocAllocator_new(1<<20);
     struct Log* log = FileWriterLog_new(stdout, mainAlloc);
     struct Random* rand = Random_new(mainAlloc, log, NULL);
-    struct Context* ctx = Allocator_malloc(mainAlloc, sizeof(struct Context));
+    struct Context* ctx = Allocator_calloc(mainAlloc, sizeof(struct Context), 1);
     Identity_set(ctx);
     ctx->internalIf.send = messageOut;
     struct Iface externalIf = { .send = NULL };

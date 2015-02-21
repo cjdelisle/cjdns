@@ -56,9 +56,7 @@ Builder.configure({
         '-pedantic',
         '-D', builder.config.systemName + '=1',
         '-Wno-unused-parameter',
-//        '-Wno-unused-result',
-
-        '-D', 'HAS_BUILTIN_CONSTANT_P',
+        '-fomit-frame-pointer',
 
         '-D', 'Log_' + builder.config.logLevel,
 

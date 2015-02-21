@@ -409,7 +409,7 @@ static void encryptHandshake(struct Message* message,
             uint8_t tempPrivateKeyHex[65];
             Hex_encode(tempPrivateKeyHex, 65, session->ourTempPrivKey, 32);
             uint8_t tempPubKeyHex[65];
-            Hex_encode(tempPubKeyHex, 65, header->handshake.encryptedTempKey, 32);
+            Hex_encode(tempPubKeyHex, 65, session->ourTempPubKey, 32);
             Log_keys(session->context->logger, "Generating temporary keypair\n"
                                                 "    myTempPrivateKey=%s\n"
                                                 "     myTempPublicKey=%s\n",
@@ -704,7 +704,7 @@ static USE_RES int decryptHandshake(struct CryptoAuth_Session_pvt* session,
     }
 
     // Decrypt her temp public key and the message.
-    if (decryptRndNonce(header->handshake.nonce, message, sharedSecret) != 0) {
+    if (decryptRndNonce(header->handshake.nonce, message, sharedSecret)) {
         // just in case
         Bits_memset(header, 0, CryptoHeader_SIZE);
         cryptoAuthDebug(session, "DROP message with nonce [%d], decryption failed", nonce);

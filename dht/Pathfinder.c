@@ -103,6 +103,12 @@ static int incomingFromDHT(struct DHTMessage* dmessage, void* vpf)
 
     Log_debug(pf->log, "Outgoing DHT");
 
+    if (dmessage->replyTo) {
+        // see incomingMsg
+        dmessage->replyTo->pleaseRespond = true;
+        return 0;
+    }
+
     Iface_send(&pf->eventIf, msg);
     return 0;
 }
@@ -304,6 +310,11 @@ static Iface_DEFUN incomingMsg(struct Message* msg, struct Pathfinder_pvt* pf)
     };
 
     DHTModuleRegistry_handleIncoming(&dht, pf->registry);
+
+    if (dht.pleaseRespond) {
+        // what a beautiful hack, see incomingFromDHT
+        return Iface_next(&pf->eventIf, msg);
+    }
 
     return NULL;
 }

@@ -60,7 +60,7 @@ static inline struct Message* Message_new(uint32_t messageLength,
                                           struct Allocator* alloc)
 {
     uint8_t* buff = Allocator_malloc(alloc, messageLength + amountOfPadding);
-    struct Message* out = Allocator_malloc(alloc, sizeof(struct Message));
+    struct Message* out = Allocator_calloc(alloc, sizeof(struct Message), 1);
     out->bytes = &buff[amountOfPadding];
     out->length = out->capacity = messageLength;
     out->padding = amountOfPadding;

@@ -176,11 +176,7 @@ static Iface_DEFUN incomingFromCore(struct Message* msg, struct Iface* trickIf)
         for (int i = 0; i < ee->pathfinders->length; i++) {
             struct Pathfinder* pf = ArrayList_Pathfinders_get(ee->pathfinders, i);
             if (!pf || pf->state != Pathfinder_state_CONNECTED) { continue; }
-            struct Message* messageClone = msg;
-            if (ee->pathfinders->length > i+1) {
-                // if only one handler, no need to copy the message...
-                messageClone = Message_clone(msg, msg->alloc);
-            }
+            struct Message* messageClone = Message_clone(msg, msg->alloc);
             Iface_CALL(sendToPathfinder, messageClone, pf);
         }
     }
@@ -224,7 +220,8 @@ static int handleFromPathfinder(enum PFChan_Pathfinder ev,
             Bits_memcpyConst(resp.publicKey, ee->publicKey, 32);
             Message_push(msg, &resp, PFChan_Core_Connect_SIZE, NULL);
             Message_push32(msg, PFChan_Core_CONNECT, NULL);
-            Iface_CALL(sendToPathfinder, msg, pf);
+            struct Message* sendMsg = Message_clone(msg, msg->alloc);
+            Iface_CALL(sendToPathfinder, sendMsg, pf);
             break;
         }
         case PFChan_Pathfinder_SUPERIORITY: {
@@ -236,7 +233,8 @@ static int handleFromPathfinder(enum PFChan_Pathfinder ev,
         }
 
         case PFChan_Pathfinder_PING: {
-            Iface_send(&pf->iface, msg);
+            struct Message* sendMsg = Message_clone(msg, msg->alloc);
+            Iface_send(&pf->iface, sendMsg);
             break;
         }
         case PFChan_Pathfinder_PONG: {
@@ -302,11 +300,7 @@ static Iface_DEFUN incomingFromPathfinder(struct Message* msg, struct Iface* ifa
     struct ArrayList_Ifaces* handlers = getHandlers(ee, ev, false);
     if (!handlers) { return NULL; }
     for (int i = 0; i < handlers->length; i++) {
-        struct Message* messageClone = msg;
-        if (handlers->length > i+1) {
-            // if only one handler, no need to copy the message...
-            messageClone = Message_clone(msg, msg->alloc);
-        }
+        struct Message* messageClone = Message_clone(msg, msg->alloc);
         struct Iface* iface = ArrayList_Ifaces_get(handlers, i);
         // We have to call this manually because we don't have an interface handy which is
         // actually plumbed with this one.

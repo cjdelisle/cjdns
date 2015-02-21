@@ -73,7 +73,7 @@ static struct Context* init(uint8_t* privateKey, uint8_t* herPublicKey, uint8_t*
 
 static struct Context* simpleInit()
 {
-    return init(NULL, NULL, NULL);
+    return init(PRIVATEKEY, PUBLICKEY, NULL);
 }
 
 static struct Message* encryptMsg(struct Context* ctx,
@@ -81,9 +81,11 @@ static struct Message* encryptMsg(struct Context* ctx,
                                   const char* x)
 {
     struct Allocator* alloc = Allocator_child(ctx->alloc);
-    struct Message* msg = Message_new(1, CString_strlen(x) + CryptoHeader_SIZE, alloc);
-    msg->bytes[0] = '\0';
-    Message_push(msg, x, CString_strlen(x), NULL);
+    int len = (((CString_strlen(x)+1) / 8) + 1) * 8;
+    struct Message* msg = Message_new(len, CryptoHeader_SIZE, alloc);
+    CString_strcpy(msg->bytes, x);
+    msg->length = CString_strlen(x);
+    msg->bytes[msg->length] = 0;
     Assert_true(!CryptoAuth_encrypt(encryptWith, msg));
     Assert_true(msg->length > ((int)CString_strlen(x) + 4));
     return msg;
@@ -99,8 +101,11 @@ static void decryptMsg(struct Context* ctx,
         Assert_true(CryptoAuth_decrypt(decryptWith, msg));
     } else {
         Assert_true(!CryptoAuth_decrypt(decryptWith, msg));
-        if ((int)CString_strlen(x) != msg->length || CString_strncmp(msg->bytes, x, msg->length)) {
-            Assert_failure("expected %s, got %s\n", x, msg->bytes);
+        if ((int)CString_strlen(x) != msg->length ||
+            CString_strncmp(msg->bytes, x, msg->length))
+        {
+            Assert_failure("expected [%s](%d), got [%s](%d)\n",
+                x, (int)CString_strlen(x), msg->bytes, msg->length);
         }
     }
 }
@@ -142,7 +147,7 @@ static void repeatKey()
 
 static void repeatHello()
 {
-    struct Context* ctx = init(PRIVATEKEY, PUBLICKEY, NULL);
+    struct Context* ctx = simpleInit();
     sendToIf2(ctx, "hello world");
     sendToIf2(ctx, "r u thar?");
     sendToIf1(ctx, "hello cjdns");
@@ -180,109 +185,32 @@ static void auth()
     Allocator_free(ctx->alloc);
 }
 
-static void authWithoutKey()
-{
-    struct Context* ctx = init(NULL, NULL, "password");
-    sendToIf2(ctx, "hello world");
-    sendToIf1(ctx, "hello cjdns");
-    sendToIf2(ctx, "hai");
-    sendToIf1(ctx, "goodbye");
-    Allocator_free(ctx->alloc);
-}
-
-static void poly1305()
-{
-    struct Context* ctx = init(PRIVATEKEY, PUBLICKEY, NULL);
-    sendToIf2(ctx, "hello world");
-    sendToIf1(ctx, "hello cjdns");
-    sendToIf2(ctx, "hai");
-    sendToIf1(ctx, "goodbye");
-    Allocator_free(ctx->alloc);
-}
-
-static void poly1305UnknownKey()
-{
-    struct Context* ctx = init(NULL, NULL, NULL);
-    sendToIf2(ctx, "hello world");
-    sendToIf1(ctx, "hello cjdns");
-    sendToIf2(ctx, "hai");
-    sendToIf1(ctx, "goodbye");
-    Allocator_free(ctx->alloc);
-}
-
-static void poly1305AndPassword()
-{
-    struct Context* ctx = init(PRIVATEKEY, PUBLICKEY, "aPassword");
-    sendToIf2(ctx, "hello world");
-    sendToIf1(ctx, "hello cjdns");
-    sendToIf2(ctx, "hai");
-    sendToIf1(ctx, "goodbye");
-    Allocator_free(ctx->alloc);
-}
-
-static void poly1305UnknownKeyAndPassword()
-{
-    struct Context* ctx = init(NULL, NULL, "anotherPassword");
-    sendToIf2(ctx, "hello world");
-    sendToIf1(ctx, "hello cjdns");
-    sendToIf2(ctx, "hai");
-    sendToIf1(ctx, "goodbye");
-    Allocator_free(ctx->alloc);
-}
-
-static void connectToMe()
-{
-    struct Context* ctx = simpleInit();
-    sendToIf1(ctx, "hello world");
-    sendToIf1(ctx, "hello cjdns");
-    sendToIf2(ctx, "hai");
-    sendToIf1(ctx, "goodbye");
-    Allocator_free(ctx->alloc);
-}
-
-static void connectToMeDropMsg()
-{
-    struct Context* ctx = simpleInit();
-
-    // send a message which is lost in the network.
-    encryptMsg(ctx, ctx->sess2, "hello world");
-
-    // Now we learn their key some other way...
-    Bits_memcpyConst(ctx->sess2->herPublicKey, ctx->ca1->publicKey, 32);
-
-    sendToIf1(ctx, "hello again world");
-    sendToIf2(ctx, "hai");
-    sendToIf1(ctx, "goodbye");
-    Allocator_free(ctx->alloc);
-}
-
 static void replayKeyPacket(int scenario)
 {
     struct Context* ctx = simpleInit();
 
-    sendToIf1(ctx, "hello world");
+    sendToIf2(ctx, "hello world");
 
     struct Message* msg = encryptMsg(ctx, ctx->sess2, "hello replay key");
     struct Message* toReplay = Message_clone(msg, ctx->alloc);
-    decryptMsg(ctx, msg, ctx->sess2, "hello replay key");
+    decryptMsg(ctx, msg, ctx->sess1, "hello replay key");
 
     if (scenario == 1) {
-        // If we replay at this stage, the packet makes it and is decrypted.
-        decryptMsg(ctx, toReplay, ctx->sess2, "hello replay key");
+        // the packet is failed because we know it's a dupe from the temp key.
+        decryptMsg(ctx, toReplay, ctx->sess1, NULL);
     }
 
-    sendToIf1(ctx, "first traffic packet");
+    sendToIf2(ctx, "first traffic packet");
 
     if (scenario == 2) {
-        // If we replay at this stage, the packet still makes it and is decrypted.
-        decryptMsg(ctx, toReplay, ctx->sess2, "hello replay key");
+        decryptMsg(ctx, toReplay, ctx->sess1, NULL);
     }
 
-    sendToIf2(ctx, "second traffic packet");
+    sendToIf1(ctx, "second traffic packet");
 
     if (scenario == 3) {
         // If we replay at this stage, the packet is dropped as a stray key
-        decryptMsg(ctx, toReplay, ctx->sess2, NULL);
+        decryptMsg(ctx, toReplay, ctx->sess1, NULL);
     }
 
     Allocator_free(ctx->alloc);
@@ -330,10 +258,7 @@ static void reset()
     decryptMsg(ctx, encryptMsg(ctx, ctx->sess2, "lost"), ctx->sess1, NULL);
 
     // This is because we want to prevent replay attacks from tearing down a session.
-    decryptMsg(ctx, encryptMsg(ctx, ctx->sess1, "hello which must be dropped"), ctx->sess2, NULL);
-    decryptMsg(ctx, encryptMsg(ctx, ctx->sess1, "hello which must also drop"), ctx->sess2, NULL);
-
-    CryptoAuth_reset(ctx->sess2);
+    decryptMsg(ctx, encryptMsg(ctx, ctx->sess1, "hello"), ctx->sess2, "hello");
 
     sendToIf1(ctx, "hello again");
     sendToIf2(ctx, "hai");
@@ -379,13 +304,6 @@ int main()
     repeatHello();
     chatter();
     auth();
-    authWithoutKey();
-    poly1305();
-    poly1305UnknownKey();
-    poly1305AndPassword();
-    poly1305UnknownKeyAndPassword();
-    connectToMe();
-    connectToMeDropMsg();
     replayKeyPacket(1);
     replayKeyPacket(2);
     replayKeyPacket(3);

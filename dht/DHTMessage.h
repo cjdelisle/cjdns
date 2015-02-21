@@ -43,6 +43,8 @@ struct DHTMessage
     struct EncodingScheme* encodingScheme;
     int encIndex;
 
+    int pleaseRespond;
+
     /**
      * If this message is an outgoing reply, replyTo is the original query.
      * For incoming replies or any queries, it is NULL.

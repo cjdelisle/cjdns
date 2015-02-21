@@ -18,6 +18,7 @@
 #include <stdint.h>
 
 #include "wire/Message.h"
+#include "util/Defined.h"
 
 struct Iface;
 
@@ -43,56 +44,120 @@ struct Iface
     struct Iface* connectedIf;
 };
 
+/**
+ * Send a message to an Iface.
+ * Whatever interface has been *plumbed* to this interface using Iface_plumb() will receive
+ * the message. If you are in an Iface_Callback function, you must not use this function to
+ * forward the message which you have received as your input, to do so will cause a runtime
+ * assertion error, in order to forward the message which you received, you must use Iface_next()
+ * and it must be a tail-call.
+ */
 static inline void Iface_send(struct Iface* iface, struct Message* msg)
 {
     do {
         struct Iface* conn = iface->connectedIf;
-        if (!conn) { return; }
+
         #ifdef PARANOIA
+            Assert_true(!msg->currentIface);
+            Assert_true(conn);
             Assert_true(conn->send);
             Assert_true(msg);
-            msg->currentIface = iface;
-            iface->currentMsg = msg;
+            struct Message* currentMsg = conn->currentMsg;
+            Assert_true(!msg->currentIface);
+            msg->currentIface = conn;
+            conn->currentMsg = msg;
         #endif
+
+        iface = conn->send(msg, conn);
+
         #ifdef PARANOIA
-            struct Iface* ifaceNext = conn->send(msg, conn);
             msg->currentIface = NULL;
-            iface->currentMsg = NULL;
-            iface = ifaceNext;
-        #else
-            iface = conn->send(conn, msg);
+            conn->currentMsg = currentMsg;
         #endif
-        #ifndef STUPID_OPTIMIZATIONS
+
+        if (!Defined(Iface_OPTIMIZE)) {
             Assert_true(!iface);
-        #endif
+        }
     } while (iface);
 }
 
 /**
- * This is a hack high-performance version of Iface_send() which can only be used as a tail call.
- * You MUST pass the same msg which was passed to you, otherwise it will fail.
+ * Forward a message from inside of an Iface_Callback function.
+ * This function must be a tail-call, you must return the value returned to you.
+ * If you do anything between the call to this function and your return of it's return value,
+ * the order in which that thing happens is undefined.
+ *
+ * Consider the following (bad) code:
+ *     struct Iface* retVal = Iface_next(iface, msg);
+ *     x++;
+ *     return retVal;
+ *
+ * If Iface_OPTIMIZE is enabled, it becomes equivilant to:
+ *     x++;
+ *     struct Iface* retVal = Iface_next(iface, msg);
+ *     return retVal;
+ *
+ * So simplify your life and follow the basic rule of always returning directly the value
+ * from this function, IE: return Iface_next(iface, msg);
  */
 static inline Iface_DEFUN Iface_next(struct Iface* iface, struct Message* msg)
 {
     #ifdef PARANOIA
+        struct Iface* conn = iface->connectedIf;
+        struct Message* currentMsg = conn->currentMsg;
         Assert_true(msg->currentIface);
         Assert_true(msg->currentIface->currentMsg == msg);
+        msg->currentIface->currentMsg = NULL;
+        if (Defined(Iface_OPTIMIZE)) {
+            msg->currentIface = conn;
+            conn->currentMsg = msg;
+        } else {
+            // done inside of Iface_send()
+            msg->currentIface = NULL;
+            conn->currentMsg = NULL;
+        }
     #endif
 
-    #ifdef STUPID_OPTIMIZATIONS
+    if (Defined(Iface_OPTIMIZE)) {
         return iface;
-    #endif
+    }
 
     Iface_send(iface, msg);
+
+    #ifdef PARANOIA
+        conn->currentMsg = currentMsg;
+    #endif
+
     return NULL;
 }
 
-#define Iface_CALL(func, msg, ...) \
-    do {                                                      \
-        struct Iface* Iface_x = func(msg, __VA_ARGS__);       \
-        if (Iface_x) { Iface_send(Iface_x, msg); }            \
-    } while (0)
-// CHECKFILES_IGNORE missing ;
+/**
+ * Call a function which might use Iface_next()
+ * This macro will call a function, passing it a message and other arguments, if the function
+ * you are calling might use Iface_next(), you must call it with this macro instead of calling
+ * it directly.
+ * If you are calling from a Iface_Callback function, you must not use this function to call
+ * the next function with the message passed to you. If  
+ */
+#ifdef PARANOIA
+    #define Iface_CALL(func, msg, ...) \
+        do {                                                \
+            struct Iface Iface_y = { .currentMsg = msg };   \
+            Assert_true(!msg->currentIface);                \
+            msg->currentIface = &Iface_y;                   \
+            struct Iface* Iface_x = func(msg, __VA_ARGS__); \
+            msg->currentIface = NULL;                       \
+            if (Iface_x) { Iface_send(Iface_x, msg); }      \
+        } while (0)
+    // CHECKFILES_IGNORE missing ;
+#else
+    #define Iface_CALL(func, msg, ...) \
+        do {                                                 \
+            struct Iface* Iface_x = func(msg, __VA_ARGS__);  \
+            if (Iface_x) { Iface_send(Iface_x, msg); }       \
+        } while (0)
+    // CHECKFILES_IGNORE missing ;
+#endif
 
 static inline void Iface_plumb(struct Iface* a, struct Iface* b)
 {
