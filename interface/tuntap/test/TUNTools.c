@@ -68,11 +68,12 @@ struct TUNTools_pvt
 static void sendHello(void* vctx)
 {
     struct TUNTools_pvt* ctx = Identity_check((struct TUNTools_pvt*) vctx);
-    struct Message* msg;
-    Message_STACK(msg, 0, 64);
+    struct Allocator* tempAlloc = Allocator_child(ctx->pub.alloc);
+    struct Message* msg = Message_new(0, 64, tempAlloc);
     Message_push(msg, "Hello World", 12, NULL);
-    Message_push(msg, &ctx->pub.tunDestAddr, ctx->pub.tunDestAddr->addrLen, NULL);
+    Message_push(msg, ctx->pub.tunDestAddr, ctx->pub.tunDestAddr->addrLen, NULL);
     Iface_send(&ctx->pub.udpIface, msg);
+    Allocator_free(tempAlloc);
 }
 
 const uint8_t* TUNTools_testIP6AddrA = (uint8_t[])
@@ -125,8 +126,9 @@ static Iface_DEFUN receiveMessageUDP(struct Message* msg, struct Iface* udpIface
     struct TUNTools_pvt* ctx = Identity_containerOf(udpIface, struct TUNTools_pvt, pub.udpIface);
 
     if (ctx->pub.receivedMessageTUNCount) {
+    Log_debug(ctx->pub.log, "test complete");
         // Got the message, test successful, tear everything down by freeing the root alloc.
-        Allocator_free(ctx->pub.alloc);
+        EventBase_endLoop(ctx->pub.base);
     }
 
     return NULL;
@@ -166,9 +168,10 @@ void TUNTools_echoTest(struct Sockaddr* udpBindTo,
     ctx->pub.udpBindTo = Sockaddr_clone(udpBindTo, alloc);
     ctx->pub.alloc = alloc;
     ctx->pub.log = logger;
+    ctx->pub.base = base;
 
     Timeout_setInterval(sendHello, ctx, 1000, base, alloc);
-    Timeout_setTimeout(fail, NULL, 60000, base, alloc);
+    Timeout_setTimeout(fail, NULL, 10000, base, alloc);
 
     EventBase_beginLoop(base);
 }

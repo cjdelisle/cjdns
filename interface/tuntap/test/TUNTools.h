@@ -40,6 +40,7 @@ struct TUNTools
     struct Sockaddr* udpBindTo;
     struct Allocator* alloc;
     struct Log* log;
+    struct EventBase* base;
     TUNTools_Callback cb;
     int receivedMessageTUNCount;
 };

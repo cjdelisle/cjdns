@@ -84,6 +84,7 @@ static Iface_DEFUN incomingFromIface(struct Message* m, struct Iface* iface)
 
     Assert_true(m->length >= Sockaddr_OVERHEAD);
     if (((struct Sockaddr*)m->bytes)->flags & Sockaddr_flags_BCAST) {
+        Log_debug(context->logger, "Attempted bcast, bcast unsupported");
         // bcast not supported.
         return NULL;
     }
@@ -158,7 +159,7 @@ static void incoming(uv_udp_t* handle,
         //Log_debug(context->logger, "0 length read");
 
     } else {
-        struct Message* m = Allocator_malloc(alloc, sizeof(struct Message));
+        struct Message* m = Allocator_calloc(alloc, sizeof(struct Message), 1);
         m->length = nread;
         m->padding = UDPAddrIface_PADDING_AMOUNT + context->pub.generic.addr->addrLen;
         m->capacity = buf->len;

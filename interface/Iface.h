@@ -77,7 +77,7 @@ static inline void Iface_send(struct Iface* iface, struct Message* msg)
         if (!Defined(Iface_OPTIMIZE)) {
             Assert_true(!iface);
         }
-    } while (0 && iface);
+    } while (iface);
 }
 
 /**

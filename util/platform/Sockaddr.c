@@ -192,7 +192,7 @@ char* Sockaddr_print(struct Sockaddr* sockaddr, struct Allocator* alloc)
 
     if (port) {
         int totalLength = CString_strlen(printedAddr) + CString_strlen("[]:65535") + 1;
-        char* out = Allocator_malloc(alloc, totalLength);
+        char* out = Allocator_calloc(alloc, totalLength, 1);
         const char* format = (addr->ss.ss_family == AF_INET6) ? "[%s]:%u" : "%s:%u";
         snprintf(out, totalLength, format, printedAddr, port);
         return out;
@@ -282,10 +282,10 @@ struct Sockaddr* Sockaddr_fromBytes(const uint8_t* bytes, int addrFamily, struct
             addrLen = sizeof(struct sockaddr_in6);
             break;
         }
-        default: return NULL;
+        default: Assert_failure("unrecognized address type [%d]", addrFamily);
     }
 
-    struct Sockaddr_pvt* out = Allocator_malloc(alloc, addrLen + Sockaddr_OVERHEAD);
+    struct Sockaddr_pvt* out = Allocator_calloc(alloc, addrLen + Sockaddr_OVERHEAD, 1);
     Bits_memcpy(&out->ss, &ss, addrLen);
     out->pub.addrLen = addrLen + Sockaddr_OVERHEAD;
     return &out->pub;
