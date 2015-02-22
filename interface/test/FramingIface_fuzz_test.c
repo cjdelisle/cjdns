@@ -58,12 +58,9 @@ static Iface_DEFUN messageOut(struct Message* msg, struct Iface* iface)
 
 #define CYCLES 100
 
-/**
- * This is just to keep the test from running for a silly-long-time because of choosing a
- * number like 1, after changes to the code, it's advisible to set this to 1 and run the
- * test for a while to see if anything has been broken.
- */
 #define MIN_MSG_SZ 1
+
+#define MAX_MSGS_PER_FRAME 1024
 
 int main()
 {
@@ -81,8 +78,11 @@ int main()
         struct Allocator* alloc = Allocator_child(mainAlloc);
         // max frame size must be at least 5 so that at least 1 byte of data is sent.
         int maxFrameSize = ( Random_uint32(rand) % (MAX_FRAME_SZ - 1) ) + 1;
-        int maxMessageSize = ( Random_uint32(rand) % (MAX_MSG_SZ - MIN_MSG_SZ) ) + MIN_MSG_SZ;
-        Log_debug(log, "maxFrameSize[%d] maxMessageSize[%d]", maxFrameSize, maxMessageSize);
+        int minMessageSize = maxFrameSize / MAX_MSGS_PER_FRAME;
+        if (minMessageSize < MIN_MSG_SZ) { minMessageSize = MIN_MSG_SZ; }
+        int maxMessageSize = (Random_uint32(rand) % (MAX_MSG_SZ - minMessageSize)) + minMessageSize;
+        if (maxMessageSize == minMessageSize) { maxMessageSize++; }
+        // Log_debug(log, "maxFrameSize[%d] maxMessageSize[%d]", maxFrameSize, maxMessageSize);
         ctx->alloc = alloc;
         ctx->messages = NULL;
         ctx->messageCount = 0;
@@ -113,7 +113,8 @@ int main()
         }
 
         do {
-            int nextMessageSize = Random_uint32(rand) % maxMessageSize;
+            int nextMessageSize =
+                (Random_uint32(rand) % (maxMessageSize - minMessageSize)) + minMessageSize;
             if (!nextMessageSize) { nextMessageSize++; }
             if (nextMessageSize > msg->length) { nextMessageSize = msg->length; }
             struct Allocator* msgAlloc = Allocator_child(alloc);

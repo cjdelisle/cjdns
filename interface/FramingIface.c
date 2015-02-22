@@ -56,22 +56,13 @@ static struct Message* mergeMessage(struct FramingIface_pvt* fi, struct Message*
         length += part->msg->length;
     }
 
-    int fullLength = length + REQUIRED_PADDING;
-    uint8_t* msgBuff = Allocator_malloc(fi->frameAlloc, fullLength);
-    struct Message* out = Allocator_calloc(fi->frameAlloc, sizeof(struct Message), 1);
-    out->bytes = msgBuff + fullLength;
-    out->length = 0;
-    out->padding = fullLength;
-    out->capacity = 0;
-    out->alloc = fi->frameAlloc;
-
+    struct Message* out = Message_new(0, length + REQUIRED_PADDING, fi->frameAlloc);
     Message_push(out, last->bytes, last->length, NULL);
-
     for (part = fi->frameParts; part; part = part->next) {
         Message_push(out, part->msg->bytes, part->msg->length, NULL);
     }
 
-    Assert_true(fullLength <= out->length);
+    Assert_true(length <= out->length);
     return out;
 }
 
@@ -81,6 +72,7 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* streamIf)
 
     if (fi->bytesRemaining > fi->maxMessageSize) {
         // Oversize message
+Assert_true(0);
         return NULL;
     }
 
@@ -95,6 +87,7 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* streamIf)
             // Run the message through again since it's almost certainly not perfect size.
             Iface_CALL(receiveMessage, wholeMessage, streamIf);
             Allocator_free(frameAlloc);
+            return NULL;
         }
         fi->bytesRemaining -= msg->length;
         Allocator_adopt(fi->frameAlloc, msg->alloc);
@@ -119,6 +112,7 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* streamIf)
         fi->bytesRemaining = Endian_bigEndianToHost32(fi->header.length_be);
         if (fi->bytesRemaining > fi->maxMessageSize) {
             // oversize
+Assert_true(0);
             return NULL;
         }
 
@@ -126,12 +120,14 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* streamIf)
             fi->bytesRemaining = 0;
             return Iface_next(&fi->messageIf, msg);
 
-        } else if (fi->bytesRemaining <= (uint32_t)msg->length) {
-            struct Message* m = Allocator_clone(msg->alloc, msg);
-            m->length = fi->bytesRemaining;
-            Iface_send(&fi->messageIf, m);
+        } else if (fi->bytesRemaining < (uint32_t)msg->length) {
+            struct Allocator* alloc = Allocator_child(msg->alloc);
+            struct Message* m = Message_new(fi->bytesRemaining, REQUIRED_PADDING, alloc);
+            Bits_memcpy(m->bytes, msg->bytes, fi->bytesRemaining);
             Message_shift(msg, -fi->bytesRemaining, NULL);
             fi->bytesRemaining = 0;
+            Iface_send(&fi->messageIf, m);
+            Allocator_free(alloc);
             continue;
 
         } else {

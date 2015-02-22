@@ -189,7 +189,7 @@ static void incoming(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf)
 
     } else {
         Assert_true(alloc);
-        struct Message* m = Allocator_malloc(alloc, sizeof(struct Message));
+        struct Message* m = Allocator_calloc(alloc, sizeof(struct Message), 1);
         m->length = nread;
         m->padding = Pipe_PADDING_AMOUNT;
         m->capacity = buf->len;

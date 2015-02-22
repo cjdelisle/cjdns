@@ -113,6 +113,7 @@ int main(int argc, char** argv)
 
     struct Pipe* pipe = Pipe_named(name, eb, NULL, alloc);
     pipe->logger = logger;
+    Iface_plumb(&ctx->iface, &pipe->iface);
 
     char* path = Process_getPath(alloc);
     char* args[] = { "Seccomp_test", "child", name, NULL };

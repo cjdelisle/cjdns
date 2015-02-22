@@ -63,7 +63,6 @@ static inline void Iface_send(struct Iface* iface, struct Message* msg)
             Assert_true(conn->send);
             Assert_true(msg);
             struct Message* currentMsg = conn->currentMsg;
-            Assert_true(!msg->currentIface);
             msg->currentIface = conn;
             conn->currentMsg = msg;
         #endif
@@ -78,7 +77,7 @@ static inline void Iface_send(struct Iface* iface, struct Message* msg)
         if (!Defined(Iface_OPTIMIZE)) {
             Assert_true(!iface);
         }
-    } while (iface);
+    } while (0 && iface);
 }
 
 /**
@@ -108,19 +107,21 @@ static inline Iface_DEFUN Iface_next(struct Iface* iface, struct Message* msg)
         Assert_true(msg->currentIface);
         Assert_true(msg->currentIface->currentMsg == msg);
         msg->currentIface->currentMsg = NULL;
-        if (Defined(Iface_OPTIMIZE)) {
-            msg->currentIface = conn;
-            conn->currentMsg = msg;
-        } else {
-            // done inside of Iface_send()
-            msg->currentIface = NULL;
-            conn->currentMsg = NULL;
-        }
     #endif
 
     if (Defined(Iface_OPTIMIZE)) {
+        #ifdef PARANOIA
+            msg->currentIface = conn;
+            conn->currentMsg = msg;
+        #endif
         return iface;
     }
+
+    #ifdef PARANOIA
+        // done inside of Iface_send()
+        msg->currentIface = NULL;
+        conn->currentMsg = NULL;
+    #endif
 
     Iface_send(iface, msg);
 
@@ -142,8 +143,8 @@ static inline Iface_DEFUN Iface_next(struct Iface* iface, struct Message* msg)
 #ifdef PARANOIA
     #define Iface_CALL(func, msg, ...) \
         do {                                                \
-            struct Iface Iface_y = { .currentMsg = msg };   \
             Assert_true(!msg->currentIface);                \
+            struct Iface Iface_y = { .currentMsg = msg };   \
             msg->currentIface = &Iface_y;                   \
             struct Iface* Iface_x = func(msg, __VA_ARGS__); \
             msg->currentIface = NULL;                       \

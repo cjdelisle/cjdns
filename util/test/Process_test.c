@@ -81,9 +81,10 @@ static void onConnectionChild(struct Pipe* p, int status)
     printf("Child connected\n");
 }
 
-static Iface_DEFUN receiveMessageChild(struct Message* m, struct Iface* iface)
+static Iface_DEFUN receiveMessageChild(struct Message* msg, struct Iface* iface)
 {
     struct Context* c = Identity_check((struct Context*) iface);
+    struct Message* m = Message_clone(msg, c->alloc);
     printf("Child received message\n");
     Assert_true(m->length == (int)CString_strlen(MESSAGE));
     Assert_true(!Bits_memcmp(m->bytes, MESSAGE, CString_strlen(MESSAGE)));
@@ -117,6 +118,7 @@ int main(int argc, char** argv)
     struct EventBase* eb = EventBase_new(alloc);
     struct Log* log = FileWriterLog_new(stdout, alloc);
     struct Context* ctx = Allocator_calloc(alloc, sizeof(struct Context), 1);
+    Identity_set(ctx);
     ctx->alloc = alloc;
     ctx->base = eb;
     ctx->log = log;

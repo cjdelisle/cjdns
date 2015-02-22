@@ -39,7 +39,7 @@ struct Context
 static Iface_DEFUN messageOut(struct Message* msg, struct Iface* iface)
 {
     struct Context* ctx = Identity_check((struct Context*) iface);
-    Allocator_adopt(ctx->receivedMsg[0]->alloc, msg->alloc);
+    Allocator_adopt(ctx->childAlloc, msg->alloc);
     ctx->receivedMsg[0] = msg;
     return NULL;
 }
@@ -56,6 +56,7 @@ int main()
 {
     struct Allocator* alloc = MallocAllocator_new(1<<20);
     struct Context* ctx = Allocator_calloc(alloc, sizeof(struct Context), 1);
+    Identity_set(ctx);
     struct Iface* fi = FramingIface_new(1024, &ctx->dummyIf, alloc);
     ctx->iface.send = messageOut;
     Iface_plumb(&ctx->iface, fi);

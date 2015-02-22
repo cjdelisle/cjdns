@@ -75,8 +75,14 @@ static void sendHello(void* vctx)
     Iface_send(&ctx->pub.udpIface, msg);
 }
 
-const uint8_t* TUNTools_testIP6AddrA = (uint8_t[]){0xfd,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1};
-const uint8_t* TUNTools_testIP6AddrB = (uint8_t[]){0xfd,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2};
+const uint8_t* TUNTools_testIP6AddrA = (uint8_t[])
+{
+    0xfd,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1
+};
+const uint8_t* TUNTools_testIP6AddrB = (uint8_t[])
+{
+    0xfd,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2
+};
 
 Iface_DEFUN TUNTools_genericIP6Echo(struct Message* msg, struct TUNTools* tt)
 {
