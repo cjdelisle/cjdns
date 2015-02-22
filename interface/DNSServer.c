@@ -452,7 +452,6 @@ static void onRainflyReply(struct RainflyClient_Lookup* promise,
 
     struct Jmp jmp = { .message = NULL };
     Jmp_try(jmp) {
-// TODO should be an error (not using return)...
         onRainflyReplyB(lookup, ctx, value, code, &jmp.handler);
     } Jmp_catch {
         Log_debug(ctx->logger, "Failed to send DNS reply [%s]", jmp.message);

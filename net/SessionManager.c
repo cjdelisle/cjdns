@@ -115,7 +115,7 @@ static void sendSession(struct SessionManager_Session_pvt* sess,
     Iface_send(&sess->sessionManager->eventIf, msg);
     Allocator_free(alloc);
 }
-/* TODO: we're not trashing old sessions!
+/* XXX(cjd): we're not trashing old sessions!
 static int sessionCleanup(struct Allocator_OnFreeJob* job)
 {
     struct SessionManager_Session_pvt* sess =

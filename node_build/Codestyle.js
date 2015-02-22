@@ -142,8 +142,12 @@ var parseFile = function (fileName, fileContent) {
             error("trailing whitespace.");
         }
 
-        if (/[^A-Z](TODO|FIXME|XXX)[^\(A-Z]/.test(line)) {
-            error("Please take responsibility for your TODO: eg: // TODO(cjd): make this work");
+        if (/[^A-Z](TODO|FIXME|XXX)[^A-Z]/.test(line)) {
+            if (/[^A-Z](TODO|FIXME|XXX)[^\(A-Z]/.test(line)) {
+                error("Please take responsibility for your TODO: eg: // TODO(cjd): make this work");
+            } else {
+                console.log(lineInfo + ' ' + line.replace(/[ \/]*/, ''));
+            }
         }
 
         if (/(if|for|while)\(/.test(line)) {

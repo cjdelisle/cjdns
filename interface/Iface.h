@@ -138,7 +138,7 @@ static inline Iface_DEFUN Iface_next(struct Iface* iface, struct Message* msg)
  * you are calling might use Iface_next(), you must call it with this macro instead of calling
  * it directly.
  * If you are calling from a Iface_Callback function, you must not use this function to call
- * the next function with the message passed to you. If  
+ * the next function with the message passed to you. In that case just call the function directly.
  */
 #ifdef PARANOIA
     #define Iface_CALL(func, msg, ...) \

@@ -20,7 +20,11 @@
 
 #define RootTest_toStr(x) RootTest_toStr2(x)
 #define RootTest_toStr2(x) #x
-<?js file.RootTest_mainFunc = RootTest_toStr(main) ?>
+<?js
+    file.RootTest_mainFunc = RootTest_toStr(main);
+    file.RootTest_mainName = file.RootTest_mainFunc.replace(/_main$/, '');
+?>
+#define RootTest_mainName <?js return '"' + file.RootTest_mainName + '"' ?>
 
 #define RootTest_main <?js return 'RootTest_'+file.RootTest_mainFunc; ?>
 
@@ -40,9 +44,10 @@ int main(int argc, char** argv)
     if (runIt) {
         return RootTest_main(j,argv);
     } else {
-        fprintf(stderr, "\nRoot test %s disabled, use [%s +roottest] to include it\n",
-                RootTest_toStr(main),
-                (argc > 0) ? argv[0] : "");
+        fprintf(stderr, "\nRoot test %s disabled, use [%s %s +roottest] to include it\n",
+                RootTest_mainName,
+                (argc > 0) ? argv[0] : "",
+                RootTest_mainName);
     }
     return 0;
 }

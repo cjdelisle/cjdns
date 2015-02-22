@@ -168,7 +168,7 @@ void TUNTools_echoTest(struct Sockaddr* udpBindTo,
     ctx->pub.log = logger;
 
     Timeout_setInterval(sendHello, ctx, 1000, base, alloc);
-    Timeout_setTimeout(fail, NULL, 5000, base, alloc);
+    Timeout_setTimeout(fail, NULL, 60000, base, alloc);
 
     EventBase_beginLoop(base);
 }

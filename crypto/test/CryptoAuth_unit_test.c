@@ -143,7 +143,7 @@ static void receiveHelloWithNoAuth()
     struct Allocator* alloc = MallocAllocator_new(1<<20);
     struct Context* ctx = setUp(PRIVATEKEY, NULL, NULL, alloc);
     struct Message* msg = Message_new(132, 0, alloc);
-    Assert_true(Hex_decode(msg->bytes, msg->length, 
+    Assert_true(Hex_decode(msg->bytes, msg->length,
         "0000000000ffffffffffffff7fffffffffffffffffffffffffffffffffffffff"
         "ffffffffffffffff847c0d2c375234f365e660955187a3735a0f7613d1609d3a"
         "6a4d8c53aeaa5a22ea9cf275eee0185edf7f211192f12e8e642a325ed76925fe"

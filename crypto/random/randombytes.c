@@ -28,8 +28,10 @@ int main()
         uint8_t buff[4096];
     } str;
 
+    size_t out = 0;
     for (;;) {
         Random_bytes(rand, str.buff, 4096);
-        write(STDOUT_FILENO, str.buff, 4096);
+        out = write(STDOUT_FILENO, str.buff, 4096);
     }
+    return (out == 4096) ? 0 : -1;
 }
