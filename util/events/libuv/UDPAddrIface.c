@@ -247,6 +247,7 @@ struct UDPAddrIface* UDPAddrIface_new(struct EventBase* eventBase,
             .logger = logger,
             .allocator = alloc
         }));
+    context->pub.generic.alloc = alloc;
     context->pub.generic.iface.send = incomingFromIface;
     Identity_set(context);
 

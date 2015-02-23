@@ -50,7 +50,7 @@ static Iface_DEFUN incomingFromInputIf(struct Message* msg, struct Iface* inputI
 struct AddrIfaceAdapter* AddrIfaceAdapter_new(struct Allocator* alloc)
 {
     struct AddrIfaceAdapter_pvt* context =
-        Allocator_malloc(alloc, sizeof(struct AddrIfaceAdapter_pvt));
+        Allocator_calloc(alloc, sizeof(struct AddrIfaceAdapter_pvt), 1);
     context->pub.generic.addr = Sockaddr_clone(Sockaddr_LOOPBACK, alloc);
     context->pub.generic.alloc = alloc;
     context->pub.generic.iface.send = incomingFromAddrIf;

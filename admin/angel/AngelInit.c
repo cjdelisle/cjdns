@@ -58,14 +58,6 @@ static void initCore(char* coreBinaryPath,
     }
 }
 
-static void sendTo(struct Iface* iface, struct Message* msg)
-{
-    struct Iface myIface = { .send = NULL };
-    Iface_plumb(&myIface, iface);
-    Iface_send(&myIface, msg);
-    Iface_unplumb(&myIface, iface);
-}
-
 static void setUser(char* user, struct Log* logger, struct Except* eh)
 {
     int res = 0;
@@ -197,11 +189,11 @@ int AngelInit_main(int argc, char** argv)
     struct Message* msg = Message_new(0, 1024, tempAlloc);
     BencMessageWriter_write(config, msg, eh);
     Log_keys(logger, "Sent [%d] bytes to core", msg->length);
-    sendTo(coreIface, msg);
+    Iface_CALL(coreIface->send, msg, coreIface);
 
     struct Message* coreResponse = InterfaceWaiter_waitForData(coreIface, eventBase, tempAlloc, eh);
 
-    sendTo(&clientPipe->iface, coreResponse);
+    Iface_CALL(clientPipe->iface.send, coreResponse, &clientPipe->iface);
 
     #ifdef Log_KEYS
         uint8_t lastChar = coreResponse->bytes[coreResponse->length-1];
@@ -215,6 +207,7 @@ int AngelInit_main(int argc, char** argv)
     }
 
     Allocator_free(tempAlloc);
+    Log_debug(logger, "Angel_start()");
     Angel_start(coreIface, eventBase, logger, alloc);
     return 0;
 }

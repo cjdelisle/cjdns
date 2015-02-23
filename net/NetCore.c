@@ -82,9 +82,5 @@ struct NetCore* NetCore_new(uint8_t* privateKey,
     struct TUNAdapter* tunAdapt = nc->tunAdapt = TUNAdapter_new(alloc, log, myAddress->ip6.bytes);
     Iface_plumb(&tunAdapt->upperDistributorIf, &upper->tunAdapterIf);
 
-    struct IpTunnel* ipTunnel = nc->ipTunnel = IpTunnel_new(log, base, alloc, rand, NULL);
-    Iface_plumb(&tunAdapt->ipTunnelIf, &ipTunnel->tunInterface);
-    Iface_plumb(&upper->ipTunnelIf, &ipTunnel->nodeInterface);
-
     return nc;
 }

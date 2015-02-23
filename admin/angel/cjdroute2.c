@@ -333,6 +333,7 @@ static int usage(struct Allocator* alloc, char* appName)
 
 static int benchmark()
 {
+    // TODO(cjd):reimplement bench
 Assert_failure("unimplemented");
 /*
     struct Allocator* alloc = MallocAllocator_new(1<<22);
@@ -585,7 +586,7 @@ int main(int argc, char** argv)
 
     struct Message* toAngelMsg = Message_new(0, 1024, allocator);
     BencMessageWriter_write(preConf, toAngelMsg, eh);
-    Iface_send(&angelPipe->iface, toAngelMsg);
+    Iface_CALL(angelPipe->iface.send, toAngelMsg, &angelPipe->iface);
 
     Log_debug(logger, "Sent [%d] bytes to angel process", toAngelMsg->length);
 

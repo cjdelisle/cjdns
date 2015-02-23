@@ -597,6 +597,7 @@ static Iface_DEFUN handleUnexpectedIncoming(struct Message* msg, struct IfContro
 
     struct Peer* ep = Allocator_calloc(epAlloc, sizeof(struct Peer), 1);
     Identity_set(ep);
+    ep->alloc = epAlloc;
     ep->ici = ici;
     ep->lladdr = lladdr;
     ep->alloc = epAlloc;
@@ -806,6 +807,7 @@ int IfController_bootstrapPeer(struct IfController* ifc,
     struct Peer* ep = Allocator_calloc(epAlloc, sizeof(struct Peer), 1);
     int index = Map_EndpointsBySockaddr_put(&lladdr, &ep, &ici->peerMap);
     Assert_true(index >= 0);
+    ep->alloc = epAlloc;
     ep->handle = ici->peerMap.handles[index];
     ep->lladdr = lladdr;
     ep->ici = ici;

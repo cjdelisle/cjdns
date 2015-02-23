@@ -50,7 +50,7 @@ static Iface_DEFUN incomingFromUpperDistributorIf(struct Message* msg,
     struct SessionManager_Session* sess = SessionManager_sessionForIp6(hdr->ip6, conv->sm);
     if (hdr->version_be && Endian_bigEndianToHost32(hdr->version_be) < 16) {
         // definitely old
-    } else if (!hdr->version_be && sess->version && sess->version < 16) {
+    } else if (!hdr->version_be && sess && sess->version && sess->version < 16) {
         // session thinks it's old
     } else {
         // nothing is known about a node, fuckit, assume it's new !

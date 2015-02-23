@@ -97,6 +97,15 @@ static Iface_DEFUN incomingFromTunIf(struct Message* msg, struct Iface* tunIf)
     return Iface_next(&ud->pub.upperDistributorIf, msg);
 }
 
+static Iface_DEFUN sendToTunIf(struct Message* msg, struct TUNAdapter_pvt* ud)
+{
+    if (!&ud->pub.tunIf.connectedIf) {
+        Log_debug(ud->log, "DROP message for tun because no device is defined");
+        return NULL;
+    }
+    return Iface_next(&ud->pub.tunIf, msg);
+}
+
 static Iface_DEFUN incomingFromIpTunnelIf(struct Message* msg, struct Iface* ipTunnelIf)
 {
 //    struct TUNAdapter_pvt* ud =
@@ -130,7 +139,7 @@ static Iface_DEFUN incomingFromUpperDistributorIf(struct Message* msg,
     ip6->nextHeader = type;
     ip6->hopLimit = 42;
     TUNMessageType_push(msg, Ethernet_TYPE_IP6, NULL);
-    return Iface_next(&ud->pub.tunIf, msg);
+    return sendToTunIf(msg, ud);
 }
 
 struct TUNAdapter* TUNAdapter_new(struct Allocator* alloc, struct Log* log, uint8_t myIp6[16])

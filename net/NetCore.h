@@ -52,7 +52,6 @@ struct NetCore
     struct SessionManager* sm;
     struct UpperDistributor* upper;
     struct TUNAdapter* tunAdapt;
-    struct IpTunnel* ipTunnel;
 };
 
 struct NetCore* NetCore_new(uint8_t* privateKey,

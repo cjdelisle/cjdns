@@ -56,13 +56,9 @@ struct SessionManager
     #define SessionManager_MAX_BUFFERED_MESSAGES_DEFAULT 30
     int maxBufferedMessages;
 
-    /**
-     * Number of milliseconds it takes for metric to halve (value of UINT32_MAX - metric halves)
-     * This allows less good routes to supplant better ones if the "better" ones have not been
-     * tested in a long time (maybe down).
-     */
-    #define SessionManager_METRIC_HALFLIFE_MILLISECONDS_DEFAULT 250000
-    uint32_t metricHalflifeMilliseconds;
+    /** Number of milliseconds with no reply before a session should be timed out. */
+    #define SessionManager_SESSION_TIMEOUT_MILLISECONDS_DEFAULT 120000
+    int64_t sessionTimeoutMilliseconds;
 };
 
 struct SessionManager_Session
@@ -70,10 +66,10 @@ struct SessionManager_Session
     struct CryptoAuth_Session* caSession;
 
     /** When the last message was received on this session (milliseconds since epoch). */
-    uint64_t timeOfLastIn;
+    int64_t timeOfLastIn;
 
     /** When the last message was sent on this session (milliseconds since epoch). */
-    uint64_t timeOfLastOut;
+    int64_t timeOfLastOut;
 
     uint64_t bytesOut;
 

@@ -103,15 +103,16 @@ static Iface_DEFUN incomingFromHeaderIf(struct Message* message, struct Iface* i
 }
 
 struct PacketHeaderToUDPAddrIface* PacketHeaderToUDPAddrIface_new(struct Allocator* alloc,
-                                                                          struct Sockaddr* addr)
+                                                                  struct Sockaddr* addr)
 {
     struct PacketHeaderToUDPAddrIface_pvt* context =
-        Allocator_malloc(alloc, sizeof(struct PacketHeaderToUDPAddrIface_pvt));
+        Allocator_calloc(alloc, sizeof(struct PacketHeaderToUDPAddrIface_pvt), 1);
     Identity_set(context);
 
     context->pub.udpIf.addr = Sockaddr_clone(addr, alloc);
     context->pub.udpIf.iface.send = incomingFromUdpIf;
     context->pub.headerIf.send = incomingFromHeaderIf;
+    context->pub.udpIf.alloc = alloc;
 
     return &context->pub;
 }

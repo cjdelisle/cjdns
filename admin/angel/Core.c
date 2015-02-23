@@ -28,6 +28,7 @@
 #include "exception/Jmp.h"
 #include "interface/Iface.h"
 #include "util/events/UDPAddrIface.h"
+#include "interface/tuntap/TUNInterface.h"
 #include "interface/UDPInterface_admin.h"
 #ifdef HAS_ETH_INTERFACE
 #include "interface/ETHInterface_admin.h"
@@ -56,6 +57,7 @@
 #include "net/SessionManager_admin.h"
 #include "wire/SwitchHeader.h"
 #include "wire/CryptoHeader.h"
+#include "wire/Headers.h"
 #include "net/NetCore.h"
 
 #include <crypto_scalarmult_curve25519.h>
@@ -107,41 +109,44 @@ static void adminPid(Dict* input, void* vadmin, String* txid, struct Allocator* 
 
 struct Context
 {
-    struct Allocator* allocator;
+    struct Allocator* alloc;
     struct Admin* admin;
     struct Log* logger;
     struct Hermes* hermes;
     struct EventBase* base;
+    struct NetCore* nc;
+    struct IpTunnel* ipTunnel;
     String* exitTxid;
+    Identity
 };
 
 static void shutdown(void* vcontext)
 {
-    struct Context* context = vcontext;
-    Allocator_free(context->allocator);
+    struct Context* context = Identity_check((struct Context*) vcontext);
+    Allocator_free(context->alloc);
 }
 
 static void onAngelExitResponse(Dict* message, void* vcontext)
 {
-    struct Context* context = vcontext;
+    struct Context* context = Identity_check((struct Context*) vcontext);
     Log_info(context->logger, "Angel stopped");
     Log_info(context->logger, "Exiting");
     Dict d = Dict_CONST(String_CONST("error"), String_OBJ(String_CONST("none")), NULL);
     Admin_sendMessage(&d, context->exitTxid, context->admin);
-    Timeout_setTimeout(shutdown, context, 1, context->base, context->allocator);
+    Timeout_setTimeout(shutdown, context, 1, context->base, context->alloc);
 }
 
 static void adminExit(Dict* input, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
-    struct Context* context = vcontext;
+    struct Context* context = Identity_check((struct Context*) vcontext);
     Log_info(context->logger, "Got request to exit");
     Log_info(context->logger, "Stopping angel");
-    context->exitTxid = String_clone(txid, context->allocator);
+    context->exitTxid = String_clone(txid, context->alloc);
     Dict angelExit = Dict_CONST(String_CONST("q"), String_OBJ(String_CONST("Angel_exit")), NULL);
     Hermes_callAngel(&angelExit,
                      onAngelExitResponse,
                      context,
-                     context->allocator,
+                     context->alloc,
                      NULL,
                      context->hermes);
 }
@@ -150,16 +155,6 @@ static void angelDied(struct Pipe* p, int status)
 {
     exit(1);
 }
-
-struct Core_Context
-{
-    struct Sockaddr* ipAddr;
-    struct Log* logger;
-    struct Allocator* alloc;
-    struct Admin* admin;
-    struct EventBase* eventBase;
-    struct IpTunnel* ipTunnel;
-};
 
 static void sendResponse(String* error,
                          struct Admin* admin,
@@ -171,20 +166,38 @@ static void sendResponse(String* error,
     Admin_sendMessage(output, txid, admin);
 }
 
+static void initTunnel2(String* desiredDeviceName,
+                        struct Context* ctx,
+                        uint8_t addressPrefix,
+                        struct Except* eh)
+{
+    Log_debug(ctx->logger, "Initializing TUN device [%s]",
+              (desiredDeviceName) ? desiredDeviceName->bytes : "<auto>");
+
+    char assignedTunName[TUNInterface_IFNAMSIZ];
+    char* desiredName = (desiredDeviceName) ? desiredDeviceName->bytes : NULL;
+
+    struct Iface* tun = TUNInterface_new(
+        desiredName, assignedTunName, 0, ctx->base, ctx->logger, eh, ctx->alloc);
+
+    Iface_plumb(tun, &ctx->nc->tunAdapt->tunIf);
+
+    IpTunnel_setTunName(assignedTunName, ctx->ipTunnel);
+
+    struct Sockaddr* myAddr =
+        Sockaddr_fromBytes(ctx->nc->myAddress->ip6.bytes, Sockaddr_AF_INET6, ctx->alloc);
+    NetDev_addAddress(assignedTunName, myAddr, addressPrefix, ctx->logger, eh);
+    NetDev_setMTU(assignedTunName, DEFAULT_MTU, ctx->logger, eh);
+}
+
 static void initTunnel(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
-    struct Core_Context* const ctx = (struct Core_Context*) vcontext;
+    struct Context* const ctx = Identity_check((struct Context*) vcontext);
 
     struct Jmp jmp;
     Jmp_try(jmp) {
-        Core_initTunnel(Dict_getString(args, String_CONST("desiredTunName")),
-                        ctx->ipAddr,
-                        8,
-                        ctx->logger,
-                        ctx->ipTunnel,
-                        ctx->eventBase,
-                        ctx->alloc,
-                        &jmp.handler);
+        String* desiredName = Dict_getString(args, String_CONST("desiredTunName"));
+        initTunnel2(desiredName, ctx, 8, &jmp.handler);
     } Jmp_catch {
         String* error = String_printf(requestAlloc, "Failed to configure tunnel [%s]", jmp.message);
         sendResponse(error, ctx->admin, txid, requestAlloc);
@@ -194,28 +207,6 @@ static void initTunnel(Dict* args, void* vcontext, String* txid, struct Allocato
     sendResponse(String_CONST("none"), ctx->admin, txid, requestAlloc);
 }
 
-void Core_admin_register(struct Sockaddr* ipAddr,
-                         struct Log* logger,
-                         struct IpTunnel* ipTunnel,
-                         struct Allocator* alloc,
-                         struct Admin* admin,
-                         struct EventBase* eventBase)
-{
-    struct Core_Context* ctx = Allocator_malloc(alloc, sizeof(struct Core_Context));
-    ctx->ipAddr = ipAddr;
-    ctx->logger = logger;
-    ctx->alloc = alloc;
-    ctx->admin = admin;
-    ctx->eventBase = eventBase;
-    ctx->ipTunnel = ipTunnel;
-
-    struct Admin_FunctionArg args[] = {
-        { .name = "desiredTunName", .required = 0, .type = "String" }
-    };
-    Admin_registerFunction("Core_initTunnel", initTunnel, ctx, true, args, admin);
-}
-
-
 static Dict* getInitialConfig(struct Iface* iface,
                               struct EventBase* eventBase,
                               struct Allocator* alloc,
@@ -223,32 +214,6 @@ static Dict* getInitialConfig(struct Iface* iface,
 {
     struct Message* m = InterfaceWaiter_waitForData(iface, eventBase, alloc, eh);
     return BencMessageReader_read(m, alloc, eh);
-}
-
-void Core_initTunnel(String* desiredDeviceName,
-                     struct Sockaddr* addr,
-                     uint8_t addressPrefix,
-                     struct Log* logger,
-                     struct IpTunnel* ipTunnel,
-                     struct EventBase* eventBase,
-                     struct Allocator* alloc,
-                     struct Except* eh)
-{
-    Log_debug(logger, "Initializing TUN device [%s]",
-              (desiredDeviceName) ? desiredDeviceName->bytes : "<auto>");
-Assert_true(0);
-/*
-    char assignedTunName[TUNInterface_IFNAMSIZ];
-    char* desiredName = (desiredDeviceName) ? desiredDeviceName->bytes : NULL;
-
-    struct Iface* tun =
-        TUNInterface_new(desiredName, assignedTunName, 0, eventBase, logger, eh, alloc);
-
-    IpTunnel_setTunName(assignedTunName, ipTunnel);
-
-    NetDev_addAddress(assignedTunName, addr, addressPrefix, logger, eh);
-    NetDev_setMTU(assignedTunName, DEFAULT_MTU, logger, eh);
-*/
 }
 
 /** This is a response from a call which is intended only to send information to the angel. */
@@ -325,6 +290,10 @@ void Core_init(struct Allocator* alloc,
 
     struct NetCore* nc = NetCore_new(privateKey, alloc, eventBase, rand, logger);
 
+    struct IpTunnel* ipTunnel = IpTunnel_new(logger, eventBase, alloc, rand, hermes);
+    Iface_plumb(&nc->tunAdapt->ipTunnelIf, &ipTunnel->tunInterface);
+    Iface_plumb(&nc->upper->ipTunnelIf, &ipTunnel->nodeInterface);
+
     Pathfinder_register(alloc, logger, eventBase, rand, admin, nc->ee);
 
     // ------------------- DNS -------------------------//
@@ -352,23 +321,31 @@ void Core_init(struct Allocator* alloc,
 
     AuthorizedPasswords_init(admin, nc->ca, alloc);
     Admin_registerFunction("ping", adminPing, admin, false, NULL, admin);
-//    Core_admin_register(myAddr, dtAAAAAAAAAAAAAA, logger, ipTun, alloc, admin, eventBase);
+//    Core_admin_register(myAddr, logger, ipTun, alloc, admin, eventBase);
     Security_admin_register(alloc, logger, admin);
-    IpTunnel_admin_register(nc->ipTunnel, admin, alloc);
+    IpTunnel_admin_register(ipTunnel, admin, alloc);
     SessionManager_admin_register(nc->sm, admin, alloc);
     RainflyClient_admin_register(rainfly, admin, alloc);
     Allocator_admin_register(alloc, admin);
 
-    struct Context* ctx = Allocator_clone(alloc, (&(struct Context) {
-        .allocator = alloc,
-        .admin = admin,
-        .logger = logger,
-        .hermes = hermes,
-        .base = eventBase,
-    }));
+    struct Context* ctx = Allocator_calloc(alloc, sizeof(struct Context), 1);
+    Identity_set(ctx);
+    ctx->alloc = alloc;
+    ctx->admin = admin;
+    ctx->logger = logger;
+    ctx->hermes = hermes;
+    ctx->base = eventBase;
+    ctx->ipTunnel = ipTunnel;
+    ctx->nc = nc;
+
     Admin_registerFunction("Core_exit", adminExit, ctx, true, NULL, admin);
 
     Admin_registerFunction("Core_pid", adminPid, admin, false, NULL, admin);
+
+    Admin_registerFunction("Core_initTunnel", initTunnel, ctx, true,
+        ((struct Admin_FunctionArg[]) {
+            { .name = "desiredTunName", .required = 0, .type = "String" }
+        }), admin);
 }
 
 int Core_main(int argc, char** argv)

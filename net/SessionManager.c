@@ -115,15 +115,7 @@ static void sendSession(struct SessionManager_Session_pvt* sess,
     Iface_send(&sess->sessionManager->eventIf, msg);
     Allocator_free(alloc);
 }
-/* XXX(cjd): we're not trashing old sessions!
-static int sessionCleanup(struct Allocator_OnFreeJob* job)
-{
-    struct SessionManager_Session_pvt* sess =
-        Identity_check((struct SessionManager_Session_pvt*) job->userData);
-    sendSession(sess, sess->pub.sendSwitchLabel, 0xffffffff, PFChan_Core_SESSION_ENDED);
-    return 0;
-}
-*/
+
 static inline void check(struct SessionManager_pvt* sm, int mapIndex)
 {
     Assert_true(sm->ifaceMap.keys[mapIndex].bytes[0] == 0xfc);
@@ -273,6 +265,9 @@ static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface
         return NULL;
     }
 
+    session->pub.timeOfLastIn = Time_currentTimeMilliseconds(sm->eventBase);
+    session->pub.bytesIn += msg->length;
+
     bool currentMessageSetup = (nonceOrHandle <= 3);
 
     if (currentMessageSetup) {
@@ -313,9 +308,8 @@ static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface
     return Iface_next(&sm->pub.insideIf, msg);
 }
 
-static void checkTimedOutBuffers(void* vSessionManager)
+static void checkTimedOutBuffers(struct SessionManager_pvt* sm)
 {
-    struct SessionManager_pvt* sm = Identity_check((struct SessionManager_pvt*) vSessionManager);
     for (int i = 0; i < (int)sm->bufMap.count; i++) {
         struct BufferedMessage* buffered = sm->bufMap.values[i];
         uint64_t lag = Time_currentTimeSeconds(sm->eventBase) - buffered->timeSent;
@@ -324,6 +318,26 @@ static void checkTimedOutBuffers(void* vSessionManager)
         Allocator_free(buffered->alloc);
         i--;
     }
+}
+
+static void checkTimedOutSessions(struct SessionManager_pvt* sm)
+{
+    for (int i = 0; i < (int)sm->ifaceMap.count; i++) {
+        struct SessionManager_Session_pvt* sess = sm->ifaceMap.values[i];
+        int64_t now = Time_currentTimeSeconds(sm->eventBase);
+        if (now - sess->pub.timeOfLastIn < sm->pub.sessionTimeoutMilliseconds) { continue; }
+        sendSession(sess, sess->pub.sendSwitchLabel, 0xffffffff, PFChan_Core_SESSION_ENDED);
+        Map_OfSessionsByIp6_remove(i, &sm->ifaceMap);
+        Allocator_free(sess->alloc);
+        i--;
+    }
+}
+
+static void periodically(void* vSessionManager)
+{
+    struct SessionManager_pvt* sm = Identity_check((struct SessionManager_pvt*) vSessionManager);
+    checkTimedOutSessions(sm);
+    checkTimedOutBuffers(sm);
 }
 
 static void needsLookup(struct SessionManager_pvt* sm, struct Message* msg)
@@ -391,6 +405,9 @@ static Iface_DEFUN readyToSend(struct Message* msg,
     // This pointer ceases to be useful.
     header = NULL;
 
+    sess->pub.timeOfLastOut = Time_currentTimeMilliseconds(sm->eventBase);
+    sess->pub.bytesOut += msg->length;
+
     Assert_true(!CryptoAuth_encrypt(sess->pub.caSession, msg));
 
     if (CryptoAuth_getState(sess->pub.caSession) >= CryptoAuth_HANDSHAKE3) {
@@ -449,36 +466,6 @@ static Iface_DEFUN incomingFromInsideIf(struct Message* msg, struct Iface* iface
 
     return readyToSend(msg, sm, sess);
 }
-
-/* too good to toss!
-static uint32_t getEffectiveMetric(uint64_t nowMilliseconds,
-                                   uint32_t metricHalflifeMilliseconds,
-                                   uint32_t metric,
-                                   uint32_t time)
-{
-    if (time - nowMilliseconds < 1000 || !metricHalflifeMilliseconds) {
-        // Clock wander (reverse) || halflife == 0
-        return metric;
-    }
-
-    // Please do not store an entry for more than 21 days.
-    Assert_true(nowMilliseconds > time);
-
-    uint64_t halflives = nowMilliseconds - time;
-
-    // support fractional halflives...
-    halflives <<= 16;
-
-    // now we have numHalflives**16
-    halflives /= metricHalflifeMilliseconds;
-
-    uint64_t out = (UINT32_MAX - metric) << 16;
-
-    out /= halflives;
-
-    return UINT32_MAX - out;
-}
-*/
 
 static Iface_DEFUN sessions(struct SessionManager_pvt* sm,
                             uint32_t sourcePf,
@@ -548,8 +535,7 @@ struct SessionManager* SessionManager_new(struct Allocator* alloc,
     sm->log = log;
     sm->cryptoAuth = cryptoAuth;
     sm->eventBase = eventBase;
-
-    sm->pub.metricHalflifeMilliseconds = SessionManager_METRIC_HALFLIFE_MILLISECONDS_DEFAULT;
+    sm->pub.sessionTimeoutMilliseconds = SessionManager_SESSION_TIMEOUT_MILLISECONDS_DEFAULT;
     sm->pub.maxBufferedMessages = SessionManager_MAX_BUFFERED_MESSAGES_DEFAULT;
 
     sm->eventIf.send = incomingFromEventIf;
@@ -559,7 +545,7 @@ struct SessionManager* SessionManager_new(struct Allocator* alloc,
     sm->firstHandle =
         (Random_uint32(rand) % (MAX_FIRST_HANDLE - MIN_FIRST_HANDLE)) + MIN_FIRST_HANDLE;
 
-    Timeout_setInterval(checkTimedOutBuffers, sm, 10000, eventBase, alloc);
+    Timeout_setInterval(periodically  , sm, 10000, eventBase, alloc);
 
     Identity_set(sm);
 
