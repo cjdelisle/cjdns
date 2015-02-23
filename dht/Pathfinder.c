@@ -104,10 +104,10 @@ static int incomingFromDHT(struct DHTMessage* dmessage, void* vpf)
     if (dmessage->replyTo) {
         // see incomingMsg
         dmessage->replyTo->pleaseRespond = true;
-        Log_debug(pf->log, "DHT reply");
+        Log_debug(pf->log, "send DHT reply");
         return 0;
     }
-    Log_debug(pf->log, "DHT request");
+    Log_debug(pf->log, "send DHT request");
 
     Iface_send(&pf->eventIf, msg);
     return 0;

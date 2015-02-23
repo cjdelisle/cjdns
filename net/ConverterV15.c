@@ -101,6 +101,7 @@ static Iface_DEFUN incomingFromUpperDistributorIf(struct Message* msg,
     if (type == ContentType_CJDHT) {
         struct Headers_UDPHeader* udp = (struct Headers_UDPHeader*) &ip6[1];
         ip6->nextHeader = 17;
+        ip6->hopLimit = 0;
         udp->srcPort_be = 0;
         udp->destPort_be = 0;
         udp->length_be = Endian_hostToBigEndian16(msg->length -
@@ -125,10 +126,11 @@ static Iface_DEFUN incomingFromUpperDistributorIf(struct Message* msg,
 
 #define tryConvertDHT_OVERHEAD \
     (RouteHeader_SIZE + Headers_IP6Header_SIZE + Headers_UDPHeader_SIZE)
-static inline bool tryConvertDHT(struct Message* msg, struct Headers_IP6Header* ip6)
+static inline bool tryConvertDHT(struct Message* msg)
 {
     if (msg->length < tryConvertDHT_OVERHEAD) { return false; }
     struct RouteHeader* bih = (struct RouteHeader*) msg->bytes;
+    struct Headers_IP6Header* ip6 = (struct Headers_IP6Header*) &bih[1];
     struct Headers_UDPHeader* udp = (struct Headers_UDPHeader*) &ip6[1];
     if (udp->srcPort_be || udp->destPort_be) { return false; }
     Message_shift(msg, -tryConvertDHT_OVERHEAD, NULL);
@@ -167,16 +169,24 @@ static Iface_DEFUN incomingFromSessionManagerIf(struct Message* msg, struct Ifac
         return Iface_next(&conv->pub.upperDistributorIf, msg);
     }
 
-    if (ipVer == 6) {
+    if (ipVer == 0) {
         if (msg->length < RouteHeader_SIZE + Headers_IP6Header_SIZE) {
             Log_debug(conv->log, "DROP runt");
             return NULL;
         }
         struct Headers_IP6Header* ip6 = (struct Headers_IP6Header*) ipPtr;
         if (ip6->sourceAddr[0] == 0xfc && ip6->destinationAddr[0] == 0xfc) {
-            if (tryConvertDHT(msg, ip6)) {
+            if (tryConvertDHT(msg)) {
                 return Iface_next(&conv->pub.upperDistributorIf, msg);
             }
+        }
+    } else if (ipVer == 6) {
+        if (msg->length < RouteHeader_SIZE + Headers_IP6Header_SIZE) {
+            Log_debug(conv->log, "DROP runt");
+            return NULL;
+        }
+        struct Headers_IP6Header* ip6 = (struct Headers_IP6Header*) ipPtr;
+        if (ip6->sourceAddr[0] == 0xfc && ip6->destinationAddr[0] == 0xfc) {
             Message_pop(msg, NULL, RouteHeader_SIZE + Headers_IP6Header_SIZE, NULL);
             struct DataHeader dh = {
                 .contentType_be = Endian_hostToBigEndian16(ip6->nextHeader),

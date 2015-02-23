@@ -199,7 +199,8 @@ static struct SessionManager_Session_pvt* getSession(struct SessionManager_pvt* 
     sess->alloc = alloc;
     sess->sessionManager = sm;
     sess->pub.version = version;
-    //sess->pub.timeOfCreation = Time_currentTimeMilliseconds(sm->eventBase);
+    sess->pub.timeOfLastIn = Time_currentTimeMilliseconds(sm->eventBase);
+    sess->pub.timeOfLastOut = Time_currentTimeMilliseconds(sm->eventBase);
     sess->pub.sendSwitchLabel = label;
     //Allocator_onFree(alloc, sessionCleanup, sess);
     sendSession(sess, label, 0xffffffff, PFChan_Core_SESSION);

@@ -326,6 +326,9 @@ static void iciPing(struct InterfaceController_Iface_pvt* ici, struct InterfaceC
             // our link to the peer is broken...
             sendPeer(0xffffffff, PFChan_Core_PEER_GONE, ep);
 
+            // XXX(cjd): we need to tell the switch about this because packets to this if
+            // should be responded to with error packets.
+
             // Lets skip 87% of pings when they're really down.
             if (ep->pingCount % 8) {
                 ep->pingCount++;
@@ -681,8 +684,8 @@ static Iface_DEFUN handleIncomingFromWire(struct Message* msg, struct Iface* add
 }
 
 struct InterfaceController_Iface* InterfaceController_newIface(struct InterfaceController* ifc,
-                                                 String* name,
-                                                 struct Allocator* alloc)
+                                                               String* name,
+                                                               struct Allocator* alloc)
 {
     struct InterfaceController_pvt* ic = Identity_check((struct InterfaceController_pvt*) ifc);
 
@@ -776,11 +779,11 @@ int InterfaceController_beaconState(struct InterfaceController* ifc,
 }
 
 int InterfaceController_bootstrapPeer(struct InterfaceController* ifc,
-                               int interfaceNumber,
-                               uint8_t* herPublicKey,
-                               const struct Sockaddr* lladdrParm,
-                               String* password,
-                               struct Allocator* alloc)
+                                      int interfaceNumber,
+                                      uint8_t* herPublicKey,
+                                      const struct Sockaddr* lladdrParm,
+                                      String* password,
+                                      struct Allocator* alloc)
 {
     struct InterfaceController_pvt* ic = Identity_check((struct InterfaceController_pvt*) ifc);
 
@@ -853,8 +856,8 @@ int InterfaceController_bootstrapPeer(struct InterfaceController* ifc,
 }
 
 int InterfaceController_getPeerStats(struct InterfaceController* ifController,
-                              struct Allocator* alloc,
-                              struct InterfaceController_PeerStats** statsOut)
+                                     struct Allocator* alloc,
+                                     struct InterfaceController_PeerStats** statsOut)
 {
     struct InterfaceController_pvt* ic =
         Identity_check((struct InterfaceController_pvt*) ifController);

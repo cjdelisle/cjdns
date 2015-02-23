@@ -41,7 +41,7 @@ struct DataHeader
 #define DataHeader_SIZE 4
 Assert_compileTime(sizeof(struct DataHeader) == DataHeader_SIZE);
 
-#define DataHeader_CURRENT_VERSION 0
+#define DataHeader_CURRENT_VERSION 1
 
 
 static inline enum ContentType DataHeader_getContentType(struct DataHeader* hdr)
