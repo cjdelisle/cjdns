@@ -43,7 +43,7 @@ static void getHandles(Dict* args, void* vcontext, String* txid, struct Allocato
     struct SessionManager_HandleList* hList = SessionManager_getHandleList(context->sm, alloc);
 
     List* list = List_new(alloc);
-    for (int counter = 0; i > 0 && i < hList->length && counter++ < ENTRIES_PER_PAGE; i++) {
+    for (int counter = 0; i < hList->length && counter++ < ENTRIES_PER_PAGE; i++) {
         List_addInt(list, hList->handles[i], alloc);
     }
 
@@ -53,8 +53,10 @@ static void getHandles(Dict* args, void* vcontext, String* txid, struct Allocato
 
     String* more = String_CONST("more");
     if (i < hList->length) {
-      Dict_putInt(r, more, 1, alloc);
+        Dict_putInt(r, more, 1, alloc);
+        Assert_true(i > 0);
     }
+    Assert_true(i == List_size(list));
 
     Admin_sendMessage(r, txid, context->admin);
 

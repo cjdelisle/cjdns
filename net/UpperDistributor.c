@@ -52,7 +52,6 @@ static Iface_DEFUN incomingFromIpTunnelIf(struct Message* msg, struct Iface* ipT
     return Iface_next(&ud->pub.sessionManagerIf, msg);
 }
 
-
 static Iface_DEFUN incomingFromSessionManagerIf(struct Message* msg, struct Iface* sessionManagerIf)
 {
     struct UpperDistributor_pvt* ud =
@@ -65,7 +64,6 @@ static Iface_DEFUN incomingFromSessionManagerIf(struct Message* msg, struct Ifac
         return Iface_next(&ud->pub.tunAdapterIf, msg);
     }
     if (type == ContentType_CJDHT) {
-        Log_debug(ud->log, "UD_incomingFromSessionManagerIf");
         Message_push32(msg, 0xffffffff, NULL);
         Message_push32(msg, PFChan_Core_MSG, NULL);
         return Iface_next(&ud->eventIf, msg);

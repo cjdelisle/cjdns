@@ -166,11 +166,10 @@ struct SessionManager_HandleList* SessionManager_getHandleList(struct SessionMan
     struct SessionManager_HandleList* out =
         Allocator_calloc(alloc, sizeof(struct SessionManager_HandleList), 1);
     uint32_t* buff = Allocator_calloc(alloc, 4, sm->ifaceMap.count);
-    Bits_memcpy(buff, sm->ifaceMap.handles, 4 * sm->ifaceMap.count);
-    out->handles = buff;
     out->length = sm->ifaceMap.count;
+    out->handles = buff;
     for (int i = 0; i < out->length; i++) {
-        buff[i] += sm->firstHandle;
+        buff[i] = sm->ifaceMap.handles[i] + sm->firstHandle;
     }
     return out;
 }
@@ -472,9 +471,8 @@ static Iface_DEFUN sessions(struct SessionManager_pvt* sm,
                             uint32_t sourcePf,
                             struct Allocator* tempAlloc)
 {
-    struct SessionManager_HandleList* handles = SessionManager_getHandleList(&sm->pub, tempAlloc);
-    for (int i = 0; i < handles->length; i++) {
-        struct SessionManager_Session_pvt* sess = sessionForHandle(handles->handles[i], sm);
+    for (int i = 0; i < (int)sm->ifaceMap.count; i++) {
+        struct SessionManager_Session_pvt* sess = sm->ifaceMap.values[i];
         sendSession(sess, sess->pub.sendSwitchLabel, sourcePf, PFChan_Core_SESSION);
     }
     return NULL;

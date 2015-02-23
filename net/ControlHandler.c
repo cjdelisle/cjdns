@@ -45,6 +45,7 @@ static Iface_DEFUN handleError(struct Message* msg,
         return NULL;
     }
     Message_shift(msg, SwitchHeader_SIZE + 4, NULL);
+    Message_push32(msg, 0xffffffff, NULL);
     Message_push32(msg, PFChan_Core_SWITCH_ERR, NULL);
     return Iface_next(&ch->eventIf, msg);
 }

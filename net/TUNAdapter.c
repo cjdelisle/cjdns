@@ -48,6 +48,15 @@ static Iface_DEFUN incomingFromTunIf(struct Message* msg, struct Iface* tunIf)
         return NULL;
     }
 
+    if (ethertype == Ethernet_TYPE_IP4) {
+        return Iface_next(&ud->pub.ipTunnelIf, msg);
+    }
+    if (ethertype != Ethernet_TYPE_IP6) {
+        Log_debug(ud->log, "DROP packet unknown ethertype [%u]",
+                  Endian_bigEndianToHost16(ethertype));
+        return NULL;
+    }
+
     if (msg->length < Headers_IP6Header_SIZE) {
         Log_debug(ud->log, "DROP runt");
         return NULL;
@@ -55,12 +64,7 @@ static Iface_DEFUN incomingFromTunIf(struct Message* msg, struct Iface* tunIf)
 
     struct Headers_IP6Header* header = (struct Headers_IP6Header*) msg->bytes;
     if (!AddressCalc_validAddress(header->destinationAddr)) {
-        if (Defined(Log_DEBUG)) {
-            uint8_t dst[40];
-            AddrTools_printIp(dst, header->destinationAddr);
-            Log_debug(ud->log, "DROP packet to [%s] because it must begin with fc", dst);
-        }
-        return NULL;
+        return Iface_next(&ud->pub.ipTunnelIf, msg);
     }
     if (Bits_memcmp(header->sourceAddr, ud->myIp6, 16)) {
         if (Defined(Log_DEBUG)) {
@@ -108,12 +112,10 @@ static Iface_DEFUN sendToTunIf(struct Message* msg, struct TUNAdapter_pvt* ud)
 
 static Iface_DEFUN incomingFromIpTunnelIf(struct Message* msg, struct Iface* ipTunnelIf)
 {
-//    struct TUNAdapter_pvt* ud =
-  //      Identity_containerOf(ipTunnelIf, struct TUNAdapter_pvt, pub.ipTunnelIf);
-    Assert_failure("unimplemented");
-    return NULL;
+    struct TUNAdapter_pvt* ud =
+        Identity_containerOf(ipTunnelIf, struct TUNAdapter_pvt, pub.ipTunnelIf);
+    return Iface_next(&ud->pub.tunIf, msg);
 }
-
 
 static Iface_DEFUN incomingFromUpperDistributorIf(struct Message* msg,
                                                   struct Iface* upperDistributorIf)
