@@ -12,16 +12,16 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef IfController_admin_H
-#define IfController_admin_H
+#ifndef InterfaceController_admin_H
+#define InterfaceController_admin_H
 
 #include "admin/Admin.h"
-#include "net/IfController.h"
+#include "net/InterfaceController.h"
 #include "memory/Allocator.h"
 #include "util/Linker.h"
-Linker_require("net/IfController_admin.c")
+Linker_require("net/InterfaceController_admin.c")
 
-void IfController_admin_register(struct IfController* ic,
+void InterfaceController_admin_register(struct InterfaceController* ic,
                                         struct Admin* admin,
                                         struct Allocator* alloc);
 

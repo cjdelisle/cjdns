@@ -33,7 +33,7 @@
 #ifdef HAS_ETH_INTERFACE
 #include "interface/ETHInterface_admin.h"
 #endif
-#include "net/IfController_admin.h"
+#include "net/InterfaceController_admin.h"
 #include "interface/addressable/PacketHeaderToUDPAddrIface.h"
 #include "interface/FramingIface.h"
 #include "interface/RainflyClient.h"
@@ -312,7 +312,7 @@ void Core_init(struct Allocator* alloc,
 
 
     // ------------------- Register RPC functions ----------------------- //
-    IfController_admin_register(nc->ifController, admin, alloc);
+    InterfaceController_admin_register(nc->ifController, admin, alloc);
     SwitchPinger_admin_register(nc->sp, admin, alloc);
     UDPInterface_admin_register(eventBase, alloc, logger, admin, nc->ifController);
 #ifdef HAS_ETH_INTERFACE

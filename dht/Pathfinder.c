@@ -101,13 +101,13 @@ static int incomingFromDHT(struct DHTMessage* dmessage, void* vpf)
 
     Message_push32(msg, PFChan_Pathfinder_SENDMSG, NULL);
 
-    Log_debug(pf->log, "Outgoing DHT");
-
     if (dmessage->replyTo) {
         // see incomingMsg
         dmessage->replyTo->pleaseRespond = true;
+        Log_debug(pf->log, "DHT reply");
         return 0;
     }
+    Log_debug(pf->log, "DHT request");
 
     Iface_send(&pf->eventIf, msg);
     return 0;

@@ -27,7 +27,7 @@
 #include "util/events/EventBase.h"
 #include "net/SwitchPinger.h"
 #include "net/ControlHandler.h"
-#include "net/IfController.h"
+#include "net/InterfaceController.h"
 #include "interface/Iface.h"
 #include "tunnel/IpTunnel.h"
 #include "net/EventEmitter.h"
@@ -160,32 +160,32 @@ void TestFramework_linkNodes(struct TestFramework* client,
     link->client = client;
     link->server = server;
 
-    struct IfController_Iface* clientIci =
-        IfController_newIface(client->nc->ifController, String_CONST("client"), client->alloc);
+    struct InterfaceController_Iface* clientIci = InterfaceController_newIface(
+        client->nc->ifController, String_CONST("client"), client->alloc);
     link->clientIfNum = clientIci->ifNum;
     Iface_plumb(&link->clientIf, &clientIci->addrIf);
 
-    struct IfController_Iface* serverIci =
-        IfController_newIface(server->nc->ifController, String_CONST("server"), server->alloc);
+    struct InterfaceController_Iface* serverIci = InterfaceController_newIface(
+        server->nc->ifController, String_CONST("server"), server->alloc);
     link->serverIfNum = serverIci->ifNum;
     Iface_plumb(&link->serverIf, &serverIci->addrIf);
 
     if (beacon) {
-        int ret = IfController_beaconState(client->nc->ifController,
+        int ret = InterfaceController_beaconState(client->nc->ifController,
                                            link->clientIfNum,
-                                           IfController_beaconState_newState_ACCEPT);
+                                           InterfaceController_beaconState_newState_ACCEPT);
         Assert_true(!ret);
 
-        ret = IfController_beaconState(server->nc->ifController,
+        ret = InterfaceController_beaconState(server->nc->ifController,
                                        link->serverIfNum,
-                                       IfController_beaconState_newState_SEND);
+                                       InterfaceController_beaconState_newState_SEND);
         Assert_true(!ret);
     } else {
         // Except that it has an authorizedPassword added.
         CryptoAuth_addUser(String_CONST("abcdefg123"), 1, String_CONST("TEST"), server->nc->ca);
 
         // Client has pubKey and passwd for the server.
-        IfController_bootstrapPeer(client->nc->ifController,
+        InterfaceController_bootstrapPeer(client->nc->ifController,
                                    link->clientIfNum,
                                    server->publicKey,
                                    Sockaddr_LOOPBACK,

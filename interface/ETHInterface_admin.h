@@ -18,7 +18,7 @@
 #include "admin/angel/Hermes.h"
 #include "admin/Admin.h"
 #include "memory/Allocator.h"
-#include "net/IfController.h"
+#include "net/InterfaceController.h"
 #include "util/log/Log.h"
 #include "util/events/EventBase.h"
 #include "util/Linker.h"
@@ -28,7 +28,7 @@ void ETHInterface_admin_register(struct EventBase* base,
                                  struct Allocator* alloc,
                                  struct Log* logger,
                                  struct Admin* admin,
-                                 struct IfController* ic,
+                                 struct InterfaceController* ic,
                                  struct Hermes* hermes);
 
 #endif

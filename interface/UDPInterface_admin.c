@@ -16,7 +16,7 @@
 #include "admin/Admin.h"
 #include "exception/Jmp.h"
 #include "memory/Allocator.h"
-#include "net/IfController.h"
+#include "net/InterfaceController.h"
 #include "util/events/UDPAddrIface.h"
 #include "util/events/EventBase.h"
 #include "util/platform/Sockaddr.h"
@@ -29,7 +29,7 @@ struct Context
     struct Log* logger;
     struct Admin* admin;
     struct AddrIface* udpIf;
-    struct IfController* ic;
+    struct InterfaceController* ic;
 };
 
 static void beginConnection(Dict* args,
@@ -83,21 +83,21 @@ static void beginConnection(Dict* args,
         }
 
         int ret =
-            IfController_bootstrapPeer(ctx->ic, ifNum, pkBytes, addr, password, ctx->alloc);
+            InterfaceController_bootstrapPeer(ctx->ic, ifNum, pkBytes, addr, password, ctx->alloc);
 
         Allocator_free(tempAlloc);
 
         if (ret) {
             switch(ret) {
-                case IfController_bootstrapPeer_BAD_IFNUM:
+                case InterfaceController_bootstrapPeer_BAD_IFNUM:
                     error = String_CONST("no such interface for interfaceNumber");
                     break;
 
-                case IfController_bootstrapPeer_BAD_KEY:
+                case InterfaceController_bootstrapPeer_BAD_KEY:
                     error = String_CONST("invalid cjdns public key.");
                     break;
 
-                case IfController_bootstrapPeer_OUT_OF_SPACE:
+                case InterfaceController_bootstrapPeer_OUT_OF_SPACE:
                     error = String_CONST("no more space to register with the switch.");
                     break;
 
@@ -133,7 +133,8 @@ static void newInterface2(struct Context* ctx,
     }
 
     struct AddrIface* ai = ctx->udpIf = &udpIf->generic;
-    struct IfController_Iface* ici = IfController_newIface(ctx->ic, String_CONST("UDP"), alloc);
+    struct InterfaceController_Iface* ici =
+        InterfaceController_newIface(ctx->ic, String_CONST("UDP"), alloc);
     Iface_plumb(&ici->addrIf, &ai->iface);
 
     Dict* out = Dict_new(requestAlloc);
@@ -167,7 +168,7 @@ void UDPInterface_admin_register(struct EventBase* base,
                                  struct Allocator* alloc,
                                  struct Log* logger,
                                  struct Admin* admin,
-                                 struct IfController* ic)
+                                 struct InterfaceController* ic)
 {
     struct Context* ctx = Allocator_clone(alloc, (&(struct Context) {
         .eventBase = base,

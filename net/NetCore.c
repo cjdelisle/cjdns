@@ -21,7 +21,7 @@
 #include "util/events/EventBase.h"
 #include "net/SwitchPinger.h"
 #include "net/ControlHandler.h"
-#include "net/IfController.h"
+#include "net/InterfaceController.h"
 #include "interface/Iface.h"
 #include "tunnel/IpTunnel.h"
 #include "net/EventEmitter.h"
@@ -64,7 +64,7 @@ struct NetCore* NetCore_new(uint8_t* privateKey,
     struct SwitchPinger* sp = nc->sp = SwitchPinger_new(base, rand, log, myAddress, alloc);
     Iface_plumb(&controlHandler->switchPingerIf, &sp->controlHandlerIf);
 
-    nc->ifController = IfController_new(ca, switchCore, log, base, sp, rand, alloc, ee);
+    nc->ifController = InterfaceController_new(ca, switchCore, log, base, sp, rand, alloc, ee);
 
     // session manager
 

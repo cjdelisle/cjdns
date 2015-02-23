@@ -17,7 +17,7 @@
 
 #include "admin/Admin.h"
 #include "memory/Allocator.h"
-#include "net/IfController.h"
+#include "net/InterfaceController.h"
 #include "util/log/Log.h"
 #include "util/events/EventBase.h"
 #include "util/Linker.h"
@@ -27,6 +27,6 @@ void UDPInterface_admin_register(struct EventBase* base,
                                  struct Allocator* allocator,
                                  struct Log* logger,
                                  struct Admin* admin,
-                                 struct IfController* ic);
+                                 struct InterfaceController* ic);
 
 #endif

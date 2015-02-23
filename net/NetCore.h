@@ -23,7 +23,7 @@
 #include "util/events/EventBase.h"
 #include "net/SwitchPinger.h"
 #include "net/ControlHandler.h"
-#include "net/IfController.h"
+#include "net/InterfaceController.h"
 #include "interface/Iface.h"
 #include "tunnel/IpTunnel.h"
 #include "net/EventEmitter.h"
@@ -48,7 +48,7 @@ struct NetCore
     struct SwitchAdapter* switchAdapter;
     struct ControlHandler* controlHandler;
     struct SwitchPinger* sp;
-    struct IfController* ifController;
+    struct InterfaceController* ifController;
     struct SessionManager* sm;
     struct UpperDistributor* upper;
     struct TUNAdapter* tunAdapt;

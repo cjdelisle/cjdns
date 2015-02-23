@@ -18,7 +18,7 @@
 #include "interface/addressable/AddrIface.h"
 #include "benc/List.h"
 #include "util/events/EventBase.h"
-#include "net/IfController.h"
+#include "net/InterfaceController.h"
 #include "util/Gcc.h"
 #include "util/Assert.h"
 #include "util/log/Log.h"
