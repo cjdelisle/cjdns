@@ -324,7 +324,6 @@ static void iciPing(struct InterfaceController_Iface_pvt* ici, struct InterfaceC
         bool unresponsive = (now > ep->timeOfLastMessage + ic->unresponsiveAfterMilliseconds);
         if (unresponsive) {
             // our link to the peer is broken...
-            sendPeer(0xffffffff, PFChan_Core_PEER_GONE, ep);
 
             // XXX(cjd): we need to tell the switch about this because packets to this if
             // should be responded to with error packets.
@@ -335,7 +334,10 @@ static void iciPing(struct InterfaceController_Iface_pvt* ici, struct InterfaceC
                 continue;
             }
 
+            sendPeer(0xffffffff, PFChan_Core_PEER_GONE, ep);
             ep->state = InterfaceController_PeerState_UNRESPONSIVE;
+            SwitchCore_setInterfaceState(&ep->switchIf,
+                                         SwitchCore_setInterfaceState_ifaceState_DOWN);
         }
 
         Log_debug(ic->logger,
@@ -396,6 +398,7 @@ static Iface_DEFUN receivedPostCryptoAuth(struct Message* msg,
     if (ep->state < InterfaceController_PeerState_ESTABLISHED) {
         // EP states track CryptoAuth states...
         ep->state = caState;
+        SwitchCore_setInterfaceState(&ep->switchIf, SwitchCore_setInterfaceState_ifaceState_UP);
 
         Bits_memcpyConst(ep->addr.key, ep->caSession->herPublicKey, 32);
         Address_getPrefix(&ep->addr);
@@ -430,6 +433,7 @@ static Iface_DEFUN receivedPostCryptoAuth(struct Message* msg,
         && caState == CryptoAuth_ESTABLISHED)
     {
         ep->state = InterfaceController_PeerState_ESTABLISHED;
+        SwitchCore_setInterfaceState(&ep->switchIf, SwitchCore_setInterfaceState_ifaceState_UP);
     } else {
         ep->timeOfLastMessage = Time_currentTimeMilliseconds(ic->eventBase);
     }

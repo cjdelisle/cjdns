@@ -441,7 +441,7 @@ static Iface_DEFUN incomingFromInsideIf(struct Message* msg, struct Iface* iface
 
     struct SessionManager_Session_pvt* sess = sessionForIp6(header->ip6, sm);
     if (!sess) {
-        if (!Bits_isZero(header->publicKey, 32)) {
+        if (!Bits_isZero(header->publicKey, 32) && header->version_be) {
             sess = getSession(sm,
                               header->ip6,
                               header->publicKey,
@@ -454,6 +454,11 @@ static Iface_DEFUN incomingFromInsideIf(struct Message* msg, struct Iface* iface
     }
 
     if (header->version_be) { sess->pub.version = Endian_bigEndianToHost32(header->version_be); }
+
+    if (!sess->pub.version) {
+        needsLookup(sm, msg);
+        return NULL;
+    }
 
     if (header->sh.label_be) {
         // fallthrough

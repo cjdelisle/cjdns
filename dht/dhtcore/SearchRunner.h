@@ -47,6 +47,12 @@ struct SearchRunner
 
 #define SearchRunner_DEFAULT_MAX_CONCURRENT_SEARCHES 30
 
+/** The maximum number of requests to make before calling a search failed. */
+#define SearchRunner_DEFAULT_MAX_REQUESTS 8
+
+/** If the search found something, the maximum number of requests to make before call it done. */
+#define SearchRunner_DEFAULT_MAX_REQUESTS_IF_FOUND 8
+
 /**
  * Start a search.
  * The returned promise will have it's callback called for each result of the search and
@@ -54,11 +60,13 @@ struct SearchRunner
  *
  * @param searchTarget the address to search for.
  * @param maxRequests the number of requests to make before terminating the search.
+ * @param maxRequestsIfFound maximum number of requests if a find has been made.
  * @param runner the search runner
  * @param alloc an allocator for the search, free this to cancel the search
  */
 struct RouterModule_Promise* SearchRunner_search(uint8_t target[16],
                                                  int maxRequests,
+                                                 int maxRequestsIfFound,
                                                  struct SearchRunner* searchRunner,
                                                  struct Allocator* allocator);
 

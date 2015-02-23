@@ -137,7 +137,7 @@ static void search(uint8_t target[16], struct Janitor* janitor)
 
     struct Allocator* searchAlloc = Allocator_child(janitor->allocator);
     struct RouterModule_Promise* rp =
-        SearchRunner_search(target, -1, janitor->searchRunner, searchAlloc);
+        SearchRunner_search(target, -1, -1, janitor->searchRunner, searchAlloc);
 
     if (!rp) {
         Log_debug(janitor->logger, "SearchRunner_search() returned NULL, probably full.");

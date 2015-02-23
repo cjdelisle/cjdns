@@ -54,9 +54,7 @@ static void getHandles(Dict* args, void* vcontext, String* txid, struct Allocato
     String* more = String_CONST("more");
     if (i < hList->length) {
         Dict_putInt(r, more, 1, alloc);
-        Assert_true(i > 0);
     }
-    Assert_true(i == List_size(list));
 
     Admin_sendMessage(r, txid, context->admin);
 

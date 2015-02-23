@@ -121,7 +121,7 @@ static void search(Dict* args, void* vctx, String* txid, struct Allocator* reqAl
     } else {
         struct Allocator* alloc = Allocator_child(ctx->allocator);
         struct Search* s = Allocator_calloc(alloc, sizeof(struct Search), 1);
-        s->promise = SearchRunner_search(addr, maxRequests, ctx->runner, alloc);
+        s->promise = SearchRunner_search(addr, maxRequests, maxRequests, ctx->runner, alloc);
         s->ctx = ctx;
         s->txid = String_clone(txid, alloc);
         s->alloc = alloc;

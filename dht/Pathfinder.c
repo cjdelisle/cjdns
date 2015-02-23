@@ -104,10 +104,10 @@ static int incomingFromDHT(struct DHTMessage* dmessage, void* vpf)
     if (dmessage->replyTo) {
         // see incomingMsg
         dmessage->replyTo->pleaseRespond = true;
-        Log_debug(pf->log, "send DHT reply");
+        //Log_debug(pf->log, "send DHT reply");
         return 0;
     }
-    Log_debug(pf->log, "send DHT request");
+    //Log_debug(pf->log, "send DHT request");
 
     Iface_send(&pf->eventIf, msg);
     return 0;
@@ -192,6 +192,16 @@ static void addressForNode(struct Address* addrOut, struct Message* msg)
     Bits_memcpyConst(addrOut->ip6.bytes, node.ip6, 16);
 }
 
+static void nodeForAddress(struct PFChan_Node* nodeOut, struct Address* addr, uint32_t metric)
+{
+    Bits_memset(nodeOut, 0, PFChan_Node_SIZE);
+    nodeOut->version_be = Endian_hostToBigEndian32(addr->protocolVersion);
+    nodeOut->metric_be = Endian_hostToBigEndian32(metric);
+    nodeOut->path_be = Endian_hostToBigEndian64(addr->path);
+    Bits_memcpyConst(nodeOut->publicKey, addr->key, 32);
+    Bits_memcpyConst(nodeOut->ip6, addr->ip6.bytes, 16);
+}
+
 static Iface_DEFUN switchErr(struct Message* msg, struct Pathfinder_pvt* pf)
 {
     struct PFChan_Core_SwitchErr switchErr;
@@ -214,7 +224,7 @@ static Iface_DEFUN searchReq(struct Message* msg, struct Pathfinder_pvt* pf)
     AddrTools_printIp(printedAddr, addr);
     Log_debug(pf->log, "Search req [%s]", printedAddr);
 
-    SearchRunner_search(addr, 20, pf->searchRunner, pf->alloc);
+    SearchRunner_search(addr, 20, 3, pf->searchRunner, pf->alloc);
     return NULL;
 }
 
@@ -297,11 +307,11 @@ static Iface_DEFUN incomingMsg(struct Message* msg, struct Pathfinder_pvt* pf)
     Message_shift(msg, -(RouteHeader_SIZE + DataHeader_SIZE), NULL);
     Bits_memcpyConst(addr.ip6.bytes, hdr->ip6, 16);
     Bits_memcpyConst(addr.key, hdr->publicKey, 32);
-    addr.protocolVersion = Endian_bigEndianToHost32(hdr->version_be);
+    int version = addr.protocolVersion = Endian_bigEndianToHost32(hdr->version_be);
     addr.padding = 0;
     addr.path = Endian_bigEndianToHost64(hdr->sh.label_be);
 
-    Log_debug(pf->log, "Incoming DHT");
+    //Log_debug(pf->log, "Incoming DHT");
 
     struct DHTMessage dht = {
         .address = &addr,
@@ -313,6 +323,12 @@ static Iface_DEFUN incomingMsg(struct Message* msg, struct Pathfinder_pvt* pf)
 
     if (dht.pleaseRespond) {
         // what a beautiful hack, see incomingFromDHT
+        return Iface_next(&pf->eventIf, msg);
+    } else if (!version && addr.protocolVersion) {
+        Message_reset(msg);
+        Message_shift(msg, PFChan_Node_SIZE, NULL);
+        nodeForAddress((struct PFChan_Node*) msg->bytes, &addr, 0xfffffffe);
+        Message_push32(msg, PFChan_Pathfinder_NODE, NULL);
         return Iface_next(&pf->eventIf, msg);
     }
 

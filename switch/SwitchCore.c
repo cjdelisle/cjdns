@@ -41,6 +41,8 @@ struct SwitchInterface
 
     struct Allocator_OnFreeJob* onFree;
 
+    int state;
+
     Identity
 };
 
@@ -190,6 +192,13 @@ static Iface_DEFUN receiveMessage(struct Message* message, struct Iface* iface)
         return sendError(sourceIf, message, Error_MALFORMED_ADDRESS, core->logger);
     }
 
+    if (core->interfaces[destIndex].state == SwitchCore_setInterfaceState_ifaceState_DOWN &&
+        1 != sourceIndex)
+    {
+        DEBUG_SRC_DST(core->logger, "DROP packet because interface is down");
+        return sendError(sourceIf, message, Error_UNDELIVERABLE, core->logger);
+    }
+
     /*if (sourceIndex == destIndex && sourceIndex != 1) {
         DEBUG_SRC_DST(core->logger, "DROP Packet with redundant route.");
         return sendError(sourceIf, message, Error_LOOP_ROUTE, core->logger);
@@ -225,6 +234,13 @@ static int removeInterface(struct Allocator_OnFreeJob* job)
     struct SwitchInterface* si = Identity_check((struct SwitchInterface*) job->userData);
     Bits_memset(si, 0, sizeof(struct SwitchInterface));
     return 0;
+}
+
+void SwitchCore_setInterfaceState(struct Iface* userIf, int ifaceState)
+{
+    struct SwitchInterface* sif = Identity_check((struct SwitchInterface*) userIf->connectedIf);
+    Assert_true(ifaceState == (ifaceState & 1));
+    sif->state = ifaceState;
 }
 
 void SwitchCore_swapInterfaces(struct Iface* userIf1, struct Iface* userIf2)
@@ -271,6 +287,7 @@ int SwitchCore_addInterface(struct SwitchCore* switchCore,
     newIf->alloc = alloc;
     newIf->penalty = Penalty_new(alloc, core->eventBase, core->logger);
     newIf->onFree = Allocator_onFree(alloc, removeInterface, newIf);
+    newIf->state = SwitchCore_setInterfaceState_ifaceState_UP;
     Iface_plumb(iface, &newIf->iface);
 
     uint32_t bits = NumberCompress_bitsUsedForNumber(ifIndex);
@@ -294,6 +311,7 @@ struct SwitchCore* SwitchCore_new(struct Log* logger,
     routerIf->iface.send = receiveMessage;
     routerIf->core = core;
     routerIf->alloc = allocator;
+    routerIf->state = SwitchCore_setInterfaceState_ifaceState_UP;
     core->pub.routerIf = &routerIf->iface;
 
     return &core->pub;

@@ -41,8 +41,6 @@ struct Node_Two* Router_lookup(struct Router* r, uint8_t targetAddr[16]);
 
 void Router_brokenLink(struct Router* r, uint64_t path, uint64_t labelAtErrorHop);
 
-void Router_searchForNode(struct Router* r, uint8_t ip6[16], struct Allocator* alloc);
-
 void Router_disconnectedPeer(struct Router* r, uint64_t path);
 
 struct Node_Link* Router_linkForPath(struct Router* r, uint64_t path);

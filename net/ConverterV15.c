@@ -114,7 +114,7 @@ static Iface_DEFUN incomingFromUpperDistributorIf(struct Message* msg,
                             (uint8_t*) udp,
                             msg->length - RouteHeader_SIZE - Headers_IP6Header_SIZE);
 
-        Log_debug(conv->log, "Converted CJDHT->v15");
+        //Log_debug(conv->log, "Converted CJDHT->v15");
     }
 
     //Log_debug(conv->log, "send [%s]", Hex_print(ip6, 32, msg->alloc));
