@@ -286,10 +286,12 @@ static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface
     } else {
         // RouteHeader is laid out such that no copy of switch header should be needed.
         Assert_true(&header->sh == switchHeader);
+        if (0) { // noisey
         debugHandlesAndLabel0(sm->log,
                               session,
                               Endian_bigEndianToHost64(switchHeader->label_be),
                               "received run message");
+        }
     }
 
     header->version_be = Endian_hostToBigEndian32(session->pub.version);
@@ -411,12 +413,12 @@ static Iface_DEFUN readyToSend(struct Message* msg,
     Assert_true(!CryptoAuth_encrypt(sess->pub.caSession, msg));
 
     if (CryptoAuth_getState(sess->pub.caSession) >= CryptoAuth_HANDSHAKE3) {
-        //if (0) { // Noisy
+        if (0) { // Noisy
             debugHandlesAndLabel0(sm->log,
                                   sess,
                                   Endian_bigEndianToHost64(sh->label_be),
                                   "sending run message");
-        //}
+        }
         Message_push32(msg, sess->pub.sendHandle, NULL);
     } else {
         debugHandlesAndLabel0(sm->log,
