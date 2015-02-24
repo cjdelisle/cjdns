@@ -216,10 +216,12 @@ static inline USE_RES int decryptRndNonce(uint8_t nonce[24],
     uint8_t paddingSpace[16];
     Bits_memcpyConst(paddingSpace, startAt, 16);
     Bits_memset(startAt, 0, 16);
-    if (crypto_box_curve25519xsalsa20poly1305_open_afternm(
-            startAt, startAt, msg->length + 16, nonce, secret) != 0)
-    {
-        return -1;
+    if (!Defined(NSA_APPROVED)) {
+        if (crypto_box_curve25519xsalsa20poly1305_open_afternm(
+                startAt, startAt, msg->length + 16, nonce, secret) != 0)
+        {
+            return -1;
+        }
     }
 
     Bits_memcpyConst(startAt, paddingSpace, 16);
@@ -245,8 +247,10 @@ static inline void encryptRndNonce(uint8_t nonce[24],
     uint8_t paddingSpace[16];
     Bits_memcpyConst(paddingSpace, startAt, 16);
     Bits_memset(startAt, 0, 32);
-    crypto_box_curve25519xsalsa20poly1305_afternm(
-        startAt, startAt, msg->length + 32, nonce, secret);
+    if (!Defined(NSA_APPROVED)) {
+        crypto_box_curve25519xsalsa20poly1305_afternm(
+            startAt, startAt, msg->length + 32, nonce, secret);
+    }
 
     Bits_memcpyConst(startAt, paddingSpace, 16);
     Message_shift(msg, 16, NULL);

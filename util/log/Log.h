@@ -80,42 +80,48 @@ void Log_print(struct Log* log,
     #define Log_keys(log, ...) \
         Log_printf(log, Log_Level_KEYS, __VA_ARGS__)
 #else
-    #define Log_keys(log, ...)
+    #define Log_keys(log, ...) \
+        Log_printf(0, Log_Level_KEYS, __VA_ARGS__)
 #endif
 
 #ifdef Log_DEBUG
     #define Log_debug(log, ...) \
         Log_printf(log, Log_Level_DEBUG, __VA_ARGS__)
 #else
-    #define Log_debug(log, ...)
+    #define Log_debug(log, ...) \
+        Log_printf(0, Log_Level_DEBUG, __VA_ARGS__)
 #endif
 
 #ifdef Log_INFO
     #define Log_info(log, ...) \
         Log_printf(log, Log_Level_INFO, __VA_ARGS__)
 #else
-    #define Log_info(log, ...)
+    #define Log_info(log, ...) \
+        Log_printf(0, Log_Level_INFO, __VA_ARGS__)
 #endif
 
 #ifdef Log_WARN
     #define Log_warn(log, ...) \
         Log_printf(log, Log_Level_WARN, __VA_ARGS__)
 #else
-    #define Log_warn(log, ...)
+    #define Log_warn(log, ...) \
+        Log_printf(0, Log_Level_WARN, __VA_ARGS__)
 #endif
 
 #ifdef Log_ERROR
     #define Log_error(log, ...) \
         Log_printf(log, Log_Level_ERROR, __VA_ARGS__)
 #else
-    #define Log_error(log, ...)
+    #define Log_error(log, ...) \
+        Log_printf(0, Log_Level_ERROR, __VA_ARGS__)
 #endif
 
 #ifdef Log_CRITICAL
     #define Log_critical(log, ...) \
         Log_printf(log, Log_Level_CRITICAL, __VA_ARGS__)
 #else
-    #define Log_critical(log, ...)
+    #define Log_critical(log, ...) \
+        Log_printf(0, Log_Level_CRITICAL, __VA_ARGS__)
 #endif
 
 #endif

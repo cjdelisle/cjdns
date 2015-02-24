@@ -1188,9 +1188,13 @@ static struct Node_Two* whichIsWorse(struct Node_Two* one,
                                      struct NodeStore_pvt* store)
 {
     // a peer is nevar worse
-    int peers = isPeer(one, store) - isPeer(two, store);
-    if (peers) {
-        return (peers > 0) ? two : one;
+    int worse = isPeer(one, store) - isPeer(two, store);
+    if (worse) {
+        return (worse > 0) ? two : one;
+    }
+    worse = one->pinned - two->pinned;
+    if (worse) {
+        return (worse > 0) ? two : one;
     }
 
     if (one->address.protocolVersion != two->address.protocolVersion) {
@@ -1522,8 +1526,9 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
     handleNews(link->child, reach, store);
     freePendingLinks(store);
 
-    while (store->pub.nodeCount - store->pub.peerCount > store->pub.nodeCapacity
-        || store->pub.linkCount > store->pub.linkCapacity)
+    while ((store->pub.nodeCount - store->pub.peerCount - store->pub.pinnedNodes) >
+        store->pub.nodeCapacity
+            || store->pub.linkCount > store->pub.linkCapacity)
     {
         struct Node_Two* worst = getWorstNode(store);
         if (Defined(Log_DEBUG)) {
@@ -1534,6 +1539,7 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
         }
 
         Assert_true(!isPeer(worst, store));
+        Assert_true(!worst->pinned);
 
         if (link && (worst == link->parent || worst == link->child)) { link = NULL; }
 
@@ -2312,4 +2318,21 @@ uint64_t NodeStore_timeSinceLastPing(struct NodeStore* nodeStore, struct Node_Tw
         link = Node_getBestParent(link->parent);
     }
     return now - lastSeen;
+}
+
+void NodeStore_unpinNode(struct NodeStore* nodeStore, struct Node_Two* node)
+{
+    struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
+    if (!node->pinned) { return; }
+    store->pub.pinnedNodes--;
+    node->pinned = false;
+    Assert_true(store->pub.pinnedNodes >= 0);
+}
+
+void NodeStore_pinNode(struct NodeStore* nodeStore, struct Node_Two* node)
+{
+    struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
+    if (node->pinned) { return; }
+    store->pub.pinnedNodes++;
+    node->pinned = true;
 }

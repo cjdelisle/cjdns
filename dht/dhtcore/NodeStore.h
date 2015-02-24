@@ -34,6 +34,7 @@ struct NodeStore
 
     struct Node_Two* selfNode;
 
+    int pinnedNodes;
     int peerCount;
     int linkedNodes;
 
@@ -45,7 +46,7 @@ struct NodeStore
 };
 
 #define NodeStore_DEFAULT_NODE_CAPACITY 128
-#define NodeStore_DEFAULT_LINK_CAPACITY 2048
+#define NodeStore_DEFAULT_LINK_CAPACITY 4096
 
 /**
  * Create a new NodeStore.
@@ -94,6 +95,11 @@ void NodeStore_unlinkNodes(struct NodeStore* nodeStore, struct Node_Link* link);
  * @return the next link from the parent of NULL if there are no more links.
  */
 struct Node_Link* NodeStore_nextLink(struct Node_Two* parent, struct Node_Link* startLink);
+
+
+void NodeStore_unpinNode(struct NodeStore* store, struct Node_Two* node);
+void NodeStore_pinNode(struct NodeStore* store, struct Node_Two* node);
+
 
 /**
  * Get the first peer along a path.

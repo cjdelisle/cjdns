@@ -61,9 +61,10 @@ static uint16_t handlePacket(struct Penalty_pvt* p,
     currentPackedPenalty = newPenaltyEntry >> 16;
 
     for (int i = 0; i < ENTRY_COUNT; i++) {
-        // Non-branching comparison.
+        // Non-branching comparison: 30% - 60% better perf for whole switching process (no crypto)
         uint32_t e = p->entries[i];
-        unpackedPenalty += (((e >> 16) - currentPackedPenalty - 1) >> 31) * (e << 16 >> 11);
+        //if (e > newPenaltyEntry) { unpackedPenalty += (e << 16 >> 11); }
+        unpackedPenalty += ( ((((e - newPenaltyEntry - 1) >> 31) << 31) - 1) & (e << 16 >> 11) );
     }
     p->lastReplaced = (p->lastReplaced + 1) % ENTRY_COUNT;
     p->entries[p->lastReplaced] = newPenaltyEntry;

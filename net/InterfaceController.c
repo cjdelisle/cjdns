@@ -307,15 +307,15 @@ static void iciPing(struct InterfaceController_Iface_pvt* ici, struct InterfaceC
             }
         }
 
-        #ifdef Log_DEBUG
-              uint8_t key[56];
-              Base32_encode(key, 56, ep->caSession->herPublicKey, 32);
-        #endif
+        uint8_t keyIfDebug[56];
+        if (Defined(Log_DEBUG)) {
+            Base32_encode(keyIfDebug, 56, ep->caSession->herPublicKey, 32);
+        }
 
         if (ep->isIncomingConnection && now > ep->timeOfLastMessage + ic->forgetAfterMilliseconds) {
             Log_debug(ic->logger, "Unresponsive peer [%s.k] has not responded in [%u] "
                                   "seconds, dropping connection",
-                                  key, ic->forgetAfterMilliseconds / 1024);
+                                  keyIfDebug, ic->forgetAfterMilliseconds / 1024);
             sendPeer(0xffffffff, PFChan_Core_PEER_GONE, ep);
             Allocator_free(ep->alloc);
             continue;
@@ -340,7 +340,7 @@ static void iciPing(struct InterfaceController_Iface_pvt* ici, struct InterfaceC
         Log_debug(ic->logger,
                   "Pinging %s peer [%s.k] lag [%u]",
                   (unresponsive ? "unresponsive" : "lazy"),
-                  key,
+                  keyIfDebug,
                   (uint32_t)((now - ep->timeOfLastMessage) / 1024));
 
         sendPing(ep);
@@ -635,14 +635,10 @@ static Iface_DEFUN handleUnexpectedIncoming(struct Message* msg,
     ep->timeOfLastMessage =
         Time_currentTimeMilliseconds(ic->eventBase) - ic->pingAfterMilliseconds - 1;
 
-    Log_info(ic->logger, "Adding peer with unknown key");
-    if (Defined(Log_INFO)) {
-        struct Address addr = { .protocolVersion = 0 };
-        Bits_memcpyConst(addr.key, ep->caSession->herPublicKey, 32);
-        Bits_memcpyConst(addr.ip6.bytes, ep->caSession->herIp6, 16);
-        Log_info(ic->logger, "Added peer [%s] from incoming message",
-            Address_toString(&ep->addr, msg->alloc)->bytes);
-    }
+    Bits_memcpyConst(ep->addr.key, ep->caSession->herPublicKey, 32);
+    Bits_memcpyConst(ep->addr.ip6.bytes, ep->caSession->herIp6, 16);
+    Log_info(ic->logger, "Added peer [%s] from incoming message",
+        Address_toString(&ep->addr, msg->alloc)->bytes);
 
     return receivedPostCryptoAuth(msg, ep, ic);
 }

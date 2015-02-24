@@ -221,7 +221,7 @@ static Iface_DEFUN receiveMessage(struct Message* message, struct Iface* iface)
         return NULL;
     }
     SwitchHeader_setLabelShift(header, labelShift);
-    if (sourceIndex != 1) {
+    if (sourceIndex != 1 && destIndex != 1) {
         // no penalty for our own packets
         Penalty_apply(sourceIf->penalty, header, message->length);
     }

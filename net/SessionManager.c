@@ -214,7 +214,8 @@ static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface
 
     // SwitchHeader, handle, small cryptoAuth header
     if (msg->length < SwitchHeader_SIZE + 4 + 20) {
-        Log_debug(sm->log, "DROP runt");
+        // This is triggered by Benchmark.c so we really don't want to print log lines constantly.
+        //Log_debug(sm->log, "DROP runt");
         return NULL;
     }
 

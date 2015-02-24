@@ -207,11 +207,27 @@ static Iface_DEFUN switchErr(struct Message* msg, struct Pathfinder_pvt* pf)
     struct PFChan_Core_SwitchErr switchErr;
     Message_pop(msg, &switchErr, PFChan_Core_SwitchErr_MIN_SIZE, NULL);
 
+    uint64_t path = Endian_bigEndianToHost64(switchErr.sh.label_be);
+    uint64_t pathAtErrorHop = Endian_bigEndianToHost64(switchErr.ctrlErr.cause.label_be);
+
     uint8_t pathStr[20];
-    AddrTools_printPath(pathStr, Endian_bigEndianToHost64(switchErr.sh.label_be));
+    AddrTools_printPath(pathStr, path);
     int err = Endian_bigEndianToHost32(switchErr.ctrlErr.errorType_be);
     Log_debug(pf->log, "switch err from [%s] type [%s][%d]", pathStr, Error_strerror(err), err);
-// TODO(cjd): something useful?
+
+    struct Node_Link* link = NodeStore_linkForPath(pf->nodeStore, path);
+    uint8_t nodeAddr[16];
+    if (link) {
+        Bits_memcpyConst(nodeAddr, link->child->address.ip6.bytes, 16);
+    }
+
+    NodeStore_brokenLink(pf->nodeStore, path, pathAtErrorHop);
+
+    if (link) {
+        // Don't touch the node again, it might be a dangling pointer
+        SearchRunner_search(nodeAddr, 20, 3, pf->searchRunner, pf->alloc);
+    }
+
     return NULL;
 }
 
@@ -235,7 +251,7 @@ static Iface_DEFUN peer(struct Message* msg, struct Pathfinder_pvt* pf)
     String* str = Address_toString(&addr, msg->alloc);
     Log_debug(pf->log, "Peer [%s]", str->bytes);
 
-    struct Node_Link* link = Router_linkForPath(pf->router, addr.path);
+    struct Node_Link* link = NodeStore_linkForPath(pf->nodeStore, addr.path);
     // It exists, it's parent is the self-node, and it's label is equal to the switchLabel.
     if (link
         && Node_getBestParent(link->child)
@@ -255,7 +271,7 @@ static Iface_DEFUN peerGone(struct Message* msg, struct Pathfinder_pvt* pf)
     addressForNode(&addr, msg);
     String* str = Address_toString(&addr, msg->alloc);
     Log_debug(pf->log, "Peer gone [%s]", str->bytes);
-    Router_disconnectedPeer(pf->router, addr.path);
+    NodeStore_disconnectedPeer(pf->nodeStore, addr.path);
     return NULL;
 }
 
@@ -265,6 +281,14 @@ static Iface_DEFUN session(struct Message* msg, struct Pathfinder_pvt* pf)
     addressForNode(&addr, msg);
     String* str = Address_toString(&addr, msg->alloc);
     Log_debug(pf->log, "Session [%s]", str->bytes);
+
+    struct Node_Two* node = NodeStore_nodeForAddr(pf->nodeStore, addr.ip6.bytes);
+    if (node) {
+        NodeStore_pinNode(pf->nodeStore, node);
+    } else {
+        SearchRunner_search(addr.ip6.bytes, 20, 3, pf->searchRunner, pf->alloc);
+    }
+
     return NULL;
 }
 
@@ -274,6 +298,12 @@ static Iface_DEFUN sessionEnded(struct Message* msg, struct Pathfinder_pvt* pf)
     addressForNode(&addr, msg);
     String* str = Address_toString(&addr, msg->alloc);
     Log_debug(pf->log, "Session ended [%s]", str->bytes);
+
+    struct Node_Two* node = NodeStore_nodeForAddr(pf->nodeStore, addr.ip6.bytes);
+    if (node) {
+        NodeStore_unpinNode(pf->nodeStore, node);
+    }
+
     return NULL;
 }
 

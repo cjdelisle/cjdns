@@ -44,7 +44,7 @@ Builder.configure({
     crossCompiling: process.env['CROSS'] !== undefined,
     gcc:            GCC,
     tempDir:        '/tmp',
-    optimizeLevel:  '-O2',
+    optimizeLevel:  '-O3',
     logLevel:       process.env['Log_LEVEL'] || 'DEBUG'
 }, function (builder, waitFor) {
     builder.config.cflags.push(
@@ -68,7 +68,7 @@ Builder.configure({
         // v4x8 = 256 peers max, variable width, 4, or 8 bits plus 1 bit prefix
         '-D', 'NumberCompress_TYPE=v3x5x8',
 
-        // disable for speed, enable for safety
+        // enable for safety (don't worry about speed, profiling shows they add ~nothing)
         '-D', 'Identity_CHECK=1',
         '-D', 'Allocator_USE_CANARIES=1',
         '-D', 'PARANOIA=1'

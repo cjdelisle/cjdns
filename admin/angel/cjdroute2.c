@@ -48,6 +48,7 @@
 #include "util/log/FileWriterLog.h"
 #include "util/SysInfo.h"
 #include "util/version/Version.h"
+#include "net/Benchmark.h"
 
 #include "crypto_scalarmult_curve25519.h"
 
@@ -333,52 +334,6 @@ static int usage(struct Allocator* alloc, char* appName)
     return 0;
 }
 
-static int benchmark()
-{
-    struct Allocator* alloc = MallocAllocator_new(1<<22);
-    struct EventBase* base = EventBase_new(alloc);
-    struct Log* log = FileWriterLog_new(stdout, alloc);
-    struct Random* rand = Random_new(alloc, log, NULL);
-    struct CryptoAuth* ca1 = CryptoAuth_new(alloc, NULL, base, log, rand);
-    struct CryptoAuth* ca2 = CryptoAuth_new(alloc, NULL, base, log, rand);
-
-    struct CryptoAuth_Session* sess1 =
-        CryptoAuth_newSession(ca1, alloc, ca2->publicKey, NULL, false, "bench");
-    struct CryptoAuth_Session* sess2 =
-        CryptoAuth_newSession(ca2, alloc, ca1->publicKey, NULL, false, "bench");
-
-    uint64_t size = 1500;
-    int count = 100000;
-    struct Message* msg = Message_new(size, 256, alloc);
-    Random_bytes(rand, msg->bytes, msg->length);
-
-    // setup session
-    for (int i = 0; i < 2; i++) {
-        Assert_true(!CryptoAuth_encrypt(sess1, msg));
-        Assert_true(!CryptoAuth_decrypt(sess2, msg));
-        Assert_true(!CryptoAuth_encrypt(sess2, msg));
-        Assert_true(!CryptoAuth_decrypt(sess1, msg));
-    }
-
-    Log_debug(log, "\n\n");
-    Log_debug(log, "This is the switch configuration so this indicates expected switch throughput");
-    uint64_t startTime = Time_hrtime();
-    for (int i = 0; i < count; i++) {
-        Assert_true(!CryptoAuth_encrypt(sess1, msg));
-        Assert_true(!CryptoAuth_decrypt(sess2, msg));
-    }
-
-    uint64_t endTimes = Time_hrtime();
-    uint64_t time = (endTimes - startTime) / 1000000;
-    uint64_t kbSent = (size * count * 8) / 1024;
-
-    // same as kbSent / (time / 1024) (converting time to seconds)
-    uint64_t kbps = (kbSent * 1024) / time;
-
-    Log_debug(log, "Finished in %dms. %d Kb/s\n\n", (int)time, (int)kbps);
-    return 0;
-}
-
 struct CheckRunningInstanceContext
 {
     struct EventBase* base;
@@ -480,7 +435,8 @@ int main(int argc, char** argv)
         } else if (CString_strcmp(argv[1], "--reconf") == 0) {
             // Performed after reading the configuration
         } else if (CString_strcmp(argv[1], "--bench") == 0) {
-            return benchmark();
+            Benchmark_runAll();
+            return 0;
         } else if ((CString_strcmp(argv[1], "--version") == 0)
             || (CString_strcmp(argv[1], "-v") == 0))
         {

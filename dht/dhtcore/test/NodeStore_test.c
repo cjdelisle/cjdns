@@ -58,7 +58,7 @@ static void checkList(struct NodeList* list,
     int j = 0;
     for (int i = (int)list->size - 1; i >= 0; i--) {
         String* str = Address_toString(&list->nodes[i]->address, alloc);
-        Log_debug(logger, "output: [%s]", str->bytes);
+        Log_info(logger, "output: [%s]", str->bytes);
         Assert_true(expectedOutputs[j]);
         Assert_true(expectedOutputs[j] == list->nodes[i]->address.path);
         j++;
