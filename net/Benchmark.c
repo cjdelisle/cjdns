@@ -91,7 +91,7 @@ static void cryptoAuth(struct Context* ctx)
         Assert_true(!CryptoAuth_decrypt(sess1, msg));
     }
 
-    begin(ctx, "salsa20/poly1305", (count * size * 8) / 1024, "kilobytes");
+    begin(ctx, "salsa20/poly1305", (count * size * 8) / 1024, "kilobits");
     for (int i = 0; i < count; i++) {
         Assert_true(!CryptoAuth_encrypt(sess1, msg));
         Assert_true(!CryptoAuth_decrypt(sess2, msg));
