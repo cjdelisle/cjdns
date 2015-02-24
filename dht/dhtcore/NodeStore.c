@@ -1953,6 +1953,9 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* nodeStore,
 
     struct Node_Two* next = Identity_ncheck(RB_NFIND(NodeRBTree, &store->nodeTree, &fakeNode));
     if (!next) {
+        next = Identity_ncheck(RB_MAX(NodeRBTree, &store->nodeTree));
+    }
+    if (!next) {
         out->size = 0;
         return out;
     }
