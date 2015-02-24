@@ -238,7 +238,12 @@ static void searchStep(struct SearchRunner_Search* search)
         RouterModule_newMessage(&nextSearchNode->address, 0, ctx->router, search->pub.alloc);
 
     Dict* message = Dict_new(rp->alloc);
-    Dict_putString(message, CJDHTConstants_QUERY, CJDHTConstants_QUERY_FN, rp->alloc);
+
+    if (!Bits_memcmp(nextSearchNode->address.ip6.bytes, search->target.ip6.bytes, 16)) {
+        Dict_putString(message, CJDHTConstants_QUERY, CJDHTConstants_QUERY_GP, rp->alloc);
+    } else {
+        Dict_putString(message, CJDHTConstants_QUERY, CJDHTConstants_QUERY_FN, rp->alloc);
+    }
     Dict_putString(message, CJDHTConstants_TARGET, search->targetStr, rp->alloc);
 
     rp->userData = search;
