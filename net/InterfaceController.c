@@ -325,9 +325,6 @@ static void iciPing(struct InterfaceController_Iface_pvt* ici, struct InterfaceC
         if (unresponsive) {
             // our link to the peer is broken...
 
-            // XXX(cjd): we need to tell the switch about this because packets to this if
-            // should be responded to with error packets.
-
             // Lets skip 87% of pings when they're really down.
             if (ep->pingCount % 8) {
                 ep->pingCount++;
