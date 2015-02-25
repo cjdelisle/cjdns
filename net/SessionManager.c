@@ -32,7 +32,7 @@ struct BufferedMessage
 {
     struct Message* msg;
     struct Allocator* alloc;
-    uint32_t timeSent;
+    uint64_t timeSentMilliseconds;
 };
 
 struct Ip6 {
@@ -315,8 +315,8 @@ static void checkTimedOutBuffers(struct SessionManager_pvt* sm)
 {
     for (int i = 0; i < (int)sm->bufMap.count; i++) {
         struct BufferedMessage* buffered = sm->bufMap.values[i];
-        uint64_t lag = Time_currentTimeSeconds(sm->eventBase) - buffered->timeSent;
-        if (lag < 10) { continue; }
+        int64_t lag = Time_currentTimeMilliseconds(sm->eventBase) - buffered->timeSentMilliseconds;
+        if (lag < 10000) { continue; }
         Map_BufferedMessages_remove(i, &sm->bufMap);
         Allocator_free(buffered->alloc);
         i--;
@@ -327,7 +327,7 @@ static void checkTimedOutSessions(struct SessionManager_pvt* sm)
 {
     for (int i = 0; i < (int)sm->ifaceMap.count; i++) {
         struct SessionManager_Session_pvt* sess = sm->ifaceMap.values[i];
-        int64_t now = Time_currentTimeSeconds(sm->eventBase);
+        int64_t now = Time_currentTimeMilliseconds(sm->eventBase);
         if (now - sess->pub.timeOfLastIn < sm->pub.sessionTimeoutMilliseconds) { continue; }
         sendSession(sess, sess->pub.sendSwitchLabel, 0xffffffff, PFChan_Core_SESSION_ENDED);
         Map_OfSessionsByIp6_remove(i, &sm->ifaceMap);
@@ -371,7 +371,7 @@ static void needsLookup(struct SessionManager_pvt* sm, struct Message* msg)
         Allocator_calloc(lookupAlloc, sizeof(struct BufferedMessage), 1);
     buffered->msg = msg;
     buffered->alloc = lookupAlloc;
-    buffered->timeSent = Time_currentTimeSeconds(sm->eventBase);
+    buffered->timeSentMilliseconds = Time_currentTimeMilliseconds(sm->eventBase);
     Allocator_adopt(lookupAlloc, msg->alloc);
     Assert_true(Map_BufferedMessages_put((struct Ip6*)header->ip6, &buffered, &sm->bufMap) > -1);
 
@@ -552,7 +552,7 @@ struct SessionManager* SessionManager_new(struct Allocator* alloc,
     sm->firstHandle =
         (Random_uint32(rand) % (MAX_FIRST_HANDLE - MIN_FIRST_HANDLE)) + MIN_FIRST_HANDLE;
 
-    Timeout_setInterval(periodically  , sm, 10000, eventBase, alloc);
+    Timeout_setInterval(periodically, sm, 10000, eventBase, alloc);
 
     Identity_set(sm);
 
