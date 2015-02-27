@@ -68,8 +68,8 @@ static void sendComplete(uv_udp_send_t* uvReq, int error)
     struct UDPAddrIface_WriteRequest_pvt* req =
         Identity_check((struct UDPAddrIface_WriteRequest_pvt*) uvReq);
     if (error) {
-        Log_info(req->udp->logger, "DROP Failed to write to UDPAddrIface [%s]",
-                 uv_strerror(error) );
+        Log_debug(req->udp->logger, "DROP Failed to write to UDPAddrIface [%s]",
+                  uv_strerror(error) );
     }
     Assert_true(req->msg->length == req->length);
     req->udp->queueLen -= req->msg->length;
