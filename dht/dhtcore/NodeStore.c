@@ -1539,7 +1539,13 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
         }
 
         Assert_true(!isPeer(worst, store));
-        Assert_true(!worst->pinned);
+        //Assert_true(!worst->pinned); // best effort, sometimes we must remove a pinned node.
+        if (Defined(Log_INFO) && worst->pinned) {
+            uint8_t worstAddr[60];
+            Address_print(worstAddr, &worst->address);
+            Log_debug(store->logger, "store full, worst node pinned: [%s] nodes [%d] links [%d]",
+                      worstAddr, store->pub.nodeCount, store->pub.linkCount);
+        }
 
         if (link && (worst == link->parent || worst == link->child)) { link = NULL; }
 
