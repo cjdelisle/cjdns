@@ -259,9 +259,8 @@ void SwitchCore_swapInterfaces(struct Iface* userIf1, struct Iface* userIf2)
     Bits_memcpyConst(si1, si2, sizeof(struct SwitchInterface));
     Bits_memcpyConst(si2, &si3, sizeof(struct SwitchInterface));
 
-    // Now the if#'s are in reverse order :)
-    si1->onFree = Allocator_onFree(si2->alloc, removeInterface, si1);
-    si2->onFree = Allocator_onFree(si1->alloc, removeInterface, si2);
+    si1->onFree = Allocator_onFree(si1->alloc, removeInterface, si1);
+    si2->onFree = Allocator_onFree(si2->alloc, removeInterface, si2);
 
     Iface_plumb(userIf2, &si1->iface);
     Iface_plumb(userIf1, &si2->iface);

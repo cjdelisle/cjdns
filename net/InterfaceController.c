@@ -378,7 +378,12 @@ static void moveEndpointIfNeeded(struct Peer* ep)
 
             ep->addr.path = thisEp->addr.path;
             SwitchCore_swapInterfaces(&thisEp->switchIf, &ep->switchIf);
+
+            Assert_true(ep->switchIf.connectedIf->send);
+            Assert_true(thisEp->switchIf.connectedIf->send);
             Allocator_free(thisEp->alloc);
+            Assert_true(!thisEp->switchIf.connectedIf->send);
+            Assert_true(ep->switchIf.connectedIf->send);
             return;
         }
     }
