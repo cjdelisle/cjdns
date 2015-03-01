@@ -38,7 +38,11 @@
     #error ABI_IS_arm__
 #elif defined(__mips__) || defined(__mips) || defined(__MIPS__)
     #if defined(_ABIO32)
-        #error ABI_IS_mipso32__
+        #if defined(_MIPS_ARCH_MIPS32R2)
+            #error ABI_IS_mipso32_r2__
+        #else
+            #error ABI_IS_mipso32__
+        #endif
     #elif defined(_ABIN32)
         #error ABI_IS_mips32__
     #else
