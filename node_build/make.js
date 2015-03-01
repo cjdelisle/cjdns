@@ -149,7 +149,7 @@ Builder.configure({
     });
 
     var uclibc = process.env['UCLIBC'] == '1';
-    var libssp = undefined;
+    var libssp;
     switch (process.env['SSP_SUPPORT']) {
         case 'y':
         case '1': libssp = true; break;
