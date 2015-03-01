@@ -27,13 +27,14 @@
     #define Endian_BIG
 #elif defined(__amd64__) || defined(__x86_64__) || defined(__AMD64__) || \
       defined(_M_X64) || defined(__amd64) || defined(__i386__) || defined(__x86__) || \
-      defined(__X86__) || defined(_M_IX86) || defined(__i386)
+      defined(__X86__) || defined(_M_IX86) || defined(__i386) || defined(_MIPSEL) || \
+      defined(MIPSEL)
     #define Endian_LITTLE
 #elif defined(__SPU__) || defined(__powerpc64__) || defined(__ppc64__) || \
         defined(__PPC64__) || defined(_ARCH_PPC64) || defined(__powerpc__) || \
         defined(__ppc__) || defined(__PPC__) || defined(_ARCH_PPC) || \
         defined(__sparcv9__) || defined(__sparcv9) || defined(__sparc_v8__) || \
-        defined(__sparc__) || defined(__sparc)
+        defined(__sparc__) || defined(__sparc) || defined(_MIPSEB) || defined(MIPSEL)
     #define Endian_BIG
 #else
     #error Unable to determine byte order of target machine, please specify -DEndian_BIG=1 or \

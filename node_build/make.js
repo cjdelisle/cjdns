@@ -149,10 +149,20 @@ Builder.configure({
     });
 
     var uclibc = process.env['UCLIBC'] == '1';
-    var libssp = process.env['SSP_SUPPORT'] == 'y';
-    if (builder.config.systemName == 'win32') {
+    var libssp = undefined;
+    switch (process.env['SSP_SUPPORT']) {
+        case 'y':
+        case '1': libssp = true; break;
+        case 'n':
+        case '0': libssp = false; break;
+        case undefined: break;
+        default: throw new Error();
+    }
+    if (libssp === false) {
+        console.log("Stack Smashing Protection (security feature) is disabled");
+    } else if (builder.config.systemName == 'win32') {
         builder.config.libs.push('-lssp');
-    } else if ((!uclibc && builder.config.systemName !== 'sunos') || libssp) {
+    } else if ((!uclibc && builder.config.systemName !== 'sunos') || libssp === true) {
         builder.config.cflags.push(
             // Broken GCC patch makes -fstack-protector-all not work
             // workaround is to give -fno-stack-protector first.
