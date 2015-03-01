@@ -34,7 +34,7 @@
         defined(__PPC64__) || defined(_ARCH_PPC64) || defined(__powerpc__) || \
         defined(__ppc__) || defined(__PPC__) || defined(_ARCH_PPC) || \
         defined(__sparcv9__) || defined(__sparcv9) || defined(__sparc_v8__) || \
-        defined(__sparc__) || defined(__sparc) || defined(_MIPSEB) || defined(MIPSEL)
+        defined(__sparc__) || defined(__sparc) || defined(_MIPSEB) || defined(MIPSEB)
     #define Endian_BIG
 #else
     #error Unable to determine byte order of target machine, please specify -DEndian_BIG=1 or \
