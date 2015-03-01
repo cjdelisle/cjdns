@@ -118,6 +118,9 @@ def _receiverThread(session):
         print("interrupted")
         import thread
         thread.interrupt_main()
+    except Exception as e:
+        # Forward along any errors, before killing the thread.
+        session.queue.put(e)
 
 
 def _getMessage(session, txid):
@@ -136,6 +139,11 @@ def _getMessage(session, txid):
                 next = session.queue.get(timeout=100)
             except Queue.Empty:
                 continue
+
+            if isinstance(next, Exception):
+                # If the receiveing thread had an error, throw one here too.
+                raise next
+
             if 'txid' in next:
                 session.messages[next['txid']] = next
                 # print "adding message [" + str(next) + "]"
