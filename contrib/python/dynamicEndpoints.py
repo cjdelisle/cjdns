@@ -292,6 +292,8 @@ def main(argv):
         help="configuration file of hosts to read")
     parser.add_argument("--noWait", action="store_true",
         help="look up dynamic peers once and exit")
+    parser.add_argument("--adminInfo",
+        help="use this file to load the cjdns admin password")
      
     # Parse all the command-line arguments   
     options = parser.parse_args(argv[1:])
@@ -307,8 +309,8 @@ def main(argv):
     # Read the config from the file
     parsedConfig.readfp(options.configFile)
     
-    # Connect to the router
-    cjdns = connectWithAdminInfo()
+    # Connect to the router, using the specified admin info file, if given.
+    cjdns = connectWithAdminInfo(path=options.adminInfo)
     
     # Make a new watcher on that connection, with the config from the config
     # file. This automatically looks up all the peers and tries to connect to
