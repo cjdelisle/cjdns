@@ -61,10 +61,10 @@ IS_UNRESPONSIVE = re.compile(
 assert(IS_UNRESPONSIVE.match("Pinging unresponsive peer " +
     "[6fmmn3qurcjg6d8hplq1rrcsspfhvm1900s13f3p5bv2bb4f4mm0.k] lag [207147]"))
     
-# What file and line do these messages come from? TODO: don't depend so tightly
-# on the other end of the codebase. Use the API to watch peers.
+# What file do these messages come from? TODO: don't depend so tightly on the
+# other end of the codebase. Use the API to watch peers.
 MESSAGE_FILE = "InterfaceController.c"
-MESSAGE_LINE = 252
+MESSAGE_LINE = 0 # All lines
 
 
 class Node(object):
@@ -112,9 +112,7 @@ class DynamicEndpointWatcher(object):
         self.unresponsive = dict()
         
         # Holds a cjdns log message subscription to messages about unresponsive
-        # nodes. Note that this points specifically to a source line number in
-        # the cjdns C code and is thus going to break whenever anyone touches
-        # that file. TODO: check node responsiveness through the API.
+        # nodes.
         self.sub = self.cjdns.AdminLog_subscribe(MESSAGE_LINE, MESSAGE_FILE,
             'DEBUG')
             
@@ -322,7 +320,7 @@ def main(argv):
         sys.exit(0)
     else:
         # Monitor for unresponsive nodes. This will loop until cjdns restarts, 
-        # at which point it will keep looping but won't actually work anymore.
+        # at which point it will throw an exception.
         watcher.run()
         
     
