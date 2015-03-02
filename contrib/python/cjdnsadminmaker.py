@@ -90,9 +90,9 @@ def cleanup_config(conf):
     try:
         return json.load(process.stdout)
     except ValueError:
-        print "Failed to parse!"
+        print "Failed to parse! Check:"
         print "-" * 8
-        print cleanconf
+        print "{} --cleanconf < {}".format(cjdroute, conf)
         print "-" * 8
         sys.exit(1)
 
