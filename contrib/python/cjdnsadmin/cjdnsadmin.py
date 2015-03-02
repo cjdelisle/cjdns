@@ -13,6 +13,7 @@
 import sys
 import os
 import socket
+import errno
 import hashlib
 import json
 import threading
@@ -95,10 +96,31 @@ def _receiverThread(session):
                     'd1:q18:Admin_asyncEnabled4:txid8:keepalive')
                 timeOfLastSend = time.time()
 
-            try:
-                data = session.socket.recv(BUFFER_SIZE)
-            except (socket.timeout):
+            # Did we get data from the socket?
+            got_data = False
+
+            while True:
+                # This can be interrupted and we need to loop it.
+
+                try:
+                    data = session.socket.recv(BUFFER_SIZE)
+                except (socket.timeout):
+                    # Stop retrying, but note we have no data
+                    break
+                except socket.error as e:
+                    if e.errno != errno.EINTR:
+                        # Forward errors that aren't being interrupted
+                        raise
+                    # Otherwise it was interrupted so we try again.
+                else:
+                    # Don't try again, we got data
+                    got_data = True
+                    break
+
+            if not got_data:
+                # Try asking again.
                 continue
+
 
             try:
                 benc = bdecode(data)
