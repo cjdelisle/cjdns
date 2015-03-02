@@ -26,3 +26,4 @@ override_dh_auto_install:
 
 override_dh_installinit:
 	dh_installinit --upstart-only
+	dh_installinit --upstart-only --name=dynamicEndpoints
