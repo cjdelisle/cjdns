@@ -252,7 +252,7 @@ class DynamicEndpointWatcher(object):
 
         if not node:
             # Complain we aren't responsible for that node.
-            logging.warning("Unmonitored neighbor {} is down".format(
+            logging.debug("Unmonitored neighbor {} is down".format(
                 PublicToIp6_convert(downKey)))
             return
 
