@@ -30,7 +30,7 @@ cjdroutelocations = ["/opt/cjdns",
 
 cjdroutelocations += os.getenv("PATH").split(":")
 
-if len(sys.argv == 0):
+if len(sys.argv) == 0:
     # Write the file in the default location
     cjdnsadmin_path = os.path.expanduser("~/.cjdnsadmin") 
 else:
