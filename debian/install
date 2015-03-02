@@ -26,4 +26,4 @@ contrib/python/pktoip6 /usr/share/cjdns/contrib/python/
 contrib/python/searches /usr/share/cjdns/contrib/python/
 contrib/python/sessionStats /usr/share/cjdns/contrib/python/
 contrib/python/trashroutes /usr/share/cjdns/contrib/python/
-contrib/upstart/dynamicEndpoints.conf /etc/init/dynamicEndpoints.conf
+contrib/upstart/dynamicEndpoints.conf /etc/init/
