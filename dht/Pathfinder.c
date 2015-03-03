@@ -131,6 +131,9 @@ static Iface_DEFUN sendNode(struct Message* msg,
     Message_reset(msg);
     Message_shift(msg, PFChan_Node_SIZE, NULL);
     nodeForAddress((struct PFChan_Node*) msg->bytes, addr, metric);
+    if (addr->path == UINT64_MAX) {
+        ((struct PFChan_Node*) msg->bytes)->path_be = 0;
+    }
     Message_push32(msg, PFChan_Pathfinder_NODE, NULL);
     return Iface_next(&pf->eventIf, msg);
 }
