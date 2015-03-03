@@ -166,6 +166,7 @@ static Iface_DEFUN sendToNode(struct Message* message,
     Message_push(message, NULL, DataHeader_SIZE, NULL);
     struct DataHeader* dh = (struct DataHeader*) message->bytes;
     DataHeader_setContentType(dh, ContentType_IPTUN);
+    DataHeader_setVersion(dh, DataHeader_CURRENT_VERSION);
     Message_push(message, &connection->routeHeader, RouteHeader_SIZE, NULL);
     return Iface_next(&context->pub.nodeInterface, message);
 }

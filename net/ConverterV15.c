@@ -206,7 +206,6 @@ static Iface_DEFUN incomingFromSessionManagerIf(struct Message* msg, struct Ifac
     Bits_memmoveConst(msg->bytes, bih, RouteHeader_SIZE);
 
     bih = (struct RouteHeader*) msg->bytes;
-    ipPtr = (uint8_t*) &bih[1];
 
     struct DataHeader* dh = (struct DataHeader*) &bih[1];
     Bits_memset(dh, 0, DataHeader_SIZE);
