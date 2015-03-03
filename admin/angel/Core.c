@@ -68,31 +68,23 @@
 // Failsafe: abort if more than 2^23 bytes are allocated (8MB)
 #define ALLOCATOR_FAILSAFE (1<<23)
 
+// TODO(cjd): we need to begin detecting MTU and informing the OS properly!
 /**
- * The worst possible packet overhead.
- * assuming the packet needs to be handed off to another node
- * because we have no route to the destination.
- * and the CryptoAuths to both the destination and the handoff node are both timed out.
+ * The worst possible packet overhead, we're in session setup with the endpoint.
  */
 #define WORST_CASE_OVERHEAD ( \
-    /* TODO(cjd): Headers_IPv4_SIZE */ 20 \
+      Headers_IP4Header_SIZE \
     + Headers_UDPHeader_SIZE \
     + 4 /* Nonce */ \
     + 16 /* Poly1305 authenticator */ \
     + SwitchHeader_SIZE \
     + CryptoHeader_SIZE \
-    + Headers_IP6Header_SIZE \
-    + CryptoHeader_SIZE \
+    + 4 /* Handle */ \
+    + DataHeader_SIZE \
 )
 
 /** The default MTU, assuming the external MTU is 1492 (common for PPPoE DSL) */
-#define DEFAULT_MTU ( \
-    1492 \
-  - WORST_CASE_OVERHEAD \
-  + Headers_IP6Header_SIZE /* The OS subtracts the IP6 header. */ \
-  + CryptoHeader_SIZE /* Linux won't let set the MTU below 1280.
-  TODO(cjd): make sure we never hand off to a node for which the CA session is expired. */ \
-)
+#define DEFAULT_MTU ( 1492 - WORST_CASE_OVERHEAD )
 
 static void adminPing(Dict* input, void* vadmin, String* txid, struct Allocator* requestAlloc)
 {
