@@ -113,6 +113,38 @@ static int incomingFromDHT(struct DHTMessage* dmessage, void* vpf)
     return 0;
 }
 
+static void nodeForAddress(struct PFChan_Node* nodeOut, struct Address* addr, uint32_t metric)
+{
+    Bits_memset(nodeOut, 0, PFChan_Node_SIZE);
+    nodeOut->version_be = Endian_hostToBigEndian32(addr->protocolVersion);
+    nodeOut->metric_be = Endian_hostToBigEndian32(metric);
+    nodeOut->path_be = Endian_hostToBigEndian64(addr->path);
+    Bits_memcpyConst(nodeOut->publicKey, addr->key, 32);
+    Bits_memcpyConst(nodeOut->ip6, addr->ip6.bytes, 16);
+}
+
+static Iface_DEFUN sendNode(struct Message* msg,
+                            struct Address* addr,
+                            uint32_t metric,
+                            struct Pathfinder_pvt* pf)
+{
+    Message_reset(msg);
+    Message_shift(msg, PFChan_Node_SIZE, NULL);
+    nodeForAddress((struct PFChan_Node*) msg->bytes, addr, metric);
+    Message_push32(msg, PFChan_Pathfinder_NODE, NULL);
+    return Iface_next(&pf->eventIf, msg);
+}
+
+static void onBestPathChange(void* vPathfinder, struct Node_Two* node)
+{
+    struct Pathfinder_pvt* pf = Identity_check((struct Pathfinder_pvt*) vPathfinder);
+    if (!node->pinned) { return; }
+    struct Allocator* alloc = Allocator_child(pf->alloc);
+    struct Message* msg = Message_new(0, 256, alloc);
+    Iface_CALL(sendNode, msg, &node->address, 0xffffffffu - Node_getReach(node), pf);
+    Allocator_free(alloc);
+}
+
 static Iface_DEFUN connected(struct Pathfinder_pvt* pf, struct Message* msg)
 {
     Log_debug(pf->log, "INIT");
@@ -133,6 +165,9 @@ static Iface_DEFUN connected(struct Pathfinder_pvt* pf, struct Message* msg)
     pf->rumorMill = RumorMill_new(pf->alloc, &pf->myAddr, RUMORMILL_CAPACITY, pf->log, "extern");
 
     pf->nodeStore = NodeStore_new(&pf->myAddr, pf->alloc, pf->base, pf->log, pf->rumorMill);
+
+    pf->nodeStore->onBestPathChange = onBestPathChange;
+    pf->nodeStore->onBestPathChangeCtx = pf;
 
     struct RouterModule* routerModule = RouterModule_register(pf->registry,
                                                               pf->alloc,
@@ -190,16 +225,6 @@ static void addressForNode(struct Address* addrOut, struct Message* msg)
     addrOut->path = Endian_bigEndianToHost64(node.path_be);
     Bits_memcpyConst(addrOut->key, node.publicKey, 32);
     Bits_memcpyConst(addrOut->ip6.bytes, node.ip6, 16);
-}
-
-static void nodeForAddress(struct PFChan_Node* nodeOut, struct Address* addr, uint32_t metric)
-{
-    Bits_memset(nodeOut, 0, PFChan_Node_SIZE);
-    nodeOut->version_be = Endian_hostToBigEndian32(addr->protocolVersion);
-    nodeOut->metric_be = Endian_hostToBigEndian32(metric);
-    nodeOut->path_be = Endian_hostToBigEndian64(addr->path);
-    Bits_memcpyConst(nodeOut->publicKey, addr->key, 32);
-    Bits_memcpyConst(nodeOut->ip6, addr->ip6.bytes, 16);
 }
 
 static Iface_DEFUN switchErr(struct Message* msg, struct Pathfinder_pvt* pf)
@@ -262,7 +287,8 @@ static Iface_DEFUN peer(struct Message* msg, struct Pathfinder_pvt* pf)
     }
     //RumorMill_addNode(pf->rumorMill, &addr);
     Router_sendGetPeers(pf->router, &addr, 0, 0, pf->alloc);
-    return NULL;
+
+    return sendNode(msg, &addr, 0xffffff00, pf);
 }
 
 static Iface_DEFUN peerGone(struct Message* msg, struct Pathfinder_pvt* pf)
@@ -272,7 +298,9 @@ static Iface_DEFUN peerGone(struct Message* msg, struct Pathfinder_pvt* pf)
     String* str = Address_toString(&addr, msg->alloc);
     Log_debug(pf->log, "Peer gone [%s]", str->bytes);
     NodeStore_disconnectedPeer(pf->nodeStore, addr.path);
-    return NULL;
+
+    // We notify about the node but with the worst possible metric so that it will be replaced soon.
+    return sendNode(msg, &addr, 0xffffffff, pf);
 }
 
 static Iface_DEFUN session(struct Message* msg, struct Pathfinder_pvt* pf)
@@ -355,11 +383,7 @@ static Iface_DEFUN incomingMsg(struct Message* msg, struct Pathfinder_pvt* pf)
         // what a beautiful hack, see incomingFromDHT
         return Iface_next(&pf->eventIf, msg);
     } else if (!version && addr.protocolVersion) {
-        Message_reset(msg);
-        Message_shift(msg, PFChan_Node_SIZE, NULL);
-        nodeForAddress((struct PFChan_Node*) msg->bytes, &addr, 0xfffffffe);
-        Message_push32(msg, PFChan_Pathfinder_NODE, NULL);
-        return Iface_next(&pf->eventIf, msg);
+        return sendNode(msg, &addr, 0xfffffff0, pf);
     }
 
     return NULL;

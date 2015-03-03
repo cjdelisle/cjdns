@@ -28,6 +28,9 @@ Linker_require("dht/dhtcore/NodeStore.c")
 #include <stdint.h>
 #include <stdbool.h>
 
+
+typedef void (* NodeStore_OnBestPathChange)(void* userData, struct Node_Two* node);
+
 struct NodeStore
 {
     struct Address* selfAddress;
@@ -43,6 +46,9 @@ struct NodeStore
 
     int linkCount;
     int linkCapacity;
+
+    NodeStore_OnBestPathChange onBestPathChange;
+    void* onBestPathChangeCtx;
 };
 
 #define NodeStore_DEFAULT_NODE_CAPACITY 128

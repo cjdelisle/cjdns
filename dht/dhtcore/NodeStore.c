@@ -332,6 +332,19 @@ static bool isPeer(struct Node_Two* node, struct NodeStore_pvt* store)
         && LabelSplicer_isOneHop(Node_getBestParent(node)->cannonicalLabel);
 }
 
+static void setParentReachAndPath(struct Node_Two* node,
+                                  struct Node_Link* parent,
+                                  uint32_t reach,
+                                  uint64_t path,
+                                  struct NodeStore_pvt* store)
+{
+    uint64_t oldPath = node->address.path;
+    Node_setParentReachAndPath(node, parent, reach, path);
+    if (oldPath != path && store->pub.onBestPathChange) {
+        store->pub.onBestPathChange(store->pub.onBestPathChangeCtx, node);
+    }
+}
+
 static void unreachable(struct Node_Two* node, struct NodeStore_pvt* store)
 {
     struct Node_Link* next = NULL;
@@ -345,7 +358,7 @@ static void unreachable(struct Node_Two* node, struct NodeStore_pvt* store)
         update(bp, -UINT32_MAX, store);
         store->pub.linkedNodes--;
     }
-    Node_setParentReachAndPath(node, NULL, 0, UINT64_MAX);
+    setParentReachAndPath(node, NULL, 0, UINT64_MAX, store);
 }
 
 /** Adds the reach of path A->B to path B->C to get the expected reach of A->C. */
@@ -461,7 +474,7 @@ static int updateBestParentCycle(struct Node_Link* newBestLink,
     }
 
     if (!Node_getBestParent(node)) { store->pub.linkedNodes++; }
-    Node_setParentReachAndPath(node, newBestLink, nextReach, bestPath);
+    setParentReachAndPath(node, newBestLink, nextReach, bestPath, store);
 
     checkNode(node, store);
     return 1;
@@ -1364,7 +1377,7 @@ static void destroyNode(struct Node_Two* node, struct NodeStore_pvt* store)
     // This is an optimization:
     if (!Defined(PARANOIA)) {
         store->pub.linkedNodes--;
-        Node_setParentReachAndPath(node, NULL, 0, UINT64_MAX);
+        setParentReachAndPath(node, NULL, 0, UINT64_MAX, store);
     }
 
     link = node->reversePeers;

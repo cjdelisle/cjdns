@@ -229,6 +229,10 @@ struct Allocator* Allocator__child(struct Allocator* alloc, const char* fileName
  * If it has been adopted using Allocator_adopt() then the freeing of the allocator will be deferred
  * until the allocator returned by Allocator_adopt() has also been freed.
  * Any allocator which has no surviving parent allocator will be implicitly freed.
+ * NOTE: This does not do what it seems to do, it does not necessarily *free* the allocator, it
+ *       only promises to cut the link to the allocator's normal parent, if the allocator has been
+ *       adopter then the adopted parent becomes the normal parent and then the allocator is not
+ *       freed even though you asked to free it!
  *
  * @param alloc the allocator to disconnect from it's parent.
  */
@@ -237,6 +241,7 @@ void Allocator__free(struct Allocator* alloc, const char* file, int line);
 
 /**
  * Add a function to be called when the allocator is freed.
+ * There is no guarantee of which order the onFree jobs will be executed.
  *
  * @param alloc the memory allocator.
  * @param callback the function to call.

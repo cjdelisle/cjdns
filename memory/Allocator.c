@@ -16,6 +16,7 @@
 #include "memory/Allocator.h"
 #include "memory/Allocator_pvt.h"
 #include "util/Bits.h"
+#include "util/Defined.h"
 
 #include <stdio.h>
 
@@ -133,6 +134,7 @@ static inline void checkCanaries(struct Allocator_Allocation_pvt* alloc,
     #endif
 }
 
+__attribute__((alloc_size(2)))
 static inline void* newAllocation(struct Allocator_pvt* context,
                                   unsigned long size,
                                   const char* fileName,
@@ -286,41 +288,18 @@ static void connect(struct Allocator_pvt* parent,
     Assert_ifParanoid(child->parent == NULL);
     Assert_ifParanoid(child->lastSibling == NULL);
     Assert_ifParanoid(child->nextSibling == NULL);
+    Assert_true(parent != child);
+    if (Defined(PARANOIA)) {
+        for (struct Allocator_pvt* c = parent->firstChild; c; c = c->nextSibling) {
+            Assert_true(child != c);
+        }
+    }
     child->nextSibling = parent->firstChild;
     if (parent->firstChild) {
         parent->firstChild->lastSibling = child;
     }
     parent->firstChild = child;
     child->parent = parent;
-}
-
-static void freeAllocator(struct Allocator_pvt* context, const char* file, int line);
-
-static void childFreed(struct Allocator_pvt* child)
-{
-    struct Allocator_pvt* parent = child->parent;
-    // disconnect the child and if there are no children left then call freeAllocator()
-    // on the parent a second time. If child == parent then it's a root allocator and
-    // we do not want to double-free it.
-    disconnect(child);
-    if (parent && parent != child && !parent->firstChild && parent->pub.isFreeing) {
-        freeAllocator(parent, child->pub.fileName, child->pub.lineNum);
-    }
-}
-
-void Allocator_onFreeComplete(struct Allocator_OnFreeJob* onFreeJob)
-{
-    struct Allocator_OnFreeJob_pvt* job = (struct Allocator_OnFreeJob_pvt*) onFreeJob;
-    struct Allocator_pvt* context = Identity_check(job->alloc);
-
-    if (removeJob(job)) {
-        failure(context, "OnFreeJob->complete() called multiple times", job->file, job->line);
-    }
-
-    if (!context->onFree) {
-        // There are no more jobs, release the memory.
-        freeAllocator(context, context->pub.fileName, context->pub.lineNum);
-    }
 }
 
 static void disconnectAdopted(struct Allocator_pvt* parent, struct Allocator_pvt* child)
@@ -355,35 +334,89 @@ static void disconnectAdopted(struct Allocator_pvt* parent, struct Allocator_pvt
     Assert_true(found);
 }
 
-/**
- * Triggered when freeAllocator() is called and the allocator nolonger
- * has any remaining links to the allocator tree.
- */
-static void freeAllocator(struct Allocator_pvt* context, const char* file, int line)
+// Shallow first search to prevent lots of flapping while we tear down the tree.
+static int pivotChildrenToAdoptedParents0(struct Allocator_pvt* context,
+                                          int depth,
+                                          int maxDepth,
+                                          const char* file,
+                                          int line)
 {
-    if (context->adoptions && context->adoptions->parents) {
-        disconnect(context);
-        connect(context->adoptions->parents->alloc, context, file, line);
-        disconnectAdopted(context->adoptions->parents->alloc, context);
-        return;
+    int out = 0;
+    if (depth == maxDepth) {
+        if (context->adoptions) {
+            // Attempt to pivot around to a parent in order to save this allocator
+            if (context->adoptions->parents) {
+                Assert_true(!context->adoptions->parents->alloc->pub.isFreeing);
+                disconnect(context);
+                connect(context->adoptions->parents->alloc, context, file, line);
+                disconnectAdopted(context->adoptions->parents->alloc, context);
+                return 0;
+            }
+            // No saving it, drop it's adoptions.
+            for (struct Allocator_List* c = context->adoptions->children; c; c = c->next) {
+                Assert_true(!c->alloc->pub.isFreeing);
+                disconnectAdopted(context, c->alloc);
+            }
+        }
+        // If (context->parent == context) it's a root allocator and disconnect does the wrong thing
+        if (depth == 0 && context->parent != context) { disconnect(context); }
+        Assert_true(!context->pub.isFreeing);
+        context->pub.isFreeing = 1;
+        out++;
+    } else {
+        struct Allocator_pvt* child = context->firstChild;
+        while (child) {
+            Assert_ifParanoid(child != context);
+            struct Allocator_pvt* nextChild = child->nextSibling;
+            out += pivotChildrenToAdoptedParents0(child, depth+1, maxDepth, file, line);
+            child = nextChild;
+        }
     }
+    return out;
+}
 
-    // When the last child calls us back via childFreed() we will be called the last time and
-    // if this is not set, the child will be disconnected from us and we will be left.
-    context->pub.isFreeing = 1;
-
-    // from now on, fileName/line will point to the place of freeing.
-    // this allows childFreed() to tell the truth when calling us back.
-    context->pub.fileName = file;
-    context->pub.lineNum = line;
-
-    // Disconnect adopted children.
-    struct Allocator_List* childL = context->adoptions ? context->adoptions->children : NULL;
-    while (childL) {
-        disconnectAdopted(context, childL->alloc);
-        childL = childL->next;
+static int pivotChildrenToAdoptedParents(struct Allocator_pvt* context, const char* file, int line)
+{
+    for (int i = 0; i < 10000; i++) {
+        if (!pivotChildrenToAdoptedParents0(context, 0, i, file, line)) {
+            // No out on i == 0 -> the allocator pivoted to another parent, cease freeing.
+            return (i != 0);
+        }
     }
+    Assert_failure("Didn't free all allocators in 10000 deep iterations");
+}
 
+/**
+ * Collect all of the onFree jobs from all of the child allocators (deep) and attach them all
+ * to the root of the tree which is being freed. They are not detached from their relevant
+ * allocators because those allocators will be freed soon anyway.
+ */
+static void marshalOnFreeJobs(struct Allocator_pvt* context, struct Allocator_pvt* rootToFree)
+{
+    struct Allocator_pvt* child = context->firstChild;
+    while (child) {
+        // Theoretically the order of free jobs is not promised but this prevents libuv crashing.
+        struct Allocator_OnFreeJob_pvt** jobP = &rootToFree->onFree;
+        while (*jobP != NULL) {
+            struct Allocator_OnFreeJob_pvt* job = *jobP;
+            jobP = &job->next;
+        }
+        *jobP = child->onFree;
+
+        while (*jobP != NULL) {
+            struct Allocator_OnFreeJob_pvt* job = *jobP;
+            job->alloc = rootToFree;
+            jobP = &job->next;
+        }
+
+        struct Allocator_pvt* nextChild = child->nextSibling;
+        marshalOnFreeJobs(child, rootToFree);
+        child = nextChild;
+    }
+}
+
+static void doOnFreeJobs(struct Allocator_pvt* context)
+{
     // Do the onFree jobs.
     struct Allocator_OnFreeJob_pvt** jobP = &context->onFree;
     while (*jobP != NULL) {
@@ -392,46 +425,62 @@ static void freeAllocator(struct Allocator_pvt* context, const char* file, int l
             // no callback, remove the job
             Assert_true(!removeJob(job));
             continue;
-        } else if (!job->done) {
+        } else {
             if  (job->pub.callback(&job->pub) != Allocator_ONFREE_ASYNC) {
                 Assert_true(!removeJob(job));
                 continue;
             }
-            // asynchronously completing, don't bother it again.
-            job->done = 1;
         }
         jobP = &job->next;
     }
+}
 
-    if (context->onFree) {
-        // onFreeComplete() will call us back.
-        return;
-    }
-
-    // Free children
+static void freeAllocator(struct Allocator_pvt* context)
+{
     struct Allocator_pvt* child = context->firstChild;
-    if (child) {
-        while (child) {
-            struct Allocator_pvt* nextChild = child->nextSibling;
-            freeAllocator(child, file, line);
-            child = nextChild;
-        }
-        // childFreed() will call us back.
-        return;
+    while (child) {
+        struct Allocator_pvt* nextChild = child->nextSibling;
+        freeAllocator(child);
+        child = nextChild;
     }
 
     // Grab out the provider and provider context in case the root allocator is freed.
     Allocator_Provider provider = context->rootAlloc->provider;
     Allocator_Provider_CONTEXT_TYPE* providerCtx = context->rootAlloc->providerContext;
 
-    childFreed(context);
     releaseMemory(context, provider, providerCtx);
+}
+
+void Allocator_onFreeComplete(struct Allocator_OnFreeJob* onFreeJob)
+{
+    struct Allocator_OnFreeJob_pvt* job = (struct Allocator_OnFreeJob_pvt*) onFreeJob;
+    struct Allocator_pvt* context = Identity_check(job->alloc);
+
+    if (removeJob(job)) {
+        failure(context, "OnFreeJob->complete() called multiple times", job->file, job->line);
+    }
+
+    if (!context->onFree) {
+        // There are no more jobs, release the memory.
+        freeAllocator(context);
+    }
 }
 
 void Allocator__free(struct Allocator* alloc, const char* file, int line)
 {
     struct Allocator_pvt* context = Identity_check((struct Allocator_pvt*) alloc);
-    freeAllocator(context, file, line);
+
+    // It's really difficult to know that you didn't get called back inside of a freeing of a
+    // parent of a parent allocator which causes your allocator to be in isFreeing state so
+    // lets be forgiving here.
+    if (context->pub.isFreeing) { return; }
+
+    if (!pivotChildrenToAdoptedParents(context, file, line)) { return; }
+    marshalOnFreeJobs(context, context);
+    doOnFreeJobs(context);
+    if (!context->onFree) {
+        freeAllocator(context);
+    }
 }
 
 void* Allocator__malloc(struct Allocator* allocator,
