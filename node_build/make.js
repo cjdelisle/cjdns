@@ -154,6 +154,7 @@ Builder.configure({
         case 'y':
         case '1': libssp = true; break;
         case 'n':
+        case '' :
         case '0': libssp = false; break;
         case undefined: break;
         default: throw new Error();
