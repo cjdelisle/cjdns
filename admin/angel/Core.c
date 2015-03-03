@@ -145,6 +145,7 @@ static void adminExit(Dict* input, void* vcontext, String* txid, struct Allocato
 
 static void angelDied(struct Pipe* p, int status)
 {
+Assert_true(0);
     exit(1);
 }
 
@@ -365,7 +366,6 @@ int Core_main(int argc, char** argv)
     // The first read inside of getInitialConfig() will begin it waiting.
     struct Pipe* angelPipe = Pipe_named(argv[2], eventBase, eh, alloc);
     angelPipe->logger = logger;
-    angelPipe->onClose = angelDied;
 
     Core_init(alloc, logger, eventBase, &angelPipe->iface, rand, eh);
     EventBase_beginLoop(eventBase);

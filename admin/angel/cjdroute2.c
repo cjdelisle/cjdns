@@ -514,10 +514,11 @@ int main(int argc, char** argv)
     checkRunningInstance(allocator, eventBase, adminBind, adminPass, logger, eh);
 
     // --------------------- Setup Pipes to Angel --------------------- //
+    struct Allocator* corePipeAlloc = Allocator_child(allocator);
     char corePipeName[64] = "client-core-";
     Random_base32(rand, (uint8_t*)corePipeName+13, 31);
     Assert_ifParanoid(EventBase_eventCount(eventBase) == 0);
-    struct Pipe* corePipe = Pipe_named(corePipeName, eventBase, eh, allocator);
+    struct Pipe* corePipe = Pipe_named(corePipeName, eventBase, eh, corePipeAlloc);
     Assert_ifParanoid(EventBase_eventCount(eventBase) == 2);
     corePipe->logger = logger;
 
@@ -563,6 +564,10 @@ int main(int argc, char** argv)
         InterfaceWaiter_waitForData(&corePipe->iface, eventBase, allocator, eh);
     Dict* responseFromCore = BencMessageReader_read(fromCoreMsg, allocator, eh);
 
+    // --------------------- Close the Core Pipe --------------------- //
+    Allocator_free(corePipeAlloc);
+    corePipe = NULL;
+
     // --------------------- Get Admin Addr/Port/Passwd --------------------- //
     Dict* responseFromCoreAdmin = Dict_getDict(responseFromCore, String_CONST("admin"));
     adminBind = Dict_getString(responseFromCoreAdmin, String_CONST("bind"));
@@ -576,8 +581,7 @@ int main(int argc, char** argv)
                      adminBind->bytes);
     }
 
-    // sanity check, Pipe_named() creates 2 events, see above.
-    Assert_ifParanoid(EventBase_eventCount(eventBase) == 2);
+    Assert_ifParanoid(EventBase_eventCount(eventBase) == 1);
 
     // --------------------- Configuration ------------------------- //
     Configurator_config(&config,
