@@ -400,11 +400,7 @@ int main(int argc, char** argv)
         fprintf(stderr, "Log_LEVEL = KEYS, EXPECT TO SEE PRIVATE KEYS IN YOUR LOGS!\n");
     #endif
 
-    if (argc < 2) {
-        // Fall through.
-    } else if (!CString_strcmp("angel", argv[1])) {
-        return AngelInit_main(argc, argv);
-    } else if (!CString_strcmp("core", argv[1])) {
+    if (argc > 1 && (!CString_strcmp("angel", argv[1]) || !CString_strcmp("core", argv[1]))) {
         return Core_main(argc, argv);
     }
 
@@ -518,14 +514,14 @@ int main(int argc, char** argv)
     checkRunningInstance(allocator, eventBase, adminBind, adminPass, logger, eh);
 
     // --------------------- Setup Pipes to Angel --------------------- //
-    char angelPipeName[64] = "client-angel-";
-    Random_base32(rand, (uint8_t*)angelPipeName+13, 31);
+    char corePipeName[64] = "client-core-";
+    Random_base32(rand, (uint8_t*)corePipeName+13, 31);
     Assert_ifParanoid(EventBase_eventCount(eventBase) == 0);
-    struct Pipe* angelPipe = Pipe_named(angelPipeName, eventBase, eh, allocator);
+    struct Pipe* corePipe = Pipe_named(corePipeName, eventBase, eh, allocator);
     Assert_ifParanoid(EventBase_eventCount(eventBase) == 2);
-    angelPipe->logger = logger;
+    corePipe->logger = logger;
 
-    char* args[] = { "angel", angelPipeName, NULL };
+    char* args[] = { "core", corePipeName, NULL };
 
     // --------------------- Spawn Angel --------------------- //
     String* privateKey = Dict_getString(&config, String_CONST("privateKey"));
@@ -540,57 +536,39 @@ int main(int argc, char** argv)
     if (!privateKey) {
         Except_throw(eh, "Need to specify privateKey.");
     }
-    Log_info(logger, "Forking angel to background.");
+    Log_info(logger, "Forking core to background.");
     Process_spawn(corePath, args, eventBase, allocator);
 
-    // --------------------- Get user for angel to setuid() ---------------------- //
-    String* securityUser = NULL;
-    List* securityConf = Dict_getList(&config, String_CONST("security"));
-    for (int i = 0; securityConf && i < List_size(securityConf); i++) {
-        securityUser = Dict_getString(List_getDict(securityConf, i), String_CONST("setuser"));
-        if (securityUser) {
-            int64_t* ea = Dict_getInt(List_getDict(securityConf, i), String_CONST("exemptAngel"));
-            if (ea && *ea) {
-                securityUser = NULL;
-            }
-            break;
-        }
-    }
-
-    // --------------------- Pre-Configure Angel ------------------------- //
+    // --------------------- Pre-Configure Core ------------------------- //
     Dict* preConf = Dict_new(allocator);
     Dict* adminPreConf = Dict_new(allocator);
     Dict_putDict(preConf, String_CONST("admin"), adminPreConf, allocator);
-    Dict_putString(adminPreConf, String_CONST("core"), String_new(corePath, allocator), allocator);
     Dict_putString(preConf, String_CONST("privateKey"), privateKey, allocator);
     Dict_putString(adminPreConf, String_CONST("bind"), adminBind, allocator);
     Dict_putString(adminPreConf, String_CONST("pass"), adminPass, allocator);
-    if (securityUser) {
-        Dict_putString(adminPreConf, String_CONST("user"), securityUser, allocator);
-    }
     Dict* logging = Dict_getDict(&config, String_CONST("logging"));
     if (logging) {
         Dict_putDict(preConf, String_CONST("logging"), logging, allocator);
     }
 
-    struct Message* toAngelMsg = Message_new(0, 1024, allocator);
-    BencMessageWriter_write(preConf, toAngelMsg, eh);
-    Iface_CALL(angelPipe->iface.send, toAngelMsg, &angelPipe->iface);
+    struct Message* toCoreMsg = Message_new(0, 1024, allocator);
+    BencMessageWriter_write(preConf, toCoreMsg, eh);
+    Iface_CALL(corePipe->iface.send, toCoreMsg, &corePipe->iface);
 
-    Log_debug(logger, "Sent [%d] bytes to angel process", toAngelMsg->length);
+    Log_debug(logger, "Sent [%d] bytes to core", toCoreMsg->length);
 
-    // --------------------- Get Response from Angel --------------------- //
+    // --------------------- Get Response from Core --------------------- //
 
-    struct Message* fromAngelMsg =
-        InterfaceWaiter_waitForData(&angelPipe->iface, eventBase, allocator, eh);
-    Dict* responseFromAngel = BencMessageReader_read(fromAngelMsg, allocator, eh);
+    struct Message* fromCoreMsg =
+        InterfaceWaiter_waitForData(&corePipe->iface, eventBase, allocator, eh);
+    Dict* responseFromCore = BencMessageReader_read(fromCoreMsg, allocator, eh);
 
     // --------------------- Get Admin Addr/Port/Passwd --------------------- //
-    Dict* responseFromAngelAdmin = Dict_getDict(responseFromAngel, String_CONST("admin"));
-    adminBind = Dict_getString(responseFromAngelAdmin, String_CONST("bind"));
+    Dict* responseFromCoreAdmin = Dict_getDict(responseFromCore, String_CONST("admin"));
+    adminBind = Dict_getString(responseFromCoreAdmin, String_CONST("bind"));
 
     if (!adminBind) {
-        Except_throw(eh, "didn't get address and port back from angel");
+        Except_throw(eh, "didn't get address and port back from core");
     }
     struct Sockaddr_storage adminAddr;
     if (Sockaddr_parse(adminBind->bytes, &adminAddr)) {

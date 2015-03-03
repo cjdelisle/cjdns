@@ -367,9 +367,7 @@ int Core_main(int argc, char** argv)
     angelPipe->logger = logger;
     angelPipe->onClose = angelDied;
 
-    struct Iface* angelIface = FramingIface_new(65535, &angelPipe->iface, alloc);
-
-    Core_init(alloc, logger, eventBase, angelIface, rand, eh);
+    Core_init(alloc, logger, eventBase, &angelPipe->iface, rand, eh);
     EventBase_beginLoop(eventBase);
     return 0;
 }
