@@ -26,4 +26,7 @@ override_dh_auto_install:
 
 override_dh_installinit:
 	dh_installinit --upstart-only
-	dh_installinit --upstart-only --name=dynamicEndpoints
+
+override_dh_python2:
+	dh_python2 -p cjdns
+	dh_python2 -p cjdns-dynamic
