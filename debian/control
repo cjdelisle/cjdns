@@ -33,10 +33,10 @@ Description: Encrypted networking for regular people (debugging symbols)
  .
  This package contains debugging symbols for cjdns.
 
-Package: cjdns-dynamicEndpoints
+Package: cjdns-dynamic
 Architecture: any
 Depends: cjdns (= ${binary:Version}), ${misc:Depends}, ${python:Depends}
 Description: cjdns dynamic DNS peer resolver service
  This package contains a dynamic DNS peer resolver script that allows you to use
  hostnames instead of IP addresses for your cjdns mesh network peers. This
- package is configured through /etc/dynamicEndpoints.conf
+ package is configured through /etc/cjdns-dynamic.conf
