@@ -20,6 +20,7 @@
 #include "io/ArrayReader.h"
 #include "admin/angel/Core.h"
 #include "admin/AdminClient.h"
+#include "interface/addressable/AddrIfaceAdapter.h"
 #include "memory/MallocAllocator.h"
 #include "memory/Allocator.h"
 #include "util/log/FileWriterLog.h"
@@ -40,13 +41,13 @@
 #include <unistd.h> // isatty()
 
 struct NodeContext {
-    struct Iface angelIface;
     struct Sockaddr* boundAddr;
     struct Allocator* alloc;
     struct EventBase* base;
-    uint8_t privateKeyHex[64];
+    uint8_t privateKey[32];
     String* publicKey;
     struct AdminClient* adminClient;
+    struct Admin* admin;
 
     char* nodeName;
 
@@ -65,50 +66,6 @@ struct NodeContext {
 
     Identity
 };
-
-static Iface_DEFUN messageToAngel(struct Message* msg, struct Iface* iface)
-{
-    struct NodeContext* ctx = Identity_check((struct NodeContext*) iface);
-    if (ctx->boundAddr) { return 0; }
-    struct Allocator* alloc = Allocator_child(ctx->alloc);
-    Dict* config = BencMessageReader_read(msg, alloc, NULL);
-    Dict* admin = Dict_getDict(config, String_CONST("admin"));
-    String* bind = Dict_getString(admin, String_CONST("bind"));
-    struct Sockaddr_storage ss;
-    Assert_true(!Sockaddr_parse(bind->bytes, &ss));
-    ctx->boundAddr = Sockaddr_clone(&ss.addr, ctx->alloc);
-    Allocator_free(alloc);
-    EventBase_endLoop(ctx->base);
-    return 0;
-}
-
-static void sendFirstMessageToCore(void* vcontext)
-{
-    struct NodeContext* ctx = Identity_check((struct NodeContext*) vcontext);
-    struct Allocator* alloc = Allocator_child(ctx->alloc);
-    struct Message* msg = Message_new(0, 512, alloc);
-
-    Dict* d = Dict_new(alloc);
-    Dict_putString(d, String_CONST("privateKey"), String_new(ctx->privateKeyHex, alloc), alloc);
-
-    Dict* logging = Dict_new(alloc);
-    {
-        Dict_putString(logging, String_CONST("logTo"), String_CONST("stdout"), alloc);
-    }
-    Dict_putDict(d, String_CONST("logging"), logging, alloc);
-
-    Dict* admin = Dict_new(alloc);
-    {
-        Dict_putString(admin, String_CONST("bind"), ctx->bind, alloc);
-        Dict_putString(admin, String_CONST("pass"), ctx->pass, alloc);
-    }
-    Dict_putDict(d, String_CONST("admin"), admin, alloc);
-
-    BencMessageWriter_write(d, msg, NULL);
-
-    Iface_send(&ctx->angelIface, msg);
-    Allocator_free(alloc);
-}
 
 struct RPCCall;
 
@@ -141,11 +98,9 @@ struct Context
     Identity
 };
 
-static String* getPublicKey(char* privateKeyHex, struct Allocator* alloc)
+static String* pubKeyForPriv(uint8_t* privateKey, struct Allocator* alloc)
 {
-    uint8_t privateKey[32];
     uint8_t publicKey[32];
-    Hex_decode(privateKey, 32, privateKeyHex, 65);
     crypto_scalarmult_curve25519_base(publicKey, privateKey);
     return Key_stringify(publicKey, alloc);
 }
@@ -203,9 +158,6 @@ static struct NodeContext* startNode(char* nodeName,
                                      struct Except* eh)
 {
     struct NodeContext* node = Allocator_clone(ctx->alloc, (&(struct NodeContext) {
-        .angelIface = {
-            .send = messageToAngel
-        },
         .alloc = ctx->alloc,
         .base = ctx->base,
         .nodeLog = {
@@ -225,25 +177,25 @@ static struct NodeContext* startNode(char* nodeName,
         node->pass = String_new("x", ctx->alloc);
     }
 
-    Bits_memcpyConst(node->privateKeyHex, privateKeyHex, 64);
+    Assert_true(Hex_decode(node->privateKey, 32, privateKeyHex, 64) == 32);
 
-    Timeout_setTimeout(sendFirstMessageToCore, node, 0, ctx->base, node->alloc);
-
-    Core_init(node->alloc, &node->nodeLog, ctx->base, &node->angelIface, ctx->rand, eh);
-
-    // sendFirstMessageToCore causes the core to react causing messageToAngel which ends the loop
-    EventBase_beginLoop(ctx->base);
-
-    node->adminClient = AdminClient_new(node->boundAddr,
-                                        node->pass,
+    struct AddrIfaceAdapter* adminClientIface = AddrIfaceAdapter_new(node->alloc);
+    struct AddrIfaceAdapter* adminIface = AddrIfaceAdapter_new(node->alloc);
+    Iface_plumb(&adminClientIface->inputIf, &adminIface->inputIf);
+    String* pass = String_new("12345", node->alloc);
+    node->adminClient = AdminClient_new(&adminClientIface->generic,
+                                        Sockaddr_clone(Sockaddr_LOOPBACK, node->alloc),
+                                        pass,
                                         ctx->base,
                                         &node->nodeLog,
                                         node->alloc);
 
-    node->adminClient->millisecondsToWait = 120000;
+    node->admin = Admin_new(&adminIface->generic, &node->nodeLog, ctx->base, pass);
+
+    Core_init(node->alloc, &node->nodeLog, ctx->base, node->privateKey, node->admin, ctx->rand, eh);
 
     bindUDP(ctx, node);
-    node->publicKey = getPublicKey(privateKeyHex, node->alloc);
+    node->publicKey = pubKeyForPriv(node->privateKey, node->alloc);
 
     return node;
 }

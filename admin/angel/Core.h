@@ -15,6 +15,7 @@
 #ifndef Core_H
 #define Core_H
 
+#include "admin/Admin.h"
 #include "benc/String.h"
 #include "exception/Except.h"
 #include "memory/Allocator.h"
@@ -34,7 +35,8 @@ void Core_initTunnel(String* desiredDeviceName,
 void Core_init(struct Allocator* alloc,
                struct Log* logger,
                struct EventBase* eventBase,
-               struct Iface* angelIface,
+               uint8_t privateKey[32],
+               struct Admin* admin,
                struct Random* rand,
                struct Except* eh);
 

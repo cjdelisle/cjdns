@@ -39,6 +39,7 @@
 #include "util/Assert.h"
 #include "util/Base32.h"
 #include "util/CString.h"
+#include "util/events/UDPAddrIface.h"
 #include "util/events/Time.h"
 #include "util/events/EventBase.h"
 #include "util/events/Pipe.h"
@@ -364,8 +365,10 @@ static void checkRunningInstance(struct Allocator* allocator,
         Except_throw(eh, "Unable to parse [%s] as an ip address port, eg: 127.0.0.1:11234",
                      addr->bytes);
     }
+
+    struct UDPAddrIface* udp = UDPAddrIface_new(base, NULL, alloc, NULL, logger);
     struct AdminClient* adminClient =
-        AdminClient_new(&pingAddrStorage.addr, password, base, logger, alloc);
+        AdminClient_new(&udp->generic, &pingAddrStorage.addr, password, base, logger, alloc);
 
     // 100 milliseconds is plenty to wait for a process to respond on the same machine.
     adminClient->millisecondsToWait = 100;

@@ -163,33 +163,24 @@ struct ListDevicesCtx {
     Identity
 };
 
-static void listDevicesCallback(Dict* responseMessage, void* context)
-{
-    struct ListDevicesCtx* ldc = Identity_check((struct ListDevicesCtx*) context);
-    Admin_sendMessage(responseMessage, ldc->txid, ldc->ctx->admin);
-    Allocator_free(ldc->alloc);
-}
-
 static void listDevices(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
-    struct Context* const ctx = Identity_check((struct Context*) vcontext);
-    struct Allocator* const respAlloc = Allocator_child(ctx->alloc);
-    struct ListDevicesCtx* const ldc = Allocator_malloc(respAlloc, sizeof(struct ListDevicesCtx));
-    ldc->alloc = respAlloc;
-    ldc->txid = String_clone(txid, respAlloc);
-    ldc->ctx = ctx;
-    Identity_set(ldc);
-    Dict* const call = Dict_new(respAlloc);
-    Dict_putString(call, String_CONST("q"), String_CONST("ETHInterface_listDevices"), respAlloc);
+    struct Context* ctx = Identity_check((struct Context*) vcontext);
+    List* devices = NULL;
     struct Jmp jmp;
     Jmp_try(jmp) {
-        Hermes_callAngel(call, listDevicesCallback, ldc, respAlloc, &jmp.handler, ctx->hermes);
+        devices = ETHInterface_listDevices(requestAlloc, &jmp.handler);
     } Jmp_catch {
         Dict* out = Dict_new(requestAlloc);
         Dict_putString(out, String_CONST("error"), String_CONST(jmp.message), requestAlloc);
         Admin_sendMessage(out, txid, ctx->admin);
         return;
     }
+
+    Dict* out = Dict_new(requestAlloc);
+    Dict_putString(out, String_CONST("error"), String_CONST("none"), requestAlloc);
+    Dict_putList(out, String_CONST("devices"), devices, requestAlloc);
+    Admin_sendMessage(out, txid, ctx->admin);
 }
 
 void ETHInterface_admin_register(struct EventBase* base,

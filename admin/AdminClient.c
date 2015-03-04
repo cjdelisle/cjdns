@@ -21,7 +21,6 @@
 #include "util/Endian.h"
 #include "util/Hex.h"
 #include "util/events/Timeout.h"
-#include "util/events/UDPAddrIface.h"
 #include "util/Identity.h"
 #include "wire/Message.h"
 
@@ -299,7 +298,8 @@ char* AdminClient_errorString(enum AdminClient_Error err)
     };
 }
 
-struct AdminClient* AdminClient_new(struct Sockaddr* connectToAddress,
+struct AdminClient* AdminClient_new(struct AddrIface* ai,
+                                    struct Sockaddr* connectToAddress,
                                     String* adminPassword,
                                     struct EventBase* eventBase,
                                     struct Log* logger,
@@ -332,8 +332,7 @@ struct AdminClient* AdminClient_new(struct Sockaddr* connectToAddress,
     }
     Log_debug(logger, "Connecting to [%s]", Sockaddr_print(context->targetAddr, alloc));
 
-    struct UDPAddrIface* udp = UDPAddrIface_new(eventBase, NULL, alloc, NULL, logger);
-    Iface_plumb(&udp->generic.iface, &context->addrIface);
+    Iface_plumb(&ai->iface, &context->addrIface);
 
     return &context->pub;
 }

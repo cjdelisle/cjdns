@@ -20,6 +20,7 @@
 #include "benc/List.h"
 #include "memory/Allocator.h"
 #include "util/events/Event.h"
+#include "util/events/UDPAddrIface.h"
 #include "util/Bits.h"
 #include "util/log/Log.h"
 #include "util/platform/Sockaddr.h"
@@ -537,8 +538,9 @@ void Configurator_config(Dict* config,
 {
     struct Except* eh = NULL;
     struct Allocator* tempAlloc = Allocator_child(alloc);
+    struct UDPAddrIface* udp = UDPAddrIface_new(eventBase, NULL, alloc, NULL, logger);
     struct AdminClient* client =
-        AdminClient_new(sockAddr, adminPassword, eventBase, logger, tempAlloc);
+        AdminClient_new(&udp->generic, sockAddr, adminPassword, eventBase, logger, tempAlloc);
 
     struct Context ctx = {
         .logger = logger,
