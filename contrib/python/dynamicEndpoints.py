@@ -283,7 +283,8 @@ def main(argv):
     """
 
     # Set up logging. See the logging module docs.
-    logging.basicConfig(format="%(levelname)s:%(message)s", level=logging.INFO)
+    logging.basicConfig(format="[%(asctime)s] %(levelname)s: %(message)s",
+        level=logging.INFO)
 
     # Parse command-line arguments. Make sure to give our docstring as program
     # help.
@@ -300,9 +301,17 @@ def main(argv):
     # Parse all the command-line arguments
     options = parser.parse_args(argv[1:])
 
-    # Connect to the router, using the specified admin info file, if given.
-    cjdns = connectWithAdminInfo(path=options.adminInfo)
-
+    while True:
+        try:
+            # Connect to the router, using the specified admin info file, if
+            # given.
+            cjdns = connectWithAdminInfo(path=options.adminInfo)
+            break
+        except socket.error:
+            # Connection probably refused. Retry in a bit
+            logging.error("Error connecting to cjdns. Retrying in 1 minute...")
+            time.sleep(60)
+            
     # Drop root if we have it. We can't do it before we load the admin info
     # file, for the use case where that file is root-only.
     try:
