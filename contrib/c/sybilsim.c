@@ -20,6 +20,7 @@
 #include "io/ArrayReader.h"
 #include "admin/angel/Core.h"
 #include "admin/AdminClient.h"
+#include "interface/ASynchronizer.h"
 #include "interface/addressable/AddrIfaceAdapter.h"
 #include "memory/MallocAllocator.h"
 #include "memory/Allocator.h"
@@ -181,7 +182,10 @@ static struct NodeContext* startNode(char* nodeName,
 
     struct AddrIfaceAdapter* adminClientIface = AddrIfaceAdapter_new(node->alloc);
     struct AddrIfaceAdapter* adminIface = AddrIfaceAdapter_new(node->alloc);
-    Iface_plumb(&adminClientIface->inputIf, &adminIface->inputIf);
+    struct ASynchronizer* asyncer = ASynchronizer_new(node->alloc, ctx->base);
+    Iface_plumb(&asyncer->ifA, &adminClientIface->inputIf);
+    Iface_plumb(&asyncer->ifB, &adminIface->inputIf);
+
     String* pass = String_new("12345", node->alloc);
     node->adminClient = AdminClient_new(&adminClientIface->generic,
                                         Sockaddr_clone(Sockaddr_LOOPBACK, node->alloc),
