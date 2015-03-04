@@ -14,8 +14,6 @@ contrib/python/cjdnslog /usr/lib/cjdns/
 contrib/python/drawgraph /usr/lib/cjdns/
 contrib/python/dumpgraph /usr/lib/cjdns/
 contrib/python/dumptable /usr/lib/cjdns/
-contrib/python/dynamicEndpoints.conf.example /usr/share/cjdns/
-contrib/python/dynamicEndpoints.py /usr/lib/cjdns/
 contrib/python/findnodes /usr/lib/cjdns/
 contrib/python/getLinks /usr/lib/cjdns/
 contrib/python/graphStats /usr/lib/cjdns/

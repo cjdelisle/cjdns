@@ -1,0 +1,2 @@
+contrib/python/dynamicEndpoints.conf.example /usr/share/cjdns/
+contrib/python/dynamicEndpoints.py /usr/lib/cjdns/

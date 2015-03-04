@@ -11,7 +11,8 @@ X-Python-Version: >= 2.7
 
 Package: cjdns
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Suggests: cjdns-dynamicEndpoints
 Description: Encrypted networking for regular people
  Cjdns implements an encrypted IPv6 network using public key cryptography
  for address allocation and a distributed hash table for routing.
@@ -31,3 +32,11 @@ Description: Encrypted networking for regular people (debugging symbols)
  and robustness issues that regular IPv4 and IPv6 networks have.
  .
  This package contains debugging symbols for cjdns.
+
+Package: cjdns-dynamicEndpoints
+Architecture: any
+Depends: cjdns (= ${binary:Version}), ${misc:Depends}, ${python:Depends}
+Description: cjdns dynamic DNS peer resolver service
+ This package contains a dynamic DNS peer resolver script that allows you to use
+ hostnames instead of IP addresses for your cjdns mesh network peers. This
+ package is configured through /etc/dynamicEndpoints.conf
