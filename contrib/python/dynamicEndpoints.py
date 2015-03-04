@@ -52,6 +52,7 @@ import pwd
 import grp
 import logging
 import argparse
+import atexit
 import ConfigParser
 
 # This holds a regex that matches the message we get from the roiuter when it
@@ -130,8 +131,12 @@ class DynamicEndpointWatcher(object):
             self.addNode(peerHostname, peerPort, peerPassword, section)
 
         if self.sub['error'] == 'none':
-            # We successfully subscribed to messages. Add all the nodes we're
-            # supposed to watch.
+            # We successfully subscribed to messages.
+            
+            # When we die, try to unsubscribe
+            atexit.register(self.stop)
+            
+            # Add all the nodes we're supposed to watch.
             for node in self.nodes.values():
                 self.lookup(node)
             logging.info("{} peers added!".format(len(self.nodes)))
@@ -147,7 +152,24 @@ class DynamicEndpointWatcher(object):
 
         # Watch for any messages from our log message subscription.
         self.recieve(self.sub['txid'])
+        
+    def stop(self):
+        """
+        Unsubscribe from the admin log and close the connection to cjdns because
+        we are shutting down the program. If we don't do this, cjdns might
+        crash. If we do do it, cjdns might still crash.
+        """
 
+        # Unsubscribe cleanly
+        logging.info("Unsubscribing from stream {}".format(
+            self.sub['streamId']))
+        unsub =  self.cjdns.AdminLog_unsubscribe(self.sub['streamId'])
+        if unsub['error'] != 'none':
+            logging.error(unsub['error'])
+        
+        # Close the connection
+        logging.info("Closing admin connection")
+        self.cjdns.disconnect()
 
 
     def addNode(self, host, port, password, key):
