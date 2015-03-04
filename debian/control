@@ -35,7 +35,7 @@ Description: Encrypted networking for regular people (debugging symbols)
 
 Package: cjdns-dynamic
 Architecture: any
-Depends: cjdns (= ${binary:Version}), ${misc:Depends}, ${python:Depends}
+Depends: cjdns (= ${binary:Version}), ${misc:Depends}, python (>= 2.7)
 Description: cjdns dynamic DNS peer resolver service
  This package contains a dynamic DNS peer resolver script that allows you to use
  hostnames instead of IP addresses for your cjdns mesh network peers. This

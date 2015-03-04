@@ -26,7 +26,3 @@ override_dh_auto_install:
 
 override_dh_installinit:
 	dh_installinit --upstart-only
-
-override_dh_python2:
-	dh_python2 -p cjdns
-	dh_python2 -p cjdns-dynamic
