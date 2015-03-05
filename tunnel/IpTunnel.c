@@ -25,6 +25,7 @@
 #include "memory/Allocator.h"
 #include "tunnel/IpTunnel.h"
 #include "crypto/AddressCalc.h"
+#include "util/platform/netdev/NetDev.h"
 #include "util/Checksum.h"
 #include "util/AddrTools.h"
 #include "util/events/EventBase.h"
@@ -355,43 +356,20 @@ static Iface_DEFUN requestForAddresses(Dict* request,
     return 0;
 }
 
-static void addAddressCallback(Dict* responseMessage, void* vcontext)
-{
-    struct IpTunnel_pvt* ctx = Identity_check((struct IpTunnel_pvt*) vcontext);
-    char* err = "invalid response";
-    String* error = Dict_getString(responseMessage, String_CONST("error"));
-    if (error) {
-        err = error->bytes;
-    }
-    if (!error || !String_equals(error, String_CONST("none"))) {
-        Log_error(ctx->logger, "Error setting ip address on TUN [%s]", err);
-
-        #ifndef Log_ERROR
-            // this whole function does essentially nothing but log an error so unused vars.
-            err = err;
-            ctx = ctx;
-        #endif
-    }
-}
-
 static void addAddress(char* printedAddr, uint8_t prefixLen, struct IpTunnel_pvt* ctx)
 {
     if (!ctx->ifName) {
         Log_error(ctx->logger, "Failed to set IP address because TUN interface is not setup");
         return;
     }
+    struct Sockaddr_storage ss;
+    if (Sockaddr_parse(printedAddr, &ss)) {
+        Log_error(ctx->logger, "Invalid ip, setting ip address on TUN");
+        return;
+    }
     struct Jmp j;
     Jmp_try(j) {
-        Dict args = Dict_CONST(
-            String_CONST("address"), String_OBJ(String_CONST(printedAddr)), Dict_CONST(
-            String_CONST("interfaceName"), String_OBJ(ctx->ifName), Dict_CONST(
-            String_CONST("prefixLen"), Int_OBJ(prefixLen), NULL
-        )));
-        Dict msg = Dict_CONST(
-            String_CONST("args"), Dict_OBJ(&args), Dict_CONST(
-            String_CONST("q"), String_OBJ(String_CONST("Angel_addIp")), NULL
-        ));
-        Hermes_callAngel(&msg, addAddressCallback, ctx, ctx->allocator, &j.handler, ctx->hermes);
+        NetDev_addAddress(ctx->ifName->bytes, &ss.addr, prefixLen, NULL, &j.handler);
     } Jmp_catch {
         Log_error(ctx->logger, "Error setting ip address on TUN [%s]", j.message);
     }

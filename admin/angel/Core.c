@@ -107,7 +107,6 @@ struct Context
     struct EventBase* base;
     struct NetCore* nc;
     struct IpTunnel* ipTunnel;
-    String* exitTxid;
     Identity
 };
 
@@ -122,7 +121,7 @@ static void adminExit(Dict* input, void* vcontext, String* txid, struct Allocato
     struct Context* context = Identity_check((struct Context*) vcontext);
     Log_info(context->logger, "Got request to exit");
     Dict d = Dict_CONST(String_CONST("error"), String_OBJ(String_CONST("none")), NULL);
-    Admin_sendMessage(&d, context->exitTxid, context->admin);
+    Admin_sendMessage(&d, txid, context->admin);
     Timeout_setTimeout(shutdown, context, 1, context->base, context->alloc);
 }
 

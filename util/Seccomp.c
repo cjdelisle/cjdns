@@ -29,6 +29,8 @@
 #include <linux/seccomp.h>
 #include <linux/audit.h>
 #include <sys/syscall.h>
+#include <sys/socket.h>
+#include <sys/ioctl.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
@@ -168,6 +170,8 @@ static struct sock_fprog* mkFilter(struct Allocator* alloc, struct Except* eh)
     int fail = 2;
     int unmaskOnly = 3;
     int isworking = 4;
+    int socket_setip = 5;
+    int ioctl_setip = 6;
 
     enum ArchInfo ai = ArchInfo_detect();
     uint32_t auditArch = ArchInfo_toAuditArch(ai);
@@ -260,8 +264,27 @@ static struct sock_fprog* mkFilter(struct Allocator* alloc, struct Except* eh)
         // printf()
         IFEQ(__NR_fstat, success),
 
+        // for setting IP addresses...
+        // socketForIfName()
+        IFEQ(__NR_socket, socket_setip),
+        IFEQ(__NR_ioctl, ioctl_setip),
+
         RET(SECCOMP_RET_TRAP),
 
+        LABEL(socket_setip),
+        LOAD(offsetof(struct seccomp_data, args[1])),
+        IFEQ(SOCK_DGRAM, success),
+        RET(SECCOMP_RET_TRAP),
+
+        LABEL(ioctl_setip),
+        LOAD(offsetof(struct seccomp_data, args[1])),
+        IFEQ(SIOCGIFINDEX, success),
+        IFEQ(SIOCGIFFLAGS, success),
+        IFEQ(SIOCSIFFLAGS, success),
+        IFEQ(SIOCSIFADDR, success),
+        IFEQ(SIOCSIFNETMASK, success),
+        IFEQ(SIOCSIFMTU, success),
+        RET(SECCOMP_RET_TRAP),
 
         // We allow sigprocmask to *unmask* signals but we don't allow it to mask them.
         LABEL(unmaskOnly),

@@ -485,7 +485,7 @@ static void security(struct Allocator* tempAlloc, struct Context* ctx)
     Dict* d = Dict_new(tempAlloc);
     Dict_putString(d, String_CONST("user"), String_CONST("nobody"), tempAlloc);
     // it's ok if this fails
-    rpcCall0(String_CONST("Security_setUser"), d, ctx, tempAlloc, NULL, false);
+    //rpcCall0(String_CONST("Security_setUser"), d, ctx, tempAlloc, NULL, false);
     d = Dict_new(tempAlloc);
     rpcCall(String_CONST("Security_dropPermissions"), d, ctx, tempAlloc);
 }

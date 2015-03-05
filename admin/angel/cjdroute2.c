@@ -519,7 +519,7 @@ int main(int argc, char** argv)
     // --------------------- Setup Pipes to Angel --------------------- //
     struct Allocator* corePipeAlloc = Allocator_child(allocator);
     char corePipeName[64] = "client-core-";
-    Random_base32(rand, (uint8_t*)corePipeName+13, 31);
+    Random_base32(rand, (uint8_t*)corePipeName+CString_strlen(corePipeName), 31);
     Assert_ifParanoid(EventBase_eventCount(eventBase) == 0);
     struct Pipe* corePipe = Pipe_named(corePipeName, eventBase, eh, corePipeAlloc);
     Assert_ifParanoid(EventBase_eventCount(eventBase) == 2);

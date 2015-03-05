@@ -17,7 +17,9 @@
 #include "util/Security.h"
 #include "util/Seccomp.h"
 #include "memory/Allocator.h"
+#include "memory/BufferAllocator.h"
 #include "util/Bits.h"
+#include "util/Setuid.h"
 
 #include <sys/resource.h>
 #include <sys/types.h>
@@ -35,20 +37,27 @@ static const unsigned long cfgMaxMemoryBytes = 100000000;
 
 int Security_setUser(char* userName, struct Log* logger, struct Except* eh)
 {
+    uint8_t buff[1024];
+    struct Allocator* alloc = BufferAllocator_new(buff, 1024);
+
     struct passwd* pw = getpwnam(userName);
     if (!pw) {
         Except_throw(eh, "Failed to set UID, couldn't find user named [%s].",
                      strerror(errno));
     }
-    if (setuid(pw->pw_uid)) {
-        if (errno == EPERM) {
-            return Security_setUser_PERMISSION;
-        }
+    if (getuid() != 0) {
+        return Security_setUser_PERMISSION;
+    }
+    Setuid_preSetuid(alloc, eh);
+    int ret = setuid(pw->pw_uid);
+    Setuid_postSetuid(alloc, eh);
+    if (ret) {
         Except_throw(eh, "Failed to set UID [%s]", strerror(errno));
     }
     if (getuid() != pw->pw_uid) {
         Except_throw(eh, "Failed to set UID but seemed to succeed");
     }
+
     return 0;
 }
 
@@ -184,7 +193,7 @@ struct Security_Permissions* Security_checkPermissions(struct Allocator* alloc, 
 
 void Security_dropPermissions(struct Allocator* tempAlloc, struct Log* logger, struct Except* eh)
 {
-    setMaxMemory(cfgMaxMemoryBytes, eh);
-    noFiles(eh);
+    if (0) { setMaxMemory(cfgMaxMemoryBytes, eh); }
+    if (0) { noFiles(eh); }
     Seccomp_dropPermissions(tempAlloc, logger, eh);
 }

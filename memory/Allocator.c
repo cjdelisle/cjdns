@@ -658,6 +658,9 @@ void Allocator__adopt(struct Allocator* adoptedParent,
     struct Allocator_pvt* parent = Identity_check((struct Allocator_pvt*) adoptedParent);
     struct Allocator_pvt* child = Identity_check((struct Allocator_pvt*) childToAdopt);
 
+    if (parent->pub.isFreeing) { return; }
+    Assert_true(!child->pub.isFreeing);
+
     if (isAncestorOf(child, parent)) {
         // The child is a parent of the parent, this means an adoption would be meaningless
         // because if the child is otherwise freed, it will take the parent along with it.
