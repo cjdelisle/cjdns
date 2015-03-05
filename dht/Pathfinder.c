@@ -302,9 +302,7 @@ static Iface_DEFUN peerGone(struct Message* msg, struct Pathfinder_pvt* pf)
     Log_debug(pf->log, "Peer gone [%s]", str->bytes);
     NodeStore_disconnectedPeer(pf->nodeStore, addr.path);
 
-    // We notify about the node but with 0 path so SessionManager interprets it as an unknown
-    // and will trigger a search.
-    addr.path = 0;
+    // We notify about the node but with max metric so it will be removed soon.
     return sendNode(msg, &addr, 0xffffffff, pf);
 }
 

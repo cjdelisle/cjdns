@@ -506,8 +506,19 @@ static Iface_DEFUN incomingFromEventIf(struct Message* msg, struct Iface* iface)
         sess = sessionForIp6(node.ip6, sm);
         // If we discovered a node we're not interested in ...
         if (!sess) { return NULL; }
-        sess->pub.sendSwitchLabel = Endian_bigEndianToHost64(node.path_be);
-        sess->pub.version = Endian_bigEndianToHost32(node.version_be);
+        if (node.metric_be == 0xffffffff) {
+            // this is a broken path
+            if (sess->pub.sendSwitchLabel == Endian_bigEndianToHost64(node.path_be)) {
+                if (sess->pub.sendSwitchLabel == sess->pub.recvSwitchLabel) {
+                    sess->pub.sendSwitchLabel = 0;
+                } else {
+                    sess->pub.sendSwitchLabel = sess->pub.recvSwitchLabel;
+                }
+            }
+        } else {
+            sess->pub.sendSwitchLabel = Endian_bigEndianToHost64(node.path_be);
+            sess->pub.version = Endian_bigEndianToHost32(node.version_be);
+        }
     } else {
         sess = getSession(sm,
                           node.ip6,
