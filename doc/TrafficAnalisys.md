@@ -1,6 +1,6 @@
 # Some tricks for debugging cjdns issues using traffic analysis
 
-Traffic analysis on cjdns is stupidly hard because everythign is encrypted point to point.
+Traffic analysis on cjdns is stupidly hard because everything is encrypted point to point.
 Basically the only thing you have to go on is the size of packets, recently we fixed a bug
 in the switch pinger which was causing packets to be dropped randomly (most of the time).
 
