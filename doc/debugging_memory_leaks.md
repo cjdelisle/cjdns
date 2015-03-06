@@ -1,19 +1,19 @@
-# Debigging memory leaks
+# Debugging memory leaks
 
-Ok so cjdns just crashed on you and printed some shit like
+Ok, so cjdns just crashed on you and printed some shit like
 `Fatal error: [Out of memory, limit exceeded]` what do you do.
 
 ## Solution 1: cry
 The bdfl will fix it when it happens on his laptop.
 
 ## Solution 2: find the cause
-before crashing, cjdns prints a tree containing every memory allocation, it's allocator, the
+Before crashing, cjdns prints a tree containing every memory allocation, its allocator, the
 parent of that allocator and so on back up to the root allocator.
 
 Memory in cjdns is allocated in a tree structure similar to the directory structure on a filesystem.
 In order to allocate memory, you need an **allocator**, allocators can spawn child allocators
-and allocate memory. When an allocator is *freed*, all of it's memory and all of the memory of
-it's children is freed in turn.
+and allocate memory. When an allocator is *freed*, all of its memory and all of the memory of
+its children is freed in turn.
 
 If you want to see the memory tree while cjdns is running, you can trigger a print of the tree using
 the RPC call `Allocator_snapshot()`, the parameter specifies whether the individual memory
@@ -22,7 +22,7 @@ allocations should be shown or just the allocators, if cjdns has an OOM crash, i
 Example: `./tools/cexec 'Allocator_snapshot(1)'`
 Note that this will print the tree to stdout because it is far too large to return in a UDP packet
 and sending it in multiple requests would require taking and storing (in memory) a snapshot to
-be retreived by further requests (patches for this would be appreciated).
+be retrieved by further requests (patches for this would be appreciated).
 
 The memory tree will look something like the following:
 
@@ -59,7 +59,7 @@ In this simplified example, Core.c:496 is the root allocator, the grand-daddy of
 allocations. The RPC call `Core_exit()` actually works by freeing this allocator. Everything
 `Janitor.c:84` is a child of the root allocator and `Pinger.c:106` a child of that.
 `UDPAddrInterface.c:96 [64] bytes at [0x55555605b710]` is an allocation of a block of memory
-which you can see from it's size (64 bytes) and it's memory address.
+which you can see from its size (64 bytes) and its memory address.
 
 In each case, the allocator and the memory block, the filename and line number (eg: `Core.c:496`)
 is a place in a file where one can find the call to the memory operation.
@@ -112,7 +112,7 @@ have one currently active allocation.
          7428 SessionManager.c:242
         14856 Ducttape.c:982
 
-All the way at the bottom is an anomoly, a single location in the source code which contains
+All the way at the bottom is an anomaly, a single location in the source code which contains
 twice as many allocations as the next greatest number. Investigating that I found a dumb mistake
 which [some idiot](https://github.com/cjdelisle/cjdns/commit/507223dac10690f562b91d8ec84ce2f7a41df5ad)
 made while working on the source.
