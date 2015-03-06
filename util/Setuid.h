@@ -27,14 +27,15 @@
     });
 ?>
 <?js
-if (file.Setuid_EXISTS) {
-    Linker_require(Setuid_IMPL)
-    return "void Setuid_preSetuid(struct Allocator* alloc, struct Except* eh);\n" +
-        "void Setuid_postSetuid(struct Allocator* alloc, struct Except* eh);"
-} else {
-    return "static inline void Setuid_preSetuid(struct Allocator* alloc, struct Except* eh) { }\n" +
-        "static inline void Setuid_postSetuid(struct Allocator* alloc, struct Except* eh) { }"
-}
+    if (file.Setuid_EXISTS) {
+        Linker_require(Setuid_IMPL)
+        return "void Setuid_preSetuid(struct Allocator* alloc, struct Except* eh);\n" +
+            "void Setuid_postSetuid(struct Allocator* alloc, struct Except* eh);"
+    } else {
+        return
+            "static inline void Setuid_preSetuid(struct Allocator* alloc, struct Except* eh) { }\n"+
+            "static inline void Setuid_postSetuid(struct Allocator* alloc, struct Except* eh) { }"
+    }
 ?>
 
 #endif

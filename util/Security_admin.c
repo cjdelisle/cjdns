@@ -87,16 +87,57 @@ static void checkPermissions(Dict* args, void* vctx, String* txid, struct Alloca
     }
 }
 
+static void nofiles(Dict* args, void* vctx, String* txid, struct Allocator* requestAlloc)
+{
+    Assert_failure("unimplemented");
+}
+
+static void noforks(Dict* args, void* vctx, String* txid, struct Allocator* requestAlloc)
+{
+    Assert_failure("unimplemented");
+}
+
+static void chroot(Dict* args, void* vctx, String* txid, struct Allocator* requestAlloc)
+{
+    Assert_failure("unimplemented");
+}
+
+static void aslimit(Dict* args, void* vctx, String* txid, struct Allocator* requestAlloc)
+{
+    Assert_failure("unimplemented");
+}
+
+static void seccomp(Dict* args, void* vctx, String* txid, struct Allocator* requestAlloc)
+{
+    Assert_failure("unimplemented");
+}
+
+static void letRun(Dict* args, void* vctx, String* txid, struct Allocator* requestAlloc)
+{
+    Assert_failure("unimplemented");
+}
+
+
 void Security_admin_register(struct Allocator* alloc, struct Log* logger, struct Admin* admin)
 {
     struct Context* ctx = Allocator_clone(alloc, (&(struct Context) {
         .logger = logger,
         .admin = admin
     }));
-    struct Admin_FunctionArg setUserArgs[] = {
+
+    Admin_registerFunction("Security_nofiles", nofiles, ctx, true, NULL, admin);
+    Admin_registerFunction("Security_noforks", noforks, ctx, true, NULL, admin);
+    Admin_registerFunction("Security_chroot", chroot, ctx, true, ((struct Admin_FunctionArg[]) {
+        { .name = "root", .required = 1, .type = "String" }
+    }), admin);
+    Admin_registerFunction("Security_setUser", setUser, ctx, true, ((struct Admin_FunctionArg[]) {
         { .name = "user", .required = 1, .type = "String" }
-    };
-    Admin_registerFunction("Security_setUser", setUser, ctx, true, setUserArgs, admin);
-    Admin_registerFunction("Security_dropPermissions", dropPermissions, ctx, true, NULL, admin);
-    Admin_registerFunction("Security_checkPermissions", checkPermissions, ctx, true, NULL, admin);
+    }), admin);
+    Admin_registerFunction("Security_aslimit", aslimit, ctx, true, NULL, admin);
+    Admin_registerFunction("Security_seccomp", seccomp, ctx, true, NULL, admin);
+    Admin_registerFunction("Security_letRun", letRun, ctx, true, NULL, admin);
+////
+//    Admin_registerFunction("Security_setUser", setUser, ctx, true, setUserArgs, admin);
+//    Admin_registerFunction("Security_dropPermissions", dropPermissions, ctx, true, NULL, admin);
+//    Admin_registerFunction("Security_checkPermissions", checkPermissions, ctx, true, NULL, admin);
 }
