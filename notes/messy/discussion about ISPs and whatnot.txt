@@ -1,0 +1,312 @@
+12:00 < ansuz> nat3r, for graphs https://docs.meshwith.me/en/meshlocals/intro.html
+12:00 < ansuz> ^ this page uses mermaid.js
+12:00 < nat3r> http://www.nytimes.com/2014/11/18/nyregion/pay-phones-in-new-york-city-will-become-free-wi-fi-hot-spots.html?_r=0
+12:01 < jercos> and if you can take the info in that paste and turn it into a pretty wiki page, you've earned yourself $35 paypal from me if you'd like.
+12:01 < nat3r> which wiki
+12:01 < ansuz> unfortunately, wifi does not a meshnet make
+12:01 < jercos> Eh, markdown for the documentation project would be ideal.
+12:01 < nat3r> a fast meshnet 
+12:02 < ansuz> and the extra radio in the air can actually choke out other signals
+12:02 < jercos> translating a good wiki page from a different format to markdown is easier than formatting and copyediting a brand new wiki page in any format though imo
+12:02 < ansuz> for instance, Toronto has open wifi, but it's crap, and it blocks anything else that might run in that frequency range
+12:02 < nat3r> https://wiki.projectmeshnet.org/Main_Page that wiki
+12:03 < ansuz> rather, it was meant to be free, then the city sold it, and now it's paid
+12:03 < ansuz> nat3r: nonononon
+12:03 < ansuz> that wiki sucks
+12:03 < ansuz> submit a Pull Request on the github
+12:03 < nat3r> haha ok, well which wiki is the most used 
+12:03 < ansuz> the github is the authoritative source, it's all vetted by community members
+12:03 < jercos> if you make a github gist I'd happily integrate that into https://github.com/ProjectMeshnet/documentation/
+12:04 < jercos> or if you clone that and integrate it into that, you can submit a pull request
+12:04 < nat3r> jercos: one more question, the major price wouldnt be to run riber to a town, it would be to run fiber to every home too 
+12:04 < nat3r> right? 
+12:04 < ansuz> the wiki is just that, a wiki that anyone can edit, so it's full of junk info
+12:04 < jercos> nat3r: the price scale for metro fiber is entirely different. It could wind up being vastly cheaper, it could wind up being far more expensive...
+12:04 < nat3r> ive never used github at all, i am a web marketer not a coder so its something i've never really tapped into
+12:05 < ansuz> you can edit github repo source in the browser
+12:05 < jercos> But metro fiber scales near-linearly with each added house, so using at least *some* wireless in the local area will save money on that quite a bit
+12:05 < jercos> ansuz: TIL. is *that* why there's a pencil icon now? :p
+12:05 < nat3r> so basiaclly for a town far outside the metropolitan zone, something like the nano would make more sense
+12:05 < ansuz> hehe
+12:06 < jercos> the thing with metro fiber is that the cheap way to do metro fiber is to centralize on a single company.
+12:06 < ansuz> I'd rather use vim, but apparently vim is kinda hard
+12:06 < nat3r> so crowdfunding a big project
+12:06 < jercos> Getting comcast to run metro fiber to 20 households will be cheaper than putting 5 households on comcast, 5 households on time-warner, 5 households on verizon, and 5 households on centurylink
+12:07 < jercos> which is also bad in a sense, because now a large number of people are reliant on one company to stay connected
+12:07 < nat3r> i thought we were talking about level 3 running the fiber 
+12:07 < nat3r> and not ISP's 
+12:07 < jercos> so you would probably want to mix chunks of metro fiber, wireless links, etc, and let cjdns sort out the best path to take through the whole mess
+12:07 < jercos> level3's fiber would be for a single huge buy to run between cities
+12:08 < jercos> metro fiber is typically provisions from existing infrastructure within a city that's been placed by a local ISP
+12:08 < jercos> privisioned*
+12:08 < jercos> provisioned*
+12:08 < jercos> dammit can't type :p
+12:08 < jercos> on the small scale, local ISPs will almost always win out, because they already have infrastructure in place
+12:09 < nat3r> so wireless is the only way around that at the moment 
+12:09 < jercos> you could even buy your own fiber, and contract a company to dig trenches and lay it, and get all the right permits from the city... at which point the costs are now calling in a contractor to find a break in the line and splice it when it happens, rather 
+                than a flat monthly fee
+12:09 < jercos> wireless and metro fiber are the *cheap* local options though
+12:10 < nat3r> yeah 
+12:10 < jercos> heck in a rural area it might be affordable to permit+contract and run fiber on telephone poles
+12:10 < nat3r> so thats more like 100k we're talking 
+12:10 < nat3r> if we are going to break ground 
+12:10 < nat3r> hell even more than that
+12:10 < jercos> that sort of infrastructure though needs to run back to a central location typically.
+12:10 < jercos> yeah that gets up out into the millions most likely
+12:11 < jercos> so at the point of stringing or burying fiber either way you're now talking about renting commercial space, or running your fiber all back to a local datacenter, either of which mean more length to the fiber
+12:12 < jercos> a metro fiber provider has already done this, and has the central office set up, so they just need to run more fiber out from a splicing point on an existing run, and then turn on their equipment to link two points
+12:12 < nat3r> but isnt the point to avoid the commercial space and have it purely as a peer-to-peer network?
+12:12 < jercos> not exactly. sorta.
+12:12 < ansuz> umm
+12:12 < ansuz> the cake problem
+12:13 < nat3r> do tell :P
+12:13 < jercos> when you rent infrastructure like this you really do own the network. there isn't a difference between paying comcast for your metro fiber and paying someone else for your metro fiber, it's just cable
+12:13 < ansuz> I think you could apply this to figure out where to run fiber
+12:13 < ansuz> http://www.npr.org/blogs/thesalt/2014/06/19/323656819/cut-your-cake-and-keep-it-fresh-too
+12:13 < jercos> the *ideal* would be the multi-million dollar option, but this sort of thing is a reasonable compromise
+12:14 < nat3r> well at least the national and international systems are in place already 
+12:14 < nat3r> thats pretty much the hard part 
+12:14 < jercos> when you're using radio, you're still effectively relying on a central organization... like the FCC, regulating your spectrum use in the US
+12:14 < nat3r> well, one of the hard parts 
+12:15 < jercos> there's always going to be some hitch like that, but in this model the meshlocals own their part of the network, and are just renting connections around the city, and paying part of the connectivity back to the world
+12:16 < jercos> this really is just like how the internet does it
+12:16 < jercos> if you pay ARIN for some IP space and a BGP ASN, and lay fiber, and make peering arrangements with someone already on the internet, you can get on the internet without paying an ISP at all
+12:17 < jercos> same cabling, same concepts, just without cjdns and wireless networks as a core part of the system
+12:17 < jercos> cjdns removes the need for ASNs and assigned IP space, and replaces BGP as a routing protocol
+12:17 < nat3r> i havent looked to far into cjdns just yet 
+12:17 < jercos> BATMAN-adv makes a local set of wireless links into a homogenous mesh over which a wider routing protocol can carry traffic
+12:18 < nat3r> so who would be the ones to roll out the city-to-town fiber 
+12:18 < jercos> that's just it, it can be *anyone*
+12:18 < nat3r> assuming we wanted to go the cheap residential wireless option 
+12:18 < jercos> different meshlocals can have different political structures
+12:18 < nat3r> ok so that part can be anyone 
+12:19 < nat3r> so Level 3 would take care of Chicago to NYC, but Chicago to Elburn, for example, would be up to somebody deciding to actually lay the fiber down
+12:19 < nat3r> elburn is a suburb
+12:19 < jercos> you could have a bunch of homeless guys run cable through gutters, you could run free-space optical, you could use something like ubiquiti airfiber, you could cover a huge area with satellites
+12:20 < jercos> and yes.
+12:20 < jercos> a metro fiber provider is just a cheap option because they already have Chicago to Elburn run, and would just need to run from their Elburn office to an individual Elburn neighborhood
+12:20 < nat3r> airfiber is faster than traditional wireless i would guess
+12:20 < jercos> or possibly might already have a run going near the neighborhood in question
+12:21 < jercos> eh, it's faster sure, but the point is that it's highly directional and very long range
+12:21 < jercos> set up two towers, point the airfiber dishes at each other, and you can go for miles and still have fairly good speed
+12:22 < jercos> it might cost 1k or more for each airfiber node, but then two nodes can be very far apart
+12:22 < nat3r> yeah 
+12:22 < nat3r> how much traffic do you think a pair of airfiber dishes could handle?
+12:22 < jercos> around 1gbps
+12:23 < jercos> that'll vary with weather conditions and such
+12:23 < nat3r> and the airfiber would be wired to the Nanostations which would serve the area 
+12:23 < jercos> and different brands of directional wireless link might handle more or less
+12:23 < jercos> right
+12:23 < nat3r> so people wouldnt be getting 1gbps speeds 
+12:23 < nat3r> they'd be getting a portion of that, depending on how many other people are using it 
+12:24 < jercos> you might set up a tower in Elburn and put a mast on a building roof in Chicago, the mast in Chicago could be wired directly to the metro fiber that building is connected to, which goes back to a datacenter where it links up with the NYC to Chicago link
+12:24 < nat3r> good i was thinking the same thing 
+12:24 < jercos> the Elburn tower would have nanostations on it too, convering the whole Elburn area maybe
+12:24 < nat3r> yep 
+12:24 < jercos> and then the nanostations can probably only handle gigabit at most each
+12:25 < jercos> so yes, one individual would get gigabit, or two individuals could use half a gigabit each, but all of Elburn gets a gigabit out to the wider world
+12:25 < jercos> with fiber you can always add more strands, and turn 1 gigabit into 2, or 10 gigabit into 20
+12:26 < jercos> with wireless, what you get is typically what you get, unless you have a wide spacial spread and directional links
+12:26 < jercos> so you might be able to put a tower on each edge of Elburn, and two seperate masts say 40 ft apart on the same building in Chicago
+12:26 < nat3r> yeah so you're limited by the airfiber, straight out
+12:26 < jercos> yep
+12:27 < jercos> but 2k for a pair of airfiber units is then possibly cheaper than $200/mo for the rest of forever for a gigabit metro fiber link
+12:27 -!- jackv [~jackv@108.247.152.124] has joined #projectmeshnet
+12:27 < jercos> (again, prices aren't up to date, heck it might be $2k/mo for the metro fiber alone at that range)
+12:28 < jercos> (or metro fiber might not be available at that range, requiring a contracted dig to get that run)
+12:28 < nat3r> so in a nutshell
+12:28 < nat3r> move to the city 
+12:28 < nat3r> and stay there 
+12:28 < jercos> hey, gigabit shared over a suburb isn't nearly as bad as you might think
+12:28 < nat3r> yeah thats true 
+12:28 < nat3r> i imagine everybody is like me 
+12:29 < nat3r> which is wrong
+12:29 < jercos> a good fair router in the Elburn tower could give 50/50 access to 20 people, sure, but you can "oversell" just like a consumer ISP would
+12:29 < nat3r> yeah but then you just become an isp 
+12:29 < nat3r> lol
+12:30 < jercos> not in the same lying way, but "1 gbps *shared over your area*, guarunteed 5mbit" isn't as bad as getting sold a 50mbit connection and only getting 5mbit when the neighborhood is busy
+12:30 < nat3r> yeah 
+12:30 < jercos> the peak traffic for any one user likely won't align with other users exactly, and e.g., watching netflix doesn't use 1 gigabit/s, it uses whatever the bandwidth of that video stream is
+12:31 < jercos> plus the cost for an individual user is going to be incredibly small again
+12:31 < jercos> brb, lunch
+12:31 < nat3r> yeah 
+12:33 < nat3r> how expensive is the CHI to NYC connection? 
+12:47 -!- jackkv [~jackv@107.194.21.5] has joined #projectmeshnet
+12:49 -!- jackv [~jackv@108.247.152.124] has quit [Read error: Operation timed out]
+13:06 -!- voltid [~volt@173-170-189-41.res.bhn.net] has quit [Read error: Operation timed out]
+13:16 -!- mildred [~mildred@128.140.133.68] has joined #projectmeshnet
+13:17 < jercos> nat3r: that's one I've never had the opportunity to get a price tag on exactly.
+13:18 < jercos> The hope would be that whatever company you buy from already has fiber run not being used (which is a very common scenario, probably even more common than you would think after reading that statement)
+13:18 < jercos> the company will still charge a fair amount for it naturally, but it will be much lower than the cost of burying fiber over many miles
+13:18 < nat3r> buy what from
+13:19 < jercos> the connection from Chicago to NYC?
+13:19 < nat3r> sorry, a lot in that sentence
+13:19 < nat3r> so
+13:20 < nat3r> whatever company you buy [connection from nyc to chi] from has fiber run not being used 
+13:20 < jercos> and naturally the same sort of bandwidth sharing scenarios can work in your favor... find a hackerspace each in chicago and NYC maybe and talk them into sharing some of the cost of the line, and in exchange, give them a dedicated link to each other? :)
+13:20 < nat3r> and by fiber run you mean already laid fiber?
+13:20 < jercos> yeah. any major company that would do fiber runs would already have that particular run (Chicago to NYC in particular, rather than any two cities) already full of fiber
+13:20 < jercos> yep.
+13:21 < nat3r> oh my bad 
+13:21 < nat3r> so you're just saying it would be cheaper 
+13:21 < nat3r> because you're only buying access 
+13:21 < nat3r> as opposed to buying a new run
+13:21 < nat3r> there would be a little bit of work, laying the hackerspace lines 
+13:21 -!- mildred [~mildred@128.140.133.68] has quit [Remote host closed the connection]
+13:22 < jercos> there's sort of a diamond between Austin, TX; San Jose, CA; Chicago, IL; and NYC, NY; where you'd be able to buy existing dark fiber from many major companies
+13:22 < jercos> yeah
+13:22 < nat3r> what about seattle
+13:22 < nat3r> seems to be the hotspot
+13:22 < jercos> hopefully the hackerspace in question though would then also be interested in the meshnet, and want to participate, so their building might be the site of one of the wireless mesh nodes :)
+13:22 < jercos> seattle is pretty hot tech-wise, but they aren't in a position to be a major national meeting point.
+13:23 < nat3r> yeah, it just seems that, from browing the web, they have a ton of mesh nodes
+13:23 < jercos> iirc they are an *international* meeting point for lines over the pacific to Asia...
+13:23 < jercos> Yeah, part of that is just the density of tech people. Seattle is full of smart folks who want to do something interesting.
+13:23 < nat3r> yeah
+13:24 < nat3r> so how do i get access to Hyperboria right now
+13:24 < jercos> right now the easiest way is to peer over the internet
+13:24 < nat3r> which i have no problem doing 
+13:25 < jercos> you might have a meshlocal near you, you might want to start a meshlocal if there isn't one, but the way to get from the meshlocal to hyperboria will be the currently cheapest option, a consume-grade internet connection.
+13:25 < jercos> consumer*
+13:25 < nat3r> i saw that crowdfunding page, has cjdns been ported to windows yet?
+13:25 < jercos> a meshlocal might wind up with more than one consumer grade internet connection linking them, and might have internet links dense enough to make it more efficient to duck through the internet to avoid two or three wireless hops
+13:25 < jercos> it has.
+13:26 < jercos> interfect put together an installer even
+13:26 < jercos> I'm still using the version from that installer on my windows machine at home :)
+13:26 < nat3r> http://www.reddit.com/r/darknetplan/comments/2hvjbe/installer_for_cjdns_on_windows/
+13:26 < nat3r> yess
+13:26 < nat3r> one sec
+13:28 < nat3r> ok back
+13:28 < jercos> coolio
+13:28 < jercos> as noted in that thread, that version will be updated... someday :p
+13:29 < jercos> since cjdns is very much still in flux as a project, that means you might be left with a non-working version and no path to update for a long while if the protocol changes majorly
+13:29 < nat3r> it happens
+13:29 < jercos> so the current recommended path is still to use the most targetted platform, which is Linux, and treat any other platforms (mac, *BSD, windows, etc.) as secondary
+13:29 < nat3r> so how do you switch back and forth on windows
+13:29 < jercos> How do you mean? Switch between what and what?
+13:30 < nat3r> well its tor-esque right?
+13:30 -!- larsg_ [~larsg@p4FCDF29D.dip0.t-ipconnect.de] has joined #projectmeshnet
+13:31 < jercos> There is a slight resemblance in some areas, but for the most part, no.
+13:31 < jercos> one of the biggest differences obviously is that there's no onion routing.
+13:31 < nat3r> so to switch from normal web browsing to hyperboria web browsing theres changes that youd make 
+13:31 < jercos> cjdns is not, and should not be treates as, anonymous.
+13:31 < jercos> treated*
+13:32 < jercos> it encrypts all your data, sure, but each node along the way knows the source and destination of the packet by examining the switching label and their own routing table
+13:32 < nat3r> ah ok 
+13:32 < jercos> cjdns also passes real IP packets.
+13:32 < nat3r> hence the manual invitation 
+13:32 < jercos> Tor and i2p are similar in that they implement *A* stream socket layer, and then have a translator between TCP and their own stream sockets
+13:33 < jercos> yes. cjdns also doesn't have any kind of internet autopeering. there is local autopeering with physically close machines over ethernet, but the manual process exists because it's potentially unsafe (in a privacy sense) to connect to random people
+13:34 < jercos> cjdns acts like a corporate VPN rather than a proxy. it handles IP packets as I said, but it handles them in a special manner, and doesn't expect to receive traffic destined for the internet normally
+13:34 -!- larsg [~larsg@p57A059FA.dip0.t-ipconnect.de] has quit [Read error: Operation timed out]
+13:34 < jercos> the "iptunnel" mechanism can be used to pass internet traffic to a node that you control, and specifically configured to allow that between two particular nodes...
+13:34 < nat3r> so there are sites that can be accessed exclusively through the cjdns protocol
+13:34 < jercos> but it's not designed to have "exit nodes"
+13:35 < jercos> yeah. it might do to think of every cjdns site as being a .onion site in one sense, because endpoints are always identified by cryptographic key
+13:36 < jercos> Except as a full IP address, you have potentially 65535 TCP ports and 65535 UDP ports to do stuff with, instead of having a mapping to a single port for each key
+13:36 < nat3r> so whats the preferred method of connecting to others
+13:36 < jercos> there are hyperboria-only sites, that usually work by binding specifically to the cjdns TUN/TAP device
+13:36 < nat3r> is there a wiki within the network that informs users of various services?
+13:36 < jercos> but the "default" setup for most webservers will work with cjdns without changing anything as long as it accepts IPv6 traffic
+13:37 < jercos> uh, there are a couple of sites keeping track of open services on the network, but there's no a single authoritative one
+13:37 < jercos> the hyperboria intelligence agency catalouges services by scanning every node they find with a port scanner for example ;)
+13:38 < jercos> the most preferred method of connecting to others is the same process used for freenet... peer with your friends. with people you know in the real world. people who, if their nodes started behaving poorly, you could knock on their front door and ask them 
+                what was up
+13:39 < jercos> (or call them on the phone, etc. point being, people who are real people for certain, not internet bots, and not secret agents :p )
+13:39 < nat3r> i did see my city in a list somewhere
+13:39 < nat3r> with an IRC channel and other things 
+13:39 < jercos> It's like the difference between searching a key website for someone's name and using the first result, and actually having them hand you their key.
+13:40 < nat3r> but the IRC channel isnt used, and the google group set up no longer exists so it looks like its a dead group
+13:40 < jercos> knowing that a person is real gives you confidence that they won't try to feed all your traffic into a honeybot, or randomly mangle packets, or exploit a flaw in the protocol, and in turn gives *them* the same security, that you're not a misbehaving node 
+                who'll try to spam any email servers they find or something
+13:41 < jercos> yeah, it's a shame when groups die like that :| do you live in a university sort of area?
+13:41 < nat3r> yeah there are a whole bunch around me 
+13:41 < nat3r> but 
+13:41 < nat3r> i dont live in a major city 
+13:42 < nat3r> hell i dont live in a major state 
+13:42 < jercos> When there are students coming into an area for a year or 4 of school they often start things (with the usuall aplomb of college kids), and then the whole project fades away when that group graduates, or when exams start, or something
+13:43 < nat3r> yeah i got that 
+13:43 < jercos> sadly those type of folks are the sort most likely to actually be willing to put in the effort of starting a group in the first place...
+13:44 < nat3r> well we do have very popular labs in the area 
+13:44 < jercos> so there have been a lot of those sort of groups even over the short history of meshlocals as they exist now
+13:44 < nat3r> any documentation on node building?
+13:44 < jercos> um, there's various documentation in places that I don't remember now, but it's extremely flexible.
+13:45 < jercos> If a machine/gateway/router/AP/media center/streaming dongle/whatever will run Linux (which includes OpenWrt on home gateway products) it'll usually passably run cjdns
+13:45 < nat3r> ended up on some weird notepad installation with a bit about installing an Omnitik on a seattle rooftop
+13:45 < jercos> sometimes there's bandwidth restrictions from the CPU being too slow
+13:45 < jercos> and naturally picking a good wireless card and a good antenna are important
+13:46 < jercos> but the hardware requirements beyond those can flex very far
+13:46 < jercos> cheap hardware is a good reason to use BATMAN-adv as a first player instead of running cjdns directly on a wireless link for example
+13:46 < jercos> you can use very cheap home gateway devices to make the local meshing parts, and then run cjdns nodes on computers attached to those gateways
+13:47 < jercos> BATMAN-adv doesn't need slow crypto to work, so it can cost very little (probably under 1k to mesh a metropolitan area if you're careful with the budget and don't mind ordering lots of things from china)
+13:47 < jercos> and then that fabric can carry a cjdns link from a computer on one side of the area to th other, without needing a node at each hope
+13:48 < jercos> that same sort of design is used by a lot of commercial ISPs with MPLS
+13:48 < nat3r> is there a current benefit for creating a mesh though?
+13:48 < jercos> the ISP has a meshy sort of network all over the city, they attach your company offices to that mesh, and any traffic you send gets tagged with a lebl saying where it's going
+13:48 < jercos> uh, most of the same benefits you'd have from having all your local friends on a LAN apply
+13:49 < nat3r> ah 
+13:49 < nat3r> so the peer-to-pear connection is certainly a focus 
+13:49 < jercos> assuming you can keep the number of hops down, that sort of thing is great for bandwidth-intensive games that wouldn't work well over a slow internet connection. minecraft for example, works great over cjdns :)
+13:49 -!- voltid [~volt@173-170-189-41.res.bhn.net] has joined #projectmeshnet
+13:49 < jercos> yeah, that's really the level at which we're keeping corporations out
+13:50 < nat3r> how fast is hyperborea? 
+13:50 < jercos> the mesh equallizes *people*, so anyone can run a service or participate in the larger internet with futzing with "port forwarding" or needing to pay for an expensive high-end internet connection
+13:50 -!- orthogona [~orthogona@151.moo0102.moo.iprimus.net.au] has joined #projectmeshnet
+13:51 < jercos> it depends. right now cjdns has some outstanding routing bugs, so the first time you try to reach a node, it might take a while to find a good route through the network...
+13:51 < jercos> in some cases you might never find a working route even if the path should be good. you'll see that discussed as a "blackholing bug"
+13:51 < jercos> obviously eventually that'll be fixed, but that's the main slowdown currently
+13:52 < jercos> I don't have good figures for uncapped connections other than the nodes in my LAN, on gigabit ethernet...
+13:52 < nat3r> when you say it equallizes people, i dont really see how thats possible when we are all mostly constraigned by our consumer connections
+13:52 < jercos> yeah, as long as we're going through consumer connections those will be the bottleneck for speed... but as I mentioned, port forwarding is a thing.
+13:53 < jercos> port forwarding is needed because of NAT, which in turn is needed because ISPs typically only hand out one IP address
+13:53 < jercos> without NAT, you'd need to rent an IP address for each of your devices
+13:53 < jercos> which in the time before NAT was common, was a heavily charged premium service
+13:54 < jercos> now I have dedicated static IPs on my devices at home in the $100/mo range... most people don't.
+13:54 < jercos> with cjdns in the picture, you have one IP address for each device running cjdns, no matter how many you have.
+13:54 < jercos> There's no cost to add a device and peer it with one of your own computers
+13:55 < nat3r> yeah but i do that internally for free
+13:55 < jercos> which means in turn anyone can run a webserver, or an IRC server, or whatever they want, and have those addresses also work for everyone *else*
+13:55 < nat3r> yes
+13:55 < nat3r> which is awesome
+13:57 < jercos> naturally you can use private IPs and port forwarding to simulate that ability, but often games or services like ftp will use extra ports... IRC DCC is a great example of that. if you want to send someone a file, you have to have an IP address that they can 
+                connect back to.
+13:57 < jercos> in a nromal situation your firewall allows your IRC client to listen on a port, and then you use that port for the file transfer
+13:57 < nat3r> like thats simple to me though..
+13:57 < nat3r> i have no issue port forwarding or DMZing or w/e 
+13:57 < jercos> in a NAT scenario the user has to forward a port specifically for that application, and that port is not shared
+13:58 < jercos> sure. it's not difficult for any technical user, but that doesn't make it right.
+13:58 < jercos> it's something you're forced to do because you only pay for one IP address on the public internet
+13:59 < jercos> and it's almost *universally* accepted, to the point that modems these days often ship with a built-in gateway device
+13:59 < jercos> it's like, "look, you're only going to get one address, here's a device to share that address with your computers."
+13:59 < jercos> it's not how the internet was meant to work
+14:00 < jercos> plus consumer ISPs often block certain ports, or have a service agreement against doing certain things.
+14:00 < jercos> port 25 is a common one. want to point a domain at your home IP address and get email there? nah, that's blocked.
+14:01 < jercos> usually the service agreements include not serving web pages of any kind on any port. FiOS for one, has that.
+14:03 < jercos> but even right now we don't need to constrain a meshlocal to consumer connections. commercial connections with no restrictions on them (and usually enough bandwidth to share with its users) are fairly affordable, and many metro fiber providers offer that as 
+                an addon to that service as well
+14:04 < jercos> so a meshlocal might pool their users' money and share a larger connection that doesn't have any restrictions on sharing... and at that level of connection a whole block of IP addresses on the public internet is often thrown in at little or no charge.
+14:04 < jercos> I uh, recall getting a rate-billed capless connection for a couple hundred bucks on average and getting a /24 out of it
+14:05 < ansuz> my isp has restrictions on launching servers, but they can't tell that I'm serving something based on my cjdns traffic
+14:05 < jercos> that could be 254 users getting sold internet-over-the-mesh by a meshlocal in addition to that pipe being used for an internet link to hyperboria
+14:05 < jercos> yeah. that circumvention ability is partially why I think ISPs will be against cjdns traffic, and might even eventually actually block it
+14:06 < ansuz> there's also the matter of not needing to set up SSL over cjdns
+14:06 < ansuz> which is nice
+14:06 < jercos> why you could be doing *anything* over that connection, streaming pirated movies, downloading child porn, won't someone please think of the children, etc. etc.
+14:06 < nat3r> back sorry
+14:06 < ansuz> net neutrality is the devil's plaything
+14:06 < ansuz> or something
+14:06 < jercos> and then just like that there's no question over an ISP's right to pull the plug on you if they see you using cjdns
+14:06  * jercos shrugs
+14:10 < nat3r> yeah 
+14:10 < nat3r> i mean thats the beauty of a hackerspace
+14:10 < nat3r> in regards to pooling money
+14:11 < nat3r> you can pitch in for a business line 
+14:11 < nat3r> and use that to serve the network
+14:30 -!- mathemanc [~mathemanc@67-6-161-185.hlrn.qwest.net] has joined #projectmeshnet
+14:32 < nat3r> how does routing work again?
+14:34 < nat3r> jercos: can you send me the chatlog again, we obviously covered a lot more
+14:35 < ansuz> https://github.com/ProjectMeshnet/documentation/blob/master/en/notes/arc-workings.md#about-xor-distance-and-finding-nodes
+14:35 < jercos> och
+14:35 < jercos> lots to copy and paste
+14:35 < ansuz> ^ this is from an old chat I had with one of the guys who knows about routing
+14:35 < ansuz> since then I've looked into it more, but I haven't yet written it all down
