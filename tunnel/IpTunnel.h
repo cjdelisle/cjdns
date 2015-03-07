@@ -15,7 +15,6 @@
 #ifndef IpTunnel_H
 #define IpTunnel_H
 
-#include "admin/angel/Hermes.h"
 #include "crypto/random/Random.h"
 #include "memory/Allocator.h"
 #include "interface/Iface.h"
@@ -78,13 +77,11 @@ struct IpTunnel
  * @param eventBase the event base.
  * @param alloc an allocator.
  * @param rand a random generator.
- * @param hermes the Hermes admin connector.
  */
 struct IpTunnel* IpTunnel_new(struct Log* logger,
                               struct EventBase* eventBase,
                               struct Allocator* alloc,
-                              struct Random* rand,
-                              struct Hermes* hermes);
+                              struct Random* rand);
 
 /**
  * Allow another node to tunnel IPv4 and/or ICANN IPv6 through this node.

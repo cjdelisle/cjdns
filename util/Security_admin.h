@@ -18,9 +18,13 @@
 #include "admin/Admin.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
+#include "util/Security.h"
 #include "util/Linker.h"
 Linker_require("util/Security_admin.c")
 
-void Security_admin_register(struct Allocator* alloc, struct Log* logger, struct Admin* admin);
+void Security_admin_register(struct Allocator* alloc,
+                             struct Log* logger,
+                             struct Security* sec,
+                             struct Admin* admin);
 
 #endif

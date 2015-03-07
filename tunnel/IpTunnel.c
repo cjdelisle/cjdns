@@ -12,7 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "admin/angel/Hermes.h"
 #include "benc/String.h"
 #include "benc/Dict.h"
 #include "benc/List.h"
@@ -60,9 +59,6 @@ struct IpTunnel_pvt
      */
     struct Timeout* timeout;
     struct Random* rand;
-
-    /** The angel connector for setting IP addresses. */
-    struct Hermes* hermes;
 
     /** For verifying the integrity of the structure. */
     Identity
@@ -722,8 +718,7 @@ void IpTunnel_setTunName(char* interfaceName, struct IpTunnel* ipTun)
 struct IpTunnel* IpTunnel_new(struct Log* logger,
                               struct EventBase* eventBase,
                               struct Allocator* alloc,
-                              struct Random* rand,
-                              struct Hermes* hermes)
+                              struct Random* rand)
 {
     struct IpTunnel_pvt* context = Allocator_clone(alloc, (&(struct IpTunnel_pvt) {
         .pub = {
@@ -732,8 +727,7 @@ struct IpTunnel* IpTunnel_new(struct Log* logger,
         },
         .allocator = alloc,
         .logger = logger,
-        .rand = rand,
-        .hermes = hermes
+        .rand = rand
     }));
     context->timeout = Timeout_setInterval(timeout, context, 10000, eventBase, alloc);
     Identity_set(context);

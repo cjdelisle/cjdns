@@ -480,87 +480,106 @@ static void ethInterface(Dict* config, struct Context* ctx)
     }
 }
 
-static void security(struct Allocator* tempAlloc, List* conf, struct Context* ctx)
+static void security(struct Allocator* tempAlloc, List* conf, struct Log* log, struct Context* ctx)
 {
     int seccomp = 1;
     int noforks = 1;
-    int aslimit = 1;
     int chroot = 1;
-    int letRun = 1;
+    int setupComplete = 1;
     int setuser = 1;
+
+    int uid = -1;
+    int keepNetAdmin = 1;
+
+    do {
+        Dict* d = Dict_new(tempAlloc);
+        Dict_putString(d, String_CONST("user"), String_CONST("nobody"), tempAlloc);
+        Dict* ret = NULL;
+        rpcCall0(String_CONST("Security_getUser"), d, ctx, tempAlloc, &ret, true);
+        uid = *Dict_getInt(ret, String_CONST("uid"));
+    } while (0);
+
     for (int i = 0; conf && i < List_size(conf); i++) {
         Dict* elem = List_getDict(conf, i);
         String* s;
         if (elem && (s = Dict_getString(elem, String_CONST("setuser")))) {
+            if (setuser == 0) { continue; }
             Dict* d = Dict_new(tempAlloc);
             Dict_putString(d, String_CONST("user"), s, tempAlloc);
-            int64_t* keepNetAdmin = Dict_getInt(elem, String_CONST("keepNetAdmin"));
+            Dict* ret = NULL;
+            rpcCall0(String_CONST("Security_getUser"), d, ctx, tempAlloc, &ret, true);
+            uid = *Dict_getInt(ret, String_CONST("uid"));
+            int64_t* nka = Dict_getInt(elem, String_CONST("keepNetAdmin"));
             int64_t* exemptAngel = Dict_getInt(elem, String_CONST("exemptAngel"));
-            int keepNA = ((keepNetAdmin) ? *keepNetAdmin : ((exemptAngel) ? *exemptAngel : 0));
-            Dict_putInt(d, String_CONST("keepNetAdmin"), keepNA, tempAlloc);
-            rpcCall0(String_CONST("Security_setUser"), d, ctx, tempAlloc, NULL, false);
-            setuser = 0;
+            keepNetAdmin = ((nka) ? *nka : ((exemptAngel) ? *exemptAngel : 0));
+            continue;
+        }
+        if (elem && (s = Dict_getString(elem, String_CONST("chroot")))) {
+            Log_debug(log, "Security_chroot(%s)", s->bytes);
+            Dict* d = Dict_new(tempAlloc);
+            Dict_putString(d, String_CONST("root"), s, tempAlloc);
+            rpcCall(String_CONST("Security_chroot"), d, ctx, tempAlloc);
+            chroot = 0;
             continue;
         }
         uint64_t* x;
-        if (elem && (x = Dict_getInt(elem, String_CONST("nofiles"))) && *x) {
+        if (elem && (x = Dict_getInt(elem, String_CONST("nofiles")))) {
+            if (!*x) { continue; }
+            Log_debug(log, "Security_nofiles()");
             Dict* d = Dict_new(tempAlloc);
             rpcCall(String_CONST("Security_nofiles"), d, ctx, tempAlloc);
             continue;
         }
-        if (elem && (x = Dict_getInt(elem, String_CONST("seccomp"))) && !*x) {
-            seccomp = 0;
+        if (elem && (x = Dict_getInt(elem, String_CONST("setuser")))) {
+            if (!*x) { setuser = 0; }
             continue;
         }
-        if (elem && (x = Dict_getInt(elem, String_CONST("aslimit"))) && !*x) {
-            aslimit = 0;
+        if (elem && (x = Dict_getInt(elem, String_CONST("seccomp")))) {
+            if (!*x) { seccomp = 0; }
             continue;
         }
-        if (elem && (x = Dict_getInt(elem, String_CONST("noforks"))) && !*x) {
-            noforks = 0;
-            continue;
-        }
-        if (elem && (s = Dict_getString(elem, String_CONST("chroot")))) {
-            Dict* d = Dict_new(tempAlloc);
-            Dict_putString(d, String_CONST("root"), s, tempAlloc);
-            rpcCall(String_CONST("Security_chroot"), d, ctx, tempAlloc);
+        if (elem && (x = Dict_getInt(elem, String_CONST("noforks")))) {
+            if (!*x) { noforks = 0; }
             continue;
         }
         if (elem && (x = Dict_getInt(elem, String_CONST("chroot")))) {
-            chroot = *x;
+            if (!*x) { chroot = 0; }
             continue;
         }
-        if (elem && (x = Dict_getInt(elem, String_CONST("letRun")))) {
-            letRun = *x;
+        if (elem && (x = Dict_getInt(elem, String_CONST("setupComplete")))) {
+            if (!*x) { setupComplete = 0; }
             continue;
         }
         Log_info(ctx->logger, "Unrecognized entry in security at index [%d]", i);
     }
+
     if (chroot) {
+        Log_debug(log, "Security_chroot(/var/run)");
         Dict* d = Dict_new(tempAlloc);
         Dict_putString(d, String_CONST("root"), String_CONST("/var/run/"), tempAlloc);
         rpcCall0(String_CONST("Security_chroot"), d, ctx, tempAlloc, NULL, false);
     }
-    if (setuser) {
-        Dict* d = Dict_new(tempAlloc);
-        Dict_putInt(d, String_CONST("keepNetAdmin"), 1, tempAlloc);
-        rpcCall0(String_CONST("Security_setUser"), d, ctx, tempAlloc, NULL, false);
-    }
     if (noforks) {
+        Log_debug(log, "Security_noforks()");
         Dict* d = Dict_new(tempAlloc);
         rpcCall(String_CONST("Security_noforks"), d, ctx, tempAlloc);
     }
-    if (aslimit) {
+    if (setuser) {
+        Log_debug(log, "Security_setUser(uid:%d, keepNetAdmin:%d)", uid, keepNetAdmin);
         Dict* d = Dict_new(tempAlloc);
-        rpcCall(String_CONST("Security_aslimit"), d, ctx, tempAlloc);
+        Dict_putInt(d, String_CONST("uid"), uid, tempAlloc);
+        Dict_putInt(d, String_CONST("keepNetAdmin"), keepNetAdmin, tempAlloc);
+        rpcCall0(String_CONST("Security_setUser"), d, ctx, tempAlloc, NULL, false);
     }
     if (seccomp) {
+        Log_debug(log, "Security_seccomp()");
         Dict* d = Dict_new(tempAlloc);
         rpcCall(String_CONST("Security_seccomp"), d, ctx, tempAlloc);
     }
-    if (letRun) {
+    if (setupComplete) {
+        Log_debug(log, "Security_setupComplete()");
         Dict* d = Dict_new(tempAlloc);
-        rpcCall(String_CONST("Security_letRun"), d, ctx, tempAlloc);
+        rpcCall(String_CONST("Security_setupComplete"), d, ctx, tempAlloc);
     }
 }
 
@@ -641,7 +660,7 @@ void Configurator_config(Dict* config,
     routerConfig(routerConf, tempAlloc, &ctx);
 
     List* secList = Dict_getList(config, String_CONST("security"));
-    security(tempAlloc, secList, &ctx);
+    security(tempAlloc, secList, logger, &ctx);
 
     Dict* dnsConf = Dict_getDict(config, String_CONST("dns"));
     dns(dnsConf, &ctx, eh);

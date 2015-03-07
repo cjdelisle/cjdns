@@ -14,7 +14,6 @@
  */
 #include "admin/Admin.h"
 #include "admin/AdminLog.h"
-#include "admin/angel/Angel.h"
 #include "admin/angel/Core.h"
 #include "admin/angel/InterfaceWaiter.h"
 #include "admin/AuthorizedPasswords.h"
@@ -184,9 +183,10 @@ void Core_init(struct Allocator* alloc,
                struct Random* rand,
                struct Except* eh)
 {
+    struct Security* sec = Security_new(alloc, logger, eventBase);
     struct NetCore* nc = NetCore_new(privateKey, alloc, eventBase, rand, logger);
 
-    struct IpTunnel* ipTunnel = IpTunnel_new(logger, eventBase, alloc, rand, NULL);//TODO(cjd)
+    struct IpTunnel* ipTunnel = IpTunnel_new(logger, eventBase, alloc, rand);
     Iface_plumb(&nc->tunAdapt->ipTunnelIf, &ipTunnel->tunInterface);
     Iface_plumb(&nc->upper->ipTunnelIf, &ipTunnel->nodeInterface);
 
@@ -212,13 +212,13 @@ void Core_init(struct Allocator* alloc,
     SwitchPinger_admin_register(nc->sp, admin, alloc);
     UDPInterface_admin_register(eventBase, alloc, logger, admin, nc->ifController);
 #ifdef HAS_ETH_INTERFACE
-    ETHInterface_admin_register(eventBase, alloc, logger, admin, nc->ifController, NULL);//TODO(cjd)
+    ETHInterface_admin_register(eventBase, alloc, logger, admin, nc->ifController);
 #endif
 
     AuthorizedPasswords_init(admin, nc->ca, alloc);
     Admin_registerFunction("ping", adminPing, admin, false, NULL, admin);
 //    Core_admin_register(myAddr, logger, ipTun, alloc, admin, eventBase);
-    Security_admin_register(alloc, logger, admin);
+    Security_admin_register(alloc, logger, sec, admin);
     IpTunnel_admin_register(ipTunnel, admin, alloc);
     SessionManager_admin_register(nc->sm, admin, alloc);
     RainflyClient_admin_register(rainfly, admin, alloc);

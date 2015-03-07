@@ -260,6 +260,7 @@ static struct sock_fprog* mkFilter(struct Allocator* alloc, struct Except* eh)
         #ifdef __NR_mmap2
             IFEQ(__NR_mmap2, success),
         #endif
+        IFEQ(__NR_munmap, success),
 
         // printf()
         IFEQ(__NR_fstat, success),

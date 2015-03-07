@@ -20,11 +20,12 @@
 #include "util/log/Log.h"
 #include "util/Security.h"
 
-
 struct Context
 {
     struct Log* logger;
     struct Admin* admin;
+    struct Security* sec;
+    Identity
 };
 
 static void sendError(char* errorMessage, String* txid, struct Admin* admin)
@@ -33,26 +34,14 @@ static void sendError(char* errorMessage, String* txid, struct Admin* admin)
     Admin_sendMessage(&error, txid, admin);
 }
 
-static void setUser(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
+static void setUser(Dict* args, void* vctx, String* txid, struct Allocator* requestAlloc)
 {
-    struct Context* const ctx = (struct Context*) vcontext;
+    struct Context* const ctx = Identity_check((struct Context*) vctx);
     struct Jmp jmp;
     Jmp_try(jmp) {
-        String* user = Dict_getString(args, String_CONST("user"));
-        Security_setUser(user->bytes, ctx->logger, &jmp.handler);
-    } Jmp_catch {
-        sendError(jmp.message, txid, ctx->admin);
-        return;
-    }
-    sendError("none", txid, ctx->admin);
-}
-
-static void dropPermissions(Dict* args, void* vctx, String* txid, struct Allocator* requestAlloc)
-{
-    struct Context* const ctx = (struct Context*) vctx;
-    struct Jmp jmp;
-    Jmp_try(jmp) {
-        Security_dropPermissions(requestAlloc, ctx->logger, &jmp.handler);
+        int64_t* user = Dict_getInt(args, String_CONST("uid"));
+        int64_t* keepNetAdmin = Dict_getInt(args, String_CONST("keepNetAdmin"));
+        Security_setUser(*user, *keepNetAdmin, ctx->logger, &jmp.handler, requestAlloc);
     } Jmp_catch {
         sendError(jmp.message, txid, ctx->admin);
         return;
@@ -70,14 +59,14 @@ static void checkPermissionsB(struct Except* eh,
     Dict_putInt(out, String_CONST("noOpenFiles"), sp->noOpenFiles, requestAlloc);
     Dict_putInt(out, String_CONST("seccompExists"), sp->seccompExists, requestAlloc);
     Dict_putInt(out, String_CONST("seccompEnforcing"), sp->seccompEnforcing, requestAlloc);
-    Dict_putInt(out, String_CONST("memoryLimitBytes"), sp->memoryLimitBytes, requestAlloc);
+    Dict_putInt(out, String_CONST("userId"), sp->uid, requestAlloc);
     Dict_putString(out, String_CONST("error"), String_CONST("none"), requestAlloc);
     Admin_sendMessage(out, txid, admin);
 }
 
 static void checkPermissions(Dict* args, void* vctx, String* txid, struct Allocator* requestAlloc)
 {
-    struct Context* const ctx = (struct Context*) vctx;
+    struct Context* const ctx = Identity_check((struct Context*) vctx);
     struct Jmp jmp;
     Jmp_try(jmp) {
         checkPermissionsB(&jmp.handler, txid, ctx->admin, requestAlloc);
@@ -87,43 +76,83 @@ static void checkPermissions(Dict* args, void* vctx, String* txid, struct Alloca
     }
 }
 
+#define NOARG_CALL(vctx, txid, func) \
+    do {                                                                    \
+        struct Context* const ctx = Identity_check((struct Context*) vctx); \
+        struct Jmp jmp;                                                     \
+        Jmp_try(jmp) {                                                      \
+            func(&jmp.handler);                                             \
+        } Jmp_catch {                                                       \
+            sendError(jmp.message, txid, ctx->admin);                       \
+            return;                                                         \
+        }                                                                   \
+        sendError("none", txid, ctx->admin);                                \
+    } while (0)
+// CHECKFILES_IGNORE expecting { bracket
+
 static void nofiles(Dict* args, void* vctx, String* txid, struct Allocator* requestAlloc)
 {
-    Assert_failure("unimplemented");
+    NOARG_CALL(vctx, txid, Security_nofiles);
 }
 
 static void noforks(Dict* args, void* vctx, String* txid, struct Allocator* requestAlloc)
 {
-    Assert_failure("unimplemented");
+    NOARG_CALL(vctx, txid, Security_noforks);
 }
 
 static void chroot(Dict* args, void* vctx, String* txid, struct Allocator* requestAlloc)
 {
-    Assert_failure("unimplemented");
-}
-
-static void aslimit(Dict* args, void* vctx, String* txid, struct Allocator* requestAlloc)
-{
-    Assert_failure("unimplemented");
+    struct Context* const ctx = Identity_check((struct Context*) vctx);
+    struct Jmp jmp;
+    Jmp_try(jmp) {
+        String* root = Dict_getString(args, String_CONST("root"));
+        Security_chroot(root->bytes, &jmp.handler);
+    } Jmp_catch {
+        sendError(jmp.message, txid, ctx->admin);
+        return;
+    }
+    sendError("none", txid, ctx->admin);
 }
 
 static void seccomp(Dict* args, void* vctx, String* txid, struct Allocator* requestAlloc)
 {
-    Assert_failure("unimplemented");
+    struct Context* const ctx = Identity_check((struct Context*) vctx);
+    struct Jmp jmp;
+    Jmp_try(jmp) {
+        Security_seccomp(requestAlloc, ctx->logger, &jmp.handler);
+    } Jmp_catch {
+        sendError(jmp.message, txid, ctx->admin);
+        return;
+    }
+    sendError("none", txid, ctx->admin);
 }
 
-static void letRun(Dict* args, void* vctx, String* txid, struct Allocator* requestAlloc)
+static void setupComplete(Dict* args, void* vctx, String* txid, struct Allocator* requestAlloc)
 {
-    Assert_failure("unimplemented");
+    struct Context* const ctx = Identity_check((struct Context*) vctx);
+    Security_setupComplete(ctx->sec);
+    sendError("none", txid, ctx->admin);
 }
 
+static void getUser(Dict* args, void* vctx, String* txid, struct Allocator* requestAlloc)
+{
+    struct Context* const ctx = Identity_check((struct Context*) vctx);
+    String* user = Dict_getString(args, String_CONST("user"));
+    Dict* ret = Security_getUser((user) ? user->bytes : NULL, requestAlloc);
+    Admin_sendMessage(ret, txid, ctx->admin);
+}
 
-void Security_admin_register(struct Allocator* alloc, struct Log* logger, struct Admin* admin)
+void Security_admin_register(struct Allocator* alloc,
+                             struct Log* logger,
+                             struct Security* sec,
+                             struct Admin* admin)
 {
     struct Context* ctx = Allocator_clone(alloc, (&(struct Context) {
         .logger = logger,
         .admin = admin
     }));
+    Identity_set(ctx);
+    ctx->sec = sec;
 
     Admin_registerFunction("Security_nofiles", nofiles, ctx, true, NULL, admin);
     Admin_registerFunction("Security_noforks", noforks, ctx, true, NULL, admin);
@@ -131,13 +160,13 @@ void Security_admin_register(struct Allocator* alloc, struct Log* logger, struct
         { .name = "root", .required = 1, .type = "String" }
     }), admin);
     Admin_registerFunction("Security_setUser", setUser, ctx, true, ((struct Admin_FunctionArg[]) {
-        { .name = "user", .required = 1, .type = "String" }
+        { .name = "uid", .required = 1, .type = "Int" },
+        { .name = "keepNetAdmin", .required = 1, .type = "Int" },
     }), admin);
-    Admin_registerFunction("Security_aslimit", aslimit, ctx, true, NULL, admin);
+    Admin_registerFunction("Security_getUser", getUser, ctx, true, ((struct Admin_FunctionArg[]) {
+        { .name = "user", .required = 0, .type = "String" }
+    }), admin);
     Admin_registerFunction("Security_seccomp", seccomp, ctx, true, NULL, admin);
-    Admin_registerFunction("Security_letRun", letRun, ctx, true, NULL, admin);
-////
-//    Admin_registerFunction("Security_setUser", setUser, ctx, true, setUserArgs, admin);
-//    Admin_registerFunction("Security_dropPermissions", dropPermissions, ctx, true, NULL, admin);
-//    Admin_registerFunction("Security_checkPermissions", checkPermissions, ctx, true, NULL, admin);
+    Admin_registerFunction("Security_setupComplete", setupComplete, ctx, true, NULL, admin);
+    Admin_registerFunction("Security_checkPermissions", checkPermissions, ctx, true, NULL, admin);
 }

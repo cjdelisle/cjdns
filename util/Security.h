@@ -15,9 +15,11 @@
 #ifndef Security_H
 #define Security_H
 
+#include "benc/Dict.h"
 #include "memory/Allocator.h"
 #include "exception/Except.h"
 #include "util/log/Log.h"
+#include "util/events/EventBase.h"
 #include "util/Linker.h"
 #ifdef win32
     Linker_require("util/Security_win32.c")
@@ -26,20 +28,42 @@
 #endif
 
 #include <stdint.h>
+#include <stdbool.h>
 
 struct Security_Permissions
 {
     int noOpenFiles;
     int seccompExists;
     int seccompEnforcing;
-    uint64_t memoryLimitBytes;
+    int uid;
+};
+
+struct Security
+{
+    bool setupComplete;
 };
 
 /** @return Security_setUser_PERMISSION if the user does not have sufficient permissions. */
 #define Security_setUser_PERMISSION -1
-int Security_setUser(char* userName, struct Log* logger, struct Except* eh);
+int Security_setUser(int uid,
+                     bool keepNetAdmin,
+                     struct Log* logger,
+                     struct Except* eh,
+                     struct Allocator* alloc);
 
-void Security_dropPermissions(struct Allocator* tempAlloc, struct Log* logger, struct Except* eh);
+void Security_nofiles(struct Except* eh);
+
+void Security_noforks(struct Except* eh);
+
+void Security_chroot(char* root, struct Except* eh);
+
+void Security_seccomp(struct Allocator* tempAlloc, struct Log* logger, struct Except* eh);
+
+void Security_setupComplete(struct Security* security);
+
+struct Security* Security_new(struct Allocator* alloc, struct Log* log, struct EventBase* base);
+
+Dict* Security_getUser(char* userName, struct Allocator* retAlloc);
 
 struct Security_Permissions* Security_checkPermissions(struct Allocator* alloc, struct Except* eh);
 

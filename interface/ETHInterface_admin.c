@@ -14,7 +14,6 @@
  */
 #include "interface/ETHInterface_admin.h"
 #include "interface/ETHInterface.h"
-#include "admin/angel/Hermes.h"
 #include "benc/Int.h"
 #include "admin/Admin.h"
 #include "crypto/Key.h"
@@ -31,7 +30,6 @@ struct Context
     struct Log* logger;
     struct Admin* admin;
     struct InterfaceController* ic;
-    struct Hermes* hermes;
     Identity
 };
 
@@ -152,17 +150,6 @@ static void beacon(Dict* args, void* vcontext, String* txid, struct Allocator* r
     Admin_sendMessage(&out, txid, ctx->admin);
 }
 
-
-// We don't have the security clearences in this process to run ETHInterface_listDevices() directly.
-// So we send a message to the angel process which will do it for us.
-
-struct ListDevicesCtx {
-    struct Allocator* alloc;
-    String* txid;
-    struct Context* ctx;
-    Identity
-};
-
 static void listDevices(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* ctx = Identity_check((struct Context*) vcontext);
@@ -187,16 +174,14 @@ void ETHInterface_admin_register(struct EventBase* base,
                                  struct Allocator* alloc,
                                  struct Log* logger,
                                  struct Admin* admin,
-                                 struct InterfaceController* ic,
-                                 struct Hermes* hermes)
+                                 struct InterfaceController* ic)
 {
     struct Context* ctx = Allocator_clone(alloc, (&(struct Context) {
         .eventBase = base,
         .alloc = alloc,
         .logger = logger,
         .admin = admin,
-        .ic = ic,
-        .hermes = hermes
+        .ic = ic
     }));
     Identity_set(ctx);
 

@@ -95,7 +95,7 @@ int main()
     struct Random* rand = Random_new(alloc, logger, NULL);
     struct EventBase* eb = EventBase_new(alloc);
 
-    struct IpTunnel* ipTun = IpTunnel_new(logger, eb, alloc, rand, NULL);
+    struct IpTunnel* ipTun = IpTunnel_new(logger, eb, alloc, rand);
     struct Sockaddr_storage ip6ToGive;
     Sockaddr_parse("fd01:0101:0101:0101:0101:0101:0101:0101", &ip6ToGive);
     IpTunnel_allowConnection(fakePubKey, &ip6ToGive.addr, 0, NULL, 0, ipTun);
