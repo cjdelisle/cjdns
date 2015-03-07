@@ -327,7 +327,7 @@ static int genconf(struct Random* rand, bool eth)
            "        // setup of the core completes, it could leave the core in an insecure state\n"
            "        // This call constitutes the client telling the core that the security rules\n"
            "        // have been fully applied and the core may run. Without it, the core will\n"
-           "        // exit within a few seconds with return code 666.\n"
+           "        // exit within a few seconds with return code 232.\n"
            "        // Default: enabled\n"
            "        { \"setupComplete\": 1 }\n"
            "    ],\n"
