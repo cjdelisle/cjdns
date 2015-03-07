@@ -13,7 +13,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "interface/tuntap/BSDMessageTypeWrapper.h"
-#include "interface/InterfaceWrapper.h"
 #include "util/platform/Sockaddr.h"
 #include "memory/Allocator.h"
 #include "util/Assert.h"
