@@ -15,7 +15,7 @@
 #ifndef NetDev_H
 #define NetDev_H
 
-#include "except/Except.h"
+#include "exception/Except.h"
 #include "util/log/Log.h"
 #include "util/platform/Sockaddr.h"
 #include "util/Linker.h"
