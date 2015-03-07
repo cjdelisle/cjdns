@@ -13,6 +13,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "interface/tuntap/TUNInterface.h"
+#include "interface/tuntap/windows/TAPInterface.h"
 #include "interface/tuntap/TAPWrapper.h"
 #include "interface/tuntap/NDPServer.h"
 #include "util/CString.h"
