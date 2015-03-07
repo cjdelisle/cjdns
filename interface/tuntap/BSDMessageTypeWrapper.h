@@ -15,6 +15,7 @@
 #ifndef BSDMessageTypeWrapper_H
 #define BSDMessageTypeWrapper_H
 
+#include "interface/Iface.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
 #include "util/Linker.h"
