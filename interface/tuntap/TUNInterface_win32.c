@@ -12,6 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "interface/Iface.h"
 #include "interface/tuntap/TUNInterface.h"
 #include "interface/tuntap/windows/TAPInterface.h"
 #include "interface/tuntap/TAPWrapper.h"
