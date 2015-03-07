@@ -124,7 +124,10 @@ void uv__stream_init(uv_loop_t* loop,
   QUEUE_INIT(&stream->write_completed_queue);
   stream->write_queue_size = 0;
 
-  if (loop->emfile_fd == -1) {
+  #ifndef NO_EMFILE_TRICK
+    #define NO_EMFILE_TRICK 0
+  #endif
+  if (!NO_EMFILE_TRICK && loop->emfile_fd == -1) {
     err = uv__open_cloexec("/", O_RDONLY);
     if (err >= 0)
       loop->emfile_fd = err;
