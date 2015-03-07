@@ -384,7 +384,6 @@ static int pivotChildrenToAdoptedParents(struct Allocator_pvt* context, const ch
         }
     }
     Assert_failure("Didn't free all allocators in 10000 deep iterations");
-    return 0; // some compilers are a bit slow.
 }
 
 /**

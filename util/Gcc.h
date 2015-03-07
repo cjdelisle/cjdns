@@ -37,14 +37,31 @@
 #define Gcc_ALLOC_SIZE(...) \
     __attribute__ ((alloc_size(__VA_ARGS__)))
 
-#else
+#elif defined(__clang__)
 
-#define Gcc_PRINTF( format_idx, arg_idx )
-#define Gcc_NORETURN
-#define Gcc_NONNULL(...)
-#define Gcc_PURE
-#define Gcc_PACKED
-#define Gcc_ALLOC_SIZE(...)
+#define Gcc_NORETURN \
+    __attribute__((__noreturn__))
+
+#endif
+
+#ifndef Gcc_PRINTF
+    #define Gcc_PRINTF( format_idx, arg_idx )
+#endif
+#ifndef Gcc_NORETURN
+    #define Gcc_NORETURN
+#endif
+#ifndef Gcc_NONNULL
+    #define Gcc_NONNULL(...)
+#endif
+#ifndef Gcc_PURE
+    #define Gcc_PURE
+#endif
+#ifndef Gcc_PACKED
+    #define Gcc_PACKED
+#endif
+#ifndef Gcc_ALLOC_SIZE
+    #define Gcc_ALLOC_SIZE(...)
+#endif
 
 #endif
 
