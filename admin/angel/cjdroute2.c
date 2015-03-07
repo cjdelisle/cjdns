@@ -580,7 +580,6 @@ int main(int argc, char** argv)
     if (!privateKey) {
         Except_throw(eh, "Need to specify privateKey.");
     }
-    Log_info(logger, "Forking core to background.");
     Process_spawn(corePath, args, eventBase, allocator);
 
     // --------------------- Pre-Configure Core ------------------------- //
@@ -641,6 +640,8 @@ int main(int argc, char** argv)
         EventBase_beginLoop(eventBase);
     }
 
+    // Freeing this allocator here causes the core to be terminated in the epoll syscall.
     //Allocator_free(allocator);
+
     return 0;
 }

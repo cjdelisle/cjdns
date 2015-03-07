@@ -58,15 +58,12 @@ Dict* Security_getUser(char* userName, struct Allocator* retAlloc)
     return ret;
 }
 
-int Security_setUser(int uid,
-                     bool keepNetAdmin,
-                     struct Log* logger,
-                     struct Except* eh,
-                     struct Allocator* alloc)
+void Security_setUser(int uid,
+                      bool keepNetAdmin,
+                      struct Log* logger,
+                      struct Except* eh,
+                      struct Allocator* alloc)
 {
-    if (getuid() != 0) {
-        return Security_setUser_PERMISSION;
-    }
     if (keepNetAdmin) {
         Setuid_preSetuid(alloc, eh);
     }
@@ -80,8 +77,6 @@ int Security_setUser(int uid,
     if (uid != (int) getuid()) {
         Except_throw(eh, "Failed to set UID but seemed to succeed");
     }
-
-    return 0;
 }
 
 static int canOpenFiles()
@@ -149,7 +144,7 @@ static void fail(void* vSec)
 {
     struct Security_pvt* sec = Identity_check((struct Security_pvt*) vSec);
     Log_critical(sec->log, "Security_setupComplete() not called in time, exiting");
-    exit(666);
+    exit(232);
 }
 
 struct Security* Security_new(struct Allocator* alloc, struct Log* log, struct EventBase* base)

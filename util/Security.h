@@ -43,13 +43,11 @@ struct Security
     bool setupComplete;
 };
 
-/** @return Security_setUser_PERMISSION if the user does not have sufficient permissions. */
-#define Security_setUser_PERMISSION -1
-int Security_setUser(int uid,
-                     bool keepNetAdmin,
-                     struct Log* logger,
-                     struct Except* eh,
-                     struct Allocator* alloc);
+void Security_setUser(int uid,
+                      bool keepNetAdmin,
+                      struct Log* logger,
+                      struct Except* eh,
+                      struct Allocator* alloc);
 
 void Security_nofiles(struct Except* eh);
 

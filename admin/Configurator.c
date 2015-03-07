@@ -483,6 +483,7 @@ static void ethInterface(Dict* config, struct Context* ctx)
 static void security(struct Allocator* tempAlloc, List* conf, struct Log* log, struct Context* ctx)
 {
     int seccomp = 1;
+    int nofiles = 0;
     int noforks = 1;
     int chroot = 1;
     int setupComplete = 1;
@@ -518,16 +519,14 @@ static void security(struct Allocator* tempAlloc, List* conf, struct Log* log, s
             Log_debug(log, "Security_chroot(%s)", s->bytes);
             Dict* d = Dict_new(tempAlloc);
             Dict_putString(d, String_CONST("root"), s, tempAlloc);
-            rpcCall(String_CONST("Security_chroot"), d, ctx, tempAlloc);
+            rpcCall0(String_CONST("Security_chroot"), d, ctx, tempAlloc, NULL, false);
             chroot = 0;
             continue;
         }
         uint64_t* x;
         if (elem && (x = Dict_getInt(elem, String_CONST("nofiles")))) {
             if (!*x) { continue; }
-            Log_debug(log, "Security_nofiles()");
-            Dict* d = Dict_new(tempAlloc);
-            rpcCall(String_CONST("Security_nofiles"), d, ctx, tempAlloc);
+            nofiles = 1;
             continue;
         }
         if (elem && (x = Dict_getInt(elem, String_CONST("setuser")))) {
@@ -570,6 +569,11 @@ static void security(struct Allocator* tempAlloc, List* conf, struct Log* log, s
         Dict_putInt(d, String_CONST("uid"), uid, tempAlloc);
         Dict_putInt(d, String_CONST("keepNetAdmin"), keepNetAdmin, tempAlloc);
         rpcCall0(String_CONST("Security_setUser"), d, ctx, tempAlloc, NULL, false);
+    }
+    if (nofiles) {
+        Log_debug(log, "Security_nofiles()");
+        Dict* d = Dict_new(tempAlloc);
+        rpcCall(String_CONST("Security_nofiles"), d, ctx, tempAlloc);
     }
     if (seccomp) {
         Log_debug(log, "Security_seccomp()");
@@ -664,6 +668,8 @@ void Configurator_config(Dict* config,
 
     Dict* dnsConf = Dict_getDict(config, String_CONST("dns"));
     dns(dnsConf, &ctx, eh);
+
+    Log_debug(logger, "Cjdns started in the background");
 
     Allocator_free(tempAlloc);
 }
