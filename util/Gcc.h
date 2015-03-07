@@ -41,7 +41,7 @@
 
 #define Gcc_PRINTF( format_idx, arg_idx )
 #define Gcc_NORETURN
-#define Gcc_NONNULL(num)
+#define Gcc_NONNULL(...)
 #define Gcc_PURE
 #define Gcc_PACKED
 #define Gcc_ALLOC_SIZE(...)
