@@ -113,5 +113,7 @@ struct Iface* TUNInterface_new(const char* interfaceName,
 
     struct Pipe* p = Pipe_forFiles(tunFd, tunFd, base, eh, alloc);
 
-    return BSDMessageTypeWrapper_new(&p->iface, logger);
+    struct BSDMessageTypeWrapper* bmtw = BSDMessageTypeWrapper_new(alloc, logger);
+    Iface_plumb(&p->iface, &bmtw->wireSide);
+    return &bmtw->inside;
 }
