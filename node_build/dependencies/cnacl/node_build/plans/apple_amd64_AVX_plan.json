@@ -43,7 +43,7 @@
     [
       "crypto_onetimeauth",
       "poly1305",
-      "moon/avx/64"
+      "53"
     ],
     [
       "crypto_stream",
