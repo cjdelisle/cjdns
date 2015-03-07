@@ -15,7 +15,7 @@
 #ifndef Gcc_H
 #define Gcc_H
 
-#if defined(__GNUC__) && (__GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ > 4))
+#if defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 4))
 
 #define Gcc_PRINTF( format_idx, arg_idx ) \
     __attribute__((__format__ (__printf__, format_idx, arg_idx)))
