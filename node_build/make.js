@@ -117,9 +117,19 @@ Builder.configure({
     }
 
     // Install any user-defined CFLAGS. Necessary if you are messing about with building cnacl
-    // with NEON on the BBB
+    // with NEON on the BBB, or want to set -Os (OpenWrt)
     if (CFLAGS) {
-        [].push.apply(builder.config.cflags, CFLAGS.split(' '));
+        var cflags = CFLAGS.split(' ');
+        cflags.forEach(function(flag) {
+             if (/^\-O[^2s]$/.test(flag)) {
+                console.log("Skipping " + flag + ", assuming " +
+                            builder.config.optimizeLevel + " instead.");
+            } else if (/^\-O[2s]$/.test(flag)) {
+                builder.config.optimizeLevel = flag;
+            } else {
+                [].push.apply(builder.config.cflags, cflags);
+            }
+        });
     }
 
     // We also need to pass various architecture/floating point flags to GCC when invoked as
