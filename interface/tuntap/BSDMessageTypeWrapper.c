@@ -30,22 +30,21 @@
 
 struct BSDMessageTypeWrapper_pvt
 {
-    struct Iface generic;
-    struct Iface* const wrapped;
+    struct Iface inside;
+    struct Iface wireSide;
+
     const uint16_t afInet_be;
     const uint16_t afInet6_be;
     struct Log* const logger;
     Identity
 };
 
-static uint8_t receiveMessage(struct Message* msg, struct Iface* iface)
+static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* wireSide)
 {
     struct BSDMessageTypeWrapper_pvt* ctx =
-        Identity_check((struct BSDMessageTypeWrapper_pvt*)iface->receiverContext);
+        Identity_containerOf(wireSide, struct BSDMessageTypeWrapper_pvt, wireSide);
 
-    if (msg->length < 4) {
-        return Error_NONE;
-    }
+    if (msg->length < 4) { return Error_NONE; }
 
     uint16_t afType_be = ((uint16_t*) msg->bytes)[1];
     uint16_t ethertype = 0;
@@ -61,13 +60,13 @@ static uint8_t receiveMessage(struct Message* msg, struct Iface* iface)
     ((uint16_t*) msg->bytes)[0] = 0;
     ((uint16_t*) msg->bytes)[1] = ethertype;
 
-    return Iface_send(&ctx->generic, msg);
+    return Iface_next(&ctx->inside, msg);
 }
 
-static uint8_t sendMessage(struct Message* msg, struct Iface* iface)
+static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* inside)
 {
     struct BSDMessageTypeWrapper_pvt* ctx =
-        Identity_check((struct BSDMessageTypeWrapper_pvt*)iface);
+        Identity_containerOf(inside, struct BSDMessageTypeWrapper_pvt, inside);
 
     Assert_true(msg->length >= 4);
 
@@ -83,7 +82,7 @@ static uint8_t sendMessage(struct Message* msg, struct Iface* iface)
     ((uint16_t*) msg->bytes)[0] = 0;
     ((uint16_t*) msg->bytes)[1] = afType_be;
 
-    return Interface_sendMessage(ctx->wrapped, msg);
+    return Iface_next(&ctx->wireSide, msg);
 }
 
 struct Iface* BSDMessageTypeWrapper_new(struct Iface* wrapped, struct Log* logger)
@@ -97,7 +96,7 @@ struct Iface* BSDMessageTypeWrapper_new(struct Iface* wrapped, struct Log* logge
         }));
     Identity_set(context);
 
-    InterfaceWrapper_wrap(wrapped, sendMessage, receiveMessage, &context->generic);
+    Iface_plumb(wrapped, &context->wireSide);
 
-    return &context->generic;
+    return &context->inside;
 }
