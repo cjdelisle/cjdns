@@ -134,7 +134,7 @@ static inline void checkCanaries(struct Allocator_Allocation_pvt* alloc,
     #endif
 }
 
-__attribute__((alloc_size(2)))
+Gcc_ALLOC_SIZE(2)
 static inline void* newAllocation(struct Allocator_pvt* context,
                                   unsigned long size,
                                   const char* fileName,
@@ -384,6 +384,7 @@ static int pivotChildrenToAdoptedParents(struct Allocator_pvt* context, const ch
         }
     }
     Assert_failure("Didn't free all allocators in 10000 deep iterations");
+    return *NULL; // some compilers are a bit slow.
 }
 
 /**
