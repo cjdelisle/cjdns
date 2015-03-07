@@ -19,6 +19,7 @@
 
 #define Gcc_PRINTF( format_idx, arg_idx ) \
     __attribute__((__format__ (__printf__, format_idx, arg_idx)))
+
 #define Gcc_NORETURN \
     __attribute__((__noreturn__))
 
@@ -31,6 +32,8 @@
 #define Gcc_PACKED \
     __attribute__ ((packed))
 
+#define Gcc_ALLOC_SIZE(...) \
+    __attribute__ ((alloc_size(__VA_ARGS__)))
 
 #else
 
@@ -39,6 +42,7 @@
 #define Gcc_NONNULL(num)
 #define Gcc_PURE
 #define Gcc_PACKED
+#define Gcc_ALLOC_SIZE(...)
 
 #endif
 
