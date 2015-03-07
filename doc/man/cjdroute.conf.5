@@ -1,0 +1,295 @@
+.\" Manpage for cjdroute.conf
+.\"
+
+.TH cjdroute.conf 5 "2014-03-16" "" "Cjdns Reference"
+
+.SH "NAME"
+cjdroute.conf \- Cjdns configuration file
+
+.SH "DESCRIPTION"
+The
+.I cjdroute\&.conf
+file configures the cjdns routing engine,
+.BR cjdns (8),
+generally through
+.BR cjdroute (1)\&.
+.PP
+The configuration is written in a variation of the JSON format that also
+accepts traditional C-like comments such as single line comments (//) and
+multiline comments (/* and */)\&. Additionally, unused JSON values found in
+.I cjdroute\&.conf
+are ignored by cjdns and can be used as a form of JSON-compliant comments.
+
+.SH "CONFIGURATION"
+\fB"privateKey":\fR "\&.\&.\&."
+.RS 4
+Your node's private key\&. It should be kept secret because your
+confidentiality and data integrity depend on it.
+.RE
+.PP
+
+\fB"publicKey":\fR "\&.\&.\&."
+.RS 4
+Your node's public key\&. Based on your private key It is fine for anyone
+to know this\&.
+.RE
+.PP
+
+\fB"ipv6":\fR "\&.\&.\&."
+.RS 4
+Your node's IPv6 address when it is on the network\&. It is generated
+by using the first 16 bytes of a double SHA-512 of your public key\&. All
+cjdns IPv6 addresses must begin with "fc" or else they are invalid\&.
+.RE
+.PP
+
+\fB"authorizedPasswords":\fR [\&.\&.\&.]
+.RS 4
+An array of passwords that may be used to connect (peer) to your node\&.
+.PP
+\fI"password":\fR "..."
+.RS 4
+A password which can be used to peer with your node\&.
+.RE
+.PP
+\fI"user":\fR "..."
+.RS 4
+An optional human-readable string that identifies what password a peer is using
+on the admin interface\&. If omitted, the password will be identified by its
+position within the array (starting from 0)
+.RE
+.PP
+Example:
+.br
+"authorizedPasswords":
+.br
+[
+    { "password": "AnExamplePassword", "user": "Bob" },
+    { "password": "YetAnotherExample", "user": "Alice" },
+    { "password": "j3fus4r3gkhv80xdz1yqc0qvn1p91hr", "user": "Eve" }
+.br
+]
+.RE
+.PP
+
+\fB"admin":\fR {\&.\&.\&.}
+.RS 4
+An object which defines where to bind to the admin RPC server as well as the
+password for the admin RPC server\&. The two required strings are "bind", which
+should be in the format "IP:PORT", and "password", which should preferably be a
+long random string of characters.
+.RE
+.PP
+
+\fB"interfaces":\fR {\&.\&.\&.}
+.RS 4
+An object that defines which interfaces cjdns will bind to and what peers to
+connect to\&. There are two different interfaces, UDPInterface and
+ETHInterface, both of which are arrays\&. Within each array there are a variety
+of different options
+.PP
+\fI"bind":\fR "\&.\&.\&."
+.RS 4
+Defines what the interface should bind to\&. In UDPInterface, the bind is
+an IP:PORT string, such as "0\&.0\&.0\&.0:12345", while in ETHInterface the bind
+is a network interface, such as "eth0"\&.
+.RE
+.PP
+\fI"beacon":\fR Integer
+.RS 4
+This option is only found in ETHInterface and defines whether auto-connecting
+beacons should be sent or listened to\&. This is useful for a zeroconf local
+network\&.
+.PP
+.RS 4
+0 \-\- Disabled\&.
+.br
+1 \-\- Accept incoming beacons and try connecting to the sender\&.
+.br
+2 \-\- Accept incoming beacons and broadcast beacons to the local network\&.
+.RE
+.RE
+.PP
+\fI"connectTo":\fR {\&.\&.\&.}
+.RS 4
+Defines which nodes cjdns should connect to with the specified interface\&.
+Multiple nodes may be placed in a single "connectTo" as long as each are
+seperated by commas\&. If a node happens to be offline or become offline during
+runtime, cjdns will attempt to reconnect at regular intervals\&. The one
+difference in this option between UDPInterface and ETHInterface is that
+UDPInterface connects to an "IP:PORT" while ETHInterface connects to a MAC
+address\&.
+.PP
+UDPInterface Example:
+.br
+"connectTo":
+.br
+{
+.RS 4
+"1\&.2\&.3\&.4:54321":
+.br
+{
+    "password": "password From Your Peer's authorizedPasswords",
+    "publicKey": "Your Peer's publicKey\&.k"
+.br
+},
+.br
+"5\&.6\&.7\&.8:46321":
+.br
+{
+    "password": "Correct Horse Battery Staple",
+    "publicKey": "Other Peer's publicKey\&.k"
+.br
+}
+.RE
+}
+.RE
+.RE
+.PP
+
+\fB"router":\fR {\&.\&.\&.}
+.RS 4
+An object that holds configuration information on the router
+.PP
+\fI"interface":\fR {\&.\&.\&.}
+.RS 4
+Defines the type of interface used for connecting to the cjdns network\&.
+It requires a "type" string, and optionally a "tunDevice" string\&. The "type"
+string defines the type of interface used, however only "TUNInterface" is
+supported at the moment\&. The "tunDevice" string defines the name of a
+persistent TUN device to use, which is helpful for starting cjdroute as its own
+user instead of root\&.
+.RE
+.PP
+\fI"ipTunnel":\fR {\&.\&.\&.}
+.RS 4
+A system for tunneling ICANN IPv4 and ICANN IPv6 through cjdns\&. This is using
+the cjdns switch layer as a VPN carrier\&.
+.PP
+\fBNOTE:\fR Simply editing your configuration file is not sufficient to
+setting up an ipTunnel gateway\&. Please read through tunnel/README.md in the
+cjdns git tree for more information
+.PP
+\fI"allowedConnections":\fR [\&.\&.\&.]
+.RS 4
+Nodes allowed to connect to us, specified by their public key, and what IP
+address(es) to give them\&. It is fine to only specify one address\&.
+.PP
+Example:
+.PP
+"allowedConnections":
+.br
+[
+.br
+    {
+        "publicKey": "f64hfl7c4uxt6krmhPutTheRealAddressOfANodeHere7kfm5m0.k",
+        "ip4Address": "192.168.1.24",
+        "ip4Prefix": 24,
+        "ip6Address": "2001:123:ab::10",
+        "ip6Prefix": 0
+.br
+    },
+.br
+    {
+        "publicKey": "ydq8csdk8p8ThisIsJustAnExampleAddresstxuyqdf27hvn2z0.k",
+        "ip4Address": "192.168.1.25",
+        "ip4Prefix": 24
+.br
+    }
+.br
+]
+.RE
+.PP
+\fI"outgoingConnections":\fR [\&.\&.\&.]
+.RS 4
+An array of nodes to connect and ask for IP addresses.
+.PP
+Example:
+.PP
+"outgoingConnections":
+.br
+[
+    "6743gf5tw80ExampleExampleExampleExamplevlyb23zfnuzv0.k",
+    "pw9tfmr8pcrExampleExampleExampleExample8rhg1pgwpwf80.k",
+    "g91lxyxhq0kExampleExampleExampleExample6t0mknuhw75l0.k"
+.br
+]
+
+.RE
+.RE
+.RE
+.PP
+
+\fB"resetAfterInactivitySeconds":\fR Integer
+.RS 4
+The number of seconds to wait before tearing down an inactive CryptoAuth
+session\&.
+.RE
+.PP
+
+\fB"security":\fR [\&.\&.\&.]
+.RS 4
+An array that defines what user to change to after startup and whether to
+exempt the Angel process from this user change\&.
+.PP
+\fI"setuser":\fR "username"
+.RS 4
+User to switch to after startup, for security purposes\&. Default value is
+"nobody"\&.
+.PP
+.RE
+\fI"exemptAngel":\fR Integer
+.RS 4
+Whether or not to exempt the Angel process from the user change\&. The Angel is
+a small isolated piece of code which exists outside of the core's strict
+sandbox but does not handle network traffic\&. This option must be enabled for
+ipTunnel to automatically set IP addresses for the TUN device\&.
+.PP
+0 \-\- False
+.br
+1 \-\- True
+.RE
+.RE
+.PP
+
+\fB"logging":\fR {\&.\&.\&.}
+.RS 4
+Add or uncomment "logTo":"stdout" to have cjdns log to stdout rather than
+making logs available via the admin socket
+.RE
+.PP
+
+\fB"noBackground":\fR Integer
+.RS 4
+If set to a non-zero value, cjdns will not fork to the background\&.
+Recommended for use in conjunction with "logTo":"stdout"\&.
+.RE
+.PP
+\fB"dns":\fR {\&.\&.\&.}
+.RS 4
+This section is used to configure the dns capabilities being added to cjdns\&.
+Unfortunetly, there is no documentation for this DNS section at this time\&.
+.PP
+\fI"keys":\fR [\&.\&.\&.]
+.RS 4
+.RE
+.PP
+\fI"servers":\fR [\&.\&.\&.]
+.RS 4
+.RE
+.PP
+\fI"MinSignatures":\fR Integer
+.RS 4
+.RE
+.RE
+
+
+.SH "FILES"
+.BI /etc/cjdroute.conf
+.RS 4
+A common location for the configuration file\&.
+.RE
+
+.SH "SEE ALSO"
+.BR cjdroute (1),
+.BR cjdns (8)
