@@ -145,7 +145,7 @@ struct Allocator_Allocation* Allocator_getAllocation(struct Allocator* alloc, in
  * @return a pointer to the newly allocated memory.
  * @see malloc()
  */
-__attribute__((alloc_size(2)))
+Gcc_ALLOC_SIZE(2)
 void* Allocator__malloc(struct Allocator* allocator,
                         unsigned long length,
                         const char* fileName,
@@ -164,7 +164,7 @@ void* Allocator__malloc(struct Allocator* allocator,
  * @return a pointer to the newly allocated memory.
  * @see calloc()
  */
-__attribute__((alloc_size(2,3)))
+Gcc_ALLOC_SIZE(2,3)
 void* Allocator__calloc(struct Allocator* alloc,
                         unsigned long length,
                         unsigned long count,
@@ -186,7 +186,7 @@ void* Allocator__calloc(struct Allocator* alloc,
  *             without freeing the entire allocator.
  * @return a pointer to the newly allocated memory.
  */
-__attribute__((alloc_size(3)))
+Gcc_ALLOC_SIZE(3)
 void* Allocator__realloc(struct Allocator* allocator,
                          const void* original,
                          unsigned long size,
@@ -205,7 +205,7 @@ void* Allocator__realloc(struct Allocator* allocator,
  *                the size of the new allocation will be sizeof(*content).
  * @return a pointer to the newly allocated memory.
  */
-__attribute__((alloc_size(3)))
+Gcc_ALLOC_SIZE(3)
 void* Allocator__clone(struct Allocator* allocator,
                        const void* toClone,
                        unsigned long length,
@@ -349,7 +349,7 @@ void Allocator_snapshot(struct Allocator* alloc, int includeAllocations);
 #ifndef Allocator_Provider_CONTEXT_TYPE
     #define Allocator_Provider_CONTEXT_TYPE void
 #endif
-__attribute__((alloc_size(3)))
+Gcc_ALLOC_SIZE(3)
 typedef void* (* Allocator_Provider)(Allocator_Provider_CONTEXT_TYPE* ctx,
                                      struct Allocator_Allocation* original,
                                      unsigned long size,

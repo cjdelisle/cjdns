@@ -12,7 +12,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "interface/Iface.h"
 #include "interface/tuntap/TUNInterface.h"
+#include "interface/tuntap/windows/TAPInterface.h"
 #include "interface/tuntap/TAPWrapper.h"
 #include "interface/tuntap/NDPServer.h"
 #include "util/CString.h"
@@ -30,11 +32,11 @@ struct Iface* TUNInterface_new(const char* interfaceName,
     if (isTapMode) { return &tap->generic; }
     struct TAPWrapper* tapWrapper = TAPWrapper_new(&tap->generic, logger, alloc);
     struct NDPServer* ndp =
-        NDPServer_new(&tapWrapper->generic, logger, TAPWrapper_LOCAL_MAC, alloc);
+        NDPServer_new(&tapWrapper->internal, logger, TAPWrapper_LOCAL_MAC, alloc);
 
     // TODO(cjd): this is not right
     ndp->advertisePrefix[0] = 0xfc;
     ndp->prefixLen = 8;
 
-    return &ndp->generic;
+    return &ndp->internal;
 }

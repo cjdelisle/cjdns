@@ -12,8 +12,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "interface/Iface.h"
 #include "interface/tuntap/BSDMessageTypeWrapper.h"
-#include "interface/InterfaceWrapper.h"
 #include "util/platform/Sockaddr.h"
 #include "memory/Allocator.h"
 #include "util/Assert.h"
@@ -30,22 +30,19 @@
 
 struct BSDMessageTypeWrapper_pvt
 {
-    struct Iface generic;
-    struct Iface* const wrapped;
-    const uint16_t afInet_be;
-    const uint16_t afInet6_be;
-    struct Log* const logger;
+    struct BSDMessageTypeWrapper pub;
+    uint16_t afInet_be;
+    uint16_t afInet6_be;
+    struct Log* logger;
     Identity
 };
 
-static uint8_t receiveMessage(struct Message* msg, struct Iface* iface)
+static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* wireSide)
 {
     struct BSDMessageTypeWrapper_pvt* ctx =
-        Identity_check((struct BSDMessageTypeWrapper_pvt*)iface->receiverContext);
+        Identity_containerOf(wireSide, struct BSDMessageTypeWrapper_pvt, pub.wireSide);
 
-    if (msg->length < 4) {
-        return Error_NONE;
-    }
+    if (msg->length < 4) { return Error_NONE; }
 
     uint16_t afType_be = ((uint16_t*) msg->bytes)[1];
     uint16_t ethertype = 0;
@@ -61,13 +58,13 @@ static uint8_t receiveMessage(struct Message* msg, struct Iface* iface)
     ((uint16_t*) msg->bytes)[0] = 0;
     ((uint16_t*) msg->bytes)[1] = ethertype;
 
-    return Iface_send(&ctx->generic, msg);
+    return Iface_next(&ctx->pub.inside, msg);
 }
 
-static uint8_t sendMessage(struct Message* msg, struct Iface* iface)
+static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* inside)
 {
     struct BSDMessageTypeWrapper_pvt* ctx =
-        Identity_check((struct BSDMessageTypeWrapper_pvt*)iface);
+        Identity_containerOf(inside, struct BSDMessageTypeWrapper_pvt, pub.inside);
 
     Assert_true(msg->length >= 4);
 
@@ -83,21 +80,19 @@ static uint8_t sendMessage(struct Message* msg, struct Iface* iface)
     ((uint16_t*) msg->bytes)[0] = 0;
     ((uint16_t*) msg->bytes)[1] = afType_be;
 
-    return Interface_sendMessage(ctx->wrapped, msg);
+    return Iface_next(&ctx->pub.wireSide, msg);
 }
 
-struct Iface* BSDMessageTypeWrapper_new(struct Iface* wrapped, struct Log* logger)
+struct BSDMessageTypeWrapper* BSDMessageTypeWrapper_new(struct Allocator* alloc, struct Log* log)
 {
     struct BSDMessageTypeWrapper_pvt* context =
-        Allocator_clone(wrapped->allocator, (&(struct BSDMessageTypeWrapper_pvt) {
-            .wrapped = wrapped,
-            .afInet6_be = Endian_hostToBigEndian16(Sockaddr_AF_INET6),
-            .afInet_be = Endian_hostToBigEndian16(Sockaddr_AF_INET),
-            .logger = logger
-        }));
+        Allocator_calloc(alloc, sizeof(struct BSDMessageTypeWrapper_pvt), 1);
     Identity_set(context);
+    context->pub.wireSide.send = receiveMessage;
+    context->pub.inside.send = sendMessage;
+    context->afInet6_be = Endian_hostToBigEndian16(Sockaddr_AF_INET6);
+    context->afInet_be = Endian_hostToBigEndian16(Sockaddr_AF_INET);
+    context->logger = log;
 
-    InterfaceWrapper_wrap(wrapped, sendMessage, receiveMessage, &context->generic);
-
-    return &context->generic;
+    return &context->pub;
 }

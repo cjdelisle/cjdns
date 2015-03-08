@@ -112,8 +112,11 @@ Builder.configure({
 
             // lots of places where depending on preprocessor conditions, a statement might be
             // a case of if (1 == 1)
-            '-Wno-tautological-compare'
+            '-Wno-tautological-compare',
+
+            '-Wno-error'
         );
+        builder.config.cflags.slice(builder.config.cflags.indexOf('-Werror'), 1);
     }
 
     // Install any user-defined CFLAGS. Necessary if you are messing about with building cnacl

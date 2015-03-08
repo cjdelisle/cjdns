@@ -15,6 +15,7 @@
 #ifndef TAPInterface_H
 #define TAPInterface_H
 
+#include "interface/Iface.h"
 #include "exception/Except.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"

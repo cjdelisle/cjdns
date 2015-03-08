@@ -15,10 +15,13 @@
 #ifndef Gcc_H
 #define Gcc_H
 
-#if defined(__GNUC__) && (__GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ > 4))
+#if !defined(__clang__) && \
+    defined(__GNUC__) && \
+    (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 4))
 
 #define Gcc_PRINTF( format_idx, arg_idx ) \
     __attribute__((__format__ (__printf__, format_idx, arg_idx)))
+
 #define Gcc_NORETURN \
     __attribute__((__noreturn__))
 
@@ -31,15 +34,33 @@
 #define Gcc_PACKED \
     __attribute__ ((packed))
 
+#define Gcc_ALLOC_SIZE(...) \
+    __attribute__ ((alloc_size(__VA_ARGS__)))
 
-#else
+#elif defined(__clang__)
 
-#define Gcc_PRINTF( format_idx, arg_idx )
-#define Gcc_NORETURN
-#define Gcc_NONNULL(num)
-#define Gcc_PURE
-#define Gcc_PACKED
+#define Gcc_NORETURN \
+    __attribute__((__noreturn__))
 
+#endif
+
+#ifndef Gcc_PRINTF
+    #define Gcc_PRINTF( format_idx, arg_idx )
+#endif
+#ifndef Gcc_NORETURN
+    #define Gcc_NORETURN
+#endif
+#ifndef Gcc_NONNULL
+    #define Gcc_NONNULL(...)
+#endif
+#ifndef Gcc_PURE
+    #define Gcc_PURE
+#endif
+#ifndef Gcc_PACKED
+    #define Gcc_PACKED
+#endif
+#ifndef Gcc_ALLOC_SIZE
+    #define Gcc_ALLOC_SIZE(...)
 #endif
 
 #define Gcc_SHORT_FILE <?js return '"'+__FILE__.substring(__FILE__.lastIndexOf('/')+1)+'"'; ?>

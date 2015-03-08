@@ -20,10 +20,12 @@
 #include "exception/Except.h"
 #include "exception/WinFail.h"
 #include "memory/Allocator.h"
+#include "interface/tuntap/windows/TAPInterface.h"
 #include "interface/tuntap/windows/TAPDevice.h"
 #include "util/events/EventBase.h"
 #include "util/platform/netdev/NetDev.h"
 #include "wire/Error.h"
+#include "wire/Message.h"
 
 #include <stdio.h>
 #include <windows.h>
@@ -217,12 +219,12 @@ static void writeCallback(uv_iocp_t* writeIocp)
     writeCallbackB(tap);
 }
 
-static uint8_t sendMessage(struct Message* msg, struct Iface* iface)
+static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* iface)
 {
     struct TAPInterface_pvt* tap = Identity_check((struct TAPInterface_pvt*) iface);
     if (tap->writeMessageCount >= WRITE_MESSAGE_SLOTS) {
         Log_info(tap->log, "DROP message because the tap is lagging");
-        return Error_UNDELIVERABLE;
+        return 0;
     }
     if (!tap->pendingWritesAlloc) {
         tap->pendingWritesAlloc = Allocator_child(tap->alloc);
@@ -255,7 +257,7 @@ struct TAPInterface* TAPInterface_new(const char* preferredName,
     tap->alloc = alloc;
     tap->log = logger;
     tap->pub.assignedName = dev->name;
-    tap->pub.generic.sendMessage = sendMessage;
+    tap->pub.generic.send = sendMessage;
 
     tap->handle = CreateFile(dev->path,
                              GENERIC_READ | GENERIC_WRITE,
