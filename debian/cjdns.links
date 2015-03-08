@@ -1,5 +1,1 @@
-/usr/lib/cjdns/cjdnsa /usr/bin/cjdnsa
-/usr/lib/cjdns/cjdnsadminmaker.py /usr/bin/cjdnsadminmaker.py
-/usr/lib/cjdns/cjdnslog /usr/bin/cjdnslog
-/usr/lib/cjdns/peerStats /usr/bin/peerStats
 /usr/share/cjdns/cjdnsadmin /usr/lib/cjdns/cjdnsadmin
