@@ -38,7 +38,7 @@
 static void catchViolation(int sig, siginfo_t* si, void* threadContext)
 {
     printf("Attempted banned syscall number [%d] see doc/Seccomp.md for more information\n",
-           si->si_value.sival_int);
+           si->si_syscall);
     Assert_failure("Disallowed Syscall");
 }
 
