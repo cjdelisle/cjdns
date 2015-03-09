@@ -1,0 +1,2 @@
+contrib/python/cjdns-dynamic.conf /etc/
+contrib/python/dynamicEndpoints.py /usr/lib/cjdns/

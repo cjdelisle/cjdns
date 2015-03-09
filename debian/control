@@ -2,15 +2,17 @@ Source: cjdns
 Section: comm
 Priority: extra
 Maintainer: Sergey "Shnatsel" Davidoff <shnatsel@gmail.com>
-Build-Depends: debhelper (>= 8.0.0), nodejs (>= 0.8.15) | wget, python2.7
+Build-Depends: debhelper (>= 8.0.0), nodejs (>= 0.8.15) | wget, python (>= 2.7), dh-python
 Standards-Version: 3.9.2
 Homepage: https://github.com/cjdelisle/cjdns/
 Vcs-Git: git://github.com/cjdelisle/cjdns.git
 Vcs-Browser: https://github.com/cjdelisle/cjdns/
+X-Python-Version: >= 2.7
 
 Package: cjdns
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}
+Suggests: cjdns-dynamic
 Description: Encrypted networking for regular people
  Cjdns implements an encrypted IPv6 network using public key cryptography
  for address allocation and a distributed hash table for routing.
@@ -30,3 +32,11 @@ Description: Encrypted networking for regular people (debugging symbols)
  and robustness issues that regular IPv4 and IPv6 networks have.
  .
  This package contains debugging symbols for cjdns.
+
+Package: cjdns-dynamic
+Architecture: any
+Depends: cjdns (= ${binary:Version}), ${misc:Depends}, python (>= 2.7)
+Description: cjdns dynamic DNS peer resolver service
+ This package contains a dynamic DNS peer resolver script that allows you to use
+ hostnames instead of IP addresses for your cjdns mesh network peers. This
+ package is configured through /etc/cjdns-dynamic.conf
