@@ -25,9 +25,17 @@
  *  0 | ver | sessNum |    congest    |           Timestamp           |
  *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  *
- * The PeerHeader is sent between direct peers in order to detect congestion so packets can be
- * dropped when necessary. It also provides for peers to intentionally maintain multiple
- * simultanious sessions, for example a wifi connection and an eth connection.
+ * The PeerHeader is sent between direct peers in order to detect congestion.
+ * It also provides for peers to wish to intentionally maintain multiple simultanious sessions,
+ * for example a wifi connection and an eth connection.
+ *
+ * @ver the version number of the PeerHeader, set to PeerHeader_CURRENT_VERSION
+ * @sessNum if one node connects to another one multiple times using different interfaces, this
+ *          number should be incremented for each connection between the two nodes.
+ * @congest an explicit value indicating congestion in opposite direction of the link.
+ * @param timestamp a (big endian) number containing which is set using the millisecond clock on
+ *                  the sending node. The receiving node can use this to detect probable skew
+ *                  and then notify via the congest field if packets begin arriving late.
  */
 struct PeerHeader
 {
@@ -35,12 +43,15 @@ struct PeerHeader
     uint8_t versionAndSessNum;
 
     /**
-     * A number used to indicate that the link has become congested and traffic should be
+     * A number used to indicate that the link has become congested and traffic flow should be
      * decreased. In practice this may be the number of milliseconds of latency (clock - timestamp)
-     *  
+     * minus the smallest latency ever detected on the link. It should go without saying that if
+     * the value is negative, it should be set to zero and if it is above 255, it should be 255.
+     */
     uint8_t congest;
 
-    uint16_t contentType_be;
+    /** The time when the packet left the last internal buffer in the sending node. */
+    uint16_t timestamp_be;
 };
 #define PeerHeader_SIZE 4
 Assert_compileTime(sizeof(struct PeerHeader) == PeerHeader_SIZE);
@@ -48,25 +59,32 @@ Assert_compileTime(sizeof(struct PeerHeader) == PeerHeader_SIZE);
 #define PeerHeader_CURRENT_VERSION 0
 
 
-static inline enum ContentType PeerHeader_getContentType(struct PeerHeader* hdr)
+static inline uint16_t PeerHeader_getTimestamp(struct PeerHeader* hdr)
 {
-    return Endian_bigEndianToHost16(hdr->contentType_be);
+    return Endian_bigEndianToHost16(hdr->timestamp_be);
 }
 
-static inline void PeerHeader_setContentType(struct PeerHeader* hdr, enum ContentType type)
+static inline void PeerHeader_setTimestamp(struct PeerHeader* hdr, uint16_t timestamp)
 {
-    Assert_true(type <= 0xffff);
-    hdr->contentType_be = Endian_hostToBigEndian16(type);
+    hdr->timestamp_be = Endian_hostToBigEndian16(timestamp);
 }
 
 static inline void PeerHeader_setVersion(struct PeerHeader* hdr, uint8_t version)
 {
-    hdr->versionAndFlags = (hdr->versionAndFlags & 0x0f) | (version << 4);
+    Assert_true(version < (1<<5));
+    hdr->versionAndSessNum = (hdr->versionAndSessNum & ((1<<5)-1)) | (version << 5);
 }
 
 static inline uint8_t PeerHeader_getVersion(struct PeerHeader* hdr)
 {
-    return hdr->versionAndFlags >> 4;
+    return hdr->versionAndSessNum >> 5;
 }
+
+static inline uint8_t PeerHeader_getSessionNum(struct PeerHeader* hdr)
+{
+    return hdr->versionAndSessNum & ((1<<5)-1);
+}
+
+
 
 #endif
