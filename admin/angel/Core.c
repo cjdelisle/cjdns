@@ -35,9 +35,6 @@
 #include "net/InterfaceController_admin.h"
 #include "interface/addressable/PacketHeaderToUDPAddrIface.h"
 #include "interface/FramingIface.h"
-#include "interface/RainflyClient.h"
-#include "interface/RainflyClient_admin.h"
-#include "interface/DNSServer.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
 #include "memory/Allocator_admin.h"
@@ -192,21 +189,6 @@ void Core_init(struct Allocator* alloc,
 
     Pathfinder_register(alloc, logger, eventBase, rand, admin, nc->ee);
 
-    // ------------------- DNS -------------------------//
-
-    struct Sockaddr_storage rainflyAddr;
-    Assert_true(!Sockaddr_parse("::", &rainflyAddr));
-    struct UDPAddrIface* rainflyIface =
-        UDPAddrIface_new(eventBase, &rainflyAddr.addr, alloc, eh, logger);
-    struct RainflyClient* rainfly =
-        RainflyClient_new(&rainflyIface->generic, eventBase, rand, logger);
-    Assert_true(!Sockaddr_parse("[fc00::1]:53", &rainflyAddr));
-    struct PacketHeaderToUDPAddrIface* magicUDP =
-        PacketHeaderToUDPAddrIface_new(alloc, &rainflyAddr.addr);
-    Iface_plumb(&magicUDP->headerIf, &nc->tunAdapt->magicIf);
-    DNSServer_new(&magicUDP->udpIf, logger, rainfly);
-
-
     // ------------------- Register RPC functions ----------------------- //
     InterfaceController_admin_register(nc->ifController, admin, alloc);
     SwitchPinger_admin_register(nc->sp, admin, alloc);
@@ -220,7 +202,6 @@ void Core_init(struct Allocator* alloc,
     Security_admin_register(alloc, logger, sec, admin);
     IpTunnel_admin_register(ipTunnel, admin, alloc);
     SessionManager_admin_register(nc->sm, admin, alloc);
-    RainflyClient_admin_register(rainfly, admin, alloc);
     Allocator_admin_register(alloc, admin);
 
     struct Context* ctx = Allocator_calloc(alloc, sizeof(struct Context), 1);
