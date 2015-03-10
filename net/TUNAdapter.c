@@ -83,6 +83,9 @@ static Iface_DEFUN incomingFromTunIf(struct Message* msg, struct Iface* tunIf)
         TUNMessageType_push(msg, ethertype, NULL);
         return Iface_next(tunIf, msg);
     }
+    if (!Bits_memcmp(header->destinationAddr, "\xfc\0\0\0\0\0\0\0\0\0\0\0\0\0\0\x01", 16)) {
+        return Iface_next(&ud->pub.magicIf, msg);
+    }
 
     // first move the dest addr to the right place.
     Bits_memmoveConst(&header->destinationAddr[-DataHeader_SIZE], header->destinationAddr, 16);
@@ -114,6 +117,13 @@ static Iface_DEFUN incomingFromIpTunnelIf(struct Message* msg, struct Iface* ipT
 {
     struct TUNAdapter_pvt* ud =
         Identity_containerOf(ipTunnelIf, struct TUNAdapter_pvt, pub.ipTunnelIf);
+    return Iface_next(&ud->pub.tunIf, msg);
+}
+
+static Iface_DEFUN incomingFromMagicIf(struct Message* msg, struct Iface* magicIf)
+{
+    struct TUNAdapter_pvt* ud =
+        Identity_containerOf(magicIf, struct TUNAdapter_pvt, pub.magicIf);
     return Iface_next(&ud->pub.tunIf, msg);
 }
 
@@ -150,6 +160,7 @@ struct TUNAdapter* TUNAdapter_new(struct Allocator* alloc, struct Log* log, uint
     out->pub.tunIf.send = incomingFromTunIf;
     out->pub.ipTunnelIf.send = incomingFromIpTunnelIf;
     out->pub.upperDistributorIf.send = incomingFromUpperDistributorIf;
+    out->pub.magicIf.send = incomingFromMagicIf;
     out->log = log;
     Identity_set(out);
     Bits_memcpyConst(out->myIp6, myIp6, 16);

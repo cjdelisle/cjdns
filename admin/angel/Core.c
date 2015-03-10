@@ -203,7 +203,7 @@ void Core_init(struct Allocator* alloc,
     Assert_true(!Sockaddr_parse("[fc00::1]:53", &rainflyAddr));
     struct PacketHeaderToUDPAddrIface* magicUDP =
         PacketHeaderToUDPAddrIface_new(alloc, &rainflyAddr.addr);
-//    Iface_plumb(&magicUDP->headerIf, &dtAAAAAAAAAAAAAA->magicIf);
+    Iface_plumb(&magicUDP->headerIf, &nc->tunAdapt->magicIf);
     DNSServer_new(&magicUDP->udpIf, logger, rainfly);
 
 
@@ -217,7 +217,6 @@ void Core_init(struct Allocator* alloc,
 
     AuthorizedPasswords_init(admin, nc->ca, alloc);
     Admin_registerFunction("ping", adminPing, admin, false, NULL, admin);
-//    Core_admin_register(myAddr, logger, ipTun, alloc, admin, eventBase);
     Security_admin_register(alloc, logger, sec, admin);
     IpTunnel_admin_register(ipTunnel, admin, alloc);
     SessionManager_admin_register(nc->sm, admin, alloc);
