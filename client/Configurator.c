@@ -12,8 +12,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "admin/AdminClient.h"
-#include "admin/Configurator.h"
+#include "client/AdminClient.h"
+#include "client/Configurator.h"
 #include "benc/String.h"
 #include "benc/Dict.h"
 #include "benc/Int.h"

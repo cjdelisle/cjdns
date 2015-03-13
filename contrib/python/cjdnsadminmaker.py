@@ -1,5 +1,13 @@
 #!/usr/bin/env python2
 
+"""
+Automagically generate a .cjdnsadmin file.
+
+Searches around for cjdroute.conf and the cjdns executable, cleans the config
+into proper JSON, and saves just the RPC admin info to a file. By default this
+is ~/.cjdnsadmin, but you can specify any file you want.
+"""
+
 import json
 import os
 import sys
@@ -22,7 +30,12 @@ cjdroutelocations = ["/opt/cjdns",
 
 cjdroutelocations += os.getenv("PATH").split(":")
 
-cjdnsadmin_path = os.path.expanduser("~/.cjdnsadmin")
+if len(sys.argv) == 0:
+    # Write the file in the default location
+    cjdnsadmin_path = os.path.expanduser("~/.cjdnsadmin") 
+else:
+    # Write the file in some other location
+    cjdnsadmin_path = sys.argv[1]
 
 
 def ask(question, default):
@@ -77,9 +90,9 @@ def cleanup_config(conf):
     try:
         return json.load(process.stdout)
     except ValueError:
-        print "Failed to parse!"
+        print "Failed to parse! Check:"
         print "-" * 8
-        print cleanconf
+        print "{} --cleanconf < {}".format(cjdroute, conf)
         print "-" * 8
         sys.exit(1)
 

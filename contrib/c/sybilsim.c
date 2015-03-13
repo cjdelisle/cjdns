@@ -19,7 +19,7 @@
 #include "benc/List.h"
 #include "io/ArrayReader.h"
 #include "admin/angel/Core.h"
-#include "admin/AdminClient.h"
+#include "client/AdminClient.h"
 #include "interface/ASynchronizer.h"
 #include "interface/addressable/AddrIfaceAdapter.h"
 #include "memory/MallocAllocator.h"
