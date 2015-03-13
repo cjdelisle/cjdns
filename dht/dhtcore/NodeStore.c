@@ -1222,12 +1222,14 @@ static struct Node_Two* whichIsWorse(struct Node_Two* one,
             }
         }
     }
-    if (Node_getReach(one) < Node_getReach(two)) { return one; }
-    if (Node_getReach(two) < Node_getReach(one)) { return two; }
-    if (Address_closest(&store->pub.selfNode->address, &one->address, &two->address) > 0) {
-        return one;
-    }
-    return two;
+
+    uint32_t selfPrefix = Address_getPrefix(&store->pub.selfNode->address);
+    uint64_t distOne = Address_getPrefix(&one->address) ^ selfPrefix;
+    uint64_t distTwo = Address_getPrefix(&two->address) ^ selfPrefix;
+    distOne += 0xffffffff - Node_getReach(one);
+    distTwo += 0xffffffff - Node_getReach(two);
+    if (distOne < distTwo) { return two; }
+    return one;
 }
 
 struct NodeList* NodeStore_getNodesForBucket(struct NodeStore* nodeStore,
