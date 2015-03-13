@@ -12,26 +12,25 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef DNSServer_H
-#define DNSServer_H
+#ifndef Configurator_H
+#define Configurator_H
 
-#include "interface/addressable/AddrIface.h"
+#include "benc/String.h"
+#include "benc/Dict.h"
+#include "memory/Allocator.h"
 #include "util/log/Log.h"
-#include "interface/RainflyClient.h"
+#include "util/events/EventBase.h"
 #include "util/platform/Sockaddr.h"
 #include "util/Linker.h"
-Linker_require("interface/DNSServer.c")
+Linker_require("client/Configurator.c")
 
-struct DNSServer
-{
-    int unused;
-};
+#include <stdint.h>
 
-#define DNSServer_addServer_WRONG_ADDRESS_TYPE -1
-int DNSServer_addServer(struct DNSServer* dns, struct Sockaddr* server);
-
-struct DNSServer* DNSServer_new(struct AddrIface* iface,
-                                struct Log* logger,
-                                struct RainflyClient* rainfly);
+void Configurator_config(Dict* config,
+                         struct Sockaddr* addr,
+                         String* adminPassword,
+                         struct EventBase* eventBase,
+                         struct Log* logger,
+                         struct Allocator* alloc);
 
 #endif

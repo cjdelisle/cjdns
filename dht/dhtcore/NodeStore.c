@@ -1205,9 +1205,10 @@ static struct Node_Two* whichIsWorse(struct Node_Two* one,
     if (worse) {
         return (worse > 0) ? two : one;
     }
-    worse = one->pinned - two->pinned;
+
+    worse = (one->address.path == UINT64_MAX) - (two->address.path == UINT64_MAX);
     if (worse) {
-        return (worse > 0) ? two : one;
+        return (worse > 0) ? one : two;
     }
 
     if (one->address.protocolVersion != two->address.protocolVersion) {
@@ -1221,12 +1222,14 @@ static struct Node_Two* whichIsWorse(struct Node_Two* one,
             }
         }
     }
-    if (Node_getReach(one) < Node_getReach(two)) { return one; }
-    if (Node_getReach(two) < Node_getReach(one)) { return two; }
-    if (Address_closest(&store->pub.selfNode->address, &one->address, &two->address) > 0) {
-        return one;
-    }
-    return two;
+
+    uint32_t selfPrefix = Address_getPrefix(&store->pub.selfNode->address);
+    uint64_t distOne = Address_getPrefix(&one->address) ^ selfPrefix;
+    uint64_t distTwo = Address_getPrefix(&two->address) ^ selfPrefix;
+    distOne += 0xffffffff - Node_getReach(one);
+    distTwo += 0xffffffff - Node_getReach(two);
+    if (distOne < distTwo) { return two; }
+    return one;
 }
 
 struct NodeList* NodeStore_getNodesForBucket(struct NodeStore* nodeStore,
@@ -1539,7 +1542,7 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
     handleNews(link->child, reach, store);
     freePendingLinks(store);
 
-    while ((store->pub.nodeCount - store->pub.peerCount - store->pub.pinnedNodes) >
+    while ((store->pub.nodeCount - store->pub.peerCount) >
         store->pub.nodeCapacity
             || store->pub.linkCount > store->pub.linkCapacity)
     {

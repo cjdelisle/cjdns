@@ -368,7 +368,7 @@ Builder.configure({
 
 }).build(function (builder, waitFor) {
 
-    builder.buildExecutable('admin/angel/cjdroute2.c', 'cjdroute');
+    builder.buildExecutable('client/cjdroute2.c', 'cjdroute');
 
     builder.buildExecutable('contrib/c/publictoip6.c');
     builder.buildExecutable('contrib/c/privatetopublic.c');
