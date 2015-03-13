@@ -49,6 +49,10 @@ Achievements expire, so if at any given time you don't qualify, you lose those p
 37. Document an undocumented function or component of cjdns.
 38. Implement a function or component of cjdns in an alternate language
 39. Translate an article into another language (and maintain it).
+40. Update cjdns without pinging out on IRC.
+41. Configure an authorizedPassword without restarting cjdns.
+42. Find out whether your home router can run cjdns: [OpenWrt table of hardware](http://wiki.openwrt.org/toh/start)
+43. Try out the [Meshbox firmware](https://github.com/seattlemeshnet/meshbox) on your home router.
 
 ## Penalties
 

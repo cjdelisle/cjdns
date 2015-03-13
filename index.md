@@ -28,6 +28,8 @@ Here's some documentation we've been working on. Feel free to fork us and [add s
 * [cjdroute.conf](notes/cjdroute.md)
 * [cjdns/do](notes/do.md)
 * [DNS ideas](notes/dns.md)
+* [Build for Windows on Windows with cygwin](notes/build-on-windows.md)
+* [Securing your Windows Box](notes/windows-firewall.md)
 
 ## Cjdns ships with a fair amount of documentation
 
