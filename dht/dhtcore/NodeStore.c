@@ -1205,9 +1205,10 @@ static struct Node_Two* whichIsWorse(struct Node_Two* one,
     if (worse) {
         return (worse > 0) ? two : one;
     }
-    worse = one->pinned - two->pinned;
+
+    worse = (one->address.path == UINT64_MAX) - (two->address.path == UINT64_MAX);
     if (worse) {
-        return (worse > 0) ? two : one;
+        return (worse > 0) ? one : two;
     }
 
     if (one->address.protocolVersion != two->address.protocolVersion) {
@@ -1539,7 +1540,7 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
     handleNews(link->child, reach, store);
     freePendingLinks(store);
 
-    while ((store->pub.nodeCount - store->pub.peerCount - store->pub.pinnedNodes) >
+    while ((store->pub.nodeCount - store->pub.peerCount) >
         store->pub.nodeCapacity
             || store->pub.linkCount > store->pub.linkCapacity)
     {
