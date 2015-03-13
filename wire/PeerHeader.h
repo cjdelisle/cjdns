@@ -85,6 +85,10 @@ static inline uint8_t PeerHeader_getSessionNum(struct PeerHeader* hdr)
     return hdr->versionAndSessNum & ((1<<5)-1);
 }
 
-
+static inline uint8_t PeerHeader_setSessionNum(struct PeerHeader* hdr, uint8_t sessNum)
+{
+    Assert_true(sessNum <= 1<<5);
+    hdr->versionAndSessNum = ( hdr->versionAndSessNum & ((1<<5)-1) ) | sessNum;
+}
 
 #endif

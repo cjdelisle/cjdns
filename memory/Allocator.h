@@ -293,13 +293,28 @@ void Allocator_onFreeComplete(struct Allocator_OnFreeJob* onFreeJob);
  *
  * @param parentAlloc the allocator to create a child of.
  * @param toAdopt the allocator which should be adopted by the returned child allocator.
- * @return a new allocator which is an adopted parent of toAdopt.
  */
 void Allocator__adopt(struct Allocator* parentAlloc,
                       struct Allocator* alloc,
                       const char* fileName,
                       int lineNum);
 #define Allocator_adopt(a, b) Allocator__adopt((a),(b),Gcc_SHORT_FILE,Gcc_LINE)
+
+/**
+ * Disown an allocator.
+ *
+ * Sever the link between an adopted parent allocator and the child which it has adopted.
+ * If this causes the child allocator to disconnect from the tree entirely, it will be
+ * freed.
+ *
+ * @param parentAlloc the parent which has adopted the child allocator.
+ * @param childToDisown the child allocator which has been adopted.
+ */
+void Allocator__disown(struct Allocator* parentAlloc,
+                       struct Allocator* allocToDisown,
+                       const char* fileName,
+                       int lineNum);
+#define Allocator_disown(a, b) Allocator__disown((a),(b),Gcc_SHORT_FILE,Gcc_LINE)
 
 /**
  * Set the heap protection canary for the next child allocator.

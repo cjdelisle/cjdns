@@ -650,6 +650,27 @@ static int isAncestorOf(struct Allocator_pvt* maybeParent,
     return 0;
 }
 
+void Allocator__disown(struct Allocator* parentAlloc,
+                       struct Allocator* allocToDisown,
+                       const char* fileName,
+                       int lineNum)
+{
+    struct Allocator_pvt* parent = Identity_check((struct Allocator_pvt*) parentAlloc);
+    struct Allocator_pvt* child = Identity_check((struct Allocator_pvt*) allocToDisown);
+
+    if (parent->pub.isFreeing || child->pub.isFreeing) { return; }
+
+    if (child->parent == parent) {
+        // The child's natural parent has been freed and it has pivoted to the adopted parent
+        // Do a normal Allocator_free() and it will either pivot once again to another adopter
+        // or it will drop from the tree and free.
+        Allocator__free(child, fileName, lineNum);
+        return;
+    }
+
+    disconnectAdopted(parent, child);
+}
+
 void Allocator__adopt(struct Allocator* adoptedParent,
                       struct Allocator* childToAdopt,
                       const char* file,
