@@ -259,6 +259,9 @@ static struct sock_fprog* mkFilter(struct Allocator* alloc, struct Except* eh)
 
         // printf()
         IFEQ(__NR_fstat, success),
+        #ifdef __NR_fstat64
+            IFEQ(__NR_fstat64, success),
+        #endif
 
         RET(SECCOMP_RET_TRAP),
 
