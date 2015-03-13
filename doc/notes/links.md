@@ -19,6 +19,11 @@
   - An international effort to make community networks collaborate with one another.
 - [Wireless Commons](https://guifi.net/en/WCL_EN)
 
+## Protocols
+
+- [n2n](http://www.ntop.org/products/n2n/)
+  - A Layer Two Peer-to-Peer VPN
+
 ## Appliances
 
 - [Commotion Wireless](https://commotionwireless.net)
