@@ -25,11 +25,12 @@ struct PeerLink_pvt
     Identity
 };
 
-struct Message* PeerLink_poll(struct PeerLink* pl)
+
+struct Message* PeerLink_poll(struct PeerLink* peerLink)
 {
 }
 
-int PeerLink_send(struct Message* msg, struct PeerLink* pl)
+int PeerLink_send(struct Message* msg, struct PeerLink* peerLink)
 {
 }
 

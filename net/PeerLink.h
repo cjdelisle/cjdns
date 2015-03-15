@@ -31,6 +31,8 @@ Linker_require("net/PeerLink.c")
 struct PeerLink
 {
     int queueLength;
+    int linkMTU;
+    bool peerHeaderEnabled;
 };
 
 /**
@@ -41,16 +43,18 @@ struct Message* PeerLink_poll(struct PeerLink* pl);
 
 /**
  * Enqueue a message to be sent.
- * @return the number of messages which are ready to be written to the device. Call PeerLink_poll()
- *         to access these messages for actual sending.
+ * @return the number of messages which are ready to be encrypted and written to the device.
+ *         Call PeerLink_poll() to get these messages for actual sending.
  */
 int PeerLink_send(struct Message* msg, struct PeerLink* pl);
 
 /**
- * Receive (decrypt and check the PeerHeader on) a message which has come in from the wire.
- * Receiving is synchronous so the message will always be returned unless decryption fails.
+ * Receive (check the PeerHeader on) a message which has come in from the wire.
+ * PeerHeader_SIZE bytes will be popped from the message if peerHeaders are enabled for this
+ * peerLink.
+ * @return 0 unless something is very wrong.
  */
-struct Message* PeerLink_recv(struct Message* msg, struct PeerLink* pl);
+int PeerLink_recv(struct Message* msg, struct PeerLink* pl);
 
 
 struct PeerLink* PeerLink_new(struct EventBase* base, struct Allocator* alloc);

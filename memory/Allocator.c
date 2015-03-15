@@ -664,7 +664,7 @@ void Allocator__disown(struct Allocator* parentAlloc,
         // The child's natural parent has been freed and it has pivoted to the adopted parent
         // Do a normal Allocator_free() and it will either pivot once again to another adopter
         // or it will drop from the tree and free.
-        Allocator__free(child, fileName, lineNum);
+        Allocator__free(&child->pub, fileName, lineNum);
         return;
     }
 
