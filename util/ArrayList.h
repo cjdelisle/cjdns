@@ -24,6 +24,7 @@ void* ArrayList_new(struct Allocator* alloc, int initialCapacity);
 int ArrayList_add(void* list, void* val);
 void* ArrayList_get(void* list, int number);
 int ArrayList_put(void* list, int number, void* val);
+void* ArrayList_shift(void* list);
 
 #endif // Used multiple times...
 
@@ -69,6 +70,11 @@ static inline int ArrayList_FUNCTION(put)(struct ArrayList_STRUCT* list,
 static inline int ArrayList_FUNCTION(add)(struct ArrayList_STRUCT* list, void* val)
 {
     return ArrayList_put((void*) list, list->length, val);
+}
+
+static inline ArrayList_TYPE* ArrayList_FUNCTION(shift)(struct ArrayList_STRUCT* list)
+{
+    return (ArrayList_TYPE*) ArrayList_shift((void*) list);
 }
 
 #undef ArrayList_TYPE

@@ -15,11 +15,13 @@
 #ifndef PeerLink_H
 #define PeerLink_H
 
-#include "interface/Iface.h"
+#include "wire/Message.h"
 #include "memory/Allocator.h"
-#include "util/log/Log.h"
+#include "util/events/EventBase.h"
 #include "util/Linker.h"
 Linker_require("net/PeerLink.c")
+
+#include <stdbool.h>
 
 /**
  * The PeerLink adds a PeerHeader to outgoing messages and removes it from incoming messages while
@@ -52,9 +54,8 @@ int PeerLink_send(struct Message* msg, struct PeerLink* pl);
  * Receive (check the PeerHeader on) a message which has come in from the wire.
  * PeerHeader_SIZE bytes will be popped from the message if peerHeaders are enabled for this
  * peerLink.
- * @return 0 unless something is very wrong.
  */
-int PeerLink_recv(struct Message* msg, struct PeerLink* pl);
+void PeerLink_recv(struct Message* msg, struct PeerLink* pl);
 
 
 struct PeerLink* PeerLink_new(struct EventBase* base, struct Allocator* alloc);
