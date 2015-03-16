@@ -648,6 +648,9 @@ int main(int argc, char** argv)
 
     int64_t* noBackground = Dict_getInt(&config, String_CONST("noBackground"));
     if (forceNoBackground || (noBackground && *noBackground)) {
+        Log_debug(logger, "Keeping cjdns client alive because %s",
+            (forceNoBackground) ? "--nobg was specified on the command line"
+                                : "noBackground was set in the configuration");
         EventBase_beginLoop(eventBase);
     }
 

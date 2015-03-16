@@ -19,23 +19,24 @@
 #include "exception/Except.h"
 #include "util/Linker.h"
 #define Setuid_IMPL "util/Setuid_" + builder.config.systemName + ".c"
+
+void Setuid_preSetuid(struct Allocator* alloc, struct Except* eh);
+void Setuid_postSetuid(struct Allocator* alloc, struct Except* eh);
+
 <?js
     var done = this.async();
     require("fs").exists(Setuid_IMPL, function (exists) {
-        file.Setuid_EXISTS = exists;
-        done();
+        var out = "";
+        if (!exists) {
+            out = "void Setuid_preSetuid(struct Allocator* alloc, struct Except* eh) { }\n" +
+                "void Setuid_postSetuid(struct Allocator* alloc, struct Except* eh) { }";
+            console.log("No setuid keepNetAdmin");
+        } else {
+            file.links.push(Setuid_IMPL);
+            console.log("Has setuid keepNetAdmin");
+        }
+        done(out);
     });
-?>
-<?js
-    if (file.Setuid_EXISTS) {
-        Linker_require(Setuid_IMPL)
-        return "void Setuid_preSetuid(struct Allocator* alloc, struct Except* eh);\n" +
-            "void Setuid_postSetuid(struct Allocator* alloc, struct Except* eh);"
-    } else {
-        return
-            "static inline void Setuid_preSetuid(struct Allocator* alloc, struct Except* eh) { }\n"+
-            "static inline void Setuid_postSetuid(struct Allocator* alloc, struct Except* eh) { }"
-    }
 ?>
 
 #endif
