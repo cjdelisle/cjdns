@@ -15,6 +15,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 var Cjdns = require('../contrib/nodejs/cjdnsadmin/cjdnsadmin');
+var PublicToIp6 = require('./lib/publicToIp6');
+
+var distance = function (myAddr, theirAddr) {
+    var myInt = Number('0x' + myAddr.substring(20, 28).replace(':', ''));
+    var theirInt = Number('0x' + theirAddr.substring(20, 28).replace(':', ''));
+    var out = (myInt ^ theirInt).toString(16);
+    while (out.length < 7) { out = '0'+out; }
+    return out;
+};
 
 Cjdns.connectWithAdminInfo(function (cjdns) {
 
@@ -31,9 +40,14 @@ Cjdns.connectWithAdminInfo(function (cjdns) {
             if (j) {
                 again(i+1);
             } else {
+                console.log('ver       path                               addr' +
+                            '                               kDist  physdist lastPinged');
                 list.sort(function (a,b) { return a.path < b.path ? -1 : 1; });
+                var myAddr = PublicToIp6.convert(list[0].addr.replace(/^([^\.]*\.){5}/,''));
                 list.forEach(function (r) {
-                    console.log(r.addr + ' ' + r.link + ' ' + r.time);
+                    var theirAddr = PublicToIp6.convert(r.addr.replace(/^([^\.]*\.){5}/,''));
+                    var dist = distance(myAddr, theirAddr);
+                    console.log(r.addr + ' ' + dist + ' ' + r.link + ' ' + r.time);
                 });
 
                 console.log(table.count + ' nodes ' + table.peers + ' peers');
