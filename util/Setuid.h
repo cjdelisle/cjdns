@@ -32,7 +32,7 @@ void Setuid_postSetuid(struct Allocator* alloc, struct Except* eh);
                 "void Setuid_postSetuid(struct Allocator* alloc, struct Except* eh) { }";
             console.log("No setuid keepNetAdmin");
         } else {
-            Linker_require(Setuid_IMPL)
+            file.links.push(Setuid_IMPL);
             console.log("Has setuid keepNetAdmin");
         }
         done(out);
