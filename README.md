@@ -47,7 +47,8 @@ To minimize the harm to the network, please update your cjdns nodes often.
 We are in need of some buildbots on more obscure systems and architectures.
 If you would like to donate one, you could mail it, or you could administer
 it and provide remote shell access. Please email `buildbot@seattlemesh.net`
-if you'd like to help out.
+if you'd like to run a buildbot. Note that it is not a general support inbox,
+other questions should be directed toward IRC.
 
 
 
