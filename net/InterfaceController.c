@@ -455,10 +455,10 @@ static Iface_DEFUN sendFromSwitch(struct Message* msg, struct Iface* switchIf)
 
     ep->bytesOut += msg->length;
 
-    //int msgs = PeerLink_send(msg, ep->peerLink);
+    int msgs = PeerLink_send(msg, ep->peerLink);
 
-    //for (int i = 0; i < msgs; i++) {
-        //msg = PeerLink_poll(ep->peerLink);
+    for (int i = 0; i < msgs; i++) {
+        msg = PeerLink_poll(ep->peerLink);
         Assert_true(!CryptoAuth_encrypt(ep->caSession, msg));
 
         Assert_true(!(((uintptr_t)msg->bytes) % 4) && "alignment fault");
@@ -474,7 +474,7 @@ static Iface_DEFUN sendFromSwitch(struct Message* msg, struct Iface* switchIf)
         }
 
         Iface_send(&ep->ici->pub.addrIf, msg);
-    //}
+    }
     return NULL;
 }
 

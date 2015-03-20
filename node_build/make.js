@@ -44,7 +44,7 @@ Builder.configure({
     crossCompiling: process.env['CROSS'] !== undefined,
     gcc:            GCC,
     tempDir:        '/tmp',
-    optimizeLevel:  '-O0',
+    optimizeLevel:  '-O3',
     logLevel:       process.env['Log_LEVEL'] || 'DEBUG'
 }, function (builder, waitFor) {
     builder.config.cflags.push(

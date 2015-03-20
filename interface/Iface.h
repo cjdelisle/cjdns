@@ -58,7 +58,6 @@ static inline void Iface_send(struct Iface* iface, struct Message* msg)
         struct Iface* conn = iface->connectedIf;
 
         #ifdef PARANOIA
-            Assert_true(!msg->currentIface);
             Assert_true(conn);
             Assert_true(conn->send);
             Assert_true(msg);
