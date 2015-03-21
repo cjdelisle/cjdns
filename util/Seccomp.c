@@ -267,7 +267,9 @@ static struct sock_fprog* mkFilter(struct Allocator* alloc, struct Except* eh)
 
         // for setting IP addresses...
         // socketForIfName()
-        IFEQ(__NR_socket, socket_setip),
+        #ifdef __NR_socket
+            IFEQ(__NR_socket, socket_setip),
+        #endif
         IFEQ(__NR_ioctl, ioctl_setip),
 
         RET(SECCOMP_RET_TRAP),
