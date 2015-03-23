@@ -38,7 +38,7 @@
 static void catchViolation(int sig, siginfo_t* si, void* threadContext)
 {
     printf("Attempted banned syscall number [%d] see doc/Seccomp.md for more information\n",
-           si->si_value.sival_int);
+           si->si_syscall);
     Assert_failure("Disallowed Syscall");
 }
 
@@ -259,6 +259,9 @@ static struct sock_fprog* mkFilter(struct Allocator* alloc, struct Except* eh)
 
         // printf()
         IFEQ(__NR_fstat, success),
+        #ifdef __NR_fstat64
+            IFEQ(__NR_fstat64, success),
+        #endif
 
         // for setting IP addresses...
         // socketForIfName()
