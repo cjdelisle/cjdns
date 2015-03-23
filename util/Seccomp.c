@@ -173,15 +173,10 @@ static struct sock_fprog* mkFilter(struct Allocator* alloc, struct Except* eh)
     int socket_setip = 5;
     int ioctl_setip = 6;
 
-    enum ArchInfo ai = ArchInfo_detect();
-    uint32_t auditArch = ArchInfo_toAuditArch(ai);
-    if (auditArch == UINT32_MAX) {
-        Except_throw(eh, "Could not detect system architecture");
-    }
+    uint32_t auditArch = ArchInfo_getAuditArch();
 
     struct Filter seccompFilter[] = {
 
-        // verify the processor type is the same as what we're setup for.
         LOAD(offsetof(struct seccomp_data, arch)),
         IFNE(auditArch, fail),
 
@@ -267,7 +262,9 @@ static struct sock_fprog* mkFilter(struct Allocator* alloc, struct Except* eh)
 
         // for setting IP addresses...
         // socketForIfName()
-        IFEQ(__NR_socket, socket_setip),
+        #ifdef __NR_socket
+            IFEQ(__NR_socket, socket_setip),
+        #endif
         IFEQ(__NR_ioctl, ioctl_setip),
 
         RET(SECCOMP_RET_TRAP),

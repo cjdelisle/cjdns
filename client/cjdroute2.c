@@ -361,7 +361,6 @@ static int genconf(struct Random* rand, bool eth)
 
 static int usage(struct Allocator* alloc, char* appName)
 {
-    char* archInfo = ArchInfo_describe(ArchInfo_detect(), alloc);
     char* sysInfo = SysInfo_describe(SysInfo_detect(), alloc);
     printf("Cjdns %s %s\n"
            "Usage: %s [--help] [--genconf] [--bench] [--version] [--cleanconf] [--nobg]\n"
@@ -381,7 +380,7 @@ static int usage(struct Allocator* alloc, char* appName)
            "    sudo %s < cjdroute.conf\n"
            "\n"
            "For more information about other functions and non-standard setups, see README.md\n",
-           archInfo, sysInfo, appName, appName, appName);
+           ArchInfo_getArchStr(), sysInfo, appName, appName, appName);
 
     return 0;
 }
@@ -558,9 +557,8 @@ int main(int argc, char** argv)
     }
 
     // --------------------- Welcome to cjdns ---------------------- //
-    char* archInfo = ArchInfo_describe(ArchInfo_detect(), allocator);
     char* sysInfo = SysInfo_describe(SysInfo_detect(), allocator);
-    Log_info(logger, "Cjdns %s %s", archInfo, sysInfo);
+    Log_info(logger, "Cjdns %s %s", ArchInfo_getArchStr(), sysInfo);
 
     // --------------------- Check for running instance  --------------------- //
 
