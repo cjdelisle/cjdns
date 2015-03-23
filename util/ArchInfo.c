@@ -85,7 +85,7 @@ gcc arch.c
         #define ARCH ArchInfo_AUDIT_ARCH_ARMEB
         #define ARCHSTR "armeb"
     #elif defined(Endian_LITTLE)
-        #define ARCH ArchInfo_AUDIT_ARCH_ARMEL
+        #define ARCH ArchInfo_AUDIT_ARCH_ARM
         #define ARCHSTR "armel"
     #else
         #error unknown endian
