@@ -21,9 +21,10 @@
 #define ArrayList_NAME Messages
 #include "util/ArrayList.h"
 
-struct Bandwidth {
+struct Bandwidth
+{
     uint32_t lastMessageTime;
-    uint32_t bandwidth;
+    struct Average avg;
 };
 
 struct PeerLink_pvt
@@ -38,20 +39,19 @@ struct PeerLink_pvt
 };
 
 /**
- * Calculate the number of bytes per second which was sent, using only the size of
- * the current message amortized over the timewindow since the previous message was sent.
+ * messageLength / millisecondsSinceLast -> bytes per millisecond
+ * (messageLength << 10) / millisecondsSinceLast -> bytes per second
  */
-static int instantaniousBandwidth(int messageLength, int millisecondsSinceLast)
+static uint64_t instantaniousBandwidth(uint64_t messageLength, uint64_t millisecondsSinceLast)
 {
-    if (millisecondsSinceLast >= 1024) { return messageLength; }
-    return ( messageLength * ((1024 - millisecondsSinceLast) << 4) ) >> 4;
+    return (messageLength << 10) / millisecondsSinceLast;
 }
 
 static void calcNextBandwidth(struct Bandwidth* bw, int messageLength, struct PeerLink_pvt* pl)
 {
     uint64_t now = Time_currentTimeMilliseconds(pl->base);
     if (now <= bw->lastMessageTime) { now = bw->lastMessageTime; }
-    int ibw = instantaniousBandwidth(messageLength, now - bw->lastMessageTime);
+    uint64_t ibw = instantaniousBandwidth(messageLength, now - bw->lastMessageTime);
     
 }
 

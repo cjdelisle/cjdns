@@ -14,15 +14,15 @@
  */
 struct Average
 {
-    uint32_t shiftedAvg;
-    uint32_t shiftCount;
-    uint32_t weight;
+    uint64_t shiftedAvg;
+    int shiftCount;
+    int weight;
 };
 
-static inline void Average_init(struct Average* average, uint32_t factor, uint32_t weight)
+static inline void Average_init(struct Average* average, uint64_t factor, uint64_t weight)
 {
-	average->weight = Bits_log2x32(weight);
-	average->shiftCount = Bits_log2x32(factor);
+	average->weight = Bits_log2x64(weight);
+	average->shiftCount = Bits_log2x64(factor);
 	average->shiftedAvg = 0;
 
     // must be a power of 2
@@ -30,18 +30,18 @@ static inline void Average_init(struct Average* average, uint32_t factor, uint32
     Assert_true((1 << average->weight) == weight);
 }
 
-static inline void Average_accumulate(struct Average* average, uint32_t value)
+static inline void Average_accumulate(struct Average* average, uint64_t value)
 {
     if (!average->shiftedAvg) {
-        average->shiftedAvg = value << average->factor;
+        average->shiftedAvg = value << average->shiftCount;
         return;
     }
-    uint32_t sha = average->shiftedAvg;
+    uint64_t sha = average->shiftedAvg;
     sha = ( (sha << average->weight) - sha + (value << avg->shiftCount) ) >> average->weight;
     average->shiftedAvg = sha;
 }
 
-static inline uint32_t Average_value(struct Average* average)
+static inline uint64_t Average_value(struct Average* average)
 {
-    return avg->shiftedAvg >> avg->shiftFactor;
+    return avg->shiftedAvg >> avg->shiftCount;
 }
