@@ -25,6 +25,7 @@
 #include "dht/dhtcore/RumorMill.h"
 #include "dht/dhtcore/SearchRunner.h"
 #include "dht/dhtcore/SearchRunner_admin.h"
+#include "dht/dhtcore/NodeStore.h"
 #include "dht/dhtcore/NodeStore_admin.h"
 #include "dht/dhtcore/Janitor.h"
 #include "dht/dhtcore/Router_new.h"
@@ -341,9 +342,11 @@ static Iface_DEFUN discoveredPath(struct Message* msg, struct Pathfinder_pvt* pf
 {
     struct Address addr;
     addressForNode(&addr, msg);
-    String* str = Address_toString(&addr, msg->alloc);
-    Log_debug(pf->log, "Discovered path [%s]", str->bytes);
-    RumorMill_addNode(pf->rumorMill, &addr);
+    if (!NodeStore_linkForPath(pf->nodeStore, addr.path)) {
+        String* str = Address_toString(&addr, msg->alloc);
+        Log_debug(pf->log, "Discovered path [%s]", str->bytes);
+        RumorMill_addNode(pf->rumorMill, &addr);
+    }
     return NULL;
 }
 
