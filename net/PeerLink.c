@@ -15,17 +15,13 @@
 #include "memory/Allocator.h"
 #include "net/PeerLink.h"
 #include "util/Identity.h"
+#include "util/Kbps.h"
 #include "wire/SwitchHeader.h"
+#include "util/events/Time.h"
 
 #define ArrayList_TYPE struct Message
 #define ArrayList_NAME Messages
 #include "util/ArrayList.h"
-
-struct Bandwidth
-{
-    uint32_t lastMessageTime;
-    struct Average avg;
-};
 
 struct PeerLink_pvt
 {
@@ -33,35 +29,18 @@ struct PeerLink_pvt
     struct Allocator* alloc;
     struct EventBase* base;
     struct ArrayList_Messages* queue;
-    struct Bandwidth sendBw;
-    struct Bandwidth recvBw;
+    struct Kbps sendBw;
+    struct Kbps recvBw;
     Identity
 };
-
-/**
- * messageLength / millisecondsSinceLast -> bytes per millisecond
- * (messageLength << 10) / millisecondsSinceLast -> bytes per second
- */
-static uint64_t instantaniousBandwidth(uint64_t messageLength, uint64_t millisecondsSinceLast)
-{
-    return (messageLength << 10) / millisecondsSinceLast;
-}
-
-static void calcNextBandwidth(struct Bandwidth* bw, int messageLength, struct PeerLink_pvt* pl)
-{
-    uint64_t now = Time_currentTimeMilliseconds(pl->base);
-    if (now <= bw->lastMessageTime) { now = bw->lastMessageTime; }
-    uint64_t ibw = instantaniousBandwidth(messageLength, now - bw->lastMessageTime);
-    
-}
 
 struct Message* PeerLink_poll(struct PeerLink* peerLink)
 {
     struct PeerLink_pvt* pl = Identity_check((struct PeerLink_pvt*) peerLink);
     struct Message* out = ArrayList_Messages_shift(pl->queue);
-    if (out) {
-        Allocator_disown(pl->alloc, out->alloc);
-    }
+    if (!out) { return NULL; }
+    Allocator_disown(pl->alloc, out->alloc);
+    Kbps_accumulate(&pl->sendBw, Time_currentTimeMilliseconds(pl->base), out->length);
     return out;
 }
 
@@ -73,10 +52,18 @@ int PeerLink_send(struct Message* msg, struct PeerLink* peerLink)
     return pl->queue->length;
 }
 
-void PeerLink_recv(struct Message* msg, struct PeerLink* pl)
+void PeerLink_recv(struct Message* msg, struct PeerLink* peerLink)
 {
-    //struct PeerLink_pvt* pl = Identity_check((struct PeerLink_pvt*) peerLink);
-    // do nothing for now, later we will begin to check headers.
+    struct PeerLink_pvt* pl = Identity_check((struct PeerLink_pvt*) peerLink);
+    Kbps_accumulate(&pl->recvBw, Time_currentTimeMilliseconds(pl->base), msg->length);
+}
+
+void PeerLink_kbps(struct PeerLink* peerLink, struct PeerLink_Kbps* output)
+{
+    struct PeerLink_pvt* pl = Identity_check((struct PeerLink_pvt*) peerLink);
+    uint32_t now = Time_currentTimeMilliseconds(pl->base);
+    output->recvKbps = Kbps_accumulate(&pl->recvBw, now, Kbps_accumulate_NO_PACKET);
+    output->sendKbps = Kbps_accumulate(&pl->sendBw, now, Kbps_accumulate_NO_PACKET);
 }
 
 struct PeerLink* PeerLink_new(struct EventBase* base, struct Allocator* alloc)

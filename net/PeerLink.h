@@ -37,6 +37,12 @@ struct PeerLink
     bool peerHeaderEnabled;
 };
 
+struct PeerLink_Kbps
+{
+    uint32_t sendKbps;
+    uint32_t recvKbps;
+};
+
 /**
  * Attempt to get a message from the peerlink to send, if it is time to send one.
  * If there are no messages in the queue or the link is already at capacity, NULL will be returned.
@@ -56,6 +62,8 @@ int PeerLink_send(struct Message* msg, struct PeerLink* pl);
  * peerLink.
  */
 void PeerLink_recv(struct Message* msg, struct PeerLink* pl);
+
+void PeerLink_kbps(struct PeerLink* peerLink, struct PeerLink_Kbps* output);
 
 
 struct PeerLink* PeerLink_new(struct EventBase* base, struct Allocator* alloc);

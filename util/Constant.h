@@ -25,4 +25,6 @@
 
 #define Constant_randHexString(len) <?js return file.Constant_JS.randHexString(#len); ?>
 
+#define Constant_log2(num) <?js return file.Constant_JS.log2(num); ?>
+
 #endif

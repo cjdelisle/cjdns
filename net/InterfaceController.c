@@ -907,6 +907,11 @@ int InterfaceController_getPeerStats(struct InterfaceController* ifController,
             s->duplicates = rp->duplicates;
             s->lostPackets = rp->lostPackets;
             s->receivedOutOfRange = rp->receivedOutOfRange;
+
+            struct PeerLink_Kbps kbps;
+            PeerLink_kbps(peer->peerLink, &kbps);
+            s->sendKbps = kbps.sendKbps;
+            s->recvKbps = kbps.recvKbps;
         }
     }
 

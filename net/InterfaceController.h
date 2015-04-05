@@ -87,6 +87,9 @@ struct InterfaceController_PeerStats
     uint32_t duplicates;
     uint32_t lostPackets;
     uint32_t receivedOutOfRange;
+
+    uint32_t sendKbps;
+    uint32_t recvKbps;
 };
 
 struct InterfaceController
