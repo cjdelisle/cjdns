@@ -14,6 +14,7 @@
  */
 #define ArrayList_NOCREATE
 #include "util/ArrayList.h"
+#include "util/Bits.h"
 
 #include <stddef.h>
 
@@ -44,6 +45,18 @@ void* ArrayList_get(void* vlist, int number)
     struct ArrayList_pvt* list = Identity_check((struct ArrayList_pvt*) vlist);
     if (number >= list->length || number < 0) { return NULL; }
     return list->elements[number];
+}
+
+void* ArrayList_shift(void* vlist)
+{
+    struct ArrayList_pvt* list = Identity_check((struct ArrayList_pvt*) vlist);
+    if (!list->length) { return NULL; }
+    void* out = list->elements[0];
+    list->length--;
+    if (list->length) {
+        Bits_memmove(list->elements, &list->elements[1], sizeof(char*) * list->length);
+    }
+    return out;
 }
 
 int ArrayList_put(void* vlist, int number, void* val)
