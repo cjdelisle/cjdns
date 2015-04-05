@@ -25,7 +25,6 @@
 #include "dht/dhtcore/RumorMill.h"
 #include "dht/dhtcore/SearchRunner.h"
 #include "dht/dhtcore/SearchRunner_admin.h"
-#include "dht/dhtcore/NodeStore.h"
 #include "dht/dhtcore/NodeStore_admin.h"
 #include "dht/dhtcore/Janitor.h"
 #include "dht/dhtcore/Router_new.h"
