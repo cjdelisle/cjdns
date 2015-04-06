@@ -344,11 +344,18 @@ static Iface_DEFUN discoveredPath(struct Message* msg, struct Pathfinder_pvt* pf
 {
     struct Address addr;
     addressForNode(&addr, msg);
-    if (!NodeStore_linkForPath(pf->nodeStore, addr.path)) {
-        String* str = Address_toString(&addr, msg->alloc);
-        Log_debug(pf->log, "Discovered path [%s]", str->bytes);
-        RumorMill_addNode(pf->rumorMill, &addr);
-    }
+
+    // We're somehow aware of this path (even if it's unused)
+    if (NodeStore_linkForPath(pf->nodeStore, addr.path)) { return NULL; }
+
+    // Our best path is "shorter" (label bits which is somewhat representitive of hop count)
+    // basically this is just to dampen the flood to the RM because otherwise it prevents Janitor
+    // from getting any actual work done.
+    struct Node_Two* nn = NodeStore_nodeForAddr(pf->nodeStore, addr.ip6.bytes);
+    if (nn && nn->address.path < addr.path) { return NULL; }
+
+    Log_debug(pf->log, "Discovered path [%s]", Address_toString(&addr, msg->alloc)->bytes);
+    RumorMill_addNode(pf->rumorMill, &addr);
     return NULL;
 }
 
