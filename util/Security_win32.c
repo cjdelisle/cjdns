@@ -32,10 +32,5 @@ void Security_dropPermissions(struct Allocator* tempAlloc, struct Log* logger, s
 
 struct Security_Permissions* Security_checkPermissions(struct Allocator* alloc, struct Except* eh)
 {
-    return Allocator_clone(alloc, (&(struct Security_Permissions) {
-        .noOpenFiles = 0,
-        .seccompExists = 0,
-        .seccompEnforcing = 0,
-        .memoryLimitBytes = UINT64_MAX
-    }));
+    return Allocator_calloc(alloc, sizeof(struct Security_Permissions), 1);
 }
