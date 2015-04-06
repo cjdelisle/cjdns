@@ -43,6 +43,11 @@ os.environ.update(old_env)
 test.build(gypfile)
 test.must_contain_all_lines(test.stdout(), ['my_cc.py', 'my_cxx.py', 'FOO'])
 
+# The xcode generator chokes on the 'host' toolset. Skip the rest of
+# this test (cf. https://code.google.com/p/gyp/issues/detail?id=454).
+if test.format == 'xcode-ninja':
+  test.pass_test()
+
 # Same again but with the host toolset.
 replacements['TOOLSET'] = 'host'
 s = Template(open(gypfile + '.in').read())

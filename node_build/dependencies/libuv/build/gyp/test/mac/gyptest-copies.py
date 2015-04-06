@@ -46,4 +46,7 @@ if sys.platform == 'darwin':
   # Check that actions ran.
   test.built_file_must_exist('action_file', chdir='framework')
 
+  # Test that a copy with the "Code Sign on Copy" flag on succeeds.
+  test.build('framework.gyp', 'copy_target_code_sign', chdir='framework')
+
   test.pass_test()

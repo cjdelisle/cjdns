@@ -20,6 +20,7 @@ if sys.platform == 'darwin':
 
   CHDIR = 'installname'
   test.run_gyp('test.gyp', chdir=CHDIR)
+
   test.build('test.gyp', test.ALL, chdir=CHDIR)
 
   def GetInstallname(p):

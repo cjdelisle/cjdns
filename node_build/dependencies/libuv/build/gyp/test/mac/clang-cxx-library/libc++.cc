@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <ciso646>
+#include <string>
 #ifndef _LIBCPP_VERSION
 #error expected std library: libc++
 #endif
 
-int main() { return 0; }
+int main() { std::string x; return x.size(); }
 

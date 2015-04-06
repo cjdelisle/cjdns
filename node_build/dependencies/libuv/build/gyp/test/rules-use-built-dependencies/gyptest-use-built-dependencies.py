@@ -13,6 +13,7 @@ import TestGyp
 test = TestGyp.TestGyp()
 
 test.run_gyp('use-built-dependencies-rule.gyp', chdir='src')
+
 test.relocate('src', 'relocate/src')
 test.build('use-built-dependencies-rule.gyp', chdir='relocate/src')
 

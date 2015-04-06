@@ -21,6 +21,9 @@ import TestGyp
 # which I don't think is available on all generators.
 # TODO(piman): Extend to other generators when possible.
 test = TestGyp.TestGyp(formats=['ninja'])
+# xcode-ninja doesn't support building single object files by design.
+if test.format == 'xcode-ninja':
+  test.skip_test()
 
 test.run_gyp('action_dependencies.gyp', chdir='src')
 

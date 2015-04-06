@@ -14,6 +14,7 @@ import TestGyp
 # The Android build system doesn't allow output to go to arbitrary places.
 test = TestGyp.TestGyp(formats=['!android'])
 test.run_gyp('copies-samedir.gyp', chdir='src')
+
 test.relocate('src', 'relocate/src')
 test.build('copies-samedir.gyp', 'copies_samedir', chdir='relocate/src')
 

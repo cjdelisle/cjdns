@@ -24,6 +24,7 @@ import gyp
 import gyp.common
 import gyp.msvs_emulation
 import shlex
+import xml.etree.cElementTree as ET
 
 generator_wants_static_library_dependencies_adjusted = False
 
@@ -31,8 +32,8 @@ generator_default_variables = {
 }
 
 for dirname in ['INTERMEDIATE_DIR', 'PRODUCT_DIR', 'LIB_DIR', 'SHARED_LIB_DIR']:
-  # Some gyp steps fail if these are empty(!).
-  generator_default_variables[dirname] = 'dir'
+  # Some gyp steps fail if these are empty(!), so we convert them to variables
+  generator_default_variables[dirname] = '$' + dirname
 
 for unused in ['RULE_INPUT_PATH', 'RULE_INPUT_ROOT', 'RULE_INPUT_NAME',
                'RULE_INPUT_DIRNAME', 'RULE_INPUT_EXT',
@@ -165,7 +166,7 @@ def GetAllIncludeDirectories(target_list, target_dicts,
   return all_includes_list
 
 
-def GetCompilerPath(target_list, data):
+def GetCompilerPath(target_list, data, options):
   """Determine a command that can be used to invoke the compiler.
 
   Returns:
@@ -173,13 +174,12 @@ def GetCompilerPath(target_list, data):
     the compiler from that.  Otherwise, see if a compiler was specified via the
     CC_target environment variable.
   """
-
   # First, see if the compiler is configured in make's settings.
   build_file, _, _ = gyp.common.ParseQualifiedTarget(target_list[0])
   make_global_settings_dict = data[build_file].get('make_global_settings', {})
   for key, value in make_global_settings_dict:
     if key in ['CC', 'CXX']:
-      return value
+      return os.path.join(options.toplevel_dir, value)
 
   # Check to see if the compiler was specified as an environment variable.
   for key in ['CC_target', 'CC', 'CXX']:
@@ -295,33 +295,123 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
   shared_intermediate_dirs = [os.path.join(toplevel_build, 'obj', 'gen'),
                               os.path.join(toplevel_build, 'gen')]
 
-  out_name = os.path.join(toplevel_build, 'eclipse-cdt-settings.xml')
+  GenerateCdtSettingsFile(target_list,
+                          target_dicts,
+                          data,
+                          params,
+                          config_name,
+                          os.path.join(toplevel_build,
+                                       'eclipse-cdt-settings.xml'),
+                          options,
+                          shared_intermediate_dirs)
+  GenerateClasspathFile(target_list,
+                        target_dicts,
+                        options.toplevel_dir,
+                        toplevel_build,
+                        os.path.join(toplevel_build,
+                                     'eclipse-classpath.xml'))
+
+
+def GenerateCdtSettingsFile(target_list, target_dicts, data, params,
+                            config_name, out_name, options,
+                            shared_intermediate_dirs):
   gyp.common.EnsureDirExists(out_name)
-  out = open(out_name, 'w')
+  with open(out_name, 'w') as out:
+    out.write('<?xml version="1.0" encoding="UTF-8"?>\n')
+    out.write('<cdtprojectproperties>\n')
 
-  out.write('<?xml version="1.0" encoding="UTF-8"?>\n')
-  out.write('<cdtprojectproperties>\n')
+    eclipse_langs = ['C++ Source File', 'C Source File', 'Assembly Source File',
+                     'GNU C++', 'GNU C', 'Assembly']
+    compiler_path = GetCompilerPath(target_list, data, options)
+    include_dirs = GetAllIncludeDirectories(target_list, target_dicts,
+                                            shared_intermediate_dirs,
+                                            config_name, params, compiler_path)
+    WriteIncludePaths(out, eclipse_langs, include_dirs)
+    defines = GetAllDefines(target_list, target_dicts, data, config_name,
+                            params, compiler_path)
+    WriteMacros(out, eclipse_langs, defines)
 
-  eclipse_langs = ['C++ Source File', 'C Source File', 'Assembly Source File',
-                   'GNU C++', 'GNU C', 'Assembly']
-  compiler_path = GetCompilerPath(target_list, data)
-  include_dirs = GetAllIncludeDirectories(target_list, target_dicts,
-                                          shared_intermediate_dirs, config_name,
-                                          params, compiler_path)
-  WriteIncludePaths(out, eclipse_langs, include_dirs)
-  defines = GetAllDefines(target_list, target_dicts, data, config_name, params,
-                          compiler_path)
-  WriteMacros(out, eclipse_langs, defines)
+    out.write('</cdtprojectproperties>\n')
 
-  out.write('</cdtprojectproperties>\n')
-  out.close()
+
+def GenerateClasspathFile(target_list, target_dicts, toplevel_dir,
+                          toplevel_build, out_name):
+  '''Generates a classpath file suitable for symbol navigation and code
+  completion of Java code (such as in Android projects) by finding all
+  .java and .jar files used as action inputs.'''
+  gyp.common.EnsureDirExists(out_name)
+  result = ET.Element('classpath')
+
+  def AddElements(kind, paths):
+    # First, we need to normalize the paths so they are all relative to the
+    # toplevel dir.
+    rel_paths = set()
+    for path in paths:
+      if os.path.isabs(path):
+        rel_paths.add(os.path.relpath(path, toplevel_dir))
+      else:
+        rel_paths.add(path)
+
+    for path in sorted(rel_paths):
+      entry_element = ET.SubElement(result, 'classpathentry')
+      entry_element.set('kind', kind)
+      entry_element.set('path', path)
+
+  AddElements('lib', GetJavaJars(target_list, target_dicts, toplevel_dir))
+  AddElements('src', GetJavaSourceDirs(target_list, target_dicts, toplevel_dir))
+  # Include the standard JRE container and a dummy out folder
+  AddElements('con', ['org.eclipse.jdt.launching.JRE_CONTAINER'])
+  # Include a dummy out folder so that Eclipse doesn't use the default /bin
+  # folder in the root of the project.
+  AddElements('output', [os.path.join(toplevel_build, '.eclipse-java-build')])
+
+  ET.ElementTree(result).write(out_name)
+
+
+def GetJavaJars(target_list, target_dicts, toplevel_dir):
+  '''Generates a sequence of all .jars used as inputs.'''
+  for target_name in target_list:
+    target = target_dicts[target_name]
+    for action in target.get('actions', []):
+      for input_ in action['inputs']:
+        if os.path.splitext(input_)[1] == '.jar' and not input_.startswith('$'):
+          if os.path.isabs(input_):
+            yield input_
+          else:
+            yield os.path.join(os.path.dirname(target_name), input_)
+
+
+def GetJavaSourceDirs(target_list, target_dicts, toplevel_dir):
+  '''Generates a sequence of all likely java package root directories.'''
+  for target_name in target_list:
+    target = target_dicts[target_name]
+    for action in target.get('actions', []):
+      for input_ in action['inputs']:
+        if (os.path.splitext(input_)[1] == '.java' and
+            not input_.startswith('$')):
+          dir_ = os.path.dirname(os.path.join(os.path.dirname(target_name),
+                                              input_))
+          # If there is a parent 'src' or 'java' folder, navigate up to it -
+          # these are canonical package root names in Chromium.  This will
+          # break if 'src' or 'java' exists in the package structure. This
+          # could be further improved by inspecting the java file for the
+          # package name if this proves to be too fragile in practice.
+          parent_search = dir_
+          while os.path.basename(parent_search) not in ['src', 'java']:
+            parent_search, _ = os.path.split(parent_search)
+            if not parent_search or parent_search == toplevel_dir:
+              # Didn't find a known root, just return the original path
+              yield dir_
+              break
+          else:
+            yield parent_search
 
 
 def GenerateOutput(target_list, target_dicts, data, params):
   """Generate an XML settings file that can be imported into a CDT project."""
 
   if params['options'].generator_output:
-    raise NotImplementedError, "--generator_output not implemented for eclipse"
+    raise NotImplementedError("--generator_output not implemented for eclipse")
 
   user_config = params.get('generator_flags', {}).get('config', None)
   if user_config:

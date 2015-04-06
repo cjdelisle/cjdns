@@ -19,6 +19,7 @@ if sys.platform == 'darwin':
 
   CHDIR = 'loadable-module'
   test.run_gyp('test.gyp', chdir=CHDIR)
+
   test.build('test.gyp', test.ALL, chdir=CHDIR)
 
   # Binary.

@@ -27,11 +27,11 @@ endif
 """
   if sys.platform == 'linux2':
     link_expected = """
-LINK ?= flock $(builddir)/linker.lock $(abspath clang)
+LINK ?= $(abspath clang)
 """
   elif sys.platform == 'darwin':
     link_expected = """
-LINK ?= ./gyp-mac-tool flock $(builddir)/linker.lock $(abspath clang)
+LINK ?= $(abspath clang)
 """
   test.must_contain('Makefile', cc_expected)
   test.must_contain('Makefile', link_expected)

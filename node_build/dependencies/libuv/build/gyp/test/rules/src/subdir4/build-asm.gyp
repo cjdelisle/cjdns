@@ -37,7 +37,7 @@
                 '<(SHARED_INTERMEDIATE_DIR)/<(RULE_INPUT_ROOT).S',
               ],
               'action': [
-	        'bash', '-c', 'mv <(RULE_INPUT_PATH) <@(_outputs)',
+                'bash', '-c', 'cp <(RULE_INPUT_PATH) <@(_outputs)',
               ],
               'process_outputs_as_sources': 1,
             },

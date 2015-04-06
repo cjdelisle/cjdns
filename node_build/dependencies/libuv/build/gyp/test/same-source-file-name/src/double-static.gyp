@@ -6,6 +6,7 @@
   'targets': [
     {
       'target_name': 'lib',
+      'product_name': 'test_static_lib',
       'type': 'static_library',
       'sources': [
         'prog1.c',

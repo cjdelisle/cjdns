@@ -8,7 +8,7 @@ extern void func(void);
 extern void subdir1_func(void);
 extern void subdir2_func(void);
 
-int main(int argc, char *argv[])
+int main(void)
 {
   printf("Hello from prog3.c\n");
   func();

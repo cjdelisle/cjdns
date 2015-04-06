@@ -9,6 +9,7 @@ Verifies that stripping works.
 """
 
 import TestGyp
+import TestMac
 
 import re
 import subprocess
@@ -28,19 +29,26 @@ if sys.platform == 'darwin':
 
   def CheckNsyms(p, n_expected):
     r = re.compile(r'nsyms\s+(\d+)')
-    proc = subprocess.Popen(['otool', '-l', p], stdout=subprocess.PIPE)
-    o = proc.communicate()[0]
-    assert not proc.returncode
+    o = subprocess.check_output(['otool', '-l', p])
     m = r.search(o)
     n = int(m.group(1))
     if n != n_expected:
       print 'Stripping: Expected %d symbols, got %d' % (n_expected, n)
       test.fail_test()
 
+  # Starting with Xcode 5.0, clang adds an additional symbols to the compiled
+  # file when using a relative path to the input file. So when using ninja
+  # with Xcode 5.0 or higher, take this additional symbol into consideration
+  # for unstripped builds (it is stripped by all strip commands).
+  expected_extra_symbol_count = 0
+  if test.format in ['ninja', 'xcode-ninja'] \
+      and TestMac.Xcode.Version() >= '0500':
+    expected_extra_symbol_count = 1
+
   # The actual numbers here are not interesting, they just need to be the same
   # in both the xcode and the make build.
-  CheckNsyms(OutPath('no_postprocess'), 29)
-  CheckNsyms(OutPath('no_strip'), 29)
+  CheckNsyms(OutPath('no_postprocess'), 29 + expected_extra_symbol_count)
+  CheckNsyms(OutPath('no_strip'), 29 + expected_extra_symbol_count)
   CheckNsyms(OutPath('strip_all'), 0)
   CheckNsyms(OutPath('strip_nonglobal'), 6)
   CheckNsyms(OutPath('strip_debugging'), 7)

@@ -21,7 +21,7 @@ if sys.platform == 'darwin':
   CHDIR = 'postbuild-copy-bundle'
   test.run_gyp('test.gyp', chdir=CHDIR)
 
-  app_bundle_dir = test.built_file_path('Test app.app', chdir=CHDIR)
+  app_bundle_dir = test.built_file_path('Test App.app', chdir=CHDIR)
   bundled_framework_dir = os.path.join(
       app_bundle_dir, 'Contents', 'My Framework.framework', 'Resources')
   final_plist_path = os.path.join(bundled_framework_dir, 'Info.plist')

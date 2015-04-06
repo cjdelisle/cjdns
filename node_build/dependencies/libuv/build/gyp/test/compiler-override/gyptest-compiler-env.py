@@ -15,7 +15,7 @@ import sys
 here = os.path.dirname(os.path.abspath(__file__))
 
 if sys.platform == 'win32':
-  # cross compiling not support by ninja on windows
+  # cross compiling not supported by ninja on windows
   # and make not supported on windows at all.
   sys.exit(0)
 
@@ -30,8 +30,6 @@ def CheckCompiler(test, gypfile, check_for, run_gyp):
     test.run_gyp(gypfile)
   test.build(gypfile)
 
-  # We can't test to presence of my_ld.py in the output since
-  # ninja will use CXX_target as the linker regardless
   test.must_contain_all_lines(test.stdout(), check_for)
 
 
@@ -39,7 +37,9 @@ test = TestGyp.TestGyp(formats=['ninja', 'make'])
 
 def TestTargetOveride():
   expected = ['my_cc.py', 'my_cxx.py', 'FOO' ]
-  if test.format != 'ninja':  # ninja just uses $CC / $CXX as linker.
+
+  # ninja just uses $CC / $CXX as linker.
+  if test.format not in ['ninja', 'xcode-ninja']:
     expected.append('FOO_LINK')
 
   # Check that CC, CXX and LD set target compiler
@@ -49,8 +49,7 @@ def TestTargetOveride():
     os.environ['CXX'] = 'python %s/my_cxx.py FOO' % here
     os.environ['LINK'] = 'python %s/my_ld.py FOO_LINK' % here
 
-    CheckCompiler(test, 'compiler.gyp', expected,
-                  True)
+    CheckCompiler(test, 'compiler-exe.gyp', expected, True)
   finally:
     os.environ.clear()
     os.environ.update(oldenv)
@@ -58,8 +57,8 @@ def TestTargetOveride():
   # Run the same tests once the eviron has been restored.  The
   # generated should have embedded all the settings in the
   # project files so the results should be the same.
-  CheckCompiler(test, 'compiler.gyp', expected,
-                False)
+  CheckCompiler(test, 'compiler-exe.gyp', expected, False)
+
 
 def TestTargetOverideCompilerOnly():
   # Same test again but with that CC, CXX and not LD
@@ -68,7 +67,7 @@ def TestTargetOverideCompilerOnly():
     os.environ['CC'] = 'python %s/my_cc.py FOO' % here
     os.environ['CXX'] = 'python %s/my_cxx.py FOO' % here
 
-    CheckCompiler(test, 'compiler.gyp',
+    CheckCompiler(test, 'compiler-exe.gyp',
                   ['my_cc.py', 'my_cxx.py', 'FOO'],
                   True)
   finally:
@@ -78,7 +77,7 @@ def TestTargetOverideCompilerOnly():
   # Run the same tests once the eviron has been restored.  The
   # generated should have embedded all the settings in the
   # project files so the results should be the same.
-  CheckCompiler(test, 'compiler.gyp',
+  CheckCompiler(test, 'compiler-exe.gyp',
                 ['my_cc.py', 'my_cxx.py', 'FOO'],
                 False)
 
@@ -107,6 +106,5 @@ def TestHostOveride():
 
 TestTargetOveride()
 TestTargetOverideCompilerOnly()
-TestHostOveride()
 
 test.pass_test()

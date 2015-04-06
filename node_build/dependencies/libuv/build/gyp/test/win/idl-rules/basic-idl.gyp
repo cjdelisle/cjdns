@@ -38,5 +38,30 @@
          },
       },
     },
+    {
+      'target_name': 'idl_explicit_action',
+      'type': 'none',
+      'sources': [
+        'Window.idl',
+      ],
+      'actions': [{
+        'action_name': 'blink_idl',
+        'explicit_idl_action': 1,
+        'msvs_cygwin_shell': 0,
+        'inputs': [
+          'Window.idl',
+          'idl_compiler.py',
+        ],
+        'outputs': [
+          'Window.cpp',
+          'Window.h',
+        ],
+        'action': [
+          'python',
+          'idl_compiler.py',
+          'Window.idl',
+        ],
+      }],
+    },
   ],
 }

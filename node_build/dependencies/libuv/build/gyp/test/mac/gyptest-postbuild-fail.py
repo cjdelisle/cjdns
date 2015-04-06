@@ -23,6 +23,7 @@ if sys.platform == 'darwin':
     'xcode': [1, 65],  # 1 for xcode 3, 65 for xcode 4 (see `man sysexits`)
     'make': 2,
     'ninja': 1,
+    'xcode-ninja': [1, 65],
   }[test.format]
 
 

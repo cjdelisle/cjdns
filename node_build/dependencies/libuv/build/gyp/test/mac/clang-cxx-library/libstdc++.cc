@@ -7,5 +7,5 @@
 #error expected std library: libstdc++
 #endif
 
-int main() { return 0; }
+int main() { std::string x; return x.size(); }
 

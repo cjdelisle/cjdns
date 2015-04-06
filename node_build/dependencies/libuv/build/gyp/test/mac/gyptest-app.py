@@ -9,15 +9,20 @@ Verifies that app bundles are built correctly.
 """
 
 import TestGyp
+import TestMac
 
 import os
 import plistlib
 import subprocess
 import sys
 
-def GetStdout(cmdlist):
-  return subprocess.Popen(cmdlist,
-                          stdout=subprocess.PIPE).communicate()[0].rstrip('\n')
+
+def CheckFileXMLPropertyList(file):
+  output = subprocess.check_output(['file', file])
+  # The double space after XML is intentional.
+  if not 'XML  document text' in output:
+    print 'File: Expected XML  document text, got %s' % output
+    test.fail_test()
 
 def ExpectEq(expected, actual):
   if expected != actual:
@@ -31,11 +36,6 @@ def ls(path):
     for f in files:
       result.append(os.path.join(dirpath, f)[len(path) + 1:])
   return result
-
-def XcodeVersion():
-  stdout = subprocess.check_output(['xcodebuild', '-version'])
-  version = stdout.splitlines()[0].split()[-1].replace('.', '')
-  return (version + '0' * (3 - len(version))).zfill(4)
 
 
 if sys.platform == 'darwin':
@@ -55,33 +55,29 @@ if sys.platform == 'darwin':
   test.must_exist(info_plist)
   test.must_contain(info_plist, 'com.google.Test-App-Gyp')  # Variable expansion
   test.must_not_contain(info_plist, '${MACOSX_DEPLOYMENT_TARGET}');
+  CheckFileXMLPropertyList(info_plist)
 
   if test.format != 'make':
     # TODO: Synthesized plist entries aren't hooked up in the make generator.
+    machine = subprocess.check_output(['sw_vers', '-buildVersion']).rstrip('\n')
     plist = plistlib.readPlist(info_plist)
-    ExpectEq(GetStdout(['sw_vers', '-buildVersion']),
-             plist['BuildMachineOSBuild'])
+    ExpectEq(machine, plist['BuildMachineOSBuild'])
 
     # Prior to Xcode 5.0.0, SDKROOT (and thus DTSDKName) was only defined if
     # set in the Xcode project file. Starting with that version, it is always
     # defined.
     expected = ''
-    if XcodeVersion() >= '0500':
-      version = GetStdout(['xcodebuild', '-version', '-sdk', '', 'SDKVersion'])
+    if TestMac.Xcode.Version() >= '0500':
+      version = TestMac.Xcode.SDKVersion()
       expected = 'macosx' + version
     ExpectEq(expected, plist['DTSDKName'])
-    sdkbuild = GetStdout(
-        ['xcodebuild', '-version', '-sdk', '', 'ProductBuildVersion'])
+    sdkbuild = TestMac.Xcode.SDKBuild()
     if not sdkbuild:
       # Above command doesn't work in Xcode 4.2.
       sdkbuild = plist['BuildMachineOSBuild']
     ExpectEq(sdkbuild, plist['DTSDKBuild'])
-    xcode, build = GetStdout(['xcodebuild', '-version']).splitlines()
-    xcode = xcode.split()[-1].replace('.', '')
-    xcode = (xcode + '0' * (3 - len(xcode))).zfill(4)
-    build = build.split()[-1]
-    ExpectEq(xcode, plist['DTXcode'])
-    ExpectEq(build, plist['DTXcodeBuild'])
+    ExpectEq(TestMac.Xcode.Version(), plist['DTXcode'])
+    ExpectEq(TestMac.Xcode.Build(), plist['DTXcodeBuild'])
 
   # Resources
   strings_files = ['InfoPlist.strings', 'utf-16be.strings', 'utf-16le.strings']

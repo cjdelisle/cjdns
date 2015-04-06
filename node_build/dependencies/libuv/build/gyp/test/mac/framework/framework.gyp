@@ -67,5 +67,28 @@
         },
       ],
     },
+    {
+      'target_name': 'copy_target_code_sign',
+      'type': 'none',
+      'dependencies': [ 'test_framework', 'dep_framework', ],
+      'copies': [
+        # Test copying directories with spaces in src and dest paths.
+        {
+          'destination': '<(PRODUCT_DIR)/Test Framework.framework/foo',
+          'files': [
+            '<(PRODUCT_DIR)/Dependency Bundle.framework',
+          ],
+         'xcode_code_sign': 1,
+        },
+      ],
+      'actions': [
+        {
+          'action_name': 'aektschn',
+          'inputs': [],
+          'outputs': ['<(PRODUCT_DIR)/touched_file'],
+          'action': ['touch', '${BUILT_PRODUCTS_DIR}/action_file'],
+        },
+      ],
+    },
   ],
 }

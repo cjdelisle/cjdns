@@ -32,5 +32,18 @@
         },
       },
     },
+    {
+      'target_name': 'test_pdb_output_disabled',
+      'type': 'executable',
+      'sources': ['hello.cc'],
+      'msvs_settings': {
+        'VCCLCompilerTool': {
+          'DebugInformationFormat': '0'
+        },
+        'VCLinkerTool': {
+          'GenerateDebugInformation': 'false',
+        },
+      },
+    },
   ]
 }

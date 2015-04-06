@@ -21,4 +21,8 @@ if sys.platform == 'win32':
     test.set_configuration('Debug|%s' % platform)
     test.build('basic-idl.gyp', test.ALL, chdir=CHDIR)
 
+    # Make sure ninja win_tool.py filters out noisy lines.
+    if test.format == 'ninja' and 'Processing' in test.stdout():
+      test.fail_test()
+
     test.pass_test()

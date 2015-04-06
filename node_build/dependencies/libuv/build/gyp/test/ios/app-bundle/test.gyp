@@ -15,7 +15,6 @@
       'target_name': 'test_app',
       'product_name': 'Test App Gyp',
       'type': 'executable',
-      'product_extension': 'bundle',
       'mac_bundle': 1,
       'sources': [
         'TestApp/main.m',
@@ -36,6 +35,36 @@
           '-fobjc-abi-version=2',
         ],
         'INFOPLIST_FILE': 'TestApp/TestApp-Info.plist',
+        'SDKROOT': 'iphonesimulator',  # -isysroot
+        'IPHONEOS_DEPLOYMENT_TARGET': '5.0',
+        'CONFIGURATION_BUILD_DIR':'build/Default',
+      },
+    },
+    {
+      'target_name': 'test_app_xml',
+      'product_name': 'Test App Gyp XML',
+      'type': 'executable',
+      'mac_bundle': 1,
+      'sources': [
+        'TestApp/main.m',
+      ],
+      'mac_bundle_resources': [
+        'TestApp/English.lproj/InfoPlist.strings',
+        'TestApp/English.lproj/MainMenu.xib',
+        'TestApp/English.lproj/Main_iPhone.storyboard',
+      ],
+      'link_settings': {
+        'libraries': [
+          '$(SDKROOT)/System/Library/Frameworks/Foundation.framework',
+          '$(SDKROOT)/System/Library/Frameworks/UIKit.framework',
+        ],
+      },
+      'xcode_settings': {
+        'OTHER_CFLAGS': [
+          '-fobjc-abi-version=2',
+        ],
+        'INFOPLIST_FILE': 'TestApp/TestApp-Info.plist',
+        'INFOPLIST_OUTPUT_FORMAT':'xml',
         'SDKROOT': 'iphonesimulator',  # -isysroot
         'IPHONEOS_DEPLOYMENT_TARGET': '5.0',
         'CONFIGURATION_BUILD_DIR':'build/Default',

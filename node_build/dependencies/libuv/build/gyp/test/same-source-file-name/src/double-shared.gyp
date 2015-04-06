@@ -6,6 +6,7 @@
   'targets': [
     {
       'target_name': 'lib',
+      'product_name': 'test_shared_lib',
       'type': 'shared_library',
       'sources': [
         'prog2.c',
@@ -15,6 +16,11 @@
       ],
       'defines': [
         'PROG="prog2"',
+      ],
+      'conditions': [
+        ['OS=="linux"', {
+          'cflags': ['-fPIC'],
+        }],
       ],
     },
   ],

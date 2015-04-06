@@ -13,6 +13,7 @@ import TestGyp
 test = TestGyp.TestGyp()
 
 test.run_gyp('none_with_source_files.gyp', chdir='src')
+
 test.relocate('src', 'relocate/src')
 test.build('none_with_source_files.gyp', chdir='relocate/src')
 

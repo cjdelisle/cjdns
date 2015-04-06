@@ -13,7 +13,6 @@
           'extension': 'S',
           'inputs': [
             'as.bat',
-            '$(InputPath)'
           ],
           'outputs': [
             '$(IntDir)/$(InputName).obj',

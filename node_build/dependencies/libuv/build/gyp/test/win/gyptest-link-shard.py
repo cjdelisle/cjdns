@@ -24,4 +24,7 @@ if sys.platform == 'win32':
   test.built_file_must_exist('shard_2.lib', chdir=CHDIR)
   test.built_file_must_exist('shard_3.lib', chdir=CHDIR)
 
+  test.run_gyp('shard_ref.gyp', chdir=CHDIR)
+  test.build('shard_ref.gyp', test.ALL, chdir=CHDIR)
+
   test.pass_test()

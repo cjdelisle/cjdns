@@ -18,12 +18,12 @@ if sys.platform == 'win32':
 
   test.run_gyp('buildevents.gyp',
       status=1,
-      stderr='.*msvs_prebuild not supported \(target main\).*',
+      stderr=r'.*msvs_prebuild not supported \(target main\).*',
       match=TestCmd.match_re_dotall)
 
   test.run_gyp('buildevents.gyp',
       status=1,
-      stderr='.*msvs_postbuild not supported \(target main\).*',
+      stderr=r'.*msvs_postbuild not supported \(target main\).*',
       match=TestCmd.match_re_dotall)
 
   test.pass_test()

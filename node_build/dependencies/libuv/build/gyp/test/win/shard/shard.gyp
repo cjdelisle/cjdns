@@ -16,5 +16,16 @@
       ],
       'product_dir': '<(PRODUCT_DIR)',
     },
+    {
+      'target_name': 'refs_to_shard',
+      'type': 'executable',
+      'dependencies': [
+        # Make sure references are correctly updated.
+        'shard',
+      ],
+      'sources': [
+        'hello.cc',
+      ],
+    },
   ]
 }

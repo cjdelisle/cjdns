@@ -34,7 +34,8 @@ if sys.platform == 'darwin':
   test.build('test-error.gyp', test.ALL, chdir='app-bundle')
 
   # Ninja pipes stderr of subprocesses to stdout.
-  if test.format == 'ninja' and expected_error in test.stdout():
+  if test.format in ['ninja', 'xcode-ninja'] \
+      and expected_error in test.stdout():
     saw_expected_error[0] = True
 
   if saw_expected_error[0]:

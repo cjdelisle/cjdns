@@ -1,6 +1,6 @@
 extern void print(void);
 
-int main(int argc, char *argv[])
+int main(void)
 {
   print();
   return 0;

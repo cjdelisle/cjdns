@@ -31,4 +31,3 @@ if sys.platform == 'win32':
     test.fail_test()
 
   test.pass_test()
-

@@ -4,12 +4,15 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-"""
-"""
-
 import TestGyp
 
 test = TestGyp.TestGyp()
+
+# The xcode-ninja generator handles gypfiles which are not at the
+# project root incorrectly.
+# cf. https://code.google.com/p/gyp/issues/detail?id=460
+if test.format == 'xcode-ninja':
+  test.skip_test()
 
 test.run_gyp('build/all.gyp', chdir='src')
 

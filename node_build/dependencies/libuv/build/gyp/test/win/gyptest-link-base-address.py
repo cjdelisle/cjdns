@@ -25,7 +25,7 @@ if sys.platform == 'win32':
     return test.run_dumpbin('/headers', full_path)
 
   # Extract the image base address from the headers output.
-  image_base_reg_ex = re.compile('.*\s+([0-9]+) image base.*', re.DOTALL)
+  image_base_reg_ex = re.compile(r'.*\s+([0-9]+) image base.*', re.DOTALL)
 
   exe_headers = GetHeaders('test_base_specified_exe.exe')
   exe_match = image_base_reg_ex.match(exe_headers)

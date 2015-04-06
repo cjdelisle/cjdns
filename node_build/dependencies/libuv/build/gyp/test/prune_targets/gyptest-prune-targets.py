@@ -11,6 +11,9 @@ Verifies --root-target removes the unnecessary targets.
 import TestGyp
 
 test = TestGyp.TestGyp()
+# The xcode-ninja generator has its own logic for which targets to include
+if test.format == 'xcode-ninja':
+  test.skip_test()
 
 build_error_code = {
   'android': 2,
