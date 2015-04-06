@@ -18,17 +18,22 @@ var Fs = require('fs');
 
 var PYTHONS = ["python", "python2", "python2.7", "python2.6", "python2.5"];
 
+var SCRIPT = [
+    'import sys;',
+    'print(sys.version_info);',
+    'exit(sys.version_info[0] != 2 or sys.version_info[1] < 7);'
+].join('\n');
+
 var find = module.exports.find = function (tempFile, callback) {
     var nt = nThen(function (waitFor) {
-        Fs.writeFile(tempFile,
-                     "import sys; exit(sys.version_info[0] != 2);",
-                     waitFor(function (err) { if (err) { throw err; } }));
+        Fs.writeFile(tempFile, SCRIPT, waitFor(function (err) { if (err) { throw err; } }));
     }).nThen;
     PYTHONS.forEach(function (python) {
         nt = nt(function (waitFor) {
             console.log("testing python " + python);
             var py = Spawn(python, [tempFile]);
             var cont = waitFor();
+            py.stdout.on('data', function (dat) { console.log(dat.toString('utf8')); });
             py.on('close', function(ret) {
                 if (ret === 0) {
                     callback(undefined, python);
@@ -44,6 +49,6 @@ var find = module.exports.find = function (tempFile, callback) {
         }).nThen;
     });
     nt(function (waitFor) {
-        callback(new Error("no sutible python2 executable found"));
+        callback(new Error("no sutible python2 executable found ( < 2.7 unsupported)"));
     });
 };
