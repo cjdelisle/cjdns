@@ -4,7 +4,7 @@ Project Meshnet is an organization that aims to build a versatile, decentralized
   
 ## What is Cjdns?
 
-Cjdns (Caleb James DeLisle's Network Suite) is a networking protocol and reference implmentation. It is founded on the ideology that networks should be easy to set up, protocols should scale smoothly, and security should be ubiquitous.  
+Cjdns (Caleb James DeLisle's Network Suite) is a networking protocol and reference implementation. It is founded on the ideology that networks should be easy to set up, protocols should scale smoothly, and security should be ubiquitous.  
   
 ## How do I install Cjdns?
 
@@ -14,9 +14,9 @@ Instructions are on [github](https://github.com/cjdelisle/cjdns)
 
 [Hyperboria](http://hyperboria.net) is an encrypted [Mesh Network](http://en.wikipedia.org/wiki/Mesh_networking) designed for privacy and resiliency to censorship.
 
-It currently exists as an [Overlay](http://en.wikipedia.org/wiki/Overlay_network) test network for [Project Meshnet](https://projectmeshnet.org/), and is only accessible to those who install [cjdns](http://en.wikipedia.org/wiki/Cjdns). 
+It currently exists as an [Overlay](http://en.wikipedia.org/wiki/Overlay_network) test network for [Project Meshnet](https://projectmeshnet.org/) and is only accessible to those who install [cjdns](http://en.wikipedia.org/wiki/Cjdns). 
 
-Ultimately, we hope to build a viable alternative to the regular internet, which we call [clearnet](http://www.urbandictionary.com/define.php?term=clearnet). Our ultimate goal is to replace the existing hierarchical internet with a non-hierarchical model.
+Ultimately we hope to build a viable alternative to the regular internet, which we call [clearnet](http://www.urbandictionary.com/define.php?term=clearnet). Our goal is to replace the existing hierarchical internet with a non-hierarchical model.
 
 You are encouraged to set up your own means of communication that does not rely on the internet, maybe using something like [this woktenna](http://geobray.com/2010/02/07/woktenna-for-3g/)?
 
