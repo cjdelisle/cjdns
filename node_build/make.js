@@ -300,27 +300,16 @@ Builder.configure({
             }));
 
         }).nThen(function (waitFor) {
-            if (libuvBuilt) { return; }
 
+            if (libuvBuilt) { return; }
             FindPython2.find(builder.tmpFile(), waitFor(function (err, pythonExec) {
                 if (err) { throw err; }
                 python = pythonExec;
             }));
 
         }).nThen(function (waitFor) {
+
             if (libuvBuilt) { return; }
-
-            // GYP invokes a script by spawning a process and does not take care of the name
-            // of the python interpreter which it shoul d be using so we need to create a
-            // python symlink in case there are multiple python implementations on the system
-            // and the wrong one is named 'python'.
-            Fs.symlink(python, dependencyDir + '/python', waitFor(function (err) {
-                if (err) { throw err; }
-            }));
-
-        }).nThen(function (waitFor) {
-            if (libuvBuilt) { return; }
-
             console.log("Build Libuv");
             var cwd = process.cwd();
             process.chdir(dependencyDir + '/libuv/');
@@ -328,7 +317,6 @@ Builder.configure({
             var args = ['./gyp_uv.py'];
             var env = process.env;
             env.CC = builder.config.gcc;
-            env.PATH = dependencyDir + ":" + env.PATH;
 
             if (env.TARGET_ARCH) {
                 args.push('-Dtarget_arch=' + env.TARGET_ARCH);
@@ -363,10 +351,7 @@ Builder.configure({
                 }
                 args.push('CFLAGS=' + cflags.join(' '));
 
-                var makeCommand = 'make';
-                if (['freebsd', 'openbsd'].indexOf(builder.config.systemName) >= 0) {
-                    makeCommand = 'gmake';
-                }
+                var makeCommand = ['freebsd', 'openbsd'].indexOf(builder.config.systemName) >= 0 ? 'gmake' : 'make';
                 var make = Spawn(makeCommand, args, {stdio: 'inherit'});
 
                 make.on('error', function (err) {
