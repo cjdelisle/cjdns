@@ -18,9 +18,12 @@
 
 // lol windows security
 
-int Security_setUser(char* userName, struct Log* logger, struct Except* eh)
+void Security_setUser(int uid,
+                      bool keepNetAdmin,
+                      struct Log* logger,
+                      struct Except* eh,
+                      struct Allocator* alloc)
 {
-    return 0;
 }
 
 void Security_dropPermissions(struct Allocator* tempAlloc, struct Log* logger, struct Except* eh)
