@@ -344,9 +344,11 @@ static Iface_DEFUN discoveredPath(struct Message* msg, struct Pathfinder_pvt* pf
 {
     struct Address addr;
     addressForNode(&addr, msg);
-    String* str = Address_toString(&addr, msg->alloc);
-    Log_debug(pf->log, "Discovered path [%s]", str->bytes);
-    RumorMill_addNode(pf->rumorMill, &addr);
+    if (!NodeStore_linkForPath(pf->nodeStore, addr.path)) {
+        String* str = Address_toString(&addr, msg->alloc);
+        Log_debug(pf->log, "Discovered path [%s]", str->bytes);
+        RumorMill_addNode(pf->rumorMill, &addr);
+    }
     return NULL;
 }
 
