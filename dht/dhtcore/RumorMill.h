@@ -31,13 +31,13 @@ Linker_require("dht/dhtcore/RumorMill.c")
  */
 struct RumorMill
 {
+    struct Address* addresses;
+
     int count;
 };
 
 void RumorMill__addNode(struct RumorMill* mill, struct Address* addr, const char* file, int line);
-
-#define RumorMill_addNode(mill, addr) \
-    RumorMill__addNode((mill), (addr), Gcc_FILE, Gcc_LINE);
+#define RumorMill_addNode(mill, addr) RumorMill__addNode((mill), (addr), Gcc_FILE, Gcc_LINE)
 
 bool RumorMill_getNode(struct RumorMill* mill, struct Address* output);
 

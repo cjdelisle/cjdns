@@ -34,7 +34,6 @@ struct RumorMill_pvt
 
     struct Address* selfAddr;
 
-    struct Address* addresses;
     int capacity;
 
     struct Log* log;
@@ -55,10 +54,10 @@ static struct Address* getWorst(struct RumorMill_pvt* rm)
     struct Address* worst = NULL;
     int howBadIsTheWorst = 0;
     for (int i = 0; i < rm->pub.count; i++) {
-        int howBad = getBadness(&rm->addresses[i], rm->selfAddr);
+        int howBad = getBadness(&rm->pub.addresses[i], rm->selfAddr);
         if (howBad > howBadIsTheWorst) {
             howBadIsTheWorst = howBad;
-            worst = &rm->addresses[i];
+            worst = &rm->pub.addresses[i];
         }
     }
     Assert_true(worst);
@@ -71,10 +70,10 @@ static struct Address* getBest(struct RumorMill_pvt* rm)
     struct Address* best = NULL;
     int howBadIsTheBest = -1;
     for (int i = 0; i < rm->pub.count; i++) {
-        int howBad = getBadness(&rm->addresses[i], rm->selfAddr);
+        int howBad = getBadness(&rm->pub.addresses[i], rm->selfAddr);
         if (howBad < howBadIsTheBest || !best) {
             howBadIsTheBest = howBad;
-            best = &rm->addresses[i];
+            best = &rm->pub.addresses[i];
         }
     }
     Assert_true(best);
@@ -88,8 +87,8 @@ void RumorMill__addNode(struct RumorMill* mill, struct Address* addr, const char
     Address_getPrefix(addr);
 
     for (int i = 0; i < rm->pub.count; i++) {
-        if (rm->addresses[i].path == addr->path &&
-            !Bits_memcmp(rm->addresses[i].key, addr->key, 32))
+        if (rm->pub.addresses[i].path == addr->path &&
+            !Bits_memcmp(rm->pub.addresses[i].key, addr->key, 32))
         {
             return;
         }
@@ -99,7 +98,7 @@ void RumorMill__addNode(struct RumorMill* mill, struct Address* addr, const char
 
     struct Address* replace;
     if (rm->pub.count < rm->capacity) {
-        replace = &rm->addresses[rm->pub.count++];
+        replace = &rm->pub.addresses[rm->pub.count++];
     } else {
         replace = getWorst(rm);
     }
@@ -121,8 +120,8 @@ bool RumorMill_getNode(struct RumorMill* mill, struct Address* output)
     Bits_memcpyConst(output, best, sizeof(struct Address));
 
     rm->pub.count--;
-    if (&rm->addresses[rm->pub.count] != best) {
-        Bits_memcpyConst(best, &rm->addresses[rm->pub.count], sizeof(struct Address));
+    if (&rm->pub.addresses[rm->pub.count] != best) {
+        Bits_memcpyConst(best, &rm->pub.addresses[rm->pub.count], sizeof(struct Address));
     }
     return true;
 }
@@ -137,7 +136,7 @@ struct RumorMill* RumorMill_new(struct Allocator* allocator,
     Address_getPrefix(selfAddr);
 
     struct RumorMill_pvt* rm = Allocator_calloc(alloc, sizeof(struct RumorMill_pvt), 1);
-    rm->addresses = Allocator_calloc(alloc, sizeof(struct Address), capacity);
+    rm->pub.addresses = Allocator_calloc(alloc, sizeof(struct Address), capacity);
     rm->capacity = capacity;
     rm->selfAddr = Allocator_clone(alloc, selfAddr);
     rm->log = log;

@@ -26,6 +26,7 @@
 #include "dht/dhtcore/SearchRunner.h"
 #include "dht/dhtcore/SearchRunner_admin.h"
 #include "dht/dhtcore/NodeStore_admin.h"
+#include "dht/dhtcore/Janitor_admin.h"
 #include "dht/dhtcore/Janitor.h"
 #include "dht/dhtcore/Router_new.h"
 #include "util/AddrTools.h"
@@ -68,6 +69,7 @@ struct Pathfinder_pvt
     struct Router* router;
     struct SearchRunner* searchRunner;
     struct RumorMill* rumorMill;
+    struct Janitor* janitor;
 
     Identity
 };
@@ -187,16 +189,16 @@ static Iface_DEFUN connected(struct Pathfinder_pvt* pf, struct Message* msg)
                                         pf->rumorMill,
                                         pf->alloc);
 
-    Janitor_new(LOCAL_MAINTENANCE_SEARCH_MILLISECONDS,
-                GLOBAL_MAINTENANCE_SEARCH_MILLISECONDS,
-                routerModule,
-                pf->nodeStore,
-                pf->searchRunner,
-                pf->rumorMill,
-                pf->log,
-                pf->alloc,
-                pf->base,
-                pf->rand);
+    pf->janitor = Janitor_new(LOCAL_MAINTENANCE_SEARCH_MILLISECONDS,
+                              GLOBAL_MAINTENANCE_SEARCH_MILLISECONDS,
+                              routerModule,
+                              pf->nodeStore,
+                              pf->searchRunner,
+                              pf->rumorMill,
+                              pf->log,
+                              pf->alloc,
+                              pf->base,
+                              pf->rand);
 
     EncodingSchemeModule_register(pf->registry, pf->log, pf->alloc);
 
@@ -211,6 +213,7 @@ static Iface_DEFUN connected(struct Pathfinder_pvt* pf, struct Message* msg)
         NodeStore_admin_register(pf->nodeStore, pf->admin, pf->alloc);
         RouterModule_admin_register(routerModule, pf->router, pf->admin, pf->alloc);
         SearchRunner_admin_register(pf->searchRunner, pf->admin, pf->alloc);
+        Janitor_admin_register(pf->janitor, pf->admin, pf->alloc);
     }
 
     pf->state = Pathfinder_pvt_state_RUNNING;

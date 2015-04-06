@@ -29,7 +29,29 @@ Linker_require("dht/dhtcore/Janitor.c")
 
 #include <stdint.h>
 
-struct Janitor;
+struct Janitor
+{
+    /**
+     * Externally accessible RumorMill.
+     * Used for direct peers and search results that are closer than the responder.
+     */
+    struct RumorMill* externalMill;
+
+    /**
+     * High priority RumorMill.
+     * Used to discover new links to nodes we already know about.
+     */
+    struct RumorMill* linkMill;
+
+    /**
+     * Low priority RumorMill.
+     * Used to discover new nodes.
+     */
+    struct RumorMill* nodeMill;
+
+    /** Just used to keep track of nodes that we need to check on for DHT health. */
+    struct RumorMill* dhtMill;
+};
 
 struct Janitor* Janitor_new(uint64_t localMaintainenceMilliseconds,
                             uint64_t globalMaintainenceMilliseconds,
