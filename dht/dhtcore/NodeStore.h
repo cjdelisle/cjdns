@@ -102,11 +102,6 @@ void NodeStore_unlinkNodes(struct NodeStore* nodeStore, struct Node_Link* link);
  */
 struct Node_Link* NodeStore_nextLink(struct Node_Two* parent, struct Node_Link* startLink);
 
-
-void NodeStore_unpinNode(struct NodeStore* store, struct Node_Two* node);
-void NodeStore_pinNode(struct NodeStore* store, struct Node_Two* node);
-
-
 /**
  * Get the first peer along a path.
  *
@@ -127,6 +122,9 @@ struct Node_Link* NodeStore_firstHopInPath(struct NodeStore* nodeStore,
 
 #define NodeStore_optimizePath_INVALID (~((uint64_t)0))
 uint64_t NodeStore_optimizePath(struct NodeStore* nodeStore, uint64_t path);
+
+
+struct Node_Two* NodeStore_getWorstNode(struct NodeStore* nodeStore);
 
 /**
  * Get a route label for a given path through the network.

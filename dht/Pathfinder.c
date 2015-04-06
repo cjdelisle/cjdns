@@ -316,9 +316,7 @@ static Iface_DEFUN session(struct Message* msg, struct Pathfinder_pvt* pf)
     Log_debug(pf->log, "Session [%s]", str->bytes);
 
     struct Node_Two* node = NodeStore_nodeForAddr(pf->nodeStore, addr.ip6.bytes);
-    if (node) {
-        NodeStore_pinNode(pf->nodeStore, node);
-    } else {
+    if (!node) {
         SearchRunner_search(addr.ip6.bytes, 20, 3, pf->searchRunner, pf->alloc);
     }
 
@@ -331,12 +329,6 @@ static Iface_DEFUN sessionEnded(struct Message* msg, struct Pathfinder_pvt* pf)
     addressForNode(&addr, msg);
     String* str = Address_toString(&addr, msg->alloc);
     Log_debug(pf->log, "Session ended [%s]", str->bytes);
-
-    struct Node_Two* node = NodeStore_nodeForAddr(pf->nodeStore, addr.ip6.bytes);
-    if (node) {
-        NodeStore_unpinNode(pf->nodeStore, node);
-    }
-
     return NULL;
 }
 
@@ -353,6 +345,31 @@ static Iface_DEFUN discoveredPath(struct Message* msg, struct Pathfinder_pvt* pf
     // from getting any actual work done.
     struct Node_Two* nn = NodeStore_nodeForAddr(pf->nodeStore, addr.ip6.bytes);
     if (nn && nn->address.path < addr.path) { return NULL; }
+
+    // We don't have the node in the store, in the event that a machine is communicating with
+    // more other machines than it has space in the nodestore, we need to filter out rumors
+    // which are just going to go into the nodestore then be selected as worst node and removed
+    // immediately.
+    while (!nn) {
+        nn = NodeStore_getWorstNode(pf->nodeStore);
+
+        // We're going to try to mimic the behavior of NodeStore_getWorstNode() because what
+        // we want to avoid is a revolving door scenario where the same nodes go in and out of
+        // the nodestore and get pinged over and over.
+        if (addr.protocolVersion &&
+            nn->address.protocolVersion < Version_CURRENT_PROTOCOL &&
+            nn->address.protocolVersion < addr.protocolVersion)
+        {
+            break;
+        }
+
+        uint32_t selfPrefix = Address_getPrefix(&pf->myAddr);
+        uint64_t worstD = (Address_getPrefix(&nn->address) ^ selfPrefix) + (nn->address.path >> 32);
+        uint64_t ourD = (Address_getPrefix(&addr) ^ selfPrefix) + (addr.path >> 32);
+        if (ourD > worstD) { return NULL; }
+
+        break;
+    }
 
     Log_debug(pf->log, "Discovered path [%s]", Address_toString(&addr, msg->alloc)->bytes);
     RumorMill_addNode(pf->rumorMill, &addr);

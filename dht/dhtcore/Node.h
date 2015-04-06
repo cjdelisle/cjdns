@@ -34,12 +34,7 @@ struct Node_Two
     uint32_t reach_pvt;
 
     /** This is used to mark/sweep nodes in getWorstNode(), it's meaningless otherwise. */
-    uint8_t marked;
-
-    /** Never remove this node from the table. */
-    uint8_t pinned;
-
-    uint16_t pad;
+    uint32_t marked;
 
     /** Time the node was last pinged, *not* reset on path changes. */
     uint64_t timeLastPinged;

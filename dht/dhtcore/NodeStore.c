@@ -1302,7 +1302,6 @@ static void markKeyspaceNodes(struct NodeStore_pvt* store)
     }
 }
 
-
 /**
  * We define the worst node the node with the lowest reach, excluding nodes which are required for
  * the DHT, and nodes which are somebody's bestParent (only relevant if they're the bestParent of
@@ -1310,8 +1309,9 @@ static void markKeyspaceNodes(struct NodeStore_pvt* store)
  * If two nodes tie (e.g. two unreachable nodes with 0 reach) then the node which is
  * further from us in keyspace is worse.
  */
-static struct Node_Two* getWorstNode(struct NodeStore_pvt* store)
+struct Node_Two* NodeStore_getWorstNode(struct NodeStore* nodeStore)
 {
+    struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*) nodeStore);
     struct Node_Two* worst = NULL;
     struct Node_Two* nn = NULL;
     RB_FOREACH(nn, NodeRBTree, &store->nodeTree) {
@@ -1546,7 +1546,7 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
         store->pub.nodeCapacity
             || store->pub.linkCount > store->pub.linkCapacity)
     {
-        struct Node_Two* worst = getWorstNode(store);
+        struct Node_Two* worst = NodeStore_getWorstNode(&store->pub);
         if (Defined(Log_DEBUG)) {
             uint8_t worstAddr[60];
             Address_print(worstAddr, &worst->address);
@@ -1555,13 +1555,6 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
         }
 
         Assert_true(!isPeer(worst, store));
-        //Assert_true(!worst->pinned); // best effort, sometimes we must remove a pinned node.
-        if (Defined(Log_INFO) && worst->pinned) {
-            uint8_t worstAddr[60];
-            Address_print(worstAddr, &worst->address);
-            Log_debug(store->logger, "store full, worst node pinned: [%s] nodes [%d] links [%d]",
-                      worstAddr, store->pub.nodeCount, store->pub.linkCount);
-        }
 
         if (link && (worst == link->parent || worst == link->child)) { link = NULL; }
 
@@ -2340,21 +2333,4 @@ uint64_t NodeStore_timeSinceLastPing(struct NodeStore* nodeStore, struct Node_Tw
         link = Node_getBestParent(link->parent);
     }
     return now - lastSeen;
-}
-
-void NodeStore_unpinNode(struct NodeStore* nodeStore, struct Node_Two* node)
-{
-    struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
-    if (!node->pinned) { return; }
-    store->pub.pinnedNodes--;
-    node->pinned = false;
-    Assert_true(store->pub.pinnedNodes >= 0);
-}
-
-void NodeStore_pinNode(struct NodeStore* nodeStore, struct Node_Two* node)
-{
-    struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
-    if (node->pinned) { return; }
-    store->pub.pinnedNodes++;
-    node->pinned = true;
 }
