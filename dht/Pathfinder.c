@@ -356,7 +356,7 @@ static Iface_DEFUN discoveredPath(struct Message* msg, struct Pathfinder_pvt* pf
         int ourKDistLog = Bits_log2x32(Address_getPrefix(&addr) ^ selfPrefix);
         for (;;) {
             nn = NodeStore_getNextNode(pf->nodeStore, nn);
-            if (nn) { break; }
+            if (!nn) { break; }
             if (Bits_log2x32(Address_getPrefix(&nn->address) ^ selfPrefix) <= ourKDistLog) {
                 ctr++;
                 totalLog2Path += Bits_log2x64(nn->address.path);
