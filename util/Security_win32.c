@@ -22,8 +22,11 @@
 #include "util/events/EventBase.h"
 #include "util/events/Timeout.h"
 
+#include <unistd.h>
+
 Dict* Security_getUser(char* userName, struct Allocator* retAlloc)
 {
+    Dict* ret = Dict_new(retAlloc);
     Dict_putString(ret, String_new("error", retAlloc),
                         String_new("Not supported on windows", retAlloc),
                         retAlloc);
@@ -73,7 +76,7 @@ static void fail(void* vSec)
 {
     struct Security_pvt* sec = Identity_check((struct Security_pvt*) vSec);
     Log_critical(sec->log, "Security_setupComplete() not called in time, exiting");
-    exit(232);
+    _exit(232);
 }
 
 struct Security* Security_new(struct Allocator* alloc, struct Log* log, struct EventBase* base)
