@@ -1302,6 +1302,7 @@ static void markKeyspaceNodes(struct NodeStore_pvt* store)
     }
 }
 
+
 /**
  * We define the worst node the node with the lowest reach, excluding nodes which are required for
  * the DHT, and nodes which are somebody's bestParent (only relevant if they're the bestParent of
@@ -1309,9 +1310,8 @@ static void markKeyspaceNodes(struct NodeStore_pvt* store)
  * If two nodes tie (e.g. two unreachable nodes with 0 reach) then the node which is
  * further from us in keyspace is worse.
  */
-struct Node_Two* NodeStore_getWorstNode(struct NodeStore* nodeStore)
+static struct Node_Two* getWorstNode(struct NodeStore_pvt* store)
 {
-    struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*) nodeStore);
     struct Node_Two* worst = NULL;
     struct Node_Two* nn = NULL;
     RB_FOREACH(nn, NodeRBTree, &store->nodeTree) {
@@ -1546,7 +1546,7 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
         store->pub.nodeCapacity
             || store->pub.linkCount > store->pub.linkCapacity)
     {
-        struct Node_Two* worst = NodeStore_getWorstNode(&store->pub);
+        struct Node_Two* worst = getWorstNode(store);
         if (Defined(Log_DEBUG)) {
             uint8_t worstAddr[60];
             Address_print(worstAddr, &worst->address);

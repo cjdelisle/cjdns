@@ -123,9 +123,6 @@ struct Node_Link* NodeStore_firstHopInPath(struct NodeStore* nodeStore,
 #define NodeStore_optimizePath_INVALID (~((uint64_t)0))
 uint64_t NodeStore_optimizePath(struct NodeStore* nodeStore, uint64_t path);
 
-
-struct Node_Two* NodeStore_getWorstNode(struct NodeStore* nodeStore);
-
 /**
  * Get a route label for a given path through the network.
  *
