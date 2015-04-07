@@ -35,15 +35,6 @@
 
 ///////////////////// [ Address ][ content... ]
 
-/** The number of milliseconds between attempting local maintenance searches. */
-#define LOCAL_MAINTENANCE_SEARCH_MILLISECONDS 1000
-
-/**
- * The number of milliseconds to pass between global maintainence searches.
- * These are searches for random targets which are used to discover new nodes.
- */
-#define GLOBAL_MAINTENANCE_SEARCH_MILLISECONDS 30000
-
 #define RUMORMILL_CAPACITY 64
 
 struct Pathfinder_pvt
@@ -189,9 +180,7 @@ static Iface_DEFUN connected(struct Pathfinder_pvt* pf, struct Message* msg)
                                         pf->rumorMill,
                                         pf->alloc);
 
-    pf->janitor = Janitor_new(LOCAL_MAINTENANCE_SEARCH_MILLISECONDS,
-                              GLOBAL_MAINTENANCE_SEARCH_MILLISECONDS,
-                              routerModule,
+    pf->janitor = Janitor_new(routerModule,
                               pf->nodeStore,
                               pf->searchRunner,
                               pf->rumorMill,

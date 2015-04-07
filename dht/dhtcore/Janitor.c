@@ -38,6 +38,13 @@
 
 #define MAX_SEARCHES 10
 
+/** A path which has recently been probed will be quiet for Janitor_PATH_QUIET_TIME_MILLISECONDS */
+struct Janitor_QuietPath
+{
+    int64_t timeAdded;
+    uint64_t path;
+};
+
 /**
  * The goal of this is to run searches in the local area of this node.
  * it searches for hashes every localMaintainenceSearchPeriod milliseconds.
@@ -59,10 +66,10 @@ struct Janitor_pvt
 
     struct Log* logger;
 
-    uint64_t globalMaintainenceMilliseconds;
-    uint64_t timeOfNextGlobalMaintainence;
+    #define Janitor_pvt_quietPaths_NUM 64
+    struct Janitor_QuietPath quietPaths[Janitor_pvt_quietPaths_NUM];
 
-    uint64_t localMaintainenceMilliseconds;
+    uint64_t timeOfNextGlobalMaintainence;
 
     struct Allocator* allocator;
 
@@ -91,6 +98,40 @@ struct Janitor_Search
     Identity
 };
 
+static bool canPing(struct Janitor_pvt* j, uint64_t path)
+{
+    int64_t now = Time_currentTimeMilliseconds(j->eventBase);
+    for (int i = 0; i < Janitor_pvt_quietPaths_NUM; i++) {
+        struct Janitor_QuietPath* qp = &j->quietPaths[i];
+        if (qp->path == path && now - qp->timeAdded < j->pub.pathQuietTimeMilliseconds) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static void beQuietTo(struct Janitor_pvt* j, uint64_t path)
+{
+    int64_t now = Time_currentTimeMilliseconds(j->eventBase);
+    int oldestIndex = 0;
+    int64_t oldestTime = UINT64_MAX;
+    for (int i = 0; i < Janitor_pvt_quietPaths_NUM; i++) {
+        struct Janitor_QuietPath* qp = &j->quietPaths[i];
+        if (qp->path == path || now - qp->timeAdded > j->pub.pathQuietTimeMilliseconds) {
+            qp->timeAdded = now;
+            qp->path = path;
+            return;
+        } else if (qp->timeAdded < oldestTime) {
+            oldestIndex = i;
+            oldestTime = qp->timeAdded;
+        }
+    }
+    Log_debug(j->logger, "Replacing [%ld]ms old QuietPath because quietPaths list is full",
+        (long)(now - oldestTime));
+    j->quietPaths[oldestIndex].timeAdded = now;
+    j->quietPaths[oldestIndex].path = path;
+}
+
 static void responseCallback(struct RouterModule_Promise* promise,
                              uint32_t lagMilliseconds,
                              struct Address* from,
@@ -98,6 +139,7 @@ static void responseCallback(struct RouterModule_Promise* promise,
 {
     struct Janitor_Search* search = Identity_check((struct Janitor_Search*)promise->userData);
     if (from) {
+        beQuietTo(search->janitor, from->path);
         Bits_memcpyConst(&search->best, from, sizeof(struct Address));
         return;
     }
@@ -179,6 +221,7 @@ static void dhtResponseCallback(struct RouterModule_Promise* promise,
 {
     struct Janitor_pvt* janitor = Identity_check((struct Janitor_pvt*)promise->userData);
     if (!from) { return; }
+    beQuietTo(janitor, from->path);
     struct Address_List* addresses =
         ReplySerializer_parse(from, result, janitor->logger, true, promise->alloc);
 
@@ -216,6 +259,7 @@ static void peersResponseCallback(struct RouterModule_Promise* promise,
 {
     struct Janitor_pvt* janitor = Identity_check((struct Janitor_pvt*)promise->userData);
     if (!from) { return; }
+    beQuietTo(janitor, from->path);
     struct Address_List* addresses =
         ReplySerializer_parse(from, result, janitor->logger, true, promise->alloc);
 
@@ -504,7 +548,8 @@ static bool tryNodeMill(struct Janitor_pvt* janitor)
 static bool tryExternalMill(struct Janitor_pvt* janitor)
 {
     struct Address addr = { .protocolVersion = 0 };
-    if (RumorMill_getNode(janitor->pub.externalMill, &addr)) {
+    while (RumorMill_getNode(janitor->pub.externalMill, &addr)) {
+        if (!canPing(janitor, addr.path)) { continue; }
         // ping a node from the externally accessible queue
         getPeersMill(janitor, &addr);
         debugAddr(janitor, "Pinging possible node from external RumorMill", &addr);
@@ -577,7 +622,7 @@ static void maintanenceCycle(void* vcontext)
 
     uint64_t now = Time_currentTimeMilliseconds(janitor->eventBase);
 
-    uint64_t nextTimeout = (janitor->localMaintainenceMilliseconds / 2);
+    uint64_t nextTimeout = (janitor->pub.localMaintainenceMilliseconds / 2);
     nextTimeout += Random_uint32(janitor->rand) % (nextTimeout * 2);
     Timeout_resetTimeout(janitor->timeout, nextTimeout);
 
@@ -585,7 +630,7 @@ static void maintanenceCycle(void* vcontext)
         if (now > janitor->timeOfNextGlobalMaintainence) {
             Log_warn(janitor->logger,
                      "No nodes in routing table, check network connection and configuration.");
-            janitor->timeOfNextGlobalMaintainence += janitor->globalMaintainenceMilliseconds;
+            janitor->timeOfNextGlobalMaintainence += janitor->pub.globalMaintainenceMilliseconds;
         }
         return;
     }
@@ -640,13 +685,11 @@ static void maintanenceCycle(void* vcontext)
     if (now > janitor->timeOfNextGlobalMaintainence) {
         //search(addr.ip6.bytes, janitor);
         splitLinks(janitor);
-        janitor->timeOfNextGlobalMaintainence += janitor->globalMaintainenceMilliseconds;
+        janitor->timeOfNextGlobalMaintainence += janitor->pub.globalMaintainenceMilliseconds;
     }
 }
 
-struct Janitor* Janitor_new(uint64_t localMaintainenceMilliseconds,
-                            uint64_t globalMaintainenceMilliseconds,
-                            struct RouterModule* routerModule,
+struct Janitor* Janitor_new(struct RouterModule* routerModule,
                             struct NodeStore* nodeStore,
                             struct SearchRunner* searchRunner,
                             struct RumorMill* rumorMill,
@@ -662,8 +705,6 @@ struct Janitor* Janitor_new(uint64_t localMaintainenceMilliseconds,
         .nodeStore = nodeStore,
         .searchRunner = searchRunner,
         .logger = logger,
-        .globalMaintainenceMilliseconds = globalMaintainenceMilliseconds,
-        .localMaintainenceMilliseconds = localMaintainenceMilliseconds,
         .allocator = alloc,
         .rand = rand
     }));
@@ -677,12 +718,14 @@ struct Janitor* Janitor_new(uint64_t localMaintainenceMilliseconds,
                                          (NodeStore_bucketNumber * NodeStore_bucketSize),
                                          logger,
                                          "dhtMill");
+    janitor->pub.globalMaintainenceMilliseconds = Janitor_GLOBAL_MAINTENANCE_MILLISECONDS_DEFAULT;
+    janitor->pub.localMaintainenceMilliseconds = Janitor_LOCAL_MAINTENANCE_MILLISECONDS_DEFAULT;
 
     janitor->timeOfNextGlobalMaintainence = Time_currentTimeMilliseconds(eventBase);
 
     janitor->timeout = Timeout_setTimeout(maintanenceCycle,
                                           janitor,
-                                          localMaintainenceMilliseconds,
+                                          janitor->pub.localMaintainenceMilliseconds,
                                           eventBase,
                                           alloc);
 

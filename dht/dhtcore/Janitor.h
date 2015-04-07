@@ -51,11 +51,27 @@ struct Janitor
 
     /** Just used to keep track of nodes that we need to check on for DHT health. */
     struct RumorMill* dhtMill;
+
+    /**
+     * The number of milliseconds after a path has been (successfully) pinged which it will
+     * not be pinged again.
+     */
+    #define Janitor_PATH_QUIET_TIME_MILLISECONDS 30000
+    int64_t pathQuietTimeMilliseconds;
+
+    /** The number of milliseconds between attempting local maintenance searches. */
+    #define Janitor_LOCAL_MAINTENANCE_MILLISECONDS_DEFAULT 1000
+    uint64_t localMaintainenceMilliseconds;
+
+    /**
+     * The number of milliseconds to pass between global maintainence searches.
+     * These are searches for random targets which are used to discover new nodes.
+     */
+    #define Janitor_GLOBAL_MAINTENANCE_MILLISECONDS_DEFAULT 30000
+    uint64_t globalMaintainenceMilliseconds;
 };
 
-struct Janitor* Janitor_new(uint64_t localMaintainenceMilliseconds,
-                            uint64_t globalMaintainenceMilliseconds,
-                            struct RouterModule* routerModule,
+struct Janitor* Janitor_new(struct RouterModule* routerModule,
                             struct NodeStore* nodeStore,
                             struct SearchRunner* searchRunner,
                             struct RumorMill* rumorMill,
