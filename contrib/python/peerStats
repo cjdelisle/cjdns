@@ -11,10 +11,40 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import sys
+import getopt
 import cjdnsadmin.adminTools as at
 
-cjdns=at.anonConnect()
+def main():
 
-at.peerStats(cjdns,verbose=True);
+    human_readable=False
 
-cjdns.disconnect()
+    try:
+        opts, args = getopt.getopt(sys.argv[1:], "h" , ["humanreadable", "help"])
+    except getopt.GetoptError, e:
+        print(str(e))
+        print()
+        usage()
+        sys.exit(1)
+
+    for o, a in opts:
+        if o in ("-h", "--humanreadable"): human_readable=True
+        if o == ("--help"):
+            usage()
+            sys.exit(0)
+
+        
+
+    cjdns=at.anonConnect()
+    at.peerStats(cjdns,verbose=True,human_readable=human_readable);
+    cjdns.disconnect()
+
+
+def usage():
+    print("usage: peerStats [-h]")
+    print("")
+    print("     -h, --humanreadable     human readable output of transmitted bytes")
+    print("     --help                  this list")
+    print("")
+
+main()
