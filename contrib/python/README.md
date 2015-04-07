@@ -82,3 +82,13 @@ functions and their parameters.
     >>> exit(0)
 
 For convenience, you can directly start `./cjdnsa`
+
+
+#peerStats
+
+    ./peerStats --help
+    usage: peerStats [-h]
+    
+    -h, --humanreadable     human readable output of transmitted bytes
+    --help                  this list
+
