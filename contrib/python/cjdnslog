@@ -34,24 +34,30 @@ def recieve(cjdns, txid):
         doLog(cjdns.getMessage(txid));
 
 
+def main():
+    cjdns = connectWithAdminInfo();
 
-cjdns = connectWithAdminInfo();
+    level = '';
+    fileName = '';
+    line = 0;
+    args = len(sys.argv) - 1;
+    if (args == 0):
+        usage();
+        exit(0);
 
-level = '';
-fileName = '';
-line = 0;
-args = len(sys.argv) - 1;
-if (args == 0):
-    usage();
-    exit(0);
+    if (args > 0): level = sys.argv[1];
+    if (args > 1): fileName = sys.argv[2];
+    if (args > 2): line = int(sys.argv[3]);
 
-if (args > 0): level = sys.argv[1];
-if (args > 1): fileName = sys.argv[2];
-if (args > 2): line = int(sys.argv[3]);
+    sub = cjdns.AdminLog_subscribe(line, fileName, level);
 
-sub = cjdns.AdminLog_subscribe(line, fileName, level);
+    if (sub['error'] == 'none'):
+        recieve(cjdns, sub['txid']);
+    else:
+        print(sub);
 
-if (sub['error'] == 'none'):
-    recieve(cjdns, sub['txid']);
-else:
-    print(sub);
+try:
+    main()
+except KeyboardInterrupt:
+    print("")
+    print("Interrupted by user.")

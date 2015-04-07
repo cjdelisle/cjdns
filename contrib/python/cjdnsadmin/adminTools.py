@@ -77,7 +77,7 @@ def streamRoutingTable(cjdns, delay=10):
 
         sleep(delay)
 
-def peerStats(cjdns,up=False,verbose=False):
+def peerStats(cjdns,up=False,verbose=False,human_readable=False):
     from publicToIp6 import PublicToIp6_convert;
 
     allPeers = []
@@ -95,13 +95,19 @@ def peerStats(cjdns,up=False,verbose=False):
         i += 1
 
     if verbose:
-        STAT_FORMAT = '%s\tv%s\t%s\tin %d\tout %d\t%s\tdup %d los %d oor %d'
+        STAT_FORMAT = '%s\tv%s\t%s\tin %s\tout %s\t%s\tdup %d los %d oor %d'
 
         for peer in allPeers:
             ip = PublicToIp6_convert(peer['publicKey'])
-
+			
+            b_in  = peer['bytesIn']
+            b_out = peer['bytesOut']
+            if human_readable:
+				b_in  = sizeof_fmt(b_in)
+				b_out = sizeof_fmt(b_out)
+            
             p = STAT_FORMAT % (ip, peer['version'], peer['switchLabel'],
-                               peer['bytesIn'], peer['bytesOut'], peer['state'],
+                               str(b_in), str(b_out), peer['state'],
                                peer['duplicates'], peer['lostPackets'],
                                peer['receivedOutOfRange'])
 
@@ -110,6 +116,12 @@ def peerStats(cjdns,up=False,verbose=False):
 
             print p
     return allPeers
+
+def sizeof_fmt(num):
+    for x in ['B','KB','MB','GB','TB']:
+        if num < 1024.0:
+            return "%3.1f%s" % (num, x)
+        num /= 1024.0
 
 def parseLabel(route):
     route = route.replace('.','')
