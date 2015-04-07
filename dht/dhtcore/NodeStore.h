@@ -209,6 +209,8 @@ void NodeStore_disconnectedPeer(struct NodeStore* nodeStore, uint64_t path);
 
 struct Node_Two* NodeStore_getNextNode(struct NodeStore* nodeStore, struct Node_Two* lastNode);
 
+struct Node_Link* NodeStore_getNextLink(struct NodeStore* nodeStore, struct Node_Link* last);
+
 uint64_t NodeStore_timeSinceLastPing(struct NodeStore* nodeStore, struct Node_Two* node);
 
 // Used for DHT maintenance.

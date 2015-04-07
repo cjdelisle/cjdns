@@ -1433,6 +1433,32 @@ static uint32_t calcNextReach(const uint32_t oldReach, const uint32_t millisecon
     return out;
 }
 
+/**
+ * Rate the badness of a link, parent best path being long is worth half as much as long
+ * cannonicalLabel, a link which is a bestParent will always rate 0.
+ */
+static int linkScore(struct Node_Link* link)
+{
+    if (Node_getBestParent(link->child) == link) { return 0; }
+    return Bits_log2x64(link->parent->address.path) + (Bits_log2x64(link->cannonicalLabel) * 2);
+}
+
+static struct Node_Link* getWorstLink(struct NodeStore_pvt* store)
+{
+    struct Node_Link* worst = NULL;
+    int worstScore = 0;
+    struct Node_Link* link = NULL;
+    while ((link = NodeStore_getNextLink(&store->pub, link))) {
+        int score = linkScore(link);
+        if (score > worstScore) {
+            worst = link;
+            worstScore = score;
+        }
+    }
+    Assert_true(worst);
+    return worst;
+}
+
 struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
                                          struct Address* addr,
                                          struct EncodingScheme* scheme,
@@ -1542,10 +1568,7 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
     handleNews(link->child, reach, store);
     freePendingLinks(store);
 
-    while ((store->pub.nodeCount - store->pub.peerCount) >
-        store->pub.nodeCapacity
-            || store->pub.linkCount > store->pub.linkCapacity)
-    {
+    while ((store->pub.nodeCount - store->pub.peerCount) > store->pub.nodeCapacity) {
         struct Node_Two* worst = getWorstNode(store);
         if (Defined(Log_DEBUG)) {
             uint8_t worstAddr[60];
@@ -1561,6 +1584,14 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
         destroyNode(worst, store);
         freePendingLinks(store);
     }
+    while (store->pub.linkCount > store->pub.linkCapacity) {
+        struct Node_Link* worst = getWorstLink(store);
+        if (Defined(Log_DEBUG)) {
+            logLink(store, worst, "out of links, unlinking worst");
+        }
+        NodeStore_unlinkNodes(&store->pub, worst);
+    }
+    freePendingLinks(store);
 
     verify(store);
 
@@ -1791,6 +1822,28 @@ struct Node_Two* NodeStore_dumpTable(struct NodeStore* nodeStore, uint32_t index
         if (i++ == index) { return nn; }
     }
     return NULL;
+}
+
+struct Node_Link* NodeStore_getNextLink(struct NodeStore* nodeStore, struct Node_Link* last)
+{
+    struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
+    struct Node_Two* nn;
+    struct Node_Link* next;
+    // NULL input, take first link of first node in store
+    if (!last) {
+        nn = Identity_ncheck(RB_MIN(NodeRBTree, &store->nodeTree));
+        next = NULL;
+    } else {
+        nn = Identity_ncheck(NodeRBTree_RB_NEXT(last->parent));
+        next = Identity_ncheck(PeerRBTree_RB_NEXT(last));
+    }
+
+    while (!next) {
+        if (!nn) { return NULL; }
+        next = Identity_ncheck(RB_MIN(PeerRBTree, &nn->peerTree));
+        nn = Identity_ncheck(NodeRBTree_RB_NEXT(nn));
+    }
+    return next;
 }
 
 struct Node_Two* NodeStore_getNextNode(struct NodeStore* nodeStore, struct Node_Two* lastNode)
