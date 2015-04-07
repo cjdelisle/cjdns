@@ -263,14 +263,20 @@ static void _verify(struct NodeStore_pvt* store, char* file, int line)
         links += _verifyNode(nn, store, file, line);
         if (Node_getBestParent(nn)) { linkedNodes++; }
     }
-    Assert_fileLine(links == store->pub.linkCount && "one", file, line);
+    struct Node_Link* link = store->linksToFree;
+    int freeingLinks = 0;
+    while (link) {
+        freeingLinks++;
+        link = link->nextPeer;
+    }
+    Assert_fileLine(links + freeingLinks == store->pub.linkCount && "one", file, line);
 
     Assert_fileLine(linkedNodes == store->pub.linkedNodes, file, line);
 
     links = 0;
     struct Node_Link* nl = NULL;
     while ((nl = NodeStore_getNextLink(&store->pub, nl))) { links++; }
-    Assert_fileLine(links == store->pub.linkCount && "two", file, line);
+    Assert_fileLine(links + freeingLinks == store->pub.linkCount && "two", file, line);
 }
 #define verify(store) _verify(store, Gcc_SHORT_FILE, Gcc_LINE)
 
