@@ -210,16 +210,17 @@ static void _checkNode(struct Node_Two* node, struct NodeStore_pvt* store, char*
 }
 #define checkNode(node, store) _checkNode(node, store, Gcc_SHORT_FILE, Gcc_LINE)
 
-static void _verifyNode(struct Node_Two* node, struct NodeStore_pvt* store, char* file, int line)
+static int _verifyNode(struct Node_Two* node, struct NodeStore_pvt* store, char* file, int line)
 {
     if (!Defined(PARANOIA)) {
-        return;
+        return 0;
     }
     // #1 check the node (do the basic checks)
     _checkNode(node, store, file, line);
 
     // #2 make sure all of the node's outgoing links are split properly
     struct Node_Link* link = NULL;
+    int links = 0;
     RB_FOREACH_REVERSE(link, PeerRBTree, &node->peerTree) {
         // make sure any peers of this node are split properly
         struct Node_Link* linkB = link;
@@ -231,6 +232,7 @@ static void _verifyNode(struct Node_Two* node, struct NodeStore_pvt* store, char
                 file, line
             );
         }
+        links++;
 
         Assert_true(!link->nextInSplitList);
     }
@@ -242,6 +244,8 @@ static void _verifyNode(struct Node_Two* node, struct NodeStore_pvt* store, char
 
     // #4 no persistant markings are allowed.
     Assert_true(!node->marked);
+
+    return links;
 }
 #define verifyNode(node, store) _verifyNode(node, store, Gcc_SHORT_FILE, Gcc_LINE)
 
@@ -253,12 +257,20 @@ static void _verify(struct NodeStore_pvt* store, char* file, int line)
     }
     Assert_true(Node_getBestParent(store->pub.selfNode) == store->selfLink || !store->selfLink);
     int linkedNodes = 0;
+    int links = 0;
     struct Node_Two* nn = NULL;
     RB_FOREACH(nn, NodeRBTree, &store->nodeTree) {
-        _verifyNode(nn, store, file, line);
+        links += _verifyNode(nn, store, file, line);
         if (Node_getBestParent(nn)) { linkedNodes++; }
     }
+    Assert_fileLine(links == store->pub.linkCount && "one", file, line);
+
     Assert_fileLine(linkedNodes == store->pub.linkedNodes, file, line);
+
+    links = 0;
+    struct Node_Link* nl = NULL;
+    while ((nl = NodeStore_getNextLink(&store->pub, nl))) { links++; }
+    Assert_fileLine(links == store->pub.linkCount && "two", file, line);
 }
 #define verify(store) _verify(store, Gcc_SHORT_FILE, Gcc_LINE)
 
@@ -1834,8 +1846,9 @@ struct Node_Link* NodeStore_getNextLink(struct NodeStore* nodeStore, struct Node
         nn = Identity_ncheck(RB_MIN(NodeRBTree, &store->nodeTree));
         next = NULL;
     } else {
-        nn = Identity_ncheck(NodeRBTree_RB_NEXT(last->parent));
         next = Identity_ncheck(PeerRBTree_RB_NEXT(last));
+        if (next) { return next; }
+        nn = Identity_ncheck(NodeRBTree_RB_NEXT(last->parent));
     }
 
     while (!next) {

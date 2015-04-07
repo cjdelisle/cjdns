@@ -52,7 +52,7 @@ struct NodeStore
 };
 
 #define NodeStore_DEFAULT_NODE_CAPACITY 128
-#define NodeStore_DEFAULT_LINK_CAPACITY 4096
+#define NodeStore_DEFAULT_LINK_CAPACITY 512
 
 /**
  * Create a new NodeStore.
