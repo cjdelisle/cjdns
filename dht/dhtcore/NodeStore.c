@@ -1793,6 +1793,29 @@ struct Node_Two* NodeStore_dumpTable(struct NodeStore* nodeStore, uint32_t index
     return NULL;
 }
 
+struct Node_Link* NodeStore_getNextLink(struct NodeStore* nodeStore, struct Node_Link* last)
+{
+    struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
+    struct Node_Two* nn;
+    struct Node_Link* next;
+    // NULL input, take first link of first node in store
+    if (!last) {
+        nn = Identity_ncheck(RB_MIN(NodeRBTree, &store->nodeTree));
+        next = NULL;
+    } else {
+        next = Identity_ncheck(PeerRBTree_RB_NEXT(last));
+        if (next) { return next; }
+        nn = Identity_ncheck(NodeRBTree_RB_NEXT(last->parent));
+    }
+
+    while (!next) {
+        if (!nn) { return NULL; }
+        next = Identity_ncheck(RB_MIN(PeerRBTree, &nn->peerTree));
+        nn = Identity_ncheck(NodeRBTree_RB_NEXT(nn));
+    }
+    return next;
+}
+
 struct Node_Two* NodeStore_getNextNode(struct NodeStore* nodeStore, struct Node_Two* lastNode)
 {
     struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);

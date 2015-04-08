@@ -449,20 +449,11 @@ static void splitLinks(struct Janitor_pvt* janitor)
 {
     return; // TODO(cjd): Enabled until we figure out if it's still needed.
 
-    struct Node_Two* node = NodeStore_getNextNode(janitor->nodeStore, NULL);
-    while (node) {
-        struct Node_Link* bestParent = Node_getBestParent(node);
-        if (bestParent) {
-            struct Node_Link* link = NodeStore_nextLink(node, NULL);
-            while (link) {
-                if (!Node_isOneHopLink(link)) {
-                    RumorMill_addNode(janitor->pub.linkMill, &node->address);
-                    break;
-                }
-                link = NodeStore_nextLink(node, link);
-            }
-        }
-        node = NodeStore_getNextNode(janitor->nodeStore, node);
+    struct Node_Link* link = NULL;
+    while ((link = NodeStore_getNextLink(janitor->nodeStore, link))) {
+        if (link != Node_getBestParent(link->child)) { continue; }
+        if (Node_isOneHopLink(link)) { continue; }
+        RumorMill_addNode(janitor->pub.linkMill, &link->parent->address);
     }
 }
 
@@ -536,7 +527,8 @@ static bool tryExistingNode(struct Janitor_pvt* janitor)
 static bool tryNodeMill(struct Janitor_pvt* janitor)
 {
     struct Address addr = { .protocolVersion = 0 };
-    if (RumorMill_getNode(janitor->pub.nodeMill, &addr)) {
+    while (RumorMill_getNode(janitor->pub.nodeMill, &addr)) {
+        if (!canPing(janitor, addr.path)) { continue; }
         // ping a node from the low-priority ping queue
         getPeersMill(janitor, &addr);
         debugAddr(janitor, "Pinging possible node from node-finding RumorMill", &addr);
@@ -561,7 +553,8 @@ static bool tryExternalMill(struct Janitor_pvt* janitor)
 static bool tryLinkMill(struct Janitor_pvt* janitor)
 {
     struct Address addr = { .protocolVersion = 0 };
-    if (RumorMill_getNode(janitor->pub.linkMill, &addr)) {
+    while (RumorMill_getNode(janitor->pub.linkMill, &addr)) {
+        if (!canPing(janitor, addr.path)) { continue; }
         // ping a node from the externally accessible queue
         getPeersMill(janitor, &addr);
         debugAddr(janitor, "Pinging possible node from link-finding RumorMill", &addr);
