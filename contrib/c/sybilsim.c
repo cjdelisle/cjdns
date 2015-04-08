@@ -152,6 +152,14 @@ static void bindUDP(struct Context* ctx, struct NodeContext* node)
     call->callback = bindUDPCallback;
 }
 
+static void securitySetupComplete(struct Context* ctx, struct NodeContext* node)
+{
+    struct RPCCall* call = pushCall(ctx);
+    call->func = String_new("Security_setupComplete", ctx->rpcAlloc);
+    call->args = Dict_new(ctx->rpcAlloc);
+    call->node = node;
+}
+
 static struct NodeContext* startNode(char* nodeName,
                                      char* privateKeyHex,
                                      Dict* admin,
@@ -198,6 +206,7 @@ static struct NodeContext* startNode(char* nodeName,
 
     Core_init(node->alloc, &node->nodeLog, ctx->base, node->privateKey, node->admin, ctx->rand, eh);
 
+    securitySetupComplete(ctx, node);
     bindUDP(ctx, node);
     node->publicKey = pubKeyForPriv(node->privateKey, node->alloc);
 
