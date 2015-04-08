@@ -252,6 +252,39 @@ static void dhtResponseCallback(struct RouterModule_Promise* promise,
     }
 }
 
+static void findNodeResponseCallback(struct RouterModule_Promise* promise,
+                                     uint32_t lagMilliseconds,
+                                     struct Address* from,
+                                     Dict* result)
+{
+    struct Janitor_pvt* janitor = Identity_check((struct Janitor_pvt*)promise->userData);
+    if (!from) { return; }
+    beQuietTo(janitor, from->path);
+    struct Address_List* addresses =
+        ReplySerializer_parse(from, result, janitor->logger, true, promise->alloc);
+
+    struct Node_Two* parent = NodeStore_nodeForAddr(janitor->nodeStore, from->ip6.bytes);
+    if (!parent) { return; }
+
+    for (int i = 0; addresses && i < addresses->length; i++) {
+
+        // they're telling us about themselves, how helpful...
+        if (!Bits_memcmp(addresses->elems[i].key, from->key, 32)) { continue; }
+
+        struct Node_Link* nl = NodeStore_linkForPath(janitor->nodeStore, addresses->elems[i].path);
+        if (!nl || Bits_memcmp(nl->child->address.ip6.bytes,
+                               addresses->elems[i].ip6.bytes,
+                               Address_SEARCH_TARGET_SIZE))
+        {
+            struct Node_Two* node = NodeStore_nodeForAddr(janitor->nodeStore,
+                                                          addresses->elems[i].ip6.bytes);
+            if (node) {
+                RumorMill_addNode(janitor->pub.linkMill, &addresses->elems[i]);
+            }
+        }
+    }
+}
+
 static void peersResponseCallback(struct RouterModule_Promise* promise,
                                   uint32_t lagMilliseconds,
                                   struct Address* from,
@@ -451,13 +484,9 @@ static void splitLinks(struct Janitor_pvt* janitor)
     while (node) {
         struct Node_Link* bestParent = Node_getBestParent(node);
         if (bestParent) {
-            struct Node_Link* link = NodeStore_nextLink(node, NULL);
-            while (link) {
-                if (!Node_isOneHopLink(link)) {
-                    RumorMill_addNode(janitor->pub.linkMill, &node->address);
-                    break;
-                }
-                link = NodeStore_nextLink(node, link);
+            if (!Node_isOneHopLink(bestParent)) {
+                RumorMill_addNode(janitor->pub.linkMill, &bestParent->parent->address);
+                break;
             }
         }
         node = NodeStore_getNextNode(janitor->nodeStore, node);
@@ -494,6 +523,23 @@ static void getPeersMill(struct Janitor_pvt* janitor, struct Address* addr)
                               janitor->routerModule,
                               janitor->allocator);
     rp->callback = peersResponseCallback;
+    rp->userData = janitor;
+}
+
+static void findNodeMill(struct Janitor_pvt* janitor, struct Address* addr)
+{
+    struct Node_Link* nl = NodeStore_linkForPath(janitor->nodeStore, addr->path);
+    if (nl) {
+        addr = &nl->child->address;
+    }
+    struct Node_Two* rndNode = getRandomNode(janitor->rand, janitor->nodeStore);
+    struct RouterModule_Promise* rp =
+        RouterModule_findNode(addr,
+                              rndNode->address.ip6.bytes,
+                              0,
+                              janitor->routerModule,
+                              janitor->allocator);
+    rp->callback = findNodeResponseCallback;
     rp->userData = janitor;
 }
 
@@ -536,7 +582,7 @@ static bool tryNodeMill(struct Janitor_pvt* janitor)
     struct Address addr = { .protocolVersion = 0 };
     if (RumorMill_getNode(janitor->pub.nodeMill, &addr)) {
         // ping a node from the low-priority ping queue
-        getPeersMill(janitor, &addr);
+        findNodeMill(janitor, &addr);
         debugAddr(janitor, "Pinging possible node from node-finding RumorMill", &addr);
         return true;
     }
@@ -559,7 +605,8 @@ static bool tryExternalMill(struct Janitor_pvt* janitor)
 static bool tryLinkMill(struct Janitor_pvt* janitor)
 {
     struct Address addr = { .protocolVersion = 0 };
-    if (RumorMill_getNode(janitor->pub.linkMill, &addr)) {
+    while (RumorMill_getNode(janitor->pub.linkMill, &addr)) {
+        if (!canPing(janitor, addr.path)) { continue; }
         // ping a node from the externally accessible queue
         getPeersMill(janitor, &addr);
         debugAddr(janitor, "Pinging possible node from link-finding RumorMill", &addr);
