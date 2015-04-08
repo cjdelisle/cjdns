@@ -329,30 +329,14 @@ static Iface_DEFUN discoveredPath(struct Message* msg, struct Pathfinder_pvt* pf
     // We're somehow aware of this path (even if it's unused)
     if (NodeStore_linkForPath(pf->nodeStore, addr.path)) { return NULL; }
 
+    // If we don't already care about the destination, then don't do anything.
+    struct Node_Two* nn = NodeStore_nodeForAddr(pf->nodeStore, addr.ip6.bytes);
+    if (!nn) { return NULL; }
+
     // Our best path is "shorter" (label bits which is somewhat representitive of hop count)
     // basically this is just to dampen the flood to the RM because otherwise it prevents Janitor
     // from getting any actual work done.
-    struct Node_Two* nn = NodeStore_nodeForAddr(pf->nodeStore, addr.ip6.bytes);
-    if (nn && nn->address.path < addr.path) { return NULL; }
-
-    // In order to avoid making the janitor ping endless nodes which are of no value, we will
-    // filter out anything which has a longer path than the average of nodes in better or equal
-    // k-buckets.
-    if (!nn) {
-        int ctr = 0;
-        int totalLog2Path = 0;
-        uint32_t selfPrefix = Address_getPrefix(&pf->myAddr);
-        int ourKDistLog = Bits_log2x32(Address_getPrefix(&addr) ^ selfPrefix);
-        for (;;) {
-            nn = NodeStore_getNextNode(pf->nodeStore, nn);
-            if (!nn) { break; }
-            if (Bits_log2x32(Address_getPrefix(&nn->address) ^ selfPrefix) <= ourKDistLog) {
-                ctr++;
-                totalLog2Path += Bits_log2x64(nn->address.path);
-            }
-        }
-        if (ctr && (totalLog2Path / ctr) <= Bits_log2x64(addr.path)) { return NULL; }
-    }
+    if (nn->address.path < addr.path) { return NULL; }
 
     Log_debug(pf->log, "Discovered path [%s]", Address_toString(&addr, msg->alloc)->bytes);
     RumorMill_addNode(pf->rumorMill, &addr);

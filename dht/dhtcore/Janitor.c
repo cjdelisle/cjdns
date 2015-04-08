@@ -555,7 +555,8 @@ static bool tryLinkMill(struct Janitor_pvt* janitor)
     struct Address addr = { .protocolVersion = 0 };
     while (RumorMill_getNode(janitor->pub.linkMill, &addr)) {
         if (!canPing(janitor, addr.path)) { continue; }
-        // ping a node from the externally accessible queue
+        if (!NodeStore_nodeForAddr(janitor->nodeStore, addr.ip6.bytes)) { continue; }
+        // test an unknown link to a known node
         getPeersMill(janitor, &addr);
         debugAddr(janitor, "Pinging possible node from link-finding RumorMill", &addr);
         return true;
