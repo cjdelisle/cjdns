@@ -328,4 +328,29 @@ static inline uint32_t NumberCompress_v4x8_bitsUsedForNumber(const uint32_t numb
 #define NumberCompress_decompress(label) \
     NumberCompress_getDecompressed(label, NumberCompress_bitsUsedForLabel(label))
 
+/**
+ * Get the label for a particular destination from a given source.
+ * This needs to be called before handing out a label because if a source interface is
+ * represented using more bits than the destination interface, the destination interface
+ * must be padded out so that the switch will find the source and destination labels compatable.
+ *
+ * @param target the label for the location to send to in host byte order.
+ * @param whoIsAsking the label for the node which we are sending the target to in host byte order.
+ * @return the modified target for that node in host byte order.
+ */
+static inline uint64_t NumberCompress_getLabelFor(uint64_t target, uint64_t whoIsAsking)
+{
+    uint32_t targetBits = NumberCompress_bitsUsedForLabel(target);
+    uint32_t whoIsAskingBits = NumberCompress_bitsUsedForLabel(whoIsAsking);
+
+    if (targetBits >= whoIsAskingBits) {
+        return target;
+    }
+
+    uint32_t targetIfaceNum = NumberCompress_getDecompressed(target, targetBits);
+
+    return ((target & (UINT64_MAX << targetBits)) << (whoIsAskingBits - targetBits))
+        | NumberCompress_getCompressed(targetIfaceNum, whoIsAskingBits);
+}
+
 #endif
