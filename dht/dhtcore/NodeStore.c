@@ -327,10 +327,8 @@ static void update(struct Node_Link* link,
 
 static bool isPeer(struct Node_Two* node, struct NodeStore_pvt* store)
 {
-    if (!Node_getBestParent(node)) { return false; }
-    return Node_getBestParent(node)->parent == store->pub.selfNode
-        && EncodingScheme_isOneHop(store->pub.selfNode->encodingScheme,
-                                   Node_getBestParent(node)->cannonicalLabel);
+    struct Node_Link* bp = Node_getBestParent(node);
+    return bp && bp->parent == store->pub.selfNode && Node_isOneHopLink(bp);
 }
 
 static void setParentReachAndPath(struct Node_Two* node,
@@ -392,7 +390,7 @@ static uint32_t subReach(uint32_t reachAB, uint32_t reachAC)
 static uint32_t guessReachOfChild(struct Node_Link* link)
 {
     uint32_t r;
-    if (EncodingScheme_isOneHop(link->parent->encodingScheme, link->cannonicalLabel)) {
+    if (Node_isOneHopLink(link)) {
         // Single-hop link, so guess that it's 3/4 the parent's reach
         r = (Node_getReach(link->parent) * 3) / 4;
     }
@@ -653,7 +651,7 @@ void NodeStore_unlinkNodes(struct NodeStore* nodeStore, struct Node_Link* link)
         // yuh ok
         if (link == store->selfLink) { return; }
 
-        Assert_true(EncodingScheme_isOneHop(parent->encodingScheme, link->cannonicalLabel));
+        Assert_true(Node_isOneHopLink(link));
         store->pub.peerCount--;
         if (Defined(Log_INFO)) {
             uint8_t addr[60];
@@ -812,7 +810,7 @@ static struct Node_Link* linkNodes(struct Node_Two* parent,
     update(link, linkStateDiff, store);
 
     if (parent == store->pub.selfNode && child != store->pub.selfNode) {
-        Assert_true(EncodingScheme_isOneHop(parent->encodingScheme, cannonicalLabel));
+        Assert_true(Node_isOneHopLink(link));
         store->pub.peerCount++;
         if (Defined(Log_DEBUG)) {
             uint8_t addr[60];
@@ -1942,9 +1940,7 @@ struct NodeList* NodeStore_getPeers(uint64_t label,
     struct Node_Link* next = NULL;
     RB_FOREACH(next, PeerRBTree, &store->pub.selfNode->peerTree) {
         uint64_t p = next->child->address.path;
-        if (!EncodingScheme_isOneHop(store->pub.selfNode->encodingScheme, p) && p != 1) {
-            continue;
-        }
+        if (!Node_isOneHopLink(next) && p != 1) { continue; }
         if (p < label) { continue; }
         int j;
         for (j = 0; j < (int)max; j++) {
