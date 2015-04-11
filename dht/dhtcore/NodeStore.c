@@ -1122,13 +1122,20 @@ static void fixLink(struct Node_Link* parentLink,
                 discoverLinkC(store, parentLink, childToGrandchild, grandChild,
                               discoveredPath, splitLink->inverseLinkEncodingFormNumber);
 
-            if (childLink) {
+            // Three possibilities:
+            // 1. discoverLinkC returned NULL for whatever reason, skip this routine.
+            // 2. discoverLinkC determined that childLink already exists and returned it, this
+            //                  routine added it in a previous iteration so
+            //                  childLink->nextInSplitList is not NULL so we should skip this
+            //                  routine as splitLinks will already attempt to split childLink.
+            // 3. childLink is new or has existed since before this discoverNode, we will add it
+            //              to the splitList so that splitLinks will attempt to split it.
+            if (childLink && !childLink->nextInSplitList) {
                 // Order the list so that the next set of links will be split from
                 // smallest to largest and nothing will ever be split twice.
                 for (struct Node_Link** x = outLinks;; x = &(*x)->nextInSplitList) {
                     if (*x == childLink) { break; }
                     if (*x && (*x)->cannonicalLabel <= childLink->cannonicalLabel) { continue; }
-                    Assert_true(!childLink->nextInSplitList);
                     childLink->nextInSplitList = *x;
                     *x = childLink;
                     break;
