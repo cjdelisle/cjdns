@@ -273,7 +273,7 @@ static void isOneHopScheme(struct Allocator* allocator)
 {
     struct Allocator* alloc = Allocator_child(allocator);
     struct EncodingScheme* s4x8 = NumberCompress_v4x8_defineScheme(alloc);
-    Assert_true(EncodingScheme_isOneHop(s4x8, 1));
+    Assert_true(!EncodingScheme_isOneHop(s4x8, 1));
     Assert_true(EncodingScheme_isOneHop(s4x8, 0x21));
     Assert_true(EncodingScheme_isOneHop(s4x8, 0x23));
     Assert_true(!EncodingScheme_isOneHop(s4x8, 0x12));
@@ -282,7 +282,7 @@ static void isOneHopScheme(struct Allocator* allocator)
     Assert_true(!EncodingScheme_isOneHop(s4x8, 0x110));
 
     struct EncodingScheme* s3x5x8 = NumberCompress_v3x5x8_defineScheme(alloc);
-    Assert_true(EncodingScheme_isOneHop(s3x5x8, 1));
+    Assert_true(!EncodingScheme_isOneHop(s3x5x8, 1));
     Assert_true(EncodingScheme_isOneHop(s3x5x8, 0x13));
     Assert_true(EncodingScheme_isOneHop(s3x5x8, 0x15));
     Assert_true(EncodingScheme_isOneHop(s3x5x8, 0x96));
