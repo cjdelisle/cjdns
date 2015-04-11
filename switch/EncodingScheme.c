@@ -408,3 +408,13 @@ int EncodingScheme_isSelfRoute(struct EncodingScheme* scheme, uint64_t routeLabe
 
     return (routeLabel & Bits_maxBits64(currentForm->prefixLen + currentForm->bitCount)) == 1;
 }
+
+int EncodingScheme_isOneHop(struct EncodingScheme* scheme, uint64_t routeLabel)
+{
+    int fn = EncodingScheme_getFormNum(scheme, routeLabel);
+    if (fn == EncodingScheme_getFormNum_INVALID) { return 0; }
+    struct EncodingScheme_Form* form = &scheme->forms[fn];
+    if (Bits_log2x64(routeLabel) == form->prefixLen + form->bitCount) { return true; }
+    if ((routeLabel & Bits_maxBits64(form->prefixLen + form->bitCount)) == 1) { return true; }
+    return false;
+}

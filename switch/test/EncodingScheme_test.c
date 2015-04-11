@@ -269,12 +269,37 @@ static void convertLabelRand(struct Random* rand, struct EncodingScheme* scheme)
     }
 }
 
+static void isOneHopScheme(struct Allocator* allocator)
+{
+    struct Allocator* alloc = Allocator_child(allocator);
+    struct EncodingScheme* s4x8 = NumberCompress_v4x8_defineScheme(alloc);
+    Assert_true(EncodingScheme_isOneHop(s4x8, 1));
+    Assert_true(EncodingScheme_isOneHop(s4x8, 0x21));
+    Assert_true(EncodingScheme_isOneHop(s4x8, 0x23));
+    Assert_true(!EncodingScheme_isOneHop(s4x8, 0x12));
+    Assert_true(EncodingScheme_isOneHop(s4x8, 0x220));
+    Assert_true(EncodingScheme_isOneHop(s4x8, 0x210));
+    Assert_true(!EncodingScheme_isOneHop(s4x8, 0x110));
+
+    struct EncodingScheme* s3x5x8 = NumberCompress_v3x5x8_defineScheme(alloc);
+    Assert_true(EncodingScheme_isOneHop(s3x5x8, 1));
+    Assert_true(EncodingScheme_isOneHop(s3x5x8, 0x13));
+    Assert_true(EncodingScheme_isOneHop(s3x5x8, 0x15));
+    Assert_true(EncodingScheme_isOneHop(s3x5x8, 0x96));
+    Assert_true(EncodingScheme_isOneHop(s3x5x8, 0x400));
+    Assert_true(!EncodingScheme_isOneHop(s3x5x8, 0x115));
+    Assert_true(!EncodingScheme_isOneHop(s3x5x8, 0x166));
+    Assert_true(!EncodingScheme_isOneHop(s3x5x8, 0x1400));
+    Allocator_free(alloc);
+}
+
 int main()
 {
     struct Allocator* alloc = MallocAllocator_new(20000000);
     struct Random* rand = Random_new(alloc, NULL, NULL);
 
     encoding(alloc);
+    isOneHopScheme(alloc);
 
     for (int i = 0; i < 1000; i++) {
         randomTest(alloc, rand);
