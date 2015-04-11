@@ -577,6 +577,7 @@ static int handleBadNewsTwoCycle(struct Node_Two* node,
 
     if (best == Node_getBestParent(node)) { return 1; }
     if (!Node_getBestParent(best->parent)) { return 1; }
+    if (Node_getBestParent(node) == store->selfLink) { return 1; }
 
     uint32_t nextReach = guessReachOfChild(best);
     if (nextReach < Node_getReach(node)) {
@@ -596,24 +597,23 @@ static int handleBadNewsTwoCycle(struct Node_Two* node,
  * This way they don't all cling to eachother for safety making
  * endless routing loops and stupid processing.
  */
-static void handleBadNewsOne(struct Node_Link* link,
+static void handleBadNewsOne(struct Node_Two* node,
                              uint32_t newReach,
                              struct NodeStore_pvt* store)
 {
     struct Node_Link* next = NULL;
-    RB_FOREACH_REVERSE(next, PeerRBTree, &link->child->peerTree) {
+    RB_FOREACH_REVERSE(next, PeerRBTree, &node->peerTree) {
         if (Node_getBestParent(next->child) != next) { continue; }
         if (next == store->selfLink) { continue; }
         if (Node_getReach(next->child) < newReach) { continue; }
-
-        handleBadNewsOne(next, newReach ? (newReach - 1) : 0, store);
+        handleBadNewsOne(next->child, newReach, store);
     }
 
-    Assert_true(link->child != store->pub.selfNode);
+    Assert_true(node != store->pub.selfNode);
     if (!newReach) {
-        unreachable(link->child, store);
+        unreachable(node, store);
     } else {
-        Node_setReach(link->child, newReach);
+        Node_setReach(node, newReach);
     }
 }
 
@@ -622,25 +622,18 @@ static void handleBadNews(struct Node_Two* node,
                           struct NodeStore_pvt* store)
 {
     Assert_true(newReach < Node_getReach(node));
+    Assert_true(Node_getBestParent(node) && node != store->pub.selfNode);
 
-    // might be destroyed by handleBadNewsOne()
-    struct Node_Link* bp = Node_getBestParent(node);
-
-    // no bestParent implies a reach of 0
-    Assert_true(bp && bp != store->selfLink);
-
-    handleBadNewsOne(bp, newReach, store);
+    handleBadNewsOne(node, newReach, store);
 
     check(store);
 
-    for (int i = 0; i < 10000; i++) {
+    for (int i = 0; ; i++) {
         if (!handleBadNewsTwoCycle(node, 0, i, store)) {
             check(store);
             return;
         }
     }
-
-    check(store);
 }
 
 static void handleNews(struct Node_Two* node, uint32_t newReach, struct NodeStore_pvt* store)
