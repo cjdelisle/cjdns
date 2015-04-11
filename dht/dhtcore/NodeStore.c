@@ -1235,6 +1235,10 @@ static struct Node_Two* whichIsWorse(struct Node_Two* one,
     uint64_t distTwo = Address_getPrefix(&two->address) ^ selfPrefix;
     distOne += 0xffffffff - Node_getReach(one);
     distTwo += 0xffffffff - Node_getReach(two);
+    if (Defined(NodeStore_whichIsWorse_PATHCOUNTS)) {
+        distOne += Bits_log2x64(one->address.path) << 26;
+        distTwo += Bits_log2x64(two->address.path) << 26;
+    }
     if (distOne < distTwo) { return two; }
     return one;
 }
