@@ -2076,6 +2076,16 @@ static void brokenLink(struct NodeStore_pvt* store, struct Node_Link* brokenLink
     NodeStore_unlinkNodes(&store->pub, brokenLink);
 }
 
+static void addLinkToMill(struct NodeStore_pvt* store, struct Node_Link* link)
+{
+    struct Address addr;
+    Bits_memcpyConst(&addr, &link->child->address, sizeof(struct Address));
+    addr.path =
+        NodeStore_getRouteLabel(&store->pub, link->parent->address.path, link->cannonicalLabel);
+    Assert_true(!NodeStore_getRouteLabel_ERR(addr.path));
+    RumorMill_addNode(store->renumberMill, &addr);
+}
+
 void NodeStore_brokenLink(struct NodeStore* nodeStore, uint64_t path, uint64_t pathAtErrorHop)
 {
     struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
@@ -2102,6 +2112,10 @@ void NodeStore_brokenLink(struct NodeStore* nodeStore, uint64_t path, uint64_t p
                       pathStr, maskStr);
         }
 
+        uint64_t cannonicalPath =
+            NodeStore_getRouteLabel(&store->pub, link->parent->address.path, link->cannonicalLabel);
+        Assert_true(!NodeStore_getRouteLabel_ERR(cannonicalPath));
+
         if ((pathAtErrorHop & mask) >= nextPath) {
             uint64_t cannPathAtErrorHop =
                 EncodingScheme_convertLabel(link->child->encodingScheme,
@@ -2113,15 +2127,31 @@ void NodeStore_brokenLink(struct NodeStore* nodeStore, uint64_t path, uint64_t p
             Log_debug(store->logger, "NodeStore_brokenLink() converted pathAtErrorHop to [%s]",
                       cannPathAtErrorHopStr);
 
-            if (cannPathAtErrorHop != UINT64_MAX && (cannPathAtErrorHop & mask) == thisPath) {
-                Log_debug(store->logger, "NodeStore_brokenLink() Great Success!");
+            if (cannPathAtErrorHop == UINT64_MAX) {
+                // error
+            } else if ((cannPathAtErrorHop & mask) != thisPath) {
+                // wrong path
+            } else if (path != cannonicalPath) {
+                logLink(store, link, "NodeStore_brokenLink() not cannonucal, sending ping");
+                addLinkToMill(store, link);
+                return;
+            } else {
+                logLink(store, link, "NodeStore_brokenLink() removing");
                 brokenLink(store, link);
                 return;
             }
         } else if (firstHopInPath_NO_NEXT_LINK == nextPath && thisPath == 1) {
-            Log_debug(store->logger, "NodeStore_brokenLink() Great Success! (1link)");
             Assert_ifParanoid(NodeStore_linkForPath(nodeStore, path) == link);
-            brokenLink(store, link);
+            if (path >> 56) {
+                logLink(store, link, "NodeStore_brokenLink() probably caused by long path");
+            } else if (path != cannonicalPath) {
+                logLink(store, link, "NodeStore_brokenLink() not cannonical, sending ping (1link)");
+                addLinkToMill(store, link);
+                return;
+            } else {
+                logLink(store, link, "NodeStore_brokenLink() removing (1link)");
+                brokenLink(store, link);
+            }
             return;
         }
 
