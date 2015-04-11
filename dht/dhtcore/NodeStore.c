@@ -186,9 +186,6 @@ static void _checkNode(struct Node_Two* node, struct NodeStore_pvt* store, char*
     }
 
     if (Node_getBestParent(node)) {
-        Assert_fileLine(Node_getReach(Node_getBestParent(node)->parent) > Node_getReach(node)
-            || node == store->pub.selfNode, file, line);
-
         Assert_fileLine(node->address.path != UINT64_MAX, file, line);
         Assert_fileLine(Node_getReach(node) > 0, file, line);
 
@@ -286,9 +283,10 @@ static void _check(struct NodeStore_pvt* store, char* file, int line)
  * @param routeParentToChild the cannonicalLabel for the link from parent to child
  * @param previousLinkEncoding the encoding used for the parent's interface back to the grandparent
  * @return a converted/spliced label or extendRoute_INVALID if it happens that the parent
- *         or ~0 if the label is too long to represent.
+ *         or extendRoute_TOOLONG if the label is too long to represent.
  */
 #define extendRoute_INVALID (((uint64_t)~0)-1)
+#define extendRoute_TOOLONG (((uint64_t)~0))
 static uint64_t extendRoute(uint64_t routeToParent,
                             struct EncodingScheme* parentScheme,
                             uint64_t routeParentToChild,
@@ -422,6 +420,15 @@ static uint32_t guessReachOfChild(struct Node_Link* link)
     return r;
 }
 
+static uint32_t linkQuality(struct Node_Link* link)
+{
+    if (!link) { return 0; }
+    uint32_t out = 0;
+    out |= (Node_isOneHopLink(link) << 31);
+    out |= (Node_getReach(link->parent) & 0x7fffffff);
+    return out;
+}
+
 static int updateBestParentCycle(struct Node_Link* newBestLink,
                                  int cycle,
                                  int limit,
@@ -448,7 +455,7 @@ static int updateBestParentCycle(struct Node_Link* newBestLink,
                                     newBestLink->cannonicalLabel,
                                     Node_getBestParent(newBest)->inverseLinkEncodingFormNumber);
 
-    if (bestPath == UINT64_MAX) {
+    if (bestPath == extendRoute_TOOLONG) {
         // too long to splice.
         unreachable(node, store);
         return 1;
@@ -470,6 +477,7 @@ static int updateBestParentCycle(struct Node_Link* newBestLink,
         // We're only altering the reach of the top node in the chain.
         // If we want to deduce reach of further nodes along the path, here's the place.
         nextReach = Node_getReach(node);
+        Assert_true(Node_getBestParent(node) == newBestLink);
     }
 
     if (!Node_getBestParent(node)) { store->pub.linkedNodes++; }
@@ -525,7 +533,7 @@ static void handleGoodNews(struct Node_Two* node,
         Identity_check(link);
         struct Node_Two* child = link->child;
         struct Node_Link* childBestParent = Node_getBestParent(child);
-        if (!childBestParent || Node_getReach(childBestParent->parent) < newReach) {
+        if (!childBestParent || linkQuality(childBestParent) < linkQuality(link)) {
             uint32_t nextReach = guessReachOfChild(link);
             if (Node_getReach(child) > nextReach) { continue; }
             updateBestParent(link, nextReach, store);
@@ -537,43 +545,48 @@ static void handleGoodNews(struct Node_Two* node,
  * The news has hit (in handleBadNewsOne) and now all of the nodes in the affected zone have
  * been knocked down. Now lets see if there's a better path for any of them.
  */
-static void handleBadNewsTwo(struct Node_Link* link, struct NodeStore_pvt* store, bool firstCall)
+static int handleBadNewsTwoCycle(struct Node_Two* node,
+                                 int cycle,
+                                 int limit,
+                                 struct NodeStore_pvt* store)
 {
-    struct Node_Link* next = NULL;
-    RB_FOREACH_REVERSE(next, PeerRBTree, &link->child->peerTree) {
-        if (!next) { continue; }
-        if (Node_getBestParent(next->child) != next) { continue; }
-        if (next == store->selfLink) { continue; }
-        handleBadNewsTwo(next, store, false);
+    Assert_true(cycle < 1000);
+    if (cycle < limit) {
+        int total = 0;
+        struct Node_Link* next = NULL;
+        RB_FOREACH_REVERSE(next, PeerRBTree, &node->peerTree) {
+            if (Node_getBestParent(next->child) == next && next->child != node) {
+                total += handleBadNewsTwoCycle(next->child, cycle+1, limit, store);
+            }
+        }
+        return total;
     }
 
-    if (firstCall) { return; }
-
-    Assert_true(Node_getBestParent(link->child) == link);
-
-    struct Node_Two* node = link->child;
-    struct Node_Link* rp = link->child->reversePeers;
+    struct Node_Link* rp = node->reversePeers;
     struct Node_Link* best = Node_getBestParent(node);
+    uint32_t bq = linkQuality(best);
     while (rp) {
-        if (Node_getReach(rp->parent) >= Node_getReach(best->parent)) {
-            if (Node_getReach(rp->parent) > Node_getReach(best->parent)
-                || rp->parent->address.path < best->parent->address.path)
-            {
-                best = rp;
-            }
+        if (!Node_isAncestorOf(node, rp->parent) && linkQuality(rp) > bq) {
+            best = rp;
+            bq = linkQuality(best);
         }
         rp = rp->nextPeer;
     }
 
-    if (best == Node_getBestParent(node)) { return; }
+    if (best == Node_getBestParent(node)) { return 1; }
+    if (!Node_getBestParent(best->parent)) { return 1; }
 
     uint32_t nextReach = guessReachOfChild(best);
-    if (nextReach <= Node_getReach(node)) { return; }
-    Assert_true(Node_getReach(node) < Node_getReach(best->parent));
-
+    if (nextReach < Node_getReach(node)) {
+        // We've already knocked down the reach of this node in handleBadNewsOne
+        // now we have determined that link quality of the other parent is better
+        // so reach should be the greater of guessReachOfChild and current reach.
+        nextReach = Node_getReach(node);
+    }
     check(store);
     updateBestParent(best, nextReach, store);
     check(store);
+    return 1;
 }
 
 /**
@@ -618,10 +631,117 @@ static void handleBadNews(struct Node_Two* node,
 
     check(store);
 
-    handleBadNewsTwo(bp, store, true);
+    for (int i = 0; i < 10000; i++) {
+        if (!handleBadNewsTwoCycle(node, 0, i, store)) {
+            check(store);
+            return;
+        }
+    }
 
     check(store);
 }
+
+/*
+static int handleBadNewsOneCycle(struct Node_Link* link,
+                                 int cycle,
+                                 int limit,
+                                 uint32_t nextReach,
+                                 struct NodeStore_pvt* store)
+{
+    Assert_true(cycle < 1000);
+    struct Node_Two* node = link->child;
+    Assert_true(Node_getBestParent(node) == link);
+    if (cycle < limit) {
+        int total = 0;
+        struct Node_Link* next = NULL;
+        RB_FOREACH_REVERSE(next, PeerRBTree, &node->peerTree) {
+            if (Node_getBestParent(next->child) == next && next->child != node) {
+                total += handleBadNewsOneCycle(next, cycle+1, limit, nextReach, store);
+            }
+        }
+        return total;
+    }
+
+    Assert_true(node != store->pub.selfNode);
+    if (!nextReach) {
+        unreachable(node, store);
+        return 0;
+    } else {
+        Node_setReach(node, nextReach);
+    }
+    return 1;
+}
+
+static int handleBadNewsTwoCycle(struct Node_Link* link,
+                                 int cycle,
+                                 int limit,
+                                 uint32_t nextReach,
+                                 struct NodeStore_pvt* store)
+{
+    Assert_true(cycle < 1000);
+    struct Node_Two* node = link->child;
+    Assert_true(Node_getBestParent(node) == link);
+    if (cycle < limit) {
+        int total = 0;
+        struct Node_Link* next = NULL;
+        RB_FOREACH_REVERSE(next, PeerRBTree, &node->peerTree) {
+            if (Node_getBestParent(next->child) == next && next->child != node) {
+                total += handleBadNewsTwoCycle(next, cycle+1, limit, nextReach, store);
+            }
+        }
+        return total;
+    }
+
+    struct Node_Link* rp = node->reversePeers;
+    struct Node_Link* best = Node_getBestParent(node);
+    uint32_t bq = linkQuality(best);
+    while (rp) {
+        if (!Node_isAncestorOf(node, rp->parent) && linkQuality(rp) > bq) {
+            best = rp;
+            bq = linkQuality(best);
+        }
+        rp = rp->nextPeer;
+    }
+
+    if (best == Node_getBestParent(node)) { return 1; }
+    if (!Node_getBestParent(best->parent)) { return 1; }
+
+    check(store);
+    nextReach = guessReachOfChild(best);
+    if (nextReach < Node_getReach(node)) {
+        // We've already knocked down the reach of this node but
+        // now we have determined that link quality of the other parent is better
+        // so reach should be the greater of guessReachOfChild and current reach.
+        nextReach = Node_getReach(node);
+        updateBestParent(best, nextReach, store);
+    } else {
+        unreachable(node, store);
+        updateBestParent(best, nextReach-1, store);
+        check(store);
+        handleGoodNews(node, nextReach, store);
+    }
+    check(store);
+    return 1;
+}
+
+static void handleBadNews2(struct Node_Two* node,
+                           uint32_t nextReach,
+                           struct NodeStore_pvt* store)
+{
+    Assert_true(nextReach < Node_getReach(node));
+
+    // no bestParent implies a reach of 0
+    Assert_true(Node_getBestParent(node) && node != store->pub.selfNode);
+
+    for (int i = 0; i < 10000; i++) {
+        if (!handleBadNewsCycle(Node_getBestParent(node), 0, i, nextReach, store)) {
+            check(store);
+            return;
+        }
+    }
+    Assert_true(0);
+}
+*/
 
 static void handleNews(struct Node_Two* node, uint32_t newReach, struct NodeStore_pvt* store)
 {
@@ -2146,28 +2266,25 @@ static void updatePathReach(struct NodeStore_pvt* store, const uint64_t path, ui
         // expecting behavior of nextLinkOnPath()
         Assert_ifParanoid(nextLink->parent == link->child);
 
-        if (Node_getBestParent(nextLink->child) != nextLink) {
-            // If nextLink->child->bestParent is worse than nextLink, we should replace it.
-            uint64_t newPath = extendRoute(nextLink->parent->address.path,
-                                           nextLink->parent->encodingScheme,
-                                           nextLink->cannonicalLabel,
-                                           link->inverseLinkEncodingFormNumber);
-            if (newPath != extendRoute_INVALID &&
-                Node_getReach(nextLink->child) < newReach &&
-                Node_getReach(nextLink->parent) > newReach &&
-                Node_getReach(nextLink->child) < guessReachOfChild(nextLink))
-            {
-                // This path apparently gives us a better route than our current bestParent.
-                updateBestParent(nextLink, newReach, store);
-            }
+        if (Node_getBestParent(nextLink->child) == nextLink) {
+            // the packet came in along the bestParent link to the child so don't bother changing it
+        } else if (linkQuality(Node_getBestParent(nextLink->child)) >= linkQuality(nextLink)) {
+            // this path is not obviously better better than the bestParent link
+        } else if (Node_isAncestorOf(nextLink->child, nextLink->parent)) {
+            // loop route
+        } else if (extendRoute_INVALID == extendRoute(nextLink->parent->address.path,
+                                                      nextLink->parent->encodingScheme,
+                                                      nextLink->cannonicalLabel,
+                                                      link->inverseLinkEncodingFormNumber))
+        {
+            // Probably trying to splice something longer than 64 bits.
+            logLink(store, nextLink, "extendRoute() -> invalid");
+        } else {
+            // This path apparently gives us a better route than our current bestParent.
+            updateBestParent(nextLink, newReach, store);
         }
 
-        if (Node_getBestParent(nextLink->child) == nextLink) {
-            // This is a performance hack, if nextLink->child->bestParent->parent is this node
-            // we'll skip updating reach here since even if we did, it would be updated all over
-            // again by the recursion inside of handleGoodNews because we're not deincrementing
-            // newReach per hop.
-        } else if (Node_getReach(link->child) >= newReach) {
+        if (Node_getReach(link->child) >= newReach) {
             // Node already has enough reach...
             // selfNode reach == UINT32_MAX so this case handles it.
         } else if (!LabelSplicer_routesThrough(path, link->child->address.path)) {
@@ -2192,6 +2309,7 @@ static void updatePathReach(struct NodeStore_pvt* store, const uint64_t path, ui
 
         pathFrag = nextPath;
         link = nextLink;
+        newReach--;
     }
 
     // Now we have to unconditionally update the reach for the last link in the chain.

@@ -143,6 +143,8 @@ static inline struct Node_Link* Node_getBestParent(struct Node_Two* node)
     return node->bestParent_pvt;
 }
 
+bool Node_isAncestorOf(struct Node_Two* ancestor, struct Node_Two* child);
+
 void Node_setParentReachAndPath(struct Node_Two* node,
                                 struct Node_Link* bestParent,
                                 uint32_t reach,

@@ -18,6 +18,17 @@
 #include "util/Assert.h"
 #include "util/Bits.h"
 
+bool Node_isAncestorOf(struct Node_Two* ancestor, struct Node_Two* child)
+{
+    struct Node_Two* nn = child;
+    for (;;) {
+        if (nn == ancestor) { return true; }
+        struct Node_Link* next = Node_getBestParent(nn);
+        if (!next || next->parent == nn) { return false; }
+        nn = next->parent;
+    }
+}
+
 void Node_setReach(struct Node_Two* node, uint32_t newReach)
 {
     if (newReach) {
@@ -39,11 +50,11 @@ void Node_setParentReachAndPath(struct Node_Two* node,
         Assert_true(bestParent->child == node);
         Assert_true(reach);
         Assert_true(path != UINT64_MAX);
-        // make an exception for the self-node
-        if (Node_getReach(bestParent->parent) <= reach) {
-            Assert_true(bestParent->parent == node);
+        if (bestParent->parent == node) {
             Assert_true(reach == UINT32_MAX);
             Assert_true(path == 1);
+        } else {
+            Assert_true(!Node_isAncestorOf(node, bestParent->parent));
         }
     } else {
         Assert_true(!reach);
