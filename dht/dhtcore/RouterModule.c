@@ -691,7 +691,8 @@ void RouterModule_peerIsReachable(uint64_t pathToPeer,
                                   uint64_t lagMilliseconds,
                                   struct RouterModule* module)
 {
-    Assert_ifParanoid(LabelSplicer_isOneHop(pathToPeer));
+    Assert_ifParanoid(EncodingScheme_isOneHop(module->nodeStore->selfNode->encodingScheme,
+                                              pathToPeer));
     struct Node_Two* nn = RouterModule_nodeForPath(pathToPeer, module);
     for (struct Node_Link* peerLink = nn->reversePeers; peerLink; peerLink = peerLink->nextPeer) {
         if (peerLink->parent != module->nodeStore->selfNode) { continue; }

@@ -329,7 +329,8 @@ static bool isPeer(struct Node_Two* node, struct NodeStore_pvt* store)
 {
     if (!Node_getBestParent(node)) { return false; }
     return Node_getBestParent(node)->parent == store->pub.selfNode
-        && LabelSplicer_isOneHop(Node_getBestParent(node)->cannonicalLabel);
+        && EncodingScheme_isOneHop(store->pub.selfNode->encodingScheme,
+                                   Node_getBestParent(node)->cannonicalLabel);
 }
 
 static void setParentReachAndPath(struct Node_Two* node,
@@ -391,7 +392,7 @@ static uint32_t subReach(uint32_t reachAB, uint32_t reachAC)
 static uint32_t guessReachOfChild(struct Node_Link* link)
 {
     uint32_t r;
-    if (LabelSplicer_isOneHop(link->cannonicalLabel)) {
+    if (EncodingScheme_isOneHop(link->parent->encodingScheme, link->cannonicalLabel)) {
         // Single-hop link, so guess that it's 3/4 the parent's reach
         r = (Node_getReach(link->parent) * 3) / 4;
     }
@@ -652,7 +653,7 @@ void NodeStore_unlinkNodes(struct NodeStore* nodeStore, struct Node_Link* link)
         // yuh ok
         if (link == store->selfLink) { return; }
 
-        Assert_true(LabelSplicer_isOneHop(link->cannonicalLabel));
+        Assert_true(EncodingScheme_isOneHop(parent->encodingScheme, link->cannonicalLabel));
         store->pub.peerCount--;
         if (Defined(Log_INFO)) {
             uint8_t addr[60];
@@ -811,7 +812,7 @@ static struct Node_Link* linkNodes(struct Node_Two* parent,
     update(link, linkStateDiff, store);
 
     if (parent == store->pub.selfNode && child != store->pub.selfNode) {
-        Assert_true(LabelSplicer_isOneHop(cannonicalLabel));
+        Assert_true(EncodingScheme_isOneHop(parent->encodingScheme, cannonicalLabel));
         store->pub.peerCount++;
         if (Defined(Log_DEBUG)) {
             uint8_t addr[60];
@@ -994,7 +995,9 @@ static struct Node_Link* discoverLinkC(struct NodeStore_pvt* store,
         Log_debug(store->logger, "discoverLinkC( [%s]->[%s] [%s] )", parentStr, childStr, pathStr);
     }
 
-    if (closest == store->selfLink && !LabelSplicer_isOneHop(pathParentChild)) {
+    if (closest == store->selfLink &&
+        !EncodingScheme_isOneHop(parent->encodingScheme, pathParentChild))
+    {
         Log_debug(store->logger, "Attempting to create a link with no parent peer");
         return NULL;
     }
@@ -1939,7 +1942,9 @@ struct NodeList* NodeStore_getPeers(uint64_t label,
     struct Node_Link* next = NULL;
     RB_FOREACH(next, PeerRBTree, &store->pub.selfNode->peerTree) {
         uint64_t p = next->child->address.path;
-        if (!LabelSplicer_isOneHop(p) && p != 1) { continue; }
+        if (!EncodingScheme_isOneHop(store->pub.selfNode->encodingScheme, p) && p != 1) {
+            continue;
+        }
         if (p < label) { continue; }
         int j;
         for (j = 0; j < (int)max; j++) {

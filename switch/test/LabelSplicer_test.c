@@ -39,17 +39,6 @@ static void splice()
     Assert_true(expected == out);
 }
 
-static uint64_t routeToInterface(uint32_t number)
-{
-    uint32_t bits = NumberCompress_bitsUsedForNumber(number);
-    return (1 << bits) | NumberCompress_getCompressed(number, bits);
-}
-
-static void isOneHop()
-{
-    Assert_true(LabelSplicer_isOneHop(routeToInterface(0)));
-}
-
 static void routesThrough()
 {
     uint64_t dst = Constant_base2(0000000000000000100100000000101011101010100101011100101001010101);
@@ -61,7 +50,6 @@ static void routesThrough()
 int main()
 {
     splice();
-    isOneHop();
     routesThrough();
     unsplice();
     return 0;

@@ -76,17 +76,6 @@ static inline uint64_t LabelSplicer_getLabelFor(uint64_t target, uint64_t whoIsA
 }
 
 /**
- * Determine if the node at the end of the given label is one hop away.
- *
- * @param label the label to test in host byte order.
- * @return true if the node is 1 hop away, false otherwise.
- */
-static inline bool LabelSplicer_isOneHop(uint64_t label)
-{
-    return (int)NumberCompress_bitsUsedForLabel(label) == Bits_log2x64(label);
-}
-
-/**
  * Determine if the route to one node passes through another node.
  * Given:
  * 1. alice->bob->charlie->fred->bob
