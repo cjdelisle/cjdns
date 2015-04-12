@@ -511,22 +511,11 @@ static void onResponseOrTimeout(String* data, uint32_t milliseconds, void* vping
     if (node && !Bits_memcmp(node->address.key, message->address->key, 32)) {
         NodeStore_pathResponse(module->nodeStore, message->address->path, milliseconds);
     } else {
-        struct Node_Link* link = NodeStore_discoverNode(module->nodeStore,
-                                                        message->address,
-                                                        message->encodingScheme,
-                                                        message->encIndex,
-                                                        milliseconds);
-        node = (link) ? link->child : NULL;
-    }
-
-    // EncodingSchemeModule should have added this node to the store, check it.
-    if (!node) {
-        #ifdef Log_DEBUG
-            uint8_t printedAddr[60];
-            Address_print(printedAddr, message->address);
-            Log_info(module->logger, "Got message from nonexistant node! [%s]\n", printedAddr);
-        #endif
-        return;
+        NodeStore_discoverNode(module->nodeStore,
+                               message->address,
+                               message->encodingScheme,
+                               message->encIndex,
+                               milliseconds);
     }
 
     #ifdef Log_DEBUG
