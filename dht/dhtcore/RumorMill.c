@@ -115,7 +115,9 @@ bool RumorMill_getNode(struct RumorMill* mill, struct Address* output)
     struct RumorMill_pvt* rm = Identity_check((struct RumorMill_pvt*) mill);
     if (!rm->pub.count) { return false; }
     struct Address* best = getBest(rm);
-    Bits_memcpyConst(output, best, sizeof(struct Address));
+    if (output) {
+        Bits_memcpyConst(output, best, sizeof(struct Address));
+    }
 
     rm->pub.count--;
     if (&rm->pub.addresses[rm->pub.count] != best) {

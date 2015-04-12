@@ -462,6 +462,8 @@ static void splitLinks(struct Janitor_pvt* janitor)
 {
 //    return; // TODO(cjd): Enabled until we figure out if it's still needed.
     struct Node_Link* link = NULL;
+    // First flush the mill so it only contains relevant links.
+    while (RumorMill_getNode(janitor->pub.splitMill, NULL)) ;
     while ((link = NodeStore_getNextLink(janitor->nodeStore, link))) {
         if (link != Node_getBestParent(link->child)) { continue; }
         if (Node_isOneHopLink(link)) { continue; }
@@ -651,6 +653,7 @@ static void maintanenceCycle(void* vcontext)
 
     } else if (tryMill(janitor, janitor->pub.splitMill, tryMill_rules_CAN_PING)) {
         // Try to split links which are not 1 hop.
+        splitLinks(janitor);
 
     } else if (tryRandomLink(janitor)) {
         // Ping a random link from a random node.
