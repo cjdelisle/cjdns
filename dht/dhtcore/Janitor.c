@@ -460,13 +460,13 @@ static void keyspaceMaintenance(struct Janitor_pvt* janitor)
 // Iterate over all nodes in the table. Try to split any split-able links.
 static void splitLinks(struct Janitor_pvt* janitor)
 {
-    return; // TODO(cjd): Enabled until we figure out if it's still needed.
-
+//    return; // TODO(cjd): Enabled until we figure out if it's still needed.
     struct Node_Link* link = NULL;
     while ((link = NodeStore_getNextLink(janitor->nodeStore, link))) {
         if (link != Node_getBestParent(link->child)) { continue; }
         if (Node_isOneHopLink(link)) { continue; }
-        RumorMill_addNode(janitor->pub.linkMill, &link->parent->address);
+        if (link->child == janitor->nodeStore->selfNode) { continue; }
+        RumorMill_addNode(janitor->pub.splitMill, &link->parent->address);
     }
 }
 
@@ -546,41 +546,25 @@ static bool tryExistingNode(struct Janitor_pvt* janitor)
     return false;
 }
 
-static bool tryNodeMill(struct Janitor_pvt* janitor)
+#define tryMill_rules_CAN_PING (1<<0)
+#define tryMill_rules_IN_NODESTORE (1<<1)
+static bool tryMill(struct Janitor_pvt* janitor, struct RumorMill* mill, int rules)
 {
     struct Address addr = { .protocolVersion = 0 };
-    while (RumorMill_getNode(janitor->pub.nodeMill, &addr)) {
-        if (!canPing(janitor, addr.path)) { continue; }
-        // ping a node from the low-priority ping queue
+    while (RumorMill_getNode(mill, &addr)) {
+        if (rules & tryMill_rules_CAN_PING) {
+            if (!canPing(janitor, addr.path)) { continue; }
+        }
+        if (rules & tryMill_rules_IN_NODESTORE) {
+            if (!NodeStore_nodeForAddr(janitor->nodeStore, addr.ip6.bytes)) { continue; }
+        }
         getPeersMill(janitor, &addr);
-        debugAddr(janitor, "Pinging possible node from node-finding RumorMill", &addr);
-        return true;
-    }
-    return false;
-}
-
-static bool tryExternalMill(struct Janitor_pvt* janitor)
-{
-    struct Address addr = { .protocolVersion = 0 };
-    while (RumorMill_getNode(janitor->pub.externalMill, &addr)) {
-        if (!canPing(janitor, addr.path)) { continue; }
-        // ping a node from the externally accessible queue
-        getPeersMill(janitor, &addr);
-        debugAddr(janitor, "Pinging possible node from external RumorMill", &addr);
-        return true;
-    }
-    return false;
-}
-
-static bool tryLinkMill(struct Janitor_pvt* janitor)
-{
-    struct Address addr = { .protocolVersion = 0 };
-    while (RumorMill_getNode(janitor->pub.linkMill, &addr)) {
-        if (!canPing(janitor, addr.path)) { continue; }
-        if (!NodeStore_nodeForAddr(janitor->nodeStore, addr.ip6.bytes)) { continue; }
-        // test an unknown link to a known node
-        getPeersMill(janitor, &addr);
-        debugAddr(janitor, "Pinging possible node from link-finding RumorMill", &addr);
+        if (Defined(Log_DEBUG)) {
+            uint8_t addrStr[60];
+            Address_print(addrStr, &addr);
+            Log_debug(janitor->logger, "Pinging possible node [%s] from RumorMill [%s]",
+                      addrStr, mill->name);
+        }
         return true;
     }
     return false;
@@ -653,14 +637,20 @@ static void maintanenceCycle(void* vcontext)
 
     struct Address addr = { .protocolVersion = 0 };
 
-    if (tryExternalMill(janitor)) {
+    if (tryMill(janitor, janitor->pub.externalMill, tryMill_rules_CAN_PING)) {
         // Always try the external mill first, this is low-traffic.
 
-    } else if (tryLinkMill(janitor)) {
+    } else if (tryMill(janitor,
+                       janitor->pub.linkMill,
+                       tryMill_rules_CAN_PING | tryMill_rules_IN_NODESTORE))
+    {
         // Try to find a new link to a known node.
 
-    } else if (tryNodeMill(janitor)) {
+    } else if (tryMill(janitor, janitor->pub.nodeMill, tryMill_rules_CAN_PING)) {
         // Try to find a new node.
+
+    } else if (tryMill(janitor, janitor->pub.splitMill, tryMill_rules_CAN_PING)) {
+        // Try to split links which are not 1 hop.
 
     } else if (tryRandomLink(janitor)) {
         // Ping a random link from a random node.
@@ -734,6 +724,8 @@ struct Janitor* Janitor_new(struct RouterModule* routerModule,
                                          (NodeStore_bucketNumber * NodeStore_bucketSize),
                                          logger,
                                          "dhtMill");
+    janitor->pub.splitMill = RumorMill_new(alloc, nodeStore->selfAddress, 16, logger, "splitMill");
+
     janitor->pub.globalMaintainenceMilliseconds = Janitor_GLOBAL_MAINTENANCE_MILLISECONDS_DEFAULT;
     janitor->pub.localMaintainenceMilliseconds = Janitor_LOCAL_MAINTENANCE_MILLISECONDS_DEFAULT;
 

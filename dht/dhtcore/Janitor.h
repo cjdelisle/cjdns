@@ -52,6 +52,9 @@ struct Janitor
     /** Just used to keep track of nodes that we need to check on for DHT health. */
     struct RumorMill* dhtMill;
 
+    /** Used for splitting links which are longer than 1 hop. */
+    struct RumorMill* splitMill;
+
     /**
      * The number of milliseconds after a path has been (successfully) pinged which it will
      * not be pinged again.

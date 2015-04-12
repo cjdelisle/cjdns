@@ -34,6 +34,8 @@ static struct RumorMill* getRumorMill(struct Context* ctx, String* name)
         return ctx->janitor->nodeMill;
     } else if (String_equals(String_CONST("dhtMill"), name)) {
         return ctx->janitor->dhtMill;
+    } else if (String_equals(String_CONST("splitMill"), name)) {
+        return ctx->janitor->splitMill;
     } else {
         return NULL;
     }
@@ -49,7 +51,8 @@ static void dumpRumorMill(Dict* args, void* vcontext, String* txid, struct Alloc
     if (!rm) {
         Dict_putString(out,
                        String_CONST("error"),
-                       String_CONST("mill must be one of [externalMill,linkMill,nodeMill,dhtMill]"),
+                       String_CONST("mill must be one of "
+                                    "[externalMill,linkMill,nodeMill,dhtMill,splitMill]"),
                        requestAlloc);
         Admin_sendMessage(out, txid, ctx->admin);
         return;
