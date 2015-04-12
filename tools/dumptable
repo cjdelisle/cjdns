@@ -44,7 +44,7 @@ Cjdns.connectWithAdminInfo(function (cjdns) {
                 again(i+1);
             } else {
                 console.log('ver       path                               addr' +
-                            '                            bucket  physVal lastPinged');
+                            '                            bucket metric lastPinged');
                 list.sort(function (a,b) { return a.path < b.path ? -1 : 1; });
                 var myAddr = PublicToIp6.convert(list[0].addr.replace(/^([^\.]*\.){5}/,''));
                 list.forEach(function (r) {
