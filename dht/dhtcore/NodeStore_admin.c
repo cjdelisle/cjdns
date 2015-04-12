@@ -157,6 +157,7 @@ static void getLink(Dict* args, void* vcontext, String* txid, struct Allocator* 
 
     Admin_sendMessage(ret, txid, ctx->admin);
 }
+
 static void nodeForAddr(Dict* args, void* vcontext, String* txid, struct Allocator* alloc)
 {
     struct Context* ctx = Identity_check((struct Context*) vcontext);
@@ -210,6 +211,10 @@ static void nodeForAddr(Dict* args, void* vcontext, String* txid, struct Allocat
     String* parentChildLabel = String_newBinary(NULL, 19, alloc);
     AddrTools_printPath(parentChildLabel->bytes, Node_getBestParent(node)->cannonicalLabel);
     Dict_putString(bestParent, String_CONST("parentChildLabel"), parentChildLabel, alloc);
+
+    int isOneHop = EncodingScheme_isOneHop(Node_getBestParent(node)->parent->encodingScheme,
+                                           Node_getBestParent(node)->cannonicalLabel);
+    Dict_putInt(bestParent, String_CONST("isOneHop"), isOneHop, alloc);
 
     Dict_putDict(result, String_CONST("bestParent"), bestParent, alloc);
 
