@@ -457,21 +457,6 @@ static void keyspaceMaintenance(struct Janitor_pvt* janitor)
     searchNoDupe(addr.ip6.bytes, janitor); // The last search, unaccessible.
 }
 
-// Iterate over all nodes in the table. Try to split any split-able links.
-static void splitLinks(struct Janitor_pvt* janitor)
-{
-//    return; // TODO(cjd): Enabled until we figure out if it's still needed.
-    struct Node_Link* link = NULL;
-    // First flush the mill so it only contains relevant links.
-    while (RumorMill_getNode(janitor->pub.splitMill, NULL)) ;
-    while ((link = NodeStore_getNextLink(janitor->nodeStore, link))) {
-        if (link != Node_getBestParent(link->child)) { continue; }
-        if (Node_isOneHopLink(link)) { continue; }
-        if (link->child == janitor->nodeStore->selfNode) { continue; }
-        RumorMill_addNode(janitor->pub.splitMill, &link->parent->address);
-    }
-}
-
 static struct Node_Two* getRandomNode(struct Random* rand, struct NodeStore* store)
 {
     uint32_t index = Random_uint32(rand) % (store->nodeCount);
@@ -555,10 +540,16 @@ static bool tryMill(struct Janitor_pvt* janitor, struct RumorMill* mill, int rul
     struct Address addr = { .protocolVersion = 0 };
     while (RumorMill_getNode(mill, &addr)) {
         if (rules & tryMill_rules_CAN_PING) {
-            if (!canPing(janitor, addr.path)) { continue; }
+            if (!canPing(janitor, addr.path)) {
+                debugAddr(janitor, "Not pinging blacklisted node", &addr);
+                continue;
+            }
         }
         if (rules & tryMill_rules_IN_NODESTORE) {
-            if (!NodeStore_nodeForAddr(janitor->nodeStore, addr.ip6.bytes)) { continue; }
+            if (!NodeStore_nodeForAddr(janitor->nodeStore, addr.ip6.bytes)) {
+                debugAddr(janitor, "Not pinging node not in nodeStore", &addr);
+                continue;
+            }
         }
         getPeersMill(janitor, &addr);
         if (Defined(Log_DEBUG)) {
@@ -570,6 +561,21 @@ static bool tryMill(struct Janitor_pvt* janitor, struct RumorMill* mill, int rul
         return true;
     }
     return false;
+}
+
+// Iterate over all nodes in the table. Try to split any split-able links.
+static bool splitLinks(struct Janitor_pvt* janitor)
+{
+    struct Node_Link* link = NULL;
+    if (!janitor->pub.splitMill->count) {
+        while ((link = NodeStore_getNextLink(janitor->nodeStore, link))) {
+            if (link != Node_getBestParent(link->child)) { continue; }
+            if (Node_isOneHopLink(link)) { continue; }
+            if (link->child == janitor->nodeStore->selfNode) { continue; }
+            RumorMill_addNode(janitor->pub.splitMill, &link->parent->address);
+        }
+    }
+    return tryMill(janitor, janitor->pub.splitMill, tryMill_rules_CAN_PING);
 }
 
 static bool tryRandomLink(struct Janitor_pvt* janitor)
@@ -651,9 +657,8 @@ static void maintanenceCycle(void* vcontext)
     } else if (tryMill(janitor, janitor->pub.nodeMill, tryMill_rules_CAN_PING)) {
         // Try to find a new node.
 
-    } else if (tryMill(janitor, janitor->pub.splitMill, tryMill_rules_CAN_PING)) {
+    } else if (splitLinks(janitor)) {
         // Try to split links which are not 1 hop.
-        splitLinks(janitor);
 
     } else if (tryRandomLink(janitor)) {
         // Ping a random link from a random node.
@@ -693,7 +698,6 @@ static void maintanenceCycle(void* vcontext)
 
     if (now > janitor->timeOfNextGlobalMaintainence) {
         //search(addr.ip6.bytes, janitor);
-        splitLinks(janitor);
         janitor->timeOfNextGlobalMaintainence += janitor->pub.globalMaintainenceMilliseconds;
     }
 }
