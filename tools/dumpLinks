@@ -1,0 +1,59 @@
+#!/usr/bin/env node
+/* -*- Mode:Js */
+/* vim: set expandtab ts=4 sw=4: */
+/*
+ * You may redistribute this program and/or modify it under the terms of
+ * the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+var Cjdns = require('../contrib/nodejs/cjdnsadmin/cjdnsadmin');
+var nThen = require('../contrib/nodejs/cjdnsadmin/nthen');
+
+var getLinks = function (cjdns, callback) {
+    var links = [];
+    var again = function (i) {
+        cjdns.NodeStore_getLink(i, function (err, link) {
+            if (err) { throw err; }
+            if (link.error === 'none') {
+                links.push(link.result);
+                again(i+1);
+            } else if (link.error === 'not_found') {
+                callback(links);
+            } else {
+                throw new Error(link.error);
+            }
+        });
+    };
+    again(0);
+};
+
+var keyOnly = function (addr) {
+    return addr.replace(/v[0-9]+[a-f0-9\.]{21}/, '');
+};
+
+Cjdns.connectWithAdminInfo(function (cjdns) {
+
+    var links;
+    nThen(function (waitFor) {
+        getLinks(cjdns, waitFor(function (l) { links = l; }));
+    }).nThen(function (waitFor) {
+        links.sort(function (l1, l2) {
+            return (l1.cannonicalLabel > l2.cannonicalLabel) ? 1 : -1;
+        });
+        links.forEach(function (l) {
+            console.log(l.cannonicalLabel + ' ' + keyOnly(l.parent) + ' -> ' + keyOnly(l.child) +
+                ((Number(l.bestParent)) ? ' bp' : '   ') + ((Number(l.isOneHop)) ? ' 1hop' : ''));
+        });
+    }).nThen(function (waitFor) {
+        cjdns.disconnect();
+    });
+
+});

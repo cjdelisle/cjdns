@@ -119,41 +119,67 @@ static void getLink(Dict* args, void* vcontext, String* txid, struct Allocator* 
 
     String* ipStr = Dict_getString(args, String_new("parent", alloc));
     int64_t* linkNum = Dict_getInt(args, String_new("linkNum", alloc));
-    uint8_t ip[16];
-    if (AddrTools_parseIp(ip, ipStr->bytes)) {
-        Dict_remove(ret, String_CONST("result"));
-        Dict_putString(ret,
-                       String_new("error", alloc),
-                       String_new("parse_parent", alloc),
-                       alloc);
+    if (ipStr) {
+        uint8_t ip[16];
+        if (AddrTools_parseIp(ip, ipStr->bytes)) {
+            Dict_remove(ret, String_CONST("result"));
+            Dict_putString(ret,
+                           String_new("error", alloc),
+                           String_new("parse_parent", alloc),
+                           alloc);
+            Admin_sendMessage(ret, txid, ctx->admin);
+            return;
 
-    } else if (!(node = NodeStore_nodeForAddr(ctx->store, ip))) {
-        Dict_putString(ret,
-                       String_new("error", alloc),
-                       String_new("not_found", alloc),
-                       alloc);
-
-    } else if ((link = getLinkByNum(node, *linkNum))) {
-        Dict_putInt(result,
-                    String_new("inverseLinkEncodingFormNumber", alloc),
-                    link->inverseLinkEncodingFormNumber,
-                    alloc);
-        Dict_putInt(result, String_new("linkState", alloc), link->linkState, alloc);
-
-        Dict_putInt(result, String_new("isOneHop", alloc), Node_isOneHopLink(link), alloc);
-
-        String* cannonicalLabel = String_newBinary(NULL, 19, alloc);
-        AddrTools_printPath(cannonicalLabel->bytes, link->cannonicalLabel);
-        Dict_putString(result, String_new("cannonicalLabel", alloc), cannonicalLabel, alloc);
-
-        String* parent = String_newBinary(NULL, 39, alloc);
-        AddrTools_printIp(parent->bytes, link->parent->address.ip6.bytes);
-        Dict_putString(result, String_new("parent", alloc), parent, alloc);
-
-        String* child = String_newBinary(NULL, 39, alloc);
-        AddrTools_printIp(child->bytes, link->child->address.ip6.bytes);
-        Dict_putString(result, String_new("child", alloc), child, alloc);
+        } else if (!(node = NodeStore_nodeForAddr(ctx->store, ip))) {
+            Dict_putString(ret,
+                           String_new("error", alloc),
+                           String_new("not_found", alloc),
+                           alloc);
+            Admin_sendMessage(ret, txid, ctx->admin);
+            return;
+        } else if (!(link = getLinkByNum(node, *linkNum))) {
+            Dict_putString(ret,
+                           String_new("error", alloc),
+                           String_new("unknown", alloc),
+                           alloc);
+            Admin_sendMessage(ret, txid, ctx->admin);
+            return;
+        }
+    } else {
+        for (int i = 0; i <= *linkNum; i++) {
+            link = NodeStore_getNextLink(ctx->store, link);
+            if (!link) { break; }
+        }
+        if (!link) {
+            Dict_putString(ret,
+                           String_new("error", alloc),
+                           String_new("not_found", alloc),
+                           alloc);
+            Admin_sendMessage(ret, txid, ctx->admin);
+            return;
+        }
     }
+
+    Dict_putInt(result,
+                String_new("inverseLinkEncodingFormNumber", alloc),
+                link->inverseLinkEncodingFormNumber,
+                alloc);
+    Dict_putInt(result, String_new("linkState", alloc), link->linkState, alloc);
+
+    Dict_putInt(result, String_new("isOneHop", alloc), Node_isOneHopLink(link), alloc);
+
+    int bestParent = (Node_getBestParent(link->child) == link);
+    Dict_putInt(result, String_new("bestParent", alloc), bestParent, alloc);
+
+    String* cannonicalLabel = String_newBinary(NULL, 19, alloc);
+    AddrTools_printPath(cannonicalLabel->bytes, link->cannonicalLabel);
+    Dict_putString(result, String_new("cannonicalLabel", alloc), cannonicalLabel, alloc);
+
+    String* parent = Address_toString(&link->parent->address, alloc);
+    Dict_putString(result, String_new("parent", alloc), parent, alloc);
+
+    String* child = Address_toString(&link->child->address, alloc);
+    Dict_putString(result, String_new("child", alloc), child, alloc);
 
     Admin_sendMessage(ret, txid, ctx->admin);
 }
@@ -212,8 +238,7 @@ static void nodeForAddr(Dict* args, void* vcontext, String* txid, struct Allocat
     AddrTools_printPath(parentChildLabel->bytes, Node_getBestParent(node)->cannonicalLabel);
     Dict_putString(bestParent, String_CONST("parentChildLabel"), parentChildLabel, alloc);
 
-    int isOneHop = EncodingScheme_isOneHop(Node_getBestParent(node)->parent->encodingScheme,
-                                           Node_getBestParent(node)->cannonicalLabel);
+    int isOneHop = Node_isOneHopLink(Node_getBestParent(node));
     Dict_putInt(bestParent, String_CONST("isOneHop"), isOneHop, alloc);
 
     Dict_putDict(result, String_CONST("bestParent"), bestParent, alloc);
@@ -282,21 +307,21 @@ void NodeStore_admin_register(struct NodeStore* nodeStore,
 
     Admin_registerFunction("NodeStore_dumpTable", dumpTable, ctx, false,
         ((struct Admin_FunctionArg[]) {
-            { .name = "page", .required = 1, .type = "Int" },
+            { .name = "page", .required = true, .type = "Int" },
         }), admin);
 
     Admin_registerFunction("NodeStore_getLink", getLink, ctx, false,
         ((struct Admin_FunctionArg[]) {
-            { .name = "parent", .required = 1, .type = "String" },
-            { .name = "linkNum", .required = 1, .type = "Int" },
+            { .name = "parent", .required = false, .type = "String" },
+            { .name = "linkNum", .required = true, .type = "Int" },
         }), admin);
     Admin_registerFunction("NodeStore_nodeForAddr", nodeForAddr, ctx, false,
         ((struct Admin_FunctionArg[]) {
-            { .name = "ip", .required = 0, .type = "String" },
+            { .name = "ip", .required = false, .type = "String" },
         }), admin);
     Admin_registerFunction("NodeStore_getRouteLabel", getRouteLabel, ctx, true,
         ((struct Admin_FunctionArg[]) {
-            { .name = "pathToParent", .required = 1, .type = "String" },
-            { .name = "pathParentToChild", .required = 1, .type = "String" }
+            { .name = "pathToParent", .required = true, .type = "String" },
+            { .name = "pathParentToChild", .required = true, .type = "String" }
         }), admin);
 }
