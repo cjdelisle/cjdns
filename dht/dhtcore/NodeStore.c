@@ -1793,6 +1793,7 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
     RB_INSERT(NodeRBTree, &out->nodeTree, selfNode);
 
     out->pub.selfAddress = &out->selfLink->child->address;
+    out->pub.selfAddress->protocolVersion = Version_CURRENT_PROTOCOL;
 
     return &out->pub;
 }
