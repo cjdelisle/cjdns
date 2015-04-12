@@ -43,15 +43,18 @@ nThen(function (waitFor) {
 
 };
 
+var MILLS = ['externalMill','linkMill','nodeMill','dhtMill','splitMill'];
+
 var main = function (args) {
-    if (['externalMill','linkMill','nodeMill','dhtMill'].indexOf(args[args.length-1]) !== -1) {
+    if (MILLS.indexOf(args[args.length-1]) !== -1) {
         dump(args[args.length-1]);
         return;
     }
     console.log("Usage:");
-    console.log("    dumpRumorMill externalMill # dump externally accessable mill");
+    console.log("    dumpRumorMill externalMill # dump external mill (highest priority)");
     console.log("    dumpRumorMill linkMill     # dump high-priority mill for improving routes");
     console.log("    dumpRumorMill nodeMill     # dump new node discovery mill");
     console.log("    dumpRumorMill dhtMill      # dump DHT maintanence mill");
+    console.log("    dumpRumorMill splitMill    # dump link splitting mill");
 };
 main(process.argv);
