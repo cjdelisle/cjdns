@@ -38,8 +38,6 @@ struct RumorMill_pvt
 
     struct Log* log;
 
-    const char* name;
-
     Identity
 };
 
@@ -108,7 +106,7 @@ void RumorMill__addNode(struct RumorMill* mill, struct Address* addr, const char
         uint8_t addrStr[60];
         Address_print(addrStr, addr);
         Log_debug(rm->log, "[%s] addNode(%s) count[%d] from [%s:%d]",
-                           rm->name, addrStr, rm->pub.count, file, line);
+                           rm->pub.name, addrStr, rm->pub.count, file, line);
     }
 }
 
@@ -140,7 +138,7 @@ struct RumorMill* RumorMill_new(struct Allocator* allocator,
     rm->capacity = capacity;
     rm->selfAddr = Allocator_clone(alloc, selfAddr);
     rm->log = log;
-    rm->name = name;
+    rm->pub.name = name;
     Identity_set(rm);
 
     return &rm->pub;

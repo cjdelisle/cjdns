@@ -34,6 +34,8 @@ struct RumorMill
     struct Address* addresses;
 
     int count;
+
+    const char* name;
 };
 
 void RumorMill__addNode(struct RumorMill* mill, struct Address* addr, const char* file, int line);
