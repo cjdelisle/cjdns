@@ -2115,7 +2115,7 @@ void NodeStore_brokenLink(struct NodeStore* nodeStore, uint64_t path, uint64_t p
 
         uint64_t cannonicalPath =
             NodeStore_getRouteLabel(&store->pub, link->parent->address.path, link->cannonicalLabel);
-        Assert_true(!NodeStore_getRouteLabel_ERR(cannonicalPath));
+        Assert_true(!NodeStore_getRouteLabel_ERR(cannonicalPath) || cannonicalPath == UINT64_MAX);
 
         if ((pathAtErrorHop & mask) >= nextPath) {
             uint64_t cannPathAtErrorHop =
@@ -2132,7 +2132,7 @@ void NodeStore_brokenLink(struct NodeStore* nodeStore, uint64_t path, uint64_t p
                 // error
             } else if ((cannPathAtErrorHop & mask) != thisPath) {
                 // wrong path
-            } else if (path != cannonicalPath) {
+            } else if (path != cannonicalPath && cannonicalPath != UINT64_MAX) {
                 logLink(store, link, "NodeStore_brokenLink() not cannonucal, sending ping");
                 addLinkToMill(store, link);
                 return;
@@ -2145,7 +2145,7 @@ void NodeStore_brokenLink(struct NodeStore* nodeStore, uint64_t path, uint64_t p
             Assert_ifParanoid(NodeStore_linkForPath(nodeStore, path) == link);
             if (path >> 56) {
                 logLink(store, link, "NodeStore_brokenLink() probably caused by long path");
-            } else if (path != cannonicalPath) {
+            } else if (path != cannonicalPath && cannonicalPath != UINT64_MAX) {
                 logLink(store, link, "NodeStore_brokenLink() not cannonical, sending ping (1link)");
                 addLinkToMill(store, link);
                 return;
