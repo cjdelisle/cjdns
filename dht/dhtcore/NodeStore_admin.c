@@ -68,6 +68,11 @@ static void dumpTable(Dict* args, void* vcontext, String* txid, struct Allocator
                     NodeStore_timeSinceLastPing(ctx->store, nn),
                     requestAlloc);
 
+        Dict_putInt(nodeDict,
+                    String_CONST("bucket"),
+                    NodeStore_bucketForAddr(ctx->store->selfAddress, &nn->address),
+                    requestAlloc);
+
         List_addDict(table, nodeDict, requestAlloc);
     }
     Dict_putList(out, String_CONST("routingTable"), table, requestAlloc);
