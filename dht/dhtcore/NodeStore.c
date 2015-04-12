@@ -2340,6 +2340,7 @@ void NodeStore_pathTimeout(struct NodeStore* nodeStore, uint64_t path)
 }
 
 /* Find the address that describes the source's Nth (furthest-away) bucket. */
+/*
 struct Address NodeStore_addrForBucket(struct Address* source, uint16_t bucket)
 {
     if (bucket >= NodeStore_bucketNumber) {
@@ -2390,6 +2391,32 @@ uint16_t NodeStore_bucketForAddr(struct Address* source, struct Address* dest)
     retVal += 0x0F - prefix;
 
     return retVal;
+}
+*/
+
+struct Address NodeStore_addrForBucket(struct Address* source, uint16_t bucket)
+{
+    Assert_compileTime(NodeStore_bucketNumber == 128);
+    struct Address addr = *source;
+    uint64_t* addrPart = (bucket < 64) ? &addr.ip6.longs.one_be : &addr.ip6.longs.two_be;
+    uint64_t bitmask = (uint64_t)1 << (63 - (bucket % 64));
+    *addrPart ^= Endian_hostToBigEndian64(bitmask);
+    Assert_ifParanoid(bucket == NodeStore_bucketForAddr(source, &addr));
+    return addr;
+}
+
+uint16_t NodeStore_bucketForAddr(struct Address* source, struct Address* dest)
+{
+    Assert_compileTime(NodeStore_bucketNumber == 128);
+    uint16_t bucket = 0;
+    uint64_t addrPart = source->ip6.longs.one_be ^ dest->ip6.longs.one_be;
+    if (!addrPart) {
+        addrPart = source->ip6.longs.two_be ^ dest->ip6.longs.two_be;
+        bucket += 64;
+    }
+    addrPart = Endian_bigEndianToHost64(addrPart);
+    bucket += 63 - Bits_log2x64(addrPart);
+    return bucket;
 }
 
 uint64_t NodeStore_timeSinceLastPing(struct NodeStore* nodeStore, struct Node_Two* node)

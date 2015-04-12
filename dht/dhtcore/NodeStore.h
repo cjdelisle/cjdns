@@ -219,7 +219,7 @@ uint64_t NodeStore_timeSinceLastPing(struct NodeStore* nodeStore, struct Node_Tw
 
 // Used for DHT maintenance.
 #define NodeStore_bucketSize 4
-#define NodeStore_bucketNumber 512
+#define NodeStore_bucketNumber 128
 struct Address NodeStore_addrForBucket(struct Address* source, uint16_t bucket);
 uint16_t NodeStore_bucketForAddr(struct Address* source, struct Address* dest);
 struct NodeList* NodeStore_getNodesForBucket(struct NodeStore* nodeStore,
