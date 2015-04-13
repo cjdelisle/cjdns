@@ -38,8 +38,8 @@
 
 #define MAX_SEARCHES 10
 
-/** A path which has recently been probed will be quiet for Janitor_PATH_QUIET_TIME_MILLISECONDS */
-struct Janitor_QuietPath
+/** A path which has recently been probed will be quiet for blacklistPathForMilliseconds */
+struct Janitor_Blacklist
 {
     int64_t timeAdded;
     uint64_t path;
@@ -66,8 +66,8 @@ struct Janitor_pvt
 
     struct Log* logger;
 
-    #define Janitor_pvt_quietPaths_NUM 64
-    struct Janitor_QuietPath quietPaths[Janitor_pvt_quietPaths_NUM];
+    #define Janitor_pvt_blacklist_NUM 64
+    struct Janitor_Blacklist blacklist[Janitor_pvt_blacklist_NUM];
 
     uint64_t timeOfNextGlobalMaintainence;
 
@@ -98,26 +98,26 @@ struct Janitor_Search
     Identity
 };
 
-static bool canPing(struct Janitor_pvt* j, uint64_t path)
+static bool isBlacklisted(struct Janitor_pvt* j, uint64_t path)
 {
     int64_t now = Time_currentTimeMilliseconds(j->eventBase);
-    for (int i = 0; i < Janitor_pvt_quietPaths_NUM; i++) {
-        struct Janitor_QuietPath* qp = &j->quietPaths[i];
-        if (qp->path == path && now - qp->timeAdded < j->pub.pathQuietTimeMilliseconds) {
-            return false;
+    for (int i = 0; i < Janitor_pvt_blacklist_NUM; i++) {
+        struct Janitor_Blacklist* qp = &j->blacklist[i];
+        if (qp->path == path && now - qp->timeAdded < j->pub.blacklistPathForMilliseconds) {
+            return true;
         }
     }
-    return true;
+    return false;
 }
 
-static void beQuietTo(struct Janitor_pvt* j, uint64_t path)
+static void blacklist(struct Janitor_pvt* j, uint64_t path)
 {
     int64_t now = Time_currentTimeMilliseconds(j->eventBase);
     int oldestIndex = 0;
     int64_t oldestTime = UINT64_MAX;
-    for (int i = 0; i < Janitor_pvt_quietPaths_NUM; i++) {
-        struct Janitor_QuietPath* qp = &j->quietPaths[i];
-        if (qp->path == path || now - qp->timeAdded > j->pub.pathQuietTimeMilliseconds) {
+    for (int i = 0; i < Janitor_pvt_blacklist_NUM; i++) {
+        struct Janitor_Blacklist* qp = &j->blacklist[i];
+        if (qp->path == path || now - qp->timeAdded > j->pub.blacklistPathForMilliseconds) {
             qp->timeAdded = now;
             qp->path = path;
             return;
@@ -126,10 +126,10 @@ static void beQuietTo(struct Janitor_pvt* j, uint64_t path)
             oldestTime = qp->timeAdded;
         }
     }
-    Log_debug(j->logger, "Replacing [%ld]ms old QuietPath because quietPaths list is full",
+    Log_debug(j->logger, "Replacing [%ld]ms old blacklist node because blacklist is full",
         (long)(now - oldestTime));
-    j->quietPaths[oldestIndex].timeAdded = now;
-    j->quietPaths[oldestIndex].path = path;
+    j->blacklist[oldestIndex].timeAdded = now;
+    j->blacklist[oldestIndex].path = path;
 }
 
 static void responseCallback(struct RouterModule_Promise* promise,
@@ -139,7 +139,7 @@ static void responseCallback(struct RouterModule_Promise* promise,
 {
     struct Janitor_Search* search = Identity_check((struct Janitor_Search*)promise->userData);
     if (from) {
-        beQuietTo(search->janitor, from->path);
+        blacklist(search->janitor, from->path);
         Bits_memcpyConst(&search->best, from, sizeof(struct Address));
         return;
     }
@@ -221,7 +221,7 @@ static void dhtResponseCallback(struct RouterModule_Promise* promise,
 {
     struct Janitor_pvt* janitor = Identity_check((struct Janitor_pvt*)promise->userData);
     if (!from) { return; }
-    beQuietTo(janitor, from->path);
+    blacklist(janitor, from->path);
     struct Address_List* addresses =
         ReplySerializer_parse(from, result, janitor->logger, true, promise->alloc);
 
@@ -259,7 +259,11 @@ static void peersResponseCallback(struct RouterModule_Promise* promise,
 {
     struct Janitor_pvt* janitor = Identity_check((struct Janitor_pvt*)promise->userData);
     if (!from) { return; }
-    beQuietTo(janitor, from->path);
+    blacklist(janitor, from->path);
+    if (Defined(Log_DEBUG)) {
+        String* addr = Address_toString(from, promise->alloc);
+        Log_debug(janitor->logger, "Got peers response from [%s]", addr->bytes);
+    }
     struct Address_List* addresses =
         ReplySerializer_parse(from, result, janitor->logger, true, promise->alloc);
 
@@ -358,35 +362,6 @@ static void peersResponseCallback(struct RouterModule_Promise* promise,
     }
 }
 
-static bool checkPeers(struct Janitor_pvt* janitor, struct Node_Two* n)
-{
-    // Lets check for non-one-hop links at each node along the path between us and this node.
-    uint64_t path = n->address.path;
-
-    struct Node_Link* link = NULL;
-
-    for (;;) {
-        link = NodeStore_firstHopInPath(janitor->nodeStore, path, &path, link);
-        if (!link) { break; }
-        if (link->parent == janitor->nodeStore->selfNode) { continue; }
-
-        struct Node_Link* l = NULL;
-        do {
-            l = NodeStore_nextLink(link->child, l);
-            if (l && (!Node_isOneHopLink(l) || Node_getReach(link->parent) == 0)) {
-                struct RouterModule_Promise* rp =
-                    RouterModule_getPeers(&link->parent->address, l->cannonicalLabel, 0,
-                                          janitor->routerModule, janitor->allocator);
-                rp->callback = peersResponseCallback;
-                rp->userData = janitor;
-                // Only send max 1 getPeers req per second.
-                return true;
-            }
-        } while (l);
-    }
-    return false;
-}
-
 /**
  * For a Distributed Hash Table to work, each node must know a valid next hop for every possible
  * lookup, unless no such node exists in the network (i.e. the final hop is either us or offline).
@@ -420,12 +395,6 @@ static void keyspaceMaintenance(struct Janitor_pvt* janitor)
 
     struct Node_Two* node = NodeStore_nodeForAddr(janitor->nodeStore, addr.ip6.bytes);
     if (node && node->address.path == addr.path) {
-        if (checkPeers(janitor, node)) {
-            // If the mills never empty, then returning here can block the dht.
-            // This would be a sign that the nodeStore is too small for the network size.
-            // Also blocked if we fail to correctly split the link when we find a hop in the middle.
-            return;
-        }
         //FIXME(arceliar): This target probably isn't optimal.
         uint16_t bucket = NodeStore_bucketForAddr(selfAddr, &addr);
         struct Address target = NodeStore_addrForBucket(&addr, bucket);
@@ -540,7 +509,7 @@ static bool tryMill(struct Janitor_pvt* janitor, struct RumorMill* mill, int rul
     struct Address addr = { .protocolVersion = 0 };
     while (RumorMill_getNode(mill, &addr)) {
         if (rules & tryMill_rules_CAN_PING) {
-            if (!canPing(janitor, addr.path)) {
+            if (isBlacklisted(janitor, addr.path)) {
                 debugAddr(janitor, "Not pinging blacklisted node", &addr);
                 continue;
             }
@@ -682,12 +651,10 @@ static void maintanenceCycle(void* vcontext)
 
     // If the best next node doesn't exist or has 0 reach, run a local maintenance search.
     if (n == NULL || Node_getReach(n) == 0) {
+        // or actually, don't
         //search(addr.ip6.bytes, janitor);
         //plugLargestKeyspaceHole(janitor, true);
         //return;
-
-    } else {
-        checkPeers(janitor, n);
     }
 
     Log_debug(janitor->logger,
@@ -735,6 +702,7 @@ struct Janitor* Janitor_new(struct RouterModule* routerModule,
 
     janitor->pub.globalMaintainenceMilliseconds = Janitor_GLOBAL_MAINTENANCE_MILLISECONDS_DEFAULT;
     janitor->pub.localMaintainenceMilliseconds = Janitor_LOCAL_MAINTENANCE_MILLISECONDS_DEFAULT;
+    janitor->pub.blacklistPathForMilliseconds = Janitor_BLACKLIST_PATH_FOR_MILLISECONDS_DEFAULT;
 
     janitor->timeOfNextGlobalMaintainence = Time_currentTimeMilliseconds(eventBase);
 

@@ -59,8 +59,8 @@ struct Janitor
      * The number of milliseconds after a path has been (successfully) pinged which it will
      * not be pinged again.
      */
-    #define Janitor_PATH_QUIET_TIME_MILLISECONDS 30000
-    int64_t pathQuietTimeMilliseconds;
+    #define Janitor_BLACKLIST_PATH_FOR_MILLISECONDS_DEFAULT 30000
+    int64_t blacklistPathForMilliseconds;
 
     /** The number of milliseconds between attempting local maintenance searches. */
     #define Janitor_LOCAL_MAINTENANCE_MILLISECONDS_DEFAULT 1000
