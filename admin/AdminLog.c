@@ -120,8 +120,7 @@ static Dict* makeLogMessage(struct Subscription* subscription,
                             enum Log_Level logLevel,
                             const char* file,
                             uint32_t line,
-                            const char* format,
-                            va_list vaArgs,
+                            String* message,
                             struct Allocator* alloc)
 {
     int64_t now = (int64_t) Time_currentTimeSeconds(logger->base);
@@ -133,12 +132,6 @@ static Dict* makeLogMessage(struct Subscription* subscription,
     Dict_putString(out, LEVEL, String_new(Log_nameForLevel(logLevel), alloc), alloc);
     Dict_putString(out, STR_FILE, String_new(file, alloc), alloc);
     Dict_putInt(out, LINE, line, alloc);
-    String* message = String_vprintf(alloc, format, vaArgs);
-
-    // Strip all of the annoying \n marks in the log entries.
-    if (message->len > 0 && message->bytes[message->len - 1] == '\n') {
-        message->len--;
-    }
     Dict_putString(out, MESSAGE, message, alloc);
 
     return out;
@@ -188,7 +181,7 @@ static void doLog(struct Log* genericLog,
                   va_list args)
 {
     struct AdminLog* log = Identity_check((struct AdminLog*) genericLog);
-    Dict* message = NULL;
+    String* message = NULL;
     struct Allocator* logLineAlloc = NULL;
 
     if (log->logging) { return; }
@@ -202,16 +195,20 @@ static void doLog(struct Log* genericLog,
         }
         if (!message) {
             logLineAlloc = Allocator_child(log->alloc);
-            message = makeLogMessage(&log->subscriptions[i],
-                                     log,
-                                     logLevel,
-                                     fullFilePath,
-                                     line,
-                                     format,
-                                     args,
-                                     logLineAlloc);
+            message = String_vprintf(logLineAlloc, format, args);
+            // Strip all of the annoying \n marks in the log entries.
+            if (message->len > 0 && message->bytes[message->len - 1] == '\n') {
+                message->len--;
+            }
         }
-        int ret = Admin_sendMessage(message, log->subscriptions[i].txid, log->admin);
+        Dict* d = makeLogMessage(&log->subscriptions[i],
+                                 log,
+                                 logLevel,
+                                 fullFilePath,
+                                 line,
+                                 message,
+                                 logLineAlloc);
+        int ret = Admin_sendMessage(d, log->subscriptions[i].txid, log->admin);
         if (ret == Admin_sendMessage_CHANNEL_CLOSED) {
             removeSubscription(log, &log->subscriptions[i]);
         } else if (ret) {
@@ -283,7 +280,7 @@ static void unsubscribe(Dict* args, void* vcontext, String* txid, struct Allocat
     } else {
         error = "No such subscription.";
         for (int i = 0; i < (int)log->subscriptionCount; i++) {
-            if (!String_equals(streamIdHex, log->subscriptions[i].streamId)) {
+            if (String_equals(streamIdHex, log->subscriptions[i].streamId)) {
                 removeSubscription(log, &log->subscriptions[i]);
                 error = "none";
                 break;

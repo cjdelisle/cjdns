@@ -52,6 +52,7 @@ Cjdns.connectWithAdminInfo(function (cjdns) {
     });
     cjdns.AdminLog_subscribe(line, verbosity, file, function (err, ret) {
         if (err) { throw err; }
+        if (ret.error !== 'none') { throw new Error(ret.error); }
 
         // make sure cjdns doesn't think we've gone missing!
         setInterval(function () {
@@ -59,5 +60,17 @@ Cjdns.connectWithAdminInfo(function (cjdns) {
                 if (err) { throw err; }
             });
         }, 10000);
+
+        var sigint = false;
+        process.on('SIGINT', function () {
+            if (sigint) { process.exit(100); }
+            console.log('Disconnecting...');
+            cjdns.AdminLog_unsubscribe(ret.streamId, function (err, ret) {
+                if (err) { throw err; }
+                console.log('done');
+                cjdns.disconnect();
+                process.exit(0);
+            });
+        });
     });
 });
