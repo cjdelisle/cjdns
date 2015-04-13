@@ -199,15 +199,15 @@ int Admin_sendMessage(Dict* message, String* txid, struct Admin* adminPub)
     struct Allocator* alloc = Allocator_child(admin->allocator);
 
     // Bounce back the user-supplied txid.
-    String userTxid = {
-        .bytes = txid->bytes + admin->addrLen,
-        .len = txid->len - admin->addrLen
-    };
+    String* userTxid =
+        String_newBinary(&txid->bytes[admin->addrLen], txid->len - admin->addrLen, alloc);
     if (txid->len > admin->addrLen) {
-        Dict_putString(message, TXID, &userTxid, alloc);
+        Dict_putString(message, TXID, userTxid, alloc);
     }
 
     sendBenc(message, &addr.addr, alloc, admin);
+
+    Dict_remove(message, TXID);
 
     Allocator_free(alloc);
 
