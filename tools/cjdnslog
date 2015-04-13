@@ -50,7 +50,7 @@ Cjdns.connectWithAdminInfo(function (cjdns) {
         if (err) { throw err; }
         printMsg(msg);
     });
-    cjdns.AdminLog_subscribe(line, file, verbosity, function (err, ret) {
+    cjdns.AdminLog_subscribe(line, verbosity, file, function (err, ret) {
         if (err) { throw err; }
 
         // make sure cjdns doesn't think we've gone missing!
