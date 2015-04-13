@@ -50,7 +50,7 @@ Cjdns.connectWithAdminInfo(function (cjdns) {
                 list.forEach(function (r) {
                     var theirAddr = PublicToIp6.convert(r.addr.replace(/^([^\.]*\.){5}/,''));
                     var dist = distance(myAddr, theirAddr);
-                    console.log(r.addr + ' ' + dist + ' ' + r.link + ' ' + r.time);
+                    console.log(r.addr + ' ' + r.bucket + ' ' + r.link + ' ' + r.time);
                 });
 
                 console.log(table.count + ' nodes ' + table.peers + ' peers');
