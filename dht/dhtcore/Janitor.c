@@ -114,7 +114,7 @@ static void blacklist(struct Janitor_pvt* j, uint64_t path)
 {
     int64_t now = Time_currentTimeMilliseconds(j->eventBase);
     int oldestIndex = 0;
-    int64_t oldestTime = UINT64_MAX;
+    int64_t oldestTime = INT64_MAX;
     for (int i = 0; i < Janitor_pvt_blacklist_NUM; i++) {
         struct Janitor_Blacklist* qp = &j->blacklist[i];
         if (qp->path == path || now - qp->timeAdded > j->pub.blacklistPathForMilliseconds) {
