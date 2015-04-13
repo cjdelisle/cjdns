@@ -322,10 +322,12 @@ static Iface_DEFUN session(struct Message* msg, struct Pathfinder_pvt* pf)
     String* str = Address_toString(&addr, msg->alloc);
     Log_debug(pf->log, "Session [%s]", str->bytes);
 
+    /* This triggers for every little ping we send to some random node out there which
+     * sucks too much to ever get into the nodeStore.
     struct Node_Two* node = NodeStore_nodeForAddr(pf->nodeStore, addr.ip6.bytes);
     if (!node) {
         SearchRunner_search(addr.ip6.bytes, 20, 3, pf->searchRunner, pf->alloc);
-    }
+    }*/
 
     return NULL;
 }
