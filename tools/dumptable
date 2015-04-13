@@ -18,14 +18,14 @@ var Cjdns = require('../contrib/nodejs/cjdnsadmin/cjdnsadmin');
 var PublicToIp6 = require('./lib/publicToIp6');
 
 var distance = function (myAddr, theirAddr) {
-    var myInt = Number('0x' + myAddr.substring(20, 28).replace(':', ''));
-    var theirInt = Number('0x' + theirAddr.substring(20, 28).replace(':', ''));
+    var myInt = Number('0x' + myAddr.substring(20, 27).replace(':', ''));
+    var theirInt = Number('0x' + theirAddr.substring(20, 27).replace(':', ''));
     var out = 0;
-    for (var i = 31; i >= 0; i--) {
-        if ((myInt >> i) != (theirInt >> i)) { return ((out > 10) ? '' : ' ') + out; }
+    for (var i = 23; i >= 0; i--) {
+        if ((myInt >>> i) !== (theirInt >>> i)) { return out; }
         out++;
     }
-    return 'xx';
+    return 127;
 };
 
 Cjdns.connectWithAdminInfo(function (cjdns) {
@@ -50,7 +50,8 @@ Cjdns.connectWithAdminInfo(function (cjdns) {
                 list.forEach(function (r) {
                     var theirAddr = PublicToIp6.convert(r.addr.replace(/^([^\.]*\.){5}/,''));
                     var dist = distance(myAddr, theirAddr);
-                    console.log(r.addr + ' ' + r.bucket + ' ' + r.link + ' ' + r.time);
+                    if (r.bucket && dist !== Number(r.bucket)) { throw new Error(dist + ' !== ' + r.bucket); }
+                    console.log(r.addr + ' ' + dist + ' ' + r.link + ' ' + r.time);
                 });
 
                 console.log(table.count + ' nodes ' + table.peers + ' peers');
