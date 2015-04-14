@@ -1,0 +1,1606 @@
+Results of benchmarking cjdns on different systems:
+To make your own benchmark:
+./cjdroute --bench
+cat /proc/cpuinfo
+git log | head -n 1
+
+Paste results to https://ezcrypt.it/ and tell us about it in the IRC channel!
+Weird processors wanted :D
+
+
+
+user@debo8:~/wrk/play/mygit/cjdns/build$ ./cjdroute --bench
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+Test sending 1000 64 byte	hello packets.	packet auth enabled.	Finished in 466ms. 1098 Kb/s
+
+Test sending 1000 1500 byte	hello packets.	packet auth enabled.	Finished in 432ms. 27776 Kb/s
+
+Test sending 1000 64 byte	key packets.	packet auth enabled.	Finished in 671ms. 763 Kb/s
+
+Test sending 1000 1500 byte	key packets.	packet auth enabled.	Finished in 683ms. 17568 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth disabled.	Finished in 101ms. 506930 Kb/s
+
+Test sending 100000 1500 byte	data packets.	packet auth disabled.	Finished in 1021ms. 1175318 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth enabled.	Finished in 360ms. 142222 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput:
+Test sending 100000 1500 byte	data packets.	packet auth enabled.	Finished in 1708ms. 702576 Kb/s
+
+user@debo8:~/wrk/play/mygit/cjdns/build$ cat /proc/cpuinfo | head
+processor	: 0
+vendor_id	: AuthenticAMD
+cpu family	: 16
+model		: 9
+model name	: AMD Opteron(tm) Processor 6128
+stepping	: 1
+microcode	: 0x10000c4
+cpu MHz		: 800.000
+cache size	: 512 KB
+physical id	: 0
+user@debo8:~/wrk/play/mygit/cjdns/build$ git log -n 1
+commit c2cfff7b4ef1339942f3e98eb0d99a093d307a9b
+
+
+
+
+
+
+
+cjdns@abacus:~/cjdns/build$ ./cjdroute --bench
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+Test sending 1000 64 byte	hello packets.	packet auth enabled.	Finished in 96628ms. 5 Kb/s
+
+Test sending 1000 1500 byte	hello packets.	packet auth enabled.	Finished in 100130ms. 119 Kb/s
+
+Test sending 1000 64 byte	key packets.	packet auth enabled.	Finished in 149438ms. 3 Kb/s
+
+Test sending 1000 1500 byte	key packets.	packet auth enabled.	Finished in 152898ms. 78 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth disabled.	Finished in 2241ms. 22846 Kb/s
+
+Test sending 100000 1500 byte	data packets.	packet auth disabled.	Finished in 34007ms. 35286 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth enabled.	Finished in 12059ms. 4245 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput:
+Test sending 100000 1500 byte	data packets.	packet auth enabled.	Finished in 151882ms. 7900 Kb/s
+
+cjdns@abacus:~/cjdns/build$ cat /proc/cpuinfo
+Processor	: Feroceon 88FR131 rev 1 (v5l)
+BogoMIPS	: 1196.85
+Features	: swp half thumb fastmult edsp 
+CPU implementer	: 0x56
+CPU architecture: 5TE
+CPU variant	: 0x2
+CPU part	: 0x131
+CPU revision	: 1
+
+Hardware	: Marvell OpenRD Client Board
+Revision	: 0000
+Serial		: 0000000000000000
+cjdns@abacus:~/cjdns/build$ git log -n 1
+commit c2cfff7b4ef1339942f3e98eb0d99a093d307a9b
+
+
+# after the update to nacl
+
+cjdns@abacus:~/cjdns/build$ time ./cjdroute --bench && cat /proc/cpuinfo && git log | head -1
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+Test sending 1000 64 byte	hello packets.	packet auth enabled.	Finished in 12076ms. 42 Kb/s
+
+Test sending 1000 1500 byte	hello packets.	packet auth enabled.	Finished in 13298ms. 902 Kb/s
+
+Test sending 1000 64 byte	key packets.	packet auth enabled.	Finished in 12304ms. 41 Kb/s
+
+Test sending 1000 1500 byte	key packets.	packet auth enabled.	Finished in 12752ms. 940 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth disabled.	Finished in 1034ms. 49516 Kb/s
+
+Test sending 100000 1500 byte	data packets.	packet auth disabled.	Finished in 20350ms. 58968 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth enabled.	Finished in 3685ms. 13894 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput:
+Test sending 100000 1500 byte	data packets.	packet auth enabled.	Finished in 30179ms. 39762 Kb/s
+
+Processor	: Feroceon 88FR131 rev 1 (v5l)
+BogoMIPS	: 1196.85
+Features	: swp half thumb fastmult edsp 
+CPU implementer	: 0x56
+CPU architecture: 5TE
+CPU variant	: 0x2
+CPU part	: 0x131
+CPU revision	: 1
+
+Hardware	: Marvell OpenRD Client Board
+Revision	: 0000
+Serial		: 0000000000000000
+
+real	1m43.216s
+user	1m21.520s
+sys	0m1.000s
+cjdns@abacus:~/cjdns/build$ 
+
+
+
+
+
+
+
+cjdns@ks397481:~/cjdns/build$ ./cjdroute --bench
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+Test sending 1000 64 byte	hello packets.	packet auth enabled.	Finished in 3420ms. 149 Kb/s
+
+Test sending 1000 1500 byte	hello packets.	packet auth enabled.	Finished in 3491ms. 3437 Kb/s
+
+Test sending 1000 64 byte	key packets.	packet auth enabled.	Finished in 3413ms. 150 Kb/s
+
+Test sending 1000 1500 byte	key packets.	packet auth enabled.	Finished in 3465ms. 3462 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth disabled.	Finished in 103ms. 497087 Kb/s
+
+Test sending 100000 1500 byte	data packets.	packet auth disabled.	Finished in 1581ms. 759013 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth enabled.	Finished in 724ms. 70718 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput:
+Test sending 100000 1500 byte	data packets.	packet auth enabled.	Finished in 4257ms. 281888 Kb/s
+
+cjdns@ks397481:~/cjdns/build$ cat /proc/cpuinfo | head
+processor	: 0
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 28
+model name	: Intel(R) Atom(TM) CPU D425   @ 1.80GHz
+stepping	: 10
+cpu MHz		: 1799.735
+cache size	: 512 KB
+physical id	: 0
+siblings	: 2
+cjdns@ks397481:~/cjdns/build$ git log | head -n 1
+commit fd4964634de971c888bb079d0e62b411c471803a
+
+
+
+
+
+
+
+
+
+user@ubntfusion2:~/cjdns/build$ ./cjdroute --bench
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+Test sending 1000 64 byte	hello packets.	packet auth enabled.	Finished in 916ms. 558 Kb/s
+
+Test sending 1000 1500 byte	hello packets.	packet auth enabled.	Finished in 939ms. 12778 Kb/s
+
+Test sending 1000 64 byte	key packets.	packet auth enabled.	Finished in 1341ms. 381 Kb/s
+
+Test sending 1000 1500 byte	key packets.	packet auth enabled.	Finished in 1368ms. 8771 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth disabled.	Finished in 134ms. 382089 Kb/s
+
+Test sending 100000 1500 byte	data packets.	packet auth disabled.	Finished in 2291ms. 523788 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth enabled.	Finished in 526ms. 97338 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput:
+Test sending 100000 1500 byte	data packets.	packet auth enabled.	Finished in 3386ms. 354400 Kb/s
+
+user@ubntfusion2:~/cjdns/build$ cat /proc/cpuinfo | head
+processor	: 0
+vendor_id	: AuthenticAMD
+cpu family	: 20
+model		: 1
+model name	: AMD E-350 Processor
+stepping	: 0
+microcode	: 0x5000028
+cpu MHz		: 800.000
+cache size	: 512 KB
+physical id	: 0
+user@ubntfusion2:~/cjdns/build$ git log | head -n 1
+commit 3d2ce46d3c9df964ddf37dbdb03dccbcac862d5a
+user@ubntfusion2:~/cjdns/build$
+
+
+
+
+
+
+
+
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+Test sending 1000 64 byte	hello packets.	packet auth enabled.	Finished in 1361ms. 376 Kb/s
+
+Test sending 1000 1500 byte	hello packets.	packet auth enabled.	Finished in 1551ms. 7736 Kb/s
+
+Test sending 1000 64 byte	key packets.	packet auth enabled.	Finished in 1334ms. 383 Kb/s
+
+Test sending 1000 1500 byte	key packets.	packet auth enabled.	Finished in 1365ms. 8790 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth disabled.	Finished in 323ms. 158513 Kb/s
+
+Test sending 100000 1500 byte	data packets.	packet auth disabled.	Finished in 1893ms. 633914 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth enabled.	Finished in 708ms. 72316 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput:
+Test sending 100000 1500 byte	data packets.	packet auth enabled.	Finished in 2805ms. 427807 Kb/s
+
+processor	: 0
+vendor_id	: GenuineIntel
+cpu family	: 15
+model		: 4
+model name	: Intel(R) Pentium(R) 4 CPU 3.00GHz
+stepping	: 3
+cpu MHz		: 2994.307
+cache size	: 2048 KB
+physical id	: 0
+siblings	: 2
+core id		: 0
+cpu cores	: 1
+apicid		: 0
+initial apicid	: 0
+fdiv_bug	: no
+hlt_bug		: no
+f00f_bug	: no
+coma_bug	: no
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 5
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe lm constant_tsc pebs bts pni dtes64 monitor ds_cpl est cid cx16 xtpr
+bogomips	: 5988.61
+clflush size	: 64
+cache_alignment	: 128
+address sizes	: 36 bits physical, 48 bits virtual
+power management:
+
+processor	: 1
+vendor_id	: GenuineIntel
+cpu family	: 15
+model		: 4
+model name	: Intel(R) Pentium(R) 4 CPU 3.00GHz
+stepping	: 3
+.....
+
+cjdns@xubuntu-27-120:~/cjdns$ git log | head -n 1
+commit 06522239acde31a01633033d9c4229baa7fad229
+
+
+
+
+
+
+
+
+
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+Test sending 1000 64 byte	hello packets.	packet auth enabled.	Finished in 9996ms. 51 Kb/s
+
+Test sending 1000 1500 byte	hello packets.	packet auth enabled.	Finished in 10459ms. 1147 Kb/s
+
+Test sending 1000 64 byte	key packets.	packet auth enabled.	Finished in 10429ms. 49 Kb/s
+
+Test sending 1000 1500 byte	key packets.	packet auth enabled.	Finished in 10982ms. 1092 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth disabled.	Finished in 3588ms. 14269 Kb/s
+
+Test sending 100000 1500 byte	data packets.	packet auth disabled.	Finished in 34265ms. 35021 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth enabled.	Finished in 8723ms. 5869 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput:
+Test sending 100000 1500 byte	data packets.	packet auth enabled.	Finished in 46702ms. 25694 Kb/s
+
+
+processor	: 0
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 5
+model name	: Pentium II (Deschutes)
+stepping	: 2
+cpu MHz		: 267.274
+cache size	: 512 KB
+fdiv_bug	: no
+hlt_bug		: no
+f00f_bug	: no
+coma_bug	: no
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 2
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 sep mtrr pge mca cmov pse36 mmx fxsr up
+bogomips	: 534.54
+clflush size	: 32
+cache_alignment	: 32
+address sizes	: 36 bits physical, 32 bits virtual
+power management:
+
+cjdns@wl-4-253:~/cjdns$ git log | head -n 1
+commit 06522239acde31a01633033d9c4229baa7fad229
+
+
+
+
+
+
+
+
+$ ./cjdroute --bench
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+Test sending 1000 64 byte       hello packets.  packet auth enabled.    Finished in 334ms. 1532 Kb/s
+
+Test sending 1000 1500 byte     hello packets.  packet auth enabled.    Finished in 342ms. 35085 Kb/s
+
+Test sending 1000 64 byte       key packets.    packet auth enabled.    Finished in 547ms. 936 Kb/s
+
+Test sending 1000 1500 byte     key packets.    packet auth enabled.    Finished in 507ms. 23667 Kb/s
+
+Test sending 100000 64 byte     data packets.   packet auth disabled.   Finished in 51ms. 1003921 Kb/s
+
+Test sending 100000 1500 byte   data packets.   packet auth disabled.   Finished in 618ms. 1941747 Kb/s
+
+Test sending 100000 64 byte     data packets.   packet auth enabled.    Finished in 226ms. 226548 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput:
+Test sending 100000 1500 byte   data packets.   packet auth enabled.    Finished in 1068ms. 1123595 Kb/s
+
+
+$ cat /proc/cpuinfo
+processor       : 0
+vendor_id       : GenuineIntel
+cpu family      : 6
+model           : 26
+model name      : Intel(R) Xeon(R) CPU           E5520  @ 2.27GHz
+stepping        : 5
+microcode       : 0x11
+cpu MHz         : 2261.000
+cache size      : 8192 KB
+fpu             : yes
+fpu_exception   : yes
+cpuid level     : 11
+wp              : yes
+flags           : fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss syscall nx rdtscp lm constant_tsc arch_perfmon pebs bts nopl xtopology tsc_reliable nonstop_tsc aperfmperf pni ssse3 cx16 sse4_1 sse4_2 popcnt hypervisor lahf_lm ida dts
+bogomips        : 4522.00
+clflush size    : 64
+cache_alignment : 64
+address sizes   : 40 bits physical, 48 bits virtual
+power management:
+
+......
+
+$ git log | head -n 1
+commit 65204735fac8a27a1057f100b0a1285633eaf29e
+
+
+
+
+
+
+
+
+
+[user@ps3 build]$ ./cjdroute --bench
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+Test sending 1000 64 byte	hello packets.	packet auth enabled.	Finished in 54330ms. 9 Kb/s
+
+Test sending 1000 1500 byte	hello packets.	packet auth enabled.	Finished in 54805ms. 218 Kb/s
+
+Test sending 1000 64 byte	key packets.	packet auth enabled.	Finished in 54304ms. 9 Kb/s
+
+Test sending 1000 1500 byte	key packets.	packet auth enabled.	Finished in 54792ms. 218 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth disabled.	Finished in 607ms. 84349 Kb/s
+
+Test sending 100000 1500 byte	data packets.	packet auth disabled.	Finished in 8470ms. 141676 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth enabled.	Finished in 3224ms. 15880 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput:
+Test sending 100000 1500 byte	data packets.	packet auth enabled.	Finished in 54903ms. 21856 Kb/s
+
+[user@ps3 build]$ cat /proc/cpuinfo
+processor	: 0
+cpu		: Cell Broadband Engine, altivec supported
+clock		: 3192.000000MHz
+revision	: 5.1 (pvr 0070 0501)
+
+processor	: 1
+cpu		: Cell Broadband Engine, altivec supported
+clock		: 3192.000000MHz
+revision	: 5.1 (pvr 0070 0501)
+
+timebase	: 79800000
+platform	: PS3
+[user@ps3 build]$ git log | head -n 1
+commit 06522239acde31a01633033d9c4229baa7fad229
+
+
+
+
+
+
+
+Linux 2.6.26-2-686 #1 SMP Sat Jun 11 14:54:10 UTC 2011 i686 GNU/Linux
+
+893ac7148b76bed44c589617f0655a857b05b9e4
+
+processor	: 0
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 23
+model name	: Intel(R) Core(TM)2 CPU         E7400  @ 2.80GHz
+stepping	: 10
+cpu MHz		: 2793.090
+cache size	: 3072 KB
+physical id	: 0
+siblings	: 2
+core id		: 0
+cpu cores	: 2
+apicid		: 0
+initial apicid	: 0
+fdiv_bug	: no
+hlt_bug		: no
+f00f_bug	: no
+coma_bug	: no
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 13
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe nx lm constant_tsc arch_perfmon pebs bts pni monitor tm2 ssse3 lahf_lm
+bogomips	: 5590.46
+clflush size	: 64
+power management:
+
+processor	: 1
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 23
+model name	: Intel(R) Core(TM)2 CPU         E7400  @ 2.80GHz
+stepping	: 10
+cpu MHz		: 2793.090
+cache size	: 3072 KB
+physical id	: 0
+siblings	: 2
+core id		: 1
+cpu cores	: 2
+apicid		: 1
+initial apicid	: 1
+fdiv_bug	: no
+hlt_bug		: no
+f00f_bug	: no
+coma_bug	: no
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 13
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe nx lm constant_tsc arch_perfmon pebs bts pni monitor tm2 ssse3 lahf_lm
+bogomips	: 5586.38
+clflush size	: 64
+power management:
+
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+Test sending 1000 64 byte	hello packets.	packet auth enabled.	Finished in 704ms. 727 Kb/s
+
+Test sending 1000 1500 byte	hello packets.	packet auth enabled.	Finished in 670ms. 17909 Kb/s
+
+Test sending 1000 64 byte	key packets.	packet auth enabled.	Finished in 700ms. 731 Kb/s
+
+Test sending 1000 1500 byte	key packets.	packet auth enabled.	Finished in 709ms. 16924 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth disabled.	Finished in 105ms. 487619 Kb/s
+
+Test sending 100000 1500 byte	data packets.	packet auth disabled.	Finished in 639ms. 1877934 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth enabled.	Finished in 316ms. 162025 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput:
+Test sending 100000 1500 byte	data packets.	packet auth enabled.	Finished in 1159ms. 1035375 Kb/s
+
+
+
+
+
+
+
+
+OpenWRT on Linksys WRT54GL V1.1
+
+system type              : Broadcom BCM47XX
+processor             : 0
+cpu model             : Broadcom BMIPS3300 V0.8
+BogoMIPS              : 198.65
+wait instruction      : yes
+microsecond timers    : yes
+tlb_entries           : 32
+extra interrupt vector        : yes
+hardware watchpoint   : no
+ASEs implemented      :
+shadow register sets  : 1
+kscratch registers    : 0
+core                  : 0
+VCED exceptions               : not available
+VCEI exceptions               : not available
+
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+Test sending 1000 64 byte     hello packets.  packet auth enabled.    Finished in 687837ms. 0 Kb/s
+
+Test sending 1000 1500 byte   hello packets.  packet auth enabled.    Finished in 695086ms. 17 Kb/s
+
+Test sending 1000 64 byte     key packets.    packet auth enabled.    Finished in 688509ms. 0 Kb/s
+
+Test sending 1000 1500 byte   key packets.    packet auth enabled.    Finished in 695686ms. 17 Kb/s
+
+Test sending 100000 64 byte   data packets.   packet auth disabled.   Finished in 6485ms. 7895 Kb/s
+
+Test sending 100000 1500 byte data packets.   packet auth disabled.   Finished in 85105ms. 14100 Kb/s
+
+Test sending 100000 64 byte   data packets.   packet auth enabled.    Finished in 45765ms. 1118 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput
+Test sending 100000 1500 byte data packets.   packet auth enabled.    Finished in 764380ms. 1569 Kb/s
+
+real  59m 43.33s
+user  59m 39.59s
+sys   0m 2.98s
+
+ircerr@EFNet/#cjdns 20120506
+
+
+
+
+
+
+
+
+user@debian-mips:~/cjdns/build$ time ./cjdroute --bench
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+Test sending 1000 64 byte	hello packets.	packet auth enabled.	Finished in 271027ms. 1 Kb/s
+
+Test sending 1000 1500 byte	hello packets.	packet auth enabled.	Finished in 314701ms. 38 Kb/s
+
+Test sending 1000 64 byte	key packets.	packet auth enabled.	Finished in 288595ms. 1 Kb/s
+
+Test sending 1000 1500 byte	key packets.	packet auth enabled.	Finished in 271643ms. 44 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth disabled.	Finished in 8016ms. 6387 Kb/s
+
+Test sending 100000 1500 byte	data packets.	packet auth disabled.	Finished in 63388ms. 18931 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth enabled.	Finished in 24010ms. 2132 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput:
+Test sending 100000 1500 byte	data packets.	packet auth enabled.	Finished in 332790ms. 3605 Kb/s
+
+
+real	25m37.560s
+user	25m4.378s
+sys	0m29.726s
+user@debian-mips:~/cjdns/build$ cat /proc/cpuinfo
+system type		: MIPS Malta
+processor		: 0
+cpu model		: MIPS 24Kc V0.0  FPU V0.0
+BogoMIPS		: 532.48
+wait instruction	: yes
+microsecond timers	: yes
+tlb_entries		: 16
+extra interrupt vector	: yes
+hardware watchpoint	: yes, count: 1, address/irw mask: [0x0ff8]
+ASEs implemented	: mips16
+shadow register sets	: 1
+core			: 0
+VCED exceptions		: not available
+VCEI exceptions		: not available
+
+user@debian-mips:~/cjdns/build$ git log | head -n 1
+commit 929f4785dcd62b2dc4201ceb40e7bdb0d49462e5
+
+
+
+# after update to nacl
+
+git log | head -1~/cjdns$ time ./build/cjdroute --bench && cat /proc/cpuinfo &&  
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+Test sending 1000 64 byte	hello packets.	packet auth enabled.	Finished in 242437ms. 2 Kb/s
+
+Test sending 1000 1500 byte	hello packets.	packet auth enabled.	Finished in 298387ms. 40 Kb/s
+
+Test sending 1000 64 byte	key packets.	packet auth enabled.	Finished in 325285ms. 1 Kb/s
+
+Test sending 1000 1500 byte	key packets.	packet auth enabled.	Finished in 300940ms. 39 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth disabled.	Finished in 3183ms. 16085 Kb/s
+
+Test sending 100000 1500 byte	data packets.	packet auth disabled.	Finished in 70822ms. 16943 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth enabled.	Finished in 21674ms. 2362 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput:
+Test sending 100000 1500 byte	data packets.	packet auth enabled.	Finished in 122875ms. 9766 Kb/s
+
+
+real	22m33.470s
+user	22m2.123s
+sys	0m28.946s
+system type		: MIPS Malta
+processor		: 0
+cpu model		: MIPS 24Kc V0.0  FPU V0.0
+BogoMIPS		: 550.91
+wait instruction	: yes
+microsecond timers	: yes
+tlb_entries		: 16
+extra interrupt vector	: yes
+hardware watchpoint	: yes, count: 1, address/irw mask: [0x0ff8]
+ASEs implemented	: mips16
+shadow register sets	: 1
+core			: 0
+VCED exceptions		: not available
+VCEI exceptions		: not available
+
+commit 8562e4298a64a7b7aa9d05d03ab357b572940b71
+user@debian-mips:~/cjdns$ 
+
+
+
+
+
+
+
+
+
+commit 51c041d6b87f139e74ab31ca125cdfc9685900b4
+Linux sql.bt-chat.com 2.6.26-2-686 #1 SMP Sat Jun 11 14:54:10 UTC 2011 i686 GNU/Linux
+processor	: 0
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 23
+model name	: Intel(R) Core(TM)2 Duo CPU     E7400  @ 2.80GHz
+stepping	: 10
+cpu MHz		: 2786.096
+cache size	: 3072 KB
+physical id	: 0
+siblings	: 2
+core id		: 0
+cpu cores	: 2
+apicid		: 0
+initial apicid	: 0
+fdiv_bug	: no
+hlt_bug		: no
+f00f_bug	: no
+coma_bug	: no
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 13
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe nx lm constant_tsc arch_perfmon pebs bts pni monitor ds_cpl est tm2 ssse3 cx16 xtpr sse4_1 lahf_lm
+bogomips	: 5576.40
+clflush size	: 64
+power management:
+
+processor	: 1
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 23
+model name	: Intel(R) Core(TM)2 Duo CPU     E7400  @ 2.80GHz
+stepping	: 10
+cpu MHz		: 2786.096
+cache size	: 3072 KB
+physical id	: 0
+siblings	: 2
+core id		: 1
+cpu cores	: 2
+apicid		: 1
+initial apicid	: 1
+fdiv_bug	: no
+hlt_bug		: no
+f00f_bug	: no
+coma_bug	: no
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 13
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe nx lm constant_tsc arch_perfmon pebs bts pni monitor ds_cpl est tm2 ssse3 cx16 xtpr sse4_1 lahf_lm
+bogomips	: 5572.35
+clflush size	: 64
+power management:
+
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+Test sending 1000 64 byte	hello packets.	packet auth enabled.	Finished in 650ms. 787 Kb/s
+
+Test sending 1000 1500 byte	hello packets.	packet auth enabled.	Finished in 706ms. 16996 Kb/s
+
+Test sending 1000 64 byte	key packets.	packet auth enabled.	Finished in 698ms. 733 Kb/s
+
+Test sending 1000 1500 byte	key packets.	packet auth enabled.	Finished in 663ms. 18098 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth disabled.	Finished in 101ms. 506930 Kb/s
+
+Test sending 100000 1500 byte	data packets.	packet auth disabled.	Finished in 633ms. 1895734 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth enabled.	Finished in 310ms. 165161 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput:
+Test sending 100000 1500 byte	data packets.	packet auth enabled.	Finished in 1155ms. 1038961 Kb/s
+
+
+
+
+
+
+
+
+
+
+commit a33af261e9ddbcd314ea28190b18b4a438af3532
+Linux web.bt-chat.com 2.6.32-5-686 #1 SMP Mon Mar 26 05:20:33 UTC 2012 i686 GNU/Linux
+processor	: 0
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 23
+model name	: Intel(R) Core(TM)2 CPU         E7400  @ 2.80GHz
+stepping	: 10
+cpu MHz		: 2793.605
+cache size	: 3072 KB
+physical id	: 0
+siblings	: 2
+core id		: 0
+cpu cores	: 2
+apicid		: 0
+initial apicid	: 0
+fdiv_bug	: no
+hlt_bug		: no
+f00f_bug	: no
+coma_bug	: no
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 13
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe nx lm constant_tsc arch_perfmon pebs bts aperfmperf pni monitor tm2 ssse3 lahf_lm
+bogomips	: 5587.21
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 36 bits physical, 48 bits virtual
+power management:
+
+processor	: 1
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 23
+model name	: Intel(R) Core(TM)2 CPU         E7400  @ 2.80GHz
+stepping	: 10
+cpu MHz		: 2793.605
+cache size	: 3072 KB
+physical id	: 0
+siblings	: 2
+core id		: 1
+cpu cores	: 2
+apicid		: 1
+initial apicid	: 1
+fdiv_bug	: no
+hlt_bug		: no
+f00f_bug	: no
+coma_bug	: no
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 13
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe nx lm constant_tsc arch_perfmon pebs bts aperfmperf pni monitor tm2 ssse3 lahf_lm
+bogomips	: 5586.37
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 36 bits physical, 48 bits virtual
+power management:
+
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+Test sending 1000 64 byte	hello packets.	packet auth enabled.	Finished in 701ms. 730 Kb/s
+
+Test sending 1000 1500 byte	hello packets.	packet auth enabled.	Finished in 660ms. 18180 Kb/s
+
+Test sending 1000 64 byte	key packets.	packet auth enabled.	Finished in 700ms. 731 Kb/s
+
+Test sending 1000 1500 byte	key packets.	packet auth enabled.	Finished in 707ms. 16972 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth disabled.	Finished in 101ms. 506930 Kb/s
+
+Test sending 100000 1500 byte	data packets.	packet auth disabled.	Finished in 587ms. 2044293 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth enabled.	Finished in 365ms. 140273 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput:
+Test sending 100000 1500 byte	data packets.	packet auth enabled.	Finished in 1156ms. 1038062 Kb/s
+
+
+
+
+
+
+
+
+
+
+
+commit ec8d1aac3e11e98b21e0bea6ad4af2463c99b14c
+Linux web2.bt-chat.com 2.6.26-2-686 #1 SMP Sat Jun 11 14:54:10 UTC 2011 i686 GNU/Linux
+processor	: 0
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 23
+model name	: Intel(R) Core(TM)2 Duo CPU     E7400  @ 2.80GHz
+stepping	: 10
+cpu MHz		: 2786.045
+cache size	: 3072 KB
+physical id	: 0
+siblings	: 2
+core id		: 0
+cpu cores	: 2
+apicid		: 0
+initial apicid	: 0
+fdiv_bug	: no
+hlt_bug		: no
+f00f_bug	: no
+coma_bug	: no
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 13
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe nx lm constant_tsc arch_perfmon pebs bts pni monitor ds_cpl est tm2 ssse3 cx16 xtpr sse4_1 lahf_lm
+bogomips	: 5576.37
+clflush size	: 64
+power management:
+
+processor	: 1
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 23
+model name	: Intel(R) Core(TM)2 Duo CPU     E7400  @ 2.80GHz
+stepping	: 10
+cpu MHz		: 2786.045
+cache size	: 3072 KB
+physical id	: 0
+siblings	: 2
+core id		: 1
+cpu cores	: 2
+apicid		: 1
+initial apicid	: 1
+fdiv_bug	: no
+hlt_bug		: no
+f00f_bug	: no
+coma_bug	: no
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 13
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe nx lm constant_tsc arch_perfmon pebs bts pni monitor ds_cpl est tm2 ssse3 cx16 xtpr sse4_1 lahf_lm
+bogomips	: 5572.35
+clflush size	: 64
+power management:
+
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+Test sending 1000 64 byte	hello packets.	packet auth enabled.	Finished in 698ms. 733 Kb/s
+
+Test sending 1000 1500 byte	hello packets.	packet auth enabled.	Finished in 705ms. 17020 Kb/s
+
+Test sending 1000 64 byte	key packets.	packet auth enabled.	Finished in 659ms. 776 Kb/s
+
+Test sending 1000 1500 byte	key packets.	packet auth enabled.	Finished in 706ms. 16996 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth disabled.	Finished in 72ms. 711111 Kb/s
+
+Test sending 100000 1500 byte	data packets.	packet auth disabled.	Finished in 610ms. 1967213 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth enabled.	Finished in 282ms. 181560 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput:
+Test sending 100000 1500 byte	data packets.	packet auth enabled.	Finished in 1127ms. 1064773 Kb/s
+
+
+
+
+
+
+
+# Rasberry Pi -- Owner unknown (we would like to meet you!)
+
+./cjdroute --bench
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+Test sending 1000 64 byte	hello packets.	packet auth enabled.	Finished in 97759ms. 5 Kb/s
+
+Test sending 1000 1500 byte	hello packets.	packet auth enabled.	Finished in 96319ms. 124 Kb/s
+
+Test sending 1000 64 byte	key packets.	packet auth enabled.	Finished in 143077ms. 3 Kb/s
+
+Test sending 1000 1500 byte	key packets.	packet auth enabled.	Finished in 148158ms. 80 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth disabled.	Finished in 2172ms. 23572 Kb/s
+
+Test sending 100000 1500 byte	data packets.	packet auth disabled.	Finished in 33251ms. 36089 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth enabled.	Finished in 14356ms. 3566 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput:
+Test sending 100000 1500 byte	data packets.	packet auth enabled.	Finished in 163744ms. 7328 Kb/s
+
+version: bc41a54dc5d2a0ece5864671242184afbd46ba6e
+
+# This version is just post the NACL improvements.
+
+
+
+
+
+
+
+
+[root@Bifrost] ~/src/cjdns# ./cjdroute --bench
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+Test sending 1000 64 byte       hello packets.  packet auth enabled.    Finished in 20195ms. 25 Kb/s
+
+Test sending 1000 1500 byte     hello packets.  packet auth enabled.    Finished in 20389ms. 588 Kb/s
+
+Test sending 1000 64 byte       key packets.    packet auth enabled.    Finished in 20077ms. 25 Kb/s
+
+Test sending 1000 1500 byte     key packets.    packet auth enabled.    Finished in 20296ms. 591 Kb/s
+
+Test sending 100000 64 byte     data packets.   packet auth disabled.   Finished in 500ms. 102400 Kb/s
+
+Test sending 100000 1500 byte   data packets.   packet auth disabled.   Finished in 8314ms. 144334 Kb/s
+
+Test sending 100000 64 byte     data packets.   packet auth enabled.    Finished in 1502ms. 34087 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput:
+Test sending 100000 1500 byte   data packets.   packet auth enabled.    Finished in 17730ms. 67681 Kb/s
+
+[root@Bifrost] ~/src/cjdns# cat /proc/cpuinfo
+processor       : 0
+cpu             : Cell Broadband Engine, altivec supported
+clock           : 3192.000000MHz
+revision        : 5.1 (pvr 0070 0501)
+
+processor       : 1
+cpu             : Cell Broadband Engine, altivec supported
+clock           : 3192.000000MHz
+revision        : 5.1 (pvr 0070 0501)
+
+timebase        : 79800000
+platform        : PS3
+model           : SonyPS3
+[root@Bifrost] ~/src/cjdns# git log | head -n 1
+commit 829f93e93c1eff81fdde62f00500f7e2c6e05c2f
+[root@Bifrost] ~/src/cjdns# date
+Fri Jun 22 15:48:05 CDT 2012
+
+
+
+
+
+
+[dan@archbang ~]$ cjdroute --bench
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+Test sending 1000 64 byte	hello packets.	packet auth enabled.	Finished in 614ms. 833 Kb/s
+
+Test sending 1000 1500 byte	hello packets.	packet auth enabled.	Finished in 671ms. 17882 Kb/s
+
+Test sending 1000 64 byte	key packets.	packet auth enabled.	Finished in 962ms. 532 Kb/s
+
+Test sending 1000 1500 byte	key packets.	packet auth enabled.	Finished in 975ms. 12306 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth disabled.	Finished in 296ms. 172972 Kb/s
+
+Test sending 100000 1500 byte	data packets.	packet auth disabled.	Finished in 1040ms. 1153846 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth enabled.	Finished in 626ms. 81789 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput:
+Test sending 100000 1500 byte	data packets.	packet auth enabled.	Finished in 1745ms. 687679 Kb/s
+
+[dan@archbang ~]$ cat /proc/cpuinfo
+processor	: 0
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 15
+model name	: Intel(R) Pentium(R) Dual  CPU  T3200  @ 2.00GHz
+stepping	: 13
+microcode	: 0xa3
+cpu MHz		: 1000.000
+cache size	: 1024 KB
+physical id	: 0
+siblings	: 2
+core id		: 0
+cpu cores	: 2
+apicid		: 0
+initial apicid	: 0
+fdiv_bug	: no
+hlt_bug		: no
+f00f_bug	: no
+coma_bug	: no
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 10
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe nx lm constant_tsc arch_perfmon pebs bts aperfmperf pni dtes64 monitor ds_cpl est tm2 ssse3 cx16 xtpr pdcm lahf_lm dts
+bogomips	: 3991.79
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 36 bits physical, 48 bits virtual
+power management:
+
+processor	: 1
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 15
+model name	: Intel(R) Pentium(R) Dual  CPU  T3200  @ 2.00GHz
+stepping	: 13
+microcode	: 0xa3
+cpu MHz		: 1000.000
+cache size	: 1024 KB
+physical id	: 0
+siblings	: 2
+core id		: 1
+cpu cores	: 2
+apicid		: 1
+initial apicid	: 1
+fdiv_bug	: no
+hlt_bug		: no
+f00f_bug	: no
+coma_bug	: no
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 10
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe nx lm constant_tsc arch_perfmon pebs bts aperfmperf pni dtes64 monitor ds_cpl est tm2 ssse3 cx16 xtpr pdcm lahf_lm dts
+bogomips	: 3991.79
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 36 bits physical, 48 bits virtual
+power management:
+
+[dan@archbang ~]$ yaourt -Q cjdns-git
+local/cjdns-git 120619-1
+packaged (6-19-2012)
+
+
+
+
+
+# Another Rasberry Pi
+[cjdns@meLonpi] ~/cjdns$ ./cjdroute --bench
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+Test sending 1000 64 byte       hello packets.  packet auth enabled.    Finished in 111492ms. 4 Kb/s
+
+Test sending 1000 1500 byte     hello packets.  packet auth enabled.    Finished in 112808ms. 106 Kb/s
+
+Test sending 1000 64 byte       key packets.    packet auth enabled.    Finished in 111424ms. 4 Kb/s
+
+Test sending 1000 1500 byte     key packets.    packet auth enabled.    Finished in 113002ms. 106 Kb/s
+
+Test sending 100000 64 byte     data packets.   packet auth disabled.   Finished in 5692ms. 8995 Kb/s
+
+Test sending 100000 1500 byte   data packets.   packet auth disabled.   Finished in 117375ms. 10223 Kb/s
+
+Test sending 100000 64 byte     data packets.   packet auth enabled.    Finished in 23037ms. 2222 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput:
+Test sending 100000 1500 byte   data packets.   packet auth enabled.    Finished in 162951ms. 7364 Kb/s
+
+[cjdns@meLonpi] ~/cjdns$ uname -a
+Linux meLonpi 3.1.9+ #90 Wed Apr 18 18:23:05 BST 2012 armv6l GNU/Linux
+
+[cjdns@meLonpi] ~/cjdns$ cat /proc/cpuinfo
+Processor       : ARMv6-compatible processor rev 7 (v6l)
+BogoMIPS        : 697.95
+Features        : swp half thumb fastmult vfp edsp java tls 
+CPU implementer : 0x41
+CPU architecture: 7
+CPU variant     : 0x0
+CPU part        : 0xb76
+CPU revision    : 7
+
+Hardware        : BCM2708
+Revision        : 0002
+Serial          : 000000008b285506
+
+[cjdns@meLonpi] ~/cjdns$ git log | head -1
+commit a7c6c3a02c96ff5bfc12aa110af5a594c08a605b
+
+
+
+
+
+
+
+
+
+[ich@ich cjdns]$ ./cjdroute --bench
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+Test sending 1000 64 byte	hello packets.	packet auth enabled.	Finished in 1384ms. 369 Kb/s
+
+Test sending 1000 1500 byte	hello packets.	packet auth enabled.	Finished in 1332ms. 9008 Kb/s
+
+Test sending 1000 64 byte	key packets.	packet auth enabled.	Finished in 1331ms. 384 Kb/s
+
+Test sending 1000 1500 byte	key packets.	packet auth enabled.	Finished in 1382ms. 8682 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth disabled.	Finished in 60ms. 853333 Kb/s
+
+Test sending 100000 1500 byte	data packets.	packet auth disabled.	Finished in 545ms. 2201834 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth enabled.	Finished in 602ms. 85049 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput:
+Test sending 100000 1500 byte	data packets.	packet auth enabled.	Finished in 1297ms. 925212 Kb/s
+
+[ich@ich cjdns]$ cat /proc/cpuinfo 
+processor	: 0
+vendor_id	: AuthenticAMD
+cpu family	: 16
+model		: 10
+model name	: AMD Phenom(tm) II X6 1090T Processor
+stepping	: 0
+microcode	: 0x10000dc
+cpu MHz		: 800.000
+cache size	: 512 KB
+physical id	: 0
+siblings	: 6
+core id		: 0
+cpu cores	: 6
+apicid		: 0
+initial apicid	: 0
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 6
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm 3dnowext 3dnow constant_tsc rep_good nopl nonstop_tsc extd_apicid aperfmperf pni monitor cx16 popcnt lahf_lm cmp_legacy svm extapic cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw ibs skinit wdt nodeid_msr cpb hw_pstate npt lbrv svm_lock nrip_save pausefilter
+bogomips	: 6386.36
+TLB size	: 1024 4K pages
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 48 bits physical, 48 bits virtual
+power management: ts ttp tm stc 100mhzsteps hwpstate cpb
+
+processor	: 1
+vendor_id	: AuthenticAMD
+cpu family	: 16
+model		: 10
+model name	: AMD Phenom(tm) II X6 1090T Processor
+stepping	: 0
+microcode	: 0x10000dc
+cpu MHz		: 800.000
+cache size	: 512 KB
+physical id	: 0
+siblings	: 6
+core id		: 1
+cpu cores	: 6
+apicid		: 1
+initial apicid	: 1
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 6
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm 3dnowext 3dnow constant_tsc rep_good nopl nonstop_tsc extd_apicid aperfmperf pni monitor cx16 popcnt lahf_lm cmp_legacy svm extapic cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw ibs skinit wdt nodeid_msr cpb hw_pstate npt lbrv svm_lock nrip_save pausefilter
+bogomips	: 6386.36
+TLB size	: 1024 4K pages
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 48 bits physical, 48 bits virtual
+power management: ts ttp tm stc 100mhzsteps hwpstate cpb
+
+processor	: 2
+vendor_id	: AuthenticAMD
+cpu family	: 16
+model		: 10
+model name	: AMD Phenom(tm) II X6 1090T Processor
+stepping	: 0
+microcode	: 0x10000dc
+cpu MHz		: 800.000
+cache size	: 512 KB
+physical id	: 0
+siblings	: 6
+core id		: 2
+cpu cores	: 6
+apicid		: 2
+initial apicid	: 2
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 6
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm 3dnowext 3dnow constant_tsc rep_good nopl nonstop_tsc extd_apicid aperfmperf pni monitor cx16 popcnt lahf_lm cmp_legacy svm extapic cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw ibs skinit wdt nodeid_msr cpb hw_pstate npt lbrv svm_lock nrip_save pausefilter
+bogomips	: 6386.36
+TLB size	: 1024 4K pages
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 48 bits physical, 48 bits virtual
+power management: ts ttp tm stc 100mhzsteps hwpstate cpb
+
+processor	: 3
+vendor_id	: AuthenticAMD
+cpu family	: 16
+model		: 10
+model name	: AMD Phenom(tm) II X6 1090T Processor
+stepping	: 0
+microcode	: 0x10000dc
+cpu MHz		: 800.000
+cache size	: 512 KB
+physical id	: 0
+siblings	: 6
+core id		: 3
+cpu cores	: 6
+apicid		: 3
+initial apicid	: 3
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 6
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm 3dnowext 3dnow constant_tsc rep_good nopl nonstop_tsc extd_apicid aperfmperf pni monitor cx16 popcnt lahf_lm cmp_legacy svm extapic cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw ibs skinit wdt nodeid_msr cpb hw_pstate npt lbrv svm_lock nrip_save pausefilter
+bogomips	: 6386.36
+TLB size	: 1024 4K pages
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 48 bits physical, 48 bits virtual
+power management: ts ttp tm stc 100mhzsteps hwpstate cpb
+
+processor	: 4
+vendor_id	: AuthenticAMD
+cpu family	: 16
+model		: 10
+model name	: AMD Phenom(tm) II X6 1090T Processor
+stepping	: 0
+microcode	: 0x10000dc
+cpu MHz		: 800.000
+cache size	: 512 KB
+physical id	: 0
+siblings	: 6
+core id		: 4
+cpu cores	: 6
+apicid		: 4
+initial apicid	: 4
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 6
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm 3dnowext 3dnow constant_tsc rep_good nopl nonstop_tsc extd_apicid aperfmperf pni monitor cx16 popcnt lahf_lm cmp_legacy svm extapic cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw ibs skinit wdt nodeid_msr cpb hw_pstate npt lbrv svm_lock nrip_save pausefilter
+bogomips	: 6386.36
+TLB size	: 1024 4K pages
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 48 bits physical, 48 bits virtual
+power management: ts ttp tm stc 100mhzsteps hwpstate cpb
+
+processor	: 5
+vendor_id	: AuthenticAMD
+cpu family	: 16
+model		: 10
+model name	: AMD Phenom(tm) II X6 1090T Processor
+stepping	: 0
+microcode	: 0x10000dc
+cpu MHz		: 3200.000
+cache size	: 512 KB
+physical id	: 0
+siblings	: 6
+core id		: 5
+cpu cores	: 6
+apicid		: 5
+initial apicid	: 5
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 6
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm 3dnowext 3dnow constant_tsc rep_good nopl nonstop_tsc extd_apicid aperfmperf pni monitor cx16 popcnt lahf_lm cmp_legacy svm extapic cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw ibs skinit wdt nodeid_msr cpb hw_pstate npt lbrv svm_lock nrip_save pausefilter
+bogomips	: 6386.36
+TLB size	: 1024 4K pages
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 48 bits physical, 48 bits virtual
+power management: ts ttp tm stc 100mhzsteps hwpstate cpb
+
+[ich@ich cjdns]$ git log -n 1
+commit c9cc5fe5f54b89f014d832527aef767f24a5b4da
+Author: Caleb James DeLisle <calebdelisle@lavabit.com>
+Date:   Mon Oct 22 01:31:51 2012 -0400
+
+21 Dec 2012:
+
+Hardware:
+
+    Hardware Overview:
+
+      Model Name: Mac mini
+      Model Identifier: Macmini1,1
+      Processor Name: Intel Core Solo
+      Processor Speed: 1,5 GHz
+      Number Of Processors: 1
+      Total Number Of Cores: 1
+      L2 Cache: 2 MB
+      Memory: 2 GB
+      Bus Speed: 667 MHz
+      Boot ROM Version: MM11.0055.B08
+      SMC Version (system): 1.3f4
+
+
+$ uname -a 
+Darwin Gaius.local 10.8.0 Darwin Kernel Version 10.8.0: Tue Jun  7 16:33:36 PDT 2011; root:xnu-1504.15.3~1/RELEASE_I386 i386
+
+$ ./cjdroute --bench
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+
+
+
+Test sending 1000 64 byte  hello packets.	packet auth enabled.	Finished in 58425ms. 8 Kb/s
+
+Test sending 1000 1500 byte	hello packets.	packet auth enabled.	Finished in 63471ms. 189 Kb/s
+
+Test sending 1000 64 byte	key packets.	packet auth enabled.	Finished in 84541ms. 6 Kb/s
+
+Test sending 1000 1500 byte	key packets.	packet auth enabled.	Finished in 83907ms. 143 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth disabled.	Finished in 343ms. 149271 Kb/s
+
+Test sending 100000 1500 byte	data packets.	packet auth disabled.	Finished in 2993ms. 400935 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth enabled.	Finished in 3973ms. 12886 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput:
+Test sending 100000 1500 byte	data packets.	packet auth enabled.	Finished in 12433ms. 96517 Kb/s
+
+
+$ gcc -v
+Using built-in specs.
+Target: i686-apple-darwin10
+Configured with: /private/var/tmp/llvmgcc42/llvmgcc42-2336.1~3/src/configure --disable-checking --enable-werror --prefix=/Developer/usr/llvm-gcc-4.2 --mandir=/Developer/usr/llvm-gcc-4.2/share/man --enable-languages=c,objc,c++,obj-c++ --program-prefix=llvm- --program-transform-name=/^[cg][^.-]*$/s/$/-4.2/ --with-slibdir=/usr/lib --build=i686-apple-darwin10 --enable-llvm=/private/var/tmp/llvmgcc42/llvmgcc42-2336.1~3/dst-llvmCore/Developer/usr/local --with-gxx-include-dir=/usr/include/c++/4.2.1 --host=i686-apple-darwin10 --target=i686-apple-darwin10
+Thread model: posix
+gcc version 4.2.1 (Based on Apple Inc. build 5658) (LLVM build 2336.1.00)
+
+$  git log | head -1
+commit e6fda6a418f5e719fe07cf0c866e546288de6cb1
+
+
+
+
+
+user@debian-mips:~/cjdns$ ./cjdroute --bench
+1380772514 INFO RandomSeed.c:67 Attempting to seed random number generator
+1380772514 INFO RandomSeed.c:81 Trying random seed [RtlGenRandom() (Windows)] Failed
+1380772514 INFO RandomSeed.c:81 Trying random seed [sysctl(KERN_ARND) (BSD)] Failed
+1380772514 INFO RandomSeed.c:75 Trying random seed [/dev/urandom] Success
+1380772514 INFO RandomSeed.c:75 Trying random seed [sysctl(RANDOM_UUID) (Linux)] Success
+1380772514 INFO RandomSeed.c:75 Trying random seed [/proc/sys/kernel/random/uuid (Linux)] Success
+1380772514 INFO RandomSeed.c:89 Seeding random number generator succeeded with [3] sources
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+Test sending 1000 64 byte	hello packets.	packet auth enabled.	Finished in 79280ms. 6 Kb/s
+
+Test sending 1000 1500 byte	hello packets.	packet auth enabled.	Finished in 82869ms. 144 Kb/s
+
+Test sending 1000 64 byte	key packets.	packet auth enabled.	Finished in 110807ms. 4 Kb/s
+
+Test sending 1000 1500 byte	key packets.	packet auth enabled.	Finished in 138062ms. 86 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth disabled.	Finished in 4345ms. 11783 Kb/s
+
+Test sending 100000 1500 byte	data packets.	packet auth disabled.	Finished in 53083ms. 22606 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth enabled.	Finished in 17659ms. 2899 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput:
+Test sending 100000 1500 byte	data packets.	packet auth enabled.	Finished in 91680ms. 13089 Kb/s
+
+user@debian-mips:~/cjdns$ git log -n 1
+commit 9a3db93cd3ea5b3583ecc3b741518dd0e6ec8764
+Author: Caleb James DeLisle <cjd@hyperboria.ca>
+Date:   Wed Oct 2 22:07:13 2013 -0400
+
+    Sometimes SearchRunner_search() returns null
+user@debian-mips:~/cjdns$ cat /proc/cpuinfo 
+system type		: MIPS Malta
+processor		: 0
+cpu model		: MIPS 24Kc V0.0  FPU V0.0
+BogoMIPS		: 561.15
+wait instruction	: yes
+microsecond timers	: yes
+tlb_entries		: 16
+extra interrupt vector	: yes
+hardware watchpoint	: yes, count: 1, address/irw mask: [0x0ff8]
+ASEs implemented	: mips16
+shadow register sets	: 1
+core			: 0
+VCED exceptions		: not available
+VCEI exceptions		: not available
+
+user@debian-mips:~/cjdns$ 
+
+
+
+
+
+
+
+
+linaro@linaro-ubuntu-desktop:~/cjdns/cjdns-master$ ./cjdroute --bench ; cat /proc/cpuinfo 
+3711 INFO RandomSeed.c:67 Attempting to seed random number generator
+3711 INFO RandomSeed.c:81 Trying random seed [RtlGenRandom() (Windows)] Failed
+3711 INFO RandomSeed.c:81 Trying random seed [sysctl(KERN_ARND) (BSD)] Failed
+3711 INFO RandomSeed.c:75 Trying random seed [/dev/urandom] Success
+3711 INFO RandomSeed.c:75 Trying random seed [sysctl(RANDOM_UUID) (Linux)] Success
+3711 INFO RandomSeed.c:75 Trying random seed [/proc/sys/kernel/random/uuid (Linux)] Success
+3711 INFO RandomSeed.c:89 Seeding random number generator succeeded with [3] sources
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+Test sending 1000 64 byte	hello packets.	packet auth enabled.	Finished in 1273ms. 402 Kb/s
+
+Test sending 1000 1500 byte	hello packets.	packet auth enabled.	Finished in 1306ms. 9187 Kb/s
+
+Test sending 1000 64 byte	key packets.	packet auth enabled.	Finished in 1843ms. 277 Kb/s
+
+Test sending 1000 1500 byte	key packets.	packet auth enabled.	Finished in 1876ms. 6396 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth disabled.	Finished in 275ms. 186181 Kb/s
+
+Test sending 100000 1500 byte	data packets.	packet auth disabled.	Finished in 2816ms. 426136 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth enabled.	Finished in 1349ms. 37954 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput:
+Test sending 100000 1500 byte	data packets.	packet auth enabled.	Finished in 4589ms. 261494 Kb/s
+
+Processor	: ARMv7 Processor rev 10 (v7l)
+processor	: 0
+BogoMIPS	: 1988.28
+
+processor	: 1
+BogoMIPS	: 1988.28
+
+processor	: 2
+BogoMIPS	: 1988.28
+
+processor	: 3
+BogoMIPS	: 1988.28
+
+Features	: swp half thumb fastmult vfp edsp neon vfpv3 
+CPU implementer	: 0x41
+CPU architecture: 7
+CPU variant	: 0x2
+CPU part	: 0xc09
+CPU revision	: 10
+
+Hardware	: Freescale i.MX 6Quad Sabre-Lite Board
+Revision	: 63000
+Serial		: 0000000000000000
+linaro@linaro-ubuntu-desktop:~/cjdns/cjdns-master$ uname -a
+Linux linaro-ubuntu-desktop 3.0.35-troosh #17 SMP PREEMPT Tue May 7 20:29:00 MSK 2013 armv7l armv7l armv7l GNU/Linux
+linaro@linaro-ubuntu-desktop:~/cjdns/cjdns-master$ gcc --version
+gcc (Ubuntu/Linaro 4.6.1-9ubuntu3) 4.6.1
+Copyright (C) 2011 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+linaro@linaro-ubuntu-desktop:~/cjdns/cjdns-master$$ git log | head -1
+commit 9a3db93cd3ea5b3583ecc3b741518dd0e6ec8764
+
+
+
+
+
+
+
+
+
+here you have a new benchmark. It's this cheap ADSL router:
+http://wiki.openwrt.org/toh/comtrend/ar5387un
+
+The cjdns code is as e9bcb0f9f06870d6f4904149e1c15eca09c7ed8a
+(That's mentioned in the meshbox thing I used in openwrt to build it:
+https://github.com/SeattleMeshnet/meshbox/blob/master/cjdns/Makefile )
+
+The results (better than my 1.2GHz ARM Sheevaplug!):
+-------------------
+1412636955 INFO RandomSeed.c:42 Attempting to seed random number generator
+1412636955 INFO RandomSeed.c:50 Trying random seed [/dev/urandom] Success
+1412636955 INFO RandomSeed.c:56 Trying random seed [sysctl(RANDOM_UUID) (Linux)] Failed
+1412636955 INFO RandomSeed.c:50 Trying random seed [/proc/sys/kernel/random/uuid (Linux)] Success
+1412636955 INFO RandomSeed.c:64 Seeding random number generator succeeded with [2] sources
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+Test sending 1000 64 byte       hello packets
+        Finished in 10645ms. 48 Kb/s
+
+Test sending 1000 1500 byte     hello packets
+        Finished in 11206ms. 1070 Kb/s
+
+Test sending 1000 64 byte       key packets
+        Finished in 10600ms. 48 Kb/s
+
+Test sending 1000 1500 byte     key packets
+        Finished in 11243ms. 1067 Kb/s
+
+Test sending 100000 64 byte     data packets
+        Finished in 9632ms. 5315 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput:
+Test sending 100000 1500 byte   data packets
+        Finished in 70792ms. 16951 Kb/s
+
+                                                             
+/proc/cpuinfo:                                               
+system type             : bcm63xx/96328A-1441N1 (0x6328/0xB0)
+machine                 : Comtrend AR-5387un     
+processor               : 0                      
+cpu model               : Broadcom BMIPS4350 V7.5
+BogoMIPS                : 319.74
+wait instruction        : yes
+microsecond timers      : yes
+tlb_entries             : 32 
+extra interrupt vector  : yes                 
+hardware watchpoint     : no                  
+isa                     : mips1 mips2 mips32r1
+ASEs implemented        :  
+shadow register sets    : 1
+kscratch registers      : 0            
+core                    : 0            
+VCED exceptions         : not available
+VCEI exceptions         : not available
+-------------------
+
+
+
+Raspberry PI 2 Model B
+--------------------------------
+(same results with and without NEON (CFLAGS=-mfpu=neon))
+
+/proc/cpuinfo:  (quadcore, four times this)
+processor       : 0
+model name      : ARMv7 Processor rev 5 (v7l)
+BogoMIPS        : 38.40
+Features        : half thumb fastmult vfp edsp neon vfpv3 tls vfpv4 idiva idivt
+vfpd32 lpae evtstrm 
+CPU implementer : 0x41
+CPU architecture: 7
+CPU variant     : 0x0
+CPU part        : 0xc07
+CPU revision    : 5
+
+
+Benchmark (gcc 4.6, CFLAGS="-march=armv7-a -mfpu=neon-vfpv4 -mfloat-abi=hard"):
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+Test sending 1000 64 byte       hello packets
+        Finished in 2373ms. 215 Kb/s
+
+Test sending 1000 1500 byte     hello packets
+        Finished in 2398ms. 5003 Kb/s
+
+Test sending 1000 64 byte       key packets
+        Finished in 2329ms. 219 Kb/s
+
+Test sending 1000 1500 byte     key packets
+        Finished in 2400ms. 4999 Kb/s
+
+Test sending 100000 64 byte     data packets
+        Finished in 1904ms. 26890 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput:
+Test sending 100000 1500 byte   data packets
+        Finished in 8532ms. 140646 Kb/s
