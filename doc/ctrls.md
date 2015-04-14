@@ -4,7 +4,7 @@ To automate some simple tasks with cjdns, there are a lot of scripts that people
 
 + https://github.com/kpcyrd/yrd
   + Displays nodeinfo
-  + Shows your neightbors and their neighbors
+  + Shows your neighbors and their neighbors
   + Show bandwidth
   + Ping nodes
   + Dump nodestore

@@ -4,7 +4,7 @@
 
 This is an incomplete list of terms used in direct context of cjdns.
 
-- Please add terms convering cjdns itself, tools and best practices, peering,
+- Please add terms used in direct context of cjdns itself, tools and best practices, peering,
   community, Hyperboria, similar routing protocols --
   e.g. NodeStore, peer stats, WTFM, buildbot, 802.11s
 - Please don't add terms which are out of scope --
@@ -12,6 +12,10 @@ This is an incomplete list of terms used in direct context of cjdns.
 - Abbreviations are okay, e.g. P2P, DHT, OLSR
 
 ## List of Terms
+
+### Blag
+
+The [correct pronunciation](http://xkcd.com/148/) of 'blog'.
 
 ### Hidden Peers
 
@@ -27,3 +31,7 @@ The internal name of cjdns' routing table.
 ### P2P
 
 Abbreviation of Peer To Peer.
+
+### Wobsite
+
+See [blag](#blag).

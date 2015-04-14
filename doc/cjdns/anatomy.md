@@ -82,7 +82,9 @@ We notice a few things about this TUN interface.
 2. The `inet` and `P-t-P` addresses, which are assigned by cjdns' tunneling functionality: [IPTunnel](iptunnel.md)
 3. The `RX` and `TX` values, which count the IP traffic received and transmitted by this cjdns node.
 
-The routes look a bit more obscure.
+The routes look a bit more obscure. <!-- maybe delete this line? -->
 
 1. All packets for addresses starting with `fc` are handed to cjdns' TUN interface.
-2. TODO: what's the reason for the additional route?
+2. Packets addressed to the local `fc` address are redirected to loopback device (`lo`).
+   That route is managed by the OS kernel and it's needed to actually send packets to local machine
+   network stack. That's like the _self interface director_ used by cjdns.
