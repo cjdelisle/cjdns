@@ -94,6 +94,26 @@ struct SessionManager_Session_pvt
 #define debugHandlesAndLabel0(logger, session, label, message) \
     debugHandlesAndLabel(logger, session, label, "%s", message)
 
+#define debugSession(logger, session, message, ...) \
+    do {                                                                               \
+        if (!Defined(Log_DEBUG)) { break; }                                            \
+        uint8_t sendPath[20];                                                          \
+        uint8_t recvPath[20];                                                          \
+        uint8_t ip[40];                                                                \
+        AddrTools_printPath(sendPath, (session)->pub.sendSwitchLabel);                 \
+        AddrTools_printPath(recvPath, (session)->pub.recvSwitchLabel);                 \
+        AddrTools_printIp(ip, (session)->pub.caSession->herIp6);                       \
+        Log_debug((logger), "Session sendPath[%s] recvPath[%s] ip[%s] " message,       \
+                  sendPath,                                                            \
+                  recvPath,                                                            \
+                  ip,                                                                  \
+                  __VA_ARGS__);                                                        \
+    } while (0)
+//CHECKFILES_IGNORE ;
+
+#define debugSession0(logger, session, message) \
+    debugSession(logger, session, "%s", message)
+
 static void sendSession(struct SessionManager_Session_pvt* sess,
                         uint64_t path,
                         uint32_t destPf,
@@ -529,6 +549,7 @@ static Iface_DEFUN incomingFromEventIf(struct Message* msg, struct Iface* iface)
         if (node.metric_be == 0xffffffff) {
             // this is a broken path
             if (sess->pub.sendSwitchLabel == Endian_bigEndianToHost64(node.path_be)) {
+                debugSession0(sm->log, sess, "broken path");
                 if (sess->pub.sendSwitchLabel == sess->pub.recvSwitchLabel) {
                     sess->pub.sendSwitchLabel = 0;
                 } else {
@@ -538,6 +559,7 @@ static Iface_DEFUN incomingFromEventIf(struct Message* msg, struct Iface* iface)
         } else {
             sess->pub.sendSwitchLabel = Endian_bigEndianToHost64(node.path_be);
             sess->pub.version = Endian_bigEndianToHost32(node.version_be);
+            debugSession0(sm->log, sess, "discovered path");
         }
     } else {
         sess = getSession(sm,
