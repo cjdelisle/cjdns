@@ -28,6 +28,7 @@
 #include "net/SwitchPinger.h"
 #include "net/ControlHandler.h"
 #include "net/InterfaceController.h"
+#include "interface/ASynchronizer.h"
 #include "interface/Iface.h"
 #include "tunnel/IpTunnel.h"
 #include "net/EventEmitter.h"
@@ -118,7 +119,10 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
 
     struct NetCore* nc = NetCore_new(privateKey, allocator, base, rand, logger);
 
-    struct Pathfinder* pf = Pathfinder_register(allocator, logger, base, rand, NULL, nc->ee);
+    struct Pathfinder* pf = Pathfinder_register(allocator, logger, base, rand, NULL);
+    struct ASynchronizer* pfAsync = ASynchronizer_new(allocator, base, logger);
+    Iface_plumb(&pfAsync->ifA, &pf->eventIf);
+    EventEmitter_regPathfinderIface(nc->ee, &pfAsync->ifB);
 
     struct TestFramework* tf = Allocator_calloc(allocator, sizeof(struct TestFramework), 1);
     Identity_set(tf);

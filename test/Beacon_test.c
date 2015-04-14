@@ -44,6 +44,7 @@ struct TwoNodes
     struct TestFramework* nodeA;
     struct Iface tunA;
     int messageFrom;
+    bool beaconsSent;
 
     struct Timeout* checkLinkageTimeout;
     struct Log* logger;
@@ -93,6 +94,18 @@ static void checkLinkage(void* vTwoNodes)
 {
     struct TwoNodes* ctx = Identity_check((struct TwoNodes*) vTwoNodes);
 
+    if (!ctx->beaconsSent) {
+        if (Pathfinder_getNodeStore(ctx->nodeA->pathfinder) &&
+            Pathfinder_getNodeStore(ctx->nodeB->pathfinder))
+        {
+            Log_debug(ctx->logger, "Linking A and B");
+            TestFramework_linkNodes(ctx->nodeB, ctx->nodeA, true);
+            ctx->beaconsSent = true;
+        }
+        return;
+    }
+
+
     if (Pathfinder_getNodeStore(ctx->nodeA->pathfinder)->nodeCount < 1) {
         notLinkedYet(ctx);
         return;
@@ -130,10 +143,6 @@ static void start(struct Allocator* alloc,
     //"publicKey": "vz21tg07061s8v9mckrvgtfds7j2u5lst8cwl6nqhp81njrh5wg0.k",
     //"ipv6": "fc1f:5b96:e1c5:625d:afde:2523:a7fa:383a",
 
-
-
-    Log_debug(a->logger, "Linking A and B");
-    TestFramework_linkNodes(b, a, true);
 
     struct TwoNodes* out = Allocator_calloc(alloc, sizeof(struct TwoNodes), 1);
     Identity_set(out);

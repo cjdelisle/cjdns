@@ -17,6 +17,7 @@
 
 #include "interface/Iface.h"
 #include "util/events/EventBase.h"
+#include "util/log/Log.h"
 #include "memory/Allocator.h"
 #include "util/Linker.h"
 Linker_require("interface/ASynchronizer.c")
@@ -27,6 +28,8 @@ struct ASynchronizer
     struct Iface ifB;
 };
 
-struct ASynchronizer* ASynchronizer_new(struct Allocator* alloc, struct EventBase* base);
+struct ASynchronizer* ASynchronizer_new(struct Allocator* alloc,
+                                        struct EventBase* base,
+                                        struct Log* log);
 
 #endif

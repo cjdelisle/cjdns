@@ -17,6 +17,8 @@
 #include "memory/Allocator.h"
 #include "util/Identity.h"
 #include "util/events/Timeout.h"
+#include "util/log/Log.h"
+#include "util/Hex.h"
 
 #define MAX_DRY_CYCLES 16
 
@@ -30,6 +32,7 @@ struct ASynchronizer_pvt
     struct ASynchronizer pub;
     struct Allocator* alloc;
     struct EventBase* base;
+    struct Log* log;
 
     struct Allocator* cycleAlloc;
     struct ArrayList_Messages* msgsToA;
@@ -104,12 +107,15 @@ static Iface_DEFUN fromB(struct Message* msg, struct Iface* ifB)
     return NULL;
 }
 
-struct ASynchronizer* ASynchronizer_new(struct Allocator* alloc, struct EventBase* base)
+struct ASynchronizer* ASynchronizer_new(struct Allocator* alloc,
+                                        struct EventBase* base,
+                                        struct Log* log)
 {
     struct ASynchronizer_pvt* ctx = Allocator_calloc(alloc, sizeof(struct ASynchronizer_pvt), 1);
     Identity_set(ctx);
     ctx->alloc = alloc;
     ctx->base = base;
+    ctx->log = log;
     ctx->pub.ifA.send = fromA;
     ctx->pub.ifB.send = fromB;
     return &ctx->pub;

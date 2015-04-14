@@ -367,6 +367,7 @@ static void checkTimedOutSessions(struct SessionManager_pvt* sm)
             // Session is not in idle state and requires a search
             // But we're only going to trigger one search per cycle.
             if (searchTriggered) { continue; }
+            debugSession0(sm->log, sess, "triggering search");
             triggerSearch(sm, sess->pub.caSession->herIp6);
             sess->pub.lastSearchTime = now;
             searchTriggered = true;
@@ -374,6 +375,7 @@ static void checkTimedOutSessions(struct SessionManager_pvt* sm)
 
         // Session is in idle state or doesn't need a search right now, check if it's timed out.
         if (now - sess->pub.timeOfLastIn < sm->pub.sessionTimeoutMilliseconds) {
+            debugSession0(sm->log, sess, "ended");
             sendSession(sess, sess->pub.sendSwitchLabel, 0xffffffff, PFChan_Core_SESSION_ENDED);
             Map_OfSessionsByIp6_remove(i, &sm->ifaceMap);
             Allocator_free(sess->alloc);
