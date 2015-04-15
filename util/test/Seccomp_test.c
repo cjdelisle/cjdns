@@ -118,7 +118,7 @@ int main(int argc, char** argv)
     char* path = Process_getPath(alloc);
     char* args[] = { "Seccomp_test", "child", name, NULL };
 
-    Assert_true(!Process_spawn(path, args, eb, alloc));
+    Assert_true(!Process_spawn(path, args, eb, alloc, NULL));
 
     Timeout_setTimeout(timeout, NULL, 2000, eb, alloc);
 

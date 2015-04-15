@@ -447,6 +447,11 @@ static void checkRunningInstance(struct Allocator* allocator,
     Allocator_free(alloc);
 }
 
+static void onCoreExit(int64_t exit_status, int term_signal)
+{
+    Assert_failure("Core exited with status [%d], signal [%d]\n", (int)exit_status, term_signal);
+}
+
 int main(int argc, char** argv)
 {
     #ifdef Log_KEYS
@@ -589,7 +594,7 @@ int main(int argc, char** argv)
     if (!privateKey) {
         Except_throw(eh, "Need to specify privateKey.");
     }
-    Process_spawn(corePath, args, eventBase, allocator);
+    Process_spawn(corePath, args, eventBase, allocator, onCoreExit);
 
     // --------------------- Pre-Configure Core ------------------------- //
     Dict* preConf = Dict_new(allocator);

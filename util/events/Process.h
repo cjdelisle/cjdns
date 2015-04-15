@@ -19,6 +19,9 @@
 #include "util/Linker.h"
 Linker_require("util/events/libuv/Process.c")
 
+#include <stdint.h>
+
+typedef void (* Process_OnExitCallback)(int64_t exit_status, int term_signal);
 
 /**
  * Spawn a new process.
@@ -27,9 +30,14 @@ Linker_require("util/events/libuv/Process.c")
  * @param args a list of strings representing the arguments to the command followed by NULL.
  * @param base the event base.
  * @param alloc an allocator. The process to be killed when it is freed.
+ * @param callback a function to be called when the spawn process exits.
  * @return 0 if all went well, -1 if forking fails.
  */
-int Process_spawn(char* binaryPath, char** args, struct EventBase* base, struct Allocator* alloc);
+int Process_spawn(char* binaryPath,
+                  char** args,
+                  struct EventBase* base,
+                  struct Allocator* alloc,
+                  Process_OnExitCallback callback);
 
 /**
  * Get the path to the binary of the current process.
