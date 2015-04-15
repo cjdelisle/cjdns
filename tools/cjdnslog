@@ -64,10 +64,10 @@ Cjdns.connectWithAdminInfo(function (cjdns) {
         var sigint = false;
         process.on('SIGINT', function () {
             if (sigint) { process.exit(100); }
-            console.log('Disconnecting...');
+            console.error('Disconnecting...');
             cjdns.AdminLog_unsubscribe(ret.streamId, function (err, ret) {
                 if (err) { throw err; }
-                console.log('done');
+                console.error('done');
                 cjdns.disconnect();
                 process.exit(0);
             });
