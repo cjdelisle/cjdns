@@ -67,7 +67,7 @@ struct Message* InterfaceWaiter_waitForData(struct Iface* iface,
     Iface_plumb(iface, &ctx.iface);
 
     struct Allocator* tempAlloc = Allocator_child(alloc);
-    ctx.timeout = Timeout_setTimeout(timeout, &ctx, 2000, eventBase, tempAlloc);
+    ctx.timeout = Timeout_setTimeout(timeout, &ctx, 10000, eventBase, tempAlloc);
     EventBase_beginLoop(eventBase);
 
     Iface_unplumb(iface, &ctx.iface);
