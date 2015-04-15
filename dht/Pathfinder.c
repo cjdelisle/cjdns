@@ -384,11 +384,13 @@ static Iface_DEFUN incomingMsg(struct Message* msg, struct Pathfinder_pvt* pf)
 
     DHTModuleRegistry_handleIncoming(&dht, pf->registry);
 
+    if (!version && addr.protocolVersion) {
+        struct Message* nodeMsg = Message_new(0, 256, msg->alloc);
+        Iface_CALL(sendNode, nodeMsg, &addr, 0xfffffff0u, pf);
+    }
     if (dht.pleaseRespond) {
         // what a beautiful hack, see incomingFromDHT
         return Iface_next(&pf->pub.eventIf, msg);
-    } else if (!version && addr.protocolVersion) {
-        return sendNode(msg, &addr, 0xfffffff0, pf);
     }
 
     return NULL;
