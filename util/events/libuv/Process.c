@@ -22,6 +22,7 @@
 struct Process_pvt
 {
     uv_process_t proc;
+    Process_OnExitCallback onExit;
     struct Allocator* alloc;
     Identity
 };
@@ -40,7 +41,19 @@ static int onFree(struct Allocator_OnFreeJob* job)
     return Allocator_ONFREE_ASYNC;
 }
 
-int Process_spawn(char* binaryPath, char** args, struct EventBase* base, struct Allocator* alloc)
+static void onExit(uv_process_t *req, int64_t exit_status, int term_signal)
+{
+    struct Process_pvt* p = Identity_containerOf(req, struct Process_pvt, proc);
+    if (p->onExit) {
+        p->onExit(exit_status, term_signal);
+    }
+}
+
+int Process_spawn(char* binaryPath,
+                  char** args,
+                  struct EventBase* base,
+                  struct Allocator* alloc,
+                  Process_OnExitCallback callback)
 {
     struct EventBase_pvt* ctx = EventBase_privatize(base);
 
@@ -68,8 +81,11 @@ int Process_spawn(char* binaryPath, char** args, struct EventBase* base, struct 
         .args = binAndArgs,
         .flags = UV_PROCESS_WINDOWS_HIDE,
         .stdio = files,
-        .stdio_count = 3
+        .stdio_count = 3,
+        .exit_cb = onExit
     };
+
+    p->onExit = callback;
 
     return uv_spawn(ctx->loop, &p->proc, &options);
 }
