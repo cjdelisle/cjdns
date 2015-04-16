@@ -151,10 +151,10 @@ if nothing scrolls with the ipv6 associated with your client's on the tunnel, yo
 to make sure they're correct by running `ip -6 route`. The output should include four lines that look similar
 to the ones below (take special note of which device is associated with each line).
 
-1111:1111:1111:1111:1111:1111:1111:1 dev eth0 metric 1024
-1111:1111:1111:1111:1111:1111:1111:3 dev tun0 proto kernel metric 256
-1111:1111:1111:1111:1111:1111:1111:0/64 dev tun0 metric 1024
-default via 1111:1111:1111:1111:1111:1111:1111:1 dev eth0 metric 1024
+    1111:1111:1111:1111:1111:1111:1111:1 dev eth0 metric 1024
+    1111:1111:1111:1111:1111:1111:1111:3 dev tun0 proto kernel metric 256
+    1111:1111:1111:1111:1111:1111:1111:0/64 dev tun0 metric 1024
+    default via 1111:1111:1111:1111:1111:1111:1111:1 dev eth0 metric 1024
 
 If your routes are correct and things still aren't working, continue to let the ping process run on the client
 and run `tcpdump -n -i eth0 icmp6` on the gateway to check the traffic flowing through its ethernet device.
