@@ -52,7 +52,7 @@ struct Pathfinder_pvt
 
     // hack
     struct Node_Two asyncNode;
-    struct Timeout* asyncTo;
+    struct Allocator* asyncToA;
 
     #define Pathfinder_pvt_state_INITIALIZING 0
     #define Pathfinder_pvt_state_RUNNING 1
@@ -258,7 +258,8 @@ static Iface_DEFUN switchErr(struct Message* msg, struct Pathfinder_pvt* pf)
 static void asyncRespond(void* vPathfinder)
 {
     struct Pathfinder_pvt* pf = Identity_check((struct Pathfinder_pvt*) vPathfinder);
-    pf->asyncTo = NULL;
+    Allocator_free(pf->asyncToA);
+    pf->asyncToA = NULL;
     onBestPathChange(pf, &pf->asyncNode);
 }
 
@@ -272,9 +273,10 @@ static Iface_DEFUN searchReq(struct Message* msg, struct Pathfinder_pvt* pf)
     Log_debug(pf->log, "Search req [%s]", printedAddr);
 
     struct Node_Two* node = NodeStore_nodeForAddr(pf->nodeStore, addr);
-    if (node && !pf->asyncTo) {
+    if (node && !pf->asyncToA) {
         Bits_memcpyConst(&pf->asyncNode, node, sizeof(struct Node_Two));
-        pf->asyncTo = Timeout_setTimeout(asyncRespond, pf, 0, pf->base, pf->alloc);
+        pf->asyncToA = Allocator_child(pf->alloc);
+        Timeout_setTimeout(asyncRespond, pf, 0, pf->base, pf->asyncToA);
     } else {
         SearchRunner_search(addr, 20, 3, pf->searchRunner, pf->alloc);
     }
