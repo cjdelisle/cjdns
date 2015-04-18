@@ -75,10 +75,11 @@ static Iface_DEFUN incomingFromSessionManagerIf(struct Message* msg, struct Ifac
     return NULL;
 }
 
-struct UpperDistributor* UpperDistributor_new(struct Allocator* alloc,
+struct UpperDistributor* UpperDistributor_new(struct Allocator* allocator,
                                               struct Log* log,
                                               struct EventEmitter* ee)
 {
+    struct Allocator* alloc = Allocator_child(allocator);
     struct UpperDistributor_pvt* out =
         Allocator_calloc(alloc, sizeof(struct UpperDistributor_pvt), 1);
     out->eventIf.send = incomingFromEventIf;

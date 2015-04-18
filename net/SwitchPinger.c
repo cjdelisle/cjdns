@@ -350,8 +350,9 @@ struct SwitchPinger* SwitchPinger_new(struct EventBase* eventBase,
                                       struct Random* rand,
                                       struct Log* logger,
                                       struct Address* myAddr,
-                                      struct Allocator* alloc)
+                                      struct Allocator* allocator)
 {
+    struct Allocator* alloc = Allocator_child(allocator);
     struct SwitchPinger_pvt* sp = Allocator_malloc(alloc, sizeof(struct SwitchPinger_pvt));
     Bits_memcpyConst(sp, (&(struct SwitchPinger_pvt) {
         .pub = {

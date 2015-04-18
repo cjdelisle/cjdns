@@ -441,12 +441,13 @@ static void init(void* vpf)
     sendEvent(pf, PFChan_Pathfinder_CONNECT, &conn, PFChan_Pathfinder_Connect_SIZE);
 }
 
-struct Pathfinder* Pathfinder_register(struct Allocator* alloc,
+struct Pathfinder* Pathfinder_register(struct Allocator* allocator,
                                        struct Log* log,
                                        struct EventBase* base,
                                        struct Random* rand,
                                        struct Admin* admin)
 {
+    struct Allocator* alloc = Allocator_child(allocator);
     struct Pathfinder_pvt* pf = Allocator_calloc(alloc, sizeof(struct Pathfinder_pvt), 1);
     Identity_set(pf);
     pf->alloc = alloc;

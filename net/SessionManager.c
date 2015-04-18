@@ -581,13 +581,14 @@ static Iface_DEFUN incomingFromEventIf(struct Message* msg, struct Iface* iface)
     return NULL;
 }
 
-struct SessionManager* SessionManager_new(struct Allocator* alloc,
+struct SessionManager* SessionManager_new(struct Allocator* allocator,
                                           struct EventBase* eventBase,
                                           struct CryptoAuth* cryptoAuth,
                                           struct Random* rand,
                                           struct Log* log,
                                           struct EventEmitter* ee)
 {
+    struct Allocator* alloc = Allocator_child(allocator);
     struct SessionManager_pvt* sm = Allocator_calloc(alloc, sizeof(struct SessionManager_pvt), 1);
     sm->alloc = alloc;
     sm->pub.switchIf.send = incomingFromSwitchIf;

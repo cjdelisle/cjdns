@@ -154,8 +154,9 @@ static Iface_DEFUN incomingFromUpperDistributorIf(struct Message* msg,
     return sendToTunIf(msg, ud);
 }
 
-struct TUNAdapter* TUNAdapter_new(struct Allocator* alloc, struct Log* log, uint8_t myIp6[16])
+struct TUNAdapter* TUNAdapter_new(struct Allocator* allocator, struct Log* log, uint8_t myIp6[16])
 {
+    struct Allocator* alloc = Allocator_child(allocator);
     struct TUNAdapter_pvt* out = Allocator_calloc(alloc, sizeof(struct TUNAdapter_pvt), 1);
     out->pub.tunIf.send = incomingFromTunIf;
     out->pub.ipTunnelIf.send = incomingFromIpTunnelIf;
