@@ -343,8 +343,11 @@ void EventEmitter_regPathfinderIface(struct EventEmitter* emitter, struct Iface*
     pf->pathfinderId = ArrayList_Pathfinders_put(ee->pathfinders, i, pf);
 }
 
-struct EventEmitter* EventEmitter_new(struct Allocator* alloc, struct Log* log, uint8_t* publicKey)
+struct EventEmitter* EventEmitter_new(struct Allocator* allocator,
+                                      struct Log* log,
+                                      uint8_t* publicKey)
 {
+    struct Allocator* alloc = Allocator_child(allocator);
     struct EventEmitter_pvt* ee = Allocator_calloc(alloc, sizeof(struct EventEmitter_pvt), 1);
     ee->log = log;
     ee->alloc = alloc;

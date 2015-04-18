@@ -106,8 +106,9 @@ static void adminPing(Dict* args, void* vcontext, String* txid, struct Allocator
 
 void SwitchPinger_admin_register(struct SwitchPinger* sp,
                                  struct Admin* admin,
-                                 struct Allocator* alloc)
+                                 struct Allocator* allocator)
 {
+    struct Allocator* alloc = Allocator_child(allocator);
     struct Context* ctx = Allocator_clone(alloc, (&(struct Context) {
         .switchPinger = sp,
         .alloc = alloc,

@@ -32,11 +32,12 @@
 #include "net/TUNAdapter.h"
 
 struct NetCore* NetCore_new(uint8_t* privateKey,
-                            struct Allocator* alloc,
+                            struct Allocator* allocator,
                             struct EventBase* base,
                             struct Random* rand,
                             struct Log* log)
 {
+    struct Allocator* alloc = Allocator_child(allocator);
     struct NetCore* nc = Allocator_calloc(alloc, sizeof(struct NetCore), 1);
     nc->alloc = alloc;
     nc->base = base;

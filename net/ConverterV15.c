@@ -214,11 +214,12 @@ static Iface_DEFUN incomingFromSessionManagerIf(struct Message* msg, struct Ifac
     return Iface_next(&conv->pub.upperDistributorIf, msg);
 }
 
-struct ConverterV15* ConverterV15_new(struct Allocator* alloc,
+struct ConverterV15* ConverterV15_new(struct Allocator* allocator,
                                       struct Log* log,
                                       struct SessionManager* sm,
                                       uint8_t myIp6[16])
 {
+    struct Allocator* alloc = Allocator_child(allocator);
     struct ConverterV15_pvt* out = Allocator_calloc(alloc, sizeof(struct ConverterV15_pvt), 1);
     out->pub.upperDistributorIf.send = incomingFromUpperDistributorIf;
     out->pub.sessionManagerIf.send = incomingFromSessionManagerIf;

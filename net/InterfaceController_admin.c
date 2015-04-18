@@ -177,8 +177,9 @@ static resetSession(Dict* args, void* vcontext, String* txid, struct Allocator* 
 
 void InterfaceController_admin_register(struct InterfaceController* ic,
                                         struct Admin* admin,
-                                        struct Allocator* alloc)
+                                        struct Allocator* allocator)
 {
+    struct Allocator* alloc = Allocator_child(allocator);
     struct Context* ctx = Allocator_clone(alloc, (&(struct Context) {
         .alloc = alloc,
         .ic = ic,

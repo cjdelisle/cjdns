@@ -968,10 +968,11 @@ struct InterfaceController* InterfaceController_new(struct CryptoAuth* ca,
                                                     struct Allocator* allocator,
                                                     struct EventEmitter* ee)
 {
+    struct Allocator* alloc = Allocator_child(allocator);
     struct InterfaceController_pvt* out =
-        Allocator_malloc(allocator, sizeof(struct InterfaceController_pvt));
+        Allocator_malloc(alloc, sizeof(struct InterfaceController_pvt));
     Bits_memcpyConst(out, (&(struct InterfaceController_pvt) {
-        .alloc = allocator,
+        .alloc = alloc,
         .ca = ca,
         .rand = rand,
         .switchCore = switchCore,
@@ -989,13 +990,13 @@ struct InterfaceController* InterfaceController_new(struct CryptoAuth* ca,
                                   out,
                                   PING_INTERVAL_MILLISECONDS,
                                   eventBase,
-                                  allocator)
+                                  alloc)
             : NULL
 
     }), sizeof(struct InterfaceController_pvt));
     Identity_set(out);
 
-    out->icis = ArrayList_OfIfaces_new(allocator);
+    out->icis = ArrayList_OfIfaces_new(alloc);
 
     out->eventEmitterIf.send = incomingFromEventEmitterIf;
     EventEmitter_regCore(ee, &out->eventEmitterIf, PFChan_Pathfinder_PEERS);
@@ -1010,7 +1011,7 @@ struct InterfaceController* InterfaceController_new(struct CryptoAuth* ca,
     Bits_memcpyConst(out->beacon.publicKey, ca->publicKey, 32);
     out->beacon.version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL);
 
-    Timeout_setTimeout(beaconInterval, out, BEACON_INTERVAL, eventBase, allocator);
+    Timeout_setTimeout(beaconInterval, out, BEACON_INTERVAL, eventBase, alloc);
 
     return &out->pub;
 }

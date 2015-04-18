@@ -439,13 +439,14 @@ static void sendEvent(struct Pathfinder_pvt* pf, enum PFChan_Pathfinder ev, void
     Allocator_free(alloc);
 }
 
-struct Pathfinder* Pathfinder_register(struct Allocator* alloc,
+struct Pathfinder* Pathfinder_register(struct Allocator* allocator,
                                        struct Log* log,
                                        struct EventBase* base,
                                        struct Random* rand,
                                        struct Admin* admin,
                                        struct EventEmitter* ee)
 {
+    struct Allocator* alloc = Allocator_child(allocator);
     struct Pathfinder_pvt* pf = Allocator_calloc(alloc, sizeof(struct Pathfinder_pvt), 1);
     pf->alloc = alloc;
     pf->log = log;

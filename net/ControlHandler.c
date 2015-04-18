@@ -195,11 +195,12 @@ static Iface_DEFUN incomingFromSwitchPinger(struct Message* msg, struct Iface* s
     return Iface_next(&ch->pub.coreIf, msg);
 }
 
-struct ControlHandler* ControlHandler_new(struct Allocator* alloc,
+struct ControlHandler* ControlHandler_new(struct Allocator* allocator,
                                           struct Log* logger,
                                           struct EventEmitter* ee,
                                           uint8_t myPublicKey[32])
 {
+    struct Allocator* alloc = Allocator_child(allocator);
     struct ControlHandler_pvt* ch = Allocator_calloc(alloc, sizeof(struct ControlHandler_pvt), 1);
     ch->alloc = alloc;
     ch->log = logger;
