@@ -65,7 +65,7 @@ int ArrayList_put(void* vlist, int number, void* val)
     Assert_true(number >= 0 && number <= list->length);
     if (number >= list->capacity) {
         int capacity = list->capacity * 2;
-        list->elements = Allocator_realloc(list->alloc, list->elements, capacity);
+        list->elements = Allocator_realloc(list->alloc, list->elements, capacity * sizeof(char*));
         for (int i = list->capacity; i < capacity; i++) {
             list->elements[i] = NULL;
         }

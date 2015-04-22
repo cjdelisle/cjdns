@@ -33,11 +33,15 @@ struct Timeout;
  * @param allocator the memory allocator to create the timeout with,
  *                  freeing this allocator will make the event be removed safely.
  */
-struct Timeout* Timeout_setTimeout(void (* const callback)(void* callbackContext),
-                                   void* const callbackContext,
-                                   const uint64_t milliseconds,
-                                   struct EventBase* eventBase,
-                                   struct Allocator* allocator);
+struct Timeout* Timeout__setTimeout(void (* const callback)(void* callbackContext),
+                                    void* const callbackContext,
+                                    const uint64_t milliseconds,
+                                    struct EventBase* eventBase,
+                                    struct Allocator* allocator,
+                                    char* file,
+                                    int line);
+#define Timeout_setTimeout(cb, cbc, ms, eb, alloc) \
+    Timeout__setTimeout((cb), (cbc), (ms), (eb), (alloc), Gcc_SHORT_FILE, Gcc_LINE)
 
 /**
  * Create a new interval event.
@@ -50,11 +54,15 @@ struct Timeout* Timeout_setTimeout(void (* const callback)(void* callbackContext
  * @param allocator the memory allocator to create the timeout with,
  *                  freeing this allocator will make the event be removed safely.
  */
-struct Timeout* Timeout_setInterval(void (* const callback)(void* callbackContext),
-                                    void* const callbackContext,
-                                    const uint64_t milliseconds,
-                                    struct EventBase* eventBase,
-                                    struct Allocator* allocator);
+struct Timeout* Timeout__setInterval(void (* const callback)(void* callbackContext),
+                                     void* const callbackContext,
+                                     const uint64_t milliseconds,
+                                     struct EventBase* eventBase,
+                                     struct Allocator* allocator,
+                                     char* file,
+                                     int line);
+#define Timeout_setInterval(cb, cbc, ms, eb, alloc) \
+    Timeout__setInterval((cb), (cbc), (ms), (eb), (alloc), Gcc_SHORT_FILE, Gcc_LINE)
 
 /**
  * Change an existing event to trigger after a new timeout.

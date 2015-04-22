@@ -66,8 +66,9 @@ void PeerLink_kbps(struct PeerLink* peerLink, struct PeerLink_Kbps* output)
     output->sendKbps = Kbps_accumulate(&pl->sendBw, now, Kbps_accumulate_NO_PACKET);
 }
 
-struct PeerLink* PeerLink_new(struct EventBase* base, struct Allocator* alloc)
+struct PeerLink* PeerLink_new(struct EventBase* base, struct Allocator* allocator)
 {
+    struct Allocator* alloc = Allocator_child(allocator);
     struct PeerLink_pvt* pl = Allocator_calloc(alloc, sizeof(struct PeerLink_pvt), 1);
     Identity_set(pl);
     pl->base = base;

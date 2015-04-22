@@ -69,8 +69,9 @@ static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* switc
     return Iface_next(&sa->pub.sessionManagerIf, msg);
 }
 
-struct SwitchAdapter* SwitchAdapter_new(struct Allocator* alloc, struct Log* log)
+struct SwitchAdapter* SwitchAdapter_new(struct Allocator* allocator, struct Log* log)
 {
+    struct Allocator* alloc = Allocator_child(allocator);
     struct SwitchAdapter_pvt* out = Allocator_calloc(alloc, sizeof(struct SwitchAdapter_pvt), 1);
     out->pub.controlIf.send = incomingFromControlIf;
     out->pub.sessionManagerIf.send = incomingFromSessionManagerIf;

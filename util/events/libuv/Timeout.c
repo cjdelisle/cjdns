@@ -78,10 +78,12 @@ static struct Timeout* setTimeout(void (* const callback)(void* callbackContext)
                                   const uint64_t milliseconds,
                                   const uint32_t interval,
                                   struct EventBase* eventBase,
-                                  struct Allocator* allocator)
+                                  struct Allocator* allocator,
+                                  char* file,
+                                  int line)
 {
     struct EventBase_pvt* base = EventBase_privatize(eventBase);
-    struct Allocator* alloc = Allocator_child(allocator);
+    struct Allocator* alloc = Allocator__child(allocator, file, line);
     struct Timeout* timeout = Allocator_calloc(alloc, sizeof(struct Timeout), 1);
 
     timeout->callback = callback;
@@ -102,23 +104,27 @@ static struct Timeout* setTimeout(void (* const callback)(void* callbackContext)
 }
 
 /** See: Timeout.h */
-struct Timeout* Timeout_setTimeout(void (* const callback)(void* callbackContext),
-                                   void* const callbackContext,
-                                   const uint64_t milliseconds,
-                                   struct EventBase* eventBase,
-                                   struct Allocator* allocator)
-{
-    return setTimeout(callback, callbackContext, milliseconds, 0, eventBase, allocator);
-}
-
-/** See: Timeout.h */
-struct Timeout* Timeout_setInterval(void (* const callback)(void* callbackContext),
+struct Timeout* Timeout__setTimeout(void (* const callback)(void* callbackContext),
                                     void* const callbackContext,
                                     const uint64_t milliseconds,
                                     struct EventBase* eventBase,
-                                    struct Allocator* allocator)
+                                    struct Allocator* allocator,
+                                    char* file,
+                                    int line)
 {
-    return setTimeout(callback, callbackContext, milliseconds, 1, eventBase, allocator);
+    return setTimeout(callback, callbackContext, milliseconds, 0, eventBase, allocator, file, line);
+}
+
+/** See: Timeout.h */
+struct Timeout* Timeout__setInterval(void (* const callback)(void* callbackContext),
+                                     void* const callbackContext,
+                                     const uint64_t milliseconds,
+                                     struct EventBase* eventBase,
+                                     struct Allocator* allocator,
+                                     char* file,
+                                     int line)
+{
+    return setTimeout(callback, callbackContext, milliseconds, 1, eventBase, allocator, file, line);
 }
 
 /** See: Timeout.h */
