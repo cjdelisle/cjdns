@@ -84,6 +84,9 @@ gcc arch.c
       defined(_M_IX86) || defined(__i386)
     #define ARCH ArchInfo_AUDIT_ARCH_I386
     #define ARCHSTR "i386"
+#elif defined(__aarch64__)
+    #define ARCH ArchInfo_AUDIT_ARCH_AARCH64
+    #define ARCHSTR "arm64"
 #elif defined(__ARM_EABI__) || defined(__arm__)
     #if defined(Endian_BIG)
         #define ARCH ArchInfo_AUDIT_ARCH_ARMEB
