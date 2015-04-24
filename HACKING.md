@@ -16,7 +16,7 @@ Codestyle:
 
 * Indentation: 4 spaces, tabs are not in the codebase.
 * Trailing whitespace is not in the codebase, Windows users make sure you have
-  git configured to remove carrage return characters as lines in the codebase
+  git configured to remove carriage return characters as lines in the codebase
   are \n deliniated.
 * File names and structures are CamelCase with first letter capital.
 * All globally visible functions shall begin with the name of the file in which
