@@ -541,10 +541,6 @@ struct RouterModule_Promise* RouterModule_newMessage(struct Address* addr,
                                                      struct RouterModule* module,
                                                      struct Allocator* alloc)
 {
-    // sending yourself a ping?
-//    Assert_true(Bits_memcmp(addr->key, module->address.key, 32));
-    Assert_true(addr->path != 1);
-
     Assert_ifParanoid(addr->path ==
         EncodingScheme_convertLabel(module->nodeStore->selfNode->encodingScheme,
                                     addr->path,
