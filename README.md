@@ -35,7 +35,7 @@ scalability issues that plague existing networks.
 around the world.
 
 Cjdns has been tested on x86, amd64, ARMv5, ARMv7, MIPS, and PowerPC.
-It's [continually tested][buildbots] on Linux, FreeBSD, OS X, and Illumos
+It's [continually tested][buildbots] on Linux, FreeBSD, OS X, Windows and Illumos
 systems.
 
 The protocols and algorithms are experimental and subject to change.
