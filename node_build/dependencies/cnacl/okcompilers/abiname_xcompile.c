@@ -28,6 +28,8 @@
     // if false then: error: zero width for bit-field ‘ABI_IS_sparcv9__’
     struct isItV9 { int ABI_IS_sparcv9__ : (sizeof(long) == 4); };
     struct isItV8 { int ABI_IS_sparcv8__ : (sizeof(long) != 4); };
+#elif defined(__aarch64__)
+    #error ABI_IS_arm64__
 #elif defined(__ARM_EABI__)
     #if defined(__ARM_NEON__)
         #error ABI_IS_armeabi_neon__
