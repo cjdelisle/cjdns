@@ -125,8 +125,10 @@ static struct IpTunnel_Connection* connectionByPubKey(uint8_t pubKey[32],
  * @return an connection number which is usable with IpTunnel_remove().
  */
 int IpTunnel_allowConnection(uint8_t publicKeyOfAuthorizedNode[32],
-                             struct Sockaddr* ip6Addr, uint8_t ip6Prefix,
-                             struct Sockaddr* ip4Addr, uint8_t ip4Prefix,
+                             struct Sockaddr* ip6Addr,
+                             uint8_t ip6Prefix,
+                             struct Sockaddr* ip4Addr,
+                             uint8_t ip4Prefix,
                              struct IpTunnel* tunnel)
 {
     struct IpTunnel_pvt* context = Identity_check((struct IpTunnel_pvt*)tunnel);
@@ -147,10 +149,12 @@ int IpTunnel_allowConnection(uint8_t publicKeyOfAuthorizedNode[32],
     AddressCalc_addressForPublicKey(conn->routeHeader.ip6, publicKeyOfAuthorizedNode);
     if (ip4Address) {
         Bits_memcpyConst(conn->connectionIp4, ip4Address, 4);
+        if (!ip4Prefix) { ip4Prefix = 32; }
         conn->connectionIp4Prefix = ip4Prefix;
     }
     if (ip6Address) {
         Bits_memcpyConst(conn->connectionIp6, ip6Address, 16);
+        if (!ip6Prefix) { ip6Prefix = 128; }
         conn->connectionIp6Prefix = ip6Prefix;
     }
     return conn->number;
@@ -420,7 +424,7 @@ static Iface_DEFUN incomingAddresses(Dict* d,
         if (ip4Prefix && *ip4Prefix >= 0 && *ip4Prefix <= 32) {
             conn->connectionIp4Prefix = (uint8_t) *ip4Prefix;
         } else {
-            conn->connectionIp4Prefix = 0;
+            conn->connectionIp4Prefix = 32;
         }
 
         struct Sockaddr* sa = Sockaddr_clone(Sockaddr_LOOPBACK, alloc);
@@ -443,7 +447,7 @@ static Iface_DEFUN incomingAddresses(Dict* d,
         if (ip6Prefix && *ip6Prefix >= 0 && *ip6Prefix <= 128) {
             conn->connectionIp6Prefix = (uint8_t) *ip6Prefix;
         } else {
-            conn->connectionIp6Prefix = 0;
+            conn->connectionIp6Prefix = 128;
         }
 
         if (Defined(Darwin) && conn->connectionIp6Prefix < 3) {
@@ -509,6 +513,27 @@ static Iface_DEFUN incomingControlMessage(struct Message* message,
     return 0;
 }
 
+static bool prefixMatches6(uint8_t* addressA, uint8_t* addressB, uint8_t prefixLen)
+{
+    Assert_true(prefixLen && prefixLen <= 128);
+    uint64_t a0 = ((uint64_t*)addressA)[0];
+    uint64_t b0 = ((uint64_t*)addressB)[0];
+    if (prefixLen <= 64) {
+        return !((a0 ^ b0) >> (64 - prefixLen));
+    }
+    uint64_t a1 = ((uint64_t*)addressA)[1];
+    uint64_t b1 = ((uint64_t*)addressB)[1];
+    return !((a0 ^ b0) | ((a1 ^ b1) >> (128 - prefixLen)) );
+}
+
+static bool prefixMatches4(uint8_t* addressA, uint8_t* addressB, uint32_t prefixLen)
+{
+    Assert_true(prefixLen && prefixLen <= 32);
+    uint32_t a = ((uint32_t*)addressA)[0];
+    uint32_t b = ((uint32_t*)addressB)[0];
+    return !((a ^ b) >> (32 - prefixLen));
+}
+
 /**
  * If there are multiple connections to the same server,
  * the ip address on the packet might belong to the wrong one.
@@ -557,9 +582,14 @@ static struct IpTunnel_Connection* getConnection(struct IpTunnel_Connection* con
             ? ((conn->isOutgoing) ? source : destination)
             : ((conn->isOutgoing) ? destination : source);
 
-        uint8_t* connectionAddr = (sourceAndDestIp6) ? conn->connectionIp6 : conn->connectionIp4;
-        if (!Bits_memcmp(compareAddr, connectionAddr, length)) {
-            return conn;
+        if (sourceAndDestIp6) {
+            if (prefixMatches6(compareAddr, conn->connectionIp6, conn->connectionIp6Prefix)) {
+                return conn;
+            }
+        } else {
+            if (prefixMatches4(compareAddr, conn->connectionIp4, conn->connectionIp4Prefix)) {
+                return conn;
+            }
         }
         conn++;
     } while (conn <= lastConnection);

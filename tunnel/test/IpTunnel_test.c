@@ -64,7 +64,7 @@ static Iface_DEFUN responseWithIpCallback(struct Message* message, struct Iface*
     char* expectedResponse =
         "9:addresses" "d"
             "3:ip6" "16:\xfd\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1"
-            "9:ip6Prefix" "i0e"
+            "9:ip6Prefix" "i128e"
           "e"
           "4:txid" "4:abcd"
         "e";
