@@ -106,7 +106,7 @@ static Iface_DEFUN incomingFromTunIf(struct Message* msg, struct Iface* tunIf)
 
 static Iface_DEFUN sendToTunIf(struct Message* msg, struct TUNAdapter_pvt* ud)
 {
-    if (!&ud->pub.tunIf.connectedIf) {
+    if (!ud->pub.tunIf.connectedIf) {
         Log_debug(ud->log, "DROP message for tun because no device is defined");
         return NULL;
     }
