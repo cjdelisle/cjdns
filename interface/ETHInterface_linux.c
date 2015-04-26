@@ -37,7 +37,10 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 #include <errno.h>
-#include <ifaddrs.h>
+
+#ifndef android
+    #include <ifaddrs.h>
+#endif
 
 #define MAX_PACKET_SIZE 1496
 #define MIN_PACKET_SIZE 46
@@ -203,17 +206,19 @@ static void handleEvent(void* vcontext)
 
 List* ETHInterface_listDevices(struct Allocator* alloc, struct Except* eh)
 {
+    List* out = List_new(alloc);
+#ifndef android
     struct ifaddrs* ifaddr = NULL;
     if (getifaddrs(&ifaddr) || ifaddr == NULL) {
         Except_throw(eh, "getifaddrs() -> errno:%d [%s]", errno, strerror(errno));
     }
-    List* out = List_new(alloc);
     for (struct ifaddrs* ifa = ifaddr; ifa; ifa = ifa->ifa_next) {
         if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_PACKET) {
             List_addString(out, String_new(ifa->ifa_name, alloc), alloc);
         }
     }
     freeifaddrs(ifaddr);
+#endif
     return out;
 }
 
