@@ -208,6 +208,12 @@ Builder.configure({
         console.log("Stack Smashing Protection (security feature) is disabled");
     }
 
+    if (process.env['Pipe_PREFIX'] !== undefined) {
+        builder.config.cflags.push(
+            '-D', 'Pipe_PREFIX="' + process.env['Pipe_PREFIX'] + '"'
+        );
+    }
+
     var dependencyDir = builder.config.buildDir + '/dependencies';
     var libuvLib = dependencyDir + '/libuv/out/Release/libuv.a';
     if (builder.config.systemName === 'win32') {
