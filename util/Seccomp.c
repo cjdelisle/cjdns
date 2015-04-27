@@ -206,7 +206,12 @@ static struct sock_fprog* mkFilter(struct Allocator* alloc, struct Except* eh)
 
         // libuv
         IFEQ(__NR_epoll_ctl, success),
-        IFEQ(__NR_epoll_wait, success),
+        #ifdef __NR_epoll_wait
+            IFEQ(__NR_epoll_wait, success),
+        #endif
+        #ifdef __NR_epoll_pwait
+            IFEQ(__NR_epoll_pwait, success),
+        #endif
 
         // TUN (and logging)
         IFEQ(__NR_write, success),
