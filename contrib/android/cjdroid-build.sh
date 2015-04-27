@@ -122,10 +122,6 @@ cd "$build_dir"
     && git checkout "$1"
 ./clean
 
-##ADD TWEAKS TO GET THINGS BUILDING
-patch -p1 < ../../remove-ifaddrs.patch
-sed -i 's/#ifndef linux/#if !defined(linux) || defined(android)/' util/ArchInfo.c
-
 ##SETUP TOOLCHAIN VARS
 export PATH="$work_dir/android-arm-toolchain/bin:$PATH"
 
