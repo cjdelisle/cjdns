@@ -333,17 +333,9 @@ static struct Pipe_pvt* newPipe(struct EventBase* eb,
     struct EventBase_pvt* ctx = EventBase_privatize(eb);
     struct Allocator* alloc = Allocator_child(userAlloc);
 
-    #ifdef win32
-        #define PREFIX "\\\\.\\pipe\\cjdns_pipe_"
-    #elif defined(android)
-        #define PREFIX "/data/local/tmp/cjdns_pipe_"
-    #else
-        #define PREFIX "/tmp/cjdns_pipe_"
-    #endif
-
-    char* cname = Allocator_malloc(alloc, CString_strlen(PREFIX)+CString_strlen(name)+1);
-    Bits_memcpy(cname, PREFIX, CString_strlen(PREFIX));
-    Bits_memcpy(cname+CString_strlen(PREFIX), name, CString_strlen(name)+1);
+    char* cname = Allocator_malloc(alloc, CString_strlen(Pipe_PREFIX)+CString_strlen(name)+1);
+    Bits_memcpy(cname, Pipe_PREFIX, CString_strlen(Pipe_PREFIX));
+    Bits_memcpy(cname+CString_strlen(Pipe_PREFIX), name, CString_strlen(name)+1);
 
     struct Pipe_pvt* out = Allocator_clone(alloc, (&(struct Pipe_pvt) {
         .pub = {
@@ -351,7 +343,7 @@ static struct Pipe_pvt* newPipe(struct EventBase* eb,
                 .send = sendMessage
             },
             .fullName = cname,
-            .name = &cname[sizeof(PREFIX) - 1],
+            .name = &cname[sizeof(Pipe_PREFIX) - 1],
             .base = eb
         },
         .alloc = alloc

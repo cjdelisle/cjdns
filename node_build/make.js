@@ -76,11 +76,13 @@ Builder.configure({
         '-D', 'PARANOIA=1'
     );
 
+    var android = /android/i.test(builder.config.gcc);
+
     if (process.env['TESTING']) {
         builder.config.cflags.push('-D', 'TESTING=1');
     }
 
-    if (!builder.config.crossCompiling) { 
+    if (!builder.config.crossCompiling) {
         if (NO_MARCH_FLAG.indexOf(process.arch) < -1) {
             builder.config.cflags.push('-march=native');
         }
@@ -147,7 +149,7 @@ Builder.configure({
         [].push.apply(builder.config.ldflags, LDFLAGS.split(' '));
     }
 
-    if (/android/i.test(builder.config.gcc)) {
+    if (android) {
         builder.config.cflags.push('-Dandroid=1');
     }
 
@@ -206,6 +208,12 @@ Builder.configure({
         console.log("Stack Smashing Protection (security feature) is disabled");
     }
 
+    if (process.env['Pipe_PREFIX'] !== undefined) {
+        builder.config.cflags.push(
+            '-D', 'Pipe_PREFIX="' + process.env['Pipe_PREFIX'] + '"'
+        );
+    }
+
     var dependencyDir = builder.config.buildDir + '/dependencies';
     var libuvLib = dependencyDir + '/libuv/out/Release/libuv.a';
     if (builder.config.systemName === 'win32') {
@@ -246,7 +254,7 @@ Builder.configure({
                     [].push.apply(args, CFLAGS.split(' '));
                 }
 
-                if (!builder.config.crossCompiling) { 
+                if (!builder.config.crossCompiling) {
                     if (NO_MARCH_FLAG.indexOf(process.arch) < -1) {
                         builder.config.cflags.push('-march=native');
                     }
@@ -261,7 +269,7 @@ Builder.configure({
     }).nThen(function (waitFor) {
 
         builder.config.libs.push(libuvLib);
-        if (!(/android/i.test(builder.config.gcc))) {
+        if (!android) {
             builder.config.libs.push('-lpthread');
         }
 
@@ -271,9 +279,7 @@ Builder.configure({
                 '-lpsapi',   // GetProcessMemoryInfo()
                 '-liphlpapi' // GetAdapterAddresses()
             );
-        } else if (builder.config.systemName === 'linux'
-            && !(/android/i).test(builder.config.gcc))
-        {
+        } else if (builder.config.systemName === 'linux' && !android) {
             builder.config.libs.push('-lrt'); // clock_gettime()
         } else if (builder.config.systemName === 'darwin') {
             builder.config.libs.push('-framework', 'CoreServices');
@@ -323,7 +329,7 @@ Builder.configure({
             }
 
             //args.push('--root-target=libuv');
-            if (/.*android.*/.test(builder.config.gcc)) {
+            if (android) {
                 args.push('-DOS=android');
             }
 
