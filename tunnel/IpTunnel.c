@@ -528,6 +528,7 @@ static bool prefixMatches6(uint8_t* addressA, uint8_t* addressB, uint8_t prefixL
 
 static bool prefixMatches4(uint8_t* addressA, uint8_t* addressB, uint32_t prefixLen)
 {
+    if (!prefixLen) { prefixLen = 32; }
     Assert_true(prefixLen && prefixLen <= 32);
     uint32_t a = ((uint32_t*)addressA)[0];
     uint32_t b = ((uint32_t*)addressB)[0];
