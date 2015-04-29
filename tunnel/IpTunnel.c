@@ -421,7 +421,7 @@ static Iface_DEFUN incomingAddresses(Dict* d,
     if (ip4 && ip4->len == 4) {
         Bits_memcpyConst(conn->connectionIp4, ip4->bytes, 4);
 
-        if (ip4Prefix && *ip4Prefix >= 0 && *ip4Prefix <= 32) {
+        if (ip4Prefix && *ip4Prefix > 0 && *ip4Prefix <= 32) {
             conn->connectionIp4Prefix = (uint8_t) *ip4Prefix;
         } else {
             conn->connectionIp4Prefix = 32;
@@ -444,7 +444,7 @@ static Iface_DEFUN incomingAddresses(Dict* d,
     if (ip6 && ip6->len == 16) {
         Bits_memcpyConst(conn->connectionIp6, ip6->bytes, 16);
 
-        if (ip6Prefix && *ip6Prefix >= 0 && *ip6Prefix <= 128) {
+        if (ip6Prefix && *ip6Prefix > 0 && *ip6Prefix <= 128) {
             conn->connectionIp6Prefix = (uint8_t) *ip6Prefix;
         } else {
             conn->connectionIp6Prefix = 128;
@@ -513,25 +513,32 @@ static Iface_DEFUN incomingControlMessage(struct Message* message,
     return 0;
 }
 
-static bool prefixMatches6(uint8_t* addressA, uint8_t* addressB, uint8_t prefixLen)
+static bool prefixMatches6(uint8_t* addressA, uint8_t* refAddr, uint8_t prefixLen)
 {
+    if (!prefixLen) {
+        Assert_true(Bits_isZero(refAddr, 16));
+        return false;
+    }
     Assert_true(prefixLen && prefixLen <= 128);
     uint64_t a0 = ((uint64_t*)addressA)[0];
-    uint64_t b0 = ((uint64_t*)addressB)[0];
+    uint64_t b0 = ((uint64_t*)refAddr)[0];
     if (prefixLen <= 64) {
         return !((a0 ^ b0) >> (64 - prefixLen));
     }
     uint64_t a1 = ((uint64_t*)addressA)[1];
-    uint64_t b1 = ((uint64_t*)addressB)[1];
+    uint64_t b1 = ((uint64_t*)refAddr)[1];
     return !((a0 ^ b0) | ((a1 ^ b1) >> (128 - prefixLen)) );
 }
 
-static bool prefixMatches4(uint8_t* addressA, uint8_t* addressB, uint32_t prefixLen)
+static bool prefixMatches4(uint8_t* addressA, uint8_t* refAddr, uint32_t prefixLen)
 {
-    if (!prefixLen) { prefixLen = 32; }
+    if (!prefixLen) {
+        Assert_true(Bits_isZero(refAddr, 4));
+        return false;
+    }
     Assert_true(prefixLen && prefixLen <= 32);
     uint32_t a = ((uint32_t*)addressA)[0];
-    uint32_t b = ((uint32_t*)addressB)[0];
+    uint32_t b = ((uint32_t*)refAddr)[0];
     return !((a ^ b) >> (32 - prefixLen));
 }
 
