@@ -353,7 +353,7 @@ int Seccomp_isWorking()
     // Inside of the kernel, it seems to check whether the errno return is sane
     // and if it is not, it treates it as a return value, IS_WORKING_ERRNO (3333) is very unique so
     // we'll check for either case just in case this changes.
-    return (ret == -1 && err == IS_WORKING_ERRNO) || (ret == IS_WORKING_ERRNO && err == 0);
+    return (ret == -1 && err == IS_WORKING_ERRNO) || (ret == -IS_WORKING_ERRNO && err == 0);
 }
 
 int Seccomp_exists()
