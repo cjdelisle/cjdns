@@ -16,9 +16,6 @@
 // sigaction() siginfo_t SIG_UNBLOCK
 #define _POSIX_C_SOURCE 199309L
 
-// an attempt to fix compatibility with the linux kernel 4.x
-#define IS_WORKING_ERRNO 3333
-
 #include "util/Seccomp.h"
 #include "util/Bits.h"
 #include "util/ArchInfo.h"
@@ -37,6 +34,12 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
+
+/**
+ * A unique number which is returned as errno by getpriority(), a syscall we never use
+ * this will be used by Seccomp_isWorking() to detect that the filter has been properly installed.
+ */
+#define IS_WORKING_ERRNO 3333
 
 static void catchViolation(int sig, siginfo_t* si, void* threadContext)
 {
