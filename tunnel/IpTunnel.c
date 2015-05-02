@@ -575,7 +575,7 @@ static struct IpTunnel_Connection* getConnection(struct IpTunnel_Connection* con
     }
 
     struct IpTunnel_Connection* lastConnection =
-        &context->pub.connectionList.connections[context->pub.connectionList.count];
+        &context->pub.connectionList.connections[context->pub.connectionList.count - 1];
 
     do {
         // If this is an incoming message from the w0rld, and we're the client, we want
