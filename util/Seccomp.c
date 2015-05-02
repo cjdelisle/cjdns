@@ -16,6 +16,9 @@
 // sigaction() siginfo_t SIG_UNBLOCK
 #define _POSIX_C_SOURCE 199309L
 
+// an attempt to fix compatibility with the linux kernel 4.x
+#define IS_WORKING_ERRNO 3333
+
 #include "util/Seccomp.h"
 #include "util/Bits.h"
 #include "util/ArchInfo.h"
@@ -299,7 +302,7 @@ static struct sock_fprog* mkFilter(struct Allocator* alloc, struct Except* eh)
         RET(SECCOMP_RET_TRAP),
 
         LABEL(isworking),
-        RET(RET_ERRNO(9000)),
+        RET(RET_ERRNO(IS_WORKING_ERRNO)),
 
         LABEL(fail),
         RET(SECCOMP_RET_TRAP),
@@ -342,10 +345,12 @@ int Seccomp_isWorking()
     // If seccomp is not working, this will fail setting errno to EINVAL
     long ret = getpriority(1000, 1);
 
+    int err = errno;
+
     // Inside of the kernel, it seems to check whether the errno return is sane
-    // and if it is not, it treates it as a return value, 9000 is very unique so
+    // and if it is not, it treates it as a return value, IS_WORKING_ERRNO (3333) is very unique so
     // we'll check for either case just in case this changes.
-    return (ret == -1 && errno == 9000) || (ret == -9000 && errno == 0);
+    return (ret == -1 && err == IS_WORKING_ERRNO) || (ret == IS_WORKING_ERRNO && err == 0);
 }
 
 int Seccomp_exists()
