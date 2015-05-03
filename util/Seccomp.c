@@ -35,6 +35,12 @@
 #include <stdio.h>
 #include <string.h>
 
+/**
+ * A unique number which is returned as errno by getpriority(), a syscall we never use
+ * this will be used by Seccomp_isWorking() to detect that the filter has been properly installed.
+ */
+#define IS_WORKING_ERRNO 3333
+
 static void catchViolation(int sig, siginfo_t* si, void* threadContext)
 {
     printf("Attempted banned syscall number [%d] see doc/Seccomp.md for more information\n",
@@ -299,7 +305,7 @@ static struct sock_fprog* mkFilter(struct Allocator* alloc, struct Except* eh)
         RET(SECCOMP_RET_TRAP),
 
         LABEL(isworking),
-        RET(RET_ERRNO(9000)),
+        RET(RET_ERRNO(IS_WORKING_ERRNO)),
 
         LABEL(fail),
         RET(SECCOMP_RET_TRAP),
@@ -342,10 +348,12 @@ int Seccomp_isWorking()
     // If seccomp is not working, this will fail setting errno to EINVAL
     long ret = getpriority(1000, 1);
 
+    int err = errno;
+
     // Inside of the kernel, it seems to check whether the errno return is sane
-    // and if it is not, it treates it as a return value, 9000 is very unique so
+    // and if it is not, it treates it as a return value, IS_WORKING_ERRNO (3333) is very unique so
     // we'll check for either case just in case this changes.
-    return (ret == -1 && errno == 9000) || (ret == -9000 && errno == 0);
+    return (ret == -1 && err == IS_WORKING_ERRNO) || (ret == -IS_WORKING_ERRNO && err == 0);
 }
 
 int Seccomp_exists()

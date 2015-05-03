@@ -20,20 +20,18 @@
 #include "util/events/EventBase.h"
 #include "crypto/random/Random.h"
 #include "admin/Admin.h"
-#include "net/EventEmitter.h"
 #include "util/Linker.h"
 Linker_require("dht/Pathfinder.c")
 
 struct Pathfinder
 {
-    int unused;
+    struct Iface eventIf;
 };
 
 struct Pathfinder* Pathfinder_register(struct Allocator* alloc,
                                        struct Log* logger,
                                        struct EventBase* base,
                                        struct Random* rand,
-                                       struct Admin* admin,
-                                       struct EventEmitter* ee);
+                                       struct Admin* admin);
 
 #endif

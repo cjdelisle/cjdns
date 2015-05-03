@@ -106,7 +106,7 @@ static Iface_DEFUN incomingFromTunIf(struct Message* msg, struct Iface* tunIf)
 
 static Iface_DEFUN sendToTunIf(struct Message* msg, struct TUNAdapter_pvt* ud)
 {
-    if (!&ud->pub.tunIf.connectedIf) {
+    if (!ud->pub.tunIf.connectedIf) {
         Log_debug(ud->log, "DROP message for tun because no device is defined");
         return NULL;
     }
@@ -117,14 +117,14 @@ static Iface_DEFUN incomingFromIpTunnelIf(struct Message* msg, struct Iface* ipT
 {
     struct TUNAdapter_pvt* ud =
         Identity_containerOf(ipTunnelIf, struct TUNAdapter_pvt, pub.ipTunnelIf);
-    return Iface_next(&ud->pub.tunIf, msg);
+    return sendToTunIf(msg, ud);
 }
 
 static Iface_DEFUN incomingFromMagicIf(struct Message* msg, struct Iface* magicIf)
 {
     struct TUNAdapter_pvt* ud =
         Identity_containerOf(magicIf, struct TUNAdapter_pvt, pub.magicIf);
-    return Iface_next(&ud->pub.tunIf, msg);
+    return sendToTunIf(msg, ud);
 }
 
 static Iface_DEFUN incomingFromUpperDistributorIf(struct Message* msg,

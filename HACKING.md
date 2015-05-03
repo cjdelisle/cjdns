@@ -16,7 +16,7 @@ Codestyle:
 
 * Indentation: 4 spaces, tabs are not in the codebase.
 * Trailing whitespace is not in the codebase, Windows users make sure you have
-  git configured to remove carrage return characters as lines in the codebase
+  git configured to remove carriage return characters as lines in the codebase
   are \n deliniated.
 * File names and structures are CamelCase with first letter capital.
 * All globally visible functions shall begin with the name of the file in which
@@ -43,7 +43,7 @@ Assert.h
 Lining your code with assertions is great! You'll find a few macros in Assert.h
 to help you. If an assertion is cheap or in a cold codepath or you otherwise feel
 it's important that it's never skipped, use `Assert_true()`, if you want the
-asserion to be skipped on small hardware where `-DPARANOIA` is disabled, use
+assertion to be skipped on small hardware where `-DPARANOIA` is disabled, use
 `Assert_ifParanoid()`, if your assertion might be triggered by "bad nodes" in a
 realistic network and is for simulation only, use `Assert_ifTesting()` and it
 will only be included if `-DTESTING` is passed. If your assertion has

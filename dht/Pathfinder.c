@@ -32,6 +32,7 @@
 #include "util/AddrTools.h"
 #include "util/events/Timeout.h"
 #include "wire/Error.h"
+#include "wire/PFChan.h"
 #include "util/CString.h"
 
 ///////////////////// [ Address ][ content... ]
@@ -41,18 +42,12 @@
 struct Pathfinder_pvt
 {
     struct Pathfinder pub;
-    struct Iface eventIf;
     struct DHTModule dhtModule;
     struct Allocator* alloc;
     struct Log* log;
     struct EventBase* base;
     struct Random* rand;
     struct Admin* admin;
-    struct EventEmitter* ee;
-
-    // hack
-    struct Node_Two asyncNode;
-    struct Allocator* asyncToA;
 
     #define Pathfinder_pvt_state_INITIALIZING 0
     #define Pathfinder_pvt_state_RUNNING 1
@@ -107,7 +102,7 @@ static int incomingFromDHT(struct DHTMessage* dmessage, void* vpf)
     }
     //Log_debug(pf->log, "send DHT request");
 
-    Iface_send(&pf->eventIf, msg);
+    Iface_send(&pf->pub.eventIf, msg);
     return 0;
 }
 
@@ -133,7 +128,7 @@ static Iface_DEFUN sendNode(struct Message* msg,
         ((struct PFChan_Node*) msg->bytes)->path_be = 0;
     }
     Message_push32(msg, PFChan_Pathfinder_NODE, NULL);
-    return Iface_next(&pf->eventIf, msg);
+    return Iface_next(&pf->pub.eventIf, msg);
 }
 
 static void onBestPathChange(void* vPathfinder, struct Node_Two* node)
@@ -255,14 +250,6 @@ static Iface_DEFUN switchErr(struct Message* msg, struct Pathfinder_pvt* pf)
     return NULL;
 }
 
-static void asyncRespond(void* vPathfinder)
-{
-    struct Pathfinder_pvt* pf = Identity_check((struct Pathfinder_pvt*) vPathfinder);
-    Allocator_free(pf->asyncToA);
-    pf->asyncToA = NULL;
-    onBestPathChange(pf, &pf->asyncNode);
-}
-
 static Iface_DEFUN searchReq(struct Message* msg, struct Pathfinder_pvt* pf)
 {
     uint8_t addr[16];
@@ -273,10 +260,8 @@ static Iface_DEFUN searchReq(struct Message* msg, struct Pathfinder_pvt* pf)
     Log_debug(pf->log, "Search req [%s]", printedAddr);
 
     struct Node_Two* node = NodeStore_nodeForAddr(pf->nodeStore, addr);
-    if (node && !pf->asyncToA) {
-        Bits_memcpyConst(&pf->asyncNode, node, sizeof(struct Node_Two));
-        pf->asyncToA = Allocator_child(pf->alloc);
-        Timeout_setTimeout(asyncRespond, pf, 0, pf->base, pf->asyncToA);
+    if (node) {
+        onBestPathChange(pf, node);
     } else {
         SearchRunner_search(addr, 20, 3, pf->searchRunner, pf->alloc);
     }
@@ -369,7 +354,7 @@ static Iface_DEFUN handlePing(struct Message* msg, struct Pathfinder_pvt* pf)
 {
     Log_debug(pf->log, "Received ping");
     Message_push32(msg, PFChan_Pathfinder_PONG, NULL);
-    return Iface_next(&pf->eventIf, msg);
+    return Iface_next(&pf->pub.eventIf, msg);
 }
 
 static Iface_DEFUN handlePong(struct Message* msg, struct Pathfinder_pvt* pf)
@@ -399,11 +384,13 @@ static Iface_DEFUN incomingMsg(struct Message* msg, struct Pathfinder_pvt* pf)
 
     DHTModuleRegistry_handleIncoming(&dht, pf->registry);
 
+    if (!version && addr.protocolVersion) {
+        struct Message* nodeMsg = Message_new(0, 256, msg->alloc);
+        Iface_CALL(sendNode, nodeMsg, &addr, 0xfffffff0u, pf);
+    }
     if (dht.pleaseRespond) {
         // what a beautiful hack, see incomingFromDHT
-        return Iface_next(&pf->eventIf, msg);
-    } else if (!version && addr.protocolVersion) {
-        return sendNode(msg, &addr, 0xfffffff0, pf);
+        return Iface_next(&pf->pub.eventIf, msg);
     }
 
     return NULL;
@@ -411,7 +398,7 @@ static Iface_DEFUN incomingMsg(struct Message* msg, struct Pathfinder_pvt* pf)
 
 static Iface_DEFUN incomingFromEventIf(struct Message* msg, struct Iface* eventIf)
 {
-    struct Pathfinder_pvt* pf = Identity_containerOf(eventIf, struct Pathfinder_pvt, eventIf);
+    struct Pathfinder_pvt* pf = Identity_containerOf(eventIf, struct Pathfinder_pvt, pub.eventIf);
     enum PFChan_Core ev = Message_pop32(msg, NULL);
     if (Pathfinder_pvt_state_INITIALIZING == pf->state) {
         Assert_true(ev == PFChan_Core_CONNECT);
@@ -439,39 +426,43 @@ static void sendEvent(struct Pathfinder_pvt* pf, enum PFChan_Pathfinder ev, void
     struct Message* msg = Message_new(0, 512+size, alloc);
     Message_push(msg, data, size, NULL);
     Message_push32(msg, ev, NULL);
-    Iface_send(&pf->eventIf, msg);
+    Iface_send(&pf->pub.eventIf, msg);
     Allocator_free(alloc);
 }
 
-struct Pathfinder* Pathfinder_register(struct Allocator* allocator,
-                                       struct Log* log,
-                                       struct EventBase* base,
-                                       struct Random* rand,
-                                       struct Admin* admin,
-                                       struct EventEmitter* ee)
+static void init(void* vpf)
 {
-    struct Allocator* alloc = Allocator_child(allocator);
-    struct Pathfinder_pvt* pf = Allocator_calloc(alloc, sizeof(struct Pathfinder_pvt), 1);
-    pf->alloc = alloc;
-    pf->log = log;
-    pf->base = base;
-    pf->rand = rand;
-    pf->admin = admin;
-    pf->ee = ee;
-    Identity_set(pf);
-
-    pf->eventIf.send = incomingFromEventIf;
-    EventEmitter_regPathfinderIface(ee, &pf->eventIf);
-
-    pf->dhtModule.context = pf;
-    pf->dhtModule.handleOutgoing = incomingFromDHT;
-
+    struct Pathfinder_pvt* pf = Identity_check((struct Pathfinder_pvt*) vpf);
     struct PFChan_Pathfinder_Connect conn = {
         .superiority_be = Endian_hostToBigEndian32(1),
         .version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL)
     };
     CString_strncpy(conn.userAgent, "Cjdns internal pathfinder", 64);
     sendEvent(pf, PFChan_Pathfinder_CONNECT, &conn, PFChan_Pathfinder_Connect_SIZE);
+}
+
+struct Pathfinder* Pathfinder_register(struct Allocator* allocator,
+                                       struct Log* log,
+                                       struct EventBase* base,
+                                       struct Random* rand,
+                                       struct Admin* admin)
+{
+    struct Allocator* alloc = Allocator_child(allocator);
+    struct Pathfinder_pvt* pf = Allocator_calloc(alloc, sizeof(struct Pathfinder_pvt), 1);
+    Identity_set(pf);
+    pf->alloc = alloc;
+    pf->log = log;
+    pf->base = base;
+    pf->rand = rand;
+    pf->admin = admin;
+
+    pf->pub.eventIf.send = incomingFromEventIf;
+
+    pf->dhtModule.context = pf;
+    pf->dhtModule.handleOutgoing = incomingFromDHT;
+
+    // This needs to be done asynchronously so the pf can be plumbed to the core
+    Timeout_setTimeout(init, pf, 0, base, alloc);
 
     return &pf->pub;
 }

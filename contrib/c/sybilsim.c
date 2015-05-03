@@ -190,7 +190,7 @@ static struct NodeContext* startNode(char* nodeName,
 
     struct AddrIfaceAdapter* adminClientIface = AddrIfaceAdapter_new(node->alloc);
     struct AddrIfaceAdapter* adminIface = AddrIfaceAdapter_new(node->alloc);
-    struct ASynchronizer* asyncer = ASynchronizer_new(node->alloc, ctx->base);
+    struct ASynchronizer* asyncer = ASynchronizer_new(node->alloc, ctx->base, ctx->logger);
     Iface_plumb(&asyncer->ifA, &adminClientIface->inputIf);
     Iface_plumb(&asyncer->ifB, &adminIface->inputIf);
 

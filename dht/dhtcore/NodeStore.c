@@ -397,7 +397,11 @@ static uint32_t guessReachOfChild(struct Node_Link* link)
         r = Node_getReach(link->parent) / 2;
     }
     if (r < (1<<12)) {
-        r = Node_getReach(link->parent) - 1;
+        if (Node_getReach(link->parent) == 1) {
+            r = 1;
+        } else {
+            r = Node_getReach(link->parent) - 1;
+        }
     } else if (r < (1<<16)) {
         r = Node_getReach(link->parent) - Bits_log2x64(link->cannonicalLabel);
     }
@@ -416,7 +420,8 @@ static uint32_t guessReachOfChild(struct Node_Link* link)
         if (r > bpGuess) { r = bpGuess; }
     }
 
-    Assert_true(r < Node_getReach(link->parent) && r != 0);
+    Assert_true(r < Node_getReach(link->parent));
+    Assert_true(r);
     return r;
 }
 

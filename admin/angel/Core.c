@@ -34,6 +34,7 @@
 #endif
 #include "net/InterfaceController_admin.h"
 #include "interface/addressable/PacketHeaderToUDPAddrIface.h"
+#include "interface/ASynchronizer.h"
 #include "interface/FramingIface.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
@@ -187,7 +188,11 @@ void Core_init(struct Allocator* alloc,
     Iface_plumb(&nc->tunAdapt->ipTunnelIf, &ipTunnel->tunInterface);
     Iface_plumb(&nc->upper->ipTunnelIf, &ipTunnel->nodeInterface);
 
-    Pathfinder_register(alloc, logger, eventBase, rand, admin, nc->ee);
+    // The link between the Pathfinder and the core needs to be asynchronous.
+    struct Pathfinder* pf = Pathfinder_register(alloc, logger, eventBase, rand, admin);
+    struct ASynchronizer* pfAsync = ASynchronizer_new(alloc, eventBase, logger);
+    Iface_plumb(&pfAsync->ifA, &pf->eventIf);
+    EventEmitter_regPathfinderIface(nc->ee, &pfAsync->ifB);
 
     // ------------------- Register RPC functions ----------------------- //
     InterfaceController_admin_register(nc->ifController, admin, alloc);

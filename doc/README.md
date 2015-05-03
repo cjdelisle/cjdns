@@ -33,20 +33,17 @@ If you think you've found a bug, report it on [our fork's issue tracker](https:/
 
 Anything you can submit that gets us closer to understanding some bug or function within cjdns is welcome. By starting an inquiry, you make it just a little bit easier for someone else to continue it. With that in mind, please read [this note on reporting bugs](bugs/reporting.md) and [our more general contribution policy](bugs/policy.md). Get involved!
 
-
 ## License
 
 Unless otherwise noted, the documents contained within this `/doc/` directory are licensed under a Creative Commons Attribution 4.0 Unported License. By contributing documentation you warrant that you provide it under this license and that you have the right to do so.
 
 See <[creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/)>
 
-
 ### Authors requiring Attribution
 
 If you wish to receive attribution for your work as you are entitled under the CC-BY-SA, please add the name you under which you wish have your work recognized to the following list, if you do not wish to receive specific attribution you may signify this when you contribute by leaving this list as it is.
 
 * Cjdns Developer Community
-
 
 ## For committers
 
