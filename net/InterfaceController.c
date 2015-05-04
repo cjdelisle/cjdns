@@ -188,6 +188,9 @@ struct InterfaceController_pvt
 
     struct ArrayList_OfIfaces* icis;
 
+    /** Temporary allocator for allocating timeouts for sending beacon messages. */
+    struct Allocator* beaconTimeoutAlloc;
+
     /** A password which is generated per-startup and sent out in beacon messages. */
     uint8_t beaconPassword[Headers_Beacon_PASSWORD_LEN];
 
@@ -762,7 +765,12 @@ static void beaconInterval(void* vInterfaceController)
     }
     Allocator_free(alloc);
 
-    Timeout_setTimeout(beaconInterval, ic, ic->beaconInterval, ic->eventBase, ic->alloc);
+    if (ic->beaconTimeoutAlloc) {
+        Allocator_free(ic->beaconTimeoutAlloc);
+    }
+    ic->beaconTimeoutAlloc = Allocator_child(ic->alloc);
+    Timeout_setTimeout(
+        beaconInterval, ic, ic->beaconInterval, ic->eventBase, ic->beaconTimeoutAlloc);
 }
 
 int InterfaceController_beaconState(struct InterfaceController* ifc,
