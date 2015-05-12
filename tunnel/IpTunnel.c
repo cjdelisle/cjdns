@@ -520,13 +520,17 @@ static bool prefixMatches6(uint8_t* addressA, uint8_t* refAddr, uint8_t prefixLe
         return false;
     }
     Assert_true(prefixLen && prefixLen <= 128);
-    uint64_t a0 = ((uint64_t*)addressA)[0];
-    uint64_t b0 = ((uint64_t*)refAddr)[0];
+    uint64_t a0;
+    Bits_memcpyConst(&a0, addressA, 8);
+    uint64_t b0;
+    Bits_memcpyConst(&b0, refAddr, 8);
     if (prefixLen <= 64) {
         return !((a0 ^ b0) >> (64 - prefixLen));
     }
-    uint64_t a1 = ((uint64_t*)addressA)[1];
-    uint64_t b1 = ((uint64_t*)refAddr)[1];
+    uint64_t a1;
+    Bits_memcpyConst(&a1, addressA+8, 8);
+    uint64_t b1;
+    Bits_memcpyConst(&b1, refAddr+8, 8);
     return !((a0 ^ b0) | ((a1 ^ b1) >> (128 - prefixLen)) );
 }
 
@@ -537,8 +541,10 @@ static bool prefixMatches4(uint8_t* addressA, uint8_t* refAddr, uint32_t prefixL
         return false;
     }
     Assert_true(prefixLen && prefixLen <= 32);
-    uint32_t a = ((uint32_t*)addressA)[0];
-    uint32_t b = ((uint32_t*)refAddr)[0];
+    uint32_t a;
+    Bits_memcpyConst(&a, addressA, 4);
+    uint32_t b;
+    Bits_memcpyConst(&b, refAddr, 4);
     return !((a ^ b) >> (32 - prefixLen));
 }
 
