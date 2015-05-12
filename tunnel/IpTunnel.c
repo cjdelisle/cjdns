@@ -525,7 +525,7 @@ static Iface_DEFUN incomingControlMessage(struct Message* message,
     (__extension__ ({                                               \
         Assert_true(!((long)(buffer) % 4));                         \
         uint32_t x = (((uint32_t*)(buffer))[0]);                    \
-        Endian_bigEndianToHost64(x);                                \
+        Endian_bigEndianToHost32(x);                                \
     }))
 
 static bool prefixMatches6(uint8_t* addressA, uint8_t* refAddr, uint8_t prefixLen)
