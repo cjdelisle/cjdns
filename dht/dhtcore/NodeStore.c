@@ -420,7 +420,7 @@ static uint32_t guessReachOfChild(struct Node_Link* link)
         if (r > bpGuess) { r = bpGuess; }
     }
 
-    Assert_true(r < Node_getReach(link->parent));
+    Assert_true(r <= Node_getReach(link->parent));
     Assert_true(r);
     return r;
 }
