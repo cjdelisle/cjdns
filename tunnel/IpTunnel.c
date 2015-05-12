@@ -513,6 +513,21 @@ static Iface_DEFUN incomingControlMessage(struct Message* message,
     return 0;
 }
 
+#define GET64(buffer) \
+    (__extension__ ({                                               \
+        Assert_true(!((long)(buffer) % 4));                         \
+        uint64_t x = (uint64_t) (((uint32_t*)(buffer))[0]) << 32;   \
+        x |= ((uint32_t*)(buffer))[1];                              \
+        Endian_bigEndianToHost64(x);                                \
+    }))
+
+#define GET32(buffer) \
+    (__extension__ ({                                               \
+        Assert_true(!((long)(buffer) % 4));                         \
+        uint32_t x = (((uint32_t*)(buffer))[0]);                    \
+        Endian_bigEndianToHost64(x);                                \
+    }))
+
 static bool prefixMatches6(uint8_t* addressA, uint8_t* refAddr, uint8_t prefixLen)
 {
     if (!prefixLen) {
@@ -520,14 +535,14 @@ static bool prefixMatches6(uint8_t* addressA, uint8_t* refAddr, uint8_t prefixLe
         return false;
     }
     Assert_true(prefixLen && prefixLen <= 128);
-    uint64_t a0 = ((uint64_t*)addressA)[0];
-    uint64_t b0 = ((uint64_t*)refAddr)[0];
+    uint64_t a0 = GET64(addressA);
+    uint64_t b0 = GET64(refAddr);
     if (prefixLen <= 64) {
-        return !((a0 ^ b0) >> (64 - prefixLen));
+        return !( (a0 ^ b0) >> (64 - prefixLen) );
     }
-    uint64_t a1 = ((uint64_t*)addressA)[1];
-    uint64_t b1 = ((uint64_t*)refAddr)[1];
-    return !((a0 ^ b0) | ((a1 ^ b1) >> (128 - prefixLen)) );
+    uint64_t a1 = GET64(addressA + 8);
+    uint64_t b1 = GET64(refAddr + 8);
+    return !( (a0 ^ b0) | ((a1 ^ b1) >> (128 - prefixLen)) );
 }
 
 static bool prefixMatches4(uint8_t* addressA, uint8_t* refAddr, uint32_t prefixLen)
@@ -537,8 +552,8 @@ static bool prefixMatches4(uint8_t* addressA, uint8_t* refAddr, uint32_t prefixL
         return false;
     }
     Assert_true(prefixLen && prefixLen <= 32);
-    uint32_t a = ((uint32_t*)addressA)[0];
-    uint32_t b = ((uint32_t*)refAddr)[0];
+    uint32_t a = GET32(addressA);
+    uint32_t b = GET32(refAddr);
     return !((a ^ b) >> (32 - prefixLen));
 }
 
