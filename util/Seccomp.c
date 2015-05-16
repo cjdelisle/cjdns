@@ -219,6 +219,11 @@ static struct sock_fprog* mkFilter(struct Allocator* alloc, struct Except* eh)
             IFEQ(__NR_epoll_pwait, success),
         #endif
 
+        // gettimeofday is required on some architectures
+        #ifdef __NR_gettimeofday
+            IFEQ(__NR_gettimeofday, success),
+        #endif
+
         // TUN (and logging)
         IFEQ(__NR_write, success),
         IFEQ(__NR_read, success),
