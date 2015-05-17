@@ -543,6 +543,7 @@ static void handleGoodNews(struct Node_Two* node,
         if (!childBestParent || pathQuality(childBestParent) < pathQuality(link)) {
             uint32_t nextReach = guessReachOfChild(link);
             if (Node_getReach(child) > nextReach) { continue; }
+            if (Node_isAncestorOf(child, node)) { continue; }
             updateBestParent(link, nextReach, store);
         }
     }
