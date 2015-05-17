@@ -48,16 +48,16 @@
  * but not all architectures.
  */
 #if defined(si_syscall)
-# define si_syscall_alt si_syscall
+# define GET_SYSCALL_NUM(si) ((si)->si_syscall)
 #else
 # warning "your libc doesn't define SIGSYS signal info!"
-# define si_syscall_alt si_value.sival_int
+# define GET_SYSCALL_NUM(si) ((si)->si_value.sival_int)
 #endif
 
 static void catchViolation(int sig, siginfo_t* si, void* threadContext)
 {
     printf("Attempted banned syscall number [%d] see doc/Seccomp.md for more information\n",
-           si->si_syscall_alt);
+           GET_SYSCALL_NUM(si));
     Assert_failure("Disallowed Syscall");
 }
 
