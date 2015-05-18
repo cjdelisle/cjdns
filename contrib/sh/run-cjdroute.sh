@@ -12,7 +12,7 @@ main() {
 	[ "$1" = '-h' -o "$1" = '--help' ] && { usage; return 0; }
 
 	cjdroute_config=${1:-"/etc/cjdroute.conf"}
-	cjdroute < $cjdroute_config
+	exec cjdroute < $cjdroute_config
 }
 
 # DO SOMETHING
