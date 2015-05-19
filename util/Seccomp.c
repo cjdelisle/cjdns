@@ -240,6 +240,13 @@ static struct sock_fprog* mkFilter(struct Allocator* alloc, struct Except* eh)
         // TUN (and logging)
         IFEQ(__NR_write, success),
         IFEQ(__NR_read, success),
+        // readv and writev are used by some libc (musl)
+        #ifdef __NR_readv
+            IFEQ(__NR_readv, success),
+        #endif
+        #ifdef __NR_writev
+            IFEQ(__NR_writev, success),
+        #endif
 
         // modern librt reads a read-only mapped section of kernel space which contains the time
         // older versions need system calls for getting the time.
