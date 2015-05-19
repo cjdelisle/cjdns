@@ -56,7 +56,6 @@ Builder.configure({
         '-Werror',
         '-Wno-pointer-sign',
         '-pedantic',
-        '-rdynamic',
         '-D', builder.config.systemName + '=1',
         '-Wno-unused-parameter',
         '-fomit-frame-pointer',
