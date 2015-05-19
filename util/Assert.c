@@ -36,15 +36,11 @@ void Assert_failure(const char* format, ...)
 
 #ifdef __GLIBC__
     void *array[20];
-    size_t size;
-    char **strings;
-    size_t i;
-
-    size = backtrace(array, 20);
-    strings = backtrace_symbols(array, size);
+    size_t size = backtrace(array, 20);
+    char **strings = backtrace_symbols(array, size);
 
     fprintf(stderr, "Backtrace (%zd frames):\n", size);
-    for (i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
     {
         fprintf(stderr, "  %s\n", strings[i]);
     }
