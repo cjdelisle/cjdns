@@ -40,11 +40,12 @@ void Assert_failure(const char* format, ...)
     char **strings;
     size_t i;
 
-    size = backtrace (array, 20);
-    strings = backtrace_symbols (array, size);
+    size = backtrace(array, 20);
+    strings = backtrace_symbols(array, size);
 
     fprintf(stderr, "Backtrace (%zd frames):\n", size);
-    for (i = 0; i < size; i++) {
+    for (i = 0; i < size; i++)
+    {
         fprintf(stderr, "  %s\n", strings[i]);
     }
     fflush(stderr);
