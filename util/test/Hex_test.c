@@ -28,7 +28,7 @@ int main()
     uint8_t bytes[32];
     Random_bytes(rand, bytes, 32);
 
-    uint8_t hex[64] = {0};
+    uint8_t hex[65] = {0};
 
     Assert_true(Hex_encode(hex, 65, bytes, 32) == 64);
 
