@@ -1,13 +1,22 @@
-The Ubuntu Package cjdns
+Ubuntu Packaging for cjdns
 ----------------------------
 
-This packaging is designed for use in daily builds and targets Ubuntu 12.04.
-I do not fill in the changelog because of that.
-See the commit log on the repository if you need a changelog.
+This packaging is designed for use in daily builds and targets Ubuntu 14.04 and higher.
 
-This package includes Ubuntu-specific items like Upstart script.
+It provides three binary packages:
+ * "cjdns" contains:
+   - cjdns itself
+   - Upstart script for autostart on boot and easy control through commands like "sudo restart cjdns"
+   - skeleton configuration file in /etc/cjdns.conf
+   - advanced tools for messing with cjdns internals in /usr/lib/cjdns
+   - Python modules for interfacing with cjdns admin port for use in your own Python scripts
+ * "cjdns-dynamic" contains:
+   - Separate wrapper that allows peering by a dynamic domain name instead of IP address, already chained to cjdns
+   - config file for the said wrapper at /etc/cjdns-dynamic.conf
+ * "cjdns-dbg":
+   - Debugging symbols for cjdns, useful for reporting and investigating crashes.
 
-It does not yet include perl/python/etc libraries for cdjns administration
-because I have no idea where to install them and how to do it properly.
+The package provides both Upstart and systemd configs and should, in theory,
+work on Debian Jessie. It was not tested.
 
- -- Sergey "Shnatsel" Davidoff <shnatsel@gmail.com>  Sat, 27 Jul 2013 14:12:18 +0400
+ -- Sergey "Shnatsel" Davidoff <shnatsel@gmail.com>  Wed, 20 May 2015 12:57:10 +0300
