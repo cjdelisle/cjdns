@@ -5,6 +5,8 @@ After=network.target
 
 [Service]
 Type=simple
+ProtectHome=true
+ProtectSystem=true
 ExecStart=/bin/sh -c "cjdroute --nobg < /etc/cjdroute.conf"
 Restart=always
 
