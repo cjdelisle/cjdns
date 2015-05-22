@@ -1,7 +1,7 @@
 Ubuntu Packaging for cjdns
 ----------------------------
 
-This packaging is designed for use in daily builds and targets Ubuntu 14.04 and higher. 
+This packaging is designed for use in daily builds and targets Ubuntu 12.04 and higher. 
 
 It provides three binary packages:
  * "cjdns" contains:
