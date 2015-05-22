@@ -2,7 +2,7 @@ Source: cjdns
 Section: comm
 Priority: extra
 Maintainer: Sergey "Shnatsel" Davidoff <shnatsel@gmail.com>
-Build-Depends: debhelper (>= 8.0.0), nodejs (>= 0.8.15) | wget, python (>= 2.7), dh-python
+Build-Depends: debhelper (>= 8.0.0), nodejs (>= 0.8.15) | wget, python (>= 2.7)
 Standards-Version: 3.9.2
 Homepage: https://github.com/cjdelisle/cjdns/
 Vcs-Git: git://github.com/cjdelisle/cjdns.git
@@ -11,7 +11,7 @@ X-Python-Version: >= 2.7
 
 Package: cjdns
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}, python (>= 2.7)
 Suggests: cjdns-dynamic
 Description: Encrypted networking for regular people
  Cjdns implements an encrypted IPv6 network using public key cryptography
