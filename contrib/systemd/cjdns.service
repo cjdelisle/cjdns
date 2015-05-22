@@ -7,7 +7,7 @@ After=network.target
 Type=simple
 ProtectHome=true
 ProtectSystem=true
-ExecPreStart=/bin/sh -ec "if ! test -e /etc/cjdroute.conf; \
+ExecStartPre=/bin/sh -ec "if ! test -e /etc/cjdroute.conf; \
                 then umask 077; \
                 /usr/bin/cjdroute --genconf > /etc/cjdroute.conf; \
                 echo 'WARNING: A new /etc/cjdroute.conf file has been generated.'; \
