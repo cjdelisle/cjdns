@@ -7,10 +7,10 @@ After=network.target
 Type=simple
 ProtectHome=true
 ProtectSystem=true
-ExecPreStart=/bin/sh -ec "if ! test -e /etc/cjdroute.conf; then
-                umask 077 # to create the file with 600 permissions without races
-                /usr/bin/cjdroute --genconf > /etc/cjdroute.conf
-                echo 'WARNING: A new /etc/cjdroute.conf file has been generated.'
+ExecPreStart=/bin/sh -ec "if ! test -e /etc/cjdroute.conf; \
+                then umask 077; \
+                /usr/bin/cjdroute --genconf > /etc/cjdroute.conf; \
+                echo 'WARNING: A new /etc/cjdroute.conf file has been generated.'; \
             fi"
 ExecStart=/bin/sh -c "cjdroute --nobg < /etc/cjdroute.conf"
 Restart=always
