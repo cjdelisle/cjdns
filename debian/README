@@ -1,7 +1,7 @@
 Ubuntu Packaging for cjdns
 ----------------------------
 
-This packaging is designed for use in daily builds and targets Ubuntu 14.04 and higher. 
+This packaging is designed for use in daily builds and targets Ubuntu 14.04 and higher.
 
 It provides three binary packages:
  * "cjdns" contains:
@@ -16,6 +16,7 @@ It provides three binary packages:
  * "cjdns-dbg":
    - Debugging symbols for cjdns, useful for reporting and investigating crashes.
 
-This packaging includes Ubuntu-specific items such as an Upstart script and will not work on Debian as-is.
+The package provides both Upstart and systemd configs and should, in theory,
+work on Debian Jessie. It was not tested.
 
  -- Sergey "Shnatsel" Davidoff <shnatsel@gmail.com>  Wed, 20 May 2015 12:57:10 +0300
