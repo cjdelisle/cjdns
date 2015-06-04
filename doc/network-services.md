@@ -30,6 +30,32 @@ This should result in an output like the following.
     Nmap done: 1 IP address (1 host up) scanned in 4.60 seconds
         Raw packets sent: 0 (0B) | Rcvd: 0 (0B)
 
+If you have open ports, you might see something more like this.
+
+    Starting Nmap 6.47 ( http://nmap.org ) at 2015-06-04 09:52 UTC
+    Initiating Ping Scan at 09:52
+    Scanning fcde:c974:bde5:a226:b8a9:bd8:3e8:7df5 [2 ports]
+    Completed Ping Scan at 09:52, 0.00s elapsed (1 total hosts)
+    Initiating Connect Scan at 09:52
+    Scanning fcde:c974:bde5:a226:b8a9:bd8:3e8:7df5 [65535 ports]
+    Discovered open port 40499/tcp on fcde:c974:bde5:a226:b8a9:bd8:3e8:7df5
+    Discovered open port 53529/tcp on fcde:c974:bde5:a226:b8a9:bd8:3e8:7df5
+    Completed Connect Scan at 09:52, 4.66s elapsed (65535 total ports)
+    Nmap scan report for fcde:c974:bde5:a226:b8a9:bd8:3e8:7df5
+    Host is up (0.00079s latency).
+    Not shown: 65533 closed ports
+    PORT      STATE SERVICE
+    40499/tcp open  unknown
+    53529/tcp open  unknown
+
+If port 22 were open, you could probably guess that SSH is responsible.
+But what the heck is using 40499? Here's how you figure that out.
+First, install `netstat` (`pacman -S net-tools` on Arch, for example).
+Second, run the following netcat command and read the lines that
+reference those ports.
+
+    netstat -tulpn
+
 ## 3: If you see anything open, fix it.
 
 Examples for SSH and Samba are below.
