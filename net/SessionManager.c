@@ -371,10 +371,11 @@ static void checkTimedOutSessions(struct SessionManager_pvt* sm)
             triggerSearch(sm, sess->pub.caSession->herIp6);
             sess->pub.lastSearchTime = now;
             searchTriggered = true;
+            continue;
         }
 
         // Session is in idle state or doesn't need a search right now, check if it's timed out.
-        if (now - sess->pub.timeOfLastIn < sm->pub.sessionTimeoutMilliseconds) {
+        if (now - sess->pub.timeOfLastIn > sm->pub.sessionTimeoutMilliseconds) {
             debugSession0(sm->log, sess, "ended");
             sendSession(sess, sess->pub.sendSwitchLabel, 0xffffffff, PFChan_Core_SESSION_ENDED);
             Map_OfSessionsByIp6_remove(i, &sm->ifaceMap);
