@@ -93,6 +93,8 @@ Builder.configure({
     } else if (builder.config.systemName === 'linux') {
         builder.config.ldflags.push('-Wl,-z,relro,-z,now,-z,noexecstack');
         builder.config.cflags.push('-DHAS_ETH_INTERFACE=1');
+    } else if (builder.config.systemName === 'darwin') {
+        builder.config.cflags.push('-DHAS_ETH_INTERFACE=1');
     }
 
     if (process.env['NO_PIE'] === undefined && builder.config.systemName !== 'freebsd'
