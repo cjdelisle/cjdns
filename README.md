@@ -151,6 +151,13 @@ Sadly, OpenBSD is a bit experimental right now.
 
 Select version gcc-4.8.1p2 or more recent.
 
+#### FreeBSD:
+
+The compiler expects GCC version 4.7, please install it from ports first.
+
+    portsnap fetch extract
+    cd /usr/ports/lang/gcc47/ && make config && make install clean
+
 ### 1. Retrieve cjdns from GitHub
 
 Clone the repository from GitHub and change to the source directory:
