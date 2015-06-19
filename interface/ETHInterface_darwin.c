@@ -37,6 +37,12 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 #include <errno.h>
+#include <net/bpf.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <fcntl.h>
+#include <net/if.h>
+#include <net/if_dl.h>
 
 #ifndef android
     #include <ifaddrs.h>
@@ -50,54 +56,34 @@
 // 2 last 0x00 of .sll_addr are removed from original size (20)
 #define SOCKADDR_LL_LEN 18
 
+// single ethernet_frame
+struct ethernet_frame
+{
+    uint8_t dest[6];
+    uint8_t src[6];
+    uint16_t type;
+} Gcc_PACKED;
+#define ethernet_frame_SIZE 14
+Assert_compileTime(ethernet_frame_SIZE == sizeof(struct ethernet_frame));
+
+
 struct ETHInterface_pvt
 {
     struct ETHInterface pub;
 
     Socket socket;
 
-    /** The unix interface index which is used to identify the eth device. */
-    int ifindex;
-
     struct Log* logger;
 
-    struct sockaddr_ll addrBase;
+    uint8_t myMac[6];
 
     String* ifName;
 
+    uint8_t* buffer;
+    int bufLen;
+
     Identity
 };
-
-static void sendMessageInternal(struct Message* message,
-                                struct sockaddr_ll* addr,
-                                struct ETHInterface_pvt* context)
-{
-    /* Cut down on the noise
-    uint8_t buff[sizeof(*addr) * 2 + 1] = {0};
-    Hex_encode(buff, sizeof(buff), (uint8_t*)addr, sizeof(*addr));
-    Log_debug(context->logger, "Sending ethernet frame to [%s]", buff);
-    */
-
-    if (sendto(context->socket,
-               message->bytes,
-               message->length,
-               0,
-               (struct sockaddr*) addr,
-               sizeof(struct sockaddr_ll)) < 0)
-    {
-        switch (errno) {
-            default:;
-                Log_info(context->logger, "[%s] Got error sending to socket [%s]",
-                         context->ifName->bytes, strerror(errno));
-
-            case EMSGSIZE:
-            case ENOBUFS:
-            case EAGAIN:;
-                // todo: care
-        }
-    }
-    return;
-}
 
 static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* iface)
 {
@@ -111,15 +97,6 @@ static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* iface)
     struct ETHInterface_Sockaddr sockaddr = { .generic = { .addrLen = 0 } };
     Message_pop(msg, &sockaddr, sa->addrLen, NULL);
 
-    struct sockaddr_ll addr;
-    Bits_memcpyConst(&addr, &ctx->addrBase, sizeof(struct sockaddr_ll));
-
-    if (sockaddr.generic.flags & Sockaddr_flags_BCAST) {
-        Bits_memset(addr.sll_addr, 0xff, 6);
-    } else {
-        Bits_memcpyConst(addr.sll_addr, sockaddr.mac, 6);
-    }
-
     struct ETHInterface_Header hdr = {
         .version = ETHInterface_CURRENT_VERSION,
         .zero = 0,
@@ -127,40 +104,51 @@ static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* iface)
         .fc00_be = Endian_hostToBigEndian16(0xfc00)
     };
     Message_push(msg, &hdr, ETHInterface_Header_SIZE, NULL);
-    sendMessageInternal(msg, &addr, ctx);
+
+    struct ethernet_frame ethFr = {
+        .type = Ethernet_TYPE_CJDNS
+    };
+    if (sockaddr.generic.flags & Sockaddr_flags_BCAST) {
+        Bits_memset(ethFr.dest, 0xff, 6);
+    } else {
+        Bits_memcpyConst(ethFr.dest, sockaddr.mac, 6);
+    }
+    Bits_memcpyConst(ethFr.src, ctx->myMac, 6);
+    Message_push(msg, &ethFr, ethernet_frame_SIZE, NULL);
+  /*
+    struct bpf_hdr bpfPkt = {
+        .bh_caplen = msg->length,
+        .bh_datalen = msg->length,
+        .bh_hdrlen = BPF_WORDALIGN(sizeof(struct bpf_hdr))
+    };
+    Message_push(msg, &bpfPkt, bpfPkt.bh_hdrlen, NULL);
+*/
+    if (msg->length != write(ctx->socket, msg->bytes, msg->length)) {
+        Log_debug(ctx->logger, "Error writing to eth device [%s]", strerror(errno));
+    }
+Log_debug(ctx->logger, "message sent");
     return NULL;
 }
 
-static void handleEvent2(struct ETHInterface_pvt* context, struct Allocator* messageAlloc)
+static void handleEvent2(struct ETHInterface_pvt* context,
+                         uint8_t src[6],
+                         uint8_t dst[6],
+                         int length,
+                         uint8_t* data,
+                         struct Allocator* alloc)
 {
-    struct Message* msg = Message_new(MAX_PACKET_SIZE, PADDING, messageAlloc);
-
-    struct sockaddr_ll addr;
-    uint32_t addrLen = sizeof(struct sockaddr_ll);
-
-    // Knock it out of alignment by 2 bytes so that it will be
-    // aligned when the idAndPadding is shifted off.
-    Message_shift(msg, 2, NULL);
-
-    int rc = recvfrom(context->socket,
-                      msg->bytes,
-                      msg->length,
-                      0,
-                      (struct sockaddr*) &addr,
-                      &addrLen);
-
-    if (rc < ETHInterface_Header_SIZE) {
-        Log_debug(context->logger, "Failed to receive eth frame");
+    if (length < ETHInterface_Header_SIZE) {
+        Log_debug(context->logger, "runt");
         return;
     }
 
-    Assert_true(msg->length >= rc);
-    msg->length = rc;
-
-    //Assert_true(addrLen == SOCKADDR_LL_LEN);
+    uint32_t contentLength = BPF_WORDALIGN(length - ETHInterface_Header_SIZE);
+    struct Message* msg = Message_new(contentLength, PADDING, alloc);
 
     struct ETHInterface_Header hdr;
-    Message_pop(msg, &hdr, ETHInterface_Header_SIZE, NULL);
+    Bits_memcpyConst(&hdr, data, ETHInterface_Header_SIZE);
+
+    Bits_memcpy(msg->bytes, &data[ETHInterface_Header_SIZE], contentLength);
 
     // here we could put a switch statement to handle different versions differently.
     if (hdr.version != ETHInterface_CURRENT_VERSION) {
@@ -182,10 +170,10 @@ static void handleEvent2(struct ETHInterface_pvt* context, struct Allocator* mes
         return;
     }
 
-    struct ETHInterface_Sockaddr  sockaddr = { .zero = 0 };
-    Bits_memcpyConst(sockaddr.mac, addr.sll_addr, 6);
+    struct ETHInterface_Sockaddr sockaddr = { .zero = 0 };
+    Bits_memcpyConst(sockaddr.mac, src, 6);
     sockaddr.generic.addrLen = ETHInterface_Sockaddr_SIZE;
-    if (addr.sll_pkttype == PACKET_BROADCAST) {
+    if (dst[0] == 0xff) {
         sockaddr.generic.flags |= Sockaddr_flags_BCAST;
     }
 
@@ -199,26 +187,53 @@ static void handleEvent2(struct ETHInterface_pvt* context, struct Allocator* mes
 static void handleEvent(void* vcontext)
 {
     struct ETHInterface_pvt* context = Identity_check((struct ETHInterface_pvt*) vcontext);
-    struct Allocator* messageAlloc = Allocator_child(context->pub.generic.alloc);
-    handleEvent2(context, messageAlloc);
-    Allocator_free(messageAlloc);
+    ssize_t bytes = read(context->socket, context->buffer, context->bufLen);
+    if (bytes < 0) {
+        Log_debug(context->logger, "read(bpf, bpf_buf, buf_len) -> [%s]", strerror(errno));
+    }
+    if (bytes < 1) { return; }
+    if (bytes < (ssize_t)sizeof(struct bpf_hdr)) {
+        Log_debug(context->logger, "runt [%u]", bytes);
+        return;
+    }
+    int offset = 0;
+    while (offset < bytes) {
+        struct bpf_hdr* bpfPkt = (struct bpf_hdr*) &context->buffer[offset];
+        struct ethernet_frame* ethFr =
+            (struct ethernet_frame*) &context->buffer[offset + bpfPkt->bh_hdrlen];
+        int frameLength = bpfPkt->bh_datalen;
+        uint8_t* frameContent =
+            (uint8_t*) &context->buffer[offset + bpfPkt->bh_hdrlen + ethernet_frame_SIZE];
+        int contentLength = frameLength - ethernet_frame_SIZE;
+
+        Assert_true(offset + bpfPkt->bh_hdrlen + frameLength <= bytes);
+        Assert_true(Ethernet_TYPE_CJDNS == ethFr->type);
+
+        struct Allocator* messageAlloc = Allocator_child(context->pub.generic.alloc);
+        handleEvent2(context, ethFr->src, ethFr->dest, contentLength, frameContent, messageAlloc);
+        Allocator_free(messageAlloc);
+
+        offset += BPF_WORDALIGN(bpfPkt->bh_hdrlen + bpfPkt->bh_caplen);
+    }
 }
 
 List* ETHInterface_listDevices(struct Allocator* alloc, struct Except* eh)
 {
     List* out = List_new(alloc);
-#ifndef android
     struct ifaddrs* ifaddr = NULL;
     if (getifaddrs(&ifaddr) || ifaddr == NULL) {
         Except_throw(eh, "getifaddrs() -> errno:%d [%s]", errno, strerror(errno));
     }
     for (struct ifaddrs* ifa = ifaddr; ifa; ifa = ifa->ifa_next) {
-        if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_PACKET) {
+        if (!ifa->ifa_addr) {
+        } else if (ifa->ifa_addr->sa_family != AF_LINK) {
+        } else if (!(ifa->ifa_flags & IFF_UP)) {
+        } else if (ifa->ifa_flags & IFF_LOOPBACK) {
+        } else {
             List_addString(out, String_new(ifa->ifa_name, alloc), alloc);
         }
     }
     freeifaddrs(ifaddr);
-#endif
     return out;
 }
 
@@ -227,6 +242,38 @@ static int closeSocket(struct Allocator_OnFreeJob* j)
     struct ETHInterface_pvt* ctx = Identity_check((struct ETHInterface_pvt*) j->userData);
     close(ctx->socket);
     return 0;
+}
+
+static int openBPF(struct Except* eh)
+{
+    for (int retry = 0; retry < 100; retry++) {
+        for (int i = 0; i < 256; i++) {
+            char buf[11] = { 0 };
+            snprintf(buf, 10, "/dev/bpf%i", i);
+            int bpf = open(buf, O_RDWR);
+            if (bpf != -1) { return bpf; }
+        }
+        sleep(0.1);
+    }
+    Except_throw(eh, "Could not find available /dev/bpf device");
+}
+
+static void macaddr(const char* ifname, uint8_t addrOut[6], struct Except* eh)
+{
+    struct ifaddrs* ifa;
+    if (getifaddrs(&ifa)) {
+        Except_throw(eh, "getifaddrs() -> [%s]", strerror(errno));
+    } else {
+        for (struct ifaddrs* ifap = ifa; ifap; ifap = ifap->ifa_next) {
+            if (!strcmp(ifap->ifa_name, ifname) && ifap->ifa_addr->sa_family == AF_LINK) {
+                Bits_memcpyConst(addrOut, LLADDR((struct sockaddr_dl*) ifap->ifa_addr), 6);
+                freeifaddrs(ifa);
+                return;
+            }
+        }
+    }
+    freeifaddrs(ifa);
+    Except_throw(eh, "Could not find mac address for [%s]", ifname);
 }
 
 struct ETHInterface* ETHInterface_new(struct EventBase* eventBase,
@@ -241,49 +288,52 @@ struct ETHInterface* ETHInterface_new(struct EventBase* eventBase,
     ctx->pub.generic.alloc = alloc;
     ctx->logger = logger;
 
-    struct ifreq ifr = { .ifr_ifindex = 0 };
+    ctx->socket = openBPF(exHandler);
 
-    ctx->socket = socket(AF_PACKET, SOCK_DGRAM, Ethernet_TYPE_CJDNS);
-    if (ctx->socket == -1) {
-        Except_throw(exHandler, "call to socket() failed. [%s]", strerror(errno));
-    }
-    Allocator_onFree(alloc, closeSocket, ctx);
+    macaddr(bindDevice, ctx->myMac, exHandler);
 
-    CString_strncpy(ifr.ifr_name, bindDevice, IFNAMSIZ - 1);
-    ctx->ifName = String_new(bindDevice, alloc);
-
-    if (ioctl(ctx->socket, SIOCGIFINDEX, &ifr) == -1) {
-        Except_throw(exHandler, "failed to find interface index [%s]", strerror(errno));
-    }
-    ctx->ifindex = ifr.ifr_ifindex;
-
-    if (ioctl(ctx->socket, SIOCGIFFLAGS, &ifr) < 0) {
-        Except_throw(exHandler, "ioctl(SIOCGIFFLAGS) [%s]", strerror(errno));
-    }
-    if (!((ifr.ifr_flags & IFF_UP) && (ifr.ifr_flags & IFF_RUNNING))) {
-        Log_info(logger, "Bringing up interface [%s]", ifr.ifr_name);
-        ifr.ifr_flags |= IFF_UP | IFF_RUNNING;
-        if (ioctl(ctx->socket, SIOCSIFFLAGS, &ifr) < 0) {
-            Except_throw(exHandler, "ioctl(SIOCSIFFLAGS) [%s]", strerror(errno));
-        }
+    struct ifreq ifr = { .ifr_name = { 0 } };
+    CString_strcpy(ifr.ifr_name, bindDevice);
+    if (ioctl(ctx->socket, BIOCSETIF, &ifr) > 0) {
+        Except_throw(exHandler, "ioctl(BIOCSETIF, [%s]) [%s]", bindDevice, strerror(errno));
     }
 
-    ctx->addrBase = (struct sockaddr_ll) {
-        .sll_family = AF_PACKET,
-        .sll_protocol = Ethernet_TYPE_CJDNS,
-        .sll_ifindex = ctx->ifindex,
-        .sll_hatype = ARPHRD_ETHER,
-        .sll_pkttype = PACKET_OTHERHOST,
-        .sll_halen = ETH_ALEN
+    // activate immediate mode (therefore, bufLen is initially set to "1")
+    int bufLen = 1;
+    if (ioctl(ctx->socket, BIOCIMMEDIATE, &bufLen) == -1) {
+        Except_throw(exHandler, "ioctl(BIOCIMMEDIATE) [%s]", strerror(errno));
+    }
+
+    // request buffer length
+    if (ioctl(ctx->socket, BIOCGBLEN, &bufLen) == -1) {
+        Except_throw(exHandler, "ioctl(BIOCGBLEN) [%s]", strerror(errno));
+    }
+    Log_debug(logger, "ioctl(BIOCGBLEN) -> bufLen=%i", bufLen);
+    ctx->buffer = Allocator_malloc(alloc, bufLen);
+    ctx->bufLen = bufLen;
+
+    // filter for cjdns ethertype (0xfc00)
+    static struct bpf_insn cjdnsFilter[] = {
+        BPF_STMT(BPF_LD+BPF_H+BPF_ABS, 12),
+        BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, /* Ethernet_TYPE_CJDNS */ 0xfc00, 1, 0),
+        // drop
+        BPF_STMT(BPF_RET+BPF_K, 0),
+        // How much of the packet to ask for...
+        BPF_STMT(BPF_RET+BPF_K, ~0u)
     };
-
-    if (bind(ctx->socket, (struct sockaddr*) &ctx->addrBase, sizeof(struct sockaddr_ll))) {
-        Except_throw(exHandler, "call to bind() failed [%s]", strerror(errno));
+    struct bpf_program cjdnsFilterProgram = {
+        .bf_len = (sizeof(cjdnsFilter) / sizeof(struct bpf_insn)),
+        .bf_insns = cjdnsFilter,
+    };
+    if (ioctl(ctx->socket, BIOCSETF, &cjdnsFilterProgram) == -1) {
+        Except_throw(exHandler, "ioctl(BIOCSETF) [%s]", strerror(errno));
     }
 
     Socket_makeNonBlocking(ctx->socket);
 
     Event_socketRead(handleEvent, ctx, ctx->socket, eventBase, alloc, exHandler);
+
+    Allocator_onFree(alloc, closeSocket, ctx);
 
     return &ctx->pub;
 }
