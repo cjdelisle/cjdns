@@ -14,28 +14,18 @@
  */
 #include "interface/ETHInterface.h"
 #include "exception/Except.h"
-#include "memory/Allocator.h"
-#include "net/InterfaceController.h"
-#include "wire/Headers.h"
 #include "wire/Message.h"
-#include "wire/Error.h"
 #include "wire/Ethernet.h"
 #include "util/Assert.h"
 #include "util/platform/Socket.h"
 #include "util/events/Event.h"
 #include "util/Identity.h"
-#include "util/AddrTools.h"
 #include "util/version/Version.h"
-#include "util/events/Timeout.h"
 
+#include <ifaddrs.h>
 #include <string.h>
 #include <sys/socket.h>
-//#include <linux/if_packet.h>
-//#include <linux/if_ether.h>
-//#include <linux/if_arp.h>
-#include <sys/types.h>
 #include <sys/ioctl.h>
-#include <unistd.h>
 #include <errno.h>
 #include <net/bpf.h>
 #include <unistd.h>
@@ -44,17 +34,10 @@
 #include <net/if.h>
 #include <net/if_dl.h>
 
-#ifndef android
-    #include <ifaddrs.h>
-#endif
-
 #define MAX_PACKET_SIZE 1496
 #define MIN_PACKET_SIZE 46
 
 #define PADDING 512
-
-// 2 last 0x00 of .sll_addr are removed from original size (20)
-#define SOCKADDR_LL_LEN 18
 
 // single ethernet_frame
 struct ethernet_frame
@@ -253,7 +236,8 @@ static int openBPF(struct Except* eh)
             int bpf = open(buf, O_RDWR);
             if (bpf != -1) { return bpf; }
         }
-        sleep(0.1);
+        // sleep for 0.1 seconds
+        usleep(1000 * 100);
     }
     Except_throw(eh, "Could not find available /dev/bpf device");
 }
