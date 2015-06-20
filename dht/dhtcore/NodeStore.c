@@ -512,6 +512,7 @@ static void updateBestParent(struct Node_Link* newBestParent,
     for (int i = 0; i < 10000; i++) {
         if (!updateBestParentCycle(newBestParent, 0, i, nextReach, store)) {
             check(store);
+            Assert_true(newBestParent->child);
             return;
         }
     }
@@ -1561,6 +1562,8 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
         Log_debug(store->logger, "Invalid path");
         return NULL;
     }
+
+    Assert_true(link->child);
 
     if (link->parent == store->pub.selfNode && !Node_getBestParent(link->child)) {
         updateBestParent(link, reach, store);
