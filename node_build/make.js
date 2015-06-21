@@ -263,7 +263,9 @@ Builder.configure({
                 }
 
                 builder.cc(args, callback);
-            }, waitFor(function () {
+            },
+            builder.config,
+            waitFor(function () {
                 process.chdir(cwd);
             }));
         }));

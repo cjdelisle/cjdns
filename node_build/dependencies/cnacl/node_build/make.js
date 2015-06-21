@@ -64,8 +64,8 @@ var ranlib = function(args, onComplete) {
   });
 };
 
-var getPlan = function(abiName) {
-  if (process.platform === 'darwin') { abiName = 'apple_' + abiName; }
+var getPlan = function(abiName, config) {
+  if (config.systemName === 'darwin') { abiName = 'apple_' + abiName; }
   var planPath = 'node_build/plans/' + abiName + '_plan.json';
   if (!Fs.existsSync(planPath)) {
     // TODO
@@ -123,7 +123,7 @@ var beginBuild = function(compiler, plan, callback) {
   });
 };
 
-var main = module.exports.build = function(compiler, callback) {
+var main = module.exports.build = function(compiler, config, callback) {
   console.log("Creating directories");
   Common.init();
 
@@ -131,7 +131,7 @@ var main = module.exports.build = function(compiler, callback) {
     console.log("Getting system type");
     AbiName.get(compiler, function(abiName) {
       console.log('System is [' + abiName + ']');
-      var plan = getPlan(abiName);
+      var plan = getPlan(abiName, config);
       writeTypesHeaders(plan, function() {
           beginBuild(compiler, plan, callback);
       });
@@ -140,5 +140,6 @@ var main = module.exports.build = function(compiler, callback) {
 };
 
 if (!module.parent) {
-    main(function (cc) {});
+    var conf = { systemName: process.platform };
+    main(function (cc, conf) {});
 }
