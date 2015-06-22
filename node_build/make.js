@@ -341,6 +341,10 @@ Builder.configure({
                 args.push('-DOS=win');
             }
 
+            if (env.GYP_ADDITIONAL_ARGS) {
+                args.push.apply(args, env.GYP_ADDITIONAL_ARGS.split(' '));
+            }
+
             var gyp = Spawn(python, args, {env:env, stdio:'inherit'});
             gyp.on('error', function () {
                 console.error("couldn't launch gyp [" + python + "]");
