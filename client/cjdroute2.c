@@ -363,12 +363,20 @@ static int usage(struct Allocator* alloc, char* appName)
 {
     char* sysInfo = SysInfo_describe(SysInfo_detect(), alloc);
     printf("Cjdns %s %s\n"
-           "Usage: %s [--help] [--genconf] [--bench] [--version] [--cleanconf] [--nobg]\n"
+           "Usage:\n"
+           "    cjdroute --help                This information\n"
+           "    cjdroute --genconf [--no-eth]  Generate a configuration file, write it to stdout\n"
+           "                                   if --no-eth is specified then eth beaconing will\n"
+           "                                   be disabled.\n"
+           "    cjdroute --bench               Run some cryptography performance benchmarks.\n"
+           "    cjdroute --version             Print the protocol version which this node speaks.\n"
+           "    cjdroute --cleanconf < conf    Print a clean (valid json) version of the config.\n"
+           "    cjdroute --nobg                Never fork to the background no matter the config.\n"
            "\n"
            "To get the router up and running.\n"
            "Step 1:\n"
            "  Generate a new configuration file.\n"
-           "    %s --genconf > cjdroute.conf\n"
+           "    cjdroute --genconf > cjdroute.conf\n"
            "\n"
            "Step 2:\n"
            "  Find somebody to connect to.\n"
@@ -382,10 +390,10 @@ static int usage(struct Allocator* alloc, char* appName)
            "\n"
            "Step 4:\n"
            "  Fire it up!\n"
-           "    sudo %s < cjdroute.conf\n"
+           "    sudo cjdroute < cjdroute.conf\n"
            "\n"
            "For more information about other functions and non-standard setups, see README.md\n",
-           ArchInfo_getArchStr(), sysInfo, appName, appName, appName);
+           ArchInfo_getArchStr(), sysInfo);
 
     return 0;
 }
@@ -480,10 +488,10 @@ int main(int argc, char** argv)
         if ((CString_strcmp(argv[1], "--help") == 0) || (CString_strcmp(argv[1], "-h") == 0)) {
             return usage(allocator, argv[0]);
         } else if (CString_strcmp(argv[1], "--genconf") == 0) {
-            bool eth = 0;
+            bool eth = 1;
             for (int i = 1; i < argc; i++) {
-                if (!CString_strcmp(argv[i], "--eth")) {
-                    eth = 1;
+                if (!CString_strcmp(argv[i], "--no-eth")) {
+                    eth = 0;
                 }
             }
             return genconf(rand, eth);

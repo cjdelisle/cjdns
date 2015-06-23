@@ -29,6 +29,10 @@
 #include <linux/capability.h>
 #include <sys/prctl.h>
 
+#ifndef CAP_TO_MASK
+#define CAP_TO_MASK(X) (1 << ((X) & 31))
+#endif
+
 #define PERMITTED_MASK CAP_TO_MASK(CAP_NET_ADMIN)
 
 static inline int capSet(cap_user_header_t hdr, cap_user_data_t data)
