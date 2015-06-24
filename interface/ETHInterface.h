@@ -48,8 +48,12 @@ Assert_compileTime(sizeof(struct ETHInterface_Header) == ETHInterface_Header_SIZ
 struct ETHInterface_Sockaddr
 {
     struct Sockaddr generic;
-    uint8_t mac[6];
+    /*
+     * We need to make the first byte following the Sockaddr be 0 because
+     * Sockaddr_normalizeNative will zero it.
+     */
     uint16_t zero;
+    uint8_t mac[6];
 };
 #define ETHInterface_Sockaddr_SIZE 16
 Assert_compileTime(sizeof(struct ETHInterface_Sockaddr) == ETHInterface_Sockaddr_SIZE);
