@@ -131,13 +131,14 @@ Builder.configure({
 
     // Install any user-defined CFLAGS. Necessary if you are messing about with building cnacl
     // with NEON on the BBB, or want to set -Os (OpenWrt)
+    // Allow -O0 so while debugging all variables are present.
     if (CFLAGS) {
         var cflags = CFLAGS.split(' ');
         cflags.forEach(function(flag) {
-             if (/^\-O[^2s]$/.test(flag)) {
+             if (/^\-O[^02s]$/.test(flag)) {
                 console.log("Skipping " + flag + ", assuming " +
                             builder.config.optimizeLevel + " instead.");
-            } else if (/^\-O[2s]$/.test(flag)) {
+            } else if (/^\-O[02s]$/.test(flag)) {
                 builder.config.optimizeLevel = flag;
             } else {
                 [].push.apply(builder.config.cflags, cflags);
