@@ -25,7 +25,7 @@ var TIMEOUT_MILLISECONDS = 10000;
 var sendmsg = function (sock, addr, port, msg, txid, callback) {
     var to = setTimeout(function () {
         callback(new Error("timeout after " + TIMEOUT_MILLISECONDS + "ms"));
-        delete sock.handlers[json.txid];
+        delete sock.handlers[txid];
     }, TIMEOUT_MILLISECONDS);
     sock.handlers[txid] = {
         callback: callback,
