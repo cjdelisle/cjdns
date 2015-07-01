@@ -58,7 +58,7 @@ src_dir="$build_dir/source"
 ndk_dir="$src_dir/ndk"
 work_dir="$build_dir/workspace"
 
-ndkver="android-ndk-r9d"
+ndkver="android-ndk-r10e"
 cpu_arch="$(uname -m)"
 [[ -z "$cpu_arch" ]] && {
     echo "ERROR: NO CPU ARCHITECTURE DETECTED"
@@ -75,11 +75,11 @@ install -d "$work_dir"
 cd "$src_dir"
 [[ -z "$NDK" ]] && {
     if [ -z "$ANDROID_NDK" ]; then
-        echo "$ndkver-linux-${cpu_arch}.tar.bz2"
-        [[ -f "$ndkver-linux-${cpu_arch}.tar.bz2" ]] \
-            || wget "http://dl.google.com/android/ndk/$ndkver-linux-${cpu_arch}.tar.bz2" \
+        echo "$ndkver-linux-${cpu_arch}.bin"
+        [[ -f "$ndkver-linux-${cpu_arch}.bin" ]] \
+            || wget "http://dl.google.com/android/ndk/$ndkver-linux-${cpu_arch}.bin" \
             || (echo "Can't find download for your system" && exit 1)
-        [[ -d "$ndkver" ]] || (tar jxf "$ndkver-linux-${cpu_arch}.tar.bz2" || exit 1)
+        [[ -d "$ndkver" ]] || (chmod a+x $ndkver-linux-${cpu_arch}.bin && ./$ndkver-linux-${cpu_arch}.bin || exit 1)
         NDK="$ndkver"
     else
         NDK="$ANDROID_NDK"
@@ -98,8 +98,8 @@ cd "$src_dir"
 [[ ! -x "$work_dir/android-arm-toolchain/bin/arm-linux-androideabi-gcc" ]] && {
     cd "$src_dir"
     "$ndk_dir/build/tools/make-standalone-toolchain.sh" \
-        --platform=android-9 \
-        --toolchain=arm-linux-androideabi-4.8 \
+        --platform=android-21 \
+        --toolchain=arm-linux-androideabi-4.9 \
         --install-dir="$work_dir/android-arm-toolchain/" \
         --system=linux-$cpu_arch \
             || exit 1
