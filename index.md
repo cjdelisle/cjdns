@@ -37,14 +37,15 @@ You can contribute to its documentaion: https://github.com/hyperboria/docs
   - [Security Specification](security_specification.md)
 - Installation
   - [Most Linuxes](install/linux.md) *TODO*
-  - [OpenWrt](openwrt.md)
+  - [OpenWrt](install/openwrt.md)
   - [Android](install/android.md) *TODO*
   - [Firefox OS](install/firefoxos.md) *TODO*
-  - [OS X](install/osx.md) *TODO*
-  - [Debian Wheezy](debian-wheezy.md)
+  - [OS X](install/osx.md)
+  - [Debian Wheezy](install/debian-wheezy.md)
+  - [Debian Jessie](install/debian-jessie.md)
   - [FreeBSD](install/freebsd.md) *TODO*
   - [OpenBSD](install/openbsd.md) *TODO*
-  - [Windows](windows.md)
+  - [Windows](install/windows.md)
     - [Building *on* Windows](notes/build-on-windows.md)
     - [Securing your Windows system](notes/windows-firewall.md)
 - Usage

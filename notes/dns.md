@@ -53,6 +53,7 @@ Now might be a good time to actually figure out how we're going to move forward.
   - https://www.youtube.com/watch?v=uhIybhAQ8lY (30c3 lecture)
   - https://gnunet.org/sites/default/files/schanzen2012msc.pdf (masters thesis proposing GADS) (read this if you need to kill an afternoon)
 - .p2p (from TPB people) - http://p2pfoundation.net/Dot-P2P http://dot-p2p.org
+- https://github.com/mwarning/KadNode - P2P DNS and more, written in C, based on the Kad DHT with optional support for signed records using libsodium
 - http://couch.syrinxist.org/share/dns-idea.txt #ircerr's idea
 
 ### proposed/extant TLDs...
