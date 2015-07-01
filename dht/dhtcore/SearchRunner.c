@@ -132,6 +132,11 @@ static void searchReplyCallback(struct RouterModule_Promise* promise,
     struct SearchRunner_Search* search =
         Identity_check((struct SearchRunner_Search*)promise->userData);
 
+    if (!Bits_memcmp(from->ip6.bytes, search->lastNodeAsked.ip6.bytes, 16)) {
+        Timeout_resetTimeout(search->continueSearchTimeout,
+                RouterModule_searchTimeoutMilliseconds(search->runner->router));
+    }
+
     if (!Bits_memcmp(from->ip6.bytes, search->target.ip6.bytes, 16)) {
         search->numFinds++;
     }
