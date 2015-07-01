@@ -46,7 +46,7 @@ As noted above, this has not been thoroughly tested. Changes to the source code 
 
 So please, give it a try, and let us know what you experience. Write about how you used this to your advantage, and go down in cjdns history!
 
-
+```
 09:55 < cow_2001> gloe-ih: yes
 09:55 < gloe-ih> check if it bounds to the tun interface
 09:56 < cow_2001> it has a build plan for x86_XVA or w/e it's called
@@ -57,5 +57,4 @@ So please, give it a try, and let us know what you experience. Write about how y
 09:56 < cow_2001> i'm reading on configuration of the cjdroute.conf
 09:57 < cow_2001> i've set up a tun thing for the cjdns user
 09:57 < gloe-ih> you'll have to add addresses / routes manually
-
-
+```
