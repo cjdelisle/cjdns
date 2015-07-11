@@ -68,7 +68,8 @@ struct Iface* TUNInterface_new(const char* interfaceName,
     int ppa = 0;
     for (uint32_t i = 0; i < strlen(assignedDevname); i++) {
         if (isdigit(assignedDevname[i])) {
-            ppa = atoi(assignedDevname+(i-1));
+            ppa = atoi(assignedDevname+i);
+            break;
         }
     }
 
