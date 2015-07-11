@@ -52,9 +52,9 @@ struct Iface* TUNInterface_new(const char* interfaceName,
 
     // We are on FreeBSD so we just need to read /dev/tunxx to create the tun interface
     if (interfaceName) {
-        sprintf(deviceFile,"/dev/%s",interfaceName);
+        snprintf(deviceFile,TUNInterface_IFNAMSIZ,"/dev/%s",interfaceName);
     } else {
-        sprintf(deviceFile,"%s","/dev/tun");
+        snprintf(deviceFile,TUNInterface_IFNAMSIZ,"%s","/dev/tun");
     }
 
     // Open the descriptor
