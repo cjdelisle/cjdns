@@ -46,10 +46,19 @@ struct Iface* TUNInterface_new(const char* interfaceName,
                                    struct Except* eh,
                                    struct Allocator* alloc)
 {
+    char deviceFile[TUNInterface_IFNAMSIZ];
+
     if (isTapMode) { Except_throw(eh, "tap mode not supported on this platform"); }
 
+    // We are on FreeBSD so we just need to read /dev/tunxx to create the tun interface
+    if (interfaceName) {
+        snprintf(deviceFile,TUNInterface_IFNAMSIZ,"/dev/%s",interfaceName);
+    } else {
+        snprintf(deviceFile,TUNInterface_IFNAMSIZ,"%s","/dev/tun");
+    }
+
     // Open the descriptor
-    int tunFd = open("/dev/tun", O_RDWR);
+    int tunFd = open(deviceFile, O_RDWR);
 
     //Get the resulting device name
     const char* assignedDevname;
@@ -59,7 +68,8 @@ struct Iface* TUNInterface_new(const char* interfaceName,
     int ppa = 0;
     for (uint32_t i = 0; i < strlen(assignedDevname); i++) {
         if (isdigit(assignedDevname[i])) {
-            ppa = atoi(assignedDevname);
+            ppa = atoi(assignedDevname+i);
+            break;
         }
     }
 
