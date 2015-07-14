@@ -204,13 +204,15 @@ static void nodeForAddr(Dict* args, void* vcontext, String* txid, struct Allocat
     String* ipStr = Dict_getString(args, String_new("ip", alloc));
     uint8_t ip[16];
     while (ipStr) {
-        if (AddrTools_parseIp(ip, ipStr->bytes)) {
+        if (AddrTools_parseIp(ip, ipStr->bytes) && ipStr->len > 1) {
             Dict_remove(ret, String_CONST("result"));
             Dict_putString(ret,
                            String_new("error", alloc),
                            String_new("parse_ip", alloc),
                            alloc);
 
+        } else if (ipStr->len == 1) {
+            break; // No IP was specified
         } else if (!(node = NodeStore_nodeForAddr(ctx->store, ip))) {
             // not found
         } else {
