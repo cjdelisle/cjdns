@@ -307,22 +307,22 @@ static int genconf(struct Random* rand, bool eth)
            "        // and ETHInterface will be unable to hot-add new interfaces\n"
            "        // Use { \"setuser\": 0 } to disable.\n"
            "        // Default: enabled with keepNetAdmin\n"
-           #ifdef _WIN32
+#ifdef _WIN32
            "        { \"setuser\": 0, \"keepNetAdmin\": 1 },\n"
-           #else
+#else
            "        { \"setuser\": \"nobody\", \"keepNetAdmin\": 1 },\n"
-           #endif
+#endif
            "\n"
            "        // Chroot changes the filesystem root directory which cjdns sees, blocking it\n"
            "        // from accessing files outside of the chroot sandbox, if the user does not\n"
            "        // have permission to use chroot(), this will fail quietly.\n"
            "        // Use { \"chroot\": 0 } to disable.\n"
            "        // Default: enabled (using \"/var/run\")\n"
-           #ifdef _WIN32
+#ifdef _WIN32
            "        { \"chroot\": 0 },\n"
-           #else
+#else
            "        { \"chroot\": \"/var/run/\" },\n"
-           #endif
+#endif
            "\n"
            "        // Nofiles is a deprecated security feature which prevents cjdns from opening\n"
            "        // any files at all, using this will block setting of IP addresses and\n"
@@ -341,11 +341,11 @@ static int genconf(struct Random* rand, bool eth)
            "        // linux system, strictly limiting it's access to the outside world\n"
            "        // This will fail quietly on any non-linux system\n"
            "        // Default: enabled\n"
-           #ifdef _WIN32
+#ifdef _WIN32
            "        { \"seccomp\": 0 },\n"
-           #else
+#else
            "        { \"seccomp\": 1 },\n"
-           #endif
+#endif
            "\n"
            "        // The client sets up the core using a sequence of RPC calls, the responses\n"
            "        // to these calls are verified but in the event that the client crashes\n"
