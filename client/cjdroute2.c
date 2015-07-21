@@ -307,7 +307,7 @@ static int genconf(struct Random* rand, bool eth)
            "        // and ETHInterface will be unable to hot-add new interfaces\n"
            "        // Use { \"setuser\": 0 } to disable.\n"
            "        // Default: enabled with keepNetAdmin\n"
-#ifdef _WIN32
+#if defined (_WIN32) || defined (__CYGWIN__) || defined (__MINGW32__)
            "        { \"setuser\": 0, \"keepNetAdmin\": 1 },\n"
 #else
            "        { \"setuser\": \"nobody\", \"keepNetAdmin\": 1 },\n"
@@ -318,7 +318,7 @@ static int genconf(struct Random* rand, bool eth)
            "        // have permission to use chroot(), this will fail quietly.\n"
            "        // Use { \"chroot\": 0 } to disable.\n"
            "        // Default: enabled (using \"/var/run\")\n"
-#ifdef _WIN32
+#if defined (_WIN32) || defined (__CYGWIN__) || defined (__MINGW32__)
            "        { \"chroot\": 0 },\n"
 #else
            "        { \"chroot\": \"/var/run/\" },\n"
@@ -341,7 +341,7 @@ static int genconf(struct Random* rand, bool eth)
            "        // linux system, strictly limiting it's access to the outside world\n"
            "        // This will fail quietly on any non-linux system\n"
            "        // Default: enabled\n"
-#ifdef _WIN32
+#if defined (_WIN32) || defined (__CYGWIN__) || defined (__MINGW32__)
            "        { \"seccomp\": 0 },\n"
 #else
            "        { \"seccomp\": 1 },\n"
@@ -368,11 +368,11 @@ static int genconf(struct Random* rand, bool eth)
            "    // If set to non-zero, cjdns will not fork to the background.\n"
            "    // Recommended for use in conjunction with \"logTo\":\"stdout\".\n"
            "    // On Windows, cjdns will crash without this.\n"
-           #ifdef _WIN32
+#if defined (_WIN32) || defined (__CYGWIN__) || defined (__MINGW32__)
            "    \"noBackground\":1,\n"
-           #else
+#else
            "    \"noBackground\":0,\n"
-           #endif
+#endif
            "}\n");
 
     return 0;
