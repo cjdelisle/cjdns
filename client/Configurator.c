@@ -458,9 +458,9 @@ static void security(struct Allocator* tempAlloc, List* conf, struct Log* log, s
         Dict* d = Dict_new(tempAlloc);
         Dict_putString(d, String_CONST("user"), String_CONST("nobody"), tempAlloc);
         Dict* ret = NULL;
-//        #if !defined (_WIN32) || !defined (__CYGWIN__) || !defined (__MINGW32__)
+        #if !defined (_WIN32) || !defined (__CYGWIN__) || !defined (__MINGW32__)
             rpcCall0(String_CONST("Security_getUser"), d, ctx, tempAlloc, &ret, true); // This causes cjdns to crash on Windows
-//        #endif
+        #endif
         uid = *Dict_getInt(ret, String_CONST("uid"));
     } while (0);
 
