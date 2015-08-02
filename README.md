@@ -5,7 +5,7 @@
 #### *Networking Reinvented*
 
 Cjdns implements an encrypted IPv6 network using public-key cryptography for
-address allocation and a distributed hash table for routing. This provides
+address allocation and a distributed hash table for routing. This providesmkdir
 near-zero-configuration networking, and prevents many of the security and
 scalability issues that plague existing networks.
 
@@ -181,7 +181,7 @@ If it says: `cat: /dev/net/tun: File descriptor in bad state` Good!
 
 If it says: `cat: /dev/net/tun: No such file or directory`, create it using:
 
-    sudo mkdir /dev/net &&
+    sudo mkdir -p /dev/net &&
     sudo mknod /dev/net/tun c 10 200 &&
     sudo chmod 0666 /dev/net/tun
 
