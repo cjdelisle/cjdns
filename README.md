@@ -181,7 +181,7 @@ If it says: `cat: /dev/net/tun: File descriptor in bad state` Good!
 
 If it says: `cat: /dev/net/tun: No such file or directory`, create it using:
 
-    sudo mkdir /dev/net &&
+    sudo mkdir -p /dev/net &&
     sudo mknod /dev/net/tun c 10 200 &&
     sudo chmod 0666 /dev/net/tun
 
