@@ -353,7 +353,11 @@ static int genconf(struct Random* rand, bool eth)
            "\n"
            "    // If set to non-zero, cjdns will not fork to the background.\n"
            "    // Recommended for use in conjunction with \"logTo\":\"stdout\".\n"
+#ifdef _WIN32
+           "    \"noBackground\":1,\n"
+#else
            "    \"noBackground\":0,\n"
+#endif
            "}\n");
 
     return 0;
