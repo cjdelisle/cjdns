@@ -449,8 +449,11 @@ static void security(struct Allocator* tempAlloc, List* conf, struct Log* log, s
     int noforks = 1;
     int chroot = 1;
     int setupComplete = 1;
+#ifdef _WIN32
+    int setuser = 0;
+#else
     int setuser = 1;
-
+#endifint setuser = 1;
     int uid = -1;
     int keepNetAdmin = 1;
 
