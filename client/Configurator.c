@@ -453,7 +453,7 @@ static void security(struct Allocator* tempAlloc, List* conf, struct Log* log, s
     int setuser = 0;
 #else
     int setuser = 1;
-#endifint setuser = 1;
+#endif
     int uid = -1;
     int keepNetAdmin = 1;
 
