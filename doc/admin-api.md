@@ -529,7 +529,7 @@ Example:
 ### AdminLog Functions:
 
 Since cjdns contains so many logging locations, logging to a file would not only be inefficient
-but it would fill up your disk rather quickly. Because if this, cjdns logging is only enabled on
+but it would fill up your disk rather quickly. Because of this, cjdns logging is only enabled on
 request, with these functions you can ask for logs to be enabled on a log level, per-file or even
 per-line basis.
 
