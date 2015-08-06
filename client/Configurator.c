@@ -449,22 +449,22 @@ static void security(struct Allocator* tempAlloc, List* conf, struct Log* log, s
     int noforks = 1;
     int chroot = 1;
     int setupComplete = 1;
-#ifdef _WIN32
-    int setuser = 0;
-#else
     int setuser = 1;
-#endif
+    if (Defined(win32)) {
+        setuser = 0;
+    }
+
     int uid = -1;
     int keepNetAdmin = 1;
 
     do {
         Dict* d = Dict_new(tempAlloc);
         Dict_putString(d, String_CONST("user"), String_CONST("nobody"), tempAlloc);
-#ifndef _WIN32
-        Dict* ret = NULL;
-        rpcCall0(String_CONST("Security_getUser"), d, ctx, tempAlloc, &ret, true);
-        uid = *Dict_getInt(ret, String_CONST("uid"));
-#endif
+        if (!Defined(win32)) {
+            Dict* ret = NULL;
+            rpcCall0(String_CONST("Security_getUser"), d, ctx, tempAlloc, &ret, true);
+            uid = *Dict_getInt(ret, String_CONST("uid"));
+        }
     } while (0);
 
     for (int i = 0; conf && i < List_size(conf); i++) {
