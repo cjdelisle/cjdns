@@ -307,18 +307,6 @@ static void peersResponseCallback(struct RouterModule_Promise* promise,
                     continue;
                 }
 
-                /*
-                // If it's not required for keyspace, then check if it can split a path.
-                node = NodeStore_getNextNode(janitor->nodeStore, NULL);
-                while (node) {
-                    if (LabelSplicer_routesThrough(node->address.path, addresses->elems[i].path)) {
-                        RumorMill_addNode(janitor->pub.nodeMill, &addresses->elems[i]);
-                        break;
-                    }
-                    node = NodeStore_getNextNode(janitor->nodeStore, node);
-                }
-                */
-
                 // Check if this node can split an existing link.
                 struct Node_Link* link = NULL;
                 while ((link = NodeStore_nextLink(parent, link))) {
@@ -328,6 +316,12 @@ static void peersResponseCallback(struct RouterModule_Promise* promise,
                                                              link->cannonicalLabel);
                     if (!LabelSplicer_routesThrough(label, addresses->elems[i].path)) { continue; }
                     RumorMill_addNode(janitor->pub.nodeMill, &addresses->elems[i]);
+                    break;
+                }
+
+                // We got peer response but not added to nodeMill, so launch a search here
+                if (link == NULL) {
+                    searchNoDupe(addresses->elems[i].ip6.bytes, janitor);
                 }
             }
         } else if (!Address_isSameIp(&addresses->elems[i], &nl->child->address)) {
