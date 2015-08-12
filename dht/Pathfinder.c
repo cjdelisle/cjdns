@@ -77,6 +77,13 @@ static int incomingFromDHT(struct DHTMessage* dmessage, void* vpf)
     struct Message* msg = dmessage->binMessage;
     struct Address* addr = dmessage->address;
 
+    if (addr->path == 1) {
+        // Message to myself, can't handle this later because encrypting a message to yourself
+        // causes problems.
+        DHTModuleRegistry_handleIncoming(dmessage, pf->registry);
+        return 0;
+    }
+
     // Sanity check (make sure the addr was actually calculated)
     Assert_true(addr->ip6.bytes[0] == 0xfc);
 
