@@ -2443,14 +2443,16 @@ uint64_t NodeStore_timeSinceLastPing(struct NodeStore* nodeStore, struct Node_Tw
     return now - lastSeen;
 }
 
-void NodeStore_destroyNode(struct NodeStore* nodeStore, uint8_t* addr)
+void NodeStore_destroyNodeIfNoKnownPath(struct NodeStore* nodeStore, uint8_t* addr)
 {
     struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
     struct Node_Two* n = nodeForIp(store, addr);
     if (n && n->address.path == UINT64_MAX) {
-        uint8_t printedAddr[40];
-        AddrTools_printIp(printedAddr, addr);
-        Log_debug(store->logger, "Cleanup node %s.\n", printedAddr);
+        if (Defined(Log_DEBUG)) {
+            uint8_t printedAddr[40];
+            AddrTools_printIp(printedAddr, addr);
+            Log_debug(store->logger, "Cleanup node %s.\n", printedAddr);
+        }
         destroyNode(n, store);
         freePendingLinks(store);
     }

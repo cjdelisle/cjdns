@@ -217,7 +217,7 @@ struct Node_Link* NodeStore_getNextLink(struct NodeStore* nodeStore, struct Node
 
 uint64_t NodeStore_timeSinceLastPing(struct NodeStore* nodeStore, struct Node_Two* node);
 
-void NodeStore_destroyNode(struct NodeStore* nodeStore, uint8_t* addr);
+void NodeStore_destroyNodeIfNoKnownPath(struct NodeStore* nodeStore, uint8_t* addr);
 
 // Used for DHT maintenance.
 #define NodeStore_bucketSize 4

@@ -368,14 +368,14 @@ static Iface_DEFUN syncNode(struct Message* msg, struct Pathfinder_pvt* pf)
     uint8_t addr[16];
     Message_pop(msg, addr, 16, NULL);
     Assert_true(!msg->length);
-    {
+    if (Defined(Log_DEBUG)) {
         uint8_t printedAddr[40];
         AddrTools_printIp(printedAddr, addr);
         Log_debug(pf->log, "Sync node [%s]", printedAddr);
     }
 
     // Destory node which not sync with SessionManager
-    NodeStore_destroyNode(pf->nodeStore, addr);
+    NodeStore_destroyNodeIfNoKnownPath(pf->nodeStore, addr);
     return NULL;
 }
 
