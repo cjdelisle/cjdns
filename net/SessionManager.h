@@ -79,6 +79,12 @@ struct SessionManager
      */
     #define SessionManager_SESSION_SEARCH_AFTER_MILLISECONDS_DEFAULT 100000
     int64_t sessionSearchAfterMilliseconds;
+
+    /** Number of milliseconds after which a SYNC will be run to sync a session node with DHT
+     * NodeStore node.
+     */
+    #define SessionManager_SESSION_SYNC_AFTER_MILLISECONDS_DEFAULT 30000
+    int64_t sessionSyncAfterMilliseconds;
 };
 
 struct SessionManager_Session
@@ -97,6 +103,9 @@ struct SessionManager_Session
 
     /** This is the time the last search was triggered for this session. */
     int64_t lastSearchTime;
+
+    /** This is the time the last sync was triggered for this session. */
+    int64_t lastSyncTime;
 
     /** The handle which will be used to lookup this session on our side. */
     uint32_t receiveHandle;
