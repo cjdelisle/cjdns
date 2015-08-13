@@ -377,7 +377,7 @@ static Iface_DEFUN incomingMsg(struct Message* msg, struct Pathfinder_pvt* pf)
     Message_shift(msg, -(RouteHeader_SIZE + DataHeader_SIZE), NULL);
     Bits_memcpyConst(addr.ip6.bytes, hdr->ip6, 16);
     Bits_memcpyConst(addr.key, hdr->publicKey, 32);
-    int version = addr.protocolVersion = Endian_bigEndianToHost32(hdr->version_be);
+    addr.protocolVersion = Endian_bigEndianToHost32(hdr->version_be);
     addr.padding = 0;
     addr.path = Endian_bigEndianToHost64(hdr->sh.label_be);
 
