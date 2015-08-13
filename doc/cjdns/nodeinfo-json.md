@@ -44,7 +44,7 @@ Sample Files:
         "webInterface" :"http://example.tld/",
         "otherthing": "cactus://example.tld/"
       },
-      "name": "MutliURI service"
+      "name": "MutliURI service",
       "description": "Some service with multiple URIs"
     }
   ]
