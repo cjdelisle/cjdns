@@ -152,13 +152,16 @@ static bool PFChan_Core_sizeOk(enum PFChan_Core ev, int size)
         case PFChan_Core_PING:
         case PFChan_Core_PONG:
             return (size == 8 + PFChan_Ping_SIZE);
+
+        case PFChan_Core_SYNC_NODE:
+            return (size == 8 + PFChan_Core_SyncNode_SIZE);
         default:;
     }
     Assert_failure("invalid event [%d]", ev);
 }
 // Remember to add the event to this function too!
 Assert_compileTime(PFChan_Core__TOO_LOW == 1023);
-Assert_compileTime(PFChan_Core__TOO_HIGH == 1037);
+Assert_compileTime(PFChan_Core__TOO_HIGH == 1038);
 
 static Iface_DEFUN incomingFromCore(struct Message* msg, struct Iface* trickIf)
 {

@@ -260,7 +260,13 @@ enum PFChan_Core
      */
     PFChan_Core_PONG = 1036,
 
-    PFChan_Core__TOO_HIGH = 1037,
+    /**
+     * Emitted when SessionManager want to sync node with pathfinder NodeStore
+     * (emitted by: EventEmitter.c)
+     */
+    PFChan_Core_SYNC_NODE = 1037,
+
+    PFChan_Core__TOO_HIGH = 1038,
 };
 
 struct PFChan_Core_SearchReq
@@ -310,6 +316,13 @@ struct PFChan_Core_SwitchErr
     (SwitchHeader_SIZE + 4 + Control_Header_SIZE + Control_Error_MIN_SIZE)
 Assert_compileTime(sizeof(struct PFChan_Core_SwitchErr) == PFChan_Core_SwitchErr_MIN_SIZE);
 
+struct PFChan_Core_SyncNode
+{
+    uint8_t ipv6[16];
+};
+#define PFChan_Core_SyncNode_SIZE 16
+Assert_compileTime(sizeof(struct PFChan_Core_SyncNode) == PFChan_Core_SyncNode_SIZE);
+
 struct PFChan_FromCore
 {
     enum PFChan_Core event_be;
@@ -331,6 +344,7 @@ struct PFChan_FromCore
         struct PFChan_Msg msg;
         struct PFChan_Ping ping;
         struct PFChan_Ping pong;
+        struct PFChan_Core_SyncNode syncNode;
         uint8_t bytes[4];
     } content;
 };

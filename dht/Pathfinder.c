@@ -370,6 +370,22 @@ static Iface_DEFUN handlePong(struct Message* msg, struct Pathfinder_pvt* pf)
     return NULL;
 }
 
+static Iface_DEFUN syncNode(struct Message* msg, struct Pathfinder_pvt* pf)
+{
+    uint8_t addr[16];
+    Message_pop(msg, addr, 16, NULL);
+    Assert_true(!msg->length);
+    if (Defined(Log_DEBUG)) {
+        uint8_t printedAddr[40];
+        AddrTools_printIp(printedAddr, addr);
+        Log_debug(pf->log, "Sync node [%s]", printedAddr);
+    }
+
+    // Destory node which not sync with SessionManager
+    NodeStore_destroyNodeIfNoKnownPath(pf->nodeStore, addr);
+    return NULL;
+}
+
 static Iface_DEFUN incomingMsg(struct Message* msg, struct Pathfinder_pvt* pf)
 {
     struct Address addr;
@@ -421,6 +437,7 @@ static Iface_DEFUN incomingFromEventIf(struct Message* msg, struct Iface* eventI
         case PFChan_Core_MSG: return incomingMsg(msg, pf);
         case PFChan_Core_PING: return handlePing(msg, pf);
         case PFChan_Core_PONG: return handlePong(msg, pf);
+        case PFChan_Core_SYNC_NODE: return syncNode(msg, pf);
         default:;
     }
     Assert_failure("unexpected event [%d]", ev);

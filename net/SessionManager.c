@@ -353,12 +353,30 @@ static void triggerSearch(struct SessionManager_pvt* sm, uint8_t target[16])
     Allocator_free(eventAlloc);
 }
 
+static void syncNode(struct SessionManager_pvt* sm, uint8_t target[16])
+{
+    struct Allocator* eventAlloc = Allocator_child(sm->alloc);
+    struct Message* eventMsg = Message_new(0, 512, eventAlloc);
+    Message_push(eventMsg, target, 16, NULL);
+    Message_push32(eventMsg, 0xffffffff, NULL);
+    Message_push32(eventMsg, PFChan_Core_SYNC_NODE, NULL);
+    Iface_send(&sm->eventIf, eventMsg);
+    Allocator_free(eventAlloc);
+}
+
 static void checkTimedOutSessions(struct SessionManager_pvt* sm)
 {
     bool searchTriggered = false;
+    int64_t now = Time_currentTimeMilliseconds(sm->eventBase);
     for (int i = 0; i < (int)sm->ifaceMap.count; i++) {
         struct SessionManager_Session_pvt* sess = sm->ifaceMap.values[i];
-        int64_t now = Time_currentTimeMilliseconds(sm->eventBase);
+
+        if ((CryptoAuth_getState(sess->pub.caSession) == CryptoAuth_ESTABLISHED) &&
+                (now - sess->pub.lastSyncTime >= sm->pub.sessionSyncAfterMilliseconds)) {
+            syncNode(sm, sess->pub.caSession->herIp6);
+            sess->pub.lastSyncTime = now;
+        }
+
         if (now - sess->pub.timeOfLastOut >= sm->pub.sessionIdleAfterMilliseconds &&
             now - sess->pub.timeOfLastIn >= sm->pub.sessionIdleAfterMilliseconds)
         {
@@ -604,6 +622,8 @@ struct SessionManager* SessionManager_new(struct Allocator* allocator,
     sm->pub.sessionIdleAfterMilliseconds = SessionManager_SESSION_IDLE_AFTER_MILLISECONDS_DEFAULT;
     sm->pub.sessionSearchAfterMilliseconds =
         SessionManager_SESSION_SEARCH_AFTER_MILLISECONDS_DEFAULT;
+    sm->pub.sessionSyncAfterMilliseconds =
+        SessionManager_SESSION_SYNC_AFTER_MILLISECONDS_DEFAULT;
 
     sm->eventIf.send = incomingFromEventIf;
     EventEmitter_regCore(ee, &sm->eventIf, PFChan_Pathfinder_NODE);
