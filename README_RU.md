@@ -247,7 +247,7 @@ Cjdns поставляется с библиотекой для python, кото
 
 # Продвинутая настройка
 
-* [Запуск cjdns не от root](doc/non-root-user.md)
+* [Запуск cjdns не от root](doc/non-root-user_ru.md)
 * [Настройка ПК как cjdns NAT gateway для вашей домашней сети](doc/nat-gateway.md)
 * [Установка cjdns на OpenIndiana](doc/open-indiana.md)
 

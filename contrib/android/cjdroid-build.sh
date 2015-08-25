@@ -94,12 +94,21 @@ cd "$src_dir"
 [[ ! -e "$ndk_dir" ]] \
     && ln -sf "$NDK" "$ndk_dir"
 
+GCC=$work_dir/android-arm-toolchain/bin/arm-linux-androideabi-gcc
+TOOLCHAIN=arm-linux-androideabi-4.9
+COMPILER=arm-linux-androideabi-
+[[ "x$TARGET_ARCH" == "xarm64" ]] \
+    && GCC=$work_dir/android-arm-toolchain/bin/aarch64-linux-android-gcc \
+    && TOOLCHAIN=aarch64-linux-android-4.9 \
+    && COMPILER=aarch64-linux-android-
+
+
 ##BUILD TOOLCHAIN: build gcc toolchain
-[[ ! -x "$work_dir/android-arm-toolchain/bin/arm-linux-androideabi-gcc" ]] && {
+[[ ! -x "$GCC" ]] && {
     cd "$src_dir"
     "$ndk_dir/build/tools/make-standalone-toolchain.sh" \
         --platform=android-21 \
-        --toolchain=arm-linux-androideabi-4.9 \
+        --toolchain=$TOOLCHAIN \
         --install-dir="$work_dir/android-arm-toolchain/" \
         --system=linux-$cpu_arch \
             || exit 1
@@ -126,7 +135,7 @@ cd "$build_dir"
 export PATH="$work_dir/android-arm-toolchain/bin:$PATH"
 
 ##BUILD cjdns (without tests)
-CROSS_COMPILE=arm-linux-androideabi- ./cross-do 2>&1 \
+CROSS_COMPILE=$COMPILER ./cross-do 2>&1 \
     | tee cjdns-build.log
 [[ ! -f 'cjdroute' ]] && {
     echo -e "\nBUILD FAILED :("

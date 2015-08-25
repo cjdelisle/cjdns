@@ -77,6 +77,13 @@ static int incomingFromDHT(struct DHTMessage* dmessage, void* vpf)
     struct Message* msg = dmessage->binMessage;
     struct Address* addr = dmessage->address;
 
+    if (addr->path == 1) {
+        // Message to myself, can't handle this later because encrypting a message to yourself
+        // causes problems.
+        DHTModuleRegistry_handleIncoming(dmessage, pf->registry);
+        return 0;
+    }
+
     // Sanity check (make sure the addr was actually calculated)
     Assert_true(addr->ip6.bytes[0] == 0xfc);
 
@@ -370,7 +377,7 @@ static Iface_DEFUN incomingMsg(struct Message* msg, struct Pathfinder_pvt* pf)
     Message_shift(msg, -(RouteHeader_SIZE + DataHeader_SIZE), NULL);
     Bits_memcpyConst(addr.ip6.bytes, hdr->ip6, 16);
     Bits_memcpyConst(addr.key, hdr->publicKey, 32);
-    int version = addr.protocolVersion = Endian_bigEndianToHost32(hdr->version_be);
+    addr.protocolVersion = Endian_bigEndianToHost32(hdr->version_be);
     addr.padding = 0;
     addr.path = Endian_bigEndianToHost64(hdr->sh.label_be);
 
@@ -384,10 +391,9 @@ static Iface_DEFUN incomingMsg(struct Message* msg, struct Pathfinder_pvt* pf)
 
     DHTModuleRegistry_handleIncoming(&dht, pf->registry);
 
-    if (!version && addr.protocolVersion) {
-        struct Message* nodeMsg = Message_new(0, 256, msg->alloc);
-        Iface_CALL(sendNode, nodeMsg, &addr, 0xfffffff0u, pf);
-    }
+    struct Message* nodeMsg = Message_new(0, 256, msg->alloc);
+    Iface_CALL(sendNode, nodeMsg, &addr, 0xfffffff0u, pf);
+
     if (dht.pleaseRespond) {
         // what a beautiful hack, see incomingFromDHT
         return Iface_next(&pf->pub.eventIf, msg);

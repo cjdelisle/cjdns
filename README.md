@@ -114,6 +114,17 @@ it will be downloaded and installed in the source tree.
 
     sudo apt-get install nodejs git build-essential
 
+#### Fedora 22+ based distro:
+
+    sudo dnf install install nodejs git
+    sudo dnf install @development-tools
+    
+#### RHEL based distro (adds the EPEL repo):
+
+    sudo yum localinstall https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+    sudo yum install install nodejs git
+    sudo yum install @development-tools
+
 #### OS X:
 
 On OS X, you must install the Command Line Developer Tools. If
@@ -188,7 +199,7 @@ If it says: `cat: /dev/net/tun: File descriptor in bad state` Good!
 
 If it says: `cat: /dev/net/tun: No such file or directory`, create it using:
 
-    sudo mkdir /dev/net &&
+    sudo mkdir -p /dev/net &&
     sudo mknod /dev/net/tun c 10 200 &&
     sudo chmod 0666 /dev/net/tun
 
