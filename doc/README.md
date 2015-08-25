@@ -1,40 +1,40 @@
-# Docs
+# Hyperboria/docs
 
-*Documenting things related to the meshnet*
+## What is Hyperboria?
 
-[cjdns](https://github.com/hyperboria/cjdns) addresses a large number of complex issues in an elegant way. While efforts have been made to provide a default configuration that matches the greatest number of use cases, it is impractical to expect software to replace understanding.
+Hyperboria is test network built of cjdns nodes.
 
-> Enter the documentation project...
+## What is cjdns?
 
-The good citizens of Hyperboria decided to put together this collection of documentation to help make the inner workings of cjdns more transparent.
+Cjdns is an experimental, cryptographic mesh networking suite.
 
-We want you to [get involved](http://www.roaming-initiative.com/blog/posts/wtfm)! Feel free to submit pull requests.
+## What is notable about cjdns? Why should I use it?
 
-See [index.md](index.md) for current progress. We'd love more languages!
+Cjdns builds an [end-to-end encrypted](https://en.wikipedia.org/wiki/End-to-end_encryption) [IPv6](https://en.wikipedia.org/wiki/IPv6) [mesh network](https://en.wikipedia.org/wiki/Mesh_networking) that utilizes the [fc00::/8 address space](https://en.wikipedia.org/wiki/Unique_local_address).
 
-Also have a look at [Prose for Programmers](https://github.com/joshuacc/prose-for-programmers), a work-in-progress book aimed at helping software developers write better prose.
+### Encryption
 
+Cjdns provides an encrypted tunnel which utilizes a [private/public keypair](https://en.wikipedia.org/wiki/Public-key_cryptography) to encrypt everything that passes through it with the [SALSA20 stream cypher](https://en.wikipedia.org/wiki/Salsa20), which affords the user [perfect forward secrecy](https://en.wikipedia.org/wiki/Forward_secrecy).
 
-## The scope of this project
+### Address Allocation
 
-We are interested in documenting a range of topics:
+The ipv6 assigned to the TUN interface is composed of the first 16 bytes of the SHA512 hash of the [SHA512 hash](https://en.wikipedia.org/wiki/SHA-2) of your public key. Keypairs are generated via a [brute force method](https://en.wikipedia.org/wiki/Brute-force_search) until a corresponding address is found with a starting byte FC. The FC00::/8 address space has been allocated as a Unique Local Address space, and so these addresses should not conflict with ICANN assigned IPv6 addresses or any other conventional internet operation.
 
-1. cjdns internals: bugs and features
-2. operator culture and best practices
-3. meshlocal resources
-4. introductory literature
+### Hybrid topology
 
+Cjdns was designed to be used with a [friend of a friend](https://en.wikipedia.org/wiki/Friend_of_a_friend) topology. It builds an [overlay network](https://en.wikipedia.org/wiki/Overlay_network) which traverses NAT ([Network Address Translation](https://en.wikipedia.org/wiki/Network_address_translation)), exposing all ports of every node to every other node within the network. Those who are used to relying on NAT to protect their devices may find this troublesome.
 
-## Reporting bugs
+At one point it was expected that each person who peered would do so with only trusted friends. You need not trust relaying nodes with the confidentiality or integrity of your packets, however, if you wish to restrict access to certain services, it is your responsibility to implement effective access control rules.
 
-[cjd](https://github.com/cjdelisle) would rather write code than troubleshoot trivial issues which often turn out to have resulted from user error. To make this easier, a few members of the community have offered to investigate issues on his behalf.
+Links between nodes may be established over deliberate [UDP](https://en.wikipedia.org/wiki/User_Datagram_Protocol) links across the internet, or over deliberate or automatic connections across Ethernet, Wireless access points, Ad-hoc connections, or various system-specific transmission and addressing protocols.
 
-If you think you've found a bug, report it on [our fork's issue tracker](https://github.com/hyperboria/cjdns/issues). We'll try to gather up documentation related to the issue, to better understand where it might be coming from. Once we can narrow it down, and research some of the background details to that particular piece of functionality, we may be able to submit patches ourselves.
+### Cryptographic verification and routing
 
-Anything you can submit that gets us closer to understanding some bug or function within cjdns is welcome. By starting an inquiry, you make it just a little bit easier for someone else to continue it. With that in mind, please read [this note on reporting bugs](bugs/reporting.md) and [our more general contribution policy](bugs/policy.md). Get involved!
+Establishing a link between two nodes includes a cryptographic authorization process, after which other nodes within the network can establish a connection with the new node.
 
-## License
+Due to the relationship between each node's public key and its ipv6, and the fact that this relationship is verified upon connecting to a node, a user can be sure that if it connects to an IPv6 address and receives a response then the node that responded possesses the requisite private key to decrypt the response.
 
+<<<<<<< HEAD
 Unless otherwise noted, the documents contained within this `/doc/` directory are licensed under a Creative Commons Attribution 4.0 Unported License. By contributing documentation you warrant that you provide it under this license and that you have the right to do so.
 
 See <[creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/)>
@@ -44,43 +44,12 @@ See <[creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses
 If you wish to receive attribution for your work as you are entitled under the CC-BY-SA, please add the name you under which you wish have your work recognized to the following list, if you do not wish to receive specific attribution you may signify this when you contribute by leaving this list as it is.
 
 * Cjdns Developer Community
+=======
+If you are able to connect at all over cjdns, then you can be quite sure that the node you connected to possesses the private key that corresponds to the IPv6.
 
-## For committers
+## How can I get involved?
 
-Please remember that the canonical repo is at [gitboria.com/projectmeshnet/documentation](http://gitboria.com/projectmeshnet/documentation) in Hyperboria.
-Pull from there, and push there first.
-If the canonical repo and mirror at [github.com/hyperboria/docs](https://github.com/hyperboria/docs) diverge,
-the canonical repo's respective branch shall be force-pushed to the mirror.
+If you are totally new to cjdns, you'll want to start by installing it somewhere and familiarizing yourself with how it works. Take notes of anything that you find difficult, unintuitive, or poorly documented, and share your knowledge so the next person who installs cjdns after reading the documentation has an easier time.
+>>>>>>> f9a5124ea0273c5a3ff448aa3157d10b44ebab2b
 
-
-## Documentation in cjdns.git/doc
-
-This repository is semi-regularly merged into cjdns' `doc/` directory.
-It's useful to ship documentation with the code.
-We use the following commands.
-
-```sh
-$ cd cjdns/
-$ git remote add hyperboria git@github.com:hyperboria/cjdns.git
-$ git remote add docs git@gitboria.com:projectmeshnet/docs.git
-```
-
-To merge documentation changes into cjdns,
-we squash all new commits since the last merge into one commit,
-and merge that commit into master.
-
-```sh
-$ git checkout master
-$ git pull hyperboria master
-$ git subtree pull --squash -P doc/ docs/master
-$ git push hyperboria master
-```
-
-To merge documentation changes in cjdns back upstream into this repository,
-we create a merge commit, and push it.
-
-```
-$ git subtree split -P doc/
-38e3bc6f899de49213aed754c74046b9ae4a85d2
-$ git push docs 38e3bc6f:master
-```
+Also, read our [contributing](contributing.md) document for notes on our policies for accepting contributions.

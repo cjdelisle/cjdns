@@ -43,6 +43,8 @@ You can contribute to its documentaion: https://github.com/hyperboria/docs
   - [OS X](install/osx.md)
   - [Debian Wheezy](install/debian-wheezy.md)
   - [Debian Jessie](install/debian-jessie.md)
+  - [Arch](install/arch.md)
+  - [Fedora](install/fedora.md)
   - [FreeBSD](install/freebsd.md) *TODO*
   - [OpenBSD](install/openbsd.md) *TODO*
   - [Windows](install/windows.md)

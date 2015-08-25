@@ -24,10 +24,12 @@ The top part of the file specifies where the cjdns executable is, your encryptio
     "ipv6": "fcff:a215:1e7b:a4e9:c00d:0813:93b3:7c87",
 ````
 
-- `corePath`: This specifies where the core cjdns executable file is. If you downloaded the source to /opt/cjdns, then the default is fine. If you downloaded it somewhere else, like your home directory for example, then this needs to be udpdated accordingly.
+- `corePath`: This specifies where the core cjdns executable file is. If you downloaded the source to /opt/cjdns, then the default is fine. If you downloaded it somewhere else, like your home directory for example, then this needs to be updated accordingly.
 - `privateKey`: Your private key is part of the system that ensures all the data coming and going out of your computer is encrypted. You must protect your private key. Do not give it out to anyone.
 - `publicKey`: The public key is what your computer gives to other computers to encrypt data with. This data can then only be decrypted with your private key, that way no one can access your information as it moves across the network.
 - `ipv6`: This is your IP address on the cjdns network. It is unique to you and is created by securely hashing your public key.
+
+Cjdns provides the publicKey and ipv6 fields for convenience, but does not actually require them. If for some reason you want to remove them from the configuration file, you can. At launch, the privateKey will be used to generate the corresponding publicKey, and the publicKey will be used to find the corresponding ipv6 address. Their relationships are deterministic, and passing only the most fundamental attribute avoids configuration errors.
 
 Incoming Connections
 --------------------
@@ -63,6 +65,7 @@ The `authorizedPasswords` section is the area where you can specify passwords to
     ],
 ````
 - `password`: This is the password that another system can give to your node and be allowed to connect. You would place it in the `password` section in the next part.
+  + `password` blocks can be assigned a second `user` attribute. At runtime, when using the `peerStats` script, peers who have connected using a particular password will be associated with the appropriate `user` string.
 - `your.external.ip.goes.here:33808` This section is what you would give to a friend so that they could connect with you. We suggest you add a `"name":"so-and-so"` section to it as well (don't forget the comma between sections!) so that it is easy to see who you have allowed access to. If it later turns out that you no longer wish to have this user connect to you then it is a simple matter to find them and delete or comment out the correct line.
 
 Admin Interface
@@ -84,7 +87,7 @@ The `admin ` section defines the settings for the administrative interface of cj
 ````
 
 - `bind`: This tells cjdns what IP and port the admin interface should bind to. Since you don't want random people connecting to your admin interface, it is probably fine to leave it like this.
-- `password`: This is the password that is needed in order to perform certain functions through the admin interface.
+- `password`: This is the password that is needed in order to perform certain functions through the admin interface. If you wish to expose the admin interface to the network, then you should use a password like the one above. If you are binding only to a local address, then you can use `"NONE"` as a password. This is the new default behaviour on the `crashey` branch, so as to provide an easier default configuration to work with.
 
 Connection Interface(s)
 -----------------------
@@ -156,11 +159,17 @@ This specifies the settings for the connection interfaces to your node. Right no
             "publicKey": "z4s2EXAMPLEPUBLICKEYEXAMPLEPUBLICKEYEXAMPLEKEY4yjp0.k"
         },
     It is important to note that while some people may put additional fields in such as `node`, only `password` and `publicKey` are actually read by cjdns.
+    - more recently generated configuration files will also feature a second block within the `UDPInterface` section, which is to be used to configure UDP peering over IPv6. Such blocks will look like this,
+        "[2001:db8::2:1]:12345":
+        {
+            "password": "thisIsAnExampleOfAPassword",
+            "publicKey": "z4s2EXAMPLEPUBLICKEYEXAMPLEPUBLICKEYEXAMPLEKEY4yjp0.k"
+        },
 - `ETHInterface`:
     - `bind`: This tells cjdns which device the ETHInterface should bind to. This may be different depending on your setup.
     - `connectTo`: The connectTo for the ETHInterface functions almost exactly like it does for the the UDPInterface, except instead of an IP address and a port at the beginning, it is a MAC address.
-    - `beacon`: This controlls peer auto-discovery. Set to 0 to disable auto-peering, 1 to use broadcast auto-peering passwords contained in "beacon" messages from other nodes, and 2 to both broadcast and accept beacons.
-    - It is important to note that you must uncomment the ETHInterface if you want to use it
+    - `beacon`: This controls peer auto-discovery. Set to 0 to disable auto-peering, 1 to use broadcast auto-peering passwords contained in "beacon" messages from other nodes, and 2 to both broadcast and accept beacons.
+    - In earlier versions of cjdns, it was necessary to uncomment the ETHInterface if you want to use it, however, now it is uncommented by default in the `crashey` branch which will eventually be merged to master.
 
 Router
 ------
@@ -192,7 +201,7 @@ IP Tunneling
 
 IP Tunneling will allow you to connect from the cjdns network to another outside network. This is still a work in-progress; although it does function, it requires a bit of manual configuration on both ends to make it useful.
 ````javascript
-        // System for tunneling IPv4 and ICANN IPv6 through cjdns.
+        // System for tunneling IPv4 and ICANN IPv6 through cjdn which will eventually be merged to master..
         // This is using the cjdns switch layer as a VPN carrier.
         "ipTunnel":
         {

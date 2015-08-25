@@ -146,6 +146,12 @@ To find your peers, run `cjdns/contrib/nodejs/tools/peerStats.js`
 
 Alternatively, you can use [this tool which does a few other things as well](https://github.com/ehmry/cjdcmd-ng).
 
+## How to sniff for ethernet cjdns traffic?
+
+```
+tcpdump -nn -s0 -t -vv -e -i mon0 ether proto 0xfc00
+```
+
 ## What are the EAGAIN errors about?
 
 This is a red herring. It simply means that UDPInterface received a packet, and that there's not immediately another packet received.
