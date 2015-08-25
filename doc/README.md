@@ -34,22 +34,10 @@ Establishing a link between two nodes includes a cryptographic authorization pro
 
 Due to the relationship between each node's public key and its ipv6, and the fact that this relationship is verified upon connecting to a node, a user can be sure that if it connects to an IPv6 address and receives a response then the node that responded possesses the requisite private key to decrypt the response.
 
-<<<<<<< HEAD
-Unless otherwise noted, the documents contained within this `/doc/` directory are licensed under a Creative Commons Attribution 4.0 Unported License. By contributing documentation you warrant that you provide it under this license and that you have the right to do so.
-
-See <[creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/)>
-
-### Authors requiring Attribution
-
-If you wish to receive attribution for your work as you are entitled under the CC-BY-SA, please add the name you under which you wish have your work recognized to the following list, if you do not wish to receive specific attribution you may signify this when you contribute by leaving this list as it is.
-
-* Cjdns Developer Community
-=======
 If you are able to connect at all over cjdns, then you can be quite sure that the node you connected to possesses the private key that corresponds to the IPv6.
 
 ## How can I get involved?
 
 If you are totally new to cjdns, you'll want to start by installing it somewhere and familiarizing yourself with how it works. Take notes of anything that you find difficult, unintuitive, or poorly documented, and share your knowledge so the next person who installs cjdns after reading the documentation has an easier time.
->>>>>>> f9a5124ea0273c5a3ff448aa3157d10b44ebab2b
 
 Also, read our [contributing](contributing.md) document for notes on our policies for accepting contributions.
