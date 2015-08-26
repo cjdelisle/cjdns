@@ -1039,7 +1039,6 @@ static struct Node_Link* discoverLinkC(struct NodeStore_pvt* store,
     }
 
     if (EncodingScheme_isSelfRoute(parent->encodingScheme, pathParentChild)) {
-        logLink(store, closest, "Node at end of path appears to have changed");
 
         // This should never happen for a direct peer or for a direct decendent in a split link.
         // This sometimes triggers because a link is split which contains an invalid encoding
@@ -1047,13 +1046,29 @@ static struct Node_Link* discoverLinkC(struct NodeStore_pvt* store,
         // It is not harmful to remove it becaue the route is not re-added.
         Assert_ifTesting(closestKnown != closest);
 
-        // This probably means the parent node has renumbered it's switch...
-        RumorMill_addNode(store->renumberMill, &closest->parent->address);
+        // If the packet came in along a path which is not the best path we know, it might be
+        // that an evil switch modified the path in transit, in this case lets send out a ping
+        // along the best path and it should return to us, confirming that we need to relink
+        // the node.
+        if (discoveredPath == parent->address.path) {
+            logLink(store, closest, "Double-checking path node change");
+            // Ping child's key w/ parent's path
+            uint64_t oldPath = child->address.path;
+            child->address.path = parent->address.path;
+            RumorMill_addNode(store->renumberMill, &child->address);
+            child->address.path = oldPath;
 
-        check(store);
-
-        // But it's possible someone is just lieing to us.
-        return NULL;
+            check(store);
+            return NULL;
+        } else {
+            logLink(store, closest, "Unlinking node for path change");
+            struct Node_Two* nextClosest = Node_getBestParent(closest->parent);
+            uint64_t nextPPC = closest->cannonicalLabel;
+            NodeStore_unlinkNodes(&store->pub, closest);
+            closest = nextClosest;
+            pathParentChild = nextPPC;
+            parent = closest->child;
+        }
     }
 
     // link parent to child
