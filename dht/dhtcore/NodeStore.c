@@ -1062,7 +1062,7 @@ static struct Node_Link* discoverLinkC(struct NodeStore_pvt* store,
             return NULL;
         } else {
             logLink(store, closest, "Unlinking node for path change");
-            struct Node_Two* nextClosest = Node_getBestParent(closest->parent);
+            struct Node_Link* nextClosest = Node_getBestParent(closest->parent);
             uint64_t nextPPC = closest->cannonicalLabel;
             NodeStore_unlinkNodes(&store->pub, closest);
             closest = nextClosest;
