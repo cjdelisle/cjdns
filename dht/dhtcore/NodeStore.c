@@ -1001,6 +1001,8 @@ static struct Node_Link* discoverLinkC(struct NodeStore_pvt* store,
     }
 
     struct Node_Two* parent = closest->child;
+    uint64_t realPathParentChild = pathParentChild == 1 ?
+        closest->cannonicalLabel : pathParentChild;
 
     if (Defined(Log_DEBUG)) {
         uint8_t parentStr[40];
@@ -1009,12 +1011,12 @@ static struct Node_Link* discoverLinkC(struct NodeStore_pvt* store,
 
         AddrTools_printIp(parentStr, parent->address.ip6.bytes);
         AddrTools_printIp(childStr, child->address.ip6.bytes);
-        AddrTools_printPath(pathStr, pathParentChild);
+        AddrTools_printPath(pathStr, realPathParentChild);
         Log_debug(store->logger, "discoverLinkC( [%s]->[%s] [%s] )", parentStr, childStr, pathStr);
     }
 
     if (closest == store->selfLink &&
-        !EncodingScheme_isOneHop(parent->encodingScheme, pathParentChild))
+        !EncodingScheme_isOneHop(parent->encodingScheme, realPathParentChild))
     {
         Log_debug(store->logger, "Attempting to create a link with no parent peer");
         return NULL;
@@ -1038,7 +1040,7 @@ static struct Node_Link* discoverLinkC(struct NodeStore_pvt* store,
         return NULL;
     }
 
-    if (EncodingScheme_isSelfRoute(parent->encodingScheme, pathParentChild)) {
+    if (EncodingScheme_isSelfRoute(parent->encodingScheme, realPathParentChild)) {
         logLink(store, closest, "Node at end of path appears to have changed");
 
         // This should never happen for a direct peer or for a direct decendent in a split link.
@@ -1065,7 +1067,7 @@ static struct Node_Link* discoverLinkC(struct NodeStore_pvt* store,
     // TODO(cjd): linking every node with 0 link state, this can't be right.
     struct Node_Link* parentLink = linkNodes(parent,
                                              child,
-                                             pathParentChild,
+                                             realPathParentChild,
                                              0,
                                              inverseLinkEncodingFormNumber,
                                              discoveredPath,
