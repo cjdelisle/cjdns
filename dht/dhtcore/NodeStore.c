@@ -1014,7 +1014,7 @@ static struct Node_Link* discoverLinkC(struct NodeStore_pvt* store,
     }
 
     if (closest == store->selfLink &&
-        !EncodingScheme_isOneHop(parent->encodingScheme, pathParentChild))
+        !EncodingScheme_isOneHop(parent->encodingScheme, pathKnownParentChild))
     {
         Log_debug(store->logger, "Attempting to create a link with no parent peer");
         return NULL;
@@ -1038,7 +1038,7 @@ static struct Node_Link* discoverLinkC(struct NodeStore_pvt* store,
         return NULL;
     }
 
-    if (EncodingScheme_isSelfRoute(parent->encodingScheme, pathParentChild)) {
+    if (EncodingScheme_isSelfRoute(parent->encodingScheme, pathKnownParentChild)) {
         logLink(store, closest, "Node at end of path appears to have changed");
 
         // This should never happen for a direct peer or for a direct decendent in a split link.
@@ -1065,7 +1065,8 @@ static struct Node_Link* discoverLinkC(struct NodeStore_pvt* store,
     // TODO(cjd): linking every node with 0 link state, this can't be right.
     struct Node_Link* parentLink = linkNodes(parent,
                                              child,
-                                             pathParentChild,
+                                             pathParentChild == 1 ?
+                                             pathKnownParentChild : pathParentChild,
                                              0,
                                              inverseLinkEncodingFormNumber,
                                              discoveredPath,
