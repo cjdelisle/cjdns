@@ -243,8 +243,7 @@ reasons:
    resolution.
 
 To find a friend, get out there and join our [community](#community). Also, have
-a look at the [Project Meshnet Map][] to find peers near you (note: scroll the
-map right, not left; the markers don't repeat).
+a look at the [Hyperboria Map][] to find peers near you.
 
 
 ### 3. Connect your node to your friend's node
@@ -410,7 +409,7 @@ You can access the admin API with:
 [Project Meshnet]: https://projectmeshnet.org
 [/r/darknetplan]: http://www.reddit.com/r/darknetplan
 [#cjdns on Twitter]: https://twitter.com/hashtag/cjdns
-[Project Meshnet Map]: http://map.projectmeshnet.org
+[Hyperboria Map]: http://www.fc00.org/
 [Buildbots]: https://buildbot.meshwith.me/cjdns/waterfall
 
 [Cjdns on Wikipedia]: https://en.wikipedia.org/wiki/Cjdns

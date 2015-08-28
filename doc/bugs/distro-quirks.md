@@ -16,3 +16,26 @@
 ```
 
 There you have it, Macs don't autopeer via ethernet frames.
+
+This is also probably why it doesn't work on windows, either.
+
+## Raspbian
+
+### Failure to start Cjdns
+When running Cjdns on Raspberry Pi with Raspbian you can run in to problems because IPv6 is not enabled by default. This causes Cjdns to fail on startup with the following error message:
+
+```
+CRITICAL Configurator.c:107 Got error [UDPAddrIface.c:273 call to uv_udp_bind() failed [bad file descriptor]] calling [UDPInterface_new]
+```
+
+Enable IPv6 with
+
+```bash
+$ sudo modprobe ipv6
+```
+
+and Cjdns should start correctly. To keep IPv6 on after reboot add `ipv6` to the end of the file `/etc/modules`
+
+```bash
+$ sudo sh -c 'echo ipv6 >> /etc/modules'
+```

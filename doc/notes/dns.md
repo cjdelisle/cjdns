@@ -43,6 +43,14 @@ Now might be a good time to actually figure out how we're going to move forward.
   - http://rfdns.cjdns.ca/
   - https://ezcrypt.it/ck5n#gYdfOeREHwzD92H0WDry4Z5e
   - https://ezcrypt.it/9Q6n#ejSF9d762REt7hmJ8pl46yp7
+- EmerCoin DNS (by emercoin.com) # similar to namecoin with notable differences
+    - Longer names allowed than namecoin (512 instead of 255 bytes)
+    - Longer values allowed than namecoin (20*1024 instead of 1023 bytes)
+    - Variable lease time, price depends on requested lease time
+    - EmerCoin also used for a broad set of additional web services such as blockchain-derived SSL and SSH.
+    - Supports any number of TLD's (no need to build new DNS service on top of it)
+    - Every EMC wallet is native RFC1034 DNS server.
+    - More info: http://emercoin.com/DNS_and_Name-Value_Storage
 - DJDNS   (ironically, by rainfly) # maybe a good idea? idk. not widely adopted, written in Go, so I'm not fond of it.# just trolling.. kinda..
   - https://github.com/campadrenalin/djdns
   - There's also https://github.com/campadrenalin/python-djdns
@@ -53,6 +61,7 @@ Now might be a good time to actually figure out how we're going to move forward.
   - https://www.youtube.com/watch?v=uhIybhAQ8lY (30c3 lecture)
   - https://gnunet.org/sites/default/files/schanzen2012msc.pdf (masters thesis proposing GADS) (read this if you need to kill an afternoon)
 - .p2p (from TPB people) - http://p2pfoundation.net/Dot-P2P http://dot-p2p.org
+- https://github.com/mwarning/KadNode - P2P DNS and more, written in C, based on the Kad DHT with optional support for signed records using libsodium
 - http://couch.syrinxist.org/share/dns-idea.txt #ircerr's idea
 
 ### proposed/extant TLDs...

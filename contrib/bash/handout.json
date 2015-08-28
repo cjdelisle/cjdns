@@ -1,8 +1,0 @@
-{
-  "you.example.com:12345": {
-    "user": "your username",
-    "location": "your node's location, e.g. digitalocean-ams3 or berlin",
-    "contact": "you@example.com",
-    "gpg": "your gpg fingerprint"
-  }
-}

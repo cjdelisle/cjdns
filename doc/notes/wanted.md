@@ -38,6 +38,9 @@ If you see something listed here that has been taken care of, please knock it of
   + cjdns/node_build/make.js
 * in the media
 * [FAQ](../faq/)
+  + how does cjdns choose which path to take? latency? number of hops?
+    * choosing paths presupposes knowing them, which can get in the way of finding the _optimal_ path. Paths to nodes are stored preferentially based on the [xor metric](../cjdns/functions/Address_xorcmp.md).
+    * the path choice metric is a combination of various factors (latency and number of hops are among them). This is poorly documented, and we need someone to explore the exact details. Contributions should go in `../cjdns/functions/`
   + My service doesn't like ipv6. how can I get it to run on hype? [6tunnel?](http://toxygen.net/6tunnel/)
     * inet6 with tcp6 and netcat
   + How can I help?
