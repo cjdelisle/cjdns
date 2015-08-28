@@ -35,8 +35,6 @@
 #include <sys/mman.h>
 #include <stdio.h>
 
-static const unsigned long cfgMaxMemoryBytes = 100000000;
-
 Dict* Security_getUser(char* userName, struct Allocator* retAlloc)
 {
     struct passwd* pw;
