@@ -1,9 +1,15 @@
 #!/bin/bash
 
-ANDROID_NDK_PATH=/home/emil/dev/android-ndk-r10d/
+#change this to valid ndk path
+ANDROID_NDK_PATH=/bad/path/to/android-ndk-r10d/
 ANDROID_PROJECT_PATH=$(pwd)/../android
 ANDROID_BUILD_PATH=$(pwd)/build_android
 
+if [ "$ANDROID_NDK_PATH" == "/bad/path/to/android-ndk-r10d/" ];
+then
+  echo -e "\e[1;31mPlease, change Android NDK path!\e[0m"  
+  exit 1
+fi
 android_log=android_build_$$.log
 enabled_log=${LOG}
 
@@ -37,9 +43,9 @@ cp cjdroute $ANDROID_PROJECT_PATH/src/main/assets/armeabi-v7a/ || ret=$?
 
 if [ "$ret" != "" ] && [ "$ret" != "0" ];
 then
-    echo -e "\e[1;31mCopying failed, non zero status returned - $ret\e[0m"
+  echo -e "\e[1;31mCopying failed, non zero status returned - $ret\e[0m"
 else
-    echo -e "\e[1;32mCopied successfully \e[0m"
+  echo -e "\e[1;32mCopied successfully \e[0m"
 fi
 
 exit $ret
