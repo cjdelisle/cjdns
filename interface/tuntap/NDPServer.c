@@ -76,7 +76,11 @@ static Iface_DEFUN answerNeighborSolicitation(struct Message* msg, struct NDPSer
     Message_pop(msg, &ip6, Headers_IP6Header_SIZE, NULL);
     struct NDPHeader_NeighborSolicitation sol;
     Message_pop(msg, &sol, NDPHeader_NeighborSolicitation_SIZE, NULL);
-    Assert_true(!msg->length);
+    if (msg->length) {
+        /* Right now we ignore any ICMP options. Windows will send them. */
+        Log_debug(ns->log, "%d extra bytes (ICMP options?) in neighbor solicitation",
+            msg->length);
+    }
 
     struct NDPHeader_MacOpt macOpt = {
         .type = NDPHeader_MacOpt_type_TARGET,
