@@ -174,6 +174,7 @@ static void switching(struct Context* ctx)
                                                 bob->ca->publicKey,
                                                 Sockaddr_LOOPBACK,
                                                 String_CONST("abcdefg123"),
+                                                NULL,
                                                 alloc);
     Assert_true(!ret);
 

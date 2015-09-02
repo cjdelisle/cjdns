@@ -44,6 +44,8 @@ static void beginConnection(Dict* args,
     String* address = Dict_getString(args, String_CONST("address"));
     int64_t* interfaceNumber = Dict_getInt(args, String_CONST("interfaceNumber"));
     uint32_t ifNum = (interfaceNumber) ? ((uint32_t) *interfaceNumber) : 0;
+    // This is the user to display the remote end as, not a login user
+    String* user = Dict_getString(args, String_CONST("user"));
     String* error = NULL;
 
     Log_debug(ctx->logger, "Peering with [%s]", publicKey->bytes);
@@ -82,8 +84,8 @@ static void beginConnection(Dict* args,
             Sockaddr_setPort(addr, Sockaddr_getPort(&ss.addr));
         }
 
-        int ret =
-            InterfaceController_bootstrapPeer(ctx->ic, ifNum, pkBytes, addr, password, ctx->alloc);
+        int ret = InterfaceController_bootstrapPeer(
+            ctx->ic, ifNum, pkBytes, addr, password, user, ctx->alloc);
 
         Allocator_free(tempAlloc);
 

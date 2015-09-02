@@ -45,6 +45,8 @@ static void beginConnection(Dict* args,
     String* macAddress = Dict_getString(args, String_CONST("macAddress"));
     int64_t* interfaceNumber = Dict_getInt(args, String_CONST("interfaceNumber"));
     uint32_t ifNum = (interfaceNumber) ? ((uint32_t) *interfaceNumber) : 0;
+    // This is the user to display the remote end as, not a login user
+    String* user = Dict_getString(args, String_CONST("user"));
     char* error = "none";
 
     uint8_t pkBytes[32];
@@ -61,7 +63,7 @@ static void beginConnection(Dict* args,
         error = "invalid macAddress";
     } else {
         int ret = InterfaceController_bootstrapPeer(
-            ctx->ic, ifNum, pkBytes, &sockaddr.generic, password, ctx->alloc);
+            ctx->ic, ifNum, pkBytes, &sockaddr.generic, password, user, ctx->alloc);
 
         if (ret == InterfaceController_bootstrapPeer_BAD_IFNUM) {
             error = "invalid interfaceNumber";
