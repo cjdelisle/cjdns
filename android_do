@@ -121,7 +121,7 @@ fi
 
 rm cjdroute
 
-echo -e "\n\e[1;34mOutput: $BUILD_PATH/out/armeabi-v7a/cjdroute\e[0m"
-echo -e "\e[1;34m        $BUILD_PATH/out/x86/cjdroute\e[0m"
+echo -e "\n\e[1;34mOutput: $(pwd)/android_out/armeabi-v7a/cjdroute\e[0m"
+echo -e "\e[1;34m        $(pwd)/android_out/x86/cjdroute\e[0m"
 
 exit $ret
