@@ -212,14 +212,24 @@ static int get_device_guid(
             RegOpenKeyEx(HKEY_LOCAL_MACHINE, connection_string, 0, KEY_READ, &connKey)
         ));
 
+
+        // In Windows 10, some interface keys don't have names. We should keep
+        // going and treat those interfaces as having empty string names.
+
         len = sizeof (name_data);
+        status = RegQueryValueEx(connKey, name_string, NULL, &name_type,
+            (uint8_t*)name_data, &len);
 
-        WinFail_check(eh, (
-            RegQueryValueEx(connKey, name_string, NULL, &name_type, (uint8_t*)name_data, &len)
-        ));
-
-        if (name_type != REG_SZ) {
-            WinFail_fail(eh, "RegQueryValueEx() name_type != REG_SZ", status);
+        if (status == ERROR_FILE_NOT_FOUND) {
+            // The interface has no name.
+            strncpy(name_data, "",  sizeof (name_data));
+        } else if (status != ERROR_SUCCESS) {
+            WinFail_fail(eh, "RegQueryValueEx() for interface name failed", status);
+        } else {
+            if (name_type != REG_SZ) {
+                // Someone named an interface with a non-string
+                WinFail_fail(eh, "RegQueryValueEx() name_type != REG_SZ", status);
+            }
         }
 
         if (is_tap_win32_dev(enum_name)) {
