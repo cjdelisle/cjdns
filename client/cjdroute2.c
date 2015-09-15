@@ -131,14 +131,14 @@ static int genconf(struct Random* rand, bool eth)
            "        // Below is an example of your connection credentials\n"
            "        // that you can give to other people so they can connect\n"
            "        // to you using your default password (from above).\n"
-           "        // The user field here identifies your node to your peer.\n"
+           "        // The peerName field here identifies your node to your peer.\n"
            "        // Adding a unique password for each peer is advisable\n"
            "        // so that leaks can be isolated.\n"
            "        //\n"
            "        // \"your.external.ip.goes.here:%u\":{", port);
     printf("\"password\":\"%s\",", password);
     printf("\"publicKey\":\"%s.k\",", publicKeyBase32);
-    printf("\"user\":\"your-name-not-password's-user\"},\n");
+    printf("\"peerName\":\"your-name-goes-here\"},\n");
     printf("    ],\n"
            "\n"
            "    // Settings for administering and extracting information from your router.\n"
@@ -184,7 +184,7 @@ static int genconf(struct Random* rand, bool eth)
            "                    //     \"publicKey\": \"remote node key.k\",\n"
            "                    //     // And optionally:\n"
            "                    //     \"ipv6\": \"derived from key with publictoip6\",\n"
-           "                    //     \"user\": \"human-readable display name for peer\"\n"
+           "                    //     \"peerName\": \"human-readable display name for peer\"\n"
            "                    // },\n"
            "                    // Ask somebody who is already connected.\n"
            "                }\n"
