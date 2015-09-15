@@ -50,7 +50,7 @@ if [ "$NDK" == "/bad/path/to/android-ndk-r10e/" ]; then
     [[ ! -d "$NDK" ]] && {
         echo "The NDK variable is not pointing to a valid directory"
         exit 1
-    }  
+    }
     cd ..
   else
     NDK=$BUILD_PATH/$NDK_VERSION/
@@ -69,7 +69,9 @@ mkdir $(pwd)/android_out/x86
 #arm build
 rm -rf build_linux
 
-export CROSS_COMPILE=$BUILD_PATH/arm-${TYPE}-androideabi/bin/arm-${TYPE}-androideabi-
+export SYSTEM=linux
+
+export CROSS_COMPILE=$BUILD_PATH/arm-${TYPE}-androideabi/bin/arm-linux-androideabi-
 export TARGET_ARCH=arm
 export CROSS=${CROSS_COMPILE}
 export CC=${CROSS}gcc
@@ -82,7 +84,7 @@ echo Using $gcc_version
 echo Compiler CC: $CC
 echo Compiler CFLAGS: $CFLAGS
 echo Compiler LDFLAGS: $LDFLAGS
-time ./do 
+time ./do
 cp cjdroute $(pwd)/android_out/armeabi-v7a/ || ret=$?
 
 if [ "$ret" != "" ] && [ "$ret" != "0" ]; then
@@ -96,7 +98,7 @@ rm cjdroute
 #x86 build
 rm -rf build_linux
 
-export CROSS_COMPILE=$BUILD_PATH/i686-${TYPE}-androideabi/bin/i686-${TYPE}-android-
+export CROSS_COMPILE=$BUILD_PATH/i686-${TYPE}-androideabi/bin/i686-linux-android-
 export TARGET_ARCH=x64
 export CROSS=${CROSS_COMPILE}
 export CC=${CROSS}gcc
