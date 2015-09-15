@@ -194,6 +194,7 @@ void TestFramework_linkNodes(struct TestFramework* client,
                                    server->publicKey,
                                    Sockaddr_LOOPBACK,
                                    String_CONST("abcdefg123"),
+                                   NULL,
                                    client->alloc);
     }
 }
