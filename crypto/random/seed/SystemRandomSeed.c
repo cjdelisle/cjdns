@@ -21,6 +21,7 @@
 #include "crypto/random/seed/DevUrandomRandomSeed.h"
 #include "crypto/random/seed/LinuxRandomUuidSysctlRandomSeed.h"
 #include "crypto/random/seed/ProcSysKernelRandomUuidRandomSeed.h"
+#include "crypto/random/seed/GetEntropyRandomSeed.h"
 
 static RandomSeed_Provider PROVIDERS[] = { RandomSeedProvider_list() };
 #define PROVIDERS_COUNT ((int)(sizeof(PROVIDERS) / sizeof(RandomSeed_Provider)))
