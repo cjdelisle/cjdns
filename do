@@ -158,6 +158,16 @@ function get_node_tool() {
 
 cd "$(dirname $0)" \
     || die 'failed to set directory'
+    
+# initialize git submodules
+git submodule update --init --recursive \
+    || die "failed to initialize git submodules, please install git"
+    # TODO, download and extract submodules such as:
+    # https://github.com/libuv/libuv/archive/a7ad4f52189d89cfcba35f78bfc5ff3b1f4105c4.tar.gz
+
+# clean and reset submodules
+git submodule foreach git clean -fxd
+git submodule foreach git reset --hard
 
 [[ -d "$build_dir" ]] \
     || install -d "$build_dir" \
