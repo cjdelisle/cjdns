@@ -31,8 +31,13 @@ int main()
 
     FILE* tmp = tmpfile();
     uint8_t buffer1[2048];
+    size_t checkSize;
     Random_bytes(rand, buffer1, 2048);
-    fwrite(buffer1, 1, 2048, tmp);
+    checkSize = fwrite(buffer1, 1, 2048, tmp);
+    if (checkSize != 2048)
+    {
+        return 1;
+    }
 
     uint8_t buffer2[1024];
     rewind(tmp);

@@ -50,7 +50,7 @@
 #if defined(si_syscall)
 # define GET_SYSCALL_NUM(si) ((si)->si_syscall)
 #else
-# warning "your libc doesn't define SIGSYS signal info!"
+# warning "your libc doesn't define SIGSYS signal info! Try build witch Seccomp_NO=1"
 # define GET_SYSCALL_NUM(si) ((si)->si_value.sival_int)
 #endif
 
