@@ -169,6 +169,10 @@ git submodule update --init --recursive \
 git submodule foreach git clean -fxd
 git submodule foreach git reset --hard
 
+# create symbolic link for gyp
+mkdir -p node_build/dependencies/libuv/build
+ln -s ../../gyp/ node_build/dependencies/libuv/build/
+
 [[ -d "$build_dir" ]] \
     || install -d "$build_dir" \
         || die "failed to create build dir $build_dir"
