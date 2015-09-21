@@ -6,3 +6,8 @@
 	url = https://github.com/da2ce7/libuv.git
 	branch = cjdns
 
+[submodule "gyp"]
+	path = node_build/dependencies/gyp
+	url = https://chromium.googlesource.com/external/gyp
+	branch = master
+
