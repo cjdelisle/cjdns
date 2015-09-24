@@ -93,7 +93,7 @@ static struct Context* setUp(uint8_t* myPrivateKey,
         CryptoAuth_newSession(ca, alloc, herPublicKey, NULL, false, Gcc_FILE);
 
     if (authPassword) {
-        CryptoAuth_setAuth(String_CONST(authPassword), 1, sess);
+        CryptoAuth_setAuth(String_CONST(authPassword), NULL, sess);
     }
 
     return ctx;
@@ -197,12 +197,12 @@ static void testGetUsers()
     users = CryptoAuth_getUsers(ca, allocator);
     Assert_true(List_size(users) == 0);
 
-    CryptoAuth_addUser(String_CONST("pass1"), 1, String_CONST("user1"), ca);
+    CryptoAuth_addUser(String_CONST("pass1"), NULL, String_CONST("user1"), ca);
     users = CryptoAuth_getUsers(ca, allocator);
     Assert_true(List_size(users) == 1);
-    Assert_true(String_equals(String_CONST("user1"),List_getString(users,0)));
+    Assert_true(String_equals(String_CONST("user1"), List_getString(users,0)));
 
-    CryptoAuth_addUser(String_CONST("pass2"), 1, String_CONST("user2"), ca);
+    CryptoAuth_addUser(String_CONST("pass2"), NULL, String_CONST("user2"), ca);
     users = CryptoAuth_getUsers(ca, allocator);
     Assert_true(List_size(users) == 2);
     Assert_true(String_equals(String_CONST("user2"),List_getString(users,0)));

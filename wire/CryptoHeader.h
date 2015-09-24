@@ -33,18 +33,14 @@
  *    8 |A|        Derivations          |S|         Additional          |
  *      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  *
- * If the 'A' bit is set, the packets in the connection are to be authenticated with Poly1305.
+ * Bits A and S are deprecated, both will always be cleared and ignored.
+ *
  * The Auth Type and Hash Code combined make a lookup key which can be used to scan a hashtable
  * to see if the given password is known. It can be thought of as the "username" although it is
  * a derivative of the password.
- * The number of derivations represents how many times the hash of the password has been hashed
- * again. Assuming Alice and Bob have a secure shared secret and Bob and Charlie have a secure
- * shared secret, Bob can provide Charlie with a hash of his password with Alice which will allow
- * Charlie to then establish a secure connection with Alice, without relying exclusively on
- * asymmetrical cryptography.
- *
- * If the packet has 0 length and the 'S' bit is set then the packet is only intended for helping
- * to setup the Cryptoauth session and should be dropped rather than being passed to the user.
+ * The final key is derived from the key looked up using HashCode and the content of Derivations,
+ * this way Alice can pass a password for connecting to Bob to Charlie and then Charlie can start
+ * a stronger session with Bob but still cannot impersonate Alice.
  */
 union CryptoHeader_Challenge
 {
@@ -70,32 +66,6 @@ Assert_compileTime(sizeof(union CryptoHeader_Challenge) == CryptoHeader_Challeng
 /** The number of bytes from the beginning which identify the auth for looking up the secret. */
 #define CryptoHeader_Challenge_KEYSIZE 8
 
-static inline int CryptoHeader_isSetupPacket(union CryptoHeader_Challenge* ac)
-{
-    return ac->challenge.additional & Endian_hostToBigEndian16(1<<15);
-}
-
-static inline void CryptoHeader_setPacketAuthRequired(union CryptoHeader_Challenge* ac,
-                                                 int require)
-{
-    if (require) {
-        ac->challenge.requirePacketAuthAndDerivationCount |=
-            Endian_hostToBigEndian16(1<<15);
-    } else {
-        ac->challenge.requirePacketAuthAndDerivationCount &=
-            Endian_hostToBigEndian16(~(1<<15));
-    }
-}
-
-static inline void CryptoHeader_setSetupPacket(union CryptoHeader_Challenge* ac, int empty)
-{
-    if (empty) {
-        ac->challenge.additional |= Endian_hostToBigEndian16(1<<15);
-    } else {
-        ac->challenge.additional &= Endian_hostToBigEndian16(~(1<<15));
-    }
-}
-
 static inline uint16_t CryptoHeader_getAuthChallengeDerivations(union CryptoHeader_Challenge* ac)
 {
     return Endian_bigEndianToHost16(ac->challenge.requirePacketAuthAndDerivationCount)
@@ -105,10 +75,7 @@ static inline uint16_t CryptoHeader_getAuthChallengeDerivations(union CryptoHead
 static inline void CryptoHeader_setAuthChallengeDerivations(union CryptoHeader_Challenge* ac,
                                                             uint16_t derivations)
 {
-    ac->challenge.requirePacketAuthAndDerivationCount &=
-        Endian_hostToBigEndian16(1<<15);
-    ac->challenge.requirePacketAuthAndDerivationCount |=
-        Endian_hostToBigEndian16(derivations & ~(1<<15));
+    ac->challenge.requirePacketAuthAndDerivationCount = Endian_hostToBigEndian16(derivations);
 }
 
 /**

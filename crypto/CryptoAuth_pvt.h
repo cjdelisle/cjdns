@@ -73,6 +73,9 @@ struct CryptoAuth_Session_pvt
     /** A password to use for authing with the other party. */
     String* password;
 
+    /** The login name to auth with the other party. */
+    String* login;
+
     /** The next nonce to use. */
     uint32_t nextNonce;
 
@@ -92,9 +95,6 @@ struct CryptoAuth_Session_pvt
 
     /** A pointer back to the main cryptoauth context. */
     struct CryptoAuth_pvt* context;
-
-    /** A name for the session which will appear in logs. */
-    char* name;
 
     Identity
 };

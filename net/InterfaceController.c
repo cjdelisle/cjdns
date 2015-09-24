@@ -556,7 +556,7 @@ static Iface_DEFUN handleBeacon(struct Message* msg, struct InterfaceController_
     if (epIndex > -1) {
         // The password might have changed!
         struct Peer* ep = ici->peerMap.values[epIndex];
-        CryptoAuth_setAuth(beaconPass, 1, ep->caSession);
+        CryptoAuth_setAuth(beaconPass, NULL, ep->caSession);
         return NULL;
     }
 

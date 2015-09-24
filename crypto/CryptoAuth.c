@@ -39,8 +39,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define USE_RES __attribute__ ((warn_unused_result))
-
 static inline void printHexKey(uint8_t output[65], uint8_t key[32])
 {
     if (key) {
@@ -123,16 +121,35 @@ static inline void hashPassword_sha256(struct CryptoAuth_Auth* auth, const Strin
     auth->challenge.challenge.type = 1;
 }
 
+static inline void hashPassword_withLogin(struct CryptoAuth_Auth* auth,
+                                          const String* login,
+                                          const String* password)
+{
+    crypto_hash_sha256(auth->secret, (uint8_t*) password->bytes, password->len);
+    uint8_t tempBuff[32];
+    crypto_hash_sha256(tempBuff, (uint8_t*) login->bytes, login->len);
+    Bits_memcpyConst(auth->challenge.bytes, tempBuff, CryptoHeader_Challenge_SIZE);
+    CryptoHeader_setAuthChallengeDerivations(&auth->challenge, 0);
+    auth->challenge.challenge.type = 2;
+}
+
 static inline uint8_t* hashPassword(struct CryptoAuth_Auth* auth,
+                                    const String* login,
                                     const String* password,
                                     const uint8_t authType)
 {
     switch (authType) {
-        case 1:
+        case 1: {
             hashPassword_sha256(auth, password);
             break;
+        }
+        case 2: {
+            Assert_true(login);
+            hashPassword_withLogin(auth, login, password);
+            break;
+        }
         default:
-            Assert_true(!"Unsupported auth type.");
+            Assert_failure("Unsupported auth type.");
     };
     return auth->secret;
 }
@@ -204,9 +221,9 @@ static inline uint8_t* tryAuth(union CryptoHeader* cauth,
  * @param secret a shared secret.
  * @return 0 if decryption is succeddful, otherwise -1.
  */
-static inline USE_RES int decryptRndNonce(uint8_t nonce[24],
-                                          struct Message* msg,
-                                          uint8_t secret[32])
+static inline Gcc_USE_RET int decryptRndNonce(uint8_t nonce[24],
+                                              struct Message* msg,
+                                              uint8_t secret[32])
 {
     if (msg->length < 16) {
         return -1;
@@ -264,10 +281,10 @@ static inline void encryptRndNonce(uint8_t nonce[24],
  * @param secret the shared secret.
  * @param isInitiator true if we started the connection.
  */
-static inline USE_RES int decrypt(uint32_t nonce,
-                                  struct Message* msg,
-                                  uint8_t secret[32],
-                                  bool isInitiator)
+static inline Gcc_USE_RET int decrypt(uint32_t nonce,
+                                      struct Message* msg,
+                                      uint8_t secret[32],
+                                      bool isInitiator)
 {
     union {
         uint32_t ints[2];
@@ -318,8 +335,8 @@ static void getIp6(struct CryptoAuth_Session_pvt* session, uint8_t* addr)
     {                                                                                            \
         uint8_t addr[40] = "unknown";                                                            \
         getIp6((session), addr);                                                                 \
-        Log_debug((session)->context->logger,                                                    \
-                  "%p %s [%s]: " format, (void*)(session), (session)->name, addr, __VA_ARGS__);  \
+        Log_debug((session)->context->logger, "%p %s [%s]: " format, (void*)(session),           \
+                  (session)->pub.displayName, addr, __VA_ARGS__);                                \
     }
 
 #define cryptoAuthDebug0(wrapper, format) \
@@ -388,16 +405,12 @@ static void encryptHandshake(struct Message* message,
     uint8_t* passwordHash = NULL;
     struct CryptoAuth_Auth auth;
     if (session->password != NULL) {
-        passwordHash = hashPassword(&auth, session->password, session->authType);
+        passwordHash = hashPassword(&auth, session->login, session->password, session->authType);
         Bits_memcpyConst(header->handshake.auth.bytes,
                          &auth.challenge,
                          sizeof(union CryptoHeader_Challenge));
     }
     header->handshake.auth.challenge.type = session->authType;
-
-    // Packet authentication option is deprecated, it must always be enabled.
-    CryptoHeader_setPacketAuthRequired(&header->handshake.auth, 1);
-
     header->handshake.auth.challenge.additional = 0;
 
     // Set the session state
@@ -553,10 +566,10 @@ static inline void updateTime(struct CryptoAuth_Session_pvt* session, struct Mes
     session->timeOfLastPacket = Time_currentTimeSeconds(session->context->eventBase);
 }
 
-static inline USE_RES bool decryptMessage(struct CryptoAuth_Session_pvt* session,
-                                          uint32_t nonce,
-                                          struct Message* content,
-                                          uint8_t secret[32])
+static inline Gcc_USE_RET bool decryptMessage(struct CryptoAuth_Session_pvt* session,
+                                              uint32_t nonce,
+                                              struct Message* content,
+                                              uint8_t secret[32])
 {
     // Decrypt with authentication and replay prevention.
     if (decrypt(nonce, content, secret, session->isInitiator)) {
@@ -577,10 +590,10 @@ static bool ip6MatchesKey(uint8_t ip6[16], uint8_t key[32])
     return !Bits_memcmp(ip6, calculatedIp6, 16);
 }
 
-static USE_RES int decryptHandshake(struct CryptoAuth_Session_pvt* session,
-                                    const uint32_t nonce,
-                                    struct Message* message,
-                                    union CryptoHeader* header)
+static Gcc_USE_RET int decryptHandshake(struct CryptoAuth_Session_pvt* session,
+                                        const uint32_t nonce,
+                                        struct Message* message,
+                                        union CryptoHeader* header)
 {
     if (message->length < CryptoHeader_SIZE) {
         cryptoAuthDebug0(session, "DROP runt");
@@ -770,8 +783,8 @@ static USE_RES int decryptHandshake(struct CryptoAuth_Session_pvt* session,
             Assert_true(session->nextNonce <= nextNonce);
             session->nextNonce = nextNonce;
 
-            if (!session->pub.userName) {
-                session->pub.userName = user;
+            if (!session->pub.displayName) {
+                session->pub.displayName = user;
             }
             Bits_memcpyConst(session->herTempPubKey, header->handshake.encryptedTempKey, 32);
         } else {
@@ -811,8 +824,8 @@ static USE_RES int decryptHandshake(struct CryptoAuth_Session_pvt* session,
 
         Assert_true(session->nextNonce <= nextNonce);
         session->nextNonce = nextNonce;
-        if (!session->pub.userName) {
-            session->pub.userName = user;
+        if (!session->pub.displayName) {
+            session->pub.displayName = user;
         }
         if (restrictedToip6) {
             Bits_memcpyConst(session->pub.herIp6, restrictedToip6, 16);
@@ -828,8 +841,8 @@ static USE_RES int decryptHandshake(struct CryptoAuth_Session_pvt* session,
 
         Assert_true(session->nextNonce <= nextNonce);
         session->nextNonce = nextNonce;
-        if (!session->pub.userName) {
-            session->pub.userName = user;
+        if (!session->pub.displayName) {
+            session->pub.displayName = user;
         }
         if (restrictedToip6) {
             Bits_memcpyConst(session->pub.herIp6, restrictedToip6, 16);
@@ -973,39 +986,39 @@ struct CryptoAuth* CryptoAuth_new(struct Allocator* allocator,
 }
 
 int32_t CryptoAuth_addUser(String* password,
-                           uint8_t authType,
-                           String* user,
+                           String* login,
+                           String* displayName,
                            struct CryptoAuth* ca)
 {
-     return CryptoAuth_addUser_ipv6(password, authType, user, NULL, ca);
+     return CryptoAuth_addUser_ipv6(password, login, displayName, NULL, ca);
 }
 
 int32_t CryptoAuth_addUser_ipv6(String* password,
-                                uint8_t authType,
-                                String* user,
+                                String* login,
+                                String* displayName,
                                 String* ipv6,
                                 struct CryptoAuth* ca)
 {
     struct CryptoAuth_pvt* context = Identity_check((struct CryptoAuth_pvt*) ca);
-    if (authType != 1) {
-        return CryptoAuth_addUser_INVALID_AUTHTYPE;
-    }
-    if (context->passwordCount == context->passwordCapacity) {
-        // TODO(cjd): realloc password space and increase buffer.
-        return CryptoAuth_addUser_OUT_OF_SPACE;
-    }
+
     struct CryptoAuth_Auth a;
-    hashPassword_sha256(&a, password);
+    if (login) {
+        hashPassword_withLogin(&a, login, password);
+    } else {
+        hashPassword_sha256(&a, password);
+    }
     for (uint32_t i = 0; i < context->passwordCount; i++) {
         if (!Bits_memcmp(a.secret, context->passwords[i].secret, 32) ||
-            String_equals(user, context->passwords[i].user)) {
+            String_equals(displayName, context->passwords[i].user))
+        {
             return CryptoAuth_addUser_DUPLICATE;
         }
     }
-    a.user = String_new(user->bytes, context->allocator);
+    a.user = String_clone(displayName, context->allocator);
     if (ipv6) {
+        // TODO(cjd): This could become a memory leak
         a.restrictedToip6 = Allocator_malloc(context->allocator, 16);
-        if (AddrTools_parseIp(a.restrictedToip6,ipv6->bytes) < 0) {
+        if (AddrTools_parseIp(a.restrictedToip6, ipv6->bytes) < 0) {
             Log_debug(context->logger, "Ipv6 parsing error!");
             return CryptoAuth_addUser_INVALID_IP;
         }
@@ -1063,7 +1076,7 @@ struct CryptoAuth_Session* CryptoAuth_newSession(struct CryptoAuth* ca,
                                                  const uint8_t herPublicKey[32],
                                                  const uint8_t herIp6[16],
                                                  const bool requireAuth,
-                                                 char* name)
+                                                 char* displayName)
 {
     struct CryptoAuth_pvt* context = Identity_check((struct CryptoAuth_pvt*) ca);
     struct CryptoAuth_Session_pvt* session =
@@ -1071,7 +1084,7 @@ struct CryptoAuth_Session* CryptoAuth_newSession(struct CryptoAuth* ca,
     Identity_set(session);
     session->context = context;
     session->requireAuth = requireAuth;
-    session->name = name;
+    session->pub.displayName = String_new(displayName, alloc);
     session->timeOfLastPacket = Time_currentTimeSeconds(context->eventBase);
     session->alloc = alloc;
 
@@ -1091,7 +1104,7 @@ struct CryptoAuth_Session* CryptoAuth_newSession(struct CryptoAuth* ca,
 }
 
 void CryptoAuth_setAuth(const String* password,
-                        const uint8_t authType,
+                        const String* login,
                         struct CryptoAuth_Session* caSession)
 {
     struct CryptoAuth_Session_pvt* session =
@@ -1102,9 +1115,11 @@ void CryptoAuth_setAuth(const String* password,
         session->authType = 0;
     } else if (!session->password || !String_equals(session->password, password)) {
         session->password = String_clone(password, session->alloc);
-        session->authType = authType;
-    } else if (authType != session->authType) {
-        session->authType = authType;
+        session->authType = 1;
+        if (login) {
+            session->authType = 2;
+            session->login = String_clone(login, session->alloc);
+        }
     } else {
         return;
     }

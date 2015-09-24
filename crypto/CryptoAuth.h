@@ -46,7 +46,7 @@ struct CryptoAuth_Session
 {
     uint8_t herPublicKey[32];
 
-    String* userName;
+    String* displayName;
 
     struct ReplayProtector replayProtector;
 
@@ -83,15 +83,15 @@ struct CryptoAuth_Session
 #define CryptoAuth_addUser_DUPLICATE         -3
 #define CryptoAuth_addUser_INVALID_IP        -4
 int32_t CryptoAuth_addUser_ipv6(String* password,
-                           uint8_t authType,
-                           String* user,
-                           String* ipv6,
-                           struct CryptoAuth* context);
+                                String* login,
+                                String* displayName,
+                                String* ipv6,
+                                struct CryptoAuth* ca);
 
 int32_t CryptoAuth_addUser(String* password,
-                           uint8_t authType,
-                           String* user,
-                           struct CryptoAuth* context);
+                           String* login,
+                           String* displayName,
+                           struct CryptoAuth* ca);
 
 /**
  * Remove all users registered with this CryptoAuth.
@@ -167,12 +167,12 @@ int CryptoAuth_decrypt(struct CryptoAuth_Session* session, struct Message* msg);
  *
  * @param password the password to use for authenticating, this must match the password given to
  *                 CryptoAuth_addUser() at the other end of the connection.
- * @param authType this must match CryptoAuth_addUser() at the other end of the connection.
+ * @param login the username to use for logging in with the other node.
  * @param wrappedInterface this MUST be the output from CryptoAuth_wrapInterface().
  */
 void CryptoAuth_setAuth(const String* password,
-                        const uint8_t authType,
-                        struct CryptoAuth_Session* session);
+                        const String* login,
+                        struct CryptoAuth_Session* caSession);
 
 /** Reset the session's state to CryptoAuth_NEW, a new connection will be negotiated. */
 //void CryptoAuth_reset(struct CryptoAuth_Session* session);

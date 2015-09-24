@@ -37,10 +37,16 @@
 #define Gcc_ALLOC_SIZE(...) \
     __attribute__ ((alloc_size(__VA_ARGS__)))
 
+#define Gcc_USE_RET \
+    __attribute__ ((warn_unused_result))
+
 #elif defined(__clang__)
 
 #define Gcc_NORETURN \
     __attribute__((__noreturn__))
+
+#define Gcc_USE_RET \
+    __attribute__ ((warn_unused_result))
 
 #endif
 
@@ -61,6 +67,9 @@
 #endif
 #ifndef Gcc_ALLOC_SIZE
     #define Gcc_ALLOC_SIZE(...)
+#endif
+#ifndef Gcc_USE_RET
+    #define Gcc_USE_RET
 #endif
 
 #define Gcc_SHORT_FILE <?js return '"'+__FILE__.substring(__FILE__.lastIndexOf('/')+1)+'"'; ?>
