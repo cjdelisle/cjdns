@@ -20,6 +20,7 @@
 #include "memory/Allocator.h"
 #include "util/Linker.h"
 
+#ifndef _WIN32
 #include <sys/syscall.h>
 
 #if defined __OPENBSD__ || defined SYS_getrandom
@@ -28,4 +29,5 @@
     RandomSeedProvider_register(GetEntropyRandomSeed_new)
 #endif
 
+#endif
 #endif
