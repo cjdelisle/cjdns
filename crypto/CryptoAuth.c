@@ -770,7 +770,9 @@ static USE_RES int decryptHandshake(struct CryptoAuth_Session_pvt* session,
             Assert_true(session->nextNonce <= nextNonce);
             session->nextNonce = nextNonce;
 
-            session->pub.userName = user;
+            if (!session->pub.userName) {
+                session->pub.userName = user;
+            }
             Bits_memcpyConst(session->herTempPubKey, header->handshake.encryptedTempKey, 32);
         } else {
             // It's a (possibly repeat) key packet and we have begun sending run data.
@@ -809,7 +811,9 @@ static USE_RES int decryptHandshake(struct CryptoAuth_Session_pvt* session,
 
         Assert_true(session->nextNonce <= nextNonce);
         session->nextNonce = nextNonce;
-        session->pub.userName = user;
+        if (!session->pub.userName) {
+            session->pub.userName = user;
+        }
         if (restrictedToip6) {
             Bits_memcpyConst(session->pub.herIp6, restrictedToip6, 16);
         }
@@ -824,7 +828,9 @@ static USE_RES int decryptHandshake(struct CryptoAuth_Session_pvt* session,
 
         Assert_true(session->nextNonce <= nextNonce);
         session->nextNonce = nextNonce;
-        session->pub.userName = user;
+        if (!session->pub.userName) {
+            session->pub.userName = user;
+        }
         if (restrictedToip6) {
             Bits_memcpyConst(session->pub.herIp6, restrictedToip6, 16);
         }

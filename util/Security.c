@@ -53,18 +53,24 @@ Dict* Security_getUser(char* userName, struct Allocator* retAlloc)
     Dict_putString(ret, String_new("error", retAlloc), String_new("none", retAlloc), retAlloc);
     Dict_putString(ret, String_new("name", retAlloc), String_new(pw->pw_name, retAlloc), retAlloc);
     Dict_putInt(ret, String_new("uid", retAlloc), pw->pw_uid, retAlloc);
+    Dict_putInt(ret, String_new("gid", retAlloc), pw->pw_gid, retAlloc);
     return ret;
 }
 
-void Security_setUser(int uid,
+void Security_setUser(int uid, int gid,
                       bool keepNetAdmin,
                       struct Log* logger,
                       struct Except* eh,
                       struct Allocator* alloc)
 {
+    /* Passing the gid changes the RPC api, which is a big can of worms.
+     * And not all systems have gid anyway.  So we just lookup the passwd
+     * record again from the uid on unix system.
+     */
     if (keepNetAdmin) {
         Setuid_preSetuid(alloc, eh);
     }
+    if (gid) (void)setgid(gid);
     int ret = setuid(uid);
     if (keepNetAdmin) {
         Setuid_postSetuid(alloc, eh);
@@ -74,6 +80,9 @@ void Security_setUser(int uid,
     }
     if (uid != (int) getuid()) {
         Except_throw(eh, "Failed to set UID but seemed to succeed");
+    }
+    if (gid != (int) getgid()) {
+        Except_throw(eh, "Failed to set GID");
     }
 }
 

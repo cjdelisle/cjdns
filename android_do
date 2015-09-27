@@ -1,0 +1,129 @@
+#!/bin/bash
+
+#change this to valid ndk path, otherwise it will be downloaded
+NDK=/bad/path/to/android-ndk-r10e/
+BUILD_PATH=$(pwd)/build_android
+#if you have cjdns android app somewhere else then change it
+NDK_VERSION="android-ndk-r10e"
+
+case $(uname -s) in
+    Darwin)
+        TYPE=darwin
+        ;;
+    Linux)
+        TYPE=linux
+        ;;
+    *)
+        TYPE=
+        ;;
+esac
+
+cpu_arch="$(uname -m)"
+[[ -z "$cpu_arch" ]] && {
+    echo "ERROR: NO CPU ARCHITECTURE DETECTED"
+    exit 1
+}
+[[ "$cpu_arch" = "i686" ]] \
+    && cpu_arch="x86"
+
+android_log=android_build_$$.log
+enabled_log=${LOG}
+
+mkdir $BUILD_PATH
+
+if [ "$NDK" == "/bad/path/to/android-ndk-r10e/" ]; then
+  if [ ! -d $BUILD_PATH/$NDK_VERSION/ ]; then
+    echo "NDK path is not specified. Downloading it..."
+
+    NDK=$BUILD_PATH/$NDK_VERSION/
+
+    ##SETUP NDK
+    cd "$BUILD_PATH"
+    if [ ! -d "$NDK" ]; then
+          echo "$NDK_VERSION-${TYPE}-${cpu_arch}.tar.bz2"
+          [[ -f "$NDK_VERSION-${TYPE}-${cpu_arch}.tar.bz2" ]] \
+              || wget "http://dl.google.com/android/ndk/$NDK_VERSION-${TYPE}-${cpu_arch}.bin" \
+              || (echo "Can't find download for your system"; exit 1)
+          [[ -d "$NDK_VERSION" ]] || (chmod a+x "$NDK_VERSION-${TYPE}-${cpu_arch}.bin"; "./$NDK_VERSION-${TYPE}-${cpu_arch}.bin" || exit 1)
+    fi
+
+    [[ ! -d "$NDK" ]] && {
+        echo "The NDK variable is not pointing to a valid directory"
+        exit 1
+    }
+    cd ..
+  else
+    NDK=$BUILD_PATH/$NDK_VERSION/
+  fi
+fi
+
+$NDK/build/tools/make-standalone-toolchain.sh --platform=android-21 --toolchain=arm-linux-androideabi-4.9 --install-dir=$BUILD_PATH/arm-${TYPE}-androideabi/ --system=${TYPE}-${cpu_arch}
+$NDK/build/tools/make-standalone-toolchain.sh --platform=android-21 --toolchain=x86-4.9 --install-dir=$BUILD_PATH/i686-${TYPE}-androideabi/ --system=${TYPE}-${cpu_arch}
+
+Seccomp_NO=1
+
+mkdir $(pwd)/android_out
+mkdir $(pwd)/android_out/armeabi-v7a
+mkdir $(pwd)/android_out/x86
+
+#arm build
+rm -rf build_linux
+
+export SYSTEM=linux
+
+export CROSS_COMPILE=$BUILD_PATH/arm-${TYPE}-androideabi/bin/arm-linux-androideabi-
+export TARGET_ARCH=arm
+export CROSS=${CROSS_COMPILE}
+export CC=${CROSS}gcc
+export AR=${CROSS}ar
+export RANLIB=${CROSS}ranlib
+export CFLAGS=${CROSS_CFLAGS}
+export LDFLAGS=${CROSS_LDFLAGS}
+gcc_version=$(${CC} --version)
+echo Using $gcc_version
+echo Compiler CC: $CC
+echo Compiler CFLAGS: $CFLAGS
+echo Compiler LDFLAGS: $LDFLAGS
+time ./do
+cp cjdroute $(pwd)/android_out/armeabi-v7a/ || ret=$?
+
+if [ "$ret" != "" ] && [ "$ret" != "0" ]; then
+  echo -e "\e[1;31mCopying armeabi-v7a binary failed, non zero status returned - $ret\e[0m"
+else
+  echo -e "\e[1;32mCopied armeabi-v7a successfully\e[0m"
+fi
+
+rm cjdroute
+
+#x86 build
+rm -rf build_linux
+
+export CROSS_COMPILE=$BUILD_PATH/i686-${TYPE}-androideabi/bin/i686-linux-android-
+export TARGET_ARCH=x64
+export CROSS=${CROSS_COMPILE}
+export CC=${CROSS}gcc
+export AR=${CROSS}ar
+export RANLIB=${CROSS}ranlib
+export CFLAGS=${CROSS_CFLAGS}
+export LDFLAGS=${CROSS_LDFLAGS}
+gcc_version=$(${CC} --version)
+echo Using $gcc_version
+echo Compiler CC: $CC
+echo Compiler CFLAGS: $CFLAGS
+echo Compiler LDFLAGS: $LDFLAGS
+time ./do
+
+cp cjdroute $(pwd)/android_out/x86/ || ret=$?
+
+if [ "$ret" != "" ] && [ "$ret" != "0" ]; then
+  echo -e "\e[1;31mCopying x86 binary failed, non zero status returned - $ret\e[0m"
+else
+  echo -e "\e[1;32mCopied x86 successfully\e[0m"
+fi
+
+rm cjdroute
+
+echo -e "\n\e[1;34mOutput: $(pwd)/android_out/armeabi-v7a/cjdroute\e[0m"
+echo -e "\e[1;34m        $(pwd)/android_out/x86/cjdroute\e[0m"
+
+exit $ret

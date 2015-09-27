@@ -805,6 +805,7 @@ int InterfaceController_bootstrapPeer(struct InterfaceController* ifc,
                                       uint8_t* herPublicKey,
                                       const struct Sockaddr* lladdrParm,
                                       String* password,
+                                      String* user,
                                       struct Allocator* alloc)
 {
     struct InterfaceController_pvt* ic = Identity_check((struct InterfaceController_pvt*) ifc);
@@ -849,6 +850,9 @@ int InterfaceController_bootstrapPeer(struct InterfaceController* ifc,
     ep->caSession =
         CryptoAuth_newSession(ic->ca, epAlloc, herPublicKey, ep->addr.ip6.bytes, false, "outer");
     CryptoAuth_setAuth(password, 1, ep->caSession);
+    if (user) {
+        ep->caSession->userName = String_clone(user, epAlloc);
+    }
 
     ep->switchIf.send = sendFromSwitch;
 

@@ -1001,7 +1001,7 @@ var configure = module.exports.configure = function (params, configFunc) {
                         builder.linters.forEach(function (linter) {
                             linter(fileName, ret, waitFor(function (out, isErr) {
                                 if (isErr) {
-                                    debug(out);
+                                    debug("\033[1;31m" + out + "\033[0m");
                                     builder.failure = true;
                                 }
                             }));

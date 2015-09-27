@@ -4,15 +4,15 @@ Wants=network.target
 After=network.target
 
 [Service]
-Type=simple
 ProtectHome=true
 ProtectSystem=true
+SyslogIdentifier=cjdroute
 ExecStartPre=/bin/sh -ec "if ! test -e /etc/cjdroute.conf; \
                 then umask 077; \
                 /usr/bin/cjdroute --genconf > /etc/cjdroute.conf; \
                 echo 'WARNING: A new /etc/cjdroute.conf file has been generated.'; \
             fi"
-ExecStart=/bin/sh -c "cjdroute --nobg < /etc/cjdroute.conf"
+ExecStart=/bin/sh -c "exec cjdroute --nobg < /etc/cjdroute.conf"
 Restart=always
 
 [Install]
