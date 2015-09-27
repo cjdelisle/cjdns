@@ -43,7 +43,7 @@ struct Security
     bool setupComplete;
 };
 
-void Security_setUser(int uid,
+void Security_setUser(int uid, int gid,
                       bool keepNetAdmin,
                       struct Log* logger,
                       struct Except* eh,

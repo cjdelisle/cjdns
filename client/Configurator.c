@@ -455,6 +455,7 @@ static void security(struct Allocator* tempAlloc, List* conf, struct Log* log, s
     }
 
     int uid = -1;
+    int64_t* group;
     int keepNetAdmin = 1;
 
     do {
@@ -464,6 +465,7 @@ static void security(struct Allocator* tempAlloc, List* conf, struct Log* log, s
             Dict* ret = NULL;
             rpcCall0(String_CONST("Security_getUser"), d, ctx, tempAlloc, &ret, true);
             uid = *Dict_getInt(ret, String_CONST("uid"));
+            group = Dict_getInt(ret, String_CONST("gid"));
         }
     } while (0);
 
@@ -477,6 +479,7 @@ static void security(struct Allocator* tempAlloc, List* conf, struct Log* log, s
             Dict* ret = NULL;
             rpcCall0(String_CONST("Security_getUser"), d, ctx, tempAlloc, &ret, true);
             uid = *Dict_getInt(ret, String_CONST("uid"));
+            group = Dict_getInt(ret, String_CONST("gid"));
             int64_t* nka = Dict_getInt(elem, String_CONST("keepNetAdmin"));
             int64_t* exemptAngel = Dict_getInt(elem, String_CONST("exemptAngel"));
             keepNetAdmin = ((nka) ? *nka : ((exemptAngel) ? *exemptAngel : 0));
@@ -525,6 +528,8 @@ static void security(struct Allocator* tempAlloc, List* conf, struct Log* log, s
         Dict_putString(d, String_CONST("root"), String_CONST("/var/run/"), tempAlloc);
         rpcCall0(String_CONST("Security_chroot"), d, ctx, tempAlloc, NULL, false);
     }
+    /* FIXME(sdg): moving noforks after setuser might make nproc <- 0,0 work
+     on older kernels, where doing it before causes setuid to fail w EAGAIN. */
     if (noforks) {
         Log_debug(log, "Security_noforks()");
         Dict* d = Dict_new(tempAlloc);
@@ -534,6 +539,9 @@ static void security(struct Allocator* tempAlloc, List* conf, struct Log* log, s
         Log_debug(log, "Security_setUser(uid:%d, keepNetAdmin:%d)", uid, keepNetAdmin);
         Dict* d = Dict_new(tempAlloc);
         Dict_putInt(d, String_CONST("uid"), uid, tempAlloc);
+        if (group) {
+            Dict_putInt(d, String_CONST("gid"), (int)*group, tempAlloc);
+        }
         Dict_putInt(d, String_CONST("keepNetAdmin"), keepNetAdmin, tempAlloc);
         rpcCall0(String_CONST("Security_setUser"), d, ctx, tempAlloc, NULL, false);
     }
