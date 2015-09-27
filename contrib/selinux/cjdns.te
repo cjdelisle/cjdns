@@ -1,0 +1,48 @@
+policy_module(cjdns,1.0.0)
+
+require {
+	type urandom_device_t;
+	type tun_tap_device_t;
+	type node_t;
+	type port_t;
+	type unreserved_port_t;
+	type tmp_t;
+	type kernel_t;
+	type passwd_file_t;
+}
+
+type cjdns_t;
+type cjdns_exec_t;
+init_daemon_domain(cjdns_t,cjdns_exec_t);
+
+#============= cjdns_t ==============
+# Let master process run further restricted subprocess
+allow cjdns_t cjdns_exec_t:file { execute_no_trans execmod };
+allow cjdns_t self:capability { net_admin net_raw setuid setgid sys_chroot sys_module };
+allow cjdns_t self:process { signal getcap setrlimit setcap };
+allow cjdns_t kernel_t:system module_request;
+# translate username to uid
+allow cjdns_t passwd_file_t:file { read getattr open };
+
+# allow network access
+allow cjdns_t node_t:udp_socket node_bind;
+allow cjdns_t port_t:udp_socket name_bind;
+allow cjdns_t unreserved_port_t:udp_socket name_bind;
+allow cjdns_t self:netlink_route_socket { bind create getattr nlmsg_read read write };
+allow cjdns_t self:packet_socket { bind create ioctl read write };
+allow cjdns_t self:tun_socket create;
+allow cjdns_t self:udp_socket { create setopt bind ioctl getattr read write };
+allow cjdns_t tun_tap_device_t:chr_file { read write open ioctl };
+
+
+# management API
+allow cjdns_t self:unix_stream_socket connectto;
+allow cjdns_t tmp_t:sock_file { write create unlink };
+allow cjdns_t tmp_t:dir { write remove_name add_name };
+allow cjdns_t urandom_device_t:chr_file { read open };
+
+#!!!! The source type 'cjdns_t' can write to a 'dir' of the following types:
+# cluster_var_lib_t, cluster_var_run_t, root_t, cluster_conf_t
+
+#!!!! The source type 'cjdns_t' can write to a 'chr_file' of the following types:
+# initrc_devpts_t, null_device_t, zero_device_t, devtty_t, ptynode, ttynode, tty_device_t, devpts_t
