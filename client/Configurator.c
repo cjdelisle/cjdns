@@ -520,9 +520,9 @@ static void security(struct Allocator* tempAlloc, List* conf, struct Log* log, s
     }
 
     if (chroot) {
-        Log_debug(log, "Security_chroot(/var/run)");
+        Log_debug(log, "Security_chroot(/var/empty)");
         Dict* d = Dict_new(tempAlloc);
-        Dict_putString(d, String_CONST("root"), String_CONST("/var/run/"), tempAlloc);
+        Dict_putString(d, String_CONST("root"), String_CONST("/var/empty/"), tempAlloc);
         rpcCall0(String_CONST("Security_chroot"), d, ctx, tempAlloc, NULL, false);
     }
     if (noforks) {
