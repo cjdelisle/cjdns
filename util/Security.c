@@ -57,32 +57,39 @@ Dict* Security_getUser(char* userName, struct Allocator* retAlloc)
     return ret;
 }
 
-void Security_setUser(int uid, int gid,
+void Security_setUser(int uid,
+                      int gid,
                       bool keepNetAdmin,
                       struct Log* logger,
                       struct Except* eh,
                       struct Allocator* alloc)
 {
-    /* Passing the gid changes the RPC api, which is a big can of worms.
-     * And not all systems have gid anyway.  So we just lookup the passwd
-     * record again from the uid on unix system.
-     */
+    int gid_errno = 0;
+    int uid_errno = 0;
     if (keepNetAdmin) {
         Setuid_preSetuid(alloc, eh);
     }
-    if (gid) (void)setgid(gid);
-    int ret = setuid(uid);
+    if (gid && setgid(gid)) {
+        gid_errno = errno;
+    }
+    if (setuid(uid)) {
+        /* errno is global and could get overwritten by Setuid_postSetuid() */
+        uid_errno = errno;
+    }
     if (keepNetAdmin) {
         Setuid_postSetuid(alloc, eh);
     }
-    if (ret) {
-        Except_throw(eh, "Failed to set UID [%s]", strerror(errno));
+    if (uid_errno > 0) {
+        Except_throw(eh, "Failed to set UID [%s]", strerror(uid_errno));
     }
     if (uid != (int) getuid()) {
         Except_throw(eh, "Failed to set UID but seemed to succeed");
     }
+    if (gid_errno > 0) {
+        Except_throw(eh, "Failed to set GID [%s]", strerror(gid_errno));
+    }
     if (gid != (int) getgid()) {
-        Except_throw(eh, "Failed to set GID");
+        Except_throw(eh, "Failed to set GID but seemed to succeed");
     }
 }
 

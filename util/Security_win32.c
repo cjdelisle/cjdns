@@ -33,7 +33,8 @@ Dict* Security_getUser(char* userName, struct Allocator* retAlloc)
     return ret;
 }
 
-void Security_setUser(int uid, int gid,
+void Security_setUser(int uid,
+                      int gid,
                       bool keepNetAdmin,
                       struct Log* logger,
                       struct Except* eh,

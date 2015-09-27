@@ -455,7 +455,7 @@ static void security(struct Allocator* tempAlloc, List* conf, struct Log* log, s
     }
 
     int uid = -1;
-    int64_t* group;
+    int64_t* group = NULL;
     int keepNetAdmin = 1;
 
     do {
