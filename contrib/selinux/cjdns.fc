@@ -1,2 +1,1 @@
-/usr/lib/cjdns/cjdroute system_u:object_r:cjdns_exec_t:s0
-/usr/bin/cjdroute system_u:object_r:cjdns_exec_t:s0
+/usr/sbin/cjdroute system_u:object_r:cjdns_exec_t:s0
