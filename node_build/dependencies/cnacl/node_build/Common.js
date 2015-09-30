@@ -1,8 +1,12 @@
 var Fs = require('fs');
 
 var done = function(workers, onComplete) {
-  if (!workers[0]) { throw new Error(); }
-  if (!--workers[0]) { onComplete(); }
+    if (!workers[0]) {
+        throw new Error();
+    }
+    if (!--workers[0]) {
+        onComplete();
+    }
 };
 
 var BUILD_DIR = 'jsbuild';
@@ -13,25 +17,27 @@ var TESTS = BUILD_DIR + '/tests';
 
 
 var mkdir = function(dir) {
-  if (Fs.existsSync(dir)) { return; }
-  Fs.mkdirSync(dir);
+    if (Fs.existsSync(dir)) {
+        return;
+    }
+    Fs.mkdirSync(dir);
 };
 
 var init = function() {
-  mkdir(BUILD_DIR);
-  mkdir(INCLUDE);
-  mkdir(INCLUDE_INTERNAL);
-  mkdir(OBJECTS_INTERNAL);
-  mkdir(TESTS);
+    mkdir(BUILD_DIR);
+    mkdir(INCLUDE);
+    mkdir(INCLUDE_INTERNAL);
+    mkdir(OBJECTS_INTERNAL);
+    mkdir(TESTS);
 };
 
 module.exports = {
-  TESTS:TESTS,
-  OBJECTS_INTERNAL:OBJECTS_INTERNAL,
-  INCLUDE_INTERNAL:INCLUDE_INTERNAL,
-  INCLUDE:INCLUDE,
-  BUILD_DIR:BUILD_DIR,
+    TESTS: TESTS,
+    OBJECTS_INTERNAL: OBJECTS_INTERNAL,
+    INCLUDE_INTERNAL: INCLUDE_INTERNAL,
+    INCLUDE: INCLUDE,
+    BUILD_DIR: BUILD_DIR,
 
-  done:done,
-  init:init,
+    done: done,
+    init: init,
 };

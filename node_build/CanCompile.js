@@ -15,27 +15,27 @@
 var nThen = require("nthen");
 var Fs = require("fs");
 
-module.exports.check = function (builder, code, cflags, callback) {
+module.exports.check = function(builder, code, cflags, callback) {
 
     var file = builder.tmpFile();
     var outputFile = builder.tmpFile();
 
-    nThen(function (waitFor) {
+    nThen(function(waitFor) {
 
-        Fs.writeFile(file, code, waitFor(function (err, ret) {
+        Fs.writeFile(file, code, waitFor(function(err, ret) {
             if (err) {
                 waitFor.abort();
                 callback(err);
             }
         }));
 
-    }).nThen(function (waitFor) {
+    }).nThen(function(waitFor) {
 
         var flags = [];
         flags.push.apply(flags, cflags);
         flags.push.apply(flags, ["-o", outputFile, file]);
 
-        builder.cc([cflags, "-o", outputFile, file], waitFor(function (ret, out, err) {
+        builder.cc([cflags, "-o", outputFile, file], waitFor(function(ret, out, err) {
             if (ret) {
                 callback(err, false);
             } else {
