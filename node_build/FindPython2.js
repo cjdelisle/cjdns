@@ -35,6 +35,7 @@ var find = module.exports.find = function(tempFile, callback) {
     PYTHONS.forEach(function(python) {
         nt = nt(function(waitFor) {
             console.log("testing python " + python);
+
             var exe = Spawn(python, [tempFile]);
             var cont = waitFor();
             exe.stdout.on('data', function(dat) {

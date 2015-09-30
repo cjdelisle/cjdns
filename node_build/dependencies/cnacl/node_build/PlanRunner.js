@@ -184,14 +184,14 @@ var getPrototypes = function(onComplete) {
     getProto('PROTOTYPES.c');
 };
 
-var getCompiler = function(cc) {
+var getCompiler = function(cc, config) {
     return function(compileCall, onComplete) {
         console.log('\033[2;32mCompiling ' + compileCall.outFile + '\033[0m');
         /*console.log('cc -o ' + compileCall.outFile + ' -c ' + compileCall.inFile + ' ' +
                       compileCall.args.join(' ')); */
         var args = [];
         args.push.apply(args, compileCall.args);
-        args.push('-o', compileCall.outFile, '-c', compileCall.inFile);
+        args.push(config.flag.compileOnly, config.flag.outputObj + compileCall.outFile, compileCall.inFile);
         cflags = process.env['CFLAGS'];
         if (cflags) {
             flags = cflags.split(' ');
@@ -219,11 +219,11 @@ var PROCESSORS = Math.floor((typeof cpus === 'undefined' ? 1 : cpus.length) * 1.
 
 var PROCESSORS_MAX_16 = (PROCESSORS > 16) ? 16 : PROCESSORS;
 
-var compileFiles = function(compileQueue, cc, onComplete) {
-    JobQueue.run(compileQueue, getCompiler(cc), PROCESSORS_MAX_16, onComplete);
+var compileFiles = function(compileQueue, cc, config, onComplete) {
+    JobQueue.run(compileQueue, getCompiler(cc, config), PROCESSORS_MAX_16, onComplete);
 };
 
-var buildCompileQueue = function(impls, onComplete) {
+var buildCompileQueue = function(impls, config, onComplete) {
     var compileQueue = [];
     var i = 0;
     impls.forEach(function(impl) {
@@ -236,11 +236,11 @@ var buildCompileQueue = function(impls, onComplete) {
                 if (!file.match(/\.[csS]$/)) {
                     return;
                 }
-                var dotO = OBJ_DIR + '/' + impl.join('_').replace(/\//g, '_') + '_' + file + '.o';
+                var dotO = OBJ_DIR + '/' + impl.join('_').replace(/\//g, '_') + '_' + file + config.ext.obj;
                 var args = [
-                    '-I', BUILD_DIR + '/include',
-                    '-I', BUILD_DIR + '/include_internal',
-                    '-I', BUILD_DIR + '/include_internal/' + impl[0] + '_' + impl[1]
+                    config.flag.include + BUILD_DIR + '/include',
+                    config.flag.include + BUILD_DIR + '/include_internal',
+                    config.flag.include + BUILD_DIR + '/include_internal/' + impl[0] + '_' + impl[1]
                 ];
                 compileQueue.push({
                     args: args,
@@ -255,20 +255,21 @@ var buildCompileQueue = function(impls, onComplete) {
     });
 };
 
-var compile = function(impls, cc, onComplete) {
-    buildCompileQueue(impls, function(compileQueue) {
-        compileFiles(compileQueue, cc, onComplete);
+var compile = function(impls, cc, config, onComplete) {
+    buildCompileQueue(impls, config, function(compileQueue) {
+        compileFiles(compileQueue, cc, config, onComplete);
     });
 };
 
-var archive = function(ar, arName, onComplete) {
+var archive = function(ar, arName, config, onComplete) {
     Fs.readdir(OBJ_DIR, function(err, files) {
         if (err) {
             throw err;
         }
-
+        var args = [];
         // NOTE: if ar is provided with the 's' argument, it will provide the same roll as ar + ranlib.
-        var args = ['scr', BUILD_DIR + '/libnacl.a'];
+        args.push('scr', BUILD_DIR + '/libnacl' + config.ext.lib);
+
         console.log('\033[1;31mLinking static C library ' + args[1] + '\033[0m');
         files.forEach(function(file) {
             args.push(OBJ_DIR + '/' + file);
@@ -286,14 +287,14 @@ var archive = function(ar, arName, onComplete) {
     });
 };
 
-module.exports.run = function(plan, cc, ar, arName, onComplete) {
+module.exports.run = function(plan, cc, config, ar, arName, onComplete) {
     var impls = plan.PLAN_IMPLEMENTATIONS;
     getPrototypes(function(protos) {
         //console.log(protos);
         genIncludes(protos, impls, function() {
             console.log("implementations generated");
-            compile(impls, cc, function() {
-                archive(ar, arName, onComplete);
+            compile(impls, cc, config, function() {
+                archive(ar, arName, config, onComplete);
             });
         });
     });

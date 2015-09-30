@@ -81,14 +81,14 @@ var writeTypesHeaders = function(plan, onComplete) {
     });
 };
 
-var runTests = function(cc, plan, onComplete) {
-    TestRunner.run(cc, plan, onComplete);
+var runTests = function(cc, config, plan, onComplete) {
+    TestRunner.run(cc, config, plan, onComplete);
 };
 
-var beginBuild = function(compiler, plan, callback) {
+var beginBuild = function(compiler, config, plan, callback) {
     console.log('beginning build');
-    PlanRunner.run(plan, compiler, ar, AR, function() {
-        runTests(compiler, plan, function() {
+    PlanRunner.run(plan, compiler, config, ar, AR, function() {
+        runTests(compiler, config, plan, function() {
             console.log('done');
             callback();
         });
@@ -99,13 +99,13 @@ var main = module.exports.build = function(compiler, config, callback) {
     console.log("Creating directories");
     Common.init();
 
-    RandomBytes.run(compiler, function() {
+    RandomBytes.run(compiler, config, function() {
         console.log("Getting system type");
-        AbiName.get(compiler, function(abiName) {
+        AbiName.get(compiler, config, function(abiName) {
             console.log('System is [' + abiName + ']');
             var plan = getPlan(abiName, config);
             writeTypesHeaders(plan, function() {
-                beginBuild(compiler, plan, callback);
+                beginBuild(compiler, config, plan, callback);
             });
         });
     });

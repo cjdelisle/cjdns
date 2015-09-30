@@ -17,12 +17,12 @@ var Fs = require("fs");
 
 module.exports.check = function(builder, code, cflags, callback) {
 
-    var file = builder.tmpFile();
-    var outputFile = builder.tmpFile();
+    var codeFile = builder.tmpFile() + '.c';
+    var exeFile = builder.tmpFile() + builder.config.ext.exe;
 
     nThen(function(waitFor) {
 
-        Fs.writeFile(file, code, waitFor(function(err, ret) {
+        Fs.writeFile(codeFile, code, waitFor(function(err, ret) {
             if (err) {
                 waitFor.abort();
                 callback(err);
@@ -33,13 +33,13 @@ module.exports.check = function(builder, code, cflags, callback) {
 
         var flags = [];
         flags.push.apply(flags, cflags);
-        flags.push.apply(flags, ["-o", outputFile, file]);
+        flags.push(builder.config.flag.outputExe + exeFile, codeFile);
 
-        builder.cc([cflags, "-o", outputFile, file], waitFor(function(ret, out, err) {
+        builder.cc(flags, waitFor(function(ret, out, err) {
             if (ret) {
                 callback(err, false);
             } else {
-                callback(undefined, true);
+                callback(null, true);
             }
         }));
 

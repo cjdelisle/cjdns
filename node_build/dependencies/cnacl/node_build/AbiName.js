@@ -1,5 +1,9 @@
-var getAbiName = function(cc, onComplete) {
-    cc(['-o', '/dev/null', '-c', 'okcompilers/abiname_xcompile.c'], function(retcode, out, err) {
+var getAbiName = function(cc, config, onComplete) {
+
+    var args = [];
+    args.push(config.flag.compileOnly, config.flag.outputObj + config.devNull, 'okcompilers/abiname_xcompile.c');
+
+    cc(args, function(retcode, out, err) {
         if (!retcode) {
             throw new Error("expected error from abiname_xcompile.c!");
         }

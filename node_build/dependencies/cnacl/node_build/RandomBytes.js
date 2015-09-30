@@ -1,9 +1,15 @@
 var Fs = require('fs');
 var Common = require('./Common');
 
-module.exports.run = function(cc, onComplete) {
-    var args = ['-o', Common.OBJECTS_INTERNAL + '/randombytes.o', '-c', 'randombytes/devurandom.c'];
-    Fs.readFile('randombytes/devurandom.h', function(err, content) {
+module.exports.run = function(cc, config, onComplete) {
+
+    var randomBytesImp = 'devurandom';
+
+    var args = [];
+    args.push(config.flag.compileOnly, config.flag.outputObj + Common.OBJECTS_INTERNAL + '/randombytes' + config.ext.obj);
+    args.push('randombytes/' + randomBytesImp + '.c');
+
+    Fs.readFile('randombytes/' + randomBytesImp + '.h', function(err, content) {
         if (err) {
             throw err;
         }
