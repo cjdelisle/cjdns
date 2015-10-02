@@ -2,24 +2,24 @@ var Fs = require("fs");
 var Semaphore = require('./Semaphore');
 var nThen = require('nthen');
 
+var throwIfErr = function(err) {
+    if (err) {
+        throw err;
+    }
+};
+
 var sema = Semaphore.create(64);
 var cp = module.exports = function(src, dest, callback) {
     Fs.stat(src, function(err, stat) {
-        if (err) {
-            throw err;
-        }
+        throwIfErr(err);
         if (stat.isDirectory()) {
             var subFiles;
             nThen(function(waitFor) {
                 Fs.mkdir(dest, waitFor(function(err) {
-                    if (err) {
-                        throw err;
-                    }
+                    throwIfErr(err);
                 }));
                 Fs.readdir(src, waitFor(function(err, list) {
-                    if (err) {
-                        throw err;
-                    }
+                    throwIfErr(err);
                     subFiles = list;
                 }));
             }).nThen(function(waitFor) {
@@ -32,13 +32,9 @@ var cp = module.exports = function(src, dest, callback) {
         } else {
             sema.take(function(returnAfter) {
                 Fs.readFile(src, function(err, content) {
-                    if (err) {
-                        throw err;
-                    }
+                    throwIfErr(err);
                     Fs.writeFile(dest, content, returnAfter(function(err) {
-                        if (err) {
-                            throw err;
-                        }
+                        throwIfErr(err);
                         callback();
                     }));
                 });
