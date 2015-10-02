@@ -15,7 +15,7 @@
 
 var Fs = require('fs');
 var nThen = require('nthen');
-var Semaphore = require('./Semaphore');
+var Semaphore = require('../tools/lib/Semaphore');
 var Child = require('child_process');
 
 var headerLines = [
