@@ -88,8 +88,17 @@ var parseFile = function(fileName, fileContent) {
         // implementations..  TUNConfigurator_Linux contains TUNConfigurator_doStuff...
         var n = name.replace(/_.*/, '');
         if ((/^\w+\s.*\(/).test(line)) {
-            if (!(/^int main\(/.test(line) || line.indexOf(' ' + n) > -1 || /^[ ]?static /.test(line) || /^typedef /.test(line))) {
-                error("all globally visible functions must begin with the name of the file.");
+            switch (true) {
+                // exceptions
+                case /^int main\(/.test(line):
+                case /^[ ]?static /.test(line):
+                case /^typedef /.test(line):
+                case line.indexOf(' ' + n) !== -1:
+                    break; // do nothing
+
+                default:
+                    error("all globally visible functions must begin with the name of the file.");
+                    break;
             }
         }
 
@@ -258,14 +267,21 @@ var checkDir = module.exports.checkDir = function(dir, runInFork, callback) {
                         if (err) {
                             throw err;
                         }
-                        if (file === '.git') {} else if (file === 'contrib') {} else if (file === 'dependencies') {} else if (gitIgnoreLines.indexOf(file) !== -1) {} else {
-                            if (stat.isDirectory()) {
-                                addDir(dir + '/' + file);
-                            } else if (/.*\.[ch]$/.test(file)) {
-                                checkFile(dir + '/' + file, waitFor(function(ret) {
-                                    output += ret;
-                                }));
-                            }
+                        switch (true) {
+                            case file === '.git':
+                            case file === 'contrib':
+                            case file === 'dependencies':
+                            case gitIgnoreLines.indexOf(file) !== -1:
+                                break; // do nothing
+
+                            default:
+                                if (stat.isDirectory()) {
+                                    addDir(dir + '/' + file);
+                                } else if (/.*\.[ch]$/.test(file)) {
+                                    checkFile(dir + '/' + file, waitFor(function(ret) {
+                                        output += ret;
+                                    }));
+                                }
                         }
                     }));
                 });
