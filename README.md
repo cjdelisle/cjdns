@@ -9,8 +9,8 @@ address allocation and a distributed hash table for routing. This provides
 near-zero-configuration networking, and prevents many of the security and
 scalability issues that plague existing networks.
 
-[![Build Status](https://travis-ci.org/cjdelisle/cjdns.svg?branch=master)](https://travis-ci.org/cjdelisle/cjdns)
-[![tip for next commit](https://tip4commit.com/projects/941.svg)](https://tip4commit.com/github/cjdelisle/cjdns)
+[![Build Status](https://travis-ci.org/hyperboria/cjdns.svg?branch=master)](https://travis-ci.org/hyperboria/cjdns)
+[![tip for next commit](https://tip4commit.com/projects/941.svg)](https://tip4commit.com/github/hyperboria/cjdns)
 
 ## Testimonials
 
@@ -118,7 +118,7 @@ it will be downloaded and installed in the source tree.
 
     sudo dnf install install nodejs git
     sudo dnf install @development-tools
-    
+
 #### RHEL based distro (adds the EPEL repo):
 
     sudo yum localinstall https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
@@ -173,7 +173,7 @@ The compiler expects GCC version 4.7, please install it from ports first.
 
 Clone the repository from GitHub and change to the source directory:
 
-    git clone https://github.com/cjdelisle/cjdns.git cjdns
+    git clone https://github.com/hyperboria/cjdns.git cjdns
     cd cjdns
 
 ### 2. Build
