@@ -19,7 +19,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 
-#ifdef __GLIBC__
+#if defined(__GLIBC__) && ! defined(__UCLIBC__)
 #  include <execinfo.h>
 #endif
 
@@ -34,7 +34,7 @@ void Assert_failure(const char* format, ...)
     vfprintf(stderr, format, args);
     fflush(stderr);
 
-#ifdef __GLIBC__
+#if defined(__GLIBC__) && ! defined(__UCLIBC__)
     void *array[20];
     size_t size = backtrace(array, 20);
     char **strings = backtrace_symbols(array, size);
