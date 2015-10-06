@@ -13,7 +13,6 @@ var WORKERS = Math.floor((typeof Os.cpus() == 'undefined' ? 1 : Os.cpus().length
 
 var GCC = process.env['CC'] || 'gcc';
 var AR = process.env['AR'] || 'ar';
-var RANLIB = process.env['RANLIB'] || 'ranlib';
 
 var cc = function(args, onComplete, noArg) {
     if (noArg) {
@@ -48,22 +47,6 @@ var ar = function(args, onComplete) {
         out += dat.toString();
     });
     exe.stdout.on('data', function(dat) {
-        out += dat.toString();
-    });
-    exe.on('error', function(err) {
-        // handle the error safely
-        console.log(args);
-        console.log(err);
-    });
-    exe.on('close', function(ret) {
-        onComplete(ret, out);
-    });
-};
-
-var ranlib = function(args, onComplete) {
-    var exe = Spawn(RANLIB, args);
-    var out = '';
-    exe.stderr.on('data', function(dat) {
         out += dat.toString();
     });
     exe.on('error', function(err) {
@@ -135,7 +118,7 @@ var runTests = function(cc, plan, onComplete) {
 
 var beginBuild = function(compiler, plan, callback) {
     console.log('beginning build');
-    PlanRunner.run(plan, compiler, ar, ranlib, function() {
+    PlanRunner.run(plan, compiler, ar, AR, function() {
         runTests(compiler, plan, function() {
             console.log('done');
             callback();

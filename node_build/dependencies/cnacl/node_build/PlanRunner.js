@@ -263,12 +263,14 @@ var compile = function(impls, cc, onComplete) {
     });
 };
 
-var archive = function(ar, ranlib, onComplete) {
+var archive = function(ar, arName, onComplete) {
     Fs.readdir(OBJ_DIR, function(err, files) {
         if (err) {
             throw err;
         }
-        var args = ['cr', BUILD_DIR + '/libnacl.a'];
+
+        // NOTE: if ar is provided with the 's' argument, it will provide the same roll as ar + ranlib.
+        var args = ['scr', BUILD_DIR + '/libnacl.a'];
         console.log('\033[1;31mLinking static C library ' + args[1] + '\033[0m');
         files.forEach(function(file) {
             args.push(OBJ_DIR + '/' + file);
@@ -281,29 +283,19 @@ var archive = function(ar, ranlib, onComplete) {
             if (retcode) {
                 throw new Error('ar returned ' + retcode);
             }
-
-            console.log('ranlib ' + BUILD_DIR + '/libnacl.a');
-            ranlib([BUILD_DIR + '/libnacl.a'], function(retcode, out) {
-                if (out !== '') {
-                    console.log(out);
-                }
-                if (retcode) {
-                    throw new Error('ranlib returned ' + retcode);
-                }
-                onComplete();
-            });
+            onComplete();
         });
     });
 };
 
-module.exports.run = function(plan, cc, ar, ranlib, onComplete) {
+module.exports.run = function(plan, cc, ar, arName, onComplete) {
     var impls = plan.PLAN_IMPLEMENTATIONS;
     getPrototypes(function(protos) {
         //console.log(protos);
         genIncludes(protos, impls, function() {
             console.log("implementations generated");
             compile(impls, cc, function() {
-                archive(ar, ranlib, onComplete);
+                archive(ar, arName, onComplete);
             });
         });
     });
