@@ -35,12 +35,12 @@ var find = module.exports.find = function(tempFile, callback) {
     PYTHONS.forEach(function(python) {
         nt = nt(function(waitFor) {
             console.log("testing python " + python);
-            var py = Spawn(python, [tempFile]);
+            var exe = Spawn(python, [tempFile]);
             var cont = waitFor();
-            py.stdout.on('data', function(dat) {
+            exe.stdout.on('data', function(dat) {
                 console.log(dat.toString('utf8'));
             });
-            py.on('close', function(ret) {
+            exe.on('close', function(ret) {
                 if (ret === 0) {
                     callback(undefined, python);
                     waitFor.abort();
@@ -48,7 +48,7 @@ var find = module.exports.find = function(tempFile, callback) {
                     cont();
                 }
             });
-            py.on('error', function(err) {
+            exe.on('error', function(err) {
                 if (err !== 'ENOENT') {
                     console.log('error starting python ' + err);
                 }

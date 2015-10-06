@@ -110,7 +110,7 @@ var client = function(url, fileName, argv) {
 /// Server
 
 var spawnProc = function(file, args, callback, timeoutMilliseconds) {
-    var child = Spawn(file, args);
+    var exe = Spawn(file, args);
     var out = '',
         err = '';
     var to = setTimeout(function() {
@@ -118,17 +118,17 @@ var spawnProc = function(file, args, callback, timeoutMilliseconds) {
         err += "TIMEOUT\n";
         callback(1000, out, err);
     }, timeoutMilliseconds);
-    child.stdout.on('data', function(data) {
+    exe.stdout.on('data', function(data) {
         out += String(data);
     });
-    child.stderr.on('data', function(data) {
+    exe.stderr.on('data', function(data) {
         err += String(data);
     });
-    child.on('close', function(code) {
+    exe.on('close', function(code) {
         clearTimeout(to);
         callback(code, out, err);
     });
-    child.on('error', function(err) {
+    exe.on('error', function(err) {
         clearTimeout(to);
         callback(1, '', err.stack);
     });

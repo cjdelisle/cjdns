@@ -16,7 +16,7 @@
 var Fs = require('fs');
 var nThen = require('nthen');
 var Semaphore = require('./Semaphore');
-var Child = require('child_process');
+var Spawn = require('child_process').spawn;
 
 var headerLines = [
     '/* vim: set expandtab ts=4 sw=4: */',
@@ -227,14 +227,14 @@ var checkDir = module.exports.checkDir = function(dir, runInFork, callback) {
     if (runInFork) {
         var err = '';
         var out = '';
-        var proc = Child.spawn(process.execPath, [__filename]);
-        proc.stdout.on('data', function(data) {
+        var exe = Spawn(process.execPath, [__filename]);
+        exe.stdout.on('data', function(data) {
             err += data.toString('utf8');
         });
-        proc.stderr.on('data', function(data) {
+        exe.stderr.on('data', function(data) {
             err += data.toString('utf8');
         });
-        proc.on('close', function(ret) {
+        exe.on('close', function(ret) {
             out += err;
             var error;
             if (ret !== 0) {

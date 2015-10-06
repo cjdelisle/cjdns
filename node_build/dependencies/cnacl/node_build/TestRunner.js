@@ -116,15 +116,15 @@ var getRunner = function() {
                 }
                 expected = expected.toString();
 
-                var test = Spawn(entry.outFile);
+                var exe = Spawn(entry.outFile);
                 var out = '';
-                test.stderr.on('data', function(dat) {
+                exe.stderr.on('data', function(dat) {
                     out += dat.toString();
                 });
-                test.stdout.on('data', function(dat) {
+                exe.stdout.on('data', function(dat) {
                     out += dat.toString();
                 });
-                test.on('close', function(ret) {
+                exe.on('close', function(ret) {
                     var fail = false;
                     if (out !== expected) {
                         console.log("mismatch:\nexpected: [" + expected + "]\ngot: [" + out + "]");

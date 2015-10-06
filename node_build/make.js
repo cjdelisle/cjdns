@@ -332,42 +332,47 @@ Builder.configure({
 
         }).nThen(function(waitFor) {
 
-            if (libuvBuilt) {
-                return;
-            }
-            console.log("Build Libuv");
             var cwd = process.cwd();
-            process.chdir(dependencyDir + '/libuv/');
 
-            var args = ['./gyp_uv.py'];
-            var env = process.env;
-            env.CC = builder.config.gcc;
+            var gyp = function(callback) {
+                if (libuvBuilt) {
+                    return;
+                }
+                console.log("Build Libuv");
+                process.chdir(dependencyDir + '/libuv/');
 
-            if (env.TARGET_ARCH) {
-                args.push('-Dtarget_arch=' + env.TARGET_ARCH);
-            }
+                var args = ['./gyp_uv.py'];
+                var env = process.env;
+                env.CC = builder.config.gcc;
 
-            //args.push('--root-target=libuv');
-            if (android) {
-                args.push('-DOS=android');
-            }
+                if (env.TARGET_ARCH) {
+                    args.push('-Dtarget_arch=' + env.TARGET_ARCH);
+                }
 
-            if (builder.config.systemName === 'win32') {
-                args.push('-DOS=win');
-            }
+                //args.push('--root-target=libuv');
+                if (android) {
+                    args.push('-DOS=android');
+                }
 
-            if (env.GYP_ADDITIONAL_ARGS) {
-                args.push.apply(args, env.GYP_ADDITIONAL_ARGS.split(' '));
-            }
+                if (builder.config.systemName === 'win32') {
+                    args.push('-DOS=win');
+                }
 
-            var gyp = Spawn(python, args, {
-                env: env,
-                stdio: 'inherit'
-            });
-            gyp.on('error', function() {
-                console.error("couldn't launch gyp [" + python + "]");
-            });
-            gyp.on('close', waitFor(function() {
+                if (env.GYP_ADDITIONAL_ARGS) {
+                    args.push.apply(args, env.GYP_ADDITIONAL_ARGS.split(' '));
+                }
+
+                var exe = Spawn(python, args, {
+                    env: env,
+                    stdio: 'inherit'
+                });
+                exe.on('error', function() {
+                    console.error("couldn't launch gyp [" + python + "]");
+                });
+                exe.on('close', waitFor(callback));
+            };
+
+            var make = function() {
                 var args = [
                     '-j', builder.processors,
                     '-C', 'out',
@@ -384,11 +389,11 @@ Builder.configure({
                 args.push('CFLAGS=' + cflags.join(' '));
 
                 var makeCommand = ['freebsd', 'openbsd'].indexOf(builder.config.systemName) >= 0 ? 'gmake' : 'make';
-                var make = Spawn(makeCommand, args, {
+                var exe = Spawn(makeCommand, args, {
                     stdio: 'inherit'
                 });
 
-                make.on('error', function(err) {
+                exe.on('error', function(err) {
                     if (err.code === 'ENOENT') {
                         console.error('\033[1;31mError: ' + makeCommand + ' is required!\033[0m');
                     } else {
@@ -400,10 +405,12 @@ Builder.configure({
                     waitFor.abort();
                 });
 
-                make.on('close', waitFor(function() {
+                exe.on('close', waitFor(function() {
                     process.chdir(cwd);
                 }));
-            }));
+            };
+
+            gyp(make);
 
         }).nThen(waitFor());
 

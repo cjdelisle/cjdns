@@ -26,52 +26,52 @@ var cc = function(args, onComplete, noArg) {
             args.push(flag);
         });
     }
-    var gcc = Spawn(GCC, args);
+    var exe = Spawn(GCC, args);
     var err = '';
-    gcc.stderr.on('data', function(dat) {
+    exe.stderr.on('data', function(dat) {
         err += dat.toString();
     });
-    gcc.on('error', function(err) {
+    exe.on('error', function(err) {
         // handle the error safely
         console.log(args);
         console.log(err);
     });
-    gcc.on('close', function(ret) {
+    exe.on('close', function(ret) {
         onComplete(ret, err);
     });
 };
 
 var ar = function(args, onComplete) {
-    var ar = Spawn(AR, args);
+    var exe = Spawn(AR, args);
     var out = '';
-    ar.stderr.on('data', function(dat) {
+    exe.stderr.on('data', function(dat) {
         out += dat.toString();
     });
-    ar.stdout.on('data', function(dat) {
+    exe.stdout.on('data', function(dat) {
         out += dat.toString();
     });
-    ar.on('error', function(err) {
+    exe.on('error', function(err) {
         // handle the error safely
         console.log(args);
         console.log(err);
     });
-    ar.on('close', function(ret) {
+    exe.on('close', function(ret) {
         onComplete(ret, out);
     });
 };
 
 var ranlib = function(args, onComplete) {
-    var rl = Spawn(RANLIB, args);
+    var exe = Spawn(RANLIB, args);
     var out = '';
-    rl.stderr.on('data', function(dat) {
+    exe.stderr.on('data', function(dat) {
         out += dat.toString();
     });
-    rl.on('error', function(err) {
+    exe.on('error', function(err) {
         // handle the error safely
         console.log(args);
         console.log(err);
     });
-    rl.on('close', function(ret) {
+    exe.on('close', function(ret) {
         onComplete(ret, out);
     });
 };

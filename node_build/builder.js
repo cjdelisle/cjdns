@@ -77,26 +77,26 @@ var expandArgs = function(args) {
 };
 
 var sema = Semaphore.create(PROCESSORS);
-var compiler = function(compilerPath, args, callback, content) {
+var compiler = function(gcc, args, callback, content) {
     args = expandArgs(args);
     sema.take(function(returnAfter) {
-        var gcc = Spawn(compilerPath, args);
+        var exe = Spawn(gcc, args);
         var err = '';
         var out = '';
 
-        gcc.stdout.on('data', function(dat) {
+        exe.stdout.on('data', function(dat) {
             out += dat.toString();
         });
-        gcc.stderr.on('data', function(dat) {
+        exe.stderr.on('data', function(dat) {
             err += dat.toString();
         });
-        gcc.on('close', returnAfter(function(ret) {
+        exe.on('close', returnAfter(function(ret) {
             callback(ret, out, err);
         }));
 
-        gcc.on('error', function(err) {
+        exe.on('error', function(err) {
             if (err.code === 'ENOENT') {
-                console.error('\033[1;31mError: ' + compilerPath + ' is required!\033[0m');
+                console.error('\033[1;31mError: ' + gcc + ' is required!\033[0m');
             } else {
                 console.error(
                     '\033[1;31mFail run ' + process.cwd() + ': ' + compilerPath + ' ' + args.join(' ') + '\033[0m'
@@ -109,9 +109,9 @@ var compiler = function(compilerPath, args, callback, content) {
         });
 
         if (content) {
-            gcc.stdin.write(content, function(err) {
+            exe.stdin.write(content, function(err) {
                 throwIfErr(err);
-                gcc.stdin.end();
+                exe.stdin.end();
             });
         }
     });
