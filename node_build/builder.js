@@ -56,7 +56,7 @@ var error = function(message) {
 
 var throwIfErr = function(err) {
     if (err) {
-        throw err;
+        throw new Error(err);
     }
 };
 
@@ -125,6 +125,7 @@ var cc = function(gcc, args, callback, content) {
         if (ret !== 0) {
             err = "Error: " + gcc + " " + args + "\n\n" + err;
         } else {
+            //debug("Debug: " + err);
             ret = null;
         }
 
@@ -427,7 +428,11 @@ var compileFile = function(fileName, builder, tempDir, callback) {
             flags.push(fileName);
 
             cc(state.gcc, flags, waitFor(function(ret, output, err) {
-                throwIfErr(err);
+
+                if (ret !== null) {
+                    throw new Error(err);
+                }
+
                 // replace the escapes and newlines
                 output = output.replace(/ \\|\n/g, '').split(' ');
 
@@ -453,7 +458,9 @@ var compileFile = function(fileName, builder, tempDir, callback) {
             flags.push(fileName);
 
             cc(state.gcc, flags, waitFor(function(ret, out, err) {
-                throwIfErr(err);
+                if (ret !== null) {
+                    throw new Error(err);
+                }
                 fileContent = out;
             }));
         })();
@@ -502,7 +509,9 @@ var compileFile = function(fileName, builder, tempDir, callback) {
         flags.push(state.flag.compileAsC + preprocessed);
 
         cc(state.gcc, flags, waitFor(function(ret, out, err) {
-            throwIfErr(err);
+            if (ret !== null) {
+                throw new Error(err);
+            }
 
             fileObj.obj = outFile;
         }), fileContent);
@@ -738,7 +747,9 @@ var compile = function(file, outputFile, builder, callback) {
         debug('\033[1;31mLinking C executable ' + file + '\033[0m');
 
         cc(state.gcc, ldArgs, waitFor(function(ret, err) {
-            throwIfErr(err);
+            if (ret !== null) {
+                throw new Error(err);
+            }
         }));
 
     }).nThen(function(waitFor) {
