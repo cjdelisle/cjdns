@@ -1,3 +1,4 @@
+var Os = require('os');
 var Fs = require('fs');
 var Spawn = require('child_process').spawn;
 var JobQueue = require('./JobQueue');
@@ -5,7 +6,6 @@ var Common = require('./Common');
 
 var BUILD_DIR = 'jsbuild';
 var OBJ_DIR = BUILD_DIR + '/objects_internal';
-var WORKERS = 4;
 
 var getCompiler = function(cc) {
     return function(compileCall, onComplete) {
@@ -144,12 +144,17 @@ var getRunner = function() {
     };
 };
 
+var cpus = Os.cpus(); // workaround, nodejs seems to be broken on openbsd (undefined result after second call)
+var PROCESSORS = Math.floor((typeof cpus === 'undefined' ? 1 : cpus.length) * 1.25);
+
+var PROCESSORS_MAX_16 = (PROCESSORS > 16) ? 16 : PROCESSORS;
+
 var compileTests = function(cc, queue, onComplete) {
-    JobQueue.run(queue, getCompiler(cc), WORKERS, onComplete);
+    JobQueue.run(queue, getCompiler(cc), PROCESSORS_MAX_16, onComplete);
 };
 
 var runTests = function(queue, onComplete) {
-    JobQueue.run(queue, getRunner(), WORKERS, onComplete);
+    JobQueue.run(queue, getRunner(), PROCESSORS_MAX_16, onComplete);
 };
 
 module.exports.run = function(cc, plan, onComplete) {
