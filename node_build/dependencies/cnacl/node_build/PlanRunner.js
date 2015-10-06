@@ -16,21 +16,16 @@ var done = function(workers, onComplete) {
 /** Replace all instances of op in prototype file. */
 var replaceOp = function(proto, op, func) {
     proto.forEach(function(line) {
-        var index = line.indexOf(op);
-        if (index !== -1 && line[index + op.length] in {
-                undefined: 1,
-                '_': 1,
-                '(': 1
-            }) {
-            func(line);
+        if ((typeof(line) !== "undefined") && (line !== "") && (line.indexOf(op) !== -1)) {
+            func(line.replace(/(\r\n|\n|\r)/gm, ""));
         }
     });
 };
 
 var writeOPIHeader = function(protos, opi, onComplete) {
-    var op = opi[0];
-    var prim = opi[1];
-    var impl = opi[2];
+    var op = opi[0].replace(/(\r\n|\n|\r)/gm, "");
+    var prim = opi[1].replace(/(\r\n|\n|\r)/gm, "");
+    var impl = opi[2].replace(/(\r\n|\n|\r)/gm, "");
 
     var out = [
         "#ifndef " + op + "_" + prim + "_H",
@@ -39,7 +34,7 @@ var writeOPIHeader = function(protos, opi, onComplete) {
     ];
 
     var path = opi.join('/');
-    var o_p_i = path.replace(/[\.-\/]/g, '_');
+    var o_p_i = path.replace(/[\.-\/]/g, '_').replace(/(\r\n|\n|\r)/gm, "");
     Fs.readFile(path + '/api.h', function(err, ret) {
         if (err) {
             throw err;
@@ -62,24 +57,23 @@ var writeOPIHeader = function(protos, opi, onComplete) {
         out.push("}");
         out.push("#endif");
         out.push("");
-        out.push("#define " + op + "_" + prim + " " + o_p_i);
 
         replaceOp(protos.MACROS, op, function(line) {
             var mopi = line.replace(op, o_p_i);
             var mop = line.replace(op, op + "_" + prim);
-            out.push("#define " + mop + " " + mopi);
+            out.push("#define" + " " + mop + " " + mopi);
         });
 
-        out.push("#define " + op + "_" + prim + '_IMPLEMENTATION "' + path + '"');
+        out.push("#define " + op + "_" + prim + "_IMPLEMENTATION " + "\"" + path + "\"");
         out.push("#ifndef " + o_p_i + "_VERSION");
-        out.push("#define " + o_p_i + '_VERSION "-"');
+        out.push("#define " + o_p_i + "_VERSION " + "\"-\"");
         out.push("#endif");
         out.push("#define " + op + "_" + prim + "_VERSION " + o_p_i + "_VERSION");
         out.push("");
         out.push("#endif");
 
-        var outPath = BUILD_DIR + '/include/' + op + "_" + prim + ".h";
-        var outText = out.join('\n');
+        var outPath = BUILD_DIR + "/include/" + op + "_" + prim + ".h";
+        var outText = out.join("\n");
 
         Fs.writeFile(outPath, outText, function(err) {
             if (err) {
@@ -98,8 +92,7 @@ var writeOPIHeader = function(protos, opi, onComplete) {
  * primitive and implementation.
  */
 var writeOPHeader = function(protos, opi, onComplete) {
-    var o_p = opi[0] + "_" + opi[1];
-    var o_p_i = o_p + "_" + opi[2].replace(/[\.-\/]/g, '_');
+    var o_p = (opi[0] + "_" + opi[1]).replace(/(\r\n|\n|\r)/gm, "");
     var out = [
         "#ifndef " + opi[0] + "_H",
         "#define " + opi[0] + "_H",
@@ -108,9 +101,9 @@ var writeOPHeader = function(protos, opi, onComplete) {
         ""
     ];
     replaceOp(protos.MACROS, opi[0], function(line) {
-        out.push("#define " + line + " " + o_p_i + line.replace(opi[0], ''));
+        out.push("#define " + line + " " + o_p + line.replace(opi[0], ""));
     });
-    out.push("#define " + opi[0] + '_PRIMITIVE "' + opi[1] + '"');
+    out.push("#define " + opi[0] + "_PRIMITIVE " + "\"" + opi[1] + "\"");
     out.push("#define " + opi[0] + "_IMPLEMENTATION " + o_p + "_IMPLEMENTATION");
     out.push("#define " + opi[0] + "_VERSION " + o_p + "_VERSION");
     out.push("");
