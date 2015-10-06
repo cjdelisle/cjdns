@@ -11,34 +11,7 @@ var Common = require('./Common');
 // returns undefined let's just assume 1
 var WORKERS = Math.floor((typeof Os.cpus() == 'undefined' ? 1 : Os.cpus().length));
 
-var GCC = process.env['CC'] || 'gcc';
 var AR = process.env['AR'] || 'ar';
-
-var cc = function(args, onComplete, noArg) {
-    if (noArg) {
-        throw new Error();
-    }
-    cflags = process.env['CFLAGS'];
-    if (cflags) {
-        flags = cflags.split(' ');
-        flags.forEach(function(flag) {
-            args.push(flag);
-        });
-    }
-    var exe = Spawn(GCC, args);
-    var err = '';
-    exe.stderr.on('data', function(dat) {
-        err += dat.toString();
-    });
-    exe.on('error', function(err) {
-        // handle the error safely
-        console.log(args);
-        console.log(err);
-    });
-    exe.on('close', function(ret) {
-        onComplete(ret, err);
-    });
-};
 
 var ar = function(args, onComplete) {
     var exe = Spawn(AR, args);
