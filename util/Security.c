@@ -53,27 +53,43 @@ Dict* Security_getUser(char* userName, struct Allocator* retAlloc)
     Dict_putString(ret, String_new("error", retAlloc), String_new("none", retAlloc), retAlloc);
     Dict_putString(ret, String_new("name", retAlloc), String_new(pw->pw_name, retAlloc), retAlloc);
     Dict_putInt(ret, String_new("uid", retAlloc), pw->pw_uid, retAlloc);
+    Dict_putInt(ret, String_new("gid", retAlloc), pw->pw_gid, retAlloc);
     return ret;
 }
 
 void Security_setUser(int uid,
+                      int gid,
                       bool keepNetAdmin,
                       struct Log* logger,
                       struct Except* eh,
                       struct Allocator* alloc)
 {
+    int gid_errno = 0;
+    int uid_errno = 0;
     if (keepNetAdmin) {
         Setuid_preSetuid(alloc, eh);
     }
-    int ret = setuid(uid);
+    if (gid && setgid(gid)) {
+        gid_errno = errno;
+    }
+    if (setuid(uid)) {
+        /* errno is global and could get overwritten by Setuid_postSetuid() */
+        uid_errno = errno;
+    }
     if (keepNetAdmin) {
         Setuid_postSetuid(alloc, eh);
     }
-    if (ret) {
-        Except_throw(eh, "Failed to set UID [%s]", strerror(errno));
+    if (uid_errno > 0) {
+        Except_throw(eh, "Failed to set UID [%s]", strerror(uid_errno));
     }
     if (uid != (int) getuid()) {
         Except_throw(eh, "Failed to set UID but seemed to succeed");
+    }
+    if (gid_errno > 0) {
+        Except_throw(eh, "Failed to set GID [%s]", strerror(gid_errno));
+    }
+    if (gid != (int) getgid()) {
+        Except_throw(eh, "Failed to set GID but seemed to succeed");
     }
 }
 
