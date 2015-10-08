@@ -693,6 +693,7 @@ static Iface_DEFUN handleIncomingFromWire(struct Message* msg, struct Iface* add
 
     struct Peer* ep = Identity_check((struct Peer*) ici->peerMap.values[epIndex]);
     Message_shift(msg, -lladdr->addrLen, NULL);
+    CryptoAuth_resetIfTimeout(ep->caSession);
     if (CryptoAuth_decrypt(ep->caSession, msg)) {
         return NULL;
     }

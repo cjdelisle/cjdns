@@ -16,7 +16,7 @@
 var Fs = require('fs');
 var nThen = require('nthen');
 var Semaphore = require('./Semaphore');
-var Child = require('child_process');
+var Spawn = require('child_process').spawn;
 
 var headerLines = [
     '/* vim: set expandtab ts=4 sw=4: */',
@@ -35,12 +35,12 @@ var headerLines = [
     ' */'
 ];
 
-var parseFile = function (fileName, fileContent) {
+var parseFile = function(fileName, fileContent) {
     var output = '';
     var parenthCount = 0;
     var functionParenthCount = 0;
     var expectBracket = 0;
-    var name = fileName.replace(/^.*\//, '').replace(/\..*$/,'');
+    var name = fileName.replace(/^.*\//, '').replace(/\..*$/, '');
 
     var lines = fileContent.split('\n');
 
@@ -57,7 +57,7 @@ var parseFile = function (fileName, fileContent) {
         var line = lines[lineNum];
 
         // switch to 1 indexing for human readability
-        lineInfo = fileName + ":" + (lineNum+1);
+        lineInfo = fileName + ":" + (lineNum + 1);
         ignore = false;
 
         if (lineNum < headerLines.length) {
@@ -88,12 +88,17 @@ var parseFile = function (fileName, fileContent) {
         // implementations..  TUNConfigurator_Linux contains TUNConfigurator_doStuff...
         var n = name.replace(/_.*/, '');
         if ((/^\w+\s.*\(/).test(line)) {
-            if (!(/^int main\(/.test(line)
-                || line.indexOf(' '+n) > -1
-                || /^[ ]?static /.test(line)
-                || /^typedef /.test(line)))
-            {
-                error("all globally visible functions must begin with the name of the file.");
+            switch (true) {
+                // exceptions
+                case /^int main\(/.test(line):
+                case /^[ ]?static /.test(line):
+                case /^typedef /.test(line):
+                case line.indexOf(' ' + n) !== -1:
+                    break; // do nothing
+
+                default:
+                    error("all globally visible functions must begin with the name of the file.");
+                    break;
             }
         }
 
@@ -103,8 +108,8 @@ var parseFile = function (fileName, fileContent) {
         }
         if (functionParenthCount > 0 || matches) {
             var txt = (functionParenthCount > 0) ? line : matches[1];
-            functionParenthCount += (txt.match(/\(/g)||[]).length;
-            functionParenthCount -= (txt.match(/\)/g)||[]).length;
+            functionParenthCount += (txt.match(/\(/g) || []).length;
+            functionParenthCount -= (txt.match(/\)/g) || []).length;
             if (functionParenthCount === 0) {
                 txt = txt.substring(txt.lastIndexOf(')') + 1);
                 if (/{/.test(txt)) {
@@ -160,8 +165,8 @@ var parseFile = function (fileName, fileContent) {
         }
         if (parenthCount > 0 || matches) {
             var txt1 = (parenthCount > 0) ? line : matches[2];
-            parenthCount += (txt1.match(/\(/g)||[]).length;
-            parenthCount -= (txt1.match(/\)/g)||[]).length;
+            parenthCount += (txt1.match(/\(/g) || []).length;
+            parenthCount -= (txt1.match(/\)/g) || []).length;
             if (parenthCount === 0) {
                 txt1 = txt1.substring(txt1.lastIndexOf(')') + 1);
                 // for (x; y; z) ;         <-- ok
@@ -183,83 +188,100 @@ var parseFile = function (fileName, fileContent) {
     return output;
 };
 
-var checkFile = module.exports.checkFile = function (file, callback) {
-    Fs.readFile(file, function (err, ret) {
-        if (err) { throw err; }
+var checkFile = module.exports.checkFile = function(file, callback) {
+    Fs.readFile(file, function(err, ret) {
+        if (err) {
+            throw err;
+        }
         callback(parseFile(file, ret.toString()));
     });
 };
 
-var lint = module.exports.lint = function (fileName, fileContent, callback) {
+var lint = module.exports.lint = function(fileName, fileContent, callback) {
     var out = parseFile(fileName, fileContent);
     callback(out, !!out);
 };
 
-var checkFiles = module.exports.checkFiles = function (files, callback) {
+var checkFiles = module.exports.checkFiles = function(files, callback) {
     var sema = Semaphore.create(64);
     var errors = '';
-    nThen(function (waitFor) {
-        files.forEach(function (file) {
-            sema.take(waitFor(function (returnAfter) {
-                checkFile(file, waitFor(returnAfter(function (err) {
+    nThen(function(waitFor) {
+        files.forEach(function(file) {
+            sema.take(waitFor(function(returnAfter) {
+                checkFile(file, waitFor(returnAfter(function(err) {
                     if (err) {
                         errors += file + '\n' + err + '\n';
                     }
                 })));
             }));
         });
-    }).nThen(function (waitFor) {
+    }).nThen(function(waitFor) {
         callback(errors);
     });
 };
 
-var checkDir = module.exports.checkDir = function (dir, runInFork, callback) {
+var checkDir = module.exports.checkDir = function(dir, runInFork, callback) {
 
     var gitIgnoreLines;
 
     if (runInFork) {
         var err = '';
         var out = '';
-        var proc = Child.spawn(process.execPath, [__filename]);
-        proc.stdout.on('data', function (data) { err += data.toString('utf8'); });
-        proc.stderr.on('data', function (data) { err += data.toString('utf8'); });
-        proc.on('close', function (ret) {
+        var exe = Spawn(process.execPath, [__filename]);
+        exe.stdout.on('data', function(data) {
+            err += data.toString('utf8');
+        });
+        exe.stderr.on('data', function(data) {
+            err += data.toString('utf8');
+        });
+        exe.on('close', function(ret) {
             out += err;
             var error;
-            if (ret !== 0) { error = new Error(out); }
+            if (ret !== 0) {
+                error = new Error(out);
+            }
             callback(error, out);
         });
         return;
     }
 
     var output = '';
-    nThen(function (waitFor) {
+    nThen(function(waitFor) {
 
-        Fs.readFile('.gitignore', waitFor(function (err, ret) {
-            if (err) { throw err; }
+        Fs.readFile('.gitignore', waitFor(function(err, ret) {
+            if (err) {
+                throw err;
+            }
             gitIgnoreLines = ret.toString('utf8').split('\n');
         }));
 
-    }).nThen(function (waitFor) {
+    }).nThen(function(waitFor) {
 
-        var addDir = function (dir) {
-            Fs.readdir(dir, waitFor(function (err, files) {
-                if (err) { throw err; }
-                files.forEach(function (file) {
-                    Fs.stat(dir + '/' + file, waitFor(function (err, stat) {
-                        if (err) { throw err; }
-                        if (file === '.git') {
-                        } else if (file === 'contrib') {
-                        } else if (file === 'dependencies') {
-                        } else if (gitIgnoreLines.indexOf(file) !== -1) {
-                        } else {
-                            if (stat.isDirectory()) {
-                                addDir(dir + '/' + file);
-                            } else if (/.*\.[ch]$/.test(file)) {
-                                checkFile(dir + '/' + file, waitFor(function (ret) {
-                                    output += ret;
-                                }));
-                            }
+        var addDir = function(dir) {
+            Fs.readdir(dir, waitFor(function(err, files) {
+                if (err) {
+                    throw err;
+                }
+                files.forEach(function(file) {
+                    Fs.stat(dir + '/' + file, waitFor(function(err, stat) {
+                        if (err) {
+                            throw err;
+                        }
+                        switch (true) {
+                            case file === '.git':
+                            case file === 'contrib':
+                            case file === 'dependencies':
+                            case gitIgnoreLines.indexOf(file) !== -1:
+                                break; // do nothing
+
+                            default:
+                                if (stat.isDirectory()) {
+                                    addDir(dir + '/' + file);
+                                } else if (/.*\.[ch]$/.test(file)) {
+                                    checkFile(dir + '/' + file, waitFor(function(ret) {
+                                        output += ret;
+                                    }));
+                                }
                         }
                     }));
                 });
@@ -267,7 +289,7 @@ var checkDir = module.exports.checkDir = function (dir, runInFork, callback) {
         };
         addDir(dir);
 
-    }).nThen(function (waitFor) {
+    }).nThen(function(waitFor) {
 
         callback(output);
 
