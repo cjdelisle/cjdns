@@ -5,6 +5,7 @@ yours by submitting a pull request.
 
  * **Europe**
   * [Freifunk: Leipzig, Berlin, Hamburg](freifunk.md)
+  * [Poland, especially Kraków](poland.md)
  * **United States**
   * California
     * [San Diego](sandiego.md)
