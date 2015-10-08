@@ -324,7 +324,7 @@ static int genconf(struct Random* rand, bool eth)
            "        // have permission to use chroot(), this will fail quietly.\n"
            "        // Use { \"chroot\": 0 } to disable.\n"
            "        // Default: enabled (using \"/var/run\")\n"
-           "        { \"chroot\": \"/var/empty/cjdns/\" },\n"
+           "        { \"chroot\": \"/var/run/\" },\n"
            "\n"
            "        // Nofiles is a deprecated security feature which prevents cjdns from opening\n"
            "        // any files at all, using this will block setting of IP addresses and\n"

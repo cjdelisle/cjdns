@@ -64,29 +64,29 @@ void Security_setUser(int uid,
                       struct Except* eh,
                       struct Allocator* alloc)
 {
-    int gid_errno = 0;
-    int uid_errno = 0;
+    int gidErrno = 0;
+    int uidErrno = 0;
     if (keepNetAdmin) {
         Setuid_preSetuid(alloc, eh);
     }
     if (gid && setgid(gid)) {
-        gid_errno = errno;
+        gidErrno = errno;
     }
     if (setuid(uid)) {
-        /* errno is global and could get overwritten by Setuid_postSetuid() */
-        uid_errno = errno;
+        // errno is global and could get overwritten by Setuid_postSetuid()
+        uidErrno = errno;
     }
     if (keepNetAdmin) {
         Setuid_postSetuid(alloc, eh);
     }
-    if (uid_errno > 0) {
-        Except_throw(eh, "Failed to set UID [%s]", strerror(uid_errno));
+    if (uidErrno > 0) {
+        Except_throw(eh, "Failed to set UID [%s]", strerror(uidErrno));
     }
     if (uid != (int) getuid()) {
         Except_throw(eh, "Failed to set UID but seemed to succeed");
     }
-    if (gid_errno > 0) {
-        Except_throw(eh, "Failed to set GID [%s]", strerror(gid_errno));
+    if (gidErrno > 0) {
+        Except_throw(eh, "Failed to set GID [%s]", strerror(gidErrno));
     }
     if (gid != (int) getgid()) {
         Except_throw(eh, "Failed to set GID but seemed to succeed");
