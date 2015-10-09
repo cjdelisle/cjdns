@@ -149,17 +149,22 @@ static void authorizedPasswords(List* list, struct Context* ctx)
         Dict* d = List_getDict(list, i);
         String* passwd = Dict_getString(d, String_CONST("password"));
         String* user = Dict_getString(d, String_CONST("user"));
-        if (!user) {
-          user = String_printf(child, "password [%d]", i);
+        String* displayName = user;
+        if (!displayName) {
+            displayName = String_printf(child, "password [%d]", i);
         }
         //String* publicKey = Dict_getString(d, String_CONST("publicKey"));
         String* ipv6 = Dict_getString(d, String_CONST("ipv6"));
-        Log_info(ctx->logger, "Adding authorized password #[%d] for user [%s].", i, user->bytes);
+        Log_info(ctx->logger, "Adding authorized password #[%d] for user [%s].",
+            i, displayName->bytes);
         Dict *args = Dict_new(child);
         uint32_t i = 1;
         Dict_putInt(args, String_CONST("authType"), i, child);
         Dict_putString(args, String_CONST("password"), passwd, child);
-        Dict_putString(args, String_CONST("user"), user, child);
+        if (user) {
+            Dict_putString(args, String_CONST("user"), user, child);
+        }
+        Dict_putString(args, String_CONST("displayName"), displayName, child);
         if (ipv6) {
             Log_info(ctx->logger,
                 "  This connection password restricted to [%s] only.", ipv6->bytes);
@@ -621,7 +626,7 @@ void Configurator_config(Dict* config,
     };
 
     waitUntilPong(&ctx);
-
+sleep(2000, &ctx, tempAlloc);
     List* authedPasswords = Dict_getList(config, String_CONST("authorizedPasswords"));
     if (authedPasswords) {
         authorizedPasswords(authedPasswords, &ctx);

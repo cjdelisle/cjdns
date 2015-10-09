@@ -130,7 +130,9 @@ struct InterfaceController_Iface* InterfaceController_newIface(struct InterfaceC
  * @param herPublicKey the public key of the foreign node, NULL if unknown.
  * @param lladdr the link level address, must be the size given by the interface for interfaceNumber
  * @param password the password for authenticating with the other node.
- * @param user the username to assign the other node in the CryptoAuth session. May be null.
+ * @param login an identity to provide to the other node with the password,
+ *        if null then authtype 1 will be used.
+ * @param displayName the username to assign the other node in the CryptoAuth session. May be null.
  * @param alloc the peer will be dropped if this is freed.
  *
  * @return 0 if all goes well.
@@ -148,7 +150,8 @@ int InterfaceController_bootstrapPeer(struct InterfaceController* ifc,
                                       uint8_t* herPublicKey,
                                       const struct Sockaddr* lladdr,
                                       String* password,
-                                      String* user,
+                                      String* login,
+                                      String* displayName,
                                       struct Allocator* alloc);
 
 #define InterfaceController_beaconState_newState_OFF    0

@@ -37,18 +37,11 @@ static void add(Dict* args, void* vcontext, String* txid, struct Allocator* allo
     struct Context* context = Identity_check((struct Context*) vcontext);
 
     String* passwd = Dict_getString(args, String_CONST("password"));
-    int64_t* authType = Dict_getInt(args, String_CONST("authType"));
-    String* user = Dict_getString(args, String_CONST("user"));
+    String* user = Dict_getInt(args, String_CONST("user"));
+    String* displayName = Dict_getString(args, String_CONST("displayName"));
     String* ipv6 = Dict_getString(args, String_CONST("ipv6"));
-    int64_t one = 1;
-    if (!authType) {
-        authType = &one;
-    } else if (*authType < 1 || *authType > 255) {
-        sendResponse(String_CONST("Specified auth type is not supported."),
-                     context->admin, txid, alloc);
-        return;
-    }
-    int32_t ret = CryptoAuth_addUser_ipv6(passwd, *authType, user, ipv6, context->ca);
+
+    int32_t ret = CryptoAuth_addUser_ipv6(passwd, user, displayName, ipv6, context->ca);
 
     switch (ret) {
         case 0:
@@ -117,9 +110,9 @@ void AuthorizedPasswords_init(struct Admin* admin,
     Admin_registerFunction("AuthorizedPasswords_add", add, context, true,
         ((struct Admin_FunctionArg[]){
             { .name = "password", .required = 1, .type = "String" },
-            { .name = "user", .required = 1, .type = "String" },
+            { .name = "displayName", .required = 0, .type = "String" },
             { .name = "ipv6", .required = 0, .type = "String" },
-            { .name = "authType", .required = 0, .type = "Int" }
+            { .name = "user", .required = 0, .type = "String" }
         }), admin);
     Admin_registerFunction("AuthorizedPasswords_remove", remove, context, true,
         ((struct Admin_FunctionArg[]){

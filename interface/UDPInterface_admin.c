@@ -40,6 +40,7 @@ static void beginConnection(Dict* args,
     struct Context* ctx = vcontext;
 
     String* password = Dict_getString(args, String_CONST("password"));
+    String* login = Dict_getString(args, String_CONST("login"));
     String* publicKey = Dict_getString(args, String_CONST("publicKey"));
     String* address = Dict_getString(args, String_CONST("address"));
     int64_t* interfaceNumber = Dict_getInt(args, String_CONST("interfaceNumber"));
@@ -84,7 +85,7 @@ static void beginConnection(Dict* args,
         }
 
         int ret = InterfaceController_bootstrapPeer(
-            ctx->ic, ifNum, pkBytes, addr, password, peerName, ctx->alloc);
+            ctx->ic, ifNum, pkBytes, addr, password, login, peerName, ctx->alloc);
 
         Allocator_free(tempAlloc);
 
@@ -188,7 +189,8 @@ void UDPInterface_admin_register(struct EventBase* base,
         { .name = "interfaceNumber", .required = 0, .type = "Int" },
         { .name = "password", .required = 0, .type = "String" },
         { .name = "publicKey", .required = 1, .type = "String" },
-        { .name = "address", .required = 1, .type = "String" }
+        { .name = "address", .required = 1, .type = "String" },
+        { .name = "login", .required = 0, .type = "String" }
     };
     Admin_registerFunction("UDPInterface_beginConnection",
         beginConnection, ctx, true, adma2, admin);
