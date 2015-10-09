@@ -626,7 +626,7 @@ void Configurator_config(Dict* config,
     };
 
     waitUntilPong(&ctx);
-sleep(2000, &ctx, tempAlloc);
+
     List* authedPasswords = Dict_getList(config, String_CONST("authorizedPasswords"));
     if (authedPasswords) {
         authorizedPasswords(authedPasswords, &ctx);
