@@ -27,7 +27,6 @@
 #include "net/EventEmitter.h"
 #include "net/SessionManager.h"
 #include "net/SwitchAdapter.h"
-#include "net/ConverterV15.h"
 #include "net/UpperDistributor.h"
 #include "net/TUNAdapter.h"
 
@@ -74,11 +73,8 @@ struct NetCore* NetCore_new(uint8_t* privateKey,
 
     // upper half
 
-    struct ConverterV15* v15conv = ConverterV15_new(alloc, log, sm, myAddress->ip6.bytes);
-    Iface_plumb(&v15conv->sessionManagerIf, &sm->insideIf);
-
     struct UpperDistributor* upper = nc->upper = UpperDistributor_new(alloc, log, ee);
-    Iface_plumb(&v15conv->upperDistributorIf, &upper->sessionManagerIf);
+    Iface_plumb(&sm->insideIf, &upper->sessionManagerIf);
 
     struct TUNAdapter* tunAdapt = nc->tunAdapt = TUNAdapter_new(alloc, log, myAddress->ip6.bytes);
     Iface_plumb(&tunAdapt->upperDistributorIf, &upper->tunAdapterIf);
