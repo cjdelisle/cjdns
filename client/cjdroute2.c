@@ -110,11 +110,10 @@ static int genconf(struct Random* rand, bool eth)
     printf("\n"
            "    // Anyone connecting and offering these passwords on connection will be allowed.\n"
            "    //\n"
-           "    // WARNING: Currently there is no key derivation done on the password field,\n"
-           "    //          DO NOT USE A PASSWORD HERE use something which is truly random and\n"
-           "    //          cannot be guessed.\n"
-           "    // Setting the user field is encouraged to aid in remembering which users are\n"
-           "    // who.\n"
+           "    // WARNING: If a \"login\" parameter is passed, someone sniffing on the wire can\n"
+           "    //          sniff the packet and crack to find it. If the \"login\" is not passed\n"
+           "    //          then the hash of the 'password' is effectively the login, therefore\n"
+           "    //          that can be cracked.\n"
            "    //\n"
            "    \"authorizedPasswords\":\n"
            "    [\n"
@@ -131,14 +130,18 @@ static int genconf(struct Random* rand, bool eth)
            "        // Below is an example of your connection credentials\n"
            "        // that you can give to other people so they can connect\n"
            "        // to you using your default password (from above).\n"
-           "        // The peerName field here identifies your node to your peer.\n"
+           "        // The login field here yourself to your peer and the peerName field\n"
+           "        // is the name the peer which will be displayed in peerStats\n"
            "        // Adding a unique password for each peer is advisable\n"
            "        // so that leaks can be isolated.\n"
-           "        //\n"
-           "        // \"your.external.ip.goes.here:%u\":{", port);
-    printf("\"password\":\"%s\",", password);
-    printf("\"publicKey\":\"%s.k\",", publicKeyBase32);
-    printf("\"peerName\":\"your-name-goes-here\"},\n");
+           "        /*\n"
+           "        \"your.external.ip.goes.here:%u\": {\n", port);
+    printf("            \"login\": \"(optional) how to authenticate yourself v17+ only\",\n"
+           "            \"password\":\"%s\",\n", password);
+    printf("            \"publicKey\":\"%s.k\",\n", publicKeyBase32);
+    printf("            \"peerName\":\"your-name-goes-here\"\n"
+           "        },\n"
+           "        */\n");
     printf("    ],\n"
            "\n"
            "    // Settings for administering and extracting information from your router.\n"
@@ -180,6 +183,7 @@ static int genconf(struct Random* rand, bool eth)
            "                    // If you have several, don't forget the separating commas\n"
            "                    // They should look like:\n"
            "                    // \"ipv4 address:port\": {\n"
+           "                    //     \"login\": \"(optional) name your peer has for you\"\n"
            "                    //     \"password\": \"password to connect with\",\n"
            "                    //     \"publicKey\": \"remote node key.k\",\n"
            "                    //     \"peerName\": \"(optional) human-readable name for peer\"\n"

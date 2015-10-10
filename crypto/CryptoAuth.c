@@ -177,36 +177,15 @@ static inline struct CryptoAuth_Auth* getAuth(union CryptoHeader_Challenge auth,
     return NULL;
 }
 
-static inline void getPasswordHash_typeOne(uint8_t output[32],
-                                           uint16_t derivations,
-                                           struct CryptoAuth_Auth* auth)
-{
-    Bits_memcpyConst(output, auth->secret, 32);
-    if (derivations) {
-        union {
-            uint8_t bytes[2];
-            uint8_t asShort;
-        } deriv = { .asShort = derivations };
-
-        output[0] ^= deriv.bytes[0];
-        output[1] ^= deriv.bytes[1];
-
-        crypto_hash_sha256(output, output, 32);
-    }
-}
-
 static inline uint8_t* tryAuth(union CryptoHeader* cauth,
                                uint8_t hashOutput[32],
                                struct CryptoAuth_Session_pvt* session,
                                struct CryptoAuth_Auth** retAuth)
 {
     struct CryptoAuth_Auth* auth = getAuth(cauth->handshake.auth, session->context);
-    if (auth != NULL) {
-        uint16_t deriv = CryptoHeader_getAuthChallengeDerivations(&cauth->handshake.auth);
-        getPasswordHash_typeOne(hashOutput, deriv, auth);
-        if (deriv == 0) {
-            *retAuth = auth;
-        }
+    if (auth) {
+        Bits_memcpyConst(hashOutput, auth->secret, 32);
+        *retAuth = auth;
         return hashOutput;
     }
 

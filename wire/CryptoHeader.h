@@ -33,14 +33,23 @@
  *    8 |A|        Derivations          |S|         Additional          |
  *      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  *
- * Bits A and S are deprecated, both will always be cleared and ignored.
+ * Bits A and S and fields Derivitives and Additional are deprecated, they will always be ignored.
+ * Historically A means "authenticate", the bit is set to request Poly1305 authentication which
+ * is now enabled all of the time.
+ * S meant that the packet was used as part of session setup, this is a carry-over from a time
+ * when it was possible to initiate a session with someone whose key you do not know. The bit
+ * indicated that the packet should be "suppressed".
+ * Derivations was intended to be used for exchanging secrets between nodes. Alice and Bob
+ * having a shared secret (password) would allow Alice to give *something* to charlie which
+ * would not allow him to athenticate with Bob as if he was Alice but would allow him to
+ * to make a crypto session with Bob which was secured additionally by the shared secret between
+ * Alice and Bob which was (presumably) transferred to Charlie along a secure channel.
+ * The field Additional was never used but was intended to be for more information included
+ * depending on the authType.
  *
  * The Auth Type and Hash Code combined make a lookup key which can be used to scan a hashtable
  * to see if the given password is known. It can be thought of as the "username" although it is
  * a derivative of the password.
- * The final key is derived from the key looked up using HashCode and the content of Derivations,
- * this way Alice can pass a password for connecting to Bob to Charlie and then Charlie can start
- * a stronger session with Bob but still cannot impersonate Alice.
  */
 union CryptoHeader_Challenge
 {
