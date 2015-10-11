@@ -37,7 +37,7 @@ static void add(Dict* args, void* vcontext, String* txid, struct Allocator* allo
     struct Context* context = Identity_check((struct Context*) vcontext);
 
     String* passwd = Dict_getString(args, String_CONST("password"));
-    String* user = Dict_getInt(args, String_CONST("user"));
+    String* user = Dict_getString(args, String_CONST("user"));
     String* displayName = Dict_getString(args, String_CONST("displayName"));
     String* ipv6 = Dict_getString(args, String_CONST("ipv6"));
 
