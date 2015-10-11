@@ -181,12 +181,12 @@ void UDPInterface_admin_register(struct EventBase* base,
     }));
 
     Admin_registerFunction("UDPInterface_new", newInterface, ctx, true,
-        (&(struct Admin_FunctionArg[]) {
+        ((struct Admin_FunctionArg[]) {
             { .name = "bindAddress", .required = 0, .type = "String" }
         }), admin);
 
     Admin_registerFunction("UDPInterface_beginConnection", beginConnection, ctx, true,
-        (&(struct Admin_FunctionArg[]) {
+        ((struct Admin_FunctionArg[]) {
             { .name = "interfaceNumber", .required = 0, .type = "Int" },
             { .name = "password", .required = 0, .type = "String" },
             { .name = "publicKey", .required = 1, .type = "String" },
