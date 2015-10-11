@@ -180,18 +180,17 @@ void UDPInterface_admin_register(struct EventBase* base,
         .ic = ic
     }));
 
-    struct Admin_FunctionArg adma[1] = {
-        { .name = "bindAddress", .required = 0, .type = "String" }
-    };
-    Admin_registerFunction("UDPInterface_new", newInterface, ctx, true, adma, admin);
+    Admin_registerFunction("UDPInterface_new", newInterface, ctx, true,
+        (&(struct Admin_FunctionArg[]) {
+            { .name = "bindAddress", .required = 0, .type = "String" }
+        }), admin);
 
-    struct Admin_FunctionArg adma2[4] = {
-        { .name = "interfaceNumber", .required = 0, .type = "Int" },
-        { .name = "password", .required = 0, .type = "String" },
-        { .name = "publicKey", .required = 1, .type = "String" },
-        { .name = "address", .required = 1, .type = "String" },
-        { .name = "login", .required = 0, .type = "String" }
-    };
-    Admin_registerFunction("UDPInterface_beginConnection",
-        beginConnection, ctx, true, adma2, admin);
+    Admin_registerFunction("UDPInterface_beginConnection", beginConnection, ctx, true,
+        (&(struct Admin_FunctionArg[]) {
+            { .name = "interfaceNumber", .required = 0, .type = "Int" },
+            { .name = "password", .required = 0, .type = "String" },
+            { .name = "publicKey", .required = 1, .type = "String" },
+            { .name = "address", .required = 1, .type = "String" },
+            { .name = "login", .required = 0, .type = "String" }
+        }), admin);
 }
