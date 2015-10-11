@@ -314,8 +314,9 @@ static void getIp6(struct CryptoAuth_Session_pvt* session, uint8_t* addr)
     {                                                                                            \
         uint8_t addr[40] = "unknown";                                                            \
         getIp6((session), addr);                                                                 \
+        String* dn = (session)->pub.displayName;                                                 \
         Log_debug((session)->context->logger, "%p %s [%s]: " format, (void*)(session),           \
-                  (session)->pub.displayName, addr, __VA_ARGS__);                                \
+                  dn ? dn->bytes : "", addr, __VA_ARGS__);                                       \
     }
 
 #define cryptoAuthDebug0(wrapper, format) \
