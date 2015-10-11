@@ -120,7 +120,7 @@ static int genconf(struct Random* rand, bool eth)
            "        // A unique string which is known to the client and server.\n"
            "        // Specify an optional user to identify the peer locally.\n"
            "        // It is not used for authentication.\n"
-           "        {\"password\": \"%s\", \"user\": \"my-first-peer\"}\n", password);
+           "        {\"password\": \"%s\", \"user\": \"default-login\"}\n", password);
     printf("\n"
            "        // More passwords should look like this.\n"
            "        // {\"password\": \"%s\", \"user\": \"my-second-peer\"},\n", password2);
@@ -136,7 +136,7 @@ static int genconf(struct Random* rand, bool eth)
            "        // so that leaks can be isolated.\n"
            "        /*\n"
            "        \"your.external.ip.goes.here:%u\": {\n", port);
-    printf("            \"login\": \"(optional) how to authenticate yourself v17+ only\",\n"
+    printf("            \"login\": \"default-login\",\n"
            "            \"password\":\"%s\",\n", password);
     printf("            \"publicKey\":\"%s.k\",\n", publicKeyBase32);
     printf("            \"peerName\":\"your-name-goes-here\"\n"
