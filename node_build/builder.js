@@ -814,6 +814,34 @@ var getRebuildIfChangesHash = function (rebuildIfChanges, callback) {
     });
 };
 
+var throwIfErr = function (err) { if (err) { throw err; } };
+
+var probeCompiler = function (state, callback) {
+    nThen(function (waitFor) {
+        var compilerType = state.compilerType = {
+            isLLVM: false,
+            isClang: false,
+            isGCC: false,
+            version: undefined
+        };
+        compiler(state.gcc, ['-v'], waitFor(function (ret, out, err) {
+            if (ret !== 0) { throw new Error("Failed to probe compiler ret[" + ret + "]\n" + err); }
+            if (/LLVM/.test(err)) {
+                compilerType.isLLVM = true;
+                if (/clang/.test(err)) {
+                    compilerType.isClang = true;
+                    compilerType.version = err.match(/LLVM version ([^ ]+) /)[1];
+                }
+            }
+            if (/^gcc version /.test(err)) {
+                compilerType.isGCC = true;
+                compilerType.version = err.match(/^gcc version ([^ ]+) /)[1];
+            }
+            console.log(JSON.stringify(compilerType));
+        }));
+    }).nThen(callback);
+};
+
 process.on('exit', function () {
     console.log("Total build time: " + Math.floor(process.uptime() * 1000) + "ms.");
 });
@@ -822,8 +850,6 @@ var stage = function (st, builder, waitFor) {
     builder.waitFor = waitFor;
     st(builder, waitFor);
 };
-
-var throwIfErr = function (err) { if (err) { throw err; } };
 
 var configure = module.exports.configure = function (params, configFunc) {
 
@@ -896,6 +922,10 @@ var configure = module.exports.configure = function (params, configFunc) {
 
         state = getStatePrototype(params);
         builder = mkBuilder(state);
+        probeCompiler(state, waitFor());
+
+    }).nThen(function (waitFor) {
+
         configFunc(builder, waitFor);
 
     }).nThen(function (waitFor) {

@@ -31,14 +31,12 @@ var LDFLAGS = process.env['LDFLAGS'];
 
 var NO_MARCH_FLAG = ['ppc', 'ppc64'];
 
-if (!GCC) {
-    if (SYSTEM === 'freebsd') {
-        GCC = 'gcc47';
-    } else if (SYSTEM === 'openbsd') {
-        GCC = 'egcc';
-    } else {
-        GCC = 'gcc';
-    }
+if (GCC) {
+    // Already specified.
+} else if (SYSTEM === 'openbsd') {
+    GCC = 'egcc';
+} else {
+    GCC = 'gcc';
 }
 
 Builder.configure({
@@ -112,7 +110,7 @@ Builder.configure({
         }
     }
 
-    if (/clang/i.test(builder.config.gcc) || builder.config.systemName === 'darwin') {
+    if (builder.config.compilerType.isClang) {
         // blows up when preprocessing before js preprocessor
         builder.config.cflags.push(
             '-Wno-invalid-pp-token',
