@@ -55,6 +55,12 @@ var error = function (message)
     }
 };
 
+var throwIfErr = function(err) {
+    if (err) {
+        throw new Error(err);
+    }
+};
+
 var expandArgs = function (args) {
     var out = [];
     for (var i = 0; i < args.length; i++) {
@@ -476,7 +482,6 @@ var compileFile = function (fileName, builder, tempDir, callback)
 
         cc(state.gcc, flags, waitFor(function (err) {
             if (err) { throw err; }
-
             fileObj.obj = outFile;
         }), fileContent);
 

@@ -40,8 +40,10 @@ static void setUser(Dict* args, void* vctx, String* txid, struct Allocator* requ
     struct Jmp jmp;
     Jmp_try(jmp) {
         int64_t* user = Dict_getInt(args, String_CONST("uid"));
+        int64_t* group = Dict_getInt(args, String_CONST("gid"));
+        int gid = group ? (int)*group : 0;
         int64_t* keepNetAdmin = Dict_getInt(args, String_CONST("keepNetAdmin"));
-        Security_setUser(*user, *keepNetAdmin, ctx->logger, &jmp.handler, requestAlloc);
+        Security_setUser(*user, gid, *keepNetAdmin, ctx->logger, &jmp.handler, requestAlloc);
     } Jmp_catch {
         sendError(jmp.message, txid, ctx->admin);
         return;
@@ -161,6 +163,7 @@ void Security_admin_register(struct Allocator* alloc,
     }), admin);
     Admin_registerFunction("Security_setUser", setUser, ctx, true, ((struct Admin_FunctionArg[]) {
         { .name = "uid", .required = 1, .type = "Int" },
+        { .name = "gid", .required = 0, .type = "Int" },
         { .name = "keepNetAdmin", .required = 1, .type = "Int" },
     }), admin);
     Admin_registerFunction("Security_getUser", getUser, ctx, true, ((struct Admin_FunctionArg[]) {

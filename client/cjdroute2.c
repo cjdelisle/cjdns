@@ -317,7 +317,7 @@ static int genconf(struct Random* rand, bool eth)
            "        // and ETHInterface will be unable to hot-add new interfaces\n"
            "        // Use { \"setuser\": 0 } to disable.\n"
            "        // Default: enabled with keepNetAdmin\n"
-           "        { \"setuser\": \"nobody\", \"keepNetAdmin\": 1 },\n"
+           "        { \"setuser\": \"cjdns\", \"keepNetAdmin\": 1 },\n"
            "\n"
            "        // Chroot changes the filesystem root directory which cjdns sees, blocking it\n"
            "        // from accessing files outside of the chroot sandbox, if the user does not\n"
