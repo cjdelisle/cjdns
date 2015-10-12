@@ -826,19 +826,35 @@ var probeCompiler = function (state, callback) {
         };
         compiler(state.gcc, ['-v'], waitFor(function (ret, out, err) {
             if (ret !== 0) { throw new Error("Failed to probe compiler ret[" + ret + "]\n" + err); }
-            if (/LLVM/.test(err)) {
+            if (/Apple LLVM version /.test(err)) {
                 compilerType.isLLVM = true;
                 if (/clang/.test(err)) {
+                    // Apple LLVM version 6.1.0 (clang-602.0.53) (based on LLVM 3.6.0svn)
+                    // Target: x86_64-apple-darwin14.4.0
+                    // Thread model: posix
                     compilerType.isClang = true;
-                    compilerType.version = err.match(/LLVM version ([^ ]+) /)[1];
+                    compilerType.version = err.match(/Apple LLVM version ([^ ]+) /)[1];
+                } else if (/gcc version /.test(err)) {
+                    // Using built-in specs.
+                    // Target: i686-apple-darwin11
+                    // Configured with: /private/var/tmp/llvmgcc42/llvmgcc42.......
+                    // Thread model: posix
+                    // gcc version 4.2.1 (Based on Apple Inc. build 5658) (LLVM build 2336.11.00)
+                    compilerType.isGCC = true;
+                    compilerType.version = err.match(/gcc version ([^ ]+) /)[1];
                 }
-            }
-            if (/clang version /.test(err)) {
+            } else if (/clang version /.test(err)) {
+                // FreeBSD clang version 3.0 (tags/RELEASE_30/final 145349) 20111210
+                // Target: x86_64-unknown-freebsd10.0
+                // Thread model: posix
+
+                // clang version 3.2 (trunk)
+                // Target: x86_64-unknown-linux-gnu
+                // Thread model: posix
                 compilerType.isLLVM = true;
                 compilerType.isClang = true;
                 compilerType.version = err.match(/clang version ([^ ]+) /)[1];
-            }
-            if (/gcc version /.test(err)) {
+            } else if (/gcc version /.test(err)) {
                 compilerType.isGCC = true;
                 compilerType.version = err.match(/gcc version ([^ ]+) /)[1];
             }
