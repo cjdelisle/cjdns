@@ -176,7 +176,7 @@ static void handleEvent(void* vcontext)
     }
     if (bytes < 1) { return; }
     if (bytes < (ssize_t)sizeof(struct bpf_hdr)) {
-        Log_debug(context->logger, "runt [%u]", bytes);
+        Log_debug(context->logger, "runt [%lld]", (long long) bytes);
         return;
     }
     int offset = 0;
