@@ -833,6 +833,11 @@ var probeCompiler = function (state, callback) {
                     compilerType.version = err.match(/LLVM version ([^ ]+) /)[1];
                 }
             }
+            if (/clang version /.test(err)) {
+                compilerType.isLLVM = true;
+                compilerType.clang = true;
+                compilerType.version = err.match(/clang version ([^ ]+) /)[1];
+            }
             if (/gcc version /.test(err)) {
                 compilerType.isGCC = true;
                 compilerType.version = err.match(/gcc version ([^ ]+) /)[1];
