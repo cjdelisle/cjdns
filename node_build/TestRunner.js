@@ -17,8 +17,7 @@ var Fs = require("fs");
 
 var TIMEOUT = 15000;
 
-var parseURL = function (url)
-{
+var parseURL = function(url) {
     url = url.replace(/[a-zA-Z]*:\/\//, '');
     var path = url.split('/')[1] || '';
     url = url.split('/')[0];
@@ -33,13 +32,17 @@ var parseURL = function (url)
     };
 };
 
-var remote = module.exports.remote = function (url, argv) {
+var remote = module.exports.remote = function(url, argv) {
     var params = parseURL(url);
-    if (!params.host) { throw new Error("For the client, the hostname is required"); }
-    params.headers = { args: [ JSON.stringify(argv) ] };
+    if (!params.host) {
+        throw new Error("For the client, the hostname is required");
+    }
+    params.headers = {
+        args: [JSON.stringify(argv)]
+    };
     params.method = 'POST';
 
-    return function (fileName, callback) {
+    return function(fileName, callback) {
         var out = [];
         out.push('Testing Remotely');
         var req = Http.request(params, function(res) {
@@ -49,8 +52,10 @@ var remote = module.exports.remote = function (url, argv) {
             }
             res.setEncoding('utf8');
             var body = '';
-            res.on('data', function (chunk) { body += String(chunk); });
-            res.on('end', function () {
+            res.on('data', function(chunk) {
+                body += String(chunk);
+            });
+            res.on('end', function() {
                 var ret = JSON.parse(body);
                 if (ret.returnCode !== 0) {
                     output.push(ret.stdout);
@@ -66,12 +71,16 @@ var remote = module.exports.remote = function (url, argv) {
     };
 };
 
-var client = function (url, fileName, argv) {
+var client = function(url, fileName, argv) {
     var params = parseURL(url);
 
-    if (!params.host) { throw new Error("For the client, the hostname is required"); }
+    if (!params.host) {
+        throw new Error("For the client, the hostname is required");
+    }
 
-    params.headers = { args: [ JSON.stringify(argv) ] };
+    params.headers = {
+        args: [JSON.stringify(argv)]
+    };
     params.method = 'POST';
 
     var req = Http.request(params, function(res) {
@@ -81,8 +90,10 @@ var client = function (url, fileName, argv) {
         }
         res.setEncoding('utf8');
         var body = '';
-        res.on('data', function (chunk) { body += String(chunk); });
-        res.on('end', function () {
+        res.on('data', function(chunk) {
+            body += String(chunk);
+        });
+        res.on('end', function() {
             var ret = JSON.parse(body);
             process.stdout.write(ret.stdout);
             process.stderr.write(ret.stderr);
@@ -100,15 +111,20 @@ var client = function (url, fileName, argv) {
 
 var spawnProc = function(file, args, callback, timeoutMilliseconds) {
     var child = Spawn(file, args);
-    var out = '', err = '';
+    var out = '',
+        err = '';
     var to = setTimeout(function() {
         child.kill('SIGKILL');
         err += "TIMEOUT\n";
         callback(1000, out, err);
     }, timeoutMilliseconds);
-    child.stdout.on('data', function (data) { out += String(data); });
-    child.stderr.on('data', function (data) { err += String(data); });
-    child.on('close', function (code) {
+    child.stdout.on('data', function(data) {
+        out += String(data);
+    });
+    child.stderr.on('data', function(data) {
+        err += String(data);
+    });
+    child.on('close', function(code) {
         clearTimeout(to);
         callback(code, out, err);
     });
@@ -118,10 +134,10 @@ var spawnProc = function(file, args, callback, timeoutMilliseconds) {
     });
 };
 
-var local = module.exports.local = function (argv) {
-    return function (fileName, callback) {
+var local = module.exports.local = function(argv) {
+    return function(fileName, callback) {
         var output = [];
-        spawnProc(fileName, argv, function (code, out, err) {
+        spawnProc(fileName, argv, function(code, out, err) {
             if (code !== 0) {
                 output.push(out);
             }
@@ -131,23 +147,29 @@ var local = module.exports.local = function (argv) {
     };
 };
 
-var send = function (response, content) {
-    response.writeHeader(200, {"Content-Type": "text/plain"});
+var send = function(response, content) {
+    response.writeHeader(200, {
+        "Content-Type": "text/plain"
+    });
     response.write(content);
     response.end();
 };
 
-var runTest = function (fileName, args, response, timeoutMilliseconds) {
+var runTest = function(fileName, args, response, timeoutMilliseconds) {
     Fs.chmodSync(fileName, '755');
-setTimeout(function () {
-    spawnProc(fileName, args, function(code, out, err) {
-        send(response, JSON.stringify({ returnCode: code, stdout: out, stderr: err }));
-        //Fs.unlink(fileName);
-    }, timeoutMilliseconds);
-}, 100);
+    setTimeout(function() {
+        spawnProc(fileName, args, function(code, out, err) {
+            send(response, JSON.stringify({
+                returnCode: code,
+                stdout: out,
+                stderr: err
+            }));
+            //Fs.unlink(fileName);
+        }, timeoutMilliseconds);
+    }, 100);
 };
 
-var server = function (url, tempDir) {
+var server = function(url, tempDir) {
     var params = parseURL(url);
     tempDir = tempDir || '/tmp';
 
@@ -169,8 +191,7 @@ var server = function (url, tempDir) {
 
 /// Main
 
-var usage = function ()
-{
+var usage = function() {
     console.log(
         "Usage:\n" +
         "  TestRunner server [http://][<hostname>][:<port>][/<password>] [tempDir]\n" +
@@ -185,25 +206,24 @@ var usage = function ()
         "    serving.\n" +
         "\n" +
         "  TestRunner client [http://][<hostname>][:<port>][/<password>] <executable> [argv1, " +
-            "[argv2, ...]]\n" +
+        "[argv2, ...]]\n" +
         "    connect to the specified URL and upload <exectable> to be run with\n" +
         "    arguments <argv1> <argv2> ...\n" +
         "    the URL has the same semantics as that for the server except the hostname must be\n" +
         "    specified.");
 };
 
-var main = function (argv)
-{
+var main = function(argv) {
     var cli = argv.indexOf("client");
     if (cli !== -1) {
-        argv.splice(0,cli+1);
+        argv.splice(0, cli + 1);
         var cliUrl = argv.shift();
         var fileName = argv.shift();
         return client(cliUrl, fileName, argv);
     }
     var serv = argv.indexOf("server");
     if (serv !== -1) {
-        argv.splice(0,serv+1);
+        argv.splice(0, serv + 1);
         var servUrl = argv.shift();
         var tempDir = argv.shift();
         return server(servUrl, tempDir);
