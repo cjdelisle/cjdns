@@ -1,6 +1,7 @@
 # cjdns
 
 Русская версия Readme: [README_RU.md](README_RU.md)
+Hrvatski Readme: [README_HR.md](README_HR.md)
 
 #### *Networking Reinvented*
 
