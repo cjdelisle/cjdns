@@ -42,13 +42,13 @@ if (!GCC) {
 }
 
 Builder.configure({
-    systemName:     SYSTEM,
+    systemName: SYSTEM,
     crossCompiling: process.env['CROSS'] !== undefined,
-    gcc:            GCC,
-    tempDir:        '/tmp',
-    optimizeLevel:  '-O3',
-    logLevel:       process.env['Log_LEVEL'] || 'DEBUG'
-}, function (builder, waitFor) {
+    gcc: GCC,
+    tempDir: '/tmp',
+    optimizeLevel: '-O3',
+    logLevel: process.env['Log_LEVEL'] || 'DEBUG'
+}, function(builder, waitFor) {
     builder.config.cflags.push(
         '-std=c99',
         '-Wall',
@@ -97,15 +97,12 @@ Builder.configure({
         builder.config.cflags.push('-DHAS_ETH_INTERFACE=1');
     }
 
-    if (process.env['NO_PIE'] === undefined && builder.config.systemName !== 'freebsd'
-        && builder.config.systemName !== 'win32')
-    {
+    if (process.env['NO_PIE'] === undefined && builder.config.systemName !== 'freebsd' && builder.config.systemName !== 'win32') {
         builder.config.cflags.push('-fPIE');
 
         // just using `-pie` on OS X >= 10.10 results in this warning:
         // clang: warning: argument unused during compilation: '-pie'
-        if (builder.config.systemName !== "darwin")
-        {
+        if (builder.config.systemName !== "darwin") {
             builder.config.ldflags.push('-pie');
         } else {
             builder.config.ldflags.push('-Wl,-pie');
@@ -135,9 +132,9 @@ Builder.configure({
     if (CFLAGS) {
         var cflags = CFLAGS.split(' ');
         cflags.forEach(function(flag) {
-             if (/^\-O[^02s]$/.test(flag)) {
+            if (/^\-O[^02s]$/.test(flag)) {
                 console.log("Skipping " + flag + ", assuming " +
-                            builder.config.optimizeLevel + " instead.");
+                    builder.config.optimizeLevel + " instead.");
             } else if (/^\-O[02s]$/.test(flag)) {
                 builder.config.optimizeLevel = flag;
             } else {
@@ -157,31 +154,36 @@ Builder.configure({
     }
 
     CanCompile.check(builder,
-                     'int main() { return 0; }',
-                     [ builder.config.cflags, '-flto', '-x', 'c' ],
-                     function (err, can) {
-        if (can) {
-            console.log("Compiler supports link time optimization");
-            builder.config.ldflags.push(
-                '-flto',
-                builder.config.optimizeLevel
-            );
-        } else {
-            console.log("Link time optimization not supported [" + err + "]");
-        }
-        builder.config.cflags.push(builder.config.optimizeLevel);
-    });
+        'int main() { return 0; }', [builder.config.cflags, '-flto', '-x', 'c'],
+        function(err, can) {
+            if (can) {
+                console.log("Compiler supports link time optimization");
+                builder.config.ldflags.push(
+                    '-flto',
+                    builder.config.optimizeLevel
+                );
+            } else {
+                console.log("Link time optimization not supported [" + err + "]");
+            }
+            builder.config.cflags.push(builder.config.optimizeLevel);
+        });
 
     var uclibc = process.env['UCLIBC'] == '1';
     var libssp;
     switch (process.env['SSP_SUPPORT']) {
         case 'y':
-        case '1': libssp = true; break;
+        case '1':
+            libssp = true;
+            break;
         case 'n':
-        case '' :
-        case '0': libssp = false; break;
-        case undefined: break;
-        default: throw new Error();
+        case '':
+        case '0':
+            libssp = false;
+            break;
+        case undefined:
+            break;
+        default:
+            throw new Error();
     }
     if (libssp === false) {
         console.log("Stack Smashing Protection (security feature) is disabled");
@@ -224,54 +226,58 @@ Builder.configure({
     }
 
     // Build dependencies
-    nThen(function (waitFor) {
+    nThen(function(waitFor) {
 
-        Fs.exists(dependencyDir, waitFor(function (exists) {
-            if (exists) { return; }
+        Fs.exists(dependencyDir, waitFor(function(exists) {
+            if (exists) {
+                return;
+            }
 
             console.log("Copy dependencies");
             Cp('./node_build/dependencies', dependencyDir, waitFor());
         }));
 
-    }).nThen(function (waitFor) {
+    }).nThen(function(waitFor) {
 
         builder.config.libs.push(dependencyDir + '/cnacl/jsbuild/libnacl.a');
         builder.config.includeDirs.push(dependencyDir + '/cnacl/jsbuild/include/');
 
-        Fs.exists(dependencyDir + '/cnacl/jsbuild/libnacl.a', waitFor(function (exists) {
-            if (exists) { return; }
+        Fs.exists(dependencyDir + '/cnacl/jsbuild/libnacl.a', waitFor(function(exists) {
+            if (exists) {
+                return;
+            }
 
             console.log("Build NaCl");
             var cwd = process.cwd();
             process.chdir(dependencyDir + '/cnacl/');
 
             var NaCl = require(process.cwd() + '/node_build/make.js');
-            NaCl.build(function (args, callback) {
-                if (builder.config.systemName !== 'win32') {
-                    args.unshift('-fPIC');
-                }
-
-                args.unshift(builder.config.optimizeLevel, '-fomit-frame-pointer');
-
-                if (CFLAGS) {
-                    [].push.apply(args, CFLAGS.split(' '));
-                }
-
-                if (!builder.config.crossCompiling) {
-                    if (NO_MARCH_FLAG.indexOf(process.arch) < -1) {
-                        builder.config.cflags.push('-march=native');
+            NaCl.build(function(args, callback) {
+                    if (builder.config.systemName !== 'win32') {
+                        args.unshift('-fPIC');
                     }
-                }
 
-                builder.cc(args, callback);
-            },
-            builder.config,
-            waitFor(function () {
-                process.chdir(cwd);
-            }));
+                    args.unshift(builder.config.optimizeLevel, '-fomit-frame-pointer');
+
+                    if (CFLAGS) {
+                        [].push.apply(args, CFLAGS.split(' '));
+                    }
+
+                    if (!builder.config.crossCompiling) {
+                        if (NO_MARCH_FLAG.indexOf(process.arch) < -1) {
+                            builder.config.cflags.push('-march=native');
+                        }
+                    }
+
+                    builder.cc(args, callback);
+                },
+                builder.config,
+                waitFor(function() {
+                    process.chdir(cwd);
+                }));
         }));
 
-    }).nThen(function (waitFor) {
+    }).nThen(function(waitFor) {
 
         builder.config.libs.push(libuvLib);
         if (!android) {
@@ -281,7 +287,7 @@ Builder.configure({
         if (builder.config.systemName === 'win32') {
             builder.config.libs.push(
                 '-lws2_32',
-                '-lpsapi',   // GetProcessMemoryInfo()
+                '-lpsapi', // GetProcessMemoryInfo()
                 '-liphlpapi' // GetAdapterAddresses()
             );
         } else if (builder.config.systemName === 'linux' && !android) {
@@ -304,23 +310,31 @@ Builder.configure({
 
         var libuvBuilt;
         var python;
-        nThen(function (waitFor) {
+        nThen(function(waitFor) {
 
-            Fs.exists(libuvLib, waitFor(function (exists) {
-                if (exists) { libuvBuilt = true; }
+            Fs.exists(libuvLib, waitFor(function(exists) {
+                if (exists) {
+                    libuvBuilt = true;
+                }
             }));
 
-        }).nThen(function (waitFor) {
+        }).nThen(function(waitFor) {
 
-            if (libuvBuilt) { return; }
-            FindPython2.find(builder.tmpFile(), waitFor(function (err, pythonExec) {
-                if (err) { throw err; }
+            if (libuvBuilt) {
+                return;
+            }
+            FindPython2.find(builder.tmpFile(), waitFor(function(err, pythonExec) {
+                if (err) {
+                    throw err;
+                }
                 python = pythonExec;
             }));
 
-        }).nThen(function (waitFor) {
+        }).nThen(function(waitFor) {
 
-            if (libuvBuilt) { return; }
+            if (libuvBuilt) {
+                return;
+            }
             console.log("Build Libuv");
             var cwd = process.cwd();
             process.chdir(dependencyDir + '/libuv/');
@@ -346,11 +360,14 @@ Builder.configure({
                 args.push.apply(args, env.GYP_ADDITIONAL_ARGS.split(' '));
             }
 
-            var gyp = Spawn(python, args, {env:env, stdio:'inherit'});
-            gyp.on('error', function () {
+            var gyp = Spawn(python, args, {
+                env: env,
+                stdio: 'inherit'
+            });
+            gyp.on('error', function() {
                 console.error("couldn't launch gyp [" + python + "]");
             });
-            gyp.on('close', waitFor(function () {
+            gyp.on('close', waitFor(function() {
                 var args = [
                     '-j', builder.processors,
                     '-C', 'out',
@@ -367,22 +384,23 @@ Builder.configure({
                 args.push('CFLAGS=' + cflags.join(' '));
 
                 var makeCommand = ['freebsd', 'openbsd'].indexOf(builder.config.systemName) >= 0 ? 'gmake' : 'make';
-                var make = Spawn(makeCommand, args, {stdio: 'inherit'});
+                var make = Spawn(makeCommand, args, {
+                    stdio: 'inherit'
+                });
 
-                make.on('error', function (err) {
+                make.on('error', function(err) {
                     if (err.code === 'ENOENT') {
                         console.error('\033[1;31mError: ' + makeCommand + ' is required!\033[0m');
                     } else {
                         console.error(
-                            '\033[1;31mFail run ' + process.cwd() + ': ' + makeCommand + ' '
-                            + args.join(' ') + '\033[0m'
+                            '\033[1;31mFail run ' + process.cwd() + ': ' + makeCommand + ' ' + args.join(' ') + '\033[0m'
                         );
                         console.error('Message:', err);
                     }
                     waitFor.abort();
                 });
 
-                make.on('close', waitFor(function () {
+                make.on('close', waitFor(function() {
                     process.chdir(cwd);
                 }));
             }));
@@ -391,7 +409,7 @@ Builder.configure({
 
     }).nThen(waitFor());
 
-}).build(function (builder, waitFor) {
+}).build(function(builder, waitFor) {
 
     builder.buildExecutable('client/cjdroute2.c', 'cjdroute');
 
@@ -402,7 +420,7 @@ Builder.configure({
 
     builder.buildExecutable('crypto/random/randombytes.c');
 
-    builder.lintFiles(function (fileName, file, callback) {
+    builder.lintFiles(function(fileName, file, callback) {
         if (/dependencies/.test(fileName)) {
             callback('', false);
             return;
@@ -423,16 +441,16 @@ Builder.configure({
     }
     builder.runTest(testcjdroute, testRunner);
 
-}).success(function (builder, waitFor) {
+}).success(function(builder, waitFor) {
 
     console.log('\033[1;32mBuild completed successfully, type ./cjdroute to begin setup.\033[0m');
 
-}).failure(function (builder, waitFor) {
+}).failure(function(builder, waitFor) {
 
     console.log('\033[1;31mFailed to build cjdns.\033[0m');
     process.exit(1);
 
-}).complete(function (builder, waitFor) {
+}).complete(function(builder, waitFor) {
 
     if (builder.failure) {
         process.exit(1);

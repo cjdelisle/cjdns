@@ -11,28 +11,32 @@
  * @param onComplete called when all jobs are completed.
  */
 module.exports.run = function(workQueue, doWork, concurrentWorkers, onComplete) {
-  var complete = false;
-  var queue = [];
-  queue.push.apply(queue, workQueue);
-  var workers = 0;
-  var next = function() {
-    if (workers < 1) { throw new Error(); }
-    workers--;
-    if (queue.length === 0) {
-      if (workers === 0) {
-        if (complete) { throw new Error(); }
-        complete = true;
-        onComplete();
-      } else {
-        console.log("Waiting for [" + workers + "] processes");
-      }
-      return;
-    }
-    while (workers < concurrentWorkers) {
-      workers++;
-      doWork(queue.shift(), next);
-    }
-  };
-  workers++;
-  next();
+    var complete = false;
+    var queue = [];
+    queue.push.apply(queue, workQueue);
+    var workers = 0;
+    var next = function() {
+        if (workers < 1) {
+            throw new Error();
+        }
+        workers--;
+        if (queue.length === 0) {
+            if (workers === 0) {
+                if (complete) {
+                    throw new Error();
+                }
+                complete = true;
+                onComplete();
+            } else {
+                console.log("Waiting for [" + workers + "] processes");
+            }
+            return;
+        }
+        while (workers < concurrentWorkers) {
+            workers++;
+            doWork(queue.shift(), next);
+        }
+    };
+    workers++;
+    next();
 };

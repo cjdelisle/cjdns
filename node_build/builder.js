@@ -46,8 +46,7 @@ var Semaphore = require('./Semaphore');
 var cpus = Os.cpus(); // workaround, nodejs seems to be broken on openbsd (undefined result after second call)
 var PROCESSORS = Math.floor((typeof cpus === 'undefined' ? 1 : cpus.length) * 1.25);
 
-var error = function (message)
-{
+var error = function(message) {
     try {
         throw new Error(message);
     } catch (e) {
@@ -61,7 +60,7 @@ var throwIfErr = function(err) {
     }
 };
 
-var expandArgs = function (args) {
+var expandArgs = function(args) {
     var out = [];
     for (var i = 0; i < args.length; i++) {
         if (typeof(args[i]) === 'object') {
@@ -78,26 +77,29 @@ var expandArgs = function (args) {
 };
 
 var sema = Semaphore.create(PROCESSORS);
-var compiler = function (compilerPath, args, callback, content) {
+var compiler = function(compilerPath, args, callback, content) {
     args = expandArgs(args);
-    sema.take(function (returnAfter) {
+    sema.take(function(returnAfter) {
         var gcc = Spawn(compilerPath, args);
         var err = '';
         var out = '';
 
-        gcc.stdout.on('data', function (dat) { out += dat.toString(); });
-        gcc.stderr.on('data', function (dat) { err += dat.toString(); });
-        gcc.on('close', returnAfter(function (ret) {
+        gcc.stdout.on('data', function(dat) {
+            out += dat.toString();
+        });
+        gcc.stderr.on('data', function(dat) {
+            err += dat.toString();
+        });
+        gcc.on('close', returnAfter(function(ret) {
             callback(ret, out, err);
         }));
 
-        gcc.on('error', function (err) {
+        gcc.on('error', function(err) {
             if (err.code === 'ENOENT') {
                 console.error('\033[1;31mError: ' + compilerPath + ' is required!\033[0m');
             } else {
                 console.error(
-                    '\033[1;31mFail run ' + process.cwd() + ': ' + compilerPath + ' '
-                    + args.join(' ') + '\033[0m'
+                    '\033[1;31mFail run ' + process.cwd() + ': ' + compilerPath + ' ' + args.join(' ') + '\033[0m'
                 );
                 console.error('Message:' + err);
             }
@@ -107,16 +109,16 @@ var compiler = function (compilerPath, args, callback, content) {
         });
 
         if (content) {
-            gcc.stdin.write(content, function (err) {
-                if (err) { throw err; }
+            gcc.stdin.write(content, function(err) {
+                throwIfErr(err);
                 gcc.stdin.end();
             });
         }
     });
 };
 
-var cc = function (gcc, args, callback, content) {
-    compiler(gcc, args, function (ret, out, err) {
+var cc = function(gcc, args, callback, content) {
+    compiler(gcc, args, function(ret, out, err) {
         if (ret) {
             callback(error("gcc " + args.join(' ') + "\n\n" + err));
         }
@@ -129,20 +131,22 @@ var cc = function (gcc, args, callback, content) {
     }, content);
 };
 
-var tmpFile = function (state, name) {
+var tmpFile = function(state, name) {
     name = name || '';
     return state.tempDir + '/jsmake-' + name + Crypto.pseudoRandomBytes(10).toString('hex');
 };
 
-var mkBuilder = function (state) {
+var mkBuilder = function(state) {
     var builder = {
-        cc: function (args, callback) {
+        cc: function(args, callback) {
             compiler(builder.config.gcc, args, callback);
         },
 
-        buildExecutable: function (cFile, outputFile) {
+        buildExecutable: function(cFile, outputFile) {
             if (!outputFile) {
-                outputFile = cFile.replace(/^.*\/([^\/\.]*).*$/, function (a, b) { return b; });
+                outputFile = cFile.replace(/^.*\/([^\/\.]*).*$/, function(a, b) {
+                    return b;
+                });
             }
 
             if (state.systemName === 'win32' && !(/\.exe$/.test(outputFile))) {
@@ -156,21 +160,23 @@ var mkBuilder = function (state) {
             return temp;
         },
 
-        buildTest: function (cFile) {
+        buildTest: function(cFile) {
             return builder.buildExecutable(cFile, state.buildDir + '/' + getExecutableFile(cFile));
         },
 
-        runTest: function (outFile, testRunner) {
-            builder.tests.push(function (cb) { testRunner(outFile, cb); });
+        runTest: function(outFile, testRunner) {
+            builder.tests.push(function(cb) {
+                testRunner(outFile, cb);
+            });
         },
 
-        lintFiles: function (linter) {
+        lintFiles: function(linter) {
             builder.linters.push(linter);
         },
 
         config: state,
 
-        tmpFile: function (name) {
+        tmpFile: function(name) {
             return tmpFile(state, name);
         },
 
@@ -191,45 +197,47 @@ var mkBuilder = function (state) {
 };
 
 // You Were Warned
-var execJs = function (js, builder, file, fileName, callback) {
+var execJs = function(js, builder, file, fileName, callback) {
     var res;
     var x;
     var err;
 
     // # 74 "./wire/Message.h"
     js = js.replace(/\n#.*\n/g, '');
-    var to = setTimeout(function () {
+    var to = setTimeout(function() {
         throw new Error("Inline JS did not return after 120 seconds [" + js + "]");
     }, 120000);
 
-    var REQUIRE = function (str) {
+    var REQUIRE = function(str) {
         if (typeof(str) !== 'string') {
             throw new Error("must be a string");
         }
 
-        try { return require(str); } catch (e) { }
+        try {
+            return require(str);
+        } catch (e) {}
 
         return require(process.cwd() + '/' + str);
     };
 
-    nThen(function (waitFor) {
+    nThen(function(waitFor) {
 
         try {
             /* jshint -W054 */ // Suppress jshint warning on Function being a form of eval
             var func = new Function('file', 'require', 'fileName', 'console', 'builder', js);
 
-            func.async = function () {
-                return waitFor(function (result) {
+            func.async = function() {
+                return waitFor(function(result) {
                     res = result;
                 });
             };
 
             x = func.call(func,
-                          file,
-                          REQUIRE,
-                          fileName,
-                          console,
-                          builder);
+                file,
+                REQUIRE,
+                fileName,
+                console,
+                builder);
         } catch (e) {
             err = e;
             err.message += "\nContent: [" + js + "]";
@@ -237,57 +245,68 @@ var execJs = function (js, builder, file, fileName, callback) {
             throw err;
         }
 
-    }).nThen(function (waitFor) {
+    }).nThen(function(waitFor) {
 
-        if (err) { return; }
+        if (err) {
+            return;
+        }
+
         res = res || x || '';
         clearTimeout(to);
-        process.nextTick(function () { callback(undefined, res); });
+        process.nextTick(function() {
+            callback(undefined, res);
+        });
 
     });
 };
 
 var debug = console.log;
 
-var preprocessBlock = function (block, builder, fileObj, fileName, callback) {
+var preprocessBlock = function(block, builder, fileObj, fileName, callback) {
     // a block is an array of strings and arrays, any inside arrays must be
     // preprocessed first. deep first top to bottom.
 
     var error = false;
     var nt = nThen;
 
-    block.forEach(function (elem, i) {
-        if (typeof(elem) === 'string') { return; }
+    block.forEach(function(elem, i) {
+        if (typeof(elem) === 'string') {
+            return;
+        }
 
-        nt = nt(function (waitFor) {
-            preprocessBlock(elem, builder, fileObj, fileName, waitFor(function (err, ret) {
-                if (err) { throw err; }
+        nt = nt(function(waitFor) {
+            preprocessBlock(elem, builder, fileObj, fileName, waitFor(function(err, ret) {
+                throwIfErr(err);
 
                 block[i] = ret;
             }));
         }).nThen;
     });
 
-    nt(function (waitFor) {
+    nt(function(waitFor) {
 
-        if (error) { return; }
+        if (error) {
+            return;
+        }
+
         var capture = block.join('');
-        execJs(capture, builder, fileObj, fileName, waitFor(function (err, ret) {
-            if (err) { throw err; }
+        execJs(capture, builder, fileObj, fileName, waitFor(function(err, ret) {
+            throwIfErr(err);
+
             callback(undefined, ret);
         }));
 
     });
 };
 
-var preprocess = function (content, builder, fileObj, fileName, callback) {
+var preprocess = function(content, builder, fileObj, fileName, callback) {
     // <?js file.Test_mainFunc = "<?js return 'RootTest_'+file.RootTest_mainFunc; ?>" ?>
     // worse:
     // <?js file.Test_mainFunc = "<?js var done = this.async(); process.nextTick(done); ?>" ?>
 
     var flatArray = content.split(/(<\?js|\?>)/);
     var elems = [];
-    var unflatten = function (array, startAt, out) {
+    var unflatten = function(array, startAt, out) {
         for (var i = startAt; i < array.length; i++) {
             /* jshint -W018 */ // Suppress jshint warning on ! being confusing
             if (!((i - startAt) % 2)) {
@@ -295,7 +314,7 @@ var preprocess = function (content, builder, fileObj, fileName, callback) {
             } else if (array[i] === '<?js') {
                 var next = [];
                 out.push(next);
-                i = unflatten(array, i+1, next);
+                i = unflatten(array, i + 1, next);
             } else if (array[i] === '?>') {
                 return i;
             }
@@ -309,25 +328,26 @@ var preprocess = function (content, builder, fileObj, fileName, callback) {
     }
 
     var nt = nThen;
-    elems.forEach(function (elem, i) {
-        if (typeof(elem) === 'string') { return; }
+    elems.forEach(function(elem, i) {
+        if (typeof(elem) === 'string') {
+            return;
+        }
 
-        nt = nt(function (waitFor) {
-            preprocessBlock(elem, builder, fileObj, fileName, waitFor(function (err, ret) {
-                if (err) { throw err; }
+        nt = nt(function(waitFor) {
+            preprocessBlock(elem, builder, fileObj, fileName, waitFor(function(err, ret) {
+                throwIfErr(err);
 
                 elems[i] = ret;
             }));
         }).nThen;
     });
 
-    nt(function (waitFor) {
+    nt(function(waitFor) {
         callback(undefined, elems.join(''));
     });
 };
 
-var getFile = function ()
-{
+var getFile = function() {
     return {
         includes: [],
         links: [],
@@ -336,22 +356,22 @@ var getFile = function ()
     };
 };
 
-var getObjectFile = function (cFile) {
+var getObjectFile = function(cFile) {
     return cFile.replace(/[^a-zA-Z0-9_-]/g, '_') + '.o';
 };
 
-var getExecutableFile = function (cFile) {
+var getExecutableFile = function(cFile) {
     return cFile.replace(/[^a-zA-Z0-9_-]/g, '_');
 };
 
-var getFlags = function (state, fileName, includeDirs) {
+var getFlags = function(state, fileName, includeDirs) {
     var flags = [];
     flags.push.apply(flags, state.cflags);
-    flags.push.apply(flags, state['cflags'+fileName]);
+    flags.push.apply(flags, state['cflags' + fileName]);
 
     if (includeDirs) {
         for (var i = 0; i < state.includeDirs.length; i++) {
-            if (flags[flags.indexOf(state.includeDirs[i])-1] === '-I') {
+            if (flags[flags.indexOf(state.includeDirs[i]) - 1] === '-I') {
                 continue;
             }
 
@@ -360,7 +380,7 @@ var getFlags = function (state, fileName, includeDirs) {
         }
     }
 
-    for (var ii = flags.length-1; ii >= 0; ii--) {
+    for (var ii = flags.length - 1; ii >= 0; ii--) {
         // might be undefined because splicing causes us to be off the end of the array
         if (typeof(flags[ii]) === 'string' && flags[ii][0] === '!') {
             var f = flags[ii].substring(1);
@@ -377,8 +397,7 @@ var getFlags = function (state, fileName, includeDirs) {
 };
 
 var currentlyCompiling = {};
-var compileFile = function (fileName, builder, tempDir, callback)
-{
+var compileFile = function(fileName, builder, tempDir, callback) {
     var state = builder.config;
     if (typeof(state.files[fileName]) !== 'undefined') {
         callback();
@@ -400,16 +419,16 @@ var compileFile = function (fileName, builder, tempDir, callback)
     var fileContent;
     var fileObj = getFile();
 
-    nThen(function (waitFor) {
+    nThen(function(waitFor) {
 
-        (function () {
+        (function() {
             //debug("CPP -MM");
             var flags = ['-E', '-MM'];
             flags.push.apply(flags, getFlags(state, fileName, true));
             flags.push(fileName);
 
-            cc(state.gcc, flags, waitFor(function (err, output) {
-                if (err) { throw err; }
+            cc(state.gcc, flags, waitFor(function(err, output) {
+                throwIfErr(err);
 
                 // replace the escapes and newlines
                 output = output.replace(/ \\|\n/g, '').split(' ');
@@ -417,7 +436,7 @@ var compileFile = function (fileName, builder, tempDir, callback)
                 // first 2 entries are crap
                 output.splice(0, 2);
 
-                for (var i = output.length-1; i >= 0; i--) {
+                for (var i = output.length - 1; i >= 0; i--) {
                     //console.log('Removing empty dependency [' +
                     //    state.gcc + ' ' + flags.join(' ') + ']');
                     if (output[i] === '') {
@@ -429,63 +448,67 @@ var compileFile = function (fileName, builder, tempDir, callback)
             }));
         })();
 
-        (function () {
+        (function() {
             //debug("CPP");
             var flags = ['-E'];
             flags.push.apply(flags, getFlags(state, fileName, true));
             flags.push(fileName);
 
-            cc(state.gcc, flags, waitFor(function (err, output) {
-                if (err) { throw err; }
+            cc(state.gcc, flags, waitFor(function(err, output) {
+                throwIfErr(err);
                 fileContent = output;
             }));
         })();
 
-    }).nThen(function (waitFor) {
+    }).nThen(function(waitFor) {
 
-        Fs.exists(preprocessed, waitFor(function (exists) {
-            if (!exists) { return; }
+        Fs.exists(preprocessed, waitFor(function(exists) {
+            if (!exists) {
+                return;
+            }
 
-            Fs.unlink(preprocessed, waitFor(function (err) {
-                if (err) { throw err; }
+            Fs.unlink(preprocessed, waitFor(function(err) {
+                throwIfErr(err);
             }));
         }));
 
-    }).nThen(function (waitFor) {
+    }).nThen(function(waitFor) {
 
         //debug("Preprocess");
-        preprocess(fileContent, builder, fileObj, fileName, waitFor(function (err, output) {
-            if (err) { throw err; }
+        preprocess(fileContent, builder, fileObj, fileName, waitFor(function(err, output) {
+            throwIfErr(err);
 
-            Fs.writeFile(preprocessed, output, waitFor(function (err) {
-                if (err) { throw err; }
+            Fs.writeFile(preprocessed, output, waitFor(function(err) {
+                throwIfErr(err);
             }));
 
             // important, this will prevent the file from also being piped to gcc.
             fileContent = undefined;
         }));
 
-        Fs.exists(outFile, waitFor(function (exists) {
-            if (!exists) { return; }
+        Fs.exists(outFile, waitFor(function(exists) {
+            if (!exists) {
+                return;
+            }
 
-            Fs.unlink(outFile, waitFor(function (err) {
-                if (err) { throw err; }
+            Fs.unlink(outFile, waitFor(function(err) {
+                throwIfErr(err);
             }));
         }));
 
-    }).nThen(function (waitFor) {
+    }).nThen(function(waitFor) {
 
         //debug("CC");
         var flags = ['-c', '-x', 'cpp-output', '-o', outFile];
         flags.push.apply(flags, getFlags(state, fileName, false));
         flags.push(preprocessed);
 
-        cc(state.gcc, flags, waitFor(function (err) {
-            if (err) { throw err; }
+        cc(state.gcc, flags, waitFor(function(err) {
+            throwIfErr(err);
             fileObj.obj = outFile;
         }), fileContent);
 
-    }).nThen(function (waitFor) {
+    }).nThen(function(waitFor) {
 
         debug('\033[2;32mBuilding C object ' + fileName + ' complete\033[0m');
 
@@ -493,7 +516,9 @@ var compileFile = function (fileName, builder, tempDir, callback)
         var callbacks = currentlyCompiling[fileName];
         delete currentlyCompiling[fileName];
 
-        callbacks.forEach(function (cb) { cb(); });
+        callbacks.forEach(function(cb) {
+            cb();
+        });
 
     });
 };
@@ -503,22 +528,23 @@ var compileFile = function (fileName, builder, tempDir, callback)
  * @param mtimes a mapping of files to times for files for which the times are known
  * @param callback when done.
  */
-var getMTimes = function (files, mtimes, callback)
-{
-    nThen(function (waitFor) {
+var getMTimes = function(files, mtimes, callback) {
+    nThen(function(waitFor) {
 
-        Object.keys(files).forEach(function (fileName) {
+        Object.keys(files).forEach(function(fileName) {
             mtimes[fileName] = mtimes[fileName] || 0;
 
-            files[fileName].includes.forEach(function (incl) {
+            files[fileName].includes.forEach(function(incl) {
                 mtimes[incl] = mtimes[incl] || 0;
             });
         });
 
-        Object.keys(mtimes).forEach(function (fileName) {
-            if (mtimes[fileName] !== 0) { return; }
+        Object.keys(mtimes).forEach(function(fileName) {
+            if (mtimes[fileName] !== 0) {
+                return;
+            }
 
-            Fs.stat(fileName, waitFor(function (err, stat) {
+            Fs.stat(fileName, waitFor(function(err, stat) {
                 if (err) {
                     waitFor.abort();
                     callback(err);
@@ -529,18 +555,17 @@ var getMTimes = function (files, mtimes, callback)
             }));
         });
 
-    }).nThen(function (waitFor) {
+    }).nThen(function(waitFor) {
         callback(undefined, mtimes);
     });
 };
 
-var removeFile = function (state, fileName, callback)
-{
+var removeFile = function(state, fileName, callback) {
     //debug("remove " + fileName);
-    nThen(function (waitFor) {
+    nThen(function(waitFor) {
 
         // And every file which includes it
-        Object.keys(state.files).forEach(function (file) {
+        Object.keys(state.files).forEach(function(file) {
             // recursion could remove it
             if (typeof(state.files[file]) === 'undefined') {
                 return;
@@ -562,31 +587,30 @@ var removeFile = function (state, fileName, callback)
         delete state.files[fileName];
 
         if (typeof(f.obj) === 'string') {
-            Fs.unlink(f.obj, waitFor(function (err) {
+            Fs.unlink(f.obj, waitFor(function(err) {
                 if (err && err.code !== 'ENOENT') {
                     throw err;
                 }
             }));
         }
 
-    }).nThen(function (waitFor) {
+    }).nThen(function(waitFor) {
         callback();
     });
 };
 
-var recursiveCompile = function (fileName, builder, tempDir, callback)
-{
+var recursiveCompile = function(fileName, builder, tempDir, callback) {
     // Recursive compilation
     var state = builder.config;
-    var doCycle = function (toCompile, parentStack, callback) {
+    var doCycle = function(toCompile, parentStack, callback) {
         if (toCompile.length === 0) {
             callback();
             return;
         }
 
-        nThen(function (waitFor) {
+        nThen(function(waitFor) {
 
-            var filefunc = function (file) {
+            var filefunc = function(file) {
                 var stack = [];
                 stack.push.apply(stack, parentStack);
                 //debug("compiling " + file);
@@ -594,13 +618,13 @@ var recursiveCompile = function (fileName, builder, tempDir, callback)
 
                 if (stack.indexOf(file) !== stack.length - 1) {
                     throw new Error("Dependency loops are bad and you should feel bad\n" +
-                                    "Dependency stack:\n" + stack.reverse().join('\n'));
+                        "Dependency stack:\n" + stack.reverse().join('\n'));
                 }
 
-                compileFile(file, builder, tempDir, waitFor(function () {
+                compileFile(file, builder, tempDir, waitFor(function() {
                     var toCompile = [];
 
-                    state.files[file].links.forEach(function (link) {
+                    state.files[file].links.forEach(function(link) {
                         if (link === file) {
                             return;
                         }
@@ -608,7 +632,7 @@ var recursiveCompile = function (fileName, builder, tempDir, callback)
                         toCompile.push(link);
                     });
 
-                    doCycle(toCompile, stack, waitFor(function () {
+                    doCycle(toCompile, stack, waitFor(function() {
                         if (stack[stack.length - 1] !== file) {
                             throw new Error();
                         }
@@ -622,7 +646,7 @@ var recursiveCompile = function (fileName, builder, tempDir, callback)
                 filefunc(file);
             }
 
-        }).nThen(function (waitFor) {
+        }).nThen(function(waitFor) {
             callback();
         });
     };
@@ -630,10 +654,10 @@ var recursiveCompile = function (fileName, builder, tempDir, callback)
     doCycle([fileName], [], callback);
 };
 
-var getLinkOrder = function (fileName, files) {
+var getLinkOrder = function(fileName, files) {
     var completeFiles = [];
 
-    var getFile = function (name) {
+    var getFile = function(name) {
         var f = files[name];
         //debug('Resolving links for ' + name + ' ' + f);
 
@@ -657,7 +681,7 @@ var getLinkOrder = function (fileName, files) {
     return completeFiles;
 };
 
-var needsToLink = function (fileName, state) {
+var needsToLink = function(fileName, state) {
     if (typeof(state.oldmtimes[fileName]) !== 'number') {
         return true;
     }
@@ -676,15 +700,15 @@ var needsToLink = function (fileName, state) {
     return false;
 };
 
-var makeTime = function () {
-    return function () {
+var makeTime = function() {
+    return function() {
         var oldTime = this.time || 0;
         var newTime = this.time = new Date().getTime();
         return newTime - oldTime;
     };
 };
 
-var compile = function (file, outputFile, builder, callback) {
+var compile = function(file, outputFile, builder, callback) {
     var state = builder.config;
     var tempDir;
 
@@ -693,18 +717,18 @@ var compile = function (file, outputFile, builder, callback) {
         return;
     }
 
-    nThen(function (waitFor) {
+    nThen(function(waitFor) {
 
         tempDir = tmpFile(state);
-        Fs.mkdir(tempDir, waitFor(function (err) {
-            if (err) { throw err; }
+        Fs.mkdir(tempDir, waitFor(function(err) {
+            throwIfErr(err);
         }));
 
-    }).nThen(function (waitFor) {
+    }).nThen(function(waitFor) {
 
         recursiveCompile(file, builder, tempDir, waitFor());
 
-    }).nThen(function (waitFor) {
+    }).nThen(function(waitFor) {
 
         var linkOrder = getLinkOrder(file, state.files);
         for (var i = 0; i < linkOrder.length; i++) {
@@ -714,29 +738,29 @@ var compile = function (file, outputFile, builder, callback) {
         var ldArgs = [state.ldflags, '-o', outputFile, linkOrder, state.libs];
         debug('\033[1;31mLinking C executable ' + file + '\033[0m');
 
-        cc(state.gcc, ldArgs, waitFor(function (err, ret) {
-            if (err) { throw err; }
+        cc(state.gcc, ldArgs, waitFor(function(err, ret) {
+            throwIfErr(err);
         }));
 
-    }).nThen(function (waitFor) {
+    }).nThen(function(waitFor) {
 
-        Fs.readdir(tempDir, waitFor(function (err, files) {
-            if (err) { throw err; }
+        Fs.readdir(tempDir, waitFor(function(err, files) {
+            throwIfErr(err);
 
-            files.forEach(function (file) {
-                Fs.unlink(tempDir + '/' + file, waitFor(function (err) {
-                    if (err) { throw err; }
+            files.forEach(function(file) {
+                Fs.unlink(tempDir + '/' + file, waitFor(function(err) {
+                    throwIfErr(err);
                 }));
             });
         }));
 
-    }).nThen(function (waitFor) {
+    }).nThen(function(waitFor) {
 
-        Fs.rmdir(tempDir, waitFor(function (err) {
-            if (err) { throw err; }
+        Fs.rmdir(tempDir, waitFor(function(err) {
+            throwIfErr(err);
         }));
 
-    }).nThen(function (waitFor) {
+    }).nThen(function(waitFor) {
 
         if (callback) {
             callback();
@@ -745,7 +769,7 @@ var compile = function (file, outputFile, builder, callback) {
     });
 };
 
-var getStatePrototype = function (params) {
+var getStatePrototype = function(params) {
     var base = {
         includeDirs: ['.'],
         files: {},
@@ -779,23 +803,23 @@ var getStatePrototype = function (params) {
  * This prevents isStaleState from returning true every time one builds in a different
  * window.
  */
-var normalizedProcessEnv = function () {
+var normalizedProcessEnv = function() {
     var out = process.env;
     delete out.WINDOWID;
     delete out.OLDPWD;
     return out;
 };
 
-var getRebuildIfChangesHash = function (rebuildIfChanges, callback) {
+var getRebuildIfChangesHash = function(rebuildIfChanges, callback) {
     var ret = false;
     var hash = Crypto.createHash('sha256');
     var rebIfChg = [];
 
-    nThen(function (waitFor) {
+    nThen(function(waitFor) {
 
-        rebuildIfChanges.forEach(function (fileName, i) {
-            Fs.readFile(fileName, waitFor(function (err, ret) {
-                if (err) { throw err; }
+        rebuildIfChanges.forEach(function(fileName, i) {
+            Fs.readFile(fileName, waitFor(function(err, ret) {
+                throwIfErr(err);
 
                 rebIfChg[i] = ret;
             }));
@@ -803,9 +827,9 @@ var getRebuildIfChangesHash = function (rebuildIfChanges, callback) {
 
         hash.update(JSON.stringify(normalizedProcessEnv()));
 
-    }).nThen(function (waitFor) {
+    }).nThen(function(waitFor) {
 
-        rebIfChg.forEach(function (data) {
+        rebIfChg.forEach(function(data) {
             hash.update(data);
         });
 
@@ -814,18 +838,16 @@ var getRebuildIfChangesHash = function (rebuildIfChanges, callback) {
     });
 };
 
-process.on('exit', function () {
+process.on('exit', function() {
     console.log("Total build time: " + Math.floor(process.uptime() * 1000) + "ms.");
 });
 
-var stage = function (st, builder, waitFor) {
+var stage = function(st, builder, waitFor) {
     builder.waitFor = waitFor;
     st(builder, waitFor);
 };
 
-var throwIfErr = function (err) { if (err) { throw err; } };
-
-var configure = module.exports.configure = function (params, configFunc) {
+var configure = module.exports.configure = function(params, configFunc) {
 
     // Track time taken for various steps
     var time = makeTime();
@@ -839,44 +861,48 @@ var configure = module.exports.configure = function (params, configFunc) {
 
     var state;
     var builder;
-    var buildStage = function () {};
-    var testStage = function () {};
-    var packStage = function () {};
-    var successStage = function () {};
-    var failureStage = function () {};
-    var completeStage = function () {};
+    var buildStage = function() {};
+    var testStage = function() {};
+    var packStage = function() {};
+    var successStage = function() {};
+    var failureStage = function() {};
+    var completeStage = function() {};
 
-    nThen(function (waitFor) {
+    nThen(function(waitFor) {
 
         // make the build directory
-        Fs.exists(params.buildDir, waitFor(function (exists) {
-            if (exists) { return; }
+        Fs.exists(params.buildDir, waitFor(function(exists) {
+            if (exists) {
+                return;
+            }
 
-            Fs.mkdir(params.buildDir, waitFor(function (err) {
-                if (err) { throw err; }
+            Fs.mkdir(params.buildDir, waitFor(function(err) {
+                throwIfErr(err);
             }));
         }));
 
-    }).nThen(function (waitFor) {
+    }).nThen(function(waitFor) {
 
         // read out the state if it exists
-        Fs.exists(params.buildDir + '/state.json', waitFor(function (exists) {
-            if (!exists) { return; }
+        Fs.exists(params.buildDir + '/state.json', waitFor(function(exists) {
+            if (!exists) {
+                return;
+            }
 
-            Fs.readFile(params.buildDir + '/state.json', waitFor(function (err, ret) {
-                if (err) { throw err; }
+            Fs.readFile(params.buildDir + '/state.json', waitFor(function(err, ret) {
+                throwIfErr(err);
 
                 state = JSON.parse(ret);
             }));
         }));
 
-    }).nThen(function (waitFor) {
+    }).nThen(function(waitFor) {
 
         if (!state || !state.rebuildIfChanges) {
             // no state
             state = undefined;
         } else {
-            getRebuildIfChangesHash(state.rebuildIfChanges, waitFor(function (rich) {
+            getRebuildIfChangesHash(state.rebuildIfChanges, waitFor(function(rich) {
                 if (rich !== state.rebuildIfChangesHash) {
                     debug("rebuildIfChanges changed, rebuilding");
                     state = undefined;
@@ -884,7 +910,7 @@ var configure = module.exports.configure = function (params, configFunc) {
             }));
         }
 
-    }).nThen(function (waitFor) {
+    }).nThen(function(waitFor) {
 
         debug("Initialize " + time() + "ms");
 
@@ -898,7 +924,7 @@ var configure = module.exports.configure = function (params, configFunc) {
         builder = mkBuilder(state);
         configFunc(builder, waitFor);
 
-    }).nThen(function (waitFor) {
+    }).nThen(function(waitFor) {
 
         debug("Configure " + time() + "ms");
 
@@ -911,17 +937,17 @@ var configure = module.exports.configure = function (params, configFunc) {
             state.rebuildIfChanges.push(module.parent.filename);
         }
 
-        getRebuildIfChangesHash(state.rebuildIfChanges, waitFor(function (rich) {
+        getRebuildIfChangesHash(state.rebuildIfChanges, waitFor(function(rich) {
             state.rebuildIfChangesHash = rich;
         }));
 
-    }).nThen(function (waitFor) {
+    }).nThen(function(waitFor) {
 
         state.oldmtimes = state.mtimes;
         state.mtimes = {};
 
-        Object.keys(state.oldmtimes).forEach(function (fileName) {
-            Fs.stat(fileName, waitFor(function (err, stat) {
+        Object.keys(state.oldmtimes).forEach(function(fileName) {
+            Fs.stat(fileName, waitFor(function(err, stat) {
                 if (err) {
                     if (err.code === 'ENOENT') {
                         // Doesn't matter as long as it's not referenced...
@@ -942,29 +968,29 @@ var configure = module.exports.configure = function (params, configFunc) {
             }));
         });
 
-    }).nThen(function (waitFor) {
+    }).nThen(function(waitFor) {
 
         debug("Scan for out of date files " + time() + "ms");
 
-    }).nThen(function (waitFor) {
+    }).nThen(function(waitFor) {
 
         stage(buildStage, builder, waitFor);
 
-    }).nThen(function (waitFor) {
+    }).nThen(function(waitFor) {
 
         debug("Compile " + time() + "ms");
 
         var allFiles = {};
 
-        Object.keys(state.files).forEach(function (fileName) {
+        Object.keys(state.files).forEach(function(fileName) {
             allFiles[fileName] = 1;
 
-            state.files[fileName].includes.forEach(function (fileName) {
+            state.files[fileName].includes.forEach(function(fileName) {
                 allFiles[fileName] = 1;
             });
         });
 
-        Object.keys(allFiles).forEach(function (fileName) {
+        Object.keys(allFiles).forEach(function(fileName) {
             var omt = state.oldmtimes[fileName];
             if (omt > 0 && omt === state.mtimes[fileName]) {
                 return;
@@ -973,10 +999,10 @@ var configure = module.exports.configure = function (params, configFunc) {
             builder.rebuiltFiles.push(fileName);
         });
 
-    }).nThen(function (waitFor) {
+    }).nThen(function(waitFor) {
 
-        builder.tests.forEach(function (test) {
-            test(waitFor(function (output, failure) {
+        builder.tests.forEach(function(test) {
+            test(waitFor(function(output, failure) {
                 debug(output);
 
                 if (failure) {
@@ -985,7 +1011,7 @@ var configure = module.exports.configure = function (params, configFunc) {
             }));
         });
 
-    }).nThen(function (waitFor) {
+    }).nThen(function(waitFor) {
 
         if (builder.linters.length === 0) {
             return;
@@ -995,16 +1021,16 @@ var configure = module.exports.configure = function (params, configFunc) {
 
         var sema = Semaphore.create(64);
 
-        builder.rebuiltFiles.forEach(function (fileName) {
-            sema.take(waitFor(function (returnAfter) {
-                Fs.readFile(fileName, waitFor(function (err, ret) {
-                    if (err) { throw err; }
+        builder.rebuiltFiles.forEach(function(fileName) {
+            sema.take(waitFor(function(returnAfter) {
+                Fs.readFile(fileName, waitFor(function(err, ret) {
+                    throwIfErr(err);
 
                     ret = ret.toString('utf8');
-                    nThen(function (waitFor) {
+                    nThen(function(waitFor) {
 
-                        builder.linters.forEach(function (linter) {
-                            linter(fileName, ret, waitFor(function (out, isErr) {
+                        builder.linters.forEach(function(linter) {
+                            linter(fileName, ret, waitFor(function(out, isErr) {
                                 if (isErr) {
                                     debug("\033[1;31m" + out + "\033[0m");
                                     builder.failure = true;
@@ -1017,19 +1043,23 @@ var configure = module.exports.configure = function (params, configFunc) {
             }));
         });
 
-    }).nThen(function (waitFor) {
+    }).nThen(function(waitFor) {
 
         stage(testStage, builder, waitFor);
 
-    }).nThen(function (waitFor) {
+    }).nThen(function(waitFor) {
 
-        if (builder.failure) { return; }
+        if (builder.failure) {
+            return;
+        }
 
         debug("Test " + time() + "ms");
 
-        builder.executables.forEach(function (array) {
-            if (array[1] === array[0]) { return; }
-            Fs.rename(array[0], array[1], waitFor(function (err) {
+        builder.executables.forEach(function(array) {
+            if (array[1] === array[0]) {
+                return;
+            }
+            Fs.rename(array[0], array[1], waitFor(function(err) {
                 // TODO(cjd): It would be better to know in advance whether to expect the file.
                 if (err && err.code !== 'ENOENT') {
                     throw err;
@@ -1037,62 +1067,90 @@ var configure = module.exports.configure = function (params, configFunc) {
             }));
         });
 
-    }).nThen(function (waitFor) {
+    }).nThen(function(waitFor) {
 
-        if (builder.failure) { return; }
+        if (builder.failure) {
+            return;
+        }
 
         stage(packStage, builder, waitFor);
 
-    }).nThen(function (waitFor) {
+    }).nThen(function(waitFor) {
 
-        if (builder.failure) { return; }
+        if (builder.failure) {
+            return;
+        }
 
         debug("Pack " + time() + "ms");
 
-        getMTimes(state.files, state.mtimes, waitFor(function (err, mtimes) {
-            if (err) { throw err; }
+        getMTimes(state.files, state.mtimes, waitFor(function(err, mtimes) {
+            throwIfErr(err);
 
             state.mtimes = mtimes;
             debug("Get mtimes " + time() + "ms");
         }));
 
-    }).nThen(function (waitFor) {
+    }).nThen(function(waitFor) {
 
-        if (builder.failure) { return; }
+        if (builder.failure) {
+            return;
+        }
 
         // save state
         var stateJson = JSON.stringify(state, null, '  ');
-        Fs.writeFile(state.buildDir + '/state.json', stateJson, waitFor(function (err) {
-            if (err) { throw err; }
+        Fs.writeFile(state.buildDir + '/state.json', stateJson, waitFor(function(err) {
+            throwIfErr(err);
 
             debug("Save State " + time() + "ms");
         }));
 
-    }).nThen(function (waitFor) {
+    }).nThen(function(waitFor) {
 
-        if (builder.failure) { return; }
+        if (builder.failure) {
+            return;
+        }
 
         stage(successStage, builder, waitFor);
 
-    }).nThen(function (waitFor) {
+    }).nThen(function(waitFor) {
 
-        if (!builder.failure) { return; }
+        if (!builder.failure) {
+            return;
+        }
 
         stage(failureStage, builder, waitFor);
 
-    }).nThen(function (waitFor) {
+    }).nThen(function(waitFor) {
 
         stage(completeStage, builder, waitFor);
 
     });
 
     var out = {
-        build:    function (x) { buildStage = x;    return out; },
-        test:     function (x) { testStage = x;     return out; },
-        pack:     function (x) { packStage = x;     return out; },
-        failure:  function (x) { failureStage = x;  return out; },
-        success:  function (x) { successStage = x;  return out; },
-        complete: function (x) { completeStage = x; return out; },
+        build: function(x) {
+            buildStage = x;
+            return out;
+        },
+        test: function(x) {
+            testStage = x;
+            return out;
+        },
+        pack: function(x) {
+            packStage = x;
+            return out;
+        },
+        failure: function(x) {
+            failureStage = x;
+            return out;
+        },
+        success: function(x) {
+            successStage = x;
+            return out;
+        },
+        complete: function(x) {
+            completeStage = x;
+            return out;
+        },
     };
 
     return out;
