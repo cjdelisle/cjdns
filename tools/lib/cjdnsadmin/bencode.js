@@ -29,7 +29,7 @@ function bencode(obj) {
 // decode a bencoded string into a javascript object
 function bdecode(str) {
     var dec = bparse(str);
-    if(dec != null && dec[1] == "")
+    if(dec !== null && dec[1] === "")
         return dec[0];
     return null;
 }
@@ -71,7 +71,7 @@ function bparseList(str) {
     var p, list = [];
     while(str.charAt(0) != "e" && str.length > 0) {
         p = bparse(str);
-        if(null == p)
+        if(null === p)
             return null;
         list.push(p[0]);
         str = p[1];
@@ -86,11 +86,11 @@ function bparseDict(str) {
     var key, val, dict = {};
     while(str.charAt(0) != "e" && str.length > 0) {
         key = bparseString(str);
-        if(null == key)
+        if(null === key)
             return;
 
         val = bparse(key[1]);
-        if(null == val)
+        if(null === val)
             return null;
 
         dict[key[0]] = val[0];
@@ -144,14 +144,14 @@ function bint(num) {
 function blist(list) {
     var str, enclist;
     enclist = [];
-    for(key in list) {
+    for(var key in list) {
         enclist.push(bencode(list[key]));
     }
     enclist.sort();
 
     str = "l";
-    for(key in enclist) {
-        str += enclist[key];
+    for(var enckey in enclist) {
+        str += enclist[enckey];
     }
     return str + "e";
 }
@@ -159,18 +159,18 @@ function blist(list) {
 // bencode a dictionary
 function bdict(dict) {
     var str, enclist;
-    enclist = []
-    for(key in dict) {
+    enclist = [];
+    for(var key in dict) {
         enclist.push(bstring(key) + bencode(dict[key]));
     }
     enclist.sort();
 
     str = "d";
-    for(key in enclist) {
-        str += enclist[key];
+    for(var enckey in enclist) {
+        str += enclist[enckey];
     }
     return str + "e";
 }
 
 module.exports.encode = bencode;
-module.exports.decode = bdecode
+module.exports.decode = bdecode;
