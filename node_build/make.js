@@ -344,6 +344,11 @@ Builder.configure({
                 args.push.apply(args, env.GYP_ADDITIONAL_ARGS.split(' '));
             }
 
+            if (['freebsd', 'openbsd'].indexOf(bulder.config.systemName) !== -1) {
+                // This platform lacks a functioning sem_open implementation, therefore...
+                args.push('--no-parallel');
+            }
+
             var gyp = Spawn(python, args, {env:env, stdio:'inherit'});
             gyp.on('error', function () {
                 console.error("couldn't launch gyp [" + python + "]");
