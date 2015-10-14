@@ -38,10 +38,9 @@ static void add(Dict* args, void* vcontext, String* txid, struct Allocator* allo
 
     String* passwd = Dict_getString(args, String_CONST("password"));
     String* user = Dict_getString(args, String_CONST("user"));
-    String* displayName = Dict_getString(args, String_CONST("displayName"));
     String* ipv6 = Dict_getString(args, String_CONST("ipv6"));
 
-    int32_t ret = CryptoAuth_addUser_ipv6(passwd, user, displayName, ipv6, context->ca);
+    int32_t ret = CryptoAuth_addUser_ipv6(passwd, user, ipv6, context->ca);
 
     switch (ret) {
         case 0:
@@ -49,10 +48,6 @@ static void add(Dict* args, void* vcontext, String* txid, struct Allocator* allo
             break;
         case CryptoAuth_addUser_INVALID_AUTHTYPE:
             sendResponse(String_CONST("Specified auth type is not supported."),
-                         context->admin, txid, alloc);
-            break;
-        case CryptoAuth_addUser_OUT_OF_SPACE:
-            sendResponse(String_CONST("Out of memory to store password."),
                          context->admin, txid, alloc);
             break;
         case CryptoAuth_addUser_DUPLICATE:
@@ -110,7 +105,6 @@ void AuthorizedPasswords_init(struct Admin* admin,
     Admin_registerFunction("AuthorizedPasswords_add", add, context, true,
         ((struct Admin_FunctionArg[]){
             { .name = "password", .required = 1, .type = "String" },
-            { .name = "displayName", .required = 0, .type = "String" },
             { .name = "ipv6", .required = 0, .type = "String" },
             { .name = "user", .required = 0, .type = "String" }
         }), admin);

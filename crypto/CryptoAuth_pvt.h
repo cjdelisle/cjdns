@@ -26,13 +26,25 @@
 
 #include <stdint.h>
 
-struct CryptoAuth_Auth {
-    union CryptoHeader_Challenge challenge;
+struct CryptoAuth_User;
+struct CryptoAuth_User {
+    /** Double-hash of password for authType 1 */
+    uint8_t passwordHash[8];
+
+    /** Hash of username for authType 2 */
+    uint8_t userNameHash[8];
 
     uint8_t secret[32];
 
-    String* user;
-    uint8_t* restrictedToip6;
+    String* login;
+
+    uint8_t restrictedToip6[16];
+
+    struct CryptoAuth_User* next;
+
+    struct Allocator* alloc;
+
+    Identity
 };
 
 struct CryptoAuth_pvt
@@ -41,9 +53,7 @@ struct CryptoAuth_pvt
 
     uint8_t privateKey[32];
 
-    struct CryptoAuth_Auth* passwords;
-    uint32_t passwordCount;
-    uint32_t passwordCapacity;
+    struct CryptoAuth_User* users;
 
     struct Log* logger;
     struct EventBase* eventBase;

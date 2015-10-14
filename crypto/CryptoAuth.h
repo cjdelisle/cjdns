@@ -74,24 +74,21 @@ struct CryptoAuth_Session
  * @param context The CryptoAuth context.
  * @return 0 if all goes well,
  *         CryptoAuth_addUser_INVALID_AUTHTYPE if the authentication method is not supported,
- *         CryptoAuth_addUser_OUT_OF_SPACE if there is not enough space to store the entry,
  *         CryptoAuth_addUser_DUPLICATE if the same *password* already exists.
  *         CryptoAuth_addUser_INVALID_IP if the ipv6 is not valid.
  */
 #define CryptoAuth_addUser_INVALID_AUTHTYPE  -1
-#define CryptoAuth_addUser_OUT_OF_SPACE      -2
 #define CryptoAuth_addUser_DUPLICATE         -3
 #define CryptoAuth_addUser_INVALID_IP        -4
-int32_t CryptoAuth_addUser_ipv6(String* password,
-                                String* login,
-                                String* displayName,
-                                String* ipv6,
-                                struct CryptoAuth* ca);
+int CryptoAuth_addUser_ipv6(String* password,
+                            String* login,
+                            String* ipv6,
+                            struct CryptoAuth* ca);
 
-int32_t CryptoAuth_addUser(String* password,
-                           String* login,
-                           String* displayName,
-                           struct CryptoAuth* ca);
+static inline int CryptoAuth_addUser(String* password, String* login, struct CryptoAuth* ca)
+{
+    return CryptoAuth_addUser_ipv6(password, login, NULL, ca);
+}
 
 /**
  * Remove all users registered with this CryptoAuth.
