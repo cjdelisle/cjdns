@@ -161,22 +161,7 @@ static inline struct CryptoAuth_User* getAuth(union CryptoHeader_Challenge* auth
     Log_debug(ca->logger, "Got unrecognized auth, password count = [%d]", count);
     return NULL;
 }
-/*
-static inline uint8_t* tryAuth(union CryptoHeader* cauth,
-                               uint8_t hashOutput[32],
-                               struct CryptoAuth_Session_pvt* session,
-                               struct CryptoAuth_Auth** retAuth)
-{
-    struct CryptoAuth_Auth* auth = getAuth(cauth->handshake.auth, session->context);
-    if (auth) {
-        Bits_memcpyConst(hashOutput, auth->secret, 32);
-        *retAuth = auth;
-        return hashOutput;
-    }
 
-    return NULL;
-}
-*/
 /**
  * Decrypt and authenticate.
  *
@@ -967,9 +952,9 @@ int CryptoAuth_addUser_ipv6(String* password,
     union CryptoHeader_Challenge ac;
     // Users specified with a login field might want to use authType 1 still.
     hashPassword(user->secret, &ac, login, password, 2);
-    Bits_memcpyConst(user->userNameHash, ac.bytes, 8);
+    Bits_memcpyConst(user->userNameHash, ac.bytes, CryptoHeader_Challenge_KEYSIZE);
     hashPassword(user->secret, &ac, NULL, password, 1);
-    Bits_memcpyConst(user->passwordHash, ac.bytes, 8);
+    Bits_memcpyConst(user->passwordHash, ac.bytes, CryptoHeader_Challenge_KEYSIZE);
 
     for (struct CryptoAuth_User* u = ca->users; u; u = u->next) {
         if (Bits_memcmp(user->secret, u->secret, 32)) {

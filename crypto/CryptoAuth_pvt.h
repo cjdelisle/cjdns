@@ -29,10 +29,10 @@
 struct CryptoAuth_User;
 struct CryptoAuth_User {
     /** Double-hash of password for authType 1 */
-    uint8_t passwordHash[8];
+    uint8_t passwordHash[CryptoHeader_Challenge_KEYSIZE];
 
     /** Hash of username for authType 2 */
-    uint8_t userNameHash[8];
+    uint8_t userNameHash[CryptoHeader_Challenge_KEYSIZE];
 
     uint8_t secret[32];
 
