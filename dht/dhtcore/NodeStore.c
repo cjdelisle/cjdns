@@ -187,7 +187,7 @@ static void _checkNode(struct Node_Two* node, struct NodeStore_pvt* store, char*
 
     if (Node_getBestParent(node)) {
         Assert_fileLine(node->address.path != UINT64_MAX, file, line);
-        Assert_fileLine(Node_getReach(node) > 0, file, line);
+        Assert_fileLine(Node_getCost(node) != UINT64_MAX, file, line);
 
         struct Node_Two* nn = node;
         do {
@@ -202,7 +202,7 @@ static void _checkNode(struct Node_Two* node, struct NodeStore_pvt* store, char*
 
     } else {
         Assert_fileLine(node->address.path == UINT64_MAX, file, line);
-        Assert_fileLine(Node_getReach(node) == 0, file, line);
+        Assert_fileLine(Node_getCost(node) == UINT64_MAX, file, line);
     }
 }
 #define checkNode(node, store) _checkNode(node, store, Gcc_SHORT_FILE, Gcc_LINE)
@@ -309,17 +309,17 @@ static uint64_t extendRoute(uint64_t routeToParent,
 }
 
 static void update(struct Node_Link* link,
-                   int64_t linkStateDiff,
+                   int64_t linkCostDiff,
                    struct NodeStore_pvt* store)
 {
-    if (linkStateDiff + link->linkState > UINT32_MAX) {
-        link->linkState = UINT32_MAX;
-        //logLink(store, link, "link state set to maximum");
-    } else if (linkStateDiff + link->linkState < 0) {
-        link->linkState = 0;
-        logLink(store, link, "link state set to zero");
+    if (linkCostDiff + link->linkCost > UINT32_MAX) {
+        link->linkCost = UINT32_MAX;
+        logLink(store, link, "link cost set to maximum");
+    } else if (linkCostDiff + link->linkCost < 0) {
+        link->linkCost = 0;
+        //logLink(store, link, "link cost set to zero");
     } else {
-        link->linkState += linkStateDiff;
+        link->linkCost += linkCostDiff;
     }
 }
 
@@ -329,14 +329,14 @@ static bool isPeer(struct Node_Two* node, struct NodeStore_pvt* store)
     return bp && bp->parent == store->pub.selfNode && Node_isOneHopLink(bp);
 }
 
-static void setParentReachAndPath(struct Node_Two* node,
-                                  struct Node_Link* parent,
-                                  uint32_t reach,
-                                  uint64_t path,
-                                  struct NodeStore_pvt* store)
+static void setParentCostAndPath(struct Node_Two* node,
+                                 struct Node_Link* parent,
+                                 uint64_t cost,
+                                 uint64_t path,
+                                 struct NodeStore_pvt* store)
 {
     uint64_t oldPath = node->address.path;
-    Node_setParentReachAndPath(node, parent, reach, path);
+    Node_setParentCostAndPath(node, parent, cost, path);
     if (oldPath != path && store->pub.onBestPathChange) {
         store->pub.onBestPathChange(store->pub.onBestPathChangeCtx, node);
     }
@@ -352,13 +352,13 @@ static void unreachable(struct Node_Two* node, struct NodeStore_pvt* store)
     // We think the link is down, so reset the link state.
     struct Node_Link* bp = Node_getBestParent(node);
     if (bp) {
-        update(bp, -UINT32_MAX, store);
+        update(bp, UINT64_MAX, store);
         store->pub.linkedNodes--;
     }
-    setParentReachAndPath(node, NULL, 0, UINT64_MAX, store);
+    setParentCostAndPath(node, NULL, UINT64_MAX, UINT64_MAX, store);
 }
 
-/** Adds the reach of path A->B to path B->C to get the expected reach of A->C. */
+/** Adds the reach of path A->B to path B->C to get the expected reach of A->C.
 static uint32_t addReach(uint32_t reachAB, uint32_t reachBC)
 {
     uint64_t b = reachAB;
@@ -366,9 +366,9 @@ static uint32_t addReach(uint32_t reachAB, uint32_t reachBC)
     uint64_t reachAC = (b * c) / (b + c);
     if (reachAC > UINT32_MAX) { return UINT32_MAX; }
     return reachAC;
-}
+}*/
 
-/** Subtracts the reach of path A->B from path A->B->C, to get reach of B->C. */
+/** Subtracts the reach of path A->B from path A->B->C, to get reach of B->C.
 static uint32_t subReach(uint32_t reachAB, uint32_t reachAC)
 {
     if (reachAB <= reachAC) { return UINT32_MAX; }
@@ -377,68 +377,65 @@ static uint32_t subReach(uint32_t reachAB, uint32_t reachAC)
     uint64_t reachBC = (b * c) / (b - c);
     if (reachBC > UINT32_MAX) { return UINT32_MAX; }
     return reachBC;
-}
+}*/
 
 /**
- * This is called when we have no idea what the reach should be for the next hop
+ * This is called when we have no idea what the cost should be for the next hop
  * because the path we previously used to get to it is broken and we need to use
  * a different one. Take a somewhat educated guess as to what it might be in a way
- * that will make the reach non-zero.
+ * that will make the cost non-zero.
  */
-static uint32_t guessReachOfChild(struct Node_Link* link)
+static uint64_t guessCostOfChild(struct Node_Link* link)
 {
-    uint32_t r;
+    uint64_t c;
     if (Node_isOneHopLink(link)) {
-        // Single-hop link, so guess that it's 3/4 the parent's reach
-        r = (Node_getReach(link->parent) * 3) / 4;
+        // Single-hop link, so guess that it's 3/2 the parent's cost
+        c = (Node_getCost(link->parent) * 3) / 2;
     }
     else {
-        // Multi-hop link, so let's assume 1/2 the parent's reach.
-        r = Node_getReach(link->parent) / 2;
+        // Multi-hop link, so let's assume 2x the parent's cost.
+        c = Node_getCost(link->parent) * 2;
     }
-    if (r < (1<<12)) {
-        if (Node_getReach(link->parent) == 1) {
-            r = 1;
-        } else {
-            r = Node_getReach(link->parent) - 1;
-        }
-    } else if (r < (1<<16)) {
-        r = Node_getReach(link->parent) - Bits_log2x64(link->cannonicalLabel);
+    if (c < Node_getCost(link->parent)) {
+        // Parent's cost is huge, for some reason
+        c = UINT64_MAX-1;
     }
 
-    // Educated guess, parent's latency + link's latency (neither of which is known perfectly).
-    uint32_t guess = addReach(Node_getReach(link->parent), link->linkState);
-    if (guess < Node_getReach(link->parent) && guess > r) {
+    // Educated guess, parent's cost + link's cost (neither of which is known perfectly).
+    uint64_t guess = Node_getCost(link->parent) + link->linkCost;
+    if (guess > Node_getCost(link->parent) && guess < c) {
         // Our guess is sensible, so use it.
-        r = guess;
+        c = guess;
     }
 
     // Try to reduce oscillation based on guesses.
+    /* or not
     struct Node_Link* bp = Node_getBestParent(link->child);
     if (bp && bp != link) {
         uint32_t bpGuess = guessReachOfChild(bp);
         if (r > bpGuess) { r = bpGuess; }
-    }
+    }*/
 
-    Assert_true(r <= Node_getReach(link->parent));
-    Assert_true(r);
-    return r;
+    Assert_true(c >= Node_getCost(link->parent));
+    Assert_true(c != UINT64_MAX);
+    return c;
 }
 
 // Must always return 0 for null link or link which is disconnected from the tree.
-static uint32_t pathQuality(struct Node_Link* link)
+// FIXME(arceliar): Make this make sense for cost instead of reach...
+static uint64_t pathQuality(struct Node_Link* link)
 {
     if (!link || !Node_getBestParent(link->parent)) { return 0; }
-    uint32_t out = 0;
-    out |= (Node_isOneHopLink(link) << 31);
-    out |= (Node_getReach(link->parent) & 0x7fffffff);
+    uint64_t out = 0;
+    out = ~(Node_getCost(link->parent));
+    out &= ~((uint64_t)!Node_isOneHopLink(link) << 63);
     return out;
 }
 
 static int updateBestParentCycle(struct Node_Link* newBestLink,
                                  int cycle,
                                  int limit,
-                                 uint32_t nextReach,
+                                 uint64_t nextCost,
                                  struct NodeStore_pvt* store)
 {
     Assert_true(cycle < 1000);
@@ -448,7 +445,7 @@ static int updateBestParentCycle(struct Node_Link* newBestLink,
         struct Node_Link* next = NULL;
         RB_FOREACH_REVERSE(next, PeerRBTree, &node->peerTree) {
             if (Node_getBestParent(next->child) == next && next->child != node) {
-                total += updateBestParentCycle(next, cycle+1, limit, nextReach, store);
+                total += updateBestParentCycle(next, cycle+1, limit, nextCost, store);
             }
         }
         return total;
@@ -481,14 +478,14 @@ static int updateBestParentCycle(struct Node_Link* newBestLink,
     }*/
 
     if (limit) {
-        // We're only altering the reach of the top node in the chain.
-        // If we want to deduce reach of further nodes along the path, here's the place.
-        nextReach = Node_getReach(node);
+        // We're only altering the cost of the top node in the chain.
+        // If we want to deduce cost of further nodes along the path, here's the place.
+        nextCost = Node_getCost(node);
         Assert_true(Node_getBestParent(node) == newBestLink);
     }
 
     if (!Node_getBestParent(node)) { store->pub.linkedNodes++; }
-    setParentReachAndPath(node, newBestLink, nextReach, bestPath, store);
+    setParentCostAndPath(node, newBestLink, nextCost, bestPath, store);
 
     checkNode(node, store);
     return 1;
@@ -499,18 +496,18 @@ static int updateBestParentCycle(struct Node_Link* newBestLink,
  * propigating path changes out through the tree.
  *
  * @param newBestParent the new best link to the node. The affected node is newBestParent->child.
- * @param nextReach the reach to set the node to.
+ * @param nextCost the cost to set the node to.
  * @param store the nodestore.
  */
 static void updateBestParent(struct Node_Link* newBestParent,
-                             uint32_t nextReach,
+                             uint64_t nextCost,
                              struct NodeStore_pvt* store)
 {
     check(store);
     Assert_true(newBestParent);
 
     for (int i = 0; i < 10000; i++) {
-        if (!updateBestParentCycle(newBestParent, 0, i, nextReach, store)) {
+        if (!updateBestParentCycle(newBestParent, 0, i, nextCost, store)) {
             check(store);
             Assert_true(newBestParent->child);
             return;
@@ -520,32 +517,32 @@ static void updateBestParent(struct Node_Link* newBestParent,
 }
 
 static void handleGoodNews(struct Node_Two* node,
-                           uint32_t newReach,
+                           uint64_t newCost,
                            struct NodeStore_pvt* store)
 {
     // TODO(cjd): Paths longer than 1024 will blow up, handle more gracefully
-    Assert_true(newReach != UINT32_MAX);
+    Assert_true(newCost != 0);
 
-    Assert_true(newReach > Node_getReach(node));
+    Assert_true(newCost < Node_getCost(node));
 
-    // The nodestore thinks it's unreachable, we can't very well update the reach.
+    // The nodestore thinks it's unreachable, we can't very well update the cost.
     if (Node_getBestParent(node) == NULL) { return; }
 
     struct Node_Two* bp = Node_getBestParent(node)->parent;
-    if (newReach+1 > Node_getReach(bp)) {
-        handleGoodNews(bp, newReach+1, store);
+    if (newCost-1 < Node_getCost(bp)) {
+        handleGoodNews(bp, newCost-1, store);
     }
-    Node_setReach(node, newReach);
+    Node_setCost(node, newCost);
     struct Node_Link* link = NULL;
     RB_FOREACH_REVERSE(link, PeerRBTree, &node->peerTree) {
         Identity_check(link);
         struct Node_Two* child = link->child;
         struct Node_Link* childBestParent = Node_getBestParent(child);
         if (!childBestParent || pathQuality(childBestParent) < pathQuality(link)) {
-            uint32_t nextReach = guessReachOfChild(link);
-            if (Node_getReach(child) > nextReach) { continue; }
+            uint64_t nextCost = guessCostOfChild(link);
+            if (Node_getCost(child) < nextCost) { continue; }
             if (Node_isAncestorOf(child, node)) { continue; }
-            updateBestParent(link, nextReach, store);
+            updateBestParent(link, nextCost, store);
         }
     }
 }
@@ -573,7 +570,7 @@ static int handleBadNewsTwoCycle(struct Node_Two* node,
 
     struct Node_Link* rp = node->reversePeers;
     struct Node_Link* best = Node_getBestParent(node);
-    uint32_t bq = pathQuality(best);
+    uint64_t bq = pathQuality(best);
     while (rp) {
         if (!Node_isAncestorOf(node, rp->parent) && pathQuality(rp) > bq) {
             best = rp;
@@ -586,52 +583,52 @@ static int handleBadNewsTwoCycle(struct Node_Two* node,
     if (!Node_getBestParent(best->parent)) { return 1; }
     if (Node_getBestParent(node) == store->selfLink) { return 1; }
 
-    uint32_t nextReach = guessReachOfChild(best);
-    if (nextReach < Node_getReach(node)) {
-        // We've already knocked down the reach of this node in handleBadNewsOne
+    uint64_t nextCost = guessCostOfChild(best);
+    if (nextCost > Node_getCost(node)) {
+        // We've already bumped up the cost of this node in handleBadNewsOne
         // now we have determined that link quality of the other parent is better
-        // so reach should be the greater of guessReachOfChild and current reach.
-        nextReach = Node_getReach(node);
+        // so cost should be the lesser of guessCostOfChild and current cost.
+        nextCost = Node_getCost(node);
     }
     check(store);
-    updateBestParent(best, nextReach, store);
+    updateBestParent(best, nextCost, store);
     check(store);
     return 1;
 }
 
 /**
- * First thing we do is knock down everybody's reach.
+ * First thing we do is bump up everybody's cost.
  * This way they don't all cling to eachother for safety making
  * endless routing loops and stupid processing.
  */
 static void handleBadNewsOne(struct Node_Two* node,
-                             uint32_t newReach,
+                             uint64_t newCost,
                              struct NodeStore_pvt* store)
 {
     struct Node_Link* next = NULL;
     RB_FOREACH_REVERSE(next, PeerRBTree, &node->peerTree) {
         if (Node_getBestParent(next->child) != next) { continue; }
         if (next == store->selfLink) { continue; }
-        if (Node_getReach(next->child) < newReach) { continue; }
-        handleBadNewsOne(next->child, newReach, store);
+        if (Node_getCost(next->child) > newCost) { continue; }
+        handleBadNewsOne(next->child, newCost, store);
     }
 
     Assert_true(node != store->pub.selfNode);
-    if (!newReach) {
+    if (newCost == UINT64_MAX) {
         unreachable(node, store);
     } else {
-        Node_setReach(node, newReach);
+        Node_setCost(node, newCost);
     }
 }
 
 static void handleBadNews(struct Node_Two* node,
-                          uint32_t newReach,
+                          uint64_t newCost,
                           struct NodeStore_pvt* store)
 {
-    Assert_true(newReach < Node_getReach(node));
+    Assert_true(newCost > Node_getCost(node));
     Assert_true(Node_getBestParent(node) && node != store->pub.selfNode);
 
-    handleBadNewsOne(node, newReach, store);
+    handleBadNewsOne(node, newCost, store);
 
     check(store);
 
@@ -643,18 +640,18 @@ static void handleBadNews(struct Node_Two* node,
     }
 }
 
-static void handleNews(struct Node_Two* node, uint32_t newReach, struct NodeStore_pvt* store)
+static void handleNews(struct Node_Two* node, uint64_t newCost, struct NodeStore_pvt* store)
 {
-    // This is because reach is used to prevent loops so it must be 1 more for each hop closer
+    // This is because cost is used to prevent loops so it must be 1 less for each hop closer
     // to the root.
-    if (newReach > (UINT32_MAX - 1024)) { newReach = (UINT32_MAX - 1024); }
+    if (newCost < 1024) { newCost = 1024; }
 
     check(store);
-    if (newReach < Node_getReach(node)) {
-        handleBadNews(node, newReach, store);
+    if (newCost > Node_getCost(node)) {
+        handleBadNews(node, newCost, store);
         check(store);
-    } else if (newReach > Node_getReach(node)) {
-        handleGoodNews(node, newReach, store);
+    } else if (newCost < Node_getCost(node)) {
+        handleGoodNews(node, newCost, store);
         check(store);
     }
 }
@@ -682,7 +679,7 @@ void NodeStore_unlinkNodes(struct NodeStore* nodeStore, struct Node_Link* link)
 
     // Change the best parent and path if necessary
     if (Node_getBestParent(child) == link) {
-        handleBadNews(child, 0, store);
+        handleBadNews(child, UINT64_MAX, store);
     }
 
     if (Node_getBestParent(child) == link) {
@@ -726,13 +723,13 @@ void NodeStore_unlinkNodes(struct NodeStore* nodeStore, struct Node_Link* link)
  * @param parent the current end of the graph
  * @param child the new node to extend the graph
  * @param cannonicalLabel the label for getting from the parent to the child.
- * @param linkStateDiff how much to change the link state for this link.
+ * @param linkCostDiff how much to change the link cost for this link.
  * @param store
  */
 static struct Node_Link* linkNodes(struct Node_Two* parent,
                                    struct Node_Two* child,
                                    uint64_t cannonicalLabel,
-                                   int64_t linkStateDiff,
+                                   int64_t linkCostDiff,
                                    int inverseLinkEncodingFormNumber,
                                    uint64_t discoveredPath,
                                    struct NodeStore_pvt* store)
@@ -780,7 +777,7 @@ static struct Node_Link* linkNodes(struct Node_Two* parent,
                     // not renumber, EG: if C restarts.
                     link->inverseLinkEncodingFormNumber = inverseLinkEncodingFormNumber;
                 }
-                update(link, linkStateDiff, store);
+                update(link, linkCostDiff, store);
                 return link;
             }
         }
@@ -806,7 +803,7 @@ static struct Node_Link* linkNodes(struct Node_Two* parent,
     link->child = child;
     link->parent = parent;
     link->discoveredPath = discoveredPath;
-    link->linkState = 0;
+    link->linkCost = UINT32_MAX;
     link->timeLastSeen = Time_currentTimeMilliseconds(store->eventBase);
     Identity_set(link);
 
@@ -820,14 +817,14 @@ static struct Node_Link* linkNodes(struct Node_Two* parent,
 
     if (!Node_getBestParent(child)) {
         if (Node_getBestParent(parent)) {
-            updateBestParent(link, guessReachOfChild(link), store);
+            updateBestParent(link, guessCostOfChild(link), store);
         } else {
             unreachable(child, store);
         }
     }
 
     // update the child's link state and possibly change it's preferred path
-    update(link, linkStateDiff, store);
+    update(link, linkCostDiff, store);
 
     if (parent == store->pub.selfNode && child != store->pub.selfNode) {
         Assert_true(Node_isOneHopLink(link));
@@ -1269,8 +1266,8 @@ static struct Node_Two* whichIsWorse(struct Node_Two* one,
     uint32_t selfPrefix = Address_getPrefix(&store->pub.selfNode->address);
     uint64_t distOne = Address_getPrefix(&one->address) ^ selfPrefix;
     uint64_t distTwo = Address_getPrefix(&two->address) ^ selfPrefix;
-    distOne += 0xffffffff - Node_getReach(one);
-    distTwo += 0xffffffff - Node_getReach(two);
+    distOne += Node_getCost(one);
+    distTwo += Node_getCost(two);
     if (Defined(NodeStore_whichIsWorse_PATHCOUNTS)) {
         distOne += Bits_log2x64(one->address.path) << 26;
         distTwo += Bits_log2x64(two->address.path) << 26;
@@ -1290,7 +1287,7 @@ struct NodeList* NodeStore_getNodesForBucket(struct NodeStore* nodeStore,
     nodeList->size = 0;
     struct Node_Two* nn = NULL;
     RB_FOREACH(nn, NodeRBTree, &store->nodeTree) {
-        if (!Node_getReach(nn)) { continue; }
+        if (Node_getCost(nn) == UINT64_MAX) { continue; }
         if (NodeStore_bucketForAddr(store->pub.selfAddress, &nn->address) == bucket) {
             struct Node_Two* newNode = nn;
             struct Node_Two* tempNode = NULL;
@@ -1351,10 +1348,10 @@ static void markKeyspaceNodes(struct NodeStore_pvt* store)
 
 
 /**
- * We define the worst node the node with the lowest reach, excluding nodes which are required for
+ * We define the worst node the node with the highest cost, excluding nodes which are required for
  * the DHT, and nodes which are somebody's bestParent (only relevant if they're the bestParent of
- * a DHT-required node, as otherwise their child would always be lower reach).
- * If two nodes tie (e.g. two unreachable nodes with 0 reach) then the node which is
+ * a DHT-required node, as otherwise their child would always be higher cost).
+ * If two nodes tie (e.g. two unreachable nodes with maximum cost) then the node which is
  * further from us in keyspace is worse.
  */
 static struct Node_Two* getWorstNode(struct NodeStore_pvt* store)
@@ -1393,7 +1390,7 @@ static struct Node_Two* getWorstNode(struct NodeStore_pvt* store)
     RB_FOREACH(nn, NodeRBTree, &store->nodeTree) {
         // third cycle, every node is apparently important but we need to get rid of someone
         // get whoever is worst if we ignore markings
-        // by definition, this shouldn't be a bestParent, because their children have lower reach
+        // by definition, this shouldn't be a bestParent, because their children have higher cost
         // so we're potentially creating a keyspace hole (routing blackhole) when we do this.
         // TODO(arceliar): protect keyspace, evict the worst bestParent instead?
         // Would require something like a forgetNode() to splice links together between
@@ -1427,7 +1424,7 @@ static void destroyNode(struct Node_Two* node, struct NodeStore_pvt* store)
     // This is an optimization:
     if (!Defined(PARANOIA)) {
         store->pub.linkedNodes--;
-        setParentReachAndPath(node, NULL, 0, UINT64_MAX, store);
+        setParentCostAndPath(node, NULL, UINT64_MAX, UINT64_MAX, store);
     }
 
     link = node->reversePeers;
@@ -1447,36 +1444,46 @@ static void destroyNode(struct Node_Two* node, struct NodeStore_pvt* store)
 }
 
 // Must be at least 2 to avoid multiplying by 0.
-// If too large, path choice may become unstable due to a guess we make in calcNextReach.
-// This is fixable by storing reach based on links. A lot of work.
+// If too large, path choice may become unstable due to a guess we make in calcNextCost.
+// This is fixable by storing cost based on links. A lot of work.
 // In the mean time, just don't use a large value.
 #define NodeStore_latencyWindow 8
-static uint32_t reachAfterDecay(const uint32_t oldReach)
+static uint64_t costAfterBump(const uint64_t oldCost)
 {
-    // Reduce the reach by 1/Xth where X = NodeStore_latencyWindow
+    // Increase the cost by 1/Xth where X = NodeStore_latencyWindow
     // This is used to keep a weighted rolling average
-    return (uint64_t)oldReach * (NodeStore_latencyWindow - 1) / (NodeStore_latencyWindow);
+    uint64_t newCost = oldCost;
+    newCost += oldCost / NodeStore_latencyWindow + 1;
+    if (newCost < oldCost) {
+        // Wrapped around
+        newCost = UINT64_MAX;
+    }
+    return newCost;
 }
 
-static uint32_t reachAfterTimeout(const uint32_t oldReach)
+static uint64_t costAfterTimeout(const uint64_t oldCost)
 {
-    return reachAfterDecay(oldReach);
+    return costAfterBump(oldCost);
 }
 
-static uint32_t calcNextReach(const uint32_t oldReach, const uint32_t millisecondsLag)
+static uint64_t calcNextCost(const uint64_t oldCost, const uint32_t millisecondsLag)
 {
-    int64_t out = reachAfterDecay(oldReach) +
-        ((UINT32_MAX / NodeStore_latencyWindow) / (millisecondsLag + 1));
-    if (!oldReach) {
-        // We don't know the old reach for this path.
+    // TODO(arceliar) the 1024 here is pretty arbitrary...
+    uint64_t out = costAfterBump(oldCost) + 1024*millisecondsLag;
+    if (out < 1024*millisecondsLag) {
+        // Wrapped around
+        return UINT64_MAX-1;
+    }
+    if (oldCost == UINT64_MAX) {
+        // We don't know the old cost for this path.
         // If every response comes in after same millisecondsLag, then we expect that the
-        // reach will stabilize to a value of (out * NodeStoare_latencyWindow).
-        // Lets guess what the reach will stabilize to, but try to be a little conservative,
+        // cost will stabilize to a value of (out * NodeStore_latencyWindow).
+        // Lets guess what the cost will stabilize to, but try to be a little conservative,
         // so we don't cause bestParents to switch unless the new route is appreciably better.
         out = out * (NodeStore_latencyWindow - 1);
     }
     // TODO(arceliar): is this safe?
-    Assert_true(out < (UINT32_MAX - 1024) && out > 0);
+    Assert_true(out > 1024 && out != UINT64_MAX);
     return out;
 }
 
@@ -1489,8 +1496,8 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
     struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
     verify(store);
 
-    // conservative guess of what the reach would stabilize to
-    uint32_t reach = calcNextReach(0, milliseconds);
+    // conservative guess of what the cost would stabilize to
+    uint64_t cost = calcNextCost(UINT64_MAX, milliseconds);
 
     struct Node_Two* child = nodeForIp(store, addr->ip6.bytes);
 
@@ -1581,14 +1588,14 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
     Assert_true(link->child);
 
     if (link->parent == store->pub.selfNode && !Node_getBestParent(link->child)) {
-        updateBestParent(link, reach, store);
+        updateBestParent(link, cost, store);
     }
 
     #ifdef PARANOIA
         struct Node_Two* parent = link->parent;
     #endif
 
-    handleNews(link->child, reach, store);
+    handleNews(link->child, cost, store);
     freePendingLinks(store);
 
     while ((store->pub.nodeCount - store->pub.peerCount) >
@@ -1811,7 +1818,7 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
     out->pub.linkedNodes = 1;
     out->pub.selfNode = selfNode;
     struct Node_Link* selfLink = linkNodes(selfNode, selfNode, 1, 0xffffffffu, 0, 1, out);
-    Node_setParentReachAndPath(selfNode, selfLink, UINT32_MAX, 1);
+    Node_setParentCostAndPath(selfNode, selfLink, 0, 1);
     selfNode->timeLastPinged = Time_currentTimeMilliseconds(out->eventBase);
     out->selfLink = selfLink;
     RB_INSERT(NodeRBTree, &out->nodeTree, selfNode);
@@ -2201,7 +2208,7 @@ void NodeStore_brokenLink(struct NodeStore* nodeStore, uint64_t path, uint64_t p
 }
 
 // When a response comes in, we need to pay attention to the path used.
-static void updatePathReach(struct NodeStore_pvt* store, const uint64_t path, uint32_t newReach)
+static void updatePathCost(struct NodeStore_pvt* store, const uint64_t path, uint64_t newCost)
 {
     struct Node_Link* link = store->selfLink;
     uint64_t pathFrag = path;
@@ -2224,46 +2231,47 @@ static void updatePathReach(struct NodeStore_pvt* store, const uint64_t path, ui
             // loop route
         } else {
             // This path apparently gives us a better route than our current bestParent.
-            updateBestParent(nextLink, newReach, store);
+            updateBestParent(nextLink, newCost, store);
         }
 
-        if (Node_getReach(link->child) >= newReach) {
-            // Node already has enough reach...
-            // selfNode reach == UINT32_MAX so this case handles it.
+        if (Node_getCost(link->child) <= newCost) {
+            // Node already has a low enough cost...
+            // selfNode cost == 0 so this case handles it.
         } else if (!LabelSplicer_routesThrough(path, link->child->address.path)) {
             // The path the packet came in on is not actually the best known path to the node.
         } else {
-            handleNews(link->child, newReach, store);
+            handleNews(link->child, newCost, store);
         }
 
         if (Node_getBestParent(link->child) == link) {
-            // Update linkState.
-            uint32_t guessedLinkState = subReach(Node_getReach(link->parent), newReach);
-            uint32_t linkStateDiff = (guessedLinkState > link->linkState)
-                                   ? (guessedLinkState - link->linkState)
-                                   : 1;
-            update(link, linkStateDiff, store);
+            // Update linkCost.
+            int64_t newLinkCost = newCost > Node_getCost(link->parent)
+                                ? newCost -= Node_getCost(link->parent)
+                                : 1;
+            update(link, newLinkCost - link->linkCost, store);
         } else {
             // Well we at least know it's not dead.
-            update(link, 1, store);
+            update(link, -1, store);
         }
 
         nextLink->timeLastSeen = now;
 
         pathFrag = nextPath;
         link = nextLink;
-        newReach--;
+        newCost++;
     }
 
-    // Now we have to unconditionally update the reach for the last link in the chain.
+    // Now we have to unconditionally update the cost for the last link in the chain.
     if (link->child && link->child->address.path == path) {
 
         // Behavior of nextLinkOnPath()
         Assert_ifParanoid(pathFrag == 1);
 
-        handleNews(link->child, newReach, store);
-        uint32_t newLinkState = subReach(Node_getReach(link->parent), newReach);
-        update(link, newLinkState - link->linkState, store);
+        handleNews(link->child, newCost, store);
+        int64_t newLinkCost = newCost > Node_getCost(link->parent)
+                            ? (int64_t)newCost - Node_getCost(link->parent)
+                            : 1;
+        update(link, newLinkCost - link->linkCost, store);
     }
     link->child->timeLastPinged = Time_currentTimeMilliseconds(store->eventBase);
 }
@@ -2274,19 +2282,19 @@ void NodeStore_pathResponse(struct NodeStore* nodeStore, uint64_t path, uint64_t
     struct Node_Link* link = NodeStore_linkForPath(nodeStore, path);
     if (!link || link == store->selfLink) { return; }
     struct Node_Two* node = link->child;
-    uint32_t newReach;
+    uint64_t newCost;
     if (node->address.path == path) {
-        // Use old reach value to calculate new reach.
-        newReach = calcNextReach(Node_getReach(node), milliseconds);
+        // Use old cost value to calculate new cost.
+        newCost = calcNextCost(Node_getCost(node), milliseconds);
     }
     else {
-        // Old reach value doesn't relate to this path, so we should do something different
-        // FIXME(arceliar): calcNextReach is guessing what the reach would stabilize to
-        // I think actually fixing this would require storing reach (or latency?) per link,
-        // so we can calculate the expected reach for an arbitrary path
-        newReach = calcNextReach(0, milliseconds);
+        // Old cost value doesn't relate to this path, so we should do something different
+        // FIXME(arceliar): calcNextCost is guessing what the cost would stabilize to
+        // I think actually fixing this would require storing cost (or latency?) per link,
+        // so we can calculate the expected cost for an arbitrary path
+        newCost = calcNextCost(0, milliseconds);
     }
-    updatePathReach(store, path, newReach);
+    updatePathCost(store, path, newCost);
 }
 
 void NodeStore_pathTimeout(struct NodeStore* nodeStore, uint64_t path)
@@ -2308,7 +2316,9 @@ void NodeStore_pathTimeout(struct NodeStore* nodeStore, uint64_t path)
             // TODO(arceliar): Something sane. We don't know which link on the path is bad.
             // For now, just penalize them all.
             // The good ones will be rewarded again when they relay another ping.
-            update(link, reachAfterTimeout(link->linkState)-link->linkState, store);
+            int64_t linkCostDiff = costAfterTimeout(link->linkCost);
+            linkCostDiff -= link->linkCost;
+            update(link, linkCostDiff, store);
         }
 
         pathFrag = nextPath;
@@ -2318,15 +2328,15 @@ void NodeStore_pathTimeout(struct NodeStore* nodeStore, uint64_t path)
     link = NodeStore_linkForPath(nodeStore, path);
     if (!link || link->child->address.path != path) { return; }
     struct Node_Two* node = link->child;
-    uint32_t newReach = reachAfterTimeout(Node_getReach(node));
-    if (!newReach) {
+    uint64_t newCost = costAfterTimeout(Node_getCost(node));
+    if (newCost == UINT64_MAX) {
         // The node hasn't responded in a really long time.
         // Possible causes:
         // 1) The node is offline, and for some reason we're not getting an error packet back.
         // 2) The node is behind a node that's offline, and for some reason we're not getting error.
         // 3) The node is online, but in a bad state, where it cannot respond to pings.
         //    (E.g. Our CA session broke and it refuses to reset, known bug in old versions.)
-        // If we don't do something, we'll guessReachOfChild to re-discover a path through the link.
+        // If we don't do something, we'll guessCostOfChild to re-discover a path through the link.
         // Doing that can get the node store stuck in a bad state where this node is blackholed.
         // As a workaround, break the link. That prevents re-discovering the same broken path.
         // If 2), we might accidentally break a valid link, but we should re-discover it the
@@ -2338,12 +2348,12 @@ void NodeStore_pathTimeout(struct NodeStore* nodeStore, uint64_t path)
         uint8_t addr[60];
         Address_print(addr, &node->address);
         Log_debug(store->logger,
-                  "Ping timeout for %s. changing reach from %u to %u\n",
+                  "Ping timeout for %s. changing reach from %lu to %lu\n",
                   addr,
-                  Node_getReach(node),
-                  newReach);
+                  Node_getCost(node),
+                  newCost);
     }
-    handleNews(node, newReach, store);
+    handleNews(node, newCost, store);
 
     if (node->address.path != path) { return; }
 

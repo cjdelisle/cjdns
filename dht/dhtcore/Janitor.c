@@ -649,8 +649,8 @@ static void maintanenceCycle(void* vcontext)
 
     struct Node_Two* n = NodeStore_getBest(janitor->nodeStore, addr.ip6.bytes);
 
-    // If the best next node doesn't exist or has 0 reach, run a local maintenance search.
-    if (n == NULL || Node_getReach(n) == 0) {
+    // If the best next node doesn't exist or has maximum cost, run a local maintenance search.
+    if (n == NULL || Node_getCost(n) == UINT64_MAX) {
         // or actually, don't
         //search(addr.ip6.bytes, janitor);
         //plugLargestKeyspaceHole(janitor, true);

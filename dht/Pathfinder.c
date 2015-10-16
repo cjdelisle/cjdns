@@ -143,7 +143,7 @@ static void onBestPathChange(void* vPathfinder, struct Node_Two* node)
     struct Pathfinder_pvt* pf = Identity_check((struct Pathfinder_pvt*) vPathfinder);
     struct Allocator* alloc = Allocator_child(pf->alloc);
     struct Message* msg = Message_new(0, 256, alloc);
-    Iface_CALL(sendNode, msg, &node->address, 0xffffffffu - Node_getReach(node), pf);
+    Iface_CALL(sendNode, msg, &node->address, Node_getCost(node), pf);
     Allocator_free(alloc);
 }
 
