@@ -20,15 +20,15 @@ I (and [several others](https://github.com/cjdelisle/cjdns/issues/701)) experien
 
 After some trial and error, I narrowed the cause of the factor down to a particular block in the `connectTo` section of my configuration file.
 
-```
+```javascript
 "192.168.10.102:6447":
 {
-"password":"anArbitraryPasswordOfThisLength",
-"publicKey":"3kcy5s4fvp6f1tzx2f9llm0dp19y4xz1z9t1rftf45103s2b7670.k",
-"operator":"aLargeNumberOfAliasesforAUser",
-"contact":"aNodeOperator@anEmail.tld",
-"location":"aVerboseDescriptionOfAPhysicalLocation",
-"ipv6":"fc00:0000:0000:0000:0000:0000:0000:0000"
+  "password":"anArbitraryPasswordOfThisLength",
+  "publicKey":"3kcy5s4fvp6f1tzx2f9llm0dp19y4xz1z9t1rftf45103s2b7670.k",
+  "operator":"aLargeNumberOfAliasesforAUser",
+  "contact":"aNodeOperator@anEmail.tld",
+  "location":"aVerboseDescriptionOfAPhysicalLocation",
+  "ipv6":"fc00:0000:0000:0000:0000:0000:0000:0000"
 }
 ```
 
@@ -64,7 +64,7 @@ E..8..@.@...........+....$.7d5:error16:Request too big.e
 
 I shortened this `connectTo` block one character at a time until `cjdroute` launched successfully. This block is the maximum length that passes. 
 
-```
+```javascript
 "192.168.10.102:6447":
 {
   "password":"anArbitraryPasswordOfThisLength",
