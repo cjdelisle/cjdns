@@ -43,7 +43,7 @@ Usage:
 
 put something like this inside:
 
-```script
+```javascript
 {
     "password": "from your admin section in your cjdroute.conf",
     "config": "/path/to/cjdroute.conf",
@@ -52,7 +52,7 @@ put something like this inside:
 }
 ```
 make an alias:
-```script
+```bash
 alias cjdadmin='/path/to/cjdns/contrib/python/cexec'
 ```
 If you like you can put it in your `~/.*rc` for your terminal flavor.
@@ -71,7 +71,7 @@ Reasons you should have your peers contact information:
 - IP address can be found by a google of "whatismyip"
 - public key is right here:
 
-```script
+```javascript
     // This key corresponds to the public key and ipv6 address:
     "publicKey": "3u2fz3fcyblrz7nspwzkcxp7xph80h5hwu1qu4qrumrqym80r0u0.k",
     "ipv6": "fc5e:8c49:b6ce:d1f5:b89c:fcd6:e536:a479",
@@ -79,7 +79,7 @@ Reasons you should have your peers contact information:
 
 - port is right here:
 
-```script
+```javascript
     "interfaces":
     {
         // The interface which connects over UDP/IP based VPN tunnel.
@@ -108,7 +108,7 @@ Prerequisites:
 
 #### Make your authorizedPasswords block <a name="authorizedpasswords"></a>
 
-```script
+```javascript
         {
                 "password": "vt1ly5f4ydmm9gjk196t160z23t6uju",
                 "name": "[put your peers name here]",
@@ -125,7 +125,7 @@ Everything else is for humans.
 
 (alredy indented just enough for the current cjdroute.conf section it goes in)
 
-```script
+```javascript
                         "[your IP address]:[your open port]": {
                                 "password": "[your long passphrase]",
                                 "location": "New York City, NY, US",
@@ -148,7 +148,7 @@ Everything else is for humans.
 After verifying that your made up password matches the password you will give to your friend, paste your authorizedPasswords block into your authorizedPasswords section.
 
 Like this.
-```script
+```javascript
    //
     "authorizedPasswords":
     [
@@ -179,10 +179,12 @@ Save cjdroute.conf
 
 #### Update cjdroute <a name="update-cjdroute-inbound"></a>
 
-There are 2 ways to do this.  
-`sudo killall cjdroute`
+There are 2 ways to do this.
+```bash
+sudo killall cjdroute
+```
 Or
-```script
+```bash
 cjdadmin 'AuthorizedPasswords_add("[YourLongPasswordYouWillGiveAway]","[peerUserName_aka_frendlyname]",1,0)'
 ```
 Find out more about this command in the [admin/README.md][cjd-admin-readme] ([clearnet][cjd-admin-readme-clearnet]) section of the cjdns repository.
@@ -208,7 +210,7 @@ Prerequisites:
 #### Edit cjdroute.conf <a name="edit-cjdroute-outbound"></a>
 
 Paste your peers info inside your connectTo block.
-```script
+```javascript
                 // Bind to this port.
                 "bind": "104.131.101.214:61522",
 
@@ -233,11 +235,12 @@ Save cjdroute.conf
 #### Update cjdroute <a name="update-cjdroute-outbound"></a>
 
 There are 2 ways to do this.  
-`sudo killall cjdroute`
+```bash
+sudo killall cjdroute
+```
 Or
-```script
+```bash
 cjdadmin 'UDPInterface_beginConnection("[yourPeersPubkeyGoesHereItEndsWith.k]","[address]:[port]",0,"[longPasswordYourPeerGaveYou]")'
-
 ```
 Find out more about this command in the [admin/README.md][cjd-admin-readme] ([clearnet][cjd-admin-readme-clearnet]) section of the cjdns repository.
 
