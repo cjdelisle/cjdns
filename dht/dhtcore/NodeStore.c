@@ -1128,6 +1128,11 @@ static struct Node_Link* discoverLinkC(struct NodeStore_pvt* store,
 
     check(store);
 
+    // FIXME(arceliar,cjd): This is still bad, but lets assume 1-hop links are great.
+    if (Node_isOneHopLink(parentLink)) {
+        handleLinkNews(parentLink, 0, store);
+    }
+
     return parentLink;
 }
 
