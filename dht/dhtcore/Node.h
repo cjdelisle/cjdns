@@ -30,7 +30,7 @@ struct Node_Two
      * The cost of the node (how small/slow/far it is).
      * DO NOT ALTER THIS OUTSIDE OF NODESTORE
      */
-    uint32_t cost_pvt;
+    uint64_t cost_pvt;
 
     /** This is used to mark/sweep nodes in getWorstNode(), it's meaningless otherwise. */
     uint32_t marked;

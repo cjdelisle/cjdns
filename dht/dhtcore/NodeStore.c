@@ -349,35 +349,14 @@ static void unreachable(struct Node_Two* node, struct NodeStore_pvt* store)
         if (Node_getBestParent(next->child) == next) { unreachable(next->child, store); }
     }
 
-    // We think the link is down, so reset the link state.
+    // We think the link is down, so reset the link cost.
     struct Node_Link* bp = Node_getBestParent(node);
     if (bp) {
-        update(bp, UINT64_MAX, store);
+        update(bp, UINT32_MAX, store);
         store->pub.linkedNodes--;
     }
     setParentCostAndPath(node, NULL, UINT64_MAX, UINT64_MAX, store);
 }
-
-/** Adds the reach of path A->B to path B->C to get the expected reach of A->C.
-static uint32_t addReach(uint32_t reachAB, uint32_t reachBC)
-{
-    uint64_t b = reachAB;
-    uint64_t c = reachBC;
-    uint64_t reachAC = (b * c) / (b + c);
-    if (reachAC > UINT32_MAX) { return UINT32_MAX; }
-    return reachAC;
-}*/
-
-/** Subtracts the reach of path A->B from path A->B->C, to get reach of B->C.
-static uint32_t subReach(uint32_t reachAB, uint32_t reachAC)
-{
-    if (reachAB <= reachAC) { return UINT32_MAX; }
-    uint64_t b = reachAB;
-    uint64_t c = reachAC;
-    uint64_t reachBC = (b * c) / (b - c);
-    if (reachBC > UINT32_MAX) { return UINT32_MAX; }
-    return reachBC;
-}*/
 
 /**
  * This is called when we have no idea what the cost should be for the next hop
@@ -627,7 +606,6 @@ static void handleBadNews(struct Node_Two* node,
 {
     Assert_true(newCost > Node_getCost(node));
     Assert_true(Node_getBestParent(node) && node != store->pub.selfNode);
-
     handleBadNewsOne(node, newCost, store);
 
     check(store);
@@ -1316,8 +1294,8 @@ struct NodeList* NodeStore_getNodesForBucket(struct NodeStore* nodeStore,
 }
 
 static bool markNodesForBucket(struct NodeStore_pvt* store,
-                          uint16_t bucket,
-                          const uint32_t count)
+                               uint16_t bucket,
+                               const uint32_t count)
 {
     struct Allocator* nodeListAlloc = Allocator_child(store->alloc);
     struct NodeList* nodeList = NodeStore_getNodesForBucket(&store->pub,
@@ -1453,10 +1431,12 @@ static uint64_t costAfterBump(const uint64_t oldCost)
     // Increase the cost by 1/Xth where X = NodeStore_latencyWindow
     // This is used to keep a weighted rolling average
     uint64_t newCost = oldCost;
-    newCost += oldCost / NodeStore_latencyWindow + 1;
-    if (newCost < oldCost) {
+    newCost -= oldCost / NodeStore_latencyWindow
+             ? oldCost / NodeStore_latencyWindow
+             : 1;
+    if (newCost > oldCost) {
         // Wrapped around
-        newCost = UINT64_MAX;
+        newCost = 1025;
     }
     return newCost;
 }
@@ -1469,7 +1449,7 @@ static uint64_t costAfterTimeout(const uint64_t oldCost)
 static uint64_t calcNextCost(const uint64_t oldCost, const uint32_t millisecondsLag)
 {
     // TODO(arceliar) the 1024 here is pretty arbitrary...
-    uint64_t out = costAfterBump(oldCost) + 1024*millisecondsLag;
+    uint64_t out = costAfterBump(oldCost) + 1024*(millisecondsLag | 1);
     if (out < 1024*millisecondsLag) {
         // Wrapped around
         return UINT64_MAX-1;
@@ -1480,7 +1460,7 @@ static uint64_t calcNextCost(const uint64_t oldCost, const uint32_t milliseconds
         // cost will stabilize to a value of (out * NodeStore_latencyWindow).
         // Lets guess what the cost will stabilize to, but try to be a little conservative,
         // so we don't cause bestParents to switch unless the new route is appreciably better.
-        out = out * (NodeStore_latencyWindow - 1);
+        out = 1024*(millisecondsLag | 1)*(NodeStore_latencyWindow - 1);
     }
     // TODO(arceliar): is this safe?
     Assert_true(out > 1024 && out != UINT64_MAX);
@@ -2246,7 +2226,7 @@ static void updatePathCost(struct NodeStore_pvt* store, const uint64_t path, uin
         if (Node_getBestParent(link->child) == link) {
             // Update linkCost.
             int64_t newLinkCost = newCost > Node_getCost(link->parent)
-                                ? newCost -= Node_getCost(link->parent)
+                                ? (int64_t)newCost - Node_getCost(link->parent)
                                 : 1;
             update(link, newLinkCost - link->linkCost, store);
         } else {
@@ -2292,7 +2272,7 @@ void NodeStore_pathResponse(struct NodeStore* nodeStore, uint64_t path, uint64_t
         // FIXME(arceliar): calcNextCost is guessing what the cost would stabilize to
         // I think actually fixing this would require storing cost (or latency?) per link,
         // so we can calculate the expected cost for an arbitrary path
-        newCost = calcNextCost(0, milliseconds);
+        newCost = calcNextCost(UINT64_MAX, milliseconds);
     }
     updatePathCost(store, path, newCost);
 }
