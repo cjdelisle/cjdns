@@ -344,7 +344,7 @@ Builder.configure({
                 args.push.apply(args, env.GYP_ADDITIONAL_ARGS.split(' '));
             }
 
-            if (['freebsd', 'openbsd'].indexOf(bulder.config.systemName) !== -1) {
+            if (['freebsd', 'openbsd'].indexOf(builder.config.systemName) !== -1) {
                 // This platform lacks a functioning sem_open implementation, therefore...
                 args.push('--no-parallel');
             }
