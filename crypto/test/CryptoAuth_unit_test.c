@@ -65,7 +65,7 @@ static void encryptRndNonceTest()
 
 static struct Random* evilRandom(struct Allocator* alloc, struct Log* logger)
 {
-    struct RandomSeed* evilSeed = DeterminentRandomSeed_new(alloc);
+    struct RandomSeed* evilSeed = DeterminentRandomSeed_new(alloc, NULL);
     return Random_newWithSeed(alloc, logger, evilSeed, NULL);
 }
 
