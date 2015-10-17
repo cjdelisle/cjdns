@@ -762,6 +762,7 @@ static Gcc_USE_RET int decryptHandshake(struct CryptoAuth_Session_pvt* session,
         // they are the sender of the hello packet or their permanent public key is lower.
         // this is a tie-breaker in case hello packets cross on the wire.
         if (session->established) {
+            cryptoAuthDebug0(session, "new hello during established session, resetting");
             reset(session);
         }
         // We got a (possibly repeat) hello packet and we have not sent any hello packet,
@@ -798,7 +799,7 @@ static Gcc_USE_RET int decryptHandshake(struct CryptoAuth_Session_pvt* session,
         Bits_memcpyConst(session->pub.herIp6, restrictedToip6, 16);
     }
 
-    // Nonces can never go backward and can only "not advance" if they're 0,1,2,3 session state.
+    // Nonces can never go backward and can only "not advance" if they're 0,1,2,3,4 session state.
     Assert_true(session->nextNonce < nextNonce ||
         (session->nextNonce <= 4 && nextNonce == session->nextNonce)
     );
@@ -845,12 +846,6 @@ int CryptoAuth_decrypt(struct CryptoAuth_Session* sessionPub, struct Message* ms
                             NULL,
                             session->context->logger);
 
-            // We'll optimistically advance the nextNonce value because decryptMessage()
-            // passes the message on to the upper level and if this message causes a
-            // response, we want the CA to be in ESTABLISHED state.
-            // if the decryptMessage() call fails, we CryptoAuth_reset() it back.
-            session->nextNonce += 3;
-
             if (decryptMessage(session, nonce, msg, secret)) {
                 cryptoAuthDebug0(session, "Final handshake step succeeded");
                 Bits_memcpyConst(session->sharedSecret, secret, 32);
@@ -860,10 +855,10 @@ int CryptoAuth_decrypt(struct CryptoAuth_Session* sessionPub, struct Message* ms
                 Bits_memset(session->ourTempPubKey, 0, 32);
                 Bits_memset(session->herTempPubKey, 0, 32);
                 session->established = true;
+                session->nextNonce += 3;
                 updateTime(session, msg);
                 return 0;
             }
-            reset(session);
             cryptoAuthDebug0(session, "DROP Final handshake step failed");
             return -1;
         }
