@@ -1426,7 +1426,7 @@ static void destroyNode(struct Node_Two* node, struct NodeStore_pvt* store)
 // This is fixable by storing cost based on links. A lot of work.
 // In the mean time, just don't use a large value.
 #define NodeStore_latencyWindow 8
-static uint64_t costAfterBump(const uint64_t oldCost)
+static uint64_t costAfterDecay(const uint64_t oldCost)
 {
     // Increase the cost by 1/Xth where X = NodeStore_latencyWindow
     // This is used to keep a weighted rolling average
@@ -1443,13 +1443,17 @@ static uint64_t costAfterBump(const uint64_t oldCost)
 
 static uint64_t costAfterTimeout(const uint64_t oldCost)
 {
-    return costAfterBump(oldCost);
+    uint64_t newCost = costAfterDecay(oldCost)+1;
+    newCost *= NodeStore_latencyWindow;
+    newCost /= NodeStore_latencyWindow - 1;
+    if (newCost < oldCost) { newCost = UINT64_MAX; }
+    return newCost;
 }
 
 static uint64_t calcNextCost(const uint64_t oldCost, const uint32_t millisecondsLag)
 {
     // TODO(arceliar) the 1024 here is pretty arbitrary...
-    uint64_t out = costAfterBump(oldCost) + 1024*(millisecondsLag | 1);
+    uint64_t out = costAfterDecay(oldCost) + 1024*(millisecondsLag | 1);
     if (out < 1024*millisecondsLag) {
         // Wrapped around
         return UINT64_MAX-1;
