@@ -292,39 +292,38 @@ following JSON syntax.
 In your conf file, you will see:
 ``` javascript
 "authorizedPasswords":
-    [
-        // A unique string which is known to the client and server.
-        {"password": "thisisauniquestring_001"}
+[
+    // A unique string which is known to the client and server.
+    {"password": "thisisauniquestring_001"}
 
-        // More passwords should look like this.
-        // {"password": "thisisauniquestring_002"}
-        // {"password": "thisisauniquestring_003"}
-        // {"password": "thisisauniquestring_004"}
-        ...
+    // More passwords should look like this.
+    // {"password": "thisisauniquestring_002"}
+    // {"password": "thisisauniquestring_003"}
+    // {"password": "thisisauniquestring_004"}
+    ...
 
-        // "your.external.ip.goes.here:45678":{"password": "thisisauniquestring_001","publicKey":thisisauniqueKEY_001.k"}
+    // "your.external.ip.goes.here:45678":{"password": "thisisauniquestring_001","publicKey":thisisauniqueKEY_001.k"}
 
-    ],
+],
 ```
 
 A conf file with multiple friend-nodes, setup INbound, should look like:
 ``` javascript
 "authorizedPasswords":
-    [
-        // A unique string which is known to the client and server.
-        {"password": "thisisauniquestring_001"}
+[
+    // A unique string which is known to the client and server.
+    {"password": "thisisauniquestring_001"}
 
-        // More passwords should look like this.
+    // More passwords should look like this.
     //friend_3 (IPv4: 0.1.2.3; IPv6 fcaa:5bac:66e4:713:cb00:e446:c317:fc39)
 {"password": "thisisauniquestring_002"}
     //friend_4 (IPv4: 5.1.2.3; IPv6 fcbb:5bac:66e4:713:cb00:e446:c317:fc39)
 {"password": "thisisauniquestring_003"}
-        // {"password": "thisisauniquestring_004"}
-        ...
+    // {"password": "thisisauniquestring_004"}
+    ...
 
-        // "your.external.ip.goes.here:45678":{"password": "thisisauniquestring_001","publicKey":thisisauniqueKEY_001.k"}
-
-    ],
+    // "your.external.ip.goes.here:45678":{"password": "thisisauniquestring_001","publicKey":thisisauniqueKEY_001.k"}
+],
 ```
 
 
@@ -333,8 +332,8 @@ You need to give friend_3 (who is making the INbound connection) the following 4
 1. Your external IPv4
 2. The port found in your conf file here:
 
-                `// Bind to this port.
-                "bind": "0.0.0.0:yourportnumberishere",`
+    `// Bind to this port.
+    "bind": "0.0.0.0:yourportnumberishere",`
 
 3. Their unique password that you uncommented or created: "password": "thisisauniquestring_002"
 4. Your public key: "publicKey":thisisauniqueKEY_001.k"
@@ -391,7 +390,7 @@ stay on [IRC](#community) so that people can reach you.
 ## Admin interface
 
 When cjdnroute is up and running, the admin interface will be available at
-`udp://localhost:11234` (this can be changed in the cjdroute.conf
+`udp://localhost:11234` (this can be changed in the `cjdroute.conf`
 configuration file). See [admin/README.md](admin/README.md) for more
 information about the admin interface. There are several tools in `contrib/`
 that can interact with it.
