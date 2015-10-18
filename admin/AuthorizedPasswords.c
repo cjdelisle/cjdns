@@ -16,6 +16,7 @@
 #include "benc/Int.h"
 #include "benc/List.h"
 #include "benc/String.h"
+#include "util/AddrTools.h"
 
 struct Context
 {
@@ -40,21 +41,25 @@ static void add(Dict* args, void* vcontext, String* txid, struct Allocator* allo
     String* user = Dict_getString(args, String_CONST("user"));
     String* ipv6 = Dict_getString(args, String_CONST("ipv6"));
 
-    int32_t ret = CryptoAuth_addUser_ipv6(passwd, user, ipv6, context->ca);
+    uint8_t ipv6Bytes[16];
+    uint8_t* ipv6Arg;
+    if (!ipv6) {
+        ipv6Arg = NULL;
+    } else if (AddrTools_parseIp(ipv6Bytes, ipv6->bytes)) {
+        sendResponse(String_CONST("Invalid IPv6 Address"), context->admin, txid, alloc);
+        return;
+    } else {
+        ipv6Arg = ipv6Bytes;
+    }
+
+    int32_t ret = CryptoAuth_addUser_ipv6(passwd, user, ipv6Arg, context->ca);
 
     switch (ret) {
         case 0:
             sendResponse(String_CONST("none"), context->admin, txid, alloc);
             break;
-        case CryptoAuth_addUser_INVALID_AUTHTYPE:
-            sendResponse(String_CONST("Specified auth type is not supported."),
-                         context->admin, txid, alloc);
-            break;
         case CryptoAuth_addUser_DUPLICATE:
             sendResponse(String_CONST("Password already added."), context->admin, txid, alloc);
-            break;
-        case CryptoAuth_addUser_INVALID_IP:
-            sendResponse(String_CONST("Invalid IPv6 Address"), context->admin, txid, alloc);
             break;
         default:
             sendResponse(String_CONST("Unknown error."), context->admin, txid, alloc);

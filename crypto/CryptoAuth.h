@@ -73,16 +73,12 @@ struct CryptoAuth_Session
  *             to the given IPv6 address.
  * @param context The CryptoAuth context.
  * @return 0 if all goes well,
- *         CryptoAuth_addUser_INVALID_AUTHTYPE if the authentication method is not supported,
  *         CryptoAuth_addUser_DUPLICATE if the same *password* already exists.
- *         CryptoAuth_addUser_INVALID_IP if the ipv6 is not valid.
  */
-#define CryptoAuth_addUser_INVALID_AUTHTYPE  -1
 #define CryptoAuth_addUser_DUPLICATE         -3
-#define CryptoAuth_addUser_INVALID_IP        -4
 int CryptoAuth_addUser_ipv6(String* password,
                             String* login,
-                            String* ipv6,
+                            uint8_t ipv6[16],
                             struct CryptoAuth* ca);
 
 static inline int CryptoAuth_addUser(String* password, String* login, struct CryptoAuth* ca)
@@ -165,6 +161,7 @@ int CryptoAuth_decrypt(struct CryptoAuth_Session* session, struct Message* msg);
  * @param password the password to use for authenticating, this must match the password given to
  *                 CryptoAuth_addUser() at the other end of the connection.
  * @param login the username to use for logging in with the other node.
+ *              if null then the authtype will be type 1 (password only).
  * @param wrappedInterface this MUST be the output from CryptoAuth_wrapInterface().
  */
 void CryptoAuth_setAuth(const String* password,

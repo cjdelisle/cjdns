@@ -926,7 +926,7 @@ struct CryptoAuth* CryptoAuth_new(struct Allocator* allocator,
 
 int CryptoAuth_addUser_ipv6(String* password,
                             String* login,
-                            String* ipv6,
+                            uint8_t ipv6[16],
                             struct CryptoAuth* cryptoAuth)
 {
     struct CryptoAuth_pvt* ca = Identity_check((struct CryptoAuth_pvt*) cryptoAuth);
@@ -961,11 +961,7 @@ int CryptoAuth_addUser_ipv6(String* password,
     }
 
     if (ipv6) {
-        if (AddrTools_parseIp(user->restrictedToip6, ipv6->bytes) < 0) {
-            Log_debug(ca->logger, "Ipv6 parsing error!");
-            Allocator_free(alloc);
-            return CryptoAuth_addUser_INVALID_IP;
-        }
+        Bits_memcpyConst(user->restrictedToip6, ipv6, 16);
     }
 
     // Add the user to the *end* of the list
