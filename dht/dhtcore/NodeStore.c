@@ -321,6 +321,11 @@ static void update(struct Node_Link* link,
     } else {
         link->linkCost += linkCostDiff;
     }
+    uint32_t minMultiHopCost = (uint32_t)1 << 20;
+    if (!Node_isOneHopLink(link) && link->linkCost < minMultiHopCost) {
+        // Give multi-hop links some minimum cost
+        link->linkCost = minMultiHopCost;
+    }
 }
 
 static bool isPeer(struct Node_Two* node, struct NodeStore_pvt* store)
@@ -352,7 +357,7 @@ static void unreachable(struct Node_Two* node, struct NodeStore_pvt* store)
     // We think the link is down, so reset the link cost.
     struct Node_Link* bp = Node_getBestParent(node);
     if (bp) {
-        update(bp, UINT32_MAX, store);
+        //update(bp, UINT32_MAX, store);
         store->pub.linkedNodes--;
     }
     setParentCostAndPath(node, NULL, UINT64_MAX, UINT64_MAX, store);
@@ -636,6 +641,7 @@ static void findBestParent(struct Node_Two* node, struct NodeStore_pvt* store)
     uint64_t bestPath = UINT64_MAX;
     for (struct Node_Link* link = node->reversePeers; link; link = link->nextPeer) {
         if (link->linkCost == UINT32_MAX) { continue; }
+        if (bestLink && Node_isOneHopLink(bestLink) && !Node_isOneHopLink(link)) { continue; }
         if (!Node_getBestParent(link->parent)) { continue; }
         if (Node_isAncestorOf(node, link->parent)) { continue; }
         uint64_t cost = guessCostOfChild(link);
@@ -652,7 +658,7 @@ static void findBestParent(struct Node_Two* node, struct NodeStore_pvt* store)
         bestPath = path;
         bestLink = link;
     }
-    if (bestCost < Node_getCost(node) || bestPath != node->address.path) {
+    if (bestCost != Node_getCost(node) || bestPath != node->address.path) {
         if (!bestLink) {
             unreachable(node, store);
         } else {
@@ -808,7 +814,7 @@ static struct Node_Link* linkNodes(struct Node_Two* parent,
                     // not renumber, EG: if C restarts.
                     link->inverseLinkEncodingFormNumber = inverseLinkEncodingFormNumber;
                 }
-                update(link, linkCostDiff, store);
+                handleLinkNews(link, linkCostDiff+link->linkCost, store);
                 return link;
             }
         }
@@ -1057,7 +1063,7 @@ static struct Node_Link* discoverLinkC(struct NodeStore_pvt* store,
     if (parent == child) {
         if (pathParentChild == 1) {
             // Link is already known.
-            update(closest, 0, store);
+            //update(closest, 0, store);
             //Log_debug(store->logger, "Already known");
             return closest;
         }
@@ -1111,11 +1117,11 @@ static struct Node_Link* discoverLinkC(struct NodeStore_pvt* store,
     //          will fail (calls to _check() will still succeed). We have linked parent with child
     //          but we have not split all of the splitLinks from parent.
     //
-    // FIXME(arceliar,cjd): linking every node with maximum link cost, this can't be right.
+    // FIXME(arceliar,cjd): linking every node with 0 link cost, this can't be right.
     struct Node_Link* parentLink = linkNodes(parent,
                                              child,
                                              pathParentChild,
-                                             UINT32_MAX,
+                                             0,
                                              inverseLinkEncodingFormNumber,
                                              discoveredPath,
                                              store);
@@ -1127,11 +1133,6 @@ static struct Node_Link* discoverLinkC(struct NodeStore_pvt* store,
     }
 
     check(store);
-
-    // FIXME(arceliar,cjd): This is still bad, but lets assume 1-hop links are great.
-    if (Node_isOneHopLink(parentLink)) {
-        handleLinkNews(parentLink, 0, store);
-    }
 
     return parentLink;
 }
@@ -1504,7 +1505,7 @@ static uint32_t costAfterDecay(const uint32_t oldCost)
 
 static uint32_t costAfterTimeout(const uint64_t oldCost)
 {
-    int64_t newCost = costAfterDecay(oldCost);
+    int64_t newCost = oldCost;
     newCost *= NodeStore_latencyWindow;
     newCost /= NodeStore_latencyWindow - 1;
     if (newCost > UINT32_MAX) { newCost = UINT32_MAX; }
@@ -2306,40 +2307,7 @@ void NodeStore_pathTimeout(struct NodeStore* nodeStore, uint64_t path)
     struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
 
     struct Node_Link* link = NodeStore_linkForPath(nodeStore, path);
-    if (!link || link->child->address.path != path) { return; }
     struct Node_Two* node = link->child;
-    // Update linkCost.
-    int64_t newLinkCost = costAfterTimeout(link->linkCost);
-    uint64_t newCost = guessCostOfChild(link);
-    if (newLinkCost == UINT32_MAX || newCost == UINT64_MAX) {
-        // The node hasn't responded in a really long time.
-        // Possible causes:
-        // 1) The node is offline, and for some reason we're not getting an error packet back.
-        // 2) The node is behind a node that's offline, and for some reason we're not getting error.
-        // 3) The node is online, but in a bad state, where it cannot respond to pings.
-        //    (E.g. Our CA session broke and it refuses to reset, known bug in old versions.)
-        // If we don't do something, we'll guessCostOfChild to re-discover a path through the link.
-        // Doing that can get the node store stuck in a bad state where this node is blackholed.
-        // As a workaround, break the link. That prevents re-discovering the same broken path.
-        // If 2), we might accidentally break a valid link, but we should re-discover it the
-        // next time we successfully contact link->child (via another path).
-        brokenLink(store, link);
-        return;
-    }
-    if (Defined(Log_DEBUG)) {
-        uint8_t addr[60];
-        Address_print(addr, &node->address);
-        Log_debug(store->logger,
-                  "Ping timeout for %s. changing reach from %lu to %lu\n",
-                  addr,
-                  Node_getCost(node),
-                  newCost);
-    }
-    verify(store);
-    handleLinkNews(link, newLinkCost, store);
-    verify(store);
-
-    if (node->address.path != path) { return; }
 
     // TODO(cjd): What we really should be doing here is storing this link in a
     //            potentially-down-list, after pinging the parent, if the parent does not respond
@@ -2348,14 +2316,33 @@ void NodeStore_pathTimeout(struct NodeStore* nodeStore, uint64_t path)
     //            hoping it will respond or die and as it's link-state is destroyed by subsequent
     //            lost packets, children will be re-parented to other paths.
 
+    // We probably did not ping it along the node's best path.
     // Keep checking until we're sure it's either OK or down.
     RumorMill_addNode(store->renumberMill, &node->address);
 
+    if (!link || link->child->address.path != path) { return; }
+
     if (link->parent != store->pub.selfNode) {
+        // Nevermind, we did use the best path.
         // All we know for sure is that link->child didn't respond.
         // That could be because an earlier link is down.
-        // Same idea as the workaround in NodeStore_brokenPath();
+        // Ping it, we should eventually backtrack to the correct link.
         RumorMill_addNode(store->renumberMill, &link->parent->address);
+    }
+
+    uint64_t oldCost = Node_getCost(node);
+    verify(store);
+    int64_t newLinkCost = costAfterTimeout(link->linkCost);
+    handleLinkNews(link, newLinkCost, store);
+    verify(store);
+    if (Defined(Log_DEBUG)) {
+        uint8_t addr[60];
+        Address_print(addr, &node->address);
+        Log_debug(store->logger,
+                  "Ping timeout for %s. changing cost from %lu to %lu\n",
+                  addr,
+                  oldCost,
+                  Node_getCost(node));
     }
 }
 
