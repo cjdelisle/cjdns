@@ -396,258 +396,16 @@ static uint64_t guessCostOfChild(struct Node_Link* link)
     return guess;
 }
 
-// Must always return 0 for null link or link which is disconnected from the tree.
-// FIXME(arceliar): Make this make sense for cost instead of reach...
-/*
-static uint64_t pathQuality(struct Node_Link* link)
-{
-    if (!link || !Node_getBestParent(link->parent)) { return 0; }
-    return ~(guessCostOfChild(link) | (uint64_t)!Node_isOneHopLink(link) << 63);
-}
-*/
-
-/*
-static int updateBestParentCycle(struct Node_Link* newBestLink,
-                                 int cycle,
-                                 int limit,
-                                 uint64_t nextCost,
-                                 struct NodeStore_pvt* store)
-{
-    Assert_true(cycle < 1000);
-    struct Node_Two* node = newBestLink->child;
-    if (cycle < limit) {
-        int total = 0;
-        struct Node_Link* next = NULL;
-        RB_FOREACH_REVERSE(next, PeerRBTree, &node->peerTree) {
-            if (Node_getBestParent(next->child) == next && next->child != node) {
-                total += updateBestParentCycle(next, cycle+1, limit, nextCost, store);
-            }
-        }
-        return total;
-    }
-
-    struct Node_Two* newBest = newBestLink->parent;
-    Assert_true(Node_getBestParent(newBest));
-
-    uint64_t bestPath = extendRoute(newBest->address.path,
-                                    newBest->encodingScheme,
-                                    newBestLink->cannonicalLabel,
-                                    Node_getBestParent(newBest)->inverseLinkEncodingFormNumber);
-
-    if (bestPath == extendRoute_TOOLONG) {
-        // too long to splice.
-        unreachable(node, store);
-        return 1;
-    }
-
-    Assert_true(bestPath != extendRoute_INVALID);
-
-    //if (Defined(Log_DEBUG)) {
-    //    if (node->address.path != bestPath) {
-    //        uint8_t pathStr[20];
-    //        AddrTools_printPath(pathStr, bestPath);
-    //        uint8_t addrStr[40];
-    //        AddrTools_printIp(addrStr, node->address.ip6.bytes);
-    //        Log_debug(store->logger, "New best path [%s@%s]", addrStr, pathStr);
-    //    }
-    //}
-
-    if (limit) {
-        // We're only altering the cost of the top node in the chain.
-        // If we want to deduce cost of further nodes along the path, here's the place.
-        nextCost = Node_getCost(node);
-        Assert_true(Node_getBestParent(node) == newBestLink);
-    } else {
-        nextCost = guessCostOfChild(newBestLink);
-    }
-
-    if (!Node_getBestParent(node)) { store->pub.linkedNodes++; }
-    setParentCostAndPath(node, newBestLink, nextCost, bestPath, store);
-
-    checkNode(node, store);
-    return 1;
-}
-*/
-
 /**
- * Update the best parent of this node.
- * propigating path changes out through the tree.
- *
- * @param newBestParent the new best link to the node. The affected node is newBestParent->child.
- * @param nextCost the cost to set the node to.
- * @param store the nodestore.
+ * We have reason to believe that cost and/or path to this node should be changed.
+ * This occurs whenever the cost of one of the links to this node changes, or when the
+ * cost of link->parent changes (since that would affect the total cost of the path).
+ * We check each link for which node is the link->child, and calculate the cost of the
+ * path through this link (using the best path to link->parent). If we find that the best
+ * path has changed (or the cost of the best path has changed) we update that info for
+ * this node and recursively call findBestParent on the link->child for each of this node's
+ * outgoing links (in case those nodes can update their paths too).
  */
-/*
-static void updateBestParent(struct Node_Link* newBestParent,
-                             uint64_t nextCost,
-                             struct NodeStore_pvt* store)
-{
-    check(store);
-    Assert_true(newBestParent);
-
-    for (int i = 0; i < 10000; i++) {
-        if (!updateBestParentCycle(newBestParent, 0, i, nextCost, store)) {
-            check(store);
-            Assert_true(newBestParent->child);
-            return;
-        }
-    }
-    Assert_true(0);
-}
-*/
-
-/*
-static void handleGoodNews(struct Node_Two* node,
-                           uint64_t newCost,
-                           struct NodeStore_pvt* store)
-{
-    // TODO(cjd): Paths longer than 1024 will blow up, handle more gracefully
-    Assert_true(newCost != 0);
-
-    Assert_true(newCost < Node_getCost(node));
-
-    // The nodestore thinks it's unreachable, we can't very well update the cost.
-    if (Node_getBestParent(node) == NULL) { return; }
-
-    struct Node_Two* bp = Node_getBestParent(node)->parent;
-    if (newCost-1 < Node_getCost(bp)) {
-        handleGoodNews(bp, newCost-1, store);
-    }
-    Node_setCost(node, newCost);
-    struct Node_Link* link = NULL;
-    RB_FOREACH_REVERSE(link, PeerRBTree, &node->peerTree) {
-        Identity_check(link);
-        struct Node_Two* child = link->child;
-        struct Node_Link* childBestParent = Node_getBestParent(child);
-        if (!childBestParent || pathQuality(childBestParent) < pathQuality(link)) {
-            uint64_t nextCost = guessCostOfChild(link);
-            if (Node_getCost(child) < nextCost) { continue; }
-            if (Node_isAncestorOf(child, node)) { continue; }
-            updateBestParent(link, nextCost, store);
-        }
-    }
-}
-*/
-
-/**
- * The news has hit (in handleBadNewsOne) and now all of the nodes in the affected zone have
- * been knocked down. Now lets see if there's a better path for any of them.
- */
-/*
-static int handleBadNewsTwoCycle(struct Node_Two* node,
-                                 int cycle,
-                                 int limit,
-                                 struct NodeStore_pvt* store)
-{
-    Assert_true(cycle < 1000);
-    if (cycle < limit) {
-        int total = 0;
-        struct Node_Link* next = NULL;
-        RB_FOREACH_REVERSE(next, PeerRBTree, &node->peerTree) {
-            if (Node_getBestParent(next->child) == next && next->child != node) {
-                total += handleBadNewsTwoCycle(next->child, cycle+1, limit, store);
-            }
-        }
-        return total;
-    }
-
-    struct Node_Link* rp = node->reversePeers;
-    struct Node_Link* best = Node_getBestParent(node);
-    uint64_t bq = pathQuality(best);
-    while (rp) {
-        if (!Node_isAncestorOf(node, rp->parent) && pathQuality(rp) > bq) {
-            best = rp;
-            bq = pathQuality(best);
-        }
-        rp = rp->nextPeer;
-    }
-
-    if (best == Node_getBestParent(node)) { return 1; }
-    if (!Node_getBestParent(best->parent)) { return 1; }
-    if (Node_getBestParent(node) == store->selfLink) { return 1; }
-
-    uint64_t nextCost = guessCostOfChild(best);
-    if (nextCost > Node_getCost(node)) {
-        // We've already bumped up the cost of this node in handleBadNewsOne
-        // now we have determined that link quality of the other parent is better
-        // so cost should be the lesser of guessCostOfChild and current cost.
-        nextCost = Node_getCost(node);
-    }
-    check(store);
-    updateBestParent(best, nextCost, store);
-    check(store);
-    return 1;
-}
-*/
-
-
-/**
- * First thing we do is bump up everybody's cost.
- * This way they don't all cling to eachother for safety making
- * endless routing loops and stupid processing.
- */
-/*
-static void handleBadNewsOne(struct Node_Two* node,
-                             uint64_t newCost,
-                             struct NodeStore_pvt* store)
-{
-    struct Node_Link* next = NULL;
-    RB_FOREACH_REVERSE(next, PeerRBTree, &node->peerTree) {
-        if (Node_getBestParent(next->child) != next) { continue; }
-        if (next == store->selfLink) { continue; }
-        if (Node_getCost(next->child) > newCost) { continue; }
-        handleBadNewsOne(next->child, newCost, store);
-    }
-
-    Assert_true(node != store->pub.selfNode);
-    if (newCost == UINT64_MAX) {
-        unreachable(node, store);
-    } else {
-        Node_setCost(node, newCost);
-    }
-}
-*/
-
-/*
-static void handleBadNews(struct Node_Two* node,
-                          uint64_t newCost,
-                          struct NodeStore_pvt* store)
-{
-    Assert_true(newCost > Node_getCost(node));
-    Assert_true(Node_getBestParent(node) && node != store->pub.selfNode);
-    handleBadNewsOne(node, newCost, store);
-
-    check(store);
-
-    for (int i = 0; ; i++) {
-        if (!handleBadNewsTwoCycle(node, 0, i, store)) {
-            check(store);
-            return;
-        }
-    }
-}
-*/
-
-/*
-static void handleNews(struct Node_Two* node, uint64_t newCost, struct NodeStore_pvt* store)
-{
-    // This is because cost is used to prevent loops so it must be 1 less for each hop closer
-    // to the root.
-    if (newCost < 1024) { newCost = 1024; }
-
-    check(store);
-    if (newCost > Node_getCost(node)) {
-        handleBadNews(node, newCost, store);
-        check(store);
-    } else if (newCost < Node_getCost(node)) {
-        handleGoodNews(node, newCost, store);
-        check(store);
-    }
-}
-*/
-
-// When a link's cost changes, find the new bestParent of link->child (node)
-// If the path or cost changes, called recursively on possible children
 static void findBestParent(struct Node_Two* node, struct NodeStore_pvt* store)
 {
     struct Node_Link* bestLink = NULL;
@@ -689,7 +447,12 @@ static void findBestParent(struct Node_Two* node, struct NodeStore_pvt* store)
     }
 }
 
-// Set link cost, update any bestParents that need changing as a result
+/**
+ * This function updates the cost of a link, and triggers the findBestParent step that fixes
+ * the routing tree in response to the cost change. For node cost and link costs to remain
+ * conistent, the cost of a link (or a reachable node) must not be changed by any other mechanism.
+ * (The store is temporarily inconsistent when links are beeing added/removed.)
+ */
 static void handleLinkNews(struct Node_Link* link,
                            uint32_t newLinkCost,
                            struct NodeStore_pvt* store)
@@ -720,17 +483,6 @@ void NodeStore_unlinkNodes(struct NodeStore* nodeStore, struct Node_Link* link)
             Log_info(store->logger, "Direct peer [%s] has been unlinked", addr);
         }
     }
-
-    /*
-    // Change the best parent and path if necessary
-    if (Node_getBestParent(child) == link) {
-        handleBadNews(child, UINT64_MAX, store);
-    }
-
-    if (Node_getBestParent(child) == link) {
-        unreachable(child, store);
-    }
-    */
 
     handleLinkNews(link, UINT32_MAX, store);
     if (Node_getBestParent(child) == link) {
@@ -866,18 +618,6 @@ static struct Node_Link* linkNodes(struct Node_Two* parent,
     Assert_ifParanoid(!RB_FIND(PeerRBTree, &parent->peerTree, link));
     RB_INSERT(PeerRBTree, &parent->peerTree, link);
 
-    /*
-    if (!Node_getBestParent(child)) {
-        if (Node_getBestParent(parent)) {
-            updateBestParent(link, guessCostOfChild(link), store);
-        } else {
-            unreachable(child, store);
-        }
-    }
-
-    // update the child's link state and possibly change it's preferred path
-    update(link, linkCostDiff, store);
-    */
     handleLinkNews(link, linkCostDiff+link->linkCost, store);
     if (!Node_getBestParent(child)) {
         unreachable(child, store);
@@ -1633,17 +1373,6 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
 
     Assert_true(link->child);
 
-    /*
-    // Set link cost
-    link->linkCost = calcNextCost(link->linkCost);
-    // Use link cost to guess child cost
-    uint64_t cost = guessCostOfChild(link);
-
-    if (link->parent == store->pub.selfNode && !Node_getBestParent(link->child)) {
-        updateBestParent(link, cost, store);
-    }
-    */
-
     #ifdef PARANOIA
         struct Node_Two* parent = link->parent;
     #endif
@@ -1804,34 +1533,20 @@ uint64_t NodeStore_optimizePath(struct NodeStore* nodeStore, uint64_t path)
 
     if (optimized == extendRoute_INVALID) {
         if (Defined(Log_DEBUG)) {
-        do {
-            uint8_t pathStr[20];
-            uint8_t nextStr[20];
-            uint8_t bestPathStr[20];
-            AddrTools_printPath(pathStr, path);
-            AddrTools_printPath(nextStr, next);
-            AddrTools_printPath(bestPathStr, linkToParent->child->address.path);
-            Log_debug(store->logger, "Failed to optimize path [%s] with closest known [%s] and "
-                                     "best path to closest known [%s]",
-                                     pathStr, nextStr, bestPathStr);
-        } while (0);
+            do {
+                uint8_t pathStr[20];
+                uint8_t nextStr[20];
+                uint8_t bestPathStr[20];
+                AddrTools_printPath(pathStr, path);
+                AddrTools_printPath(nextStr, next);
+                AddrTools_printPath(bestPathStr, linkToParent->child->address.path);
+                Log_debug(store->logger, "Failed to optimize path [%s] with closest known [%s] and "
+                                         "best path to closest known [%s]",
+                                         pathStr, nextStr, bestPathStr);
+            } while (0);
         }
         return path;
     }
-
-    // path is too long...
-    /*if (Defined(Log_DEBUG)) {
-    do {
-        uint8_t pathStr[20];
-        uint8_t nextStr[20];
-        uint8_t bestPathStr[20];
-        AddrTools_printPath(pathStr, path);
-        AddrTools_printPath(nextStr, next);
-        AddrTools_printPath(bestPathStr, linkToParent->child->address.path);
-        Log_debug(store->logger, "Failed to optimize path [%s] with closest known [%s] and best "
-                                 "path to closest known [%s]", pathStr, nextStr, bestPathStr);
-    } while (0);
-    }*/
 
     return path;
 }
@@ -1986,30 +1701,7 @@ struct Node_Two* NodeStore_getBest(struct NodeStore* nodeStore, uint8_t targetAd
     struct Node_Two* n = NodeStore_nodeForAddr(nodeStore, targetAddress);
     if (n && Node_getBestParent(n)) { return n; }
 
-    /**
-     * The network is small enough that a per-bucket lookup is inefficient
-     * Basically, the first bucket is likely to route through an "edge" node
-     * In theory, it scales better if the network is large.
-    // Next try to find the best node in the correct bucket
-    struct Address fakeAddr;
-    Bits_memcpyConst(fakeAddr.ip6.bytes, targetAddress, 16);
-    uint16_t bucket = NodeStore_bucketForAddr(&store->pub.selfNode->address, &fakeAddr);
-    struct Allocator* nodeListAlloc = Allocator_child(store->alloc);
-    struct NodeList* nodeList = NodeStore_getNodesForBucket(&store->pub,
-                                                            nodeListAlloc,
-                                                            bucket,
-                                                            NodeStore_bucketSize);
-    for (uint32_t i = 0 ; i < nodeList->size ; i++) {
-        if (Node_getBestParent(nodeList->nodes[i])) {
-            n = nodeList->nodes[i];
-            break;
-        }
-    }
-    Allocator_free(nodeListAlloc);
-    if (n && Node_getBestParent(n)) { return n; }
-    */
-
-    // Finally try to find the best node that is a valid next hop (closer in keyspace)
+    // Try to find the best node that is a valid next hop (closer in keyspace)
     for (int i = 0; i < 10000; i++) {
         int ret = getBestCycle(store->pub.selfNode, targetAddress, &n, i, 0, store);
         if (n || !ret) {
@@ -2359,61 +2051,6 @@ void NodeStore_pathTimeout(struct NodeStore* nodeStore, uint64_t path)
                   Node_getCost(node));
     }
 }
-
-/* Find the address that describes the source's Nth (furthest-away) bucket. */
-/*
-struct Address NodeStore_addrForBucket(struct Address* source, uint16_t bucket)
-{
-    if (bucket >= NodeStore_bucketNumber) {
-        // This does not exist.
-        return *source;
-
-    } else {
-        struct Address addr = *source;
-
-        // Figure out which bits of our address to flip for this step in keyspace.
-        // Note: This assumes NodeStore_bucketNumber == 512
-        // (Some of those, the fc and every 16th bucket, won't actually have nodes)
-        Assert_compileTime(NodeStore_bucketNumber == 512);
-        uint64_t extras = 15 - ((bucket % 256)/16);
-        uint64_t prefix = 0x0F - (bucket % 16);
-        uint64_t bitmask = prefix << (4*extras);
-
-        // We have the bitmask for this bucket, now we need to apply it.
-        uint64_t* addrPart = (bucket < 256) ? &addr.ip6.longs.one_be : &addr.ip6.longs.two_be;
-        *addrPart = Endian_bigEndianToHost64(*addrPart);
-        *addrPart ^= bitmask;
-        *addrPart = Endian_hostToBigEndian64(*addrPart);
-
-        // Just to be sure...
-        Assert_ifParanoid((bucket % 16) == 15 || NodeStore_bucketForAddr(source, &addr) == bucket);
-
-        return addr;
-    }
-}
-
-uint16_t NodeStore_bucketForAddr(struct Address* source, struct Address* dest)
-{
-    uint16_t retVal = 0;
-
-    // This is a place where the implementation depends on how buckets work.
-    Assert_compileTime(NodeStore_bucketNumber == 512);
-    uint64_t addrPart = source->ip6.longs.one_be ^ dest->ip6.longs.one_be;
-    if (!addrPart) {
-        // We're apparently close enough in keyspace to use two_be instead.
-        addrPart = source->ip6.longs.two_be ^ dest->ip6.longs.two_be;
-        retVal += 256;
-    }
-
-    addrPart = Endian_bigEndianToHost64(addrPart);
-    uint64_t extras = Bits_log2x64(addrPart)/4;
-    uint64_t prefix = addrPart >> (4*extras);
-    retVal += (15 - extras)*16;
-    retVal += 0x0F - prefix;
-
-    return retVal;
-}
-*/
 
 struct Address NodeStore_addrForBucket(struct Address* source, uint16_t bucket)
 {
