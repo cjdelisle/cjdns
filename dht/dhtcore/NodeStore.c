@@ -239,6 +239,20 @@ static void _verifyNode(struct Node_Two* node, struct NodeStore_pvt* store, char
 
     // #5 no persistant markings are allowed.
     Assert_true(!node->marked);
+
+    // #6 make sure the node is either unreachable or its cost is consistent
+    struct Node_Link* bp = Node_getBestParent(node);
+    if (!bp) {
+        Assert_true(Node_getCost(node) == UINT64_MAX);
+    } else {
+        // Cost must equal the sum of the costs of the earlier links
+        uint64_t cost = 0;
+        while (bp->parent != bp->child) {
+            cost += bp->linkCost;
+            bp = Node_getBestParent(bp->parent);
+        }
+        Assert_true(Node_getCost(node) == cost);
+    }
 }
 #define verifyNode(node, store) _verifyNode(node, store, Gcc_SHORT_FILE, Gcc_LINE)
 
@@ -2331,8 +2345,8 @@ void NodeStore_pathTimeout(struct NodeStore* nodeStore, uint64_t path)
     }
 
     uint64_t oldCost = Node_getCost(node);
-    verify(store);
     int64_t newLinkCost = costAfterTimeout(link->linkCost);
+    verify(store);
     handleLinkNews(link, newLinkCost, store);
     verify(store);
     if (Defined(Log_DEBUG)) {
