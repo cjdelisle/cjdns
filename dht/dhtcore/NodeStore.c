@@ -2013,6 +2013,7 @@ void NodeStore_pathTimeout(struct NodeStore* nodeStore, uint64_t path)
     struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
 
     struct Node_Link* link = NodeStore_linkForPath(nodeStore, path);
+    if (!link) { return; }
     struct Node_Two* node = link->child;
 
     // TODO(cjd): What we really should be doing here is storing this link in a
