@@ -599,7 +599,7 @@ static Gcc_USE_RET int decryptHandshake(struct CryptoAuth_Session_pvt* session,
     // The secret for decrypting this message.
     uint8_t sharedSecret[32];
 
-    uint8_t* herPermKey = NULL;
+    uint8_t* herPermKey = session->pub.herPublicKey;
     if (nonce < 2) {
         if (nonce == 0) {
             cryptoAuthDebug(session, "Received a hello packet, using auth: %d",
