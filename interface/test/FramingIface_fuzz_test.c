@@ -19,6 +19,7 @@
 #include "util/Bits.h"
 #include "util/Identity.h"
 #include "util/log/FileWriterLog.h"
+#include "util/CString.h"
 
 struct Context
 {
@@ -56,13 +57,16 @@ static Iface_DEFUN messageOut(struct Message* msg, struct Iface* iface)
 /** Size of the buffer where we will be doing our work. */
 #define WORK_BUFF_SZ 4096
 
+#define QUICK_CYCLES 100
+#define SLOW_CYCLES 200000
+
 #define CYCLES 100
 
 #define MIN_MSG_SZ 1
 
 #define MAX_MSGS_PER_FRAME 1024
 
-int main()
+int main(int argc, char** argv)
 {
     struct Allocator* mainAlloc = MallocAllocator_new(1<<20);
     struct Log* log = FileWriterLog_new(stdout, mainAlloc);
@@ -74,7 +78,15 @@ int main()
     struct Iface* fi = FramingIface_new(4096, &externalIf, mainAlloc);
     Iface_plumb(fi, &ctx->internalIf);
 
-    for (int i = 0; i < CYCLES; i++) {
+    int cycles = QUICK_CYCLES;
+    for (int i = 0; i < argc; i++) {
+        if (!CString_strcmp("--fuzz", argv[i])) {
+            cycles = SLOW_CYCLES;
+            break;
+        }
+    }
+
+    for (int i = 0; i < cycles; i++) {
         struct Allocator* alloc = Allocator_child(mainAlloc);
         // max frame size must be at least 5 so that at least 1 byte of data is sent.
         int maxFrameSize = ( Random_uint32(rand) % (MAX_FRAME_SZ - 1) ) + 1;
