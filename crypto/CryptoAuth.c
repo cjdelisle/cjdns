@@ -613,13 +613,7 @@ static Gcc_USE_RET int decryptHandshake(struct CryptoAuth_Session_pvt* session,
             herPermKey = header->handshake.publicKey;
             if (Defined(Log_DEBUG) && Bits_isZero(header->handshake.publicKey, 32)) {
                 cryptoAuthDebug0(session, "DROP Node sent public key of ZERO!");
-                return -1;
-            }
-        } else {
-            herPermKey = session->pub.herPublicKey;
-            if (Bits_memcmp(header->handshake.publicKey, herPermKey, 32)) {
-                cryptoAuthDebug0(session, "DROP packet contains different perminent key");
-                return -1;
+                // This is strictly informational, we will not alter the execution path for it.
             }
         }
 
