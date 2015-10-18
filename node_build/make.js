@@ -74,6 +74,11 @@ Builder.configure({
         '-D', 'PARANOIA=1'
     );
 
+    if (process.env['GCOV']) {
+        builder.config.cflags.push('-fprofile-arcs', '-ftest-coverage');
+        builder.config.ldflags.push('-fprofile-arcs', '-ftest-coverage');
+    }
+
     var android = /android/i.test(builder.config.gcc);
 
     if (process.env['TESTING']) {
@@ -424,7 +429,9 @@ Builder.configure({
     if (process.env['REMOTE_TEST']) {
         testRunner = TestRunner.remote(process.env['REMOTE_TEST'], ['all']);
     }
-    builder.runTest(testcjdroute, testRunner);
+    if (!process.env['NO_TEST']) {
+        builder.runTest(testcjdroute, testRunner);
+    }
 
 }).success(function (builder, waitFor) {
 
