@@ -626,11 +626,9 @@ static Gcc_USE_RET int decryptHandshake(struct CryptoAuth_Session_pvt* session,
     } else {
         if (nonce == 2) {
             cryptoAuthDebug0(session, "Received a key packet");
-        } else if (nonce == 3) {
-            cryptoAuthDebug0(session, "Received a repeat key packet");
         } else {
-            cryptoAuthDebug(session, "DROP Received a packet of unknown type! nonce=%u", nonce);
-            return -1;
+            Assert_true(nonce == 3);
+            cryptoAuthDebug0(session, "Received a repeat key packet");
         }
         if (Bits_memcmp(header->handshake.publicKey, session->pub.herPublicKey, 32)) {
             cryptoAuthDebug0(session, "DROP packet contains different perminent key");
@@ -824,7 +822,7 @@ int CryptoAuth_decrypt(struct CryptoAuth_Session* sessionPub, struct Message* ms
     uint32_t nonce = Endian_bigEndianToHost32(header->nonce);
 
     if (!session->established) {
-        if (nonce > 3 && nonce != UINT32_MAX) {
+        if (nonce > 3) {
             if (session->nextNonce < 3) {
                 // This is impossible because we have not exchanged hello and key messages.
                 cryptoAuthDebug0(session, "DROP Received a run message to an un-setup session");
@@ -860,7 +858,7 @@ int CryptoAuth_decrypt(struct CryptoAuth_Session* sessionPub, struct Message* ms
         Message_shift(msg, 4, NULL);
         return decryptHandshake(session, nonce, msg, header);
 
-    } else if (nonce > 3 && nonce != UINT32_MAX) {
+    } else if (nonce > 3) {
         Assert_ifParanoid(!Bits_isZero(session->sharedSecret, 32));
         if (decryptMessage(session, nonce, msg, session->sharedSecret)) {
             updateTime(session, msg);
