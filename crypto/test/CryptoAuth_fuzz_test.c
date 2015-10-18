@@ -24,6 +24,7 @@
 #include "util/log/FileWriterLog.h"
 #include "crypto/random/test/DeterminentRandomSeed.h"
 #include "crypto/random/Random.h"
+#include "crypto/AddressCalc.h"
 
 struct DelayedMsg {
     struct Message* msg;
@@ -51,7 +52,8 @@ struct Context {
 };
 
 // Increase this number to make the fuzz test run longer.
-#define CYCLES 10
+#define QUICK_CYCLES 20
+#define SLOW_CYCLES 7500
 
 #define PACKETS 500000
 #define SUCCESS_MESSAGES_REQUIRED 5
@@ -128,8 +130,22 @@ static void flipImmutableBit(struct Context* ctx, struct Node* from, struct Mess
     flipBit(msg, bitNum);
 }
 
+static int queuedMessageCount(struct Node* node)
+{
+    int i = 0;
+    for (struct DelayedMsg* dm = node->delayedMsgs; dm; dm = dm->next) {
+        Assert_true(!dm->next || dm->next->sendAfter >= dm->sendAfter);
+        i++;
+    }
+    return i;
+}
+
 static void duplicate(struct Context* ctx, struct Node* from, struct Message* msg)
 {
+    if (queuedMessageCount(from) > 500) {
+        logNode0(ctx, from, "OOM can't duplicate");
+        return;
+    }
     logNode0(ctx, from, "DUPLICATE");
     struct Allocator* alloc = Allocator_child(ctx->alloc);
     struct DelayedMsg* delayed = Allocator_calloc(alloc, sizeof(struct DelayedMsg), 1);
@@ -141,7 +157,11 @@ static void duplicate(struct Context* ctx, struct Node* from, struct Message* ms
 
 static void delay(struct Context* ctx, struct Node* from, struct Message* msg, int afterMsgs)
 {
-    logNode(ctx, from, "DELAY %d packets (ptr:%lx)", afterMsgs, msg);
+    if (queuedMessageCount(from) > 500) {
+        logNode0(ctx, from, "OOM can't delay (drop instead)");
+        return;
+    }
+    logNode(ctx, from, "DELAY %d packets (ptr:%lx)", afterMsgs, (unsigned long)msg);
     struct Allocator* alloc = Allocator_child(ctx->alloc);
     struct DelayedMsg* delayed = Allocator_calloc(alloc, sizeof(struct DelayedMsg), 1);
     Allocator_adopt(alloc, msg->alloc);
@@ -172,9 +192,9 @@ static void sendFrom(struct Context* ctx, struct Node* from, struct Message* msg
     if (maybe(ctx, 8)) { flipMutableBit(ctx, from, msg); }
 
     // 1/10 chance the packet is duplicated
-    if (maybe(ctx, 8)) { duplicate(ctx, from, msg); }
+    if (maybe(ctx, 10)) { duplicate(ctx, from, msg); }
 
-    // 1/10 chance the packet is delayed for something between 1 and 8 packets
+    // 1/8 chance the packet is delayed for something between 1 and 8 packets
     if (maybe(ctx, 8)) {
         delay(ctx, from, msg, (Random_uint8(ctx->rand) % 8) + 1);
         return;
@@ -223,7 +243,7 @@ static void mainLoop(struct Context* ctx)
 {
     for (int i = 0; i < PACKETS; i++) {
         if (ctx->successMessageCount > SUCCESS_MESSAGES_REQUIRED) { return; }
-        if (maybe(ctx, 200)) {
+        if (maybe(ctx, 800)) {
             resetNode(ctx, &ctx->nodeA);
         } else if (maybe(ctx, 200)) {
             resetNode(ctx, &ctx->nodeB);
@@ -263,18 +283,47 @@ static void cycle(uint8_t randSeed[64],
     ctx->nodeB.session =
         CryptoAuth_newSession(ctx->nodeB.ca, alloc, NULL, NULL, false, "nodeB");
 
+    if (maybe(ctx, 2)) {
+        CryptoAuth_addUser_ipv6(String_CONST("pass"), String_CONST("user"), NULL, ctx->nodeB.ca);
+    } else {
+        uint8_t nodeAAddress[16];
+        AddressCalc_addressForPublicKey(nodeAAddress, ctx->nodeA.ca->publicKey);
+        CryptoAuth_addUser_ipv6(String_CONST("pass"),
+                                String_CONST("user"),
+                                nodeAAddress,
+                                ctx->nodeB.ca);
+    }
+    if (maybe(ctx, 3)) {
+        // 33% chance of no authentication
+        CryptoAuth_removeUsers(ctx->nodeB.ca, String_CONST("user"));
+    } else if (maybe(ctx, 2)) {
+        // 33% chance of authType 2
+        CryptoAuth_setAuth(String_CONST("pass"), String_CONST("user"), ctx->nodeA.session);
+    } else {
+        // 33% chance of authType 1
+        CryptoAuth_setAuth(String_CONST("pass"), NULL, ctx->nodeA.session);
+    }
+
     mainLoop(ctx);
 }
 
-int main()
+int main(int argc, char** argv)
 {
     struct Allocator* alloc = MallocAllocator_new(1048576);
     struct Log* logger = FileWriterLog_new(stdout, alloc);
     struct Random* rand = Random_new(alloc, logger, NULL);
     struct EventBase* base = EventBase_new(alloc);
 
+    int cycles = QUICK_CYCLES;
+    for (int i = 0; i < argc; i++) {
+        if (!CString_strcmp("--fuzz", argv[i])) {
+            cycles = SLOW_CYCLES;
+            break;
+        }
+    }
+
     uint8_t randSeed[64] = {0};
-    for (int i = 0; i < CYCLES; i++) {
+    for (int i = 0; i < cycles; i++) {
         Random_base32(rand, randSeed, 32);
         struct Allocator* tempAlloc = Allocator_child(alloc);
         Log_debug(logger, "===== %s =====", randSeed);
