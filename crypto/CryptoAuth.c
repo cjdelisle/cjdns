@@ -784,9 +784,6 @@ static Gcc_USE_RET int decryptHandshake(struct CryptoAuth_Session_pvt* session,
     if (herPermKey && herPermKey != session->pub.herPublicKey) {
         Bits_memcpyConst(session->pub.herPublicKey, herPermKey, 32);
     }
-    if (!session->pub.displayName && userObj) {
-        session->pub.displayName = userObj->login;
-    }
     if (restrictedToip6) {
         Bits_memcpyConst(session->pub.herIp6, restrictedToip6, 16);
     }
