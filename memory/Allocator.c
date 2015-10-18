@@ -69,6 +69,15 @@ static void unroll(struct Allocator_pvt* context,
     }
 }
 
+static inline uint64_t bytesAllocated(struct Allocator_pvt* ctx)
+{
+    uint64_t bytes = ctx->allocatedHere;
+    for (struct Allocator_pvt* child = ctx->firstChild; child; child = child->nextSibling) {
+        bytes += bytesAllocated(child);
+    }
+    return bytes;
+}
+
 void Allocator_snapshot(struct Allocator* alloc, int includeAllocations)
 {
     // get the root allocator.
@@ -78,8 +87,15 @@ void Allocator_snapshot(struct Allocator* alloc, int includeAllocations)
     }
     fprintf(stderr, "----- %scjdns memory snapshot -----\n", "");
 
+    uint64_t totalAllocated = rootAlloc->rootAlloc->maxSpace - rootAlloc->rootAlloc->spaceAvailable;
+    uint64_t realAllocated = bytesAllocated(rootAlloc);
+
     unroll(rootAlloc, includeAllocations, NULL);
 
+    if (totalAllocated != realAllocated) {
+        fprintf(stderr, "!!!!!! INTERNAL ERROR totalAllocated = [%lu] realAllocated = [%lu] !!!!!",
+                (unsigned long)totalAllocated, (unsigned long)realAllocated);
+    }
     fprintf(stderr, "totalBytes [%ld] remaining [%ld]\n",
                     (long)rootAlloc->rootAlloc->maxSpace,
                     (long)rootAlloc->rootAlloc->spaceAvailable);
@@ -791,15 +807,6 @@ struct Allocator* Allocator_new(unsigned long sizeLimit,
 
     Identity_set(context);
     return &context->pub;
-}
-
-static inline uint64_t bytesAllocated(struct Allocator_pvt* ctx)
-{
-    uint64_t bytes = ctx->allocatedHere;
-    for (struct Allocator_pvt* child = ctx->firstChild; child; child = child->nextSibling) {
-        bytes += bytesAllocated(child);
-    }
-    return bytes;
 }
 
 unsigned long Allocator_bytesAllocated(struct Allocator* allocator)
