@@ -120,6 +120,7 @@ the nodes so you can inspect it, dump the table, etc...
 
 Example simulation config entry with added admin block:
 
+```javascript
     "fc5c:0537:606a:3d7e:c9f0:2103:4dcd:6bc8": {
       "privateKey": "0dc3d33bbffc2d16c175df463110c6d164714a40d23db2f83539664b7365a5b6",
       "peers": [
@@ -133,6 +134,7 @@ Example simulation config entry with added admin block:
           "password": "the_password_you_will_use_to_connect"
       }
     },
+```
 
 And to start it up (in the debugger):
 
