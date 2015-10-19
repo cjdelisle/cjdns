@@ -10,7 +10,7 @@ near-zero-configuration networking, and prevents many of the security and
 scalability issues that plague existing networks.
 
 [![Build Status](https://travis-ci.org/cjdelisle/cjdns.svg?branch=master)](https://travis-ci.org/cjdelisle/cjdns)
-[![tip for next commit](https://tip4commit.com/projects/941.svg)](https://tip4commit.com/github/cjdelisle/cjdns)
+[![napojnica za sljedeću promjenu](https://tip4commit.com/projects/941.svg)](https://tip4commit.com/github/cjdelisle/cjdns)
 
 ## Iskustva
 
@@ -77,7 +77,7 @@ hash table.
 * [#cjdns na Twitteru][]
 
 
-## Documentation
+## Dokumentacija
 
 * [Ciljevi projekta](doc/projectGoals.md)
 * [Cjdns Whitepaper](doc/Whitepaper.md)
@@ -101,9 +101,9 @@ Cjdns programeri.
 
 ## Kako instalirati cjdns
 
-These instructions are for Debian-based Linux distributions and OS X. They should be
-informative enough for use on other distributions - just don't expect them to
-work verbatim.
+Ove instrukcije su namijenjene za distribucije bazirane na Debian Linux-u i OSX-u. Trebale bi biti
+dovoljno informativne za korištenje na ostalim distribucijama, ali ne očekujte
+da će raditi od prve.
 
 ### 0. Install dependencies
 
@@ -111,16 +111,16 @@ On both platforms, installing [Node.js](http://nodejs.org/), although preferable
 is not strictly necessary. If Node.js is unavailable or an unacceptable version,
 it will be downloaded and installed in the source tree.
 
-#### Debian-based distro:
+#### Distribucija bazirana na Debian-u:
 
     sudo apt-get install nodejs git build-essential
 
-#### Fedora 22+ based distro:
+#### Distribucija bazirana na Fedori 22+:
 
     sudo dnf install install nodejs git
     sudo dnf install @development-tools
     
-#### RHEL based distro (adds the EPEL repo):
+#### Distribucija bazirana na RHEL-u (adds the EPEL repo):
 
     sudo yum localinstall https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
     sudo yum install install nodejs git
@@ -204,7 +204,7 @@ If it says: `cat: /dev/net/tun: No such file or directory`, create it using:
     sudo mknod /dev/net/tun c 10 200 &&
     sudo chmod 0666 /dev/net/tun
 
-Then `cat /dev/net/tun` again.
+Zatim pokrenite `cat /dev/net/tun` opet.
 
 If it says: `cat: /dev/net/tun: Permission denied` You're probably using a VPS
 based on the OpenVZ virtualization platform. Ask your provider to enable the
@@ -212,11 +212,11 @@ TUN/TAP device - this is standard protocol so they should know exactly what you
 need. If you're on OS X, don't worry about this step.
 
 
-### 1. Generate a new configuration file
+### 1. Stvorite novu konfiguracijsku datoteku
 
     ./cjdroute --genconf >> cjdroute.conf
 
-**Protect your conf file!** A lost conf file means you lost your password and
+**Zaštitite Vašu conf datoteku!** A lost conf file means you lost your password and
 connections and anyone who connected to you will no longer be able to connect.
 A compromised conf file means that other people can impersonate you on the
 network.
@@ -251,7 +251,7 @@ a look at the [Hyperboria Map][] to find peers near you.
 
 **To initiate the connection OUTbound**
 
-In your conf file, you will see:
+U Vašoj conf datoteci vidjeti ćete:
 
 ``` javascript
 // Nodes to connect to.
@@ -290,7 +290,7 @@ following JSON syntax.
 
 **To allow your friend to initiate the connection INbound**
 
-In your conf file, you will see:
+U Vašoj conf datoteci vidjeti ćete:
 ``` javascript
 "authorizedPasswords":
     [
@@ -329,16 +329,16 @@ A conf file with multiple friend-nodes, setup INbound, should look like:
 ```
 
 
-You need to give friend_3 (who is making the INbound connection) the following 4 items:
+Morate dati friend_3 (who is making the INbound connection) sljedeće 4 stvari:
 
-1. Your external IPv4
+1. Vašu vanjsku IPv4 adresu
 2. The port found in your conf file here:
 
                 `// Bind to this port.
                 "bind": "0.0.0.0:yourportnumberishere",`
 
 3. Their unique password that you uncommented or created: "password": "thisisauniquestring_002"
-4. Your public key: "publicKey":thisisauniqueKEY_001.k"
+4. Vaš javni ključ: "publicKey":thisisauniqueKEY_001.k"
 
 
 
@@ -351,17 +351,17 @@ See [doc/configure.md](doc/configure.md) for more details on configuration,
 including how to peer with other cjdns nodes over ethernet and wifi.
 
 
-### 4. Secure your system - check for listening services
+### 4. Zaštitite Vaš sustav - check for listening services
 
 Once your node is running, you're now a newly minted IPv6 host. Your operating
 system may automatically reconfigure network services to use this new address.
 If this is not what you intend, you should check to see that you are not
 offering more services then you intended to. ;)
 
-See [doc/network-services.md](doc/network-services.md) for instructions.
+Pogledajte [doc/network-services.md](doc/network-services.md) za instrukcije.
 
 
-### 5. Start it up!
+### 5. Pokrenite ga!
 
     sudo ./cjdroute < cjdroute.conf
 
@@ -383,13 +383,13 @@ without concern for permissions. To start cjdns as a non-root user, see
 
 ### 6. Get in IRC
 
-Welcome to the network! You're now a network administrator. There are
+Dobrodošli u mrežu! Sada ste mrežni administrator. There are
 responsibilities which come with being a network administrator which include
 being available in case there is something wrong with your equipment. You should
 stay on [IRC](#community) so that people can reach you.
 
 
-## Admin interface
+## Administratorsko sučelje
 
 When cjdnroute is up and running, the admin interface will be available at
 `udp://localhost:11234` (this can be changed in the cjdroute.conf
@@ -397,7 +397,7 @@ configuration file). See [admin/README.md](admin/README.md) for more
 information about the admin interface. There are several tools in `contrib/`
 that can interact with it.
 
-You can access the admin API with:
+Možete pristupiti administratorskom API-ju putem:
 
 * the **Python library**; see
   [contrib/python/README.md](contrib/python/README.md).
