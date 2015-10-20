@@ -78,27 +78,27 @@ static inline uint64_t bytesAllocated(struct Allocator_pvt* ctx)
     return bytes;
 }
 
-void Allocator_snapshot(struct Allocator* alloc, int includeAllocations)
+void Allocator_snapshot(struct Allocator* allocator, int includeAllocations)
 {
     // get the root allocator.
-    struct Allocator_pvt* rootAlloc = Identity_check((struct Allocator_pvt*)alloc);
-    while (rootAlloc->parent && rootAlloc->parent != rootAlloc) {
-        rootAlloc = rootAlloc->parent;
-    }
+    struct Allocator_pvt* alloc = Identity_check((struct Allocator_pvt*)allocator);
+    struct Allocator_FirstCtx* rootAlloc = Identity_check(alloc->rootAlloc);
+    alloc = Identity_check((struct Allocator_pvt*)rootAlloc);
+
     fprintf(stderr, "----- %scjdns memory snapshot -----\n", "");
 
-    uint64_t totalAllocated = rootAlloc->rootAlloc->maxSpace - rootAlloc->rootAlloc->spaceAvailable;
-    uint64_t realAllocated = bytesAllocated(rootAlloc);
+    uint64_t totalAllocated = rootAlloc->maxSpace - rootAlloc->spaceAvailable;
+    uint64_t realAllocated = bytesAllocated(alloc);
 
-    unroll(rootAlloc, includeAllocations, NULL);
+    unroll(alloc, includeAllocations, NULL);
 
     if (totalAllocated != realAllocated) {
         fprintf(stderr, "!!!!!! INTERNAL ERROR totalAllocated = [%lu] realAllocated = [%lu] !!!!!",
                 (unsigned long)totalAllocated, (unsigned long)realAllocated);
     }
     fprintf(stderr, "totalBytes [%ld] remaining [%ld]\n",
-                    (long)rootAlloc->rootAlloc->maxSpace,
-                    (long)rootAlloc->rootAlloc->spaceAvailable);
+                    (long)rootAlloc->maxSpace,
+                    (long)rootAlloc->spaceAvailable);
 
     fprintf(stderr, "----- %scjdns memory snapshot -----\n", "end ");
 }
@@ -157,18 +157,19 @@ static inline void* newAllocation(struct Allocator_pvt* context,
                                   int lineNum)
 {
     int64_t realSize = getRealSize(size);
-    if (context->rootAlloc->spaceAvailable <= realSize) {
+    struct Allocator_FirstCtx* rootAlloc = Identity_check(context->rootAlloc);
+    if (rootAlloc->spaceAvailable <= realSize) {
         failure(context, "Out of memory, limit exceeded", fileName, lineNum);
     }
 
-    context->rootAlloc->spaceAvailable -= realSize;
+    rootAlloc->spaceAvailable -= realSize;
     context->allocatedHere += realSize;
 
     struct Allocator_Allocation_pvt* alloc =
-        context->rootAlloc->provider(context->rootAlloc->providerContext,
-                                     NULL,
-                                     realSize,
-                                     &context->pub);
+        rootAlloc->provider(rootAlloc->providerContext,
+                            NULL,
+                            realSize,
+                            &context->pub);
     if (alloc == NULL) {
         failure(context, "Out of memory, malloc() returned NULL", fileName, lineNum);
     }
@@ -253,7 +254,7 @@ static void releaseMemory(struct Allocator_pvt* context,
         unsigned long allocatedHere = context->allocatedHere;
     #endif
 
-    context->rootAlloc->spaceAvailable += context->allocatedHere;
+    Identity_check(context->rootAlloc)->spaceAvailable += context->allocatedHere;
 
     struct Allocator_Allocation_pvt* loc = context->allocations;
     while (loc != NULL) {
@@ -461,8 +462,9 @@ static void freeAllocator(struct Allocator_pvt* context)
     }
 
     // Grab out the provider and provider context in case the root allocator is freed.
-    Allocator_Provider provider = context->rootAlloc->provider;
-    Allocator_Provider_CONTEXT_TYPE* providerCtx = context->rootAlloc->providerContext;
+    struct Allocator_FirstCtx* rootAlloc = Identity_check(context->rootAlloc);
+    Allocator_Provider provider = rootAlloc->provider;
+    Allocator_Provider_CONTEXT_TYPE* providerCtx = rootAlloc->providerContext;
 
     releaseMemory(context, provider, providerCtx);
 }
@@ -490,6 +492,13 @@ void Allocator__free(struct Allocator* alloc, const char* file, int line)
     // parent of a parent allocator which causes your allocator to be in isFreeing state so
     // lets be forgiving here.
     if (context->pub.isFreeing) { return; }
+
+    if (context->rootAlloc == (struct Allocator_FirstCtx*)context) {
+        struct Allocator_FirstCtx* rootAlloc = Identity_check((struct Allocator_FirstCtx*)context);
+        if (bytesAllocated(context) + rootAlloc->spaceAvailable != (uint64_t)rootAlloc->maxSpace) {
+            failure(context, "unaccounted for memory", file, line);
+        }
+    }
 
     if (!pivotChildrenToAdoptedParents(context, file, line)) { return; }
     marshalOnFreeJobs(context, context);
@@ -792,6 +801,7 @@ struct Allocator* Allocator_new(unsigned long sizeLimit,
     };
     stackContext.maxSpace = stackContext.spaceAvailable;
     stackContext.context.rootAlloc = &stackContext;
+    Identity_set(&stackContext);
     Identity_set(&stackContext.context);
 
     struct Allocator_FirstCtx* firstContext =
@@ -805,7 +815,6 @@ struct Allocator* Allocator_new(unsigned long sizeLimit,
     context->rootAlloc = firstContext;
     context->parent = context;
 
-    Identity_set(context);
     return &context->pub;
 }
 
