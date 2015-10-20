@@ -71,7 +71,7 @@ int main(int argc, char** argv)
 {
     struct Allocator* mainAlloc = MallocAllocator_new(1<<20);
     struct Log* log = FileWriterLog_new(stdout, mainAlloc);
-    struct Random* realRand = Random_new(mainAlloc, log, NULL);
+    struct Random* rand = Random_new(mainAlloc, log, NULL);
     struct Context* ctx = Allocator_calloc(mainAlloc, sizeof(struct Context), 1);
     Identity_set(ctx);
     ctx->internalIf.send = messageOut;
@@ -89,12 +89,6 @@ int main(int argc, char** argv)
 
     for (int i = 0; i < cycles; i++) {
         struct Allocator* alloc = Allocator_child(mainAlloc);
-
-        uint8_t randSeedBuff[64] = {0};
-        Random_base32(realRand, randSeedBuff, 32);
-        Log_debug(log, "===== %s =====", randSeedBuff);
-        struct RandomSeed* randSeed = DeterminentRandomSeed_new(alloc, randSeedBuff);
-        struct Random* rand = Random_newWithSeed(alloc, log, randSeed, NULL);
 
         // max frame size must be at least 5 so that at least 1 byte of data is sent.
         int maxFrameSize = ( Random_uint32(rand) % (MAX_FRAME_SZ - 1) ) + 1;
@@ -132,12 +126,12 @@ int main(int argc, char** argv)
             Message_push32(msg, len, NULL);
         }
 
-        //int i = 0;
+        int i = 0;
         do {
             int nextMessageSize =
                 (Random_uint32(rand) % (maxMessageSize - minMessageSize)) + minMessageSize;
             // Prevent oom conditions.
-            //if (i++ > 1000) { nextMessageSize = msg->length; }
+            if (i++ > 1000) { nextMessageSize = msg->length; }
             if (!nextMessageSize) { nextMessageSize++; }
             if (nextMessageSize > msg->length) { nextMessageSize = msg->length; }
             struct Allocator* msgAlloc = Allocator_child(alloc);
