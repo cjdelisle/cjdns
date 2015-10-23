@@ -218,10 +218,9 @@ var connectWithAdminInfo = module.exports.connectWithAdminInfo = function (callb
 };
 
 var connectAsAnon = module.exports.connectAsAnon = function (callback, addr, port) {
-    var cjdnsAdmin = {'addr': '127.0.0.1', 'port': 11234, 'password': 'NONE'};
+    var cjdnsAdmin = {'addr': addr || '127.0.0.1', 'port': port || 11234, 'password': 'NONE'};
     nThen(function (waitFor) {
         Fs.readFile(process.env.HOME + '/.cjdnsadmin', waitFor(function (err, ret) {
-            if (err && err.code != 'ENOENT') { throw err; }
             if (!err) { cjdnsAdmin = JSON.parse(String(ret)); }
         }));
     }).nThen(function (waitFor) {
