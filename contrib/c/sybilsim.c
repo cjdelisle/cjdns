@@ -134,7 +134,9 @@ static struct RPCCall* pushCall(struct Context* ctx)
 static void bindUDPCallback(struct RPCCall* call, struct AdminClient_Result* res)
 {
     Assert_true(!res->err);
-    Log_debug(&call->node->nodeLog, "UDPInterface_new() -> [%s]", res->messageBytes);
+    // Indirection to shutup clang warning
+    struct Log* logger = &call->node->nodeLog;
+    Log_debug(logger, "UDPInterface_new() -> [%s]", res->messageBytes);
     String* addr = Dict_getString(res->responseDict, String_CONST("bindAddress"));
     int64_t* ifNum = Dict_getInt(res->responseDict, String_CONST("interfaceNumber"));
     struct Sockaddr_storage ss;
@@ -216,7 +218,9 @@ static struct NodeContext* startNode(char* nodeName,
 static void beginConnectionCallback(struct RPCCall* call, struct AdminClient_Result* res)
 {
     Assert_true(!res->err);
-    Log_debug(&call->node->nodeLog, "UDPInterface_beginConnection() -> [%s]", res->messageBytes);
+    // Indirection to shutup clang warning
+    struct Log* logger = &call->node->nodeLog;
+    Log_debug(logger, "UDPInterface_beginConnection() -> [%s]", res->messageBytes);
 }
 
 static void linkNodes(struct Context* ctx, struct NodeContext* client, struct NodeContext* server)
