@@ -11,11 +11,20 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import os
+import json
+
 from time import sleep
 
 def anonConnect(ip='127.0.0.1', port=11234):
     from cjdnsadmin import connect
-    return connect(ip, int(port), '')
+    path = os.path.expanduser('~/.cjdnsadmin')
+    try:
+        with open(path, 'r') as adminInfo:
+            data = json.load(adminInfo)
+        return connect(data['addr'], data['port'], '')
+    except IOError:
+        return connect(ip, int(port), '')
 
 def connect(ip='127.0.0.1', port=11234, password=''):
     from cjdnsadmin import connectWithAdminInfo
