@@ -323,32 +323,37 @@ static void disconnectAdopted(struct Allocator_pvt* parent, struct Allocator_pvt
 {
     Assert_true(parent->adoptions);
     Assert_true(parent->adoptions->children);
-    struct Allocator_List** cpp = &parent->adoptions->children;
-    struct Allocator_List* cp;
-    int found = 0;
-    while ((cp = *cpp)) {
-        if (cp->alloc == child) {
-            *cpp = cp->next;
-            found = 1;
-            break;
-        }
-        cpp = &cp->next;
-    }
-    Assert_true(found);
-
     Assert_true(child->adoptions);
     Assert_true(child->adoptions->parents);
-    cpp = &child->adoptions->parents;
-    found = 0;
-    while ((cp = *cpp)) {
-        if (cp->alloc == parent) {
-            *cpp = cp->next;
-            found = 1;
-            break;
+    int foundChild = 0;
+    int foundParent = 0;
+    {
+        struct Allocator_List** cpp = &parent->adoptions->children;
+        struct Allocator_List* cp;
+        while ((cp = *cpp)) {
+            if (cp->alloc == child) {
+                *cpp = cp->next;
+                foundChild = 1;
+                break;
+            }
+            cpp = &cp->next;
         }
-        cpp = &cp->next;
     }
-    Assert_true(found);
+    {
+        struct Allocator_List** cpp = &child->adoptions->parents;
+        struct Allocator_List* cp;
+        while ((cp = *cpp)) {
+            if (cp->alloc == parent) {
+                *cpp = cp->next;
+                foundParent = 1;
+                break;
+            }
+            cpp = &cp->next;
+        }
+    }
+
+    Assert_true(foundChild);
+    Assert_true(foundParent);
 }
 
 // Shallow first search to prevent lots of flapping while we tear down the tree.
