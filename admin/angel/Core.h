@@ -20,6 +20,7 @@
 #include "exception/Except.h"
 #include "memory/Allocator.h"
 #include "tunnel/IpTunnel.h"
+#include "util/events/FakeNetwork.h"
 #include "util/Linker.h"
 Linker_require("admin/angel/Core.c")
 
@@ -38,7 +39,9 @@ void Core_init(struct Allocator* alloc,
                uint8_t privateKey[32],
                struct Admin* admin,
                struct Random* rand,
-               struct Except* eh);
+               struct Except* eh,
+               struct FakeNetwork* fakeNet,
+               bool noSec);
 
 int Core_main(int argc, char** argv);
 

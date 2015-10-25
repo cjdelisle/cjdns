@@ -32,7 +32,7 @@ struct FakeNetwork
 struct FakeNetwork_UDPIface
 {
     struct AddrIface generic;
-}
+};
 
 struct FakeNetwork* FakeNetwork_new(struct EventBase* base,
                                     struct Allocator* allocator,
