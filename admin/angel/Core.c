@@ -185,7 +185,7 @@ void Core_init(struct Allocator* alloc,
 {
     struct Security* sec = NULL;
     if (!noSec) {
-        Security_new(alloc, logger, eventBase);
+        sec = Security_new(alloc, logger, eventBase);
     }
     struct NetCore* nc = NetCore_new(privateKey, alloc, eventBase, rand, logger);
 
