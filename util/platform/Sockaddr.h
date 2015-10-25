@@ -136,4 +136,14 @@ struct Sockaddr* Sockaddr_clone(const struct Sockaddr* addr, struct Allocator* a
  */
 void Sockaddr_normalizeNative(void* nativeSockaddr);
 
+/**
+ * Get a hash for hashtable lookup.
+ */
+uint32_t Sockaddr_hash(const struct Sockaddr* addr);
+
+/**
+ * Compare two sockaddrs for sorting, comparison does not put them in any specific order.
+ */
+int Sockaddr_compare(const struct Sockaddr* a, const struct Sockaddr* b);
+
 #endif

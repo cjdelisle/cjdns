@@ -70,11 +70,11 @@
 #include "util/Map.h"
 static inline uint32_t Map_EndpointsBySockaddr_hash(struct Sockaddr** key)
 {
-    return Checksum_engine((uint8_t*) &(key[0][1]), key[0]->addrLen - Sockaddr_OVERHEAD);
+    return Sockaddr_hash(*key);
 }
 static inline int Map_EndpointsBySockaddr_compare(struct Sockaddr** keyA, struct Sockaddr** keyB)
 {
-    return Bits_memcmp((uint8_t*) *keyA, (uint8_t*) *keyB, keyA[0]->addrLen);
+    return Sockaddr_compare(*keyA, *keyB);
 }
 // ---------------- EndMap ----------------
 

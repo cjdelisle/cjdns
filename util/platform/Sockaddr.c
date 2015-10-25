@@ -19,6 +19,7 @@
 #include "util/CString.h"
 #include "util/Bits.h"
 #include "util/Hex.h"
+#include "util/Hash.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -308,4 +309,14 @@ struct Sockaddr* Sockaddr_fromName(char* name, struct Allocator* alloc)
         return adr;
     }
     return NULL;
+}
+
+uint32_t Sockaddr_hash(const struct Sockaddr* addr)
+{
+    return Hash_compute((uint8_t*)addr, addr->addrLen);
+}
+
+int Sockaddr_compare(const struct Sockaddr* a, const struct Sockaddr* b)
+{
+    return Bits_memcmp(a, b, a->addrLen);
 }

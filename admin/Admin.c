@@ -63,16 +63,13 @@ struct MapValue
 #define Map_KEY_TYPE struct Sockaddr*
 #define Map_VALUE_TYPE struct MapValue*
 #include "util/Map.h"
-
 static inline uint32_t Map_LastMessageTimeByAddr_hash(struct Sockaddr** key)
 {
-    uint32_t* k = (uint32_t*) *key;
-    return k[ ((*key)->addrLen / 4)-1 ];
+    return Sockaddr_hash(*key);
 }
-
 static inline int Map_LastMessageTimeByAddr_compare(struct Sockaddr** keyA, struct Sockaddr** keyB)
 {
-    return Bits_memcmp(*keyA, *keyB, (*keyA)->addrLen);
+    return Sockaddr_compare(*keyA, *keyB);
 }
 
 /////// end map
