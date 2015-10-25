@@ -43,6 +43,7 @@
 #include "util/events/EventBase.h"
 #include "util/events/Pipe.h"
 #include "util/events/Process.h"
+#include "util/events/FakeNetwork.h"
 #include "util/Hex.h"
 #include "util/log/Log.h"
 #include "util/log/FileWriterLog.h"

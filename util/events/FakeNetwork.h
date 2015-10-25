@@ -12,23 +12,33 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef UDPInterface_admin_H
-#define UDPInterface_admin_H
+#ifndef FakeNetwork_H
+#define FakeNetwork_H
 
-#include "admin/Admin.h"
+#include "exception/Except.h"
+#include "interface/Iface.h"
+#include "interface/addressable/AddrIface.h"
 #include "memory/Allocator.h"
-#include "net/InterfaceController.h"
-#include "util/log/Log.h"
 #include "util/events/EventBase.h"
-#include "util/events/FakeNetwork.h"
+#include "util/log/Log.h"
 #include "util/Linker.h"
-Linker_require("interface/UDPInterface_admin.c")
+Linker_require("util/events/libuv/FakeNetwork.c")
 
-void UDPInterface_admin_register(struct EventBase* base,
-                                 struct Allocator* allocator,
-                                 struct Log* logger,
-                                 struct Admin* admin,
-                                 struct InterfaceController* ic,
-                                 struct FakeNetwork* fakeNet);
+struct FakeNetwork
+{
+    int unused;
+};
 
+struct FakeNetwork_UDPIface
+{
+    struct AddrIface generic;
+};
+
+struct FakeNetwork* FakeNetwork_new(struct EventBase* base,
+                                    struct Allocator* allocator,
+                                    struct Log* logger);
+
+struct FakeNetwork_UDPIface* FakeNetwork_iface(struct FakeNetwork* net,
+                                               struct Sockaddr* bindAddress,
+                                               struct Allocator* alloc);
 #endif
