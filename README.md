@@ -1,6 +1,6 @@
 # cjdns
 
-Русская версия Readme: [README_RU.md](README_RU.md)
+[Русская версия](README_RU.md)
 
 #### *Networking Reinvented*
 
@@ -70,7 +70,7 @@ hash table.
 
 ## Community
 
-* irc://irc.efnet.org/#cjdns ([web client][IRC Web])
+* [irc://irc.efnet.org/#cjdns][IRC Web]
 * [Hyperboria][]
 * [Project Meshnet][]
 * [/r/darknetplan][]
@@ -134,8 +134,7 @@ following command:
     xcode-select --install
 
 If Xcode is not installed, you can either install it through the App
-Store and run the command above, or make a free Apple Developer account here:
-[https://developer.apple.com/downloads/index.action](https://developer.apple.com/downloads/index.action).
+Store and run the command above, or make a free Apple Developer account [here](https://developer.apple.com/downloads/index.action).
 Then sign in, search for Command Line Tools, and install the latest package
 compatible with your version of OS X. If you encounter issues, there is a
 thorough [stackoverflow post](http://stackoverflow.com/a/9329325) on installing
@@ -151,8 +150,8 @@ If you use [Macports](https://www.macports.org/):
 
 Or if you use neither and would like to install the binaries from their websites:
 doc
-- Node.js: [http://nodejs.org/download/](http://nodejs.org/download/)
-- git: [http://git-scm.com/download](http://git-scm.com/download)
+- [Node.js](http://nodejs.org/download/)
+- [git](http://git-scm.com/download)
 
 #### OpenBSD:
 
@@ -398,10 +397,8 @@ that can interact with it.
 
 You can access the admin API with:
 
-* the **Python library**; see
-  [contrib/python/README.md](contrib/python/README.md).
-* the **Perl library**, maintained by Mikey; see
-  [contrib/perl/CJDNS/README](contrib/perl/CJDNS/README).
+* the **Python library**; see [here](contrib/python/README.md).
+* the **Perl library**, maintained by Mikey; see [here](contrib/perl/CJDNS/README).
 
 
 [IRC Web]: http://chat.efnet.org/irc.cgi?chan=%23cjdns
