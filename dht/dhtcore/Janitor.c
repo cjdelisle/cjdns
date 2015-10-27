@@ -14,6 +14,7 @@
  */
 #include "crypto/random/Random.h"
 #include "dht/Address.h"
+#include "dht/CJDHTConstants.h"
 #include "dht/dhtcore/Janitor.h"
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/NodeList.h"
@@ -252,6 +253,9 @@ static void dhtResponseCallback(struct RouterModule_Promise* promise,
     }
 }
 
+static void getPeersMill(struct Janitor_pvt* janitor, struct Address* addr,
+                         uint64_t targetLabel);
+
 static void peersResponseCallback(struct RouterModule_Promise* promise,
                                   uint32_t lagMilliseconds,
                                   struct Address* from,
@@ -264,11 +268,20 @@ static void peersResponseCallback(struct RouterModule_Promise* promise,
         String* addr = Address_toString(from, promise->alloc);
         Log_debug(janitor->logger, "Got peers response from [%s]", addr->bytes);
     }
+
     struct Address_List* addresses =
         ReplySerializer_parse(from, result, janitor->logger, true, promise->alloc);
 
     struct Node_Two* parent = NodeStore_nodeForAddr(janitor->nodeStore, from->ip6.bytes);
     if (!parent) { return; }
+
+    int64_t* moreNodesPtr = Dict_getInt(result, CJDHTConstants_MORE_NODES);
+    uint64_t moreNodes = moreNodesPtr ? *moreNodesPtr : 0;
+    if (moreNodes > 1) {
+        // FIXME(madafoo) malformed getPeers response may cause infinite loop here,
+        // might need threshold control.
+        getPeersMill(janitor, from, moreNodes);
+    }
 
     int loopCount = 0;
     for (int i = 0; addresses && i < addresses->length; i++) {
@@ -438,24 +451,17 @@ static struct Node_Two* getRandomNode(struct Random* rand, struct NodeStore* sto
     return node;
 }
 
-static void getPeersMill(struct Janitor_pvt* janitor, struct Address* addr)
+static void getPeersMill(struct Janitor_pvt* janitor, struct Address* addr,
+                         uint64_t targetLabel)
 {
     // If we have a node in the store and we ping the same path with a different address
     // it can cause an error packet which causes the *good* link to be destroyed.
     // Therefore we will always ping the node which we believe to be at the end of the
     // path and if there is an error, we will flush the link rediscover the path later.
     // Don't use a random target if we actually know a useful one.
-    uint64_t targetLabel = Random_uint32(janitor->rand);
     struct Node_Link* nl = NodeStore_linkForPath(janitor->nodeStore, addr->path);
     if (nl) {
         addr = &nl->child->address;
-        struct Node_Link* link = NULL;
-        while ((link = NodeStore_nextLink(nl->child, link))) {
-            if (!Node_isOneHopLink(link) && link == Node_getBestParent(link->child)) {
-                targetLabel = nl->cannonicalLabel;
-                break;
-            }
-        }
     }
 
     struct RouterModule_Promise* rp =
@@ -495,7 +501,7 @@ static bool tryExistingNode(struct Janitor_pvt* janitor)
         node = NodeStore_getNextNode(janitor->nodeStore, node);
     }
     if (worst) {
-        getPeersMill(janitor, &worst->address);
+        getPeersMill(janitor, &worst->address, 0);
         debugAddr(janitor, "Pinging existing node", &worst->address);
         return true;
     }
@@ -520,7 +526,7 @@ static bool tryMill(struct Janitor_pvt* janitor, struct RumorMill* mill, int rul
                 continue;
             }
         }
-        getPeersMill(janitor, &addr);
+        getPeersMill(janitor, &addr, 0);
         if (Defined(Log_DEBUG)) {
             uint8_t addrStr[60];
             Address_print(addrStr, &addr);
@@ -580,7 +586,7 @@ static bool tryRandomLink(struct Janitor_pvt* janitor)
             addr.path = path;
         }
         if (addr.path < UINT64_MAX) {
-            getPeersMill(janitor, &addr);
+            getPeersMill(janitor, &addr, 0);
             #ifdef Log_DEBUG
                 uint8_t addrStr[60];
                 Address_print(addrStr, &addr);

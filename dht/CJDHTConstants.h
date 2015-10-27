@@ -39,6 +39,9 @@ static String* const CJDHTConstants_TARGET = String_CONST_SO("tar");
 // Response with nodes. "n"
 static String* const CJDHTConstants_NODES = String_CONST_SO("n");
 
+// More peers available during Get (direct) peers query.
+static String* const CJDHTConstants_MORE_NODES = String_CONST_SO("mn");
+
 // Transaction id
 static String* const CJDHTConstants_TXID = String_CONST_SO("txid");
 
