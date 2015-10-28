@@ -65,7 +65,7 @@ their roles in the network.
 ## Scalability
 
 Cjdns is built around the bold and unproven assumption that a non-hierarchical
-network can scale. Cjdns uses a [distributed hash table][] to spread the load
+network can scale. Cjdns uses a [[distributed hash table]] to spread the load
 of routing among a number of nodes, rather than requiring every node know the
 exact location of every other node. At the bottom layer, packets are tagged
 with the exact route they should take, think of it like driving directions.
