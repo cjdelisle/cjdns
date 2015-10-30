@@ -2046,10 +2046,10 @@ void NodeStore_pathTimeout(struct NodeStore* nodeStore, uint64_t path)
         uint8_t addr[60];
         Address_print(addr, &node->address);
         Log_debug(store->logger,
-                  "Ping timeout for %s. changing cost from %lu to %lu\n",
+                  "Ping timeout for %s. changing cost from %llu to %llu\n",
                   addr,
-                  oldCost,
-                  Node_getCost(node));
+                  (unsigned long long)oldCost,
+                  (unsigned long long)Node_getCost(node));
     }
 }
 
