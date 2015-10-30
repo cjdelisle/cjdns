@@ -257,22 +257,21 @@ static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface
             Log_debug(sm->log, "DROP runt");
             return NULL;
         }
-        union CryptoHeader* caHeader = (union CryptoHeader*) msg->bytes;
-        uint8_t* herKey = caHeader->handshake.publicKey;
+        struct CryptoHeader* caHeader = (struct CryptoHeader*) msg->bytes;
         uint8_t ip6[16];
         // a packet which claims to be "from us" causes problems
-        if (!AddressCalc_addressForPublicKey(ip6, herKey)) {
+        if (!AddressCalc_addressForPublicKey(ip6, caHeader->publicKey)) {
             Log_debug(sm->log, "DROP Handshake with non-fc key");
             return NULL;
         }
 
-        if (!Bits_memcmp(herKey, sm->cryptoAuth->publicKey, 32)) {
+        if (!Bits_memcmp(caHeader->publicKey, sm->cryptoAuth->publicKey, 32)) {
             Log_debug(sm->log, "DROP Handshake from 'ourselves'");
             return NULL;
         }
 
         uint64_t label = Endian_bigEndianToHost64(switchHeader->label_be);
-        session = getSession(sm, ip6, herKey, 0, label);
+        session = getSession(sm, ip6, caHeader->publicKey, 0, label);
         CryptoAuth_resetIfTimeout(session->pub.caSession);
         debugHandlesAndLabel(sm->log, session, label, "new session nonce[%d]", nonceOrHandle);
     }
