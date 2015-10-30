@@ -278,10 +278,10 @@ static void cycle(uint8_t randSeed[64],
 
     ctx->nodeA.ca = CryptoAuth_new(alloc, NULL, base, logger, rand);
     ctx->nodeB.ca = CryptoAuth_new(alloc, NULL, base, logger, rand);
-    ctx->nodeA.session =
-        CryptoAuth_newSession(ctx->nodeA.ca, alloc, ctx->nodeB.ca->publicKey, NULL, false, "nodeA");
-    ctx->nodeB.session =
-        CryptoAuth_newSession(ctx->nodeB.ca, alloc, NULL, NULL, false, "nodeB");
+    ctx->nodeA.session = CryptoAuth_newSession(
+        ctx->nodeA.ca, alloc, ctx->nodeB.ca->publicKey, false, "nodeA");
+    ctx->nodeB.session = CryptoAuth_newSession(
+        ctx->nodeB.ca, alloc, ctx->nodeA.ca->publicKey, false, "nodeB");
 
     if (maybe(ctx, 2)) {
         CryptoAuth_addUser_ipv6(String_CONST("pass"), String_CONST("user"), NULL, ctx->nodeB.ca);

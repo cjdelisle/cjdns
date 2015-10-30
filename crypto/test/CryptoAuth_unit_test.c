@@ -90,7 +90,7 @@ static struct Context* setUp(uint8_t* myPrivateKey,
         CryptoAuth_new(alloc, myPrivateKey, base, log, evilRandom(alloc, log));
 
     struct CryptoAuth_Session* sess = ctx->sess =
-        CryptoAuth_newSession(ca, alloc, herPublicKey, NULL, false, Gcc_FILE);
+        CryptoAuth_newSession(ca, alloc, herPublicKey, false, Gcc_FILE);
 
     if (authPassword) {
         CryptoAuth_setAuth(String_CONST(authPassword), NULL, sess);
@@ -140,8 +140,11 @@ static void helloWithAuth()
 
 static void receiveHelloWithNoAuth()
 {
+    uint8_t herPublic[32];
+    Assert_true(Hex_decode(herPublic, 32,
+        "847c0d2c375234f365e660955187a3735a0f7613d1609d3a6a4d8c53aeaa5a22", 64) > 0);
     struct Allocator* alloc = MallocAllocator_new(1<<20);
-    struct Context* ctx = setUp(PRIVATEKEY, NULL, NULL, alloc);
+    struct Context* ctx = setUp(PRIVATEKEY, herPublic, NULL, alloc);
     struct Message* msg = Message_new(132, 0, alloc);
     Assert_true(Hex_decode(msg->bytes, msg->length,
         "0000000000ffffffffffffff7fffffffffffffffffffffffffffffffffffffff"
@@ -149,6 +152,7 @@ static void receiveHelloWithNoAuth()
         "6a4d8c53aeaa5a22ea9cf275eee0185edf7f211192f12e8e642a325ed76925fe"
         "3c76d313b767a10aca584ca0b979dee990a737da7d68366fa3846d43d541de91"
         "29ea3e12", 132*2) > 0);
+
     Assert_true(!CryptoAuth_decrypt(ctx->sess, msg));
     Assert_true(msg->length == HELLOWORLDLEN);
     Assert_true(Bits_memcmp(HELLOWORLD, msg->bytes, HELLOWORLDLEN) == 0);

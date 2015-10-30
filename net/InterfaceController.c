@@ -574,8 +574,7 @@ static Iface_DEFUN handleBeacon(struct Message* msg, struct InterfaceController_
     Allocator_onFree(epAlloc, closeInterface, ep);
 
     ep->peerLink = PeerLink_new(ic->eventBase, epAlloc);
-    ep->caSession =
-        CryptoAuth_newSession(ic->ca, epAlloc, beacon.publicKey, addr.ip6.bytes, false, "outer");
+    ep->caSession = CryptoAuth_newSession(ic->ca, epAlloc, beacon.publicKey, false, "outer");
     CryptoAuth_setAuth(beaconPass, NULL, ep->caSession);
 
     ep->switchIf.send = sendFromSwitch;
@@ -610,10 +609,12 @@ static Iface_DEFUN handleUnexpectedIncoming(struct Message* msg,
 {
     struct InterfaceController_pvt* ic = ici->ic;
 
-    struct Allocator* epAlloc = Allocator_child(ici->alloc);
-
     struct Sockaddr* lladdr = (struct Sockaddr*) msg->bytes;
     Message_shift(msg, -lladdr->addrLen, NULL);
+    if (msg->length < CryptoHeader_SIZE) {
+        return NULL;
+    }
+    struct Allocator* epAlloc = Allocator_child(ici->alloc);
     lladdr = Sockaddr_clone(lladdr, epAlloc);
 
     Assert_true(!((uintptr_t)msg->bytes % 4) && "alignment fault");
@@ -625,7 +626,8 @@ static Iface_DEFUN handleUnexpectedIncoming(struct Message* msg,
     ep->lladdr = lladdr;
     ep->alloc = epAlloc;
     ep->peerLink = PeerLink_new(ic->eventBase, epAlloc);
-    ep->caSession = CryptoAuth_newSession(ic->ca, epAlloc, NULL, NULL, true, "outer");
+    struct CryptoHeader* ch = (struct CryptoHeader*) msg->bytes;
+    ep->caSession = CryptoAuth_newSession(ic->ca, epAlloc, ch->publicKey, true, "outer");
     if (CryptoAuth_decrypt(ep->caSession, msg)) {
         // If the first message is a dud, drop all state for this peer.
         // probably some random crap that wandered in the socket.
@@ -849,8 +851,7 @@ int InterfaceController_bootstrapPeer(struct InterfaceController* ifc,
     Allocator_onFree(alloc, freeAlloc, epAlloc);
 
     ep->peerLink = PeerLink_new(ic->eventBase, epAlloc);
-    ep->caSession =
-        CryptoAuth_newSession(ic->ca, epAlloc, herPublicKey, ep->addr.ip6.bytes, false, "outer");
+    ep->caSession = CryptoAuth_newSession(ic->ca, epAlloc, herPublicKey, false, "outer");
     CryptoAuth_setAuth(password, login, ep->caSession);
     if (user) {
         ep->caSession->displayName = String_clone(user, epAlloc);

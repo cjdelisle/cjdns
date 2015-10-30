@@ -64,7 +64,7 @@ static struct Context* init(uint8_t* privateKeyA,
     struct EventBase* base = ctx->base = EventBase_new(alloc);
 
     ctx->ca1 = CryptoAuth_new(alloc, privateKeyA, base, logger, rand);
-    ctx->sess1 = CryptoAuth_newSession(ctx->ca1, alloc, publicKeyB, NULL, false, "cif1");
+    ctx->sess1 = CryptoAuth_newSession(ctx->ca1, alloc, publicKeyB, false, "cif1");
 
     ctx->ca2 = CryptoAuth_new(alloc, privateKeyB, base, logger, rand);
     if (password) {
@@ -72,7 +72,7 @@ static struct Context* init(uint8_t* privateKeyA,
         CryptoAuth_setAuth(passStr, NULL, ctx->sess1);
         CryptoAuth_addUser(passStr, String_new(USEROBJ, alloc), ctx->ca2);
     }
-    ctx->sess2 = CryptoAuth_newSession(ctx->ca2, alloc, NULL, NULL, false, "cif2");
+    ctx->sess2 = CryptoAuth_newSession(ctx->ca2, alloc, publicKeyA, false, "cif2");
 
     return ctx;
 }

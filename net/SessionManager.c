@@ -210,7 +210,7 @@ static struct SessionManager_Session_pvt* getSession(struct SessionManager_pvt* 
     sess = Allocator_calloc(alloc, sizeof(struct SessionManager_Session_pvt), 1);
     Identity_set(sess);
 
-    sess->pub.caSession = CryptoAuth_newSession(sm->cryptoAuth, alloc, pubKey, ip6, false, "inner");
+    sess->pub.caSession = CryptoAuth_newSession(sm->cryptoAuth, alloc, pubKey, false, "inner");
 
     int ifaceIndex = Map_OfSessionsByIp6_put((struct Ip6*)ip6, &sess, &sm->ifaceMap);
     sess->pub.receiveHandle = sm->ifaceMap.handles[ifaceIndex] + sm->firstHandle;
