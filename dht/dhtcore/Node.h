@@ -27,11 +27,10 @@ struct Node_Link;
 struct Node_Two
 {
     /**
-     * The reach of the node (how big/fast/close it is).
-     * Since reach is a fraction, the reach number represents a percentage where 0xFFFFFFFF = 100%
+     * The cost of the node (how small/slow/far it is).
      * DO NOT ALTER THIS OUTSIDE OF NODESTORE
      */
-    uint32_t reach_pvt;
+    uint64_t cost_pvt;
 
     /** This is used to mark/sweep nodes in getWorstNode(), it's meaningless otherwise. */
     uint32_t marked;
@@ -95,9 +94,9 @@ struct Node_Link
 
     /**
      * The quality of the link between parent and child,
-     * between 0xFFFFFFFF (perfect) and 0 (intolerable).
+     * between 0 (perfect) and 0xFFFFFFFF (intolerable).
      */
-    uint32_t linkState;
+    uint32_t linkCost;
 
     /** The time this link was last seen carrying traffic. (Currently limited to ping traffic.) */
     uint64_t timeLastSeen;
@@ -132,11 +131,11 @@ struct Node_Link
     Identity
 };
 
-static inline uint32_t Node_getReach(struct Node_Two* node)
+static inline uint64_t Node_getCost(struct Node_Two* node)
 {
-    return node->reach_pvt;
+    return node->cost_pvt;
 }
-void Node_setReach(struct Node_Two* node, uint32_t newReach);
+void Node_setCost(struct Node_Two* node, uint64_t newCost);
 
 static inline struct Node_Link* Node_getBestParent(struct Node_Two* node)
 {
@@ -145,9 +144,9 @@ static inline struct Node_Link* Node_getBestParent(struct Node_Two* node)
 
 bool Node_isAncestorOf(struct Node_Two* ancestor, struct Node_Two* child);
 
-void Node_setParentReachAndPath(struct Node_Two* node,
+void Node_setParentCostAndPath(struct Node_Two* node,
                                 struct Node_Link* bestParent,
-                                uint32_t reach,
+                                uint64_t cost,
                                 uint64_t path);
 
 bool Node_isOneHopLink(struct Node_Link* link);

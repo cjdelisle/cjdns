@@ -277,9 +277,9 @@ static void peersResponseCallback(struct RouterModule_Promise* promise,
         if (!Bits_memcmp(addresses->elems[i].key, from->key, 32)) { continue; }
 
         struct Node_Link* nl = NodeStore_linkForPath(janitor->nodeStore, addresses->elems[i].path);
-        if (!nl || Bits_memcmp(nl->child->address.ip6.bytes,
-                               addresses->elems[i].ip6.bytes,
-                               Address_SEARCH_TARGET_SIZE))
+        if (!nl || nl->linkCost == UINT32_MAX || Bits_memcmp(nl->child->address.ip6.bytes,
+                                                             addresses->elems[i].ip6.bytes,
+                                                             Address_SEARCH_TARGET_SIZE))
         {
             struct Node_Two* node = NodeStore_nodeForAddr(janitor->nodeStore,
                                                           addresses->elems[i].ip6.bytes);
@@ -649,8 +649,8 @@ static void maintanenceCycle(void* vcontext)
 
     struct Node_Two* n = NodeStore_getBest(janitor->nodeStore, addr.ip6.bytes);
 
-    // If the best next node doesn't exist or has 0 reach, run a local maintenance search.
-    if (n == NULL || Node_getReach(n) == 0) {
+    // If the best next node doesn't exist or has maximum cost, run a local maintenance search.
+    if (n == NULL || Node_getCost(n) == UINT64_MAX) {
         // or actually, don't
         //search(addr.ip6.bytes, janitor);
         //plugLargestKeyspaceHole(janitor, true);

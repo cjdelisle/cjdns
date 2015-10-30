@@ -72,11 +72,10 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
  *
  * @param nodeStore the store
  * @param addr the address of the new node
- * @param reachDiff the amount to credit this node
  * @param scheme the encoding scheme used by this node.
  * @param encodingFormNumber the number of the smallest possible encoding form for to encoding
  *                           the interface number through which this message came.
- * @param reach the quality of the path to the new node
+ * @param milliseconds round-trip-time of the ping/getPeers/search that discovered this node.
  */
 struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
                                          struct Address* addr,
@@ -154,6 +153,7 @@ char* NodeStore_getRouteLabel_strerror(uint64_t returnVal);
 
 
 /**
+ * FIXME(arceliar): Documentation is out of date
  * Find the one best node using LinkStateNodeCollector. LinkStateNodeCollector prefers a
  * keyspace match (same address). It breaks ties by choosing the highest version node
  * (versions above it's own are considered the same as it's version). It breaks ties of the
@@ -196,7 +196,7 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,
                                            uint32_t versionOfRequestingNode,
                                            struct Allocator* allocator);
 
-// Used to update reach when a ping/search response comes in
+// Used to update cost when a ping/search response comes in
 void NodeStore_pathResponse(struct NodeStore* nodeStore, uint64_t path, uint64_t milliseconds);
 void NodeStore_pathTimeout(struct NodeStore* nodeStore, uint64_t path);
 
