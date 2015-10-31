@@ -90,7 +90,7 @@ var writeTypesHeaders = function(plan, onComplete) {
   plan.PLAN_TYPES.forEach(function(type) { out.push(type); });
   out.push("#endif");
   workers++;
-  Fs.writeFile(Common.INCLUDE_INTERNAL + '/crypto_types.h', out.join('\n'), done);
+  Fs.writeFile(Common.INCLUDE + '/crypto_types.h', out.join('\n'), done);
 
   [
     "crypto_uint8.h",
@@ -103,7 +103,7 @@ var writeTypesHeaders = function(plan, onComplete) {
     "crypto_int64.h"
   ].forEach(function(header) {
     workers++;
-    Fs.writeFile(Common.INCLUDE_INTERNAL + '/' + header,
+    Fs.writeFile(Common.INCLUDE + '/' + header,
                  '#include <crypto_types.h>',
                  done);
   });
