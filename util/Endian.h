@@ -94,4 +94,15 @@
 #define Endian_littleEndianToHost64(x) Endian_hostToLittleEndian64(x)
 #define Endian_bigEndianToHost64(x) Endian_hostToBigEndian64(x)
 
+#define Endian_SETTER_GETTER_BE(prefix, width, name, fieldName) \
+    static inline uint ## width ## _t prefix ## _get ## name (struct Link* l)               \
+    {                                                                                       \
+        return Endian_bigEndianToHost ## width (l->fieldName);                              \
+    }                                                                                       \
+    static inline void prefix ## _set ## name (struct Link* l, uint ## width ## _t setTo)   \
+    {                                                                                       \
+        l->fieldName = Endian_hostToBigEndian ## width (setTo);                             \
+    }                                                                                       \
+    struct Endian_EatTheSemicolon
+
 #endif

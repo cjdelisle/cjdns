@@ -104,6 +104,22 @@ Assert_compileTime(sizeof(struct Control_KeyPing) == Control_KeyPing_HEADER_SIZE
 #define Control_KeyPong_MAX_SIZE Control_KeyPing_MAX_SIZE
 #define Control_KeyPong_MAGIC Endian_hostToBigEndian32(0x89abcdef)
 
+#define Control_ArcMsg_HEADER_SIZE 8
+#define Control_ArcMsg_REQMAGIC Endian_hostToBigEndian32(0x6692d179)
+#define Control_ArcMsg_RESMAGIC Endian_hostToBigEndian32(0x032205b4)
+#define Control_ARCREQ_be Endian_hostToBigEndian16(7)
+#define Control_ARCRES_be Endian_hostToBigEndian16(8)
+struct Control_ArcMsg
+{
+    uint32_t magic;
+
+    /** The version of the sending node. */
+    uint16_t version_be;
+
+    uint16_t messageType_be;
+};
+Assert_compileTime(sizeof(struct Control_ArcMsg) == Control_ArcMsg_HEADER_SIZE);
+
 static inline char* Control_typeString(uint16_t type_be)
 {
     if (type_be == Control_ERROR_be) {
@@ -116,6 +132,10 @@ static inline char* Control_typeString(uint16_t type_be)
         return "KEYPING";
     } else if (type_be == Control_KEYPONG_be) {
         return "KEYPONG";
+    } else if (type_be == Control_ARCREQ_be) {
+        return "ARCREQ";
+    } else if (type_be == Control_ARCRES_be) {
+        return "ARCRES";
     } else {
         return "UNKNOWN";
     }
