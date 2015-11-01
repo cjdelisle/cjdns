@@ -68,7 +68,7 @@ var buildTree = function (origNodes) {
 
 var printTree = function (tree, spaces) {
     console.log(spaces + tree.ip + ' ' + tree.bestParent.parentChildLabel + '  ' +
-        tree.routeLabel + '  ' + tree.reach + '  ' + tree.bestParent.isOneHop);
+        tree.routeLabel + '  ' + tree.cost + '  ' + tree.bestParent.isOneHop);
     for (var i = 0; i < tree.peers.length; i++) {
         printTree(tree.peers[i], spaces + '  ');
     }
