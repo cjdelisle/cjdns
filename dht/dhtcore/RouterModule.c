@@ -170,10 +170,11 @@
 #define SEARCH_REPEAT_MILLISECONDS 7500
 
 /** The number of times the GMRT before pings should be timed out. */
-#define PING_TIMEOUT_GMRT_MULTIPLIER 100
+#define PING_TIMEOUT_GMRT_MULTIPLIER 10
 
 /** The minimum amount of time before a ping should timeout. */
 #define PING_TIMEOUT_MINIMUM 3000
+#define PING_TIMEOUT_MAXIMUM 30000
 
 /** You are not expected to understand this. */
 #define LINK_STATE_MULTIPLIER 536870
@@ -437,7 +438,8 @@ static void onTimeout(uint32_t milliseconds, struct PingContext* pctx)
 static uint64_t pingTimeoutMilliseconds(struct RouterModule* module)
 {
     uint64_t out = AverageRoller_getAverage(module->gmrtRoller) * PING_TIMEOUT_GMRT_MULTIPLIER;
-    return (out < PING_TIMEOUT_MINIMUM) ? PING_TIMEOUT_MINIMUM : out;
+    out = (out < PING_TIMEOUT_MINIMUM) ? PING_TIMEOUT_MINIMUM : out;
+    return (out > PING_TIMEOUT_MAXIMUM) ? PING_TIMEOUT_MAXIMUM : out;
 }
 
 /**
@@ -466,14 +468,14 @@ static int handleIncoming(struct DHTMessage* message, void* vcontext)
 static void onResponseOrTimeout(String* data, uint32_t milliseconds, void* vping)
 {
     struct PingContext* pctx = Identity_check((struct PingContext*) vping);
-
+    struct RouterModule* module = pctx->router;
+    module->pingsInFlight--;
     if (data == NULL) {
         // This is how Pinger signals a timeout.
         onTimeout(milliseconds, pctx);
         return;
     }
 
-    struct RouterModule* module = pctx->router;
     // Grab out the message which was put here in handleIncoming()
     struct DHTMessage* message = module->currentMessage;
     module->currentMessage = NULL;
@@ -497,12 +499,12 @@ static void onResponseOrTimeout(String* data, uint32_t milliseconds, void* vping
 
     // update the GMRT
     AverageRoller_update(pctx->router->gmrtRoller, milliseconds);
-    /*
+
     Log_debug(pctx->router->logger,
                "Received response in %u milliseconds, gmrt now %u\n",
                milliseconds,
                AverageRoller_getAverage(pctx->router->gmrtRoller));
-    */
+
 
     // prevent division by zero
     if (milliseconds == 0) { milliseconds++; }
@@ -546,9 +548,12 @@ struct RouterModule_Promise* RouterModule_newMessage(struct Address* addr,
                                     addr->path,
                                     EncodingScheme_convertLabel_convertTo_CANNONICAL));
 
+    module->pingsInFlight++;
     if (timeoutMilliseconds == 0) {
         timeoutMilliseconds = pingTimeoutMilliseconds(module);
     }
+    Log_debug(module->logger, "Sending ping with [%u] millisecond timeout, [%u] in flight now",
+              timeoutMilliseconds, module->pingsInFlight);
 
     struct Pinger_Ping* pp = Pinger_newPing(NULL,
                                             onResponseOrTimeout,
