@@ -120,6 +120,11 @@ struct Control_ArcMsg
 };
 Assert_compileTime(sizeof(struct Control_ArcMsg) == Control_ArcMsg_HEADER_SIZE);
 
+/** providing or acknoledging a beacon message (depending on whether it's a req or resp) */
+#define Control_ArcMsg_messageType_BEACON  Endian_hostToBigEndian16(0)
+/** requesting or providing links */
+#define Control_ArcMsg_messageType_LINKS   Endian_hostToBigEndian16(1)
+
 static inline char* Control_typeString(uint16_t type_be)
 {
     if (type_be == Control_ERROR_be) {
@@ -178,6 +183,7 @@ struct Control
         struct Control_Ping pong;
         struct Control_KeyPing keyPing;
         struct Control_Ping keyPong;
+        struct Control_ArcMsg;
 
         /** The control packet content. */
         uint8_t bytes[4];
