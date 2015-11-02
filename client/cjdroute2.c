@@ -322,14 +322,23 @@ static int genconf(struct Random* rand, bool eth)
            "        // and ETHInterface will be unable to hot-add new interfaces\n"
            "        // Use { \"setuser\": 0 } to disable.\n"
            "        // Default: enabled with keepNetAdmin\n"
+#if defined(android)
+           "        { \"setuser\": \"system\", \"keepNetAdmin\": 1 },\n"
+#else
            "        { \"setuser\": \"cjdns\", \"keepNetAdmin\": 1 },\n"
+#endif
            "\n"
            "        // Chroot changes the filesystem root directory which cjdns sees, blocking it\n"
            "        // from accessing files outside of the chroot sandbox, if the user does not\n"
            "        // have permission to use chroot(), this will fail quietly.\n"
            "        // Use { \"chroot\": 0 } to disable.\n"
+#if defined(android)
+           "        // Default: disabled\n"
+           "        { \"chroot\": 0 },\n"
+#else
            "        // Default: enabled (using \"/var/run\")\n"
            "        { \"chroot\": \"/var/run/\" },\n"
+#endif
            "\n"
            "        // Nofiles is a deprecated security feature which prevents cjdns from opening\n"
            "        // any files at all, using this will block setting of IP addresses and\n"
@@ -347,8 +356,13 @@ static int genconf(struct Random* rand, bool eth)
            "        // SECCOMP_BPF to filter the system calls which cjdns is able to make on a\n"
            "        // linux system, strictly limiting it's access to the outside world\n"
            "        // This will fail quietly on any non-linux system\n"
+#if defined(android)
+           "        // Default: disabled\n"
+           "        { \"seccomp\": 0 },\n"
+#else
            "        // Default: enabled\n"
            "        { \"seccomp\": 1 },\n"
+#endif
            "\n"
            "        // The client sets up the core using a sequence of RPC calls, the responses\n"
            "        // to these calls are verified but in the event that the client crashes\n"
