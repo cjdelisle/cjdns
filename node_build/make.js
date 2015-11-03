@@ -55,6 +55,7 @@ Builder.configure({
         '-Wno-pointer-sign',
         '-pedantic',
         '-D', builder.config.systemName + '=1',
+        '-D', 'CJD_PACKAGE_VERSION="' + builder.config.version + '"',
         '-Wno-unused-parameter',
         '-fomit-frame-pointer',
 

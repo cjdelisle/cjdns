@@ -529,6 +529,7 @@ int main(int argc, char** argv)
         } else if ((CString_strcmp(argv[1], "--version") == 0)
             || (CString_strcmp(argv[1], "-v") == 0))
         {
+            printf("Cjdns version: %s\n", CJD_PACKAGE_VERSION);
             printf("Cjdns protocol version: %d\n", Version_CURRENT_PROTOCOL);
             return 0;
         } else if (CString_strcmp(argv[1], "--cleanconf") == 0) {
