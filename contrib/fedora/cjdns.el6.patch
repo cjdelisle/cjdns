@@ -1,6 +1,6 @@
 diff -up ./contrib/selinux/cjdns.te.el6 ./contrib/selinux/cjdns.te
---- ./contrib/selinux/cjdns.te.el6	2015-10-20 09:17:35.541020349 -0400
-+++ ./contrib/selinux/cjdns.te	2015-10-20 09:22:21.711012569 -0400
+--- ./contrib/selinux/cjdns.te.el6	2015-11-03 18:33:59.275788819 -0500
++++ ./contrib/selinux/cjdns.te	2015-11-03 18:42:36.524001745 -0500
 @@ -5,9 +5,7 @@ require {
  	type tun_tap_device_t;
  	type node_t;
@@ -13,7 +13,7 @@ diff -up ./contrib/selinux/cjdns.te.el6 ./contrib/selinux/cjdns.te
  
 @@ -20,15 +18,12 @@ init_daemon_domain(cjdns_t,cjdns_exec_t)
  allow cjdns_t cjdns_exec_t:file { execute_no_trans execmod };
- allow cjdns_t self:capability { net_admin net_raw setuid setgid sys_chroot sys_module };
+ allow cjdns_t self:capability { net_admin net_raw setuid setgid sys_chroot };
  allow cjdns_t self:process { signal getcap setrlimit setcap };
 -# translate username to uid
 -allow cjdns_t passwd_file_t:file { read getattr open };
@@ -28,8 +28,8 @@ diff -up ./contrib/selinux/cjdns.te.el6 ./contrib/selinux/cjdns.te
  allow cjdns_t self:packet_socket { bind create ioctl read write };
  allow cjdns_t self:tun_socket create;
 diff -up ./node_build/FindPython2.js.el6 ./node_build/FindPython2.js
---- ./node_build/FindPython2.js.el6	2015-08-28 17:32:11.000000000 -0400
-+++ ./node_build/FindPython2.js	2015-10-20 09:17:35.545020267 -0400
+--- ./node_build/FindPython2.js.el6	2015-11-02 17:59:41.000000000 -0500
++++ ./node_build/FindPython2.js	2015-11-03 18:33:59.300788299 -0500
 @@ -21,7 +21,7 @@ var PYTHONS = ["python", "python2", "pyt
  var SCRIPT = [
      'import sys;',
