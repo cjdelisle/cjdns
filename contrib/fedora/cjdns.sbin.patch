@@ -1,0 +1,42 @@
+diff -up ./contrib/systemd/cjdns.service.sbin ./contrib/systemd/cjdns.service
+--- ./contrib/systemd/cjdns.service.sbin	2015-11-02 23:57:43.827023737 -0500
++++ ./contrib/systemd/cjdns.service	2015-11-02 23:59:30.845003718 -0500
+@@ -9,10 +9,10 @@ ProtectSystem=true
+ SyslogIdentifier=cjdroute
+ ExecStartPre=/bin/sh -ec "if ! test -e /etc/cjdroute.conf; \
+                 then umask 077; \
+-                /usr/bin/cjdroute --genconf > /etc/cjdroute.conf; \
++                /usr/sbin/cjdroute --genconf | cat > /etc/cjdroute.conf; \
+                 echo 'WARNING: A new /etc/cjdroute.conf file has been generated.'; \
+-            fi"
+-ExecStart=/bin/sh -c "exec cjdroute --nobg < /etc/cjdroute.conf"
++            fi; /usr/sbin/modprobe tun"
++ExecStart=/bin/sh -c "exec /usr/sbin/cjdroute --nobg < /etc/cjdroute.conf"
+ Restart=always
+ 
+ [Install]
+diff -up ./contrib/upstart/cjdns.conf.sbin ./contrib/upstart/cjdns.conf
+--- ./contrib/upstart/cjdns.conf.sbin	2015-11-02 17:59:41.000000000 -0500
++++ ./contrib/upstart/cjdns.conf	2015-11-02 23:57:43.827023737 -0500
+@@ -13,10 +13,14 @@ pre-start script
+     if ! [ -e /etc/cjdroute.conf ]; then
+         ( # start a subshell to avoid side effects of umask later on
+             umask 077 # to create the file with 600 permissions without races
+-            /usr/bin/cjdroute --genconf > /etc/cjdroute.conf
++	    # use cat because cjdroute can't write directly to /etc
++            /usr/sbin/cjdroute --genconf | cat > /etc/cjdroute.conf
+         ) # exit subshell; umask no longer applies
+         echo 'WARNING: A new cjdns cjdroute.conf file has been generated.'
+     fi
++    # preload tun driver, since we prevent module_request
++    /sbin/modprobe tun
++
+ 
+     # If you need a non-standard setup, as described in
+     # https://github.com/cjdelisle/cjdns#non-standard-setups,
+@@ -25,4 +29,4 @@ pre-start script
+     # see http://upstart.ubuntu.com/cookbook/#setuid
+ end script
+ 
+-exec /usr/bin/cjdroute --nobg < /etc/cjdroute.conf
++exec /usr/sbin/cjdroute --nobg < /etc/cjdroute.conf

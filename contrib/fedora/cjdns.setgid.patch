@@ -1,0 +1,143 @@
+diff -up ./client/Configurator.c.setgid ./client/Configurator.c
+--- ./client/Configurator.c.setgid	2015-08-28 17:32:11.000000000 -0400
++++ ./client/Configurator.c	2015-10-04 23:50:43.026912375 -0400
+@@ -455,6 +455,7 @@ static void security(struct Allocator* t
+     }
+ 
+     int uid = -1;
++    int64_t* group = NULL;
+     int keepNetAdmin = 1;
+ 
+     do {
+@@ -464,6 +465,7 @@ static void security(struct Allocator* t
+             Dict* ret = NULL;
+             rpcCall0(String_CONST("Security_getUser"), d, ctx, tempAlloc, &ret, true);
+             uid = *Dict_getInt(ret, String_CONST("uid"));
++            group = Dict_getInt(ret, String_CONST("gid"));
+         }
+     } while (0);
+ 
+@@ -477,6 +479,7 @@ static void security(struct Allocator* t
+             Dict* ret = NULL;
+             rpcCall0(String_CONST("Security_getUser"), d, ctx, tempAlloc, &ret, true);
+             uid = *Dict_getInt(ret, String_CONST("uid"));
++            group = Dict_getInt(ret, String_CONST("gid"));
+             int64_t* nka = Dict_getInt(elem, String_CONST("keepNetAdmin"));
+             int64_t* exemptAngel = Dict_getInt(elem, String_CONST("exemptAngel"));
+             keepNetAdmin = ((nka) ? *nka : ((exemptAngel) ? *exemptAngel : 0));
+@@ -525,6 +528,8 @@ static void security(struct Allocator* t
+         Dict_putString(d, String_CONST("root"), String_CONST("/var/run/"), tempAlloc);
+         rpcCall0(String_CONST("Security_chroot"), d, ctx, tempAlloc, NULL, false);
+     }
++    /* FIXME(sdg): moving noforks after setuser might make nproc <- 0,0 work
++     on older kernels, where doing it before causes setuid to fail w EAGAIN. */
+     if (noforks) {
+         Log_debug(log, "Security_noforks()");
+         Dict* d = Dict_new(tempAlloc);
+@@ -534,6 +539,9 @@ static void security(struct Allocator* t
+         Log_debug(log, "Security_setUser(uid:%d, keepNetAdmin:%d)", uid, keepNetAdmin);
+         Dict* d = Dict_new(tempAlloc);
+         Dict_putInt(d, String_CONST("uid"), uid, tempAlloc);
++        if (group) {
++            Dict_putInt(d, String_CONST("gid"), (int)*group, tempAlloc);
++        }
+         Dict_putInt(d, String_CONST("keepNetAdmin"), keepNetAdmin, tempAlloc);
+         rpcCall0(String_CONST("Security_setUser"), d, ctx, tempAlloc, NULL, false);
+     }
+diff -up ./util/Security_admin.c.setgid ./util/Security_admin.c
+--- ./util/Security_admin.c.setgid	2015-08-28 17:32:11.000000000 -0400
++++ ./util/Security_admin.c	2015-10-04 19:30:33.597693363 -0400
+@@ -40,8 +40,10 @@ static void setUser(Dict* args, void* vc
+     struct Jmp jmp;
+     Jmp_try(jmp) {
+         int64_t* user = Dict_getInt(args, String_CONST("uid"));
++        int64_t* group = Dict_getInt(args, String_CONST("gid"));
++        int gid = group ? (int)*group : 0;
+         int64_t* keepNetAdmin = Dict_getInt(args, String_CONST("keepNetAdmin"));
+-        Security_setUser(*user, *keepNetAdmin, ctx->logger, &jmp.handler, requestAlloc);
++        Security_setUser(*user, gid, *keepNetAdmin, ctx->logger, &jmp.handler, requestAlloc);
+     } Jmp_catch {
+         sendError(jmp.message, txid, ctx->admin);
+         return;
+@@ -161,6 +163,7 @@ void Security_admin_register(struct Allo
+     }), admin);
+     Admin_registerFunction("Security_setUser", setUser, ctx, true, ((struct Admin_FunctionArg[]) {
+         { .name = "uid", .required = 1, .type = "Int" },
++        { .name = "gid", .required = 0, .type = "Int" },
+         { .name = "keepNetAdmin", .required = 1, .type = "Int" },
+     }), admin);
+     Admin_registerFunction("Security_getUser", getUser, ctx, true, ((struct Admin_FunctionArg[]) {
+diff -up ./util/Security.c.setgid ./util/Security.c
+--- ./util/Security.c.setgid	2015-08-28 17:32:11.000000000 -0400
++++ ./util/Security.c	2015-09-27 19:05:25.630435299 -0400
+@@ -53,28 +53,44 @@ Dict* Security_getUser(char* userName, s
+     Dict_putString(ret, String_new("error", retAlloc), String_new("none", retAlloc), retAlloc);
+     Dict_putString(ret, String_new("name", retAlloc), String_new(pw->pw_name, retAlloc), retAlloc);
+     Dict_putInt(ret, String_new("uid", retAlloc), pw->pw_uid, retAlloc);
++    Dict_putInt(ret, String_new("gid", retAlloc), pw->pw_gid, retAlloc);
+     return ret;
+ }
+ 
+ void Security_setUser(int uid,
++                      int gid,
+                       bool keepNetAdmin,
+                       struct Log* logger,
+                       struct Except* eh,
+                       struct Allocator* alloc)
+ {
++    int gid_errno = 0;
++    int uid_errno = 0;
+     if (keepNetAdmin) {
+         Setuid_preSetuid(alloc, eh);
+     }
+-    int ret = setuid(uid);
++    if (gid && setgid(gid)) {
++        gid_errno = errno;
++    }
++    if (setuid(uid)) {
++        /* errno is global and could get overwritten by Setuid_postSetuid() */
++        uid_errno = errno;
++    }
+     if (keepNetAdmin) {
+         Setuid_postSetuid(alloc, eh);
+     }
+-    if (ret) {
+-        Except_throw(eh, "Failed to set UID [%s]", strerror(errno));
++    if (uid_errno > 0) {
++        Except_throw(eh, "Failed to set UID [%s]", strerror(uid_errno));
+     }
+     if (uid != (int) getuid()) {
+         Except_throw(eh, "Failed to set UID but seemed to succeed");
+     }
++    if (gid_errno > 0) {
++        Except_throw(eh, "Failed to set GID [%s]", strerror(gid_errno));
++    }
++    if (gid != (int) getgid()) {
++        Except_throw(eh, "Failed to set GID but seemed to succeed");
++    }
+ }
+ 
+ static int canOpenFiles()
+diff -up ./util/Security.h.setgid ./util/Security.h
+--- ./util/Security.h.setgid	2015-08-28 17:32:11.000000000 -0400
++++ ./util/Security.h	2015-09-27 19:12:39.996621076 -0400
+@@ -44,6 +44,7 @@ struct Security
+ };
+ 
+ void Security_setUser(int uid,
++                      int gid,
+                       bool keepNetAdmin,
+                       struct Log* logger,
+                       struct Except* eh,
+diff -up ./util/Security_win32.c.setgid ./util/Security_win32.c
+--- ./util/Security_win32.c.setgid	2015-08-28 17:32:11.000000000 -0400
++++ ./util/Security_win32.c	2015-10-04 19:30:33.599693418 -0400
+@@ -33,7 +33,7 @@ Dict* Security_getUser(char* userName, s
+     return ret;
+ }
+ 
+-void Security_setUser(int uid,
++void Security_setUser(int uid, int gid,
+                       bool keepNetAdmin,
+                       struct Log* logger,
+                       struct Except* eh,
