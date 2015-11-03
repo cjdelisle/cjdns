@@ -2,7 +2,12 @@
 
 README na Engleskom: [README.md](README.md)
 
-#### *Networking Reinvented*
+#### *Umrežavanje iznova*
+
+Cjdns provodi šifriranu IPv6 mrežu koristeći public-key kriptografiju za
+dodjelu adresa i distribuiranu "hash" tablicu za usmjeravanje. To omogućuje
+gotovo nikakvu mrežnu konfiguraciju i sprječava mnoge sigurnosne i
+skalabilne probleme koje muče trenutne mreže.
 
 Cjdns implements an encrypted IPv6 network using public-key cryptography for
 address allocation and a distributed hash table for routing. This provides
@@ -31,12 +36,12 @@ scalability issues that plague existing networks.
 
 ## Kada će biti završen?
 
-[Hyperboria][] je najveća cjdns mreža, with hundreds of active nodes
+[Hyperboria][] je najveća cjdns mreža, sa stotinama aktivnih jedinica
 po cijelom svijetu.
 
 Cjdns je testiran na x86, amd64, ARMv5, ARMv7, MIPS, and PowerPC.
-It's [continually tested][buildbots] on Linux, FreeBSD, OS X, Windows and Illumos
-systems.
+Stalno se [testira][buildbots] na Linuxu, FreeBSDu, OS X-u, Windowsu and Illumos
+systemima.
 
 Protokoli i algoritmi su eksperimentalni i mogli bi se promijeniti.
 Kako biste smanjili štetu mreže, molimo često nadograđujte vaše cjdns jedinke.
@@ -84,10 +89,10 @@ hash table.
 * [Cjdns na Wikipediji][]
 
 
-Advanced configuration:
+Napredna konfiguracija:
 
 * [Setup a cjdns NAT gateway for your LAN](doc/nat-gateway.md)
-* [Install cjdns on OpenIndiana](doc/open-indiana.md)
+* [Instaliraj cjdns na OpenIndiani](doc/open-indiana.md)
 
 ### Licenca
 
