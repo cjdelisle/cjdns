@@ -15,6 +15,14 @@ type cjdns_t;
 type cjdns_exec_t;
 init_daemon_domain(cjdns_t,cjdns_exec_t);
 
+# NOTE: the included file context list (cjdns.fc) puts cjdroute in /usr/sbin,
+# whereas the pristine sources put it in /usr/bin.  Furthermore, we don't
+# allow cjdroute to load kernel modules.  So the startup needs to preload
+# the tun driver on linux, for instance.  The contrib/fedora directory
+# contains patch file cjdns.sbin.patch to modify the contributed systemd
+# and upstart configs for this.
+# 
+
 #============= cjdns_t ==============
 # Let master process run further restricted subprocess
 allow cjdns_t cjdns_exec_t:file { execute_no_trans execmod };
