@@ -13,11 +13,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "util/platform/Socket.h"
-#include <netinet/ip.h>
 
 #ifdef win32
     #include <winsock2.h>
+    #include <ws2tcpip.h>
 #else
+    #include <netinet/ip.h>
     #include <sys/socket.h>
 #endif
 #include <unistd.h>
@@ -63,7 +64,7 @@ int Socket_makeMTUFragment(int sock)
     int res = -1;
     #ifdef win32
         int flag = 0;
-        res = setsockopt(sock, SOL_IP, IP_DONTFRAGMENT, &flag, sizeof(flag));
+        res = setsockopt(sock, IPPROTO_IP, IP_DONTFRAGMENT, (char *)&flag, sizeof(flag));
     #endif
     #ifdef linux
         int flag = IP_PMTUDISC_DONT;
@@ -83,7 +84,7 @@ bool Socket_getMTUFragment(int sock)
     #ifdef win32
         int flag = 0;
         len = sizeof(flag);
-        if (!getsockopt(sock, SOL_IP, IP_DONTFRAGMENT, &flag, &len) &&
+        if (!getsockopt(sock, IPPROTO_IP, IP_DONTFRAGMENT, (char *)&flag, &len) &&
              flag) {
             res = true;
         }

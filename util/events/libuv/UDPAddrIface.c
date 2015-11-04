@@ -274,7 +274,11 @@ struct UDPAddrIface* UDPAddrIface_new(struct EventBase* eventBase,
                      uv_strerror(ret));
     }
 
-    Socket_makeMTUFragment(context->uvHandle.io_watcher.fd);
+    #ifdef win32
+        Socket_makeMTUFragment(context->uvHandle.socket);
+    #else
+        Socket_makeMTUFragment(context->uvHandle.io_watcher.fd);
+    #endif
 
     ret = uv_udp_recv_start(&context->uvHandle, allocate, incoming);
     if (ret) {
