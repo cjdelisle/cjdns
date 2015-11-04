@@ -38,8 +38,6 @@ int main(int argc, char** argv)
 
     // Now setup the NDP server so the tun will work correctly.
     struct NDPServer* ndp = NDPServer_new(&tapWrapper->internal, log, TAPWrapper_LOCAL_MAC, alloc);
-    ndp->advertisePrefix[0] = 0xfd;
-    ndp->prefixLen = 8;
 
     NetDev_addAddress(assignedIfName, addrA, 126, log, NULL);
 

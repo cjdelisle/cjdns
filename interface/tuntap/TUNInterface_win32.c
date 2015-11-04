@@ -34,9 +34,5 @@ struct Iface* TUNInterface_new(const char* interfaceName,
     struct NDPServer* ndp =
         NDPServer_new(&tapWrapper->internal, logger, TAPWrapper_LOCAL_MAC, alloc);
 
-    // TODO(cjd): this is not right
-    ndp->advertisePrefix[0] = 0xfc;
-    ndp->prefixLen = 8;
-
     return &ndp->internal;
 }
