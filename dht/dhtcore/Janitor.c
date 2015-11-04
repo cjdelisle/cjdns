@@ -445,22 +445,14 @@ static void getPeersMill(struct Janitor_pvt* janitor, struct Address* addr)
     // Therefore we will always ping the node which we believe to be at the end of the
     // path and if there is an error, we will flush the link rediscover the path later.
     // Don't use a random target if we actually know a useful one.
-    uint64_t targetLabel = Random_uint32(janitor->rand);
     struct Node_Link* nl = NodeStore_linkForPath(janitor->nodeStore, addr->path);
     if (nl) {
         addr = &nl->child->address;
-        struct Node_Link* link = NULL;
-        while ((link = NodeStore_nextLink(nl->child, link))) {
-            if (!Node_isOneHopLink(link) && link == Node_getBestParent(link->child)) {
-                targetLabel = nl->cannonicalLabel;
-                break;
-            }
-        }
     }
 
     struct RouterModule_Promise* rp =
         RouterModule_getPeers(addr,
-                              targetLabel,
+                              0,
                               0,
                               janitor->routerModule,
                               janitor->allocator);

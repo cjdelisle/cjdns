@@ -340,7 +340,8 @@ static inline int handleQuery(struct DHTMessage* message,
         targetPath = Endian_bigEndianToHost64(targetPath);
 
         nodeList =
-            NodeStore_getPeers(targetPath, RouterModule_K, message->allocator, module->nodeStore);
+            NodeStore_getPeers(targetPath, NumberCompress_INTERFACES,
+                    message->allocator, module->nodeStore);
 
     } else if (String_equals(queryType, CJDHTConstants_QUERY_NH)) {
         // get the target

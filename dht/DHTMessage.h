@@ -21,7 +21,7 @@
  * Maximum number of bytes in a message.
  * Ethernet MTU is 1500 so it's hard to imagine much more.
  */
-#define DHTMessage_MAX_SIZE 1536
+#define DHTMessage_MAX_SIZE 65500
 
 
 /**
