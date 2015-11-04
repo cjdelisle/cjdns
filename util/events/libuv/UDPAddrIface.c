@@ -19,6 +19,7 @@
 #include "memory/Allocator.h"
 #include "util/events/libuv/EventBase_pvt.h"
 #include "util/platform/Sockaddr.h"
+#include "util/platform/Socket.h"
 #include "util/Assert.h"
 #include "util/Identity.h"
 #include "wire/Message.h"
@@ -121,7 +122,7 @@ static Iface_DEFUN incomingFromIface(struct Message* m, struct Iface* iface)
     };
 
     int ret = 0;
-    uv_udp_send(&req->uvReq, &context->uvHandle, buffers, 1,
+    ret = uv_udp_send(&req->uvReq, &context->uvHandle, buffers, 1,
                 (const struct sockaddr*)ss.nativeAddr, (uv_udp_send_cb)&sendComplete);
 
     if (ret) {
@@ -272,6 +273,8 @@ struct UDPAddrIface* UDPAddrIface_new(struct EventBase* eventBase,
         Except_throw(exHandler, "call to uv_udp_bind() failed [%s]",
                      uv_strerror(ret));
     }
+
+    Socket_makeMTUFragment(context->uvHandle.io_watcher.fd);
 
     ret = uv_udp_recv_start(&context->uvHandle, allocate, incoming);
     if (ret) {

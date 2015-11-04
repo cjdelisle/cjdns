@@ -282,6 +282,7 @@ struct ETHInterface* ETHInterface_new(struct EventBase* eventBase,
     }
 
     Socket_makeNonBlocking(ctx->socket);
+    Socket_makeMTUFragment(ctx->socket);
 
     Event_socketRead(handleEvent, ctx, ctx->socket, eventBase, alloc, exHandler);
 

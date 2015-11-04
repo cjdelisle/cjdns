@@ -13,6 +13,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "util/platform/Socket.h"
+#include <netinet/ip.h>
 
 #ifdef win32
     #include <winsock2.h>
@@ -55,6 +56,55 @@ int Socket_makeReusable(int sock)
     #else
         return 0;
     #endif
+}
+
+int Socket_makeMTUFragment(int sock)
+{
+    int res = -1;
+    #ifdef win32
+        int flag = 0;
+        res = setsockopt(sock, SOL_IP, IP_DONTFRAGMENT, &flag, sizeof(flag));
+    #endif
+    #ifdef linux
+        int flag = IP_PMTUDISC_DONT;
+        res = setsockopt(sock, SOL_IP, IP_MTU_DISCOVER, &flag, sizeof(flag));
+    #endif
+    #ifdef Darwin
+        int flag = 0;
+        res = setsockopt(sock, SOL_IP, IP_DONTFRAG, &flag, sizeof(flag));
+    #endif
+    return res;
+}
+
+bool Socket_getMTUFragment(int sock)
+{
+    bool res = false;
+    int len = 0;
+    #ifdef win32
+        int flag = 0;
+        len = sizeof(flag);
+        if (!getsockopt(sock, SOL_IP, IP_DONTFRAGMENT, &flag, &len) &&
+             flag) {
+            res = true;
+        }
+    #endif
+    #ifdef linux
+        int flag = IP_PMTUDISC_DONT;
+        len = sizeof(flag);
+        if (!getsockopt(sock, SOL_IP, IP_MTU_DISCOVER, &flag, &len) &&
+             flag == IP_PMTUDISC_DONT) {
+            res = true;
+        }
+    #endif
+    #ifdef Darwin
+        int flag = 0;
+        len = sizeof(flag);
+        if (!getsockopt(sock, SOL_IP, IP_DONTFRAG, &flag, &len) &&
+             flag) {
+            res = true;
+        }
+    #endif
+    return res;
 }
 
 int Socket_close(int sock)

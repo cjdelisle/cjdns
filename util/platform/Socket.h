@@ -21,11 +21,14 @@
 Linker_require("util/platform/Socket.c")
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #define Socket int
 
 int Socket_makeNonBlocking(int sock);
 int Socket_makeReusable(int sock);
+int Socket_makeMTUFragment(int sock);
+bool Socket_getMTUFragment(int sock);
 
 int Socket_close(int sock);
 
