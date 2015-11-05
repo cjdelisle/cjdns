@@ -163,7 +163,10 @@ static void _checkNode(struct Node_Two* node, struct NodeStore_pvt* store, char*
         Assert_fileLine(Node_getBestParent(node) || Node_getBestParent(link->child) != link,
                         file, line);
         Assert_fileLine(link->parent == node, file, line);
-        Assert_fileLine(link->child != node || link == store->selfLink, file, line);
+
+        // It's ok for a node to link back to itself via some loopy route
+        //Assert_fileLine(link->child != node || link == store->selfLink, file, line);
+
         Assert_fileLine(!lastLink || link->cannonicalLabel != lastLink->cannonicalLabel,
                         file, line);
         Assert_fileLine(link->cannonicalLabel < UINT64_MAX && link->cannonicalLabel > 0,
