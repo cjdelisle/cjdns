@@ -5,7 +5,7 @@
 Name:           cjdns
 # major version is cjdns protocol version:
 Version:        17.1
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        The privacy-friendly network without borders
 Group:          System Environment/Base
 License:        GPL3
@@ -36,6 +36,8 @@ Patch3:  cjdns.setgid.patch
 Patch4:  cjdns.genconf.patch
 # Patch contributed init scripts to put cjdroute in /usr/sbin
 Patch5:  cjdns.sbin.patch
+# Patch make.js to use dynamic nacl library
+Patch6:  cjdns.dyn.patch
 
 # FIXME: selinux prevents cjdroute from writing to /etc/cjdroute.conf
 # at first startup when run by the supplied init service scripts.  This is
@@ -44,13 +46,11 @@ Patch5:  cjdns.sbin.patch
 BuildRequires:  nodejs, make
 
 %if 0%{?rhel} != 6
-# Comment to use embedded nacl library, e.g. x86_64 and ARM libnacl are not
-# compiled with -fPIC, and cannot be used.
-%ifarch i686
+# x86_64 and ARM libnacl are not compiled with -fPIC before f24, and cannot be
+# used, but we require nacl-devel anyway, since it will be used in f24, and
+# possibly f23.
 BuildRequires:  nacl-devel
 %endif
-%endif
-#Requires:       
 Requires(pre): shadow-utils
 
 %description
@@ -104,21 +104,20 @@ Python graphing tools for cjdns.
 %patch4 -b .genconf
 %patch5 -b .sbin
 
-# use system nacl library if provided.  Only static library provided.
-# FIXME: nacl-devel on x86_64 fails to provide PIC object, so we have to use
-# embedded nacl.  It seems nasty to build x86_64 and i686 from different
-# source, so I punt and use embedded nacl for both.  The embedded version
-# is the same as currently provided statically in Fedora, with a few tweaks for
-# CPUs that Fedora doesn't support.
-%ifnarch x86_64
-if test -d %{_includedir}/nacl && test -r %{_libdir}/libnacl.a; then
+# use system nacl library if provided.  
+# nacl-devel on x86_64 and ARM fails to provide PIC object, so we have to use
+# embedded nacl.  
+if test -x %{_libdir}/libnacl.so; then
+%patch6 -b .dyn
+%ifarch i686
+elif test -d %{_includedir}/nacl && test -r %{_libdir}/libnacl.a; then
   cd node_build/dependencies
   mv cnacl cnacl.embedded
   mkdir -p cnacl/jsbuild
   ln -s %{_libdir}/libnacl.a cnacl/jsbuild
   ln -s %{_includedir}/nacl cnacl/jsbuild/include
-fi
 %endif
+fi
 
 # FIXME: grep Version_CURRENT_PROTOCOL util/version/Version.h and
 # check that it matches major %%{version}
@@ -319,9 +318,12 @@ fi
 %{_bindir}/graphStats
 
 %changelog
-* Thu Oct 29 2015 Stuart D. Gathman <stuart@gathman.org> 17.1-1
-- TODO: use dynamic nacl library backported from rawhide
+* Wed Nov 04 2015 Stuart D. Gathman <stuart@gathman.org> 17.1-2
+- use dynamic nacl library backported from rawhide
 - TODO: generate default config at install time, not first start
+
+* Tue Nov 03 2015 Stuart D. Gathman <stuart@gathman.org> 17.1-1
+- update to new protocol version
 
 * Tue Oct 27 2015 Stuart D. Gathman <stuart@gathman.org> 16.3-2
 - move graphing tools to graph subpackage: networkx has a lot of dependencies.

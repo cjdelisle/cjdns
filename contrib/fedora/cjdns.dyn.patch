@@ -1,7 +1,7 @@
 diff -up ./node_build/make.js.dyn ./node_build/make.js
---- ./node_build/make.js.dyn	2015-08-28 17:32:11.000000000 -0400
-+++ ./node_build/make.js	2015-10-29 15:17:43.813553073 -0400
-@@ -235,41 +235,8 @@ Builder.configure({
+--- ./node_build/make.js.dyn	2015-11-02 17:59:41.000000000 -0500
++++ ./node_build/make.js	2015-11-04 19:57:49.961155943 -0500
+@@ -238,41 +238,9 @@ Builder.configure({
  
      }).nThen(function (waitFor) {
  
@@ -41,7 +41,17 @@ diff -up ./node_build/make.js.dyn ./node_build/make.js
 -            }));
 -        }));
 +        builder.config.libs.push('-lnacl');
++        builder.config.libs.push('-lstdc++');
 +        builder.config.includeDirs.push('/usr/include/nacl/');
  
      }).nThen(function (waitFor) {
  
+@@ -411,7 +379,7 @@ Builder.configure({
+     builder.buildExecutable('crypto/random/randombytes.c');
+ 
+     builder.lintFiles(function (fileName, file, callback) {
+-        if (/dependencies/.test(fileName)) {
++        if (/(dependencies|\/usr\/include)/.test(fileName)) {
+             callback('', false);
+             return;
+         }
