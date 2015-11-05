@@ -3,7 +3,7 @@ var Spawn = require('child_process').spawn;
 
 var getversion = module.exports = function (callback) {
     nThen(function (waitFor) {
-        var child = Spawn('git', ['describe', '--always', '--dirty']);
+        var child = Spawn('git', ['describe', '--always', '--dirty', '--tags']);
         child.stdout.on('data', function(data) {
             callback(data);
         });
