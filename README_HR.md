@@ -5,14 +5,9 @@ README na Engleskom: [README.md](README.md)
 #### *Umrežavanje iznova*
 
 Cjdns provodi šifriranu IPv6 mrežu koristeći public-key kriptografiju za
-dodjelu adresa i distribuiranu "hash" tablicu za usmjeravanje. To omogućuje
+dodjelu adresa i distribuiranu hash tablicu za usmjeravanje. To omogućuje
 gotovo nikakvu mrežnu konfiguraciju i sprječava mnoge sigurnosne i
 skalabilne probleme koje muče trenutne mreže.
-
-Cjdns implements an encrypted IPv6 network using public-key cryptography for
-address allocation and a distributed hash table for routing. This provides
-near-zero-configuration networking, and prevents many of the security and
-scalability issues that plague existing networks.
 
 [![Build Status](https://travis-ci.org/cjdelisle/cjdns.svg?branch=master)](https://travis-ci.org/cjdelisle/cjdns)
 [![napojnica za sljedeću promjenu](https://tip4commit.com/projects/941.svg)](https://tip4commit.com/github/cjdelisle/cjdns)
@@ -69,8 +64,7 @@ in the label tell them to. Routers have a responsibility to "keep in touch"
 with other routers that are physically close by and numerically near to their
 address.
 
-The router engine is a modified implementation of the [Kademlia][] distributed
-hash table.
+Motor usmjerivača je modificirana implementacija [Kademlia][] ddistribuirane hash tablice.
 
 
 ## Zajednica
@@ -419,7 +413,7 @@ Možete pristupiti administratorskom API-ju putem:
 [Buildbots]: https://buildbot.meshwith.me/cjdns/waterfall
 
 [Cjdns na Wikepediji]: https://en.wikipedia.org/wiki/Cjdns
-[Distributed Hash Table]: https://en.wikipedia.org/wiki/Distributed_hash_table
+[Distribuirana hash tablica]: https://en.wikipedia.org/wiki/Distributed_hash_table
 [Beyond Pain]: https://lists.torproject.org/pipermail/tor-dev/2012-October/004063.html
 [Kademlia]: https://en.wikipedia.org/wiki/Kademlia
 
