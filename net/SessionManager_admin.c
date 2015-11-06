@@ -93,7 +93,7 @@ static void sessionStats(Dict* args,
     Dict_putInt(r, String_CONST("receivedOutOfRange"), rp->receivedOutOfRange, alloc);
 
     struct Address addr;
-    Bits_memcpyConst(addr.key, session->caSession->herPublicKey, 32);
+    Bits_memcpy(addr.key, session->caSession->herPublicKey, 32);
     addr.path = session->sendSwitchLabel;
     addr.protocolVersion = session->version;
 

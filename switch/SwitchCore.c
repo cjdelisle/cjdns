@@ -255,9 +255,9 @@ void SwitchCore_swapInterfaces(struct Iface* userIf1, struct Iface* userIf2)
     Assert_true(Allocator_cancelOnFree(si2->onFree) > -1);
 
     struct SwitchInterface si3;
-    Bits_memcpyConst(&si3, si1, sizeof(struct SwitchInterface));
-    Bits_memcpyConst(si1, si2, sizeof(struct SwitchInterface));
-    Bits_memcpyConst(si2, &si3, sizeof(struct SwitchInterface));
+    Bits_memcpy(&si3, si1, sizeof(struct SwitchInterface));
+    Bits_memcpy(si1, si2, sizeof(struct SwitchInterface));
+    Bits_memcpy(si2, &si3, sizeof(struct SwitchInterface));
 
     si1->onFree = Allocator_onFree(si1->alloc, removeInterface, si1);
     si2->onFree = Allocator_onFree(si2->alloc, removeInterface, si2);

@@ -57,7 +57,7 @@ static int get(struct RandomSeed* rs, uint64_t buffer[8])
         }
     }
     Assert_true(sizeof(buff.output) == 64);
-    Bits_memcpyConst(buffer, buff.output, 64);
+    Bits_memcpy(buffer, buff.output, 64);
 
     if (successCount > 0) {
         Log_info(ctx->logger, "Seeding random number generator succeeded with [%d] sources",

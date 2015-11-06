@@ -118,6 +118,6 @@ struct Allocator* BufferAllocator__new(void* buffer,
     Identity_set(&stackAlloc);
     struct BufferAllocator_pvt* alloc =
         allocatorMalloc(&stackAlloc, sizeof(struct BufferAllocator_pvt));
-    Bits_memcpyConst(alloc, &stackAlloc, sizeof(struct BufferAllocator_pvt));
+    Bits_memcpy(alloc, &stackAlloc, sizeof(struct BufferAllocator_pvt));
     return Allocator_new(0, provideMemory, alloc, file, line);
 }

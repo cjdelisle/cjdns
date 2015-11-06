@@ -44,7 +44,7 @@ static inline void printHexKey(uint8_t output[65], uint8_t key[32])
     if (key) {
         Hex_encode(output, 65, key, 32);
     } else {
-        Bits_memcpyConst(output, "NULL", 5);
+        Bits_memcpy(output, "NULL", 5);
     }
 }
 
@@ -89,7 +89,7 @@ static inline void getSharedSecret(uint8_t outputSecret[32],
         } buff;
 
         crypto_scalarmult_curve25519(buff.components.key, myPrivateKey, herPublicKey);
-        Bits_memcpyConst(buff.components.passwd, passwordHash, 32);
+        Bits_memcpy(buff.components.passwd, passwordHash, 32);
         crypto_hash_sha256(outputSecret, buff.bytes, 64);
     }
     if (Defined(Log_KEYS)) {
@@ -126,7 +126,7 @@ static inline void hashPassword(uint8_t secretOut[32],
     } else {
         Assert_failure("Unsupported auth type [%u]", authType);
     }
-    Bits_memcpyConst(challengeOut, tempBuff, CryptoHeader_Challenge_SIZE);
+    Bits_memcpy(challengeOut, tempBuff, CryptoHeader_Challenge_SIZE);
     CryptoHeader_setAuthChallengeDerivations(challengeOut, 0);
     challengeOut->type = authType;
     challengeOut->additional = 0;
@@ -180,7 +180,7 @@ static inline Gcc_USE_RET int decryptRndNonce(uint8_t nonce[24],
     Assert_true(msg->padding >= 16);
     uint8_t* startAt = msg->bytes - 16;
     uint8_t paddingSpace[16];
-    Bits_memcpyConst(paddingSpace, startAt, 16);
+    Bits_memcpy(paddingSpace, startAt, 16);
     Bits_memset(startAt, 0, 16);
     if (!Defined(NSA_APPROVED)) {
         if (crypto_box_curve25519xsalsa20poly1305_open_afternm(
@@ -190,7 +190,7 @@ static inline Gcc_USE_RET int decryptRndNonce(uint8_t nonce[24],
         }
     }
 
-    Bits_memcpyConst(startAt, paddingSpace, 16);
+    Bits_memcpy(startAt, paddingSpace, 16);
     Message_shift(msg, -16, NULL);
     return 0;
 }
@@ -211,14 +211,14 @@ static inline void encryptRndNonce(uint8_t nonce[24],
     uint8_t* startAt = msg->bytes - 32;
     // This function trashes 16 bytes of the padding so we will put it back
     uint8_t paddingSpace[16];
-    Bits_memcpyConst(paddingSpace, startAt, 16);
+    Bits_memcpy(paddingSpace, startAt, 16);
     Bits_memset(startAt, 0, 32);
     if (!Defined(NSA_APPROVED)) {
         crypto_box_curve25519xsalsa20poly1305_afternm(
             startAt, startAt, msg->length + 32, nonce, secret);
     }
 
-    Bits_memcpyConst(startAt, paddingSpace, 16);
+    Bits_memcpy(startAt, paddingSpace, 16);
     Message_shift(msg, 16, NULL);
 }
 
@@ -337,7 +337,7 @@ static void encryptHandshake(struct Message* message,
                  CryptoHeader_Challenge_SIZE + 24);
 
     // set the permanent key
-    Bits_memcpyConst(header->publicKey, session->context->pub.publicKey, 32);
+    Bits_memcpy(header->publicKey, session->context->pub.publicKey, 32);
 
     Assert_true(knowHerKey(session));
 
@@ -377,7 +377,7 @@ static void encryptHandshake(struct Message* message,
         }
     }
 
-    Bits_memcpyConst(header->encryptedTempKey, session->ourTempPubKey, 32);
+    Bits_memcpy(header->encryptedTempKey, session->ourTempPubKey, 32);
 
     if (Defined(Log_KEYS)) {
         uint8_t tempKeyHex[65];
@@ -697,7 +697,7 @@ static Gcc_USE_RET int decryptHandshake(struct CryptoAuth_Session_pvt* session,
     if (nextNonce == 4) {
         if (session->nextNonce <= 4) {
             // and have not yet begun sending "run" data
-            Bits_memcpyConst(session->herTempPubKey, header->encryptedTempKey, 32);
+            Bits_memcpy(session->herTempPubKey, header->encryptedTempKey, 32);
         } else {
             // It's a (possibly repeat) key packet and we have begun sending run data.
             // We will change the shared secret to the one specified in the new key packet but
@@ -735,7 +735,7 @@ static Gcc_USE_RET int decryptHandshake(struct CryptoAuth_Session_pvt* session,
             nextNonce = 3;
         }
 
-        Bits_memcpyConst(session->herTempPubKey, header->encryptedTempKey, 32);
+        Bits_memcpy(session->herTempPubKey, header->encryptedTempKey, 32);
 
     } else if (Bits_memcmp(session->pub.herPublicKey, session->context->pub.publicKey, 32) < 0) {
         // It's a hello and we are the initiator but their permant public key is numerically lower
@@ -744,7 +744,7 @@ static Gcc_USE_RET int decryptHandshake(struct CryptoAuth_Session_pvt* session,
         cryptoAuthDebug0(session, "Incoming hello from node with lower key, resetting");
         reset(session);
 
-        Bits_memcpyConst(session->herTempPubKey, header->encryptedTempKey, 32);
+        Bits_memcpy(session->herTempPubKey, header->encryptedTempKey, 32);
 
     } else {
         cryptoAuthDebug0(session, "DROP Incoming hello from node with higher key, not resetting");
@@ -800,7 +800,7 @@ int CryptoAuth_decrypt(struct CryptoAuth_Session* sessionPub, struct Message* ms
 
             if (decryptMessage(session, nonce, msg, secret)) {
                 cryptoAuthDebug0(session, "Final handshake step succeeded");
-                Bits_memcpyConst(session->sharedSecret, secret, 32);
+                Bits_memcpy(session->sharedSecret, secret, 32);
 
                 // Now we're in run mode, no more handshake packets will be accepted
                 Bits_memset(session->ourTempPrivKey, 0, 32);
@@ -856,7 +856,7 @@ struct CryptoAuth* CryptoAuth_new(struct Allocator* allocator,
     ca->rand = rand;
 
     if (privateKey != NULL) {
-        Bits_memcpyConst(ca->privateKey, privateKey, 32);
+        Bits_memcpy(ca->privateKey, privateKey, 32);
     } else {
         Random_bytes(rand, ca->privateKey, 32);
     }
@@ -899,9 +899,9 @@ int CryptoAuth_addUser_ipv6(String* password,
     struct CryptoHeader_Challenge ac;
     // Users specified with a login field might want to use authType 1 still.
     hashPassword(user->secret, &ac, login, password, 2);
-    Bits_memcpyConst(user->userNameHash, &ac, CryptoHeader_Challenge_KEYSIZE);
+    Bits_memcpy(user->userNameHash, &ac, CryptoHeader_Challenge_KEYSIZE);
     hashPassword(user->secret, &ac, NULL, password, 1);
-    Bits_memcpyConst(user->passwordHash, &ac, CryptoHeader_Challenge_KEYSIZE);
+    Bits_memcpy(user->passwordHash, &ac, CryptoHeader_Challenge_KEYSIZE);
 
     for (struct CryptoAuth_User* u = ca->users; u; u = u->next) {
         if (Bits_memcmp(user->secret, u->secret, 32)) {
@@ -913,7 +913,7 @@ int CryptoAuth_addUser_ipv6(String* password,
     }
 
     if (ipv6) {
-        Bits_memcpyConst(user->restrictedToip6, ipv6, 16);
+        Bits_memcpy(user->restrictedToip6, ipv6, 16);
     }
 
     // Add the user to the *end* of the list
@@ -981,10 +981,10 @@ struct CryptoAuth_Session* CryptoAuth_newSession(struct CryptoAuth* ca,
     session->alloc = alloc;
 
     Assert_true(herPublicKey);
-    Bits_memcpyConst(session->pub.herPublicKey, herPublicKey, 32);
+    Bits_memcpy(session->pub.herPublicKey, herPublicKey, 32);
     uint8_t calculatedIp6[16];
     AddressCalc_addressForPublicKey(calculatedIp6, herPublicKey);
-    Bits_memcpyConst(session->pub.herIp6, calculatedIp6, 16);
+    Bits_memcpy(session->pub.herIp6, calculatedIp6, 16);
 
     return &session->pub;
 }

@@ -633,7 +633,7 @@ struct Allocator* Allocator__child(struct Allocator* allocator, const char* file
 
     struct Allocator_pvt* child =
         newAllocation(&stackChild, sizeof(struct Allocator_pvt), file, line);
-    Bits_memcpyConst(child, &stackChild, sizeof(struct Allocator_pvt));
+    Bits_memcpy(child, &stackChild, sizeof(struct Allocator_pvt));
 
     // Link the child into the parent's allocator list
     connect(parent, child, file, line);

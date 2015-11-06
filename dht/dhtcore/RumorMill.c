@@ -100,7 +100,7 @@ void RumorMill__addNode(struct RumorMill* mill, struct Address* addr, const char
     } else {
         replace = getWorst(rm);
     }
-    Bits_memcpyConst(replace, addr, sizeof(struct Address));
+    Bits_memcpy(replace, addr, sizeof(struct Address));
 
     if (Defined(Log_DEBUG)) {
         uint8_t addrStr[60];
@@ -116,12 +116,12 @@ bool RumorMill_getNode(struct RumorMill* mill, struct Address* output)
     if (!rm->pub.count) { return false; }
     struct Address* best = getBest(rm);
     if (output) {
-        Bits_memcpyConst(output, best, sizeof(struct Address));
+        Bits_memcpy(output, best, sizeof(struct Address));
     }
 
     rm->pub.count--;
     if (&rm->pub.addresses[rm->pub.count] != best) {
-        Bits_memcpyConst(best, &rm->pub.addresses[rm->pub.count], sizeof(struct Address));
+        Bits_memcpy(best, &rm->pub.addresses[rm->pub.count], sizeof(struct Address));
     }
     return true;
 }

@@ -769,7 +769,7 @@ static struct Node_Two* nodeForIp(struct NodeStore_pvt* store, uint8_t ip[16])
 {
     struct Node_Two fakeNode;
     Identity_set(&fakeNode);
-    Bits_memcpyConst(fakeNode.address.ip6.bytes, ip, 16);
+    Bits_memcpy(fakeNode.address.ip6.bytes, ip, 16);
     return Identity_ncheck(RB_FIND(NodeRBTree, &store->nodeTree, &fakeNode));
 }
 
@@ -1323,7 +1323,7 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
         alloc = Allocator_child(store->alloc);
         child = Allocator_calloc(alloc, sizeof(struct Node_Two), 1);
         child->alloc = alloc;
-        Bits_memcpyConst(&child->address, addr, sizeof(struct Address));
+        Bits_memcpy(&child->address, addr, sizeof(struct Address));
         child->encodingScheme = EncodingScheme_clone(scheme, child->alloc);
         child->timeLastPinged = Time_currentTimeMilliseconds(store->eventBase);
         Identity_set(child);
@@ -1585,7 +1585,7 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
 
     // Create the self node
     struct Node_Two* selfNode = Allocator_calloc(alloc, sizeof(struct Node_Two), 1);
-    Bits_memcpyConst(&selfNode->address, myAddress, sizeof(struct Address));
+    Bits_memcpy(&selfNode->address, myAddress, sizeof(struct Address));
     selfNode->encodingScheme = NumberCompress_defineScheme(alloc);
     selfNode->alloc = alloc;
     Identity_set(selfNode);
@@ -1802,7 +1802,7 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* nodeStore,
     out->size = count;
 
     struct Node_Two fakeNode = { .marked = 0 };
-    Bits_memcpyConst(&fakeNode.address, targetAddress, sizeof(struct Address));
+    Bits_memcpy(&fakeNode.address, targetAddress, sizeof(struct Address));
 
     struct Node_Two* next = Identity_ncheck(RB_NFIND(NodeRBTree, &store->nodeTree, &fakeNode));
     if (!next) {
@@ -1863,7 +1863,7 @@ static void brokenLink(struct NodeStore_pvt* store, struct Node_Link* brokenLink
 static void addLinkToMill(struct NodeStore_pvt* store, struct Node_Link* link)
 {
     struct Address addr;
-    Bits_memcpyConst(&addr, &link->child->address, sizeof(struct Address));
+    Bits_memcpy(&addr, &link->child->address, sizeof(struct Address));
     addr.path =
         NodeStore_getRouteLabel(&store->pub, link->parent->address.path, link->cannonicalLabel);
     Assert_true(!NodeStore_getRouteLabel_ERR(addr.path));

@@ -64,11 +64,11 @@ static Iface_DEFUN answerARP(struct Message* msg, struct ARPServer_pvt* as)
     // Swap sender with target.
     // 10 = Eth_Len + IP4_Len
     uint8_t tmp[10];
-    Bits_memcpyConst(tmp, arp.sha, 10);
-    Bits_memcpyConst(arp.sha, arp.tha, 10);
-    Bits_memcpyConst(arp.tha, tmp, 10);
+    Bits_memcpy(tmp, arp.sha, 10);
+    Bits_memcpy(arp.sha, arp.tha, 10);
+    Bits_memcpy(arp.tha, tmp, 10);
     // Set our MAC as source
-    Bits_memcpyConst(arp.sha, as->localMac, Ethernet_ADDRLEN);
+    Bits_memcpy(arp.sha, as->localMac, Ethernet_ADDRLEN);
     // Set answer opcode.
     arp.prefix.operation = ARPHeader_OP_A;
 
@@ -113,7 +113,7 @@ struct ARPServer* ARPServer_new(struct Iface* external,
     Iface_plumb(&out->external, external);
     out->pub.internal.send = sendMessage;
     out->log = log;
-    Bits_memcpyConst(out->localMac, localMac, Ethernet_ADDRLEN);
+    Bits_memcpy(out->localMac, localMac, Ethernet_ADDRLEN);
     return &out->pub;
 }
 
