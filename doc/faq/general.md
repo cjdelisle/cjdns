@@ -54,9 +54,6 @@ There are limits to the size of any node's routing table, but at hyperboria's cu
 
 ## What is Hyperboria's solution for DNS?  
 
-* HypeDNS
-* RainflyDNS
-* Parabolic DNS
 * why not namecoin?
 
 ## What crypto does cjdns use?  
