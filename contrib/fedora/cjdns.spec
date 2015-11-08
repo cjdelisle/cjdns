@@ -138,7 +138,9 @@ cd -
 # does bundled cnacl include any patches?
 
 %install
-rm -rf $RPM_BUILD_ROOT
+%if 0%{?rhel} == 5
+ rm -rf $RPM_BUILD_ROOT  # needed on RHEL5
+%endif
 mkdir -p $RPM_BUILD_ROOT%{_sbindir}
 cp -p cjdroute $RPM_BUILD_ROOT%{_sbindir}
 
@@ -198,7 +200,6 @@ for t in drawgraph dumpgraph graphStats; do
 done
 
 %files
-%defattr(-,root,root,-)
 %{!?_licensedir:%global license %%doc}
 %license LICENSE
 %doc README.md README_RU.md HACKING.md 
@@ -243,7 +244,6 @@ fi
 %endif
 
 %files selinux
-%defattr(-,root,root,-)
 %doc cjdns.te cjdns.fc 
 %{_datadir}/selinux/targeted/*
 
@@ -258,7 +258,6 @@ if [ $1 -eq 0 ] ; then
 fi
 
 %files tools
-%defattr(-,root,root,-)
 %dir %{_libdir}/cjdns
 %{_libdir}/cjdns/contrib
 %{_libdir}/cjdns/tools
@@ -280,7 +279,6 @@ fi
 
 %files python
 %doc contrib/python/README.md contrib/python/cjdns-dynamic.conf
-%defattr(-,root,root,-)
 %dir %{_libdir}/cjdns/python
 %{_libdir}/cjdns/python/cexec
 %{_libdir}/cjdns/python/cjdnsadminmaker.py*
@@ -309,7 +307,6 @@ fi
 %{_bindir}/findnodes
 
 %files graph
-%defattr(-,root,root,-)
 %{_libdir}/cjdns/python/drawgraph
 %{_libdir}/cjdns/python/dumpgraph
 %{_libdir}/cjdns/python/graphStats
