@@ -327,7 +327,7 @@ struct AdminClient* AdminClient_new(struct AddrIface* ai,
         if (Bits_isZero(addrBytes, len)) {
             // 127.0.0.1
             uint32_t loopback = Endian_hostToBigEndian32(0x7f000001);
-            Bits_memcpyConst(addrBytes, &loopback, 4);
+            Bits_memcpy(addrBytes, &loopback, 4);
         }
     }
     Log_debug(logger, "Connecting to [%s]", Sockaddr_print(context->targetAddr, alloc));

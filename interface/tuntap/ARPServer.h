@@ -12,27 +12,24 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef Ethernet_H
-#define Ethernet_H
+#ifndef ARPServer_H
+#define ARPServer_H
 
-#include "util/Endian.h"
+#include "interface/Iface.h"
+#include "memory/Allocator.h"
+#include "util/log/Log.h"
+#include "wire/Ethernet.h"
+#include "util/Linker.h"
+Linker_require("interface/tuntap/ARPServer.c")
 
-/** It's not about to change but it makes for more readable code. */
-#define Ethernet_ADDRLEN 6
-
-struct Ethernet
+struct ARPServer
 {
-    uint16_t pad;
-    uint8_t destAddr[Ethernet_ADDRLEN];
-    uint8_t srcAddr[Ethernet_ADDRLEN];
-    uint16_t ethertype;
+    struct Iface internal;
 };
-#define Ethernet_SIZE 16
-Assert_compileTime(sizeof(struct Ethernet) == Ethernet_SIZE);
 
-#define Ethernet_TYPE_IP4   Endian_hostToBigEndian16( 0x0800 )
-#define Ethernet_TYPE_ARP   Endian_hostToBigEndian16( 0x0806 )
-#define Ethernet_TYPE_IP6   Endian_hostToBigEndian16( 0x86DD )
-#define Ethernet_TYPE_CJDNS Endian_hostToBigEndian16( 0xFC00 )
+struct ARPServer* ARPServer_new(struct Iface* external,
+                                struct Log* log,
+                                uint8_t localMac[Ethernet_ADDRLEN],
+                                struct Allocator* alloc);
 
 #endif

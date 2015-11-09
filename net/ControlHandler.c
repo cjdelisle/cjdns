@@ -95,7 +95,7 @@ static Iface_DEFUN handlePing(struct Message* msg,
         struct Control_KeyPing* keyPing = (struct Control_KeyPing*) msg->bytes;
         keyPing->magic = Control_KeyPong_MAGIC;
         ctrl->header.type_be = Control_KEYPONG_be;
-        Bits_memcpyConst(keyPing->key, ch->myPublicKey, 32);
+        Bits_memcpy(keyPing->key, ch->myPublicKey, 32);
 
     } else if (messageType_be == Control_PING_be) {
         Log_debug(ch->log, "got switch ping from [%s]", labelStr);
@@ -204,7 +204,7 @@ struct ControlHandler* ControlHandler_new(struct Allocator* allocator,
     struct ControlHandler_pvt* ch = Allocator_calloc(alloc, sizeof(struct ControlHandler_pvt), 1);
     ch->alloc = alloc;
     ch->log = logger;
-    Bits_memcpyConst(ch->myPublicKey, myPublicKey, 32);
+    Bits_memcpy(ch->myPublicKey, myPublicKey, 32);
     ch->pub.coreIf.send = incomingFromCore;
     ch->pub.switchPingerIf.send = incomingFromSwitchPinger;
     EventEmitter_regCore(ee, &ch->eventIf, 0);

@@ -140,7 +140,7 @@ static void responseCallback(struct RouterModule_Promise* promise,
     struct Janitor_Search* search = Identity_check((struct Janitor_Search*)promise->userData);
     if (from) {
         blacklist(search->janitor, from->path);
-        Bits_memcpyConst(&search->best, from, sizeof(struct Address));
+        Bits_memcpy(&search->best, from, sizeof(struct Address));
         return;
     }
 
@@ -181,7 +181,7 @@ static void search(uint8_t target[16], struct Janitor_pvt* janitor)
         .alloc = searchAlloc,
     }));
     Identity_set(search);
-    Bits_memcpyConst(search->target, target, 16);
+    Bits_memcpy(search->target, target, 16);
 
     rp->callback = responseCallback;
     rp->userData = search;

@@ -27,8 +27,8 @@ scalability issues that plague existing networks.
     00:36 < tester> i value speed over anonymity any day
 
     <DuoNoxSol> it's notably more reliable than the normal internet
-    <DuoNoxSol> even though it really really shouldn't be
-    <DuoNoxSol> seeing as the connections are largely over the normal internet
+
+    09:46 < Kubuxu> I so love cjdns code base
 
 ## Community
 

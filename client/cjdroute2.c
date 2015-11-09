@@ -38,6 +38,7 @@
 #include "util/Assert.h"
 #include "util/Base32.h"
 #include "util/CString.h"
+#include "util/Defined.h"
 #include "util/events/UDPAddrIface.h"
 #include "util/events/Time.h"
 #include "util/events/EventBase.h"
@@ -322,15 +323,21 @@ static int genconf(struct Random* rand, bool eth)
            "        // and ETHInterface will be unable to hot-add new interfaces\n"
            "        // Use { \"setuser\": 0 } to disable.\n"
            "        // Default: enabled with keepNetAdmin\n"
-           "        { \"setuser\": \"cjdns\", \"keepNetAdmin\": 1 },\n"
+           "        { \"setuser\": \"nobody\", \"keepNetAdmin\": 1 },\n"
            "\n"
            "        // Chroot changes the filesystem root directory which cjdns sees, blocking it\n"
            "        // from accessing files outside of the chroot sandbox, if the user does not\n"
            "        // have permission to use chroot(), this will fail quietly.\n"
-           "        // Use { \"chroot\": 0 } to disable.\n"
-           "        // Default: enabled (using \"/var/run\")\n"
-           "        { \"chroot\": \"/var/run/\" },\n"
-           "\n"
+           "        // Use { \"chroot\": 0 } to disable.\n");
+          if (Defined(android)) {
+    printf("        // Default: disabled\n"
+           "        { \"chroot\": 0 },\n");
+          }
+          else {
+    printf("        // Default: enabled (using \"/var/run\")\n"
+           "        { \"chroot\": \"/var/run/\" },\n");
+          }
+    printf("\n"
            "        // Nofiles is a deprecated security feature which prevents cjdns from opening\n"
            "        // any files at all, using this will block setting of IP addresses and\n"
            "        // hot-adding ETHInterface devices but for users who do not need this, it\n"
@@ -346,10 +353,16 @@ static int genconf(struct Random* rand, bool eth)
            "        // Seccomp is the most advanced sandboxing feature in cjdns, it uses\n"
            "        // SECCOMP_BPF to filter the system calls which cjdns is able to make on a\n"
            "        // linux system, strictly limiting it's access to the outside world\n"
-           "        // This will fail quietly on any non-linux system\n"
-           "        // Default: enabled\n"
-           "        { \"seccomp\": 1 },\n"
-           "\n"
+           "        // This will fail quietly on any non-linux system\n");
+          if (Defined(android)) {
+    printf("        // Default: disabled\n"
+           "        { \"seccomp\": 0 },\n");
+          }
+          else {
+    printf("        // Default: enabled\n"
+           "        { \"seccomp\": 1 },\n");
+          }
+    printf("\n"
            "        // The client sets up the core using a sequence of RPC calls, the responses\n"
            "        // to these calls are verified but in the event that the client crashes\n"
            "        // setup of the core completes, it could leave the core in an insecure state\n"
@@ -529,6 +542,7 @@ int main(int argc, char** argv)
         } else if ((CString_strcmp(argv[1], "--version") == 0)
             || (CString_strcmp(argv[1], "-v") == 0))
         {
+            printf("Cjdns version: %s\n", CJD_PACKAGE_VERSION);
             printf("Cjdns protocol version: %d\n", Version_CURRENT_PROTOCOL);
             return 0;
         } else if (CString_strcmp(argv[1], "--cleanconf") == 0) {

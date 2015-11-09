@@ -174,7 +174,7 @@ static struct Address* getNode(String* pathStr,
             *errOut = "not_found";
             return NULL;
         } else {
-            Bits_memcpyConst(&addr, &nl->child->address, sizeof(struct Address));
+            Bits_memcpy(&addr, &nl->child->address, sizeof(struct Address));
         }
     } else if (!AddrTools_parseIp(addr.ip6.bytes, pathStr->bytes)) {
         struct Node_Two* n = Router_lookup(ctx->router, addr.ip6.bytes);
@@ -182,7 +182,7 @@ static struct Address* getNode(String* pathStr,
             *errOut = "not_found";
             return NULL;
         } else {
-            Bits_memcpyConst(&addr, &n->address, sizeof(struct Address));
+            Bits_memcpy(&addr, &n->address, sizeof(struct Address));
         }
     } else {
         struct Address* a = Address_fromString(pathStr, alloc);

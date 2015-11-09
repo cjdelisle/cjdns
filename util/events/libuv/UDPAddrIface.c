@@ -120,8 +120,7 @@ static Iface_DEFUN incomingFromIface(struct Message* m, struct Iface* iface)
         { .base = (char*)m->bytes, .len = m->length }
     };
 
-    int ret = 0;
-    uv_udp_send(&req->uvReq, &context->uvHandle, buffers, 1,
+    int ret = uv_udp_send(&req->uvReq, &context->uvHandle, buffers, 1,
                 (const struct sockaddr*)ss.nativeAddr, (uv_udp_send_cb)&sendComplete);
 
     if (ret) {

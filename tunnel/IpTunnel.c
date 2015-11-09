@@ -81,7 +81,7 @@ static struct IpTunnel_Connection* newConnection(bool isOutgoing, struct IpTunne
             if (!context->pub.connectionList.connections[i].isOutgoing
                 && conn != &context->pub.connectionList.connections[i + 1])
             {
-                Bits_memcpyConst(conn,
+                Bits_memcpy(conn,
                                  &context->pub.connectionList.connections[i + 1],
                                  sizeof(struct IpTunnel_Connection));
                 conn = &context->pub.connectionList.connections[i + 1];
@@ -145,15 +145,15 @@ int IpTunnel_allowConnection(uint8_t publicKeyOfAuthorizedNode[32],
     }
 
     struct IpTunnel_Connection* conn = newConnection(false, context);
-    Bits_memcpyConst(conn->routeHeader.publicKey, publicKeyOfAuthorizedNode, 32);
+    Bits_memcpy(conn->routeHeader.publicKey, publicKeyOfAuthorizedNode, 32);
     AddressCalc_addressForPublicKey(conn->routeHeader.ip6, publicKeyOfAuthorizedNode);
     if (ip4Address) {
-        Bits_memcpyConst(conn->connectionIp4, ip4Address, 4);
+        Bits_memcpy(conn->connectionIp4, ip4Address, 4);
         if (!ip4Prefix) { ip4Prefix = 32; }
         conn->connectionIp4Prefix = ip4Prefix;
     }
     if (ip6Address) {
-        Bits_memcpyConst(conn->connectionIp6, ip6Address, 16);
+        Bits_memcpy(conn->connectionIp6, ip6Address, 16);
         if (!ip6Prefix) { ip6Prefix = 128; }
         conn->connectionIp6Prefix = ip6Prefix;
     }
@@ -243,7 +243,7 @@ int IpTunnel_connectTo(uint8_t publicKeyOfNodeToConnectTo[32], struct IpTunnel* 
     struct IpTunnel_pvt* context = Identity_check((struct IpTunnel_pvt*)tunnel);
 
     struct IpTunnel_Connection* conn = newConnection(true, context);
-    Bits_memcpyConst(conn->routeHeader.publicKey, publicKeyOfNodeToConnectTo, 32);
+    Bits_memcpy(conn->routeHeader.publicKey, publicKeyOfNodeToConnectTo, 32);
     AddressCalc_addressForPublicKey(conn->routeHeader.ip6, publicKeyOfNodeToConnectTo);
 
     if (Defined(Log_DEBUG)) {
@@ -392,7 +392,7 @@ static Iface_DEFUN incomingAddresses(Dict* d,
     }
 
     int number;
-    Bits_memcpyConst(&number, txid->bytes, 4);
+    Bits_memcpy(&number, txid->bytes, 4);
     if (number < 0 || number >= (int)context->nextConnectionNumber) {
         Log_info(context->logger, "txid out of range");
         return 0;
@@ -419,7 +419,7 @@ static Iface_DEFUN incomingAddresses(Dict* d,
     String* ip4 = Dict_getString(addresses, String_CONST("ip4"));
     int64_t* ip4Prefix = Dict_getInt(addresses, String_CONST("ip4Prefix"));
     if (ip4 && ip4->len == 4) {
-        Bits_memcpyConst(conn->connectionIp4, ip4->bytes, 4);
+        Bits_memcpy(conn->connectionIp4, ip4->bytes, 4);
 
         if (ip4Prefix && *ip4Prefix > 0 && *ip4Prefix <= 32) {
             conn->connectionIp4Prefix = (uint8_t) *ip4Prefix;
@@ -442,7 +442,7 @@ static Iface_DEFUN incomingAddresses(Dict* d,
     String* ip6 = Dict_getString(addresses, String_CONST("ip6"));
     int64_t* ip6Prefix = Dict_getInt(addresses, String_CONST("ip6Prefix"));
     if (ip6 && ip6->len == 16) {
-        Bits_memcpyConst(conn->connectionIp6, ip6->bytes, 16);
+        Bits_memcpy(conn->connectionIp6, ip6->bytes, 16);
 
         if (ip6Prefix && *ip6Prefix > 0 && *ip6Prefix <= 128) {
             conn->connectionIp6Prefix = (uint8_t) *ip6Prefix;

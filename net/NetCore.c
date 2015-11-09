@@ -47,7 +47,7 @@ struct NetCore* NetCore_new(uint8_t* privateKey,
     struct EventEmitter* ee = nc->ee = EventEmitter_new(alloc, log, ca->publicKey);
 
     struct Address* myAddress = nc->myAddress = Allocator_calloc(alloc, sizeof(struct Address), 1);
-    Bits_memcpyConst(myAddress->key, ca->publicKey, 32);
+    Bits_memcpy(myAddress->key, ca->publicKey, 32);
     Address_getPrefix(myAddress);
 
     // lower half

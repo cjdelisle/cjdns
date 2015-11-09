@@ -230,7 +230,7 @@ static void replayKeyPacket(int scenario)
 static void hellosCrossedOnTheWire()
 {
     struct Context* ctx = simpleInit();
-    Bits_memcpyConst(ctx->sess2->herPublicKey, ctx->ca1->publicKey, 32);
+    Bits_memcpy(ctx->sess2->herPublicKey, ctx->ca1->publicKey, 32);
 
     struct Message* hello2 = encryptMsg(ctx, ctx->sess2, "hello2");
     struct Message* hello1 = encryptMsg(ctx, ctx->sess1, "hello1");

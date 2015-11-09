@@ -52,9 +52,9 @@ static Iface_DEFUN incomingFromUdpIf(struct Message* message, struct Iface* udpI
     Headers_setIpVersion(&ip);
     uint8_t* addrPtr = NULL;
     Assert_true(Sockaddr_getAddress(addr, &addrPtr) == 16);
-    Bits_memcpyConst(ip.destinationAddr, addrPtr, 16);
+    Bits_memcpy(ip.destinationAddr, addrPtr, 16);
     Assert_true(Sockaddr_getAddress(context->pub.udpIf.addr, &addrPtr) == 16);
-    Bits_memcpyConst(ip.sourceAddr, addrPtr, 16);
+    Bits_memcpy(ip.sourceAddr, addrPtr, 16);
 
     uint16_t checksum = Checksum_udpIp6(ip.sourceAddr, message->bytes, message->length);
     ((struct Headers_UDPHeader*)message->bytes)->checksum_be = checksum;
@@ -86,7 +86,7 @@ static Iface_DEFUN incomingFromHeaderIf(struct Message* message, struct Iface* i
     struct Sockaddr* addr = Sockaddr_clone(context->pub.udpIf.addr, alloc);
     uint8_t* addrPtr = NULL;
     Assert_true(Sockaddr_getAddress(addr, &addrPtr) == 16);
-    Bits_memcpyConst(addrPtr, ip->sourceAddr, 16);
+    Bits_memcpy(addrPtr, ip->sourceAddr, 16);
 
     struct Headers_UDPHeader* udp = (struct Headers_UDPHeader*) (&ip[1]);
     Sockaddr_setPort(addr, Endian_bigEndianToHost16(udp->srcPort_be));

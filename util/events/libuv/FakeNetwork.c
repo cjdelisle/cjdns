@@ -127,7 +127,7 @@ struct FakeNetwork_UDPIface* FakeNetwork_iface(struct FakeNetwork* net,
         // Check for wrapping.
         Assert_true(fnp->lastPort != 0);
         Assert_true(addrLen == 4);
-        Bits_memcpyConst(addrBytes, ((uint8_t[]){127, 0, 0, 1}), 4);
+        Bits_memcpy(addrBytes, ((uint8_t[]){127, 0, 0, 1}), 4);
     } else if (addrLen == 4 && !Bits_memcmp(addrBytes, "\0\0\0\0", 4)) {
         Assert_failure("Address 0 with port specified is not allowed");
     }
