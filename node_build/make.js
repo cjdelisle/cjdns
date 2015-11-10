@@ -116,6 +116,10 @@ Builder.configure({
         }
     }
 
+    if (process.env['NO_TEST'] === '1') {
+        builder.config.cflags.push('-D', 'NOTEST=1');
+    }
+
     if (builder.config.compilerType.isClang) {
         // blows up when preprocessing before js preprocessor
         builder.config.cflags.push(

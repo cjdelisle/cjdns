@@ -13,11 +13,42 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+
+function show_usage() {
+    echo "Usage:
+This script is the main build command, it handles dependencies and all,
+and creates the cjdroute binary program (and other tools).
+
+If you are a developer on Windows, you could use this command to have fast rebuilds:
+NO_TEST=1 ./do
+
+On e.g. Windows while build is a bit broken, try this advanced options to make rebuilds fast again:
+
+* NO_TEST=1 for e.g. on-Windows developers to have fast code rebuilds (rebuild changed files),
+even when unite tests are failing which usually forbids caching of build results (in state.json).
+
+* NO_CODESTYLE=1 this is just for quick hacking to ignore any codestyle errors
+and just build the hacked up code. Later fix your code before commiting it to git / PR!
+
+* option -v (must be the first option given) exits after showing platform information
+"
+}
+
+
+[[ "$1" == "-h" ]] \
+    && { show_usage; exit; }
+
 [[ -n "$PLATFORM" ]] \
     || PLATFORM=$(uname | tr '[:upper:]' '[:lower:]')
 
 [[ -n "$MARCH" ]] \
     || MARCH=$(uname -m | sed 's/i./x/g')
+
+echo "Running on PLATFORM=[$PLATFORM] MARCH=[$MARCH]"
+[[ "$PLATFORM" =~ cygwin.*|msys.* ]] \
+    && echo -e "\n\n\nOn Windows.\nIf you're a devel, see options (-h) for fast rebuilds!\n\n\n\n";
+[[ "$1" == "-v" ]] && exit;
+
 
 build_dir="build_$PLATFORM"
 node_min_ver='v0.8.15'
