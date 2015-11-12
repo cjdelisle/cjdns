@@ -52,4 +52,18 @@ void NetDev_setMTU(const char* interfaceName,
 
 void NetDev_flushAddresses(const char* deviceName, struct Except* eh);
 
+/**
+ * Set a route to an interface.
+ *
+ * @param ifName the name of the interface to alter.
+ * @param sa the ip address to use use for route base.
+ * @param prefixLen the number of bits netmast to include in the route.
+ * @param logger
+ * @param eh an exception handler.
+ */
+void NetDev_addRoute(const char* ifName,
+                     struct Sockaddr* sa,
+                     int prefixLen,
+                     struct Log* logger,
+                     struct Except* eh);
 #endif
