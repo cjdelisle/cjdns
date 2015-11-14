@@ -22,6 +22,7 @@
 #include "interface/tuntap/test/TUNTools.h"
 #include "interface/tuntap/TAPWrapper.h"
 #include "interface/tuntap/NDPServer.h"
+#include "interface/tuntap/ARPServer.h"
 
 int main(int argc, char** argv)
 {
@@ -38,12 +39,10 @@ int main(int argc, char** argv)
 
     // Now setup the NDP server so the tun will work correctly.
     struct NDPServer* ndp = NDPServer_new(&tapWrapper->internal, log, TAPWrapper_LOCAL_MAC, alloc);
-    ndp->advertisePrefix[0] = 0xfd;
-    ndp->prefixLen = 8;
-
+    struct ARPServer* arp = ARPServer_new(&ndp->internal, log, TAPWrapper_LOCAL_MAC, alloc);
     NetDev_addAddress(assignedIfName, addrA, 126, log, NULL);
 
-    TUNTools_echoTest(addrA, addrB, TUNTools_genericIP6Echo, &ndp->internal, base, log, alloc);
+    TUNTools_echoTest(addrA, addrB, TUNTools_genericIP6Echo, &arp->internal, base, log, alloc);
     Allocator_free(alloc);
     return 0;
 }

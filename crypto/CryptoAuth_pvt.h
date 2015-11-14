@@ -26,13 +26,25 @@
 
 #include <stdint.h>
 
-struct CryptoAuth_Auth {
-    union CryptoHeader_Challenge challenge;
+struct CryptoAuth_User;
+struct CryptoAuth_User {
+    /** Double-hash of password for authType 1 */
+    uint8_t passwordHash[CryptoHeader_Challenge_KEYSIZE];
+
+    /** Hash of username for authType 2 */
+    uint8_t userNameHash[CryptoHeader_Challenge_KEYSIZE];
 
     uint8_t secret[32];
 
-    String* user;
-    uint8_t* restrictedToip6;
+    String* login;
+
+    uint8_t restrictedToip6[16];
+
+    struct CryptoAuth_User* next;
+
+    struct Allocator* alloc;
+
+    Identity
 };
 
 struct CryptoAuth_pvt
@@ -41,9 +53,7 @@ struct CryptoAuth_pvt
 
     uint8_t privateKey[32];
 
-    struct CryptoAuth_Auth* passwords;
-    uint32_t passwordCount;
-    uint32_t passwordCapacity;
+    struct CryptoAuth_User* users;
 
     struct Log* logger;
     struct EventBase* eventBase;
@@ -73,6 +83,9 @@ struct CryptoAuth_Session_pvt
     /** A password to use for authing with the other party. */
     String* password;
 
+    /** The login name to auth with the other party. */
+    String* login;
+
     /** The next nonce to use. */
     uint32_t nextNonce;
 
@@ -92,9 +105,6 @@ struct CryptoAuth_Session_pvt
 
     /** A pointer back to the main cryptoauth context. */
     struct CryptoAuth_pvt* context;
-
-    /** A name for the session which will appear in logs. */
-    char* name;
 
     Identity
 };

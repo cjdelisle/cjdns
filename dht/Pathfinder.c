@@ -94,10 +94,10 @@ static int incomingFromDHT(struct DHTMessage* dmessage, void* vpf)
     DataHeader_setVersion(&emsg->data, DataHeader_CURRENT_VERSION);
     DataHeader_setContentType(&emsg->data, ContentType_CJDHT);
 
-    Bits_memcpyConst(emsg->route.ip6, addr->ip6.bytes, 16);
+    Bits_memcpy(emsg->route.ip6, addr->ip6.bytes, 16);
     emsg->route.version_be = Endian_hostToBigEndian32(addr->protocolVersion);
     emsg->route.sh.label_be = Endian_hostToBigEndian64(addr->path);
-    Bits_memcpyConst(emsg->route.publicKey, addr->key, 32);
+    Bits_memcpy(emsg->route.publicKey, addr->key, 32);
 
     Message_push32(msg, PFChan_Pathfinder_SENDMSG, NULL);
 
@@ -119,8 +119,8 @@ static void nodeForAddress(struct PFChan_Node* nodeOut, struct Address* addr, ui
     nodeOut->version_be = Endian_hostToBigEndian32(addr->protocolVersion);
     nodeOut->metric_be = Endian_hostToBigEndian32(metric);
     nodeOut->path_be = Endian_hostToBigEndian64(addr->path);
-    Bits_memcpyConst(nodeOut->publicKey, addr->key, 32);
-    Bits_memcpyConst(nodeOut->ip6, addr->ip6.bytes, 16);
+    Bits_memcpy(nodeOut->publicKey, addr->key, 32);
+    Bits_memcpy(nodeOut->ip6, addr->ip6.bytes, 16);
 }
 
 static Iface_DEFUN sendNode(struct Message* msg,
@@ -143,7 +143,7 @@ static void onBestPathChange(void* vPathfinder, struct Node_Two* node)
     struct Pathfinder_pvt* pf = Identity_check((struct Pathfinder_pvt*) vPathfinder);
     struct Allocator* alloc = Allocator_child(pf->alloc);
     struct Message* msg = Message_new(0, 256, alloc);
-    Iface_CALL(sendNode, msg, &node->address, 0xffffffffu - Node_getReach(node), pf);
+    Iface_CALL(sendNode, msg, &node->address, Node_getCost(node), pf);
     Allocator_free(alloc);
 }
 
@@ -155,7 +155,7 @@ static Iface_DEFUN connected(struct Pathfinder_pvt* pf, struct Message* msg)
     Message_pop(msg, &conn, PFChan_Core_Connect_SIZE, NULL);
     Assert_true(!msg->length);
 
-    Bits_memcpyConst(pf->myAddr.key, conn.publicKey, 32);
+    Bits_memcpy(pf->myAddr.key, conn.publicKey, 32);
     Address_getPrefix(&pf->myAddr);
     pf->myAddr.path = 1;
 
@@ -224,8 +224,8 @@ static void addressForNode(struct Address* addrOut, struct Message* msg)
     Assert_true(!msg->length);
     addrOut->protocolVersion = Endian_bigEndianToHost32(node.version_be);
     addrOut->path = Endian_bigEndianToHost64(node.path_be);
-    Bits_memcpyConst(addrOut->key, node.publicKey, 32);
-    Bits_memcpyConst(addrOut->ip6.bytes, node.ip6, 16);
+    Bits_memcpy(addrOut->key, node.publicKey, 32);
+    Bits_memcpy(addrOut->ip6.bytes, node.ip6, 16);
 }
 
 static Iface_DEFUN switchErr(struct Message* msg, struct Pathfinder_pvt* pf)
@@ -244,7 +244,7 @@ static Iface_DEFUN switchErr(struct Message* msg, struct Pathfinder_pvt* pf)
     struct Node_Link* link = NodeStore_linkForPath(pf->nodeStore, path);
     uint8_t nodeAddr[16];
     if (link) {
-        Bits_memcpyConst(nodeAddr, link->child->address.ip6.bytes, 16);
+        Bits_memcpy(nodeAddr, link->child->address.ip6.bytes, 16);
     }
 
     NodeStore_brokenLink(pf->nodeStore, path, pathAtErrorHop);
@@ -375,8 +375,8 @@ static Iface_DEFUN incomingMsg(struct Message* msg, struct Pathfinder_pvt* pf)
     struct Address addr;
     struct RouteHeader* hdr = (struct RouteHeader*) msg->bytes;
     Message_shift(msg, -(RouteHeader_SIZE + DataHeader_SIZE), NULL);
-    Bits_memcpyConst(addr.ip6.bytes, hdr->ip6, 16);
-    Bits_memcpyConst(addr.key, hdr->publicKey, 32);
+    Bits_memcpy(addr.ip6.bytes, hdr->ip6, 16);
+    Bits_memcpy(addr.key, hdr->publicKey, 32);
     addr.protocolVersion = Endian_bigEndianToHost32(hdr->version_be);
     addr.padding = 0;
     addr.path = Endian_bigEndianToHost64(hdr->sh.label_be);

@@ -74,9 +74,9 @@ static void cryptoAuth(struct Context* ctx)
     struct CryptoAuth* ca2 = CryptoAuth_new(alloc, NULL, ctx->base, ctx->log, ctx->rand);
 
     struct CryptoAuth_Session* sess1 =
-        CryptoAuth_newSession(ca1, alloc, ca2->publicKey, NULL, false, "bench");
+        CryptoAuth_newSession(ca1, alloc, ca2->publicKey, false, "bench");
     struct CryptoAuth_Session* sess2 =
-        CryptoAuth_newSession(ca2, alloc, ca1->publicKey, NULL, false, "bench");
+        CryptoAuth_newSession(ca2, alloc, ca1->publicKey, false, "bench");
 
     int size = 1500;
     int count = 100000;
@@ -166,7 +166,7 @@ static void switching(struct Context* ctx)
         InterfaceController_newIface(bob->ifController, String_CONST("bob"), alloc);
     Iface_plumb(&sc->bobIf, &bobIci->addrIf);
 
-    CryptoAuth_addUser(String_CONST("abcdefg123"), 1, String_CONST("TEST"), bob->ca);
+    CryptoAuth_addUser(String_CONST("abcdefg123"), String_CONST("TEST"), bob->ca);
 
     // Client has pubKey and passwd for the server.
     int ret = InterfaceController_bootstrapPeer(alice->ifController,
@@ -174,6 +174,7 @@ static void switching(struct Context* ctx)
                                                 bob->ca->publicKey,
                                                 Sockaddr_LOOPBACK,
                                                 String_CONST("abcdefg123"),
+                                                NULL,
                                                 NULL,
                                                 alloc);
     Assert_true(!ret);

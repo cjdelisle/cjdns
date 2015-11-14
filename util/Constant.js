@@ -90,6 +90,15 @@ var log2 = module.exports.log2 = function (val) {
     throw new Error("not an even power of 2");
 };
 
+var stringForHex = module.exports.stringForHex = function (hex) {
+    var out = [];
+    for (var i = 0; i < hex.length; i+=2) {
+        out.push(hex[i] + hex[i+1]);
+    }
+    if (out.length < 2) { throw new Error(); }
+    return '"\\x' + out.join('\\x') + '"';
+};
+
 if (!module.parent) {
     console.log("testing " + __filename);
     testBase2();

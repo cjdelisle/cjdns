@@ -101,7 +101,7 @@ static struct sock_fprog* compile(struct Filter* input, int inputLen, struct All
     int outI = 0;
     for (int i = 0; i < inputLen; i++) {
         if (input[i].label == 0) {
-            Bits_memcpyConst(&sf[outI++], &input[i].sf, sizeof(struct sock_filter));
+            Bits_memcpy(&sf[outI++], &input[i].sf, sizeof(struct sock_filter));
         }
         Assert_true(outI <= totalOut);
         Assert_true(i != inputLen-1 || outI == totalOut);

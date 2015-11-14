@@ -62,6 +62,7 @@ var Base32_decode = function (input) {
 var convert = module.exports.convert = function (pubKey) {
     if (pubKey.substring(pubKey.length-2) !== ".k") { throw new Error("key does not end with .k"); }
     keyBytes = Base32_decode(pubKey.substring(0, pubKey.length-2));
+    //console.log(keyBytes.toString('hex'));
     var hashOneBuff = new Buffer(Crypto.createHash('sha512').update(keyBytes).digest('hex'), 'hex');
     var hashTwo = Crypto.createHash('sha512').update(hashOneBuff).digest('hex');
     var first16 = hashTwo.substring(0,32);
@@ -72,4 +73,7 @@ var convert = module.exports.convert = function (pubKey) {
     return out.join(':');
 };
 
+if (!module.parent) {
+    console.log(convert(process.argv[process.argv.length - 1]));
+}
 //console.log(convert('rjndc8rvg194ddf2j5v679cfjcpmsmhv8p022q3lvpym21cqwyh0.k'));

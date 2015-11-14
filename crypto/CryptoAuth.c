@@ -39,14 +39,12 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define USE_RES __attribute__ ((warn_unused_result))
-
 static inline void printHexKey(uint8_t output[65], uint8_t key[32])
 {
     if (key) {
         Hex_encode(output, 65, key, 32);
     } else {
-        Bits_memcpyConst(output, "NULL", 5);
+        Bits_memcpy(output, "NULL", 5);
     }
 }
 
@@ -91,7 +89,7 @@ static inline void getSharedSecret(uint8_t outputSecret[32],
         } buff;
 
         crypto_scalarmult_curve25519(buff.components.key, myPrivateKey, herPublicKey);
-        Bits_memcpyConst(buff.components.passwd, passwordHash, 32);
+        Bits_memcpy(buff.components.passwd, passwordHash, 32);
         crypto_hash_sha256(outputSecret, buff.bytes, 64);
     }
     if (Defined(Log_KEYS)) {
@@ -113,28 +111,25 @@ static inline void getSharedSecret(uint8_t outputSecret[32],
     }
 }
 
-static inline void hashPassword_sha256(struct CryptoAuth_Auth* auth, const String* password)
+static inline void hashPassword(uint8_t secretOut[32],
+                                struct CryptoHeader_Challenge* challengeOut,
+                                const String* login,
+                                const String* password,
+                                const uint8_t authType)
 {
+    crypto_hash_sha256(secretOut, (uint8_t*) password->bytes, password->len);
     uint8_t tempBuff[32];
-    crypto_hash_sha256(auth->secret, (uint8_t*) password->bytes, password->len);
-    crypto_hash_sha256(tempBuff, auth->secret, 32);
-    Bits_memcpyConst(auth->challenge.bytes, tempBuff, CryptoHeader_Challenge_SIZE);
-    CryptoHeader_setAuthChallengeDerivations(&auth->challenge, 0);
-    auth->challenge.challenge.type = 1;
-}
-
-static inline uint8_t* hashPassword(struct CryptoAuth_Auth* auth,
-                                    const String* password,
-                                    const uint8_t authType)
-{
-    switch (authType) {
-        case 1:
-            hashPassword_sha256(auth, password);
-            break;
-        default:
-            Assert_true(!"Unsupported auth type.");
-    };
-    return auth->secret;
+    if (authType == 1) {
+        crypto_hash_sha256(tempBuff, secretOut, 32);
+    } else if (authType == 2) {
+        crypto_hash_sha256(tempBuff, (uint8_t*) login->bytes, login->len);
+    } else {
+        Assert_failure("Unsupported auth type [%u]", authType);
+    }
+    Bits_memcpy(challengeOut, tempBuff, CryptoHeader_Challenge_SIZE);
+    CryptoHeader_setAuthChallengeDerivations(challengeOut, 0);
+    challengeOut->type = authType;
+    challengeOut->additional = 0;
 }
 
 /**
@@ -144,55 +139,26 @@ static inline uint8_t* hashPassword(struct CryptoAuth_Auth* auth,
  * @param context the CryptoAuth engine to search in.
  * @return an Auth struct with a if one is found, otherwise NULL.
  */
-static inline struct CryptoAuth_Auth* getAuth(union CryptoHeader_Challenge auth,
-                                              struct CryptoAuth_pvt* context)
+static inline struct CryptoAuth_User* getAuth(struct CryptoHeader_Challenge* auth,
+                                              struct CryptoAuth_pvt* ca)
 {
-    if (auth.challenge.type != 1) {
+    if (auth->type == 0) {
         return NULL;
     }
-    for (uint32_t i = 0; i < context->passwordCount; i++) {
-        if (Bits_memcmp(auth.bytes, &context->passwords[i], CryptoHeader_Challenge_KEYSIZE) == 0) {
-            return &context->passwords[i];
+    int count = 0;
+    for (struct CryptoAuth_User* u = ca->users; u; u = u->next) {
+        count++;
+        if (auth->type == 1 &&
+            !Bits_memcmp(auth, u->passwordHash, CryptoHeader_Challenge_KEYSIZE))
+        {
+            return u;
+        } else if (auth->type == 2 &&
+            !Bits_memcmp(auth, u->userNameHash, CryptoHeader_Challenge_KEYSIZE))
+        {
+            return u;
         }
     }
-    Log_debug(context->logger, "Got unrecognized auth, password count = [%d]",
-              context->passwordCount);
-    return NULL;
-}
-
-static inline void getPasswordHash_typeOne(uint8_t output[32],
-                                           uint16_t derivations,
-                                           struct CryptoAuth_Auth* auth)
-{
-    Bits_memcpyConst(output, auth->secret, 32);
-    if (derivations) {
-        union {
-            uint8_t bytes[2];
-            uint8_t asShort;
-        } deriv = { .asShort = derivations };
-
-        output[0] ^= deriv.bytes[0];
-        output[1] ^= deriv.bytes[1];
-
-        crypto_hash_sha256(output, output, 32);
-    }
-}
-
-static inline uint8_t* tryAuth(union CryptoHeader* cauth,
-                               uint8_t hashOutput[32],
-                               struct CryptoAuth_Session_pvt* session,
-                               struct CryptoAuth_Auth** retAuth)
-{
-    struct CryptoAuth_Auth* auth = getAuth(cauth->handshake.auth, session->context);
-    if (auth != NULL) {
-        uint16_t deriv = CryptoHeader_getAuthChallengeDerivations(&cauth->handshake.auth);
-        getPasswordHash_typeOne(hashOutput, deriv, auth);
-        if (deriv == 0) {
-            *retAuth = auth;
-        }
-        return hashOutput;
-    }
-
+    Log_debug(ca->logger, "Got unrecognized auth, password count = [%d]", count);
     return NULL;
 }
 
@@ -204,9 +170,9 @@ static inline uint8_t* tryAuth(union CryptoHeader* cauth,
  * @param secret a shared secret.
  * @return 0 if decryption is succeddful, otherwise -1.
  */
-static inline USE_RES int decryptRndNonce(uint8_t nonce[24],
-                                          struct Message* msg,
-                                          uint8_t secret[32])
+static inline Gcc_USE_RET int decryptRndNonce(uint8_t nonce[24],
+                                              struct Message* msg,
+                                              uint8_t secret[32])
 {
     if (msg->length < 16) {
         return -1;
@@ -214,7 +180,7 @@ static inline USE_RES int decryptRndNonce(uint8_t nonce[24],
     Assert_true(msg->padding >= 16);
     uint8_t* startAt = msg->bytes - 16;
     uint8_t paddingSpace[16];
-    Bits_memcpyConst(paddingSpace, startAt, 16);
+    Bits_memcpy(paddingSpace, startAt, 16);
     Bits_memset(startAt, 0, 16);
     if (!Defined(NSA_APPROVED)) {
         if (crypto_box_curve25519xsalsa20poly1305_open_afternm(
@@ -224,7 +190,7 @@ static inline USE_RES int decryptRndNonce(uint8_t nonce[24],
         }
     }
 
-    Bits_memcpyConst(startAt, paddingSpace, 16);
+    Bits_memcpy(startAt, paddingSpace, 16);
     Message_shift(msg, -16, NULL);
     return 0;
 }
@@ -245,14 +211,14 @@ static inline void encryptRndNonce(uint8_t nonce[24],
     uint8_t* startAt = msg->bytes - 32;
     // This function trashes 16 bytes of the padding so we will put it back
     uint8_t paddingSpace[16];
-    Bits_memcpyConst(paddingSpace, startAt, 16);
+    Bits_memcpy(paddingSpace, startAt, 16);
     Bits_memset(startAt, 0, 32);
     if (!Defined(NSA_APPROVED)) {
         crypto_box_curve25519xsalsa20poly1305_afternm(
             startAt, startAt, msg->length + 32, nonce, secret);
     }
 
-    Bits_memcpyConst(startAt, paddingSpace, 16);
+    Bits_memcpy(startAt, paddingSpace, 16);
     Message_shift(msg, 16, NULL);
 }
 
@@ -264,10 +230,10 @@ static inline void encryptRndNonce(uint8_t nonce[24],
  * @param secret the shared secret.
  * @param isInitiator true if we started the connection.
  */
-static inline USE_RES int decrypt(uint32_t nonce,
-                                  struct Message* msg,
-                                  uint8_t secret[32],
-                                  bool isInitiator)
+static inline Gcc_USE_RET int decrypt(uint32_t nonce,
+                                      struct Message* msg,
+                                      uint8_t secret[32],
+                                      bool isInitiator)
 {
     union {
         uint32_t ints[2];
@@ -307,19 +273,19 @@ static inline bool knowHerKey(struct CryptoAuth_Session_pvt* session)
 
 static void getIp6(struct CryptoAuth_Session_pvt* session, uint8_t* addr)
 {
-    if (knowHerKey(session)) {
-        uint8_t ip6[16];
-        AddressCalc_addressForPublicKey(ip6, session->pub.herPublicKey);
-        AddrTools_printIp(addr, ip6);
-    }
+    Assert_true(knowHerKey(session));
+    uint8_t ip6[16];
+    AddressCalc_addressForPublicKey(ip6, session->pub.herPublicKey);
+    AddrTools_printIp(addr, ip6);
 }
 
 #define cryptoAuthDebug(wrapper, format, ...) \
     {                                                                                            \
         uint8_t addr[40] = "unknown";                                                            \
         getIp6((session), addr);                                                                 \
-        Log_debug((session)->context->logger,                                                    \
-                  "%p %s [%s]: " format, (void*)(session), (session)->name, addr, __VA_ARGS__);  \
+        String* dn = (session)->pub.displayName;                                                 \
+        Log_debug((session)->context->logger, "%p %s [%s]: " format, (void*)(session),           \
+                  dn ? dn->bytes : "", addr, __VA_ARGS__);                                       \
     }
 
 #define cryptoAuthDebug0(wrapper, format) \
@@ -362,43 +328,33 @@ static void encryptHandshake(struct Message* message,
                              struct CryptoAuth_Session_pvt* session,
                              int setupMessage)
 {
-    Message_shift(message, sizeof(union CryptoHeader), NULL);
+    Message_shift(message, CryptoHeader_SIZE, NULL);
 
-    union CryptoHeader* header = (union CryptoHeader*) message->bytes;
+    struct CryptoHeader* header = (struct CryptoHeader*) message->bytes;
 
     // garbage the auth challenge and set the nonce which follows it
-    Random_bytes(session->context->rand, (uint8_t*) &header->handshake.auth,
-                 sizeof(union CryptoHeader_Challenge) + 24);
+    Random_bytes(session->context->rand, (uint8_t*) &header->auth,
+                 CryptoHeader_Challenge_SIZE + 24);
 
     // set the permanent key
-    Bits_memcpyConst(&header->handshake.publicKey, session->context->pub.publicKey, 32);
+    Bits_memcpy(header->publicKey, session->context->pub.publicKey, 32);
 
     Assert_true(knowHerKey(session));
 
-    uint8_t calculatedIp6[16];
-    AddressCalc_addressForPublicKey(calculatedIp6, session->pub.herPublicKey);
-    if (!Bits_isZero(session->pub.herIp6, 16)) {
-        // If someone starts a CA session and then discovers the key later and memcpy's it into the
-        // result of getHerPublicKey() then we want to make sure they didn't memcpy in an invalid
-        // key.
-        Assert_true(!Bits_memcmp(session->pub.herIp6, calculatedIp6, 16));
-    }
-
     // Password auth
     uint8_t* passwordHash = NULL;
-    struct CryptoAuth_Auth auth;
+    uint8_t passwordHashStore[32];
     if (session->password != NULL) {
-        passwordHash = hashPassword(&auth, session->password, session->authType);
-        Bits_memcpyConst(header->handshake.auth.bytes,
-                         &auth.challenge,
-                         sizeof(union CryptoHeader_Challenge));
+        hashPassword(passwordHashStore,
+                     &header->auth,
+                     session->login,
+                     session->password,
+                     session->authType);
+        passwordHash = passwordHashStore;
+    } else {
+        header->auth.type = session->authType;
+        header->auth.additional = 0;
     }
-    header->handshake.auth.challenge.type = session->authType;
-
-    // Packet authentication option is deprecated, it must always be enabled.
-    CryptoHeader_setPacketAuthRequired(&header->handshake.auth, 1);
-
-    header->handshake.auth.challenge.additional = 0;
 
     // Set the session state
     header->nonce = Endian_hostToBigEndian32(session->nextNonce);
@@ -421,11 +377,11 @@ static void encryptHandshake(struct Message* message,
         }
     }
 
-    Bits_memcpyConst(header->handshake.encryptedTempKey, session->ourTempPubKey, 32);
+    Bits_memcpy(header->encryptedTempKey, session->ourTempPubKey, 32);
 
     if (Defined(Log_KEYS)) {
         uint8_t tempKeyHex[65];
-        Hex_encode(tempKeyHex, 65, header->handshake.encryptedTempKey, 32);
+        Hex_encode(tempKeyHex, 65, header->encryptedTempKey, 32);
         Log_keys(session->context->logger,
                   "Wrapping temp public key:\n"
                   "    %s\n",
@@ -474,13 +430,13 @@ static void encryptHandshake(struct Message* message,
     // Shift message over the encryptedTempKey field.
     Message_shift(message, 32 - CryptoHeader_SIZE, NULL);
 
-    encryptRndNonce(header->handshake.nonce, message, sharedSecret);
+    encryptRndNonce(header->handshakeNonce, message, sharedSecret);
 
     if (Defined(Log_KEYS)) {
         uint8_t sharedSecretHex[65];
         printHexKey(sharedSecretHex, sharedSecret);
         uint8_t nonceHex[49];
-        Hex_encode(nonceHex, 49, header->handshake.nonce, 24);
+        Hex_encode(nonceHex, 49, header->handshakeNonce, 24);
         uint8_t cipherHex[65];
         printHexKey(cipherHex, message->bytes);
         Log_keys(session->context->logger,
@@ -553,10 +509,10 @@ static inline void updateTime(struct CryptoAuth_Session_pvt* session, struct Mes
     session->timeOfLastPacket = Time_currentTimeSeconds(session->context->eventBase);
 }
 
-static inline USE_RES bool decryptMessage(struct CryptoAuth_Session_pvt* session,
-                                          uint32_t nonce,
-                                          struct Message* content,
-                                          uint8_t secret[32])
+static inline Gcc_USE_RET bool decryptMessage(struct CryptoAuth_Session_pvt* session,
+                                              uint32_t nonce,
+                                              struct Message* content,
+                                              uint8_t secret[32])
 {
     // Decrypt with authentication and replay prevention.
     if (decrypt(nonce, content, secret, session->isInitiator)) {
@@ -577,10 +533,10 @@ static bool ip6MatchesKey(uint8_t ip6[16], uint8_t key[32])
     return !Bits_memcmp(ip6, calculatedIp6, 16);
 }
 
-static USE_RES int decryptHandshake(struct CryptoAuth_Session_pvt* session,
-                                    const uint32_t nonce,
-                                    struct Message* message,
-                                    union CryptoHeader* header)
+static Gcc_USE_RET int decryptHandshake(struct CryptoAuth_Session_pvt* session,
+                                        const uint32_t nonce,
+                                        struct Message* message,
+                                        struct CryptoHeader* header)
 {
     if (message->length < CryptoHeader_SIZE) {
         cryptoAuthDebug0(session, "DROP runt");
@@ -594,38 +550,30 @@ static USE_RES int decryptHandshake(struct CryptoAuth_Session_pvt* session,
     // nextNonce 3: recieving first data packet.
     // nextNonce >3: handshake complete
 
-    if (knowHerKey(session)) {
-        if (Bits_memcmp(session->pub.herPublicKey, header->handshake.publicKey, 32)) {
-            cryptoAuthDebug0(session, "DROP a packet with different public key than this session");
-            return -1;
-        }
-    } else if (Bits_isZero(session->pub.herIp6, 16)) {
-        // ok fallthrough
-    } else if (!ip6MatchesKey(session->pub.herIp6, header->handshake.publicKey)) {
-        cryptoAuthDebug0(session, "DROP packet with public key not matching ip6 for session");
+    Assert_true(knowHerKey(session));
+    if (Bits_memcmp(session->pub.herPublicKey, header->publicKey, 32)) {
+        cryptoAuthDebug0(session, "DROP a packet with different public key than this session");
         return -1;
     }
 
-    String* user = NULL;
-    struct CryptoAuth_Auth* auth = NULL;
-    uint8_t passwordHashStore[32];
-    uint8_t* passwordHash = tryAuth(header, passwordHashStore, session, &auth);
+    struct CryptoAuth_User* userObj = getAuth(&header->auth, session->context);
     uint8_t* restrictedToip6 = NULL;
-    if (auth) {
-        user = auth->user;
-        if (auth->restrictedToip6) {
-            restrictedToip6 = auth->restrictedToip6;
-            if (!ip6MatchesKey(auth->restrictedToip6, header->handshake.publicKey)) {
+    uint8_t* passwordHash = NULL;
+    if (userObj) {
+        passwordHash = userObj->secret;
+        if (userObj->restrictedToip6[0]) {
+            restrictedToip6 = userObj->restrictedToip6;
+            if (!ip6MatchesKey(restrictedToip6, session->pub.herPublicKey)) {
                 cryptoAuthDebug0(session, "DROP packet with key not matching restrictedToip6");
                 return -1;
             }
         }
     }
-    if (session->requireAuth && !user) {
+    if (session->requireAuth && !userObj) {
         cryptoAuthDebug0(session, "DROP message because auth was not given");
         return -1;
     }
-    if (passwordHash == NULL && header->handshake.auth.challenge.type != 0) {
+    if (!userObj && header->auth.type != 0) {
         cryptoAuthDebug0(session, "DROP message with unrecognized authenticator");
         return -1;
     }
@@ -635,46 +583,26 @@ static USE_RES int decryptHandshake(struct CryptoAuth_Session_pvt* session,
     // The secret for decrypting this message.
     uint8_t sharedSecret[32];
 
-    uint8_t* herPermKey = NULL;
     if (nonce < 2) {
         if (nonce == 0) {
             cryptoAuthDebug(session, "Received a hello packet, using auth: %d",
-                            (passwordHash != NULL));
+                            (userObj != NULL));
         } else {
             cryptoAuthDebug0(session, "Received a repeat hello packet");
         }
 
-        // Decrypt message with perminent keys.
-        if (!knowHerKey(session) || session->nextNonce == 0) {
-            herPermKey = header->handshake.publicKey;
-            if (Defined(Log_DEBUG) && Bits_isZero(header->handshake.publicKey, 32)) {
-                cryptoAuthDebug0(session, "Node sent public key of ZERO!");
-            }
-        } else {
-            herPermKey = session->pub.herPublicKey;
-            if (Bits_memcmp(header->handshake.publicKey, herPermKey, 32)) {
-                cryptoAuthDebug0(session, "DROP packet contains different perminent key");
-                return -1;
-            }
-        }
-
         getSharedSecret(sharedSecret,
                         session->context->privateKey,
-                        herPermKey,
+                        session->pub.herPublicKey,
                         passwordHash,
                         session->context->logger);
         nextNonce = 2;
     } else {
         if (nonce == 2) {
             cryptoAuthDebug0(session, "Received a key packet");
-        } else if (nonce == 3) {
-            cryptoAuthDebug0(session, "Received a repeat key packet");
         } else {
-            cryptoAuthDebug(session, "Received a packet of unknown type! nonce=%u", nonce);
-        }
-        if (Bits_memcmp(header->handshake.publicKey, session->pub.herPublicKey, 32)) {
-            cryptoAuthDebug0(session, "DROP packet contains different perminent key");
-            return -1;
+            Assert_true(nonce == 3);
+            cryptoAuthDebug0(session, "Received a repeat key packet");
         }
         if (!session->isInitiator) {
             cryptoAuthDebug0(session, "DROP a stray key packet");
@@ -696,7 +624,7 @@ static USE_RES int decryptHandshake(struct CryptoAuth_Session_pvt* session,
         uint8_t sharedSecretHex[65];
         printHexKey(sharedSecretHex, sharedSecret);
         uint8_t nonceHex[49];
-        Hex_encode(nonceHex, 49, header->handshake.nonce, 24);
+        Hex_encode(nonceHex, 49, header->handshakeNonce, 24);
         uint8_t cipherHex[65];
         printHexKey(cipherHex, message->bytes);
         Log_keys(session->context->logger,
@@ -708,21 +636,22 @@ static USE_RES int decryptHandshake(struct CryptoAuth_Session_pvt* session,
     }
 
     // Decrypt her temp public key and the message.
-    if (decryptRndNonce(header->handshake.nonce, message, sharedSecret)) {
+    if (decryptRndNonce(header->handshakeNonce, message, sharedSecret)) {
         // just in case
         Bits_memset(header, 0, CryptoHeader_SIZE);
         cryptoAuthDebug(session, "DROP message with nonce [%d], decryption failed", nonce);
         return -1;
     }
 
-    if (Bits_isZero(header->handshake.encryptedTempKey, 32)) {
+    if (Bits_isZero(header->encryptedTempKey, 32)) {
         // we need to reject 0 public keys outright because they will be confused with "unknown"
+        cryptoAuthDebug0(session, "DROP message with zero as temp public key");
         return -1;
     }
 
     if (Defined(Log_KEYS)) {
         uint8_t tempKeyHex[65];
-        Hex_encode(tempKeyHex, 65, header->handshake.encryptedTempKey, 32);
+        Hex_encode(tempKeyHex, 65, header->encryptedTempKey, 32);
         Log_keys(session->context->logger,
                   "Unwrapping temp public key:\n"
                   "    %s\n",
@@ -734,7 +663,7 @@ static USE_RES int decryptHandshake(struct CryptoAuth_Session_pvt* session,
     // Post-decryption checking
     if (nonce == 0) {
         // A new hello packet
-        if (!Bits_memcmp(session->herTempPubKey, header->handshake.encryptedTempKey, 32)) {
+        if (!Bits_memcmp(session->herTempPubKey, header->encryptedTempKey, 32)) {
             // possible replay attack or duped packet
             cryptoAuthDebug0(session, "DROP dupe hello packet with same temp key");
             return -1;
@@ -742,7 +671,8 @@ static USE_RES int decryptHandshake(struct CryptoAuth_Session_pvt* session,
     } else if (nonce == 2 && session->nextNonce >= 4) {
         // we accept a new key packet and let it change the session since the other end might have
         // killed off the session while it was in the midst of setting up.
-        if (!Bits_memcmp(session->herTempPubKey, header->handshake.encryptedTempKey, 32)) {
+        // This is NOT a repeat key packet because it's nonce is 2, not 3
+        if (!Bits_memcmp(session->herTempPubKey, header->encryptedTempKey, 32)) {
             Assert_true(!Bits_isZero(session->herTempPubKey, 32));
             cryptoAuthDebug0(session, "DROP dupe key packet with same temp key");
             return -1;
@@ -750,7 +680,7 @@ static USE_RES int decryptHandshake(struct CryptoAuth_Session_pvt* session,
 
     } else if (nonce == 3 && session->nextNonce >= 4) {
         // Got a repeat key packet, make sure the temp key is the same as the one we know.
-        if (Bits_memcmp(session->herTempPubKey, header->handshake.encryptedTempKey, 32)) {
+        if (Bits_memcmp(session->herTempPubKey, header->encryptedTempKey, 32)) {
             Assert_true(!Bits_isZero(session->herTempPubKey, 32));
             cryptoAuthDebug0(session, "DROP repeat key packet with different temp key");
             return -1;
@@ -767,22 +697,17 @@ static USE_RES int decryptHandshake(struct CryptoAuth_Session_pvt* session,
     if (nextNonce == 4) {
         if (session->nextNonce <= 4) {
             // and have not yet begun sending "run" data
-            Assert_true(session->nextNonce <= nextNonce);
-            session->nextNonce = nextNonce;
-
-            if (!session->pub.userName) {
-                session->pub.userName = user;
-            }
-            Bits_memcpyConst(session->herTempPubKey, header->handshake.encryptedTempKey, 32);
+            Bits_memcpy(session->herTempPubKey, header->encryptedTempKey, 32);
         } else {
             // It's a (possibly repeat) key packet and we have begun sending run data.
             // We will change the shared secret to the one specified in the new key packet but
             // intentionally avoid de-incrementing the nonce just in case
             getSharedSecret(session->sharedSecret,
                             session->ourTempPrivKey,
-                            header->handshake.encryptedTempKey,
+                            header->encryptedTempKey,
                             NULL,
                             session->context->logger);
+            nextNonce = session->nextNonce + 1;
             cryptoAuthDebug0(session, "New key packet but we are already sending data");
         }
 
@@ -799,6 +724,7 @@ static USE_RES int decryptHandshake(struct CryptoAuth_Session_pvt* session,
         // they are the sender of the hello packet or their permanent public key is lower.
         // this is a tie-breaker in case hello packets cross on the wire.
         if (session->established) {
+            cryptoAuthDebug0(session, "new hello during established session, resetting");
             reset(session);
         }
         // We got a (possibly repeat) hello packet and we have not sent any hello packet,
@@ -809,40 +735,27 @@ static USE_RES int decryptHandshake(struct CryptoAuth_Session_pvt* session,
             nextNonce = 3;
         }
 
-        Assert_true(session->nextNonce <= nextNonce);
-        session->nextNonce = nextNonce;
-        if (!session->pub.userName) {
-            session->pub.userName = user;
-        }
-        if (restrictedToip6) {
-            Bits_memcpyConst(session->pub.herIp6, restrictedToip6, 16);
-        }
-        Bits_memcpyConst(session->herTempPubKey, header->handshake.encryptedTempKey, 32);
+        Bits_memcpy(session->herTempPubKey, header->encryptedTempKey, 32);
 
-    } else if (Bits_memcmp(header->handshake.publicKey, session->context->pub.publicKey, 32) < 0) {
+    } else if (Bits_memcmp(session->pub.herPublicKey, session->context->pub.publicKey, 32) < 0) {
         // It's a hello and we are the initiator but their permant public key is numerically lower
         // than ours, this is so that in the event of two hello packets crossing on the wire, the
         // nodes will agree on who is the initiator.
         cryptoAuthDebug0(session, "Incoming hello from node with lower key, resetting");
         reset(session);
 
-        Assert_true(session->nextNonce <= nextNonce);
-        session->nextNonce = nextNonce;
-        if (!session->pub.userName) {
-            session->pub.userName = user;
-        }
-        if (restrictedToip6) {
-            Bits_memcpyConst(session->pub.herIp6, restrictedToip6, 16);
-        }
-        Bits_memcpyConst(session->herTempPubKey, header->handshake.encryptedTempKey, 32);
+        Bits_memcpy(session->herTempPubKey, header->encryptedTempKey, 32);
 
     } else {
-        cryptoAuthDebug0(session, "Incoming hello from node with higher key, not resetting");
+        cryptoAuthDebug0(session, "DROP Incoming hello from node with higher key, not resetting");
+        return -1;
     }
 
-    if (herPermKey && herPermKey != session->pub.herPublicKey) {
-        Bits_memcpyConst(session->pub.herPublicKey, herPermKey, 32);
-    }
+    // Nonces can never go backward and can only "not advance" if they're 0,1,2,3,4 session state.
+    Assert_true(session->nextNonce < nextNonce ||
+        (session->nextNonce <= 4 && nextNonce == session->nextNonce)
+    );
+    session->nextNonce = nextNonce;
 
     Bits_memset(&session->pub.replayProtector, 0, sizeof(struct ReplayProtector));
 
@@ -854,7 +767,7 @@ int CryptoAuth_decrypt(struct CryptoAuth_Session* sessionPub, struct Message* ms
 {
     struct CryptoAuth_Session_pvt* session =
         Identity_check((struct CryptoAuth_Session_pvt*) sessionPub);
-    union CryptoHeader* header = (union CryptoHeader*) msg->bytes;
+    struct CryptoHeader* header = (struct CryptoHeader*) msg->bytes;
 
     if (msg->length < 20) {
         cryptoAuthDebug0(session, "DROP runt");
@@ -869,7 +782,7 @@ int CryptoAuth_decrypt(struct CryptoAuth_Session* sessionPub, struct Message* ms
     uint32_t nonce = Endian_bigEndianToHost32(header->nonce);
 
     if (!session->established) {
-        if (nonce > 3 && nonce != UINT32_MAX) {
+        if (nonce > 3) {
             if (session->nextNonce < 3) {
                 // This is impossible because we have not exchanged hello and key messages.
                 cryptoAuthDebug0(session, "DROP Received a run message to an un-setup session");
@@ -885,25 +798,19 @@ int CryptoAuth_decrypt(struct CryptoAuth_Session* sessionPub, struct Message* ms
                             NULL,
                             session->context->logger);
 
-            // We'll optimistically advance the nextNonce value because decryptMessage()
-            // passes the message on to the upper level and if this message causes a
-            // response, we want the CA to be in ESTABLISHED state.
-            // if the decryptMessage() call fails, we CryptoAuth_reset() it back.
-            session->nextNonce += 3;
-
             if (decryptMessage(session, nonce, msg, secret)) {
                 cryptoAuthDebug0(session, "Final handshake step succeeded");
-                Bits_memcpyConst(session->sharedSecret, secret, 32);
+                Bits_memcpy(session->sharedSecret, secret, 32);
 
                 // Now we're in run mode, no more handshake packets will be accepted
                 Bits_memset(session->ourTempPrivKey, 0, 32);
                 Bits_memset(session->ourTempPubKey, 0, 32);
                 Bits_memset(session->herTempPubKey, 0, 32);
                 session->established = true;
+                session->nextNonce += 3;
                 updateTime(session, msg);
                 return 0;
             }
-            reset(session);
             cryptoAuthDebug0(session, "DROP Final handshake step failed");
             return -1;
         }
@@ -911,7 +818,7 @@ int CryptoAuth_decrypt(struct CryptoAuth_Session* sessionPub, struct Message* ms
         Message_shift(msg, 4, NULL);
         return decryptHandshake(session, nonce, msg, header);
 
-    } else if (nonce > 3 && nonce != UINT32_MAX) {
+    } else if (nonce > 3) {
         Assert_ifParanoid(!Bits_isZero(session->sharedSecret, 32));
         if (decryptMessage(session, nonce, msg, session->sharedSecret)) {
             updateTime(session, msg);
@@ -943,16 +850,13 @@ struct CryptoAuth* CryptoAuth_new(struct Allocator* allocator,
     struct CryptoAuth_pvt* ca = Allocator_calloc(allocator, sizeof(struct CryptoAuth_pvt), 1);
     Identity_set(ca);
     ca->allocator = allocator;
-    ca->passwords = Allocator_calloc(allocator, sizeof(struct CryptoAuth_Auth), 232);
-    ca->passwordCount = 0;
-    ca->passwordCapacity = 232;
     ca->eventBase = eventBase;
     ca->logger = logger;
     ca->pub.resetAfterInactivitySeconds = CryptoAuth_DEFAULT_RESET_AFTER_INACTIVITY_SECONDS;
     ca->rand = rand;
 
     if (privateKey != NULL) {
-        Bits_memcpyConst(ca->privateKey, privateKey, 32);
+        Bits_memcpy(ca->privateKey, privateKey, 32);
     } else {
         Random_bytes(rand, ca->privateKey, 32);
     }
@@ -972,87 +876,89 @@ struct CryptoAuth* CryptoAuth_new(struct Allocator* allocator,
     return &ca->pub;
 }
 
-int32_t CryptoAuth_addUser(String* password,
-                           uint8_t authType,
-                           String* user,
-                           struct CryptoAuth* ca)
+int CryptoAuth_addUser_ipv6(String* password,
+                            String* login,
+                            uint8_t ipv6[16],
+                            struct CryptoAuth* cryptoAuth)
 {
-     return CryptoAuth_addUser_ipv6(password, authType, user, NULL, ca);
-}
+    struct CryptoAuth_pvt* ca = Identity_check((struct CryptoAuth_pvt*) cryptoAuth);
 
-int32_t CryptoAuth_addUser_ipv6(String* password,
-                                uint8_t authType,
-                                String* user,
-                                String* ipv6,
-                                struct CryptoAuth* ca)
-{
-    struct CryptoAuth_pvt* context = Identity_check((struct CryptoAuth_pvt*) ca);
-    if (authType != 1) {
-        return CryptoAuth_addUser_INVALID_AUTHTYPE;
+    struct Allocator* alloc = Allocator_child(ca->allocator);
+    struct CryptoAuth_User* user = Allocator_calloc(alloc, sizeof(struct CryptoAuth_User), 1);
+    user->alloc = alloc;
+    Identity_set(user);
+
+    if (!login) {
+        int i = 0;
+        for (struct CryptoAuth_User* u = ca->users; u; u = u->next) { i++; }
+        user->login = login = String_printf(alloc, "Anon #%d", i);
+    } else {
+        user->login = String_clone(login, alloc);
     }
-    if (context->passwordCount == context->passwordCapacity) {
-        // TODO(cjd): realloc password space and increase buffer.
-        return CryptoAuth_addUser_OUT_OF_SPACE;
-    }
-    struct CryptoAuth_Auth a;
-    hashPassword_sha256(&a, password);
-    for (uint32_t i = 0; i < context->passwordCount; i++) {
-        if (!Bits_memcmp(a.secret, context->passwords[i].secret, 32) ||
-            String_equals(user, context->passwords[i].user)) {
+
+    struct CryptoHeader_Challenge ac;
+    // Users specified with a login field might want to use authType 1 still.
+    hashPassword(user->secret, &ac, login, password, 2);
+    Bits_memcpy(user->userNameHash, &ac, CryptoHeader_Challenge_KEYSIZE);
+    hashPassword(user->secret, &ac, NULL, password, 1);
+    Bits_memcpy(user->passwordHash, &ac, CryptoHeader_Challenge_KEYSIZE);
+
+    for (struct CryptoAuth_User* u = ca->users; u; u = u->next) {
+        if (Bits_memcmp(user->secret, u->secret, 32)) {
+        } else if (!login) {
+        } else if (String_equals(login, u->login)) {
+            Allocator_free(alloc);
             return CryptoAuth_addUser_DUPLICATE;
         }
     }
-    a.user = String_new(user->bytes, context->allocator);
+
     if (ipv6) {
-        a.restrictedToip6 = Allocator_malloc(context->allocator, 16);
-        if (AddrTools_parseIp(a.restrictedToip6,ipv6->bytes) < 0) {
-            Log_debug(context->logger, "Ipv6 parsing error!");
-            return CryptoAuth_addUser_INVALID_IP;
-        }
-    } else {
-        a.restrictedToip6 = NULL;
+        Bits_memcpy(user->restrictedToip6, ipv6, 16);
     }
-    Bits_memcpyConst(&context->passwords[context->passwordCount],
-                     &a,
-                     sizeof(struct CryptoAuth_Auth));
-    context->passwordCount++;
+
+    // Add the user to the *end* of the list
+    for (struct CryptoAuth_User** up = &ca->users; ; up = &(*up)->next) {
+        if (!*up) {
+            *up = user;
+            break;
+        }
+    }
+
     return 0;
 }
 
-int CryptoAuth_removeUsers(struct CryptoAuth* context, String* user)
+int CryptoAuth_removeUsers(struct CryptoAuth* context, String* login)
 {
-    struct CryptoAuth_pvt* ctx = Identity_check((struct CryptoAuth_pvt*) context);
-    if (!user) {
-        int count = ctx->passwordCount;
-        Log_debug(ctx->logger, "Flushing [%d] users", count);
-        ctx->passwordCount = 0;
-        return count;
-    }
+    struct CryptoAuth_pvt* ca = Identity_check((struct CryptoAuth_pvt*) context);
+
     int count = 0;
-    int i = 0;
-    while (i < (int)ctx->passwordCount) {
-        if (String_equals(ctx->passwords[i].user, user)) {
-            Bits_memcpyConst(&ctx->passwords[i],
-                             &ctx->passwords[ctx->passwordCount--],
-                             sizeof(struct CryptoAuth_Auth));
+    struct CryptoAuth_User** up = &ca->users;
+    struct CryptoAuth_User* u = *up;
+    while ((u = *up)) {
+        if (!login || String_equals(login, u->login)) {
+            *up = u->next;
+            Allocator_free(u->alloc);
             count++;
         } else {
-            i++;
+            up = &u->next;
         }
     }
-    Log_debug(ctx->logger, "Removing [%d] user(s) identified by [%s]", count, user->bytes);
+
+    if (!login) {
+        Log_debug(ca->logger, "Flushing [%d] users", count);
+    } else {
+        Log_debug(ca->logger, "Removing [%d] user(s) identified by [%s]", count, login->bytes);
+    }
     return count;
 }
 
 List* CryptoAuth_getUsers(struct CryptoAuth* context, struct Allocator* alloc)
 {
-    struct CryptoAuth_pvt* ctx = Identity_check((struct CryptoAuth_pvt*) context);
-    uint32_t count = ctx->passwordCount;
+    struct CryptoAuth_pvt* ca = Identity_check((struct CryptoAuth_pvt*) context);
 
     List* users = List_new(alloc);
-
-    for (uint32_t i = 0; i < count; i++) {
-        List_addString(users, String_clone(ctx->passwords[i].user, alloc), alloc);
+    for (struct CryptoAuth_User* u = ca->users; u; u = u->next) {
+        List_addString(users, String_clone(u->login, alloc), alloc);
     }
 
     return users;
@@ -1061,9 +967,8 @@ List* CryptoAuth_getUsers(struct CryptoAuth* context, struct Allocator* alloc)
 struct CryptoAuth_Session* CryptoAuth_newSession(struct CryptoAuth* ca,
                                                  struct Allocator* alloc,
                                                  const uint8_t herPublicKey[32],
-                                                 const uint8_t herIp6[16],
                                                  const bool requireAuth,
-                                                 char* name)
+                                                 char* displayName)
 {
     struct CryptoAuth_pvt* context = Identity_check((struct CryptoAuth_pvt*) ca);
     struct CryptoAuth_Session_pvt* session =
@@ -1071,27 +976,21 @@ struct CryptoAuth_Session* CryptoAuth_newSession(struct CryptoAuth* ca,
     Identity_set(session);
     session->context = context;
     session->requireAuth = requireAuth;
-    session->name = name;
+    session->pub.displayName = displayName ? String_new(displayName, alloc) : NULL;
     session->timeOfLastPacket = Time_currentTimeSeconds(context->eventBase);
     session->alloc = alloc;
 
-    if (herPublicKey != NULL) {
-        Bits_memcpyConst(session->pub.herPublicKey, herPublicKey, 32);
-        uint8_t calculatedIp6[16];
-        AddressCalc_addressForPublicKey(calculatedIp6, herPublicKey);
-        Bits_memcpyConst(session->pub.herIp6, calculatedIp6, 16);
-        if (herIp6 != NULL) {
-            Assert_true(!Bits_memcmp(calculatedIp6, herIp6, 16));
-        }
-    } else if (herIp6) {
-        Bits_memcpyConst(session->pub.herIp6, herIp6, 16);
-    }
+    Assert_true(herPublicKey);
+    Bits_memcpy(session->pub.herPublicKey, herPublicKey, 32);
+    uint8_t calculatedIp6[16];
+    AddressCalc_addressForPublicKey(calculatedIp6, herPublicKey);
+    Bits_memcpy(session->pub.herIp6, calculatedIp6, 16);
 
     return &session->pub;
 }
 
 void CryptoAuth_setAuth(const String* password,
-                        const uint8_t authType,
+                        const String* login,
                         struct CryptoAuth_Session* caSession)
 {
     struct CryptoAuth_Session_pvt* session =
@@ -1102,9 +1001,11 @@ void CryptoAuth_setAuth(const String* password,
         session->authType = 0;
     } else if (!session->password || !String_equals(session->password, password)) {
         session->password = String_clone(password, session->alloc);
-        session->authType = authType;
-    } else if (authType != session->authType) {
-        session->authType = authType;
+        session->authType = 1;
+        if (login) {
+            session->authType = 2;
+            session->login = String_clone(login, session->alloc);
+        }
     } else {
         return;
     }

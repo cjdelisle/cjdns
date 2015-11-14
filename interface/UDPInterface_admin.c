@@ -19,6 +19,7 @@
 #include "net/InterfaceController.h"
 #include "util/events/UDPAddrIface.h"
 #include "util/events/EventBase.h"
+#include "util/events/FakeNetwork.h"
 #include "util/platform/Sockaddr.h"
 #include "crypto/Key.h"
 
@@ -30,6 +31,7 @@ struct Context
     struct Admin* admin;
     struct AddrIface* udpIf;
     struct InterfaceController* ic;
+    struct FakeNetwork* fakeNet;
 };
 
 static void beginConnection(Dict* args,
@@ -40,6 +42,7 @@ static void beginConnection(Dict* args,
     struct Context* ctx = vcontext;
 
     String* password = Dict_getString(args, String_CONST("password"));
+    String* login = Dict_getString(args, String_CONST("login"));
     String* publicKey = Dict_getString(args, String_CONST("publicKey"));
     String* address = Dict_getString(args, String_CONST("address"));
     int64_t* interfaceNumber = Dict_getInt(args, String_CONST("interfaceNumber"));
@@ -84,7 +87,7 @@ static void beginConnection(Dict* args,
         }
 
         int ret = InterfaceController_bootstrapPeer(
-            ctx->ic, ifNum, pkBytes, addr, password, peerName, ctx->alloc);
+            ctx->ic, ifNum, pkBytes, addr, password, login, peerName, ctx->alloc);
 
         Allocator_free(tempAlloc);
 
@@ -115,12 +118,11 @@ static void beginConnection(Dict* args,
     Admin_sendMessage(&out, txid, ctx->admin);
 }
 
-static void newInterface2(struct Context* ctx,
-                          struct Sockaddr* addr,
-                          String* txid,
-                          struct Allocator* requestAlloc)
+static struct AddrIface* setupLibuvUDP(struct Context* ctx,
+                                       struct Sockaddr* addr,
+                                       String* txid,
+                                       struct Allocator* alloc)
 {
-    struct Allocator* const alloc = Allocator_child(ctx->alloc);
     struct UDPAddrIface* udpIf = NULL;
     struct Jmp jmp;
     Jmp_try(jmp) {
@@ -130,10 +132,33 @@ static void newInterface2(struct Context* ctx,
         Dict out = Dict_CONST(String_CONST("error"), String_OBJ(errStr), NULL);
         Admin_sendMessage(&out, txid, ctx->admin);
         Allocator_free(alloc);
-        return;
+        return NULL;
     }
+    return &udpIf->generic;
+}
 
-    struct AddrIface* ai = ctx->udpIf = &udpIf->generic;
+static struct AddrIface* setupFakeUDP(struct FakeNetwork* fakeNet,
+                                      struct Sockaddr* addr,
+                                      struct Allocator* alloc)
+{
+    struct FakeNetwork_UDPIface* fni = FakeNetwork_iface(fakeNet, addr, alloc);
+    return &fni->generic;
+}
+
+static void newInterface2(struct Context* ctx,
+                          struct Sockaddr* addr,
+                          String* txid,
+                          struct Allocator* requestAlloc)
+{
+    struct Allocator* const alloc = Allocator_child(ctx->alloc);
+    struct AddrIface* ai;
+    if (ctx->fakeNet) {
+        ai = setupFakeUDP(ctx->fakeNet, addr, alloc);
+    } else {
+        ai = setupLibuvUDP(ctx, addr, txid, alloc);
+    }
+    if (!ai) { return; }
+    ctx->udpIf = ai;
     struct InterfaceController_Iface* ici =
         InterfaceController_newIface(ctx->ic, String_CONST("UDP"), alloc);
     Iface_plumb(&ici->addrIf, &ai->iface);
@@ -169,27 +194,29 @@ void UDPInterface_admin_register(struct EventBase* base,
                                  struct Allocator* alloc,
                                  struct Log* logger,
                                  struct Admin* admin,
-                                 struct InterfaceController* ic)
+                                 struct InterfaceController* ic,
+                                 struct FakeNetwork* fakeNet)
 {
     struct Context* ctx = Allocator_clone(alloc, (&(struct Context) {
         .eventBase = base,
         .alloc = alloc,
         .logger = logger,
         .admin = admin,
-        .ic = ic
+        .ic = ic,
+        .fakeNet = fakeNet
     }));
 
-    struct Admin_FunctionArg adma[1] = {
-        { .name = "bindAddress", .required = 0, .type = "String" }
-    };
-    Admin_registerFunction("UDPInterface_new", newInterface, ctx, true, adma, admin);
+    Admin_registerFunction("UDPInterface_new", newInterface, ctx, true,
+        ((struct Admin_FunctionArg[]) {
+            { .name = "bindAddress", .required = 0, .type = "String" }
+        }), admin);
 
-    struct Admin_FunctionArg adma2[4] = {
-        { .name = "interfaceNumber", .required = 0, .type = "Int" },
-        { .name = "password", .required = 0, .type = "String" },
-        { .name = "publicKey", .required = 1, .type = "String" },
-        { .name = "address", .required = 1, .type = "String" }
-    };
-    Admin_registerFunction("UDPInterface_beginConnection",
-        beginConnection, ctx, true, adma2, admin);
+    Admin_registerFunction("UDPInterface_beginConnection", beginConnection, ctx, true,
+        ((struct Admin_FunctionArg[]) {
+            { .name = "interfaceNumber", .required = 0, .type = "Int" },
+            { .name = "password", .required = 0, .type = "String" },
+            { .name = "publicKey", .required = 1, .type = "String" },
+            { .name = "address", .required = 1, .type = "String" },
+            { .name = "login", .required = 0, .type = "String" }
+        }), admin);
 }

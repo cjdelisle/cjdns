@@ -14,22 +14,39 @@
  */
 #include "crypto/random/test/DeterminentRandomSeed.h"
 #include "util/Bits.h"
+#include "util/Identity.h"
 /**
  * A random seed which always outputs the same number,
  * obviously you don't want to use this in the real world.
  */
 
+ struct DeterminentRandomSeed {
+     struct RandomSeed rs;
+     uint8_t buff[64];
+     Identity
+ };
+
 static int get(struct RandomSeed* rand, uint64_t buff[8])
 {
     // chosen by fair dice roll, guaranteed random.
-    Bits_memset(buff, 4, 64);
+    struct DeterminentRandomSeed* drs = Identity_check((struct DeterminentRandomSeed*) rand);
+    Bits_memcpy(buff, drs->buff, 64);
     return 0;
 }
 
-struct RandomSeed* DeterminentRandomSeed_new(struct Allocator* alloc)
+struct RandomSeed* DeterminentRandomSeed_new(struct Allocator* alloc, uint8_t buff[64])
 {
-    return Allocator_clone(alloc, (&(struct RandomSeed) {
-        .get = get,
-        .name = "DeterminentRandomSeed TESTING ONLY, THIS SHOULD NEVER BE USED IN PRODUCTION!"
+    struct DeterminentRandomSeed* drs = Allocator_clone(alloc, (&(struct DeterminentRandomSeed) {
+        .rs = {
+            .get = get,
+            .name = "DeterminentRandomSeed TESTING ONLY, THIS SHOULD NEVER BE USED IN PRODUCTION!"
+        }
     }));
+    Identity_set(drs);
+    if (buff) {
+        Bits_memcpy(drs->buff, buff, 64);
+    } else {
+        Bits_memset(drs->buff, 4, 64);
+    }
+    return &drs->rs;
 }

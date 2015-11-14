@@ -179,9 +179,14 @@ void Core_init(struct Allocator* alloc,
                uint8_t privateKey[32],
                struct Admin* admin,
                struct Random* rand,
-               struct Except* eh)
+               struct Except* eh,
+               struct FakeNetwork* fakeNet,
+               bool noSec)
 {
-    struct Security* sec = Security_new(alloc, logger, eventBase);
+    struct Security* sec = NULL;
+    if (!noSec) {
+        sec = Security_new(alloc, logger, eventBase);
+    }
     struct NetCore* nc = NetCore_new(privateKey, alloc, eventBase, rand, logger);
 
     struct IpTunnel* ipTunnel = IpTunnel_new(logger, eventBase, alloc, rand);
@@ -197,14 +202,16 @@ void Core_init(struct Allocator* alloc,
     // ------------------- Register RPC functions ----------------------- //
     InterfaceController_admin_register(nc->ifController, admin, alloc);
     SwitchPinger_admin_register(nc->sp, admin, alloc);
-    UDPInterface_admin_register(eventBase, alloc, logger, admin, nc->ifController);
+    UDPInterface_admin_register(eventBase, alloc, logger, admin, nc->ifController, fakeNet);
 #ifdef HAS_ETH_INTERFACE
     ETHInterface_admin_register(eventBase, alloc, logger, admin, nc->ifController);
 #endif
 
     AuthorizedPasswords_init(admin, nc->ca, alloc);
     Admin_registerFunction("ping", adminPing, admin, false, NULL, admin);
-    Security_admin_register(alloc, logger, sec, admin);
+    if (!noSec) {
+        Security_admin_register(alloc, logger, sec, admin);
+    }
     IpTunnel_admin_register(ipTunnel, admin, alloc);
     SessionManager_admin_register(nc->sm, admin, alloc);
     Allocator_admin_register(alloc, admin);
@@ -322,7 +329,7 @@ int Core_main(int argc, char** argv)
     Allocator_free(tempAlloc);
 
 
-    Core_init(alloc, logger, eventBase, privateKey, admin, rand, eh);
+    Core_init(alloc, logger, eventBase, privateKey, admin, rand, eh, NULL, false);
     EventBase_beginLoop(eventBase);
     return 0;
 }

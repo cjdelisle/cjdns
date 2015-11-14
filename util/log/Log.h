@@ -70,58 +70,33 @@ void Log_print(struct Log* log,
 
 #define Log_printf(log, level, ...) \
     do {                                                                   \
-        if (log) {                                                         \
+        if (log && level >= Log_MIN_LEVEL) {                               \
             Log_print(log, level, Gcc_SHORT_FILE, Gcc_LINE, __VA_ARGS__);  \
         }                                                                  \
     } while (0)
 // CHECKFILES_IGNORE missing ;
 
-#ifdef Log_KEYS
-    #define Log_keys(log, ...) \
-        Log_printf(log, Log_Level_KEYS, __VA_ARGS__)
+#if defined(Log_KEYS)
+    #define Log_MIN_LEVEL Log_Level_KEYS
+#elif defined(Log_DEBUG)
+    #define Log_MIN_LEVEL Log_Level_DEBUG
+#elif defined(Log_INFO)
+    #define Log_MIN_LEVEL Log_Level_INFO
+#elif defined(Log_WARN)
+    #define Log_MIN_LEVEL Log_Level_WARN
+#elif defined(Log_ERROR)
+    #define Log_MIN_LEVEL Log_Level_ERROR
+#elif defined(Log_CRITICAL)
+    #define Log_MIN_LEVEL Log_Level_CRITICAL
 #else
-    #define Log_keys(log, ...) \
-        Log_printf(0, Log_Level_KEYS, __VA_ARGS__)
+    #error
 #endif
 
-#ifdef Log_DEBUG
-    #define Log_debug(log, ...) \
-        Log_printf(log, Log_Level_DEBUG, __VA_ARGS__)
-#else
-    #define Log_debug(log, ...) \
-        Log_printf(0, Log_Level_DEBUG, __VA_ARGS__)
-#endif
-
-#ifdef Log_INFO
-    #define Log_info(log, ...) \
-        Log_printf(log, Log_Level_INFO, __VA_ARGS__)
-#else
-    #define Log_info(log, ...) \
-        Log_printf(0, Log_Level_INFO, __VA_ARGS__)
-#endif
-
-#ifdef Log_WARN
-    #define Log_warn(log, ...) \
-        Log_printf(log, Log_Level_WARN, __VA_ARGS__)
-#else
-    #define Log_warn(log, ...) \
-        Log_printf(0, Log_Level_WARN, __VA_ARGS__)
-#endif
-
-#ifdef Log_ERROR
-    #define Log_error(log, ...) \
-        Log_printf(log, Log_Level_ERROR, __VA_ARGS__)
-#else
-    #define Log_error(log, ...) \
-        Log_printf(0, Log_Level_ERROR, __VA_ARGS__)
-#endif
-
-#ifdef Log_CRITICAL
-    #define Log_critical(log, ...) \
-        Log_printf(log, Log_Level_CRITICAL, __VA_ARGS__)
-#else
-    #define Log_critical(log, ...) \
-        Log_printf(0, Log_Level_CRITICAL, __VA_ARGS__)
-#endif
+#define Log_keys(log, ...)  Log_printf(log, Log_Level_KEYS, __VA_ARGS__)
+#define Log_debug(log, ...) Log_printf(log, Log_Level_DEBUG, __VA_ARGS__)
+#define Log_info(log, ...)  Log_printf(log, Log_Level_INFO, __VA_ARGS__)
+#define Log_warn(log, ...)  Log_printf(log, Log_Level_WARN, __VA_ARGS__)
+#define Log_error(log, ...) Log_printf(log, Log_Level_ERROR, __VA_ARGS__)
+#define Log_critical(log, ...) Log_printf(log, Log_Level_CRITICAL, __VA_ARGS__)
 
 #endif

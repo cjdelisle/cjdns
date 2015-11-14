@@ -36,6 +36,8 @@
 #include "io/FileReader.h"
 #include "io/ArrayWriter.h"
 #include "util/Hex.h"
+#include "util/events/FakeNetwork.h"
+#include "util/Hash.h"
 
 #include "crypto_scalarmult_curve25519.h"
 
@@ -65,6 +67,8 @@ struct NodeContext {
     struct Log nodeLog;
     struct Log* parentLogger;
 
+    List* peers;
+
     Identity
 };
 
@@ -80,6 +84,21 @@ struct RPCCall
     RPCCallback callback;
 };
 
+#define Map_KEY_TYPE String*
+#define Map_VALUE_TYPE struct NodeContext*
+#define Map_NAME OfNodes
+#define Map_USE_COMPARATOR
+#define Map_USE_HASH
+#include "util/Map.h"
+static inline int Map_OfNodes_compare(String** a, String** b)
+{
+    return String_compare(*a, *b);
+}
+static inline uint32_t Map_OfNodes_hash(String** a)
+{
+    return Hash_compute(a[0]->bytes, a[0]->len);
+}
+
 struct Context
 {
     struct RPCCall* rpcCalls;
@@ -92,9 +111,8 @@ struct Context
     struct Log* logger;
     struct Allocator* alloc;
 
-    struct NodeContext** nodes;
+    struct Map_OfNodes nodeMap;
     Dict* confNodes;
-    String** names;
 
     Identity
 };
@@ -134,7 +152,9 @@ static struct RPCCall* pushCall(struct Context* ctx)
 static void bindUDPCallback(struct RPCCall* call, struct AdminClient_Result* res)
 {
     Assert_true(!res->err);
-    Log_debug(&call->node->nodeLog, "UDPInterface_new() -> [%s]", res->messageBytes);
+    // Indirection to shutup clang warning
+    struct Log* logger = &call->node->nodeLog;
+    Log_debug(logger, "UDPInterface_new() -> [%s]", res->messageBytes);
     String* addr = Dict_getString(res->responseDict, String_CONST("bindAddress"));
     int64_t* ifNum = Dict_getInt(res->responseDict, String_CONST("interfaceNumber"));
     struct Sockaddr_storage ss;
@@ -164,10 +184,12 @@ static struct NodeContext* startNode(char* nodeName,
                                      char* privateKeyHex,
                                      Dict* admin,
                                      struct Context* ctx,
-                                     struct Except* eh)
+                                     struct Except* eh,
+                                     struct FakeNetwork* fakeNet)
 {
-    struct NodeContext* node = Allocator_clone(ctx->alloc, (&(struct NodeContext) {
-        .alloc = ctx->alloc,
+    struct Allocator* alloc = Allocator_child(ctx->alloc);
+    struct NodeContext* node = Allocator_clone(alloc, (&(struct NodeContext) {
+        .alloc = alloc,
         .base = ctx->base,
         .nodeLog = {
             .print = printLog
@@ -179,11 +201,11 @@ static struct NodeContext* startNode(char* nodeName,
 
     node->bind = Dict_getString(admin, String_CONST("bind"));
     if (!node->bind) {
-        node->bind = String_new("127.0.0.1:0", ctx->alloc);
+        node->bind = String_new("127.0.0.1:0", alloc);
     }
     node->pass = Dict_getString(admin, String_CONST("password"));
     if (!node->pass) {
-        node->pass = String_new("x", ctx->alloc);
+        node->pass = String_new("x", alloc);
     }
 
     Assert_true(Hex_decode(node->privateKey, 32, privateKeyHex, 64) == 32);
@@ -204,7 +226,15 @@ static struct NodeContext* startNode(char* nodeName,
 
     node->admin = Admin_new(&adminIface->generic, &node->nodeLog, ctx->base, pass);
 
-    Core_init(node->alloc, &node->nodeLog, ctx->base, node->privateKey, node->admin, ctx->rand, eh);
+    Core_init(node->alloc,
+              &node->nodeLog,
+              ctx->base,
+              node->privateKey,
+              node->admin,
+              ctx->rand,
+              eh,
+              fakeNet,
+              true);
 
     securitySetupComplete(ctx, node);
     bindUDP(ctx, node);
@@ -216,7 +246,9 @@ static struct NodeContext* startNode(char* nodeName,
 static void beginConnectionCallback(struct RPCCall* call, struct AdminClient_Result* res)
 {
     Assert_true(!res->err);
-    Log_debug(&call->node->nodeLog, "UDPInterface_beginConnection() -> [%s]", res->messageBytes);
+    // Indirection to shutup clang warning
+    struct Log* logger = &call->node->nodeLog;
+    Log_debug(logger, "UDPInterface_beginConnection() -> [%s]", res->messageBytes);
 }
 
 static void linkNodes(struct Context* ctx, struct NodeContext* client, struct NodeContext* server)
@@ -271,17 +303,17 @@ static void linkAllNodes(struct Context* ctx)
     int i = 0;
     String* key = NULL;
     Dict_forEach(ctx->confNodes, key) {
-        Dict* val = Dict_getDict(ctx->confNodes, key);
-        List* connectTo = Dict_getList(val, String_CONST("peers"));
+        int nodeIdx = Map_OfNodes_indexForKey(&key, &ctx->nodeMap);
+        Assert_true(nodeIdx >= 0);
+        struct NodeContext* nc = ctx->nodeMap.values[nodeIdx];
+        List* connectTo = nc->peers;
         for (int j = 0; j < List_size(connectTo); j++) {
             String* server = List_getString(connectTo, j);
             Assert_true(server);
-            for (int k = 0; k < Dict_size(ctx->confNodes); k++) {
-                if (String_equals(server, ctx->names[k])) {
-                    linkNodes(ctx, ctx->nodes[i], ctx->nodes[k]);
-                    break;
-                }
-            }
+            int nodeIdxB = Map_OfNodes_indexForKey(&server, &ctx->nodeMap);
+            Assert_true(nodeIdxB >= 0);
+            struct NodeContext* ncB = ctx->nodeMap.values[nodeIdxB];
+            linkNodes(ctx, nc, ncB);
         }
         i++;
     }
@@ -347,26 +379,29 @@ static void letErRip(Dict* config, struct Allocator* alloc)
         .base = base,
         .rand = rand,
         .alloc = alloc,
+        .nodeMap = {
+            .allocator = alloc
+        }
     };
     struct Context* ctx = &sctx;
     Identity_set(ctx);
 
     ctx->confNodes = Dict_getDict(config, String_CONST("nodes"));
-    ctx->nodes = Allocator_calloc(alloc, sizeof(char*), Dict_size(ctx->confNodes));
-    ctx->names = Allocator_calloc(alloc, sizeof(String*), Dict_size(ctx->confNodes));
+
+    struct FakeNetwork* fakeNet = FakeNetwork_new(base, alloc, logger);
 
     String* key = NULL;
-    int i = 0;
     Dict_forEach(ctx->confNodes, key) {
         Dict* val = Dict_getDict(ctx->confNodes, key);
         String* privateKeyHex = Dict_getString(val, String_CONST("privateKey"));
         Dict* admin = Dict_getDict(val, String_CONST("admin"));
-        ctx->names[i] = key;
-        ctx->nodes[i] = startNode(key->bytes, privateKeyHex->bytes, admin, ctx, eh);
-        i++;
+        struct NodeContext* nc =
+            startNode(key->bytes, privateKeyHex->bytes, admin, ctx, eh, fakeNet);
+        nc->peers = Dict_getList(val, String_CONST("peers"));
+        Map_OfNodes_put(&key, &nc, &ctx->nodeMap);
     }
 
-
+    Log_info(ctx->logger, "\n\nAll nodes initialized\n\n");
 
     // begin the chain of RPC calls which sets up the net
     Timeout_setTimeout(startRpc, ctx, 0, base, ctx->rpcAlloc);
@@ -407,7 +442,7 @@ int main(int argc, char** argv)
         return usage(argv[0]);
     }
 
-    struct Allocator* alloc = MallocAllocator_new(1<<30);
+    struct Allocator* alloc = MallocAllocator_new(1LL<<31);
 
     struct Reader* stdinReader = FileReader_new(stdin, alloc);
     Dict config;

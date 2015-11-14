@@ -341,17 +341,37 @@ Version_COMPAT(15, ([12,13,14]))
 Version_COMPAT(16, ([12,13,14,15]))
 
 /**
+ * Version 17:
+ * October 9, 2015
+ *
+ * Ouvrir le parapluie
+ *
+ * When a node connects to another node, before v17, the connection password is double-hashed and
+ * sent while the password hash and a field called Derivations were hashed together (and then
+ * hashed with the shared secret from Curve25519 crypto) so that theoretically the hash of the
+ * password and a various value of Derivations could be passed to another node who could then
+ * establish a more heavily secured session. After v17 Derivations now is meaningless and the
+ * previously meaningless bit A which had been set in the CryptoHeader_Challenge is now cleared
+ * (see CryptoHeader.h)
+ *
+ * Also v17 adds a new authType, authType 2 which is for logging in with name and password.
+ * In pre-17 when a session setup packet is sent, the double-hash of the password is sent as a
+ * key so that the server can lookup the correct password to test.
+ * This means someone with the session setup packet could crack to find the actual password and
+ * then connect to the server. The change introduces a "login" in addition to the password, this
+ * instead is hashed and sent so if the attacker cracks the hash, they'll get the login and will
+ * not be able to login to the server.
+ */
+ Version_COMPAT(17, ([16]))
+
+/**
  * The current protocol version.
  */
-#define Version_CURRENT_PROTOCOL 16
-#define Version_12_COMPAT
-#define Version_13_COMPAT
-#define Version_14_COMPAT
-#define Version_15_COMPAT
+#define Version_CURRENT_PROTOCOL 17
 #define Version_16_COMPAT
 
-#define Version_MINIMUM_COMPATIBLE 12
-#define Version_DEFAULT_ASSUMPTION 12
+#define Version_MINIMUM_COMPATIBLE 16
+#define Version_DEFAULT_ASSUMPTION 16
 
 /**
  * Check the compatibility matrix and return whether two versions are compatible.

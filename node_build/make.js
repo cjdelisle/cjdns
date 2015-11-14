@@ -31,14 +31,12 @@ var LDFLAGS = process.env['LDFLAGS'];
 
 var NO_MARCH_FLAG = ['ppc', 'ppc64'];
 
-if (!GCC) {
-    if (SYSTEM === 'freebsd') {
-        GCC = 'gcc47';
-    } else if (SYSTEM === 'openbsd') {
-        GCC = 'egcc';
-    } else {
-        GCC = 'gcc';
-    }
+if (GCC) {
+    // Already specified.
+} else if (SYSTEM === 'openbsd') {
+    GCC = 'egcc';
+} else {
+    GCC = 'gcc';
 }
 
 Builder.configure({
@@ -57,6 +55,7 @@ Builder.configure({
         '-Wno-pointer-sign',
         '-pedantic',
         '-D', builder.config.systemName + '=1',
+        '-D', 'CJD_PACKAGE_VERSION="' + builder.config.version + '"',
         '-Wno-unused-parameter',
         '-fomit-frame-pointer',
 
@@ -75,6 +74,11 @@ Builder.configure({
         '-D', 'Allocator_USE_CANARIES=1',
         '-D', 'PARANOIA=1'
     );
+
+    if (process.env['GCOV']) {
+        builder.config.cflags.push('-fprofile-arcs', '-ftest-coverage');
+        builder.config.ldflags.push('-fprofile-arcs', '-ftest-coverage');
+    }
 
     var android = /android/i.test(builder.config.gcc);
 
@@ -112,7 +116,7 @@ Builder.configure({
         }
     }
 
-    if (/clang/i.test(builder.config.gcc) || builder.config.systemName === 'darwin') {
+    if (builder.config.compilerType.isClang) {
         // blows up when preprocessing before js preprocessor
         builder.config.cflags.push(
             '-Wno-invalid-pp-token',
@@ -346,6 +350,11 @@ Builder.configure({
                 args.push.apply(args, env.GYP_ADDITIONAL_ARGS.split(' '));
             }
 
+            if (['freebsd', 'openbsd'].indexOf(builder.config.systemName) !== -1) {
+                // This platform lacks a functioning sem_open implementation, therefore...
+                args.push('--no-parallel');
+            }
+
             var gyp = Spawn(python, args, {env:env, stdio:'inherit'});
             gyp.on('error', function () {
                 console.error("couldn't launch gyp [" + python + "]");
@@ -421,7 +430,9 @@ Builder.configure({
     if (process.env['REMOTE_TEST']) {
         testRunner = TestRunner.remote(process.env['REMOTE_TEST'], ['all']);
     }
-    builder.runTest(testcjdroute, testRunner);
+    if (!process.env['NO_TEST']) {
+        builder.runTest(testcjdroute, testRunner);
+    }
 
 }).success(function (builder, waitFor) {
 

@@ -1,6 +1,7 @@
 # cjdns
 
-Русская версия Readme: [README_RU.md](README_RU.md)
+[Русская версия](README_RU.md)
+[Hrvatski](README_HR.md)
 
 #### *Networking Reinvented*
 
@@ -11,6 +12,7 @@ scalability issues that plague existing networks.
 
 [![Build Status](https://travis-ci.org/cjdelisle/cjdns.svg?branch=master)](https://travis-ci.org/cjdelisle/cjdns)
 [![tip for next commit](https://tip4commit.com/projects/941.svg)](https://tip4commit.com/github/cjdelisle/cjdns)
+[![irc](https://img.shields.io/badge/irc%20chat-%23cjdns-blue.svg)](https://kiwiirc.com/client/irc.efnet.org/?nick=visitor|?#cjdns)
 
 ## Testimonials
 
@@ -25,53 +27,13 @@ scalability issues that plague existing networks.
     00:36 < tester> i value speed over anonymity any day
 
     <DuoNoxSol> it's notably more reliable than the normal internet
-    <DuoNoxSol> even though it really really shouldn't be
-    <DuoNoxSol> seeing as the connections are largely over the normal internet
 
-
-## How close is it to complete?
-
-[Hyperboria][] is the largest cjdns network, with hundreds of active nodes
-around the world.
-
-Cjdns has been tested on x86, amd64, ARMv5, ARMv7, MIPS, and PowerPC.
-It's [continually tested][buildbots] on Linux, FreeBSD, OS X, Windows and Illumos
-systems.
-
-The protocols and algorithms are experimental and subject to change.
-To minimize the harm to the network, please update your cjdns nodes often.
-
-
-### You can help!
-
-We are in need of some buildbots on more obscure systems and architectures.
-If you would like to donate one, you could mail it, or you could administer
-it and provide remote shell access. Please email `buildbot@seattlemesh.net`
-if you'd like to run a buildbot. Note that it is not a general support inbox,
-other questions should be directed toward IRC.
-
-
-
-## How does routing work?
-
-In a cjdns network, a packet goes to a router and the router labels the packet
-with directions to the router best able to handle it. That is, a router which
-is physically nearby and has an address numerically close to the destination
-address of the packet. The directions are added to the packet to allow it to go
-through a number of routers with minimal handling, *a verifiable form of source
-routing*. They just read the label and bounce the packet wherever the next bits
-in the label tell them to. Routers have a responsibility to "keep in touch"
-with other routers that are physically close by and numerically near to their
-address.
-
-The router engine is a modified implementation of the [Kademlia][] distributed
-hash table.
-
+    09:46 < Kubuxu> I so love cjdns code base
 
 ## Community
 
-* irc://irc.efnet.org/#cjdns ([web client][IRC Web])
-* [Hyperboria][]
+* [irc://irc.efnet.org/#cjdns][IRC Web]
+* [Hyperboria][] the largest cjdns network, as of October 2015 there are 2100 nodes.
 * [Project Meshnet][]
 * [/r/darknetplan][]
 * [#cjdns on Twitter][]
@@ -87,10 +49,6 @@ Advanced configuration:
 
 * [Setup a cjdns NAT gateway for your LAN](doc/nat-gateway.md)
 * [Install cjdns on OpenIndiana](doc/open-indiana.md)
-
-### License
-
-[Available here](LICENSE)
 
 Thank you for your time and interest,
 
@@ -118,7 +76,7 @@ it will be downloaded and installed in the source tree.
 
     sudo dnf install install nodejs git
     sudo dnf install @development-tools
-    
+
 #### RHEL based distro (adds the EPEL repo):
 
     sudo yum localinstall https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
@@ -127,32 +85,9 @@ it will be downloaded and installed in the source tree.
 
 #### OS X:
 
-On OS X, you must install the Command Line Developer Tools. If
-you already have a recent version of Xcode (>= OS X 10.9 and >= Xcode 5.0.1), run the
-following command:
+Install with homebrew:
 
-    xcode-select --install
-
-If Xcode is not installed, you can either install it through the App
-Store and run the command above, or make a free Apple Developer account here:
-[https://developer.apple.com/downloads/index.action](https://developer.apple.com/downloads/index.action).
-Then sign in, search for Command Line Tools, and install the latest package
-compatible with your version of OS X. If you encounter issues, there is a
-thorough [stackoverflow post](http://stackoverflow.com/a/9329325) on installing
-the Command Line Tools.
-
-You must also install git and Node.js. There are a few options. If you use [Homebrew](http://brew.sh/):
-
-    brew install git nodejs
-
-If you use [Macports](https://www.macports.org/):
-
-    sudo port install git-core nodejs
-
-Or if you use neither and would like to install the binaries from their websites:
-doc
-- Node.js: [http://nodejs.org/download/](http://nodejs.org/download/)
-- git: [http://git-scm.com/download](http://git-scm.com/download)
+    brew install cjdns
 
 #### OpenBSD:
 
@@ -270,6 +205,7 @@ A conf file with multiple friend-nodes, setup OUTbound, should look like:
     //friend_1 (IPv4: 0.1.2.3; IPv6 fcaa:5bac:66e4:713:cb00:e446:c317:fc39)
     "0.1.2.3:45678":
     {
+        "login": "k.alexander"
         "password": "thisIsNotARealConnection_1",
         "publicKey": "thisIsJustForAnExampleDoNotUseThisInYourConfFile_1.k"
     }
@@ -277,6 +213,7 @@ A conf file with multiple friend-nodes, setup OUTbound, should look like:
     //friend_2 (IPv4: 5.1.2.3; IPv6 fcbb:5bac:66e4:713:cb00:e446:c317:fc39)
     "5.1.2.3:5678":
     {
+        "login": "k.alexander"
         "password": "thisIsNotARealConnection_2",
         "publicKey": "thisIsJustForAnExampleDoNotUseThisInYourConfFile_2.k"
     }
@@ -292,53 +229,62 @@ following JSON syntax.
 In your conf file, you will see:
 ``` javascript
 "authorizedPasswords":
-    [
-        // A unique string which is known to the client and server.
-        {"password": "thisisauniquestring_001"}
+[
+    // A unique string which is known to the client and server.
+    {"password": "thisisauniquestring_001"}
 
-        // More passwords should look like this.
-        // {"password": "thisisauniquestring_002"}
-        // {"password": "thisisauniquestring_003"}
-        // {"password": "thisisauniquestring_004"}
-        ...
+    // More passwords should look like this.
+    // {"password": "thisisauniquestring_002"}
+    // {"password": "thisisauniquestring_003"}
+    // {"password": "thisisauniquestring_004"}
+    ...
 
-        // "your.external.ip.goes.here:45678":{"password": "thisisauniquestring_001","publicKey":thisisauniqueKEY_001.k"}
+    // "your.external.ip.goes.here:45678":{"password": "thisisauniquestring_001","publicKey":thisisauniqueKEY_001.k"}
 
-    ],
+],
 ```
 
 A conf file with multiple friend-nodes, setup INbound, should look like:
 ``` javascript
 "authorizedPasswords":
-    [
-        // A unique string which is known to the client and server.
-        {"password": "thisisauniquestring_001"}
+[
+    // A unique string which is known to the client and server.
+    {"password": "thisisauniquestring_001", "user": "k.alexander"}
 
-        // More passwords should look like this.
-    //friend_3 (IPv4: 0.1.2.3; IPv6 fcaa:5bac:66e4:713:cb00:e446:c317:fc39)
-{"password": "thisisauniquestring_002"}
-    //friend_4 (IPv4: 5.1.2.3; IPv6 fcbb:5bac:66e4:713:cb00:e446:c317:fc39)
-{"password": "thisisauniquestring_003"}
-        // {"password": "thisisauniquestring_004"}
-        ...
+    // More passwords should look like this.
+    //William Jevons (IPv4: 0.1.2.3; IPv6 fcaa:5bac:66e4:713:cb00:e446:c317:fc39)
+{"password": "thisisauniquestring_002", "user": "William Jevons"}
+    //Marilyn Patel (IPv4: 5.1.2.3; IPv6 fcbb:5bac:66e4:713:cb00:e446:c317:fc39)
+{"password": "thisisauniquestring_003", "user": "Marilyn Patel"}
+    // {"password": "thisisauniquestring_004"}
+    ...
 
-        // "your.external.ip.goes.here:45678":{"password": "thisisauniquestring_001","publicKey":thisisauniqueKEY_001.k"}
-
-    ],
+    // "your.external.ip.goes.here:45678":{"password": "thisisauniquestring_001","publicKey":thisisauniqueKEY_001.k"}
+],
 ```
 
 
-You need to give friend_3 (who is making the INbound connection) the following 4 items:
+You need to give William Jevons (who is making the INbound connection) the following 4 items:
 
 1. Your external IPv4
 2. The port found in your conf file here:
 
-                `// Bind to this port.
-                "bind": "0.0.0.0:yourportnumberishere",`
+    `// Bind to this port.
+    "bind": "0.0.0.0:yourportnumberishere",`
 
 3. Their unique password that you uncommented or created: "password": "thisisauniquestring_002"
 4. Your public key: "publicKey":thisisauniqueKEY_001.k"
+5. His username: "William Jevons"
 
+His login credentials will look something like this (with your IPv4 and port):
+
+```javascript
+"1.2.3.4:56789": {
+    "login": "William Jevons",
+    "password": "thisisauniquestring_002",
+    "publicKey": "thisIsJustForAnExampleDoNotUseThisInYourConfFile_1.k"
+}
+```
 
 
 Please note that you and your friend can *initiate* a
@@ -391,17 +337,15 @@ stay on [IRC](#community) so that people can reach you.
 ## Admin interface
 
 When cjdnroute is up and running, the admin interface will be available at
-`udp://localhost:11234` (this can be changed in the cjdroute.conf
+`udp://localhost:11234` (this can be changed in the `cjdroute.conf`
 configuration file). See [admin/README.md](admin/README.md) for more
 information about the admin interface. There are several tools in `contrib/`
 that can interact with it.
 
 You can access the admin API with:
 
-* the **Python library**; see
-  [contrib/python/README.md](contrib/python/README.md).
-* the **Perl library**, maintained by Mikey; see
-  [contrib/perl/CJDNS/README](contrib/perl/CJDNS/README).
+* the **Python library**; see [here](contrib/python/README.md).
+* the **Perl library**, maintained by Mikey; see [here](contrib/perl/CJDNS/README).
 
 
 [IRC Web]: http://chat.efnet.org/irc.cgi?chan=%23cjdns

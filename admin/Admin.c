@@ -63,16 +63,13 @@ struct MapValue
 #define Map_KEY_TYPE struct Sockaddr*
 #define Map_VALUE_TYPE struct MapValue*
 #include "util/Map.h"
-
 static inline uint32_t Map_LastMessageTimeByAddr_hash(struct Sockaddr** key)
 {
-    uint32_t* k = (uint32_t*) *key;
-    return k[ ((*key)->addrLen / 4)-1 ];
+    return Sockaddr_hash(*key);
 }
-
 static inline int Map_LastMessageTimeByAddr_compare(struct Sockaddr** keyA, struct Sockaddr** keyB)
 {
-    return Bits_memcmp(*keyA, *keyB, (*keyA)->addrLen);
+    return Sockaddr_compare(*keyA, *keyB);
 }
 
 /////// end map
@@ -420,7 +417,7 @@ static void handleMessage(struct Message* message,
     if (message->length > Admin_MAX_REQUEST_SIZE) {
         #define TOO_BIG "d5:error16:Request too big.e"
         #define TOO_BIG_STRLEN (sizeof(TOO_BIG) - 1)
-        Bits_memcpyConst(message->bytes, TOO_BIG, TOO_BIG_STRLEN);
+        Bits_memcpy(message->bytes, TOO_BIG, TOO_BIG_STRLEN);
         message->length = TOO_BIG_STRLEN;
         sendMessage(message, src, admin);
         return;

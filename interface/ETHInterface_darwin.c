@@ -94,9 +94,9 @@ static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* iface)
     if (sockaddr.generic.flags & Sockaddr_flags_BCAST) {
         Bits_memset(ethFr.dest, 0xff, 6);
     } else {
-        Bits_memcpyConst(ethFr.dest, sockaddr.mac, 6);
+        Bits_memcpy(ethFr.dest, sockaddr.mac, 6);
     }
-    Bits_memcpyConst(ethFr.src, ctx->myMac, 6);
+    Bits_memcpy(ethFr.src, ctx->myMac, 6);
     Message_push(msg, &ethFr, ethernet_frame_SIZE, NULL);
   /*
     struct bpf_hdr bpfPkt = {
@@ -129,7 +129,7 @@ static void handleEvent2(struct ETHInterface_pvt* context,
     struct Message* msg = Message_new(contentLength, PADDING, alloc);
 
     struct ETHInterface_Header hdr;
-    Bits_memcpyConst(&hdr, data, ETHInterface_Header_SIZE);
+    Bits_memcpy(&hdr, data, ETHInterface_Header_SIZE);
 
     Bits_memcpy(msg->bytes, &data[ETHInterface_Header_SIZE], contentLength);
 
@@ -154,7 +154,7 @@ static void handleEvent2(struct ETHInterface_pvt* context,
     }
 
     struct ETHInterface_Sockaddr sockaddr = { .zero = 0 };
-    Bits_memcpyConst(sockaddr.mac, src, 6);
+    Bits_memcpy(sockaddr.mac, src, 6);
     sockaddr.generic.addrLen = ETHInterface_Sockaddr_SIZE;
     if (dst[0] == 0xff) {
         sockaddr.generic.flags |= Sockaddr_flags_BCAST;
@@ -176,7 +176,7 @@ static void handleEvent(void* vcontext)
     }
     if (bytes < 1) { return; }
     if (bytes < (ssize_t)sizeof(struct bpf_hdr)) {
-        Log_debug(context->logger, "runt [%u]", bytes);
+        Log_debug(context->logger, "runt [%lld]", (long long) bytes);
         return;
     }
     int offset = 0;
@@ -250,7 +250,7 @@ static void macaddr(const char* ifname, uint8_t addrOut[6], struct Except* eh)
     } else {
         for (struct ifaddrs* ifap = ifa; ifap; ifap = ifap->ifa_next) {
             if (!strcmp(ifap->ifa_name, ifname) && ifap->ifa_addr->sa_family == AF_LINK) {
-                Bits_memcpyConst(addrOut, LLADDR((struct sockaddr_dl*) ifap->ifa_addr), 6);
+                Bits_memcpy(addrOut, LLADDR((struct sockaddr_dl*) ifap->ifa_addr), 6);
                 freeifaddrs(ifa);
                 return;
             }

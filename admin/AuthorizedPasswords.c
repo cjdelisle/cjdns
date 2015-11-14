@@ -16,6 +16,7 @@
 #include "benc/Int.h"
 #include "benc/List.h"
 #include "benc/String.h"
+#include "util/AddrTools.h"
 
 struct Context
 {
@@ -37,36 +38,28 @@ static void add(Dict* args, void* vcontext, String* txid, struct Allocator* allo
     struct Context* context = Identity_check((struct Context*) vcontext);
 
     String* passwd = Dict_getString(args, String_CONST("password"));
-    int64_t* authType = Dict_getInt(args, String_CONST("authType"));
     String* user = Dict_getString(args, String_CONST("user"));
     String* ipv6 = Dict_getString(args, String_CONST("ipv6"));
-    int64_t one = 1;
-    if (!authType) {
-        authType = &one;
-    } else if (*authType < 1 || *authType > 255) {
-        sendResponse(String_CONST("Specified auth type is not supported."),
-                     context->admin, txid, alloc);
+
+    uint8_t ipv6Bytes[16];
+    uint8_t* ipv6Arg;
+    if (!ipv6) {
+        ipv6Arg = NULL;
+    } else if (AddrTools_parseIp(ipv6Bytes, ipv6->bytes)) {
+        sendResponse(String_CONST("Invalid IPv6 Address"), context->admin, txid, alloc);
         return;
+    } else {
+        ipv6Arg = ipv6Bytes;
     }
-    int32_t ret = CryptoAuth_addUser_ipv6(passwd, *authType, user, ipv6, context->ca);
+
+    int32_t ret = CryptoAuth_addUser_ipv6(passwd, user, ipv6Arg, context->ca);
 
     switch (ret) {
         case 0:
             sendResponse(String_CONST("none"), context->admin, txid, alloc);
             break;
-        case CryptoAuth_addUser_INVALID_AUTHTYPE:
-            sendResponse(String_CONST("Specified auth type is not supported."),
-                         context->admin, txid, alloc);
-            break;
-        case CryptoAuth_addUser_OUT_OF_SPACE:
-            sendResponse(String_CONST("Out of memory to store password."),
-                         context->admin, txid, alloc);
-            break;
         case CryptoAuth_addUser_DUPLICATE:
             sendResponse(String_CONST("Password already added."), context->admin, txid, alloc);
-            break;
-        case CryptoAuth_addUser_INVALID_IP:
-            sendResponse(String_CONST("Invalid IPv6 Address"), context->admin, txid, alloc);
             break;
         default:
             sendResponse(String_CONST("Unknown error."), context->admin, txid, alloc);
@@ -117,9 +110,8 @@ void AuthorizedPasswords_init(struct Admin* admin,
     Admin_registerFunction("AuthorizedPasswords_add", add, context, true,
         ((struct Admin_FunctionArg[]){
             { .name = "password", .required = 1, .type = "String" },
-            { .name = "user", .required = 1, .type = "String" },
             { .name = "ipv6", .required = 0, .type = "String" },
-            { .name = "authType", .required = 0, .type = "Int" }
+            { .name = "user", .required = 0, .type = "String" }
         }), admin);
     Admin_registerFunction("AuthorizedPasswords_remove", remove, context, true,
         ((struct Admin_FunctionArg[]){

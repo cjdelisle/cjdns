@@ -124,8 +124,8 @@ static void sendSession(struct SessionManager_Session_pvt* sess,
         .metric_be = 0xffffffff,
         .version_be = Endian_hostToBigEndian32(sess->pub.version)
     };
-    Bits_memcpyConst(session.ip6, sess->pub.caSession->herIp6, 16);
-    Bits_memcpyConst(session.publicKey, sess->pub.caSession->herPublicKey, 32);
+    Bits_memcpy(session.ip6, sess->pub.caSession->herIp6, 16);
+    Bits_memcpy(session.publicKey, sess->pub.caSession->herPublicKey, 32);
 
     struct Allocator* alloc = Allocator_child(sess->alloc);
     struct Message* msg = Message_new(0, PFChan_Node_SIZE + 512, alloc);
@@ -210,7 +210,7 @@ static struct SessionManager_Session_pvt* getSession(struct SessionManager_pvt* 
     sess = Allocator_calloc(alloc, sizeof(struct SessionManager_Session_pvt), 1);
     Identity_set(sess);
 
-    sess->pub.caSession = CryptoAuth_newSession(sm->cryptoAuth, alloc, pubKey, ip6, false, "inner");
+    sess->pub.caSession = CryptoAuth_newSession(sm->cryptoAuth, alloc, pubKey, false, "inner");
 
     int ifaceIndex = Map_OfSessionsByIp6_put((struct Ip6*)ip6, &sess, &sm->ifaceMap);
     sess->pub.receiveHandle = sm->ifaceMap.handles[ifaceIndex] + sm->firstHandle;
@@ -257,22 +257,21 @@ static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface
             Log_debug(sm->log, "DROP runt");
             return NULL;
         }
-        union CryptoHeader* caHeader = (union CryptoHeader*) msg->bytes;
-        uint8_t* herKey = caHeader->handshake.publicKey;
+        struct CryptoHeader* caHeader = (struct CryptoHeader*) msg->bytes;
         uint8_t ip6[16];
         // a packet which claims to be "from us" causes problems
-        if (!AddressCalc_addressForPublicKey(ip6, herKey)) {
+        if (!AddressCalc_addressForPublicKey(ip6, caHeader->publicKey)) {
             Log_debug(sm->log, "DROP Handshake with non-fc key");
             return NULL;
         }
 
-        if (!Bits_memcmp(herKey, sm->cryptoAuth->publicKey, 32)) {
+        if (!Bits_memcmp(caHeader->publicKey, sm->cryptoAuth->publicKey, 32)) {
             Log_debug(sm->log, "DROP Handshake from 'ourselves'");
             return NULL;
         }
 
         uint64_t label = Endian_bigEndianToHost64(switchHeader->label_be);
-        session = getSession(sm, ip6, herKey, 0, label);
+        session = getSession(sm, ip6, caHeader->publicKey, 0, label);
         CryptoAuth_resetIfTimeout(session->pub.caSession);
         debugHandlesAndLabel(sm->log, session, label, "new session nonce[%d]", nonceOrHandle);
     }
@@ -299,7 +298,7 @@ static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface
     struct RouteHeader* header = (struct RouteHeader*) msg->bytes;
 
     if (currentMessageSetup) {
-        Bits_memcpyConst(&header->sh, switchHeader, SwitchHeader_SIZE);
+        Bits_memcpy(&header->sh, switchHeader, SwitchHeader_SIZE);
         debugHandlesAndLabel0(sm->log,
                               session,
                               Endian_bigEndianToHost64(switchHeader->label_be),
@@ -316,8 +315,8 @@ static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface
     }
 
     header->version_be = Endian_hostToBigEndian32(session->pub.version);
-    Bits_memcpyConst(header->ip6, session->pub.caSession->herIp6, 16);
-    Bits_memcpyConst(header->publicKey, session->pub.caSession->herPublicKey, 32);
+    Bits_memcpy(header->ip6, session->pub.caSession->herIp6, 16);
+    Bits_memcpy(header->publicKey, session->pub.caSession->herPublicKey, 32);
 
     uint64_t path = Endian_bigEndianToHost64(switchHeader->label_be);
     if (!session->pub.sendSwitchLabel) {
@@ -442,7 +441,7 @@ static Iface_DEFUN readyToSend(struct Message* msg,
 
         // Copy back the SwitchHeader so it is not clobbered.
         Message_shift(msg, (CryptoHeader_SIZE + SwitchHeader_SIZE), NULL);
-        Bits_memcpyConst(msg->bytes, &header->sh, SwitchHeader_SIZE);
+        Bits_memcpy(msg->bytes, &header->sh, SwitchHeader_SIZE);
         sh = (struct SwitchHeader*) msg->bytes;
         Message_shift(msg, -(CryptoHeader_SIZE + SwitchHeader_SIZE), NULL);
     } else {

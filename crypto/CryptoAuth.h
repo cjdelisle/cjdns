@@ -46,7 +46,7 @@ struct CryptoAuth_Session
 {
     uint8_t herPublicKey[32];
 
-    String* userName;
+    String* displayName;
 
     struct ReplayProtector replayProtector;
 
@@ -73,25 +73,18 @@ struct CryptoAuth_Session
  *             to the given IPv6 address.
  * @param context The CryptoAuth context.
  * @return 0 if all goes well,
- *         CryptoAuth_addUser_INVALID_AUTHTYPE if the authentication method is not supported,
- *         CryptoAuth_addUser_OUT_OF_SPACE if there is not enough space to store the entry,
  *         CryptoAuth_addUser_DUPLICATE if the same *password* already exists.
- *         CryptoAuth_addUser_INVALID_IP if the ipv6 is not valid.
  */
-#define CryptoAuth_addUser_INVALID_AUTHTYPE  -1
-#define CryptoAuth_addUser_OUT_OF_SPACE      -2
 #define CryptoAuth_addUser_DUPLICATE         -3
-#define CryptoAuth_addUser_INVALID_IP        -4
-int32_t CryptoAuth_addUser_ipv6(String* password,
-                           uint8_t authType,
-                           String* user,
-                           String* ipv6,
-                           struct CryptoAuth* context);
+int CryptoAuth_addUser_ipv6(String* password,
+                            String* login,
+                            uint8_t ipv6[16],
+                            struct CryptoAuth* ca);
 
-int32_t CryptoAuth_addUser(String* password,
-                           uint8_t authType,
-                           String* user,
-                           struct CryptoAuth* context);
+static inline int CryptoAuth_addUser(String* password, String* login, struct CryptoAuth* ca)
+{
+    return CryptoAuth_addUser_ipv6(password, login, NULL, ca);
+}
 
 /**
  * Remove all users registered with this CryptoAuth.
@@ -131,16 +124,11 @@ struct CryptoAuth* CryptoAuth_new(struct Allocator* allocator,
 /**
  * Wrap an interface with crypto authentication.
  *
- * NOTE: Sending empty packets during the handshake is not allowed!
- *       Empty packets are used for signaling during the handshake so they can
- *       only be used while the session is in state ESTABLISHED.
- *
  * NOTE2: Every received packet is prefixed by the 4 byte *nonce* for that packet
  *        in host endian order.
  *
  * @param toWarp the interface to wrap
  * @param herPublicKey the public key of the other party or NULL if unknown.
- * @param herIp6 the ipv6 address of the other party
  * @param requireAuth if the remote end of this interface begins the connection, require
  *                    them to present valid authentication credentials to connect.
  *                    If this end begins the connection, this parameter has no effect.
@@ -150,7 +138,6 @@ struct CryptoAuth* CryptoAuth_new(struct Allocator* allocator,
 struct CryptoAuth_Session* CryptoAuth_newSession(struct CryptoAuth* ca,
                                                  struct Allocator* alloc,
                                                  const uint8_t herPublicKey[32],
-                                                 const uint8_t herIp6[16],
                                                  const bool requireAuth,
                                                  char* name);
 
@@ -167,12 +154,13 @@ int CryptoAuth_decrypt(struct CryptoAuth_Session* session, struct Message* msg);
  *
  * @param password the password to use for authenticating, this must match the password given to
  *                 CryptoAuth_addUser() at the other end of the connection.
- * @param authType this must match CryptoAuth_addUser() at the other end of the connection.
+ * @param login the username to use for logging in with the other node.
+ *              if null then the authtype will be type 1 (password only).
  * @param wrappedInterface this MUST be the output from CryptoAuth_wrapInterface().
  */
 void CryptoAuth_setAuth(const String* password,
-                        const uint8_t authType,
-                        struct CryptoAuth_Session* session);
+                        const String* login,
+                        struct CryptoAuth_Session* caSession);
 
 /** Reset the session's state to CryptoAuth_NEW, a new connection will be negotiated. */
 //void CryptoAuth_reset(struct CryptoAuth_Session* session);

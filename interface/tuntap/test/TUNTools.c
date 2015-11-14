@@ -106,8 +106,8 @@ Iface_DEFUN TUNTools_genericIP6Echo(struct Message* msg, struct TUNTools* tt)
     Assert_true(!Bits_memcmp(header->destinationAddr, TUNTools_testIP6AddrB, 16));
     Assert_true(!Bits_memcmp(header->sourceAddr, TUNTools_testIP6AddrA, 16));
 
-    Bits_memcpyConst(header->destinationAddr, TUNTools_testIP6AddrA, 16);
-    Bits_memcpyConst(header->sourceAddr, TUNTools_testIP6AddrB, 16);
+    Bits_memcpy(header->destinationAddr, TUNTools_testIP6AddrA, 16);
+    Bits_memcpy(header->sourceAddr, TUNTools_testIP6AddrB, 16);
 
     TUNMessageType_push(msg, ethertype, NULL);
 

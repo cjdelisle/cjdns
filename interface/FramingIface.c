@@ -72,7 +72,6 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* streamIf)
 
     if (fi->bytesRemaining > fi->maxMessageSize) {
         // Oversize message
-Assert_true(0);
         return NULL;
     }
 
@@ -112,7 +111,6 @@ Assert_true(0);
         fi->bytesRemaining = Endian_bigEndianToHost32(fi->header.length_be);
         if (fi->bytesRemaining > fi->maxMessageSize) {
             // oversize
-Assert_true(0);
             return NULL;
         }
 

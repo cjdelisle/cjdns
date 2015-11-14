@@ -90,7 +90,7 @@ static void test179(struct Allocator* alloc, struct Log* logger)
 int main()
 {
     struct Allocator* alloc = MallocAllocator_new(1<<20);
-    struct RandomSeed* seed = DeterminentRandomSeed_new(alloc);
+    struct RandomSeed* seed = DeterminentRandomSeed_new(alloc, NULL);
     struct Writer* w = FileWriter_new(stdout, alloc);
     struct Log* logger = WriterLog_new(w, alloc);
     struct Random* rand = Random_newWithSeed(alloc, logger, seed, NULL);

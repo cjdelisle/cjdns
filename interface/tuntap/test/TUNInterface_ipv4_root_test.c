@@ -46,8 +46,8 @@ static Iface_DEFUN receiveMessageTUN(struct Message* msg, struct TUNTools* tt)
     Assert_true(!Bits_memcmp(header->destAddr, testAddrB, 4));
     Assert_true(!Bits_memcmp(header->sourceAddr, testAddrA, 4));
 
-    Bits_memcpyConst(header->destAddr, testAddrA, 4);
-    Bits_memcpyConst(header->sourceAddr, testAddrB, 4);
+    Bits_memcpy(header->destAddr, testAddrA, 4);
+    Bits_memcpy(header->sourceAddr, testAddrB, 4);
 
     TUNMessageType_push(msg, ethertype, NULL);
 

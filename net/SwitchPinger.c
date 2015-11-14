@@ -121,7 +121,7 @@ static Iface_DEFUN messageFromControlHandler(struct Message* msg, struct Iface* 
                 Log_debug(ctx->logger, "dropped invalid switch key-pong");
                 return NULL;
             }
-            Bits_memcpyConst(ctx->incomingKey, pongHeader->key, 32);
+            Bits_memcpy(ctx->incomingKey, pongHeader->key, 32);
             Message_shift(msg, -Control_KeyPong_HEADER_SIZE, NULL);
         } else if (msg->length > Control_KeyPong_MAX_SIZE) {
             Log_debug(ctx->logger, "got overlong key-pong message, length: [%d]", msg->length);
@@ -202,7 +202,7 @@ static void onPingResponse(String* data, uint32_t milliseconds, void* vping)
     resp->data = data;
     resp->milliseconds = milliseconds;
     resp->version = version;
-    Bits_memcpyConst(resp->key, p->context->incomingKey, 32);
+    Bits_memcpy(resp->key, p->context->incomingKey, 32);
     resp->ping = &p->pub;
     p->onResponse(resp, p->pub.onResponseContext);
 }
@@ -226,7 +226,7 @@ static void sendPing(String* data, void* sendPingContext)
         struct Control_KeyPing* keyPingHeader = (struct Control_KeyPing*) msg->bytes;
         keyPingHeader->magic = Control_KeyPing_MAGIC;
         keyPingHeader->version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL);
-        Bits_memcpyConst(keyPingHeader->key, p->context->myAddr->key, 32);
+        Bits_memcpy(keyPingHeader->key, p->context->myAddr->key, 32);
     } else {
         Message_shift(msg, Control_Ping_HEADER_SIZE, NULL);
         struct Control_Ping* pingHeader = (struct Control_Ping*) msg->bytes;
@@ -354,7 +354,7 @@ struct SwitchPinger* SwitchPinger_new(struct EventBase* eventBase,
 {
     struct Allocator* alloc = Allocator_child(allocator);
     struct SwitchPinger_pvt* sp = Allocator_malloc(alloc, sizeof(struct SwitchPinger_pvt));
-    Bits_memcpyConst(sp, (&(struct SwitchPinger_pvt) {
+    Bits_memcpy(sp, (&(struct SwitchPinger_pvt) {
         .pub = {
             .controlHandlerIf = {
                 .send = messageFromControlHandler

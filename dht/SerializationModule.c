@@ -45,7 +45,7 @@ void SerializationModule_register(struct DHTModuleRegistry* registry,
 {
     struct SerializationModule_context* context =
         Allocator_malloc(allocator, sizeof(struct SerializationModule_context));
-    Bits_memcpyConst(context, (&(struct SerializationModule_context) {
+    Bits_memcpy(context, (&(struct SerializationModule_context) {
         .module = {
             .name = "SerializationModule",
             .context = context,

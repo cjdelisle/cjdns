@@ -12,32 +12,33 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef ConverterV15_H
-#define ConverterV15_H
+#ifndef FakeNetwork_H
+#define FakeNetwork_H
 
+#include "exception/Except.h"
 #include "interface/Iface.h"
+#include "interface/addressable/AddrIface.h"
 #include "memory/Allocator.h"
-#include "net/SessionManager.h"
+#include "util/events/EventBase.h"
 #include "util/log/Log.h"
 #include "util/Linker.h"
-Linker_require("net/ConverterV15.c")
+Linker_require("util/events/libuv/FakeNetwork.c")
 
-/**
- * Convert between v15 version packets which contained full IPv6 headers and v16+ packets with
- * cjdns DataHeader.
- */
-struct ConverterV15
+struct FakeNetwork
 {
-    /** talks v15 */
-    struct Iface sessionManagerIf;
-
-    /** talks v16 */
-    struct Iface upperDistributorIf;
+    int unused;
 };
 
-struct ConverterV15* ConverterV15_new(struct Allocator* alloc,
-                                      struct Log* log,
-                                      struct SessionManager* sm,
-                                      uint8_t myIp6[16]);
+struct FakeNetwork_UDPIface
+{
+    struct AddrIface generic;
+};
 
+struct FakeNetwork* FakeNetwork_new(struct EventBase* base,
+                                    struct Allocator* allocator,
+                                    struct Log* logger);
+
+struct FakeNetwork_UDPIface* FakeNetwork_iface(struct FakeNetwork* net,
+                                               struct Sockaddr* bindAddress,
+                                               struct Allocator* alloc);
 #endif

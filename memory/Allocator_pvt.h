@@ -129,6 +129,8 @@ struct Allocator_FirstCtx
 
     /** The number of bytes which can be allocated total. */
     int64_t maxSpace;
+
+    Identity
 };
 
 #endif

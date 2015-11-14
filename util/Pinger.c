@@ -123,8 +123,8 @@ struct Pinger_Ping* Pinger_newPing(String* data,
 
     // Prefix the data with the handle and cookie
     String* toSend = String_newBinary(NULL, ((data) ? data->len : 0) + 12, alloc);
-    Bits_memcpyConst(toSend->bytes, &ping->pub.handle, 4);
-    Bits_memcpyConst(&toSend->bytes[4], &ping->cookie, 8);
+    Bits_memcpy(toSend->bytes, &ping->pub.handle, 4);
+    Bits_memcpy(&toSend->bytes[4], &ping->cookie, 8);
     if (data) {
         Bits_memcpy(toSend->bytes + 12, data->bytes, data->len);
     }
@@ -147,7 +147,7 @@ void Pinger_pongReceived(String* data, struct Pinger* pinger)
         return;
     }
     uint32_t handle;
-    Bits_memcpyConst(&handle, data->bytes, 4);
+    Bits_memcpy(&handle, data->bytes, 4);
     int index = Map_OutstandingPings_indexForHandle(handle - pinger->baseHandle,
                                                     &pinger->outstandingPings);
     if (index < 0) {
@@ -156,7 +156,7 @@ void Pinger_pongReceived(String* data, struct Pinger* pinger)
         data->len -= 4;
         data->bytes += 4;
         uint64_t cookie;
-        Bits_memcpyConst(&cookie, data->bytes, 8);
+        Bits_memcpy(&cookie, data->bytes, 8);
         struct Ping* p = Identity_check((struct Ping*) pinger->outstandingPings.values[index]);
         if (cookie != p->cookie) {
             Log_debug(pinger->logger, "Ping response with invalid cookie");

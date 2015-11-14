@@ -65,7 +65,7 @@ static void encryptRndNonceTest()
 
 static struct Random* evilRandom(struct Allocator* alloc, struct Log* logger)
 {
-    struct RandomSeed* evilSeed = DeterminentRandomSeed_new(alloc);
+    struct RandomSeed* evilSeed = DeterminentRandomSeed_new(alloc, NULL);
     return Random_newWithSeed(alloc, logger, evilSeed, NULL);
 }
 
@@ -90,10 +90,10 @@ static struct Context* setUp(uint8_t* myPrivateKey,
         CryptoAuth_new(alloc, myPrivateKey, base, log, evilRandom(alloc, log));
 
     struct CryptoAuth_Session* sess = ctx->sess =
-        CryptoAuth_newSession(ca, alloc, herPublicKey, NULL, false, Gcc_FILE);
+        CryptoAuth_newSession(ca, alloc, herPublicKey, false, Gcc_FILE);
 
     if (authPassword) {
-        CryptoAuth_setAuth(String_CONST(authPassword), 1, sess);
+        CryptoAuth_setAuth(String_CONST(authPassword), NULL, sess);
     }
 
     return ctx;
@@ -121,7 +121,7 @@ static void testHello(uint8_t* password, uint8_t* expectedOutput)
 static void helloNoAuth()
 {
     testHello(NULL,
-        "00000000007691d3802a9d04fc400000497a185dabda71739c1f35465fac3448"
+        "00000000007691d3802a9d047c400000497a185dabda71739c1f35465fac3448"
         "b92a0c36ebff1cf7050383c91e7d56ec2336c09739fa8e91d8dc5bec63e8fad0"
         "74bee22a90642a6b4188f374afd90ccc97bb61873b5d8a3b4a6071b60b26a8c7"
         "2d6484634df315c4d3ad63de42fe3e4ebfd83bcdab2e1f5f40dc5a08eda4e6c6"
@@ -131,7 +131,7 @@ static void helloNoAuth()
 static void helloWithAuth()
 {
     testHello("password",
-        "0000000001641c99f7719f5780000000497a185dabda71739c1f35465fac3448"
+        "0000000001641c99f7719f5700000000497a185dabda71739c1f35465fac3448"
         "b92a0c36ebff1cf7050383c91e7d56ec2336c09739fa8e91d8dc5bec63e8fad0"
         "74bee22a90642a6b022e089e0550ca84b86884af6a0263fa5fff9ba07583aea4"
         "acb000dbe4115623cf335c63981b9645b6c89fbdc3ad757744879751de0f215d"
@@ -140,8 +140,11 @@ static void helloWithAuth()
 
 static void receiveHelloWithNoAuth()
 {
+    uint8_t herPublic[32];
+    Assert_true(Hex_decode(herPublic, 32,
+        "847c0d2c375234f365e660955187a3735a0f7613d1609d3a6a4d8c53aeaa5a22", 64) > 0);
     struct Allocator* alloc = MallocAllocator_new(1<<20);
-    struct Context* ctx = setUp(PRIVATEKEY, NULL, NULL, alloc);
+    struct Context* ctx = setUp(PRIVATEKEY, herPublic, NULL, alloc);
     struct Message* msg = Message_new(132, 0, alloc);
     Assert_true(Hex_decode(msg->bytes, msg->length,
         "0000000000ffffffffffffff7fffffffffffffffffffffffffffffffffffffff"
@@ -149,6 +152,7 @@ static void receiveHelloWithNoAuth()
         "6a4d8c53aeaa5a22ea9cf275eee0185edf7f211192f12e8e642a325ed76925fe"
         "3c76d313b767a10aca584ca0b979dee990a737da7d68366fa3846d43d541de91"
         "29ea3e12", 132*2) > 0);
+
     Assert_true(!CryptoAuth_decrypt(ctx->sess, msg));
     Assert_true(msg->length == HELLOWORLDLEN);
     Assert_true(Bits_memcmp(HELLOWORLD, msg->bytes, HELLOWORLDLEN) == 0);
@@ -159,7 +163,7 @@ static void receiveHelloWithNoAuth()
 static void repeatHello()
 {
     uint8_t* expectedOutput =
-        "0000000101641c99f7719f5780000000a693a9fd3f0e27e81ab1100b57b37259"
+        "0000000101641c99f7719f5700000000a693a9fd3f0e27e81ab1100b57b37259"
         "4c2adca8671f1fdd050383c91e7d56ec2336c09739fa8e91d8dc5bec63e8fad0"
         "74bee22a90642a6ba8555be84c5e35970c5270e8f31f2a5978e0fbdee4542882"
         "97568f25a3fc2801aa707d954c78eccb970bcc8cb26867e9dbf0c9d6ef1b3f27"
@@ -197,12 +201,12 @@ static void testGetUsers()
     users = CryptoAuth_getUsers(ca, allocator);
     Assert_true(List_size(users) == 0);
 
-    CryptoAuth_addUser(String_CONST("pass1"), 1, String_CONST("user1"), ca);
+    CryptoAuth_addUser(String_CONST("pass1"), String_CONST("user1"), ca);
     users = CryptoAuth_getUsers(ca, allocator);
     Assert_true(List_size(users) == 1);
-    Assert_true(String_equals(String_CONST("user1"),List_getString(users,0)));
+    Assert_true(String_equals(String_CONST("user1"), List_getString(users,0)));
 
-    CryptoAuth_addUser(String_CONST("pass2"), 1, String_CONST("user2"), ca);
+    CryptoAuth_addUser(String_CONST("pass2"), String_CONST("user2"), ca);
     users = CryptoAuth_getUsers(ca, allocator);
     Assert_true(List_size(users) == 2);
     Assert_true(String_equals(String_CONST("user2"),List_getString(users,0)));

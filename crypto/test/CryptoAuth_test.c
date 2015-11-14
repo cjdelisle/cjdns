@@ -24,13 +24,15 @@
 #include "util/log/FileWriterLog.h"
 #include "wire/CryptoHeader.h"
 
-#define PRIVATEKEY ( \
-    "\x20\xca\x45\xd9\x5b\xbf\xca\xe7\x35\x3c\xd2\xdf\xfa\x12\x84\x4b" \
-    "\x4e\xff\xbe\x7d\x39\xd8\x4d\x8e\x14\x2b\x9d\x21\x89\x5b\x38\x09" )
+#define PRIVATEKEY_A \
+    Constant_stringForHex("53ff22b2eb94ce8c5f1852c0f557eb901f067e5273d541e0a21e143c20dff9da")
+#define PUBLICKEY_A \
+    Constant_stringForHex("e3ff75af6e4414494df22f200ffeaa56e7976d991d33cc87f52427e27f83235d")
 
-#define PUBLICKEY ( \
-    "\x51\xaf\x8d\xd9\x35\xe8\x61\x86\x3e\x94\x2b\x1b\x6d\x21\x22\xe0" \
-    "\x2f\xb2\xd0\x88\x20\xbb\xf3\xf0\x6f\xcd\xe5\x85\x30\xe0\x08\x34" )
+#define PRIVATEKEY_B \
+    Constant_stringForHex("b71c4f43e3d4b1879b5065d44a1cb43eaf07ddba96de6a72ca761c4ef4bd2988")
+#define PUBLICKEY_B \
+    Constant_stringForHex("27c303cdc1f96e4b28d51c75130aff6cad52098f2d752615b7b6509ed6a89477")
 
 #define USEROBJ "This represents a user"
 
@@ -48,7 +50,11 @@ struct Context
     struct EventBase* base;
 };
 
-static struct Context* init(uint8_t* privateKey, uint8_t* herPublicKey, uint8_t* password)
+static struct Context* init(uint8_t* privateKeyA,
+                            uint8_t* publicKeyA,
+                            uint8_t* password,
+                            uint8_t* privateKeyB,
+                            uint8_t* publicKeyB)
 {
     struct Allocator* alloc = MallocAllocator_new(1048576);
     struct Context* ctx = Allocator_calloc(alloc, sizeof(struct Context), 1);
@@ -57,23 +63,23 @@ static struct Context* init(uint8_t* privateKey, uint8_t* herPublicKey, uint8_t*
     struct Random* rand = ctx->rand = Random_new(alloc, logger, NULL);
     struct EventBase* base = ctx->base = EventBase_new(alloc);
 
-    ctx->ca1 = CryptoAuth_new(alloc, NULL, base, logger, rand);
-    ctx->sess1 = CryptoAuth_newSession(ctx->ca1, alloc, herPublicKey, NULL, false, "cif1");
+    ctx->ca1 = CryptoAuth_new(alloc, privateKeyA, base, logger, rand);
+    ctx->sess1 = CryptoAuth_newSession(ctx->ca1, alloc, publicKeyB, false, "cif1");
 
-    ctx->ca2 = CryptoAuth_new(alloc, privateKey, base, logger, rand);
+    ctx->ca2 = CryptoAuth_new(alloc, privateKeyB, base, logger, rand);
     if (password) {
         String* passStr = String_CONST(password);
-        CryptoAuth_setAuth(passStr, 1, ctx->sess1);
-        CryptoAuth_addUser(passStr, 1, String_new(USEROBJ, alloc), ctx->ca2);
+        CryptoAuth_setAuth(passStr, NULL, ctx->sess1);
+        CryptoAuth_addUser(passStr, String_new(USEROBJ, alloc), ctx->ca2);
     }
-    ctx->sess2 = CryptoAuth_newSession(ctx->ca2, alloc, NULL, NULL, false, "cif2");
+    ctx->sess2 = CryptoAuth_newSession(ctx->ca2, alloc, publicKeyA, false, "cif2");
 
     return ctx;
 }
 
 static struct Context* simpleInit()
 {
-    return init(PRIVATEKEY, PUBLICKEY, NULL);
+    return init(PRIVATEKEY_A, PUBLICKEY_A, NULL, PRIVATEKEY_B, PUBLICKEY_B);
 }
 
 static struct Message* encryptMsg(struct Context* ctx,
@@ -177,7 +183,7 @@ static void chatter()
 
 static void auth()
 {
-    struct Context* ctx = init(PRIVATEKEY, PUBLICKEY, "password");
+    struct Context* ctx = init(PRIVATEKEY_A, PUBLICKEY_A, "password", PRIVATEKEY_B, PUBLICKEY_B);
     sendToIf2(ctx, "hello world");
     sendToIf1(ctx, "hello cjdns");
     sendToIf2(ctx, "hai");
@@ -224,13 +230,13 @@ static void replayKeyPacket(int scenario)
 static void hellosCrossedOnTheWire()
 {
     struct Context* ctx = simpleInit();
-    Bits_memcpyConst(ctx->sess2->herPublicKey, ctx->ca1->publicKey, 32);
+    Bits_memcpy(ctx->sess2->herPublicKey, ctx->ca1->publicKey, 32);
 
     struct Message* hello2 = encryptMsg(ctx, ctx->sess2, "hello2");
     struct Message* hello1 = encryptMsg(ctx, ctx->sess1, "hello1");
 
     decryptMsg(ctx, hello2, ctx->sess1, "hello2");
-    decryptMsg(ctx, hello1, ctx->sess2, "hello1");
+    decryptMsg(ctx, hello1, ctx->sess2, NULL); //"hello1"); // The message is suppressed.
 
     sendToIf2(ctx, "hello world");
     sendToIf1(ctx, "hello cjdns");

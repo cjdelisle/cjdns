@@ -1,6 +1,6 @@
 # Starting your own Mesh Local
 
-One of the first things to come to terms with is that a mesh network is **peer to peer** and **non-heirarchical**. A mesh local should reflect this, and not depend entirely upon one individual to coordinate its actions.
+One of the first things to come to terms with is that a mesh network is **peer to peer** and **non-hierarchical**. A mesh local should reflect this, and not depend entirely upon one individual to coordinate its actions.
 
 When you find someone else who is interested, divide "duties" according to your respective skill sets, and don't worry about getting everything right to begin with. Responsibility has a way of motivating people.
 

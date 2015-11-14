@@ -19,6 +19,7 @@
 #include "util/CString.h"
 #include "util/Bits.h"
 #include "util/Hex.h"
+#include "util/Hash.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -272,13 +273,13 @@ struct Sockaddr* Sockaddr_fromBytes(const uint8_t* bytes, int addrFamily, struct
     switch (addrFamily) {
         case AF_INET: {
             ss.ss_family = AF_INET;
-            Bits_memcpyConst(&((struct sockaddr_in*)&ss)->sin_addr, bytes, 4);
+            Bits_memcpy(&((struct sockaddr_in*)&ss)->sin_addr, bytes, 4);
             addrLen = sizeof(struct sockaddr_in);
             break;
         }
         case AF_INET6: {
             ss.ss_family = AF_INET6;
-            Bits_memcpyConst(&((struct sockaddr_in6*)&ss)->sin6_addr, bytes, 16);
+            Bits_memcpy(&((struct sockaddr_in6*)&ss)->sin6_addr, bytes, 16);
             addrLen = sizeof(struct sockaddr_in6);
             break;
         }
@@ -308,4 +309,14 @@ struct Sockaddr* Sockaddr_fromName(char* name, struct Allocator* alloc)
         return adr;
     }
     return NULL;
+}
+
+uint32_t Sockaddr_hash(const struct Sockaddr* addr)
+{
+    return Hash_compute((uint8_t*)addr, addr->addrLen);
+}
+
+int Sockaddr_compare(const struct Sockaddr* a, const struct Sockaddr* b)
+{
+    return Bits_memcmp(a, b, a->addrLen);
 }
