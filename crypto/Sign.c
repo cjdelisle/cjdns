@@ -24,7 +24,7 @@ Assert_compileTime(crypto_sign_ed25519_open == crypto_sign_ed25519_ref10_open);
 
 void Sign_signingKeyPairFromCurve25519(uint8_t keypairOut[64], uint8_t secretCryptoKey[32])
 {
-    Bits_memcpyConst(keypairOut, secretCryptoKey, 32);
+    Bits_memcpy(keypairOut, secretCryptoKey, 32);
     keypairOut[0] &= 248;
     keypairOut[31] &= 63;
     keypairOut[31] |= 64;
@@ -43,10 +43,10 @@ void Sign_signMsg(uint8_t keyPair[64], struct Message* msg, struct Random* rand)
     ge_p3 R;
     uint8_t hram[64];
 
-    Bits_memcpyConst(az, keyPair, 32);
+    Bits_memcpy(az, keyPair, 32);
     Random_bytes(rand, &az[32], 32);
     crypto_hash_sha512(az,az,64);
-    Bits_memcpyConst(az, keyPair, 32);
+    Bits_memcpy(az, keyPair, 32);
     az[0] &= 248;
     az[31] &= 63;
     az[31] |= 64;
@@ -56,7 +56,7 @@ void Sign_signMsg(uint8_t keyPair[64], struct Message* msg, struct Random* rand)
     crypto_hash_sha512(r, msg->bytes, msg->length);
 
     // Replace secret number with public key
-    Bits_memcpyConst(msg->bytes, &keyPair[32], 32);
+    Bits_memcpy(msg->bytes, &keyPair[32], 32);
 
     // push pointMul(r) to message
     sc_reduce(r);

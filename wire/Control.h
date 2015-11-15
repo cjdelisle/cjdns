@@ -183,7 +183,7 @@ struct Control
         struct Control_Ping pong;
         struct Control_KeyPing keyPing;
         struct Control_Ping keyPong;
-        struct Control_ArcMsg;
+        struct Control_ArcMsg arc;
 
         /** The control packet content. */
         uint8_t bytes[4];
