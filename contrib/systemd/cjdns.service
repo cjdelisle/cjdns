@@ -9,8 +9,8 @@ ProtectSystem=true
 SyslogIdentifier=cjdroute
 ExecStartPre=/bin/sh -ec "if ! test -s /etc/cjdroute.conf; \
                 then umask 077; \
-                conf=$(cjdroute --genconf); \
-                echo $conf > /etc/cjdroute.conf; \
+                cjdroute --genconf > /etc/cjdroute.conf.new; \
+                mv /etc/cjdroute.conf.new /etc/cjdroute.conf; \
                 echo 'WARNING: A new /etc/cjdroute.conf file has been generated.'; \
             fi"
 ExecStart=/bin/sh -c "exec cjdroute --nobg < /etc/cjdroute.conf"
