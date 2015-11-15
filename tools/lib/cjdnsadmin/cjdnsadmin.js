@@ -17,7 +17,7 @@ var UDP = require('dgram');
 var Bencode = require('./bencode');
 var Crypto = require('crypto');
 var Fs = require('fs');
-var nThen = require('./nthen');
+var nThen = require('nthen');
 var Semaphore = require('../Semaphore.js');
 
 var TIMEOUT_MILLISECONDS = 10000;
