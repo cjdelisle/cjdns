@@ -1,5 +1,5 @@
 var Fs = require("fs");
-var Semaphore = require('./Semaphore');
+var Semaphore = require('../tools/lib/Semaphore');
 var nThen = require('nthen');
 
 var sema = Semaphore.create(64);

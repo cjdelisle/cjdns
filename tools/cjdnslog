@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-var Cjdns = require('../contrib/nodejs/cjdnsadmin/cjdnsadmin');
+var Cjdns = require('./lib/cjdnsadmin/cjdnsadmin');
 
 var usage = function () {
     console.log("Usage: cjdnslog.js [-v <verbosity>] [-f <filename>] [-l <lineNum>]");
