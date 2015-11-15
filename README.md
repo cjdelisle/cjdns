@@ -30,6 +30,11 @@ scalability issues that plague existing networks.
 
     09:46 < Kubuxu> I so love cjdns code base
 
+    <whyrusleeping> my internet is way better now.
+    ​<whyrusleeping> thanks
+    <whyrusleeping> i'm really upset and sad that its better
+    <whyrusleeping> but also quite happy
+
 ## Community
 
 * [irc://irc.efnet.org/#cjdns][IRC Web]
