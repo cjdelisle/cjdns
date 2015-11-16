@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 var Cjdns = require('./lib/cjdnsadmin/cjdnsadmin');
-var nThen = require('./lib/cjdnsadmin/nthen');
+var nThen = require('nthen');
 
 var cjdns;
 nThen(function (waitFor) {
