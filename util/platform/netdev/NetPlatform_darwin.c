@@ -17,6 +17,8 @@
 #include "util/AddrTools.h"
 #include "util/platform/Sockaddr.h"
 #include "util/Assert.h"
+#include "util/Bits.h"
+#include "util/CString.h"
 
 #include <errno.h>
 #include <stdio.h>
@@ -36,6 +38,64 @@
 #include <sys/kern_control.h>
 #include <sys/sys_domain.h>
 #include <sys/kern_event.h>
+#include <net/route.h>
+
+Assert_compileTime(sizeof(struct in_addr) == 4);
+
+struct RouteMessage4 {
+    struct rt_msghdr header;
+    struct sockaddr_in dest;
+    struct sockaddr_in gateway;
+    struct sockaddr_in netmask;
+};
+Assert_compileTime(sizeof(struct RouteMessage4) == 140);
+
+static void setupRoute4(const uint8_t address[4],
+                        int prefixLen,
+                        struct Log* logger,
+                        struct Except* eh)
+{
+    struct RouteMessage4 rm = {
+        .header = {
+            .rtm_type = RTM_ADD,
+            .rtm_version = RTM_VERSION,
+            .rtm_seq = 0,
+            .rtm_pid = getpid(),
+            .rtm_addrs = RTA_DST | RTA_GATEWAY | RTA_NETMASK,
+            .rtm_msglen = sizeof(struct RouteMessage4)
+        },
+        .dest = {
+            .sin_family = AF_INET,
+            .sin_len = sizeof(struct sockaddr_in)
+        },
+        .gateway = {
+            .sin_family = AF_INET,
+            .sin_len = sizeof(struct sockaddr_in)
+        },
+        .netmask = {
+            .sin_family = AF_INET,
+            .sin_len = sizeof(struct sockaddr_in)
+        }
+    };
+
+    Bits_memcpy(&rm.dest.sin_addr, address, 4);
+    Bits_memcpy(&rm.gateway.sin_addr, address, 4);
+    rm.netmask.sin_addr.s_addr = Endian_hostToBigEndian32(~0 << (32 - prefixLen));
+
+    int sock = socket(PF_ROUTE, SOCK_RAW, 0);
+    if (sock == -1) {
+        Except_throw(eh, "open route socket [%s]", strerror(errno));
+    }
+
+    ssize_t returnLen = write(sock, (char*) &rm, rm.header.rtm_msglen);
+    if (returnLen < 0) {
+        Except_throw(eh, "insert route [%s]", strerror(errno));
+    } else if (returnLen < rm.header.rtm_msglen) {
+        Except_throw(eh,
+                     "insert route returned only [%d] of [%d]",
+                     (int)returnLen, rm.header.rtm_msglen);
+    }
+}
 
 static void addIp4Address(const char* interfaceName,
                           const uint8_t address[4],
@@ -43,7 +103,38 @@ static void addIp4Address(const char* interfaceName,
                           struct Log* logger,
                           struct Except* eh)
 {
-    Except_throw(eh, "unimplemented");
+    struct ifaliasreq ifarted;
+    Bits_memset(&ifarted, 0, sizeof(struct ifaliasreq));
+    CString_strncpy(ifarted.ifra_name, interfaceName, IFNAMSIZ);
+
+    struct sockaddr_in sin = { .sin_family = AF_INET, .sin_len = sizeof(struct sockaddr_in) };
+    Bits_memcpy(&sin.sin_addr.s_addr, address, 4);
+    Bits_memcpy(&ifarted.ifra_addr, &sin, sizeof(struct sockaddr_in));
+    sin.sin_addr.s_addr = Endian_hostToBigEndian32(~0 << (32 - prefixLen));
+    Bits_memcpy(&ifarted.ifra_mask, &sin, sizeof(struct sockaddr_in));
+
+    int s = socket(AF_INET, SOCK_DGRAM, 0);
+    if (s < 0) {
+        Except_throw(eh, "socket() [%s]", strerror(errno));
+    }
+
+    // will probably fail, ignore result.
+    struct ifreq ifr = { .ifr_flags = 0 };
+    CString_strncpy(ifr.ifr_name, interfaceName, IFNAMSIZ);
+    ioctl(s, SIOCDIFADDR, &ifr);
+
+    if (ioctl(s, SIOCSIFADDR, &ifarted) < 0) {
+        int err = errno;
+        close(s);
+        Except_throw(eh, "ioctl(SIOCSIFADDR) [%s]", strerror(err));
+    }
+
+    setupRoute4(address, prefixLen, logger, eh);
+
+    Log_info(logger, "Configured IPv4 [%u.%u.%u.%u/%i] for [%s]",
+        address[0], address[1], address[2], address[3], prefixLen, interfaceName);
+
+    close(s);
 }
 
 static void addIp6Address(const char* interfaceName,

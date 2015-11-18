@@ -56,8 +56,8 @@ static Iface_DEFUN receiveMessageTUN(struct Message* msg, struct TUNTools* tt)
 
 int main(int argc, char** argv)
 {
-    // TODO(cjd): fix TUNConfigurator_addIp4Address() for Illumos, Darwin, BSD.
-    #if defined(sunos) || defined(darwin) || defined(freebsd)
+    // TODO(cjd): fix TUNConfigurator_addIp4Address() for Illumos, BSD.
+    #if defined(sunos) || defined(freebsd)
         return 0;
     #endif
 
