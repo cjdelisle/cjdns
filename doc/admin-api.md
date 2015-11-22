@@ -83,14 +83,14 @@ can still be called with authentication and will still fail if the authenticatio
 
 * Step 1: Request a cookie from the server.
 
-* Step 2: Calculate the SHA-256 of the cookie and your admin password, place this hash and cookie
+* Step 2: Calculate the SHA-256 of your admin password and the cookie, place this hash and cookie
 in the request.
 
 * Step 3: Calculate the SHA-256 of the entire request with the hash and cookie added,
 replace the hash in the request with this result.
 
-Steps 1 and 2 securely bind the cookie to the password so that the password hash cannot
-be taken and used again in another request later on, step 3 binds the cookie and password to
+Steps 1 and 2 securely bind the password to the cookie so that the password hash cannot
+be taken and used again in another request later on, step 3 binds the password and cookie to
 the request so that a man-in-the-middle cannot change the content of the request in flight.
 
 
@@ -115,7 +115,7 @@ be broke by changes in the future.
     COOKIE=`echo ${RESP} | sed 's/d6:cookie10:\([0-9]*\)e/\1/'` \
     echo cookie=${COOKIE};
 
-**Step 2:** Calculate the hash of the cookie and password:
+**Step 2:** Calculate the hash of the password and cookie:
 For this step, you will need the admin password from your cjdroute.conf file, it's to be found
 inside of the block which says `"admin": {`.
 
