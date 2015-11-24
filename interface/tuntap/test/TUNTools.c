@@ -84,6 +84,10 @@ const uint8_t* TUNTools_testIP6AddrB = (uint8_t[])
 {
     0xfd,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2
 };
+const uint8_t* TUNTools_testIP6AddrC = (uint8_t[])
+{
+    0xfd,0,0,0,0,0,0,0,0,0,0,0,0,0,0,5
+};
 
 Iface_DEFUN TUNTools_genericIP6Echo(struct Message* msg, struct TUNTools* tt)
 {
@@ -102,12 +106,16 @@ Iface_DEFUN TUNTools_genericIP6Echo(struct Message* msg, struct TUNTools* tt)
                   msg->length, type);
         return 0;
     }
+    uint8_t* address;
+    Sockaddr_getAddress(tt->tunDestAddr, &address);
+    Assert_true(!Bits_memcmp(header->destinationAddr, address, 16));
+    Sockaddr_getAddress(tt->udpBindTo, &address);
+    Assert_true(!Bits_memcmp(header->sourceAddr, address, 16));
 
-    Assert_true(!Bits_memcmp(header->destinationAddr, TUNTools_testIP6AddrB, 16));
-    Assert_true(!Bits_memcmp(header->sourceAddr, TUNTools_testIP6AddrA, 16));
-
-    Bits_memcpy(header->destinationAddr, TUNTools_testIP6AddrA, 16);
-    Bits_memcpy(header->sourceAddr, TUNTools_testIP6AddrB, 16);
+    Sockaddr_getAddress(tt->udpBindTo, &address);
+    Bits_memcpy(header->destinationAddr, address, 16);
+    Sockaddr_getAddress(tt->tunDestAddr, &address);
+    Bits_memcpy(header->sourceAddr, address, 16);
 
     TUNMessageType_push(msg, ethertype, NULL);
 

@@ -31,6 +31,7 @@ Iface_DEFUN TUNTools_genericIP6Echo(struct Message* msg, struct TUNTools* tt);
 
 const uint8_t* TUNTools_testIP6AddrA;
 const uint8_t* TUNTools_testIP6AddrB;
+const uint8_t* TUNTools_testIP6AddrC;
 
 struct TUNTools
 {
