@@ -264,8 +264,7 @@ static struct Taps* get_all_taps(struct Allocator* alloc, struct Except* eh)
     return taps;
 }
 
-static int get_device_guid(
-    char *name,
+static int get_device_guid(char *name,
     int name_size,
     char *actual_name,
     int actual_name_size,
