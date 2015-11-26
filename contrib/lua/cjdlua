@@ -160,7 +160,7 @@ meshLua_cmd = {
 					node[#node].ident = {
 						function (x)
 							if v['peerName'] ~= nil
-								and v['peerName'] == 'Local Peers'
+								and v['peerName'] == 'beacon'
 								then return('Auto/Beacon')
 							elseif v['isIncoming'] == 1
 								then return('Incoming')

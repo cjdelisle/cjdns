@@ -574,7 +574,7 @@ static Iface_DEFUN handleBeacon(struct Message* msg, struct InterfaceController_
     Allocator_onFree(epAlloc, closeInterface, ep);
 
     ep->peerLink = PeerLink_new(ic->eventBase, epAlloc);
-    ep->caSession = CryptoAuth_newSession(ic->ca, epAlloc, beacon.publicKey, false, "outer");
+    ep->caSession = CryptoAuth_newSession(ic->ca, epAlloc, beacon.publicKey, false, "beacon");
     CryptoAuth_setAuth(beaconPass, NULL, ep->caSession);
 
     ep->switchIf.send = sendFromSwitch;
@@ -1044,7 +1044,7 @@ struct InterfaceController* InterfaceController_new(struct CryptoAuth* ca,
     String strPass = { .bytes=(char*)out->beacon.password, .len=Headers_Beacon_PASSWORD_LEN };
     int ret = CryptoAuth_addUser(&strPass,
                                  String_CONST("Local Peers"),
-                                 String_CONST("outer"),
+                                 String_CONST("beacon"),
                                  ca);
     if (ret) {
         Log_warn(logger, "CryptoAuth_addUser() returned [%d]", ret);
