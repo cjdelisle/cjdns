@@ -64,6 +64,7 @@ static Iface_DEFUN responseWithIpCallback(struct Message* message, struct Iface*
     char* expectedResponse =
         "9:addresses" "d"
             "3:ip6" "16:\xfd\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1"
+            "14:ip6NetworkSize" "i255e"
             "9:ip6Prefix" "i128e"
           "e"
           "4:txid" "4:abcd"
@@ -98,7 +99,9 @@ int main()
     struct IpTunnel* ipTun = IpTunnel_new(logger, eb, alloc, rand);
     struct Sockaddr_storage ip6ToGive;
     Sockaddr_parse("fd01:0101:0101:0101:0101:0101:0101:0101", &ip6ToGive);
-    IpTunnel_allowConnection(fakePubKey, &ip6ToGive.addr, 0, NULL, 0, ipTun);
+    IpTunnel_allowConnection(fakePubKey,
+            &ip6ToGive.addr, 0, IpTunnel_allowConnection_NO_ROUTE,
+            NULL, 0, IpTunnel_allowConnection_NO_ROUTE, ipTun);
 
     struct Message* message;
     Message_STACK(message, 64, 512);

@@ -58,15 +58,17 @@ static void allowConnection(Dict* args,
         Dict_getString(args, String_CONST("publicKeyOfAuthorizedNode"));
     String* ip6Address = Dict_getString(args, String_CONST("ip6Address"));
     int64_t* ip6Prefix = Dict_getInt(args, String_CONST("ip6Prefix"));
+    int64_t* ip6NetworkSize = Dict_getInt(args, String_CONST("ip6NetworkSize"));
     String* ip4Address = Dict_getString(args, String_CONST("ip4Address"));
     int64_t* ip4Prefix = Dict_getInt(args, String_CONST("ip4Prefix"));
+    int64_t* ip4NetworkSize = Dict_getInt(args, String_CONST("ip4NetworkSize"));
     uint8_t pubKey[32];
     uint8_t ip6Addr[16];
 
     struct Sockaddr_storage ip6ToGive;
     struct Sockaddr_storage ip4ToGive;
 
-    char* error;
+    char* error = NULL;
     int ret;
     if (!ip6Address && !ip4Address) {
         error = "Must specify ip6Address or ip4Address";
@@ -94,8 +96,10 @@ static void allowConnection(Dict* args,
         int conn = IpTunnel_allowConnection(pubKey,
                                             (ip6Address) ? &ip6ToGive.addr : NULL,
                                             (ip6Prefix) ? (uint8_t) (*ip6Prefix) : 0,
+                                            (ip6NetworkSize) ? (uint8_t) (*ip6NetworkSize) : 0xFF,
                                             (ip4Address) ? &ip4ToGive.addr : NULL,
                                             (ip4Prefix) ? (uint8_t) (*ip4Prefix) : 0,
+                                            (ip4NetworkSize) ? (uint8_t) (*ip4NetworkSize) : 0xFF,
                                             context->ipTun);
         sendResponse(conn, txid, context->admin);
         return;
@@ -215,8 +219,10 @@ void IpTunnel_admin_register(struct IpTunnel* ipTun, struct Admin* admin, struct
             { .name = "publicKeyOfAuthorizedNode", .required = 1, .type = "String" },
             { .name = "ip6Address", .required = 0, .type = "String" },
             { .name = "ip6Prefix", .required = 0, .type = "Int" },
+            { .name = "ip6NetworkSize", .required = 0, .type = "Int" },
             { .name = "ip4Address", .required = 0, .type = "String" },
             { .name = "ip4Prefix", .required = 0, .type = "Int" },
+            { .name = "ip6NetworkSize", .required = 0, .type = "Int" },
         }), admin);
 
     Admin_registerFunction("IpTunnel_connectTo", connectTo, context, true,
