@@ -133,36 +133,6 @@ static inline void hashPassword(uint8_t secretOut[32],
 }
 
 /**
- * Search the authorized passwords for one matching this auth header.
- *
- * @param auth the auth header.
- * @param context the CryptoAuth engine to search in.
- * @return an Auth struct with a if one is found, otherwise NULL.
- */
-static inline struct CryptoAuth_User* getAuth(struct CryptoHeader_Challenge* auth,
-                                              struct CryptoAuth_pvt* ca)
-{
-    if (auth->type == 0) {
-        return NULL;
-    }
-    int count = 0;
-    for (struct CryptoAuth_User* u = ca->users; u; u = u->next) {
-        count++;
-        if (auth->type == 1 &&
-            !Bits_memcmp(auth, u->passwordHash, CryptoHeader_Challenge_KEYSIZE))
-        {
-            return u;
-        } else if (auth->type == 2 &&
-            !Bits_memcmp(auth, u->userNameHash, CryptoHeader_Challenge_KEYSIZE))
-        {
-            return u;
-        }
-    }
-    Log_debug(ca->logger, "Got unrecognized auth, password count = [%d]", count);
-    return NULL;
-}
-
-/**
  * Decrypt and authenticate.
  *
  * @param nonce a 24 byte number, may be random, cannot repeat.
@@ -451,6 +421,38 @@ static void encryptHandshake(struct Message* message,
     Message_shift(message, CryptoHeader_SIZE - 32 - 16, NULL);
 }
 
+/**
+ * Search the authorized passwords for one matching this auth header.
+ *
+ * @param auth the auth header.
+ * @param context the CryptoAuth engine to search in.
+ * @return an Auth struct with a if one is found, otherwise NULL.
+ */
+struct CryptoAuth_User* CryptoAuth_getAuth(struct CryptoHeader_Challenge* auth,
+                                           struct CryptoAuth* cryptoAuth)
+
+{
+    struct CryptoAuth_pvt* ca = Identity_check((struct CryptoAuth_pvt*) cryptoAuth);
+    if (auth->type == 0) {
+        return NULL;
+    }
+    int count = 0;
+    for (struct CryptoAuth_User* u = ca->users; u; u = u->next) {
+        count++;
+        if (auth->type == 1 &&
+            !Bits_memcmp(auth, u->passwordHash, CryptoHeader_Challenge_KEYSIZE))
+        {
+            return u;
+        } else if (auth->type == 2 &&
+            !Bits_memcmp(auth, u->userNameHash, CryptoHeader_Challenge_KEYSIZE))
+        {
+            return u;
+        }
+    }
+    Log_debug(ca->logger, "Got unrecognized auth, password count = [%d]", count);
+    return NULL;
+}
+
 /** @return 0 on success, -1 otherwise. */
 int CryptoAuth_encrypt(struct CryptoAuth_Session* sessionPub, struct Message* msg)
 {
@@ -556,7 +558,7 @@ static Gcc_USE_RET int decryptHandshake(struct CryptoAuth_Session_pvt* session,
         return -1;
     }
 
-    struct CryptoAuth_User* userObj = getAuth(&header->auth, session->context);
+    struct CryptoAuth_User* userObj = CryptoAuth_getAuth(&header->auth, &(session->context->pub));
     uint8_t* restrictedToip6 = NULL;
     uint8_t* passwordHash = NULL;
     if (userObj) {

@@ -23,6 +23,7 @@
 #include "util/log/Log.h"
 #include "util/events/EventBase.h"
 #include "wire/Message.h"
+#include "wire/CryptoHeader.h"
 #include "util/Linker.h"
 Linker_require("crypto/CryptoAuth.c");
 
@@ -90,6 +91,8 @@ static inline int CryptoAuth_addUser(String* password,
     return CryptoAuth_addUser_ipv6(password, login, peerName, NULL, ca);
 }
 
+struct CryptoAuth_User* CryptoAuth_getAuth(struct CryptoHeader_Challenge* auth,
+                                           struct CryptoAuth* cryptoAuth);
 /**
  * Remove all users registered with this CryptoAuth.
  *
