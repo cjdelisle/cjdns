@@ -149,6 +149,7 @@ static void authorizedPasswords(List* list, struct Context* ctx)
         Dict* d = List_getDict(list, i);
         String* passwd = Dict_getString(d, String_CONST("password"));
         String* user = Dict_getString(d, String_CONST("user"));
+        String* peerName = Dict_getString(d, String_CONST("peerName"));
         String* displayName = user;
         if (!displayName) {
             displayName = String_printf(child, "password [%d]", i);
@@ -163,6 +164,9 @@ static void authorizedPasswords(List* list, struct Context* ctx)
         Dict_putString(args, String_CONST("password"), passwd, child);
         if (user) {
             Dict_putString(args, String_CONST("user"), user, child);
+        }
+        if (peerName) {
+            Dict_putString(args, String_CONST("peerName"), peerName, child);
         }
         Dict_putString(args, String_CONST("displayName"), displayName, child);
         if (ipv6) {
