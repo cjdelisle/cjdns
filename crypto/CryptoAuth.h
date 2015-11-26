@@ -78,12 +78,16 @@ struct CryptoAuth_Session
 #define CryptoAuth_addUser_DUPLICATE         -3
 int CryptoAuth_addUser_ipv6(String* password,
                             String* login,
+                            String* peerName,
                             uint8_t ipv6[16],
                             struct CryptoAuth* ca);
 
-static inline int CryptoAuth_addUser(String* password, String* login, struct CryptoAuth* ca)
+static inline int CryptoAuth_addUser(String* password,
+                                     String* login,
+                                     String* peerName,
+                                     struct CryptoAuth* ca)
 {
-    return CryptoAuth_addUser_ipv6(password, login, NULL, ca);
+    return CryptoAuth_addUser_ipv6(password, login, peerName, NULL, ca);
 }
 
 /**

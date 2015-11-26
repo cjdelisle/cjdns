@@ -70,7 +70,10 @@ static struct Context* init(uint8_t* privateKeyA,
     if (password) {
         String* passStr = String_CONST(password);
         CryptoAuth_setAuth(passStr, NULL, ctx->sess1);
-        CryptoAuth_addUser(passStr, String_new(USEROBJ, alloc), ctx->ca2);
+        CryptoAuth_addUser(passStr,
+                           String_new(USEROBJ, alloc),
+                           String_CONST("test"),
+                           ctx->ca2);
     }
     ctx->sess2 = CryptoAuth_newSession(ctx->ca2, alloc, publicKeyA, false, "cif2");
 

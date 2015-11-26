@@ -878,6 +878,7 @@ struct CryptoAuth* CryptoAuth_new(struct Allocator* allocator,
 
 int CryptoAuth_addUser_ipv6(String* password,
                             String* login,
+                            String* peerName,
                             uint8_t ipv6[16],
                             struct CryptoAuth* cryptoAuth)
 {
@@ -894,6 +895,12 @@ int CryptoAuth_addUser_ipv6(String* password,
         user->login = login = String_printf(alloc, "Anon #%d", i);
     } else {
         user->login = String_clone(login, alloc);
+    }
+
+    if (peerName) {
+        user->peerName = String_clone(peerName, alloc);
+    } else {
+        user->peerName = NULL;
     }
 
     struct CryptoHeader_Challenge ac;

@@ -1036,7 +1036,10 @@ struct InterfaceController* InterfaceController_new(struct CryptoAuth* ca,
     // Add the beaconing password.
     Random_bytes(rand, out->beacon.password, Headers_Beacon_PASSWORD_LEN);
     String strPass = { .bytes=(char*)out->beacon.password, .len=Headers_Beacon_PASSWORD_LEN };
-    int ret = CryptoAuth_addUser(&strPass, String_CONST("Local Peers"), ca);
+    int ret = CryptoAuth_addUser(&strPass,
+                                 String_CONST("Local Peers"),
+                                 String_CONST("outer"),
+                                 ca);
     if (ret) {
         Log_warn(logger, "CryptoAuth_addUser() returned [%d]", ret);
     }
