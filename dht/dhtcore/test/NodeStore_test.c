@@ -87,6 +87,23 @@ static void getPeersTest(struct EventBase* base, struct Log* logger, struct Allo
     checkList(list, (uint64_t[]){ 0xe6,0xea,0xee,0xf6,0xfa,0x480,0x484,0x488,0 }, logger, alloc);
     list = NodeStore_getPeers(0x488, 8, NULL, alloc, ns);
     checkList(list, (uint64_t[]){ 0x488,0x48c,0x490,0x494,0x498,0x49c,0x4ac,0 }, logger, alloc);
+
+    // Test getting all peers pages
+    int64_t page = 0;
+    list = NodeStore_getPeers(0, 8, &page, alloc, ns);
+    checkList(list, (uint64_t[]){ 0x01,0xa2,0xce,0xd2,0xd6,0xde,0xe2,0xe6,0 }, logger, alloc);
+
+    page = 1;
+    list = NodeStore_getPeers(0, 8, &page, alloc, ns);
+    checkList(list, (uint64_t[]){ 0xea,0xee,0xf6,0xfa,0x480,0x484,0x488,0x48c,0 }, logger, alloc);
+
+    page = 2;
+    list = NodeStore_getPeers(0, 8, &page, alloc, ns);
+    checkList(list, (uint64_t[]){ 0x490,0x494,0x498,0x49c,0x4ac,0 }, logger, alloc);
+
+    page = 3;
+    list = NodeStore_getPeers(0, 8, &page, alloc, ns);
+    checkList(list, (uint64_t[]){ 0 }, logger, alloc);
 }
 
 int main(int argc, char** argv)
