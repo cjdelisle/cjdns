@@ -74,12 +74,12 @@ static void getPeersTest(struct EventBase* base, struct Log* logger, struct Allo
         addNode(ns, ADDRS[i], alloc);
     }
 
-    struct NodeList* list = NodeStore_getPeers(0, 8, alloc, ns);
+    struct NodeList* list = NodeStore_getPeers(0, 8, NULL, alloc, ns);
 
     checkList(list, (uint64_t[]){ 0x01,0x13,0x15,0x17,0x19,0x1b,0x1d,0x1f,0 }, logger, alloc);
-    list = NodeStore_getPeers(0x1f, 8, alloc, ns);
+    list = NodeStore_getPeers(0x1f, 8, NULL, alloc, ns);
     checkList(list, (uint64_t[]){ 0x1f,0x9e,0xa2,0xa6,0xaa,0xae,0xb2,0xb6,0 }, logger, alloc);
-    list = NodeStore_getPeers(0xb6, 8, alloc, ns);
+    list = NodeStore_getPeers(0xb6, 8, NULL, alloc, ns);
     checkList(list, (uint64_t[]){ 0xb6,0xba,0 }, logger, alloc);
 }
 

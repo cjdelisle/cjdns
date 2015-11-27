@@ -228,6 +228,11 @@ static void getPeers(Dict* args, void* vctx, String* txid, struct Allocator* req
     String* pathStr = Dict_getString(args, String_CONST("path"));
     int64_t* timeoutPtr = Dict_getInt(args, String_CONST("timeout"));
     uint32_t timeout = (timeoutPtr && *timeoutPtr > 0) ? *timeoutPtr : 0;
+    int64_t* pagePtr = Dict_getInt(args, String_CONST("page"));
+    int64_t page = 0;
+    if (pagePtr) {
+        page = *pagePtr;
+    };
 
     char* err = NULL;
     struct Address* addr = getNode(pathStr, ctx, &err, requestAlloc);
@@ -246,7 +251,12 @@ static void getPeers(Dict* args, void* vctx, String* txid, struct Allocator* req
     }
 
     struct RouterModule_Promise* rp =
-        RouterModule_getPeers(addr, nearbyLabel, timeout, ctx->module, ctx->allocator);
+        RouterModule_getPeers(addr,
+                              nearbyLabel,
+                              page,
+                              timeout,
+                              ctx->module,
+                              ctx->allocator);
 
     struct Ping* ping = Allocator_calloc(rp->alloc, sizeof(struct Ping), 1);
     Identity_set(ping);
@@ -362,7 +372,8 @@ void RouterModule_admin_register(struct RouterModule* module,
         ((struct Admin_FunctionArg[]) {
             { .name = "path", .required = 1, .type = "String" },
             { .name = "timeout", .required = 0, .type = "Int" },
-            { .name = "nearbyPath", .required = 0, .type = "String" }
+            { .name = "nearbyPath", .required = 0, .type = "String" },
+            { .name = "page", .required = 0, .type = "Int" }
         }), admin);
 
     Admin_registerFunction("RouterModule_findNode", findNode, ctx, true,

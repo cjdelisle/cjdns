@@ -462,6 +462,7 @@ static void getPeersMill(struct Janitor_pvt* janitor, struct Address* addr)
         RouterModule_getPeers(addr,
                               targetLabel,
                               0,
+                              0,
                               janitor->routerModule,
                               janitor->allocator);
     rp->callback = peersResponseCallback;
