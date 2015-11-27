@@ -1,0 +1,14 @@
+diff -up ./util/Security.c.nprocs ./util/Security.c
+--- ./util/Security.c.nprocs	2015-09-24 00:53:26.770308595 -0400
++++ ./util/Security.c	2015-09-24 00:53:46.003850640 -0400
+@@ -103,8 +103,8 @@ void Security_nofiles(struct Except* eh)
+ 
+ void Security_noforks(struct Except* eh)
+ {
+-    if (setrlimit(RLIMIT_NPROC, &(struct rlimit){ 0, 0 })) {
+-        Except_throw(eh, "Failed to set fork limit to 0 [%s]", strerror(errno));
++    if (setrlimit(RLIMIT_NPROC, &(struct rlimit){ 1, 1 })) {
++        Except_throw(eh, "Failed to set fork limit to 1 [%s]", strerror(errno));
+     }
+ }
+ 

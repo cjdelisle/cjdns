@@ -1,0 +1,41 @@
+diff -up ./contrib/selinux/cjdns.te.el6 ./contrib/selinux/cjdns.te
+--- ./contrib/selinux/cjdns.te.el6	2015-11-03 18:33:59.275788819 -0500
++++ ./contrib/selinux/cjdns.te	2015-11-03 18:42:36.524001745 -0500
+@@ -5,9 +5,7 @@ require {
+ 	type tun_tap_device_t;
+ 	type node_t;
+ 	type port_t;
+-	type unreserved_port_t;
+ 	type tmp_t;
+-	type passwd_file_t;
+ 	type net_conf_t;
+ }
+ 
+@@ -20,15 +18,12 @@ init_daemon_domain(cjdns_t,cjdns_exec_t)
+ allow cjdns_t cjdns_exec_t:file { execute_no_trans execmod };
+ allow cjdns_t self:capability { net_admin net_raw setuid setgid sys_chroot };
+ allow cjdns_t self:process { signal getcap setrlimit setcap };
+-# translate username to uid
+-allow cjdns_t passwd_file_t:file { read getattr open };
+ 
+ # translate host names
+ allow cjdns_t net_conf_t:file { read };
+ # allow network access
+ allow cjdns_t node_t:udp_socket node_bind;
+ allow cjdns_t port_t:udp_socket name_bind;
+-allow cjdns_t unreserved_port_t:udp_socket name_bind;
+ allow cjdns_t self:netlink_route_socket { bind create getattr nlmsg_read read write };
+ allow cjdns_t self:packet_socket { bind create ioctl read write };
+ allow cjdns_t self:tun_socket create;
+diff -up ./node_build/FindPython2.js.el6 ./node_build/FindPython2.js
+--- ./node_build/FindPython2.js.el6	2015-11-02 17:59:41.000000000 -0500
++++ ./node_build/FindPython2.js	2015-11-03 18:33:59.300788299 -0500
+@@ -21,7 +21,7 @@ var PYTHONS = ["python", "python2", "pyt
+ var SCRIPT = [
+     'import sys;',
+     'print(sys.version_info);',
+-    'exit(sys.version_info[0] != 2 or sys.version_info[1] < 7);'
++    'exit(sys.version_info[0] != 2 or sys.version_info[1] < 6);'
+ ].join('\n');
+ 
+ var find = module.exports.find = function (tempFile, callback) {
