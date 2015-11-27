@@ -226,3 +226,13 @@ void NetPlatform_setMTU(const char* interfaceName,
     // Make the netsh call, and die if it returns the wrong thing.
     WinFail_check(eh, system(buffer));
 }
+
+void NetPlatform_addRoute(const char* interfaceName,
+                            const uint8_t* address,
+                            int prefixLen,
+                            int addrFam,
+                            struct Log* logger,
+                            struct Except* eh)
+{
+    Except_throw(eh, "NetPlatform_addRoute is not implemented in this platform.");
+}
