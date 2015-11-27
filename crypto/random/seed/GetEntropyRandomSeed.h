@@ -31,7 +31,6 @@
     #else
         #define GetEntropyRandomSeed_USEIT
     #endif
-  #endif
 #endif
 
 #ifdef GetEntropyRandomSeed_USEIT
