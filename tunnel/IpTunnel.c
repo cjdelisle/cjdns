@@ -127,13 +127,13 @@ static struct IpTunnel_Connection* connectionByPubKey(uint8_t pubKey[32],
 int IpTunnel_allowConnection(uint8_t publicKeyOfAuthorizedNode[32],
                              struct Sockaddr* ip6Addr,
                              uint8_t ip6Prefix,
+                             uint8_t ip6NetworkSize,
                              struct Sockaddr* ip4Addr,
                              uint8_t ip4Prefix,
+                             uint8_t ip4NetworkSize,
                              struct IpTunnel* tunnel)
 {
     struct IpTunnel_pvt* context = Identity_check((struct IpTunnel_pvt*)tunnel);
-
-    Log_debug(context->logger, "IPv4 Prefix to allow: %d", ip4Prefix);
 
     uint8_t* ip6Address = NULL;
     uint8_t* ip4Address = NULL;
@@ -152,11 +152,14 @@ int IpTunnel_allowConnection(uint8_t publicKeyOfAuthorizedNode[32],
         if (!ip4Prefix) { ip4Prefix = 32; }
         conn->connectionIp4Prefix = ip4Prefix;
     }
+    conn->connectionIp4NetworkSize = ip4NetworkSize;
+
     if (ip6Address) {
         Bits_memcpy(conn->connectionIp6, ip6Address, 16);
         if (!ip6Prefix) { ip6Prefix = 128; }
         conn->connectionIp6Prefix = ip6Prefix;
     }
+    conn->connectionIp6NetworkSize = ip6NetworkSize;
     return conn->number;
 }
 
@@ -266,7 +269,7 @@ int IpTunnel_connectTo(uint8_t publicKeyOfNodeToConnectTo[32], struct IpTunnel* 
 int IpTunnel_removeConnection(int connectionNumber, struct IpTunnel* tunnel)
 {
     //struct IpTunnel_pvt* context = Identity_check((struct IpTunnel_pvt*)tunnel);
-
+    //TODO(Kubuxu): Removing routes client side.
     return 0;
 }
 
@@ -327,6 +330,9 @@ static Iface_DEFUN requestForAddresses(Dict* request,
         Dict_putInt(addresses,
                     String_CONST("ip6Prefix"), (int64_t)conn->connectionIp6Prefix,
                     requestAlloc);
+        Dict_putInt(addresses,
+                    String_CONST("ip6NetworkSize"), (int64_t)conn->connectionIp6NetworkSize,
+                    requestAlloc);
         noAddresses = false;
     }
     if (!Bits_isZero(conn->connectionIp4, 4)) {
@@ -336,6 +342,9 @@ static Iface_DEFUN requestForAddresses(Dict* request,
                        requestAlloc);
         Dict_putInt(addresses,
                     String_CONST("ip4Prefix"), (int64_t)conn->connectionIp4Prefix,
+                    requestAlloc);
+        Dict_putInt(addresses,
+                    String_CONST("ip4NetworkSize"), (int64_t)conn->connectionIp4NetworkSize,
                     requestAlloc);
         noAddresses = false;
     }
@@ -356,7 +365,8 @@ static Iface_DEFUN requestForAddresses(Dict* request,
     return 0;
 }
 
-static void addAddress(char* printedAddr, uint8_t prefixLen, struct IpTunnel_pvt* ctx)
+static void addAddress(char* printedAddr, uint8_t prefixLen,
+                       uint8_t networkSize, struct IpTunnel_pvt* ctx)
 {
     if (!ctx->ifName) {
         Log_error(ctx->logger, "Failed to set IP address because TUN interface is not setup");
@@ -370,6 +380,9 @@ static void addAddress(char* printedAddr, uint8_t prefixLen, struct IpTunnel_pvt
     struct Jmp j;
     Jmp_try(j) {
         NetDev_addAddress(ctx->ifName->bytes, &ss.addr, prefixLen, ctx->logger, &j.handler);
+        if (networkSize != IpTunnel_allowConnection_NO_ROUTE) {
+            NetDev_addRoute(ctx->ifName->bytes, &ss.addr, networkSize, ctx->logger, &j.handler);
+        }
     } Jmp_catch {
         Log_error(ctx->logger, "Error setting ip address on TUN [%s]", j.message);
     }
@@ -418,6 +431,7 @@ static Iface_DEFUN incomingAddresses(Dict* d,
 
     String* ip4 = Dict_getString(addresses, String_CONST("ip4"));
     int64_t* ip4Prefix = Dict_getInt(addresses, String_CONST("ip4Prefix"));
+    int64_t* ip4NetworkSize = Dict_getInt(addresses, String_CONST("ip4NetworkSize"));
     if (ip4 && ip4->len == 4) {
         Bits_memcpy(conn->connectionIp4, ip4->bytes, 4);
 
@@ -425,6 +439,11 @@ static Iface_DEFUN incomingAddresses(Dict* d,
             conn->connectionIp4Prefix = (uint8_t) *ip4Prefix;
         } else {
             conn->connectionIp4Prefix = 32;
+        }
+        if (ip4NetworkSize && *ip4NetworkSize > 0 && *ip4NetworkSize <= 32) {
+            conn->connectionIp4NetworkSize = (uint8_t) *ip4NetworkSize;
+        } else {
+            conn->connectionIp4NetworkSize = IpTunnel_allowConnection_NO_ROUTE;
         }
 
         struct Sockaddr* sa = Sockaddr_clone(Sockaddr_LOOPBACK, alloc);
@@ -436,11 +455,12 @@ static Iface_DEFUN incomingAddresses(Dict* d,
         Log_info(context->logger, "Got issued address [%s/%d] for connection [%d]",
                  printedAddr, conn->connectionIp4Prefix, conn->number);
 
-        addAddress(printedAddr, conn->connectionIp4Prefix, context);
+        addAddress(printedAddr, conn->connectionIp4Prefix, conn->connectionIp4NetworkSize, context);
     }
 
     String* ip6 = Dict_getString(addresses, String_CONST("ip6"));
     int64_t* ip6Prefix = Dict_getInt(addresses, String_CONST("ip6Prefix"));
+    int64_t* ip6NetworkSize = Dict_getInt(addresses, String_CONST("ip6NetworkSize"));
     if (ip6 && ip6->len == 16) {
         Bits_memcpy(conn->connectionIp6, ip6->bytes, 16);
 
@@ -456,6 +476,12 @@ static Iface_DEFUN incomingAddresses(Dict* d,
             conn->connectionIp6Prefix = 3;
         }
 
+        if (ip6NetworkSize && *ip6NetworkSize > 0 && *ip6NetworkSize <= 128) {
+            conn->connectionIp6NetworkSize = (uint8_t) *ip6NetworkSize;
+        } else {
+            conn->connectionIp6NetworkSize = IpTunnel_allowConnection_NO_ROUTE;
+        }
+
         struct Sockaddr* sa = Sockaddr_clone(Sockaddr_LOOPBACK6, alloc);
         uint8_t* addrBytes = NULL;
         Sockaddr_getAddress(sa, &addrBytes);
@@ -465,7 +491,7 @@ static Iface_DEFUN incomingAddresses(Dict* d,
         Log_info(context->logger, "Got issued address [%s/%d] for connection [%d]",
                  printedAddr, conn->connectionIp6Prefix, conn->number);
 
-        addAddress(printedAddr, conn->connectionIp6Prefix, context);
+        addAddress(printedAddr, conn->connectionIp6Prefix, conn->connectionIp6NetworkSize, context);
     }
     return 0;
 }

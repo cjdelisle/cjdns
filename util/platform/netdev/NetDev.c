@@ -20,37 +20,52 @@
 #include "util/platform/netdev/NetDev.h"
 #include "util/platform/netdev/NetPlatform.h"
 
+struct AddrBundle {
+    int addrFam;
+    char* printedAddr;
+    void* addr;
+};
+
+static struct AddrBundle* checkAddressAndPrefix(struct Sockaddr* sa,
+                                  int prefixLen,
+                                  struct Allocator* alloc,
+                                  struct Except* eh)
+{
+    struct AddrBundle* bundle = Allocator_calloc(alloc, 1,  sizeof(struct AddrBundle));
+    bundle->printedAddr = Sockaddr_print(sa, alloc);
+    bundle->addrFam = Sockaddr_getFamily(sa);
+    if (bundle->addrFam != Sockaddr_AF_INET && bundle->addrFam != Sockaddr_AF_INET6) {
+        Except_throw(eh, "Unknown address type for address [%s]", bundle->printedAddr);
+    }
+
+    int prefixMax = (bundle->addrFam == Sockaddr_AF_INET6) ? 128 : 32;
+    if (prefixLen < 0 || prefixLen > prefixMax) {
+        Except_throw(eh, "prefixLen [%d] must be greater than 0 and less than %d",
+                     prefixLen, prefixMax);
+    }
+
+    int len = Sockaddr_getAddress(sa, &bundle->addr);
+    if (len < 0 || len != prefixMax / 8) {
+        Except_throw(eh, "Invalid sockaddr [%s]", bundle->printedAddr);
+    }
+    return bundle;
+}
+
 void NetDev_addAddress(const char* ifName,
                        struct Sockaddr* sa,
                        int prefixLen,
                        struct Log* logger,
                        struct Except* eh)
 {
-    int addrFam = Sockaddr_getFamily(sa);
-
     struct Allocator* alloc;
     BufferAllocator_STACK(alloc, 4096);
-    char* printedAddr = Sockaddr_print(sa, alloc);
-    if (addrFam != Sockaddr_AF_INET && addrFam != Sockaddr_AF_INET6) {
-        Except_throw(eh, "Unknown address type for address [%s]", printedAddr);
-    }
 
-    int prefixMax = (addrFam == Sockaddr_AF_INET6) ? 128 : 32;
-    if (prefixLen < 0 || prefixLen > prefixMax) {
-        Except_throw(eh, "prefixLen [%d] must be greater than 0 and less than %d",
-                     prefixLen, prefixMax);
-    }
-
-    void* addr;
-    int len = Sockaddr_getAddress(sa, &addr);
-    if (len < 0 || len != prefixMax / 8) {
-        Except_throw(eh, "Invalid sockaddr [%s]", printedAddr);
-    }
+    struct AddrBundle* bundle = checkAddressAndPrefix(sa, prefixLen, alloc, eh);
 
     Log_info(logger, "Setting IP address [%s/%d] on interface [%s]",
-             printedAddr, prefixLen, ifName);
+             bundle->printedAddr, prefixLen, ifName);
 
-    NetPlatform_addAddress(ifName, addr, prefixLen, addrFam, logger, eh);
+    NetPlatform_addAddress(ifName, bundle->addr, prefixLen, bundle->addrFam, logger, eh);
 }
 
 void NetDev_setMTU(const char* interfaceName,
@@ -66,4 +81,21 @@ void NetDev_flushAddresses(const char* deviceName, struct Except* eh)
     #ifdef win32
         NetPlatform_flushAddresses(deviceName, eh);
     #endif
+}
+
+void NetDev_addRoute(const char* ifName,
+                     struct Sockaddr* sa,
+                     int prefixLen,
+                     struct Log* logger,
+                     struct Except* eh)
+{
+    struct Allocator* alloc;
+    BufferAllocator_STACK(alloc, 4096);
+
+    struct AddrBundle* bundle = checkAddressAndPrefix(sa, prefixLen, alloc, eh);
+
+    Log_info(logger, "Setting route address [%s/%d] on interface [%s]",
+             bundle->printedAddr, prefixLen, ifName);
+
+    NetPlatform_addRoute(ifName, bundle->addr, prefixLen, bundle->addrFam, logger, eh);
 }
