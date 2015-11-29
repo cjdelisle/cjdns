@@ -33,21 +33,6 @@ void Assert_failure(const char* format, ...)
     va_start(args, format);
     vfprintf(stderr, format, args);
     fflush(stderr);
-
-#if defined(__GLIBC__) && ! defined(__UCLIBC__)
-    void *array[20];
-    size_t size = backtrace(array, 20);
-    char **strings = backtrace_symbols(array, size);
-
-    fprintf(stderr, "Backtrace (%zd frames):\n", size);
-    for (size_t i = 0; i < size; i++)
-    {
-        fprintf(stderr, "  %s\n", strings[i]);
-    }
-    fflush(stderr);
-    free(strings);
-
-#endif
     abort();
     va_end(args);
 }
