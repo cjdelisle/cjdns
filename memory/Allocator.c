@@ -319,7 +319,7 @@ static void connect(struct Allocator_pvt* parent,
     child->parent = parent;
 }
 
-static int findAllocator(struct Allocator_pvt* target, struct Allocator_List** cpp)
+static int disconnectAllocator(struct Allocator_pvt* target, struct Allocator_List** cpp)
 {
     int found = 0;
     struct Allocator_List* cp;
@@ -340,8 +340,8 @@ static void disconnectAdopted(struct Allocator_pvt* parent, struct Allocator_pvt
     Assert_true(parent->adoptions->children);
     Assert_true(child->adoptions);
     Assert_true(child->adoptions->parents);
-    Assert_true(findAllocator(child, &parent->adoptions->children));
-    Assert_true(findAllocator(parent, &child->adoptions->parents));
+    Assert_true(disconnectAllocator(child, &parent->adoptions->children));
+    Assert_true(disconnectAllocator(parent, &child->adoptions->parents));
 }
 
 // Shallow first search to prevent lots of flapping while we tear down the tree.
