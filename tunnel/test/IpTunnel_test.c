@@ -139,6 +139,7 @@ static bool trySend4(struct Allocator* alloc,
     Headers_setIpVersion(iph);
     uint32_t addr_be = Endian_hostToBigEndian32(addr);
     Bits_memcpy(iph->sourceAddr, &addr_be, 4);
+    Bits_memcpy(ctx->sendingAddress, &addr_be, 4);
     Bits_memcpy(iph->destAddr, ((uint8_t[]){ 11, 0, 0, 1 }), 4);
     pushRouteDataHeaders(ctx, msg4);
     Iface_send(sendTo, msg4);
@@ -165,6 +166,7 @@ static bool trySend6(struct Allocator* alloc,
     uint64_t addrLow_be = Endian_hostToBigEndian64(addrLow);
     Bits_memcpy(iph->sourceAddr, &addrHigh_be, 8);
     Bits_memcpy(&iph->sourceAddr[8], &addrLow_be, 8);
+    Bits_memcpy(ctx->sendingAddress, iph->sourceAddr, 16);
     uint8_t destAddr[16] = { 20, 01 };
     destAddr[15] = 1;
     Bits_memcpy(iph->destinationAddr, destAddr, 16);
@@ -207,7 +209,7 @@ static String* getExpectedResponse(struct Sockaddr* sa4, int prefix4, int netSiz
     Dict* output = Dict_new(alloc);
     Dict_putDict(output, String_new("addresses", alloc), addresses, alloc);
     Dict_putString(output, String_new("txid", alloc), String_new("abcd", alloc), alloc);
-    struct Message* msg = Message_new(0, 64, alloc);
+    struct Message* msg = Message_new(0, 512, alloc);
     BencMessageWriter_write(output, msg, NULL);
 
     String* outStr = String_newBinary(msg->bytes, msg->length, allocator);
@@ -261,10 +263,11 @@ static void testAddr(struct Context* ctx,
     uint32_t length = msg->length;
 
     // Because of old reasons, we need to have at least an empty IPv6 header
-    Message_shift(msg, Headers_IP6Header_SIZE, NULL);
+    Message_push(msg, NULL, Headers_IP6Header_SIZE, NULL);
     struct Headers_IP6Header* ip = (struct Headers_IP6Header*) msg->bytes;
-    Bits_memset(&ip, 0, Headers_IP6Header_SIZE);
     Headers_setIpVersion(ip);
+    ip->payloadLength_be = Endian_hostToBigEndian16(msg->length - Headers_IP6Header_SIZE);
+    ip->nextHeader = 17;
 
     *checksum = Checksum_udpIp6(ip->sourceAddr, (uint8_t*) uh, length);
 
