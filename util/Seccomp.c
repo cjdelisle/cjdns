@@ -321,6 +321,7 @@ static struct sock_fprog* mkFilter(struct Allocator* alloc, struct Except* eh)
         IFEQ(SIOCSIFADDR, success),
         IFEQ(SIOCSIFNETMASK, success),
         IFEQ(SIOCSIFMTU, success),
+        IFEQ(SIOCADDRT, success),
         RET(SECCOMP_RET_TRAP),
 
         // We allow sigprocmask to *unmask* signals but we don't allow it to mask them.
