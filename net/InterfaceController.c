@@ -634,6 +634,12 @@ static Iface_DEFUN handleUnexpectedIncoming(struct Message* msg,
         Allocator_free(epAlloc);
         return NULL;
     }
+
+    struct CryptoAuth_User* userObj = CryptoAuth_getAuth(&ch->auth, ic->ca);
+    if (userObj->peerName) {
+        ep->caSession->peerName = String_clone(userObj->peerName, epAlloc);
+    }
+
     Assert_true(!Bits_isZero(ep->caSession->herPublicKey, 32));
     Assert_true(Map_EndpointsBySockaddr_indexForKey(&lladdr, &ici->peerMap) == -1);
     int index = Map_EndpointsBySockaddr_put(&lladdr, &ep, &ici->peerMap);
