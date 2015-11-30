@@ -306,6 +306,9 @@ static struct sock_fprog* mkFilter(struct Allocator* alloc, struct Except* eh)
         #endif
         IFEQ(__NR_ioctl, ioctl_setip),
 
+        // Security_checkPermissions
+        IFEQ(__NR_getuid, success),
+
         RET(SECCOMP_RET_TRAP),
 
         LABEL(socket_setip),
