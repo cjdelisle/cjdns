@@ -319,41 +319,29 @@ static void connect(struct Allocator_pvt* parent,
     child->parent = parent;
 }
 
+static int disconnectAllocator(struct Allocator_pvt* target, struct Allocator_List** cpp)
+{
+    int found = 0;
+    struct Allocator_List* cp;
+    while ((cp = *cpp)) {
+        if (cp->alloc == target) {
+            *cpp = cp->next;
+            found = 1;
+            break;
+        }
+        cpp = &cp->next;
+    }
+    return found;
+}
+
 static void disconnectAdopted(struct Allocator_pvt* parent, struct Allocator_pvt* child)
 {
     Assert_true(parent->adoptions);
     Assert_true(parent->adoptions->children);
     Assert_true(child->adoptions);
     Assert_true(child->adoptions->parents);
-    int foundChild = 0;
-    int foundParent = 0;
-    {
-        struct Allocator_List** cpp = &parent->adoptions->children;
-        struct Allocator_List* cp;
-        while ((cp = *cpp)) {
-            if (cp->alloc == child) {
-                *cpp = cp->next;
-                foundChild = 1;
-                break;
-            }
-            cpp = &cp->next;
-        }
-    }
-    {
-        struct Allocator_List** cpp = &child->adoptions->parents;
-        struct Allocator_List* cp;
-        while ((cp = *cpp)) {
-            if (cp->alloc == parent) {
-                *cpp = cp->next;
-                foundParent = 1;
-                break;
-            }
-            cpp = &cp->next;
-        }
-    }
-
-    Assert_true(foundChild);
-    Assert_true(foundParent);
+    Assert_true(disconnectAllocator(child, &parent->adoptions->children));
+    Assert_true(disconnectAllocator(parent, &child->adoptions->parents));
 }
 
 // Shallow first search to prevent lots of flapping while we tear down the tree.
