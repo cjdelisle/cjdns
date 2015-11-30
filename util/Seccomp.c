@@ -28,6 +28,7 @@
 #include <linux/filter.h>
 #include <linux/seccomp.h>
 #include <linux/audit.h>
+#include <linux/netlink.h>
 #include <sys/syscall.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
@@ -189,8 +190,9 @@ static struct sock_fprog* mkFilter(struct Allocator* alloc, struct Except* eh)
     int fail = 2;
     int unmaskOnly = 3;
     int isworking = 4;
-    int socket_setip = 5;
+    int socket = 5;
     int ioctl_setip = 6;
+    int bind_netlink = 7;
 
     uint32_t auditArch = ArchInfo_getAuditArch();
 
@@ -299,10 +301,11 @@ static struct sock_fprog* mkFilter(struct Allocator* alloc, struct Except* eh)
             IFEQ(__NR_fstat64, success),
         #endif
 
-        // for setting IP addresses...
+        // for setting IP addresses
         // socketForIfName()
+        // and ETHInterface_listDevices
         #ifdef __NR_socket
-            IFEQ(__NR_socket, socket_setip),
+            IFEQ(__NR_socket, socket),
         #endif
         IFEQ(__NR_ioctl, ioctl_setip),
 
@@ -311,11 +314,16 @@ static struct sock_fprog* mkFilter(struct Allocator* alloc, struct Except* eh)
         // Security_nofiles
         IFEQ(__NR_setrlimit, success),
 
+        // for ETHInterface_listDevices (netlink)
+        IFEQ(__NR_bind, bind_netlink),
+        IFEQ(__NR_getsockname, success),
         RET(SECCOMP_RET_TRAP),
 
-        LABEL(socket_setip),
+        LABEL(socket),
         LOAD(offsetof(struct seccomp_data, args[1])),
         IFEQ(SOCK_DGRAM, success),
+        LOAD(offsetof(struct seccomp_data, args[0])),
+        IFEQ(AF_NETLINK, success),
         RET(SECCOMP_RET_TRAP),
 
         LABEL(ioctl_setip),
@@ -326,6 +334,14 @@ static struct sock_fprog* mkFilter(struct Allocator* alloc, struct Except* eh)
         IFEQ(SIOCSIFADDR, success),
         IFEQ(SIOCSIFNETMASK, success),
         IFEQ(SIOCSIFMTU, success),
+        RET(SECCOMP_RET_TRAP),
+
+        LABEL(bind_netlink),
+        LOAD(offsetof(struct seccomp_data, args[2])),
+        // Filter NETLINK by size of address.
+        // Most importantly INET and INET6
+        // are differnt.
+        IFEQ(sizeof(struct sockaddr_nl), success),
         RET(SECCOMP_RET_TRAP),
 
         // We allow sigprocmask to *unmask* signals but we don't allow it to mask them.
