@@ -220,7 +220,7 @@ void NetPlatform_addRoute(const char* interfaceName,
         if (ioctl(s, SIOCADDRT, &rt) < 0) {
             int err = errno;
             close(s);
-            Except_throw(eh, "ioctl(SIOCSIFADDR) failed: [%s]", strerror(err));
+            Except_throw(eh, "ioctl(SIOCADDRT) failed: [%s]", strerror(err));
         }
     } else {
         Assert_true(0);
