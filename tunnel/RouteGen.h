@@ -18,6 +18,7 @@
 #include "util/platform/Sockaddr.h"
 #include "exception/Except.h"
 #include "benc/List.h"
+#include "util/log/Log.h"
 #include "util/Linker.h"
 Linker_require("tunnel/RouteGen.c")
 
@@ -42,6 +43,6 @@ int RouteGen_removePrefix(struct RouteGen* rg, bool isIpv6, int num);
 
 int RouteGen_removeException(struct RouteGen* rg, bool isIpv6, int num);
 
-struct RouteGen* RouteGen_new(struct Allocator* alloc);
+struct RouteGen* RouteGen_new(struct Allocator* allocator, struct Log* log);
 
 #endif
