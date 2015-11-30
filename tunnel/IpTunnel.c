@@ -32,6 +32,7 @@
 #include "util/Identity.h"
 #include "util/events/Timeout.h"
 #include "util/Defined.h"
+#include "util/Escape.h"
 #include "wire/Error.h"
 #include "wire/Headers.h"
 #include "wire/Ethernet.h"
@@ -516,10 +517,8 @@ static Iface_DEFUN incomingControlMessage(struct Message* message,
     }
 
     if (Defined(Log_DEBUG)) {
-        uint8_t lastChar = message->bytes[message->length - 1];
-        message->bytes[message->length - 1] = '\0';
-        Log_debug(context->logger, "Message content [%s%c]", message->bytes, lastChar);
-        message->bytes[message->length - 1] = lastChar;
+        char* msgEsc = Escape_getEscaped(message->bytes, message->length, message->alloc);
+        Log_debug(context->logger, "Message content [%s]", msgEsc);
     }
 
     struct Allocator* alloc = Allocator_child(message->alloc);
