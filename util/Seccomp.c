@@ -308,6 +308,8 @@ static struct sock_fprog* mkFilter(struct Allocator* alloc, struct Except* eh)
 
         // Security_checkPermissions
         IFEQ(__NR_getuid, success),
+        // Security_nofiles
+        IFEQ(__NR_setrlimit, success),
 
         RET(SECCOMP_RET_TRAP),
 
