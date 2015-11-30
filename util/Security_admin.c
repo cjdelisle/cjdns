@@ -120,8 +120,14 @@ static void seccomp(Dict* args, void* vctx, String* txid, struct Allocator* requ
 {
     struct Context* const ctx = Identity_check((struct Context*) vctx);
     struct Jmp jmp;
+    struct Except* eh = &jmp.handler;
     Jmp_try(jmp) {
-        Security_seccomp(requestAlloc, ctx->logger, &jmp.handler);
+        struct Security_Permissions* sp = Security_checkPermissions(requestAlloc, eh);
+        if (!sp->seccompEnforcing) {
+            Security_seccomp(requestAlloc, ctx->logger, eh);
+        } else {
+            sendError("seccomp is already enabled", txid, ctx->admin);
+        }
     } Jmp_catch {
         sendError(jmp.message, txid, ctx->admin);
         return;
