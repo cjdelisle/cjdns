@@ -47,7 +47,7 @@ struct CryptoAuth_Session
 {
     uint8_t herPublicKey[32];
 
-    String* displayName;
+    String* peerName;
 
     struct ReplayProtector replayProtector;
 

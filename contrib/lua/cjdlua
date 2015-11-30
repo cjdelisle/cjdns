@@ -159,8 +159,8 @@ meshLua_cmd = {
 					node[#node].state = v['state']
 					node[#node].ident = {
 						function (x)
-							if v['user'] ~= nil
-								and v['user'] == 'Local Peers'
+							if v['peerName'] ~= nil
+								and v['peerName'] == 'Local Peers'
 								then return('Auto/Beacon')
 							elseif v['isIncoming'] == 1
 								then return('Incoming')

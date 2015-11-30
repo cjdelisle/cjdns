@@ -81,7 +81,7 @@ struct InterfaceController_PeerStats
     uint64_t bytesOut;
     uint64_t bytesIn;
     bool isIncomingConnection;
-    String* user;
+    String* peerName;
 
     /** Packet loss/duplication statistics. see: ReplayProtector */
     uint32_t duplicates;
@@ -132,7 +132,7 @@ struct InterfaceController_Iface* InterfaceController_newIface(struct InterfaceC
  * @param password the password for authenticating with the other node.
  * @param login an identity to provide to the other node with the password,
  *        if null then authtype 1 will be used.
- * @param displayName the username to assign the other node in the CryptoAuth session. May be null.
+ * @param peerName the name to assign the other node in the CryptoAuth session. May be null.
  * @param alloc the peer will be dropped if this is freed.
  *
  * @return 0 if all goes well.
@@ -151,7 +151,7 @@ int InterfaceController_bootstrapPeer(struct InterfaceController* ifc,
                                       const struct Sockaddr* lladdr,
                                       String* password,
                                       String* login,
-                                      String* displayName,
+                                      String* peerName,
                                       struct Allocator* alloc);
 
 #define InterfaceController_beaconState_newState_OFF    0

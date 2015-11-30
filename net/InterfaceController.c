@@ -809,7 +809,7 @@ int InterfaceController_bootstrapPeer(struct InterfaceController* ifc,
                                       const struct Sockaddr* lladdrParm,
                                       String* password,
                                       String* login,
-                                      String* user,
+                                      String* peerName,
                                       struct Allocator* alloc)
 {
     struct InterfaceController_pvt* ic = Identity_check((struct InterfaceController_pvt*) ifc);
@@ -853,8 +853,8 @@ int InterfaceController_bootstrapPeer(struct InterfaceController* ifc,
     ep->peerLink = PeerLink_new(ic->eventBase, epAlloc);
     ep->caSession = CryptoAuth_newSession(ic->ca, epAlloc, herPublicKey, false, "outer");
     CryptoAuth_setAuth(password, login, ep->caSession);
-    if (user) {
-        ep->caSession->displayName = String_clone(user, epAlloc);
+    if (peerName) {
+        ep->caSession->peerName = String_clone(peerName, epAlloc);
     }
 
     ep->switchIf.send = sendFromSwitch;
@@ -915,8 +915,8 @@ int InterfaceController_getPeerStats(struct InterfaceController* ifController,
             s->timeOfLastMessage = peer->timeOfLastMessage;
             s->state = peer->state;
             s->isIncomingConnection = peer->isIncomingConnection;
-            if (peer->caSession->displayName) {
-                s->user = String_clone(peer->caSession->displayName, alloc);
+            if (peer->caSession->peerName) {
+                s->peerName = String_clone(peer->caSession->peerName, alloc);
             }
             struct ReplayProtector* rp = &peer->caSession->replayProtector;
             s->duplicates = rp->duplicates;

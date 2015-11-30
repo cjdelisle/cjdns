@@ -253,7 +253,7 @@ static void getIp6(struct CryptoAuth_Session_pvt* session, uint8_t* addr)
     {                                                                                            \
         uint8_t addr[40] = "unknown";                                                            \
         getIp6((session), addr);                                                                 \
-        String* dn = (session)->pub.displayName;                                                 \
+        String* dn = (session)->pub.peerName;                                                    \
         Log_debug((session)->context->logger, "%p %s [%s]: " format, (void*)(session),           \
                   dn ? dn->bytes : "", addr, __VA_ARGS__);                                       \
     }
@@ -977,7 +977,7 @@ struct CryptoAuth_Session* CryptoAuth_newSession(struct CryptoAuth* ca,
                                                  struct Allocator* alloc,
                                                  const uint8_t herPublicKey[32],
                                                  const bool requireAuth,
-                                                 char* displayName)
+                                                 char* peerName)
 {
     struct CryptoAuth_pvt* context = Identity_check((struct CryptoAuth_pvt*) ca);
     struct CryptoAuth_Session_pvt* session =
@@ -985,7 +985,7 @@ struct CryptoAuth_Session* CryptoAuth_newSession(struct CryptoAuth* ca,
     Identity_set(session);
     session->context = context;
     session->requireAuth = requireAuth;
-    session->pub.displayName = displayName ? String_new(displayName, alloc) : NULL;
+    session->pub.peerName = peerName ? String_new(peerName, alloc) : NULL;
     session->timeOfLastPacket = Time_currentTimeSeconds(context->eventBase);
     session->alloc = alloc;
 

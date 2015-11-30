@@ -51,7 +51,7 @@ static void adminPeerStats(Dict* args, void* vcontext, String* txid, struct Allo
     String* last = String_CONST("last");
     String* switchLabel = String_CONST("switchLabel");
     String* isIncoming = String_CONST("isIncoming");
-    String* user = String_CONST("user");
+    String* peerName = String_CONST("peerName");
     String* version = String_CONST("version");
 
     String* recvKbps = String_CONST("recvKbps");
@@ -87,8 +87,8 @@ static void adminPeerStats(Dict* args, void* vcontext, String* txid, struct Allo
         Dict_putInt(d, lostPackets, stats[i].lostPackets, alloc);
         Dict_putInt(d, receivedOutOfRange, stats[i].receivedOutOfRange, alloc);
 
-        if (stats[i].user) {
-            Dict_putString(d, user, stats[i].user, alloc);
+        if (stats[i].peerName) {
+            Dict_putString(d, peerName, stats[i].peerName, alloc);
         }
 
         uint8_t address[16];
