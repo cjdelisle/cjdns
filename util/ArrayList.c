@@ -47,15 +47,17 @@ void* ArrayList_get(void* vlist, int number)
     return list->elements[number];
 }
 
-void* ArrayList_shift(void* vlist)
+void* ArrayList_remove(void* vlist, int number)
 {
     struct ArrayList_pvt* list = Identity_check((struct ArrayList_pvt*) vlist);
-    if (!list->length) { return NULL; }
-    void* out = list->elements[0];
-    list->length--;
-    if (list->length) {
-        Bits_memmove(list->elements, &list->elements[1], sizeof(char*) * list->length);
+    if (number >= list->length) { return NULL; }
+    void* out = list->elements[number];
+    if (number < list->length - 1) {
+        Bits_memmove(&list->elements[number],
+                     &list->elements[number+1],
+                     sizeof(char*) * (list->length - number - 1));
     }
+    list->length--;
     return out;
 }
 

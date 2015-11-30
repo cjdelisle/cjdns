@@ -40,13 +40,13 @@ struct IpTunnel_Connection
     uint8_t connectionIp6Prefix;
 
     /** The IPv6 prefix length in, in bits, defining netmask. 0xff if not used. */
-    uint8_t connectionIp6NetworkSize;
+    uint8_t connectionIp6Alloc;
 
     /** The IPv4 address prefix length, in bits. Defaults to 32 if none was assigned. */
     uint8_t connectionIp4Prefix;
 
     /** The IPv6 prefix length in, in bits, defining netmask. 0xff if not used. */
-    uint8_t connectionIp4NetworkSize;
+    uint8_t connectionIp4Alloc;
 
     /** non-zero if the connection was made using IpTunnel_connectTo(). */
     int isOutgoing : 1;
@@ -89,26 +89,24 @@ struct IpTunnel* IpTunnel_new(struct Log* logger,
                               struct Allocator* alloc,
                               struct Random* rand);
 
- #define IpTunnel_allowConnection_NO_ROUTE 0xff
-
 /**
  * Allow another node to tunnel IPv4 and/or ICANN IPv6 through this node.
  *
  * @param publicKeyOfAuthorizedNode the key for the node which will be allowed to connect.
  * @param ip6Addr the IPv6 address which the node will be issued or NULL.
  * @param ip6Prefix the IPv6 netmask/prefix length.
- * @param ip6NetworkSize the IPv6 prefix length of network connected via tunnel.
+ * @param ip6Alloc the address block to allocate to the client (v6) 0 is illegal
  * @param ip4Addr the IPv4 address which the node will be issued or NULL.
  * @param ip4Prefix the IPv4 netmask/prefix length.
- * @param ip4NetworkSize the IPv6 prefix length of network connected via tunnel.
+ * @param ip4Alloc the address block size to allocate to the client (v4) 0 is illegal
  * @param tunnel the IpTunnel.
  * @return an connection number which is usable with IpTunnel_remove().
  */
 int IpTunnel_allowConnection(uint8_t publicKeyOfAuthorizedNode[32],
                              struct Sockaddr* ip6Addr,
-                             uint8_t ip6Prefix, uint8_t ip6NetworkSize,
+                             uint8_t ip6Prefix, uint8_t ip6Alloc,
                              struct Sockaddr* ip4Addr,
-                             uint8_t ip4Prefix, uint8_t ip4NetworkSize,
+                             uint8_t ip4Prefix, uint8_t ip4Alloc,
                              struct IpTunnel* tunnel);
 
 /**
@@ -133,6 +131,5 @@ int IpTunnel_removeConnection(int connectionNumber, struct IpTunnel* tunnel);
 
 
 void IpTunnel_setTunName(char* interfaceName, struct IpTunnel* ipTun);
-
 
 #endif

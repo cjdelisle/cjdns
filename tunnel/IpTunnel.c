@@ -23,6 +23,7 @@
 #include "interface/tuntap/TUNMessageType.h"
 #include "memory/Allocator.h"
 #include "tunnel/IpTunnel.h"
+#include "tunnel/RouteGen.h"
 #include "crypto/AddressCalc.h"
 #include "util/platform/netdev/NetDev.h"
 #include "util/Checksum.h"
@@ -127,10 +128,10 @@ static struct IpTunnel_Connection* connectionByPubKey(uint8_t pubKey[32],
 int IpTunnel_allowConnection(uint8_t publicKeyOfAuthorizedNode[32],
                              struct Sockaddr* ip6Addr,
                              uint8_t ip6Prefix,
-                             uint8_t ip6NetworkSize,
+                             uint8_t ip6Alloc,
                              struct Sockaddr* ip4Addr,
                              uint8_t ip4Prefix,
-                             uint8_t ip4NetworkSize,
+                             uint8_t ip4Alloc,
                              struct IpTunnel* tunnel)
 {
     struct IpTunnel_pvt* context = Identity_check((struct IpTunnel_pvt*)tunnel);
@@ -149,17 +150,18 @@ int IpTunnel_allowConnection(uint8_t publicKeyOfAuthorizedNode[32],
     AddressCalc_addressForPublicKey(conn->routeHeader.ip6, publicKeyOfAuthorizedNode);
     if (ip4Address) {
         Bits_memcpy(conn->connectionIp4, ip4Address, 4);
-        if (!ip4Prefix) { ip4Prefix = 32; }
         conn->connectionIp4Prefix = ip4Prefix;
+        conn->connectionIp4Alloc = ip4Alloc;
+        Assert_true(ip4Alloc);
     }
-    conn->connectionIp4NetworkSize = ip4NetworkSize;
 
     if (ip6Address) {
         Bits_memcpy(conn->connectionIp6, ip6Address, 16);
-        if (!ip6Prefix) { ip6Prefix = 128; }
         conn->connectionIp6Prefix = ip6Prefix;
+        conn->connectionIp6Alloc = ip6Alloc;
+        Assert_true(ip6Alloc);
     }
-    conn->connectionIp6NetworkSize = ip6NetworkSize;
+
     return conn->number;
 }
 
@@ -331,7 +333,7 @@ static Iface_DEFUN requestForAddresses(Dict* request,
                     String_CONST("ip6Prefix"), (int64_t)conn->connectionIp6Prefix,
                     requestAlloc);
         Dict_putInt(addresses,
-                    String_CONST("ip6NetworkSize"), (int64_t)conn->connectionIp6NetworkSize,
+                    String_CONST("ip6Alloc"), (int64_t)conn->connectionIp6Alloc,
                     requestAlloc);
         noAddresses = false;
     }
@@ -344,7 +346,7 @@ static Iface_DEFUN requestForAddresses(Dict* request,
                     String_CONST("ip4Prefix"), (int64_t)conn->connectionIp4Prefix,
                     requestAlloc);
         Dict_putInt(addresses,
-                    String_CONST("ip4NetworkSize"), (int64_t)conn->connectionIp4NetworkSize,
+                    String_CONST("ip4Alloc"), (int64_t)conn->connectionIp4Alloc,
                     requestAlloc);
         noAddresses = false;
     }
@@ -366,7 +368,7 @@ static Iface_DEFUN requestForAddresses(Dict* request,
 }
 
 static void addAddress(char* printedAddr, uint8_t prefixLen,
-                       uint8_t networkSize, struct IpTunnel_pvt* ctx)
+                       uint8_t allocSize, struct IpTunnel_pvt* ctx)
 {
     if (!ctx->ifName) {
         Log_error(ctx->logger, "Failed to set IP address because TUN interface is not setup");
@@ -377,11 +379,19 @@ static void addAddress(char* printedAddr, uint8_t prefixLen,
         Log_error(ctx->logger, "Invalid ip, setting ip address on TUN");
         return;
     }
+    bool installRoute = false;
+    if (Sockaddr_getFamily(&ss.addr) == Sockaddr_AF_INET) {
+        installRoute = (prefixLen < 32);
+    } else if (Sockaddr_getFamily(&ss.addr) == Sockaddr_AF_INET6) {
+        installRoute = (prefixLen < 128);
+    } else {
+        Assert_failure("bad address family");
+    }
     struct Jmp j;
     Jmp_try(j) {
-        NetDev_addAddress(ctx->ifName->bytes, &ss.addr, prefixLen, ctx->logger, &j.handler);
-        if (networkSize != IpTunnel_allowConnection_NO_ROUTE) {
-            NetDev_addRoute(ctx->ifName->bytes, &ss.addr, networkSize, ctx->logger, &j.handler);
+        NetDev_addAddress(ctx->ifName->bytes, &ss.addr, allocSize, ctx->logger, &j.handler);
+        if (installRoute) {
+            NetDev_addRoute(ctx->ifName->bytes, &ss.addr, prefixLen, ctx->logger, &j.handler);
         }
     } Jmp_catch {
         Log_error(ctx->logger, "Error setting ip address on TUN [%s]", j.message);
@@ -431,19 +441,19 @@ static Iface_DEFUN incomingAddresses(Dict* d,
 
     String* ip4 = Dict_getString(addresses, String_CONST("ip4"));
     int64_t* ip4Prefix = Dict_getInt(addresses, String_CONST("ip4Prefix"));
-    int64_t* ip4NetworkSize = Dict_getInt(addresses, String_CONST("ip4NetworkSize"));
+    int64_t* ip4Alloc = Dict_getInt(addresses, String_CONST("ip4Alloc"));
     if (ip4 && ip4->len == 4) {
         Bits_memcpy(conn->connectionIp4, ip4->bytes, 4);
 
-        if (ip4Prefix && *ip4Prefix > 0 && *ip4Prefix <= 32) {
+        if (ip4Prefix && *ip4Prefix >= 0 && *ip4Prefix <= 32) {
             conn->connectionIp4Prefix = (uint8_t) *ip4Prefix;
         } else {
             conn->connectionIp4Prefix = 32;
         }
-        if (ip4NetworkSize && *ip4NetworkSize > 0 && *ip4NetworkSize <= 32) {
-            conn->connectionIp4NetworkSize = (uint8_t) *ip4NetworkSize;
+        if (ip4Alloc && *ip4Alloc >= 0 && *ip4Alloc <= 32) {
+            conn->connectionIp4Alloc = (uint8_t) *ip4Alloc;
         } else {
-            conn->connectionIp4NetworkSize = IpTunnel_allowConnection_NO_ROUTE;
+            conn->connectionIp4Alloc = 32;
         }
 
         struct Sockaddr* sa = Sockaddr_clone(Sockaddr_LOOPBACK, alloc);
@@ -452,34 +462,28 @@ static Iface_DEFUN incomingAddresses(Dict* d,
         Bits_memcpy(addrBytes, ip4->bytes, 4);
         char* printedAddr = Sockaddr_print(sa, alloc);
 
-        Log_info(context->logger, "Got issued address [%s/%d] for connection [%d]",
-                 printedAddr, conn->connectionIp4Prefix, conn->number);
+        Log_info(context->logger, "Got issued address [%s/%d:%d] for connection [%d]",
+                 printedAddr, conn->connectionIp4Alloc, conn->connectionIp4Prefix, conn->number);
 
-        addAddress(printedAddr, conn->connectionIp4Prefix, conn->connectionIp4NetworkSize, context);
+        addAddress(printedAddr, conn->connectionIp4Prefix, conn->connectionIp4Alloc, context);
     }
 
     String* ip6 = Dict_getString(addresses, String_CONST("ip6"));
     int64_t* ip6Prefix = Dict_getInt(addresses, String_CONST("ip6Prefix"));
-    int64_t* ip6NetworkSize = Dict_getInt(addresses, String_CONST("ip6NetworkSize"));
+    int64_t* ip6Alloc = Dict_getInt(addresses, String_CONST("ip6Alloc"));
     if (ip6 && ip6->len == 16) {
         Bits_memcpy(conn->connectionIp6, ip6->bytes, 16);
 
-        if (ip6Prefix && *ip6Prefix > 0 && *ip6Prefix <= 128) {
+        if (ip6Prefix && *ip6Prefix >= 0 && *ip6Prefix <= 128) {
             conn->connectionIp6Prefix = (uint8_t) *ip6Prefix;
         } else {
             conn->connectionIp6Prefix = 128;
         }
 
-        if (Defined(Darwin) && conn->connectionIp6Prefix < 3) {
-            // Apple doesn't handle prefix length of 0 properly. 3 covers
-            // all IPv6 unicast space.
-            conn->connectionIp6Prefix = 3;
-        }
-
-        if (ip6NetworkSize && *ip6NetworkSize > 0 && *ip6NetworkSize <= 128) {
-            conn->connectionIp6NetworkSize = (uint8_t) *ip6NetworkSize;
+        if (ip6Alloc && *ip6Alloc >= 0 && *ip6Alloc <= 128) {
+            conn->connectionIp6Alloc = (uint8_t) *ip6Alloc;
         } else {
-            conn->connectionIp6NetworkSize = IpTunnel_allowConnection_NO_ROUTE;
+            conn->connectionIp6Alloc = 128;
         }
 
         struct Sockaddr* sa = Sockaddr_clone(Sockaddr_LOOPBACK6, alloc);
@@ -488,10 +492,10 @@ static Iface_DEFUN incomingAddresses(Dict* d,
         Bits_memcpy(addrBytes, ip6->bytes, 16);
         char* printedAddr = Sockaddr_print(sa, alloc);
 
-        Log_info(context->logger, "Got issued address [%s/%d] for connection [%d]",
-                 printedAddr, conn->connectionIp6Prefix, conn->number);
+        Log_info(context->logger, "Got issued address block [%s/%d:%d] for connection [%d]",
+                 printedAddr, conn->connectionIp6Alloc, conn->connectionIp6Prefix, conn->number);
 
-        addAddress(printedAddr, conn->connectionIp6Prefix, conn->connectionIp6NetworkSize, context);
+        addAddress(printedAddr, conn->connectionIp6Prefix, conn->connectionIp6Alloc, context);
     }
     return 0;
 }
@@ -583,66 +587,41 @@ static bool prefixMatches4(uint8_t* addressA, uint8_t* refAddr, uint32_t prefixL
     return !((a ^ b) >> (32 - prefixLen));
 }
 
-/**
- * If there are multiple connections to the same server,
- * the ip address on the packet might belong to the wrong one.
- * In that case we get the right connection.
- * If the other party has sent a packet from an address which is not
- * valid, this will return NULL and their packet can be dropped.
- *
- * @param conn the connection which matches the other node's key.
- * @param sourceAndDestIp6 the source and destination IPv6 addresses,
- *                         must be NULL if sourceAndDestIp4 is specified.
- * @param sourceAndDestIp4 the source and destination IPv4 addresses.
- *                         must be NULL if sourceAndDestIp6 is specified.
- * @param context
- * @return the real connection or null if the packet is invalid.
- */
-static struct IpTunnel_Connection* getConnection(struct IpTunnel_Connection* conn,
-                                                 uint8_t sourceAndDestIp6[32],
-                                                 uint8_t sourceAndDestIp4[8],
-                                                 bool isFromTun,
-                                                 struct IpTunnel_pvt* context)
+static bool isValidAddress4(uint8_t sourceAndDestIp4[8],
+                            bool isFromTun,
+                            struct IpTunnel_Connection* conn)
 {
-    uint8_t* source = (sourceAndDestIp6) ? sourceAndDestIp6 : sourceAndDestIp4;
-    uint32_t length = (sourceAndDestIp6) ? 16 : 4;
-    uint8_t* destination = source + length;
+    uint8_t* compareAddr = (isFromTun)
+        ? ((conn->isOutgoing) ? sourceAndDestIp4 : &sourceAndDestIp4[4])
+        : ((conn->isOutgoing) ? &sourceAndDestIp4[4] : sourceAndDestIp4);
+    return prefixMatches4(compareAddr, conn->connectionIp4, conn->connectionIp4Alloc);
+}
 
-    if (sourceAndDestIp6) {
-        // never allowed
-        if (source[0] == 0xfc || destination[0] == 0xfc) {
-            return NULL;
+static bool isValidAddress6(uint8_t sourceAndDestIp6[32],
+                            bool isFromTun,
+                            struct IpTunnel_Connection* conn)
+{
+    if (sourceAndDestIp6[0] == 0xfc || sourceAndDestIp6[16] == 0xfc) { return false; }
+    uint8_t* compareAddr = (isFromTun)
+        ? ((conn->isOutgoing) ? sourceAndDestIp6 : &sourceAndDestIp6[16])
+        : ((conn->isOutgoing) ? &sourceAndDestIp6[16] : sourceAndDestIp6);
+    return prefixMatches6(compareAddr, conn->connectionIp6, conn->connectionIp6Alloc);
+}
+
+static struct IpTunnel_Connection* findConnection(uint8_t sourceAndDestIp6[32],
+                                                  uint8_t sourceAndDestIp4[8],
+                                                  bool isFromTun,
+                                                  struct IpTunnel_pvt* context)
+{
+    for (int i = 0; i < (int)context->pub.connectionList.count; i++) {
+        struct IpTunnel_Connection* conn = &context->pub.connectionList.connections[i];
+        if (sourceAndDestIp6 && isValidAddress6(sourceAndDestIp6, isFromTun, conn)) {
+            return conn;
+        }
+        if (sourceAndDestIp4 && isValidAddress4(sourceAndDestIp4, isFromTun, conn)) {
+            return conn;
         }
     }
-
-    struct IpTunnel_Connection* lastConnection =
-        &context->pub.connectionList.connections[context->pub.connectionList.count - 1];
-
-    do {
-        // If this is an incoming message from the w0rld, and we're the client, we want
-        // to make sure it's addressed to us (destination), if we're the server we want to make
-        // sure our clients are using the addresses we gave them (source).
-        //
-        // If this is an outgoing message from the TUN, we just want to find a sutable server to
-        // handle it. The behavior of this function relies on the fact that all incoming
-        // connections are first on the list.
-        //
-        uint8_t* compareAddr = (isFromTun)
-            ? ((conn->isOutgoing) ? source : destination)
-            : ((conn->isOutgoing) ? destination : source);
-
-        if (sourceAndDestIp6) {
-            if (prefixMatches6(compareAddr, conn->connectionIp6, conn->connectionIp6Prefix)) {
-                return conn;
-            }
-        } else {
-            if (prefixMatches4(compareAddr, conn->connectionIp4, conn->connectionIp4Prefix)) {
-                return conn;
-            }
-        }
-        conn++;
-    } while (conn <= lastConnection);
-
     return NULL;
 }
 
@@ -651,7 +630,7 @@ static Iface_DEFUN incomingFromTun(struct Message* message, struct Iface* tunIf)
     struct IpTunnel_pvt* context = Identity_check((struct IpTunnel_pvt*)tunIf);
 
     if (message->length < 20) {
-        Log_debug(context->logger, "Dropping runt.");
+        Log_debug(context->logger, "DROP runt");
     }
 
     struct IpTunnel_Connection* conn = NULL;
@@ -659,18 +638,10 @@ static Iface_DEFUN incomingFromTun(struct Message* message, struct Iface* tunIf)
         // No connections authorized, fall through to "unrecognized address"
     } else if (message->length > 40 && Headers_getIpVersion(message->bytes) == 6) {
         struct Headers_IP6Header* header = (struct Headers_IP6Header*) message->bytes;
-        conn = getConnection(context->pub.connectionList.connections,
-                             header->sourceAddr,
-                             NULL,
-                             true,
-                             context);
+        conn = findConnection(header->sourceAddr, NULL, true, context);
     } else if (message->length > 20 && Headers_getIpVersion(message->bytes) == 4) {
         struct Headers_IP4Header* header = (struct Headers_IP4Header*) message->bytes;
-        conn = getConnection(context->pub.connectionList.connections,
-                             NULL,
-                             header->sourceAddr,
-                             true,
-                             context);
+        conn = findConnection(NULL, header->sourceAddr, true, context);
     } else {
         Log_info(context->logger, "Message of unknown type from TUN");
         return 0;
@@ -696,7 +667,7 @@ static Iface_DEFUN ip6FromNode(struct Message* message,
         Log_debug(context->logger, "Got message with zero address");
         return 0;
     }
-    if (!getConnection(conn, header->sourceAddr, NULL, false, context)) {
+    if (!isValidAddress6(header->sourceAddr, false, conn)) {
         Log_debug(context->logger, "Got message with wrong address for connection");
         return 0;
     }
@@ -713,8 +684,14 @@ static Iface_DEFUN ip4FromNode(struct Message* message,
     if (Bits_isZero(header->sourceAddr, 4) || Bits_isZero(header->destAddr, 4)) {
         Log_debug(context->logger, "Got message with zero address");
         return 0;
-    } else if (!getConnection(conn, NULL, header->sourceAddr, false, context)) {
-        Log_debug(context->logger, "Got message with wrong address for connection");
+    } else if (!isValidAddress4(header->sourceAddr, false, conn)) {
+        Log_debug(context->logger, "Got message with wrong address [%d.%d.%d.%d] for connection "
+                                   "[%d.%d.%d.%d/%d:%d]",
+                  header->sourceAddr[0], header->sourceAddr[1],
+                  header->sourceAddr[2], header->sourceAddr[3],
+                  conn->connectionIp4[0], conn->connectionIp4[1],
+                  conn->connectionIp4[2], conn->connectionIp4[3],
+                  conn->connectionIp4Alloc, conn->connectionIp4Prefix);
         return 0;
     }
 

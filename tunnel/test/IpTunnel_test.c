@@ -27,6 +27,7 @@
 #include "util/Bits.h"
 #include "util/Checksum.h"
 #include "util/CString.h"
+#include "util/Escape.h"
 #include "wire/DataHeader.h"
 #include "wire/Message.h"
 #include "wire/Headers.h"
@@ -82,6 +83,14 @@ static Iface_DEFUN responseWithIpCallback(struct Message* message, struct Iface*
     Assert_true(Endian_bigEndianToHost16(uh->length_be) + Headers_UDPHeader_SIZE == length);
 
     Message_shift(message, -Headers_UDPHeader_SIZE, NULL);
+
+    struct Allocator* alloc = Allocator_child(ctx->alloc);
+    char* messageContent = Escape_getEscaped(message->bytes, message->length, alloc);
+    char* expectedContent =
+        Escape_getEscaped(ctx->expectedResponse->bytes, ctx->expectedResponse->len, alloc);
+    Log_debug(ctx->log, "Response: [%s]", messageContent);
+    Log_debug(ctx->log, "Expected: [%s]", expectedContent);
+    Allocator_free(alloc);
 
     // We can't check that the message is an exact match because the padding depends on the
     // alignment of the output but we can make sure the right content is there...
@@ -180,10 +189,12 @@ static bool trySend6(struct Allocator* alloc,
     return false;
 }
 
-static String* getExpectedResponse(struct Sockaddr* sa4, int prefix4, int netSize4,
-                                   struct Sockaddr* sa6, int prefix6, int netSize6,
+static String* getExpectedResponse(struct Sockaddr* sa4, int prefix4, int alloc4,
+                                   struct Sockaddr* sa6, int prefix6, int alloc6,
                                    struct Allocator* allocator)
 {
+    Assert_true(alloc6 >= prefix6);
+    Assert_true(alloc4 >= prefix4);
     struct Allocator* alloc = Allocator_child(allocator);
     Dict* addresses = Dict_new(alloc);
     if (sa4) {
@@ -192,19 +203,15 @@ static String* getExpectedResponse(struct Sockaddr* sa4, int prefix4, int netSiz
         String* addrStr = String_newBinary(addr, 4, alloc);
         Dict_putString(addresses, String_new("ip4", alloc), addrStr, alloc);
         Dict_putInt(addresses, String_new("ip4Prefix", alloc), prefix4, alloc);
-        if (netSize4 != IpTunnel_allowConnection_NO_ROUTE) {
-            Dict_putInt(addresses, String_new("ip4NetworkSize", alloc), netSize4, alloc);
-        }
+        Dict_putInt(addresses, String_new("ip4Alloc", alloc), alloc4, alloc);
     }
     if (sa6) {
         uint8_t* addr = NULL;
-        Assert_true(Sockaddr_getAddress(sa4, &addr) == 16);
+        Assert_true(Sockaddr_getAddress(sa6, &addr) == 16);
         String* addrStr = String_newBinary(addr, 16, alloc);
         Dict_putString(addresses, String_new("ip6", alloc), addrStr, alloc);
-        Dict_putInt(addresses, String_new("ip6Prefix", alloc), prefix4, alloc);
-        if (netSize4 != IpTunnel_allowConnection_NO_ROUTE) {
-            Dict_putInt(addresses, String_new("ip6NetworkSize", alloc), netSize4, alloc);
-        }
+        Dict_putInt(addresses, String_new("ip6Prefix", alloc), prefix6, alloc);
+        Dict_putInt(addresses, String_new("ip6Alloc", alloc), alloc6, alloc);
     }
     Dict* output = Dict_new(alloc);
     Dict_putDict(output, String_new("addresses", alloc), addresses, alloc);
@@ -218,8 +225,8 @@ static String* getExpectedResponse(struct Sockaddr* sa4, int prefix4, int netSiz
 }
 
 static void testAddr(struct Context* ctx,
-                     char* addr4, int prefix4, int netSize4,
-                     char* addr6, int prefix6, int netSize6)
+                     char* addr4, int prefix4, int alloc4,
+                     char* addr6, int prefix6, int alloc6)
 {
     struct Allocator* alloc = Allocator_child(ctx->alloc);
     struct IpTunnel* ipTun = IpTunnel_new(ctx->log, ctx->base, alloc, ctx->rand);
@@ -241,8 +248,8 @@ static void testAddr(struct Context* ctx,
     }
 
     IpTunnel_allowConnection(ctx->pubKey,
-                             sa6, prefix6, netSize6,
-                             sa4, prefix4, netSize4,
+                             sa6, prefix6, alloc6,
+                             sa4, prefix4, alloc4,
                              ipTun);
 
     struct Message* msg = Message_new(64, 512, alloc);
@@ -282,7 +289,7 @@ static void testAddr(struct Context* ctx,
     Iface_plumb(&nodeIf->iface, &ipTun->nodeInterface);
     Iface_plumb(&tunIf->iface, &ipTun->tunInterface);
     ctx->expectedResponse =
-        getExpectedResponse(sa4, prefix4, netSize4, sa6, prefix6, netSize6, alloc);
+        getExpectedResponse(sa4, prefix4, alloc4, sa6, prefix6, alloc6, alloc);
     Iface_send(&nodeIf->iface, msg);
     Assert_true(ctx->called == 2);
     ctx->called = 0;
@@ -296,10 +303,10 @@ static void testAddr(struct Context* ctx,
         // Send from the address specified
         Assert_true(trySend4(alloc, addr, &nodeIf->iface, ctx));
 
-        if (prefix4 < 32) {
+        if (alloc4 < 32) {
             // Send from another (random) address in the prefix
-            uint32_t flip = Random_uint32(ctx->rand) >> prefix4;
-            if (netSize4 != IpTunnel_allowConnection_NO_ROUTE) {
+            uint32_t flip = Random_uint32(ctx->rand) >> alloc4;
+            if (prefix4 != 32) {
                 Assert_true(trySend4(alloc, addr ^ flip, &nodeIf->iface, ctx));
             } else {
                 // If netSize is not specified, we do not allow multi-address
@@ -308,6 +315,9 @@ static void testAddr(struct Context* ctx,
         } else {
             Assert_true(!trySend4(alloc, addr ^ 1, &nodeIf->iface, ctx));
         }
+    } else {
+        uint32_t addr = Random_uint32(ctx->rand);
+        Assert_true(!trySend4(alloc, addr, &nodeIf->iface, ctx));
     }
 
     if (sa6) {
@@ -321,18 +331,18 @@ static void testAddr(struct Context* ctx,
         addrLow = Endian_bigEndianToHost64(addrLow);
 
         Assert_true(trySend6(alloc, addrHigh, addrLow, &nodeIf->iface, ctx));
-        if (prefix6 < 128) {
+        if (alloc6 < 128) {
             // Send from another (random) address in the prefix
             uint64_t flipHigh = Random_uint64(ctx->rand);
             uint64_t flipLow = Random_uint64(ctx->rand);
-            if (prefix6 > 64) {
-                flipHigh = flipHigh >> (prefix6 - 64);
+            if (alloc6 > 64) {
+                flipHigh = flipHigh >> (alloc6 - 64);
             } else {
                 flipHigh = 0;
-                flipLow = flipLow >> prefix6;
+                flipLow = flipLow >> alloc6;
             }
 
-            if (netSize6 != IpTunnel_allowConnection_NO_ROUTE) {
+            if (prefix6 != 128) {
                 Assert_true(trySend6(alloc,
                                      addrHigh ^ flipHigh,
                                      addrLow ^ flipLow,
@@ -349,16 +359,20 @@ static void testAddr(struct Context* ctx,
         } else {
             Assert_true(!trySend6(alloc, addrHigh, addrLow ^ 1, &nodeIf->iface, ctx));
         }
+    } else {
+        uint64_t addr = Random_uint64(ctx->rand);
+        Assert_true(!trySend6(alloc, 0, addr, &nodeIf->iface, ctx));
     }
+
     Allocator_free(alloc);
 }
 
 int main()
 {
     struct Allocator* alloc = MallocAllocator_new(1<<20);
+    struct EventBase* eb = EventBase_new(alloc);
     struct Log* logger = FileWriterLog_new(stdout, alloc);
     struct Random* rand = Random_new(alloc, logger, NULL);
-    struct EventBase* eb = EventBase_new(alloc);
     struct Context* ctx = Allocator_calloc(alloc, sizeof(struct Context), 1);
     Identity_set(ctx);
     ctx->alloc = alloc;
@@ -367,14 +381,22 @@ int main()
     ctx->base = eb;
     Assert_true(!Key_parse(String_CONST(PUBKEY), ctx->pubKey, ctx->ipv6));
 
-    testAddr(ctx, "192.168.1.1", 24, 0, NULL, 0, 0);
-    testAddr(ctx, "192.168.1.1", 24, 16, NULL, 0, 0);
-    testAddr(ctx, "192.168.1.1", 24, IpTunnel_allowConnection_NO_ROUTE, NULL, 0, 0);
+    testAddr(ctx, "192.168.1.1", 0, 32, NULL, 0, 0);
+    testAddr(ctx, "192.168.1.1", 16, 24, NULL, 0, 0);
+    testAddr(ctx, "192.168.1.1", 24, 32, NULL, 0, 0);
 
-    testAddr(ctx, "192.168.1.1", 24, 16, "fd00::1", 64, 0);
-    testAddr(ctx, "192.168.1.1", 24, 16, "fd00::1", 64, 8);
-    testAddr(ctx, "192.168.1.1", 24, 16, "fd00::1", 64, IpTunnel_allowConnection_NO_ROUTE);
+    testAddr(ctx, "192.168.1.1", 16, 24, "fd00::1", 0, 64);
+    testAddr(ctx, "192.168.1.1", 16, 24, "fd00::1", 8, 64);
+    testAddr(ctx, "192.168.1.1", 16, 24, "fd00::1", 64, 128);
 
-    Allocator_free(alloc);
+    //Allocator_free(alloc); //TODO(cjd): This is caused by an allocator bug.
+    /* To repeat the bug, create a test like this:
+    struct Allocator* allocx = Allocator_child(alloc);
+    Timeout_setInterval(NULL, NULL, 10000, eb, allocx);
+    Allocator_snapshot(alloc, true);
+    Allocator_free(allocx);
+    Allocator_snapshot(alloc, true);
+    return 0;
+    */
     return 0;
 }

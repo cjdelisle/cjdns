@@ -44,7 +44,7 @@ Builder.configure({
     crossCompiling: process.env['CROSS'] !== undefined,
     gcc:            GCC,
     tempDir:        '/tmp',
-    optimizeLevel:  '-O3',
+    optimizeLevel:  '-O0',
     logLevel:       process.env['Log_LEVEL'] || 'DEBUG'
 }, function (builder, waitFor) {
     builder.config.cflags.push(
@@ -57,7 +57,7 @@ Builder.configure({
         '-D', builder.config.systemName + '=1',
         '-D', 'CJD_PACKAGE_VERSION="' + builder.config.version + '"',
         '-Wno-unused-parameter',
-        '-fomit-frame-pointer',
+//        '-fomit-frame-pointer',
 
         '-D', 'Log_' + builder.config.logLevel,
 

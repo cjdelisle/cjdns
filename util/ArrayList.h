@@ -24,7 +24,7 @@ void* ArrayList_new(struct Allocator* alloc, int initialCapacity);
 int ArrayList_add(void* list, void* val);
 void* ArrayList_get(void* list, int number);
 int ArrayList_put(void* list, int number, void* val);
-void* ArrayList_shift(void* list);
+void* ArrayList_remove(void* list, int num);
 
 #endif // Used multiple times...
 
@@ -74,7 +74,17 @@ static inline int ArrayList_FUNCTION(add)(struct ArrayList_STRUCT* list, void* v
 
 static inline ArrayList_TYPE* ArrayList_FUNCTION(shift)(struct ArrayList_STRUCT* list)
 {
-    return (ArrayList_TYPE*) ArrayList_shift((void*) list);
+    return (ArrayList_TYPE*) ArrayList_remove((void*) list, 0);
+}
+
+static inline ArrayList_TYPE* ArrayList_FUNCTION(pop)(struct ArrayList_STRUCT* list)
+{
+    return (ArrayList_TYPE*) ArrayList_remove((void*) list, list->length - 1);
+}
+
+static inline ArrayList_TYPE* ArrayList_FUNCTION(remove)(struct ArrayList_STRUCT* list, int num)
+{
+    return (ArrayList_TYPE*) ArrayList_remove((void*) list, num);
 }
 
 #undef ArrayList_TYPE
