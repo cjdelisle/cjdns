@@ -36,4 +36,11 @@ bool AddressCalc_addressForPublicKey(uint8_t addressOut[16], const uint8_t key[3
  */
 bool AddressCalc_validAddress(const uint8_t address[16]);
 
+/**
+ * Check if an address is cjdns-specific given the IPv6
+ *
+ * @return true if the IPv6 is a distinguishable cjdns address.
+ */
+bool AddressCalc_distinguishableAddress(const uint8_t address[16]);
+
 #endif

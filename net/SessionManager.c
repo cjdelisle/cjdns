@@ -261,8 +261,9 @@ static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface
         uint8_t* herKey = caHeader->handshake.publicKey;
         uint8_t ip6[16];
         // a packet which claims to be "from us" causes problems
-        if (!AddressCalc_addressForPublicKey(ip6, herKey)) {
-            Log_debug(sm->log, "DROP Handshake with non-fc key");
+        AddressCalc_addressForPublicKey(ip6, herKey);
+        if (!AddressCalc_validAddress(ip6)) {
+            Log_debug(sm->log, "DROP Handshake with non-cjdns key");
             return NULL;
         }
 
