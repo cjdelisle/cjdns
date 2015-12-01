@@ -36,17 +36,11 @@ struct IpTunnel_Connection
     /** The IPv4 address used for this connection or all zeros if none was assigned. */
     uint8_t connectionIp4[4];
 
-    /** The IPv6 address prefix length, in bits. Defaults to 128 if none was assigned. */
+    /** The IPv6 netmask/prefix length, in bits. Defaults to 128 if none was assigned. */
     uint8_t connectionIp6Prefix;
 
-    /** The IPv6 prefix length in, in bits, defining netmask. 0xff if not used. */
-    uint8_t connectionIp6NetworkSize;
-
-    /** The IPv4 address prefix length, in bits. Defaults to 32 if none was assigned. */
+    /** The IPv4 netmask/prefix length, in bits. Defaults to 32 if none was assigned. */
     uint8_t connectionIp4Prefix;
-
-    /** The IPv6 prefix length in, in bits, defining netmask. 0xff if not used. */
-    uint8_t connectionIp4NetworkSize;
 
     /** non-zero if the connection was made using IpTunnel_connectTo(). */
     int isOutgoing : 1;
@@ -89,26 +83,20 @@ struct IpTunnel* IpTunnel_new(struct Log* logger,
                               struct Allocator* alloc,
                               struct Random* rand);
 
- #define IpTunnel_allowConnection_NO_ROUTE 0xff
-
 /**
  * Allow another node to tunnel IPv4 and/or ICANN IPv6 through this node.
  *
  * @param publicKeyOfAuthorizedNode the key for the node which will be allowed to connect.
  * @param ip6Addr the IPv6 address which the node will be issued or NULL.
  * @param ip6Prefix the IPv6 netmask/prefix length.
- * @param ip6NetworkSize the IPv6 prefix length of network connected via tunnel.
  * @param ip4Addr the IPv4 address which the node will be issued or NULL.
  * @param ip4Prefix the IPv4 netmask/prefix length.
- * @param ip4NetworkSize the IPv6 prefix length of network connected via tunnel.
  * @param tunnel the IpTunnel.
  * @return an connection number which is usable with IpTunnel_remove().
  */
 int IpTunnel_allowConnection(uint8_t publicKeyOfAuthorizedNode[32],
-                             struct Sockaddr* ip6Addr,
-                             uint8_t ip6Prefix, uint8_t ip6NetworkSize,
-                             struct Sockaddr* ip4Addr,
-                             uint8_t ip4Prefix, uint8_t ip4NetworkSize,
+                             struct Sockaddr* ip6Addr, uint8_t ip6Prefix,
+                             struct Sockaddr* ip4Addr, uint8_t ip4Prefix,
                              struct IpTunnel* tunnel);
 
 /**
