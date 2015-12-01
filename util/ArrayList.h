@@ -25,6 +25,7 @@ int ArrayList_add(void* list, void* val);
 void* ArrayList_get(void* list, int number);
 int ArrayList_put(void* list, int number, void* val);
 void* ArrayList_remove(void* list, int num);
+void ArrayList_sort(void* list, int (* compare)(const void* a, const void* b));
 
 #endif // Used multiple times...
 
@@ -87,9 +88,21 @@ static inline ArrayList_TYPE* ArrayList_FUNCTION(remove)(struct ArrayList_STRUCT
     return (ArrayList_TYPE*) ArrayList_remove((void*) list, num);
 }
 
+#ifdef ArrayList_COMPARE
+static inline int ArrayList_FUNCTION(sort_compare)(const void* a, const void* b)
+{
+    return ArrayList_COMPARE(((ArrayList_TYPE**)a)[0], ((ArrayList_TYPE**)b)[0]);
+}
+static inline void ArrayList_FUNCTION(sort)(struct ArrayList_STRUCT* list)
+{
+    ArrayList_sort(list, ArrayList_FUNCTION(sort_compare));
+}
+#endif
+
 #undef ArrayList_TYPE
 #undef ArrayList_NAME
 #undef ArrayList_INITIAL_CAPACITY
+#undef ArrayList_COMPARE
 #undef ArrayList_FUNCTION
 #undef ArrayList_STRUCT
 #undef ArrayList_GLUE

@@ -17,6 +17,7 @@
 #include "util/Bits.h"
 
 #include <stddef.h>
+#include <stdlib.h>
 
 struct ArrayList_pvt
 {
@@ -76,4 +77,10 @@ int ArrayList_put(void* vlist, int number, void* val)
     list->elements[number] = val;
     if (number == list->length) { list->length++; }
     return number;
+}
+
+void ArrayList_sort(void* vlist, int (* compare)(const void* a, const void* b))
+{
+    struct ArrayList_pvt* list = Identity_check((struct ArrayList_pvt*) vlist);
+    qsort(list->elements, list->length, sizeof(char*), compare);
 }

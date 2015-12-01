@@ -516,10 +516,8 @@ static Iface_DEFUN incomingControlMessage(struct Message* message,
         return 0;
     }
 
-    if (Defined(Log_DEBUG)) {
-        char* msgEsc = Escape_getEscaped(message->bytes, message->length, message->alloc);
-        Log_debug(context->logger, "Message content [%s]", msgEsc);
-    }
+    Log_debug(context->logger, "Message content [%s]",
+        Escape_getEscaped(message->bytes, message->length, message->alloc));
 
     struct Allocator* alloc = Allocator_child(message->alloc);
 

@@ -30,6 +30,20 @@ struct Prefix6
     int prefix;
     struct Allocator* alloc;
 };
+static int comparePrefixes6(struct Prefix6* a, struct Prefix6* b)
+{
+    if (a->prefix != b->prefix) {
+        return (a->prefix < b->prefix) ? 1 : -1;
+    }
+    if (a->highBits != b->highBits) {
+        return (a->highBits < b->highBits) ? 1 : -1;
+    }
+    if (a->lowBits != b->lowBits) {
+        return (a->lowBits < b->lowBits) ? 1 : -1;
+    }
+    return 0;
+}
+#define ArrayList_COMPARE comparePrefixes6
 #define ArrayList_TYPE struct Prefix6
 #define ArrayList_NAME OfPrefix6
 #include "util/ArrayList.h"
@@ -40,6 +54,17 @@ struct Prefix4
     int prefix;
     struct Allocator* alloc;
 };
+static int comparePrefixes4(struct Prefix4* a, struct Prefix4* b)
+{
+    if (a->prefix != b->prefix) {
+        return (a->prefix < b->prefix) ? 1 : -1;
+    }
+    if (a->bits != b->bits) {
+        return (a->bits < b->bits) ? 1 : -1;
+    }
+    return 0;
+}
+#define ArrayList_COMPARE comparePrefixes4
 #define ArrayList_TYPE struct Prefix4
 #define ArrayList_NAME OfPrefix4
 #include "util/ArrayList.h"
@@ -165,6 +190,8 @@ static Dict* getSomething(struct RouteGen_pvt* rp,
                           struct ArrayList_OfPrefix6* list6,
                           struct ArrayList_OfPrefix4* list4)
 {
+    ArrayList_OfPrefix6_sort(list6);
+    ArrayList_OfPrefix4_sort(list4);
     List* prefixes4 = List_new(alloc);
     for (int i = 0; i < list4->length; i++) {
         struct Prefix4* pfx4 = ArrayList_OfPrefix4_get(list4, i);
