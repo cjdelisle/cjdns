@@ -20,12 +20,14 @@
 #include "util/Linker.h"
 Linker_require("util/ArrayList.c")
 
+struct ArrayList;
+
 void* ArrayList_new(struct Allocator* alloc, int initialCapacity);
-int ArrayList_add(void* list, void* val);
-void* ArrayList_get(void* list, int number);
-int ArrayList_put(void* list, int number, void* val);
-void* ArrayList_remove(void* list, int num);
-void ArrayList_sort(void* list, int (* compare)(const void* a, const void* b));
+int ArrayList_add(struct ArrayList* list, void* val);
+void* ArrayList_get(struct ArrayList* list, int number);
+int ArrayList_put(struct ArrayList* list, int number, void* val);
+void* ArrayList_remove(struct ArrayList* list, int num);
+void ArrayList_sort(struct ArrayList* list, int (* compare)(const void* a, const void* b));
 
 #endif // Used multiple times...
 
@@ -58,34 +60,34 @@ static inline struct ArrayList_STRUCT* ArrayList_FUNCTION(new)(struct Allocator*
 
 static inline ArrayList_TYPE* ArrayList_FUNCTION(get)(struct ArrayList_STRUCT* list, int number)
 {
-    return (ArrayList_TYPE*) ArrayList_get((void*) list, number);
+    return (ArrayList_TYPE*) ArrayList_get((struct ArrayList*) list, number);
 }
 
 static inline int ArrayList_FUNCTION(put)(struct ArrayList_STRUCT* list,
                                           int number,
                                           ArrayList_TYPE* val)
 {
-    return ArrayList_put((void*) list, number, val);
+    return ArrayList_put((struct ArrayList*) list, number, val);
 }
 
 static inline int ArrayList_FUNCTION(add)(struct ArrayList_STRUCT* list, void* val)
 {
-    return ArrayList_put((void*) list, list->length, val);
+    return ArrayList_put((struct ArrayList*) list, list->length, val);
 }
 
 static inline ArrayList_TYPE* ArrayList_FUNCTION(shift)(struct ArrayList_STRUCT* list)
 {
-    return (ArrayList_TYPE*) ArrayList_remove((void*) list, 0);
+    return (ArrayList_TYPE*) ArrayList_remove((struct ArrayList*) list, 0);
 }
 
 static inline ArrayList_TYPE* ArrayList_FUNCTION(pop)(struct ArrayList_STRUCT* list)
 {
-    return (ArrayList_TYPE*) ArrayList_remove((void*) list, list->length - 1);
+    return (ArrayList_TYPE*) ArrayList_remove((struct ArrayList*) list, list->length - 1);
 }
 
 static inline ArrayList_TYPE* ArrayList_FUNCTION(remove)(struct ArrayList_STRUCT* list, int num)
 {
-    return (ArrayList_TYPE*) ArrayList_remove((void*) list, num);
+    return (ArrayList_TYPE*) ArrayList_remove((struct ArrayList*) list, num);
 }
 
 #ifdef ArrayList_COMPARE
@@ -95,7 +97,7 @@ static inline int ArrayList_FUNCTION(sort_compare)(const void* a, const void* b)
 }
 static inline void ArrayList_FUNCTION(sort)(struct ArrayList_STRUCT* list)
 {
-    ArrayList_sort(list, ArrayList_FUNCTION(sort_compare));
+    ArrayList_sort((struct ArrayList*) list, ArrayList_FUNCTION(sort_compare));
 }
 #endif
 

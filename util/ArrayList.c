@@ -41,14 +41,14 @@ void* ArrayList_new(struct Allocator* alloc, int initialCapacity)
     return l;
 }
 
-void* ArrayList_get(void* vlist, int number)
+void* ArrayList_get(struct ArrayList* vlist, int number)
 {
     struct ArrayList_pvt* list = Identity_check((struct ArrayList_pvt*) vlist);
     if (number >= list->length || number < 0) { return NULL; }
     return list->elements[number];
 }
 
-void* ArrayList_remove(void* vlist, int number)
+void* ArrayList_remove(struct ArrayList* vlist, int number)
 {
     struct ArrayList_pvt* list = Identity_check((struct ArrayList_pvt*) vlist);
     if (number >= list->length) { return NULL; }
@@ -62,7 +62,7 @@ void* ArrayList_remove(void* vlist, int number)
     return out;
 }
 
-int ArrayList_put(void* vlist, int number, void* val)
+int ArrayList_put(struct ArrayList* vlist, int number, void* val)
 {
     struct ArrayList_pvt* list = Identity_check((struct ArrayList_pvt*) vlist);
     Assert_true(number >= 0 && number <= list->length);
@@ -79,7 +79,7 @@ int ArrayList_put(void* vlist, int number, void* val)
     return number;
 }
 
-void ArrayList_sort(void* vlist, int (* compare)(const void* a, const void* b))
+void ArrayList_sort(struct ArrayList* vlist, int (* compare)(const void* a, const void* b))
 {
     struct ArrayList_pvt* list = Identity_check((struct ArrayList_pvt*) vlist);
     qsort(list->elements, list->length, sizeof(char*), compare);
