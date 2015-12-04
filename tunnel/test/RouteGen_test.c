@@ -22,6 +22,8 @@
 #include "crypto/random/Random.h"
 #include "tunnel/RouteGen.h"
 
+#include <stdlib.h>
+
 static struct Sockaddr* mkSockaddr(char* str, struct Allocator* alloc)
 {
     uint8_t buf[64];
@@ -35,13 +37,13 @@ static struct Sockaddr* mkSockaddr(char* str, struct Allocator* alloc)
     return Sockaddr_clone(&ss.addr, alloc);
 }
 
+#if 0
 static int getPrefix(char* str)
 {
     char* slash = CString_strchr(str, '/');
     Assert_true(slash);
     return atoi(&slash[1]);
 }
-
 static void runTest(char** prefixes,
                     char** exemptions,
                     char** expectedOut4,
@@ -58,6 +60,7 @@ static void runTest(char** prefixes,
         RouteGen_addExemption(rg, mkSockaddr(exemptions[i], alloc), getPrefix(exemptions[i]));
     }
 }
+#endif
 
 int main()
 {

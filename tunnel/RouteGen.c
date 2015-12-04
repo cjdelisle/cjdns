@@ -240,11 +240,96 @@ int RouteGen_removeException(struct RouteGen* rg, bool isIpv6, int num)
     }
 }
 
+/* Returns 0 if not, 1 if equal, 2 if contained */
+static int contained4(struct Prefix4* domain, struct Prefix4* prefix)
+{
+    if (domain->prefix > prefix->prefix) {
+        return 0;
+    }
+    uint32_t mask = (~0) << (32 - domain->prefix);
+    if ((domain->bits & mask) == (prefix->bits & mask)) {
+        return domain->prefix == prefix->prefix ? 1 : 2;
+    } else {
+        return 0;
+    }
+}
+
+static int contained4Any(struct ArrayList_OfPrefix4* domains, struct Prefix4* prefix)
+{
+
+    int status = 0;
+    for (int i = 0; i < domains->length; i++) {
+        int tmp = contained4(ArrayList_OfPrefix4_get(domains, i), prefix);
+        if (tmp > status) {
+            status = tmp;
+        }
+    }
+    return status;
+}
+
+static int inc4(struct Prefix4* prefix)
+{
+    uint32_t tmp = prefix->bits + (1 << (32 - prefix->prefix));
+    if (tmp < prefix->bits) {
+        // Overflow protection
+        return 0;
+    }
+    prefix->bits = tmp;
+    return 1;
+}
+
+
 static struct ArrayList_OfPrefix4* genPrefixes4(struct ArrayList_OfPrefix4* prefixes,
                                                 struct ArrayList_OfPrefix4* exemptions,
                                                 struct Allocator* alloc)
 {
-    Assert_failure("unimplemented");
+    //TODO(Kubuxu): Dedupe prefixes adn exemptions
+    struct ArrayList_OfPrefix4* result = ArrayList_OfPrefix4_new(alloc);
+    struct Prefix4* domain;
+    while ((domain = ArrayList_OfPrefix4_shift(prefixes))) {
+        struct Prefix4 current;
+
+        // Load new doman into current.
+        Bits_memcpy(&current, domain, sizeof(current));
+
+        while (contained4(domain, &current)) {
+            int status = contained4Any(exemptions, &current);
+
+            if (status == 1) {
+                // We are right on some address from exemptions.
+                if (!inc4(&current)) {
+                    // Increment overflowed.
+                    break;
+                }
+            }
+
+            if (status == 0 && current.prefix > domain->prefix) {
+                // No collision
+                // Try making current bigger
+                current.prefix -= 1;
+                if (!contained4Any(exemptions, &current)) {
+                    // Finalize, clean lower bits
+                    current.bits &= (~0) << (32 - current.prefix);
+                } else {
+                    // There is collision after making it bigger.
+                    // Add this to result
+                    ArrayList_OfPrefix4_add(result, Allocator_clone(alloc, &current));
+                    // Go to next
+                    if (!inc4(&current)) {
+                        // Increment overflowed.
+                        break;
+                    }
+                }
+            }
+
+            if (status == 2) {
+                // We contain something from exemptions
+                // We have to reduce size of current
+                current.prefix += 1;
+            }
+        }
+    }
+    return result;
 }
 
 static struct ArrayList_OfPrefix6* genPrefixes6(struct ArrayList_OfPrefix6* prefixes,
