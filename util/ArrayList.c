@@ -84,3 +84,13 @@ void ArrayList_sort(struct ArrayList* vlist, int (* compare)(const void* a, cons
     struct ArrayList_pvt* list = Identity_check((struct ArrayList_pvt*) vlist);
     qsort(list->elements, list->length, sizeof(char*), compare);
 }
+
+void* ArrayList_clone(struct ArrayList* vlist, struct Allocator* alloc)
+{
+    struct ArrayList_pvt* list = Identity_check((struct ArrayList_pvt*) vlist);
+    struct ArrayList_pvt* newlist = Allocator_clone(alloc, list);
+    newlist->elements = Allocator_malloc(alloc, list->capacity * sizeof(char*));
+    Bits_memcpy(newlist->elements, list->elements, list->capacity * sizeof(char*));
+    newlist->alloc = alloc;
+    return newlist;
+}

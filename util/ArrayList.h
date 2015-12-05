@@ -20,6 +20,10 @@
 #include "util/Linker.h"
 Linker_require("util/ArrayList.c")
 
+/*
+ * This struct is never defined anywhere.
+ * It's used in place to void* so that casts must be explicit to reduce likelyhood of error.
+ */
 struct ArrayList;
 
 void* ArrayList_new(struct Allocator* alloc, int initialCapacity);
@@ -28,6 +32,7 @@ void* ArrayList_get(struct ArrayList* list, int number);
 int ArrayList_put(struct ArrayList* list, int number, void* val);
 void* ArrayList_remove(struct ArrayList* list, int num);
 void ArrayList_sort(struct ArrayList* list, int (* compare)(const void* a, const void* b));
+void* ArrayList_clone(struct ArrayList* vlist, struct Allocator* alloc);
 
 #endif // Used multiple times...
 
@@ -100,6 +105,12 @@ static inline void ArrayList_FUNCTION(sort)(struct ArrayList_STRUCT* list)
     ArrayList_sort((struct ArrayList*) list, ArrayList_FUNCTION(sort_compare));
 }
 #endif
+
+/** Cloning the list does not clone the elements, just the pointers to them. */
+static inline void* ArrayList_FUNCTION(clone)(struct ArrayList_STRUCT* l, struct Allocator* alloc)
+{
+    return ArrayList_clone((struct ArrayList*) l, alloc);
+}
 
 #undef ArrayList_TYPE
 #undef ArrayList_NAME

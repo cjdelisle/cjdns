@@ -285,8 +285,8 @@ static struct ArrayList_OfPrefix4* genPrefixes4(struct ArrayList_OfPrefix4* pref
 {
     //TODO(Kubuxu): Dedupe prefixes adn exemptions
     struct ArrayList_OfPrefix4* result = ArrayList_OfPrefix4_new(alloc);
-    struct Prefix4* domain;
-    while ((domain = ArrayList_OfPrefix4_shift(prefixes))) {
+    for (int i = 0; i < prefixes->length; i++) {
+        struct Prefix4* domain = ArrayList_OfPrefix4_get(prefixes, i);
         struct Prefix4 current;
 
         // Load new doman into current.
