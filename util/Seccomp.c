@@ -314,9 +314,13 @@ static struct sock_fprog* mkFilter(struct Allocator* alloc, struct Except* eh)
         // Security_nofiles
         IFEQ(__NR_setrlimit, success),
 
-        // for ETHInterface_listDevices (netlink)
+        // for ETHInterface_listDevices (netlinkk)
+        #ifdef __NR_bind
         IFEQ(__NR_bind, bind_netlink),
+        #endif
+        #ifdef __NR_getsockname
         IFEQ(__NR_getsockname, success),
+        #endif
         RET(SECCOMP_RET_TRAP),
 
         LABEL(socket),
