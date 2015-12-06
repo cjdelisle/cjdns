@@ -68,9 +68,10 @@
 #define Map_USE_HASH
 #define Map_USE_COMPARATOR
 #include "util/Map.h"
-static inline uint32_t Map_EndpointsBySockaddr_hash(struct Sockaddr** key)
+static inline uint64_t Map_EndpointsBySockaddr_hash(struct Sockaddr** key,
+                                                    struct Map_EndpointsBySockaddr* map)
 {
-    return Sockaddr_hash(*key);
+    return Sockaddr_hash(*key, map);
 }
 static inline int Map_EndpointsBySockaddr_compare(struct Sockaddr** keyA, struct Sockaddr** keyB)
 {

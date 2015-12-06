@@ -139,7 +139,7 @@ void Sockaddr_normalizeNative(void* nativeSockaddr);
 /**
  * Get a hash for hashtable lookup.
  */
-uint32_t Sockaddr_hash(const struct Sockaddr* addr);
+uint32_t Sockaddr_hash(const struct Sockaddr* addr, void* map);
 
 /**
  * Compare two sockaddrs for sorting, comparison does not put them in any specific order.

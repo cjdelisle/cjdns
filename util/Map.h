@@ -17,6 +17,7 @@
 #endif // This header can be used multiple times as long as the name is different.
 
 #include "util/Bits.h"
+#include "crypto/random/Random.h"
 
 #if defined(Map_KEY_TYPE)
     Assert_compileTime(!(sizeof(Map_KEY_TYPE) % 4));
@@ -36,15 +37,39 @@
 #define Map_GLUE(x, y) Map_GLUE2(x, y)
 #define Map_GLUE2(x, y) x ## y
 
+struct Map_CONTEXT
+{
+    #ifdef Map_ENABLE_KEYS
+        uint8_t secretKey[16];
+        uint64_t* hashCodes;
+        uint32_t* hashIndexes;
+        Map_KEY_TYPE* keys;
+    #endif
+
+    #ifdef Map_ENABLE_HANDLES
+        uint32_t* handles;
+        uint32_t nextHandle;
+    #endif
+
+    Map_VALUE_TYPE* values;
+
+    uint32_t count;
+    uint32_t capacity;
+
+    struct Allocator* allocator;
+};
+
 #ifdef Map_ENABLE_KEYS
     // Hashcode calculator.
-    static inline uint32_t Map_FUNCTION(hash)(Map_KEY_TYPE* key);
+    static inline uint64_t Map_FUNCTION(hash)(Map_KEY_TYPE* key,
+                                              struct Map_CONTEXT* map);
     #ifndef Map_USE_HASH
         #include "util/Hash.h"
         // Get the last 4 bytes of the key by default.
-        static inline uint32_t Map_FUNCTION(hash)(Map_KEY_TYPE* key)
+        static inline uint64_t Map_FUNCTION(hash)(Map_KEY_TYPE* key,
+                                                  struct Map_CONTEXT* map)
         {
-            return Hash_compute((uint8_t*)key, sizeof(Map_KEY_TYPE));
+            return Hash_compute((uint8_t*)key, sizeof(Map_KEY_TYPE), map->secretKey);
         }
     #endif
     // hash2 function for double hash.
@@ -63,32 +88,18 @@
     #endif
 #endif
 
-struct Map_CONTEXT
-{
-    #ifdef Map_ENABLE_KEYS
-        uint32_t* hashCodes;
-        uint32_t* hashIndexes;
-        Map_KEY_TYPE* keys;
-    #endif
-
-    #ifdef Map_ENABLE_HANDLES
-        uint32_t* handles;
-        uint32_t nextHandle;
-    #endif
-
-    Map_VALUE_TYPE* values;
-
-    uint32_t count;
-    uint32_t capacity;
-
-    struct Allocator* allocator;
-};
-
 static inline struct Map_CONTEXT* Map_FUNCTION(new)(struct Allocator* allocator)
 {
-    return Allocator_clone(allocator, (&(struct Map_CONTEXT) {
+    struct Map_CONTEXT* map = Allocator_clone(allocator, (&(struct Map_CONTEXT) {
         .allocator = allocator
     }));
+    #ifdef Map_ENABLE_KEYS
+        struct Allocator* tempAlloc = Allocator_child(allocator);
+        struct Random* rand = Random_new(tempAlloc, NULL, NULL);
+        Random_bytes(rand, map->secretKey, 16);
+        Allocator_free(tempAlloc);
+    #endif
+    return map;
 }
 
 /**
@@ -102,7 +113,7 @@ static inline int Map_FUNCTION(indexForKey)(Map_KEY_TYPE* key, struct Map_CONTEX
         uint32_t last;
         uint32_t step = 0;
         uint32_t mask = map->capacity;
-        uint32_t hash = (Map_FUNCTION(hash)(key));
+        uint64_t hash = (Map_FUNCTION(hash)(key, map));
         uint32_t i = hash % mask;
         last = i;
         step = Map_FUNCTION(hash2)(hash);
@@ -162,7 +173,7 @@ static inline int Map_FUNCTION(remove)(int index, struct Map_CONTEXT* map)
                 }
                 Bits_memmove(&map->hashCodes[index],
                              &map->hashCodes[index + 1],
-                             (map->count - index - 1) * sizeof(uint32_t));
+                             (map->count - index - 1) * sizeof(uint64_t));
 
                 Bits_memmove(&map->keys[index],
                              &map->keys[index + 1],
@@ -214,7 +225,7 @@ static inline int Map_FUNCTION(put)(Map_VALUE_TYPE* value,
             uint32_t newCapacity = map->count + 10;
             map->hashCodes = Allocator_realloc(map->allocator,
                                                map->hashCodes,
-                                               sizeof(uint32_t) * newCapacity);
+                                               sizeof(uint64_t) * newCapacity);
             map->hashIndexes = Allocator_realloc(map->allocator,
                                                map->hashIndexes,
                                                sizeof(uint32_t) * newCapacity);
@@ -265,7 +276,7 @@ static inline int Map_FUNCTION(put)(Map_VALUE_TYPE* value,
         #endif
         #ifdef Map_ENABLE_KEYS
             uint32_t mask = map->capacity;
-            uint32_t hash = (Map_FUNCTION(hash)(key));
+            uint64_t hash = (Map_FUNCTION(hash)(key, map));
             uint32_t k = hash % mask;
             uint32_t last, step;
             last = k;
