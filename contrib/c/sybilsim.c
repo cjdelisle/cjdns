@@ -94,9 +94,9 @@ static inline int Map_OfNodes_compare(String** a, String** b)
 {
     return String_compare(*a, *b);
 }
-static inline uint32_t Map_OfNodes_hash(String** a)
+static inline uint64_t Map_OfNodes_hash(String** a, struct Map_OfNodes* map)
 {
-    return Hash_compute(a[0]->bytes, a[0]->len);
+    return Hash_compute(a[0]->bytes, a[0]->len, map->secretKey);
 }
 
 struct Context

@@ -27,9 +27,10 @@
 #define Map_KEY_TYPE struct Sockaddr*
 #define Map_VALUE_TYPE struct FakeNetwork_UDPIface_pvt*
 #include "util/Map.h"
-static inline uint32_t Map_OfIfaces_hash(struct Sockaddr** key)
+static inline uint64_t Map_OfIfaces_hash(struct Sockaddr** key,
+                                         struct Map_OfIfaces* map)
 {
-    return Sockaddr_hash(*key);
+    return Sockaddr_hash(*key, map);
 }
 static inline int Map_OfIfaces_compare(struct Sockaddr** keyA, struct Sockaddr** keyB)
 {

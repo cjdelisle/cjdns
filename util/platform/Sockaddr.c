@@ -311,9 +311,9 @@ struct Sockaddr* Sockaddr_fromName(char* name, struct Allocator* alloc)
     return NULL;
 }
 
-uint32_t Sockaddr_hash(const struct Sockaddr* addr)
+uint32_t Sockaddr_hash(const struct Sockaddr* addr, void* map)
 {
-    return Hash_compute((uint8_t*)addr, addr->addrLen);
+    return Hash_compute((uint8_t*)addr, addr->addrLen, map);
 }
 
 int Sockaddr_compare(const struct Sockaddr* a, const struct Sockaddr* b)
