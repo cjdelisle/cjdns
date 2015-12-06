@@ -39,6 +39,8 @@ Dict* RouteGen_getPrefixes(struct RouteGen* rg, struct Allocator* alloc);
 
 Dict* RouteGen_getExceptions(struct RouteGen* rg, struct Allocator* alloc);
 
+Dict* RouteGen_getGeneratedRoutes(struct RouteGen* rg, struct Allocator* alloc);
+
 int RouteGen_removePrefix(struct RouteGen* rg, bool isIpv6, int num);
 
 int RouteGen_removeException(struct RouteGen* rg, bool isIpv6, int num);

@@ -21,8 +21,7 @@
 #include "util/platform/Sockaddr.h"
 #include "crypto/random/Random.h"
 #include "tunnel/RouteGen.h"
-
-#include <stdlib.h>
+#include "util/Base10.h"
 
 static struct Sockaddr* mkSockaddr(char* str, struct Allocator* alloc)
 {
@@ -37,13 +36,16 @@ static struct Sockaddr* mkSockaddr(char* str, struct Allocator* alloc)
     return Sockaddr_clone(&ss.addr, alloc);
 }
 
-#if 0
 static int getPrefix(char* str)
 {
     char* slash = CString_strchr(str, '/');
     Assert_true(slash);
-    return atoi(&slash[1]);
+    int64_t out;
+    Assert_true(!Base10_fromString(&slash[1], &out));
+    Assert_true(out <= 128 && out >= 0);
+    return (int) out;
 }
+
 static void runTest(char** prefixes,
                     char** exemptions,
                     char** expectedOut4,
@@ -59,8 +61,19 @@ static void runTest(char** prefixes,
     for (int i = 0; exemptions[i]; i++) {
         RouteGen_addExemption(rg, mkSockaddr(exemptions[i], alloc), getPrefix(exemptions[i]));
     }
+    Dict* routes = RouteGen_getGeneratedRoutes(rg, alloc);
+    List* routes4 = Dict_getList(routes, String_CONST("ipv4"));
+    List* routes6 = Dict_getList(routes, String_CONST("ipv6"));
+    for (int i = 0; i < List_size(routes4); i++) {
+        String* str = List_getString(routes4, i);
+        Assert_true(str);
+        Assert_true(expectedOut4[i]);
+        Assert_true(!SCtring_strncmp(expectedOut4[i], str->bytes, str->length));
+    }
+    Assert_true(!expectedOut4[List_size(routes4)]);
+    for (int i = 0; exemptions[i]; i++) {
+    }
 }
-#endif
 
 int main()
 {

@@ -24,5 +24,6 @@ Linker_require("util/Base10.c")
 
 void Base10_write(struct Message* msg, int64_t num, struct Except* eh);
 int64_t Base10_read(struct Message* msg, struct Except* eh);
+int Base10_fromString(char* str, int64_t* numOut);
 
 #endif

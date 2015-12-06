@@ -69,6 +69,11 @@ static int comparePrefixes4(struct Prefix4* a, struct Prefix4* b)
 #define ArrayList_NAME OfPrefix4
 #include "util/ArrayList.h"
 
+struct Prefix46 {
+    struct ArrayList_OfPrefix4* prefix4;
+    struct ArrayList_OfPrefix6* prefix6;
+};
+
 struct RouteGen_pvt
 {
     struct RouteGen pub;
@@ -339,6 +344,29 @@ static struct ArrayList_OfPrefix6* genPrefixes6(struct ArrayList_OfPrefix6* pref
     Assert_failure("unimplemented");
 }
 
+static struct Prefix46* getGeneratedRoutes(struct RouteGen_pvt* rp, struct Allocator* alloc)
+{
+    struct Prefix46* out = Allocator_calloc(alloc, sizeof(struct Prefix46), 1);
+    if (rp->prefixes4->length > 0) {
+        out->prefix4 = genPrefixes4(rp->prefixes4, rp->exemptions4, alloc);
+    } else {
+        out->prefix4 = ArrayList_OfPrefix4_new(alloc);
+    }
+    if (rp->prefixes6->length > 0) {
+        out->prefix6 = genPrefixes6(rp->prefixes6, rp->exemptions6, alloc);
+    } else {
+        out->prefix6 = ArrayList_OfPrefix6_new(alloc);
+    }
+    return out;
+}
+
+Dict* RouteGen_getGeneratedRoutes(struct RouteGen* rg, struct Allocator* alloc)
+{
+    struct RouteGen_pvt* rp = Identity_check((struct RouteGen_pvt*) rg);
+    struct Prefix46* p46 = getGeneratedRoutes(rp, alloc);
+    return getSomething(rp, alloc, p46->prefix4, p46->prefix6);
+}
+
 void RouteGen_updateRoutes(struct RouteGen* rg, char* tunName, struct Except* eh)
 {
     struct RouteGen_pvt* rp = Identity_check((struct RouteGen_pvt*) rg);
@@ -346,23 +374,17 @@ void RouteGen_updateRoutes(struct RouteGen* rg, char* tunName, struct Except* eh
         Allocator_free(rp->tempAlloc);
     }
     struct Allocator* alloc = rp->tempAlloc = Allocator_child(rp->alloc);
-
+    struct Prefix46* p46 = getGeneratedRoutes(rp, alloc);
     //TODO(cjd): NetDev_flushRoutes(tunName, ctx->logger, eh);
-    if (rp->prefixes4->length > 0) {
-        struct ArrayList_OfPrefix4* routes = genPrefixes4(rp->prefixes4, rp->exemptions4, alloc);
-        for (int i = 0; i < routes->length; i++) {
-            struct Prefix4* pfx4 = ArrayList_OfPrefix4_get(routes, i);
-            struct Sockaddr* sa = sockaddrForPrefix4(alloc, pfx4);
-            NetDev_addRoute(tunName, sa, pfx4->prefix, rp->log, eh);
-        }
+    for (int i = 0; i < p46->prefix4->length; i++) {
+        struct Prefix4* pfx4 = ArrayList_OfPrefix4_get(p46->prefix4, i);
+        struct Sockaddr* sa = sockaddrForPrefix4(alloc, pfx4);
+        NetDev_addRoute(tunName, sa, pfx4->prefix, rp->log, eh);
     }
-    if (rp->prefixes6->length > 0) {
-        struct ArrayList_OfPrefix6* routes = genPrefixes6(rp->prefixes6, rp->exemptions6, alloc);
-        for (int i = 0; i < routes->length; i++) {
-            struct Prefix6* pfx6 = ArrayList_OfPrefix6_get(routes, i);
-            struct Sockaddr* sa = sockaddrForPrefix6(alloc, pfx6);
-            NetDev_addRoute(tunName, sa, pfx6->prefix, rp->log, eh);
-        }
+    for (int i = 0; i < p46->prefix6->length; i++) {
+        struct Prefix6* pfx6 = ArrayList_OfPrefix6_get(p46->prefix6, i);
+        struct Sockaddr* sa = sockaddrForPrefix6(alloc, pfx6);
+        NetDev_addRoute(tunName, sa, pfx6->prefix, rp->log, eh);
     }
 }
 
