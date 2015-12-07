@@ -19,9 +19,18 @@
 #include "util/events/Time.h"
 #include "util/log/FileWriterLog.h"
 
-#define Map_NAME OfLongsByInteger
-#define Map_KEY_TYPE uint32_t
-#define Map_VALUE_TYPE uint64_t
+/* for Crypto key size is 32 bytes, so use it for fuzz main test case.*/
+struct Key {
+    uint8_t key[32];
+};
+
+struct Value {
+    uint8_t value[32];
+};
+
+#define Map_NAME OfKeyValue
+#define Map_KEY_TYPE struct Key
+#define Map_VALUE_TYPE struct Value
 #define Map_ENABLE_HANDLES
 #include "util/Map.h"
 
@@ -47,38 +56,42 @@ int main(int argc, char* argv[])
 
     for (int cycle = 0; cycle < cycles; cycle++) {
         struct Allocator* alloc = MallocAllocator_new(1<<24);
-        struct Map_OfLongsByInteger* map = Map_OfLongsByInteger_new(alloc);
+        struct Map_OfKeyValue* map = Map_OfKeyValue_new(alloc);
         uint32_t size;
         Random_bytes(rand, (uint8_t*) &size, 4);
         size = size % 4096;
-        uint32_t* keys = Allocator_malloc(alloc, sizeof(uint32_t) * size);
-        uint64_t* vals = Allocator_malloc(alloc, sizeof(uint64_t) * size);
+        struct Key* keys = Allocator_malloc(alloc, sizeof(struct Key) * size);
+        struct Value* vals = Allocator_malloc(alloc, sizeof(struct Value) * size);
 
-        uint32_t key = 3;
-        uint64_t val = 4;
+        struct Key key = {0};
+        struct Value val = {0};
+        Random_bytes(rand, (uint8_t*)&key, sizeof(key));
+        Random_bytes(rand, (uint8_t*)&val, sizeof(val));
         int64_t begin = Time_hrtime();
         for (uint32_t i = 0; i < size; i++) {
-            keys[i] = key;
-            vals[i] = val;
+            Bits_memcpy(&keys[i], &key, sizeof(key));
+            Bits_memcpy(&vals[i], &val, sizeof(val));
             // replace new value with old key
             for (uint32_t j = 0; j < i; ++j) {
-                if (keys[j] == key) {
-                    vals[j] = val;
+                if (Bits_memcmp(&keys[j], &key, sizeof(key)) == 0) {
+                    Bits_memcpy(&vals[j], &val, sizeof(val));
                 }
             }
-            Map_OfLongsByInteger_put(&key, &val, map);
-            key += val >> 13 ^ size << 19;
-            val += key >> 19 ^ i << 13;
+            Map_OfKeyValue_put(&key, &val, map);
+            Random_bytes(rand, (uint8_t*)&key, sizeof(key));
+            Random_bytes(rand, (uint8_t*)&val, sizeof(val));
         }
         int64_t timeUsed = Time_hrtime() - begin;
         Log_debug(logger, "cycle %d Map put %u values used %lu ms.\n",
                 cycle, size, timeUsed / 1000000);
 
         // check all keys there
-        for (int32_t i = size - 1; i >= 0; --i) {
-            int index = Map_OfLongsByInteger_indexForKey(&keys[i], map);
-            Assert_true(index != -1 && map->values[index] == vals[i]);
-            Map_OfLongsByInteger_remove(index, map);
+        for (int32_t i = map->count - 1; i >= 0; --i) {
+            int index = Map_OfKeyValue_indexForKey(&keys[i], map);
+            Assert_true(index != -1 &&
+                        (Bits_memcmp(&map->values[index], &vals[i],
+                                    sizeof(struct Value)) == 0));
+            Map_OfKeyValue_remove(index, map);
         }
 
         Assert_true(map->count == 0);
