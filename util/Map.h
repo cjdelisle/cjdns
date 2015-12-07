@@ -105,7 +105,7 @@ static inline int Map_FUNCTION(indexForKey)(Map_KEY_TYPE* key, struct Map_CONTEX
         uint32_t hash = (Map_FUNCTION(hash)(key));
         uint32_t i = hash % mask;
         last = i;
-        step = Map_FUNCTION(hash2)(hash);
+        step = Map_FUNCTION(hash2)(i);
         while (map->hashIndexes[i] != UINT32_MAX &&
                Map_FUNCTION(compare)(key,
                    &map->keys[map->hashIndexes[i]]) != 0) {
@@ -273,7 +273,7 @@ static inline int Map_FUNCTION(put)(Map_VALUE_TYPE* value,
             if (map->hashIndexes[k] == UINT32_MAX) {
                 index = k;
             } else {
-                step = Map_FUNCTION(hash2)(hash);
+                step = Map_FUNCTION(hash2)(k);
                 while (map->hashIndexes[k] != UINT32_MAX &&
                        Map_FUNCTION(compare)(key,
                            &map->keys[map->hashIndexes[k]]) != 0) {
