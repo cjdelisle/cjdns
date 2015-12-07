@@ -27,21 +27,18 @@
  * */
 
 #include <stdint.h>
-typedef uint64_t u64;
-typedef uint32_t u32;
-typedef uint8_t   u8;
 
-#define Hash_ROTL(x,b) (u64)( ((x) << (b)) | ( (x) >> (64 - (b))) )
+#define Hash_ROTL(x,b) (uint64_t)( ((x) << (b)) | ( (x) >> (64 - (b))) )
 
 #define Hash_U8TO64_LE(p) \
-    (((u64)((p)[0])      ) | \
-     ((u64)((p)[1]) <<  8) | \
-     ((u64)((p)[2]) << 16) | \
-     ((u64)((p)[3]) << 24) | \
-     ((u64)((p)[4]) << 32) | \
-     ((u64)((p)[5]) << 40) | \
-     ((u64)((p)[6]) << 48) | \
-     ((u64)((p)[7]) << 56))
+    (((uint64_t)((p)[0])      ) | \
+     ((uint64_t)((p)[1]) <<  8) | \
+     ((uint64_t)((p)[2]) << 16) | \
+     ((uint64_t)((p)[3]) << 24) | \
+     ((uint64_t)((p)[4]) << 32) | \
+     ((uint64_t)((p)[5]) << 40) | \
+     ((uint64_t)((p)[6]) << 48) | \
+     ((uint64_t)((p)[7]) << 56))
 
 #define Hash_SIPROUND            \
     do {              \
@@ -55,17 +52,17 @@ typedef uint8_t   u8;
 static uint64_t Hash_compute(const uint8_t* in, int length, uint8_t key[16])
 {
     /* "somepseudorandomlygeneratedbytes" */
-    u64 v0 = 0x736f6d6570736575ULL;
-    u64 v1 = 0x646f72616e646f6dULL;
-    u64 v2 = 0x6c7967656e657261ULL;
-    u64 v3 = 0x7465646279746573ULL;
-    u64 b;
-    u64 k0 = Hash_U8TO64_LE( key );
-    u64 k1 = Hash_U8TO64_LE( key + 8 );
-    u64 m;
-    const u8 *end = in + length - ( length % sizeof( u64 ) );
+    uint64_t v0 = 0x736f6d6570736575ULL;
+    uint64_t v1 = 0x646f72616e646f6dULL;
+    uint64_t v2 = 0x6c7967656e657261ULL;
+    uint64_t v3 = 0x7465646279746573ULL;
+    uint64_t b;
+    uint64_t k0 = Hash_U8TO64_LE( key );
+    uint64_t k1 = Hash_U8TO64_LE( key + 8 );
+    uint64_t m;
+    const uint8_t* end = in + length - ( length % sizeof( uint64_t ) );
     const int left = length & 7;
-    b = ( ( u64 )length) << 56;
+    b = ( ( uint64_t )length) << 56;
     v3 ^= k1;
     v2 ^= k0;
     v1 ^= k1;
@@ -81,19 +78,19 @@ static uint64_t Hash_compute(const uint8_t* in, int length, uint8_t key[16])
 
     switch( left )
     {
-        case 7: b |= ( ( u64 )in[ 6] )  << 48;
+        case 7: b |= ( ( uint64_t )in[ 6] )  << 48;
 
-        case 6: b |= ( ( u64 )in[ 5] )  << 40;
+        case 6: b |= ( ( uint64_t )in[ 5] )  << 40;
 
-        case 5: b |= ( ( u64 )in[ 4] )  << 32;
+        case 5: b |= ( ( uint64_t )in[ 4] )  << 32;
 
-        case 4: b |= ( ( u64 )in[ 3] )  << 24;
+        case 4: b |= ( ( uint64_t )in[ 3] )  << 24;
 
-        case 3: b |= ( ( u64 )in[ 2] )  << 16;
+        case 3: b |= ( ( uint64_t )in[ 2] )  << 16;
 
-        case 2: b |= ( ( u64 )in[ 1] )  <<  8;
+        case 2: b |= ( ( uint64_t )in[ 1] )  <<  8;
 
-        case 1: b |= ( ( u64 )in[ 0] ); break;
+        case 1: b |= ( ( uint64_t )in[ 0] ); break;
 
         case 0: break;
     }
