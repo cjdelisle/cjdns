@@ -1604,3 +1604,29 @@ Test sending 100000 64 byte     data packets
 This is the switch configuration so this indicates expected switch throughput:
 Test sending 100000 1500 byte   data packets
         Finished in 8532ms. 140646 Kb/s
+
+
+txt@txtpie:~/cjdns$ ./cjdroute --bench |grep " per second"
+1450234937 INFO Benchmark.c:62 Benchmark salsa20/poly1305 in 30754ms. 39019 kilobits per second
+1450235012 INFO Benchmark.c:62 Benchmark Switching in 74575ms. 13731 packets per second
+txt@txtpie:~/cjdns$ cat /proc/cpuinfo 
+processor       : 0
+model name      : ARMv6-compatible processor rev 7 (v6l)
+BogoMIPS        : 2.00
+Features        : half thumb fastmult vfp edsp java tls 
+CPU implementer : 0x41
+CPU architecture: 7
+CPU variant     : 0x0
+CPU part        : 0xb76
+CPU revision    : 7
+
+Hardware        : BCM2708
+Revision        : 0002
+Serial          : 000000003d24b6ce
+txt@txtpie:~/cjdns$ git log | head -n 1
+commit 13189fde111d0500427a7a0ce06a970753527bca
+txt@txtpie:~/cjdns$ date
+Wed Dec 16 04:08:25 CET 2015
+txt@txtpie:~/cjdns$ cpufreq-info |grep "current CPU"
+  current CPU frequency is 900 MHz.
+txt@txtpie:~/cjdns$ 
