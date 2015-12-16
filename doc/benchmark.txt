@@ -1634,4 +1634,30 @@ txt@txtpie:~/cjdns$ uname -r
 txt@txtpie:~/cjdns$ 
 
 
+txt@Cubian:~/cjdns$ ./cjdroute --bench |grep " per second"
+1450236953 INFO Benchmark.c:62 Benchmark salsa20/poly1305 in 34462ms. 34820 kilobits per second
+1450236979 INFO Benchmark.c:62 Benchmark Switching in 25955ms. 39452 packets per second
+txt@Cubian:~/cjdns$ cat /proc/cpuinfo
+Processor       : ARMv7 Processor rev 2 (v7l)
+BogoMIPS        : 1001.88
+Features        : swp half thumb fastmult vfp edsp neon vfpv3 tls 
+CPU implementer : 0x41
+CPU architecture: 7
+CPU variant     : 0x3
+CPU part        : 0xc08
+CPU revision    : 2
 
+Hardware        : sun4i
+Revision        : 0000
+Serial          : 0000000000000000
+Chipid          : 162367cb-80758952-54544848-02820cf7
+txt@Cubian:~/cjdns$ git log | head -n 1
+commit 13189fde111d0500427a7a0ce06a970753527bca
+txt@Cubian:~/cjdns$ date
+Wed Dec 16 04:40:55 CET 2015
+txt@Cubian:~/cjdns$ cpufreq-info |grep current
+  current policy: frequency should be within 300 MHz and 1.01 GHz.
+  current CPU frequency is 1.01 GHz.
+txt@Cubian:~/cjdns$ uname -r
+3.4.79-sun4i
+txt@Cubian:~/cjdns$ 
