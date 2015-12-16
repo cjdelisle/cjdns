@@ -1629,4 +1629,9 @@ txt@txtpie:~/cjdns$ date
 Wed Dec 16 04:08:25 CET 2015
 txt@txtpie:~/cjdns$ cpufreq-info |grep "current CPU"
   current CPU frequency is 900 MHz.
+txt@txtpie:~/cjdns$ uname -r
+3.18.0-trunk-rpi
 txt@txtpie:~/cjdns$ 
+
+
+
