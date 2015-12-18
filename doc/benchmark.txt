@@ -1699,3 +1699,15 @@ $ git log | head -n 1
 commit 13189fde111d0500427a7a0ce06a970753527bca
 $ uname -r
 4.1.14-gnu
+
+AMD E-350
+---------
+$ ./cjdroute --bench |grep " per second"
+1450401774 INFO Benchmark.c:62 Benchmark salsa20/poly1305 in 3205ms. 374414 kilobits per second
+1450401779 INFO Benchmark.c:62 Benchmark Switching in 4968ms. 206119 packets per second
+$ grep -m1 "model name" /proc/cpuinfo
+model name      : AMD E-350 Processor
+$ git log | head -n 1
+commit 13189fde111d0500427a7a0ce06a970753527bca
+$ uname -r
+3.2.0-4-amd64
