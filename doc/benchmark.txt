@@ -1687,3 +1687,15 @@ $ git log | head -n 1
 commit 13189fde111d0500427a7a0ce06a970753527bca
 $ uname -r
 3.2.0-4-amd64
+
+Intel Xeon E5-2630
+------------------
+$ ./cjdroute --bench |grep " per second"
+1450401369 INFO Benchmark.c:62 Benchmark salsa20/poly1305 in 1110ms. 1081081 kilobits per second
+1450401371 INFO Benchmark.c:62 Benchmark Switching in 2532ms. 404423 packets per second
+$ grep -m1 "model name" /proc/cpuinfo
+model name      : Intel(R) Xeon(R) CPU E5-2630 0 @ 2.30GHz
+$ git log | head -n 1
+commit 13189fde111d0500427a7a0ce06a970753527bca
+$ uname -r
+4.1.14-gnu
