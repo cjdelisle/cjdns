@@ -1663,3 +1663,15 @@ txt@Cubian:~/cjdns$ cpufreq-info |grep current
 txt@Cubian:~/cjdns$ uname -r
 3.4.79-sun4i
 txt@Cubian:~/cjdns$ 
+
+Intel Atom N550
+---------------
+$ ./cjdroute --bench | grep " per second"
+1450400626 INFO Benchmark.c:62 Benchmark salsa20/poly1305 in 4706ms. 254993 kilobits per second
+1450400634 INFO Benchmark.c:62 Benchmark Switching in 7335ms. 139604 packets per second
+$ grep -m1 "model name" /proc/cpuinfo
+model name	: Intel(R) Atom(TM) CPU N550   @ 1.50GHz
+$ git log | head -n 1
+commit 13189fde111d0500427a7a0ce06a970753527bca
+$ uname -r
+3.16.0-0.bpo.4-amd64
