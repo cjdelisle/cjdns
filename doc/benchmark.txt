@@ -1675,3 +1675,15 @@ $ git log | head -n 1
 commit 13189fde111d0500427a7a0ce06a970753527bca
 $ uname -r
 3.16.0-0.bpo.4-amd64
+
+Intel Atom N2800
+----------------
+$ ./cjdroute --bench |grep " per second"
+1450401258 INFO Benchmark.c:62 Benchmark salsa20/poly1305 in 4261ms. 281624 kilobits per second
+1450401265 INFO Benchmark.c:62 Benchmark Switching in 6685ms. 153178 packets per second
+$ grep -m1 "model name" /proc/cpuinfo
+model name      : Intel(R) Atom(TM) CPU N2800   @ 1.86GHz
+$ git log | head -n 1
+commit 13189fde111d0500427a7a0ce06a970753527bca
+$ uname -r
+3.2.0-4-amd64
