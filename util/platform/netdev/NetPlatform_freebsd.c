@@ -36,6 +36,7 @@
 #include <netinet/in.h>
 #include <netinet6/in6_var.h>
 #include <netinet6/nd6.h>
+#include <arpa/inet.h>
 
 static void addIp4Address(const char* interfaceName,
                           const uint8_t address[4],
@@ -43,8 +44,58 @@ static void addIp4Address(const char* interfaceName,
                           struct Log* logger,
                           struct Except* eh)
 {
-    // TODO(cjd): implement this and then remove the exception from TUNInterface_ipv4_root_test.c
-    Except_throw(eh, "unimplemented");
+    struct ifaliasreq ifaliasreq;
+    struct sockaddr_in* in;
+
+    memset(&ifaliasreq, 0, sizeof(ifaliasreq));
+
+    snprintf(ifaliasreq.ifra_name,IFNAMSIZ, "%s",interfaceName);
+
+    char myIp[40];
+    snprintf(myIp, 40, "%u.%u.%u.%u", address[0], address[1], address[2], address[3]);
+
+    in_addr_t nmask = ( ~((1 << (32 - prefixLen)) - 1) );
+    char myMask[40];
+    snprintf(myMask,40,"%u",nmask);
+
+    in = (struct sockaddr_in *) &ifaliasreq.ifra_addr;
+    in->sin_family = AF_INET;
+    in->sin_len = sizeof(ifaliasreq.ifra_addr);
+
+    int err = inet_aton(myIp, &in->sin_addr);
+    if (err == 0){
+      Except_throw(eh, "inet_aton(myIp) failed");
+    }
+
+    in = (struct sockaddr_in *) &ifaliasreq.ifra_mask;
+    in->sin_family = AF_INET;
+    in->sin_len = sizeof(ifaliasreq.ifra_mask);
+
+    err = inet_aton(myMask, &in->sin_addr);
+    if (err == 0){
+      Except_throw(eh, "inet_aton(myMask) failed");
+    }
+
+    in = (struct sockaddr_in *) &ifaliasreq.ifra_broadaddr;
+    in->sin_family = AF_INET;
+    in->sin_len = sizeof(ifaliasreq.ifra_broadaddr);
+    in->sin_addr.s_addr =
+    ((struct sockaddr_in *) &ifaliasreq.ifra_addr)->sin_addr.s_addr | ~
+    ((struct sockaddr_in *) &ifaliasreq.ifra_mask)->sin_addr.s_addr;
+
+    int s = socket(PF_INET, SOCK_STREAM, 0);
+
+    if (ioctl(s, SIOCAIFADDR, &ifaliasreq) == -1){
+      int err = errno;
+      close(s);
+      Except_throw(eh, "ioctl(SIOCAIFADDR) [%s]",strerror(err));
+    }
+
+    Log_info(logger, "Configured IPv4 [%s/%s] for [%s]", myIp, myMask, interfaceName);
+
+    close(s);
+
+
 }
 
 static void addIp6Address(const char* interfaceName,
