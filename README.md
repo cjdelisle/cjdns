@@ -91,7 +91,7 @@ Advanced configuration:
 
 ### License
 
-[Available here](LICENSE)
+[Available here](LICENSE). Cjdns is licensed under Version 3 of the GNU General Public License. 
 
 Thank you for your time and interest,
 
