@@ -35,6 +35,8 @@ if (GCC) {
     // Already specified.
 } else if (SYSTEM === 'openbsd') {
     GCC = 'egcc';
+} else if (SYSTEM === 'freebsd') {
+    GCC = 'clang';
 } else {
     GCC = 'gcc';
 }
