@@ -1,0 +1,9 @@
+Dockerfile
+.dockerignore
+build_*/
+cjdroute
+makekeys
+sybilsim
+randombytes
+privatetopublic
+publictoip6

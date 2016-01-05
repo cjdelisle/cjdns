@@ -26,53 +26,21 @@
 #include "test/RootTest.h"
 #include "interface/tuntap/test/TUNTools.h"
 
-// On loan from the DoD, thanks guys.
-static const uint8_t testAddrA[4] = {11, 0, 0, 1};
-static const uint8_t testAddrB[4] = {11, 0, 0, 2};
-
-static Iface_DEFUN receiveMessageTUN(struct Message* msg, struct TUNTools* tt)
-{
-    uint16_t ethertype = TUNMessageType_pop(msg, NULL);
-    if (ethertype != Ethernet_TYPE_IP4) {
-        Log_debug(tt->log, "Spurious packet with ethertype [%u]\n",
-                  Endian_bigEndianToHost16(ethertype));
-        return 0;
-    }
-
-    struct Headers_IP4Header* header = (struct Headers_IP4Header*) msg->bytes;
-
-    Assert_true(msg->length == Headers_IP4Header_SIZE + Headers_UDPHeader_SIZE + 12);
-
-    Assert_true(!Bits_memcmp(header->destAddr, testAddrB, 4));
-    Assert_true(!Bits_memcmp(header->sourceAddr, testAddrA, 4));
-
-    Bits_memcpy(header->destAddr, testAddrA, 4);
-    Bits_memcpy(header->sourceAddr, testAddrB, 4);
-
-    TUNMessageType_push(msg, ethertype, NULL);
-
-    return Iface_next(&tt->tunIface, msg);
-}
-
 int main(int argc, char** argv)
 {
-    // TODO(cjd): fix TUNConfigurator_addIp4Address() for Illumos, BSD.
-    #if defined(sunos) || defined(freebsd)
-        return 0;
-    #endif
-
     struct Allocator* alloc = MallocAllocator_new(1<<20);
     struct EventBase* base = EventBase_new(alloc);
     struct Log* logger = FileWriterLog_new(stdout, alloc);
 
-    struct Sockaddr* addrA = Sockaddr_fromBytes(testAddrA, Sockaddr_AF_INET, alloc);
-    struct Sockaddr* addrB = Sockaddr_fromBytes(testAddrB, Sockaddr_AF_INET, alloc);
+    struct Sockaddr* addrA = Sockaddr_fromBytes(TUNTools_testIP6AddrA, Sockaddr_AF_INET6, alloc);
+    struct Sockaddr* addrC = Sockaddr_fromBytes(TUNTools_testIP6AddrC, Sockaddr_AF_INET6, alloc);
 
     char assignedIfName[TUNInterface_IFNAMSIZ];
     struct Iface* tun = TUNInterface_new(NULL, assignedIfName, 0, base, logger, NULL, alloc);
-    NetDev_addAddress(assignedIfName, addrA, 30, logger, NULL);
+    NetDev_addAddress(assignedIfName, addrA, 126, logger, NULL);
+    NetDev_addRoute(assignedIfName, addrC, 125, logger, NULL);
 
-    TUNTools_echoTest(addrA, addrB, receiveMessageTUN, tun, base, logger, alloc);
+    TUNTools_echoTest(addrA, addrC, TUNTools_genericIP6Echo, tun, base, logger, alloc);
     Allocator_free(alloc);
     return 0;
 }

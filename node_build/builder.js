@@ -17,7 +17,7 @@ var Fs = require('fs');
 var Spawn = require('child_process').spawn;
 var nThen = require('nthen');
 var Crypto = require('crypto');
-var Semaphore = require('./Semaphore');
+var Semaphore = require('../tools/lib/Semaphore');
 var GetVersion = require('./GetVersion');
 
 /*

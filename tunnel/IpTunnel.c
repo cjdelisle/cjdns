@@ -369,7 +369,7 @@ static void addAddress(char* printedAddr, uint8_t prefixLen, struct IpTunnel_pvt
     }
     struct Jmp j;
     Jmp_try(j) {
-        NetDev_addAddress(ctx->ifName->bytes, &ss.addr, prefixLen, NULL, &j.handler);
+        NetDev_addAddress(ctx->ifName->bytes, &ss.addr, prefixLen, ctx->logger, &j.handler);
     } Jmp_catch {
         Log_error(ctx->logger, "Error setting ip address on TUN [%s]", j.message);
     }

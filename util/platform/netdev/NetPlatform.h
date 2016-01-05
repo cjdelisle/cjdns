@@ -36,4 +36,10 @@ void NetPlatform_setMTU(const char* interfaceName,
                         struct Log* logger,
                         struct Except* eh);
 
+void NetPlatform_addRoute(const char* interfaceName,
+                          const uint8_t* address,
+                          int prefixLen,
+                          int addrFam,
+                          struct Log* logger,
+                          struct Except* eh);
 #endif

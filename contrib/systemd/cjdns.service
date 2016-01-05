@@ -7,7 +7,7 @@ After=network.target
 ProtectHome=true
 ProtectSystem=true
 SyslogIdentifier=cjdroute
-ExecStartPre=/bin/sh -ec "if ! test -e /etc/cjdroute.conf; \
+ExecStartPre=/bin/sh -ec "if ! test -s /etc/cjdroute.conf; \
                 then umask 077; \
                 /usr/bin/cjdroute --genconf > /etc/cjdroute.conf; \
                 echo 'WARNING: A new /etc/cjdroute.conf file has been generated.'; \
