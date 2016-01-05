@@ -170,10 +170,11 @@
 #define SEARCH_REPEAT_MILLISECONDS 7500
 
 /** The number of times the GMRT before pings should be timed out. */
-#define PING_TIMEOUT_GMRT_MULTIPLIER 100
+#define PING_TIMEOUT_GMRT_MULTIPLIER 10
 
 /** The minimum amount of time before a ping should timeout. */
 #define PING_TIMEOUT_MINIMUM 3000
+#define PING_TIMEOUT_MAXIMUM 30000
 
 /** You are not expected to understand this. */
 #define LINK_STATE_MULTIPLIER 536870
@@ -266,7 +267,7 @@ static inline int sendNodes(struct NodeList* nodeList,
         // in our switch than its target address, the target address *must* have the same
         // length or longer.
         struct Address addr;
-        Bits_memcpyConst(&addr, &nodeList->nodes[i]->address, sizeof(struct Address));
+        Bits_memcpy(&addr, &nodeList->nodes[i]->address, sizeof(struct Address));
 
         addr.path = NumberCompress_getLabelFor(addr.path, query->address->path);
 
@@ -319,7 +320,7 @@ static inline int handleQuery(struct DHTMessage* message,
         }
 
         struct Address targetAddr = { .path = 0 };
-        Bits_memcpyConst(targetAddr.ip6.bytes, target->bytes, Address_SEARCH_TARGET_SIZE);
+        Bits_memcpy(targetAddr.ip6.bytes, target->bytes, Address_SEARCH_TARGET_SIZE);
 
         // send the closest nodes
         nodeList = NodeStore_getClosestNodes(module->nodeStore,
@@ -335,7 +336,7 @@ static inline int handleQuery(struct DHTMessage* message,
             return 0;
         }
         uint64_t targetPath;
-        Bits_memcpyConst(&targetPath, target->bytes, 8);
+        Bits_memcpy(&targetPath, target->bytes, 8);
         targetPath = Endian_bigEndianToHost64(targetPath);
 
         nodeList =
@@ -437,7 +438,8 @@ static void onTimeout(uint32_t milliseconds, struct PingContext* pctx)
 static uint64_t pingTimeoutMilliseconds(struct RouterModule* module)
 {
     uint64_t out = AverageRoller_getAverage(module->gmrtRoller) * PING_TIMEOUT_GMRT_MULTIPLIER;
-    return (out < PING_TIMEOUT_MINIMUM) ? PING_TIMEOUT_MINIMUM : out;
+    out = (out < PING_TIMEOUT_MINIMUM) ? PING_TIMEOUT_MINIMUM : out;
+    return (out > PING_TIMEOUT_MAXIMUM) ? PING_TIMEOUT_MAXIMUM : out;
 }
 
 /**
@@ -466,14 +468,14 @@ static int handleIncoming(struct DHTMessage* message, void* vcontext)
 static void onResponseOrTimeout(String* data, uint32_t milliseconds, void* vping)
 {
     struct PingContext* pctx = Identity_check((struct PingContext*) vping);
-
+    struct RouterModule* module = pctx->router;
+    module->pingsInFlight--;
     if (data == NULL) {
         // This is how Pinger signals a timeout.
         onTimeout(milliseconds, pctx);
         return;
     }
 
-    struct RouterModule* module = pctx->router;
     // Grab out the message which was put here in handleIncoming()
     struct DHTMessage* message = module->currentMessage;
     module->currentMessage = NULL;
@@ -497,12 +499,12 @@ static void onResponseOrTimeout(String* data, uint32_t milliseconds, void* vping
 
     // update the GMRT
     AverageRoller_update(pctx->router->gmrtRoller, milliseconds);
-    /*
+
     Log_debug(pctx->router->logger,
                "Received response in %u milliseconds, gmrt now %u\n",
                milliseconds,
                AverageRoller_getAverage(pctx->router->gmrtRoller));
-    */
+
 
     // prevent division by zero
     if (milliseconds == 0) { milliseconds++; }
@@ -546,9 +548,12 @@ struct RouterModule_Promise* RouterModule_newMessage(struct Address* addr,
                                     addr->path,
                                     EncodingScheme_convertLabel_convertTo_CANNONICAL));
 
+    module->pingsInFlight++;
     if (timeoutMilliseconds == 0) {
         timeoutMilliseconds = pingTimeoutMilliseconds(module);
     }
+    Log_debug(module->logger, "Sending ping with [%u] millisecond timeout, [%u] in flight now",
+              timeoutMilliseconds, module->pingsInFlight);
 
     struct Pinger_Ping* pp = Pinger_newPing(NULL,
                                             onResponseOrTimeout,
@@ -565,7 +570,7 @@ struct RouterModule_Promise* RouterModule_newMessage(struct Address* addr,
         .pp = pp
     }));
     Identity_set(pctx);
-    Bits_memcpyConst(&pctx->address, addr, sizeof(struct Address));
+    Bits_memcpy(&pctx->address, addr, sizeof(struct Address));
 
     pp->context = pctx;
 
@@ -647,7 +652,7 @@ struct RouterModule_Promise* RouterModule_getPeers(struct Address* addr,
 
     uint64_t nearbyLabel_be = Endian_hostToBigEndian64(nearbyLabel);
     uint8_t nearbyLabelBytes[8];
-    Bits_memcpyConst(nearbyLabelBytes, &nearbyLabel_be, 8);
+    Bits_memcpy(nearbyLabelBytes, &nearbyLabel_be, 8);
     String* target = String_newBinary(nearbyLabelBytes, 8, promise->alloc);
     Dict_putString(d, CJDHTConstants_TARGET, target, promise->alloc);
 
@@ -683,7 +688,7 @@ void RouterModule_peerIsReachable(uint64_t pathToPeer,
         if (peerLink->parent != module->nodeStore->selfNode) { continue; }
         if (peerLink->cannonicalLabel != pathToPeer) { continue; }
         struct Address address = { .path = 0 };
-        Bits_memcpyConst(&address, &nn->address, sizeof(struct Address));
+        Bits_memcpy(&address, &nn->address, sizeof(struct Address));
         address.path = pathToPeer;
         NodeStore_discoverNode(module->nodeStore,
                                &address,

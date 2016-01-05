@@ -28,6 +28,8 @@
 #include <net/if.h>
 #include <arpa/inet.h>
 #include <linux/if.h>
+#include <linux/route.h>
+#include <linux/ipv6_route.h>
 
 /**
  * This hack exists because linux/in.h and linux/in6.h define
@@ -172,6 +174,56 @@ void NetPlatform_setMTU(const char* interfaceName,
         int err = errno;
         close(s);
         Except_throw(eh, "ioctl(SIOCSIFMTU) [%s]", strerror(err));
+    }
+
+    close(s);
+}
+
+void NetPlatform_addRoute(const char* interfaceName,
+                            const uint8_t* address,
+                            int prefixLen,
+                            int addrFam,
+                            struct Log* logger,
+                            struct Except* eh)
+{
+    struct ifreq ifRequest;
+    int s = socketForIfName(interfaceName, addrFam, eh, &ifRequest);
+    int ifIndex = ifRequest.ifr_ifindex;
+
+    // checkInterfaceUp() clobbers the ifindex.
+    checkInterfaceUp(s, &ifRequest, logger, eh);
+
+
+    if (addrFam == Sockaddr_AF_INET6) {
+        struct in6_rtmsg rt;
+
+        memcpy(&rt.rtmsg_dst, address, 16);
+        rt.rtmsg_dst_len = prefixLen;
+        rt.rtmsg_ifindex = (uint16_t) ifIndex;
+
+        if (ioctl(s, SIOCADDRT, &rt) < 0) {
+            int err = errno;
+            close(s);
+            Except_throw(eh, "ioctl(SIOCSIFADDR) [%s]", strerror(err));
+        }
+
+
+    } else if (addrFam == Sockaddr_AF_INET) {
+        struct rtentry rt;
+        struct sockaddr_in sin = { .sin_family = AF_INET, .sin_port = 0 };
+        memcpy(&sin.sin_addr.s_addr, address, 4);
+        memcpy(&rt.rt_dst, &sin, sizeof(struct sockaddr));
+        sin.sin_addr.s_addr = Endian_hostToBigEndian32(~0 << (32 - prefixLen));
+        memcpy(&rt.rt_genmask, &sin, sizeof(struct sockaddr));
+        rt.rt_dev = (char *) interfaceName;
+
+        if (ioctl(s, SIOCADDRT, &rt) < 0) {
+            int err = errno;
+            close(s);
+            Except_throw(eh, "ioctl(SIOCSIFADDR) failed: [%s]", strerror(err));
+        }
+    } else {
+        Assert_true(0);
     }
 
     close(s);

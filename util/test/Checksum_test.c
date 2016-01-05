@@ -39,7 +39,7 @@ static void checksumAlgorithmTest()
 
     //operating on the ip checksum which is easy to compute.
     uint16_t checksum;
-    Bits_memcpyConst(&checksum, &packet[8], 2);
+    Bits_memcpy(&checksum, &packet[8], 2);
 
     packet[8] = 0;
     packet[9] = 0;
@@ -77,7 +77,7 @@ static void udp6ChecksumTest()
     packet[UDP6_PACKET_SIZE + 2] = 0x00;
 
     uint16_t udp6Checksum;
-    Bits_memcpyConst(&udp6Checksum, &packet[46], 2);
+    Bits_memcpy(&udp6Checksum, &packet[46], 2);
 
     packet[46] = 0;
     packet[47] = 0;
@@ -112,7 +112,7 @@ static void icmp6ChecksumTest()
     Hex_decode(packet, PING6_PACKET_SIZE, ping6PacketHex, PING6_PACKET_SIZE * 2);
 
     uint16_t checksum;
-    Bits_memcpyConst(&checksum, &packet[42], 2);
+    Bits_memcpy(&checksum, &packet[42], 2);
 
     packet[42] = 0;
     packet[43] = 0;

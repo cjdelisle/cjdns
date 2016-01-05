@@ -98,7 +98,7 @@ struct Address_List* ReplySerializer_parse(struct Address* fromNode,
             continue;
         }
 
-        Bits_memcpyConst(&out->elems[j++], &addr, sizeof(struct Address));
+        Bits_memcpy(&out->elems[j++], &addr, sizeof(struct Address));
     }
     out->length = j;
     return out;

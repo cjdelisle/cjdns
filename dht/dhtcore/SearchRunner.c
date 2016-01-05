@@ -237,7 +237,7 @@ static void searchStep(struct SearchRunner_Search* search)
         return;
     }
 
-    Bits_memcpyConst(&search->lastNodeAsked, &nextSearchNode->address, sizeof(struct Address));
+    Bits_memcpy(&search->lastNodeAsked, &nextSearchNode->address, sizeof(struct Address));
 
     struct RouterModule_Promise* rp =
         RouterModule_newMessage(&nextSearchNode->address, 0, ctx->router, search->pub.alloc);
@@ -300,8 +300,8 @@ struct SearchRunner_SearchData* SearchRunner_showActiveSearch(struct SearchRunne
         Allocator_calloc(alloc, sizeof(struct SearchRunner_SearchData), 1);
 
     if (search) {
-        Bits_memcpyConst(out->target, &search->target.ip6.bytes, 16);
-        Bits_memcpyConst(&out->lastNodeAsked, &search->lastNodeAsked, sizeof(struct Address));
+        Bits_memcpy(out->target, &search->target.ip6.bytes, 16);
+        Bits_memcpy(&out->lastNodeAsked, &search->lastNodeAsked, sizeof(struct Address));
         out->totalRequests = search->totalRequests;
     }
     out->activeSearches = runner->searches;
@@ -333,7 +333,7 @@ struct RouterModule_Promise* SearchRunner_search(uint8_t target[16],
     struct Allocator* alloc = Allocator_child(allocator);
 
     struct Address targetAddr = { .path = 0 };
-    Bits_memcpyConst(targetAddr.ip6.bytes, target, Address_SEARCH_TARGET_SIZE);
+    Bits_memcpy(targetAddr.ip6.bytes, target, Address_SEARCH_TARGET_SIZE);
 
     struct NodeList* nodes =
         NodeStore_getClosestNodes(runner->nodeStore,
@@ -366,7 +366,7 @@ struct RouterModule_Promise* SearchRunner_search(uint8_t target[16],
     Identity_set(search);
     runner->searches++;
     Allocator_onFree(alloc, searchOnFree, search);
-    Bits_memcpyConst(&search->target, &targetAddr, sizeof(struct Address));
+    Bits_memcpy(&search->target, &targetAddr, sizeof(struct Address));
 
     if (runner->firstSearch) {
         search->nextSearch = runner->firstSearch;
@@ -402,7 +402,7 @@ struct SearchRunner* SearchRunner_new(struct NodeStore* nodeStore,
         .maxConcurrentSearches = SearchRunner_DEFAULT_MAX_CONCURRENT_SEARCHES
     }));
     out->searchStore = SearchStore_new(alloc, logger);
-    Bits_memcpyConst(out->myAddress, myAddress, 16);
+    Bits_memcpy(out->myAddress, myAddress, 16);
     Identity_set(out);
 
     return &out->pub;

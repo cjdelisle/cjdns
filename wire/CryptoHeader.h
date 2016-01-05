@@ -51,40 +51,36 @@
  * to see if the given password is known. It can be thought of as the "username" although it is
  * a derivative of the password.
  */
-union CryptoHeader_Challenge
+struct CryptoHeader_Challenge
 {
-    struct {
-        uint8_t type;
-        uint8_t lookup[7];
+    uint8_t type;
+    uint8_t lookup[7];
 
-        /**
-         * High 1 bit is whether to require poly1305 packet authentication.
-         * low 15 bits is number of derivations.
-         */
-        uint16_t requirePacketAuthAndDerivationCount;
+    /**
+     * High 1 bit is whether to require poly1305 packet authentication.
+     * low 15 bits is number of derivations.
+     */
+    uint16_t requirePacketAuthAndDerivationCount;
 
-        uint16_t additional;
-    } challenge;
-    uint8_t bytes[12];
-    uint32_t ints[3];
+    uint16_t additional;
 };
 /** Total size of the auth structure. */
 #define CryptoHeader_Challenge_SIZE 12
-Assert_compileTime(sizeof(union CryptoHeader_Challenge) == CryptoHeader_Challenge_SIZE);
+Assert_compileTime(sizeof(struct CryptoHeader_Challenge) == CryptoHeader_Challenge_SIZE);
 
 /** The number of bytes from the beginning which identify the auth for looking up the secret. */
 #define CryptoHeader_Challenge_KEYSIZE 8
 
-static inline uint16_t CryptoHeader_getAuthChallengeDerivations(union CryptoHeader_Challenge* ac)
+static inline uint16_t CryptoHeader_getAuthChallengeDerivations(struct CryptoHeader_Challenge* ac)
 {
-    return Endian_bigEndianToHost16(ac->challenge.requirePacketAuthAndDerivationCount)
+    return Endian_bigEndianToHost16(ac->requirePacketAuthAndDerivationCount)
         & (((uint16_t)~0)>>1);
 }
 
-static inline void CryptoHeader_setAuthChallengeDerivations(union CryptoHeader_Challenge* ac,
+static inline void CryptoHeader_setAuthChallengeDerivations(struct CryptoHeader_Challenge* ac,
                                                             uint16_t derivations)
 {
-    ac->challenge.requirePacketAuthAndDerivationCount = Endian_hostToBigEndian16(derivations);
+    ac->requirePacketAuthAndDerivationCount = Endian_hostToBigEndian16(derivations);
 }
 
 /**
@@ -179,35 +175,31 @@ static inline void CryptoHeader_setAuthChallengeDerivations(union CryptoHeader_C
  * no further response who now wishes to send more data MUST send that data as more (repeat)
  * key packets.
  */
-union CryptoHeader
+struct CryptoHeader
 {
+    /**
+     * Numbers one through three are interpreted as handshake packets, UINT32_MAX is
+     * a connectToMe packet and anything else is a nonce in a traffic packet.
+     */
     uint32_t nonce;
 
-    struct {
-        /**
-         * Numbers one through three are interpreted as handshake packets, UINT32_MAX is
-         * a connectToMe packet and anything else is a nonce in a traffic packet.
-         */
-        uint32_t handshakeStage;
+    /** Used for authenticating routers to one another. */
+    struct CryptoHeader_Challenge auth;
 
-        /** Used for authenticating routers to one another. */
-        union CryptoHeader_Challenge auth;
+    /** Random nonce for the handshake. */
+    uint8_t handshakeNonce[24];
 
-        /** Random nonce for the handshake. */
-        uint8_t nonce[24];
+    /** This node's permanent public key. */
+    uint8_t publicKey[32];
 
-        /** This node's permanent public key. */
-        uint8_t publicKey[32];
+    /** This is filled in when the tempKey is encrypted. */
+    uint8_t authenticator[16];
 
-        /** This is filled in when the tempKey is encrypted. */
-        uint8_t authenticator[16];
-
-        /** The public key to use for this session, encrypted with the private key. */
-        uint8_t encryptedTempKey[32];
-    } handshake;
+    /** The public key to use for this session, encrypted with the private key. */
+    uint8_t encryptedTempKey[32];
 };
 #define CryptoHeader_SIZE 120
-Assert_compileTime(sizeof(union CryptoHeader) == CryptoHeader_SIZE);
+Assert_compileTime(sizeof(struct CryptoHeader) == CryptoHeader_SIZE);
 
 
 #endif

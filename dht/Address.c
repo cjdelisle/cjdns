@@ -51,23 +51,23 @@ uint32_t Address_getPrefix(struct Address* addr)
 uint32_t Address_prefixForSearchTarget(const uint8_t searchTarget[16])
 {
     uint32_t prefix_be;
-    Bits_memcpyConst(&prefix_be, &searchTarget[8], 4);
+    Bits_memcpy(&prefix_be, &searchTarget[8], 4);
     return Endian_bigEndianToHost32(prefix_be);
 }
 
 void Address_serialize(uint8_t output[Address_SERIALIZED_SIZE], const struct Address* addr)
 {
-    Bits_memcpyConst(output, addr->key, Address_SERIALIZED_SIZE);
+    Bits_memcpy(output, addr->key, Address_SERIALIZED_SIZE);
     if (!Endian_isBigEndian()) {
         uint64_t path_be = Endian_hostToBigEndian64(addr->path);
-        Bits_memcpyConst(output + Address_KEY_SIZE, &path_be, Address_NETWORK_ADDR_SIZE);
+        Bits_memcpy(output + Address_KEY_SIZE, &path_be, Address_NETWORK_ADDR_SIZE);
     }
 }
 
 void Address_parse(struct Address* addr, const uint8_t input[Address_SERIALIZED_SIZE])
 {
     Bits_memset(addr->ip6.bytes, 0, 16);
-    Bits_memcpyConst(addr->key, input, Address_SERIALIZED_SIZE);
+    Bits_memcpy(addr->key, input, Address_SERIALIZED_SIZE);
     addr->path = Endian_bigEndianToHost64(addr->path);
 }
 
@@ -92,7 +92,7 @@ bool Address_equalsSearchTarget(struct Address* addr,
 
 void Address_forKey(struct Address* out, const uint8_t key[Address_KEY_SIZE])
 {
-    Bits_memcpyConst(out->key, key, Address_KEY_SIZE);
+    Bits_memcpy(out->key, key, Address_KEY_SIZE);
     AddressCalc_addressForPublicKey(out->ip6.bytes, key);
 }
 

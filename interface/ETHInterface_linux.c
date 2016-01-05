@@ -112,12 +112,12 @@ static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* iface)
     Message_pop(msg, &sockaddr, sa->addrLen, NULL);
 
     struct sockaddr_ll addr;
-    Bits_memcpyConst(&addr, &ctx->addrBase, sizeof(struct sockaddr_ll));
+    Bits_memcpy(&addr, &ctx->addrBase, sizeof(struct sockaddr_ll));
 
     if (sockaddr.generic.flags & Sockaddr_flags_BCAST) {
         Bits_memset(addr.sll_addr, 0xff, 6);
     } else {
-        Bits_memcpyConst(addr.sll_addr, sockaddr.mac, 6);
+        Bits_memcpy(addr.sll_addr, sockaddr.mac, 6);
     }
 
     struct ETHInterface_Header hdr = {
@@ -183,7 +183,7 @@ static void handleEvent2(struct ETHInterface_pvt* context, struct Allocator* mes
     }
 
     struct ETHInterface_Sockaddr  sockaddr = { .zero = 0 };
-    Bits_memcpyConst(sockaddr.mac, addr.sll_addr, 6);
+    Bits_memcpy(sockaddr.mac, addr.sll_addr, 6);
     sockaddr.generic.addrLen = ETHInterface_Sockaddr_SIZE;
     if (addr.sll_pkttype == PACKET_BROADCAST) {
         sockaddr.generic.flags |= Sockaddr_flags_BCAST;

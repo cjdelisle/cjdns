@@ -18,7 +18,6 @@
 
 #include "util/Bits.h"
 
-
 #if defined(Map_KEY_TYPE)
     Assert_compileTime(!(sizeof(Map_KEY_TYPE) % 4));
     #define Map_ENABLE_KEYS
@@ -48,7 +47,11 @@
             return Hash_compute((uint8_t*)key, sizeof(Map_KEY_TYPE));
         }
     #endif
-
+    // hash2 function for double hash.
+    static inline uint32_t Map_FUNCTION(hash2)(uint32_t hash)
+    {
+        return 7 - hash % 7;
+    }
 
     static inline int Map_FUNCTION(compare)(Map_KEY_TYPE* keyA, Map_KEY_TYPE* keyB);
     #ifndef Map_USE_COMPARATOR
@@ -64,6 +67,7 @@ struct Map_CONTEXT
 {
     #ifdef Map_ENABLE_KEYS
         uint32_t* hashCodes;
+        uint32_t* hashIndexes;
         Map_KEY_TYPE* keys;
     #endif
 
@@ -94,15 +98,49 @@ static inline struct Map_CONTEXT* Map_FUNCTION(new)(struct Allocator* allocator)
 #ifdef Map_ENABLE_KEYS
 static inline int Map_FUNCTION(indexForKey)(Map_KEY_TYPE* key, struct Map_CONTEXT* map)
 {
-    uint32_t hashCode = (Map_FUNCTION(hash)(key));
-    for (uint32_t i = 0; i < map->count; i++) {
-        if (map->hashCodes[i] == hashCode
-            && Map_FUNCTION(compare)(key, &map->keys[i]) == 0)
-        {
-            return i;
+    if (map->count) {
+        uint32_t last;
+        uint32_t step = 0;
+        uint32_t mask = map->capacity;
+        uint32_t hash = (Map_FUNCTION(hash)(key));
+        uint32_t i = hash % mask;
+        last = i;
+        step = Map_FUNCTION(hash2)(i);
+        while (map->hashIndexes[i] != UINT32_MAX &&
+               Map_FUNCTION(compare)(key,
+                   &map->keys[map->hashIndexes[i]]) != 0) {
+            i = (i + step) % mask;
+            if (i == last) {
+                if (step == 1) {
+                    return -1;
+                } else {
+                    --step;
+                }
+            }
         }
+
+        return (map->hashIndexes[i] != UINT32_MAX) ? (int)map->hashIndexes[i] : -1;
     }
     return -1;
+}
+
+static inline void Map_FUNCTION(rehash)(struct Map_CONTEXT* map)
+{
+    Bits_memset(map->hashIndexes, UINT32_MAX,
+            sizeof(uint32_t) * map->capacity);
+    for (uint32_t i = 0; i < map->count; ++i) {
+        uint32_t last, k, step;
+        k =  map->hashCodes[i] % map->capacity;
+        step = Map_FUNCTION(hash2)(k);
+        last = k;
+        while (map->hashIndexes[k] != UINT32_MAX) {
+            k = (k + step) % map->capacity;
+            if (last == k) {
+                --step;
+            }
+        }
+        map->hashIndexes[k] = i;
+    }
 }
 #endif
 
@@ -152,16 +190,22 @@ static inline int Map_FUNCTION(remove)(int index, struct Map_CONTEXT* map)
                          (map->count - index - 1) * sizeof(Map_VALUE_TYPE));
 
             map->count--;
+            #ifdef Map_ENABLE_KEYS
+            Map_FUNCTION(rehash)(map);
+            #endif
         #else
             // No handles, we can just fold the top entry down on one to remove.
             map->count--;
             map->hashCodes[index] = map->hashCodes[map->count];
-            Bits_memcpyConst(&map->keys[index], &map->keys[map->count], sizeof(Map_KEY_TYPE));
-            Bits_memcpyConst(&map->values[index], &map->values[map->count], sizeof(Map_VALUE_TYPE));
+            Bits_memcpy(&map->keys[index], &map->keys[map->count], sizeof(Map_KEY_TYPE));
+            Bits_memcpy(&map->values[index], &map->values[map->count], sizeof(Map_VALUE_TYPE));
         #endif
         return 0;
     } else if (index == (int) map->count - 1) {
         map->count--;
+        #ifdef Map_ENABLE_KEYS
+        Map_FUNCTION(rehash)(map);
+        #endif
         return 0;
     }
     return -1;
@@ -177,26 +221,29 @@ static inline int Map_FUNCTION(put)(Map_VALUE_TYPE* value,
 #endif
 {
     if (map->count == map->capacity) {
+        map->capacity += 10;
         #ifdef Map_ENABLE_KEYS
             map->hashCodes = Allocator_realloc(map->allocator,
                                                map->hashCodes,
-                                               sizeof(uint32_t) * (map->count + 10));
+                                               sizeof(uint32_t) * map->capacity);
+            map->hashIndexes = Allocator_realloc(map->allocator,
+                                               map->hashIndexes,
+                                               sizeof(uint32_t) * map->capacity);
             map->keys = Allocator_realloc(map->allocator,
                                           map->keys,
-                                          sizeof(Map_KEY_TYPE) * (map->count + 10));
+                                          sizeof(Map_KEY_TYPE) * map->capacity);
+            Map_FUNCTION(rehash)(map);
         #endif
 
         #ifdef Map_ENABLE_HANDLES
             map->handles = Allocator_realloc(map->allocator,
                                              map->handles,
-                                             sizeof(uint32_t) * (map->count + 10));
+                                             sizeof(uint32_t) * map->capacity);
         #endif
 
         map->values = Allocator_realloc(map->allocator,
                                         map->values,
-                                        sizeof(Map_VALUE_TYPE) * (map->count + 10));
-
-        map->capacity += 10;
+                                        sizeof(Map_VALUE_TYPE) * map->capacity);
     }
 
     int i = -1;
@@ -212,12 +259,37 @@ static inline int Map_FUNCTION(put)(Map_VALUE_TYPE* value,
             map->handles[i] = map->nextHandle++;
         #endif
         #ifdef Map_ENABLE_KEYS
-            map->hashCodes[i] = (Map_FUNCTION(hash)(key));
-            Bits_memcpyConst(&map->keys[i], key, sizeof(Map_KEY_TYPE));
+            uint32_t mask = map->capacity;
+            uint32_t hash = (Map_FUNCTION(hash)(key));
+            uint32_t k = hash % mask;
+            uint32_t last, step;
+            last = k;
+            uint32_t index = map->capacity;
+            if (map->hashIndexes[k] == UINT32_MAX) {
+                index = k;
+            } else {
+                step = Map_FUNCTION(hash2)(k);
+                while (map->hashIndexes[k] != UINT32_MAX &&
+                       Map_FUNCTION(compare)(key,
+                           &map->keys[map->hashIndexes[k]]) != 0) {
+                    k = (k + step) % mask;
+                    if (k == last) {
+                        --step;
+                    }
+                }
+            }
+
+            if (index == map->capacity) {
+                index = k;
+            }
+
+            map->hashIndexes[k] = i;
+            map->hashCodes[i] = hash;
+            Bits_memcpy(&map->keys[i], key, sizeof(Map_KEY_TYPE));
         #endif
     }
 
-    Bits_memcpyConst(&map->values[i], value, sizeof(Map_VALUE_TYPE));
+    Bits_memcpy(&map->values[i], value, sizeof(Map_VALUE_TYPE));
 
     return i;
 }

@@ -44,7 +44,7 @@ struct RandomSeed* DeterminentRandomSeed_new(struct Allocator* alloc, uint8_t bu
     }));
     Identity_set(drs);
     if (buff) {
-        Bits_memcpyConst(drs->buff, buff, 64);
+        Bits_memcpy(drs->buff, buff, 64);
     } else {
         Bits_memset(drs->buff, 4, 64);
     }

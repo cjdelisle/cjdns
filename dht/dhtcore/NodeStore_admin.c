@@ -60,7 +60,7 @@ static void dumpTable(Dict* args, void* vcontext, String* txid, struct Allocator
         AddrTools_printPath(path->bytes, nn->address.path);
         Dict_putString(nodeDict, String_CONST("path"), path, requestAlloc);
 
-        Dict_putInt(nodeDict, String_CONST("link"), Node_getReach(nn), requestAlloc);
+        Dict_putInt(nodeDict, String_CONST("link"), Node_getCost(nn), requestAlloc);
         Dict_putInt(nodeDict, String_CONST("version"), nn->address.protocolVersion, requestAlloc);
 
         Dict_putInt(nodeDict,
@@ -169,7 +169,7 @@ static void getLink(Dict* args, void* vcontext, String* txid, struct Allocator* 
                 String_new("inverseLinkEncodingFormNumber", alloc),
                 link->inverseLinkEncodingFormNumber,
                 alloc);
-    Dict_putInt(result, String_new("linkState", alloc), link->linkState, alloc);
+    Dict_putInt(result, String_new("linkCost", alloc), link->linkCost, alloc);
 
     Dict_putInt(result, String_new("isOneHop", alloc), Node_isOneHopLink(link), alloc);
 
@@ -229,7 +229,7 @@ static void nodeForAddr(Dict* args, void* vcontext, String* txid, struct Allocat
     uint32_t count = linkCount(node);
     Dict_putInt(result, String_new("linkCount", alloc), count, alloc);
 
-    Dict_putInt(result, String_new("reach", alloc), Node_getReach(node), alloc);
+    Dict_putInt(result, String_new("cost", alloc), Node_getCost(node), alloc);
 
     List* encScheme = EncodingScheme_asList(node->encodingScheme, alloc);
     Dict_putList(result, String_new("encodingScheme", alloc), encScheme, alloc);

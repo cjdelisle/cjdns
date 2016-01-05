@@ -67,7 +67,7 @@ struct SearchStore_Search* SearchStore_newSearch(uint8_t searchTarget[16],
                 .alloc = alloc
             }
         }));
-    Bits_memcpyConst(search->searchTarget, searchTarget, Address_SEARCH_TARGET_SIZE);
+    Bits_memcpy(search->searchTarget, searchTarget, Address_SEARCH_TARGET_SIZE);
 
     return &search->pub;
 }
@@ -96,7 +96,7 @@ int SearchStore_addNodeToSearch(struct Address* addr, struct SearchStore_Search*
             // nodes are added worst-to-best so replace the last entry.
             : pvtSearch->searchStackSize - 1;
 
-    Bits_memcpyConst(&pvtSearch->searchStack[index], addr, Address_SIZE);
+    Bits_memcpy(&pvtSearch->searchStack[index], addr, Address_SIZE);
 
     return 0;
 }
@@ -110,7 +110,7 @@ struct SearchStore_Node* SearchStore_getNextNode(struct SearchStore_Search* sear
     }
 
     struct SearchStore_Node* nn = &pvtSearch->nodesAsked[pvtSearch->nodesAskedIndex];
-    Bits_memcpyConst(&nn->address,
+    Bits_memcpy(&nn->address,
                      &pvtSearch->searchStack[--pvtSearch->searchStackSize],
                      sizeof(struct Address));
     nn->search = search;

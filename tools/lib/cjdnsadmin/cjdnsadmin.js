@@ -17,8 +17,8 @@ var UDP = require('dgram');
 var Bencode = require('./bencode');
 var Crypto = require('crypto');
 var Fs = require('fs');
-var nThen = require('./nthen');
-var Semaphore = require('../../../node_build/Semaphore.js');
+var nThen = require('nthen');
+var Semaphore = require('../Semaphore.js');
 
 var TIMEOUT_MILLISECONDS = 10000;
 
@@ -76,14 +76,14 @@ var getArgs = function (func) {
         }
     });
     // be sure that the arguments are always in the same order
-    rArgs.sort(function (a,b) { a = a.name; b = b.name; return (a !== b) ? (a < b) ? 1 : -1 : 0 });
+    rArgs.sort(function (a,b) { a = a.name; b = b.name; return (a !== b) ? (a < b) ? 1 : -1 : 0; });
     var oArgs = [];
     Object.keys(func).forEach(function (name) {
         if (func[name].required === '0') {
             oArgs.push({ name: name, type: func[name].type, required: false });
         }
     });
-    oArgs.sort(function (a,b) { a = a.name; b = b.name; return (a !== b) ? (a < b) ? 1 : -1 : 0 });
+    oArgs.sort(function (a,b) { a = a.name; b = b.name; return (a !== b) ? (a < b) ? 1 : -1 : 0; });
     rArgs.push.apply(rArgs, oArgs);
     return rArgs;
 };
@@ -104,7 +104,7 @@ var compatibleType = function (typeName, obj) {
         case 'Dict': return (typeof(obj) === 'object');
         case 'List': return Array.isArray(obj);
         default: throw new Error();
-    };
+    }
 };
 
 var makeFunction = function (sock, addr, port, pass, funcName, func) {
@@ -148,13 +148,13 @@ var getFunctions = function (sock, addr, port, pass, callback) {
                     if (err) { throw err; }
                     Object.keys(ret.availableFunctions).forEach(function (funcName) {
                         funcs[funcName] = ret.availableFunctions[funcName];
-                    })
+                    });
                     if (Object.keys(ret.availableFunctions).length > 0) {
                         next(i+1);
                     }
                 })
             );
-        }
+        };
         next(0);
 
     }).nThen(function (waitFor) {
@@ -198,7 +198,7 @@ var connect = module.exports.connect = function (addr, port, pass, callback) {
         }));
     }).nThen(function (waitFor) {
         getFunctions(sock, addr, port, pass, function (cjdns) {
-            cjdns.disconnect = function () { sock.close() };
+            cjdns.disconnect = function () { sock.close(); };
             cjdns.setDefaultHandler = function (handler) { sock.defaultHandler = handler; };
             callback(cjdns);
         });

@@ -27,7 +27,7 @@ struct AverageRoller* AverageRoller_new(const uint32_t windowSeconds,
         + (sizeof(struct AverageRoller_SumAndEntryCount) * (windowSeconds - 1));
     struct AverageRoller_pvt* roller = Allocator_calloc(allocator, size, 1);
 
-    Bits_memcpyConst(roller, (&(struct AverageRoller_pvt) {
+    Bits_memcpy(roller, (&(struct AverageRoller_pvt) {
         .windowSeconds = windowSeconds,
         .eventBase = eventBase,
         .lastUpdateTime = (uint32_t) Time_currentTimeSeconds(eventBase)
