@@ -50,6 +50,11 @@ int main(int argc, char* argv[])
         }
     }
 
+    // This test is too slow to run with the normal battery of tests
+    if (cycles == QUICK_CYCLES) {
+        return 0;
+    }
+
     struct Allocator* mainAlloc = MallocAllocator_new(1<<18);
     struct Random* rand = Random_new(mainAlloc, NULL, NULL);
     struct Log* logger = FileWriterLog_new(stdout, mainAlloc);
@@ -84,7 +89,7 @@ int main(int argc, char* argv[])
         }
         int64_t timeUsed = Time_hrtime() - begin;
         Log_debug(logger, "cycle %d Map put %u values used %lu ms.\n",
-                cycle, size, timeUsed / 1000000);
+                cycle, size, (unsigned long)(timeUsed / 1000000));
 
         // check all keys there
         for (int32_t i = map->count - 1; i >= 0; --i) {
