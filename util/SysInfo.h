@@ -19,7 +19,7 @@
 #include "util/Assert.h"
 
 #include "util/Linker.h"
-Linker_require("util/SysInfo.c")
+Linker_require("util/SysInfo.c");
 
 #include <stdint.h>
 

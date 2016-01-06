@@ -26,7 +26,7 @@
 #include "util/platform/Sockaddr.h"
 #include "util/log/Log.h"
 #include "util/Linker.h"
-Linker_require("net/InterfaceController.c")
+Linker_require("net/InterfaceController.c");
 
 #include <stdint.h>
 #include <stdbool.h>

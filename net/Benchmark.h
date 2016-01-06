@@ -16,7 +16,7 @@
 #define Benchmark_H
 
 #include "util/Linker.h"
-Linker_require("net/Benchmark.c")
+Linker_require("net/Benchmark.c");
 
 void Benchmark_runAll();
 #endif

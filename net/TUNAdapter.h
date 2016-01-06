@@ -19,7 +19,7 @@
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
 #include "util/Linker.h"
-Linker_require("net/TUNAdapter.c")
+Linker_require("net/TUNAdapter.c");
 
 struct TUNAdapter
 {

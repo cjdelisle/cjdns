@@ -20,7 +20,7 @@
 #include "memory/Allocator.h"
 #include "wire/Message.h"
 #include "util/Linker.h"
-Linker_require("benc/serialization/standard/BencMessageReader.c")
+Linker_require("benc/serialization/standard/BencMessageReader.c");
 
 Dict* BencMessageReader_read(struct Message* msg, struct Allocator* alloc, struct Except* eh);
 

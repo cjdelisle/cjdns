@@ -21,7 +21,7 @@
 #include "util/log/Log.h"
 #include "util/events/EventBase.h"
 #include "util/Linker.h"
-Linker_require("admin/AdminLog.c")
+Linker_require("admin/AdminLog.c");
 
 struct Log* AdminLog_registerNew(struct Admin* admin,
                                  struct Allocator* alloc,

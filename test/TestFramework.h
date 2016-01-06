@@ -17,7 +17,7 @@
 
 #include "net/NetCore.h"
 #include "util/Linker.h"
-Linker_require("test/TestFramework.c")
+Linker_require("test/TestFramework.c");
 
 struct TestFramework
 {

@@ -18,7 +18,7 @@
 #include "util/AverageRoller.h"
 #include "util/events/EventBase.h"
 #include "util/Linker.h"
-Linker_require("util/AverageRoller.c")
+Linker_require("util/AverageRoller.c");
 
 /** Used to represent the sum and entry count for a given second. */
 struct AverageRoller_SumAndEntryCount

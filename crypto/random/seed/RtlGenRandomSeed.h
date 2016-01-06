@@ -21,7 +21,7 @@
 #include "util/Linker.h"
 
 #ifdef win32
-    Linker_require("crypto/random/seed/RtlGenRandomSeed.c")
+    Linker_require("crypto/random/seed/RtlGenRandomSeed.c");
     struct RandomSeed* RtlGenRandomSeed_new(struct Allocator* alloc);
     RandomSeedProvider_register(RtlGenRandomSeed_new)
 #endif

@@ -24,7 +24,7 @@
 #include "util/events/EventBase.h"
 #include "wire/Message.h"
 #include "util/Linker.h"
-Linker_require("crypto/CryptoAuth.c")
+Linker_require("crypto/CryptoAuth.c");
 
 #include <stdint.h>
 #include <stdbool.h>

@@ -18,7 +18,7 @@
 #include "io/Reader.h"
 #include "memory/Allocator.h"
 #include "util/Linker.h"
-Linker_require("io/ArrayReader.c")
+Linker_require("io/ArrayReader.c");
 
 /**
  * Create a new Reader which reads a user supplied buffer.

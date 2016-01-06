@@ -16,7 +16,7 @@
 #define AddrTools_H
 
 #include "util/Linker.h"
-Linker_require("util/AddrTools.c")
+Linker_require("util/AddrTools.c");
 
 #include <stdint.h>
 

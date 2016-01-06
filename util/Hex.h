@@ -18,7 +18,7 @@
 #include "memory/Allocator.h"
 
 #include "util/Linker.h"
-Linker_require("util/Hex.c")
+Linker_require("util/Hex.c");
 
 #include <stdint.h>
 #include <stdbool.h>

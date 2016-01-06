@@ -20,7 +20,7 @@
 #include "util/log/Log.h"
 #include "util/Gcc.h"
 #include "util/Linker.h"
-Linker_require("dht/dhtcore/RumorMill.c")
+Linker_require("dht/dhtcore/RumorMill.c");
 
 struct RumorMill_admin
 {

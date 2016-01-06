@@ -18,7 +18,7 @@
 #include "interface/Iface.h"
 #include "memory/Allocator.h"
 #include "util/Linker.h"
-Linker_require("interface/FramingIface.c")
+Linker_require("interface/FramingIface.c");
 
 /**
  * Framed message format:

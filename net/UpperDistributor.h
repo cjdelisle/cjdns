@@ -19,7 +19,7 @@
 #include "net/EventEmitter.h"
 #include "util/log/Log.h"
 #include "util/Linker.h"
-Linker_require("net/UpperDistributor.c")
+Linker_require("net/UpperDistributor.c");
 
 /**
  * Connects the TUN, DHT and IpTunnel (and other?) handlers to the SessionManager.

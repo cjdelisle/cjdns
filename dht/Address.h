@@ -18,7 +18,7 @@
 #include "benc/String.h"
 #include "memory/Allocator.h"
 #include "util/Linker.h"
-Linker_require("dht/Address.c")
+Linker_require("dht/Address.c");
 
 #include <stdint.h>
 #include <stdbool.h>

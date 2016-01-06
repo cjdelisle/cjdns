@@ -24,7 +24,7 @@
 #include "util/UniqueName.h"
 #include "util/events/EventBase.h"
 #include "util/Linker.h"
-Linker_require("admin/Admin.c")
+Linker_require("admin/Admin.c");
 
 #include <stdbool.h>
 

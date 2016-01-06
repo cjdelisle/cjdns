@@ -23,7 +23,7 @@
 #include "util/platform/Sockaddr.h"
 #include "wire/RouteHeader.h"
 #include "util/Linker.h"
-Linker_require("tunnel/IpTunnel.c")
+Linker_require("tunnel/IpTunnel.c");
 
 struct IpTunnel_Connection
 {
