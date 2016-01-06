@@ -25,11 +25,12 @@
 #define Map_ENABLE_HANDLES
 #include "util/Map.h"
 
+#include <stdio.h>
 #include <stdbool.h>
 
 // Increase this number to make the fuzz test run longer.
 #define QUICK_CYCLES 5
-#define SLOW_CYCLES 3000
+#define SLOW_CYCLES 1000
 
 int main(int argc, char* argv[])
 {
@@ -65,15 +66,10 @@ int main(int argc, char* argv[])
         for (uint32_t i = 0; i < size; i++) {
             keys[i] = key;
             vals[i] = val;
-            // replace new value with old key
-            for (uint32_t j = 0; j < i; ++j) {
-                if (keys[j] == key) {
-                    vals[j] = val;
-                }
-            }
             Map_OfLongsByInteger_put(&key, &val, map);
             key += val >> 13 ^ size << 19;
             val += key >> 19 ^ i << 13;
+
         }
         int64_t timeUsed = Time_hrtime() - begin;
         Log_debug(logger, "cycle %d Map put %u values used %lu ms.\n",
@@ -82,7 +78,7 @@ int main(int argc, char* argv[])
         // check all keys there
         for (uint32_t i = 0; i < size; ++i) {
             int index = Map_OfLongsByInteger_indexForKey(&keys[i], map);
-            Assert_true(index != -1 && map->values[index] == vals[i]);
+            Assert_true(map->values[index] == vals[i]);
         }
         Allocator_free(alloc);
     }
