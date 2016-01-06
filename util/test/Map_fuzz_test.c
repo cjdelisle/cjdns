@@ -68,8 +68,8 @@ int main(int argc, char* argv[])
         struct Key* keys = Allocator_malloc(alloc, sizeof(struct Key) * size);
         struct Value* vals = Allocator_malloc(alloc, sizeof(struct Value) * size);
 
-        struct Key key;
-        struct Value val;
+        struct Key key = {0};
+        struct Value val = {0};
         Random_bytes(rand, (uint8_t*)&key, sizeof(key));
         Random_bytes(rand, (uint8_t*)&val, sizeof(val));
         int64_t begin = Time_hrtime();
