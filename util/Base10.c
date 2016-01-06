@@ -16,6 +16,7 @@
 #include "util/Base10.h"
 #include "wire/Message.h"
 #include "exception/Except.h"
+#include "util/CString.h"
 
 #include <stdbool.h>
 

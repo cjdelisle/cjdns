@@ -137,6 +137,8 @@ int IpTunnel_allowConnection(uint8_t publicKeyOfAuthorizedNode[32],
 {
     struct IpTunnel_pvt* context = Identity_check((struct IpTunnel_pvt*)tunnel);
 
+    Log_debug(context->logger, "IPv4 Prefix to allow: %d", ip4Prefix);
+
     uint8_t* ip6Address = NULL;
     uint8_t* ip4Address = NULL;
     if (ip6Addr) {
@@ -272,7 +274,7 @@ int IpTunnel_connectTo(uint8_t publicKeyOfNodeToConnectTo[32], struct IpTunnel* 
 int IpTunnel_removeConnection(int connectionNumber, struct IpTunnel* tunnel)
 {
     //struct IpTunnel_pvt* context = Identity_check((struct IpTunnel_pvt*)tunnel);
-    //TODO(Kubuxu): Removing routes client side.
+
     return 0;
 }
 
@@ -336,6 +338,7 @@ static Iface_DEFUN requestForAddresses(Dict* request,
         Dict_putInt(addresses,
                     String_CONST("ip6Alloc"), (int64_t)conn->connectionIp6Alloc,
                     requestAlloc);
+
         noAddresses = false;
     }
     if (!Bits_isZero(conn->connectionIp4, 4)) {
@@ -349,6 +352,7 @@ static Iface_DEFUN requestForAddresses(Dict* request,
         Dict_putInt(addresses,
                     String_CONST("ip4Alloc"), (int64_t)conn->connectionIp4Alloc,
                     requestAlloc);
+
         noAddresses = false;
     }
     if (noAddresses) {
@@ -443,6 +447,7 @@ static Iface_DEFUN incomingAddresses(Dict* d,
     String* ip4 = Dict_getString(addresses, String_CONST("ip4"));
     int64_t* ip4Prefix = Dict_getInt(addresses, String_CONST("ip4Prefix"));
     int64_t* ip4Alloc = Dict_getInt(addresses, String_CONST("ip4Alloc"));
+
     if (ip4 && ip4->len == 4) {
         Bits_memcpy(conn->connectionIp4, ip4->bytes, 4);
 
@@ -451,6 +456,7 @@ static Iface_DEFUN incomingAddresses(Dict* d,
         } else {
             conn->connectionIp4Prefix = 32;
         }
+
         if (ip4Alloc && *ip4Alloc >= 0 && *ip4Alloc <= 32) {
             conn->connectionIp4Alloc = (uint8_t) *ip4Alloc;
         } else {
@@ -472,6 +478,7 @@ static Iface_DEFUN incomingAddresses(Dict* d,
     String* ip6 = Dict_getString(addresses, String_CONST("ip6"));
     int64_t* ip6Prefix = Dict_getInt(addresses, String_CONST("ip6Prefix"));
     int64_t* ip6Alloc = Dict_getInt(addresses, String_CONST("ip6Alloc"));
+
     if (ip6 && ip6->len == 16) {
         Bits_memcpy(conn->connectionIp6, ip6->bytes, 16);
 

@@ -62,13 +62,14 @@ static void allowConnection(Dict* args,
     String* ip4Address = Dict_getString(args, String_CONST("ip4Address"));
     int64_t* ip4Prefix = Dict_getInt(args, String_CONST("ip4Prefix"));
     int64_t* ip4Alloc = Dict_getInt(args, String_CONST("ip4Alloc"));
+
     uint8_t pubKey[32];
     uint8_t ip6Addr[16];
 
     struct Sockaddr_storage ip6ToGive;
     struct Sockaddr_storage ip4ToGive;
 
-    char* error = NULL;
+    char* error;
     int ret;
     if (!ip6Address && !ip4Address) {
         error = "Must specify ip6Address or ip4Address";

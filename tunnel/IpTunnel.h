@@ -36,7 +36,7 @@ struct IpTunnel_Connection
     /** The IPv4 address used for this connection or all zeros if none was assigned. */
     uint8_t connectionIp4[4];
 
-    /** The IPv6 address prefix length, in bits. Defaults to 128 if none was assigned. */
+    /** The IPv6 netmask/prefix length, in bits. Defaults to 128 if none was assigned. */
     uint8_t connectionIp6Prefix;
 
     /** The IPv6 prefix length in, in bits, defining netmask. 0xff if not used. */

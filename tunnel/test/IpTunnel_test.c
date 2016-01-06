@@ -238,7 +238,6 @@ static void testAddr(struct Context* ctx,
         Assert_true(!Sockaddr_parse(addr4, &ip4ToGive));
         sa4 = &ip4ToGive.addr;
         Assert_true(Sockaddr_getFamily(sa4) == Sockaddr_AF_INET);
-
     }
     struct Sockaddr* sa6 = NULL;
     if (addr6) {

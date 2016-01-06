@@ -104,10 +104,9 @@ Select version gcc-4.8.1p2 or more recent.
 
 #### FreeBSD:
 
-The compiler expects GCC version 4.7, please install it from ports first.
+Everything you need is available prebuild in FreeBSD' ports. 
 
-    portsnap fetch extract
-    cd /usr/ports/lang/gcc47/ && make config && make install clean
+    pkg install gmake node
 
 ### 1. Retrieve cjdns from GitHub
 

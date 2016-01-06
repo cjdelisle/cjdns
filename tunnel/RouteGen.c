@@ -364,7 +364,7 @@ Dict* RouteGen_getGeneratedRoutes(struct RouteGen* rg, struct Allocator* alloc)
 {
     struct RouteGen_pvt* rp = Identity_check((struct RouteGen_pvt*) rg);
     struct Prefix46* p46 = getGeneratedRoutes(rp, alloc);
-    return getSomething(rp, alloc, p46->prefix4, p46->prefix6);
+    return getSomething(rp, alloc, p46->prefix6, p46->prefix4);
 }
 
 void RouteGen_updateRoutes(struct RouteGen* rg, char* tunName, struct Except* eh)
