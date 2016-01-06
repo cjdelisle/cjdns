@@ -80,13 +80,10 @@ int main(int argc, char* argv[])
                 cycle, size, (unsigned long)(timeUsed / 1000000));
 
         // check all keys there
-        for (int32_t i = size - 1; i >= 0; --i) {
+        for (uint32_t i = 0; i < size; ++i) {
             int index = Map_OfLongsByInteger_indexForKey(&keys[i], map);
             Assert_true(index != -1 && map->values[index] == vals[i]);
-            Map_OfLongsByInteger_remove(index, map);
         }
-
-        Assert_true(map->count == 0);
         Allocator_free(alloc);
     }
     Log_debug(logger, "===+++=== Completed Ok ===++++===");
