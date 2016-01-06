@@ -37,7 +37,7 @@ struct Value {
 #include <stdbool.h>
 
 // Increase this number to make the fuzz test run longer.
-#define QUICK_CYCLES 1
+#define QUICK_CYCLES 5
 #define SLOW_CYCLES 3000
 
 int main(int argc, char* argv[])
@@ -73,7 +73,6 @@ int main(int argc, char* argv[])
         Random_bytes(rand, (uint8_t*)&key, sizeof(key));
         Random_bytes(rand, (uint8_t*)&val, sizeof(val));
         int64_t begin = Time_hrtime();
-        // case 1: normal insert first, valid second, remove last
         for (uint32_t i = 0; i < size; i++) {
             Bits_memcpy(&keys[i], &key, sizeof(key));
             Bits_memcpy(&vals[i], &val, sizeof(val));
@@ -93,50 +92,6 @@ int main(int argc, char* argv[])
 
         // check all keys there
         for (int32_t i = map->count - 1; i >= 0; --i) {
-            int index = Map_OfKeyValue_indexForKey(&keys[i], map);
-            Assert_true(index != -1 &&
-                        (Bits_memcmp(&map->values[index], &vals[i],
-                                    sizeof(struct Value)) == 0));
-            Map_OfKeyValue_remove(index, map);
-        }
-
-        Assert_true(map->count == 0);
-        // case 2: Simulate map operation in SessionManage code,
-        // normal insert, then remove random key,
-        // then insert deleted key, and remove last.
-        Random_bytes(rand, (uint8_t*)&key, sizeof(key));
-        Random_bytes(rand, (uint8_t*)&val, sizeof(val));
-        for (uint32_t i = 0; i < size; i++) {
-            Bits_memcpy(&keys[i], &key, sizeof(key));
-            Bits_memcpy(&vals[i], &val, sizeof(val));
-            // replace new value with old key
-            for (uint32_t j = 0; j < i; ++j) {
-                if (Bits_memcmp(&keys[j], &key, sizeof(key)) == 0) {
-                    Bits_memcpy(&vals[j], &val, sizeof(val));
-                }
-            }
-            Map_OfKeyValue_put(&key, &val, map);
-            Random_bytes(rand, (uint8_t*)&key, sizeof(key));
-            Random_bytes(rand, (uint8_t*)&val, sizeof(val));
-        }
-
-        if (map->count) {
-            uint32_t removed, pos;
-            Random_bytes(rand, (uint8_t*) &removed, 4);
-            Random_bytes(rand, (uint8_t*) &pos, 4);
-            removed = removed % map->count;
-            pos = pos % (map->count - removed);
-            for (uint32_t i = 0; i < removed; i++) {
-                int index = Map_OfKeyValue_indexForKey(&keys[i + pos], map);
-                Map_OfKeyValue_remove(index, map);
-            }
-            for (uint32_t i = 0; i < removed; i++) {
-                Map_OfKeyValue_put(&keys[i + pos], &vals[i + pos], map);
-            }
-        }
-
-        // check all keys there
-        for (int32_t i = size - 1; i >= 0; --i) {
             int index = Map_OfKeyValue_indexForKey(&keys[i], map);
             Assert_true(index != -1 &&
                         (Bits_memcmp(&map->values[index], &vals[i],
