@@ -163,10 +163,8 @@ int InterfaceController_beaconState(struct InterfaceController* ifc,
                                     int interfaceNumber,
                                     int newState);
 
-int InterfaceController_resetPeer(struct InterfaceController* ifController,
-                                  uint8_t herPublicKey[32]);
-
-void InterfaceController_resetPeering(struct InterfaceController* ifController);
+void InterfaceController_resetPeering(struct InterfaceController* ifController,
+                                      uint8_t herPublicKey[32]);
 
 /**
  * Disconnect a previously registered peer.

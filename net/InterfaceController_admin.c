@@ -165,14 +165,11 @@ static void adminResetPeering(Dict* args,
         if (error) {
             errorMsg = "bad key";
         } else {
-            error = InterfaceController_resetPeer(context->ic, pubkey);
-            if (error) {
-                errorMsg = "no peer found for that key";
-            }
+            InterfaceController_resetPeering(context->ic, pubkey);
         }
     } else {
         // reset all
-        InterfaceController_resetPeering(context->ic);
+        InterfaceController_resetPeering(context->ic, NULL);
     }
 
     Dict* response = Dict_new(requestAlloc);
