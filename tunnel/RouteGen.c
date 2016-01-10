@@ -283,11 +283,36 @@ static int inc4(struct Prefix4* prefix)
     return 1;
 }
 
+struct Prefix4
+{
+    uint32_t bits;
+    int prefix;
+    struct Allocator* alloc;
+};
+
+static struct ArrayList_OfPrefix4* invertPrefix(struct Prefix4* toInvert, struct Allocator* alloc)
+{
+    struct ArrayList_OfPrefix4* result = ArrayList_OfPrefix4_new(alloc);
+    for (int i = 32 - toInvert->prefix, i < 32; i++) {
+        struct Prefix4* pfx = Allocator_calloc(alloc, sizeof(struct Prefix4), 1);
+        pfx->addr = ( toInvert->bits & (~0 << i) ) ^ (1 << i);
+        pfx->prefix = 32 - i;
+        ArrayList_OfPrefix4_add(pfx);
+    }
+    return out;
+}
 
 static struct ArrayList_OfPrefix4* genPrefixes4(struct ArrayList_OfPrefix4* prefixes,
                                                 struct ArrayList_OfPrefix4* exemptions,
                                                 struct Allocator* alloc)
 {
+    for (int i = 0; i < prefixes->length; i++) {
+        
+    }
+    struct ArrayList_OfPrefix4* prefixes4 = invertPrefix()
+    return NULL;
+
+
     //TODO(Kubuxu): Dedupe prefixes adn exemptions
     struct ArrayList_OfPrefix4* result = ArrayList_OfPrefix4_new(alloc);
     for (int i = 0; i < prefixes->length; i++) {
