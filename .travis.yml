@@ -17,5 +17,4 @@ sudo: false
 script:
   - "uname -a"
   - "bash node_build/run_jshint"
-    # travis' new container infrastructure's libc doesn't have SIGSYS signal info
-  - "Seccomp_NO=1 ./do"
+  - "./do"
