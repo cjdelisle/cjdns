@@ -29,7 +29,7 @@ struct RouteGen
     bool hasUncommittedChanges;
 };
 
-void RouteGen_addExemption(struct RouteGen* rg, struct Sockaddr* exempt, uint8_t prefix);
+void RouteGen_addException(struct RouteGen* rg, struct Sockaddr* exempt, uint8_t prefix);
 
 void RouteGen_addPrefix(struct RouteGen* rg, struct Sockaddr* destination, uint8_t prefix);
 
@@ -41,9 +41,9 @@ Dict* RouteGen_getExceptions(struct RouteGen* rg, struct Allocator* alloc);
 
 Dict* RouteGen_getGeneratedRoutes(struct RouteGen* rg, struct Allocator* alloc);
 
-int RouteGen_removePrefix(struct RouteGen* rg, bool isIpv6, int num);
+bool RouteGen_removePrefix(struct RouteGen* rg, struct Sockaddr* toRemove, uint8_t prefix);
 
-int RouteGen_removeException(struct RouteGen* rg, bool isIpv6, int num);
+bool RouteGen_removeException(struct RouteGen* rg, struct Sockaddr* toRemove, uint8_t prefix);
 
 struct RouteGen* RouteGen_new(struct Allocator* allocator, struct Log* log);
 

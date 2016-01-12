@@ -229,7 +229,7 @@ static void testAddr(struct Context* ctx,
                      char* addr6, int prefix6, int alloc6)
 {
     struct Allocator* alloc = Allocator_child(ctx->alloc);
-    struct IpTunnel* ipTun = IpTunnel_new(ctx->log, ctx->base, alloc, ctx->rand);
+    struct IpTunnel* ipTun = IpTunnel_new(ctx->log, ctx->base, alloc, ctx->rand, NULL);
 
     struct Sockaddr* sa4 = NULL;
     struct Sockaddr_storage ip6ToGive;

@@ -22,6 +22,7 @@
 #include "util/events/EventBase.h"
 #include "util/platform/Sockaddr.h"
 #include "wire/RouteHeader.h"
+#include "tunnel/RouteGen.h"
 #include "util/Linker.h"
 Linker_require("tunnel/IpTunnel.c")
 
@@ -87,7 +88,8 @@ struct IpTunnel
 struct IpTunnel* IpTunnel_new(struct Log* logger,
                               struct EventBase* eventBase,
                               struct Allocator* alloc,
-                              struct Random* rand);
+                              struct Random* rand,
+                              struct RouteGen* rg);
 
 /**
  * Allow another node to tunnel IPv4 and/or ICANN IPv6 through this node.

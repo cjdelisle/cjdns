@@ -47,6 +47,8 @@ struct IpTunnel_pvt
     struct Allocator* allocator;
     struct Log* logger;
 
+    struct RouteGen* rg;
+
     uint32_t connectionCapacity;
 
     /** An always incrementing number which represents the connections. */
@@ -396,7 +398,8 @@ static void addAddress(char* printedAddr, uint8_t prefixLen,
     Jmp_try(j) {
         NetDev_addAddress(ctx->ifName->bytes, &ss.addr, allocSize, ctx->logger, &j.handler);
         if (installRoute) {
-            NetDev_addRoute(ctx->ifName->bytes, &ss.addr, prefixLen, ctx->logger, &j.handler);
+            RouteGen_addPrefix(ctx->rg, &ss.addr, prefixLen);
+            //NetDev_addRoute(ctx->ifName->bytes, &ss.addr, prefixLen, ctx->logger, &j.handler);
         }
     } Jmp_catch {
         Log_error(ctx->logger, "Error setting ip address on TUN [%s]", j.message);
@@ -778,7 +781,8 @@ void IpTunnel_setTunName(char* interfaceName, struct IpTunnel* ipTun)
 struct IpTunnel* IpTunnel_new(struct Log* logger,
                               struct EventBase* eventBase,
                               struct Allocator* alloc,
-                              struct Random* rand)
+                              struct Random* rand,
+                              struct RouteGen* rg)
 {
     struct IpTunnel_pvt* context = Allocator_clone(alloc, (&(struct IpTunnel_pvt) {
         .pub = {
@@ -787,7 +791,8 @@ struct IpTunnel* IpTunnel_new(struct Log* logger,
         },
         .allocator = alloc,
         .logger = logger,
-        .rand = rand
+        .rand = rand,
+        .rg = rg
     }));
     context->timeout = Timeout_setInterval(timeout, context, 10000, eventBase, alloc);
     Identity_set(context);

@@ -33,7 +33,7 @@ struct Prefix6
 static int comparePrefixes6(struct Prefix6* a, struct Prefix6* b)
 {
     if (a->prefix != b->prefix) {
-        return (a->prefix < b->prefix) ? 1 : -1;
+        return (a->prefix < b->prefix) ? -1 : 1;
     }
     if (a->highBits != b->highBits) {
         return (a->highBits < b->highBits) ? 1 : -1;
@@ -57,7 +57,7 @@ struct Prefix4
 static int comparePrefixes4(struct Prefix4* a, struct Prefix4* b)
 {
     if (a->prefix != b->prefix) {
-        return (a->prefix < b->prefix) ? 1 : -1;
+        return (a->prefix < b->prefix) ? -1 : 1;
     }
     if (a->bits != b->bits) {
         return (a->bits < b->bits) ? 1 : -1;
@@ -78,10 +78,10 @@ struct RouteGen_pvt
 {
     struct RouteGen pub;
     struct ArrayList_OfPrefix6* prefixes6;
-    struct ArrayList_OfPrefix6* exemptions6;
+    struct ArrayList_OfPrefix6* exceptions6;
 
     struct ArrayList_OfPrefix4* prefixes4;
-    struct ArrayList_OfPrefix4* exemptions4;
+    struct ArrayList_OfPrefix4* exceptions4;
 
     struct Allocator* alloc;
     struct Log* log;
@@ -178,10 +178,10 @@ static void addSomething(struct RouteGen_pvt* rp,
     rp->pub.hasUncommittedChanges = true;
 }
 
-void RouteGen_addExemption(struct RouteGen* rg, struct Sockaddr* destination, uint8_t prefix)
+void RouteGen_addException(struct RouteGen* rg, struct Sockaddr* destination, uint8_t prefix)
 {
     struct RouteGen_pvt* rp = Identity_check((struct RouteGen_pvt*) rg);
-    addSomething(rp, destination, prefix, rp->exemptions6, rp->exemptions4);
+    addSomething(rp, destination, prefix, rp->exceptions6, rp->exceptions4);
 }
 
 void RouteGen_addPrefix(struct RouteGen* rg, struct Sockaddr* destination, uint8_t prefix)
@@ -222,163 +222,329 @@ Dict* RouteGen_getPrefixes(struct RouteGen* rg, struct Allocator* alloc)
 Dict* RouteGen_getExceptions(struct RouteGen* rg, struct Allocator* alloc)
 {
     struct RouteGen_pvt* rp = Identity_check((struct RouteGen_pvt*) rg);
-    return getSomething(rp, alloc, rp->exemptions6, rp->exemptions4);
+    return getSomething(rp, alloc, rp->exceptions6, rp->exceptions4);
 }
 
-int RouteGen_removePrefix(struct RouteGen* rg, bool isIpv6, int num)
+static bool removeSomething(struct RouteGen_pvt* rp,
+                            struct Sockaddr* toRemove,
+                            uint8_t prefix,
+                            struct ArrayList_OfPrefix6* list6,
+                            struct ArrayList_OfPrefix4* list4)
 {
-    struct RouteGen_pvt* rp = Identity_check((struct RouteGen_pvt*) rg);
-    if (isIpv6) {
-        return (ArrayList_OfPrefix6_remove(rp->prefixes6, num) != NULL);
-    } else {
-        return (ArrayList_OfPrefix4_remove(rp->prefixes4, num) != NULL);
-    }
-}
-
-int RouteGen_removeException(struct RouteGen* rg, bool isIpv6, int num)
-{
-    struct RouteGen_pvt* rp = Identity_check((struct RouteGen_pvt*) rg);
-    if (isIpv6) {
-        return (ArrayList_OfPrefix6_remove(rp->exemptions6, num) != NULL);
-    } else {
-        return (ArrayList_OfPrefix4_remove(rp->exemptions4, num) != NULL);
-    }
-}
-
-/* Returns 0 if not, 1 if equal, 2 if contained */
-static int contained4(struct Prefix4* domain, struct Prefix4* prefix)
-{
-    if (domain->prefix > prefix->prefix) {
-        return 0;
-    }
-    uint32_t mask = (~0) << (32 - domain->prefix);
-    if ((domain->bits & mask) == (prefix->bits & mask)) {
-        return domain->prefix == prefix->prefix ? 1 : 2;
-    } else {
-        return 0;
-    }
-}
-
-static int contained4Any(struct ArrayList_OfPrefix4* domains, struct Prefix4* prefix)
-{
-
-    int status = 0;
-    for (int i = 0; i < domains->length; i++) {
-        int tmp = contained4(ArrayList_OfPrefix4_get(domains, i), prefix);
-        if (tmp > status) {
-            status = tmp;
+    struct Allocator* tempAlloc = Allocator_child(rp->alloc);
+    bool ret = false;
+    if (Sockaddr_getFamily(toRemove) == Sockaddr_AF_INET) {
+        struct Prefix4* p4 = sockaddrToPrefix4(toRemove, prefix, tempAlloc);
+        for (int i = list4->length - 1; i >= 0; i--) {
+            struct Prefix4* p42 = ArrayList_OfPrefix4_get(list4, i);
+            if (!comparePrefixes4(p4, p42)) {
+                ArrayList_OfPrefix4_remove(list4, i);
+                ret = true;
+            }
         }
+    } else if (Sockaddr_getFamily(toRemove) == Sockaddr_AF_INET6) {
+        struct Prefix6* p6 = sockaddrToPrefix6(toRemove, prefix, tempAlloc);
+        for (int i = list6->length - 1; i >= 0; i--) {
+            struct Prefix6* p62 = ArrayList_OfPrefix6_get(list6, i);
+            if (!comparePrefixes6(p6, p62)) {
+                ArrayList_OfPrefix6_remove(list6, i);
+                ret = true;
+            }
+        }
+    } else {
+        Assert_failure("unexpected addr type");
     }
-    return status;
+    Allocator_free(tempAlloc);
+    return ret;
 }
 
-static int inc4(struct Prefix4* prefix)
+bool RouteGen_removePrefix(struct RouteGen* rg, struct Sockaddr* toRemove, uint8_t prefix)
 {
-    uint32_t tmp = prefix->bits + (1 << (32 - prefix->prefix));
-    if (tmp < prefix->bits) {
-        // Overflow protection
-        return 0;
-    }
-    prefix->bits = tmp;
-    return 1;
+    struct RouteGen_pvt* rp = Identity_check((struct RouteGen_pvt*) rg);
+    return removeSomething(rp, toRemove, prefix, rp->prefixes6, rp->prefixes4);
 }
 
-struct Prefix4
+bool RouteGen_removeException(struct RouteGen* rg, struct Sockaddr* toRemove, uint8_t prefix)
 {
-    uint32_t bits;
-    int prefix;
-    struct Allocator* alloc;
-};
+    struct RouteGen_pvt* rp = Identity_check((struct RouteGen_pvt*) rg);
+    return removeSomething(rp, toRemove, prefix, rp->exceptions6, rp->exceptions4);
+}
 
-static struct ArrayList_OfPrefix4* invertPrefix(struct Prefix4* toInvert, struct Allocator* alloc)
+static struct ArrayList_OfPrefix4* invertPrefix4(struct Prefix4* toInvert, struct Allocator* alloc)
 {
     struct ArrayList_OfPrefix4* result = ArrayList_OfPrefix4_new(alloc);
-    for (int i = 32 - toInvert->prefix, i < 32; i++) {
+    for (int i = 32 - toInvert->prefix; i < 32; i++) {
         struct Prefix4* pfx = Allocator_calloc(alloc, sizeof(struct Prefix4), 1);
-        pfx->addr = ( toInvert->bits & (~0 << i) ) ^ (1 << i);
+        pfx->bits = ( toInvert->bits & (~0 << i) ) ^ (1 << i);
         pfx->prefix = 32 - i;
-        ArrayList_OfPrefix4_add(pfx);
-    }
-    return out;
-}
-
-static struct ArrayList_OfPrefix4* genPrefixes4(struct ArrayList_OfPrefix4* prefixes,
-                                                struct ArrayList_OfPrefix4* exemptions,
-                                                struct Allocator* alloc)
-{
-    for (int i = 0; i < prefixes->length; i++) {
-        
-    }
-    struct ArrayList_OfPrefix4* prefixes4 = invertPrefix()
-    return NULL;
-
-
-    //TODO(Kubuxu): Dedupe prefixes adn exemptions
-    struct ArrayList_OfPrefix4* result = ArrayList_OfPrefix4_new(alloc);
-    for (int i = 0; i < prefixes->length; i++) {
-        struct Prefix4* domain = ArrayList_OfPrefix4_get(prefixes, i);
-        struct Prefix4 current;
-
-        // Load new doman into current.
-        Bits_memcpy(&current, domain, sizeof(current));
-
-        while (contained4(domain, &current)) {
-            int status = contained4Any(exemptions, &current);
-
-            if (status == 1) {
-                // We are right on some address from exemptions.
-                if (!inc4(&current)) {
-                    // Increment overflowed.
-                    break;
-                }
-            }
-
-            if (status == 0 && current.prefix > domain->prefix) {
-                // No collision
-                // Try making current bigger
-                current.prefix -= 1;
-                if (!contained4Any(exemptions, &current)) {
-                    // Finalize, clean lower bits
-                    current.bits &= (~0) << (32 - current.prefix);
-                } else {
-                    // There is collision after making it bigger.
-                    // Add this to result
-                    ArrayList_OfPrefix4_add(result, Allocator_clone(alloc, &current));
-                    // Go to next
-                    if (!inc4(&current)) {
-                        // Increment overflowed.
-                        break;
-                    }
-                }
-            }
-
-            if (status == 2) {
-                // We contain something from exemptions
-                // We have to reduce size of current
-                current.prefix += 1;
-            }
-        }
+        ArrayList_OfPrefix4_add(result, pfx);
     }
     return result;
 }
 
-static struct ArrayList_OfPrefix6* genPrefixes6(struct ArrayList_OfPrefix6* prefixes,
-                                                struct ArrayList_OfPrefix6* exemptions,
+static struct ArrayList_OfPrefix6* invertPrefix6(struct Prefix6* toInvert, struct Allocator* alloc)
+{
+    struct ArrayList_OfPrefix6* result = ArrayList_OfPrefix6_new(alloc);
+    for (int i = 128 - toInvert->prefix; i < 128; i++) {
+        struct Prefix6* pfx = Allocator_calloc(alloc, sizeof(struct Prefix6), 1);
+        if (i >= 64) {
+            pfx->highBits = ( toInvert->highBits & (~((uint64_t)0) << (i-64)) ) ^
+                (((uint64_t)1) << (i-64));
+            pfx->lowBits = 0;
+        } else {
+            pfx->highBits = toInvert->highBits;
+            pfx->lowBits = ( toInvert->lowBits & (~((uint64_t)0) << i) ) ^ (((uint64_t)1) << i);
+        }
+        pfx->prefix = 128 - i;
+        ArrayList_OfPrefix6_add(result, pfx);
+    }
+    return result;
+}
+
+static bool isSubsetOf4(struct Prefix4* isSubset, struct Prefix4* isSuperset)
+{
+    if (isSuperset->prefix > isSubset->prefix) { return false; }
+    if (isSuperset->prefix >= 32) {
+        return isSuperset->bits == isSubset->bits;
+    }
+    if (!isSuperset->prefix) { return true; }
+    uint32_t shift = 32 - isSuperset->prefix;
+    return (isSuperset->bits >> shift) == (isSubset->bits >> shift);
+}
+
+static bool isSubsetOf6(struct Prefix6* isSubset, struct Prefix6* isSuperset)
+{
+    if (isSuperset->prefix > isSubset->prefix) { return false; }
+    if (isSuperset->prefix > 64) {
+        uint64_t shift = 128 - isSuperset->prefix;
+        return isSuperset->highBits == isSubset->highBits &&
+            (isSuperset->lowBits >> shift) == (isSubset->lowBits >> shift);
+    } else if (isSuperset->prefix) {
+        uint64_t shift = 64 - isSuperset->prefix;
+        return (isSuperset->highBits >> shift) == (isSubset->highBits >> shift);
+    } else {
+        return true;
+    }
+}
+
+static void mergePrefixSets4(struct ArrayList_OfPrefix4* mergeInto,
+                             struct ArrayList_OfPrefix4* prefixes)
+{
+    struct Prefix4* highestPrefix = NULL;
+    for (int j = 0; j < prefixes->length; j++) {
+        struct Prefix4* result = ArrayList_OfPrefix4_get(prefixes, j);
+        Assert_true(result);
+        if (!highestPrefix || highestPrefix->prefix < result->prefix) {
+            highestPrefix = result;
+        }
+    }
+
+    struct Prefix4 target;
+    Bits_memcpy(&target, highestPrefix, sizeof(struct Prefix4));
+    target.bits ^= (target.prefix) ? (1 << (32 - target.prefix)) : 0;
+    for (int i = mergeInto->length - 1; i >= 0; i--) {
+        struct Prefix4* result = ArrayList_OfPrefix4_get(mergeInto, i);
+        Assert_true(result);
+        if (isSubsetOf4(&target, result)) {
+            ArrayList_OfPrefix4_remove(mergeInto, i);
+        }
+    }
+
+    for (int i = 0; i < prefixes->length; i++) {
+        bool include = true;
+        struct Prefix4* toInclude = ArrayList_OfPrefix4_get(prefixes, i);
+        for (int j = 0; j < mergeInto->length; j++) {
+            struct Prefix4* test = ArrayList_OfPrefix4_get(mergeInto, j);
+            if (isSubsetOf4(test, toInclude)) {
+                include = false;
+                break;
+            }
+        }
+        if (include) {
+            ArrayList_OfPrefix4_add(mergeInto, toInclude);
+        }
+    }
+}
+
+static void mergePrefixSets6(struct ArrayList_OfPrefix6* mergeInto,
+                             struct ArrayList_OfPrefix6* prefixes, struct Allocator* alloc)
+{
+    struct Prefix6* highestPrefix = NULL;
+    for (int j = 0; j < prefixes->length; j++) {
+        struct Prefix6* result = ArrayList_OfPrefix6_get(prefixes, j);
+        Assert_true(result);
+        if (!highestPrefix || highestPrefix->prefix < result->prefix) {
+            highestPrefix = result;
+        }
+    }
+
+    struct Prefix6 target;
+    Bits_memcpy(&target, highestPrefix, sizeof(struct Prefix6));
+    if (target.prefix > 64) {
+        target.lowBits ^= (((uint64_t)1) << (128 - target.prefix));
+    } else if (target.prefix) {
+        target.highBits ^= (((uint64_t)1) << (64 - target.prefix));
+        target.lowBits = 0;
+    }
+
+    for (int i = mergeInto->length - 1; i >= 0; i--) {
+        struct Prefix6* result = ArrayList_OfPrefix6_get(mergeInto, i);
+        Assert_true(result);
+        if (isSubsetOf6(&target, result)) {
+            ArrayList_OfPrefix6_remove(mergeInto, i);
+        }
+    }
+
+    for (int i = 0; i < prefixes->length; i++) {
+        bool include = true;
+        struct Prefix6* toInclude = ArrayList_OfPrefix6_get(prefixes, i);
+        for (int j = 0; j < mergeInto->length; j++) {
+            struct Prefix6* test = ArrayList_OfPrefix6_get(mergeInto, j);
+            if (isSubsetOf6(test, toInclude)) {
+                include = false;
+                break;
+            }
+        }
+        if (include) {
+            ArrayList_OfPrefix6_add(mergeInto, toInclude);
+        }
+    }
+}
+
+static struct Prefix4* clonePrefix4(struct Prefix4* original, struct Allocator* alloc)
+{
+    struct Prefix4* clone = Allocator_clone(alloc, original);
+    clone->alloc = alloc;
+    return clone;
+}
+
+static struct Prefix6* clonePrefix6(struct Prefix6* original, struct Allocator* alloc)
+{
+    struct Prefix6* clone = Allocator_clone(alloc, original);
+    clone->alloc = alloc;
+    return clone;
+}
+
+static struct ArrayList_OfPrefix4* genPrefixes4(struct ArrayList_OfPrefix4* prefixes,
+                                                struct ArrayList_OfPrefix4* exceptions,
                                                 struct Allocator* alloc)
 {
-    Assert_failure("unimplemented");
+    struct Allocator* tempAlloc = Allocator_child(alloc);
+    struct ArrayList_OfPrefix4* allPrefixes = ArrayList_OfPrefix4_new(tempAlloc);
+    for (int i = 0; i < exceptions->length; i++) {
+        struct Prefix4* pfxToInvert = ArrayList_OfPrefix4_get(exceptions, i);
+        struct ArrayList_OfPrefix4* prefixes4 = invertPrefix4(pfxToInvert, tempAlloc);
+        mergePrefixSets4(allPrefixes, prefixes4);
+    }
+
+    ArrayList_OfPrefix4_sort(allPrefixes);
+
+    for (int i = allPrefixes->length - 2; i >= 0; i--) {
+        struct Prefix4* pfx = ArrayList_OfPrefix4_get(allPrefixes, i);
+        struct Prefix4* pfx2 = ArrayList_OfPrefix4_get(allPrefixes, i+1);
+        if (isSubsetOf4(pfx2, pfx)) {
+            ArrayList_OfPrefix4_remove(allPrefixes, i+1);
+            if (i < (allPrefixes->length - 2)) { i++; }
+        }
+    }
+
+    for (int i = 0; i < prefixes->length; i++) {
+        struct Prefix4* pfx = ArrayList_OfPrefix4_get(prefixes, i);
+        int addPrefix = true;
+        for (int j = allPrefixes->length - 1; j >= 0; j--) {
+            struct Prefix4* pfx2 = ArrayList_OfPrefix4_get(allPrefixes, j);
+            if (isSubsetOf4(pfx2, pfx)) {
+                addPrefix = false;
+            }
+        }
+        if (addPrefix) {
+            ArrayList_OfPrefix4_add(allPrefixes, pfx);
+        }
+    }
+
+    ArrayList_OfPrefix4_sort(allPrefixes);
+
+    struct ArrayList_OfPrefix4* out = ArrayList_OfPrefix4_new(alloc);
+    for (int i = 0; i < allPrefixes->length; i++) {
+        struct Prefix4* pfx = ArrayList_OfPrefix4_get(allPrefixes, i);
+        for (int j = 0; j < prefixes->length; j++) {
+            struct Prefix4* pfx2 = ArrayList_OfPrefix4_get(prefixes, j);
+            if (isSubsetOf4(pfx, pfx2)) {
+                ArrayList_OfPrefix4_add(out, clonePrefix4(pfx, alloc));
+                break;
+            }
+        }
+    }
+    Allocator_free(tempAlloc);
+    return out;
+}
+
+// Annoyingly, this function is *exactly* the same content as genPrefixes4()
+// but with evert 4 converted to a 6...
+static struct ArrayList_OfPrefix6* genPrefixes6(struct ArrayList_OfPrefix6* prefixes,
+                                                struct ArrayList_OfPrefix6* exceptions,
+                                                struct Allocator* alloc)
+{
+    struct Allocator* tempAlloc = Allocator_child(alloc);
+    struct ArrayList_OfPrefix6* allPrefixes = ArrayList_OfPrefix6_new(tempAlloc);
+    for (int i = 0; i < exceptions->length; i++) {
+        struct Prefix6* pfxToInvert = ArrayList_OfPrefix6_get(exceptions, i);
+        struct ArrayList_OfPrefix6* prefixes6 = invertPrefix6(pfxToInvert, tempAlloc);
+        mergePrefixSets6(allPrefixes, prefixes6, alloc);
+    }
+
+    ArrayList_OfPrefix6_sort(allPrefixes);
+
+    for (int i = allPrefixes->length - 2; i >= 0; i--) {
+        struct Prefix6* pfx = ArrayList_OfPrefix6_get(allPrefixes, i);
+        struct Prefix6* pfx2 = ArrayList_OfPrefix6_get(allPrefixes, i+1);
+        if (isSubsetOf6(pfx2, pfx)) {
+            ArrayList_OfPrefix6_remove(allPrefixes, i+1);
+            if (i < (allPrefixes->length - 2)) { i++; }
+        }
+    }
+
+    for (int i = 0; i < prefixes->length; i++) {
+        struct Prefix6* pfx = ArrayList_OfPrefix6_get(prefixes, i);
+        int addPrefix = true;
+        for (int j = allPrefixes->length - 1; j >= 0; j--) {
+            struct Prefix6* pfx2 = ArrayList_OfPrefix6_get(allPrefixes, j);
+            if (isSubsetOf6(pfx2, pfx)) {
+                addPrefix = false;
+            }
+        }
+        if (addPrefix) {
+            ArrayList_OfPrefix6_add(allPrefixes, pfx);
+        }
+    }
+
+    ArrayList_OfPrefix6_sort(allPrefixes);
+
+    struct ArrayList_OfPrefix6* out = ArrayList_OfPrefix6_new(alloc);
+    for (int i = 0; i < allPrefixes->length; i++) {
+        struct Prefix6* pfx = ArrayList_OfPrefix6_get(allPrefixes, i);
+        for (int j = 0; j < prefixes->length; j++) {
+            struct Prefix6* pfx2 = ArrayList_OfPrefix6_get(prefixes, j);
+            if (isSubsetOf6(pfx, pfx2)) {
+                ArrayList_OfPrefix6_add(out, clonePrefix6(pfx, alloc));
+                break;
+            }
+        }
+    }
+    Allocator_free(tempAlloc);
+    return out;
 }
 
 static struct Prefix46* getGeneratedRoutes(struct RouteGen_pvt* rp, struct Allocator* alloc)
 {
     struct Prefix46* out = Allocator_calloc(alloc, sizeof(struct Prefix46), 1);
     if (rp->prefixes4->length > 0) {
-        out->prefix4 = genPrefixes4(rp->prefixes4, rp->exemptions4, alloc);
+        out->prefix4 = genPrefixes4(rp->prefixes4, rp->exceptions4, alloc);
     } else {
         out->prefix4 = ArrayList_OfPrefix4_new(alloc);
     }
     if (rp->prefixes6->length > 0) {
-        out->prefix6 = genPrefixes6(rp->prefixes6, rp->exemptions6, alloc);
+        out->prefix6 = genPrefixes6(rp->prefixes6, rp->exceptions6, alloc);
     } else {
         out->prefix6 = ArrayList_OfPrefix6_new(alloc);
     }
@@ -418,9 +584,9 @@ struct RouteGen* RouteGen_new(struct Allocator* allocator, struct Log* log)
     struct Allocator* alloc = Allocator_child(allocator);
     struct RouteGen_pvt* rp = Allocator_calloc(alloc, sizeof(struct RouteGen_pvt), 1);
     rp->prefixes6 = ArrayList_OfPrefix6_new(alloc);
-    rp->exemptions6 = ArrayList_OfPrefix6_new(alloc);
+    rp->exceptions6 = ArrayList_OfPrefix6_new(alloc);
     rp->prefixes4 = ArrayList_OfPrefix4_new(alloc);
-    rp->exemptions4 = ArrayList_OfPrefix4_new(alloc);
+    rp->exceptions4 = ArrayList_OfPrefix4_new(alloc);
     rp->log = log;
     rp->alloc = alloc;
     Identity_set(rp);
