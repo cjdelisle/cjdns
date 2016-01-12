@@ -936,6 +936,23 @@ int InterfaceController_getPeerStats(struct InterfaceController* ifController,
     return count;
 }
 
+void InterfaceController_resetPeering(struct InterfaceController* ifController,
+                                      uint8_t herPublicKey[32])
+{
+    struct InterfaceController_pvt* ic =
+        Identity_check((struct InterfaceController_pvt*) ifController);
+
+    for (int j = 0; j < ic->icis->length; j++) {
+        struct InterfaceController_Iface_pvt* ici = ArrayList_OfIfaces_get(ic->icis, j);
+        for (int i = 0; i < (int)ici->peerMap.count; i++) {
+            struct Peer* peer = ici->peerMap.values[i];
+            if (!herPublicKey || !Bits_memcmp(herPublicKey, peer->caSession->herPublicKey, 32)) {
+                CryptoAuth_reset(peer->caSession);
+            }
+        }
+    }
+}
+
 int InterfaceController_disconnectPeer(struct InterfaceController* ifController,
                                        uint8_t herPublicKey[32])
 {
