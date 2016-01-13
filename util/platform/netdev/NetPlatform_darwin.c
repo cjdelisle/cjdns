@@ -29,6 +29,8 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include <net/if.h>
+#include <net/if_dl.h>
+#include <net/if_types.h>
 #include <string.h>
 #include <netdb.h>
 #include <net/if_var.h>
@@ -45,16 +47,23 @@ Assert_compileTime(sizeof(struct in_addr) == 4);
 struct RouteMessage4 {
     struct rt_msghdr header;
     struct sockaddr_in dest;
-    struct sockaddr_in gateway;
+    struct sockaddr_dl link;
     struct sockaddr_in netmask;
 };
-Assert_compileTime(sizeof(struct RouteMessage4) == 140);
+Assert_compileTime(sizeof(struct rt_msghdr) == 92);
+Assert_compileTime(sizeof(struct sockaddr_in) == 16);
+Assert_compileTime(sizeof(struct sockaddr_dl) == 20);
+Assert_compileTime(sizeof(struct RouteMessage4) == 144);
 
 static void setupRoute4(const uint8_t address[4],
                         int prefixLen,
+                        const char* tunName,
                         struct Log* logger,
                         struct Except* eh)
 {
+    if (CString_strlen(tunName) > 11) {
+        Except_throw(eh, "tunnel name too long");
+    }
     struct RouteMessage4 rm = {
         .header = {
             .rtm_type = RTM_ADD,
@@ -68,9 +77,11 @@ static void setupRoute4(const uint8_t address[4],
             .sin_family = AF_INET,
             .sin_len = sizeof(struct sockaddr_in)
         },
-        .gateway = {
-            .sin_family = AF_INET,
-            .sin_len = sizeof(struct sockaddr_in)
+        .link = {
+            .sdl_family = AF_LINK,
+            .sdl_len = sizeof(struct sockaddr_dl),
+            .sdl_type = IFT_OTHER,
+            .sdl_nlen = CString_strlen(tunName)
         },
         .netmask = {
             .sin_family = AF_INET,
@@ -79,7 +90,7 @@ static void setupRoute4(const uint8_t address[4],
     };
 
     Bits_memcpy(&rm.dest.sin_addr, address, 4);
-    Bits_memcpy(&rm.gateway.sin_addr, address, 4);
+    CString_strncpy(rm.link.sdl_data, tunName, 12);
     rm.netmask.sin_addr.s_addr = Endian_hostToBigEndian32(~0 << (32 - prefixLen));
 
     int sock = socket(PF_ROUTE, SOCK_RAW, 0);
@@ -129,7 +140,7 @@ static void addIp4Address(const char* interfaceName,
         Except_throw(eh, "ioctl(SIOCSIFADDR) [%s]", strerror(err));
     }
 
-    setupRoute4(address, prefixLen, logger, eh);
+    setupRoute4(address, prefixLen, interfaceName, logger, eh);
 
     Log_info(logger, "Configured IPv4 [%u.%u.%u.%u/%i] for [%s]",
         address[0], address[1], address[2], address[3], prefixLen, interfaceName);
@@ -239,11 +250,17 @@ void NetPlatform_setMTU(const char* interfaceName,
 }
 
 void NetPlatform_addRoute(const char* interfaceName,
-                            const uint8_t* address,
-                            int prefixLen,
-                            int addrFam,
-                            struct Log* logger,
-                            struct Except* eh)
+                          const uint8_t* address,
+                          int prefixLen,
+                          int addrFam,
+                          struct Log* logger,
+                          struct Except* eh)
 {
-    Except_throw(eh, "NetPlatform_addRoute is not implemented in this platform.");
+    if (addrFam == Sockaddr_AF_INET) {
+        setupRoute4(address, prefixLen, interfaceName, logger, eh);
+    } else if (addrFam == Sockaddr_AF_INET6) {
+        Except_throw(eh, "NetPlatform_addRoute is not implemented for IPv6");
+    } else {
+        Except_throw(eh, "Unrecognized address type %d", addrFam);
+    }
 }
