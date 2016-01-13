@@ -15,6 +15,7 @@
 #include "benc/String.h"
 #include "benc/Dict.h"
 #include "benc/List.h"
+#include "exception/Jmp.h"
 #include "memory/Allocator.h"
 #include "tunnel/RouteGen.h"
 #include "admin/Admin.h"
@@ -51,7 +52,7 @@ static void getSomething(Dict* args,
     }
     Assert_true(routes);
     List* outList = List_new(requestAlloc);
-    bool more = true;
+    bool more = false;
     for (int i = page * ROUTES_PER_PAGE, j = 0; i < List_size(routes) && j < ROUTES_PER_PAGE; j++) {
         String* route = List_getString(routes, i);
         Assert_true(route);
@@ -60,6 +61,7 @@ static void getSomething(Dict* args,
             more = false;
             break;
         }
+        more = true;
     }
     Dict* out = Dict_new(requestAlloc);
     if (more) {
@@ -117,7 +119,7 @@ static void addRemoveSomething(Dict* args,
             int64_t out = ~0L;
             if (Base10_fromString(&slash[1], &out)) {
                 error = "parse_failed";
-            } else if (out <= 128 && out >= 0) {
+            } else if (out > 128 || out < 0) {
                 error = "invalid_prefix";
             } else {
                 prefix = out;
@@ -127,7 +129,7 @@ static void addRemoveSomething(Dict* args,
         }
     }
     if (!error) {
-        if (!Sockaddr_parse(buf, &ss)) {
+        if (Sockaddr_parse(buf, &ss)) {
             error = "parse_failed";
         }
     }
@@ -173,6 +175,28 @@ ADD_REMOVE_SOMETHING(removeException, addRemoveSomething_What_RM_EXCEPTION)
             { .name = "route", .required = 1, .type = "String" },                               \
         }), admin)
 
+static void updateRoutes(Dict* args,
+                         void* vcontext,
+                         String* txid,
+                         struct Allocator* requestAlloc)
+{
+    struct RouteGen_admin_Ctx* const ctx = Identity_check((struct RouteGen_admin_Ctx*) vcontext);
+    String* const tunName = Dict_getString(args, String_CONST("tunName"));
+    Dict* const ret = Dict_new(requestAlloc);
+    char* error = "none";
+    struct Jmp j;
+    Jmp_try(j) {
+        RouteGen_updateRoutes(ctx->rg, tunName->bytes, &j.handler);
+    } Jmp_catch {
+        error = j.message;
+    }
+    Dict_putString(ret,
+                   String_new("error", requestAlloc),
+                   String_new(error, requestAlloc),
+                   requestAlloc);
+    Admin_sendMessage(ret, txid, ctx->admin);
+}
+
 void RouteGen_admin_register(struct RouteGen* rg, struct Admin* admin, struct Allocator* alloc)
 {
     struct RouteGen_admin_Ctx* ctx = Allocator_calloc(alloc, sizeof(struct RouteGen_admin_Ctx), 1);
@@ -188,4 +212,9 @@ void RouteGen_admin_register(struct RouteGen* rg, struct Admin* admin, struct Al
     REGISTER_ADD_REMOVE_SOMETHING(addPrefix, ctx, admin);
     REGISTER_ADD_REMOVE_SOMETHING(removePrefix, ctx, admin);
     REGISTER_ADD_REMOVE_SOMETHING(removeException, ctx, admin);
+
+    Admin_registerFunction("RouteGen_updateRoutes", updateRoutes, ctx, true,
+        ((struct Admin_FunctionArg[]) {
+            { .name = "tunName", .required = 1, .type = "String" },
+        }), admin);
 }
