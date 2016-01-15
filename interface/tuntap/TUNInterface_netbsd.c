@@ -37,7 +37,7 @@
 #include <netinet6/in6_var.h>
 #include <netinet6/nd6.h>
 
-/* Tun Configurator for OpenBSD. */
+/* Tun Configurator for NetBSD. */
 
 struct Iface* TUNInterface_new(const char* interfaceName,
                                    char assignedInterfaceName[TUNInterface_IFNAMSIZ],
@@ -48,40 +48,46 @@ struct Iface* TUNInterface_new(const char* interfaceName,
                                    struct Allocator* alloc)
 {
     if (isTapMode) { Except_throw(eh, "tap mode not supported on this platform"); }
-
+    int err;
+    char file[TUNInterface_IFNAMSIZE];
     int i;
-    // to store the tunnel device index
-    int ppa = 9;
-    // Open the descriptor
-    int tunFd = open("/dev/tun9", O_RDWR);
-
-    if (tunFd < 0 ) {
-        int err = errno;
-        close(tunFd);
-
-        char* error = NULL;
-        if (tunFd < 0) {
-            error = "open(\"/dev/tunX\")";
+    int ppa; // to store the tunnel device index
+    int tunFd = -1;
+    if (interfaceName && strlen(interfaceName) > 3 && !strncmp(interfaceName, "tun", 3)) {
+        snprintf(file, TUNInterface_IFNAMSIZE, "/dev/%s", interfaceName);
+        tunFd = open(file, O_RDWR);
+    } else {
+        for (ppa = 0;tunFd == -1 && ppa < 99;ppa++) {
+            snprintf(file, TUNInterface_IFNAMSIZE, "/dev/tun%d", ppa);
+            tunFd = open(file, O_RDWR);
         }
-        Except_throw(eh, "%s [%s]", error, strerror(err));
     }
-    //hack in an attempt to get it to do the right thing. based on quicktun source code.
-    i=2;
-    ioctl(tunFd, TUNSIFHEAD, &i);
+    if (tunFd < 0 ) {
+        err = errno;
+        close(tunFd);
+        Except_throw(eh, "%s [%s]", "open(\"/dev/tunX\")", strerror(err));
+    }
+/* from the NetBSD tun man page:
+     TUNSIFHEAD  The argument should be a pointer to an int; a non-zero value
+                 turns off ``link-layer'' mode, and enables ``multi-af'' mode,
+                 where every packet is preceded with a four byte address
+                 family.
+*/
+    i = 2;
+    if (ioctl(tunFd, TUNSIFHEAD, &i) == -1) {
+        err = errno;
+        close(tunFd);
+        Except_throw(eh, "%s [%s]", "ioctl(tunFd,TUNSIFHEAD,&2)", strerror(err));
+    }
     // Since devices are numbered rather than named, it's not possible to have tun0 and cjdns0
     // so we'll skip the pretty names and call everything tunX
     if (assignedInterfaceName) {
-        snprintf(assignedInterfaceName, TUNInterface_IFNAMSIZ, "tun%d", ppa);
+        if(interfaceName) {
+            snprintf(assignedInterfaceName, TUNInterface_IFNAMSIZ, interfaceName, ppa);
+        } else {
+            snprintf(assignedInterfaceName, TUNInterface_IFNAMSIZ, "tun%d", ppa);
+        }
     }
-
-    char* error = NULL;
-
-    if (error) {
-        int err = errno;
-        close(tunFd);
-        Except_throw(eh, "%s [%s]", error, strerror(err));
-    }
-
     struct Pipe* p = Pipe_forFiles(tunFd, tunFd, base, eh, alloc);
 
     struct BSDMessageTypeWrapper* bmtw = BSDMessageTypeWrapper_new(alloc, logger);
