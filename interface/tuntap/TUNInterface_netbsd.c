@@ -49,16 +49,16 @@ struct Iface* TUNInterface_new(const char* interfaceName,
 {
     if (isTapMode) { Except_throw(eh, "tap mode not supported on this platform"); }
     int err;
-    char file[TUNInterface_IFNAMSIZE];
+    char file[TUNInterface_IFNAMSIZ];
     int i;
-    int ppa; // to store the tunnel device index
+    int ppa = 0; // to store the tunnel device index
     int tunFd = -1;
     if (interfaceName && strlen(interfaceName) > 3 && !strncmp(interfaceName, "tun", 3)) {
-        snprintf(file, TUNInterface_IFNAMSIZE, "/dev/%s", interfaceName);
+        snprintf(file, TUNInterface_IFNAMSIZ, "/dev/%s", interfaceName);
         tunFd = open(file, O_RDWR);
     } else {
         for (ppa = 0;tunFd == -1 && ppa < 99;ppa++) {
-            snprintf(file, TUNInterface_IFNAMSIZE, "/dev/tun%d", ppa);
+            snprintf(file, TUNInterface_IFNAMSIZ, "/dev/tun%d", ppa);
             tunFd = open(file, O_RDWR);
         }
     }

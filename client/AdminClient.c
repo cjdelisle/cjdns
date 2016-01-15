@@ -119,7 +119,7 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* addrIface)
 
     struct Sockaddr_storage source;
     Message_pop(msg, &source, ctx->targetAddr->addrLen, NULL);
-    if (Bits_memcmp(&source+1, ctx->targetAddr+1, ctx->targetAddr->addrLen-1)) {
+    if (Bits_memcmp(&source, ctx->targetAddr, ctx->targetAddr->addrLen)) {
         Log_info(ctx->logger, "Got spurious message from [%s], expecting messages from [%s]",
                  Sockaddr_print(&source.addr, msg->alloc),
                  Sockaddr_print(ctx->targetAddr, msg->alloc));
