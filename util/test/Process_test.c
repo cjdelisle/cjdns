@@ -147,6 +147,8 @@ int main(int argc, char** argv)
         Assert_true(CString_strstr(path, ".exe"));
     #elif openbsd
         Assert_true(path[0] == 'b'); // Process_getPath returns relative paths on openbsd
+    #elif netbsd
+        Assert_true(path[0] == 'b'); // Process_getPath returns relative paths on netbsd too
     #else
         Assert_true(path[0] == '/');
     #endif
