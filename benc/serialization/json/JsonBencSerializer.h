@@ -17,7 +17,7 @@
 
 #include "benc/serialization/BencSerializer.h"
 #include "util/Linker.h"
-Linker_require("benc/serialization/json/JsonBencSerializer.c")
+Linker_require("benc/serialization/json/JsonBencSerializer.c");
 
 const struct BencSerializer* JsonBencSerializer_get();
 #endif

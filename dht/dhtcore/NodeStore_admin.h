@@ -19,7 +19,7 @@
 #include "dht/dhtcore/NodeStore.h"
 #include "memory/Allocator.h"
 #include "util/Linker.h"
-Linker_require("dht/dhtcore/NodeStore_admin.c")
+Linker_require("dht/dhtcore/NodeStore_admin.c");
 
 void NodeStore_admin_register(struct NodeStore* module,
                               struct Admin* admin,

@@ -23,7 +23,7 @@
 #include "switch/EncodingScheme.h"
 #include "util/Linker.h"
 #include "util/events/EventBase.h"
-Linker_require("dht/dhtcore/NodeStore.c")
+Linker_require("dht/dhtcore/NodeStore.c");
 
 #include <stdint.h>
 #include <stdbool.h>

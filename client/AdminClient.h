@@ -23,7 +23,7 @@
 #include "util/events/EventBase.h"
 #include "util/platform/Sockaddr.h"
 #include "util/Linker.h"
-Linker_require("client/AdminClient.c")
+Linker_require("client/AdminClient.c");
 
 enum AdminClient_Error
 {

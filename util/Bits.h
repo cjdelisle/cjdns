@@ -18,7 +18,7 @@
 #include "util/Assert.h"
 #include "util/Gcc.h"
 #include "util/Linker.h"
-Linker_require("util/Bits.c")
+Linker_require("util/Bits.c");
 
 #include <stdint.h>
 #include <stddef.h>

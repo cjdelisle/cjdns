@@ -22,7 +22,7 @@
 #include "util/events/EventBase.h"
 #include "util/events/FakeNetwork.h"
 #include "util/Linker.h"
-Linker_require("interface/UDPInterface_admin.c")
+Linker_require("interface/UDPInterface_admin.c");
 
 void UDPInterface_admin_register(struct EventBase* base,
                                  struct Allocator* allocator,

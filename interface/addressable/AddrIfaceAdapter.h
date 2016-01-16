@@ -18,7 +18,7 @@
 #include "interface/addressable/AddrIface.h"
 #include "memory/Allocator.h"
 #include "util/Linker.h"
-Linker_require("interface/addressable/AddrIfaceAdapter.c")
+Linker_require("interface/addressable/AddrIfaceAdapter.c");
 
 struct AddrIfaceAdapter
 {

@@ -19,7 +19,7 @@
 #include "util/log/Log.h"
 #include "util/platform/Sockaddr.h"
 #include "util/Linker.h"
-Linker_require("util/platform/netdev/NetDev.c")
+Linker_require("util/platform/netdev/NetDev.c");
 
 /**
  * Set an address on an interface, if the interface is down (linux) bring it up,

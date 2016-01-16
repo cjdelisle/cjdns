@@ -19,7 +19,7 @@
 #include "benc/List.h"
 #include "memory/Allocator.h"
 #include "util/Linker.h"
-Linker_require("switch/EncodingScheme.c")
+Linker_require("switch/EncodingScheme.c");
 
 #include <stdint.h>
 

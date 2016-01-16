@@ -18,7 +18,7 @@
 #include "io/Writer.h"
 #include "memory/Allocator.h"
 #include "util/Linker.h"
-Linker_require("io/ArrayWriter.c")
+Linker_require("io/ArrayWriter.c");
 
 /**
  * Create a new Writer which writes to a user supplied buffer.

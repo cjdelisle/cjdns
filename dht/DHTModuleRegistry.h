@@ -22,7 +22,7 @@
 #include "io/Writer.h"
 #include "benc/Object.h"
 #include "util/Linker.h"
-Linker_require("dht/DHTModuleRegistry.c")
+Linker_require("dht/DHTModuleRegistry.c");
 
 
 /** State of the registry. */

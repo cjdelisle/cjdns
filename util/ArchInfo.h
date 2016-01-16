@@ -16,7 +16,7 @@
 #define ArchInfo_H
 
 #include "util/Linker.h"
-Linker_require("util/ArchInfo.c")
+Linker_require("util/ArchInfo.c");
 
 #include <stdint.h>
 

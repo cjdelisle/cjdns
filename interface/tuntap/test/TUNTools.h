@@ -21,7 +21,7 @@
 #include "util/platform/Sockaddr.h"
 #include "util/events/EventBase.h"
 #include "util/Linker.h"
-Linker_require("interface/tuntap/test/TUNTools.c")
+Linker_require("interface/tuntap/test/TUNTools.c");
 
 struct TUNTools;
 

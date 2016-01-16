@@ -19,7 +19,7 @@
 #include "memory/Allocator.h"
 #include "dht/dhtcore/Node.h"
 #include "util/Linker.h"
-Linker_require("dht/dhtcore/Router.c")
+Linker_require("dht/dhtcore/Router.c");
 
 /**
  * This is a facad around the other internals of dht/dhtcore.

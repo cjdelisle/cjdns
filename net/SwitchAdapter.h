@@ -19,7 +19,7 @@
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
 #include "util/Linker.h"
-Linker_require("net/SwitchAdapter.c")
+Linker_require("net/SwitchAdapter.c");
 
 /**
  * Connects the actual switch interface to the SessionManager and the ControlHandler.

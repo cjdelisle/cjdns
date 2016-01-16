@@ -20,7 +20,7 @@
 #include "util/log/Log.h"
 #include "wire/Ethernet.h"
 #include "util/Linker.h"
-Linker_require("interface/tuntap/NDPServer.c")
+Linker_require("interface/tuntap/NDPServer.c");
 
 struct NDPServer
 {

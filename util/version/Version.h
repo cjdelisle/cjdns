@@ -16,7 +16,7 @@
 #define Version_H
 
 #include "util/Linker.h"
-Linker_require("util/version/Version.c")
+Linker_require("util/version/Version.c");
 
 #include <stdint.h>
 

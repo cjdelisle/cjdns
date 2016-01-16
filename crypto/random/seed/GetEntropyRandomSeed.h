@@ -34,7 +34,7 @@
 #endif
 
 #ifdef GetEntropyRandomSeed_USEIT
-    Linker_require("crypto/random/seed/GetEntropyRandomSeed.c")
+    Linker_require("crypto/random/seed/GetEntropyRandomSeed.c");
     struct RandomSeed* GetEntropyRandomSeed_new(struct Allocator* alloc);
     RandomSeedProvider_register(GetEntropyRandomSeed_new)
 #endif

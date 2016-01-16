@@ -18,7 +18,7 @@
 #include "io/Reader.h"
 #include "memory/Allocator.h"
 #include "util/Linker.h"
-Linker_require("io/FileReader.c")
+Linker_require("io/FileReader.c");
 
 #include <stdio.h>
 

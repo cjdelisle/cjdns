@@ -22,7 +22,7 @@
 #include "util/events/EventBase.h"
 #include "util/log/Log.h"
 #include "util/Linker.h"
-Linker_require("util/events/libuv/UDPAddrIface.c")
+Linker_require("util/events/libuv/UDPAddrIface.c");
 
 #define UDPAddrIface_PADDING_AMOUNT 512
 #define UDPAddrIface_BUFFER_CAP 3496

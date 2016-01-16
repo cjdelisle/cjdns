@@ -21,7 +21,7 @@
 #include "util/Linker.h"
 
 #ifdef linux
-    Linker_require("crypto/random/seed/ProcSysKernelRandomUuidRandomSeed.c")
+    Linker_require("crypto/random/seed/ProcSysKernelRandomUuidRandomSeed.c");
     struct RandomSeed* ProcSysKernelRandomUuidRandomSeed_new(struct Allocator* alloc);
     RandomSeedProvider_register(ProcSysKernelRandomUuidRandomSeed_new)
 #endif

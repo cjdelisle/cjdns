@@ -23,7 +23,7 @@
 #include "wire/SwitchHeader.h"
 #include "wire/CryptoHeader.h"
 #include "util/Linker.h"
-Linker_require("net/SessionManager.c")
+Linker_require("net/SessionManager.c");
 
 /**
  * Purpose of this module is to take packets from "the inside" which contain ipv6 address and
