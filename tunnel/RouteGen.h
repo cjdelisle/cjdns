@@ -29,21 +29,30 @@ struct RouteGen
     bool hasUncommittedChanges;
 };
 
-void RouteGen_addException(struct RouteGen* rg, struct Sockaddr* exempt, uint8_t prefix);
+void RouteGen_addException(struct RouteGen* rg, struct Sockaddr* exempt);
 
-void RouteGen_addPrefix(struct RouteGen* rg, struct Sockaddr* destination, uint8_t prefix);
+void RouteGen_addPrefix(struct RouteGen* rg, struct Sockaddr* destination);
 
-void RouteGen_updateRoutes(struct RouteGen* rg, char* tunName, struct Except* eh);
+void RouteGen_addLocalPrefix(struct RouteGen* rg, struct Sockaddr* destination);
+
+void RouteGen_commit(struct RouteGen* rg,
+                     const char* tunName,
+                     struct Allocator* tempAlloc,
+                     struct Except* eh);
 
 Dict* RouteGen_getPrefixes(struct RouteGen* rg, struct Allocator* alloc);
+
+Dict* RouteGen_getLocalPrefixes(struct RouteGen* rg, struct Allocator* alloc);
 
 Dict* RouteGen_getExceptions(struct RouteGen* rg, struct Allocator* alloc);
 
 Dict* RouteGen_getGeneratedRoutes(struct RouteGen* rg, struct Allocator* alloc);
 
-bool RouteGen_removePrefix(struct RouteGen* rg, struct Sockaddr* toRemove, uint8_t prefix);
+bool RouteGen_removePrefix(struct RouteGen* rg, struct Sockaddr* toRemove);
 
-bool RouteGen_removeException(struct RouteGen* rg, struct Sockaddr* toRemove, uint8_t prefix);
+bool RouteGen_removeLocalPrefix(struct RouteGen* rg, struct Sockaddr* toRemove);
+
+bool RouteGen_removeException(struct RouteGen* rg, struct Sockaddr* toRemove);
 
 struct RouteGen* RouteGen_new(struct Allocator* allocator, struct Log* log);
 

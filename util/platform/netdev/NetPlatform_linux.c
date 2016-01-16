@@ -108,6 +108,7 @@ void NetPlatform_addAddress(const char* interfaceName,
                             int prefixLen,
                             int addrFam,
                             struct Log* logger,
+                            struct Allocator* tempAlloc,
                             struct Except* eh)
 {
     struct ifreq ifRequest;
@@ -227,4 +228,14 @@ void NetPlatform_addRoute(const char* interfaceName,
     }
 
     close(s);
+}
+
+void NetPlatform_setRoutes(const char* ifName,
+                           struct Sockaddr** prefixSet,
+                           int prefixCount,
+                           struct Log* logger,
+                           struct Allocator* tempAlloc,
+                           struct Except* eh)
+{
+    Except_throw(eh, "unimplemented");
 }

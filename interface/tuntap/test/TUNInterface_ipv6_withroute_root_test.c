@@ -37,8 +37,12 @@ int main(int argc, char** argv)
 
     char assignedIfName[TUNInterface_IFNAMSIZ];
     struct Iface* tun = TUNInterface_new(NULL, assignedIfName, 0, base, logger, NULL, alloc);
-    NetDev_addAddress(assignedIfName, addrA, 126, logger, NULL);
-    NetDev_addRoute(assignedIfName, addrC, 125, logger, NULL);
+    addrA->flags |= Sockaddr_flags_PREFIX;
+    addrA->prefix = 126;
+    NetDev_addAddress(assignedIfName, addrA, logger, NULL);
+    addrC->flags |= Sockaddr_flags_PREFIX;
+    addrC->prefix = 125;
+    NetDev_setRoutes(assignedIfName, ((struct Sockaddr*[]) { addrC }) , 1, logger, alloc, NULL);
 
     TUNTools_echoTest(addrA, addrC, TUNTools_genericIP6Echo, tun, base, logger, alloc);
     Allocator_free(alloc);

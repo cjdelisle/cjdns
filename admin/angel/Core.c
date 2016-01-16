@@ -153,7 +153,9 @@ static void initTunnel2(String* desiredDeviceName,
 
     struct Sockaddr* myAddr =
         Sockaddr_fromBytes(ctx->nc->myAddress->ip6.bytes, Sockaddr_AF_INET6, ctx->alloc);
-    NetDev_addAddress(assignedTunName, myAddr, addressPrefix, ctx->logger, eh);
+    myAddr->prefix = addressPrefix;
+    myAddr->flags |= Sockaddr_flags_PREFIX;
+    NetDev_addAddress(assignedTunName, myAddr, ctx->logger, eh);
     NetDev_setMTU(assignedTunName, DEFAULT_MTU, ctx->logger, eh);
 }
 

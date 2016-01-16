@@ -25,25 +25,9 @@
 
 static struct Sockaddr* mkSockaddr(char* str, struct Allocator* alloc)
 {
-    uint8_t buf[64];
-    CString_strncpy(buf, str, 64);
-    char* slash = CString_strchr(buf, '/');
-    if (slash) {
-        *slash = '\0';
-    }
     struct Sockaddr_storage ss;
-    Assert_true(!Sockaddr_parse(buf, &ss));
+    Assert_true(!Sockaddr_parse(str, &ss));
     return Sockaddr_clone(&ss.addr, alloc);
-}
-
-static int getPrefix(char* str)
-{
-    char* slash = CString_strchr(str, '/');
-    Assert_true(slash);
-    int64_t out;
-    Assert_true(!Base10_fromString(&slash[1], &out));
-    Assert_true(out <= 128 && out >= 0);
-    return (int) out;
 }
 
 static void runTest0(char** prefixes,
@@ -56,13 +40,13 @@ static void runTest0(char** prefixes,
 {
     struct RouteGen* rg = RouteGen_new(alloc, log);
     for (int i = 0; prefixes[i]; i++) {
-        RouteGen_addPrefix(rg, mkSockaddr(prefixes[i], alloc), getPrefix(prefixes[i]));
+        RouteGen_addPrefix(rg, mkSockaddr(prefixes[i], alloc));
     }
     for (int i = 0; exceptions4 && exceptions4[i]; i++) {
-        RouteGen_addException(rg, mkSockaddr(exceptions4[i], alloc), getPrefix(exceptions4[i]));
+        RouteGen_addException(rg, mkSockaddr(exceptions4[i], alloc));
     }
     for (int i = 0; exceptions6 && exceptions6[i]; i++) {
-        RouteGen_addException(rg, mkSockaddr(exceptions6[i], alloc), getPrefix(exceptions6[i]));
+        RouteGen_addException(rg, mkSockaddr(exceptions6[i], alloc));
     }
     Dict* routes = RouteGen_getGeneratedRoutes(rg, alloc);
     List* routes4 = Dict_getList(routes, String_CONST("ipv4"));

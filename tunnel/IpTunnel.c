@@ -386,23 +386,28 @@ static void addAddress(char* printedAddr, uint8_t prefixLen,
         Log_error(ctx->logger, "Invalid ip, setting ip address on TUN");
         return;
     }
+    ss.addr.flags |= Sockaddr_flags_PREFIX;
+
+    ss.addr.prefix = prefixLen;
+    struct Jmp j;
+    Jmp_try(j) {
+        NetDev_addAddress(ctx->ifName->bytes, &ss.addr, ctx->logger, &j.handler);
+    } Jmp_catch {
+        Log_error(ctx->logger, "Error setting ip address on TUN [%s]", j.message);
+        return;
+    }
+
+    ss.addr.prefix = allocSize;
     bool installRoute = false;
     if (Sockaddr_getFamily(&ss.addr) == Sockaddr_AF_INET) {
-        installRoute = (prefixLen < 32);
+        installRoute = (allocSize < 32);
     } else if (Sockaddr_getFamily(&ss.addr) == Sockaddr_AF_INET6) {
-        installRoute = (prefixLen < 128);
+        installRoute = (allocSize < 128);
     } else {
         Assert_failure("bad address family");
     }
-    struct Jmp j;
-    Jmp_try(j) {
-        NetDev_addAddress(ctx->ifName->bytes, &ss.addr, allocSize, ctx->logger, &j.handler);
-        if (installRoute) {
-            RouteGen_addPrefix(ctx->rg, &ss.addr, prefixLen);
-            //NetDev_addRoute(ctx->ifName->bytes, &ss.addr, prefixLen, ctx->logger, &j.handler);
-        }
-    } Jmp_catch {
-        Log_error(ctx->logger, "Error setting ip address on TUN [%s]", j.message);
+    if (installRoute) {
+        RouteGen_addPrefix(ctx->rg, &ss.addr);
     }
 }
 
@@ -507,6 +512,15 @@ static Iface_DEFUN incomingAddresses(Dict* d,
                  printedAddr, conn->connectionIp6Alloc, conn->connectionIp6Prefix, conn->number);
 
         addAddress(printedAddr, conn->connectionIp6Prefix, conn->connectionIp6Alloc, context);
+    }
+    if (context->rg->hasUncommittedChanges) {
+        struct Jmp j;
+        Jmp_try(j) {
+            RouteGen_commit(context->rg, context->ifName->bytes, alloc,  &j.handler);
+        } Jmp_catch {
+            Log_error(context->logger, "Error setting routes for TUN [%s]", j.message);
+            return 0;
+        }
     }
     return 0;
 }

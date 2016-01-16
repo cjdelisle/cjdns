@@ -109,7 +109,7 @@ static inline void Message_copyOver(struct Message* output,
 static inline int Message_shift(struct Message* toShift, int32_t amount, struct Except* eh)
 {
     if (amount > 0 && toShift->padding < amount) {
-        Except_throw(eh, "buffer overflow");
+        Except_throw(eh, "buffer overflow adding %d to length %d", amount, toShift->length);
     } else if (toShift->length < (-amount)) {
         Except_throw(eh, "buffer underflow");
     }

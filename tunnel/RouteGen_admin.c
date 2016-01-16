@@ -79,6 +79,7 @@ static void getSomething(Dict* args,
         getSomething(args, ctx, txid, requestAlloc, genRoutes);                                 \
     }
 GET_SOMETHING(getPrefixes)
+GET_SOMETHING(getLocalPrefixes)
 GET_SOMETHING(getExceptions)
 GET_SOMETHING(getGeneratedRoutes)
 
@@ -94,6 +95,8 @@ enum addRemoveSomething_What {
     addRemoveSomething_What_RM_EXCEPTION,
     addRemoveSomething_What_ADD_PREFIX,
     addRemoveSomething_What_RM_PREFIX,
+    addRemoveSomething_What_ADD_LOCALPREFIX,
+    addRemoveSomething_What_RM_LOCALPREFIX,
 };
 static void addRemoveSomething(Dict* args,
                                void* vcontext,
@@ -105,32 +108,18 @@ static void addRemoveSomething(Dict* args,
     String* route = Dict_getString(args, String_CONST("route"));
     char* error = NULL;
 
-    uint8_t buf[64] = {0};
     struct Sockaddr_storage ss;
-    uint8_t prefix;
     if (route->len > 63) {
         error = "parse_failed";
     }
     if (!error) {
-        CString_strncpy(buf, route->bytes, 64);
-        char* slash = CString_strchr(buf, '/');
-        if (slash) {
-            *slash = '\0';
-            int64_t out = ~0L;
-            if (Base10_fromString(&slash[1], &out)) {
-                error = "parse_failed";
-            } else if (out > 128 || out < 0) {
-                error = "invalid_prefix";
-            } else {
-                prefix = out;
-            }
+        if (Sockaddr_parse(route->bytes, &ss)) {
+            error = "parse_failed";
         } else {
-            error = "parse_failed";
-        }
-    }
-    if (!error) {
-        if (Sockaddr_parse(buf, &ss)) {
-            error = "parse_failed";
+            int family = Sockaddr_getFamily(&ss.addr);
+            if (family != Sockaddr_AF_INET && family != Sockaddr_AF_INET6) {
+                error = "unexpected_af";
+            }
         }
     }
     int retVal = -1;
@@ -138,13 +127,17 @@ static void addRemoveSomething(Dict* args,
     if (!error) {
         switch (what) {
             case addRemoveSomething_What_ADD_EXCEPTION:
-                RouteGen_addException(ctx->rg, &ss.addr, prefix); break;
+                RouteGen_addException(ctx->rg, &ss.addr); break;
             case addRemoveSomething_What_ADD_PREFIX:
-                RouteGen_addPrefix(ctx->rg, &ss.addr, prefix); break;
+                RouteGen_addPrefix(ctx->rg, &ss.addr); break;
+            case addRemoveSomething_What_ADD_LOCALPREFIX:
+                RouteGen_addLocalPrefix(ctx->rg, &ss.addr); break;
             case addRemoveSomething_What_RM_EXCEPTION:
-                retVal = RouteGen_removeException(ctx->rg, &ss.addr, prefix); break;
+                retVal = RouteGen_removeException(ctx->rg, &ss.addr); break;
             case addRemoveSomething_What_RM_PREFIX:
-                retVal = RouteGen_removePrefix(ctx->rg, &ss.addr, prefix); break;
+                retVal = RouteGen_removePrefix(ctx->rg, &ss.addr); break;
+            case addRemoveSomething_What_RM_LOCALPREFIX:
+                retVal = RouteGen_removeLocalPrefix(ctx->rg, &ss.addr); break;
             default: Assert_failure("invalid op");
         }
         if (!retVal) {
@@ -167,7 +160,9 @@ static void addRemoveSomething(Dict* args,
     }
 ADD_REMOVE_SOMETHING(addException, addRemoveSomething_What_ADD_EXCEPTION)
 ADD_REMOVE_SOMETHING(addPrefix, addRemoveSomething_What_ADD_PREFIX)
+ADD_REMOVE_SOMETHING(addLocalPrefix, addRemoveSomething_What_ADD_LOCALPREFIX)
 ADD_REMOVE_SOMETHING(removePrefix, addRemoveSomething_What_RM_PREFIX)
+ADD_REMOVE_SOMETHING(removeLocalPrefix, addRemoveSomething_What_RM_LOCALPREFIX)
 ADD_REMOVE_SOMETHING(removeException, addRemoveSomething_What_RM_EXCEPTION)
 #define REGISTER_ADD_REMOVE_SOMETHING(_name, ctx, admin) \
     Admin_registerFunction("RouteGen_" #_name, _name, ctx, true,                                \
@@ -175,10 +170,10 @@ ADD_REMOVE_SOMETHING(removeException, addRemoveSomething_What_RM_EXCEPTION)
             { .name = "route", .required = 1, .type = "String" },                               \
         }), admin)
 
-static void updateRoutes(Dict* args,
-                         void* vcontext,
-                         String* txid,
-                         struct Allocator* requestAlloc)
+static void commit(Dict* args,
+                   void* vcontext,
+                   String* txid,
+                   struct Allocator* requestAlloc)
 {
     struct RouteGen_admin_Ctx* const ctx = Identity_check((struct RouteGen_admin_Ctx*) vcontext);
     String* const tunName = Dict_getString(args, String_CONST("tunName"));
@@ -186,7 +181,7 @@ static void updateRoutes(Dict* args,
     char* error = "none";
     struct Jmp j;
     Jmp_try(j) {
-        RouteGen_updateRoutes(ctx->rg, tunName->bytes, &j.handler);
+        RouteGen_commit(ctx->rg, tunName->bytes, requestAlloc, &j.handler);
     } Jmp_catch {
         error = j.message;
     }
@@ -205,15 +200,18 @@ void RouteGen_admin_register(struct RouteGen* rg, struct Admin* admin, struct Al
     Identity_set(ctx);
 
     REGISTER_GET_SOMETHING(getPrefixes, ctx, admin);
+    REGISTER_GET_SOMETHING(getLocalPrefixes, ctx, admin);
     REGISTER_GET_SOMETHING(getExceptions, ctx, admin);
     REGISTER_GET_SOMETHING(getGeneratedRoutes, ctx, admin);
 
     REGISTER_ADD_REMOVE_SOMETHING(addException, ctx, admin);
     REGISTER_ADD_REMOVE_SOMETHING(addPrefix, ctx, admin);
+    REGISTER_ADD_REMOVE_SOMETHING(addLocalPrefix, ctx, admin);
     REGISTER_ADD_REMOVE_SOMETHING(removePrefix, ctx, admin);
+    REGISTER_ADD_REMOVE_SOMETHING(removeLocalPrefix, ctx, admin);
     REGISTER_ADD_REMOVE_SOMETHING(removeException, ctx, admin);
 
-    Admin_registerFunction("RouteGen_updateRoutes", updateRoutes, ctx, true,
+    Admin_registerFunction("RouteGen_commit", commit, ctx, true,
         ((struct Admin_FunctionArg[]) {
             { .name = "tunName", .required = 1, .type = "String" },
         }), admin);

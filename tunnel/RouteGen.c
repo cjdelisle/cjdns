@@ -78,16 +78,15 @@ struct RouteGen_pvt
 {
     struct RouteGen pub;
     struct ArrayList_OfPrefix6* prefixes6;
+    struct ArrayList_OfPrefix6* localPrefixes6;
     struct ArrayList_OfPrefix6* exceptions6;
 
     struct ArrayList_OfPrefix4* prefixes4;
+    struct ArrayList_OfPrefix4* localPrefixes4;
     struct ArrayList_OfPrefix4* exceptions4;
 
     struct Allocator* alloc;
     struct Log* log;
-
-    /** This alloc is used in installRoutes(), if it throws an error then it will be freed later. */
-    struct Allocator* tempAlloc;
 
     Identity
 };
@@ -99,13 +98,15 @@ static struct Sockaddr* sockaddrForPrefix4(struct Allocator* alloc, struct Prefi
         uint8_t bytes[4];
     } un;
     un.addr_be = Endian_hostToBigEndian32(pfx4->bits);
-    return Sockaddr_fromBytes(un.bytes, Sockaddr_AF_INET, alloc);
+    struct Sockaddr* out = Sockaddr_fromBytes(un.bytes, Sockaddr_AF_INET, alloc);
+    out->flags |= Sockaddr_flags_PREFIX;
+    out->prefix = pfx4->prefix;
+    return out;
 }
 
 static String* printPrefix4(struct Allocator* alloc, struct Prefix4* pfx4)
 {
-    char* printedAddr = Sockaddr_print(sockaddrForPrefix4(alloc, pfx4), alloc);
-    return String_printf(alloc, "%s/%d", printedAddr, pfx4->prefix);
+    return String_new(Sockaddr_print(sockaddrForPrefix4(alloc, pfx4), alloc), alloc);
 }
 
 static struct Sockaddr* sockaddrForPrefix6(struct Allocator* alloc, struct Prefix6* pfx6)
@@ -119,16 +120,18 @@ static struct Sockaddr* sockaddrForPrefix6(struct Allocator* alloc, struct Prefi
     } un;
     un.longs.highBits_be = Endian_hostToBigEndian64(pfx6->highBits);
     un.longs.lowBits_be = Endian_hostToBigEndian64(pfx6->lowBits);
-    return Sockaddr_fromBytes(un.bytes, Sockaddr_AF_INET6, alloc);
+    struct Sockaddr* out = Sockaddr_fromBytes(un.bytes, Sockaddr_AF_INET6, alloc);
+    out->flags |= Sockaddr_flags_PREFIX;
+    out->prefix = pfx6->prefix;
+    return out;
 }
 
 static String* printPrefix6(struct Allocator* alloc, struct Prefix6* pfx6)
 {
-    char* printedAddr = Sockaddr_print(sockaddrForPrefix6(alloc, pfx6), alloc);
-    return String_printf(alloc, "%s/%d", printedAddr, pfx6->prefix);
+    return String_new(Sockaddr_print(sockaddrForPrefix6(alloc, pfx6), alloc), alloc);
 }
 
-static struct Prefix4* sockaddrToPrefix4(struct Sockaddr* sa, int pfx, struct Allocator* allocator)
+static struct Prefix4* sockaddrToPrefix4(struct Sockaddr* sa, struct Allocator* allocator)
 {
     uint32_t addrNum;
     uint8_t* addr;
@@ -137,12 +140,14 @@ static struct Prefix4* sockaddrToPrefix4(struct Sockaddr* sa, int pfx, struct Al
     struct Allocator* alloc = Allocator_child(allocator);
     struct Prefix4* out = Allocator_calloc(alloc, sizeof(struct Prefix4), 1);
     out->bits = Endian_bigEndianToHost32(addrNum);
+    int pfx = Sockaddr_getPrefix(sa);
+    Assert_true(pfx > -1);
     out->prefix = pfx;
     out->alloc = alloc;
     return out;
 }
 
-static struct Prefix6* sockaddrToPrefix6(struct Sockaddr* sa, int pfx, struct Allocator* allocator)
+static struct Prefix6* sockaddrToPrefix6(struct Sockaddr* sa, struct Allocator* allocator)
 {
     struct {
         uint64_t highBits_be;
@@ -155,6 +160,8 @@ static struct Prefix6* sockaddrToPrefix6(struct Sockaddr* sa, int pfx, struct Al
     struct Prefix6* out = Allocator_calloc(alloc, sizeof(struct Prefix6), 1);
     out->highBits = Endian_bigEndianToHost64(longs.highBits_be);
     out->lowBits = Endian_bigEndianToHost64(longs.lowBits_be);
+    int pfx = Sockaddr_getPrefix(sa);
+    Assert_true(pfx > -1);
     out->prefix = pfx;
     out->alloc = alloc;
     return out;
@@ -162,15 +169,14 @@ static struct Prefix6* sockaddrToPrefix6(struct Sockaddr* sa, int pfx, struct Al
 
 static void addSomething(struct RouteGen_pvt* rp,
                          struct Sockaddr* exempt,
-                         uint8_t prefix,
                          struct ArrayList_OfPrefix6* list6,
                          struct ArrayList_OfPrefix4* list4)
 {
     if (Sockaddr_getFamily(exempt) == Sockaddr_AF_INET) {
-        struct Prefix4* p4 = sockaddrToPrefix4(exempt, prefix, rp->alloc);
+        struct Prefix4* p4 = sockaddrToPrefix4(exempt, rp->alloc);
         ArrayList_OfPrefix4_add(list4, p4);
     } else if (Sockaddr_getFamily(exempt) == Sockaddr_AF_INET6) {
-        struct Prefix6* p6 = sockaddrToPrefix6(exempt, prefix, rp->alloc);
+        struct Prefix6* p6 = sockaddrToPrefix6(exempt, rp->alloc);
         ArrayList_OfPrefix6_add(list6, p6);
     } else {
         Assert_failure("unexpected addr type");
@@ -178,16 +184,22 @@ static void addSomething(struct RouteGen_pvt* rp,
     rp->pub.hasUncommittedChanges = true;
 }
 
-void RouteGen_addException(struct RouteGen* rg, struct Sockaddr* destination, uint8_t prefix)
+void RouteGen_addException(struct RouteGen* rg, struct Sockaddr* destination)
 {
     struct RouteGen_pvt* rp = Identity_check((struct RouteGen_pvt*) rg);
-    addSomething(rp, destination, prefix, rp->exceptions6, rp->exceptions4);
+    addSomething(rp, destination, rp->exceptions6, rp->exceptions4);
 }
 
-void RouteGen_addPrefix(struct RouteGen* rg, struct Sockaddr* destination, uint8_t prefix)
+void RouteGen_addPrefix(struct RouteGen* rg, struct Sockaddr* destination)
 {
     struct RouteGen_pvt* rp = Identity_check((struct RouteGen_pvt*) rg);
-    addSomething(rp, destination, prefix, rp->prefixes6, rp->prefixes4);
+    addSomething(rp, destination, rp->prefixes6, rp->prefixes4);
+}
+
+void RouteGen_addLocalPrefix(struct RouteGen* rg, struct Sockaddr* destination)
+{
+    struct RouteGen_pvt* rp = Identity_check((struct RouteGen_pvt*) rg);
+    addSomething(rp, destination, rp->localPrefixes6, rp->localPrefixes4);
 }
 
 static Dict* getSomething(struct RouteGen_pvt* rp,
@@ -219,6 +231,12 @@ Dict* RouteGen_getPrefixes(struct RouteGen* rg, struct Allocator* alloc)
     return getSomething(rp, alloc, rp->prefixes6, rp->prefixes4);
 }
 
+Dict* RouteGen_getLocalPrefixes(struct RouteGen* rg, struct Allocator* alloc)
+{
+    struct RouteGen_pvt* rp = Identity_check((struct RouteGen_pvt*) rg);
+    return getSomething(rp, alloc, rp->localPrefixes6, rp->localPrefixes4);
+}
+
 Dict* RouteGen_getExceptions(struct RouteGen* rg, struct Allocator* alloc)
 {
     struct RouteGen_pvt* rp = Identity_check((struct RouteGen_pvt*) rg);
@@ -227,14 +245,13 @@ Dict* RouteGen_getExceptions(struct RouteGen* rg, struct Allocator* alloc)
 
 static bool removeSomething(struct RouteGen_pvt* rp,
                             struct Sockaddr* toRemove,
-                            uint8_t prefix,
                             struct ArrayList_OfPrefix6* list6,
                             struct ArrayList_OfPrefix4* list4)
 {
     struct Allocator* tempAlloc = Allocator_child(rp->alloc);
     bool ret = false;
     if (Sockaddr_getFamily(toRemove) == Sockaddr_AF_INET) {
-        struct Prefix4* p4 = sockaddrToPrefix4(toRemove, prefix, tempAlloc);
+        struct Prefix4* p4 = sockaddrToPrefix4(toRemove, tempAlloc);
         for (int i = list4->length - 1; i >= 0; i--) {
             struct Prefix4* p42 = ArrayList_OfPrefix4_get(list4, i);
             if (!comparePrefixes4(p4, p42)) {
@@ -243,7 +260,7 @@ static bool removeSomething(struct RouteGen_pvt* rp,
             }
         }
     } else if (Sockaddr_getFamily(toRemove) == Sockaddr_AF_INET6) {
-        struct Prefix6* p6 = sockaddrToPrefix6(toRemove, prefix, tempAlloc);
+        struct Prefix6* p6 = sockaddrToPrefix6(toRemove, tempAlloc);
         for (int i = list6->length - 1; i >= 0; i--) {
             struct Prefix6* p62 = ArrayList_OfPrefix6_get(list6, i);
             if (!comparePrefixes6(p6, p62)) {
@@ -258,16 +275,22 @@ static bool removeSomething(struct RouteGen_pvt* rp,
     return ret;
 }
 
-bool RouteGen_removePrefix(struct RouteGen* rg, struct Sockaddr* toRemove, uint8_t prefix)
+bool RouteGen_removePrefix(struct RouteGen* rg, struct Sockaddr* toRemove)
 {
     struct RouteGen_pvt* rp = Identity_check((struct RouteGen_pvt*) rg);
-    return removeSomething(rp, toRemove, prefix, rp->prefixes6, rp->prefixes4);
+    return removeSomething(rp, toRemove, rp->prefixes6, rp->prefixes4);
 }
 
-bool RouteGen_removeException(struct RouteGen* rg, struct Sockaddr* toRemove, uint8_t prefix)
+bool RouteGen_removeLocalPrefix(struct RouteGen* rg, struct Sockaddr* toRemove)
 {
     struct RouteGen_pvt* rp = Identity_check((struct RouteGen_pvt*) rg);
-    return removeSomething(rp, toRemove, prefix, rp->exceptions6, rp->exceptions4);
+    return removeSomething(rp, toRemove, rp->localPrefixes6, rp->localPrefixes4);
+}
+
+bool RouteGen_removeException(struct RouteGen* rg, struct Sockaddr* toRemove)
+{
+    struct RouteGen_pvt* rp = Identity_check((struct RouteGen_pvt*) rg);
+    return removeSomething(rp, toRemove, rp->exceptions6, rp->exceptions4);
 }
 
 static struct ArrayList_OfPrefix4* invertPrefix4(struct Prefix4* toInvert, struct Allocator* alloc)
@@ -427,17 +450,43 @@ static struct Prefix6* clonePrefix6(struct Prefix6* original, struct Allocator* 
 
 static struct ArrayList_OfPrefix4* genPrefixes4(struct ArrayList_OfPrefix4* prefixes,
                                                 struct ArrayList_OfPrefix4* exceptions,
+                                                struct ArrayList_OfPrefix4* localPrefixes,
                                                 struct Allocator* alloc)
 {
     struct Allocator* tempAlloc = Allocator_child(alloc);
+
+    struct ArrayList_OfPrefix4* effectiveLocalPrefixes = ArrayList_OfPrefix4_new(tempAlloc);
+    for (int i = 0; i < localPrefixes->length; i++) {
+        bool add = true;
+        struct Prefix4* localPfx = ArrayList_OfPrefix4_get(localPrefixes, i);
+        for (int j = 0; j < prefixes->length; j++) {
+            struct Prefix4* pfx = ArrayList_OfPrefix4_get(prefixes, j);
+            if (isSubsetOf4(pfx, localPfx)) {
+                add = false;
+                break;
+            }
+        }
+        if (add) {
+            ArrayList_OfPrefix4_add(effectiveLocalPrefixes, localPfx);
+        }
+    }
+
     struct ArrayList_OfPrefix4* allPrefixes = ArrayList_OfPrefix4_new(tempAlloc);
     for (int i = 0; i < exceptions->length; i++) {
         struct Prefix4* pfxToInvert = ArrayList_OfPrefix4_get(exceptions, i);
-        struct ArrayList_OfPrefix4* prefixes4 = invertPrefix4(pfxToInvert, tempAlloc);
-        mergePrefixSets4(allPrefixes, prefixes4);
+        bool add = true;
+        for (int j = 0; j < effectiveLocalPrefixes->length; j++) {
+            struct Prefix4* localPfx = ArrayList_OfPrefix4_get(effectiveLocalPrefixes, j);
+            if (isSubsetOf4(pfxToInvert, localPfx)) {
+                add = false;
+                break;
+            }
+        }
+        if (add) {
+            struct ArrayList_OfPrefix4* prefixes4 = invertPrefix4(pfxToInvert, tempAlloc);
+            mergePrefixSets4(allPrefixes, prefixes4);
+        }
     }
-
-    ArrayList_OfPrefix4_sort(allPrefixes);
 
     for (int i = allPrefixes->length - 2; i >= 0; i--) {
         struct Prefix4* pfx = ArrayList_OfPrefix4_get(allPrefixes, i);
@@ -483,14 +532,42 @@ static struct ArrayList_OfPrefix4* genPrefixes4(struct ArrayList_OfPrefix4* pref
 // but with evert 4 converted to a 6...
 static struct ArrayList_OfPrefix6* genPrefixes6(struct ArrayList_OfPrefix6* prefixes,
                                                 struct ArrayList_OfPrefix6* exceptions,
+                                                struct ArrayList_OfPrefix6* localPrefixes,
                                                 struct Allocator* alloc)
 {
     struct Allocator* tempAlloc = Allocator_child(alloc);
+
+    struct ArrayList_OfPrefix6* effectiveLocalPrefixes = ArrayList_OfPrefix6_new(tempAlloc);
+    for (int i = 0; i < localPrefixes->length; i++) {
+        bool add = true;
+        struct Prefix6* localPfx = ArrayList_OfPrefix6_get(localPrefixes, i);
+        for (int j = 0; j < prefixes->length; j++) {
+            struct Prefix6* pfx = ArrayList_OfPrefix6_get(prefixes, j);
+            if (isSubsetOf6(pfx, localPfx)) {
+                add = false;
+                break;
+            }
+        }
+        if (add) {
+            ArrayList_OfPrefix6_add(effectiveLocalPrefixes, localPfx);
+        }
+    }
+
     struct ArrayList_OfPrefix6* allPrefixes = ArrayList_OfPrefix6_new(tempAlloc);
     for (int i = 0; i < exceptions->length; i++) {
         struct Prefix6* pfxToInvert = ArrayList_OfPrefix6_get(exceptions, i);
-        struct ArrayList_OfPrefix6* prefixes6 = invertPrefix6(pfxToInvert, tempAlloc);
-        mergePrefixSets6(allPrefixes, prefixes6, alloc);
+        bool add = true;
+        for (int j = 0; j < effectiveLocalPrefixes->length; j++) {
+            struct Prefix6* localPfx = ArrayList_OfPrefix6_get(effectiveLocalPrefixes, j);
+            if (isSubsetOf6(pfxToInvert, localPfx)) {
+                add = false;
+                break;
+            }
+        }
+        if (add) {
+            struct ArrayList_OfPrefix6* prefixes6 = invertPrefix6(pfxToInvert, tempAlloc);
+            mergePrefixSets6(allPrefixes, prefixes6, alloc);
+        }
     }
 
     ArrayList_OfPrefix6_sort(allPrefixes);
@@ -539,12 +616,12 @@ static struct Prefix46* getGeneratedRoutes(struct RouteGen_pvt* rp, struct Alloc
 {
     struct Prefix46* out = Allocator_calloc(alloc, sizeof(struct Prefix46), 1);
     if (rp->prefixes4->length > 0) {
-        out->prefix4 = genPrefixes4(rp->prefixes4, rp->exceptions4, alloc);
+        out->prefix4 = genPrefixes4(rp->prefixes4, rp->exceptions4, rp->localPrefixes4, alloc);
     } else {
         out->prefix4 = ArrayList_OfPrefix4_new(alloc);
     }
     if (rp->prefixes6->length > 0) {
-        out->prefix6 = genPrefixes6(rp->prefixes6, rp->exceptions6, alloc);
+        out->prefix6 = genPrefixes6(rp->prefixes6, rp->exceptions6, rp->localPrefixes6, alloc);
     } else {
         out->prefix6 = ArrayList_OfPrefix6_new(alloc);
     }
@@ -558,25 +635,45 @@ Dict* RouteGen_getGeneratedRoutes(struct RouteGen* rg, struct Allocator* alloc)
     return getSomething(rp, alloc, p46->prefix6, p46->prefix4);
 }
 
-void RouteGen_updateRoutes(struct RouteGen* rg, char* tunName, struct Except* eh)
+void RouteGen_commit(struct RouteGen* rg,
+                     const char* tunName,
+                     struct Allocator* tempAlloc,
+                     struct Except* eh)
 {
     struct RouteGen_pvt* rp = Identity_check((struct RouteGen_pvt*) rg);
-    if (rp->tempAlloc) {
-        Allocator_free(rp->tempAlloc);
-    }
-    struct Allocator* alloc = rp->tempAlloc = Allocator_child(rp->alloc);
-    struct Prefix46* p46 = getGeneratedRoutes(rp, alloc);
-    //TODO(cjd): NetDev_flushRoutes(tunName, ctx->logger, eh);
+    struct Prefix46* p46 = getGeneratedRoutes(rp, tempAlloc);
+    struct Sockaddr** prefixSet =
+        Allocator_calloc(tempAlloc, sizeof(char*), p46->prefix4->length + p46->prefix6->length);
+    int prefixNum = 0;
     for (int i = 0; i < p46->prefix4->length; i++) {
         struct Prefix4* pfx4 = ArrayList_OfPrefix4_get(p46->prefix4, i);
-        struct Sockaddr* sa = sockaddrForPrefix4(alloc, pfx4);
-        NetDev_addRoute(tunName, sa, pfx4->prefix, rp->log, eh);
+        prefixSet[prefixNum++] = sockaddrForPrefix4(tempAlloc, pfx4);
     }
     for (int i = 0; i < p46->prefix6->length; i++) {
         struct Prefix6* pfx6 = ArrayList_OfPrefix6_get(p46->prefix6, i);
-        struct Sockaddr* sa = sockaddrForPrefix6(alloc, pfx6);
-        NetDev_addRoute(tunName, sa, pfx6->prefix, rp->log, eh);
+        prefixSet[prefixNum++] = sockaddrForPrefix6(tempAlloc, pfx6);
     }
+    Assert_true(prefixNum == p46->prefix4->length + p46->prefix6->length);
+    NetDev_setRoutes(tunName, prefixSet, prefixNum, rp->log, tempAlloc, eh);
+    rp->pub.hasUncommittedChanges = false;
+}
+
+static void setupDefaultLocalPrefixes(struct RouteGen_pvt* rp)
+{
+    struct Sockaddr_storage ss;
+    #define ADD_PREFIX(str) \
+        Assert_true(!Sockaddr_parse(str, &ss));       \
+        RouteGen_addLocalPrefix(&rp->pub, &ss.addr)
+
+    ADD_PREFIX("fe80::/10");
+    ADD_PREFIX("fd00::/8");
+
+    ADD_PREFIX("10.0.0.0/8");
+    ADD_PREFIX("172.16.0.0/12");
+    ADD_PREFIX("192.168.0.0/16");
+    ADD_PREFIX("127.0.0.0/8");
+
+    #undef ADD_PREFIX
 }
 
 struct RouteGen* RouteGen_new(struct Allocator* allocator, struct Log* log)
@@ -584,11 +681,14 @@ struct RouteGen* RouteGen_new(struct Allocator* allocator, struct Log* log)
     struct Allocator* alloc = Allocator_child(allocator);
     struct RouteGen_pvt* rp = Allocator_calloc(alloc, sizeof(struct RouteGen_pvt), 1);
     rp->prefixes6 = ArrayList_OfPrefix6_new(alloc);
+    rp->localPrefixes6 = ArrayList_OfPrefix6_new(alloc);
     rp->exceptions6 = ArrayList_OfPrefix6_new(alloc);
     rp->prefixes4 = ArrayList_OfPrefix4_new(alloc);
+    rp->localPrefixes4 = ArrayList_OfPrefix4_new(alloc);
     rp->exceptions4 = ArrayList_OfPrefix4_new(alloc);
     rp->log = log;
     rp->alloc = alloc;
     Identity_set(rp);
+    setupDefaultLocalPrefixes(rp);
     return &rp->pub;
 }
