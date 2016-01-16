@@ -388,7 +388,7 @@ static void addAddress(char* printedAddr, uint8_t prefixLen,
     }
     ss.addr.flags |= Sockaddr_flags_PREFIX;
 
-    ss.addr.prefix = prefixLen;
+    ss.addr.prefix = allocSize;
     struct Jmp j;
     Jmp_try(j) {
         NetDev_addAddress(ctx->ifName->bytes, &ss.addr, ctx->logger, &j.handler);
@@ -397,12 +397,12 @@ static void addAddress(char* printedAddr, uint8_t prefixLen,
         return;
     }
 
-    ss.addr.prefix = allocSize;
+    ss.addr.prefix = prefixLen;
     bool installRoute = false;
     if (Sockaddr_getFamily(&ss.addr) == Sockaddr_AF_INET) {
-        installRoute = (allocSize < 32);
+        installRoute = (prefixLen < 32);
     } else if (Sockaddr_getFamily(&ss.addr) == Sockaddr_AF_INET6) {
-        installRoute = (allocSize < 128);
+        installRoute = (prefixLen < 128);
     } else {
         Assert_failure("bad address family");
     }
