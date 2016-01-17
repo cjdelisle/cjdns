@@ -2,6 +2,7 @@
 
 [Русская версия](README_RU.md)
 [Hrvatski](README_HR.md)
+[Svenska](README_SV.md)
 
 #### *Networking Reinvented*
 
