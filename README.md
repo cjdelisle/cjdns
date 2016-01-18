@@ -155,12 +155,14 @@ need. If you're on OS X, don't worry about this step.
 
     ./cjdroute --genconf >> cjdroute.conf
 
-**Protect your conf file!** A lost conf file means you lost your password and
+**Protect your conf file!**
+
+A lost conf file means you lost your password and
 connections and anyone who connected to you will no longer be able to connect.
 A compromised conf file means that other people can impersonate you on the
 network.
 
-To set generate a conf file with permissions set so that only your user can
+To generate a conf file with permissions set so that only your user can
 read it and write to it:
 
     (umask 077 && ./cjdroute --genconf > cjdroute.conf)
@@ -232,6 +234,7 @@ following JSON syntax.
 **To allow your friend to initiate the connection INbound**
 
 In your conf file, you will see:
+
 ``` javascript
 "authorizedPasswords":
 [
@@ -258,9 +261,9 @@ A conf file with multiple friend-nodes, setup INbound, should look like:
 
     // More passwords should look like this.
     //William Jevons (IPv4: 0.1.2.3; IPv6 fcaa:5bac:66e4:713:cb00:e446:c317:fc39)
-{"password": "thisisauniquestring_002", "user": "William Jevons"}
+    {"password": "thisisauniquestring_002", "user": "William Jevons"}
     //Marilyn Patel (IPv4: 5.1.2.3; IPv6 fcbb:5bac:66e4:713:cb00:e446:c317:fc39)
-{"password": "thisisauniquestring_003", "user": "Marilyn Patel"}
+    {"password": "thisisauniquestring_003", "user": "Marilyn Patel"}
     // {"password": "thisisauniquestring_004"}
     ...
 
@@ -277,8 +280,8 @@ You need to give William Jevons (who is making the INbound connection) the follo
     `// Bind to this port.
     "bind": "0.0.0.0:yourportnumberishere",`
 
-3. Their unique password that you uncommented or created: "password": "thisisauniquestring_002"
-4. Your public key: "publicKey":thisisauniqueKEY_001.k"
+3. Their unique password that you uncommented or created: `"password": "thisisauniquestring_002"`
+4. Your public key: `"publicKey": "thisisauniqueKEY_001.k"`
 5. His username: "William Jevons"
 
 His login credentials will look something like this (with your IPv4 and port):
@@ -291,11 +294,9 @@ His login credentials will look something like this (with your IPv4 and port):
 }
 ```
 
-
 Please note that you and your friend can *initiate* a
 connection either outbound (from YOU --> FRIEND) or inbound (from FRIEND --> YOU)
 but traffic flows both ways once the connection is established.
-
 
 See [doc/configure.md](doc/configure.md) for more details on configuration,
 including how to peer with other cjdns nodes over ethernet and wifi.
@@ -326,7 +327,9 @@ To stop cjdns:
 If you are having problems use `killall cjdroute` to return to sanity. Use
 `pgrep cjdroute` or `top` to see if it running.
 
-**Note:** this starts cjdns as the root user so it can configure your system
+**NOTE!**
+
+This starts cjdns as the root user so it can configure your system
 without concern for permissions. To start cjdns as a non-root user, see
 [doc/non-root-user.md](doc/non-root-user.md).
 
@@ -341,9 +344,9 @@ stay on [IRC](#community) so that people can reach you.
 
 ## Admin interface
 
-When cjdnroute is up and running, the admin interface will be available at
+When cjdroute is up and running, the admin interface will be available at
 `udp://localhost:11234` (this can be changed in the `cjdroute.conf`
-configuration file). See [admin/README.md](admin/README.md) for more
+configuration file). See [doc/admin-api.md](doc/admin-api.md) for more
 information about the admin interface. There are several tools in `contrib/`
 that can interact with it.
 

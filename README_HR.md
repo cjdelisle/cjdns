@@ -315,10 +315,10 @@ A conf file with multiple friend-nodes, setup INbound, should look like:
         {"password": "thisisauniquestring_001"}
 
         // More passwords should look like this.
-    //friend_3 (IPv4: 0.1.2.3; IPv6 fcaa:5bac:66e4:713:cb00:e446:c317:fc39)
-{"password": "thisisauniquestring_002"}
-    //friend_4 (IPv4: 5.1.2.3; IPv6 fcbb:5bac:66e4:713:cb00:e446:c317:fc39)
-{"password": "thisisauniquestring_003"}
+        //friend_3 (IPv4: 0.1.2.3; IPv6 fcaa:5bac:66e4:713:cb00:e446:c317:fc39)
+        {"password": "thisisauniquestring_002"}
+        //friend_4 (IPv4: 5.1.2.3; IPv6 fcbb:5bac:66e4:713:cb00:e446:c317:fc39)
+        {"password": "thisisauniquestring_003"}
         // {"password": "thisisauniquestring_004"}
         ...
 
@@ -336,8 +336,8 @@ Morate dati friend_3 (who is making the INbound connection) sljedeće 4 stvari:
                 `// Bind to this port.
                 "bind": "0.0.0.0:yourportnumberishere",`
 
-3. Their unique password that you uncommented or created: "password": "thisisauniquestring_002"
-4. Vaš javni ključ: "publicKey":thisisauniqueKEY_001.k"
+3. Their unique password that you uncommented or created: `"password": "thisisauniquestring_002"`
+4. Vaš javni ključ: `"publicKey": "thisisauniqueKEY_001.k"`
 
 
 
@@ -392,7 +392,7 @@ stay on [IRC](#community) so that people can reach you.
 
 When cjdnroute is up and running, the admin interface will be available at
 `udp://localhost:11234` (this can be changed in the cjdroute.conf
-configuration file). See [admin/README.md](admin/README.md) for more
+configuration file). See [doc/admin-api.md](doc/admin-api.md) for more
 information about the admin interface. There are several tools in `contrib/`
 that can interact with it.
 
