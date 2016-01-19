@@ -587,9 +587,17 @@ int main(int argc, char** argv)
         // start routing
     }
 
-    struct Reader* stdinReader = FileReader_new(stdin, allocator);
+    struct Reader* stdinReader = FileReader_new(stdin, tempAlloc);
+    char firstChr;
+    Reader_read(stdinReader, &firstChr, 0);
     Dict config;
-    if (JsonBencSerializer_get()->parseDictionary(stdinReader, allocator, &config)) {
+    if (firstChr == 'd') {
+        struct Allocator* tempAlloc = Allocator_child(allocator);
+        struct Message* confMsg = Message_new(1<<16, 0, tempAlloc);
+        Reader_read(stdinReader, confMsg->bytes, 1<<16);
+        config = BencMessageReader_read(confMsg, allocator, NULL);
+        Allocator_free(tempAlloc);
+    } else if (JsonBencSerializer_get()->parseDictionary(stdinReader, allocator, &config)) {
         fprintf(stderr, "Failed to parse configuration.\n");
         return -1;
     }
