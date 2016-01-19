@@ -296,7 +296,7 @@ static bool getMoreMessages(struct RouteInfo** rio,
     //printf("%s\n", Hex_print(msg->bytes, msg->length, tempAlloc));
 
     while (msg->length) {
-        struct RouteInfo ri = {0};
+        struct RouteInfo ri = { .protocol = 0 };
         int initMsgLen = msg->length;
         struct nlmsghdr hdr;
         Message_pop(msg, &hdr, sizeof(struct nlmsghdr), eh);
