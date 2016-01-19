@@ -397,10 +397,11 @@ static void bitShave(uint8_t* address, int prefix, int af)
     } else {
         Assert_failure("bad af");
     }
-    Assert_true(prefix <= (8 * top));
-    address[prefix >> 3] &= ~( 0xff >> (8 - (prefix % 8)) );
-    for (int i = (prefix >> 3) + 1; i < top; i++) {
-        address[i] = 0;
+    if (prefix < (8 * top)) {
+        address[prefix >> 3] &= ( 0xff << (8 - (prefix % 8)) );
+        for (int i = (prefix >> 3) + 1; i < top; i++) {
+            address[i] = 0;
+        }
     }
 }
 

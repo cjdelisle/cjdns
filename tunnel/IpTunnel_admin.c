@@ -185,6 +185,7 @@ static void showConn(struct IpTunnel_Connection* conn,
         char* printedAddr = Sockaddr_print(addr, alloc);
         Dict_putString(d, String_CONST("ip6Address"), String_CONST(printedAddr), alloc);
         Dict_putInt(d, String_CONST("ip6Prefix"), conn->connectionIp6Prefix, alloc);
+        Dict_putInt(d, String_CONST("ip6Alloc"), conn->connectionIp6Alloc, alloc);
     }
 
     if (!Bits_isZero(conn->connectionIp4, 4)) {
@@ -195,6 +196,7 @@ static void showConn(struct IpTunnel_Connection* conn,
         char* printedAddr = Sockaddr_print(addr, alloc);
         Dict_putString(d, String_CONST("ip4Address"), String_CONST(printedAddr), alloc);
         Dict_putInt(d, String_CONST("ip4Prefix"), conn->connectionIp4Prefix, alloc);
+        Dict_putInt(d, String_CONST("ip4Alloc"), conn->connectionIp4Alloc, alloc);
     }
 
     Dict_putString(d, String_CONST("key"),
@@ -234,7 +236,7 @@ void IpTunnel_admin_register(struct IpTunnel* ipTun, struct Admin* admin, struct
             { .name = "ip6Alloc", .required = 0, .type = "Int" },
             { .name = "ip4Address", .required = 0, .type = "String" },
             { .name = "ip4Prefix", .required = 0, .type = "Int" },
-            { .name = "ip6Alloc", .required = 0, .type = "Int" },
+            { .name = "ip4Alloc", .required = 0, .type = "Int" },
         }), admin);
 
     Admin_registerFunction("IpTunnel_connectTo", connectTo, context, true,
