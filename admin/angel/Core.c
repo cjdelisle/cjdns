@@ -41,6 +41,7 @@
 #include "memory/Allocator_admin.h"
 #include "net/SwitchPinger_admin.h"
 #include "tunnel/IpTunnel_admin.h"
+#include "tunnel/RouteGen_admin.h"
 #include "util/events/EventBase.h"
 #include "util/events/Pipe.h"
 #include "util/events/Timeout.h"
@@ -152,7 +153,9 @@ static void initTunnel2(String* desiredDeviceName,
 
     struct Sockaddr* myAddr =
         Sockaddr_fromBytes(ctx->nc->myAddress->ip6.bytes, Sockaddr_AF_INET6, ctx->alloc);
-    NetDev_addAddress(assignedTunName, myAddr, addressPrefix, ctx->logger, eh);
+    myAddr->prefix = addressPrefix;
+    myAddr->flags |= Sockaddr_flags_PREFIX;
+    NetDev_addAddress(assignedTunName, myAddr, ctx->logger, eh);
     NetDev_setMTU(assignedTunName, DEFAULT_MTU, ctx->logger, eh);
 }
 
@@ -189,7 +192,9 @@ void Core_init(struct Allocator* alloc,
     }
     struct NetCore* nc = NetCore_new(privateKey, alloc, eventBase, rand, logger);
 
-    struct IpTunnel* ipTunnel = IpTunnel_new(logger, eventBase, alloc, rand);
+    struct RouteGen* rg = RouteGen_new(alloc, logger);
+
+    struct IpTunnel* ipTunnel = IpTunnel_new(logger, eventBase, alloc, rand, rg);
     Iface_plumb(&nc->tunAdapt->ipTunnelIf, &ipTunnel->tunInterface);
     Iface_plumb(&nc->upper->ipTunnelIf, &ipTunnel->nodeInterface);
 
@@ -200,6 +205,7 @@ void Core_init(struct Allocator* alloc,
     EventEmitter_regPathfinderIface(nc->ee, &pfAsync->ifB);
 
     // ------------------- Register RPC functions ----------------------- //
+    RouteGen_admin_register(rg, admin, alloc);
     InterfaceController_admin_register(nc->ifController, admin, alloc);
     SwitchPinger_admin_register(nc->sp, admin, alloc);
     UDPInterface_admin_register(eventBase, alloc, logger, admin, nc->ifController, fakeNet);

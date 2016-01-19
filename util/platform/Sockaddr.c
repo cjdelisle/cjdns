@@ -20,6 +20,7 @@
 #include "util/Bits.h"
 #include "util/Hex.h"
 #include "util/Hash.h"
+#include "util/Base10.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -77,83 +78,93 @@ struct Sockaddr* Sockaddr_fromNative(const void* ss, int addrLen, struct Allocat
     return &out->pub;
 }
 
-int Sockaddr_parse(const char* str, struct Sockaddr_storage* out)
+int Sockaddr_getPrefix(struct Sockaddr* addr)
+{
+    if (addr->flags & Sockaddr_flags_PREFIX) {
+        return addr->prefix;
+    }
+    int af = Sockaddr_getFamily(addr);
+    if (af == Sockaddr_AF_INET) {
+        return 32;
+    } else if (af == Sockaddr_AF_INET6) {
+        return 128;
+    } else {
+        return -1;
+    }
+}
+
+int Sockaddr_parse(const char* input, struct Sockaddr_storage* out)
 {
     struct Sockaddr_storage unusedOut;
     if (!out) {
         out = &unusedOut;
     }
-    Bits_memset(out, 0, sizeof(struct Sockaddr_storage));
-    char* lastColon = CString_strrchr(str, ':');
-    if (!lastColon || lastColon == CString_strchr(str, ':')) {
-        // IPv4
-        int port = 0;
-        int addrLen;
-        if (lastColon) {
-            addrLen = (lastColon - str);
-            port = atoi(lastColon+1);
-            if (port > 65535 || port < 0) {
-                return -1;
-            }
-        } else {
-            addrLen = CString_strlen(str);
-        }
-        uint8_t addr[16] = {0};
-        if (addrLen > 15 || addrLen < 7) {
-            return -1;
-        }
-        Bits_memcpy(addr, str, addrLen);
-        struct sockaddr_in* in = ((struct sockaddr_in*) Sockaddr_asNative(&out->addr));
-        if (uv_inet_pton(AF_INET, (char*) addr, &in->sin_addr) != 0) {
-            return -1;
-        }
-        out->addr.addrLen = sizeof(struct sockaddr_in) + Sockaddr_OVERHEAD;
-        in->sin_port = Endian_hostToBigEndian16(port);
-        in->sin_family = AF_INET;
+    uint8_t buff[64] = {0};
+    if (CString_strlen(input) > 63) {
+        return -1;
+    }
+    CString_strncpy(buff, input, 63);
+
+    int64_t port = 0;
+    char* lastColon = CString_strrchr(buff, ':');
+    char* firstColon = CString_strchr(buff, ':');
+    char* bracket = CString_strchr(buff, ']');
+    if (!lastColon) {
+        // ipv4, no port
+    } else if (lastColon != firstColon && (!bracket || lastColon < bracket)) {
+        // ipv6, no port
     } else {
-        // IPv6
-        int port = 0;
-        int addrLen;
-        if (*str == '[') {
-            str++;
-            {
-                char* endBracket = CString_strchr(str, ']');
-                if (!endBracket) {
-                    return -1;
-                }
-                addrLen = (endBracket - str);
-            }
-            if (str[addrLen+1] == ':') {
-                port = atoi(&str[addrLen+2]);
-                if (port > 65535 || port < 0) {
-                    return -1;
-                }
-            }
-        } else {
-            addrLen = CString_strlen(str);
-        }
-        uint8_t addr[40] = {0};
-        if (addrLen > 39 || addrLen < 2) {
-            return -1;
-        }
-        Bits_memcpy(addr, str, addrLen);
+        if (bracket && lastColon != &bracket[1]) { return -1; }
+        if (Base10_fromString(&lastColon[1], &port)) { return -1; }
+        if (port > 65535) { return -1; }
+        *lastColon = '\0';
+    }
+    if (bracket) {
+        *bracket = '\0';
+        if (buff[0] != '[') { return -1; }
+    } else if (buff[0] == '[') { return -1; }
+
+    int64_t prefix = -1;
+    char* slash = CString_strchr(buff, '/');
+    if (slash) {
+        *slash = '\0';
+        if (!slash[1]) { return -1; }
+        if (Base10_fromString(&slash[1], &prefix)) { return -1; }
+    }
+
+    Bits_memset(out, 0, sizeof(struct Sockaddr_storage));
+    if (lastColon != firstColon) {
+        // ipv6
         struct sockaddr_in6* in6 = (struct sockaddr_in6*) Sockaddr_asNative(&out->addr);
-        int ret = uv_inet_pton(AF_INET6, (char*) addr, &in6->sin6_addr);
-        if (ret != 0) {
+        if (uv_inet_pton(AF_INET6, (char*) ((buff[0] == '[') ? &buff[1] : buff), &in6->sin6_addr)) {
             return -1;
         }
         out->addr.addrLen = sizeof(struct sockaddr_in6) + Sockaddr_OVERHEAD;
         in6->sin6_port = Endian_hostToBigEndian16(port);
         in6->sin6_family = AF_INET6;
+    } else {
+        struct sockaddr_in* in = ((struct sockaddr_in*) Sockaddr_asNative(&out->addr));
+        if (uv_inet_pton(AF_INET, (char*) buff, &in->sin_addr)) {
+            return -1;
+        }
+        out->addr.addrLen = sizeof(struct sockaddr_in) + Sockaddr_OVERHEAD;
+        in->sin_port = Endian_hostToBigEndian16(port);
+        in->sin_family = AF_INET;
+    }
+    if (prefix != -1) {
+        if (prefix < 0 || prefix > 128) { return -1; }
+        if (Sockaddr_getFamily(&out->addr) == Sockaddr_AF_INET && prefix > 32) { return -1; }
+        out->addr.prefix = prefix;
+        out->addr.flags |= Sockaddr_flags_PREFIX;
     }
     return 0;
 }
 
 struct Sockaddr* Sockaddr_clone(const struct Sockaddr* addr, struct Allocator* alloc)
 {
-    return Sockaddr_fromNative(Sockaddr_asNativeConst(addr),
-                               addr->addrLen - Sockaddr_OVERHEAD,
-                               alloc);
+    struct Sockaddr* out = Allocator_malloc(alloc, addr->addrLen);
+    Bits_memcpy(out, addr, addr->addrLen);
+    return out;
 }
 
 char* Sockaddr_print(struct Sockaddr* sockaddr, struct Allocator* alloc)
@@ -191,17 +202,23 @@ char* Sockaddr_print(struct Sockaddr* sockaddr, struct Allocator* alloc)
         return "invalid";
     }
 
-    if (port) {
-        int totalLength = CString_strlen(printedAddr) + CString_strlen("[]:65535") + 1;
-        char* out = Allocator_calloc(alloc, totalLength, 1);
-        const char* format = (addr->ss.ss_family == AF_INET6) ? "[%s]:%u" : "%s:%u";
-        snprintf(out, totalLength, format, printedAddr, port);
-        return out;
+    char printedPrefix[16] = {0};
+    if (addr->pub.flags & Sockaddr_flags_PREFIX) {
+        snprintf(printedPrefix, 15, "/%u", addr->pub.prefix);
     }
 
-    int totalLength = CString_strlen(printedAddr) + 1;
+    char printedPort[16] = {0};
+    if (port) {
+        snprintf(printedPort, 15, ":%u", port);
+    }
+
+    char finalAddr[128] = {0};
+    const char* format = (port && addr->ss.ss_family == AF_INET6) ? "[%s%s]%s" : "%s%s%s";
+    snprintf(finalAddr, 127, format, printedAddr, printedPrefix, printedPort);
+
+    int totalLength = CString_strlen(finalAddr) + 1;
     char* out = Allocator_calloc(alloc, totalLength, 1);
-    Bits_memcpy(out, printedAddr, totalLength);
+    Bits_memcpy(out, finalAddr, totalLength);
     return out;
 }
 
