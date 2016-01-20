@@ -415,6 +415,7 @@ Builder.configure({
 
     builder.buildExecutable('client/cjdroute2.c', 'cjdroute');
 
+    builder.buildExecutable('client/cjdnsctl.c');
     builder.buildExecutable('contrib/c/publictoip6.c');
     builder.buildExecutable('contrib/c/privatetopublic.c');
     builder.buildExecutable('contrib/c/sybilsim.c');

@@ -144,14 +144,15 @@ static void removeConnection(Dict* args,
                              struct Allocator* requestAlloc)
 {
     struct Context* context = vcontext;
-/*
     int conn = (int) *(Dict_getInt(args, String_CONST("connection")));
     char* error = "none";
-    if (IpTunnel_removeConnection_NOT_FOUND == IpTunnel_removeConnection(conn, context->ipTun)) {
-        error = "not found";
+    int ret = IpTunnel_removeConnection(conn, context->ipTun);
+    if (ret == IpTunnel_removeConnection_NOT_FOUND) {
+        error = "not_found";
+    } else if (ret) {
+        error = "unknown";
     }
-*/
-    sendError("not implemented", txid, context->admin);
+    sendError(error, txid, context->admin);
 }
 
 static void listConnections(Dict* args,

@@ -273,11 +273,20 @@ int IpTunnel_connectTo(uint8_t publicKeyOfNodeToConnectTo[32], struct IpTunnel* 
  * @param connection the connection to remove.
  * @param tunnel the IpTunnel.
  */
-int IpTunnel_removeConnection(int connectionNumber, struct IpTunnel* tunnel)
+int IpTunnel_removeConnection(int num, struct IpTunnel* tunnel)
 {
-    //struct IpTunnel_pvt* context = Identity_check((struct IpTunnel_pvt*)tunnel);
-
-    return 0;
+    struct IpTunnel_pvt* ctx = Identity_check((struct IpTunnel_pvt*)tunnel);
+    for (int i = 0; i < (int)ctx->pub.connectionList.count; i++) {
+        if (ctx->pub.connectionList.connections[i].number != num) { continue; }
+        if (num < (int)(ctx->pub.connectionList.count - 1)) {
+            Bits_memcpy(&ctx->pub.connectionList.connections[num],
+                        &ctx->pub.connectionList.connections[ctx->pub.connectionList.count - 1],
+                        sizeof(struct IpTunnel_Connection));
+        }
+        ctx->pub.connectionList.count--;
+        return 0;
+    }
+    return IpTunnel_removeConnection_NOT_FOUND;
 }
 
 static bool isControlMessageInvalid(struct Message* message, struct IpTunnel_pvt* context)

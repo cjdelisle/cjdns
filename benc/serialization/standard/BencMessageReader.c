@@ -53,19 +53,24 @@ static String* readString(struct Message* msg, struct Allocator* alloc, struct E
 static List* readList(struct Message* msg, struct Allocator* alloc, struct Except* eh)
 {
     struct List_Item* last = NULL;
+    struct List_Item* first = NULL;
     for (;;) {
         uint8_t chr = Message_pop8(msg, eh);
         if (chr == 'e') {
             List* out = Allocator_malloc(alloc, sizeof(List));
-            *out = last;
+            *out = first;
             return out;
         }
         Message_push8(msg, chr, eh);
 
         struct List_Item* item = Allocator_malloc(alloc, sizeof(struct List_Item));
         item->elem = readGeneric(msg, alloc, eh);
-        item->next = last;
-        last = item;
+        if (!last) {
+            first = last = item;
+        } else {
+            last->next = item;
+            last = item;
+        }
     }
 }
 

@@ -147,7 +147,7 @@ function blist(list) {
     for(var key in list) {
         enclist.push(bencode(list[key]));
     }
-    enclist.sort();
+    // enclist.sort(); WTF that's the dumbest thing I've ever seen.
 
     str = "l";
     for(var enckey in enclist) {

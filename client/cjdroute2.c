@@ -417,9 +417,6 @@ static int usage(struct Allocator* alloc, char* appName)
            "    cjdroute --bench               Run some cryptography performance benchmarks.\n"
            "    cjdroute --version             Print the protocol version which this node speaks.\n"
            "    cjdroute --cleanconf < conf    Print a clean (valid json) version of the config.\n"
-           "    cjdroute --binconf < conf      Print a binary (bencoded) version of the config.\n"
-           "                                   cjdns can handle binary configs and cleanconf will\n"
-           "                                   convert it back to valid json.\n"
            "    cjdroute --nobg                Never fork to the background no matter the config.\n"
            "\n"
            "To get the router up and running.\n"
@@ -561,8 +558,6 @@ int main(int argc, char** argv)
             return 0;
         } else if (CString_strcmp(argv[1], "--cleanconf") == 0) {
             // Performed after reading configuration
-        } else if (CString_strcmp(argv[1], "--binconf") == 0) {
-            // Performed after reading configuration
         } else if (CString_strcmp(argv[1], "--nobg") == 0) {
             // Performed while reading configuration
         } else {
@@ -612,16 +607,6 @@ int main(int argc, char** argv)
         struct Writer* stdoutWriter = FileWriter_new(stdout, allocator);
         JsonBencSerializer_get()->serializeDictionary(stdoutWriter, config);
         printf("\n");
-        return 0;
-    }
-
-    if (argc == 2 && CString_strcmp(argv[1], "--binconf") == 0) {
-        struct Allocator* tempAlloc = Allocator_child(allocator);
-        struct Message* msg = Message_new(0, 1<<16, tempAlloc);
-        BencMessageWriter_write(config, msg, NULL);
-        write(STDOUT_FILENO, msg->bytes, msg->length);
-        printf("\n");
-        Allocator_free(tempAlloc);
         return 0;
     }
 
