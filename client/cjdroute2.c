@@ -417,6 +417,9 @@ static int usage(struct Allocator* alloc, char* appName)
            "    cjdroute --bench               Run some cryptography performance benchmarks.\n"
            "    cjdroute --version             Print the protocol version which this node speaks.\n"
            "    cjdroute --cleanconf < conf    Print a clean (valid json) version of the config.\n"
+           "    cjdroute --binconf < conf      Print a binary (bencoded) version of the config.\n"
+           "                                   cjdns can handle binary configs and cleanconf will\n"
+           "                                   convert it back to valid json.\n"
            "    cjdroute --nobg                Never fork to the background no matter the config.\n"
            "\n"
            "To get the router up and running.\n"
@@ -558,6 +561,8 @@ int main(int argc, char** argv)
             return 0;
         } else if (CString_strcmp(argv[1], "--cleanconf") == 0) {
             // Performed after reading configuration
+        } else if (CString_strcmp(argv[1], "--binconf") == 0) {
+            // Performed after reading configuration
         } else if (CString_strcmp(argv[1], "--nobg") == 0) {
             // Performed while reading configuration
         } else {
@@ -587,25 +592,36 @@ int main(int argc, char** argv)
         // start routing
     }
 
-    struct Reader* stdinReader = FileReader_new(stdin, tempAlloc);
+    struct Reader* stdinReader = FileReader_new(stdin, allocator);
     char firstChr;
     Reader_read(stdinReader, &firstChr, 0);
-    Dict config;
+    Dict configStore;
+    Dict* config = &configStore;
     if (firstChr == 'd') {
         struct Allocator* tempAlloc = Allocator_child(allocator);
         struct Message* confMsg = Message_new(1<<16, 0, tempAlloc);
         Reader_read(stdinReader, confMsg->bytes, 1<<16);
         config = BencMessageReader_read(confMsg, allocator, NULL);
         Allocator_free(tempAlloc);
-    } else if (JsonBencSerializer_get()->parseDictionary(stdinReader, allocator, &config)) {
+    } else if (JsonBencSerializer_get()->parseDictionary(stdinReader, allocator, &configStore)) {
         fprintf(stderr, "Failed to parse configuration.\n");
         return -1;
     }
 
     if (argc == 2 && CString_strcmp(argv[1], "--cleanconf") == 0) {
         struct Writer* stdoutWriter = FileWriter_new(stdout, allocator);
-        JsonBencSerializer_get()->serializeDictionary(stdoutWriter, &config);
+        JsonBencSerializer_get()->serializeDictionary(stdoutWriter, config);
         printf("\n");
+        return 0;
+    }
+
+    if (argc == 2 && CString_strcmp(argv[1], "--binconf") == 0) {
+        struct Allocator* tempAlloc = Allocator_child(allocator);
+        struct Message* msg = Message_new(0, 1<<16, tempAlloc);
+        BencMessageWriter_write(config, msg, NULL);
+        write(STDOUT_FILENO, msg->bytes, msg->length);
+        printf("\n");
+        Allocator_free(tempAlloc);
         return 0;
     }
 
@@ -617,7 +633,7 @@ int main(int argc, char** argv)
     struct Log* logger = FileWriterLog_new(stdout, allocator);
 
     // --------------------- Get Admin  --------------------- //
-    Dict* configAdmin = Dict_getDict(&config, String_CONST("admin"));
+    Dict* configAdmin = Dict_getDict(config, String_CONST("admin"));
     String* adminPass = Dict_getString(configAdmin, String_CONST("password"));
     String* adminBind = Dict_getString(configAdmin, String_CONST("bind"));
     if (!adminPass) {
@@ -650,7 +666,7 @@ int main(int argc, char** argv)
     char* args[] = { "core", corePipeName, NULL };
 
     // --------------------- Spawn Angel --------------------- //
-    String* privateKey = Dict_getString(&config, String_CONST("privateKey"));
+    String* privateKey = Dict_getString(config, String_CONST("privateKey"));
 
     char* corePath = Process_getPath(allocator);
 
@@ -671,7 +687,7 @@ int main(int argc, char** argv)
     Dict_putString(preConf, String_CONST("privateKey"), privateKey, allocator);
     Dict_putString(adminPreConf, String_CONST("bind"), adminBind, allocator);
     Dict_putString(adminPreConf, String_CONST("pass"), adminPass, allocator);
-    Dict* logging = Dict_getDict(&config, String_CONST("logging"));
+    Dict* logging = Dict_getDict(config, String_CONST("logging"));
     if (logging) {
         Dict_putDict(preConf, String_CONST("logging"), logging, allocator);
     }
@@ -708,7 +724,7 @@ int main(int argc, char** argv)
     Assert_ifParanoid(EventBase_eventCount(eventBase) == 1);
 
     // --------------------- Configuration ------------------------- //
-    Configurator_config(&config,
+    Configurator_config(config,
                         &adminAddr.addr,
                         adminPass,
                         eventBase,
@@ -717,7 +733,7 @@ int main(int argc, char** argv)
 
     // --------------------- noBackground ------------------------ //
 
-    int64_t* noBackground = Dict_getInt(&config, String_CONST("noBackground"));
+    int64_t* noBackground = Dict_getInt(config, String_CONST("noBackground"));
     if (forceNoBackground || (noBackground && *noBackground)) {
         Log_debug(logger, "Keeping cjdns client alive because %s",
             (forceNoBackground) ? "--nobg was specified on the command line"
