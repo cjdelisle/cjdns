@@ -53,6 +53,8 @@ struct Pathfinder_pvt
     #define Pathfinder_pvt_state_RUNNING 1
     int state;
 
+    int bestPathChanges;
+
     // After begin connected, these fields will be filled.
     struct Address myAddr;
     struct DHTModuleRegistry* registry;
@@ -141,6 +143,11 @@ static Iface_DEFUN sendNode(struct Message* msg,
 static void onBestPathChange(void* vPathfinder, struct Node_Two* node)
 {
     struct Pathfinder_pvt* pf = Identity_check((struct Pathfinder_pvt*) vPathfinder);
+    if (pf->bestPathChanges > 128) {
+        Log_debug(pf->log, "Ignore best path change from NodeStore, calm down...");
+        return;
+    }
+    pf->bestPathChanges++;
     struct Allocator* alloc = Allocator_child(pf->alloc);
     struct Message* msg = Message_new(0, 256, alloc);
     Iface_CALL(sendNode, msg, &node->address, Node_getCost(node), pf);
@@ -410,6 +417,8 @@ static Iface_DEFUN incomingFromEventIf(struct Message* msg, struct Iface* eventI
         Assert_true(ev == PFChan_Core_CONNECT);
         return connected(pf, msg);
     }
+    // Let the PF send another 128 path changes again because it's basically a new tick.
+    pf->bestPathChanges = 0;
     switch (ev) {
         case PFChan_Core_SWITCH_ERR: return switchErr(msg, pf);
         case PFChan_Core_SEARCH_REQ: return searchReq(msg, pf);
