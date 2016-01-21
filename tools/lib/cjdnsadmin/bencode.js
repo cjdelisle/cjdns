@@ -63,7 +63,7 @@ function bparseInt(str) {
     if(!isNum(str2)) {
         return null;
     }
-    return [str2, str.substr(str2.length+1)];
+    return [Number(str2), str.substr(str2.length+1)];
 }
 
 // parse a bencoded list

@@ -16,6 +16,7 @@ var Cjdns = require('./cjdnsadmin/cjdnsadmin');
 var Benc = require('./cjdnsadmin/bencode');
 var nThen = require('nthen');
 var Fs = require('fs');
+var Spawn = require('child_process').spawn;
 
 var DEFAULT_BCONF = '/etc/cjdroute.bconf';
 
@@ -27,9 +28,9 @@ var usage = function () {
 
 var confHelp = function () {
     console.log("Usage: cjdnsctl conf gen [ B_LOCATION ] [ yes ]");
-    console.log("       cjdnsctl conf convert [ B_LOCATION ] [ INPUT ] [ yes ]");
+    console.log("       cjdnsctl conf convert INPUT [ B_LOCATION ] [ yes ]");
     console.log("       cjdnsctl conf json [ B_LOCATION ]");
-    console.log("where  B+LOCATION := binary file path, default: " + DEFAULT_BCONF);
+    console.log("where  B_LOCATION := binary file path, default: " + DEFAULT_BCONF);
     console.log("       INPUT := a legacy format cjdroute.conf file");
 };
 
@@ -235,21 +236,207 @@ var iptun = function (ctx, i, cb) {
         case undefined:
         case 'help': iptunHelp(); cb(); return;
         default: {
-            console.log("Unrecognized argument: " + process.argv[i+!]);
+            console.log("Unrecognized argument: " + process.argv[i+1]);
             iptunHelp();
             cb();
         }
     }
 };
 
-var confGen = function (i) {
+var runCjdroute = function (args, stdin, cb) {
+    var cjdroute = 'cjdroute';
+    nThen(function (waitFor) {
+        Fs.exists(process.cwd() + '/cjdroute', waitFor(function (ex) {
+            if (ex) { cjdroute = process.cwd() + '/cjdroute'; }
+        }));
+    }).nThen(function (waitFor) {
+        var proc = Spawn(cjdroute, args);
+        var err = '';
+        var out = '';
+        proc.stderr.on('data', function (dat) { err += dat.toString(); });
+        proc.stdout.on('data', function (dat) { out += dat.toString(); });
+        proc.on('close', waitFor(function (ret) {
+            cb(ret, out, err);
+        }));
+        proc.on('error', function (err) { throw err; });
+        if (stdin) {
+            proc.stdin.write(stdin, function (err) {
+                if (err) { throw err; }
+                proc.stdin.end();
+            });
+        }
+    });
+};
 
+var parseConf = function (conf) {
+    var out = [];
+    for (;;) {
+        var idx = conf.match(/\/\/|\/\*|"/);
+        if (!idx) {
+            out.push(conf);
+            return JSON.parse(out.join(''));
+        }
+        out.push(conf.substring(0,idx.index));
+        switch (idx[0]) {
+            case '"': {
+                var ni = conf.indexOf('"', idx.index+1)+1;
+                out.push(conf.substring(idx.index, ni));
+                conf = conf.substring(ni);
+                break;
+            }
+            case '//': {
+                out.push('\n');
+                var ni = conf.indexOf('\n', idx.index+1)+2;
+                conf = conf.substring(ni);
+                break;
+            }
+            case '/*': {
+                out.push('\n');
+                var ni = conf.indexOf('*/', idx.index+1)+2;
+                conf = conf.substring(ni);
+                break;
+            }
+            default: throw new Error();
+        }
+    }
+};
+
+var lockConfFile = function (confFile, cb) {
+    var uid;
+    var mode;
+    nThen(function (waitFor) {
+        Fs.stat(confFile, waitFor(function (err, stat) {
+            if (err) { throw err; }
+            mode = stat.mode;
+            uid = stat.uid;
+        }));
+    }).nThen(function (waitFor) {
+        if (uid === 0) { return; }
+        Fs.chown(confFile, process.getuid(), process.getgid(), waitFor(function (err) {
+            if (err) { throw err; }
+        }));
+    }).nThen(function (waitFor) {
+        if (mode.toString(8).slice(-3) === '600') { return; }
+        Fs.chmod(confFile, parseInt('600',8), waitFor(function (err) {
+            if (err) { throw err; }
+        }));
+    }).nThen(cb);
+};
+
+var confGen = function (i) {
+    var confFile = DEFAULT_BCONF;
+    var force = false;
+    var conf;
+    if (process.argv.length > i+3) {
+        console.log("ERROR: `cjdnsctl conf gen` requires maximum 2 arguments");
+        return;
+    }
+    if (process.argv[i+2] === 'yes') { force = true; }
+    if (process.argv.length > i+1) {
+        if (force || process.argv[i+1] !== 'yes') {
+            confFile = process.argv[i+1];
+        } else {
+            force = true;
+        }
+    }
+
+    nThen(function (waitFor) {
+        Fs.exists(confFile, waitFor(function (ex) {
+            if (ex && !force) {
+                console.log("ERROR: `cjdnsctl conf gen` output file [" + confFile + "] exists.");
+                var cf = (confFile === DEFAULT_BCONF) ? "" : (confFile + " ");
+                console.log("       use `cjdnsctl conf gen " + cf + "yes` to overwrite.");
+                confFile = null;
+            }
+        }));
+    }).nThen(function (waitFor) {
+        if (!confFile) { return; }
+        runCjdroute(['--genconf'], undefined, waitFor(function (ret, out, err) {
+            conf = parseConf(out);
+            // Don't need default auth'd passwords.
+            conf.authorizedPasswords = [];
+        }));
+    }).nThen(function (waitFor) {
+        if (!confFile) { return; }
+        var bstr = Benc.encode(conf)
+        if (bstr !== Benc.encode(Benc.decode(bstr))) { throw new Error(); }
+        Fs.writeFile(confFile, bstr, waitFor(function (err, ret) {
+            if (err) { throw err; }
+        }));
+    }).nThen(function (waitFor) {
+        if (!confFile) { return; }
+        lockConfFile(confFile, waitFor());
+    });
 };
 
 var confConvert = function (i) {
+    var confFile = DEFAULT_BCONF;
+    var force = false;
+    var conf;
+    if (process.argv.length > i+4 || process.argv.length <= i+1) {
+        console.log("ERROR: `cjdnsctl conf convert` requires between 1 and 3 arguments");
+        return;
+    }
+
+    var inputFile = process.argv[i+1];
+    if (process.argv.length > i+2 && process.argv[process.argv.length-1] === 'yes') {
+        force = true;
+        process.argv.pop();
+    }
+    if (process.argv.length > i+2) {
+        confFile = process.argv.pop();
+    }
+
+    var inputContent;
+    nThen(function (waitFor) {
+        Fs.exists(confFile, waitFor(function (ex) {
+            if (ex && !force) {
+                console.log("ERROR: `cjdnsctl conf convert` output file [" + confFile + "] exists");
+                var cf = (confFile === DEFAULT_BCONF) ? "" : (confFile + " ");
+                console.log("       use `cjdnsctl conf convert " + cf + "yes` to overwrite.");
+                confFile = null;
+            }
+        }));
+    }).nThen(function (waitFor) {
+        Fs.readFile(inputFile, waitFor(function (err, ret) {
+            if (err) { throw err; }
+            inputContent = ret.toString('utf8');
+        }));
+    }).nThen(function (waitFor) {
+        if (!confFile) { return; }
+        runCjdroute(['--cleanconf'], inputContent, waitFor(function (ret, out, err) {
+            conf = parseConf(out);
+        }));
+    }).nThen(function (waitFor) {
+        if (!confFile) { return; }
+        var bstr = Benc.encode(conf)
+        if (bstr !== Benc.encode(Benc.decode(bstr))) { throw new Error(); }
+        Fs.writeFile(confFile, bstr, waitFor(function (err, ret) {
+            if (err) { throw err; }
+        }));
+    }).nThen(function (waitFor) {
+        if (!confFile) { return; }
+        lockConfFile(confFile, waitFor());
+    });
 };
 
 var confJson = function (i) {
+    var confFile = DEFAULT_BCONF;
+    if (process.argv.length > i+2) {
+        console.log("ERROR: `cjdnsctl conf json` takes at most, 1 argument");
+        return;
+    }
+    if (process.argv.length > i+1) {
+        confFile = process.argv[i+1];
+    }
+    Fs.readFile(confFile, function (err, ret) {
+        if (err) { throw err; }
+        var conf = Benc.decode(ret.toString('utf8'));
+        if (!conf) {
+            console.log("ERROR: failed to parse bconf file [" + confFile + "]");
+        }
+        process.stdout.write(JSON.stringify(conf, null, '  '));
+    });
 };
 
 var conf = function (i) {
