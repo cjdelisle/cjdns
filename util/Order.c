@@ -13,10 +13,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "util/Order.h"
-
-#include <stdlib.h>
+#include "util/QSort.h"
 
 void Order_qsort(void* base, size_t num, size_t size, Order_Comparator compare)
 {
-    qsort(base, num, size, compare);
+    QSort(base, num, size, compare);
 }
