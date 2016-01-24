@@ -75,7 +75,7 @@ var splice = function (goHere, viaHere) {
     goHere.push.apply(goHere, viaHere);
     while (goHere.shift() === 0) ;
     goHere.unshift(1);
-    if (goHere.length >= 63) { return errorArray(); }
+    if (goHere.length >= 60) { return errorArray(); }
     while (goHere.length < 64) { goHere.unshift(0); }
     return goHere;
 };

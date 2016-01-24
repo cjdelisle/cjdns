@@ -204,6 +204,7 @@ static void pingNode(Dict* args, void* vctx, String* txid, struct Allocator* req
     char* err = NULL;
     struct Address* addr = getNode(pathStr, ctx, &err, requestAlloc);
 
+    if (!err && addr->path >> 60) { err = "over_the_rainbow"; }
     if (err) {
         Dict errDict = Dict_CONST(String_CONST("error"), String_OBJ(String_CONST(err)), NULL);
         Admin_sendMessage(&errDict, txid, ctx->admin);
@@ -238,6 +239,7 @@ static void getPeers(Dict* args, void* vctx, String* txid, struct Allocator* req
             err = "parse_nearbyLabel";
         }
     }
+    if (!err && addr->path >> 60) { err = "over_the_rainbow"; }
 
     if (err) {
         Dict errDict = Dict_CONST(String_CONST("error"), String_OBJ(String_CONST(err)), NULL);
@@ -274,6 +276,7 @@ static void findNode(Dict* args, void* vctx, String* txid, struct Allocator* req
             err = "parse_target";
         }
     }
+    if (!err && nodeToQuery->path >> 60) { err = "over_the_rainbow"; }
 
     if (err) {
         Dict errDict = Dict_CONST(String_CONST("error"), String_OBJ(String_CONST(err)), NULL);
@@ -306,6 +309,7 @@ static void nextHop(Dict* args, void* vctx, String* txid, struct Allocator* requ
     uint8_t target[16];
 
     if (!err && AddrTools_parseIp(target, targetStr->bytes)) { err = "parse_target"; }
+    if (!err && nodeToQuery->path >> 60) { err = "over_the_rainbow"; }
 
     if (err) {
         Dict errDict = Dict_CONST(String_CONST("error"), String_OBJ(String_CONST(err)), NULL);
