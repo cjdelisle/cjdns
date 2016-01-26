@@ -123,10 +123,7 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* addrIface)
         Log_info(ctx->logger, "Got spurious message from [%s], expecting messages from [%s]",
                  Sockaddr_print(&source.addr, msg->alloc),
                  Sockaddr_print(ctx->targetAddr, msg->alloc));
-//for some reason Bits_memcmp fails on NetBSD. this is a shitty shitty way to fix this.
-#ifndef netbsd
         return NULL;
-#endif
     }
 
     // we don't yet know with which message this data belongs,
