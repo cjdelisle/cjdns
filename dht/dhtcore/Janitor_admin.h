@@ -19,7 +19,7 @@
 #include "admin/Admin.h"
 #include "dht/dhtcore/Janitor.h"
 #include "util/Linker.h"
-Linker_require("dht/dhtcore/Janitor_admin.c")
+Linker_require("dht/dhtcore/Janitor_admin.c");
 
 void Janitor_admin_register(struct Janitor* janitor, struct Admin* admin, struct Allocator* alloc);
 

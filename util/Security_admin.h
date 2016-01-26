@@ -20,7 +20,7 @@
 #include "util/log/Log.h"
 #include "util/Security.h"
 #include "util/Linker.h"
-Linker_require("util/Security_admin.c")
+Linker_require("util/Security_admin.c");
 
 void Security_admin_register(struct Allocator* alloc,
                              struct Log* logger,

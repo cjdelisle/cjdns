@@ -20,7 +20,7 @@
 #include "util/log/Log.h"
 #include "memory/Allocator.h"
 #include "util/Linker.h"
-Linker_require("interface/ASynchronizer.c")
+Linker_require("interface/ASynchronizer.c");
 
 struct ASynchronizer
 {

@@ -19,7 +19,7 @@
 #include "memory/Allocator.h"
 #include "util/events/EventBase.h"
 #include "util/Linker.h"
-Linker_require("net/PeerLink.c")
+Linker_require("net/PeerLink.c");
 
 #include <stdbool.h>
 

@@ -2,12 +2,12 @@
 
 README na Engleskom: [README.md](README.md)
 
-#### *Networking Reinvented*
+#### *Umrežavanje iznova*
 
-Cjdns implements an encrypted IPv6 network using public-key cryptography for
-address allocation and a distributed hash table for routing. This provides
-near-zero-configuration networking, and prevents many of the security and
-scalability issues that plague existing networks.
+Cjdns provodi šifriranu IPv6 mrežu koristeći public-key kriptografiju za
+dodjelu adresa i distribuiranu hash tablicu za usmjeravanje. To omogućuje
+gotovo nikakvu mrežnu konfiguraciju i sprječava mnoge sigurnosne i
+skalabilne probleme koje muče trenutne mreže.
 
 [![Build Status](https://travis-ci.org/cjdelisle/cjdns.svg?branch=master)](https://travis-ci.org/cjdelisle/cjdns)
 [![napojnica za sljedeću promjenu](https://tip4commit.com/projects/941.svg)](https://tip4commit.com/github/cjdelisle/cjdns)
@@ -31,12 +31,12 @@ scalability issues that plague existing networks.
 
 ## Kada će biti završen?
 
-[Hyperboria][] je najveća cjdns mreža, with hundreds of active nodes
+[Hyperboria][] je najveća cjdns mreža, sa stotinama aktivnih jedinica
 po cijelom svijetu.
 
 Cjdns je testiran na x86, amd64, ARMv5, ARMv7, MIPS, and PowerPC.
-It's [continually tested][buildbots] on Linux, FreeBSD, OS X, Windows and Illumos
-systems.
+Stalno se [testira][buildbots] na Linuxu, FreeBSDu, OS X-u, Windowsu and Illumos
+systemima.
 
 Protokoli i algoritmi su eksperimentalni i mogli bi se promijeniti.
 Kako biste smanjili štetu mreže, molimo često nadograđujte vaše cjdns jedinke.
@@ -64,8 +64,7 @@ in the label tell them to. Routers have a responsibility to "keep in touch"
 with other routers that are physically close by and numerically near to their
 address.
 
-The router engine is a modified implementation of the [Kademlia][] distributed
-hash table.
+Motor usmjerivača je modificirana implementacija [Kademlia][] ddistribuirane hash tablice.
 
 
 ## Zajednica
@@ -84,10 +83,10 @@ hash table.
 * [Cjdns na Wikipediji][]
 
 
-Advanced configuration:
+Napredna konfiguracija:
 
 * [Setup a cjdns NAT gateway for your LAN](doc/nat-gateway.md)
-* [Install cjdns on OpenIndiana](doc/open-indiana.md)
+* [Instaliraj cjdns na OpenIndiani](doc/open-indiana.md)
 
 ### Licenca
 
@@ -316,10 +315,10 @@ A conf file with multiple friend-nodes, setup INbound, should look like:
         {"password": "thisisauniquestring_001"}
 
         // More passwords should look like this.
-    //friend_3 (IPv4: 0.1.2.3; IPv6 fcaa:5bac:66e4:713:cb00:e446:c317:fc39)
-{"password": "thisisauniquestring_002"}
-    //friend_4 (IPv4: 5.1.2.3; IPv6 fcbb:5bac:66e4:713:cb00:e446:c317:fc39)
-{"password": "thisisauniquestring_003"}
+        //friend_3 (IPv4: 0.1.2.3; IPv6 fcaa:5bac:66e4:713:cb00:e446:c317:fc39)
+        {"password": "thisisauniquestring_002"}
+        //friend_4 (IPv4: 5.1.2.3; IPv6 fcbb:5bac:66e4:713:cb00:e446:c317:fc39)
+        {"password": "thisisauniquestring_003"}
         // {"password": "thisisauniquestring_004"}
         ...
 
@@ -337,8 +336,8 @@ Morate dati friend_3 (who is making the INbound connection) sljedeće 4 stvari:
                 `// Bind to this port.
                 "bind": "0.0.0.0:yourportnumberishere",`
 
-3. Their unique password that you uncommented or created: "password": "thisisauniquestring_002"
-4. Vaš javni ključ: "publicKey":thisisauniqueKEY_001.k"
+3. Their unique password that you uncommented or created: `"password": "thisisauniquestring_002"`
+4. Vaš javni ključ: `"publicKey": "thisisauniqueKEY_001.k"`
 
 
 
@@ -393,7 +392,7 @@ stay on [IRC](#community) so that people can reach you.
 
 When cjdnroute is up and running, the admin interface will be available at
 `udp://localhost:11234` (this can be changed in the cjdroute.conf
-configuration file). See [admin/README.md](admin/README.md) for more
+configuration file). See [doc/admin-api.md](doc/admin-api.md) for more
 information about the admin interface. There are several tools in `contrib/`
 that can interact with it.
 
@@ -414,7 +413,7 @@ Možete pristupiti administratorskom API-ju putem:
 [Buildbots]: https://buildbot.meshwith.me/cjdns/waterfall
 
 [Cjdns na Wikepediji]: https://en.wikipedia.org/wiki/Cjdns
-[Distributed Hash Table]: https://en.wikipedia.org/wiki/Distributed_hash_table
+[Distribuirana hash tablica]: https://en.wikipedia.org/wiki/Distributed_hash_table
 [Beyond Pain]: https://lists.torproject.org/pipermail/tor-dev/2012-October/004063.html
 [Kademlia]: https://en.wikipedia.org/wiki/Kademlia
 

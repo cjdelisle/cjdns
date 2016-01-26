@@ -1604,3 +1604,110 @@ Test sending 100000 64 byte     data packets
 This is the switch configuration so this indicates expected switch throughput:
 Test sending 100000 1500 byte   data packets
         Finished in 8532ms. 140646 Kb/s
+
+Raspberry Pi (model B)
+----------------------
+txt@txtpie:~/cjdns$ ./cjdroute --bench |grep " per second"
+1450234937 INFO Benchmark.c:62 Benchmark salsa20/poly1305 in 30754ms. 39019 kilobits per second
+1450235012 INFO Benchmark.c:62 Benchmark Switching in 74575ms. 13731 packets per second
+txt@txtpie:~/cjdns$ cat /proc/cpuinfo 
+processor       : 0
+model name      : ARMv6-compatible processor rev 7 (v6l)
+BogoMIPS        : 2.00
+Features        : half thumb fastmult vfp edsp java tls 
+CPU implementer : 0x41
+CPU architecture: 7
+CPU variant     : 0x0
+CPU part        : 0xb76
+CPU revision    : 7
+
+Hardware        : BCM2708
+Revision        : 0002
+Serial          : 000000003d24b6ce
+txt@txtpie:~/cjdns$ git log | head -n 1
+commit 13189fde111d0500427a7a0ce06a970753527bca
+txt@txtpie:~/cjdns$ date
+Wed Dec 16 04:08:25 CET 2015
+txt@txtpie:~/cjdns$ cpufreq-info |grep "current CPU"
+  current CPU frequency is 900 MHz.
+txt@txtpie:~/cjdns$ uname -r
+3.18.0-trunk-rpi
+txt@txtpie:~/cjdns$ 
+
+CubieBoard
+----------
+txt@Cubian:~/cjdns$ ./cjdroute --bench |grep " per second"
+1450236953 INFO Benchmark.c:62 Benchmark salsa20/poly1305 in 34462ms. 34820 kilobits per second
+1450236979 INFO Benchmark.c:62 Benchmark Switching in 25955ms. 39452 packets per second
+txt@Cubian:~/cjdns$ cat /proc/cpuinfo
+Processor       : ARMv7 Processor rev 2 (v7l)
+BogoMIPS        : 1001.88
+Features        : swp half thumb fastmult vfp edsp neon vfpv3 tls 
+CPU implementer : 0x41
+CPU architecture: 7
+CPU variant     : 0x3
+CPU part        : 0xc08
+CPU revision    : 2
+
+Hardware        : sun4i
+Revision        : 0000
+Serial          : 0000000000000000
+Chipid          : 162367cb-80758952-54544848-02820cf7
+txt@Cubian:~/cjdns$ git log | head -n 1
+commit 13189fde111d0500427a7a0ce06a970753527bca
+txt@Cubian:~/cjdns$ date
+Wed Dec 16 04:40:55 CET 2015
+txt@Cubian:~/cjdns$ cpufreq-info |grep current
+  current policy: frequency should be within 300 MHz and 1.01 GHz.
+  current CPU frequency is 1.01 GHz.
+txt@Cubian:~/cjdns$ uname -r
+3.4.79-sun4i
+txt@Cubian:~/cjdns$ 
+
+Intel Atom N550
+---------------
+$ ./cjdroute --bench | grep " per second"
+1450400626 INFO Benchmark.c:62 Benchmark salsa20/poly1305 in 4706ms. 254993 kilobits per second
+1450400634 INFO Benchmark.c:62 Benchmark Switching in 7335ms. 139604 packets per second
+$ grep -m1 "model name" /proc/cpuinfo
+model name	: Intel(R) Atom(TM) CPU N550   @ 1.50GHz
+$ git log | head -n 1
+commit 13189fde111d0500427a7a0ce06a970753527bca
+$ uname -r
+3.16.0-0.bpo.4-amd64
+
+Intel Atom N2800
+----------------
+$ ./cjdroute --bench |grep " per second"
+1450401258 INFO Benchmark.c:62 Benchmark salsa20/poly1305 in 4261ms. 281624 kilobits per second
+1450401265 INFO Benchmark.c:62 Benchmark Switching in 6685ms. 153178 packets per second
+$ grep -m1 "model name" /proc/cpuinfo
+model name      : Intel(R) Atom(TM) CPU N2800   @ 1.86GHz
+$ git log | head -n 1
+commit 13189fde111d0500427a7a0ce06a970753527bca
+$ uname -r
+3.2.0-4-amd64
+
+Intel Xeon E5-2630
+------------------
+$ ./cjdroute --bench |grep " per second"
+1450401369 INFO Benchmark.c:62 Benchmark salsa20/poly1305 in 1110ms. 1081081 kilobits per second
+1450401371 INFO Benchmark.c:62 Benchmark Switching in 2532ms. 404423 packets per second
+$ grep -m1 "model name" /proc/cpuinfo
+model name      : Intel(R) Xeon(R) CPU E5-2630 0 @ 2.30GHz
+$ git log | head -n 1
+commit 13189fde111d0500427a7a0ce06a970753527bca
+$ uname -r
+4.1.14-gnu
+
+AMD E-350
+---------
+$ ./cjdroute --bench |grep " per second"
+1450401774 INFO Benchmark.c:62 Benchmark salsa20/poly1305 in 3205ms. 374414 kilobits per second
+1450401779 INFO Benchmark.c:62 Benchmark Switching in 4968ms. 206119 packets per second
+$ grep -m1 "model name" /proc/cpuinfo
+model name      : AMD E-350 Processor
+$ git log | head -n 1
+commit 13189fde111d0500427a7a0ce06a970753527bca
+$ uname -r
+3.2.0-4-amd64

@@ -20,7 +20,7 @@
 #include "memory/Allocator.h"
 #include "util/platform/Sockaddr.h"
 #include "util/Linker.h"
-Linker_require("interface/addressable/PacketHeaderToUDPAddrIface.c")
+Linker_require("interface/addressable/PacketHeaderToUDPAddrIface.c");
 
 struct PacketHeaderToUDPAddrIface
 {

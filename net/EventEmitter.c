@@ -191,7 +191,7 @@ static struct Message* pathfinderMsg(enum PFChan_Core ev,
     struct PFChan_Core_Pathfinder* pathfinder = (struct PFChan_Core_Pathfinder*) msg->bytes;
     pathfinder->superiority_be = Endian_hostToBigEndian32(pf->superiority);
     pathfinder->pathfinderId_be = Endian_hostToBigEndian32(pf->pathfinderId);
-    Bits_memcpyConst(pathfinder->userAgent, pf->userAgent, 64);
+    Bits_memcpy(pathfinder->userAgent, pf->userAgent, 64);
     Message_push32(msg, 0xffffffff, NULL);
     Message_push32(msg, ev, NULL);
     return msg;
@@ -211,13 +211,13 @@ static int handleFromPathfinder(enum PFChan_Pathfinder ev,
             Message_pop(msg, &connect, PFChan_Pathfinder_Connect_SIZE, NULL);
             pf->superiority = Endian_bigEndianToHost32(connect.superiority_be);
             pf->version = Endian_bigEndianToHost32(connect.version_be);
-            Bits_memcpyConst(pf->userAgent, connect.userAgent, 64);
+            Bits_memcpy(pf->userAgent, connect.userAgent, 64);
             pf->state = Pathfinder_state_CONNECTED;
 
             struct PFChan_Core_Connect resp;
             resp.version_be = Endian_bigEndianToHost32(Version_CURRENT_PROTOCOL);
             resp.pathfinderId_be = Endian_hostToBigEndian32(pf->pathfinderId);
-            Bits_memcpyConst(resp.publicKey, ee->publicKey, 32);
+            Bits_memcpy(resp.publicKey, ee->publicKey, 32);
             Message_push(msg, &resp, PFChan_Core_Connect_SIZE, NULL);
             Message_push32(msg, PFChan_Core_CONNECT, NULL);
             struct Message* sendMsg = Message_clone(msg, msg->alloc);
@@ -353,7 +353,7 @@ struct EventEmitter* EventEmitter_new(struct Allocator* allocator,
     ee->alloc = alloc;
     ee->trickIf.send = incomingFromCore;
     ee->pathfinders = ArrayList_Pathfinders_new(ee->alloc);
-    Bits_memcpyConst(ee->publicKey, publicKey, 32);
+    Bits_memcpy(ee->publicKey, publicKey, 32);
     Identity_set(ee);
     return &ee->pub;
 }

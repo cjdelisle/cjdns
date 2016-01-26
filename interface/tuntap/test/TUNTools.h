@@ -21,7 +21,7 @@
 #include "util/platform/Sockaddr.h"
 #include "util/events/EventBase.h"
 #include "util/Linker.h"
-Linker_require("interface/tuntap/test/TUNTools.c")
+Linker_require("interface/tuntap/test/TUNTools.c");
 
 struct TUNTools;
 
@@ -31,6 +31,7 @@ Iface_DEFUN TUNTools_genericIP6Echo(struct Message* msg, struct TUNTools* tt);
 
 const uint8_t* TUNTools_testIP6AddrA;
 const uint8_t* TUNTools_testIP6AddrB;
+const uint8_t* TUNTools_testIP6AddrC;
 
 struct TUNTools
 {

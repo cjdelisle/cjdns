@@ -16,7 +16,7 @@
 #define Order_H
 
 #include "util/Linker.h"
-Linker_require("util/Order.c")
+Linker_require("util/Order.c");
 
 #include <stddef.h>
 typedef int (* Order_Comparator)(const void* a, const void* b);

@@ -17,7 +17,7 @@
 
 #include "util/events/EventBase.h"
 #include "util/Linker.h"
-Linker_require("util/events/libuv/Time.c")
+Linker_require("util/events/libuv/Time.c");
 
 #include <stdint.h>
 

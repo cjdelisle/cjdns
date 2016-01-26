@@ -20,7 +20,7 @@
 #include "util/events/EventBase.h"
 #include "interface/Iface.h"
 #include "util/Linker.h"
-Linker_require("switch/SwitchCore.c")
+Linker_require("switch/SwitchCore.c");
 
 #include <stdint.h>
 

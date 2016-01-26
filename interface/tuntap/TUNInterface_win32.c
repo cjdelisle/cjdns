@@ -17,6 +17,7 @@
 #include "interface/tuntap/windows/TAPInterface.h"
 #include "interface/tuntap/TAPWrapper.h"
 #include "interface/tuntap/NDPServer.h"
+#include "interface/tuntap/ARPServer.h"
 #include "util/CString.h"
 
 struct Iface* TUNInterface_new(const char* interfaceName,
@@ -33,10 +34,7 @@ struct Iface* TUNInterface_new(const char* interfaceName,
     struct TAPWrapper* tapWrapper = TAPWrapper_new(&tap->generic, logger, alloc);
     struct NDPServer* ndp =
         NDPServer_new(&tapWrapper->internal, logger, TAPWrapper_LOCAL_MAC, alloc);
-
-    // TODO(cjd): this is not right
-    ndp->advertisePrefix[0] = 0xfc;
-    ndp->prefixLen = 8;
-
-    return &ndp->internal;
+    struct ARPServer* arp =
+        ARPServer_new(&ndp->internal, logger, TAPWrapper_LOCAL_MAC, alloc);
+    return &arp->internal;
 }

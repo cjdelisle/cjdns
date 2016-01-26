@@ -35,6 +35,8 @@ if (GCC) {
     // Already specified.
 } else if (SYSTEM === 'openbsd') {
     GCC = 'egcc';
+} else if (SYSTEM === 'freebsd') {
+    GCC = 'clang';
 } else {
     GCC = 'gcc';
 }
@@ -47,6 +49,15 @@ Builder.configure({
     optimizeLevel:  '-O3',
     logLevel:       process.env['Log_LEVEL'] || 'DEBUG'
 }, function (builder, waitFor) {
+
+    // This is a hack to cover for the fact that builder.js stores the cflags
+    // then more cflags get piled on top of them. TODO(cjd): Fix this is builder.js.
+    for (var i = 0; i < builder.config.cflags.length; i++) {
+        if (/CJD_PACKAGE_VERSION/.test(builder.config.cflags[i])) {
+            builder.config.cflags.splice(i-1, 2);
+        }
+    }
+
     builder.config.cflags.push(
         '-std=c99',
         '-Wall',
@@ -55,6 +66,7 @@ Builder.configure({
         '-Wno-pointer-sign',
         '-pedantic',
         '-D', builder.config.systemName + '=1',
+        '-D', 'CJD_PACKAGE_VERSION="' + builder.config.version + '"',
         '-Wno-unused-parameter',
         '-fomit-frame-pointer',
 

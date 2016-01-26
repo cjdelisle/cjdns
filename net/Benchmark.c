@@ -74,9 +74,9 @@ static void cryptoAuth(struct Context* ctx)
     struct CryptoAuth* ca2 = CryptoAuth_new(alloc, NULL, ctx->base, ctx->log, ctx->rand);
 
     struct CryptoAuth_Session* sess1 =
-        CryptoAuth_newSession(ca1, alloc, ca2->publicKey, NULL, false, "bench");
+        CryptoAuth_newSession(ca1, alloc, ca2->publicKey, false, "bench");
     struct CryptoAuth_Session* sess2 =
-        CryptoAuth_newSession(ca2, alloc, ca1->publicKey, NULL, false, "bench");
+        CryptoAuth_newSession(ca2, alloc, ca1->publicKey, false, "bench");
 
     int size = 1500;
     int count = 100000;

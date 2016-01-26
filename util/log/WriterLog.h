@@ -19,7 +19,7 @@
 #include "io/Writer.h"
 #include "util/log/Log.h"
 #include "util/Linker.h"
-Linker_require("util/log/WriterLog.c")
+Linker_require("util/log/WriterLog.c");
 
 struct Log* WriterLog_new(struct Writer* w, struct Allocator* alloc);
 

@@ -29,39 +29,39 @@ bool Node_isAncestorOf(struct Node_Two* ancestor, struct Node_Two* child)
     }
 }
 
-void Node_setReach(struct Node_Two* node, uint32_t newReach)
+void Node_setCost(struct Node_Two* node, uint64_t newCost)
 {
-    if (newReach) {
+    if (newCost != UINT64_MAX) {
         Assert_true(Node_getBestParent(node));
         Assert_true(node->address.path < UINT64_MAX);
     } else {
         Assert_true(!Node_getBestParent(node));
         Assert_true(node->address.path == UINT64_MAX);
     }
-    node->reach_pvt = newReach;
+    node->cost_pvt = newCost;
 }
 
-void Node_setParentReachAndPath(struct Node_Two* node,
-                                struct Node_Link* bestParent,
-                                uint32_t reach,
-                                uint64_t path)
+void Node_setParentCostAndPath(struct Node_Two* node,
+                               struct Node_Link* bestParent,
+                               uint64_t cost,
+                               uint64_t path)
 {
     if (bestParent) {
         Assert_true(bestParent->child == node);
-        Assert_true(reach);
+        Assert_true(cost != UINT64_MAX);
         Assert_true(path != UINT64_MAX);
         if (bestParent->parent == node) {
-            Assert_true(reach == UINT32_MAX);
+            Assert_true(cost == 0);
             Assert_true(path == 1);
         } else {
             Assert_true(!Node_isAncestorOf(node, bestParent->parent));
         }
     } else {
-        Assert_true(!reach);
+        Assert_true(cost == UINT64_MAX);
         Assert_true(path == UINT64_MAX);
     }
     node->bestParent_pvt = bestParent;
-    node->reach_pvt = reach;
+    node->cost_pvt = cost;
     node->address.path = path;
 }
 

@@ -19,7 +19,7 @@
 #include "net/SessionManager.h"
 #include "memory/Allocator.h"
 #include "util/Linker.h"
-Linker_require("net/SessionManager_admin.c")
+Linker_require("net/SessionManager_admin.c");
 
 void SessionManager_admin_register(struct SessionManager* sm,
                                    struct Admin* admin,

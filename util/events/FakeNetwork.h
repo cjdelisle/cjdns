@@ -22,7 +22,7 @@
 #include "util/events/EventBase.h"
 #include "util/log/Log.h"
 #include "util/Linker.h"
-Linker_require("util/events/libuv/FakeNetwork.c")
+Linker_require("util/events/libuv/FakeNetwork.c");
 
 struct FakeNetwork
 {

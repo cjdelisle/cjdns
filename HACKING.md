@@ -17,7 +17,7 @@ Codestyle:
 * Indentation: 4 spaces, tabs are not in the codebase.
 * Trailing whitespace is not in the codebase, Windows users make sure you have
   git configured to remove carriage return characters as lines in the codebase
-  are \n deliniated.
+  are \n delineated.
 * File names and structures are CamelCase with first letter capital.
 * All globally visible functions shall begin with the name of the file in which
   they are defined followed by an underscore and then the name of the function.
@@ -30,7 +30,7 @@ Codestyle:
   are acceptable.
 * All preprocessor definitions in header files must contain the name of the
   header file followed by an underscore and the definition name in all capitals
-  AKA `define SillyMath_VALUE_OF_PI 3` or `#define SillyMath_DIVIDE(a,b) (a /
+  AKA `#define SillyMath_VALUE_OF_PI 3` or `#define SillyMath_DIVIDE(a,b) (a /
   b)` it is sometimes acceptable for macros to use camel case as is done in
   Endian.h, use judgement.
 
@@ -115,7 +115,7 @@ are interesting constants inside of `makesim.js` which you might want to alter.
 
     node ./contrib/nodejs/makesim.js keys.txt > ~/my-cjdns-simulation.json
 
-Once you have a simultaion setup, you may want to add your admin credentials to one of
+Once you have a simulation setup, you may want to add your admin credentials to one of
 the nodes so you can inspect it, dump the table, etc...
 
 Example simulation config entry with added admin block:
@@ -138,7 +138,7 @@ Example simulation config entry with added admin block:
 
 And to start it up (in the debugger):
 
-    gdb sybilsim -ex 'r < ~/my-cjdns-simulation.json'
+    gdb ./sybilsim -ex 'r < ~/my-cjdns-simulation.json'
 
 BUG: Sometimes the simulator doesn't really start up correctly! If you could figure out
 what is going wrong, your help would be most appreciated, if not, you can just quit and

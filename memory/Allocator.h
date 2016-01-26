@@ -18,7 +18,7 @@
 #include "util/Identity.h"
 #include "util/Gcc.h"
 #include "util/Linker.h"
-Linker_require("memory/Allocator.c")
+Linker_require("memory/Allocator.c");
 
 /**
  * A handle which is provided in response to calls to Allocator_onFree().

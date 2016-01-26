@@ -20,7 +20,7 @@
 #include "wire/PFChan.h"
 #include "util/log/Log.h"
 #include "util/Linker.h"
-Linker_require("net/EventEmitter.c")
+Linker_require("net/EventEmitter.c");
 
 struct EventEmitter
 {

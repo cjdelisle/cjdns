@@ -21,7 +21,7 @@
 #include "crypto/random/Random.h"
 #include "admin/Admin.h"
 #include "util/Linker.h"
-Linker_require("dht/Pathfinder.c")
+Linker_require("dht/Pathfinder.c");
 
 struct Pathfinder
 {

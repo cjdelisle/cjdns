@@ -20,13 +20,11 @@
 #include "util/log/Log.h"
 #include "wire/Ethernet.h"
 #include "util/Linker.h"
-Linker_require("interface/tuntap/NDPServer.c")
+Linker_require("interface/tuntap/NDPServer.c");
 
 struct NDPServer
 {
     struct Iface internal;
-    uint8_t advertisePrefix[16];
-    uint8_t prefixLen;
 };
 
 struct NDPServer* NDPServer_new(struct Iface* external,

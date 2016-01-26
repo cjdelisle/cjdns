@@ -22,7 +22,7 @@
 #include "util/events/EventBase.h"
 #include "util/log/Log.h"
 #include "util/Linker.h"
-Linker_require("net/SwitchPinger.c")
+Linker_require("net/SwitchPinger.c");
 
 #include <stdint.h>
 

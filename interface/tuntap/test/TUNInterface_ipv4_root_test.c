@@ -46,8 +46,8 @@ static Iface_DEFUN receiveMessageTUN(struct Message* msg, struct TUNTools* tt)
     Assert_true(!Bits_memcmp(header->destAddr, testAddrB, 4));
     Assert_true(!Bits_memcmp(header->sourceAddr, testAddrA, 4));
 
-    Bits_memcpyConst(header->destAddr, testAddrA, 4);
-    Bits_memcpyConst(header->sourceAddr, testAddrB, 4);
+    Bits_memcpy(header->destAddr, testAddrA, 4);
+    Bits_memcpy(header->sourceAddr, testAddrB, 4);
 
     TUNMessageType_push(msg, ethertype, NULL);
 
@@ -56,8 +56,8 @@ static Iface_DEFUN receiveMessageTUN(struct Message* msg, struct TUNTools* tt)
 
 int main(int argc, char** argv)
 {
-    // TODO(cjd): fix TUNConfigurator_addIp4Address() for Illumos, Darwin, BSD.
-    #if defined(sunos) || defined(darwin) || defined(freebsd)
+    // TODO(cjd): fix TUNConfigurator_addIp4Address() for Illumos, BSD.
+    #if defined(sunos) || defined(freebsd)
         return 0;
     #endif
 

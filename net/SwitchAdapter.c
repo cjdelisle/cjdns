@@ -17,7 +17,6 @@
 #include "util/Identity.h"
 #include "wire/SwitchHeader.h"
 #include "util/Linker.h"
-Linker_require("net/SwitchAdapter.c")
 
 struct SwitchAdapter_pvt
 {

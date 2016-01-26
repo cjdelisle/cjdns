@@ -22,7 +22,7 @@
 #include "tunnel/IpTunnel.h"
 #include "util/events/FakeNetwork.h"
 #include "util/Linker.h"
-Linker_require("admin/angel/Core.c")
+Linker_require("admin/angel/Core.c");
 
 void Core_initTunnel(String* desiredDeviceName,
                      struct Sockaddr* addr,

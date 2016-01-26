@@ -23,8 +23,18 @@
 #ifndef _WIN32
 #include <sys/syscall.h>
 
-#if defined __OPENBSD__ || defined SYS_getrandom
-    Linker_require("crypto/random/seed/GetEntropyRandomSeed.c")
+#if defined(__OPENBSD__)
+    #define GetEntropyRandomSeed_USEIT
+#elif defined(SYS_getrandom)
+    #if SYS_getrandom == __NR_getrandom && !defined(__NR_getrandom)
+        // nope, SYS_getrandom points to __NR_getrandom which is undefined :(
+    #else
+        #define GetEntropyRandomSeed_USEIT
+    #endif
+#endif
+
+#ifdef GetEntropyRandomSeed_USEIT
+    Linker_require("crypto/random/seed/GetEntropyRandomSeed.c");
     struct RandomSeed* GetEntropyRandomSeed_new(struct Allocator* alloc);
     RandomSeedProvider_register(GetEntropyRandomSeed_new)
 #endif

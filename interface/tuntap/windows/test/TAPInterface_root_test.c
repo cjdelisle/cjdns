@@ -55,7 +55,7 @@ static uint8_t receiveMessage(struct Message* msg, struct Iface* iface)
     int subtype = -1;
 //    int typeCode = -1;
     if (!Bits_memcmp(type, "86dd", 4)) {
-        Bits_memcpyConst(type, "ipv6", 5);
+        Bits_memcpy(type, "ipv6", 5);
         subtype = msg->bytes[6];
 //        typeCode = 6;
         if (subtype == 58) {
@@ -63,7 +63,7 @@ static uint8_t receiveMessage(struct Message* msg, struct Iface* iface)
         }
     } else if (!Bits_memcmp(type, "0800", 4)) {
 return 0;
-        Bits_memcpyConst(type, "ipv4", 5);
+        Bits_memcpy(type, "ipv4", 5);
         subtype = msg->bytes[9];
 //        typeCode = 4;
     } else {

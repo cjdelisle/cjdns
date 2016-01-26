@@ -18,7 +18,7 @@
 #include "memory/Allocator.h"
 #include "util/platform/Sockaddr.h"
 #include "util/Linker.h"
-Linker_require("util/platform/Socket.c")
+Linker_require("util/platform/Socket.c");
 
 #include <stdint.h>
 

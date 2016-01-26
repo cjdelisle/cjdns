@@ -19,7 +19,7 @@
 #include "memory/Allocator.h"
 #include "admin/Admin.h"
 #include "util/Linker.h"
-Linker_require("tunnel/IpTunnel_admin.c")
+Linker_require("tunnel/IpTunnel_admin.c");
 
 void IpTunnel_admin_register(struct IpTunnel* ipTun, struct Admin* admin, struct Allocator* alloc);
 

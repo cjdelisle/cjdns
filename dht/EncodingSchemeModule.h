@@ -19,7 +19,7 @@
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
 #include "util/Linker.h"
-Linker_require("dht/EncodingSchemeModule.c")
+Linker_require("dht/EncodingSchemeModule.c");
 
 void EncodingSchemeModule_register(struct DHTModuleRegistry* reg,
                                    struct Log* logger,

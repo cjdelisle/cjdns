@@ -11,8 +11,10 @@ branches:
 compiler:
   - gcc
 
+# migrate to travis' new container infrastructure
+sudo: false
+
 script:
   - "uname -a"
   - "bash node_build/run_jshint"
-    # travis has seccomp.h header but does not actually support seccomp.
   - "./do"

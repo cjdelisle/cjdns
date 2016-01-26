@@ -18,7 +18,7 @@
 #include "crypto/random/seed/RandomSeed.h"
 #include "crypto/random/seed/SystemRandomSeed.h"
 #include "util/Linker.h"
-Linker_require("crypto/random/seed/SystemRandomSeed.c")
+Linker_require("crypto/random/seed/SystemRandomSeed.c");
 
 /**
  * Create a new randomseed with the default system providers as well as optionally more providers

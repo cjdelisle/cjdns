@@ -32,7 +32,7 @@
 #include "net/UpperDistributor.h"
 #include "net/TUNAdapter.h"
 #include "util/Linker.h"
-Linker_require("net/NetCore.c")
+Linker_require("net/NetCore.c");
 
 struct NetCore
 {

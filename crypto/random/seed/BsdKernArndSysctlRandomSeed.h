@@ -21,7 +21,7 @@
 #include "util/Linker.h"
 
 #if defined(freebsd) || defined(openbsd)
-    Linker_require("crypto/random/seed/BsdKernArndSysctlRandomSeed.c")
+    Linker_require("crypto/random/seed/BsdKernArndSysctlRandomSeed.c");
     struct RandomSeed* BsdKernArndSysctlRandomSeed_new(struct Allocator* alloc);
     RandomSeedProvider_register(BsdKernArndSysctlRandomSeed_new)
 #endif

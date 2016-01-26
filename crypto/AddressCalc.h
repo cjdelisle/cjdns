@@ -16,10 +16,18 @@
 #define AddressCalc_H
 
 #include "util/Linker.h"
-Linker_require("crypto/AddressCalc.c")
+Linker_require("crypto/AddressCalc.c");
 
 #include <stdint.h>
 #include <stdbool.h>
+
+/**
+ * Check if an address is valid given the IPv6
+ *
+ * @return true if the IPv6 is a valid cjdns address.
+ */
+
+bool AddressCalc_validAddress(const uint8_t address[16]);
 
 /**
  * Calculate a cjdns IPv6 address for a public key.
@@ -28,12 +36,5 @@ Linker_require("crypto/AddressCalc.c")
  * @param key the 256 bit curve25519 public key.
  */
 bool AddressCalc_addressForPublicKey(uint8_t addressOut[16], const uint8_t key[32]);
-
-/**
- * Check if an address is valid given the IPv6
- *
- * @return true if the IPv6 is a valid cjdns address.
- */
-bool AddressCalc_validAddress(const uint8_t address[16]);
 
 #endif

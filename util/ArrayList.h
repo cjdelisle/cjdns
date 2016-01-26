@@ -18,7 +18,7 @@
 #include "memory/Allocator.h"
 
 #include "util/Linker.h"
-Linker_require("util/ArrayList.c")
+Linker_require("util/ArrayList.c");
 
 void* ArrayList_new(struct Allocator* alloc, int initialCapacity);
 int ArrayList_add(void* list, void* val);

@@ -13,6 +13,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdbool.h>
 #include "util/Bits.h"
 #include "exception/Except.h"
 #include "exception/WinFail.h"
@@ -69,6 +70,13 @@
 #define USERMODEDEVICEDIR "\\\\.\\Global\\"
 #define TAPSUFFIX         ".tap"
 
+#define BUFF_SZ 0x100
+struct Taps
+{
+    char guid[BUFF_SZ];
+    char name[BUFF_SZ];
+    struct Taps* next;
+};
 
 static int is_tap_win32_dev(const char *guid)
 {
@@ -165,29 +173,29 @@ static int is_tap_win32_dev(const char *guid)
     return FALSE;
 }
 
-static int get_device_guid(
-    char *name,
-    int name_size,
-    char *actual_name,
-    int actual_name_size,
-    struct Except* eh)
+static struct Taps* get_all_taps(struct Allocator* alloc, struct Except* eh)
 {
     LONG status;
     HKEY control_net_key;
     DWORD len;
+    struct Taps* taps = NULL;
+    struct Taps* tail = NULL;
 
     WinFail_check(eh, (
         RegOpenKeyEx(HKEY_LOCAL_MACHINE, NETWORK_CONNECTIONS_KEY, 0, KEY_READ, &control_net_key)
     ));
 
-    int stop = 0;
-    for (int i = 0; !stop; i++) {
-        char enum_name[256];
-        char connection_string[256];
+    int i = 0;
+    char enum_name[BUFF_SZ];
+    char connection_string[BUFF_SZ];
+    char name_data[BUFF_SZ];
+    const char name_string[] = "Name";
+    while (true) {
         HKEY connKey;
-        char name_data[256];
         DWORD name_type;
-        const char name_string[] = "Name";
+        Bits_memset(enum_name, 0, sizeof(enum_name));
+        Bits_memset(connection_string, 0, sizeof(connection_string));
+        Bits_memset(name_data, 0, sizeof(name_data));
 
         len = sizeof (enum_name);
         status = RegEnumKeyEx(control_net_key, i, enum_name, &len, NULL, NULL, NULL, NULL);
@@ -200,6 +208,7 @@ static int get_device_guid(
 
         if (len != CString_strlen(NETWORK_ADAPTER_GUID)) {
             // extranious directory, eg: "Descriptions"
+            ++i;
             continue;
         }
 
@@ -233,46 +242,80 @@ static int get_device_guid(
         }
 
         if (is_tap_win32_dev(enum_name)) {
-            snprintf(name, name_size, "%s", enum_name);
-            if (actual_name) {
-                if (CString_strcmp(actual_name, "") != 0) {
-                    if (CString_strcmp(name_data, actual_name) != 0) {
-                        RegCloseKey (connKey);
-                        ++i;
-                        continue;
-                    }
-                }
-                else {
-                    snprintf(actual_name, actual_name_size, "%s", name_data);
-                }
+            struct Taps* tap = Allocator_calloc(alloc, sizeof(struct Taps), 1);
+            Bits_memcpy(tap->guid, enum_name, sizeof(enum_name));
+            Bits_memcpy(tap->name, name_data, sizeof(name_data));
+            if (!taps) {
+                taps = tap;
+                taps->next = NULL;
             }
-            stop = 1;
+            if (tail) {
+                tail->next = tap;
+            }
+            tail = tap;
         }
 
         RegCloseKey(connKey);
+        ++i;
     }
 
     RegCloseKey (control_net_key);
 
-    if (stop == 0) {
-        return -1;
+    return taps;
+}
+
+static int get_device_guid(char *name,
+    int name_size,
+    char *actual_name,
+    int actual_name_size,
+    struct Allocator* alloc,
+    struct Except* eh)
+{
+    char buff[BUFF_SZ] = {0};
+    HANDLE handle;
+    struct Taps* taps = get_all_taps(alloc, eh);
+    while (taps) {
+        if (actual_name && CString_strcmp(actual_name, "") != 0) {
+            if (CString_strcmp(taps->name, actual_name) != 0) {
+                taps = taps->next;
+                continue;
+            }
+        }
+
+        snprintf(buff, sizeof(buff), USERMODEDEVICEDIR "%s" TAPSUFFIX, taps->guid);
+        handle = CreateFile(buff,
+                GENERIC_READ | GENERIC_WRITE,
+                0,
+                0,
+                OPEN_EXISTING,
+                FILE_ATTRIBUTE_SYSTEM | FILE_FLAG_OVERLAPPED,
+                0);
+
+        if (handle != INVALID_HANDLE_VALUE) {
+            snprintf(name, name_size, "%s", taps->guid);
+            if (actual_name && CString_strcmp(actual_name, "") == 0) {
+                snprintf(actual_name, actual_name_size, "%s", taps->name);
+            }
+            CloseHandle(handle);
+            return 0;
+        }
+        taps = taps->next;
     }
 
-    return 0;
+    return -1;
 }
 
 struct TAPDevice* TAPDevice_find(const char* preferredName,
                                  struct Except* eh,
                                  struct Allocator* alloc)
 {
-    #define BUFF_SZ 0x100
     char guid[BUFF_SZ] = {0};
     char buff[BUFF_SZ] = {0};
     if (preferredName != NULL) {
         snprintf(buff, sizeof(buff), "%s", preferredName);
     }
 
-    if (get_device_guid(guid, sizeof(guid), buff, sizeof(buff), eh)) {
+    if (get_device_guid(guid, sizeof(guid), buff, sizeof(buff), alloc, eh)) {
         return NULL;
     }
 

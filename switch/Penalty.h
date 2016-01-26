@@ -20,7 +20,7 @@
 #include "util/events/EventBase.h"
 #include "util/log/Log.h"
 #include "util/Linker.h"
-Linker_require("switch/Penalty.c")
+Linker_require("switch/Penalty.c");
 
 struct Penalty
 {

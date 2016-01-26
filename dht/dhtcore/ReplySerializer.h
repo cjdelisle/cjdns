@@ -20,7 +20,7 @@
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
 #include "util/Linker.h"
-Linker_require("dht/dhtcore/ReplySerializer.c")
+Linker_require("dht/dhtcore/ReplySerializer.c");
 
 /**
  * For serializing and parsing responses to getPeers and search requests.

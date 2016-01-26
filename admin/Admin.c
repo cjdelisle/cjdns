@@ -417,7 +417,7 @@ static void handleMessage(struct Message* message,
     if (message->length > Admin_MAX_REQUEST_SIZE) {
         #define TOO_BIG "d5:error16:Request too big.e"
         #define TOO_BIG_STRLEN (sizeof(TOO_BIG) - 1)
-        Bits_memcpyConst(message->bytes, TOO_BIG, TOO_BIG_STRLEN);
+        Bits_memcpy(message->bytes, TOO_BIG, TOO_BIG_STRLEN);
         message->length = TOO_BIG_STRLEN;
         sendMessage(message, src, admin);
         return;

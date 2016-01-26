@@ -26,7 +26,7 @@
 #include "util/platform/Sockaddr.h"
 #include "util/log/Log.h"
 #include "util/Linker.h"
-Linker_require("net/InterfaceController.c")
+Linker_require("net/InterfaceController.c");
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -164,11 +164,21 @@ int InterfaceController_beaconState(struct InterfaceController* ifc,
                                     int newState);
 
 /**
+ * CryptoAuth_reset() a peer to reestablish the connection.
+ *
+ * @param ic the if controller
+ * @param herPublicKey the public key of the foreign node or NULL for all peers
+ * @return void
+ */
+void InterfaceController_resetPeering(struct InterfaceController* ifController,
+                                      uint8_t herPublicKey[32]);
+
+/**
  * Disconnect a previously registered peer.
  *
  * @param ic the if controller
  * @param herPublicKey the public key of the foreign node
- * @retrun 0 if all goes well.
+ * @return 0 if all goes well.
  *         InterfaceController_disconnectPeer_NOTFOUND if no peer with herPublicKey is found.
  */
 #define InterfaceController_disconnectPeer_NOTFOUND -1

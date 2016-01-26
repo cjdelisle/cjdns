@@ -18,7 +18,7 @@
 #include "benc/String.h"
 #include "memory/Allocator.h"
 #include "util/Linker.h"
-Linker_require("dht/dhtcore/VersionList.c")
+Linker_require("dht/dhtcore/VersionList.c");
 
 #include <stdint.h>
 

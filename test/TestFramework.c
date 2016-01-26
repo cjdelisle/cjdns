@@ -209,7 +209,7 @@ void TestFramework_craftIPHeader(struct Message* msg, uint8_t srcAddr[16], uint8
     ip->payloadLength_be = Endian_hostToBigEndian16(msg->length - Headers_IP6Header_SIZE);
     ip->nextHeader = 123; // made up number
     ip->hopLimit = 255;
-    Bits_memcpyConst(ip->sourceAddr, srcAddr, 16);
-    Bits_memcpyConst(ip->destinationAddr, destAddr, 16);
+    Bits_memcpy(ip->sourceAddr, srcAddr, 16);
+    Bits_memcpy(ip->destinationAddr, destAddr, 16);
     Headers_setIpVersion(ip);
 }

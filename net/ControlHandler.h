@@ -19,7 +19,7 @@
 #include "util/log/Log.h"
 #include "net/EventEmitter.h"
 #include "util/Linker.h"
-Linker_require("net/ControlHandler.c")
+Linker_require("net/ControlHandler.c");
 
 struct ControlHandler
 {

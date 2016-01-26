@@ -24,7 +24,7 @@
 #include "util/events/EventBase.h"
 #include "wire/Message.h"
 #include "util/Linker.h"
-Linker_require("crypto/CryptoAuth.c")
+Linker_require("crypto/CryptoAuth.c");
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -124,16 +124,11 @@ struct CryptoAuth* CryptoAuth_new(struct Allocator* allocator,
 /**
  * Wrap an interface with crypto authentication.
  *
- * NOTE: Sending empty packets during the handshake is not allowed!
- *       Empty packets are used for signaling during the handshake so they can
- *       only be used while the session is in state ESTABLISHED.
- *
  * NOTE2: Every received packet is prefixed by the 4 byte *nonce* for that packet
  *        in host endian order.
  *
  * @param toWarp the interface to wrap
  * @param herPublicKey the public key of the other party or NULL if unknown.
- * @param herIp6 the ipv6 address of the other party
  * @param requireAuth if the remote end of this interface begins the connection, require
  *                    them to present valid authentication credentials to connect.
  *                    If this end begins the connection, this parameter has no effect.
@@ -143,7 +138,6 @@ struct CryptoAuth* CryptoAuth_new(struct Allocator* allocator,
 struct CryptoAuth_Session* CryptoAuth_newSession(struct CryptoAuth* ca,
                                                  struct Allocator* alloc,
                                                  const uint8_t herPublicKey[32],
-                                                 const uint8_t herIp6[16],
                                                  const bool requireAuth,
                                                  char* name);
 

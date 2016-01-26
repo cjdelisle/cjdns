@@ -100,6 +100,13 @@ struct Iface* TUNInterface_new(const char* interfaceName,
         error = "TUNSIFHEAD";
     }
 
+    // This is not a point-to-point interface
+    int tunsifmode = IFF_BROADCAST;
+    if (ioctl(tunFd,TUNSIFMODE,&tunsifmode) == -1) {
+        error = "TUNSIFMODE";
+    }
+
+
     if (error) {
         int err = errno;
         close(tunFd);

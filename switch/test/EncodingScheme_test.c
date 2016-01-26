@@ -72,7 +72,7 @@ static struct EncodingScheme* randomScheme(struct Random* rand, struct Allocator
             if (((out->forms[j].prefix ^ out->forms[i].prefix) & ((1<<minPfx)-1)) == 0) {
                 // collision, destroy both entries and try again.
                 if (j != i-1) {
-                    Bits_memcpyConst(&out->forms[j],
+                    Bits_memcpy(&out->forms[j],
                                      &out->forms[i-1],
                                      sizeof(struct EncodingScheme_Form));
                 }
@@ -168,8 +168,8 @@ static int convertLabel(struct EncodingScheme_Form* iform,
     } s;
     s.scheme.count = 2;
     s.scheme.forms = s.forms;
-    Bits_memcpyConst(&s.forms[0], iform, sizeof(struct EncodingScheme_Form));
-    Bits_memcpyConst(&s.forms[1], oform, sizeof(struct EncodingScheme_Form));
+    Bits_memcpy(&s.forms[0], iform, sizeof(struct EncodingScheme_Form));
+    Bits_memcpy(&s.forms[1], oform, sizeof(struct EncodingScheme_Form));
 
     int iformNum = 0;
     int oformNum = 1;

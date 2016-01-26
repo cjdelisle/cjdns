@@ -17,7 +17,8 @@ var Fs = require('fs');
 var Spawn = require('child_process').spawn;
 var nThen = require('nthen');
 var Crypto = require('crypto');
-var Semaphore = require('./Semaphore');
+var Semaphore = require('../tools/lib/Semaphore');
+var GetVersion = require('./GetVersion');
 
 /*
  * Why hello dear packager,
@@ -884,6 +885,7 @@ var configure = module.exports.configure = function (params, configFunc) {
 
     params.buildDir = params.buildDir || 'build_' + params.systemName;
 
+    var version;
     var state;
     var builder;
     var buildStage = function () {};
@@ -919,6 +921,13 @@ var configure = module.exports.configure = function (params, configFunc) {
 
     }).nThen(function (waitFor) {
 
+        GetVersion(waitFor(function(data) {
+            version = '' + data;
+            version = version.replace(/(\r\n|\n|\r)/gm, "");
+        }));
+
+    }).nThen(function (waitFor) {
+
         if (!state || !state.rebuildIfChanges) {
             // no state
             state = undefined;
@@ -938,11 +947,13 @@ var configure = module.exports.configure = function (params, configFunc) {
         // Do the configuration step
         if (state) {
             builder = mkBuilder(state);
+            builder.config.version = version;
             return;
         }
 
         state = getStatePrototype(params);
         builder = mkBuilder(state);
+        builder.config.version = version;
         probeCompiler(state, waitFor());
 
     }).nThen(function (waitFor) {

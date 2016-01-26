@@ -52,6 +52,8 @@ struct RouterModule
 
     struct Random* rand;
 
+    uint32_t pingsInFlight;
+
 
     /**
      * Used by handleIncoming() to pass a message to onResponse()

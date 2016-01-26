@@ -46,7 +46,7 @@ int main(int argc, char** argv)
         if (AddressCalc_addressForPublicKey(ip, publicKey)) {
             Hex_encode(hexPrivateKey, 65, privateKey, 32);
             Base32_encode(publicKeyBase32, 53, publicKey, 32);
-            AddrTools_printShortIp(printedIp, ip);
+            AddrTools_printIp(printedIp, ip);
             printf("%s %s %s.k\n", hexPrivateKey, printedIp, publicKeyBase32);
             fflush(stdout);
         }

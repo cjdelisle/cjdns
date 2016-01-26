@@ -17,7 +17,7 @@
 #include "admin/Admin.h"
 #include "memory/Allocator.h"
 #include "util/Linker.h"
-Linker_require("memory/Allocator_admin.c")
+Linker_require("memory/Allocator_admin.c");
 
 void Allocator_admin_register(struct Allocator* alloc, struct Admin* admin);
 

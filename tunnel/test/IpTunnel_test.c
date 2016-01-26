@@ -138,8 +138,8 @@ int main()
     struct DataHeader* dh = (struct DataHeader*) &rh[1];
 
     Bits_memset(rh, 0, RouteHeader_SIZE + DataHeader_SIZE);
-    Bits_memcpyConst(rh->ip6, nodeCjdnsIp6, 16);
-    Bits_memcpyConst(rh->publicKey, fakePubKey, 32);
+    Bits_memcpy(rh->ip6, nodeCjdnsIp6, 16);
+    Bits_memcpy(rh->publicKey, fakePubKey, 32);
     DataHeader_setContentType(dh, ContentType_IPTUN);
 
     *checksum = Checksum_udpIp6(ip->sourceAddr, (uint8_t*) uh, length);
@@ -161,7 +161,7 @@ int main()
     Message_shift(message, origCap, NULL);
     message->length = origLen;
 
-    Bits_memcpyConst(ip->sourceAddr, fakeIp6ToGive, 16);
+    Bits_memcpy(ip->sourceAddr, fakeIp6ToGive, 16);
     // This can't be zero.
     Bits_memset(ip->destinationAddr, 1, 16);
 

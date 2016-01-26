@@ -144,9 +144,9 @@ static void removeSubscription(struct AdminLog* log, struct Subscription* sub)
     if (log->subscriptionCount == 0 || sub == &log->subscriptions[log->subscriptionCount]) {
         return;
     }
-    Bits_memcpyConst(sub,
-                     &log->subscriptions[log->subscriptionCount],
-                     sizeof(struct Subscription));
+    Bits_memcpy(sub,
+                &log->subscriptions[log->subscriptionCount],
+                sizeof(struct Subscription));
 }
 
 static void unpause(void* vAdminLog)

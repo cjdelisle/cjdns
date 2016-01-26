@@ -19,7 +19,7 @@
 #include "memory/Allocator.h"
 #include "util/CString.h"
 #include "util/Linker.h"
-Linker_require("benc/String.c")
+Linker_require("benc/String.c");
 
 #include <stdbool.h>
 #include <stddef.h> // NULL

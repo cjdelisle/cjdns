@@ -20,7 +20,7 @@
 #include "benc/Dict.h"
 #include "benc/String.h"
 #include "util/Linker.h"
-Linker_require("benc/serialization/cloner/Cloner.c")
+Linker_require("benc/serialization/cloner/Cloner.c");
 
 Dict* Cloner_cloneDict(Dict* orig, struct Allocator* alloc);
 
