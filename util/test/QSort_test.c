@@ -12,10 +12,28 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "util/Order.h"
+
+#include "util/Assert.h"
 #include "util/QSort.h"
 
-void Order_qsort(void* base, size_t num, size_t size, Order_Comparator compare)
+static int compare(const void* a, const void* b)
 {
-    QSort(base, num, size, compare);
+    return (*(int *) a - *(int *) b);
+}
+
+int main()
+{
+    int values[] = { 40, 10, 100, 90, 20, 25, -15, 30, -225};
+
+    QSort(values, sizeof(values) / sizeof(int), sizeof(int), compare);
+
+    int last = values[0];
+    for (size_t i = 1; i < sizeof(values) / sizeof(int); i++) {
+        Assert_true(last <= values[i]);
+        last = values[i];
+    }
+    // Should not crash
+    QSort(values, 0, sizeof(int), compare);
+
+    return 0;
 }

@@ -15,6 +15,7 @@
 #define ArrayList_NOCREATE
 #include "util/ArrayList.h"
 #include "util/Bits.h"
+#include "util/QSort.h"
 
 #include <stddef.h>
 #include <stdlib.h>
@@ -82,7 +83,7 @@ int ArrayList_put(struct ArrayList* vlist, int number, void* val)
 void ArrayList_sort(struct ArrayList* vlist, int (* compare)(const void* a, const void* b))
 {
     struct ArrayList_pvt* list = Identity_check((struct ArrayList_pvt*) vlist);
-    qsort(list->elements, list->length, sizeof(char*), compare);
+    QSort(list->elements, list->length, sizeof(char*), compare);
 }
 
 void* ArrayList_clone(struct ArrayList* vlist, struct Allocator* alloc)
