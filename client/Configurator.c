@@ -149,14 +149,13 @@ static void authorizedPasswords(List* list, struct Context* ctx)
         Dict* d = List_getDict(list, i);
         String* passwd = Dict_getString(d, String_CONST("password"));
         String* user = Dict_getString(d, String_CONST("user"));
-        String* displayName = user;
-        if (!displayName) {
-            displayName = String_printf(child, "password [%d]", i);
+        if (!user) {
+            // This is synchronized with cjdnsctl.js
+            user = String_printf(child, "_noname_%d", i);
         }
         //String* publicKey = Dict_getString(d, String_CONST("publicKey"));
         String* ipv6 = Dict_getString(d, String_CONST("ipv6"));
-        Log_info(ctx->logger, "Adding authorized password #[%d] for user [%s].",
-            i, displayName->bytes);
+        Log_info(ctx->logger, "Adding authorized password #[%d] for user [%s].", i, user->bytes);
         Dict *args = Dict_new(child);
         uint32_t i = 1;
         Dict_putInt(args, String_CONST("authType"), i, child);
@@ -164,7 +163,6 @@ static void authorizedPasswords(List* list, struct Context* ctx)
         if (user) {
             Dict_putString(args, String_CONST("user"), user, child);
         }
-        Dict_putString(args, String_CONST("displayName"), displayName, child);
         if (ipv6) {
             Log_info(ctx->logger,
                 "  This connection password restricted to [%s] only.", ipv6->bytes);
@@ -197,7 +195,7 @@ static void udpInterface(Dict* config, struct Context* ctx)
         }
         Dict* resp = NULL;
         rpcCall0(String_CONST("UDPInterface_new"), d, ctx, ctx->alloc, &resp, true);
-        int ifNum = *(Dict_getInt(resp, String_CONST("interfaceNumber")));
+        String* ifName = Dict_getString(resp, String_CONST("ifName"));
 
         // Make the connections.
         Dict* connectTo = Dict_getDict(udp, String_CONST("connectTo"));
@@ -236,9 +234,9 @@ static void udpInterface(Dict* config, struct Context* ctx)
                         continue;
                     }
                 }
-                Dict_putInt(value, String_CONST("interfaceNumber"), ifNum, perCallAlloc);
+                Dict_putString(value, String_CONST("ifName"), ifName, perCallAlloc);
                 Dict_putString(value, String_CONST("address"), key, perCallAlloc);
-                rpcCall(String_CONST("UDPInterface_beginConnection"), value, ctx, perCallAlloc);
+                rpcCall(String_CONST("InterfaceController_connectTo"), value, ctx, perCallAlloc);
 
                 // Make a IPTunnel exception for this node
                 Dict* aed = Dict_new(perCallAlloc);
@@ -348,7 +346,7 @@ static void routerConfig(Dict* routerConf, struct Allocator* tempAlloc, struct C
     ipTunnel(Dict_getDict(routerConf, String_CONST("ipTunnel")), tempAlloc, ctx);
 }
 
-static void ethInterfaceSetBeacon(int ifNum, Dict* eth, struct Context* ctx)
+static void ethInterfaceSetBeacon(String* ifName, Dict* eth, struct Context* ctx)
 {
     int64_t* beaconP = Dict_getInt(eth, String_CONST("beacon"));
     if (beaconP) {
@@ -358,9 +356,9 @@ static void ethInterfaceSetBeacon(int ifNum, Dict* eth, struct Context* ctx)
         } else {
             // We can cast beacon to an int here because we know it's small enough
             Log_info(ctx->logger, "Setting beacon mode on ETHInterface to [%d].", (int) beacon);
-            Dict d = Dict_CONST(String_CONST("interfaceNumber"), Int_OBJ(ifNum),
+            Dict d = Dict_CONST(String_CONST("ifName"), String_OBJ(ifName),
                      Dict_CONST(String_CONST("state"), Int_OBJ(beacon), NULL));
-            rpcCall(String_CONST("ETHInterface_beacon"), &d, ctx, ctx->alloc);
+            rpcCall(String_CONST("InterfaceController_beacon"), &d, ctx, ctx->alloc);
         }
     }
 }
@@ -401,8 +399,8 @@ static void ethInterface(Dict* config, struct Context* ctx)
                 Log_warn(ctx->logger, "Failed to create ETHInterface.");
                 continue;
             }
-            int ifNum = *(Dict_getInt(resp, String_CONST("interfaceNumber")));
-            ethInterfaceSetBeacon(ifNum, eth, ctx);
+            String* ifName = Dict_getString(resp, String_CONST("ifName"));
+            ethInterfaceSetBeacon(ifName, eth, ctx);
         }
         return;
     }
@@ -423,8 +421,8 @@ static void ethInterface(Dict* config, struct Context* ctx)
             Log_warn(ctx->logger, "Failed to create ETHInterface.");
             continue;
         }
-        int ifNum = *(Dict_getInt(resp, String_CONST("interfaceNumber")));
-        ethInterfaceSetBeacon(ifNum, eth, ctx);
+        String* ifName = Dict_getString(resp, String_CONST("ifName"));
+        ethInterfaceSetBeacon(ifName, eth, ctx);
 
         // Make the connections.
         Dict* connectTo = Dict_getDict(eth, String_CONST("connectTo"));
@@ -445,9 +443,9 @@ static void ethInterface(Dict* config, struct Context* ctx)
                 struct Allocator* perCallAlloc = Allocator_child(ctx->alloc);
                 // Turn the dict from the config into our RPC args dict by filling in all
                 // the arguments,
-                Dict_putString(value, String_CONST("macAddress"), key, perCallAlloc);
-                Dict_putInt(value, String_CONST("interfaceNumber"), ifNum, perCallAlloc);
-                rpcCall(String_CONST("ETHInterface_beginConnection"), value, ctx, perCallAlloc);
+                Dict_putString(value, String_CONST("address"), key, perCallAlloc);
+                Dict_putString(value, String_CONST("ifName"), ifName, perCallAlloc);
+                rpcCall(String_CONST("InterfaceController_connectTo"), value, ctx, perCallAlloc);
                 Allocator_free(perCallAlloc);
 
                 entry = entry->next;

@@ -44,8 +44,8 @@ struct TestFramework_Link
     struct Iface serverIf;
     struct TestFramework* client;
     struct TestFramework* server;
-    int serverIfNum;
-    int clientIfNum;
+    String* serverIfName;
+    String* clientIfName;
     Identity
 };
 
@@ -163,24 +163,26 @@ void TestFramework_linkNodes(struct TestFramework* client,
     link->client = client;
     link->server = server;
 
-    struct InterfaceController_Iface* clientIci = InterfaceController_newIface(
-        client->nc->ifController, String_CONST("client"), client->alloc);
-    link->clientIfNum = clientIci->ifNum;
+    struct InterfaceController_Iface* clientIci;
+    Assert_true(!InterfaceController_newIface(
+        client->nc->ifController, String_CONST("client"), true, client->alloc, &clientIci));
+    link->clientIfName = clientIci->name;
     Iface_plumb(&link->clientIf, &clientIci->addrIf);
 
-    struct InterfaceController_Iface* serverIci = InterfaceController_newIface(
-        server->nc->ifController, String_CONST("server"), server->alloc);
-    link->serverIfNum = serverIci->ifNum;
+    struct InterfaceController_Iface* serverIci;
+    Assert_true(!InterfaceController_newIface(
+        server->nc->ifController, String_CONST("server"), true, server->alloc, &serverIci));
+    link->serverIfName = serverIci->name;
     Iface_plumb(&link->serverIf, &serverIci->addrIf);
 
     if (beacon) {
         int ret = InterfaceController_beaconState(client->nc->ifController,
-                                           link->clientIfNum,
+                                           link->clientIfName,
                                            InterfaceController_beaconState_newState_ACCEPT);
         Assert_true(!ret);
 
         ret = InterfaceController_beaconState(server->nc->ifController,
-                                       link->serverIfNum,
+                                       link->serverIfName,
                                        InterfaceController_beaconState_newState_SEND);
         Assert_true(!ret);
     } else {
@@ -188,12 +190,11 @@ void TestFramework_linkNodes(struct TestFramework* client,
         CryptoAuth_addUser(String_CONST("abcdefg123"), String_CONST("TEST"), server->nc->ca);
 
         // Client has pubKey and passwd for the server.
-        InterfaceController_bootstrapPeer(client->nc->ifController,
-                                   link->clientIfNum,
+        InterfaceController_connectTo(client->nc->ifController,
+                                   link->clientIfName,
                                    server->publicKey,
                                    Sockaddr_LOOPBACK,
                                    String_CONST("abcdefg123"),
-                                   NULL,
                                    NULL,
                                    client->alloc);
     }

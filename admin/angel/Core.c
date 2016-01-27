@@ -206,7 +206,7 @@ void Core_init(struct Allocator* alloc,
 
     // ------------------- Register RPC functions ----------------------- //
     RouteGen_admin_register(rg, admin, alloc);
-    InterfaceController_admin_register(nc->ifController, admin, alloc);
+    InterfaceController_admin_register(nc->ifController, admin, logger, alloc);
     SwitchPinger_admin_register(nc->sp, admin, alloc);
     UDPInterface_admin_register(eventBase, alloc, logger, admin, nc->ifController, fakeNet);
 #ifdef HAS_ETH_INTERFACE

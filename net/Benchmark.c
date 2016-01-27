@@ -157,24 +157,25 @@ static void switching(struct Context* ctx)
     sc->aliceCtrlIf.send = aliceCtrlRecv;
 
     struct NetCore* alice = NetCore_new(SECRETA, alloc, ctx->base, ctx->rand, ctx->log);
-    struct InterfaceController_Iface* aliceIci =
-        InterfaceController_newIface(alice->ifController, String_CONST("alice"), alloc);
+    struct InterfaceController_Iface* aliceIci;
+    Assert_true(!InterfaceController_newIface(
+        alice->ifController, String_CONST("alice"), false, alloc, &aliceIci));
     Iface_plumb(&sc->aliceIf, &aliceIci->addrIf);
 
     struct NetCore* bob = NetCore_new(SECRETB, alloc, ctx->base, ctx->rand, ctx->log);
-    struct InterfaceController_Iface* bobIci =
-        InterfaceController_newIface(bob->ifController, String_CONST("bob"), alloc);
+    struct InterfaceController_Iface* bobIci;
+    Assert_true(!InterfaceController_newIface(
+        bob->ifController, String_CONST("bob"), false, alloc, &bobIci));
     Iface_plumb(&sc->bobIf, &bobIci->addrIf);
 
     CryptoAuth_addUser(String_CONST("abcdefg123"), String_CONST("TEST"), bob->ca);
 
     // Client has pubKey and passwd for the server.
-    int ret = InterfaceController_bootstrapPeer(alice->ifController,
-                                                aliceIci->ifNum,
+    int ret = InterfaceController_connectTo(alice->ifController,
+                                                aliceIci->name,
                                                 bob->ca->publicKey,
                                                 Sockaddr_LOOPBACK,
                                                 String_CONST("abcdefg123"),
-                                                NULL,
                                                 NULL,
                                                 alloc);
     Assert_true(!ret);

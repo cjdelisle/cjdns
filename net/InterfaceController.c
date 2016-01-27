@@ -87,7 +87,6 @@ struct InterfaceController_pvt;
 struct InterfaceController_Iface_pvt
 {
     struct InterfaceController_Iface pub;
-    String* name;
     int beaconState;
     struct Map_EndpointsBySockaddr peerMap;
     struct InterfaceController_pvt* ic;
@@ -502,12 +501,12 @@ static Iface_DEFUN handleBeacon(struct Message* msg, struct InterfaceController_
     if (!ici->beaconState) {
         // accepting beacons disabled.
         Log_debug(ic->logger, "[%s] Dropping beacon because beaconing is disabled",
-                  ici->name->bytes);
+                  ici->pub.name->bytes);
         return NULL;
     }
 
     if (msg->length < Headers_Beacon_SIZE) {
-        Log_debug(ic->logger, "[%s] Dropping runt beacon", ici->name->bytes);
+        Log_debug(ic->logger, "[%s] Dropping runt beacon", ici->pub.name->bytes);
         return NULL;
     }
 
@@ -545,7 +544,7 @@ static Iface_DEFUN handleBeacon(struct Message* msg, struct InterfaceController_
     if (!Version_isCompatible(addr.protocolVersion, Version_CURRENT_PROTOCOL)) {
         if (Defined(Log_DEBUG)) {
             Log_debug(ic->logger, "[%s] DROP beacon from [%s] which was version [%d] "
-                      "our version is [%d] making them incompatable", ici->name->bytes,
+                      "our version is [%d] making them incompatable", ici->pub.name->bytes,
                       printedAddr->bytes, addr.protocolVersion, Version_CURRENT_PROTOCOL);
         }
         return NULL;
@@ -703,24 +702,42 @@ static Iface_DEFUN handleIncomingFromWire(struct Message* msg, struct Iface* add
     return receivedPostCryptoAuth(msg, ep, ici->ic);
 }
 
-struct InterfaceController_Iface* InterfaceController_newIface(struct InterfaceController* ifc,
-                                                               String* name,
-                                                               struct Allocator* alloc)
+static struct InterfaceController_Iface_pvt* iciForName(struct InterfaceController_pvt* ic,
+                                                        String* name)
+{
+    for (int i = 0; i < ic->icis->length; i++) {
+        struct InterfaceController_Iface_pvt* ici = ArrayList_OfIfaces_get(ic->icis, i);
+        if (String_equals(name, ici->pub.name)) { return ici; }
+    }
+    return NULL;
+}
+
+int InterfaceController_newIface(struct InterfaceController* ifc,
+                                 String* name,
+                                 bool supportsBeacons,
+                                 struct Allocator* alloc,
+                                 struct InterfaceController_Iface** ifOut)
 {
     struct InterfaceController_pvt* ic = Identity_check((struct InterfaceController_pvt*) ifc);
 
+    if (iciForName(ic, name)) {
+        return InterfaceController_newIface_NAME_EXISTS;
+    }
+
     struct InterfaceController_Iface_pvt* ici =
         Allocator_calloc(alloc, sizeof(struct InterfaceController_Iface_pvt), 1);
-    ici->name = String_clone(name, alloc);
+    ici->pub.name = String_clone(name, alloc);
+    ici->pub.supportsBeacons = supportsBeacons;
     ici->peerMap.allocator = alloc;
     ici->ic = ic;
     ici->alloc = alloc;
     ici->pub.addrIf.send = handleIncomingFromWire;
-    ici->pub.ifNum = ArrayList_OfIfaces_add(ic->icis, ici);
+    ArrayList_OfIfaces_add(ic->icis, ici);
 
     Identity_set(ici);
 
-    return &ici->pub;
+    *ifOut = &ici->pub;
+    return 0;
 }
 
 static int freeAlloc(struct Allocator_OnFreeJob* job)
@@ -733,11 +750,11 @@ static int freeAlloc(struct Allocator_OnFreeJob* job)
 static void sendBeacon(struct InterfaceController_Iface_pvt* ici, struct Allocator* tempAlloc)
 {
     if (ici->beaconState < InterfaceController_beaconState_newState_SEND) {
-        Log_debug(ici->ic->logger, "sendBeacon(%s) -> beaconing disabled", ici->name->bytes);
+        Log_debug(ici->ic->logger, "sendBeacon(%s) -> beaconing disabled", ici->pub.name->bytes);
         return;
     }
 
-    Log_debug(ici->ic->logger, "sendBeacon(%s)", ici->name->bytes);
+    Log_debug(ici->ic->logger, "sendBeacon(%s)", ici->pub.name->bytes);
 
     struct Message* msg = Message_new(0, 128, tempAlloc);
     Message_push(msg, &ici->ic->beacon, Headers_Beacon_SIZE, NULL);
@@ -777,13 +794,16 @@ static void beaconInterval(void* vInterfaceController)
 }
 
 int InterfaceController_beaconState(struct InterfaceController* ifc,
-                                    int interfaceNumber,
+                                    String* ifName,
                                     int newState)
 {
     struct InterfaceController_pvt* ic = Identity_check((struct InterfaceController_pvt*) ifc);
-    struct InterfaceController_Iface_pvt* ici = ArrayList_OfIfaces_get(ic->icis, interfaceNumber);
+    struct InterfaceController_Iface_pvt* ici = iciForName(ic, ifName);
     if (!ici) {
         return InterfaceController_beaconState_NO_SUCH_IFACE;
+    }
+    if (!ici->pub.supportsBeacons) {
+        return InterfaceController_beaconState_UNSUPPORTED;
     }
     char* val = NULL;
     switch (newState) {
@@ -792,7 +812,7 @@ int InterfaceController_beaconState(struct InterfaceController* ifc,
         case InterfaceController_beaconState_newState_ACCEPT: val = "ACCEPT"; break;
         case InterfaceController_beaconState_newState_SEND: val = "SEND"; break;
     }
-    Log_debug(ic->logger, "InterfaceController_beaconState(%s, %s)", ici->name->bytes, val);
+    Log_debug(ic->logger, "InterfaceController_beaconState(%s, %s)", ici->pub.name->bytes, val);
     ici->beaconState = newState;
     if (newState == InterfaceController_beaconState_newState_SEND) {
         // Send out a beacon right away so we don't have to wait.
@@ -803,24 +823,22 @@ int InterfaceController_beaconState(struct InterfaceController* ifc,
     return 0;
 }
 
-int InterfaceController_bootstrapPeer(struct InterfaceController* ifc,
-                                      int interfaceNumber,
-                                      uint8_t* herPublicKey,
-                                      const struct Sockaddr* lladdrParm,
-                                      String* password,
-                                      String* login,
-                                      String* user,
-                                      struct Allocator* alloc)
+int InterfaceController_connectTo(struct InterfaceController* ifc,
+                                  String* ifName,
+                                  uint8_t* herPublicKey,
+                                  const struct Sockaddr* lladdrParm,
+                                  String* password,
+                                  String* login,
+                                  struct Allocator* alloc)
 {
     struct InterfaceController_pvt* ic = Identity_check((struct InterfaceController_pvt*) ifc);
 
     Assert_true(herPublicKey);
     Assert_true(password);
 
-    struct InterfaceController_Iface_pvt* ici = ArrayList_OfIfaces_get(ic->icis, interfaceNumber);
-
+    struct InterfaceController_Iface_pvt* ici = iciForName(ic, ifName);
     if (!ici) {
-        return InterfaceController_bootstrapPeer_BAD_IFNUM;
+        return InterfaceController_connectTo_BAD_IFNAME;
     }
 
     Log_debug(ic->logger, "bootstrapPeer total [%u]", ici->peerMap.count);
@@ -828,7 +846,7 @@ int InterfaceController_bootstrapPeer(struct InterfaceController* ifc,
     uint8_t ip6[16];
     AddressCalc_addressForPublicKey(ip6, herPublicKey);
     if (!AddressCalc_validAddress(ip6) || !Bits_memcmp(ic->ca->publicKey, herPublicKey, 32)) {
-        return InterfaceController_bootstrapPeer_BAD_KEY;
+        return InterfaceController_connectTo_BAD_KEY;
     }
 
     struct Allocator* epAlloc = Allocator_child(ici->alloc);
@@ -853,16 +871,13 @@ int InterfaceController_bootstrapPeer(struct InterfaceController* ifc,
     ep->peerLink = PeerLink_new(ic->eventBase, epAlloc);
     ep->caSession = CryptoAuth_newSession(ic->ca, epAlloc, herPublicKey, false, "outer");
     CryptoAuth_setAuth(password, login, ep->caSession);
-    if (user) {
-        ep->caSession->displayName = String_clone(user, epAlloc);
-    }
 
     ep->switchIf.send = sendFromSwitch;
 
     if (SwitchCore_addInterface(ic->switchCore, &ep->switchIf, epAlloc, &ep->addr.path)) {
         Log_debug(ic->logger, "bootstrapPeer() SwitchCore out of space");
         Allocator_free(epAlloc);
-        return InterfaceController_bootstrapPeer_OUT_OF_SPACE;
+        return InterfaceController_connectTo_OUT_OF_SPACE;
     }
 
     // We want the node to immedietly be pinged but we don't want it to appear unresponsive because
@@ -884,6 +899,23 @@ int InterfaceController_bootstrapPeer(struct InterfaceController* ifc,
     sendPing(ep);
 
     return 0;
+}
+
+int InterfaceController_getInterfaces(struct InterfaceController* ifController,
+                                      struct Allocator* alloc,
+                                      struct InterfaceController_Iface*** outP)
+{
+    struct InterfaceController_pvt* ic =
+        Identity_check((struct InterfaceController_pvt*) ifController);
+    struct InterfaceController_Iface** out =
+        Allocator_calloc(alloc, sizeof(char*), ic->icis->length+1);
+    int i;
+    for (i = 0; i < ic->icis->length; i++) {
+        struct InterfaceController_Iface_pvt* ici = ArrayList_OfIfaces_get(ic->icis, i);
+        out[i] = &ici->pub;
+    }
+    *outP = out;
+    return i;
 }
 
 int InterfaceController_getPeerStats(struct InterfaceController* ifController,
@@ -909,15 +941,17 @@ int InterfaceController_getPeerStats(struct InterfaceController* ifController,
             struct Peer* peer = Identity_check((struct Peer*) ici->peerMap.values[i]);
             struct InterfaceController_PeerStats* s = &stats[xcount];
             xcount++;
+            s->ifName = String_clone(ici->pub.name, alloc);
             Bits_memcpy(&s->addr, &peer->addr, sizeof(struct Address));
             s->bytesOut = peer->bytesOut;
             s->bytesIn = peer->bytesIn;
             s->timeOfLastMessage = peer->timeOfLastMessage;
             s->state = peer->state;
             s->isIncomingConnection = peer->isIncomingConnection;
-            if (peer->caSession->displayName) {
-                s->user = String_clone(peer->caSession->displayName, alloc);
+            if (peer->caSession->userName) {
+                s->user = String_clone(peer->caSession->userName, alloc);
             }
+            s->linkAddr = String_new(Sockaddr_print(peer->lladdr, alloc), alloc);
             struct ReplayProtector* rp = &peer->caSession->replayProtector;
             s->duplicates = rp->duplicates;
             s->lostPackets = rp->lostPackets;

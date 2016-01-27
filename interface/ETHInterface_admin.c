@@ -33,54 +33,6 @@ struct Context
     Identity
 };
 
-static void beginConnection(Dict* args,
-                            void* vcontext,
-                            String* txid,
-                            struct Allocator* requestAlloc)
-{
-    struct Context* ctx = Identity_check((struct Context*) vcontext);
-
-    String* password = Dict_getString(args, String_CONST("password"));
-    String* login = Dict_getString(args, String_CONST("login"));
-    String* publicKey = Dict_getString(args, String_CONST("publicKey"));
-    String* macAddress = Dict_getString(args, String_CONST("macAddress"));
-    int64_t* interfaceNumber = Dict_getInt(args, String_CONST("interfaceNumber"));
-    uint32_t ifNum = (interfaceNumber) ? ((uint32_t) *interfaceNumber) : 0;
-    String* peerName = Dict_getString(args, String_CONST("peerName"));
-    char* error = "none";
-
-    uint8_t pkBytes[32];
-
-    struct ETHInterface_Sockaddr sockaddr = {
-        .generic = {
-            .addrLen = ETHInterface_Sockaddr_SIZE
-        }
-    };
-
-    if (Key_parse(publicKey, pkBytes, NULL)) {
-        error = "invalid publicKey";
-    } else if (macAddress->len < 17 || AddrTools_parseMac(sockaddr.mac, macAddress->bytes)) {
-        error = "invalid macAddress";
-    } else {
-        int ret = InterfaceController_bootstrapPeer(
-            ctx->ic, ifNum, pkBytes, &sockaddr.generic, password, login, peerName, ctx->alloc);
-
-        if (ret == InterfaceController_bootstrapPeer_BAD_IFNUM) {
-            error = "invalid interfaceNumber";
-        } else if (ret == InterfaceController_bootstrapPeer_BAD_KEY) {
-            error = "invalid publicKey";
-        } else if (ret == InterfaceController_bootstrapPeer_OUT_OF_SPACE) {
-            error = "no more space to register with the switch.";
-        } else if (ret) {
-            error = "InterfaceController_bootstrapPeer(internal_error)";
-        }
-    }
-
-    Dict* out = Dict_new(requestAlloc);
-    Dict_putString(out, String_CONST("error"), String_new(error, requestAlloc), requestAlloc);
-    Admin_sendMessage(out, txid, ctx->admin);
-}
-
 static void newInterface(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* const ctx = Identity_check((struct Context*) vcontext);
@@ -100,56 +52,24 @@ static void newInterface(Dict* args, void* vcontext, String* txid, struct Alloca
         return;
     }
 
-    String* ifname = String_printf(requestAlloc, "ETH/%s", bindDevice->bytes);
-
-    struct InterfaceController_Iface* ici = InterfaceController_newIface(ctx->ic, ifname, alloc);
-    Iface_plumb(&ici->addrIf, &ethIf->generic.iface);
+    String* ifName = String_printf(requestAlloc, "ETH/%s", bindDevice->bytes);
 
     Dict* out = Dict_new(requestAlloc);
-    Dict_putString(out, String_CONST("error"), String_CONST("none"), requestAlloc);
-    Dict_putInt(out, String_CONST("interfaceNumber"), ici->ifNum, requestAlloc);
+    struct InterfaceController_Iface* ici;
+    char* err = NULL;
+    int ret = InterfaceController_newIface(ctx->ic, ifName, true, alloc, &ici);
+    if (!ret) {
+        Iface_plumb(&ici->addrIf, &ethIf->generic.iface);
+        Dict_putString(out, String_CONST("ifName"), ifName, requestAlloc);
+        err = "none";
+    } else if (ret == InterfaceController_newIface_NAME_EXISTS) {
+        err = "InterfaceController_newIface() -> name_exists";
+    } else {
+        err = "unknown";
+    }
 
+    Dict_putString(out, String_CONST("error"), String_CONST(err), requestAlloc);
     Admin_sendMessage(out, txid, ctx->admin);
-}
-
-static void beacon(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
-{
-    int64_t* stateP = Dict_getInt(args, String_CONST("state"));
-    int64_t* ifNumP = Dict_getInt(args, String_CONST("interfaceNumber"));
-    uint32_t ifNum = (ifNumP) ? ((uint32_t) *ifNumP) : 0;
-    uint32_t state = (stateP) ? ((uint32_t) *stateP) : 0xffffffff;
-    struct Context* ctx = Identity_check((struct Context*) vcontext);
-
-    char* error = NULL;
-    int ret = InterfaceController_beaconState(ctx->ic, ifNum, state);
-    if (ret == InterfaceController_beaconState_NO_SUCH_IFACE) {
-        error = "invalid interfaceNumber";
-    } else if (ret == InterfaceController_beaconState_INVALID_STATE) {
-        error = "invalid state";
-    } else if (ret) {
-        error = "internal";
-    }
-
-    if (error) {
-        Dict* out = Dict_new(requestAlloc);
-        Dict_putString(out, String_CONST("error"), String_CONST(error), requestAlloc);
-        Admin_sendMessage(out, txid, ctx->admin);
-        return;
-    }
-
-    char* stateStr = "disabled";
-    if (state == InterfaceController_beaconState_newState_ACCEPT) {
-        stateStr = "accepting";
-    } else if (state == InterfaceController_beaconState_newState_SEND) {
-        stateStr = "sending and accepting";
-    }
-
-    Dict out = Dict_CONST(
-        String_CONST("error"), String_OBJ(String_CONST("none")), Dict_CONST(
-        String_CONST("state"), Int_OBJ(state), Dict_CONST(
-        String_CONST("stateName"), String_OBJ(String_CONST(stateStr)), NULL
-    )));
-    Admin_sendMessage(&out, txid, ctx->admin);
 }
 
 static void listDevices(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
@@ -190,21 +110,6 @@ void ETHInterface_admin_register(struct EventBase* base,
     Admin_registerFunction("ETHInterface_new", newInterface, ctx, true,
         ((struct Admin_FunctionArg[]) {
             { .name = "bindDevice", .required = 1, .type = "String" }
-        }), admin);
-
-    Admin_registerFunction("ETHInterface_beginConnection",
-        beginConnection, ctx, true, ((struct Admin_FunctionArg[]) {
-            { .name = "interfaceNumber", .required = 0, .type = "Int" },
-            { .name = "password", .required = 0, .type = "String" },
-            { .name = "publicKey", .required = 1, .type = "String" },
-            { .name = "macAddress", .required = 1, .type = "String" },
-            { .name = "login", .required = 0, .type = "String" }
-        }), admin);
-
-    Admin_registerFunction("ETHInterface_beacon", beacon, ctx, true,
-        ((struct Admin_FunctionArg[]) {
-            { .name = "interfaceNumber", .required = 0, .type = "Int" },
-            { .name = "state", .required = 0, .type = "Int" }
         }), admin);
 
     Admin_registerFunction("ETHInterface_listDevices", listDevices, ctx, true, NULL, admin);

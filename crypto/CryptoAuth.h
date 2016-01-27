@@ -48,6 +48,8 @@ struct CryptoAuth_Session
 
     String* displayName;
 
+    String* userName;
+
     struct ReplayProtector replayProtector;
 
     /**

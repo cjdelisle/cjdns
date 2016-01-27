@@ -71,7 +71,7 @@ var callFunc = function (sock, addr, port, pass, func, args, callback) {
 var getArgs = function (func) {
     var rArgs = [];
     Object.keys(func).forEach(function (name) {
-        if (func[name].required === '1') {
+        if (func[name].required === 1) {
             rArgs.push({ name: name, type: func[name].type, required: true });
         }
     });
@@ -79,7 +79,7 @@ var getArgs = function (func) {
     rArgs.sort(function (a,b) { a = a.name; b = b.name; return (a !== b) ? (a < b) ? 1 : -1 : 0; });
     var oArgs = [];
     Object.keys(func).forEach(function (name) {
-        if (func[name].required === '0') {
+        if (func[name].required === 0) {
             oArgs.push({ name: name, type: func[name].type, required: false });
         }
     });

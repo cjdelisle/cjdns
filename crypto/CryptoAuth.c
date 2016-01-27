@@ -758,6 +758,9 @@ static Gcc_USE_RET int decryptHandshake(struct CryptoAuth_Session_pvt* session,
     session->nextNonce = nextNonce;
 
     Bits_memset(&session->pub.replayProtector, 0, sizeof(struct ReplayProtector));
+    if (userObj) {
+        session->pub.userName = String_clone(userObj->login, session->alloc);
+    }
 
     return 0;
 }

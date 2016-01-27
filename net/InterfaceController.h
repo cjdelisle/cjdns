@@ -81,7 +81,15 @@ struct InterfaceController_PeerStats
     uint64_t bytesOut;
     uint64_t bytesIn;
     bool isIncomingConnection;
+
+    /** The peer's login name if this is an incoming connection. */
     String* user;
+
+    /** The name of the interface which is used to talk to this peer. */
+    String* ifName;
+
+    /** The Peer's UDP/IP or Ethernet MAC address */
+    String* linkAddr;
 
     /** Packet loss/duplication statistics. see: ReplayProtector */
     uint32_t duplicates;
@@ -101,8 +109,9 @@ struct InterfaceController_Iface
 {
     struct Iface addrIf;
 
-    /** Interface number within InterfaceController. */
-    int ifNum;
+    String* name;
+
+    bool supportsBeacons;
 };
 
 /**
@@ -114,9 +123,12 @@ struct InterfaceController_Iface
  * @param name a string which will identify this interface
  * @param alloc an allocator, the interface will be removed when this is freed.
  */
-struct InterfaceController_Iface* InterfaceController_newIface(struct InterfaceController* ifc,
-                                                 String* name,
-                                                 struct Allocator* alloc);
+#define InterfaceController_newIface_NAME_EXISTS -1
+int InterfaceController_newIface(struct InterfaceController* ifc,
+                                 String* name,
+                                 bool supportsBeacons,
+                                 struct Allocator* alloc,
+                                 struct InterfaceController_Iface** ifOut);
 
 /**
  * Add a new peer.
@@ -132,35 +144,34 @@ struct InterfaceController_Iface* InterfaceController_newIface(struct InterfaceC
  * @param password the password for authenticating with the other node.
  * @param login an identity to provide to the other node with the password,
  *        if null then authtype 1 will be used.
- * @param displayName the username to assign the other node in the CryptoAuth session. May be null.
  * @param alloc the peer will be dropped if this is freed.
  *
  * @return 0 if all goes well.
- *         InterfaceController_bootstrapPeer_BAD_IFNUM if there is no such interface for this num.
- *         InterfaceController_bootstrapPeer_OUT_OF_SPACE if there is no space to store the peer.
- *         InterfaceController_bootstrapPeer_BAD_KEY the provided herPublicKey is not valid.
- *         InterfaceController_bootstrapPeer_INTERNAL unspecified error.
+ *         InterfaceController_connectTo_BAD_NAME if there is no such interface for this name.
+ *         InterfaceController_connectTo_OUT_OF_SPACE if there is no space to store the peer.
+ *         InterfaceController_connectTo_BAD_KEY the provided herPublicKey is not valid.
+ *         InterfaceController_connectTo_INTERNAL unspecified error.
  */
-#define InterfaceController_bootstrapPeer_BAD_IFNUM    -1
-#define InterfaceController_bootstrapPeer_BAD_KEY      -2
-#define InterfaceController_bootstrapPeer_OUT_OF_SPACE -3
-#define InterfaceController_bootstrapPeer_INTERNAL     -4
-int InterfaceController_bootstrapPeer(struct InterfaceController* ifc,
-                                      int interfaceNumber,
-                                      uint8_t* herPublicKey,
-                                      const struct Sockaddr* lladdr,
-                                      String* password,
-                                      String* login,
-                                      String* displayName,
-                                      struct Allocator* alloc);
+#define InterfaceController_connectTo_BAD_IFNAME   -1
+#define InterfaceController_connectTo_BAD_KEY      -2
+#define InterfaceController_connectTo_OUT_OF_SPACE -3
+#define InterfaceController_connectTo_INTERNAL     -4
+int InterfaceController_connectTo(struct InterfaceController* ifc,
+                                  String* ifName,
+                                  uint8_t* herPublicKey,
+                                  const struct Sockaddr* lladdrParm,
+                                  String* password,
+                                  String* login,
+                                  struct Allocator* alloc);
 
 #define InterfaceController_beaconState_newState_OFF    0
 #define InterfaceController_beaconState_newState_ACCEPT 1
 #define InterfaceController_beaconState_newState_SEND   2
 #define InterfaceController_beaconState_NO_SUCH_IFACE -1
 #define InterfaceController_beaconState_INVALID_STATE -2
+#define InterfaceController_beaconState_UNSUPPORTED -3
 int InterfaceController_beaconState(struct InterfaceController* ifc,
-                                    int interfaceNumber,
+                                    String* ifName,
                                     int newState);
 
 /**
@@ -193,8 +204,12 @@ int InterfaceController_disconnectPeer(struct InterfaceController* ifc, uint8_t 
  * @return the number of InterfaceController_peerStats in statsOut
  */
 int InterfaceController_getPeerStats(struct InterfaceController* ic,
-                              struct Allocator* alloc,
-                              struct InterfaceController_PeerStats** statsOut);
+                                     struct Allocator* alloc,
+                                     struct InterfaceController_PeerStats** statsOut);
+
+int InterfaceController_getInterfaces(struct InterfaceController* ifController,
+                                      struct Allocator* alloc,
+                                      struct InterfaceController_Iface*** outP);
 
 struct InterfaceController* InterfaceController_new(struct CryptoAuth* ca,
                                       struct SwitchCore* switchCore,

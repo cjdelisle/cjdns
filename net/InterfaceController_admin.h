@@ -18,11 +18,13 @@
 #include "admin/Admin.h"
 #include "net/InterfaceController.h"
 #include "memory/Allocator.h"
+#include "util/log/Log.h"
 #include "util/Linker.h"
 Linker_require("net/InterfaceController_admin.c");
 
 void InterfaceController_admin_register(struct InterfaceController* ic,
                                         struct Admin* admin,
-                                        struct Allocator* alloc);
+                                        struct Log* logger,
+                                        struct Allocator* allocator);
 
 #endif
