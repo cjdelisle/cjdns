@@ -17,6 +17,7 @@
 #include "util/Bits.h"
 
 #include <stddef.h>
+#include <stdlib.h>
 
 struct ArrayList_pvt
 {
@@ -40,26 +41,28 @@ void* ArrayList_new(struct Allocator* alloc, int initialCapacity)
     return l;
 }
 
-void* ArrayList_get(void* vlist, int number)
+void* ArrayList_get(struct ArrayList* vlist, int number)
 {
     struct ArrayList_pvt* list = Identity_check((struct ArrayList_pvt*) vlist);
     if (number >= list->length || number < 0) { return NULL; }
     return list->elements[number];
 }
 
-void* ArrayList_shift(void* vlist)
+void* ArrayList_remove(struct ArrayList* vlist, int number)
 {
     struct ArrayList_pvt* list = Identity_check((struct ArrayList_pvt*) vlist);
-    if (!list->length) { return NULL; }
-    void* out = list->elements[0];
-    list->length--;
-    if (list->length) {
-        Bits_memmove(list->elements, &list->elements[1], sizeof(char*) * list->length);
+    if (number >= list->length) { return NULL; }
+    void* out = list->elements[number];
+    if (number < list->length - 1) {
+        Bits_memmove(&list->elements[number],
+                     &list->elements[number+1],
+                     sizeof(char*) * (list->length - number - 1));
     }
+    list->length--;
     return out;
 }
 
-int ArrayList_put(void* vlist, int number, void* val)
+int ArrayList_put(struct ArrayList* vlist, int number, void* val)
 {
     struct ArrayList_pvt* list = Identity_check((struct ArrayList_pvt*) vlist);
     Assert_true(number >= 0 && number <= list->length);
@@ -74,4 +77,20 @@ int ArrayList_put(void* vlist, int number, void* val)
     list->elements[number] = val;
     if (number == list->length) { list->length++; }
     return number;
+}
+
+void ArrayList_sort(struct ArrayList* vlist, int (* compare)(const void* a, const void* b))
+{
+    struct ArrayList_pvt* list = Identity_check((struct ArrayList_pvt*) vlist);
+    qsort(list->elements, list->length, sizeof(char*), compare);
+}
+
+void* ArrayList_clone(struct ArrayList* vlist, struct Allocator* alloc)
+{
+    struct ArrayList_pvt* list = Identity_check((struct ArrayList_pvt*) vlist);
+    struct ArrayList_pvt* newlist = Allocator_clone(alloc, list);
+    newlist->elements = Allocator_malloc(alloc, list->capacity * sizeof(char*));
+    Bits_memcpy(newlist->elements, list->elements, list->capacity * sizeof(char*));
+    newlist->alloc = alloc;
+    return newlist;
 }

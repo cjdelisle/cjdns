@@ -159,11 +159,12 @@ static void setupRoute(const char* deviceName,
     WinFail_check(eh, CreateIpForwardEntry2(&row));
 }
 
-void NetPlatform_addAddress(const char* name,
-                            const uint8_t* addrBytes,
+void NetPlatform_addAddress(const char* interfaceName,
+                            const uint8_t* address,
                             int prefixLen,
                             int addrFam,
                             struct Log* logger,
+                            struct Allocator* tempAlloc,
                             struct Except* eh)
 {
     MIB_UNICASTIPADDRESS_ROW ipRow = {
@@ -227,12 +228,12 @@ void NetPlatform_setMTU(const char* interfaceName,
     WinFail_check(eh, system(buffer));
 }
 
-void NetPlatform_addRoute(const char* interfaceName,
-                            const uint8_t* address,
-                            int prefixLen,
-                            int addrFam,
-                            struct Log* logger,
-                            struct Except* eh)
+void NetPlatform_setRoutes(const char* ifName,
+                           struct Sockaddr** prefixSet,
+                           int prefixCount,
+                           struct Log* logger,
+                           struct Allocator* tempAlloc,
+                           struct Except* eh)
 {
     Except_throw(eh, "NetPlatform_addRoute is not implemented in this platform.");
 }

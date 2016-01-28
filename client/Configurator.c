@@ -239,6 +239,15 @@ static void udpInterface(Dict* config, struct Context* ctx)
                 Dict_putInt(value, String_CONST("interfaceNumber"), ifNum, perCallAlloc);
                 Dict_putString(value, String_CONST("address"), key, perCallAlloc);
                 rpcCall(String_CONST("UDPInterface_beginConnection"), value, ctx, perCallAlloc);
+
+                // Make a IPTunnel exception for this node
+                Dict* aed = Dict_new(perCallAlloc);
+                *lastColon = '\0';
+                Dict_putString(aed, String_CONST("route"), String_new(key->bytes, perCallAlloc),
+                    perCallAlloc);
+                *lastColon = ':';
+                rpcCall(String_CONST("RouteGen_addException"), aed, ctx, perCallAlloc);
+
                 entry = entry->next;
             }
             Allocator_free(perCallAlloc);

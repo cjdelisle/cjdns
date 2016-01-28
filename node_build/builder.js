@@ -920,12 +920,18 @@ var configure = module.exports.configure = function (params, configFunc) {
         }));
 
     }).nThen(function (waitFor) {
-
-        GetVersion(waitFor(function(data) {
-            version = '' + data;
-            version = version.replace(/(\r\n|\n|\r)/gm, "");
-        }));
-
+        if (process.env["CJDNS_RELEASE_VERSION"]) {
+            version = '' + process.env["CJDNS_RELEASE_VERSION"];
+        } else {
+            GetVersion(waitFor(function(err, data) {
+                if (err === null) {
+                    version = '' + data;
+                    version = version.replace(/(\r\n|\n|\r)/gm, "");
+                } else {
+                    version = 'unknown';
+                }
+            }));
+        }
     }).nThen(function (waitFor) {
 
         if (!state || !state.rebuildIfChanges) {
