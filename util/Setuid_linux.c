@@ -52,7 +52,7 @@ void Setuid_preSetuid(struct Allocator* alloc, struct Except* eh)
     cap_user_header_t hdr = Allocator_calloc(alloc, sizeof(*hdr), 1);
     cap_user_data_t data = Allocator_calloc(alloc, sizeof(*data), 1);
 
-    hdr->version = _LINUX_CAPABILITY_VERSION;
+    hdr->version = _LINUX_CAPABILITY_VERSION_3;
     hdr->pid = 0;
     if (capGet(hdr, data)) {
         Except_throw(eh, "Error getting capabilities: [errno:%d (%s)]", errno, strerror(errno));
@@ -75,7 +75,7 @@ void Setuid_postSetuid(struct Allocator* alloc, struct Except* eh)
     cap_user_header_t hdr = Allocator_calloc(alloc, sizeof(*hdr), 1);
     cap_user_data_t data = Allocator_calloc(alloc, sizeof(*data), 1);
 
-    hdr->version = _LINUX_CAPABILITY_VERSION;
+    hdr->version = _LINUX_CAPABILITY_VERSION_3;
     hdr->pid = 0;
     if (capGet(hdr, data)) {
         Except_throw(eh, "Error getting capabilities (post-setuid): [errno:%d (%s)]",
