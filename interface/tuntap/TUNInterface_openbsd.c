@@ -50,7 +50,7 @@ struct Iface* TUNInterface_new(const char* interfaceName,
     if (isTapMode) { Except_throw(eh, "tap mode not supported on this platform"); }
     int err;
     char file[TUNInterface_IFNAMSIZ];
-    int ppa = 0; // to store the tunnel device index
+    int ppa = -1; // to store the tunnel device index
     int tunFd = -1;
     if (interfaceName && strlen(interfaceName) > 3 && !strncmp(interfaceName, "tun", 3)) {
         snprintf(file, TUNInterface_IFNAMSIZ, "/dev/%s", interfaceName);
@@ -69,8 +69,8 @@ struct Iface* TUNInterface_new(const char* interfaceName,
     // Since devices are numbered rather than named, it's not possible to have tun0 and cjdns0
     // so we'll skip the pretty names and call everything tunX
     if (assignedInterfaceName) {
-        if(interfaceName) {
-            snprintf(assignedInterfaceName, TUNInterface_IFNAMSIZ, interfaceName, ppa);
+        if(ppa == -1) {
+            snprintf(assignedInterfaceName, TUNInterface_IFNAMSIZ, "%s", interfaceName);
         } else {
             snprintf(assignedInterfaceName, TUNInterface_IFNAMSIZ, "tun%d", ppa);
         }
