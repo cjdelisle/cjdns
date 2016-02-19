@@ -32,9 +32,14 @@ scalability issues that plague existing networks.
     09:46 < Kubuxu> I so love cjdns code base
 
     <whyrusleeping> my internet is way better now.
-    ​<whyrusleeping> thanks
+    <whyrusleeping> thanks
     <whyrusleeping> i'm really upset and sad that its better
     <whyrusleeping> but also quite happy
+    
+    21:01 <@grewalsat> this is amazing. with my workpalce speedtest.net results I get around 6+mb speed, and with my cjdns-gate as vpn network I'm getting like 11-15mb download speed in speedtest.net
+    21:01 <@grewalsat> :P
+    21:01 <@grewalsat> plus, access anything! :D
+
 
 ## Community
 
