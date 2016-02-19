@@ -175,13 +175,13 @@ void NetPlatform_addAddress(const char* interfaceName,
         .OnLinkPrefixLength = 0xFF
     };
 
-    ipRow.InterfaceLuid = getLuid(name, eh);
+    ipRow.InterfaceLuid = getLuid(interfaceName, eh);
 
     ipRow.Address.si_family = addrFam;
     if (addrFam == Sockaddr_AF_INET6) {
-        Bits_memcpy(&ipRow.Address.Ipv6.sin6_addr, addrBytes, 16);
+        Bits_memcpy(&ipRow.Address.Ipv6.sin6_addr, address, 16);
     } else if (addrFam == Sockaddr_AF_INET) {
-        Bits_memcpy(&ipRow.Address.Ipv4.sin_addr, addrBytes, 4);
+        Bits_memcpy(&ipRow.Address.Ipv4.sin_addr, address, 4);
     } else {
         Assert_true(0);
     }
@@ -190,7 +190,7 @@ void NetPlatform_addAddress(const char* interfaceName,
 
     WinFail_check(eh, CreateUnicastIpAddressEntry(&ipRow));
 return;
-    setupRoute(name, addrBytes, prefixLen, addrFam, eh);
+    setupRoute(interfaceName, address, prefixLen, addrFam, eh);
 }
 
 void NetPlatform_setMTU(const char* interfaceName,
