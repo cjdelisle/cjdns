@@ -206,7 +206,7 @@ static int genconf(struct Random* rand, bool eth)
            "            }\n"
            "        ]\n");
 #ifdef HAS_ETH_INTERFACE
-    printf("\n");
+    printf(",\n");
     if (!eth) {
         printf("        /*\n");
     }
