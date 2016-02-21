@@ -36,8 +36,8 @@ Cjdns.connectAsAnon(function (cjdns) {
                     if (Number(peer['receivedOutOfRange']) !== 0) {
                         p += ' ' + ' OOR ' + peer['receivedOutOfRange'];
                     }
-                if (typeof(peer.user) === 'string') {
-                    p += ' "' + peer['user'] + '"';
+                if (typeof(peer.peerName) === 'string') {
+                    p += ' "' + peer['peerName'] + '"';
                 }
                 console.log(p);
             });

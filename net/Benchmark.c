@@ -166,7 +166,10 @@ static void switching(struct Context* ctx)
         InterfaceController_newIface(bob->ifController, String_CONST("bob"), alloc);
     Iface_plumb(&sc->bobIf, &bobIci->addrIf);
 
-    CryptoAuth_addUser(String_CONST("abcdefg123"), String_CONST("TEST"), bob->ca);
+    CryptoAuth_addUser(String_CONST("abcdefg123"),
+                       String_CONST("TEST"),
+                       String_CONST("TEST"),
+                       bob->ca);
 
     // Client has pubKey and passwd for the server.
     int ret = InterfaceController_bootstrapPeer(alice->ifController,

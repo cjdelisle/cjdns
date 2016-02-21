@@ -133,36 +133,6 @@ static inline void hashPassword(uint8_t secretOut[32],
 }
 
 /**
- * Search the authorized passwords for one matching this auth header.
- *
- * @param auth the auth header.
- * @param context the CryptoAuth engine to search in.
- * @return an Auth struct with a if one is found, otherwise NULL.
- */
-static inline struct CryptoAuth_User* getAuth(struct CryptoHeader_Challenge* auth,
-                                              struct CryptoAuth_pvt* ca)
-{
-    if (auth->type == 0) {
-        return NULL;
-    }
-    int count = 0;
-    for (struct CryptoAuth_User* u = ca->users; u; u = u->next) {
-        count++;
-        if (auth->type == 1 &&
-            !Bits_memcmp(auth, u->passwordHash, CryptoHeader_Challenge_KEYSIZE))
-        {
-            return u;
-        } else if (auth->type == 2 &&
-            !Bits_memcmp(auth, u->userNameHash, CryptoHeader_Challenge_KEYSIZE))
-        {
-            return u;
-        }
-    }
-    Log_debug(ca->logger, "Got unrecognized auth, password count = [%d]", count);
-    return NULL;
-}
-
-/**
  * Decrypt and authenticate.
  *
  * @param nonce a 24 byte number, may be random, cannot repeat.
@@ -283,7 +253,7 @@ static void getIp6(struct CryptoAuth_Session_pvt* session, uint8_t* addr)
     {                                                                                            \
         uint8_t addr[40] = "unknown";                                                            \
         getIp6((session), addr);                                                                 \
-        String* dn = (session)->pub.displayName;                                                 \
+        String* dn = (session)->pub.peerName;                                                    \
         Log_debug((session)->context->logger, "%p %s [%s]: " format, (void*)(session),           \
                   dn ? dn->bytes : "", addr, __VA_ARGS__);                                       \
     }
@@ -451,6 +421,38 @@ static void encryptHandshake(struct Message* message,
     Message_shift(message, CryptoHeader_SIZE - 32 - 16, NULL);
 }
 
+/**
+ * Search the authorized passwords for one matching this auth header.
+ *
+ * @param auth the auth header.
+ * @param context the CryptoAuth engine to search in.
+ * @return an Auth struct with a if one is found, otherwise NULL.
+ */
+struct CryptoAuth_User* CryptoAuth_getAuth(struct CryptoHeader_Challenge* auth,
+                                           struct CryptoAuth* cryptoAuth)
+
+{
+    struct CryptoAuth_pvt* ca = Identity_check((struct CryptoAuth_pvt*) cryptoAuth);
+    if (auth->type == 0) {
+        return NULL;
+    }
+    int count = 0;
+    for (struct CryptoAuth_User* u = ca->users; u; u = u->next) {
+        count++;
+        if (auth->type == 1 &&
+            !Bits_memcmp(auth, u->passwordHash, CryptoHeader_Challenge_KEYSIZE))
+        {
+            return u;
+        } else if (auth->type == 2 &&
+            !Bits_memcmp(auth, u->userNameHash, CryptoHeader_Challenge_KEYSIZE))
+        {
+            return u;
+        }
+    }
+    Log_debug(ca->logger, "Got unrecognized auth, password count = [%d]", count);
+    return NULL;
+}
+
 /** @return 0 on success, -1 otherwise. */
 int CryptoAuth_encrypt(struct CryptoAuth_Session* sessionPub, struct Message* msg)
 {
@@ -556,7 +558,7 @@ static Gcc_USE_RET int decryptHandshake(struct CryptoAuth_Session_pvt* session,
         return -1;
     }
 
-    struct CryptoAuth_User* userObj = getAuth(&header->auth, session->context);
+    struct CryptoAuth_User* userObj = CryptoAuth_getAuth(&header->auth, &(session->context->pub));
     uint8_t* restrictedToip6 = NULL;
     uint8_t* passwordHash = NULL;
     if (userObj) {
@@ -878,6 +880,7 @@ struct CryptoAuth* CryptoAuth_new(struct Allocator* allocator,
 
 int CryptoAuth_addUser_ipv6(String* password,
                             String* login,
+                            String* peerName,
                             uint8_t ipv6[16],
                             struct CryptoAuth* cryptoAuth)
 {
@@ -894,6 +897,12 @@ int CryptoAuth_addUser_ipv6(String* password,
         user->login = login = String_printf(alloc, "Anon #%d", i);
     } else {
         user->login = String_clone(login, alloc);
+    }
+
+    if (peerName) {
+        user->peerName = String_clone(peerName, alloc);
+    } else {
+        user->peerName = NULL;
     }
 
     struct CryptoHeader_Challenge ac;
@@ -968,7 +977,7 @@ struct CryptoAuth_Session* CryptoAuth_newSession(struct CryptoAuth* ca,
                                                  struct Allocator* alloc,
                                                  const uint8_t herPublicKey[32],
                                                  const bool requireAuth,
-                                                 char* displayName)
+                                                 char* peerName)
 {
     struct CryptoAuth_pvt* context = Identity_check((struct CryptoAuth_pvt*) ca);
     struct CryptoAuth_Session_pvt* session =
@@ -976,7 +985,7 @@ struct CryptoAuth_Session* CryptoAuth_newSession(struct CryptoAuth* ca,
     Identity_set(session);
     session->context = context;
     session->requireAuth = requireAuth;
-    session->pub.displayName = displayName ? String_new(displayName, alloc) : NULL;
+    session->pub.peerName = peerName ? String_new(peerName, alloc) : NULL;
     session->timeOfLastPacket = Time_currentTimeSeconds(context->eventBase);
     session->alloc = alloc;
 

@@ -284,12 +284,17 @@ static void cycle(uint8_t randSeed[64],
         ctx->nodeB.ca, alloc, ctx->nodeA.ca->publicKey, false, "nodeB");
 
     if (maybe(ctx, 2)) {
-        CryptoAuth_addUser_ipv6(String_CONST("pass"), String_CONST("user"), NULL, ctx->nodeB.ca);
+        CryptoAuth_addUser_ipv6(String_CONST("pass"),
+                                String_CONST("user"),
+                                String_CONST("peer"),
+                                NULL,
+                                ctx->nodeB.ca);
     } else {
         uint8_t nodeAAddress[16];
         AddressCalc_addressForPublicKey(nodeAAddress, ctx->nodeA.ca->publicKey);
         CryptoAuth_addUser_ipv6(String_CONST("pass"),
                                 String_CONST("user"),
+                                String_CONST("peer"),
                                 nodeAAddress,
                                 ctx->nodeB.ca);
     }

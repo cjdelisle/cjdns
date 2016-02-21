@@ -23,6 +23,7 @@
 #include "util/log/Log.h"
 #include "util/events/EventBase.h"
 #include "wire/Message.h"
+#include "wire/CryptoHeader.h"
 #include "util/Linker.h"
 Linker_require("crypto/CryptoAuth.c");
 
@@ -46,7 +47,7 @@ struct CryptoAuth_Session
 {
     uint8_t herPublicKey[32];
 
-    String* displayName;
+    String* peerName;
 
     struct ReplayProtector replayProtector;
 
@@ -78,14 +79,20 @@ struct CryptoAuth_Session
 #define CryptoAuth_addUser_DUPLICATE         -3
 int CryptoAuth_addUser_ipv6(String* password,
                             String* login,
+                            String* peerName,
                             uint8_t ipv6[16],
                             struct CryptoAuth* ca);
 
-static inline int CryptoAuth_addUser(String* password, String* login, struct CryptoAuth* ca)
+static inline int CryptoAuth_addUser(String* password,
+                                     String* login,
+                                     String* peerName,
+                                     struct CryptoAuth* ca)
 {
-    return CryptoAuth_addUser_ipv6(password, login, NULL, ca);
+    return CryptoAuth_addUser_ipv6(password, login, peerName, NULL, ca);
 }
 
+struct CryptoAuth_User* CryptoAuth_getAuth(struct CryptoHeader_Challenge* auth,
+                                           struct CryptoAuth* cryptoAuth);
 /**
  * Remove all users registered with this CryptoAuth.
  *

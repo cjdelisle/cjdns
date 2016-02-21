@@ -38,6 +38,8 @@ struct CryptoAuth_User {
 
     String* login;
 
+    String* peerName;
+
     uint8_t restrictedToip6[16];
 
     struct CryptoAuth_User* next;

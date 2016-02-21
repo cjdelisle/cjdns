@@ -201,12 +201,18 @@ static void testGetUsers()
     users = CryptoAuth_getUsers(ca, allocator);
     Assert_true(List_size(users) == 0);
 
-    CryptoAuth_addUser(String_CONST("pass1"), String_CONST("user1"), ca);
+    CryptoAuth_addUser(String_CONST("pass1"),
+                       String_CONST("user1"),
+                       String_CONST("peer1"),
+                       ca);
     users = CryptoAuth_getUsers(ca, allocator);
     Assert_true(List_size(users) == 1);
     Assert_true(String_equals(String_CONST("user1"), List_getString(users,0)));
 
-    CryptoAuth_addUser(String_CONST("pass2"), String_CONST("user2"), ca);
+    CryptoAuth_addUser(String_CONST("pass2"),
+                       String_CONST("user2"),
+                       String_CONST("peer2"),
+                       ca);
     users = CryptoAuth_getUsers(ca, allocator);
     Assert_true(List_size(users) == 2);
     Assert_true(String_equals(String_CONST("user2"),List_getString(users,0)));
