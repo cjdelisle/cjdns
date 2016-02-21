@@ -195,5 +195,5 @@ void NetPlatform_setRoutes(const char* ifName,
                            struct Allocator* tempAlloc,
                            struct Except* eh)
 {
-    Except_throw(eh, "NetPlatform_addRoute is not implemented in this platform.");
+    Except_throw(eh, "NetPlatform_setRoutes is not implemented in this platform.");
 }
