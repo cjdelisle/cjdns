@@ -991,7 +991,7 @@ let peers = function (ctx, i, cb) {
         case 'help': peersHelp(); cb(); return;
         default: {
             console.error("Unrecognized argument: " + process.argv[i+1]);
-            confHelp();
+            peersHelp();
             cb();
         }
     }
