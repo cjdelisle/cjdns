@@ -14,10 +14,10 @@
  */
 #ifndef QSort_H
 #define QSort_H
-#include "util/Bits.h"
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stddef.h>
 
 static inline void QSort(void* base, size_t members, size_t size,
                          int (*compar) (const void *, const void *))
@@ -44,10 +44,18 @@ static inline void QSort(void* base, size_t members, size_t size,
             j = i + gap;
             p2 = (uintptr_t) base + j * size;
             if (compar((void *) p1, (void *) p2) > 0) {
-                uint8_t tmp[size];
-                Bits_memcpy(tmp, (void *) p1, size);
-                Bits_memcpy((void *) p1, (void *) p2, size);
-                Bits_memcpy((void *) p2, tmp, size);
+                int k = size;
+                uint8_t tmp;
+                uint8_t* tp1;
+                uint8_t* tp2;
+
+                tp1 = (uint8_t*) p1;
+                tp2 = (uint8_t*) p2;
+                do {
+                    tmp = *tp1;
+                    *tp1++ = *tp2;
+                    *tp2++ = tmp;
+                } while (--k);
                 worked = true;
             }
         }
