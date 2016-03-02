@@ -245,7 +245,7 @@ int Core_main(int argc, char** argv)
 {
     struct Except* eh = NULL;
 
-    if (argc != 3) {
+    if (argc != 4) {
         Except_throw(eh, "This is internal to cjdns and shouldn't started manually.");
     }
 
@@ -264,7 +264,7 @@ int Core_main(int argc, char** argv)
     Allocator_setCanary(alloc, (unsigned long)Random_uint64(rand));
 
     struct Allocator* tempAlloc = Allocator_child(alloc);
-    struct Pipe* clientPipe = Pipe_named(argv[2], eventBase, eh, tempAlloc);
+    struct Pipe* clientPipe = Pipe_named(argv[2], argv[3], eventBase, eh, tempAlloc);
     clientPipe->logger = logger;
     Log_debug(logger, "Getting pre-configuration from client");
     struct Message* preConf =
