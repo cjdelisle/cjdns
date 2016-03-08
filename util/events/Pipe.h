@@ -18,6 +18,7 @@
 #include "memory/Allocator.h"
 #include "exception/Except.h"
 #include "interface/Iface.h"
+#include "interface/tuntap/AndroidWrapper.h"
 #include "util/events/EventBase.h"
 #include "util/Linker.h"
 Linker_require("util/events/libuv/Pipe.c");
@@ -73,4 +74,9 @@ struct Pipe* Pipe_forFiles(int inFd,
                            struct Except* eh,
                            struct Allocator* userAlloc);
 
+struct Pipe* Pipe_forAndroidHandle(struct AndroidWrapper* aw,
+                                   const char* pipe_path,
+                                   struct EventBase* eb,
+                                   struct Except* eh,
+                                   struct Allocator* userAlloc);
 #endif

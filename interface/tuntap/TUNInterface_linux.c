@@ -12,6 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "interface/tuntap/AndroidWrapper.h"
 #include "interface/tuntap/TUNInterface.h"
 #include "exception/Except.h"
 #include "memory/Allocator.h"
@@ -51,29 +52,44 @@ struct Iface* TUNInterface_new(const char* interfaceName,
     uint32_t maxNameSize = (IFNAMSIZ < TUNInterface_IFNAMSIZ) ? IFNAMSIZ : TUNInterface_IFNAMSIZ;
     Log_info(logger, "Initializing tun device [%s]", ((interfaceName) ? interfaceName : "auto"));
 
-    struct ifreq ifRequest = { .ifr_flags = (isTapMode) ? IFF_TAP : IFF_TUN };
-    if (interfaceName) {
-        if (strlen(interfaceName) > maxNameSize) {
-            Except_throw(eh, "tunnel name too big, limit is [%d] characters", maxNameSize);
-        }
-        strncpy(ifRequest.ifr_name, interfaceName, maxNameSize);
-    }
     int fileno = open(DEVICE_PATH, O_RDWR);
+    struct Pipe* p;
+    struct Iface* iface;
 
     if (fileno < 0) {
-        Except_throw(eh, "open(\"%s\") [%s]", DEVICE_PATH, strerror(errno));
-    }
+        if (Defined(android) && interfaceName) {
+            Log_info(logger, "Initializing tun pipe [%s]", interfaceName);
+            struct AndroidWrapper* aw = AndroidWrapper_new(alloc, logger);
+            p = Pipe_forAndroidHandle(aw, interfaceName, base, eh, alloc);
+            iface = &aw->internalIf;
+        } else {
+            Except_throw(eh, "open(\"%s\") [%s]", DEVICE_PATH, strerror(errno));
+        }
 
-    if (ioctl(fileno, TUNSETIFF, &ifRequest) < 0) {
-        int err = errno;
-        close(fileno);
-        Except_throw(eh, "ioctl(TUNSETIFF) [%s]", strerror(err));
-    }
-    if (assignedInterfaceName) {
-        strncpy(assignedInterfaceName, ifRequest.ifr_name, maxNameSize);
-    }
+        if (assignedInterfaceName) {
+            strncpy(assignedInterfaceName, interfaceName, maxNameSize);
+        }
+    } else {
+        struct ifreq ifRequest = { .ifr_flags = (isTapMode) ? IFF_TAP : IFF_TUN };
+        if (interfaceName) {
+            if (strlen(interfaceName) > maxNameSize) {
+                Except_throw(eh, "tunnel name too big, limit is [%d] characters", maxNameSize);
+            }
+            strncpy(ifRequest.ifr_name, interfaceName, maxNameSize);
+        }
+        if (ioctl(fileno, TUNSETIFF, &ifRequest) < 0) {
+            int err = errno;
+            close(fileno);
+            Except_throw(eh, "ioctl(TUNSETIFF) [%s]", strerror(err));
+        }
+        p = Pipe_forFiles(fileno, fileno, base, eh, alloc);
+        iface = &p->iface;
 
-    struct Pipe* p = Pipe_forFiles(fileno, fileno, base, eh, alloc);
+        if (assignedInterfaceName) {
+            strncpy(assignedInterfaceName, ifRequest.ifr_name, maxNameSize);
+        }
+    }
+    p->logger = logger;
 
-    return &p->iface;
+    return iface;
 }
