@@ -16,7 +16,6 @@
 #include "interface/tuntap/AndroidWrapper.h"
 #include "util/platform/Sockaddr.h"
 #include "memory/Allocator.h"
-#include "util/Hex.h"
 #include "util/Assert.h"
 #include "util/Identity.h"
 #include "wire/Ethernet.h"
@@ -42,6 +41,11 @@ static Iface_DEFUN incomingFromWire(struct Message* msg, struct Iface* externalI
     struct AndroidWrapper_pvt* ctx =
         Identity_containerOf(externalIf, struct AndroidWrapper_pvt, pub.externalIf);
 
+    if (!ctx->pub.internalIf.connectedIf) {
+        Log_debug(ctx->logger, "DROP message for android tun not inited");
+        return NULL;
+    }
+
     int version = Headers_getIpVersion(msg->bytes);
     uint16_t ethertype = 0;
     if (version == 4) {
@@ -52,20 +56,10 @@ static Iface_DEFUN incomingFromWire(struct Message* msg, struct Iface* externalI
         Log_debug(ctx->logger, "Message is not IP/IPv6, dropped.");
         return NULL;
     }
+
     Message_shift(msg, 4, NULL);
     ((uint16_t*) msg->bytes)[0] = 0;
     ((uint16_t*) msg->bytes)[1] = ethertype;
-
-    if (msg->length < 128) {
-        char buf[256] = {0};
-        Hex_encode(buf, msg->length * 2, msg->bytes, msg->length);
-        Log_debug(ctx->logger, "recv %d msg(%d): %s", version, msg->length, buf);
-    }
-
-    if (!ctx->pub.internalIf.connectedIf) {
-        Log_debug(ctx->logger, "DROP message for android tun not inited");
-        return NULL;
-    }
 
     return Iface_next(&ctx->pub.internalIf, msg);
 }
@@ -75,17 +69,12 @@ static Iface_DEFUN incomingFromUs(struct Message* msg, struct Iface* internalIf)
     struct AndroidWrapper_pvt* ctx =
         Identity_containerOf(internalIf, struct AndroidWrapper_pvt, pub.internalIf);
 
-    Message_shift(msg, -4, NULL);
-    if (msg->length < 128) {
-        char buf[256] = {0};
-        Hex_encode(buf, msg->length * 2, msg->bytes, msg->length);
-        Log_debug(ctx->logger, "send msg(%d): %s", msg->length, buf);
-    }
-
     if (!ctx->pub.externalIf.connectedIf) {
         Log_debug(ctx->logger, "DROP message for android tun not inited");
         return NULL;
     }
+
+    Message_shift(msg, -4, NULL);
 
     return Iface_next(&ctx->pub.externalIf, msg);
 }
