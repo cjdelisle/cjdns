@@ -25,6 +25,9 @@
 #include <inttypes.h>
 #include <stdio.h>
 
+#define NOIPC   0
+#define IPC     1
+
 struct Pipe_WriteRequest_pvt;
 
 struct Pipe_pvt
@@ -58,6 +61,8 @@ struct Pipe_pvt
     struct Pipe_WriteRequest_pvt* bufferedRequest;
 
     struct Allocator* alloc;
+
+    struct AndroidWrapper* aw;
 
     Identity
 };
@@ -208,6 +213,54 @@ static void incoming(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf)
     }
 }
 
+#ifndef win32
+static void incoming2(uv_pipe_t* stream,
+                      ssize_t nread,
+                      const uv_buf_t* buf,
+                      uv_handle_type pending)
+{
+    struct Pipe_pvt* pipe = Identity_check((struct Pipe_pvt*) stream->data);
+
+    // Grab out the allocator which was placed there by allocate()
+    struct Allocator* alloc = buf->base ? ALLOC(buf->base) : NULL;
+    pipe->isInCallback = 1;
+
+    Assert_true(!alloc || alloc->fileName == pipe->alloc->fileName ||
+                pending == UV_UNKNOWN_HANDLE);
+
+    if (nread < 0) {
+        if (pipe->pub.onClose) {
+            pipe->pub.onClose(&pipe->pub, 0);
+        }
+        uv_close((uv_handle_t*) stream, onClose);
+
+    } else if (nread == 0) {
+        // This is common.
+        //Log_debug(pipe->pub.logger, "Pipe 0 length read [%s]", pipe->pub.fullName);
+
+    } else {
+        if (pipe->peer.accepted_fd != -1 && pipe->aw) {
+            struct Pipe* p = Pipe_forFiles(pipe->peer.accepted_fd, pipe->peer.accepted_fd,
+                                           pipe->pub.base, NULL, pipe->alloc);
+            p->logger = pipe->pub.logger;
+            if (pipe->aw->externalIf.connectedIf) {
+                Iface_unplumb(pipe->aw->externalIf.connectedIf, &pipe->aw->externalIf);
+            }
+            Iface_plumb(&pipe->aw->externalIf, &p->iface);
+        }
+    }
+
+    if (alloc) {
+        Allocator_free(alloc);
+    }
+
+    pipe->isInCallback = 0;
+    if (pipe->blockFreeInsideCallback) {
+        Allocator_onFreeComplete((struct Allocator_OnFreeJob*) pipe->blockFreeInsideCallback);
+    }
+}
+#endif
+
 static void allocate(uv_handle_t* handle, size_t size, uv_buf_t* buf)
 {
     struct Pipe_pvt* pipe = Identity_check((struct Pipe_pvt*) handle->data);
@@ -236,11 +289,19 @@ static void connected(uv_connect_t* req, int status)
                  pipe->pub.fullName, uv_strerror(status) );
         uv_close((uv_handle_t*) &pipe->peer, onClose);
 
-    } else if ((ret = uv_read_start((uv_stream_t*)&pipe->peer, allocate, incoming))) {
+    } else if ((!pipe->aw) && (ret = uv_read_start((uv_stream_t*)&pipe->peer,
+                                                    allocate, incoming))) {
         Log_info(pipe->pub.logger, "uv_read_start() failed for pipe [%s] [%s]",
                  pipe->pub.fullName, uv_strerror(ret));
         uv_close((uv_handle_t*) &pipe->peer, onClose);
 
+    #ifndef win32
+    } else if (pipe->aw && (ret = uv_read2_start((uv_stream_t*)&pipe->peer,
+                                                 allocate, incoming2))) {
+        Log_info(pipe->pub.logger, "uv_read2_start() failed for pipe [%s] [%s]",
+                 pipe->pub.fullName, uv_strerror(ret));
+        uv_close((uv_handle_t*) &pipe->peer, onClose);
+    #endif
     } else {
         pipe->isActive = 1;
 
@@ -326,16 +387,35 @@ static int closeHandlesOnFree(struct Allocator_OnFreeJob* job)
 }
 
 static struct Pipe_pvt* newPipe(struct EventBase* eb,
+                                const char* path,
                                 const char* name,
+                                int ipc,
                                 struct Except* eh,
                                 struct Allocator* userAlloc)
 {
     struct EventBase_pvt* ctx = EventBase_privatize(eb);
     struct Allocator* alloc = Allocator_child(userAlloc);
 
-    char* cname = Allocator_malloc(alloc, CString_strlen(Pipe_PREFIX)+CString_strlen(name)+1);
-    Bits_memcpy(cname, Pipe_PREFIX, CString_strlen(Pipe_PREFIX));
-    Bits_memcpy(cname+CString_strlen(Pipe_PREFIX), name, CString_strlen(name)+1);
+    char prefix[32] = {0};
+    if (Defined(win32)) {
+        Bits_memcpy(prefix, "\\cjdns_pipe_", CString_strlen("\\cjdns_pipe_"));
+    } else if (name){
+        Bits_memcpy(prefix, "/cjdns_pipe_", CString_strlen("/cjdns_pipe_"));
+    }
+    int len = (path ? CString_strlen(path) : 0) + CString_strlen(prefix) +
+        (name ? CString_strlen(name) : 0) + 1;
+    char* cname = Allocator_malloc(alloc, len);
+    Bits_memset(cname, 0, len);
+    int pos = 0;
+    if (path) {
+        Bits_memcpy(cname, path, CString_strlen(path));
+        pos += CString_strlen(path);
+    }
+    if (name) {
+        Bits_memcpy(cname + pos, prefix, CString_strlen(prefix));
+        pos += CString_strlen(prefix);
+        Bits_memcpy(cname + pos, name, CString_strlen(name) + 1);
+    }
 
     struct Pipe_pvt* out = Allocator_clone(alloc, (&(struct Pipe_pvt) {
         .pub = {
@@ -343,7 +423,7 @@ static struct Pipe_pvt* newPipe(struct EventBase* eb,
                 .send = sendMessage
             },
             .fullName = cname,
-            .name = &cname[sizeof(Pipe_PREFIX) - 1],
+            .name = &cname[pos],
             .base = eb
         },
         .alloc = alloc
@@ -351,12 +431,12 @@ static struct Pipe_pvt* newPipe(struct EventBase* eb,
 
     int ret;
 
-    ret = uv_pipe_init(ctx->loop, &out->peer, 0);
+    ret = uv_pipe_init(ctx->loop, &out->peer, ipc);
     if (ret) {
         Except_throw(eh, "uv_pipe_init() failed [%s]", uv_strerror(ret));
     }
 
-    ret = uv_pipe_init(ctx->loop, &out->server, 0);
+    ret = uv_pipe_init(ctx->loop, &out->server, ipc);
     if (ret) {
         Except_throw(eh, "uv_pipe_init() failed [%s]", uv_strerror(ret));
     }
@@ -387,7 +467,7 @@ struct Pipe* Pipe_forFiles(int inFd,
     char buff[32] = {0};
     snprintf(buff, 31, "forFiles(%d,%d)", inFd, outFd);
 
-    struct Pipe_pvt* out = newPipe(eb, buff, eh, userAlloc);
+    struct Pipe_pvt* out = newPipe(eb, NULL, buff, NOIPC, eh, userAlloc);
 
     int ret = uv_pipe_open(&out->peer, inFd);
     if (ret) {
@@ -410,12 +490,13 @@ struct Pipe* Pipe_forFiles(int inFd,
     return &out->pub;
 }
 
-struct Pipe* Pipe_named(const char* name,
+struct Pipe* Pipe_named(const char* path,
+                        const char* name,
                         struct EventBase* eb,
                         struct Except* eh,
                         struct Allocator* userAlloc)
 {
-    struct Pipe_pvt* out = newPipe(eb, name, eh, userAlloc);
+    struct Pipe_pvt* out = newPipe(eb, path, name, NOIPC, eh, userAlloc);
     int ret;
 
     // Attempt to create pipe.
@@ -434,6 +515,34 @@ struct Pipe* Pipe_named(const char* name,
         uv_connect_t* req = Allocator_malloc(out->alloc, sizeof(uv_connect_t));
         req->data = out;
         uv_pipe_connect(req, &out->peer, out->pub.fullName, connected);
+        return &out->pub;
+    }
+
+    Except_throw(eh, "uv_pipe_bind() failed [%s] for pipe [%s]",
+                 uv_strerror(ret), out->pub.fullName);
+
+    return &out->pub;
+}
+
+struct Pipe* Pipe_forAndroidHandle(struct AndroidWrapper* aw,
+                                   const char* pipe_path,
+                                   struct EventBase* eb,
+                                   struct Except* eh,
+                                   struct Allocator* userAlloc)
+{
+    struct Pipe_pvt* out = newPipe(eb, pipe_path, NULL, IPC, eh, userAlloc);
+
+    uv_fs_t req;
+    uv_fs_unlink(out->server.loop, &req, out->pub.fullName, NULL);
+
+    int ret = uv_pipe_bind(&out->server, out->pub.fullName);
+    if (!ret) {
+        ret = uv_listen((uv_stream_t*) &out->server, 1, listenCallback);
+        if (ret) {
+            Except_throw(eh, "uv_listen() failed [%s] for pipe [%s]",
+                         uv_strerror(ret), out->pub.fullName);
+        }
+        out->aw = aw;
         return &out->pub;
     }
 
