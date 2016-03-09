@@ -57,8 +57,16 @@ if [ "$NDK" == "/bad/path/to/android-ndk-r10e/" ]; then
   fi
 fi
 
-$NDK/build/tools/make-standalone-toolchain.sh --platform=android-21 --toolchain=arm-linux-androideabi-4.9 --install-dir=$BUILD_PATH/arm-${TYPE}-androideabi/ --system=${TYPE}-${cpu_arch}
-$NDK/build/tools/make-standalone-toolchain.sh --platform=android-21 --toolchain=x86-4.9 --install-dir=$BUILD_PATH/i686-${TYPE}-androideabi/ --system=${TYPE}-${cpu_arch}
+GCC=$BUILD_PATH/arm-${TYPE}-androideabi/bin/arm-linux-androideabi-gcc
+[[ ! -x "$GCC" ]] && {
+    $NDK/build/tools/make-standalone-toolchain.sh --platform=android-21 --toolchain=arm-linux-androideabi-4.9 --install-dir=$BUILD_PATH/arm-${TYPE}-androideabi/ --system=${TYPE}-${cpu_arch} \
+    || exit 1
+    }
+GCC=$BUILD_PATH/i686-${TYPE}-androideabi/bin/i686-linux-android-gcc
+[[ ! -x "$GCC" ]] && {
+    $NDK/build/tools/make-standalone-toolchain.sh --platform=android-21 --toolchain=x86-4.9 --install-dir=$BUILD_PATH/i686-${TYPE}-androideabi/ --system=${TYPE}-${cpu_arch} \
+    || exit 1
+    }
 
 Seccomp_NO=1
 
@@ -89,6 +97,7 @@ cp cjdroute $(pwd)/android_out/armeabi-v7a/ || ret=$?
 
 if [ "$ret" != "" ] && [ "$ret" != "0" ]; then
   echo -e "\e[1;31mCopying armeabi-v7a binary failed, non zero status returned - $ret\e[0m"
+  exit 1
 else
   echo -e "\e[1;32mCopied armeabi-v7a successfully\e[0m"
 fi
