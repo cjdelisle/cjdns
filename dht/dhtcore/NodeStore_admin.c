@@ -124,7 +124,7 @@ static void getLink(Dict* args, void* vcontext, String* txid, struct Allocator* 
 
     String* ipStr = Dict_getString(args, String_new("parent", alloc));
     int64_t* linkNum = Dict_getInt(args, String_new("linkNum", alloc));
-    if (ipStr) {
+    if (ipStr && ipStr->len) {
         uint8_t ip[16];
         if (AddrTools_parseIp(ip, ipStr->bytes)) {
             Dict_remove(ret, String_CONST("result"));
