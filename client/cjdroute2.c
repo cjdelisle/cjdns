@@ -260,6 +260,12 @@ static int genconf(struct Random* rand, bool eth)
            "        {\n"
            "            // The type of interface (only TUNInterface is supported for now)\n"
            "            \"type\": \"TUNInterface\"\n"
+           "            // The tun device is a file description or not.\n"
+           "            // \"tunfd\" : 0,\n"
+           "            // If tunfd value is not 0, the tunDevice should be used as the pipe path\n"
+           "            // used to transfer the tun file description.\n"
+           "            // The type of tunfd (only \"android\" is supported for now)\n"
+           "            // \"tunfdType\" : \"\"\n"
 #ifndef __APPLE__
            "\n"
            "            // The name of a persistent TUN device to use.\n"

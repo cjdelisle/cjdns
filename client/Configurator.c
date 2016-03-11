@@ -263,13 +263,28 @@ static void tunInterface(Dict* ifaceConf, struct Allocator* tempAlloc, struct Co
     }
 
     // Setup the interface.
+    int64_t* tunfd = Dict_getInt(ifaceConf, String_CONST("tunfd"));
+    String* type = Dict_getString(ifaceConf, String_CONST("tunfdType"));
     String* device = Dict_getString(ifaceConf, String_CONST("tunDevice"));
 
-    Dict* args = Dict_new(tempAlloc);
-    if (device) {
-        Dict_putString(args, String_CONST("desiredTunName"), device, tempAlloc);
+    if (tunfd && *tunfd && !device) {
+        return;
     }
-    rpcCall0(String_CONST("Core_initTunnel"), args, ctx, tempAlloc, NULL, false);
+
+    Dict* args = Dict_new(tempAlloc);
+    if (tunfd && *tunfd) {
+        Dict_putString(args, String_CONST("path"), device, tempAlloc);
+        if (type) {
+            Dict_putString(args, String_CONST("type"),
+                           String_new(type->bytes, tempAlloc), tempAlloc);
+        }
+        rpcCall0(String_CONST("FileNo_import"), args, ctx, tempAlloc, NULL, false);
+    } else {
+        if (device) {
+            Dict_putString(args, String_CONST("desiredTunName"), device, tempAlloc);
+        }
+        rpcCall0(String_CONST("Core_initTunnel"), args, ctx, tempAlloc, NULL, false);
+    }
 }
 
 static void ipTunnel(Dict* ifaceConf, struct Allocator* tempAlloc, struct Context* ctx)

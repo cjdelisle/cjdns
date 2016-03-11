@@ -28,6 +28,7 @@
 #include "interface/Iface.h"
 #include "util/events/UDPAddrIface.h"
 #include "interface/tuntap/TUNInterface.h"
+#include "interface/tuntap/AndroidWrapper.h"
 #include "interface/UDPInterface_admin.h"
 #ifdef HAS_ETH_INTERFACE
 #include "interface/ETHInterface_admin.h"
@@ -43,6 +44,10 @@
 #include "tunnel/IpTunnel_admin.h"
 #include "tunnel/RouteGen_admin.h"
 #include "util/events/EventBase.h"
+#ifndef win32
+#include "util/events/libuv/FileNo_admin.h"
+#include "util/events/FileNo.h"
+#endif
 #include "util/events/Pipe.h"
 #include "util/events/Timeout.h"
 #include "util/Hex.h"
@@ -105,8 +110,32 @@ struct Context
     struct EventBase* base;
     struct NetCore* nc;
     struct IpTunnel* ipTunnel;
+#ifndef win32
+    struct FileNo_admin* fileno;
+#endif
     Identity
 };
+
+#ifndef win32
+static void onFileNoReceived(void* vcontext, enum FileNo_Type type, int fileno)
+{
+    struct Context* ctx = Identity_check((struct Context*) vcontext);
+    struct Jmp jmp;
+    Jmp_try(jmp) {
+        struct Pipe* p = Pipe_forFiles(fileno, fileno, ctx->base, &jmp.handler, ctx->alloc);
+        p->logger = ctx->logger;
+        if (type == FileNo_Type_ANDROID) {
+            struct AndroidWrapper* aw = AndroidWrapper_new(ctx->alloc, ctx->logger);
+            Iface_plumb(&aw->externalIf, &p->iface);
+            Iface_plumb(&aw->internalIf, &ctx->nc->tunAdapt->tunIf);
+        } else {
+            Iface_plumb(&p->iface, &ctx->nc->tunAdapt->tunIf);
+        }
+    } Jmp_catch {
+        Log_warn(ctx->logger, "Failed to configure fileno [%s]", jmp.message);
+    }
+}
+#endif
 
 static void shutdown(void* vcontext)
 {
@@ -198,6 +227,11 @@ void Core_init(struct Allocator* alloc,
     Iface_plumb(&nc->tunAdapt->ipTunnelIf, &ipTunnel->tunInterface);
     Iface_plumb(&nc->upper->ipTunnelIf, &ipTunnel->nodeInterface);
 
+#ifndef win32
+    struct FileNo_admin* fileno = FileNo_admin_new(admin, alloc, eventBase,
+                                                 logger, eh, onFileNoReceived);
+#endif
+
     // The link between the Pathfinder and the core needs to be asynchronous.
     struct Pathfinder* pf = Pathfinder_register(alloc, logger, eventBase, rand, admin);
     struct ASynchronizer* pfAsync = ASynchronizer_new(alloc, eventBase, logger);
@@ -230,6 +264,10 @@ void Core_init(struct Allocator* alloc,
     ctx->base = eventBase;
     ctx->ipTunnel = ipTunnel;
     ctx->nc = nc;
+#ifndef win32
+    ctx->fileno = fileno;
+    ctx->fileno->userData = ctx;
+#endif
 
     Admin_registerFunction("Core_exit", adminExit, ctx, true, NULL, admin);
 
