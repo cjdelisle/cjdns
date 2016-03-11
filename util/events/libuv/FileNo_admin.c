@@ -49,7 +49,7 @@ static void import(Dict* args, void* vcontext, String* txid, struct Allocator* r
         error = "FileNo already exist";
     } else {
         int fdtype = FileNo_Type_NORMAL;
-        if (type && CString_strcmp(type->bytes, "android")) {
+        if (type && !CString_strcmp(type->bytes, "android")) {
             fdtype = FileNo_Type_ANDROID;
         }
         ctx->fileno = FileNo_new(path->bytes, ctx->base, ctx->eh, ctx->logger, ctx->alloc,
