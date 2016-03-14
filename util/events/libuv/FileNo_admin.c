@@ -107,6 +107,4 @@ void FileNo_admin_register(struct Admin* admin,
             { .name = "path", .required = 1, .type = "String" },
             { .name = "type", .required = 0, .type = "String" }
         }), admin);
-
-    return &ctx->pub;
 }
