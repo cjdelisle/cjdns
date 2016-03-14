@@ -107,7 +107,6 @@ struct Context
     struct EventBase* base;
     struct NetCore* nc;
     struct IpTunnel* ipTunnel;
-    struct FileNo_admin* fileno;
     Identity
 };
 
@@ -232,9 +231,6 @@ void Core_init(struct Allocator* alloc,
     Iface_plumb(&nc->tunAdapt->ipTunnelIf, &ipTunnel->tunInterface);
     Iface_plumb(&nc->upper->ipTunnelIf, &ipTunnel->nodeInterface);
 
-    struct FileNo_admin* fileno = FileNo_admin_new(admin, alloc, eventBase,
-                                                 logger, eh);
-
     // The link between the Pathfinder and the core needs to be asynchronous.
     struct Pathfinder* pf = Pathfinder_register(alloc, logger, eventBase, rand, admin);
     struct ASynchronizer* pfAsync = ASynchronizer_new(alloc, eventBase, logger);
@@ -249,6 +245,7 @@ void Core_init(struct Allocator* alloc,
 #ifdef HAS_ETH_INTERFACE
     ETHInterface_admin_register(eventBase, alloc, logger, admin, nc->ifController);
 #endif
+    FileNo_admin_register(admin, alloc, eventBase, logger, eh);
 
     AuthorizedPasswords_init(admin, nc->ca, alloc);
     Admin_registerFunction("ping", adminPing, admin, false, NULL, admin);
@@ -267,7 +264,6 @@ void Core_init(struct Allocator* alloc,
     ctx->base = eventBase;
     ctx->ipTunnel = ipTunnel;
     ctx->nc = nc;
-    ctx->fileno = fileno;
 
     Admin_registerFunction("Core_exit", adminExit, ctx, true, NULL, admin);
 

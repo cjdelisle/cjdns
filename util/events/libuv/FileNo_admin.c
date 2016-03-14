@@ -87,11 +87,11 @@ static void import(Dict* args, void* vcontext, String* txid, struct Allocator* r
     fp->callback = onResponse;
 }
 
-struct FileNo_admin* FileNo_admin_new(struct Admin* admin,
-                                    struct Allocator* alloc,
-                                    struct EventBase* base,
-                                    struct Log* logger,
-                                    struct Except* eh)
+void FileNo_admin_register(struct Admin* admin,
+                           struct Allocator* alloc,
+                           struct EventBase* base,
+                           struct Log* logger,
+                           struct Except* eh)
 {
     struct Context* ctx = Allocator_clone(alloc, (&(struct Context) {
         .admin = admin,

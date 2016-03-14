@@ -28,10 +28,10 @@ struct FileNo_admin
     void* userData;
 };
 
-struct FileNo_admin* FileNo_admin_new(struct Admin* admin,
-                                      struct Allocator* alloc,
-                                      struct EventBase* base,
-                                      struct Log* logger,
-                                      struct Except* eh);
+void FileNo_admin_register(struct Admin* admin,
+                           struct Allocator* alloc,
+                           struct EventBase* base,
+                           struct Log* logger,
+                           struct Except* eh);
 
 #endif
