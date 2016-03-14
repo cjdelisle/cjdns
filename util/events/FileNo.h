@@ -32,7 +32,14 @@ enum FileNo_Type {
     FileNo_Type_ANDROID
 };
 
-typedef void (* FileNo_callback)(void* context, enum FileNo_Type type, int fileno);
+struct FileNo_Promise;
+struct FileNo_Promise
+{
+    void (* callback)(struct FileNo_Promise* promise,
+                      int fileno);
+    void* userData;
+    struct Allocator* alloc;
+};
 
 struct FileNo
 {
@@ -45,7 +52,7 @@ struct FileNo
 
     struct EventBase* const base;
 
-    FileNo_callback onFileNoReceived;
+    struct Allocator* alloc;
 
     struct Log* logger;
 };
@@ -53,11 +60,10 @@ struct FileNo
 #define FileNo_PADDING_AMOUNT   512
 #define FileNo_BUFFER_CAP       4000
 
-struct FileNo* FileNo_new(const char* path,
-                          struct EventBase* eb,
-                          struct Except* eh,
-                          struct Log* logger,
-                          struct Allocator* userAlloc,
-                          FileNo_callback recv_cb);
+struct FileNo_Promise* FileNo_import(const char* path,
+                                     struct EventBase* eb,
+                                     struct Except* eh,
+                                     struct Log* logger,
+                                     struct Allocator* alloc);
 
 #endif

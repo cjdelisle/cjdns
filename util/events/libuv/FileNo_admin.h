@@ -32,7 +32,6 @@ struct FileNo_admin* FileNo_admin_new(struct Admin* admin,
                                       struct Allocator* alloc,
                                       struct EventBase* base,
                                       struct Log* logger,
-                                      struct Except* eh,
-                                      FileNo_callback cb);
+                                      struct Except* eh);
 
 #endif

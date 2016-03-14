@@ -28,56 +28,76 @@ struct Context
     struct FileNo_admin pub;
     struct Admin* admin;
     struct Allocator* alloc;
-    struct FileNo* fileno;
     struct Except* eh;
     struct EventBase* base;
     struct Log* logger;
-    FileNo_callback onFileNoReceived;
     Identity
 };
+
+struct FileNoRequest
+{
+    String* txid;
+    struct FileNo_Promise* fp;
+    struct Context* ctx;
+    struct FileNo* fileno;
+    enum FileNo_Type type;
+    Identity
+};
+
+static void onResponse(struct FileNo_Promise* promise, int tunfd)
+{
+    struct FileNoRequest* fr= Identity_check((struct FileNoRequest*)promise->userData);
+    Dict* resp = Dict_new(promise->alloc);
+
+    Dict_putInt(resp, String_CONST("tunfd"), tunfd, promise->alloc);
+    Dict_putInt(resp, String_CONST("type"), fr->type, promise->alloc);
+    Dict_putString(resp, String_CONST("error"), String_CONST("none"), promise->alloc);
+    Admin_sendMessage(resp, fr->txid, fr->ctx->admin);
+}
 
 static void import(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* ctx = Identity_check((struct Context*) vcontext);
     String* path = Dict_getString(args, String_CONST("path"));
     String* type = Dict_getString(args, String_CONST("type"));
-    char* error = NULL;
+    char* err = NULL;
 
-    if (ctx->fileno && CString_strncmp(ctx->fileno->pipePath, path->bytes, path->len)) {
-        error = "none";
-    } else if (ctx->fileno) {
-        error = "FileNo already exist";
-    } else {
-        int fdtype = FileNo_Type_NORMAL;
-        if (type && !CString_strcmp(type->bytes, "android")) {
-            fdtype = FileNo_Type_ANDROID;
-        }
-        ctx->fileno = FileNo_new(path->bytes, ctx->base, ctx->eh, ctx->logger, ctx->alloc,
-                                 ctx->onFileNoReceived);
-        ctx->fileno->type = fdtype;
-        ctx->fileno->userData = ctx->pub.userData;
-        error = "none";
+    if (Defined(win32)) {
+        err = "Do not support win32";
+        Dict errDict = Dict_CONST(String_CONST("error"), String_OBJ(String_CONST(err)), NULL);
+        Admin_sendMessage(&errDict, txid, ctx->admin);
+        return;
     }
 
-    Dict response = Dict_CONST(
-        String_CONST("error"), String_OBJ(String_CONST(error)), NULL
-    );
-    Admin_sendMessage(&response, txid, ctx->admin);
+    int fdtype = FileNo_Type_NORMAL;
+    if (type && !CString_strcmp(type->bytes, "android")) {
+        fdtype = FileNo_Type_ANDROID;
+    }
+
+    struct FileNo_Promise* fp = FileNo_import(path->bytes, ctx->base, ctx->eh, ctx->logger,
+                                              ctx->alloc);
+    struct FileNoRequest* fr = Allocator_calloc(fp->alloc, sizeof(struct FileNoRequest), 1);
+    Identity_set(fr);
+    fr->txid = String_clone(txid, fp->alloc);
+    fr->fp = fp;
+    fr->type = fdtype;
+    fr->ctx = ctx;
+
+    fp->userData = fr;
+    fp->callback = onResponse;
 }
 
 struct FileNo_admin* FileNo_admin_new(struct Admin* admin,
                                     struct Allocator* alloc,
                                     struct EventBase* base,
                                     struct Log* logger,
-                                    struct Except* eh,
-                                    FileNo_callback cb)
+                                    struct Except* eh)
 {
     struct Context* ctx = Allocator_clone(alloc, (&(struct Context) {
         .admin = admin,
         .eh = eh,
         .alloc = alloc,
         .logger = logger,
-        .onFileNoReceived = cb,
         .base = base
     }));
     Identity_set(ctx);

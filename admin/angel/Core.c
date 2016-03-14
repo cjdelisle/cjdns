@@ -44,10 +44,7 @@
 #include "tunnel/IpTunnel_admin.h"
 #include "tunnel/RouteGen_admin.h"
 #include "util/events/EventBase.h"
-#ifndef win32
 #include "util/events/libuv/FileNo_admin.h"
-#include "util/events/FileNo.h"
-#endif
 #include "util/events/Pipe.h"
 #include "util/events/Timeout.h"
 #include "util/Hex.h"
@@ -110,32 +107,9 @@ struct Context
     struct EventBase* base;
     struct NetCore* nc;
     struct IpTunnel* ipTunnel;
-#ifndef win32
     struct FileNo_admin* fileno;
-#endif
     Identity
 };
-
-#ifndef win32
-static void onFileNoReceived(void* vcontext, enum FileNo_Type type, int fileno)
-{
-    struct Context* ctx = Identity_check((struct Context*) vcontext);
-    struct Jmp jmp;
-    Jmp_try(jmp) {
-        struct Pipe* p = Pipe_forFiles(fileno, fileno, ctx->base, &jmp.handler, ctx->alloc);
-        p->logger = ctx->logger;
-        if (type == FileNo_Type_ANDROID) {
-            struct AndroidWrapper* aw = AndroidWrapper_new(ctx->alloc, ctx->logger);
-            Iface_plumb(&aw->externalIf, &p->iface);
-            Iface_plumb(&aw->internalIf, &ctx->nc->tunAdapt->tunIf);
-        } else {
-            Iface_plumb(&p->iface, &ctx->nc->tunAdapt->tunIf);
-        }
-    } Jmp_catch {
-        Log_warn(ctx->logger, "Failed to configure fileno [%s]", jmp.message);
-    }
-}
-#endif
 
 static void shutdown(void* vcontext)
 {
@@ -188,6 +162,37 @@ static void initTunnel2(String* desiredDeviceName,
     NetDev_setMTU(assignedTunName, DEFAULT_MTU, ctx->logger, eh);
 }
 
+static void initTunfd(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
+{
+    struct Context* ctx = Identity_check((struct Context*) vcontext);
+    struct Jmp jmp;
+    Jmp_try(jmp) {
+        int64_t* tunfd = Dict_getInt(args, String_CONST("tunfd"));
+        int64_t* tuntype = Dict_getInt(args, String_CONST("type"));
+        if (!tunfd || *tunfd < 0) {
+            String* error = String_printf(requestAlloc, "Invalid tunfd");
+            sendResponse(error, ctx->admin, txid, requestAlloc);
+            return;
+        }
+        int fileno = *tunfd;
+        int type = (*tuntype) ? *tuntype : FileNo_Type_NORMAL;
+        struct Pipe* p = Pipe_forFiles(fileno, fileno, ctx->base, &jmp.handler, ctx->alloc);
+        p->logger = ctx->logger;
+        if (type == FileNo_Type_ANDROID) {
+            struct AndroidWrapper* aw = AndroidWrapper_new(ctx->alloc, ctx->logger);
+            Iface_plumb(&aw->externalIf, &p->iface);
+            Iface_plumb(&aw->internalIf, &ctx->nc->tunAdapt->tunIf);
+        } else {
+            Iface_plumb(&p->iface, &ctx->nc->tunAdapt->tunIf);
+        }
+        sendResponse(String_CONST("none"), ctx->admin, txid, requestAlloc);
+    } Jmp_catch {
+        String* error = String_printf(requestAlloc, "Failed to configure tunnel [%s]", jmp.message);
+        sendResponse(error, ctx->admin, txid, requestAlloc);
+        return;
+    }
+}
+
 static void initTunnel(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* const ctx = Identity_check((struct Context*) vcontext);
@@ -227,10 +232,8 @@ void Core_init(struct Allocator* alloc,
     Iface_plumb(&nc->tunAdapt->ipTunnelIf, &ipTunnel->tunInterface);
     Iface_plumb(&nc->upper->ipTunnelIf, &ipTunnel->nodeInterface);
 
-#ifndef win32
     struct FileNo_admin* fileno = FileNo_admin_new(admin, alloc, eventBase,
-                                                 logger, eh, onFileNoReceived);
-#endif
+                                                 logger, eh);
 
     // The link between the Pathfinder and the core needs to be asynchronous.
     struct Pathfinder* pf = Pathfinder_register(alloc, logger, eventBase, rand, admin);
@@ -264,10 +267,7 @@ void Core_init(struct Allocator* alloc,
     ctx->base = eventBase;
     ctx->ipTunnel = ipTunnel;
     ctx->nc = nc;
-#ifndef win32
     ctx->fileno = fileno;
-    ctx->fileno->userData = ctx;
-#endif
 
     Admin_registerFunction("Core_exit", adminExit, ctx, true, NULL, admin);
 
@@ -276,6 +276,12 @@ void Core_init(struct Allocator* alloc,
     Admin_registerFunction("Core_initTunnel", initTunnel, ctx, true,
         ((struct Admin_FunctionArg[]) {
             { .name = "desiredTunName", .required = 0, .type = "String" }
+        }), admin);
+
+    Admin_registerFunction("Core_initTunfd", initTunfd, ctx, true,
+        ((struct Admin_FunctionArg[]) {
+            { .name = "tunfd", .required = 1, .type = "Int" },
+            { .name = "type", .required = 0, .type = "Int" }
         }), admin);
 }
 

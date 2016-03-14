@@ -23,6 +23,14 @@
 #include <inttypes.h>
 #include <stdio.h>
 
+struct FileNoContext
+{
+    struct FileNo_Promise pub;
+    struct FileNo* fileno;
+
+    Identity
+};
+
 struct FileNo_pvt
 {
     struct FileNo pub;
@@ -34,8 +42,6 @@ struct FileNo_pvt
     struct Allocator_OnFreeJob* closeHandlesOnFree;
 
     int isActive;
-
-    struct Allocator* alloc;
 
     Identity
 };
@@ -59,8 +65,6 @@ static void incoming(uv_pipe_t* stream,
                      const uv_buf_t* buf,
                      uv_handle_type pending)
 {
-    struct FileNo_pvt* fileno = Identity_check((struct FileNo_pvt*) stream->data);
-
     // Grab out the allocator which was placed there by allocate()
     struct Allocator* alloc = buf->base ? ALLOC(buf->base) : NULL;
 
@@ -68,11 +72,16 @@ static void incoming(uv_pipe_t* stream,
 
     if (nread < 0) {
         uv_close((uv_handle_t*) stream, onClose);
-    } else if (fileno->peer.accepted_fd != -1) {
-        if (fileno->pub.onFileNoReceived) {
-            fileno->pub.onFileNoReceived(fileno->pub.userData, fileno->pub.type,
-                                         fileno->peer.accepted_fd);
+#ifndef win32
+    } else {
+        struct FileNo_pvt* fileno = Identity_check((struct FileNo_pvt*) stream->data);
+        if (fileno->peer.accepted_fd != -1) {
+            struct FileNoContext* fctx = (struct FileNoContext*) fileno->pub.userData;
+            if (fctx->pub.callback) {
+                fctx->pub.callback(&fctx->pub, fileno->peer.accepted_fd);
+            }
         }
+#endif
     }
 
     if (alloc) {
@@ -86,7 +95,7 @@ static void allocate(uv_handle_t* handle, size_t size, uv_buf_t* buf)
     size = FileNo_BUFFER_CAP;
     size_t fullSize = size + FileNo_PADDING_AMOUNT;
 
-    struct Allocator* child = Allocator_child(pipe->alloc);
+    struct Allocator* child = Allocator_child(pipe->pub.alloc);
     char* buff = Allocator_malloc(child, fullSize);
     buff += FileNo_PADDING_AMOUNT;
 
@@ -164,12 +173,11 @@ static int closeHandlesOnFree(struct Allocator_OnFreeJob* job)
     return Allocator_ONFREE_ASYNC;
 }
 
-struct FileNo* FileNo_new(const char* path,
-                          struct EventBase* eb,
-                          struct Except* eh,
-                          struct Log* logger,
-                          struct Allocator* userAlloc,
-                          FileNo_callback recv_cb)
+static struct FileNo* FileNo_new(const char* path,
+                                 struct EventBase* eb,
+                                 struct Except* eh,
+                                 struct Log* logger,
+                                 struct Allocator* userAlloc)
 {
     struct EventBase_pvt* ctx = EventBase_privatize(eb);
     struct Allocator* alloc = Allocator_child(userAlloc);
@@ -180,9 +188,8 @@ struct FileNo* FileNo_new(const char* path,
             .pipePath = pathStr->bytes,
             .base = eb,
             .logger = logger,
-            .onFileNoReceived = recv_cb
-        },
-        .alloc = alloc
+            .alloc = alloc
+        }
     }));
 
     int ret = uv_pipe_init(ctx->loop, &out->peer, 1);
@@ -211,6 +218,7 @@ struct FileNo* FileNo_new(const char* path,
             Except_throw(eh, "uv_listen() failed [%s] for pipe [%s]",
                          uv_strerror(ret), out->pub.pipePath);
         }
+
         return &out->pub;
     }
 
@@ -218,4 +226,33 @@ struct FileNo* FileNo_new(const char* path,
                  uv_strerror(ret), out->pub.pipePath);
 
     return &out->pub;
+}
+
+static struct FileNo_Promise* FileNo_newFile(const char* path,
+                                             struct EventBase* eb,
+                                             struct Except* eh,
+                                             struct Log* logger,
+                                             struct Allocator* alloc)
+{
+    struct FileNo* fn = FileNo_new(path, eb, eh, logger, alloc);
+    struct FileNoContext* fctx = Allocator_clone(fn->alloc, (&(struct FileNoContext) {
+                .pub = {
+                    .alloc = fn->alloc
+                },
+                .fileno = fn
+            }));
+    Identity_set(fctx);
+
+    fn->userData = fctx;
+
+    return &fctx->pub;
+}
+
+struct FileNo_Promise* FileNo_import(const char* path,
+                                     struct EventBase* eb,
+                                     struct Except* eh,
+                                     struct Log* logger,
+                                     struct Allocator* alloc)
+{
+    return FileNo_newFile(path, eb, eh, logger, alloc);
 }

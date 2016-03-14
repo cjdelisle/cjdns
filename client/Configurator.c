@@ -263,22 +263,24 @@ static void tunInterface(Dict* ifaceConf, struct Allocator* tempAlloc, struct Co
     }
 
     // Setup the interface.
-    int64_t* tunfd = Dict_getInt(ifaceConf, String_CONST("tunfd"));
-    String* type = Dict_getString(ifaceConf, String_CONST("tunfdType"));
+    String* tunfd = Dict_getString(ifaceConf, String_CONST("tunfd"));
     String* device = Dict_getString(ifaceConf, String_CONST("tunDevice"));
 
-    if (tunfd && *tunfd && !device) {
-        return;
-    }
-
     Dict* args = Dict_new(tempAlloc);
-    if (tunfd && *tunfd) {
+    if (tunfd && device) {
         Dict_putString(args, String_CONST("path"), device, tempAlloc);
-        if (type) {
-            Dict_putString(args, String_CONST("type"),
-                           String_new(type->bytes, tempAlloc), tempAlloc);
+        Dict_putString(args, String_CONST("type"),
+                       String_new(tunfd->bytes, tempAlloc), tempAlloc);
+        Dict* res = NULL;
+        rpcCall0(String_CONST("FileNo_import"), args, ctx, tempAlloc, &res, false);
+        if (res) {
+            Dict* args = Dict_new(tempAlloc);
+            int64_t* tunfd = Dict_getInt(res, String_CONST("tunfd"));
+            int64_t* type = Dict_getInt(res, String_CONST("type"));
+            Dict_putInt(args, String_CONST("tunfd"), *tunfd, tempAlloc);
+            Dict_putInt(args, String_CONST("type"), *type, tempAlloc);
+            rpcCall0(String_CONST("Core_initTunfd"), args, ctx, tempAlloc, NULL, false);
         }
-        rpcCall0(String_CONST("FileNo_import"), args, ctx, tempAlloc, NULL, false);
     } else {
         if (device) {
             Dict_putString(args, String_CONST("desiredTunName"), device, tempAlloc);
