@@ -767,15 +767,13 @@ int IpTunnel_allowConnection(uint8_t publicKeyOfAuthorizedNode[32],
     uint8_t* ip4Address = NULL;
     if (ip6Addr) {
         Sockaddr_getAddress(ip6Addr, &ip6Address);
-        if (findConnection(ip6Address, NULL, false, context)) {
-            return -1;
-        }
     }
     if (ip4Addr) {
         Sockaddr_getAddress(ip4Addr, &ip4Address);
-        if (findConnection(NULL, ip4Address, false, context)) {
-            return -1;
-        }
+    }
+
+    if (findConnection(ip6Address, ip4Address, false, context)) {
+        return -1;
     }
 
     struct IpTunnel_Connection* conn = newConnection(false, context);
