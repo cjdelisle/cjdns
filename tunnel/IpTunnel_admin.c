@@ -113,8 +113,12 @@ static void allowConnection(Dict* args,
                                             (ip4Prefix) ? (uint8_t) (*ip4Prefix) : 32,
                                             (ip4Alloc) ? (uint8_t) (*ip4Alloc) : 32,
                                             context->ipTun);
-        sendResponse(conn, txid, context->admin);
-        return;
+        if (conn < 0) {
+            error = "address already exist";
+        } else {
+            sendResponse(conn, txid, context->admin);
+            return;
+        }
     }
 
     sendError(error, txid, context->admin);
