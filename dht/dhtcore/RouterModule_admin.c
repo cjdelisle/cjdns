@@ -136,6 +136,17 @@ static void genericResponse(struct RouterModule_Promise* promise,
             List_addString(nodes, addr, promise->alloc);
         }
         Dict_putList(out, name, nodes, promise->alloc);
+
+        String* schemeDefinition = Dict_getString(responseDict, CJDHTConstants_ENC_SCHEME);
+        if (schemeDefinition) {
+            struct EncodingScheme* scheme =
+                EncodingScheme_deserialize(schemeDefinition, promise->alloc);
+            if (scheme) {
+                List* encScheme = EncodingScheme_asList(scheme, promise->alloc);
+                Dict_putList(
+                    out, String_new("encodingScheme", promise->alloc), encScheme, promise->alloc);
+            }
+        }
     }
 
     Dict_putInt(out, String_CONST("ms"), lag, promise->alloc);
