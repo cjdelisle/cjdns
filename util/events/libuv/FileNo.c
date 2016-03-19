@@ -23,6 +23,23 @@
 #include <inttypes.h>
 #include <stdio.h>
 
+// This structure used to be public and accessable.
+struct FileNo
+{
+    /** The name of the file eg: "/tmp/cjdns_fileno_foo" */
+    const char* const pipePath;
+
+    void* userData;
+
+    enum FileNo_Type type;
+
+    struct EventBase* const base;
+
+    struct Allocator* alloc;
+
+    struct Log* logger;
+};
+
 struct FileNoContext
 {
     struct FileNo_Promise pub;

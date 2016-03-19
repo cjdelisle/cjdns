@@ -22,8 +22,6 @@
 #include "util/log/Log.h"
 Linker_require("util/events/libuv/FileNo.c");
 
-struct FileNo;
-
 enum FileNo_Type {
     /** Normal tunfd type, no need other wrapper */
     FileNo_Type_NORMAL = 0,
@@ -39,22 +37,6 @@ struct FileNo_Promise
                       int fileno);
     void* userData;
     struct Allocator* alloc;
-};
-
-struct FileNo
-{
-    /** The name of the file eg: "/tmp/cjdns_fileno_foo" */
-    const char* const pipePath;
-
-    void* userData;
-
-    enum FileNo_Type type;
-
-    struct EventBase* const base;
-
-    struct Allocator* alloc;
-
-    struct Log* logger;
 };
 
 #define FileNo_PADDING_AMOUNT   512
