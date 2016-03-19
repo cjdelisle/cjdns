@@ -514,6 +514,10 @@ static Iface_DEFUN incomingAddresses(Dict* d,
         addAddress(printedAddr, conn->connectionIp6Prefix, conn->connectionIp6Alloc, context);
     }
     if (context->rg->hasUncommittedChanges) {
+        if (!context->ifName) {
+            Log_error(context->logger, "Failed to set routes because TUN interface is not setup");
+            return 0;
+        }
         struct Jmp j;
         Jmp_try(j) {
             RouteGen_commit(context->rg, context->ifName->bytes, alloc,  &j.handler);

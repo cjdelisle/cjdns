@@ -51,17 +51,18 @@ struct Pipe
 #define Pipe_PADDING_AMOUNT 512
 #define Pipe_BUFFER_CAP 4000
 
-#ifndef Pipe_PREFIX
+#ifndef Pipe_PATH
     #ifdef win32
-        #define Pipe_PREFIX "\\\\.\\pipe\\cjdns_pipe_"
+        #define Pipe_PATH "\\\\.\\pipe"
     #elif defined(android)
-        #define Pipe_PREFIX "/data/local/tmp/cjdns_pipe_"
+        #define Pipe_PATH "/data/local/tmp"
     #else
-        #define Pipe_PREFIX "/tmp/cjdns_pipe_"
+        #define Pipe_PATH "/tmp"
     #endif
 #endif
 
-struct Pipe* Pipe_named(const char* name,
+struct Pipe* Pipe_named(const char* path,
+                        const char* name,
                         struct EventBase* eb,
                         struct Except* eh,
                         struct Allocator* userAlloc);

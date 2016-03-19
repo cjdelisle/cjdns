@@ -260,6 +260,10 @@ static int genconf(struct Random* rand, bool eth)
            "        {\n"
            "            // The type of interface (only TUNInterface is supported for now)\n"
            "            \"type\": \"TUNInterface\"\n"
+           "            // The type of tunfd (only \"android\" for now)\n"
+           "            // If \"android\" here, the tunDevice should be used as the pipe path\n"
+           "            // to transfer the tun file description.\n"
+           "            // \"tunfd\" : \"android\"\n"
 #ifndef __APPLE__
            "\n"
            "            // The name of a persistent TUN device to use.\n"
@@ -399,6 +403,17 @@ static int genconf(struct Random* rand, bool eth)
           }
           else {
     printf("    \"noBackground\":0,\n");
+          }
+    printf("\n"
+           "    // Pipe file will store in this path, recommended value: /tmp (for unix),\n"
+           "    // \\\\.\\pipe (for windows) \n"
+           "    // /data/local/tmp (for rooted android) \n"
+           "    // /data/data/AppName (for non-root android)\n");
+          if (Defined(android)) {
+    printf("    \"pipe\":\"/data/local/tmp\",\n");
+          }
+          else if (!Defined(win32)){
+    printf("    \"pipe\":\"/tmp\",\n");
           }
     printf("}\n");
 
@@ -634,12 +649,20 @@ int main(int argc, char** argv)
     struct Allocator* corePipeAlloc = Allocator_child(allocator);
     char corePipeName[64] = "client-core-";
     Random_base32(rand, (uint8_t*)corePipeName+CString_strlen(corePipeName), 31);
+    String* pipePath = Dict_getString(&config, String_CONST("pipe"));
+    if (!pipePath) {
+        pipePath = String_CONST(Pipe_PATH);
+    }
+    if (!Defined(win32) && access(pipePath->bytes, W_OK)) {
+        Except_throw(eh, "Can't have writable permission to pipe directory.");
+    }
     Assert_ifParanoid(EventBase_eventCount(eventBase) == 0);
-    struct Pipe* corePipe = Pipe_named(corePipeName, eventBase, eh, corePipeAlloc);
+    struct Pipe* corePipe = Pipe_named(pipePath->bytes, corePipeName, eventBase,
+                                       eh, corePipeAlloc);
     Assert_ifParanoid(EventBase_eventCount(eventBase) == 2);
     corePipe->logger = logger;
 
-    char* args[] = { "core", corePipeName, NULL };
+    char* args[] = { "core", pipePath->bytes, corePipeName, NULL };
 
     // --------------------- Spawn Angel --------------------- //
     String* privateKey = Dict_getString(&config, String_CONST("privateKey"));
