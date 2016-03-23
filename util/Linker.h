@@ -17,6 +17,7 @@
 
 // Trailing anonymous struct swollows the semicolon.
 #define Linker_require(req) \
-    struct Linker_x<?js file.links.push(req); return Math.random(16).toString().replace(/\./,'') ?>
+    struct Linker_x<?js file.links.push(req); \
+        return Math.random(16).toString().replace(/[^0-9]/g,'') ?>
 
 #endif
