@@ -1,4 +1,4 @@
-#!/sbin/runscript
+#!/sbin/openrc-run
 description="Encrypted networking for regular people."
 
 CONFFILE=/etc/cjdroute.conf

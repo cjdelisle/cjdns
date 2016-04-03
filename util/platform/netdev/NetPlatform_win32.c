@@ -159,11 +159,12 @@ static void setupRoute(const char* deviceName,
     WinFail_check(eh, CreateIpForwardEntry2(&row));
 }
 
-void NetPlatform_addAddress(const char* name,
-                            const uint8_t* addrBytes,
+void NetPlatform_addAddress(const char* interfaceName,
+                            const uint8_t* address,
                             int prefixLen,
                             int addrFam,
                             struct Log* logger,
+                            struct Allocator* tempAlloc,
                             struct Except* eh)
 {
     MIB_UNICASTIPADDRESS_ROW ipRow = {
@@ -174,13 +175,13 @@ void NetPlatform_addAddress(const char* name,
         .OnLinkPrefixLength = 0xFF
     };
 
-    ipRow.InterfaceLuid = getLuid(name, eh);
+    ipRow.InterfaceLuid = getLuid(interfaceName, eh);
 
     ipRow.Address.si_family = addrFam;
     if (addrFam == Sockaddr_AF_INET6) {
-        Bits_memcpy(&ipRow.Address.Ipv6.sin6_addr, addrBytes, 16);
+        Bits_memcpy(&ipRow.Address.Ipv6.sin6_addr, address, 16);
     } else if (addrFam == Sockaddr_AF_INET) {
-        Bits_memcpy(&ipRow.Address.Ipv4.sin_addr, addrBytes, 4);
+        Bits_memcpy(&ipRow.Address.Ipv4.sin_addr, address, 4);
     } else {
         Assert_true(0);
     }
@@ -189,7 +190,7 @@ void NetPlatform_addAddress(const char* name,
 
     WinFail_check(eh, CreateUnicastIpAddressEntry(&ipRow));
 return;
-    setupRoute(name, addrBytes, prefixLen, addrFam, eh);
+    setupRoute(interfaceName, address, prefixLen, addrFam, eh);
 }
 
 void NetPlatform_setMTU(const char* interfaceName,
@@ -227,12 +228,12 @@ void NetPlatform_setMTU(const char* interfaceName,
     WinFail_check(eh, system(buffer));
 }
 
-void NetPlatform_addRoute(const char* interfaceName,
-                            const uint8_t* address,
-                            int prefixLen,
-                            int addrFam,
-                            struct Log* logger,
-                            struct Except* eh)
+void NetPlatform_setRoutes(const char* ifName,
+                           struct Sockaddr** prefixSet,
+                           int prefixCount,
+                           struct Log* logger,
+                           struct Allocator* tempAlloc,
+                           struct Except* eh)
 {
-    Except_throw(eh, "NetPlatform_addRoute is not implemented in this platform.");
+    Except_throw(eh, "NetPlatform_setRoutes is not implemented in this platform.");
 }

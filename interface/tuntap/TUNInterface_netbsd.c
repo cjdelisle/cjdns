@@ -37,7 +37,7 @@
 #include <netinet6/in6_var.h>
 #include <netinet6/nd6.h>
 
-/* Tun Configurator for OpenBSD. */
+/* Tun Configurator for NetBSD. */
 
 struct Iface* TUNInterface_new(const char* interfaceName,
                                    char assignedInterfaceName[TUNInterface_IFNAMSIZ],
@@ -50,6 +50,7 @@ struct Iface* TUNInterface_new(const char* interfaceName,
     if (isTapMode) { Except_throw(eh, "tap mode not supported on this platform"); }
     int err;
     char file[TUNInterface_IFNAMSIZ];
+    int i;
     int ppa = -1; // to store the tunnel device index
     int tunFd = -1;
     if (interfaceName && strlen(interfaceName) > 3 && !strncmp(interfaceName, "tun", 3)) {
@@ -66,10 +67,22 @@ struct Iface* TUNInterface_new(const char* interfaceName,
         close(tunFd);
         Except_throw(eh, "%s [%s]", "open(\"/dev/tunX\")", strerror(err));
     }
+/* from the NetBSD tun man page:
+     TUNSIFHEAD  The argument should be a pointer to an int; a non-zero value
+                 turns off ``link-layer'' mode, and enables ``multi-af'' mode,
+                 where every packet is preceded with a four byte address
+                 family.
+*/
+    i = 2;
+    if (ioctl(tunFd, TUNSIFHEAD, &i) == -1) {
+        err = errno;
+        close(tunFd);
+        Except_throw(eh, "%s [%s]", "ioctl(tunFd,TUNSIFHEAD,&2)", strerror(err));
+    }
     // Since devices are numbered rather than named, it's not possible to have tun0 and cjdns0
     // so we'll skip the pretty names and call everything tunX
     if (assignedInterfaceName) {
-        if(ppa == -1) {
+        if (ppa == -1) {
             snprintf(assignedInterfaceName, TUNInterface_IFNAMSIZ, "%s", interfaceName);
         } else {
             snprintf(assignedInterfaceName, TUNInterface_IFNAMSIZ, "tun%d", ppa);

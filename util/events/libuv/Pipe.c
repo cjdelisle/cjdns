@@ -326,6 +326,7 @@ static int closeHandlesOnFree(struct Allocator_OnFreeJob* job)
 }
 
 static struct Pipe_pvt* newPipe(struct EventBase* eb,
+                                const char* path,
                                 const char* name,
                                 struct Except* eh,
                                 struct Allocator* userAlloc)
@@ -333,9 +334,22 @@ static struct Pipe_pvt* newPipe(struct EventBase* eb,
     struct EventBase_pvt* ctx = EventBase_privatize(eb);
     struct Allocator* alloc = Allocator_child(userAlloc);
 
-    char* cname = Allocator_malloc(alloc, CString_strlen(Pipe_PREFIX)+CString_strlen(name)+1);
-    Bits_memcpy(cname, Pipe_PREFIX, CString_strlen(Pipe_PREFIX));
-    Bits_memcpy(cname+CString_strlen(Pipe_PREFIX), name, CString_strlen(name)+1);
+    char prefix[32] = {0};
+    if (Defined(win32)) {
+        Bits_memcpy(prefix, "\\cjdns_pipe_", CString_strlen("\\cjdns_pipe_"));
+    } else {
+        Bits_memcpy(prefix, "/cjdns_pipe_", CString_strlen("/cjdns_pipe_"));
+    }
+    char* cname = Allocator_malloc(alloc, (path ? CString_strlen(path) : 0) +
+                                   CString_strlen(prefix) + CString_strlen(name) + 1);
+    int pos = 0;
+    if (path) {
+        Bits_memcpy(cname, path, CString_strlen(path));
+        pos += CString_strlen(path);
+    }
+    Bits_memcpy(cname + pos, prefix, CString_strlen(prefix));
+    pos += CString_strlen(prefix);
+    Bits_memcpy(cname + pos, name, CString_strlen(name) + 1);
 
     struct Pipe_pvt* out = Allocator_clone(alloc, (&(struct Pipe_pvt) {
         .pub = {
@@ -343,7 +357,7 @@ static struct Pipe_pvt* newPipe(struct EventBase* eb,
                 .send = sendMessage
             },
             .fullName = cname,
-            .name = &cname[sizeof(Pipe_PREFIX) - 1],
+            .name = &cname[pos],
             .base = eb
         },
         .alloc = alloc
@@ -387,7 +401,7 @@ struct Pipe* Pipe_forFiles(int inFd,
     char buff[32] = {0};
     snprintf(buff, 31, "forFiles(%d,%d)", inFd, outFd);
 
-    struct Pipe_pvt* out = newPipe(eb, buff, eh, userAlloc);
+    struct Pipe_pvt* out = newPipe(eb, NULL, buff, eh, userAlloc);
 
     int ret = uv_pipe_open(&out->peer, inFd);
     if (ret) {
@@ -410,12 +424,13 @@ struct Pipe* Pipe_forFiles(int inFd,
     return &out->pub;
 }
 
-struct Pipe* Pipe_named(const char* name,
+struct Pipe* Pipe_named(const char* path,
+                        const char* name,
                         struct EventBase* eb,
                         struct Except* eh,
                         struct Allocator* userAlloc)
 {
-    struct Pipe_pvt* out = newPipe(eb, name, eh, userAlloc);
+    struct Pipe_pvt* out = newPipe(eb, path, name, eh, userAlloc);
     int ret;
 
     // Attempt to create pipe.

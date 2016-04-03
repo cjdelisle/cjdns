@@ -1735,7 +1735,7 @@ struct NodeList* NodeStore_getPeers(uint64_t label,
 
     struct Node_Link* next = NULL;
     RB_FOREACH(next, PeerRBTree, &store->pub.selfNode->peerTree) {
-        uint64_t p = next->child->address.path;
+        uint64_t p = next->cannonicalLabel;
         if (!Node_isOneHopLink(next) && p != 1) { continue; }
         if (p == UINT64_MAX) { continue; }
         if (p < label) { continue; }

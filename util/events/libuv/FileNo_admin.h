@@ -12,10 +12,26 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "util/Order.h"
-#include "util/QSort.h"
+#ifndef FileNo_admin_H
+#define FileNo_admin_H
 
-void Order_qsort(void* base, size_t num, size_t size, Order_Comparator compare)
+#include "admin/Admin.h"
+#include "memory/Allocator.h"
+#include "util/log/Log.h"
+#include "util/events/EventBase.h"
+#include "util/events/FileNo.h"
+#include "util/Linker.h"
+Linker_require("util/events/libuv/FileNo_admin.c");
+
+struct FileNo_admin
 {
-    QSort(base, num, size, compare);
-}
+    void* userData;
+};
+
+void FileNo_admin_register(struct Admin* admin,
+                           struct Allocator* alloc,
+                           struct EventBase* base,
+                           struct Log* logger,
+                           struct Except* eh);
+
+#endif

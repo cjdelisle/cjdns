@@ -29,18 +29,6 @@ bool Node_isAncestorOf(struct Node_Two* ancestor, struct Node_Two* child)
     }
 }
 
-void Node_setCost(struct Node_Two* node, uint64_t newCost)
-{
-    if (newCost != UINT64_MAX) {
-        Assert_true(Node_getBestParent(node));
-        Assert_true(node->address.path < UINT64_MAX);
-    } else {
-        Assert_true(!Node_getBestParent(node));
-        Assert_true(node->address.path == UINT64_MAX);
-    }
-    node->cost_pvt = newCost;
-}
-
 void Node_setParentCostAndPath(struct Node_Two* node,
                                struct Node_Link* bestParent,
                                uint64_t cost,

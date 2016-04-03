@@ -12,10 +12,21 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "util/Order.h"
-#include "util/QSort.h"
+#ifndef AndroidWrapper_H
+#define AndroidWrapper_H
 
-void Order_qsort(void* base, size_t num, size_t size, Order_Comparator compare)
+#include "interface/Iface.h"
+#include "memory/Allocator.h"
+#include "util/log/Log.h"
+#include "util/Linker.h"
+Linker_require("interface/tuntap/AndroidWrapper.c");
+
+struct AndroidWrapper
 {
-    QSort(base, num, size, compare);
-}
+    struct Iface internalIf;
+    struct Iface externalIf;
+};
+
+struct AndroidWrapper* AndroidWrapper_new(struct Allocator* alloc, struct Log* log);
+
+#endif

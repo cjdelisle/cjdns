@@ -102,7 +102,7 @@ static Iface_DEFUN receiveMessageChild(struct Message* msg, struct Iface* iface)
 
 static void child(char* name, struct Context* ctx)
 {
-    struct Pipe* pipe = Pipe_named(name, ctx->base, NULL, ctx->alloc);
+    struct Pipe* pipe = Pipe_named(Pipe_PATH, name, ctx->base, NULL, ctx->alloc);
     pipe->logger = ctx->log;
     pipe->onConnection = onConnectionChild;
     pipe->userData = ctx;
@@ -133,7 +133,7 @@ int main(int argc, char** argv)
     char name[32] = {0};
     Random_base32(rand, (uint8_t*)name, 31);
 
-    struct Pipe* pipe = Pipe_named(name, eb, NULL, alloc);
+    struct Pipe* pipe = Pipe_named(Pipe_PATH, name, eb, NULL, alloc);
     pipe->logger = log;
     pipe->userData = ctx;
     pipe->onConnection = onConnectionParent;
@@ -147,6 +147,8 @@ int main(int argc, char** argv)
         Assert_true(CString_strstr(path, ".exe"));
     #elif openbsd
         Assert_true(path[0] == 'b'); // Process_getPath returns relative paths on openbsd
+    #elif netbsd
+        Assert_true(path[0] == 'b'); // Process_getPath returns relative paths on netbsd too
     #else
         Assert_true(path[0] == '/');
     #endif

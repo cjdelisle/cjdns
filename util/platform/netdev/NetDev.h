@@ -33,7 +33,6 @@ Linker_require("util/platform/netdev/NetDev.c");
  */
 void NetDev_addAddress(const char* ifName,
                        struct Sockaddr* sa,
-                       int prefixLen,
                        struct Log* logger,
                        struct Except* eh);
 
@@ -61,9 +60,10 @@ void NetDev_flushAddresses(const char* deviceName, struct Except* eh);
  * @param logger
  * @param eh an exception handler.
  */
-void NetDev_addRoute(const char* ifName,
-                     struct Sockaddr* sa,
-                     int prefixLen,
-                     struct Log* logger,
-                     struct Except* eh);
+void NetDev_setRoutes(const char* ifName,
+                      struct Sockaddr** prefixSet,
+                      int prefixCount,
+                      struct Log* logger,
+                      struct Allocator* tempAlloc,
+                      struct Except* eh);
 #endif

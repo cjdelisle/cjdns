@@ -23,7 +23,7 @@ var CanCompile = require('./CanCompile');
 var Builder = require('./builder');
 var TestRunner = require('./TestRunner');
 
-// ['linux','darwin','sunos','win32','freebsd','openbsd']
+// ['linux','darwin','sunos','win32','freebsd','openbsd','netbsd']
 var SYSTEM = process.env['SYSTEM'] || process.platform;
 var GCC = process.env['CC'];
 var CFLAGS = process.env['CFLAGS'];
@@ -45,7 +45,7 @@ Builder.configure({
     systemName:     SYSTEM,
     crossCompiling: process.env['CROSS'] !== undefined,
     gcc:            GCC,
-    tempDir:        '/tmp',
+    tempDir:        process.env['CJDNS_BUILD_TMPDIR'] || '/tmp',
     optimizeLevel:  '-O3',
     logLevel:       process.env['Log_LEVEL'] || 'DEBUG'
 }, function (builder, waitFor) {
@@ -68,7 +68,7 @@ Builder.configure({
         '-D', builder.config.systemName + '=1',
         '-D', 'CJD_PACKAGE_VERSION="' + builder.config.version + '"',
         '-Wno-unused-parameter',
-        '-fomit-frame-pointer',
+//        '-fomit-frame-pointer',
 
         '-D', 'Log_' + builder.config.logLevel,
 
@@ -234,7 +234,7 @@ Builder.configure({
 
     var dependencyDir = builder.config.buildDir + '/dependencies';
     var libuvLib = dependencyDir + '/libuv/out/Release/libuv.a';
-    if (builder.config.systemName === 'win32') {
+    if (['win32', 'netbsd'].indexOf(builder.config.systemName) >= 0) {//this might be needed for other BSDs
         libuvLib = dependencyDir + '/libuv/out/Release/obj.target/libuv.a';
     }
 
@@ -303,7 +303,7 @@ Builder.configure({
             builder.config.libs.push('-lrt'); // clock_gettime()
         } else if (builder.config.systemName === 'darwin') {
             builder.config.libs.push('-framework', 'CoreServices');
-        } else if (['freebsd', 'openbsd'].indexOf(builder.config.systemName) >= 0) {
+        } else if (['freebsd', 'openbsd', 'netbsd'].indexOf(builder.config.systemName) >= 0) {
             builder.config.cflags.push('-Wno-overlength-strings');
             builder.config.libs.push('-lkvm');
         } else if (builder.config.systemName === 'sunos') {
@@ -361,9 +361,10 @@ Builder.configure({
                 args.push.apply(args, env.GYP_ADDITIONAL_ARGS.split(' '));
             }
 
-            if (['freebsd', 'openbsd'].indexOf(builder.config.systemName) !== -1) {
+            if (['freebsd', 'openbsd', 'netbsd'].indexOf(builder.config.systemName) !== -1) {
                 // This platform lacks a functioning sem_open implementation, therefore...
                 args.push('--no-parallel');
+                args.push('-DOS=' + builder.config.systemName);
             }
 
             var gyp = Spawn(python, args, {env:env, stdio:'inherit'});
@@ -386,7 +387,7 @@ Builder.configure({
                 }
                 args.push('CFLAGS=' + cflags.join(' '));
 
-                var makeCommand = ['freebsd', 'openbsd'].indexOf(builder.config.systemName) >= 0 ? 'gmake' : 'make';
+                var makeCommand = ['freebsd', 'openbsd', 'netbsd'].indexOf(builder.config.systemName) >= 0 ? 'gmake' : 'make';
                 var make = Spawn(makeCommand, args, {stdio: 'inherit'});
 
                 make.on('error', function (err) {

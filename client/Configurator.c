@@ -239,6 +239,15 @@ static void udpInterface(Dict* config, struct Context* ctx)
                 Dict_putInt(value, String_CONST("interfaceNumber"), ifNum, perCallAlloc);
                 Dict_putString(value, String_CONST("address"), key, perCallAlloc);
                 rpcCall(String_CONST("UDPInterface_beginConnection"), value, ctx, perCallAlloc);
+
+                // Make a IPTunnel exception for this node
+                Dict* aed = Dict_new(perCallAlloc);
+                *lastColon = '\0';
+                Dict_putString(aed, String_CONST("route"), String_new(key->bytes, perCallAlloc),
+                    perCallAlloc);
+                *lastColon = ':';
+                rpcCall(String_CONST("RouteGen_addException"), aed, ctx, perCallAlloc);
+
                 entry = entry->next;
             }
             Allocator_free(perCallAlloc);
@@ -254,13 +263,30 @@ static void tunInterface(Dict* ifaceConf, struct Allocator* tempAlloc, struct Co
     }
 
     // Setup the interface.
+    String* tunfd = Dict_getString(ifaceConf, String_CONST("tunfd"));
     String* device = Dict_getString(ifaceConf, String_CONST("tunDevice"));
 
     Dict* args = Dict_new(tempAlloc);
-    if (device) {
-        Dict_putString(args, String_CONST("desiredTunName"), device, tempAlloc);
+    if (tunfd && device) {
+        Dict_putString(args, String_CONST("path"), device, tempAlloc);
+        Dict_putString(args, String_CONST("type"),
+                       String_new(tunfd->bytes, tempAlloc), tempAlloc);
+        Dict* res = NULL;
+        rpcCall0(String_CONST("FileNo_import"), args, ctx, tempAlloc, &res, false);
+        if (res) {
+            Dict* args = Dict_new(tempAlloc);
+            int64_t* tunfd = Dict_getInt(res, String_CONST("tunfd"));
+            int64_t* type = Dict_getInt(res, String_CONST("type"));
+            Dict_putInt(args, String_CONST("tunfd"), *tunfd, tempAlloc);
+            Dict_putInt(args, String_CONST("type"), *type, tempAlloc);
+            rpcCall0(String_CONST("Core_initTunfd"), args, ctx, tempAlloc, NULL, false);
+        }
+    } else {
+        if (device) {
+            Dict_putString(args, String_CONST("desiredTunName"), device, tempAlloc);
+        }
+        rpcCall0(String_CONST("Core_initTunnel"), args, ctx, tempAlloc, NULL, false);
     }
-    rpcCall0(String_CONST("Core_initTunnel"), args, ctx, tempAlloc, NULL, false);
 }
 
 static void ipTunnel(Dict* ifaceConf, struct Allocator* tempAlloc, struct Context* ctx)

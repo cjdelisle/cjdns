@@ -28,6 +28,7 @@
 #include "interface/Iface.h"
 #include "util/events/UDPAddrIface.h"
 #include "interface/tuntap/TUNInterface.h"
+#include "interface/tuntap/AndroidWrapper.h"
 #include "interface/UDPInterface_admin.h"
 #ifdef HAS_ETH_INTERFACE
 #include "interface/ETHInterface_admin.h"
@@ -41,7 +42,9 @@
 #include "memory/Allocator_admin.h"
 #include "net/SwitchPinger_admin.h"
 #include "tunnel/IpTunnel_admin.h"
+#include "tunnel/RouteGen_admin.h"
 #include "util/events/EventBase.h"
+#include "util/events/libuv/FileNo_admin.h"
 #include "util/events/Pipe.h"
 #include "util/events/Timeout.h"
 #include "util/Hex.h"
@@ -152,8 +155,41 @@ static void initTunnel2(String* desiredDeviceName,
 
     struct Sockaddr* myAddr =
         Sockaddr_fromBytes(ctx->nc->myAddress->ip6.bytes, Sockaddr_AF_INET6, ctx->alloc);
-    NetDev_addAddress(assignedTunName, myAddr, addressPrefix, ctx->logger, eh);
+    myAddr->prefix = addressPrefix;
+    myAddr->flags |= Sockaddr_flags_PREFIX;
+    NetDev_addAddress(assignedTunName, myAddr, ctx->logger, eh);
     NetDev_setMTU(assignedTunName, DEFAULT_MTU, ctx->logger, eh);
+}
+
+static void initTunfd(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
+{
+    struct Context* ctx = Identity_check((struct Context*) vcontext);
+    struct Jmp jmp;
+    Jmp_try(jmp) {
+        int64_t* tunfd = Dict_getInt(args, String_CONST("tunfd"));
+        int64_t* tuntype = Dict_getInt(args, String_CONST("type"));
+        if (!tunfd || *tunfd < 0) {
+            String* error = String_printf(requestAlloc, "Invalid tunfd");
+            sendResponse(error, ctx->admin, txid, requestAlloc);
+            return;
+        }
+        int fileno = *tunfd;
+        int type = (*tuntype) ? *tuntype : FileNo_Type_NORMAL;
+        struct Pipe* p = Pipe_forFiles(fileno, fileno, ctx->base, &jmp.handler, ctx->alloc);
+        p->logger = ctx->logger;
+        if (type == FileNo_Type_ANDROID) {
+            struct AndroidWrapper* aw = AndroidWrapper_new(ctx->alloc, ctx->logger);
+            Iface_plumb(&aw->externalIf, &p->iface);
+            Iface_plumb(&aw->internalIf, &ctx->nc->tunAdapt->tunIf);
+        } else {
+            Iface_plumb(&p->iface, &ctx->nc->tunAdapt->tunIf);
+        }
+        sendResponse(String_CONST("none"), ctx->admin, txid, requestAlloc);
+    } Jmp_catch {
+        String* error = String_printf(requestAlloc, "Failed to configure tunnel [%s]", jmp.message);
+        sendResponse(error, ctx->admin, txid, requestAlloc);
+        return;
+    }
 }
 
 static void initTunnel(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
@@ -189,7 +225,9 @@ void Core_init(struct Allocator* alloc,
     }
     struct NetCore* nc = NetCore_new(privateKey, alloc, eventBase, rand, logger);
 
-    struct IpTunnel* ipTunnel = IpTunnel_new(logger, eventBase, alloc, rand);
+    struct RouteGen* rg = RouteGen_new(alloc, logger);
+
+    struct IpTunnel* ipTunnel = IpTunnel_new(logger, eventBase, alloc, rand, rg);
     Iface_plumb(&nc->tunAdapt->ipTunnelIf, &ipTunnel->tunInterface);
     Iface_plumb(&nc->upper->ipTunnelIf, &ipTunnel->nodeInterface);
 
@@ -200,12 +238,14 @@ void Core_init(struct Allocator* alloc,
     EventEmitter_regPathfinderIface(nc->ee, &pfAsync->ifB);
 
     // ------------------- Register RPC functions ----------------------- //
+    RouteGen_admin_register(rg, admin, alloc);
     InterfaceController_admin_register(nc->ifController, admin, alloc);
     SwitchPinger_admin_register(nc->sp, admin, alloc);
     UDPInterface_admin_register(eventBase, alloc, logger, admin, nc->ifController, fakeNet);
 #ifdef HAS_ETH_INTERFACE
     ETHInterface_admin_register(eventBase, alloc, logger, admin, nc->ifController);
 #endif
+    FileNo_admin_register(admin, alloc, eventBase, logger, eh);
 
     AuthorizedPasswords_init(admin, nc->ca, alloc);
     Admin_registerFunction("ping", adminPing, admin, false, NULL, admin);
@@ -233,13 +273,19 @@ void Core_init(struct Allocator* alloc,
         ((struct Admin_FunctionArg[]) {
             { .name = "desiredTunName", .required = 0, .type = "String" }
         }), admin);
+
+    Admin_registerFunction("Core_initTunfd", initTunfd, ctx, true,
+        ((struct Admin_FunctionArg[]) {
+            { .name = "tunfd", .required = 1, .type = "Int" },
+            { .name = "type", .required = 0, .type = "Int" }
+        }), admin);
 }
 
 int Core_main(int argc, char** argv)
 {
     struct Except* eh = NULL;
 
-    if (argc != 3) {
+    if (argc != 4) {
         Except_throw(eh, "This is internal to cjdns and shouldn't started manually.");
     }
 
@@ -258,7 +304,7 @@ int Core_main(int argc, char** argv)
     Allocator_setCanary(alloc, (unsigned long)Random_uint64(rand));
 
     struct Allocator* tempAlloc = Allocator_child(alloc);
-    struct Pipe* clientPipe = Pipe_named(argv[2], eventBase, eh, tempAlloc);
+    struct Pipe* clientPipe = Pipe_named(argv[2], argv[3], eventBase, eh, tempAlloc);
     clientPipe->logger = logger;
     Log_debug(logger, "Getting pre-configuration from client");
     struct Message* preConf =

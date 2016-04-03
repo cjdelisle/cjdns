@@ -206,7 +206,7 @@ static int genconf(struct Random* rand, bool eth)
            "            }\n"
            "        ]\n");
 #ifdef HAS_ETH_INTERFACE
-    printf("\n");
+    printf(",\n");
     if (!eth) {
         printf("        /*\n");
     }
@@ -260,6 +260,10 @@ static int genconf(struct Random* rand, bool eth)
            "        {\n"
            "            // The type of interface (only TUNInterface is supported for now)\n"
            "            \"type\": \"TUNInterface\"\n"
+           "            // The type of tunfd (only \"android\" for now)\n"
+           "            // If \"android\" here, the tunDevice should be used as the pipe path\n"
+           "            // to transfer the tun file description.\n"
+           "            // \"tunfd\" : \"android\"\n"
 #ifndef __APPLE__
            "\n"
            "            // The name of a persistent TUN device to use.\n"
@@ -276,25 +280,36 @@ static int genconf(struct Random* rand, bool eth)
            "            // Nodes allowed to connect to us.\n"
            "            // When a node with the given public key connects, give them the\n"
            "            // ip4 and/or ip6 addresses listed.\n"
-           "            \"allowedConnections\":\n"
-           "            [\n"
+           "            \"allowedConnections\":\n");
+    printf("            [\n"
            "                // Give the client an address on 192.168.1.0/24, and an address\n"
            "                // it thinks has all of IPv6 behind it.\n"
+           "                // ip4Prefix is the set of addresses which are routable from the tun\n"
+           "                // for example, if you're advertizing a VPN into a company network\n"
+           "                // which exists in 10.123.45.0/24 space, ip4Prefix should be 24\n"
+           "                // default is 32 for ipv4 and 128 for ipv6\n"
+           "                // so by default it will not install a route\n"
+           "                // ip4Alloc is the block of addresses which are allocated to the\n"
+           "                // for example if you want to issue 4 addresses to the client, those\n"
+           "                // being 192.168.123.0 to 192.168.123.3, you would set this to 30\n"
+           "                // default is 32 for ipv4 and 128 for ipv6 (1 address)\n"
            "                // {\n"
            "                //     \"publicKey\": "
            "\"f64hfl7c4uxt6krmhPutTheRealAddressOfANodeHere7kfm5m0.k\",\n"
            "                //     \"ip4Address\": \"192.168.1.24\",\n"
-           "                //     \"ip4Prefix\": 24,\n"
+           "                //     \"ip4Prefix\": 0,\n"
+           "                //     \"ip4Alloc\": 32,\n"
            "                //     \"ip6Address\": \"2001:123:ab::10\",\n"
            "                //     \"ip6Prefix\": 0\n"
+           "                //     \"ip6Alloc\": 64,\n"
            "                // },\n"
            "\n"
-           "                // It's ok to only specify one address.\n"
+           "                // It's ok to only specify one address and prefix/alloc are optional.\n"
            "                // {\n"
            "                //     \"publicKey\": "
            "\"ydq8csdk8p8ThisIsJustAnExampleAddresstxuyqdf27hvn2z0.k\",\n"
            "                //     \"ip4Address\": \"192.168.1.25\",\n"
-           "                //     \"ip4Prefix\": 24\n"
+           "                //     \"ip4Prefix\": 0,\n"
            "                // }\n"
            "            ],\n"
            "\n"
@@ -388,6 +403,17 @@ static int genconf(struct Random* rand, bool eth)
           }
           else {
     printf("    \"noBackground\":0,\n");
+          }
+    printf("\n"
+           "    // Pipe file will store in this path, recommended value: /tmp (for unix),\n"
+           "    // \\\\.\\pipe (for windows) \n"
+           "    // /data/local/tmp (for rooted android) \n"
+           "    // /data/data/AppName (for non-root android)\n");
+          if (Defined(android)) {
+    printf("    \"pipe\":\"/data/local/tmp\",\n");
+          }
+          else if (!Defined(win32)){
+    printf("    \"pipe\":\"/tmp\",\n");
           }
     printf("}\n");
 
@@ -623,12 +649,20 @@ int main(int argc, char** argv)
     struct Allocator* corePipeAlloc = Allocator_child(allocator);
     char corePipeName[64] = "client-core-";
     Random_base32(rand, (uint8_t*)corePipeName+CString_strlen(corePipeName), 31);
+    String* pipePath = Dict_getString(&config, String_CONST("pipe"));
+    if (!pipePath) {
+        pipePath = String_CONST(Pipe_PATH);
+    }
+    if (!Defined(win32) && access(pipePath->bytes, W_OK)) {
+        Except_throw(eh, "Can't have writable permission to pipe directory.");
+    }
     Assert_ifParanoid(EventBase_eventCount(eventBase) == 0);
-    struct Pipe* corePipe = Pipe_named(corePipeName, eventBase, eh, corePipeAlloc);
+    struct Pipe* corePipe = Pipe_named(pipePath->bytes, corePipeName, eventBase,
+                                       eh, corePipeAlloc);
     Assert_ifParanoid(EventBase_eventCount(eventBase) == 2);
     corePipe->logger = logger;
 
-    char* args[] = { "core", corePipeName, NULL };
+    char* args[] = { "core", pipePath->bytes, corePipeName, NULL };
 
     // --------------------- Spawn Angel --------------------- //
     String* privateKey = Dict_getString(&config, String_CONST("privateKey"));

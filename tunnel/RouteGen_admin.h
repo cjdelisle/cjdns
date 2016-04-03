@@ -12,10 +12,15 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "util/Order.h"
-#include "util/QSort.h"
+#ifndef RouteGen_admin_H
+#define RouteGen_admin_H
 
-void Order_qsort(void* base, size_t num, size_t size, Order_Comparator compare)
-{
-    QSort(base, num, size, compare);
-}
+#include "memory/Allocator.h"
+#include "tunnel/RouteGen.h"
+#include "admin/Admin.h"
+#include "util/Linker.h"
+Linker_require("tunnel/RouteGen_admin.c");
+
+void RouteGen_admin_register(struct RouteGen* rg, struct Admin* admin, struct Allocator* alloc);
+
+#endif
