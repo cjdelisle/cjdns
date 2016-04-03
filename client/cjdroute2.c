@@ -433,6 +433,7 @@ static int usage(struct Allocator* alloc, char* appName)
            "    cjdroute --version             Print the protocol version which this node speaks.\n"
            "    cjdroute --cleanconf < conf    Print a clean (valid json) version of the config.\n"
            "    cjdroute --nobg                Never fork to the background no matter the config.\n"
+           "    cjdroute --bg                  Always fork to the background no matter the config.\n"
            "\n"
            "To get the router up and running.\n"
            "Step 1:\n"
@@ -575,6 +576,8 @@ int main(int argc, char** argv)
             // Performed after reading configuration
         } else if (CString_strcmp(argv[1], "--nobg") == 0) {
             // Performed while reading configuration
+        } else if (CString_strcmp(argv[1], "--bg") == 0) {
+            // Performed while reading configuration
         } else {
             fprintf(stderr, "%s: unrecognized option '%s'\n", argv[0], argv[1]);
             fprintf(stderr, "Try `%s --help' for more information.\n", argv[0]);
@@ -616,9 +619,12 @@ int main(int argc, char** argv)
         return 0;
     }
 
-    int forceNoBackground = 0;
+    int controlBackground = 0;
     if (argc == 2 && CString_strcmp(argv[1], "--nobg") == 0) {
-        forceNoBackground = 1;
+        controlBackground = 1;
+    }
+    if (argc == 2 && CString_strcmp(argv[1], "--bg") == 0) {
+        controlBackground = 2;
     }
 
     struct Log* logger = FileWriterLog_new(stdout, allocator);
@@ -730,14 +736,31 @@ int main(int argc, char** argv)
                         logger,
                         allocator);
 
-    // --------------------- noBackground ------------------------ //
+    // --------------------- background ------------------------ //
 
     int64_t* noBackground = Dict_getInt(&config, String_CONST("noBackground"));
-    if (forceNoBackground || (noBackground && *noBackground)) {
-        Log_debug(logger, "Keeping cjdns client alive because %s",
-            (forceNoBackground) ? "--nobg was specified on the command line"
-                                : "noBackground was set in the configuration");
-        EventBase_beginLoop(eventBase);
+    switch(controlBackground) {
+        case 1:
+            // Never fork
+            Log_debug(logger, "Keeping cjdns client alive because "
+                              "--nobg was specified on the command line");
+            EventBase_beginLoop(eventBase);
+            break;
+
+        case 2:
+            // Always fork
+            Log_debug(logger, "Exiting cjdns client because "
+                              "--bg was specified on the command line");
+            break;
+
+        default:
+            // Check configuration
+            if (noBackground && *noBackground) {
+                Log_debug(logger, "Keeping cjdns client alive because "
+                                  "noBackground was set in the configuration");
+                EventBase_beginLoop(eventBase);
+            }
+            break;
     }
 
     // Freeing this allocator here causes the core to be terminated in the epoll syscall.
