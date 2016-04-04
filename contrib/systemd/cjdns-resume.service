@@ -1,0 +1,10 @@
+[Unit]
+Description=Restart cjdns on resume from sleep
+After=sleep.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/systemctl restart cjdns
+
+[Install]
+WantedBy=sleep.target
