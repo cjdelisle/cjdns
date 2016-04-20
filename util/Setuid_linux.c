@@ -33,6 +33,10 @@
 #define CAP_TO_MASK(X) (1 << ((X) & 31))
 #endif
 
+#ifndef _LINUX_CAPABILITY_VERSION_3
+#define _LINUX_CAPABILITY_VERSION_3 0x20080522
+#endif
+
 #define PERMITTED_MASK CAP_TO_MASK(CAP_NET_ADMIN)
 
 static inline int capSet(cap_user_header_t hdr, cap_user_data_t data)
