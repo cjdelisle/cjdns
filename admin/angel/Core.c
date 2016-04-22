@@ -94,15 +94,19 @@
 
 static void adminPing(Dict* input, void* vadmin, String* txid, struct Allocator* requestAlloc)
 {
-    Dict d = Dict_CONST(String_CONST("q"), String_OBJ(String_CONST("pong")), NULL);
-    Admin_sendMessage(&d, txid, (struct Admin*) vadmin);
+    Dict* d = Dict_new(requestAlloc);
+    Dict_putString(d, String_CONST("error"), String_new("none", requestAlloc), requestAlloc);
+    Dict_putString(d, String_CONST("q"), String_new("pong", requestAlloc), requestAlloc);
+    Admin_sendMessage(d, txid, (struct Admin*) vadmin);
 }
 
 static void adminPid(Dict* input, void* vadmin, String* txid, struct Allocator* requestAlloc)
 {
     int pid = getpid();
-    Dict d = Dict_CONST(String_CONST("pid"), Int_OBJ(pid), NULL);
-    Admin_sendMessage(&d, txid, (struct Admin*) vadmin);
+    Dict* d = Dict_new(requestAlloc);
+    Dict_putString(d, String_CONST("error"), String_new("none", requestAlloc), requestAlloc);
+    Dict_putInt(d, String_CONST("pid"), pid, requestAlloc);
+    Admin_sendMessage(d, txid, (struct Admin*) vadmin);
 }
 
 struct Context
