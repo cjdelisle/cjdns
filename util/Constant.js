@@ -62,20 +62,23 @@ var base2 = module.exports.base2 = function (numStr) {
     return '((' + type + ') 0x' + base2ToHex(numStr) + ((type === 'uint64_t') ? 'ull' : 'ul') + ')';
 };
 
+var randomHex = function (bytes) {
+    var hex = '';
+    var len = Number(bytes * 2); // One byte is two hex digits
+    while (hex.length < len) { hex += Math.random().toString(16).substring(2); }
+    return hex.substring(0,len);
+};
+
 var rand64 = module.exports.rand64 = function () {
-    return '((uint64_t) 0x' +
-        (Math.random().toString(16) + Math.random().toString(16)).replace(/0\./g, '') + 'ull)';
+    return '((uint64_t) 0x' + randomHex(64 / 8) + 'ull)';
 };
 
 var rand32 = module.exports.rand32 = function () {
-    return '((uint32_t) 0x' + Math.random().toString(16).replace(/0\./g, '') + 'ul)';
+    return '((uint32_t) 0x' + randomHex(32 / 8) + 'ul)';
 };
 
 var randHexString = module.exports.randHexString = function (lenStr) {
-    var hex = '';
-    var len = Number(lenStr);
-    while (hex.length < len) { hex += Math.random().toString(16).substring(2); }
-    return '"' + hex.substring(0,len) + '"';
+    return '"' + randomHex(lenStr / 2) + '"';
 };
 
 var log2 = module.exports.log2 = function (val) {
