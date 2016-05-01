@@ -178,10 +178,11 @@ static void commit(Dict* args,
     struct RouteGen_admin_Ctx* const ctx = Identity_check((struct RouteGen_admin_Ctx*) vcontext);
     String* const tunName = Dict_getString(args, String_CONST("tunName"));
     Dict* const ret = Dict_new(requestAlloc);
-    char* error = "none";
+    char* error;
     struct Jmp j;
     Jmp_try(j) {
         RouteGen_commit(ctx->rg, tunName->bytes, requestAlloc, &j.handler);
+        error = "none";
     } Jmp_catch {
         error = j.message;
     }
