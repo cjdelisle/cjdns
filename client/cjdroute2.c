@@ -396,15 +396,6 @@ static int genconf(struct Random* rand, bool eth)
            "        // \"logTo\":\"stdout\"\n"
            "    },\n"
            "\n"
-           "    // If set to non-zero, cjdns will not fork to the background.\n"
-           "    // Recommended for use in conjunction with \"logTo\":\"stdout\".\n");
-          if (Defined(win32)) {
-    printf("    \"noBackground\":1,\n");
-          }
-          else {
-    printf("    \"noBackground\":0,\n");
-          }
-    printf("\n"
            "    // Pipe file will store in this path, recommended value: /tmp (for unix),\n"
            "    // \\\\.\\pipe (for windows) \n"
            "    // /data/local/tmp (for rooted android) \n"
@@ -432,7 +423,7 @@ static int usage(struct Allocator* alloc, char* appName)
            "    cjdroute --bench               Run some cryptography performance benchmarks.\n"
            "    cjdroute --version             Print the protocol version which this node speaks.\n"
            "    cjdroute --cleanconf < conf    Print a clean (valid json) version of the config.\n"
-           "    cjdroute --nobg                Never fork to the background no matter the config.\n"
+           "    cjdroute --nobg                Don't fork to the background.\n"
            "\n"
            "To get the router up and running.\n"
            "Step 1:\n"
@@ -730,13 +721,10 @@ int main(int argc, char** argv)
                         logger,
                         allocator);
 
-    // --------------------- noBackground ------------------------ //
-
-    int64_t* noBackground = Dict_getInt(&config, String_CONST("noBackground"));
-    if (forceNoBackground || (noBackground && *noBackground)) {
-        Log_debug(logger, "Keeping cjdns client alive because %s",
-            (forceNoBackground) ? "--nobg was specified on the command line"
-                                : "noBackground was set in the configuration");
+    // --------------------- background ------------------------ //
+    if (forceNoBackground) {
+        Log_debug(logger, "Keeping cjdns client alive because "
+                          "--nobg was specified on the command line");
         EventBase_beginLoop(eventBase);
     }
 
