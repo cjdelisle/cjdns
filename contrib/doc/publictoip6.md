@@ -1,4 +1,4 @@
-publictoip6(1) -- write random bytes generated via libnacl to stdout
+publictoip6(1) -- Derive cjdns IP6 address from a public key
 =============================================
 
 ## SYNOPSIS
