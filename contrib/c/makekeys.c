@@ -26,6 +26,11 @@
 
 int main(int argc, char** argv)
 {
+    int count = -1;
+    if (argc > 1) {
+        sscanf(argv[1], "%d", &count);
+    }
+
     struct Allocator* alloc = MallocAllocator_new(1<<22);
     struct Random* rand = Random_new(alloc, NULL, NULL);
 
@@ -40,7 +45,7 @@ int main(int argc, char** argv)
     signal(SIGPIPE,SIG_DFL);
 #endif
 
-    for (;;) {
+    for (int i = 0; count < 0 || i < count;) {
         Random_bytes(rand, privateKey, 32);
         crypto_scalarmult_curve25519_base(publicKey, privateKey);
         if (AddressCalc_addressForPublicKey(ip, publicKey)) {
@@ -49,6 +54,7 @@ int main(int argc, char** argv)
             AddrTools_printIp(printedIp, ip);
             printf("%s %s %s.k\n", hexPrivateKey, printedIp, publicKeyBase32);
             fflush(stdout);
+            i += 1;
         }
     }
     return 0;
