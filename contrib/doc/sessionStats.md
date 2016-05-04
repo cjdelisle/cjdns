@@ -12,7 +12,7 @@ a TLS session.  A session is required not only to talk to each peer,
 but also when talking to intermediate nodes to ask them about their peers
 when planning a route.  
 
-The Cjdns protocol offers Perfect Forward Secrecy.  Each session has a random
+The cjdns protocol offers Perfect Forward Secrecy.  Each session has a random
 symmetric key that encrypts that session.  If a node is compromised, 
 the attacker can get the session keys and read current and future sessions.
 However, the session keys are securely erased when a session is destroyed,

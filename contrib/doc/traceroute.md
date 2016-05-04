@@ -1,4 +1,4 @@
-cjdns-traceroute(1) -- trace Cjdns packet routing
+cjdns-traceroute(1) -- trace cjdns packet routing
 =============================================
 
 ## SYNOPSIS
@@ -7,7 +7,7 @@ cjdns-traceroute(1) -- trace Cjdns packet routing
 
 ## DESCRIPTION
 
-Because CJDNS is end to end encrypted, the standard traceroute always
+Because cjdns is end to end encrypted, the standard traceroute always
 shows a direct connection.  Cjdns-traceroute queries cjdroute to discover
 what route would be used to send a packet to the destination IP.
 Note that just as with the standard traceroute, there is no guarantee
