@@ -57,6 +57,8 @@ struct SupernodeHunter_pvt
 
     struct Log* log;
 
+    struct MsgCore* msgCore;
+
     Identity
 };
 
@@ -64,7 +66,7 @@ static int snodeIndexOf(struct SupernodeHunter_pvt* snp, struct Sockaddr* udpAdd
 {
     for (int i = 0; i < snp->snodeAddrs->length; i++) {
         struct AllocSockaddr* as = ArrayList_OfSnodeAddrs_get(snp->snodeAddrs, i);
-        if (!Sockaddr_compare(as->addr, udpAddr)) { return i; }
+        if (!Sockaddr_compare(as->sa, udpAddr)) { return i; }
     }
     return -1;
 }
@@ -78,7 +80,7 @@ int SupernodeHunter_addSnode(struct SupernodeHunter* snh, struct Sockaddr* udpAd
     if (snodeIndexOf(snp, udpAddr) != -1) { return SupernodeHunter_addSnode_EXISTS; }
     struct Allocator* alloc = Allocator_child(snp->alloc);
     struct AllocSockaddr* as = Allocator_calloc(alloc, sizeof(struct AllocSockaddr), 1);
-    as->sa = Sockaddr_clone(udpAddr);
+    as->sa = Sockaddr_clone(udpAddr, alloc);
     as->alloc = alloc;
     Identity_set(as);
     ArrayList_OfSnodeAddrs_add(snp->snodeAddrs, as);
@@ -110,21 +112,20 @@ int SupernodeHunter_removeSnode(struct SupernodeHunter* snh, struct Sockaddr* to
     return 0;
 }
 
-void pingCycle(void* vsn)
+static void pingCycle(void* vsn)
 {
     struct SupernodeHunter_pvt* snp = Identity_check((struct SupernodeHunter_pvt*) vsn);
-    if (snp->pub->snodes->length > 1) { return; }
+    if (snp->pub.snodes->length > 1) { return; }
     if (!snp->snodeAddrs->length) { return; }
     int idx = snp->nodeListIndex++;
     bool isGetPeers = idx & 1;
     idx >>= 1;
-    if (idx >= (snp->peers->length + snp->nodeListIndex)) { snp->snodeAddrIdx++; }
+    if (idx >= (int) (snp->peers->length + snp->nodeListIndex)) { snp->snodeAddrIdx++; }
     idx %= (snp->peers->length + snp->nodeListIndex);
-    struct Sockaddr* desiredSnode =
-        ArrayList_OfSnodeAddrs_get(snp->snodeAddrIdx,
-                                   snp->snodeAddrIdx % snp->snodeAddrIdx->length);
+    struct AllocSockaddr* desiredSnode =
+        ArrayList_OfSnodeAddrs_get(snp->snodeAddrs, snp->snodeAddrIdx % snp->snodeAddrs->length);
     uint8_t* snodeAddr;
-    Assert_true(Sockaddr_getAddress(desiredSnode, &snodeAddr) == 16);
+    Assert_true(Sockaddr_getAddress(desiredSnode->sa, &snodeAddr) == 16);
     struct Address* target;
     for (;;) {
         if (idx < snp->peers->length) {
@@ -139,17 +140,17 @@ void pingCycle(void* vsn)
         Assert_failure("unreachable");
     }
 
-    struct Allocator* alloc = Allocator_child(snp->alloc);
-    Dict* msg = Dict_new(alloc);
+    // We're not handling replies...
+    struct MsgCore_Promise* qp = MsgCore_createQuery(snp->msgCore, 0, snp->alloc);
+    Dict* msg = qp->msg = Dict_new(qp->alloc);
+    qp->target = target;
     if (isGetPeers) {
-        Dict_putStringCC(msg, "q", "gp", alloc);
-        Dict_putStringC(msg, "tar", String_newBinary("\0\0\0\0\0\0\0\1", 8, alloc), alloc);
+        Dict_putStringCC(msg, "q", "gp", qp->alloc);
+        Dict_putStringC(msg, "tar", String_newBinary("\0\0\0\0\0\0\0\1", 8, qp->alloc), qp->alloc);
     } else {
-        Dict_putStringCC(msg, "q", "fn", alloc);
-        Dict_putStringC(msg, "tar", String_newBinary(snodeAddr, 16, alloc), alloc);
+        Dict_putStringCC(msg, "q", "fn", qp->alloc);
+        Dict_putStringC(msg, "tar", String_newBinary(snodeAddr, 16, qp->alloc), qp->alloc);
     }
-    MsgCore_send(snp->msgCore, msg, target, alloc);
-    Allocator_free(alloc);
 }
 
 struct SupernodeHunter* SupernodeHunter_new(struct Allocator* allocator,

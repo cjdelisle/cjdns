@@ -15,6 +15,8 @@
 #ifndef SubnodePathfinder_H
 #define SubnodePathfinder_H
 
+#include "admin/Admin.h"
+#include "interface/Iface.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
 #include "util/events/EventBase.h"
@@ -27,9 +29,12 @@ struct SubnodePathfinder
     struct Iface eventIf;
 };
 
-struct SubnodePathfinder* SubnodePathfinder_register(struct Allocator* alloc,
-                                                     struct Log* logger,
-                                                     struct EventBase* base,
-                                                     struct Random* rand);
+void SubnodePathfinder_start(struct SubnodePathfinder*);
+
+struct SubnodePathfinder* SubnodePathfinder_new(struct Allocator* allocator,
+                                                struct Log* log,
+                                                struct EventBase* base,
+                                                struct Random* rand,
+                                                struct Admin* admin);
 
 #endif

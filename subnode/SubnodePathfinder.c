@@ -12,23 +12,26 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "dht/Pathfinder.h"
-#include "dht/DHTModule.h"
+//#include "dht/DHTModule.h"
+#include "subnode/SubnodePathfinder.h"
+#include "subnode/AddrSet.h"
+#include "subnode/MsgCore.h"
+#include "subnode/SupernodeHunter.h"
 #include "dht/Address.h"
 #include "wire/DataHeader.h"
 #include "wire/RouteHeader.h"
 #include "dht/ReplyModule.h"
 #include "dht/EncodingSchemeModule.h"
 #include "dht/SerializationModule.h"
-#include "dht/dhtcore/RouterModule.h"
-#include "dht/dhtcore/RouterModule_admin.h"
-#include "dht/dhtcore/RumorMill.h"
-#include "dht/dhtcore/SearchRunner.h"
-#include "dht/dhtcore/SearchRunner_admin.h"
-#include "dht/dhtcore/NodeStore_admin.h"
-#include "dht/dhtcore/Janitor_admin.h"
-#include "dht/dhtcore/Janitor.h"
-#include "dht/dhtcore/Router_new.h"
+//#include "dht/dhtcore/RouterModule.h"
+//#include "dht/dhtcore/RouterModule_admin.h"
+//#include "dht/dhtcore/RumorMill.h"
+//#include "dht/dhtcore/SearchRunner.h"
+//#include "dht/dhtcore/SearchRunner_admin.h"
+//#include "dht/dhtcore/NodeStore_admin.h"
+//#include "dht/dhtcore/Janitor_admin.h"
+//#include "dht/dhtcore/Janitor.h"
+//#include "dht/dhtcore/Router_new.h"
 #include "util/AddrTools.h"
 #include "util/events/Timeout.h"
 #include "wire/Error.h"
@@ -36,7 +39,6 @@
 #include "util/CString.h"
 
 ///////////////////// [ Address ][ content... ]
-
 
 
 struct SubnodePathfinder_pvt
@@ -58,11 +60,13 @@ struct SubnodePathfinder_pvt
     // After begin connected, these fields will be filled.
     struct Address myAddr;
 
-    struct ArrayList_OfPeers* myPeers;
+    struct AddrSet* myPeers;
 
     struct MsgCore* msgCore;
 
     struct SupernodeHunter* snh;
+
+    struct Admin* admin;
 
     //struct DHTModuleRegistry* registry;
     //struct NodeStore* nodeStore;
@@ -74,6 +78,7 @@ struct SubnodePathfinder_pvt
     Identity
 };
 
+/*
 static int incomingFromDHT(struct DHTMessage* dmessage, void* vpf)
 {
     struct SubnodePathfinder_pvt* pf = Identity_check((struct SubnodePathfinder_pvt*) vpf);
@@ -115,7 +120,7 @@ static int incomingFromDHT(struct DHTMessage* dmessage, void* vpf)
     Iface_send(&pf->pub.eventIf, msg);
     return 0;
 }
-
+*/
 static void nodeForAddress(struct PFChan_Node* nodeOut, struct Address* addr, uint32_t metric)
 {
     Bits_memset(nodeOut, 0, PFChan_Node_SIZE);
@@ -141,6 +146,7 @@ static Iface_DEFUN sendNode(struct Message* msg,
     return Iface_next(&pf->pub.eventIf, msg);
 }
 
+/*
 static void onBestPathChange(void* vPathfinder, struct Node_Two* node)
 {
     struct SubnodePathfinder_pvt* pf = Identity_check((struct SubnodePathfinder_pvt*) vPathfinder);
@@ -154,11 +160,13 @@ static void onBestPathChange(void* vPathfinder, struct Node_Two* node)
     Iface_CALL(sendNode, msg, &node->address, Node_getCost(node), pf);
     Allocator_free(alloc);
 }
+*/
+
 
 static Iface_DEFUN connected(struct SubnodePathfinder_pvt* pf, struct Message* msg)
 {
     Log_debug(pf->log, "INIT");
-
+/*
     struct PFChan_Core_Connect conn;
     Message_pop(msg, &conn, PFChan_Core_Connect_SIZE, NULL);
     Assert_true(!msg->length);
@@ -219,7 +227,7 @@ static Iface_DEFUN connected(struct SubnodePathfinder_pvt* pf, struct Message* m
         SearchRunner_admin_register(pf->searchRunner, pf->admin, pf->alloc);
         Janitor_admin_register(pf->janitor, pf->admin, pf->alloc);
     }
-
+*/
     pf->state = SubnodePathfinder_pvt_state_RUNNING;
 
     return NULL;
@@ -242,13 +250,14 @@ static Iface_DEFUN switchErr(struct Message* msg, struct SubnodePathfinder_pvt* 
     Message_pop(msg, &switchErr, PFChan_Core_SwitchErr_MIN_SIZE, NULL);
 
     uint64_t path = Endian_bigEndianToHost64(switchErr.sh.label_be);
-    uint64_t pathAtErrorHop = Endian_bigEndianToHost64(switchErr.ctrlErr.cause.label_be);
+//    uint64_t pathAtErrorHop = Endian_bigEndianToHost64(switchErr.ctrlErr.cause.label_be);
 
     uint8_t pathStr[20];
     AddrTools_printPath(pathStr, path);
     int err = Endian_bigEndianToHost32(switchErr.ctrlErr.errorType_be);
     Log_debug(pf->log, "switch err from [%s] type [%s][%d]", pathStr, Error_strerror(err), err);
 
+/*
     struct Node_Link* link = NodeStore_linkForPath(pf->nodeStore, path);
     uint8_t nodeAddr[16];
     if (link) {
@@ -261,7 +270,7 @@ static Iface_DEFUN switchErr(struct Message* msg, struct SubnodePathfinder_pvt* 
         // Don't touch the node again, it might be a dangling pointer
         SearchRunner_search(nodeAddr, 20, 3, pf->searchRunner, pf->alloc);
     }
-
+*/
     return NULL;
 }
 
@@ -273,13 +282,14 @@ static Iface_DEFUN searchReq(struct Message* msg, struct SubnodePathfinder_pvt* 
     uint8_t printedAddr[40];
     AddrTools_printIp(printedAddr, addr);
     Log_debug(pf->log, "Search req [%s]", printedAddr);
-
+/*
     struct Node_Two* node = NodeStore_nodeForAddr(pf->nodeStore, addr);
     if (node) {
         //onBestPathChange(pf, node);
     } else {
         SearchRunner_search(addr, 20, 3, pf->searchRunner, pf->alloc);
     }
+*/
     return NULL;
 }
 
@@ -291,16 +301,10 @@ static Iface_DEFUN peer(struct Message* msg, struct SubnodePathfinder_pvt* pf)
     Log_debug(pf->log, "Peer [%s]", str->bytes);
 
     for (int i = 0; i < pf->myPeers->length; i++) {
-        struct Peer* myPeer = ArrayList_OfPeers_get(pf->myPeers, i);
-        if (myPeer->addr.path == addr.path) { return; }
+        struct Address* myPeer = AddrSet_get(pf->myPeers, i);
+        if (myPeer->path == addr.path) { return NULL; }
     }
-    struct Allocator* alloc = Allocator_child(pf->alloc);
-    struct Peer* newPeer = Allocator_calloc(alloc, sizeof(struct Peer), 1);
-    newPeer->alloc = alloc;
-    Bits_memcpy(&newPeer->addr, &addr, sizeof(struct Address));
-    ArrayList_OfPeers_add(pf->myPeers, newPeer);
-    ArrayList_OfPeers_sort(pf->myPeers);
-
+    AddrSet_add(pf->myPeers, &addr);
     return sendNode(msg, &addr, 0xffffff00, pf);
 }
 
@@ -310,12 +314,10 @@ static Iface_DEFUN peerGone(struct Message* msg, struct SubnodePathfinder_pvt* p
     addressForNode(&addr, msg);
 
     for (int i = pf->myPeers->length - 1; i >= 0; i--) {
-        struct Peer* myPeer = ArrayList_OfPeers_get(pf->myPeers, i);
-        if (myPeer->addr.path == addr.path) {
-            ArrayList_OfPeers_remove(pf->myPeers, i);
-            Allocator_free(myPeer->alloc);
-
-            String* str = Address_toString(&addr, msg->alloc);
+        struct Address* myPeer = AddrSet_get(pf->myPeers, i);
+        if (myPeer->path == addr.path) {
+            String* str = Address_toString(myPeer, msg->alloc);
+            AddrSet_remove(pf->myPeers, myPeer);
             Log_debug(pf->log, "Peer gone [%s]", str->bytes);
         }
     }
@@ -365,7 +367,7 @@ static Iface_DEFUN handlePong(struct Message* msg, struct SubnodePathfinder_pvt*
 
 static Iface_DEFUN incomingMsg(struct Message* msg, struct SubnodePathfinder_pvt* pf)
 {
-    return Iface_next(msg, &pf->msgCoreIf);
+    return Iface_next(&pf->msgCoreIf, msg);
 }
 
 static Iface_DEFUN incomingFromMsgCore(struct Message* msg, struct Iface* iface)
@@ -373,7 +375,7 @@ static Iface_DEFUN incomingFromMsgCore(struct Message* msg, struct Iface* iface)
     struct SubnodePathfinder_pvt* pf =
         Identity_containerOf(iface, struct SubnodePathfinder_pvt, msgCoreIf);
     Message_push32(msg, PFChan_Pathfinder_SENDMSG, NULL);
-    return Iface_next(msg, &pf->pub.eventIf);
+    return Iface_next(&pf->pub.eventIf, msg);
 }
 
 static Iface_DEFUN incomingFromEventIf(struct Message* msg, struct Iface* eventIf)
@@ -432,7 +434,8 @@ void SubnodePathfinder_start(struct SubnodePathfinder* sp)
 struct SubnodePathfinder* SubnodePathfinder_new(struct Allocator* allocator,
                                                 struct Log* log,
                                                 struct EventBase* base,
-                                                struct Random* rand)
+                                                struct Random* rand,
+                                                struct Admin* admin)
 {
     struct Allocator* alloc = Allocator_child(allocator);
     struct SubnodePathfinder_pvt* pf =
@@ -442,7 +445,8 @@ struct SubnodePathfinder* SubnodePathfinder_new(struct Allocator* allocator,
     pf->log = log;
     pf->base = base;
     pf->rand = rand;
-    pf->myPeers = ArrayList_OfPeers_new(alloc);
+    pf->admin = admin;
+    pf->myPeers = AddrSet_new(alloc);
     pf->pub.eventIf.send = incomingFromEventIf;
     pf->msgCoreIf.send = incomingFromMsgCore;
 

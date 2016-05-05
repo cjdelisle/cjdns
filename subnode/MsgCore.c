@@ -15,23 +15,14 @@
 #include "benc/Dict.h"
 #include "memory/Allocator.h"
 #include "dht/Address.h"
+#include "util/Pinger.h"
 #include "subnode/MsgCore.h"
 #include "benc/serialization/standard/BencMessageReader.h"
 #include "benc/serialization/standard/BencMessageWriter.h"
 #include "util/Escape.h"
-
-struct MsgCore_Handler;
-
-typedef (* MsgCore_HandlerCb)(Dict* msg,
-                              struct Address* src,
-                              struct Allocator* tmpAlloc,
-                              struct MsgCore_Handler* handler);
-
-struct MsgCore_Handler
-{
-    MsgCore_HandlerCb cb;
-    void* userData;
-};
+#include "wire/Message.h"
+#include "wire/DataHeader.h"
+#include "wire/RouteHeader.h"
 
 struct ReplyContext
 {
@@ -40,29 +31,6 @@ struct ReplyContext
     struct Message* msg;
     Identity
 };
-
-static Iface_DEFUN replyMsg(struct MsgCore_pvt* mcp,
-                            Dict* content,
-                            struct Address* src,
-                            struct Message* msg)
-{
-    String* txid = Dict_getStringC(content, "txid");
-    if (!txid) {
-        Log_debug(mcp->log, "Message with no txid");
-        return NULL;
-    }
-    struct ReplyContext* rc = Allocator_calloc(msg->alloc, sizeof(ReplyContext), 1);
-    rc->src = src;
-    rc->content = content;
-    rc->msg = msg;
-    Identity_set(rc);
-    Assert_true(!mcp->currentReply);
-    mcp->currentReply = rc;
-    // Pops out in pingerOnResponse() if the reply is indeed valid...
-    Pinger_pongReceived(txid, mcp->pinger);
-    mcp->currentReply = NULL;
-    return NULL;
-}
 
 struct QueryHandler
 {
@@ -82,9 +50,12 @@ struct MsgCore_pvt
     struct MsgCore pub;
     struct ArrayList_OfQueryHandlers* qh;
     struct Pinger* pinger;
+    struct Log* log;
 
     /** Hack hack hack: This should be passed through Pinger.h but the API doesn't exist. */
     struct ReplyContext* currentReply;
+
+    Identity
 };
 
 struct MsgCore_Promise_pvt
@@ -93,6 +64,29 @@ struct MsgCore_Promise_pvt
     struct MsgCore_pvt* mcp;
     struct Pinger_Ping* ping;
     Identity
+};
+
+static Iface_DEFUN replyMsg(struct MsgCore_pvt* mcp,
+                            Dict* content,
+                            struct Address* src,
+                            struct Message* msg)
+{
+    String* txid = Dict_getStringC(content, "txid");
+    if (!txid) {
+        Log_debug(mcp->log, "Message with no txid");
+        return NULL;
+    }
+    struct ReplyContext* rc = Allocator_calloc(msg->alloc, sizeof(struct ReplyContext), 1);
+    rc->src = src;
+    rc->content = content;
+    rc->msg = msg;
+    Identity_set(rc);
+    Assert_true(!mcp->currentReply);
+    mcp->currentReply = rc;
+    // Pops out in pingerOnResponse() if the reply is indeed valid...
+    Pinger_pongReceived(txid, mcp->pinger);
+    mcp->currentReply = NULL;
+    return NULL;
 }
 
 static void pingerOnResponse(String* data, uint32_t milliseconds, void* context)
@@ -100,8 +94,8 @@ static void pingerOnResponse(String* data, uint32_t milliseconds, void* context)
     struct MsgCore_Promise_pvt* pp = Identity_check((struct MsgCore_Promise_pvt*) context);
     struct MsgCore_pvt* mcp = Identity_check(pp->mcp);
     struct ReplyContext* rc = NULL;
-    if (mcp->rc) {
-        rc = Identity_check(mcp->rc);
+    if (mcp->currentReply) {
+        rc = Identity_check(mcp->currentReply);
     }
 
     if (pp->pub.cb) {
@@ -109,7 +103,7 @@ static void pingerOnResponse(String* data, uint32_t milliseconds, void* context)
                    (rc) ? rc->src : NULL,
                    &pp->pub);
     }
-};
+}
 
 static void sendMsg(struct MsgCore_pvt* mcp,
                     Dict* msgDict,
@@ -125,8 +119,8 @@ static void sendMsg(struct MsgCore_pvt* mcp,
 
     struct DataHeader data;
     Bits_memset(&data, 0, sizeof(struct DataHeader));
-    DataHeader_setVersion(&emsg->data, DataHeader_CURRENT_VERSION);
-    DataHeader_setContentType(&emsg->data, ContentType_CJDHT);
+    DataHeader_setVersion(&data, DataHeader_CURRENT_VERSION);
+    DataHeader_setContentType(&data, ContentType_CJDHT);
     Message_push(msg, &data, sizeof(struct DataHeader), NULL);
 
     struct RouteHeader route;
@@ -156,7 +150,7 @@ static void pingerSendPing(String* data, void* context)
     Assert_true(pp->pub.msg);
     Dict_putStringC(pp->pub.msg, "txid", data, pp->pub.alloc);
     sendMsg(pp->mcp, pp->pub.msg, pp->pub.target, pp->pub.alloc);
-};
+}
 
 struct MsgCore_Promise* MsgCore_createQuery(struct MsgCore* core,
                                             uint32_t timeoutMilliseconds,
@@ -191,13 +185,14 @@ static Iface_DEFUN queryMsg(struct MsgCore_pvt* mcp,
     }
     if (!qh) {
         Log_debug(mcp->log, "Unhandled query type [%s]", q->bytes);
-        return;
+        return NULL;
     }
     if (!qh->pub.cb) {
         Log_info(mcp->log, "Query handler for [%s] not setup", q->bytes);
-        return;
+        return NULL;
     }
     qh->pub.cb(content, src, msg->alloc, &qh->pub);
+    return NULL;
 }
 
 static int qhOnFree(struct Allocator_OnFreeJob* job)
@@ -227,7 +222,7 @@ struct MsgCore_Handler* MsgCore_onQuery(struct MsgCore* core,
     Identity_set(qh);
     ArrayList_OfQueryHandlers_add(mcp->qh, qh);
     Allocator_onFree(alloc, qhOnFree, qh);
-    return qh->pub;
+    return &qh->pub;
 }
 
 static Iface_DEFUN incoming(struct Message* msg, struct Iface* interRouterIf)
@@ -267,8 +262,10 @@ struct MsgCore* MsgCore_new(struct EventBase* base,
 {
     struct Allocator* alloc = Allocator_child(allocator);
     struct MsgCore_pvt* mcp = Allocator_calloc(alloc, sizeof(struct MsgCore_pvt), 1);
+    Identity_set(mcp);
     mcp->pub.interRouterIf.send = incoming;
     mcp->qh = ArrayList_OfQueryHandlers_new(alloc);
     mcp->pinger = Pinger_new(base, rand, log, alloc);
+    mcp->log = log;
     return &mcp->pub;
 }

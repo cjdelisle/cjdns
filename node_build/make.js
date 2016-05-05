@@ -86,6 +86,8 @@ Builder.configure({
         '-D', 'PARANOIA=1'
     );
 
+    if (process.env['SUBNODE']) { builder.config.cflags.push('-DSUBNODE=1'); }
+
     if (process.env['GCOV']) {
         builder.config.cflags.push('-fprofile-arcs', '-ftest-coverage');
         builder.config.ldflags.push('-fprofile-arcs', '-ftest-coverage');

@@ -20,6 +20,8 @@
 #include "util/events/EventBase.h"
 #include "crypto/random/Random.h"
 #include "subnode/AddrSet.h"
+#include "subnode/MsgCore.h"
+#include "util/platform/Sockaddr.h"
 #include "util/Linker.h"
 Linker_require("subnode/SupernodeHunter.c");
 

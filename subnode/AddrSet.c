@@ -13,6 +13,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "util/Bits.h"
 #include "subnode/AddrSet.h"
 #include "util/Identity.h"
 
@@ -25,7 +26,7 @@ struct Elem
 
 static int comparePeerAddresses(struct Elem* a, struct Elem* b)
 {
-    if (a->path == b->path) { return 0; }
+    if (a->addr.path == b->addr.path) { return 0; }
     return (a->addr.path < b->addr.path) ? 1 : -1;
 }
 #define ArrayList_TYPE struct Elem
@@ -82,13 +83,13 @@ struct Address* AddrSet_get(struct AddrSet* as, int i)
 {
     struct AddrSet_pvt* ap = Identity_check((struct AddrSet_pvt*) as);
     struct Elem* el = ArrayList_OfAddrs_get(ap->addrList, i);
-    if (el) { return el->addr; }
+    if (el) { return &el->addr; }
     return NULL;
 }
 
-struct AddrSet* AddrSet_new(struct Allocator* alloc)
+struct AddrSet* AddrSet_new(struct Allocator* allocator)
 {
-    struct Allocator* alloc = Allocator_child(alloc);
+    struct Allocator* alloc = Allocator_child(allocator);
     struct AddrSet_pvt* out = Allocator_calloc(alloc, sizeof(struct AddrSet_pvt), 1);
     out->alloc = alloc;
     out->addrList = ArrayList_OfAddrs_new(alloc);

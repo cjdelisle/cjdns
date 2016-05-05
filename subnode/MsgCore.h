@@ -15,6 +15,7 @@
 #ifndef MsgCore_H
 #define MsgCore_H
 
+#include "interface/Iface.h"
 #include "crypto/random/Random.h"
 #include "util/events/EventBase.h"
 #include "benc/Dict.h"
@@ -25,11 +26,12 @@
 Linker_require("subnode/MsgCore.c");
 
 struct MsgCore_Handler;
+struct MsgCore;
 
-typedef (* MsgCore_HandlerCb)(Dict* msg,
-                              struct Address* src,
-                              struct Allocator* tmpAlloc,
-                              struct MsgCore_Handler* handler);
+typedef void (* MsgCore_HandlerCb)(Dict* msg,
+                                   struct Address* src,
+                                   struct Allocator* tmpAlloc,
+                                   struct MsgCore_Handler* handler);
 
 struct MsgCore_Handler
 {
@@ -44,7 +46,7 @@ void MsgCore_sendResponse(struct MsgCore* core,
 
 struct MsgCore_Promise;
 
-typedef (* MsgCore_PromiseCb)(Dict* msg, struct Address* src, struct MsgCore_Promise* promise);
+typedef void (* MsgCore_PromiseCb)(Dict* msg, struct Address* src, struct MsgCore_Promise* promise);
 
 struct MsgCore_Promise
 {
