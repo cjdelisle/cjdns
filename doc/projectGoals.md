@@ -1,6 +1,6 @@
 # Project goals
 
-## With built-in security and auto-configuration, everybody can own part of the network
+## With built-in security and auto-configuration, everybody can own a part of the network
 
 The Internet gives everyone incredible power of expression that was once
 reserved for those wealthy enough to own a radio station or newspaper. Still,
