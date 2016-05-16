@@ -12,27 +12,17 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef AddrSet_H
-#define AddrSet_H
+#ifndef UpperDistributor_admin_H
+#define UpperDistributor_admin_H
 
+#include "admin/Admin.h"
 #include "memory/Allocator.h"
-#include "dht/Address.h"
+#include "net/UpperDistributor.h"
 #include "util/Linker.h"
-Linker_require("subnode/AddrSet.c");
+Linker_require("net/UpperDistributor_admin.c");
 
-struct AddrSet
-{
-    int length;
-};
-
-void AddrSet_add(struct AddrSet* as, struct Address* addr);
-
-void AddrSet_remove(struct AddrSet* as, struct Address* addr);
-
-struct Address* AddrSet_get(struct AddrSet* as, int i);
-
-struct AddrSet* AddrSet_new(struct Allocator* alloc);
-
-void AddrSet_flush(struct AddrSet* as);
+void UpperDistributor_admin_register(struct UpperDistributor* ud,
+                                     struct Admin* admin,
+                                     struct Allocator* alloc);
 
 #endif

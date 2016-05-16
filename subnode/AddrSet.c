@@ -46,9 +46,8 @@ static int indexOf(struct AddrSet_pvt* ap, struct Address* addr)
 {
     for (int i = 0; i < ap->addrList->length; i++) {
         struct Elem* el = ArrayList_OfAddrs_get(ap->addrList, i);
-        if (!Bits_memcmp(addr, &el->addr, sizeof(struct Address))) {
-            return i;
-        }
+        // We will just match on the same IP, even if the path is not the same
+        if (Address_isSameIp(addr, &el->addr)) { return i; }
     }
     return -1;
 }
@@ -77,6 +76,17 @@ void AddrSet_remove(struct AddrSet* as, struct Address* addr)
     ArrayList_OfAddrs_remove(ap->addrList, idx);
     Allocator_free(el->alloc);
     ap->pub.length = ap->addrList->length;
+}
+
+void AddrSet_flush(struct AddrSet* as)
+{
+    struct AddrSet_pvt* ap = Identity_check((struct AddrSet_pvt*) as);
+    for (int i = 0; i < ap->addrList->length; i++) {
+        struct Elem* el = ArrayList_OfAddrs_get(ap->addrList, i);
+        ArrayList_OfAddrs_remove(ap->addrList, i);
+        Allocator_free(el->alloc);
+    }
+    ap->pub.length = 0;
 }
 
 struct Address* AddrSet_get(struct AddrSet* as, int i)

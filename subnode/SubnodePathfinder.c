@@ -57,14 +57,11 @@ struct SubnodePathfinder_pvt
     #define SubnodePathfinder_pvt_state_RUNNING 1
     int state;
 
-    // After begin connected, these fields will be filled.
-    struct Address myAddr;
+    struct Address* myAddress;
 
     struct AddrSet* myPeers;
 
     struct MsgCore* msgCore;
-
-    struct SupernodeHunter* snh;
 
     struct Admin* admin;
 
@@ -174,6 +171,7 @@ static Iface_DEFUN connected(struct SubnodePathfinder_pvt* pf, struct Message* m
     Bits_memcpy(pf->myAddr.key, conn.publicKey, 32);
     Address_getPrefix(&pf->myAddr);
     pf->myAddr.path = 1;
+
 
     // begin
 
@@ -420,8 +418,10 @@ void SubnodePathfinder_start(struct SubnodePathfinder* sp)
 {
     struct SubnodePathfinder_pvt* pf = Identity_check((struct SubnodePathfinder_pvt*) sp);
     pf->msgCore = MsgCore_new(pf->base, pf->rand, pf->alloc, pf->log);
-    pf->snh = SupernodeHunter_new(pf->alloc, pf->log, pf->base, pf->myPeers, pf->msgCore);
     Iface_plumb(&pf->msgCoreIf, &pf->msgCore->interRouterIf);
+
+    pf->pub.snh =
+        SupernodeHunter_new(pf->alloc, pf->log, pf->base, pf->myPeers, pf->msgCore, pf->myAddress);
 
     struct PFChan_Pathfinder_Connect conn = {
         .superiority_be = Endian_hostToBigEndian32(1),
@@ -435,7 +435,7 @@ struct SubnodePathfinder* SubnodePathfinder_new(struct Allocator* allocator,
                                                 struct Log* log,
                                                 struct EventBase* base,
                                                 struct Random* rand,
-                                                struct Admin* admin)
+                                                struct Address* myAddress)
 {
     struct Allocator* alloc = Allocator_child(allocator);
     struct SubnodePathfinder_pvt* pf =
@@ -445,7 +445,7 @@ struct SubnodePathfinder* SubnodePathfinder_new(struct Allocator* allocator,
     pf->log = log;
     pf->base = base;
     pf->rand = rand;
-    pf->admin = admin;
+    pf->myAddress = myAddress;
     pf->myPeers = AddrSet_new(alloc);
     pf->pub.eventIf.send = incomingFromEventIf;
     pf->msgCoreIf.send = incomingFromMsgCore;

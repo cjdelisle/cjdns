@@ -21,12 +21,14 @@
 #include "util/log/Log.h"
 #include "util/events/EventBase.h"
 #include "crypto/random/Random.h"
+#include "subnode/SupernodeHunter.h"
 #include "util/Linker.h"
 Linker_require("subnode/SubnodePathfinder.c");
 
 struct SubnodePathfinder
 {
     struct Iface eventIf;
+    struct SupernodeHunter* snh;
 };
 
 void SubnodePathfinder_start(struct SubnodePathfinder*);
@@ -35,6 +37,6 @@ struct SubnodePathfinder* SubnodePathfinder_new(struct Allocator* allocator,
                                                 struct Log* log,
                                                 struct EventBase* base,
                                                 struct Random* rand,
-                                                struct Admin* admin);
+                                                struct Address* myAddress);
 
 #endif

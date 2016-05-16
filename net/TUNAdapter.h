@@ -28,8 +28,6 @@ struct TUNAdapter
     struct Iface tunIf;
 
     struct Iface ipTunnelIf;
-
-    struct Iface magicIf;
 };
 
 struct TUNAdapter* TUNAdapter_new(struct Allocator* alloc, struct Log* log, uint8_t myAddr[16]);

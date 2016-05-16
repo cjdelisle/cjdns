@@ -55,6 +55,8 @@ void List_addInt(List* list, int64_t toAdd, struct Allocator* allocator);
  */
 void List_addString(List* list, String* toAdd, struct Allocator* allocator);
 
+#define List_addStringC(l,s,a) List_addString(l, String_new(s, a), a)
+
 /**
  * Add a dictionary to a list, if the list does not exist then it is allocated.
  * NOTE: This will not copy the given dictionary, only add a pointer to it in the list.

@@ -31,7 +31,7 @@ struct SupernodeHunter
 };
 
 #define SupernodeHunter_addSnode_INVALID_FAMILY -1
-#define SupernodeHunter_addSnode_EXISTS -1
+#define SupernodeHunter_addSnode_EXISTS -2
 int SupernodeHunter_addSnode(struct SupernodeHunter* snh, struct Sockaddr* udpAddr);
 
 int SupernodeHunter_listSnodes(struct SupernodeHunter* snh,
@@ -50,6 +50,7 @@ struct SupernodeHunter* SupernodeHunter_new(struct Allocator* allocator,
                                             struct Log* log,
                                             struct EventBase* base,
                                             struct AddrSet* peers,
-                                            struct MsgCore* msgCore);
+                                            struct MsgCore* msgCore,
+                                            struct Address* myAddress);
 
 #endif

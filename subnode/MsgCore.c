@@ -15,14 +15,19 @@
 #include "benc/Dict.h"
 #include "memory/Allocator.h"
 #include "dht/Address.h"
+#include "dht/CJDHTConstants.h"
 #include "util/Pinger.h"
 #include "subnode/MsgCore.h"
 #include "benc/serialization/standard/BencMessageReader.h"
 #include "benc/serialization/standard/BencMessageWriter.h"
+#include "switch/EncodingScheme.h"
+#include "switch/NumberCompress.h"
 #include "util/Escape.h"
 #include "wire/Message.h"
 #include "wire/DataHeader.h"
 #include "wire/RouteHeader.h"
+
+#define DEFAULT_TIMEOUT_MILLISECONDS 6000
 
 struct ReplyContext
 {
@@ -51,6 +56,8 @@ struct MsgCore_pvt
     struct ArrayList_OfQueryHandlers* qh;
     struct Pinger* pinger;
     struct Log* log;
+    String* schemeDefinition;
+    struct EncodingScheme* scheme;
 
     /** Hack hack hack: This should be passed through Pinger.h but the API doesn't exist. */
     struct ReplyContext* currentReply;
@@ -111,8 +118,22 @@ static void sendMsg(struct MsgCore_pvt* mcp,
                     struct Allocator* allocator)
 {
     struct Allocator* alloc = Allocator_child(allocator);
+
+    // Send the encoding scheme definition
+    Dict_putString(msgDict, CJDHTConstants_ENC_SCHEME, mcp->schemeDefinition, allocator);
+
+    // And tell the asker which interface the message came from
+    int encIdx = EncodingScheme_getFormNum(mcp->scheme, addr->path);
+    Assert_true(encIdx != EncodingScheme_getFormNum_INVALID);
+    Dict_putInt(msgDict, CJDHTConstants_ENC_INDEX, encIdx, allocator);
+
+    // send the protocol version
+    Dict_putInt(msgDict, CJDHTConstants_PROTOCOL, Version_CURRENT_PROTOCOL, allocator);
+
     struct Message* msg = Message_new(0, 2048, alloc);
     BencMessageWriter_write(msgDict, msg, NULL);
+
+    //Log_debug(mcp->log, "Sending msg [%s]", Escape_getEscaped(msg->bytes, msg->length, alloc));
 
     // Sanity check (make sure the addr was actually calculated)
     Assert_true(addr->ip6.bytes[0] == 0xfc);
@@ -157,10 +178,14 @@ struct MsgCore_Promise* MsgCore_createQuery(struct MsgCore* core,
                                             struct Allocator* allocator)
 {
     struct MsgCore_pvt* mcp = Identity_check((struct MsgCore_pvt*) core);
+    if (!timeoutMilliseconds) {
+        timeoutMilliseconds = DEFAULT_TIMEOUT_MILLISECONDS;
+    }
     struct Pinger_Ping* p = Pinger_newPing(
         NULL, pingerOnResponse, pingerSendPing, timeoutMilliseconds, allocator, mcp->pinger);
     struct MsgCore_Promise_pvt* out =
         Allocator_calloc(p->pingAlloc, sizeof(struct MsgCore_Promise_pvt), 1);
+    Identity_set(out);
     p->context = out;
     out->pub.alloc = p->pingAlloc;
     out->mcp = mcp;
@@ -241,6 +266,8 @@ static Iface_DEFUN incoming(struct Message* msg, struct Iface* interRouterIf)
     Dict* content = NULL;
     uint8_t* msgBytes = msg->bytes;
     int length = msg->length;
+    Log_debug(mcp->log, "Receive msg [%s]",
+        Escape_getEscaped(msg->bytes, msg->length, msg->alloc));
     BencMessageReader_readNoExcept(msg, msg->alloc, &content);
     if (!content) {
         char* esc = Escape_getEscaped(msgBytes, length, msg->alloc);
@@ -267,5 +294,9 @@ struct MsgCore* MsgCore_new(struct EventBase* base,
     mcp->qh = ArrayList_OfQueryHandlers_new(alloc);
     mcp->pinger = Pinger_new(base, rand, log, alloc);
     mcp->log = log;
+
+    mcp->scheme = NumberCompress_defineScheme(alloc);
+    mcp->schemeDefinition = EncodingScheme_serialize(mcp->scheme, alloc);
+
     return &mcp->pub;
 }

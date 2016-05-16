@@ -25,6 +25,7 @@
 #include "crypto/random/libuv/LibuvEntropyProvider.h"
 #ifdef SUBNODE
 #include "subnode/SubnodePathfinder.h"
+#include "subnode/SupernodeHunter_admin.h"
 #else
 #include "dht/Pathfinder.h"
 #endif
@@ -45,6 +46,7 @@
 #include "memory/MallocAllocator.h"
 #include "memory/Allocator_admin.h"
 #include "net/SwitchPinger_admin.h"
+#include "net/UpperDistributor_admin.h"
 #include "tunnel/IpTunnel_admin.h"
 #include "tunnel/RouteGen_admin.h"
 #include "util/events/EventBase.h"
@@ -237,7 +239,8 @@ void Core_init(struct Allocator* alloc,
 
     // The link between the Pathfinder and the core needs to be asynchronous.
     #ifdef SUBNODE
-        struct SubnodePathfinder* pf = SubnodePathfinder_new(alloc, logger, eventBase, rand, admin);
+        struct SubnodePathfinder* pf =
+            SubnodePathfinder_new(alloc, logger, eventBase, rand, nc->myAddress);
     #else
         struct Pathfinder* pf = Pathfinder_register(alloc, logger, eventBase, rand, admin);
     #endif
@@ -249,6 +252,7 @@ void Core_init(struct Allocator* alloc,
     #endif
 
     // ------------------- Register RPC functions ----------------------- //
+    UpperDistributor_admin_register(nc->upper, admin, alloc);
     RouteGen_admin_register(rg, admin, alloc);
     InterfaceController_admin_register(nc->ifController, admin, alloc);
     SwitchPinger_admin_register(nc->sp, admin, alloc);
@@ -257,6 +261,10 @@ void Core_init(struct Allocator* alloc,
     ETHInterface_admin_register(eventBase, alloc, logger, admin, nc->ifController);
 #endif
     FileNo_admin_register(admin, alloc, eventBase, logger, eh);
+
+#ifdef SUBNODE
+    SupernodeHunter_admin_register(pf->snh, admin, alloc);
+#endif
 
     AuthorizedPasswords_init(admin, nc->ca, alloc);
     Admin_registerFunction("ping", adminPing, admin, false, NULL, admin);

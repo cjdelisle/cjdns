@@ -73,7 +73,7 @@ struct NetCore* NetCore_new(uint8_t* privateKey,
 
     // upper half
 
-    struct UpperDistributor* upper = nc->upper = UpperDistributor_new(alloc, log, ee);
+    struct UpperDistributor* upper = nc->upper = UpperDistributor_new(alloc, log, ee, myAddress);
     Iface_plumb(&sm->insideIf, &upper->sessionManagerIf);
 
     struct TUNAdapter* tunAdapt = nc->tunAdapt = TUNAdapter_new(alloc, log, myAddress->ip6.bytes);
