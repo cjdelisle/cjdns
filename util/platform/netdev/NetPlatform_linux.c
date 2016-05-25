@@ -163,7 +163,7 @@ void NetPlatform_addAddress(const char* interfaceName,
             Except_throw(eh, "ioctl(SIOCSIFADDR) failed: [%s]", strerror(err));
         }
 
-        uint32_t x = ~0 << (32 - prefixLen);
+        uint32_t x = (uint32_t)~0 << (32 - prefixLen);
         x = Endian_hostToBigEndian32(x);
         memcpy(&sin.sin_addr, &x, 4);
         memcpy(&ifRequest.ifr_addr, &sin, sizeof(struct sockaddr_in));
