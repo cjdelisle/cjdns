@@ -31,13 +31,13 @@
 #include <sys/types.h>
 #include <stdlib.h>
 #include <stddef.h>
-#include <net/if.h>
 #include <arpa/inet.h>
 #include <linux/if.h>
 #include <linux/route.h>
 #include <linux/ipv6_route.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
+#include <net/if.h>
 
 // Way to identify our routes as opposed to statically created or otherwise...
 #define RTPROT_CJDNS 52
