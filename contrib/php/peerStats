@@ -1,0 +1,24 @@
+#!/usr/bin/env php
+<?php
+
+require "Bencode.php";
+require "Cjdns.php";
+
+define('PASSWORD', 'NONE');
+
+$cjdns = new Cjdns(PASSWORD, "127.0.0.1", 11234);
+$res = $cjdns->call("InterfaceController_peerStats", 0);
+$pattern = "| %13s | %11s | %17s | %10s | %10s | %5s | %3s | %2s |\n";
+$br="+---------------+-------------+-------------------+------------+------------+-------+-----+----+\n";
+printf($br);
+printf($pattern, 'Public Key ', 'State   ', 'Last       ', 'Bytes In', 'Bytes Out', 'Lost', 'Ver', 'In');
+printf($br);
+foreach ($res['peers'] as $a)
+{
+	$pK = $a['publicKey']; $pK = preg_replace('/^(.{4}).+?(.{6})$/', '$1...$2', $pK);
+	printf($pattern, $pK, $a['state'],
+		date('H:i:s d.m.y', $a['last']/1000),
+		$a['bytesIn'], $a['bytesOut'], $a['lostPackets'],
+		$a['version'], $a['isIncoming']);
+}
+printf($br);
