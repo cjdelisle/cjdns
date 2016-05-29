@@ -32,7 +32,7 @@ Codestyle:
   header file followed by an underscore and the definition name in all capitals
   AKA `#define SillyMath_VALUE_OF_PI 3` or `#define SillyMath_DIVIDE(a,b) (a /
   b)` it is sometimes acceptable for macros to use camel case as is done in
-  Endian.h, use judgment.
+  Endian.h, use judgement.
 
 If there is a better way, come to irc and announce it, this code style has
 evolved to where it is now.
