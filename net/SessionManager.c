@@ -476,9 +476,9 @@ static Iface_DEFUN readyToSend(struct Message* msg,
     Assert_true((uint8_t*)sh == msg->bytes);
 
     if (!sh->label_be) {
-        Bits_memset(&header->sh, 0, SwitchHeader_SIZE);
+        Bits_memset(sh, 0, SwitchHeader_SIZE);
         sh->label_be = Endian_hostToBigEndian64(sess->pub.sendSwitchLabel);
-        SwitchHeader_setVersion(&header->sh, SwitchHeader_CURRENT_VERSION);
+        SwitchHeader_setVersion(sh, SwitchHeader_CURRENT_VERSION);
     }
 
     return Iface_next(&sm->pub.switchIf, msg);
