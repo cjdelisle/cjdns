@@ -60,6 +60,7 @@ int UpperDistributor_listHandlers(struct UpperDistributor* ud,
 
 /**
  * Register a handler for receiving messages of a given contentType.
+ * @return 0 unless there is an error.
  */
 int UpperDistributor_registerHandler(struct UpperDistributor* ud,
                                      enum ContentType ct,

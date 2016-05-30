@@ -102,9 +102,7 @@ static void registerHandler(Dict* args, void* vctx, String* txid, struct Allocat
         sendError(ctx, txid, requestAlloc, err);
         return;
     }
-    Dict* out = Dict_new(requestAlloc);
-    Dict_putIntC(out, "retNum", ret, requestAlloc);
-    Admin_sendMessage(out, txid, ctx->admin);
+    sendError(ctx, txid, requestAlloc, "none");
 }
 
 void UpperDistributor_admin_register(struct UpperDistributor* ud,
