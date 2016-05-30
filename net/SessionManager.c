@@ -475,6 +475,12 @@ static Iface_DEFUN readyToSend(struct Message* msg,
     Message_shift(msg, SwitchHeader_SIZE, NULL);
     Assert_true((uint8_t*)sh == msg->bytes);
 
+    if (!sh->label_be) {
+        Bits_memset(&header->sh, 0, SwitchHeader_SIZE);
+        sh->label_be = Endian_hostToBigEndian64(sess->pub.sendSwitchLabel);
+        SwitchHeader_setVersion(&header->sh, SwitchHeader_CURRENT_VERSION);
+    }
+
     return Iface_next(&sm->pub.switchIf, msg);
 }
 
@@ -509,7 +515,9 @@ static Iface_DEFUN incomingFromInsideIf(struct Message* msg, struct Iface* iface
     if (header->sh.label_be) {
         // fallthrough
     } else if (sess->pub.sendSwitchLabel) {
+        Bits_memset(&header->sh, 0, SwitchHeader_SIZE);
         header->sh.label_be = Endian_hostToBigEndian64(sess->pub.sendSwitchLabel);
+        SwitchHeader_setVersion(&header->sh, SwitchHeader_CURRENT_VERSION);
     } else {
         needsLookup(sm, msg);
         return NULL;
