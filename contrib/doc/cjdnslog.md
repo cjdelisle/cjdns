@@ -7,8 +7,8 @@ cjdnslog(1) -- display cjdroute log messages
 
 ## DESCRIPTION
 
-Cjdroute sends continuous log messages to the bit bucket.  Cjdnslog
-captures that information in real time and sends it to stdout.
+Cjdroute has numerous log points.  Cjdnslog enables and taps selected log
+points and sends the resulting log messages to stdout.
 
 ##OPTIONS
 

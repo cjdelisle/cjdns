@@ -1,4 +1,4 @@
-randombytes(1) -- write random bytes generated via libnacl to stdout
+randombytes(1) -- write secure random bytes to stdout
 =============================================
 
 ## SYNOPSIS
@@ -7,9 +7,8 @@ randombytes(1) -- write random bytes generated via libnacl to stdout
 
 ## DESCRIPTION
 
-Writes random bytes to stdout forever using the cryptographically secure
-random generator in libnacl.  In practice, the output is piped
-to a program like dd(1) or base64(1).
+Writes random bytes to stdout forever using the cjdns secure random generator.
+In practice, the output is piped to a program like dd(1) or base64(1).
 
 ## SEE ALSO
 
