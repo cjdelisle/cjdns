@@ -5,7 +5,7 @@ A simple PHP API for the cjdns admin interface.
 Usage
 -------------
 ```php
-<?
+<?php
 // Include the two files
 require "Bencode.php";
 require "Cjdns.php";
@@ -17,7 +17,7 @@ $cjdns = new Cjdns("password", "127.0.0.1", 11234);
 print_r($cjdns->functions);
 
 // Call one of them:
-$ping = $cjdns->call("RouterModule_pingNode",array("path"=>"fc72:6c3b:8c74:68a7:d8c3:b4e0:6cbd:9588")));
+$ping = $cjdns->call("RouterModule_pingNode",array("path"=>"fc72:6c3b:8c74:68a7:d8c3:b4e0:6cbd:9588"));
 
 // Display the result:
 print_r($ping);
