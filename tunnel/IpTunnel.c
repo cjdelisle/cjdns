@@ -113,7 +113,7 @@ static void deleteConnection(struct IpTunnel_Connection* conn, struct IpTunnel_p
                                                   / sizeof(struct IpTunnel_Connection);
 
     // Sanity check
-    Assert_true(i < 0 || i >= (signed int)context->pub.connectionList.count);
+    Assert_true(i >= 0 && i < (signed int)context->pub.connectionList.count);
 
     for (; (unsigned int)i < context->pub.connectionList.count-1; ++i) {
         Bits_memcpy(&context->pub.connectionList.connections[i],
