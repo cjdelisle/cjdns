@@ -147,7 +147,7 @@ static void removeConnection(Dict* args,
 
     int conn = (int) *(Dict_getInt(args, String_CONST("connection")));
     if (IpTunnel_removeConnection_NOT_FOUND == IpTunnel_removeConnection(conn, context->ipTun)) {
-        sendError("not found", txid, context->admin);
+        sendError("not_found", txid, context->admin);
     }
 
     sendResponse(conn, txid, context->admin);
