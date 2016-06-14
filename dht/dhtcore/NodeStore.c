@@ -131,7 +131,6 @@ static void logLink(struct NodeStore_pvt* store,
 
 static void _checkNode(struct Node_Two* node, struct NodeStore_pvt* store, char* file, int line)
 {
-    return; // too much CPU consumption !
     if (!Defined(PARANOIA)) {
         return;
     }
@@ -213,7 +212,7 @@ static void _checkNode(struct Node_Two* node, struct NodeStore_pvt* store, char*
 
 static void _verifyNode(struct Node_Two* node, struct NodeStore_pvt* store, char* file, int line)
 {
-    return; // too much CPU consumption !
+    return; // Too much CPU consumption.
     if (!Defined(PARANOIA)) {
         return;
     }
@@ -264,7 +263,6 @@ static void _verifyNode(struct Node_Two* node, struct NodeStore_pvt* store, char
 // Verify is more thorough than check because it makes sure all links are split properly.
 static void _verify(struct NodeStore_pvt* store, char* file, int line)
 {
-    return; // too much CPU consumption !
     if (!Defined(PARANOIA)) {
         return;
     }
@@ -281,7 +279,6 @@ static void _verify(struct NodeStore_pvt* store, char* file, int line)
 
 static void _check(struct NodeStore_pvt* store, char* file, int line)
 {
-    return; // too much CPU consumption !
     if (!Defined(PARANOIA)) {
         return;
     }
