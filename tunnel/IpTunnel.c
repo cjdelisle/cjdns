@@ -105,6 +105,31 @@ static struct IpTunnel_Connection* newConnection(bool isOutgoing, struct IpTunne
     return conn;
 }
 
+static void deleteConnection(struct IpTunnel_Connection* conn, struct IpTunnel_pvt* context)
+{
+    // Delete connection and shift the list elements following the removed connection
+
+    int i = (((char *)conn)-((char *)&context->pub.connectionList.connections[0]))
+                                                  / sizeof(struct IpTunnel_Connection);
+
+    // Sanity check
+    Assert_true(i >= 0 && i < (signed int)context->pub.connectionList.count);
+
+    for (; (unsigned int)i < context->pub.connectionList.count-1; ++i) {
+        Bits_memcpy(&context->pub.connectionList.connections[i],
+                    &context->pub.connectionList.connections[i + 1],
+                    sizeof(struct IpTunnel_Connection));
+    }
+
+    int last = context->pub.connectionList.count-1;
+    if (last > 0) {
+        Bits_memset(&context->pub.connectionList.connections[last], 0,
+                    sizeof(struct IpTunnel_Connection));
+    }
+
+    context->pub.connectionList.count--;
+}
+
 static struct IpTunnel_Connection* connectionByPubKey(uint8_t pubKey[32],
                                                       struct IpTunnel_pvt* context)
 {
@@ -275,9 +300,18 @@ int IpTunnel_connectTo(uint8_t publicKeyOfNodeToConnectTo[32], struct IpTunnel* 
  */
 int IpTunnel_removeConnection(int connectionNumber, struct IpTunnel* tunnel)
 {
-    //struct IpTunnel_pvt* context = Identity_check((struct IpTunnel_pvt*)tunnel);
+    struct IpTunnel_pvt* context = Identity_check((struct IpTunnel_pvt*)tunnel);
 
-    return 0;
+    for (int i = 0; i < (int)tunnel->connectionList.count; ++i)
+    {
+        if (tunnel->connectionList.connections[i].number==connectionNumber)
+        {
+            deleteConnection(&tunnel->connectionList.connections[i], context);
+            return 0;
+        }
+    }
+
+    return IpTunnel_removeConnection_NOT_FOUND;
 }
 
 static bool isControlMessageInvalid(struct Message* message, struct IpTunnel_pvt* context)
