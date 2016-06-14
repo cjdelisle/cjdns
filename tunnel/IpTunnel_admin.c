@@ -92,7 +92,7 @@ static void allowConnection(Dict* args,
     } else if (ip4Prefix && (*ip4Prefix > 32 || *ip4Prefix < 0)) {
         error = "ip4Prefix out of range: must be 0 to 32";
     } else if (ip4Alloc && (*ip4Alloc > 32 || *ip4Alloc < 1)) {
-        error = "ip6Alloc out of range: must be 1 to 32";
+        error = "ip4Alloc out of range: must be 1 to 32";
 
     } else if (ip6Address
         && (Sockaddr_parse(ip6Address->bytes, &ip6ToGive)
@@ -107,8 +107,8 @@ static void allowConnection(Dict* args,
     } else {
         int conn = IpTunnel_allowConnection(pubKey,
                                             (ip6Address) ? &ip6ToGive.addr : NULL,
-                                            (ip6Prefix) ? (uint8_t) (*ip6Prefix) : 32,
-                                            (ip6Alloc) ? (uint8_t) (*ip6Alloc) : 32,
+                                            (ip6Prefix) ? (uint8_t) (*ip6Prefix) : 128,
+                                            (ip6Alloc) ? (uint8_t) (*ip6Alloc) : 128,
                                             (ip4Address) ? &ip4ToGive.addr : NULL,
                                             (ip4Prefix) ? (uint8_t) (*ip4Prefix) : 32,
                                             (ip4Alloc) ? (uint8_t) (*ip4Alloc) : 32,
@@ -144,14 +144,13 @@ static void removeConnection(Dict* args,
                              struct Allocator* requestAlloc)
 {
     struct Context* context = vcontext;
-/*
+
     int conn = (int) *(Dict_getInt(args, String_CONST("connection")));
-    char* error = "none";
     if (IpTunnel_removeConnection_NOT_FOUND == IpTunnel_removeConnection(conn, context->ipTun)) {
-        error = "not found";
+        sendError("not_found", txid, context->admin);
     }
-*/
-    sendError("not implemented", txid, context->admin);
+
+    sendResponse(conn, txid, context->admin);
 }
 
 static void listConnections(Dict* args,

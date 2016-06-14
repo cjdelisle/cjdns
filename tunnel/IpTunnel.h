@@ -69,7 +69,7 @@ struct IpTunnel
 
     /**
      * The list of registered connections, do not modify manually.
-     * Will be reorganized from time to time so pointers are ephimeral.
+     * Will be reorganized from time to time so pointers are ephemeral.
      */
     struct {
         uint32_t count;

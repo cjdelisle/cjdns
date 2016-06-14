@@ -8,17 +8,72 @@ define('PASSWORD', 'NONE');
 
 $cjdns = new Cjdns(PASSWORD, "127.0.0.1", 11234);
 $res = $cjdns->call("InterfaceController_peerStats", 0);
-$pattern = "| %13s | %11s | %17s | %10s | %10s | %5s | %3s | %2s |\n";
-$br="+---------------+-------------+-------------------+------------+------------+-------+-----+----+\n";
-printf($br);
-printf($pattern, 'Public Key ', 'State   ', 'Last       ', 'Bytes In', 'Bytes Out', 'Lost', 'Ver', 'In');
-printf($br);
+
+$table = new table();
+
+$table->add(['Public Key', 'State', 'Last', 'Bytes In', 'Bytes Out', 'Lost', 'Ver', 'In']);
+
 foreach ($res['peers'] as $a)
 {
 	$pK = $a['publicKey']; $pK = preg_replace('/^(.{4}).+?(.{6})$/', '$1...$2', $pK);
-	printf($pattern, $pK, $a['state'],
-		date('H:i:s d.m.y', $a['last']/1000),
+	$table->add([$pK, $a['state'], date('H:i:s d.m.y', $a['last']/1000),
 		$a['bytesIn'], $a['bytesOut'], $a['lostPackets'],
-		$a['version'], $a['isIncoming']);
+		$a['version'], $a['isIncoming']]);
 }
-printf($br);
+
+$table->printSimple();
+
+
+// class for draw table data
+class table
+{
+	private $data  = [];
+	private $width = [];
+	private $cur_row   = 0;
+	public function add($a)
+	{
+		array_push($this->data, $a);
+		foreach ($a as $i => $x)
+		if (@$this->width[$i] < strlen($x))
+			$this->width[$i] = strlen($x);
+	}
+	public function printSimple()
+	{
+		$this->printLine();
+		$this->printRows(1); // header
+		$this->printLine();
+		$this->printRows();
+		$this->printLine();
+	}
+	public function printLine()
+	{
+		foreach ($this->width as $w)
+		{
+			printf("+");
+			printf($this->strdup($w+2));
+		}
+		printf("+\n");
+	}
+	public function printRows($n = NULL)
+	{
+		if (is_null($n)) $n = count($this->data);
+		for ($this->cur_row; $n && $this->cur_row<count($this->data); $this->cur_row++, $n--)
+		{
+			foreach ($this->width as $i => $w)
+			{
+				$this->printCell($this->data[$this->cur_row][$i], $w);
+			}
+			printf("|\n");
+		}
+	}
+	private function strdup($n,$x='-') { $st=''; for ($i=0;$i<$n;$i++)$st.=$x; return $st; }
+	private function printCell($data, $width)
+	{
+		if (!is_numeric($data)) // align string to center
+		{
+			$d = ($width - strlen($data)) >> 1;
+			$data .= $this->strdup($d, ' ');
+		}
+		printf("| %{$width}s ", $data);
+	}
+}
