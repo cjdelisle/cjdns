@@ -49,11 +49,14 @@ struct RouteHeader
     uint32_t version_be;
 
     /**
-     * Create a layout which puts the SwitchHeader 24 bytes behind the end of the header
-     * allowing it to be in exactly the right place after encryption thus saving SessionManager
-     * the need to copy it after encryption/decryption.
+     * If set, this header is incoming from another node, this means the ip6, publicKey and
+     * switch label are of the *source* of the packet, not the destination.
      */
-    uint32_t pad;
+    #define RouteHeader_flags_INCOMING 1
+    uint8_t flags;
+
+    uint8_t unused;
+    uint16_t alsoUnused;
 
     /** IPv6 of peer node REQUIRED */
     uint8_t ip6[16];

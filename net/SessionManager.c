@@ -318,6 +318,9 @@ static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface
     Bits_memcpy(header->ip6, session->pub.caSession->herIp6, 16);
     Bits_memcpy(header->publicKey, session->pub.caSession->herPublicKey, 32);
 
+    header->unused = 0;
+    header->flags = RouteHeader_flags_INCOMING;
+
     uint64_t path = Endian_bigEndianToHost64(switchHeader->label_be);
     if (!session->pub.sendSwitchLabel) {
         session->pub.sendSwitchLabel = path;

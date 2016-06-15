@@ -127,13 +127,23 @@ static void sendToHandlers(struct Message* msg,
     }
 }
 
+static Iface_DEFUN toSessionManagerIf(struct Message* msg, struct UpperDistributor_pvt* ud)
+{
+    Assert_true(msg->length >= RouteHeader_SIZE + DataHeader_SIZE);
+    struct RouteHeader* hdr = (struct RouteHeader*) msg->bytes;
+    struct DataHeader* dh = (struct DataHeader*) &hdr[1];
+    enum ContentType type = DataHeader_getContentType(dh);
+    sendToHandlers(msg, type, ud);
+    return Iface_next(&ud->pub.sessionManagerIf, msg);
+}
+
 static Iface_DEFUN incomingFromEventIf(struct Message* msg, struct Iface* eventIf)
 {
     struct UpperDistributor_pvt* ud =
         Identity_containerOf(eventIf, struct UpperDistributor_pvt, eventIf);
     Assert_true(Message_pop32(msg, NULL) == PFChan_Pathfinder_SENDMSG);
     Message_pop32(msg, NULL);
-    return Iface_next(&ud->pub.sessionManagerIf, msg);
+    return toSessionManagerIf(msg, ud);
 }
 
 static Iface_DEFUN incomingFromTunAdapterIf(struct Message* msg, struct Iface* tunAdapterIf)
@@ -145,14 +155,14 @@ static Iface_DEFUN incomingFromTunAdapterIf(struct Message* msg, struct Iface* t
     if (!Bits_memcmp(rh->ip6, "\xfc\0\0\0\0\0\0\0\0\0\0\0\0\0\0\1", 16)) {
         return fromHandler(msg, ud);
     }
-    return Iface_next(&ud->pub.sessionManagerIf, msg);
+    return toSessionManagerIf(msg, ud);
 }
 
 static Iface_DEFUN incomingFromIpTunnelIf(struct Message* msg, struct Iface* ipTunnelIf)
 {
     struct UpperDistributor_pvt* ud =
         Identity_containerOf(ipTunnelIf, struct UpperDistributor_pvt, pub.ipTunnelIf);
-    return Iface_next(&ud->pub.sessionManagerIf, msg);
+    return toSessionManagerIf(msg, ud);
 }
 
 static Iface_DEFUN incomingFromSessionManagerIf(struct Message* msg, struct Iface* sessionManagerIf)
