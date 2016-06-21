@@ -17,6 +17,7 @@
 #include "subnode/AddrSet.h"
 #include "subnode/MsgCore.h"
 #include "subnode/SupernodeHunter.h"
+#include "subnode/GetPeersResponder.h"
 #include "dht/Address.h"
 #include "wire/DataHeader.h"
 #include "wire/RouteHeader.h"
@@ -419,6 +420,8 @@ void SubnodePathfinder_start(struct SubnodePathfinder* sp)
     struct SubnodePathfinder_pvt* pf = Identity_check((struct SubnodePathfinder_pvt*) sp);
     pf->msgCore = MsgCore_new(pf->base, pf->rand, pf->alloc, pf->log);
     Iface_plumb(&pf->msgCoreIf, &pf->msgCore->interRouterIf);
+
+    GetPeersResponder_new(pf->alloc, pf->log, pf->myPeers, pf->msgCore);
 
     pf->pub.snh =
         SupernodeHunter_new(pf->alloc, pf->log, pf->base, pf->myPeers, pf->msgCore, pf->myAddress);

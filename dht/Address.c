@@ -206,3 +206,8 @@ struct Address* Address_fromString(String* str, struct Allocator* alloc)
 
     return Allocator_clone(alloc, &addr);
 }
+
+struct Address* Address_clone(struct Address* orig, struct Allocator* alloc)
+{
+    return Allocator_clone(alloc, orig);
+}

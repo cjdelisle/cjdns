@@ -14,6 +14,7 @@
  */
 #include "admin/Admin.h"
 #include "benc/List.h"
+#include "crypto/Key.h"
 #include "subnode/SupernodeHunter.h"
 #include "subnode/SupernodeHunter_admin.h"
 #include "util/Identity.h"
@@ -25,12 +26,12 @@ struct Context {
     Identity
 };
 
-static struct Sockaddr* getIpPort(Dict* args, struct Allocator* alloc)
+static struct Address* getAddr(Dict* args, struct Allocator* alloc)
 {
-    struct Sockaddr_storage ss;
-    String* ipportStr = Dict_getStringC(args, "ipPort");
-    if (Sockaddr_parse(ipportStr->bytes, &ss)) { return NULL; }
-    return Sockaddr_clone(&ss.addr, alloc);
+    struct Address addr;
+    Bits_memset(&addr, 0, Address_SIZE);
+    if (Key_parse(Dict_getStringC(args, "key"), addr.key, addr.ip6.bytes)) { return NULL; }
+    return Address_clone(&addr, alloc);
 }
 
 static void sendError(struct Context* ctx, String* txid, struct Allocator* requestAlloc, char* err)
@@ -43,18 +44,14 @@ static void sendError(struct Context* ctx, String* txid, struct Allocator* reque
 static void addSnode(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* ctx = Identity_check((struct Context*) vcontext);
-    struct Sockaddr* ipport = getIpPort(args, requestAlloc);
-    if (!ipport) {
+    struct Address* addr = getAddr(args, requestAlloc);
+    if (!addr) {
         sendError(ctx, txid, requestAlloc, "parse_error");
         return;
     }
-    int ret = SupernodeHunter_addSnode(ctx->snh, ipport);
+    int ret = SupernodeHunter_addSnode(ctx->snh, addr);
     char* err;
     switch (ret) {
-        case SupernodeHunter_addSnode_INVALID_FAMILY: {
-            err = "SupernodeHunter_addSnode_INVALID_FAMILY";
-            break;
-        }
         case SupernodeHunter_addSnode_EXISTS: {
             err = "SupernodeHunter_addSnode_EXISTS";
             break;
@@ -73,13 +70,13 @@ static void addSnode(Dict* args, void* vcontext, String* txid, struct Allocator*
 static void removeSnode(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* ctx = Identity_check((struct Context*) vcontext);
-    struct Sockaddr* ipport = getIpPort(args, requestAlloc);
-    if (!ipport) {
+    struct Address* addr = getAddr(args, requestAlloc);
+    if (!addr) {
         sendError(ctx, txid, requestAlloc, "parse_error");
         return;
     }
 
-    int ret = SupernodeHunter_removeSnode(ctx->snh, ipport);
+    int ret = SupernodeHunter_removeSnode(ctx->snh, addr);
     char* err;
     switch (ret) {
         case SupernodeHunter_removeSnode_NONEXISTANT: {
@@ -105,11 +102,11 @@ static void listSnodes(Dict* args, void* vcontext, String* txid, struct Allocato
     int64_t* pageP = Dict_getIntC(args, "page");
     if (pageP && *pageP > 0) { page = *pageP; }
 
-    struct Sockaddr** snodes;
+    struct Address** snodes;
     int count = SupernodeHunter_listSnodes(ctx->snh, &snodes, requestAlloc);
     List* snodeList = List_new(requestAlloc);
     for (int i = page * NODES_PER_PAGE, j = 0; i < count && j < NODES_PER_PAGE; i++, j++) {
-        List_addStringC(snodeList, Sockaddr_print(snodes[i], requestAlloc), requestAlloc);
+        List_addString(snodeList, Key_stringify(snodes[i]->key, requestAlloc), requestAlloc);
     }
     Dict* out = Dict_new(requestAlloc);
     Dict_putListC(out, "snodes", snodeList, requestAlloc);
@@ -130,7 +127,7 @@ void SupernodeHunter_admin_register(struct SupernodeHunter* snh,
 
     Admin_registerFunction("SupernodeHunter_addSnode", addSnode, ctx, false,
         ((struct Admin_FunctionArg[]) {
-            { .name = "ipPort", .required = true, .type = "String" }
+            { .name = "key", .required = true, .type = "String" }
         }), admin);
     Admin_registerFunction("SupernodeHunter_listSnodes", listSnodes, ctx, false,
         ((struct Admin_FunctionArg[]) {
@@ -138,6 +135,6 @@ void SupernodeHunter_admin_register(struct SupernodeHunter* snh,
         }), admin);
     Admin_registerFunction("SupernodeHunter_removeSnode", removeSnode, ctx, true,
         ((struct Admin_FunctionArg[]) {
-            { .name = "ipPort", .required = true, .type = "String" }
+            { .name = "key", .required = true, .type = "String" }
         }), admin);
 }

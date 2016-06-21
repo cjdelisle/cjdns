@@ -21,7 +21,7 @@
 #include "crypto/random/Random.h"
 #include "subnode/AddrSet.h"
 #include "subnode/MsgCore.h"
-#include "util/platform/Sockaddr.h"
+#include "dht/Address.h"
 #include "util/Linker.h"
 Linker_require("subnode/SupernodeHunter.c");
 
@@ -30,16 +30,15 @@ struct SupernodeHunter
     struct AddrSet* snodes;
 };
 
-#define SupernodeHunter_addSnode_INVALID_FAMILY -1
-#define SupernodeHunter_addSnode_EXISTS -2
-int SupernodeHunter_addSnode(struct SupernodeHunter* snh, struct Sockaddr* udpAddr);
+#define SupernodeHunter_addSnode_EXISTS -1
+int SupernodeHunter_addSnode(struct SupernodeHunter* snh, struct Address* snodeAddr);
 
 int SupernodeHunter_listSnodes(struct SupernodeHunter* snh,
-                               struct Sockaddr*** out,
+                               struct Address*** out,
                                struct Allocator* alloc);
 
 #define SupernodeHunter_removeSnode_NONEXISTANT -1
-int SupernodeHunter_removeSnode(struct SupernodeHunter* snh, struct Sockaddr* toRemove);
+int SupernodeHunter_removeSnode(struct SupernodeHunter* snh, struct Address* toRemove);
 
  /**
   * The algorithm of this module is to ask each peer for a supernode using a findNode request.
