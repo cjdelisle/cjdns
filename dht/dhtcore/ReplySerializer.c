@@ -21,6 +21,7 @@
 #include "dht/Address.h"
 #include "memory/Allocator.h"
 #include "switch/LabelSplicer.h"
+#include "switch/NumberCompress.h"
 #include "util/Identity.h"
 #include "util/log/Log.h"
 #include "util/Assert.h"
@@ -102,4 +103,27 @@ struct Address_List* ReplySerializer_parse(struct Address* fromNode,
     }
     out->length = j;
     return out;
+}
+
+void ReplySerializer_serialize(struct Address_List* addrs,
+                               Dict* out,
+                               struct Address* convertDirectorFor,
+                               struct Allocator* alloc)
+{
+    if (!addrs->length) { return; }
+    String* nodes = String_newBinary(NULL, addrs->length * Address_SERIALIZED_SIZE, alloc);
+    struct VersionList* versions = VersionList_new(addrs->length, alloc);
+    for (int i = 0; i < addrs->length; i++) {
+        versions->versions[i] = addrs->elems[i].protocolVersion;
+        if (!convertDirectorFor) {
+            Address_serialize(&nodes->bytes[i * Address_SERIALIZED_SIZE], &addrs->elems[i]);
+        } else {
+            struct Address addr;
+            Bits_memcpy(&addr, &addrs->elems[i], sizeof(struct Address));
+            addr.path = NumberCompress_getLabelFor(addr.path, convertDirectorFor->path);
+            Address_serialize(&nodes->bytes[i * Address_SERIALIZED_SIZE], &addr);
+        }
+    }
+    Dict_putStringC(out, "n", nodes, alloc);
+    Dict_putStringC(out, "np", VersionList_stringify(versions, alloc), alloc);
 }

@@ -61,7 +61,7 @@ struct SupernodeHunter_pvt
     struct MsgCore* msgCore;
 
     struct Address* myAddress;
-    String* selfKeyStr;
+    String* selfAddrStr;
 
     Identity
 };
@@ -127,29 +127,19 @@ static void onReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom
     Log_debug(snp->log, "Reply from %s", addrStr->bytes);
 
     if (q->isGetRoute) {
-        Log_debug(snp->log, "\n\n\ngetRoute reply [%s]\n\n\n", addrStr->bytes);
-        String* error = Dict_getStringC(msg, "error");
-        if (error) {
-            Log_debug(snp->log, "getRoute reply error [%s]", error->bytes);
+        struct Address_List* al = ReplySerializer_parse(src, msg, snp->log, false, prom->alloc);
+        if (!al || al->length == 0) {
+            Log_debug(snp->log, "getRoute reply with no nodes");
             return;
         }
-        String* labelS = Dict_getStringC(msg, "label");
-        if (!labelS) {
-            Log_debug(snp->log, "getRoute reply missing label");
-            return;
-        }
-        uint64_t label = 0;
-        if (labelS->len != 20 || AddrTools_parsePath(&label, labelS->bytes)) {
-            Log_debug(snp->log, "getRoute reply malformed label [%s]", labelS->bytes);
-            return;
-        }
-        if (src->path == label && Address_isSame(src, prom->target)) {
-            Log_debug(snp->log, "Supernode location confirmed");
-            AddrSet_add(snp->pub.snodes, src);
+        struct Address* snodeAddr = &al->elems[0];
+        if (Address_isSame(snodeAddr, prom->target)) {
+            Log_debug(snp->log, "\n\nSupernode location confirmed [%s]\n\n",
+                Address_toString(snodeAddr, prom->alloc)->bytes);
+            AddrSet_add(snp->pub.snodes, snodeAddr);
         } else {
             Log_debug(snp->log, "Confirming supernode location");
-            src->path = label;
-            AddrSet_add(snp->snodeCandidates, src);
+            AddrSet_add(snp->snodeCandidates, snodeAddr);
         }
     }
 
@@ -223,11 +213,12 @@ static void pingCycle(void* vsn)
 
     if (snp->snodeCandidates->length) {
         qp->target = AddrSet_get(snp->snodeCandidates, snp->snodeCandidates->length - 1);
-        Log_debug(snp->log, "Sending findPath to snode %s",
+        Log_debug(snp->log, "Sending getRoute to snode %s",
             Address_toString(qp->target, qp->alloc)->bytes);
-        Dict_putStringCC(msg, "q", "gr", qp->alloc);
-        Dict_putStringC(msg, "src", snp->selfKeyStr, qp->alloc);
-        Dict_putStringC(msg, "tar", Key_stringify(qp->target->key, qp->alloc), qp->alloc);
+        Dict_putStringCC(msg, "sq", "gr", qp->alloc);
+        Dict_putStringC(msg, "src", snp->selfAddrStr, qp->alloc);
+        String* target = String_newBinary(qp->target->ip6.bytes, 16, qp->alloc);
+        Dict_putStringC(msg, "tar", target, qp->alloc);
         q->isGetRoute = true;
         return;
     }
@@ -265,7 +256,7 @@ struct SupernodeHunter* SupernodeHunter_new(struct Allocator* allocator,
     out->alloc = alloc;
     out->msgCore = msgCore;
     out->myAddress = myAddress;
-    out->selfKeyStr = Key_stringify(myAddress->key, alloc);
+    out->selfAddrStr = String_newBinary(myAddress->ip6.bytes, 16, alloc);
     Identity_set(out);
     Timeout_setInterval(pingCycle, out, CYCLE_MS, base, alloc);
     return &out->pub;

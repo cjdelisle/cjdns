@@ -12,28 +12,25 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef GetPeersResponder_H
-#define GetPeersResponder_H
+#ifndef PingResponder_H
+#define PingResponder_H
 
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
-#include "subnode/AddrSet.h"
 #include "subnode/MsgCore.h"
 #include "subnode/BoilerplateResponder.h"
 #include "util/Linker.h"
 
-Linker_require("subnode/GetPeersResponder.c");
+Linker_require("subnode/PingResponder.c");
 
-struct GetPeersResponder
+struct PingResponder
 {
     int unused;
 };
 
-struct GetPeersResponder* GetPeersResponder_new(struct Allocator* allocator,
-                                                struct Log* log,
-                                                struct AddrSet* peers,
-                                                struct Address* selfAddr,
-                                                struct MsgCore* msgCore,
-                                                struct BoilerplateResponder* br);
+struct PingResponder* PingResponder_new(struct Allocator* allocator,
+                                        struct Log* log,
+                                        struct MsgCore* msgCore,
+                                        struct BoilerplateResponder* br);
 
 #endif

@@ -266,14 +266,22 @@ static Iface_DEFUN incoming(struct Message* msg, struct Iface* interRouterIf)
     Dict* content = NULL;
     uint8_t* msgBytes = msg->bytes;
     int length = msg->length;
-    Log_debug(mcp->log, "Receive msg [%s]",
-        Escape_getEscaped(msg->bytes, msg->length, msg->alloc));
+    Log_debug(mcp->log, "Receive msg [%s] from [%s]",
+        Escape_getEscaped(msg->bytes, msg->length, msg->alloc),
+        Address_toString(&addr, msg->alloc)->bytes);
     BencMessageReader_readNoExcept(msg, msg->alloc, &content);
     if (!content) {
         char* esc = Escape_getEscaped(msgBytes, length, msg->alloc);
         Log_debug(mcp->log, "Malformed message [%s]", esc);
         return NULL;
     }
+
+    int64_t* verP = Dict_getIntC(content, "p");
+    if (!verP) {
+        Log_debug(mcp->log, "Message without version");
+        return NULL;
+    }
+    addr.protocolVersion = *verP;
 
     if (Dict_getString(content, String_CONST("q"))) {
         return queryMsg(mcp, content, &addr, msg);

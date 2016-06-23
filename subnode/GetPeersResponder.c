@@ -14,8 +14,8 @@
  */
 #include "subnode/GetPeersResponder.h"
 #include "subnode/BoilerplateResponder.h"
+#include "dht/dhtcore/ReplySerializer.h"
 #include "switch/NumberCompress.h"
-#include "dht/dhtcore/VersionList.h"
 #include "util/Identity.h"
 
 #define GETPEERS_RESPONSE_NODES 8
@@ -28,6 +28,7 @@ struct GetPeersResponder_pvt
     struct Log* log;
     struct Allocator* alloc;
     struct MsgCore* msgCore;
+    struct Address* selfAddr;
     struct BoilerplateResponder* br;
     Identity
 };
@@ -41,70 +42,58 @@ static void onGetPeers(Dict* msg,
         Identity_check((struct GetPeersResponder_pvt*) handler->userData);
     Log_debug(gprp->log, "Received getPeers req from [%s]", Address_toString(src, tmpAlloc)->bytes);
 
+    String* txid = Dict_getStringC(msg, "txid");
+    if (!txid) {
+        Log_debug(gprp->log, "getPeers missing txid");
+        return;
+    }
+
     String* nearLabelStr = Dict_getStringC(msg, "tar");
+    uint64_t label;
     if (!nearLabelStr || nearLabelStr->len != 8) {
         Log_debug(gprp->log, "getPeers does not contain proper target");
         return;
+    } else {
+        uint64_t label_be;
+        Bits_memcpy(&label_be, nearLabelStr->bytes, 8);
+        label = Endian_bigEndianToHost64(label_be);
     }
-    uint64_t label;
-    Bits_memcpy(&label, nearLabelStr->bytes, 8);
 
-    struct Address* outAddrs[GETPEERS_RESPONSE_NODES] = { NULL };
+    struct Address outAddrs[GETPEERS_RESPONSE_NODES] = { { .padding = 0 } };
+
+    Bits_memcpy(&outAddrs[GETPEERS_RESPONSE_NODES-1], gprp->selfAddr, Address_SIZE);
 
     if (label > 1) {
         int bitsUsed = NumberCompress_bitsUsedForLabel(label);
         label = (label & Bits_maxBits64(bitsUsed)) | 1 << bitsUsed;
     }
+    int size = 0;
     for (int i = 0; i < gprp->peers->length; i++) {
         struct Address* peer = AddrSet_get(gprp->peers, i);
-        uint64_t p = peer->path;
-        if (p < label) { continue; }
-        int j;
-        for (j = 0; j < GETPEERS_RESPONSE_NODES; j++) {
-            if (!outAddrs[j]) { continue; }
-            if ((outAddrs[j]->path - label) > (p - label)) { continue; }
-            break;
-        }
-        switch (j) {
-            default: Bits_memmove(outAddrs, &outAddrs[1], (j - 1) * sizeof(char*));
-            case 1: outAddrs[j - 1] = peer;
-            case 0:;
-        }
-    }
-
-    int size = GETPEERS_RESPONSE_NODES;
-    for (int i = 0; i < GETPEERS_RESPONSE_NODES; i++) {
-        if (!outAddrs[i]) { size--; }
+        if (peer->path < label) { continue; }
+        Bits_memcpy(&outAddrs[size++], peer, Address_SIZE);
     }
 
     Dict* responseDict = Dict_new(tmpAlloc);
-    if (size > 0) {
-        String* nodes = String_newBinary(NULL, size * Address_SERIALIZED_SIZE, tmpAlloc);
-        struct VersionList* versions = VersionList_new(size, tmpAlloc);
-        for (int i = 0, j = 0; i < GETPEERS_RESPONSE_NODES; i++) {
-            if (!outAddrs[i]) { continue; }
-            struct Address addr;
-            Bits_memcpy(&addr, outAddrs[i], sizeof(struct Address));
-            addr.path = NumberCompress_getLabelFor(addr.path, src->path);
-            Address_serialize(&nodes->bytes[j * Address_SERIALIZED_SIZE], &addr);
-            versions->versions[j] = outAddrs[i]->protocolVersion;
-            j++;
-        }
-        Dict_putStringC(responseDict, "n", nodes, tmpAlloc);
-        String* versionsStr = VersionList_stringify(versions, tmpAlloc);
-        Dict_putStringC(responseDict, "np", versionsStr, tmpAlloc);
-    }
+    ReplySerializer_serialize((&(struct Address_List) { .elems = outAddrs, .length = size }),
+                              responseDict,
+                              src,
+                              tmpAlloc);
+
+    Dict_putStringC(responseDict, "txid", txid, tmpAlloc);
 
     BoilerplateResponder_addBoilerplate(gprp->br, responseDict, src, tmpAlloc);
 
-    MsgCore_sendResponse(gprp->msgCore, responseDict, src, gprp->alloc);
+    MsgCore_sendResponse(gprp->msgCore, responseDict, src, tmpAlloc);
 }
 
 
 struct GetPeersResponder* GetPeersResponder_new(struct Allocator* allocator,
                                                 struct Log* log,
                                                 struct AddrSet* peers,
-                                                struct MsgCore* msgCore)
+                                                struct Address* selfAddr,
+                                                struct MsgCore* msgCore,
+                                                struct BoilerplateResponder* br)
 {
     struct Allocator* alloc = Allocator_child(allocator);
     struct GetPeersResponder_pvt* gprp =
@@ -114,11 +103,10 @@ struct GetPeersResponder* GetPeersResponder_new(struct Allocator* allocator,
     gprp->log = log;
     gprp->alloc = alloc;
     gprp->msgCore = msgCore;
+    gprp->selfAddr = selfAddr;
     gprp->handler = MsgCore_onQuery(msgCore, "gp", alloc);
     gprp->handler->userData = gprp;
     gprp->handler->cb = onGetPeers;
-
-    struct EncodingScheme* myScheme = NumberCompress_defineScheme(alloc);
-    gprp->br = BoilerplateResponder_new(myScheme, alloc);
+    gprp->br = br;
     return &gprp->pub;
 }

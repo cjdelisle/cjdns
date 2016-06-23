@@ -12,28 +12,30 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef GetPeersResponder_H
-#define GetPeersResponder_H
+#ifndef FindNodeResponder_H
+#define FindNodeResponder_H
 
+#include "dht/Address.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
-#include "subnode/AddrSet.h"
 #include "subnode/MsgCore.h"
 #include "subnode/BoilerplateResponder.h"
+#include "subnode/NodeCache.h"
+#include "util/events/EventBase.h"
 #include "util/Linker.h"
 
-Linker_require("subnode/GetPeersResponder.c");
+Linker_require("subnode/FindNodeResponder.c");
 
-struct GetPeersResponder
+struct FindNodeResponder
 {
     int unused;
 };
 
-struct GetPeersResponder* GetPeersResponder_new(struct Allocator* allocator,
+struct FindNodeResponder* FindNodeResponder_new(struct Allocator* allocator,
                                                 struct Log* log,
-                                                struct AddrSet* peers,
-                                                struct Address* selfAddr,
                                                 struct MsgCore* msgCore,
-                                                struct BoilerplateResponder* br);
+                                                struct EventBase* base,
+                                                struct BoilerplateResponder* br,
+                                                struct NodeCache* nc);
 
 #endif

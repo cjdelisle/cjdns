@@ -18,12 +18,17 @@
 #include "subnode/MsgCore.h"
 #include "subnode/SupernodeHunter.h"
 #include "subnode/GetPeersResponder.h"
+#include "subnode/FindNodeResponder.h"
+#include "subnode/PingResponder.h"
+#include "subnode/BoilerplateResponder.h"
+#include "switch/NumberCompress.h"
 #include "dht/Address.h"
 #include "wire/DataHeader.h"
 #include "wire/RouteHeader.h"
 #include "dht/ReplyModule.h"
 #include "dht/EncodingSchemeModule.h"
 #include "dht/SerializationModule.h"
+#include "dht/dhtcore/ReplySerializer.h"
 //#include "dht/dhtcore/RouterModule.h"
 //#include "dht/dhtcore/RouterModule_admin.h"
 //#include "dht/dhtcore/RumorMill.h"
@@ -37,6 +42,7 @@
 #include "util/events/Timeout.h"
 #include "wire/Error.h"
 #include "wire/PFChan.h"
+#include "wire/DataHeader.h"
 #include "util/CString.h"
 
 ///////////////////// [ Address ][ content... ]
@@ -65,6 +71,10 @@ struct SubnodePathfinder_pvt
     struct MsgCore* msgCore;
 
     struct Admin* admin;
+
+    struct NodeCache* nc;
+
+    struct BoilerplateResponder* br;
 
     //struct DHTModuleRegistry* registry;
     //struct NodeStore* nodeStore;
@@ -273,6 +283,38 @@ static Iface_DEFUN switchErr(struct Message* msg, struct SubnodePathfinder_pvt* 
     return NULL;
 }
 
+static void getRouteReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom)
+{
+    struct SubnodePathfinder_pvt* pf =
+        Identity_check((struct SubnodePathfinder_pvt*) prom->userData);
+    if (!src) {
+        Log_debug(pf->log, "GetRoute timeout");
+        return;
+    }
+    Log_debug(pf->log, "\n\n\n\nSearch reply!\n\n\n\n");
+    struct Address_List* al = ReplySerializer_parse(src, msg, pf->log, false, prom->alloc);
+    if (!al || al->length == 0) { return; }
+    Log_debug(pf->log, "reply with[%s]", Address_toString(&al->elems[0], prom->alloc)->bytes);
+    NodeCache_discoverNode(pf->nc, &al->elems[0]);
+    struct Message* msgToCore = Message_new(0, 512, prom->alloc);
+    Iface_CALL(sendNode, msgToCore, &al->elems[0], 0xfffffff0, pf);
+}
+
+static void pingReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom)
+{
+    struct SubnodePathfinder_pvt* pf =
+        Identity_check((struct SubnodePathfinder_pvt*) prom->userData);
+    if (!src) {
+        Log_debug(pf->log, "Ping timeout");
+        return;
+    }
+    Log_debug(pf->log, "\n\n\n\nPING reply from [%s]!\n\n\n\n",
+        Address_toString(src, prom->alloc)->bytes);
+    NodeCache_discoverNode(pf->nc, src);
+    struct Message* msgToCore = Message_new(0, 512, prom->alloc);
+    Iface_CALL(sendNode, msgToCore, src, 0xffffff70, pf);
+}
+
 static Iface_DEFUN searchReq(struct Message* msg, struct SubnodePathfinder_pvt* pf)
 {
     uint8_t addr[16];
@@ -280,7 +322,49 @@ static Iface_DEFUN searchReq(struct Message* msg, struct SubnodePathfinder_pvt* 
     Assert_true(!msg->length);
     uint8_t printedAddr[40];
     AddrTools_printIp(printedAddr, addr);
-    Log_debug(pf->log, "Search req [%s]", printedAddr);
+    Log_debug(pf->log, "\n\n\n\nSearch req [%s]\n\n\n\n", printedAddr);
+
+    struct Address* fullAddr = NodeCache_getNode(pf->nc, addr);
+    if (fullAddr) {
+        struct MsgCore_Promise* qp = MsgCore_createQuery(pf->msgCore, 0, pf->alloc);
+        Dict* dict = qp->msg = Dict_new(qp->alloc);
+        qp->cb = pingReply;
+        qp->userData = pf;
+        qp->target = Address_clone(fullAddr, qp->alloc);
+        Log_debug(pf->log, "\n\n--PIIIIIING %s--\n\n",
+            Address_toString(qp->target, qp->alloc)->bytes);
+        Dict_putStringCC(dict, "q", "pn", qp->alloc);
+        BoilerplateResponder_addBoilerplate(pf->br, dict, qp->target, qp->alloc);
+        return NULL;
+    }
+
+    if (!pf->pub.snh || !pf->pub.snh->snodes->length) { return NULL; }
+
+    for (int i = 0; i < pf->pub.snh->snodes->length; i++) {
+        struct Address* sn = AddrSet_get(pf->pub.snh->snodes, i);
+        Log_debug(pf->log, "Compare to supernode [%s]", Address_toString(sn, msg->alloc)->bytes);
+        if (!Bits_memcmp(sn->ip6.bytes, addr, 16)) {
+            return sendNode(msg, sn, 0xfffffff0, pf);
+        }
+    }
+
+    struct MsgCore_Promise* qp = MsgCore_createQuery(pf->msgCore, 0, pf->alloc);
+
+    Dict* dict = qp->msg = Dict_new(qp->alloc);
+    qp->cb = getRouteReply;
+    qp->userData = pf;
+
+    //TODO(cjd): get a *working* snode
+    qp->target = AddrSet_get(pf->pub.snh->snodes, 0);
+
+    Log_debug(pf->log, "\n\n--Sending getRoute to snode %s--\n\n",
+        Address_toString(qp->target, qp->alloc)->bytes);
+    Dict_putStringCC(dict, "sq", "gr", qp->alloc);
+    String* src = String_newBinary(pf->myAddress->ip6.bytes, 16, qp->alloc);
+    Dict_putStringC(dict, "src", src, qp->alloc);
+    String* target = String_newBinary(addr, 16, qp->alloc);
+    Dict_putStringC(dict, "tar", target, qp->alloc);
+
 /*
     struct Node_Two* node = NodeStore_nodeForAddr(pf->nodeStore, addr);
     if (node) {
@@ -304,6 +388,9 @@ static Iface_DEFUN peer(struct Message* msg, struct SubnodePathfinder_pvt* pf)
         if (myPeer->path == addr.path) { return NULL; }
     }
     AddrSet_add(pf->myPeers, &addr);
+
+    NodeCache_discoverNode(pf->nc, &addr);
+
     return sendNode(msg, &addr, 0xffffff00, pf);
 }
 
@@ -321,6 +408,8 @@ static Iface_DEFUN peerGone(struct Message* msg, struct SubnodePathfinder_pvt* p
         }
     }
 
+    NodeCache_forgetNode(pf->nc, &addr);
+
     // We notify about the node but with max metric so it will be removed soon.
     return sendNode(msg, &addr, 0xffffffff, pf);
 }
@@ -331,6 +420,9 @@ static Iface_DEFUN session(struct Message* msg, struct SubnodePathfinder_pvt* pf
     addressForNode(&addr, msg);
     String* str = Address_toString(&addr, msg->alloc);
     Log_debug(pf->log, "Session [%s]", str->bytes);
+    if (addr.protocolVersion) {
+        NodeCache_discoverNode(pf->nc, &addr);
+    }
     return NULL;
 }
 
@@ -340,6 +432,7 @@ static Iface_DEFUN sessionEnded(struct Message* msg, struct SubnodePathfinder_pv
     addressForNode(&addr, msg);
     String* str = Address_toString(&addr, msg->alloc);
     Log_debug(pf->log, "Session ended [%s]", str->bytes);
+    NodeCache_forgetNode(pf->nc, &addr);
     return NULL;
 }
 
@@ -348,6 +441,9 @@ static Iface_DEFUN discoveredPath(struct Message* msg, struct SubnodePathfinder_
     struct Address addr;
     addressForNode(&addr, msg);
     Log_debug(pf->log, "discoveredPath(%s)", Address_toString(&addr, msg->alloc)->bytes);
+    if (addr.protocolVersion) {
+        NodeCache_discoverNode(pf->nc, &addr);
+    }
     return NULL;
 }
 
@@ -373,6 +469,13 @@ static Iface_DEFUN incomingFromMsgCore(struct Message* msg, struct Iface* iface)
 {
     struct SubnodePathfinder_pvt* pf =
         Identity_containerOf(iface, struct SubnodePathfinder_pvt, msgCoreIf);
+    Assert_true(msg->length >= (RouteHeader_SIZE + DataHeader_SIZE));
+    struct RouteHeader* rh = (struct RouteHeader*) msg->bytes;
+    struct DataHeader* dh = (struct DataHeader*) &rh[1];
+    Assert_true(DataHeader_getContentType(dh) == ContentType_CJDHT);
+    Assert_true(!Bits_isZero(rh->publicKey, 32));
+    Assert_true(rh->version_be);
+    Assert_true(rh->sh.label_be);
     Message_push32(msg, PFChan_Pathfinder_SENDMSG, NULL);
     return Iface_next(&pf->pub.eventIf, msg);
 }
@@ -421,7 +524,9 @@ void SubnodePathfinder_start(struct SubnodePathfinder* sp)
     pf->msgCore = MsgCore_new(pf->base, pf->rand, pf->alloc, pf->log);
     Iface_plumb(&pf->msgCoreIf, &pf->msgCore->interRouterIf);
 
-    GetPeersResponder_new(pf->alloc, pf->log, pf->myPeers, pf->msgCore);
+    PingResponder_new(pf->alloc, pf->log, pf->msgCore, pf->br);
+    GetPeersResponder_new(pf->alloc, pf->log, pf->myPeers, pf->myAddress, pf->msgCore, pf->br);
+    FindNodeResponder_new(pf->alloc, pf->log, pf->msgCore, pf->base, pf->br, pf->nc);
 
     pf->pub.snh =
         SupernodeHunter_new(pf->alloc, pf->log, pf->base, pf->myPeers, pf->msgCore, pf->myAddress);
@@ -452,6 +557,10 @@ struct SubnodePathfinder* SubnodePathfinder_new(struct Allocator* allocator,
     pf->myPeers = AddrSet_new(alloc);
     pf->pub.eventIf.send = incomingFromEventIf;
     pf->msgCoreIf.send = incomingFromMsgCore;
+
+    struct EncodingScheme* myScheme = NumberCompress_defineScheme(alloc);
+    pf->br = BoilerplateResponder_new(myScheme, alloc);
+    pf->nc = NodeCache_new(alloc, log, myAddress, base);
 
     return &pf->pub;
 }
