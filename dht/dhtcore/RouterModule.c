@@ -548,6 +548,8 @@ struct RouterModule_Promise* RouterModule_newMessage(struct Address* addr,
                                     addr->path,
                                     EncodingScheme_convertLabel_convertTo_CANNONICAL));
 
+    Assert_true(addr->protocolVersion);
+
     module->pingsInFlight++;
     if (timeoutMilliseconds == 0) {
         timeoutMilliseconds = pingTimeoutMilliseconds(module);

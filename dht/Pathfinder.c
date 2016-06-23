@@ -102,6 +102,10 @@ static int incomingFromDHT(struct DHTMessage* dmessage, void* vpf)
     SwitchHeader_setVersion(&emsg->route.sh, SwitchHeader_CURRENT_VERSION);
     Bits_memcpy(emsg->route.publicKey, addr->key, 32);
 
+    Assert_true(!Bits_isZero(emsg->route.publicKey, 32));
+    Assert_true(emsg->route.sh.label_be);
+    Assert_true(emsg->route.version_be);
+
     Message_push32(msg, PFChan_Pathfinder_SENDMSG, NULL);
 
     if (dmessage->replyTo) {
