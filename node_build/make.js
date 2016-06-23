@@ -255,6 +255,9 @@ Builder.configure({
         builder.config.libs.push(dependencyDir + '/cnacl/jsbuild/libnacl.a');
         builder.config.includeDirs.push(dependencyDir + '/cnacl/jsbuild/include/');
 
+        // needed for Sign.c which pulls in crypto_int32.h
+        builder.config.includeDirs.push(dependencyDir + '/cnacl/jsbuild/include_internal/');
+
         Fs.exists(dependencyDir + '/cnacl/jsbuild/libnacl.a', waitFor(function (exists) {
             if (exists) { return; }
 
