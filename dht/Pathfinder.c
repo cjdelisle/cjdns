@@ -364,6 +364,8 @@ static Iface_DEFUN discoveredPath(struct Message* msg, struct Pathfinder_pvt* pf
     // from getting any actual work done.
     if (nn->address.path < addr.path) { return NULL; }
 
+    addr.protocolVersion = nn->address.protocolVersion;
+
     Log_debug(pf->log, "Discovered path [%s]", Address_toString(&addr, msg->alloc)->bytes);
     RumorMill_addNode(pf->rumorMill, &addr);
     return NULL;
