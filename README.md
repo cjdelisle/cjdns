@@ -116,6 +116,10 @@ Everything you need is available prebuild in FreeBSD' ports.
 
     pkg install gmake node
 
+#### Arch:
+
+    pacman -S nodejs git base-devel
+
 ### 1. Retrieve cjdns from GitHub
 
 Clone the repository from GitHub and change to the source directory:
