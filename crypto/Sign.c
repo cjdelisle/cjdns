@@ -20,7 +20,9 @@
 #include "crypto_hash_sha512.h"
 #include "crypto_sign_ed25519.h"
 
-Assert_compileTime(crypto_sign_ed25519_open == crypto_sign_ed25519_ref10_open);
+#if crypto_sign_ed25519_open != crypto_sign_ed25519_ref10_open
+    Assert_compileTime(crypto_sign_ed25519_open == crypto_sign_ed25519_ref10_open);
+#endif
 
 void Sign_signingKeyPairFromCurve25519(uint8_t keypairOut[64], uint8_t secretCryptoKey[32])
 {
