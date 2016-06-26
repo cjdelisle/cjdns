@@ -212,7 +212,9 @@ static void sendPeer(uint32_t pathfinderId,
     node->path_be = Endian_hostToBigEndian64(peer->addr.path);
     node->metric_be = 0xffffffff;
     node->version_be = Endian_hostToBigEndian32(peer->addr.protocolVersion);
-    Assert_true(peer->addr.protocolVersion);
+    if (ev != PFChan_Core_PEER_GONE) {
+        Assert_true(peer->addr.protocolVersion);
+    }
     Message_push32(msg, pathfinderId, NULL);
     Message_push32(msg, ev, NULL);
     Iface_send(&ic->eventEmitterIf, msg);
