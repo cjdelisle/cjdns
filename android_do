@@ -44,7 +44,7 @@ if [ "$NDK" == "/bad/path/to/android-ndk-r11c/" ]; then
           [[ -f "$NDK_VERSION-${TYPE}-${cpu_arch}.tar.bz2" ]] \
               || wget "https://dl.google.com/android/repository/$NDK_VERSION-${TYPE}-${cpu_arch}.zip" \
               || (echo "Can't find download for your system"; exit 1)
-          [[ -d "$NDK_VERSION" ]] || (unzip "$NDK_VERSION-${TYPE}-${cpu_arch}.zip" || exit 1)
+          [[ -d "$NDK_VERSION" ]] || (unzip -q "$NDK_VERSION-${TYPE}-${cpu_arch}.zip" || exit 1)
     fi
 
     [[ ! -d "$NDK" ]] && {
