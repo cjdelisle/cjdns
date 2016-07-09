@@ -114,13 +114,13 @@ Select version gcc-4.8.1p2 or more recent.
 
 Everything you need is available prebuild in FreeBSD' ports.
 
-    pkg install gmake node
+    pkg install gmake node bash
 
 ### 1. Retrieve cjdns from GitHub
 
 Clone the repository from GitHub and change to the source directory:
 
-    git clone https://github.com/cjdelisle/cjdns.git cjdns
+    git clone https://github.com/cjdelisle/cjdns.git
     cd cjdns
 
 ### 2. Build
@@ -138,7 +138,7 @@ Run cjdroute without options for HELP:
 
     ./cjdroute
 
-### 0. Make sure you've got the stuff.
+### 0. Make sure you've the stuff.
 
     cat /dev/net/tun
 
@@ -150,7 +150,7 @@ If it says: `cat: /dev/net/tun: No such file or directory`, create it using:
     sudo mknod /dev/net/tun c 10 200 &&
     sudo chmod 0666 /dev/net/tun
 
-Then `cat /dev/net/tun` again.
+Then execute `cat /dev/net/tun` again.
 
 If it says: `cat: /dev/net/tun: Permission denied` You're probably using a VPS
 based on the OpenVZ virtualization platform. Ask your provider to enable the
@@ -184,7 +184,7 @@ reasons:
 1. It helps prevent abuse because bad people will be less likely to abuse a
    system after they were, in an act of human kindness, given access to that
    system.
-2. This is not intended to overlay The Old Internet, it is intended to replace
+2. This is not intended to overlay "the old internet", it is intended to replace
    it. Each connection will in due time be replaced by a wire, a fiber optic
    cable, or a wireless network connection.
 3. In any case of a disagreement, there will be a "chain of friends" linking
