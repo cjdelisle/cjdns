@@ -118,9 +118,7 @@
     "typedef long long crypto_int64;",
     "typedef unsigned char crypto_uint8;",
     "typedef unsigned long long crypto_uint64;",
-    "typedef signed long long crypto_int64;",
     "typedef unsigned int crypto_uint32;",
-    "typedef signed int crypto_int32;",
     "typedef unsigned short crypto_uint16;"
   ]
 }
