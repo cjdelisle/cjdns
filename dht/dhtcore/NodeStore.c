@@ -59,6 +59,8 @@ struct NodeStore_pvt
     /** To track time, for e.g. figuring out when nodes were last pinged */
     struct EventBase* eventBase;
 
+    bool findingBestParents;
+
     Identity
 };
 
@@ -441,12 +443,16 @@ static void findBestParent(struct Node_Two* node, struct NodeStore_pvt* store)
             if (!Node_getBestParent(node)) { store->pub.linkedNodes++; }
             setParentCostAndPath(node, bestLink, bestCost, bestPath, store);
         }
-        for (struct Node_Link* link = NodeStore_getNextLink(&store->pub, NULL);
-             link;
-             link = NodeStore_getNextLink(&store->pub, link))
-        {
-            if (link->child == store->pub.selfNode) { continue; }
-            findBestParent(link->child, store);
+        if (!store->findingBestParents) {
+            store->findingBestParents = true;
+            for (struct Node_Link* link = NodeStore_getNextLink(&store->pub, NULL);
+                 link;
+                 link = NodeStore_getNextLink(&store->pub, link))
+            {
+                if (link->child == store->pub.selfNode) { continue; }
+                findBestParent(link->child, store);
+            }
+            store->findingBestParents = false;
         }
     }
 }
