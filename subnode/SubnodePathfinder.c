@@ -45,6 +45,8 @@
 #include "wire/DataHeader.h"
 #include "util/CString.h"
 
+#include "subnode/ReachabilityAnnouncer.h"
+
 ///////////////////// [ Address ][ content... ]
 
 
@@ -75,6 +77,10 @@ struct SubnodePathfinder_pvt
     struct NodeCache* nc;
 
     struct BoilerplateResponder* br;
+
+    struct ReachabilityAnnouncer* ra;
+
+    uint8_t* privateKey;
 
     //struct DHTModuleRegistry* registry;
     //struct NodeStore* nodeStore;
@@ -338,14 +344,10 @@ static Iface_DEFUN searchReq(struct Message* msg, struct SubnodePathfinder_pvt* 
         return NULL;
     }
 
-    if (!pf->pub.snh || !pf->pub.snh->snodes->length) { return NULL; }
+    if (!pf->pub.snh || !pf->pub.snh->snodeAddr.path) { return NULL; }
 
-    for (int i = 0; i < pf->pub.snh->snodes->length; i++) {
-        struct Address* sn = AddrSet_get(pf->pub.snh->snodes, i);
-        Log_debug(pf->log, "Compare to supernode [%s]", Address_toString(sn, msg->alloc)->bytes);
-        if (!Bits_memcmp(sn->ip6.bytes, addr, 16)) {
-            return sendNode(msg, sn, 0xfffffff0, pf);
-        }
+    if (!Bits_memcmp(pf->pub.snh->snodeAddr.ip6.bytes, addr, 16)) {
+        return sendNode(msg, &pf->pub.snh->snodeAddr, 0xfffffff0, pf);
     }
 
     struct MsgCore_Promise* qp = MsgCore_createQuery(pf->msgCore, 0, pf->alloc);
@@ -354,8 +356,7 @@ static Iface_DEFUN searchReq(struct Message* msg, struct SubnodePathfinder_pvt* 
     qp->cb = getRouteReply;
     qp->userData = pf;
 
-    //TODO(cjd): get a *working* snode
-    qp->target = AddrSet_get(pf->pub.snh->snodes, 0);
+    qp->target = &pf->pub.snh->snodeAddr;
 
     Log_debug(pf->log, "\n\n--Sending getRoute to snode %s--\n\n",
         Address_toString(qp->target, qp->alloc)->bytes);
@@ -391,6 +392,8 @@ static Iface_DEFUN peer(struct Message* msg, struct SubnodePathfinder_pvt* pf)
 
     NodeCache_discoverNode(pf->nc, &addr);
 
+    ReachabilityAnnouncer_updatePeer(pf->ra, &addr, 0, 0xffff, 0xffff, 0xffff);
+
     return sendNode(msg, &addr, 0xffffff00, pf);
 }
 
@@ -409,6 +412,8 @@ static Iface_DEFUN peerGone(struct Message* msg, struct SubnodePathfinder_pvt* p
     }
 
     NodeCache_forgetNode(pf->nc, &addr);
+
+    ReachabilityAnnouncer_peerGone(pf->ra, &addr);
 
     // We notify about the node but with max metric so it will be removed soon.
     return sendNode(msg, &addr, 0xffffffff, pf);
@@ -528,8 +533,11 @@ void SubnodePathfinder_start(struct SubnodePathfinder* sp)
     GetPeersResponder_new(pf->alloc, pf->log, pf->myPeers, pf->myAddress, pf->msgCore, pf->br);
     FindNodeResponder_new(pf->alloc, pf->log, pf->msgCore, pf->base, pf->br, pf->nc);
 
-    pf->pub.snh =
-        SupernodeHunter_new(pf->alloc, pf->log, pf->base, pf->myPeers, pf->msgCore, pf->myAddress);
+    pf->pub.snh = SupernodeHunter_new(
+        pf->alloc, pf->log, pf->base, pf->myPeers, pf->msgCore, pf->myAddress);
+
+    pf->ra = ReachabilityAnnouncer_new(
+        pf->alloc, pf->log, pf->base, pf->rand, pf->msgCore, pf->pub.snh, pf->privateKey);
 
     struct PFChan_Pathfinder_Connect conn = {
         .superiority_be = Endian_hostToBigEndian32(1),
@@ -543,7 +551,8 @@ struct SubnodePathfinder* SubnodePathfinder_new(struct Allocator* allocator,
                                                 struct Log* log,
                                                 struct EventBase* base,
                                                 struct Random* rand,
-                                                struct Address* myAddress)
+                                                struct Address* myAddress,
+                                                uint8_t* privateKey)
 {
     struct Allocator* alloc = Allocator_child(allocator);
     struct SubnodePathfinder_pvt* pf =
@@ -557,6 +566,7 @@ struct SubnodePathfinder* SubnodePathfinder_new(struct Allocator* allocator,
     pf->myPeers = AddrSet_new(alloc);
     pf->pub.eventIf.send = incomingFromEventIf;
     pf->msgCoreIf.send = incomingFromMsgCore;
+    pf->privateKey = privateKey;
 
     struct EncodingScheme* myScheme = NumberCompress_defineScheme(alloc);
     pf->br = BoilerplateResponder_new(myScheme, alloc);

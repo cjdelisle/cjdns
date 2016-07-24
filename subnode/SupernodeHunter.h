@@ -25,9 +25,21 @@
 #include "util/Linker.h"
 Linker_require("subnode/SupernodeHunter.c");
 
+typedef void (* SupernodeHunter_Callback)(void* userData,
+                                          struct Address* snodeAddr,
+                                          int64_t sendTime,
+                                          int64_t snodeRecvTime);
+
 struct SupernodeHunter
 {
-    struct AddrSet* snodes;
+    // Setting this to false will re-trigger the search for a functioning snode, but setting
+    // it back to true will stop this search.
+    bool snodeIsReachable;
+
+    struct Address snodeAddr;
+
+    SupernodeHunter_Callback onSnodeChange;
+    void* userData;
 };
 
 #define SupernodeHunter_addSnode_EXISTS -1

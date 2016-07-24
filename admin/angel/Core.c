@@ -240,7 +240,7 @@ void Core_init(struct Allocator* alloc,
     // The link between the Pathfinder and the core needs to be asynchronous.
     #ifdef SUBNODE
         struct SubnodePathfinder* pf =
-            SubnodePathfinder_new(alloc, logger, eventBase, rand, nc->myAddress);
+            SubnodePathfinder_new(alloc, logger, eventBase, rand, nc->myAddress, privateKey);
     #else
         struct Pathfinder* pf = Pathfinder_register(alloc, logger, eventBase, rand, admin);
     #endif

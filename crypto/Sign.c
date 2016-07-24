@@ -35,6 +35,11 @@ void Sign_signingKeyPairFromCurve25519(uint8_t keypairOut[64], uint8_t secretCry
     ge_p3_tobytes(&keypairOut[32], &A);
 }
 
+void Sign_publicKeyFromKeyPair(uint8_t publicSigningKey[32], uint8_t keyPair[64])
+{
+    Bits_memcpy(publicSigningKey, &keyPair[32], 32);
+}
+
 void Sign_signMsg(uint8_t keyPair[64], struct Message* msg, struct Random* rand)
 {
     // az is set to the secret key followed by another secret value

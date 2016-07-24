@@ -20,6 +20,7 @@
 #include "util/platform/Sockaddr.h"
 #include "util/events/Timeout.h"
 #include "util/AddrTools.h"
+#include "util/events/Time.h"
 
 #define CYCLE_MS 3000
 
@@ -54,11 +55,19 @@ struct SupernodeHunter_pvt
     /** Index in snodeAddrs of supernode to try next. */
     uint32_t snodeAddrIdx;
 
+    // After we have called pub.onSnodeChange() we set this to true and stop looking for snodes.
+    // If the other code cannot communicate with an snode then it calls
+    // SupernodeHunter_onSnodeTimeout() and this returns to false, triggering the continued
+    // search for a working supernode.
+    bool snodeFound;
+
     struct Allocator* alloc;
 
     struct Log* log;
 
     struct MsgCore* msgCore;
+
+    struct EventBase* base;
 
     struct Address* myAddress;
     String* selfAddrStr;
@@ -72,6 +81,8 @@ struct Query
 
     // If this is a findNode request, this is the search target, if it's a getPeers it's null.
     struct Address* searchTar;
+
+    int64_t sendTime;
 
     bool isGetRoute;
 
@@ -117,7 +128,9 @@ static void onReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom
 {
     struct Query* q = Identity_check((struct Query*) prom->userData);
     struct SupernodeHunter_pvt* snp = Identity_check(q->snp);
-    // TODO
+
+    // TODO(cjd): if we sent a message to a discovered node, we should drop them from the list
+    //            if we sent to one of snodeCandidates then we need to drop it from that list.
     if (!src) {
         String* addrStr = Address_toString(prom->target, prom->alloc);
         Log_debug(snp->log, "timeout sending to %s", addrStr->bytes);
@@ -126,20 +139,26 @@ static void onReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom
     String* addrStr = Address_toString(src, prom->alloc);
     Log_debug(snp->log, "Reply from %s", addrStr->bytes);
 
+    int64_t* snodeRecvTime = Dict_getIntC(msg, "recvTime");
+
     if (q->isGetRoute) {
-        struct Address_List* al = ReplySerializer_parse(src, msg, snp->log, false, prom->alloc);
-        if (!al || al->length == 0) {
-            Log_debug(snp->log, "getRoute reply with no nodes");
+        //struct Address_List* al = ReplySerializer_parse(src, msg, snp->log, false, prom->alloc);
+        if (!snodeRecvTime) {
+            Log_warn(snp->log, "getRoute reply with no timeStamp, bad snode");
             return;
         }
-        struct Address* snodeAddr = &al->elems[0];
-        if (Address_isSame(snodeAddr, prom->target)) {
-            Log_debug(snp->log, "\n\nSupernode location confirmed [%s]\n\n",
-                Address_toString(snodeAddr, prom->alloc)->bytes);
-            AddrSet_add(snp->pub.snodes, snodeAddr);
+        Log_debug(snp->log, "\n\nSupernode location confirmed [%s]\n\n",
+            Address_toString(src, prom->alloc)->bytes);
+        Bits_memcpy(&snp->pub.snodeAddr, src, Address_SIZE);
+        if (snp->pub.snodeIsReachable) {
+            // If while we were searching, the outside code declared that indeed the snode
+            // is reachable, we will not try to change their snode.
+        } else if (snp->pub.onSnodeChange) {
+            snp->pub.snodeIsReachable = true;
+            snp->pub.onSnodeChange(
+                snp->pub.userData, &snp->pub.snodeAddr, q->sendTime, *snodeRecvTime);
         } else {
-            Log_debug(snp->log, "Confirming supernode location");
-            AddrSet_add(snp->snodeCandidates, snodeAddr);
+            Log_warn(snp->log, "onSnodeChange is not set");
         }
     }
 
@@ -175,14 +194,19 @@ static void onReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom
 static void pingCycle(void* vsn)
 {
     struct SupernodeHunter_pvt* snp = Identity_check((struct SupernodeHunter_pvt*) vsn);
-    if (snp->pub.snodes->length > 1) { return; }
+
+    if (snp->pub.snodeIsReachable) { return; }
     if (!snp->authorizedSnodes->length) { return; }
+    if (!snp->peers->length) { return; }
+
+    Log_debug(snp->log, "\n\nping cycle\n\n");
 
     // We're not handling replies...
     struct MsgCore_Promise* qp = MsgCore_createQuery(snp->msgCore, 0, snp->alloc);
     struct Query* q = Allocator_calloc(qp->alloc, sizeof(struct Query), 1);
     Identity_set(q);
     q->snp = snp;
+    q->sendTime = Time_currentTimeMilliseconds(snp->base);
 
     Dict* msg = qp->msg = Dict_new(qp->alloc);
     qp->cb = onReply;
@@ -249,8 +273,9 @@ struct SupernodeHunter* SupernodeHunter_new(struct Allocator* allocator,
         Allocator_calloc(alloc, sizeof(struct SupernodeHunter_pvt), 1);
     out->authorizedSnodes = AddrSet_new(alloc);
     out->peers = peers;
+    out->base = base;
     out->nodes = AddrSet_new(alloc);
-    out->pub.snodes = AddrSet_new(alloc);
+    //out->timeSnodeCalled = Time_currentTimeMilliseconds(base);
     out->snodeCandidates = AddrSet_new(alloc);
     out->log = log;
     out->alloc = alloc;

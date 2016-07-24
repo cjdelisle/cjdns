@@ -94,7 +94,12 @@ struct Address_List* ReplySerializer_parse(struct Address* fromNode,
 
         Address_getPrefix(&addr);
         if (!AddressCalc_validAddress(addr.ip6.bytes)) {
-            Log_debug(log, "Was told garbage.\n");
+            struct Allocator* tmpAlloc = Allocator_child(alloc);
+            String* printed = Address_toString(&addr, tmpAlloc);
+            uint8_t ipPrinted[40];
+            Address_printIp(ipPrinted, &addr);
+            Log_debug(log, "Was told garbage addr [%s] [%s]", printed->bytes, ipPrinted);
+            Allocator_free(tmpAlloc);
             // This should never happen, badnode.
             continue;
         }

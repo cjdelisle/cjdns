@@ -30,4 +30,6 @@ int Sign_verifyMsg(uint8_t publicSigningKey[32], struct Message* msg);
 
 int Sign_publicSigningKeyToCurve25519(uint8_t curve25519keyOut[32], uint8_t publicSigningKey[32]);
 
+void Sign_publicKeyFromKeyPair(uint8_t publicKey[32], uint8_t keyPair[64]);
+
 #endif
