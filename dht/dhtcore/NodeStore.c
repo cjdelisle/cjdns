@@ -419,6 +419,7 @@ static bool findBestParent0(struct Node_Two* node, struct NodeStore_pvt* store, 
              link = NodeStore_nextLink(node, link))
         {
             if (link->child == store->pub.selfNode) { continue; }
+            if (link->child->marked) { continue; }
             ret |= findBestParent0(link->child, store, cycle + 1, lim);
         }
         return ret;
@@ -453,14 +454,30 @@ static bool findBestParent0(struct Node_Two* node, struct NodeStore_pvt* store, 
             setParentCostAndPath(node, bestLink, bestCost, bestPath, store);
         }
         return true;
+    } else {
+        node->marked = true;
     }
     return false;
 }
 
 static void findBestParent(struct Node_Two* node, struct NodeStore_pvt* store)
 {
+    if (Defined(PARANOIA)) {
+        for (struct Node_Two* n = NodeStore_getNextNode(&store->pub, NULL);
+             n;
+             n = NodeStore_getNextNode(&store->pub, n))
+        {
+            Assert_true(!n->marked);
+        }
+    }
     for (int i = 0; i < 1000; i++) {
         if (!findBestParent0(node, store, 0, i)) {
+            for (struct Node_Two* n = NodeStore_getNextNode(&store->pub, NULL);
+                 n;
+                 n = NodeStore_getNextNode(&store->pub, n))
+            {
+                n->marked = false;
+            }
             return;
         }
     }
