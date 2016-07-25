@@ -413,13 +413,13 @@ static uint64_t guessCostOfChild(struct Node_Link* link)
 static bool findBestParent0(struct Node_Two* node, struct NodeStore_pvt* store, int cycle, int lim)
 {
     if (cycle < lim) {
+        if (node->marked) { return false; }
         bool ret = false;
         for (struct Node_Link* link = NodeStore_nextLink(node, NULL);
              link;
              link = NodeStore_nextLink(node, link))
         {
             if (link->child == store->pub.selfNode) { continue; }
-            if (link->child->marked) { continue; }
             ret |= findBestParent0(link->child, store, cycle + 1, lim);
         }
         return ret;
