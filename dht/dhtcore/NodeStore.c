@@ -453,7 +453,15 @@ static bool findBestParent0(struct Node_Two* node, struct NodeStore_pvt* store, 
             if (!Node_getBestParent(node)) { store->pub.linkedNodes++; }
             setParentCostAndPath(node, bestLink, bestCost, bestPath, store);
         }
+
         node->marked = false;
+        for (struct Node_Link* link = NodeStore_nextLink(node, NULL);
+             link;
+             link = NodeStore_nextLink(node, link))
+        {
+            link->child->marked = false;
+        }
+
         return true;
     } else {
         node->marked = true;
