@@ -453,6 +453,7 @@ static bool findBestParent0(struct Node_Two* node, struct NodeStore_pvt* store, 
             if (!Node_getBestParent(node)) { store->pub.linkedNodes++; }
             setParentCostAndPath(node, bestLink, bestCost, bestPath, store);
         }
+        node->marked = false;
         return true;
     } else {
         node->marked = true;
@@ -462,14 +463,6 @@ static bool findBestParent0(struct Node_Two* node, struct NodeStore_pvt* store, 
 
 static void findBestParent(struct Node_Two* node, struct NodeStore_pvt* store)
 {
-    if (Defined(PARANOIA)) {
-        for (struct Node_Two* n = NodeStore_getNextNode(&store->pub, NULL);
-             n;
-             n = NodeStore_getNextNode(&store->pub, n))
-        {
-            Assert_true(!n->marked);
-        }
-    }
     for (int i = 0; i < 1000; i++) {
         if (!findBestParent0(node, store, 0, i)) {
             for (struct Node_Two* n = NodeStore_getNextNode(&store->pub, NULL);
