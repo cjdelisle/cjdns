@@ -455,13 +455,6 @@ static bool findBestParent0(struct Node_Two* node, struct NodeStore_pvt* store, 
         }
 
         node->marked = false;
-        for (struct Node_Link* link = NodeStore_nextLink(node, NULL);
-             link;
-             link = NodeStore_nextLink(node, link))
-        {
-            link->child->marked = false;
-        }
-
         return true;
     } else {
         node->marked = true;
