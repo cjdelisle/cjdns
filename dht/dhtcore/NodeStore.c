@@ -59,8 +59,6 @@ struct NodeStore_pvt
     /** To track time, for e.g. figuring out when nodes were last pinged */
     struct EventBase* eventBase;
 
-    bool findingBestParents;
-
     Identity
 };
 
@@ -412,8 +410,19 @@ static uint64_t guessCostOfChild(struct Node_Link* link)
  * this node and recursively call findBestParent on the link->child for each of this node's
  * outgoing links (in case those nodes can update their paths too).
  */
-static void findBestParent(struct Node_Two* node, struct NodeStore_pvt* store)
+static bool findBestParent0(struct Node_Two* node, struct NodeStore_pvt* store, int cycle, int lim)
 {
+    if (cycle < lim) {
+        bool ret = false;
+        for (struct Node_Link* link = NodeStore_nextLink(node, NULL);
+             link;
+             link = NodeStore_nextLink(node, link))
+        {
+            if (link->child == store->pub.selfNode) { continue; }
+            ret |= findBestParent0(link->child, store, cycle + 1, lim);
+        }
+        return ret;
+    }
     struct Node_Link* bestLink = NULL;
     uint64_t bestCost = UINT64_MAX;
     uint64_t bestPath = UINT64_MAX;
@@ -443,18 +452,19 @@ static void findBestParent(struct Node_Two* node, struct NodeStore_pvt* store)
             if (!Node_getBestParent(node)) { store->pub.linkedNodes++; }
             setParentCostAndPath(node, bestLink, bestCost, bestPath, store);
         }
-        if (!store->findingBestParents) {
-            store->findingBestParents = true;
-            for (struct Node_Link* link = NodeStore_getNextLink(&store->pub, NULL);
-                 link;
-                 link = NodeStore_getNextLink(&store->pub, link))
-            {
-                if (link->child == store->pub.selfNode) { continue; }
-                findBestParent(link->child, store);
-            }
-            store->findingBestParents = false;
+        return true;
+    }
+    return false;
+}
+
+static void findBestParent(struct Node_Two* node, struct NodeStore_pvt* store)
+{
+    for (int i = 0; i < 1000; i++) {
+        if (!findBestParent0(node, store, 0, i)) {
+            return;
         }
     }
+    Assert_failure("could not solve for all nodes in 1000 cycles");
 }
 
 /**
