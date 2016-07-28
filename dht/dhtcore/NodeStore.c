@@ -365,22 +365,6 @@ static void setParentCostAndPath(struct Node_Two* node,
     }
 }
 
-static void unreachable(struct Node_Two* node, struct NodeStore_pvt* store)
-{
-    struct Node_Link* next = NULL;
-    RB_FOREACH_REVERSE(next, PeerRBTree, &node->peerTree) {
-        if (Node_getBestParent(next->child) == next) { unreachable(next->child, store); }
-    }
-
-    // We think the link is down, so reset the link cost.
-    struct Node_Link* bp = Node_getBestParent(node);
-    if (bp) {
-        //update(bp, UINT32_MAX, store);
-        store->pub.linkedNodes--;
-    }
-    setParentCostAndPath(node, NULL, UINT64_MAX, UINT64_MAX, store);
-}
-
 /**
  * This is called when we have no idea what the cost should be for the next hop
  * because the path we previously used to get to it is broken and we need to use
@@ -451,12 +435,9 @@ static bool findBestParent0(struct Node_Two* node, struct NodeStore_pvt* store, 
         bestLink = link;
     }
     if (bestCost != Node_getCost(node) || bestPath != node->address.path) {
-        if (!bestLink) {
-            unreachable(node, store);
-        } else {
-            if (!Node_getBestParent(node)) { store->pub.linkedNodes++; }
-            setParentCostAndPath(node, bestLink, bestCost, bestPath, store);
-        }
+        if (!Node_getBestParent(node)) { store->pub.linkedNodes++; }
+        if (!bestLink) { store->pub.linkedNodes--; }
+        setParentCostAndPath(node, bestLink, bestCost, bestPath, store);
         return true;
     }
     return false;
@@ -516,9 +497,6 @@ void NodeStore_unlinkNodes(struct NodeStore* nodeStore, struct Node_Link* link)
     }
 
     handleLinkNews(link, UINT32_MAX, store);
-    if (Node_getBestParent(child) == link) {
-        unreachable(child, store);
-    }
 
     check(store);
 
@@ -650,9 +628,6 @@ static struct Node_Link* linkNodes(struct Node_Two* parent,
     RB_INSERT(PeerRBTree, &parent->peerTree, link);
 
     handleLinkNews(link, linkCostDiff+link->linkCost, store);
-    if (!Node_getBestParent(child)) {
-        unreachable(child, store);
-    }
 
     if (parent == store->pub.selfNode && child != store->pub.selfNode) {
         Assert_true(Node_isOneHopLink(link));
