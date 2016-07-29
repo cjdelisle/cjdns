@@ -394,24 +394,9 @@ static uint64_t guessCostOfChild(struct Node_Link* link)
  * this node and recursively call findBestParent on the link->child for each of this node's
  * outgoing links (in case those nodes can update their paths too).
  */
-static bool findBestParent0(struct Node_Two* node, struct NodeStore_pvt* store, int cycle, int lim)
+static bool findBestParent0(struct Node_Two* node, struct NodeStore_pvt* store)
 {
-    if (cycle < lim) {
-        bool ret = false;
-        for (struct Node_Link* link = NodeStore_nextLink(node, NULL);
-             link;
-             link = NodeStore_nextLink(node, link))
-        {
-            if (link->child == store->pub.selfNode) { continue; }
-            if (Node_getBestParent(link->child) != link &&
-                Node_getCost(link->child) < Node_getCost(node))
-            {
-                continue;
-            }
-            ret |= findBestParent0(link->child, store, cycle + 1, lim);
-        }
-        return ret;
-    }
+    if (node == store->pub.selfNode) { return false; }
     struct Node_Link* bestLink = NULL;
     uint64_t bestCost = UINT64_MAX;
     uint64_t bestPath = UINT64_MAX;
@@ -445,18 +430,17 @@ static bool findBestParent0(struct Node_Two* node, struct NodeStore_pvt* store, 
 
 static void findBestParent(struct Node_Two* node, struct NodeStore_pvt* store)
 {
-    for (int i = 0; i < 1000; i++) {
-        if (!findBestParent0(node, store, 0, i)) {
-            for (struct Node_Two* n = NodeStore_getNextNode(&store->pub, NULL);
-                 n;
-                 n = NodeStore_getNextNode(&store->pub, n))
-            {
-                n->marked = false;
-            }
-            return;
+    if (!findBestParent0(node, store)) { return; }
+    int ret = 0;
+    do {
+        ret = 0;
+        for (struct Node_Two* n = NodeStore_getNextNode(&store->pub, NULL);
+             n;
+             n = NodeStore_getNextNode(&store->pub, n))
+        {
+            ret |= findBestParent0(n, store);
         }
-    }
-    Assert_failure("could not solve for all nodes in 1000 cycles");
+    } while (ret);
 }
 
 /**
@@ -472,7 +456,9 @@ static void handleLinkNews(struct Node_Link* link,
     int64_t linkCostDiff = newLinkCost;
     linkCostDiff -= link->linkCost;
     update(link, linkCostDiff, store);
+    check(store);
     findBestParent(link->child, store);
+    check(store);
 }
 
 void NodeStore_unlinkNodes(struct NodeStore* nodeStore, struct Node_Link* link)
