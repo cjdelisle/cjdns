@@ -113,7 +113,7 @@ fc. To make these keys, use the `makekeys` utility.
 To convert the list of keys into a simulator configuration, use `makesim.js`, note there
 are interesting constants inside of `makesim.js` which you might want to alter.
 
-    node ./contrib/nodejs/makesim.js keys.txt > ~/my-cjdns-simulation.json
+    node ./tools/lib/makesim.js keys.txt > ~/my-cjdns-simulation.json
 
 Once you have a simulation setup, you may want to add your admin credentials to one of
 the nodes so you can inspect it, dump the table, etc...
