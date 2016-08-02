@@ -432,7 +432,9 @@ static void findBestParent(struct Node_Two* node, struct NodeStore_pvt* store)
 {
     if (!findBestParent0(node, store)) { return; }
     int ret = 0;
+    int cycle = 0;
     do {
+        Assert_true(cycle++ < 10000);
         ret = 0;
         for (struct Node_Two* n = NodeStore_getNextNode(&store->pub, NULL);
              n;
