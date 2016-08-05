@@ -220,21 +220,9 @@ static void udpInterface(Dict* config, struct Context* ctx)
                     // it's a sockaddr, fall through
                 } else if (lastColon) {
                     // try it as a hostname.
-                    int port = atoi(lastColon+1);
-                    if (!port) {
-                        Log_critical(ctx->logger, "Couldn't get port number from [%s]", key->bytes);
-                        exit(-1);
-                    }
-                    *lastColon = '\0';
-                    struct Sockaddr* adr = Sockaddr_fromName(key->bytes, perCallAlloc);
-                    if (adr != NULL) {
-                        Sockaddr_setPort(adr, port);
-                        key = String_new(Sockaddr_print(adr, perCallAlloc), perCallAlloc);
-                    } else {
-                        Log_warn(ctx->logger, "Failed to lookup hostname [%s]", key->bytes);
-                        entry = entry->next;
-                        continue;
-                    }
+                    Log_critical(ctx->logger, "Couldn't add connection [%s], "
+                                                "hostnames aren't supported.", key->bytes);
+                    exit(-1);
                 }
                 Dict_putInt(value, String_CONST("interfaceNumber"), ifNum, perCallAlloc);
                 Dict_putString(value, String_CONST("address"), key, perCallAlloc);
