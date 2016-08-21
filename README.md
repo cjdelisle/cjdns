@@ -83,7 +83,7 @@ it will be downloaded and installed in the source tree.
 
 #### Debian-based distro:
 
-    sudo apt-get install nodejs git build-essential
+    sudo apt-get install nodejs git build-essential python2.7
 
 #### Fedora 22+ based distro:
 
@@ -115,6 +115,16 @@ Select version gcc-4.8.1p2 or more recent.
 Everything you need is available prebuild in FreeBSD' ports.
 
     pkg install gmake node
+
+#### Arch:
+
+You can install cjdns by running
+
+    pacman -S cjdns
+
+If you need to build from source, everything you need can be installed like this
+
+    pacman -S nodejs git base-devel
 
 ### 1. Retrieve cjdns from GitHub
 

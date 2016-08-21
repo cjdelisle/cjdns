@@ -41,13 +41,13 @@ masqurade.  Unfortunately, the latest Ubuntu as of the writing of this guide
 (13.04) only has 1.4.12, so you will need to download and install these
 packages (in order) before continuing:
 
-    wget http://ftp.us.debian.org/debian/pool/main/libn/libnfnetlink/libnfnetlink0_1.0.1-2_armhf.deb<br>
+    wget http://ftp.us.debian.org/debian/pool/main/libn/libnfnetlink/libnfnetlink0_1.0.1-2_armhf.deb
     dpkg -i libnfnetlink0_1.0.1-2_armhf.deb
 
-    wget http://mirrors.kernel.org/debian/pool/main/i/iptables/libxtables10_1.4.18-1_armhf.deb<br>
+    wget http://mirrors.kernel.org/debian/pool/main/i/iptables/libxtables10_1.4.18-1_armhf.deb
     dpkg -i libxtables10_1.4.18-1_armhf.deb
 
-    wget http://mirrors.kernel.org/debian/pool/main/i/iptables/iptables_1.4.18-1_armhf.deb<br>
+    wget http://mirrors.kernel.org/debian/pool/main/i/iptables/iptables_1.4.18-1_armhf.deb
     dpkg -i iptables_1.4.18-1_armhf.deb
 
 Obviously this will not be necessary if you already have iptables 1.4.17 or
