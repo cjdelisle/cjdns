@@ -15,13 +15,12 @@
 #ifndef ReachabilityAnnouncer_H
 #define ReachabilityAnnouncer_H
 
-#include "memory/Allocator.h"
-#include "util/log/Log.h"
-#include "util/events/EventBase.h"
-#include "crypto/random/Random.h"
-#include "subnode/AddrSet.h"
-#include "subnode/MsgCore.h"
 #include "dht/Address.h"
+#include "util/events/EventBase.h"
+#include "util/log/Log.h"
+#include "crypto/random/Random.h"
+#include "subnode/MsgCore.h"
+#include "subnode/SupernodeHunter.h"
 #include "util/Linker.h"
 Linker_require("subnode/ReachabilityAnnouncer.c");
 
@@ -31,16 +30,21 @@ struct ReachabilityAnnouncer
 };
 
 void ReachabilityAnnouncer_updatePeer(struct ReachabilityAnnouncer* ra,
-                                      struct Address* peer,
-                                      uint16_t mtu,
+                                      uint8_t ipv6[16],
+                                      uint64_t pathThemToUs
+                                      uint32_t mtu,
                                       uint16_t drops,
-                                      uint16_t latency);
+                                      uint16_t latency,
+                                      uint16_t penalty);
 
-void ReachabilityAnnouncer_setSupernode(struct ReachabilityAnnouncer* ra, struct Address* snode);
+void ReachabilityAnnouncer_peerGone(struct ReachabilityAnnouncer* ra, uint8_t ipv6[16]);
 
 struct ReachabilityAnnouncer* ReachabilityAnnouncer_new(struct Allocator* allocator,
                                                         struct Log* log,
                                                         struct EventBase* base,
-                                                        struct MsgCore* msgCore);
+                                                        struct Random* rand,
+                                                        struct MsgCore* msgCore,
+                                                        struct SupernodeHunter* snh,
+                                                        uint8_t* privateKey);
 
 #endif
