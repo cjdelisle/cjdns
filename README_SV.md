@@ -77,7 +77,7 @@ installeras i kodträdet.
 
 #### Debian-distibutioner
 
-    sudo apt-get install nodejs git build-essential
+    sudo apt-get install nodejs git build-essential python2.7
 
 #### Fedora 22+-distributioner
 
@@ -134,7 +134,7 @@ Kör cjdroute utan argument för HJÄLP:
 
 ### 0. Kontrollera att du har allting som behövs.
 
-    cat /dev/net/tun
+    LANG=C cat /dev/net/tun
 
 Om det står: `cat: /dev/net/tun: File descriptor in bad state` Bra!
 

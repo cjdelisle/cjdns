@@ -83,7 +83,7 @@ it will be downloaded and installed in the source tree.
 
 #### Debian-based distro:
 
-    sudo apt-get install nodejs git build-essential
+    sudo apt-get install nodejs git build-essential python2.7
 
 #### Fedora 22+ based distro:
 
@@ -140,7 +140,7 @@ Run cjdroute without options for HELP:
 
 ### 0. Make sure you've got the stuff.
 
-    cat /dev/net/tun
+    LANG=C cat /dev/net/tun
 
 If it says: `cat: /dev/net/tun: File descriptor in bad state` Good!
 
