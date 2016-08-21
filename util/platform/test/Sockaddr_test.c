@@ -69,19 +69,9 @@ static void parse()
     expectFailure("1.0.0.");
 }
 
-static void fromName()
-{
-    struct Allocator* alloc = MallocAllocator_new(20000);
-    Sockaddr_fromName("localhost", alloc);
-    // This will fail in some cases (eg dns hijacking)
-    //Assert_true(!Sockaddr_fromName("hasjklgyolgbvlbiogi", alloc));
-    Allocator_free(alloc);
-}
-
 
 int main()
 {
     parse();
-    fromName();
     return 0;
 }
