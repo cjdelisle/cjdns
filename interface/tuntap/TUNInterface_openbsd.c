@@ -69,7 +69,7 @@ struct Iface* TUNInterface_new(const char* interfaceName,
     // Since devices are numbered rather than named, it's not possible to have tun0 and cjdns0
     // so we'll skip the pretty names and call everything tunX
     if (assignedInterfaceName) {
-        if(ppa == -1) {
+        if (ppa == -1) {
             snprintf(assignedInterfaceName, TUNInterface_IFNAMSIZ, "%s", interfaceName);
         } else {
             snprintf(assignedInterfaceName, TUNInterface_IFNAMSIZ, "tun%d", ppa);
