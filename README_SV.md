@@ -77,7 +77,7 @@ installeras i kodträdet.
 
 #### Debian-distibutioner
 
-    sudo apt-get install nodejs git build-essential python
+    sudo apt-get install nodejs git build-essential python2.7
 
 #### Fedora 22+-distributioner
 

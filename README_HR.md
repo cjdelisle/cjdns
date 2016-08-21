@@ -112,7 +112,7 @@ it will be downloaded and installed in the source tree.
 
 #### Distribucija bazirana na Debian-u:
 
-    sudo apt-get install nodejs git build-essential python
+    sudo apt-get install nodejs git build-essential python2.7
 
 #### Distribucija bazirana na Fedori 22+:
 

@@ -77,7 +77,7 @@ Cjdns υλοποιεί ένα κρυπτογραφημένο δίκτυο IPV6 �
 
 #### Debian-based διανομή:
 
-    sudo apt-get install nodejs git build-essential python
+    sudo apt-get install nodejs git build-essential python2.7
 
 #### Fedora 22+ based διανομή:
 

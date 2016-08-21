@@ -83,7 +83,7 @@ it will be downloaded and installed in the source tree.
 
 #### Debian-based distro:
 
-    sudo apt-get install nodejs git build-essential python
+    sudo apt-get install nodejs git build-essential python2.7
 
 #### Fedora 22+ based distro:
 
