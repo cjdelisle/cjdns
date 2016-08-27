@@ -120,7 +120,7 @@ Everything you need is available prebuild in FreeBSD' ports.
 
 You can install cjdns by running
 
-    pacman -Syu cjdns
+    pacman -S cjdns
 
 If you need to build from source, everything you need can be installed like this
 
