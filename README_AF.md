@@ -343,7 +343,7 @@ without concern for permissions. To start cjdns as a non-root user, see
 
 ### 6. Get in IRC
 
-Welcome to the network! You're now a network administrator. There are
+Welkom na die netwerk! You're now a network administrator. There are
 responsibilities which come with being a network administrator which include
 being available in case there is something wrong with your equipment. You should
 stay on [IRC](#community) so that people can reach you.
@@ -359,8 +359,8 @@ that can interact with it.
 
 You can access the admin API with:
 
-* the **Python library**; see [here](contrib/python/README.md).
-* the **Perl library**, maintained by Mikey; see [here](contrib/perl/CJDNS/README).
+* die **Python library**; see [here](contrib/python/README.md).
+* die **Perl library**, maintained by Mikey; see [here](contrib/perl/CJDNS/README).
 
 
 [IRC Web]: http://chat.efnet.org/irc.cgi?chan=%23cjdns
