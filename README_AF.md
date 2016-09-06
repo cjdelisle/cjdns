@@ -117,7 +117,7 @@ Everything you need is available prebuild in FreeBSD' ports.
 
     pkg install gmake node
 
-### 1. Retrieve cjdns from GitHub
+### 1. Kry cjdns van GitHub
 
 Clone the repository from GitHub and change to the source directory:
 
