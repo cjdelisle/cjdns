@@ -175,7 +175,7 @@ read it and write to it:
     (umask 077 && ./cjdroute --genconf > cjdroute.conf)
 
 
-### 2. Find a friend
+### 2. Vind 'n vriend
 
 To get into an existing network (e.g. Hyperboria), you need to connect to
 someone who is already in the network. This is required for a number of
