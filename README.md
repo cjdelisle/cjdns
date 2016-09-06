@@ -332,7 +332,7 @@ To stop cjdns:
     sudo killall cjdroute
 
 If you are having problems use `killall cjdroute` to return to sanity. Use
-`pgrep cjdroute` or `top` to see if it running.
+`pgrep cjdroute` or `top` to see if it is running.
 
 **NOTE!**
 
