@@ -124,12 +124,12 @@ Clone the repository from GitHub and change to the source directory:
     git clone https://github.com/cjdelisle/cjdns.git cjdns
     cd cjdns
 
-### 2. Build
+### 2. Bou
 
     ./do
 
-Look for `Build completed successfully, type ./cjdroute to begin setup.`, then
-proceed below:
+Kyk uit vir `Build completed successfully, type ./cjdroute to begin setup.`, dan
+proceed onder:
 
 --------------------------------------------------------------------------------
 
