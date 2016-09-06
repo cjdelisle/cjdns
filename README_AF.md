@@ -241,7 +241,7 @@ following JSON syntax.
 
 **To allow your friend to initiate the connection INbound**
 
-In your conf file, you will see:
+In jou conf file, jy sal sien:
 
 ``` javascript
 "authorizedPasswords":
@@ -260,7 +260,7 @@ In your conf file, you will see:
 ],
 ```
 
-A conf file with multiple friend-nodes, setup INbound, should look like:
+'n conf file met multiple vriende-nodes, setup INbound, should look like:
 ``` javascript
 "authorizedPasswords":
 [
@@ -289,7 +289,7 @@ You need to give William Jevons (who is making the INbound connection) the follo
     "bind": "0.0.0.0:yourportnumberishere",`
 
 3. Their unique password that you uncommented or created: `"password": "thisisauniquestring_002"`
-4. Your public key: `"publicKey": "thisisauniqueKEY_001.k"`
+4. Jou publik sleutel: `"publicKey": "thisisauniqueKEY_001.k"`
 5. His username: "William Jevons"
 
 His login credentials will look something like this (with your IPv4 and port):
