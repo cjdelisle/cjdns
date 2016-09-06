@@ -120,11 +120,11 @@ Everything you need is available prebuild in FreeBSD' ports.
 
 You can install cjdns by running
 
-    pacman -S cjdns
+    pacman -Sy cjdns
 
 If you need to build from source, everything you need can be installed like this
 
-    pacman -S nodejs git base-devel
+    pacman -Sy nodejs git base-devel
     
 Alternatively, you may like to install via AUR from the package, `cjdns-git`.
 After Installation, The configuration file is located at `/etc/cjdroute.conf`.
