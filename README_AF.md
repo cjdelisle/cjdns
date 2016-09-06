@@ -139,11 +139,11 @@ Run cjdroute without options for HELP:
 
     ./cjdroute
 
-### 0. Make sure you've got the stuff.
+### 0. Maak seker jy het die dinge.
 
     cat /dev/net/tun
 
-As dit se: `cat: /dev/net/tun: File descriptor in bad state` Good!
+As dit se: `cat: /dev/net/tun: File descriptor in bad state` Goed!
 
 As dit se: `cat: /dev/net/tun: No such file or directory`, maak dit met:
 
@@ -151,9 +151,9 @@ As dit se: `cat: /dev/net/tun: No such file or directory`, maak dit met:
     sudo mknod /dev/net/tun c 10 200 &&
     sudo chmod 0666 /dev/net/tun
 
-Then `cat /dev/net/tun` again.
+Dan `cat /dev/net/tun` nog 'n tyd.
 
-If it says: `cat: /dev/net/tun: Permission denied` You're probably using a VPS
+As dit se: `cat: /dev/net/tun: Permission denied` You're probably using a VPS
 based on the OpenVZ virtualization platform. Ask your provider to enable the
 TUN/TAP device - this is standard protocol so they should know exactly what you
 need. If you're on OS X, don't worry about this step.
