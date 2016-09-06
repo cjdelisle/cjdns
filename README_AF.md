@@ -4,6 +4,7 @@
 [Hrvatski](README_HR.md)
 [Svenska](README_SV.md)
 [Ελληνικά](README_GR.md)
+[Afrikaans](README_AF.md)
 
 #### *Networking Reinvented*
 
@@ -327,7 +328,7 @@ If you want to have your logs written to a file:
 
     sudo ./cjdroute < cjdroute.conf > cjdroute.log
 
-To stop cjdns:
+Om cjdns te stop:
 
     sudo killall cjdroute
 
