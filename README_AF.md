@@ -142,9 +142,9 @@ Run cjdroute without options for HELP:
 
     cat /dev/net/tun
 
-If it says: `cat: /dev/net/tun: File descriptor in bad state` Good!
+As dit se: `cat: /dev/net/tun: File descriptor in bad state` Good!
 
-If it says: `cat: /dev/net/tun: No such file or directory`, create it using:
+As dit se: `cat: /dev/net/tun: No such file or directory`, maak dit met:
 
     sudo mkdir -p /dev/net &&
     sudo mknod /dev/net/tun c 10 200 &&
