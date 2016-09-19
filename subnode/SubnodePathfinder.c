@@ -21,6 +21,7 @@
 #include "subnode/FindNodeResponder.h"
 #include "subnode/PingResponder.h"
 #include "subnode/BoilerplateResponder.h"
+#include "subnode/ReachabilityCollector.h"
 #include "switch/NumberCompress.h"
 #include "dht/Address.h"
 #include "wire/DataHeader.h"
@@ -80,7 +81,11 @@ struct SubnodePathfinder_pvt
 
     struct ReachabilityAnnouncer* ra;
 
+    struct ReachabilityCollector* rc;
+
     uint8_t* privateKey;
+
+    String* encodingSchemeStr;
 
     //struct DHTModuleRegistry* registry;
     //struct NodeStore* nodeStore;
@@ -377,6 +382,20 @@ static Iface_DEFUN searchReq(struct Message* msg, struct SubnodePathfinder_pvt* 
     return NULL;
 }
 
+static void rcChange(struct ReachabilityCollector* rc,
+                     uint8_t nodeIpv6[16],
+                     uint64_t pathThemToUs,
+                     uint32_t mtu,
+                     uint16_t drops,
+                     uint16_t latency,
+                     uint16_t penalty,
+                     uint8_t encodingFormNum)
+{
+    struct SubnodePathfinder_pvt* pf = Identity_check((struct SubnodePathfinder_pvt*) rc->userData);
+    ReachabilityAnnouncer_updatePeer(
+        pf->ra, nodeIpv6, pathThemToUs, mtu, drops, latency, penalty, encodingFormNum);
+}
+
 static Iface_DEFUN peer(struct Message* msg, struct SubnodePathfinder_pvt* pf)
 {
     struct Address addr;
@@ -392,7 +411,7 @@ static Iface_DEFUN peer(struct Message* msg, struct SubnodePathfinder_pvt* pf)
 
     NodeCache_discoverNode(pf->nc, &addr);
 
-    ReachabilityAnnouncer_updatePeer(pf->ra, &addr, 0, 0xffff, 0xffff, 0xffff);
+    ReachabilityCollector_change(pf->rc, &addr);
 
     return sendNode(msg, &addr, 0xffffff00, pf);
 }
@@ -413,7 +432,10 @@ static Iface_DEFUN peerGone(struct Message* msg, struct SubnodePathfinder_pvt* p
 
     NodeCache_forgetNode(pf->nc, &addr);
 
-    ReachabilityAnnouncer_peerGone(pf->ra, &addr);
+    struct Address zaddr;
+    Bits_memcpy(&zaddr, &addr, Address_SIZE);
+    zaddr.path = 0;
+    ReachabilityCollector_change(pf->rc, &zaddr);
 
     // We notify about the node but with max metric so it will be removed soon.
     return sendNode(msg, &addr, 0xffffffff, pf);
@@ -537,7 +559,14 @@ void SubnodePathfinder_start(struct SubnodePathfinder* sp)
         pf->alloc, pf->log, pf->base, pf->myPeers, pf->msgCore, pf->myAddress);
 
     pf->ra = ReachabilityAnnouncer_new(
-        pf->alloc, pf->log, pf->base, pf->rand, pf->msgCore, pf->pub.snh, pf->privateKey);
+        pf->alloc, pf->log, pf->base, pf->rand, pf->msgCore, pf->pub.snh, pf->privateKey,
+            pf->encodingSchemeStr);
+
+    pf->rc = ReachabilityCollector_new(
+        pf->alloc, pf->msgCore, pf->log, pf->base, pf->br, pf->myAddress);
+
+    pf->rc->userData = pf;
+    pf->rc->onChange = rcChange;
 
     struct PFChan_Pathfinder_Connect conn = {
         .superiority_be = Endian_hostToBigEndian32(1),
@@ -571,6 +600,8 @@ struct SubnodePathfinder* SubnodePathfinder_new(struct Allocator* allocator,
     struct EncodingScheme* myScheme = NumberCompress_defineScheme(alloc);
     pf->br = BoilerplateResponder_new(myScheme, alloc);
     pf->nc = NodeCache_new(alloc, log, myAddress, base);
+
+    pf->encodingSchemeStr = EncodingScheme_serialize(myScheme, alloc);
 
     return &pf->pub;
 }

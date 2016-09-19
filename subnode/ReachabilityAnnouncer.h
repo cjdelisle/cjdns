@@ -15,6 +15,7 @@
 #ifndef ReachabilityAnnouncer_H
 #define ReachabilityAnnouncer_H
 
+#include "benc/String.h"
 #include "dht/Address.h"
 #include "util/events/EventBase.h"
 #include "util/log/Log.h"
@@ -29,14 +30,15 @@ struct ReachabilityAnnouncer
     int unused;
 };
 
+// (pathThemToUs == 0) -> peer is gone.
 void ReachabilityAnnouncer_updatePeer(struct ReachabilityAnnouncer* ra,
-                                      struct Address* addr,
+                                      uint8_t ipv6[16],
+                                      uint64_t pathThemToUs,
                                       uint32_t mtu,
                                       uint16_t drops,
                                       uint16_t latency,
-                                      uint16_t penalty);
-
-void ReachabilityAnnouncer_peerGone(struct ReachabilityAnnouncer* ra, struct Address* addr);
+                                      uint16_t penalty,
+                                      uint8_t encodingFormNum);
 
 struct ReachabilityAnnouncer* ReachabilityAnnouncer_new(struct Allocator* allocator,
                                                         struct Log* log,
@@ -44,6 +46,7 @@ struct ReachabilityAnnouncer* ReachabilityAnnouncer_new(struct Allocator* alloca
                                                         struct Random* rand,
                                                         struct MsgCore* msgCore,
                                                         struct SupernodeHunter* snh,
-                                                        uint8_t* privateKey);
+                                                        uint8_t* privateKey,
+                                                        String* encodingSchemeStr);
 
 #endif

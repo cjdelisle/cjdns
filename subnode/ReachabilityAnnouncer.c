@@ -16,7 +16,7 @@
 #include "util/events/Timeout.h"
 #include "util/Identity.h"
 #include "util/events/Time.h"
-#include "wire/Reachability.h"
+#include "wire/Announce.h"
 #include "crypto/Sign.h"
 
 #include "crypto_hash_sha512.h"
@@ -29,28 +29,28 @@
 #define ArrayList_NAME OfMessages
 #include "util/ArrayList.h"
 
-#define ArrayList_TYPE struct Reachability_Peer
+#define ArrayList_TYPE struct Announce_Peer
 #define ArrayList_NAME OfPeers
 #include "util/ArrayList.h"
 
 // -- Generic Functions -- //
 
-static struct Reachability_Peer* peerFromMsg(struct Message* msg, uint8_t ip[16])
+static struct Announce_Peer* peerFromMsg(struct Message* msg, uint8_t ip[16])
 {
     if (!msg) { return NULL; }
-    for (int i = Reachability_Header_SIZE; i < msg->length; i += Reachability_Peer_SIZE) {
-        Assert_true(i + Reachability_Peer_SIZE <= msg->length);
-        struct Reachability_Peer* peer = (struct Reachability_Peer*) &msg->bytes[i];
-        if (!Bits_memcmp(peer->ipv6, ip, 16)) { return peer; }
-    }
+    struct Announce_Peer* p = NULL;
+    do {
+        p = Announce_Peer_next(msg, p);
+        if (p && !Bits_memcmp(p->ipv6, ip, 16)) { return p; }
+    } while (p);
     return NULL;
 }
 
-static struct Reachability_Peer* peerFromLocalState(struct ArrayList_OfPeers* localState,
-                                                    uint8_t addr[16])
+static struct Announce_Peer* peerFromLocalState(struct ArrayList_OfPeers* localState,
+                                                uint8_t addr[16])
 {
     for (int i = 0; i < localState->length; i++) {
-        struct Reachability_Peer* peer = ArrayList_OfPeers_get(localState, i);
+        struct Announce_Peer* peer = ArrayList_OfPeers_get(localState, i);
         if (!Bits_memcmp(peer->ipv6, addr, 16)) { return peer; }
     }
     return NULL;
@@ -58,36 +58,22 @@ static struct Reachability_Peer* peerFromLocalState(struct ArrayList_OfPeers* lo
 
 static int64_t timestampFromMsg(struct Message* msg)
 {
-    struct Reachability_Header* hdr = (struct Reachability_Header*) msg->bytes;
-    Assert_true(msg->length >= Reachability_Header_SIZE);
-    return Reachability_Header_getTimestamp(hdr);
+    struct Announce_Header* hdr = (struct Announce_Header*) msg->bytes;
+    Assert_true(msg->length >= Announce_Header_SIZE);
+    return Announce_Header_getTimestamp(hdr);
 }
 
-static struct Reachability_Peer* peerFromSnodeState(struct ArrayList_OfMessages* snodeState,
-                                                    uint8_t ip[16],
-                                                    int64_t sinceTime)
+static struct Announce_Peer* peerFromSnodeState(struct ArrayList_OfMessages* snodeState,
+                                                uint8_t ip[16],
+                                                int64_t sinceTime)
 {
     for (int i = snodeState->length - 1; i >= 0; i--) {
         struct Message* msg = ArrayList_OfMessages_get(snodeState, i);
         if (sinceTime && sinceTime <= timestampFromMsg(msg)) { return NULL; }
-        struct Reachability_Peer* p = peerFromMsg(msg, ip);
+        struct Announce_Peer* p = peerFromMsg(msg, ip);
         if (p) { return p; }
     }
     return NULL;
-}
-
-static struct Reachability_Peer* peerFromMsgIt(struct Message* msg, struct Reachability_Peer* last)
-{
-    struct Reachability_Peer* next;
-    if (last) {
-        next = &last[1];
-    } else {
-        next = (struct Reachability_Peer*) &msg->bytes[Reachability_Header_SIZE];
-    }
-    if (next == (struct Reachability_Peer*) &msg->bytes[msg->length]) { return NULL; }
-    Assert_true((uintptr_t)next > (uintptr_t)msg->bytes);
-    Assert_true((uintptr_t)next < (uintptr_t)&msg->bytes[msg->length]);
-    return next;
 }
 
 // Calculate the sha512 of a message list where a given set of signed messages will corrispond
@@ -164,6 +150,7 @@ struct ReachabilityAnnouncer_pvt
     struct MsgCore* msgCore;
     struct Random* rand;
     struct SupernodeHunter* snh;
+    String* encodingSchemeStr;
 
     uint8_t signingKeypair[64];
     uint8_t pubSigningKey[32];
@@ -174,6 +161,8 @@ struct ReachabilityAnnouncer_pvt
 
     // The cjdns clock is monotonic and is calibrated once on launch so clockSkew
     // will be reliable even if the machine also has NTP and NTP also changes the clock
+    // clockSkew is literally the number of milliseconds which we believe our clock is ahead of
+    // our supernode's clock.
     int64_t clockSkew;
     struct Address snode;
 
@@ -186,11 +175,13 @@ struct ReachabilityAnnouncer_pvt
     //            loop.
     struct ArrayList_OfMessages* snodeState;
 
-    // This message has a head pad of size Reachability_Header_SIZE but that pad is garbage
+    // This message has a head pad of size Announce_Header_SIZE but that pad is garbage
     // the point of the pad is so that it will work correctly with peerFromMsg()
     struct Message* nextMsg;
 
     struct Message* msgOnWire;
+    // this is by our clock, not skewed to the snode time.
+    int64_t msgOnWireSentTime;
 
     // If true then when we send nextMsg, it will be a state reset of the node.
     bool resetState;
@@ -206,7 +197,7 @@ static int64_t getTime(struct ReachabilityAnnouncer_pvt* rap)
 {
     uint64_t now = Time_currentTimeMilliseconds(rap->base);
     Assert_true(!(now >> 63));
-    return (int64_t) now + rap->clockSkew;
+    return (int64_t) now - rap->clockSkew;
 }
 
 // Insert or update the state information for a peer in a msgList
@@ -215,15 +206,15 @@ static int64_t getTime(struct ReachabilityAnnouncer_pvt* rap)
 #define updatePeer_UPDATE 2
 #define updatePeer_ENOSPACE -1
 static int updatePeer(struct ReachabilityAnnouncer_pvt* rap,
-                      struct Reachability_Peer* refPeer,
+                      struct Announce_Peer* refPeer,
                       int64_t sinceTime)
 {
-    struct Reachability_Peer* peer = peerFromMsg(rap->nextMsg, refPeer->ipv6);
+    struct Announce_Peer* peer = peerFromMsg(rap->nextMsg, refPeer->ipv6);
     if (!peer) {
         // not in nextMsg
-    } else if (Bits_memcmp(peer, refPeer, Reachability_Peer_SIZE)) {
+    } else if (Bits_memcmp(peer, refPeer, Announce_Peer_SIZE)) {
         // Already exists in the nextMsg but is different, update it.
-        Bits_memcpy(peer, refPeer, Reachability_Peer_SIZE);
+        Bits_memcpy(peer, refPeer, Announce_Peer_SIZE);
         return updatePeer_UPDATE;
     } else {
         return updatePeer_NOOP;
@@ -233,7 +224,7 @@ static int updatePeer(struct ReachabilityAnnouncer_pvt* rap,
     if (!peer) {
         peer = peerFromSnodeState(rap->snodeState, refPeer->ipv6, sinceTime);
     }
-    if (peer && !Bits_memcmp(peer, refPeer, Reachability_Peer_SIZE)) {
+    if (peer && !Bits_memcmp(peer, refPeer, Announce_Peer_SIZE)) {
         // Already exists in the msgOnWire or snodeState, do nothing
         return updatePeer_NOOP;
     }
@@ -244,9 +235,9 @@ static int updatePeer(struct ReachabilityAnnouncer_pvt* rap,
         return updatePeer_ENOSPACE;
     }
 
-    Message_pop(rap->nextMsg, NULL, Reachability_Header_SIZE, NULL);
-    Message_push(rap->nextMsg, refPeer, Reachability_Peer_SIZE, NULL);
-    Message_push(rap->nextMsg, NULL, Reachability_Header_SIZE, NULL);
+    Message_pop(rap->nextMsg, NULL, Announce_Header_SIZE, NULL);
+    Message_push(rap->nextMsg, refPeer, Announce_Peer_SIZE, NULL);
+    Message_push(rap->nextMsg, NULL, Announce_Header_SIZE, NULL);
     return (peer) ? updatePeer_UPDATE : updatePeer_ADD;
 }
 
@@ -258,14 +249,14 @@ static void stateUpdate(struct ReachabilityAnnouncer_pvt* rap, enum Reachability
 
 static void removeLocalStatePeer(struct ReachabilityAnnouncer_pvt* rap, int i)
 {
-    struct Reachability_Peer* peer = ArrayList_OfPeers_remove(rap->localState, i);
+    struct Announce_Peer* peer = ArrayList_OfPeers_remove(rap->localState, i);
     Allocator_realloc(rap->alloc, peer, 0);
 }
 
-static struct Reachability_Peer* addLocalStatePeer(struct ReachabilityAnnouncer_pvt* rap,
-                                                   struct Reachability_Peer* p)
+static struct Announce_Peer* addLocalStatePeer(struct ReachabilityAnnouncer_pvt* rap,
+                                               struct Announce_Peer* p)
 {
-    struct Reachability_Peer* peer = Allocator_clone(rap->alloc, p);
+    struct Announce_Peer* peer = Allocator_clone(rap->alloc, p);
     ArrayList_OfPeers_add(rap->localState, peer);
     return peer;
 }
@@ -273,7 +264,7 @@ static struct Reachability_Peer* addLocalStatePeer(struct ReachabilityAnnouncer_
 static void loadAllState(struct ReachabilityAnnouncer_pvt* rap, bool assertNoChange)
 {
     for (int i = rap->localState->length - 1; i >= 0; i--) {
-        struct Reachability_Peer* peer = ArrayList_OfPeers_get(rap->localState, i);
+        struct Announce_Peer* peer = ArrayList_OfPeers_get(rap->localState, i);
         int ret = updatePeer(rap, peer, 0);
         Assert_true(!assertNoChange || !ret);
         if (updatePeer_ENOSPACE == ret) {
@@ -291,7 +282,7 @@ static void stateReset(struct ReachabilityAnnouncer_pvt* rap)
     }
     stateUpdate(rap, ReachabilityAnnouncer_State_FIRSTPEER);
     for (int i = rap->localState->length - 1; i >= 0; i--) {
-        struct Reachability_Peer* peer = ArrayList_OfPeers_get(rap->localState, i);
+        struct Announce_Peer* peer = ArrayList_OfPeers_get(rap->localState, i);
         if (!peer->label_be) {
             removeLocalStatePeer(rap, i);
             continue;
@@ -305,13 +296,13 @@ static void setupNextMsg(struct ReachabilityAnnouncer_pvt* rap)
 {
     struct Allocator* msgAlloc = Allocator_child(rap->alloc);
     struct Message* nextMsg = Message_new(0, 1024, msgAlloc);
-    Message_push(nextMsg, NULL, Reachability_Header_SIZE, NULL);
+    Message_push(nextMsg, NULL, Announce_Header_SIZE, NULL);
     rap->nextMsg = nextMsg;
 }
 
 static void addServerStateMsg(struct ReachabilityAnnouncer_pvt* rap, struct Message* msg)
 {
-    Assert_true(msg->length >= Reachability_Header_SIZE);
+    Assert_true(msg->length >= Announce_Header_SIZE);
     int64_t mostRecentTime = timestampFromMsg(msg);
     int64_t sinceTime = mostRecentTime - AGREED_TIMEOUT_MS;
     ArrayList_OfMessages_add(rap->snodeState, msg);
@@ -319,13 +310,14 @@ static void addServerStateMsg(struct ReachabilityAnnouncer_pvt* rap, struct Mess
     // Filter completely redundant messages and messages older than sinceTime
     struct Allocator* tempAlloc = Allocator_child(rap->alloc);
     struct ArrayList_OfPeers* peerList = ArrayList_OfPeers_new(tempAlloc);
-    for (int i = rap->snodeState->length; i >= 0; i--) {
+    for (int i = rap->snodeState->length - 1; i >= 0; i--) {
         bool redundant = true;
         struct Message* msg = ArrayList_OfMessages_get(rap->snodeState, i);
-        for (struct Reachability_Peer* p = peerFromMsgIt(msg, NULL); p; p = peerFromMsgIt(msg, p)) {
+        struct Announce_Peer* p;
+        for (p = Announce_Peer_next(msg, NULL); p; p = Announce_Peer_next(msg, p)) {
             bool inList = false;
             for (int j = 0; j < peerList->length; j++) {
-                struct Reachability_Peer* knownPeer = ArrayList_OfPeers_get(peerList, j);
+                struct Announce_Peer* knownPeer = ArrayList_OfPeers_get(peerList, j);
                 if (!Bits_memcmp(knownPeer->ipv6, p->ipv6, 16)) {
                     inList = true;
                     break;
@@ -340,10 +332,11 @@ static void addServerStateMsg(struct ReachabilityAnnouncer_pvt* rap, struct Mess
         if (redundant) {
             ArrayList_OfMessages_remove(rap->snodeState, i);
             Allocator_free(msg->alloc);
+        } else {
+            // We should be adding back all of the peers necessary to make redundant anything older
+            // than the most recent message, make sure that is the case.
+            Assert_true(timestampFromMsg(msg) >= sinceTime);
         }
-        // We should be adding back all of the peers necessary to make redundant anything older
-        // than the most recent message, make sure that is the case.
-        Assert_true(timestampFromMsg(msg) >= sinceTime);
     }
     Allocator_free(tempAlloc);
 }
@@ -356,30 +349,32 @@ void ReachabilityAnnouncer_updatePeer(struct ReachabilityAnnouncer* ra,
                                       uint32_t mtu,
                                       uint16_t drops,
                                       uint16_t latency,
-                                      uint16_t penalty)
+                                      uint16_t penalty,
+                                      uint8_t encodingFormNum)
 {
     struct ReachabilityAnnouncer_pvt* rap = Identity_check((struct ReachabilityAnnouncer_pvt*) ra);
-    struct Reachability_Peer refPeer = {
-        .label_be = Endian_hostToBigEndian64(pathThemToUs),
-        .mtu8_be = Endian_hostToBigEndian16((mtu / 8)),
-        .drops_be = Endian_hostToBigEndian16(drops),
-        .latency_be = Endian_hostToBigEndian16(latency),
-        .penalty_be = Endian_hostToBigEndian16(penalty)
-    };
+    struct Announce_Peer refPeer;
+    Announce_Peer_init(&refPeer);
+    refPeer.label_be = Endian_hostToBigEndian64(pathThemToUs);
+    refPeer.mtu8_be = Endian_hostToBigEndian16((mtu / 8));
+    refPeer.drops_be = Endian_hostToBigEndian16(drops);
+    refPeer.latency_be = Endian_hostToBigEndian16(latency);
+    refPeer.penalty_be = Endian_hostToBigEndian16(penalty);
+    refPeer.encodingFormNum = encodingFormNum;
     Bits_memcpy(refPeer.ipv6, ipv6, 16);
 
-    struct Reachability_Peer* peer = NULL;
+    struct Announce_Peer* peer = NULL;
     bool unreachable = true;
     for (int i = 0; i < rap->localState->length; i++) {
         peer = ArrayList_OfPeers_get(rap->localState, i);
         if (peer->label_be) { unreachable = false; }
         if (Bits_memcmp(refPeer.ipv6, peer->ipv6, 16)) { continue; }
-        if (!Bits_memcmp(&refPeer, peer, Reachability_Peer_SIZE)) { return; }
-        Bits_memcpy(peer, &refPeer, Reachability_Peer_SIZE);
+        if (!Bits_memcmp(&refPeer, peer, Announce_Peer_SIZE)) { return; }
+        Bits_memcpy(peer, &refPeer, Announce_Peer_SIZE);
         break;
     }
     if (!peer) {
-        if (!addr->path) { return; }
+        if (!pathThemToUs) { return; }
         peer = addLocalStatePeer(rap, &refPeer);
     }
     switch (updatePeer(rap, &refPeer, 0)) {
@@ -407,11 +402,6 @@ void ReachabilityAnnouncer_updatePeer(struct ReachabilityAnnouncer* ra,
     Assert_failure("wut");
 }
 
-void ReachabilityAnnouncer_peerGone(struct ReachabilityAnnouncer* ra, uint8_t ipv6[16])
-{
-    ReachabilityAnnouncer_updatePeer(ra, ipv6, 0, 0, 0xffff, 0xffff, 0xffff);
-}
-
 // -- Event Callbacks -- //
 
 static void onReplyTimeout(struct ReachabilityAnnouncer_pvt* rap, struct Address* snodeAddr)
@@ -419,7 +409,8 @@ static void onReplyTimeout(struct ReachabilityAnnouncer_pvt* rap, struct Address
     // time out -> re-integrate the content of the message onWire into unsent
     struct Message* mow = rap->msgOnWire;
     rap->msgOnWire = NULL;
-    for (struct Reachability_Peer* p = peerFromMsgIt(mow, NULL); p; p = peerFromMsgIt(mow, p)) {
+    struct Announce_Peer* p;
+    for (p = Announce_Peer_next(mow, NULL); p; p = Announce_Peer_next(mow, p)) {
         updatePeer(rap, p, 0);
     }
     Allocator_free(mow->alloc);
@@ -449,14 +440,21 @@ static void onReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom
         onReplyTimeout(rap, &q->target);
         return;
     }
-    int64_t sentTime = timestampFromMsg(rap->msgOnWire);
+    int64_t sentTime = rap->msgOnWireSentTime;
 
     addServerStateMsg(rap, rap->msgOnWire);
     rap->msgOnWire = NULL;
     rap->resetState = false;
-    int64_t now = rap->timeOfLastReply = getTime(rap);
+    int64_t now = rap->timeOfLastReply = Time_currentTimeMilliseconds(rap->base);
 
-    rap->clockSkew = estimateImprovedClockSkew(sentTime, *snodeRecvTime, now, rap->clockSkew);
+    int64_t oldClockSkew = rap->clockSkew;
+    Log_debug(rap->log, "sentTime [%lld]", (long long int) sentTime);
+    Log_debug(rap->log, "snodeRecvTime [%lld]", (long long int) *snodeRecvTime);
+    Log_debug(rap->log, "now [%lld]", (long long int) now);
+    Log_debug(rap->log, "oldClockSkew [%lld]", (long long int) oldClockSkew);
+    rap->clockSkew = estimateImprovedClockSkew(sentTime, *snodeRecvTime, now, oldClockSkew);
+    Log_debug(rap->log, "Adjusting clock skew by [%lld]",
+        (long long int) (rap->clockSkew - oldClockSkew));
 
     // We reset the state to NORMAL unless the synchronization of state took more space than
     // the last message could hold, however if the state was MSGFULL but then another message
@@ -464,7 +462,7 @@ static void onReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom
     // TODO(cjd): This implies a risk of oscillation wherein there is always a tiny bit of
     //            additional state keeps being added (bouncing link?)
     if (ReachabilityAnnouncer_State_MSGFULL != rap->state ||
-        Reachability_Header_SIZE == rap->nextMsg->length)
+        Announce_Header_SIZE == rap->nextMsg->length)
     {
         rap->state = ReachabilityAnnouncer_State_NORMAL;
     }
@@ -494,22 +492,25 @@ static void onAnnounceCycle(void* vRap)
     if (rap->msgOnWire) { return; }
     if (!rap->snode.path) { return; }
 
-    int64_t now = getTime(rap);
+    int64_t now = Time_currentTimeMilliseconds(rap->base);
+    int64_t snTime = now - rap->clockSkew;
 
     // Not time to send yet?
     if (now < rap->timeOfLastReply + rap->state) { return; }
 
     struct Message* msg = rap->msgOnWire = rap->nextMsg;
+    rap->msgOnWireSentTime = now;
 
     // re-announce any peer which is older than AGREED_TIMEOUT_MS
-    int64_t sinceTime = now - AGREED_TIMEOUT_MS;
+    int64_t sinceTime = snTime - AGREED_TIMEOUT_MS;
     // if (sinceTime > now) { sinceTime = 0; } // acording to GCC we do not need this.
     for (int i = 0; i < rap->snodeState->length; i++) {
         struct Message* snm = ArrayList_OfMessages_get(rap->snodeState, i);
         int64_t msgTime = timestampFromMsg(snm);
         if (msgTime < sinceTime) { break; }
-        for (struct Reachability_Peer* p = peerFromMsgIt(msg, NULL); p; p = peerFromMsgIt(msg, p)) {
-            struct Reachability_Peer* lPeer = peerFromLocalState(rap->localState, p->ipv6);
+        struct Announce_Peer* p;
+        for (p = Announce_Peer_next(msg, NULL); p; p = Announce_Peer_next(msg, p)) {
+            struct Announce_Peer* lPeer = peerFromLocalState(rap->localState, p->ipv6);
             if (!lPeer) { continue; }
             updatePeer(rap, lPeer, sinceTime);
         }
@@ -525,11 +526,18 @@ static void onAnnounceCycle(void* vRap)
         loadAllState(rap, true);
     }
 
-    struct Reachability_Header* hdr = (struct Reachability_Header*) msg->bytes;
-    Bits_memset(hdr, 0, Reachability_Header_SIZE);
-    Reachability_Header_setVersion(hdr, Reachability_Header_CURRENT_VERSION);
-    Reachability_Header_setReset(hdr, rap->resetState);
-    Reachability_Header_setTimestamp(hdr, now);
+    if (rap->resetState) {
+        Message_pop(msg, NULL, Announce_Header_SIZE, NULL);
+        Announce_EncodingScheme_push(msg, rap->encodingSchemeStr);
+        Message_push(msg, NULL, Announce_Header_SIZE, NULL);
+    }
+
+    struct Announce_Header* hdr = (struct Announce_Header*) msg->bytes;
+    Bits_memset(hdr, 0, Announce_Header_SIZE);
+    Announce_Header_setVersion(hdr, Announce_Header_CURRENT_VERSION);
+    Announce_Header_setReset(hdr, rap->resetState);
+    Assert_true(Announce_Header_isReset(hdr) == rap->resetState);
+    Announce_Header_setTimestamp(hdr, snTime);
     Bits_memcpy(hdr->pubSigningKey, rap->pubSigningKey, 32);
     Bits_memcpy(hdr->snodeIp, rap->snode.ip6.bytes, 16);
     Message_pop(msg, NULL, 64, NULL);
@@ -563,10 +571,12 @@ static void onSnodeChange(void* vRa,
     uint64_t clockSkewDiff = (clockSkew - rap->clockSkew) & ~(((uint64_t)1)<<63);
     // If the node is the same and the clock skew difference is less than 10 seconds,
     // just change path and continue.
-    if (!Bits_memcmp(rap->snode.key, snodeAddr->key, 32) && clockSkewDiff < 10000) {
+    if (!Bits_memcmp(rap->snode.key, snodeAddr->key, 32) && clockSkewDiff < 5000) {
+        Log_debug(rap->log, "Change Supernode (path only)");
         Bits_memcpy(&rap->snode, snodeAddr, Address_SIZE);
         return;
     }
+    Log_debug(rap->log, "Change Supernode");
     Bits_memcpy(&rap->snode, snodeAddr, Address_SIZE);
     rap->clockSkew = estimateClockSkew(sendTime, snodeRecvTime, getTime(rap));
     stateReset(rap);
@@ -578,7 +588,8 @@ struct ReachabilityAnnouncer* ReachabilityAnnouncer_new(struct Allocator* alloca
                                                         struct Random* rand,
                                                         struct MsgCore* msgCore,
                                                         struct SupernodeHunter* snh,
-                                                        uint8_t* privateKey)
+                                                        uint8_t* privateKey,
+                                                        String* encodingSchemeStr)
 {
     struct Allocator* alloc = Allocator_child(allocator);
     struct ReachabilityAnnouncer_pvt* rap =
@@ -592,6 +603,7 @@ struct ReachabilityAnnouncer* ReachabilityAnnouncer_new(struct Allocator* alloca
     rap->rand = rand;
     rap->snodeState = ArrayList_OfMessages_new(alloc);
     rap->localState = ArrayList_OfPeers_new(alloc);
+    rap->encodingSchemeStr = String_clone(encodingSchemeStr, alloc);
 
     rap->snh = snh;
     snh->onSnodeChange = onSnodeChange;
