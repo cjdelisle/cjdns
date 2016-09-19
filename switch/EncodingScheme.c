@@ -229,18 +229,23 @@ bool EncodingScheme_isSane(struct EncodingScheme* scheme)
 List* EncodingScheme_asList(struct EncodingScheme* list, struct Allocator* alloc)
 {
     Assert_ifParanoid(EncodingScheme_isSane(list));
-    String* prefixLen = String_new("prefixLen", alloc);
-    String* bitCount = String_new("bitCount", alloc);
-    String* prefix = String_new("prefix", alloc);
     List* scheme = List_new(alloc);
-    for (int i = 0; i < (int)list->count; i++) {
+    for (int i = (int)list->count - 1; i >= 0; i--) {
         Dict* form = Dict_new(alloc);
-        Dict_putInt(form, prefixLen, list->forms[i].prefixLen, alloc);
-        Dict_putInt(form, bitCount, list->forms[i].bitCount, alloc);
-        String* pfx = String_newBinary(NULL, 8, alloc);
-        uint32_t prefix_be = Endian_hostToBigEndian32(list->forms[i].prefix);
-        Hex_encode(pfx->bytes, 8, (uint8_t*)&prefix_be, 4);
-        Dict_putString(form, prefix, pfx, alloc);
+        Dict_putIntC(form, "prefixLen", list->forms[i].prefixLen, alloc);
+        Dict_putIntC(form, "bitCount", list->forms[i].bitCount, alloc);
+        if (list->forms[i].prefixLen == 0) {
+            Dict_putStringCC(form, "prefix", "", alloc);
+        } else {
+            String* pfx = String_newBinary(NULL, 8, alloc);
+            uint32_t prefix_be = Endian_hostToBigEndian32(list->forms[i].prefix);
+            Hex_encode(pfx->bytes, 8, (uint8_t*)&prefix_be, 4);
+            while (pfx->bytes[0] == '0' && pfx->len > 2) {
+                pfx->bytes += 2;
+                pfx->len -= 2;
+            }
+            Dict_putStringC(form, "prefix", pfx, alloc);
+        }
         List_addDict(scheme, form, alloc);
     }
     return scheme;
