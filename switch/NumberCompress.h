@@ -20,10 +20,10 @@
 #include <stdint.h>
 
 /* right now 4 implementations:
- * - fixed 4 bits: 15 peers
- * - fixed 8 bits: 240 peers
- * - dynamically 4-10 bits: 256 peers
- * - dynamically 5-9 bits: 256 peers
+ * - fixed 4 bits: 14 peers + self
+ * - fixed 8 bits: 254 peers + self
+ * - dynamically 4-8 bits: 256 peers
+ * - dynamically 3-5-8 bits: 256 peers
  */
 
 /* implementations
@@ -48,12 +48,14 @@ static inline uint32_t NumberCompress_f4_bitsUsedForLabel(const uint64_t label)
 
 static inline uint32_t NumberCompress_f4_bitsUsedForNumber(const uint32_t number)
 {
+    Assert_true(number < 16);
     return 4;
 }
 
 static inline uint64_t NumberCompress_f4_getCompressed(const uint32_t number,
                                                        const uint32_t bitsUsed)
 {
+    Assert_true(number < 16);
     return number;
 }
 
@@ -64,13 +66,7 @@ static inline uint32_t NumberCompress_f4_getDecompressed(const uint64_t label,
 }
 
 
-/**********************
- * (Fixed) 8 bit scheme: 240 peers + 1 router
- **********************/
-// Basic idea: encode number XXXXYYYY as YYYY(XXXX)'; (XXXX)' is XXXX+1 if XXXX != 0, otherwise XXXX
-// that way XXXX is never 1
-// so map numbers 16-239 -> 32-255, and 240 <-> 1, then swap nibbles
-# define NumberCompress_f8_INTERFACES 241
+# define NumberCompress_f8_INTERFACES 256
 
 static inline struct EncodingScheme* NumberCompress_f8_defineScheme(struct Allocator* alloc)
 {
@@ -79,56 +75,26 @@ static inline struct EncodingScheme* NumberCompress_f8_defineScheme(struct Alloc
 
 static inline uint32_t NumberCompress_f8_bitsUsedForLabel(const uint64_t label)
 {
-    if (1 == (label & 0xf)) {
-        return 4;
-    }
     return 8;
 }
 
 static inline uint32_t NumberCompress_f8_bitsUsedForNumber(const uint32_t number)
 {
-    if (1 == number) {
-        return 4;
-    }
+    Assert_true(number < 256);
     return 8;
 }
 
 static inline uint64_t NumberCompress_f8_getCompressed(const uint32_t number,
                                                        const uint32_t bitsUsed)
 {
-    if (1 == number) {
-        return 1;
-    }
-
-    if (240 == number) {
-        return 0x10;
-    }
-    uint32_t low = number & 0xf;
-    uint32_t high = (number >> 4) & 0xf;
-    if (high > 0) {
-        ++high;
-    }
-    return (low << 4) + high;
+    Assert_true(number < 256);
+    return number;
 }
 
 static inline uint32_t NumberCompress_f8_getDecompressed(const uint64_t label,
                                                          const uint32_t bitsUsed)
 {
-    uint32_t low = label & 0xf;
-    if (1 == low) {
-        return 1;
-    }
-
-    if (0x10 == (label & 0xff)) {
-        return 240;
-    }
-
-    uint32_t high = (label >> 4) & 0xf;
-
-    if (low > 0) {
-        --low; // low != 1
-    }
-    return (low << 4) + high;
+    return label & 0xff;
 }
 
 
@@ -245,7 +211,7 @@ static inline uint32_t NumberCompress_v3x5x8_getDecompressed(const uint64_t labe
  *   0   0000-1111               1          0-15         5 (00001 indicates loopback route)
  *   1   00000000-11111111       0          0-255        9
  */
-# define NumberCompress_v4x8_INTERFACES 257
+# define NumberCompress_v4x8_INTERFACES 256
 static inline struct EncodingScheme* NumberCompress_v4x8_defineScheme(struct Allocator* alloc)
 {
     return EncodingScheme_defineDynWidthScheme(
@@ -263,15 +229,11 @@ static inline uint32_t NumberCompress_v4x8_getDecompressed(const uint64_t label,
     if ((label & 0x1f) == 1) { return 1; }
     switch (bitsUsed) {
         case 5: {
-            uint32_t number = (label >> 1) & 0xfu;
-            if (1 == number) { return 0; }
-            return number;
+            return ((label >> 1) & 0xfu) ^ 1;
         }
 
         case 9: {
-            uint32_t number = (label >> 1) & 0xffu;
-            if (number) { number++; } // skip the number 1
-            return number;
+            return ((label >> 1) & 0xffu) ^ 1;
         }
 
         default: Assert_ifTesting(0);
@@ -286,17 +248,14 @@ static inline uint64_t NumberCompress_v4x8_getCompressed(uint32_t number,
     if (1 == number) { return 1; }
 
     switch (bitsUsed) {
-        case 5:
-            // 10001 is reserved
+        case 5: {
             Assert_ifTesting(number < 16);
-            // 0 is encoded as 0011, 1 is handled seperately
-            if (number == 0) { number = 1; }
-            return (number << 1) | 1;
-        case 9:
-            Assert_ifTesting(number <= 256);
-            // 2 is encoded as 1, 1 and 0 are both encoded as 0 because 1 never happens.
-            if (number) { number--; }
-            return number << 1;
+            return (number << 1) ^ 3;
+        }
+        case 9: {
+            Assert_ifTesting(number < 256);
+            return (number << 1) ^ 2;
+        }
         default: Assert_ifTesting(0);
     }
     return 0;
@@ -309,7 +268,7 @@ static inline uint32_t NumberCompress_v4x8_bitsUsedForLabel(const uint64_t label
 
 static inline uint32_t NumberCompress_v4x8_bitsUsedForNumber(const uint32_t number)
 {
-    Assert_ifTesting(number < 257);
+    Assert_ifTesting(number < 256);
     return (number < 15) ? 5 : 9;
 }
 

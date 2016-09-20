@@ -37,6 +37,22 @@ int EncodingScheme_getFormNum(struct EncodingScheme* scheme, uint64_t routeLabel
     return EncodingScheme_getFormNum_INVALID;
 }
 
+static bool is358(struct EncodingScheme* scheme)
+{
+    struct EncodingScheme_Form v358[3] = {
+        { .bitCount = 3, .prefixLen = 1, .prefix = 1, },
+        { .bitCount = 5, .prefixLen = 2, .prefix = 1<<1, },
+        { .bitCount = 8, .prefixLen = 2, .prefix = 0, }
+    };
+    if (scheme->count != 3) { return false; }
+    for (int i = 0; i < 3; i++) {
+        if (Bits_memcmp(&v358[i], &scheme->forms[i], sizeof(struct EncodingScheme_Form))) {
+            return false;
+        }
+    }
+    return true;
+}
+
 uint64_t EncodingScheme_convertLabel(struct EncodingScheme* scheme,
                                      uint64_t routeLabel,
                                      int convertTo)
@@ -68,7 +84,9 @@ uint64_t EncodingScheme_convertLabel(struct EncodingScheme* scheme,
     // #1 ensure 0001 always references interface 1, the self interface.
     // #2 reuse interface the binary encoding for interface 1 in other EncodingForms
     //    because interface 1 cannot be expressed as anything other than 0001
-    if ((currentForm->prefix & Bits_maxBits64(currentForm->prefixLen)) == 1) {
+    if (!is358(scheme)) {
+        // don't pull this bug-workaround crap for sane encodings schemes.
+    } else if ((currentForm->prefix & Bits_maxBits64(currentForm->prefixLen)) == 1) {
         // Swap 0 and 1 if the prefix is 1, this makes 0001 alias to 1
         // because 0 can never show up in the wild, we reuse it for 1.
         Assert_true(director != 0);
@@ -101,7 +119,9 @@ uint64_t EncodingScheme_convertLabel(struct EncodingScheme* scheme,
 
     struct EncodingScheme_Form* nextForm = &scheme->forms[convertTo];
 
-    if ((nextForm->prefix & Bits_maxBits64(nextForm->prefixLen)) == 1) {
+    if (!is358(scheme)) {
+        // don't pull this bug-workaround crap for sane encodings schemes.
+    } else  if ((nextForm->prefix & Bits_maxBits64(nextForm->prefixLen)) == 1) {
         // Swap 1 and 0 back if necessary.
         if (director == 0) { director++; }
     } else if (director) {
