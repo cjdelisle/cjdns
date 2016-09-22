@@ -77,7 +77,7 @@ Cjdns υλοποιεί ένα κρυπτογραφημένο δίκτυο IPV6 �
 
 #### Debian-based διανομή:
 
-    sudo apt-get install nodejs git build-essential
+    sudo apt-get install nodejs git build-essential python2.7
 
 #### Fedora 22+ based διανομή:
 
@@ -144,7 +144,7 @@ Cjdns υλοποιεί ένα κρυπτογραφημένο δίκτυο IPV6 �
 
 ### 0. Βεβαιωθείτε πως έχετε το πράμα.
 
-    cat /dev/net/tun
+    LANG=C cat /dev/net/tun
 
 Αν λέει: `cat: /dev/net/tun: File descriptor in bad state` Καλώς!
 
