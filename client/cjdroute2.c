@@ -239,7 +239,7 @@ static int genconf(struct Random* rand, bool eth)
            "                // Note: does not work with \"all\" pseudo-device-name\n"
            "                \"connectTo\":\n"
            "                {\n"
-           "                    // Credentials for connecting look similar to UDP credientials\n"
+           "                    // Credentials for connecting look similar to UDP credentials\n"
            "                    // except they begin with the mac address, for example:\n"
            "                    // \"01:02:03:04:05:06\":{\"password\":\"a\",\"publicKey\":\"b\"}\n"
            "                }\n"
