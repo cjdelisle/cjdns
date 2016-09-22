@@ -82,6 +82,13 @@ To stop the program in the debugger, use ctrl+c, this will put you in the debugg
 Once in the debugger shell, to quit the debugger use ctrl+d, if the program is
 running it will prompt you, another ctrl+d will be taken as a "yes, please quit".
 
+### Valgrind
+
+Generally doesn't work because Poly1305 (on most processors) does crypto on floating point
+registers and valgrind interprets the assembly and does not properly interpret floating
+point instructions so under valgrind tests will fail and the engine will not run correctly.
+See: http://www.valgrind.org/docs/manual/manual-core.html#manual-core.limits
+
 
 Profiling
 ---------
