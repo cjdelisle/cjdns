@@ -425,6 +425,7 @@ Builder.configure({
     builder.buildExecutable('contrib/c/privatetopublic.c');
     builder.buildExecutable('contrib/c/sybilsim.c');
     builder.buildExecutable('contrib/c/makekeys.c');
+    builder.buildExecutable('contrib/c/mkpasswd.c');
 
     builder.buildExecutable('crypto/random/randombytes.c');
 
