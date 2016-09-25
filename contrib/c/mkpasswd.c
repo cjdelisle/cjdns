@@ -26,7 +26,7 @@ int main()
 
     uint8_t password[32];
     Random_base32(rand, password, 32);
-    printf("%s", password);
+    printf("%s\n", password);
     return 0;
 }
 
