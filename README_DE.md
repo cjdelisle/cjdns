@@ -5,7 +5,7 @@
 #### *Netzwerk neu erfunden*
 
 Cjdns implementiert ein verschlüsseltes IPv6 Netzwerk basierend auf Public-Key Kryptografie für die Adressen-Zuteilung und es benutzt eine verteilte Hash-Tabelle für das Routing.
-Dies ermöglicht eine nahezu konfigurationslose Handhabung und verhindert viele Sicherheits- und Skalierbarkeits-Probleme, welche andere existierende Netzwerke plagen.
+Dies ermöglicht eine nahezu konfigurationslose Handhabung und verhindert viele Sicherheits- und Skalierungs-Probleme, welche andere existierende Netzwerke heimsuchen.
 
 [![Build Status](https://travis-ci.org/cjdelisle/cjdns.svg?branch=master)](https://travis-ci.org/cjdelisle/cjdns)
 [![tip for next commit](https://tip4commit.com/projects/941.svg)](https://tip4commit.com/github/cjdelisle/cjdns)
@@ -70,7 +70,7 @@ Diese Anleitungen sind für Debian-basierte Linux-Distributionen und OS X. Sie s
 
 ### 0. Installations-Abhängigkeiten
 
-Für beide Platformen ist es nicht zwingend notwendig, doch aber vorzuziehen, [Node.js](http://nodejs.org/) zu installieren. Wenn Node.js nicht verfügbar oder eine nicht akzeptierte Version ist, wird es in den Quellpfad heruntergeladen und installiert. 
+Für beide Platformen ist es nicht zwingend notwendig, doch aber vorzuziehen, [Node.js](http://nodejs.org/) zu installieren. Wenn Node.js nicht verfügbar oder eine nicht akzeptierte Version ist, wird es in den Quellpfad heruntergeladen und installiert.
 
 #### Debian-basierte distro:
 
