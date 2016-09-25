@@ -1730,6 +1730,7 @@ struct NodeList* NodeStore_getPeers(uint64_t label,
         if (!Node_isOneHopLink(next) && p != 1) { continue; }
         if (p == UINT64_MAX) { continue; }
         if (p < label) { continue; }
+        if (next->child->address.path != p) { continue; }
         int j;
         for (j = 0; j < (int)max; j++) {
             if (!out->nodes[j]) { continue; }
@@ -1743,23 +1744,21 @@ struct NodeList* NodeStore_getPeers(uint64_t label,
         }
     }
 
-    int size = 0;
+    out->size = 0;
     for (int i = 0; i < (int)max; i++) {
         if (out->nodes[i]) {
             out->nodes = &out->nodes[i];
-            size = max - i;
+            out->size = max - i;
             break;
         }
     }
 
-    for (int i = 0; i < size; i++) {
-        struct Node_Two* n = out->nodes[i];
-        out->nodes[i] = NULL;
-        Identity_check(n);
-        checkNode(n, store);
-        Assert_true(n->address.path);
-        if (n->address.path >= (((uint64_t)1)<<63)) { continue; }
-        out->nodes[out->size++] = Allocator_clone(allocator, n);
+    for (int i = 0; i < (int)out->size; i++) {
+        Identity_check(out->nodes[i]);
+        checkNode(out->nodes[i], store);
+        Assert_true(out->nodes[i]->address.path);
+        Assert_true(out->nodes[i]->address.path < (((uint64_t)1)<<63));
+        out->nodes[i] = Allocator_clone(allocator, out->nodes[i]);
     }
     return out;
 }
