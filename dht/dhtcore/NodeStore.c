@@ -1743,21 +1743,23 @@ struct NodeList* NodeStore_getPeers(uint64_t label,
         }
     }
 
-    out->size = 0;
+    int size = 0;
     for (int i = 0; i < (int)max; i++) {
         if (out->nodes[i]) {
             out->nodes = &out->nodes[i];
-            out->size = max - i;
+            size = max - i;
             break;
         }
     }
 
-    for (int i = 0; i < (int)out->size; i++) {
-        Identity_check(out->nodes[i]);
-        checkNode(out->nodes[i], store);
-        Assert_true(out->nodes[i]->address.path);
-        Assert_true(out->nodes[i]->address.path < (((uint64_t)1)<<63));
-        out->nodes[i] = Allocator_clone(allocator, out->nodes[i]);
+    for (int i = 0; i < size; i++) {
+        struct Node_Two* n = out->nodes[i];
+        out->nodes[i] = NULL;
+        Identity_check(n);
+        checkNode(n, store);
+        Assert_true(n->address.path);
+        if (n->address.path >= (((uint64_t)1)<<63)) { continue; }
+        out->nodes[out->size++] = Allocator_clone(allocator, n);
     }
     return out;
 }
