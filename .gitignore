@@ -12,6 +12,7 @@
 /publictoip6*
 /sybilsim*
 /makekeys*
+/mkpasswd*
 /node_build/node_modules/jshint
 /node_build/node_modules/.bin
 /randombytes*
