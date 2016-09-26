@@ -198,6 +198,7 @@ static void udpInterface(Dict* config, struct Context* ctx)
         Dict* resp = NULL;
         rpcCall0(String_CONST("UDPInterface_new"), d, ctx, ctx->alloc, &resp, true);
         int ifNum = *(Dict_getInt(resp, String_CONST("interfaceNumber")));
+        String* bindAddr = Dict_getString(resp, String_CONST("bindAddress"));
 
         // Make the connections.
         Dict* connectTo = Dict_getDict(udp, String_CONST("connectTo"));
@@ -226,7 +227,9 @@ static void udpInterface(Dict* config, struct Context* ctx)
                         exit(-1);
                     }
                     *lastColon = '\0';
-                    struct Sockaddr* adr = Sockaddr_fromName(key->bytes, perCallAlloc);
+                    struct Sockaddr* adr = Sockaddr_fromName(key->bytes, *bindAddr->bytes == '[' ?
+                                                             Sockaddr_AF_INET6 : Sockaddr_AF_INET,
+                                                             perCallAlloc);
                     if (adr != NULL) {
                         Sockaddr_setPort(adr, port);
                         key = String_new(Sockaddr_print(adr, perCallAlloc), perCallAlloc);

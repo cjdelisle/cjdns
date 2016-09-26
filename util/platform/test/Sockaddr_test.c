@@ -72,9 +72,9 @@ static void parse()
 static void fromName()
 {
     struct Allocator* alloc = MallocAllocator_new(20000);
-    Sockaddr_fromName("localhost", alloc);
+    Sockaddr_fromName("localhost", 0, alloc);
     // This will fail in some cases (eg dns hijacking)
-    //Assert_true(!Sockaddr_fromName("hasjklgyolgbvlbiogi", alloc));
+    //Assert_true(!Sockaddr_fromName("hasjklgyolgbvlbiogi", 0, alloc));
     Allocator_free(alloc);
 }
 
