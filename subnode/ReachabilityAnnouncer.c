@@ -150,6 +150,7 @@ struct ReachabilityAnnouncer_pvt
     struct MsgCore* msgCore;
     struct Random* rand;
     struct SupernodeHunter* snh;
+    struct EncodingScheme* myScheme;
     String* encodingSchemeStr;
 
     uint8_t signingKeypair[64];
@@ -346,11 +347,11 @@ static void addServerStateMsg(struct ReachabilityAnnouncer_pvt* rap, struct Mess
 void ReachabilityAnnouncer_updatePeer(struct ReachabilityAnnouncer* ra,
                                       uint8_t ipv6[16],
                                       uint64_t pathThemToUs,
+                                      uint64_t pathUsToThem,
                                       uint32_t mtu,
                                       uint16_t drops,
                                       uint16_t latency,
-                                      uint16_t penalty,
-                                      uint8_t encodingFormNum)
+                                      uint16_t penalty)
 {
     struct ReachabilityAnnouncer_pvt* rap = Identity_check((struct ReachabilityAnnouncer_pvt*) ra);
     struct Announce_Peer refPeer;
@@ -360,7 +361,7 @@ void ReachabilityAnnouncer_updatePeer(struct ReachabilityAnnouncer* ra,
     refPeer.drops_be = Endian_hostToBigEndian16(drops);
     refPeer.latency_be = Endian_hostToBigEndian16(latency);
     refPeer.penalty_be = Endian_hostToBigEndian16(penalty);
-    refPeer.encodingFormNum = encodingFormNum;
+    refPeer.encodingFormNum = EncodingScheme_getFormNum(rap->myScheme, pathUsToThem);
     Bits_memcpy(refPeer.ipv6, ipv6, 16);
 
     struct Announce_Peer* peer = NULL;
@@ -589,7 +590,7 @@ struct ReachabilityAnnouncer* ReachabilityAnnouncer_new(struct Allocator* alloca
                                                         struct MsgCore* msgCore,
                                                         struct SupernodeHunter* snh,
                                                         uint8_t* privateKey,
-                                                        String* encodingSchemeStr)
+                                                        struct EncodingScheme* myScheme)
 {
     struct Allocator* alloc = Allocator_child(allocator);
     struct ReachabilityAnnouncer_pvt* rap =
@@ -603,7 +604,8 @@ struct ReachabilityAnnouncer* ReachabilityAnnouncer_new(struct Allocator* alloca
     rap->rand = rand;
     rap->snodeState = ArrayList_OfMessages_new(alloc);
     rap->localState = ArrayList_OfPeers_new(alloc);
-    rap->encodingSchemeStr = String_clone(encodingSchemeStr, alloc);
+    rap->myScheme = myScheme;
+    rap->encodingSchemeStr = EncodingScheme_serialize(myScheme, alloc);
 
     rap->snh = snh;
     snh->onSnodeChange = onSnodeChange;

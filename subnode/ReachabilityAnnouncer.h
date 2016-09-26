@@ -22,6 +22,7 @@
 #include "crypto/random/Random.h"
 #include "subnode/MsgCore.h"
 #include "subnode/SupernodeHunter.h"
+#include "switch/EncodingScheme.h"
 #include "util/Linker.h"
 Linker_require("subnode/ReachabilityAnnouncer.c");
 
@@ -34,11 +35,11 @@ struct ReachabilityAnnouncer
 void ReachabilityAnnouncer_updatePeer(struct ReachabilityAnnouncer* ra,
                                       uint8_t ipv6[16],
                                       uint64_t pathThemToUs,
+                                      uint64_t pathUsToThem,
                                       uint32_t mtu,
                                       uint16_t drops,
                                       uint16_t latency,
-                                      uint16_t penalty,
-                                      uint8_t encodingFormNum);
+                                      uint16_t penalty);
 
 struct ReachabilityAnnouncer* ReachabilityAnnouncer_new(struct Allocator* allocator,
                                                         struct Log* log,
@@ -47,6 +48,6 @@ struct ReachabilityAnnouncer* ReachabilityAnnouncer_new(struct Allocator* alloca
                                                         struct MsgCore* msgCore,
                                                         struct SupernodeHunter* snh,
                                                         uint8_t* privateKey,
-                                                        String* encodingSchemeStr);
+                                                        struct EncodingScheme* myScheme);
 
 #endif

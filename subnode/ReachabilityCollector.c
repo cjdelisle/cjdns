@@ -136,15 +136,6 @@ static void onReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom
         return;
     }
 
-    int64_t* ei = Dict_getIntC(msg, "ei");
-    if (!ei) {
-        Log_debug(rcp->log, "Got message with no encodingFormNum");
-        return;
-    } else if (*ei > 0xff || *ei < 0) {
-        Log_debug(rcp->log, "Got message with invalid encodingFormNum");
-        return;
-    }
-
     for (int i = 0; i < results->length; i++) {
         path = results->elems[i].path;
         if (Bits_memcmp(results->elems[i].ip6.bytes, rcp->myAddr->ip6.bytes, 16)) { continue; }
@@ -152,7 +143,8 @@ static void onReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom
             Log_debug(rcp->log, "Found back-route for [%s]",
                 Address_toString(src, prom->alloc)->bytes);
             if (rcp->pub.onChange) {
-                rcp->pub.onChange(&rcp->pub, src->ip6.bytes, path, 0, 0xffff, 0xffff, 0xffff, *ei);
+                rcp->pub.onChange(
+                    &rcp->pub, src->ip6.bytes, path, src->path, 0, 0xffff, 0xffff, 0xffff);
             }
         }
         pi->pathThemToUs = path;

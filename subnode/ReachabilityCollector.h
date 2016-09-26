@@ -26,11 +26,11 @@ struct ReachabilityCollector;
 typedef void (* ReachabilityCollector_OnChange)(struct ReachabilityCollector* rc,
                                                 uint8_t nodeIpv6[16],
                                                 uint64_t pathThemToUs,
+                                                uint64_t pathUsToThem,
                                                 uint32_t mtu, // 0 = unknown
                                                 uint16_t drops, // 0xffff = unknown
                                                 uint16_t latency, // 0xffff = unknown
-                                                uint16_t penalty, // 0xffff = unknown
-                                                uint8_t encodingFormNum);
+                                                uint16_t penalty); // 0xffff = unknown
 
 struct ReachabilityCollector
 {

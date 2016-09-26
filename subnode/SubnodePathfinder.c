@@ -83,6 +83,8 @@ struct SubnodePathfinder_pvt
 
     struct ReachabilityCollector* rc;
 
+    struct EncodingScheme* myScheme;
+
     uint8_t* privateKey;
 
     String* encodingSchemeStr;
@@ -385,15 +387,15 @@ static Iface_DEFUN searchReq(struct Message* msg, struct SubnodePathfinder_pvt* 
 static void rcChange(struct ReachabilityCollector* rc,
                      uint8_t nodeIpv6[16],
                      uint64_t pathThemToUs,
+                     uint64_t pathUsToThem,
                      uint32_t mtu,
                      uint16_t drops,
                      uint16_t latency,
-                     uint16_t penalty,
-                     uint8_t encodingFormNum)
+                     uint16_t penalty)
 {
     struct SubnodePathfinder_pvt* pf = Identity_check((struct SubnodePathfinder_pvt*) rc->userData);
     ReachabilityAnnouncer_updatePeer(
-        pf->ra, nodeIpv6, pathThemToUs, mtu, drops, latency, penalty, encodingFormNum);
+        pf->ra, nodeIpv6, pathThemToUs, pathUsToThem, mtu, drops, latency, penalty);
 }
 
 static Iface_DEFUN peer(struct Message* msg, struct SubnodePathfinder_pvt* pf)
@@ -560,7 +562,7 @@ void SubnodePathfinder_start(struct SubnodePathfinder* sp)
 
     pf->ra = ReachabilityAnnouncer_new(
         pf->alloc, pf->log, pf->base, pf->rand, pf->msgCore, pf->pub.snh, pf->privateKey,
-            pf->encodingSchemeStr);
+            pf->myScheme);
 
     pf->rc = ReachabilityCollector_new(
         pf->alloc, pf->msgCore, pf->log, pf->base, pf->br, pf->myAddress);
@@ -597,11 +599,9 @@ struct SubnodePathfinder* SubnodePathfinder_new(struct Allocator* allocator,
     pf->msgCoreIf.send = incomingFromMsgCore;
     pf->privateKey = privateKey;
 
-    struct EncodingScheme* myScheme = NumberCompress_defineScheme(alloc);
-    pf->br = BoilerplateResponder_new(myScheme, alloc);
+    pf->myScheme = NumberCompress_defineScheme(alloc);
+    pf->br = BoilerplateResponder_new(pf->myScheme, alloc);
     pf->nc = NodeCache_new(alloc, log, myAddress, base);
-
-    pf->encodingSchemeStr = EncodingScheme_serialize(myScheme, alloc);
 
     return &pf->pub;
 }
