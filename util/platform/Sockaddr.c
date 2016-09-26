@@ -319,7 +319,7 @@ void Sockaddr_normalizeNative(void* nativeSockaddr)
 struct Sockaddr* Sockaddr_fromName(char* name, int addrFamily, struct Allocator* alloc)
 {
     struct addrinfo* servinfo;
-    struct addrinfo hints = {};
+    struct addrinfo hints = { 0 };
     hints.ai_family = addrFamily;
     if (getaddrinfo(name, 0, &hints, &servinfo) == 0) {
         struct Sockaddr* adr;

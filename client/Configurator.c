@@ -227,7 +227,9 @@ static void udpInterface(Dict* config, struct Context* ctx)
                         exit(-1);
                     }
                     *lastColon = '\0';
-                    struct Sockaddr* adr = Sockaddr_fromName(key->bytes, *bindAddr->bytes == '[' ? AF_INET6 : AF_INET, perCallAlloc);
+                    struct Sockaddr* adr = Sockaddr_fromName(key->bytes, *bindAddr->bytes == '[' ?
+                                                             Sockaddr_AF_INET6 : Sockaddr_AF_INET,
+                                                             perCallAlloc);
                     if (adr != NULL) {
                         Sockaddr_setPort(adr, port);
                         key = String_new(Sockaddr_print(adr, perCallAlloc), perCallAlloc);
