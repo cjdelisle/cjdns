@@ -127,7 +127,7 @@ static inline const void* Sockaddr_asNativeConst(const struct Sockaddr* sa)
     return (const void*)(&sa[1]);
 }
 
-struct Sockaddr* Sockaddr_fromName(char* name, struct Allocator* alloc);
+struct Sockaddr* Sockaddr_fromName(char* name, int addrFamily, struct Allocator* alloc);
 
 /**
  * Contrast with Sockaddr_fromNative(), Sockaddr_fromBytes() takes

@@ -316,10 +316,12 @@ void Sockaddr_normalizeNative(void* nativeSockaddr)
 #endif
 }
 
-struct Sockaddr* Sockaddr_fromName(char* name, struct Allocator* alloc)
+struct Sockaddr* Sockaddr_fromName(char* name, int addrFamily, struct Allocator* alloc)
 {
     struct addrinfo* servinfo;
-    if (getaddrinfo(name, 0, NULL, &servinfo) == 0) {
+    struct addrinfo hints = {};
+    hints.ai_family = addrFamily;
+    if (getaddrinfo(name, 0, &hints, &servinfo) == 0) {
         struct Sockaddr* adr;
         adr = Sockaddr_fromNative(servinfo->ai_addr, servinfo->ai_addrlen, alloc);
         freeaddrinfo(servinfo);
