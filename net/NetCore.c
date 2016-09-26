@@ -29,6 +29,7 @@
 #include "net/SwitchAdapter.h"
 #include "net/UpperDistributor.h"
 #include "net/TUNAdapter.h"
+#include "util/version/Version.h"
 
 struct NetCore* NetCore_new(uint8_t* privateKey,
                             struct Allocator* allocator,
@@ -49,6 +50,8 @@ struct NetCore* NetCore_new(uint8_t* privateKey,
     struct Address* myAddress = nc->myAddress = Allocator_calloc(alloc, sizeof(struct Address), 1);
     Bits_memcpy(myAddress->key, ca->publicKey, 32);
     Address_getPrefix(myAddress);
+    myAddress->protocolVersion = Version_CURRENT_PROTOCOL;
+    myAddress->path = 1;
 
     // lower half
 

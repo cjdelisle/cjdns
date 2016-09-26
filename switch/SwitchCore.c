@@ -15,7 +15,11 @@
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
 #include "switch/SwitchCore.h"
+
+// TODO(cjd): Get rid of NumberCompress so we can set encodingScheme at runtime.
+#define NumberCompress_OLD_CODE
 #include "switch/NumberCompress.h"
+
 #include "switch/Penalty.h"
 #include "util/Bits.h"
 #include "util/Checksum.h"

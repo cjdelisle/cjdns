@@ -15,6 +15,10 @@
 #ifndef Janitor_H
 #define Janitor_H
 
+#ifdef SUBNODE
+    #error "this file should not be included in subnode"
+#endif
+
 #include "crypto/random/Random.h"
 #include "dht/Address.h"
 #include "dht/dhtcore/RouterModule.h"

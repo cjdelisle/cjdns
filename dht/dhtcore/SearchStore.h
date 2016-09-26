@@ -15,6 +15,10 @@
 #ifndef SearchStore_H
 #define SearchStore_H
 
+#ifdef SUBNODE
+    #error "this file should not be included in subnode"
+#endif
+
 #include "dht/Address.h"
 #include "memory/Allocator.h"
 #include "benc/Object.h"

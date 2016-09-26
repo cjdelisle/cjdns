@@ -20,6 +20,7 @@
 #include "subnode/AddrSet.h"
 #include "subnode/MsgCore.h"
 #include "subnode/BoilerplateResponder.h"
+#include "switch/EncodingScheme.h"
 #include "util/Linker.h"
 
 Linker_require("subnode/GetPeersResponder.c");
@@ -34,6 +35,7 @@ struct GetPeersResponder* GetPeersResponder_new(struct Allocator* allocator,
                                                 struct AddrSet* peers,
                                                 struct Address* selfAddr,
                                                 struct MsgCore* msgCore,
-                                                struct BoilerplateResponder* br);
+                                                struct BoilerplateResponder* br,
+                                                struct EncodingScheme* myScheme);
 
 #endif

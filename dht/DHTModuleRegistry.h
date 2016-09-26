@@ -15,6 +15,10 @@
 #ifndef DHTModuleRegistry_H
 #define DHTModuleRegistry_H
 
+#ifdef SUBNODE
+    #error "this file should not be included in subnode"
+#endif
+
 #include "benc/Dict.h"
 #include "dht/DHTMessage.h"
 #include "memory/Allocator.h"

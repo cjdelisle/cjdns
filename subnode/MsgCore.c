@@ -21,7 +21,6 @@
 #include "benc/serialization/standard/BencMessageReader.h"
 #include "benc/serialization/standard/BencMessageWriter.h"
 #include "switch/EncodingScheme.h"
-#include "switch/NumberCompress.h"
 #include "util/Escape.h"
 #include "wire/Message.h"
 #include "wire/DataHeader.h"
@@ -293,7 +292,8 @@ static Iface_DEFUN incoming(struct Message* msg, struct Iface* interRouterIf)
 struct MsgCore* MsgCore_new(struct EventBase* base,
                             struct Random* rand,
                             struct Allocator* allocator,
-                            struct Log* log)
+                            struct Log* log,
+                            struct EncodingScheme* scheme)
 {
     struct Allocator* alloc = Allocator_child(allocator);
     struct MsgCore_pvt* mcp = Allocator_calloc(alloc, sizeof(struct MsgCore_pvt), 1);
@@ -303,8 +303,8 @@ struct MsgCore* MsgCore_new(struct EventBase* base,
     mcp->pinger = Pinger_new(base, rand, log, alloc);
     mcp->log = log;
 
-    mcp->scheme = NumberCompress_defineScheme(alloc);
-    mcp->schemeDefinition = EncodingScheme_serialize(mcp->scheme, alloc);
+    mcp->scheme = scheme;
+    mcp->schemeDefinition = EncodingScheme_serialize(scheme, alloc);
 
     return &mcp->pub;
 }

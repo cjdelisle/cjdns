@@ -15,7 +15,6 @@
 #include "subnode/GetPeersResponder.h"
 #include "subnode/BoilerplateResponder.h"
 #include "dht/dhtcore/ReplySerializer.h"
-#include "switch/NumberCompress.h"
 #include "util/Identity.h"
 
 #define GETPEERS_RESPONSE_NODES 8
@@ -30,6 +29,7 @@ struct GetPeersResponder_pvt
     struct MsgCore* msgCore;
     struct Address* selfAddr;
     struct BoilerplateResponder* br;
+    struct EncodingScheme* myScheme;
     Identity
 };
 
@@ -64,8 +64,11 @@ static void onGetPeers(Dict* msg,
     Bits_memcpy(&outAddrs[GETPEERS_RESPONSE_NODES-1], gprp->selfAddr, Address_SIZE);
 
     if (label > 1) {
-        int bitsUsed = NumberCompress_bitsUsedForLabel(label);
-        label = (label & Bits_maxBits64(bitsUsed)) | 1 << bitsUsed;
+        int formNum = EncodingScheme_getFormNum(gprp->myScheme, label);
+        if (formNum > -1) {
+            int bitsUsed = EncodingScheme_formSize(&gprp->myScheme->forms[formNum]);
+            label = (label & Bits_maxBits64(bitsUsed)) | 1 << bitsUsed;
+        }
     }
     int size = 0;
     for (int i = 0; i < gprp->peers->length; i++) {
@@ -93,7 +96,8 @@ struct GetPeersResponder* GetPeersResponder_new(struct Allocator* allocator,
                                                 struct AddrSet* peers,
                                                 struct Address* selfAddr,
                                                 struct MsgCore* msgCore,
-                                                struct BoilerplateResponder* br)
+                                                struct BoilerplateResponder* br,
+                                                struct EncodingScheme* myScheme)
 {
     struct Allocator* alloc = Allocator_child(allocator);
     struct GetPeersResponder_pvt* gprp =
@@ -108,5 +112,6 @@ struct GetPeersResponder* GetPeersResponder_new(struct Allocator* allocator,
     gprp->handler->userData = gprp;
     gprp->handler->cb = onGetPeers;
     gprp->br = br;
+    gprp->myScheme = myScheme;
     return &gprp->pub;
 }

@@ -22,13 +22,12 @@
 #include "subnode/PingResponder.h"
 #include "subnode/BoilerplateResponder.h"
 #include "subnode/ReachabilityCollector.h"
-#include "switch/NumberCompress.h"
 #include "dht/Address.h"
 #include "wire/DataHeader.h"
 #include "wire/RouteHeader.h"
-#include "dht/ReplyModule.h"
-#include "dht/EncodingSchemeModule.h"
-#include "dht/SerializationModule.h"
+//#include "dht/ReplyModule.h"
+//#include "dht/EncodingSchemeModule.h"
+//#include "dht/SerializationModule.h"
 #include "dht/dhtcore/ReplySerializer.h"
 //#include "dht/dhtcore/RouterModule.h"
 //#include "dht/dhtcore/RouterModule_admin.h"
@@ -550,11 +549,14 @@ static void sendEvent(struct SubnodePathfinder_pvt* pf,
 void SubnodePathfinder_start(struct SubnodePathfinder* sp)
 {
     struct SubnodePathfinder_pvt* pf = Identity_check((struct SubnodePathfinder_pvt*) sp);
-    pf->msgCore = MsgCore_new(pf->base, pf->rand, pf->alloc, pf->log);
+    pf->msgCore = MsgCore_new(pf->base, pf->rand, pf->alloc, pf->log, pf->myScheme);
     Iface_plumb(&pf->msgCoreIf, &pf->msgCore->interRouterIf);
 
     PingResponder_new(pf->alloc, pf->log, pf->msgCore, pf->br);
-    GetPeersResponder_new(pf->alloc, pf->log, pf->myPeers, pf->myAddress, pf->msgCore, pf->br);
+
+    GetPeersResponder_new(
+        pf->alloc, pf->log, pf->myPeers, pf->myAddress, pf->msgCore, pf->br, pf->myScheme);
+
     FindNodeResponder_new(pf->alloc, pf->log, pf->msgCore, pf->base, pf->br, pf->nc);
 
     pf->pub.snh = SupernodeHunter_new(
@@ -583,7 +585,8 @@ struct SubnodePathfinder* SubnodePathfinder_new(struct Allocator* allocator,
                                                 struct EventBase* base,
                                                 struct Random* rand,
                                                 struct Address* myAddress,
-                                                uint8_t* privateKey)
+                                                uint8_t* privateKey,
+                                                struct EncodingScheme* myScheme)
 {
     struct Allocator* alloc = Allocator_child(allocator);
     struct SubnodePathfinder_pvt* pf =
@@ -599,8 +602,8 @@ struct SubnodePathfinder* SubnodePathfinder_new(struct Allocator* allocator,
     pf->msgCoreIf.send = incomingFromMsgCore;
     pf->privateKey = privateKey;
 
-    pf->myScheme = NumberCompress_defineScheme(alloc);
-    pf->br = BoilerplateResponder_new(pf->myScheme, alloc);
+    pf->myScheme = myScheme;
+    pf->br = BoilerplateResponder_new(myScheme, alloc);
     pf->nc = NodeCache_new(alloc, log, myAddress, base);
 
     return &pf->pub;

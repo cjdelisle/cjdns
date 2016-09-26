@@ -15,6 +15,10 @@
 #ifndef DHTModule_H
 #define DHTModule_H
 
+#ifdef SUBNODE
+    #error "this file should not be included in subnode"
+#endif
+
 #include "dht/DHTMessage.h"
 
 /**

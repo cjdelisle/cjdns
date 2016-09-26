@@ -22,6 +22,7 @@
 #include "util/events/EventBase.h"
 #include "crypto/random/Random.h"
 #include "subnode/SupernodeHunter.h"
+#include "switch/EncodingScheme.h"
 #include "util/Linker.h"
 Linker_require("subnode/SubnodePathfinder.c");
 
@@ -38,6 +39,7 @@ struct SubnodePathfinder* SubnodePathfinder_new(struct Allocator* allocator,
                                                 struct EventBase* base,
                                                 struct Random* rand,
                                                 struct Address* myAddress,
-                                                uint8_t* privateKey);
+                                                uint8_t* privateKey,
+                                                struct EncodingScheme* myScheme);
 
 #endif

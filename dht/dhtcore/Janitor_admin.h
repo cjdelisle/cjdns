@@ -15,6 +15,10 @@
 #ifndef Janitor_admin_H
 #define Janitor_admin_H
 
+#ifdef SUBNODE
+    #error "this file should not be included in subnode"
+#endif
+
 #include "memory/Allocator.h"
 #include "admin/Admin.h"
 #include "dht/dhtcore/Janitor.h"

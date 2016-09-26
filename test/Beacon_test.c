@@ -12,6 +12,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#ifdef SUBNODE
+// TODO(cjd): Subnode beacon testing
+int main()
+{
+    return 0;
+}
+#else
 #include "crypto/Key.h"
 #include "io/FileWriter.h"
 #include "memory/MallocAllocator.h"
@@ -237,3 +244,4 @@ int main()
     Allocator_free(alloc);
     return 0;
 }
+#endif

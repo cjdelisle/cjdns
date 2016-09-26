@@ -21,7 +21,10 @@
 #include "dht/Address.h"
 #include "memory/Allocator.h"
 #include "switch/LabelSplicer.h"
+
+#define NumberCompress_OLD_CODE
 #include "switch/NumberCompress.h"
+
 #include "util/Identity.h"
 #include "util/log/Log.h"
 #include "util/Assert.h"

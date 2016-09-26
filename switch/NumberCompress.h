@@ -15,6 +15,10 @@
 #ifndef NumberCompress_H
 #define NumberCompress_H
 
+#if defined(SUBNODE) && !defined(NumberCompress_OLD_CODE)
+    #error "new code should be trying to use EncodingScheme instead of NumberCompress"
+#endif
+
 #include "switch/EncodingScheme.h"
 #include "util/Bits.h"
 #include <stdint.h>

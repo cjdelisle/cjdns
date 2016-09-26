@@ -15,6 +15,10 @@
 #ifndef SearchRunner_H
 #define SearchRunner_H
 
+#ifdef SUBNODE
+    #error "this file should not be included in subnode"
+#endif
+
 #include "dht/dhtcore/RouterModule.h"
 #include "dht/dhtcore/NodeStore.h"
 #include "dht/dhtcore/RumorMill.h"

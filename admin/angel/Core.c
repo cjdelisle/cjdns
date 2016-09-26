@@ -47,6 +47,10 @@
 #include "memory/Allocator_admin.h"
 #include "net/SwitchPinger_admin.h"
 #include "net/UpperDistributor_admin.h"
+
+#define NumberCompress_OLD_CODE
+#include "switch/NumberCompress.h"
+
 #include "tunnel/IpTunnel_admin.h"
 #include "tunnel/RouteGen_admin.h"
 #include "util/events/EventBase.h"
@@ -113,6 +117,7 @@ struct Context
     struct EventBase* base;
     struct NetCore* nc;
     struct IpTunnel* ipTunnel;
+    struct EncodingScheme* encodingScheme;
     Identity
 };
 
@@ -215,6 +220,22 @@ static void initTunnel(Dict* args, void* vcontext, String* txid, struct Allocato
     sendResponse(String_CONST("none"), ctx->admin, txid, requestAlloc);
 }
 
+static void nodeInfo(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
+{
+    struct Context* const ctx = Identity_check((struct Context*) vcontext);
+    String* myAddr = Address_toString(ctx->nc->myAddress, requestAlloc);
+    String* schemeStr = EncodingScheme_serialize(ctx->encodingScheme, requestAlloc);
+    List* schemeList = EncodingScheme_asList(ctx->encodingScheme, requestAlloc);
+    Dict* out = Dict_new(requestAlloc);
+    Dict_putStringC(out, "myAddr", myAddr, requestAlloc);
+    char* schemeHex = Hex_print(schemeStr->bytes, schemeStr->len, requestAlloc);
+    Dict_putStringCC(out, "compressedSchemeHex", schemeHex, requestAlloc);
+    Dict_putListC(out, "encodingScheme", schemeList, requestAlloc);
+    Dict_putIntC(out, "version", Version_CURRENT_PROTOCOL, requestAlloc);
+    Dict_putStringCC(out, "error", "none", requestAlloc);
+    Admin_sendMessage(out, txid, ctx->admin);
+}
+
 void Core_init(struct Allocator* alloc,
                struct Log* logger,
                struct EventBase* eventBase,
@@ -237,10 +258,12 @@ void Core_init(struct Allocator* alloc,
     Iface_plumb(&nc->tunAdapt->ipTunnelIf, &ipTunnel->tunInterface);
     Iface_plumb(&nc->upper->ipTunnelIf, &ipTunnel->nodeInterface);
 
+    struct EncodingScheme* encodingScheme = NumberCompress_defineScheme(alloc);
+
     // The link between the Pathfinder and the core needs to be asynchronous.
     #ifdef SUBNODE
-        struct SubnodePathfinder* pf =
-            SubnodePathfinder_new(alloc, logger, eventBase, rand, nc->myAddress, privateKey);
+        struct SubnodePathfinder* pf = SubnodePathfinder_new(
+            alloc, logger, eventBase, rand, nc->myAddress, privateKey, encodingScheme);
     #else
         struct Pathfinder* pf = Pathfinder_register(alloc, logger, eventBase, rand, admin);
     #endif
@@ -283,6 +306,7 @@ void Core_init(struct Allocator* alloc,
     ctx->base = eventBase;
     ctx->ipTunnel = ipTunnel;
     ctx->nc = nc;
+    ctx->encodingScheme = encodingScheme;
 
     Admin_registerFunction("Core_exit", adminExit, ctx, true, NULL, admin);
 
@@ -298,6 +322,8 @@ void Core_init(struct Allocator* alloc,
             { .name = "tunfd", .required = 1, .type = "Int" },
             { .name = "type", .required = 0, .type = "Int" }
         }), admin);
+
+    Admin_registerFunction("Core_nodeInfo", nodeInfo, ctx, false, NULL, admin);
 }
 
 int Core_main(int argc, char** argv)

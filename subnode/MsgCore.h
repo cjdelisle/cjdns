@@ -21,6 +21,7 @@
 #include "benc/Dict.h"
 #include "memory/Allocator.h"
 #include "dht/Address.h"
+#include "switch/EncodingScheme.h"
 #include "util/log/Log.h"
 #include "util/Linker.h"
 Linker_require("subnode/MsgCore.c");
@@ -73,6 +74,7 @@ struct MsgCore
 struct MsgCore* MsgCore_new(struct EventBase* base,
                             struct Random* rand,
                             struct Allocator* allocator,
-                            struct Log* log);
+                            struct Log* log,
+                            struct EncodingScheme* scheme);
 
 #endif

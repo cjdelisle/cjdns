@@ -15,6 +15,7 @@
 #include "benc/String.h"
 #include "crypto/random/Random.h"
 #include "switch/EncodingScheme.h"
+#define NumberCompress_OLD_CODE
 #include "switch/NumberCompress.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
