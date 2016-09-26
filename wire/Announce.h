@@ -15,6 +15,7 @@
 #ifndef Announce_H
 #define Announce_H
 
+#include "util/version/Version.h"
 #include "util/Assert.h"
 #include "util/Endian.h"
 #include "util/Bits.h"
@@ -26,8 +27,29 @@
 
 enum Announce_Type {
     Announce_Type_ENCODING_SCHEME,
-    Announce_Type_PEER
+    Announce_Type_PEER,
+    Announce_Type_VERSION
 };
+
+struct Announce_Version
+{
+    // Announce_Version_SIZE
+    uint8_t length;
+
+    // Announce_Type_VERSION
+    uint8_t type;
+
+    uint16_t version_be;
+};
+#define Announce_Version_SIZE 4
+Assert_compileTime(sizeof(struct Announce_Version) == Announce_Version_SIZE);
+
+static void Announce_Version_init(struct Announce_Version* v)
+{
+    v->length = Announce_Version_SIZE;
+    v->type = Announce_Type_VERSION;
+    v->version_be = Endian_hostToBigEndian16(Version_CURRENT_PROTOCOL);
+}
 
 struct Announce_EncodingScheme
 {
@@ -70,9 +92,7 @@ static inline void Announce_EncodingScheme_push(struct Message* pushTo, String* 
  *     +                                                               +
  *  24 |                                                               |
  *     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *  28 |                                                               |
- *     +                             label                             +
- *  32 |                                                               |
+ *  28 |                             label                             |
  *     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  */
 struct Announce_Peer
@@ -112,9 +132,9 @@ struct Announce_Peer
 
     // Label for getting to this node from the given node
     // 0 means withdraw the link.
-    uint64_t label_be;
-} Gcc_PACKED;
-#define Announce_Peer_SIZE 36
+    uint32_t label_be;
+};
+#define Announce_Peer_SIZE 32
 Assert_compileTime(sizeof(struct Announce_Peer) == Announce_Peer_SIZE);
 
 static inline void Announce_Peer_init(struct Announce_Peer* peer)

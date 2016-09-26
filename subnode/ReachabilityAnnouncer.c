@@ -354,9 +354,15 @@ void ReachabilityAnnouncer_updatePeer(struct ReachabilityAnnouncer* ra,
                                       uint16_t penalty)
 {
     struct ReachabilityAnnouncer_pvt* rap = Identity_check((struct ReachabilityAnnouncer_pvt*) ra);
+
+    if (pathThemToUs > 0xffffffff) {
+        Log_debug(rap->log, "oversize path [%08llx]", (long long) pathThemToUs);
+        return;
+    }
+
     struct Announce_Peer refPeer;
     Announce_Peer_init(&refPeer);
-    refPeer.label_be = Endian_hostToBigEndian64(pathThemToUs);
+    refPeer.label_be = Endian_hostToBigEndian32(pathThemToUs);
     refPeer.mtu8_be = Endian_hostToBigEndian16((mtu / 8));
     refPeer.drops_be = Endian_hostToBigEndian16(drops);
     refPeer.latency_be = Endian_hostToBigEndian16(latency);
@@ -529,7 +535,13 @@ static void onAnnounceCycle(void* vRap)
 
     if (rap->resetState) {
         Message_pop(msg, NULL, Announce_Header_SIZE, NULL);
+
         Announce_EncodingScheme_push(msg, rap->encodingSchemeStr);
+
+        struct Announce_Version version;
+        Announce_Version_init(&version);
+        Message_push(msg, &version, Announce_Version_SIZE, NULL);
+
         Message_push(msg, NULL, Announce_Header_SIZE, NULL);
     }
 
