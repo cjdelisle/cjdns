@@ -430,6 +430,7 @@ static bool findBestParent0(struct Node_Two* node, struct NodeStore_pvt* store)
 
 static void findBestParent(struct Node_Two* node, struct NodeStore_pvt* store)
 {
+    uint64_t time0 = Time_currentTimeMilliseconds(store->base);
     if (!findBestParent0(node, store)) { return; }
     int ret = 0;
     int cycle = 0;
@@ -443,6 +444,10 @@ static void findBestParent(struct Node_Two* node, struct NodeStore_pvt* store)
             ret |= findBestParent0(n, store);
         }
     } while (ret);
+    uint64_t time1 = Time_currentTimeMilliseconds(store->base);
+    if ((int64_t)(time1 - time0) > 100) {
+        Log_warn(store->log, "findBestParent() took [%lld] ms", (long long) (time1 - time0));
+    }
 }
 
 /**
