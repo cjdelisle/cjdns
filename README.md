@@ -141,7 +141,7 @@ To stop it:
 
 Dependencies:
 
-      eopkg install nodejs git build-essential system.devel python
+      eopkg install nodejs git build-essential system.devel python gcc
       
 Then Follow the steps below:
 
