@@ -137,6 +137,16 @@ To stop it:
 
        systemctl stop cjdns
 
+#### Solus:
+
+Dependencies:
+
+      sudo eopkg install nodejs git build-essential system.devel python gcc binutils 
+      
+Then Follow the steps below:
+
+*Sorry for so many steps. A package is being worked on currently*
+
 ### 1. Retrieve cjdns from GitHub
 
 Clone the repository from GitHub and change to the source directory:
