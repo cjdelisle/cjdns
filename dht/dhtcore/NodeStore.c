@@ -396,17 +396,18 @@ static uint64_t guessCostOfChild(struct Node_Link* link)
  */
 static bool findBestParent0(struct Node_Two* node, struct NodeStore_pvt* store)
 {
+    node->marked = 0;
     if (node == store->pub.selfNode) { return false; }
     struct Node_Link* bestLink = NULL;
     uint64_t bestCost = UINT64_MAX;
     uint64_t bestPath = UINT64_MAX;
     for (struct Node_Link* link = node->reversePeers; link; link = link->nextPeer) {
         if (link->linkCost == UINT32_MAX) { continue; }
+        uint64_t cost = guessCostOfChild(link);
+        if (bestCost <= cost) { continue; }
         if (bestLink && Node_isOneHopLink(bestLink) && !Node_isOneHopLink(link)) { continue; }
         if (!Node_getBestParent(link->parent)) { continue; }
         if (Node_isAncestorOf(node, link->parent)) { continue; }
-        uint64_t cost = guessCostOfChild(link);
-        if (bestCost <= cost) { continue; }
         uint64_t path =
             extendRoute(link->parent->address.path,
             link->parent->encodingScheme,
@@ -422,6 +423,12 @@ static bool findBestParent0(struct Node_Two* node, struct NodeStore_pvt* store)
     if (bestCost != Node_getCost(node) || bestPath != node->address.path) {
         if (!Node_getBestParent(node)) { store->pub.linkedNodes++; }
         if (!bestLink) { store->pub.linkedNodes--; }
+        struct Node_Link* link = NULL;
+        RB_FOREACH(link, PeerRBTree, &node->peerTree) {
+            if (Node_getCost(node) > bestCost || Node_getBestParent(link->child) == link) {
+                link->child->marked = 1;
+            }
+        }
         setParentCostAndPath(node, bestLink, bestCost, bestPath, store);
         return true;
     }
@@ -441,12 +448,15 @@ static void findBestParent(struct Node_Two* node, struct NodeStore_pvt* store)
              n;
              n = NodeStore_getNextNode(&store->pub, n))
         {
-            ret |= findBestParent0(n, store);
+            if (n->marked) {
+                ret |= findBestParent0(n, store);
+            }
         }
     } while (ret);
     uint64_t time1 = Time_currentTimeMilliseconds(store->eventBase);
-    if ((int64_t)(time1 - time0) > 100) {
-        Log_warn(store->logger, "findBestParent() took [%lld] ms", (long long) (time1 - time0));
+    if ((int64_t)(time1 - time0) > 1) {
+        Log_warn(store->logger, "\n\nfindBestParent() took [%lld] ms\n\n",
+            (long long) (time1 - time0));
     }
 }
 
