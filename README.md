@@ -74,7 +74,7 @@ The cjdns developers.
 
 These instructions are for Debian-based Linux distributions and OS X. They should be
 informative enough for use on other distributions - just don't expect them to
-work verbatim. If you want to know what [operating system's base is go here](https://cloud.githubusercontent.com/assets/7539174/19056235/da0c5df0-897c-11e6-99ac-384d4412ef77.png).
+work verbatim. If you want to know what [operating system's base is go here](https://upload.wikimedia.org/wikipedia/commons/1/1b/Linux_Distribution_Timeline.svg).
 
 ### 0. Install dependencies
 
