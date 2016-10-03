@@ -267,6 +267,14 @@ static struct sock_fprog* mkFilter(struct Allocator* alloc, struct Except* eh)
             IFEQ(__NR_time, success),
         #endif
 
+        // NetPlatform_linux.c send recv
+        #ifdef __NR_send
+            IFEQ(__NR_send, success),
+        #endif
+        #ifdef __NR_recv
+            IFEQ(__NR_recv, success),
+        #endif
+
         // malloc()
         IFEQ(__NR_brk, success),
 
