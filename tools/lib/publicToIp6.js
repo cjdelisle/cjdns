@@ -74,6 +74,6 @@ var convert = module.exports.convert = function (pubKey) {
 };
 
 if (!module.parent) {
-    console.log(convert(process.argv[process.argv.length - 1]));
+    process.argv.slice(2).forEach(function (arg) { console.log(convert(arg)); });
 }
 //console.log(convert('rjndc8rvg194ddf2j5v679cfjcpmsmhv8p022q3lvpym21cqwyh0.k'));
