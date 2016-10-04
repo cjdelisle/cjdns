@@ -74,6 +74,12 @@ var convert = module.exports.convert = function (pubKey) {
 };
 
 if (!module.parent) {
-    process.argv.slice(2).forEach(function (arg) { console.log(convert(arg)); });
+    process.argv.slice(2).map(function (arg) {
+        if (arg.length !== 54 || arg.slice(-2) !== ".k") {
+            console.error("key [" + arg + "] does not end with .k");
+            process.exit(1);
+        }
+        return arg;
+    }).forEach(function (arg) { console.log(convert(arg)); });
 }
 //console.log(convert('rjndc8rvg194ddf2j5v679cfjcpmsmhv8p022q3lvpym21cqwyh0.k'));
