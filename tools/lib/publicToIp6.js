@@ -74,9 +74,13 @@ var convert = module.exports.convert = function (pubKey) {
 };
 
 if (!module.parent) {
-    process.argv.slice(2).map(function (arg) {
-        if (arg.length !== 54 || arg.slice(-2) !== ".k") {
-            console.error("key [" + arg + "] does not end with .k");
+    process.argv.slice(2).map(function (arg, i) {
+        if (arg.length !== 54) {
+            console.error("argument %s [%s] is too short to be a valid public key", i + 2, arg);
+            process.exit(1);
+        }
+        if (arg.slice(-2) !== ".k") {
+            console.error("argument %s [%s] does not end with .k", i + 2, arg);
             process.exit(1);
         }
         return arg;
