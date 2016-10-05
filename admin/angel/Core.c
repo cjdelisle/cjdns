@@ -75,6 +75,11 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#include <dirent.h>
+#include <sys/types.h>
+#include <errno.h>
+#include <string.h>
+
 // Failsafe: abort if more than 2^23 bytes are allocated (8MB)
 #define ALLOCATOR_FAILSAFE (1<<23)
 
@@ -98,15 +103,19 @@
 
 static void adminPing(Dict* input, void* vadmin, String* txid, struct Allocator* requestAlloc)
 {
-    Dict d = Dict_CONST(String_CONST("q"), String_OBJ(String_CONST("pong")), NULL);
-    Admin_sendMessage(&d, txid, (struct Admin*) vadmin);
+    Dict* d = Dict_new(requestAlloc);
+    Dict_putString(d, String_CONST("error"), String_new("none", requestAlloc), requestAlloc);
+    Dict_putString(d, String_CONST("q"), String_new("pong", requestAlloc), requestAlloc);
+    Admin_sendMessage(d, txid, (struct Admin*) vadmin);
 }
 
 static void adminPid(Dict* input, void* vadmin, String* txid, struct Allocator* requestAlloc)
 {
     int pid = getpid();
-    Dict d = Dict_CONST(String_CONST("pid"), Int_OBJ(pid), NULL);
-    Admin_sendMessage(&d, txid, (struct Admin*) vadmin);
+    Dict* d = Dict_new(requestAlloc);
+    Dict_putString(d, String_CONST("error"), String_new("none", requestAlloc), requestAlloc);
+    Dict_putInt(d, String_CONST("pid"), pid, requestAlloc);
+    Admin_sendMessage(d, txid, (struct Admin*) vadmin);
 }
 
 struct Context
@@ -179,8 +188,10 @@ static void initTunfd(Dict* args, void* vcontext, String* txid, struct Allocator
     Jmp_try(jmp) {
         int64_t* tunfd = Dict_getInt(args, String_CONST("tunfd"));
         int64_t* tuntype = Dict_getInt(args, String_CONST("type"));
+        Log_info(ctx->logger, "Got initTunFd() request [%d] [%d]", (int)*tunfd, (int)*tuntype);
         if (!tunfd || *tunfd < 0) {
-            String* error = String_printf(requestAlloc, "Invalid tunfd");
+            Log_warn(ctx->logger, "Invalid tunfd [%d]", (int)*tunfd);
+            String* error = String_printf(requestAlloc, "Invalid tunfd [%d]", tunfd);
             sendResponse(error, ctx->admin, txid, requestAlloc);
             return;
         }
@@ -189,14 +200,33 @@ static void initTunfd(Dict* args, void* vcontext, String* txid, struct Allocator
         struct Pipe* p = Pipe_forFiles(fileno, fileno, ctx->base, &jmp.handler, ctx->alloc);
         p->logger = ctx->logger;
         if (type == FileNo_Type_ANDROID) {
+            Log_info(ctx->logger, "Plumbing AndroidWrapper iface in initTunFd() request [%d] [%d]",
+                     (int)*tunfd, (int)*tuntype);
             struct AndroidWrapper* aw = AndroidWrapper_new(ctx->alloc, ctx->logger);
             Iface_plumb(&aw->externalIf, &p->iface);
             Iface_plumb(&aw->internalIf, &ctx->nc->tunAdapt->tunIf);
         } else {
+            Log_info(ctx->logger, "Plumbing iface in initTunFd() request [%d] [%d]",
+                     (int)*tunfd, (int)*tuntype);
             Iface_plumb(&p->iface, &ctx->nc->tunAdapt->tunIf);
         }
+        Log_info(ctx->logger, "Finished initTunFd() request [%d] [%d]", (int)*tunfd, (int)*tuntype);
+
+        String* path = String_printf(ctx->alloc, "/proc/%d/fd", getpid());
+        DIR* dir = opendir(path->bytes);
+        if (!dir) {
+            Log_warn(ctx->logger, "Unable to opendir() [%s] [%s]", path->bytes, strerror(errno));
+        } else {
+            struct dirent* ent;
+            while ((ent = readdir(dir))) {
+                Log_debug(ctx->logger, "[type=%d] %s/%s", ent->d_type, path->bytes, ent->d_name);
+            }
+            closedir(dir);
+        }
+
         sendResponse(String_CONST("none"), ctx->admin, txid, requestAlloc);
     } Jmp_catch {
+        Log_warn(ctx->logger, "Failed to configure tunnel [%s]", jmp.message);
         String* error = String_printf(requestAlloc, "Failed to configure tunnel [%s]", jmp.message);
         sendResponse(error, ctx->admin, txid, requestAlloc);
         return;

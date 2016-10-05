@@ -23,6 +23,12 @@
 #include "util/events/Time.h"
 #include "util/events/Timeout.h"
 
+#include <dirent.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <errno.h>
+#include <string.h>
+
 struct Context
 {
     struct FileNo_admin pub;
@@ -49,6 +55,18 @@ static void onResponse(struct FileNo_Promise* promise, int tunfd)
     struct FileNoRequest* fr= Identity_check((struct FileNoRequest*)promise->userData);
     Dict* resp = Dict_new(promise->alloc);
 
+    String* path = String_printf(fr->ctx->alloc, "/proc/%d/fd", getpid());
+    DIR* dir = opendir(path->bytes);
+    if (!dir) {
+        Log_warn(fr->ctx->logger, "Unable to opendir() [%s] [%s]", path->bytes, strerror(errno));
+    } else {
+        struct dirent* ent;
+        while ((ent = readdir(dir))) {
+            Log_debug(fr->ctx->logger, "[type=%d] %s/%s", ent->d_type, path->bytes, ent->d_name);
+        }
+        closedir(dir);
+    }
+
     Dict_putInt(resp, String_CONST("tunfd"), tunfd, promise->alloc);
     Dict_putInt(resp, String_CONST("type"), fr->type, promise->alloc);
     Dict_putString(resp, String_CONST("error"), String_CONST("none"), promise->alloc);
@@ -60,6 +78,8 @@ static void import(Dict* args, void* vcontext, String* txid, struct Allocator* r
     struct Context* ctx = Identity_check((struct Context*) vcontext);
     String* path = Dict_getString(args, String_CONST("path"));
     String* type = Dict_getString(args, String_CONST("type"));
+    Log_info(ctx->logger, "Got FileNo_import() request [%s] [%s]", path->bytes, type->bytes);
+
     char* err = NULL;
 
     if (Defined(win32)) {

@@ -23,6 +23,10 @@
 #include <inttypes.h>
 #include <stdio.h>
 
+#include <unistd.h>
+#include <errno.h>
+#include <string.h>
+
 // This structure used to be public and accessable.
 struct FileNo
 {
@@ -93,9 +97,17 @@ static void incoming(uv_pipe_t* stream,
     } else {
         struct FileNo_pvt* fileno = Identity_check((struct FileNo_pvt*) stream->data);
         if (fileno->peer.accepted_fd != -1) {
+            int oldFd = fileno->peer.accepted_fd;
+            int newFd = 123;
+            if (dup2(oldFd, newFd)) {
+                Log_warn(fileno->pub.logger,
+                         "dup2() failed [%d][%d] [%s]", oldFd, newFd, strerror(errno));
+            } else {
+                Log_info(fileno->pub.logger, "dup2() succeeded [%d][%d]", oldFd, newFd);
+            }
             struct FileNoContext* fctx = (struct FileNoContext*) fileno->pub.userData;
             if (fctx->pub.callback) {
-                fctx->pub.callback(&fctx->pub, fileno->peer.accepted_fd);
+                fctx->pub.callback(&fctx->pub, newFd);
             }
         }
 #endif
@@ -130,12 +142,12 @@ static void connected(uv_connect_t* req, int status)
 
     int ret;
     if (status) {
-        Log_info(fileno->pub.logger, "uv_pipe_connect() failed for pipe [%s] [%s]",
+        Log_warn(fileno->pub.logger, "uv_pipe_connect() failed for pipe [%s] [%s]",
                  fileno->pub.pipePath, uv_strerror(status) );
         uv_close((uv_handle_t*) &fileno->peer, onClose);
 
     } else if ((ret = uv_read2_start((uv_stream_t*)&fileno->peer, allocate, incoming))) {
-        Log_info(fileno->pub.logger, "uv_read2_start() failed for pipe [%s] [%s]",
+        Log_warn(fileno->pub.logger, "uv_read2_start() failed for pipe [%s] [%s]",
                  fileno->pub.pipePath, uv_strerror(ret));
         uv_close((uv_handle_t*) &fileno->peer, onClose);
 
@@ -152,7 +164,7 @@ static void listenCallback(uv_stream_t* server, int status)
         return;
     }
     if (status == -1) {
-        Log_info(fileno->pub.logger, "failed to accept pipe connection [%s] [%s]",
+        Log_warn(fileno->pub.logger, "failed to accept pipe connection [%s] [%s]",
                  fileno->pub.pipePath, uv_strerror(status) );
         return;
     }
@@ -211,11 +223,13 @@ static struct FileNo* FileNo_new(const char* path,
 
     int ret = uv_pipe_init(ctx->loop, &out->peer, 1);
     if (ret) {
+        Log_warn(logger, "uv_pipe_init() failed [%s]", uv_strerror(ret));
         Except_throw(eh, "uv_pipe_init() failed [%s]", uv_strerror(ret));
     }
 
     ret = uv_pipe_init(ctx->loop, &out->server, 1);
     if (ret) {
+        Log_warn(logger, "uv_pipe_init() failed [%s]", uv_strerror(ret));
         Except_throw(eh, "uv_pipe_init() failed [%s]", uv_strerror(ret));
     }
 
@@ -225,13 +239,15 @@ static struct FileNo* FileNo_new(const char* path,
     out->server.data = out;
     Identity_set(out);
 
-    uv_fs_t req;
-    uv_fs_unlink(out->peer.loop, &req, out->pub.pipePath, NULL);
+    // uv_fs_t req;
+    // uv_fs_unlink(out->peer.loop, &req, out->pub.pipePath, NULL);
 
     ret = uv_pipe_bind(&out->server, out->pub.pipePath);
     if (!ret) {
         ret = uv_listen((uv_stream_t*) &out->server, 1, listenCallback);
         if (ret) {
+            Log_warn(logger, "uv_listen() failed [%s] for pipe [%s]",
+                     uv_strerror(ret), out->pub.pipePath);
             Except_throw(eh, "uv_listen() failed [%s] for pipe [%s]",
                          uv_strerror(ret), out->pub.pipePath);
         }
@@ -239,6 +255,8 @@ static struct FileNo* FileNo_new(const char* path,
         return &out->pub;
     }
 
+    Log_warn(logger, "uv_pipe_bind() failed [%s] for pipe [%s]",
+             uv_strerror(ret), out->pub.pipePath);
     Except_throw(eh, "uv_pipe_bind() failed [%s] for pipe [%s]",
                  uv_strerror(ret), out->pub.pipePath);
 
