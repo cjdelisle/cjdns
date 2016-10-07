@@ -102,6 +102,8 @@ String* Address_toString(struct Address* addr, struct Allocator* alloc);
 
 struct Address* Address_fromString(String* str, struct Allocator* alloc);
 
+struct Address* Address_clone(struct Address* orig, struct Allocator* alloc);
+
 int Address_xorcmp(uint32_t target,
                    uint32_t negativeIfCloser,
                    uint32_t positiveIfCloser);

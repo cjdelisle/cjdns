@@ -316,18 +316,6 @@ void Sockaddr_normalizeNative(void* nativeSockaddr)
 #endif
 }
 
-struct Sockaddr* Sockaddr_fromName(char* name, struct Allocator* alloc)
-{
-    struct addrinfo* servinfo;
-    if (getaddrinfo(name, 0, NULL, &servinfo) == 0) {
-        struct Sockaddr* adr;
-        adr = Sockaddr_fromNative(servinfo->ai_addr, servinfo->ai_addrlen, alloc);
-        freeaddrinfo(servinfo);
-        return adr;
-    }
-    return NULL;
-}
-
 uint32_t Sockaddr_hash(const struct Sockaddr* addr)
 {
     return Hash_compute((uint8_t*)addr, addr->addrLen);

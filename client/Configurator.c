@@ -220,21 +220,9 @@ static void udpInterface(Dict* config, struct Context* ctx)
                     // it's a sockaddr, fall through
                 } else if (lastColon) {
                     // try it as a hostname.
-                    int port = atoi(lastColon+1);
-                    if (!port) {
-                        Log_critical(ctx->logger, "Couldn't get port number from [%s]", key->bytes);
-                        exit(-1);
-                    }
-                    *lastColon = '\0';
-                    struct Sockaddr* adr = Sockaddr_fromName(key->bytes, perCallAlloc);
-                    if (adr != NULL) {
-                        Sockaddr_setPort(adr, port);
-                        key = String_new(Sockaddr_print(adr, perCallAlloc), perCallAlloc);
-                    } else {
-                        Log_warn(ctx->logger, "Failed to lookup hostname [%s]", key->bytes);
-                        entry = entry->next;
-                        continue;
-                    }
+                    Log_critical(ctx->logger, "Couldn't add connection [%s], "
+                                                "hostnames aren't supported.", key->bytes);
+                    exit(-1);
                 }
                 Dict_putInt(value, String_CONST("interfaceNumber"), ifNum, perCallAlloc);
                 Dict_putString(value, String_CONST("address"), key, perCallAlloc);
@@ -359,10 +347,26 @@ static void ipTunnel(Dict* ifaceConf, struct Allocator* tempAlloc, struct Contex
     }
 }
 
+static void supernodes(List* supernodes, struct Allocator* tempAlloc, struct Context* ctx)
+{
+    if (!supernodes) { return; }
+    String* s;
+    for (int i = 0; (s = List_getString(supernodes, i)) != NULL; i++) {
+        Log_debug(ctx->logger, "Loading supernode connection to [%s]", s->bytes);
+        Dict reqDict = Dict_CONST(String_CONST("key"), String_OBJ(s), NULL);
+        if (!Defined(SUBNODE)) {
+            Log_debug(ctx->logger, "Skipping because SUBNODE is not enabled");
+            continue;
+        }
+        rpcCall0(String_CONST("SupernodeHunter_addSnode"), &reqDict, ctx, tempAlloc, NULL, true);
+    }
+}
+
 static void routerConfig(Dict* routerConf, struct Allocator* tempAlloc, struct Context* ctx)
 {
     tunInterface(Dict_getDict(routerConf, String_CONST("interface")), tempAlloc, ctx);
     ipTunnel(Dict_getDict(routerConf, String_CONST("ipTunnel")), tempAlloc, ctx);
+    supernodes(Dict_getList(routerConf, String_CONST("supernodes")), tempAlloc, ctx);
 }
 
 static void ethInterfaceSetBeacon(int ifNum, Dict* eth, struct Context* ctx)

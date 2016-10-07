@@ -34,7 +34,9 @@
 #include <arpa/inet.h>
 #include <linux/if.h>
 #include <linux/route.h>
-#include <linux/ipv6_route.h>
+#if ! defined(android)
+    #include <linux/ipv6_route.h>
+#endif
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
 #include <net/if.h>

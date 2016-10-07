@@ -13,6 +13,7 @@ near-zero-configuration networking, and prevents many of the security and
 scalability issues that plague existing networks.
 
 [![Build Status](https://travis-ci.org/cjdelisle/cjdns.svg?branch=master)](https://travis-ci.org/cjdelisle/cjdns)
+[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/387/badge)](https://bestpractices.coreinfrastructure.org/projects/387)
 [![tip for next commit](https://tip4commit.com/projects/941.svg)](https://tip4commit.com/github/cjdelisle/cjdns)
 [![irc](https://img.shields.io/badge/irc%20chat-%23cjdns-blue.svg)](https://kiwiirc.com/client/irc.efnet.org/?nick=visitor|?#cjdns)
 [![Version](https://img.shields.io/badge/Version-17.4-green.svg)](https://github.com/cjdelisle/cjdns/releases)
@@ -75,7 +76,7 @@ The cjdns developers.
 
 These instructions are for Debian-based Linux distributions and OS X. They should be
 informative enough for use on other distributions - just don't expect them to
-work verbatim.
+work verbatim. If you want to know what [operating system's base is go here](https://upload.wikimedia.org/wikipedia/commons/1/1b/Linux_Distribution_Timeline.svg).
 
 ### 0. Install dependencies
 
@@ -85,7 +86,7 @@ it will be downloaded and installed in the source tree.
 
 #### Debian-based distro:
 
-    sudo apt-get install nodejs git build-essential
+    sudo apt-get install nodejs git build-essential python2.7
 
 #### Fedora 22+ based distro:
 
@@ -111,7 +112,7 @@ The resume service restarts cjdns when the system wakes up from sleep.
 #### Gentoo
 
     emerge --ask nodejs sys-devel/gcc dev-lang/python:3.4 dev-vcs/git
-    
+
 #### OS X:
 
 Install with homebrew:
@@ -131,6 +132,36 @@ Select version gcc-4.8.1p2 or more recent.
 Everything you need is available prebuild in FreeBSD' ports.
 
     pkg install gmake node
+
+#### Arch:
+
+You can install cjdns by running
+
+    pacman -S cjdns
+
+If you need to build from source, everything you need can be installed like this
+
+    pacman -S nodejs git base-devel
+
+Alternatively, you may like to install via AUR from the package, `cjdns-git`.
+After Installation, The configuration file is located at `/etc/cjdroute.conf`.
+To start the service `cjdns.service`, do:
+
+        systemctl start cjdns
+
+To stop it:
+
+       systemctl stop cjdns
+
+#### Solus:
+
+Dependencies:
+
+      sudo eopkg install nodejs git build-essential system.devel python gcc binutils kernal-headers xorg-server-devel
+
+Then Follow the steps below:
+
+*Sorry for so many steps. A package is being worked on currently*
 
 ### 1. Retrieve cjdns from GitHub
 
@@ -156,7 +187,7 @@ Run cjdroute without options for HELP:
 
 ### 0. Make sure you've got the stuff.
 
-    cat /dev/net/tun
+    LANG=C cat /dev/net/tun
 
 If it says: `cat: /dev/net/tun: File descriptor in bad state` Good!
 
@@ -378,8 +409,31 @@ You can access the admin API with:
 * the **Python library**; see [here](contrib/python/README.md).
 * the **Perl library**, maintained by Mikey; see [here](contrib/perl/CJDNS/README).
 
+
+## Reporting issues
+1. Don't
+2. Get on IRC and talk to somebody
+3. What will happen is either
+ * Someone feels like fixing it
+ * You feel like fixing it
+ * Nobody cares about it and it will be forgotten for a while and maybe someone will hit it later
+ and fix it or else it will get wiped away in a refactoring
+ * Nobody can fix it at the moment but it is considered worth remembering because it has great
+ significance to the way the code is developed, in this case it needs to be explained in technical
+ terms by someone with strong familiarity with the code. They will make a pull request to the
+ docs/bugs directory.
+ 4. Alternatively you can report the issue on the https://github.com/hyperboria/cjdns.git repo.
+
+### Security
+Security issues should be reported on IRC the same as other bugs. We don't have a closed
+group of people with special knowledge so that means the default security reporting method is
+full disclosure.
+see: https://github.com/cjdelisle/cjdns/blob/master/doc/security_specification.md to see if a
+possible security issue is really a security issue.
+
 That time of year again... Time for some open source Projects!
 [![Hacktoberfest](https://img.shields.io/badge/Open%20Source-Hacktoberfest-orange.svg)](https://hacktoberfest.digitalocean.com/)
+
 [IRC Web]: http://chat.efnet.org/irc.cgi?chan=%23cjdns
 [Hyperboria]: http://hyperboria.net
 [Project Meshnet]: https://projectmeshnet.org

@@ -15,6 +15,10 @@
 #ifndef NodeStore_H
 #define NodeStore_H
 
+#ifdef SUBNODE
+    #error "this file should not be included in subnode"
+#endif
+
 #include "dht/Address.h"
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/RumorMill.h"

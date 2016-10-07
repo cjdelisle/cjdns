@@ -20,7 +20,14 @@
 
 #include <stdio.h>
 
-<?js require("./test/testcjdroute.js").generate(file, builder, this.async()); ?>
+#ifdef SUBNODE
+    #define testcjdroute_SUBNODE 1
+#else
+    #define testcjdroute_SUBNODE 0
+#endif
+
+<?js require("./test/testcjdroute.js").generate(
+    file, builder, testcjdroute_SUBNODE, this.async()); ?>
 
 <?js return file.testcjdroute_prototypes; ?>
 

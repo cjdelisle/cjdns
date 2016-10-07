@@ -83,6 +83,7 @@ void RumorMill__addNode(struct RumorMill* mill, struct Address* addr, const char
     struct RumorMill_pvt* rm = Identity_check((struct RumorMill_pvt*) mill);
 
     Address_getPrefix(addr);
+    Assert_true(addr->protocolVersion);
 
     for (int i = 0; i < rm->pub.count; i++) {
         if (rm->pub.addresses[i].path == addr->path &&

@@ -86,6 +86,8 @@ Builder.configure({
         '-D', 'PARANOIA=1'
     );
 
+    if (process.env['SUBNODE']) { builder.config.cflags.push('-DSUBNODE=1'); }
+
     if (process.env['GCOV']) {
         builder.config.cflags.push('-fprofile-arcs', '-ftest-coverage');
         builder.config.ldflags.push('-fprofile-arcs', '-ftest-coverage');
@@ -252,6 +254,9 @@ Builder.configure({
 
         builder.config.libs.push(dependencyDir + '/cnacl/jsbuild/libnacl.a');
         builder.config.includeDirs.push(dependencyDir + '/cnacl/jsbuild/include/');
+
+        // needed for Sign.c which pulls in crypto_int32.h
+        builder.config.includeDirs.push(dependencyDir + '/cnacl/jsbuild/include_internal/');
 
         Fs.exists(dependencyDir + '/cnacl/jsbuild/libnacl.a', waitFor(function (exists) {
             if (exists) { return; }
@@ -420,6 +425,7 @@ Builder.configure({
     builder.buildExecutable('contrib/c/privatetopublic.c');
     builder.buildExecutable('contrib/c/sybilsim.c');
     builder.buildExecutable('contrib/c/makekeys.c');
+    builder.buildExecutable('contrib/c/mkpasswd.c');
 
     builder.buildExecutable('crypto/random/randombytes.c');
 

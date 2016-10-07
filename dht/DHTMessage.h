@@ -15,6 +15,10 @@
 #ifndef DHTMessage_H
 #define DHTMessage_H
 
+#ifdef SUBNODE
+    #error "this file should not be included in subnode"
+#endif
+
 #include "benc/Dict.h"
 
 /**

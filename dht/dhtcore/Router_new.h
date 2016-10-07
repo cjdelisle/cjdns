@@ -15,6 +15,10 @@
 #ifndef Router_new_H
 #define Router_new_H
 
+#ifdef SUBNODE
+    #error "this file should not be included in subnode"
+#endif
+
 #include "memory/Allocator.h"
 #include "dht/dhtcore/Router.h"
 #include "dht/dhtcore/RouterModule.h"

@@ -15,6 +15,10 @@
 #ifndef NodeStore_admin_H
 #define NodeStore_admin_H
 
+#ifdef SUBNODE
+    #error "this file should not be included in subnode"
+#endif
+
 #include "admin/Admin.h"
 #include "dht/dhtcore/NodeStore.h"
 #include "memory/Allocator.h"

@@ -12,6 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#define NumberCompress_OLD_CODE
 #include "switch/NumberCompress.h"
 #include "switch/EncodingScheme.h"
 #include "memory/MallocAllocator.h"
@@ -74,7 +75,7 @@ static void numberCompressions_generic(
     struct EncodingScheme* scheme = defineScheme(alloc);
     for (uint32_t i = 0; i < nInterfaces; i++) {
         for (int j = 0; j < scheme->count; j++) {
-            int bits = scheme->forms[j].prefixLen + scheme->forms[j].bitCount;
+            int bits = EncodingScheme_formSize(&scheme->forms[j]);
             if ((int)bitsUsedForNumber(i) > bits) { continue; }
             uint64_t label = getCompressed(i, bits);
             for (int k = j; k < scheme->count; k++) {

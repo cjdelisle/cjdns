@@ -18,3 +18,4 @@ script:
   - "uname -a"
   - "bash node_build/run_jshint"
   - "./do"
+  - "./android_do"

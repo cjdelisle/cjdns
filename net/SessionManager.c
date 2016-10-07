@@ -318,6 +318,9 @@ static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface
     Bits_memcpy(header->ip6, session->pub.caSession->herIp6, 16);
     Bits_memcpy(header->publicKey, session->pub.caSession->herPublicKey, 32);
 
+    header->unused = 0;
+    header->flags = RouteHeader_flags_INCOMING;
+
     uint64_t path = Endian_bigEndianToHost64(switchHeader->label_be);
     if (!session->pub.sendSwitchLabel) {
         session->pub.sendSwitchLabel = path;
@@ -394,7 +397,13 @@ static void periodically(void* vSessionManager)
 
 static void needsLookup(struct SessionManager_pvt* sm, struct Message* msg)
 {
+    Assert_true(msg->length >= (RouteHeader_SIZE + DataHeader_SIZE));
     struct RouteHeader* header = (struct RouteHeader*) msg->bytes;
+
+    // We should never be sending CJDHT messages without full version, key, path known.
+    struct DataHeader* dataHeader = (struct DataHeader*) &header[1];
+    Assert_true(DataHeader_getContentType(dataHeader) != ContentType_CJDHT);
+
     if (Defined(Log_DEBUG)) {
         uint8_t ipStr[40];
         AddrTools_printIp(ipStr, header->ip6);
@@ -488,8 +497,9 @@ static Iface_DEFUN incomingFromInsideIf(struct Message* msg, struct Iface* iface
 {
     struct SessionManager_pvt* sm =
         Identity_containerOf(iface, struct SessionManager_pvt, pub.insideIf);
-    Assert_true(msg->length >= RouteHeader_SIZE);
+    Assert_true(msg->length >= RouteHeader_SIZE + DataHeader_SIZE);
     struct RouteHeader* header = (struct RouteHeader*) msg->bytes;
+    struct DataHeader* dataHeader = (struct DataHeader*) &header[1];
 
     struct SessionManager_Session_pvt* sess = sessionForIp6(header->ip6, sm);
     if (!sess) {
@@ -519,6 +529,15 @@ static Iface_DEFUN incomingFromInsideIf(struct Message* msg, struct Iface* iface
         header->sh.label_be = Endian_hostToBigEndian64(sess->pub.sendSwitchLabel);
         SwitchHeader_setVersion(&header->sh, SwitchHeader_CURRENT_VERSION);
     } else {
+        needsLookup(sm, msg);
+        return NULL;
+    }
+
+    // Forward secrecy, only send dht messages until the session is setup.
+    CryptoAuth_resetIfTimeout(sess->pub.caSession);
+    if (DataHeader_getContentType(dataHeader) != ContentType_CJDHT &&
+        CryptoAuth_getState(sess->pub.caSession) < CryptoAuth_HANDSHAKE3)
+    {
         needsLookup(sm, msg);
         return NULL;
     }
@@ -581,7 +600,7 @@ static Iface_DEFUN incomingFromEventIf(struct Message* msg, struct Iface* iface)
     }
 
     // Send what's on the buffer...
-    if (index > -1) {
+    if (index > -1 && CryptoAuth_getState(sess->pub.caSession) >= CryptoAuth_HANDSHAKE3) {
         struct BufferedMessage* bm = sm->bufMap.values[index];
         Iface_CALL(readyToSend, bm->msg, sm, sess);
         Map_BufferedMessages_remove(index, &sm->bufMap);

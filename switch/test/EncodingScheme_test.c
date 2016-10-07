@@ -15,6 +15,7 @@
 #include "benc/String.h"
 #include "crypto/random/Random.h"
 #include "switch/EncodingScheme.h"
+#define NumberCompress_OLD_CODE
 #include "switch/NumberCompress.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
@@ -194,26 +195,6 @@ static int convertLabel(struct EncodingScheme_Form* iform,
     uint64_t additional = label >> s.forms[0].prefixLen;
     uint64_t director = additional & Bits_maxBits64(s.forms[0].bitCount);
     additional = additional >> s.forms[0].bitCount;
-
-    // Conversions are necessary for two reasons.
-    // #1 ensure 0001 always references interface 1, the self interface.
-    // #2 reuse interface the binary encoding for interface 1 in other EncodingForms
-    //    because interface 1 cannot be expressed as anything other than 0001
-    if ((s.forms[0].prefix & Bits_maxBits64(s.forms[0].prefixLen)) == 1) {
-        // Swap 0 and 1 because zero is represented as 1 and 1 is handled specially
-        if (director == 1) { director--; }
-    } else if (director) {
-        // Reuse the number 1 for 2 and 2 for 3 etc. to gain an extra slot in all other encodings.
-        director++;
-    }
-
-    if ((s.forms[1].prefix & Bits_maxBits64(s.forms[1].prefixLen)) == 1) {
-        // Swap 1 and 0 back if necessary.
-        if (director == 0) { director++; }
-    } else if (director) {
-        // Or move the numbers down by one.
-        director--;
-    }
 
     uint64_t converted = (additional << s.forms[1].bitCount) | director;
     converted = (converted << s.forms[1].prefixLen) | s.forms[1].prefix;

@@ -212,6 +212,9 @@ static void sendPeer(uint32_t pathfinderId,
     node->path_be = Endian_hostToBigEndian64(peer->addr.path);
     node->metric_be = 0xffffffff;
     node->version_be = Endian_hostToBigEndian32(peer->addr.protocolVersion);
+    if (ev != PFChan_Core_PEER_GONE) {
+        Assert_true(peer->addr.protocolVersion);
+    }
     Message_push32(msg, pathfinderId, NULL);
     Message_push32(msg, ev, NULL);
     Iface_send(&ic->eventEmitterIf, msg);
@@ -413,7 +416,7 @@ static Iface_DEFUN receivedPostCryptoAuth(struct Message* msg,
 
         if (caState == CryptoAuth_ESTABLISHED) {
             moveEndpointIfNeeded(ep);
-            sendPeer(0xffffffff, PFChan_Core_PEER, ep);
+            //sendPeer(0xffffffff, PFChan_Core_PEER, ep);// version is not known at this point.
         } else {
             // prevent some kinds of nasty things which could be done with packet replay.
             // This is checking the message switch header and will drop it unless the label

@@ -127,8 +127,6 @@ static inline const void* Sockaddr_asNativeConst(const struct Sockaddr* sa)
     return (const void*)(&sa[1]);
 }
 
-struct Sockaddr* Sockaddr_fromName(char* name, struct Allocator* alloc);
-
 /**
  * Contrast with Sockaddr_fromNative(), Sockaddr_fromBytes() takes
  * input as the bytes of the address eg: Sockaddr_fromBytes({127,0,0,1}, Sockaddr_AF_INET, alloc)

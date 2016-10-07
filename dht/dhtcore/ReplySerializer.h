@@ -31,4 +31,9 @@ struct Address_List* ReplySerializer_parse(struct Address* fromNode,
                                            bool splicePath,
                                            struct Allocator* alloc);
 
+void ReplySerializer_serialize(struct Address_List* addrs,
+                               Dict* out,
+                               struct Address* convertDirectorFor,
+                               struct Allocator* alloc);
+
 #endif

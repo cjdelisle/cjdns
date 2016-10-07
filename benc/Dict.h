@@ -66,6 +66,8 @@ int32_t Dict_size(const Dict* dictionary);
  */
 int64_t* Dict_getInt(const Dict* dictionary, const String* key);
 
+#define Dict_getIntC(getFromHere, key) Dict_getInt(getFromHere, String_CONST(key))
+
 /**
  * Lookup a string value from a dictionary, if the value is not present
  * or is not a string type then NULL is returned.
@@ -75,6 +77,8 @@ int64_t* Dict_getInt(const Dict* dictionary, const String* key);
  * @return a string which is in the dictionary under the given key or else NULL.
  */
 String* Dict_getString(const Dict* dictionary, const String* key);
+
+#define Dict_getStringC(getFromHere, key) Dict_getString(getFromHere, String_CONST(key))
 
 /**
  * Lookup a dictionary value from another dictionary, if the value is not present
@@ -86,6 +90,8 @@ String* Dict_getString(const Dict* dictionary, const String* key);
  */
 Dict* Dict_getDict(const Dict* dictionary, const String* key);
 
+#define Dict_getDictC(getFromHere, key) Dict_getDict(getFromHere, String_CONST(key))
+
 /**
  * Lookup a list value from a dictionary, if the value is not present
  * or is not a list type then NULL is returned.
@@ -95,6 +101,8 @@ Dict* Dict_getDict(const Dict* dictionary, const String* key);
  * @return a list which is in the dictionary under the given key or else NULL.
  */
 List* Dict_getList(const Dict* dictionary, const String* key);
+
+#define Dict_getListC(getFromHere, key) Dict_getList(getFromHere, String_CONST(key))
 
 /*----------------------- Dictionary Put Functions -----------------------*/
 
@@ -113,6 +121,9 @@ Object* Dict_putInt(Dict* putIntoThis,
                     int64_t value,
                     struct Allocator* allocator);
 
+#define Dict_putIntC(putHere, key, val, alloc) \
+    Dict_putInt(putHere, String_new(key, alloc), val, alloc)
+
 /**
  * Insert a String object into another dictionary.
  * NOTE: This will not copy the given object, only add a pointer to it in the dictionary.
@@ -128,6 +139,12 @@ Object* Dict_putString(Dict* putIntoThis,
                        const String* key,
                        String* value,
                        struct Allocator* allocator);
+
+#define Dict_putStringC(putHere, key, val, alloc) \
+    Dict_putString(putHere, String_new(key, alloc), val, alloc)
+
+#define Dict_putStringCC(putHere, key, val, alloc) \
+    Dict_putStringC(putHere, key, String_new(val, alloc), alloc)
 
 /**
  * Insert a Dictionary object into another dictionary.
@@ -145,6 +162,9 @@ Object* Dict_putDict(Dict* putIntoThis,
                      Dict* value,
                      struct Allocator* allocator);
 
+#define Dict_putDictC(putHere, key, val, alloc) \
+    Dict_putDict(putHere, String_new(key, alloc), val, alloc)
+
 /**
  * Insert a List object into a dictionary.
  * NOTE: This will not copy the given object, only add a pointer to it in the dictionary.
@@ -160,6 +180,9 @@ Object* Dict_putList(Dict* putIntoThis,
                      const String* key,
                      List* value,
                      struct Allocator* allocator);
+
+#define Dict_putListC(putHere, key, val, alloc) \
+    Dict_putList(putHere, String_new(key, alloc), val, alloc)
 
 /*----------------------- Constructors -----------------------*/
 

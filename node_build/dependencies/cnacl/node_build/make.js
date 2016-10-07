@@ -96,7 +96,7 @@ var writeTypesHeaders = function(plan, onComplete) {
     "crypto_uint8.h",
     "crypto_int8.h",
     "crypto_uint16.h",
-    "crypto_int26.h",
+    "crypto_int16.h",
     "crypto_uint32.h",
     "crypto_int32.h",
     "crypto_uint64.h",

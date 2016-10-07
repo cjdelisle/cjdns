@@ -99,7 +99,12 @@ static int incomingFromDHT(struct DHTMessage* dmessage, void* vpf)
     Bits_memcpy(emsg->route.ip6, addr->ip6.bytes, 16);
     emsg->route.version_be = Endian_hostToBigEndian32(addr->protocolVersion);
     emsg->route.sh.label_be = Endian_hostToBigEndian64(addr->path);
+    SwitchHeader_setVersion(&emsg->route.sh, SwitchHeader_CURRENT_VERSION);
     Bits_memcpy(emsg->route.publicKey, addr->key, 32);
+
+    Assert_true(!Bits_isZero(emsg->route.publicKey, 32));
+    Assert_true(emsg->route.sh.label_be);
+    Assert_true(emsg->route.version_be);
 
     Message_push32(msg, PFChan_Pathfinder_SENDMSG, NULL);
 
@@ -358,6 +363,8 @@ static Iface_DEFUN discoveredPath(struct Message* msg, struct Pathfinder_pvt* pf
     // basically this is just to dampen the flood to the RM because otherwise it prevents Janitor
     // from getting any actual work done.
     if (nn->address.path < addr.path) { return NULL; }
+
+    addr.protocolVersion = nn->address.protocolVersion;
 
     Log_debug(pf->log, "Discovered path [%s]", Address_toString(&addr, msg->alloc)->bytes);
     RumorMill_addNode(pf->rumorMill, &addr);

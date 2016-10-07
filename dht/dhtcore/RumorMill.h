@@ -15,6 +15,10 @@
 #ifndef RumorMill_H
 #define RumorMill_H
 
+#ifdef SUBNODE
+    #error "this file should not be included in subnode"
+#endif
+
 #include "dht/Address.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"

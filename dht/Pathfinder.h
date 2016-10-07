@@ -15,6 +15,10 @@
 #ifndef Pathfinder_H
 #define Pathfinder_H
 
+#ifdef SUBNODE
+    #error "this file should not be included in subnode"
+#endif
+
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
 #include "util/events/EventBase.h"

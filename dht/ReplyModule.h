@@ -15,6 +15,10 @@
 #ifndef ReplyModule_H
 #define ReplyModule_H
 
+#ifdef SUBNODE
+    #error "this file should not be included in subnode"
+#endif
+
 #include "dht/DHTModuleRegistry.h"
 #include "util/Linker.h"
 Linker_require("dht/ReplyModule.c");

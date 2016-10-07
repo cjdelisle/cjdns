@@ -18,7 +18,6 @@
 #include "util/Checksum.h"
 #include "wire/Control.h"
 #include "wire/Error.h"
-#include "switch/NumberCompress.h"
 
 struct ControlHandler_pvt
 {

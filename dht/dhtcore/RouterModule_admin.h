@@ -15,6 +15,10 @@
 #ifndef RouterModule_admin_H
 #define RouterModule_admin_H
 
+#ifdef SUBNODE
+    #error "this file should not be included in subnode"
+#endif
+
 #include "admin/Admin.h"
 #include "dht/dhtcore/RouterModule.h"
 #include "dht/dhtcore/Router.h"

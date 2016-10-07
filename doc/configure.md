@@ -140,7 +140,7 @@ This specifies the settings for the connection interfaces to your node. Right no
                 // Node(s) to connect to manually.
                 "connectTo":
                 {
-                    // Credentials for connecting look similar to UDP credientials
+                    // Credentials for connecting look similar to UDP credentials
                     // except they begin with the mac address, for example:
                     // "01:02:03:04:05:06":{"password":"a","publicKey":"b"}
                 }

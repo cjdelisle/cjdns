@@ -81,7 +81,7 @@ The cjdns developers.
 
 ## 0. Устанавливаем утилиты компиляции.
 
-    sudo apt-get install nodejs git build-essential
+    sudo apt-get install nodejs git build-essential python2.7
 
 Установка  [Node.js](http://nodejs.org/) желательна, но не
 обязательна. Если Node.js не найден в процессе установки или его
@@ -111,7 +111,7 @@ The cjdns developers.
 
 ## 0: Убедитесь, что у вас всё установлено корректно.
 
-    cat /dev/net/tun
+    LANG=C cat /dev/net/tun
 
 Если ответ: `cat: /dev/net/tun: File descriptor in bad state`,то всё отлично!
 

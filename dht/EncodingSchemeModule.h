@@ -15,6 +15,10 @@
 #ifndef EncodingSchemeModule_H
 #define EncodingSchemeModule_H
 
+#ifdef SUBNODE
+    #error "this file should not be included in subnode"
+#endif
+
 #include "dht/DHTModuleRegistry.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"

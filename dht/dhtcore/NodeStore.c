@@ -365,22 +365,6 @@ static void setParentCostAndPath(struct Node_Two* node,
     }
 }
 
-static void unreachable(struct Node_Two* node, struct NodeStore_pvt* store)
-{
-    struct Node_Link* next = NULL;
-    RB_FOREACH_REVERSE(next, PeerRBTree, &node->peerTree) {
-        if (Node_getBestParent(next->child) == next) { unreachable(next->child, store); }
-    }
-
-    // We think the link is down, so reset the link cost.
-    struct Node_Link* bp = Node_getBestParent(node);
-    if (bp) {
-        //update(bp, UINT32_MAX, store);
-        store->pub.linkedNodes--;
-    }
-    setParentCostAndPath(node, NULL, UINT64_MAX, UINT64_MAX, store);
-}
-
 /**
  * This is called when we have no idea what the cost should be for the next hop
  * because the path we previously used to get to it is broken and we need to use
@@ -410,8 +394,9 @@ static uint64_t guessCostOfChild(struct Node_Link* link)
  * this node and recursively call findBestParent on the link->child for each of this node's
  * outgoing links (in case those nodes can update their paths too).
  */
-static void findBestParent(struct Node_Two* node, struct NodeStore_pvt* store)
+static bool findBestParent0(struct Node_Two* node, struct NodeStore_pvt* store)
 {
+    if (node == store->pub.selfNode) { return false; }
     struct Node_Link* bestLink = NULL;
     uint64_t bestCost = UINT64_MAX;
     uint64_t bestPath = UINT64_MAX;
@@ -435,20 +420,29 @@ static void findBestParent(struct Node_Two* node, struct NodeStore_pvt* store)
         bestLink = link;
     }
     if (bestCost != Node_getCost(node) || bestPath != node->address.path) {
-        if (!bestLink) {
-            unreachable(node, store);
-        } else {
-            if (!Node_getBestParent(node)) { store->pub.linkedNodes++; }
-            setParentCostAndPath(node, bestLink, bestCost, bestPath, store);
-        }
-        for (struct Node_Link* link = NodeStore_getNextLink(&store->pub, NULL);
-             link;
-             link = NodeStore_getNextLink(&store->pub, link))
-        {
-            if (link->child == store->pub.selfNode) { continue; }
-            findBestParent(link->child, store);
-        }
+        if (!Node_getBestParent(node)) { store->pub.linkedNodes++; }
+        if (!bestLink) { store->pub.linkedNodes--; }
+        setParentCostAndPath(node, bestLink, bestCost, bestPath, store);
+        return true;
     }
+    return false;
+}
+
+static void findBestParent(struct Node_Two* node, struct NodeStore_pvt* store)
+{
+    if (!findBestParent0(node, store)) { return; }
+    int ret = 0;
+    int cycle = 0;
+    do {
+        Assert_true(cycle++ < 10000);
+        ret = 0;
+        for (struct Node_Two* n = NodeStore_getNextNode(&store->pub, NULL);
+             n;
+             n = NodeStore_getNextNode(&store->pub, n))
+        {
+            ret |= findBestParent0(n, store);
+        }
+    } while (ret);
 }
 
 /**
@@ -464,7 +458,9 @@ static void handleLinkNews(struct Node_Link* link,
     int64_t linkCostDiff = newLinkCost;
     linkCostDiff -= link->linkCost;
     update(link, linkCostDiff, store);
+    check(store);
     findBestParent(link->child, store);
+    check(store);
 }
 
 void NodeStore_unlinkNodes(struct NodeStore* nodeStore, struct Node_Link* link)
@@ -489,9 +485,6 @@ void NodeStore_unlinkNodes(struct NodeStore* nodeStore, struct Node_Link* link)
     }
 
     handleLinkNews(link, UINT32_MAX, store);
-    if (Node_getBestParent(child) == link) {
-        unreachable(child, store);
-    }
 
     check(store);
 
@@ -623,9 +616,6 @@ static struct Node_Link* linkNodes(struct Node_Two* parent,
     RB_INSERT(PeerRBTree, &parent->peerTree, link);
 
     handleLinkNews(link, linkCostDiff+link->linkCost, store);
-    if (!Node_getBestParent(child)) {
-        unreachable(child, store);
-    }
 
     if (parent == store->pub.selfNode && child != store->pub.selfNode) {
         Assert_true(Node_isOneHopLink(link));
@@ -1740,6 +1730,7 @@ struct NodeList* NodeStore_getPeers(uint64_t label,
         if (!Node_isOneHopLink(next) && p != 1) { continue; }
         if (p == UINT64_MAX) { continue; }
         if (p < label) { continue; }
+        if (next->child->address.path != p) { continue; }
         int j;
         for (j = 0; j < (int)max; j++) {
             if (!out->nodes[j]) { continue; }

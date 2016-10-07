@@ -15,6 +15,10 @@
 #ifndef SearchRunner_admin_H
 #define SearchRunner_admin_H
 
+#ifdef SUBNODE
+    #error "this file should not be included in subnode"
+#endif
+
 #include "admin/Admin.h"
 #include "dht/dhtcore/SearchRunner.h"
 #include "memory/Allocator.h"

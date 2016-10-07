@@ -15,6 +15,10 @@
 #ifndef Node_H
 #define Node_H
 
+#ifdef SUBNODE
+    #error "this file should not be included in subnode"
+#endif
+
 #include "dht/Address.h"
 #include "switch/EncodingScheme.h"
 #include "memory/Allocator.h"
