@@ -236,7 +236,7 @@ function HMAC_SHA256_MAC(key, msg) {
   var res;
   HMAC_SHA256_init(key);
   HMAC_SHA256_write(msg);
-  res = HMAC_SHA256_finalize()
+  res = HMAC_SHA256_finalize();
   return array_to_hex_string(res);
 }
 
