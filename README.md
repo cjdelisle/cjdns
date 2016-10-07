@@ -15,6 +15,8 @@ scalability issues that plague existing networks.
 [![Build Status](https://travis-ci.org/cjdelisle/cjdns.svg?branch=master)](https://travis-ci.org/cjdelisle/cjdns)
 [![tip for next commit](https://tip4commit.com/projects/941.svg)](https://tip4commit.com/github/cjdelisle/cjdns)
 [![irc](https://img.shields.io/badge/irc%20chat-%23cjdns-blue.svg)](https://kiwiirc.com/client/irc.efnet.org/?nick=visitor|?#cjdns)
+[![Version](https://img.shields.io/badge/Version-17.4-green.svg)](https://github.com/cjdelisle/cjdns/releases)
+[![AUR](https://img.shields.io/aur/license/yaourt.svg?maxAge=2592000)](https://aur.archlinux.org/packages/cjdns-git/)
 
 ## Testimonials
 
@@ -95,7 +97,21 @@ it will be downloaded and installed in the source tree.
     sudo yum localinstall https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
     sudo yum install install nodejs git
     sudo yum install @development-tools
+Building from package:
+`sudo yum localinstall https://kojipkgs.fedoraproject.org//packages/cjdns/17.4/4.el6/src/cjdns-17.4-4.el6.src.rpm`
 
+If you are on a laptop and suspend or hibernate it, cjdroute will take a few
+minutes to make coffee and figure out what just happened when it wakes up.  You
+can speed this up dramatically with:
+
+    systemctl enable cjdns-resume
+
+The resume service restarts cjdns when the system wakes up from sleep.
+
+#### Gentoo
+
+    emerge --ask nodejs sys-devel/gcc dev-lang/python:3.4 dev-vcs/git
+    
 #### OS X:
 
 Install with homebrew:
@@ -362,7 +378,8 @@ You can access the admin API with:
 * the **Python library**; see [here](contrib/python/README.md).
 * the **Perl library**, maintained by Mikey; see [here](contrib/perl/CJDNS/README).
 
-
+That time of year again... Time for some open source Projects!
+[![Hacktoberfest](https://img.shields.io/badge/Open%20Source-Hacktoberfest-orange.svg)](https://hacktoberfest.digitalocean.com/)
 [IRC Web]: http://chat.efnet.org/irc.cgi?chan=%23cjdns
 [Hyperboria]: http://hyperboria.net
 [Project Meshnet]: https://projectmeshnet.org
