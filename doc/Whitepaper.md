@@ -8,7 +8,7 @@ read about in history books. Finally, becoming an ISP is no longer confined
 to the mighty telecoms, anyone can do it by running some wires or turning on
 a wireless device.
 
-This is the vision of cjdns. 
+This is the vision of cjdns.
 
 # Why?
 
@@ -311,7 +311,7 @@ it with a Label from pointB to pointC yielding a Route Label for a route from
 pointA to pointC.
 
 Splicing is done by XORing the second part with `1` and shifting it left by the
-log base 2 of the first part, then XORing the result with the first part. 
+log base 2 of the first part, then XORing the result with the first part.
 
 Given:
 
@@ -716,7 +716,7 @@ the connection to time out faster.
 
 ### 2) Hello Packet
 
-If the "Session State" field is equal to the one or two, the packet is a Hello
+If the "Session State" field is equal to zero or one, the packet is a Hello
 Packet or a repeated Hello Packet. If no connection is present, one MAY be
 established and the recipient MAY send a Key Packet in response but it is
 RECOMMENDED that he wait until he has data to send first. A node who has sent a
@@ -743,7 +743,7 @@ now wishes to send more data MUST send that data as more (repeat) key packets.
 The traditional data packet has only 4 bytes of header, these 4 bytes are the
 nonce which is used for the cipher, the packet is enciphered using
 crypto_stream_salsa20_xor() with the nonce, converted to little endian encoding,
-and copied to the first four bytes of the 8 byte nonce required by 
+and copied to the first four bytes of the 8 byte nonce required by
 crypto_stream_salsa20_xor() unless the node is the initiator of the connection
 (the sender of the hello packet), in which case it is copied over the second
 four bytes of the space, thus allowing for a single session to handle 2^32
@@ -913,7 +913,7 @@ packet is written out to the TUN device.
 
 [1]: http://www.cert.org/tech_tips/denial_of_service.html
 
-[2]: http://www.verisigninc.com/assets/whitepaper-ddos-threat-forrester.pdf "DDoS: A Threat You Can’t Afford To Ignore" 
+[2]: http://www.verisigninc.com/assets/whitepaper-ddos-threat-forrester.pdf "DDoS: A Threat You Can’t Afford To Ignore"
 
 [LISP]: http://lisp.cisco.com/
 
