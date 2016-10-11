@@ -16,6 +16,8 @@ scalability issues that plague existing networks.
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/387/badge)](https://bestpractices.coreinfrastructure.org/projects/387)
 [![tip for next commit](https://tip4commit.com/projects/941.svg)](https://tip4commit.com/github/cjdelisle/cjdns)
 [![irc](https://img.shields.io/badge/irc%20chat-%23cjdns-blue.svg)](https://kiwiirc.com/client/irc.efnet.org/?nick=visitor|?#cjdns)
+[![Version](https://img.shields.io/badge/Version-17.4-green.svg)](https://github.com/cjdelisle/cjdns/releases)
+[![AUR](https://img.shields.io/aur/license/yaourt.svg?maxAge=2592000)](https://aur.archlinux.org/packages/cjdns-git/)
 
 ## Testimonials
 
@@ -74,7 +76,7 @@ The cjdns developers.
 
 These instructions are for Debian-based Linux distributions and OS X. They should be
 informative enough for use on other distributions - just don't expect them to
-work verbatim.
+work verbatim. If you want to know what [operating system's base is go here](https://upload.wikimedia.org/wikipedia/commons/1/1b/Linux_Distribution_Timeline.svg).
 
 ### 0. Install dependencies
 
@@ -96,6 +98,20 @@ it will be downloaded and installed in the source tree.
     sudo yum localinstall https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
     sudo yum install install nodejs git
     sudo yum install @development-tools
+Building from package:
+`sudo yum localinstall https://kojipkgs.fedoraproject.org//packages/cjdns/17.4/4.el6/src/cjdns-17.4-4.el6.src.rpm`
+
+If you are on a laptop and suspend or hibernate it, cjdroute will take a few
+minutes to make coffee and figure out what just happened when it wakes up.  You
+can speed this up dramatically with:
+
+    systemctl enable cjdns-resume
+
+The resume service restarts cjdns when the system wakes up from sleep.
+
+#### Gentoo
+
+    emerge --ask nodejs sys-devel/gcc dev-lang/python:3.4 dev-vcs/git
 
 #### OS X:
 
@@ -126,7 +142,7 @@ You can install cjdns by running
 If you need to build from source, everything you need can be installed like this
 
     pacman -S nodejs git base-devel
-    
+
 Alternatively, you may like to install via AUR from the package, `cjdns-git`.
 After Installation, The configuration file is located at `/etc/cjdroute.conf`.
 To start the service `cjdns.service`, do:
@@ -136,6 +152,16 @@ To start the service `cjdns.service`, do:
 To stop it:
 
        systemctl stop cjdns
+
+#### Solus:
+
+Dependencies:
+
+      sudo eopkg install nodejs git build-essential system.devel python gcc binutils kernal-headers xorg-server-devel
+
+Then Follow the steps below:
+
+*Sorry for so many steps. A package is being worked on currently*
 
 ### 1. Retrieve cjdns from GitHub
 
@@ -405,6 +431,8 @@ full disclosure.
 see: https://github.com/cjdelisle/cjdns/blob/master/doc/security_specification.md to see if a
 possible security issue is really a security issue.
 
+That time of year again... Time for some open source Projects!
+[![Hacktoberfest](https://img.shields.io/badge/Open%20Source-Hacktoberfest-orange.svg)](https://hacktoberfest.digitalocean.com/)
 
 [IRC Web]: http://chat.efnet.org/irc.cgi?chan=%23cjdns
 [Hyperboria]: http://hyperboria.net
