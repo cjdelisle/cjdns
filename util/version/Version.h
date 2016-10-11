@@ -410,6 +410,8 @@ Version_COMPAT(17, ([16]))
  * clients and any other node in the network but how that is done is up to the supernode.
  * The subnode still answers all of the queries made by the old DHT based routing code but for
  * findNode queries, the subnode answers the query by requesting the information from the supernode,
+ *
+ * This version allows optional/experimental subnode using SUBNODE=1 in the build.
  */
 Version_COMPAT(18, ([16,17]))
 
