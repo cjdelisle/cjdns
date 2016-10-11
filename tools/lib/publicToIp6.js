@@ -74,6 +74,16 @@ var convert = module.exports.convert = function (pubKey) {
 };
 
 if (!module.parent) {
-    console.log(convert(process.argv[process.argv.length - 1]));
+    process.argv.slice(2).map(function (arg, i) {
+        if (arg.length !== 54) {
+            console.error("argument %s [%s] is too short to be a valid public key", i + 2, arg);
+            process.exit(1);
+        }
+        if (arg.slice(-2) !== ".k") {
+            console.error("argument %s [%s] does not end with .k", i + 2, arg);
+            process.exit(1);
+        }
+        return arg;
+    }).forEach(function (arg) { console.log(convert(arg)); });
 }
 //console.log(convert('rjndc8rvg194ddf2j5v679cfjcpmsmhv8p022q3lvpym21cqwyh0.k'));
