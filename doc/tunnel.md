@@ -80,6 +80,10 @@ First you will have to reserve one address (eg: `1111:1111:1111:1111::3`) for yo
 device's address, then each client can have an address, so the first client will be issued
 `1111:1111:1111:1111::4`, the second `1111:1111:1111:1111::5` and so on.
 
+For IPv4, you will need to set up a local network on `10.0.0.0/24` for example,
+with a gateway on `10.0.0.1`. You will have to set up NAT to allow routing those
+address to the Internet.
+
 First edit your cjdroute.conf and add the clients who will be connecting to your gate.
 It's always a good idea to add some identification with the connect block so you know who
 it is for later.
@@ -90,7 +94,9 @@ it is for later.
                 {
                     "publicKey": "f64hfl7c4uxt6krmhPutTheRealAddressOfANodeHere7kfm5m0.k",
                     "ip6Address": "1111:1111:1111:1111::4",
-                    "ip6Prefix": 0
+                    "ip6Prefix": 0,
+                    "ip4Address": "10.0.0.4",
+                    "ip4Prefix": 0
                 }
             ]
 
@@ -106,6 +112,7 @@ When you start cjdroute, the IP address for the TUN device will *not* be set aut
 so you must set that next with the following command:
 
     ip -6 addr add dev tun0 1111:1111:1111:1111::3
+    ip addr add dev tun0 10.0.0.1/24
 
 Now that your tun device has an address, your client should be able to connect to and
 ping `1111:1111:1111:1111::3`, but it definitely won't be able to reach the rest of the
@@ -118,20 +125,40 @@ route via your ISP's router's address so outgoing IPv6 packets are forwarded cor
     ip -6 route add dev tun0 1111:1111:1111:1111::0/64
     ip -6 route add default via 1111:1111:1111:1111::1
 
-Finally you will need to enable IPv6 forwarding, to do this, run:
+You want to set up a route to the IPv4 network as well:
+
+    ip route add 10.0.0.0/24 dev tun0
+
+Finally you will need to enable IP forwarding, to do this, run:
 
     echo 1 > /proc/sys/net/ipv6/conf/all/forwarding
+    echo 1 > /proc/sys/net/ipv4/ip_forward
 
 and to make it permanent, edit your `/etc/sysctl.conf` file and *uncomment* the line which says:
 
     #net.ipv6.conf.all.forwarding=1
+    #net.ipv4.ip_forward = 1
 
+Run `sysctl --system` to use those new settigns.
+
+For IPv4, you probably want to set up NAT between the `tun0` cjdns interface and
+the uplink `eth0`:
+
+    iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+    iptables -A FORWARD -i eth0 -o tun0 -m state --state RELATED,ESTABLISHED -j ACCEPT
+    iptables -A FORWARD -i tun0 -o eth0 -j ACCEPT
 
 
 Connect the client to the gateway using cjdns and wait a few moments until you've obtained the ipv6
 address associated with the tunnel. Now, test the connection by attempting to ping the ipv6 address
 associated with the gateway on the tunnel, and if this succeeds you can try to ping an external ipv6
 address like `ipv6.google.com` too if you're expecting internet traffic to be routed through.
+
+For IPv4, you probably want to set up routing on the client side as well
+(assuming the cjdns interface in `tun0`:
+
+    ip route add 10.0.0.0/24 via tun0
+    ip route add default via 10.0.0.1
 
 Now if all went well your job is done, but if the connection isn't working yet you should continue on to
 the next section and try to figure out why.
