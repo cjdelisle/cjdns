@@ -764,20 +764,20 @@ MUST be silently dropped.
 
 When packet authentication is enabled, the packet is checked for replay attacks
 (intentional or accidental) the replay protection method is to use a 32 bit
-offset and a 32 bit bitfield to create a sliding window. When a packet comes in,
+offset and a 64 bit bitfield to create a sliding window. When a packet comes in,
 its nonce is compared to the offset, if it is less then the offset, it is
 discarded. If when subtracted from the offset, the result is less than or equal
-to 32, 1 is shifted left by the result, bitwise ANDed against the bitfield and
+to 64, 1 is shifted left by the result, bitwise ANDed against the bitfield and
 compared to zero, if it is not zero then the packet is a duplicate and is
 discarded. If it is zero then it is OR'd against the bitfield to set the same
 bit is set and the packet is passed along. If the result of subtraction is
-greater than 32, 32 is subtracted from it, this result is added to the offset,
+greater than 64, 64 is subtracted from it, this result is added to the offset,
 the bitfield is shifted left by this amount, then the least significant bit in
 the bitfield is set. This is obviously only available when packets are
 authenticated but provides a secure protection against replay attacks and
 accidentally duplicated packets EG: from 802.11 noise.
 
-This solution is limited in that packets which are more then 32 "slots" out of
+This solution is limited in that packets which are more then 64 "slots" out of
 order will be discarded. In some cases, this could be a benefit since in best
 effort networking, never is often better than late.
 
