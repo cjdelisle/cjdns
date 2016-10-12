@@ -167,17 +167,14 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
      * events, skip the syscall and squelch the events after epoll_wait().
      */
     if (uv__epoll_ctl(loop->backend_fd, op, w->fd, &e)) {
-      fprintf(stderr, "uv__epoll_ctl() [fd=%d] [err=%d] [%s]\n", w->fd, errno, strerror(errno));
       if (errno != EEXIST)
         abort();
 
       assert(op == UV__EPOLL_CTL_ADD);
 
       /* We've reactivated a file descriptor that's been watched before. */
-      if (uv__epoll_ctl(loop->backend_fd, UV__EPOLL_CTL_MOD, w->fd, &e)) {
-        fprintf(stderr, "uv__epoll_ctl() [fd=%d] [err=%d] [%s]\n", w->fd, errno, strerror(errno));
+      if (uv__epoll_ctl(loop->backend_fd, UV__EPOLL_CTL_MOD, w->fd, &e))
         abort();
-      }
     }
 
     w->events = w->pevents;

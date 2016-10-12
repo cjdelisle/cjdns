@@ -98,12 +98,11 @@ static void incoming(uv_pipe_t* stream,
         struct FileNo_pvt* fileno = Identity_check((struct FileNo_pvt*) stream->data);
         if (fileno->peer.accepted_fd != -1) {
             int oldFd = fileno->peer.accepted_fd;
-            int newFd = 123;
-            if (dup2(oldFd, newFd)) {
-                Log_warn(fileno->pub.logger,
-                         "dup2() failed [%d][%d] [%s]", oldFd, newFd, strerror(errno));
+            int newFd = dup(oldFd);
+            if (newFd != -1) {
+                Log_info(fileno->pub.logger, "dup() succeeded: fd [%d] [%d]", oldFd, newFd);
             } else {
-                Log_info(fileno->pub.logger, "dup2() succeeded [%d][%d]", oldFd, newFd);
+                Log_warn(fileno->pub.logger, "dup() failed: fd [%d] [%s]", oldFd, strerror(errno));
             }
             struct FileNoContext* fctx = (struct FileNoContext*) fileno->pub.userData;
             if (fctx->pub.callback) {

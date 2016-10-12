@@ -321,7 +321,6 @@ static struct sock_fprog* mkFilter(struct Allocator* alloc, struct Except* eh)
         // socketForIfName()
         // and ETHInterface_listDevices
         #ifdef __NR_socket
-            // IFEQ(__NR_socket, socket),
             IFEQ(__NR_socket, success),
         #endif
         #ifdef __NR_bind

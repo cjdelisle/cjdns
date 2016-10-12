@@ -104,8 +104,8 @@
 static void adminPing(Dict* input, void* vadmin, String* txid, struct Allocator* requestAlloc)
 {
     Dict* d = Dict_new(requestAlloc);
-    Dict_putString(d, String_CONST("error"), String_new("none", requestAlloc), requestAlloc);
-    Dict_putString(d, String_CONST("q"), String_new("pong", requestAlloc), requestAlloc);
+    Dict_putStringCC(d, "error", "none", requestAlloc);
+    Dict_putStringCC(d, "q", "pong", requestAlloc);
     Admin_sendMessage(d, txid, (struct Admin*) vadmin);
 }
 
@@ -113,8 +113,8 @@ static void adminPid(Dict* input, void* vadmin, String* txid, struct Allocator* 
 {
     int pid = getpid();
     Dict* d = Dict_new(requestAlloc);
-    Dict_putString(d, String_CONST("error"), String_new("none", requestAlloc), requestAlloc);
-    Dict_putInt(d, String_CONST("pid"), pid, requestAlloc);
+    Dict_putStringCC(d, "error", "none", requestAlloc);
+    Dict_putIntC(d, "pid", pid, requestAlloc);
     Admin_sendMessage(d, txid, (struct Admin*) vadmin);
 }
 
