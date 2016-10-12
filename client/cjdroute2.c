@@ -120,8 +120,7 @@ static int genconf(struct Random* rand, bool eth)
            "    \"authorizedPasswords\":\n"
            "    [\n"
            "        // A unique string which is known to the client and server.\n"
-           "        // Specify an optional user to identify the peer locally.\n"
-           "        // It is not used for authentication.\n"
+           "        // Specify a user to identify the peer locally.\n"
            "        {\"password\": \"%s\", \"user\": \"default-login\"}\n", password);
     printf("\n"
            "        // More passwords should look like this.\n"

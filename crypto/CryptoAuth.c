@@ -37,6 +37,7 @@
 #include "crypto_scalarmult_curve25519.h"
 
 #include <stdint.h>
+#include <stdio.h>
 #include <stdbool.h>
 
 static inline void printHexKey(uint8_t output[65], uint8_t key[32])
