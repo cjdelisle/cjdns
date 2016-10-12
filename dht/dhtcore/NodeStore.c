@@ -435,10 +435,11 @@ static bool findBestParent0(struct Node_Two* node, struct NodeStore_pvt* store)
     return false;
 }
 
-static void findBestParent(struct Node_Two* node, struct NodeStore_pvt* store)
+// Returns true if anything was modified
+static bool findBestParent(struct Node_Two* node, struct NodeStore_pvt* store)
 {
     uint64_t time0 = Time_hrtime(store->eventBase);
-    if (!findBestParent0(node, store)) { return; }
+    if (!findBestParent0(node, store)) { return false; }
     int ret = 0;
     int cycle = 0;
     do {
@@ -458,6 +459,7 @@ static void findBestParent(struct Node_Two* node, struct NodeStore_pvt* store)
         Log_warn(store->logger, "\n\nfindBestParent() took [%lld] ms\n\n",
             (long long) (time1 - time0));
     }
+    return true;
 }
 
 /**
@@ -473,9 +475,11 @@ static void handleLinkNews(struct Node_Link* link,
     int64_t linkCostDiff = newLinkCost;
     linkCostDiff -= link->linkCost;
     update(link, linkCostDiff, store);
-    check(store);
-    findBestParent(link->child, store);
-    check(store);
+    //check(store);
+    if (findBestParent(link->child, store)) {
+        // This is a hot spot here, so we'll only check if the node tree was modified.
+        check(store);
+    }
 }
 
 void NodeStore_unlinkNodes(struct NodeStore* nodeStore, struct Node_Link* link)
