@@ -1,10 +1,18 @@
 #!/bin/bash
 
-#change this to valid ndk path, otherwise it will be downloaded
-NDK=/bad/path/to/android-ndk-r11c/
-BUILD_PATH=$(pwd)/build_android
-#if you have cjdns android app somewhere else then change it
 NDK_VERSION="android-ndk-r11c"
+NDK_VERSION_NUM="11.2.2725575"
+NDK=/bad/path/to/$NDK_VERSION/
+BUILD_PATH=$(pwd)/build_android/
+
+# Use existing Android NDK if ANDROID_NDK_HOME is set and the version is correct. Otherwise it will be downloaded.
+if [ -n "$ANDROID_NDK_HOME" ]; then
+    EXISTING_NDK_VERSION_NUM=`grep Pkg.Revision $ANDROID_NDK_HOME/source.properties | sed 's/Pkg.Revision = //'`
+    if [ "$EXISTING_NDK_VERSION_NUM" == "$NDK_VERSION_NUM" ]; then
+        NDK="$ANDROID_NDK_HOME"
+        echo "Using Android NDK at ANDROID_NDK_HOME=$NDK"
+    fi
+fi
 
 case $(uname -s) in
     Darwin)
@@ -31,7 +39,7 @@ enabled_log=${LOG}
 
 mkdir $BUILD_PATH
 
-if [ "$NDK" == "/bad/path/to/android-ndk-r11c/" ]; then
+if [ "$NDK" == "/bad/path/to/$NDK_VERSION/" ]; then
   if [ ! -d $BUILD_PATH/$NDK_VERSION/ ]; then
     echo "NDK path is not specified. Downloading it..."
 
