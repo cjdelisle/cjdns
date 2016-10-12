@@ -292,39 +292,38 @@ following JSON syntax.
 U Vašoj conf datoteci vidjeti ćete:
 ``` javascript
 "authorizedPasswords":
-    [
-        // A unique string which is known to the client and server.
-        {"password": "thisisauniquestring_001"}
+[
+    // A unique string which is known to the client and server.
+    {"password": "password001", "login": "default-login"}
 
-        // More passwords should look like this.
-        // {"password": "thisisauniquestring_002"}
-        // {"password": "thisisauniquestring_003"}
-        // {"password": "thisisauniquestring_004"}
-        ...
+    // More passwords should look like this.
+    // {"password": "password002", "login": "my-second-peer"}
+    // {"password": "password003", "login": "my-third-peer}
+    // {"password": "password004", "login": "my-fourth-peer"}
+    ...
 
-        // "your.external.ip.goes.here:45678":{"password": "thisisauniquestring_001","publicKey":thisisauniqueKEY_001.k"}
+    // "your.external.ip.goes.here:45678":{"login": "default-login", "password": "password001","publicKey":thisisauniqueKEY_001.k"}
 
-    ],
+],
 ```
 
 A conf file with multiple friend-nodes, setup INbound, should look like:
 ``` javascript
 "authorizedPasswords":
-    [
-        // A unique string which is known to the client and server.
-        {"password": "thisisauniquestring_001"}
+[
+    // A unique string which is known to the client and server.
+    {"password": "thisisauniquestring_001", "user": "k.alexander"}
 
-        // More passwords should look like this.
-        //friend_3 (IPv4: 0.1.2.3; IPv6 fcaa:5bac:66e4:713:cb00:e446:c317:fc39)
-        {"password": "thisisauniquestring_002"}
-        //friend_4 (IPv4: 5.1.2.3; IPv6 fcbb:5bac:66e4:713:cb00:e446:c317:fc39)
-        {"password": "thisisauniquestring_003"}
-        // {"password": "thisisauniquestring_004"}
-        ...
+    // More passwords should look like this.
+    //William Jevons (IPv4: 0.1.2.3; IPv6 fcaa:5bac:66e4:713:cb00:e446:c317:fc39)
+    {"password": "thisisauniquestring_002", "user": "William Jevons"}
+    //Marilyn Patel (IPv4: 5.1.2.3; IPv6 fcbb:5bac:66e4:713:cb00:e446:c317:fc39)
+    {"password": "thisisauniquestring_003", "user": "Marilyn Patel"}
+    // {"password": "thisisauniquestring_004"}
+    ...
 
-        // "your.external.ip.goes.here:45678":{"password": "thisisauniquestring_001","publicKey":thisisauniqueKEY_001.k"}
-
-    ],
+    // "your.external.ip.goes.here:45678":{"password": "thisisauniquestring_001","publicKey":thisisauniqueKEY_001.k"}
+],
 ```
 
 

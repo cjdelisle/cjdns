@@ -229,7 +229,7 @@ static void subscribe(Dict* args, void* vcontext, String* txid, struct Allocator
 {
     struct AdminLog* log = Identity_check((struct AdminLog*) vcontext);
     String* levelName = Dict_getString(args, String_CONST("level"));
-    enum Log_Level level = (levelName) ? Log_levelForName(levelName->bytes) : Log_Level_DEBUG;
+    enum Log_Level level = (levelName) ? Log_levelForName(levelName->bytes) : Log_Level_KEYS;
     int64_t* lineNumPtr = Dict_getInt(args, String_CONST("line"));
     String* fileStr = Dict_getString(args, String_CONST("file"));
     if (fileStr && !fileStr->len) { fileStr = NULL; }
