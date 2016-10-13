@@ -59,6 +59,10 @@ struct NodeStore_pvt
     /** To track time, for e.g. figuring out when nodes were last pinged */
     struct EventBase* eventBase;
 
+    // If this is non-zero then check() and verify() will be inactive.
+    // Increment this if you're going to do the check yourself after the function you call is done.
+    int disarmCheck;
+
     Identity
 };
 
@@ -131,7 +135,7 @@ static void logLink(struct NodeStore_pvt* store,
 
 static void _checkNode(struct Node_Two* node, struct NodeStore_pvt* store, char* file, int line)
 {
-    if (!Defined(PARANOIA)) {
+    if (!Defined(PARANOIA) || store->disarmCheck) {
         return;
     }
 
@@ -213,7 +217,7 @@ static void _checkNode(struct Node_Two* node, struct NodeStore_pvt* store, char*
 static void _verifyNode(struct Node_Two* node, struct NodeStore_pvt* store, char* file, int line)
 {
     return; // Too much CPU consumption.
-    if (!Defined(PARANOIA)) {
+    if (!Defined(PARANOIA) || store->disarmCheck) {
         return;
     }
     // #1 check the node (do the basic checks)
@@ -263,7 +267,7 @@ static void _verifyNode(struct Node_Two* node, struct NodeStore_pvt* store, char
 // Verify is more thorough than check because it makes sure all links are split properly.
 static void _verify(struct NodeStore_pvt* store, char* file, int line)
 {
-    if (!Defined(PARANOIA)) {
+    if (!Defined(PARANOIA) || store->disarmCheck) {
         return;
     }
     Assert_true(Node_getBestParent(store->pub.selfNode) == store->selfLink || !store->selfLink);
@@ -279,7 +283,7 @@ static void _verify(struct NodeStore_pvt* store, char* file, int line)
 
 static void _check(struct NodeStore_pvt* store, char* file, int line)
 {
-    if (!Defined(PARANOIA)) {
+    if (!Defined(PARANOIA) || store->disarmCheck) {
         return;
     }
     Assert_true(Node_getBestParent(store->pub.selfNode) == store->selfLink || !store->selfLink);
@@ -1289,15 +1293,12 @@ static uint32_t calcNextCost(const uint64_t oldCost)
     return out;
 }
 
-struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
-                                         struct Address* addr,
-                                         struct EncodingScheme* scheme,
-                                         int inverseLinkEncodingFormNumber,
-                                         uint64_t milliseconds)
+static struct Node_Link* discoverNode(struct NodeStore_pvt* store,
+                                      struct Address* addr,
+                                      struct EncodingScheme* scheme,
+                                      int inverseLinkEncodingFormNumber,
+                                      uint64_t milliseconds)
 {
-    struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
-    verify(store);
-
     struct Node_Two* child = nodeForIp(store, addr->ip6.bytes);
 
     if (Defined(Log_DEBUG)) {
@@ -1423,6 +1424,21 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
     Assert_ifParanoid(!link || RB_FIND(PeerRBTree, &parent->peerTree, link) == link);
 
     return link;
+}
+
+struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
+                                         struct Address* addr,
+                                         struct EncodingScheme* scheme,
+                                         int inverseLinkEncodingFormNumber,
+                                         uint64_t milliseconds)
+{
+    struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
+    store->disarmCheck++;
+    struct Node_Link* out =
+        discoverNode(store, addr, scheme, inverseLinkEncodingFormNumber, milliseconds);
+    store->disarmCheck--;
+    verify(store);
+    return out;
 }
 
 struct Node_Two* NodeStore_nodeForAddr(struct NodeStore* nodeStore, uint8_t addr[16])
