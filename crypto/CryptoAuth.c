@@ -280,13 +280,15 @@ static void getIp6(struct CryptoAuth_Session_pvt* session, uint8_t* addr)
 }
 
 #define cryptoAuthDebug(wrapper, format, ...) \
-    {                                                                                            \
+    do {                                                                                         \
+        if (!Defined(Log_DEBUG)) { break; }                                                      \
         uint8_t addr[40] = "unknown";                                                            \
         getIp6((session), addr);                                                                 \
         String* dn = (session)->pub.displayName;                                                 \
         Log_debug((session)->context->logger, "%p %s [%s]: " format, (void*)(session),           \
                   dn ? dn->bytes : "", addr, __VA_ARGS__);                                       \
-    }
+    } while (0)
+// CHECKFILES_IGNORE missing ;
 
 #define cryptoAuthDebug0(wrapper, format) \
     cryptoAuthDebug(session, format "%s", "")
