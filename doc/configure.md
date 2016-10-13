@@ -49,19 +49,19 @@ The `authorizedPasswords` section is the area where you can specify passwords to
     "authorizedPasswords":
     [
         // A unique string which is known to the client and server.
-        {"password": "zxl6zgxpl4stnuybdt0xlg4tn2cdl5h"}
+        {"password": "zxl6zgxpl4stnuybdt0xlg4tn2cdl5h", "login": "default-login"}
 
         // More passwords should look like this.
-        // {"password": "10ru8br0mhk25ccpvubv0sqnl7kuc6s"},
-        // {"password": "y68jm490dztxn3d2gvuv09bz55wqmjj"},
-        // {"password": "bnpphnq205v8nf2ksrs1fknfr572xzc"},
+        // {"password": "10ru8br0mhk25ccpvubv0sqnl7kuc6s", "login": "my-second-peer"},
+        // {"password": "y68jm490dztxn3d2gvuv09bz55wqmjj", "login": "my-third-peer"},
+        // {"password": "bnpphnq205v8nf2ksrs1fknfr572xzc", "login": "my-fourth-peer"},
 
         // These are your connection credentials
         // for people connecting to you with your default password.
         // adding more passwords for different users is advisable
         // so that leaks can be isolated.
         //
-        // "your.external.ip.goes.here:33808":{"password":"zxl6zgxpl4stnuybdt0xlg4tn2cdl5h","publicKey":"u2jf87mgqlxfzdnywp60z3tx6tkulvgh2nyc2jk1zc69zzt2s8u0.k"}
+        // "your.external.ip.goes.here:33808":{"login": "default-login", "password":"zxl6zgxpl4stnuybdt0xlg4tn2cdl5h","publicKey":"u2jf87mgqlxfzdnywp60z3tx6tkulvgh2nyc2jk1zc69zzt2s8u0.k"}
     ],
 ````
 - `password`: This is the password that another system can give to your node and be allowed to connect. You would place it in the `password` section in the next part.
