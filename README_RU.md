@@ -162,6 +162,7 @@ The cjdns developers.
             {
                 "0.1.2.3:45678":
                 {
+                    "login": "user-login",
                     "password": "thisIsNotARealConnection",
                     "publicKey": "thisIsJustForAnExampleDoNotUseThisInYourConfFile.k"
                 }
@@ -180,6 +181,7 @@ The cjdns developers.
 
             "your.external.ip.goes.here:12345":
             {
+                "login": "user-login",
                 "password": "thisIsNotARealConnectionEither",
                 "publicKey": "thisIsAlsoJustForAnExampleDoNotUseThisInYourConfFile.k"
             }
