@@ -231,4 +231,8 @@ struct NodeList* NodeStore_getNodesForBucket(struct NodeStore* nodeStore,
                                              uint16_t bucket,
                                              const uint32_t count);
 
+
+bool NodeStore_getFullVerify(struct NodeStore* nodeStore);
+void NodeStore_setFullVerify(struct NodeStore* nodeStore, bool fullVerify);
+
 #endif

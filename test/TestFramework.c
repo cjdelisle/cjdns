@@ -119,6 +119,7 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
     struct NetCore* nc = NetCore_new(privateKey, allocator, base, rand, logger);
 
     struct Pathfinder* pf = Pathfinder_register(allocator, logger, base, rand, NULL);
+    pf->fullVerify = true;
     struct ASynchronizer* pfAsync = ASynchronizer_new(allocator, base, logger);
     Iface_plumb(&pfAsync->ifA, &pf->eventIf);
     EventEmitter_regPathfinderIface(nc->ee, &pfAsync->ifB);

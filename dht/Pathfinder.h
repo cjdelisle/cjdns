@@ -30,6 +30,7 @@ Linker_require("dht/Pathfinder.c");
 struct Pathfinder
 {
     struct Iface eventIf;
+    bool fullVerify;
 };
 
 struct Pathfinder* Pathfinder_register(struct Allocator* alloc,

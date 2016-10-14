@@ -180,6 +180,10 @@ static Iface_DEFUN connected(struct Pathfinder_pvt* pf, struct Message* msg)
 
     pf->nodeStore = NodeStore_new(&pf->myAddr, pf->alloc, pf->base, pf->log, pf->rumorMill);
 
+    if (pf->pub.fullVerify) {
+        NodeStore_setFullVerify(pf->nodeStore, true);
+    }
+
     pf->nodeStore->onBestPathChange = onBestPathChange;
     pf->nodeStore->onBestPathChangeCtx = pf;
 

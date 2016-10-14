@@ -63,6 +63,8 @@ struct NodeStore_pvt
     // Increment this if you're going to do the check yourself after the function you call is done.
     int disarmCheck;
 
+    int fullVerify;
+
     Identity
 };
 
@@ -135,9 +137,7 @@ static void logLink(struct NodeStore_pvt* store,
 
 static void _checkNode(struct Node_Two* node, struct NodeStore_pvt* store, char* file, int line)
 {
-    if (!Defined(PARANOIA) || store->disarmCheck) {
-        return;
-    }
+    if (!Defined(PARANOIA) || store->disarmCheck) { return; }
 
     Assert_true(node->address.path ==
         EncodingScheme_convertLabel(store->pub.selfNode->encodingScheme,
@@ -214,14 +214,18 @@ static void _checkNode(struct Node_Two* node, struct NodeStore_pvt* store, char*
 }
 #define checkNode(node, store) _checkNode(node, store, Gcc_SHORT_FILE, Gcc_LINE)
 
-static void _verifyNode(struct Node_Two* node, struct NodeStore_pvt* store, char* file, int line)
+static void _verifyNode(struct Node_Two* node,
+                        struct NodeStore_pvt* store,
+                        bool full,
+                        char* file,
+                        int line)
 {
-    return; // Too much CPU consumption.
-    if (!Defined(PARANOIA) || store->disarmCheck) {
-        return;
-    }
+    if (!Defined(PARANOIA) || store->disarmCheck) { return; }
+
     // #1 check the node (do the basic checks)
     _checkNode(node, store, file, line);
+
+    if (!full || !store->fullVerify) { return; }
 
     // #2 make sure all of the node's outgoing links are split properly
     struct Node_Link* link = NULL;
@@ -262,37 +266,28 @@ static void _verifyNode(struct Node_Two* node, struct NodeStore_pvt* store, char
         Assert_true(Node_getCost(node) == cost);
     }
 }
-#define verifyNode(node, store) _verifyNode(node, store, Gcc_SHORT_FILE, Gcc_LINE)
+#define verifyNode(node, store) _verifyNode(node, store, true, Gcc_SHORT_FILE, Gcc_LINE)
 
 // Verify is more thorough than check because it makes sure all links are split properly.
-static void _verify(struct NodeStore_pvt* store, char* file, int line)
+static void _verify(struct NodeStore_pvt* store, bool full, char* file, int line)
 {
     if (!Defined(PARANOIA) || store->disarmCheck) {
         return;
     }
     Assert_true(Node_getBestParent(store->pub.selfNode) == store->selfLink || !store->selfLink);
     int linkedNodes = 0;
+    int nodeCount = 0;
     struct Node_Two* nn = NULL;
     RB_FOREACH(nn, NodeRBTree, &store->nodeTree) {
-        _verifyNode(nn, store, file, line);
+        _verifyNode(nn, store, full, file, line);
         if (Node_getBestParent(nn)) { linkedNodes++; }
+        nodeCount++;
     }
     Assert_fileLine(linkedNodes == store->pub.linkedNodes, file, line);
+    Assert_fileLine(nodeCount == store->pub.nodeCount, file, line);
 }
-#define verify(store) _verify(store, Gcc_SHORT_FILE, Gcc_LINE)
-
-static void _check(struct NodeStore_pvt* store, char* file, int line)
-{
-    if (!Defined(PARANOIA) || store->disarmCheck) {
-        return;
-    }
-    Assert_true(Node_getBestParent(store->pub.selfNode) == store->selfLink || !store->selfLink);
-    struct Node_Two* nn = NULL;
-    RB_FOREACH(nn, NodeRBTree, &store->nodeTree) {
-        _checkNode(nn, store, file, line);
-    }
-}
-#define check(store) _check(store, Gcc_SHORT_FILE, Gcc_LINE)
+#define verify(store) _verify(store, true, Gcc_SHORT_FILE, Gcc_LINE)
+#define check(store) _verify(store, false, Gcc_SHORT_FILE, Gcc_LINE)
 
 /**
  * Extend a route by splicing on another link.
@@ -638,6 +633,20 @@ static struct Node_Link* linkNodes(struct Node_Two* parent,
     Assert_ifParanoid(!RB_FIND(PeerRBTree, &parent->peerTree, link));
     RB_INSERT(PeerRBTree, &parent->peerTree, link);
 
+    // store entry
+    if (!RB_FIND(NodeRBTree, &store->nodeTree, child)) {
+        if (child == parent) {
+            Assert_true(cannonicalLabel == 1);
+            Assert_true(!store->pub.nodeCount);
+            Assert_true(!store->selfLink);
+            store->selfLink = link;
+            Node_setParentCostAndPath(child, link, 0, 1);
+            store->pub.linkedNodes++;
+        }
+        RB_INSERT(NodeRBTree, &store->nodeTree, child);
+        store->pub.nodeCount++;
+    }
+
     handleLinkNews(link, linkCostDiff+link->linkCost, store);
 
     if (parent == store->pub.selfNode && child != store->pub.selfNode) {
@@ -896,12 +905,6 @@ static struct Node_Link* discoverLinkC(struct NodeStore_pvt* store,
                                              inverseLinkEncodingFormNumber,
                                              discoveredPath,
                                              store);
-
-    if (!RB_FIND(NodeRBTree, &store->nodeTree, child)) {
-        checkNode(child, store);
-        RB_INSERT(NodeRBTree, &store->nodeTree, child);
-        store->pub.nodeCount++;
-    }
 
     check(store);
 
@@ -1433,10 +1436,10 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
                                          uint64_t milliseconds)
 {
     struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
-    store->disarmCheck++;
+    if (!store->fullVerify) { store->disarmCheck++; }
     struct Node_Link* out =
         discoverNode(store, addr, scheme, inverseLinkEncodingFormNumber, milliseconds);
-    store->disarmCheck--;
+    if (!store->fullVerify) { store->disarmCheck--; }
     verify(store);
     return out;
 }
@@ -1615,13 +1618,9 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
     selfNode->encodingScheme = NumberCompress_defineScheme(alloc);
     selfNode->alloc = alloc;
     Identity_set(selfNode);
-    out->pub.linkedNodes = 1;
     out->pub.selfNode = selfNode;
-    struct Node_Link* selfLink = linkNodes(selfNode, selfNode, 1, 0, 0, 1, out);
-    Node_setParentCostAndPath(selfNode, selfLink, 0, 1);
+    linkNodes(selfNode, selfNode, 1, 0, 0, 1, out);
     selfNode->timeLastPinged = Time_currentTimeMilliseconds(out->eventBase);
-    out->selfLink = selfLink;
-    RB_INSERT(NodeRBTree, &out->nodeTree, selfNode);
 
     out->pub.selfAddress = &out->selfLink->child->address;
     out->pub.selfAddress->protocolVersion = Version_CURRENT_PROTOCOL;
@@ -2120,4 +2119,16 @@ uint64_t NodeStore_timeSinceLastPing(struct NodeStore* nodeStore, struct Node_Tw
         link = Node_getBestParent(link->parent);
     }
     return now - lastSeen;
+}
+
+bool NodeStore_getFullVerify(struct NodeStore* nodeStore)
+{
+    struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
+    return store->fullVerify != 0;
+}
+
+void NodeStore_setFullVerify(struct NodeStore* nodeStore, bool fullVerify)
+{
+    struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
+    store->fullVerify = (fullVerify != 0);
 }
