@@ -137,7 +137,7 @@ static void logLink(struct NodeStore_pvt* store,
 
 static void _checkNode(struct Node_Two* node, struct NodeStore_pvt* store, char* file, int line)
 {
-    if (!Defined(PARANOIA) || store->disarmCheck) { return; }
+    if (!Defined(PARANOIA) || (store->disarmCheck && !store->fullVerify)) { return; }
 
     Assert_true(node->address.path ==
         EncodingScheme_convertLabel(store->pub.selfNode->encodingScheme,
@@ -220,7 +220,7 @@ static void _verifyNode(struct Node_Two* node,
                         char* file,
                         int line)
 {
-    if (!Defined(PARANOIA) || store->disarmCheck) { return; }
+    if (!Defined(PARANOIA) || (store->disarmCheck && !store->fullVerify)) { return; }
 
     // #1 check the node (do the basic checks)
     _checkNode(node, store, file, line);
@@ -271,7 +271,7 @@ static void _verifyNode(struct Node_Two* node,
 // Verify is more thorough than check because it makes sure all links are split properly.
 static void _verify(struct NodeStore_pvt* store, bool full, char* file, int line)
 {
-    if (!Defined(PARANOIA) || store->disarmCheck) {
+    if (!Defined(PARANOIA) || (store->disarmCheck && !store->fullVerify)) {
         return;
     }
     Assert_true(Node_getBestParent(store->pub.selfNode) == store->selfLink || !store->selfLink);
@@ -1436,10 +1436,10 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
                                          uint64_t milliseconds)
 {
     struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
-    if (!store->fullVerify) { store->disarmCheck++; }
+    store->disarmCheck++;
     struct Node_Link* out =
         discoverNode(store, addr, scheme, inverseLinkEncodingFormNumber, milliseconds);
-    if (!store->fullVerify) { store->disarmCheck--; }
+    store->disarmCheck--;
     verify(store);
     return out;
 }
@@ -2035,7 +2035,10 @@ void NodeStore_pathResponse(struct NodeStore* nodeStore, uint64_t path, uint64_t
         // so we can calculate the expected cost for an arbitrary path
         newCost = calcNextCost(UINT64_MAX);
     }
+    store->disarmCheck++;
     updatePathCost(store, path, newCost);
+    store->disarmCheck--;
+    verify(store);
 }
 
 void NodeStore_pathTimeout(struct NodeStore* nodeStore, uint64_t path)
