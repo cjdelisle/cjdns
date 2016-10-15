@@ -151,7 +151,7 @@ static void onBestPathChange(void* vPathfinder, struct Node_Two* node)
     struct Allocator* alloc = Allocator_child(pf->alloc);
     if (pf->bestPathChanges > 128) {
         String* addrPrinted = Address_toString(&node->address, alloc);
-        Log_debug(pf->log, "Ignore best path change of [%s]", addrPrinted->bytes);
+        Log_debug(pf->log, "Ignore best path change from NodeStore [%s]", addrPrinted->bytes);
     } else {
         pf->bestPathChanges++;
         struct Message* msg = Message_new(0, 256, alloc);
