@@ -148,14 +148,15 @@ static Iface_DEFUN sendNode(struct Message* msg,
 static void onBestPathChange(void* vPathfinder, struct Node_Two* node)
 {
     struct Pathfinder_pvt* pf = Identity_check((struct Pathfinder_pvt*) vPathfinder);
-    if (pf->bestPathChanges > 128) {
-        Log_debug(pf->log, "Ignore best path change from NodeStore, calm down...");
-        return;
-    }
-    pf->bestPathChanges++;
     struct Allocator* alloc = Allocator_child(pf->alloc);
-    struct Message* msg = Message_new(0, 256, alloc);
-    Iface_CALL(sendNode, msg, &node->address, Node_getCost(node), pf);
+    if (pf->bestPathChanges > 128) {
+        String* addrPrinted = Address_toString(&node->address, alloc);
+        Log_debug(pf->log, "Ignore best path change of [%s]", addrPrinted->bytes);
+    } else {
+        pf->bestPathChanges++;
+        struct Message* msg = Message_new(0, 256, alloc);
+        Iface_CALL(sendNode, msg, &node->address, Node_getCost(node), pf);
+    }
     Allocator_free(alloc);
 }
 
