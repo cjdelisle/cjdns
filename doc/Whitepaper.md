@@ -772,12 +772,12 @@ When packet authentication is enabled, the packet is checked for replay attacks
 (intentional or accidental) the replay protection method is to use a 4-byte
 offset and a 64 bit bitfield to create a sliding window. When a packet comes in,
 its nonce is compared to the offset, if it is less then the offset, it is
-discarded. If when the offset is subtracted it, the result is less than or equal
+discarded. If when the offset is substracted from it, the result is less than or equal
 to 64, 1 is shifted left by the result, bitwise ANDed against the bitfield and
 compared to zero, if it is not zero then the packet is a duplicate and is
 discarded. If it is zero then it is OR'd against the bitfield to set the same
-bit is set and the packet is passed along. If the result of subtraction is
-greater than 64, 64 is subtracted from it, this result is added to the offset,
+bit is set and the packet is passed along. If the result of substraction is
+greater than 64, 64 is substracted from it, this result is added to the offset,
 the bitfield is shifted left by this amount, then the least significant bit in
 the bitfield is set. This provides a secure protection against replay attacks and
 accidentally duplicated packets EG: from 802.11 noise; but does not discard
