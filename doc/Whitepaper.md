@@ -617,18 +617,16 @@ There are 5 types of CryptoAuth header:
 1. Connect To Me - Used to start a session without knowing the other node's key.
 2. Hello Packet  - The first message in beginning a session.
 3. Key Packet    - The second message in a session.
-4. Data Packet   - A normal traffic packet.
-5. Authenticated - A traffic packet with Poly1305 authentication.
+4. Data Packet   - A traffic packet with Poly1305 authentication.
 
 All CryptoAuth headers are 120 bytes long except for the Data Packet header
-which is 4 bytes and the Authenticated header which is 20 bytes. The first 4
+which is 20 bytes. The first 4
 bytes of any CryptoAuth header is a big endian number which is used to determine
 its type, this is the so-called "Session State" number. If it is the inverse of
 zero, it is a Connect To Me header, if it is zero, it is a Hello Packet, if one
 or two, it is a Hello Packet or repeated Hello Packet, if it is three or four,
 it is a Key Packet or repeated Key Packet. If it is any number larger than four,
-it is either a Data Packet or an Authenticated packet, depending on whether
-authentication was requested during the handshake.
+it is a Data Packet.
 
 Handshake packet structure:
 
@@ -724,8 +722,9 @@ Hello Packet, has gotten no response and now wishes to send more data MUST send
 that data as more (repeat) Hello Packets. The temporary public key and the
 content are encrypted and authenticated using the permanent public keys of the
 two nodes and "Random Nonce" in the header. The content and temporary key is
-encrypted and authenticated using crypto_box_curve25519poly1305xsalsa20()
-function.
+encrypted and authenticated using crypto_box_curve25519poly1305xsalsa20_afternm()
+function, using the shared secret computed as described in the Authentication
+field's section.
 
 
 ### 3) Key Packet
@@ -737,45 +736,52 @@ Once a node receives a Key Packet it may begin sending data packets. A node who
 has received a Hello Packet, sent a Key Packet, gotten no further response, and
 now wishes to send more data MUST send that data as more (repeat) key packets.
 
+The content and temporary key is encrypted and authenticated using
+crypto_box_curve25519poly1305xsalsa20_afternm() function, using the shared
+secret computed using crypto_box_curve25519poly1305xsalsa20_beforenm()
+with one peer's temporary public key and the other peer's permament secret key.
+
+It can be decrypted using crypto_box_curve25519poly1305xsalsa20_open_afternm(),
+with the shared secret computed, which can be computed the same way.
+
 
 ### 4) Data Packet
 
-The traditional data packet has only 4 bytes of header, these 4 bytes are the
-nonce which is used for the cipher, the packet is enciphered using
-crypto_stream_salsa20_xor() with the nonce, converted to little endian encoding,
-and copied to the first four bytes of the 8 byte nonce required by
-crypto_stream_salsa20_xor() unless the node is the initiator of the connection
-(the sender of the hello packet), in which case it is copied over the second
-four bytes of the space, thus allowing for a single session to handle 2^32
-packets in either direction.
+The Data Packet is the default data packet. The first 4 bytes are used
+as the nonce (see next paragraph), in this case it is a 24 byte nonce and
+crypto_box_curve25519poly1305xsalsa20_afternm() is used to encrypt and
+decrypt the data, using the shared secret computed using
+crypto_box_curve25519poly1305xsalsa20_beforenm() with one peer's temporary
+public key and the other peer's temporary secret key (both roles are
+symmetrical and produce the same shared secret).
 
+As crypto_box_curve25519poly1305xsalsa20_afternm() requires a 24-byte nonce, the
+4-byte nonce is copied in a 24-byte array that is passed to the primitive.
+The peer which sent the Key packet writes it in the first four bytes of the
+array; and the other peer to the next four bytes.
+This distinction is made so that packets from one peer can not be sent
+back to this peer to make it believe it is from the other peer.
 
-### 5) Authenticated Packet
-
-The Authenticated Packet is sent if Poly1305 authentication was requested by
-either node during the handshake. Like the Data Packet, the first 4 bytes is
-used as the nonce, in this case it is a 24 byte nonce and
-crypto_box_curve25519poly1305xsalsa20() is used to encrypt and decrypt the data,
-but the methodology is exactly the same. If a packet is not authenticated, it
-MUST be silently dropped.
-
+A peer should always send its nonce in increasing big-endian endian
+order, otherwise they will be dropped by the Replay Protector of the
+receiver if they are too much out of order.
 
 #### ReplayProtector
 
 When packet authentication is enabled, the packet is checked for replay attacks
-(intentional or accidental) the replay protection method is to use a 32 bit
+(intentional or accidental) the replay protection method is to use a 4-byte
 offset and a 64 bit bitfield to create a sliding window. When a packet comes in,
 its nonce is compared to the offset, if it is less then the offset, it is
-discarded. If when subtracted from the offset, the result is less than or equal
+discarded. If when the offset is subtracted from it, the result is less than or equal
 to 64, 1 is shifted left by the result, bitwise ANDed against the bitfield and
 compared to zero, if it is not zero then the packet is a duplicate and is
 discarded. If it is zero then it is OR'd against the bitfield to set the same
 bit is set and the packet is passed along. If the result of subtraction is
 greater than 64, 64 is subtracted from it, this result is added to the offset,
 the bitfield is shifted left by this amount, then the least significant bit in
-the bitfield is set. This is obviously only available when packets are
-authenticated but provides a secure protection against replay attacks and
-accidentally duplicated packets EG: from 802.11 noise.
+the bitfield is set. This provides a secure protection against replay attacks and
+accidentally duplicated packets EG: from 802.11 noise; but does not discard
+packets that arrive slightly out of order.
 
 This solution is limited in that packets which are more then 64 "slots" out of
 order will be discarded. In some cases, this could be a benefit since in best
@@ -794,18 +800,18 @@ the AuthType field specifies how the secret should be used to connect.
       +-+-+-+-+-+-+-+-+        AuthType Specific                      +
     4 |                                                               |
       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    8 |A|                      AuthType Specific                      |
+    8 |                             Unused                            |
       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
-The "A" flag is used to indicate that the node is requesting the session use
-Poly1305 authentication for all of its packets. The "AuthType Specific" fields
-specific to the authentication type.
+The "AuthType Specific" field is specific to the authentication type.
 
 
 #### AuthType Zero
 
 AuthType Zero is no authentication at all. If the AuthType is set to zero, all
 AuthType Specific fields are disregarded and SHOULD be set to random numbers.
+
+This AuthType is the one used in Key packets.
 
 
 #### AuthType One
@@ -819,7 +825,7 @@ AuthType One is a SHA-256 based authentication method.
       +-+-+-+-+-+-+-+-+           Hash Code                           +
     4 |                                                               |
       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    8 |A|        Derivations          |           Additional          |
+    8 |                             Unused                            |
       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 With AuthType One, the shared secret (password) is hashed once and the result is
@@ -828,21 +834,19 @@ these 64 bytes are hashed again with SHA-256 to make the symmetric key to be
 used for the session. It is also hashed a second time and the result copied over
 the first 8 bytes of the authentication header before the AuthType field is set.
 The effect being that the "Hash Code" field contains bytes 2 through 8 the hash
-of the hash of the password. This is used as a sort of username so that the
-other end knows which password to try using in the handshake.
+of the hash of the password (counting indexes from 1). This is used as a sort
+of username so that the other end knows which password to try using in the
+handshake.
 
-If Derivations is non-zero, an additional step is included, the two most
-significant bytes of the password hash are XORed against the two bytes of the
-network representation of Derivations and it is hashed using SHA-256 once
-again before being included in the generation of the symmetric key. This form is
-notably NOT used in the Hash Code field.
+AuthType Two is prefered to this method because it may be harder to crack
+(does not leak bytes of the value computing from the password).
 
-This allows a node Alice, to give a secret to Charlie, which he can use to start
-a CryptoAuth session with Bob, without leaking Alice's shared secret. This
-allows nodes to generate, share and derive secrets through trusted connections,
-creating new trusted connections and use them to share more secrets, adding a
-measure of forward secrecy in the event of a cryptographic weakness found in
-the asymmetric cryptography.
+##### AuthType Two
+
+AuthType Two is similar to AuthType One, except that bytes 2 to 8 of the Hash
+Code are bytes 2 to 8 of the SHA-256 hash of a login, which is known by the
+received of the packet to be associated with the password used for making
+the symmetric secret.
 
 
 ## Pulling It All Together
