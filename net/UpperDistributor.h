@@ -33,6 +33,8 @@ struct UpperDistributor
     struct Iface tunAdapterIf;
 
     struct Iface ipTunnelIf;
+
+    struct Iface controlHandlerIf;
 };
 
 struct UpperDistributor_Handler

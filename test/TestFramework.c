@@ -33,7 +33,6 @@
 #include "tunnel/IpTunnel.h"
 #include "net/EventEmitter.h"
 #include "net/SessionManager.h"
-#include "net/SwitchAdapter.h"
 #include "net/UpperDistributor.h"
 #include "net/TUNAdapter.h"
 #include "wire/Headers.h"

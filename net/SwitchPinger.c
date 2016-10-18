@@ -21,7 +21,7 @@
 #include "util/Pinger.h"
 #include "util/version/Version.h"
 #include "util/Identity.h"
-#include "wire/SwitchHeader.h"
+#include "wire/RouteHeader.h"
 #include "wire/Control.h"
 #include "wire/Error.h"
 
@@ -79,20 +79,10 @@ struct Ping
 static Iface_DEFUN messageFromControlHandler(struct Message* msg, struct Iface* iface)
 {
     struct SwitchPinger_pvt* ctx = Identity_check((struct SwitchPinger_pvt*) iface);
-    struct SwitchHeader* switchHeader = (struct SwitchHeader*) msg->bytes;
-    ctx->incomingLabel = Endian_bigEndianToHost64(switchHeader->label_be);
+    struct RouteHeader rh;
+    Message_pop(msg, &rh, RouteHeader_SIZE, NULL);
+    ctx->incomingLabel = Endian_bigEndianToHost64(rh.sh.label_be);
     ctx->incomingVersion = 0;
-    Message_shift(msg, -SwitchHeader_SIZE, NULL);
-
-    uint32_t handle = Message_pop32(msg, NULL);
-    #ifdef Version_7_COMPAT
-    if (handle != 0xffffffff) {
-        Message_push32(msg, handle, NULL);
-        handle = 0xffffffff;
-        Assert_true(SwitchHeader_isV7Ctrl(switchHeader));
-    }
-    #endif
-    Assert_true(handle == 0xffffffff);
 
     struct Control* ctrl = (struct Control*) msg->bytes;
     if (ctrl->header.type_be == Control_PONG_be) {
@@ -240,26 +230,13 @@ static void sendPing(String* data, void* sendPingContext)
     ctrl->header.type_be = (p->pub.keyPing) ? Control_KEYPING_be : Control_PING_be;
     ctrl->header.checksum_be = Checksum_engine(msg->bytes, msg->length);
 
-    #ifdef Version_7_COMPAT
-        if (0) {
-    #endif
-    Message_push32(msg, 0xffffffff, NULL);
-    #ifdef Version_7_COMPAT
-        }
-    #endif
+    struct RouteHeader rh;
+    Bits_memset(&rh, 0, RouteHeader_SIZE);
+    rh.flags |= RouteHeader_flags_CTRLMSG;
+    rh.sh.label_be = Endian_hostToBigEndian64(p->label);
+    SwitchHeader_setVersion(&rh.sh, SwitchHeader_CURRENT_VERSION);
 
-    Message_shift(msg, SwitchHeader_SIZE, NULL);
-    struct SwitchHeader* switchHeader = (struct SwitchHeader*) msg->bytes;
-    Bits_memset(switchHeader, 0, SwitchHeader_SIZE);
-    switchHeader->label_be = Endian_hostToBigEndian64(p->label);
-    SwitchHeader_setVersion(switchHeader, SwitchHeader_CURRENT_VERSION);
-
-    #ifdef Version_7_COMPAT
-        // v7 detects ctrl packets by the bit which has been
-        // re-appropriated for suppression of errors.
-        switchHeader->congestAndSuppressErrors = 1;
-        SwitchHeader_setVersion(switchHeader, 0);
-    #endif
+    Message_push(msg, &rh, RouteHeader_SIZE, NULL);
 
     Iface_send(&p->context->pub.controlHandlerIf, msg);
 }

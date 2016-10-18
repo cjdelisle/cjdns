@@ -28,7 +28,6 @@
 #include "tunnel/IpTunnel.h"
 #include "net/EventEmitter.h"
 #include "net/SessionManager.h"
-#include "net/SwitchAdapter.h"
 #include "net/UpperDistributor.h"
 #include "net/TUNAdapter.h"
 #include "util/Linker.h"
@@ -44,7 +43,6 @@ struct NetCore
     struct EventEmitter* ee;
     struct Address* myAddress;
     struct SwitchCore* switchCore;
-    struct SwitchAdapter* switchAdapter;
     struct ControlHandler* controlHandler;
     struct SwitchPinger* sp;
     struct InterfaceController* ifController;
