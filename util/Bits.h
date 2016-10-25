@@ -135,7 +135,7 @@ static inline int Bits_constantEqual(const void* a, const void* b, size_t len)
         o |= x[i] ^ y[i];
     }
 
-    return (1 & ((o - 1) >> 8)) - 1;
+    return (o == 0) ? 0 : -1;
 }
 
 /**
