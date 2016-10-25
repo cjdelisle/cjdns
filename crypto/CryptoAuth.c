@@ -149,11 +149,11 @@ static inline struct CryptoAuth_User* getAuth(struct CryptoHeader_Challenge* aut
     for (struct CryptoAuth_User* u = ca->users; u; u = u->next) {
         count++;
         if (auth->type == 1 &&
-            !Bits_memcmp(auth, u->passwordHash, CryptoHeader_Challenge_KEYSIZE))
+            !Bits_constantEqual(auth, u->passwordHash, CryptoHeader_Challenge_KEYSIZE))
         {
             return u;
         } else if (auth->type == 2 &&
-            !Bits_memcmp(auth, u->userNameHash, CryptoHeader_Challenge_KEYSIZE))
+            !Bits_constantEqual(auth, u->userNameHash, CryptoHeader_Challenge_KEYSIZE))
         {
             return u;
         }
@@ -532,7 +532,7 @@ static bool ip6MatchesKey(uint8_t ip6[16], uint8_t key[32])
 {
     uint8_t calculatedIp6[16];
     AddressCalc_addressForPublicKey(calculatedIp6, key);
-    return !Bits_memcmp(ip6, calculatedIp6, 16);
+    return !Bits_constantEqual(ip6, calculatedIp6, 16);
 }
 
 static Gcc_USE_RET int decryptHandshake(struct CryptoAuth_Session_pvt* session,
@@ -553,7 +553,7 @@ static Gcc_USE_RET int decryptHandshake(struct CryptoAuth_Session_pvt* session,
     // nextNonce >3: handshake complete
 
     Assert_true(knowHerKey(session));
-    if (Bits_memcmp(session->pub.herPublicKey, header->publicKey, 32)) {
+    if (Bits_constantEqual(session->pub.herPublicKey, header->publicKey, 32)) {
         cryptoAuthDebug0(session, "DROP a packet with different public key than this session");
         return -1;
     }
@@ -665,7 +665,7 @@ static Gcc_USE_RET int decryptHandshake(struct CryptoAuth_Session_pvt* session,
     // Post-decryption checking
     if (nonce == 0) {
         // A new hello packet
-        if (!Bits_memcmp(session->herTempPubKey, header->encryptedTempKey, 32)) {
+        if (!Bits_constantEqual(session->herTempPubKey, header->encryptedTempKey, 32)) {
             // possible replay attack or duped packet
             cryptoAuthDebug0(session, "DROP dupe hello packet with same temp key");
             return -1;
@@ -674,7 +674,7 @@ static Gcc_USE_RET int decryptHandshake(struct CryptoAuth_Session_pvt* session,
         // we accept a new key packet and let it change the session since the other end might have
         // killed off the session while it was in the midst of setting up.
         // This is NOT a repeat key packet because it's nonce is 2, not 3
-        if (!Bits_memcmp(session->herTempPubKey, header->encryptedTempKey, 32)) {
+        if (!Bits_constantEqual(session->herTempPubKey, header->encryptedTempKey, 32)) {
             Assert_true(!Bits_isZero(session->herTempPubKey, 32));
             cryptoAuthDebug0(session, "DROP dupe key packet with same temp key");
             return -1;
@@ -682,7 +682,7 @@ static Gcc_USE_RET int decryptHandshake(struct CryptoAuth_Session_pvt* session,
 
     } else if (nonce == 3 && session->nextNonce >= 4) {
         // Got a repeat key packet, make sure the temp key is the same as the one we know.
-        if (Bits_memcmp(session->herTempPubKey, header->encryptedTempKey, 32)) {
+        if (Bits_constantEqual(session->herTempPubKey, header->encryptedTempKey, 32)) {
             Assert_true(!Bits_isZero(session->herTempPubKey, 32));
             cryptoAuthDebug0(session, "DROP repeat key packet with different temp key");
             return -1;
@@ -906,7 +906,7 @@ int CryptoAuth_addUser_ipv6(String* password,
     Bits_memcpy(user->passwordHash, &ac, CryptoHeader_Challenge_KEYSIZE);
 
     for (struct CryptoAuth_User* u = ca->users; u; u = u->next) {
-        if (Bits_memcmp(user->secret, u->secret, 32)) {
+        if (Bits_constantEqual(user->secret, u->secret, 32)) {
         } else if (!login) {
         } else if (String_equals(login, u->login)) {
             Allocator_free(alloc);
