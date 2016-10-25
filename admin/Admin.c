@@ -239,7 +239,7 @@ static inline bool authValid(Dict* message, struct Message* messageBytes, struct
 
     crypto_hash_sha256(hash, messageBytes->bytes, messageBytes->length);
     Hex_encode(hashPtr, 64, hash, 32);
-    return Bits_memcmp(hashPtr, submittedHash->bytes, 64) == 0;
+    return Bits_constant_equal(hashPtr, submittedHash->bytes, 64) == 0;
 }
 
 static bool checkArgs(Dict* args,
