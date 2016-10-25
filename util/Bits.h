@@ -118,13 +118,13 @@ static inline int Bits_isZero(void* buffer, size_t length)
 #define Bits_memcmp(a,b,c) __builtin_memcmp(a,b,c)
 
 /**
- * Bits_constant_equal()
+ * Bits_constantEqual()
  * Crypto version of memcmp, it is never optimized-away by a compiler and
  * prevent timing attacks.
  *
  * @return 0 means equal, -1 means not equal.
  */
-static inline int Bits_constant_equal(const void* a, const void* b, size_t len)
+static inline int Bits_constantEqual(const void* a, const void* b, size_t len)
 {
     size_t i;
     const unsigned char *x = a;
