@@ -227,7 +227,8 @@ static void udpInterface(Dict* config, struct Context* ctx)
                     }
                 } else {
                     // it doesn't have a port
-                    Log_critical(ctx->logger, "Missing port in connection [%s].", key->bytes);
+                    Log_critical(ctx->logger, "Connection [%s] must be $IP:$PORT, or "
+                                                "[$IP]:$PORT for IPv6.", key->bytes);
                     exit(-1);
                 }
                 Dict_putInt(value, String_CONST("interfaceNumber"), ifNum, perCallAlloc);
