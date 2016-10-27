@@ -586,7 +586,7 @@ in most cases the number would be an implementation specific constant around 8.
 
 Same reply bEncoded
 
-    d1:n80:cdefghijklmnopqrstuvwxyzabcdefghi1234567qponmlkjihgzyxwvutsrstuvwxyzabcde2345678e
+    d1:n80:cdefghijklmnopqrstuvwxyzabcdefghi1234567qponmlkjihgzyxwvutsrstuvwxyzabcde23456784:txid5:12345e
 
 
 The nodes in an fn reply are ordered from worst to best so the best answer is
