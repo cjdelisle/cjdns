@@ -16,8 +16,7 @@ scalability issues that plague existing networks.
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/387/badge)](https://bestpractices.coreinfrastructure.org/projects/387)
 [![tip for next commit](https://tip4commit.com/projects/941.svg)](https://tip4commit.com/github/cjdelisle/cjdns)
 [![irc](https://img.shields.io/badge/irc%20chat-%23cjdns-blue.svg)](https://kiwiirc.com/client/irc.efnet.org/?nick=visitor|?#cjdns)
-[![Version](https://img.shields.io/badge/Version-17.4-green.svg)](https://github.com/cjdelisle/cjdns/releases)
-[![AUR](https://img.shields.io/aur/license/yaourt.svg?maxAge=2592000)](https://aur.archlinux.org/packages/cjdns-git/)
+![License](https://img.shields.io/github/license/cjdelisle/cjdns.svg)]
 
 ## Testimonials
 
