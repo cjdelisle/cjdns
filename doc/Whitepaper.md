@@ -762,24 +762,47 @@ array; and the other peer to the next four bytes.
 This distinction is made so that packets from one peer can not be sent
 back to this peer to make it believe it is from the other peer.
 
-A peer should always send its nonce in increasing big-endian endian
+A peer should always send its nonce in increasing big-endian
 order, otherwise they will be dropped by the Replay Protector of the
 receiver if they are too much out of order.
 
 #### ReplayProtector
 
-When packet authentication is enabled, the packet is checked for replay attacks
-(intentional or accidental) the replay protection method is to use a 4-byte
-offset and a 64 bit bitfield to create a sliding window. When a packet comes in,
-its nonce is compared to the offset, if it is less then the offset, it is
-discarded. If when the offset is subtracted from it, the result is less than or equal
-to 64, 1 is shifted left by the result, bitwise ANDed against the bitfield and
-compared to zero, if it is not zero then the packet is a duplicate and is
-discarded. If it is zero then it is OR'd against the bitfield to set the same
-bit is set and the packet is passed along. If the result of subtraction is
-greater than 64, 64 is subtracted from it, this result is added to the offset,
-the bitfield is shifted left by this amount, then the least significant bit in
-the bitfield is set. This provides a secure protection against replay attacks and
+The replay protector is a feature cjdns implementations provide.
+It is however not part of the protocol itself.
+
+##### Simplest replay protector
+
+A simple replay protector would be to drop any data packet whose nonce
+is lower or equal to the highest packet nonce received so far.
+This way, a packet can never be sent twice to a node, preventing
+[replay attacks](https://en.wikipedia.org/wiki/Replay_attack).
+
+##### Replay protector with sliding window
+
+This section describes the replay protector used by the “official” cjdns
+implementation. It is not mandatory to implement it to support the protocol.
+
+Whenever a node receives a packet, it compares its nonce to the highest
+nonce received so far (big-endian). If it is greater, everything is fine,
+the incoming packet can not be a replay.
+Otherwise, the packet is a late packet, meaning we already received a packet
+newer than it. It may be a replay, but it may also be that the channel
+has a non-uniform latency.
+The slotted replay protector allows for late packets to be received,
+assuming they are not “too late” and are not replays.
+
+To do that, it stores a 64-bit bitfield, with a bit for each of the 64
+nonces before the highest nonce received so far.
+Every time a packet is received with a nonce between `highestnonce - 64`
+(excluded) and `highestnonce` (included), it substracts the packet's nonce
+to the highest nonce, giving a number n, and looks at the n-th bit
+of the bitfield. If it is one, the packet is a replay and is dropped.
+If it is zero, the packet passes, and the bit is set to one.
+And whenever a packet with a nonce higher than the current highest nonce,
+the bitfield is shifted by the difference between so two.
+
+This provides a secure protection against replay attacks and
 accidentally duplicated packets EG: from 802.11 noise; but does not discard
 packets that arrive slightly out of order.
 
