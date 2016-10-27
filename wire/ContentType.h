@@ -63,10 +63,11 @@ enum ContentType
      * CTRL messages.
      */
     ContentType_AVAILABLE =     0x8000,
-    ContentType_MAX = 0xffff,
 
     // This contentType will never appear in the wild, it represents unencrypted control frames.
-    ContentType_CTRL = 0xffff + 1
+    ContentType_CTRL = 0xffff + 1,
+
+    ContentType_MAX = 0xffff + 2
 };
 
 #endif
