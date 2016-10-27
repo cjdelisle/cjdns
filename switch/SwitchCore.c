@@ -91,9 +91,10 @@ static inline Iface_DEFUN sendError(struct SwitchInterface* iface,
         (cause->length < Control_Error_MAX_SIZE) ? cause->length : Control_Error_MAX_SIZE;
 
     // Shift back so we can add another header.
-    Message_shift(cause,
-                  SwitchHeader_SIZE + 4 + Control_Header_SIZE + Control_Error_HEADER_SIZE,
-                  NULL);
+    Message_push(cause,
+                 NULL,
+                 SwitchHeader_SIZE + 4 + Control_Header_SIZE + Control_Error_HEADER_SIZE,
+                 NULL);
     struct ErrorPacket8* err = (struct ErrorPacket8*) cause->bytes;
 
     err->switchHeader.label_be = Bits_bitReverse64(causeHeader->label_be);
