@@ -79,9 +79,9 @@ static inline Iface_DEFUN sendError(struct SwitchInterface* iface,
         return NULL;
     }
 
-    struct SwitchHeader* header = (struct SwitchHeader*) cause->bytes;
+    struct SwitchHeader* causeHeader = (struct SwitchHeader*) cause->bytes;
 
-    if (SwitchHeader_getSuppressErrors(header)) {
+    if (SwitchHeader_getSuppressErrors(causeHeader)) {
         // don't send errors if they're asking us to suppress them!
         return NULL;
     }
@@ -96,11 +96,11 @@ static inline Iface_DEFUN sendError(struct SwitchInterface* iface,
                   NULL);
     struct ErrorPacket8* err = (struct ErrorPacket8*) cause->bytes;
 
-    err->switchHeader.label_be = Bits_bitReverse64(header->label_be);
-    SwitchHeader_setSuppressErrors(header, true);
-    SwitchHeader_setVersion(header, SwitchHeader_CURRENT_VERSION);
-    SwitchHeader_setPenalty(header, 0);
-    SwitchHeader_setCongestion(header, 0);
+    err->switchHeader.label_be = Bits_bitReverse64(causeHeader->label_be);
+    SwitchHeader_setSuppressErrors(&err->switchHeader, true);
+    SwitchHeader_setVersion(&err->switchHeader, SwitchHeader_CURRENT_VERSION);
+    SwitchHeader_setPenalty(&err->switchHeader, 0);
+    SwitchHeader_setCongestion(&err->switchHeader, 0);
 
     err->handle = 0xffffffff;
     err->ctrl.header.type_be = Control_ERROR_be;
