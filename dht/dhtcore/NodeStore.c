@@ -437,7 +437,7 @@ static bool findBestParent0(struct Node_Two* node, struct NodeStore_pvt* store)
 // Returns true if anything was modified
 static bool findBestParent(struct Node_Two* node, struct NodeStore_pvt* store)
 {
-    uint64_t time0 = Time_hrtime(store->eventBase);
+    uint64_t time0 = Time_hrtime();
     if (!findBestParent0(node, store)) { return false; }
     int ret = 0;
     int cycle = 0;
