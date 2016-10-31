@@ -137,6 +137,29 @@ To stop it:
 
        systemctl stop cjdns
 
+#### Gentoo:
+
+cjdns is not yet in the main Gentoo repository, so you will have to use layman to install an overlay:
+
+       emerge layman
+
+If layman is installed correctly, you can add one of the overlays found here:
+
+       https://gpo.zugaina.org/Search?search=cjdns
+
+Add the overlay
+
+       layman -f
+       layman -a <name_of_overlay>
+
+For future update of the overlay use
+
+       layman -S
+
+Now you can install cjdns
+
+       emerge cjdns
+
 ### 1. Retrieve cjdns from GitHub
 
 Clone the repository from GitHub and change to the source directory:
