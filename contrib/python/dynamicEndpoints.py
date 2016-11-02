@@ -114,11 +114,6 @@ class DynamicEndpointWatcher(object):
         # unresponsive.
         self.unresponsive = dict()
 
-        # Holds a cjdns log message subscription to messages about unresponsive
-        # nodes.
-        self.sub = self.cjdns.AdminLog_subscribe(MESSAGE_LINE, MESSAGE_FILE,
-            'DEBUG')
-
         # Add nodes from the given ConfigParser parser.
         for section in configuration.sections():
             # Each section is named with a node key, and contains a
@@ -130,16 +125,21 @@ class DynamicEndpointWatcher(object):
             # Add the node
             self.addNode(peerHostname, peerPort, peerPassword, section)
 
+        # Add all the nodes we're supposed to watch.
+        for node in self.nodes.values():
+            self.lookup(node)
+        logging.info("{} peers added!".format(len(self.nodes)))
+        # Holds a cjdns log message subscription to messages about unresponsive
+        # nodes.
+        self.sub = self.cjdns.AdminLog_subscribe(MESSAGE_LINE, MESSAGE_FILE,
+            'DEBUG')
+
         if self.sub['error'] == 'none':
             # We successfully subscribed to messages.
             
             # When we die, try to unsubscribe
             atexit.register(self.stop)
             
-            # Add all the nodes we're supposed to watch.
-            for node in self.nodes.values():
-                self.lookup(node)
-            logging.info("{} peers added!".format(len(self.nodes)))
         else:
             logging.error(self.sub)
 
@@ -346,7 +346,7 @@ def main(argv):
         # Announce we dropped privs
         logging.info("Dropped privileges: running as {}:{}".format(
             pwd.getpwuid(os.getuid())[0], grp.getgrgid(os.getgid())[0]))
-    except OSError:
+    except (OSError,KeyError):
         # Complain we couldn't drop privs right
         logging.warning("Could not drop privileges: running as {}:{}".format(
             pwd.getpwuid(os.getuid())[0], grp.getgrgid(os.getgid())[0]))
