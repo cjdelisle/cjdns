@@ -236,7 +236,7 @@ static void hellosCrossedOnTheWire()
     struct Message* hello1 = encryptMsg(ctx, ctx->sess1, "hello1");
 
     decryptMsg(ctx, hello2, ctx->sess1, "hello2");
-    decryptMsg(ctx, hello1, ctx->sess2, NULL); //"hello1"); // The message is suppressed.
+    decryptMsg(ctx, hello1, ctx->sess2, "hello1");
 
     sendToIf2(ctx, "hello world");
     sendToIf1(ctx, "hello cjdns");
