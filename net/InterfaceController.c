@@ -309,11 +309,13 @@ static void iciPing(struct InterfaceController_Iface_pvt* ici, struct InterfaceC
         struct Peer* ep = ici->peerMap.values[i];
 
         if (now < ep->timeOfLastMessage + ic->pingAfterMilliseconds) {
-            if (now < ep->timeOfLastPing + ic->pingAfterMilliseconds) {
-                // Possibly an out-of-date node which is mangling packets, don't ping too often
-                // because it causes the RumorMill to be filled with this node over and over.
-                continue;
-            }
+            // It's sending traffic so leave it alone.
+            continue;
+        }
+        if (now < ep->timeOfLastPing + ic->pingAfterMilliseconds) {
+            // Possibly an out-of-date node which is mangling packets, don't ping too often
+            // because it causes the RumorMill to be filled with this node over and over.
+            continue;
         }
 
         uint8_t keyIfDebug[56];
