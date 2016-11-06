@@ -169,45 +169,40 @@ void CryptoAuth_resetIfTimeout(struct CryptoAuth_Session* session);
 
 void CryptoAuth_reset(struct CryptoAuth_Session* caSession);
 
-/** New CryptoAuth session, has not sent or received anything. */
-#define CryptoAuth_NEW         0
+enum CryptoAuth_State {
+    // New CryptoAuth session, has not sent or received anything
+    CryptoAuth_State_INIT = 0,
 
-/** Sent a hello message, waiting for reply. */
-#define CryptoAuth_HANDSHAKE1  1
+    // Sent a hello message, waiting for reply
+    CryptoAuth_State_SENT_HELLO = 1,
 
-/** Received a hello message, sent a key message, waiting for the session to complete. */
-#define CryptoAuth_HANDSHAKE2  2
+    // Received a hello message, have not yet sent a reply
+    CryptoAuth_State_RECEIVED_HELLO = 2,
 
-/** Sent a hello message and received a key message but have not gotten a data message yet. */
-#define CryptoAuth_HANDSHAKE3  3
+    // Received a hello message, sent a key message, waiting for the session to complete
+    CryptoAuth_State_SENT_KEY = 3,
 
-/** The CryptoAuth session has successfully done a handshake and received at least one message. */
-#define CryptoAuth_ESTABLISHED 4
+    // Sent a hello message, received a key message, may or may not have sent some data traffic
+    // but no data traffic has yet been received
+    CryptoAuth_State_RECEIVED_KEY = 4,
 
-/** The number of states */
-#define CryptoAuth_STATE_COUNT 5
+    // Received data traffic, session is in run state
+    CryptoAuth_State_ESTABLISHED = 100
+};
 
 static inline char* CryptoAuth_stateString(int state)
 {
     switch (state) {
-        case CryptoAuth_NEW:         return "CryptoAuth_NEW";
-        case CryptoAuth_HANDSHAKE1:  return "CryptoAuth_HANDSHAKE1";
-        case CryptoAuth_HANDSHAKE2:  return "CryptoAuth_HANDSHAKE2";
-        case CryptoAuth_HANDSHAKE3:  return "CryptoAuth_HANDSHAKE3";
-        case CryptoAuth_ESTABLISHED: return "CryptoAuth_ESTABLISHED";
+        case CryptoAuth_State_INIT:           return "INIT";
+        case CryptoAuth_State_SENT_HELLO:     return "SENT_HELLO";
+        case CryptoAuth_State_RECEIVED_HELLO: return "RECEIVED_HELLO";
+        case CryptoAuth_State_SENT_KEY:       return "SENT_KEY";
+        case CryptoAuth_State_RECEIVED_KEY:   return "RECEIVED_KEY";
+        case CryptoAuth_State_ESTABLISHED:    return "ESTABLISHED";
         default: return "INVALID";
     }
 }
 
-/**
- * Get the state of the CryptoAuth session.
- *
- * @param interface a CryptoAuth wrapper.
- * @return one of CryptoAuth_NEW,
- *                CryptoAuth_HANDSHAKE1,
- *                CryptoAuth_HANDSHAKE2 or
- *                CryptoAuth_ESTABLISHED
- */
-int CryptoAuth_getState(struct CryptoAuth_Session* session);
+enum CryptoAuth_State CryptoAuth_getState(struct CryptoAuth_Session* session);
 
 #endif

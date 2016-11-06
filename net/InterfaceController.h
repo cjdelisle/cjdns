@@ -37,16 +37,18 @@ enum InterfaceController_PeerState
      * In state >= NEW, a valid packet has been received but it could still be a replay.
      * Or it's an outgoing connection so we don't care about authentication.
      */
-    InterfaceController_PeerState_NEW = CryptoAuth_NEW,
+    InterfaceController_PeerState_INIT = CryptoAuth_State_INIT,
 
-    InterfaceController_PeerState_HANDSHAKE1 = CryptoAuth_HANDSHAKE1,
+    InterfaceController_PeerState_SENT_HELLO = CryptoAuth_State_SENT_HELLO,
 
-    InterfaceController_PeerState_HANDSHAKE2 = CryptoAuth_HANDSHAKE2,
+    InterfaceController_PeerState_RECEIVED_HELLO = CryptoAuth_State_RECEIVED_HELLO,
 
-    InterfaceController_PeerState_HANDSHAKE3 = CryptoAuth_HANDSHAKE3,
+    InterfaceController_PeerState_SENT_KEY = CryptoAuth_State_SENT_KEY,
+
+    InterfaceController_PeerState_RECEIVED_KEY = CryptoAuth_State_RECEIVED_KEY,
 
     /** In state == ESTABLISHED, we know the node at the other end is authentic. */
-    InterfaceController_PeerState_ESTABLISHED = CryptoAuth_ESTABLISHED,
+    InterfaceController_PeerState_ESTABLISHED = CryptoAuth_State_ESTABLISHED,
 
     /** If state == UNRESPONSIVE, the peer has not responded to pings in the required timeframe. */
     InterfaceController_PeerState_UNRESPONSIVE = -1,
@@ -54,17 +56,17 @@ enum InterfaceController_PeerState
     /** If state is UNAUTHENTICATED, the other node has not sent a single valid packet. */
     InterfaceController_PeerState_UNAUTHENTICATED = -2,
 };
-Assert_compileTime(CryptoAuth_STATE_COUNT == 5);
 
 static inline char* InterfaceController_stateString(enum InterfaceController_PeerState ps)
 {
     switch (ps) {
-        case InterfaceController_PeerState_NEW: return "NEW";
-        case InterfaceController_PeerState_HANDSHAKE1: return "HANDSHAKE1";
-        case InterfaceController_PeerState_HANDSHAKE2: return "HANDSHAKE2";
-        case InterfaceController_PeerState_HANDSHAKE3: return "HANDSHAKE3";
-        case InterfaceController_PeerState_ESTABLISHED: return "ESTABLISHED";
-        case InterfaceController_PeerState_UNRESPONSIVE: return "UNRESPONSIVE";
+        case InterfaceController_PeerState_INIT:            return "INIT";
+        case InterfaceController_PeerState_SENT_HELLO:      return "SENT_HELLO";
+        case InterfaceController_PeerState_RECEIVED_HELLO:  return "RECEIVED_HELLO";
+        case InterfaceController_PeerState_SENT_KEY:        return "SENT_KEY";
+        case InterfaceController_PeerState_RECEIVED_KEY:    return "RECEIVED_KEY";
+        case InterfaceController_PeerState_ESTABLISHED:     return "ESTABLISHED";
+        case InterfaceController_PeerState_UNRESPONSIVE:    return "UNRESPONSIVE";
         case InterfaceController_PeerState_UNAUTHENTICATED: return "UNAUTHENTICATED";
         default: return "INVALID";
     }

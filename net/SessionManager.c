@@ -464,7 +464,7 @@ static Iface_DEFUN readyToSend(struct Message* msg,
     Message_shift(msg, -RouteHeader_SIZE, NULL);
     struct SwitchHeader* sh;
     CryptoAuth_resetIfTimeout(sess->pub.caSession);
-    if (CryptoAuth_getState(sess->pub.caSession) < CryptoAuth_HANDSHAKE3) {
+    if (CryptoAuth_getState(sess->pub.caSession) < CryptoAuth_State_RECEIVED_KEY) {
         // Put the handle into the message so that it's authenticated.
         Message_push32(msg, sess->pub.receiveHandle, NULL);
 
@@ -485,7 +485,7 @@ static Iface_DEFUN readyToSend(struct Message* msg,
 
     Assert_true(!CryptoAuth_encrypt(sess->pub.caSession, msg));
 
-    if (CryptoAuth_getState(sess->pub.caSession) >= CryptoAuth_HANDSHAKE3) {
+    if (CryptoAuth_getState(sess->pub.caSession) >= CryptoAuth_State_RECEIVED_KEY) {
         if (0) { // Noisy
             debugHandlesAndLabel0(sm->log,
                                   sess,
@@ -580,7 +580,7 @@ static Iface_DEFUN incomingFromInsideIf(struct Message* msg, struct Iface* iface
     // Forward secrecy, only send dht messages until the session is setup.
     CryptoAuth_resetIfTimeout(sess->pub.caSession);
     if (DataHeader_getContentType(dataHeader) != ContentType_CJDHT &&
-        CryptoAuth_getState(sess->pub.caSession) < CryptoAuth_HANDSHAKE3)
+        CryptoAuth_getState(sess->pub.caSession) < CryptoAuth_State_RECEIVED_KEY)
     {
         needsLookup(sm, msg);
         return NULL;
@@ -644,7 +644,7 @@ static Iface_DEFUN incomingFromEventIf(struct Message* msg, struct Iface* iface)
     }
 
     // Send what's on the buffer...
-    if (index > -1 && CryptoAuth_getState(sess->pub.caSession) >= CryptoAuth_HANDSHAKE3) {
+    if (index > -1 && CryptoAuth_getState(sess->pub.caSession) >= CryptoAuth_State_RECEIVED_KEY) {
         struct BufferedMessage* bm = sm->bufMap.values[index];
         Iface_CALL(readyToSend, bm->msg, sm, sess);
         Map_BufferedMessages_remove(index, &sm->bufMap);

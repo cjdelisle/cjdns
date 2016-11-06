@@ -218,8 +218,8 @@ static void sendFrom(struct Context* ctx, struct Node* from, struct Message* msg
             Assert_true(!CryptoAuth_encrypt(to->session, msg));
             to->sendCounter++;
             sendFrom(ctx, to, msg);
-        } else if (CryptoAuth_getState(ctx->nodeA.session) == CryptoAuth_ESTABLISHED &&
-            CryptoAuth_getState(ctx->nodeB.session) == CryptoAuth_ESTABLISHED)
+        } else if (CryptoAuth_getState(ctx->nodeA.session) == CryptoAuth_State_ESTABLISHED &&
+            CryptoAuth_getState(ctx->nodeB.session) == CryptoAuth_State_ESTABLISHED)
         {
             ctx->successMessageCount++;
         }

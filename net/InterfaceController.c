@@ -414,7 +414,7 @@ static Iface_DEFUN receivedPostCryptoAuth(struct Message* msg,
         Bits_memcpy(ep->addr.key, ep->caSession->herPublicKey, 32);
         Address_getPrefix(&ep->addr);
 
-        if (caState == CryptoAuth_ESTABLISHED) {
+        if (caState == CryptoAuth_State_ESTABLISHED) {
             moveEndpointIfNeeded(ep);
             //sendPeer(0xffffffff, PFChan_Core_PEER, ep);// version is not known at this point.
         } else {
@@ -441,7 +441,7 @@ static Iface_DEFUN receivedPostCryptoAuth(struct Message* msg,
             }
         }
     } else if (ep->state == InterfaceController_PeerState_UNRESPONSIVE
-        && caState == CryptoAuth_ESTABLISHED)
+        && caState == CryptoAuth_State_ESTABLISHED)
     {
         ep->state = InterfaceController_PeerState_ESTABLISHED;
         SwitchCore_setInterfaceState(&ep->switchIf, SwitchCore_setInterfaceState_ifaceState_UP);

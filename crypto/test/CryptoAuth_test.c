@@ -254,8 +254,8 @@ static void reset()
     sendToIf2(ctx, "hai");
     sendToIf1(ctx, "brb");
 
-    Assert_true(CryptoAuth_getState(ctx->sess1) == CryptoAuth_ESTABLISHED);
-    Assert_true(CryptoAuth_getState(ctx->sess2) == CryptoAuth_ESTABLISHED);
+    Assert_true(CryptoAuth_getState(ctx->sess1) == CryptoAuth_State_ESTABLISHED);
+    Assert_true(CryptoAuth_getState(ctx->sess2) == CryptoAuth_State_ESTABLISHED);
 
     CryptoAuth_reset(ctx->sess1);
 
@@ -271,8 +271,8 @@ static void reset()
     sendToIf1(ctx, "ok works");
     sendToIf2(ctx, "yup");
 
-    Assert_true(CryptoAuth_getState(ctx->sess1) == CryptoAuth_ESTABLISHED);
-    Assert_true(CryptoAuth_getState(ctx->sess2) == CryptoAuth_ESTABLISHED);
+    Assert_true(CryptoAuth_getState(ctx->sess1) == CryptoAuth_State_ESTABLISHED);
+    Assert_true(CryptoAuth_getState(ctx->sess2) == CryptoAuth_State_ESTABLISHED);
 
     Allocator_free(ctx->alloc);
 }
