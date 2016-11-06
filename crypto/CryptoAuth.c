@@ -43,7 +43,8 @@ enum Nonce {
     Nonce_HELLO = 0,
     Nonce_REPEAT_HELLO = 1,
     Nonce_KEY = 2,
-    Nonce_REPEAT_KEY = 3
+    Nonce_REPEAT_KEY = 3,
+    Nonce_FIRST_TRAFFIC_PACKET = 4
 };
 
 static inline void printHexKey(uint8_t output[65], uint8_t key[32])
@@ -601,10 +602,11 @@ static Gcc_USE_RET int decryptHandshake(struct CryptoAuth_Session_pvt* session,
     uint8_t sharedSecret[32];
 
     if (nonce < Nonce_KEY) { // HELLO or REPEAT_HELLO
-        if (nonce == 0) {
+        if (nonce == Nonce_HELLO) {
             cryptoAuthDebug(session, "Received a hello packet, using auth: %d",
                             (userObj != NULL));
         } else {
+            Assert_true(nonce == Nonce_REPEAT_HELLO);
             cryptoAuthDebug0(session, "Received a repeat hello packet");
         }
 
@@ -613,7 +615,7 @@ static Gcc_USE_RET int decryptHandshake(struct CryptoAuth_Session_pvt* session,
                         session->pub.herPublicKey,
                         passwordHash,
                         session->context->logger);
-        nextNonce = 2;
+        nextNonce = CryptoAuth_State_RECEIVED_HELLO;
     } else {
         if (nonce == Nonce_KEY) {
             cryptoAuthDebug0(session, "Received a key packet");
@@ -828,8 +830,8 @@ int CryptoAuth_decrypt(struct CryptoAuth_Session* sessionPub, struct Message* ms
     uint32_t nonce = Endian_bigEndianToHost32(header->nonce);
 
     if (!session->established) {
-        if (nonce > 3) {
-            if (session->nextNonce < 3) {
+        if (nonce >= Nonce_FIRST_TRAFFIC_PACKET) {
+            if (session->nextNonce < CryptoAuth_State_SENT_KEY) {
                 // This is impossible because we have not exchanged hello and key messages.
                 cryptoAuthDebug0(session, "DROP Received a run message to an un-setup session");
                 return -1;
@@ -861,7 +863,7 @@ int CryptoAuth_decrypt(struct CryptoAuth_Session* sessionPub, struct Message* ms
         Message_shift(msg, 4, NULL);
         return decryptHandshake(session, nonce, msg, header);
 
-    } else if (nonce > 3) {
+    } else if (nonce >= Nonce_FIRST_TRAFFIC_PACKET) {
         Assert_ifParanoid(!Bits_isZero(session->sharedSecret, 32));
         if (decryptMessage(session, nonce, msg, session->sharedSecret)) {
             updateTime(session, msg);
@@ -870,16 +872,15 @@ int CryptoAuth_decrypt(struct CryptoAuth_Session* sessionPub, struct Message* ms
             cryptoAuthDebug0(session, "DROP Failed to decrypt message");
             return -1;
         }
-    } else if (nonce < 2) {
+    } else if (nonce <= Nonce_REPEAT_HELLO) {
         cryptoAuthDebug(session, "hello packet during established session nonce=[%d]", nonce);
         Message_shift(msg, 4, NULL);
         return decryptHandshake(session, nonce, msg, header);
     } else {
-        // setup keys are already zeroed, not much we can do here.
         cryptoAuthDebug(session, "DROP key packet during established session nonce=[%d]", nonce);
         return -1;
     }
-    Assert_true(0);
+    Assert_failure("unreachable");
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
