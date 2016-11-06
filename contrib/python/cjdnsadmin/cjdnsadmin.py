@@ -173,20 +173,31 @@ def _getMessage(session, txid):
                 print "message with no txid: " + str(next)
 
 
-def _functionFabric(func_name, argList, oargList, password):
+def _functionFabric(func_name, argList, oargs, password):
     """Function fabric for Session class"""
 
     def functionHandler(self, *args, **kwargs):
         call_args = {}
 
-        for (key, value) in oargList.items():
-            call_args[key] = value
-
-        for i, arg in enumerate(argList):
-            if (i < len(args)):
-                call_args[arg] = args[i]
+        pos = 0
+        for value in args:
+            if (pos < len(argList)):
+                call_args[argList[pos]] = value
+                pos += 1
 
         for (key, value) in kwargs.items():
+            if not key in oargs:
+                # probably a positional argument, given a keyword name
+                # that happens in python
+                if pos < len(argList) and argList[pos] == key:
+                    call_args[argList[pos]] = value
+                    pos += 1
+                    continue
+                else:
+                    print("warning: not an argument to this function",func_name,key)
+                    print(oargs)
+            # TODO: check oargs[key] type matches value
+            # warn, if doesn't
             call_args[key] = value
 
         return _callFunc(self, func_name, password, call_args)
@@ -231,25 +242,22 @@ def connect(ipAddr, port, password):
     for (i, func) in availableFunctions.items():
         items = func.items()
 
-        # grab all the required args first
-        # append all the optional args
-        rargList = [arg for arg,atts in items if atts['required']]
-        argList = rargList + [arg for arg,atts in items if not atts['required']]
-
-        # for each optional arg setup a default value with
-        # a type which will be ignored by the core.
-        oargList = {}
+        # required args
+        argList = []
+        # optional args
+        oargs = {}
+        
         for (arg,atts) in items:
-            if not atts['required']:
-                oargList[arg] = (
-                    "''" if (func[arg]['type'] == 'Int')
-                    else "0")
+            if atts['required']:
+                argList.append(arg)
+            else:
+                oargs[arg] = atts['type']
 
         setattr(Session, i, _functionFabric(
-            i, argList, oargList, password))
+            i, argList, oargs, password))
 
-        funcArgs[i] = rargList
-        funcOargs[i] = oargList
+        funcArgs[i] = argList
+        funcOargs[i] = oargs
 
     session = Session(sock)
 
