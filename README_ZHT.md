@@ -202,7 +202,7 @@ OpenVZ Virtualization Platform 的 VPS（虛擬專用伺服器）。
    各個連線會在未來被實體線路或無線網路取代。
 3. 如果有任何異議，會有「朋友的朋友」將兩方連在一起，這使和解更容易達成
    
-要找朋友，請發聲並加入我們的[community](#community)。另外，來[Hyperboria Map][] 找尋鄰近的節點。
+要找朋友，請發聲並加入我們的 [community](#community)。另外，來[Hyperboria Map][] 找尋鄰近的節點。
 
 
 ### 3. 連接你與朋友的節點
@@ -226,7 +226,7 @@ OpenVZ Virtualization Platform 的 VPS（虛擬專用伺服器）。
 // Nodes to connect to.
 "connectTo":
 {
-    //friend_1 (IPv4: 0.1.2.3; IPv6 fcaa:5bac:66e4:713:cb00:e446:c317:fc39)
+    //朋友_1 (IPv4: 0.1.2.3; IPv6 fcaa:5bac:66e4:713:cb00:e446:c317:fc39)
     "0.1.2.3:45678":
     {
         "login": "k.alexander"
@@ -234,7 +234,7 @@ OpenVZ Virtualization Platform 的 VPS（虛擬專用伺服器）。
         "publicKey": "這只是範例請不要真的在配置檔中用這串字_1.k"
     }
 
-    //friend_2 (IPv4: 5.1.2.3; IPv6 fcbb:5bac:66e4:713:cb00:e446:c317:fc39)
+    //朋友_2 (IPv4: 5.1.2.3; IPv6 fcbb:5bac:66e4:713:cb00:e446:c317:fc39)
     "5.1.2.3:5678":
     {
         "login": "k.alexander"
@@ -254,16 +254,16 @@ OpenVZ Virtualization Platform 的 VPS（虛擬專用伺服器）。
 ``` javascript
 "authorizedPasswords":
 [
-    // A unique string which is known to the client and server.
+    // A unique string which is known to the client and server. 
     {"password": "唯一的密碼（請不要輸入中文）_001"}
 
-    // More passwords should look like this.
+    // More passwords should look like this. 
     // {"password": "唯一的密碼（請不要輸入中文）_002"}
     // {"password": "唯一的密碼（請不要輸入中文）_003"}
     // {"password": "唯一的密碼（請不要輸入中文）_004"}
     ...
 
-    // "your.external.ip.goes.here:45678":{"password": "唯一的密碼（請不要輸入中文）_001","publicKey":獨一無二的金鑰_001.k"}
+    // "你的.對外.IP.位址:45678":{"password": "唯一的密碼（請不要輸入中文）_001","publicKey":獨一無二的金鑰_001.k"}
 
 ],
 ```
@@ -272,10 +272,10 @@ OpenVZ Virtualization Platform 的 VPS（虛擬專用伺服器）。
 ``` javascript
 "authorizedPasswords":
 [
-    // A unique string which is known to the client and server.
+    // A unique string which is known to the client and server. 在此輸入讓他人對你連線的密碼
     {"password": "唯一的密碼（請不要輸入中文）_001", "user": "k.alexander"}
 
-    // More passwords should look like this.
+    // More passwords should look like this. 其他請依此格式類推
     //William Jevons (IPv4: 0.1.2.3; IPv6 fcaa:5bac:66e4:713:cb00:e446:c317:fc39)
     {"password": "唯一的密碼（請不要輸入中文）_002", "user": "William Jevons"}
     //Marilyn Patel (IPv4: 5.1.2.3; IPv6 fcbb:5bac:66e4:713:cb00:e446:c317:fc39)
@@ -283,7 +283,7 @@ OpenVZ Virtualization Platform 的 VPS（虛擬專用伺服器）。
     // {"password": "唯一的密碼（請不要輸入中文）_004"}
     ...
 
-    // "your.external.ip.goes.here:45678":{"password": "唯一的密碼（請不要輸入中文）_001","publicKey":獨一無二的金鑰_001.k"}
+    // "你的.對外.IP.位址:45678":{"password": "唯一的密碼（請不要輸入中文）_001","publicKey":獨一無二的金鑰_001.k"}
 ],
 ```
 
@@ -310,15 +310,12 @@ OpenVZ Virtualization Platform 的 VPS（虛擬專用伺服器）。
 }
 ```
 
-Please note that you and your friend can *initiate* a
-connection either outbound (from YOU --> FRIEND) or inbound (from FRIEND --> YOU)
-but traffic flows both ways once the connection is established.
+請記得你與你朋友可以啟始「向外（你 --> 朋友）」或「向內（朋友 --> 你）」連線，但當通道建立後兩方皆可使用。
 
-See [doc/configure.md](doc/configure.md) for more details on configuration,
-including how to peer with other cjdns nodes over ethernet and wifi.
+更進階的配置請閱讀 [doc/configure.md](doc/configure.md)，
+包括如何透過乙太網路與Wifi連線。
 
-
-### 4. Secure your system - check for listening services
+### 4. 保護你的系統 - 檢查正在使用網路的程式
 
 Once your node is running, you're now a newly minted IPv6 host. Your operating
 system may automatically reconfigure network services to use this new address.
