@@ -77,8 +77,8 @@ cjdns 開發人員 敬上
 
 ### 0. 安裝相關程式
 
-在任意系統安裝 [Node.js](http://nodejs.org/)，非必要但建議安裝
-如無 Node.js 或版本錯誤，程式會自動下載安裝至 Source Tree 中。
+在任意系統安裝 [Node.js](http://nodejs.org/)，非必要但強烈建議。
+如無 Node.js 或版本錯誤，安裝程式會自動下載安裝至 Source Tree 中。
 
 #### Debian 系統:
 
