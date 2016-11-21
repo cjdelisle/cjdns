@@ -202,7 +202,7 @@ OpenVZ Virtualization Platform 的 VPS（虛擬專用伺服器）。
    各個連線會在未來被實體線路或無線網路取代。
 3. 如果有任何異議，會有「朋友的朋友」將兩方連在一起，這使和解更容易達成
    
-要找朋友，請發聲並加入我們的 [community](#community)。另外，來[Hyperboria Map][] 找尋鄰近的節點。
+要找朋友，請發聲並加入我們的 [社群](#社群)。另外，來[Hyperboria Map][] 找尋鄰近的節點。
 
 
 ### 3. 連接你與朋友的節點
@@ -366,25 +366,19 @@ OpenVZ Virtualization Platform 的 VPS（虛擬專用伺服器）。
 
 
 ## 回報問題
-1. Don't
-2. Get on IRC and talk to somebody
-3. What will happen is either
- * Someone feels like fixing it
- * You feel like fixing it
- * Nobody cares about it and it will be forgotten for a while and maybe someone will hit it later
- and fix it or else it will get wiped away in a refactoring
- * Nobody can fix it at the moment but it is considered worth remembering because it has great
- significance to the way the code is developed, in this case it needs to be explained in technical
- terms by someone with strong familiarity with the code. They will make a pull request to the
- docs/bugs directory.
- 4. Alternatively you can report the issue on the https://github.com/hyperboria/cjdns.git repo.
+1. 請不要
+2. 在 IRC 上講
+3. 以下是可能發生的
+ * 有人主動來修問題
+ * 你主動來修理問題
+ * 根本沒人理這問題然後被遺忘，也許某天有人會遇到同樣的問題然後在某次的重構中解決
+ * 目前無解但是應該被記住，因為這會影響未來程式開發，這種情況必須被對程式碼有深入理解的人進行解釋。他會提出對 Bug 或文件進行修改。
+ 4. 你可以在右邊 https://github.com/hyperboria/cjdns.git 的 Repo 提出問題。
 
-### Security
-Security issues should be reported on IRC the same as other bugs. We don't have a closed
-group of people with special knowledge so that means the default security reporting method is
-full disclosure.
-see: https://github.com/cjdelisle/cjdns/blob/master/doc/security_specification.md to see if a
-possible security issue is really a security issue.
+### 安全
+安全問題應該同樣與其他 Bug 一樣在 IRC 回報。 我們並沒有一個擁有特殊技術
+的封閉團隊，所以預設的安全問題回報是完全公開。
+請參閱： https://github.com/cjdelisle/cjdns/blob/master/doc/security_specification.md 來確認可能安全問題是真的安全問題。
 
 
 [IRC Web]: http://chat.efnet.org/irc.cgi?chan=%23cjdns
