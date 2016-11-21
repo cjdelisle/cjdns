@@ -317,59 +317,55 @@ OpenVZ Virtualization Platform 的 VPS（虛擬專用伺服器）。
 
 ### 4. 保護你的系統 - 檢查正在使用網路的程式
 
-Once your node is running, you're now a newly minted IPv6 host. Your operating
-system may automatically reconfigure network services to use this new address.
-If this is not what you intend, you should check to see that you are not
-offering more services then you intended to. ;)
+當你的節點開始運行，你的電腦便成為一個新的 IPv6 伺服。你的作業系統
+可能會自動重新配置網路程式來使用者個新的網路位址。
+如果你並不希望這麼做，你應確認你並沒有提供一些你不打算公開的服務。 ;)
 
-See [doc/network-services.md](doc/network-services.md) for instructions.
+更多資料請查閱 [doc/network-services.md](doc/network-services.md)。
 
 
-### 5. Start it up!
+### 5. 開始使用！
 
     sudo ./cjdroute < cjdroute.conf
 
-If you want to have your logs written to a file:
+如果你希望將紀錄存成一個檔案：
 
     sudo ./cjdroute < cjdroute.conf > cjdroute.log
 
-To stop cjdns:
+停止 cjdns:
 
     sudo killall cjdroute
 
-If you are having problems use `killall cjdroute` to return to sanity. Use
-`pgrep cjdroute` or `top` to see if it running.
+如果出現問題用 `killall cjdroute` 指令來結束一切。 用
+`pgrep cjdroute` 或 `top` 指令來確認是否正在執行。
 
-**NOTE!**
+**注意！**
 
-This starts cjdns as the root user so it can configure your system
-without concern for permissions. To start cjdns as a non-root user, see
-[doc/non-root-user.md](doc/non-root-user.md).
+這將會讓 cjdns 以 Root 權限執行並設定你的系統，避免要求權限等提示。 請參閱 [doc/non-root-user.md](doc/non-root-user.md) 來以非 Root 權限執行。
 
 
-### 6. Get in IRC
+### 6. 加入 IRC
 
-Welcome to the network! You're now a network administrator. There are
-responsibilities which come with being a network administrator which include
-being available in case there is something wrong with your equipment. You should
-stay on [IRC](#community) so that people can reach you.
-
-
-## Admin interface
-
-When cjdroute is up and running, the admin interface will be available at
-`udp://localhost:11234` (this can be changed in the `cjdroute.conf`
-configuration file). See [doc/admin-api.md](doc/admin-api.md) for more
-information about the admin interface. There are several tools in `contrib/`
-that can interact with it.
-
-You can access the admin API with:
-
-* the **Python library**; see [here](contrib/python/README.md).
-* the **Perl library**, maintained by Mikey; see [here](contrib/perl/CJDNS/README).
+歡迎來到這個網絡！ 你現在是一個網管了。 這代表你
+有些成一個網管的責任，包括
+當你的設備出狀況時必須能回應。你應當在
+[IRC](#community) 保持在線，這樣其他人才能與你聯繫。
 
 
-## Reporting issues
+## 管理者界面
+
+當 cjdroute 正在執行時，你可以在
+`udp://localhost:11234` 看到管理者界面 (這可以在 `cjdroute.conf`
+更改). 這個檔案 [doc/admin-api.md](doc/admin-api.md) 有更多有關管理者界面
+的資訊。一些在 `contrib/` 的工具可以配合使用。
+
+你可以透過以下方式使用 Admin API ：
+
+* **Python library**; 按 [這裡](contrib/python/README.md).
+* **Perl library**, 由 Mikey 維護; 按 [這裡](contrib/perl/CJDNS/README).
+
+
+## 回報問題
 1. Don't
 2. Get on IRC and talk to somebody
 3. What will happen is either
