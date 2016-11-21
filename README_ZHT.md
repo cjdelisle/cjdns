@@ -202,14 +202,14 @@ OpenVZ Virtualization Platform 的 VPS（虛擬專用伺服器）。
    各個連線會在未來被實體線路或無線網路取代。
 3. 如果有任何異議，會有「朋友的朋友」將兩方連在一起，這使和解更容易達成
    
-要找朋友，請發聲並加入我們的[社群](#community)。另外，來[Hyperboria Map][] 找尋鄰近的節點。
+要找朋友，請發聲並加入我們的[community](#community)。另外，來[Hyperboria Map][] 找尋鄰近的節點。
 
 
-### 3. Connect your node to your friend's node
+### 3. 連接你與朋友的節點
 
-**To initiate the connection OUTbound**
+**由你啟始連線（向外）**
 
-In your conf file, you will see:
+在你的配置檔，你可以找到：
 
 ``` javascript
 // Nodes to connect to.
@@ -220,7 +220,7 @@ In your conf file, you will see:
 }
 ```
 
-A conf file with multiple friend-nodes, setup OUTbound, should look like:
+一個包含許多朋友節點（向外）的配置檔類似這樣：
 
 ``` javascript
 // Nodes to connect to.
@@ -230,84 +230,83 @@ A conf file with multiple friend-nodes, setup OUTbound, should look like:
     "0.1.2.3:45678":
     {
         "login": "k.alexander"
-        "password": "thisIsNotARealConnection_1",
-        "publicKey": "thisIsJustForAnExampleDoNotUseThisInYourConfFile_1.k"
+        "password": "這不是真的連線_1",
+        "publicKey": "這只是範例請不要真的在配置檔中用這串字_1.k"
     }
 
     //friend_2 (IPv4: 5.1.2.3; IPv6 fcbb:5bac:66e4:713:cb00:e446:c317:fc39)
     "5.1.2.3:5678":
     {
         "login": "k.alexander"
-        "password": "thisIsNotARealConnection_2",
-        "publicKey": "thisIsJustForAnExampleDoNotUseThisInYourConfFile_2.k"
+        "password": "這不是真的連線_2",
+        "publicKey": "這只是範例請不要真的在配置檔中用這串字_2.k"
     }
 }
 ```
 
-You can add as many connections as you want to the `connectTo` attribute,
-following JSON syntax.
+你可以依照 JSON 語法在 `connectTo` 屬性中加入無限個連線。
 
 
-**To allow your friend to initiate the connection INbound**
+**讓你的朋友啟始連線（向內）**
 
-In your conf file, you will see:
+在配置檔中，你可以找到：
 
 ``` javascript
 "authorizedPasswords":
 [
     // A unique string which is known to the client and server.
-    {"password": "thisisauniquestring_001"}
+    {"password": "唯一的密碼（請不要輸入中文）_001"}
 
     // More passwords should look like this.
-    // {"password": "thisisauniquestring_002"}
-    // {"password": "thisisauniquestring_003"}
-    // {"password": "thisisauniquestring_004"}
+    // {"password": "唯一的密碼（請不要輸入中文）_002"}
+    // {"password": "唯一的密碼（請不要輸入中文）_003"}
+    // {"password": "唯一的密碼（請不要輸入中文）_004"}
     ...
 
-    // "your.external.ip.goes.here:45678":{"password": "thisisauniquestring_001","publicKey":thisisauniqueKEY_001.k"}
+    // "your.external.ip.goes.here:45678":{"password": "唯一的密碼（請不要輸入中文）_001","publicKey":獨一無二的金鑰_001.k"}
 
 ],
 ```
 
-A conf file with multiple friend-nodes, setup INbound, should look like:
+一個有許多朋友節點的配置檔，向內連線應該長這樣：
 ``` javascript
 "authorizedPasswords":
 [
     // A unique string which is known to the client and server.
-    {"password": "thisisauniquestring_001", "user": "k.alexander"}
+    {"password": "唯一的密碼（請不要輸入中文）_001", "user": "k.alexander"}
 
     // More passwords should look like this.
     //William Jevons (IPv4: 0.1.2.3; IPv6 fcaa:5bac:66e4:713:cb00:e446:c317:fc39)
-    {"password": "thisisauniquestring_002", "user": "William Jevons"}
+    {"password": "唯一的密碼（請不要輸入中文）_002", "user": "William Jevons"}
     //Marilyn Patel (IPv4: 5.1.2.3; IPv6 fcbb:5bac:66e4:713:cb00:e446:c317:fc39)
-    {"password": "thisisauniquestring_003", "user": "Marilyn Patel"}
-    // {"password": "thisisauniquestring_004"}
+    {"password": "唯一的密碼（請不要輸入中文）_003", "user": "Marilyn Patel"}
+    // {"password": "唯一的密碼（請不要輸入中文）_004"}
     ...
 
-    // "your.external.ip.goes.here:45678":{"password": "thisisauniquestring_001","publicKey":thisisauniqueKEY_001.k"}
+    // "your.external.ip.goes.here:45678":{"password": "唯一的密碼（請不要輸入中文）_001","publicKey":獨一無二的金鑰_001.k"}
 ],
 ```
 
 
-You need to give William Jevons (who is making the INbound connection) the following 4 items:
+你必須給 William Jevons (對你而言是向內連線) 下方四項資訊：
 
-1. Your external IPv4
-2. The port found in your conf file here:
+1. 你的外部 IPv4
+2. 你可以在配置檔找到的埠號：
 
     `// Bind to this port.
-    "bind": "0.0.0.0:yourportnumberishere",`
+    "bind": "0.0.0.0:你的埠號在這裡",`
 
-3. Their unique password that you uncommented or created: `"password": "thisisauniquestring_002"`
-4. Your public key: `"publicKey": "thisisauniqueKEY_001.k"`
-5. His username: "William Jevons"
+3. 為你朋友設定或取消註解的唯一密碼： `"password": "唯一的密碼（請不要輸入中文）_002"`
+4. 你的公鑰： `"publicKey": "獨一無二的金鑰_001.k"`
+5. 他的登入名稱： "William Jevons"
 
-His login credentials will look something like this (with your IPv4 and port):
+他的配置檔中會看起來像這樣(包含你的 IPv4 和 埠號):
 
 ```javascript
 "1.2.3.4:56789": {
     "login": "William Jevons",
-    "password": "thisisauniquestring_002",
-    "publicKey": "thisIsJustForAnExampleDoNotUseThisInYourConfFile_1.k"
+    "password": "唯一的密碼（請不要輸入中文）_002",
+    "publicKey": "這只是範例請不要真的在配置檔中用這串字_1.k"
 }
 ```
 
