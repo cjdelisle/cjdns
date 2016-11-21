@@ -8,19 +8,16 @@
 [Ελληνικά](README_GR.md)
 [Deutsch](README_DE.md)
 
-#### *Networking Reinvented*
+#### *重朔整個網路*
 
-Cjdns implements an encrypted IPv6 network using public-key cryptography for
-address allocation and a distributed hash table for routing. This provides
-near-zero-configuration networking, and prevents many of the security and
-scalability issues that plague existing networks.
+Cjdns 利用「加密的IPv6」及「公鑰加密」來分配網路地址並利用「Hash Table」逕行路由。這近達成「Zero-Configuration Networking」同時避免許多目前網路許多擴展性問題。
 
 [![Build Status](https://travis-ci.org/cjdelisle/cjdns.svg?branch=master)](https://travis-ci.org/cjdelisle/cjdns)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/387/badge)](https://bestpractices.coreinfrastructure.org/projects/387)
 [![tip for next commit](https://tip4commit.com/projects/941.svg)](https://tip4commit.com/github/cjdelisle/cjdns)
 [![irc](https://img.shields.io/badge/irc%20chat-%23cjdns-blue.svg)](https://kiwiirc.com/client/irc.efnet.org/?nick=visitor|?#cjdns)
 
-## Testimonials
+## 評價
 
     23:26 <@jercos> well, cjdns is now officially more reliable than the open
                     internet for getting to my cheaper VPSes :|
@@ -47,139 +44,137 @@ scalability issues that plague existing networks.
 
     <davidar> Yeah, I have to admit I sort of avoided hypeirc because of stuff like that
 
-## Community
+## 社群
 
 * [irc://irc.efnet.org/#cjdns][IRC Web]
-* [Hyperboria][] the largest cjdns network, as of October 2015 there are 2100 nodes.
+* [Hyperboria][] 目前最大的 cjdns 網路，至2015年10月止有2100個節點。
 * [Project Meshnet][]
 * [/r/darknetplan][]
 * [#cjdns on Twitter][]
 
 
-## Documentation
+## 相關文件
 
 * [Project Goals](doc/projectGoals.md)
 * [Cjdns Whitepaper](doc/Whitepaper.md)
 * [Cjdns on Wikipedia][]
 
-Advanced configuration:
+進階配置（英文）:
 
 * [Setup a cjdns NAT gateway for your LAN](doc/nat-gateway.md)
 * [Install cjdns on OpenIndiana](doc/open-indiana.md)
 
-Thank you for your time and interest,
+感謝您所貢獻的時間與精力
 
-The cjdns developers.
+cjdns 開發人員 敬上
 
 --------------------------------------------------------------------------------
 
-## How to install cjdns
+## 如何安裝 cjdns
 
-These instructions are for Debian-based Linux distributions and OS X. They should be
-informative enough for use on other distributions - just don't expect them to
-work verbatim.
+這些步驟以 Linux Debian 系統與 OS X 系統為主，
+相關概念在其他系統上應該足以通用（不過請不要期待可以逐句貼上）。
 
-### 0. Install dependencies
+### 0. 安裝相關程式
 
-On both platforms, installing [Node.js](http://nodejs.org/), although preferable,
-is not strictly necessary. If Node.js is unavailable or an unacceptable version,
-it will be downloaded and installed in the source tree.
+在任意系統安裝 [Node.js](http://nodejs.org/)，非必要但建議安裝
+如無 Node.js 或版本錯誤，程式會自動下載安裝至 Source Tree 中。
 
-#### Debian-based distro:
+#### Debian 系統:
 
     sudo apt-get install nodejs git build-essential python2.7
 
-#### Fedora 22+ based distro:
+#### Fedora 22+ 系統:
 
     sudo dnf install install nodejs git
     sudo dnf install @development-tools
 
-#### RHEL based distro (adds the EPEL repo):
+#### RHEL 系統 (會新增 EPEL 的 Repository):
 
     sudo yum localinstall https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
     sudo yum install install nodejs git
     sudo yum install @development-tools
 
-#### OS X:
+#### OS X 系統:
 
-Install with homebrew:
+利用 homebrew 安裝:
 
     brew install cjdns
 
-#### OpenBSD:
+#### OpenBSD 系統:
 
-Sadly, OpenBSD is a bit experimental right now.
+非常遺憾目前 OpenBSD 還在實驗階段。
 
     pkg_add git node gcc gmake bash
 
-Select version gcc-4.8.1p2 or more recent.
+選擇 gcc-4.8.1p2 之後版本。
 
-#### FreeBSD:
+#### FreeBSD 系統:
 
-Everything you need is available prebuild in FreeBSD' ports.
+所有所需相關程式已預先在 FreeBSD' ports 編譯完成。
 
     pkg install gmake node
 
-#### Arch:
+#### Arch 系統:
 
-You can install cjdns by running
+你可以用以下指令安裝 cjdns
 
     pacman -S cjdns
 
-If you need to build from source, everything you need can be installed like this
+如果你需要從原始碼重新編譯，所有需要的程式可以用以下方式安裝
 
     pacman -S nodejs git base-devel
     
-Alternatively, you may like to install via AUR from the package, `cjdns-git`.
-After Installation, The configuration file is located at `/etc/cjdroute.conf`.
-To start the service `cjdns.service`, do:
+另外，你可能會想從包裝 `cjdns-git` 利用 AUR 安裝。
+安裝完成後，配置檔在 `/etc/cjdroute.conf`。
+用以下指令啟動 `cjdns.service`：
 
         systemctl start cjdns
 
-To stop it:
+下指令停止：
 
        systemctl stop cjdns
 
-### 1. Retrieve cjdns from GitHub
+### 1. 從 GitHub 取得 cjdns 
 
-Clone the repository from GitHub and change to the source directory:
+從 Github 複製 Repository 並切換至下載檔案資料夾：
 
     git clone https://github.com/cjdelisle/cjdns.git cjdns
     cd cjdns
 
-### 2. Build
+### 2. 初始化
 
     ./do
 
-Look for `Build completed successfully, type ./cjdroute to begin setup.`, then
-proceed below:
+當你看見 `Build completed successfully, type ./cjdroute to begin setup.`，
+再繼續以下步驟:
 
 --------------------------------------------------------------------------------
 
-## Setup
+## 安裝
 
-Run cjdroute without options for HELP:
+執行 cjdroute 並不要顯示 HELP 選項：
 
     ./cjdroute
 
-### 0. Make sure you've got the stuff.
+### 0. 確定你有取得東西。
 
     LANG=C cat /dev/net/tun
 
-If it says: `cat: /dev/net/tun: File descriptor in bad state` Good!
+如果顯示： `cat: /dev/net/tun: File descriptor in bad state` 表示安裝成功!
 
-If it says: `cat: /dev/net/tun: No such file or directory`, create it using:
+如果顯示： `cat: /dev/net/tun: No such file or directory`，利用以下指令建立檔案：
 
     sudo mkdir -p /dev/net &&
     sudo mknod /dev/net/tun c 10 200 &&
     sudo chmod 0666 /dev/net/tun
 
-Then `cat /dev/net/tun` again.
+然後再次執行 `cat /dev/net/tun` 。
 
-If it says: `cat: /dev/net/tun: Permission denied` You're probably using a VPS
-based on the OpenVZ virtualization platform. Ask your provider to enable the
-TUN/TAP device - this is standard protocol so they should know exactly what you
-need. If you're on OS X, don't worry about this step.
+如果顯示： `cat: /dev/net/tun: Permission denied` 你大概在使用一個基於
+OpenVZ Virtualization Platform 的 VPS（虛擬專用伺服器）。向你的服務供應商要求
+啟動 TUN/TAP Device - 這是標準作業所以他們應該要知道你的意思
+如果你用 OS X 請忽略這個步驟。
 
 
 ### 1. Generate a new configuration file
