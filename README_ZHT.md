@@ -125,13 +125,13 @@ cjdns 開發人員 敬上
 
     pacman -S nodejs git base-devel
     
-另外，你可能會想從包裝 `cjdns-git` 利用 AUR 安裝。
+另外，你可能會想利用 AUR 安裝包裝 `cjdns-git`。
 安裝完成後，配置檔在 `/etc/cjdroute.conf`。
 用以下指令啟動 `cjdns.service`：
 
         systemctl start cjdns
 
-下指令停止：
+停止指令：
 
        systemctl stop cjdns
 
@@ -172,46 +172,37 @@ cjdns 開發人員 敬上
 然後再次執行 `cat /dev/net/tun` 。
 
 如果顯示： `cat: /dev/net/tun: Permission denied` 你大概在使用一個基於
-OpenVZ Virtualization Platform 的 VPS（虛擬專用伺服器）。向你的服務供應商要求
-啟動 TUN/TAP Device - 這是標準作業所以他們應該要知道你的意思
+OpenVZ Virtualization Platform 的 VPS（虛擬專用伺服器）。
+向你的服務供應商要求啟動 TUN/TAP Device - 這是標準作業所以他們應該要知道你的意思。
+
 如果你用 OS X 請忽略這個步驟。
 
 
-### 1. Generate a new configuration file
+### 1. 產生一個新的配置檔（請先閱讀下方「保護好你的配置檔」部份）
 
     ./cjdroute --genconf >> cjdroute.conf
 
-**Protect your conf file!**
+**保護好你的配置檔！**
 
-A lost conf file means you lost your password and
-connections and anyone who connected to you will no longer be able to connect.
-A compromised conf file means that other people can impersonate you on the
-network.
+失去配置檔代表你「失去密碼」以及「連接的節點」，其他與你連接的節點也會與你失聯。
+配置檔被侵入代表他人可以在網路上假裝是你。
 
-To generate a conf file with permissions set so that only your user can
-read it and write to it:
+產生一個僅有你的使用者才有權限讀寫的配置檔：
 
     (umask 077 && ./cjdroute --genconf > cjdroute.conf)
 
 
-### 2. Find a friend
+### 2. 找一個朋友
 
-To get into an existing network (e.g. Hyperboria), you need to connect to
-someone who is already in the network. This is required for a number of
-reasons:
+你需要與已在一個已建立的網路內的節點才可加入已存在的網路（例如：Hyperboria）。
+原因如下：
 
-1. It helps prevent abuse because bad people will be less likely to abuse a
-   system after they were, in an act of human kindness, given access to that
-   system.
-2. This is not intended to overlay The Old Internet, it is intended to replace
-   it. Each connection will in due time be replaced by a wire, a fiber optic
-   cable, or a wireless network connection.
-3. In any case of a disagreement, there will be a "chain of friends" linking
-   the people involved so there will already be a basis for coming to a
-   resolution.
-
-To find a friend, get out there and join our [community](#community). Also, have
-a look at the [Hyperboria Map][] to find peers near you.
+1. 因為有心人士較不會在「他人好心邀請下加入」後濫用系統。
+2. 此程式目的並非要在現有網路之上並行，而是取代現有網路。
+   各個連線會在未來被實體線路或無線網路取代。
+3. 如果有任何異議，會有「朋友的朋友」將兩方連在一起，這使和解更容易達成
+   
+要找朋友，請發聲並加入我們的[社群](#community)。另外，來[Hyperboria Map][] 找尋鄰近的節點。
 
 
 ### 3. Connect your node to your friend's node
