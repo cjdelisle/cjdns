@@ -5,6 +5,7 @@
 [Hrvatski](README_HR.md)
 [Svenska](README_SV.md)
 [Ελληνικά](README_GR.md)
+[Deutsch](README_DE.md)
 
 #### *Networking Reinvented*
 
