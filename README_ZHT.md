@@ -10,7 +10,7 @@
 
 #### *重朔整個網路*
 
-Cjdns 利用「加密的IPv6」及「公鑰加密」來分配網路地址並利用「Hash Table」逕行路由。這近達成「Zero-Configuration Networking」同時避免許多目前網路許多擴展性問題。
+Cjdns 利用「加密的IPv6」及「公鑰加密」來分配網路地址並利用「Distributed Hash Table」逕行路由。它能提供近似「零配置網路（Zero-Configuration Networking）」，並且能防範在現有網路中存在的很多和安全、可擴展性相關的問題。
 
 [![Build Status](https://travis-ci.org/cjdelisle/cjdns.svg?branch=master)](https://travis-ci.org/cjdelisle/cjdns)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/387/badge)](https://bestpractices.coreinfrastructure.org/projects/387)
@@ -64,7 +64,7 @@ Cjdns 利用「加密的IPv6」及「公鑰加密」來分配網路地址並利�
 * [Setup a cjdns NAT gateway for your LAN](doc/nat-gateway.md)
 * [Install cjdns on OpenIndiana](doc/open-indiana.md)
 
-感謝您所貢獻的時間與精力
+感謝你的時間和關注
 
 cjdns 開發人員 敬上
 
@@ -72,13 +72,12 @@ cjdns 開發人員 敬上
 
 ## 如何安裝 cjdns
 
-這些步驟以 Linux Debian 系統與 OS X 系統為主，
-相關概念在其他系統上應該足以通用（不過請不要期待可以逐句貼上）。
+這些說明雖然是在基於 Debian 的 Linux 發行版系統與 OS X 系統上的，但是已經為在其它發行版作業系統安裝提供了足夠多的信息，只是不要期望可以一字不差的執行指令。
 
 ### 0. 安裝相關程式
 
-在任意系統安裝 [Node.js](http://nodejs.org/)，非必要但強烈建議。
-如無 Node.js 或版本錯誤，安裝程式會自動下載安裝至 Source Tree 中。
+在兩種作業系統上安裝 [Node.js](http://nodejs.org/)，非必要但強烈建議。
+如無 Node.js 或版本錯誤，安裝程式會自動下載安裝至源代碼資料夾中。
 
 #### Debian 系統:
 
@@ -153,11 +152,11 @@ cjdns 開發人員 敬上
 
 ## 安裝
 
-執行 cjdroute 並不要顯示 HELP 選項：
+不帶參數執行 cjdroute 時會顯示幫助信息：
 
     ./cjdroute
 
-### 0. 確定你有取得東西。
+### 0. 確定你已經準備好必要的資料。
 
     LANG=C cat /dev/net/tun
 
@@ -171,9 +170,8 @@ cjdns 開發人員 敬上
 
 然後再次執行 `cat /dev/net/tun` 。
 
-如果顯示： `cat: /dev/net/tun: Permission denied` 你大概在使用一個基於
-OpenVZ Virtualization Platform 的 VPS（虛擬專用伺服器）。
-向你的服務供應商要求啟動 TUN/TAP Device - 這是標準作業所以他們應該要知道你的意思。
+如果顯示： `cat: /dev/net/tun: Permission denied` 你大概在使用一個基於 OpenVZ Virtualization Platform 的 VPS（虛擬專用伺服器）。
+向你的服務供應商要求啟用 TUN/TAP 設備 - 這是標準協議，所以他們應當明白你的意思。
 
 如果你用 OS X 請忽略這個步驟。
 
@@ -184,7 +182,7 @@ OpenVZ Virtualization Platform 的 VPS（虛擬專用伺服器）。
 
 **保護好你的配置檔！**
 
-失去配置檔代表你「失去密碼」以及「連接的節點」，其他與你連接的節點也會與你失聯。
+失去配置檔代表你丟失密碼以及已建立的連結，其他以你做為接入點的節點也會無法與你連線。
 配置檔被侵入代表他人可以在網路上假裝是你。
 
 產生一個僅有你的使用者才有權限讀寫的配置檔：
@@ -194,12 +192,11 @@ OpenVZ Virtualization Platform 的 VPS（虛擬專用伺服器）。
 
 ### 2. 找一個朋友
 
-你需要與已在一個已建立的網路內的節點才可加入已存在的網路（例如：Hyperboria）。
+為了加入一個已經存在的網路（例如：Hyperboria），你需要與一個已經在該網路中的節點連接。
 原因如下：
 
 1. 因為有心人士較不會在「他人好心邀請下加入」後濫用系統。
-2. 此程式目的並非要在現有網路之上並行，而是取代現有網路。
-   各個連線會在未來被實體線路或無線網路取代。
+2. 此程式目的並非要在現有網路之上並行，而是取代現有網路。各個連線會在未來被實體線路或無線網路取代。
 3. 如果有任何異議，會有「朋友的朋友」將兩方連在一起，這使和解更容易達成
    
 要找朋友，請發聲並加入我們的 [社群](#社群)。另外，來[Hyperboria Map][] 找尋鄰近的節點。
@@ -312,13 +309,11 @@ OpenVZ Virtualization Platform 的 VPS（虛擬專用伺服器）。
 
 請記得你與你朋友可以啟始「向外（你 --> 朋友）」或「向內（朋友 --> 你）」連線，但當通道建立後兩方皆可使用。
 
-更進階的配置請閱讀 [doc/configure.md](doc/configure.md)，
-包括如何透過乙太網路與Wifi連線。
+更進階的配置請閱讀 [doc/configure.md](doc/configure.md)，包括如何透過乙太網路與Wifi連線。
 
 ### 4. 保護你的系統 - 檢查正在使用網路的程式
 
-當你的節點開始運行，你的電腦便成為一個新的 IPv6 伺服。你的作業系統
-可能會自動重新配置網路程式來使用者個新的網路位址。
+當你的節點開始運行，你的電腦便成為一個新的 IPv6 伺服。你的作業系統可能會自動重新配置網路程式來使用者個新的網路位址。
 如果你並不希望這麼做，你應確認你並沒有提供一些你不打算公開的服務。 ;)
 
 更多資料請查閱 [doc/network-services.md](doc/network-services.md)。
@@ -336,27 +331,22 @@ OpenVZ Virtualization Platform 的 VPS（虛擬專用伺服器）。
 
     sudo killall cjdroute
 
-如果出現問題用 `killall cjdroute` 指令來結束一切。 用
-`pgrep cjdroute` 或 `top` 指令來確認是否正在執行。
+如果出現問題用 `killall cjdroute` 指令來結束一切。
+用 `pgrep cjdroute` 或 `top` 指令來確認是否正在執行。
 
 **注意！**
 
-這將會讓 cjdns 以 Root 權限執行並設定你的系統，避免要求權限等提示。 請參閱 [doc/non-root-user.md](doc/non-root-user.md) 來以非 Root 權限執行。
+這將會讓 cjdns 以 Root 權限執行並設定你的系統，避免要求權限等提示。 請參閱[doc/non-root-user.md](doc/non-root-user.md) 來以非 Root 權限執行。
 
 
 ### 6. 加入 IRC
 
-歡迎來到這個網絡！ 你現在是一個網管了。 這代表你
-有些成一個網管的責任，包括
-當你的設備出狀況時必須能回應。你應當在
-[IRC](#community) 保持在線，這樣其他人才能與你聯繫。
+歡迎來到這個網絡！ 你現在是一個網管了。 這代表你有些成一個網管的責任，包括當你的設備出狀況時必須能回應。你應當在 [IRC](#community) 保持在線，這樣其他人才能與你聯繫。
 
 
 ## 管理者界面
 
-當 cjdroute 正在執行時，你可以在
-`udp://localhost:11234` 看到管理者界面 (這可以在 `cjdroute.conf`
-更改). 這個檔案 [doc/admin-api.md](doc/admin-api.md) 有更多有關管理者界面
+當 cjdroute 正在執行時，你可以在 `udp://localhost:11234` 看到管理者界面 (這可以在 `cjdroute.conf` 更改). 這個檔案 [doc/admin-api.md](doc/admin-api.md) 有更多有關管理者界面
 的資訊。一些在 `contrib/` 的工具可以配合使用。
 
 你可以透過以下方式使用 Admin API ：
@@ -371,13 +361,12 @@ OpenVZ Virtualization Platform 的 VPS（虛擬專用伺服器）。
 3. 以下是可能發生的
  * 有人主動來修問題
  * 你主動來修理問題
- * 根本沒人理這問題然後被遺忘，也許某天有人會遇到同樣的問題然後在某次的重構中解決
+ * 根本沒人理這問題然後被遺忘，也許某天有人會遇到同樣的問題然後在某次的重構中解決。
  * 目前無解但是應該被記住，因為這會影響未來程式開發，這種情況必須被對程式碼有深入理解的人進行解釋。他會提出對 Bug 或文件進行修改。
  4. 你可以在右邊 https://github.com/hyperboria/cjdns.git 的 Repo 提出問題。
 
 ### 安全
-安全問題應該同樣與其他 Bug 一樣在 IRC 回報。 我們並沒有一個擁有特殊技術
-的封閉團隊，所以預設的安全問題回報是完全公開。
+安全問題應該同樣與其他 Bug 一樣在 IRC 回報。 我們並沒有一個擁有特殊技術的封閉團隊，所以預設的安全問題回報是完全公開。
 請參閱： https://github.com/cjdelisle/cjdns/blob/master/doc/security_specification.md 來確認可能安全問題是真的安全問題。
 
 
