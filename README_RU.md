@@ -1,6 +1,11 @@
 # cjdns
 
-English version of the Readme (она обновляется чаще): [README.md](README.md)
+[English](README.md)
+[Hrvatski](README_HR.md)
+[Svenska](README_SV.md)
+[Ελληνικά](README_GR.md)
+[Deutsch](README_DE.md)
+[繁體中文](README_ZHT.md)
 
 Безопасная, зашифрованная сеть для обычных людей.
 
