@@ -326,6 +326,9 @@ Du kannst das admin-API wie folgt erreichen:
 * die **Perl library**, unterhalten by Mikey; konsultiere [here](contrib/perl/CJDNS/README).
 
 
+## Problem melden
+1. Du kannst ein Problem hier melden https://github.com/hyperboria/bugs/issues
+
 [IRC Web]: http://chat.efnet.org/irc.cgi?chan=%23cjdns
 [Hyperboria]: http://hyperboria.net
 [Project Meshnet]: https://projectmeshnet.org
