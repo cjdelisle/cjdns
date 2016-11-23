@@ -252,15 +252,15 @@ cjdns 開發人員 敬上
 "authorizedPasswords":
 [
     // A unique string which is known to the client and server. 
-    {"password": "唯一的密碼（請不要輸入中文）_001"}
+    {"password": "獨一無二的密碼（請不要輸入中文）_001"}
 
     // More passwords should look like this. 
-    // {"password": "唯一的密碼（請不要輸入中文）_002"}
-    // {"password": "唯一的密碼（請不要輸入中文）_003"}
-    // {"password": "唯一的密碼（請不要輸入中文）_004"}
+    // {"password": "獨一無二的密碼（請不要輸入中文）_002"}
+    // {"password": "獨一無二的密碼（請不要輸入中文）_003"}
+    // {"password": "獨一無二的密碼（請不要輸入中文）_004"}
     ...
 
-    // "你的.對外.IP.位址:45678":{"password": "唯一的密碼（請不要輸入中文）_001","publicKey":獨一無二的金鑰_001.k"}
+    // "你的.對外.IP.位址:45678":{"password": "獨一無二的密碼（請不要輸入中文）_001","publicKey":獨一無二的金鑰_001.k"}
 
 ],
 ```
@@ -270,17 +270,17 @@ cjdns 開發人員 敬上
 "authorizedPasswords":
 [
     // A unique string which is known to the client and server. 在此輸入讓他人對你連線的密碼
-    {"password": "唯一的密碼（請不要輸入中文）_001", "user": "k.alexander"}
+    {"password": "獨一無二的密碼（請不要輸入中文）_001", "user": "k.alexander"}
 
     // More passwords should look like this. 其他請依此格式類推
     //William Jevons (IPv4: 0.1.2.3; IPv6 fcaa:5bac:66e4:713:cb00:e446:c317:fc39)
-    {"password": "唯一的密碼（請不要輸入中文）_002", "user": "William Jevons"}
+    {"password": "獨一無二的密碼（請不要輸入中文）_002", "user": "William Jevons"}
     //Marilyn Patel (IPv4: 5.1.2.3; IPv6 fcbb:5bac:66e4:713:cb00:e446:c317:fc39)
-    {"password": "唯一的密碼（請不要輸入中文）_003", "user": "Marilyn Patel"}
-    // {"password": "唯一的密碼（請不要輸入中文）_004"}
+    {"password": "獨一無二的密碼（請不要輸入中文）_003", "user": "Marilyn Patel"}
+    // {"password": "獨一無二的密碼（請不要輸入中文）_004"}
     ...
 
-    // "你的.對外.IP.位址:45678":{"password": "唯一的密碼（請不要輸入中文）_001","publicKey":獨一無二的金鑰_001.k"}
+    // "你的.對外.IP.位址:45678":{"password": "獨一無二的密碼（請不要輸入中文）_001","publicKey":獨一無二的金鑰_001.k"}
 ],
 ```
 
@@ -293,7 +293,7 @@ cjdns 開發人員 敬上
     `// Bind to this port.
     "bind": "0.0.0.0:你的埠號在這裡",`
 
-3. 為你朋友設定或取消註解的唯一密碼： `"password": "唯一的密碼（請不要輸入中文）_002"`
+3. 為你朋友設定或取消註解的唯一密碼： `"password": "獨一無二的密碼（請不要輸入中文）_002"`
 4. 你的公鑰： `"publicKey": "獨一無二的金鑰_001.k"`
 5. 他的登入名稱： "William Jevons"
 
@@ -302,7 +302,7 @@ cjdns 開發人員 敬上
 ```javascript
 "1.2.3.4:56789": {
     "login": "William Jevons",
-    "password": "唯一的密碼（請不要輸入中文）_002",
+    "password": "獨一無二的密碼（請不要輸入中文）_002",
     "publicKey": "這只是範例請不要真的在配置檔中用這串字_1.k"
 }
 ```
@@ -313,7 +313,7 @@ cjdns 開發人員 敬上
 
 ### 4. 保護你的系統 - 檢查正在使用網路的程式
 
-當你的節點開始運行，你的電腦便成為一個新的 IPv6 伺服。你的作業系統可能會自動重新配置網路程式來使用者個新的網路位址。
+當你的節點開始運行，你的電腦便成為一個新的 IPv6 伺服。你的作業系統可能會自動重新配置網路程式來使用這個新的網路位址。
 如果你並不希望這麼做，你應確認你並沒有提供一些你不打算公開的服務。 ;)
 
 更多資料請查閱 [doc/network-services.md](doc/network-services.md)。
@@ -346,8 +346,7 @@ cjdns 開發人員 敬上
 
 ## 管理者界面
 
-當 cjdroute 正在執行時，你可以在 `udp://localhost:11234` 看到管理者界面 (這可以在 `cjdroute.conf` 更改). 這個檔案 [doc/admin-api.md](doc/admin-api.md) 有更多有關管理者界面
-的資訊。一些在 `contrib/` 的工具可以配合使用。
+當 cjdroute 正在執行時，你可以在 `udp://localhost:11234` 看到管理者界面 (這可以在 `cjdroute.conf` 更改). 這個檔案 [doc/admin-api.md](doc/admin-api.md) 有更多有關管理者界面的資訊。一些在 `contrib/` 的工具可以配合使用。
 
 你可以透過以下方式使用 Admin API ：
 
@@ -363,7 +362,7 @@ cjdns 開發人員 敬上
  * 你主動來修理問題
  * 根本沒人理這問題然後被遺忘，也許某天有人會遇到同樣的問題然後在某次的重構中解決。
  * 目前無解但是應該被記住，因為這會影響未來程式開發，這種情況必須被對程式碼有深入理解的人進行解釋。他會提出對 Bug 或文件進行修改。
- 4. 你可以在右邊 https://github.com/hyperboria/cjdns.git 的 Repo 提出問題。
+ 4. 你可以在 https://github.com/hyperboria/cjdns.git 的 Repo 提出問題。
 
 ### 安全
 安全問題應該同樣與其他 Bug 一樣在 IRC 回報。 我們並沒有一個擁有特殊技術的封閉團隊，所以預設的安全問題回報是完全公開。
