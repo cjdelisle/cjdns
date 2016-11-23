@@ -1,6 +1,12 @@
 # cjdns
 
-[README.md](README.md)
+[English](README.md)
+[Русская версия](README_RU.md)
+[Hrvatski](README_HR.md)
+[Svenska](README_SV.md)
+[Ελληνικά](README_GR.md)
+[Deutsch](README_DE.md)
+[繁體中文](README_ZHT.md)
 
 #### *Netzwerk neu erfunden*
 
