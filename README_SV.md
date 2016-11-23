@@ -1,8 +1,11 @@
 # cjdns
 
-[Engelska](README.md)
-[Ryska](README_RU.md)
-[Kroatiska](README_HR.md)
+[English](README.md)
+[Русская версия](README_RU.md)
+[Hrvatski](README_HR.md)
+[Ελληνικά](README_GR.md)
+[Deutsch](README_DE.md)
+[繁體中文](README_ZHT.md)
 
 #### *Datornätverk - Ett nytt sätt*
 
