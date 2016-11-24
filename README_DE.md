@@ -1,6 +1,12 @@
 # cjdns
 
-[README.md](README.md)
+[English](README.md)
+[Русская версия](README_RU.md)
+[Hrvatski](README_HR.md)
+[Svenska](README_SV.md)
+[Ελληνικά](README_GR.md)
+[Deutsch](README_DE.md)
+[繁體中文](README_ZHT.md)
 
 #### *Netzwerk neu erfunden*
 
@@ -325,6 +331,9 @@ Du kannst das admin-API wie folgt erreichen:
 * die **Python library**; konsultiere [here](contrib/python/README.md).
 * die **Perl library**, unterhalten by Mikey; konsultiere [here](contrib/perl/CJDNS/README).
 
+
+## Problem melden
+1. Du kannst ein Problem hier melden https://github.com/hyperboria/bugs/issues
 
 [IRC Web]: http://chat.efnet.org/irc.cgi?chan=%23cjdns
 [Hyperboria]: http://hyperboria.net

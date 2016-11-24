@@ -1,6 +1,11 @@
 # cjdns
 
-README na Engleskom: [README.md](README.md)
+[English](README.md)
+[Русская версия](README_RU.md)
+[Svenska](README_SV.md)
+[Ελληνικά](README_GR.md)
+[Deutsch](README_DE.md)
+[繁體中文](README_ZHT.md)
 
 #### *Umrežavanje iznova*
 
