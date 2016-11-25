@@ -4,6 +4,7 @@
 [Hrvatski](README_HR.md)
 [Svenska](README_SV.md)
 [Ελληνικά](README_GR.md)
+[Deutsch (unvollständig)](README_DE.md)
 
 #### *Networking Reinvented*
 
@@ -126,7 +127,7 @@ You can install cjdns by running
 If you need to build from source, everything you need can be installed like this
 
     pacman -S nodejs git base-devel
-    
+
 Alternatively, you may like to install via AUR from the package, `cjdns-git`.
 After Installation, The configuration file is located at `/etc/cjdroute.conf`.
 To start the service `cjdns.service`, do:
