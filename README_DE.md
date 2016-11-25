@@ -1,13 +1,20 @@
 # cjdns
 
-[README.md](README.md)
+[English](README.md)
+[Русская версия](README_RU.md)
+[Hrvatski](README_HR.md)
+[Svenska](README_SV.md)
+[Ελληνικά](README_GR.md)
 
-#### *Netzwerk neu erfunden*
+#### *Netzwerken Neuerfunden*
 
-Cjdns implementiert ein verschlüsseltes IPv6 Netzwerk basierend auf Public-Key Kryptografie für die Adressen-Zuteilung und es benutzt eine verteilte Hash-Tabelle für das Routing.
-Dies ermöglicht eine nahezu konfigurationslose Handhabung und verhindert viele Sicherheits- und Skalierungs-Probleme, welche andere existierende Netzwerke heimsuchen.
+Cjdns implements an encrypted IPv6-Netzwerk using public-key cryptography zur
+Adressenverteilung und einer distributed hash table for routing. This provides
+near-zero-configuration networking, and prevents many of the security and
+scalability issues that plague existing networks.
 
 [![Build Status](https://travis-ci.org/cjdelisle/cjdns.svg?branch=master)](https://travis-ci.org/cjdelisle/cjdns)
+[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/387/badge)](https://bestpractices.coreinfrastructure.org/projects/387)
 [![tip for next commit](https://tip4commit.com/projects/941.svg)](https://tip4commit.com/github/cjdelisle/cjdns)
 [![irc](https://img.shields.io/badge/irc%20chat-%23cjdns-blue.svg)](https://kiwiirc.com/client/irc.efnet.org/?nick=visitor|?#cjdns)
 
@@ -41,47 +48,51 @@ Dies ermöglicht eine nahezu konfigurationslose Handhabung und verhindert viele 
 ## Community
 
 * [irc://irc.efnet.org/#cjdns][IRC Web]
-* [Hyperboria][] das grösste cjdns-Netzwerk mit bis zu 2100 Knotenpunkten (Oktober 2015).
+* [Hyperboria][] the largest cjdns network, as of October 2015 there are 2100 nodes.
 * [Project Meshnet][]
 * [/r/darknetplan][]
-* [#cjdns auf Twitter][]
+* [#cjdns on Twitter][]
 
 
-## Dokumentation
+## Dokumantation
 
-* [Projekt-Ziele](doc/projectGoals.md)
+* [Projektziele](doc/projectGoals.md)
 * [Cjdns Whitepaper](doc/Whitepaper.md)
 * [Cjdns auf Wikipedia][]
 
 Erweiterte Konfiguration:
 
-* [Installiere ein cjdns NAT gateway für dein LAN](doc/nat-gateway.md)
+* [Setup a cjdns NAT gateway for your LAN](doc/nat-gateway.md)
 * [Installiere cjdns auf OpenIndiana](doc/open-indiana.md)
 
-Danke für deine Zeit und dein Interesse,
+Thank you for your time and interest,
 
 Die cjdns-Entwickler.
 
 --------------------------------------------------------------------------------
 
-## Installation von cjdns
+## Wie man cjdns installiert
 
-Diese Anleitungen sind für Debian-basierte Linux-Distributionen und OS X. Sie sollten erklärend genug sein, um sie auch auf anderen Distributionen zu verwenden - wenn auch nicht unbedingt eins-zu-ein.
+These instructions are for Debian-based Linux distributions and OS X. They should be
+informative enough for use on other distributions - just don't expect them to
+work verbatim.
 
-### 0. Installations-Abhängigkeiten
+### 0. Install dependencies
 
-Für beide Platformen ist es nicht zwingend notwendig, doch aber vorzuziehen, [Node.js](http://nodejs.org/) zu installieren. Wenn Node.js nicht verfügbar oder eine nicht akzeptierte Version ist, wird es in den Quellpfad heruntergeladen und installiert.
+On both platforms, installing [Node.js](http://nodejs.org/), although preferable,
+is not strictly necessary. If Node.js is unavailable or an unacceptable version,
+it will be downloaded and installed in the source tree.
 
-#### Debian-basierte distro:
+#### Debian-based distro:
 
-    sudo apt-get install nodejs git build-essential
+    sudo apt-get install nodejs git build-essential python2.7
 
-#### Fedora 22+ basierte distro:
+#### Fedora 22+ based distro:
 
     sudo dnf install install nodejs git
     sudo dnf install @development-tools
 
-#### RHEL basierte distro (adds the EPEL repo):
+#### RHEL based distro (adds the EPEL repo):
 
     sudo yum localinstall https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
     sudo yum install install nodejs git
@@ -89,27 +100,47 @@ Für beide Platformen ist es nicht zwingend notwendig, doch aber vorzuziehen, [N
 
 #### OS X:
 
-Installation mit homebrew:
+Install with homebrew:
 
     brew install cjdns
 
 #### OpenBSD:
 
-OpenBSD ist momentan leider ein bisschen experimentell.
+Leider ist die Version dafür noch experimentell.
 
     pkg_add git node gcc gmake bash
 
-Wähle die Version gcc-4.8.1p2 oder eine jüngere.
+Select version gcc-4.8.1p2 or more recent.
 
 #### FreeBSD:
 
-Alles was du benötigst ist als Prebuild im FreeBSD' port bereits vorhanden.
+Everything you need is available prebuild in FreeBSD' ports.
 
     pkg install gmake node
 
+#### Arch:
+
+You can install cjdns by running
+
+    pacman -S cjdns
+
+If you need to build from source, everything you need can be installed like this
+
+    pacman -S nodejs git base-devel
+
+Alternatively, you may like to install via AUR from the package, `cjdns-git`.
+After Installation, The configuration file is located at `/etc/cjdroute.conf`.
+To start the service `cjdns.service`, do:
+
+        systemctl start cjdns
+
+To stop it:
+
+       systemctl stop cjdns
+
 ### 1. Retrieve cjdns from GitHub
 
-Klone das Repository von GitHub und wechsle zum Quellverzeichnis:
+Clone the repository from GitHub and change to the source directory:
 
     git clone https://github.com/cjdelisle/cjdns.git cjdns
     cd cjdns
@@ -118,63 +149,79 @@ Klone das Repository von GitHub und wechsle zum Quellverzeichnis:
 
     ./do
 
-Es sollte folgendes stehen: `Build completed successfully, type ./cjdroute to begin setup.`. Danach gehe vor wie weiter unten beschriebe:
+Look for `Build completed successfully, type ./cjdroute to begin setup.`, then
+proceed below:
 
 --------------------------------------------------------------------------------
 
 ## Setup
 
-Lasse cjdroute laufen ohne Optionen für HELP:
+Run cjdroute without options for HELP:
 
     ./cjdroute
 
-### 0. Stelle sicher, dass du alles bekommen hast.
+### 0. Make sure you've got the stuff.
 
-    cat /dev/net/tun
+    LANG=C cat /dev/net/tun
 
-Wenn steht: `cat: /dev/net/tun: File descriptor in bad state` Gut!
+If it says: `cat: /dev/net/tun: File descriptor in bad state` Good!
 
-Wenn steht: `cat: /dev/net/tun: No such file or directory`, erstelle es wie folgt:
+If it says: `cat: /dev/net/tun: No such file or directory`, create it using:
 
     sudo mkdir -p /dev/net &&
     sudo mknod /dev/net/tun c 10 200 &&
     sudo chmod 0666 /dev/net/tun
 
-Danach wieder `cat /dev/net/tun`.
+Then `cat /dev/net/tun` again.
 
-Wenn es sagt: `cat: /dev/net/tun: Permission denied` Dann verwendest du vielleicht einen VPS basierend auf der OpenVZ virtualisations Platform. Frage deinen Provider, ob er das TUN/TAP device - das ist standard Protokoll, sie sollten also genau wissen was du benötigst. Wenn du auf OS X bist, musst du dich nicht um dieses Setup kümmern.
+If it says: `cat: /dev/net/tun: Permission denied` You're probably using a VPS
+based on the OpenVZ virtualization platform. Ask your provider to enable the
+TUN/TAP device - this is standard protocol so they should know exactly what you
+need. If you're on OS X, don't worry about this step.
 
 
-### 1. Erstelle ein neues Konfiguration-File
+### 1. Generate a new configuration file
 
     ./cjdroute --genconf >> cjdroute.conf
 
-**Schütze dein conf File!**
+**Protect your conf file!**
 
-Ein verlorenes conf File bedeutet, du hast dein Passwort und deine Verbindungen verloren und jeder der sich mit dir verbunden hatte wird nicht länger in der lage sein sich mit dir zu verbinden.
-Ein kompromitiertes conf File bedeutet, dass andere Leute sich mit deiner Identität im Netzwerk ausgeben können.
+A lost conf file means you lost your password and
+connections and anyone who connected to you will no longer be able to connect.
+A compromised conf file means that other people can impersonate you on the
+network.
 
-Um ein conf File mit den richtigen Erlaubnissen zu generieren, so dass nur dein User darauf schreiben und lesen kann:
+To generate a conf file with permissions set so that only your user can
+read it and write to it:
 
     (umask 077 && ./cjdroute --genconf > cjdroute.conf)
 
 
 ### 2. Finde einen Freund
 
-Um in ein existierendes Netzwerk (z.B. Hyperboria) zu gelangen, musst du dich mit jemandem verbinden, der bereits mit diesem Netzwerk verbunden ist. Dies ist wegen verschiedensten Gründen notwendig:
+To get into an existing network (e.g. Hyperboria), you need to connect to
+someone who is already in the network. This is required for a number of
+reasons:
 
-1. Es hilft den Missbrauch zu verhindern, denn schlechte Leute werden tendenziell ein System weniger missbrauchen, wenn ihnen, in einem Akt von menschlicher Freundlichkeit, von anderen der Zugang gewährt wird.
-2. Es ist nicht geplant Das Alte Internet zu überlagern, sondern es zu ersetzen. Jede Verbindung wird zu gegebener Zeit durch ein Kabel, ein Glasfaser-Kabel oder eine Wireless-Netzwerk-Verbindung ersetzt.
-3. Im Falle einer Streitigkeit wird es eine "Kette von Freunden" geben, welche die involvierten Leute verbindet, so dass es bereits eine Basis zu einer Lösungsfindung gibt.
+1. It helps prevent abuse because bad people will be less likely to abuse a
+   system after they were, in an act of human kindness, given access to that
+   system.
+2. This is not intended to overlay The Old Internet, it is intended to replace
+   it. Each connection will in due time be replaced by a wire, a fiber optic
+   cable, or a wireless network connection.
+3. In any case of a disagreement, there will be a "chain of friends" linking
+   the people involved so there will already be a basis for coming to a
+   resolution.
 
-Um einen Freund zu finden, gehe nach draussen und beteilige dich an unserer [Community](#community). Weiter kannst du auch einen Blick auf die [Hyperboria-Karte][] werfen, um Peers in deiner Nähe zu finden.
+To find a friend, get out there and join our [community](#community). Also, have
+a look at the [Hyperboria Map][] to find peers near you.
 
 
-### 3. Verbinde deinen Knoten mit dem deines Freundes
+### 3. Verbinde dein Node mit dem Node deines Freundes
 
-**Um ein AUSgehende Verbindung herzustellen**
+**To initiate the connection OUTbound**
 
-In deinem conf File wirst du folgendes sehen:
+In your conf file, you will see:
 
 ``` javascript
 // Nodes to connect to.
@@ -185,7 +232,7 @@ In deinem conf File wirst du folgendes sehen:
 }
 ```
 
-Ein conf File mit mehreren konfigurierten Freundes-Knoten (Setup AUSgehende Verbindung) sollte wie folgt aussehen:
+A conf file with multiple friend-nodes, setup OUTbound, should look like:
 
 ``` javascript
 // Nodes to connect to.
@@ -209,12 +256,13 @@ Ein conf File mit mehreren konfigurierten Freundes-Knoten (Setup AUSgehende Verb
 }
 ```
 
-In der gegebenen JSON-Syntax kannst du so viele Verbindungen wie du willst zum `connectTo` Attribut hinzufügen.
+You can add as many connections as you want to the `connectTo` attribute,
+following JSON syntax.
 
 
-**Um deinem Freund zu erlauben eine EINgehende Verbindung mit dir aufzubauen**
+**To allow your friend to initiate the connection INbound**
 
-In deinem config File wirst du eine Passage wie folgt finden:
+In your conf file, you will see:
 
 ``` javascript
 "authorizedPasswords":
@@ -233,8 +281,7 @@ In deinem config File wirst du eine Passage wie folgt finden:
 ],
 ```
 
-Ein config File mit mehreren Freundes-Knoten (Setup EINgehende Verbindung) sollte wie folgt aussehen:
-
+A conf file with multiple friend-nodes, setup INbound, should look like:
 ``` javascript
 "authorizedPasswords":
 [
@@ -254,20 +301,19 @@ Ein config File mit mehreren Freundes-Knoten (Setup EINgehende Verbindung) sollt
 ```
 
 
-Du musst William Jevons (welcher die EINgehende Verbindung bei sich einträgt) die folgenden 4 Objekte geben:
+You need to give William Jevons (who is making the INbound connection) the following 4 items:
 
-1. Deine externe IPv4-Adresse
-2. Den Port, welchen du in deinem conf File wie folgt findest:
+1. Ihre interne IPv4
+2. Die Portnummer in der conf-Datei hier:
 
     `// Bind to this port.
     "bind": "0.0.0.0:yourportnumberishere",`
 
-3. Das speziefische Passwort, welches du unkommentiert oder neu erstellt hast:
-`"password": "thisisauniquestring_002"`
-4. Deinen Public-Key: `"publicKey": "thisisauniqueKEY_001.k"`
-5. Seinen Benutzernamen: "William Jevons"
+3. Their unique password that you uncommented or created: `"password": "thisisauniquestring_002"`
+4. Ihren public key: `"publicKey": "thisisauniqueKEY_001.k"`
+5. Sein Nutzername: "William Jevons"
 
-Seine Zugangsdaten werde dann ungefähr wie folgt aussehen (mit deiner IPv4-Adresse und Port):
+His login credentials will look something like this (with your IPv4 and port):
 
 ```javascript
 "1.2.3.4:56789": {
@@ -277,61 +323,96 @@ Seine Zugangsdaten werde dann ungefähr wie folgt aussehen (mit deiner IPv4-Adre
 }
 ```
 
-Bitte beachte, dass du und dein Freund jeweils nur eine AUSgehende (von DIR -> Freund) oder EINgehende (von Freund -> DIR) Verbindung *eintragen* müsst. Der Datenverkehr kann dann aber doch in beide Richtungen fliessen, sobald die Verbindung steht.
+Please note that you and your friend can *initiate* a
+connection either outbound (from YOU --> FRIEND) or inbound (from FRIEND --> YOU)
+but traffic flows both ways once the connection is established.
 
-Für mehr Details bezüglich Konfiguration, oder wie du mit anderen cjdns-Knoten über Ethernet und Wifi peerst, schaue dir das Dokument [doc/configure.md](doc/configure.md) an.
-
-
-### 4. Sichere dein System ab - prüfe auf lauschende Services
-
-Wenn dein Knoten einmal läuft, bist du ein neuwertiger IPv6 Host. Dein Betriebssystem wird wahrscheinlich automatisch deine Netzwerk-Services neu konfigurieren, um diese neue Adresse zu verwenden.
-Wenn das nicht dein Ziel ist, solltest du überprüfen, dass du nicht mehr Services bereitstellst als du willst. ;)
-
-Schaue dir [doc/network-services.md](doc/network-services.md) an für Anleitungen.
+See [doc/configure.md](doc/configure.md) for more details on configuration,
+including how to peer with other cjdns nodes over ethernet and wifi.
 
 
-### 5. Starte es auf!
+### 4. Secure your system - check for listening services
+
+Once your node is running, you're now a newly minted IPv6 host. Your operating
+system may automatically reconfigure network services to use this new address.
+If this is not what you intend, you should check to see that you are not
+offering more services then you intended to. ;)
+
+See [doc/network-services.md](doc/network-services.md) for instructions.
+
+
+### 5. Start it up!
 
     sudo ./cjdroute < cjdroute.conf
 
-Wenn du deine Logs in ein File geschrieben haben willst:
+If you want to have your logs written to a file:
 
     sudo ./cjdroute < cjdroute.conf > cjdroute.log
 
-Um cjdns zu stoppen:
+To stop cjdns:
 
     sudo killall cjdroute
 
-Wenn du Probleme hast, benutze `killall cjdroute` um tabula rasa zu machen. Benutze
-`pgrep cjdroute` oder `top` um zu überprüfen, ob cjdns läuft.
+If you are having problems use `killall cjdroute` to return to sanity. Use
+`pgrep cjdroute` or `top` to see if it running.
 
-**Bemerkung!**
+**NOTE!**
 
-Die obigen Anleitungen starten cjdns als root-user. Es kann also dein System konfigurieren ohne dich um erlaubniss zu bitten. Um cjdns als non-root-user zu starten, konsultiere [doc/non-root-user.md](doc/non-root-user.md).
+This starts cjdns as the root user so it can configure your system
+without concern for permissions. To start cjdns as a non-root user, see
+[doc/non-root-user.md](doc/non-root-user.md).
 
 
-### 6. Komme zu IRC
+### 6. Get in IRC
 
-Willkommen im Netzwerk! Du bist jetzt ein Netzwerk-Administrator. Damit verbunden ist eine gewisse Verantwortung, die unter anderem darin bestehen erreichbar zu sein im Falle eines Problems mit deinen Gerätschaften. Du solltest dich auf [IRC](#community) aufhalten, so dass leute dich erreichen können.
+Welcome to the network! You're now a network administrator. There are
+responsibilities which come with being a network administrator which include
+being available in case there is something wrong with your equipment. You should
+stay on [IRC](#community) so that people can reach you.
 
 
 ## Admin interface
 
-Wenn cjdroute gestartet wurde und läuft, kannst du das admin-Interface unter `udp://localhost:11234` erreichen (kann im folgenden Konfigurations-File geändert werden: `cjdroute.conf`). Konsultiere [doc/admin-api.md](doc/admin-api.md) für mehr Informationen bezüglich dem admin-Interface. Es gibt mehrere Tools in `contrib/`,
-welche damit interagieren können.
+When cjdroute is up and running, the admin interface will be available at
+`udp://localhost:11234` (this can be changed in the `cjdroute.conf`
+configuration file). See [doc/admin-api.md](doc/admin-api.md) for more
+information about the admin interface. There are several tools in `contrib/`
+that can interact with it.
 
-Du kannst das admin-API wie folgt erreichen:
+You can access the admin API with:
 
-* die **Python library**; konsultiere [here](contrib/python/README.md).
-* die **Perl library**, unterhalten by Mikey; konsultiere [here](contrib/perl/CJDNS/README).
+* the **Python library**; see [here](contrib/python/README.md).
+* the **Perl library**, maintained by Mikey; see [here](contrib/perl/CJDNS/README).
+
+
+## Einen Fehler melden
+1. Don't
+2. Get on IRC and talk to somebody
+3. What will happen is either
+ * Someone feels like fixing it
+ * You feel like fixing it
+ * Nobody cares about it and it will be forgotten for a while and maybe someone will hit it later
+ and fix it or else it will get wiped away in a refactoring
+ * Nobody can fix it at the moment but it is considered worth remembering because it has great
+ significance to the way the code is developed, in this case it needs to be explained in technical
+ terms by someone with strong familiarity with the code. They will make a pull request to the
+ docs/bugs directory.
+ 4. Alternatively you can report the issue on the https://github.com/hyperboria/cjdns.git repo.
+
+### Sicherheit
+Security issues should be reported on IRC the same as other bugs. We don't have a closed
+group of people with special knowledge so that means the default security reporting method is
+full disclosure.
+see: https://github.com/cjdelisle/cjdns/blob/master/doc/security_specification.md to see if a
+possible security issue is really a security issue.
 
 
 [IRC Web]: http://chat.efnet.org/irc.cgi?chan=%23cjdns
 [Hyperboria]: http://hyperboria.net
-[Project Meshnet]: https://projectmeshnet.org
+[Projekt Meshnet]: https://projectmeshnet.org
 [/r/darknetplan]: http://www.reddit.com/r/darknetplan
 [#cjdns auf Twitter]: https://twitter.com/hashtag/cjdns
-[Hyperboria-Karte]: http://www.fc00.org/
+[Hyperboria Map]: http://www.fc00.org/
 [Buildbots]: https://buildbot.meshwith.me/cjdns/waterfall
 
 [Cjdns auf Wikipedia]: https://en.wikipedia.org/wiki/Cjdns
