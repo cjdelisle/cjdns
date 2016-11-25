@@ -1,14 +1,15 @@
 # cjdns
 
+[English](README.md)
 [Русская версия](README_RU.md)
 [Hrvatski](README_HR.md)
 [Svenska](README_SV.md)
 [Ελληνικά](README_GR.md)
 
-#### *Networking Reinvented*
+#### *Netzwerken Neuerfunden*
 
-Cjdns implements an encrypted IPv6 network using public-key cryptography for
-address allocation and a distributed hash table for routing. This provides
+Cjdns implements an encrypted IPv6-Netzwerk using public-key cryptography zur
+Adressenverteilung und einer distributed hash table for routing. This provides
 near-zero-configuration networking, and prevents many of the security and
 scalability issues that plague existing networks.
 
@@ -53,24 +54,24 @@ scalability issues that plague existing networks.
 * [#cjdns on Twitter][]
 
 
-## Documentation
+## Dokumantation
 
-* [Project Goals](doc/projectGoals.md)
+* [Projektziele](doc/projectGoals.md)
 * [Cjdns Whitepaper](doc/Whitepaper.md)
-* [Cjdns on Wikipedia][]
+* [Cjdns auf Wikipedia][]
 
-Advanced configuration:
+Erweiterte Konfiguration:
 
 * [Setup a cjdns NAT gateway for your LAN](doc/nat-gateway.md)
-* [Install cjdns on OpenIndiana](doc/open-indiana.md)
+* [Installiere cjdns auf OpenIndiana](doc/open-indiana.md)
 
 Thank you for your time and interest,
 
-The cjdns developers.
+Die cjdns-Entwickler.
 
 --------------------------------------------------------------------------------
 
-## How to install cjdns
+## Wie man cjdns installiert
 
 These instructions are for Debian-based Linux distributions and OS X. They should be
 informative enough for use on other distributions - just don't expect them to
@@ -105,7 +106,7 @@ Install with homebrew:
 
 #### OpenBSD:
 
-Sadly, OpenBSD is a bit experimental right now.
+Leider ist die Version dafür noch experimentell.
 
     pkg_add git node gcc gmake bash
 
@@ -126,7 +127,7 @@ You can install cjdns by running
 If you need to build from source, everything you need can be installed like this
 
     pacman -S nodejs git base-devel
-    
+
 Alternatively, you may like to install via AUR from the package, `cjdns-git`.
 After Installation, The configuration file is located at `/etc/cjdroute.conf`.
 To start the service `cjdns.service`, do:
@@ -196,7 +197,7 @@ read it and write to it:
     (umask 077 && ./cjdroute --genconf > cjdroute.conf)
 
 
-### 2. Find a friend
+### 2. Finde einen Freund
 
 To get into an existing network (e.g. Hyperboria), you need to connect to
 someone who is already in the network. This is required for a number of
@@ -216,7 +217,7 @@ To find a friend, get out there and join our [community](#community). Also, have
 a look at the [Hyperboria Map][] to find peers near you.
 
 
-### 3. Connect your node to your friend's node
+### 3. Verbinde dein Node mit dem Node deines Freundes
 
 **To initiate the connection OUTbound**
 
@@ -302,15 +303,15 @@ A conf file with multiple friend-nodes, setup INbound, should look like:
 
 You need to give William Jevons (who is making the INbound connection) the following 4 items:
 
-1. Your external IPv4
-2. The port found in your conf file here:
+1. Ihre interne IPv4
+2. Die Portnummer in der conf-Datei hier:
 
     `// Bind to this port.
     "bind": "0.0.0.0:yourportnumberishere",`
 
 3. Their unique password that you uncommented or created: `"password": "thisisauniquestring_002"`
-4. Your public key: `"publicKey": "thisisauniqueKEY_001.k"`
-5. His username: "William Jevons"
+4. Ihren public key: `"publicKey": "thisisauniqueKEY_001.k"`
+5. Sein Nutzername: "William Jevons"
 
 His login credentials will look something like this (with your IPv4 and port):
 
@@ -384,7 +385,7 @@ You can access the admin API with:
 * the **Perl library**, maintained by Mikey; see [here](contrib/perl/CJDNS/README).
 
 
-## Reporting issues
+## Einen Fehler melden
 1. Don't
 2. Get on IRC and talk to somebody
 3. What will happen is either
@@ -398,7 +399,7 @@ You can access the admin API with:
  docs/bugs directory.
  4. Alternatively you can report the issue on the https://github.com/hyperboria/cjdns.git repo.
 
-### Security
+### Sicherheit
 Security issues should be reported on IRC the same as other bugs. We don't have a closed
 group of people with special knowledge so that means the default security reporting method is
 full disclosure.
@@ -408,13 +409,13 @@ possible security issue is really a security issue.
 
 [IRC Web]: http://chat.efnet.org/irc.cgi?chan=%23cjdns
 [Hyperboria]: http://hyperboria.net
-[Project Meshnet]: https://projectmeshnet.org
+[Projekt Meshnet]: https://projectmeshnet.org
 [/r/darknetplan]: http://www.reddit.com/r/darknetplan
-[#cjdns on Twitter]: https://twitter.com/hashtag/cjdns
+[#cjdns auf Twitter]: https://twitter.com/hashtag/cjdns
 [Hyperboria Map]: http://www.fc00.org/
 [Buildbots]: https://buildbot.meshwith.me/cjdns/waterfall
 
-[Cjdns on Wikipedia]: https://en.wikipedia.org/wiki/Cjdns
+[Cjdns auf Wikipedia]: https://en.wikipedia.org/wiki/Cjdns
 [Distributed Hash Table]: https://en.wikipedia.org/wiki/Distributed_hash_table
 [Beyond Pain]: https://lists.torproject.org/pipermail/tor-dev/2012-October/004063.html
 [Kademlia]: https://en.wikipedia.org/wiki/Kademlia
