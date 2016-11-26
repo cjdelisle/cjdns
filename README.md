@@ -4,6 +4,8 @@
 [Hrvatski](README_HR.md)
 [Svenska](README_SV.md)
 [Ελληνικά](README_GR.md)
+[Deutsch](README_DE.md)
+[繁體中文](README_ZHT.md)
 
 #### *Networking Reinvented*
 
@@ -410,7 +412,7 @@ You can access the admin API with:
 
 
 ## Reporting issues
-1. Don't
+1. Don't report in this repo, please instead report it at https://github.com/hyperboria/bugs/issues
 2. Get on IRC and talk to somebody
 3. What will happen is either
  * Someone feels like fixing it
@@ -421,7 +423,6 @@ You can access the admin API with:
  significance to the way the code is developed, in this case it needs to be explained in technical
  terms by someone with strong familiarity with the code. They will make a pull request to the
  docs/bugs directory.
- 4. Alternatively you can report the issue on the https://github.com/hyperboria/cjdns.git repo.
 
 ### Security
 Security issues should be reported on IRC the same as other bugs. We don't have a closed

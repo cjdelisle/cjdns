@@ -4,6 +4,8 @@
 [Русская версия](README_RU.md)
 [Hrvatski](README_HR.md)
 [Svenska](README_SV.md)
+[Deutsch](README_DE.md)
+[繁體中文](README_ZHT.md)
 
 #### *Η δικτύωση επανεφευρέθηκε*
 
