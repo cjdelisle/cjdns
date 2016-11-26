@@ -77,9 +77,7 @@ for (var i = 0; i < minVerArray.length; i++) {
 EOF
 
 # return true if the input command exists in $PATH
-function cmdExists() {
-    type -P "$1" >/dev/null
-}
+cmdExists() { type -P "$1" >/dev/null }
 
 checkNode() {
     for node_tool in "$NODEDIR/nodejs/node/bin/node" 'nodejs' 'node'; do
