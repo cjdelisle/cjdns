@@ -5,6 +5,13 @@
 /build_win32
 /build_darwin
 /build_sunos
+/node_android
+/node_linux
+/node_freebsd
+/node_openbsd
+/node_win32
+/node_darwin
+/node_sunos
 /benc2json*
 /cjdroute*
 /cleanconfig*
