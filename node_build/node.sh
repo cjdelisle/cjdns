@@ -63,10 +63,10 @@ usage () {
 [ "$MINVER" != "" ] || MINVER="$DEFAULT_MINVER";
 [ "$DLVER" != "" ] || DLVER="$DEFAULT_DLVER";
 
-read -d '' version_test <<"EOF"
+version_test='
 var currentVersion = process.version;
 var verArray = currentVersion.substring(1).split(".");
-var minVerArray = process.argv[process.argv.length-1].replace(/[^0-9\.]/g, '').split(".");
+var minVerArray = process.argv[process.argv.length-1].replace(/[^0-9\.]/g, "").split(".");
 for (var i = 0; i < minVerArray.length; i++) {
     if (Number(verArray[i]) < Number(minVerArray[i])) {
         process.exit(1);
@@ -74,10 +74,10 @@ for (var i = 0; i < minVerArray.length; i++) {
         process.exit(0);
     }
 }
-EOF
+'
 
 # return true if the input command exists in $PATH
-cmdExists() { type -P "$1" >/dev/null }
+cmdExists() { type -P "$1" >/dev/null; }
 
 checkNode() {
     for node_tool in "$NODEDIR/nodejs/node/bin/node" 'nodejs' 'node'; do
