@@ -96,7 +96,8 @@ checkNode() {
 getSha() {
     expected_sum='01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b'
     for shasum_tool in 'sha256sum' 'gsha256sum' 'sha256' 'shasum -a 256' 'openssl sha256'; do
-        cmdExists $shasum_tool && printf '\n' | $shasum_tool | $GREP_PATH -q "$expected_sum" && {
+        cmdExists "$shasum_tool" || continue;
+        printf '\n' | $shasum_tool | $GREP_PATH -q "$expected_sum" && {
             shasum_cmd="$shasum_tool"
             return 0
         }
@@ -156,7 +157,7 @@ getNode() {
 
 main() {
     [ -d "$NODEDIR" ] || $INSTALL_PATH -d "$NODEDIR" || die "failed to create node dir $NODEDIR"
-    getSha || die "couldn't find working sha256 implementtion";
+    getSha || die "couldn't find working sha256 implementation";
     checkNode || getNode || die "couldn't get working node.js implementation";
     "$node_cmd" $MAINJS "$@"
 }
