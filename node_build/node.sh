@@ -78,7 +78,7 @@ for (var i = 0; i < minVerArray.length; i++) {
 
 # return true if the input command exists in $PATH
 cmdExists() {
-    type -P "$1" >/dev/null;
+    which $1 >/dev/null 2>/dev/null;
     return $?;
 }
 
