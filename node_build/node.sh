@@ -83,7 +83,7 @@ checkNode() {
     for node_tool in "$NODEDIR/nodejs/node/bin/node" 'nodejs' 'node'; do
         cmdExists "$node_tool"
         if [ $? = 0 -o -f "$node_tool" ]; then
-            "$node_tool" '' "$MINVER" <<< "$version_test" && {
+            printf "$version_test" | "$node_tool" '' "$MINVER" && {
                 node_cmd="$node_tool"
                 return 0
             }
@@ -97,7 +97,7 @@ getSha() {
     expected_sum='01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b'
     for shasum_tool in 'sha256sum' 'gsha256sum' 'sha256' 'shasum -a 256' 'openssl sha256'; do
         if cmdExists "${shasum_tool/ *}"; then
-            [[ $($shasum_tool <<< '') =~ "$expected_sum" ]] && {
+            printf '\n' | $shasum_tool | $GREP_PATH -q "$expected_sum" && {
                 shasum_cmd="$shasum_tool"
                 return 0
             }
