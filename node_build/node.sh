@@ -138,8 +138,7 @@ getNode() {
     else
         die 'wget, curl or fetch is required download node.js but you have none!'
     fi
-    [[ -f "$node_dl" ]] \
-        || die 'Failed to download node.js'
+    [ -f "$node_dl" ] || die 'Failed to download node.js'
     printf '%s\n' 'DONE!'
 
     printf '%s %s ' '==>' "Verifying the checksum of the downloaded archive..."
@@ -150,7 +149,7 @@ getNode() {
     printf '%s %s ' '==>' "Extracting the downloaded archive..."
     $INSTALL_PATH -d node
     $TAR_PATH xzf "$node_dl" -C node --strip-components=1
-    [[ -d 'node' ]] || die 'An error prevented the archive from being extracted'
+    [ -d 'node' ] || die 'An error prevented the archive from being extracted'
     printf '%s\n\n' 'DONE!'
     popd >/dev/null
 
