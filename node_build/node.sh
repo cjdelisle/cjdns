@@ -124,7 +124,7 @@ getNode() {
     [ -d "$NODEDIR/nodejs" ] && $RM_PATH -r "$NODEDIR/nodejs"
     $INSTALL_PATH -d "$NODEDIR/nodejs"
 
-    pushd "$NODEDIR/nodejs" >/dev/null
+    cd "$NODEDIR/nodejs"
     node_dl="node-${DLVER}.tar.gz"
     if cmdExists wget; then
         printf '\n%s %s ' '==>' "Downloading $NODEURL with wget..."
@@ -151,7 +151,7 @@ getNode() {
     $TAR_PATH xzf "$node_dl" -C node --strip-components=1
     [ -d 'node' ] || die 'An error prevented the archive from being extracted'
     printf '%s\n\n' 'DONE!'
-    popd >/dev/null
+    cd ../../
 
     # Return with the success status of the checkNode function
     checkNode
