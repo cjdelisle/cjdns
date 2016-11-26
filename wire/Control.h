@@ -22,7 +22,8 @@
 /**
  * Type two, error.
  */
-#define Control_ERROR_be Endian_hostToBigEndian16(2)
+#define Control_ERROR 2
+#define Control_ERROR_be Endian_hostToBigEndian16(Control_ERROR)
 #define Control_Error_HEADER_SIZE 4
 #define Control_Error_MIN_SIZE (Control_Error_HEADER_SIZE + SwitchHeader_SIZE + 4)
 #define Control_Error_MAX_SIZE 256

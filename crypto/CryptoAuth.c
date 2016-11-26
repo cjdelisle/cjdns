@@ -325,7 +325,7 @@ static void resetIfTimeout(struct CryptoAuth_Session_pvt* session)
     }
 
     uint64_t nowSecs = Time_currentTimeSeconds(session->context->eventBase);
-    if (nowSecs - session->timeOfLastPacket > session->context->pub.resetAfterInactivitySeconds) {
+    if (nowSecs - session->timeOfLastPacket > session->pub.resetAfterInactivitySeconds) {
         cryptoAuthDebug(session, "No traffic in [%d] seconds, resetting connection.",
                   (int) (nowSecs - session->timeOfLastPacket));
 
@@ -524,21 +524,21 @@ static inline void updateTime(struct CryptoAuth_Session_pvt* session, struct Mes
     session->timeOfLastPacket = Time_currentTimeSeconds(session->context->eventBase);
 }
 
-static inline Gcc_USE_RET bool decryptMessage(struct CryptoAuth_Session_pvt* session,
-                                              uint32_t nonce,
-                                              struct Message* content,
-                                              uint8_t secret[32])
+static inline enum CryptoAuth_DecryptErr decryptMessage(struct CryptoAuth_Session_pvt* session,
+                                                        uint32_t nonce,
+                                                        struct Message* content,
+                                                        uint8_t secret[32])
 {
     // Decrypt with authentication and replay prevention.
     if (decrypt(nonce, content, secret, session->isInitiator)) {
         cryptoAuthDebug0(session, "DROP authenticated decryption failed");
-        return false;
+        return CryptoAuth_DecryptErr_DECRYPT;
     }
     if (!ReplayProtector_checkNonce(nonce, &session->pub.replayProtector)) {
         cryptoAuthDebug(session, "DROP nonce checking failed nonce=[%u]", nonce);
-        return false;
+        return CryptoAuth_DecryptErr_REPLAY;
     }
-    return true;
+    return 0;
 }
 
 static bool ip6MatchesKey(uint8_t ip6[16], uint8_t key[32])
@@ -548,14 +548,14 @@ static bool ip6MatchesKey(uint8_t ip6[16], uint8_t key[32])
     return !Bits_memcmp(ip6, calculatedIp6, 16);
 }
 
-static Gcc_USE_RET int decryptHandshake(struct CryptoAuth_Session_pvt* session,
-                                        const uint32_t nonce,
-                                        struct Message* message,
-                                        struct CryptoHeader* header)
+static enum CryptoAuth_DecryptErr decryptHandshake(struct CryptoAuth_Session_pvt* session,
+                                                   const uint32_t nonce,
+                                                   struct Message* message,
+                                                   struct CryptoHeader* header)
 {
     if (message->length < CryptoHeader_SIZE) {
         cryptoAuthDebug0(session, "DROP runt");
-        return -1;
+        return CryptoAuth_DecryptErr_RUNT;
     }
 
     // handshake
@@ -568,7 +568,7 @@ static Gcc_USE_RET int decryptHandshake(struct CryptoAuth_Session_pvt* session,
     Assert_true(knowHerKey(session));
     if (Bits_memcmp(session->pub.herPublicKey, header->publicKey, 32)) {
         cryptoAuthDebug0(session, "DROP a packet with different public key than this session");
-        return -1;
+        return CryptoAuth_DecryptErr_WRONG_PERM_PUBKEY;
     }
 
     Assert_true((session->nextNonce < CryptoAuth_State_RECEIVED_HELLO) ==
@@ -583,17 +583,17 @@ static Gcc_USE_RET int decryptHandshake(struct CryptoAuth_Session_pvt* session,
             restrictedToip6 = userObj->restrictedToip6;
             if (!ip6MatchesKey(restrictedToip6, session->pub.herPublicKey)) {
                 cryptoAuthDebug0(session, "DROP packet with key not matching restrictedToip6");
-                return -1;
+                return CryptoAuth_DecryptErr_IP_RESTRICTED;
             }
         }
     }
     if (session->requireAuth && !userObj) {
         cryptoAuthDebug0(session, "DROP message because auth was not given");
-        return -1;
+        return CryptoAuth_DecryptErr_AUTH_REQUIRED;
     }
     if (!userObj && header->auth.type != 0) {
         cryptoAuthDebug0(session, "DROP message with unrecognized authenticator");
-        return -1;
+        return CryptoAuth_DecryptErr_UNRECOGNIZED_AUTH;
     }
     // What the nextNonce will become if this packet is valid.
     uint32_t nextNonce;
@@ -625,7 +625,7 @@ static Gcc_USE_RET int decryptHandshake(struct CryptoAuth_Session_pvt* session,
         }
         if (!session->isInitiator) {
             cryptoAuthDebug0(session, "DROP a stray key packet");
-            return -1;
+            return CryptoAuth_DecryptErr_STRAY_KEY;
         }
         // We sent the hello, this is a key
         getSharedSecret(sharedSecret,
@@ -659,13 +659,13 @@ static Gcc_USE_RET int decryptHandshake(struct CryptoAuth_Session_pvt* session,
         // just in case
         Bits_memset(header, 0, CryptoHeader_SIZE);
         cryptoAuthDebug(session, "DROP message with nonce [%d], decryption failed", nonce);
-        return -1;
+        return CryptoAuth_DecryptErr_HANDSHAKE_DECRYPT_FAILED;
     }
 
     if (Bits_isZero(header->encryptedTempKey, 32)) {
         // we need to reject 0 public keys outright because they will be confused with "unknown"
         cryptoAuthDebug0(session, "DROP message with zero as temp public key");
-        return -1;
+        return CryptoAuth_DecryptErr_WISEGUY;
     }
 
     if (Defined(Log_KEYS)) {
@@ -685,7 +685,7 @@ static Gcc_USE_RET int decryptHandshake(struct CryptoAuth_Session_pvt* session,
         if (!Bits_memcmp(session->herTempPubKey, header->encryptedTempKey, 32)) {
             // possible replay attack or duped packet
             cryptoAuthDebug0(session, "DROP dupe hello packet with same temp key");
-            return -1;
+            return CryptoAuth_DecryptErr_INVALID_PACKET;
         }
     } else if (nonce == Nonce_KEY && session->nextNonce >= CryptoAuth_State_RECEIVED_KEY) {
         // we accept a new key packet and let it change the session since the other end might have
@@ -694,7 +694,7 @@ static Gcc_USE_RET int decryptHandshake(struct CryptoAuth_Session_pvt* session,
         if (!Bits_memcmp(session->herTempPubKey, header->encryptedTempKey, 32)) {
             Assert_true(!Bits_isZero(session->herTempPubKey, 32));
             cryptoAuthDebug0(session, "DROP dupe key packet with same temp key");
-            return -1;
+            return CryptoAuth_DecryptErr_INVALID_PACKET;
         }
 
     } else if (nonce == Nonce_REPEAT_KEY && session->nextNonce >= CryptoAuth_State_RECEIVED_KEY) {
@@ -702,7 +702,7 @@ static Gcc_USE_RET int decryptHandshake(struct CryptoAuth_Session_pvt* session,
         if (Bits_memcmp(session->herTempPubKey, header->encryptedTempKey, 32)) {
             Assert_true(!Bits_isZero(session->herTempPubKey, 32));
             cryptoAuthDebug0(session, "DROP repeat key packet with different temp key");
-            return -1;
+            return CryptoAuth_DecryptErr_INVALID_PACKET;
         }
     }
 
@@ -720,7 +720,7 @@ static Gcc_USE_RET int decryptHandshake(struct CryptoAuth_Session_pvt* session,
             case CryptoAuth_State_RECEIVED_HELLO:
             case CryptoAuth_State_SENT_KEY: {
                 cryptoAuthDebug0(session, "DROP stray key packet");
-                return -1;
+                return CryptoAuth_DecryptErr_STRAY_KEY;
             }
             case CryptoAuth_State_SENT_HELLO: {
                 Bits_memcpy(session->herTempPubKey, header->encryptedTempKey, 32);
@@ -728,8 +728,8 @@ static Gcc_USE_RET int decryptHandshake(struct CryptoAuth_Session_pvt* session,
             }
             case CryptoAuth_State_RECEIVED_KEY: {
                 if (Bits_memcmp(session->herTempPubKey, header->encryptedTempKey, 32)) {
-                    cryptoAuthDebug0(session, "DROP Stray key packet with different key");
-                    return -1;
+                    cryptoAuthDebug0(session, "DROP key packet with different key");
+                    return CryptoAuth_DecryptErr_INVALID_PACKET;
                 }
                 break;
             }
@@ -791,7 +791,11 @@ static Gcc_USE_RET int decryptHandshake(struct CryptoAuth_Session_pvt* session,
                 }
                 default: {
                     cryptoAuthDebug0(session, "DROP Incoming repeat hello");
-                    return -1;
+                    // We already know the key which is being used for this hello packet and
+                    // our state has advanced past RECEIVED_HELLO or SENT_KEY or perhaps we
+                    // are the initiator of this session and they're sending us what should
+                    // be a key packet but is marked as hello, it's all invalid.
+                    return CryptoAuth_DecryptErr_INVALID_PACKET;
                 }
             }
         }
@@ -811,7 +815,8 @@ static Gcc_USE_RET int decryptHandshake(struct CryptoAuth_Session_pvt* session,
 }
 
 /** @return 0 on success, -1 otherwise. */
-int CryptoAuth_decrypt(struct CryptoAuth_Session* sessionPub, struct Message* msg)
+enum CryptoAuth_DecryptErr CryptoAuth_decrypt(struct CryptoAuth_Session* sessionPub,
+                                              struct Message* msg)
 {
     struct CryptoAuth_Session_pvt* session =
         Identity_check((struct CryptoAuth_Session_pvt*) sessionPub);
@@ -819,7 +824,7 @@ int CryptoAuth_decrypt(struct CryptoAuth_Session* sessionPub, struct Message* ms
 
     if (msg->length < 20) {
         cryptoAuthDebug0(session, "DROP runt");
-        return -1;
+        return CryptoAuth_DecryptErr_RUNT;
     }
     Assert_true(msg->padding >= 12 || "need at least 12 bytes of padding in incoming message");
     Assert_true(!((uintptr_t)msg->bytes % 4) || !"alignment fault");
@@ -834,7 +839,7 @@ int CryptoAuth_decrypt(struct CryptoAuth_Session* sessionPub, struct Message* ms
             if (session->nextNonce < CryptoAuth_State_SENT_KEY) {
                 // This is impossible because we have not exchanged hello and key messages.
                 cryptoAuthDebug0(session, "DROP Received a run message to an un-setup session");
-                return -1;
+                return CryptoAuth_DecryptErr_NO_SESSION;
             }
             cryptoAuthDebug(session, "Trying final handshake step, nonce=%u\n", nonce);
             uint8_t secret[32];
@@ -846,7 +851,8 @@ int CryptoAuth_decrypt(struct CryptoAuth_Session* sessionPub, struct Message* ms
                             NULL,
                             session->context->logger);
 
-            if (decryptMessage(session, nonce, msg, secret)) {
+            enum CryptoAuth_DecryptErr ret = decryptMessage(session, nonce, msg, secret);
+            if (!ret) {
                 cryptoAuthDebug0(session, "Final handshake step succeeded");
                 Bits_memcpy(session->sharedSecret, secret, 32);
 
@@ -857,7 +863,7 @@ int CryptoAuth_decrypt(struct CryptoAuth_Session* sessionPub, struct Message* ms
                 return 0;
             }
             cryptoAuthDebug0(session, "DROP Final handshake step failed");
-            return -1;
+            return ret;
         }
 
         Message_shift(msg, 4, NULL);
@@ -865,12 +871,14 @@ int CryptoAuth_decrypt(struct CryptoAuth_Session* sessionPub, struct Message* ms
 
     } else if (nonce >= Nonce_FIRST_TRAFFIC_PACKET) {
         Assert_ifParanoid(!Bits_isZero(session->sharedSecret, 32));
-        if (decryptMessage(session, nonce, msg, session->sharedSecret)) {
+        enum CryptoAuth_DecryptErr ret = decryptMessage(session, nonce, msg, session->sharedSecret);
+        if (!ret) {
             updateTime(session, msg);
             return 0;
         } else {
-            cryptoAuthDebug0(session, "DROP Failed to decrypt message");
-            return -1;
+            cryptoAuthDebug(session, "DROP Failed to [%s] message",
+                ((ret == CryptoAuth_DecryptErr_REPLAY) ? "replay check" : "decrypt"));
+            return ret;
         }
     } else if (nonce <= Nonce_REPEAT_HELLO) {
         cryptoAuthDebug(session, "hello packet during established session nonce=[%d]", nonce);
@@ -878,7 +886,7 @@ int CryptoAuth_decrypt(struct CryptoAuth_Session* sessionPub, struct Message* ms
         return decryptHandshake(session, nonce, msg, header);
     } else {
         cryptoAuthDebug(session, "DROP key packet during established session nonce=[%d]", nonce);
-        return -1;
+        return CryptoAuth_DecryptErr_KEY_PKT_ESTABLISHED_SESSION;
     }
     Assert_failure("unreachable");
 }
@@ -896,7 +904,6 @@ struct CryptoAuth* CryptoAuth_new(struct Allocator* allocator,
     ca->allocator = allocator;
     ca->eventBase = eventBase;
     ca->logger = logger;
-    ca->pub.resetAfterInactivitySeconds = CryptoAuth_DEFAULT_RESET_AFTER_INACTIVITY_SECONDS;
     ca->rand = rand;
 
     if (privateKey != NULL) {
@@ -1023,6 +1030,8 @@ struct CryptoAuth_Session* CryptoAuth_newSession(struct CryptoAuth* ca,
     session->pub.displayName = displayName ? String_new(displayName, alloc) : NULL;
     session->timeOfLastPacket = Time_currentTimeSeconds(context->eventBase);
     session->alloc = alloc;
+
+    session->pub.resetAfterInactivitySeconds = CryptoAuth_DEFAULT_RESET_AFTER_INACTIVITY_SECONDS;
 
     Assert_true(herPublicKey);
     Bits_memcpy(session->pub.herPublicKey, herPublicKey, 32);

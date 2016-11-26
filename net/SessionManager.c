@@ -22,6 +22,7 @@
 #include "util/Defined.h"
 #include "wire/RouteHeader.h"
 #include "util/events/Timeout.h"
+#include "util/Checksum.h"
 
 /** Handle numbers 0-3 are reserved for CryptoAuth nonces. */
 #define MIN_FIRST_HANDLE 4
@@ -237,6 +238,29 @@ static Iface_DEFUN ctrlFrame(struct Message* msg, struct SessionManager_pvt* sm)
     return Iface_next(&sm->pub.insideIf, msg);
 }
 
+static Iface_DEFUN failedDecrypt(struct Message* msg,
+                                 uint64_t label_be,
+                                 struct SessionManager_pvt* sm)
+{
+    Message_push32(msg, Error_AUTHENTICATION, NULL);
+    Message_push16(msg, Control_ERROR, NULL);
+    Message_push16(msg, 0, NULL);
+    uint16_t csum = Checksum_engine(msg->bytes, msg->length);
+    Message_pop16(msg, NULL);
+    Message_push16(msg, csum, NULL);
+
+    Message_push32(msg, 0xffffffff, NULL);
+
+    struct SwitchHeader sh;
+    Bits_memset(&sh, 0, SwitchHeader_SIZE);
+    SwitchHeader_setSuppressErrors(&sh, true);
+    SwitchHeader_setVersion(&sh, SwitchHeader_CURRENT_VERSION);
+    sh.label_be = label_be;
+    Message_push(msg, &sh, SwitchHeader_SIZE, NULL);
+
+    return Iface_next(&sm->pub.switchIf, msg);
+}
+
 static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface)
 {
     struct SessionManager_pvt* sm =
@@ -263,6 +287,13 @@ static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface
         Message_shift(msg, SwitchHeader_SIZE, NULL);
         return ctrlFrame(msg, sm);
     }
+
+    // This is for handling error situations and being able to send back some kind of a message.
+    uint8_t firstSixteen[16];
+    uint32_t length0 = msg->length;
+    Assert_true(msg->length >= 16);
+    Bits_memcpy(firstSixteen, msg->bytes, 16);
+
     if (nonceOrHandle > 3) {
         // > 3 it's a handle.
         session = sessionForHandle(nonceOrHandle, sm);
@@ -296,19 +327,29 @@ static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface
         debugHandlesAndLabel(sm->log, session, label, "new session nonce[%d]", nonceOrHandle);
     }
 
-    if (CryptoAuth_decrypt(session->pub.caSession, msg)) {
+    bool currentMessageSetup = (nonceOrHandle <= 3);
+
+    enum CryptoAuth_DecryptErr ret = CryptoAuth_decrypt(session->pub.caSession, msg);
+    if (ret) {
         debugHandlesAndLabel(sm->log, session,
                              Endian_bigEndianToHost64(switchHeader->label_be),
                              "DROP Failed decrypting message NoH[%d] state[%s]",
                              nonceOrHandle,
                              CryptoAuth_stateString(CryptoAuth_getState(session->pub.caSession)));
-        return NULL;
+        Message_shift(msg, (length0 - msg->length) + 24, NULL);
+        msg->length = 0;
+        Message_push32(msg, CryptoAuth_getState(session->pub.caSession), NULL);
+        Message_push32(msg, ret, NULL);
+        Message_push(msg, firstSixteen, 16, NULL);
+        Message_shift(msg, -SwitchHeader_SIZE, NULL);
+        Assert_true(msg->bytes == (uint8_t*)switchHeader);
+        uint64_t label_be = switchHeader->label_be;
+        switchHeader->label_be = Bits_bitReverse64(switchHeader->label_be);
+        return failedDecrypt(msg, label_be, sm);
     }
 
     session->pub.timeOfLastIn = Time_currentTimeMilliseconds(sm->eventBase);
     session->pub.bytesIn += msg->length;
-
-    bool currentMessageSetup = (nonceOrHandle <= 3);
 
     if (currentMessageSetup) {
         session->pub.sendHandle = Message_pop32(msg, NULL);
@@ -382,6 +423,16 @@ static void checkTimedOutSessions(struct SessionManager_pvt* sm)
     for (int i = 0; i < (int)sm->ifaceMap.count; i++) {
         struct SessionManager_Session_pvt* sess = sm->ifaceMap.values[i];
         int64_t now = Time_currentTimeMilliseconds(sm->eventBase);
+
+        // Check if the session is timed out...
+        if (now - sess->pub.timeOfLastIn > sm->pub.sessionTimeoutMilliseconds) {
+            debugSession0(sm->log, sess, "ended");
+            sendSession(sess, sess->pub.sendSwitchLabel, 0xffffffff, PFChan_Core_SESSION_ENDED);
+            Map_OfSessionsByIp6_remove(i, &sm->ifaceMap);
+            Allocator_free(sess->alloc);
+            i--;
+        }
+
         if (now - sess->pub.timeOfLastOut >= sm->pub.sessionIdleAfterMilliseconds &&
             now - sess->pub.timeOfLastIn >= sm->pub.sessionIdleAfterMilliseconds)
         {
@@ -395,15 +446,6 @@ static void checkTimedOutSessions(struct SessionManager_pvt* sm)
             sess->pub.lastSearchTime = now;
             searchTriggered = true;
             continue;
-        }
-
-        // Session is in idle state or doesn't need a search right now, check if it's timed out.
-        if (now - sess->pub.timeOfLastIn > sm->pub.sessionTimeoutMilliseconds) {
-            debugSession0(sm->log, sess, "ended");
-            sendSession(sess, sess->pub.sendSwitchLabel, 0xffffffff, PFChan_Core_SESSION_ENDED);
-            Map_OfSessionsByIp6_remove(i, &sm->ifaceMap);
-            Allocator_free(sess->alloc);
-            i--;
         }
     }
 }
