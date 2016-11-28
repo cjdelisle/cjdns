@@ -336,12 +336,12 @@ static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface
                              "DROP Failed decrypting message NoH[%d] state[%s]",
                              nonceOrHandle,
                              CryptoAuth_stateString(CryptoAuth_getState(session->pub.caSession)));
-        Message_shift(msg, (length0 - msg->length) + 24, NULL);
+        Message_shift(msg, length0 - msg->length - 24, NULL);
         msg->length = 0;
         Message_push32(msg, CryptoAuth_getState(session->pub.caSession), NULL);
         Message_push32(msg, ret, NULL);
         Message_push(msg, firstSixteen, 16, NULL);
-        Message_shift(msg, -SwitchHeader_SIZE, NULL);
+        Message_shift(msg, SwitchHeader_SIZE, NULL);
         Assert_true(msg->bytes == (uint8_t*)switchHeader);
         uint64_t label_be = switchHeader->label_be;
         switchHeader->label_be = Bits_bitReverse64(switchHeader->label_be);
