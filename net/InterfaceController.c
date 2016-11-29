@@ -310,6 +310,15 @@ static void iciPing(struct InterfaceController_Iface_pvt* ici, struct InterfaceC
 
         if (now < ep->timeOfLastMessage + ic->pingAfterMilliseconds) {
             // It's sending traffic so leave it alone.
+
+            // wait just a minute here !
+            // There is a risk that the NodeStore somehow forgets about our peers while the peers
+            // are still happily sending traffic. To break this bad cycle lets just send a PEER
+            // message once per second for whichever peer is the first that we address.
+            if (i == startAt && ep->state == InterfaceController_PeerState_ESTABLISHED) {
+                sendPeer(0xffffffff, PFChan_Core_PEER, ep);
+            }
+
             continue;
         }
         if (now < ep->timeOfLastPing + ic->pingAfterMilliseconds) {
