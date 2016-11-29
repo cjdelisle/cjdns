@@ -834,7 +834,8 @@ The "AuthType Specific" field is specific to the authentication type.
 AuthType Zero is no authentication at all. If the AuthType is set to zero, all
 AuthType Specific fields are disregarded and SHOULD be set to random numbers.
 
-This AuthType is the one used in Key packets.
+This AuthType is the one used in Key packets and for inner (end-to-end)
+cryptoauth sessions.
 
 
 #### AuthType One
