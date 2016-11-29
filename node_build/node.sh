@@ -21,13 +21,13 @@ DEFAULT_DLVER="v6.9.1"
 
 die () { printf '%s\n' "ERROR: $1" >&2; exit 100; }
 
-[ "$UNAME_PATH" != "" ] || UNAME_PATH=`command -v uname` || die "missing uname";
-[ "$SED_PATH" != "" ] || SED_PATH=`command -v sed` || die "missing sed";
-[ "$TR_PATH" != "" ] || TR_PATH=`command -v tr` || die "missing tr";
-[ "$INSTALL_PATH" != "" ] || INSTALL_PATH=`command -v install` || die "missing install (utility)";
-[ "$RM_PATH" != "" ] || RM_PATH=`command -v rm` || die "missing rm";
-[ "$TAR_PATH" != "" ] || TAR_PATH=`command -v tar` || die "missing tar";
-[ "$GREP_PATH" != "" ] || GREP_PATH=`command -v grep` || die "missing grep";
+[ "$UNAME_PATH" != "" ] || UNAME_PATH=$(command -v uname) || die "missing uname";
+[ "$SED_PATH" != "" ] || SED_PATH=$(command -v sed) || die "missing sed";
+[ "$TR_PATH" != "" ] || TR_PATH=$(command -v tr) || die "missing tr";
+[ "$INSTALL_PATH" != "" ] || INSTALL_PATH=$(command -v install) || die "missing install (utility)";
+[ "$RM_PATH" != "" ] || RM_PATH=$(command -v rm) || die "missing rm";
+[ "$TAR_PATH" != "" ] || TAR_PATH=$(command -v tar) || die "missing tar";
+[ "$GREP_PATH" != "" ] || GREP_PATH=$(command -v grep) || die "missing grep";
 
 
 [ "$PLATFORM" != "" ] || PLATFORM=$($UNAME_PATH | $TR_PATH '[:upper:]' '[:lower:]')
