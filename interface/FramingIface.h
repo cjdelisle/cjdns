@@ -20,6 +20,12 @@
 #include "util/Linker.h"
 Linker_require("interface/FramingIface.c");
 
+struct FramingIface
+{
+    struct Iface messageIf;
+    struct Iface streamIf;
+};
+
 /**
  * Framed message format:
  * [4 bytes length][ <length> bytes content ....... ]
@@ -27,12 +33,13 @@ Linker_require("interface/FramingIface.c");
  * which represents the length itself.
  *
  * @param maxMessageSize how large of a framed message to allow
- * @param wrappedIface the stream interface which will be used to
- *                     communicate framed messages to a peer.
+ * @param padding the amount of padding to apply to each full frame when it comes in, for outgoing
+ *                messages the message has no added padding, it is just sent across the wire as it
+ *                is.
  * @param alloc
  */
-struct Iface* FramingIface_new(uint32_t maxMessageSize,
-                                       struct Iface* wrappedIface,
-                                       struct Allocator* alloc);
+struct FramingIface* FramingIface_new(uint32_t maxMessageSize,
+                                      uint32_t padding,
+                                      struct Allocator* alloc);
 
 #endif

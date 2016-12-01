@@ -76,8 +76,9 @@ int main(int argc, char** argv)
     Identity_set(ctx);
     ctx->internalIf.send = messageOut;
     struct Iface externalIf = { .send = NULL };
-    struct Iface* fi = FramingIface_new(4096, &externalIf, mainAlloc);
-    Iface_plumb(fi, &ctx->internalIf);
+    struct FramingIface* framingIface = FramingIface_new(4096, 512, mainAlloc);
+    Iface_plumb(&framingIface->messageIf, &ctx->internalIf);
+    Iface_plumb(&framingIface->streamIf, &externalIf);
 
     int cycles = QUICK_CYCLES;
     for (int i = 0; i < argc; i++) {

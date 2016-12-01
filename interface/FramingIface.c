@@ -12,12 +12,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "interface/FramingIface.h"
 #include "interface/Iface.h"
 #include "memory/Allocator.h"
 #include "util/Identity.h"
 #include "wire/Error.h"
-
-#define REQUIRED_PADDING 512
 
 struct MessageList;
 struct MessageList {
@@ -26,10 +25,10 @@ struct MessageList {
 };
 
 struct FramingIface_pvt {
-    struct Iface messageIf;
-    struct Iface streamIf;
+    struct FramingIface pub;
     const uint32_t maxMessageSize;
     struct Allocator* alloc;
+    uint32_t padding;
 
     // fields specific to this frame.
     uint32_t bytesRemaining;
@@ -56,7 +55,7 @@ static struct Message* mergeMessage(struct FramingIface_pvt* fi, struct Message*
         length += part->msg->length;
     }
 
-    struct Message* out = Message_new(0, length + REQUIRED_PADDING, fi->frameAlloc);
+    struct Message* out = Message_new(0, length + fi->padding, fi->frameAlloc);
     Message_push(out, last->bytes, last->length, NULL);
     for (part = fi->frameParts; part; part = part->next) {
         Message_push(out, part->msg->bytes, part->msg->length, NULL);
@@ -68,7 +67,8 @@ static struct Message* mergeMessage(struct FramingIface_pvt* fi, struct Message*
 
 static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* streamIf)
 {
-    struct FramingIface_pvt* fi = Identity_containerOf(streamIf, struct FramingIface_pvt, streamIf);
+    struct FramingIface_pvt* fi =
+        Identity_containerOf(streamIf, struct FramingIface_pvt, pub.streamIf);
 
     if (fi->bytesRemaining > fi->maxMessageSize) {
         // Oversize message
@@ -116,15 +116,15 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* streamIf)
 
         if (fi->bytesRemaining == (uint32_t)msg->length) {
             fi->bytesRemaining = 0;
-            return Iface_next(&fi->messageIf, msg);
+            return Iface_next(&fi->pub.messageIf, msg);
 
         } else if (fi->bytesRemaining < (uint32_t)msg->length) {
             struct Allocator* alloc = Allocator_child(msg->alloc);
-            struct Message* m = Message_new(fi->bytesRemaining, REQUIRED_PADDING, alloc);
+            struct Message* m = Message_new(fi->bytesRemaining, fi->padding, alloc);
             Bits_memcpy(m->bytes, msg->bytes, fi->bytesRemaining);
             Message_shift(msg, -fi->bytesRemaining, NULL);
             fi->bytesRemaining = 0;
-            Iface_send(&fi->messageIf, m);
+            Iface_send(&fi->pub.messageIf, m);
             Allocator_free(alloc);
             continue;
 
@@ -150,21 +150,25 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* streamIf)
 static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* messageIf)
 {
     struct FramingIface_pvt* fi =
-        Identity_containerOf(messageIf, struct FramingIface_pvt, messageIf);
+        Identity_containerOf(messageIf, struct FramingIface_pvt, pub.messageIf);
     Message_push32(msg, msg->length, NULL);
-    return Iface_next(&fi->streamIf, msg);
+    return Iface_next(&fi->pub.streamIf, msg);
 }
 
-struct Iface* FramingIface_new(uint32_t maxMsgSize, struct Iface* toWrap, struct Allocator* alloc)
+struct FramingIface* FramingIface_new(uint32_t maxMsgSize,
+                                      uint32_t padding,
+                                      struct Allocator* alloc)
 {
     struct FramingIface_pvt* context =
         Allocator_clone(alloc, (&(struct FramingIface_pvt) {
             .maxMessageSize = maxMsgSize,
             .alloc = alloc,
-            .streamIf = { .send = receiveMessage },
-            .messageIf = { .send = sendMessage }
+            .padding = padding,
+            .pub = {
+                .streamIf = { .send = receiveMessage },
+                .messageIf = { .send = sendMessage }
+            }
         }));
     Identity_set(context);
-    Iface_plumb(toWrap, &context->streamIf);
-    return &context->messageIf;
+    return &context->pub;
 }
