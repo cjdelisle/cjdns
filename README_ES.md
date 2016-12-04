@@ -352,7 +352,7 @@ De favor cerciorese que usted y su amigo pueden *iniciar* una
 conexión tanto hacia fuera (de USTED --> AMIGO) hacia dentro (del AMIGO --> USTED)
 pero el tráfico fluye ambos sentidos una vez una coneccion suceda.
 
-Revise [doc/configure.md](doc/configure.md) - en ingles - para mas detalles de 
+Revise [doc/configure_ES.md](doc/configure_ES.md) para mas detalles de 
 configuración, incluido como acceder a otros nodos cjdns sobre ethernet y wifi.
 
 
