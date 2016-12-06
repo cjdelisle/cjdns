@@ -370,6 +370,7 @@ void NetPlatform_setMTU(const char* interfaceName,
        close(s);
        Except_throw(eh, "ioctl(SIOCSIFMTU) [%s]", strerror(err));
     }
+    close(s);
 }
 
 void NetPlatform_setRoutes(const char* ifName,
