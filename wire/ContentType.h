@@ -23,10 +23,10 @@ enum ContentType
      * Any packet sent in this way will have the IPv6 header deconstructed and this
      * field will come from the nextHeader field in the IPv6 header.
      */
-    ContentType_IP6_IP =        0,
+    ContentType_IP6_HOP =       0,
     ContentType_IP6_ICMP =      1,
     ContentType_IP6_IGMP =      2,
-    ContentType_IP6_IPIP =      4,
+    ContentType_IP6_IPV4 =      4,
     ContentType_IP6_TCP =       6,
     ContentType_IP6_EGP =       8,
     ContentType_IP6_PUP =       12,
@@ -39,6 +39,7 @@ enum ContentType
     ContentType_IP6_GRE =       47,
     ContentType_IP6_ESP =       50,
     ContentType_IP6_AH =        51,
+    ContentType_IP6_ICMPV6 =    58,
     ContentType_IP6_MTP =       92,
     ContentType_IP6_BEETPH =    94,
     ContentType_IP6_ENCAP =     98,
@@ -46,7 +47,7 @@ enum ContentType
     ContentType_IP6_COMP =      108,
     ContentType_IP6_SCTP =      132,
     ContentType_IP6_UDPLITE =   136,
-    ContentType_IP6_RAW =       255,
+    ContentType_IP6_MAX =       255,
 
     /** Bencoded inter-router DHT messages. */
     ContentType_CJDHT =         256,

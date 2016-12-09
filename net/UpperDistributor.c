@@ -192,7 +192,7 @@ static Iface_DEFUN incomingFromSessionManagerIf(struct Message* msg, struct Ifac
     struct DataHeader* dh = (struct DataHeader*) &hdr[1];
     enum ContentType type = DataHeader_getContentType(dh);
     sendToHandlers(msg, type, ud);
-    if (type <= ContentType_IP6_RAW) {
+    if (type <= ContentType_IP6_MAX) {
         return Iface_next(&ud->pub.tunAdapterIf, msg);
     }
     if (type == ContentType_CJDHT) {
