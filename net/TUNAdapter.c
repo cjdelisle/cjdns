@@ -126,7 +126,7 @@ static Iface_DEFUN incomingFromUpperDistributorIf(struct Message* msg,
     struct RouteHeader* hdr = (struct RouteHeader*) msg->bytes;
     struct DataHeader* dh = (struct DataHeader*) &hdr[1];
     enum ContentType type = DataHeader_getContentType(dh);
-    Assert_true(type <= ContentType_IP6_RAW);
+    Assert_true(type <= ContentType_IP6_MAX);
 
     // Shift ip address into destination slot.
     Bits_memmove(hdr->ip6 + DataHeader_SIZE - 16, hdr->ip6, 16);
