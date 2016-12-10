@@ -98,8 +98,15 @@ gcc arch.c
         #error unknown endian
     #endif
 #elif defined(__powerpc64__) || defined(__ppc64__) || defined(__PPC64__) || defined(_ARCH_PPC64)
-    #define ARCH ArchInfo_AUDIT_ARCH_PPC64
-    #define ARCHSTR "ppc64"
+    #if defined(Endian_BIG)
+        #define ARCH ArchInfo_AUDIT_ARCH_PPC64
+        #define ARCHSTR "ppc64"
+    #elif defined(Endian_LITTLE)
+        #define ARCH ArchInfo_AUDIT_ARCH_PPC64LE
+        #define ARCHSTR "ppc64le"
+    #else
+        #error unknown endian
+    #endif
 #elif defined(__powerpc__) || defined(__ppc__) || defined(__PPC__) || defined(_ARCH_PPC)
     #define ARCH ArchInfo_AUDIT_ARCH_PPC
     #define ARCHSTR "ppc"
@@ -145,6 +152,9 @@ gcc arch.c
     #else
         #error unknown bit width
     #endif
+#elif defined(__s390x__)
+    #define ARCH ArchInfo_AUDIT_ARCH_S390X
+    #define ARCHSTR "s390x"
 #else
     #error architecture unknown
 #endif

@@ -20,6 +20,7 @@
 #include "util/Assert.h"
 #include "util/Base32.h"
 #include "util/Identity.h"
+#include "util/Endian.h"
 
 #include <crypto_hash_sha256.h>
 #include <crypto_stream_salsa20.h>
@@ -163,10 +164,11 @@ void Random_addRandom(struct Random* rand, uint32_t randomNumber)
 
 static void stir(struct Random* rand)
 {
+    uint64_t nonce = Endian_hostToLittleEndian64(rand->nonce);
     crypto_stream_salsa20_xor((uint8_t*)rand->buff,
                               (uint8_t*)rand->buff,
                               BUFFSIZE,
-                              (uint8_t*)&rand->nonce,
+                              (uint8_t*)&nonce,
                               (uint8_t*)rand->tempSeed);
     rand->nonce++;
     rand->nextByte = 0;
