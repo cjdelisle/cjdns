@@ -3,6 +3,7 @@
 [Engelska](README.md)
 [Ryska](README_RU.md)
 [Kroatiska](README_HR.md)
+[Afrikaans](README_AF.md)
 
 #### *Datornätverk - Ett nytt sätt*
 

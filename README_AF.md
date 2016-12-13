@@ -14,7 +14,6 @@ near-zero-configuration networking, and prevents many of the security and
 scalability issues that plague existing networks.
 
 [![Build Status](https://travis-ci.org/cjdelisle/cjdns.svg?branch=master)](https://travis-ci.org/cjdelisle/cjdns)
-[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/387/badge)](https://bestpractices.coreinfrastructure.org/projects/387)
 [![tip for next commit](https://tip4commit.com/projects/941.svg)](https://tip4commit.com/github/cjdelisle/cjdns)
 [![irc](https://img.shields.io/badge/irc%20chat-%23cjdns-blue.svg)](https://kiwiirc.com/client/irc.efnet.org/?nick=visitor|?#cjdns)
 
@@ -85,7 +84,7 @@ it will be downloaded and installed in the source tree.
 
 #### Debian-based distro:
 
-    sudo apt-get install nodejs git build-essential python2.7
+    sudo apt-get install nodejs git build-essential
 
 #### Fedora 22+ based distro:
 
@@ -118,39 +117,19 @@ Everything you need is available prebuild in FreeBSD' ports.
 
     pkg install gmake node
 
-#### Arch:
-
-You can install cjdns by running
-
-    pacman -S cjdns
-
-If you need to build from source, everything you need can be installed like this
-
-    pacman -S nodejs git base-devel
-    
-Alternatively, you may like to install via AUR from the package, `cjdns-git`.
-After Installation, The configuration file is located at `/etc/cjdroute.conf`.
-To start the service `cjdns.service`, do:
-
-        systemctl start cjdns
-
-To stop it:
-
-       systemctl stop cjdns
-
-### 1. Retrieve cjdns from GitHub
+### 1. Kry cjdns van GitHub
 
 Clone the repository from GitHub and change to the source directory:
 
     git clone https://github.com/cjdelisle/cjdns.git cjdns
     cd cjdns
 
-### 2. Build
+### 2. Bou
 
     ./do
 
-Look for `Build completed successfully, type ./cjdroute to begin setup.`, then
-proceed below:
+Kyk uit vir `Build completed successfully, type ./cjdroute to begin setup.`, dan
+proceed onder:
 
 --------------------------------------------------------------------------------
 
@@ -160,21 +139,21 @@ Run cjdroute without options for HELP:
 
     ./cjdroute
 
-### 0. Make sure you've got the stuff.
+### 0. Maak seker jy het die dinge.
 
-    LANG=C cat /dev/net/tun
+    cat /dev/net/tun
 
-If it says: `cat: /dev/net/tun: File descriptor in bad state` Good!
+As dit se: `cat: /dev/net/tun: File descriptor in bad state` Goed!
 
-If it says: `cat: /dev/net/tun: No such file or directory`, create it using:
+As dit se: `cat: /dev/net/tun: No such file or directory`, maak dit met:
 
     sudo mkdir -p /dev/net &&
     sudo mknod /dev/net/tun c 10 200 &&
     sudo chmod 0666 /dev/net/tun
 
-Then `cat /dev/net/tun` again.
+Dan `cat /dev/net/tun` nog 'n tyd.
 
-If it says: `cat: /dev/net/tun: Permission denied` You're probably using a VPS
+As dit se: `cat: /dev/net/tun: Permission denied` You're probably using a VPS
 based on the OpenVZ virtualization platform. Ask your provider to enable the
 TUN/TAP device - this is standard protocol so they should know exactly what you
 need. If you're on OS X, don't worry about this step.
@@ -197,7 +176,7 @@ read it and write to it:
     (umask 077 && ./cjdroute --genconf > cjdroute.conf)
 
 
-### 2. Find a friend
+### 2. Vind 'n vriend
 
 To get into an existing network (e.g. Hyperboria), you need to connect to
 someone who is already in the network. This is required for a number of
@@ -262,7 +241,7 @@ following JSON syntax.
 
 **To allow your friend to initiate the connection INbound**
 
-In your conf file, you will see:
+In jou conf file, jy sal sien:
 
 ``` javascript
 "authorizedPasswords":
@@ -281,7 +260,7 @@ In your conf file, you will see:
 ],
 ```
 
-A conf file with multiple friend-nodes, setup INbound, should look like:
+'n conf file met multiple vriende-nodes, setup INbound, should look like:
 ``` javascript
 "authorizedPasswords":
 [
@@ -310,7 +289,7 @@ You need to give William Jevons (who is making the INbound connection) the follo
     "bind": "0.0.0.0:yourportnumberishere",`
 
 3. Their unique password that you uncommented or created: `"password": "thisisauniquestring_002"`
-4. Your public key: `"publicKey": "thisisauniqueKEY_001.k"`
+4. Jou publik sleutel: `"publicKey": "thisisauniqueKEY_001.k"`
 5. His username: "William Jevons"
 
 His login credentials will look something like this (with your IPv4 and port):
@@ -349,7 +328,7 @@ If you want to have your logs written to a file:
 
     sudo ./cjdroute < cjdroute.conf > cjdroute.log
 
-To stop cjdns:
+Om cjdns te stop:
 
     sudo killall cjdroute
 
@@ -365,7 +344,7 @@ without concern for permissions. To start cjdns as a non-root user, see
 
 ### 6. Get in IRC
 
-Welcome to the network! You're now a network administrator. There are
+Welkom na die netwerk! You're now a network administrator. There are
 responsibilities which come with being a network administrator which include
 being available in case there is something wrong with your equipment. You should
 stay on [IRC](#community) so that people can reach you.
@@ -381,30 +360,8 @@ that can interact with it.
 
 You can access the admin API with:
 
-* the **Python library**; see [here](contrib/python/README.md).
-* the **Perl library**, maintained by Mikey; see [here](contrib/perl/CJDNS/README).
-
-
-## Reporting issues
-1. Don't
-2. Get on IRC and talk to somebody
-3. What will happen is either
- * Someone feels like fixing it
- * You feel like fixing it
- * Nobody cares about it and it will be forgotten for a while and maybe someone will hit it later
- and fix it or else it will get wiped away in a refactoring
- * Nobody can fix it at the moment but it is considered worth remembering because it has great
- significance to the way the code is developed, in this case it needs to be explained in technical
- terms by someone with strong familiarity with the code. They will make a pull request to the
- docs/bugs directory.
- 4. Alternatively you can report the issue on the https://github.com/hyperboria/cjdns.git repo.
-
-### Security
-Security issues should be reported on IRC the same as other bugs. We don't have a closed
-group of people with special knowledge so that means the default security reporting method is
-full disclosure.
-see: https://github.com/cjdelisle/cjdns/blob/master/doc/security_specification.md to see if a
-possible security issue is really a security issue.
+* die **Python library**; see [here](contrib/python/README.md).
+* die **Perl library**, maintained by Mikey; see [here](contrib/perl/CJDNS/README).
 
 
 [IRC Web]: http://chat.efnet.org/irc.cgi?chan=%23cjdns
