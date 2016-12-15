@@ -420,7 +420,7 @@ static void triggerSearch(struct SessionManager_pvt* sm, uint8_t target[16])
 static void checkTimedOutSessions(struct SessionManager_pvt* sm)
 {
     bool searchTriggered = false;
-    for (int i = (int)sm->ifaceMap.count -  1; i >= 0; i--) {
+    for (int i = (int)sm->ifaceMap.count - 1; i >= 0; i--) {
         struct SessionManager_Session_pvt* sess = sm->ifaceMap.values[i];
         int64_t now = Time_currentTimeMilliseconds(sm->eventBase);
 
