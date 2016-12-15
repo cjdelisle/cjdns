@@ -7,6 +7,7 @@
 [Ελληνικά](README_GR.md)
 [Deutsch](README_DE.md)
 [繁體中文](README_ZHT.md)
+[Español](README_ES.md)
 
 #### *Netzwerk neu erfunden*
 

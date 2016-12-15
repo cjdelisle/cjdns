@@ -6,6 +6,7 @@
 [Svenska](README_SV.md)
 [Deutsch](README_DE.md)
 [繁體中文](README_ZHT.md)
+[Español](README_ES.md)
 
 #### *Η δικτύωση επανεφευρέθηκε*
 
