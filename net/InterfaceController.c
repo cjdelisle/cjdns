@@ -402,7 +402,12 @@ static void moveEndpointIfNeeded(struct Peer* ep)
             Assert_true(ep->switchIf.connectedIf->send);
             Assert_true(thisEp->switchIf.connectedIf->send);
             Allocator_free(thisEp->alloc);
-            Assert_true(!thisEp->switchIf.connectedIf->send);
+
+            // This check cannot really be relied upon because thisEp->alloc is what
+            // allocates thisEp and if the free is not blocked by an asynchronous onFree job
+            // then it could overwrite and free the memory in which case the assertion would fail.
+            //Assert_true(!thisEp->switchIf.connectedIf->send);
+
             Assert_true(ep->switchIf.connectedIf->send);
             return;
         }
