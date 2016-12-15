@@ -420,7 +420,7 @@ static void triggerSearch(struct SessionManager_pvt* sm, uint8_t target[16])
 static void checkTimedOutSessions(struct SessionManager_pvt* sm)
 {
     bool searchTriggered = false;
-    for (int i = 0; i < (int)sm->ifaceMap.count; i++) {
+    for (int i = (int)sm->ifaceMap.count -  1; i >= 0; i--) {
         struct SessionManager_Session_pvt* sess = sm->ifaceMap.values[i];
         int64_t now = Time_currentTimeMilliseconds(sm->eventBase);
 
@@ -430,7 +430,7 @@ static void checkTimedOutSessions(struct SessionManager_pvt* sm)
             sendSession(sess, sess->pub.sendSwitchLabel, 0xffffffff, PFChan_Core_SESSION_ENDED);
             Map_OfSessionsByIp6_remove(i, &sm->ifaceMap);
             Allocator_free(sess->alloc);
-            i--;
+            continue;
         }
 
         if (now - sess->pub.timeOfLastOut >= sm->pub.sessionIdleAfterMilliseconds &&
@@ -445,7 +445,6 @@ static void checkTimedOutSessions(struct SessionManager_pvt* sm)
             triggerSearch(sm, sess->pub.caSession->herIp6);
             sess->pub.lastSearchTime = now;
             searchTriggered = true;
-            continue;
         }
     }
 }
