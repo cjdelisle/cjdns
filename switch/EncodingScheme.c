@@ -154,6 +154,17 @@ uint64_t EncodingScheme_convertLabel(struct EncodingScheme* scheme,
  * Decode a form from it's binary representation.
  * Can only use a maximum of 41 bits.
  *
+ *
+ * Last 10 bits of d:
+ *
+ *                     1
+ *     0 1 2 3 4 5 6 7 0 1
+ *    +-+-+-+-+-+-+-+-+-+-+
+ *  0 | bitcount| preflen |
+ *    +-+-+-+-+-+-+-+-+-+-+
+ *
+ * Previous 'preflen' bits are the prefix
+ *
  * @param out the output which will be populated with the encoding form data.
  * @param data the binary data in host order.
  * @return the number of bits of data which were consumed by the decoding.
