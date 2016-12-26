@@ -727,15 +727,28 @@ static enum CryptoAuth_DecryptErr decryptHandshake(struct CryptoAuth_Session_pvt
                 break;
             }
             case CryptoAuth_State_RECEIVED_KEY: {
-                if (Bits_memcmp(session->herTempPubKey, header->encryptedTempKey, 32)) {
-                    cryptoAuthDebug0(session, "DROP key packet with different key");
-                    return CryptoAuth_DecryptErr_INVALID_PACKET;
+                if (nonce == Nonce_KEY) {
+                    Bits_memcpy(session->herTempPubKey, header->encryptedTempKey, 32);
+                } else {
+                    Assert_true(!Bits_memcmp(session->herTempPubKey, header->encryptedTempKey, 32));
                 }
                 break;
             }
             default: {
                 Assert_true(!session->established);
-                Assert_true(!Bits_memcmp(session->herTempPubKey, header->encryptedTempKey, 32));
+                if (nonce == Nonce_KEY) {
+                    Bits_memcpy(session->herTempPubKey, header->encryptedTempKey, 32);
+                    cryptoAuthDebug0(session, "New key packet, recalculating shared secret");
+                    Assert_ifParanoid(!Bits_isZero(session->ourTempPrivKey, 32));
+                    Assert_ifParanoid(!Bits_isZero(session->herTempPubKey, 32));
+                    getSharedSecret(session->sharedSecret,
+                                    session->ourTempPrivKey,
+                                    session->herTempPubKey,
+                                    NULL,
+                                    session->context->logger);
+                } else {
+                    Assert_true(!Bits_memcmp(session->herTempPubKey, header->encryptedTempKey, 32));
+                }
                 nextNonce = session->nextNonce + 1;
                 cryptoAuthDebug0(session, "New key packet but we are already sending data");
             }
