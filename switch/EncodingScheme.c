@@ -151,11 +151,14 @@ uint64_t EncodingScheme_convertLabel(struct EncodingScheme* scheme,
 }
 
 /**
- * Decode a form from it's binary representation.
+ * Decode a form from its binary representation.
  * Can only use a maximum of 41 bits.
  *
+ * One or more of these binary representation are bitwise concatenated to
+ * give an unsigned integer; which is encoded in **little endian** to give
+ * the serialization of Encoding Scheme.
  *
- * Last 10 bits of d:
+ * Ten least significant bits of a form are:
  *
  *                     1
  *     0 1 2 3 4 5 6 7 0 1

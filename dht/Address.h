@@ -77,6 +77,34 @@ uint32_t Address_prefixForIp6(uint8_t ip6[16]);
 
 uint32_t Address_prefixForSearchTarget(const uint8_t searchTarget[16]);
 
+/**
+ * Address_serialize and Address_parse use the following format:
+ *
+ *                       1               2               3
+ *       0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
+ *      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *    0 |                                                               |
+ *      +                                                               +
+ *    4 |                                                               |
+ *      +                                                               +
+ *    8 |                                                               |
+ *      +                                                               +
+ *   12 |                                                               |
+ *      +                          Public Key                           +
+ *   16 |                                                               |
+ *      +                                                               +
+ *   20 |                                                               |
+ *      +                                                               +
+ *   24 |                                                               |
+ *      +                                                               +
+ *   28 |                                                               |
+ *      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *   32 |                                                               |
+ *      +                          Route Label                          +
+ *   36 |                                                               |
+ *      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ */
+
 void Address_serialize(uint8_t output[Address_SERIALIZED_SIZE], const struct Address* addr);
 
 void Address_parse(struct Address* addr, const uint8_t input[Address_SERIALIZED_SIZE]);
