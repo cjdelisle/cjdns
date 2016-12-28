@@ -577,6 +577,15 @@ Adding nodes to the routing table from search responses is done by splicing the
 route to the node which was asked with the route to the node in the response,
 yielding a route to the final destination through them.
 
+Routers choose the node to forward a packet to in a similar way to how they
+answer search queries. They select nodes from their routing table except in this
+case the selection contains only one node. The packet is sent through the
+CryptoAuth session corresponding to this node and the label for getting to it is
+applied to the packet before sending to the switch. The "search target" for
+forwarding a packet is the IPv6 destination address of the packet.
+
+### Format of router messages
+
 Router messages are sent as Data Packets whose content-type is 256 (Route Header).
 The payload of these inter-router messages is [bEncoded][bEncode] dictionaries.
 Routers send search queries which have a key called "q", and replies which
@@ -618,12 +627,33 @@ Same reply bEncoded
 The nodes in an fn reply are ordered from worst to best so the best answer is
 the last entry in the reply.
 
-Routers choose the node to forward a packet to in a similar way to how they
-answer search queries. They select nodes from their routing table except in this
-case the selection contains only one node. The packet is sent through the
-CryptoAuth session corresponding to this node and the label for getting to it is
-applied to the packet before sending to the switch. The "search target" for
-forwarding a packet is the IPv6 destination address of the packet.
+### Keys of a router message's dictionary
+
+Possible keys in a router message include:
+
+* `q` (ascii string): the query type. May be:
+  * absent
+  * `gp`: get peers, expects a reply with a list of nodes (`n` key) and
+    their versions (`pn` key) which are direct peers of the recipient.
+    If the target address `tar` is provided, the replied nodes should be the
+    closest to this address.
+  * `fn`: find node, expects a reply with a list of nodes (`n` key) and
+    their versions (`pn` key) which are close to the provided target
+    address `tar`.
+  * `pn`: ping node
+* `ei` (integer): the encoding index. References one of the forms of the
+  encoding scheme `es`. (TODO: to do what?)
+* `es` (byte string): the encoding scheme. See the section above about its
+  format.
+* `n` (byte string): list of nodes. See below for its serialization.
+* `np` (byte string): list of nodes' protocol version. The first byte is the
+  number of bytes taken by each version in  the list (always 1 for now),
+  followed by the versions themselves, encoded in big endian.
+* `p` (integer): protocol version. Matches the cjdns version.
+* `tar` (byte string): the target address. If provided, contains an address
+  the sender wants to reach.
+* `txid` (byte string): transaction id. Opaque value choosen by senders of
+  queries, which must be used in responses.
 
 
 ## The CryptoAuth
