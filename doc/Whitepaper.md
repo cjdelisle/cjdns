@@ -491,11 +491,14 @@ without saying.
 
 
 
-### In Memory Representation
+### Wire format
 
-While the switch protocol is inherently linked to the underlying carrier, there
-are certain expectations made by the protocols above the switch layer about how
-a switch header will appear in memory.
+#### Switch Header
+
+Two switches exchange messages prefixed by a Switch Header, eventually
+wrapped in CryptoAuth sessions (called “outer” or “point-to-point”
+CryptoAuth sessions).
+The Switch Header layout is the following:
 
 
                         1               2               3
@@ -505,15 +508,44 @@ a switch header will appear in memory.
        -                          Route Label                          -
      4 |                                                               |
        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-     8 |      Type     |                  Priority                     |
+     8 |   Congest   |S| V |labelShift |            Penalty            |
        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 The `Route Label` field unsurprisingly holds the 8 byte `Route Label`, the
-`Type` field indicates the type of packet. Reserved packet types are `0` for
-opaque data, and `1` for switch control messages (eg errors). The `Priority`
-field is reserved for Quality of Service purposes, in the current implementation
-it is always zero.
+`Type` field indicates the type of packet.
 
+The Switch Header may be followed by three different types of packets:
+
+* If the first four bytes are `0xffffffff`, then the Switch Header is
+  followed by a Switch Control Packet (see below).
+* If these first four bytes after the Header are a big-endian 0, 1, 2, or 3,
+  the Switch Header is followed by a CryptoAuth handshake packet.
+  This 0, 1, 2, or 3 is the session state of the CryptoAuth session.
+  The CryptoAuth handshake packet contains the Session Handle (that should
+  be used by the recipient to prefix CryptoAuth data packets sent after that),
+  eventually followed by a Switch Data Header.
+* Otherwise, these first four bytes are a Session Handle, which the receipient
+  of these packet chose earlier to identify the emitted. They are followed
+  by a CryptoAuth Data Packet, containing a Switch Data Header.
+
+#### Switch Control Packet
+
+TODO
+
+#### Switch Data Header
+
+The layout of the Switch Data Header is the following:
+
+                        1               2               3
+        0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     0 |  ver  | unusd |     unused    |         Content Type          |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+The `ver`sion should be `1`.
+
+A `Content Type` set to 256 indicates this header is followed by a
+Route Header.
 
 ## The Router
 
@@ -545,14 +577,8 @@ Adding nodes to the routing table from search responses is done by splicing the
 route to the node which was asked with the route to the node in the response,
 yielding a route to the final destination through them.
 
-Router messages are sent as normal UDP/IPv6 packets except that their UDP source
-and destination port numbers are zero and the hop limit (TTL) field in the IPv6
-header is set to zero. Any packet which meets these characteristics is to be
-considered a router message and any packet which doesn't is not. It is critical
-that inter-router communications are themselves, not routed because it would
-break the label splicing for search responses.
-
-The content of the inter-router messages is [bEncoded][bEncode] dictionaries.
+Router messages are sent as Data Packets whose content-type is 256 (Route Header).
+The payload of these inter-router messages is [bEncoded][bEncode] dictionaries.
 Routers send search queries which have a key called "q", and replies which
 don't. Routers SHOULD reply to a message with a "q" entry but MUST NOT reply if
 there is none, lest they reply to a reply. All messages have a transaction id
