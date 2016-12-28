@@ -655,6 +655,32 @@ Possible keys in a router message include:
 * `txid` (byte string): transaction id. Opaque value choosen by senders of
   queries, which must be used in responses.
 
+The serialization of each item of the list of nodes `n` is:
+
+                          1               2               3
+          0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
+         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       0 |                                                               |
+         +                                                               +
+       4 |                                                               |
+         +                                                               +
+       8 |                                                               |
+         +                                                               +
+      12 |                                                               |
+         +                          Public Key                           +
+      16 |                                                               |
+         +                                                               +
+      20 |                                                               |
+         +                                                               +
+      24 |                                                               |
+         +                                                               +
+      28 |                                                               |
+         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      32 |                                                               |
+         +                          Route Label                          +
+      36 |                                                               |
+         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
 
 ## The CryptoAuth
 
