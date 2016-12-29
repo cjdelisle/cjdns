@@ -532,6 +532,9 @@ The Switch Header may be followed by three different types of packets:
 
 TODO
 
+See [this parser](https://github.com/cjdelisle/cjdnsctrl) for more information
+about the CTRL packet.
+
 #### Switch Data Header
 
 The layout of the Switch Data Header is the following:
@@ -642,7 +645,10 @@ Possible keys in a router message include:
     address `tar`.
   * `pn`: ping node
 * `ei` (integer): the encoding index. References one of the forms of the
-  encoding scheme `es`. (TODO: to do what?)
+  encoding scheme `es`. This is needed when crafting the label to send a
+  packet through the node which has returned this message. The following hop
+  must be encoded in this form or a greater one otherwise the return path
+  cannot be represented.
 * `es` (byte string): the encoding scheme. See the section above about its
   format.
 * `n` (byte string): list of nodes. See below for its serialization.
