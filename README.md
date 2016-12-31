@@ -161,6 +161,8 @@ Run cjdroute without options for HELP:
 
 ### 0. Make sure you've got the stuff.
 
+If you're on OS X, don't worry about this step.
+
     LANG=C cat /dev/net/tun
 
 If it says: `cat: /dev/net/tun: File descriptor in bad state` Good!
@@ -176,7 +178,7 @@ Then `cat /dev/net/tun` again.
 If it says: `cat: /dev/net/tun: Permission denied` You're probably using a VPS
 based on the OpenVZ virtualization platform. Ask your provider to enable the
 TUN/TAP device - this is standard protocol so they should know exactly what you
-need. If you're on OS X, don't worry about this step.
+need. 
 
 
 ### 1. Generate a new configuration file
