@@ -398,23 +398,18 @@ static int genconf(struct Random* rand, bool eth)
            "\n"
            "    // If set to non-zero, cjdns will not fork to the background.\n"
            "    // Recommended for use in conjunction with \"logTo\":\"stdout\".\n");
-          if (Defined(win32)) {
-    printf("    \"noBackground\":1,\n");
-          }
-          else {
-    printf("    \"noBackground\":0,\n");
-          }
+           // ATTENTION: there is no trailing comma here because this is the LAST ENTRY
+           //            the next one ("pipe") is commented out. If you add something below
+           //            you must properly add the trailing comma otherwise ansuz will hunt
+           //            you and and make you pay.
+    printf("    \"noBackground\":%d\n", Defined(win32) ? 1 : 0);
     printf("\n"
            "    // Pipe file will store in this path, recommended value: /tmp (for unix),\n"
            "    // \\\\.\\pipe (for windows) \n"
            "    // /data/local/tmp (for rooted android) \n"
-           "    // /data/data/AppName (for non-root android)\n");
-          if (Defined(android)) {
-    printf("    \"pipe\":\"/data/local/tmp\",\n");
-          }
-          else if (!Defined(win32)){
-    printf("    \"pipe\":\"/tmp\",\n");
-          }
+           "    // /data/data/AppName (for non-root android)\n"
+           "    // This only needs to be specified if cjdroute's guess is incorrect\n");
+    printf("    // \"pipe\":\"%s\"\n", Pipe_PATH);
     printf("}\n");
 
     return 0;

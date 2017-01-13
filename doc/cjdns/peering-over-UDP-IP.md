@@ -110,6 +110,7 @@ Prerequisites:
 
 ```javascript
         {
+                "user": "login for your peer",
                 "password": "vt1ly5f4ydmm9gjk196t160z23t6uju",
                 "name": "[put your peers name here]",
                 "contact": "[put your peers contact info here]"
@@ -117,6 +118,7 @@ Prerequisites:
 ```
 Things that are parsed:
 
+- login
 - password
 
 Everything else is for humans.
@@ -127,6 +129,7 @@ Everything else is for humans.
 
 ```javascript
                         "[your IP address]:[your open port]": {
+                                "login": "[the login your peer has for you]",
                                 "password": "[your long passphrase]",
                                 "location": "New York City, NY, US",
                                 "[insert cool noun here]": "[something witty]",
@@ -137,6 +140,7 @@ Everything else is for humans.
 ```
 Things that are parsed:
 
+- login
 - IP address and port number combo
 - password
 - pubkey
@@ -156,15 +160,16 @@ Like this.
         //default password
         {"password": "pnc8q05llp9sx7d1b4bc3d6ru0krgbl"},
         {
+                "user": "login for your peer",
                 "password": "vt1ly5f4ydmm9gjk196t160z23t6uju",
                 "name": "[put your peers name here]",
                 "contact": "[put your peers contact info here]"
         },
 
         // More passwords should look like this.
-        // {"password": "tjrwwlsh4ugddk032yu8vrnv11v8z5f"},
-        // {"password": "pm0643f911j71w0pctj5s7bkk0s8htv"},
-        // {"password": "2vls52j3q4151dk8h2kz939kt0ldu75"},
+        // {"password": "tjrwwlsh4ugddk032yu8vrnv11v8z5f", "user": "my-second-peer"},
+        // {"password": "pm0643f911j71w0pctj5s7bkk0s8htv", "user": "my-third-peer"},
+        // {"password": "2vls52j3q4151dk8h2kz939kt0ldu75", "user": "my-fourth-peer"},
 
         // Below is an example of your connection credentials
         // that you can give to other people so they can connect
@@ -172,7 +177,7 @@ Like this.
         // Adding a unique password for each user is advisable
         // so that leaks can be isolated.
         //
-        // "your.external.ip.goes.here:43653":{"password":"vt1ly5f4ydmm9gjk196t160z23t6uju","publicKey":"3u2fz3fcyblrz7nspwzkcxp7xph80h5hwu1qu4qrumrqym80r0u0.k"}
+        // "your.external.ip.goes.here:43653":{"login": "default-login", "password":"vt1ly5f4ydmm9gjk196t160z23t6uju","publicKey":"3u2fz3fcyblrz7nspwzkcxp7xph80h5hwu1qu4qrumrqym80r0u0.k"}
     ],
 ```
 Save cjdroute.conf

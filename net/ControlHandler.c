@@ -116,14 +116,13 @@ static Iface_DEFUN handlePing(struct Message* msg,
     ctrl->header.checksum_be = 0;
     ctrl->header.checksum_be = Checksum_engine(msg->bytes, msg->length);
 
-    Message_push32(msg, 0xffffffff, NULL);
+    Message_shift(msg, RouteHeader_SIZE, NULL);
 
-    Message_shift(msg, SwitchHeader_SIZE, NULL);
-
-    struct SwitchHeader* switchHeader = (struct SwitchHeader*) msg->bytes;
-    Bits_memset(switchHeader, 0, SwitchHeader_SIZE);
-    SwitchHeader_setVersion(switchHeader, SwitchHeader_CURRENT_VERSION);
-    switchHeader->label_be = Endian_hostToBigEndian64(label);
+    struct RouteHeader* routeHeader = (struct RouteHeader*) msg->bytes;
+    Bits_memset(routeHeader, 0, RouteHeader_SIZE);
+    SwitchHeader_setVersion(&routeHeader->sh, SwitchHeader_CURRENT_VERSION);
+    routeHeader->sh.label_be = Endian_hostToBigEndian64(label);
+    routeHeader->flags |= RouteHeader_flags_CTRLMSG;
 
     return Iface_next(&ch->pub.coreIf, msg);
 }
@@ -142,10 +141,10 @@ static Iface_DEFUN incomingFromCore(struct Message* msg, struct Iface* coreIf)
 {
     struct ControlHandler_pvt* ch = Identity_check((struct ControlHandler_pvt*) coreIf);
 
-    struct SwitchHeader switchHeader;
-    Message_pop(msg, &switchHeader, SwitchHeader_SIZE, NULL);
+    struct RouteHeader routeHdr;
+    Message_pop(msg, &routeHdr, RouteHeader_SIZE, NULL);
     uint8_t labelStr[20];
-    uint64_t label = Endian_bigEndianToHost64(switchHeader.label_be);
+    uint64_t label = Endian_bigEndianToHost64(routeHdr.sh.label_be);
     AddrTools_printPath(labelStr, label);
     Log_debug(ch->log, "ctrl packet from [%s]", labelStr);
 
@@ -154,7 +153,7 @@ static Iface_DEFUN incomingFromCore(struct Message* msg, struct Iface* coreIf)
         return NULL;
     }
 
-    Assert_true(Message_pop32(msg, NULL) == 0xffffffff);
+    Assert_true(routeHdr.flags & RouteHeader_flags_CTRLMSG);
 
     if (Checksum_engine(msg->bytes, msg->length)) {
         Log_info(ch->log, "DROP ctrl packet from [%s] with invalid checksum", labelStr);
@@ -175,8 +174,7 @@ static Iface_DEFUN incomingFromCore(struct Message* msg, struct Iface* coreIf)
             || ctrl->header.type_be == Control_PONG_be)
     {
         Log_debug(ch->log, "got switch pong from [%s]", labelStr);
-        // Shift back over the header
-        Message_shift(msg, 4 + SwitchHeader_SIZE, NULL);
+        Message_push(msg, &routeHdr, RouteHeader_SIZE, NULL);
         return Iface_next(&ch->pub.switchPingerIf, msg);
     }
 

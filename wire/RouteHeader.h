@@ -53,6 +53,7 @@ struct RouteHeader
      * switch label are of the *source* of the packet, not the destination.
      */
     #define RouteHeader_flags_INCOMING 1
+    #define RouteHeader_flags_CTRLMSG (1<<1)
     uint8_t flags;
 
     uint8_t unused;

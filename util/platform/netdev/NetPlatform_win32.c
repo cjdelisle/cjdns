@@ -226,6 +226,13 @@ void NetPlatform_setMTU(const char* interfaceName,
 
     // Make the netsh call, and die if it returns the wrong thing.
     WinFail_check(eh, system(buffer));
+
+    // We should also configure the MTU for ipv4 (IpTunnel) case
+    const char* format1 = ("netsh interface ipv4 set subinterface "
+        "\"%s\" mtu=%d");
+    snprintf(buffer, totalSize, format1, interfaceName, mtu);
+    Log_debug(logger, "Going to run command: %s", buffer);
+    WinFail_check(eh, system(buffer));
 }
 
 void NetPlatform_setRoutes(const char* ifName,

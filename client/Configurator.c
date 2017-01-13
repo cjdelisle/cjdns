@@ -216,12 +216,19 @@ static void udpInterface(Dict* config, struct Context* ctx)
                 key = String_clone(key, perCallAlloc);
                 char* lastColon = CString_strrchr(key->bytes, ':');
 
-                if (!Sockaddr_parse(key->bytes, NULL)) {
-                    // it's a sockaddr, fall through
-                } else if (lastColon) {
-                    // try it as a hostname.
-                    Log_critical(ctx->logger, "Couldn't add connection [%s], "
-                                                "hostnames aren't supported.", key->bytes);
+                if (lastColon) {
+                    if (!Sockaddr_parse(key->bytes, NULL)) {
+                        // it's a sockaddr, fall through
+                    } else {
+                        // try it as a hostname.
+                        Log_critical(ctx->logger, "Couldn't add connection [%s], "
+                                                    "hostnames aren't supported.", key->bytes);
+                        exit(-1);
+                    }
+                } else {
+                    // it doesn't have a port
+                    Log_critical(ctx->logger, "Connection [%s] must be $IP:$PORT, or "
+                                                "[$IP]:$PORT for IPv6.", key->bytes);
                     exit(-1);
                 }
                 Dict_putInt(value, String_CONST("interfaceNumber"), ifNum, perCallAlloc);
