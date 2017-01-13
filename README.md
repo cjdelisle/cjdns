@@ -420,7 +420,7 @@ possible security issue is really a security issue.
 [Distributed Hash Table]: https://en.wikipedia.org/wiki/Distributed_hash_table
 [Beyond Pain]: https://lists.torproject.org/pipermail/tor-dev/2012-October/004063.html
 [Kademlia]: https://en.wikipedia.org/wiki/Kademlia
-[N-O-D-E.net article "Hyperboria, Moving through the mesh] https://n-o-d-e.net/hyperboria.html
+[N-O-D-E.net article "Hyperboria, Moving through the mesh]: (https://n-o-d-e.net/hyperboria.html)_\
 
 [Tor]: https://www.torproject.org
 [I2P]: http://www.i2p2.de
