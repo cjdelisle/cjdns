@@ -24,8 +24,11 @@ Linker_require("util/events/libuv/Time.c");
 /** Nanosecond time which has no relationship to any wall clock. */
 uint64_t Time_hrtime();
 
+// Monotonic time based on wall clock at time of node startup.
+// CAUTION: only updated once per tick, not for profiling.
 uint64_t Time_currentTimeMilliseconds(struct EventBase* eventBase);
 
+// Same as currentTimeMilliseconds.
 uint64_t Time_currentTimeSeconds(struct EventBase* eventBase);
 
 #endif

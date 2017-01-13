@@ -148,14 +148,15 @@ static Iface_DEFUN sendNode(struct Message* msg,
 static void onBestPathChange(void* vPathfinder, struct Node_Two* node)
 {
     struct Pathfinder_pvt* pf = Identity_check((struct Pathfinder_pvt*) vPathfinder);
-    if (pf->bestPathChanges > 128) {
-        Log_debug(pf->log, "Ignore best path change from NodeStore, calm down...");
-        return;
-    }
-    pf->bestPathChanges++;
     struct Allocator* alloc = Allocator_child(pf->alloc);
-    struct Message* msg = Message_new(0, 256, alloc);
-    Iface_CALL(sendNode, msg, &node->address, Node_getCost(node), pf);
+    if (pf->bestPathChanges > 128) {
+        String* addrPrinted = Address_toString(&node->address, alloc);
+        Log_debug(pf->log, "Ignore best path change from NodeStore [%s]", addrPrinted->bytes);
+    } else {
+        pf->bestPathChanges++;
+        struct Message* msg = Message_new(0, 256, alloc);
+        Iface_CALL(sendNode, msg, &node->address, Node_getCost(node), pf);
+    }
     Allocator_free(alloc);
 }
 
@@ -179,6 +180,10 @@ static Iface_DEFUN connected(struct Pathfinder_pvt* pf, struct Message* msg)
     pf->rumorMill = RumorMill_new(pf->alloc, &pf->myAddr, RUMORMILL_CAPACITY, pf->log, "extern");
 
     pf->nodeStore = NodeStore_new(&pf->myAddr, pf->alloc, pf->base, pf->log, pf->rumorMill);
+
+    if (pf->pub.fullVerify) {
+        NodeStore_setFullVerify(pf->nodeStore, true);
+    }
 
     pf->nodeStore->onBestPathChange = onBestPathChange;
     pf->nodeStore->onBestPathChangeCtx = pf;

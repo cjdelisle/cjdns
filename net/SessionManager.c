@@ -226,6 +226,17 @@ static struct SessionManager_Session_pvt* getSession(struct SessionManager_pvt* 
     return sess;
 }
 
+static Iface_DEFUN ctrlFrame(struct Message* msg, struct SessionManager_pvt* sm)
+{
+    struct RouteHeader rh;
+    Bits_memset(&rh, 0, RouteHeader_SIZE);
+    Message_pop(msg, &rh.sh, SwitchHeader_SIZE, NULL);
+    Message_pop(msg, NULL, 4, NULL);
+    rh.flags = RouteHeader_flags_INCOMING | RouteHeader_flags_CTRLMSG;
+    Message_push(msg, &rh, RouteHeader_SIZE, NULL);
+    return Iface_next(&sm->pub.insideIf, msg);
+}
+
 static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface)
 {
     struct SessionManager_pvt* sm =
@@ -241,8 +252,17 @@ static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface
     struct SwitchHeader* switchHeader = (struct SwitchHeader*) msg->bytes;
     Message_shift(msg, -SwitchHeader_SIZE, NULL);
 
+    // The label comes in reversed from the switch because the switch doesn't know that we aren't
+    // another switch ready to parse more bits, bit reversing the label yields the source address.
+    // (the field is still big endian!)
+    switchHeader->label_be = Bits_bitReverse64(switchHeader->label_be);
+
     struct SessionManager_Session_pvt* session;
     uint32_t nonceOrHandle = Endian_bigEndianToHost32(((uint32_t*)msg->bytes)[0]);
+    if (nonceOrHandle == 0xffffffff) {
+        Message_shift(msg, SwitchHeader_SIZE, NULL);
+        return ctrlFrame(msg, sm);
+    }
     if (nonceOrHandle > 3) {
         // > 3 it's a handle.
         session = sessionForHandle(nonceOrHandle, sm);
@@ -493,12 +513,36 @@ static Iface_DEFUN readyToSend(struct Message* msg,
     return Iface_next(&sm->pub.switchIf, msg);
 }
 
+static Iface_DEFUN outgoingCtrlFrame(struct Message* msg, struct SessionManager_pvt* sm)
+{
+    Assert_true(msg->length >= RouteHeader_SIZE);
+    struct RouteHeader* header = (struct RouteHeader*) msg->bytes;
+    if (!Bits_isZero(header->publicKey, 32) || !Bits_isZero(header->ip6, 16)) {
+        Log_debug(sm->log, "DROP Ctrl frame with non-zero destination key or IP");
+        return NULL;
+    }
+    if (!(header->flags & RouteHeader_flags_CTRLMSG)) {
+        Log_debug(sm->log, "DROP Ctrl frame w/o RouteHeader_flags_CTRLMSG flag");
+        return NULL;
+    }
+    struct SwitchHeader sh;
+    Bits_memcpy(&sh, &header->sh, SwitchHeader_SIZE);
+    Message_pop(msg, NULL, RouteHeader_SIZE, NULL);
+    Message_push32(msg, 0xffffffff, NULL);
+    Message_push(msg, &sh, SwitchHeader_SIZE, NULL);
+    return Iface_next(&sm->pub.switchIf, msg);
+}
+
 static Iface_DEFUN incomingFromInsideIf(struct Message* msg, struct Iface* iface)
 {
     struct SessionManager_pvt* sm =
         Identity_containerOf(iface, struct SessionManager_pvt, pub.insideIf);
-    Assert_true(msg->length >= RouteHeader_SIZE + DataHeader_SIZE);
+    Assert_true(msg->length >= RouteHeader_SIZE);
     struct RouteHeader* header = (struct RouteHeader*) msg->bytes;
+    if (header->flags & RouteHeader_flags_CTRLMSG) {
+        return outgoingCtrlFrame(msg, sm);
+    }
+    Assert_true(msg->length >= RouteHeader_SIZE + DataHeader_SIZE);
     struct DataHeader* dataHeader = (struct DataHeader*) &header[1];
 
     struct SessionManager_Session_pvt* sess = sessionForIp6(header->ip6, sm);

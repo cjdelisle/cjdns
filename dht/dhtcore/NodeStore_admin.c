@@ -299,6 +299,25 @@ static void getRouteLabel(Dict* args, void* vcontext, String* txid, struct Alloc
     }
 }
 
+static void getFullVerify(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
+{
+    struct Context* ctx = Identity_check((struct Context*) vcontext);
+    Dict* response = Dict_new(requestAlloc);
+    Dict_putStringCC(response, "error", "none", requestAlloc);
+    Dict_putIntC(response, "fullVerify", NodeStore_getFullVerify(ctx->store), requestAlloc);
+    Admin_sendMessage(response, txid, ctx->admin);
+}
+
+static void setFullVerify(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
+{
+    struct Context* ctx = Identity_check((struct Context*) vcontext);
+    int64_t* fv = Dict_getIntC(args, "fullVerify");
+    NodeStore_setFullVerify(ctx->store, (int) *fv);
+    Dict* response = Dict_new(requestAlloc);
+    Dict_putStringCC(response, "error", "none", requestAlloc);
+    Admin_sendMessage(response, txid, ctx->admin);
+}
+
 void NodeStore_admin_register(struct NodeStore* nodeStore,
                               struct Admin* admin,
                               struct Allocator* alloc)
@@ -329,4 +348,9 @@ void NodeStore_admin_register(struct NodeStore* nodeStore,
             { .name = "pathToParent", .required = true, .type = "String" },
             { .name = "pathParentToChild", .required = true, .type = "String" }
         }), admin);
+    Admin_registerFunction("NodeStore_setFullVerify", setFullVerify, ctx, true,
+        ((struct Admin_FunctionArg[]) {
+            { .name = "fullVerify", .required = true, .type = "Int" },
+        }), admin);
+    Admin_registerFunction("NodeStore_getFullVerify", getFullVerify, ctx, false, NULL, admin);
 }

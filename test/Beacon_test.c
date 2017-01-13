@@ -113,12 +113,12 @@ static void checkLinkage(void* vTwoNodes)
     }
 
 
-    if (Pathfinder_getNodeStore(ctx->nodeA->pathfinder)->nodeCount < 1) {
+    if (Pathfinder_getNodeStore(ctx->nodeA->pathfinder)->nodeCount < 2) {
         notLinkedYet(ctx);
         return;
     }
     Log_debug(ctx->logger, "A seems to be linked with B");
-    if (Pathfinder_getNodeStore(ctx->nodeB->pathfinder)->nodeCount < 1) {
+    if (Pathfinder_getNodeStore(ctx->nodeB->pathfinder)->nodeCount < 2) {
         notLinkedYet(ctx);
         return;
     }

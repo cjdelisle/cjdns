@@ -30,6 +30,7 @@
 #include "util/Defined.h"
 
 #include <crypto_hash_sha256.h>
+#include <crypto_verify_32.h>
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -239,7 +240,9 @@ static inline bool authValid(Dict* message, struct Message* messageBytes, struct
 
     crypto_hash_sha256(hash, messageBytes->bytes, messageBytes->length);
     Hex_encode(hashPtr, 64, hash, 32);
-    return Bits_memcmp(hashPtr, submittedHash->bytes, 64) == 0;
+    int res = crypto_verify_32(hashPtr, submittedHash->bytes);
+    res |= crypto_verify_32(hashPtr + 32, submittedHash->bytes + 32);
+    return res == 0;
 }
 
 static bool checkArgs(Dict* args,

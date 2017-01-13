@@ -13,20 +13,20 @@ depend() {
 start() {
 	if [ ! -e /dev/net/tun ]; then
 		ebegin "Inserting TUN module"
-        
-		if ! modprobe tun;  then
-            	eerror "Failed to insert TUN kernel module"
-            	exit 1
-        	fi
-    	fi
 
-    	ebegin "Starting CJDNS"
-    	start-stop-daemon --start --quiet --exec "${command}" -- < "${CONFFILE}" 
-    	eend $?
+		if ! modprobe tun;  then
+			eerror "Failed to insert TUN kernel module"
+			exit 1
+		fi
+	fi
+
+	ebegin "Starting CJDNS"
+	start-stop-daemon --start --quiet --exec "${command}" -- < "${CONFFILE}"
+	eend $?
 }
 
 stop() {
 	ebegin "Stopping CJDNS"
-	start-stop-daemon --stop --exec "${command}" 
+	start-stop-daemon --stop --exec "${command}"
 	eend $?
 }

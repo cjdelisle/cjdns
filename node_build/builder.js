@@ -916,6 +916,11 @@ var configure = module.exports.configure = function (params, configFunc) {
                 if (err) { throw err; }
 
                 state = JSON.parse(ret);
+                // cflags, ldflags and libs are setup by make.js and should not be restored.
+                state.cflags = [];
+                state.ldflags = [];
+                state.libs = [];
+                state.includeDirs = ['.'];
             }));
         }));
 

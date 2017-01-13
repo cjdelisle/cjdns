@@ -16,6 +16,7 @@ scalability issues that plague existing networks.
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/387/badge)](https://bestpractices.coreinfrastructure.org/projects/387)
 [![tip for next commit](https://tip4commit.com/projects/941.svg)](https://tip4commit.com/github/cjdelisle/cjdns)
 [![irc](https://img.shields.io/badge/irc%20chat-%23cjdns-blue.svg)](https://kiwiirc.com/client/irc.efnet.org/?nick=visitor|?#cjdns)
+![License](https://img.shields.io/github/license/cjdelisle/cjdns.svg)
 
 ## Testimonials
 
@@ -74,7 +75,7 @@ The cjdns developers.
 
 These instructions are for Debian-based Linux distributions and OS X. They should be
 informative enough for use on other distributions - just don't expect them to
-work verbatim.
+work verbatim. If you want to know what [operating system's base is go here](https://upload.wikimedia.org/wikipedia/commons/1/1b/Linux_Distribution_Timeline.svg).
 
 ### 0. Install dependencies
 
@@ -96,6 +97,20 @@ it will be downloaded and installed in the source tree.
     sudo yum localinstall https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
     sudo yum install install nodejs git
     sudo yum install @development-tools
+Building from package:
+`sudo yum localinstall https://kojipkgs.fedoraproject.org//packages/cjdns/17.4/4.el6/src/cjdns-17.4-4.el6.src.rpm`
+
+If you are on a laptop and suspend or hibernate it, cjdroute will take a few
+minutes to make coffee and figure out what just happened when it wakes up.  You
+can speed this up dramatically with:
+
+    systemctl enable cjdns-resume
+
+The resume service restarts cjdns when the system wakes up from sleep.
+
+#### Gentoo
+
+    emerge --ask nodejs sys-devel/gcc dev-lang/python:3.4 dev-vcs/git
 
 #### OS X:
 
@@ -126,7 +141,7 @@ You can install cjdns by running
 If you need to build from source, everything you need can be installed like this
 
     pacman -S nodejs git base-devel
-    
+
 Alternatively, you may like to install via AUR from the package, `cjdns-git`.
 After Installation, The configuration file is located at `/etc/cjdroute.conf`.
 To start the service `cjdns.service`, do:
@@ -137,20 +152,22 @@ To stop it:
 
        systemctl stop cjdns
 
+<<<<<<< HEAD
 #### Gentoo:
 
-cjdns is not yet in the main Gentoo repository, so you will have to use layman to install an overlay:
+cjdns is not yet in the main Gentoo repository, so you will have to use an overlay.
+The easiest way is to use Layman but you can do it by hand, too.
+
+##### Layman:
+
+First, you need to install layman.
 
        emerge layman
 
-If layman is installed correctly, you can add one of the overlays found here:
-
-       https://gpo.zugaina.org/Search?search=cjdns
-
-Add the overlay
+If layman is installed correctly, you can add the overlay
 
        layman -f
-       layman -a <name_of_overlay>
+       layman -a weuxel
 
 For future update of the overlay use
 
@@ -159,6 +176,44 @@ For future update of the overlay use
 Now you can install cjdns
 
        emerge cjdns
+
+##### By hand:
+
+You will have to clone the overlay repository
+
+        cd /opt
+        git clone https://github.com/Weuxel/portage-weuxel.git
+
+Now tell portage to use this repo
+
+        cd /etc/portage/repos.conf/
+
+Create a file `portage-weuxel.conf` containing
+
+        [weuxel]
+        location = /opt/portage-weuxel
+        masters = gentoo
+        auto-sync = yes
+
+Now sync
+
+        emerge --sync
+
+And install cjdns
+
+    emerge cjdns
+
+=======
+#### Solus:
+
+Dependencies:
+
+      sudo eopkg install nodejs git build-essential system.devel python gcc binutils kernal-headers xorg-server-devel
+
+Then Follow the steps below:
+
+*Sorry for so many steps. A package is being worked on currently*
+>>>>>>> 2fc556655429ac13c09bfbcf839e637366937f95
 
 ### 1. Retrieve cjdns from GitHub
 
@@ -290,15 +345,15 @@ In your conf file, you will see:
 "authorizedPasswords":
 [
     // A unique string which is known to the client and server.
-    {"password": "thisisauniquestring_001"}
+    {"password": "password001", "login": "default-login"}
 
     // More passwords should look like this.
-    // {"password": "thisisauniquestring_002"}
-    // {"password": "thisisauniquestring_003"}
-    // {"password": "thisisauniquestring_004"}
+    // {"password": "password002", "login": "my-second-peer"}
+    // {"password": "password003", "login": "my-third-peer}
+    // {"password": "password004", "login": "my-fourth-peer"}
     ...
 
-    // "your.external.ip.goes.here:45678":{"password": "thisisauniquestring_001","publicKey":thisisauniqueKEY_001.k"}
+    // "your.external.ip.goes.here:45678":{"login": "default-login", "password": "password001","publicKey":thisisauniqueKEY_001.k"}
 
 ],
 ```
@@ -428,6 +483,8 @@ full disclosure.
 see: https://github.com/cjdelisle/cjdns/blob/master/doc/security_specification.md to see if a
 possible security issue is really a security issue.
 
+That time of year again... Time for some open source Projects!
+[![Hacktoberfest](https://img.shields.io/badge/Open%20Source-Hacktoberfest-orange.svg)](https://hacktoberfest.digitalocean.com/)
 
 [IRC Web]: http://chat.efnet.org/irc.cgi?chan=%23cjdns
 [Hyperboria]: http://hyperboria.net
