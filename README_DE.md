@@ -1,6 +1,10 @@
 # cjdns
 
 [README.md](README.md)
+[Русская версия](README_RU.md)
+[Hrvatski](README_HR.md)
+[Svenska](README_SV.md)
+[Ελληνικά](README_GR.md)
 
 #### *Netzwerk neu erfunden*
 
@@ -8,6 +12,7 @@ Cjdns implementiert ein verschlüsseltes IPv6 Netzwerk basierend auf Public-Key 
 Dies ermöglicht eine nahezu konfigurationslose Handhabung und verhindert viele Sicherheits- und Skalierungs-Probleme, welche andere existierende Netzwerke heimsuchen.
 
 [![Build Status](https://travis-ci.org/cjdelisle/cjdns.svg?branch=master)](https://travis-ci.org/cjdelisle/cjdns)
+[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/387/badge)](https://bestpractices.coreinfrastructure.org/projects/387)
 [![tip for next commit](https://tip4commit.com/projects/941.svg)](https://tip4commit.com/github/cjdelisle/cjdns)
 [![irc](https://img.shields.io/badge/irc%20chat-%23cjdns-blue.svg)](https://kiwiirc.com/client/irc.efnet.org/?nick=visitor|?#cjdns)
 
@@ -74,7 +79,7 @@ Für beide Platformen ist es nicht zwingend notwendig, doch aber vorzuziehen, [N
 
 #### Debian-basierte distro:
 
-    sudo apt-get install nodejs git build-essential
+    sudo apt-get install nodejs git build-essential python2.7
 
 #### Fedora 22+ basierte distro:
 
@@ -106,6 +111,27 @@ Wähle die Version gcc-4.8.1p2 oder eine jüngere.
 Alles was du benötigst ist als Prebuild im FreeBSD' port bereits vorhanden.
 
     pkg install gmake node
+
+#### Arch:
+
+Du kannst cjdns mit folgendem Befehl installieren.
+
+    pacman -S cjdns
+
+Wenn du aus den Quellen installieren möchtest, kann alles, was du brauchst hiermit installiert werden.
+
+    pacman -S nodejs git base-devel
+
+Alternativ kannst du per AUR das Packet `cjdns-git` installieren.
+Nach der Installation ist die Konfigurationsdatei unter  `/etc/cjdroute.conf` zu finden.
+Um den Service `cjdns.service` zu starten, führe
+
+        systemctl start cjdns
+
+ aus.
+ Um ihn zu stoppen:
+
+       systemctl stop cjdns
 
 #### Gentoo:
 
@@ -157,7 +183,7 @@ Und cjdns installieren.
 
     emerge cjdns
 
-### 1. Retrieve cjdns from GitHub
+### 1. Hole cjdns from GitHub
 
 Klone das Repository von GitHub und wechsle zum Quellverzeichnis:
 
@@ -168,7 +194,7 @@ Klone das Repository von GitHub und wechsle zum Quellverzeichnis:
 
     ./do
 
-Es sollte folgendes stehen: `Build completed successfully, type ./cjdroute to begin setup.`. Danach gehe vor wie weiter unten beschriebe:
+Es sollte folgendes stehen: `Build completed successfully, type ./cjdroute to begin setup.`. Danach gehe vor wie weiter unten beschrieben:
 
 --------------------------------------------------------------------------------
 
@@ -201,10 +227,10 @@ Wenn es sagt: `cat: /dev/net/tun: Permission denied` Dann verwendest du vielleic
 
 **Schütze dein conf File!**
 
-Ein verlorenes conf File bedeutet, du hast dein Passwort und deine Verbindungen verloren und jeder der sich mit dir verbunden hatte wird nicht länger in der lage sein sich mit dir zu verbinden.
+Ein verlorenes conf File bedeutet, du hast dein Passwort und deine Verbindungen verloren und jeder der sich mit dir verbunden hatte wird nicht länger in der lage sein, sich mit dir zu verbinden.
 Ein kompromitiertes conf File bedeutet, dass andere Leute sich mit deiner Identität im Netzwerk ausgeben können.
 
-Um ein conf File mit den richtigen Erlaubnissen zu generieren, so dass nur dein User darauf schreiben und lesen kann:
+Um ein conf File mit den richtigen Rechten zu generieren, so dass nur dein User darauf schreiben und lesen kann:
 
     (umask 077 && ./cjdroute --genconf > cjdroute.conf)
 
@@ -360,7 +386,7 @@ Wenn du Probleme hast, benutze `killall cjdroute` um tabula rasa zu machen. Benu
 Die obigen Anleitungen starten cjdns als root-user. Es kann also dein System konfigurieren ohne dich um erlaubniss zu bitten. Um cjdns als non-root-user zu starten, konsultiere [doc/non-root-user.md](doc/non-root-user.md).
 
 
-### 6. Komme zu IRC
+### 6. Komme ins IRC
 
 Willkommen im Netzwerk! Du bist jetzt ein Netzwerk-Administrator. Damit verbunden ist eine gewisse Verantwortung, die unter anderem darin bestehen erreichbar zu sein im Falle eines Problems mit deinen Gerätschaften. Du solltest dich auf [IRC](#community) aufhalten, so dass leute dich erreichen können.
 
@@ -374,6 +400,20 @@ Du kannst das admin-API wie folgt erreichen:
 
 * die **Python library**; konsultiere [here](contrib/python/README.md).
 * die **Perl library**, unterhalten by Mikey; konsultiere [here](contrib/perl/CJDNS/README).
+
+## Fehler melden
+1. Machs nicht
+2. Geh ins IRC und sprich mit jemandem.
+3. Was passieren wird ist entweder
+ * Jemand hat Lust es zu fixen
+ * Du hast Lust es zu fixen
+ * Es interessiert niemanden und es wird für eine Weile vergessen und eventuell wird jemand später darauf stossen und es fixen oder es geht im Refactoring verloren.
+ * Niemand kann es im Moment beheben, aber es wird als merkenswert angesehen, weil es eine große Bedeutung in der Entwicklung des Quelltextes hat. In diesem Fall muss es technisch erklärt werden von jemandem, der den Quelltext sehr gut kennt. Derjenige wird einen Pullrequest in das docs/bugs Verzeichnis machen.
+ 4. Alternativ kannst du das Problem im Repo https://github.com/hyperboria/cjdns.git melden.
+
+### Sicherheit
+Sicherheitsprobleme sollten im IRC berichtet werden, genau wie andere Fehler. Wir haben keine geschlossene Gruppe von Leuten mit Spezialwissen, das Bedeutet, das Standardvorgehen für Sicherheitsmeldungen ist volle Enthüllung.
+Schaue unter  https://github.com/cjdelisle/cjdns/blob/master/doc/security_specification.md nach, ob ein Sicherheitsproblem wirklich ein Sicherheitsproblem ist.
 
 
 [IRC Web]: http://chat.efnet.org/irc.cgi?chan=%23cjdns
