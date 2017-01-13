@@ -107,6 +107,56 @@ Alles was du benötigst ist als Prebuild im FreeBSD' port bereits vorhanden.
 
     pkg install gmake node
 
+#### Gentoo:
+
+cjdns ist noch nicht im Gentoo Repository, daher muss ein Overlay verwendet werden.
+Der einfachste Weg ist Layman zu verwenden, aber man kann das auch händisch machen.
+
+##### Layman:
+
+Als erstes muss Layman installiert werden.
+
+       emerge layman
+
+Wenn Layman korrekt installiert ist, kann man das Overlay hinzufügen.
+
+       layman -f
+       layman -a weuxel
+
+In Zukunft kann man folgenden Befehl verwenden um das Overlay zu syncen.
+
+       layman -S
+
+Jetzt kann cjdns installiert werden.
+
+       emerge cjdns
+
+##### Händische Installation:
+
+Zuerst muss das Overlay Repository geklont werden.
+
+        cd /opt
+        git clone https://github.com/Weuxel/portage-weuxel.git
+
+Nun bringen wir Portage dazu das Repo zu verwenden.
+
+        cd /etc/portage/repos.conf/
+
+Erstelle eine Datei `portage-weuxel.conf` mit folgendem Inhalt:
+
+        [weuxel]
+        location = /opt/portage-weuxel
+        masters = gentoo
+        auto-sync = yes
+
+Einmal syncen.
+
+        emerge --sync
+
+Und cjdns installieren.
+
+    emerge cjdns
+
 ### 1. Retrieve cjdns from GitHub
 
 Klone das Repository von GitHub und wechsle zum Quellverzeichnis:
