@@ -136,6 +136,8 @@ To start the service `cjdns.service`, do:
 To stop it:
 
        systemctl stop cjdns
+       
+### For More Operating Systems and special configurations, see [hyperboria/docs](https://github.com/hyperboria/docs).
 
 ### 1. Retrieve cjdns from GitHub
 
@@ -418,6 +420,7 @@ possible security issue is really a security issue.
 [Distributed Hash Table]: https://en.wikipedia.org/wiki/Distributed_hash_table
 [Beyond Pain]: https://lists.torproject.org/pipermail/tor-dev/2012-October/004063.html
 [Kademlia]: https://en.wikipedia.org/wiki/Kademlia
+[N-O-D-E.net article "Hyperboria, Moving through the mesh] https://n-o-d-e.net/hyperboria.html
 
 [Tor]: https://www.torproject.org
 [I2P]: http://www.i2p2.de
