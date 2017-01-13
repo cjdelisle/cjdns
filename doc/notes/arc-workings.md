@@ -95,7 +95,7 @@ The rest of the peering advice looks in general good. My only real comment is th
 ## Also:
 
 Randati: I want to start doing analytics on the network based on
-### what is the optimal ratio of nearby nodes to far off nodes? http://en.wikipedia.org/wiki/Small-world_network
+### what is the optimal ratio of nearby nodes to far off nodes? https://en.wikipedia.org/wiki/Small-world_network
 depending on what type of node you have (mobile/home/VPS)
 Having some kind of API to pull information of the network might be useful.
 

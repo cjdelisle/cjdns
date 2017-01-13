@@ -168,7 +168,7 @@ d3.sum = function(array, f) {
 
   return s;
 };
-// R-7 per <http://en.wikipedia.org/wiki/Quantile>
+// R-7 per <https://en.wikipedia.org/wiki/Quantile>
 d3.quantile = function(values, p) {
   var H = (values.length - 1) * p + 1,
       h = Math.floor(H),
@@ -3352,7 +3352,7 @@ function d3_svg_lineSlope(p0, p1) {
 }
 
 // Compute three-point differences for the given points.
-// http://en.wikipedia.org/wiki/Cubic_Hermite_spline#Finite_difference
+// https://en.wikipedia.org/wiki/Cubic_Hermite_spline#Finite_difference
 function d3_svg_lineFiniteDifferences(points) {
   var i = 0,
       j = points.length - 1,
@@ -3369,7 +3369,7 @@ function d3_svg_lineFiniteDifferences(points) {
 
 // Interpolates the given points using Fritsch-Carlson Monotone cubic Hermite
 // interpolation. Returns an array of tangent vectors. For details, see
-// http://en.wikipedia.org/wiki/Monotone_cubic_interpolation
+// https://en.wikipedia.org/wiki/Monotone_cubic_interpolation
 function d3_svg_lineMonotoneTangents(points) {
   var tangents = [],
       d,

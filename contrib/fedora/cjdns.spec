@@ -8,7 +8,7 @@ Release:        5%{?dist}
 Summary:        The privacy-friendly network without borders
 Group:		System Environment/Base
 License:        GPL3
-URL:            http://hyperboria.net/
+URL:            https://hyperboria.net/
 Source0: https://github.com/cjdelisle/cjdns/archive/%{commit0}.tar.gz#/%{name}-%{shortcommit0}.tar.gz
 # Add targeted selinux policy
 Patch0:	 cjdns.selinux.patch
