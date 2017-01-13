@@ -12,9 +12,9 @@ Instructions are on [github](https://github.com/cjdelisle/cjdns)
 
 ## What is Hyperboria?
 
-[Hyperboria](http://hyperboria.net) is an encrypted [Mesh Network](http://en.wikipedia.org/wiki/Mesh_networking) designed for privacy and resiliency to censorship.
+[Hyperboria](https://hyperboria.net) is an encrypted [Mesh Network](https://en.wikipedia.org/wiki/Mesh_networking) designed for privacy and resiliency to censorship.
 
-It currently exists as an [Overlay](http://en.wikipedia.org/wiki/Overlay_network) test network for [Project Meshnet](https://projectmeshnet.org/) and is only accessible to those who install [cjdns](http://en.wikipedia.org/wiki/Cjdns). 
+It currently exists as an [Overlay](https://en.wikipedia.org/wiki/Overlay_network) test network for [Project Meshnet](https://projectmeshnet.org/) and is only accessible to those who install [cjdns](https://en.wikipedia.org/wiki/Cjdns). 
 
 Ultimately we hope to build a viable alternative to the regular internet, which we call [clearnet](http://www.urbandictionary.com/define.php?term=clearnet). Our goal is to replace the existing hierarchical internet with a non-hierarchical model.
 
@@ -46,7 +46,7 @@ Some irc clients (Hexchat) need you to enter `fcbe:5f12:67d8:77ea:e4d8:aecc:2b4f
   
 ## It's still not working  
 
-It's also possible that everything's configured properly, but you don't have a route to the node you're trying to find. When this is the case, you can try to strengthen the connection according to <a class="clearnet" href="http://en.wikipedia.org/wiki/Hebbian_theory">Hebbian Theory</a>, which, in neuroscience, is the idea that 'cells that fire together, wire together'. You might not know a route to that node, but it might have one to you. Getting them to ping you, if possible, should give you a better connection. If they can't, have them ping nearby nodes that they can find. You should do the same. Consult <a href="http://www.fc00.org">www.fc00.org</a> to get a better idea of what nodes you should look for.  
+It's also possible that everything's configured properly, but you don't have a route to the node you're trying to find. When this is the case, you can try to strengthen the connection according to <a class="clearnet" href="https://en.wikipedia.org/wiki/Hebbian_theory">Hebbian Theory</a>, which, in neuroscience, is the idea that 'cells that fire together, wire together'. You might not know a route to that node, but it might have one to you. Getting them to ping you, if possible, should give you a better connection. If they can't, have them ping nearby nodes that they can find. You should do the same. Consult <a href="http://www.fc00.org">www.fc00.org</a> to get a better idea of what nodes you should look for.  
   
 ## Is it possible for a central server to know routes to every other node?
 

@@ -15,13 +15,13 @@ If a node **A** goes looking for a node **M**, **A** first checks if **M** is a 
 
 ## The problem
 
-This method of distributing paths among nodes (aka constructing a Distributed Hash Table (**DHT**)), is based upon **[Kademlia](http://en.wikipedia.org/wiki/Kademlia)**. There may be a problem with this (this is the part where I bring Santa into it).
+This method of distributing paths among nodes (aka constructing a Distributed Hash Table (**DHT**)), is based upon **[Kademlia](https://en.wikipedia.org/wiki/Kademlia)**. There may be a problem with this (this is the part where I bring Santa into it).
 
-Many of the world's nations have a holiday practice sometimes referred to as a [Secret Santa gift exchange](http://en.wikipedia.org/wiki/Secret_Santa). The premise is that some group of people (often the employees of some organization) each put their name into a receptacle. Once each member has inserted their name, they take turns removing a name (drawing again if they draw their own name). Once every member has received a name, they give gifts to their random recipient. When it goes well, everyone receives a gift.
+Many of the world's nations have a holiday practice sometimes referred to as a [Secret Santa gift exchange](https://en.wikipedia.org/wiki/Secret_Santa). The premise is that some group of people (often the employees of some organization) each put their name into a receptacle. Once each member has inserted their name, they take turns removing a name (drawing again if they draw their own name). Once every member has received a name, they give gifts to their random recipient. When it goes well, everyone receives a gift.
 
 The assumption is that even if they do not know their chosen recipient well, they have enough common acquaintances that they can learn enough about them to deliver a suitable gift. Furthermore, it should go without saying that they should have the capacity to deliver this gift. The Kademlia method is generally implemented as a dynamic overlay network. Its member are assumed to have a path to one another.
 
-This is not the case with **cjdns**, as it is intended to be used to form a **[pseudonymous](http://en.wikipedia.org/wiki/Pseudonymity)** network. In other words, it is not guaranteed that there already exists a path to the their target node (or gift recipient, to return to the metaphor).
+This is not the case with **cjdns**, as it is intended to be used to form a **[pseudonymous](https://en.wikipedia.org/wiki/Pseudonymity)** network. In other words, it is not guaranteed that there already exists a path to the their target node (or gift recipient, to return to the metaphor).
 
 ## Relying on chaos
 

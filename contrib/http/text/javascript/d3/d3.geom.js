@@ -2,7 +2,7 @@
 (function(){d3.geom = {};
 /**
  * Computes a contour for a given input grid function using the <a
- * href="http://en.wikipedia.org/wiki/Marching_squares">marching
+ * href="https://en.wikipedia.org/wiki/Marching_squares">marching
  * squares</a> algorithm. Returns the contour polygon as an array of points.
  *
  * @param grid a two-input function(x, y) that returns true for values

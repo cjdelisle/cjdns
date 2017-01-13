@@ -53,7 +53,7 @@ To get the router up and running:
 
   * Step 2:
     Find somebody to connect to.
-    Check out the IRC channel or http://hyperboria.net/
+    Check out the IRC channel or https://hyperboria.net/
     for information about how to meet new people and make connect to them.
     Read more here: https://github.com/cjdelisle/cjdns/#2-find-a-friend
 
