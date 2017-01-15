@@ -142,46 +142,63 @@ Der einfachste Weg ist Layman zu verwenden, aber man kann das auch händisch mac
 
 Als erstes muss Layman installiert werden.
 
-       emerge layman
+    emerge layman
 
 Wenn Layman korrekt installiert ist, kann man das Overlay hinzufügen.
 
-       layman -f
-       layman -a weuxel
+    layman -f
+    layman -a weuxel
 
 In Zukunft kann man folgenden Befehl verwenden um das Overlay zu syncen.
 
-       layman -S
+    layman -S
 
 Jetzt kann cjdns installiert werden.
 
-       emerge cjdns
+    emerge cjdns
 
 ##### Händische Installation:
 
 Zuerst muss das Overlay Repository geklont werden.
 
-        cd /opt
-        git clone https://github.com/Weuxel/portage-weuxel.git
+    cd /opt
+    git clone https://github.com/Weuxel/portage-weuxel.git
 
 Nun bringen wir Portage dazu das Repo zu verwenden.
 
-        cd /etc/portage/repos.conf/
+    cd /etc/portage/repos.conf/
 
 Erstelle eine Datei `portage-weuxel.conf` mit folgendem Inhalt:
 
-        [weuxel]
-        location = /opt/portage-weuxel
-        masters = gentoo
-        auto-sync = yes
+    [weuxel]
+    location = /opt/portage-weuxel
+    masters = gentoo
+    auto-sync = yes
 
 Einmal syncen.
 
-        emerge --sync
+    emerge --sync
 
 Und cjdns installieren.
 
     emerge cjdns
+
+#### Automatische Crash Erkennung und neu starten
+
+Kopiere das OpenRC Init Skript aus `contrib/openrc` nach `/etc/init.d/` und ändere die Variablen `CONFFILE` und `command` nach Bedarf.
+Nun starte cjdns mit dem Kommando
+
+   /etc/init.d/cjdns start
+
+Konfigiere das Initsystem cjdns automatisch zu starten
+
+   rc-update add cjdns default
+
+Kopiere das service_restart Skript `contrib/gentoo/service_restart.sh` an eine beliebige, geeignete Stelle im Verzeichnisbaum deines Systems und ändere die eMailadresse. Wenn du keine eMail erhalten willst, wenn der Service neu gestartet wurde, dann kommentiere die komplette Zeile aus.
+Nun füge folgenden crontab Eintrag hinzu
+
+   # Restart crashed Services
+   * * * * *       root	/path/to/script/service_restart.sh
 
 ### 1. Hole cjdns from GitHub
 
