@@ -88,36 +88,7 @@ it will be downloaded and installed in the source tree.
     #Raspberry Pi Cjdns Install
 
 ##### Raspberry Pi
-###### Debian-Based
-Works on Raspbian, OSMC, Kali ARM Raspberry pi
-
-Your gonna need these packages: `
-apt-get install nodejs build-essential git`
-
-Next, Run https://github.com/tomeshnet/prototype-cjdns-pi2/blob/master/scripts/install#L8-L28
-
-Now that we have that, we can configure it in `nano /etc/cjdroute.conf` and start it.
-
-    systemctl enable cjdns
-    systemctl start cjdns
-    
-All Done!
-
-##Arch Based
-
-Install the package:
-
-pacman -S cjdns
-
-Then configure the file `nano /etc/cjdroute.conf`
-
-Then Start/enable the cjdns.service.
-
-
-    systemctl enable cjdns
-    systemctl start cjdns
-    
-All Done!
+Everything you need is here: [tomeshnet/prototype-cjdns-pi](https://github.com/tomeshnet/prototype-cjdns-pi2)
 
 #### Fedora 22+ based distro:
 
