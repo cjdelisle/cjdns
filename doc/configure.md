@@ -49,12 +49,12 @@ The `authorizedPasswords` section is the area where you can specify passwords to
     "authorizedPasswords":
     [
         // A unique string which is known to the client and server.
-        {"password": "zxl6zgxpl4stnuybdt0xlg4tn2cdl5h", "login": "default-login"}
+        {"password": "zxl6zgxpl4stnuybdt0xlg4tn2cdl5h", "user": "default-login"}
 
         // More passwords should look like this.
-        // {"password": "10ru8br0mhk25ccpvubv0sqnl7kuc6s", "login": "my-second-peer"},
-        // {"password": "y68jm490dztxn3d2gvuv09bz55wqmjj", "login": "my-third-peer"},
-        // {"password": "bnpphnq205v8nf2ksrs1fknfr572xzc", "login": "my-fourth-peer"},
+        // {"password": "10ru8br0mhk25ccpvubv0sqnl7kuc6s", "user": "my-second-peer"},
+        // {"password": "y68jm490dztxn3d2gvuv09bz55wqmjj", "user": "my-third-peer"},
+        // {"password": "bnpphnq205v8nf2ksrs1fknfr572xzc", "user": "my-fourth-peer"},
 
         // These are your connection credentials
         // for people connecting to you with your default password.
