@@ -337,6 +337,12 @@ static struct sock_fprog* mkFilter(struct Allocator* alloc, struct Except* eh)
         #ifdef __NR_getsockname
         IFEQ(__NR_getsockname, success),
         #endif
+
+        // musl free() calls madvise()
+        #ifdef __NR_madvise
+        IFEQ(__NR_madvise, success),
+        #endif
+
         RET(SECCOMP_RET_TRAP),
 
         LABEL(socket),
