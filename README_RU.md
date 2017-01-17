@@ -12,7 +12,7 @@
 
 Cjdns — это зашифрованная IPv6 сеть, в которой используются публичные ключи шифрования для присвоения публичного адреса и распределённой таблицы маршрутизации (DHT). Это позволяет создавать сети с очень простой настройкой, которые будут защищены от потенциальных проблем ныне существующих IPv4 и IPv6 сетей.
 
-[![Build Status](https://travis-ci.org/cjdelisle/cjdns.png?branch=master)](https://travis-ci.org/cjdelisle/cjdns)
+[![Build Status](https://api.travis-ci.org/cjdelisle/cjdns.png?branch=master)](https://travis-ci.org/cjdelisle/cjdns)
 [![For next commit](https://tip4commit.com/projects/941.svg)](https://tip4commit.com/github/cjdelisle/cjdns)
 
 ## Рекомендательные письма
@@ -53,7 +53,6 @@ Caleb James DeLisle  ==  cjdelisle  ==  cjd
 
 * irc://irc.efnet.org/#cjdns_ru ([web client][IRC Web])
 * [Hyperboria][]
-* [Project Meshnet][]
 * [/r/darknetplan][]
 * [#cjdns on Twitter][]
 
@@ -89,7 +88,7 @@ The cjdns developers.
 
     sudo apt-get install nodejs git build-essential python2.7
 
-Установка  [Node.js](http://nodejs.org/) желательна, но не
+Установка  [Node.js](https://nodejs.org/) желательна, но не
 обязательна. Если Node.js не найден в процессе установки или его
 версия слишком старая — он будет загружен автоматически при установке.
 
@@ -262,11 +261,9 @@ Cjdns поставляется с библиотекой для python, кото
 
 [beyond pain]: https://lists.torproject.org/pipermail/tor-dev/2012-October/004063.html
 [IRC Web]: http://chat.efnet.org/irc.cgi?chan=%23cjdns_ru
-[Hyperboria]: http://hyperboria.net
-[Project Meshnet]: https://projectmeshnet.org
-[/r/darknetplan]: http://www.reddit.com/r/darknetplan
+[Hyperboria]: https://hyperboria.net
+[/r/darknetplan]: https://www.reddit.com/r/darknetplan
 [#cjdns on Twitter]: https://twitter.com/hashtag/cjdns
-[Project Meshnet Map]: http://map.projectmeshnet.org
 [Buildbots]: https://buildbot.meshwith.me/cjdns/waterfall
 
 [Cjdns on Wikipedia]: https://ru.wikipedia.org/wiki/Cjdns
@@ -275,5 +272,5 @@ Cjdns поставляется с библиотекой для python, кото
 [Kademlia]: https://ru.wikipedia.org/wiki/Kademlia
 
 [Tor]: https://www.torproject.org
-[I2P]: http://www.i2p2.de
+[I2P]: https://geti2p.net/en/
 [Freenet]: https://freenetproject.org

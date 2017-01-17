@@ -14,7 +14,7 @@
 Cjdns implementiert ein verschlüsseltes IPv6 Netzwerk basierend auf Public-Key Kryptografie für die Adressen-Zuteilung und es benutzt eine verteilte Hash-Tabelle für das Routing.
 Dies ermöglicht eine nahezu konfigurationslose Handhabung und verhindert viele Sicherheits- und Skalierungs-Probleme, welche andere existierende Netzwerke heimsuchen.
 
-[![Build Status](https://travis-ci.org/cjdelisle/cjdns.svg?branch=master)](https://travis-ci.org/cjdelisle/cjdns)
+[![Build Status](https://api.travis-ci.org/cjdelisle/cjdns.svg?branch=master)](https://travis-ci.org/cjdelisle/cjdns)
 [![tip for next commit](https://tip4commit.com/projects/941.svg)](https://tip4commit.com/github/cjdelisle/cjdns)
 [![irc](https://img.shields.io/badge/irc%20chat-%23cjdns-blue.svg)](https://kiwiirc.com/client/irc.efnet.org/?nick=visitor|?#cjdns)
 
@@ -49,7 +49,6 @@ Dies ermöglicht eine nahezu konfigurationslose Handhabung und verhindert viele 
 
 * [irc://irc.efnet.org/#cjdns][IRC Web]
 * [Hyperboria][] das grösste cjdns-Netzwerk mit bis zu 2100 Knotenpunkten (Oktober 2015).
-* [Project Meshnet][]
 * [/r/darknetplan][]
 * [#cjdns auf Twitter][]
 
@@ -77,7 +76,7 @@ Diese Anleitungen sind für Debian-basierte Linux-Distributionen und OS X. Sie s
 
 ### 0. Installations-Abhängigkeiten
 
-Für beide Platformen ist es nicht zwingend notwendig, doch aber vorzuziehen, [Node.js](http://nodejs.org/) zu installieren. Wenn Node.js nicht verfügbar oder eine nicht akzeptierte Version ist, wird es in den Quellpfad heruntergeladen und installiert.
+Für beide Platformen ist es nicht zwingend notwendig, doch aber vorzuziehen, [Node.js](https://nodejs.org/) zu installieren. Wenn Node.js nicht verfügbar oder eine nicht akzeptierte Version ist, wird es in den Quellpfad heruntergeladen und installiert.
 
 #### Debian-basierte distro:
 
@@ -337,11 +336,10 @@ Du kannst das admin-API wie folgt erreichen:
 1. Du kannst ein Problem hier melden https://github.com/hyperboria/bugs/issues
 
 [IRC Web]: http://chat.efnet.org/irc.cgi?chan=%23cjdns
-[Hyperboria]: http://hyperboria.net
-[Project Meshnet]: https://projectmeshnet.org
-[/r/darknetplan]: http://www.reddit.com/r/darknetplan
+[Hyperboria]: https://hyperboria.net
+[/r/darknetplan]: https://www.reddit.com/r/darknetplan
 [#cjdns auf Twitter]: https://twitter.com/hashtag/cjdns
-[Hyperboria-Karte]: http://www.fc00.org/
+[Hyperboria-Karte]: https://www.fc00.org/
 [Buildbots]: https://buildbot.meshwith.me/cjdns/waterfall
 
 [Cjdns auf Wikipedia]: https://en.wikipedia.org/wiki/Cjdns
@@ -350,5 +348,5 @@ Du kannst das admin-API wie folgt erreichen:
 [Kademlia]: https://en.wikipedia.org/wiki/Kademlia
 
 [Tor]: https://www.torproject.org
-[I2P]: http://www.i2p2.de
+[I2P]: https://geti2p.net/en/
 [Freenet]: https://freenetproject.org

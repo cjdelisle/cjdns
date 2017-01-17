@@ -1,6 +1,6 @@
 # What does everything in your configuration file do?
 
-If you've never worked with [JSON](http://en.wikipedia.org/wiki/JSON) before, you might feel a little overwhelmed editing your  **cjdroute.conf** for the first time.
+If you've never worked with [JSON](https://en.wikipedia.org/wiki/JSON) before, you might feel a little overwhelmed editing your  **cjdroute.conf** for the first time.
 
 One thing that makes matters more difficult is that your cjdroute.conf is **not** actually valid JSON.
 

@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "client/AdminClient.h"
 #include "admin/angel/Core.h"
@@ -436,7 +436,7 @@ static int usage(struct Allocator* alloc, char* appName)
            "\n"
            "Step 2:\n"
            "  Find somebody to connect to.\n"
-           "  Check out the IRC channel or http://hyperboria.net/\n"
+           "  Check out the IRC channel or https://hyperboria.net/\n"
            "  for information about how to meet new people and make connect to them.\n"
            "  Read more here: https://github.com/cjdelisle/cjdns/#2-find-a-friend\n"
            "\n"

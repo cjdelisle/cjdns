@@ -14,7 +14,7 @@ dodjelu adresa i distribuiranu hash tablicu za usmjeravanje. To omogućuje
 gotovo nikakvu mrežnu konfiguraciju i sprječava mnoge sigurnosne i
 skalabilne probleme koje muče trenutne mreže.
 
-[![Build Status](https://travis-ci.org/cjdelisle/cjdns.svg?branch=master)](https://travis-ci.org/cjdelisle/cjdns)
+[![Build Status](https://api.travis-ci.org/cjdelisle/cjdns.svg?branch=master)](https://travis-ci.org/cjdelisle/cjdns)
 [![napojnica za sljedeću promjenu](https://tip4commit.com/projects/941.svg)](https://tip4commit.com/github/cjdelisle/cjdns)
 
 ## Iskustva
@@ -111,7 +111,7 @@ da će raditi od prve.
 
 ### 0. Install dependencies
 
-On both platforms, installing [Node.js](http://nodejs.org/), although preferable,
+On both platforms, installing [Node.js](https://nodejs.org/), although preferable,
 is not strictly necessary. If Node.js is unavailable or an unacceptable version,
 it will be downloaded and installed in the source tree.
 
@@ -143,7 +143,7 @@ Store and run the command above, or make a free Apple Developer account here:
 [https://developer.apple.com/downloads/index.action](https://developer.apple.com/downloads/index.action).
 Then sign in, search for Command Line Tools, and install the latest package
 compatible with your version of OS X. If you encounter issues, there is a
-thorough [stackoverflow post](http://stackoverflow.com/a/9329325) on installing
+thorough [stackoverflow post](https://stackoverflow.com/a/9329325) on installing
 the Command Line Tools.
 
 You must also install git and Node.js. There are a few options. If you use [Homebrew](http://brew.sh/):
@@ -156,8 +156,8 @@ Ako koristite [Macports](https://www.macports.org/):
 
 Or if you use neither and would like to install the binaries from their websites:
 doc
-- Node.js: [http://nodejs.org/download/](http://nodejs.org/download/)
-- git: [http://git-scm.com/download](http://git-scm.com/download)
+- Node.js: [https://nodejs.org/download/](https://nodejs.org/download/)
+- git: [https://git-scm.com/download](https://git-scm.com/download)
 
 #### OpenBSD:
 
@@ -409,11 +409,10 @@ Možete pristupiti administratorskom API-ju putem:
 
 
 [IRC Web]: http://chat.efnet.org/irc.cgi?chan=%23cjdns
-[Hyperboria]: http://hyperboria.net
-[Projekt Meshnet]: https://projectmeshnet.org
-[/r/darknetplan]: http://www.reddit.com/r/darknetplan
+[Hyperboria]: https://hyperboria.net
+[/r/darknetplan]: https://www.reddit.com/r/darknetplan
 [#cjdns na Twitteru]: https://twitter.com/hashtag/cjdns
-[Hyperboria Map]: http://www.fc00.org/
+[Hyperboria Map]: https://www.fc00.org/
 [Buildbots]: https://buildbot.meshwith.me/cjdns/waterfall
 
 [Cjdns na Wikepediji]: https://en.wikipedia.org/wiki/Cjdns
@@ -422,5 +421,5 @@ Možete pristupiti administratorskom API-ju putem:
 [Kademlia]: https://en.wikipedia.org/wiki/Kademlia
 
 [Tor]: https://www.torproject.org
-[I2P]: http://www.i2p2.de
+[I2P]: https://geti2p.net/en/
 [Freenet]: https://freenetproject.org

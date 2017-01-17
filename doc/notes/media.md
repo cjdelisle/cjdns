@@ -8,7 +8,7 @@ http://marsocial.com/2015/07/the-declaration-of-internet-independence/
 
 http://curiousmatic.com/meet-the-young-techies-who-want-to-change-the-way-nyc-connects-to-the-internet/
 
-http://en.wikipedia.org/wiki/Cjdns
+https://en.wikipedia.org/wiki/Cjdns
 
 https://www.youtube.com/watch?v=sCFmzGknUew
 

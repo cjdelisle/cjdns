@@ -15,7 +15,7 @@ Cjdns υλοποιεί ένα κρυπτογραφημένο δίκτυο IPV6 �
 σχεδόν-μηδενικής-ρύθμισης δικτύωση, και αποτρέπει πολλά ζητήματα ασφαλείας και
 επεκτασιμότητας που μαστίζουν τα υπάρχοντα δίκτυα.
 
-[![Build Status](https://travis-ci.org/cjdelisle/cjdns.svg?branch=master)](https://travis-ci.org/cjdelisle/cjdns)
+[![Build Status](https://api.travis-ci.org/cjdelisle/cjdns.svg?branch=master)](https://travis-ci.org/cjdelisle/cjdns)
 [![tip for next commit](https://tip4commit.com/projects/941.svg)](https://tip4commit.com/github/cjdelisle/cjdns)
 [![irc](https://img.shields.io/badge/irc%20chat-%23cjdns-blue.svg)](https://kiwiirc.com/client/irc.efnet.org/?nick=visitor|?#cjdns)
 
@@ -44,7 +44,6 @@ Cjdns υλοποιεί ένα κρυπτογραφημένο δίκτυο IPV6 �
 
 * [irc://irc.efnet.org/#cjdns][IRC Web]
 * [Hyperboria][] the largest cjdns network, as of October 2015 there are 2100 nodes.
-* [Project Meshnet][]
 * [/r/darknetplan][]
 * [#cjdns on Twitter][]
 
@@ -74,7 +73,7 @@ Cjdns υλοποιεί ένα κρυπτογραφημένο δίκτυο IPV6 �
 
 ### 0. Εγκατάσταση εξαρτήσεων
 
-Και στις δύο πλατφόρμες, η εγκατάσταση του [Node.js](http://nodejs.org/), αν και προτιμούμενη,
+Και στις δύο πλατφόρμες, η εγκατάσταση του [Node.js](https://nodejs.org/en), αν και προτιμούμενη,
 δεν είναι αυστηρά απαραίτητη. Αν το Node.js δεν είναι διαθέσιμο ή δεν είναι αποδεκτής έκδοσης,
 θα κατέβει και θα εγκατασταθεί στο πηγαίο δέντρο.
 
@@ -371,11 +370,10 @@ TUN/TAP συσκευή - αυτό είναι στάνταρ πρωτόκολλο
 
 
 [IRC Web]: http://chat.efnet.org/irc.cgi?chan=%23cjdns
-[Hyperboria]: http://hyperboria.net
-[Project Meshnet]: https://projectmeshnet.org
-[/r/darknetplan]: http://www.reddit.com/r/darknetplan
+[Hyperboria]: https://hyperboria.net
+[/r/darknetplan]: https://www.reddit.com/r/darknetplan
 [#cjdns on Twitter]: https://twitter.com/hashtag/cjdns
-[Hyperboria Map]: http://www.fc00.org/
+[Hyperboria Map]: https://www.fc00.org/
 [Buildbots]: https://buildbot.meshwith.me/cjdns/waterfall
 
 [Cjdns on Wikipedia]: https://en.wikipedia.org/wiki/Cjdns
@@ -384,5 +382,5 @@ TUN/TAP συσκευή - αυτό είναι στάνταρ πρωτόκολλο
 [Kademlia]: https://en.wikipedia.org/wiki/Kademlia
 
 [Tor]: https://www.torproject.org
-[I2P]: http://www.i2p2.de
+[I2P]: https://geti2p.net/en/
 [Freenet]: https://freenetproject.org

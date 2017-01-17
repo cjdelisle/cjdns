@@ -40,7 +40,7 @@ Cjdns works by using the first path it finds, then replacing that path if it fin
 
 It's possible that the connecting node might find a path to each target node, but it wouldn't know the difference between them aside from the fact that it had established a cryptauth session with one but not the other. We are unsure of how it would handle that information, however, it might prevent the connecting node from flipping between two distinct sessions. This would be desirable, since doing so would probably wreak havoc on the higher level protocols being established over such a connection.
 
-If that's the case, then this could be used to provide an inherent [load balancing](http://en.wikipedia.org/wiki/Load_balancing_%28computing%29) effect.
+If that's the case, then this could be used to provide an inherent [load balancing](https://en.wikipedia.org/wiki/Load_balancing_%28computing%29) effect.
 
 As noted above, this has not been thoroughly tested. Changes to the source code in the future could possibly make this impossible (via assertion failures). If it is currently a _property_ of cjdns, then the best way to ensure that it continues to function would be if someone were to take advantage of it, and report its breakage with future revisions.
 
