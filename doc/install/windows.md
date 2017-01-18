@@ -39,9 +39,7 @@ You probably want to uncomment the `"logTo":"stdout"` line so that you can see a
 
 Then, execute cjdns from an elevated command prompt:
 
-    cjdroute --nobg < cjdroute.conf
-    
-The `--nobg` option is required; otherwise cjdns just quits.
+    cjdroute < cjdroute.conf
 
 The first time you start it, a Windows firewall dialog will probably pop up. *Make sure to allow cjdns to accept connections from the Internet.*
 
