@@ -56,13 +56,13 @@ tuning of the race car, an art, passed from master to apprentice and shared on
 mailing lists. Suffice to say, the bar of entry into the ISP realm is too high.
 Users, particularly in the ad-hoc wireless network arena, have observed the high
 bar of entry into traditional routing and have developed a menu of alternative,
-self-configuring protocols such as [OSLR], [HSLS], and [BATMAN].
+self-configuring protocols such as [OLSR], [HSLS], and [BATMAN].
 
 
 ## So the problems are already solved?
 
 Not every problem listed has an existing solution and of the ones which do,
-many of the solutions are based on incompatible technology. For example: OSLR
+many of the solutions are based on incompatible technology. For example: OLSR
 was not designed to operate with IPSEC and LISP. Even where the solutions exist
 and are ready for deployment, they still require mass technology adoption and
 they don't offer existing ISPs significant immediate gains.
@@ -905,7 +905,7 @@ packet is written out to the TUN device.
 ![illustration](https://github.com/cjdelisle/cjdns/raw/master/doc/CjdnsModules.png)
 
 
-[OSLR]: http://tools.ietf.org/html/rfc3626
+[OLSR]: http://tools.ietf.org/html/rfc3626
 
 [HSLS]: http://www.ir.bbn.com/documents/techmemos/TM1301.pdf
 
