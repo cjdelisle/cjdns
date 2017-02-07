@@ -70,7 +70,7 @@ int Hex_decode(uint8_t* output,
                const uint8_t* hex,
                const uint32_t length)
 {
-    if (length % 1) {
+    if (length % 2 == 1) {
         return Hex_BAD_INPUT;
     } else if (outLength < (length / 2)) {
         return Hex_TOO_BIG;
