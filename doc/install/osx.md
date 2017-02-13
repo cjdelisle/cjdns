@@ -15,7 +15,7 @@ To keep cjdns running in background and to start it automatically when your Mac 
 
 First of all we need to create a script that will be called by launchd and run cjdroute with the specific configuration. This file will contain the path of your configuration, for this example I will assume that your settings are stored in `/etc/cjdroute.conf`. It is vital that the service will NOT run in background, so remember to edit the end of the configuration to have something similar to this:
 
-```
+```json
 ...
 
     // If set to non-zero, cjdns will not fork to the background.
@@ -26,7 +26,7 @@ First of all we need to create a script that will be called by launchd and run c
 
 Create or/and edit the file `/usr/local/bin/cjdroute_start` with the following content:
 
-```
+```bash
 #!/bin/bash
 # You can use custom path or enable sleeping time to delay the process
 /usr/local/bin/cjdroute < /etc/cjdroute.conf
@@ -34,7 +34,7 @@ Create or/and edit the file `/usr/local/bin/cjdroute_start` with the following c
 
 Now that the script is created, we need to write the instructions for launchd. Create the file `/Library/LaunchDaemons/com.cjdns.cjdroute.plist` using administrator permissions (`sudo nano ...`) and insert the following content in it:
 
-```
+```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN"
     "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -48,20 +48,24 @@ Now that the script is created, we need to write the instructions for launchd. C
         <true/>
     <key>KeepAlive</key>
         <true/>
+    <key>StandardOutPath</key>
+        <string>/Library/Logs/CJDNS.log</string>
+    <key>StandardErrorPath</key>
+        <string>/Library/Logs/CJDNS-Errors.log</string>
 </dict>
 </plist>
 ```
 
 This will keep our process alive and run it at the startup. At this point we just need to set the right permissions and load the daemon in the configuration by running the following commands in a termianl:
 
-```
+```bash
 sudo chmod +x /usr/local/bin/cjdroute_start # Execution
 sudo sudo launchctl load /Library/LaunchDaemons/com.cjdns.cjdroute.plist 
 ```
 
 If everything is correct, you can now restart your Mac and it will automatically run cjdns. If you want to avoid the reboot, you can start the daemon using the following command:
 
-```
+```bash
 sudo launchctl start com.cjdns.cjdroute # To start without rebooting
 ```
 
