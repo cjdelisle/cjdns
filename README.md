@@ -341,7 +341,7 @@ A conf file with multiple friend-nodes, setup OUTbound, should look like:
         "login": "k.alexander"
         "password": "thisIsNotARealConnection_1",
         "publicKey": "thisIsJustForAnExampleDoNotUseThisInYourConfFile_1.k"
-    }
+    },
 
     //friend_2 (IPv4: 5.1.2.3; IPv6 fcbb:5bac:66e4:713:cb00:e446:c317:fc39)
     "5.1.2.3:5678":
