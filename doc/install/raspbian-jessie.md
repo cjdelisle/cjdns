@@ -5,7 +5,7 @@ This is a short guide how to setup a raspbian jessie cjdns box.
 ## Install packages
 
 ```bash
-sudo apt install nodejs build-essential git
+sudo apt install nodejs build-essential git-svn
 ```
 
 ## Clone, compile, install
