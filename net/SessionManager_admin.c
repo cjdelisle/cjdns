@@ -61,20 +61,14 @@ static void getHandles(Dict* args, void* vcontext, String* txid, struct Allocato
     Allocator_free(alloc);
 }
 
-static void sessionStats(Dict* args,
-                         void* vcontext,
-                         String* txid,
-                         struct Allocator* alloc)
+static void outputSession(struct Context* context,
+                          struct SessionManager_Session* session,
+                          String* txid,
+                          struct Allocator* alloc)
 {
-    struct Context* context = Identity_check((struct Context*) vcontext);
-    int64_t* handleP = Dict_getInt(args, String_CONST("handle"));
-    uint32_t handle = *handleP;
-
-    struct SessionManager_Session* session = SessionManager_sessionForHandle(handle, context->sm);
-
     Dict* r = Dict_new(alloc);
     if (!session) {
-        Dict_putString(r, String_CONST("error"), String_CONST("no such session"), alloc);
+        Dict_putStringCC(r, "error", "no such session", alloc);
         Admin_sendMessage(r, txid, context->admin);
         return;
     }
@@ -115,6 +109,70 @@ static void sessionStats(Dict* args,
     return;
 }
 
+static void sessionStats(Dict* args,
+                         void* vcontext,
+                         String* txid,
+                         struct Allocator* alloc)
+{
+    struct Context* context = Identity_check((struct Context*) vcontext);
+    int64_t* handleP = Dict_getInt(args, String_CONST("handle"));
+    uint32_t handle = *handleP;
+
+    struct SessionManager_Session* session = SessionManager_sessionForHandle(handle, context->sm);
+    outputSession(context, session, txid, alloc);
+}
+
+static struct SessionManager_Session* sessionForIP(Dict* args,
+                                                   struct Context* context,
+                                                   String* txid,
+                                                   struct Allocator* alloc)
+{
+    String* ip6Str = Dict_getStringC(args, "ip6");
+    uint8_t ip6Binary[16] = {0};
+
+    Dict* r = Dict_new(alloc);
+    if (AddrTools_parseIp(ip6Binary, ip6Str->bytes)) {
+        Dict_putStringCC(r, "error", "malformed_ip", alloc);
+        Admin_sendMessage(r, txid, context->admin);
+        return NULL;
+    }
+
+    struct SessionManager_Session* session = SessionManager_sessionForIp6(ip6Binary, context->sm);
+
+    if (!session) {
+        Dict_putStringCC(r, "error", "no such session", alloc);
+        Admin_sendMessage(r, txid, context->admin);
+        return NULL;
+    }
+
+    return session;
+}
+
+static void sessionStatsByIP(Dict* args,
+                             void* vcontext,
+                             String* txid,
+                             struct Allocator* alloc)
+{
+    struct Context* context = Identity_check((struct Context*) vcontext);
+    struct SessionManager_Session* session = sessionForIP(args, context, txid, alloc);
+    if (!session) { return; }
+    outputSession(context, session, txid, alloc);
+}
+
+static void resetCA(Dict* args,
+                    void* vcontext,
+                    String* txid,
+                    struct Allocator* alloc)
+{
+    struct Context* context = Identity_check((struct Context*) vcontext);
+    struct SessionManager_Session* session = sessionForIP(args, context, txid, alloc);
+    if (!session) { return; }
+    CryptoAuth_reset(session->caSession);
+    Dict* r = Dict_new(alloc);
+    Dict_putStringCC(r, "error", "none", alloc);
+    Admin_sendMessage(r, txid, context->admin);
+}
+
 void SessionManager_admin_register(struct SessionManager* sm,
                                    struct Admin* admin,
                                    struct Allocator* alloc)
@@ -134,5 +192,15 @@ void SessionManager_admin_register(struct SessionManager* sm,
     Admin_registerFunction("SessionManager_sessionStats", sessionStats, ctx, true,
         ((struct Admin_FunctionArg[]) {
             { .name = "handle", .required = 1, .type = "Int" }
+        }), admin);
+
+    Admin_registerFunction("SessionManager_sessionStatsByIP", sessionStatsByIP, ctx, true,
+        ((struct Admin_FunctionArg[]) {
+            { .name = "ip6", .required = 1, .type = "String" }
+        }), admin);
+
+    Admin_registerFunction("SessionManager_resetCA", resetCA, ctx, true,
+        ((struct Admin_FunctionArg[]) {
+            { .name = "ip6", .required = 1, .type = "String" }
         }), admin);
 }
