@@ -539,18 +539,12 @@ int main(int argc, char** argv)
     struct Random* rand = Random_new(allocator, NULL, eh);
     struct EventBase* eventBase = EventBase_new(allocator);
 
-    if (argc >= 2) {
+    if (argc == 2) {
         // one argument
         if ((CString_strcmp(argv[1], "--help") == 0) || (CString_strcmp(argv[1], "-h") == 0)) {
             return usage(allocator, argv[0]);
         } else if (CString_strcmp(argv[1], "--genconf") == 0) {
-            bool eth = 1;
-            for (int i = 1; i < argc; i++) {
-                if (!CString_strcmp(argv[i], "--no-eth")) {
-                    eth = 0;
-                }
-            }
-            return genconf(rand, eth);
+            return genconf(rand, 1);
         } else if (CString_strcmp(argv[1], "--pidfile") == 0) {
             // deprecated
             fprintf(stderr, "'--pidfile' option is deprecated.\n");
@@ -577,12 +571,24 @@ int main(int argc, char** argv)
         }
     } else if (argc > 2) {
         // more than one argument?
-        fprintf(stderr, "%s: too many arguments [%s]\n", argv[0], argv[1]);
-        fprintf(stderr, "Try `%s --help' for more information.\n", argv[0]);
         // because of '--pidfile $filename'?
-        if (CString_strcmp(argv[1], "--pidfile") == 0)
-        {
+        if (CString_strcmp(argv[1], "--pidfile") == 0) {
             fprintf(stderr, "\n'--pidfile' option is deprecated.\n");
+        } else if (CString_strcmp(argv[1], "--genconf") == 0) {
+            bool eth = 1;
+            for (int i = 2; i < argc; i++) {
+                if (!CString_strcmp(argv[i], "--no-eth")) {
+                    eth = 0;
+                } else {
+                    fprintf(stderr, "%s: unrecognized option '%s'\n", argv[0], argv[i]);
+                    fprintf(stderr, "Try `%s --help' for more information.\n", argv[0]);
+                    return -1;
+                }
+            }
+            return genconf(rand, eth);
+        } else {
+            fprintf(stderr, "%s: too many arguments [%s]\n", argv[0], argv[1]);
+            fprintf(stderr, "Try `%s --help' for more information.\n", argv[0]);
         }
         return -1;
     }
