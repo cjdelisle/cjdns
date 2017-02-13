@@ -1559,25 +1559,23 @@ uint64_t NodeStore_optimizePath(struct NodeStore* nodeStore, uint64_t path)
                                      linkToParent->child->encodingScheme,
                                      next,
                                      linkToParent->inverseLinkEncodingFormNumber);
-    if (optimized != UINT64_MAX) {
+
+    if (optimized != extendRoute_INVALID && optimized != extendRoute_TOOLONG) {
         return optimized;
     }
 
-    if (optimized == extendRoute_INVALID) {
-        if (Defined(Log_DEBUG)) {
-            do {
-                uint8_t pathStr[20];
-                uint8_t nextStr[20];
-                uint8_t bestPathStr[20];
-                AddrTools_printPath(pathStr, path);
-                AddrTools_printPath(nextStr, next);
-                AddrTools_printPath(bestPathStr, linkToParent->child->address.path);
-                Log_debug(store->logger, "Failed to optimize path [%s] with closest known [%s] and "
-                                         "best path to closest known [%s]",
-                                         pathStr, nextStr, bestPathStr);
-            } while (0);
-        }
-        return path;
+    if (Defined(Log_DEBUG)) {
+        do {
+            uint8_t pathStr[20];
+            uint8_t nextStr[20];
+            uint8_t bestPathStr[20];
+            AddrTools_printPath(pathStr, path);
+            AddrTools_printPath(nextStr, next);
+            AddrTools_printPath(bestPathStr, linkToParent->child->address.path);
+            Log_debug(store->logger, "Failed to optimize path [%s] with closest known [%s] and "
+                                     "best path to closest known [%s]",
+                                     pathStr, nextStr, bestPathStr);
+        } while (0);
     }
 
     return path;
