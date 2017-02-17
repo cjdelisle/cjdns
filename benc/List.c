@@ -21,7 +21,7 @@
 
 List* List_new(struct Allocator* alloc)
 {
-    return Allocator_calloc(alloc, sizeof(List*), 1);
+    return Allocator_calloc(alloc, sizeof(List), 1);
 }
 
 int32_t List_size(const List* list)
