@@ -727,7 +727,7 @@ void Allocator__adopt(struct Allocator* adoptedParent,
     parent->adoptions->children = pl;
 
     struct Allocator_List* cl =
-        Allocator__calloc(childToAdopt, sizeof(struct Allocator_List), 1, file, line);
+        Allocator__calloc(adoptedParent, sizeof(struct Allocator_List), 1, file, line);
     cl->alloc = parent;
     cl->next = child->adoptions->parents;
     child->adoptions->parents = cl;
