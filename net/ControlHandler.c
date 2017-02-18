@@ -97,7 +97,8 @@ static Iface_DEFUN handlePing(struct Message* msg,
         Bits_memcpy(keyPing->key, ch->myPublicKey, 32);
 
     } else if (messageType_be == Control_PING_be) {
-        Log_debug(ch->log, "got switch ping from [%s]", labelStr);
+        // Happens in benchmark.
+        //Log_debug(ch->log, "got switch ping from [%s]", labelStr);
         if (ping->magic != Control_Ping_MAGIC) {
             Log_debug(ch->log, "DROP ping (bad magic)");
             return NULL;
@@ -146,7 +147,8 @@ static Iface_DEFUN incomingFromCore(struct Message* msg, struct Iface* coreIf)
     uint8_t labelStr[20];
     uint64_t label = Endian_bigEndianToHost64(routeHdr.sh.label_be);
     AddrTools_printPath(labelStr, label);
-    Log_debug(ch->log, "ctrl packet from [%s]", labelStr);
+    // happens in benchmark
+    // Log_debug(ch->log, "ctrl packet from [%s]", labelStr);
 
     if (msg->length < 4 + Control_Header_SIZE) {
         Log_info(ch->log, "DROP runt ctrl packet from [%s]", labelStr);

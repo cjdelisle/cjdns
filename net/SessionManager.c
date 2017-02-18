@@ -266,10 +266,9 @@ static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface
     struct SessionManager_pvt* sm =
         Identity_containerOf(iface, struct SessionManager_pvt, pub.switchIf);
 
-    // SwitchHeader, handle, small cryptoAuth header
-    if (msg->length < SwitchHeader_SIZE + 4 + 20) {
-        // This is triggered by Benchmark.c so we really don't want to print log lines constantly.
-        //Log_debug(sm->log, "DROP runt");
+    // SwitchHeader, handle, 0 or more bytes of control frame
+    if (msg->length < SwitchHeader_SIZE + 4) {
+        Log_debug(sm->log, "DROP runt");
         return NULL;
     }
 
@@ -286,6 +285,12 @@ static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface
     if (nonceOrHandle == 0xffffffff) {
         Message_shift(msg, SwitchHeader_SIZE, NULL);
         return ctrlFrame(msg, sm);
+    }
+
+    // handle, small cryptoAuth header
+    if (msg->length < 4 + 20) {
+        Log_debug(sm->log, "DROP runt");
+        return NULL;
     }
 
     // This is for handling error situations and being able to send back some kind of a message.

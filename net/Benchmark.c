@@ -187,14 +187,19 @@ static void switching(struct Context* ctx)
     struct Control_Header* ch = (struct Control_Header*) msg->bytes;
     struct Control_Ping* ping = (struct Control_Ping*) &ch[1];
     ping->version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL);
-    Message_push32(msg, 0xffffffff, NULL);
     uint32_t* handle_be = (uint32_t*)msg->bytes;
-    Message_push(msg, NULL, SwitchHeader_SIZE, NULL);
-    struct SwitchHeader* sh = (struct SwitchHeader*) msg->bytes;
+    Message_push(msg, NULL, RouteHeader_SIZE, NULL);
+    struct RouteHeader* rh = (struct RouteHeader*) msg->bytes;
     // TODO(cjd): this will fail with a different encoding scheme
-    sh->label_be = Endian_hostToBigEndian64(0x13);
+    rh->sh.label_be = Endian_hostToBigEndian64(0x13);
+    rh->flags |= RouteHeader_flags_CTRLMSG;
 
-    for (int i = 1; i < 6; i++) {
+    int count = 100000;
+    // This is the easiest way to represent that the packet does out and back
+    // so it should be double counted in "packets per second".
+    begin(ctx, "Switching", count * 2, "packets");
+    for (int i = 1; i < count; i++) {
+        rh->flags &= ~RouteHeader_flags_INCOMING;
         ping->magic = Control_Ping_MAGIC;
         ch->type_be = Control_PING_be;
         ch->checksum_be = 0;
@@ -202,20 +207,11 @@ static void switching(struct Context* ctx)
 
         Iface_send(&sc->aliceCtrlIf, msg);
 
+        Assert_true(msg->bytes == (void*)rh);
         Assert_true(sc->msgCount == i);
-        Assert_true(msg->bytes == (void*)sh);
         Assert_true(ping->magic == Control_Pong_MAGIC);
         Assert_true(ch->type_be = Control_PONG_be);
         Assert_true(!Checksum_engine((void*)ch, Control_Ping_MIN_SIZE + Control_Header_SIZE));
-    }
-
-    *handle_be = 0xfffffff0;
-    int count = 1000000;
-    begin(ctx, "Switching", count, "packets");
-    for (int i = 0; i < count; i++) {
-        sh->versionAndLabelShift = SwitchHeader_CURRENT_VERSION << 6;
-        Iface_send(&sc->aliceCtrlIf, msg);
-        Assert_true(msg->bytes == (void*)sh);
     }
     done(ctx);
 
