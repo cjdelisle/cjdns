@@ -187,7 +187,6 @@ static void switching(struct Context* ctx)
     struct Control_Header* ch = (struct Control_Header*) msg->bytes;
     struct Control_Ping* ping = (struct Control_Ping*) &ch[1];
     ping->version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL);
-    uint32_t* handle_be = (uint32_t*)msg->bytes;
     Message_push(msg, NULL, RouteHeader_SIZE, NULL);
     struct RouteHeader* rh = (struct RouteHeader*) msg->bytes;
     // TODO(cjd): this will fail with a different encoding scheme
