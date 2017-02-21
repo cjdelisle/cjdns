@@ -308,7 +308,7 @@ static void iciPing(struct InterfaceController_Iface_pvt* ici, struct InterfaceC
 
         struct Peer* ep = ici->peerMap.values[i];
 
-        if (now < ep->timeOfLastMessage + ic->pingAfterMilliseconds) {
+        if (ep->addr.protocolVersion && now < ep->timeOfLastMessage + ic->pingAfterMilliseconds) {
             // It's sending traffic so leave it alone.
 
             // wait just a minute here !
