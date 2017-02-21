@@ -416,12 +416,26 @@ Version_COMPAT(17, ([16]))
 Version_COMPAT(18, ([16,17]))
 
 /**
+ * Version 18:
+ * February 21, 2017
+ *
+ * shibboleth
+ *
+ * This is a mostly cerimonial release, the supernode/subnode infrastructure is still not completely
+ * ready. This release is largely cerimonial, there are no breaking changes to the protocol.
+ * There have been improvements to the CryptoAuth handshake which should make it less likely that
+ * the CryptoAuth session will go into a bad state and the nodes be unable to talk to eachother.
+ */
+Version_COMPAT(19, ([16,17,18]))
+
+/**
  * The current protocol version.
  */
-#define Version_CURRENT_PROTOCOL 18
+#define Version_CURRENT_PROTOCOL 19
 #define Version_16_COMPAT
 #define Version_17_COMPAT
 #define Version_18_COMPAT
+#define Version_19_COMPAT
 
 #define Version_MINIMUM_COMPATIBLE 16
 #define Version_DEFAULT_ASSUMPTION 16
