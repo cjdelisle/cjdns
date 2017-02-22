@@ -416,7 +416,7 @@ Version_COMPAT(17, ([16]))
 Version_COMPAT(18, ([16,17]))
 
 /**
- * Version 18:
+ * Version 19:
  * February 21, 2017
  *
  * shibboleth
