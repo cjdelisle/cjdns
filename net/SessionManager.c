@@ -215,6 +215,14 @@ static struct SessionManager_Session_pvt* getSession(struct SessionManager_pvt* 
 
     int ifaceIndex = Map_OfSessionsByIp6_put((struct Ip6*)ip6, &sess, &sm->ifaceMap);
     sess->pub.receiveHandle = sm->ifaceMap.handles[ifaceIndex] + sm->firstHandle;
+
+    if (Defined(Log_DEBUG)) {
+        uint8_t printedIp6[40];
+        AddrTools_printIp(printedIp6, ip6);
+        Log_debug(sm->log, "Created session for [%s] handle [%u]",
+                  printedIp6, sess->pub.receiveHandle);
+    }
+
     sess->alloc = alloc;
     sess->sessionManager = sm;
     sess->pub.version = version;
@@ -303,7 +311,7 @@ static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface
         // > 3 it's a handle.
         session = sessionForHandle(nonceOrHandle, sm);
         if (!session) {
-            Log_debug(sm->log, "DROP message with unrecognized handle");
+            Log_debug(sm->log, "DROP message with unrecognized handle [%u]", nonceOrHandle);
             return NULL;
         }
         Message_shift(msg, -4, NULL);

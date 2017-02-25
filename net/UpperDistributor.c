@@ -57,29 +57,29 @@ static Iface_DEFUN fromHandler(struct Message* msg, struct UpperDistributor_pvt*
     Message_pop(msg, &dh, DataHeader_SIZE, NULL);
     enum ContentType type = DataHeader_getContentType(&dh);
     if (type != ContentType_IP6_UDP) {
-        Log_debug(ud->log, "Message from handler with invalid type [%d]", type);
+        Log_debug(ud->log, "DROP Message from handler with invalid type [%d]", type);
         return NULL;
     }
     if (msg->length < Headers_UDPHeader_SIZE + RouteHeader_SIZE + DataHeader_SIZE) {
-        Log_debug(ud->log, "runt");
+        Log_debug(ud->log, "DROP runt");
         return NULL;
     }
     uint8_t srcAndDest[32] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0xfc,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1};
     Bits_memcpy(srcAndDest, ud->myAddress->ip6.bytes, 16);
     struct Headers_UDPHeader* udp = (struct Headers_UDPHeader*) msg->bytes;
     if (Checksum_udpIp6(srcAndDest, msg->bytes, msg->length)) {
-        Log_debug(ud->log, "Bad checksum");
+        Log_debug(ud->log, "DROP Bad checksum");
         return NULL;
     }
     if (udp->destPort_be != Endian_bigEndianToHost16(MAGIC_PORT)) {
-        Log_debug(ud->log, "Message to unknown port [%d]",
+        Log_debug(ud->log, "DROP Message to unknown port [%d]",
             Endian_bigEndianToHost16(udp->destPort_be));
         return NULL;
     }
     int udpPort = Endian_bigEndianToHost16(udp->srcPort_be);
     int index = Map_OfHandlers_indexForKey(&udpPort, ud->handlers);
     if (index < 0) {
-        Log_debug(ud->log, "Message from unregistered port [%d]", udpPort);
+        Log_debug(ud->log, "DROP Message from unregistered port [%d]", udpPort);
         return NULL;
     }
     Message_pop(msg, NULL, Headers_UDPHeader_SIZE, NULL);
