@@ -22,7 +22,7 @@
 #include <sys/syscall.h>
 
 #define GetEntropyRandomSeed_GLIBC_HAS_IT \
-    (defined(__GNU_LIBRARY__) && defined(__GLIBC_PREREQ) && __GLIBC_PREREQ(2, 25))
+    (defined(__GNU_LIBRARY__) && defined(__GLIBC_PREREQ))
 
 #if !defined(__OPENBSD__) && !GetEntropyRandomSeed_GLIBC_HAS_IT
 static int getentropy(void *buf, size_t buflen)
