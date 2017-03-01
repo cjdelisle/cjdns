@@ -459,7 +459,6 @@ This starts cjdns as the root user so it can configure your system
 without concern for permissions. To start cjdns as a non-root user, see
 [doc/non-root-user.md](doc/non-root-user.md).
 
-
 ### 6. Get in IRC
 
 Welcome to the network! You're now a network administrator. There are
@@ -467,6 +466,23 @@ responsibilities which come with being a network administrator which include
 being available in case there is something wrong with your equipment. You should
 stay on [IRC](#community) so that people can reach you.
 
+##Arch Linux
+A package is avaliable. To get it...
+
+        pacman -Syu cjdns
+For the development version (with AUR):
+
+       yaourt -Syu cjdns-git
+       
+1. Make sure the file has correct permissions:
+
+        chmod 600 /etc/cjdroute.conf
+        
+2. Edit `/etc/cjdroute.conf` as stated above.
+3. start/enable the service: `cjdns.service`. If it did not start, check:
+
+        systemctl status cjdns
+        journalctl -u cjdns
 
 ## Admin interface
 
