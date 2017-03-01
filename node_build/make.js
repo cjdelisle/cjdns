@@ -412,6 +412,7 @@ Builder.configure({
 }).build(function (builder, waitFor) {
 
     builder.buildExecutable('client/cjdroute2.c', 'cjdroute');
+    builder.buildExecutable('client/cjdroute3.c', 'cjdroute-init');
 
     builder.buildExecutable('contrib/c/publictoip6.c');
     builder.buildExecutable('contrib/c/privatetopublic.c');
