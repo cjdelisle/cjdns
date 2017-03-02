@@ -84,7 +84,7 @@ static void searchResponse(struct RouterModule_Promise* promise,
         Dict_putString(resp, String_CONST("error"), String_CONST("none"), alloc);
         Dict_putInt(resp, String_CONST("complete"), 1, alloc);
         Admin_sendMessage(resp, search->txid, search->ctx->admin);
-        Allocator_free(search->alloc);
+        Allocator_free(alloc);
         return;
     }
 
