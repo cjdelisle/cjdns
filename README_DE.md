@@ -1,34 +1,23 @@
 # cjdns
 
-<<<<<<< HEAD
 [English](README.md)
-=======
-[README.md](README.md)
->>>>>>> c1b5f008b4140c207182e6ad318d97b72ee0974c
 [Русская версия](README_RU.md)
 [Hrvatski](README_HR.md)
 [Svenska](README_SV.md)
 [Ελληνικά](README_GR.md)
-<<<<<<< HEAD
-[Deutsch](README_DE.md)
 [繁體中文](README_ZHT.md)
 [Español](README_ES.md)
-=======
->>>>>>> c1b5f008b4140c207182e6ad318d97b72ee0974c
 
 #### *Netzwerk neu erfunden*
 
 Cjdns implementiert ein verschlüsseltes IPv6 Netzwerk basierend auf Public-Key Kryptografie für die Adressen-Zuteilung und es benutzt eine verteilte Hash-Tabelle für das Routing.
 Dies ermöglicht eine nahezu konfigurationslose Handhabung und verhindert viele Sicherheits- und Skalierungs-Probleme, welche andere existierende Netzwerke heimsuchen.
 
-<<<<<<< HEAD
 [![Build Status](https://api.travis-ci.org/cjdelisle/cjdns.svg?branch=master)](https://travis-ci.org/cjdelisle/cjdns)
-=======
-[![Build Status](https://travis-ci.org/cjdelisle/cjdns.svg?branch=master)](https://travis-ci.org/cjdelisle/cjdns)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/387/badge)](https://bestpractices.coreinfrastructure.org/projects/387)
->>>>>>> c1b5f008b4140c207182e6ad318d97b72ee0974c
 [![tip for next commit](https://tip4commit.com/projects/941.svg)](https://tip4commit.com/github/cjdelisle/cjdns)
 [![irc](https://img.shields.io/badge/irc%20chat-%23cjdns-blue.svg)](https://kiwiirc.com/client/irc.efnet.org/?nick=visitor|?#cjdns)
+![License](https://img.shields.io/github/license/cjdelisle/cjdns.svg)
 
 ## Testimonials
 
