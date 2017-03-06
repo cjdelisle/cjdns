@@ -150,7 +150,7 @@ void NetPlatform_addAddress(const char* interfaceName,
         if (ioctl(s, SIOCSIFADDR, &ifr6) < 0) {
             int err = errno;
             close(s);
-            if(err == EPERM) {
+            if (err == EPERM) {
                   Except_throw(eh, "ioctl(SIOCSIFADDR) failed: permission denied, check that you're root and that ipv6 is enabled");
             } else {
                   Except_throw(eh, "ioctl(SIOCSIFADDR) failed: [%s]", strerror(err));
