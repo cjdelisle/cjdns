@@ -21,10 +21,10 @@
 #include <errno.h>
 #include <sys/syscall.h>
 
-#define GetEntropyRandomSeed_GLIBC_HAS_IT \
-    (defined(__GNU_LIBRARY__) && defined(__GLIBC_PREREQ))
-
-#if !defined(__OPENBSD__) && !GetEntropyRandomSeed_GLIBC_HAS_IT
+#if !defined(__OPENBSD__) && \
+    (!defined(__GNU_LIBRARY__) || !defined(__GLIBC__) || \
+    !defined(__GLIBC_MINOR__) || __GLIBC__ < 2 || \
+    (__GLIBC__ == 2 && __GLIBC_MINOR__ < 25))
 static int getentropy(void *buf, size_t buflen)
 {
     int ret;
