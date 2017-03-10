@@ -123,8 +123,6 @@ Install with homebrew:
 
 #### OpenBSD:
 
-Sadly, OpenBSD is a bit experimental right now.
-
     pkg_add git node gcc gmake bash
 
 Select version gcc-4.8.1p2 or more recent.
