@@ -58,7 +58,7 @@ struct Iface* TUNInterface_new(const char* interfaceName,
     } else {
         for (int i = 0; tunFd == -1 && i < 99; i++) {
             ppa = i;
-            snprintf(file, TUNInterface_IFNAMSIZ, "/dev/tun%d", i);
+            snprintf(file, TUNInterface_IFNAMSIZ, "/dev/tun%d", ppa);
             tunFd = open(file, O_RDWR);
         }
     }
