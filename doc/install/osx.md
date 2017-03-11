@@ -70,3 +70,17 @@ sudo launchctl start com.cjdns.cjdroute # To start without rebooting
 ```
 
 Enjoy!
+
+
+# What if I get the error message Failed to make function call ?
+
+```
+<vik> on macos sierra I am not able to start cjdroute
+<vik> 1488788811 INFO Configurator.c:427 Creating new ETHInterface [en0]
+<vik> 1488788816 CRITICAL Configurator.c:97 Failed to make function call [Timed out waiting for a response], error: [ETHInterface_new]
+<vik> How do I debug this problem ?
+<cjd> are you starting it as root ?
+<vik> No
+<cjd> that would be the cause
+<vik> Tx .. starting with sudo fixed it ..
+```
