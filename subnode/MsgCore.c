@@ -22,6 +22,7 @@
 #include "benc/serialization/standard/BencMessageWriter.h"
 #include "switch/EncodingScheme.h"
 #include "util/Escape.h"
+#include "util/Defined.h"
 #include "wire/Message.h"
 #include "wire/DataHeader.h"
 #include "wire/RouteHeader.h"
@@ -82,6 +83,14 @@ static Iface_DEFUN replyMsg(struct MsgCore_pvt* mcp,
         Log_debug(mcp->log, "Message with no txid");
         return NULL;
     }
+
+    if (!Defined(SUBNODE)) {
+        String* newTxid = String_newBinary(NULL, txid->len - 1, msg->alloc);
+        Bits_memcpy(newTxid->bytes, &txid->bytes[1], txid->len - 1);
+        Dict_putStringC(content, "txid", newTxid, msg->alloc);
+        txid = newTxid;
+    }
+
     struct ReplyContext* rc = Allocator_calloc(msg->alloc, sizeof(struct ReplyContext), 1);
     rc->src = src;
     rc->content = content;
@@ -128,6 +137,18 @@ static void sendMsg(struct MsgCore_pvt* mcp,
 
     // send the protocol version
     Dict_putInt(msgDict, CJDHTConstants_PROTOCOL, Version_CURRENT_PROTOCOL, allocator);
+
+    if (!Defined(SUBNODE)) {
+        String* q = Dict_getStringC(msgDict, "q");
+        if (q) {
+            String* txid = Dict_getStringC(msgDict, "txid");
+            Assert_true(txid);
+            String* newTxid = String_newBinary(NULL, txid->len + 1, alloc);
+            newTxid->bytes[0] = '1';
+            Bits_memcpy(&newTxid->bytes[1], txid->bytes, txid->len);
+            Dict_putStringC(msgDict, "txid", newTxid, alloc);
+        }
+    }
 
     struct Message* msg = Message_new(0, 2048, alloc);
     BencMessageWriter_write(msgDict, msg, NULL);

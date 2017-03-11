@@ -23,10 +23,9 @@
 #include "crypto/AddressCalc.h"
 #include "crypto/random/Random.h"
 #include "crypto/random/libuv/LibuvEntropyProvider.h"
-#ifdef SUBNODE
 #include "subnode/SubnodePathfinder.h"
 #include "subnode/SupernodeHunter_admin.h"
-#else
+#ifndef SUBNODE
 #include "dht/Pathfinder.h"
 #endif
 #include "exception/Jmp.h"
@@ -261,18 +260,20 @@ void Core_init(struct Allocator* alloc,
     struct EncodingScheme* encodingScheme = NumberCompress_defineScheme(alloc);
 
     // The link between the Pathfinder and the core needs to be asynchronous.
-    #ifdef SUBNODE
-        struct SubnodePathfinder* pf = SubnodePathfinder_new(
-            alloc, logger, eventBase, rand, nc->myAddress, privateKey, encodingScheme);
-    #else
-        struct Pathfinder* pf = Pathfinder_register(alloc, logger, eventBase, rand, admin);
+    struct SubnodePathfinder* spf = SubnodePathfinder_new(
+        alloc, logger, eventBase, rand, nc->myAddress, privateKey, encodingScheme);
+    struct ASynchronizer* spfAsync = ASynchronizer_new(alloc, eventBase, logger);
+    Iface_plumb(&spfAsync->ifA, &spf->eventIf);
+    EventEmitter_regPathfinderIface(nc->ee, &spfAsync->ifB);
+
+    #ifndef SUBNODE
+        struct Pathfinder* opf = Pathfinder_register(alloc, logger, eventBase, rand, admin);
+        struct ASynchronizer* opfAsync = ASynchronizer_new(alloc, eventBase, logger);
+        Iface_plumb(&opfAsync->ifA, &opf->eventIf);
+        EventEmitter_regPathfinderIface(nc->ee, &opfAsync->ifB);
     #endif
-    struct ASynchronizer* pfAsync = ASynchronizer_new(alloc, eventBase, logger);
-    Iface_plumb(&pfAsync->ifA, &pf->eventIf);
-    EventEmitter_regPathfinderIface(nc->ee, &pfAsync->ifB);
-    #ifdef SUBNODE
-        SubnodePathfinder_start(pf);
-    #endif
+
+    SubnodePathfinder_start(spf);
 
     // ------------------- Register RPC functions ----------------------- //
     UpperDistributor_admin_register(nc->upper, admin, alloc);
@@ -285,9 +286,7 @@ void Core_init(struct Allocator* alloc,
 #endif
     FileNo_admin_register(admin, alloc, eventBase, logger, eh);
 
-#ifdef SUBNODE
-    SupernodeHunter_admin_register(pf->snh, admin, alloc);
-#endif
+    SupernodeHunter_admin_register(spf->snh, admin, alloc);
 
     AuthorizedPasswords_init(admin, nc->ca, alloc);
     Admin_registerFunction("ping", adminPing, admin, false, NULL, admin);

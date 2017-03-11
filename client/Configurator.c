@@ -361,10 +361,6 @@ static void supernodes(List* supernodes, struct Allocator* tempAlloc, struct Con
     for (int i = 0; (s = List_getString(supernodes, i)) != NULL; i++) {
         Log_debug(ctx->logger, "Loading supernode connection to [%s]", s->bytes);
         Dict reqDict = Dict_CONST(String_CONST("key"), String_OBJ(s), NULL);
-        if (!Defined(SUBNODE)) {
-            Log_debug(ctx->logger, "Skipping because SUBNODE is not enabled");
-            continue;
-        }
         rpcCall0(String_CONST("SupernodeHunter_addSnode"), &reqDict, ctx, tempAlloc, NULL, true);
     }
 }
