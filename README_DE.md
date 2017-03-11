@@ -1,34 +1,23 @@
 # cjdns
 
-<<<<<<< HEAD
 [English](README.md)
-=======
-[README.md](README.md)
->>>>>>> c1b5f008b4140c207182e6ad318d97b72ee0974c
 [Русская версия](README_RU.md)
 [Hrvatski](README_HR.md)
 [Svenska](README_SV.md)
 [Ελληνικά](README_GR.md)
-<<<<<<< HEAD
-[Deutsch](README_DE.md)
 [繁體中文](README_ZHT.md)
 [Español](README_ES.md)
-=======
->>>>>>> c1b5f008b4140c207182e6ad318d97b72ee0974c
 
 #### *Netzwerk neu erfunden*
 
 Cjdns implementiert ein verschlüsseltes IPv6 Netzwerk basierend auf Public-Key Kryptografie für die Adressen-Zuteilung und es benutzt eine verteilte Hash-Tabelle für das Routing.
 Dies ermöglicht eine nahezu konfigurationslose Handhabung und verhindert viele Sicherheits- und Skalierungs-Probleme, welche andere existierende Netzwerke heimsuchen.
 
-<<<<<<< HEAD
 [![Build Status](https://api.travis-ci.org/cjdelisle/cjdns.svg?branch=master)](https://travis-ci.org/cjdelisle/cjdns)
-=======
-[![Build Status](https://travis-ci.org/cjdelisle/cjdns.svg?branch=master)](https://travis-ci.org/cjdelisle/cjdns)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/387/badge)](https://bestpractices.coreinfrastructure.org/projects/387)
->>>>>>> c1b5f008b4140c207182e6ad318d97b72ee0974c
 [![tip for next commit](https://tip4commit.com/projects/941.svg)](https://tip4commit.com/github/cjdelisle/cjdns)
 [![irc](https://img.shields.io/badge/irc%20chat-%23cjdns-blue.svg)](https://kiwiirc.com/client/irc.efnet.org/?nick=visitor|?#cjdns)
+![License](https://img.shields.io/github/license/cjdelisle/cjdns.svg)
 
 ## Testimonials
 
@@ -85,29 +74,44 @@ Die cjdns-Entwickler.
 ## Installation von cjdns
 
 Diese Anleitungen sind für Debian-basierte Linux-Distributionen und OS X. Sie sollten erklärend genug sein, um sie auch auf anderen Distributionen zu verwenden - wenn auch nicht unbedingt eins-zu-ein.
+Wenn du wissen möchtest, [was die Basis deines Betriebssystems ist, klicke hier.](https://upload.wikimedia.org/wikipedia/commons/1/1b/Linux_Distribution_Timeline.svg)
 
 ### 0. Installations-Abhängigkeiten
 
 Für beide Platformen ist es nicht zwingend notwendig, doch aber vorzuziehen, [Node.js](https://nodejs.org/) zu installieren. Wenn Node.js nicht verfügbar oder eine nicht akzeptierte Version ist, wird es in den Quellpfad heruntergeladen und installiert.
 
-#### Debian-basierte distro:
+#### Debian basierte Distribution:
 
     sudo apt-get install nodejs git build-essential python2.7
 
-#### Fedora 22+ basierte distro:
+#### Fedora 22+ basierte Distribution:
 
     sudo dnf install install nodejs git
     sudo dnf install @development-tools
 
-#### RHEL basierte distro (adds the EPEL repo):
+#### RHEL basierte Distribution (Fügt das EPEL Repository hinzu):
 
     sudo yum localinstall https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
     sudo yum install install nodejs git
     sudo yum install @development-tools
 
+Aus dem Paket installieren:
+`sudo yum localinstall https://kojipkgs.fedoraproject.org//packages/cjdns/17.4/4.el6/src/cjdns-17.4-4.el6.src.rpm`
+
+Wenn du Suspend oder Hibernate auf einem Laptop verwendest wird cjdroute ein paar Minuten brauchen um Kaffee zu machen udn herauszufinden, was eigentlich gerade passiert ist, wenn es aufwacht.
+Du kannst das aber dramatisch beschleunigen:
+
+    systemctl enable cjdns-resume
+
+Der Resume Service startet cjdns neu, wenn das System aufwacht.
+
+#### Gentoo
+
+    emerge --ask nodejs sys-devel/gcc dev-lang/python:3.4 dev-vcs/git
+
 #### OS X:
 
-Installation mit homebrew:
+Installation mit Homebrew:
 
     brew install cjdns
 
@@ -117,7 +121,7 @@ OpenBSD ist momentan leider ein bisschen experimentell.
 
     pkg_add git node gcc gmake bash
 
-Wähle die Version gcc-4.8.1p2 oder eine jüngere.
+Wähle die Version gcc-4.8.1p2 oder neuer.
 
 #### FreeBSD:
 
@@ -213,6 +217,17 @@ Nun füge folgenden crontab Eintrag hinzu
    # Restart crashed Services
    * * * * *       root	/path/to/script/service_restart.sh
 
+#### Solus:
+
+Abhängigkeiten:
+
+     sudo eopkg install nodejs git build-essential system.devel python gcc binutils kernal-headers xorg-server-devel
+
+Dann folge den Schritten weiter unten:
+
+*Entschuldigung für so viele Schritte. Es wird gerade an einem Paket gearbeitet.*
+
+
 ### 1. Hole cjdns from GitHub
 
 Klone das Repository von GitHub und wechsle zum Quellverzeichnis:
@@ -230,13 +245,15 @@ Es sollte folgendes stehen: `Build completed successfully, type ./cjdroute to be
 
 ## Setup
 
-Lasse cjdroute laufen ohne Optionen für HELP:
+Lasse cjdroute ohne Optionen für HELP laufen:
 
     ./cjdroute
 
 ### 0. Stelle sicher, dass du alles bekommen hast.
 
-    cat /dev/net/tun
+Wenn du macOS verwendest, brauchst du Dir über diesen Schritt keine Sorgen machen.
+
+    LANG=C cat /dev/net/tun
 
 Wenn steht: `cat: /dev/net/tun: File descriptor in bad state` Gut!
 
@@ -248,7 +265,7 @@ Wenn steht: `cat: /dev/net/tun: No such file or directory`, erstelle es wie folg
 
 Danach wieder `cat /dev/net/tun`.
 
-Wenn es sagt: `cat: /dev/net/tun: Permission denied` Dann verwendest du vielleicht einen VPS basierend auf der OpenVZ virtualisations Platform. Frage deinen Provider, ob er das TUN/TAP device - das ist standard Protokoll, sie sollten also genau wissen was du benötigst. Wenn du auf OS X bist, musst du dich nicht um dieses Setup kümmern.
+Wenn es sagt: `cat: /dev/net/tun: Permission denied` Dann verwendest du vielleicht einen VPS basierend auf der OpenVZ virtualisations Platform. Frage deinen Provider, ob er das TUN/TAP device - das ist standard Protokoll, sie sollten also genau wissen was du benötigst. Wenn du auf macOS bist, musst du dich nicht um dieses Setup kümmern.
 
 
 ### 1. Erstelle ein neues Konfiguration-File
@@ -270,7 +287,7 @@ Um ein conf File mit den richtigen Rechten zu generieren, so dass nur dein User 
 Um in ein existierendes Netzwerk (z.B. Hyperboria) zu gelangen, musst du dich mit jemandem verbinden, der bereits mit diesem Netzwerk verbunden ist. Dies ist wegen verschiedensten Gründen notwendig:
 
 1. Es hilft den Missbrauch zu verhindern, denn schlechte Leute werden tendenziell ein System weniger missbrauchen, wenn ihnen, in einem Akt von menschlicher Freundlichkeit, von anderen der Zugang gewährt wird.
-2. Es ist nicht geplant Das Alte Internet zu überlagern, sondern es zu ersetzen. Jede Verbindung wird zu gegebener Zeit durch ein Kabel, ein Glasfaser-Kabel oder eine Wireless-Netzwerk-Verbindung ersetzt.
+2. Es ist nicht geplant das Alte Internet zu überlagern, sondern es zu ersetzen. Jede Verbindung wird zu gegebener Zeit durch ein Kabel, ein Glasfaser-Kabel oder eine Wireless-Netzwerk-Verbindung ersetzt.
 3. Im Falle einer Streitigkeit wird es eine "Kette von Freunden" geben, welche die involvierten Leute verbindet, so dass es bereits eine Basis zu einer Lösungsfindung gibt.
 
 Um einen Freund zu finden, gehe nach draussen und beteilige dich an unserer [Community](#community). Weiter kannst du auch einen Blick auf die [Hyperboria-Karte][] werfen, um Peers in deiner Nähe zu finden.
@@ -315,7 +332,7 @@ Ein conf File mit mehreren konfigurierten Freundes-Knoten (Setup AUSgehende Verb
 }
 ```
 
-In der gegebenen JSON-Syntax kannst du so viele Verbindungen wie du willst zum `connectTo` Attribut hinzufügen.
+In der gegebenen JSON Syntax kannst du so viele Verbindungen wie du willst zum `connectTo` Attribut hinzufügen.
 
 
 **Um deinem Freund zu erlauben eine EINgehende Verbindung mit dir aufzubauen**
@@ -396,7 +413,7 @@ Wenn das nicht dein Ziel ist, solltest du überprüfen, dass du nicht mehr Servi
 Schaue dir [doc/network-services.md](doc/network-services.md) an für Anleitungen.
 
 
-### 5. Starte es auf!
+### 5. Starte!
 
     sudo ./cjdroute < cjdroute.conf
 
@@ -432,22 +449,20 @@ Du kannst das admin-API wie folgt erreichen:
 * die **Perl library**, unterhalten by Mikey; konsultiere [here](contrib/perl/CJDNS/README).
 
 ## Fehler melden
-1. Machs nicht
+1. Melde Fehler bitte nicht in diesem Repo, stattdessen melde sie hier: https://github.com/hyperboria/bugs/issues
 2. Geh ins IRC und sprich mit jemandem.
 3. Was passieren wird ist entweder
  * Jemand hat Lust es zu fixen
  * Du hast Lust es zu fixen
  * Es interessiert niemanden und es wird für eine Weile vergessen und eventuell wird jemand später darauf stossen und es fixen oder es geht im Refactoring verloren.
  * Niemand kann es im Moment beheben, aber es wird als merkenswert angesehen, weil es eine große Bedeutung in der Entwicklung des Quelltextes hat. In diesem Fall muss es technisch erklärt werden von jemandem, der den Quelltext sehr gut kennt. Derjenige wird einen Pullrequest in das docs/bugs Verzeichnis machen.
- 4. Alternativ kannst du das Problem im Repo https://github.com/hyperboria/cjdns.git melden.
 
 ### Sicherheit
 Sicherheitsprobleme sollten im IRC berichtet werden, genau wie andere Fehler. Wir haben keine geschlossene Gruppe von Leuten mit Spezialwissen, das Bedeutet, das Standardvorgehen für Sicherheitsmeldungen ist volle Enthüllung.
 Schaue unter  https://github.com/cjdelisle/cjdns/blob/master/doc/security_specification.md nach, ob ein Sicherheitsproblem wirklich ein Sicherheitsproblem ist.
 
-
-## Problem melden
-1. Du kannst ein Problem hier melden https://github.com/hyperboria/bugs/issues
+Schon wieder diese Zeit des Jahres... Zeit für ein paar Open Source Projekte!
+[![Hacktoberfest](https://img.shields.io/badge/Open%20Source-Hacktoberfest-orange.svg)](https://hacktoberfest.digitalocean.com/)
 
 [IRC Web]: http://chat.efnet.org/irc.cgi?chan=%23cjdns
 [Hyperboria]: https://hyperboria.net
