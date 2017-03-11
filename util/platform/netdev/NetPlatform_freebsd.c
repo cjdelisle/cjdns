@@ -88,7 +88,7 @@ static void addIp4Address(const char* interfaceName,
     if (ioctl(s, SIOCAIFADDR, &ifaliasreq) == -1){
       int err = errno;
       close(s);
-      Except_throw(eh, "ioctl(SIOCAIFADDR) [%s]",strerror(err));
+      Except_throw(eh, "ioctl(SIOCAIFADDR) [%s] for [%s]", strerror(err), interfaceName);
     }
 
     Log_info(logger, "Configured IPv4 [%s/%s] for [%s]", myIp, myMask, interfaceName);
