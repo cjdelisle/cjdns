@@ -36,6 +36,13 @@ var find = module.exports.find = function (tempFile, callback) {
             py.stdout.on('data', function (dat) { console.log(dat.toString('utf8')); });
             py.on('close', function(ret) {
                 if (ret === 0) {
+                    Fs.exists(tempFile, waitFor(function (exists) {
+                        if (!exists) { return; }
+
+                        Fs.unlink(tempFile, waitFor(function (err) {
+                            if (err) { throw err; }
+                        }));
+                    }));
                     callback(undefined, python);
                     waitFor.abort();
                 } else {

@@ -36,6 +36,15 @@ module.exports.check = function (builder, code, cflags, callback) {
         flags.push.apply(flags, ["-o", outputFile, file]);
 
         builder.cc([cflags, "-o", outputFile, file], waitFor(function (ret, out, err) {
+            [file, outputFile].forEach(function(tmpFile) {
+                Fs.exists(tmpFile, waitFor(function (exists) {
+                    if (!exists) { return; }
+
+                    Fs.unlink(tmpFile, waitFor(function (err) {
+                        if (err) { throw err; }
+                    }));
+                }));
+            });
             if (ret) {
                 callback(err, false);
             } else {
