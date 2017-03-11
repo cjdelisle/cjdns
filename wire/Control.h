@@ -105,6 +105,23 @@ Assert_compileTime(sizeof(struct Control_KeyPing) == Control_KeyPing_HEADER_SIZE
 #define Control_KeyPong_MAX_SIZE Control_KeyPing_MAX_SIZE
 #define Control_KeyPong_MAGIC Endian_hostToBigEndian32(0x89abcdef)
 
+
+#define Control_SNODE_QUERY_be Endian_hostToBigEndian16(7)
+#define Control_SNODE_REPLY_be Endian_hostToBigEndian16(8)
+#define Control_Supernode_HEADER_SIZE 48
+#define Control_Supernode_MAX_SIZE (Control_Supernode_HEADER_SIZE + 64)
+struct Control_Supernode
+{
+    uint32_t version_be;
+
+    uint32_t snodeVersion_be;
+
+    uint8_t snodeKey[32];
+
+    uint8_t path[8];
+};
+Assert_compileTime(sizeof(struct Control_Supernode) == Control_Supernode_HEADER_SIZE);
+
 static inline char* Control_typeString(uint16_t type_be)
 {
     if (type_be == Control_ERROR_be) {
@@ -117,6 +134,10 @@ static inline char* Control_typeString(uint16_t type_be)
         return "KEYPING";
     } else if (type_be == Control_KEYPONG_be) {
         return "KEYPONG";
+    } else if (type_be == Control_SNODE_QUERY_be) {
+        return "SNODE_QUERY";
+    } else if (type_be == Control_SNODE_REPLY_be) {
+        return "SNODE_REPLY";
     } else {
         return "UNKNOWN";
     }
@@ -159,12 +180,13 @@ struct Control
         struct Control_Ping pong;
         struct Control_KeyPing keyPing;
         struct Control_Ping keyPong;
+        struct Control_Supernode snode;
 
         /** The control packet content. */
         uint8_t bytes[4];
     } content;
 };
 // Control_KeyPing is the largest structure and thus defines the length of the "content" union.
-Assert_compileTime(sizeof(struct Control) == Control_Header_SIZE + Control_KeyPing_HEADER_SIZE);
+Assert_compileTime(sizeof(struct Control) == Control_Header_SIZE + Control_Supernode_HEADER_SIZE);
 
 #endif
