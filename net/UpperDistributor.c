@@ -45,10 +45,13 @@ struct UpperDistributor_pvt
     struct Map_OfHandlers* handlers;
 
     struct Allocator* alloc;
+    int noSendToHandler;
     Identity
 };
 
 #define MAGIC_PORT 1
+
+static Iface_DEFUN incomingFromSessionManagerIf(struct Message*, struct Iface*);
 
 static Iface_DEFUN fromHandler(struct Message* msg, struct UpperDistributor_pvt* ud)
 {
@@ -84,6 +87,14 @@ static Iface_DEFUN fromHandler(struct Message* msg, struct UpperDistributor_pvt*
     }
     Message_pop(msg, NULL, Headers_UDPHeader_SIZE, NULL);
 
+    Assert_true(msg->length >= RouteHeader_SIZE);
+    struct RouteHeader* hdr = (struct RouteHeader*) msg->bytes;
+    if (!Bits_memcmp(hdr->ip6, ud->myAddress->ip6.bytes, 16)) {
+        ud->noSendToHandler = 1;
+        Log_debug(ud->log, "Message to self");
+        return incomingFromSessionManagerIf(msg, &ud->pub.sessionManagerIf);
+    }
+
     return Iface_next(&ud->pub.sessionManagerIf, msg);
 }
 
@@ -91,6 +102,10 @@ static void sendToHandlers(struct Message* msg,
                            enum ContentType type,
                            struct UpperDistributor_pvt* ud)
 {
+    if (ud->noSendToHandler) {
+        ud->noSendToHandler--;
+        return;
+    }
     for (int i = 0; i < (int)ud->handlers->count; i++) {
         if (ud->handlers->values[i]->pub.type != type) { continue; }
         struct Allocator* alloc = Allocator_child(msg->alloc);

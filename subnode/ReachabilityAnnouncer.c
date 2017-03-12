@@ -18,6 +18,7 @@
 #include "util/events/Time.h"
 #include "wire/Announce.h"
 #include "crypto/Sign.h"
+#include "util/AddrTools.h"
 
 #include "crypto_hash_sha512.h"
 
@@ -224,6 +225,11 @@ static int updatePeer(struct ReachabilityAnnouncer_pvt* rap,
     peer = peerFromMsg(rap->msgOnWire, refPeer->ipv6);
     if (!peer) {
         peer = peerFromSnodeState(rap->snodeState, refPeer->ipv6, sinceTime);
+        if (peer) {
+            Log_debug(rap->log, "Peer found in snodeState, noop");
+        }
+    } else {
+        Log_debug(rap->log, "Peer found in msgOnWire, noop");
     }
     if (peer && !Bits_memcmp(peer, refPeer, Announce_Peer_SIZE)) {
         // Already exists in the msgOnWire or snodeState, do nothing
@@ -315,7 +321,9 @@ static void addServerStateMsg(struct ReachabilityAnnouncer_pvt* rap, struct Mess
         bool redundant = true;
         struct Message* msg = ArrayList_OfMessages_get(rap->snodeState, i);
         struct Announce_Peer* p;
+        bool moreThanZeroPeers = false;
         for (p = Announce_Peer_next(msg, NULL); p; p = Announce_Peer_next(msg, p)) {
+            moreThanZeroPeers = true;
             bool inList = false;
             for (int j = 0; j < peerList->length; j++) {
                 struct Announce_Peer* knownPeer = ArrayList_OfPeers_get(peerList, j);
@@ -330,7 +338,7 @@ static void addServerStateMsg(struct ReachabilityAnnouncer_pvt* rap, struct Mess
                 break;
             }
         }
-        if (redundant) {
+        if (redundant && moreThanZeroPeers) {
             ArrayList_OfMessages_remove(rap->snodeState, i);
             Allocator_free(msg->alloc);
         } else {
@@ -354,6 +362,10 @@ void ReachabilityAnnouncer_updatePeer(struct ReachabilityAnnouncer* ra,
                                       uint16_t penalty)
 {
     struct ReachabilityAnnouncer_pvt* rap = Identity_check((struct ReachabilityAnnouncer_pvt*) ra);
+
+    uint8_t ipPrinted[40];
+    AddrTools_printIp(ipPrinted, ipv6);
+    Log_debug(rap->log, "Update peer [%s] [%08llx]", ipPrinted, (long long) pathThemToUs);
 
     if (pathThemToUs > 0xffffffff) {
         Log_debug(rap->log, "oversize path [%08llx]", (long long) pathThemToUs);
@@ -386,21 +398,26 @@ void ReachabilityAnnouncer_updatePeer(struct ReachabilityAnnouncer* ra,
     }
     switch (updatePeer(rap, &refPeer, 0)) {
         case updatePeer_NOOP: {
+            Log_debug(rap->log, "noop");
             return;
         }
         case updatePeer_UPDATE: {
+            Log_debug(rap->log, "update");
             if (drops == 0xffff) { stateUpdate(rap, ReachabilityAnnouncer_State_PEERGONE); }
             return;
         }
         case updatePeer_ADD: {
             if (unreachable) {
+                Log_debug(rap->log, "first peer");
                 stateUpdate(rap, ReachabilityAnnouncer_State_FIRSTPEER);
             } else {
+                Log_debug(rap->log, "new peer");
                 stateUpdate(rap, ReachabilityAnnouncer_State_NEWPEER);
             }
             return;
         }
         case updatePeer_ENOSPACE: {
+            Log_debug(rap->log, "msgfull");
             stateUpdate(rap, ReachabilityAnnouncer_State_MSGFULL);
             return;
         }
@@ -482,7 +499,7 @@ static void onReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom
     } else if (snodeStateHash->len != 64) {
         Log_warn(rap->log, "bad stateHash in reply from snode");
     } else if (Bits_memcmp(snodeStateHash->bytes, ourStateHash, 64)) {
-        Log_warn(rap->log, "state mismatch with snode");
+        Log_warn(rap->log, "state mismatch with snode, [%u] announces", rap->snodeState->length);
     } else {
         return;
     }

@@ -237,7 +237,7 @@ static void pingCycle(void* vsn)
 
     if (snp->snodeCandidates->length) {
         qp->target = AddrSet_get(snp->snodeCandidates, snp->snodeCandidates->length - 1);
-        Log_debug(snp->log, "Sending getRoute to snode %s",
+        Log_debug(snp->log, "Sending getRoute me->you to snode %s",
             Address_toString(qp->target, qp->alloc)->bytes);
         Dict_putStringCC(msg, "sq", "gr", qp->alloc);
         Dict_putStringC(msg, "src", snp->selfAddrStr, qp->alloc);
