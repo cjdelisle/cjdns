@@ -48,7 +48,6 @@ struct ReachabilityCollector_pvt
     struct ReachabilityCollector pub;
     struct MsgCore* msgCore;
     struct Allocator* alloc;
-    struct MsgCore_Promise* msgOnWire;
     struct Log* log;
     struct BoilerplateResponder* br;
     struct Address* myAddr;
@@ -117,7 +116,6 @@ static void onReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom
 {
     struct ReachabilityCollector_pvt* rcp =
         Identity_check((struct ReachabilityCollector_pvt*) prom->userData);
-    Assert_true(prom == rcp->msgOnWire);
     if (!src) {
         onReplyTimeout(prom);
         mkNextRequest(rcp);
@@ -172,29 +170,29 @@ static void mkNextRequest(struct ReachabilityCollector_pvt* rcp)
         Log_debug(rcp->log, "All [%u] peers have been queried", rcp->piList->length);
         return;
     }
-    rcp->msgOnWire = MsgCore_createQuery(rcp->msgCore, TIMEOUT_MILLISECONDS, rcp->alloc);
-    rcp->msgOnWire->userData = rcp;
-    rcp->msgOnWire->cb = onReply;
-    rcp->msgOnWire->target = Address_clone(&pi->addr, rcp->msgOnWire->alloc);
-    Dict* d = rcp->msgOnWire->msg = Dict_new(rcp->msgOnWire->alloc);
-    Dict_putStringCC(d, "q", "gp", rcp->msgOnWire->alloc);
+    struct MsgCore_Promise* query =
+        MsgCore_createQuery(rcp->msgCore, TIMEOUT_MILLISECONDS, rcp->alloc);
+    query->userData = rcp;
+    query->cb = onReply;
+    query->target = Address_clone(&pi->addr, query->alloc);
+    Dict* d = query->msg = Dict_new(query->alloc);
+    Dict_putStringCC(d, "q", "gp", query->alloc);
     uint64_t label_be = Endian_hostToBigEndian64(pi->pathToCheck);
 
     uint8_t targetPath[20];
     AddrTools_printPath(targetPath, pi->pathToCheck);
     Log_debug(rcp->log, "Getting peers for peer [%s] tar [%s]",
-        Address_toString(&pi->addr, rcp->msgOnWire->alloc)->bytes,
+        Address_toString(&pi->addr, query->alloc)->bytes,
         targetPath);
 
     Dict_putStringC(d, "tar",
-        String_newBinary((uint8_t*) &label_be, 8, rcp->msgOnWire->alloc), rcp->msgOnWire->alloc);
-    BoilerplateResponder_addBoilerplate(rcp->br, d, &pi->addr, rcp->msgOnWire->alloc);
+        String_newBinary((uint8_t*) &label_be, 8, query->alloc), query->alloc);
+    BoilerplateResponder_addBoilerplate(rcp->br, d, &pi->addr, query->alloc);
 }
 
 static void cycle(void* vrc)
 {
     struct ReachabilityCollector_pvt* rcp = Identity_check((struct ReachabilityCollector_pvt*) vrc);
-    if (rcp->msgOnWire) { return; }
     mkNextRequest(rcp);
 }
 
