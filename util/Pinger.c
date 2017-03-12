@@ -164,6 +164,10 @@ void Pinger_pongReceived(String* data, struct Pinger* pinger)
         }
         data->len -= 8;
         data->bytes += 8;
+        if (!p->timeSent) {
+            Log_debug(pinger->logger, "Duplicate response");
+            return;
+        }
         callback(data, p);
     }
 }
