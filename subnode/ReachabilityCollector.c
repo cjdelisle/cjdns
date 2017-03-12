@@ -170,6 +170,13 @@ static void mkNextRequest(struct ReachabilityCollector_pvt* rcp)
     Dict* d = rcp->msgOnWire->msg = Dict_new(rcp->msgOnWire->alloc);
     Dict_putStringCC(d, "q", "gp", rcp->msgOnWire->alloc);
     uint64_t label_be = Endian_hostToBigEndian64(pi->pathToCheck);
+
+    uint8_t targetPath[20];
+    AddrTools_printPath(targetPath, label_be);
+    Log_debug(rcp->log, "Getting peers for peer [%s] tar [%s]",
+        Address_toString(&pi->addr, rcp->msgOnWire->alloc)->bytes,
+        targetPath);
+
     Dict_putStringC(d, "tar",
         String_newBinary((uint8_t*) &label_be, 8, rcp->msgOnWire->alloc), rcp->msgOnWire->alloc);
     BoilerplateResponder_addBoilerplate(rcp->br, d, &pi->addr, rcp->msgOnWire->alloc);
