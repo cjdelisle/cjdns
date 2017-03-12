@@ -78,7 +78,7 @@ static Iface_DEFUN replyMsg(struct MsgCore_pvt* mcp,
                             struct Address* src,
                             struct Message* msg)
 {
-    Log_debug(mcp->log, "Got reply");
+    Log_debug(mcp->log, "Got reply from [%s]", Address_toString(src, msg->alloc)->bytes);
     String* txid = Dict_getStringC(content, "txid");
     if (!txid) {
         Log_debug(mcp->log, "DROP Message with no txid");
