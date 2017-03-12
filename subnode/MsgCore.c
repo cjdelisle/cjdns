@@ -85,6 +85,10 @@ static Iface_DEFUN replyMsg(struct MsgCore_pvt* mcp,
     }
 
     if (!Defined(SUBNODE)) {
+        if (txid->bytes[0] != '1') {
+            Log_debug(mcp->log, "Message with wrong txid, should begin with 1");
+            return NULL;
+        }
         String* newTxid = String_newBinary(NULL, txid->len - 1, msg->alloc);
         Bits_memcpy(newTxid->bytes, &txid->bytes[1], txid->len - 1);
         Dict_putStringC(content, "txid", newTxid, msg->alloc);
@@ -140,12 +144,13 @@ static void sendMsg(struct MsgCore_pvt* mcp,
 
     if (!Defined(SUBNODE)) {
         String* q = Dict_getStringC(msgDict, "q");
-        if (q) {
+        String* sq = Dict_getStringC(msgDict, "sq");
+        if (q || sq) {
             String* txid = Dict_getStringC(msgDict, "txid");
             Assert_true(txid);
             String* newTxid = String_newBinary(NULL, txid->len + 1, alloc);
-            newTxid->bytes[0] = '1';
             Bits_memcpy(&newTxid->bytes[1], txid->bytes, txid->len);
+            newTxid->bytes[0] = '1';
             Dict_putStringC(msgDict, "txid", newTxid, alloc);
         }
     }
@@ -218,6 +223,10 @@ static Iface_DEFUN queryMsg(struct MsgCore_pvt* mcp,
                             struct Address* src,
                             struct Message* msg)
 {
+    if (!Defined(SUBNODE)) {
+        return NULL;
+    }
+
     String* q = Dict_getString(content, String_CONST("q"));
     struct QueryHandler* qh = NULL;
     for (int i = 0; i < mcp->qh->length; i++) {
