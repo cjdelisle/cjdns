@@ -139,6 +139,8 @@ static void onReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom
 
     for (int i = 0; i < results->length; i++) {
         path = results->elems[i].path;
+        Log_debug(rcp->log, "getPeers result [%s]",
+            Address_toString(&results->elems[i], prom->alloc));
         if (Bits_memcmp(results->elems[i].ip6.bytes, rcp->myAddr->ip6.bytes, 16)) { continue; }
         if (pi->pathThemToUs != path) {
             Log_debug(rcp->log, "Found back-route for [%s]",
@@ -173,7 +175,7 @@ static void mkNextRequest(struct ReachabilityCollector_pvt* rcp)
     uint64_t label_be = Endian_hostToBigEndian64(pi->pathToCheck);
 
     uint8_t targetPath[20];
-    AddrTools_printPath(targetPath, label_be);
+    AddrTools_printPath(targetPath, pi->pathToCheck);
     Log_debug(rcp->log, "Getting peers for peer [%s] tar [%s]",
         Address_toString(&pi->addr, rcp->msgOnWire->alloc)->bytes,
         targetPath);
