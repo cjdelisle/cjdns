@@ -17,6 +17,7 @@
 #include "util/log/Log.h"
 #include "util/Identity.h"
 #include "util/events/Timeout.h"
+#include "util/AddrTools.h"
 
 #define TIMEOUT_MILLISECONDS 10000
 
