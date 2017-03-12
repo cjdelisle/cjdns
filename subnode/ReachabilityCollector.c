@@ -58,6 +58,8 @@ struct ReachabilityCollector_pvt
     Identity
 };
 
+static void mkNextRequest(struct ReachabilityCollector_pvt* rcp);
+
 static void change0(struct ReachabilityCollector_pvt* rcp,
                     struct Address* nodeAddr,
                     struct Allocator* tempAlloc)
@@ -73,7 +75,7 @@ static void change0(struct ReachabilityCollector_pvt* rcp,
             } else if (nodeAddr->path != pi->addr.path) {
                 Log_debug(rcp->log, "Peer [%s] changed path",
                     Address_toString(&pi->addr, tempAlloc)->bytes);
-                pi->pathThemToUs = 0;
+                pi->pathThemToUs = -1;
                 pi->pathToCheck = 1;
                 pi->querying = true;
             }
@@ -92,8 +94,10 @@ static void change0(struct ReachabilityCollector_pvt* rcp,
     pi->alloc = piAlloc;
     pi->querying = true;
     pi->pathToCheck = 1;
+    pi->pathThemToUs = -1;
     ArrayList_OfPeerInfo_add(rcp->piList, pi);
     Log_debug(rcp->log, "Peer [%s] added", Address_toString(&pi->addr, tempAlloc)->bytes);
+    mkNextRequest(rcp);
 }
 
 void ReachabilityCollector_change(struct ReachabilityCollector* rc, struct Address* nodeAddr)
@@ -108,8 +112,6 @@ static void onReplyTimeout(struct MsgCore_Promise* prom)
 {
     // meh do nothing, we'll just ping it again...
 }
-
-static void mkNextRequest(struct ReachabilityCollector_pvt* rcp);
 
 static void onReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom)
 {
@@ -145,13 +147,14 @@ static void onReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom
         if (pi->pathThemToUs != path) {
             Log_debug(rcp->log, "Found back-route for [%s]",
                 Address_toString(src, prom->alloc)->bytes);
+            pi->pathThemToUs = path;
             if (rcp->pub.onChange) {
                 rcp->pub.onChange(
                     &rcp->pub, src->ip6.bytes, path, src->path, 0, 0xffff, 0xffff, 0xffff);
             }
         }
-        pi->pathThemToUs = path;
         pi->querying = false;
+        mkNextRequest(rcp);
         return;
     }
     pi->pathToCheck = (results->length < 8) ? 1 : path;
@@ -163,9 +166,12 @@ static void mkNextRequest(struct ReachabilityCollector_pvt* rcp)
     struct PeerInfo* pi = NULL;
     for (int i = 0; i < rcp->piList->length; i++) {
         pi = ArrayList_OfPeerInfo_get(rcp->piList, i);
-        if (!pi->querying) { continue; }
+        if (pi->querying) { break; }
     }
-    if (!pi || !pi->querying) { return; }
+    if (!pi || !pi->querying) {
+        Log_debug(rcp->log, "All [%u] peers have been queried", rcp->piList->length);
+        return;
+    }
     rcp->msgOnWire = MsgCore_createQuery(rcp->msgCore, TIMEOUT_MILLISECONDS, rcp->alloc);
     rcp->msgOnWire->userData = rcp;
     rcp->msgOnWire->cb = onReply;
