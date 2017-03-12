@@ -147,6 +147,9 @@ static void sendMsg(struct MsgCore_pvt* mcp,
         String* q = Dict_getStringC(msgDict, "q");
         String* sq = Dict_getStringC(msgDict, "sq");
         if (q || sq) {
+            Log_debug(mcp->log, "Send query [%s] to [%s]",
+                ((q) ? q->bytes : sq->bytes),
+                Address_toString(addr, alloc)->bytes);
             String* txid = Dict_getStringC(msgDict, "txid");
             Assert_true(txid);
             String* newTxid = String_newBinary(NULL, txid->len + 1, alloc);
