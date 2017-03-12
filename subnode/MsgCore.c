@@ -78,15 +78,16 @@ static Iface_DEFUN replyMsg(struct MsgCore_pvt* mcp,
                             struct Address* src,
                             struct Message* msg)
 {
+    Log_debug(mcp->log, "Got reply");
     String* txid = Dict_getStringC(content, "txid");
     if (!txid) {
-        Log_debug(mcp->log, "Message with no txid");
+        Log_debug(mcp->log, "DROP Message with no txid");
         return NULL;
     }
 
     if (!Defined(SUBNODE)) {
         if (txid->bytes[0] != '1') {
-            Log_debug(mcp->log, "Message with wrong txid, should begin with 1");
+            Log_debug(mcp->log, "DROP Message with wrong txid, should begin with 1");
             return NULL;
         }
         String* newTxid = String_newBinary(NULL, txid->len - 1, msg->alloc);
@@ -295,19 +296,20 @@ static Iface_DEFUN incoming(struct Message* msg, struct Iface* interRouterIf)
     Dict* content = NULL;
     uint8_t* msgBytes = msg->bytes;
     int length = msg->length;
-    Log_debug(mcp->log, "Receive msg [%s] from [%s]",
-        Escape_getEscaped(msg->bytes, msg->length, msg->alloc),
-        Address_toString(&addr, msg->alloc)->bytes);
+    //Log_debug(mcp->log, "Receive msg [%s] from [%s]",
+    //    Escape_getEscaped(msg->bytes, msg->length, msg->alloc),
+    //    Address_toString(&addr, msg->alloc)->bytes);
+    //
     BencMessageReader_readNoExcept(msg, msg->alloc, &content);
     if (!content) {
         char* esc = Escape_getEscaped(msgBytes, length, msg->alloc);
-        Log_debug(mcp->log, "Malformed message [%s]", esc);
+        Log_debug(mcp->log, "DROP Malformed message [%s]", esc);
         return NULL;
     }
 
     int64_t* verP = Dict_getIntC(content, "p");
     if (!verP) {
-        Log_debug(mcp->log, "Message without version");
+        Log_debug(mcp->log, "DROP Message without version");
         return NULL;
     }
     addr.protocolVersion = *verP;
