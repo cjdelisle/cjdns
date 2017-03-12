@@ -137,7 +137,7 @@ static void onReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom
         return;
     }
 
-    for (int i = 0; i < results->length; i++) {
+    for (int i = results->length - 1; i >= 0; i--) {
         path = results->elems[i].path;
         Log_debug(rcp->log, "getPeers result [%s]",
             Address_toString(&results->elems[i], prom->alloc)->bytes);
