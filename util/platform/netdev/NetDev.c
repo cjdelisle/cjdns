@@ -59,8 +59,8 @@ void NetDev_addAddress(const char* ifName,
 
     checkAddressAndPrefix(sa, &addrFam, &printedAddr, &addr, alloc, eh);
 
-    Log_info(logger, "Setting IP address [%s/%d] on interface [%s]",
-             printedAddr, sa->prefix, ifName);
+    Log_info(logger, "Setting IP address [%s] on interface [%s]",
+             printedAddr, ifName);
 
     NetPlatform_addAddress(ifName, addr, sa->prefix, addrFam, logger, alloc, eh);
 }
