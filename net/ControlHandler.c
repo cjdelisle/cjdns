@@ -12,12 +12,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+#include "dht/Address.h"
 #include "net/ControlHandler.h"
 #include "util/Identity.h"
 #include "util/AddrTools.h"
 #include "util/Checksum.h"
 #include "wire/Control.h"
 #include "wire/Error.h"
+#include "switch/NumberCompress.h"
 
 struct ControlHandler_pvt
 {
@@ -27,6 +29,7 @@ struct ControlHandler_pvt
     struct Router* router;
     uint8_t myPublicKey[32];
     struct Iface eventIf;
+    struct Address activeSnode;
     Identity
 };
 
@@ -129,6 +132,64 @@ static Iface_DEFUN handlePing(struct Message* msg,
 }
 
 /**
+ * Expects [ SwitchHeader ][ Ctrl ][ SupernodeQuery ][ data etc.... ]
+ */
+#define handleGetSnodeQuery_MIN_SIZE (Control_Header_SIZE + Control_GetSnode_HEADER_SIZE)
+static Iface_DEFUN handleGetSnodeQuery(struct Message* msg,
+                                       struct ControlHandler_pvt* ch,
+                                       uint64_t label,
+                                       uint8_t* labelStr)
+{
+    Log_debug(ch->log, "incoming getSupernode query");
+    if (msg->length < handleGetSnodeQuery_MIN_SIZE) {
+        Log_info(ch->log, "DROP runt getSupernode query");
+        return NULL;
+    }
+
+    struct Control* ctrl = (struct Control*) msg->bytes;
+    struct Control_GetSnode* snq = &ctrl->content.getSnode;
+
+    if (snq->magic != Control_GETSNODE_QUERY_MAGIC) {
+        Log_debug(ch->log, "DROP getSupernode query (bad magic)");
+        return NULL;
+    }
+
+    uint32_t herVersion = Endian_bigEndianToHost32(snq->version_be);
+    if (!Version_isCompatible(Version_CURRENT_PROTOCOL, herVersion)) {
+        Log_debug(ch->log, "DROP getSupernode query from incompatible version [%d]", herVersion);
+        return NULL;
+    }
+
+    ctrl->header.type_be = Control_GETSNODE_REPLY_be;
+    snq->kbps_be = 0xffffffff;
+    snq->version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL);
+    snq->magic = Control_GETSNODE_REPLY_MAGIC;
+    if (ch->activeSnode.path) {
+        uint64_t fixedLabel = NumberCompress_getLabelFor(ch->activeSnode.path, label);
+        uint64_t fixedLabel_be = Endian_hostToBigEndian64(fixedLabel);
+        Bits_memcpy(snq->pathToSnode_be, &fixedLabel_be, 8);
+        Bits_memcpy(&snq->snodeKey, ch->activeSnode.key, 32);
+        snq->snodeVersion_be = Endian_hostToBigEndian32(ch->activeSnode.protocolVersion);
+
+    } else {
+        snq->snodeVersion_be = 0;
+        Bits_memcpy(snq->pathToSnode_be, 0, 8);
+        Bits_memcpy(&snq->snodeKey, ch->activeSnode.key, 32);
+    }
+
+    ctrl->header.checksum_be = 0;
+    ctrl->header.checksum_be = Checksum_engine(msg->bytes, msg->length);
+
+    Message_shift(msg, RouteHeader_SIZE, NULL);
+    struct RouteHeader* routeHeader = (struct RouteHeader*) msg->bytes;
+    Bits_memset(routeHeader, 0, RouteHeader_SIZE);
+    SwitchHeader_setVersion(&routeHeader->sh, SwitchHeader_CURRENT_VERSION);
+    routeHeader->sh.label_be = Endian_hostToBigEndian64(label);
+    routeHeader->flags |= RouteHeader_flags_CTRLMSG;
+    return Iface_next(&ch->pub.coreIf, msg);
+}
+
+/**
  * Handle an incoming control message from a switch.
  *
  * @param context the ducttape context.
@@ -178,6 +239,9 @@ static Iface_DEFUN incomingFromCore(struct Message* msg, struct Iface* coreIf)
         Log_debug(ch->log, "got switch pong from [%s]", labelStr);
         Message_push(msg, &routeHdr, RouteHeader_SIZE, NULL);
         return Iface_next(&ch->pub.switchPingerIf, msg);
+
+    } else if (ctrl->header.type_be == Control_GETSNODE_QUERY_be) {
+        return handleGetSnodeQuery(msg, ch, label, labelStr);
     }
 
     Log_info(ch->log, "DROP control packet of unknown type from [%s], type [%d]",
