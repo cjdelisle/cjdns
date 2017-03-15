@@ -85,17 +85,6 @@ static Iface_DEFUN replyMsg(struct MsgCore_pvt* mcp,
         return NULL;
     }
 
-    if (!Defined(SUBNODE)) {
-        if (txid->bytes[0] != '1') {
-            Log_debug(mcp->log, "DROP Message with wrong txid, should begin with 1");
-            return NULL;
-        }
-        String* newTxid = String_newBinary(NULL, txid->len - 1, msg->alloc);
-        Bits_memcpy(newTxid->bytes, &txid->bytes[1], txid->len - 1);
-        Dict_putStringC(content, "txid", newTxid, msg->alloc);
-        txid = newTxid;
-    }
-
     struct ReplyContext* rc = Allocator_calloc(msg->alloc, sizeof(struct ReplyContext), 1);
     rc->src = src;
     rc->content = content;
@@ -228,7 +217,14 @@ static Iface_DEFUN queryMsg(struct MsgCore_pvt* mcp,
                             struct Message* msg)
 {
     if (!Defined(SUBNODE)) {
-        return NULL;
+        if (txid->bytes[0] != '1') {
+            Log_debug(mcp->log, "DROP Message with wrong txid, should begin with 1");
+            return NULL;
+        }
+        String* newTxid = String_newBinary(NULL, txid->len - 1, msg->alloc);
+        Bits_memcpy(newTxid->bytes, &txid->bytes[1], txid->len - 1);
+        Dict_putStringC(content, "txid", newTxid, msg->alloc);
+        txid = newTxid;
     }
 
     String* q = Dict_getString(content, String_CONST("q"));
