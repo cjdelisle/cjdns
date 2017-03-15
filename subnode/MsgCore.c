@@ -217,6 +217,8 @@ static Iface_DEFUN queryMsg(struct MsgCore_pvt* mcp,
                             struct Message* msg)
 {
     if (!Defined(SUBNODE)) {
+        String* txid = Dict_getStringC(content, "txid");
+        Assert_true(txid);
         if (txid->bytes[0] != '1') {
             Log_debug(mcp->log, "DROP Message with wrong txid, should begin with 1");
             return NULL;
