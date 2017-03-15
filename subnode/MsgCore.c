@@ -216,19 +216,6 @@ static Iface_DEFUN queryMsg(struct MsgCore_pvt* mcp,
                             struct Address* src,
                             struct Message* msg)
 {
-    if (!Defined(SUBNODE)) {
-        String* txid = Dict_getStringC(content, "txid");
-        Assert_true(txid);
-        if (txid->bytes[0] != '1') {
-            Log_debug(mcp->log, "DROP Message with wrong txid, should begin with 1");
-            return NULL;
-        }
-        String* newTxid = String_newBinary(NULL, txid->len - 1, msg->alloc);
-        Bits_memcpy(newTxid->bytes, &txid->bytes[1], txid->len - 1);
-        Dict_putStringC(content, "txid", newTxid, msg->alloc);
-        txid = newTxid;
-    }
-
     String* q = Dict_getString(content, String_CONST("q"));
     struct QueryHandler* qh = NULL;
     for (int i = 0; i < mcp->qh->length; i++) {
@@ -315,7 +302,29 @@ static Iface_DEFUN incoming(struct Message* msg, struct Iface* interRouterIf)
     }
     addr.protocolVersion = *verP;
 
-    if (Dict_getString(content, String_CONST("q"))) {
+    String* q = Dict_getString(content, String_CONST("q"));
+
+    if (!Defined(SUBNODE)) {
+        String* txid = Dict_getStringC(content, "txid");
+        Assert_true(txid);
+        if (q) {
+            if (txid->bytes[0] == '0') {
+                Log_debug(mcp->log, "DROP query which begins with 0 and is for old pathfinder");
+                return NULL;
+            }
+        } else {
+            if (txid->bytes[0] != '1') {
+                Log_debug(mcp->log, "DROP reply which does not begin with 1");
+                return NULL;
+            }
+            String* newTxid = String_newBinary(NULL, txid->len - 1, msg->alloc);
+            Bits_memcpy(newTxid->bytes, &txid->bytes[1], txid->len - 1);
+            Dict_putStringC(content, "txid", newTxid, msg->alloc);
+            txid = newTxid;
+        }
+    }
+
+    if (q) {
         return queryMsg(mcp, content, &addr, msg);
     } else {
         return replyMsg(mcp, content, &addr, msg);

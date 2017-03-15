@@ -111,14 +111,19 @@ static int handleIncoming(struct DHTMessage* message,
     }
 
     String* q = Dict_getStringC(message->asDict, "q");
+    String* txid = Dict_getStringC(message->asDict, "txid");
+    if (!txid) {
+        Log_info(context->logger, "query with no txid");
+        return -2;
+    }
     if (q) {
-        String* txid = Dict_getStringC(message->asDict, "txid");
-        if (!txid) {
-            Log_info(context->logger, "query with no txid");
+        if (txid->bytes[0] == '1') {
+            Log_debug(context->logger, "query txid which appears to be meant for subnode");
             return -2;
         }
-        if (txid->bytes[0] == '1') {
-            Log_info(context->logger, "txid which appears to be meant for subnode");
+    } else {
+        if (txid->bytes[0] != '0') {
+            Log_debug(context->logger, "reply txid which is not from old pathfinder");
             return -2;
         }
         String* newTxid = String_newBinary(&txid->bytes[1], txid->len - 1, message->allocator);
