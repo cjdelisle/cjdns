@@ -158,6 +158,7 @@ static void nodeForAddress(struct PFChan_Node* nodeOut, struct Address* addr, ui
 static Iface_DEFUN sendNode(struct Message* msg,
                             struct Address* addr,
                             uint32_t metric,
+                            enum PFChan_Pathfinder msgType,
                             struct SubnodePathfinder_pvt* pf)
 {
     Message_reset(msg);
@@ -166,7 +167,7 @@ static Iface_DEFUN sendNode(struct Message* msg,
     if (addr->path == UINT64_MAX) {
         ((struct PFChan_Node*) msg->bytes)->path_be = 0;
     }
-    Message_push32(msg, PFChan_Pathfinder_NODE, NULL);
+    Message_push32(msg, msgType, NULL);
     return Iface_next(&pf->pub.eventIf, msg);
 }
 
@@ -181,7 +182,7 @@ static void onBestPathChange(void* vPathfinder, struct Node_Two* node)
     pf->bestPathChanges++;
     struct Allocator* alloc = Allocator_child(pf->alloc);
     struct Message* msg = Message_new(0, 256, alloc);
-    Iface_CALL(sendNode, msg, &node->address, Node_getCost(node), pf);
+    Iface_CALL(sendNode, msg, &node->address, Node_getCost(node), PFChan_Pathfinder_NODE, pf);
     Allocator_free(alloc);
 }
 */
@@ -313,7 +314,7 @@ static void getRouteReply(Dict* msg, struct Address* src, struct MsgCore_Promise
     Log_debug(pf->log, "reply with[%s]", Address_toString(&al->elems[0], prom->alloc)->bytes);
     NodeCache_discoverNode(pf->nc, &al->elems[0]);
     struct Message* msgToCore = Message_new(0, 512, prom->alloc);
-    Iface_CALL(sendNode, msgToCore, &al->elems[0], 0xfffffff0, pf);
+    Iface_CALL(sendNode, msgToCore, &al->elems[0], 0xfffffff0, PFChan_Pathfinder_NODE, pf);
 }
 
 static void pingReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom)
@@ -328,7 +329,7 @@ static void pingReply(Dict* msg, struct Address* src, struct MsgCore_Promise* pr
         Address_toString(src, prom->alloc)->bytes);
     NodeCache_discoverNode(pf->nc, src);
     struct Message* msgToCore = Message_new(0, 512, prom->alloc);
-    Iface_CALL(sendNode, msgToCore, src, 0xffffff70, pf);
+    Iface_CALL(sendNode, msgToCore, src, 0xffffff70, PFChan_Pathfinder_NODE, pf);
 }
 
 static Iface_DEFUN searchReq(struct Message* msg, struct SubnodePathfinder_pvt* pf)
@@ -357,7 +358,7 @@ static Iface_DEFUN searchReq(struct Message* msg, struct SubnodePathfinder_pvt* 
     if (!pf->pub.snh || !pf->pub.snh->snodeAddr.path) { return NULL; }
 
     if (!Bits_memcmp(pf->pub.snh->snodeAddr.ip6.bytes, addr, 16)) {
-        return sendNode(msg, &pf->pub.snh->snodeAddr, 0xfffffff0, pf);
+        return sendNode(msg, &pf->pub.snh->snodeAddr, 0xfffffff0, PFChan_Pathfinder_NODE, pf);
     }
 
     struct MsgCore_Promise* qp = MsgCore_createQuery(pf->msgCore, 0, pf->alloc);
@@ -423,7 +424,7 @@ static Iface_DEFUN peer(struct Message* msg, struct SubnodePathfinder_pvt* pf)
 
     ReachabilityCollector_change(pf->rc, &addr);
 
-    return sendNode(msg, &addr, 0xffffff00, pf);
+    return sendNode(msg, &addr, 0xffffff00, PFChan_Pathfinder_NODE, pf);
 }
 
 static Iface_DEFUN peerGone(struct Message* msg, struct SubnodePathfinder_pvt* pf)
@@ -448,7 +449,7 @@ static Iface_DEFUN peerGone(struct Message* msg, struct SubnodePathfinder_pvt* p
     ReachabilityCollector_change(pf->rc, &zaddr);
 
     // We notify about the node but with max metric so it will be removed soon.
-    return sendNode(msg, &addr, 0xffffffff, pf);
+    return sendNode(msg, &addr, 0xffffffff, PFChan_Pathfinder_NODE, pf);
 }
 
 static Iface_DEFUN session(struct Message* msg, struct SubnodePathfinder_pvt* pf)
@@ -601,6 +602,15 @@ void SubnodePathfinder_start(struct SubnodePathfinder* sp)
     sendEvent(pf, PFChan_Pathfinder_CONNECT, &conn, PFChan_Pathfinder_Connect_SIZE);
 }
 
+static void sendCurrentSupernode(void* vsp)
+{
+    struct SubnodePathfinder_pvt* pf = Identity_check((struct SubnodePathfinder_pvt*) vsp);
+    struct Allocator* alloc = Allocator_child(pf->alloc);
+    struct Message* msgToCore = Message_new(0, 512, alloc);
+    Iface_CALL(sendNode, msgToCore, &pf->pub.snh->snodeAddr, 0, PFChan_Pathfinder_SNODE, pf);
+    Allocator_free(alloc);
+}
+
 struct SubnodePathfinder* SubnodePathfinder_new(struct Allocator* allocator,
                                                 struct Log* log,
                                                 struct EventBase* base,
@@ -630,6 +640,8 @@ struct SubnodePathfinder* SubnodePathfinder_new(struct Allocator* allocator,
     pf->sp = SwitchPinger_new(base, rand, log, myAddress, alloc);
     pf->switchPingerIf.send = ctrlMsgFromSwitchPinger;
     Iface_plumb(&pf->switchPingerIf, &pf->sp->controlHandlerIf);
+
+    Timeout_setInterval(sendCurrentSupernode, pf, 3000, base, alloc);
 
     return &pf->pub;
 }

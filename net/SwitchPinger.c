@@ -216,6 +216,8 @@ static void onPingResponse(String* data, uint32_t milliseconds, void* vping)
     resp->milliseconds = milliseconds;
     resp->version = version;
     Bits_memcpy(resp->key, p->context->incomingKey, 32);
+    Bits_memcpy(&resp->snode, &p->context->incomingSnodeAddr, sizeof(struct Address));
+    resp->kbpsLimit = p->context->incomingSnodeKbps;
     resp->ping = &p->pub;
     p->onResponse(resp, p->pub.onResponseContext);
 }

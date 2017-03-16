@@ -264,6 +264,25 @@ static Iface_DEFUN incomingFromSwitchPinger(struct Message* msg, struct Iface* s
     return Iface_next(&ch->pub.coreIf, msg);
 }
 
+static Iface_DEFUN changeSnode(struct Message* msg, struct Iface* eventIf)
+{
+    struct ControlHandler_pvt* ch =
+        Identity_containerOf(eventIf, struct ControlHandler_pvt, eventIf);
+    enum PFChan_Pathfinder ev = Message_pop32(msg, NULL);
+    Assert_true(ev == PFChan_Pathfinder_SNODE);
+    Message_pop32(msg, NULL);
+
+    struct PFChan_Node node;
+    Message_pop(msg, &node, PFChan_Node_SIZE, NULL);
+    Assert_true(!msg->length);
+
+    Bits_memcpy(ch->activeSnode.key, node.publicKey, 32);
+    ch->activeSnode.path = Endian_bigEndianToHost64(node.path_be);
+    ch->activeSnode.protocolVersion = Endian_bigEndianToHost32(node.version_be);
+
+    return NULL;
+}
+
 struct ControlHandler* ControlHandler_new(struct Allocator* allocator,
                                           struct Log* logger,
                                           struct EventEmitter* ee,
@@ -276,7 +295,8 @@ struct ControlHandler* ControlHandler_new(struct Allocator* allocator,
     Bits_memcpy(ch->myPublicKey, myPublicKey, 32);
     ch->pub.coreIf.send = incomingFromCore;
     ch->pub.switchPingerIf.send = incomingFromSwitchPinger;
-    EventEmitter_regCore(ee, &ch->eventIf, 0);
+    ch->eventIf.send = changeSnode;
+    EventEmitter_regCore(ee, &ch->eventIf, PFChan_Pathfinder_SNODE);
     Identity_set(ch);
     return &ch->pub;
 }

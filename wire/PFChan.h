@@ -166,7 +166,14 @@ enum PFChan_Pathfinder
      */
     PFChan_Pathfinder_CTRL_SENDMSG = 521,
 
-    PFChan_Pathfinder__TOO_HIGH = 522,
+    /**
+     * You must send this whenever you have adopted a supernode.
+     * Send with address set to all zeros if you lost your supernode.
+     * (Received by: ControlHandler.c)
+     */
+    PFChan_Pathfinder_SNODE = 522,
+
+    PFChan_Pathfinder__TOO_HIGH = 523,
 };
 
 struct PFChan_FromPathfinder

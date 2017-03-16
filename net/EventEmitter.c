@@ -105,6 +105,7 @@ static bool PFChan_Pathfinder_sizeOk(enum PFChan_Pathfinder ev, int size)
         case PFChan_Pathfinder_SUPERIORITY:
             return (size == 8 + PFChan_Pathfinder_Superiority_SIZE);
         case PFChan_Pathfinder_NODE:
+        case PFChan_Pathfinder_SNODE:
             return (size == 8 + PFChan_Node_SIZE);
         case PFChan_Pathfinder_SENDMSG:
             return (size >= 8 + PFChan_Msg_MIN_SIZE);
@@ -123,7 +124,7 @@ static bool PFChan_Pathfinder_sizeOk(enum PFChan_Pathfinder ev, int size)
 }
 // Forget to add the event here? :)
 Assert_compileTime(PFChan_Pathfinder__TOO_LOW == 511);
-Assert_compileTime(PFChan_Pathfinder__TOO_HIGH == 522);
+Assert_compileTime(PFChan_Pathfinder__TOO_HIGH == 523);
 
 static bool PFChan_Core_sizeOk(enum PFChan_Core ev, int size)
 {
