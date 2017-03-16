@@ -172,7 +172,7 @@ static Iface_DEFUN handleGetSnodeQuery(struct Message* msg,
 
     } else {
         snq->snodeVersion_be = 0;
-        Bits_memcpy(snq->pathToSnode_be, 0, 8);
+        Bits_memset(snq->pathToSnode_be, 0, 8);
         Bits_memcpy(&snq->snodeKey, ch->activeSnode.key, 32);
     }
 
