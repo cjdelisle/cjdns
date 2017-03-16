@@ -444,11 +444,12 @@ Version_COMPAT(20, ([16,17,18,19]))
 /**
  * The current protocol version.
  */
-#define Version_CURRENT_PROTOCOL 19
+#define Version_CURRENT_PROTOCOL 20
 #define Version_16_COMPAT
 #define Version_17_COMPAT
 #define Version_18_COMPAT
 #define Version_19_COMPAT
+#define Version_20_COMPAT
 
 #define Version_MINIMUM_COMPATIBLE 16
 #define Version_DEFAULT_ASSUMPTION 16

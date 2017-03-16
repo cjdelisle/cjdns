@@ -137,7 +137,9 @@ static Iface_DEFUN messageFromControlHandler(struct Message* msg, struct Iface* 
         }
         ctx->incomingVersion = Endian_hostToBigEndian32(hdr->version_be);
         Bits_memcpy(&ctx->incomingSnodeAddr.key, hdr->snodeKey, 32);
-        ctx->incomingSnodeAddr.path = Endian_bigEndianToHost64(hdr->pathToSnode_be);
+        uint64_t pathToSnode_be;
+        Bits_memcpy(&pathToSnode_be, hdr->pathToSnode_be, 8);
+        ctx->incomingSnodeAddr.path = Endian_bigEndianToHost64(pathToSnode_be);
         ctx->incomingSnodeAddr.protocolVersion = Endian_bigEndianToHost32(hdr->snodeVersion_be);
         ctx->incomingSnodeKbps = Endian_bigEndianToHost32(hdr->kbps_be);
         Message_shift(msg, -Control_GetSnode_HEADER_SIZE, NULL);
