@@ -408,10 +408,15 @@ static Iface_DEFUN peer(struct Message* msg, struct SubnodePathfinder_pvt* pf)
     String* str = Address_toString(&addr, msg->alloc);
     Log_debug(pf->log, "Peer [%s]", str->bytes);
 
-    for (int i = 0; i < pf->myPeers->length; i++) {
-        struct Address* myPeer = AddrSet_get(pf->myPeers, i);
-        if (myPeer->path == addr.path) { return NULL; }
+    int index = AddrSet_indexOf(pf->myPeers, &addr);
+    if (index > -1) {
+        struct Address* myPeer = AddrSet_get(pf->myPeers, index);
+        if (myPeer->path == addr.path && myPeer->protocolVersion == addr.protocolVersion) {
+            return NULL;
+        }
+        AddrSet_remove(pf->myPeers, myPeer);
     }
+
     AddrSet_add(pf->myPeers, &addr);
 
     NodeCache_discoverNode(pf->nc, &addr);
@@ -490,6 +495,14 @@ static Iface_DEFUN handlePong(struct Message* msg, struct SubnodePathfinder_pvt*
 {
     Log_debug(pf->log, "Received pong");
     return NULL;
+}
+
+static Iface_DEFUN ctrlMsgFromSwitchPinger(struct Message* msg, struct Iface* iface)
+{
+    struct SubnodePathfinder_pvt* pf =
+        Identity_containerOf(iface, struct SubnodePathfinder_pvt, switchPingerIf);
+    Message_push32(msg, PFChan_Pathfinder_CTRL_SENDMSG, NULL);
+    return Iface_next(&pf->pub.eventIf, msg);
 }
 
 static Iface_DEFUN ctrlMsg(struct Message* msg, struct SubnodePathfinder_pvt* pf)
@@ -615,6 +628,7 @@ struct SubnodePathfinder* SubnodePathfinder_new(struct Allocator* allocator,
     pf->nc = NodeCache_new(alloc, log, myAddress, base);
 
     pf->sp = SwitchPinger_new(base, rand, log, myAddress, alloc);
+    pf->switchPingerIf.send = ctrlMsgFromSwitchPinger;
     Iface_plumb(&pf->switchPingerIf, &pf->sp->controlHandlerIf);
 
     return &pf->pub;

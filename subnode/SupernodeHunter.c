@@ -246,14 +246,14 @@ static void pingCycle(void* vsn)
 
 static struct Address* getPeerByNpn(struct SupernodeHunter_pvt* snp, int npn)
 {
-    struct Address* peer = NULL;
-    for (int i = npn + 1; i != npn; i = (i + 1) % snp->peers->length) {
-        peer = AddrSet_get(snp->peers, i % snp->peers->length);
-        // nodes with PV less than 20 will never respond to getSnode queries.
-        if (peer && peer->protocolVersion > 19) { break; }
-        peer = NULL;
-    }
-    return peer;
+    npn = npn % snp->peers->length;
+    int i = npn;
+    do {
+        struct Address* peer = AddrSet_get(snp->peers, i);
+        if (peer && peer->protocolVersion > 19) { return peer; }
+        i = (i + 1) % snp->peers->length;
+    } while (i != npn);
+    return NULL;
 }
 
 static void adoptSupernode2(Dict* msg, struct Address* src, struct MsgCore_Promise* prom)
@@ -409,7 +409,8 @@ static void probePeerCycle(void* vsn)
     snp->nextPeer++;
 
     struct SwitchPinger_Ping* p =
-        SwitchPinger_newPing(peer->path, String_CONST(""), 0, peerResponse, snp->alloc, snp->sp);
+        SwitchPinger_newPing(peer->path, String_CONST(""), 3000, peerResponse, snp->alloc, snp->sp);
+    Assert_true(p);
 
     p->type = SwitchPinger_Type_GETSNODE;
     if (snp->pub.snodeIsReachable) {
