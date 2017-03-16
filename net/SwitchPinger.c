@@ -124,7 +124,7 @@ static Iface_DEFUN messageFromControlHandler(struct Message* msg, struct Iface* 
         }
 
     } else if (ctrl->header.type_be == Control_GETSNODE_REPLY_be) {
-        Message_shift(msg, -Control_GetSnode_HEADER_SIZE, NULL);
+        Message_shift(msg, -Control_Header_SIZE, NULL);
         ctx->error = Error_NONE;
         if (msg->length < Control_GetSnode_HEADER_SIZE) {
             Log_debug(ctx->logger, "got runt GetSnode message, length: [%d]", msg->length);

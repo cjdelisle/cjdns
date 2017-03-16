@@ -243,7 +243,7 @@ static Iface_DEFUN incomingFromCore(struct Message* msg, struct Iface* coreIf)
         return handleGetSnodeQuery(msg, ch, label, labelStr);
 
     } else if (ctrl->header.type_be == Control_GETSNODE_REPLY_be) {
-        Log_debug(ch->log, "got switch pong from [%s]", labelStr);
+        Log_debug(ch->log, "got GETSNODE_REPLY from [%s]", labelStr);
         Message_push(msg, &routeHdr, RouteHeader_SIZE, NULL);
         Message_push32(msg, 0xffffffff, NULL);
         Message_push32(msg, PFChan_Core_CTRL_MSG, NULL);
