@@ -347,6 +347,7 @@ static void peerResponseOK(struct SwitchPinger_Response* resp, struct SupernodeH
     if (!snp->pub.snodeIsReachable && snp->nextPeer > 1 && firstPeer->path == resp->label) {
         if (!snp->snodeCandidate.path) {
             Log_info(snp->log, "No snode candidate found");
+            snp->nextPeer = 0;
             return;
         }
         adoptSupernode(snp, &snp->snodeCandidate);
@@ -362,6 +363,7 @@ static void peerResponseOK(struct SwitchPinger_Response* resp, struct SupernodeH
 
     if (!snp->snodeCandidate.path) {
         Bits_memcpy(&snp->snodeCandidate, &snode, sizeof(struct Address));
+        Address_getPrefix(&snp->snodeCandidate);
     }
 
     // 3.
