@@ -429,6 +429,19 @@ Version_COMPAT(18, ([16,17]))
 Version_COMPAT(19, ([16,17,18]))
 
 /**
+ * Version 20:
+ * March 16, 2017
+ *
+ * baratiner
+ *
+ * In this release the default behavior is to try to solicit supernodes by asking peers then to
+ * attempt to announce to a supernode, however the old messages are still supported and they are
+ * handled by the old nodestore. When something needs to be found, this version will use both the
+ * old DHT and its supernode (if it has one) at the same time.
+ */
+Version_COMPAT(20, ([16,17,18,19]))
+
+/**
  * The current protocol version.
  */
 #define Version_CURRENT_PROTOCOL 19

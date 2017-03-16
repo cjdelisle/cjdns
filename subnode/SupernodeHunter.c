@@ -21,6 +21,7 @@
 #include "util/events/Timeout.h"
 #include "util/AddrTools.h"
 #include "util/events/Time.h"
+#include "switch/LabelSplicer.h"
 
 #define CYCLE_MS 3000
 
@@ -34,32 +35,11 @@ struct SupernodeHunter_pvt
     /** Our peers, DO NOT TOUCH, changed from in SubnodePathfinder. */
     struct AddrSet* peers;
 
-    /**
-     * Nodes which we have discovered.
-     * When this reaches MAX, it will be flushed in onReply().
-     * Flushing ensures that downed nodes will not stick around forever.
-     */
-    #define SupernodeHunter_pvt_nodes_MAX 64
-    struct AddrSet* nodes;
+    // Number of the next peer to ping in the peers AddrSet
+    int nextPeer;
 
-    #define SupernodeHunter_pvt_snodeCandidates_MAX 8
-    struct AddrSet* snodeCandidates;
-
-    /**
-     * Index in [ peers + nodes ] of node to try next.
-     * (lowest bit is whether or not to send getPeers req, all higher bits are the index)
-     * see pingCycle().
-     */
-    uint32_t nodeListIndex;
-
-    /** Index in snodeAddrs of supernode to try next. */
-    uint32_t snodeAddrIdx;
-
-    // After we have called pub.onSnodeChange() we set this to true and stop looking for snodes.
-    // If the other code cannot communicate with an snode then it calls
-    // SupernodeHunter_onSnodeTimeout() and this returns to false, triggering the continued
-    // search for a working supernode.
-    bool snodeFound;
+    // Will be set to the best known supernode possibility
+    struct Address snodeCandidate;
 
     struct Allocator* alloc;
 
@@ -68,6 +48,8 @@ struct SupernodeHunter_pvt
     struct MsgCore* msgCore;
 
     struct EventBase* base;
+
+    struct SwitchPinger* sp;
 
     struct Address* myAddress;
     String* selfAddrStr;
@@ -124,6 +106,7 @@ int SupernodeHunter_removeSnode(struct SupernodeHunter* snh, struct Address* toR
     return 0;
 }
 
+/*
 static void onReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom)
 {
     struct Query* q = Identity_check((struct Query*) prom->userData);
@@ -196,7 +179,6 @@ static void pingCycle(void* vsn)
     struct SupernodeHunter_pvt* snp = Identity_check((struct SupernodeHunter_pvt*) vsn);
 
     if (snp->pub.snodeIsReachable) { return; }
-    if (!snp->authorizedSnodes->length) { return; }
     if (!snp->peers->length) { return; }
 
     Log_debug(snp->log, "\n\nping cycle\n\n");
@@ -260,10 +242,187 @@ static void pingCycle(void* vsn)
         Dict_putStringC(msg, "tar", String_newBinary(snode->ip6.bytes, 16, qp->alloc), qp->alloc);
     }
 }
+*/
+
+static struct Address* getPeerByNpn(struct SupernodeHunter_pvt* snp, int npn)
+{
+    struct Address* peer = NULL;
+    for (int i = npn + 1; i != npn; i = (i + 1) % snp->peers->length) {
+        peer = AddrSet_get(snp->peers, i % snp->peers->length);
+        // nodes with PV less than 20 will never respond to getSnode queries.
+        if (peer && peer->protocolVersion > 19) { break; }
+        peer = NULL;
+    }
+    return peer;
+}
+
+static void adoptSupernode2(Dict* msg, struct Address* src, struct MsgCore_Promise* prom)
+{
+    struct Query* q = Identity_check((struct Query*) prom->userData);
+    struct SupernodeHunter_pvt* snp = Identity_check(q->snp);
+
+    if (!src) {
+        String* addrStr = Address_toString(prom->target, prom->alloc);
+        Log_debug(snp->log, "timeout sending to %s", addrStr->bytes);
+        return;
+    }
+    String* addrStr = Address_toString(src, prom->alloc);
+    Log_debug(snp->log, "Reply from %s", addrStr->bytes);
+
+    int64_t* snodeRecvTime = Dict_getIntC(msg, "recvTime");
+    if (!snodeRecvTime) {
+        Log_info(snp->log, "getRoute reply with no timeStamp, bad snode");
+        return;
+    }
+    Log_debug(snp->log, "\n\nSupernode location confirmed [%s]\n\n",
+        Address_toString(src, prom->alloc)->bytes);
+    if (snp->pub.snodeIsReachable) {
+        // If while we were searching, the outside code declared that indeed the snode
+        // is reachable, we will not try to change their snode.
+    } else if (snp->pub.onSnodeChange) {
+        Bits_memcpy(&snp->pub.snodeAddr, src, Address_SIZE);
+        snp->pub.snodeIsReachable = (AddrSet_indexOf(snp->authorizedSnodes, src) != -1) ? 2 : 1;
+        snp->pub.onSnodeChange(&snp->pub, q->sendTime, *snodeRecvTime);
+    } else {
+        Log_warn(snp->log, "onSnodeChange is not set");
+    }
+}
+
+static void adoptSupernode(struct SupernodeHunter_pvt* snp, struct Address* candidate)
+{
+    struct MsgCore_Promise* qp = MsgCore_createQuery(snp->msgCore, 0, snp->alloc);
+    struct Query* q = Allocator_calloc(qp->alloc, sizeof(struct Query), 1);
+    Identity_set(q);
+    q->snp = snp;
+    q->sendTime = Time_currentTimeMilliseconds(snp->base);
+
+    Dict* msg = qp->msg = Dict_new(qp->alloc);
+    qp->cb = adoptSupernode2;
+    qp->userData = q;
+    qp->target = candidate;
+
+    Log_debug(snp->log, "Pinging snode [%s]", Address_toString(qp->target, qp->alloc)->bytes);
+    Dict_putStringCC(msg, "sq", "pn", qp->alloc);
+    return;
+}
+
+static void queryForAuthorized(struct SupernodeHunter_pvt* snp, struct Address* snode)
+{
+    /*
+    struct MsgCore_Promise* qp = MsgCore_createQuery(snp->msgCore, 0, snp->alloc);
+    struct Query* q = Allocator_calloc(qp->alloc, sizeof(struct Query), 1);
+    Identity_set(q);
+    q->snp = snp;
+    q->sendTime = Time_currentTimeMilliseconds(snp->base);
+
+    Dict* msg = qp->msg = Dict_new(qp->alloc);
+    qp->cb = onReply;
+    qp->userData = q;
+    qp->target = candidate;
+
+    Log_debug(snp->log, "Pinging snode [%s]", Address_toString(qp->target, qp->alloc)->bytes);
+    Dict_putStringCC(msg, "sq", "gr", qp->alloc);
+    */
+}
+
+static void peerResponseOK(struct SwitchPinger_Response* resp, struct SupernodeHunter_pvt* snp)
+{
+    struct Address snode;
+    Bits_memcpy(&snode, &resp->snode, sizeof(struct Address));
+    if (!snode.path) {
+        Log_debug(snp->log, "Peer reports no supernode");
+        return;
+    }
+    snode.path = LabelSplicer_splice(snode.path, resp->label);
+
+    struct Address* firstPeer = getPeerByNpn(snp, 0);
+    if (!firstPeer) {
+        Log_info(snp->log, "All peers have gone away while packet was outstanding");
+        return;
+    }
+
+    // 1.
+    // If we have looped around and queried all of our peers returning to the first and we have
+    // still not found an snode in our authorized snodes list, we should simply accept this one.
+    if (!snp->pub.snodeIsReachable && snp->nextPeer > 1 && firstPeer->path == resp->label) {
+        if (!snp->snodeCandidate.path) {
+            Log_info(snp->log, "No snode candidate found");
+            return;
+        }
+        adoptSupernode(snp, &snp->snodeCandidate);
+        return;
+    }
+
+    // 2.
+    // If this snode is one of our authorized snodes OR if we have none defined, accept this one.
+    if (!snp->authorizedSnodes->length || AddrSet_indexOf(snp->authorizedSnodes, &snode) > -1) {
+        adoptSupernode(snp, &snode);
+        return;
+    }
+
+    if (!snp->snodeCandidate.path) {
+        Bits_memcpy(&snp->snodeCandidate, &snode, sizeof(struct Address));
+    }
+
+    // 3.
+    // If this snode is not one of our authorized snodes, query it for all of our authorized snodes.
+    queryForAuthorized(snp, &snode);
+}
+
+static void peerResponse(struct SwitchPinger_Response* resp, void* userData)
+{
+    struct SupernodeHunter_pvt* snp = Identity_check((struct SupernodeHunter_pvt*) userData);
+    char* err = "";
+    switch (resp->res) {
+        case SwitchPinger_Result_OK: peerResponseOK(resp, snp); return;
+        case SwitchPinger_Result_LABEL_MISMATCH: err = "LABEL_MISMATCH"; break;
+        case SwitchPinger_Result_WRONG_DATA: err = "WRONG_DATA"; break;
+        case SwitchPinger_Result_ERROR_RESPONSE: err = "ERROR_RESPONSE"; break;
+        case SwitchPinger_Result_LOOP_ROUTE: err = "LOOP_ROUTE"; break;
+        case SwitchPinger_Result_TIMEOUT: err = "TIMEOUT"; break;
+        default: err = "unknown error"; break;
+    }
+    Log_debug(snp->log, "Error sending snp query to peer [%s]", err);
+}
+
+static void probePeerCycle(void* vsn)
+{
+    struct SupernodeHunter_pvt* snp = Identity_check((struct SupernodeHunter_pvt*) vsn);
+
+    if (snp->pub.snodeIsReachable > 1) { return; }
+    if (snp->pub.snodeIsReachable && !snp->authorizedSnodes->length) { return; }
+    if (!snp->peers->length) { return; }
+
+    Log_debug(snp->log, "\n\nping cycle\n\n");
+
+    if (AddrSet_indexOf(snp->authorizedSnodes, snp->myAddress) != -1) {
+        Log_info(snp->log, "Self is specified as supernode, pinging...");
+        adoptSupernode(snp, snp->myAddress);
+        return;
+    }
+
+    struct Address* peer = getPeerByNpn(snp, snp->nextPeer);
+    if (!peer) {
+        Log_info(snp->log, "No peer found who is version >= 20");
+        return;
+    }
+    snp->nextPeer++;
+
+    struct SwitchPinger_Ping* p =
+        SwitchPinger_newPing(peer->path, String_CONST(""), 0, peerResponse, snp->alloc, snp->sp);
+
+    p->type = SwitchPinger_Type_GETSNODE;
+    if (snp->pub.snodeIsReachable) {
+        Bits_memcpy(&p->snode, &snp->pub.snodeAddr, sizeof(struct Address));
+    }
+
+    p->onResponseContext = snp;
+}
 
 struct SupernodeHunter* SupernodeHunter_new(struct Allocator* allocator,
                                             struct Log* log,
                                             struct EventBase* base,
+                                            struct SwitchPinger* sp,
                                             struct AddrSet* peers,
                                             struct MsgCore* msgCore,
                                             struct Address* myAddress)
@@ -271,18 +430,20 @@ struct SupernodeHunter* SupernodeHunter_new(struct Allocator* allocator,
     struct Allocator* alloc = Allocator_child(allocator);
     struct SupernodeHunter_pvt* out =
         Allocator_calloc(alloc, sizeof(struct SupernodeHunter_pvt), 1);
+    Identity_set(out);
     out->authorizedSnodes = AddrSet_new(alloc);
     out->peers = peers;
     out->base = base;
-    out->nodes = AddrSet_new(alloc);
+    //out->rand = rand;
+    //out->nodes = AddrSet_new(alloc);
     //out->timeSnodeCalled = Time_currentTimeMilliseconds(base);
-    out->snodeCandidates = AddrSet_new(alloc);
+    //out->snodeCandidates = AddrSet_new(alloc);
     out->log = log;
     out->alloc = alloc;
     out->msgCore = msgCore;
     out->myAddress = myAddress;
     out->selfAddrStr = String_newBinary(myAddress->ip6.bytes, 16, alloc);
-    Identity_set(out);
-    Timeout_setInterval(pingCycle, out, CYCLE_MS, base, alloc);
+    out->sp = sp;
+    Timeout_setInterval(probePeerCycle, out, CYCLE_MS, base, alloc);
     return &out->pub;
 }

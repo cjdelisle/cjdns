@@ -18,10 +18,10 @@
 #include "subnode/MsgCore.h"
 #include "subnode/SupernodeHunter.h"
 #include "subnode/GetPeersResponder.h"
-#include "subnode/FindNodeResponder.h"
 #include "subnode/PingResponder.h"
 #include "subnode/BoilerplateResponder.h"
 #include "subnode/ReachabilityCollector.h"
+#include "subnode/NodeCache.h"
 #include "dht/Address.h"
 #include "wire/DataHeader.h"
 #include "wire/RouteHeader.h"
@@ -40,6 +40,7 @@
 //#include "dht/dhtcore/Router_new.h"
 #include "util/AddrTools.h"
 #include "util/events/Timeout.h"
+#include "net/SwitchPinger.h"
 #include "wire/Error.h"
 #include "wire/PFChan.h"
 #include "wire/DataHeader.h"
@@ -81,6 +82,9 @@ struct SubnodePathfinder_pvt
     struct ReachabilityAnnouncer* ra;
 
     struct ReachabilityCollector* rc;
+
+    struct SwitchPinger* sp;
+    struct Iface switchPingerIf;
 
     struct EncodingScheme* myScheme;
 
@@ -488,6 +492,11 @@ static Iface_DEFUN handlePong(struct Message* msg, struct SubnodePathfinder_pvt*
     return NULL;
 }
 
+static Iface_DEFUN ctrlMsg(struct Message* msg, struct SubnodePathfinder_pvt* pf)
+{
+    return Iface_next(&pf->switchPingerIf, msg);
+}
+
 static Iface_DEFUN incomingMsg(struct Message* msg, struct SubnodePathfinder_pvt* pf)
 {
     return Iface_next(&pf->msgCoreIf, msg);
@@ -528,6 +537,7 @@ static Iface_DEFUN incomingFromEventIf(struct Message* msg, struct Iface* eventI
         case PFChan_Core_MSG: return incomingMsg(msg, pf);
         case PFChan_Core_PING: return handlePing(msg, pf);
         case PFChan_Core_PONG: return handlePong(msg, pf);
+        case PFChan_Core_CTRL_MSG: return ctrlMsg(msg, pf);
         default:;
     }
     Assert_failure("unexpected event [%d]", ev);
@@ -557,10 +567,8 @@ void SubnodePathfinder_start(struct SubnodePathfinder* sp)
     GetPeersResponder_new(
         pf->alloc, pf->log, pf->myPeers, pf->myAddress, pf->msgCore, pf->br, pf->myScheme);
 
-    FindNodeResponder_new(pf->alloc, pf->log, pf->msgCore, pf->base, pf->br, pf->nc);
-
     pf->pub.snh = SupernodeHunter_new(
-        pf->alloc, pf->log, pf->base, pf->myPeers, pf->msgCore, pf->myAddress);
+        pf->alloc, pf->log, pf->base, pf->sp, pf->myPeers, pf->msgCore, pf->myAddress);
 
     pf->ra = ReachabilityAnnouncer_new(
         pf->alloc, pf->log, pf->base, pf->rand, pf->msgCore, pf->pub.snh, pf->privateKey,
@@ -605,6 +613,9 @@ struct SubnodePathfinder* SubnodePathfinder_new(struct Allocator* allocator,
     pf->myScheme = myScheme;
     pf->br = BoilerplateResponder_new(myScheme, alloc);
     pf->nc = NodeCache_new(alloc, log, myAddress, base);
+
+    pf->sp = SwitchPinger_new(base, rand, log, myAddress, alloc);
+    Iface_plumb(&pf->switchPingerIf, &pf->sp->controlHandlerIf);
 
     return &pf->pub;
 }

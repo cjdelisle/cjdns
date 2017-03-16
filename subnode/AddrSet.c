@@ -52,6 +52,12 @@ static int indexOf(struct AddrSet_pvt* ap, struct Address* addr)
     return -1;
 }
 
+int AddrSet_indexOf(struct AddrSet* as, struct Address* addr)
+{
+    struct AddrSet_pvt* ap = Identity_check((struct AddrSet_pvt*) as);
+    return indexOf(ap, addr);
+}
+
 void AddrSet_add(struct AddrSet* as, struct Address* addr)
 {
     struct AddrSet_pvt* ap = Identity_check((struct AddrSet_pvt*) as);

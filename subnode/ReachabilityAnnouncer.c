@@ -591,23 +591,23 @@ static void onAnnounceCycle(void* vRap)
     // TODO(cjd): add boilerplate
 }
 
-static void onSnodeChange(void* vRa,
-                          struct Address* snodeAddr,
+static void onSnodeChange(struct SupernodeHunter* sh,
                           int64_t sendTime,
                           int64_t snodeRecvTime)
 {
-    struct ReachabilityAnnouncer_pvt* rap = Identity_check((struct ReachabilityAnnouncer_pvt*) vRa);
+    struct ReachabilityAnnouncer_pvt* rap =
+        Identity_check((struct ReachabilityAnnouncer_pvt*) sh->userData);
     int64_t clockSkew = estimateClockSkew(sendTime, snodeRecvTime, getTime(rap));
     uint64_t clockSkewDiff = (clockSkew - rap->clockSkew) & ~(((uint64_t)1)<<63);
     // If the node is the same and the clock skew difference is less than 10 seconds,
     // just change path and continue.
-    if (!Bits_memcmp(rap->snode.key, snodeAddr->key, 32) && clockSkewDiff < 5000) {
+    if (!Bits_memcmp(rap->snode.key, sh->snodeAddr.key, 32) && clockSkewDiff < 5000) {
         Log_debug(rap->log, "Change Supernode (path only)");
-        Bits_memcpy(&rap->snode, snodeAddr, Address_SIZE);
+        Bits_memcpy(&rap->snode, &sh->snodeAddr, Address_SIZE);
         return;
     }
     Log_debug(rap->log, "Change Supernode");
-    Bits_memcpy(&rap->snode, snodeAddr, Address_SIZE);
+    Bits_memcpy(&rap->snode, &sh->snodeAddr, Address_SIZE);
     rap->clockSkew = estimateClockSkew(sendTime, snodeRecvTime, getTime(rap));
     stateReset(rap);
 }

@@ -114,6 +114,21 @@ static void listSnodes(Dict* args, void* vcontext, String* txid, struct Allocato
     Admin_sendMessage(out, txid, ctx->admin);
 }
 
+static void status(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
+{
+    struct Context* ctx = Identity_check((struct Context*) vcontext);
+    char* activeSnode = "NONE";
+    Dict* out = Dict_new(requestAlloc);
+    if (ctx->snh->snodeIsReachable) {
+        String* as = Address_toString(&ctx->snh->snodeAddr, requestAlloc);
+        activeSnode = as->bytes;
+    }
+    Dict_putIntC(out, "usingAuthorizedSnode", ctx->snh->snodeIsReachable > 1, requestAlloc);
+    Dict_putStringCC(out, "activeSnode", activeSnode, requestAlloc);
+    Dict_putStringCC(out, "error", "none", requestAlloc);
+    Admin_sendMessage(out, txid, ctx->admin);
+}
+
 void SupernodeHunter_admin_register(struct SupernodeHunter* snh,
                                     struct Admin* admin,
                                     struct Allocator* alloc)
@@ -125,7 +140,7 @@ void SupernodeHunter_admin_register(struct SupernodeHunter* snh,
     }));
     Identity_set(ctx);
 
-    Admin_registerFunction("SupernodeHunter_addSnode", addSnode, ctx, false,
+    Admin_registerFunction("SupernodeHunter_addSnode", addSnode, ctx, true,
         ((struct Admin_FunctionArg[]) {
             { .name = "key", .required = true, .type = "String" }
         }), admin);
@@ -137,4 +152,5 @@ void SupernodeHunter_admin_register(struct SupernodeHunter* snh,
         ((struct Admin_FunctionArg[]) {
             { .name = "key", .required = true, .type = "String" }
         }), admin);
+    Admin_registerFunction("SupernodeHunter_status", status, ctx, false, NULL, admin);
 }

@@ -86,7 +86,7 @@ static void adminPing(Dict* args, void* vcontext, String* txid, struct Allocator
                                                               adminPingOnResponse,
                                                               context->alloc,
                                                               context->switchPinger);
-        if (keyPing && *keyPing) { ping->keyPing = true; }
+        if (keyPing && *keyPing) { ping->type = SwitchPinger_Type_KEYPING; }
         if (!ping) {
             err = String_CONST("no open slots to store ping, try later.");
         } else {

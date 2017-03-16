@@ -18,23 +18,29 @@
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
 #include "util/events/EventBase.h"
-#include "crypto/random/Random.h"
 #include "subnode/AddrSet.h"
 #include "subnode/MsgCore.h"
 #include "dht/Address.h"
+#include "net/SwitchPinger.h"
 #include "util/Linker.h"
 Linker_require("subnode/SupernodeHunter.c");
 
-typedef void (* SupernodeHunter_Callback)(void* userData,
-                                          struct Address* snodeAddr,
+struct SupernodeHunter;
+
+typedef void (* SupernodeHunter_Callback)(struct SupernodeHunter* sh,
                                           int64_t sendTime,
                                           int64_t snodeRecvTime);
 
 struct SupernodeHunter
 {
-    // Setting this to false will re-trigger the search for a functioning snode, but setting
-    // it back to true will stop this search.
-    bool snodeIsReachable;
+    // This will be set to:
+    // 1 when a supernode is found and
+    // 2 if the supernode is found AND it is one of the ones in the authorized list.
+    // If it is in state 1 and there exist authorized snodes, it will keep on looking for anyone
+    // who knows the way to one of the snodes in the authorized list.
+    //
+    // If you lose connection to your snode, you can use
+    int snodeIsReachable;
 
     struct Address snodeAddr;
 
@@ -60,6 +66,7 @@ int SupernodeHunter_removeSnode(struct SupernodeHunter* snh, struct Address* toR
 struct SupernodeHunter* SupernodeHunter_new(struct Allocator* allocator,
                                             struct Log* log,
                                             struct EventBase* base,
+                                            struct SwitchPinger* sp,
                                             struct AddrSet* peers,
                                             struct MsgCore* msgCore,
                                             struct Address* myAddress);

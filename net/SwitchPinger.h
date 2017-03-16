@@ -71,11 +71,22 @@ struct SwitchPinger_Response
     /** The key for the node which was pinged, if not a keyPing then this is set to 0. */
     uint8_t key[32];
 
+    // relevant to messages of type GETSNODE
+    uint32_t kbpsLimit;
+    struct Address snode;
+
     struct SwitchPinger_Ping* ping;
 };
 
 /** Callback which will be called when the ping response comes back. */
 typedef void (* SwitchPinger_ResponseCallback)(struct SwitchPinger_Response* resp, void* userData);
+
+enum SwitchPinger_Type
+{
+    SwitchPinger_Type_PING,
+    SwitchPinger_Type_KEYPING,
+    SwitchPinger_Type_GETSNODE
+};
 
 struct SwitchPinger_Ping
 {
@@ -85,8 +96,11 @@ struct SwitchPinger_Ping
      */
     struct Allocator* pingAlloc;
 
-    /** If true then a key-ping will be sent instead of a legacy ping, default false. */
-    bool keyPing;
+    enum SwitchPinger_Type type;
+
+    // relevant only for pings of type GETSNODE
+    uint32_t kbpsLimit;
+    struct Address snode;
 
     /**
      * This is NULL by default and is set by the caller of Pinger_ping(),

@@ -131,7 +131,7 @@ struct Control_GetSnode
     // but if A configures or estimates 1000Mb, B configures 100Mb -> use 100Mb
     //
     // Nodes MUST check if this message comes from a direct peer before using this value.
-    // 0xffffffff if unknown
+    // 0 if unknown
     uint32_t kbps_be;
 
     // Key of the supernode belonging to the node sending, zero if no supernode is known or

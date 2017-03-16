@@ -156,7 +156,9 @@ static Iface_DEFUN incomingFromEventIf(struct Message* msg, struct Iface* eventI
 {
     struct UpperDistributor_pvt* ud =
         Identity_containerOf(eventIf, struct UpperDistributor_pvt, eventIf);
-    Assert_true(Message_pop32(msg, NULL) == PFChan_Pathfinder_SENDMSG);
+    uint32_t messageType = Message_pop32(msg, NULL);
+    Assert_true(messageType == PFChan_Pathfinder_SENDMSG ||
+        messageType == PFChan_Pathfinder_CTRL_SENDMSG);
     Message_pop32(msg, NULL);
     return toSessionManagerIf(msg, ud);
 }
@@ -294,6 +296,7 @@ struct UpperDistributor* UpperDistributor_new(struct Allocator* allocator,
     out->myAddress = myAddress;
 
     EventEmitter_regCore(ee, &out->eventIf, PFChan_Pathfinder_SENDMSG);
+    EventEmitter_regCore(ee, &out->eventIf, PFChan_Pathfinder_CTRL_SENDMSG);
 
     return &out->pub;
 }

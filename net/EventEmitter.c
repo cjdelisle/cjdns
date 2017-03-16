@@ -115,13 +115,15 @@ static bool PFChan_Pathfinder_sizeOk(enum PFChan_Pathfinder ev, int size)
         case PFChan_Pathfinder_PEERS:
         case PFChan_Pathfinder_PATHFINDERS:
             return (size == 8);
+        case PFChan_Pathfinder_CTRL_SENDMSG:
+            return (size >= 8 + PFChan_CtrlMsg_MIN_SIZE);
         default:;
     }
     Assert_failure("invalid event [%d]", ev);
 }
 // Forget to add the event here? :)
 Assert_compileTime(PFChan_Pathfinder__TOO_LOW == 511);
-Assert_compileTime(PFChan_Pathfinder__TOO_HIGH == 521);
+Assert_compileTime(PFChan_Pathfinder__TOO_HIGH == 522);
 
 static bool PFChan_Core_sizeOk(enum PFChan_Core ev, int size)
 {
@@ -152,13 +154,17 @@ static bool PFChan_Core_sizeOk(enum PFChan_Core ev, int size)
         case PFChan_Core_PING:
         case PFChan_Core_PONG:
             return (size == 8 + PFChan_Ping_SIZE);
+
+        case PFChan_Core_CTRL_MSG:
+            return (size >= 8 + PFChan_CtrlMsg_MIN_SIZE);
+
         default:;
     }
     Assert_failure("invalid event [%d]", ev);
 }
 // Remember to add the event to this function too!
 Assert_compileTime(PFChan_Core__TOO_LOW == 1023);
-Assert_compileTime(PFChan_Core__TOO_HIGH == 1037);
+Assert_compileTime(PFChan_Core__TOO_HIGH == 1038);
 
 static Iface_DEFUN incomingFromCore(struct Message* msg, struct Iface* trickIf)
 {

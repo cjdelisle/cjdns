@@ -26,7 +26,6 @@ struct ControlHandler_pvt
     struct ControlHandler pub;
     struct Log* log;
     struct Allocator* alloc;
-    struct Router* router;
     uint8_t myPublicKey[32];
     struct Iface eventIf;
     struct Address activeSnode;
@@ -242,6 +241,13 @@ static Iface_DEFUN incomingFromCore(struct Message* msg, struct Iface* coreIf)
 
     } else if (ctrl->header.type_be == Control_GETSNODE_QUERY_be) {
         return handleGetSnodeQuery(msg, ch, label, labelStr);
+
+    } else if (ctrl->header.type_be == Control_GETSNODE_REPLY_be) {
+        Log_debug(ch->log, "got switch pong from [%s]", labelStr);
+        Message_push(msg, &routeHdr, RouteHeader_SIZE, NULL);
+        Message_push32(msg, 0xffffffff, NULL);
+        Message_push32(msg, PFChan_Core_CTRL_MSG, NULL);
+        return Iface_next(&ch->eventIf, msg);
     }
 
     Log_info(ch->log, "DROP control packet of unknown type from [%s], type [%d]",
