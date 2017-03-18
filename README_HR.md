@@ -40,7 +40,7 @@ skalabilne probleme koje muče trenutne mreže.
 po cijelom svijetu.
 
 Cjdns je testiran na x86, amd64, ARMv5, ARMv7, MIPS, and PowerPC.
-Stalno se [testira][buildbots] na Linuxu, FreeBSDu, OS X-u, Windowsu and Illumos
+Stalno se [testira][buildbots] na Linuxu, FreeBSDu, macOS-u, Windowsu and Illumos
 systemima.
 
 Protokoli i algoritmi su eksperimentalni i mogli bi se promijeniti.
@@ -130,10 +130,10 @@ it will be downloaded and installed in the source tree.
     sudo yum install install nodejs git
     sudo yum install @development-tools
 
-#### OS X:
+#### macOS:
 
-On OS X, you must install the Command Line Developer Tools. If
-you already have a recent version of Xcode (>= OS X 10.9 and >= Xcode 5.0.1), run the
+On macOS, you must install the Command Line Developer Tools. If
+you already have a recent version of Xcode (>= macOS 10.9 and >= Xcode 5.0.1), run the
 following command:
 
     xcode-select --install
@@ -142,7 +142,7 @@ If Xcode is not installed, you can either install it through the App
 Store and run the command above, or make a free Apple Developer account here:
 [https://developer.apple.com/downloads/index.action](https://developer.apple.com/downloads/index.action).
 Then sign in, search for Command Line Tools, and install the latest package
-compatible with your version of OS X. If you encounter issues, there is a
+compatible with your version of macOS. If you encounter issues, there is a
 thorough [stackoverflow post](https://stackoverflow.com/a/9329325) on installing
 the Command Line Tools.
 
@@ -150,9 +150,9 @@ You must also install git and Node.js. There are a few options. If you use [Home
 
     brew install git nodejs
 
-Ako koristite [Macports](https://www.macports.org/):
+Ako koristite [MacPorts](https://www.macports.org/):
 
-    sudo port install git-core nodejs
+    sudo port install git nodejs6
 
 Or if you use neither and would like to install the binaries from their websites:
 doc
@@ -213,7 +213,7 @@ Zatim pokrenite `cat /dev/net/tun` opet.
 If it says: `cat: /dev/net/tun: Permission denied` You're probably using a VPS
 based on the OpenVZ virtualization platform. Ask your provider to enable the
 TUN/TAP device - this is standard protocol so they should know exactly what you
-need. If you're on OS X, don't worry about this step.
+need. If you're on macOS, don't worry about this step.
 
 
 ### 1. Stvorite novu konfiguracijsku datoteku

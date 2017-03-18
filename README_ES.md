@@ -76,7 +76,7 @@ Los desarrolladores de CJDNS.
 
 ## Como instalar CJDNS
 
-Estas instrucciones son para las distribuciones basadas en Debian y OS X. Deben ser
+Estas instrucciones son para las distribuciones basadas en Debian y macOS. Deben ser
 suficientemente informativas como para usarse en otras distribuciones - solo no
 espere que funcionen tal cual. Si desea saber que [base del sistema operativo tiene, revise aqui](https://upload.wikimedia.org/wikipedia/commons/1/1b/Linux_Distribution_Timeline.svg).
 
@@ -115,11 +115,15 @@ El servicio de resume reinicia cjdns cuando el sistema regresa de dormir.
 
     emerge --ask nodejs sys-devel/gcc dev-lang/python:3.4 dev-vcs/git
 
-#### OS X:
+#### macOS:
 
-Instalar con homebrew:
+Instalar con [Homebrew](https://brew.sh/):
 
     brew install cjdns
+
+Instalar con [MacPorts](https://www.macports.org/):
+
+    sudo port install cjdns
 
 #### OpenBSD:
 
@@ -204,7 +208,7 @@ Después ejecute `cat /dev/net/tun` otra ves.
 Si dice: `cat: /dev/net/tun: Permission denied` Probablemente usted esta usando
 un VPS basado en la plataforma de virtualización OpenVZ. Pídale a su proveedor 
 que habilite el dispositivo TUN/TAP - esto es un protocolo estándar y ellos
-deberían de saber que es lo que usted necesita. Si esta usando OS X, no necesita
+deberían de saber que es lo que usted necesita. Si esta usando macOS, no necesita
 preocuparse por este paso.
 
 ### 1. Generando un archivo de configuración
