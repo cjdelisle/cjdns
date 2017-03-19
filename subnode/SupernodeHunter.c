@@ -221,6 +221,7 @@ static void peerResponseOK(struct SwitchPinger_Response* resp, struct SupernodeH
     // 2.
     // If this snode is one of our authorized snodes OR if we have none defined, accept this one.
     if (!snp->authorizedSnodes->length || AddrSet_indexOf(snp->authorizedSnodes, &snode) > -1) {
+        Address_getPrefix(&snode);
         adoptSupernode(snp, &snode);
         return;
     }
