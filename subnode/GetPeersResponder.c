@@ -59,9 +59,9 @@ static void onGetPeers(Dict* msg,
         label = Endian_bigEndianToHost64(label_be);
     }
 
-    struct Address outAddrs[GETPEERS_RESPONSE_NODES] = { { .padding = 0 } };
-
-    Bits_memcpy(&outAddrs[GETPEERS_RESPONSE_NODES-1], gprp->selfAddr, Address_SIZE);
+    struct Address** ptrList =
+        Allocator_calloc(tmpAlloc, sizeof(uintptr_t), GETPEERS_RESPONSE_NODES+1);
+    ptrList[GETPEERS_RESPONSE_NODES-1] = gprp->selfAddr;
 
     if (label > 1) {
         int formNum = EncodingScheme_getFormNum(gprp->myScheme, label);
@@ -70,15 +70,33 @@ static void onGetPeers(Dict* msg,
             label = (label & Bits_maxBits64(bitsUsed)) | 1 << bitsUsed;
         }
     }
-    int size = 0;
     for (int i = 0; i < gprp->peers->length; i++) {
         struct Address* peer = AddrSet_get(gprp->peers, i);
         if (peer->path < label) { continue; }
-        Bits_memcpy(&outAddrs[size++], peer, Address_SIZE);
+        int j;
+        for (j = 0; j < GETPEERS_RESPONSE_NODES; j++) {
+            if (!ptrList[j]) { continue; }
+            if ((ptrList[j]->path - label) > (peer->path - label)) { continue; }
+            break;
+        }
+        switch (j) {
+            default: Bits_memmove(ptrList, &ptrList[1], (j - 1) * sizeof(char*));
+            case 1: ptrList[j - 1] = peer;
+            case 0:;
+        }
     }
+    Assert_true(!ptrList[GETPEERS_RESPONSE_NODES]);
+    struct Address* addrList =
+        Allocator_calloc(tmpAlloc, sizeof(struct Address), GETPEERS_RESPONSE_NODES+1);
+    int size = 0;
+    for (int i = 0; i < GETPEERS_RESPONSE_NODES; i++) {
+        if (!ptrList[i]) { continue; }
+        Bits_memcpy(&addrList[size++], ptrList[i], sizeof(struct Address));
+    }
+    Assert_true(Bits_isZero(&addrList[GETPEERS_RESPONSE_NODES], sizeof(struct Address)));
 
     Dict* responseDict = Dict_new(tmpAlloc);
-    ReplySerializer_serialize((&(struct Address_List) { .elems = outAddrs, .length = size }),
+    ReplySerializer_serialize((&(struct Address_List) { .elems = addrList, .length = size }),
                               responseDict,
                               src,
                               tmpAlloc);
