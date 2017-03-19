@@ -12,7 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-//#include "dht/DHTModule.h"
 #include "subnode/SubnodePathfinder.h"
 #include "subnode/AddrSet.h"
 #include "subnode/MsgCore.h"
@@ -21,23 +20,10 @@
 #include "subnode/PingResponder.h"
 #include "subnode/BoilerplateResponder.h"
 #include "subnode/ReachabilityCollector.h"
-#include "subnode/NodeCache.h"
 #include "dht/Address.h"
 #include "wire/DataHeader.h"
 #include "wire/RouteHeader.h"
-//#include "dht/ReplyModule.h"
-//#include "dht/EncodingSchemeModule.h"
-//#include "dht/SerializationModule.h"
 #include "dht/dhtcore/ReplySerializer.h"
-//#include "dht/dhtcore/RouterModule.h"
-//#include "dht/dhtcore/RouterModule_admin.h"
-//#include "dht/dhtcore/RumorMill.h"
-//#include "dht/dhtcore/SearchRunner.h"
-//#include "dht/dhtcore/SearchRunner_admin.h"
-//#include "dht/dhtcore/NodeStore_admin.h"
-//#include "dht/dhtcore/Janitor_admin.h"
-//#include "dht/dhtcore/Janitor.h"
-//#include "dht/dhtcore/Router_new.h"
 #include "util/AddrTools.h"
 #include "util/events/Timeout.h"
 #include "net/SwitchPinger.h"
@@ -48,7 +34,6 @@
 
 #include "subnode/ReachabilityAnnouncer.h"
 
-///////////////////// [ Address ][ content... ]
 
 
 struct SubnodePathfinder_pvt
@@ -57,7 +42,6 @@ struct SubnodePathfinder_pvt
 
     struct Iface msgCoreIf;
 
-    //struct DHTModule dhtModule;
     struct Allocator* alloc;
     struct Log* log;
     struct EventBase* base;
@@ -75,8 +59,6 @@ struct SubnodePathfinder_pvt
 
     struct Admin* admin;
 
-    struct NodeCache* nc;
-
     struct BoilerplateResponder* br;
 
     struct ReachabilityAnnouncer* ra;
@@ -90,59 +72,9 @@ struct SubnodePathfinder_pvt
 
     String* encodingSchemeStr;
 
-    //struct DHTModuleRegistry* registry;
-    //struct NodeStore* nodeStore;
-    //struct Router* router;
-    //struct SearchRunner* searchRunner;
-    //struct RumorMill* rumorMill;
-    //struct Janitor* janitor;
-
     Identity
 };
 
-/*
-static int incomingFromDHT(struct DHTMessage* dmessage, void* vpf)
-{
-    struct SubnodePathfinder_pvt* pf = Identity_check((struct SubnodePathfinder_pvt*) vpf);
-    struct Message* msg = dmessage->binMessage;
-    struct Address* addr = dmessage->address;
-
-    if (addr->path == 1) {
-        // Message to myself, can't handle this later because encrypting a message to yourself
-        // causes problems.
-        DHTModuleRegistry_handleIncoming(dmessage, pf->registry);
-        return 0;
-    }
-
-    // Sanity check (make sure the addr was actually calculated)
-    Assert_true(addr->ip6.bytes[0] == 0xfc);
-
-    Message_shift(msg, PFChan_Msg_MIN_SIZE, NULL);
-    struct PFChan_Msg* emsg = (struct PFChan_Msg*) msg->bytes;
-    Bits_memset(emsg, 0, PFChan_Msg_MIN_SIZE);
-
-    DataHeader_setVersion(&emsg->data, DataHeader_CURRENT_VERSION);
-    DataHeader_setContentType(&emsg->data, ContentType_CJDHT);
-
-    Bits_memcpy(emsg->route.ip6, addr->ip6.bytes, 16);
-    emsg->route.version_be = Endian_hostToBigEndian32(addr->protocolVersion);
-    emsg->route.sh.label_be = Endian_hostToBigEndian64(addr->path);
-    Bits_memcpy(emsg->route.publicKey, addr->key, 32);
-
-    Message_push32(msg, PFChan_Pathfinder_SENDMSG, NULL);
-
-    if (dmessage->replyTo) {
-        // see incomingMsg
-        dmessage->replyTo->pleaseRespond = true;
-        //Log_debug(pf->log, "send DHT reply");
-        return 0;
-    }
-    //Log_debug(pf->log, "send DHT request");
-
-    Iface_send(&pf->pub.eventIf, msg);
-    return 0;
-}
-*/
 static void nodeForAddress(struct PFChan_Node* nodeOut, struct Address* addr, uint32_t metric)
 {
     Bits_memset(nodeOut, 0, PFChan_Node_SIZE);
@@ -169,91 +101,10 @@ static Iface_DEFUN sendNode(struct Message* msg,
     return Iface_next(&pf->pub.eventIf, msg);
 }
 
-/*
-static void onBestPathChange(void* vPathfinder, struct Node_Two* node)
-{
-    struct SubnodePathfinder_pvt* pf = Identity_check((struct SubnodePathfinder_pvt*) vPathfinder);
-    if (pf->bestPathChanges > 128) {
-        Log_debug(pf->log, "Ignore best path change from NodeStore, calm down...");
-        return;
-    }
-    pf->bestPathChanges++;
-    struct Allocator* alloc = Allocator_child(pf->alloc);
-    struct Message* msg = Message_new(0, 256, alloc);
-    Iface_CALL(sendNode, msg, &node->address, Node_getCost(node), PFChan_Pathfinder_NODE, pf);
-    Allocator_free(alloc);
-}
-*/
-
-
 static Iface_DEFUN connected(struct SubnodePathfinder_pvt* pf, struct Message* msg)
 {
     Log_debug(pf->log, "INIT");
-/*
-    struct PFChan_Core_Connect conn;
-    Message_pop(msg, &conn, PFChan_Core_Connect_SIZE, NULL);
-    Assert_true(!msg->length);
-
-    Bits_memcpy(pf->myAddr.key, conn.publicKey, 32);
-    Address_getPrefix(&pf->myAddr);
-    pf->myAddr.path = 1;
-
-
-    // begin
-
-    pf->registry = DHTModuleRegistry_new(pf->alloc);
-    ReplyModule_register(pf->registry, pf->alloc);
-
-    pf->rumorMill = RumorMill_new(pf->alloc, &pf->myAddr, RUMORMILL_CAPACITY, pf->log, "extern");
-
-    pf->nodeStore = NodeStore_new(&pf->myAddr, pf->alloc, pf->base, pf->log, pf->rumorMill);
-
-    pf->nodeStore->onBestPathChange = onBestPathChange;
-    pf->nodeStore->onBestPathChangeCtx = pf;
-
-    struct RouterModule* routerModule = RouterModule_register(pf->registry,
-                                                              pf->alloc,
-                                                              pf->myAddr.key,
-                                                              pf->base,
-                                                              pf->log,
-                                                              pf->rand,
-                                                              pf->nodeStore);
-
-    pf->searchRunner = SearchRunner_new(pf->nodeStore,
-                                        pf->log,
-                                        pf->base,
-                                        routerModule,
-                                        pf->myAddr.ip6.bytes,
-                                        pf->rumorMill,
-                                        pf->alloc);
-
-    pf->janitor = Janitor_new(routerModule,
-                              pf->nodeStore,
-                              pf->searchRunner,
-                              pf->rumorMill,
-                              pf->log,
-                              pf->alloc,
-                              pf->base,
-                              pf->rand);
-
-    EncodingSchemeModule_register(pf->registry, pf->log, pf->alloc);
-
-    SerializationModule_register(pf->registry, pf->log, pf->alloc);
-
-    DHTModuleRegistry_register(&pf->dhtModule, pf->registry);
-
-    pf->router = Router_new(routerModule, pf->nodeStore, pf->searchRunner, pf->alloc);
-
-    // Now the admin stuff...
-    if (pf->admin) {
-        NodeStore_admin_register(pf->nodeStore, pf->admin, pf->alloc);
-        RouterModule_admin_register(routerModule, pf->router, pf->admin, pf->alloc);
-        SearchRunner_admin_register(pf->searchRunner, pf->admin, pf->alloc);
-        Janitor_admin_register(pf->janitor, pf->admin, pf->alloc);
-    }
-*/
     pf->state = SubnodePathfinder_pvt_state_RUNNING;
-
     return NULL;
 }
 
@@ -310,7 +161,7 @@ static void getRouteReply(Dict* msg, struct Address* src, struct MsgCore_Promise
     struct Address_List* al = ReplySerializer_parse(src, msg, pf->log, false, prom->alloc);
     if (!al || al->length == 0) { return; }
     Log_debug(pf->log, "reply with[%s]", Address_toString(&al->elems[0], prom->alloc)->bytes);
-    NodeCache_discoverNode(pf->nc, &al->elems[0]);
+    //NodeCache_discoverNode(pf->nc, &al->elems[0]);
     struct Message* msgToCore = Message_new(0, 512, prom->alloc);
     Iface_CALL(sendNode, msgToCore, &al->elems[0], 0xfffffff0, PFChan_Pathfinder_NODE, pf);
 }
@@ -325,7 +176,7 @@ static void pingReply(Dict* msg, struct Address* src, struct MsgCore_Promise* pr
     }
     Log_debug(pf->log, "\n\n\n\nPING reply from [%s]!\n\n\n\n",
         Address_toString(src, prom->alloc)->bytes);
-    NodeCache_discoverNode(pf->nc, src);
+    //NodeCache_discoverNode(pf->nc, src);
     struct Message* msgToCore = Message_new(0, 512, prom->alloc);
     Iface_CALL(sendNode, msgToCore, src, 0xffffff70, PFChan_Pathfinder_NODE, pf);
 }
@@ -338,21 +189,6 @@ static Iface_DEFUN searchReq(struct Message* msg, struct SubnodePathfinder_pvt* 
     uint8_t printedAddr[40];
     AddrTools_printIp(printedAddr, addr);
     Log_debug(pf->log, "\n\n\n\nSearch req [%s]\n\n\n\n", printedAddr);
-
-    struct Address* fullAddr = NodeCache_getNode(pf->nc, addr);
-    if (fullAddr) {
-        struct MsgCore_Promise* qp = MsgCore_createQuery(pf->msgCore, 0, pf->alloc);
-        Dict* dict = qp->msg = Dict_new(qp->alloc);
-        qp->cb = pingReply;
-        qp->userData = pf;
-        Assert_true(fullAddr->ip6.bytes[0] == 0xfc);
-        qp->target = Address_clone(fullAddr, qp->alloc);
-        Log_debug(pf->log, "\n\n--PIIIIIING %s--\n\n",
-            Address_toString(qp->target, qp->alloc)->bytes);
-        Dict_putStringCC(dict, "q", "pn", qp->alloc);
-        BoilerplateResponder_addBoilerplate(pf->br, dict, qp->target, qp->alloc);
-        return NULL;
-    }
 
     if (!pf->pub.snh || !pf->pub.snh->snodeAddr.path) { return NULL; }
 
@@ -377,14 +213,6 @@ static Iface_DEFUN searchReq(struct Message* msg, struct SubnodePathfinder_pvt* 
     String* target = String_newBinary(addr, 16, qp->alloc);
     Dict_putStringC(dict, "tar", target, qp->alloc);
 
-/*
-    struct Node_Two* node = NodeStore_nodeForAddr(pf->nodeStore, addr);
-    if (node) {
-        //onBestPathChange(pf, node);
-    } else {
-        SearchRunner_search(addr, 20, 3, pf->searchRunner, pf->alloc);
-    }
-*/
     return NULL;
 }
 
@@ -420,7 +248,7 @@ static Iface_DEFUN peer(struct Message* msg, struct SubnodePathfinder_pvt* pf)
 
     AddrSet_add(pf->myPeers, &addr);
 
-    NodeCache_discoverNode(pf->nc, &addr);
+    //NodeCache_discoverNode(pf->nc, &addr);
 
     ReachabilityCollector_change(pf->pub.rc, &addr);
 
@@ -441,7 +269,7 @@ static Iface_DEFUN peerGone(struct Message* msg, struct SubnodePathfinder_pvt* p
         }
     }
 
-    NodeCache_forgetNode(pf->nc, &addr);
+    //NodeCache_forgetNode(pf->nc, &addr);
 
     struct Address zaddr;
     Bits_memcpy(&zaddr, &addr, Address_SIZE);
@@ -458,9 +286,7 @@ static Iface_DEFUN session(struct Message* msg, struct SubnodePathfinder_pvt* pf
     addressForNode(&addr, msg);
     String* str = Address_toString(&addr, msg->alloc);
     Log_debug(pf->log, "Session [%s]", str->bytes);
-    if (addr.protocolVersion) {
-        NodeCache_discoverNode(pf->nc, &addr);
-    }
+    //if (addr.protocolVersion) { NodeCache_discoverNode(pf->nc, &addr); }
     return NULL;
 }
 
@@ -470,7 +296,7 @@ static Iface_DEFUN sessionEnded(struct Message* msg, struct SubnodePathfinder_pv
     addressForNode(&addr, msg);
     String* str = Address_toString(&addr, msg->alloc);
     Log_debug(pf->log, "Session ended [%s]", str->bytes);
-    NodeCache_forgetNode(pf->nc, &addr);
+    //NodeCache_forgetNode(pf->nc, &addr);
     return NULL;
 }
 
@@ -479,9 +305,7 @@ static Iface_DEFUN discoveredPath(struct Message* msg, struct SubnodePathfinder_
     struct Address addr;
     addressForNode(&addr, msg);
     Log_debug(pf->log, "discoveredPath(%s)", Address_toString(&addr, msg->alloc)->bytes);
-    if (addr.protocolVersion) {
-        NodeCache_discoverNode(pf->nc, &addr);
-    }
+    //if (addr.protocolVersion) { NodeCache_discoverNode(pf->nc, &addr); }
     return NULL;
 }
 
@@ -635,7 +459,6 @@ struct SubnodePathfinder* SubnodePathfinder_new(struct Allocator* allocator,
 
     pf->myScheme = myScheme;
     pf->br = BoilerplateResponder_new(myScheme, alloc);
-    pf->nc = NodeCache_new(alloc, log, myAddress, base);
 
     pf->sp = SwitchPinger_new(base, rand, log, myAddress, alloc);
     pf->switchPingerIf.send = ctrlMsgFromSwitchPinger;
