@@ -362,6 +362,7 @@ static void addServerStateMsg(struct ReachabilityAnnouncer_pvt* rap, struct Mess
         if (redundant) {
             ArrayList_OfMessages_remove(rap->snodeState, i);
             Allocator_free(m->alloc);
+            // TODO(cjd): else if the peer is dropped...
         } else {
             // We should be adding back all of the peers necessary to make redundant anything older
             // than the most recent message, make sure that is the case.
@@ -612,6 +613,7 @@ static void onAnnounceCycle(void* vRap)
 
     struct Query* q = Allocator_calloc(qp->alloc, sizeof(struct Query), 1);
     q->rap = rap;
+    Assert_true(rap->snode.ip6.bytes[0] == 0xfc);
     Bits_memcpy(&q->target, &rap->snode, Address_SIZE);
     qp->userData = q;
 

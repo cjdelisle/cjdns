@@ -345,6 +345,7 @@ static Iface_DEFUN searchReq(struct Message* msg, struct SubnodePathfinder_pvt* 
         Dict* dict = qp->msg = Dict_new(qp->alloc);
         qp->cb = pingReply;
         qp->userData = pf;
+        Assert_true(fullAddr->ip6.bytes[0] == 0xfc);
         qp->target = Address_clone(fullAddr, qp->alloc);
         Log_debug(pf->log, "\n\n--PIIIIIING %s--\n\n",
             Address_toString(qp->target, qp->alloc)->bytes);
@@ -365,6 +366,7 @@ static Iface_DEFUN searchReq(struct Message* msg, struct SubnodePathfinder_pvt* 
     qp->cb = getRouteReply;
     qp->userData = pf;
 
+    Assert_true(pf->pub.snh->snodeAddr.ip6.bytes[0] == 0xfc);
     qp->target = &pf->pub.snh->snodeAddr;
 
     Log_debug(pf->log, "\n\n--Sending getRoute to snode %s--\n\n",

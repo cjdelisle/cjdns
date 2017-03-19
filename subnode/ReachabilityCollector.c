@@ -168,6 +168,7 @@ static void mkNextRequest(struct ReachabilityCollector_pvt* rcp)
         MsgCore_createQuery(rcp->msgCore, TIMEOUT_MILLISECONDS, rcp->alloc);
     query->userData = rcp;
     query->cb = onReply;
+    Assert_true(pi->pub.addr.ip6.bytes[0] == 0xfc);
     query->target = Address_clone(&pi->pub.addr, query->alloc);
     Dict* d = query->msg = Dict_new(query->alloc);
     Dict_putStringCC(d, "q", "gp", query->alloc);
