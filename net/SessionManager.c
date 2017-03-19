@@ -315,6 +315,12 @@ static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface
             return NULL;
         }
         Message_shift(msg, -4, NULL);
+        uint32_t nonce = Endian_bigEndianToHost32(((uint32_t*)msg->bytes)[0]);
+        if (nonce < 4) {
+            Log_debug(sm->log, "DROP setup message [%u] with specified handle [%u]",
+                nonce, nonceOrHandle);
+            return NULL;
+        }
     } else {
         // handle + big cryptoauth header
         if (msg->length < CryptoHeader_SIZE + 4) {
