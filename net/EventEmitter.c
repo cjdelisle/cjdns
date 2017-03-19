@@ -147,6 +147,7 @@ static bool PFChan_Core_sizeOk(enum PFChan_Core ev, int size)
         case PFChan_Core_SESSION:
         case PFChan_Core_SESSION_ENDED:
         case PFChan_Core_DISCOVERED_PATH:
+        case PFChan_Core_UNSETUP_SESSION:
             return (size == 8 + PFChan_Node_SIZE);
 
         case PFChan_Core_MSG:
@@ -165,7 +166,7 @@ static bool PFChan_Core_sizeOk(enum PFChan_Core ev, int size)
 }
 // Remember to add the event to this function too!
 Assert_compileTime(PFChan_Core__TOO_LOW == 1023);
-Assert_compileTime(PFChan_Core__TOO_HIGH == 1038);
+Assert_compileTime(PFChan_Core__TOO_HIGH == 1039);
 
 static Iface_DEFUN incomingFromCore(struct Message* msg, struct Iface* trickIf)
 {

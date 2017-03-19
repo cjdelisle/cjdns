@@ -289,7 +289,14 @@ enum PFChan_Core
      */
     PFChan_Core_CTRL_MSG = 1037,
 
-    PFChan_Core__TOO_HIGH = 1038,
+    /**
+     * Will be emitted when the core has a path to a node but the session is not setup.
+     * Structure is a PFChan_Node
+     * (emitted by: SessionManager.c)
+     */
+    PFChan_Core_UNSETUP_SESSION = 1038,
+
+    PFChan_Core__TOO_HIGH = 1039,
 };
 
 struct PFChan_Core_SearchReq

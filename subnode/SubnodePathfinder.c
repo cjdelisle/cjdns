@@ -165,21 +165,6 @@ static void getRouteReply(Dict* msg, struct Address* src, struct MsgCore_Promise
     struct Message* msgToCore = Message_new(0, 512, prom->alloc);
     Iface_CALL(sendNode, msgToCore, &al->elems[0], 0xfffffff0, PFChan_Pathfinder_NODE, pf);
 }
-/*
-static void pingReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom)
-{
-    struct SubnodePathfinder_pvt* pf =
-        Identity_check((struct SubnodePathfinder_pvt*) prom->userData);
-    if (!src) {
-        Log_debug(pf->log, "Ping timeout");
-        return;
-    }
-    Log_debug(pf->log, "\n\n\n\nPING reply from [%s]!\n\n\n\n",
-        Address_toString(src, prom->alloc)->bytes);
-    //NodeCache_discoverNode(pf->nc, src);
-    struct Message* msgToCore = Message_new(0, 512, prom->alloc);
-    Iface_CALL(sendNode, msgToCore, src, 0xffffff70, PFChan_Pathfinder_NODE, pf);
-}*/
 
 static Iface_DEFUN searchReq(struct Message* msg, struct SubnodePathfinder_pvt* pf)
 {
@@ -335,6 +320,51 @@ static Iface_DEFUN ctrlMsg(struct Message* msg, struct SubnodePathfinder_pvt* pf
     return Iface_next(&pf->switchPingerIf, msg);
 }
 
+static void unsetupSessionPingReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom)
+{
+    struct SubnodePathfinder_pvt* pf =
+        Identity_check((struct SubnodePathfinder_pvt*) prom->userData);
+    if (!src) {
+        Log_debug(pf->log, "Ping timeout");
+        return;
+    }
+    Log_debug(pf->log, "\n\n\n\nPING reply from [%s]!\n\n\n\n",
+        Address_toString(src, prom->alloc)->bytes);
+    //NodeCache_discoverNode(pf->nc, src);
+    struct Message* msgToCore = Message_new(0, 512, prom->alloc);
+    Iface_CALL(sendNode, msgToCore, src, 0xffffff70, PFChan_Pathfinder_NODE, pf);
+}
+
+static Iface_DEFUN unsetupSession(struct Message* msg, struct SubnodePathfinder_pvt* pf)
+{
+    struct PFChan_Node node;
+    Message_pop(msg, &node, PFChan_Node_SIZE, NULL);
+    Assert_true(!msg->length);
+    struct Address addr = { .protocolVersion = 0 };
+    Bits_memcpy(addr.ip6.bytes, node.ip6, 16);
+    Bits_memcpy(addr.key, node.publicKey, 32);
+    addr.protocolVersion = Endian_bigEndianToHost32(node.version_be);
+    addr.path = Endian_bigEndianToHost64(node.path_be);
+
+    // We have a path to the node but the session is not setup, lets ping them...
+    struct MsgCore_Promise* qp = MsgCore_createQuery(pf->msgCore, 0, pf->alloc);
+
+    Dict* dict = qp->msg = Dict_new(qp->alloc);
+    qp->cb = unsetupSessionPingReply;
+    qp->userData = pf;
+
+    Assert_true(addr.ip6.bytes[0] == 0xfc);
+    qp->target = Address_clone(&addr, qp->alloc);
+
+    Log_debug(pf->log, "unsetupSession sending ping to [%s]",
+        Address_toString(qp->target, qp->alloc)->bytes);
+    Dict_putStringCC(dict, "q", "pn", qp->alloc);
+
+    BoilerplateResponder_addBoilerplate(pf->br, dict, &addr, qp->alloc);
+
+    return NULL;
+}
+
 static Iface_DEFUN incomingMsg(struct Message* msg, struct SubnodePathfinder_pvt* pf)
 {
     return Iface_next(&pf->msgCoreIf, msg);
@@ -349,7 +379,7 @@ static Iface_DEFUN incomingFromMsgCore(struct Message* msg, struct Iface* iface)
     struct DataHeader* dh = (struct DataHeader*) &rh[1];
     Assert_true(DataHeader_getContentType(dh) == ContentType_CJDHT);
     Assert_true(!Bits_isZero(rh->publicKey, 32));
-    Assert_true(rh->version_be);
+    //Assert_true(rh->version_be); // Pinging peers can lead to not knowing their version...
     Assert_true(rh->sh.label_be);
     Message_push32(msg, PFChan_Pathfinder_SENDMSG, NULL);
     return Iface_next(&pf->pub.eventIf, msg);
@@ -376,6 +406,7 @@ static Iface_DEFUN incomingFromEventIf(struct Message* msg, struct Iface* eventI
         case PFChan_Core_PING: return handlePing(msg, pf);
         case PFChan_Core_PONG: return handlePong(msg, pf);
         case PFChan_Core_CTRL_MSG: return ctrlMsg(msg, pf);
+        case PFChan_Core_UNSETUP_SESSION: return unsetupSession(msg, pf);
         default:;
     }
     Assert_failure("unexpected event [%d]", ev);
