@@ -21,6 +21,17 @@
 #include "util/Linker.h"
 Linker_require("subnode/ReachabilityCollector.c");
 
+struct ReachabilityCollector_PeerInfo
+{
+    // Address of the peer from us
+    struct Address addr;
+
+    // Their path to us
+    uint64_t pathThemToUs;
+
+    bool querying;
+};
+
 struct ReachabilityCollector;
 
 typedef void (* ReachabilityCollector_OnChange)(struct ReachabilityCollector* rc,
@@ -37,6 +48,9 @@ struct ReachabilityCollector
     ReachabilityCollector_OnChange onChange;
     void* userData;
 };
+
+struct ReachabilityCollector_PeerInfo*
+    ReachabilityCollector_getPeerInfo(struct ReachabilityCollector* rc, int peerNum);
 
 // NodeAddr->path should be 0 if the node is not reachable.
 void ReachabilityCollector_change(struct ReachabilityCollector* rc, struct Address* nodeAddr);

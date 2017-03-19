@@ -25,6 +25,7 @@
 #include "crypto/random/libuv/LibuvEntropyProvider.h"
 #include "subnode/SubnodePathfinder.h"
 #include "subnode/SupernodeHunter_admin.h"
+#include "subnode/ReachabilityCollector_admin.h"
 #ifndef SUBNODE
 #include "dht/Pathfinder.h"
 #endif
@@ -287,6 +288,7 @@ void Core_init(struct Allocator* alloc,
     FileNo_admin_register(admin, alloc, eventBase, logger, eh);
 
     SupernodeHunter_admin_register(spf->snh, admin, alloc);
+    ReachabilityCollector_admin_register(spf->rc, admin, alloc);
 
     AuthorizedPasswords_init(admin, nc->ca, alloc);
     Admin_registerFunction("ping", adminPing, admin, false, NULL, admin);

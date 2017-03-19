@@ -81,8 +81,6 @@ struct SubnodePathfinder_pvt
 
     struct ReachabilityAnnouncer* ra;
 
-    struct ReachabilityCollector* rc;
-
     struct SwitchPinger* sp;
     struct Iface switchPingerIf;
 
@@ -422,7 +420,7 @@ static Iface_DEFUN peer(struct Message* msg, struct SubnodePathfinder_pvt* pf)
 
     NodeCache_discoverNode(pf->nc, &addr);
 
-    ReachabilityCollector_change(pf->rc, &addr);
+    ReachabilityCollector_change(pf->pub.rc, &addr);
 
     return sendNode(msg, &addr, 0xffffff00, PFChan_Pathfinder_NODE, pf);
 }
@@ -446,7 +444,7 @@ static Iface_DEFUN peerGone(struct Message* msg, struct SubnodePathfinder_pvt* p
     struct Address zaddr;
     Bits_memcpy(&zaddr, &addr, Address_SIZE);
     zaddr.path = 0;
-    ReachabilityCollector_change(pf->rc, &zaddr);
+    ReachabilityCollector_change(pf->pub.rc, &zaddr);
 
     // We notify about the node but with max metric so it will be removed soon.
     return sendNode(msg, &addr, 0xffffffff, PFChan_Pathfinder_NODE, pf);
@@ -588,11 +586,11 @@ void SubnodePathfinder_start(struct SubnodePathfinder* sp)
         pf->alloc, pf->log, pf->base, pf->rand, pf->msgCore, pf->pub.snh, pf->privateKey,
             pf->myScheme);
 
-    pf->rc = ReachabilityCollector_new(
+    pf->pub.rc = ReachabilityCollector_new(
         pf->alloc, pf->msgCore, pf->log, pf->base, pf->br, pf->myAddress);
 
-    pf->rc->userData = pf;
-    pf->rc->onChange = rcChange;
+    pf->pub.rc->userData = pf;
+    pf->pub.rc->onChange = rcChange;
 
     struct PFChan_Pathfinder_Connect conn = {
         .superiority_be = Endian_hostToBigEndian32(1),

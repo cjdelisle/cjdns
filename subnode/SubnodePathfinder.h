@@ -30,6 +30,7 @@ struct SubnodePathfinder
 {
     struct Iface eventIf;
     struct SupernodeHunter* snh;
+    struct ReachabilityCollector* rc;
 };
 
 void SubnodePathfinder_start(struct SubnodePathfinder*);
