@@ -593,13 +593,6 @@ static void onAnnounceCycle(void* vRap)
         Message_push(msg, &version, Announce_Version_SIZE, NULL);
 
         Message_push(msg, NULL, Announce_Header_SIZE, NULL);
-
-    } else if (!Announce_Peer_next(msg, NULL)) {
-        // We're making an announcement with no content, we can safely skip this :)
-        rap->msgOnWire = NULL;
-        Allocator_free(msg->alloc);
-        Log_debug(rap->log, "No need to send a message as there are no peer updates to make");
-        return;
     }
 
     struct Announce_Header* hdr = (struct Announce_Header*) msg->bytes;
