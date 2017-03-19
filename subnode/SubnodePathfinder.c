@@ -165,7 +165,7 @@ static void getRouteReply(Dict* msg, struct Address* src, struct MsgCore_Promise
     struct Message* msgToCore = Message_new(0, 512, prom->alloc);
     Iface_CALL(sendNode, msgToCore, &al->elems[0], 0xfffffff0, PFChan_Pathfinder_NODE, pf);
 }
-
+/*
 static void pingReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom)
 {
     struct SubnodePathfinder_pvt* pf =
@@ -179,7 +179,7 @@ static void pingReply(Dict* msg, struct Address* src, struct MsgCore_Promise* pr
     //NodeCache_discoverNode(pf->nc, src);
     struct Message* msgToCore = Message_new(0, 512, prom->alloc);
     Iface_CALL(sendNode, msgToCore, src, 0xffffff70, PFChan_Pathfinder_NODE, pf);
-}
+}*/
 
 static Iface_DEFUN searchReq(struct Message* msg, struct SubnodePathfinder_pvt* pf)
 {
