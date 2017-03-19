@@ -379,7 +379,7 @@ static Iface_DEFUN incomingFromMsgCore(struct Message* msg, struct Iface* iface)
     struct DataHeader* dh = (struct DataHeader*) &rh[1];
     Assert_true(DataHeader_getContentType(dh) == ContentType_CJDHT);
     Assert_true(!Bits_isZero(rh->publicKey, 32));
-    //Assert_true(rh->version_be); // Pinging peers can lead to not knowing their version...
+    Assert_true(rh->version_be);
     Assert_true(rh->sh.label_be);
     Message_push32(msg, PFChan_Pathfinder_SENDMSG, NULL);
     return Iface_next(&pf->pub.eventIf, msg);

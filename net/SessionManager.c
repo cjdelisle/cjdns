@@ -421,6 +421,10 @@ static void checkTimedOutBuffers(struct SessionManager_pvt* sm)
 
 static void unsetupSession(struct SessionManager_pvt* sm, struct SessionManager_Session_pvt* sess)
 {
+    if (!sess->pub.version) {
+        // Nothing we can do here because it's not ok to send traffic without a version num.
+        return;
+    }
     struct Allocator* eventAlloc = Allocator_child(sm->alloc);
     struct Message* eventMsg = Message_new(0, 512, eventAlloc);
     struct PFChan_Node n;
