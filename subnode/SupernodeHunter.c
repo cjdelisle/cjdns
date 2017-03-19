@@ -161,7 +161,7 @@ static void adoptSupernode(struct SupernodeHunter_pvt* snp, struct Address* cand
     Dict* msg = qp->msg = Dict_new(qp->alloc);
     qp->cb = adoptSupernode2;
     qp->userData = q;
-    qp->target = candidate;
+    qp->target = Address_clone(candidate, qp->alloc);
 
     Log_debug(snp->log, "Pinging snode [%s]", Address_toString(qp->target, qp->alloc)->bytes);
     Dict_putStringCC(msg, "sq", "pn", qp->alloc);
