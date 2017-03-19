@@ -162,10 +162,11 @@ static void adoptSupernode(struct SupernodeHunter_pvt* snp, struct Address* cand
     qp->cb = adoptSupernode2;
     qp->userData = q;
     qp->target = candidate;
-    Assert_true(candidate->ip6.bytes[0] == 0xfc);
 
     Log_debug(snp->log, "Pinging snode [%s]", Address_toString(qp->target, qp->alloc)->bytes);
     Dict_putStringCC(msg, "sq", "pn", qp->alloc);
+
+    Assert_true(candidate->ip6.bytes[0] == 0xfc);
     return;
 }
 
