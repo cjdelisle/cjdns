@@ -194,7 +194,9 @@ static void peerResponseOK(struct SwitchPinger_Response* resp, struct SupernodeH
     struct Address snode;
     Bits_memcpy(&snode, &resp->snode, sizeof(struct Address));
     if (!snode.path) {
-        Log_debug(snp->log, "Peer reports no supernode");
+        uint8_t label[20];
+        AddrTools_printPath(label, resp->label);
+        Log_debug(snp->log, "Peer [%s] reports no supernode", label);
         return;
     }
     snode.path = LabelSplicer_splice(snode.path, resp->label);

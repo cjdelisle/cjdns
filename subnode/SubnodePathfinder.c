@@ -354,6 +354,7 @@ static Iface_DEFUN unsetupSession(struct Message* msg, struct SubnodePathfinder_
     qp->userData = pf;
 
     Assert_true(addr.ip6.bytes[0] == 0xfc);
+    Assert_true(addr.path);
     qp->target = Address_clone(&addr, qp->alloc);
 
     Log_debug(pf->log, "unsetupSession sending ping to [%s]",

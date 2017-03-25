@@ -427,14 +427,14 @@ static void checkTimedOutBuffers(struct SessionManager_pvt* sm)
 
 static void unsetupSession(struct SessionManager_pvt* sm, struct SessionManager_Session_pvt* sess)
 {
-    if (!sess->pub.version) {
+    if (!sess->pub.version || !(sess->pub.sendSwitchLabel || sess->pub.recvSwitchLabel)) {
         // Nothing we can do here because it's not ok to send traffic without a version num.
         return;
     }
     struct Allocator* eventAlloc = Allocator_child(sm->alloc);
     struct Message* eventMsg = Message_new(0, 512, eventAlloc);
     struct PFChan_Node n;
-    n.path_be = Endian_hostToBigEndian64(sess->pub.sendSwitchLabel);
+    n.path_be = Endian_hostToBigEndian64(sess->pub.sendSwitchLabel || sess->pub.recvSwitchLabel);
     n.version_be = Endian_hostToBigEndian32(sess->pub.version);
     Bits_memcpy(n.publicKey, sess->pub.caSession->herPublicKey, 32);
     Bits_memcpy(n.ip6, sess->pub.caSession->herIp6, 16);
