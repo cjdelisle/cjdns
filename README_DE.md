@@ -73,7 +73,7 @@ Die cjdns-Entwickler.
 
 ## Installation von cjdns
 
-Diese Anleitungen sind für Debian-basierte Linux-Distributionen und OS X. Sie sollten erklärend genug sein, um sie auch auf anderen Distributionen zu verwenden - wenn auch nicht unbedingt eins-zu-ein.
+Diese Anleitungen sind für Debian-basierte Linux-Distributionen und macOS. Sie sollten erklärend genug sein, um sie auch auf anderen Distributionen zu verwenden - wenn auch nicht unbedingt eins-zu-ein.
 Wenn du wissen möchtest, [was die Basis deines Betriebssystems ist, klicke hier.](https://upload.wikimedia.org/wikipedia/commons/1/1b/Linux_Distribution_Timeline.svg)
 
 ### 0. Installations-Abhängigkeiten
@@ -109,11 +109,15 @@ Der Resume Service startet cjdns neu, wenn das System aufwacht.
 
     emerge --ask nodejs sys-devel/gcc dev-lang/python:3.4 dev-vcs/git
 
-#### OS X:
+#### macOS:
 
-Installation mit Homebrew:
+Installation mit [Homebrew](https://brew.sh/):
 
     brew install cjdns
+
+Installation mit [MacPorts](https://www.macports.org/):
+
+    sudo port install cjdns
 
 #### OpenBSD:
 

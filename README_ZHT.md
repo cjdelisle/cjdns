@@ -73,7 +73,7 @@ cjdns 開發人員 敬上
 
 ## 如何安裝 cjdns
 
-這些說明雖然是在基於 Debian 的 Linux 發行版系統與 OS X 系統上的，但是已經為在其它發行版作業系統安裝提供了足夠多的信息，只是不要期望可以一字不差的執行指令。
+這些說明雖然是在基於 Debian 的 Linux 發行版系統與 macOS 系統上的，但是已經為在其它發行版作業系統安裝提供了足夠多的信息，只是不要期望可以一字不差的執行指令。
 
 ### 0. 安裝相關程式
 
@@ -95,11 +95,15 @@ cjdns 開發人員 敬上
     sudo yum install install nodejs git
     sudo yum install @development-tools
 
-#### OS X 系統:
+#### macOS 系統:
 
-利用 homebrew 安裝:
+利用 [Homebrew](https://brew.sh/) 安裝:
 
     brew install cjdns
+
+利用 [MacPorts](https://www.macports.org/) 安裝:
+
+    sudo port install cjdns
 
 #### OpenBSD 系統:
 
@@ -174,7 +178,7 @@ cjdns 開發人員 敬上
 如果顯示： `cat: /dev/net/tun: Permission denied` 你大概在使用一個基於 OpenVZ Virtualization Platform 的 VPS（虛擬專用伺服器）。
 向你的服務供應商要求啟用 TUN/TAP 設備 - 這是標準協議，所以他們應當明白你的意思。
 
-如果你用 OS X 請忽略這個步驟。
+如果你用 macOS 請忽略這個步驟。
 
 
 ### 1. 產生一個新的配置檔（請先閱讀下方「保護好你的配置檔」部份）

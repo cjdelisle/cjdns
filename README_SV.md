@@ -67,7 +67,7 @@ Tack för visat intresse,
 
 ## Hur du installerar cjdns
 
-Följande instruktioner är till för Debian-baserade Linux-distributioner eller för OS X.
+Följande instruktioner är till för Debian-baserade Linux-distributioner eller för macOS.
 De bör vara tillräckligt informativa för att kunna anpassas till andra distributioner -
 förvänta dig dock inte att de kommer fungera rakt av.
 
@@ -93,11 +93,15 @@ installeras i kodträdet.
     sudo yum install install nodejs git
     sudo yum install @development-tools
 
-#### OS X:
+#### macOS:
 
-Installera med homebrew:
+Installera med [Homebrew](https://brew.sh/):
 
     brew install cjdns
+
+Installera med [MacPorts](https://www.macports.org/):
+
+    sudo port install cjdns
 
 #### OpenBSD:
 
@@ -152,7 +156,7 @@ Prova sedan `cat /dev/net/tun` igen.
 Om det står: `cat: /dev/net/tun: Permission denied` så använder du troligen en VPS
 baserad på OpenVZ's virtualiseringsplattform. Fråga din leverantör om de kan
 tillåta/öppna upp TUN/TAP - denna terminologi är standard så de bör förstå vad du
-ber dem om. Om du använder OS X kan du ignorera detta steg.
+ber dem om. Om du använder macOS kan du ignorera detta steg.
 
 
 ### 1. Skapa en ny konfigurationsfil
