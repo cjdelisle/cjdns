@@ -220,7 +220,7 @@ Configure the init system to autostart cjdns
 
 Copy the service_restart script `contrib/gentoo/service_restart.sh` to any convenient directory on
 your system and modify the eMail address. If you do not wish to be notified, comment out the whole line.
-Now add an crontab entry like this
+Now add a crontab entry like this
 
    # Restart crashed Services
    * * * * *       root	/path/to/script/service_restart.sh
@@ -435,7 +435,7 @@ including how to peer with other cjdns nodes over ethernet and wifi.
 Once your node is running, you're now a newly minted IPv6 host. Your operating
 system may automatically reconfigure network services to use this new address.
 If this is not what you intend, you should check to see that you are not
-offering more services then you intended to. ;)
+offering more services than you intended to. ;)
 
 See [doc/network-services.md](doc/network-services.md) for instructions.
 
