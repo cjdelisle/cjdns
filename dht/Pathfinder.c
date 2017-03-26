@@ -124,7 +124,7 @@ static void nodeForAddress(struct PFChan_Node* nodeOut, struct Address* addr, ui
 {
     Bits_memset(nodeOut, 0, PFChan_Node_SIZE);
     nodeOut->version_be = Endian_hostToBigEndian32(addr->protocolVersion);
-    nodeOut->metric_be = Endian_hostToBigEndian32(metric);
+    nodeOut->metric_be = Endian_hostToBigEndian32(metric | 0xffff0000);
     nodeOut->path_be = Endian_hostToBigEndian64(addr->path);
     Bits_memcpy(nodeOut->publicKey, addr->key, 32);
     Bits_memcpy(nodeOut->ip6, addr->ip6.bytes, 16);

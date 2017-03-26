@@ -107,6 +107,8 @@ struct SessionManager_Session
     /** The version of the other node. */
     uint32_t version;
 
+    uint32_t metric;
+
     /** The best known switch label for reaching this node. */
     uint64_t sendSwitchLabel;
 

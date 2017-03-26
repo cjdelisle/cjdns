@@ -125,27 +125,16 @@ static Iface_DEFUN switchErr(struct Message* msg, struct SubnodePathfinder_pvt* 
     Message_pop(msg, &switchErr, PFChan_Core_SwitchErr_MIN_SIZE, NULL);
 
     uint64_t path = Endian_bigEndianToHost64(switchErr.sh.label_be);
-//    uint64_t pathAtErrorHop = Endian_bigEndianToHost64(switchErr.ctrlErr.cause.label_be);
 
-    uint8_t pathStr[20];
-    AddrTools_printPath(pathStr, path);
-    int err = Endian_bigEndianToHost32(switchErr.ctrlErr.errorType_be);
-    Log_debug(pf->log, "switch err from [%s] type [%s][%d]", pathStr, Error_strerror(err), err);
-
-/*
-    struct Node_Link* link = NodeStore_linkForPath(pf->nodeStore, path);
-    uint8_t nodeAddr[16];
-    if (link) {
-        Bits_memcpy(nodeAddr, link->child->address.ip6.bytes, 16);
+    if (path == pf->pub.snh->snodeAddr.path) {
+        uint8_t pathStr[20];
+        AddrTools_printPath(pathStr, path);
+        int err = Endian_bigEndianToHost32(switchErr.ctrlErr.errorType_be);
+        Log_debug(pf->log, "switch err from active snode [%s] type [%s][%d]",
+            pathStr, Error_strerror(err), err);
+        pf->pub.snh->snodeIsReachable = false;
     }
 
-    NodeStore_brokenLink(pf->nodeStore, path, pathAtErrorHop);
-
-    if (link) {
-        // Don't touch the node again, it might be a dangling pointer
-        SearchRunner_search(nodeAddr, 20, 3, pf->searchRunner, pf->alloc);
-    }
-*/
     return NULL;
 }
 
@@ -157,13 +146,13 @@ static void getRouteReply(Dict* msg, struct Address* src, struct MsgCore_Promise
         Log_debug(pf->log, "GetRoute timeout");
         return;
     }
-    Log_debug(pf->log, "\n\n\n\nSearch reply!\n\n\n\n");
+    Log_debug(pf->log, "Search reply!");
     struct Address_List* al = ReplySerializer_parse(src, msg, pf->log, false, prom->alloc);
     if (!al || al->length == 0) { return; }
     Log_debug(pf->log, "reply with[%s]", Address_toString(&al->elems[0], prom->alloc)->bytes);
     //NodeCache_discoverNode(pf->nc, &al->elems[0]);
     struct Message* msgToCore = Message_new(0, 512, prom->alloc);
-    Iface_CALL(sendNode, msgToCore, &al->elems[0], 0xfffffff0, PFChan_Pathfinder_NODE, pf);
+    Iface_CALL(sendNode, msgToCore, &al->elems[0], 0xfff00000, PFChan_Pathfinder_NODE, pf);
 }
 
 static Iface_DEFUN searchReq(struct Message* msg, struct SubnodePathfinder_pvt* pf)
@@ -173,12 +162,12 @@ static Iface_DEFUN searchReq(struct Message* msg, struct SubnodePathfinder_pvt* 
     Assert_true(!msg->length);
     uint8_t printedAddr[40];
     AddrTools_printIp(printedAddr, addr);
-    Log_debug(pf->log, "\n\n\n\nSearch req [%s]\n\n\n\n", printedAddr);
+    Log_debug(pf->log, "Search req [%s]", printedAddr);
 
     if (!pf->pub.snh || !pf->pub.snh->snodeAddr.path) { return NULL; }
 
     if (!Bits_memcmp(pf->pub.snh->snodeAddr.ip6.bytes, addr, 16)) {
-        return sendNode(msg, &pf->pub.snh->snodeAddr, 0xfffffff0, PFChan_Pathfinder_NODE, pf);
+        return sendNode(msg, &pf->pub.snh->snodeAddr, 0xfff00000, PFChan_Pathfinder_NODE, pf);
     }
 
     struct MsgCore_Promise* qp = MsgCore_createQuery(pf->msgCore, 0, pf->alloc);
@@ -190,7 +179,7 @@ static Iface_DEFUN searchReq(struct Message* msg, struct SubnodePathfinder_pvt* 
     Assert_true(pf->pub.snh->snodeAddr.ip6.bytes[0] == 0xfc);
     qp->target = &pf->pub.snh->snodeAddr;
 
-    Log_debug(pf->log, "\n\n--Sending getRoute to snode %s--\n\n",
+    Log_debug(pf->log, "Sending getRoute to snode %s",
         Address_toString(qp->target, qp->alloc)->bytes);
     Dict_putStringCC(dict, "sq", "gr", qp->alloc);
     String* src = String_newBinary(pf->myAddress->ip6.bytes, 16, qp->alloc);
@@ -237,7 +226,7 @@ static Iface_DEFUN peer(struct Message* msg, struct SubnodePathfinder_pvt* pf)
 
     ReachabilityCollector_change(pf->pub.rc, &addr);
 
-    return sendNode(msg, &addr, 0xffffff00, PFChan_Pathfinder_NODE, pf);
+    return sendNode(msg, &addr, 0xfff00000, PFChan_Pathfinder_NODE, pf);
 }
 
 static Iface_DEFUN peerGone(struct Message* msg, struct SubnodePathfinder_pvt* pf)
@@ -287,23 +276,23 @@ static Iface_DEFUN sessionEnded(struct Message* msg, struct SubnodePathfinder_pv
 
 static Iface_DEFUN discoveredPath(struct Message* msg, struct SubnodePathfinder_pvt* pf)
 {
-    struct Address addr;
-    addressForNode(&addr, msg);
-    Log_debug(pf->log, "discoveredPath(%s)", Address_toString(&addr, msg->alloc)->bytes);
+    //struct Address addr;
+    //addressForNode(&addr, msg);
+    //Log_debug(pf->log, "discoveredPath(%s)", Address_toString(&addr, msg->alloc)->bytes);
     //if (addr.protocolVersion) { NodeCache_discoverNode(pf->nc, &addr); }
     return NULL;
 }
 
 static Iface_DEFUN handlePing(struct Message* msg, struct SubnodePathfinder_pvt* pf)
 {
-    Log_debug(pf->log, "Received ping");
+    //Log_debug(pf->log, "Received ping");
     Message_push32(msg, PFChan_Pathfinder_PONG, NULL);
     return Iface_next(&pf->pub.eventIf, msg);
 }
 
 static Iface_DEFUN handlePong(struct Message* msg, struct SubnodePathfinder_pvt* pf)
 {
-    Log_debug(pf->log, "Received pong");
+    //Log_debug(pf->log, "Received pong");
     return NULL;
 }
 
@@ -325,14 +314,13 @@ static void unsetupSessionPingReply(Dict* msg, struct Address* src, struct MsgCo
     struct SubnodePathfinder_pvt* pf =
         Identity_check((struct SubnodePathfinder_pvt*) prom->userData);
     if (!src) {
-        Log_debug(pf->log, "Ping timeout");
+        //Log_debug(pf->log, "Ping timeout");
         return;
     }
-    Log_debug(pf->log, "\n\n\n\nPING reply from [%s]!\n\n\n\n",
-        Address_toString(src, prom->alloc)->bytes);
-    //NodeCache_discoverNode(pf->nc, src);
+    //Log_debug(pf->log, "\n\n\n\nPING reply from [%s]!\n\n\n\n",
+    //    Address_toString(src, prom->alloc)->bytes);
     struct Message* msgToCore = Message_new(0, 512, prom->alloc);
-    Iface_CALL(sendNode, msgToCore, src, 0xffffff70, PFChan_Pathfinder_NODE, pf);
+    Iface_CALL(sendNode, msgToCore, src, 0xfffffff0, PFChan_Pathfinder_NODE, pf);
 }
 
 static Iface_DEFUN unsetupSession(struct Message* msg, struct SubnodePathfinder_pvt* pf)
@@ -357,8 +345,8 @@ static Iface_DEFUN unsetupSession(struct Message* msg, struct SubnodePathfinder_
     Assert_true(addr.path);
     qp->target = Address_clone(&addr, qp->alloc);
 
-    Log_debug(pf->log, "unsetupSession sending ping to [%s]",
-        Address_toString(qp->target, qp->alloc)->bytes);
+    //Log_debug(pf->log, "unsetupSession sending ping to [%s]",
+    //    Address_toString(qp->target, qp->alloc)->bytes);
     Dict_putStringCC(dict, "q", "pn", qp->alloc);
 
     BoilerplateResponder_addBoilerplate(pf->br, dict, &addr, qp->alloc);

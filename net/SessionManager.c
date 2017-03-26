@@ -199,12 +199,32 @@ static struct SessionManager_Session_pvt* getSession(struct SessionManager_pvt* 
                                                      uint8_t ip6[16],
                                                      uint8_t pubKey[32],
                                                      uint32_t version,
-                                                     uint64_t label)
+                                                     uint64_t label,
+                                                     uint32_t metric)
 {
     struct SessionManager_Session_pvt* sess = sessionForIp6(ip6, sm);
     if (sess) {
         sess->pub.version = (sess->pub.version) ? sess->pub.version : version;
-        sess->pub.sendSwitchLabel = (sess->pub.sendSwitchLabel) ? sess->pub.sendSwitchLabel : label;
+        if (metric == 0xffffffff) {
+            // this is a broken path
+            if (sess->pub.sendSwitchLabel == label) {
+                debugSession0(sm->log, sess, "broken path");
+                if (sess->pub.sendSwitchLabel == sess->pub.recvSwitchLabel) {
+                    sess->pub.sendSwitchLabel = 0;
+                    sess->pub.metric = 0xffffffff;
+                } else {
+                    sess->pub.sendSwitchLabel = sess->pub.recvSwitchLabel;
+                    sess->pub.metric = 0xfffffff0;
+                }
+            }
+        } else {
+            if (metric <= sess->pub.metric) {
+                sess->pub.sendSwitchLabel = label;
+                sess->pub.version = (version) ? version : sess->pub.version;
+                sess->pub.metric = metric;
+                debugSession0(sm->log, sess, "discovered path");
+            }
+        }
         return sess;
     }
     struct Allocator* alloc = Allocator_child(sm->alloc);
@@ -229,6 +249,7 @@ static struct SessionManager_Session_pvt* getSession(struct SessionManager_pvt* 
     sess->pub.timeOfLastIn = Time_currentTimeMilliseconds(sm->eventBase);
     sess->pub.timeOfLastOut = Time_currentTimeMilliseconds(sm->eventBase);
     sess->pub.sendSwitchLabel = label;
+    sess->pub.metric = metric;
     //Allocator_onFree(alloc, sessionCleanup, sess);
     sendSession(sess, label, 0xffffffff, PFChan_Core_SESSION);
     check(sm, ifaceIndex);
@@ -341,7 +362,7 @@ static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface
         }
 
         uint64_t label = Endian_bigEndianToHost64(switchHeader->label_be);
-        session = getSession(sm, ip6, caHeader->publicKey, 0, label);
+        session = getSession(sm, ip6, caHeader->publicKey, 0, label, 0xfffff000);
         CryptoAuth_resetIfTimeout(session->pub.caSession);
         debugHandlesAndLabel(sm->log, session, label, "new session nonce[%d]", nonceOrHandle);
     }
@@ -635,7 +656,8 @@ static Iface_DEFUN incomingFromInsideIf(struct Message* msg, struct Iface* iface
                               header->ip6,
                               header->publicKey,
                               Endian_bigEndianToHost32(header->version_be),
-                              Endian_bigEndianToHost64(header->sh.label_be));
+                              Endian_bigEndianToHost64(header->sh.label_be),
+                              0xfffffff0);
         } else {
             needsLookup(sm, msg, false);
             return NULL;
@@ -698,33 +720,19 @@ static Iface_DEFUN incomingFromEventIf(struct Message* msg, struct Iface* iface)
     Message_pop(msg, &node, PFChan_Node_SIZE, NULL);
     Assert_true(!msg->length);
     int index = Map_BufferedMessages_indexForKey((struct Ip6*)node.ip6, &sm->bufMap);
-    struct SessionManager_Session_pvt* sess;
-    if (index == -1) {
-        sess = sessionForIp6(node.ip6, sm);
-        // If we discovered a node we're not interested in ...
-        if (!sess) { return NULL; }
-        if (node.metric_be == 0xffffffff) {
-            // this is a broken path
-            if (sess->pub.sendSwitchLabel == Endian_bigEndianToHost64(node.path_be)) {
-                debugSession0(sm->log, sess, "broken path");
-                if (sess->pub.sendSwitchLabel == sess->pub.recvSwitchLabel) {
-                    sess->pub.sendSwitchLabel = 0;
-                } else {
-                    sess->pub.sendSwitchLabel = sess->pub.recvSwitchLabel;
-                }
-            }
-        } else {
-            sess->pub.sendSwitchLabel = Endian_bigEndianToHost64(node.path_be);
-            sess->pub.version = Endian_bigEndianToHost32(node.version_be);
-            debugSession0(sm->log, sess, "discovered path");
-        }
-    } else {
-        sess = getSession(sm,
-                          node.ip6,
-                          node.publicKey,
-                          Endian_bigEndianToHost32(node.version_be),
-                          Endian_bigEndianToHost64(node.path_be));
+    struct SessionManager_Session_pvt* sess = sessionForIp6(node.ip6, sm);
+    if (!sess) {
+        // Node we don't care about.
+        if (index == -1) { return NULL; }
+        // Broken path to a node we don't have a session for...
+        if (node.metric_be == 0xffffffff) { return NULL; }
     }
+    sess = getSession(sm,
+                      node.ip6,
+                      node.publicKey,
+                      Endian_bigEndianToHost32(node.version_be),
+                      Endian_bigEndianToHost64(node.path_be),
+                      Endian_bigEndianToHost32(node.metric_be));
 
     // Send what's on the buffer...
     if (index > -1 && CryptoAuth_getState(sess->pub.caSession) >= CryptoAuth_State_RECEIVED_KEY) {
