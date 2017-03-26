@@ -325,13 +325,17 @@ static void resetIfTimeout(struct CryptoAuth_Session_pvt* session)
     }
 
     uint64_t nowSecs = Time_currentTimeSeconds(session->context->eventBase);
-    if (nowSecs - session->timeOfLastPacket > session->pub.resetAfterInactivitySeconds) {
-        cryptoAuthDebug(session, "No traffic in [%d] seconds, resetting connection.",
-                  (int) (nowSecs - session->timeOfLastPacket));
-
-        session->timeOfLastPacket = nowSecs;
-        reset(session);
+    if (nowSecs - session->timeOfLastPacket < session->pub.setupResetAfterInactivitySeconds) {
+        return;
+    } else if (nowSecs - session->timeOfLastPacket < session->pub.resetAfterInactivitySeconds) {
+        if (session->established) { return; }
     }
+
+    cryptoAuthDebug(session, "No traffic in [%d] seconds, resetting connection.",
+              (int) (nowSecs - session->timeOfLastPacket));
+
+    session->timeOfLastPacket = nowSecs;
+    reset(session);
 }
 
 static void encryptHandshake(struct Message* message,
@@ -1045,6 +1049,8 @@ struct CryptoAuth_Session* CryptoAuth_newSession(struct CryptoAuth* ca,
     session->alloc = alloc;
 
     session->pub.resetAfterInactivitySeconds = CryptoAuth_DEFAULT_RESET_AFTER_INACTIVITY_SECONDS;
+    session->pub.setupResetAfterInactivitySeconds =
+        CryptoAuth_DEFAULT_SETUP_RESET_AFTER_INACTIVITY_SECONDS;
 
     Assert_true(herPublicKey);
     Bits_memcpy(session->pub.herPublicKey, herPublicKey, 32);

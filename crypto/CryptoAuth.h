@@ -30,6 +30,7 @@ Linker_require("crypto/CryptoAuth.c");
 #include <stdbool.h>
 
 #define CryptoAuth_DEFAULT_RESET_AFTER_INACTIVITY_SECONDS 60
+#define CryptoAuth_DEFAULT_SETUP_RESET_AFTER_INACTIVITY_SECONDS 10
 
 struct CryptoAuth
 {
@@ -55,6 +56,9 @@ struct CryptoAuth_Session
      * a connection will be reset to prevent them hanging in a bad state.
      */
     uint32_t resetAfterInactivitySeconds;
+
+    /** If a session is not completely setup, reset it after this many seconds of inactivity. */
+    uint32_t setupResetAfterInactivitySeconds;
 };
 
 /**
