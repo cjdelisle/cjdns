@@ -262,7 +262,7 @@ static void probePeerCycle(void* vsn)
     if (snp->pub.snodeIsReachable && !snp->authorizedSnodes->length) { return; }
     if (!snp->peers->length) { return; }
 
-    Log_debug(snp->log, "\n\nping cycle\n\n");
+    //Log_debug(snp->log, "probePeerCycle()");
 
     if (AddrSet_indexOf(snp->authorizedSnodes, snp->myAddress) != -1) {
         Log_info(snp->log, "Self is specified as supernode, pinging...");
