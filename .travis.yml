@@ -15,5 +15,5 @@ script:
   - "uname -a"
   - "bash node_build/run_jshint"
   - "./do"
+  - "SUBNODE=1 ./do"
   - "./android_do"
-  - "SUBNODE ./do"
