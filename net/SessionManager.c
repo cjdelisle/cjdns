@@ -122,7 +122,7 @@ static void sendSession(struct SessionManager_Session_pvt* sess,
 {
     struct PFChan_Node session = {
         .path_be = Endian_hostToBigEndian64(path),
-        .metric_be = 0xffffffff,
+        .metric_be = Endian_bigEndianToHost32(sess->pub.metric),
         .version_be = Endian_hostToBigEndian32(sess->pub.version)
     };
     Bits_memcpy(session.ip6, sess->pub.caSession->herIp6, 16);
@@ -388,15 +388,19 @@ static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface
         return failedDecrypt(msg, label_be, sm);
     }
 
-    session->pub.timeOfLastIn = Time_currentTimeMilliseconds(sm->eventBase);
-    session->pub.bytesIn += msg->length;
-
     if (currentMessageSetup) {
         session->pub.sendHandle = Message_pop32(msg, NULL);
     }
 
     Message_shift(msg, RouteHeader_SIZE, NULL);
     struct RouteHeader* header = (struct RouteHeader*) msg->bytes;
+
+    Assert_true(msg->length >= DataHeader_SIZE);
+    struct DataHeader* dh = (struct DataHeader*) &header[1];
+    if (DataHeader_getContentType(dh) != ContentType_CJDHT) {
+        session->pub.timeOfLastIn = Time_currentTimeMilliseconds(sm->eventBase);
+    }
+    session->pub.bytesIn += msg->length;
 
     if (currentMessageSetup) {
         Bits_memcpy(&header->sh, switchHeader, SwitchHeader_SIZE);
@@ -493,11 +497,7 @@ static void checkTimedOutSessions(struct SessionManager_pvt* sm)
             continue;
         }
 
-        if (now - sess->pub.timeOfLastOut >= sm->pub.sessionIdleAfterMilliseconds &&
-            now - sess->pub.timeOfLastIn >= sm->pub.sessionIdleAfterMilliseconds)
-        {
-            // Session is in idle state
-        } else if (now - sess->pub.lastSearchTime >= sm->pub.sessionSearchAfterMilliseconds) {
+        if (now - sess->pub.lastSearchTime >= sm->pub.sessionSearchAfterMilliseconds) {
             // Session is not in idle state and requires a search
             // But we're only going to trigger one search per cycle.
             if (searchTriggered) { continue; }
@@ -565,6 +565,10 @@ static Iface_DEFUN readyToSend(struct Message* msg,
                                struct SessionManager_Session_pvt* sess)
 {
     struct RouteHeader* header = (struct RouteHeader*) msg->bytes;
+    struct DataHeader* dh = (struct DataHeader*) &header[1];
+    if (DataHeader_getContentType(dh) != ContentType_CJDHT) {
+        sess->pub.timeOfLastOut = Time_currentTimeMilliseconds(sm->eventBase);
+    }
     Message_shift(msg, -RouteHeader_SIZE, NULL);
     struct SwitchHeader* sh;
     CryptoAuth_resetIfTimeout(sess->pub.caSession);
@@ -584,7 +588,6 @@ static Iface_DEFUN readyToSend(struct Message* msg,
     // This pointer ceases to be useful.
     header = NULL;
 
-    sess->pub.timeOfLastOut = Time_currentTimeMilliseconds(sm->eventBase);
     sess->pub.bytesOut += msg->length;
 
     Assert_true(!CryptoAuth_encrypt(sess->pub.caSession, msg));
@@ -765,7 +768,6 @@ struct SessionManager* SessionManager_new(struct Allocator* allocator,
     sm->eventBase = eventBase;
     sm->pub.sessionTimeoutMilliseconds = SessionManager_SESSION_TIMEOUT_MILLISECONDS_DEFAULT;
     sm->pub.maxBufferedMessages = SessionManager_MAX_BUFFERED_MESSAGES_DEFAULT;
-    sm->pub.sessionIdleAfterMilliseconds = SessionManager_SESSION_IDLE_AFTER_MILLISECONDS_DEFAULT;
     sm->pub.sessionSearchAfterMilliseconds =
         SessionManager_SESSION_SEARCH_AFTER_MILLISECONDS_DEFAULT;
 

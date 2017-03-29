@@ -61,23 +61,11 @@ struct SessionManager
     int64_t sessionTimeoutMilliseconds;
 
     /**
-     * Should be set to a number less than sessionSearchAfterMilliseconds, if no incoming nor
-     * outgoing messages were sent on this session for this amount of time, re-running of the
-     * search will be skipped when sessionSearchAfterMilliseconds is reached allowing the session
-     * to be removed from the table after sessionTimeoutMilliseconds.
-     */
-    #define SessionManager_SESSION_IDLE_AFTER_MILLISECONDS_DEFAULT 50000
-    int64_t sessionIdleAfterMilliseconds;
-
-    /**
      * Number of milliseconds after which a new DHT search will be run to verify the path.
-     * If the session is in "idle" state (sessionIdleAfterMilliseconds has elapsed without any
-     * incoming or outgoing traffic) then the search will be skipped, although it will be triggered
-     * again if more traffic is sent.
      * This is guaged off of lastSearchTime so it need not be less than sessionTimeoutMilliseconds
      * which is guaged off of time of last incoming message (timeOfLastIn).
      */
-    #define SessionManager_SESSION_SEARCH_AFTER_MILLISECONDS_DEFAULT 100000
+    #define SessionManager_SESSION_SEARCH_AFTER_MILLISECONDS_DEFAULT 30000
     int64_t sessionSearchAfterMilliseconds;
 };
 
