@@ -281,11 +281,11 @@ static Iface_DEFUN switchErr(struct Message* msg, struct Pathfinder_pvt* pf)
 
 static Iface_DEFUN searchReq(struct Message* msg, struct Pathfinder_pvt* pf)
 {
-    uint32_t version = Message_pop32(msg, NULL);
-    Message_pop32(msg, NULL);
-    if (version && version >= 20) { return NULL; }
     uint8_t addr[16];
     Message_pop(msg, addr, 16, NULL);
+    Message_pop32(msg, NULL);
+    uint32_t version = Message_pop32(msg, NULL);
+    if (version && version >= 20) { return NULL; }
     Assert_true(!msg->length);
     uint8_t printedAddr[40];
     AddrTools_printIp(printedAddr, addr);

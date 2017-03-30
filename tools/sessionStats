@@ -26,11 +26,11 @@ var printSession = function (session) {
     if (process.argv.indexOf('--ip6') !== -1) {
         addr = addr.replace(/[a-z0-9]{52}.k/, PublicToIp6.convert);
     }
-    var out = [ addr, ' ', state, ' ', session.handle, ' ', session.sendHandle ];
+    var out = [ addr, state, session.handle, session.sendHandle, Number(session.metric).toString(16) ];
     if (Number(session.duplicates) !== 0) { out.push(' DUP ', session.duplicates); }
     if (Number(session.lostPackets) !== 0) { out.push(' LOS ', session.lostPackets); }
     if (Number(session.receivedOutOfRange) !== 0) { out.push(' OOR ', session.receivedOutOfRange); }
-    console.log(out.join(''));
+    console.log(out.join(' '));
 };
 
 var cjdns;
