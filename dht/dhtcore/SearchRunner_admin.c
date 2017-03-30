@@ -81,7 +81,7 @@ static void searchResponse(struct RouterModule_Promise* promise,
 
     Dict* resp = Dict_new(alloc);
     if (!from) {
-        Dict_putStringC(resp, "error", String_CONST("none"), alloc);
+        Dict_putStringCC(resp, "error", "none", alloc);
         Dict_putIntC(resp, "complete", 1, alloc);
         Admin_sendMessage(resp, search->txid, search->ctx->admin);
         Allocator_free(alloc);
@@ -116,7 +116,7 @@ static void search(Dict* args, void* vctx, String* txid, struct Allocator* reqAl
     uint8_t addr[16];
     if (AddrTools_parseIp(addr, (uint8_t*) addrStr->bytes)) {
         Dict* resp = Dict_new(reqAlloc);
-        Dict_putStringC(resp, "error", String_CONST("ipv6 invalid"), reqAlloc);
+        Dict_putStringCC(resp, "error", "ipv6 invalid", reqAlloc);
         Admin_sendMessage(resp, txid, ctx->admin);
     } else {
         struct Allocator* alloc = Allocator_child(ctx->allocator);
@@ -129,7 +129,7 @@ static void search(Dict* args, void* vctx, String* txid, struct Allocator* reqAl
 
         if (!s->promise) {
             Dict* resp = Dict_new(reqAlloc);
-            Dict_putStringC(resp, "error", String_CONST("creating search"), reqAlloc);
+            Dict_putStringCC(resp, "error", "creating search", reqAlloc);
             Admin_sendMessage(resp, txid, ctx->admin);
             Allocator_free(alloc);
             return;

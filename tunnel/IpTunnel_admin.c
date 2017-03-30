@@ -166,7 +166,7 @@ static void listConnections(Dict* args,
     }
     Dict* resp = Dict_new(alloc);
     Dict_putListC(resp, "connections", l, alloc);
-    Dict_putStringC(resp, "error", String_CONST("none"), alloc);
+    Dict_putStringCC(resp, "error", "none", alloc);
     Admin_sendMessage(resp, txid, context->admin);
 }
 
@@ -183,7 +183,7 @@ static void showConn(struct IpTunnel_Connection* conn,
         Assert_true(16 == Sockaddr_getAddress(addr, &address));
         Bits_memcpy(address, conn->connectionIp6, 16);
         char* printedAddr = Sockaddr_print(addr, alloc);
-        Dict_putStringC(d, "ip6Address", String_CONST(printedAddr), alloc);
+        Dict_putStringCC(d, "ip6Address", printedAddr, alloc);
         Dict_putIntC(d, "ip6Prefix", conn->connectionIp6Prefix, alloc);
         Dict_putIntC(d, "ip6Alloc", conn->connectionIp6Alloc, alloc);
     }
@@ -194,7 +194,7 @@ static void showConn(struct IpTunnel_Connection* conn,
         Assert_true(4 == Sockaddr_getAddress(addr, &address));
         Bits_memcpy(address, conn->connectionIp4, 4);
         char* printedAddr = Sockaddr_print(addr, alloc);
-        Dict_putStringC(d, "ip4Address", String_CONST(printedAddr), alloc);
+        Dict_putStringCC(d, "ip4Address", printedAddr, alloc);
         Dict_putIntC(d, "ip4Prefix", conn->connectionIp4Prefix, alloc);
         Dict_putIntC(d, "ip4Alloc", conn->connectionIp4Alloc, alloc);
     }
@@ -202,7 +202,7 @@ static void showConn(struct IpTunnel_Connection* conn,
     Dict_putStringC(d, "key",
                       Key_stringify(conn->routeHeader.publicKey, alloc), alloc);
     Dict_putIntC(d, "outgoing", (conn->isOutgoing) ? 1 : 0, alloc);
-    Dict_putStringC(d, "error", String_CONST("none"), alloc);
+    Dict_putStringCC(d, "error", "none", alloc);
 
     Admin_sendMessage(d, txid, admin);
 }

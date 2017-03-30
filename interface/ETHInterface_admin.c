@@ -94,7 +94,7 @@ static void newInterface(Dict* args, void* vcontext, String* txid, struct Alloca
             ctx->eventBase, bindDevice->bytes, alloc, &jmp.handler, ctx->logger);
     } Jmp_catch {
         Dict* out = Dict_new(requestAlloc);
-        Dict_putStringC(out, "error", String_CONST(jmp.message), requestAlloc);
+        Dict_putStringCC(out, "error", jmp.message, requestAlloc);
         Admin_sendMessage(out, txid, ctx->admin);
         Allocator_free(alloc);
         return;
@@ -106,7 +106,7 @@ static void newInterface(Dict* args, void* vcontext, String* txid, struct Alloca
     Iface_plumb(&ici->addrIf, &ethIf->generic.iface);
 
     Dict* out = Dict_new(requestAlloc);
-    Dict_putStringC(out, "error", String_CONST("none"), requestAlloc);
+    Dict_putStringCC(out, "error", "none", requestAlloc);
     Dict_putIntC(out, "interfaceNumber", ici->ifNum, requestAlloc);
 
     Admin_sendMessage(out, txid, ctx->admin);
@@ -132,7 +132,7 @@ static void beacon(Dict* args, void* vcontext, String* txid, struct Allocator* r
 
     if (error) {
         Dict* out = Dict_new(requestAlloc);
-        Dict_putStringC(out, "error", String_CONST(error), requestAlloc);
+        Dict_putStringCC(out, "error", error, requestAlloc);
         Admin_sendMessage(out, txid, ctx->admin);
         return;
     }
@@ -161,13 +161,13 @@ static void listDevices(Dict* args, void* vcontext, String* txid, struct Allocat
         devices = ETHInterface_listDevices(requestAlloc, &jmp.handler);
     } Jmp_catch {
         Dict* out = Dict_new(requestAlloc);
-        Dict_putStringC(out, "error", String_CONST(jmp.message), requestAlloc);
+        Dict_putStringCC(out, "error", jmp.message, requestAlloc);
         Admin_sendMessage(out, txid, ctx->admin);
         return;
     }
 
     Dict* out = Dict_new(requestAlloc);
-    Dict_putStringC(out, "error", String_CONST("none"), requestAlloc);
+    Dict_putStringCC(out, "error", "none", requestAlloc);
     Dict_putListC(out, "devices", devices, requestAlloc);
     Admin_sendMessage(out, txid, ctx->admin);
 }

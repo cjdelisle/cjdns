@@ -498,7 +498,7 @@ static void security(struct Allocator* tempAlloc, List* conf, struct Log* log, s
 
     do {
         Dict* d = Dict_new(tempAlloc);
-        Dict_putStringC(d, "user", String_CONST("nobody"), tempAlloc);
+        Dict_putStringCC(d, "user", "nobody", tempAlloc);
         if (!Defined(win32)) {
             Dict* ret = NULL;
             rpcCall0(String_CONST("Security_getUser"), d, ctx, tempAlloc, &ret, true);
@@ -563,7 +563,7 @@ static void security(struct Allocator* tempAlloc, List* conf, struct Log* log, s
     if (chroot) {
         Log_debug(log, "Security_chroot(/var/run)");
         Dict* d = Dict_new(tempAlloc);
-        Dict_putStringC(d, "root", String_CONST("/var/run/"), tempAlloc);
+        Dict_putStringCC(d, "root", "/var/run/", tempAlloc);
         rpcCall0(String_CONST("Security_chroot"), d, ctx, tempAlloc, NULL, false);
     }
     /* FIXME(sdg): moving noforks after setuser might make nproc <- 0,0 work

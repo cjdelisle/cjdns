@@ -164,12 +164,12 @@ static void newInterface2(struct Context* ctx,
     Iface_plumb(&ici->addrIf, &ai->iface);
 
     Dict* out = Dict_new(requestAlloc);
-    Dict_putStringC(out, "error", String_CONST("none"), requestAlloc);
+    Dict_putStringCC(out, "error", "none", requestAlloc);
     Dict_putIntC(out, "interfaceNumber", ici->ifNum, requestAlloc);
     char* printedAddr = Sockaddr_print(ai->addr, requestAlloc);
-    Dict_putStringC(out,
+    Dict_putStringCC(out,
                    "bindAddress",
-                   String_CONST(printedAddr),
+                   printedAddr,
                    requestAlloc);
 
     Admin_sendMessage(out, txid, ctx->admin);

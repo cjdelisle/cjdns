@@ -350,7 +350,7 @@ static void handleRequest(Dict* messageDict,
     if (String_equals(query, auth)) {
         if (!authValid(messageDict, message, admin)) {
             Dict* d = Dict_new(allocator);
-            Dict_putStringC(d, "error", String_CONST("Auth failed."), allocator);
+            Dict_putStringCC(d, "error", "Auth failed.", allocator);
             Admin_sendMessage(d, txid, &admin->pub);
             return;
         }

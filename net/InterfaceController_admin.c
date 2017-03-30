@@ -109,7 +109,7 @@ static void adminDisconnectPeer(Dict* args,
     Dict* response = Dict_new(requestAlloc);
     Dict_putIntC(response, "success", error ? 0 : 1, requestAlloc);
     if (error) {
-        Dict_putStringC(response, "error", String_CONST(errorMsg), requestAlloc);
+        Dict_putStringCC(response, "error", errorMsg, requestAlloc);
     }
 
     Admin_sendMessage(response, txid, context->admin);
@@ -145,7 +145,7 @@ static void adminResetPeering(Dict* args,
     Dict* response = Dict_new(requestAlloc);
     Dict_putIntC(response, "success", error ? 0 : 1, requestAlloc);
     if (error) {
-        Dict_putStringC(response, "error", String_CONST(errorMsg), requestAlloc);
+        Dict_putStringCC(response, "error", errorMsg, requestAlloc);
     }
 
     Admin_sendMessage(response, txid, context->admin);
@@ -176,7 +176,7 @@ static resetSession(Dict* args, void* vcontext, String* txid, struct Allocator* 
     Dict* response = Dict_new(requestAlloc);
     Dict_putIntC(response, "success", error ? 0 : 1, requestAlloc);
     if (error) {
-        Dict_putStringC(response, "error", String_CONST(errorMsg), requestAlloc);
+        Dict_putStringCC(response, "error", errorMsg, requestAlloc);
     }
 
     Admin_sendMessage(response, txid, context->admin);

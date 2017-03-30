@@ -87,7 +87,7 @@ static void pingResponse(struct RouterModule_Promise* promise,
         Hex_encode(versionStr->bytes, 40, versionBin->bytes, 20);
         Dict_putStringC(resp, "version", versionStr, tempAlloc);
     } else {
-        Dict_putStringC(resp, "version", String_CONST("unknown"), tempAlloc);
+        Dict_putStringCC(resp, "version", "unknown", tempAlloc);
     }
 
     String* result = (responseDict) ? String_CONST("pong") : String_CONST("timeout");
@@ -108,8 +108,8 @@ static void pingResponse(struct RouterModule_Promise* promise,
         Dict_putStringC(resp, "addr", addr, tempAlloc);
     }
 
-    Dict_putStringC(resp, "deprecation",
-        String_CONST("from,protocol,version will soon be removed"), tempAlloc);
+    Dict_putStringCC(resp, "deprecation",
+        "from,protocol,version will soon be removed", tempAlloc);
 
     Admin_sendMessage(resp, ping->txid, ping->ctx->admin);
 }
@@ -151,7 +151,7 @@ static void genericResponse(struct RouterModule_Promise* promise,
 
     Dict_putIntC(out, "ms", lag, promise->alloc);
 
-    Dict_putStringC(out, "error", String_CONST("none"), promise->alloc);
+    Dict_putStringCC(out, "error", "none", promise->alloc);
 
     Admin_sendMessage(out, ping->txid, ping->ctx->admin);
 }

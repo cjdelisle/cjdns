@@ -62,7 +62,7 @@ static void checkPermissionsB(struct Except* eh,
     Dict_putIntC(out, "seccompExists", sp->seccompExists, requestAlloc);
     Dict_putIntC(out, "seccompEnforcing", sp->seccompEnforcing, requestAlloc);
     Dict_putIntC(out, "userId", sp->uid, requestAlloc);
-    Dict_putStringC(out, "error", String_CONST("none"), requestAlloc);
+    Dict_putStringCC(out, "error", "none", requestAlloc);
     Admin_sendMessage(out, txid, admin);
 }
 

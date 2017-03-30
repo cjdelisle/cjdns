@@ -51,7 +51,7 @@ static void onResponse(struct FileNo_Promise* promise, int tunfd)
 
     Dict_putIntC(resp, "tunfd", tunfd, promise->alloc);
     Dict_putIntC(resp, "type", fr->type, promise->alloc);
-    Dict_putStringC(resp, "error", String_CONST("none"), promise->alloc);
+    Dict_putStringCC(resp, "error", "none", promise->alloc);
     Admin_sendMessage(resp, fr->txid, fr->ctx->admin);
 }
 
