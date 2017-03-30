@@ -15,6 +15,7 @@
 [Español](README_ES.md)
 =======
 >>>>>>> c1b5f008b4140c207182e6ad318d97b72ee0974c
+[Français](README_FR.md)
 
 #### *Netzwerk neu erfunden*
 
