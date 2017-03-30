@@ -47,10 +47,10 @@ static void dumpRumorMill(Dict* args, void* vcontext, String* txid, struct Alloc
     struct Context* ctx = Identity_check((struct Context*) vcontext);
 
     Dict* out = Dict_new(requestAlloc);
-    struct RumorMill* rm = getRumorMill(ctx, Dict_getString(args, String_CONST("mill")));
+    struct RumorMill* rm = getRumorMill(ctx, Dict_getStringC(args, "mill"));
     if (!rm) {
-        Dict_putString(out,
-                       String_CONST("error"),
+        Dict_putStringC(out,
+                       "error",
                        String_CONST("mill must be one of "
                                     "[externalMill,linkMill,nodeMill,dhtMill,splitMill]"),
                        requestAlloc);
@@ -58,7 +58,7 @@ static void dumpRumorMill(Dict* args, void* vcontext, String* txid, struct Alloc
         return;
     }
 
-    int64_t* page = Dict_getInt(args, String_CONST("page"));
+    int64_t* page = Dict_getIntC(args, "page");
     int ctr = (page) ? *page * ENTRIES_PER_PAGE : 0;
 
     List* table = List_new(requestAlloc);
@@ -66,8 +66,8 @@ static void dumpRumorMill(Dict* args, void* vcontext, String* txid, struct Alloc
         String* addr = Address_toString(&rm->addresses[ctr++], requestAlloc);
         List_addString(table, addr, requestAlloc);
     }
-    Dict_putList(out, String_CONST("addresses"), table, requestAlloc);
-    Dict_putInt(out, String_CONST("total"), rm->count, requestAlloc);
+    Dict_putListC(out, "addresses", table, requestAlloc);
+    Dict_putIntC(out, "total", rm->count, requestAlloc);
     Admin_sendMessage(out, txid, ctx->admin);
 }
 

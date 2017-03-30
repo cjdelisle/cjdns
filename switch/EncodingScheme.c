@@ -292,9 +292,9 @@ struct EncodingScheme* EncodingScheme_fromList(List* scheme, struct Allocator* a
     list->forms = Allocator_malloc(alloc, sizeof(struct EncodingScheme_Form) * list->count);
     for (int i = 0; i < (int)list->count; i++) {
         Dict* form = List_getDict(scheme, i);
-        uint64_t* prefixLen = Dict_getInt(form, String_CONST("prefixLen"));
-        uint64_t* bitCount = Dict_getInt(form, String_CONST("bitCount"));
-        String* prefixStr = Dict_getString(form, String_CONST("prefix"));
+        uint64_t* prefixLen = Dict_getIntC(form, "prefixLen");
+        uint64_t* bitCount = Dict_getIntC(form, "bitCount");
+        String* prefixStr = Dict_getStringC(form, "prefix");
         if (!prefixLen || !bitCount || !prefixStr || prefixStr->len != 8) {
             return NULL;
         }

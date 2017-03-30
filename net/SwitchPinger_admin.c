@@ -49,19 +49,19 @@ static void adminPingOnResponse(struct SwitchPinger_Response* resp, void* vping)
         uint8_t path[20] = {0};
         AddrTools_printPath(path, resp->label);
         String* pathStr = String_new(path, pingAlloc);
-        Dict_putString(rd, String_CONST("rpath"), pathStr, pingAlloc);
+        Dict_putStringC(rd, "rpath", pathStr, pingAlloc);
     }
 
-    Dict_putInt(rd, String_CONST("version"), resp->version, pingAlloc);
-    Dict_putInt(rd, String_CONST("ms"), resp->milliseconds, pingAlloc);
-    Dict_putString(rd, String_CONST("result"), SwitchPinger_resultString(resp->res), pingAlloc);
-    Dict_putString(rd, String_CONST("path"), ping->path, pingAlloc);
+    Dict_putIntC(rd, "version", resp->version, pingAlloc);
+    Dict_putIntC(rd, "ms", resp->milliseconds, pingAlloc);
+    Dict_putStringC(rd, "result", SwitchPinger_resultString(resp->res), pingAlloc);
+    Dict_putStringC(rd, "path", ping->path, pingAlloc);
     if (resp->data) {
-        Dict_putString(rd, String_CONST("data"), resp->data, pingAlloc);
+        Dict_putStringC(rd, "data", resp->data, pingAlloc);
     }
 
     if (!Bits_isZero(resp->key, 32)) {
-        Dict_putString(rd, String_CONST("key"), Key_stringify(resp->key, pingAlloc), pingAlloc);
+        Dict_putStringC(rd, "key", Key_stringify(resp->key, pingAlloc), pingAlloc);
     }
 
     Admin_sendMessage(rd, ping->txid, ping->context->admin);
@@ -70,10 +70,10 @@ static void adminPingOnResponse(struct SwitchPinger_Response* resp, void* vping)
 static void adminPing(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* context = vcontext;
-    String* pathStr = Dict_getString(args, String_CONST("path"));
-    int64_t* timeoutPtr = Dict_getInt(args, String_CONST("timeout"));
-    String* data = Dict_getString(args, String_CONST("data"));
-    int64_t* keyPing = Dict_getInt(args, String_CONST("keyPing"));
+    String* pathStr = Dict_getStringC(args, "path");
+    int64_t* timeoutPtr = Dict_getIntC(args, "timeout");
+    String* data = Dict_getStringC(args, "data");
+    int64_t* keyPing = Dict_getIntC(args, "keyPing");
     uint32_t timeout = (timeoutPtr) ? *timeoutPtr : DEFAULT_TIMEOUT;
     uint64_t path;
     String* err = NULL;

@@ -46,9 +46,9 @@ static void getSomething(Dict* args,
     int page = getIntVal(args, String_CONST("page"));
     List* routes;
     if (getIntVal(args, String_CONST("ip6"))) {
-        routes = Dict_getList(genRoutes, String_CONST("ipv6"));
+        routes = Dict_getListC(genRoutes, "ipv6");
     } else {
-        routes = Dict_getList(genRoutes, String_CONST("ipv4"));
+        routes = Dict_getListC(genRoutes, "ipv4");
     }
     Assert_true(routes);
     List* outList = List_new(requestAlloc);
@@ -105,7 +105,7 @@ static void addRemoveSomething(Dict* args,
                                enum addRemoveSomething_What what)
 {
     struct RouteGen_admin_Ctx* ctx = Identity_check((struct RouteGen_admin_Ctx*) vcontext);
-    String* route = Dict_getString(args, String_CONST("route"));
+    String* route = Dict_getStringC(args, "route");
     char* error = NULL;
 
     struct Sockaddr_storage ss;
@@ -176,7 +176,7 @@ static void commit(Dict* args,
                    struct Allocator* requestAlloc)
 {
     struct RouteGen_admin_Ctx* const ctx = Identity_check((struct RouteGen_admin_Ctx*) vcontext);
-    String* const tunName = Dict_getString(args, String_CONST("tunName"));
+    String* const tunName = Dict_getStringC(args, "tunName");
     Dict* const ret = Dict_new(requestAlloc);
     char* error;
     struct Jmp j;

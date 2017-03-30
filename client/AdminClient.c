@@ -136,7 +136,7 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* addrIface)
     if (err) { return NULL; }
     Message_shift(msg, origLen, NULL);
 
-    String* txid = Dict_getString(d, String_CONST("txid"));
+    String* txid = Dict_getStringC(d, "txid");
     if (!txid || txid->len != 8) { return NULL; }
 
     // look up the result
@@ -189,7 +189,7 @@ static struct Request* sendRaw(Dict* messageDict,
 
     String* id = String_newBinary(NULL, 8, req->alloc);
     Hex_encode(id->bytes, 8, (int8_t*) &req->handle, 4);
-    Dict_putString(messageDict, String_CONST("txid"), id, req->alloc);
+    Dict_putStringC(messageDict, "txid", id, req->alloc);
 
     if (cookie) {
         Assert_true(!calculateAuth(messageDict, ctx->password, cookie, req->alloc));
@@ -231,7 +231,7 @@ static void cookieCallback(struct Request* req)
         requestCallback(req);
         return;
     }
-    String* cookie = Dict_getString(req->res.responseDict, String_CONST("cookie"));
+    String* cookie = Dict_getStringC(req->res.responseDict, "cookie");
     if (!cookie) {
         req->res.err = AdminClient_Error_NO_COOKIE;
         requestCallback(req);

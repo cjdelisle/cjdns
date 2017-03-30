@@ -41,13 +41,13 @@ static void beginConnection(Dict* args,
 {
     struct Context* ctx = vcontext;
 
-    String* password = Dict_getString(args, String_CONST("password"));
-    String* login = Dict_getString(args, String_CONST("login"));
-    String* publicKey = Dict_getString(args, String_CONST("publicKey"));
-    String* address = Dict_getString(args, String_CONST("address"));
-    int64_t* interfaceNumber = Dict_getInt(args, String_CONST("interfaceNumber"));
+    String* password = Dict_getStringC(args, "password");
+    String* login = Dict_getStringC(args, "login");
+    String* publicKey = Dict_getStringC(args, "publicKey");
+    String* address = Dict_getStringC(args, "address");
+    int64_t* interfaceNumber = Dict_getIntC(args, "interfaceNumber");
     uint32_t ifNum = (interfaceNumber) ? ((uint32_t) *interfaceNumber) : 0;
-    String* peerName = Dict_getString(args, String_CONST("peerName"));
+    String* peerName = Dict_getStringC(args, "peerName");
     String* error = NULL;
 
     Log_debug(ctx->logger, "Peering with [%s]", publicKey->bytes);
@@ -164,11 +164,11 @@ static void newInterface2(struct Context* ctx,
     Iface_plumb(&ici->addrIf, &ai->iface);
 
     Dict* out = Dict_new(requestAlloc);
-    Dict_putString(out, String_CONST("error"), String_CONST("none"), requestAlloc);
-    Dict_putInt(out, String_CONST("interfaceNumber"), ici->ifNum, requestAlloc);
+    Dict_putStringC(out, "error", String_CONST("none"), requestAlloc);
+    Dict_putIntC(out, "interfaceNumber", ici->ifNum, requestAlloc);
     char* printedAddr = Sockaddr_print(ai->addr, requestAlloc);
-    Dict_putString(out,
-                   String_CONST("bindAddress"),
+    Dict_putStringC(out,
+                   "bindAddress",
                    String_CONST(printedAddr),
                    requestAlloc);
 
@@ -178,7 +178,7 @@ static void newInterface2(struct Context* ctx,
 static void newInterface(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* ctx = vcontext;
-    String* bindAddress = Dict_getString(args, String_CONST("bindAddress"));
+    String* bindAddress = Dict_getStringC(args, "bindAddress");
     struct Sockaddr_storage addr;
     if (Sockaddr_parse((bindAddress) ? bindAddress->bytes : "0.0.0.0", &addr)) {
         Dict out = Dict_CONST(

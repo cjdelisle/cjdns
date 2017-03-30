@@ -37,7 +37,7 @@ struct Context {
 static void dumpTable(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* ctx = Identity_check((struct Context*) vcontext);
-    int64_t* page = Dict_getInt(args, String_CONST("page"));
+    int64_t* page = Dict_getIntC(args, "page");
     int ctr = (page) ? *page * ENTRIES_PER_PAGE : 0;
 
     Dict* out = Dict_new(requestAlloc);
@@ -51,39 +51,39 @@ static void dumpTable(Dict* args, void* vcontext, String* txid, struct Allocator
 
         String* ip = String_newBinary(NULL, 39, requestAlloc);
         Address_printIp(ip->bytes, &nn->address);
-        Dict_putString(nodeDict, String_CONST("ip"), ip, requestAlloc);
+        Dict_putStringC(nodeDict, "ip", ip, requestAlloc);
 
         String* addr = Address_toString(&nn->address, requestAlloc);
-        Dict_putString(nodeDict, String_CONST("addr"), addr, requestAlloc);
+        Dict_putStringC(nodeDict, "addr", addr, requestAlloc);
 
         String* path = String_newBinary(NULL, 19, requestAlloc);
         AddrTools_printPath(path->bytes, nn->address.path);
-        Dict_putString(nodeDict, String_CONST("path"), path, requestAlloc);
+        Dict_putStringC(nodeDict, "path", path, requestAlloc);
 
-        Dict_putInt(nodeDict, String_CONST("link"), Node_getCost(nn), requestAlloc);
-        Dict_putInt(nodeDict, String_CONST("version"), nn->address.protocolVersion, requestAlloc);
+        Dict_putIntC(nodeDict, "link", Node_getCost(nn), requestAlloc);
+        Dict_putIntC(nodeDict, "version", nn->address.protocolVersion, requestAlloc);
 
-        Dict_putInt(nodeDict,
-                    String_CONST("time"),
+        Dict_putIntC(nodeDict,
+                    "time",
                     NodeStore_timeSinceLastPing(ctx->store, nn),
                     requestAlloc);
 
-        Dict_putInt(nodeDict,
-                    String_CONST("bucket"),
+        Dict_putIntC(nodeDict,
+                    "bucket",
                     NodeStore_bucketForAddr(ctx->store->selfAddress, &nn->address),
                     requestAlloc);
 
         List_addDict(table, nodeDict, requestAlloc);
     }
-    Dict_putList(out, String_CONST("routingTable"), table, requestAlloc);
+    Dict_putListC(out, "routingTable", table, requestAlloc);
 
     if (nn) {
-        Dict_putInt(out, String_CONST("more"), 1, requestAlloc);
+        Dict_putIntC(out, "more", 1, requestAlloc);
     }
-    Dict_putInt(out, String_CONST("count"), ctx->store->nodeCount, requestAlloc);
-    Dict_putInt(out, String_CONST("peers"), ctx->store->peerCount, requestAlloc);
+    Dict_putIntC(out, "count", ctx->store->nodeCount, requestAlloc);
+    Dict_putIntC(out, "peers", ctx->store->peerCount, requestAlloc);
 
-    Dict_putString(out, String_CONST("deprecation"),
+    Dict_putStringC(out, "deprecation",
         String_CONST("ip,path,version will soon be removed"), requestAlloc);
 
     Admin_sendMessage(out, txid, ctx->admin);
@@ -237,20 +237,20 @@ static void nodeForAddr(Dict* args, void* vcontext, String* txid, struct Allocat
     Dict* bestParent = Dict_new(alloc);
     String* parentIp = String_newBinary(NULL, 39, alloc);
     AddrTools_printIp(parentIp->bytes, Node_getBestParent(node)->parent->address.ip6.bytes);
-    Dict_putString(bestParent, String_CONST("ip"), parentIp, alloc);
+    Dict_putStringC(bestParent, "ip", parentIp, alloc);
 
     String* parentChildLabel = String_newBinary(NULL, 19, alloc);
     AddrTools_printPath(parentChildLabel->bytes, Node_getBestParent(node)->cannonicalLabel);
-    Dict_putString(bestParent, String_CONST("parentChildLabel"), parentChildLabel, alloc);
+    Dict_putStringC(bestParent, "parentChildLabel", parentChildLabel, alloc);
 
     int isOneHop = Node_isOneHopLink(Node_getBestParent(node));
-    Dict_putInt(bestParent, String_CONST("isOneHop"), isOneHop, alloc);
+    Dict_putIntC(bestParent, "isOneHop", isOneHop, alloc);
 
-    Dict_putDict(result, String_CONST("bestParent"), bestParent, alloc);
+    Dict_putDictC(result, "bestParent", bestParent, alloc);
 
     String* bestLabel = String_newBinary(NULL, 19, alloc);
     AddrTools_printPath(bestLabel->bytes, node->address.path);
-    Dict_putString(result, String_CONST("routeLabel"), bestLabel, alloc);
+    Dict_putStringC(result, "routeLabel", bestLabel, alloc);
 
     Admin_sendMessage(ret, txid, ctx->admin);
 }
@@ -261,13 +261,13 @@ static void getRouteLabel(Dict* args, void* vcontext, String* txid, struct Alloc
 
     char* err = NULL;
 
-    String* pathToParentS = Dict_getString(args, String_CONST("pathToParent"));
+    String* pathToParentS = Dict_getStringC(args, "pathToParent");
     uint64_t pathToParent = 0;
     if (pathToParentS->len != 19 || AddrTools_parsePath(&pathToParent, pathToParentS->bytes)) {
         err = "parse_pathToParent";
     }
 
-    String* pathParentToChildS = Dict_getString(args, String_CONST("pathParentToChild"));
+    String* pathParentToChildS = Dict_getStringC(args, "pathParentToChild");
     uint64_t pathParentToChild = 0;
     if (pathParentToChildS->len != 19
         || AddrTools_parsePath(&pathParentToChild, pathParentToChildS->bytes))

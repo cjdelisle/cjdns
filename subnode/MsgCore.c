@@ -216,7 +216,7 @@ static Iface_DEFUN queryMsg(struct MsgCore_pvt* mcp,
                             struct Address* src,
                             struct Message* msg)
 {
-    String* q = Dict_getString(content, String_CONST("q"));
+    String* q = Dict_getStringC(content, "q");
     struct QueryHandler* qh = NULL;
     for (int i = 0; i < mcp->qh->length; i++) {
         struct QueryHandler* qhx = ArrayList_OfQueryHandlers_get(mcp->qh, i);
@@ -302,7 +302,7 @@ static Iface_DEFUN incoming(struct Message* msg, struct Iface* interRouterIf)
     }
     addr.protocolVersion = *verP;
 
-    String* q = Dict_getString(content, String_CONST("q"));
+    String* q = Dict_getStringC(content, "q");
 
     if (!Defined(SUBNODE)) {
         String* txid = Dict_getStringC(content, "txid");

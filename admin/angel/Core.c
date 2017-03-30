@@ -142,7 +142,7 @@ static void sendResponse(String* error,
                          struct Allocator* tempAlloc)
 {
     Dict* output = Dict_new(tempAlloc);
-    Dict_putString(output, String_CONST("error"), error, tempAlloc);
+    Dict_putStringC(output, "error", error, tempAlloc);
     Admin_sendMessage(output, txid, admin);
 }
 
@@ -177,8 +177,8 @@ static void initTunfd(Dict* args, void* vcontext, String* txid, struct Allocator
     struct Context* ctx = Identity_check((struct Context*) vcontext);
     struct Jmp jmp;
     Jmp_try(jmp) {
-        int64_t* tunfd = Dict_getInt(args, String_CONST("tunfd"));
-        int64_t* tuntype = Dict_getInt(args, String_CONST("type"));
+        int64_t* tunfd = Dict_getIntC(args, "tunfd");
+        int64_t* tuntype = Dict_getIntC(args, "type");
         if (!tunfd || *tunfd < 0) {
             String* error = String_printf(requestAlloc, "Invalid tunfd");
             sendResponse(error, ctx->admin, txid, requestAlloc);
@@ -209,7 +209,7 @@ static void initTunnel(Dict* args, void* vcontext, String* txid, struct Allocato
 
     struct Jmp jmp;
     Jmp_try(jmp) {
-        String* desiredName = Dict_getString(args, String_CONST("desiredTunName"));
+        String* desiredName = Dict_getStringC(args, "desiredTunName");
         initTunnel2(desiredName, ctx, 8, &jmp.handler);
     } Jmp_catch {
         String* error = String_printf(requestAlloc, "Failed to configure tunnel [%s]", jmp.message);
@@ -358,10 +358,10 @@ int Core_main(int argc, char** argv)
     Log_debug(logger, "Finished getting pre-configuration from client");
     Dict* config = BencMessageReader_read(preConf, tempAlloc, eh);
 
-    String* privateKeyHex = Dict_getString(config, String_CONST("privateKey"));
-    Dict* adminConf = Dict_getDict(config, String_CONST("admin"));
-    String* pass = Dict_getString(adminConf, String_CONST("pass"));
-    String* bind = Dict_getString(adminConf, String_CONST("bind"));
+    String* privateKeyHex = Dict_getStringC(config, "privateKey");
+    Dict* adminConf = Dict_getDictC(config, "admin");
+    String* pass = Dict_getStringC(adminConf, "pass");
+    String* bind = Dict_getStringC(adminConf, "bind");
     if (!(pass && privateKeyHex && bind)) {
         if (!pass) {
             Except_throw(eh, "Expected 'pass'");
@@ -394,8 +394,8 @@ int Core_main(int argc, char** argv)
     struct Admin* admin = Admin_new(&udpAdmin->generic, logger, eventBase, pass);
 
     // --------------------- Setup the Logger --------------------- //
-    Dict* logging = Dict_getDict(config, String_CONST("logging"));
-    String* logTo = Dict_getString(logging, String_CONST("logTo"));
+    Dict* logging = Dict_getDictC(config, "logging");
+    String* logTo = Dict_getStringC(logging, "logTo");
     if (logTo && String_equals(logTo, String_CONST("stdout"))) {
         // do nothing, continue logging to stdout.
     } else {

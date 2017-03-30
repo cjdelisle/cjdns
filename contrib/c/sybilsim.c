@@ -155,8 +155,8 @@ static void bindUDPCallback(struct RPCCall* call, struct AdminClient_Result* res
     // Indirection to shutup clang warning
     struct Log* logger = &call->node->nodeLog;
     Log_debug(logger, "UDPInterface_new() -> [%s]", res->messageBytes);
-    String* addr = Dict_getString(res->responseDict, String_CONST("bindAddress"));
-    int64_t* ifNum = Dict_getInt(res->responseDict, String_CONST("interfaceNumber"));
+    String* addr = Dict_getStringC(res->responseDict, "bindAddress");
+    int64_t* ifNum = Dict_getIntC(res->responseDict, "interfaceNumber");
     struct Sockaddr_storage ss;
     Assert_true(!Sockaddr_parse(addr->bytes, &ss));
     call->node->ifNum = *ifNum;
@@ -199,11 +199,11 @@ static struct NodeContext* startNode(char* nodeName,
     }));
     Identity_set(node);
 
-    node->bind = Dict_getString(admin, String_CONST("bind"));
+    node->bind = Dict_getStringC(admin, "bind");
     if (!node->bind) {
         node->bind = String_new("127.0.0.1:0", alloc);
     }
-    node->pass = Dict_getString(admin, String_CONST("password"));
+    node->pass = Dict_getStringC(admin, "password");
     if (!node->pass) {
         node->pass = String_new("x", alloc);
     }
@@ -386,18 +386,18 @@ static void letErRip(Dict* config, struct Allocator* alloc)
     struct Context* ctx = &sctx;
     Identity_set(ctx);
 
-    ctx->confNodes = Dict_getDict(config, String_CONST("nodes"));
+    ctx->confNodes = Dict_getDictC(config, "nodes");
 
     struct FakeNetwork* fakeNet = FakeNetwork_new(base, alloc, logger);
 
     String* key = NULL;
     Dict_forEach(ctx->confNodes, key) {
         Dict* val = Dict_getDict(ctx->confNodes, key);
-        String* privateKeyHex = Dict_getString(val, String_CONST("privateKey"));
-        Dict* admin = Dict_getDict(val, String_CONST("admin"));
+        String* privateKeyHex = Dict_getStringC(val, "privateKey");
+        Dict* admin = Dict_getDictC(val, "admin");
         struct NodeContext* nc =
             startNode(key->bytes, privateKeyHex->bytes, admin, ctx, eh, fakeNet);
-        nc->peers = Dict_getList(val, String_CONST("peers"));
+        nc->peers = Dict_getListC(val, "peers");
         Map_OfNodes_put(&key, &nc, &ctx->nodeMap);
     }
 

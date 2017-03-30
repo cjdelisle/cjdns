@@ -29,7 +29,7 @@ struct Context
 static void sendResponse(String* msg, struct Admin* admin, String* txid, struct Allocator* alloc)
 {
     Dict* output = Dict_new(alloc);
-    Dict_putString(output, String_CONST("error"), msg, alloc);
+    Dict_putStringC(output, "error", msg, alloc);
     Admin_sendMessage(output, txid, admin);
 }
 
@@ -37,9 +37,9 @@ static void add(Dict* args, void* vcontext, String* txid, struct Allocator* allo
 {
     struct Context* context = Identity_check((struct Context*) vcontext);
 
-    String* passwd = Dict_getString(args, String_CONST("password"));
-    String* user = Dict_getString(args, String_CONST("user"));
-    String* ipv6 = Dict_getString(args, String_CONST("ipv6"));
+    String* passwd = Dict_getStringC(args, "password");
+    String* user = Dict_getStringC(args, "user");
+    String* ipv6 = Dict_getStringC(args, "ipv6");
 
     uint8_t ipv6Bytes[16];
     uint8_t* ipv6Arg;
@@ -69,7 +69,7 @@ static void add(Dict* args, void* vcontext, String* txid, struct Allocator* allo
 static void remove(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* context = Identity_check((struct Context*) vcontext);
-    String* user = Dict_getString(args, String_CONST("user"));
+    String* user = Dict_getStringC(args, "user");
 
     int32_t ret = CryptoAuth_removeUsers(context->ca, user);
     if (ret) {

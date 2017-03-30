@@ -38,7 +38,7 @@ static void getHandles(Dict* args, void* vcontext, String* txid, struct Allocato
     struct Context* context = Identity_check((struct Context*) vcontext);
     struct Allocator* alloc = Allocator_child(context->alloc);
 
-    int64_t* page = Dict_getInt(args, String_CONST("page"));
+    int64_t* page = Dict_getIntC(args, "page");
     int i = (page) ? *page * ENTRIES_PER_PAGE : 0;
     struct SessionManager_HandleList* hList = SessionManager_getHandleList(context->sm, alloc);
 
@@ -51,9 +51,8 @@ static void getHandles(Dict* args, void* vcontext, String* txid, struct Allocato
     Dict_putListC(r, "handles", list, alloc);
     Dict_putIntC(r, "total", hList->length, alloc);
 
-    String* more = String_CONST("more");
     if (i < hList->length) {
-        Dict_putInt(r, more, 1, alloc);
+        Dict_putIntC(r, "more", 1, alloc);
     }
 
     Admin_sendMessage(r, txid, context->admin);
@@ -111,7 +110,7 @@ static void sessionStats(Dict* args,
                          struct Allocator* alloc)
 {
     struct Context* context = Identity_check((struct Context*) vcontext);
-    int64_t* handleP = Dict_getInt(args, String_CONST("handle"));
+    int64_t* handleP = Dict_getIntC(args, "handle");
     uint32_t handle = *handleP;
 
     struct SessionManager_Session* session = SessionManager_sessionForHandle(handle, context->sm);

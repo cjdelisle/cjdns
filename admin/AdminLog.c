@@ -228,10 +228,10 @@ static void doLog(struct Log* genericLog,
 static void subscribe(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct AdminLog* log = Identity_check((struct AdminLog*) vcontext);
-    String* levelName = Dict_getString(args, String_CONST("level"));
+    String* levelName = Dict_getStringC(args, "level");
     enum Log_Level level = (levelName) ? Log_levelForName(levelName->bytes) : Log_Level_DEBUG;
-    int64_t* lineNumPtr = Dict_getInt(args, String_CONST("line"));
-    String* fileStr = Dict_getString(args, String_CONST("file"));
+    int64_t* lineNumPtr = Dict_getIntC(args, "line");
+    String* fileStr = Dict_getStringC(args, "file");
     if (fileStr && !fileStr->len) { fileStr = NULL; }
     char* error = "2+2=5";
     if (level == Log_Level_INVALID) {
@@ -272,7 +272,7 @@ static void subscribe(Dict* args, void* vcontext, String* txid, struct Allocator
 static void unsubscribe(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct AdminLog* log = Identity_check((struct AdminLog*) vcontext);
-    String* streamIdHex = Dict_getString(args, String_CONST("streamId"));
+    String* streamIdHex = Dict_getStringC(args, "streamId");
     uint8_t streamId[8];
     char* error = NULL;
     if (streamIdHex->len != 16 || Hex_decode(streamId, 8, (uint8_t*)streamIdHex->bytes, 16) != 8) {
@@ -297,7 +297,7 @@ static void unsubscribe(Dict* args, void* vcontext, String* txid, struct Allocat
 static void logMany(Dict* args, void* vcontext, String* txid, struct Allocator* alloc)
 {
     struct AdminLog* log = Identity_check((struct AdminLog*) vcontext);
-    int64_t* countPtr = Dict_getInt(args, String_CONST("count"));
+    int64_t* countPtr = Dict_getIntC(args, "count");
     uint32_t count = *countPtr;
     for (uint32_t i = 0; i < count; i++) {
         Log_debug((struct Log*)log, "This is message number [%d] of total [%d]", i, count);
@@ -314,7 +314,7 @@ static void subscriptions(Dict* args, void* vcontext, String* txid, struct Alloc
     struct AdminLog* log = Identity_check((struct AdminLog*) vcontext);
     Dict* msg = Dict_new(alloc);
     List* entries = List_new(alloc);
-    Dict_putList(msg, String_CONST("entries"), entries, alloc);
+    Dict_putListC(msg, "entries", entries, alloc);
     for (int i = 0; i < (int)log->subscriptionCount; i++) {
         Dict* entry = Dict_new(alloc);
         struct Subscription* sub = &log->subscriptions[i];
@@ -323,9 +323,9 @@ static void subscriptions(Dict* args, void* vcontext, String* txid, struct Alloc
             Dict_putString(entry, STR_FILE, String_new(sub->file, alloc), alloc);
         }
         Dict_putInt(entry, LINE, sub->lineNum, alloc);
-        Dict_putInt(entry, String_CONST("dropped"), sub->dropped, alloc);
-        Dict_putInt(entry, String_CONST("internalFile"), sub->internalFile, alloc);
-        Dict_putString(entry, String_CONST("streamId"), sub->streamId, alloc);
+        Dict_putIntC(entry, "dropped", sub->dropped, alloc);
+        Dict_putIntC(entry, "internalFile", sub->internalFile, alloc);
+        Dict_putStringC(entry, "streamId", sub->streamId, alloc);
         List_addDict(entries, entry, alloc);
     }
     Admin_sendMessage(msg, txid, log->admin);

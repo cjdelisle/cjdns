@@ -38,7 +38,7 @@ static void adminPeerStats(Dict* args, void* vcontext, String* txid, struct Allo
     struct Context* context = Identity_check((struct Context*)vcontext);
     struct InterfaceController_PeerStats* stats = NULL;
 
-    int64_t* page = Dict_getInt(args, String_CONST("page"));
+    int64_t* page = Dict_getIntC(args, "page");
     int i = (page) ? *page * ENTRIES_PER_PAGE : 0;
 
     int count = InterfaceController_getPeerStats(context->ic, alloc, &stats);
@@ -88,7 +88,7 @@ static void adminDisconnectPeer(Dict* args,
                                 struct Allocator* requestAlloc)
 {
     struct Context* context = Identity_check((struct Context*)vcontext);
-    String* pubkeyString = Dict_getString(args, String_CONST("pubkey"));
+    String* pubkeyString = Dict_getStringC(args, "pubkey");
 
     // parse the key
     uint8_t pubkey[32];
@@ -107,9 +107,9 @@ static void adminDisconnectPeer(Dict* args,
     }
 
     Dict* response = Dict_new(requestAlloc);
-    Dict_putInt(response, String_CONST("success"), error ? 0 : 1, requestAlloc);
+    Dict_putIntC(response, "success", error ? 0 : 1, requestAlloc);
     if (error) {
-        Dict_putString(response, String_CONST("error"), String_CONST(errorMsg), requestAlloc);
+        Dict_putStringC(response, "error", String_CONST(errorMsg), requestAlloc);
     }
 
     Admin_sendMessage(response, txid, context->admin);
@@ -121,7 +121,7 @@ static void adminResetPeering(Dict* args,
                               struct Allocator* requestAlloc)
 {
     struct Context* context = Identity_check((struct Context*)vcontext);
-    String* pubkeyString = Dict_getString(args, String_CONST("pubkey"));
+    String* pubkeyString = Dict_getStringC(args, "pubkey");
 
     int error = 0;
     char* errorMsg = NULL;
@@ -143,9 +143,9 @@ static void adminResetPeering(Dict* args,
     }
 
     Dict* response = Dict_new(requestAlloc);
-    Dict_putInt(response, String_CONST("success"), error ? 0 : 1, requestAlloc);
+    Dict_putIntC(response, "success", error ? 0 : 1, requestAlloc);
     if (error) {
-        Dict_putString(response, String_CONST("error"), String_CONST(errorMsg), requestAlloc);
+        Dict_putStringC(response, "error", String_CONST(errorMsg), requestAlloc);
     }
 
     Admin_sendMessage(response, txid, context->admin);
@@ -155,7 +155,7 @@ static void adminResetPeering(Dict* args,
 static resetSession(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* context = Identity_check((struct Context*)vcontext);
-    String* pubkeyString = Dict_getString(args, String_CONST("pubkey"));
+    String* pubkeyString = Dict_getStringC(args, "pubkey");
 
     // parse the key
     uint8_t pubkey[32];
@@ -174,9 +174,9 @@ static resetSession(Dict* args, void* vcontext, String* txid, struct Allocator* 
     }
 
     Dict* response = Dict_new(requestAlloc);
-    Dict_putInt(response, String_CONST("success"), error ? 0 : 1, requestAlloc);
+    Dict_putIntC(response, "success", error ? 0 : 1, requestAlloc);
     if (error) {
-        Dict_putString(response, String_CONST("error"), String_CONST(errorMsg), requestAlloc);
+        Dict_putStringC(response, "error", String_CONST(errorMsg), requestAlloc);
     }
 
     Admin_sendMessage(response, txid, context->admin);

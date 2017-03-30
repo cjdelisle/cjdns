@@ -39,10 +39,10 @@ static void setUser(Dict* args, void* vctx, String* txid, struct Allocator* requ
     struct Context* const ctx = Identity_check((struct Context*) vctx);
     struct Jmp jmp;
     Jmp_try(jmp) {
-        int64_t* user = Dict_getInt(args, String_CONST("uid"));
-        int64_t* group = Dict_getInt(args, String_CONST("gid"));
+        int64_t* user = Dict_getIntC(args, "uid");
+        int64_t* group = Dict_getIntC(args, "gid");
         int gid = group ? (int)*group : 0;
-        int64_t* keepNetAdmin = Dict_getInt(args, String_CONST("keepNetAdmin"));
+        int64_t* keepNetAdmin = Dict_getIntC(args, "keepNetAdmin");
         Security_setUser(*user, gid, *keepNetAdmin, ctx->logger, &jmp.handler, requestAlloc);
     } Jmp_catch {
         sendError(jmp.message, txid, ctx->admin);
@@ -58,11 +58,11 @@ static void checkPermissionsB(struct Except* eh,
 {
     struct Security_Permissions* sp = Security_checkPermissions(requestAlloc, eh);
     Dict* out = Dict_new(requestAlloc);
-    Dict_putInt(out, String_CONST("noOpenFiles"), sp->noOpenFiles, requestAlloc);
-    Dict_putInt(out, String_CONST("seccompExists"), sp->seccompExists, requestAlloc);
-    Dict_putInt(out, String_CONST("seccompEnforcing"), sp->seccompEnforcing, requestAlloc);
-    Dict_putInt(out, String_CONST("userId"), sp->uid, requestAlloc);
-    Dict_putString(out, String_CONST("error"), String_CONST("none"), requestAlloc);
+    Dict_putIntC(out, "noOpenFiles", sp->noOpenFiles, requestAlloc);
+    Dict_putIntC(out, "seccompExists", sp->seccompExists, requestAlloc);
+    Dict_putIntC(out, "seccompEnforcing", sp->seccompEnforcing, requestAlloc);
+    Dict_putIntC(out, "userId", sp->uid, requestAlloc);
+    Dict_putStringC(out, "error", String_CONST("none"), requestAlloc);
     Admin_sendMessage(out, txid, admin);
 }
 
@@ -107,7 +107,7 @@ static void chroot(Dict* args, void* vctx, String* txid, struct Allocator* reque
     struct Context* const ctx = Identity_check((struct Context*) vctx);
     struct Jmp jmp;
     Jmp_try(jmp) {
-        String* root = Dict_getString(args, String_CONST("root"));
+        String* root = Dict_getStringC(args, "root");
         Security_chroot(root->bytes, &jmp.handler);
     } Jmp_catch {
         sendError(jmp.message, txid, ctx->admin);
@@ -145,7 +145,7 @@ static void setupComplete(Dict* args, void* vctx, String* txid, struct Allocator
 static void getUser(Dict* args, void* vctx, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* const ctx = Identity_check((struct Context*) vctx);
-    String* user = Dict_getString(args, String_CONST("user"));
+    String* user = Dict_getStringC(args, "user");
     Dict* ret = Security_getUser((user) ? user->bytes : NULL, requestAlloc);
     Admin_sendMessage(ret, txid, ctx->admin);
 }

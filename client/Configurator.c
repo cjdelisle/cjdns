@@ -97,7 +97,7 @@ static int rpcCall0(String* function,
                       function->bytes);
         die(res, ctx, alloc);
     }
-    String* error = Dict_getString(res->responseDict, String_CONST("error"));
+    String* error = Dict_getStringC(res->responseDict, "error");
     int ret = 0;
     if (error && !String_equals(error, String_CONST("none"))) {
         if (exitIfError) {
@@ -137,7 +137,7 @@ static void authorizedPasswords(List* list, struct Context* ctx)
             Log_critical(ctx->logger, "Not a dictionary type %d.", i);
             exit(-1);
         }
-        String* passwd = Dict_getString(d, String_CONST("password"));
+        String* passwd = Dict_getStringC(d, "password");
         if (!passwd) {
             Log_critical(ctx->logger, "Must specify a password %d.", i);
             exit(-1);
@@ -147,28 +147,28 @@ static void authorizedPasswords(List* list, struct Context* ctx)
     for (uint32_t i = 0; i < count; i++) {
         struct Allocator* child = Allocator_child(ctx->alloc);
         Dict* d = List_getDict(list, i);
-        String* passwd = Dict_getString(d, String_CONST("password"));
-        String* user = Dict_getString(d, String_CONST("user"));
+        String* passwd = Dict_getStringC(d, "password");
+        String* user = Dict_getStringC(d, "user");
         String* displayName = user;
         if (!displayName) {
             displayName = String_printf(child, "password [%d]", i);
         }
-        //String* publicKey = Dict_getString(d, String_CONST("publicKey"));
-        String* ipv6 = Dict_getString(d, String_CONST("ipv6"));
+        //String* publicKey = Dict_getStringC(d, "publicKey");
+        String* ipv6 = Dict_getStringC(d, "ipv6");
         Log_info(ctx->logger, "Adding authorized password #[%d] for user [%s].",
             i, displayName->bytes);
         Dict *args = Dict_new(child);
         uint32_t i = 1;
-        Dict_putInt(args, String_CONST("authType"), i, child);
-        Dict_putString(args, String_CONST("password"), passwd, child);
+        Dict_putIntC(args, "authType", i, child);
+        Dict_putStringC(args, "password", passwd, child);
         if (user) {
-            Dict_putString(args, String_CONST("user"), user, child);
+            Dict_putStringC(args, "user", user, child);
         }
-        Dict_putString(args, String_CONST("displayName"), displayName, child);
+        Dict_putStringC(args, "displayName", displayName, child);
         if (ipv6) {
             Log_info(ctx->logger,
                 "  This connection password restricted to [%s] only.", ipv6->bytes);
-            Dict_putString(args, String_CONST("ipv6"), ipv6, child);
+            Dict_putStringC(args, "ipv6", ipv6, child);
         }
         rpcCall(String_CONST("AuthorizedPasswords_add"), args, ctx, child);
         Allocator_free(child);
@@ -177,10 +177,10 @@ static void authorizedPasswords(List* list, struct Context* ctx)
 
 static void udpInterface(Dict* config, struct Context* ctx)
 {
-    List* ifaces = Dict_getList(config, String_CONST("UDPInterface"));
+    List* ifaces = Dict_getListC(config, "UDPInterface");
     if (!ifaces) {
         ifaces = List_new(ctx->alloc);
-        List_addDict(ifaces, Dict_getDict(config, String_CONST("UDPInterface")), ctx->alloc);
+        List_addDict(ifaces, Dict_getDictC(config, "UDPInterface"), ctx->alloc);
     }
 
     uint32_t count = List_size(ifaces);
@@ -190,17 +190,17 @@ static void udpInterface(Dict* config, struct Context* ctx)
             continue;
         }
         // Setup the interface.
-        String* bindStr = Dict_getString(udp, String_CONST("bind"));
+        String* bindStr = Dict_getStringC(udp, "bind");
         Dict* d = Dict_new(ctx->alloc);
         if (bindStr) {
-            Dict_putString(d, String_CONST("bindAddress"), bindStr, ctx->alloc);
+            Dict_putStringC(d, "bindAddress", bindStr, ctx->alloc);
         }
         Dict* resp = NULL;
         rpcCall0(String_CONST("UDPInterface_new"), d, ctx, ctx->alloc, &resp, true);
-        int ifNum = *(Dict_getInt(resp, String_CONST("interfaceNumber")));
+        int ifNum = *(Dict_getIntC(resp, "interfaceNumber"));
 
         // Make the connections.
-        Dict* connectTo = Dict_getDict(udp, String_CONST("connectTo"));
+        Dict* connectTo = Dict_getDictC(udp, "connectTo");
         if (connectTo) {
             struct Dict_Entry* entry = *connectTo;
             struct Allocator* perCallAlloc = Allocator_child(ctx->alloc);
@@ -231,14 +231,14 @@ static void udpInterface(Dict* config, struct Context* ctx)
                                                 "[$IP]:$PORT for IPv6.", key->bytes);
                     exit(-1);
                 }
-                Dict_putInt(value, String_CONST("interfaceNumber"), ifNum, perCallAlloc);
-                Dict_putString(value, String_CONST("address"), key, perCallAlloc);
+                Dict_putIntC(value, "interfaceNumber", ifNum, perCallAlloc);
+                Dict_putStringC(value, "address", key, perCallAlloc);
                 rpcCall(String_CONST("UDPInterface_beginConnection"), value, ctx, perCallAlloc);
 
                 // Make a IPTunnel exception for this node
                 Dict* aed = Dict_new(perCallAlloc);
                 *lastColon = '\0';
-                Dict_putString(aed, String_CONST("route"), String_new(key->bytes, perCallAlloc),
+                Dict_putStringC(aed, "route", String_new(key->bytes, perCallAlloc),
                     perCallAlloc);
                 *lastColon = ':';
                 rpcCall(String_CONST("RouteGen_addException"), aed, ctx, perCallAlloc);
@@ -252,33 +252,33 @@ static void udpInterface(Dict* config, struct Context* ctx)
 
 static void tunInterface(Dict* ifaceConf, struct Allocator* tempAlloc, struct Context* ctx)
 {
-    String* ifaceType = Dict_getString(ifaceConf, String_CONST("type"));
+    String* ifaceType = Dict_getStringC(ifaceConf, "type");
     if (!String_equals(ifaceType, String_CONST("TUNInterface"))) {
         return;
     }
 
     // Setup the interface.
-    String* tunfd = Dict_getString(ifaceConf, String_CONST("tunfd"));
-    String* device = Dict_getString(ifaceConf, String_CONST("tunDevice"));
+    String* tunfd = Dict_getStringC(ifaceConf, "tunfd");
+    String* device = Dict_getStringC(ifaceConf, "tunDevice");
 
     Dict* args = Dict_new(tempAlloc);
     if (tunfd && device) {
-        Dict_putString(args, String_CONST("path"), device, tempAlloc);
-        Dict_putString(args, String_CONST("type"),
+        Dict_putStringC(args, "path", device, tempAlloc);
+        Dict_putStringC(args, "type",
                        String_new(tunfd->bytes, tempAlloc), tempAlloc);
         Dict* res = NULL;
         rpcCall0(String_CONST("FileNo_import"), args, ctx, tempAlloc, &res, false);
         if (res) {
             Dict* args = Dict_new(tempAlloc);
-            int64_t* tunfd = Dict_getInt(res, String_CONST("tunfd"));
-            int64_t* type = Dict_getInt(res, String_CONST("type"));
-            Dict_putInt(args, String_CONST("tunfd"), *tunfd, tempAlloc);
-            Dict_putInt(args, String_CONST("type"), *type, tempAlloc);
+            int64_t* tunfd = Dict_getIntC(res, "tunfd");
+            int64_t* type = Dict_getIntC(res, "type");
+            Dict_putIntC(args, "tunfd", *tunfd, tempAlloc);
+            Dict_putIntC(args, "type", *type, tempAlloc);
             rpcCall0(String_CONST("Core_initTunfd"), args, ctx, tempAlloc, NULL, false);
         }
     } else {
         if (device) {
-            Dict_putString(args, String_CONST("desiredTunName"), device, tempAlloc);
+            Dict_putStringC(args, "desiredTunName", device, tempAlloc);
         }
         rpcCall0(String_CONST("Core_initTunnel"), args, ctx, tempAlloc, NULL, false);
     }
@@ -286,17 +286,17 @@ static void tunInterface(Dict* ifaceConf, struct Allocator* tempAlloc, struct Co
 
 static void ipTunnel(Dict* ifaceConf, struct Allocator* tempAlloc, struct Context* ctx)
 {
-    List* incoming = Dict_getList(ifaceConf, String_CONST("allowedConnections"));
+    List* incoming = Dict_getListC(ifaceConf, "allowedConnections");
     if (incoming) {
         Dict* d;
         for (int i = 0; (d = List_getDict(incoming, i)) != NULL; i++) {
-            String* key = Dict_getString(d, String_CONST("publicKey"));
-            String* ip4 = Dict_getString(d, String_CONST("ip4Address"));
+            String* key = Dict_getStringC(d, "publicKey");
+            String* ip4 = Dict_getStringC(d, "ip4Address");
             // Note that the prefix length has to be a proper int in the config
             // (not quoted!)
-            int64_t* ip4Prefix = Dict_getInt(d, String_CONST("ip4Prefix"));
-            String* ip6 = Dict_getString(d, String_CONST("ip6Address"));
-            int64_t* ip6Prefix = Dict_getInt(d, String_CONST("ip6Prefix"));
+            int64_t* ip4Prefix = Dict_getIntC(d, "ip4Prefix");
+            String* ip6 = Dict_getStringC(d, "ip6Address");
+            int64_t* ip6Prefix = Dict_getIntC(d, "ip6Prefix");
             if (!key) {
                 Log_critical(ctx->logger, "In router.ipTunnel.allowedConnections[%d]"
                                           "'publicKey' required.", i);
@@ -337,12 +337,12 @@ static void ipTunnel(Dict* ifaceConf, struct Allocator* tempAlloc, struct Contex
                 }
             }
 
-            Dict_putString(d, String_CONST("publicKeyOfAuthorizedNode"), key, tempAlloc);
+            Dict_putStringC(d, "publicKeyOfAuthorizedNode", key, tempAlloc);
             rpcCall0(String_CONST("IpTunnel_allowConnection"), d, ctx, tempAlloc, NULL, true);
         }
     }
 
-    List* outgoing = Dict_getList(ifaceConf, String_CONST("outgoingConnections"));
+    List* outgoing = Dict_getListC(ifaceConf, "outgoingConnections");
     if (outgoing) {
         String* s;
         for (int i = 0; (s = List_getString(outgoing, i)) != NULL; i++) {
@@ -367,14 +367,14 @@ static void supernodes(List* supernodes, struct Allocator* tempAlloc, struct Con
 
 static void routerConfig(Dict* routerConf, struct Allocator* tempAlloc, struct Context* ctx)
 {
-    tunInterface(Dict_getDict(routerConf, String_CONST("interface")), tempAlloc, ctx);
-    ipTunnel(Dict_getDict(routerConf, String_CONST("ipTunnel")), tempAlloc, ctx);
-    supernodes(Dict_getList(routerConf, String_CONST("supernodes")), tempAlloc, ctx);
+    tunInterface(Dict_getDictC(routerConf, "interface"), tempAlloc, ctx);
+    ipTunnel(Dict_getDictC(routerConf, "ipTunnel"), tempAlloc, ctx);
+    supernodes(Dict_getListC(routerConf, "supernodes"), tempAlloc, ctx);
 }
 
 static void ethInterfaceSetBeacon(int ifNum, Dict* eth, struct Context* ctx)
 {
-    int64_t* beaconP = Dict_getInt(eth, String_CONST("beacon"));
+    int64_t* beaconP = Dict_getIntC(eth, "beacon");
     if (beaconP) {
         int64_t beacon = *beaconP;
         if (beacon > 3 || beacon < 0) {
@@ -391,10 +391,10 @@ static void ethInterfaceSetBeacon(int ifNum, Dict* eth, struct Context* ctx)
 
 static void ethInterface(Dict* config, struct Context* ctx)
 {
-    List* ifaces = Dict_getList(config, String_CONST("ETHInterface"));
+    List* ifaces = Dict_getListC(config, "ETHInterface");
     if (!ifaces) {
         ifaces = List_new(ctx->alloc);
-        List_addDict(ifaces, Dict_getDict(config, String_CONST("ETHInterface")), ctx->alloc);
+        List_addDict(ifaces, Dict_getDictC(config, "ETHInterface"), ctx->alloc);
     }
 
     uint32_t count = List_size(ifaces);
@@ -402,7 +402,7 @@ static void ethInterface(Dict* config, struct Context* ctx)
     for (uint32_t i = 0; i < count; i++) {
         Dict *eth = List_getDict(ifaces, i);
         if (!eth) { continue; }
-        String* deviceStr = Dict_getString(eth, String_CONST("bind"));
+        String* deviceStr = Dict_getStringC(eth, "bind");
         if (!deviceStr || !String_equals(String_CONST("all"), deviceStr)) { continue; }
         Log_info(ctx->logger, "Setting up all ETHInterfaces...");
         Dict* res = NULL;
@@ -411,21 +411,21 @@ static void ethInterface(Dict* config, struct Context* ctx)
             Log_info(ctx->logger, "Getting device list failed");
             break;
         }
-        List* devs = Dict_getList(res, String_CONST("devices"));
+        List* devs = Dict_getListC(res, "devices");
         uint32_t devCount = List_size(devs);
         for (uint32_t j = 0; j < devCount; j++) {
             Dict* d = Dict_new(ctx->alloc);
             String* deviceName = List_getString(devs, j);
             // skip loopback...
             if (String_equals(String_CONST("lo"), deviceName)) { continue; }
-            Dict_putString(d, String_CONST("bindDevice"), deviceName, ctx->alloc);
+            Dict_putStringC(d, "bindDevice", deviceName, ctx->alloc);
             Dict* resp;
             Log_info(ctx->logger, "Creating new ETHInterface [%s]", deviceName->bytes);
             if (rpcCall0(String_CONST("ETHInterface_new"), d, ctx, ctx->alloc, &resp, false)) {
                 Log_warn(ctx->logger, "Failed to create ETHInterface.");
                 continue;
             }
-            int ifNum = *(Dict_getInt(resp, String_CONST("interfaceNumber")));
+            int ifNum = *(Dict_getIntC(resp, "interfaceNumber"));
             ethInterfaceSetBeacon(ifNum, eth, ctx);
         }
         return;
@@ -435,23 +435,23 @@ static void ethInterface(Dict* config, struct Context* ctx)
         Dict *eth = List_getDict(ifaces, i);
         if (!eth) { continue; }
         // Setup the interface.
-        String* deviceStr = Dict_getString(eth, String_CONST("bind"));
+        String* deviceStr = Dict_getStringC(eth, "bind");
         Log_info(ctx->logger, "Setting up ETHInterface [%d].", i);
         Dict* d = Dict_new(ctx->alloc);
         if (deviceStr) {
             Log_info(ctx->logger, "Binding to device [%s].", deviceStr->bytes);
-            Dict_putString(d, String_CONST("bindDevice"), deviceStr, ctx->alloc);
+            Dict_putStringC(d, "bindDevice", deviceStr, ctx->alloc);
         }
         Dict* resp = NULL;
         if (rpcCall0(String_CONST("ETHInterface_new"), d, ctx, ctx->alloc, &resp, false)) {
             Log_warn(ctx->logger, "Failed to create ETHInterface.");
             continue;
         }
-        int ifNum = *(Dict_getInt(resp, String_CONST("interfaceNumber")));
+        int ifNum = *(Dict_getIntC(resp, "interfaceNumber"));
         ethInterfaceSetBeacon(ifNum, eth, ctx);
 
         // Make the connections.
-        Dict* connectTo = Dict_getDict(eth, String_CONST("connectTo"));
+        Dict* connectTo = Dict_getDictC(eth, "connectTo");
         if (connectTo) {
             Log_info(ctx->logger, "ETHInterface should connect to a specific node.");
             struct Dict_Entry* entry = *connectTo;
@@ -469,8 +469,8 @@ static void ethInterface(Dict* config, struct Context* ctx)
                 struct Allocator* perCallAlloc = Allocator_child(ctx->alloc);
                 // Turn the dict from the config into our RPC args dict by filling in all
                 // the arguments,
-                Dict_putString(value, String_CONST("macAddress"), key, perCallAlloc);
-                Dict_putInt(value, String_CONST("interfaceNumber"), ifNum, perCallAlloc);
+                Dict_putStringC(value, "macAddress", key, perCallAlloc);
+                Dict_putIntC(value, "interfaceNumber", ifNum, perCallAlloc);
                 rpcCall(String_CONST("ETHInterface_beginConnection"), value, ctx, perCallAlloc);
                 Allocator_free(perCallAlloc);
 
@@ -498,62 +498,62 @@ static void security(struct Allocator* tempAlloc, List* conf, struct Log* log, s
 
     do {
         Dict* d = Dict_new(tempAlloc);
-        Dict_putString(d, String_CONST("user"), String_CONST("nobody"), tempAlloc);
+        Dict_putStringC(d, "user", String_CONST("nobody"), tempAlloc);
         if (!Defined(win32)) {
             Dict* ret = NULL;
             rpcCall0(String_CONST("Security_getUser"), d, ctx, tempAlloc, &ret, true);
-            uid = *Dict_getInt(ret, String_CONST("uid"));
-            group = Dict_getInt(ret, String_CONST("gid"));
+            uid = *Dict_getIntC(ret, "uid");
+            group = Dict_getIntC(ret, "gid");
         }
     } while (0);
 
     for (int i = 0; conf && i < List_size(conf); i++) {
         Dict* elem = List_getDict(conf, i);
         String* s;
-        if (elem && (s = Dict_getString(elem, String_CONST("setuser")))) {
+        if (elem && (s = Dict_getStringC(elem, "setuser"))) {
             if (setuser == 0) { continue; }
             Dict* d = Dict_new(tempAlloc);
-            Dict_putString(d, String_CONST("user"), s, tempAlloc);
+            Dict_putStringC(d, "user", s, tempAlloc);
             Dict* ret = NULL;
             rpcCall0(String_CONST("Security_getUser"), d, ctx, tempAlloc, &ret, true);
-            uid = *Dict_getInt(ret, String_CONST("uid"));
-            group = Dict_getInt(ret, String_CONST("gid"));
-            int64_t* nka = Dict_getInt(elem, String_CONST("keepNetAdmin"));
-            int64_t* exemptAngel = Dict_getInt(elem, String_CONST("exemptAngel"));
+            uid = *Dict_getIntC(ret, "uid");
+            group = Dict_getIntC(ret, "gid");
+            int64_t* nka = Dict_getIntC(elem, "keepNetAdmin");
+            int64_t* exemptAngel = Dict_getIntC(elem, "exemptAngel");
             keepNetAdmin = ((nka) ? *nka : ((exemptAngel) ? *exemptAngel : 0));
             continue;
         }
-        if (elem && (s = Dict_getString(elem, String_CONST("chroot")))) {
+        if (elem && (s = Dict_getStringC(elem, "chroot"))) {
             Log_debug(log, "Security_chroot(%s)", s->bytes);
             Dict* d = Dict_new(tempAlloc);
-            Dict_putString(d, String_CONST("root"), s, tempAlloc);
+            Dict_putStringC(d, "root", s, tempAlloc);
             rpcCall0(String_CONST("Security_chroot"), d, ctx, tempAlloc, NULL, false);
             chroot = 0;
             continue;
         }
         uint64_t* x;
-        if (elem && (x = Dict_getInt(elem, String_CONST("nofiles")))) {
+        if (elem && (x = Dict_getIntC(elem, "nofiles"))) {
             if (!*x) { continue; }
             nofiles = 1;
             continue;
         }
-        if (elem && (x = Dict_getInt(elem, String_CONST("setuser")))) {
+        if (elem && (x = Dict_getIntC(elem, "setuser"))) {
             if (!*x) { setuser = 0; }
             continue;
         }
-        if (elem && (x = Dict_getInt(elem, String_CONST("seccomp")))) {
+        if (elem && (x = Dict_getIntC(elem, "seccomp"))) {
             if (!*x) { seccomp = 0; }
             continue;
         }
-        if (elem && (x = Dict_getInt(elem, String_CONST("noforks")))) {
+        if (elem && (x = Dict_getIntC(elem, "noforks"))) {
             if (!*x) { noforks = 0; }
             continue;
         }
-        if (elem && (x = Dict_getInt(elem, String_CONST("chroot")))) {
+        if (elem && (x = Dict_getIntC(elem, "chroot"))) {
             if (!*x) { chroot = 0; }
             continue;
         }
-        if (elem && (x = Dict_getInt(elem, String_CONST("setupComplete")))) {
+        if (elem && (x = Dict_getIntC(elem, "setupComplete"))) {
             if (!*x) { setupComplete = 0; }
             continue;
         }
@@ -563,7 +563,7 @@ static void security(struct Allocator* tempAlloc, List* conf, struct Log* log, s
     if (chroot) {
         Log_debug(log, "Security_chroot(/var/run)");
         Dict* d = Dict_new(tempAlloc);
-        Dict_putString(d, String_CONST("root"), String_CONST("/var/run/"), tempAlloc);
+        Dict_putStringC(d, "root", String_CONST("/var/run/"), tempAlloc);
         rpcCall0(String_CONST("Security_chroot"), d, ctx, tempAlloc, NULL, false);
     }
     /* FIXME(sdg): moving noforks after setuser might make nproc <- 0,0 work
@@ -576,11 +576,11 @@ static void security(struct Allocator* tempAlloc, List* conf, struct Log* log, s
     if (setuser) {
         Log_debug(log, "Security_setUser(uid:%d, keepNetAdmin:%d)", uid, keepNetAdmin);
         Dict* d = Dict_new(tempAlloc);
-        Dict_putInt(d, String_CONST("uid"), uid, tempAlloc);
+        Dict_putIntC(d, "uid", uid, tempAlloc);
         if (group) {
-            Dict_putInt(d, String_CONST("gid"), (int)*group, tempAlloc);
+            Dict_putIntC(d, "gid", (int)*group, tempAlloc);
         }
-        Dict_putInt(d, String_CONST("keepNetAdmin"), keepNetAdmin, tempAlloc);
+        Dict_putIntC(d, "keepNetAdmin", keepNetAdmin, tempAlloc);
         rpcCall0(String_CONST("Security_setUser"), d, ctx, tempAlloc, NULL, false);
     }
     if (nofiles) {
@@ -606,7 +606,7 @@ static int tryPing(struct Allocator* tempAlloc, struct Context* ctx)
     Dict* d = Dict_new(tempAlloc);
     rpcCall0(String_CONST("ping"), d, ctx, tempAlloc, &resp, false);
     if (!resp) { return -1; }
-    String* q = Dict_getString(resp, String_CONST("q"));
+    String* q = Dict_getStringC(resp, "q");
     if (String_equals(q, String_CONST("pong"))) {
         return true;
     }
@@ -660,22 +660,22 @@ void Configurator_config(Dict* config,
 
     waitUntilPong(&ctx);
 
-    List* authedPasswords = Dict_getList(config, String_CONST("authorizedPasswords"));
+    List* authedPasswords = Dict_getListC(config, "authorizedPasswords");
     if (authedPasswords) {
         authorizedPasswords(authedPasswords, &ctx);
     }
 
-    Dict* ifaces = Dict_getDict(config, String_CONST("interfaces"));
+    Dict* ifaces = Dict_getDictC(config, "interfaces");
     udpInterface(ifaces, &ctx);
 
     if (Defined(HAS_ETH_INTERFACE)) {
         ethInterface(ifaces, &ctx);
     }
 
-    Dict* routerConf = Dict_getDict(config, String_CONST("router"));
+    Dict* routerConf = Dict_getDictC(config, "router");
     routerConfig(routerConf, tempAlloc, &ctx);
 
-    List* secList = Dict_getList(config, String_CONST("security"));
+    List* secList = Dict_getListC(config, "security");
     security(tempAlloc, secList, logger, &ctx);
 
     Log_debug(logger, "Cjdns started in the background");

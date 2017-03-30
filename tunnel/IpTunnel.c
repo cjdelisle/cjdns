@@ -364,29 +364,29 @@ static Iface_DEFUN requestForAddresses(Dict* request,
     Dict* addresses = Dict_new(requestAlloc);
     bool noAddresses = true;
     if (!Bits_isZero(conn->connectionIp6, 16)) {
-        Dict_putString(addresses,
-                       String_CONST("ip6"),
+        Dict_putStringC(addresses,
+                       "ip6",
                        String_newBinary((char*)conn->connectionIp6, 16, requestAlloc),
                        requestAlloc);
-        Dict_putInt(addresses,
-                    String_CONST("ip6Prefix"), (int64_t)conn->connectionIp6Prefix,
+        Dict_putIntC(addresses,
+                    "ip6Prefix", (int64_t)conn->connectionIp6Prefix,
                     requestAlloc);
-        Dict_putInt(addresses,
-                    String_CONST("ip6Alloc"), (int64_t)conn->connectionIp6Alloc,
+        Dict_putIntC(addresses,
+                    "ip6Alloc", (int64_t)conn->connectionIp6Alloc,
                     requestAlloc);
 
         noAddresses = false;
     }
     if (!Bits_isZero(conn->connectionIp4, 4)) {
-        Dict_putString(addresses,
-                       String_CONST("ip4"),
+        Dict_putStringC(addresses,
+                       "ip4",
                        String_newBinary((char*)conn->connectionIp4, 4, requestAlloc),
                        requestAlloc);
-        Dict_putInt(addresses,
-                    String_CONST("ip4Prefix"), (int64_t)conn->connectionIp4Prefix,
+        Dict_putIntC(addresses,
+                    "ip4Prefix", (int64_t)conn->connectionIp4Prefix,
                     requestAlloc);
-        Dict_putInt(addresses,
-                    String_CONST("ip4Alloc"), (int64_t)conn->connectionIp4Alloc,
+        Dict_putIntC(addresses,
+                    "ip4Alloc", (int64_t)conn->connectionIp4Alloc,
                     requestAlloc);
 
         noAddresses = false;
@@ -397,11 +397,11 @@ static Iface_DEFUN requestForAddresses(Dict* request,
     }
 
     Dict* msg = Dict_new(requestAlloc);
-    Dict_putDict(msg, String_CONST("addresses"), addresses, requestAlloc);
+    Dict_putDictC(msg, "addresses", addresses, requestAlloc);
 
-    String* txid = Dict_getString(request, String_CONST("txid"));
+    String* txid = Dict_getStringC(request, "txid");
     if (txid) {
-        Dict_putString(msg, String_CONST("txid"), txid, requestAlloc);
+        Dict_putStringC(msg, "txid", txid, requestAlloc);
     }
 
     sendControlMessage(msg, conn, requestAlloc, context);
@@ -455,7 +455,7 @@ static Iface_DEFUN incomingAddresses(Dict* d,
         return 0;
     }
 
-    String* txid = Dict_getString(d, String_CONST("txid"));
+    String* txid = Dict_getStringC(d, "txid");
     if (!txid || txid->len != 4) {
         Log_info(context->logger, "missing or wrong length txid");
         return 0;
@@ -484,11 +484,11 @@ static Iface_DEFUN incomingAddresses(Dict* d,
         }
     }
 
-    Dict* addresses = Dict_getDict(d, String_CONST("addresses"));
+    Dict* addresses = Dict_getDictC(d, "addresses");
 
-    String* ip4 = Dict_getString(addresses, String_CONST("ip4"));
-    int64_t* ip4Prefix = Dict_getInt(addresses, String_CONST("ip4Prefix"));
-    int64_t* ip4Alloc = Dict_getInt(addresses, String_CONST("ip4Alloc"));
+    String* ip4 = Dict_getStringC(addresses, "ip4");
+    int64_t* ip4Prefix = Dict_getIntC(addresses, "ip4Prefix");
+    int64_t* ip4Alloc = Dict_getIntC(addresses, "ip4Alloc");
 
     if (ip4 && ip4->len == 4) {
         Bits_memcpy(conn->connectionIp4, ip4->bytes, 4);
@@ -517,9 +517,9 @@ static Iface_DEFUN incomingAddresses(Dict* d,
         addAddress(printedAddr, conn->connectionIp4Prefix, conn->connectionIp4Alloc, context);
     }
 
-    String* ip6 = Dict_getString(addresses, String_CONST("ip6"));
-    int64_t* ip6Prefix = Dict_getInt(addresses, String_CONST("ip6Prefix"));
-    int64_t* ip6Alloc = Dict_getInt(addresses, String_CONST("ip6Alloc"));
+    String* ip6 = Dict_getStringC(addresses, "ip6");
+    int64_t* ip6Prefix = Dict_getIntC(addresses, "ip6Prefix");
+    int64_t* ip6Alloc = Dict_getIntC(addresses, "ip6Alloc");
 
     if (ip6 && ip6->len == 16) {
         Bits_memcpy(conn->connectionIp6, ip6->bytes, 16);
@@ -590,11 +590,11 @@ static Iface_DEFUN incomingControlMessage(struct Message* message,
         return 0;
     }
 
-    if (Dict_getDict(d, String_CONST("addresses"))) {
+    if (Dict_getDictC(d, "addresses")) {
         return incomingAddresses(d, conn, alloc, context);
     }
     if (String_equals(String_CONST("IpTunnel_getAddresses"),
-                      Dict_getString(d, String_CONST("q"))))
+                      Dict_getStringC(d, "q")))
     {
         return requestForAddresses(d, conn, alloc, context);
     }
