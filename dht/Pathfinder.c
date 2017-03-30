@@ -283,7 +283,7 @@ static Iface_DEFUN searchReq(struct Message* msg, struct Pathfinder_pvt* pf)
 {
     uint32_t version = Message_pop32(msg, NULL);
     Message_pop32(msg, NULL);
-    if (version >= 20) { return NULL; }
+    if (version && version >= 20) { return NULL; }
     uint8_t addr[16];
     Message_pop(msg, addr, 16, NULL);
     Assert_true(!msg->length);
