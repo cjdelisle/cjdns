@@ -48,8 +48,8 @@ static void getHandles(Dict* args, void* vcontext, String* txid, struct Allocato
     }
 
     Dict* r = Dict_new(alloc);
-    Dict_putList(r, String_CONST("handles"), list, alloc);
-    Dict_putInt(r, String_CONST("total"), hList->length, alloc);
+    Dict_putListC(r, "handles", list, alloc);
+    Dict_putIntC(r, "total", hList->length, alloc);
 
     String* more = String_CONST("more");
     if (i < hList->length) {
@@ -75,35 +75,31 @@ static void outputSession(struct Context* context,
 
     uint8_t printedAddr[40];
     AddrTools_printIp(printedAddr, session->caSession->herIp6);
-    Dict_putString(r, String_CONST("ip6"), String_new(printedAddr, alloc), alloc);
+    Dict_putStringC(r, "ip6", String_new(printedAddr, alloc), alloc);
 
     String* state =
         String_new(CryptoAuth_stateString(CryptoAuth_getState(session->caSession)), alloc);
-    Dict_putString(r, String_CONST("state"), state, alloc);
+    Dict_putStringC(r, "state", state, alloc);
 
     struct ReplayProtector* rp = &session->caSession->replayProtector;
-    Dict_putInt(r, String_CONST("duplicates"), rp->duplicates, alloc);
-    Dict_putInt(r, String_CONST("lostPackets"), rp->lostPackets, alloc);
-    Dict_putInt(r, String_CONST("receivedOutOfRange"), rp->receivedOutOfRange, alloc);
+    Dict_putIntC(r, "duplicates", rp->duplicates, alloc);
+    Dict_putIntC(r, "lostPackets", rp->lostPackets, alloc);
+    Dict_putIntC(r, "receivedOutOfRange", rp->receivedOutOfRange, alloc);
 
     struct Address addr;
     Bits_memcpy(addr.key, session->caSession->herPublicKey, 32);
     addr.path = session->sendSwitchLabel;
     addr.protocolVersion = session->version;
 
-    Dict_putString(r, String_CONST("addr"), Address_toString(&addr, alloc), alloc);
+    Dict_putStringC(r, "addr", Address_toString(&addr, alloc), alloc);
 
-    Dict_putString(r, String_CONST("publicKey"),
-                      Key_stringify(session->caSession->herPublicKey, alloc), alloc);
-    Dict_putInt(r, String_CONST("version"), session->version, alloc);
-    Dict_putInt(r, String_CONST("handle"), session->receiveHandle, alloc);
-    Dict_putInt(r, String_CONST("sendHandle"), session->sendHandle, alloc);
+    Dict_putIntC(r, "handle", session->receiveHandle, alloc);
+    Dict_putIntC(r, "sendHandle", session->sendHandle, alloc);
 
-    Dict_putInt(r, String_CONST("timeOfLastIn"), session->timeOfLastIn, alloc);
-    Dict_putInt(r, String_CONST("timeOfLastOut"), session->timeOfLastOut, alloc);
+    Dict_putIntC(r, "timeOfLastIn", session->timeOfLastIn, alloc);
+    Dict_putIntC(r, "timeOfLastOut", session->timeOfLastOut, alloc);
 
-    Dict_putString(r, String_CONST("deprecation"),
-        String_CONST("publicKey,version will soon be removed"), alloc);
+    Dict_putIntC(r, "metric", session->metric, alloc);
 
     Admin_sendMessage(r, txid, context->admin);
     return;

@@ -34,16 +34,6 @@ static void snapshot(Dict* args, void* vcontext, String* txid, struct Allocator*
     Admin_sendMessage(&d, txid, ctx->admin);
 }
 
-static void adminMemory(Dict* input, void* vcontext, String* txid, struct Allocator* requestAlloc)
-{
-    struct Allocator_admin_pvt* ctx = Identity_check((struct Allocator_admin_pvt*)vcontext);
-    Dict* d = Dict_new(requestAlloc);
-    Dict_putString(d, String_CONST("deprecationWarning"),
-                      String_CONST("use Allocator_bytesAllocated() instead"), requestAlloc);
-    Dict_putInt(d, String_CONST("bytes"), Allocator_bytesAllocated(ctx->alloc), requestAlloc);
-    Admin_sendMessage(d, txid, ctx->admin);
-}
-
 static void bytesAllocated(Dict* in, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Allocator_admin_pvt* ctx = Identity_check((struct Allocator_admin_pvt*)vcontext);
@@ -64,5 +54,4 @@ void Allocator_admin_register(struct Allocator* alloc, struct Admin* admin)
             { .name = "includeAllocations", .required = 0, .type = "Int" }
         }), admin);
     Admin_registerFunction("Allocator_bytesAllocated", bytesAllocated, ctx, true, NULL, admin);
-    Admin_registerFunction("memory", adminMemory, ctx, true, NULL, admin);
 }

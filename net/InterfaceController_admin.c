@@ -43,71 +43,41 @@ static void adminPeerStats(Dict* args, void* vcontext, String* txid, struct Allo
 
     int count = InterfaceController_getPeerStats(context->ic, alloc, &stats);
 
-    String* bytesIn = String_CONST("bytesIn");
-    String* bytesOut = String_CONST("bytesOut");
-    String* pubKey = String_CONST("publicKey");
-    String* addr = String_CONST("addr");
-    String* state = String_CONST("state");
-    String* last = String_CONST("last");
-    String* switchLabel = String_CONST("switchLabel");
-    String* isIncoming = String_CONST("isIncoming");
-    String* user = String_CONST("user");
-    String* version = String_CONST("version");
-
-    String* recvKbps = String_CONST("recvKbps");
-    String* sendKbps = String_CONST("sendKbps");
-
-    String* duplicates = String_CONST("duplicates");
-    String* lostPackets = String_CONST("lostPackets");
-    String* receivedOutOfRange = String_CONST("receivedOutOfRange");
-
     List* list = List_new(alloc);
     for (int counter=0; i < count && counter++ < ENTRIES_PER_PAGE; i++) {
         Dict* d = Dict_new(alloc);
-        Dict_putInt(d, bytesIn, stats[i].bytesIn, alloc);
-        Dict_putInt(d, bytesOut, stats[i].bytesOut, alloc);
+        Dict_putIntC(d, "bytesIn", stats[i].bytesIn, alloc);
+        Dict_putIntC(d, "bytesOut", stats[i].bytesOut, alloc);
 
-        Dict_putInt(d, recvKbps, stats[i].recvKbps, alloc);
-        Dict_putInt(d, sendKbps, stats[i].sendKbps, alloc);
+        Dict_putIntC(d, "recvKbps", stats[i].recvKbps, alloc);
+        Dict_putIntC(d, "sendKbps", stats[i].sendKbps, alloc);
 
-        Dict_putString(d, addr, Address_toString(&stats[i].addr, alloc), alloc);
-        Dict_putString(d, pubKey, Key_stringify(stats[i].addr.key, alloc), alloc);
+        Dict_putStringC(d, "addr", Address_toString(&stats[i].addr, alloc), alloc);
 
         String* stateString = String_new(InterfaceController_stateString(stats[i].state), alloc);
-        Dict_putString(d, state, stateString, alloc);
+        Dict_putStringC(d, "state", stateString, alloc);
 
-        Dict_putInt(d, last, stats[i].timeOfLastMessage, alloc);
+        Dict_putIntC(d, "last", stats[i].timeOfLastMessage, alloc);
 
-        uint8_t labelStack[20];
-        AddrTools_printPath(labelStack, stats[i].addr.path);
-        Dict_putString(d, switchLabel, String_new((char*)labelStack, alloc), alloc);
-
-        Dict_putInt(d, isIncoming, stats[i].isIncomingConnection, alloc);
-        Dict_putInt(d, duplicates, stats[i].duplicates, alloc);
-        Dict_putInt(d, lostPackets, stats[i].lostPackets, alloc);
-        Dict_putInt(d, receivedOutOfRange, stats[i].receivedOutOfRange, alloc);
+        Dict_putIntC(d, "isIncoming", stats[i].isIncomingConnection, alloc);
+        Dict_putIntC(d, "duplicates", stats[i].duplicates, alloc);
+        Dict_putIntC(d, "lostPackets", stats[i].lostPackets, alloc);
+        Dict_putIntC(d, "receivedOutOfRange", stats[i].receivedOutOfRange, alloc);
 
         if (stats[i].user) {
-            Dict_putString(d, user, stats[i].user, alloc);
+            Dict_putStringC(d, "user", stats[i].user, alloc);
         }
-
-        uint8_t address[16];
-        AddressCalc_addressForPublicKey(address, stats[i].addr.key);
-        Dict_putInt(d, version, stats[i].addr.protocolVersion, alloc);
 
         List_addDict(list, d, alloc);
     }
 
     Dict* resp = Dict_new(alloc);
-    Dict_putList(resp, String_CONST("peers"), list, alloc);
-    Dict_putInt(resp, String_CONST("total"), count, alloc);
+    Dict_putListC(resp, "peers", list, alloc);
+    Dict_putIntC(resp, "total", count, alloc);
 
     if (i < count) {
-        Dict_putInt(resp, String_CONST("more"), 1, alloc);
+        Dict_putIntC(resp, "more", 1, alloc);
     }
-
-    Dict_putString(resp, String_CONST("deprecation"),
-        String_CONST("publicKey,switchLabel,version will soon be removed"), alloc);
 
     Admin_sendMessage(resp, txid, context->admin);
 }
