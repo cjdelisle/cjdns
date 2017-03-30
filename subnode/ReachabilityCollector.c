@@ -72,6 +72,9 @@ static void change0(struct ReachabilityCollector_pvt* rcp,
                 pi->pathToCheck = 1;
                 pi->pub.querying = true;
             }
+            if (rcp->pub.onChange) {
+                rcp->pub.onChange(&rcp->pub, nodeAddr->ip6.bytes, 0, 0, 0, 0xffff, 0xffff, 0xffff);
+            }
             return;
         }
     }
