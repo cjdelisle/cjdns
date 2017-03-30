@@ -8,6 +8,7 @@
 [Ελληνικά](README_GR.md)
 [Deutsch](README_DE.md)
 [Español](README_ES.md)
+[Français](README_FR.md)
 
 #### *重朔整個網路*
 
