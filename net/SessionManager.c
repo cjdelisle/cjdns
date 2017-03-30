@@ -470,10 +470,12 @@ static void unsetupSession(struct SessionManager_pvt* sm, struct SessionManager_
     Allocator_free(eventAlloc);
 }
 
-static void triggerSearch(struct SessionManager_pvt* sm, uint8_t target[16])
+static void triggerSearch(struct SessionManager_pvt* sm, uint8_t target[16], uint32_t version)
 {
     struct Allocator* eventAlloc = Allocator_child(sm->alloc);
     struct Message* eventMsg = Message_new(0, 512, eventAlloc);
+    Message_push32(eventMsg, version, NULL);
+    Message_push32(eventMsg, 0, NULL);
     Message_push(eventMsg, target, 16, NULL);
     Message_push32(eventMsg, 0xffffffff, NULL);
     Message_push32(eventMsg, PFChan_Core_SEARCH_REQ, NULL);
@@ -500,9 +502,10 @@ static void checkTimedOutSessions(struct SessionManager_pvt* sm)
         if (now - sess->pub.lastSearchTime >= sm->pub.sessionSearchAfterMilliseconds) {
             // Session is not in idle state and requires a search
             // But we're only going to trigger one search per cycle.
-            if (searchTriggered) { continue; }
+            // Except for v20 because the snode will answer us.
+            if (searchTriggered && sess->pub.version < 20) { continue; }
             debugSession0(sm->log, sess, "triggering search");
-            triggerSearch(sm, sess->pub.caSession->herIp6);
+            triggerSearch(sm, sess->pub.caSession->herIp6, sess->pub.version);
             sess->pub.lastSearchTime = now;
             searchTriggered = true;
         } else if (CryptoAuth_getState(sess->pub.caSession) < CryptoAuth_State_RECEIVED_KEY) {
@@ -557,7 +560,7 @@ static void needsLookup(struct SessionManager_pvt* sm, struct Message* msg, bool
     Allocator_adopt(lookupAlloc, msg->alloc);
     Assert_true(Map_BufferedMessages_put((struct Ip6*)header->ip6, &buffered, &sm->bufMap) > -1);
 
-    triggerSearch(sm, header->ip6);
+    triggerSearch(sm, header->ip6, Endian_hostToBigEndian32(header->version_be));
 }
 
 static Iface_DEFUN readyToSend(struct Message* msg,

@@ -302,8 +302,12 @@ enum PFChan_Core
 struct PFChan_Core_SearchReq
 {
     uint8_t ipv6[16];
+
+    uint32_t pad;
+
+    uint32_t version_be;
 };
-#define PFChan_Core_SearchReq_SIZE 16
+#define PFChan_Core_SearchReq_SIZE 24
 Assert_compileTime(sizeof(struct PFChan_Core_SearchReq) == PFChan_Core_SearchReq_SIZE);
 
 struct PFChan_Core_Pathfinder

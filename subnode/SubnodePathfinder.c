@@ -150,6 +150,13 @@ static void getRouteReply(Dict* msg, struct Address* src, struct MsgCore_Promise
     struct Address_List* al = ReplySerializer_parse(src, msg, pf->log, false, prom->alloc);
     if (!al || al->length == 0) { return; }
     Log_debug(pf->log, "reply with[%s]", Address_toString(&al->elems[0], prom->alloc)->bytes);
+
+    if (al->elems[0].protocolVersion < 20) {
+        Log_debug(pf->log, "not sending [%s] because version is old",
+            Address_toString(&al->elems[0], prom->alloc)->bytes);
+        return;
+    }
+
     //NodeCache_discoverNode(pf->nc, &al->elems[0]);
     struct Message* msgToCore = Message_new(0, 512, prom->alloc);
     Iface_CALL(sendNode, msgToCore, &al->elems[0], 0xfff00000, PFChan_Pathfinder_NODE, pf);
@@ -157,6 +164,9 @@ static void getRouteReply(Dict* msg, struct Address* src, struct MsgCore_Promise
 
 static Iface_DEFUN searchReq(struct Message* msg, struct SubnodePathfinder_pvt* pf)
 {
+    uint32_t version = Message_pop32(msg, NULL);
+    Message_pop32(msg, NULL);
+    if (version && version < 20) { return NULL; }
     uint8_t addr[16];
     Message_pop(msg, addr, 16, NULL);
     Assert_true(!msg->length);
