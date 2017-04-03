@@ -90,6 +90,10 @@ it will be downloaded and installed in the source tree.
 #### Debian-based distro:
 
     sudo apt-get install nodejs git build-essential python2.7
+    #Raspberry Pi Cjdns Install
+
+##### Raspberry Pi
+Everything you need is here: [tomeshnet/prototype-cjdns-pi](https://github.com/tomeshnet/prototype-cjdns-pi2)
 
 #### Fedora 22+ based distro:
 
@@ -157,6 +161,8 @@ To start the service `cjdns.service`, do:
 To stop it:
 
        systemctl stop cjdns
+       
+### For More Operating Systems and special configurations, see [hyperboria/docs](https://github.com/hyperboria/docs).
 
 #### Gentoo:
 
@@ -519,6 +525,7 @@ That time of year again... Time for some open source Projects!
 [Distributed Hash Table]: https://en.wikipedia.org/wiki/Distributed_hash_table
 [Beyond Pain]: https://lists.torproject.org/pipermail/tor-dev/2012-October/004063.html
 [Kademlia]: https://en.wikipedia.org/wiki/Kademlia
+[N-O-D-E.net article "Hyperboria, Moving through the mesh]: (https://n-o-d-e.net/hyperboria.html)_\
 
 [Tor]: https://www.torproject.org
 [I2P]: https://geti2p.net/en/
