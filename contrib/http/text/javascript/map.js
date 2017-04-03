@@ -14,7 +14,7 @@
 
 var w = 800;
 var h = 800;
-var fill = d3.scale.category10()
+var fill = d3.scale.category10();
 var DEBUGGING = false;
 
 /** True if we don't want to map nodes with 0 reach because they might not actually be reachable. */
@@ -44,7 +44,7 @@ var getData = function()
     var log2 = function(number)
     {
 	    var out = 0;
-	    while ((number >>= 1) > 0) {
+	    while ((number >= 1) > 0) {
 		    out++;
 	    }
 	    return out;
@@ -91,7 +91,7 @@ var getData = function()
     {
          var out = [];
          for (var i = 0; i < list.length; i++) {
-             if (EXCLUDE_ZERO_NODES && list[i].link == 0) {
+             if (EXCLUDE_ZERO_NODES && list[i].link === 0) {
                  continue;
              }
              out.push({
@@ -160,7 +160,7 @@ var getData = function()
         out += '<th>Link State</th>';
         out += '</tr>'
         for (var i = 0; i < table.length; i++) {
-            if (i % 2 == 0)
+            if (i % 2 === 0)
               out += '<tr class="trow1">';
             else
               out += '<tr class="trow2">';
