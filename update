@@ -1,0 +1,40 @@
+#!/bin/bash
+if [ "$1" == "postupdateclean" ]
+then
+    [ -a "./tmp_update.sh" ] && rm -rf ./tmp_update.sh
+    [ -a "./cjdns.updatepkg" ] && rm -rf cjdns.updatepkg
+    echo -e "\033[1;34mRebuilding...\033[22;0m"
+    ./clean && ./do
+    echo -e "\033[1;32mUpdate completed.\033[22;0m"
+    exit 0
+fi
+
+echo -e "\033[1;34mChecking environment...\033[22;0m"
+echo -e "\033[1;34mcjdns root directory detected as $PWD\033[22;0m"
+echo -e "\033[1;34mAttempting quick update using Git...\033[22;0m" && git pull origin master && ./update postupdateclean && exit 0
+echo -e "\033[1;33mAn error occurred while retrieving updates with Git. Switching to fallback download methods...\033[22;0m"
+DLMETHOD=0
+command -v wget >/dev/null 2>&1 && DLMETHOD=2
+command -v curl >/dev/null 2>&1 && DLMETHOD=1
+if [ "$DLMETHOD" -eq 1 ]
+then
+    echo -e "\033[1;34mDownloading update package with curl...\033[22;0m"
+    curl -Lk https://github.com/cjdelisle/cjdns/archive/master.tar.gz | tar xz ; mv cjdns-master cjdns.updatepkg
+    touch ./tmp_update.sh
+    echo "cp -rf ./cjdns.updatepkg/* ./* && ./update postupdateclean" > ./tmp_update.sh
+    sh ./tmp_update.sh
+elif [ "$DLMETHOD" -eq 2 ]
+then
+    echo -e "\033[1;34mDownloading update package with wget...\033[22;0m"
+    wget https://github.com/cjdelisle/cjdns/archive/master.tar.gz
+    tar -zxvf master.tar.gz
+    rm -rf master.tar.gz
+    mv cjdns-master cjdns.updatepkg
+    touch ./tmp_update.sh
+    echo "cp -rf ./cjdns.updatepkg/* ./* && ./update postupdateclean" > ./tmp_update.sh
+    # echo -e "\033[1;32mUpdate completed.\033[22;0m"
+    sh ./tmp_update.sh
+else
+    echo -e "\033[1;31mNo available download methods available! Aborting...\033[22;0m" ; exit 1
+fi
+    
