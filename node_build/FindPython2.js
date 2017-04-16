@@ -16,7 +16,7 @@ var nThen = require('nthen');
 var Spawn = require('child_process').spawn;
 var Fs = require('fs');
 
-var PYTHONS = ["python", "python2", "python2.7", "python2.6", "python2.5"];
+var PYTHONS = ["python2", "python", "python2.7", "python2.6", "python2.5"];
 
 var SCRIPT = [
     'import sys;',
