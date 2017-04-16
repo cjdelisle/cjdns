@@ -291,7 +291,7 @@ network.
 To generate a conf file with permissions set so that only your user can
 read it and write to it:
 
-    (umask 077 && ./cjdroute --genconf > cjdroute.conf)
+    (umask 770 && ./cjdroute --genconf > cjdroute.conf)
 
 
 ### 2. Find a friend
