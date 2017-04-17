@@ -269,6 +269,11 @@ static inline int sendNodes(struct NodeList* nodeList,
         struct Address addr;
         Bits_memcpy(&addr, &nodeList->nodes[i]->address, sizeof(struct Address));
 
+        if (i == 0 && (nodeList->size == RouterModule_K)) {
+            Dict_putInt(message->asDict, CJDHTConstants_MORE_NODES,
+                        addr.path, message->allocator);
+        }
+
         addr.path = NumberCompress_getLabelFor(addr.path, query->address->path);
 
         Address_serialize(&nodes->bytes[i * Address_SERIALIZED_SIZE], &addr);
