@@ -180,6 +180,7 @@ struct Node_Two* NodeStore_getBest(struct NodeStore* nodeStore, uint8_t targetAd
  */
 struct NodeList* NodeStore_getPeers(uint64_t label,
                                     const uint32_t max,
+                                    int64_t* page,
                                     struct Allocator* allocator,
                                     struct NodeStore* store);
 

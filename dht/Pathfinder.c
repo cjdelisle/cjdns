@@ -317,7 +317,7 @@ static Iface_DEFUN peer(struct Message* msg, struct Pathfinder_pvt* pf)
         return NULL;
     }
     //RumorMill_addNode(pf->rumorMill, &addr);
-    Router_sendGetPeers(pf->router, &addr, 0, 0, pf->alloc);
+    Router_sendGetPeers(pf->router, &addr, 0, 0, 0, pf->alloc);
 
     return sendNode(msg, &addr, 0xffffff00, pf);
 }

@@ -339,8 +339,13 @@ static inline int handleQuery(struct DHTMessage* message,
         Bits_memcpy(&targetPath, target->bytes, 8);
         targetPath = Endian_bigEndianToHost64(targetPath);
 
-        nodeList =
-            NodeStore_getPeers(targetPath, RouterModule_K, message->allocator, module->nodeStore);
+        int64_t* page = Dict_getInt(query->asDict, CJDHTConstants_PAGE);
+
+        nodeList = NodeStore_getPeers(targetPath,
+                                      RouterModule_K,
+                                      page,
+                                      message->allocator,
+                                      module->nodeStore);
 
     } else if (String_equals(queryType, CJDHTConstants_QUERY_NH)) {
         // get the target
@@ -643,6 +648,7 @@ struct RouterModule_Promise* RouterModule_findNode(struct Address* whoToAsk,
 
 struct RouterModule_Promise* RouterModule_getPeers(struct Address* addr,
                                                    uint64_t nearbyLabel,
+                                                   int64_t page,
                                                    uint32_t timeoutMilliseconds,
                                                    struct RouterModule* module,
                                                    struct Allocator* alloc)
@@ -651,6 +657,8 @@ struct RouterModule_Promise* RouterModule_getPeers(struct Address* addr,
         RouterModule_newMessage(addr, timeoutMilliseconds, module, alloc);
     Dict* d = Dict_new(promise->alloc);
     Dict_putString(d, CJDHTConstants_QUERY, CJDHTConstants_QUERY_GP, promise->alloc);
+    Dict_putInt(d, CJDHTConstants_PAGE, page, promise->alloc);
+
 
     uint64_t nearbyLabel_be = Endian_hostToBigEndian64(nearbyLabel);
     uint8_t nearbyLabelBytes[8];

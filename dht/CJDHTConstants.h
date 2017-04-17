@@ -62,4 +62,7 @@ static String* const CJDHTConstants_ENC_INDEX = String_CONST_SO("ei");
 static String* const CJDHTConstants_PEER_ENC_SCHEME = String_CONST_SO("pes");
 static String* const CJDHTConstants_PEER_ENC_INDEX = String_CONST_SO("pei");
 
+// A page number
+static String* const CJDHTConstants_PAGE = String_CONST_SO("pg");
+
 #endif

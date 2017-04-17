@@ -25,21 +25,26 @@ static uint8_t* MY_ADDR =
     "v13.0000.0000.0000.0001.3c95l67xxd0juy9zjn7scz5lnjsrcum33y9ghbnqf64d6z0t7sw0.k";
 
 static uint8_t* ADDRS[] = {
-    "v13.0000.0000.0000.001f.usclqxtgkksmgwv10h8h3pltm3zy27bddb20mpsbrvjlcw4d9gl0.k",
-    "v13.0000.0000.0000.001b.03ws4vngbq56ymd14vbpd92zdfr0783t7g6u3k4dtb1kuw5m62v0.k",
-    "v13.0000.0000.0000.0019.8u2pvwuf1wmf5hwxytckbk4sbyrg3rdnqdwulbgsbmw408grm500.k",
-    "v13.0000.0000.0000.0017.bf39dq2mubq17x2lmz8cwgr839s95b6gk7dmcty22uw3dj7v5zy0.k",
-    "v13.0000.0000.0000.0015.q402jm870c215kdvf4wy2qvpt4kdrx0b4zyx2vnv2fdfprf41fk0.k",
-    "v13.0000.0000.0000.0013.6npk9pfdw09t0ldp0c9usrp8pkhttg0104849ng6j5gsz3w8q3x0.k",
-    "v13.0000.0000.0000.00b6.t9lpkc69nwpxpnusc7nlgrrjmzdcjhgf52zhhr9k69t9x6hrz5c0.k",
-    "v13.0000.0000.0000.00b2.05t007gun13qnhm5czlkjlp14lpr2v2j6f4g6bmzgbwv5mj9uy60.k",
-    "v13.0000.0000.0000.00ae.f5d1l67lb3dl7z41l1lwmh0jsptq382vsyvr999brjdjqutj5m90.k",
-    "v13.0000.0000.0000.00aa.61jw1hdru3tnwv3vfpt9vmmbvyhfxc8chd9msf1jhumq2y3h5pn0.k",
-    "v13.0000.0000.0000.00a2.684v75l5czfvgmr5qkb60xd7d9l79zxg5nyj5wmbhr8nxm7wzn20.k",
-    "v13.0000.0000.0000.009e.th3p5791z6xr24plc3487xfb9tfy4n7n51y8pbhnr9771kluhr10.k",
-    "v13.0000.0000.0000.00ba.d40x5rkb8jj5v1521j5l6wd1pu7svzrmyb2kvf1rj7ll0kuydt40.k",
-    "v13.0000.0000.0000.001d.rujhjmq178wtfxccuwp3h17uq7u7phfr1t1m1zn80855h2wngl50.k",
-    "v13.0000.0000.0000.00a6.0czm5qrryjrhc4dv9zcl148pnbur1869zufrcfw8f9b7vw132yu0.k",
+    "v17.0000.0000.0000.0484.3kllsrsp4xrr2n9sx26vugk8f2dh7c1psgl74yjrcmxtl2jldug0.k",
+    "v16.0000.0000.0000.00fa.h4quw20xhnz4m40l5td9h6qhug86yghs83w54qd0v7fzywdsh700.k",
+    "v16.0000.0000.0000.00f6.zky2fx263y1xp048nylbmkx1cf6wuxtsynwf2ffc8yh3mzr5ufl0.k",
+    "v17.0000.0000.0000.00ee.syyrcmn8nfcg2uyjq43nl0nn59l19bhv0799clkc6r2v1dxsswz0.k",
+    "v17.0000.0000.0000.00e6.bbck723nkg3cq4vnn1fk9mz5zydpulxjfnqh001hyn3hv80n1qr0.k",
+    "v17.0000.0000.0000.00d6.0kt0f1p8mbypdvl0k1j4z1sduwfv41srjz94vd7slq0fuglb8v40.k",
+    "v17.0000.0000.0000.00e2.1fsvgdy0ypfdl7zfhjkh2ffjkpbs0g3j1r3zm2fr2yhz6qnu1xm0.k",
+    "v17.0000.0000.0000.00d2.84tuvkqvyd4nmh50xz365p6bpuc0khrbc5tq5yjd8hjzbprhlhc0.k",
+    "v17.0000.0000.0000.049c.3nc0m38zt7n6j6u9hw1uf0l6qbz2chrw2myurnup5xhv85t9s1c0.k",
+    "v17.0000.0000.0000.0494.hzq850g8uuc5rc96mj5ysh1tn07sulfvrmmgj652g55r1ll14rj0.k",
+    "v17.0000.0000.0000.0490.jxj2fuv4bluz0xwv6umul7w01vuugpdkprkncvuxdrqquqmjxb00.k",
+    "v17.0000.0000.0000.048c.hcvxxvrv130udqqrbt6fsb42mh2vxzm7mx0mfdlmk6qh1sv9y8p0.k",
+    "v17.0000.0000.0000.00ce.2k77tt73kysj213msxshcl4rlqlb231pxszszlcdv1zsx5unqht0.k",
+    "v16.0000.0000.0000.0488.250vlyjjnj4jwmu0u92fubmjpu453nm2mmk1p02rryxfz3k7d8m0.k",
+    "v16.0000.0000.0000.00a2.grpv9js9nfkf5s1n1bb3kv7q4mbd77lwhm3lg1mwcfrszfgxvm70.k",
+    "v17.0000.0000.0000.0498.jrgqr5myx44ks7knj2r8l7ng7fdtwghzf6h1v9yczrj0s7us8l50.k",
+    "v16.0000.0000.0000.0480.h3wzj7hs03c9cw941dlzlm6ftyhmyl5v58kq82kpz1rd475g6mj0.k",
+    "v17.0000.0000.0000.00ea.llh1ul6hd5rv4xz3v0wxsyr8qzvhq2xgwdm1lnvujdy8t1wcgj20.k",
+    "v17.0000.0000.0000.00de.4qvj4bt5nyd1qf1522z2ml63nl48s2wtr3qpwqy8hy21qzxx9rg0.k",
+    "v17.0000.0000.0000.04ac.pp7yhhkqnzk9rxpkv2c4lz9khqb3hqjj9fr3m73zmzyy3s8tn2u0.k",
     NULL
 };
 
@@ -75,13 +80,31 @@ static void getPeersTest(struct EventBase* base, struct Log* logger, struct Allo
         addNode(ns, ADDRS[i], alloc);
     }
 
-    struct NodeList* list = NodeStore_getPeers(0, 8, alloc, ns);
+    // Test getting all peers using label
+    struct NodeList* list = NodeStore_getPeers(0, 8, NULL, alloc, ns);
 
-    checkList(list, (uint64_t[]){ 0x01,0x13,0x15,0x17,0x19,0x1b,0x1d,0x1f,0 }, logger, alloc);
-    list = NodeStore_getPeers(0x1f, 8, alloc, ns);
-    checkList(list, (uint64_t[]){ 0x1f,0x9e,0xa2,0xa6,0xaa,0xae,0xb2,0xb6,0 }, logger, alloc);
-    list = NodeStore_getPeers(0xb6, 8, alloc, ns);
-    checkList(list, (uint64_t[]){ 0xb6,0xba,0 }, logger, alloc);
+    checkList(list, (uint64_t[]){ 0x01,0xa2,0xce,0xd2,0xd6,0xde,0xe2,0xe6,0 }, logger, alloc);
+    list = NodeStore_getPeers(0xe6, 8, NULL, alloc, ns);
+    checkList(list, (uint64_t[]){ 0xe6,0xea,0xee,0xf6,0xfa,0x480,0x484,0x488,0 }, logger, alloc);
+    list = NodeStore_getPeers(0x488, 8, NULL, alloc, ns);
+    checkList(list, (uint64_t[]){ 0x488,0x48c,0x490,0x494,0x498,0x49c,0x4ac,0 }, logger, alloc);
+
+    // Test getting all peers pages
+    int64_t page = 0;
+    list = NodeStore_getPeers(0, 8, &page, alloc, ns);
+    checkList(list, (uint64_t[]){ 0x01,0xa2,0xce,0xd2,0xd6,0xde,0xe2,0xe6,0 }, logger, alloc);
+
+    page = 1;
+    list = NodeStore_getPeers(0, 8, &page, alloc, ns);
+    checkList(list, (uint64_t[]){ 0xea,0xee,0xf6,0xfa,0x480,0x484,0x488,0x48c,0 }, logger, alloc);
+
+    page = 2;
+    list = NodeStore_getPeers(0, 8, &page, alloc, ns);
+    checkList(list, (uint64_t[]){ 0x490,0x494,0x498,0x49c,0x4ac,0 }, logger, alloc);
+
+    page = 3;
+    list = NodeStore_getPeers(0, 8, &page, alloc, ns);
+    checkList(list, (uint64_t[]){ 0 }, logger, alloc);
 }
 
 int main(int argc, char** argv)

@@ -37,11 +37,12 @@ struct Node_Link* Router_linkForPath(struct Router* r, uint64_t path)
 void Router_sendGetPeers(struct Router* r,
                          struct Address* addr,
                          uint64_t nearbyLabel,
+                         int64_t page,
                          uint32_t timeoutMilliseconds,
                          struct Allocator* alloc)
 {
     struct Router_pvt* rr = Identity_check((struct Router_pvt*)r);
-    RouterModule_getPeers(addr, nearbyLabel, timeoutMilliseconds, rr->routerModule, alloc);
+    RouterModule_getPeers(addr, nearbyLabel, page, timeoutMilliseconds, rr->routerModule, alloc);
 }
 
 struct Node_Two* Router_lookup(struct Router* r, uint8_t targetAddr[16])

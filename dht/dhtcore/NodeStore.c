@@ -1742,6 +1742,7 @@ struct Node_Two* NodeStore_getBest(struct NodeStore* nodeStore, uint8_t targetAd
 
 struct NodeList* NodeStore_getPeers(uint64_t label,
                                     const uint32_t max,
+                                    int64_t* page,
                                     struct Allocator* allocator,
                                     struct NodeStore* nodeStore)
 {
@@ -1753,8 +1754,29 @@ struct NodeList* NodeStore_getPeers(uint64_t label,
         int bitsUsed = NumberCompress_bitsUsedForLabel(label);
         label = (label & Bits_maxBits64(bitsUsed)) | 1 << bitsUsed;
     }
-    struct NodeList* out = Allocator_calloc(allocator, sizeof(struct NodeList), 1);
-    out->nodes = Allocator_calloc(allocator, sizeof(char*), max);
+
+    int arraySize;
+    int pageNumber = 0;
+    if (page) {
+        pageNumber = *page;
+        arraySize = max + max * pageNumber;
+    } else {
+        arraySize = max;
+    }
+
+    uint64_t peerCount = store->pub.peerCount;
+    uint64_t prevPageEnd = (max * (pageNumber - 1)) + max;
+
+    // If given a page that's bigger than the possible pages, return an empty array
+    if (pageNumber > 0 && peerCount < prevPageEnd) {
+        struct NodeList* out = Allocator_calloc(allocator, sizeof(struct NodeList), 1);
+        out->nodes = Allocator_calloc(allocator, sizeof(char*), max);
+        return out;
+    }
+
+    struct Node_Two** nodes = Allocator_calloc(allocator,
+                                               sizeof(char*),
+                                               arraySize);
 
     struct Node_Link* next = NULL;
     RB_FOREACH(next, PeerRBTree, &store->pub.selfNode->peerTree) {
@@ -1764,17 +1786,24 @@ struct NodeList* NodeStore_getPeers(uint64_t label,
         if (p < label) { continue; }
         if (next->child->address.path != p) { continue; }
         int j;
-        for (j = 0; j < (int)max; j++) {
-            if (!out->nodes[j]) { continue; }
-            if ((out->nodes[j]->address.path - label) > (p - label)) { continue; }
+        for (j = 0; j < arraySize; j++) {
+            if (!nodes[j]) { continue; }
+            if ((nodes[j]->address.path - label) > (p - label)) { continue; }
             break;
         }
         switch (j) {
-            default: Bits_memmove(out->nodes, &out->nodes[1], (j - 1) * sizeof(char*));
-            case 1: out->nodes[j - 1] = next->child;
+            default: Bits_memmove(nodes, &nodes[1], (j - 1) * sizeof(char*));
+            case 1: nodes[j - 1] = next->child;
             case 0:;
         }
     }
+
+    // The start index of the nodes to copy into out->nodes.
+    size_t nodesIndex = arraySize - max - (max * pageNumber);
+
+    struct NodeList* out = Allocator_calloc(allocator, sizeof(struct NodeList), 1);
+    out->nodes = Allocator_calloc(allocator, sizeof(char*), max);
+    Bits_memcpy(out->nodes, &nodes[nodesIndex], max * sizeof(char*));
 
     out->size = 0;
     for (int i = 0; i < (int)max; i++) {

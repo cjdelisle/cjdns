@@ -38,6 +38,7 @@ struct Router
 void Router_sendGetPeers(struct Router* r,
                          struct Address* addr,
                          uint64_t nearbyLabel,
+                         int64_t page,
                          uint32_t timeoutMilliseconds,
                          struct Allocator* alloc);
 

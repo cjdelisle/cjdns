@@ -123,6 +123,7 @@ struct RouterModule_Promise* RouterModule_nextHop(struct Address* whoToAsk,
 
 struct RouterModule_Promise* RouterModule_getPeers(struct Address* addr,
                                                    uint64_t nearbyLabel,
+                                                   int64_t page,
                                                    uint32_t timeoutMilliseconds,
                                                    struct RouterModule* module,
                                                    struct Allocator* alloc);
