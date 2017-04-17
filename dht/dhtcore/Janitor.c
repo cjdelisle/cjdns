@@ -66,7 +66,7 @@ struct Janitor_pvt
 
     struct Log* logger;
 
-    #define Janitor_pvt_blacklist_NUM 64
+    #define Janitor_pvt_blacklist_NUM 512
     struct Janitor_Blacklist blacklist[Janitor_pvt_blacklist_NUM];
 
     uint64_t timeOfNextGlobalMaintainence;
