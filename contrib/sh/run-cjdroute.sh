@@ -4,15 +4,37 @@
 
 # Functions
 echo() { printf '%s\n' "$*"; }
-usage() { echo "Usage: run-cjdroute [/path/to/cjdroute.conf] (/etc/cjdroute.conf by default)"; }
+usage() { echo "Usage: run-cjdroute [-c /path/to/cjdroute.conf] [<-- cjdroute keys>]"; }
 
 err() { echo "$1" >&2; }
 
 main() {
-	[ "$1" = '-h' -o "$1" = '--help' ] && { usage; return 0; }
+	# Set defaults
+	cjdroute_config='/etc/cjdroute.conf'
 
-	cjdroute_config=${1:-"/etc/cjdroute.conf"}
-	exec cjdroute < $cjdroute_config
+	# Handle flags
+	while [ "$#" -gt 0 ]; do
+		case "$1" in
+			-h|--help)
+				usage
+				retrurn 0;;
+
+			-c|--config)
+				cjdroute_config=$2
+				shift;;
+
+			--)
+				shift
+				break;;
+
+			*)
+				break;;
+		esac
+
+		shift
+	done
+
+	exec cjdroute "$@" < $cjdroute_config
 }
 
 # DO SOMETHING
