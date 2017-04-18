@@ -142,59 +142,6 @@ static struct IpTunnel_Connection* connectionByPubKey(uint8_t pubKey[32],
     return NULL;
 }
 
-/**
- * Allow another node to tunnel IPv4 and/or ICANN IPv6 through this node.
- *
- * @param publicKeyOfAuthorizedNode the key for the node which will be allowed to connect.
- * @param ip6Addr the IPv6 address which the node will be issued or NULL.
- * @param ip6Prefix the IPv6 netmask/prefix length.
- * @param ip4Addr the IPv4 address which the node will be issued or NULL.
- * @param ip4Prefix the IPv4 netmask/prefix length.
- * @param tunnel the IpTunnel.
- * @return an connection number which is usable with IpTunnel_remove().
- */
-int IpTunnel_allowConnection(uint8_t publicKeyOfAuthorizedNode[32],
-                             struct Sockaddr* ip6Addr,
-                             uint8_t ip6Prefix,
-                             uint8_t ip6Alloc,
-                             struct Sockaddr* ip4Addr,
-                             uint8_t ip4Prefix,
-                             uint8_t ip4Alloc,
-                             struct IpTunnel* tunnel)
-{
-    struct IpTunnel_pvt* context = Identity_check((struct IpTunnel_pvt*)tunnel);
-
-    Log_debug(context->logger, "IPv4 Prefix to allow: %d", ip4Prefix);
-
-    uint8_t* ip6Address = NULL;
-    uint8_t* ip4Address = NULL;
-    if (ip6Addr) {
-        Sockaddr_getAddress(ip6Addr, &ip6Address);
-    }
-    if (ip4Addr) {
-        Sockaddr_getAddress(ip4Addr, &ip4Address);
-    }
-
-    struct IpTunnel_Connection* conn = newConnection(false, context);
-    Bits_memcpy(conn->routeHeader.publicKey, publicKeyOfAuthorizedNode, 32);
-    AddressCalc_addressForPublicKey(conn->routeHeader.ip6, publicKeyOfAuthorizedNode);
-    if (ip4Address) {
-        Bits_memcpy(conn->connectionIp4, ip4Address, 4);
-        conn->connectionIp4Prefix = ip4Prefix;
-        conn->connectionIp4Alloc = ip4Alloc;
-        Assert_true(ip4Alloc);
-    }
-
-    if (ip6Address) {
-        Bits_memcpy(conn->connectionIp6, ip6Address, 16);
-        conn->connectionIp6Prefix = ip6Prefix;
-        conn->connectionIp6Alloc = ip6Alloc;
-        Assert_true(ip6Alloc);
-    }
-
-    return conn->number;
-}
-
 static Iface_DEFUN sendToNode(struct Message* message,
                               struct IpTunnel_Connection* connection,
                               struct IpTunnel_pvt* context)
@@ -828,6 +775,63 @@ void IpTunnel_setTunName(char* interfaceName, struct IpTunnel* ipTun)
 {
     struct IpTunnel_pvt* ctx = Identity_check((struct IpTunnel_pvt*) ipTun);
     ctx->ifName = String_new(interfaceName, ctx->allocator);
+}
+
+/**
+ * Allow another node to tunnel IPv4 and/or ICANN IPv6 through this node.
+ *
+ * @param publicKeyOfAuthorizedNode the key for the node which will be allowed to connect.
+ * @param ip6Addr the IPv6 address which the node will be issued or NULL.
+ * @param ip6Prefix the IPv6 netmask/prefix length.
+ * @param ip4Addr the IPv4 address which the node will be issued or NULL.
+ * @param ip4Prefix the IPv4 netmask/prefix length.
+ * @param tunnel the IpTunnel.
+ * @return an connection number which is usable with IpTunnel_remove().
+ */
+int IpTunnel_allowConnection(uint8_t publicKeyOfAuthorizedNode[32],
+                             struct Sockaddr* ip6Addr,
+                             uint8_t ip6Prefix,
+                             uint8_t ip6Alloc,
+                             struct Sockaddr* ip4Addr,
+                             uint8_t ip4Prefix,
+                             uint8_t ip4Alloc,
+                             struct IpTunnel* tunnel)
+{
+    struct IpTunnel_pvt* context = Identity_check((struct IpTunnel_pvt*)tunnel);
+
+    Log_debug(context->logger, "IPv4 Prefix to allow: %d", ip4Prefix);
+
+    uint8_t* ip6Address = NULL;
+    uint8_t* ip4Address = NULL;
+    if (ip6Addr) {
+        Sockaddr_getAddress(ip6Addr, &ip6Address);
+    }
+    if (ip4Addr) {
+        Sockaddr_getAddress(ip4Addr, &ip4Address);
+    }
+
+    if (findConnection(ip6Address, ip4Address, false, context)) {
+        return -1;
+    }
+
+    struct IpTunnel_Connection* conn = newConnection(false, context);
+    Bits_memcpy(conn->routeHeader.publicKey, publicKeyOfAuthorizedNode, 32);
+    AddressCalc_addressForPublicKey(conn->routeHeader.ip6, publicKeyOfAuthorizedNode);
+    if (ip4Address) {
+        Bits_memcpy(conn->connectionIp4, ip4Address, 4);
+        conn->connectionIp4Prefix = ip4Prefix;
+        conn->connectionIp4Alloc = ip4Alloc;
+        Assert_true(ip4Alloc);
+    }
+
+    if (ip6Address) {
+        Bits_memcpy(conn->connectionIp6, ip6Address, 16);
+        conn->connectionIp6Prefix = ip6Prefix;
+        conn->connectionIp6Alloc = ip6Alloc;
+        Assert_true(ip6Alloc);
+    }
+
+    return conn->number;
 }
 
 struct IpTunnel* IpTunnel_new(struct Log* logger,
