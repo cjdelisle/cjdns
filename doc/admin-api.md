@@ -1,4 +1,4 @@
-#Cjdns Admin API
+# Cjdns Admin API
 
 Cjdns is inspected and configured through a UDP socket.
 When cjdroute starts up, it reads the configuration file and spawns cjdns core. The core
@@ -219,7 +219,7 @@ allows you to call cjdns functions from shell scripts or the command line as fol
     UDPInterface_new(bindAddress=0)
 
 
-###RouterModule_pingNode()
+### RouterModule_pingNode()
 
 **Auth Required**
 
