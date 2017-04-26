@@ -247,6 +247,7 @@ static struct SessionManager_Session_pvt* getSession(struct SessionManager_pvt* 
     sess->sessionManager = sm;
     sess->pub.version = version;
     sess->pub.timeOfLastIn = Time_currentTimeMilliseconds(sm->eventBase);
+    sess->pub.timeOfKeepAliveIn = Time_currentTimeMilliseconds(sm->eventBase);
     sess->pub.timeOfLastOut = Time_currentTimeMilliseconds(sm->eventBase);
     sess->pub.sendSwitchLabel = label;
     sess->pub.metric = metric;
@@ -401,6 +402,7 @@ static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface
         session->pub.timeOfLastIn = Time_currentTimeMilliseconds(sm->eventBase);
     }
     session->pub.bytesIn += msg->length;
+    session->pub.timeOfKeepAliveIn = Time_currentTimeMilliseconds(sm->eventBase);
 
     if (currentMessageSetup) {
         Bits_memcpy(&header->sh, switchHeader, SwitchHeader_SIZE);
@@ -491,7 +493,7 @@ static void checkTimedOutSessions(struct SessionManager_pvt* sm)
         int64_t now = Time_currentTimeMilliseconds(sm->eventBase);
 
         // Check if the session is timed out...
-        if (now - sess->pub.timeOfLastIn > sm->pub.sessionTimeoutMilliseconds) {
+        if (now - sess->pub.timeOfKeepAliveIn > sm->pub.sessionTimeoutMilliseconds) {
             debugSession0(sm->log, sess, "ended");
             sendSession(sess, sess->pub.sendSwitchLabel, 0xffffffff, PFChan_Core_SESSION_ENDED);
             Map_OfSessionsByIp6_remove(i, &sm->ifaceMap);

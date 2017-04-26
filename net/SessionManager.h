@@ -73,10 +73,16 @@ struct SessionManager_Session
 {
     struct CryptoAuth_Session* caSession;
 
-    /** When the last message was received on this session (milliseconds since epoch). */
+    /**
+     * When the last message was received on this session (milliseconds since epoch).
+     * Used for session keep alive.
+     */
+    int64_t timeOfKeepAliveIn;
+
+    /** When the last non-CJDHT message was received on this session (milliseconds since epoch). */
     int64_t timeOfLastIn;
 
-    /** When the last message was sent on this session (milliseconds since epoch). */
+    /** When the last non-CJDHT message was sent on this session (milliseconds since epoch). */
     int64_t timeOfLastOut;
 
     uint64_t bytesOut;
