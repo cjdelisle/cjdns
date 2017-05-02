@@ -51,7 +51,7 @@ var tracePath = function (target, queryNode, cjdns, cb, doneCb) {
                 doneCb(false);
                 return;
             }
-            if (ret.fromIP6 === target) {
+            if (ret.fromIP6 === target || ret.from === ret.nodes[0]) {
                 doneCb(true);
                 return;
             }
@@ -107,7 +107,9 @@ var main = function (target) {
         tracePath(nodeToIP6(self), lastRet.from, cjdns, function (ret) {
             lastRet = ret;
             process.stdout.write('  ' + ret.ms + 'ms\n');
-            if (ret.nodes.length === 0) {
+            if (ret.result === 'timeout') {
+                process.stdout.write('\n' + ret.from + ' ' + ret.result + '!');
+            } else if (ret.nodes.length === 0) {
                 console.log('cornered');
             } else if (ret.nodes[0] !== ret.from) {
                 process.stdout.write(ret.nodes[0] + ' ' + highBits(ret.nodes[0]));
