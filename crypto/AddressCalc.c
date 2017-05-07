@@ -14,15 +14,40 @@
  */
 #include "crypto_hash_sha512.h"
 #include "util/Bits.h"
+#include "crypto/AddressCalc.h"
 
 #include <stdint.h>
+#include <stdbool.h>
 
-int AddressCalc_validAddress(const uint8_t address[16])
+#ifndef ADDRESS_PREFIX
+#define ADDRESS_PREFIX 0xfc
+#endif
+#ifndef ADDRESS_PREFIX_BYTES
+#define ADDRESS_PREFIX_BYTES 1
+#endif
+
+bool AddressCalc_validAddress(const uint8_t address[16])
 {
-    return address[0] == 0xFC;
+    int mask = ADDRESS_PREFIX;
+    for (int8_t i=ADDRESS_PREFIX_BYTES-1; i>=0; i--) {
+        if (address[i] != (mask & 0xff)) {
+            return false;
+        }
+        mask >>= 8;
+    }
+    return true;
 }
 
-int AddressCalc_addressForPublicKey(uint8_t addressOut[16], const uint8_t key[32])
+void AddressCalc_makeValidAddress(uint8_t address[16])
+{
+    int mask = ADDRESS_PREFIX;
+    for (int8_t i=ADDRESS_PREFIX_BYTES-1; i>=0; i--) {
+        address[i] = mask & 0xff;
+        mask >>= 8;
+    }
+}
+
+bool AddressCalc_addressForPublicKey(uint8_t addressOut[16], const uint8_t key[32])
 {
     uint8_t hash[crypto_hash_sha512_BYTES];
     crypto_hash_sha512(hash, key, 32);

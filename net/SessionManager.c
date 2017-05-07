@@ -206,7 +206,7 @@ static struct SessionManager_Session_pvt* getSession(struct SessionManager_pvt* 
                                                      uint64_t label,
                                                      uint32_t metric)
 {
-    Assert_true(ip6[0] == 0xfc);
+    Assert_true(AddressCalc_validAddress(ip6));
     struct SessionManager_Session_pvt* sess = sessionForIp6(ip6, sm);
     if (sess) {
         sess->pub.version = (sess->pub.version) ? sess->pub.version : version;

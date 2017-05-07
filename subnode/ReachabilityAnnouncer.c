@@ -17,6 +17,7 @@
 #include "util/Identity.h"
 #include "util/events/Time.h"
 #include "wire/Announce.h"
+#include "crypto/AddressCalc.h"
 #include "crypto/Sign.h"
 #include "util/AddrTools.h"
 
@@ -616,7 +617,7 @@ static void onAnnounceCycle(void* vRap)
 
     struct Query* q = Allocator_calloc(qp->alloc, sizeof(struct Query), 1);
     q->rap = rap;
-    Assert_true(rap->snode.ip6.bytes[0] == 0xfc);
+    Assert_true(AddressCalc_validAddress(rap->snode.ip6.bytes));
     Bits_memcpy(&q->target, &rap->snode, Address_SIZE);
     qp->userData = q;
 
