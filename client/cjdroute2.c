@@ -16,6 +16,7 @@
 #include "admin/angel/Core.h"
 #include "admin/angel/InterfaceWaiter.h"
 #include "client/Configurator.h"
+#include "crypto/Key.h"
 #include "benc/Dict.h"
 #include "benc/Int.h"
 #include "benc/List.h"
@@ -34,6 +35,7 @@
 #include "io/Writer.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
+#include "util/AddrTools.h"
 #include "util/ArchInfo.h"
 #include "util/Assert.h"
 #include "util/Base32.h"
@@ -52,34 +54,11 @@
 #include "util/version/Version.h"
 #include "net/Benchmark.h"
 
-#include "crypto_scalarmult_curve25519.h"
-
 #include <stdint.h>
 #include <stdio.h>
 #include <unistd.h>
 
 #define DEFAULT_TUN_DEV "tun0"
-
-static int genAddress(uint8_t addressOut[40],
-                      uint8_t privateKeyHexOut[65],
-                      uint8_t publicKeyBase32Out[53],
-                      struct Random* rand)
-{
-    struct Address address;
-    uint8_t privateKey[32];
-
-    for (;;) {
-        Random_bytes(rand, privateKey, 32);
-        crypto_scalarmult_curve25519_base(address.key, privateKey);
-        // Brute force for keys until one matches FC00:/8
-        if (AddressCalc_addressForPublicKey(address.ip6.bytes, address.key)) {
-            Hex_encode(privateKeyHexOut, 65, privateKey, 32);
-            Base32_encode(publicKeyBase32Out, 53, address.key, 32);
-            Address_printShortIp(addressOut, &address);
-            return 0;
-        }
-    }
-}
 
 static int genconf(struct Random* rand, bool eth)
 {
@@ -97,10 +76,16 @@ static int genconf(struct Random* rand, bool eth)
         port = Random_uint16(rand);
     }
 
+    uint8_t publicKey[32];
     uint8_t publicKeyBase32[53];
+    uint8_t ip[16];
     uint8_t address[40];
+    uint8_t privateKey[32];
     uint8_t privateKeyHex[65];
-    genAddress(address, privateKeyHex, publicKeyBase32, rand);
+    Key_gen(ip, publicKey, privateKey, rand);
+    Base32_encode(publicKeyBase32, 53, publicKey, 32);
+    Hex_encode(privateKeyHex, 65, privateKey, 32);
+    AddrTools_printIp(address, ip);
 
     printf("{\n");
     printf("    // Private key:\n"
