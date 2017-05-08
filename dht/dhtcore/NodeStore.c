@@ -1612,6 +1612,8 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
 
     // Create the self node
     struct Node_Two* selfNode = Allocator_calloc(alloc, sizeof(struct Node_Two), 1);
+    Assert_true(selfNode);
+    Assert_true(myAddress);
     Bits_memcpy(&selfNode->address, myAddress, sizeof(struct Address));
     selfNode->encodingScheme = NumberCompress_defineScheme(alloc);
     selfNode->alloc = alloc;

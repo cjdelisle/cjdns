@@ -14,37 +14,33 @@
  */
 #include "crypto_hash_sha512.h"
 #include "util/Bits.h"
+#include "util/Endian.h"
 #include "crypto/AddressCalc.h"
 
 #include <stdint.h>
 #include <stdbool.h>
 
-#ifndef ADDRESS_PREFIX
-#define ADDRESS_PREFIX 0xfc
-#endif
-#ifndef ADDRESS_PREFIX_BYTES
-#define ADDRESS_PREFIX_BYTES 1
-#endif
+/* These two constants are in big endian so they can be compared
+ * immediately with a uint8_t[] containing an address.
+ */
+#define ADDRESS_PREFIX_U64 (Endian_hostToBigEndian64( \
+            ((uint64_t) AddressCalc_ADDRESS_PREFIX) << (64 - AddressCalc_ADDRESS_PREFIX_BITS)))
+#define ADDRESS_PREFIX_MASK (Endian_hostToBigEndian64( \
+            UINT64_MAX << (64 - AddressCalc_ADDRESS_PREFIX_BITS)))
+
+#include <stdio.h>
 
 bool AddressCalc_validAddress(const uint8_t address[16])
 {
-    int mask = ADDRESS_PREFIX;
-    for (int8_t i=ADDRESS_PREFIX_BYTES-1; i>=0; i--) {
-        if (address[i] != (mask & 0xff)) {
-            return false;
-        }
-        mask >>= 8;
-    }
-    return true;
+    uint64_t significant_bits = *((uint64_t*) address);
+    return (significant_bits & ADDRESS_PREFIX_MASK) == ADDRESS_PREFIX_U64;
 }
 
 void AddressCalc_makeValidAddress(uint8_t address[16])
 {
-    int mask = ADDRESS_PREFIX;
-    for (int8_t i=ADDRESS_PREFIX_BYTES-1; i>=0; i--) {
-        address[i] = mask & 0xff;
-        mask >>= 8;
-    }
+    uint64_t* significant_bits = (uint64_t*) address;
+    *significant_bits &= ~ADDRESS_PREFIX_MASK; // zero out the prefix
+    *significant_bits |= ADDRESS_PREFIX_U64; // put the new prefix
 }
 
 bool AddressCalc_addressForPublicKey(uint8_t addressOut[16], const uint8_t key[32])

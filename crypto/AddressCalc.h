@@ -21,6 +21,27 @@ Linker_require("crypto/AddressCalc.c");
 #include <stdint.h>
 #include <stdbool.h>
 
+#ifdef ADDRESS_PREFIX
+#define AddressCalc_ADDRESS_PREFIX ADDRESS_PREFIX
+#else
+#define AddressCalc_ADDRESS_PREFIX 0xfc
+#endif
+#ifdef ADDRESS_PREFIX_BITS
+#define AddressCalc_ADDRESS_PREFIX_BITS ADDRESS_PREFIX_BITS
+#else
+#define AddressCalc_ADDRESS_PREFIX_BITS 8
+#endif
+
+#if AddressCalc_ADDRESS_PREFIX_BITS > 64
+#error "ADDRESS_PREFIX_BITS may not be > 64."
+#endif
+#if AddressCalc_ADDRESS_PREFIX_BITS <= 0
+#error "ADDRESS_PREFIX_BITS may not be <= 0."
+#endif
+#if AddressCalc_ADDRESS_PREFIX >= (1 << AddressCalc_ADDRESS_PREFIX_BITS)
+#error "ADDRESS_PREFIX may not be >= 2^ADDRESS_PREFIX_BITS."
+#endif
+
 /**
  * Check if an address is valid given the IPv6
  *

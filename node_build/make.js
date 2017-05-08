@@ -91,6 +91,13 @@ Builder.configure({
         builder.config.cflags.push('-D', 'TESTING=1');
     }
 
+    if (process.env['ADDRESS_PREFIX'] != undefined) {
+        builder.config.cflags.push('-D', 'ADDRESS_PREFIX=' + process.env['ADDRESS_PREFIX']);
+    }
+    if (process.env['ADDRESS_PREFIX_BITS'] != undefined) {
+        builder.config.cflags.push('-D', 'ADDRESS_PREFIX_BITS=' + process.env['ADDRESS_PREFIX_BITS']);
+    }
+
     if (!builder.config.crossCompiling) {
         if (NO_MARCH_FLAG.indexOf(process.arch) < -1) {
             builder.config.cflags.push('-march=native');
