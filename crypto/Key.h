@@ -27,7 +27,7 @@ Linker_require("crypto/Key.c");
  * Generates a new key such that its derived IP address is in fc00::/8.
  */
 int Key_gen(uint8_t addressOut[16],
-            uint8_t publicKeyOut[16],
+            uint8_t publicKeyOut[32],
             uint8_t privateKeyOut[32],
             struct Random* rand);
 

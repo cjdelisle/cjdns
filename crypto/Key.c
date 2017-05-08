@@ -23,11 +23,10 @@
 #include <stddef.h>
 
 int Key_gen(uint8_t addressOut[16],
-            uint8_t publicKeyOut[16],
+            uint8_t publicKeyOut[32],
             uint8_t privateKeyOut[32],
             struct Random* rand)
 {
-
     for (;;) {
         Random_bytes(rand, privateKeyOut, 32);
         crypto_scalarmult_curve25519_base(publicKeyOut, privateKeyOut);
