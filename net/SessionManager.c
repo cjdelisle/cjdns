@@ -137,23 +137,11 @@ static void sendSession(struct SessionManager_Session_pvt* sess,
     Allocator_free(alloc);
 }
 
-static inline void check(struct SessionManager_pvt* sm, int mapIndex)
-{
-    Assert_true(sm->ifaceMap.keys[mapIndex].bytes[0] == 0xfc);
-    uint8_t* herPubKey = sm->ifaceMap.values[mapIndex]->pub.caSession->herPublicKey;
-    if (!Bits_isZero(herPubKey, 32)) {
-        uint8_t ip6[16];
-        AddressCalc_addressForPublicKey(ip6, herPubKey);
-        Assert_true(!Bits_memcmp(&sm->ifaceMap.keys[mapIndex], ip6, 16));
-    }
-}
-
 static inline struct SessionManager_Session_pvt* sessionForHandle(uint32_t handle,
                                                                   struct SessionManager_pvt* sm)
 {
     int index = Map_OfSessionsByIp6_indexForHandle(handle - sm->firstHandle, &sm->ifaceMap);
     if (index < 0) { return NULL; }
-    check(sm, index);
     return Identity_check(sm->ifaceMap.values[index]);
 }
 
@@ -169,7 +157,6 @@ static inline struct SessionManager_Session_pvt* sessionForIp6(uint8_t ip6[16],
 {
     int ifaceIndex = Map_OfSessionsByIp6_indexForKey((struct Ip6*)ip6, &sm->ifaceMap);
     if (ifaceIndex == -1) { return NULL; }
-    check(sm, ifaceIndex);
     return Identity_check(sm->ifaceMap.values[ifaceIndex]);
 }
 
@@ -233,6 +220,7 @@ static struct SessionManager_Session_pvt* getSession(struct SessionManager_pvt* 
 
     sess->pub.caSession = CryptoAuth_newSession(sm->cryptoAuth, alloc, pubKey, false, "inner");
 
+    Assert_true(!Bits_memcmp(sess->pub.caSession->herIp6, ip6, 16));
     int ifaceIndex = Map_OfSessionsByIp6_put((struct Ip6*)ip6, &sess, &sm->ifaceMap);
     sess->pub.receiveHandle = sm->ifaceMap.handles[ifaceIndex] + sm->firstHandle;
 
@@ -252,7 +240,6 @@ static struct SessionManager_Session_pvt* getSession(struct SessionManager_pvt* 
     sess->pub.metric = metric;
     //Allocator_onFree(alloc, sessionCleanup, sess);
     sendSession(sess, label, 0xffffffff, PFChan_Core_SESSION);
-    check(sm, ifaceIndex);
     return sess;
 }
 
