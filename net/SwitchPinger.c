@@ -13,6 +13,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "benc/String.h"
+#include "crypto/AddressCalc.h"
 #include "net/SwitchPinger.h"
 #include "dht/Address.h"
 #include "util/Bits.h"
@@ -133,6 +134,10 @@ static Iface_DEFUN messageFromControlHandler(struct Message* msg, struct Iface* 
         struct Control_GetSnode* hdr = (struct Control_GetSnode*) msg->bytes;
         if (hdr->magic != Control_GETSNODE_REPLY_MAGIC) {
             Log_debug(ctx->logger, "dropped invalid GetSnode");
+            return NULL;
+        }
+        if (!AddressCalc_addressForPublicKey(ctx->incomingSnodeAddr.ip6.bytes, hdr->snodeKey)) {
+            Log_debug(ctx->logger, "dropped invalid GetSnode key");
             return NULL;
         }
         ctx->incomingVersion = Endian_hostToBigEndian32(hdr->version_be);
