@@ -461,7 +461,8 @@ static void unsetupSession(struct SessionManager_pvt* sm, struct SessionManager_
     struct Allocator* eventAlloc = Allocator_child(sm->alloc);
     struct Message* eventMsg = Message_new(0, 512, eventAlloc);
     struct PFChan_Node n;
-    n.path_be = Endian_hostToBigEndian64(sess->pub.sendSwitchLabel || sess->pub.recvSwitchLabel);
+    n.path_be = Endian_hostToBigEndian64(sess->pub.sendSwitchLabel ?
+                                         sess->pub.sendSwitchLabel : sess->pub.recvSwitchLabel);
     n.version_be = Endian_hostToBigEndian32(sess->pub.version);
     Bits_memcpy(n.publicKey, sess->pub.caSession->herPublicKey, 32);
     Bits_memcpy(n.ip6, sess->pub.caSession->herIp6, 16);
