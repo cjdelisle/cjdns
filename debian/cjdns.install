@@ -24,3 +24,4 @@ contrib/python/pktoip6 /usr/lib/cjdns/
 contrib/python/searches /usr/lib/cjdns/
 contrib/python/sessionStats /usr/lib/cjdns/
 contrib/python/trashroutes /usr/lib/cjdns/
+contrib/systemd/cjdns-resume.service /lib/systemd/system/
