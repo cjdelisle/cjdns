@@ -12,14 +12,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+#include "crypto/Key.h"
 #include "crypto/random/Random.h"
 #include "memory/MallocAllocator.h"
 #include "crypto/AddressCalc.h"
 #include "util/AddrTools.h"
 #include "util/Base32.h"
 #include "util/Hex.h"
-
-#include "crypto_scalarmult_curve25519.h"
 
 #include <signal.h>
 #include <stdio.h>
@@ -41,15 +40,12 @@ int main(int argc, char** argv)
 #endif
 
     for (;;) {
-        Random_bytes(rand, privateKey, 32);
-        crypto_scalarmult_curve25519_base(publicKey, privateKey);
-        if (AddressCalc_addressForPublicKey(ip, publicKey)) {
-            Hex_encode(hexPrivateKey, 65, privateKey, 32);
-            Base32_encode(publicKeyBase32, 53, publicKey, 32);
-            AddrTools_printIp(printedIp, ip);
-            printf("%s %s %s.k\n", hexPrivateKey, printedIp, publicKeyBase32);
-            fflush(stdout);
-        }
+        Key_gen(ip, publicKey, privateKey, rand);
+        Hex_encode(hexPrivateKey, 65, privateKey, 32);
+        Base32_encode(publicKeyBase32, 53, publicKey, 32);
+        AddrTools_printIp(printedIp, ip);
+        printf("%s %s %s.k\n", hexPrivateKey, printedIp, publicKeyBase32);
+        fflush(stdout);
     }
     return 0;
 }
