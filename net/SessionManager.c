@@ -141,7 +141,7 @@ static void sendSession(struct SessionManager_Session_pvt* sess,
 
 static inline void check(struct SessionManager_pvt* sm, int mapIndex)
 {
-    struct SessionManager_Session_pvt* ssp = &sm->ifaceMap.values[mapIndex];
+    struct SessionManager_Session_pvt* ssp = Identity_check(sm->ifaceMap.values[mapIndex]);
     if (ssp->foundKey) { return; }
     uint8_t* herPubKey = ssp->pub.caSession->herPublicKey;
     if (!Bits_isZero(herPubKey, 32)) {
@@ -240,9 +240,9 @@ static struct SessionManager_Session_pvt* getSession(struct SessionManager_pvt* 
 
     sess->foundKey = !Bits_isZero(pubKey, 32);
     if (sess->foundKey) {
-        uint8_t ip6[16];
-        AddressCalc_addressForPublicKey(ip6, pubKey);
-        Assert_true(!Bits_memcmp(pubKey, ip6, 16));
+        uint8_t realIp6[16];
+        AddressCalc_addressForPublicKey(realIp6, pubKey);
+        Assert_true(!Bits_memcmp(realIp6, ip6, 16));
     }
 
     int ifaceIndex = Map_OfSessionsByIp6_put((struct Ip6*)ip6, &sess, &sm->ifaceMap);
