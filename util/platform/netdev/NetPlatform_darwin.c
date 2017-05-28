@@ -215,7 +215,7 @@ static struct ArrayList_OfSockaddr* getRoutes(uint32_t ifIndex,
         // printf("GOT ROUTE %s\n", Hex_print(rtm, rtm->rtm_msglen, tempAlloc));
         int prefix;
         if (&buf[i] < &mask[mask[0]] || mask[0] == 0) {
-            Assert_true(rtm->rtm_flags & RTF_HOST);
+            //Assert_true(rtm->rtm_flags & RTF_HOST);
             prefix = (ipv6) ? 128 : 32;
         } else {
             prefix = prefixFromWeirdBSDMask(mask, ipv6);
