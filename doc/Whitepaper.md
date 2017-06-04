@@ -1023,7 +1023,7 @@ packet is written out to the TUN device.
 
 [OLSR]: http://tools.ietf.org/html/rfc3626
 
-[HSLS]: http://www.ir.bbn.com/documents/techmemos/TM1301.pdf
+[HSLS]: https://en.wikipedia.org/wiki/Hazy_Sighted_Link_State_Routing_Protocol
 
 [BATMAN]: https://en.wikipedia.org/wiki/B.A.T.M.A.N.
 
