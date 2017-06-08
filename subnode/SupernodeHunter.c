@@ -199,7 +199,13 @@ static void peerResponseOK(struct SwitchPinger_Response* resp, struct SupernodeH
         Log_debug(snp->log, "Peer [%s] reports no supernode", label);
         return;
     }
-    snode.path = LabelSplicer_splice(snode.path, resp->label);
+
+    uint64_t path = LabelSplicer_splice(snode.path, resp->label);
+    if (path == UINT64_MAX) {
+        Log_debug(snp->log, "Supernode path could not be spliced");
+        return;
+    }
+    snode.path = path;
 
     struct Address* firstPeer = getPeerByNpn(snp, 0);
     if (!firstPeer) {
