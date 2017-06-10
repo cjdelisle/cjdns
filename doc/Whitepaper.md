@@ -26,7 +26,7 @@ Another issue is how are we going to route packets in a world where the global
 routing table is simply too large for any one router to hold it all? Despite
 the heroic efforts of core network engineers, the growth of the global routing
 table seems an unstoppable march. Cisco router company has proposed a plan
-called Locater/Identifier Separation Protocol, or [LISP] which aims to solve
+called Locator/Identifier Separation Protocol, or [LISP] which aims to solve
 this by re-aggregating the routing table without forcing people to change their
 precious IP addresses. A different view of this problem is IP address
 allocation, currently it is done by a central organization which assigns IP
@@ -161,7 +161,7 @@ network is organized at the cost of the core ISPs whose only defense is the
 "we will not route that" nuclear option which would no doubt bring about a
 revolt from the edge ISPs.
 
-Each of these problems hurts everyone, DDoS forces ISPs to over prevision their
+Each of these problems hurts everyone, DDoS forces ISPs to over provision their
 lines, denial of service through faux legal action increases the cost of running
 a community website or ISP since each accusation must be reviewed and its
 validity assessed, and address deaggregation means everyone must pay more to
@@ -441,7 +441,7 @@ while still preserving Variable Width Encoding, a node is required to describe
 its Encoding Scheme to other nodes and adhere to a few rules to make possible
 the conversion of a Director to a wider bit width by other nodes.
 
-The Encoding Scheme Definition consists of a array of representations of the
+The Encoding Scheme Definition consists of an array of representations of the
 Encoding Forms allowed in that Encoding Scheme, each Encoding Form
 representation having the following three fields:
 
@@ -457,7 +457,7 @@ value must be the same as the prefix which will be seen in the Director in the
 label but since it is opaque, no specific byte order is defined.
 
 The Encoding Scheme Definition is represented on the wire as a concatenation
-of Encoding Forms. Each form is represented in *reverse* the order given above
+of Encoding Forms. Each form is represented in the *reverse* order given above
 with **prefix** furthest to the left, followed by **bitCount** then
 **prefixLen** furthest to the right. It is sent over the wire in *little endian*
 byte order allowing the buffer to be read and written forward while the data is
@@ -568,8 +568,8 @@ Upon receiving a search response containing one's own address, a node SHOULD
 purge all entries from its table whose routes begin with that route. This will
 control the proliferation of redundant routes.
 
-The "address space distance" between any two given addresses is defined as the
-of the result of the two addresses XOR'd against one another, rotated 64 bits,
+The "address space distance" between any two given addresses is defined as
+the result of the two addresses XOR'd against one another, rotated 64 bits,
 then interpreted as a big endian integer. The so called "XOR metric" was
 pioneered in the work on [Kademlia] DHT system and is used to forward a packet
 to someone who probably knows the whole route to the destination. The 64 bit
@@ -789,7 +789,7 @@ Handshake packet structure:
 ### 1) Connect To Me Packet
 
 If "Session State" is equal to the bitwise complement of zero, the sender is
-requesting that the recipient begin a connection with him, this is done in cases
+requesting that the recipient begins a connection with him, this is done in cases
 when the initiator of the connection does not know the key for the recipient.
 If the entire header is not present the recipient MUST drop the packet silently,
 the only field which is read in the packet is the "Permanent Public Key" field,
@@ -996,7 +996,7 @@ Upon receiving the packet, the next node sends the packet through its
 CryptoAuth session thus revealing the switch header and it sends the packet to
 its switch. The switch most likely will send the packet out to another endpoint
 as per the dictate of the packet label but may send it to its router, eventually
-the node for which the packet is destine will receive it.
+the node for which the packet is destined will receive it.
 
 The router, upon receiving the packet will examine it to see if it appears to be
 a CryptoAuth Connect To Me packet, Hello packet, or Key packet. If it is one of
@@ -1023,7 +1023,7 @@ packet is written out to the TUN device.
 
 [OLSR]: http://tools.ietf.org/html/rfc3626
 
-[HSLS]: http://www.ir.bbn.com/documents/techmemos/TM1301.pdf
+[HSLS]: https://en.wikipedia.org/wiki/Hazy_Sighted_Link_State_Routing_Protocol
 
 [BATMAN]: https://en.wikipedia.org/wiki/B.A.T.M.A.N.
 
