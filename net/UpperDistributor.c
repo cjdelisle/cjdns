@@ -23,6 +23,7 @@
 #include "wire/DataHeader.h"
 #include "wire/RouteHeader.h"
 #include "wire/Headers.h"
+#include "wire/SwitchHeader.h"
 
 struct UpperDistributor_Handler_pvt
 {
@@ -89,6 +90,7 @@ static Iface_DEFUN fromHandler(struct Message* msg, struct UpperDistributor_pvt*
 
     Assert_true(msg->length >= RouteHeader_SIZE);
     struct RouteHeader* hdr = (struct RouteHeader*) msg->bytes;
+    SwitchHeader_setLabelShift(&hdr->sh, 0);
     if (!Bits_memcmp(hdr->ip6, ud->myAddress->ip6.bytes, 16)) {
         ud->noSendToHandler = 1;
         Log_debug(ud->log, "Message to self");
