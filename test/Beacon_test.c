@@ -136,6 +136,8 @@ static void start(struct Allocator* alloc,
                   struct Random* rand,
                   RunTest* runTest)
 {
+
+#if defined(ADDRESS_PREFIX) || defined(ADDRESS_PREFIX_BITS)
     uint8_t address[16];
     uint8_t publicKey[32];
     uint8_t privateKeyA[32];
@@ -147,6 +149,21 @@ static void start(struct Allocator* alloc,
     Key_gen(address, publicKey, privateKeyB, rand);
     struct TestFramework* b =
         TestFramework_setUp((char*) privateKeyB, alloc, base, rand, logger);
+#else
+     struct TestFramework* a =
+        TestFramework_setUp("\xad\x7e\xa3\x26\xaa\x01\x94\x0a\x25\xbc\x9e\x01\x26\x22\xdb\x69"
+                            "\x4f\xd9\xb4\x17\x7c\xf3\xf8\x91\x16\xf3\xcf\xe8\x5c\x80\xe1\x4a",
+                            alloc, base, rand, logger);
+    //"publicKey": "kmzm4w0kj9bswd5qmx74nu7kusv5pj40vcsmp781j6xxgpd59z00.k",
+    //"ipv6": "fc41:94b5:0925:7ba9:3959:11ab:a006:367a",
+
+    struct TestFramework* b =
+        TestFramework_setUp("\xd8\x54\x3e\x70\xb9\xae\x7c\x41\xbc\x18\xa4\x9a\x9c\xee\xca\x9c"
+                            "\xdc\x45\x01\x96\x6b\xbd\x7e\x76\xcf\x3a\x9f\xbc\x12\xed\x8b\xb4",
+                            alloc, base, rand, logger);
+    //"publicKey": "vz21tg07061s8v9mckrvgtfds7j2u5lst8cwl6nqhp81njrh5wg0.k",
+    //"ipv6": "fc1f:5b96:e1c5:625d:afde:2523:a7fa:383a",
+#endif
 
 
     struct TwoNodes* out = Allocator_calloc(alloc, sizeof(struct TwoNodes), 1);

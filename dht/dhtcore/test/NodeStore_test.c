@@ -24,6 +24,24 @@
 #include "util/Base32.h"
 #include "util/log/FileWriterLog.h"
 
+static uint8_t* ADDRS[] = {
+    "v13.0000.0000.0000.001f.usclqxtgkksmgwv10h8h3pltm3zy27bddb20mpsbrvjlcw4d9gl0.k",
+    "v13.0000.0000.0000.001b.03ws4vngbq56ymd14vbpd92zdfr0783t7g6u3k4dtb1kuw5m62v0.k",
+    "v13.0000.0000.0000.0019.8u2pvwuf1wmf5hwxytckbk4sbyrg3rdnqdwulbgsbmw408grm500.k",
+    "v13.0000.0000.0000.0017.bf39dq2mubq17x2lmz8cwgr839s95b6gk7dmcty22uw3dj7v5zy0.k",
+    "v13.0000.0000.0000.0015.q402jm870c215kdvf4wy2qvpt4kdrx0b4zyx2vnv2fdfprf41fk0.k",
+    "v13.0000.0000.0000.0013.6npk9pfdw09t0ldp0c9usrp8pkhttg0104849ng6j5gsz3w8q3x0.k",
+    "v13.0000.0000.0000.00b6.t9lpkc69nwpxpnusc7nlgrrjmzdcjhgf52zhhr9k69t9x6hrz5c0.k",
+    "v13.0000.0000.0000.00b2.05t007gun13qnhm5czlkjlp14lpr2v2j6f4g6bmzgbwv5mj9uy60.k",
+    "v13.0000.0000.0000.00ae.f5d1l67lb3dl7z41l1lwmh0jsptq382vsyvr999brjdjqutj5m90.k",
+    "v13.0000.0000.0000.00aa.61jw1hdru3tnwv3vfpt9vmmbvyhfxc8chd9msf1jhumq2y3h5pn0.k",
+    "v13.0000.0000.0000.00a2.684v75l5czfvgmr5qkb60xd7d9l79zxg5nyj5wmbhr8nxm7wzn20.k",
+    "v13.0000.0000.0000.009e.th3p5791z6xr24plc3487xfb9tfy4n7n51y8pbhnr9771kluhr10.k",
+    "v13.0000.0000.0000.00ba.d40x5rkb8jj5v1521j5l6wd1pu7svzrmyb2kvf1rj7ll0kuydt40.k",
+    "v13.0000.0000.0000.001d.rujhjmq178wtfxccuwp3h17uq7u7phfr1t1m1zn80855h2wngl50.k",
+    "v13.0000.0000.0000.00a6.0czm5qrryjrhc4dv9zcl148pnbur1869zufrcfw8f9b7vw132yu0.k",
+    NULL
+};
 
 static void addNode(struct NodeStore* ns, uint8_t* address, struct Allocator* alloc)
 {
@@ -31,7 +49,6 @@ static void addNode(struct NodeStore* ns, uint8_t* address, struct Allocator* al
     struct Address* addr = Address_fromString(String_new(address, alloc), alloc);
     Assert_true(NodeStore_discoverNode(ns, addr, scheme, 0, 100));
 }
-
 
 static void checkList(struct NodeList* list,
                       uint64_t* expectedOutputs,
@@ -55,7 +72,7 @@ static void genAddress(uint8_t* addr, struct Random* rand)
     uint8_t ip[16];
     uint8_t privateKey[32];
     Key_gen(ip, publicKey, privateKey, rand);
-    uint8_t* publicKeyBase32 = CString_strstr(addr, "X");
+    uint8_t* publicKeyBase32 = &addr[24];
     Assert_true(publicKeyBase32);
     Base32_encode(publicKeyBase32, 53, publicKey, 32);
     publicKeyBase32[52] = '.';
@@ -97,37 +114,20 @@ int main(int argc, char** argv)
     struct EventBase* base = EventBase_new(alloc);
     struct Random* rand = Random_new(alloc, NULL, NULL);
 
-    uint8_t* addrs[] = {
-        "v13.0000.0000.0000.001f.XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.k",
-        "v13.0000.0000.0000.001b.XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.k",
-        "v13.0000.0000.0000.0019.XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.k",
-        "v13.0000.0000.0000.0017.XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.k",
-        "v13.0000.0000.0000.0015.XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.k",
-        "v13.0000.0000.0000.0013.XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.k",
-        "v13.0000.0000.0000.00b6.XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.k",
-        "v13.0000.0000.0000.00b2.XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.k",
-        "v13.0000.0000.0000.00ae.XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.k",
-        "v13.0000.0000.0000.00aa.XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.k",
-        "v13.0000.0000.0000.00a2.XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.k",
-        "v13.0000.0000.0000.009e.XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.k",
-        "v13.0000.0000.0000.00ba.XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.k",
-        "v13.0000.0000.0000.001d.XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.k",
-        "v13.0000.0000.0000.00a6.XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.k",
-        NULL
-    };
-
+#if defined(ADDRESS_PREFIX) || defined(ADDRESS_PREFIX_BITS)
     // Make all addresses writeable
-    for (uint8_t** addr = addrs; *addr; addr++) {
+    for (uint8_t** addr = ADDRS; *addr; addr++) {
         char *addr_rw = Allocator_malloc(alloc, 79);
         Bits_memcpy(addr_rw, *addr, 79);
         *addr = addr_rw;
     }
 
-    for (uint8_t** addr = addrs; *addr; addr++) {
+    for (uint8_t** addr = ADDRS; *addr; addr++) {
         genAddress(*addr, rand);
     }
+#endif
 
-    getPeersTest(addrs, base, logger, alloc, rand);
+    getPeersTest(ADDRS, base, logger, alloc, rand);
 
     Allocator_free(alloc);
     return 0;
