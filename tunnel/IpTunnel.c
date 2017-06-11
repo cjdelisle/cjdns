@@ -727,7 +727,9 @@ static Iface_DEFUN ip6FromNode(struct Message* message,
         return 0;
     }
     if (!isValidAddress6(header->sourceAddr, false, conn)) {
-        Log_debug(context->logger, "Got message with wrong address for connection");
+        uint8_t addr[40];
+        AddrTools_printIp(addr, header->sourceAddr);
+        Log_debug(context->logger, "Got message with wrong address for connection [%s]", addr);
         return 0;
     }
 
