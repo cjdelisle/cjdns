@@ -1,3 +1,11 @@
+cjdns (0.20) unstable; urgency=low
+
+  * New upstream release.
+  * Provide dbgsym package.
+  * Fix install of cjdns-resume.service.
+
+ -- Valentin Lorentz <progval+deb@progval.net>  Sun, 11 Jun 2017 11:49:00 +0200
+
 cjdns (0.17.1) unstable; urgency=low
 
   * New upstream release.
