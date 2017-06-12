@@ -3,7 +3,7 @@ Section: comm
 Priority: optional
 Maintainer: Sergey "Shnatsel" Davidoff <shnatsel@gmail.com>
 Build-Depends: debhelper (>= 9.20160114), nodejs (>= 0.8.15) | wget, python (>= 2.7),
-               dh-systemd (>= 1.5)
+               dh-systemd (>= 1.5), dh-python (>= 1.20141111-2)
 Standards-Version: 3.9.5
 Homepage: https://github.com/cjdelisle/cjdns/
 Vcs-Git: git://github.com/cjdelisle/cjdns.git
