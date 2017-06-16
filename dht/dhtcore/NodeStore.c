@@ -1771,7 +1771,9 @@ struct NodeList* NodeStore_getPeers(uint64_t label,
         }
         switch (j) {
             default: Bits_memmove(out->nodes, &out->nodes[1], (j - 1) * sizeof(char*));
+                     __attribute__ ((fallthrough)); // C and C++03
             case 1: out->nodes[j - 1] = next->child;
+                     __attribute__ ((fallthrough)); // C and C++03
             case 0:;
         }
     }
