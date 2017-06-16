@@ -72,15 +72,15 @@ static int32_t serializeString(struct Writer* writer,
     Writer_write(writer, "\"", 1);
     size_t i;
     uint8_t chr;
-    char buffer[4];
+    char buffer[5];
     for (i = 0; i < string->len; i++) {
         chr = (uint8_t) string->bytes[i] & 0xFF;
         /* Nonprinting chars, \ and " are hex'd */
         if (chr < 126 && chr > 31 && chr != '\\' && chr != '"') {
-            snprintf(buffer, 4, "%c", chr);
+            snprintf(buffer, 5, "%c", chr);
             Writer_write(writer, buffer, 1);
         } else {
-            snprintf(buffer, 4, "\\x%.2X", chr);
+            snprintf(buffer, 5, "\\x%.2X", chr);
             Writer_write(writer, buffer, 4);
         }
     }
