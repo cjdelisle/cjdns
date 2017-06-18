@@ -2,8 +2,8 @@ Source: cjdns
 Section: comm
 Priority: optional
 Maintainer: Sergey "Shnatsel" Davidoff <shnatsel@gmail.com>
-Build-Depends: debhelper (>= 8.0.0), nodejs (>= 0.8.15) | wget, python (>= 2.7),
-               dh-systemd (>= 1.5)
+Build-Depends: debhelper (>= 9.20160114), nodejs (>= 0.8.15) | wget, python (>= 2.7),
+               dh-systemd (>= 1.5), dh-python (>= 1.20141111-2)
 Standards-Version: 3.9.5
 Homepage: https://github.com/cjdelisle/cjdns/
 Vcs-Git: git://github.com/cjdelisle/cjdns.git
@@ -19,20 +19,6 @@ Description: Encrypted networking for regular people
  for address allocation and a distributed hash table for routing.
  This provides near zero-configuration networking without many of the security
  and robustness issues that regular IPv4 and IPv6 networks have.
-
-Package: cjdns-dbg
-Architecture: any
-Section: debug
-Priority: extra
-Depends: cjdns (= ${binary:Version}), ${misc:Depends}
-Enhances: cjdns
-Description: Encrypted networking for regular people (debugging symbols)
- Cjdns implements an encrypted IPv6 network using public key cryptography
- for address allocation and a distributed hash table for routing.
- This provides near zero-configuration networking without many of the security
- and robustness issues that regular IPv4 and IPv6 networks have.
- .
- This package contains debugging symbols for cjdns.
 
 Package: cjdns-dynamic
 Architecture: any

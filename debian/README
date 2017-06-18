@@ -13,7 +13,7 @@ It provides three binary packages:
  * "cjdns-dynamic" contains:
    - Separate wrapper that allows peering by a dynamic domain name instead of IP address, already chained to cjdns
    - config file for the said wrapper at /etc/cjdns-dynamic.conf
- * "cjdns-dbg":
+ * "cjdns-dbgsym":
    - Debugging symbols for cjdns, useful for reporting and investigating crashes.
 
 The package provides both Upstart and systemd configs and should, in theory,

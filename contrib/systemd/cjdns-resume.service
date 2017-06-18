@@ -4,7 +4,7 @@ After=sleep.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/systemctl restart cjdns
+ExecStart=/bin/systemctl restart cjdns
 
 [Install]
 WantedBy=sleep.target
