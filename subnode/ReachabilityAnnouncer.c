@@ -475,6 +475,9 @@ static void onReplyTimeout(struct ReachabilityAnnouncer_pvt* rap, struct Address
     Allocator_free(mow->alloc);
     if (!Bits_memcmp(snodeAddr, &rap->snode, Address_SIZE)) {
         rap->snh->snodeIsReachable = false;
+        if (rap->snh->onSnodeUnreachable) {
+            rap->snh->onSnodeUnreachable(rap->snh, 0, 0);
+        }
     }
 }
 

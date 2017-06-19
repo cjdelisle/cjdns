@@ -45,6 +45,7 @@ struct SupernodeHunter
     struct Address snodeAddr;
 
     SupernodeHunter_Callback onSnodeChange;
+    SupernodeHunter_Callback onSnodeUnreachable;
     void* userData;
 };
 

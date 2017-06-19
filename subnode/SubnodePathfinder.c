@@ -133,6 +133,9 @@ static Iface_DEFUN switchErr(struct Message* msg, struct SubnodePathfinder_pvt* 
         Log_debug(pf->log, "switch err from active snode [%s] type [%s][%d]",
             pathStr, Error_strerror(err), err);
         pf->pub.snh->snodeIsReachable = false;
+        if (pf->pub.snh->onSnodeUnreachable) {
+            pf->pub.snh->onSnodeUnreachable(pf->pub.snh, 0, 0);
+        }
     }
 
     return NULL;

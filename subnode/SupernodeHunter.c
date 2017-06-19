@@ -41,6 +41,8 @@ struct SupernodeHunter_pvt
     // Will be set to the best known supernode possibility
     struct Address snodeCandidate;
 
+    bool snodePathUpdated;
+
     struct Allocator* alloc;
 
     struct Log* log;
@@ -195,6 +197,7 @@ static void updateSnodePath2(Dict* msg, struct Address* src, struct MsgCore_Prom
     }
     Bits_memcpy(&snp->pub.snodeAddr, &al->elems[0], Address_SIZE);
     Bits_memcpy(&snp->snodeCandidate, &al->elems[0], Address_SIZE);
+    snp->snodePathUpdated = true;
     if (snp->pub.onSnodeChange) {
         snp->pub.snodeIsReachable = (AddrSet_indexOf(snp->authorizedSnodes, src) != -1) ? 2 : 1;
         snp->pub.onSnodeChange(&snp->pub, q->sendTime, *snodeRecvTime);
@@ -316,7 +319,7 @@ static void probePeerCycle(void* vsn)
 {
     struct SupernodeHunter_pvt* snp = Identity_check((struct SupernodeHunter_pvt*) vsn);
 
-    if (snp->pub.snodeIsReachable) {
+    if (snp->pub.snodeIsReachable && !snp->snodePathUpdated) {
         updateSnodePath(snp);
     }
 
@@ -351,6 +354,17 @@ static void probePeerCycle(void* vsn)
     p->onResponseContext = snp;
 }
 
+static void onSnodeUnreachable(struct SupernodeHunter* snh,
+                               int64_t sendTime,
+                               int64_t snodeRecvTime)
+{
+    struct SupernodeHunter_pvt* snp = Identity_check((struct SupernodeHunter_pvt*) snh);
+    Log_debug(snp->log, "Supernode unreachable.");
+    snp->snodePathUpdated = false;
+    // Snode unreachable, we need also reset peer snode candidate
+    Bits_memset(&snp->snodeCandidate, 0, Address_SIZE);
+}
+
 struct SupernodeHunter* SupernodeHunter_new(struct Allocator* allocator,
                                             struct Log* log,
                                             struct EventBase* base,
@@ -376,6 +390,8 @@ struct SupernodeHunter* SupernodeHunter_new(struct Allocator* allocator,
     out->myAddress = myAddress;
     out->selfAddrStr = String_newBinary(myAddress->ip6.bytes, 16, alloc);
     out->sp = sp;
+    out->snodePathUpdated = false;
+    out->pub.onSnodeUnreachable = onSnodeUnreachable;
     Timeout_setInterval(probePeerCycle, out, CYCLE_MS, base, alloc);
     return &out->pub;
 }
