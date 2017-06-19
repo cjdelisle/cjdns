@@ -96,6 +96,10 @@ def peerStats(cjdns,up=False,verbose=False,human_readable=False):
         ps = cjdns.InterfaceController_peerStats(i);
         peers = ps['peers']
         for p in peers:
+            tokens = p['addr'].split('.', 5)
+            p['version'] = tokens[0].strip('v')
+            p['switchLabel'] = '.'.join(tokens[1:5])
+            p['publicKey'] = tokens[5]
             if p['state'] == 'UNRESPONSIVE' and up:
                 continue
             allPeers.append(p)
