@@ -192,12 +192,12 @@ static void updateSnodePath2(Dict* msg, struct Address* src, struct MsgCore_Prom
     Log_debug(snp->log, "Supernode path updated with[%s]",
                         Address_toString(&al->elems[0], prom->alloc)->bytes);
 
+    snp->snodePathUpdated = true;
     if (!Bits_memcmp(&snp->pub.snodeAddr, &al->elems[0], Address_SIZE)) {
         return;
     }
     Bits_memcpy(&snp->pub.snodeAddr, &al->elems[0], Address_SIZE);
     Bits_memcpy(&snp->snodeCandidate, &al->elems[0], Address_SIZE);
-    snp->snodePathUpdated = true;
     if (snp->pub.onSnodeChange) {
         snp->pub.snodeIsReachable = (AddrSet_indexOf(snp->authorizedSnodes, src) != -1) ? 2 : 1;
         snp->pub.onSnodeChange(&snp->pub, q->sendTime, *snodeRecvTime);
