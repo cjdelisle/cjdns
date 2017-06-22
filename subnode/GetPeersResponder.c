@@ -81,7 +81,9 @@ static void onGetPeers(Dict* msg,
         }
         switch (j) {
             default: Bits_memmove(ptrList, &ptrList[1], (j - 1) * sizeof(char*));
+                Gcc_FALLTHRU;
             case 1: ptrList[j - 1] = peer;
+                Gcc_FALLTHRU;
             case 0:;
         }
     }

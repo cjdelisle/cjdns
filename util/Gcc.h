@@ -17,6 +17,18 @@
 
 #if !defined(__clang__) && \
     defined(__GNUC__) && \
+    (__GNUC__ > 6)
+
+#define Gcc_FALLTHRU \
+    __attribute__((fallthrough));
+
+#else
+#define Gcc_FALLTHRU
+
+#endif
+
+#if !defined(__clang__) && \
+    defined(__GNUC__) && \
     (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 4))
 
 #define Gcc_PRINTF( format_idx, arg_idx ) \

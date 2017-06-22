@@ -1771,7 +1771,9 @@ struct NodeList* NodeStore_getPeers(uint64_t label,
         }
         switch (j) {
             default: Bits_memmove(out->nodes, &out->nodes[1], (j - 1) * sizeof(char*));
+                Gcc_FALLTHRU;
             case 1: out->nodes[j - 1] = next->child;
+                Gcc_FALLTHRU;
             case 0:;
         }
     }
