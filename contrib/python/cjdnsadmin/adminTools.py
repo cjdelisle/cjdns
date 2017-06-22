@@ -86,6 +86,15 @@ def streamRoutingTable(cjdns, delay=10):
 
         sleep(delay)
 
+def parseAddr(addr):
+    tokens = addr.split('.', 5)
+    res = {
+            'version': tokens[0].strip('v'),
+            'switchLabel': '.'.join(tokens[1:5]),
+            'publicKey': tokens[5],
+            }
+    return res
+
 def peerStats(cjdns,up=False,verbose=False,human_readable=False):
     from publicToIp6 import PublicToIp6_convert;
 
@@ -96,10 +105,7 @@ def peerStats(cjdns,up=False,verbose=False,human_readable=False):
         ps = cjdns.InterfaceController_peerStats(i);
         peers = ps['peers']
         for p in peers:
-            tokens = p['addr'].split('.', 5)
-            p['version'] = tokens[0].strip('v')
-            p['switchLabel'] = '.'.join(tokens[1:5])
-            p['publicKey'] = tokens[5]
+            p.update(parseAddr(p['addr']))
             if p['state'] == 'UNRESPONSIVE' and up:
                 continue
             allPeers.append(p)
