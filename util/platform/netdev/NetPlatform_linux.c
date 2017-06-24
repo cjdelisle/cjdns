@@ -49,14 +49,12 @@
  * the same structures, leading to redefinition errors.
  * For the second operand, we're grateful to android/bionic, platform level 21.
  */
-#if !defined(_LINUX_IN6_H) && !defined(_UAPI_LINUX_IN6_H)
-    struct in6_ifreq
-    {
-        struct in6_addr ifr6_addr;
-        uint32_t ifr6_prefixlen;
-        int ifr6_ifindex;
-    };
-#endif
+struct Cjdns_in6_ifreq
+{
+    struct in6_addr ifr6_addr;
+    uint32_t ifr6_prefixlen;
+    int ifr6_ifindex;
+};
 
 /**
  * Get a socket and ifRequest for a given interface by name.
@@ -141,7 +139,7 @@ void NetPlatform_addAddress(const char* interfaceName,
     checkInterfaceUp(s, &ifRequest, logger, eh);
 
     if (addrFam == Sockaddr_AF_INET6) {
-        struct in6_ifreq ifr6 = {
+        struct Cjdns_in6_ifreq ifr6 = {
             .ifr6_ifindex = ifIndex,
             .ifr6_prefixlen = prefixLen
         };
