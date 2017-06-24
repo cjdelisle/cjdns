@@ -37,10 +37,11 @@ def makeGraph():
                 G.node[parentIP[-4:]]['version']=resp['result']['protocolVersion']
 
         for i in range(0,numLinks):
-            resp = cjdns.NodeStore_getLink(parentIP, i)
+            resp = cjdns.NodeStore_getLink(i, parent=parentIP)
             childLink=resp['result']
             if not childLink: continue
-            childIP=childLink['child']
+            childAddr=admin.parseAddr(childLink['child'])
+            childIP=PublicToIp6_convert(childAddr['publicKey'])
             # Check to see if its one hop away from parent node
             if childLink['isOneHop'] != 1:
                 continue
