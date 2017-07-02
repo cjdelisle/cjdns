@@ -12,12 +12,13 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import os
+import sys
 import json
 
 from time import sleep
 
 def anonConnect(ip='127.0.0.1', port=11234):
-    from cjdnsadmin import connect
+    from .cjdnsadmin import connect
     path = os.path.expanduser('~/.cjdnsadmin')
     try:
         with open(path, 'r') as adminInfo:
@@ -27,14 +28,14 @@ def anonConnect(ip='127.0.0.1', port=11234):
         return connect(ip, int(port), '')
 
 def connect(ip='127.0.0.1', port=11234, password=''):
-    from cjdnsadmin import connectWithAdminInfo
+    from .cjdnsadmin import connectWithAdminInfo
     return connectWithAdminInfo()
 
 def disconnect(cjdns):
     cjdns.disconnect()
 
 def whoami(cjdns):
-    from publicToIp6 import PublicToIp6_convert;
+    from .publicToIp6 import PublicToIp6_convert;
     resp=cjdns.NodeStore_nodeForAddr(0)
     key=resp['result']['key']
     ver=resp['result']['protocolVersion']
@@ -96,7 +97,7 @@ def parseAddr(addr):
     return res
 
 def peerStats(cjdns,up=False,verbose=False,human_readable=False):
-    from publicToIp6 import PublicToIp6_convert;
+    from .publicToIp6 import PublicToIp6_convert;
 
     allPeers = []
 
@@ -105,6 +106,11 @@ def peerStats(cjdns,up=False,verbose=False,human_readable=False):
         ps = cjdns.InterfaceController_peerStats(i);
         peers = ps['peers']
         for p in peers:
+            if sys.version_info >= (3,):
+                p['state'] = p['state'].decode()
+                p['addr'] = p['addr'].decode()
+                if 'user' in p:
+                    p['user'] = p['user'].decode()
             p.update(parseAddr(p['addr']))
             if p['state'] == 'UNRESPONSIVE' and up:
                 continue
@@ -118,12 +124,12 @@ def peerStats(cjdns,up=False,verbose=False,human_readable=False):
 
         for peer in allPeers:
             ip = PublicToIp6_convert(peer['publicKey'])
-			
+
             b_in  = peer['bytesIn']
             b_out = peer['bytesOut']
             if human_readable:
-				b_in  = sizeof_fmt(b_in)
-				b_out = sizeof_fmt(b_out)
+                b_in  = sizeof_fmt(b_in)
+                b_out = sizeof_fmt(b_out)
             
             p = STAT_FORMAT % (ip, peer['version'], peer['switchLabel'],
                                str(b_in), str(b_out), peer['state'],
@@ -133,7 +139,7 @@ def peerStats(cjdns,up=False,verbose=False,human_readable=False):
             if 'user' in peer:
                 p += '\t%r' % peer['user']
 
-            print p
+            print(p)
     return allPeers
 
 def sizeof_fmt(num):

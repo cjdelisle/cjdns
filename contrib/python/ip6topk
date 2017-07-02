@@ -20,4 +20,4 @@ inputDic = {}
 for ip in sys.argv[1:]:
     inputDic['ip'] = ip
     outputDic = cjdns.NodeStore_getNode(inputDic)
-    print ip + ' ---> ' + outputDic['result']['key']
+    print(ip + ' ---> ' + outputDic['result']['key'])

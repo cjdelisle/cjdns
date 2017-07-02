@@ -19,7 +19,7 @@ i = 0;
 while (True):
     search = cjdns.SearchRunner_showActiveSearch(i);
     if ('target' not in search):
-        if i != 0: print;
+        if i != 0: print();
         break;
     print(str(i) + ' tar: ' + search['target'] + '  last asked: ' + search['lastNodeAsked'] +
         '  asked: ' + str(search['totalRequests']) + ' count: ' + str(search['activeSearches']));

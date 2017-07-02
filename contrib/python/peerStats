@@ -21,7 +21,7 @@ def main():
 
     try:
         opts, args = getopt.getopt(sys.argv[1:], "h" , ["humanreadable", "help"])
-    except getopt.GetoptError, e:
+    except getopt.GetoptError as e:
         print(str(e))
         print()
         usage()

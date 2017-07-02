@@ -11,9 +11,17 @@ compiler:
 # migrate to travis' new container infrastructure
 sudo: false
 
+addons:
+  apt:
+    packages:
+    - python3
+
 script:
   - "uname -a"
   - "bash node_build/run_jshint"
   - "./do"
   - "SUBNODE=1 ./do"
   - "./android_do"
+  - cd contrib/python
+  - python -c "from cjdnsadmin import bencode; bencode.test_bencode(); bencode.test_bdecode()"
+  - python3 -c "from cjdnsadmin import bencode; bencode.test_bencode(); bencode.test_bdecode()"

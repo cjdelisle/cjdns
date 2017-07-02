@@ -13,6 +13,8 @@ import os
 import sys
 import subprocess
 
+if sys.version_info < (3,):
+    input = raw_input
 
 # possibly search for running cjdroute processes and check the same folder as they're in
 # and/or running find on the home folder
@@ -40,12 +42,12 @@ else:
 
 def ask(question, default):
     while True:
-        r = raw_input("%s " % question).lower() or default
+        r = input("%s " % question).lower() or default
 
         if r in "yn":
             return r == "y"
         else:
-            print "Invalid response, please enter either y or n"
+            print("Invalid response, please enter either y or n")
 
 
 def find_cjdroute_bin():
@@ -54,9 +56,9 @@ def find_cjdroute_bin():
         if os.path.isfile(path):
             return path
 
-    print "Failed to find cjdroute"
-    print "Please tell me where it is"
-    return raw_input("ie. <cjdns git>/cjdroute: ")
+    print("Failed to find cjdroute")
+    print("Please tell me where it is")
+    return input("ie. <cjdns git>/cjdroute: ")
 
 
 def find_cjdroute_conf():
@@ -65,35 +67,35 @@ def find_cjdroute_conf():
         if os.path.isfile(path):
             return path
 
-    return raw_input("Can't find cjdroute.conf, please give the path to it here: ")
+    return input("Can't find cjdroute.conf, please give the path to it here: ")
 
 
 def load_cjdroute_conf(conf):
-    print "Loading " + conf
+    print("Loading " + conf)
     try:
         with open(conf) as conffile:
             return json.load(conffile)
     except ValueError:
         return cleanup_config(conf)
     except IOError:
-        print "Error opening " + conf + ". Do we have permission to access it?"
-        print "Hint: Try running this as root"
+        print("Error opening " + conf + ". Do we have permission to access it?")
+        print("Hint: Try running this as root")
         sys.exit(1)
 
 
 def cleanup_config(conf):
-    print "Making valid JSON out of " + conf
-    print "First, we need to find the cleanconfig program"
+    print("Making valid JSON out of " + conf)
+    print("First, we need to find the cleanconfig program")
     cjdroute = find_cjdroute_bin()
-    print "Using " + cjdroute
+    print("Using " + cjdroute)
     process = subprocess.Popen([cjdroute, "--cleanconf"], stdin=open(conf), stdout=subprocess.PIPE)
     try:
         return json.load(process.stdout)
     except ValueError:
-        print "Failed to parse! Check:"
-        print "-" * 8
-        print "{} --cleanconf < {}".format(cjdroute, conf)
-        print "-" * 8
+        print("Failed to parse! Check:")
+        print("-" * 8)
+        print("{} --cleanconf < {}".format(cjdroute, conf))
+        print("-" * 8)
         sys.exit(1)
 
 
@@ -107,7 +109,7 @@ except ValueError:
     if not ask("%s appears to be a file. Overwrite? [y/N]" % cjdnsadmin_path, "n"):
         sys.exit()
 except IOError:
-    print "This script will attempt to create " + cjdnsadmin_path
+    print("This script will attempt to create " + cjdnsadmin_path)
 
 
 conf = find_cjdroute_conf()
@@ -122,4 +124,4 @@ cjdnsadmin["password"] = cjdrouteconf['admin']['password']
 cjdnsadmin["config"] = conf
 with open(cjdnsadmin_path, "w+") as adminfile:
     json.dump(cjdnsadmin, adminfile, indent=4)
-print "Done! Give it a shot, why dont ya"
+print("Done! Give it a shot, why dont ya")

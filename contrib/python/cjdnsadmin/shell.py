@@ -13,7 +13,7 @@
 
 import sys
 import os
-import cjdnsadmin
+from . import cjdnsadmin
 
 s = cjdnsadmin.connectWithAdminInfo()
 

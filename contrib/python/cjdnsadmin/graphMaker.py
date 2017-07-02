@@ -12,9 +12,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 def makeGraph():
-    import adminTools as admin
+    from . import adminTools as admin
     import networkx as nx
-    from publicToIp6 import PublicToIp6_convert
+    from .publicToIp6 import PublicToIp6_convert
     from collections import deque
 
     cjdns=admin.connect()
