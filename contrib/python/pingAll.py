@@ -33,9 +33,9 @@ def pingNode(addr, path, link):
             ' ' + str(result['ms']) + 'ms');
         return True;
     elif (res == 'timeout'):
-        print(addrAtPath + ' link ' + str(link) + ' TIMEOUT ' + str(result['ms']) + 'ms'))
+        print(addrAtPath + ' link ' + str(link) + ' TIMEOUT ' + str(result['ms']) + 'ms')
     else:
-        print(addrAtPath + str(result)))
+        print(addrAtPath + str(result))
     return False;
 
 
