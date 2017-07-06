@@ -60,6 +60,7 @@ def PublicToIp6_convert(pubKey):
         raise ValueError("key does not end with .k")
 
     keyBytes = Base32_decode(pubKey[:-2])
+    keyBytes = keyBytes[0:32] # FIXME: this shouldn't be needed
     hashOne = sha512(keyBytes).digest()
     hashTwo = sha512(hashOne).hexdigest()
 

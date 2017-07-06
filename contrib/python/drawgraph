@@ -16,7 +16,13 @@ import networkx as nx
 import matplotlib.pyplot as plt
 
 G=graph.makeGraph()
-p=nx.spring_layout(G)
-nx.draw(G,pos=p,node_size=1000)
+
+labels = {}
+for n in G:
+    labels[n] = n.split(':')[-1]
+
+pos=nx.spring_layout(G)
+nx.draw_networkx(G, pos=pos, with_labels=False)
+nx.draw_networkx_labels(G, pos=pos, labels=labels)
 
 plt.show()
