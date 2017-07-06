@@ -12,7 +12,7 @@ X-Python-Version: >= 2.7
 
 Package: cjdns
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, python (>= 2.7)
+Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}
 Suggests: cjdns-dynamic
 Description: Encrypted networking for regular people
  Cjdns implements an encrypted IPv6 network using public key cryptography

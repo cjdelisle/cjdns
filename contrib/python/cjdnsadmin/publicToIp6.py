@@ -11,6 +11,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import sys
 from hashlib import sha512;
 
 # see util/Base32.h
@@ -33,7 +34,7 @@ def Base32_decode(input):
     bits = 0;
 
     while (inputIndex < len(input)):
-        o = ord(input[inputIndex]);
+        o = ord(input[inputIndex])
         if (o & 0x80): raise ValueError;
         b = numForAscii[o];
         inputIndex += 1;
@@ -51,7 +52,7 @@ def Base32_decode(input):
     if (bits >= 5 or nextByte):
         raise ValueError("bits is " + str(bits) + " and nextByte is " + str(nextByte));
 
-    return buffer(output, 0, outputIndex);
+    return bytes(output)
 
 
 def PublicToIp6_convert(pubKey):
@@ -59,6 +60,7 @@ def PublicToIp6_convert(pubKey):
         raise ValueError("key does not end with .k")
 
     keyBytes = Base32_decode(pubKey[:-2])
+    keyBytes = keyBytes[0:32] # FIXME: this shouldn't be needed
     hashOne = sha512(keyBytes).digest()
     hashTwo = sha512(hashOne).hexdigest()
 

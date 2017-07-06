@@ -30,10 +30,10 @@ mean_d=deg.mean()
 std_d=deg.std()
 mean_h=hops.mean()
 std_h=hops.std()
-print '==================Graph Stats=================='
-print 'Number of Nodes: ',len(G.nodes())
-print 'Number of Edges: ',len(G.edges())
-print 'Maximum Shortest Path Length: ',str(hops.max())
-print 'Average Shortest Path Length: ',str(mean_h)[0:5], u'\u00B1',str(std_h)[0:5]
-print 'Maximum Number of Connections: ',str(deg.max())
-print 'Average Number of Connections: ',str(mean_d)[0:5], u'\u00B1',str(std_d)[0:5]
+print('==================Graph Stats==================')
+print('Number of Nodes: ',len(G.nodes()))
+print('Number of Edges: ',len(G.edges()))
+print('Maximum Shortest Path Length: ',str(hops.max()))
+print('Average Shortest Path Length: ',str(mean_h)[0:5], '\u00B1',str(std_h)[0:5])
+print('Maximum Number of Connections: ',str(deg.max()))
+print('Average Number of Connections: ',str(mean_d)[0:5], '\u00B1',str(std_d)[0:5])

@@ -19,6 +19,6 @@ cjdns = connectWithAdminInfo()
 
 try:
     for node in streamRoutingTable(cjdns):
-        print json.dumps(node)
+        print(json.dumps(node))
 except KeyboardInterrupt:
     pass

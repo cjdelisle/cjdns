@@ -53,7 +53,10 @@ import grp
 import logging
 import argparse
 import atexit
-import ConfigParser
+if sys.version_info >= (3,):
+    import configparser
+else:
+    import ConfigParser as configparser
 
 # This holds a regex that matches the message we get from the roiuter when it
 # sees an unresponsive peer.
@@ -356,7 +359,7 @@ def main(argv):
     # Now we can load the config file. It is now required.
 
     # Maker a new parser to parse the config file
-    parsedConfig = ConfigParser.SafeConfigParser()
+    parsedConfig = configparser.SafeConfigParser()
 
     # Be case sensitive
     parsedConfig.optionxform = str

@@ -33,9 +33,9 @@ def pingNode(addr, path, link):
             ' ' + str(result['ms']) + 'ms');
         return True;
     elif (res == 'timeout'):
-        print(addrAtPath + ' link ' + str(link) + ' TIMEOUT ' + str(result['ms']) + 'ms');
+        print(addrAtPath + ' link ' + str(link) + ' TIMEOUT ' + str(result['ms']) + 'ms')
     else:
-        print(addrAtPath + str(result));
+        print(addrAtPath + str(result))
     return False;
 
 
@@ -53,8 +53,8 @@ if (len(sys.argv) > 4 and '-s' == sys.argv[4]):
         i = 0;
         while i < 3:
             result = cjdns.SwitchPinger_ping(route['path'], route['path'], 10000);
-            if (i > 0): print 'attempt ' + str(i) + ' ';
-            print result;
+            if (i > 0): print('attempt ' + str(i) + ' ');
+            print(result);
             if (result['result'] != 'timeout'): break;
             i += 1;
 

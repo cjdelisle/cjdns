@@ -27,7 +27,7 @@ def usage():
 
 
 def doLog(data):
-    print str(data['time']) + ' ' + data['level'] + ' ' + data['file'] + ':' + str(data['line']) + ' ' + data['message'];
+    print(str(data['time']) + ' ' + data['level'] + ' ' + data['file'] + ':' + str(data['line']) + ' ' + data['message']);
 
 def recieve(cjdns, txid):
     while True:

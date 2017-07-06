@@ -13,7 +13,7 @@
 
 import sys
 import os
-import cjdnsadmin
+from . import cjdnsadmin
 import json
 import getopt
 import string
@@ -21,7 +21,7 @@ import string
 def usage():
   """ print usage information """
 
-  print """
+  print("""
 Cjdns admin command line interface.
 Usage: [OPTION]... RPC
   RPC              the function name w/ arguments of the RPC you want to make.
@@ -33,7 +33,7 @@ options:
 
 Example:
   'functions()'    Prints the list of functions available.
-"""
+""")
 
 
 def parse(args):
@@ -65,6 +65,6 @@ if __name__ == "__main__":
     s = connect()
     result = eval('s.' + string.join(remainder," "))
     if result:
-      print transform(result)
+      print(transform(result))
   else:
     usage()

@@ -12,9 +12,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 def makeGraph():
-    import adminTools as admin
+    from . import adminTools as admin
     import networkx as nx
-    from publicToIp6 import PublicToIp6_convert
+    from .publicToIp6 import PublicToIp6_convert
     from collections import deque
 
     cjdns=admin.connect()
@@ -22,36 +22,24 @@ def makeGraph():
     rootIP=root['IP']
 
     G=nx.Graph()
-    G.add_node(rootIP[-4:],ip=rootIP)
 
     nodes=deque()
     nodes.append(rootIP)
-    while len(nodes) != 0:
-        parentIP=nodes.popleft()
-        resp=cjdns.NodeStore_nodeForAddr(parentIP)
-        numLinks=0
-	if 'result' in resp:
-            link=resp['result']
-            if 'linkCount' in link:
-                numLinks=int(resp['result']['linkCount'])
-                G.node[parentIP[-4:]]['version']=resp['result']['protocolVersion']
+    table = admin.dumpTable(cjdns)
 
-        for i in range(0,numLinks):
-            resp = cjdns.NodeStore_getLink(i, parent=parentIP)
-            childLink=resp['result']
-            if not childLink: continue
-            childAddr=admin.parseAddr(childLink['child'])
-            childIP=PublicToIp6_convert(childAddr['publicKey'])
-            # Check to see if its one hop away from parent node
-            if childLink['isOneHop'] != 1:
-                continue
-            # If its a new node then we want to follow it
-            if not childIP[-4:] in G.nodes():
-                G.add_node(childIP[-4:],ip=childIP)
-                G.node[childIP[-4:]]['version']=0
-                nodes.append(childIP)
-            # If there is not a link between the nodes we should put one there
-            if (not childIP[-4:] in G[parentIP[-4:]]):
-                G.add_edge(parentIP[-4:],childIP[-4:])
+    i = 0
+    while True:
+        resp = cjdns.NodeStore_getLink(i)
+        i += 1
+        if resp['error'] == 'not_found':
+            break
+        link = resp['result']
+        parentAddr=admin.parseAddr(link['parent'])
+        parentIP=PublicToIp6_convert(parentAddr['publicKey'])
+        childAddr=admin.parseAddr(link['child'])
+        childIP=PublicToIp6_convert(childAddr['publicKey'])
+        G.add_node(parentIP)
+        G.add_node(childIP)
+        G.add_edge(parentIP, childIP)
 
     return G

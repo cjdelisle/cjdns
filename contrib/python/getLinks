@@ -32,10 +32,10 @@ def getNode(next, path, nodes, spaces, parentPath):
         path = cjdns.NodeStore_getRouteLabel(parentPath, next['child']);
         if path['error'] != 'none':
             path = path['error'] + '  ' + str(nodes);
-            print 'cjdns.NodeStore_getRouteLabel(' + parentPath + ', ' + next['child'] + '); --> ' + path;
+            print('cjdns.NodeStore_getRouteLabel(' + parentPath + ', ' + next['child'] + '); --> ' + path);
             exit(1);
         else: path = path['result'];
-    print spaces + str(next['child']) + '  ' + str(next['cannonicalLabel']) + " -> " + path;
+    print(spaces + str(next['child']) + '  ' + str(next['cannonicalLabel']) + " -> " + path);
     #print str(resp['result']) + ',';
     for i in range(0, int(resp['result']['linkCount'])):
         getLink(next['child'], i, nodes, spaces, path);

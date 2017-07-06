@@ -19,4 +19,4 @@ from networkx.readwrite import json_graph
 G=graph.makeGraph()
 d=json_graph.node_link_data(G)
 
-print json.dumps(d,sort_keys=True,indent=4,separators=(',', ': '))
+print(json.dumps(d,sort_keys=True,indent=4,separators=(',', ': ')))
