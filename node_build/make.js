@@ -92,7 +92,7 @@ Builder.configure({
     }
 
     if (!builder.config.crossCompiling) {
-        if (NO_MARCH_FLAG.indexOf(process.arch) < -1) {
+        if (NO_MARCH_FLAG.indexOf(process.arch) == -1) {
             builder.config.cflags.push('-march=native');
         }
     }
@@ -270,8 +270,8 @@ Builder.configure({
                 }
 
                 if (!builder.config.crossCompiling) {
-                    if (NO_MARCH_FLAG.indexOf(process.arch) < -1) {
-                        builder.config.cflags.push('-march=native');
+                    if (NO_MARCH_FLAG.indexOf(process.arch) == -1) {
+                        args.unshift('-march=native');
                     }
                 }
 
