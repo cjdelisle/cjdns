@@ -12,6 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+#include "crypto/AddressCalc.h"
 #include "dht/Pathfinder.h"
 #include "dht/DHTModule.h"
 #include "dht/Address.h"
@@ -87,7 +88,7 @@ static int incomingFromDHT(struct DHTMessage* dmessage, void* vpf)
     }
 
     // Sanity check (make sure the addr was actually calculated)
-    Assert_true(addr->ip6.bytes[0] == 0xfc);
+    Assert_true(AddressCalc_validAddress(addr->ip6.bytes));
 
     Message_shift(msg, PFChan_Msg_MIN_SIZE, NULL);
     struct PFChan_Msg* emsg = (struct PFChan_Msg*) msg->bytes;

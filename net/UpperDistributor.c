@@ -12,6 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+#include "crypto/AddressCalc.h"
 #include "dht/Address.h"
 #include "interface/Iface.h"
 #include "memory/Allocator.h"
@@ -67,7 +68,8 @@ static Iface_DEFUN fromHandler(struct Message* msg, struct UpperDistributor_pvt*
         Log_debug(ud->log, "DROP runt");
         return NULL;
     }
-    uint8_t srcAndDest[32] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0xfc,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1};
+    uint8_t srcAndDest[32] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1};
+    AddressCalc_makeValidAddress(&srcAndDest[16]);
     Bits_memcpy(srcAndDest, ud->myAddress->ip6.bytes, 16);
     struct Headers_UDPHeader* udp = (struct Headers_UDPHeader*) msg->bytes;
     if (Checksum_udpIp6(srcAndDest, msg->bytes, msg->length)) {
@@ -118,7 +120,8 @@ static void sendToHandlers(struct Message* msg,
             udpH.length_be = Endian_hostToBigEndian16(cmsg->length + Headers_UDPHeader_SIZE);
             udpH.checksum_be = 0;
             Message_push(cmsg, &udpH, Headers_UDPHeader_SIZE, NULL);
-            uint8_t srcAndDest[32] = {0xfc,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1};
+            uint8_t srcAndDest[32] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1};
+            AddressCalc_makeValidAddress(srcAndDest);
             Bits_memcpy(&srcAndDest[16], ud->myAddress->ip6.bytes, 16);
             uint16_t checksum = Checksum_udpIp6(srcAndDest, cmsg->bytes, cmsg->length);
             ((struct Headers_UDPHeader*)cmsg->bytes)->checksum_be = checksum;
@@ -132,8 +135,9 @@ static void sendToHandlers(struct Message* msg,
         {
             struct RouteHeader rh = {
                 .version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL),
-                .ip6 = {0xfc,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1}
+                .ip6 = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1}
             };
+            AddressCalc_makeValidAddress(rh.ip6);
             Message_push(cmsg, &rh, RouteHeader_SIZE, NULL);
         }
 
@@ -169,7 +173,9 @@ static Iface_DEFUN incomingFromTunAdapterIf(struct Message* msg, struct Iface* t
         Identity_containerOf(tunAdapterIf, struct UpperDistributor_pvt, pub.tunAdapterIf);
     struct RouteHeader* rh = (struct RouteHeader*) msg->bytes;
     Assert_true(msg->length >= RouteHeader_SIZE);
-    if (!Bits_memcmp(rh->ip6, "\xfc\0\0\0\0\0\0\0\0\0\0\0\0\0\0\1", 16)) {
+    uint8_t expected_ip6[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1};
+    AddressCalc_makeValidAddress(expected_ip6);
+    if (!Bits_memcmp(rh->ip6, expected_ip6, 16)) {
         return fromHandler(msg, ud);
     }
     return toSessionManagerIf(msg, ud);

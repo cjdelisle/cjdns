@@ -13,6 +13,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "benc/Dict.h"
+#include "crypto/AddressCalc.h"
 #include "memory/Allocator.h"
 #include "dht/Address.h"
 #include "dht/CJDHTConstants.h"
@@ -154,7 +155,7 @@ static void sendMsg(struct MsgCore_pvt* mcp,
     //Log_debug(mcp->log, "Sending msg [%s]", Escape_getEscaped(msg->bytes, msg->length, alloc));
 
     // Sanity check (make sure the addr was actually calculated)
-    Assert_true(addr->ip6.bytes[0] == 0xfc);
+    Assert_true(AddressCalc_validAddress(addr->ip6.bytes));
 
     struct DataHeader data;
     Bits_memset(&data, 0, sizeof(struct DataHeader));

@@ -12,6 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+#include "crypto/AddressCalc.h"
 #include "dht/dhtcore/ReplySerializer.h"
 #include "subnode/ReachabilityCollector.h"
 #include "util/log/Log.h"
@@ -171,7 +172,7 @@ static void mkNextRequest(struct ReachabilityCollector_pvt* rcp)
         MsgCore_createQuery(rcp->msgCore, TIMEOUT_MILLISECONDS, rcp->alloc);
     query->userData = rcp;
     query->cb = onReply;
-    Assert_true(pi->pub.addr.ip6.bytes[0] == 0xfc);
+    Assert_true(AddressCalc_validAddress(pi->pub.addr.ip6.bytes));
     query->target = Address_clone(&pi->pub.addr, query->alloc);
     Dict* d = query->msg = Dict_new(query->alloc);
     Dict_putStringCC(d, "q", "gp", query->alloc);

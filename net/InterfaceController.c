@@ -556,7 +556,8 @@ static Iface_DEFUN handleBeacon(struct Message* msg, struct InterfaceController_
         printedAddr = Address_toString(&addr, msg->alloc);
     }
 
-    if (addr.ip6.bytes[0] != 0xfc || !Bits_memcmp(ic->ca->publicKey, addr.key, 32)) {
+    if (!AddressCalc_validAddress(addr.ip6.bytes)
+        || !Bits_memcmp(ic->ca->publicKey, addr.key, 32)) {
         Log_debug(ic->logger, "handleBeacon invalid key [%s]", printedAddr->bytes);
         return NULL;
     }
