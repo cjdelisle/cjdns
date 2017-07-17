@@ -953,6 +953,7 @@ static void fixLink(struct Node_Link* parentLink,
             // unsplice and cannonicalize so we now have a path from child to grandchild
             uint64_t childToGrandchild =
                 LabelSplicer_unsplice(splitLink->cannonicalLabel, parentLink->cannonicalLabel);
+            Assert_true(parentLink->child);
             childToGrandchild =
                 EncodingScheme_convertLabel(parentLink->child->encodingScheme,
                                             childToGrandchild,
