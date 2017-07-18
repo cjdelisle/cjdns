@@ -28,8 +28,8 @@ struct Allocator_OnFreeJob_pvt {
     struct Allocator_pvt* alloc;
     struct Allocator_OnFreeJob_pvt* next;
 
-    /* prevent async jobs from being called multiple times, nonzero = done */
-    int done;
+    /* prevent async jobs from being called multiple times, nonzero = called */
+    int called;
 
     int line;
     const char* file;
