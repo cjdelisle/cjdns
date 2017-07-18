@@ -162,6 +162,10 @@ Builder.configure({
         });
     }
 
+    if (!/^\-O0$/.test(builder.config.optimizeLevel)) {
+        builder.config.cflags.push('-D_FORTIFY_SOURCE=2');
+    }
+
     // We also need to pass various architecture/floating point flags to GCC when invoked as
     // a linker.
     if (LDFLAGS) {
@@ -271,6 +275,10 @@ Builder.configure({
                 }
 
                 args.unshift(builder.config.optimizeLevel, '-fomit-frame-pointer');
+
+                if (!/^\-O0$/.test(builder.config.optimizeLevel)) {
+                    args.unshift('-D_FORTIFY_SOURCE=2');
+                }
 
                 if (CFLAGS) {
                     [].push.apply(args, CFLAGS.split(' '));
@@ -385,6 +393,10 @@ Builder.configure({
                     'V=1'
                 ];
                 var cflags = [builder.config.optimizeLevel, '-DNO_EMFILE_TRICK=1'];
+
+                if (!/^\-O0$/.test(builder.config.optimizeLevel)) {
+                    cflags.push('-D_FORTIFY_SOURCE=2');
+                }
 
                 if (!(/darwin|win32/i.test(builder.config.systemName))) {
                     cflags.push('-fPIC');
