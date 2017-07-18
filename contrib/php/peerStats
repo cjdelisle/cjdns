@@ -15,10 +15,11 @@ $table->add(['Public Key', 'State', 'Last', 'Bytes In', 'Bytes Out', 'Lost', 'Ve
 
 foreach ($res['peers'] as $a)
 {
-	$pK = $a['publicKey']; $pK = preg_replace('/^(.{4}).+?(.{6})$/', '$1...$2', $pK);
+	$pK  = preg_match('/.{23}([a-z0-6]{4}).+(.{6})$/', $a['addr'], $m) ? $m[1].'...'.$m[2] : '?';
+	$ver = preg_match('/^v(\d+)/', $a['addr'], $m) ? $m[1] : '?';
 	$table->add([$pK, $a['state'], date('H:i:s d.m.y', $a['last']/1000),
 		$a['bytesIn'], $a['bytesOut'], $a['lostPackets'],
-		$a['version'], $a['isIncoming']]);
+		$ver, $a['isIncoming']]);
 }
 
 $table->printSimple();
