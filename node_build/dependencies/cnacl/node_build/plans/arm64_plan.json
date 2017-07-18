@@ -78,7 +78,7 @@
     [
       "crypto_scalarmult",
       "curve25519",
-      "ref"
+      "donna_c64"
     ],
     [
       "crypto_verify",
