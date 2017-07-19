@@ -16,6 +16,7 @@
 #include "memory/MallocAllocator.h"
 #include "memory/Allocator.h"
 #include "crypto/random/Random.h"
+#include "crypto/Key.h"
 #include "interface/Iface.h"
 #include "util/log/FileWriterLog.h"
 #include "util/events/Time.h"
@@ -136,18 +137,16 @@ static Iface_DEFUN aliceCtrlRecv(struct Message* msg, struct Iface* aliceCtrlIf)
     return NULL;
 }
 
-#define SECRETA \
-    "\xd8\x54\x3e\x70\xb9\xae\x7c\x41\xbc\x18\xa4\x9a\x9c\xee\xca\x9c" \
-    "\xdc\x45\x01\x96\x6b\xbd\x7e\x76\xcf\x3a\x9f\xbc\x12\xed\x8b\xb4"
-
-#define SECRETB \
-    "\xad\x7e\xa3\x26\xaa\x01\x94\x0a\x25\xbc\x9e\x01\x26\x22\xdb\x69" \
-    "\x4f\xd9\xb4\x17\x7c\xf3\xf8\x91\x16\xf3\xcf\xe8\x5c\x80\xe1\x4a"
-
 static void switching(struct Context* ctx)
 {
     Log_info(ctx->log, "Setting up salsa20/poly1305 benchmark (encryption and decryption only)");
     struct Allocator* alloc = Allocator_child(ctx->alloc);;
+    uint8_t ipv6[16];
+    uint8_t publicKey[32];
+    uint8_t privateKeyA[32];
+    uint8_t privateKeyB[32];
+    Key_gen(ipv6, publicKey, privateKeyA, ctx->rand);
+    Key_gen(ipv6, publicKey, privateKeyB, ctx->rand);
 
     struct SwitchingContext* sc = Allocator_calloc(alloc, sizeof(struct SwitchingContext), 1);
     Identity_set(sc);
@@ -156,12 +155,12 @@ static void switching(struct Context* ctx)
     sc->bobIf.send = bobToAlice;
     sc->aliceCtrlIf.send = aliceCtrlRecv;
 
-    struct NetCore* alice = NetCore_new(SECRETA, alloc, ctx->base, ctx->rand, ctx->log);
+    struct NetCore* alice = NetCore_new(privateKeyA, alloc, ctx->base, ctx->rand, ctx->log);
     struct InterfaceController_Iface* aliceIci =
         InterfaceController_newIface(alice->ifController, String_CONST("alice"), alloc);
     Iface_plumb(&sc->aliceIf, &aliceIci->addrIf);
 
-    struct NetCore* bob = NetCore_new(SECRETB, alloc, ctx->base, ctx->rand, ctx->log);
+    struct NetCore* bob = NetCore_new(privateKeyB, alloc, ctx->base, ctx->rand, ctx->log);
     struct InterfaceController_Iface* bobIci =
         InterfaceController_newIface(bob->ifController, String_CONST("bob"), alloc);
     Iface_plumb(&sc->bobIf, &bobIci->addrIf);
