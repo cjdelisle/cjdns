@@ -33,6 +33,7 @@
 #include "interface/Iface.h"
 #include "util/events/UDPAddrIface.h"
 #include "interface/tuntap/TUNInterface.h"
+#include "interface/tuntap/TUNSocksInterface.h"
 #include "interface/tuntap/AndroidWrapper.h"
 #include "interface/UDPInterface_admin.h"
 #ifdef HAS_ETH_INTERFACE
@@ -220,6 +221,37 @@ static void initTunnel(Dict* args, void* vcontext, String* txid, struct Allocato
     sendResponse(String_CONST("none"), ctx->admin, txid, requestAlloc);
 }
 
+static void initScript(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
+{
+    struct Context* const ctx = Identity_check((struct Context*) vcontext);
+
+    struct Jmp jmp;
+    Jmp_try(jmp) {
+        String* script = Dict_getStringC(args, "script");
+        //initTunnel2(desiredName, ctx, AddressCalc_ADDRESS_PREFIX_BITS, &jmp.handler);
+
+        Log_debug(ctx->logger, "Initializing script [%s]",
+              (script) ? script->bytes : "<auto>");
+
+        //TODO(sssemil) make it work :P
+        struct Iface* tunSocks = TUNSocksInterface_new(
+            script->bytes   , ctx->base, ctx->logger, NULL, ctx->alloc);
+
+        Iface_plumb(tunSocks, &ctx->nc->tunAdapt->tunIf);
+
+        struct Sockaddr* myAddr =
+            Sockaddr_fromBytes(ctx->nc->myAddress->ip6.bytes, Sockaddr_AF_INET6, ctx->alloc);
+        myAddr->prefix = AddressCalc_ADDRESS_PREFIX_BITS;
+        myAddr->flags |= Sockaddr_flags_PREFIX;
+    } Jmp_catch {
+        String* error = String_printf(requestAlloc, "Failed to configure script [%s]", jmp.message);
+        sendResponse(error, ctx->admin, txid, requestAlloc);
+        return;
+    }
+
+    sendResponse(String_CONST("none"), ctx->admin, txid, requestAlloc);
+}
+
 static void nodeInfo(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* const ctx = Identity_check((struct Context*) vcontext);
@@ -325,6 +357,11 @@ void Core_init(struct Allocator* alloc,
         }), admin);
 
     Admin_registerFunction("Core_nodeInfo", nodeInfo, ctx, false, NULL, admin);
+
+    Admin_registerFunction("Core_initScript", initScript, ctx, true,
+        ((struct Admin_FunctionArg[]) {
+            { .name = "script", .required = 1, .type = "String" }
+        }), admin);
 }
 
 int Core_main(int argc, char** argv)

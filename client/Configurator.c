@@ -284,6 +284,27 @@ static void tunInterface(Dict* ifaceConf, struct Allocator* tempAlloc, struct Co
     }
 }
 
+static void tunSocksInterface(Dict* ifaceConf, struct Allocator* tempAlloc, struct Context* ctx)
+{
+    String* ifaceType = Dict_getStringC(ifaceConf, "type");
+    if (!String_equals(ifaceType, String_CONST("TUNSocksInterface"))) {
+        return;
+    }
+
+    // Setup the interface.
+    String* script = Dict_getStringC(ifaceConf, "script");
+
+    Dict* args = Dict_new(tempAlloc);
+    if (!script) {
+        Log_critical(ctx->logger, "In router.interface"
+                                  " 'script' is required if it's TUNSocksInterface.");
+        exit(1);
+    }
+
+    Dict_putStringC(args, "script", script, tempAlloc);
+    rpcCall0(String_CONST("Core_initScript"), args, ctx, tempAlloc, NULL, true);
+}
+
 static void ipTunnel(Dict* ifaceConf, struct Allocator* tempAlloc, struct Context* ctx)
 {
     List* incoming = Dict_getListC(ifaceConf, "allowedConnections");
@@ -368,6 +389,7 @@ static void supernodes(List* supernodes, struct Allocator* tempAlloc, struct Con
 static void routerConfig(Dict* routerConf, struct Allocator* tempAlloc, struct Context* ctx)
 {
     tunInterface(Dict_getDictC(routerConf, "interface"), tempAlloc, ctx);
+    tunSocksInterface(Dict_getDictC(routerConf, "interface"), tempAlloc, ctx);
     ipTunnel(Dict_getDictC(routerConf, "ipTunnel"), tempAlloc, ctx);
     supernodes(Dict_getListC(routerConf, "supernodes"), tempAlloc, ctx);
 }
