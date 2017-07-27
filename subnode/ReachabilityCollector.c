@@ -153,7 +153,14 @@ static void onReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom
         mkNextRequest(rcp);
         return;
     }
-    pi->pathToCheck = (results->length < 8) ? 1 : path;
+    if (results->length < 8) {
+        // Peer gp response do not include my addr, means peer might not known us yet,
+        // should wait peer sendPing (see InterfaceControl.c).
+        pi->pathToCheck = 1;
+        return;
+    } else {
+        pi->pathToCheck = path;
+    }
     mkNextRequest(rcp);
 }
 
