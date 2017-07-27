@@ -154,7 +154,7 @@ static void onReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom
         return;
     }
     if (results->length < 8) {
-        // Peer gp response do not include my addr, means peer might not known us yet,
+        // Peer's gp response does not include my addr, meaning the peer might not know us yet.
         // should wait peer sendPing (see InterfaceControl.c).
         pi->pathToCheck = 1;
         return;
