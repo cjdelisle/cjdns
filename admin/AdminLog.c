@@ -141,12 +141,7 @@ static void removeSubscription(struct AdminLog* log, struct Subscription* sub)
 {
     Allocator_free(sub->alloc);
     log->subscriptionCount--;
-    if (log->subscriptionCount == 0 || sub == &log->subscriptions[log->subscriptionCount]) {
-        return;
-    }
-    Bits_memcpy(sub,
-                &log->subscriptions[log->subscriptionCount],
-                sizeof(struct Subscription));
+    Bits_memset(sub, 0, sizeof(struct Subscription));
 }
 
 static void unpause(void* vAdminLog)
