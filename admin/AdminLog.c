@@ -141,6 +141,7 @@ static void removeSubscription(struct AdminLog* log, struct Subscription* sub)
 {
     Allocator_free(sub->alloc);
     log->subscriptionCount--;
+    Bits_memset(sub, 0, sizeof(struct Subscription));
     if (log->subscriptionCount == 0 || sub == &log->subscriptions[log->subscriptionCount]) {
         return;
     }
