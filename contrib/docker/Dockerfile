@@ -1,12 +1,12 @@
-FROM alpine:3.2
-MAINTAINER Lars Gierth <larsg@systemli.org>
+FROM mhart/alpine-node:base-6
+MAINTAINER Qi <jackyq2015@gmail.com>
 
-RUN apk add --update nodejs bash python git build-base linux-headers
+RUN apk add --update bash python git build-base linux-headers
 
 ADD . /src
 
 RUN adduser -D -h /etc/cjdns -u 1000 cjdns \
-    && rm -rf /src/build_* && /src/do \
+    && rm -rf /src/build_* && cd /src &&./do \
     && cp /src/cjdroute /usr/bin \
     && cp -r /src/tools/* /usr/bin \
     && cp /src/makekeys \
