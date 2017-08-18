@@ -1,11 +1,11 @@
-FROM mhart/alpine-node:base-6
+FROM node:6.11-alpine
 MAINTAINER Qi <jackyq2015@gmail.com>
 
 RUN apk add --update bash python git build-base linux-headers
 
 ADD . /src
 
-RUN adduser -D -h /etc/cjdns -u 1000 cjdns \
+RUN adduser -D -h /etc/cjdns -u 10001 cjdns \
     && rm -rf /src/build_* && cd /src &&./do \
     && cp /src/cjdroute /usr/bin \
     && cp -r /src/tools/* /usr/bin \
