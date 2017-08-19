@@ -501,7 +501,8 @@ You can access the admin API with:
 Security issues should be reported on IRC the same as other bugs. We don't have a closed
 group of people with special knowledge so that means the default security reporting method is
 full disclosure.
-see: https://github.com/cjdelisle/cjdns/blob/master/doc/security_specification.md to see if a
+
+See: [security_specification.md](https://github.com/cjdelisle/cjdns/blob/master/doc/security_specification.md) to see if a
 possible security issue is really a security issue.
 
 That time of year again... Time for some open source Projects!
