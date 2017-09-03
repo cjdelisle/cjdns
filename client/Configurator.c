@@ -220,10 +220,29 @@ static void udpInterface(Dict* config, struct Context* ctx)
                     if (!Sockaddr_parse(key->bytes, NULL)) {
                         // it's a sockaddr, fall through
                     } else {
-                        // try it as a hostname.
-                        Log_critical(ctx->logger, "Couldn't add connection [%s], "
-                                                    "hostnames aren't supported.", key->bytes);
-                        exit(-1);
+                        #if defined(ALLOW_HOSTNAMES)
+                            // try it as a hostname.
+                            int port = atoi(lastColon+1);
+                            if (!port) {
+                                Log_critical(ctx->logger, "Couldn't get port number from [%s]",
+                                                           key->bytes);
+                                exit(-1);
+                            }
+                            *lastColon = '\0';
+                            struct Sockaddr* adr = Sockaddr_fromName(key->bytes, perCallAlloc);
+                            if (adr != NULL) {
+                                Sockaddr_setPort(adr, port);
+                                key = String_new(Sockaddr_print(adr, perCallAlloc), perCallAlloc);
+                            } else {
+                                Log_warn(ctx->logger, "Failed to lookup hostname [%s]", key->bytes);
+                                entry = entry->next;
+                                continue;
+                            }
+                        #else
+                            Log_critical(ctx->logger, "Couldn't add connection [%s], "
+                                                        "hostnames aren't supported.", key->bytes);
+                            exit(-1);
+                        #endif
                     }
                 } else {
                     // it doesn't have a port
