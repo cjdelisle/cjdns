@@ -72,6 +72,7 @@ static void change0(struct ReachabilityCollector_pvt* rcp,
                 pi->pub.pathThemToUs = -1;
                 pi->pathToCheck = 1;
                 pi->pub.querying = true;
+                pi->pub.addr.path = nodeAddr->path;
             }
             if (rcp->pub.onChange) {
                 rcp->pub.onChange(&rcp->pub, nodeAddr->ip6.bytes, 0, 0, 0, 0xffff, 0xffff, 0xffff);
@@ -153,7 +154,14 @@ static void onReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom
         mkNextRequest(rcp);
         return;
     }
-    pi->pathToCheck = (results->length < 8) ? 1 : path;
+    if (results->length < 8) {
+        // Peer's gp response does not include my addr, meaning the peer might not know us yet.
+        // should wait peer sendPing (see InterfaceControl.c).
+        pi->pathToCheck = 1;
+        return;
+    } else {
+        pi->pathToCheck = path;
+    }
     mkNextRequest(rcp);
 }
 

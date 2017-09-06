@@ -720,6 +720,10 @@ static Iface_DEFUN handleIncomingFromWire(struct Message* msg, struct Iface* add
         return NULL;
     }
     PeerLink_recv(msg, ep->peerLink);
+    if (ep->state == InterfaceController_PeerState_ESTABLISHED &&
+        CryptoAuth_getState(ep->caSession) != CryptoAuth_State_ESTABLISHED) {
+        sendPeer(0xffffffff, PFChan_Core_PEER_GONE, ep);
+    }
     return receivedPostCryptoAuth(msg, ep, ici->ic);
 }
 
