@@ -12,7 +12,7 @@ ExecStartPre=/bin/sh -ec "if ! test -s /etc/cjdroute.conf; \
                 /usr/bin/cjdroute --genconf > /etc/cjdroute.conf; \
                 echo 'WARNING: A new /etc/cjdroute.conf file has been generated.'; \
             fi"
-ExecStart=/bin/sh -c "exec cjdroute --nobg < /etc/cjdroute.conf"
+ExecStart=/bin/sh -c "exec /usr/bin/cjdroute --nobg < /etc/cjdroute.conf"
 Restart=always
 
 [Install]
