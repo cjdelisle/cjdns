@@ -195,11 +195,11 @@ Sinon, vous préférez peut-être installer à travers AUR à partir du paquetag
 `cjdns-git`.  Après l'installation, vous trouverez le fichier de configuration
 dans `/etc/cjdroute.conf`.  Pour démarrer le service `cjdns.service`, faites :
 
-        systemctl start cjdns
+    systemctl start cjdns
 
 Pour l'arrêter, faites :
 
-       systemctl stop cjdns
+    systemctl stop cjdns
 
 #### Gentoo :
 
@@ -211,71 +211,71 @@ d'utiliser Layman mais vous pouvez également le faire à la main.
 
 Premièrement, vous devez installer layman.
 
-      emerge layman
+    emerge layman
 
 Si layman est installé correctement, vous pouvez ajouter un arbre alternatif
 
-      layman -f
-      layman -a weuxel
+    layman -f
+    layman -a weuxel
 
 Pour des mises à jour futures de l'arbre alternatif, utilisez
 
-      layman -S
+    layman -S
 
 Maintenant, vous pouvez installer cjdns
 
-      emerge cjdns
+    emerge cjdns
 
 ##### À la main :
 
 Vous allez devoir cloner l'arbre alternatif depuis le dépôt
 
-       cd /opt
-       git clone https://github.com/Weuxel/portage-weuxel.git
+    cd /opt
+    git clone https://github.com/Weuxel/portage-weuxel.git
 
 Maintenant, configurez portage pour utiliser ce dépôt
 
-       cd /etc/portage/repos.conf/
+    cd /etc/portage/repos.conf/
 
 Créez un fichier `portage-weuxel.conf` contenant
 
-       [weuxel]
-       location = /opt/portage-weuxel
-       masters = gentoo
-       auto-sync = yes
+    [weuxel]
+    location = /opt/portage-weuxel
+    masters = gentoo
+    auto-sync = yes
 
 Maintenant, synchronisez
 
-       emerge --sync
+    emerge --sync
 
 Puis installez cjdns
 
-   emerge cjdns
+    emerge cjdns
 
 #### Détection automatique de plantage et redémarrage
 
 Copiez le script init openrc `contrib/openrc` vers `/etc/init.d/` et modifiez
 les paramètres `CONFFILE` et `command` selon vos besoins.  Puis démarrez cjdns
 
-   /etc/init.d/cjdns start
+    /etc/init.d/cjdns start
 
 Configurez le système init pour démarrer automatiquement cjdns
 
-   rc-update add cjdns default
+    rc-update add cjdns default
 
 Copiez le script `contrib/gentoo/service_restart.sh` vers un répertoire
 approprié sur votre système et modifiez l'adresse de courriel.  Si vous ne
 souhaitez pas recevoir de notifications, commentez la ligne.  Maintenant,
 ajoutez une ligne dans votre crontab de la manière suivante
 
-   # Redémarrer le service planté
-   * * * * *       root	/path/to/script/service_restart.sh
+    # Redémarrer le service planté
+    * * * * *       root	/path/to/script/service_restart.sh
 
 #### Solus :
 
 Dépendances:
 
-      sudo eopkg install nodejs git build-essential system.devel python gcc binutils kernal-headers xorg-server-devel
+    sudo eopkg install nodejs git build-essential system.devel python gcc binutils kernal-headers xorg-server-devel
 
 Puis suivez les étapes suivantes :
 
