@@ -714,8 +714,18 @@ static int uv__getiovmax() {
   return IOV_MAX;
 #elif defined(_SC_IOV_MAX)
   static int iovmax = -1;
-  if (iovmax == -1)
+  if (iovmax == -1) {
+    errno = 0;
     iovmax = sysconf(_SC_IOV_MAX);
+    if (iovmax == -1) {
+      if (errno) {
+        iovmax = 1;
+      }
+      /*else {
+        iovmax = 1024;
+      }*/
+    }
+  }
   return iovmax;
 #else
   return 1024;
@@ -752,7 +762,7 @@ start:
   iovmax = uv__getiovmax();
 
   /* Limit iov count to avoid EINVALs from writev() */
-  if (iovcnt > iovmax)
+  if (iovcnt > iovmax && iovmax != -1)
     iovcnt = iovmax;
 
   /*
