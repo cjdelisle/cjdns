@@ -713,8 +713,8 @@ static int uv__getiovmax() {
 #if defined(IOV_MAX)
   return IOV_MAX;
 #elif defined(_SC_IOV_MAX)
-  static int iovmax = -1;
-  if (iovmax == -1) {
+  static int iovmax = -2;
+  if (iovmax == -2) {
     errno = 0;
     iovmax = sysconf(_SC_IOV_MAX);
     if (iovmax == -1) {
