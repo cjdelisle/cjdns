@@ -729,7 +729,7 @@ static int uv__getiovmax() {
       if (errno) {
         iovmax = 1;
       }
-#ifdef __linux__
+#if defined(__linux__) && defined(UIO_IOVMAX)
       else {
         iovmax = UIO_IOVMAX;
       }
