@@ -19,6 +19,10 @@
  * IN THE SOFTWARE.
  */
 
+#if !defined(_GNU_SOURCE) && defined(__linux__)
+#define _GNU_SOURCE
+#endif
+
 #include "uv.h"
 #include "internal.h"
 
@@ -34,6 +38,10 @@
 #include <sys/un.h>
 #include <unistd.h>
 #include <limits.h> /* IOV_MAX */
+
+#if !defined(IOV_MAX) && defined(__linux__)
+#include <linux/uio.h>
+#endif
 
 #if defined(__APPLE__)
 # include <sys/event.h>
@@ -721,9 +729,15 @@ static int uv__getiovmax() {
       if (errno) {
         iovmax = 1;
       }
+#ifdef __linux__
+      else {
+        iovmax = UIO_IOVMAX;
+      }
+#else
       /*else {
         iovmax = 1024;
       }*/
+#endif
     }
   }
   return iovmax;
