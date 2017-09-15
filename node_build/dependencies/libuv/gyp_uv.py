@@ -34,6 +34,7 @@ def compiler_version():
   proc = subprocess.Popen(CC.split() + ['-dumpversion'], stdout=subprocess.PIPE)
   version = proc.communicate()[0].split('.')
   version = map(int, version[:2])
+  version = (version + [0])[:2] # cc 7.2 returns 7 for dumpversion, force second component
   version = tuple(version)
   return (version, is_clang)
 
