@@ -195,6 +195,10 @@ static void udpInterface(Dict* config, struct Context* ctx)
         if (bindStr) {
             Dict_putStringC(d, "bindAddress", bindStr, ctx->alloc);
         }
+        int64_t* dscp = Dict_getIntC(udp, "dscp");
+        if (dscp) {
+            Dict_putIntC(d, "dscp", *dscp, ctx->alloc);
+        }
         Dict* resp = NULL;
         rpcCall0(String_CONST("UDPInterface_new"), d, ctx, ctx->alloc, &resp, true);
         int ifNum = *(Dict_getIntC(resp, "interfaceNumber"));

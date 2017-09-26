@@ -162,6 +162,8 @@ static int genconf(struct Random* rand, bool eth)
            "            {\n"
            "                // Bind to this port.\n"
            "                \"bind\": \"0.0.0.0:%u\",\n", port);
+    printf("                // Set the DSCP value for Qos. Default is 0.\n"
+           "                // \"dscp\": 46,\n");
     printf("\n"
            "                // Nodes to connect to (IPv4 only).\n"
            "                \"connectTo\":\n"
@@ -181,6 +183,8 @@ static int genconf(struct Random* rand, bool eth)
            "            {\n"
            "                // Bind to this port.\n"
            "                \"bind\": \"[::]:%u\",\n", port);
+    printf("                // Set the DSCP value for Qos. Default is 0.\n"
+           "                // \"dscp\": 46,\n");
     printf("\n"
            "                // Nodes to connect to (IPv6 only).\n"
            "                \"connectTo\":\n"
