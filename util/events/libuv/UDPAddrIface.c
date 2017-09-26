@@ -235,10 +235,10 @@ static int blockFreeInsideCallback(struct Allocator_OnFreeJob* job)
 
 int UDPAddrIface_setDSCP(struct UDPAddrIface* iface, uint8_t dscp)
 {
-    struct UDPAddrIface_pvt* context = Identity_check((struct UDPAddrIface_pvt*) iface);
     int res = 0;
     /* For win32 setsockopt is unable to mark the TOS field in IP header, do not support it now */
     #ifndef win32
+        struct UDPAddrIface_pvt* context = Identity_check((struct UDPAddrIface_pvt*) iface);
         /* 6-bit DSCP, 2-bit ENC(useless for UDP) */
         int tos = dscp << 2;
         if (Sockaddr_getFamily(context->pub.generic.addr) == Sockaddr_AF_INET) {
