@@ -32,13 +32,13 @@
 
 bool AddressCalc_validAddress(const uint8_t address[16])
 {
-    uint64_t significant_bits = *((uint64_t*) address);
+    uint64_t significant_bits = *((uint64_t*)((uintptr_t) address & ~(uintptr_t)0xF));
     return (significant_bits & ADDRESS_PREFIX_MASK) == ADDRESS_PREFIX_U64;
 }
 
 void AddressCalc_makeValidAddress(uint8_t address[16])
 {
-    uint64_t* significant_bits = (uint64_t*) address;
+    uint64_t* significant_bits = (uint64_t*) ((uintptr_t) address & ~(uintptr_t)0xF);
     *significant_bits &= ~ADDRESS_PREFIX_MASK; // zero out the prefix
     *significant_bits |= ADDRESS_PREFIX_U64; // put the new prefix
 }
