@@ -120,6 +120,7 @@ static void beginConnection(Dict* args,
 
 static struct AddrIface* setupLibuvUDP(struct Context* ctx,
                                        struct Sockaddr* addr,
+                                       uint8_t dscp,
                                        String* txid,
                                        struct Allocator* alloc)
 {
@@ -127,6 +128,11 @@ static struct AddrIface* setupLibuvUDP(struct Context* ctx,
     struct Jmp jmp;
     Jmp_try(jmp) {
         udpIf = UDPAddrIface_new(ctx->eventBase, addr, alloc, &jmp.handler, ctx->logger);
+        if (dscp) {
+            if (UDPAddrIface_setDSCP(udpIf, dscp)) {
+                Log_warn(ctx->logger, "Set DSCP failed");
+            }
+        }
     } Jmp_catch {
         String* errStr = String_CONST(jmp.message);
         Dict out = Dict_CONST(String_CONST("error"), String_OBJ(errStr), NULL);
@@ -147,6 +153,7 @@ static struct AddrIface* setupFakeUDP(struct FakeNetwork* fakeNet,
 
 static void newInterface2(struct Context* ctx,
                           struct Sockaddr* addr,
+                          uint8_t dscp,
                           String* txid,
                           struct Allocator* requestAlloc)
 {
@@ -155,7 +162,7 @@ static void newInterface2(struct Context* ctx,
     if (ctx->fakeNet) {
         ai = setupFakeUDP(ctx->fakeNet, addr, alloc);
     } else {
-        ai = setupLibuvUDP(ctx, addr, txid, alloc);
+        ai = setupLibuvUDP(ctx, addr, dscp, txid, alloc);
     }
     if (!ai) { return; }
     ctx->udpIf = ai;
@@ -179,6 +186,8 @@ static void newInterface(Dict* args, void* vcontext, String* txid, struct Alloca
 {
     struct Context* ctx = vcontext;
     String* bindAddress = Dict_getStringC(args, "bindAddress");
+    int64_t* dscpValue = Dict_getIntC(args, "dscp");
+    uint8_t dscp = dscpValue ? ((uint8_t) *dscpValue) : 0;
     struct Sockaddr_storage addr;
     if (Sockaddr_parse((bindAddress) ? bindAddress->bytes : "0.0.0.0", &addr)) {
         Dict out = Dict_CONST(
@@ -187,7 +196,7 @@ static void newInterface(Dict* args, void* vcontext, String* txid, struct Alloca
         Admin_sendMessage(&out, txid, ctx->admin);
         return;
     }
-    newInterface2(ctx, &addr.addr, txid, requestAlloc);
+    newInterface2(ctx, &addr.addr, dscp, txid, requestAlloc);
 }
 
 void UDPInterface_admin_register(struct EventBase* base,
@@ -208,7 +217,8 @@ void UDPInterface_admin_register(struct EventBase* base,
 
     Admin_registerFunction("UDPInterface_new", newInterface, ctx, true,
         ((struct Admin_FunctionArg[]) {
-            { .name = "bindAddress", .required = 0, .type = "String" }
+            { .name = "bindAddress", .required = 0, .type = "String" },
+            { .name = "dscp", .required = 0, .type = "Int" }
         }), admin);
 
     Admin_registerFunction("UDPInterface_beginConnection", beginConnection, ctx, true,
