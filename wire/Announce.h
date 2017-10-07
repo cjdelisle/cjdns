@@ -231,14 +231,16 @@ struct Announce_Header
     uint8_t snodeIp[16];
 
     // Milliseconds since the epoch when this message was crafted and reset flag
-    uint64_t timeStampVersionFlags_be;
+    uint8_t timeStampVersionFlags_be[8];
 };
 #define Announce_Header_SIZE 120
 Assert_compileTime(sizeof(struct Announce_Header) == Announce_Header_SIZE);
 
 static inline int64_t Announce_Header_getTimestamp(struct Announce_Header* hdr)
 {
-    return Endian_bigEndianToHost64(hdr->timeStampVersionFlags_be) >> 4;
+    uint64_t ts_be;
+    Bits_memcpy(&ts_be, hdr->timeStampVersionFlags_be, sizeof(uint64_t));
+    return Endian_bigEndianToHost64(ts_be) >> 4;
 }
 
 static inline void Announce_Header_setTimestamp(struct Announce_Header* hdr,
@@ -250,36 +252,45 @@ static inline void Announce_Header_setTimestamp(struct Announce_Header* hdr,
     // It will also fail for negative timestamps.
     Assert_true(!(uTime >> 60));
 
-    hdr->timeStampVersionFlags_be =
-        (hdr->timeStampVersionFlags_be & Endian_hostToBigEndian64(0x0f)) |
-            Endian_hostToBigEndian64(uTime << 4);
+    uint64_t ts_be;
+    Bits_memcpy(&ts_be, hdr->timeStampVersionFlags_be, sizeof(uint64_t));
+    ts_be = (ts_be & Endian_hostToBigEndian64(0x0f)) | Endian_hostToBigEndian64(uTime << 4);
+    Bits_memcpy(hdr->timeStampVersionFlags_be, &ts_be, sizeof(uint64_t));
 }
 
 static inline bool Announce_Header_isReset(struct Announce_Header* hdr)
 {
-    return (Endian_bigEndianToHost64(hdr->timeStampVersionFlags_be) >> 3) & 1;
+    uint64_t ts_be;
+    Bits_memcpy(&ts_be, hdr->timeStampVersionFlags_be, sizeof(uint64_t));
+    return (Endian_bigEndianToHost64(ts_be) >> 3) & 1;
 }
 
 static inline void Announce_Header_setReset(struct Announce_Header* hdr, bool isReset)
 {
+    uint64_t ts_be;
+    Bits_memcpy(&ts_be, hdr->timeStampVersionFlags_be, sizeof(uint64_t));
     if (isReset) {
-        hdr->timeStampVersionFlags_be |= Endian_hostToBigEndian64(1<<3);
+        ts_be |= Endian_hostToBigEndian64(1<<3);
     } else {
-        hdr->timeStampVersionFlags_be &= ~Endian_hostToBigEndian64(1<<3);
+        ts_be &= ~Endian_hostToBigEndian64(1<<3);
     }
+    Bits_memcpy(hdr->timeStampVersionFlags_be, &ts_be, sizeof(uint64_t));
 }
 
 static inline int Announce_Header_getVersion(struct Announce_Header* hdr)
 {
-    return Endian_bigEndianToHost64(hdr->timeStampVersionFlags_be) & 0x07;
+    uint64_t ts_be;
+    Bits_memcpy(&ts_be, hdr->timeStampVersionFlags_be, sizeof(uint64_t));
+    return Endian_bigEndianToHost64(ts_be) & 0x07;
 }
 
 #define Announce_Header_CURRENT_VERSION 1
 static inline void Announce_Header_setVersion(struct Announce_Header* hdr, int version)
 {
-    hdr->timeStampVersionFlags_be =
-        (hdr->timeStampVersionFlags_be & ~Endian_hostToBigEndian64(0x07)) |
-            Endian_hostToBigEndian64(version & 0x07);
+    uint64_t ts_be;
+    Bits_memcpy(&ts_be, hdr->timeStampVersionFlags_be, sizeof(uint64_t));
+    ts_be = (ts_be & ~Endian_hostToBigEndian64(0x07)) | Endian_hostToBigEndian64(version & 0x07);
+    Bits_memcpy(hdr->timeStampVersionFlags_be, &ts_be, sizeof(uint64_t));
 }
 
 static inline struct Announce_ItemHeader* Announce_ItemHeader_next(struct Message* msg, void* last)
