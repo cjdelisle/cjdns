@@ -100,8 +100,10 @@ it will be downloaded and installed in the source tree.
     sudo yum localinstall https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
     sudo yum install nodejs git
     sudo yum install @development-tools
-Building from package:
-`sudo yum localinstall https://kojipkgs.fedoraproject.org//packages/cjdns/17.4/4.el6/src/cjdns-17.4-4.el6.src.rpm`
+
+#### Building from package:
+
+    sudo yum localinstall https://kojipkgs.fedoraproject.org//packages/cjdns/17.4/4.el6/src/cjdns-17.4-4.el6.src.rpm
 
 If you are on a laptop and suspend or hibernate it, cjdroute will take a few
 minutes to make coffee and figure out what just happened when it wakes up.  You
