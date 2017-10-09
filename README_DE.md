@@ -96,8 +96,9 @@ Für beide Platformen ist es nicht zwingend notwendig, doch aber vorzuziehen, [N
     sudo yum install install nodejs git
     sudo yum install @development-tools
 
-Aus dem Paket installieren:
-`sudo yum localinstall https://kojipkgs.fedoraproject.org//packages/cjdns/17.4/4.el6/src/cjdns-17.4-4.el6.src.rpm`
+#### Aus dem Paket installieren:
+
+    sudo yum localinstall https://kojipkgs.fedoraproject.org//packages/cjdns/17.4/4.el6/src/cjdns-17.4-4.el6.src.rpm
 
 Wenn du Suspend oder Hibernate auf einem Laptop verwendest wird cjdroute ein paar Minuten brauchen um Kaffee zu machen udn herauszufinden, was eigentlich gerade passiert ist, wenn es aufwacht.
 Du kannst das aber dramatisch beschleunigen:
