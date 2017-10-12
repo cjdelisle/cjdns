@@ -32,6 +32,7 @@ ln -s /opt/cjdns/cjdroute /usr/bin
 
 # Set up a system service that runs on startup
 cp contrib/systemd/cjdns.service /etc/systemd/system/
+systemctl daemon-reload
 systemctl enable cjdns
 systemctl start cjdns
 ```

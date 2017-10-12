@@ -19,6 +19,10 @@
  * IN THE SOFTWARE.
  */
 
+#if !defined(_GNU_SOURCE) && defined(__linux__)
+#define _GNU_SOURCE
+#endif
+
 #include "uv.h"
 #include "internal.h"
 
@@ -34,6 +38,10 @@
 #include <sys/un.h>
 #include <unistd.h>
 #include <limits.h> /* IOV_MAX */
+
+#if !defined(IOV_MAX) && defined(__linux__)
+#include <linux/uio.h>
+#endif
 
 #if defined(__APPLE__)
 # include <sys/event.h>
@@ -713,9 +721,25 @@ static int uv__getiovmax() {
 #if defined(IOV_MAX)
   return IOV_MAX;
 #elif defined(_SC_IOV_MAX)
-  static int iovmax = -1;
-  if (iovmax == -1)
+  static int iovmax = -2;
+  if (iovmax == -2) {
+    errno = 0;
     iovmax = sysconf(_SC_IOV_MAX);
+    if (iovmax == -1) {
+      if (errno) {
+        iovmax = 1;
+      }
+#if defined(__linux__) && defined(UIO_IOVMAX)
+      else {
+        iovmax = UIO_IOVMAX;
+      }
+#else
+      /*else {
+        iovmax = 1024;
+      }*/
+#endif
+    }
+  }
   return iovmax;
 #else
   return 1024;
@@ -752,7 +776,7 @@ start:
   iovmax = uv__getiovmax();
 
   /* Limit iov count to avoid EINVALs from writev() */
-  if (iovcnt > iovmax)
+  if (iovcnt > iovmax && iovmax != -1)
     iovcnt = iovmax;
 
   /*

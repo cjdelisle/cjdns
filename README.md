@@ -100,8 +100,10 @@ it will be downloaded and installed in the source tree.
     sudo yum localinstall https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
     sudo yum install nodejs git
     sudo yum install @development-tools
-Building from package:
-`sudo yum localinstall https://kojipkgs.fedoraproject.org//packages/cjdns/17.4/4.el6/src/cjdns-17.4-4.el6.src.rpm`
+
+#### Building from package:
+
+    sudo yum localinstall https://kojipkgs.fedoraproject.org//packages/cjdns/17.4/4.el6/src/cjdns-17.4-4.el6.src.rpm
 
 If you are on a laptop and suspend or hibernate it, cjdroute will take a few
 minutes to make coffee and figure out what just happened when it wakes up.  You
@@ -501,7 +503,8 @@ You can access the admin API with:
 Security issues should be reported on IRC the same as other bugs. We don't have a closed
 group of people with special knowledge so that means the default security reporting method is
 full disclosure.
-see: https://github.com/cjdelisle/cjdns/blob/master/doc/security_specification.md to see if a
+
+See: [security_specification.md](https://github.com/cjdelisle/cjdns/blob/master/doc/security_specification.md) to see if a
 possible security issue is really a security issue.
 
 That time of year again... Time for some open source Projects!

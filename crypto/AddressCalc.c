@@ -32,15 +32,18 @@
 
 bool AddressCalc_validAddress(const uint8_t address[16])
 {
-    uint64_t significant_bits = *((uint64_t*) address);
+    uint64_t significant_bits;
+    Bits_memcpy (&significant_bits, address, sizeof(uint64_t));
     return (significant_bits & ADDRESS_PREFIX_MASK) == ADDRESS_PREFIX_U64;
 }
 
 void AddressCalc_makeValidAddress(uint8_t address[16])
 {
-    uint64_t* significant_bits = (uint64_t*) address;
-    *significant_bits &= ~ADDRESS_PREFIX_MASK; // zero out the prefix
-    *significant_bits |= ADDRESS_PREFIX_U64; // put the new prefix
+    uint64_t significant_bits;
+    Bits_memcpy (&significant_bits, address, sizeof(uint64_t));
+    significant_bits &= ~ADDRESS_PREFIX_MASK; // zero out the prefix
+    significant_bits |= ADDRESS_PREFIX_U64; // put the new prefix
+    Bits_memcpy (address, &significant_bits, sizeof(uint64_t));
 }
 
 bool AddressCalc_addressForPublicKey(uint8_t addressOut[16], const uint8_t key[32])
