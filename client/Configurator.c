@@ -296,17 +296,25 @@ static void tunSocksInterface(Dict* ifaceConf, struct Allocator* tempAlloc, stru
     }
 
     // Setup the interface.
-    String* script = Dict_getStringC(ifaceConf, "script");
+    String* pipeIn = Dict_getStringC(ifaceConf, "pipeIn");
+    String* pipeOut = Dict_getStringC(ifaceConf, "pipeOut");
 
     Dict* args = Dict_new(tempAlloc);
-    if (!script) {
+    if (!pipeIn) {
         Log_critical(ctx->logger, "In router.interface"
-                                  " 'script' is required if it's TUNSocksInterface.");
+                                  " 'pipeIn' is required if it's TUNSocksInterface.");
         exit(1);
     }
 
-    Dict_putStringC(args, "script", script, tempAlloc);
-    rpcCall0(String_CONST("Core_initScript"), args, ctx, tempAlloc, NULL, true);
+    if (!pipeOut) {
+        Log_critical(ctx->logger, "In router.interface"
+                                  " 'pipeIn' is required if it's TUNSocksInterface.");
+        exit(1);
+    }
+
+    Dict_putStringC(args, "pipeIn", pipeIn, tempAlloc);
+    Dict_putStringC(args, "pipeOut", pipeOut, tempAlloc);
+    rpcCall0(String_CONST("Core_initTunSocks"), args, ctx, tempAlloc, NULL, true);
 }
 
 static void ipTunnel(Dict* ifaceConf, struct Allocator* tempAlloc, struct Context* ctx)

@@ -424,49 +424,6 @@ struct Pipe* Pipe_forFiles(int inFd,
     return &out->pub;
 }
 
-struct Pipe* Pipe_forStdio(const char* script,
-                           struct EventBase* eb,
-                           struct Except* eh,
-                           struct Allocator* userAlloc)
-{
-    char buff[32] = {0};
-    snprintf(buff, 31, "forStdio(%s)", script);
-
-    struct Pipe_pvt* out = newPipe(eb, NULL, buff, eh, userAlloc);
-    struct EventBase_pvt* ctx = EventBase_privatize(eb);
-
-    int ret = uv_pipe_open(&out->peer, 0);
-    if (ret) {
-        Except_throw(eh, "uv_pipe_open() failed [%s]",
-                     uv_strerror(ret));
-    }
-
-    uv_process_t child_req;
-    uv_process_options_t options;
-
-    options.stdio_count = 3;
-    uv_stdio_container_t child_stdio[3];
-    child_stdio[0].flags = UV_IGNORE;
-    child_stdio[1].flags = UV_CREATE_PIPE | UV_READABLE_PIPE;
-    child_stdio[1].data.stream = (uv_stream_t *) &out->peer;
-    child_stdio[2].flags = UV_IGNORE;
-    options.stdio = child_stdio;
-
-    options.file = script;
-
-    const uv_process_options_t const_options = options;
-
-    ret = uv_spawn(ctx->loop, &child_req, &const_options);
-    if (ret) {
-        fprintf(stderr, "%s\n", uv_strerror(ret));
-    }
-
-    uv_connect_t req = { .handle = (uv_stream_t*) &out->peer };
-    connected(&req, 0);
-
-    return &out->pub;
-}
-
 struct Pipe* Pipe_named(const char* path,
                         const char* name,
                         struct EventBase* eb,

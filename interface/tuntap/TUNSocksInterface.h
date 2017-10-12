@@ -25,16 +25,18 @@ Linker_require("interface/tuntap/TUNSocksInterface_" + builder.config.systemName
 /**
  * Create a new TUNSocksInterface.
  *
- * @param script command to be executed and fed stdio.
+ * @param pipeIn FIFO pipe for stdin from tunsocks.
+ * @param pipeOut FIFO pipe for stdout from tunsocks.
  * @param base the libevent event base to use for listening for incoming packet events.
  * @param logger for logging messages about the tun device.
  * @param eh if this function fails, it will raise one an error.
  * @param allocator a means of getting memory.
  * @return a Interface.
  */
-struct Iface* TUNSocksInterface_new(const char* script,
-                                   struct EventBase* base,
-                                   struct Log* logger,
-                                   struct Except* eh,
-                                   struct Allocator* alloc);
+struct Iface* TUNSocksInterface_new(const char* pipeIn,
+                                    const char* pipeOut,
+                                    struct EventBase* base,
+                                    struct Log* logger,
+                                    struct Except* eh,
+                                    struct Allocator* alloc);
 #endif

@@ -73,9 +73,4 @@ struct Pipe* Pipe_forFiles(int inFd,
                            struct Except* eh,
                            struct Allocator* userAlloc);
 
-struct Pipe* Pipe_forStdio(const char* script,
-                           struct EventBase* eb,
-                           struct Except* eh,
-                           struct Allocator* userAlloc);
-
 #endif

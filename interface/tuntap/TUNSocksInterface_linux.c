@@ -34,15 +34,27 @@
 #include <linux/if_ether.h>
 #include <net/if.h>
 
-struct Iface* TUNSocksInterface_new(const char* script,
-                                   struct EventBase* base,
-                                   struct Log* logger,
-                                   struct Except* eh,
-                                   struct Allocator* alloc)
+struct Iface* TUNSocksInterface_new(const char* pipeIn,
+                                    const char* pipeOut,
+                                    struct EventBase* base,
+                                    struct Log* logger,
+                                    struct Except* eh,
+                                    struct Allocator* alloc)
 {
-    Log_info(logger, "Initializing script [%s]", ((script) ? script : "auto"));
+    Log_info(logger, "Initializing tunsocks pipes: pipeIn: %s; pipeOut: %s;", pipeIn, pipeOut);
 
-    struct Pipe* p = Pipe_forStdio(script, base, eh, alloc);
+    int filenoIn = open(pipeIn, O_RDONLY);
+    int filenoOut = open(pipeOut, O_WRONLY);
+
+    if (filenoIn < 0) {
+        Except_throw(eh, "open(\"%s\") [%s]", pipeIn, strerror(errno));
+    }
+
+    if (filenoOut < 0) {
+        Except_throw(eh, "open(\"%s\") [%s]", pipeOut, strerror(errno));
+    }
+
+    struct Pipe* p = Pipe_forFiles(filenoIn, filenoOut, base, eh, alloc);
 
     return &p->iface;
 }
