@@ -43,18 +43,40 @@ struct Iface* TUNSocksInterface_new(const char* pipeIn,
 {
     Log_info(logger, "Initializing tunsocks pipes: pipeIn: %s; pipeOut: %s;", pipeIn, pipeOut);
 
-    int filenoIn = open(pipeIn, O_RDONLY);
-    int filenoOut = open(pipeOut, O_WRONLY);
+    char* str;
 
-    if (filenoIn < 0) {
+    int fdin = 0;
+    int fdout = 1;
+
+    if ((str = getenv("CJDNSFDIN")))
+    {
+        fdin = strtoul(str, NULL, 0);
+    }
+    else
+    {
+        fdin = open(pipeIn, O_RDONLY);
+    }
+
+    if ((str = getenv("CJDNSFDOUT")))
+    {
+        fdout = strtoul(str, NULL, 0);
+    }
+    else
+    {
+        fdout = open(pipeOut, O_WRONLY);
+    }
+
+    if (fdin < 0)
+    {
         Except_throw(eh, "open(\"%s\") [%s]", pipeIn, strerror(errno));
     }
 
-    if (filenoOut < 0) {
+    if (fdout < 0)
+    {
         Except_throw(eh, "open(\"%s\") [%s]", pipeOut, strerror(errno));
     }
 
-    struct Pipe* p = Pipe_forFiles(filenoIn, filenoOut, base, eh, alloc);
+    struct Pipe* p = Pipe_forFiles(fdin, fdout, base, eh, alloc);
 
     return &p->iface;
 }
