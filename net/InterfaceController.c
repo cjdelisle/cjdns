@@ -305,7 +305,6 @@ static void iciPing(struct InterfaceController_Iface_pvt* ici, struct InterfaceC
 
     // scan for endpoints have not sent anything recently.
     uint32_t startAt = ic->lastPeerPinged = (ic->lastPeerPinged + 1) % ici->peerMap.count;
-    bool peerSent = false;
     for (uint32_t i = startAt, count = 0; count < ici->peerMap.count;) {
         i = (i + 1) % ici->peerMap.count;
         count++;
@@ -319,7 +318,7 @@ static void iciPing(struct InterfaceController_Iface_pvt* ici, struct InterfaceC
             // There is a risk that the NodeStore somehow forgets about our peers while the peers
             // are still happily sending traffic. To break this bad cycle lets just send a PEER
             // message once per second for whichever peer is the first that we address.
-            if (!count == 1 && ep->state == InterfaceController_PeerState_ESTABLISHED) {
+            if (count == 1 && ep->state == InterfaceController_PeerState_ESTABLISHED) {
                 sendPeer(0xffffffff, PFChan_Core_PEER, ep);
             }
 
