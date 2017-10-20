@@ -180,6 +180,9 @@ struct InterfaceController_pvt
     /** How often to send beacon messages (milliseconds). */
     uint32_t beaconInterval;
 
+    /** The number of the next peer to try pinging, this iterates through the list of peers. */
+    uint32_t lastPeerPinged;
+
     /** The timeout event to use for pinging potentially unresponsive neighbors. */
     struct Timeout* const pingInterval;
 
@@ -301,7 +304,8 @@ static void iciPing(struct InterfaceController_Iface_pvt* ici, struct InterfaceC
     uint64_t now = Time_currentTimeMilliseconds(ic->eventBase);
 
     // scan for endpoints have not sent anything recently.
-    uint32_t startAt = Random_uint32(ic->rand) % ici->peerMap.count;
+    uint32_t startAt = ic->lastPeerPinged = (ic->lastPeerPinged + 1) % ici->peerMap.count;
+    bool peerSent = false;
     for (uint32_t i = startAt, count = 0; count < ici->peerMap.count;) {
         i = (i + 1) % ici->peerMap.count;
         count++;
@@ -315,7 +319,7 @@ static void iciPing(struct InterfaceController_Iface_pvt* ici, struct InterfaceC
             // There is a risk that the NodeStore somehow forgets about our peers while the peers
             // are still happily sending traffic. To break this bad cycle lets just send a PEER
             // message once per second for whichever peer is the first that we address.
-            if (i == startAt && ep->state == InterfaceController_PeerState_ESTABLISHED) {
+            if (!count == 1 && ep->state == InterfaceController_PeerState_ESTABLISHED) {
                 sendPeer(0xffffffff, PFChan_Core_PEER, ep);
             }
 
