@@ -313,15 +313,16 @@ static Iface_DEFUN incoming(struct Message* msg, struct Iface* interRouterIf)
         String* txid = Dict_getStringC(content, "txid");
         Assert_true(txid);
         if (q) {
-            if (txid->bytes[0] == '0') {
+            if (txid->bytes[0] != '1') {
                 Log_debug(mcp->log, "DROP query which begins with 0 and is for old pathfinder");
                 return NULL;
             }
+        } else {
+            String* newTxid = String_newBinary(NULL, txid->len - 1, msg->alloc);
+            Bits_memcpy(newTxid->bytes, &txid->bytes[1], txid->len - 1);
+            Dict_putStringC(content, "txid", newTxid, msg->alloc);
+            txid = newTxid;
         }
-        String* newTxid = String_newBinary(NULL, txid->len - 1, msg->alloc);
-        Bits_memcpy(newTxid->bytes, &txid->bytes[1], txid->len - 1);
-        Dict_putStringC(content, "txid", newTxid, msg->alloc);
-        txid = newTxid;
     }
 
     if (q) {
