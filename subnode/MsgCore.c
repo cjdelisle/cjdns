@@ -145,6 +145,10 @@ static void sendMsg(struct MsgCore_pvt* mcp,
             String* newTxid = String_newBinary(NULL, txid->len + 1, alloc);
             Bits_memcpy(&newTxid->bytes[1], txid->bytes, txid->len);
             newTxid->bytes[0] = '1';
+            if (String_equals(q, String_CONST("gp"))) {
+                // direct all GP requests to the old system because the new one is broken :(
+                newTxid->bytes[0] = '0';
+            }
             Dict_putStringC(msgDict, "txid", newTxid, alloc);
         }
     }
@@ -313,15 +317,6 @@ static Iface_DEFUN incoming(struct Message* msg, struct Iface* interRouterIf)
                 Log_debug(mcp->log, "DROP query which begins with 0 and is for old pathfinder");
                 return NULL;
             }
-        } else {
-            if (txid->bytes[0] != '1') {
-                Log_debug(mcp->log, "DROP reply which does not begin with 1");
-                return NULL;
-            }
-            String* newTxid = String_newBinary(NULL, txid->len - 1, msg->alloc);
-            Bits_memcpy(newTxid->bytes, &txid->bytes[1], txid->len - 1);
-            Dict_putStringC(content, "txid", newTxid, msg->alloc);
-            txid = newTxid;
         }
     }
 
