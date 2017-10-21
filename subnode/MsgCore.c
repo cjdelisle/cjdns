@@ -318,6 +318,10 @@ static Iface_DEFUN incoming(struct Message* msg, struct Iface* interRouterIf)
                 return NULL;
             }
         }
+        String* newTxid = String_newBinary(NULL, txid->len - 1, msg->alloc);
+        Bits_memcpy(newTxid->bytes, &txid->bytes[1], txid->len - 1);
+        Dict_putStringC(content, "txid", newTxid, msg->alloc);
+        txid = newTxid;
     }
 
     if (q) {
