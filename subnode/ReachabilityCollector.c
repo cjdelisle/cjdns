@@ -196,12 +196,14 @@ static void mkNextRequest(struct ReachabilityCollector_pvt* rcp)
     Dict* d = query->msg = Dict_new(query->alloc);
     Dict_putStringCC(d, "q", "gp", query->alloc);
     uint64_t label_be = Endian_hostToBigEndian64(pi->pathToCheck);
+    uint8_t nearbyLabelBytes[8];
+    Bits_memcpy(nearbyLabelBytes, &label_be, 8);
 
     AddrTools_printPath(q->targetPath, pi->pathToCheck);
     Log_debug(rcp->log, "Getting peers for peer [%s] tar [%s]", q->addr->bytes, q->targetPath);
 
     Dict_putStringC(d, "tar",
-        String_newBinary((uint8_t*) &label_be, 8, query->alloc), query->alloc);
+        String_newBinary(nearbyLabelBytes, 8, query->alloc), query->alloc);
     BoilerplateResponder_addBoilerplate(rcp->br, d, &pi->pub.addr, query->alloc);
 }
 
