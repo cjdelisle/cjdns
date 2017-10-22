@@ -33,6 +33,7 @@
 #include "interface/Iface.h"
 #include "util/events/UDPAddrIface.h"
 #include "interface/tuntap/TUNInterface.h"
+#include "interface/tuntap/TUNSocksInterface.h"
 #include "interface/tuntap/AndroidWrapper.h"
 #include "interface/UDPInterface_admin.h"
 #ifdef HAS_ETH_INTERFACE
@@ -146,6 +147,59 @@ static void sendResponse(String* error,
     Admin_sendMessage(output, txid, admin);
 }
 
+static void initTunSocks2(String* pipeIn,
+                          String* pipeOut,
+                          struct Context* ctx,
+                          uint8_t addressPrefix,
+                          struct Except* eh)
+{
+    Log_debug(ctx->logger, "Initializing tunsocks; PipeIn: %s; PipeOut: %s;",
+        pipeIn->bytes, pipeOut->bytes);
+
+    struct Iface* tunSocks = TUNSocksInterface_new(
+        pipeIn->bytes, pipeOut->bytes, ctx->base, ctx->logger, NULL, ctx->alloc);
+
+    Iface_plumb(tunSocks, &ctx->nc->tunAdapt->tunIf);
+
+    /*IpTunnel_setTunName(assignedTunName, ctx->ipTunnel);
+
+    struct Sockaddr* myAddr =
+        Sockaddr_fromBytes(ctx->nc->myAddress->ip6.bytes, Sockaddr_AF_INET6, ctx->alloc);
+    myAddr->prefix = addressPrefix;
+    myAddr->flags |= Sockaddr_flags_PREFIX;
+    NetDev_addAddress(assignedTunName, myAddr, ctx->logger, eh);
+    NetDev_setMTU(assignedTunName, DEFAULT_MTU, ctx->logger, eh);*/
+
+
+    /*struct Context* ctx = Identity_check((struct Context*) vcontext);
+    struct Jmp jmp;
+    Jmp_try(jmp) {
+        int64_t* tunfd = Dict_getIntC(args, "tunfd");
+        int64_t* tuntype = Dict_getIntC(args, "type");
+        if (!tunfd || *tunfd < 0) {
+            String* error = String_printf(requestAlloc, "Invalid tunfd");
+            sendResponse(error, ctx->admin, txid, requestAlloc);
+            return;
+        }
+        int fileno = *tunfd;
+        int type = (*tuntype) ? *tuntype : FileNo_Type_NORMAL;
+        struct Pipe* p = Pipe_forFiles(fileno, fileno, ctx->base, &jmp.handler, ctx->alloc);
+        p->logger = ctx->logger;
+        if (type == FileNo_Type_ANDROID) {
+            struct AndroidWrapper* aw = AndroidWrapper_new(ctx->alloc, ctx->logger);
+            Iface_plumb(&aw->externalIf, &p->iface);
+            Iface_plumb(&aw->internalIf, &ctx->nc->tunAdapt->tunIf);
+        } else {
+            Iface_plumb(&p->iface, &ctx->nc->tunAdapt->tunIf);
+        }
+        sendResponse(String_CONST("none"), ctx->admin, txid, requestAlloc);
+    } Jmp_catch {
+        String* error = String_printf(requestAlloc, "Failed to configure tunnel [%s]", jmp.message)
+        sendResponse(error, ctx->admin, txid, requestAlloc);
+        return;
+    }*/
+}
+
 static void initTunnel2(String* desiredDeviceName,
                         struct Context* ctx,
                         uint8_t addressPrefix,
@@ -213,6 +267,25 @@ static void initTunnel(Dict* args, void* vcontext, String* txid, struct Allocato
         initTunnel2(desiredName, ctx, AddressCalc_ADDRESS_PREFIX_BITS, &jmp.handler);
     } Jmp_catch {
         String* error = String_printf(requestAlloc, "Failed to configure tunnel [%s]", jmp.message);
+        sendResponse(error, ctx->admin, txid, requestAlloc);
+        return;
+    }
+
+    sendResponse(String_CONST("none"), ctx->admin, txid, requestAlloc);
+}
+
+static void initTunSocks(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
+{
+    struct Context* const ctx = Identity_check((struct Context*) vcontext);
+
+    struct Jmp jmp;
+    Jmp_try(jmp) {
+        String* pipeIn = Dict_getStringC(args, "pipeIn");
+        String* pipeOut = Dict_getStringC(args, "pipeOut");
+        initTunSocks2(pipeIn, pipeOut, ctx, AddressCalc_ADDRESS_PREFIX_BITS, &jmp.handler);
+    } Jmp_catch {
+        String* error = String_printf(requestAlloc, "Failed to configure tunsocks [%s]",
+            jmp.message);
         sendResponse(error, ctx->admin, txid, requestAlloc);
         return;
     }
@@ -325,6 +398,12 @@ void Core_init(struct Allocator* alloc,
         }), admin);
 
     Admin_registerFunction("Core_nodeInfo", nodeInfo, ctx, false, NULL, admin);
+
+    Admin_registerFunction("Core_initTunSocks", initTunSocks, ctx, true,
+        ((struct Admin_FunctionArg[]) {
+            { .name = "pipeIn", .required = 1, .type = "String" },
+            { .name = "pipeOut", .required = 1, .type = "String" }
+        }), admin);
 }
 
 int Core_main(int argc, char** argv)
