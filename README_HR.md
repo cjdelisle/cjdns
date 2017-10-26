@@ -6,13 +6,14 @@
 [Ελληνικά](README_GR.md)
 [Deutsch](README_DE.md)
 [繁體中文](README_ZHT.md)
+[Español](README_ES.md)
 [Français](README_FR.md)
 
 #### *Umrežavanje iznova*
 
 Cjdns je šifrirana IPv6 mreža koja koristi public-key kriptografiju za
-dodjelu adresa i distribuiranu hash tablicu za usmjeravanje. To omogućuje
-gotovo nikakvu mrežnu konfiguraciju i sprječava mnoge sigurnosne i
+dodjelu adresa i DHT za usmjeravanje. To omogućuje gotovo nikakvu
+mrežnu konfiguraciju i sprječava mnoge sigurnosne i
 skalabilne probleme koje muče trenutne mreže.
 
 [![Build Status](https://api.travis-ci.org/cjdelisle/cjdns.svg?branch=master)](https://travis-ci.org/cjdelisle/cjdns)
@@ -33,44 +34,6 @@ skalabilne probleme koje muče trenutne mreže.
     <DuoNoxSol> it's notably more reliable than the normal internet
     <DuoNoxSol> even though it really really shouldn't be
     <DuoNoxSol> seeing as the connections are largely over the normal internet
-
-
-## Kada će biti završen?
-
-[Hyperboria][] je najveća cjdns mreža, sa stotinama aktivnih jedinica
-po cijelom svijetu.
-
-Cjdns je testiran na x86, amd64, ARMv5, ARMv7, MIPS, and PowerPC.
-Stalno se [testira][buildbots] na Linuxu, FreeBSDu, macOS-u, Windowsu and Illumos
-systemima.
-
-Protokoli i algoritmi su eksperimentalni i mogli bi se promijeniti.
-Kako biste smanjili štetu mreže, molimo često nadograđujte vaše cjdns jedinke.
-
-
-### I Vi možete pomoći!
-
-We are in need of some buildbots on more obscure systems and architectures.
-If you would like to donate one, you could mail it, or you could administer
-it and provide remote shell access. Please email `buildbot@seattlemesh.net`
-if you'd like to run a buildbot. Note that it is not a general support inbox,
-other questions should be directed toward IRC.
-
-
-
-## Kako radi usmjeravanje?
-
-U cjdns mreži, paket ode do routera i router označi paket
-sa instrukcijama do rutera koji će ga najbolje obratiti. That is, a router which
-is physically nearby and has an address numerically close to the destination
-address of the packet. The directions are added to the packet to allow it to go
-through a number of routers with minimal handling, *a verifiable form of source
-routing*. They just read the label and bounce the packet wherever the next bits
-in the label tell them to. Routers have a responsibility to "keep in touch"
-with other routers that are physically close by and numerically near to their
-address.
-
-Jezgra routera je modificirana implementacija [Kademlia][] distribuirane hash tablice.
 
 
 ## Zajednica
@@ -94,11 +57,7 @@ Napredna konfiguracija:
 * [Setup a cjdns NAT gateway for your LAN](doc/nat-gateway.md)
 * [Instaliraj cjdns na OpenIndiani](doc/open-indiana.md)
 
-### Licenca
-
-[Dostupna ovdje](LICENSE)
-
-Hvala Vam za Vaše vrijeme i interes,
+Hvala Vam za vaše vrijeme i interes,
 
 Cjdns programeri.
 
@@ -106,9 +65,9 @@ Cjdns programeri.
 
 ## Kako instalirati cjdns
 
-Ove instrukcije su namijenjene za distribucije bazirane na Debian Linux-u i OSX-u. Trebale bi biti
-dovoljno informativne za korištenje na ostalim distribucijama, ali ne očekujte
-da će raditi od prve.
+Ove instrukcije su namijenjene za distribucije bazirane na Debian Linux-u i macOS-u.
+Trebale bi biti dovoljno informativne za korištenje na ostalim distribucijama,
+ali ne očekujte da će raditi od prve.
 
 ### 0. Install dependencies
 
@@ -116,7 +75,7 @@ On both platforms, installing [Node.js](https://nodejs.org/), although preferabl
 is not strictly necessary. If Node.js is unavailable or an unacceptable version,
 it will be downloaded and installed in the source tree.
 
-#### Distribucija bazirana na Debian-u:
+#### Distribucija bazirana na Debianu:
 
     sudo apt-get install nodejs git build-essential python2.7
 
@@ -125,7 +84,7 @@ it will be downloaded and installed in the source tree.
     sudo dnf install install nodejs git
     sudo dnf install @development-tools
     
-#### Distribucija bazirana na RHEL-u (dodaje EPEL repozitorij):
+#### Distribucija bazirana na RHELu (dodaje EPEL repozitorij):
 
     sudo yum localinstall https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
     sudo yum install install nodejs git
@@ -133,36 +92,15 @@ it will be downloaded and installed in the source tree.
 
 #### macOS:
 
-On macOS, you must install the Command Line Developer Tools. If
-you already have a recent version of Xcode (>= macOS 10.9 and >= Xcode 5.0.1), run the
-following command:
+Instalacija putem [Homebrewa](https://brew.sh/):
 
-    xcode-select --install
+    brew install cjdns
 
-If Xcode is not installed, you can either install it through the App
-Store and run the command above, or make a free Apple Developer account here:
-[https://developer.apple.com/downloads/index.action](https://developer.apple.com/downloads/index.action).
-Then sign in, search for Command Line Tools, and install the latest package
-compatible with your version of macOS. If you encounter issues, there is a
-thorough [stackoverflow post](https://stackoverflow.com/a/9329325) on installing
-the Command Line Tools.
+Instalacija putem [MacPortsa](https://www.macports.org/):
 
-Morate instalirati Git i Node.js. Postoji nekoliko načina. Ako koristite [Homebrew](http://brew.sh/):
-
-    brew install git nodejs
-
-Ako koristite [MacPorts](https://www.macports.org/):
-
-    sudo port install git nodejs6
-
-Or if you use neither and would like to install the binaries from their websites:
-doc
-- Node.js: [https://nodejs.org/download/](https://nodejs.org/download/)
-- git: [https://git-scm.com/download](https://git-scm.com/download)
+    sudo port install cjdns
 
 #### OpenBSD:
-
-Nažalost, OpenBSD je trenutno eksperimentalan.
 
     pkg_add git node gcc gmake bash
 
@@ -170,12 +108,107 @@ Odaberite verziju gcc-4.8.1p2 ili noviju.
 
 #### FreeBSD:
 
-The compiler expects GCC version 4.7, please install it from ports first.
+    pkg install gmake node
+    
+#### Arch:
 
-    portsnap fetch extract
-    cd /usr/ports/lang/gcc47/ && make config && make install clean
+Možete instalirati cjdns sljedećom naredbom;
 
-### 1. Retrieve cjdns from GitHub
+    pacman -S cjdns
+
+If you need to build from source, everything you need can be installed like this
+
+    pacman -S nodejs git base-devel
+
+Alternatively, you may like to install via AUR from the package, `cjdns-git`.
+Nakon instalacije konfiguracijska datoteka će se nalaziti u `/etc/cjdroute.conf`.
+Za pokrenuti servis `cjdns.service`, pokrenite sljedeću naredbu:
+
+        systemctl start cjdns
+
+Za zaustavljanje:
+
+       systemctl stop cjdns
+
+#### Gentoo:
+
+cjdns is not yet in the main Gentoo repository, so you will have to use an overlay.
+The easiest way is to use Layman but you can do it by hand, too.
+
+##### Layman:
+
+Prvo treba te instalirati layman:
+
+      emerge layman
+
+If layman is installed correctly, you can add the overlay
+
+      layman -f
+      layman -a weuxel
+
+For future update of the overlay use
+
+      layman -S
+
+Now you can install cjdns
+
+      emerge cjdns
+
+##### By hand:
+
+You will have to clone the overlay repository
+
+       cd /opt
+       git clone https://github.com/Weuxel/portage-weuxel.git
+
+Now tell portage to use this repo
+
+       cd /etc/portage/repos.conf/
+
+Create a file `portage-weuxel.conf` containing
+
+       [weuxel]
+       location = /opt/portage-weuxel
+       masters = gentoo
+       auto-sync = yes
+
+Now sync
+
+       emerge --sync
+
+And install cjdns
+
+   emerge cjdns
+
+#### Automatic crash detection and restart
+
+Copy the the openrc init script from `contrib/openrc` to `/etc/init.d/` and modify the `CONFFILE` and `command` parameter to your needs.
+Then start cjdns by issuing
+
+   /etc/init.d/cjdns start
+
+Configure the init system to autostart cjdns
+
+   rc-update add cjdns default
+
+Copy the service_restart script `contrib/gentoo/service_restart.sh` to any convenient directory on
+your system and modify the eMail address. If you do not wish to be notified, comment out the whole line.
+Now add a crontab entry like this
+
+   # Restart crashed Services
+   * * * * *       root	/path/to/script/service_restart.sh
+
+#### Solus:
+
+Dependencies:
+
+      sudo eopkg install nodejs git build-essential system.devel python gcc binutils kernal-headers xorg-server-devel
+
+Then Follow the steps below:
+
+*Sorry for so many steps. A package is being worked on currently*
+    
+### 1. Preuzmite cjdns sa GitHuba
 
 Clone the repository from GitHub and change to the source directory:
 
@@ -200,9 +233,9 @@ Run cjdroute without options for HELP:
 
     LANG=C cat /dev/net/tun
 
-Ako kaže: `cat: /dev/net/tun: File descriptor in bad state` Good!
+Ako kaže: `cat: /dev/net/tun: File descriptor in bad state`, sve je u redu!
 
-Ako kaže: `cat: /dev/net/tun: No such file or directory`, create it using:
+Ako kaže: `cat: /dev/net/tun: No such file or directory`, stvorite ga putem:
 
     sudo mkdir -p /dev/net &&
     sudo mknod /dev/net/tun c 10 200 &&
@@ -210,10 +243,10 @@ Ako kaže: `cat: /dev/net/tun: No such file or directory`, create it using:
 
 Zatim opet pokrenite `cat /dev/net/tun`.
 
-Ako kaže: `cat: /dev/net/tun: Permission denied` You're probably using a VPS
-based on the OpenVZ virtualization platform. Ask your provider to enable the
-TUN/TAP device - this is standard protocol so they should know exactly what you
-need. If you're on macOS, don't worry about this step.
+Ako kaže: `cat: /dev/net/tun: Permission denied` vjerojatno koristite VPS
+baziran na OpenVZ virtualizacijskoj platformi. Pitajte vašeg pružatelja usluga da vam omogući
+TUN/TAP - ovo je standardni protokol tako da bi trebali znati što trebate.
+Ako ste na macOSu, ne morate se brinuti u vezi ove greške.
 
 
 ### 1. Stvorite novu konfiguracijsku datoteku
@@ -250,9 +283,9 @@ To find a friend, get out there and join our [community](#community). Also, have
 a look at the [Hyperboria Map][] to find peers near you.
 
 
-### 3. Connect your node to your friend's node
+### 3. Spojite vaš node sa nodeom prijatelja
 
-**To initiate the connection OUTbound**
+**Za pokretanje izlazne konekcije**
 
 U Vašoj conf datoteci vidjeti ćete:
 
