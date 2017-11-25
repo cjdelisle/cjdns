@@ -43,7 +43,7 @@ permission to set the IPv6 and IPv4 addresses on the TUN device.
 ## Connecting to a gateway
 
 To connect to an IPv6 gate, you must first ask the operator of the gate to add your
-key to his gate, once he has added it, add their *key* to the `outgoingConnections`
+key to their gate, once he has added it, add their *key* to the `outgoingConnections`
 section of the `IpTunnel` block in your cjdroute.conf like this:
 
     "outgoingConnections":
