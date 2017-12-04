@@ -180,6 +180,9 @@ struct InterfaceController_pvt
     /** How often to send beacon messages (milliseconds). */
     uint32_t beaconInterval;
 
+    /** The number of the next peer to try pinging, this iterates through the list of peers. */
+    uint32_t lastPeerPinged;
+
     /** The timeout event to use for pinging potentially unresponsive neighbors. */
     struct Timeout* const pingInterval;
 
@@ -301,7 +304,7 @@ static void iciPing(struct InterfaceController_Iface_pvt* ici, struct InterfaceC
     uint64_t now = Time_currentTimeMilliseconds(ic->eventBase);
 
     // scan for endpoints have not sent anything recently.
-    uint32_t startAt = Random_uint32(ic->rand) % ici->peerMap.count;
+    uint32_t startAt = ic->lastPeerPinged = (ic->lastPeerPinged + 1) % ici->peerMap.count;
     for (uint32_t i = startAt, count = 0; count < ici->peerMap.count;) {
         i = (i + 1) % ici->peerMap.count;
         count++;
@@ -315,7 +318,7 @@ static void iciPing(struct InterfaceController_Iface_pvt* ici, struct InterfaceC
             // There is a risk that the NodeStore somehow forgets about our peers while the peers
             // are still happily sending traffic. To break this bad cycle lets just send a PEER
             // message once per second for whichever peer is the first that we address.
-            if (i == startAt && ep->state == InterfaceController_PeerState_ESTABLISHED) {
+            if (count == 1 && ep->state == InterfaceController_PeerState_ESTABLISHED) {
                 sendPeer(0xffffffff, PFChan_Core_PEER, ep);
             }
 
@@ -556,7 +559,8 @@ static Iface_DEFUN handleBeacon(struct Message* msg, struct InterfaceController_
         printedAddr = Address_toString(&addr, msg->alloc);
     }
 
-    if (addr.ip6.bytes[0] != 0xfc || !Bits_memcmp(ic->ca->publicKey, addr.key, 32)) {
+    if (!AddressCalc_validAddress(addr.ip6.bytes)
+        || !Bits_memcmp(ic->ca->publicKey, addr.key, 32)) {
         Log_debug(ic->logger, "handleBeacon invalid key [%s]", printedAddr->bytes);
         return NULL;
     }
@@ -719,6 +723,10 @@ static Iface_DEFUN handleIncomingFromWire(struct Message* msg, struct Iface* add
         return NULL;
     }
     PeerLink_recv(msg, ep->peerLink);
+    if (ep->state == InterfaceController_PeerState_ESTABLISHED &&
+        CryptoAuth_getState(ep->caSession) != CryptoAuth_State_ESTABLISHED) {
+        sendPeer(0xffffffff, PFChan_Core_PEER_GONE, ep);
+    }
     return receivedPostCryptoAuth(msg, ep, ici->ic);
 }
 

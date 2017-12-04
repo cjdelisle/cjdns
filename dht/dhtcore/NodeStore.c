@@ -953,6 +953,7 @@ static void fixLink(struct Node_Link* parentLink,
             // unsplice and cannonicalize so we now have a path from child to grandchild
             uint64_t childToGrandchild =
                 LabelSplicer_unsplice(splitLink->cannonicalLabel, parentLink->cannonicalLabel);
+            Assert_true(parentLink->child);
             childToGrandchild =
                 EncodingScheme_convertLabel(parentLink->child->encodingScheme,
                                             childToGrandchild,
@@ -1612,6 +1613,8 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
 
     // Create the self node
     struct Node_Two* selfNode = Allocator_calloc(alloc, sizeof(struct Node_Two), 1);
+    Assert_true(selfNode);
+    Assert_true(myAddress);
     Bits_memcpy(&selfNode->address, myAddress, sizeof(struct Address));
     selfNode->encodingScheme = NumberCompress_defineScheme(alloc);
     selfNode->alloc = alloc;

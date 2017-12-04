@@ -12,6 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+#include "crypto/AddressCalc.h"
 #include "crypto/Key.h"
 #include "dht/dhtcore/ReplySerializer.h"
 #include "subnode/SupernodeHunter.h"
@@ -168,7 +169,7 @@ static void adoptSupernode(struct SupernodeHunter_pvt* snp, struct Address* cand
     Log_debug(snp->log, "Pinging snode [%s]", Address_toString(qp->target, qp->alloc)->bytes);
     Dict_putStringCC(msg, "sq", "pn", qp->alloc);
 
-    Assert_true(candidate->ip6.bytes[0] == 0xfc);
+    Assert_true(AddressCalc_validAddress(candidate->ip6.bytes));
     return;
 }
 

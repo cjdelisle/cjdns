@@ -63,7 +63,7 @@
     [
       "crypto_onetimeauth",
       "poly1305",
-      "donna32"
+      "donna"
     ],
     [
       "crypto_hash",

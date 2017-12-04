@@ -58,7 +58,7 @@
     [
       "crypto_onetimeauth",
       "poly1305",
-      "53"
+      "donna"
     ],
     [
       "crypto_verify",
@@ -78,7 +78,7 @@
     [
       "crypto_scalarmult",
       "curve25519",
-      "ref"
+      "donna_c64"
     ],
     [
       "crypto_verify",

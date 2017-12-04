@@ -70,7 +70,7 @@ in the label tell them to. Routers have a responsibility to "keep in touch"
 with other routers that are physically close by and numerically near to their
 address.
 
-Motor usmjerivača je modificirana implementacija [Kademlia][] ddistribuirane hash tablice.
+Jezgra routera je modificirana implementacija [Kademlia][] distribuirane hash tablice.
 
 
 ## Zajednica
@@ -125,7 +125,7 @@ it will be downloaded and installed in the source tree.
     sudo dnf install install nodejs git
     sudo dnf install @development-tools
     
-#### Distribucija bazirana na RHEL-u (adds the EPEL repo):
+#### Distribucija bazirana na RHEL-u (dodaje EPEL repozitorij):
 
     sudo yum localinstall https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
     sudo yum install install nodejs git
@@ -147,7 +147,7 @@ compatible with your version of macOS. If you encounter issues, there is a
 thorough [stackoverflow post](https://stackoverflow.com/a/9329325) on installing
 the Command Line Tools.
 
-Morate instalirati Git i Node.js. Postoji nekoliko mogućnosti. Ako koristite [Homebrew](http://brew.sh/):
+Morate instalirati Git i Node.js. Postoji nekoliko načina. Ako koristite [Homebrew](http://brew.sh/):
 
     brew install git nodejs
 
@@ -186,8 +186,7 @@ Clone the repository from GitHub and change to the source directory:
 
     ./do
 
-Look for `Build completed successfully, type ./cjdroute to begin setup.`, then
-proceed below:
+Potražite `Build completed successfully, type ./cjdroute to begin setup.`, zatim nastavite:
 
 --------------------------------------------------------------------------------
 
@@ -197,13 +196,13 @@ Run cjdroute without options for HELP:
 
     ./cjdroute
 
-### 0. Make sure you've got the stuff.
+### 0. Provjerite imate li potrebne stvari
 
     LANG=C cat /dev/net/tun
 
-If it says: `cat: /dev/net/tun: File descriptor in bad state` Good!
+Ako kaže: `cat: /dev/net/tun: File descriptor in bad state` Good!
 
-If it says: `cat: /dev/net/tun: No such file or directory`, create it using:
+Ako kaže: `cat: /dev/net/tun: No such file or directory`, create it using:
 
     sudo mkdir -p /dev/net &&
     sudo mknod /dev/net/tun c 10 200 &&
@@ -211,7 +210,7 @@ If it says: `cat: /dev/net/tun: No such file or directory`, create it using:
 
 Zatim opet pokrenite `cat /dev/net/tun`.
 
-If it says: `cat: /dev/net/tun: Permission denied` You're probably using a VPS
+Ako kaže: `cat: /dev/net/tun: Permission denied` You're probably using a VPS
 based on the OpenVZ virtualization platform. Ask your provider to enable the
 TUN/TAP device - this is standard protocol so they should know exactly what you
 need. If you're on macOS, don't worry about this step.
@@ -221,7 +220,7 @@ need. If you're on macOS, don't worry about this step.
 
     ./cjdroute --genconf >> cjdroute.conf
 
-**Zaštitite Vašu conf datoteku!** A lost conf file means you lost your password and
+**Zaštitite Vašu konfiguraciju!** A lost conf file means you lost your password and
 connections and anyone who connected to you will no longer be able to connect.
 A compromised conf file means that other people can impersonate you on the
 network.
@@ -234,9 +233,8 @@ read it and write to it:
 
 ### 2. Pronađite prijatelja
 
-To get into an existing network (e.g. Hyperboria), you need to connect to
-someone who is already in the network. This is required for a number of
-reasons:
+Kako biste ušli u postojeću mrežu (npr. Hyperboria), morate se spojiti s nekime
+tko je već unutar te mreže. To je tako zbog nekoliko razloga:
 
 1. It helps prevent abuse because bad people will be less likely to abuse a
    system after they were, in an act of human kindness, given access to that
@@ -357,10 +355,10 @@ including how to peer with other cjdns nodes over ethernet and wifi.
 
 ### 4. Zaštitite Vaš sustav - check for listening services
 
-Once your node is running, you're now a newly minted IPv6 host. Your operating
-system may automatically reconfigure network services to use this new address.
-If this is not what you intend, you should check to see that you are not
-offering more services then you intended to. ;)
+Nakon što se Vaš node pokrene, postajete IPv6 host. Vaš operativni
+sustav će automatski konfigurirati mrežne servise kako bi koristili novu adresu.
+Ako ovo nije Vaš cilj, trebali bi ste provjeriti da ne pružate više servisa
+nego što mislite. ;)
 
 Pogledajte [doc/network-services.md](doc/network-services.md) za instrukcije.
 
@@ -380,31 +378,31 @@ Za zaustavljanje cjdns-a:
 Ako imate problema koristite `killall cjdroute`.
 Koristite `pgrep cjdroute` ili `top` kako bi ste provjerili radi li cjdns.
 
-**Note:** this starts cjdns as the root user so it can configure your system
-without concern for permissions. To start cjdns as a non-root user, see
+**Note:** ovo pokreće cjdns kao putem korisnika tako da može konfigurirati Vaš sustav
+bez potrebnih dozvola. Za pokretanje cjdns-a putem običnog korisnika, pogledajte
 [doc/non-root-user.md](doc/non-root-user.md).
 
 
 ### 6. Dođite na IRC
 
 Dobrodošli u mrežu! Sada ste mrežni administrator. Kao mrežni
-administrator ste odgovorni za stvari poput kvara opreme.
+administrator odgovorni ste za stvari poput kvara opreme.
 Budite na [IRC-u](#community) kako bi vas ljudi mogli kontaktirati.
 
 
 ## Administratorsko sučelje
 
-When cjdnroute is up and running, the admin interface will be available at
-`udp://localhost:11234` (this can be changed in the cjdroute.conf
-configuration file). See [doc/admin-api.md](doc/admin-api.md) for more
-information about the admin interface. There are several tools in `contrib/`
-that can interact with it.
+Kada je cjdnroute pokrenut, administratorsko sučelje biti će dostupna na
+`udp://localhost:11234` (ovo se može promijeniti u cjdroute.conf
+konfiguracijskoj datoteci). Pogledajte [doc/admin-api.md](doc/admin-api.md) za više
+informacija o administratorskom sučelju. U `contrib/` se nalazi nekoliko alata
+s kojima može komunicirati.
 
 Možete pristupiti administratorskom API-ju putem:
 
-* the **Python library**; see
+* the **Python library**; pogledajte
   [contrib/python/README.md](contrib/python/README.md).
-* the **Perl library**, maintained by Mikey; see
+* the **Perl library**, održava Mikey; pogledajte
   [contrib/perl/CJDNS/README](contrib/perl/CJDNS/README).
 
 

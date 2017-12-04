@@ -33,9 +33,6 @@
 #include "wire/Headers.h"
 #include "wire/Ethernet.h"
 
-#define PUBKEY "f3yqyp5qpmpfgvjyvtklff40510gxuuuh52vpyzvpbhh5glyfr60.k"
-#define IPV6 "fca9:f505:c650:8723:72a8:a524:530a:25c3"
-
 struct Context
 {
     struct Allocator* alloc;
@@ -373,12 +370,13 @@ int main()
     struct Log* logger = FileWriterLog_new(stdout, alloc);
     struct Random* rand = Random_new(alloc, logger, NULL);
     struct Context* ctx = Allocator_calloc(alloc, sizeof(struct Context), 1);
+    uint8_t privateKey[32];
     Identity_set(ctx);
     ctx->alloc = alloc;
     ctx->log = logger;
     ctx->rand = rand;
     ctx->base = eb;
-    Assert_true(!Key_parse(String_CONST(PUBKEY), ctx->pubKey, ctx->ipv6));
+    Assert_true(!Key_gen(ctx->ipv6, ctx->pubKey, privateKey, rand));
 
     testAddr(ctx, "192.168.1.1", 0, 32, NULL, 0, 0);
     testAddr(ctx, "192.168.1.1", 16, 24, NULL, 0, 0);
