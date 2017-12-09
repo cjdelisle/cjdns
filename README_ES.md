@@ -436,9 +436,6 @@ reportar cosas de seguridad, es con su descripción completa.
 Consulte: https://github.com/cjdelisle/cjdns/blob/master/doc/security_specification.md - en ingles -
 para comprobar si un aparente problema de seguridad realmente es un problema de seguridad.
 
-Esa época del año nuevamente... ¡El tiempo para actuar en algunos proyectos de código abierto!
-[![Hacktoberfest](https://img.shields.io/badge/Open%20Source-Hacktoberfest-orange.svg)](https://hacktoberfest.digitalocean.com/)
-
 [IRC Web]: http://chat.efnet.org/irc.cgi?chan=%23cjdns
 [Hyperboria]: http://hyperboria.net
 [Project Meshnet]: https://projectmeshnet.org
