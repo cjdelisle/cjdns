@@ -555,9 +555,6 @@ connaissance spécifique, donc notre politique de remontée de bogues de sécuri
 est une divulgation totale.
 voir : https://github.com/cjdelisle/cjdns/blob/master/doc/security_specification.md pour voir si un bogue possible de sécurité en est vraiment un.
 
-À ce moment de l'année, à nouveau... Il est temps pour quelques projets libres !
-[![Hacktoberfest](https://img.shields.io/badge/Open%20Source-Hacktoberfest-orange.svg)](https://hacktoberfest.digitalocean.com/)
-
 [IRC Web]: http://chat.efnet.org/irc.cgi?chan=%23cjdns
 [Hyperboria]: https://hyperboria.net
 [/r/darknetplan]: https://www.reddit.com/r/darknetplan
