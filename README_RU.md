@@ -273,9 +273,6 @@ Cjdns поставляется с библиотекой для python, кото
 * [Настройка ПК как cjdns NAT gateway для вашей домашней сети](doc/nat-gateway.md)
 * [Установка cjdns на OpenIndiana](doc/open-indiana.md)
 
-Снова это время года... Время для проектов с открытым исходным кодом!
-[![Hacktoberfest](https://img.shields.io/badge/Open%20Source-Hacktoberfest-orange.svg)](https://hacktoberfest.digitalocean.com/)
-
 [beyond pain]: https://lists.torproject.org/pipermail/tor-dev/2012-October/004063.html
 [IRC Web]: http://chat.efnet.org/irc.cgi?chan=%23cjdns_ru
 [Hyperboria]: https://hyperboria.net
