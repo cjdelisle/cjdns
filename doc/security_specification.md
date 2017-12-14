@@ -1,8 +1,8 @@
-#Security Specification
+# Security Specification
 
 This document is here to help define security flaws in a way that can be agreed upon.
 
-##Definitions
+## Definitions
 
 * Reveal: To reveal a piece of content is to send over the wire that content or something from which
 that content can be mathematically derived (not withstanding theoretical attacks
@@ -15,14 +15,14 @@ address.
 * Permanent Private Key: The key which is in the configuration file which defines the node's
 identity.
 
-##Limitation of Scope
+## Limitation of Scope
 
 This document applies to the current version (latest master branch) of cjdns compiled and running
 on a Linux system using a version of GCC with no known security issues and running on an
 x86 or amd64 processor. Older versions and git branches may be non-compliant with this
 specification.
 
-##Integrity and Confidentiality
+## Integrity and Confidentiality
 
 1. It must not be possible to reveal the permanent private key or any temporary session private keys
 to anyone.
