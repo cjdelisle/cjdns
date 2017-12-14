@@ -524,7 +524,7 @@ The Switch Header may be followed by three different types of packets:
   The CryptoAuth handshake packet contains the Session Handle (that should
   be used by the recipient to prefix CryptoAuth data packets sent after that),
   eventually followed by a Switch Data Header.
-* Otherwise, these first four bytes are a Session Handle, which the receipient
+* Otherwise, these first four bytes are a Session Handle, which the recipient
   of these packet chose earlier to identify the emitted. They are followed
   by a CryptoAuth Data Packet, containing a Switch Data Header.
 
