@@ -68,7 +68,7 @@ int main(int argc, char** argv)
         }
     }
 
-    Hex_decode(privateKey, 32, privateKeyHexIn, 65);
+    Hex_decode(privateKey, 32, privateKeyHexIn, 64);
     crypto_scalarmult_curve25519_base(address.key, privateKey);
     if (AddressCalc_addressForPublicKey(address.ip6.bytes, address.key)) {
         Base32_encode(publicKeyBase32Out, 53, address.key, 32);
