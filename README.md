@@ -60,8 +60,7 @@ scalability issues that plague existing networks.
 ## Documentation
 
 * [Project Goals](doc/projectGoals.md)
-* [Cjdns Whitepaper](doc/Whitepaper.md)
-* [Cjdns on Wikipedia][]
+* [BonsaiMesh Whitepaper](doc/Whitepaper.md)
 
 Advanced configuration:
 
@@ -70,11 +69,11 @@ Advanced configuration:
 
 Thank you for your time and interest,
 
-The cjdns developers.
+The BonsaiMesh Developers developers.
 
 --------------------------------------------------------------------------------
 
-## How to install cjdns
+## How to install BonsaiMesh
 
 These instructions are for Debian-based Linux distributions and macOS. They should be
 informative enough for use on other distributions - just don't expect them to
@@ -241,7 +240,7 @@ Then Follow the steps below:
 
 Clone the repository from GitHub and change to the source directory:
 
-    git clone https://github.com/cjdelisle/cjdns.git cjdns
+    git clone https://github.com/bonsaimesh/bonsaimesh.git bonsaimesh
     cd cjdns
 
 ##### 2. Build
