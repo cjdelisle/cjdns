@@ -22,33 +22,6 @@ scalability issues that plague existing networks.
 [![irc](https://img.shields.io/badge/irc%20chat-%23cjdns-blue.svg)](https://kiwiirc.com/client/irc.efnet.org/?nick=visitor|?#cjdns)
 ![License](https://img.shields.io/github/license/cjdelisle/cjdns.svg)
 
-## Testimonials
-
-    23:26 <@jercos> well, cjdns is now officially more reliable than the open
-                    internet for getting to my cheaper VPSes :|
-
-    12:52 < mariner> so i don't know if it's been done before, and i assume it's
-                     obvious, but I think it's neat. Currently on hype from an
-                     airplane
-
-    00:36 < tester> man sites take so long to load on i2p
-    00:36 < tester> i value speed over anonymity any day
-
-    <DuoNoxSol> it's notably more reliable than the normal internet
-
-    09:46 < Kubuxu> I so love cjdns code base
-
-    <whyrusleeping> my internet is way better now.
-    <whyrusleeping> thanks
-    <whyrusleeping> i'm really upset and sad that its better
-    <whyrusleeping> but also quite happy
-
-    21:01 <@grewalsat> this is amazing. with my workpalce speedtest.net results I get around 6+mb speed, and with my cjdns-gate as vpn network I'm getting like 11-15mb download speed in speedtest.net
-    21:01 <@grewalsat> :P
-    21:01 <@grewalsat> plus, access anything! :D
-
-    <davidar> Yeah, I have to admit I sort of avoided hypeirc because of stuff like that
-
 ## Community
 
 * [irc://irc.efnet.org/#cjdns][IRC Web]
@@ -237,6 +210,12 @@ Then Follow the steps below:
 
 *Sorry for so many steps. A package is being worked on currently*
 
+--------------------------------------------------------------------------------
+
+## Setup
+
+This part assumes you want to build CJDNS by hand
+
 ##### 1. Retrieve cjdns from GitHub
 
 Clone the repository from GitHub and change to the source directory:
@@ -251,15 +230,11 @@ Clone the repository from GitHub and change to the source directory:
 Look for `Build completed successfully, type ./cjdroute to begin setup.`, then
 proceed below:
 
---------------------------------------------------------------------------------
-
-## Setup
-
 Run cjdroute without options for HELP:
 
     ./cjdroute
 
-### 0. Make sure you've got the stuff.
+#### 0. Make sure you've got the stuff.
 
 If you're on macOS, don't worry about this step.
 
@@ -281,7 +256,7 @@ TUN/TAP device - this is standard protocol so they should know exactly what you
 need.
 
 
-### 1. Generate a new configuration file
+#### 1. Generate a new configuration file
 
     ./cjdroute --genconf >> cjdroute.conf
 
@@ -298,7 +273,7 @@ read it and write to it:
     (umask 077 && ./cjdroute --genconf > cjdroute.conf)
 
 
-### 2. Find a friend
+#### 2. Find a friend
 
 To get into an existing network (e.g. Hyperboria), you need to connect to
 someone who is already in the network. This is required for a number of
@@ -318,7 +293,7 @@ To find a friend, get out there and join our [community](#community). Also, have
 a look at the [Hyperboria Map][] to find peers near you.
 
 
-### 3. Connect your node to your friend's node
+#### 3. Connect your node to your friend's node
 
 **To initiate the connection OUTbound**
 
@@ -432,7 +407,7 @@ See [doc/configure.md](doc/configure.md) for more details on configuration,
 including how to peer with other cjdns nodes over ethernet and wifi.
 
 
-### 4. Secure your system - check for listening services
+#### 4. Secure your system - check for listening services
 
 Once your node is running, you're now a newly minted IPv6 host. Your operating
 system may automatically reconfigure network services to use this new address.
@@ -442,7 +417,7 @@ offering more services than you intended to. ;)
 See [doc/network-services.md](doc/network-services.md) for instructions.
 
 
-### 5. Start it up!
+#### 5. Start it up!
 
     sudo ./cjdroute < cjdroute.conf
 
@@ -464,7 +439,7 @@ without concern for permissions. To start cjdns as a non-root user, see
 [doc/non-root-user.md](doc/non-root-user.md).
 
 
-### 6. Get in IRC
+#### 6. Get in IRC
 
 Welcome to the network! You're now a network administrator. There are
 responsibilities which come with being a network administrator which include
@@ -472,7 +447,7 @@ being available in case there is something wrong with your equipment. You should
 stay on [IRC](#community) so that people can reach you.
 
 
-## Admin interface
+### Admin interface
 
 When cjdroute is up and running, the admin interface will be available at
 `udp://localhost:11234` (this can be changed in the `cjdroute.conf`
@@ -499,7 +474,7 @@ You can access the admin API with:
  terms by someone with strong familiarity with the code. They will make a pull request to the
  docs/bugs directory.
 
-### Security
+## Security
 Security issues should be reported on IRC the same as other bugs. We don't have a closed
 group of people with special knowledge so that means the default security reporting method is
 full disclosure.
@@ -525,3 +500,4 @@ That time of year again... Time for some open source Projects!
 [Tor]: https://www.torproject.org
 [I2P]: https://geti2p.net/en/
 [Freenet]: https://freenetproject.org
+
