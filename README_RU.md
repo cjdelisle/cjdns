@@ -87,11 +87,159 @@ The cjdns developers.
 
 ## 0. Устанавливаем утилиты компиляции.
 
-    sudo apt-get install nodejs git build-essential python2.7
-
 Установка  [Node.js](https://nodejs.org/) желательна, но не
 обязательна. Если Node.js не найден в процессе установки или его
 версия слишком старая — он будет загружен автоматически при установке.
+
+#### Дистрибутивы основанные на Debian:
+
+    sudo apt-get install nodejs git build-essential python2.7
+
+#### Дистрибутивы основанные на Fedora 22+:
+
+    sudo dnf install nodejs git
+    sudo dnf install @development-tools
+
+#### Дистрибутивы основанные на RHEL (добавляет репозиторий EPEL):
+
+    sudo yum localinstall https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+    sudo yum install nodejs git
+    sudo yum install @development-tools
+
+#### Сборка из пакета:
+
+    sudo yum localinstall https://kojipkgs.fedoraproject.org//packages/cjdns/17.4/4.el6/src/cjdns-17.4-4.el6.src.rpm
+
+Если вы используете ноутбук и вводите его в спящий режим, то cjdroute понадобится
+несколько минут, чтобы приготовить кофе и понять, что произошло. Вы можете значительно
+ускорить это следующим способом:
+
+    systemctl enable cjdns-resume
+
+Сервис возобновления перезапускает cjdns, если система выходит из спячки.
+
+#### Gentoo
+
+    emerge --ask nodejs sys-devel/gcc dev-lang/python:3.4 dev-vcs/git
+
+#### macOS:
+
+Установка с [Homebrew](https://brew.sh/):
+
+    brew install cjdns
+
+Установка с [MacPorts](https://www.macports.org/):
+
+    sudo port install cjdns
+
+#### OpenBSD:
+
+    pkg_add git node gcc gmake bash
+
+Выберете версию gcc-4.8.1p2 или новее.
+
+#### FreeBSD:
+
+Всё что вам необходимо, доступно в коллекции портов FreeBSD.
+
+    pkg install gmake node
+
+#### Arch:
+
+Вы можете установить cjdns выполнив следующее
+    pacman -S cjdns
+
+Если вы хотите скомпилировать самостоятельно, то всё что вам необходимо может быть установлено следующей командой
+
+    pacman -S nodejs git base-devel
+
+Как альтернативный вариант, вы можете установить через AUR из пакета `cjdns-git`.
+
+После установки файл конфигурации находится тут `/etc/cjdroute.conf`.
+Для запуска сервиса `cjdns.service`, выполните:
+
+    systemctl start cjdns
+
+Для остановки:
+
+    systemctl stop cjdns
+
+#### Gentoo:
+
+cjdns еще не находится в главном репозитории Gentoo, поэтому вам придется использовать наложение.
+Самый простой способ - это использовать Layman, но вы можете сделать это и вручную.
+
+##### Layman:
+
+Во-первых, вам нужно установить layman.
+
+    emerge layman
+
+Если layman установлен правильно, то вы можете добавить наложение
+
+    layman -f
+    layman -a weuxel
+
+Для будущего обновления использования наложения
+
+    layman -S
+
+Теперь вы можете установить cjdns
+
+    emerge cjdns
+
+##### Ручками:
+
+Вам придется клонировать репозиторий наложения
+
+    cd /opt
+    git clone https://github.com/Weuxel/portage-weuxel.git
+
+Теперь скажите portage использовать этот репозиторий
+
+    cd /etc/portage/repos.conf/
+
+Создайте файл `portage-weuxel.conf` с текстом:
+
+    [weuxel]
+    location = /opt/portage-weuxel
+    masters = gentoo
+    auto-sync = yes
+
+Теперь синхронизируйте
+
+    emerge --sync
+
+И установите cjdns
+
+    emerge cjdns
+
+#### Автоматическое обнаружение сбоев и перезагрузка.
+
+Скопируйте скрипт инициализации openrc из `contrib/openrc` в `/etc/init.d/`, и модифицируйте параметры `CONFFILE` и `command` в соответствии с вашими требованиями.
+
+Затем запустите выполнив:
+
+    /etc/init.d/cjdns start
+
+Настройте систему init для автоматического запуска
+
+    rc-update add cjdns default
+
+Скопируйте скрипт service_restart `contrib/gentoo/service_restart.sh` в любой удобный каталог в 
+вашей системе, и измените адрес электронной почты. Если вы не хотите получать уведомления, то закомментируйте всю строку.
+Теперь добавьте запись в crontab, наподобие этой
+
+    # Restart crashed Services
+    * * * * *       root	/path/to/script/service_restart.sh
+
+#### Solus:
+
+Зависимости:
+
+    sudo eopkg install nodejs git build-essential system.devel python gcc binutils kernal-headers xorg-server-devel
+
+Затем следуйте шагам ниже.
 
 ## 1. Скачиваем cjdns из GitHub.
 
@@ -226,7 +374,7 @@ The cjdns developers.
 
 ## Заметки
 
-Нормальная установка cjdns подразумевает запуск от имени администратора. Если вы не считаете нужным давать такие привилегии cjdns, то вы можете воспользоватся инструкцией ниже, запустив его не от root.
+Нормальная установка cjdns подразумевает запуск от имени администратора. Если вы не считаете нужным давать такие привилегии cjdns, то вы можете воспользоваться инструкцией ниже, запустив его не от root.
 
 Никому не передавайте свой файл настроек: именно он гарантирует вашу безопасность в сети и хранит ваш идентификатор. Если у вас его украдут, то ваша безопасность будет скомпрометирована, и злоумышленник сможет представиться вами в сети.
 
