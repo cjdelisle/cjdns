@@ -31,7 +31,7 @@ static int get(struct RandomSeed* randomSeed, uint64_t output[8])
     int fd = -1;
     int tries = 0;
     while ((fd = open("/dev/urandom", O_RDONLY, 0)) < 0) {
-        if (++tries > MAX_TRIES || errno == ENOENT) {
+        if (++tries > MAX_TRIES || errno != EINTR) {
             return -1;
         }
         sleep(1);
