@@ -65,11 +65,12 @@ their roles in the network.
 ## Scalability
 
 Cjdns is built around the bold and unproven assumption that a non-hierarchical
-network can scale. Cjdns uses a [distributed hash table][] to spread the load
-of routing among a number of nodes, rather than requiring every node know the
-exact location of every other node. At the bottom layer, packets are tagged
-with the exact route they should take, think of it like driving directions.
-At the upper layer the nodes maintain and test routes to other nodes who have
-numerically similar IPv6 addresses to their own. Forwarding is achieved by
-sending a packet to physically nearby nodes who have destinations numerically
-close to the target address.
+network can scale. Cjdns uses a
+[distributed hash table](https://en.wikipedia.org/wiki/Distributed_hash_table)
+to spread the load of routing among a number of nodes, rather than requiring
+every node know the exact location of every other node. At the bottom layer,
+packets are tagged with the exact route they should take, think of it like
+driving directions.  At the upper layer the nodes maintain and test routes to
+other nodes who have numerically similar IPv6 addresses to their own. Forwarding
+is achieved by sending a packet to physically nearby nodes who have destinations
+numerically close to the target address.
