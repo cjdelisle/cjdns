@@ -192,14 +192,14 @@ static int genconf(struct Random* rand, bool eth)
            "                    // Add connection credentials here to join the network\n"
            "                    // Ask somebody who is already connected.\n"
            "                }\n"
-           "            }\n"
-           "        ]\n");
+           "            }\n");
 #ifdef HAS_ETH_INTERFACE
-    printf(",\n");
+    printf("        ],\n");
     if (!eth) {
         printf("        /*\n");
     }
-    printf("        \"ETHInterface\":\n"
+    printf("        // The interface which allows peering using layer-2 ethernet frames\n"
+           "        \"ETHInterface\":\n"
            "        [\n"
            "            // Alternatively bind to just one device and either beacon and/or\n"
            "            // connect to a specified MAC address\n"
@@ -238,6 +238,8 @@ static int genconf(struct Random* rand, bool eth)
         printf("        */\n");
     }
     printf("\n");
+#else
+    printf("        ]\n");
 #endif
     printf("    },\n"
            "\n"
@@ -247,7 +249,7 @@ static int genconf(struct Random* rand, bool eth)
            "        // supernodes, if none are specified they'll be taken from your peers\n"
            "        \"supernodes\": [\n"
            "            //\"6743gf5tw80ExampleExampleExampleExamplevlyb23zfnuzv0.k\",\n"
-           "        ]\n"
+           "        ],\n"
            "\n"
            "        // The interface which is used for connecting to the cjdns network.\n"
            "        \"interface\":\n"
