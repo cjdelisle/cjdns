@@ -1,0 +1,78 @@
+#!/usr/bin/env node
+/* -*- Mode:Js */
+/* vim: set expandtab ts=4 sw=4: */
+/*
+ * You may redistribute this program and/or modify it under the terms of
+ * the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+const cjdns = require('./lib/cjdnsadmin/cjdnsadmin');
+const util = require('util');
+const vm = require('vm');
+const readline = require('readline');
+
+/**
+ * Promisify all functions in an object
+ * @param {Object} obj Object to promisify
+ */
+function promisifyAll(obj) {
+    for (let k in obj) {
+        if (typeof obj[k] === 'function') {
+            obj[k] = util.promisify(obj[k]);
+        }
+    }
+}
+
+/**
+ * Connect to cjdns
+ * @return {Promise} A promise resolving to the session object
+ */
+function connect() {
+    return new Promise((resolve, reject) => {
+        cjdns.connectWithAdminInfo(c => resolve(c));
+    });
+}
+
+/**
+ * Start the shell
+ */
+async function runShell() {
+    let session = await connect();
+    console.log([
+        `Connected`,
+        `Run "functions()" for a list of functions`
+    ].join('\n'));
+    promisifyAll(session);
+    let ctx = vm.createContext(session);
+    let rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+        prompt: 'cjdns> ',
+        removeHistoryDuplicates: true
+    });
+    rl.on('line', async line => {
+        let result;
+        try {
+            result = vm.runInContext(line, ctx);
+            if (typeof result === 'undefined') return rl.prompt();
+            if (result.then) result = await result;
+        } catch (err) {
+            result = err;
+        }
+        console.dir(result, {colors: true});
+        rl.prompt();
+    });
+    rl.on('close', () => process.exit(0));
+    rl.prompt();
+}
+
+runShell();
