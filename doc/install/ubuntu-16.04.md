@@ -4,7 +4,7 @@ This is a short guide how to setup an Ubuntu cjdns box.
 
 ## Install packages
 
-	apt-get install nodejs make gcc git python
+	sudo apt-get install nodejs git build-essential python2.7 make
 
 ## Clone, compile, install
 
