@@ -222,8 +222,8 @@ Copy the service_restart script `contrib/gentoo/service_restart.sh` to any conve
 your system and modify the eMail address. If you do not wish to be notified, comment out the whole line.
 Now add a crontab entry like this
 
-       `# Restart crashed Services
-       * * * * *       root	/path/to/script/service_restart.sh`
+       # Restart crashed Services
+       * * * * *       root	/path/to/script/service_restart.sh
 
 #### Solus:
 
