@@ -205,7 +205,7 @@ Now sync
 
 And install cjdns
 
-   emerge cjdns
+       emerge cjdns
 
 #### Automatic crash detection and restart
 
@@ -222,16 +222,16 @@ Copy the service_restart script `contrib/gentoo/service_restart.sh` to any conve
 your system and modify the eMail address. If you do not wish to be notified, comment out the whole line.
 Now add a crontab entry like this
 
-   # Restart crashed Services
-   * * * * *       root	/path/to/script/service_restart.sh
+       `# Restart crashed Services
+       * * * * *       root	/path/to/script/service_restart.sh`
 
 #### Solus:
 
 Dependencies:
 
-      sudo eopkg install nodejs git build-essential system.devel python gcc binutils kernal-headers xorg-server-devel
+       sudo eopkg install nodejs git build-essential system.devel python gcc binutils kernal-headers xorg-server-devel
 
-Then Follow the steps below:
+Then follow the steps below:
 
 *Sorry for so many steps. A package is being worked on currently*
 
