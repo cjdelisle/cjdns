@@ -9,7 +9,7 @@ compiler:
   - gcc
 
 # migrate to travis' new container infrastructure
-sudo: false
+sudo: true
 
 script:
   - "uname -a"
