@@ -22,8 +22,7 @@ scalability issues that plague existing networks.
 
 ## Community
 
-* [irc://irc.efnet.org/#cjdns][IRC Web]
-* [The Forest][] the largest cjdns network, as of October 2015 there are 2100 nodes.
+* [The Forest][] the largest BonsaiMesh network
 * [/r/darknetplan][]
 * [#bonsaimesh on Twitter][]
 
@@ -211,14 +210,14 @@ Then Follow the steps below:
 
 ## Setup
 
-This part assumes you want to build CJDNS by hand
+This part assumes you want to build BonsaiMesh by hand
 
-##### 1. Retrieve cjdns from GitHub
+##### 1. Retrieve BonsaiMesh from GitHub
 
 Clone the repository from GitHub and change to the source directory:
 
     git clone https://github.com/bonsaimesh/bonsaimesh.git bonsaimesh
-    cd cjdns
+    cd bonsaimesh
 
 ##### 2. Build
 
