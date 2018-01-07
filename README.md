@@ -11,23 +11,21 @@
 
 #### *Networking Reinvented*
 
-Cjdns implements an encrypted IPv6 network using public-key cryptography for
+BonsaiMesh implements an encrypted IPv6 network using public-key cryptography for
 address allocation and a distributed hash table for routing. This provides
 near-zero-configuration networking, and prevents many of the security and
 scalability issues that plague existing networks.
 
-[![Build Status](https://api.travis-ci.org/cjdelisle/cjdns.svg?branch=master)](https://travis-ci.org/cjdelisle/cjdns)
+[![Build Status](https://api.travis-ci.org/bonsaimesh/bonsaimesh.svg?branch=master)](https://travis-ci.org/bonsaimesh/bonsaimesh)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/387/badge)](https://bestpractices.coreinfrastructure.org/projects/387)
-[![tip for next commit](https://tip4commit.com/projects/941.svg)](https://tip4commit.com/github/cjdelisle/cjdns)
-[![irc](https://img.shields.io/badge/irc%20chat-%23cjdns-blue.svg)](https://kiwiirc.com/client/irc.efnet.org/?nick=visitor|?#cjdns)
-![License](https://img.shields.io/github/license/cjdelisle/cjdns.svg)
+![License](https://img.shields.io/github/license/bonsaimesh/bonsaimesh.svg)
 
 ## Community
 
 * [irc://irc.efnet.org/#cjdns][IRC Web]
-* [Hyperboria][] the largest cjdns network, as of October 2015 there are 2100 nodes.
+* [The Forest][] the largest cjdns network, as of October 2015 there are 2100 nodes.
 * [/r/darknetplan][]
-* [#cjdns on Twitter][]
+* [#bonsaimesh on Twitter][]
 
 
 ## Documentation
@@ -37,12 +35,12 @@ scalability issues that plague existing networks.
 
 Advanced configuration:
 
-* [Setup a cjdns NAT gateway for your LAN](doc/nat-gateway.md)
-* [Install cjdns on OpenIndiana](doc/open-indiana.md)
+* [Setup a NAT gateway for your LAN](doc/nat-gateway.md)
+* [Install on OpenIndiana](doc/open-indiana.md)
 
 Thank you for your time and interest,
 
-The BonsaiMesh Developers developers.
+The BonsaiMesh Developers.
 
 --------------------------------------------------------------------------------
 
