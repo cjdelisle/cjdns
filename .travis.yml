@@ -17,3 +17,5 @@ script:
   - "./do"
   - "SUBNODE=1 ./do"
   - "./android_do"
+
+"dist": artful
