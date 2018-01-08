@@ -22,7 +22,7 @@ scalability issues that plague existing networks.
 
 ## Community
 
-* [The Forest][] the largest BonsaiMesh network
+* [The Forest]() the largest BonsaiMesh network
 * [/r/darknetplan][]
 * [#bonsaimesh on Twitter][]
 
@@ -110,28 +110,7 @@ Everything you need is available prebuild in FreeBSD' ports.
 
 #### Arch:
 
-You can install cjdns by running
-
-    pacman -S cjdns
-
-If you need to build from source, everything you need can be installed like this
-
-    pacman -S nodejs git base-devel
-
-Alternatively, you may like to install via AUR from the package, `cjdns-git`.
-After Installation, The configuration file is located at `/etc/cjdroute.conf`.
-To start the service `cjdns.service`, do:
-
-    systemctl start cjdns
-
-To stop it:
-
-    systemctl stop cjdns
-
 #### Gentoo:
-
-cjdns is not yet in the main Gentoo repository, so you will have to use an overlay.
-The easiest way is to use Layman but you can do it by hand, too.
 
 ##### Layman:
 
@@ -254,7 +233,7 @@ need.
 
 #### 1. Generate a new configuration file
 
-    ./cjdroute --genconf >> cjdroute.conf
+    ./bonsaimesh --genconf >> bonsai.conf
 
 **Protect your conf file!**
 
@@ -266,7 +245,7 @@ network.
 To generate a conf file with permissions set so that only your user can
 read it and write to it:
 
-    (umask 077 && ./cjdroute --genconf > cjdroute.conf)
+    (umask 077 && ./bonsai --genconf > bonsai.conf)
 
 
 #### 2. Find a friend
@@ -496,4 +475,3 @@ That time of year again... Time for some open source Projects!
 [Tor]: https://www.torproject.org
 [I2P]: https://geti2p.net/en/
 [Freenet]: https://freenetproject.org
-

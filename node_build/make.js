@@ -430,7 +430,7 @@ Builder.configure({
 
 }).build(function (builder, waitFor) {
 
-    builder.buildExecutable('client/cjdroute2.c', 'cjdroute');
+    builder.buildExecutable('client/cjdroute2.c', 'bonsai');
 
     builder.buildExecutable('contrib/c/publictoip6.c');
     builder.buildExecutable('contrib/c/privatetopublic.c');
@@ -465,11 +465,11 @@ Builder.configure({
 
 }).success(function (builder, waitFor) {
 
-    console.log('\033[1;32mBuild completed successfully, type ./cjdroute to begin setup.\033[0m');
+    console.log('\033[1;32mBuild completed successfully, type ./bonsai to begin setup.\033[0m');
 
 }).failure(function (builder, waitFor) {
 
-    console.log('\033[1;31mFailed to build cjdns.\033[0m');
+    console.log('\033[1;31mFailed to build BonsaiMesh.\033[0m');
     process.exit(1);
 
 }).complete(function (builder, waitFor) {

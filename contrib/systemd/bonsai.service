@@ -1,0 +1,20 @@
+[Unit]
+Description=BonsaiMesh: Encrypted Communications for IoT and Blockchain
+Wants=network.target
+After=network.target
+
+[Service]
+ProtectHome=true
+ProtectSystem=true
+SyslogIdentifier=bonsai
+ExecStartPre=/bin/sh -ec "if ! test -s /etc/bonsai.conf; \
+                then umask 077; \
+                /usr/bin/cjdroute --genconf > /etc/bonsai.conf; \
+                echo 'WARNING: A new /etc/bonsai.conf file has been generated.'; \
+            fi"
+ExecStart=/bin/sh -c "exec /usr/bin/bonsai --nobg < /etc/bonsai.conf"
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+Also=bonsai-resume.service
