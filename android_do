@@ -61,11 +61,11 @@ Seccomp_NO=1
 mkdir $(pwd)/build_android/out
 
 declare -a APP_ABI=("armeabi-v7a" "arm64-v8a" "x86")
-declare -a APP_ABI2=("arm" "aarch64" "i686") 
+declare -a APP_ABI2=("arm" "aarch64" "i686")
 declare -a TARGET_ARCH=("arm" "aarch64" "x64")
 declare -a EABI=("androideabi" "android" "android")
 declare -a PLATFORM=(16 21 16)
-declare -a TOOLCHAIN=("arm-linux-androideabi-4.9" "aarch64-linux-android-4.9" "x86-4.9") 
+declare -a TOOLCHAIN=("arm-linux-androideabi-4.9" "aarch64-linux-android-4.9" "x86-4.9")
 
 for i in {0..2}
 do
@@ -95,7 +95,7 @@ do
     echo Compiler CFLAGS: $CFLAGS
     echo Compiler LDFLAGS: $LDFLAGS
     time ./do
-    cp cjdroute $(pwd)/build_android/out/${APP_ABI[$i]}/ || ret=$?
+    cp bonsai $(pwd)/build_android/out/${APP_ABI[$i]}/ || ret=$?
 
     if [ "$ret" != "" ] && [ "$ret" != "0" ]; then
       echo -e "\e[1;31mCopying ${APP_ABI[$i]} binary failed, non zero status returned - $ret\e[0m"
@@ -104,13 +104,13 @@ do
       echo -e "\e[1;32mCopied ${APP_ABI[$i]} successfully\e[0m"
     fi
 
-    rm cjdroute
+    rm bonsai
 done
 
 echo -e "\n\e[1;34mOutput:\e[0m"
 for i in {0..2}
 do
-    echo -e   "\e[1;34m        $(pwd)/build_android/out/${APP_ABI[$i]}/cjdroute\e[0m"
+    echo -e   "\e[1;34m        $(pwd)/build_android/out/${APP_ABI[$i]}/bonsai\e[0m"
 done
 
 exit $ret
