@@ -48,4 +48,6 @@ struct UDPAddrIface* UDPAddrIface_new(struct EventBase* base,
                                       struct Allocator* allocator,
                                       struct Except* exHandler,
                                       struct Log* logger);
+
+int UDPAddrIface_setDSCP(struct UDPAddrIface* iface, uint8_t dscp);
 #endif

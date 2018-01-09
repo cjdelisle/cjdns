@@ -210,7 +210,7 @@ static void initTunnel(Dict* args, void* vcontext, String* txid, struct Allocato
     struct Jmp jmp;
     Jmp_try(jmp) {
         String* desiredName = Dict_getStringC(args, "desiredTunName");
-        initTunnel2(desiredName, ctx, 8, &jmp.handler);
+        initTunnel2(desiredName, ctx, AddressCalc_ADDRESS_PREFIX_BITS, &jmp.handler);
     } Jmp_catch {
         String* error = String_printf(requestAlloc, "Failed to configure tunnel [%s]", jmp.message);
         sendResponse(error, ctx->admin, txid, requestAlloc);

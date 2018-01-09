@@ -1,4 +1,4 @@
-cjdroute /usr/bin/
+bonsai /usr/bin/
 contrib/python/cjdnsadmin/__init__.py /usr/share/cjdns/cjdnsadmin/
 contrib/python/cjdnsadmin/adminTools.py /usr/share/cjdns/cjdnsadmin/
 contrib/python/cjdnsadmin/bencode.py /usr/share/cjdns/cjdnsadmin/

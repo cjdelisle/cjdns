@@ -18,6 +18,7 @@ int main(int argc, char** argv)
     return 0;
 }
 #else
+#include "crypto/AddressCalc.h"
 #include "interface/tuntap/windows/NDPServer.h"
 #include "exception/Except.h"
 #include "memory/Allocator.h"
@@ -112,11 +113,11 @@ printf("init test");
     ndp->generic.receiveMessage = receiveMessage;
     ndp->generic.receiverContext = alloc;
     ndp->advertisePrefix[0] = 0xfd;
-    ndp->prefixLen = 8;
+    ndp->prefixLen = AddressCalc_ADDRESS_PREFIX_BITS;
 
     struct Sockaddr_storage ss;
     Assert_true(!Sockaddr_parse("fd00::1", &ss));
-    NetDev_addAddress(ifName, &ss.addr, 8, logger, NULL);
+    NetDev_addAddress(ifName, &ss.addr, AddressCalc_ADDRESS_PREFIX_BITS, logger, NULL);
 
     Timeout_setTimeout(fail, alloc, 10000, base, alloc);
 

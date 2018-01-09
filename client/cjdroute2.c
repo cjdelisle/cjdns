@@ -162,6 +162,8 @@ static int genconf(struct Random* rand, bool eth)
            "            {\n"
            "                // Bind to this port.\n"
            "                \"bind\": \"0.0.0.0:%u\",\n", port);
+    printf("                // Set the DSCP value for Qos. Default is 0.\n"
+           "                // \"dscp\": 46,\n");
     printf("\n"
            "                // Nodes to connect to (IPv4 only).\n"
            "                \"connectTo\":\n"
@@ -181,6 +183,8 @@ static int genconf(struct Random* rand, bool eth)
            "            {\n"
            "                // Bind to this port.\n"
            "                \"bind\": \"[::]:%u\",\n", port);
+    printf("                // Set the DSCP value for Qos. Default is 0.\n"
+           "                // \"dscp\": 46,\n");
     printf("\n"
            "                // Nodes to connect to (IPv6 only).\n"
            "                \"connectTo\":\n"
@@ -253,15 +257,15 @@ static int genconf(struct Random* rand, bool eth)
            "            // The type of tunfd (only \"android\" for now)\n"
            "            // If \"android\" here, the tunDevice should be used as the pipe path\n"
            "            // to transfer the tun file description.\n"
-           "            // \"tunfd\" : \"android\"\n"
+           "            // \"tunfd\" : \"android\"\n");
 #ifndef __APPLE__
-           "\n"
+    printf("\n"
            "            // The name of a persistent TUN device to use.\n"
            "            // This for starting cjdroute as its own user.\n"
            "            // *MOST USERS DON'T NEED THIS*\n"
-           "            //\"tunDevice\": \"" DEFAULT_TUN_DEV "\"\n"
+           "            //\"tunDevice\": \"" DEFAULT_TUN_DEV "\"\n");
 #endif
-           "        },\n"
+    printf("        },\n"
            "\n"
            "        // System for tunneling IPv4 and ICANN IPv6 through cjdns.\n"
            "        // This is using the cjdns switch layer as a VPN carrier.\n"

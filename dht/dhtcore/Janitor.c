@@ -12,6 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+#include "crypto/AddressCalc.h"
 #include "crypto/random/Random.h"
 #include "dht/Address.h"
 #include "dht/dhtcore/Janitor.h"
@@ -645,7 +646,7 @@ static void maintanenceCycle(void* vcontext)
     // random search
     Random_bytes(janitor->rand, addr.ip6.bytes, 16);
     // Make this a valid address.
-    addr.ip6.bytes[0] = 0xfc;
+    AddressCalc_makeValidAddress(addr.ip6.bytes);
 
     struct Node_Two* n = NodeStore_getBest(janitor->nodeStore, addr.ip6.bytes);
 

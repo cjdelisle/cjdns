@@ -20,6 +20,7 @@
 #include "subnode/PingResponder.h"
 #include "subnode/BoilerplateResponder.h"
 #include "subnode/ReachabilityCollector.h"
+#include "crypto/AddressCalc.h"
 #include "dht/Address.h"
 #include "wire/DataHeader.h"
 #include "wire/RouteHeader.h"
@@ -189,7 +190,7 @@ static Iface_DEFUN searchReq(struct Message* msg, struct SubnodePathfinder_pvt* 
     qp->cb = getRouteReply;
     qp->userData = pf;
 
-    Assert_true(pf->pub.snh->snodeAddr.ip6.bytes[0] == 0xfc);
+    Assert_true(AddressCalc_validAddress(pf->pub.snh->snodeAddr.ip6.bytes));
     qp->target = &pf->pub.snh->snodeAddr;
 
     Log_debug(pf->log, "Sending getRoute to snode %s",
@@ -354,7 +355,7 @@ static Iface_DEFUN unsetupSession(struct Message* msg, struct SubnodePathfinder_
     qp->cb = unsetupSessionPingReply;
     qp->userData = pf;
 
-    Assert_true(addr.ip6.bytes[0] == 0xfc);
+    Assert_true(AddressCalc_validAddress(addr.ip6.bytes));
     Assert_true(addr.path);
     qp->target = Address_clone(&addr, qp->alloc);
 

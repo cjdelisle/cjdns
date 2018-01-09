@@ -12,6 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+#include "crypto/AddressCalc.h"
 #include "dht/dhtcore/ReplySerializer.h"
 #include "subnode/ReachabilityCollector.h"
 #include "util/log/Log.h"
@@ -71,6 +72,7 @@ static void change0(struct ReachabilityCollector_pvt* rcp,
                 pi->pub.pathThemToUs = -1;
                 pi->pathToCheck = 1;
                 pi->pub.querying = true;
+                pi->pub.addr.path = nodeAddr->path;
             }
             if (rcp->pub.onChange) {
                 rcp->pub.onChange(&rcp->pub, nodeAddr->ip6.bytes, 0, 0, 0, 0xffff, 0xffff, 0xffff);
@@ -109,10 +111,17 @@ static void onReplyTimeout(struct MsgCore_Promise* prom)
     // meh do nothing, we'll just ping it again...
 }
 
+struct Query {
+    struct ReachabilityCollector_pvt* rcp;
+    String* addr;
+    uint8_t targetPath[20];
+};
+
 static void onReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom)
 {
+    struct Query* q = (struct Query*) prom->userData;
     struct ReachabilityCollector_pvt* rcp =
-        Identity_check((struct ReachabilityCollector_pvt*) prom->userData);
+        Identity_check((struct ReachabilityCollector_pvt*) q->rcp);
     if (!src) {
         onReplyTimeout(prom);
         mkNextRequest(rcp);
@@ -136,8 +145,9 @@ static void onReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom
 
     for (int i = results->length - 1; i >= 0; i--) {
         path = results->elems[i].path;
-        Log_debug(rcp->log, "getPeers result [%s]",
-            Address_toString(&results->elems[i], prom->alloc)->bytes);
+        Log_debug(rcp->log, "getPeers result [%s] [%s][%s]",
+            Address_toString(&results->elems[i], prom->alloc)->bytes,
+            q->addr->bytes, q->targetPath);
         if (Bits_memcmp(results->elems[i].ip6.bytes, rcp->myAddr->ip6.bytes, 16)) { continue; }
         if (pi->pub.pathThemToUs != path) {
             Log_debug(rcp->log, "Found back-route for [%s]",
@@ -152,7 +162,14 @@ static void onReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom
         mkNextRequest(rcp);
         return;
     }
-    pi->pathToCheck = (results->length < 8) ? 1 : path;
+    if (results->length < 8) {
+        // Peer's gp response does not include my addr, meaning the peer might not know us yet.
+        // should wait peer sendPing (see InterfaceControl.c).
+        pi->pathToCheck = 1;
+        return;
+    } else {
+        pi->pathToCheck = path;
+    }
     mkNextRequest(rcp);
 }
 
@@ -169,22 +186,24 @@ static void mkNextRequest(struct ReachabilityCollector_pvt* rcp)
     }
     struct MsgCore_Promise* query =
         MsgCore_createQuery(rcp->msgCore, TIMEOUT_MILLISECONDS, rcp->alloc);
-    query->userData = rcp;
+    struct Query* q = Allocator_calloc(query->alloc, sizeof(struct Query), 1);
+    q->rcp = rcp;
+    q->addr = Address_toString(&pi->pub.addr, query->alloc);
+    query->userData = q;
     query->cb = onReply;
-    Assert_true(pi->pub.addr.ip6.bytes[0] == 0xfc);
+    Assert_true(AddressCalc_validAddress(pi->pub.addr.ip6.bytes));
     query->target = Address_clone(&pi->pub.addr, query->alloc);
     Dict* d = query->msg = Dict_new(query->alloc);
     Dict_putStringCC(d, "q", "gp", query->alloc);
     uint64_t label_be = Endian_hostToBigEndian64(pi->pathToCheck);
+    uint8_t nearbyLabelBytes[8];
+    Bits_memcpy(nearbyLabelBytes, &label_be, 8);
 
-    uint8_t targetPath[20];
-    AddrTools_printPath(targetPath, pi->pathToCheck);
-    Log_debug(rcp->log, "Getting peers for peer [%s] tar [%s]",
-        Address_toString(&pi->pub.addr, query->alloc)->bytes,
-        targetPath);
+    AddrTools_printPath(q->targetPath, pi->pathToCheck);
+    Log_debug(rcp->log, "Getting peers for peer [%s] tar [%s]", q->addr->bytes, q->targetPath);
 
     Dict_putStringC(d, "tar",
-        String_newBinary((uint8_t*) &label_be, 8, query->alloc), query->alloc);
+        String_newBinary(nearbyLabelBytes, 8, query->alloc), query->alloc);
     BoilerplateResponder_addBoilerplate(rcp->br, d, &pi->pub.addr, query->alloc);
 }
 

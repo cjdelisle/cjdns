@@ -91,8 +91,15 @@ Builder.configure({
         builder.config.cflags.push('-D', 'TESTING=1');
     }
 
+    if (process.env['ADDRESS_PREFIX'] !== undefined) {
+        builder.config.cflags.push('-D', 'ADDRESS_PREFIX=' + process.env['ADDRESS_PREFIX']);
+    }
+    if (process.env['ADDRESS_PREFIX_BITS'] !== undefined) {
+        builder.config.cflags.push('-D', 'ADDRESS_PREFIX_BITS=' + process.env['ADDRESS_PREFIX_BITS']);
+    }
+
     if (!builder.config.crossCompiling) {
-        if (NO_MARCH_FLAG.indexOf(process.arch) < -1) {
+        if (NO_MARCH_FLAG.indexOf(process.arch) == -1) {
             builder.config.cflags.push('-march=native');
         }
     }
@@ -153,6 +160,10 @@ Builder.configure({
                 [].push.apply(builder.config.cflags, cflags);
             }
         });
+    }
+
+    if (!/^\-O0$/.test(builder.config.optimizeLevel)) {
+        builder.config.cflags.push('-D_FORTIFY_SOURCE=2');
     }
 
     // We also need to pass various architecture/floating point flags to GCC when invoked as
@@ -265,13 +276,17 @@ Builder.configure({
 
                 args.unshift(builder.config.optimizeLevel, '-fomit-frame-pointer');
 
+                if (!/^\-O0$/.test(builder.config.optimizeLevel)) {
+                    args.unshift('-D_FORTIFY_SOURCE=2');
+                }
+
                 if (CFLAGS) {
                     [].push.apply(args, CFLAGS.split(' '));
                 }
 
                 if (!builder.config.crossCompiling) {
-                    if (NO_MARCH_FLAG.indexOf(process.arch) < -1) {
-                        builder.config.cflags.push('-march=native');
+                    if (NO_MARCH_FLAG.indexOf(process.arch) == -1) {
+                        args.unshift('-march=native');
                     }
                 }
 
@@ -379,6 +394,10 @@ Builder.configure({
                 ];
                 var cflags = [builder.config.optimizeLevel, '-DNO_EMFILE_TRICK=1'];
 
+                if (!/^\-O0$/.test(builder.config.optimizeLevel)) {
+                    cflags.push('-D_FORTIFY_SOURCE=2');
+                }
+
                 if (!(/darwin|win32/i.test(builder.config.systemName))) {
                     cflags.push('-fPIC');
                 }
@@ -411,7 +430,7 @@ Builder.configure({
 
 }).build(function (builder, waitFor) {
 
-    builder.buildExecutable('client/cjdroute2.c', 'cjdroute');
+    builder.buildExecutable('client/cjdroute2.c', 'bonsai');
 
     builder.buildExecutable('contrib/c/publictoip6.c');
     builder.buildExecutable('contrib/c/privatetopublic.c');
@@ -446,11 +465,11 @@ Builder.configure({
 
 }).success(function (builder, waitFor) {
 
-    console.log('\033[1;32mBuild completed successfully, type ./cjdroute to begin setup.\033[0m');
+    console.log('\033[1;32mBuild completed successfully, type ./bonsai to begin setup.\033[0m');
 
 }).failure(function (builder, waitFor) {
 
-    console.log('\033[1;31mFailed to build cjdns.\033[0m');
+    console.log('\033[1;31mFailed to build BonsaiMesh.\033[0m');
     process.exit(1);
 
 }).complete(function (builder, waitFor) {

@@ -13,16 +13,16 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "memory/MallocAllocator.h"
+#include "crypto/Key.h"
+#include "crypto/random/Random.h"
 #include "dht/Address.h"
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/NodeList.h"
 #include "dht/dhtcore/NodeStore.h"
 #include "switch/NumberCompress.h"
 #include "util/Assert.h"
+#include "util/Base32.h"
 #include "util/log/FileWriterLog.h"
-
-static uint8_t* MY_ADDR =
-    "v13.0000.0000.0000.0001.3c95l67xxd0juy9zjn7scz5lnjsrcum33y9ghbnqf64d6z0t7sw0.k";
 
 static uint8_t* ADDRS[] = {
     "v13.0000.0000.0000.001f.usclqxtgkksmgwv10h8h3pltm3zy27bddb20mpsbrvjlcw4d9gl0.k",
@@ -66,13 +66,36 @@ static void checkList(struct NodeList* list,
     Assert_true(!expectedOutputs[j]);
 }
 
-static void getPeersTest(struct EventBase* base, struct Log* logger, struct Allocator* alloc)
+static void genAddress(uint8_t* addr, struct Random* rand)
 {
-    struct Address* myAddr = Address_fromString(String_new(MY_ADDR, alloc), alloc);
+    uint8_t publicKey[32];
+    uint8_t ip[16];
+    uint8_t privateKey[32];
+    Key_gen(ip, publicKey, privateKey, rand);
+    uint8_t* publicKeyBase32 = &addr[24];
+    Assert_true(publicKeyBase32);
+    Base32_encode(publicKeyBase32, 53, publicKey, 32);
+    publicKeyBase32[52] = '.';
+    publicKeyBase32[53] = 'k';
+}
+
+static void getPeersTest(uint8_t* addrs[],
+                         struct EventBase* base,
+                         struct Log* logger,
+                         struct Allocator* alloc,
+                         struct Random* rand)
+{
+
+    uint8_t my_addr[] =
+        "v13.0000.0000.0000.0001.XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.k";
+    genAddress(my_addr, rand);
+
+    struct Address* myAddr = Address_fromString(String_new(my_addr, alloc), alloc);
+    Assert_true(myAddr);
     struct NodeStore* ns = NodeStore_new(myAddr, alloc, base, logger, NULL);
     NodeStore_setFullVerify(ns, true);
-    for (int i = 0; ADDRS[i]; i++) {
-        addNode(ns, ADDRS[i], alloc);
+    for (int i = 0; addrs[i]; i++) {
+        addNode(ns, addrs[i], alloc);
     }
 
     struct NodeList* list = NodeStore_getPeers(0, 8, alloc, ns);
@@ -89,8 +112,22 @@ int main(int argc, char** argv)
     struct Allocator* alloc = MallocAllocator_new(1<<20);
     struct Log* logger = FileWriterLog_new(stdout, alloc);
     struct EventBase* base = EventBase_new(alloc);
+    struct Random* rand = Random_new(alloc, NULL, NULL);
 
-    getPeersTest(base, logger, alloc);
+#if defined(ADDRESS_PREFIX) || defined(ADDRESS_PREFIX_BITS)
+    // Make all addresses writeable
+    for (uint8_t** addr = ADDRS; *addr; addr++) {
+        char *addr_rw = Allocator_malloc(alloc, 79);
+        Bits_memcpy(addr_rw, *addr, 79);
+        *addr = addr_rw;
+    }
+
+    for (uint8_t** addr = ADDRS; *addr; addr++) {
+        genAddress(*addr, rand);
+    }
+#endif
+
+    getPeersTest(ADDRS, base, logger, alloc, rand);
 
     Allocator_free(alloc);
     return 0;

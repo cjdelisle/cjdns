@@ -243,6 +243,7 @@ static void subscribe(Dict* args, void* vcontext, String* txid, struct Allocator
         error = "Max subscription count reached.";
     } else {
         struct Subscription* sub = &log->subscriptions[log->subscriptionCount];
+        Bits_memset(sub, 0, sizeof(struct Subscription));
         sub->logLevel = level;
         sub->alloc = Allocator_child(log->alloc);
         String* fileStrCpy = String_clone(fileStr, sub->alloc);

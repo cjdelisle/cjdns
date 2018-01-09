@@ -11,70 +11,39 @@
 
 #### *Networking Reinvented*
 
-Cjdns implements an encrypted IPv6 network using public-key cryptography for
+BonsaiMesh implements an encrypted IPv6 network using public-key cryptography for
 address allocation and a distributed hash table for routing. This provides
 near-zero-configuration networking, and prevents many of the security and
 scalability issues that plague existing networks.
 
-[![Build Status](https://api.travis-ci.org/cjdelisle/cjdns.svg?branch=master)](https://travis-ci.org/cjdelisle/cjdns)
+[![Build Status](https://api.travis-ci.org/bonsaimesh/bonsaimesh.svg?branch=master)](https://travis-ci.org/bonsaimesh/bonsaimesh)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/387/badge)](https://bestpractices.coreinfrastructure.org/projects/387)
-[![tip for next commit](https://tip4commit.com/projects/941.svg)](https://tip4commit.com/github/cjdelisle/cjdns)
-[![irc](https://img.shields.io/badge/irc%20chat-%23cjdns-blue.svg)](https://kiwiirc.com/client/irc.efnet.org/?nick=visitor|?#cjdns)
-![License](https://img.shields.io/github/license/cjdelisle/cjdns.svg)
-
-## Testimonials
-
-    23:26 <@jercos> well, cjdns is now officially more reliable than the open
-                    internet for getting to my cheaper VPSes :|
-
-    12:52 < mariner> so i don't know if it's been done before, and i assume it's
-                     obvious, but I think it's neat. Currently on hype from an
-                     airplane
-
-    00:36 < tester> man sites take so long to load on i2p
-    00:36 < tester> i value speed over anonymity any day
-
-    <DuoNoxSol> it's notably more reliable than the normal internet
-
-    09:46 < Kubuxu> I so love cjdns code base
-
-    <whyrusleeping> my internet is way better now.
-    <whyrusleeping> thanks
-    <whyrusleeping> i'm really upset and sad that its better
-    <whyrusleeping> but also quite happy
-
-    21:01 <@grewalsat> this is amazing. with my workpalce speedtest.net results I get around 6+mb speed, and with my cjdns-gate as vpn network I'm getting like 11-15mb download speed in speedtest.net
-    21:01 <@grewalsat> :P
-    21:01 <@grewalsat> plus, access anything! :D
-
-    <davidar> Yeah, I have to admit I sort of avoided hypeirc because of stuff like that
+![License](https://img.shields.io/github/license/bonsaimesh/bonsaimesh.svg)
 
 ## Community
 
-* [irc://irc.efnet.org/#cjdns][IRC Web]
-* [Hyperboria][] the largest cjdns network, as of October 2015 there are 2100 nodes.
+* [The Forest]() the largest BonsaiMesh network
 * [/r/darknetplan][]
-* [#cjdns on Twitter][]
+* [#bonsaimesh on Twitter][]
 
 
 ## Documentation
 
 * [Project Goals](doc/projectGoals.md)
-* [Cjdns Whitepaper](doc/Whitepaper.md)
-* [Cjdns on Wikipedia][]
+* [BonsaiMesh Whitepaper](doc/Whitepaper.md)
 
 Advanced configuration:
 
-* [Setup a cjdns NAT gateway for your LAN](doc/nat-gateway.md)
-* [Install cjdns on OpenIndiana](doc/open-indiana.md)
+* [Setup a NAT gateway for your LAN](doc/nat-gateway.md)
+* [Install on OpenIndiana](doc/open-indiana.md)
 
 Thank you for your time and interest,
 
-The cjdns developers.
+The BonsaiMesh Developers.
 
 --------------------------------------------------------------------------------
 
-## How to install cjdns
+## How to install BonsaiMesh
 
 These instructions are for Debian-based Linux distributions and macOS. They should be
 informative enough for use on other distributions - just don't expect them to
@@ -100,8 +69,10 @@ it will be downloaded and installed in the source tree.
     sudo yum localinstall https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
     sudo yum install nodejs git
     sudo yum install @development-tools
-Building from package:
-`sudo yum localinstall https://kojipkgs.fedoraproject.org//packages/cjdns/17.4/4.el6/src/cjdns-17.4-4.el6.src.rpm`
+
+#### Building from package:
+
+    sudo yum localinstall https://kojipkgs.fedoraproject.org//packages/cjdns/17.4/4.el6/src/cjdns-17.4-4.el6.src.rpm
 
 If you are on a laptop and suspend or hibernate it, cjdroute will take a few
 minutes to make coffee and figure out what just happened when it wakes up.  You
@@ -139,108 +110,93 @@ Everything you need is available prebuild in FreeBSD' ports.
 
 #### Arch:
 
-You can install cjdns by running
-
-    pacman -S cjdns
-
-If you need to build from source, everything you need can be installed like this
-
-    pacman -S nodejs git base-devel
-
-Alternatively, you may like to install via AUR from the package, `cjdns-git`.
-After Installation, The configuration file is located at `/etc/cjdroute.conf`.
-To start the service `cjdns.service`, do:
-
-        systemctl start cjdns
-
-To stop it:
-
-       systemctl stop cjdns
-
 #### Gentoo:
-
-cjdns is not yet in the main Gentoo repository, so you will have to use an overlay.
-The easiest way is to use Layman but you can do it by hand, too.
 
 ##### Layman:
 
 First, you need to install layman.
 
-      emerge layman
+    emerge layman
 
 If layman is installed correctly, you can add the overlay
 
-      layman -f
-      layman -a weuxel
+    layman -f
+    layman -a weuxel
 
 For future update of the overlay use
 
-      layman -S
+    layman -S
 
 Now you can install cjdns
 
-      emerge cjdns
+    emerge cjdns
 
 ##### By hand:
 
 You will have to clone the overlay repository
 
-       cd /opt
-       git clone https://github.com/Weuxel/portage-weuxel.git
+    cd /opt
+    git clone https://github.com/Weuxel/portage-weuxel.git
 
 Now tell portage to use this repo
 
-       cd /etc/portage/repos.conf/
+    cd /etc/portage/repos.conf/
 
 Create a file `portage-weuxel.conf` containing
 
-       [weuxel]
-       location = /opt/portage-weuxel
-       masters = gentoo
-       auto-sync = yes
+    [weuxel]
+    location = /opt/portage-weuxel
+    masters = gentoo
+    auto-sync = yes
 
 Now sync
 
-       emerge --sync
+    emerge --sync
 
 And install cjdns
 
-   emerge cjdns
+    emerge cjdns
 
 #### Automatic crash detection and restart
 
 Copy the the openrc init script from `contrib/openrc` to `/etc/init.d/` and modify the `CONFFILE` and `command` parameter to your needs.
 Then start cjdns by issuing
 
-   /etc/init.d/cjdns start
+    /etc/init.d/cjdns start
 
 Configure the init system to autostart cjdns
 
-   rc-update add cjdns default
+    rc-update add cjdns default
 
 Copy the service_restart script `contrib/gentoo/service_restart.sh` to any convenient directory on
 your system and modify the eMail address. If you do not wish to be notified, comment out the whole line.
 Now add a crontab entry like this
 
-   # Restart crashed Services
-   * * * * *       root	/path/to/script/service_restart.sh
+    # Restart crashed Services
+    * * * * *       root	/path/to/script/service_restart.sh
 
 #### Solus:
 
 Dependencies:
 
-      sudo eopkg install nodejs git build-essential system.devel python gcc binutils kernal-headers xorg-server-devel
+    sudo eopkg install nodejs git build-essential system.devel python gcc binutils kernal-headers xorg-server-devel
 
 Then Follow the steps below:
 
 *Sorry for so many steps. A package is being worked on currently*
 
-##### 1. Retrieve cjdns from GitHub
+--------------------------------------------------------------------------------
+
+## Setup
+
+This part assumes you want to build BonsaiMesh by hand
+
+##### 1. Retrieve BonsaiMesh from GitHub
 
 Clone the repository from GitHub and change to the source directory:
 
-    git clone https://github.com/cjdelisle/cjdns.git cjdns
-    cd cjdns
+    git clone https://github.com/bonsaimesh/bonsaimesh.git bonsaimesh
+    cd bonsaimesh
 
 ##### 2. Build
 
@@ -249,15 +205,11 @@ Clone the repository from GitHub and change to the source directory:
 Look for `Build completed successfully, type ./cjdroute to begin setup.`, then
 proceed below:
 
---------------------------------------------------------------------------------
-
-## Setup
-
 Run cjdroute without options for HELP:
 
     ./cjdroute
 
-### 0. Make sure you've got the stuff.
+#### 0. Make sure you've got the stuff.
 
 If you're on macOS, don't worry about this step.
 
@@ -279,9 +231,9 @@ TUN/TAP device - this is standard protocol so they should know exactly what you
 need.
 
 
-### 1. Generate a new configuration file
+#### 1. Generate a new configuration file
 
-    ./cjdroute --genconf >> cjdroute.conf
+    ./bonsaimesh --genconf >> bonsai.conf
 
 **Protect your conf file!**
 
@@ -293,10 +245,10 @@ network.
 To generate a conf file with permissions set so that only your user can
 read it and write to it:
 
-    (umask 077 && ./cjdroute --genconf > cjdroute.conf)
+    (umask 077 && ./bonsai --genconf > bonsai.conf)
 
 
-### 2. Find a friend
+#### 2. Find a friend
 
 To get into an existing network (e.g. Hyperboria), you need to connect to
 someone who is already in the network. This is required for a number of
@@ -316,7 +268,7 @@ To find a friend, get out there and join our [community](#community). Also, have
 a look at the [Hyperboria Map][] to find peers near you.
 
 
-### 3. Connect your node to your friend's node
+#### 3. Connect your node to your friend's node
 
 **To initiate the connection OUTbound**
 
@@ -430,7 +382,7 @@ See [doc/configure.md](doc/configure.md) for more details on configuration,
 including how to peer with other cjdns nodes over ethernet and wifi.
 
 
-### 4. Secure your system - check for listening services
+#### 4. Secure your system - check for listening services
 
 Once your node is running, you're now a newly minted IPv6 host. Your operating
 system may automatically reconfigure network services to use this new address.
@@ -440,7 +392,7 @@ offering more services than you intended to. ;)
 See [doc/network-services.md](doc/network-services.md) for instructions.
 
 
-### 5. Start it up!
+#### 5. Start it up!
 
     sudo ./cjdroute < cjdroute.conf
 
@@ -462,7 +414,7 @@ without concern for permissions. To start cjdns as a non-root user, see
 [doc/non-root-user.md](doc/non-root-user.md).
 
 
-### 6. Get in IRC
+#### 6. Get in IRC
 
 Welcome to the network! You're now a network administrator. There are
 responsibilities which come with being a network administrator which include
@@ -470,7 +422,7 @@ being available in case there is something wrong with your equipment. You should
 stay on [IRC](#community) so that people can reach you.
 
 
-## Admin interface
+### Admin interface
 
 When cjdroute is up and running, the admin interface will be available at
 `udp://localhost:11234` (this can be changed in the `cjdroute.conf`
@@ -497,11 +449,12 @@ You can access the admin API with:
  terms by someone with strong familiarity with the code. They will make a pull request to the
  docs/bugs directory.
 
-### Security
+## Security
 Security issues should be reported on IRC the same as other bugs. We don't have a closed
 group of people with special knowledge so that means the default security reporting method is
 full disclosure.
-see: https://github.com/cjdelisle/cjdns/blob/master/doc/security_specification.md to see if a
+
+See: [security_specification.md](https://github.com/cjdelisle/cjdns/blob/master/doc/security_specification.md) to see if a
 possible security issue is really a security issue.
 
 That time of year again... Time for some open source Projects!

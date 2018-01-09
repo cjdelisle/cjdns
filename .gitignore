@@ -31,3 +31,5 @@
 /node_modules/jshint
 /node_modules/.bin
 /contrib/docker/cjdns*/
+.vscode
+/bonsai*

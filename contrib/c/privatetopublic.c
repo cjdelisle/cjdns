@@ -68,10 +68,9 @@ int main(int argc, char** argv)
         }
     }
 
-    Hex_decode(privateKey, 32, privateKeyHexIn, 65);
+    Hex_decode(privateKey, 32, privateKeyHexIn, 64);
     crypto_scalarmult_curve25519_base(address.key, privateKey);
-    AddressCalc_addressForPublicKey(address.ip6.bytes, address.key);
-    if (address.ip6.bytes[0] == 0xFC) {
+    if (AddressCalc_addressForPublicKey(address.ip6.bytes, address.key)) {
         Base32_encode(publicKeyBase32Out, 53, address.key, 32);
         Address_printShortIp(addressOut, &address);
         printf(    "Input privkey: %s\n"

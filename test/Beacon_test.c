@@ -136,7 +136,21 @@ static void start(struct Allocator* alloc,
                   struct Random* rand,
                   RunTest* runTest)
 {
+
+#if defined(ADDRESS_PREFIX) || defined(ADDRESS_PREFIX_BITS)
+    uint8_t address[16];
+    uint8_t publicKey[32];
+    uint8_t privateKeyA[32];
+    Key_gen(address, publicKey, privateKeyA, rand);
     struct TestFramework* a =
+        TestFramework_setUp((char*) privateKeyA, alloc, base, rand, logger);
+
+    uint8_t privateKeyB[32];
+    Key_gen(address, publicKey, privateKeyB, rand);
+    struct TestFramework* b =
+        TestFramework_setUp((char*) privateKeyB, alloc, base, rand, logger);
+#else
+     struct TestFramework* a =
         TestFramework_setUp("\xad\x7e\xa3\x26\xaa\x01\x94\x0a\x25\xbc\x9e\x01\x26\x22\xdb\x69"
                             "\x4f\xd9\xb4\x17\x7c\xf3\xf8\x91\x16\xf3\xcf\xe8\x5c\x80\xe1\x4a",
                             alloc, base, rand, logger);
@@ -149,6 +163,7 @@ static void start(struct Allocator* alloc,
                             alloc, base, rand, logger);
     //"publicKey": "vz21tg07061s8v9mckrvgtfds7j2u5lst8cwl6nqhp81njrh5wg0.k",
     //"ipv6": "fc1f:5b96:e1c5:625d:afde:2523:a7fa:383a",
+#endif
 
 
     struct TwoNodes* out = Allocator_calloc(alloc, sizeof(struct TwoNodes), 1);

@@ -18,6 +18,7 @@
 #include "benc/Int.h"
 #include "benc/serialization/standard/BencMessageWriter.h"
 #include "benc/serialization/standard/BencMessageReader.h"
+#include "crypto/AddressCalc.h"
 #include "crypto/random/Random.h"
 #include "exception/Jmp.h"
 #include "interface/tuntap/TUNMessageType.h"
@@ -660,7 +661,10 @@ static bool isValidAddress6(uint8_t sourceAndDestIp6[32],
                             bool isFromTun,
                             struct IpTunnel_Connection* conn)
 {
-    if (sourceAndDestIp6[0] == 0xfc || sourceAndDestIp6[16] == 0xfc) { return false; }
+    if (AddressCalc_validAddress(sourceAndDestIp6)
+        || AddressCalc_validAddress(&sourceAndDestIp6[16])) {
+        return false;
+    }
     uint8_t* compareAddr = (isFromTun)
         ? ((conn->isOutgoing) ? sourceAndDestIp6 : &sourceAndDestIp6[16])
         : ((conn->isOutgoing) ? &sourceAndDestIp6[16] : sourceAndDestIp6);

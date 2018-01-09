@@ -43,7 +43,7 @@ permission to set the IPv6 and IPv4 addresses on the TUN device.
 ## Connecting to a gateway
 
 To connect to an IPv6 gate, you must first ask the operator of the gate to add your
-key to his gate, once he has added it, add their *key* to the `outgoingConnections`
+key to their gate, once he has added it, add their *key* to the `outgoingConnections`
 section of the `IpTunnel` block in your cjdroute.conf like this:
 
     "outgoingConnections":
@@ -190,7 +190,13 @@ any with strange messages about "neighbor solicitation" or "neighbor advertiseme
 ISP's equipment is dropping replies instead of routing return traffic despite the addresses in use being
 allocated to you. This problem exists because of something called NDP (Neighbor Discovery Protocol), in which a
 request for 'neighbours' is made, and traffic isn't allowed to be sent back unless the ISP receives a response.
-Thankfully, there is a workaround available that involves running a daemon called `npd6`, which provides a
+
+A recent linux kernel allows you to set this directly, by
+
+    sysctl -w net.ipv6.conf.all.proxy_ndp=1
+    ip -6 neigh add proxy 1111:1111:1111:1111::4 dev eth0
+    
+Otherwise, there is a workaround available that involves running a daemon called `npd6`, which provides a
 response that satisfies NDP. Install npd6 through your distro's package management system if it's available,
 (recent Debian-based distributions may be able to install the package located here:
 http://code.google.com/p/npd6/downloads/list) otherwise you'll have to download and build it yourself by doing

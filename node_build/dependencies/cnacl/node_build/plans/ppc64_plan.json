@@ -38,7 +38,7 @@
     [
       "crypto_onetimeauth",
       "poly1305",
-      "53"
+      "donna"
     ],
     [
       "crypto_core",
