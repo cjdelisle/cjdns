@@ -1,7 +1,7 @@
 Patches are very much welcome!
 ==============================
 
-If you want to get a change included in bonsaimesh, the best thing to do is start by
+If you want to get a change included in cjdns, the best thing to do is start by
 asking in IRC if the change fits the spirit of the project, then developing
 your change in your own git tree and then asking for it to be merged in with
 the others.
@@ -93,7 +93,7 @@ See: http://www.valgrind.org/docs/manual/manual-core.html#manual-core.limits
 Profiling
 ---------
 
-The best way to profile bonsaimesh is using Brendan Gregg's FlameGraph generator.
+The best way to profile cjdns is using Brendan Gregg's FlameGraph generator.
 http://www.brendangregg.com/FlameGraphs/cpuflamegraphs.html
 You can do this on Linux using the `perf` utility.
 
@@ -108,7 +108,7 @@ You can do this on Linux using the `perf` utility.
 Simulating
 ----------
 
-bonsaimesh comes with it's own simulator, it will create *n* nodes and link them together
+Cjdns comes with it's own simulator, it will create *n* nodes and link them together
 however you wish. It's like having many cjdns processes all running together but they're
 all in the same process so it is much more efficient. You can set admin credentials on
 one node and then use the admin tools to access it as you would an ordinary router.
