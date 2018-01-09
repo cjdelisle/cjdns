@@ -1,5 +1,5 @@
 [Unit]
-Description=Restart cjdns on resume from sleep
+Description=Restart Bonsai on resume from sleep
 After=sleep.target
 
 [Service]

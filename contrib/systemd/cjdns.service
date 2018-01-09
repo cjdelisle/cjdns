@@ -17,4 +17,4 @@ Restart=always
 
 [Install]
 WantedBy=multi-user.target
-Also=bonsai-resume.service
+Also=cjdns-resume.service
