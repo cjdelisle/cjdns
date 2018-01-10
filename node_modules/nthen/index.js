@@ -11,7 +11,9 @@ type Nthen_t = ((WaitFor_t)=>void)=>NthenRet_t;
 module.exports = */ (function() {
 var nThen /*:Nthen_t*/ = function(next) {
     var funcs /*:Array<(WaitFor_t)=>void>*/ = [];
+    var timeouts = [];
     var calls = 0;
+    var abort;
     var waitFor = function(func) {
         calls++;
         return function() {
@@ -19,21 +21,28 @@ var nThen /*:Nthen_t*/ = function(next) {
                 func.apply(null, arguments);
             }
             calls = (calls || 1) - 1;
-            while (!calls && funcs.length) {
+            while (!calls && funcs.length && !abort) {
                 funcs.shift()(waitFor);
             }
         };
     };
+    waitFor.abort = function () {
+        timeouts.forEach(clearTimeout);
+        abort = 1;
+    };
     var ret = {
         nThen: function(next) {
-            if (!calls) {
-                next(waitFor);
-            } else {
-                funcs.push(next);
+            if (!abort) {
+                if (!calls) {
+                    next(waitFor);
+                } else {
+                    funcs.push(next);
+                }
             }
             return ret;
         },
         orTimeout: function(func, milliseconds) {
+            if (abort) { return ret; }
             if (!milliseconds) { throw Error("Must specify milliseconds to orTimeout()"); }
             var cto;
             var timeout = setTimeout(function() {
@@ -42,7 +51,16 @@ var nThen /*:Nthen_t*/ = function(next) {
                 calls = (calls || 1) - 1;
                 while (!calls && funcs.length) { funcs.shift()(waitFor); }
             }, milliseconds);
-            funcs.push(cto = function() { clearTimeout(timeout); });
+            funcs.push(cto = function() {
+                var idx = timeouts.indexOf(timeout);
+                if (idx > -1) {
+                    timeouts.splice(idx, 1);
+                    clearTimeout(timeout);
+                    return;
+                }
+                throw new Error('timeout not listed in array');
+            });
+            timeouts.push(timeout);
             return ret;
         }
     };
