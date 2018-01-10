@@ -4,115 +4,177 @@ nThen is designed to be the most small, simple and intuitive asynchronous librar
 
 ## How you used to do things
 
-    x = synchronous_call();
-    y = use(x);
-    a = another_sync_call(x);          # Hey!
-    b = yet_another_sync_call(x);      # these two could run at the same time!
-    z = something_else_synchronous(b);
-    c = last_synchronous_call(z);
-    do_next_job(c);
+```javascript
+let x = synchronous_call();
+let y = use(x);
+let a = another_sync_call(x);          // Hey!
+let b = yet_another_sync_call(x);      // these two could run at the same time!
+let z = something_else_synchronous(b);
+let c = last_synchronous_call(z);
+do_next_job(c);
+```
 
 Ok so we learned that doing it that way is slow and we have asynchronous so we never have to be slow anymore.
 
 ## The naive asynchronous approach
 
-    var context = {};
-    async_call(function(x) {
-        context.y = use(x);
-        another_call(x, function(a) {
-            context.a = a;
-            if (context.c) { do_next_job(context); }
-        });
-        yet_another_call(x, function(b) {
-            something_else(b, function(z) {
-                last_call(z, function(c) {
-                    context.c = c;
-                    if (context.a) { do_next_job(context); }
-                });
+```javascript
+asyncCall(function (x) {
+    let y = use(x);
+    let aa;
+    let cc;
+    anotherCall(x, function (a) {
+        aa = a;
+        if (cc) { doNextJob(cc); }
+    });
+    yetAnotherCall(x, function (b) {
+        somethingElse(b, function (z) {
+            lastCall(z, function (c) {
+                cc = c;
+                if (aa) { doSomethingElse(aa); }
             });
         });
     });
+});
+```
 
 That doesn't look like very much fun :(
 And to make matters worse, what happens if one of those functions never returns?
 
-    var to = setTimeout(function() { abort_process(); }, 3000);
+```javascript
+var to = setTimeout(function() { stopEverything(); }, 3000);
+```
 
 You can see where this is going.
 
 
 ## nThen to the rescue
 
-    var nThen = require('nthen');
-    var context = {};
-    nThen(function(waitFor) {
-        // Remember to wrap all of your async callbacks with waitFor()
-        // otherwise they won't block the next nThen block.
-        asyncCall(waitFor(function(x) {
-            context.x = x;
-        }));
-    }).nThen(function(waitFor) {
-        // These two functions run at the same time :D
-        anotherCall(x, waitFor(function(a) {
-            context.a = a;
-        }));
-        yetAnotherCall(x, waitFor(function(b) {
-            context.b = b;
-        }));
-    }).nThen(function(waitFor) {
-        somethingElse(b, waitFor(function(z) {
-            context.z = z;
-        }));
-    }).nThen(function(waitFor) {
-        lastCall(z, waitFor(function(c) {
-            context.c = c;
-        }));
-    }).nThen(function(waitFor) {
+nThen allows you to do things in parallel by putting them in *blocks* and one block will not
+execute until all of the callbacks from the previous one have completed.
 
-        doNextJob(context);
+How do we know when all callbacks have been completed ? You *wrap* them using the waitFor
+function wrapper. Waitfor wraps a function, so the result of waitFor is another function and
+when that is called, all arguments are passed through to the function which was given to waitFor,
+however, nThen will block until all waitFors have been called.
 
-    }).orTimeout(function(waitFor) {
+You can use waitFor as many times as you want in an nThen block, you can even use a waitFor
+invocation inside of another waitFor invocation and it will keep the nThen block from terminating.
 
-        // Using the orTimeout() function, you can chain a failure timeout.
-        abortProcess();
+ For example this works:
 
-    }, 3000).nThen(function(waitFor) {
-        // Finally, you can chain more nThen calls after the timeout
-        // these will be excuted regardless of whether the chain times out or not.
-        // think of ajax.onComplete
-        someFinalCleanup();
-    });
-
-
-## Chaining is Allowed
-
-This is perfectly ok, your second call to waitFor() will cause the second function
-to block the entry of the next nThen block and it will perform as expected.
-
-    nThen(function(waitFor) {
-        asyncCall(waitFor(function(x) {
-            iWouldReallyRatherChainThisCall(x, waitFor(function(y) {
-                context.y = y;
+```javascript
+const nThen = require('nthen');
+const Fs = require('fs');
+nThen(function (waitFor) {
+    Fs.readdir('/dev', waitFor(function (err, array) {
+        if (err) { throw err; }
+        if (array.indexOf('random') > -1) {
+            Fs.stat('/dev/random', waitFor(function (err, stat) {
+                if (err) { throw err; }
+                console.log(stat);
             }));
-        }));
-    }).nThen(function(waitFor) {
+        }
+    }));
+}).nThen(function (waitFor) {
+    console.log('completed');
+});
+```
 
-## Disclamer
+### Using nThen to sequencialize a list of async operations
 
-The variable names used in this readme are only for example and to make you mad.
+Sometimes you want to do a variable number of things in sequence. Suppose you wanted to stat
+every file in the /dev directory but you want to do them one at a time.
+
+You can loop over all files using nThen to access each one sequencially like this:
+
+```javascript
+const nThen = require('./index.js');
+const Fs = require('fs');
+var nt = nThen;
+Fs.readdir('/dev', function (err, array) {
+    if (err) { throw err; }
+    array.forEach(function (x) {
+        nt = nt(function (waitFor) {
+            Fs.stat('/dev/' + x, waitFor(function (err, stat) {
+                if (err) { throw err; }
+                console.log(stat);
+            }));
+        }).nThen;
+    });
+    nt(function (waitFor) {
+        console.log('done');
+    });
+});
+```
+
+### Nested nThen
+
+You can use multiple levels of nesting of nThen, for example you might use a loop of async
+operations inside of one block of larger nThen chain, like this. Notice waitFor can be
+used without a wrapped function.
+
+```javascript
+const nThen = require('./index.js');
+const Fs = require('fs');
+let fileList;
+nThen(function (waitFor) {
+    Fs.readdir('/dev', waitFor(function (err, array) {
+        if (err) { throw err; }
+        fileList = array;
+    }));
+}).nThen(function (waitFor) {
+    let nt = nThen;
+    fileList.forEach(function (x) {
+        nt = nt(function (waitFor) {
+            Fs.stat('/dev/' + x, waitFor(function (err, stat) {
+                if (err) { throw err; }
+                console.log(stat);
+            }));
+        }).nThen;
+    });
+    // This line is what will hold open this nThen block until
+    // all of the files in fileList have been stated.
+    nt(waitFor());
+}).nThen(function (waitFor) {
+    console.log('done');
+});
+```
+
+### orTimeout
+
+You can end your nThen chain with an orTimeout call which will abort the execution of the nThen
+chain if the execution takes more than a given number of milliseconds.
+
+```javascript
+const nThen = require('./index.js');
+nThen(function (waitFor) {
+    let done = waitFor(function () { console.log('this never gets invoked'); });
+    if (1 === 2) {
+        // never happens
+        done();
+    }
+}).nThen(function (waitFor) {
+    console.log('so we never get to this point');
+}).orTimeout(function () {
+    console.log('timed out after 1 second');
+}, 1000);
+```
+
+
+### Details
+
+* If you do not call waitFor at all within an nThen block, the block will exit synchronously
+* You can use waitFor without wrapping any callback function, it works fine with nothing
+* nThen is fully ECMA-5 compatible, it is also compatible with flow typing system
+* nThen does operations in sequence (no parallelism), if you'd like to do *n* parallel operations
+check out [saferphore](https://github.com/cjdelisle/saferphore)
+
 
 ## License
 
-Public Domain
+Public Domain or MIT license, as you wish.
 
-## ChangeLog
+## Contact
 
-* 1.0 The first versions, practically perfect in every way.
-* 1.1 Ok maybe practically perfect was a stretch, fixed a bug which causes incorrect behavior if
-the the first nThen function returns synchronously.
-
-    nThen(function(waitFor) {
-        console.log("this function returns synchronously");
-    }).nThen(function(waitFor) {
-        console.log("This never gets executed because nThen 1.0 has a bug :(");
-    });
+[@cjd@mastodon.social](https://mastodon.social/@cjd)
