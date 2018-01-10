@@ -28,6 +28,7 @@
 #include "util/AddrTools.h"
 #include "util/events/Timeout.h"
 #include "net/SwitchPinger.h"
+#include "switch/LabelSplicer.h"
 #include "wire/Error.h"
 #include "wire/PFChan.h"
 #include "wire/DataHeader.h"
@@ -127,7 +128,9 @@ static Iface_DEFUN switchErr(struct Message* msg, struct SubnodePathfinder_pvt* 
 
     uint64_t path = Endian_bigEndianToHost64(switchErr.sh.label_be);
 
-    if (path == pf->pub.snh->snodeAddr.path) {
+    if (pf->pub.snh->snodeAddr.path &&
+        pf->pub.snh->snodeAddr.path != path &&
+        LabelSplicer_routesThrough(pf->pub.snh->snodeAddr.path, path)) {
         uint8_t pathStr[20];
         AddrTools_printPath(pathStr, path);
         int err = Endian_bigEndianToHost32(switchErr.ctrlErr.errorType_be);
