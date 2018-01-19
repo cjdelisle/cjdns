@@ -29,7 +29,7 @@ var GCC = process.env['CC'];
 var CFLAGS = process.env['CFLAGS'];
 var LDFLAGS = process.env['LDFLAGS'];
 
-var NO_MARCH_FLAG = ['ppc', 'ppc64'];
+var NO_MARCH_FLAG = ['arm', 'ppc', 'ppc64'];
 
 if (GCC) {
     // Already specified.
