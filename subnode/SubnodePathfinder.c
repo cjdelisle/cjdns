@@ -181,6 +181,13 @@ static Iface_DEFUN searchReq(struct Message* msg, struct SubnodePathfinder_pvt* 
     AddrTools_printIp(printedAddr, addr);
     Log_debug(pf->log, "Search req [%s]", printedAddr);
 
+    for (int i = 0; i < pf->myPeers->length; ++i) {
+        struct Address* myPeer = AddrSet_get(pf->myPeers, i);
+        if (!Bits_memcmp(myPeer->ip6.bytes, addr, 16)) {
+            return sendNode(msg, myPeer, 0xfff00000, PFChan_Pathfinder_NODE, pf);
+        }
+    }
+
     if (!pf->pub.snh || !pf->pub.snh->snodeAddr.path) { return NULL; }
 
     if (!Bits_memcmp(pf->pub.snh->snodeAddr.ip6.bytes, addr, 16)) {
