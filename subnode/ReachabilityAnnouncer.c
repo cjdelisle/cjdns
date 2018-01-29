@@ -186,6 +186,8 @@ struct ReachabilityAnnouncer_pvt
     // this is by our clock, not skewed to the snode time.
     int64_t msgOnWireSentTime;
 
+    int64_t timeOfLocalUpdate;
+
     // If true then when we send nextMsg, it will be a state reset of the node.
     bool resetState;
 
@@ -271,8 +273,10 @@ static void stateUpdate(struct ReachabilityAnnouncer_pvt* rap, enum Reachability
 
 static void removeLocalStatePeer(struct ReachabilityAnnouncer_pvt* rap, int i)
 {
+    int64_t now = ourTime(rap);
     struct Announce_Peer* peer = ArrayList_OfPeers_remove(rap->localState, i);
     Allocator_realloc(rap->alloc, peer, 0);
+    rap->timeOfLocalUpdate = now;
 }
 
 static struct Announce_Peer* addLocalStatePeer(struct ReachabilityAnnouncer_pvt* rap,
@@ -407,6 +411,7 @@ void ReachabilityAnnouncer_updatePeer(struct ReachabilityAnnouncer* ra,
 
     struct Announce_Peer* peer = NULL;
     bool unreachable = true;
+    int64_t now = ourTime(rap);
     for (int i = 0; i < rap->localState->length; i++) {
         peer = ArrayList_OfPeers_get(rap->localState, i);
         if (peer->label_be) { unreachable = false; }
@@ -419,6 +424,7 @@ void ReachabilityAnnouncer_updatePeer(struct ReachabilityAnnouncer* ra,
             return;
         }
         Bits_memcpy(peer, &refPeer, Announce_Peer_SIZE);
+        rap->timeOfLocalUpdate = now;
         break;
     }
     if (!peer) {
@@ -427,6 +433,7 @@ void ReachabilityAnnouncer_updatePeer(struct ReachabilityAnnouncer* ra,
             return;
         }
         peer = addLocalStatePeer(rap, &refPeer);
+        rap->timeOfLocalUpdate = now;
     }
     switch (updatePeer(rap, &refPeer, 0)) {
         case updatePeer_NOOP: {
@@ -467,11 +474,14 @@ void ReachabilityAnnouncer_updatePeer(struct ReachabilityAnnouncer* ra,
 static void onReplyTimeout(struct ReachabilityAnnouncer_pvt* rap, struct Address* snodeAddr)
 {
     // time out -> re-integrate the content of the message onWire into unsent
+    // only when the onWire message not out of date
     struct Message* mow = rap->msgOnWire;
     rap->msgOnWire = NULL;
-    struct Announce_Peer* p;
-    for (p = Announce_Peer_next(mow, NULL); p; p = Announce_Peer_next(mow, p)) {
-        updatePeer(rap, p, 0);
+    if (rap->timeOfLocalUpdate < rap->msgOnWireSentTime) {
+        struct Announce_Peer* p;
+        for (p = Announce_Peer_next(mow, NULL); p; p = Announce_Peer_next(mow, p)) {
+            updatePeer(rap, p, 0);
+        }
     }
     Allocator_free(mow->alloc);
     if (!Bits_memcmp(snodeAddr, &rap->snode, Address_SIZE)) {
