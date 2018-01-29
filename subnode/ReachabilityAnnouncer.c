@@ -471,7 +471,9 @@ static void onReplyTimeout(struct ReachabilityAnnouncer_pvt* rap, struct Address
     rap->msgOnWire = NULL;
     struct Announce_Peer* p;
     for (p = Announce_Peer_next(mow, NULL); p; p = Announce_Peer_next(mow, p)) {
-        updatePeer(rap, p, 0);
+        struct Announce_Peer* lPeer = peerFromLocalState(rap->localState, p->ipv6);
+        if (!lPeer) { continue; }
+        updatePeer(rap, lPeer, 0);
     }
     Allocator_free(mow->alloc);
     if (!Bits_memcmp(snodeAddr, &rap->snode, Address_SIZE)) {
