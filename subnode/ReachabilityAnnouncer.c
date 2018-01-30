@@ -318,6 +318,10 @@ static void stateReset(struct ReachabilityAnnouncer_pvt* rap)
         Assert_true(nm != rap->nextMsg);
         Allocator_free(nm->alloc);
     }
+    if (rap->msgOnWire) {
+        Allocator_free(rap->msgOnWire->alloc);
+        rap->msgOnWire = NULL;
+    }
     for (int i = rap->localState->length - 1; i >= 0; i--) {
         struct Announce_Peer* peer = ArrayList_OfPeers_get(rap->localState, i);
         if (!peer->label_be) { removeLocalStatePeer(rap, i); }
@@ -494,6 +498,11 @@ static void onReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom
     struct Query* q = (struct Query*) prom->userData;
     struct ReachabilityAnnouncer_pvt* rap = Identity_check(q->rap);
 
+    if (!rap->msgOnWire) {
+        Log_debug(rap->log,"local reset but not send the peers out");
+        Log_warn(rap->log,"Drop the snode response before ann cycle deal the reset");
+        return;
+    }
     if (!src) {
         onReplyTimeout(rap, &q->target);
         return;
