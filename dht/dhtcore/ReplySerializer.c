@@ -40,7 +40,10 @@ struct Address_List* ReplySerializer_parse(struct Address* fromNode,
 {
     String* nodes = Dict_getString(result, CJDHTConstants_NODES);
 
-    if (!nodes) { return NULL; }
+    if (!nodes) {
+        Log_debug(log, "Missing 'n' field in reply");
+        return NULL;
+    }
 
     if (nodes->len == 0 || nodes->len % Address_SERIALIZED_SIZE != 0) {
         Log_debug(log, "Dropping unrecognized reply");

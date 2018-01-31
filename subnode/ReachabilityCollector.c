@@ -130,6 +130,12 @@ static void onReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom
     struct Address_List* results = ReplySerializer_parse(src, msg, rcp->log, false, prom->alloc);
     uint64_t path = 1;
 
+    if (!results) {
+        Log_debug(rcp->log, "Got invalid getPeers reply from [%s]",
+            Address_toString(src, prom->alloc)->bytes);
+        return;
+    }
+
     struct PeerInfo_pvt* pi = NULL;
     for (int j = 0; j < rcp->piList->length; j++) {
         struct PeerInfo_pvt* pi0 = ArrayList_OfPeerInfo_pvt_get(rcp->piList, j);
