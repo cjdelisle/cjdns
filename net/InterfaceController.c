@@ -304,9 +304,9 @@ static void iciPing(struct InterfaceController_Iface_pvt* ici, struct InterfaceC
     uint64_t now = Time_currentTimeMilliseconds(ic->eventBase);
 
     // scan for endpoints have not sent anything recently.
-    uint32_t startAt = ic->lastPeerPinged = (ic->lastPeerPinged + 1) % ici->peerMap.count;
-    for (uint32_t i = startAt, count = 0; count < ici->peerMap.count;) {
-        i = (i + 1) % ici->peerMap.count;
+    uint32_t startAt = ++ic->lastPeerPinged;
+    for (uint32_t i = startAt, count = 0; count < ici->peerMap.count; i++) {
+        i = i % ici->peerMap.count;
         count++;
 
         struct Peer* ep = ici->peerMap.values[i];
