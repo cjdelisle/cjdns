@@ -90,6 +90,8 @@ struct InterfaceController_Iface_pvt
     String* name;
     int beaconState;
     struct Map_EndpointsBySockaddr peerMap;
+    /** The number of the next peer to try pinging, this iterates through the list of peers. */
+    uint32_t lastPeerPinged;
     struct InterfaceController_pvt* ic;
     struct Allocator* alloc;
     Identity
@@ -179,9 +181,6 @@ struct InterfaceController_pvt
 
     /** How often to send beacon messages (milliseconds). */
     uint32_t beaconInterval;
-
-    /** The number of the next peer to try pinging, this iterates through the list of peers. */
-    uint32_t lastPeerPinged;
 
     /** The timeout event to use for pinging potentially unresponsive neighbors. */
     struct Timeout* const pingInterval;
@@ -304,7 +303,7 @@ static void iciPing(struct InterfaceController_Iface_pvt* ici, struct InterfaceC
     uint64_t now = Time_currentTimeMilliseconds(ic->eventBase);
 
     // scan for endpoints have not sent anything recently.
-    uint32_t startAt = ic->lastPeerPinged = (ic->lastPeerPinged + 1) % ici->peerMap.count;
+    uint32_t startAt = ici->lastPeerPinged = (ici->lastPeerPinged + 1) % ici->peerMap.count;
     for (uint32_t i = startAt, count = 0; count < ici->peerMap.count;) {
         i = (i + 1) % ici->peerMap.count;
         count++;
