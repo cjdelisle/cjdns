@@ -47,7 +47,7 @@ static Iface_DEFUN handleError(struct Message* msg,
         Log_info(ch->log, "DROP runt error packet from [%s]", labelStr);
         return NULL;
     }
-    Message_shift(msg, SwitchHeader_SIZE + 4, NULL);
+    msg->length = handleError_MIN_SIZE;
     Message_push32(msg, 0xffffffff, NULL);
     Message_push(msg, &rh->sh, sizeof(struct SwitchHeader), NULL);
     Message_push32(msg, PFChan_Core_SWITCH_ERR, NULL);
