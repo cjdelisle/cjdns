@@ -226,7 +226,7 @@ static Iface_DEFUN searchReq(struct Message* msg, struct SubnodePathfinder_pvt* 
 
     struct MsgCore_Promise* qp = MsgCore_createQuery(pf->msgCore, 0, pf->alloc);
 
-    struct SnodeQuery* snq = Allocator_calloc(pf->alloc, sizeof(struct SnodeQuery), 1);
+    struct SnodeQuery* snq = Allocator_calloc(qp->alloc, sizeof(struct SnodeQuery), 1);
     Identity_set(snq);
     snq->pf = pf;
 
