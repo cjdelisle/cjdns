@@ -341,14 +341,13 @@ Assert_compileTime(sizeof(struct PFChan_Core_Connect) == PFChan_Core_Connect_SIZ
 struct PFChan_Core_SwitchErr
 {
     struct SwitchHeader sh;
-    uint32_t ffffffff;
     struct Control_Header ctrlHeader;
     struct Control_Error ctrlErr;
     struct SwitchHeader shAtErrorHop;
 };
 #pragma GCC poison PFChan_Core_SwitchErr_SIZE
 #define PFChan_Core_SwitchErr_MIN_SIZE \
-    (SwitchHeader_SIZE + 4 + Control_Header_SIZE + Control_Error_MIN_SIZE + SwitchHeader_SIZE)
+    (SwitchHeader_SIZE + Control_Header_SIZE + Control_Error_MIN_SIZE + SwitchHeader_SIZE)
 Assert_compileTime(sizeof(struct PFChan_Core_SwitchErr) == PFChan_Core_SwitchErr_MIN_SIZE);
 
 struct PFChan_FromCore

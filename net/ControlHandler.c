@@ -48,8 +48,8 @@ static Iface_DEFUN handleError(struct Message* msg,
         return NULL;
     }
     msg->length = handleError_MIN_SIZE;
+    Message_push(msg, &rh->sh, SwitchHeader_SIZE, NULL);
     Message_push32(msg, 0xffffffff, NULL);
-    Message_push(msg, &rh->sh, sizeof(struct SwitchHeader), NULL);
     Message_push32(msg, PFChan_Core_SWITCH_ERR, NULL);
     return Iface_next(&ch->eventIf, msg);
 }
