@@ -511,6 +511,8 @@ static int closeInterface(struct Allocator_OnFreeJob* job)
     sendPeer(0xffffffff, PFChan_Core_PEER_GONE, toClose);
 
     int index = Map_EndpointsBySockaddr_indexForHandle(toClose->handle, &toClose->ici->peerMap);
+    Log_debug(toClose->ici->ic->logger,
+        "Closing interface [%d] with handle [%u]", index, toClose->handle);
     Assert_true(index >= 0);
     Assert_true(toClose->ici->peerMap.values[index] == toClose);
     Map_EndpointsBySockaddr_remove(index, &toClose->ici->peerMap);
