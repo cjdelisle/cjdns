@@ -18,11 +18,20 @@ foreach ($res['peers'] as $a)
 	$pK  = preg_match('/.{23}([a-z0-6]{4}).+(.{6})$/', $a['addr'], $m) ? $m[1].'...'.$m[2] : '?';
 	$ver = preg_match('/^v(\d+)/', $a['addr'], $m) ? $m[1] : '?';
 	$table->add([$pK, $a['state'], date('H:i:s d.m.y', $a['last']/1000),
-		$a['bytesIn'], $a['bytesOut'], $a['lostPackets'],
+		_h($a['bytesIn']), _h($a['bytesOut']), $a['lostPackets'],
 		$ver, $a['isIncoming']]);
 }
 
 $table->printSimple();
+
+// human readable bytes
+function _h($x)
+{
+	if ($x < 1024) return sprintf("%5.2f",    $x); $x /= 1024;
+	if ($x < 1024) return sprintf("%5.2f Kb", $x); $x /= 1024;
+	if ($x < 1024) return sprintf("%5.2f Mb", $x); $x /= 1024;
+	return $x;
+}
 
 
 // class for draw table data
@@ -70,6 +79,7 @@ class table
 	private function strdup($n,$x='-') { $st=''; for ($i=0;$i<$n;$i++)$st.=$x; return $st; }
 	private function printCell($data, $width)
 	{
+		if (empty($data)) $data = ''; // clear zero-value
 		if (!is_numeric($data)) // align string to center
 		{
 			$d = ($width - strlen($data)) >> 1;
