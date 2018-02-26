@@ -12,8 +12,9 @@ RUN adduser -D -h /etc/cjdns -u 1000 cjdns \
     && cp cjdroute /usr/bin \
     && cp -r tools/* /usr/bin \
     && cp makekeys \
+          mkpasswd \
           privatetopublic \
-          makekeys \
+          publictoip6 \
           randombytes \
           sybilsim /usr/bin \
     && cp contrib/docker/entrypoint.sh / \
