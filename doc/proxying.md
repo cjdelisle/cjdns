@@ -1,7 +1,7 @@
 Proxying
 ===========================
 
-#Keep in mind that we'd rather you put cjdns on all your machines!
+**Keep in mind that we'd rather you put cjdns on all your machines!**
 
 Sometimes it's just not possible to get cjdns working on a machine.
 

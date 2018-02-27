@@ -16,7 +16,7 @@ out to peers is configured in "connectTo" in either the IPv4 or IPv6 section.
 No admin privilege is needed to run peerStats, but it looks in `~/.cjdnsadmin`
 for the IP and admin port of cjdroute.
 
-##FILES
+## FILES
 
 `~/.cjdnsadmin`
 

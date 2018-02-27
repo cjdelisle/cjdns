@@ -17,14 +17,14 @@ Cjdns-traceroute requires admin privilege.  The cjdnsadmin lib will
 try to read `/etc/cjdroute.conf` for the admin password.  This will 
 normally succeed only for root.  Otherwise, it tries `~/.cjdnsadmin`
 
-##USAGE
+## USAGE
 
-##FILES
+## FILES
 
 `~/.cjdnsadmin`
 `/etc/cjdroute.conf`
 
-##BUGS
+## BUGS
 Cjdns-traceroute throws an ugly exception if you forget
 to pass an IP or have the wrong admin password.
 

@@ -20,18 +20,18 @@ so that past sessions (before the compromise) cannot be read.  The lifetime
 of a session is somewhat random.  Cjdroute caches recently active sessions,
 and destroys sessions that have not been used for a while.
 
-##USAGE
+## USAGE
 
 Running sessionStats requires admin privilege.  The cjdnsadmin lib will 
 try to read `/etc/cjdroute.conf` for the admin password.  This will 
 normally succeed only for root.  Otherwise, it tries `~/.cjdnsadmin`
 
-##FILES
+## FILES
 
 `~/.cjdnsadmin`
 `/etc/cjdroute.conf`
 
-##BUGS
+## BUGS
 If you get a TypeError, you probably have the wrong admin password.
 
 ## SEE ALSO

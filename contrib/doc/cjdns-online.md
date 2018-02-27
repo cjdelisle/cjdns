@@ -17,7 +17,7 @@ to wait until this IP is available before starting network services.
 This will increase your boot time somewhat, but is needed to launch
 thttpd at boot, for example.
 
-##OPTIONS
+## OPTIONS
 
   * `-t`, `--timeout` <timeout_value>:	
     time to wait in seconds, default 30
