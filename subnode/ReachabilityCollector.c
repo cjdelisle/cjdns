@@ -109,16 +109,26 @@ void ReachabilityCollector_change(struct ReachabilityCollector* rc, struct Addre
     Allocator_free(tempAlloc);
 }
 
-static void onReplyTimeout(struct MsgCore_Promise* prom)
-{
-    // meh do nothing, we'll just ping it again...
-}
-
 struct Query {
     struct ReachabilityCollector_pvt* rcp;
     String* addr;
     uint8_t targetPath[20];
 };
+
+static void onReplyTimeout(struct MsgCore_Promise* prom)
+{
+    struct Query* q = (struct Query*) prom->userData;
+    struct ReachabilityCollector_pvt* rcp =
+        Identity_check((struct ReachabilityCollector_pvt*) q->rcp);
+    struct PeerInfo_pvt* pi = NULL;
+    for (int j = 0; j < rcp->piList->length; j++) {
+        pi = ArrayList_OfPeerInfo_pvt_get(rcp->piList, j);
+        if (Address_isSameIp(&pi->pub.addr, prom->target)) {
+            pi->waitForResponse = false;
+            return;
+        }
+    }
+}
 
 static void onReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom)
 {
