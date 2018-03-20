@@ -24,10 +24,12 @@
 
 struct PeerInfo_pvt
 {
-     struct ReachabilityCollector_PeerInfo pub;
+    struct ReachabilityCollector_PeerInfo pub;
 
     // Next path to check when sending getPeers requests to our peer looking for ourselves.
     uint64_t pathToCheck;
+    // This peer is waiting for response
+    bool waitForResponse;
 
     struct Allocator* alloc;
 
@@ -93,6 +95,7 @@ static void change0(struct ReachabilityCollector_pvt* rcp,
     pi->pub.querying = true;
     pi->pathToCheck = 1;
     pi->pub.pathThemToUs = -1;
+    pi->waitForResponse = false;
     ArrayList_OfPeerInfo_pvt_add(rcp->piList, pi);
     Log_debug(rcp->log, "Peer [%s] added", Address_toString(&pi->pub.addr, tempAlloc)->bytes);
     mkNextRequest(rcp);
@@ -149,6 +152,7 @@ static void onReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom
         return;
     }
 
+    pi->waitForResponse = false;
     for (int i = results->length - 1; i >= 0; i--) {
         path = results->elems[i].path;
         Log_debug(rcp->log, "getPeers result [%s] [%s][%s]",
@@ -184,10 +188,14 @@ static void mkNextRequest(struct ReachabilityCollector_pvt* rcp)
     struct PeerInfo_pvt* pi = NULL;
     for (int i = 0; i < rcp->piList->length; i++) {
         pi = ArrayList_OfPeerInfo_pvt_get(rcp->piList, i);
-        if (pi->pub.querying) { break; }
+        if (pi->pub.querying && !pi->waitForResponse) { break; }
     }
     if (!pi || !pi->pub.querying) {
         Log_debug(rcp->log, "All [%u] peers have been queried", rcp->piList->length);
+        return;
+    }
+    if (pi->waitForResponse) {
+        Log_debug(rcp->log, "Peer is waiting for response.");
         return;
     }
     struct MsgCore_Promise* query =
@@ -211,6 +219,8 @@ static void mkNextRequest(struct ReachabilityCollector_pvt* rcp)
     Dict_putStringC(d, "tar",
         String_newBinary(nearbyLabelBytes, 8, query->alloc), query->alloc);
     BoilerplateResponder_addBoilerplate(rcp->br, d, &pi->pub.addr, query->alloc);
+
+    pi->waitForResponse = true;
 }
 
 static void cycle(void* vrc)
