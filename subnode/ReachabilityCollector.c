@@ -140,14 +140,6 @@ static void onReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom
         mkNextRequest(rcp);
         return;
     }
-    struct Address_List* results = ReplySerializer_parse(src, msg, rcp->log, false, prom->alloc);
-    uint64_t path = 1;
-
-    if (!results) {
-        Log_debug(rcp->log, "Got invalid getPeers reply from [%s]",
-            Address_toString(src, prom->alloc)->bytes);
-        return;
-    }
 
     struct PeerInfo_pvt* pi = NULL;
     for (int j = 0; j < rcp->piList->length; j++) {
@@ -163,6 +155,14 @@ static void onReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom
     }
 
     pi->waitForResponse = false;
+
+    struct Address_List* results = ReplySerializer_parse(src, msg, rcp->log, false, prom->alloc);
+    uint64_t path = 1;
+    if (!results) {
+        Log_debug(rcp->log, "Got invalid getPeers reply from [%s]",
+            Address_toString(src, prom->alloc)->bytes);
+        return;
+    }
     for (int i = results->length - 1; i >= 0; i--) {
         path = results->elems[i].path;
         Log_debug(rcp->log, "getPeers result [%s] [%s][%s]",
