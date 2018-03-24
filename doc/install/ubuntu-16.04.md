@@ -12,9 +12,9 @@ This is a short guide how to setup an Ubuntu cjdns box.
 	git clone https://github.com/cjdelisle/cjdns.git
 	cd cjdns
 	./do
-	ln -s /opt/cjdns/cjdroute /usr/bin
+	ln -s /opt/cjdns/cjdroute /usr/bin/
 	(umask 077 && ./cjdroute --genconf > /etc/cjdroute.conf)
-	cp contrib/systemd/cjdns.service /etc/systemd/system/
+	cp contrib/systemd/cjdns.service contrib/systemd/cjdns-resume.service /lib/systemd/system/
 	systemctl enable cjdns
 	systemctl start cjdns
 
