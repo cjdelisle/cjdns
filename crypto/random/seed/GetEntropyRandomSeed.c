@@ -21,11 +21,15 @@
 #include <errno.h>
 #include <sys/syscall.h>
 
-#if !defined(__OPENBSD__) && \
-    (!defined(__GNU_LIBRARY__) || !defined(__GLIBC__) || \
-    !defined(__GLIBC_MINOR__) || __GLIBC__ < 2 || \
-    (__GLIBC__ == 2 && __GLIBC_MINOR__ < 25))
-static int getentropy(void *buf, size_t buflen)
+#if defined(__OPENBSD__)
+    // just use the builtin getentropy
+    #define getentropy2 getentropy
+#else
+// getentropy is available in glibc >= 2.25
+// to avoid a whole bunch of edgecases we shim this anyway
+// we can drop this when every major system with SYS_getrandom
+// has getentropy in its libc
+static int getentropy2(void *buf, size_t buflen)
 {
     int ret;
 
@@ -51,7 +55,7 @@ static int getentropy(void *buf, size_t buflen)
 
 static int get(struct RandomSeed* randomSeed, uint64_t output[8])
 {
-    if (getentropy(output, 64) < 0) {
+    if (getentropy2(output, 64) < 0) {
         return -1;
     } else {
         return 0;
