@@ -14,8 +14,8 @@ Traduction à partir de la version
 #### *Le réseau réinventé*
 
 Cjdns est un réseau IPv6 chiffré utilisant des clefs publiques de cryptographie
-pour l'allocation d'adresses et une table de hashasge distribuée pour le
-routage.  Il fournit un réseau quasiment sans configuration et évite la majorité
+pour l'allocation d'adresses et une table de hachage distribuée pour le
+routage. Il fournit un réseau quasiment sans configuration et évite la majorité
 des problèmes de sécurité et de passage à l'échelle (_scalability_) des réseaux
 actuels.
 
@@ -39,7 +39,7 @@ actuels.
                      airplane
 
     12:52 < mariner> je ne sais pas si ça a déjà été fait avant, et je suppose
-                     que c'est facile, mais je pense que c'est génial.  En ce
+                     que c'est facile, mais je pense que c'est génial. En ce
                      moment sur Hype depuis un avion
 
 
@@ -118,13 +118,13 @@ Les développeurs de cjdns.
 
 Ces instructions sont pour les distributions Linux basées sur Debian et OS X.
 Elles devraient être suffisantes pour d'autres distributions mais n'espérez
-qu'elles fonctionnent mot pour mot.  Si vous souhaitez connaitre la base de
+qu'elles fonctionnent mot pour mot. Si vous souhaitez connaitre la base de
 votre système d'exploitation, [regardez le graphique suivant](https://upload.wikimedia.org/wikipedia/commons/1/1b/Linux_Distribution_Timeline.svg).
 
 ### 0. Installer les dépendances
 
 Installer [Node.js](https://nodejs.org/), bien que préférable,
-n'est pas nécessaire.  Si Node.js n'est pas disponible ou que la version n'est
+n'est pas nécessaire. Si Node.js n'est pas disponible ou que la version n'est
 pas la bonne, Node.js sera téléchargé et installé dans le répertoire du code
 source.
 
@@ -148,7 +148,7 @@ Compiler depuis le paquetage :
 
 Si vous êtes sur un ordinateur portable et que vous le mettez en veille ou en
 hibernation, cjdroute prendra du temps (faites vous un café !) pour comprendre
-ce qui vient de se passer en tentant de se réveiller.  Vous pouvez radicalement
+ce qui vient de se passer en tentant de se réveiller. Vous pouvez radicalement
 améliorer la vitesse de ce réveil avec :
 
     systemctl enable cjdns-resume
@@ -168,7 +168,7 @@ Installer avec homebrew :
 
 #### OpenBSD :
 
-Malheureusement, le support sur OpenBSD en encore un peu expérimental.
+Malheureusement, le support sur OpenBSD est encore un peu expérimental.
 
     pkg_add git node gcc gmake bash
 
@@ -191,9 +191,9 @@ besoin peut être installer avec la commande suivante
 
     pacman -S nodejs git base-devel
 
-Sinon, vous préférez peut-être installer à travers AUR à partir du paquetage
-`cjdns-git`.  Après l'installation, vous trouverez le fichier de configuration
-dans `/etc/cjdroute.conf`.  Pour démarrer le service `cjdns.service`, faites :
+Sinon, vous préférez peut-être installer à travers AUR à partir du paquet
+`cjdns-git`. Après l'installation, vous trouverez le fichier de configuration
+dans `/etc/cjdroute.conf`. Pour démarrer le service `cjdns.service`, faites :
 
     systemctl start cjdns
 
@@ -204,7 +204,7 @@ Pour l'arrêter, faites :
 #### Gentoo :
 
 cjdns n'est pas encore dans le dépôt principal de Gentoo, donc vous allez devoir
-utiliser un arbre alternatif (_overlay_).  La manière la plus simple est
+utiliser un arbre alternatif (_overlay_). La manière la plus simple est
 d'utiliser Layman mais vous pouvez également le faire à la main.
 
 ##### Layman :
@@ -255,7 +255,7 @@ Puis installez cjdns
 #### Détection automatique de plantage et redémarrage
 
 Copiez le script init openrc `contrib/openrc` vers `/etc/init.d/` et modifiez
-les paramètres `CONFFILE` et `command` selon vos besoins.  Puis démarrez cjdns
+les paramètres `CONFFILE` et `command` selon vos besoins. Puis démarrez cjdns
 
     /etc/init.d/cjdns start
 
@@ -264,8 +264,8 @@ Configurez le système init pour démarrer automatiquement cjdns
     rc-update add cjdns default
 
 Copiez le script `contrib/gentoo/service_restart.sh` vers un répertoire
-approprié sur votre système et modifiez l'adresse de courriel.  Si vous ne
-souhaitez pas recevoir de notifications, commentez la ligne.  Maintenant,
+approprié sur votre système et modifiez l'adresse de courriel. Si vous ne
+souhaitez pas recevoir de notifications, commentez la ligne. Maintenant,
 ajoutez une ligne dans votre crontab de la manière suivante
 
     # Redémarrer le service planté
@@ -279,7 +279,7 @@ Dépendances:
 
 Puis suivez les étapes suivantes :
 
-*Désolé pour le nombre important d'étapes.  Un paquetage est en cours de
+*Désolé pour le nombre important d'étapes. Un paquet est en cours de
 préparation*
 
 ##### 1. Récupérez cjdns sur Github
@@ -320,7 +320,7 @@ Si le message est : `cat: /dev/net/tun: No such file or directory`, créez le av
 
 Puis `cat /dev/net/tun` à nouveau.
 
-Si le message est : `cat: /dev/net/tun: Permission denied`, vous utilisez probablement un VPS tournant sur une platform virtualisée avec OpenVZ.  Demandez à votre fournisseur d'activer le périphérique TUN/TAP - c'est un protocole standard, ils devraient savoir exactement ce dont vous avez besoin.
+Si le message est : `cat: /dev/net/tun: Permission denied`, vous utilisez probablement un VPS tournant sur une platform virtualisée avec OpenVZ. Demandez à votre fournisseur d'activer le périphérique TUN/TAP - c'est un protocole standard, ils devraient savoir exactement ce dont vous avez besoin.
 
 
 ### 1. Générez un nouveau fichier de configuration
@@ -331,7 +331,7 @@ Si le message est : `cat: /dev/net/tun: Permission denied`, vous utilisez probab
 
 Un fichier de configuration perdu signifie que vous avez perdu votre mot de
 passe et les connexions; toutes les personnes connectées à vous n'en serons plus
-capables.  Un fichier de configuration compromis signifie que d'autres personnes
+capables. Un fichier de configuration compromis signifie que d'autres personnes
 peuvent se faire passer pour vous sur le réseau.
 
 Pour générer un fichier de configuration avec des droits tels que votre
@@ -343,13 +343,13 @@ utilisateur puisse lire et écrire dedans :
 ### 2. Trouvez des amis
 
 Pour entrer dans un réseau existant (par exemple, Hyperboria), vous devez vous
-connecter à quelqu'un qui est déjà dans le réseau.  C'est nécessaire pour les
+connecter à quelqu'un qui est déjà dans le réseau. C'est nécessaire pour les
 raisons suivantes :
 
 1. Cela évite les abus car les personnes nuisibles seront moins prompts à abuser
    le système si l'accès leur a été offert dans un acte de bonté
 2. L'intention n'est pas de faire une surcouche au Vieil Internet, l'objectif
-   est de le remplacer.  Chaque connexion sera à terme, remplacée par un cable,
+   est de le remplacer. Chaque connexion sera à terme, remplacée par un cable,
    une fibre optique ou une connexion sans fil.
 3. Dans le cas d'un désaccord, une « chaine d'amis » liant les personnes
    impliquées fournira une base afin d'aboutir à une solution.
@@ -479,8 +479,8 @@ cjdns à travers ethernet et wifi.
 ### 4. Sécurisez votre système - vérifiez les services ouverts
 
 Une fois que votre noeud tourne, vous êtes maintenant le nouveau propriétaire
-d'une adresse IPv6.  Votre système d'exploitation reconfigurera peut-être
-automatiquement les services de réseau pour utiliser cette nouvelle adresse.  Si
+d'une adresse IPv6. Votre système d'exploitation reconfigurera peut-être
+automatiquement les services de réseau pour utiliser cette nouvelle adresse. Si
 ce n'est pas ce que vous souhaitez, vous devriez vérifier que vous n'offrez pas
 plus de services que vous ne souhaitez vraiment. ;)
 
@@ -500,20 +500,20 @@ Pour arrêter cjdns :
     sudo killall cjdroute
 
 Si vous avez des problèmes, utilisez `kilall cjdroute` pour retrouver un état
-propre.  Utilisez `pgrep cjdroute` ou `top` pour vérifier s'il est lancé.
+propre. Utilisez `pgrep cjdroute` ou `top` pour vérifier s'il est lancé.
 
 **NOTE !**
 
 Cette commande lance cjdns en tant qu'utilisateur root afin de pouvoir
-configurer votre système sans soucis de droits.  Pour démarrer cjdns en tant
+configurer votre système sans soucis de droits. Pour démarrer cjdns en tant
 qu'utilisateur normal, voir [doc/non-root-user.md](doc/non-root-user.md).
 
 
 ### 6. Venir sur IRC
 
-Bienvenue sur le réseau !  Vous êtes maintenant un administrateur réseau.
+Bienvenue sur le réseau ! Vous êtes maintenant un administrateur réseau.
 Certaines responsabilités viennent avec le fait d'être un administrateur réseau
-incluant être disponible en cas de problème avec votre matériel.  Vous devriez
+incluant être disponible en cas de problème avec votre matériel. Vous devriez
 rester sur [IRC](#community) afin que les gens puissent vous joindre.
 
 
@@ -522,7 +522,7 @@ rester sur [IRC](#community) afin que les gens puissent vous joindre.
 Lorsque cjdroute est lancé, l'interface administrateur est disponible sur
 `udp://localhost:11234` (ceci peut être modifié dans le fichier de configuration
 `cjdroute.conf`). Voir [doc/admin-api.md](doc/admin-api.md) pour plus
-d'informations à propos de l'interface administrateur.  Plusieurs outils pour
+d'informations à propos de l'interface administrateur. Plusieurs outils pour
 interagir avec cette interface sont disponibles dans `contrib/`.
 
 Vous pouvez accéder à l'interface administrateur avec :
@@ -544,13 +544,13 @@ Vous pouvez accéder à l'interface administrateur avec :
  * Personne ne peut le corriger pour le moment mais il semble nécessaire de s'en
    rappeler car il a un impact significatif sur la manière dont le projet est
    développé, dans ce cas, il est nécessaire qu'il soit expliqué en termes
-   techniques par quelqu'un ayant une bonne connaissance du code du projet.  Ils
+   techniques par quelqu'un ayant une bonne connaissance du code du projet. Ils
    devraient faire une requête au code (_pull request_) aux répertoires
    docs/bugs.
 
-### Securité
+### Sécurité
 Les bogues de sécurité devraient être remontés sur IRC de la même manière que
-les autres bogues.  Nous n'avons pas de groupe de personne priviligiée avec une
+les autres bogues. Nous n'avons pas de groupe de personne priviligiée avec une
 connaissance spécifique, donc notre politique de remontée de bogues de sécurité
 est une divulgation totale.
 voir : https://github.com/cjdelisle/cjdns/blob/master/doc/security_specification.md pour voir si un bogue possible de sécurité en est vraiment un.
