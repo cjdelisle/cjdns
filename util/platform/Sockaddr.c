@@ -189,7 +189,8 @@ char* Sockaddr_print(struct Sockaddr* sockaddr, struct Allocator* alloc)
             break;
         default: {
             uint8_t buff[Sockaddr_MAXSIZE * 2 + 1] = {0};
-            Hex_encode(buff, sizeof(buff), (uint8_t*)&addr->ss, sockaddr->addrLen);
+            Hex_encode(buff, sizeof(buff), (uint8_t*)&addr->ss,
+                sockaddr->addrLen - Sockaddr_OVERHEAD);
             String* out = String_printf(alloc, "unknown (%s)", buff);
             return out->bytes;
         }
