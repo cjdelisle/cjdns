@@ -23,13 +23,13 @@
 
 #if defined(__OPENBSD__)
     // just use the builtin getentropy
-    #define getentropy2 getentropy
+    #define getEntropy getentropy
 #else
 // getentropy is available in glibc >= 2.25
 // to avoid a whole bunch of edgecases we shim this anyway
 // we can drop this when every major system with SYS_getrandom
 // has getentropy in its libc
-static int getentropy2(void *buf, size_t buflen)
+static int getEntropy(void *buf, size_t buflen)
 {
     int ret;
 
@@ -55,7 +55,7 @@ static int getentropy2(void *buf, size_t buflen)
 
 static int get(struct RandomSeed* randomSeed, uint64_t output[8])
 {
-    if (getentropy2(output, 64) < 0) {
+    if (getEntropy(output, 64) < 0) {
         return -1;
     } else {
         return 0;
