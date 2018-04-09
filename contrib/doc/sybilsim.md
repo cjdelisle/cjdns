@@ -13,7 +13,7 @@ as cjdroute.  This is useful for testing and optimizing cjdroute.
 Every node must have a valid cjdns private key. The makekeys(1) utility can be
 useful for scripts that generate the config.  
 
-##USAGE
+## USAGE
 
 Example config:
 

@@ -15,7 +15,7 @@ scalability issues that plague existing networks.
 cjdroute runs in the background and either decrypts packets addressed to
 this node, or sends them on to the next node in the route.
 
-##OPTIONS
+## OPTIONS
 
   * `--help`:
     Print usage summary.
@@ -36,7 +36,7 @@ this node, or sends them on to the next node in the route.
   * `--nobg`                
     Never fork to the background no matter the config.
 
-##USAGE
+## USAGE
 
 To get the router up and running:
 
