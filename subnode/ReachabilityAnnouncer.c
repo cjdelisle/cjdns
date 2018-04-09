@@ -477,7 +477,11 @@ static void onReplyTimeout(struct ReachabilityAnnouncer_pvt* rap, struct Address
     for (p = Announce_Peer_next(mow, NULL); p; p = Announce_Peer_next(mow, p)) {
         struct Announce_Peer* lPeer = peerFromLocalState(rap->localState, p->ipv6);
         if (!lPeer) { continue; }
-        updatePeer(rap, lPeer, 0);
+        int ret = updatePeer(rap, lPeer, 0);
+        if (updatePeer_ENOSPACE == ret) {
+            stateUpdate(rap, ReachabilityAnnouncer_State_MSGFULL);
+            break;
+        }
     }
     Allocator_free(mow->alloc);
     if (!Bits_memcmp(snodeAddr, &rap->snode, Address_SIZE)) {
@@ -582,10 +586,18 @@ static void onAnnounceCycle(void* vRap)
         int64_t msgTime = timestampFromMsg(snm);
         if (msgTime < sinceTime) { break; }
         struct Announce_Peer* p;
+        int ret = updatePeer_NOOP;
         for (p = Announce_Peer_next(msg, NULL); p; p = Announce_Peer_next(msg, p)) {
             struct Announce_Peer* lPeer = peerFromLocalState(rap->localState, p->ipv6);
             if (!lPeer) { continue; }
-            updatePeer(rap, lPeer, sinceTime);
+            ret = updatePeer(rap, lPeer, sinceTime);
+            if (updatePeer_ENOSPACE == ret) {
+                stateUpdate(rap, ReachabilityAnnouncer_State_MSGFULL);
+                break;
+            }
+        }
+        if (updatePeer_ENOSPACE == ret) {
+            break;
         }
     }
 
