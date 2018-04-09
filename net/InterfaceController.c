@@ -940,6 +940,7 @@ int InterfaceController_getPeerStats(struct InterfaceController* ifController,
             struct Peer* peer = Identity_check((struct Peer*) ici->peerMap.values[i]);
             struct InterfaceController_PeerStats* s = &stats[xcount];
             xcount++;
+            s->lladdr = Sockaddr_clone(peer->lladdr, alloc);
             Bits_memcpy(&s->addr, &peer->addr, sizeof(struct Address));
             s->bytesOut = peer->bytesOut;
             s->bytesIn = peer->bytesIn;

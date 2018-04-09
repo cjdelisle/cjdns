@@ -19,6 +19,7 @@
 #include "benc/Int.h"
 #include "crypto/AddressCalc.h"
 #include "crypto/Key.h"
+#include "interface/ETHInterface.h"
 #include "net/InterfaceController.h"
 #include "net/InterfaceController_admin.h"
 #include "util/AddrTools.h"
@@ -53,6 +54,17 @@ static void adminPeerStats(Dict* args, void* vcontext, String* txid, struct Allo
         Dict_putIntC(d, "sendKbps", stats[i].sendKbps, alloc);
 
         Dict_putStringC(d, "addr", Address_toString(&stats[i].addr, alloc), alloc);
+
+        String* lladdrString;
+        if (ETHInterface_Sockaddr_SIZE == stats[i].lladdr->addrLen) {
+            struct ETHInterface_Sockaddr* eth = (struct ETHInterface_Sockaddr*) stats[i].lladdr;
+            uint8_t printedMac[18];
+            AddrTools_printMac(printedMac, eth->mac);
+            lladdrString = String_new(printedMac, alloc);
+        } else {
+            lladdrString = String_new(Sockaddr_print(stats[i].lladdr, alloc), alloc);
+        }
+        Dict_putStringC(d, "lladdr", lladdrString, alloc);
 
         String* stateString = String_new(InterfaceController_stateString(stats[i].state), alloc);
         Dict_putStringC(d, "state", stateString, alloc);
