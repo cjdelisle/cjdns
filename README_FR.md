@@ -14,8 +14,9 @@ Traduction à partir de la version
 #### *Le réseau réinventé*
 
 Cjdns est un réseau IPv6 chiffré utilisant des clefs publiques de cryptographie
-pour l'allocation d'adresses et une table de hachage distribuée pour le
-routage. Il fournit un réseau quasiment sans configuration et évite la majorité
+
+pour l'allocation d'adresses et une table de hashage distribuée pour le
+routage.  Il fournit un réseau quasiment sans configuration et évite la majorité
 des problèmes de sécurité et de passage à l'échelle (_scalability_) des réseaux
 actuels.
 
@@ -117,8 +118,8 @@ Les développeurs de cjdns.
 ## Comment insaller cjdns
 
 Ces instructions sont pour les distributions Linux basées sur Debian et OS X.
-Elles devraient être suffisantes pour d'autres distributions mais n'espérez
-qu'elles fonctionnent mot pour mot. Si vous souhaitez connaitre la base de
+Elles devraient être suffisantes pour d'autres distributions mais n'espérez pas
+qu'elles fonctionnent mot pour mot.  Si vous souhaitez connaitre la base de
 votre système d'exploitation, [regardez le graphique suivant](https://upload.wikimedia.org/wikipedia/commons/1/1b/Linux_Distribution_Timeline.svg).
 
 ### 0. Installer les dépendances
@@ -320,8 +321,7 @@ Si le message est : `cat: /dev/net/tun: No such file or directory`, créez le av
 
 Puis `cat /dev/net/tun` à nouveau.
 
-Si le message est : `cat: /dev/net/tun: Permission denied`, vous utilisez probablement un VPS tournant sur une platform virtualisée avec OpenVZ. Demandez à votre fournisseur d'activer le périphérique TUN/TAP - c'est un protocole standard, ils devraient savoir exactement ce dont vous avez besoin.
-
+Si le message est : `cat: /dev/net/tun: Permission denied`, vous utilisez probablement un VPS tournant sur une platforme virtualisée avec OpenVZ.  Demandez à votre fournisseur d'activer le périphérique TUN/TAP - c'est un protocole standard, ils devraient savoir exactement ce dont vous avez besoin.
 
 ### 1. Générez un nouveau fichier de configuration
 
@@ -330,8 +330,8 @@ Si le message est : `cat: /dev/net/tun: Permission denied`, vous utilisez probab
 **Protégez votre fichier de configuration !**
 
 Un fichier de configuration perdu signifie que vous avez perdu votre mot de
-passe et les connexions; toutes les personnes connectées à vous n'en serons plus
-capables. Un fichier de configuration compromis signifie que d'autres personnes
+passe et les connexions; toutes les personnes connectées à vous n'en seront plus
+capables.  Un fichier de configuration compromis signifie que d'autres personnes
 peuvent se faire passer pour vous sur le réseau.
 
 Pour générer un fichier de configuration avec des droits tels que votre
@@ -355,7 +355,7 @@ raisons suivantes :
    impliquées fournira une base afin d'aboutir à une solution.
 
 Pour trouver un ami, sortez dehors and rejoignez notre [communité](#community).  Vous pouvez également jetez un oeil à la 
-[carte Hyperboria][] pour trouvez des pairs près de chez vous.
+[carte Hyperboria][] pour trouver des pairs près de chez vous.
 
 
 ### 3. Connectez votre noeud à celui de votre ami
@@ -423,7 +423,7 @@ Dans votre fichier de configuration, vous trouverez :
 ],
 ```
 
-Un fichier de configuration avec plusieurs noeuds amis INbound, devrais
+Un fichier de configuration avec plusieurs noeuds amis INbound, devrait
 ressembler à ceci :
 ``` javascript
 "authorizedPasswords":
