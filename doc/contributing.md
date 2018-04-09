@@ -10,6 +10,8 @@ The good citizens of Hyperboria decided to put together this collection of docum
 
 We want you to [get involved](http://www.roaming-initiative.com/blog/posts/wtfm)! Feel free to submit pull requests.
 
+In addition to contributing code, you can help to triage issues. This can include reproducing bug reports or asking for vital information, such as version numbers or reproduction instructions. If you would like to start triaging issues, one easy way to get started is to [subscribe to cjdns on CodeTriage](https://www.codetriage.com/cjdelisle/cjdns).
+
 See [index.md](index.md) for current progress. We'd love more languages!
 
 Also have a look at [Prose for Programmers](https://github.com/joshuacc/prose-for-programmers), a work-in-progress book aimed at helping software developers write better prose.
