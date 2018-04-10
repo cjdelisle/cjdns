@@ -54,8 +54,8 @@ void NetDev_addAddress(const char* ifName,
     int addrFam;
     char* printedAddr;
     void* addr;
-    struct Allocator* alloc;
-    BufferAllocator_STACK(alloc, 4096);
+    uint8_t tmpBuff[4096];
+    struct Allocator* alloc = BufferAllocator_new(tmpBuff, 4096);
 
     checkAddressAndPrefix(sa, &addrFam, &printedAddr, &addr, alloc, eh);
 

@@ -27,6 +27,11 @@
 
 #define Constant_randHexString(len) <?js return file.Constant_JS.randHexString(#len); ?>
 
+#define Constant_stringForFileMd5Hex16() \
+        <?js return file.Constant_JS.stringForFileMd5Hex16(fileName); ?>
+
+#define Constant_fileMd5() <?js return file.Constant_JS.fileMd5(fileName); ?>
+
 #define Constant_log2(num) <?js return file.Constant_JS.log2(num); ?>
 
 #endif

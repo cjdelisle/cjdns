@@ -13,6 +13,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+var Fs = require('fs');
+var Crypto = require('crypto');
+
 var TABLE = {
     '0000': '0',
     '0001': '1',
@@ -79,6 +82,16 @@ var rand32 = module.exports.rand32 = function () {
 
 var randHexString = module.exports.randHexString = function (lenStr) {
     return '"' + randomHex(lenStr / 2) + '"';
+};
+
+var stringForFileMd5Hex16 = module.exports.stringForFileMd5Hex16 = function (file) {
+    var data = Fs.readFileSync(file);
+    return '"' + Crypto.createHash('md5').update(data, 'utf8').digest('hex').substring(0,16) + '"';
+};
+
+var fileMd5 = module.exports.fileMd5 = function (file) {
+    var data = Fs.readFileSync(file);
+    return '((uint64_t) 0x' + Crypto.createHash('md5').update(data, 'utf8').digest('hex').substring(0, 16) + 'ull)';
 };
 
 var log2 = module.exports.log2 = function (val) {
