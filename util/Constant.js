@@ -14,7 +14,9 @@
  */
 
 var Crypto = require('crypto');
-var seed = process.env.Cjdns_RANDOM_SEED || Crypto.randomBytes(32).toString('hex');
+var seed = process.env.SOURCE_DATE_EPOCH || Crypto.randomBytes(32).toString('hex');
+
+if (process.env.SOURCE_DATE_EPOCH) { console.log('\n\n\nYES\n\n\n');}
 
 var TABLE = {
     '0000': '0',
@@ -65,23 +67,24 @@ var base2 = module.exports.base2 = function (numStr) {
     return '((' + type + ') 0x' + base2ToHex(numStr) + ((type === 'uint64_t') ? 'ull' : 'ul') + ')';
 };
 
-var randomHex = function (bytes, key) {
-    if (!key) { throw new Error('key unspecified'); }
-    var material = new Crypto.Hash('sha512').update(seed).update(key).digest();
+var randomHex = function (bytes, file) {
+    if (!file) { throw new Error('file unspecified'); }
+    var nonce = file.Constant_JS_nonce = (file.Constant_JS_nonce || 0) + 1;
+    var material = new Crypto.Hash('sha512').update(seed).update(file.name).update(String(nonce)).digest();
     if (bytes > 64) { throw new Error("meh, randomHex of over 64 bytes is unimplemented"); }
     return material.slice(0, bytes).toString('hex');
 };
 
-var rand64 = module.exports.rand64 = function (file,  line) {
-    return '((uint64_t) 0x' + randomHex(64 / 8, file + line) + 'ull)';
+var rand64 = module.exports.rand64 = function (file) {
+    return '((uint64_t) 0x' + randomHex(64 / 8, file) + 'ull)';
 };
 
-var rand32 = module.exports.rand32 = function (file, line) {
-    return '((uint32_t) 0x' + randomHex(32 / 8, file + line) + 'ul)';
+var rand32 = module.exports.rand32 = function (file) {
+    return '((uint32_t) 0x' + randomHex(32 / 8, file) + 'ul)';
 };
 
-var randHexString = module.exports.randHexString = function (lenStr, file, line) {
-    return '"' + randomHex(lenStr / 2, file + line) + '"';
+var randHexString = module.exports.randHexString = function (lenStr, file) {
+    return '"' + randomHex(lenStr / 2, file) + '"';
 };
 
 var log2 = module.exports.log2 = function (val) {

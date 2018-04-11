@@ -21,12 +21,12 @@
 
 #define Constant_base2(num) <?js return file.Constant_JS.base2( #num ) ?>
 
-#define Constant_rand64() <?js return file.Constant_JS.rand64(__FILE__, __LINE__); ?>
+#define Constant_rand64() <?js return file.Constant_JS.rand64(file); ?>
 
-#define Constant_rand32() <?js return file.Constant_JS.rand32(__FILE__, __LINE__); ?>
+#define Constant_rand32() <?js return file.Constant_JS.rand32(file); ?>
 
 #define Constant_randHexString(len) \
-    <?js return file.Constant_JS.randHexString(#len, __FILE__, __LINE__); ?>
+    <?js return file.Constant_JS.randHexString(#len, file); ?>
 
 #define Constant_log2(num) <?js return file.Constant_JS.log2(num); ?>
 

@@ -400,6 +400,7 @@ var compileFile = function (fileName, builder, tempDir, callback)
     var outFile = state.buildDir + '/' + getObjectFile(fileName);
     var fileContent;
     var fileObj = getFile();
+    fileObj.name = fileName;
 
     nThen(function (waitFor) {
 

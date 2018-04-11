@@ -15,8 +15,11 @@
 #ifndef UniqueName_H
 #define UniqueName_H
 
+<?js file.Constant_JS = file.Constant_JS || require('util/Constant.js'); ?>
+
 #define UniqueName_get() <?js return \
-    file.UniqueName_last = 'UniqueName_'+String(Math.random()).substring(2); \
+    file.UniqueName_last = 'UniqueName_' + \
+        JSON.parse(file.Constant_JS.randHexString(20, file)); \
 ?>
 
 #define UniqueName_last() <?js return file.UniqueName_last; ?>
