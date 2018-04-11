@@ -21,7 +21,8 @@
 
 #include "crypto_scalarmult_curve25519.h"
 
-int main()
+int main(void);
+int main(void)
 {
     struct Allocator* alloc = MallocAllocator_new(1048576);
     struct Log* logger = FileWriterLog_new(stdout, alloc);

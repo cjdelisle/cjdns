@@ -70,6 +70,7 @@ static void parse()
 }
 
 
+int main(void);
 int main()
 {
     parse();

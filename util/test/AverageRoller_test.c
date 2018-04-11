@@ -19,7 +19,8 @@
 
 #include <stdio.h>
 
-int main()
+int main(void);
+int main(void)
 {
     #define ENTRY_COUNT 13
     // {seconds,entry}

@@ -22,6 +22,7 @@
 #include "util/test/UniqueName_test.h"
 
 // This will cause a compile time failure if anything.
+int main(void);
 int main()
 {
     return 0;

@@ -112,6 +112,7 @@ static void child(char* name, struct Context* ctx)
     EventBase_beginLoop(ctx->base);
 }
 
+int main(int argc, char** argv);
 int main(int argc, char** argv)
 {
     struct Allocator* alloc = MallocAllocator_new(1<<20);

@@ -24,7 +24,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-int main()
+int main(void);
+int main(void)
 {
     struct Allocator* alloc = MallocAllocator_new(1024);
     struct Random* rand = Random_new(alloc, NULL, NULL);

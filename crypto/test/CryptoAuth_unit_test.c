@@ -215,7 +215,8 @@ static void testGetUsers()
     Allocator_free(allocator);
 }
 
-int main()
+int main(void);
+int main(void)
 {
     testGetUsers();
     helloNoAuth();

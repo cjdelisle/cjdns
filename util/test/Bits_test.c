@@ -32,7 +32,8 @@ static void log2x64(struct Random* rand)
     }
 }
 
-int main()
+int main(void);
+int main(void)
 {
     struct Allocator* alloc = MallocAllocator_new(20000);
     struct Random* rand = Random_new(alloc, NULL, NULL);

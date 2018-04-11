@@ -23,7 +23,8 @@ static void printInfo()
            Endian_isBigEndian() ? "big endian" : "little endian");
 }
 
-int main()
+int main(void);
+int main(void)
 {
     printInfo();
 

@@ -107,6 +107,7 @@ static void getPeersTest(uint8_t* addrs[],
     checkList(list, (uint64_t[]){ 0xb6,0xba,0 }, logger, alloc);
 }
 
+int main(int argc, char** argv);
 int main(int argc, char** argv)
 {
     struct Allocator* alloc = MallocAllocator_new(1<<20);

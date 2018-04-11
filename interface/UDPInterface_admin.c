@@ -22,6 +22,7 @@
 #include "util/events/FakeNetwork.h"
 #include "util/platform/Sockaddr.h"
 #include "crypto/Key.h"
+#include "interface/UDPInterface_admin.h"
 
 struct Context
 {

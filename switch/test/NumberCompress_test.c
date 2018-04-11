@@ -111,7 +111,8 @@ static void numberCompressions_generic(
 #define GLUE(a,b) GLUE2(a,b)
 #define GLUE2(a,b) NumberCompress_ ## a ## _ ## b
 
-int main()
+int main(void);
+int main(void)
 {
     TEST(f4);
     TEST(f8);

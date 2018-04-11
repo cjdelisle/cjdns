@@ -89,7 +89,8 @@ static int testInputHandler()
     return -1;
 }
 
-int main()
+int main(void);
+int main(void)
 {
     return testInputHandler();
 }

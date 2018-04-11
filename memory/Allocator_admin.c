@@ -16,6 +16,7 @@
 #include "benc/String.h"
 #include "benc/Dict.h"
 #include "memory/Allocator.h"
+#include "memory/Allocator_admin.h"
 #include "util/Identity.h"
 
 struct Allocator_admin_pvt

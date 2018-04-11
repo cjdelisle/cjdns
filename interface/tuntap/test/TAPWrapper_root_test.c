@@ -24,6 +24,7 @@
 #include "interface/tuntap/NDPServer.h"
 #include "interface/tuntap/ARPServer.h"
 
+int main(int argc, char** argv);
 int main(int argc, char** argv)
 {
     struct Allocator* alloc = MallocAllocator_new(1<<20);

@@ -74,7 +74,8 @@ static int testOutputHandler()
     return -1;
 }
 
-int main()
+int main(void);
+int main(void)
 {
     return testOutputHandler();
 }

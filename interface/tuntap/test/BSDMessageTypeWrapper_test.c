@@ -45,7 +45,8 @@ static Iface_DEFUN sendOutside(struct Message* msg, struct Iface* outside)
     return Iface_next(outside, msg);
 }
 
-int main()
+int main(void);
+int main(void)
 {
     struct Allocator* alloc = MallocAllocator_new(20000);
     struct Context* ctx = Allocator_calloc(alloc, sizeof(struct Context), 1);

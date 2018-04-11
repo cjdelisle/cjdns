@@ -21,7 +21,8 @@ static int compare(const void* a, const void* b)
     return (*(int *) a - *(int *) b);
 }
 
-int main()
+int main(void);
+int main(void)
 {
     int values[] = { 40, 10, 100, 90, 20, 25, -15, 30, -225};
 

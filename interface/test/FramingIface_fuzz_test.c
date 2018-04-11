@@ -67,6 +67,7 @@ static Iface_DEFUN messageOut(struct Message* msg, struct Iface* iface)
 
 #define MAX_MSGS_PER_FRAME 1024
 
+int main(int argc, char** argv);
 int main(int argc, char** argv)
 {
     struct Allocator* mainAlloc = MallocAllocator_new(1<<20);

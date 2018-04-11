@@ -14,7 +14,8 @@
  */
 #ifdef SUBNODE
 // TODO(cjd): Subnode beacon testing
-int main()
+int main(void);
+int main(void)
 {
     return 0;
 }
@@ -246,7 +247,8 @@ static void runTest(struct TwoNodes* tn)
 }
 
 /** Check if nodes A and C can communicate via B without A knowing that C exists. */
-int main()
+int main(void);
+int main(void)
 {
     struct Allocator* alloc = MallocAllocator_new(1<<22);
     struct Writer* logwriter = FileWriter_new(stdout, alloc);

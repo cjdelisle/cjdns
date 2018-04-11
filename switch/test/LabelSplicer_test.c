@@ -47,7 +47,8 @@ static void routesThrough()
     Assert_true(LabelSplicer_routesThrough(dst, 1));
 }
 
-int main()
+int main(void);
+int main(void)
 {
     splice();
     routesThrough();

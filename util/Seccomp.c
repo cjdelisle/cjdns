@@ -414,7 +414,7 @@ void Seccomp_dropPermissions(struct Allocator* tempAlloc, struct Log* logger, st
     }
 }
 
-int Seccomp_isWorking()
+int Seccomp_isWorking(void)
 {
     errno = 0;
     // If seccomp is not working, this will fail setting errno to EINVAL
@@ -428,7 +428,7 @@ int Seccomp_isWorking()
     return (ret == -1 && err == IS_WORKING_ERRNO) || (ret == -IS_WORKING_ERRNO && err == 0);
 }
 
-int Seccomp_exists()
+int Seccomp_exists(void)
 {
     return 1;
 }

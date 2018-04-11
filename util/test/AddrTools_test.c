@@ -16,7 +16,8 @@
 #include "util/AddrTools.h"
 #include "util/Assert.h"
 
-int main()
+int main(void);
+int main(void)
 {
     uint8_t out[16];
     Assert_true(!AddrTools_parseIp(out, (uint8_t*)"[::1]"));

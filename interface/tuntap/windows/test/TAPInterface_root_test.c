@@ -13,6 +13,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #if 1
+int main(int argc, char** argv);
 int main(int argc, char** argv)
 {
     return 0;

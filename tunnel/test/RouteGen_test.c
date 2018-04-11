@@ -112,7 +112,8 @@ static void runTest(char** prefixes,
     Allocator_free(alloc);
 }
 
-int main()
+int main(void);
+int main(void)
 {
     struct Allocator* alloc = MallocAllocator_new(1<<20);
     struct Log* log = FileWriterLog_new(stdout, alloc);

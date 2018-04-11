@@ -87,7 +87,8 @@ static void test179(struct Allocator* alloc, struct Log* logger)
     Assert_true(Bits_memcmp(buff, buff2, 32));
 }
 
-int main()
+int main(void);
+int main(void)
 {
     struct Allocator* alloc = MallocAllocator_new(1<<20);
     struct RandomSeed* seed = DeterminentRandomSeed_new(alloc, NULL);

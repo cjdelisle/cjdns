@@ -85,6 +85,7 @@ static Iface_DEFUN receiveMessageParent(struct Message* msg, struct Iface* iface
     return 0;
 }
 
+int main(int argc, char** argv);
 int main(int argc, char** argv)
 {
     struct Allocator* alloc = MallocAllocator_new(20000);

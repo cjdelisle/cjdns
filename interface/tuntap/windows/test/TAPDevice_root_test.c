@@ -13,6 +13,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #ifndef win32
+int main(int argc, char** argv);
 int main(int argc, char** argv)
 {
     return 0;
@@ -26,6 +27,7 @@ int main(int argc, char** argv)
 
 #include <stdio.h>
 
+int main(int argc, char** argv);
 int main(int argc, char** argv)
 {
     struct Allocator* alloc = MallocAllocator_new(1<<20);

@@ -29,6 +29,7 @@
 #define RootTest_main <?js return 'RootTest_'+file.RootTest_mainFunc; ?>
 
 int RootTest_main(int argc, char** argv);
+int main(int argc, char** argv);
 int main(int argc, char** argv)
 {
     int runIt = 0;

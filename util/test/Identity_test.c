@@ -27,7 +27,8 @@ static struct Thing* increment(struct Thing* t)
     return t;
 }
 
-int main()
+int main(void);
+int main(void)
 {
     struct Thing t = {
         .counter = 0

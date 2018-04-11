@@ -76,7 +76,8 @@ static void structureSizes()
     Allocator_free(alloc);
 }
 
-int main()
+int main(void);
+int main(void)
 {
     allocatorClone();
     structureSizes();

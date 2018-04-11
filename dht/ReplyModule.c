@@ -17,6 +17,7 @@
 #include "dht/DHTMessage.h"
 #include "dht/DHTModule.h"
 #include "dht/DHTModuleRegistry.h"
+#include "dht/ReplyModule.h"
 #include "benc/Object.h"
 #include "wire/Message.h"
 

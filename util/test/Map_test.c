@@ -27,7 +27,8 @@
 
 #define CYCLES 1
 
-int main()
+int main(void);
+int main(void)
 {
     struct Allocator* mainAlloc = MallocAllocator_new(20000);
     struct Random* rand = Random_new(mainAlloc, NULL, NULL);

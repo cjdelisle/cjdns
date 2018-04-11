@@ -52,7 +52,8 @@ static void send(struct Iface* sendTo, struct Message* toSend, struct Allocator*
     Allocator_free(child);
 }
 
-int main()
+int main(void);
+int main(void)
 {
     struct Allocator* alloc = MallocAllocator_new(1<<20);
     struct Context* ctx = Allocator_calloc(alloc, sizeof(struct Context), 1);

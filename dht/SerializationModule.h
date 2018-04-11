@@ -19,6 +19,7 @@
     #error "this file should not be included in subnode"
 #endif
 
+#include "util/log/Log.h"
 #include "dht/DHTModuleRegistry.h"
 #include "util/Linker.h"
 Linker_require("dht/SerializationModule.c");

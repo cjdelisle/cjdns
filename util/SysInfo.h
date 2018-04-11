@@ -40,7 +40,7 @@ struct SysInfo
 };
 Assert_compileTime(sizeof(struct SysInfo) == 4);
 
-struct SysInfo SysInfo_detect();
+struct SysInfo SysInfo_detect(void);
 
 char* SysInfo_describe(struct SysInfo si, struct Allocator* alloc);
 

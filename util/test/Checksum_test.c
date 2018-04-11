@@ -122,8 +122,8 @@ static void icmp6ChecksumTest()
     Assert_true(checksum == calcatedSum);
 }
 
-
-int main()
+int main(void);
+int main(void)
 {
     checksumAlgorithmTest();
     udp6ChecksumTest();

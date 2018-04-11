@@ -307,6 +307,7 @@ static void cycle(uint8_t randSeed[64],
     mainLoop(ctx);
 }
 
+int main(int argc, char** argv);
 int main(int argc, char** argv)
 {
     struct Allocator* alloc = MallocAllocator_new(1048576);

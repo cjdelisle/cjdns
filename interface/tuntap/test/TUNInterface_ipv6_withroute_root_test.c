@@ -26,6 +26,7 @@
 #include "test/RootTest.h"
 #include "interface/tuntap/test/TUNTools.h"
 
+int main(int argc, char** argv);
 int main(int argc, char** argv)
 {
     struct Allocator* alloc = MallocAllocator_new(1<<20);

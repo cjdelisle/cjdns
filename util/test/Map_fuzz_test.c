@@ -32,6 +32,7 @@
 #define QUICK_CYCLES 5
 #define SLOW_CYCLES 1000
 
+int main(int argc, char* argv[]);
 int main(int argc, char* argv[])
 {
     int cycles = QUICK_CYCLES;

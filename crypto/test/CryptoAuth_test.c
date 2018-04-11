@@ -303,7 +303,8 @@ static void twoKeyPackets(int scenario)
     Allocator_free(ctx->alloc);
 }
 
-int main()
+int main(void);
+int main(void)
 {
     normal();
     repeatKey();

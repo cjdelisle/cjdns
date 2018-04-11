@@ -363,7 +363,8 @@ static void testAddr(struct Context* ctx,
     Allocator_free(alloc);
 }
 
-int main()
+int main(void);
+int main(void)
 {
     struct Allocator* alloc = MallocAllocator_new(1<<20);
     struct EventBase* eb = EventBase_new(alloc);

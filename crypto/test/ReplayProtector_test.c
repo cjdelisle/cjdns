@@ -45,7 +45,8 @@ static void testDuplicates(struct Random* rand)
     }
 }
 
-int main()
+int main(void);
+int main(void)
 {
     struct Allocator* alloc = MallocAllocator_new(4096);
     struct Random* rand = Random_new(alloc, NULL, NULL);

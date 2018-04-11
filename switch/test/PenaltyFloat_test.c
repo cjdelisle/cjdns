@@ -34,7 +34,8 @@ static void packUnpack(struct Random* rand)
     Assert_true(PenaltyFloat_MAX == PenaltyFloat_pack(UINT64_MAX));
 }
 
-int main()
+int main(void);
+int main(void)
 {
     struct Allocator* alloc = MallocAllocator_new(20000000);
     struct Random* rand = Random_new(alloc, NULL, NULL);
