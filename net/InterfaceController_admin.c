@@ -19,7 +19,9 @@
 #include "benc/Int.h"
 #include "crypto/AddressCalc.h"
 #include "crypto/Key.h"
+#ifdef HAS_ETH_INTERFACE
 #include "interface/ETHInterface.h"
+#endif
 #include "net/InterfaceController.h"
 #include "net/InterfaceController_admin.h"
 #include "util/AddrTools.h"
@@ -56,6 +58,7 @@ static void adminPeerStats(Dict* args, void* vcontext, String* txid, struct Allo
         Dict_putStringC(d, "addr", Address_toString(&stats[i].addr, alloc), alloc);
 
         String* lladdrString;
+#ifdef HAS_ETH_INTERFACE
         if (ETHInterface_Sockaddr_SIZE == stats[i].lladdr->addrLen) {
             struct ETHInterface_Sockaddr* eth = (struct ETHInterface_Sockaddr*) stats[i].lladdr;
             uint8_t printedMac[18];
@@ -64,6 +67,9 @@ static void adminPeerStats(Dict* args, void* vcontext, String* txid, struct Allo
         } else {
             lladdrString = String_new(Sockaddr_print(stats[i].lladdr, alloc), alloc);
         }
+#else
+        lladdrString = String_new(Sockaddr_print(stats[i].lladdr, alloc), alloc);
+#endif
         Dict_putStringC(d, "lladdr", lladdrString, alloc);
 
         String* stateString = String_new(InterfaceController_stateString(stats[i].state), alloc);
