@@ -19,6 +19,7 @@
 #include "exception/Jmp.h"
 #include "util/log/Log.h"
 #include "util/Security.h"
+#include "util/Security_admin.h"
 
 struct Context
 {

@@ -19,6 +19,7 @@
 #include "benc/List.h"
 #include "benc/String.h"
 #include "benc/serialization/BencSerializer.h"
+#include "benc/serialization/json/JsonBencSerializer.h"
 #include "util/Bits.h"
 #include "util/Hex.h"
 
@@ -582,7 +583,7 @@ static const struct BencSerializer SERIALIZER =
     .parseDictionary = parseDictionary
 };
 
-const struct BencSerializer* JsonBencSerializer_get()
+const struct BencSerializer* JsonBencSerializer_get(void)
 {
     return &SERIALIZER;
 }

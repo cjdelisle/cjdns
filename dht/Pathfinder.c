@@ -20,6 +20,7 @@
 #include "wire/RouteHeader.h"
 #include "dht/ReplyModule.h"
 #include "dht/EncodingSchemeModule.h"
+#include "dht/Pathfinder_pvt.h"
 #include "dht/SerializationModule.h"
 #include "dht/dhtcore/RouterModule.h"
 #include "dht/dhtcore/RouterModule_admin.h"

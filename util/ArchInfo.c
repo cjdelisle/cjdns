@@ -159,12 +159,12 @@ gcc arch.c
     #error architecture unknown
 #endif
 
-uint32_t ArchInfo_getAuditArch()
+uint32_t ArchInfo_getAuditArch(void)
 {
     return ARCH;
 }
 
-char* ArchInfo_getArchStr()
+char* ArchInfo_getArchStr(void)
 {
     return ARCHSTR;
 }

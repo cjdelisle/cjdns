@@ -56,6 +56,7 @@ Builder.configure({
         '-Wextra',
         '-Werror',
         '-Wno-pointer-sign',
+        '-Wmissing-prototypes',
         '-pedantic',
         '-D', builder.config.systemName + '=1',
         '-D', 'CJD_PACKAGE_VERSION="' + builder.config.version + '"',

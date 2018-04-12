@@ -14,6 +14,7 @@
  */
 
 #include "dht/dhtcore/Router.h"
+#include "dht/dhtcore/Router_new.h"
 #include "dht/dhtcore/NodeStore.h"
 #include "dht/dhtcore/RouterModule.h"
 #include "dht/dhtcore/SearchRunner.h"

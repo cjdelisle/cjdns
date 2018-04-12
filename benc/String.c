@@ -13,11 +13,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "memory/Allocator.h"
-#include "benc/String.h"
 #include "util/Bits.h"
 
 #include <stdio.h>
 #include <stdarg.h>
+
+#include "benc/String.h"
 
 /** @see Object.h */
 String* String_new(const char* bytes, struct Allocator* allocator)

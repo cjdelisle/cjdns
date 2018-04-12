@@ -61,7 +61,9 @@ var generate = module.exports.generate = function (file, builder, isSubnode, cal
         tests.forEach(function (test) {
             var main = /^.*\/([^\/]+)\.c$/.exec(test)[1] + '_main';
             (builder.config['cflags'+test] =
-                builder.config['cflags'+test] || []).push('-D', 'main='+main);
+                builder.config['cflags'+test] || [])
+                .push('-D', 'main='+main,
+                      '-D', main+'(...)='+main+'(int argc, char** argv);int '+main+'(int argc, char** argv)');
             file.links.push(test);
             listContent.push('{ .func = '+main+', .name = "'+test.replace(/^.*\/|.c$/g, '')+'" },');
             prototypes.push('int '+main+'(int argc, char** argv);');

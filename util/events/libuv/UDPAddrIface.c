@@ -57,7 +57,7 @@ struct UDPAddrIface_WriteRequest_pvt {
     Identity
 };
 
-struct UDPAddrIface_pvt* ifaceForHandle(uv_udp_t* handle)
+static struct UDPAddrIface_pvt* ifaceForHandle(uv_udp_t* handle)
 {
     char* hp = ((char*)handle) - offsetof(struct UDPAddrIface_pvt, uvHandle);
     return Identity_check((struct UDPAddrIface_pvt*) hp);

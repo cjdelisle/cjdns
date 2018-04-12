@@ -18,6 +18,7 @@
 #include "benc/Int.h"
 #include "dht/Address.h"
 #include "net/SwitchPinger.h"
+#include "net/SwitchPinger_admin.h"
 #include "util/Endian.h"
 #include "util/AddrTools.h"
 #include "crypto/Key.h"

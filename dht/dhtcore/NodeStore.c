@@ -453,7 +453,7 @@ static bool findBestParent(struct Node_Two* node, struct NodeStore_pvt* store)
             }
         }
     } while (ret);
-    uint64_t time1 = Time_hrtime(store->eventBase);
+    uint64_t time1 = Time_hrtime();
     if ((int64_t)(time1 - time0) > 1000000) {
         Log_warn(store->logger, "\n\nfindBestParent() took [%lld] ms\n\n",
             (long long) ((time1 - time0) / 1000000));

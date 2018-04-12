@@ -218,7 +218,7 @@ static void switching(struct Context* ctx)
 }
 
 /** Check if nodes A and C can communicate via B without A knowing that C exists. */
-void Benchmark_runAll()
+void Benchmark_runAll(void)
 {
     struct Allocator* alloc = MallocAllocator_new(1<<22);
     struct Context* ctx = Allocator_calloc(alloc, sizeof(struct Context), 1);

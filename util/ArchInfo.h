@@ -20,8 +20,8 @@ Linker_require("util/ArchInfo.c");
 
 #include <stdint.h>
 
-uint32_t ArchInfo_getAuditArch();
+uint32_t ArchInfo_getAuditArch(void);
 
-char* ArchInfo_getArchStr();
+char* ArchInfo_getArchStr(void);
 
 #endif

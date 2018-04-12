@@ -18,5 +18,5 @@
 #include "util/Linker.h"
 Linker_require("net/Benchmark.c");
 
-void Benchmark_runAll();
+void Benchmark_runAll(void);
 #endif

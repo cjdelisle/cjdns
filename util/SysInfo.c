@@ -21,7 +21,7 @@
 
 #include <stdio.h>
 
-struct SysInfo SysInfo_detect()
+struct SysInfo SysInfo_detect(void)
 {
     struct SysInfo out = { .os = 0 };
     if (Defined(linux)) {
@@ -48,7 +48,7 @@ struct SysInfo SysInfo_detect()
     return out;
 }
 
-char* getName(enum SysInfo_Os os)
+static char* getName(enum SysInfo_Os os)
 {
     switch (os) {
         case SysInfo_Os_LINUX: return "linux";

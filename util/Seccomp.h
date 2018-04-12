@@ -23,8 +23,8 @@
 
 void Seccomp_dropPermissions(struct Allocator* tempAlloc, struct Log* logger, struct Except* eh);
 
-int Seccomp_isWorking();
+int Seccomp_isWorking(void);
 
-int Seccomp_exists();
+int Seccomp_exists(void);
 
 #endif
