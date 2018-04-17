@@ -8,13 +8,19 @@ require 'publicKey2ipv6.php';
 define('PASSWORD', 'NONE');
 
 $cjdns = new Cjdns(PASSWORD, "127.0.0.1", 11234);
-$res = $cjdns->call("InterfaceController_peerStats", 0);
+
+$peers = []; $page = 0;
+do
+{
+        $res = $cjdns->call("InterfaceController_peerStats", ['page' => $page++]);
+        $peers = array_merge($peers, $res['peers']);
+} while(!empty($res['more']));
 
 $table = new table();
 
 $table->add(['Public Key', 'Ipv6', 'State', 'Last', 'Bytes In', 'Bytes Out', 'Lost', 'Ver', 'In']);
 
-foreach ($res['peers'] as $a)
+foreach ($peers as $a)
 {
 	$pK  = preg_match('/.{23}([a-z0-6]{4}).+(.{6})$/', $a['addr'], $m) ? $m[1].'...'.$m[2] : '?';
 	$ip  = preg_replace('#.+:#', ':', publicKey2ipv6(explode('.', $a['addr'])[5]));
