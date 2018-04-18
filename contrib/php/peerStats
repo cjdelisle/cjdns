@@ -38,6 +38,7 @@ function _h($x)
 	if ($x < 1024) return sprintf("%5.2f",    $x); $x /= 1024;
 	if ($x < 1024) return sprintf("%5.2f Kb", $x); $x /= 1024;
 	if ($x < 1024) return sprintf("%5.2f Mb", $x); $x /= 1024;
+	if ($x < 1024) return sprintf("%5.2f Gb", $x); $x /= 1024;
 	return $x;
 }
 
