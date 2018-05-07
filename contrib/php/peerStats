@@ -18,14 +18,15 @@ do
 
 $table = new table();
 
-$table->add(['Public Key', 'Ipv6', 'State', 'Last', 'Bytes In', 'Bytes Out', 'Lost', 'Ver', 'In']);
+$table->add(['Public Key', 'Ipv6', 'User', 'State', 'Last', 'Bytes In', 'Bytes Out', 'Lost', 'Ver', 'In']);
 
 foreach ($peers as $a)
 {
-	$pK  = preg_match('/.{23}([a-z0-6]{4}).+(.{6})$/', $a['addr'], $m) ? $m[1].'...'.$m[2] : '?';
-	$ip  = preg_replace('#.+:#', ':', publicKey2ipv6(explode('.', $a['addr'])[5]));
-	$ver = preg_match('/^v(\d+)/', $a['addr'], $m) ? $m[1] : '?';
-	$table->add([$pK, $ip, $a['state'], date('H:i:s d.m.y', $a['last']/1000),
+	$pK   = preg_match('/.{23}([a-z0-6]{4}).+(.{6})$/', $a['addr'], $m) ? $m[1].'...'.$m[2] : '?';
+	$ip   = preg_replace('#.+:#', ':', publicKey2ipv6(explode('.', $a['addr'])[5]));
+	$ver  = preg_match('/^v(\d+)/', $a['addr'], $m) ? $m[1] : '?';
+	$date = str_replace(date(' d.m.y'), '', date('H:i:s d.m.y', $a['last']/1000));
+	$table->add([$pK, $ip, $a['user'], $a['state'], $date,
 		_h($a['bytesIn']), _h($a['bytesOut']), $a['lostPackets'],
 		$ver, $a['isIncoming']]);
 }
