@@ -12,6 +12,7 @@ ExecStartPre=/bin/sh -ec "if ! test -s /etc/cjdroute.conf; \
                 /usr/bin/cjdroute --genconf > /etc/cjdroute.conf; \
                 echo 'WARNING: A new /etc/cjdroute.conf file has been generated.'; \
             fi"
+ExecStartPre=-/sbin/ip -6 route add blackhole fc00::/8 metric 500
 ExecStart=/bin/sh -c "exec /usr/bin/cjdroute --nobg < /etc/cjdroute.conf"
 Restart=always
 
