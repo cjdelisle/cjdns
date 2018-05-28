@@ -84,3 +84,5 @@ Enjoy!
 <cjd> that would be the cause
 <vik> Tx .. starting with sudo fixed it ..
 ```
+
+You will probably also need to change `"bind": "all"` to `"bind": "en0"` in your `cjdroute.conf`. See [this](https://github.com/hyperboria/bugs/issues/160#issuecomment-320576127) issue.
