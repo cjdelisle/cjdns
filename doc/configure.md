@@ -149,29 +149,27 @@ This specifies the settings for the connection interfaces to your node. Right no
         */
         /*
         "UDPBcastInterface":
-        [
-            {
-                "bindAddress": "0.0.0.0:54200",
-                // Bind to this device (interface name or 'all', not MAC etc.)
-                "bindDevices": ["eth0"],
+        {
+            "bindAddress": "0.0.0.0:54200",
+            // Bind to this device (interface name or 'all', not MAC etc.)
+            "bindDevices": ["eth0"],
 
-                // Auto-connect to other cjdns nodes on the same network.
-                // Options:
-                //
-                // 0 -- Disabled.
-                //
-                // 1 -- Accept beacons, this will cause cjdns to accept incoming
-                //      beacon messages and try connecting to the sender.
-                //
-                // 2 -- Accept and send beacons, this will cause cjdns to broadcast
-                //      messages on the local network which contain a randomly
-                //      generated per-session password, other nodes which have this
-                //      set to 1 or 2 will hear the beacon messages and connect
-                //      automatically.
-                //
-                "beacon": 2,
-            }
-        ]
+            // Auto-connect to other cjdns nodes on the same network.
+            // Options:
+            //
+            // 0 -- Disabled.
+            //
+            // 1 -- Accept beacons, this will cause cjdns to accept incoming
+            //      beacon messages and try connecting to the sender.
+            //
+            // 2 -- Accept and send beacons, this will cause cjdns to broadcast
+            //      messages on the local network which contain a randomly
+            //      generated per-session password, other nodes which have this
+            //      set to 1 or 2 will hear the beacon messages and connect
+            //      automatically.
+            //
+            "beacon": 2,
+        }
         */
     },
 ````
