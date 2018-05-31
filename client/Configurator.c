@@ -484,6 +484,69 @@ static void ethInterface(Dict* config, struct Context* ctx)
     }
 }
 
+static void udpBcastInterfaceSetBeacon(Dict* udp, struct Context* ctx)
+{
+    int64_t* beaconP = Dict_getIntC(udp, "beacon");
+    if (beaconP) {
+        int64_t beacon = *beaconP;
+        if (beacon > 3 || beacon < 0) {
+            Log_error(ctx->logger, "interfaces.UDPBcastInterface.beacon may only be 0, 1,or 2");
+        } else {
+            // We can cast beacon to an int here because we know it's small enough
+            Log_info(ctx->logger, "Setting beacon mode UDPBcastInterface to [%d].", (int) beacon);
+            Dict d = Dict_CONST(String_CONST("state"), Int_OBJ(beacon), NULL);
+            rpcCall(String_CONST("UDPBcastInterface_beacon"), &d, ctx, ctx->alloc);
+        }
+    }
+}
+
+static void udpBcastInterface(Dict* config, struct Context* ctx)
+{
+    Dict* iface = Dict_getDictC(config, "UDPBcastInterface");
+    if (iface) {
+        List* devices = Dict_getListC(iface, "bindDevices");
+        String* addrStr = Dict_getStringC(iface, "bindAddress");
+        if (devices && addrStr) {
+            Log_info(ctx->logger, "Setting up UDPBcastInterface.");
+            Dict* d = Dict_new(ctx->alloc);
+            Dict* res = NULL;
+            if (rpcCall0(String_CONST("UDPBcastInterface_list"), d, ctx, ctx->alloc, &res, false)) {
+                Log_info(ctx->logger, "Getting device list failed");
+                return;
+            }
+            List* devs = Dict_getListC(res, "devices");
+            List* allDevs = List_new(ctx->alloc);
+            uint32_t devCount = List_size(devices);
+            uint32_t availableDevCount = List_size(devs);
+            for (uint32_t j = 0; j < devCount; j++) {
+                String* deviceName = List_getString(devices, j);
+                for (uint32_t i = 0; i < availableDevCount; i++) {
+                    String* avDeviceName = List_getString(devs, i);
+                    if (String_equals(String_CONST("all"), deviceName) ||
+                        String_equals(avDeviceName, deviceName)) {
+                        List_addString(allDevs, avDeviceName, ctx->alloc);
+                        Log_info(ctx->logger, "Using %s as UDPBcastInterface", avDeviceName->bytes);
+                    }
+                }
+            }
+
+            if (List_size(allDevs) > 0) {
+                Log_info(ctx->logger, "Creating new UDPBcastInterface");
+                Dict* rd = Dict_new(ctx->alloc);
+                Dict* resp;
+                Dict_putListC(rd, "bindDevices", allDevs, ctx->alloc);
+                Dict_putStringC(rd, "bindAddress", addrStr, ctx->alloc);
+                if (rpcCall0(String_CONST("UDPBcastInterface_new"),
+                            rd, ctx, ctx->alloc, &resp, false)) {
+                    Log_warn(ctx->logger, "Create UDPBcastInterface failed.");
+                    return;
+                }
+                udpBcastInterfaceSetBeacon(iface, ctx);
+            }
+        }
+    }
+}
+
 static void security(struct Allocator* tempAlloc, List* conf, struct Log* log, struct Context* ctx)
 {
     int seccomp = 1;
@@ -675,6 +738,8 @@ void Configurator_config(Dict* config,
     if (Defined(HAS_ETH_INTERFACE)) {
         ethInterface(ifaces, &ctx);
     }
+
+    udpBcastInterface(ifaces, &ctx);
 
     Dict* routerConf = Dict_getDictC(config, "router");
     routerConfig(routerConf, tempAlloc, &ctx);

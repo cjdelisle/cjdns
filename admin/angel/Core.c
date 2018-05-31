@@ -35,6 +35,7 @@
 #include "interface/tuntap/TUNInterface.h"
 #include "interface/tuntap/AndroidWrapper.h"
 #include "interface/UDPInterface_admin.h"
+#include "interface/UDPBcastInterface_admin.h"
 #ifdef HAS_ETH_INTERFACE
 #include "interface/ETHInterface_admin.h"
 #endif
@@ -282,6 +283,7 @@ void Core_init(struct Allocator* alloc,
     InterfaceController_admin_register(nc->ifController, admin, alloc);
     SwitchPinger_admin_register(nc->sp, admin, alloc);
     UDPInterface_admin_register(eventBase, alloc, logger, admin, nc->ifController, fakeNet);
+    UDPBcastInterface_admin_register(eventBase, alloc, logger, admin, nc->ifController);
 #ifdef HAS_ETH_INTERFACE
     ETHInterface_admin_register(eventBase, alloc, logger, admin, nc->ifController);
 #endif
