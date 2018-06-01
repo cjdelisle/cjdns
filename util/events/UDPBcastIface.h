@@ -52,7 +52,7 @@ struct UDPBcastIface_Header
     uint8_t reversed;
 
     /** Pad to align boundry, also magic. */
-    uint16_t fb00_be;
+    uint16_t magic_be;
 };
 #define UDPBcastIface_Header_SIZE 8
 Assert_compileTime(sizeof(struct UDPBcastIface_Header) == UDPBcastIface_Header_SIZE);

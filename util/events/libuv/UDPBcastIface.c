@@ -141,7 +141,7 @@ static Iface_DEFUN incomingFromIface(struct Message* m, struct Iface* iface)
         .length_be = Endian_hostToBigEndian16(m->length + UDPBcastIface_Header_SIZE),
         .bcast = 0,
         .reversed = 0,
-        .fb00_be= Endian_hostToBigEndian16(0xfb00),
+        .magic_be= Endian_hostToBigEndian16(0xfc00),
     };
 
     if (sa->flags & Sockaddr_flags_BCAST) {
@@ -246,7 +246,7 @@ static void incoming(uv_udp_t* handle,
                 m->length = reportedLength;
             }
 
-            if (hdr.fb00_be != Endian_hostToBigEndian16(0xfb00)) {
+            if (hdr.magic_be != Endian_hostToBigEndian16(0xfc00)) {
                 Log_debug(context->logger, "DROP bad magic");
                 break;
             }
