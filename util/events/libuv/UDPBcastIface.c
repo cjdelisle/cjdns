@@ -253,7 +253,7 @@ static void incoming(uv_udp_t* handle,
 
             if (!context->bcast) {
                 Log_debug(context->logger, "Drop packet with bcast disabled");
-                return;
+                break;
             }
 
             struct Sockaddr laddr;
