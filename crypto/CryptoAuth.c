@@ -1069,14 +1069,26 @@ void CryptoAuth_setAuth(const String* password,
         Identity_check((struct CryptoAuth_Session_pvt*)caSession);
 
     if (!password && (session->password || session->authType)) {
+        if (session->passwdAlloc) {
+            Allocator_free(session->passwdAlloc);
+            session->passwdAlloc = NULL;
+        }
         session->password = NULL;
         session->authType = 0;
     } else if (!session->password || !String_equals(session->password, password)) {
-        session->password = String_clone(password, session->alloc);
+        if (session->passwdAlloc) {
+            Allocator_free(session->passwdAlloc);
+        }
+        session->passwdAlloc = Allocator_child(session->alloc);
+        session->password = String_clone(password, session->passwdAlloc);
         session->authType = 1;
         if (login) {
             session->authType = 2;
-            session->login = String_clone(login, session->alloc);
+            if (session->loginAlloc) {
+                Allocator_free(session->loginAlloc);
+            }
+            session->loginAlloc = Allocator_child(session->alloc);
+            session->login = String_clone(login, session->loginAlloc);
         }
     } else {
         return;
