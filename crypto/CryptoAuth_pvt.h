@@ -81,9 +81,11 @@ struct CryptoAuth_Session_pvt
     uint8_t ourTempPubKey[32];
 
     /** A password to use for authing with the other party. */
+    struct Allocator* passwdAlloc;
     String* password;
 
     /** The login name to auth with the other party. */
+    struct Allocator* loginAlloc;
     String* login;
 
     /** The next nonce to use. */
