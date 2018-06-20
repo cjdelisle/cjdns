@@ -20,6 +20,8 @@
     #error ABI_IS_ppc64__
 #elif defined(__powerpc__) || defined(__ppc__) || defined(__PPC__) || defined(_ARCH_PPC)
     #error ABI_IS_ppc32__
+#elif defined(__s390x__)
+    #error ABI_IS_s390x__
 #elif defined(__sparcv9__) || defined(__sparcv9)
     #error ABI_IS_sparcv9__
 #elif defined(__sparc_v8__)
