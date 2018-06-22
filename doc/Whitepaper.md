@@ -700,7 +700,7 @@ against replay attacks and has no forward secrecy if the private key is
 compromised. The CryptoAuth header adds takes 120 bytes of overhead to the
 packet, causing a fluctuating MTU.
 
-There are 5 types of CryptoAuth header:
+There are 4 types of CryptoAuth header:
 
 1. Connect To Me - Used to start a session without knowing the other node's key.
 2. Hello Packet  - The first message in beginning a session.
@@ -716,7 +716,7 @@ or two, it is a Hello Packet or repeated Hello Packet, if it is three or four,
 it is a Key Packet or repeated Key Packet. If it is any number larger than four,
 it is a Data Packet.
 
-Handshake packet structure:
+Handshake packet structure (Connect To Me, Hello, Key):
 
                           1               2               3
           0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
@@ -785,7 +785,26 @@ Handshake packet structure:
          +        Variable Length Encrypted/Authenticated Content        +
          |                                                               |
 
+Data packet structure:
 
+                          1               2               3
+          0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
+         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       0 |                              Nonce                            |
+         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       4 |                                                               |
+         +                                                               +
+       8 |                     Poly 1305 Authenticator                   |
+         +                                                               +
+      12 |                                                               |
+         +                                                               +
+      16 |                                                               |
+         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      20 |                                                               |
+         +                       Variable Length Data                    +
+      24 |                                                               |
+      
+      
 ### 1) Connect To Me Packet
 
 If "Session State" is equal to the bitwise complement of zero, the sender is
