@@ -240,6 +240,7 @@ struct UDPInterface* UDPInterface_new(struct EventBase* eventBase,
         Sockaddr_setPort(bcastAddr, beaconPort);
         struct UDPAddrIface* bcast =
             UDPAddrIface_new(eventBase, bcastAddr, alloc, exHandler, logger);
+        UDPAddrIface_setBroadcast(bcast, 1);
         Iface_plumb(&bcast->generic.iface, &context->bcastSock);
         context->bcastIf = bcast;
     }
