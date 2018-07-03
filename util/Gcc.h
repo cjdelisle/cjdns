@@ -84,7 +84,12 @@
     #define Gcc_USE_RET
 #endif
 
-#define Gcc_SHORT_FILE <?js return '"'+__FILE__.substring(__FILE__.lastIndexOf('/')+1)+'"'; ?>
+#ifdef __INTELLISENSE__
+    #define Gcc_SHORT_FILE __FILE__
+#else
+    #define Gcc_SHORT_FILE <?js return '"'+__FILE__.substring(__FILE__.lastIndexOf('/')+1)+'"'; ?>
+#endif
+
 #define Gcc_FILE Gcc_SHORT_FILE
 #define Gcc_LINE __LINE__
 

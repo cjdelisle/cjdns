@@ -532,12 +532,17 @@ static Iface_DEFUN handleBeacon(struct Message* msg, struct InterfaceController_
         return NULL;
     }
 
-    if (msg->length < Headers_Beacon_SIZE) {
+    if (msg->length < Sockaddr_OVERHEAD) {
         Log_debug(ic->logger, "[%s] Dropping runt beacon", ici->name->bytes);
         return NULL;
     }
 
     struct Sockaddr* lladdrInmsg = (struct Sockaddr*) msg->bytes;
+
+    if (msg->length < lladdrInmsg->addrLen + Headers_Beacon_SIZE) {
+        Log_debug(ic->logger, "[%s] Dropping runt beacon", ici->name->bytes);
+        return NULL;
+    }
 
     // clear the bcast flag
     lladdrInmsg->flags = 0;

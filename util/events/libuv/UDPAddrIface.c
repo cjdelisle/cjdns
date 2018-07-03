@@ -252,6 +252,12 @@ int UDPAddrIface_setDSCP(struct UDPAddrIface* iface, uint8_t dscp)
     return res;
 }
 
+int UDPAddrIface_setBroadcast(struct UDPAddrIface* iface, bool enable)
+{
+    struct UDPAddrIface_pvt* context = Identity_check((struct UDPAddrIface_pvt*) iface);
+    return uv_udp_set_broadcast(&context->uvHandle, enable ? 1 : 0);
+}
+
 struct UDPAddrIface* UDPAddrIface_new(struct EventBase* eventBase,
                                       struct Sockaddr* addr,
                                       struct Allocator* alloc,

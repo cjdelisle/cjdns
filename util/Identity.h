@@ -18,11 +18,11 @@
 #include "util/Assert.h"
 #include "util/Constant.h"
 
-<?js file.Identity_hash = "0x" + Constant_randHexString(16) + "ull"; ?>
-
-#define Identity_MAGIC ((unsigned long) <?js return file.Identity_hash ?>)
-
 #if defined(Identity_CHECK)
+
+    <?js file.Identity_hash = "0x" + Constant_randHexString(16) + "ull"; ?>
+
+    #define Identity_MAGIC ((unsigned long) <?js return file.Identity_hash ?>)
 
     /** This goes in each structure which will be checked. */
     #define Identity \

@@ -175,6 +175,38 @@ static void authorizedPasswords(List* list, struct Context* ctx)
     }
 }
 
+static void udpInterfaceSetBeacon(
+    Dict* udp, int beacon, uint16_t beaconPort, int ifNum, struct Context* ctx)
+{
+    if (!beacon) { return; }
+    if (beacon > 2 || beacon < 0) {
+        Log_error(ctx->logger, "interfaces.UDPInterface.beacon may only be 0, 1,or 2");
+        return;
+    }
+    if (!beaconPort) {
+        Log_error(ctx->logger, "interfaces.UDPInterface.beacon requires beaconPort");
+        return;
+    }
+    List* devices = Dict_getListC(udp, "beaconDevices");
+    if (!devices) {
+        Log_error(ctx->logger, "interfaces.UDPInterface.beacon requires beaconDevices");
+        return;
+    }
+
+    // We can cast beacon to an int here because we know it's small enough
+    Log_info(ctx->logger, "Setting beacon mode UDPInterface to [%d].", (int) beacon);
+
+    Dict* d = Dict_new(ctx->alloc);
+    Dict_putIntC(d, "state", beacon, ctx->alloc);
+    Dict_putIntC(d, "interfaceNumber", ifNum, ctx->alloc);
+    rpcCall(String_CONST("UDPInterface_beacon"), d, ctx, ctx->alloc);
+
+    d = Dict_new(ctx->alloc);
+    Dict_putListC(d, "devices", devices, ctx->alloc);
+    Dict_putIntC(d, "interfaceNumber", ifNum, ctx->alloc);
+    rpcCall(String_CONST("UDPInterface_setBroadcastDevices"), d, ctx, ctx->alloc);
+}
+
 static void udpInterface(Dict* config, struct Context* ctx)
 {
     List* ifaces = Dict_getListC(config, "UDPInterface");
@@ -199,9 +231,16 @@ static void udpInterface(Dict* config, struct Context* ctx)
         if (dscp) {
             Dict_putIntC(d, "dscp", *dscp, ctx->alloc);
         }
+        int64_t* beaconPort_p = Dict_getIntC(udp, "beaconPort");
+        uint16_t beaconPort = (beaconPort_p) ? *beaconPort_p : 0;
+        int64_t* beaconP = Dict_getIntC(udp, "beacon");
+        int64_t beacon = (beaconP) ? *beaconP : 0;
+        if (beacon && beaconPort) { Dict_putIntC(d, "beaconPort", beaconPort, ctx->alloc); }
         Dict* resp = NULL;
         rpcCall0(String_CONST("UDPInterface_new"), d, ctx, ctx->alloc, &resp, true);
         int ifNum = *(Dict_getIntC(resp, "interfaceNumber"));
+
+        udpInterfaceSetBeacon(udp, beacon, beaconPort, ifNum, ctx);
 
         // Make the connections.
         Dict* connectTo = Dict_getDictC(udp, "connectTo");
@@ -381,7 +420,7 @@ static void ethInterfaceSetBeacon(int ifNum, Dict* eth, struct Context* ctx)
     int64_t* beaconP = Dict_getIntC(eth, "beacon");
     if (beaconP) {
         int64_t beacon = *beaconP;
-        if (beacon > 3 || beacon < 0) {
+        if (beacon > 2 || beacon < 0) {
             Log_error(ctx->logger, "interfaces.ETHInterface.beacon may only be 0, 1,or 2");
         } else {
             // We can cast beacon to an int here because we know it's small enough
@@ -479,69 +518,6 @@ static void ethInterface(Dict* config, struct Context* ctx)
                 Allocator_free(perCallAlloc);
 
                 entry = entry->next;
-            }
-        }
-    }
-}
-
-static void udpBcastInterfaceSetBeacon(Dict* udp, struct Context* ctx)
-{
-    int64_t* beaconP = Dict_getIntC(udp, "beacon");
-    if (beaconP) {
-        int64_t beacon = *beaconP;
-        if (beacon > 3 || beacon < 0) {
-            Log_error(ctx->logger, "interfaces.UDPBcastInterface.beacon may only be 0, 1,or 2");
-        } else {
-            // We can cast beacon to an int here because we know it's small enough
-            Log_info(ctx->logger, "Setting beacon mode UDPBcastInterface to [%d].", (int) beacon);
-            Dict d = Dict_CONST(String_CONST("state"), Int_OBJ(beacon), NULL);
-            rpcCall(String_CONST("UDPBcastInterface_beacon"), &d, ctx, ctx->alloc);
-        }
-    }
-}
-
-static void udpBcastInterface(Dict* config, struct Context* ctx)
-{
-    Dict* iface = Dict_getDictC(config, "UDPBcastInterface");
-    if (iface) {
-        List* devices = Dict_getListC(iface, "bindDevices");
-        String* addrStr = Dict_getStringC(iface, "bindAddress");
-        if (devices && addrStr) {
-            Log_info(ctx->logger, "Setting up UDPBcastInterface.");
-            Dict* d = Dict_new(ctx->alloc);
-            Dict* res = NULL;
-            if (rpcCall0(String_CONST("UDPBcastInterface_list"), d, ctx, ctx->alloc, &res, false)) {
-                Log_info(ctx->logger, "Getting device list failed");
-                return;
-            }
-            List* devs = Dict_getListC(res, "devices");
-            List* allDevs = List_new(ctx->alloc);
-            uint32_t devCount = List_size(devices);
-            uint32_t availableDevCount = List_size(devs);
-            for (uint32_t j = 0; j < devCount; j++) {
-                String* deviceName = List_getString(devices, j);
-                for (uint32_t i = 0; i < availableDevCount; i++) {
-                    String* avDeviceName = List_getString(devs, i);
-                    if (String_equals(String_CONST("all"), deviceName) ||
-                        String_equals(avDeviceName, deviceName)) {
-                        List_addString(allDevs, avDeviceName, ctx->alloc);
-                        Log_info(ctx->logger, "Using %s as UDPBcastInterface", avDeviceName->bytes);
-                    }
-                }
-            }
-
-            if (List_size(allDevs) > 0) {
-                Log_info(ctx->logger, "Creating new UDPBcastInterface");
-                Dict* rd = Dict_new(ctx->alloc);
-                Dict* resp;
-                Dict_putListC(rd, "bindDevices", allDevs, ctx->alloc);
-                Dict_putStringC(rd, "bindAddress", addrStr, ctx->alloc);
-                if (rpcCall0(String_CONST("UDPBcastInterface_new"),
-                            rd, ctx, ctx->alloc, &resp, false)) {
-                    Log_warn(ctx->logger, "Create UDPBcastInterface failed.");
-                    return;
-                }
-                udpBcastInterfaceSetBeacon(iface, ctx);
             }
         }
     }
@@ -738,8 +714,6 @@ void Configurator_config(Dict* config,
     if (Defined(HAS_ETH_INTERFACE)) {
         ethInterface(ifaces, &ctx);
     }
-
-    udpBcastInterface(ifaces, &ctx);
 
     Dict* routerConf = Dict_getDictC(config, "router");
     routerConfig(routerConf, tempAlloc, &ctx);

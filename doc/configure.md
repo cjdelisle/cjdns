@@ -105,6 +105,22 @@ This specifies the settings for the connection interfaces to your node. Right no
                 // Bind to this port.
                 "bind": "0.0.0.0:33808",
 
+                // Automatically connect to other nodes on the same LAN
+                // This works by binding a second port and sending beacons
+                // containing the main data port.
+                // beacon is a number between 0 and 2:
+                //   0 -> do not beacon nor connect to other nodes who beacon
+                //   1 -> quiet mode, accept beacons from other nodes only
+                //   2 -> send and accept beacons
+                // beaconDevices is a list which can contain names of devices such
+                // as eth0, as well as broadcast addresses to send to, such as
+                // 192.168.101.255, or the pseudo-name "all".
+                // in order to auto-peer, all cjdns nodes must use the same
+                // beaconPort.
+                "beacon": 2,
+                "beaconDevices": [ "all" ],
+                "beaconPort": 64512,
+
                 // Nodes to connect to.
                 "connectTo":
                 {
@@ -147,35 +163,17 @@ This specifies the settings for the connection interfaces to your node. Right no
             }
         ]
         */
-        /*
-        "UDPBcastInterface":
-        {
-            "bindAddress": "0.0.0.0:54200",
-            // Bind to this device (interface name or 'all', not MAC etc.)
-            "bindDevices": ["eth0"],
-
-            // Auto-connect to other cjdns nodes on the same network.
-            // Options:
-            //
-            // 0 -- Disabled.
-            //
-            // 1 -- Accept beacons, this will cause cjdns to accept incoming
-            //      beacon messages and try connecting to the sender.
-            //
-            // 2 -- Accept and send beacons, this will cause cjdns to broadcast
-            //      messages on the local network which contain a randomly
-            //      generated per-session password, other nodes which have this
-            //      set to 1 or 2 will hear the beacon messages and connect
-            //      automatically.
-            //
-            "beacon": 2,
-        }
-        */
     },
 ````
 
 - `UDPInterface`:
     - `bind`: This tells cjdns what IP and port to use for listening to connections.
+    - `beacon`: his controls peer auto-discovery. Set to 0 to disable auto-peering, 1 to use broadcast
+    auto-peering passwords contained in "beacon" messages from other nodes, and 2 to both broadcast and accept beacons.
+    - `beaconDevices`: A list of broadcast devices, including device names such as "eth0", address names and the
+    pseudo-name "all" which means it will use broadcast addresses of all interfaces. For example:
+    `[ "eth0", "wlan0", "192.168.300.255" ]`
+    - `beaconPort`: The UDP port for sending beacon messages on, all nodes must have the same beaconPort to auto-peer.
     - `connectTo`: This is where you put the connection details for peers that you want to connect to. The format for this generally looks like this,
         "12.34.56.78:12345":
         {
@@ -194,11 +192,6 @@ This specifies the settings for the connection interfaces to your node. Right no
     - `connectTo`: The connectTo for the ETHInterface functions almost exactly like it does for the the UDPInterface, except instead of an IP address and a port at the beginning, it is a MAC address.
     - `beacon`: This controls peer auto-discovery. Set to 0 to disable auto-peering, 1 to use broadcast auto-peering passwords contained in "beacon" messages from other nodes, and 2 to both broadcast and accept beacons.
     - In earlier versions of cjdns, it was necessary to uncomment the ETHInterface if you want to use it, however, now it is uncommented by default.
-
-- `UDPBcastInterface`:
-    - `bindAddress`: This tells cjdns which ipv4 address the UDPBcastInterface should bind to. This may be different depending on your setup. If you have already enable iptables rules please remember open the udp port for udp broadcast send/receive.
-    - `bindDevices`: This tells cjdns which device the UDPBcastInterface should bind to. This may be different depending on your setup.
-    - `beacon`: This controls peer auto-discovery. Set to 0 to disable auto-peering, 1 to use broadcast auto-peering passwords contained in "beacon" messages from other nodes, and 2 to both broadcast and accept beacons.
 
 Router
 ------

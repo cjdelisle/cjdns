@@ -24,6 +24,8 @@
 #include "util/Linker.h"
 Linker_require("util/events/libuv/UDPAddrIface.c");
 
+#include <stdbool.h>
+
 #define UDPAddrIface_PADDING_AMOUNT 512
 #define UDPAddrIface_BUFFER_CAP 3496
 
@@ -50,4 +52,7 @@ struct UDPAddrIface* UDPAddrIface_new(struct EventBase* base,
                                       struct Log* logger);
 
 int UDPAddrIface_setDSCP(struct UDPAddrIface* iface, uint8_t dscp);
+
+int UDPAddrIface_setBroadcast(struct UDPAddrIface* iface, bool enable);
+
 #endif
