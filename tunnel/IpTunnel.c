@@ -55,8 +55,8 @@ struct IpTunnel_pvt
     /** An always incrementing number which represents the connections. */
     uint32_t nextConnectionNumber;
 
-    /** The name of the TUN interface so that ip addresses can be added. */
-    String* ifName;
+    /** To get the name of the TUN interface so that ip addresses can be added. */
+    struct GlobalConfig* globalConf;
 
     /**
      * Every 10 seconds check for connections which the other end has
@@ -412,7 +412,8 @@ static Iface_DEFUN requestForAddresses(Dict* request,
 static void addAddress(char* printedAddr, uint8_t prefixLen,
                        uint8_t allocSize, struct IpTunnel_pvt* ctx)
 {
-    if (!ctx->ifName) {
+    String* tunName = GlobalConfig_getTunName(ctx->globalConf);
+    if (!tunName) {
         Log_error(ctx->logger, "Failed to set IP address because TUN interface is not setup");
         return;
     }
@@ -426,7 +427,7 @@ static void addAddress(char* printedAddr, uint8_t prefixLen,
     ss.addr.prefix = allocSize;
     struct Jmp j;
     Jmp_try(j) {
-        NetDev_addAddress(ctx->ifName->bytes, &ss.addr, ctx->logger, &j.handler);
+        NetDev_addAddress(tunName->bytes, &ss.addr, ctx->logger, &j.handler);
     } Jmp_catch {
         Log_error(ctx->logger, "Error setting ip address on TUN [%s]", j.message);
         return;
@@ -549,13 +550,14 @@ static Iface_DEFUN incomingAddresses(Dict* d,
         addAddress(printedAddr, conn->connectionIp6Prefix, conn->connectionIp6Alloc, context);
     }
     if (context->rg->hasUncommittedChanges) {
-        if (!context->ifName) {
+        String* tunName = GlobalConfig_getTunName(context->globalConf);
+        if (!tunName) {
             Log_error(context->logger, "Failed to set routes because TUN interface is not setup");
             return 0;
         }
         struct Jmp j;
         Jmp_try(j) {
-            RouteGen_commit(context->rg, context->ifName->bytes, alloc,  &j.handler);
+            RouteGen_commit(context->rg, tunName->bytes, alloc,  &j.handler);
         } Jmp_catch {
             Log_error(context->logger, "Error setting routes for TUN [%s]", j.message);
             return 0;
@@ -830,17 +832,12 @@ static void timeout(void* vcontext)
     } while (i != beginning);
 }
 
-void IpTunnel_setTunName(char* interfaceName, struct IpTunnel* ipTun)
-{
-    struct IpTunnel_pvt* ctx = Identity_check((struct IpTunnel_pvt*) ipTun);
-    ctx->ifName = String_new(interfaceName, ctx->allocator);
-}
-
 struct IpTunnel* IpTunnel_new(struct Log* logger,
                               struct EventBase* eventBase,
                               struct Allocator* alloc,
                               struct Random* rand,
-                              struct RouteGen* rg)
+                              struct RouteGen* rg,
+                              struct GlobalConfig* globalConf)
 {
     struct IpTunnel_pvt* context = Allocator_clone(alloc, (&(struct IpTunnel_pvt) {
         .pub = {
@@ -850,7 +847,8 @@ struct IpTunnel* IpTunnel_new(struct Log* logger,
         .allocator = alloc,
         .logger = logger,
         .rand = rand,
-        .rg = rg
+        .rg = rg,
+        .globalConf = globalConf
     }));
     context->timeout = Timeout_setInterval(timeout, context, 10000, eventBase, alloc);
     Identity_set(context);

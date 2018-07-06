@@ -38,6 +38,7 @@ struct Context
     struct ArrayList_UDPInterface* ifaces;
     struct InterfaceController* ic;
     struct FakeNetwork* fakeNet;
+    struct GlobalConfig* globalConf;
     Identity
 };
 
@@ -155,7 +156,7 @@ static struct UDPInterface* setupLibuvUDP(struct Context* ctx,
     struct Jmp jmp;
     Jmp_try(jmp) {
         udpIf = UDPInterface_new(
-            ctx->eventBase, addr, beaconPort, alloc, &jmp.handler, ctx->logger);
+            ctx->eventBase, addr, beaconPort, alloc, &jmp.handler, ctx->logger, ctx->globalConf);
         if (dscp) {
             if (UDPInterface_setDSCP(udpIf, dscp)) {
                 Log_warn(ctx->logger, "Set DSCP failed");
@@ -315,7 +316,8 @@ void UDPInterface_admin_register(struct EventBase* base,
                                  struct Log* logger,
                                  struct Admin* admin,
                                  struct InterfaceController* ic,
-                                 struct FakeNetwork* fakeNet)
+                                 struct FakeNetwork* fakeNet,
+                                 struct GlobalConfig* globalConf)
 {
     struct Context* ctx = Allocator_clone(alloc, (&(struct Context) {
         .eventBase = base,
@@ -323,7 +325,8 @@ void UDPInterface_admin_register(struct EventBase* base,
         .logger = logger,
         .admin = admin,
         .ic = ic,
-        .fakeNet = fakeNet
+        .fakeNet = fakeNet,
+        .globalConf = globalConf
     }));
     Identity_set(ctx);
     ctx->ifaces = ArrayList_UDPInterface_new(alloc);

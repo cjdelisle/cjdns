@@ -28,6 +28,7 @@
 #include "util/Checksum.h"
 #include "util/CString.h"
 #include "util/Escape.h"
+#include "util/GlobalConfig.h"
 #include "wire/DataHeader.h"
 #include "wire/Message.h"
 #include "wire/Headers.h"
@@ -226,7 +227,8 @@ static void testAddr(struct Context* ctx,
                      char* addr6, int prefix6, int alloc6)
 {
     struct Allocator* alloc = Allocator_child(ctx->alloc);
-    struct IpTunnel* ipTun = IpTunnel_new(ctx->log, ctx->base, alloc, ctx->rand, NULL);
+    struct GlobalConfig* gc = GlobalConfig_new(alloc);
+    struct IpTunnel* ipTun = IpTunnel_new(ctx->log, ctx->base, alloc, ctx->rand, NULL, gc);
 
     struct Sockaddr* sa4 = NULL;
     struct Sockaddr_storage ip6ToGive;

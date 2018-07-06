@@ -22,6 +22,7 @@
 #include "util/Gcc.h"
 #include "util/Assert.h"
 #include "util/log/Log.h"
+#include "util/GlobalConfig.h"
 #include "memory/Allocator.h"
 #include "util/events/UDPAddrIface.h"
 #include "util/Linker.h"
@@ -63,13 +64,15 @@ struct UDPInterface
  * @param alloc allocator which will be used to create the interface
  * @param exHandler in case setup fails
  * @param logger
+ * @param globalConf for getting the name of the TUN device to avoid bcasting to it
  */
 struct UDPInterface* UDPInterface_new(struct EventBase* eventBase,
                                       struct Sockaddr* bindAddr,
                                       uint16_t bcastPort,
                                       struct Allocator* alloc,
                                       struct Except* exHandler,
-                                      struct Log* logger);
+                                      struct Log* logger,
+                                      struct GlobalConfig* globalConf);
 
 /**
  * List all devices which can be broadcasted to, this will provide the name of the devices.

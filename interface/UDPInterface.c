@@ -16,6 +16,7 @@
 #include "interface/UDPInterface.h"
 #include "wire/Message.h"
 #include "util/events/UDPAddrIface.h"
+#include "util/GlobalConfig.h"
 
 #define ArrayList_TYPE struct Sockaddr
 #define ArrayList_NAME Sockaddr
@@ -39,6 +40,8 @@ struct UDPInterface_pvt
 
     struct UDPAddrIface* commIf;
     struct UDPAddrIface* bcastIf;
+
+    struct GlobalConfig* globalConf;
 
     struct Iface commSock;
     struct Iface bcastSock;
@@ -86,9 +89,14 @@ static void updateBcastAddrs(struct UDPInterface_pvt* ctx)
     struct Allocator* alloc = ctx->bcastAddrAlloc = Allocator_child(ctx->allocator);
     ctx->bcastAddrs = ArrayList_Sockaddr_new(alloc);
 
+    String* tunDev = GlobalConfig_getTunName(ctx->globalConf);
+
     for (int i = 0; i < count; i++) {
         if (interfaces[i].is_internal) { continue; }
         if (interfaces[i].address.address4.sin_family != AF_INET) { continue; }
+        if (tunDev && !CString_strncmp(interfaces[i].name, tunDev->bytes, tunDev->len)) {
+            continue;
+        }
         struct Sockaddr* addr = mkBcastAddr(ctx->beaconPort_be, &interfaces[i], alloc);
         if (!all) {
             String* addrStr = String_new(Sockaddr_print(addr, alloc), alloc);
@@ -190,23 +198,13 @@ static Iface_DEFUN fromBcastSock(struct Message* m, struct Iface* iface)
     return Iface_next(&ctx->pub.generic.iface, m);
 }
 
-/**
- * Create a new UDPInterface
- *
- * @param eventBase the event context
- * @param bindAddr the address and port to bind the socket to
- * @param beaconPort (optional) if specifed, another socket will be created for beacon messages
- *                  if zero then no other socket will be created.
- * @param alloc allocator which will be used to create the interface
- * @param exHandler in case setup fails
- * @param logger
- */
 struct UDPInterface* UDPInterface_new(struct EventBase* eventBase,
                                       struct Sockaddr* bindAddr,
                                       uint16_t beaconPort,
                                       struct Allocator* alloc,
                                       struct Except* exHandler,
-                                      struct Log* logger)
+                                      struct Log* logger,
+                                      struct GlobalConfig* globalConf)
 {
     if (beaconPort && Sockaddr_getFamily(bindAddr) != Sockaddr_AF_INET) {
         Except_throw(exHandler, "UDP broadcast only supported by ipv4.");
@@ -233,6 +231,7 @@ struct UDPInterface* UDPInterface_new(struct EventBase* eventBase,
     context->commSock.send = fromCommSock;
     context->bcastSock.send = fromBcastSock;
     context->commIf = uai;
+    context->globalConf = globalConf;
     Iface_plumb(&uai->generic.iface, &context->commSock);
 
     if (beaconPort) {
