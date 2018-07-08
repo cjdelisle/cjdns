@@ -15,7 +15,7 @@
 #ifndef CryptoAuth_H
 #define CryptoAuth_H
 
-#include "benc/Object.h"
+#include "benc/StringList.h"
 #include "crypto/random/Random.h"
 #include "crypto/ReplayProtector.h"
 #include "memory/Allocator.h"
@@ -106,7 +106,7 @@ int CryptoAuth_removeUsers(struct CryptoAuth* context, String* user);
  * @param alloc the Allocator to use to create the usersOut array.
  * @returns List* containing the user String's
  */
-List* CryptoAuth_getUsers(struct CryptoAuth* context, struct Allocator* alloc);
+struct StringList* CryptoAuth_getUsers(struct CryptoAuth* context, struct Allocator* alloc);
 
 /**
  * Create a new crypto authenticator.

@@ -12,6 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+#include "benc/StringList.h"
 #include "util/events/libuv/UvWrapper.h"
 #include "interface/UDPInterface.h"
 #include "wire/Message.h"
@@ -20,10 +21,6 @@
 
 #define ArrayList_TYPE struct Sockaddr
 #define ArrayList_NAME Sockaddr
-#include "util/ArrayList.h"
-
-#define ArrayList_TYPE String
-#define ArrayList_NAME String
 #include "util/ArrayList.h"
 
 struct UDPInterface_pvt
@@ -36,7 +33,7 @@ struct UDPInterface_pvt
     struct ArrayList_Sockaddr* bcastAddrs;
 
     struct Allocator* bcastIfaceAlloc;
-    struct ArrayList_String* bcastIfaces;
+    struct StringList* bcastIfaces;
 
     struct UDPAddrIface* commIf;
     struct UDPAddrIface* bcastIf;
@@ -74,7 +71,7 @@ static void updateBcastAddrs(struct UDPInterface_pvt* ctx)
 {
     bool all = false;
     for (int i = 0; ctx->bcastIfaces && i < ctx->bcastIfaces->length; i++) {
-        String* iface = ArrayList_String_get(ctx->bcastIfaces, i);
+        String* iface = StringList_get(ctx->bcastIfaces, i);
         if (String_equals(iface, String_CONST("all"))) { all = true; }
     }
     uv_interface_address_t* interfaces;
@@ -102,7 +99,7 @@ static void updateBcastAddrs(struct UDPInterface_pvt* ctx)
             String* addrStr = String_new(Sockaddr_print(addr, alloc), alloc);
             bool found = false;
             for (int j = 0; ctx->bcastIfaces && j < ctx->bcastIfaces->length; j++) {
-                String* iface = ArrayList_String_get(ctx->bcastIfaces, j);
+                String* iface = StringList_get(ctx->bcastIfaces, j);
                 if (String_equals(iface, addrStr)) { found = true; }
                 if (String_equals(iface, String_CONST(interfaces[i].name))) { found = true; }
             }
@@ -269,11 +266,11 @@ void UDPInterface_setBroadcastDevices(struct UDPInterface* udpif, List* devices)
     struct UDPInterface_pvt* ctx = Identity_check((struct UDPInterface_pvt*) udpif);
     if (ctx->bcastIfaceAlloc) { Allocator_free(ctx->bcastIfaceAlloc); }
     struct Allocator* alloc = ctx->bcastIfaceAlloc = Allocator_child(ctx->allocator);
-    struct ArrayList_String* bcastIfaces = ctx->bcastIfaces = ArrayList_String_new(alloc);
+    struct StringList* bcastIfaces = ctx->bcastIfaces = StringList_new(alloc);
     int len = List_size(devices);
     for (uint32_t i = 0; i < (unsigned) len; i++) {
         String* dev = List_getString(devices, i);
-        ArrayList_String_add(bcastIfaces, String_clone(dev, alloc));
+        StringList_add(bcastIfaces, String_clone(dev, alloc));
     }
 }
 
@@ -282,7 +279,7 @@ List* UDPInterface_getBroadcastDevices(struct UDPInterface* udpif, struct Alloca
     struct UDPInterface_pvt* ctx = Identity_check((struct UDPInterface_pvt*) udpif);
     List* out = List_new(alloc);
     for (int i = 0; ctx->bcastIfaces && i < ctx->bcastIfaces->length; i++) {
-        List_addString(out, ArrayList_String_get(ctx->bcastIfaces, i), alloc);
+        List_addString(out, StringList_get(ctx->bcastIfaces, i), alloc);
     }
     return out;
 }

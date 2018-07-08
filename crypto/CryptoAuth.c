@@ -1020,13 +1020,13 @@ int CryptoAuth_removeUsers(struct CryptoAuth* context, String* login)
     return count;
 }
 
-List* CryptoAuth_getUsers(struct CryptoAuth* context, struct Allocator* alloc)
+struct StringList* CryptoAuth_getUsers(struct CryptoAuth* context, struct Allocator* alloc)
 {
     struct CryptoAuth_pvt* ca = Identity_check((struct CryptoAuth_pvt*) context);
 
-    List* users = List_new(alloc);
+    struct StringList* users = StringList_new(alloc);
     for (struct CryptoAuth_User* u = ca->users; u; u = u->next) {
-        List_addString(users, String_clone(u->login, alloc), alloc);
+        StringList_add(users, String_clone(u->login, alloc));
     }
 
     return users;
