@@ -12,8 +12,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#include "benc/StringList.h"
 #include "util/events/libuv/UvWrapper.h"
+#include "benc/StringList.h"
 #include "interface/UDPInterface.h"
 #include "wire/Message.h"
 #include "util/events/UDPAddrIface.h"
