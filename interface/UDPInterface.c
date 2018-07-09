@@ -126,7 +126,7 @@ static Iface_DEFUN sendPacket(struct Message* m, struct Iface* iface)
 
     // bcast
     struct UDPInterface_BroadcastHeader hdr = {
-        .fffffffc_be = Endian_bigEndianToHost32(0xfffffffc),
+        .fffffffc_be = Endian_hostToBigEndian32(0xfffffffc),
         .version = UDPInterface_CURRENT_VERSION,
         .zero = 0,
         .commPort_be = ctx->commPort_be
@@ -157,16 +157,26 @@ static Iface_DEFUN fromBcastSock(struct Message* m, struct Iface* iface)
 {
     struct UDPInterface_pvt* ctx =
         Identity_containerOf(iface, struct UDPInterface_pvt, bcastSock);
+
     if (m->length < UDPInterface_BroadcastHeader_SIZE + Sockaddr_OVERHEAD) {
         Log_debug(ctx->log, "DROP runt bcast");
         return NULL;
     }
 
+    struct Sockaddr_storage ss;
+    Message_pop(m, &ss, Sockaddr_OVERHEAD, NULL);
+    if (m->length < UDPInterface_BroadcastHeader_SIZE + ss.addr.addrLen - Sockaddr_OVERHEAD) {
+        Log_debug(ctx->log, "DROP runt bcast");
+        return NULL;
+    }
+    Message_pop(m, &ss.nativeAddr, ss.addr.addrLen - Sockaddr_OVERHEAD, NULL);
+
     struct UDPInterface_BroadcastHeader hdr;
     Message_pop(m, &hdr, UDPInterface_BroadcastHeader_SIZE, NULL);
 
     if (hdr.fffffffc_be != Endian_hostToBigEndian32(0xfffffffc)) {
-        Log_debug(ctx->log, "DROP bcast bad magic");
+        Log_debug(ctx->log, "DROP bcast bad magic, expected 0xfffffffc got [%08x]",
+            Endian_bigEndianToHost32(hdr.fffffffc_be));
         return NULL;
     }
 
@@ -182,15 +192,11 @@ static Iface_DEFUN fromBcastSock(struct Message* m, struct Iface* iface)
 
     uint16_t commPort = Endian_bigEndianToHost16(hdr.commPort_be);
 
-    struct Sockaddr* lladdrInmsg = (struct Sockaddr*) m->bytes;
-    if (m->length < lladdrInmsg->addrLen) {
-        Log_debug(ctx->log, "DROP runt bcast");
-        return NULL;
-    }
-
     // Fake that it came from the communication port
-    Sockaddr_setPort(lladdrInmsg, commPort);
-    lladdrInmsg->flags |= Sockaddr_flags_BCAST;
+    Sockaddr_setPort(&ss.addr, commPort);
+    ss.addr.flags |= Sockaddr_flags_BCAST;
+
+    Message_push(m, &ss.addr, ss.addr.addrLen, NULL);
 
     return Iface_next(&ctx->pub.generic.iface, m);
 }
