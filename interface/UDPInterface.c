@@ -214,14 +214,12 @@ struct UDPInterface* UDPInterface_new(struct EventBase* eventBase,
 
     uint16_t commPort = Sockaddr_getPort(uai->generic.addr);
 
-    struct UDPInterface_pvt* context =
-        Allocator_clone(alloc, (&(struct UDPInterface_pvt) {
-            .log = logger,
-            .allocator = alloc,
-            .beaconPort_be = Endian_hostToBigEndian16(beaconPort),
-            .commPort_be = Endian_hostToBigEndian16(commPort)
-        }));
+    struct UDPInterface_pvt* context = Allocator_calloc(alloc, sizeof(struct UDPInterface_pvt), 1);
     Identity_set(context);
+    context->log = logger;
+    context->allocator = alloc;
+    context->beaconPort_be = Endian_hostToBigEndian16(beaconPort);
+    context->commPort_be = Endian_hostToBigEndian16(commPort);
     context->pub.generic.addr = uai->generic.addr;
     context->pub.generic.alloc = alloc;
     context->pub.generic.iface.send = sendPacket;

@@ -94,7 +94,6 @@ static void list(Dict* args, void* vcontext, String* txid, struct Allocator* req
     Dict* response = Dict_new(requestAlloc);
     Dict_putIntC(response, "total", users->length, requestAlloc);
     Dict_putListC(response, "users", out, requestAlloc);
-    Dict_putStringCC(response, "error", "none", requestAlloc);
     Admin_sendMessage(response, txid, context->admin);
 }
 
