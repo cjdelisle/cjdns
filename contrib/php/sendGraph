@@ -11,32 +11,39 @@ define('EMAIL',    'your@email.here'); // update your email address, so I can co
 //define('DEBUG', 1);
 
 $cjdns = new Cjdns(PASSWORD, "127.0.0.1", 11234);
-$nodes = dump_node_store($cjdns);
-$links = [];
-$edges = [];
+//$_nds = dump_node_store($cjdns);
+$_nds = dump_near_nodes($cjdns);
+if (defined('DEBUG'))
+	echo "Nodes: ".count($_nds)."\n";
 
-echo "Nodes: ".count($nodes)."\n";
-
-foreach ($nodes as $node)
+$nodes = []; $links = []; $edges = [];
+foreach ($_nds as $node)
 {
-	if (defined('DEBUG')) echo 'Node '.(@++$i).' / '.count($nodes)."\n";
+	if (defined('DEBUG')) echo 'Node '.(@++$i).' / '.count($_nds)."\n";
 	$peers = get_peers($cjdns, $node['path']);
+
 	foreach ($peers as $peer)
 	if ($peer['ip'] != $node['ip'])
 	{
+		$x = parse_addr($peer['addr']);
 		if (defined('DEBUG')) echo $node['ip'] . ' => '. $peer['ip']."\n";
-		$links[$peer['ip']] = $node['ip'];
-		if (@$links[$node['ip']] == $peer['ip'])
+		if (empty($links[$peer['ip'].$node['ip']]))
 			$edges[] = ['a'=>$node['ip'], 'b'=>$peer['ip']];
+
+		$nodes[$node['ip']] = ['ip'=>$x['ip'], 'version'=>@$x['version']];
+		$nodes[$peer['ip']] = ['ip'=>$x['ip'], 'version'=>@$x['version']];
+
+		$links[$peer['ip'].$node['ip']] = 1;
+		$links[$node['ip'].$peer['ip']] = 1;
 	}
 }
-
-echo "Edges: ".count($edges)."\n";
+$nodes = array_values($nodes);
+if (defined('DEBUG'))
+	echo "Edges: ".count($edges)."\n";
 
 // send to server
 $json_graph = ['nodes' => $nodes, 'edges' => $edges];
-$payload = ['data'=>json_encode($json_graph), 'mail'=>EMAIL, 'version'=>2];
-
+$payload = ['data'=>json_encode($json_graph), 'mail'=>EMAIL, 'version'=>2, 'name'=>'php'];
 $data    = http_build_query($payload);
 $context = stream_context_create(['http'=>[
 	'method'  => 'POST',
@@ -44,7 +51,8 @@ $context = stream_context_create(['http'=>[
 	'content' => $data,
 ]]);
 $st = file_get_contents(URL, false, $context);
-echo "Result: $st\n";
+if (defined('DEBUG'))
+	echo "Result: $st\n";
 
 
 function get_peers($cjdns, $path, $nearbyPath='')
@@ -52,7 +60,7 @@ function get_peers($cjdns, $path, $nearbyPath='')
 	if (!cache_get($path, $res))
 	{
 		if (defined('DEBUG')) echo "Call $path\n";
-		$res = $cjdns->call('RouterModule_getPeers', ['path'=>$path]);
+		$res = $cjdns->call('RouterModule_getPeers', ['path'=>$path] + ($nearbyPath?['nearbyPath'=>$nearbyPath]:[]));
 		cache_set($path, $res);
 	}
 
@@ -61,6 +69,25 @@ function get_peers($cjdns, $path, $nearbyPath='')
 	foreach ($res as $k => $v) $res[$k] = ['addr'=>$v, 'ip'=>publicKey2ipv6(explode('.', $v)[5])];
 
 	return $res;
+}
+
+function dump_near_nodes($cjdns)
+{
+	$nodes = []; $page = 0;
+	if (cache_get('near_nodes', $nodes)) return $nodes;
+	while (1)
+	{
+		$res = $cjdns->call('InterfaceController_peerStats', ['page'=>$page]);
+		if (!empty($res['peers']))
+		foreach ($res['peers'] as $a)
+		{
+			$x = parse_addr($a['addr']);
+			$nodes[] = $x;
+		}
+		if (empty($res['more']) || $res['more'] != 1) break;
+		$page++;
+	}
+	return cache_set('near_nodes', $nodes);
 }
 
 function dump_node_store($cjdns)
@@ -73,12 +100,24 @@ function dump_node_store($cjdns)
 		if (!empty($res['routingTable']))
 		foreach ($res['routingTable'] as $a)
 		{
-			$nodes[] = ['ip'=>$a['ip'], 'path'=>$a['path'], 'addr'=>$a['addr'], 'version'=>@$a['version']];
+			$x = parse_addr($a['addr']);
+			$nodes[] = $x;
 		}
 		if (empty($res['more']) || $res['more'] != 1) break;
 		$page++;
 	}
 	return cache_set('nodes', $nodes);
+}
+
+function parse_addr($x)
+{
+	$x = explode('.', $x);
+	return [
+		'version'   =>       str_replace('v', '', $x[0]),
+		'path'      =>       implode('.', array_slice($x, 1, 4)),
+		'publicKey' => $pK = implode('.', array_slice($x, 5, 2)),
+		'ip'        =>       publicKey2ipv6($pK),
+	];
 }
 
 
