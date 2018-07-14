@@ -36,6 +36,38 @@ struct Context
 
 // typical peer record is around 140 benc chars, so can't have very many in 1023
 #define ENTRIES_PER_PAGE 6
+
+static void adminInterfaces(Dict* args,
+                            void* vcontext,
+                            String* txid,
+                            struct Allocator* alloc)
+{
+    struct Context* context = Identity_check((struct Context*)vcontext);
+
+    int64_t* page = Dict_getIntC(args, "page");
+    int i = (page) ? *page * ENTRIES_PER_PAGE : 0;
+
+    int count = InterfaceController_ifaceCount(context->ic);
+    //int count = InterfaceController_getIface(context->ic, alloc, &stats);
+
+    List* list = List_new(alloc);
+    for (int counter = 0; i < count && counter++ < ENTRIES_PER_PAGE; i++) {
+        struct InterfaceController_Iface* iface = InterfaceController_getIface(context->ic, i);
+        Dict* d = Dict_new(alloc);
+        Dict_putIntC(d, "ifNum", iface->ifNum, alloc);
+        Dict_putStringC(d, "name", iface->name, alloc);
+        char* bs = InterfaceController_beaconStateString(iface->beaconState);
+        Dict_putStringCC(d, "beaconState", bs, alloc);
+        List_addDict(list, d, alloc);
+    }
+
+    Dict* resp = Dict_new(alloc);
+    Dict_putListC(resp, "ifaces", list, alloc);
+    Dict_putIntC(resp, "total", count, alloc);
+    if (i < count) { Dict_putIntC(resp, "more", 1, alloc); }
+    Admin_sendMessage(resp, txid, context->admin);
+}
+
 static void adminPeerStats(Dict* args, void* vcontext, String* txid, struct Allocator* alloc)
 {
     struct Context* context = Identity_check((struct Context*)vcontext);
@@ -81,6 +113,8 @@ static void adminPeerStats(Dict* args, void* vcontext, String* txid, struct Allo
         Dict_putIntC(d, "duplicates", stats[i].duplicates, alloc);
         Dict_putIntC(d, "lostPackets", stats[i].lostPackets, alloc);
         Dict_putIntC(d, "receivedOutOfRange", stats[i].receivedOutOfRange, alloc);
+
+        Dict_putIntC(d, "ifNum", stats[i].ifNum, alloc);
 
         if (stats[i].user) {
             Dict_putStringC(d, "user", stats[i].user, alloc);
@@ -211,6 +245,11 @@ void InterfaceController_admin_register(struct InterfaceController* ic,
         .admin = admin
     }));
     Identity_set(ctx);
+
+    Admin_registerFunction("InterfaceController_interfaces", adminInterfaces, ctx, true,
+        ((struct Admin_FunctionArg[]) {
+            { .name = "page", .required = 0, .type = "Int" }
+        }), admin);
 
     Admin_registerFunction("InterfaceController_peerStats", adminPeerStats, ctx, false,
         ((struct Admin_FunctionArg[]) {
