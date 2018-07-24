@@ -15,7 +15,7 @@ var Spawn = require('child_process').spawn;
 var Http = require("http");
 var Fs = require("fs");
 
-var TIMEOUT = 15000;
+var TIMEOUT = process.env.TEST_TIMEOUT || 15000;
 
 var parseURL = function (url)
 {
