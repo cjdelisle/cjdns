@@ -82,6 +82,9 @@ var sema = Semaphore.create(PROCESSORS);
 var compiler = function (compilerPath, args, callback, content) {
     args = expandArgs(args);
     sema.take(function (returnAfter) {
+        if (process.env.VERBOSE) {
+            console.log(compilerPath + ' ' + args.join(' '));
+        }
         var gcc = Spawn(compilerPath, args);
         var err = '';
         var out = '';

@@ -65,8 +65,13 @@ var ranlib = function(args, onComplete) {
 };
 
 var getPlan = function(abiName, config) {
-  if (config.systemName === 'darwin') { abiName = 'apple_' + abiName; }
-  var planPath = 'node_build/plans/' + abiName + '_plan.json';
+  var planPath = 'node_build/plans/';
+  if (process.env.CJDNS_NACL_PLAN) {
+    planPath += process.env.CJDNS_NACL_PLAN;
+  } else {
+    if (config.systemName === 'darwin') { abiName = 'apple_' + abiName; }
+    planPath += abiName + '_plan.json';
+  }
   if (!Fs.existsSync(planPath)) {
     // TODO
     throw new Error("build with no premade plan, TODO: generate one");
