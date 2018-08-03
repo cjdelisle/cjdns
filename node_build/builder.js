@@ -716,7 +716,7 @@ var compile = function (file, outputFile, builder, callback) {
             linkOrder[i] = state.buildDir + '/' + getObjectFile(linkOrder[i]);
         }
 
-        var ldArgs = [state.ldflags, '-o', outputFile, linkOrder, state.libs];
+        var ldArgs = [].concat(state.ldflags).concat(['-o', outputFile, linkOrder, state.libs]);
         debug('\033[1;31mLinking C executable ' + file + '\033[0m');
 
         cc(state.gcc, ldArgs, waitFor(function (err, ret) {
