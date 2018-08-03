@@ -298,7 +298,7 @@ static struct ArrayList_OfPrefix4* invertPrefix4(struct Prefix4* toInvert, struc
     struct ArrayList_OfPrefix4* result = ArrayList_OfPrefix4_new(alloc);
     for (int i = 32 - toInvert->prefix; i < 32; i++) {
         struct Prefix4* pfx = Allocator_calloc(alloc, sizeof(struct Prefix4), 1);
-        pfx->bits = ( toInvert->bits & ((uint32_t)~0 << i) ) ^ (1 << i);
+        pfx->bits = ( toInvert->bits & ((uint32_t)~0 << i) ) ^ ((uint32_t)1 << i);
         pfx->prefix = 32 - i;
         ArrayList_OfPrefix4_add(result, pfx);
     }
