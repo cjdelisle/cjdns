@@ -364,7 +364,7 @@ static void mergePrefixSets4(struct ArrayList_OfPrefix4* mergeInto,
 
     struct Prefix4 target;
     Bits_memcpy(&target, highestPrefix, sizeof(struct Prefix4));
-    target.bits ^= (target.prefix) ? (1 << (32 - target.prefix)) : 0;
+    target.bits ^= (target.prefix) ? ((uint32_t)1 << (32 - target.prefix)) : 0;
     for (int i = mergeInto->length - 1; i >= 0; i--) {
         struct Prefix4* result = ArrayList_OfPrefix4_get(mergeInto, i);
         Assert_true(result);
