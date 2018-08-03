@@ -177,21 +177,25 @@ Builder.configure({
         builder.config.cflags.push('-Dandroid=1');
     }
 
-    CanCompile.check(builder,
-                     'int main() { return 0; }',
-                     [ builder.config.cflags, '-flto', '-x', 'c' ],
-                     function (err, can) {
-        if (can) {
-            console.log("Compiler supports link time optimization");
-            builder.config.ldflags.push(
-                '-flto',
-                builder.config.optimizeLevel
-            );
-        } else {
-            console.log("Link time optimization not supported [" + err + "]");
-        }
-        builder.config.cflags.push(builder.config.optimizeLevel);
-    });
+    if (process.env.NO_LTO) {
+        console.log("Link time optimization disabled");
+    } else {
+        CanCompile.check(builder,
+                        'int main() { return 0; }',
+                        [ builder.config.cflags, '-flto', '-x', 'c' ],
+                        function (err, can) {
+            if (can) {
+                console.log("Compiler supports link time optimization");
+                builder.config.ldflags.push(
+                    '-flto',
+                    builder.config.optimizeLevel
+                );
+            } else {
+                console.log("Link time optimization not supported [" + err + "]");
+            }
+            builder.config.cflags.push(builder.config.optimizeLevel);
+        });
+    }
 
     var uclibc = process.env['UCLIBC'] == '1';
     var libssp;
