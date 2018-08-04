@@ -43,23 +43,8 @@ struct Allocator_Allocation_pvt;
 struct Allocator_Allocation_pvt {
     struct Allocator_Allocation pub;
     struct Allocator_Allocation_pvt* next;
-#ifdef Allocator_USE_CANARIES
-    uint8_t _pad[
-        __BIGGEST_ALIGNMENT__ - (
-            sizeof(struct Allocator_Allocation) +
-            sizeof(struct Allocator_Allocation_pvt*) +
-            sizeof(unsigned long)
-        ) % __BIGGEST_ALIGNMENT__
-    ];
-    unsigned long beginCanary;
-#else
-    uint8_t _pad[
-        __BIGGEST_ALIGNMENT__ - (
-            sizeof(struct Allocator_Allocation) +
-            sizeof(struct Allocator_Allocation_pvt*)
-        ) % __BIGGEST_ALIGNMENT__
-    ];
-#endif
+    long lineNum;
+    const char* fileName;
 };
 Assert_compileTime(!(sizeof(struct Allocator_Allocation_pvt) % __BIGGEST_ALIGNMENT__));
 

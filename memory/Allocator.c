@@ -57,9 +57,9 @@ static void unroll(struct Allocator_pvt* context,
     struct Allocator_Allocation_pvt* allocation = context->allocations;
     while (allocation && includeAllocations) {
         writeUnroller(&childUnroller);
-        fprintf(stderr, "%s:%d [%lu] bytes at [0x%lx]\n",
-                allocation->pub.fileName,
-                allocation->pub.lineNum,
+        fprintf(stderr, "%s:%ld [%lu] bytes at [0x%lx]\n",
+                allocation->fileName,
+                allocation->lineNum,
                 allocation->pub.size,
                 (long)(uintptr_t)allocation);
         allocation = allocation->next;
@@ -137,7 +137,7 @@ static inline void setCanaries(struct Allocator_Allocation_pvt* alloc,
                                struct Allocator_pvt* context)
 {
     #ifdef Allocator_USE_CANARIES
-        END_CANARY(alloc) = alloc->beginCanary = context->canary;
+        END_CANARY(alloc) = context->canary ^ (uintptr_t)alloc->fileName;
     #endif
 }
 
@@ -145,16 +145,9 @@ static inline void checkCanaries(struct Allocator_Allocation_pvt* alloc,
                                  struct Allocator_pvt* context)
 {
     #ifdef Allocator_USE_CANARIES
-        char* canary;
-        if (alloc->beginCanary != context->canary) {
-            canary = "begin";
-        } else if (END_CANARY(alloc) != alloc->beginCanary) {
-            canary = "end";
-        } else {
-            return;
-        }
-        Assert_failure("%s:%d Fatal error: invalid [%s] canary\n",
-                       context->pub.fileName, context->pub.lineNum, canary);
+        if (END_CANARY(alloc) == ((uintptr_t)alloc->fileName ^ context->canary)) { return; }
+        Assert_failure("%s:%ld Fatal error: invalid canary\n",
+                       context->pub.fileName, context->pub.lineNum);
     #endif
 }
 
@@ -184,8 +177,8 @@ static inline void* newAllocation(struct Allocator_pvt* context,
     }
     alloc->next = context->allocations;
     alloc->pub.size = realSize;
-    alloc->pub.fileName = fileName;
-    alloc->pub.lineNum = lineNum;
+    alloc->fileName = fileName;
+    alloc->lineNum = lineNum;
     context->allocations = alloc;
     setCanaries(alloc, context);
 
