@@ -47,6 +47,7 @@ struct Allocator_Allocation_pvt {
     #if __SIZEOF_POINTER__ == 4
         char* _pad0;
         char* _pad1;
+        char* _pad2;
     #elif __SIZEOF_POINTER__ == 8
         char* _pad;
     #endif
