@@ -44,14 +44,21 @@ struct Allocator_Allocation_pvt {
     struct Allocator_Allocation pub;
     struct Allocator_Allocation_pvt* next;
 #ifdef Allocator_USE_CANARIES
-    #if __SIZEOF_POINTER__ == 4
-        char* _pad0;
-        char* _pad1;
-        char* _pad2;
-    #elif __SIZEOF_POINTER__ == 8
-        char* _pad;
-    #endif
+    uint8_t _pad[
+        __BIGGEST_ALIGNMENT__ - (
+            sizeof(struct Allocator_Allocation) +
+            sizeof(struct Allocator_Allocation_pvt*) +
+            sizeof(unsigned long)
+        ) % __BIGGEST_ALIGNMENT__
+    ];
     unsigned long beginCanary;
+#else
+    uint8_t _pad[
+        __BIGGEST_ALIGNMENT__ - (
+            sizeof(struct Allocator_Allocation) +
+            sizeof(struct Allocator_Allocation_pvt*)
+        ) % __BIGGEST_ALIGNMENT__
+    ];
 #endif
 };
 Assert_compileTime(!(sizeof(struct Allocator_Allocation_pvt) % __BIGGEST_ALIGNMENT__));
