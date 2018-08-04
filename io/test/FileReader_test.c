@@ -26,7 +26,7 @@
 
 int main()
 {
-    struct Allocator* alloc = MallocAllocator_new(1024);
+    struct Allocator* alloc = MallocAllocator_new(2048);
     struct Random* rand = Random_new(alloc, NULL, NULL);
 
     FILE* tmp = tmpfile();
