@@ -146,7 +146,7 @@ static inline void checkCanaries(struct Allocator_Allocation_pvt* alloc,
 {
     #ifdef Allocator_USE_CANARIES
         if (END_CANARY(alloc) == ((uintptr_t)alloc->fileName ^ context->canary)) { return; }
-        Assert_failure("%s:%ld Fatal error: invalid canary\n",
+        Assert_failure("%s:%d Fatal error: invalid canary\n",
                        context->pub.fileName, context->pub.lineNum);
     #endif
 }
