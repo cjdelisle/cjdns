@@ -552,7 +552,7 @@ var removeFile = function (state, fileName, callback)
             }
 
             if (state.files[file].includes.indexOf(fileName) !== -1) {
-                removeFile(state, file, waitFor());
+                setTimeout(waitFor(function () { removeFile(state, file, waitFor()); }));
             }
         });
 
