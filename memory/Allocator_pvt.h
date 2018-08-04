@@ -17,6 +17,7 @@
 
 #include "memory/Allocator.h"
 #include "util/Identity.h"
+#include "util/Assert.h"
 
 #include <stdint.h>
 
@@ -43,9 +44,17 @@ struct Allocator_Allocation_pvt {
     struct Allocator_Allocation pub;
     struct Allocator_Allocation_pvt* next;
 #ifdef Allocator_USE_CANARIES
+    #if __SIZEOF_POINTER__ == 4
+        char* _pad0;
+        char* _pad1;
+    #elif __SIZEOF_POINTER__ == 8
+        char* _pad;
+    #endif
     unsigned long beginCanary;
 #endif
 };
+Assert_compileTime(!(sizeof(struct Allocator_Allocation_pvt) % __BIGGEST_ALIGNMENT__));
+
 
 /** Singly linked list of allocators. */
 struct Allocator_List;
