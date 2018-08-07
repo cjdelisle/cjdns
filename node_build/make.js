@@ -260,18 +260,60 @@ Builder.configure({
 
     }).nThen(function (waitFor) {
 
-        builder.config.libs.push(dependencyDir + '/cnacl/jsbuild/libnacl.a');
-        builder.config.includeDirs.push(dependencyDir + '/cnacl/jsbuild/include/');
+        // builder.config.libs.push(dependencyDir + '/cnacl/jsbuild/libnacl.a');
+        // builder.config.includeDirs.push(dependencyDir + '/cnacl/jsbuild/include/');
 
-        // needed for Sign.c which pulls in crypto_int32.h
-        builder.config.includeDirs.push(dependencyDir + '/cnacl/jsbuild/include_internal/');
+        // // needed for Sign.c which pulls in crypto_int32.h
+        // builder.config.includeDirs.push(dependencyDir + '/cnacl/jsbuild/include_internal/');
 
-        Fs.exists(dependencyDir + '/cnacl/jsbuild/libnacl.a', waitFor(function (exists) {
+        // Fs.exists(dependencyDir + '/cnacl/jsbuild/libnacl.a', waitFor(function (exists) {
+        //     if (exists) { return; }
+
+        //     console.log("Build NaCl");
+        //     var cwd = process.cwd();
+        //     process.chdir(dependencyDir + '/cnacl/');
+
+        //     var NaCl = require(process.cwd() + '/node_build/make.js');
+        //     NaCl.build(function (args, callback) {
+        //         if (builder.config.systemName !== 'win32') {
+        //             args.unshift('-fPIC');
+        //         }
+
+        //         args.unshift(builder.config.optimizeLevel, '-fomit-frame-pointer');
+
+        //         if (!/^\-O0$/.test(builder.config.optimizeLevel)) {
+        //             args.unshift('-D_FORTIFY_SOURCE=2');
+        //         }
+
+        //         if (CFLAGS) {
+        //             [].push.apply(args, CFLAGS.split(' '));
+        //         }
+
+        //         if (!builder.config.crossCompiling) {
+        //             if (NO_MARCH_FLAG.indexOf(process.arch) == -1) {
+        //                 args.unshift('-march=native');
+        //             }
+        //         }
+
+        //         builder.cc(args, callback);
+        //     },
+        //     builder.config,
+        //     waitFor(function () {
+        //         process.chdir(cwd);
+        //     }));
+        // }));
+
+        builder.config.libs.push(dependencyDir + '/libsodium/jsbuild/libsodium.a');
+        builder.config.includeDirs.push(dependencyDir + '/libsodium/jsbuild/include/');
+        builder.config.includeDirs.push(dependencyDir + '/libsodium/jsbuild/include/private');
+
+
+        Fs.exists(dependencyDir + '/cnacl/jsbuild/libsodium.a', waitFor(function (exists) {
             if (exists) { return; }
 
-            console.log("Build NaCl");
+            console.log("Build Sodium");
             var cwd = process.cwd();
-            process.chdir(dependencyDir + '/cnacl/');
+            process.chdir(dependencyDir + '/libsodium/');
 
             var NaCl = require(process.cwd() + '/node_build/make.js');
             NaCl.build(function (args, callback) {

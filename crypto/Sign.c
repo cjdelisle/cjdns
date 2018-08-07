@@ -15,8 +15,9 @@
 
 #include "crypto/Sign.h"
 
-#include "node_build/dependencies/cnacl/crypto_sign/ed25519/ref10/ge.h"
-#include "node_build/dependencies/cnacl/crypto_sign/ed25519/ref10/sc.h"
+// #include "node_build/dependencies/cnacl/crypto_sign/ed25519/ref10/ge.h"
+// #include "node_build/dependencies/cnacl/crypto_sign/ed25519/ref10/sc.h"
+#include "private/ed25519_ref10.h"
 #include "crypto_hash_sha512.h"
 #include "crypto_sign_ed25519.h"
 
@@ -30,9 +31,9 @@ void Sign_signingKeyPairFromCurve25519(uint8_t keypairOut[64], uint8_t secretCry
     keypairOut[0] &= 248;
     keypairOut[31] &= 63;
     keypairOut[31] |= 64;
-    ge_p3 A;
-    ge_scalarmult_base(&A, keypairOut);
-    ge_p3_tobytes(&keypairOut[32], &A);
+    ge25519_p3 A;
+    ge25519_scalarmult_base(&A, keypairOut);
+    ge25519_p3_tobytes(&keypairOut[32], &A);
 }
 
 void Sign_publicKeyFromKeyPair(uint8_t publicSigningKey[32], uint8_t keyPair[64])
@@ -47,7 +48,7 @@ void Sign_signMsg(uint8_t keyPair[64], struct Message* msg, struct Random* rand)
     // hash of the secret key and 32 bytes of random
     uint8_t az[64];
     uint8_t r[64];
-    ge_p3 R;
+    ge25519_p3 R;
     uint8_t hram[64];
 
     Bits_memcpy(az, keyPair, 32);
@@ -66,14 +67,14 @@ void Sign_signMsg(uint8_t keyPair[64], struct Message* msg, struct Random* rand)
     Bits_memcpy(msg->bytes, &keyPair[32], 32);
 
     // push pointMul(r) to message
-    sc_reduce(r);
-    ge_scalarmult_base(&R,r);
+    sc25519_reduce(r);
+    ge25519_scalarmult_base(&R,r);
     Message_shift(msg, 32, NULL);
-    ge_p3_tobytes(msg->bytes,&R);
+    ge25519_p3_tobytes(msg->bytes,&R);
 
     crypto_hash_sha512(hram, msg->bytes, msg->length);
-    sc_reduce(hram);
-    sc_muladd(&msg->bytes[32], hram, az, r);
+    sc25519_reduce(hram);
+    sc25519_muladd(&msg->bytes[32], hram, az, r);
 }
 
 int Sign_verifyMsg(uint8_t publicSigningKey[32], struct Message* msg)
@@ -93,20 +94,20 @@ int Sign_verifyMsg(uint8_t publicSigningKey[32], struct Message* msg)
 
 int Sign_publicSigningKeyToCurve25519(uint8_t curve25519keyOut[32], uint8_t publicSigningKey[32])
 {
-    ge_p3 A;
-    fe    x;
-    fe    one_minus_y;
+    ge25519_p3 A;
+    fe25519    x;
+    fe25519    one_minus_y;
 
-    if (ge_frombytes_negate_vartime(&A, publicSigningKey) != 0) {
+    if (ge25519_frombytes_negate_vartime(&A, publicSigningKey) != 0) {
         return -1;
     }
-    fe_1(one_minus_y);
-    fe_sub(one_minus_y, one_minus_y, A.Y);
-    fe_invert(one_minus_y, one_minus_y);
-    fe_1(x);
-    fe_add(x, x, A.Y);
-    fe_mul(x, x, one_minus_y);
-    fe_tobytes(curve25519keyOut, x);
+    fe25519_1(one_minus_y);
+    fe25519_sub(one_minus_y, one_minus_y, A.Y);
+    fe25519_invert(one_minus_y, one_minus_y);
+    fe25519_1(x);
+    fe25519_add(x, x, A.Y);
+    fe25519_mul(x, x, one_minus_y);
+    fe25519_tobytes(curve25519keyOut, x);
 
     return 0;
 }
