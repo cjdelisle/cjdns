@@ -21,7 +21,7 @@
 #include "crypto/Sign.h"
 #include "util/AddrTools.h"
 
-#include "crypto_hash_sha512.h"
+#include "sodium/crypto_hash_sha512.h"
 
 // This is the time between the timestamp of the newest message and the point where
 // snode and subnode agree to drop messages from the snode state.

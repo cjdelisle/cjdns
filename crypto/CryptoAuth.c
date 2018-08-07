@@ -32,9 +32,9 @@
 #include "wire/Headers.h"
 #include "wire/Message.h"
 
-#include "crypto_box_curve25519xsalsa20poly1305.h"
-#include "crypto_hash_sha256.h"
-#include "crypto_scalarmult_curve25519.h"
+#include "sodium/crypto_box_curve25519xsalsa20poly1305.h"
+#include "sodium/crypto_hash_sha256.h"
+#include "sodium/crypto_scalarmult_curve25519.h"
 
 #include <stdint.h>
 #include <stdbool.h>

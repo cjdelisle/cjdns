@@ -259,6 +259,27 @@ Builder.configure({
         }));
 
     }).nThen(function (waitFor) {
+        var cwd = process.cwd();
+        process.chdir(dependencyDir);
+
+        var mkdir = Spawn('mkdir', ['libsodium'], {stdio: 'inherit'});
+        mkdir.on('error', function(){
+            console.error("Failed to create libsodium");
+        });
+        mkdir.on('close', waitFor(function(){
+            var untar = Spawn('tar', [
+                'xzf', 'libsodium-1.0.12.tar.gz', 
+                '-C', 'libsodium', 
+                '--strip-components', '1'
+            ], {stdio:'inherit'});
+            untar.on('error', function () {
+                console.error("couldn't untar libsodium");
+            });
+            untar.on('close', waitFor(function() {
+                process.chdir(cwd);
+            }));
+        }));
+    }).nThen(function (waitFor) {
 
         // builder.config.libs.push(dependencyDir + '/cnacl/jsbuild/libnacl.a');
         // builder.config.includeDirs.push(dependencyDir + '/cnacl/jsbuild/include/');
@@ -303,48 +324,92 @@ Builder.configure({
         //     }));
         // }));
 
-        builder.config.libs.push(dependencyDir + '/libsodium/jsbuild/libsodium.a');
-        builder.config.includeDirs.push(dependencyDir + '/libsodium/jsbuild/include/');
-        builder.config.includeDirs.push(dependencyDir + '/libsodium/jsbuild/include/private');
+        // builder.config.libs.push(dependencyDir + '/libsodium/src/libsodium/.libs/libsodium.a');
+        builder.config.libs.push(dependencyDir + '/libsodium/build/lib/libsodium.a');
+        builder.config.includeDirs.push(dependencyDir + '/libsodium/build/include');
 
-
-        Fs.exists(dependencyDir + '/cnacl/jsbuild/libsodium.a', waitFor(function (exists) {
+        Fs.exists(dependencyDir + '/libsodium/build/lib/libsodium.a', waitFor(function (exists) {
             if (exists) { return; }
-
             console.log("Build Sodium");
+            console.log(process.cwd());
+            console.log(dependencyDir);
             var cwd = process.cwd();
             process.chdir(dependencyDir + '/libsodium/');
 
-            var NaCl = require(process.cwd() + '/node_build/make.js');
-            NaCl.build(function (args, callback) {
-                if (builder.config.systemName !== 'win32') {
-                    args.unshift('-fPIC');
-                }
+            var args = [
+                'CC=' + builder.config.gcc,
+                'CXX=' + builder.config.gcc,
+                '--prefix=' + cwd + '/' + dependencyDir + '/libsodium/build'
+            ];
+            var configure = Spawn('./configure', args, {stdio:'inherit'});
+            configure.on('error', function () {
+                console.error("couldn't launch ./configure");
+            });
+            configure.on('close', waitFor(function () {
+                var args = [
+                    '-j', builder.processors,
+                    'BUILDTYPE=Release'
+                ];
+                // var cflags = [builder.config.optimizeLevel, '-DNO_EMFILE_TRICK=1'];
 
-                args.unshift(builder.config.optimizeLevel, '-fomit-frame-pointer');
+                // if (!/^\-O0$/.test(builder.config.optimizeLevel)) {
+                //     cflags.push('-D_FORTIFY_SOURCE=2');
+                // }
 
-                if (!/^\-O0$/.test(builder.config.optimizeLevel)) {
-                    args.unshift('-D_FORTIFY_SOURCE=2');
-                }
+                // if (!(/darwin|win32/i.test(builder.config.systemName))) {
+                //     cflags.push('-fPIC');
+                // }
+                // args.push('CFLAGS=' + cflags.join(' '));
 
-                if (CFLAGS) {
-                    [].push.apply(args, CFLAGS.split(' '));
-                }
+                var makeCommand = ['freebsd', 'openbsd', 'netbsd'].indexOf(builder.config.systemName) >= 0 ? 'gmake' : 'make';
+                var make = Spawn(makeCommand, args, {stdio: 'inherit'});
 
-                if (!builder.config.crossCompiling) {
-                    if (NO_MARCH_FLAG.indexOf(process.arch) == -1) {
-                        args.unshift('-march=native');
+                make.on('error', function (err) {
+                    if (err.code === 'ENOENT') {
+                        console.error('\033[1;31mError: ' + makeCommand + ' is required!\033[0m');
+                    } else {
+                        console.error(
+                            '\033[1;31mFail run ' + process.cwd() + ': ' + makeCommand + ' '
+                            + args.join(' ') + '\033[0m'
+                        );
+                        console.error('Message:', err);
                     }
-                }
+                    waitFor.abort();
+                });
 
-                builder.cc(args, callback);
-            },
-            builder.config,
-            waitFor(function () {
-                process.chdir(cwd);
+                make.on('close', waitFor(function () {
+                    var args = [
+                        'install'
+                    ]
+                    var makeInstall = Spawn(makeCommand, args, {stdio: 'inherit'});
+                    makeInstall.on('error', function (err) {
+                        if (err.code === 'ENOENT') {
+                            console.error('\033[1;31mError: ' + makeCommand + ' is required!\033[0m');
+                        } else {
+                            console.error(
+                                '\033[1;31mFail run ' + process.cwd() + ': ' + makeCommand + ' '
+                                + args.join(' ') + '\033[0m'
+                            );
+                            console.error('Message:', err);
+                        }
+                        waitFor.abort();
+                    });
+                    makeInstall.on('close', waitFor(function () {
+                        var cpExtras = Spawn('cp', [
+                            '-R',
+                            dependencyDir + '/libsodium/src/libsodium/include/sodium/private',
+                            dependencyDir + '/libsodium/build/include/'
+                        ], {stdio: 'inherit'});
+                        cpExtras.on('error', function(){
+                            console.error('Failed to copy the extras');
+                        });
+                        cpExtras.on('close', waitFor(function(){
+                            process.chdir(cwd);
+                        }));
+                    }));
+                }));
             }));
         }));
-
     }).nThen(function (waitFor) {
 
         builder.config.libs.push(libuvLib);

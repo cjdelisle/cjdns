@@ -19,7 +19,7 @@
 #include "util/Bits.h"
 #include "util/log/FileWriterLog.h"
 
-#include "crypto_scalarmult_curve25519.h"
+#include "sodium/crypto_scalarmult_curve25519.h"
 
 int main()
 {

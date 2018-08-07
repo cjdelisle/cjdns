@@ -39,7 +39,7 @@
 #include "util/events/FakeNetwork.h"
 #include "util/Hash.h"
 
-#include "crypto_scalarmult_curve25519.h"
+#include "sodium/crypto_scalarmult_curve25519.h"
 
 #include <unistd.h> // isatty()
 
