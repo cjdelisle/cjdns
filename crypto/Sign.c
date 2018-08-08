@@ -14,11 +14,9 @@
  */
 
 #include "crypto/Sign.h"
-
-#include "node_build/dependencies/cnacl/crypto_sign/ed25519/ref10/ge.h"
-#include "node_build/dependencies/cnacl/crypto_sign/ed25519/ref10/sc.h"
-#include "crypto_hash_sha512.h"
-#include "crypto_sign_ed25519.h"
+#include "sodium/private/curve25519_ref10.h"
+#include "sodium/crypto_hash_sha512.h"
+#include "sodium/crypto_sign_ed25519.h"
 
 #if crypto_sign_ed25519_open != crypto_sign_ed25519_ref10_open
     Assert_compileTime(crypto_sign_ed25519_open == crypto_sign_ed25519_ref10_open);

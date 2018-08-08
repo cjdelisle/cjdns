@@ -102,17 +102,15 @@ static int genconf(struct Random* rand, bool eth)
            "    //          then the hash of the 'password' is effectively the login, therefore\n"
            "    //          that can be cracked.\n"
            "    //\n"
-           "    \"authorizedPasswords\":\n"
-           "    [\n"
-           "        // A unique string which is known to the client and server.\n"
-           "        // Specify an optional user to identify the peer locally.\n"
-           "        // It is not used for authentication.\n"
-           "        {\"password\": \"%s\", \"user\": \"default-login\"}\n", password);
+           "    \"authorizedPasswords\": [\n"
+           "        // Password is a unique string which is known to the client and server.\n"
+           "        // User is an optional login name and will also be used to display the peer.\n"
+           "        { \"password\": \"%s\", \"user\": \"default-login\" }\n", password);
     printf("\n"
            "        // More passwords should look like this.\n"
-           "        // {\"password\": \"%s\", \"user\": \"my-second-peer\"},\n", password2);
-    printf("        // {\"password\": \"%s\", \"user\": \"my-third-peer\"},\n", password3);
-    printf("        // {\"password\": \"%s\", \"user\": \"my-fourth-peer\"},\n", password4);
+           "        // { \"password\": \"%s\", \"user\": \"my-second-peer\" },\n", password2);
+    printf("        // { \"password\": \"%s\", \"user\": \"my-third-peer\" },\n", password3);
+    printf("        // { \"password\": \"%s\", \"user\": \"my-fourth-peer\" },\n", password4);
     printf("\n"
            "        // Below is an example of your connection credentials\n"
            "        // that you can give to other people so they can connect\n"
@@ -122,13 +120,13 @@ static int genconf(struct Random* rand, bool eth)
            "        // Adding a unique password for each peer is advisable\n"
            "        // so that leaks can be isolated.\n"
            "        /*\n"
-           "        \"your.external.ip.goes.here:%u\": {\n", port);
-    printf("            \"login\": \"default-login\",\n"
-           "            \"password\":\"%s\",\n", password);
-    printf("            \"publicKey\":\"%s.k\",\n", publicKeyBase32);
-    printf("            \"peerName\":\"your-name-goes-here\"\n"
-           "        },\n"
-           "        */\n");
+           "         \"your.external.ip.goes.here:%u\": {\n", port);
+    printf("             \"login\": \"default-login\",\n"
+           "             \"password\": \"%s\",\n", password);
+    printf("             \"publicKey\": \"%s.k\",\n", publicKeyBase32);
+    printf("             \"peerName\": \"your-name-goes-here\"\n"
+           "         },\n"
+           "         */\n");
     printf("    ],\n"
            "\n"
            "    // Settings for administering and extracting information from your router.\n"
@@ -140,8 +138,7 @@ static int genconf(struct Random* rand, bool eth)
            "    // will call a function which gets the core's current memory consumption.\n"
            "    // ./tools/cjdnslog\n"
            "    // is a tool which uses this admin interface to get logs from cjdns.\n"
-           "    \"admin\":\n"
-           "    {\n"
+           "    \"admin\": {\n"
            "        // Port to bind the admin RPC server to.\n"
            "        \"bind\": \"127.0.0.1:11234\",\n"
            "\n"
@@ -154,20 +151,33 @@ static int genconf(struct Random* rand, bool eth)
     printf("    },\n"
            "\n"
            "    // Interfaces to connect to the switch core.\n"
-           "    \"interfaces\":\n"
-           "    {\n"
+           "    \"interfaces\": {\n"
            "        // The interface which connects over UDP/IP based VPN tunnel.\n"
-           "        \"UDPInterface\":\n"
-           "        [\n"
+           "        \"UDPInterface\": [\n"
            "            {\n"
            "                // Bind to this port.\n"
            "                \"bind\": \"0.0.0.0:%u\",\n", port);
     printf("                // Set the DSCP value for Qos. Default is 0.\n"
-           "                // \"dscp\": 46,\n");
+           "                // \"dscp\": 46,\n"
+           "\n"
+           "                // Automatically connect to other nodes on the same LAN\n"
+           "                // This works by binding a second port and sending beacons\n"
+           "                // containing the main data port.\n"
+           "                // beacon is a number between 0 and 2:\n"
+           "                //   0 -> do not beacon nor connect to other nodes who beacon\n"
+           "                //   1 -> quiet mode, accept beacons from other nodes only\n"
+           "                //   2 -> send and accept beacons\n"
+           "                // beaconDevices is a list which can contain names of devices such\n"
+           "                // as eth0, as well as broadcast addresses to send to, such as\n"
+           "                // 192.168.101.255, or the pseudo-name \"all\".\n"
+           "                // in order to auto-peer, all cjdns nodes must use the same\n"
+           "                // beaconPort.\n"
+           "                \"beacon\": 2,\n"
+           "                \"beaconDevices\": [ \"all\" ],\n"
+           "                \"beaconPort\": 64512,\n");
     printf("\n"
            "                // Nodes to connect to (IPv4 only).\n"
-           "                \"connectTo\":\n"
-           "                {\n"
+           "                \"connectTo\": {\n"
            "                    // Add connection credentials here to join the network\n"
            "                    // If you have several, don't forget the separating commas\n"
            "                    // They should look like:\n"
@@ -187,8 +197,7 @@ static int genconf(struct Random* rand, bool eth)
            "                // \"dscp\": 46,\n");
     printf("\n"
            "                // Nodes to connect to (IPv6 only).\n"
-           "                \"connectTo\":\n"
-           "                {\n"
+           "                \"connectTo\": {\n"
            "                    // Add connection credentials here to join the network\n"
            "                    // Ask somebody who is already connected.\n"
            "                }\n"
@@ -199,8 +208,7 @@ static int genconf(struct Random* rand, bool eth)
         printf("        /*\n");
     }
     printf("        // The interface which allows peering using layer-2 ethernet frames\n"
-           "        \"ETHInterface\":\n"
-           "        [\n"
+           "        \"ETHInterface\": [\n"
            "            // Alternatively bind to just one device and either beacon and/or\n"
            "            // connect to a specified MAC address\n"
            "            {\n"
@@ -226,8 +234,7 @@ static int genconf(struct Random* rand, bool eth)
            "\n"
            "                // Node(s) to connect to manually\n"
            "                // Note: does not work with \"all\" pseudo-device-name\n"
-           "                \"connectTo\":\n"
-           "                {\n"
+           "                \"connectTo\": {\n"
            "                    // Credentials for connecting look similar to UDP credentials\n"
            "                    // except they begin with the mac address, for example:\n"
            "                    // \"01:02:03:04:05:06\":{\"password\":\"a\",\"publicKey\":\"b\"}\n"
@@ -244,16 +251,14 @@ static int genconf(struct Random* rand, bool eth)
     printf("    },\n"
            "\n"
            "    // Configuration for the router.\n"
-           "    \"router\":\n"
-           "    {\n"
+           "    \"router\": {\n"
            "        // supernodes, if none are specified they'll be taken from your peers\n"
            "        \"supernodes\": [\n"
            "            //\"6743gf5tw80ExampleExampleExampleExamplevlyb23zfnuzv0.k\",\n"
            "        ],\n"
            "\n"
            "        // The interface which is used for connecting to the cjdns network.\n"
-           "        \"interface\":\n"
-           "        {\n"
+           "        \"interface\": {\n"
            "            // The type of interface (only TUNInterface is supported for now)\n"
            "            \"type\": \"TUNInterface\"\n"
            "            // The type of tunfd (only \"android\" for now)\n"
@@ -271,14 +276,12 @@ static int genconf(struct Random* rand, bool eth)
            "\n"
            "        // System for tunneling IPv4 and ICANN IPv6 through cjdns.\n"
            "        // This is using the cjdns switch layer as a VPN carrier.\n"
-           "        \"ipTunnel\":\n"
-           "        {\n"
+           "        \"ipTunnel\": {\n"
            "            // Nodes allowed to connect to us.\n"
            "            // When a node with the given public key connects, give them the\n"
            "            // ip4 and/or ip6 addresses listed.\n"
-           "            \"allowedConnections\":\n");
-    printf("            [\n"
-           "                // Give the client an address on 192.168.1.0/24, and an address\n"
+           "            \"allowedConnections\": [\n");
+    printf("                // Give the client an address on 192.168.1.0/24, and an address\n"
            "                // it thinks has all of IPv6 behind it.\n"
            "                // ip4Prefix is the set of addresses which are routable from the tun\n"
            "                // for example, if you're advertizing a VPN into a company network\n"
@@ -309,8 +312,7 @@ static int genconf(struct Random* rand, bool eth)
            "                // }\n"
            "            ],\n"
            "\n"
-           "            \"outgoingConnections\":\n"
-           "            [\n"
+           "            \"outgoingConnections\": [\n"
            "                // Connect to one or more machines and ask them for IP addresses.\n"
            "                // \"6743gf5tw80ExampleExampleExampleExamplevlyb23zfnuzv0.k\",\n"
            "                // \"pw9tfmr8pcrExampleExampleExampleExample8rhg1pgwpwf80.k\",\n"
@@ -327,8 +329,7 @@ static int genconf(struct Random* rand, bool eth)
            "    // Counter-intuitively, cjdns is *more* secure if it is started as root because\n"
            "    // non-root users do not have permission to use chroot or change usernames,\n"
            "    // limiting the effectiveness of the mitigations herein.\n"
-           "    \"security\":\n"
-           "    [\n"
+           "    \"security\": [\n"
            "        // Change the user id to sandbox the cjdns process after it starts.\n"
            "        // If keepNetAdmin is set to 0, IPTunnel will be unable to set IP addresses\n"
            "        // and ETHInterface will be unable to hot-add new interfaces\n"
@@ -385,11 +386,10 @@ static int genconf(struct Random* rand, bool eth)
            "    ],\n"
            "\n"
            "    // Logging\n"
-           "    \"logging\":\n"
-           "    {\n"
+           "    \"logging\": {\n"
            "        // Uncomment to have cjdns log to stdout rather than making logs available\n"
            "        // via the admin socket.\n"
-           "        // \"logTo\":\"stdout\"\n"
+           "        // \"logTo\": \"stdout\"\n"
            "    },\n"
            "\n"
            "    // If set to non-zero, cjdns will not fork to the background.\n"
@@ -398,14 +398,14 @@ static int genconf(struct Random* rand, bool eth)
            //            the next one ("pipe") is commented out. If you add something below
            //            you must properly add the trailing comma otherwise ansuz will hunt
            //            you and and make you pay.
-    printf("    \"noBackground\":%d\n", Defined(win32) ? 1 : 0);
+    printf("    \"noBackground\": %d\n", Defined(win32) ? 1 : 0);
     printf("\n"
            "    // Pipe file will store in this path, recommended value: /tmp (for unix),\n"
            "    // \\\\.\\pipe (for windows) \n"
            "    // /data/local/tmp (for rooted android) \n"
            "    // /data/data/AppName (for non-root android)\n"
            "    // This only needs to be specified if cjdroute's guess is incorrect\n");
-    printf("    // \"pipe\":\"%s\"\n", Pipe_PATH);
+    printf("    // \"pipe\": \"%s\"\n", Pipe_PATH);
     printf("}\n");
 
     return 0;

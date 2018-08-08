@@ -17,6 +17,7 @@
 
 #include "memory/Allocator.h"
 #include "util/Identity.h"
+#include "util/Assert.h"
 
 #include <stdint.h>
 
@@ -42,10 +43,11 @@ struct Allocator_Allocation_pvt;
 struct Allocator_Allocation_pvt {
     struct Allocator_Allocation pub;
     struct Allocator_Allocation_pvt* next;
-#ifdef Allocator_USE_CANARIES
-    unsigned long beginCanary;
-#endif
+    long lineNum;
+    const char* fileName;
 };
+Assert_compileTime(!(sizeof(struct Allocator_Allocation_pvt) % __BIGGEST_ALIGNMENT__));
+
 
 /** Singly linked list of allocators. */
 struct Allocator_List;

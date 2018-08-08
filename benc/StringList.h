@@ -12,15 +12,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef Linker_H
-#define Linker_H
+#ifndef StringList_H
+#define StringList_H
 
-// Trailing anonymous struct swollows the semicolon.
-#ifdef __INTELLISENSE__
-#define Linker_require(req)
-#else
-#define Linker_require(req) \
-    struct Linker_x<?js file.links.push(req); \
-        return Math.random(16).toString().replace(/[^0-9]/g,'') ?>
-#endif
+#include "benc/String.h"
+#include "benc/Object.h"
+
+#define ArrayList_TYPE String // CHECKFILES_IGNORE this define does not leak past end of the file
+#define ArrayList_FULLNAME StringList // CHECKFILES_IGNORE
+#include "util/ArrayList.h"
+
 #endif

@@ -17,7 +17,7 @@
 #include "util/Base32.h"
 #include "util/Hex.h"
 
-#include "crypto_scalarmult_curve25519.h"
+#include "sodium/crypto_scalarmult_curve25519.h"
 
 #include <unistd.h>
 #include <stdio.h>

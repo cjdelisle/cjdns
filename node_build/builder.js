@@ -82,6 +82,9 @@ var sema = Semaphore.create(PROCESSORS);
 var compiler = function (compilerPath, args, callback, content) {
     args = expandArgs(args);
     sema.take(function (returnAfter) {
+        if (process.env.VERBOSE) {
+            console.log(compilerPath + ' ' + args.join(' '));
+        }
         var gcc = Spawn(compilerPath, args);
         var err = '';
         var out = '';
@@ -549,7 +552,7 @@ var removeFile = function (state, fileName, callback)
             }
 
             if (state.files[file].includes.indexOf(fileName) !== -1) {
-                removeFile(state, file, waitFor());
+                setTimeout(waitFor(function () { removeFile(state, file, waitFor()); }));
             }
         });
 
@@ -713,7 +716,7 @@ var compile = function (file, outputFile, builder, callback) {
             linkOrder[i] = state.buildDir + '/' + getObjectFile(linkOrder[i]);
         }
 
-        var ldArgs = [state.ldflags, '-o', outputFile, linkOrder, state.libs];
+        var ldArgs = [].concat(state.ldflags).concat(['-o', outputFile, linkOrder, state.libs]);
         debug('\033[1;31mLinking C executable ' + file + '\033[0m');
 
         cc(state.gcc, ldArgs, waitFor(function (err, ret) {

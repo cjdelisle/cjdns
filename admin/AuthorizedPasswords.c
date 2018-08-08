@@ -82,19 +82,19 @@ static void remove(Dict* args, void* vcontext, String* txid, struct Allocator* r
 static void list(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* context = Identity_check((struct Context*) vcontext);
-    struct Allocator* child = Allocator_child(context->allocator);
 
-    List* users = CryptoAuth_getUsers(context->ca, child);
-    uint32_t count = List_size(users);
+    int64_t* page_p = Dict_getIntC(args, "page");
+    int page = (page_p) ? *page_p : 0;
 
-    Dict response = Dict_CONST(
-        String_CONST("total"), Int_OBJ(count), Dict_CONST(
-        String_CONST("users"), List_OBJ(users), NULL
-    ));
-
-    Admin_sendMessage(&response, txid, context->admin);
-
-    Allocator_free(child);
+    struct StringList* users = CryptoAuth_getUsers(context->ca, requestAlloc);
+    List* out = List_new(requestAlloc);
+    for (int i = page * 16; i < users->length && i < (page + 1) * 16; i++) {
+        List_addString(out, StringList_get(users, i), requestAlloc);
+    }
+    Dict* response = Dict_new(requestAlloc);
+    Dict_putIntC(response, "total", users->length, requestAlloc);
+    Dict_putListC(response, "users", out, requestAlloc);
+    Admin_sendMessage(response, txid, context->admin);
 }
 
 void AuthorizedPasswords_init(struct Admin* admin,
@@ -117,5 +117,8 @@ void AuthorizedPasswords_init(struct Admin* admin,
         ((struct Admin_FunctionArg[]){
             { .name = "user", .required = 1, .type = "String" }
         }), admin);
-    Admin_registerFunction("AuthorizedPasswords_list", list, context, true, NULL, admin);
+    Admin_registerFunction("AuthorizedPasswords_list", list, context, true,
+        ((struct Admin_FunctionArg[]){
+            { .name = "page", .required = 0, .type = "Int" }
+        }), admin);
 }

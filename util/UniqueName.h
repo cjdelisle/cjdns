@@ -15,6 +15,10 @@
 #ifndef UniqueName_H
 #define UniqueName_H
 
+#ifdef __INTELLISENSE__
+#define UniqueName_get()
+#define UniqueName_last()
+#else
 <?js file.Constant_JS = file.Constant_JS || require('util/Constant.js'); ?>
 
 #define UniqueName_get() <?js return \
@@ -23,5 +27,5 @@
 ?>
 
 #define UniqueName_last() <?js return file.UniqueName_last; ?>
-
+#endif
 #endif

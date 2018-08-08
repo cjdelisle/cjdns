@@ -102,7 +102,7 @@ def peerStats(cjdns,up=False,verbose=False,human_readable=False):
 
     i = 0;
     while True:
-        ps = cjdns.InterfaceController_peerStats(i);
+        ps = cjdns.InterfaceController_peerStats(page=i);
         peers = ps['peers']
         for p in peers:
             p.update(parseAddr(p['addr']))

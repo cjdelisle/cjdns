@@ -23,8 +23,12 @@
  *     doLinuxSpecificStuff();
  * }
  */
-#define Defined_Q <?js return String.fromCharCode(34); ?>
-#define Defined(macro) \
-    <?js return ( Defined_Q macro Defined_Q === ' ' + #macro + ' ' ) ? '0' : '1'; ?>
+#ifdef __INTELLISENSE__
+    #define Defined(macro) 1
+#else
+    #define Defined_Q <?js return String.fromCharCode(34); ?>
+    #define Defined(macro) \
+        <?js return ( Defined_Q macro Defined_Q === ' ' + #macro + ' ' ) ? '0' : '1'; ?>
+#endif
 
 #endif

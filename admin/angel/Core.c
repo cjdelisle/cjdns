@@ -64,13 +64,14 @@
 #include "util/Security_admin.h"
 #include "util/Security.h"
 #include "util/version/Version.h"
+#include "util/GlobalConfig.h"
 #include "net/SessionManager_admin.h"
 #include "wire/SwitchHeader.h"
 #include "wire/CryptoHeader.h"
 #include "wire/Headers.h"
 #include "net/NetCore.h"
 
-#include <crypto_scalarmult_curve25519.h>
+#include "sodium/crypto_scalarmult_curve25519.h"
 
 #include <stdlib.h>
 #include <unistd.h>
@@ -118,6 +119,7 @@ struct Context
     struct NetCore* nc;
     struct IpTunnel* ipTunnel;
     struct EncodingScheme* encodingScheme;
+    struct GlobalConfig* globalConf;
     Identity
 };
 
@@ -162,7 +164,7 @@ static void initTunnel2(String* desiredDeviceName,
 
     Iface_plumb(tun, &ctx->nc->tunAdapt->tunIf);
 
-    IpTunnel_setTunName(assignedTunName, ctx->ipTunnel);
+    GlobalConfig_setTunName(ctx->globalConf, String_CONST(assignedTunName));
 
     struct Sockaddr* myAddr =
         Sockaddr_fromBytes(ctx->nc->myAddress->ip6.bytes, Sockaddr_AF_INET6, ctx->alloc);
@@ -250,11 +252,13 @@ void Core_init(struct Allocator* alloc,
     if (!noSec) {
         sec = Security_new(alloc, logger, eventBase);
     }
+    struct GlobalConfig* globalConf = GlobalConfig_new(alloc);
     struct NetCore* nc = NetCore_new(privateKey, alloc, eventBase, rand, logger);
 
     struct RouteGen* rg = RouteGen_new(alloc, logger);
 
-    struct IpTunnel* ipTunnel = IpTunnel_new(logger, eventBase, alloc, rand, rg);
+    struct IpTunnel* ipTunnel =
+        IpTunnel_new(logger, eventBase, alloc, rand, rg, globalConf);
     Iface_plumb(&nc->tunAdapt->ipTunnelIf, &ipTunnel->tunInterface);
     Iface_plumb(&nc->upper->ipTunnelIf, &ipTunnel->nodeInterface);
 
@@ -281,7 +285,8 @@ void Core_init(struct Allocator* alloc,
     RouteGen_admin_register(rg, admin, alloc);
     InterfaceController_admin_register(nc->ifController, admin, alloc);
     SwitchPinger_admin_register(nc->sp, admin, alloc);
-    UDPInterface_admin_register(eventBase, alloc, logger, admin, nc->ifController, fakeNet);
+    UDPInterface_admin_register(
+        eventBase, alloc, logger, admin, nc->ifController, fakeNet, globalConf);
 #ifdef HAS_ETH_INTERFACE
     ETHInterface_admin_register(eventBase, alloc, logger, admin, nc->ifController);
 #endif
@@ -308,6 +313,7 @@ void Core_init(struct Allocator* alloc,
     ctx->ipTunnel = ipTunnel;
     ctx->nc = nc;
     ctx->encodingScheme = encodingScheme;
+    ctx->globalConf = globalConf;
 
     Admin_registerFunction("Core_exit", adminExit, ctx, true, NULL, admin);
 

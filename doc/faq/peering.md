@@ -122,7 +122,7 @@ Check <a href="/locals">this page</a> for a basic list of some general areas. It
 01:55 -!- newguy [webchat@198.20.69.234] has quit [Client Quit]
 ```
 
-We see this **a lot**. You should read [ircerr's peers.txt](/peers), [the peering section of my old faq](/faq#peering), and [my page about meshlocals](/locals).
+We see this **a lot**. You should read [ircerr's peers.txt](http://web.archive.org/web/20140119050902/http://ircerr.ca/cjdns/peers.txt), [the peering section of my old faq](/faq#peering), and [my page about meshlocals](../meshlocals).
 
 TL;DR :: this isn't a public network, and we're under no obligation to give credentials to everyone who asks. We aren't a non-profit, or a corporation, or even a cohesive group. Everyone here has their own motivations and ideas of what the network should be, and you need to find someone who wants to connect to you. Don't be shy, introduce yourself.
 

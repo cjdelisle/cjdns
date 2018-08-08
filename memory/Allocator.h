@@ -110,10 +110,6 @@ struct Allocator
 
 struct Allocator_Allocation
 {
-    const char* fileName;
-
-    int lineNum;
-
     unsigned long size;
 };
 

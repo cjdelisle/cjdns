@@ -175,6 +175,38 @@ static void authorizedPasswords(List* list, struct Context* ctx)
     }
 }
 
+static void udpInterfaceSetBeacon(
+    Dict* udp, int beacon, uint16_t beaconPort, int ifNum, struct Context* ctx)
+{
+    if (!beacon) { return; }
+    if (beacon > 2 || beacon < 0) {
+        Log_error(ctx->logger, "interfaces.UDPInterface.beacon may only be 0, 1,or 2");
+        return;
+    }
+    if (!beaconPort) {
+        Log_error(ctx->logger, "interfaces.UDPInterface.beacon requires beaconPort");
+        return;
+    }
+    List* devices = Dict_getListC(udp, "beaconDevices");
+    if (!devices) {
+        Log_error(ctx->logger, "interfaces.UDPInterface.beacon requires beaconDevices");
+        return;
+    }
+
+    // We can cast beacon to an int here because we know it's small enough
+    Log_info(ctx->logger, "Setting beacon mode UDPInterface to [%d].", (int) beacon);
+
+    Dict* d = Dict_new(ctx->alloc);
+    Dict_putIntC(d, "state", beacon, ctx->alloc);
+    Dict_putIntC(d, "interfaceNumber", ifNum, ctx->alloc);
+    rpcCall(String_CONST("UDPInterface_beacon"), d, ctx, ctx->alloc);
+
+    d = Dict_new(ctx->alloc);
+    Dict_putListC(d, "devices", devices, ctx->alloc);
+    Dict_putIntC(d, "interfaceNumber", ifNum, ctx->alloc);
+    rpcCall(String_CONST("UDPInterface_setBroadcastDevices"), d, ctx, ctx->alloc);
+}
+
 static void udpInterface(Dict* config, struct Context* ctx)
 {
     List* ifaces = Dict_getListC(config, "UDPInterface");
@@ -199,9 +231,16 @@ static void udpInterface(Dict* config, struct Context* ctx)
         if (dscp) {
             Dict_putIntC(d, "dscp", *dscp, ctx->alloc);
         }
+        int64_t* beaconPort_p = Dict_getIntC(udp, "beaconPort");
+        uint16_t beaconPort = (beaconPort_p) ? *beaconPort_p : 0;
+        int64_t* beaconP = Dict_getIntC(udp, "beacon");
+        int64_t beacon = (beaconP) ? *beaconP : 0;
+        if (beacon && beaconPort) { Dict_putIntC(d, "beaconPort", beaconPort, ctx->alloc); }
         Dict* resp = NULL;
         rpcCall0(String_CONST("UDPInterface_new"), d, ctx, ctx->alloc, &resp, true);
         int ifNum = *(Dict_getIntC(resp, "interfaceNumber"));
+
+        udpInterfaceSetBeacon(udp, beacon, beaconPort, ifNum, ctx);
 
         // Make the connections.
         Dict* connectTo = Dict_getDictC(udp, "connectTo");
@@ -381,7 +420,7 @@ static void ethInterfaceSetBeacon(int ifNum, Dict* eth, struct Context* ctx)
     int64_t* beaconP = Dict_getIntC(eth, "beacon");
     if (beaconP) {
         int64_t beacon = *beaconP;
-        if (beacon > 3 || beacon < 0) {
+        if (beacon > 2 || beacon < 0) {
             Log_error(ctx->logger, "interfaces.ETHInterface.beacon may only be 0, 1,or 2");
         } else {
             // We can cast beacon to an int here because we know it's small enough

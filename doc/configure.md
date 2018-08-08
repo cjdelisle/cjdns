@@ -105,6 +105,22 @@ This specifies the settings for the connection interfaces to your node. Right no
                 // Bind to this port.
                 "bind": "0.0.0.0:33808",
 
+                // Automatically connect to other nodes on the same LAN
+                // This works by binding a second port and sending beacons
+                // containing the main data port.
+                // beacon is a number between 0 and 2:
+                //   0 -> do not beacon nor connect to other nodes who beacon
+                //   1 -> quiet mode, accept beacons from other nodes only
+                //   2 -> send and accept beacons
+                // beaconDevices is a list which can contain names of devices such
+                // as eth0, as well as broadcast addresses to send to, such as
+                // 192.168.101.255, or the pseudo-name "all".
+                // in order to auto-peer, all cjdns nodes must use the same
+                // beaconPort.
+                "beacon": 2,
+                "beaconDevices": [ "all" ],
+                "beaconPort": 64512,
+
                 // Nodes to connect to.
                 "connectTo":
                 {
@@ -152,6 +168,12 @@ This specifies the settings for the connection interfaces to your node. Right no
 
 - `UDPInterface`:
     - `bind`: This tells cjdns what IP and port to use for listening to connections.
+    - `beacon`: his controls peer auto-discovery. Set to 0 to disable auto-peering, 1 to use broadcast
+    auto-peering passwords contained in "beacon" messages from other nodes, and 2 to both broadcast and accept beacons.
+    - `beaconDevices`: A list of broadcast devices, including device names such as "eth0", address names and the
+    pseudo-name "all" which means it will use broadcast addresses of all interfaces. For example:
+    `[ "eth0", "wlan0", "192.168.300.255" ]`
+    - `beaconPort`: The UDP port for sending beacon messages on, all nodes must have the same beaconPort to auto-peer.
     - `connectTo`: This is where you put the connection details for peers that you want to connect to. The format for this generally looks like this,
         "12.34.56.78:12345":
         {

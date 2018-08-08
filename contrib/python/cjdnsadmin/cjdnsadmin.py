@@ -173,32 +173,38 @@ def _getMessage(session, txid):
                 print "message with no txid: " + str(next)
 
 
-def _functionFabric(func_name, argList, oargs, password):
+def _functionFabric(func_name, argList, oargs, oargNames, password):
     """Function fabric for Session class"""
 
     def functionHandler(self, *args, **kwargs):
         call_args = {}
-
+        
         pos = 0
         for value in args:
             if (pos < len(argList)):
                 call_args[argList[pos]] = value
                 pos += 1
+            elif (pos < len(argList) + len(oargNames)):
+                call_args[oargNames[pos - len(argList)]] = value
+            else:
+                print("warning: extraneous argument passed to function",func_name,value)
 
         for (key, value) in kwargs.items():
-            if not key in oargs:
-                # probably a positional argument, given a keyword name
-                # that happens in python
-                if pos < len(argList) and argList[pos] == key:
+            if key not in oargs:
+                if key in argList:
+                    # this is a positional argument, given a keyword name
+                    # that happens in python.
+                    # TODO: we can't handle this along with unnamed positional args.
+                    pos = argList.index(key)
                     call_args[argList[pos]] = value
-                    pos += 1
                     continue
                 else:
                     print("warning: not an argument to this function",func_name,key)
                     print(oargs)
-            # TODO: check oargs[key] type matches value
-            # warn, if doesn't
-            call_args[key] = value
+            else:
+                # TODO: check oargs[key] type matches value
+                # warn, if doesn't
+                call_args[key] = value
 
         return _callFunc(self, func_name, password, call_args)
 
@@ -246,15 +252,18 @@ def connect(ipAddr, port, password):
         argList = []
         # optional args
         oargs = {}
+        # order of optional args for python-style calling
+        oargNames = []
         
         for (arg,atts) in items:
             if atts['required']:
                 argList.append(arg)
             else:
                 oargs[arg] = atts['type']
+                oargNames.append(arg)
 
         setattr(Session, i, _functionFabric(
-            i, argList, oargs, password))
+            i, argList, oargs, oargNames, password))
 
         funcArgs[i] = argList
         funcOargs[i] = oargs
