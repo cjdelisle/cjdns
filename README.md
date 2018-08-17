@@ -62,7 +62,7 @@ scalability issues that plague existing networks.
 
 * [Project Goals](doc/projectGoals.md)
 * [Cjdns Whitepaper](doc/Whitepaper.md)
-* [Cjdns on Wikipedia][]
+* [Cjdns on Wikipedia][https://www.reddit.com/r/cjdns/]
 
 Advanced configuration:
 
