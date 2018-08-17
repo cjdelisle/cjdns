@@ -55,6 +55,7 @@ scalability issues that plague existing networks.
 * [Hyperboria][] the largest cjdns network, as of October 2015 there are 2100 nodes.
 * [/r/darknetplan][]
 * [#cjdns on Twitter][]
+* [/r/CJDNS](https://www.reddit.com/r/cjdns/ )
 
 
 ## Documentation
