@@ -397,8 +397,8 @@ static int32_t parseDictionary(struct Reader* reader,
 
     String* key;
     Object* value;
-    struct Dict_Entry* entryPointer;
-    struct Dict_Entry* lastEntryPointer = NULL;
+    struct Dict_Entry* first = NULL;
+    struct Dict_Entry* last = NULL;
     int ret = 0;
 
     for (;;) {
@@ -410,7 +410,7 @@ static int32_t parseDictionary(struct Reader* reader,
 
                 case '}':
                     Reader_skip(reader, 1);
-                    *output = lastEntryPointer;
+                    *output = first;
                     return 0;
 
                 case '/':
@@ -440,12 +440,15 @@ static int32_t parseDictionary(struct Reader* reader,
         }
 
         /* Allocate the entry. */
-        entryPointer = Allocator_malloc(allocator, sizeof(struct Dict_Entry));
-
-        entryPointer->next = lastEntryPointer;
-        entryPointer->key = key;
-        entryPointer->val = value;
-        lastEntryPointer = entryPointer;
+        struct Dict_Entry* entry = Allocator_calloc(allocator, sizeof(struct Dict_Entry), 1);
+        entry->key = key;
+        entry->val = value;
+        if (last) {
+            last->next = entry;
+        } else {
+            first = entry;
+        }
+        last = entry;
     }
 }
 

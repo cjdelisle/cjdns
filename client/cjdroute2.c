@@ -406,7 +406,7 @@ static int genconf(struct Random* rand, bool eth)
     printf("\n"
            "    // This is to make the configuration be parsed in strict mode, which allows\n"
            "    // it to be edited externally using cjdnsconf.\n"
-           "    \"version\": 2");
+           "    \"version\": 2\n");
     printf("}\n");
 
     return 0;
@@ -635,6 +635,11 @@ int main(int argc, char** argv)
     Dict _config;
     Dict* config = &_config;
     char* err = JsonBencMessageReader_readNoExcept(confMsg, allocator, &config, false);
+    if (!err) {
+        // If old version is specified, always use old parser so there is no possible error
+        uint64_t* v = Dict_getIntC(config, "version");
+        if (!v || *v < 2) { err = "using old parser"; }
+    }
     if (err) {
         if (JsonBencSerializer_get()->parseDictionary(confReader, allocator, &_config)) {
             fprintf(stderr, "Failed to parse configuration.\n%s\n", err);
@@ -648,6 +653,8 @@ int main(int argc, char** argv)
     }
 
     if (argc == 2 && CString_strcmp(argv[1], "--cleanconf") == 0) {
+        // Slip a v2 in there because at this point, the conf file is definitely v2 valid
+        Dict_putIntC(config, "version", 2, allocator);
         struct Writer* stdoutWriter = FileWriter_new(stdout, allocator);
         JsonBencSerializer_get()->serializeDictionary(stdoutWriter, config);
         printf("\n");
