@@ -212,7 +212,7 @@ static List* parseList(struct Context* ctx)
             skip(ctx, 1);
             parseWhitespaceAndComments(ctx);
         }
-        struct List_Item* item = Allocator_malloc(ctx->alloc, sizeof(struct List_Item));
+        struct List_Item* item = Allocator_calloc(ctx->alloc, sizeof(struct List_Item), 1);
         item->elem = parseGeneric(ctx);
         if (last) {
             last->next = item;
@@ -245,7 +245,7 @@ static Dict* parseDict(struct Context* ctx)
             skip(ctx, 1);
             parseWhitespaceAndComments(ctx);
         }
-        struct Dict_Entry* entry = Allocator_malloc(ctx->alloc, sizeof(struct Dict_Entry));
+        struct Dict_Entry* entry = Allocator_calloc(ctx->alloc, sizeof(struct Dict_Entry), 1);
         entry->key = parseString(ctx);
         parseWhitespaceAndComments(ctx);
         if (assertChar(ctx, ':', ctx->lax)) {
