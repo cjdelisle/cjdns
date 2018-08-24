@@ -109,10 +109,10 @@ static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* iface)
 
     struct AddrIface_Header aihdr;
     Message_pop(msg, &aihdr, AddrIface_Header_SIZE, NULL);
-    struct Sockaddr* sa = &aihdr.addr;
+    struct Sockaddr* sa = (struct Sockaddr*) &aihdr.addr;
     Assert_true(sa->addrLen <= ETHInterface_Sockaddr_SIZE);
 
-    struct ETHInterface_Sockaddr* sockaddr = &aihdr.addr.addr;
+    struct ETHInterface_Sockaddr* sockaddr = (struct ETHInterface_Sockaddr*) &aihdr.addr.addr;
 
     struct sockaddr_ll addr;
     Bits_memcpy(&addr, &ctx->addrBase, sizeof(struct sockaddr_ll));
