@@ -188,6 +188,13 @@ struct InterfaceController_pvt
 
     struct ArrayList_OfIfaces* icis;
 
+    /* For timestamping packets to get a picture of possible bandwidth. */
+    struct Peer* lastPeer;
+    uint64_t lastRecvTime;
+    uint32_t lastNonce;
+    uint32_t lastLength;
+    uint32_t seq;
+
     /** Temporary allocator for allocating timeouts for sending beacon messages. */
     struct Allocator* beaconTimeoutAlloc;
 
@@ -728,9 +735,29 @@ static Iface_DEFUN handleIncomingFromWire(struct Message* msg, struct Iface* add
     struct Peer* ep = Identity_check((struct Peer*) ici->peerMap.values[epIndex]);
     Message_shift(msg, -lladdr->addrLen, NULL);
     CryptoAuth_resetIfTimeout(ep->caSession);
+    uint32_t nonce = Endian_bigEndianToHost32( ((uint32_t*)msg->bytes)[0] );
     if (CryptoAuth_decrypt(ep->caSession, msg)) {
         return NULL;
     }
+
+    if (ici->ic->pub.timestampPackets) {
+        uint64_t now = Time_hrtime();
+        if (ici->ic->lastPeer == ep
+            && ici->ic->lastNonce + 1 == nonce
+            && ((ici->ic->lastLength - msg->length) & 0xffff) < 100
+        ) {
+            ici->ic->seq++;
+            Log_debug(ici->ic->logger, "RECV TIME %u %llu %u",
+                msg->length, (long long)(now - ici->ic->lastRecvTime), ici->ic->seq);
+        } else {
+            ici->ic->seq = 0;
+        }
+        ici->ic->lastPeer = ep;
+        ici->ic->lastNonce = nonce;
+        ici->ic->lastRecvTime = now;
+        ici->ic->lastLength = msg->length;
+    }
+
     PeerLink_recv(msg, ep->peerLink);
     if (ep->state == InterfaceController_PeerState_ESTABLISHED &&
         CryptoAuth_getState(ep->caSession) != CryptoAuth_State_ESTABLISHED) {

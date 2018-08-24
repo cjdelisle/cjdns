@@ -203,6 +203,23 @@ static void adminResetPeering(Dict* args,
     Admin_sendMessage(response, txid, context->admin);
 }
 
+static void timestampPackets(Dict* args,
+                             void* vcontext,
+                             String* txid,
+                             struct Allocator* requestAlloc)
+{
+    struct Context* context = Identity_check((struct Context*)vcontext);
+    int64_t* enable = Dict_getIntC(args, "enable");
+    Dict* response = Dict_new(requestAlloc);
+    Dict_putStringCC(response, "error", "none", requestAlloc);
+    if (!enable) {
+        Dict_putIntC(response, "enabled", context->ic->timestampPackets, requestAlloc);
+    } else {
+        context->ic->timestampPackets = *enable;
+    }
+    Admin_sendMessage(response, txid, context->admin);
+}
+
 /*
 static resetSession(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
@@ -265,4 +282,10 @@ void InterfaceController_admin_register(struct InterfaceController* ic,
         ((struct Admin_FunctionArg[]) {
             { .name = "pubkey", .required = 1, .type = "String" }
         }), admin);
+
+    Admin_registerFunction("InterfaceController_timestampPackets", timestampPackets, ctx, true,
+        ((struct Admin_FunctionArg[]) {
+            { .name = "enable", .required = 0, .type = "Int" }
+        }), admin);
+
 }

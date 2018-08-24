@@ -115,7 +115,12 @@ struct InterfaceController_PeerStats
 
 struct InterfaceController
 {
-    int unused;
+    /*
+     * If set to true, high resolution timestamp data will be collected for each
+     * packet to help with estimating available bandwidth. Caution: this implies
+     * an extra syscall per packet.
+     */
+    bool timestampPackets;
 };
 
 struct InterfaceController_Iface
