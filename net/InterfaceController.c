@@ -747,8 +747,8 @@ static Iface_DEFUN handleIncomingFromWire(struct Message* msg, struct Iface* add
             && ((ici->ic->lastLength - msg->length) & 0xffff) < 100
         ) {
             ici->ic->seq++;
-            Log_debug(ici->ic->logger, "RECV TIME %u %u %u",
-                msg->length, recvTime - ici->ic->lastRecvTime, ici->ic->seq);
+            Log_debug(ici->ic->logger, "RECV TIME %u %llu %u",
+                msg->length, (long long)(recvTime - ici->ic->lastRecvTime), ici->ic->seq);
         } else {
             ici->ic->seq = 0;
         }
