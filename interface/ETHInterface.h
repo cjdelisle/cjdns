@@ -73,4 +73,6 @@ struct ETHInterface* ETHInterface_new(struct EventBase* eventBase,
 
 List* ETHInterface_listDevices(struct Allocator* alloc, struct Except* eh);
 
+void ETHInterface_timestampPackets(struct ETHInterface* iface, bool enable);
+
 #endif

@@ -18,6 +18,17 @@
 #include "interface/Iface.h"
 #include "util/platform/Sockaddr.h"
 
+struct AddrIface_Header
+{
+    // Caviat emptor: we only guarantee 4 byte alignment in Message structures
+    uint32_t recvTime_high;
+    uint32_t recvTime_low;
+
+    struct Sockaddr_storage addr;
+};
+#define AddrIface_Header_SIZE (Sockaddr_OVERHEAD + Sockaddr_MAXSIZE + 8)
+Assert_compileTime(AddrIface_Header_SIZE == sizeof(struct AddrIface_Header));
+
 /**
  * An AddrInterface, short for "Adderssable Interface" is an interface which
  * sends and accepts an address as the header of the messages sent to and

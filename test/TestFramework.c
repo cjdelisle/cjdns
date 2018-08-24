@@ -70,7 +70,7 @@ static Iface_DEFUN sendTo(struct Message* msg,
     }
 
     // Copy the original and send that to the other end.
-    // Can't use Iface_next() when not sending the original msg.
+    // Can't use Iface_next() because we are not sending the original msg.
     struct Message* sendMsg = Message_clone(msg, destTf->alloc);
     Iface_send(dest, sendMsg);
     return 0;

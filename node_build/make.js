@@ -46,7 +46,7 @@ Builder.configure({
     crossCompiling: process.env['CROSS'] !== undefined,
     gcc:            GCC,
     tempDir:        process.env['CJDNS_BUILD_TMPDIR'] || '/tmp',
-    optimizeLevel:  '-O3',
+    optimizeLevel:  '-O0',
     logLevel:       process.env['Log_LEVEL'] || 'DEBUG'
 }, function (builder, waitFor) {
 

@@ -218,6 +218,8 @@ struct UDPInterface* UDPInterface_new(struct EventBase* eventBase,
 
     struct UDPAddrIface* uai = UDPAddrIface_new(eventBase, bindAddr, alloc, exHandler, logger);
 
+    UDPAddrIface_timestampPackets(uai, true);
+
     uint16_t commPort = Sockaddr_getPort(uai->generic.addr);
 
     struct UDPInterface_pvt* context = Allocator_calloc(alloc, sizeof(struct UDPInterface_pvt), 1);
@@ -307,4 +309,10 @@ int UDPInterface_setDSCP(struct UDPInterface* udpif, uint8_t dscp)
     if (res) { return res; }
     if (ctx->bcastIf) { return UDPAddrIface_setDSCP(ctx->bcastIf, dscp); }
     return 0;
+}
+
+void UDPInterface_timestampPackets(struct UDPInterface* udpif, bool enable)
+{
+    struct UDPInterface_pvt* ctx = Identity_check((struct UDPInterface_pvt*) udpif);
+    UDPAddrIface_timestampPackets(ctx->commIf, enable);
 }

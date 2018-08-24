@@ -33,9 +33,9 @@ static Iface_DEFUN incomingFromUdpIf(struct Message* message, struct Iface* udpI
     struct PacketHeaderToUDPAddrIface_pvt* context =
         Identity_containerOf(udpIf, struct PacketHeaderToUDPAddrIface_pvt, pub.udpIf.iface);
 
-    struct Sockaddr_storage ss;
-    Message_pop(message, &ss, context->pub.udpIf.addr->addrLen, NULL);
-    struct Sockaddr* addr = &ss.addr;
+    struct AddrIface_Header aihdr;
+    Message_pop(message, &aihdr, AddrIface_Header_SIZE, NULL);
+    struct Sockaddr* addr = &aihdr.addr.addr;
 
     struct Headers_UDPHeader udp;
     udp.srcPort_be = Endian_hostToBigEndian16(Sockaddr_getPort(context->pub.udpIf.addr));
@@ -97,7 +97,10 @@ static Iface_DEFUN incomingFromHeaderIf(struct Message* message, struct Iface* i
     }
 
     Message_shift(message, -(Headers_IP6Header_SIZE + Headers_UDPHeader_SIZE), NULL);
-    Message_push(message, addr, addr->addrLen, NULL);
+
+    struct AddrIface_Header aihdr = { .recvTime_high = 0 };
+    Bits_memcpy(&aihdr.addr, addr, addr->addrLen);
+    Message_push(message, &aihdr, AddrIface_Header_SIZE, NULL);
 
     return Iface_next(&context->pub.udpIf.iface, message);
 }

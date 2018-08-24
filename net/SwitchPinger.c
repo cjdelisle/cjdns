@@ -25,6 +25,8 @@
 #include "wire/RouteHeader.h"
 #include "wire/Control.h"
 #include "wire/Error.h"
+#include "switch/EncodingScheme.h"
+#include "switch/NumberCompress.h"
 
 
 struct SwitchPinger_pvt
@@ -209,6 +211,11 @@ static void onPingResponse(String* data, uint32_t milliseconds, void* vping)
         }
     } else {
         err = SwitchPinger_Result_TIMEOUT;
+    }
+
+    struct EncodingScheme* es = NumberCompress_defineScheme(p->pub.pingAlloc);
+    if (EncodingScheme_isOneHop(es, label)) {
+        Log_debug(p->context->logger, "Got a reply from a peer!");
     }
 
     uint32_t version = p->context->incomingVersion;

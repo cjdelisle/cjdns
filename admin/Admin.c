@@ -120,7 +120,9 @@ static void sendMessage(struct Message* message, struct Sockaddr* dest, struct A
 {
     // stack overflow when used with admin logger.
     //Log_keys(admin->logger, "sending message to angel [%s]", message->bytes);
-    Message_push(message, dest, dest->addrLen, NULL);
+    struct AddrIface_Header aihdr = { .recvTime_high = 0 };
+    Bits_memcpy(&aihdr.addr, dest, dest->addrLen);
+    Message_push(message, &aihdr, AddrIface_Header_SIZE, NULL);
     Iface_send(&admin->iface, message);
 }
 
@@ -131,7 +133,7 @@ static void sendBenc(Dict* message,
 {
     Message_reset(admin->tempSendMsg);
     BencMessageWriter_write(message, admin->tempSendMsg, NULL);
-    struct Message* msg = Message_new(0, admin->tempSendMsg->length + 32, alloc);
+    struct Message* msg = Message_new(0, admin->tempSendMsg->length + 256, alloc);
     Message_push(msg, admin->tempSendMsg->bytes, admin->tempSendMsg->length, NULL);
     sendMessage(msg, dest, admin);
 }
@@ -452,14 +454,14 @@ static Iface_DEFUN receiveMessage(struct Message* message, struct Iface* iface)
 {
     struct Admin_pvt* admin = Identity_containerOf(iface, struct Admin_pvt, iface);
 
-    Assert_ifParanoid(message->length >= (int)admin->addrLen);
-    struct Sockaddr_storage addrStore = { .addr = { .addrLen = 0 } };
-    Message_pop(message, &addrStore, admin->addrLen, NULL);
+    struct AddrIface_Header aihdr;
+    Message_pop(message, &aihdr, AddrIface_Header_SIZE, NULL);
+    Assert_true(aihdr.addr.addr.addrLen == admin->addrLen);
 
     struct Allocator* alloc = Allocator_child(admin->allocator);
     admin->currentRequest = message;
 
-    handleMessage(message, &addrStore.addr, alloc, admin);
+    handleMessage(message, &aihdr.addr.addr, alloc, admin);
 
     admin->currentRequest = NULL;
     Allocator_free(alloc);

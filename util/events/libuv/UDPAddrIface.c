@@ -24,6 +24,7 @@
 #include "wire/Message.h"
 #include "wire/Error.h"
 #include "util/Hex.h"
+#include "util/events/Time.h"
 
 struct UDPAddrIface_pvt
 {
@@ -44,6 +45,8 @@ struct UDPAddrIface_pvt
 
     /** true if we are inside of the callback, used by blockFreeInsideCallback */
     int inCallback;
+
+    bool timestampPackets;
 
     Identity
 };
@@ -82,8 +85,10 @@ static Iface_DEFUN incomingFromIface(struct Message* m, struct Iface* iface)
 {
     struct UDPAddrIface_pvt* context = Identity_check((struct UDPAddrIface_pvt*) iface);
 
-    Assert_true(m->length >= Sockaddr_OVERHEAD);
-    if (((struct Sockaddr*)m->bytes)->flags & Sockaddr_flags_BCAST) {
+    struct AddrIface_Header aihdr;
+    Message_pop(m, &aihdr, AddrIface_Header_SIZE, NULL);
+
+    if (aihdr.addr.addr.flags & Sockaddr_flags_BCAST) {
         Log_debug(context->logger, "Attempted bcast, bcast unsupported");
         // bcast not supported.
         return NULL;
@@ -110,9 +115,7 @@ static Iface_DEFUN incomingFromIface(struct Message* m, struct Iface* iface)
         }));
     Identity_set(req);
 
-    struct Sockaddr_storage ss;
-    Message_pop(m, &ss, context->pub.generic.addr->addrLen, NULL);
-    Assert_true(ss.addr.addrLen == context->pub.generic.addr->addrLen);
+    Assert_true(aihdr.addr.addr.addrLen == context->pub.generic.addr->addrLen);
 
     req->length = m->length;
 
@@ -121,7 +124,7 @@ static Iface_DEFUN incomingFromIface(struct Message* m, struct Iface* iface)
     };
 
     int ret = uv_udp_send(&req->uvReq, &context->uvHandle, buffers, 1,
-                (const struct sockaddr*)ss.nativeAddr, (uv_udp_send_cb)&sendComplete);
+                (const struct sockaddr*)aihdr.addr.nativeAddr, (uv_udp_send_cb)&sendComplete);
 
     if (ret) {
         Log_info(context->logger, "DROP Failed writing to UDPAddrIface [%s]",
@@ -164,17 +167,26 @@ static void incoming(uv_udp_t* handle,
         m->capacity = buf->len;
         m->bytes = (uint8_t*)buf->base;
         m->alloc = alloc;
-        Message_push(m, addr, context->pub.generic.addr->addrLen - Sockaddr_OVERHEAD, NULL);
+        Message_shift(m, AddrIface_Header_SIZE, NULL);
+        struct AddrIface_Header* hdr = (struct AddrIface_Header*) m->bytes;
+        Bits_memset(hdr, 0, sizeof(struct AddrIface_Header));
+        Bits_memcpy(&hdr->addr.addr, context->pub.generic.addr, Sockaddr_OVERHEAD);
+        Bits_memcpy(&hdr->addr.nativeAddr, addr, context->pub.generic.addr->addrLen);
 
         // make sure the sockaddr doesn't have crap in it which will
         // prevent it from being used as a lookup key
-        Sockaddr_normalizeNative((struct sockaddr*) m->bytes);
-
-        Message_push(m, context->pub.generic.addr, Sockaddr_OVERHEAD, NULL);
+        Sockaddr_normalizeNative(&hdr->addr.nativeAddr);
 
         /*uint8_t buff[256] = {0};
         Assert_true(Hex_encode(buff, 255, m->bytes, context->pub.generic.addr->addrLen));
         Log_debug(context->logger, "Message from [%s]", buff);*/
+
+        if (context->timestampPackets) {
+            // We could get the time a bit earlier (in allocate)
+            uint64_t recvTime = Time_hrtime();
+            hdr->recvTime_high = recvTime >> 32;
+            hdr->recvTime_low = recvTime & 0xffffffff;
+        }
 
         Iface_send(&context->pub.generic.iface, m);
     }
@@ -256,6 +268,12 @@ int UDPAddrIface_setBroadcast(struct UDPAddrIface* iface, bool enable)
 {
     struct UDPAddrIface_pvt* context = Identity_check((struct UDPAddrIface_pvt*) iface);
     return uv_udp_set_broadcast(&context->uvHandle, enable ? 1 : 0);
+}
+
+void UDPAddrIface_timestampPackets(struct UDPAddrIface* iface, bool enable)
+{
+    struct UDPAddrIface_pvt* context = Identity_check((struct UDPAddrIface_pvt*) iface);
+    context->timestampPackets = enable;
 }
 
 struct UDPAddrIface* UDPAddrIface_new(struct EventBase* eventBase,

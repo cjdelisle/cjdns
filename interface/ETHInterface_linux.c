@@ -27,6 +27,7 @@
 #include "util/AddrTools.h"
 #include "util/version/Version.h"
 #include "util/events/Timeout.h"
+#include "util/events/Time.h"
 
 #include <string.h>
 #include <sys/socket.h>
@@ -64,6 +65,8 @@ struct ETHInterface_pvt
     struct sockaddr_ll addrBase;
 
     String* ifName;
+
+    bool timestampPackets;
 
     Identity
 };
@@ -104,20 +107,20 @@ static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* iface)
     struct ETHInterface_pvt* ctx =
         Identity_containerOf(iface, struct ETHInterface_pvt, pub.generic.iface);
 
-    struct Sockaddr* sa = (struct Sockaddr*) msg->bytes;
-    Assert_true(msg->length >= Sockaddr_OVERHEAD);
+    struct AddrIface_Header aihdr;
+    Message_pop(msg, &aihdr, AddrIface_Header_SIZE, NULL);
+    struct Sockaddr* sa = &aihdr.addr;
     Assert_true(sa->addrLen <= ETHInterface_Sockaddr_SIZE);
 
-    struct ETHInterface_Sockaddr sockaddr = { .generic = { .addrLen = 0 } };
-    Message_pop(msg, &sockaddr, sa->addrLen, NULL);
+    struct ETHInterface_Sockaddr* sockaddr = &aihdr.addr.addr;
 
     struct sockaddr_ll addr;
     Bits_memcpy(&addr, &ctx->addrBase, sizeof(struct sockaddr_ll));
 
-    if (sockaddr.generic.flags & Sockaddr_flags_BCAST) {
+    if (sockaddr->generic.flags & Sockaddr_flags_BCAST) {
         Bits_memset(addr.sll_addr, 0xff, 6);
     } else {
-        Bits_memcpy(addr.sll_addr, sockaddr.mac, 6);
+        Bits_memcpy(addr.sll_addr, sockaddr->mac, 6);
     }
 
     struct ETHInterface_Header hdr = {
@@ -182,14 +185,21 @@ static void handleEvent2(struct ETHInterface_pvt* context, struct Allocator* mes
         return;
     }
 
-    struct ETHInterface_Sockaddr  sockaddr = { .zero = 0 };
-    Bits_memcpy(sockaddr.mac, addr.sll_addr, 6);
-    sockaddr.generic.addrLen = ETHInterface_Sockaddr_SIZE;
+    struct AddrIface_Header aihdr = { .recvTime_high = 0 };
+    struct ETHInterface_Sockaddr* sockaddr = (struct ETHInterface_Sockaddr*) &aihdr.addr;
+    Bits_memcpy(sockaddr->mac, addr.sll_addr, 6);
+    sockaddr->generic.addrLen = ETHInterface_Sockaddr_SIZE;
     if (addr.sll_pkttype == PACKET_BROADCAST) {
-        sockaddr.generic.flags |= Sockaddr_flags_BCAST;
+        sockaddr->generic.flags |= Sockaddr_flags_BCAST;
     }
 
-    Message_push(msg, &sockaddr, ETHInterface_Sockaddr_SIZE, NULL);
+    if (context->timestampPackets) {
+        uint64_t recvTime = Time_hrtime();
+        aihdr.recvTime_high = recvTime >> 32;
+        aihdr.recvTime_low = recvTime & 0xffffffff;
+    }
+
+    Message_push(msg, &aihdr, AddrIface_Header_SIZE, NULL);
 
     Assert_true(!((uintptr_t)msg->bytes % 4) && "Alignment fault");
 
@@ -227,6 +237,12 @@ static int closeSocket(struct Allocator_OnFreeJob* j)
     struct ETHInterface_pvt* ctx = Identity_check((struct ETHInterface_pvt*) j->userData);
     close(ctx->socket);
     return 0;
+}
+
+void ETHInterface_timestampPackets(struct ETHInterface* iface, bool enable)
+{
+    struct ETHInterface_pvt* context = Identity_check((struct ETHInterface_pvt*) iface);
+    context->timestampPackets = enable;
 }
 
 struct ETHInterface* ETHInterface_new(struct EventBase* eventBase,

@@ -117,11 +117,13 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* addrIface)
 {
     struct Context* ctx = Identity_containerOf(addrIface, struct Context, addrIface);
 
-    struct Sockaddr_storage source;
-    Message_pop(msg, &source, ctx->targetAddr->addrLen, NULL);
-    if (Bits_memcmp(&source, ctx->targetAddr, ctx->targetAddr->addrLen)) {
+    struct AddrIface_Header aihdr;
+    Message_pop(msg, &aihdr, AddrIface_Header_SIZE, NULL);
+    struct Sockaddr* source = &aihdr.addr.addr;
+
+    if (Bits_memcmp(source, ctx->targetAddr, ctx->targetAddr->addrLen)) {
         Log_info(ctx->logger, "Got spurious message from [%s], expecting messages from [%s]",
-                 Sockaddr_print(&source.addr, msg->alloc),
+                 Sockaddr_print(source, msg->alloc),
                  Sockaddr_print(ctx->targetAddr, msg->alloc));
         return NULL;
     }
@@ -196,7 +198,7 @@ static struct Request* sendRaw(Dict* messageDict,
     }
 
     struct Allocator* child = Allocator_child(req->alloc);
-    struct Message* msg = Message_new(0, AdminClient_MAX_MESSAGE_SIZE + 256, child);
+    struct Message* msg = Message_new(0, AdminClient_MAX_MESSAGE_SIZE + 512, child);
     BencMessageWriter_write(messageDict, msg, NULL);
 
     req->timeoutAlloc = Allocator_child(req->alloc);
@@ -209,7 +211,9 @@ static struct Request* sendRaw(Dict* messageDict,
 
     req->callback = callback;
 
-    Message_push(msg, ctx->targetAddr, ctx->targetAddr->addrLen, NULL);
+    struct AddrIface_Header aihdr = { .recvTime_high = 0 };
+    Bits_memcpy(&aihdr.addr, ctx->targetAddr, ctx->targetAddr->addrLen);
+    Message_push(msg, &aihdr, AddrIface_Header_SIZE, NULL);
 
     Iface_send(&ctx->addrIface, msg);
     Allocator_free(child);

@@ -15,6 +15,7 @@
 #include "crypto/AddressCalc.h"
 #include "crypto/CryptoAuth_pvt.h"
 #include "interface/Iface.h"
+#include "interface/addressable/AddrIface.h"
 #include "net/InterfaceController.h"
 #include "net/PeerLink.h"
 #include "memory/Allocator.h"
@@ -179,6 +180,12 @@ struct InterfaceController_pvt
 
     /** How often to send beacon messages (milliseconds). */
     uint32_t beaconInterval;
+
+    struct Peer* lastPeer;
+    uint64_t lastRecvTime;
+    uint32_t lastNonce;
+    uint32_t lastLength;
+    uint32_t seq;
 
     /** The timeout event to use for pinging potentially unresponsive neighbors. */
     struct Timeout* const pingInterval;
@@ -487,8 +494,9 @@ static Iface_DEFUN sendFromSwitch(struct Message* msg, struct Iface* switchIf)
 
         Assert_true(!(((uintptr_t)msg->bytes) % 4) && "alignment fault");
 
-        // push the lladdr...
-        Message_push(msg, ep->lladdr, ep->lladdr->addrLen, NULL);
+        struct AddrIface_Header aihdr = { .recvTime_high = 0 };
+        Bits_memcpy(&aihdr.addr, ep->lladdr, ep->lladdr->addrLen);
+        Message_push(msg, &aihdr, AddrIface_Header_SIZE, NULL);
 
         // very noisy
         if (Defined(Log_DEBUG) && false) {
@@ -530,14 +538,10 @@ static Iface_DEFUN handleBeacon(struct Message* msg, struct InterfaceController_
         return NULL;
     }
 
-    if (msg->length < Sockaddr_OVERHEAD) {
-        Log_debug(ic->logger, "[%s] Dropping runt beacon", ici->pub.name->bytes);
-        return NULL;
-    }
+    struct AddrIface_Header* aihdr = (struct AddrIface_Header*) msg->bytes;
+    struct Sockaddr* lladdrInmsg = &aihdr->addr.addr;
 
-    struct Sockaddr* lladdrInmsg = (struct Sockaddr*) msg->bytes;
-
-    if (msg->length < lladdrInmsg->addrLen + Headers_Beacon_SIZE) {
+    if (msg->length < AddrIface_Header_SIZE + Headers_Beacon_SIZE) {
         Log_debug(ic->logger, "[%s] Dropping runt beacon", ici->pub.name->bytes);
         return NULL;
     }
@@ -545,7 +549,7 @@ static Iface_DEFUN handleBeacon(struct Message* msg, struct InterfaceController_
     // clear the bcast flag
     lladdrInmsg->flags = 0;
 
-    Message_shift(msg, -lladdrInmsg->addrLen, NULL);
+    Message_shift(msg, -AddrIface_Header_SIZE, NULL);
 
     struct Headers_Beacon beacon;
     Message_pop(msg, &beacon, Headers_Beacon_SIZE, NULL);
@@ -641,9 +645,11 @@ static Iface_DEFUN handleUnexpectedIncoming(struct Message* msg,
 {
     struct InterfaceController_pvt* ic = ici->ic;
 
-    struct Sockaddr* lladdr = (struct Sockaddr*) msg->bytes;
-    Message_shift(msg, -lladdr->addrLen, NULL);
+    struct AddrIface_Header* aihdr = (struct AddrIface_Header*) msg->bytes;
+    struct Sockaddr* lladdr = &aihdr->addr.addr;
+    Message_shift(msg, -AddrIface_Header_SIZE, NULL);
     if (msg->length < CryptoHeader_SIZE) {
+        Log_debug(ic->logger, "DROP runt unexpected incoming");
         return NULL;
     }
     struct Allocator* epAlloc = Allocator_child(ici->alloc);
@@ -701,11 +707,12 @@ static Iface_DEFUN handleIncomingFromWire(struct Message* msg, struct Iface* add
     struct InterfaceController_Iface_pvt* ici =
         Identity_containerOf(addrIf, struct InterfaceController_Iface_pvt, pub.addrIf);
 
-    struct Sockaddr* lladdr = (struct Sockaddr*) msg->bytes;
-    if (msg->length < Sockaddr_OVERHEAD || msg->length < lladdr->addrLen) {
+    if (msg->length < AddrIface_Header_SIZE) {
         Log_debug(ici->ic->logger, "DROP runt");
         return NULL;
     }
+    struct AddrIface_Header* aihdr = (struct AddrIface_Header*) msg->bytes;
+    struct Sockaddr* lladdr = &aihdr->addr.addr;
 
     Assert_true(!((uintptr_t)msg->bytes % 4) && "alignment fault");
     Assert_true(!((uintptr_t)lladdr->addrLen % 4) && "alignment fault");
@@ -726,11 +733,31 @@ static Iface_DEFUN handleIncomingFromWire(struct Message* msg, struct Iface* add
     }
 
     struct Peer* ep = Identity_check((struct Peer*) ici->peerMap.values[epIndex]);
-    Message_shift(msg, -lladdr->addrLen, NULL);
+    Message_shift(msg, -AddrIface_Header_SIZE, NULL);
     CryptoAuth_resetIfTimeout(ep->caSession);
+    uint32_t nonce = Endian_bigEndianToHost32( ((uint32_t*)msg->bytes)[0] );
     if (CryptoAuth_decrypt(ep->caSession, msg)) {
         return NULL;
     }
+
+    uint64_t recvTime = ((uint64_t)aihdr->recvTime_high << 32) | aihdr->recvTime_low;
+    if (Defined(Log_DEBUG) && recvTime) {
+        if (ici->ic->lastPeer == ep
+            && ici->ic->lastNonce + 1 == nonce
+            && ((ici->ic->lastLength - msg->length) & 0xffff) < 100
+        ) {
+            ici->ic->seq++;
+            Log_debug(ici->ic->logger, "RECV TIME %u %u %u",
+                msg->length, recvTime - ici->ic->lastRecvTime, ici->ic->seq);
+        } else {
+            ici->ic->seq = 0;
+        }
+        ici->ic->lastPeer = ep;
+        ici->ic->lastNonce = nonce;
+        ici->ic->lastRecvTime = recvTime;
+        ici->ic->lastLength = msg->length;
+    }
+
     PeerLink_recv(msg, ep->peerLink);
     if (ep->state == InterfaceController_PeerState_ESTABLISHED &&
         CryptoAuth_getState(ep->caSession) != CryptoAuth_State_ESTABLISHED) {
@@ -789,7 +816,7 @@ static void sendBeacon(struct InterfaceController_Iface_pvt* ici, struct Allocat
 
     Log_debug(ici->ic->logger, "sendBeacon(%s)", ici->pub.name->bytes);
 
-    struct Message* msg = Message_new(0, 128, tempAlloc);
+    struct Message* msg = Message_new(0, 512, tempAlloc);
     Message_push(msg, &ici->ic->beacon, Headers_Beacon_SIZE, NULL);
 
     if (Defined(Log_DEBUG)) {
@@ -797,11 +824,15 @@ static void sendBeacon(struct InterfaceController_Iface_pvt* ici, struct Allocat
         Log_debug(ici->ic->logger, "SEND BEACON CONTENT[%s]", content);
     }
 
-    struct Sockaddr sa = {
-        .addrLen = Sockaddr_OVERHEAD,
-        .flags = Sockaddr_flags_BCAST
+    struct AddrIface_Header aihdr = {
+        .addr = {
+            .addr = {
+                .addrLen = Sockaddr_OVERHEAD,
+                .flags = Sockaddr_flags_BCAST
+            }
+        }
     };
-    Message_push(msg, &sa, Sockaddr_OVERHEAD, NULL);
+    Message_push(msg, &aihdr, AddrIface_Header_SIZE, NULL);
 
     Iface_send(&ici->pub.addrIf, msg);
 }
