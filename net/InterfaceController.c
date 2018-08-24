@@ -495,6 +495,7 @@ static Iface_DEFUN sendFromSwitch(struct Message* msg, struct Iface* switchIf)
         Assert_true(!(((uintptr_t)msg->bytes) % 4) && "alignment fault");
 
         struct AddrIface_Header aihdr = { .recvTime_high = 0 };
+        Assert_true(ep->lladdr->addrLen < AddrIface_Header_SIZE);
         Bits_memcpy(&aihdr.addr, ep->lladdr, ep->lladdr->addrLen);
         Message_push(msg, &aihdr, AddrIface_Header_SIZE, NULL);
 
@@ -531,6 +532,7 @@ static int closeInterface(struct Allocator_OnFreeJob* job)
 static Iface_DEFUN handleBeacon(struct Message* msg, struct InterfaceController_Iface_pvt* ici)
 {
     struct InterfaceController_pvt* ic = ici->ic;
+    Log_debug(ic->logger, "Handle beacon");
     if (!ici->pub.beaconState) {
         // accepting beacons disabled.
         Log_debug(ic->logger, "[%s] Dropping beacon because beaconing is disabled",
@@ -644,7 +646,7 @@ static Iface_DEFUN handleUnexpectedIncoming(struct Message* msg,
                                             struct InterfaceController_Iface_pvt* ici)
 {
     struct InterfaceController_pvt* ic = ici->ic;
-
+    Log_debug(ic->logger, "handleUnexpectedIncoming()");
     struct AddrIface_Header* aihdr = (struct AddrIface_Header*) msg->bytes;
     struct Sockaddr* lladdr = &aihdr->addr.addr;
     Message_shift(msg, -AddrIface_Header_SIZE, NULL);
@@ -741,6 +743,8 @@ static Iface_DEFUN handleIncomingFromWire(struct Message* msg, struct Iface* add
     }
 
     uint64_t recvTime = ((uint64_t)aihdr->recvTime_high << 32) | aihdr->recvTime_low;
+    uint64_t now = Time_hrtime();
+    Log_debug(ici->ic->logger, "DELTA-T %llu", ((long long) now) - recvTime);
     if (Defined(Log_DEBUG) && recvTime) {
         if (ici->ic->lastPeer == ep
             && ici->ic->lastNonce + 1 == nonce

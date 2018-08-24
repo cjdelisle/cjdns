@@ -23,6 +23,10 @@
 #include "util/AddrTools.h"
 #include "util/Identity.h"
 
+#define ArrayList_TYPE struct ETHInterface
+#define ArrayList_NAME ETHInterface
+#include "util/ArrayList.h"
+
 struct Context
 {
     struct EventBase* eventBase;
@@ -30,8 +34,27 @@ struct Context
     struct Log* logger;
     struct Admin* admin;
     struct InterfaceController* ic;
+    struct ArrayList_ETHInterface* ifaces;
     Identity
 };
+
+static struct ETHInterface* getIface(struct Context* ctx,
+                                     Dict* args,
+                                     String* txid,
+                                     struct Allocator* requestAlloc,
+                                     uint32_t* ifNumP)
+{
+    int64_t* interfaceNumber = Dict_getIntC(args, "interfaceNumber");
+    uint32_t ifNum = (interfaceNumber) ? ((uint32_t) *interfaceNumber) : 0;
+    if (ifNumP) { *ifNumP = ifNum; }
+    struct ETHInterface* ethIf = ArrayList_ETHInterface_get(ctx->ifaces, ifNum);
+    if (!ethIf) {
+        Dict* out = Dict_new(requestAlloc);
+        Dict_putStringCC(out, "error", "no such interface for interfaceNumber", requestAlloc);
+        Admin_sendMessage(out, txid, ctx->admin);
+    }
+    return ethIf;
+}
 
 static void beginConnection(Dict* args,
                             void* vcontext,
@@ -104,6 +127,10 @@ static void newInterface(Dict* args, void* vcontext, String* txid, struct Alloca
 
     struct InterfaceController_Iface* ici = InterfaceController_newIface(ctx->ic, ifname, alloc);
     Iface_plumb(&ici->addrIf, &ethIf->generic.iface);
+    while (ici->ifNum > ctx->ifaces->length) {
+        ArrayList_ETHInterface_add(ctx->ifaces, NULL);
+    }
+    ArrayList_ETHInterface_put(ctx->ifaces, ici->ifNum, ethIf);
 
     Dict* out = Dict_new(requestAlloc);
     Dict_putStringCC(out, "error", "none", requestAlloc);
@@ -172,6 +199,28 @@ static void listDevices(Dict* args, void* vcontext, String* txid, struct Allocat
     Admin_sendMessage(out, txid, ctx->admin);
 }
 
+static void timestampPackets(
+    Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
+{
+    struct Context* ctx = Identity_check((struct Context*) vcontext);
+    struct ETHInterface* ethIf = getIface(ctx, args, txid, requestAlloc, NULL);
+    if (!ethIf) { return; }
+    int64_t* enable = Dict_getIntC(args, "enable");
+    bool enabled;
+    if (!enable) {
+        enabled = ETHInterface_timestampPackets(ethIf, false);
+        if (enabled) {
+            ETHInterface_timestampPackets(ethIf, true);
+        }
+    } else {
+        enabled = ETHInterface_timestampPackets(ethIf, *enable);
+    }
+    Dict* out = Dict_new(requestAlloc);
+    Dict_putStringCC(out, "error", "none", requestAlloc);
+    Dict_putIntC(out, "enabled", enabled, requestAlloc);
+    Admin_sendMessage(out, txid, ctx->admin);
+}
+
 void ETHInterface_admin_register(struct EventBase* base,
                                  struct Allocator* alloc,
                                  struct Log* logger,
@@ -186,6 +235,7 @@ void ETHInterface_admin_register(struct EventBase* base,
         .ic = ic
     }));
     Identity_set(ctx);
+    ctx->ifaces = ArrayList_ETHInterface_new(alloc);
 
     Admin_registerFunction("ETHInterface_new", newInterface, ctx, true,
         ((struct Admin_FunctionArg[]) {
@@ -208,4 +258,10 @@ void ETHInterface_admin_register(struct EventBase* base,
         }), admin);
 
     Admin_registerFunction("ETHInterface_listDevices", listDevices, ctx, true, NULL, admin);
+
+    Admin_registerFunction("ETHInterface_timestampPackets", timestampPackets, ctx, true,
+        ((struct Admin_FunctionArg[]) {
+            { .name = "interfaceNumber", .required = 0, .type = "Int" },
+            { .name = "enable", .required = 0, .type = "Int" }
+        }), admin);
 }

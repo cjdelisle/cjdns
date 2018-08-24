@@ -120,6 +120,7 @@ static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* iface)
     if (sockaddr->generic.flags & Sockaddr_flags_BCAST) {
         Bits_memset(addr.sll_addr, 0xff, 6);
     } else {
+        Assert_true(sa->addrLen == ETHInterface_Sockaddr_SIZE);
         Bits_memcpy(addr.sll_addr, sockaddr->mac, 6);
     }
 
@@ -239,10 +240,12 @@ static int closeSocket(struct Allocator_OnFreeJob* j)
     return 0;
 }
 
-void ETHInterface_timestampPackets(struct ETHInterface* iface, bool enable)
+bool ETHInterface_timestampPackets(struct ETHInterface* iface, bool enable)
 {
     struct ETHInterface_pvt* context = Identity_check((struct ETHInterface_pvt*) iface);
+    bool out = context->timestampPackets;
     context->timestampPackets = enable;
+    return out;
 }
 
 struct ETHInterface* ETHInterface_new(struct EventBase* eventBase,

@@ -79,7 +79,7 @@ static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* iface)
     struct AddrIface_Header aihdr;
     Message_pop(msg, &aihdr, AddrIface_Header_SIZE, NULL);
     struct Sockaddr* sa = &aihdr.addr.addr;
-    Assert_true(sa->addrLen == ETHInterface_Sockaddr_SIZE);
+    Assert_true(sa->addrLen <= ETHInterface_Sockaddr_SIZE);
     struct ETHInterface_Sockaddr* sockaddr = (struct ETHInterface_Sockaddr*) sa;
 
     struct ETHInterface_Header hdr = {
@@ -96,6 +96,7 @@ static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* iface)
     if (sockaddr->generic.flags & Sockaddr_flags_BCAST) {
         Bits_memset(ethFr.dest, 0xff, 6);
     } else {
+        Assert_true(sa->addrLen == ETHInterface_Sockaddr_SIZE);
         Bits_memcpy(ethFr.dest, sockaddr->mac, 6);
     }
     Bits_memcpy(ethFr.src, ctx->myMac, 6);
@@ -269,10 +270,12 @@ static void macaddr(const char* ifname, uint8_t addrOut[6], struct Except* eh)
     Except_throw(eh, "Could not find mac address for [%s]", ifname);
 }
 
-void ETHInterface_timestampPackets(struct ETHInterface* iface, bool enable)
+bool ETHInterface_timestampPackets(struct ETHInterface* iface, bool enable)
 {
     struct ETHInterface_pvt* context = Identity_check((struct ETHInterface_pvt*) iface);
+    bool out = context->timestampPackets;
     context->timestampPackets = enable;
+    return out;
 }
 
 struct ETHInterface* ETHInterface_new(struct EventBase* eventBase,

@@ -115,10 +115,9 @@ List* UDPInterface_getBroadcastAddrs(struct UDPInterface* udpif, struct Allocato
 int UDPInterface_setDSCP(struct UDPInterface* udpif, uint8_t dscp);
 
 /**
- * If set to true, received packets will have a 64 bit high resolution timestamp prepended
- * to the data after the address is prepended. Sent packets are expected to have no such
- * thing and it is the duty of the caller to remove the timestamp before re-sending.
+ * If set to true, received packets will have a 64 bit high resolution timestamp.
+ * See AddrIface_Header in AddrIface.h for more information.
  */
-void UDPInterface_timestampPackets(struct UDPInterface* idpif, bool enable);
+bool UDPInterface_timestampPackets(struct UDPInterface* idpif, bool enable);
 
 #endif

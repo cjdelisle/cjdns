@@ -99,6 +99,7 @@ static Iface_DEFUN incomingFromHeaderIf(struct Message* message, struct Iface* i
     Message_shift(message, -(Headers_IP6Header_SIZE + Headers_UDPHeader_SIZE), NULL);
 
     struct AddrIface_Header aihdr = { .recvTime_high = 0 };
+    Assert_true(addr->addrLen < AddrIface_Header_SIZE);
     Bits_memcpy(&aihdr.addr, addr, addr->addrLen);
     Message_push(message, &aihdr, AddrIface_Header_SIZE, NULL);
 

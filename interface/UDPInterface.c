@@ -158,18 +158,13 @@ static Iface_DEFUN fromBcastSock(struct Message* m, struct Iface* iface)
     struct UDPInterface_pvt* ctx =
         Identity_containerOf(iface, struct UDPInterface_pvt, bcastSock);
 
-    if (m->length < UDPInterface_BroadcastHeader_SIZE + Sockaddr_OVERHEAD) {
+    if (m->length < UDPInterface_BroadcastHeader_SIZE + UDPInterface_BroadcastHeader_SIZE) {
         Log_debug(ctx->log, "DROP runt bcast");
         return NULL;
     }
 
-    struct Sockaddr_storage ss;
-    Message_pop(m, &ss, Sockaddr_OVERHEAD, NULL);
-    if (m->length < UDPInterface_BroadcastHeader_SIZE + ss.addr.addrLen - Sockaddr_OVERHEAD) {
-        Log_debug(ctx->log, "DROP runt bcast");
-        return NULL;
-    }
-    Message_pop(m, &ss.nativeAddr, ss.addr.addrLen - Sockaddr_OVERHEAD, NULL);
+    struct AddrIface_Header aihdr;
+    Message_pop(m, &aihdr, AddrIface_Header_SIZE, NULL);
 
     struct UDPInterface_BroadcastHeader hdr;
     Message_pop(m, &hdr, UDPInterface_BroadcastHeader_SIZE, NULL);
@@ -193,10 +188,10 @@ static Iface_DEFUN fromBcastSock(struct Message* m, struct Iface* iface)
     uint16_t commPort = Endian_bigEndianToHost16(hdr.commPort_be);
 
     // Fake that it came from the communication port
-    Sockaddr_setPort(&ss.addr, commPort);
-    ss.addr.flags |= Sockaddr_flags_BCAST;
+    Sockaddr_setPort(&aihdr.addr.addr, commPort);
+    aihdr.addr.addr.flags |= Sockaddr_flags_BCAST;
 
-    Message_push(m, &ss.addr, ss.addr.addrLen, NULL);
+    Message_push(m, &aihdr, AddrIface_Header_SIZE, NULL);
 
     return Iface_next(&ctx->pub.generic.iface, m);
 }
@@ -217,8 +212,6 @@ struct UDPInterface* UDPInterface_new(struct EventBase* eventBase,
     }
 
     struct UDPAddrIface* uai = UDPAddrIface_new(eventBase, bindAddr, alloc, exHandler, logger);
-
-    UDPAddrIface_timestampPackets(uai, true);
 
     uint16_t commPort = Sockaddr_getPort(uai->generic.addr);
 
@@ -311,8 +304,8 @@ int UDPInterface_setDSCP(struct UDPInterface* udpif, uint8_t dscp)
     return 0;
 }
 
-void UDPInterface_timestampPackets(struct UDPInterface* udpif, bool enable)
+bool UDPInterface_timestampPackets(struct UDPInterface* udpif, bool enable)
 {
     struct UDPInterface_pvt* ctx = Identity_check((struct UDPInterface_pvt*) udpif);
-    UDPAddrIface_timestampPackets(ctx->commIf, enable);
+    return UDPAddrIface_timestampPackets(ctx->commIf, enable);
 }

@@ -140,8 +140,8 @@ struct InterfaceController_Iface
  * @param alloc an allocator, the interface will be removed when this is freed.
  */
 struct InterfaceController_Iface* InterfaceController_newIface(struct InterfaceController* ifc,
-                                                 String* name,
-                                                 struct Allocator* alloc);
+                                                               String* name,
+                                                               struct Allocator* alloc);
 
 /** Get the number of interfaces registered with the controller. */
 int InterfaceController_ifaceCount(struct InterfaceController* ifc);

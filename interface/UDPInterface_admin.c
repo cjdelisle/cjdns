@@ -190,6 +190,9 @@ static void newInterface2(struct Context* ctx,
     struct InterfaceController_Iface* ici =
         InterfaceController_newIface(ctx->ic, name, alloc);
     Iface_plumb(&ici->addrIf, &udpif->generic.iface);
+    while (ici->ifNum > ctx->ifaces->length) {
+        ArrayList_UDPInterface_add(ctx->ifaces, NULL);
+    }
     ArrayList_UDPInterface_put(ctx->ifaces, ici->ifNum, udpif);
 
     Dict* out = Dict_new(requestAlloc);
@@ -315,6 +318,28 @@ static void beacon(Dict* args, void* vcontext, String* txid, struct Allocator* r
     Admin_sendMessage(&out, txid, ctx->admin);
 }
 
+static void timestampPackets(
+    Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
+{
+    struct Context* ctx = Identity_check((struct Context*) vcontext);
+    struct UDPInterface* udpIf = getIface(ctx, args, txid, requestAlloc, NULL);
+    if (!udpIf) { return; }
+    int64_t* enable = Dict_getIntC(args, "enable");
+    bool enabled;
+    if (!enable) {
+        enabled = UDPInterface_timestampPackets(udpIf, false);
+        if (enabled) {
+            UDPInterface_timestampPackets(udpIf, true);
+        }
+    } else {
+        enabled = UDPInterface_timestampPackets(udpIf, *enable);
+    }
+    Dict* out = Dict_new(requestAlloc);
+    Dict_putStringCC(out, "error", "none", requestAlloc);
+    Dict_putIntC(out, "enabled", enabled, requestAlloc);
+    Admin_sendMessage(out, txid, ctx->admin);
+}
+
 void UDPInterface_admin_register(struct EventBase* base,
                                  struct Allocator* alloc,
                                  struct Log* logger,
@@ -373,5 +398,11 @@ void UDPInterface_admin_register(struct EventBase* base,
         ((struct Admin_FunctionArg[]) {
             { .name = "interfaceNumber", .required = 0, .type = "Int" },
             { .name = "state", .required = 0, .type = "Int" }
+        }), admin);
+
+    Admin_registerFunction("UDPInterface_timestampPackets", timestampPackets, ctx, true,
+        ((struct Admin_FunctionArg[]) {
+            { .name = "interfaceNumber", .required = 0, .type = "Int" },
+            { .name = "enable", .required = 0, .type = "Int" }
         }), admin);
 }

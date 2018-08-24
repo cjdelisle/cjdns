@@ -121,6 +121,7 @@ static void sendMessage(struct Message* message, struct Sockaddr* dest, struct A
     // stack overflow when used with admin logger.
     //Log_keys(admin->logger, "sending message to angel [%s]", message->bytes);
     struct AddrIface_Header aihdr = { .recvTime_high = 0 };
+    Assert_true(dest->addrLen < AddrIface_Header_SIZE);
     Bits_memcpy(&aihdr.addr, dest, dest->addrLen);
     Message_push(message, &aihdr, AddrIface_Header_SIZE, NULL);
     Iface_send(&admin->iface, message);

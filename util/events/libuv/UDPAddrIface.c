@@ -171,6 +171,7 @@ static void incoming(uv_udp_t* handle,
         struct AddrIface_Header* hdr = (struct AddrIface_Header*) m->bytes;
         Bits_memset(hdr, 0, sizeof(struct AddrIface_Header));
         Bits_memcpy(&hdr->addr.addr, context->pub.generic.addr, Sockaddr_OVERHEAD);
+        Assert_true(context->pub.generic.addr->addrLen < Sockaddr_MAXSIZE);
         Bits_memcpy(&hdr->addr.nativeAddr, addr, context->pub.generic.addr->addrLen);
 
         // make sure the sockaddr doesn't have crap in it which will
@@ -270,10 +271,12 @@ int UDPAddrIface_setBroadcast(struct UDPAddrIface* iface, bool enable)
     return uv_udp_set_broadcast(&context->uvHandle, enable ? 1 : 0);
 }
 
-void UDPAddrIface_timestampPackets(struct UDPAddrIface* iface, bool enable)
+bool UDPAddrIface_timestampPackets(struct UDPAddrIface* iface, bool enable)
 {
     struct UDPAddrIface_pvt* context = Identity_check((struct UDPAddrIface_pvt*) iface);
+    bool out = context->timestampPackets;
     context->timestampPackets = enable;
+    return out;
 }
 
 struct UDPAddrIface* UDPAddrIface_new(struct EventBase* eventBase,
