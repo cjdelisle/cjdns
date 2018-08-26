@@ -59,6 +59,9 @@
 /** Wait 32 seconds between sending beacon messages. */
 #define BEACON_INTERVAL 32768
 
+/** Every 10 seconds, check the number of dropped packets and update the moving average. */
+#define CHECKDROPS_INTERVAL_MILLISECONDS 10000
+
 
 // ---------------- Map ----------------
 #define Map_NAME EndpointsBySockaddr
@@ -137,6 +140,13 @@ struct Peer
      */
     enum InterfaceController_PeerState state;
 
+    /** The number of lost packets last time we checked. */
+    uint32_t lastDrops;
+    uint32_t lastPackets;
+    uint64_t avgDropsShl32;
+    uint64_t avgPacketsShl32;
+    uint16_t dropsX65k;
+
     // traffic counters
     uint64_t bytesOut;
     uint64_t bytesIn;
@@ -182,6 +192,9 @@ struct InterfaceController_pvt
 
     /** The timeout event to use for pinging potentially unresponsive neighbors. */
     struct Timeout* const pingInterval;
+
+    /** The timeout event for updating the moving average of number of dropped packets. */
+    struct Timeout* const dropCheckInterval;
 
     /** For pinging lazy/unresponsive nodes. */
     struct SwitchPinger* const switchPinger;
@@ -299,6 +312,47 @@ static void sendPing(struct Peer* ep)
 
     if (ping) {
         ping->onResponseContext = ep;
+    }
+}
+
+static uint64_t dropsMovingAverage(uint64_t currentValue, uint64_t newData)
+{
+    return currentValue - (currentValue >> 8) + (newData >> 8);
+}
+
+static void iciCheckDrops(
+    struct InterfaceController_Iface_pvt* ici,
+    struct InterfaceController_pvt* ic)
+{
+    for (uint32_t i = 0; i < ici->peerMap.count; i++) {
+        struct Peer* ep = ici->peerMap.values[i];
+        uint32_t drops = ep->caSession->replayProtector.lostPackets;
+        uint64_t newDrops = 0;
+        if (drops > ep->lastDrops) { newDrops = drops - ep->lastDrops; }
+        ep->lastDrops = drops;
+
+        uint32_t packets = ep->caSession->replayProtector.baseOffset;
+        uint64_t newPackets = 0;
+        if (packets > ep->lastPackets) { newPackets = packets - ep->lastPackets; }
+        ep->lastPackets = packets;
+
+        ep->avgDropsShl32 = dropsMovingAverage(ep->avgDropsShl32, newDrops << 32);
+        ep->avgPacketsShl32 = dropsMovingAverage(ep->avgPacketsShl32, newPackets << 32);
+        if (ep->avgPacketsShl32) {
+            // Shift 16 bits for 100% drop rate = 65534
+            // Shift 18 bits for 25% drop rate = 65534
+            uint64_t dropRate = (ep->avgDropsShl32 << 18) / ep->avgPacketsShl32;
+            ep->dropsX65k = (dropRate > 65534) ? 65534 : dropRate;
+        }
+    }
+}
+
+static void checkDrops(void* vic)
+{
+    struct InterfaceController_pvt* ic = Identity_check((struct InterfaceController_pvt*) vic);
+    for (int i = 0; i < ic->icis->length; i++) {
+        struct InterfaceController_Iface_pvt* ici = ArrayList_OfIfaces_get(ic->icis, i);
+        iciCheckDrops(ici, ic);
     }
 }
 
@@ -1001,11 +1055,16 @@ int InterfaceController_getPeerStats(struct InterfaceController* ifController,
             s->duplicates = rp->duplicates;
             s->lostPackets = rp->lostPackets;
             s->receivedOutOfRange = rp->receivedOutOfRange;
+            s->receivedPackets = rp->baseOffset - rp->lostPackets;
 
             struct PeerLink_Kbps kbps;
             PeerLink_kbps(peer->peerLink, &kbps);
             s->sendKbps = kbps.sendKbps;
             s->recvKbps = kbps.recvKbps;
+
+            s->avgPacketsShl32 = peer->avgPacketsShl32 & ~((uint64_t)1<<63);
+            s->avgDropsShl32 = peer->avgDropsShl32 & ~((uint64_t)1<<63);
+            s->dropsX65k = peer->dropsX65k;
         }
     }
 
@@ -1095,6 +1154,13 @@ struct InterfaceController* InterfaceController_new(struct CryptoAuth* ca,
         .timeoutMilliseconds = TIMEOUT_MILLISECONDS,
         .forgetAfterMilliseconds = FORGET_AFTER_MILLISECONDS,
         .beaconInterval = BEACON_INTERVAL,
+
+        .dropCheckInterval = Timeout_setInterval(
+            checkDrops,
+            out,
+            CHECKDROPS_INTERVAL_MILLISECONDS,
+            eventBase,
+            alloc),
 
         .pingInterval = (switchPinger)
             ? Timeout_setInterval(pingCallback,

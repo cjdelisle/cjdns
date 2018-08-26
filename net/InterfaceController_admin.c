@@ -120,6 +120,11 @@ static void adminPeerStats(Dict* args, void* vcontext, String* txid, struct Allo
             Dict_putStringC(d, "user", stats[i].user, alloc);
         }
 
+        Dict_putIntC(d, "avgPacketsShl32", stats[i].avgPacketsShl32, alloc);
+        Dict_putIntC(d, "avgDropsShl32", stats[i].avgDropsShl32, alloc);
+        Dict_putIntC(d, "dropsX65k", stats[i].dropsX65k, alloc);
+        Dict_putIntC(d, "receivedPackets", stats[i].receivedPackets, alloc);
+
         List_addDict(list, d, alloc);
     }
 

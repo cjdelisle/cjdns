@@ -869,6 +869,11 @@ enum CryptoAuth_DecryptErr CryptoAuth_decrypt(struct CryptoAuth_Session* session
                             session->context->logger);
 
             enum CryptoAuth_DecryptErr ret = decryptMessage(session, nonce, msg, secret);
+
+            // This prevents a few "ghost" dropped packets at the beginning of a session.
+            session->pub.replayProtector.baseOffset = nonce + 1;
+            session->pub.replayProtector.bitfield = 0;
+
             if (!ret) {
                 cryptoAuthDebug0(session, "Final handshake step succeeded");
                 Bits_memcpy(session->sharedSecret, secret, 32);
