@@ -352,8 +352,8 @@ static void iciCheckDrops(
         ep->_lastPackets = packets;
         ep->lastPackets += newPackets;
 
-        ep->avgDropsShl32 = dropsMovingAverage(ep->avgDropsShl32, newDrops << 32, ep->avgN);
-        ep->avgPacketsShl32 = dropsMovingAverage(ep->avgPacketsShl32, newPackets << 32, ep->avgN);
+        ep->avgDropsShl32 = dropsMovingAverage(ep->avgDropsShl32, newDrops, ep->avgN);
+        ep->avgPacketsShl32 = dropsMovingAverage(ep->avgPacketsShl32, newPackets, ep->avgN);
         ep->avgN++;
         if (ep->avgPacketsShl32) {
             // Shift 16 bits for 100% drop rate = 65534
