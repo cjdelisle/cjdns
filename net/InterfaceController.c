@@ -140,8 +140,15 @@ struct Peer
      */
     enum InterfaceController_PeerState state;
 
-    /** The number of lost packets last time we checked. */
+    /**
+     * The number of lost packets last time we checked.
+     * _lastDrops and _lastPackets are the direct readings off of the ReplayProtector
+     * so they will be reset to zero when the session resets. lastDrops and lastPackets
+     * are monotonic and so probably what you want.
+     */
+    uint32_t _lastDrops;
     uint32_t lastDrops;
+    uint32_t _lastPackets;
     uint32_t lastPackets;
     uint32_t avgN;
     uint16_t dropRateShl18;
@@ -332,15 +339,18 @@ static void iciCheckDrops(
 {
     for (uint32_t i = 0; i < ici->peerMap.count; i++) {
         struct Peer* ep = ici->peerMap.values[i];
+
         uint32_t drops = ep->caSession->replayProtector.lostPackets;
         uint64_t newDrops = 0;
-        if (drops > ep->lastDrops) { newDrops = drops - ep->lastDrops; }
-        ep->lastDrops = drops;
+        if (drops > ep->_lastDrops) { newDrops = drops - ep->_lastDrops; }
+        ep->_lastDrops = drops;
+        ep->lastDrops += newDrops;
 
         uint32_t packets = ep->caSession->replayProtector.baseOffset;
         uint64_t newPackets = 0;
-        if (packets > ep->lastPackets) { newPackets = packets - ep->lastPackets; }
-        ep->lastPackets = packets;
+        if (packets > ep->_lastPackets) { newPackets = packets - ep->_lastPackets; }
+        ep->_lastPackets = packets;
+        ep->lastPackets += newPackets;
 
         ep->avgDropsShl32 = dropsMovingAverage(ep->avgDropsShl32, newDrops << 32, ep->avgN);
         ep->avgPacketsShl32 = dropsMovingAverage(ep->avgPacketsShl32, newPackets << 32, ep->avgN);
@@ -1060,9 +1070,7 @@ int InterfaceController_getPeerStats(struct InterfaceController* ifController,
             }
             struct ReplayProtector* rp = &peer->caSession->replayProtector;
             s->duplicates = rp->duplicates;
-            s->lostPackets = rp->lostPackets;
             s->receivedOutOfRange = rp->receivedOutOfRange;
-            s->receivedPackets = rp->baseOffset - rp->lostPackets;
 
             struct PeerLink_Kbps kbps;
             PeerLink_kbps(peer->peerLink, &kbps);
@@ -1072,6 +1080,8 @@ int InterfaceController_getPeerStats(struct InterfaceController* ifController,
             s->avgPacketsShl32 = peer->avgPacketsShl32 & ~((uint64_t)1<<63);
             s->avgDropsShl32 = peer->avgDropsShl32 & ~((uint64_t)1<<63);
             s->dropRateShl18 = peer->dropRateShl18;
+            s->receivedPackets = peer->lastPackets;
+            s->lostPackets = peer->lastDrops;
         }
     }
 
