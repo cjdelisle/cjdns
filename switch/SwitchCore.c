@@ -20,7 +20,6 @@
 #define NumberCompress_OLD_CODE
 #include "switch/NumberCompress.h"
 
-#include "switch/Penalty.h"
 #include "util/Bits.h"
 #include "util/Checksum.h"
 #include "util/Endian.h"
@@ -40,8 +39,6 @@ struct SwitchInterface
     struct Allocator* alloc;
 
     struct SwitchCore_pvt* core;
-
-    struct Penalty* penalty;
 
     struct Allocator_OnFreeJob* onFree;
 
@@ -100,7 +97,7 @@ static inline Iface_DEFUN sendError(struct SwitchInterface* iface,
     err->switchHeader.label_be = Bits_bitReverse64(causeHeader->label_be);
     SwitchHeader_setSuppressErrors(&err->switchHeader, true);
     SwitchHeader_setVersion(&err->switchHeader, SwitchHeader_CURRENT_VERSION);
-    SwitchHeader_setPenalty(&err->switchHeader, 0);
+    SwitchHeader_setTrafficClass(&err->switchHeader, 0xffff);
     SwitchHeader_setCongestion(&err->switchHeader, 0);
 
     err->handle = 0xffffffff;
@@ -226,10 +223,7 @@ static Iface_DEFUN receiveMessage(struct Message* message, struct Iface* iface)
         return NULL;
     }
     SwitchHeader_setLabelShift(header, labelShift);
-    if (sourceIndex != 1 && destIndex != 1) {
-        // no penalty for our own packets
-        Penalty_apply(sourceIf->penalty, header, message->length);
-    }
+    SwitchHeader_setTrafficClass(header, 0xffff);
 
     return Iface_next(&core->interfaces[destIndex].iface, message);
 }
@@ -289,7 +283,6 @@ int SwitchCore_addInterface(struct SwitchCore* switchCore,
     newIf->iface.send = receiveMessage;
     newIf->core = core;
     newIf->alloc = alloc;
-    newIf->penalty = Penalty_new(alloc, core->eventBase, core->logger);
     newIf->onFree = Allocator_onFree(alloc, removeInterface, newIf);
     newIf->state = SwitchCore_setInterfaceState_ifaceState_UP;
     Iface_plumb(iface, &newIf->iface);

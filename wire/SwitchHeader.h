@@ -32,7 +32,7 @@
  *    +                         Switch Label                          +
  *  4 |                                                               |
  *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *  8 |   Congest   |S| V |labelShift |            Penalty            |
+ *  8 |   Congest   |S| V |labelShift |         Traffic Class         |
  *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  *
  * Versions <= 7 byte number 8 is message type but the only 2 defined types were 0 (data)
@@ -45,7 +45,6 @@
  * Versions < 8 are treating the byte as a number so all bits of congest will be zero.
  * Version >= 11 labelShift is the number of bits which the label has been shifted to the right
  *               in the course of switching. Switches older than 11 will not update this value!
- *               Penalty is used for QoS, see Penalty.h
  */
 
 #pragma pack(push)
@@ -69,8 +68,14 @@ struct SwitchHeader
      */
     uint8_t versionAndLabelShift;
 
-    /** QoS Penalty, see Penalty.h */
-    uint16_t penalty_be;
+    /**
+     * Number of the traffic class, if this is 0xffff then it's "unclassed".
+     * As of this writing, the code is not written but the plan is to allow traffic classifications
+     * with different bandwidth allotments. All bandwidth shall remain burstable but a bandwidth
+     * allotment will be guaranteed up to it's limit when deciding which packets must be dropped
+     * in an over-capacity link.
+     */
+    uint16_t trafficClass_be;
 };
 #define SwitchHeader_SIZE 12
 Assert_compileTime(sizeof(struct SwitchHeader) == SwitchHeader_SIZE);
@@ -116,14 +121,14 @@ static inline void SwitchHeader_setCongestion(struct SwitchHeader* header, uint3
     header->congestAndSuppressErrors = (header->congestAndSuppressErrors & 1) | (cong << 1);
 }
 
-static inline uint16_t SwitchHeader_getPenalty(const struct SwitchHeader* header)
+static inline uint16_t SwitchHeader_getTrafficClass(const struct SwitchHeader* header)
 {
-    return Endian_bigEndianToHost16(header->penalty_be);
+    return Endian_bigEndianToHost16(header->trafficClass_be);
 }
 
-static inline void SwitchHeader_setPenalty(struct SwitchHeader* header, uint16_t penalty)
+static inline void SwitchHeader_setTrafficClass(struct SwitchHeader* header, uint16_t tc)
 {
-    header->penalty_be = Endian_hostToBigEndian16(penalty);
+    header->trafficClass_be = Endian_hostToBigEndian16(tc);
 }
 
 static inline bool SwitchHeader_getSuppressErrors(const struct SwitchHeader* header)
