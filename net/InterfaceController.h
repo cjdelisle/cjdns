@@ -112,10 +112,10 @@ struct InterfaceController_PeerStats
     uint32_t sendKbps;
     uint32_t recvKbps;
 
+    uint32_t receivedPackets;
     int64_t avgPacketsShl32;
     int64_t avgDropsShl32;
-    uint16_t dropsX65k;
-    uint32_t receivedPackets;
+    uint16_t dropRateShl18;
 };
 
 struct InterfaceController

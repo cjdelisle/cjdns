@@ -143,9 +143,10 @@ struct Peer
     /** The number of lost packets last time we checked. */
     uint32_t lastDrops;
     uint32_t lastPackets;
+    uint32_t avgN;
+    uint16_t dropRateShl18;
     uint64_t avgDropsShl32;
     uint64_t avgPacketsShl32;
-    uint16_t dropsX65k;
 
     // traffic counters
     uint64_t bytesOut;
@@ -315,9 +316,14 @@ static void sendPing(struct Peer* ep)
     }
 }
 
-static uint64_t dropsMovingAverage(uint64_t currentValue, uint64_t newData)
+static uint64_t dropsMovingAverage(uint64_t average, uint64_t newData, uint64_t n)
 {
-    return currentValue - (currentValue >> 8) + (newData >> 8);
+    newData <<= 32;
+    if (newData > average) {
+        return average + ((newData - average) << 1) / (n + 1);
+    } else {
+        return average - ((average - newData) << 1) / (n + 1);
+    }
 }
 
 static void iciCheckDrops(
@@ -336,13 +342,14 @@ static void iciCheckDrops(
         if (packets > ep->lastPackets) { newPackets = packets - ep->lastPackets; }
         ep->lastPackets = packets;
 
-        ep->avgDropsShl32 = dropsMovingAverage(ep->avgDropsShl32, newDrops << 32);
-        ep->avgPacketsShl32 = dropsMovingAverage(ep->avgPacketsShl32, newPackets << 32);
+        ep->avgDropsShl32 = dropsMovingAverage(ep->avgDropsShl32, newDrops << 32, ep->avgN);
+        ep->avgPacketsShl32 = dropsMovingAverage(ep->avgPacketsShl32, newPackets << 32, ep->avgN);
+        ep->avgN++;
         if (ep->avgPacketsShl32) {
             // Shift 16 bits for 100% drop rate = 65534
             // Shift 18 bits for 25% drop rate = 65534
             uint64_t dropRate = (ep->avgDropsShl32 << 18) / ep->avgPacketsShl32;
-            ep->dropsX65k = (dropRate > 65534) ? 65534 : dropRate;
+            ep->dropRateShl18 = (dropRate > 65534) ? 65534 : dropRate;
         }
     }
 }
@@ -1064,7 +1071,7 @@ int InterfaceController_getPeerStats(struct InterfaceController* ifController,
 
             s->avgPacketsShl32 = peer->avgPacketsShl32 & ~((uint64_t)1<<63);
             s->avgDropsShl32 = peer->avgDropsShl32 & ~((uint64_t)1<<63);
-            s->dropsX65k = peer->dropsX65k;
+            s->dropRateShl18 = peer->dropRateShl18;
         }
     }
 
