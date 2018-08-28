@@ -54,6 +54,7 @@ import logging
 import argparse
 import atexit
 import ConfigParser
+import thread
 
 # This holds a regex that matches the message we get from the roiuter when it
 # sees an unresponsive peer.
@@ -69,6 +70,10 @@ assert(IS_UNRESPONSIVE.match("Pinging unresponsive peer " +
 MESSAGE_FILE = "InterfaceController.c"
 MESSAGE_LINE = 0 # All lines
 
+# regex for transient hostnames, which might not always be resolvable, but
+# eventually if we keep trying. for example KadNode names (.p2p) which are 
+# resolved via a DHT
+IS_TRANSIENT_HOSTNAME = re.compile(".*\\.p2p$")
 
 class Node(object):
     """
@@ -113,6 +118,10 @@ class DynamicEndpointWatcher(object):
         # Holds a dict from public key to Node object for those nodes which are
         # unresponsive.
         self.unresponsive = dict()
+        
+        # Holds a dict from public key to Node object for those nodes whose 
+        # hostname couldn't be resolved yet, but should be retried later again
+        self.unresolved = dict()
 
         # Add nodes from the given ConfigParser parser.
         for section in configuration.sections():
@@ -147,6 +156,12 @@ class DynamicEndpointWatcher(object):
         """
         Run forever, monitoring the peers we are responsible for.
         """
+        
+        try:
+            thread.start_new_thread(self.lookupUnresolved, ())
+        except Exception as e:
+            logging.error("Error running thread: {}".format(e))
+            pass
 
         logging.info("Watching for unresponsive peers")
 
@@ -232,19 +247,47 @@ class DynamicEndpointWatcher(object):
                 # Mark this node as no longer unresponsive
                 try: del self.unresponsive[node.key]
                 except KeyError: pass
+                
+                # Mark this node as no longer unresolved
+                try: del self.unresolved[node.key]
+                except KeyError: pass
 
                 # Don't try any more addresses. Stop after the first.
                 return
 
         except socket.gaierror as e:
-            # The lookup failed at the OS level. Did we put in a bad hostname?
-            logging.error("Could not resolve DNS name {}: {}".format(
-                node.host, e))
+            if IS_TRANSIENT_HOSTNAME.match(node.host):
+                logging.info("Transient name {} is currently not resolvable.".format(
+                    node.host))
+                self.unresolved[node.key] = node
+                # return and try this node later again
+                return
+            else:
+                # The lookup failed at the OS level. Did we put in a bad hostname?
+                logging.error("Could not resolve DNS name {}: {}".format(
+                    node.host, e))
 
         # If we get here, we found no addresses that worked.
         logging.error("No working addresses found for node {}".format(
             PublicToIp6_convert(node.key)))
 
+    def lookupUnresolved(self):
+        """
+        Loop forever trying to lookup unresolved transient hostnames in a 
+        certain interval.
+        """
+        delay = 1
+        while True:
+            # double the retry interval with every retry until we reached ~5 min
+            if delay * 2 <= 5 * 60:
+                delay *= 2
+            time.sleep(delay)
+            
+            if len(self.unresolved) > 0:
+                logging.info("Trying to lookup {} unresolved transient hostnames"
+                    .format(len(self.unresolved)))
+                for node in self.unresolved.values():
+                    self.lookup(node)
 
     def doLog(self, message):
         """
