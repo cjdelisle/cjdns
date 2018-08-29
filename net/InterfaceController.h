@@ -107,15 +107,11 @@ struct InterfaceController_PeerStats
     /** Packet loss/duplication statistics. see: ReplayProtector */
     uint32_t duplicates;
     uint32_t lostPackets;
+    uint32_t receivedPackets;
     uint32_t receivedOutOfRange;
 
     uint32_t sendKbps;
     uint32_t recvKbps;
-
-    uint32_t receivedPackets;
-    int64_t avgPacketsShl32;
-    int64_t avgDropsShl32;
-    uint16_t dropRateShl18;
 };
 
 struct InterfaceController

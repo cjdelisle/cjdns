@@ -150,10 +150,6 @@ struct Peer
     uint32_t lastDrops;
     uint32_t _lastPackets;
     uint32_t lastPackets;
-    uint32_t avgN;
-    uint16_t dropRateShl18;
-    uint64_t avgDropsShl32;
-    uint64_t avgPacketsShl32;
 
     // traffic counters
     uint64_t bytesOut;
@@ -323,16 +319,6 @@ static void sendPing(struct Peer* ep)
     }
 }
 
-static uint64_t dropsMovingAverage(uint64_t average, uint64_t newData, uint64_t n)
-{
-    newData <<= 32;
-    if (newData > average) {
-        return average + ((newData - average) << 1) / (n + 1);
-    } else {
-        return average - ((average - newData) << 1) / (n + 1);
-    }
-}
-
 static void iciCheckDrops(
     struct InterfaceController_Iface_pvt* ici,
     struct InterfaceController_pvt* ic)
@@ -351,16 +337,6 @@ static void iciCheckDrops(
         if (packets > ep->_lastPackets) { newPackets = packets - ep->_lastPackets; }
         ep->_lastPackets = packets;
         ep->lastPackets += newPackets;
-
-        ep->avgDropsShl32 = dropsMovingAverage(ep->avgDropsShl32, newDrops, ep->avgN);
-        ep->avgPacketsShl32 = dropsMovingAverage(ep->avgPacketsShl32, newPackets, ep->avgN);
-        ep->avgN++;
-        if (ep->avgPacketsShl32) {
-            // Shift 16 bits for 100% drop rate = 65534
-            // Shift 18 bits for 25% drop rate = 65534
-            uint64_t dropRate = (ep->avgDropsShl32 << 18) / ep->avgPacketsShl32;
-            ep->dropRateShl18 = (dropRate > 65534) ? 65534 : dropRate;
-        }
     }
 }
 
@@ -1077,9 +1053,6 @@ int InterfaceController_getPeerStats(struct InterfaceController* ifController,
             s->sendKbps = kbps.sendKbps;
             s->recvKbps = kbps.recvKbps;
 
-            s->avgPacketsShl32 = peer->avgPacketsShl32 & ~((uint64_t)1<<63);
-            s->avgDropsShl32 = peer->avgDropsShl32 & ~((uint64_t)1<<63);
-            s->dropRateShl18 = peer->dropRateShl18;
             s->receivedPackets = peer->lastPackets;
             s->lostPackets = peer->lastDrops;
         }
