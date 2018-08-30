@@ -1,7 +1,8 @@
 [Unit]
 Description=cjdns: routing engine designed for security, scalability, speed and ease of use
 Wants=network.target
-After=network.target
+After=network-pre.target
+Before=network.target network.service
 
 [Service]
 ProtectHome=true
