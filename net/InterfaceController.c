@@ -225,7 +225,8 @@ struct InterfaceController_pvt
 
 static void sendPeer(uint32_t pathfinderId,
                      enum PFChan_Core ev,
-                     struct Peer* peer)
+                     struct Peer* peer,
+                     uint16_t latency)
 {
     struct InterfaceController_pvt* ic = Identity_check(peer->ici->ic);
     struct Allocator* alloc = Allocator_child(ic->alloc);
@@ -234,10 +235,12 @@ static void sendPeer(uint32_t pathfinderId,
     Bits_memcpy(node->ip6, peer->addr.ip6.bytes, 16);
     Bits_memcpy(node->publicKey, peer->addr.key, 32);
     node->path_be = Endian_hostToBigEndian64(peer->addr.path);
-    node->metric_be = 0xffffffff;
     node->version_be = Endian_hostToBigEndian32(peer->addr.protocolVersion);
     if (ev != PFChan_Core_PEER_GONE) {
         Assert_true(peer->addr.protocolVersion);
+        node->metric_be = Endian_hostToBigEndian32(0xfff00000 | latency);
+    } else {
+        node->metric_be = 0xffffffff;
     }
     Message_push32(msg, pathfinderId, NULL);
     Message_push32(msg, ev, NULL);
@@ -275,7 +278,7 @@ static void onPingResponse(struct SwitchPinger_Response* resp, void* onResponseC
     }
 
     if (ep->state == InterfaceController_PeerState_ESTABLISHED) {
-        sendPeer(0xffffffff, PFChan_Core_PEER, ep);
+        sendPeer(0xffffffff, PFChan_Core_PEER, ep, resp->milliseconds);
     }
 
     ep->timeOfLastPing = Time_currentTimeMilliseconds(ic->eventBase);
@@ -377,7 +380,7 @@ static void iciPing(struct InterfaceController_Iface_pvt* ici, struct InterfaceC
             if (count == 1 && ep->state == InterfaceController_PeerState_ESTABLISHED) {
                 Log_debug(ic->logger, "Notifying about peer number [%d/%d] [%s]",
                     i, ici->peerMap.count, keyIfDebug);
-                sendPeer(0xffffffff, PFChan_Core_PEER, ep);
+                sendPeer(0xffffffff, PFChan_Core_PEER, ep, 0xffff);
             }
 
             continue;
@@ -392,7 +395,7 @@ static void iciPing(struct InterfaceController_Iface_pvt* ici, struct InterfaceC
             Log_debug(ic->logger, "Unresponsive peer [%s.k] has not responded in [%u] "
                                   "seconds, dropping connection",
                                   keyIfDebug, ic->forgetAfterMilliseconds / 1024);
-            sendPeer(0xffffffff, PFChan_Core_PEER_GONE, ep);
+            sendPeer(0xffffffff, PFChan_Core_PEER_GONE, ep, 0xffff);
             Allocator_free(ep->alloc);
             continue;
         }
@@ -407,7 +410,7 @@ static void iciPing(struct InterfaceController_Iface_pvt* ici, struct InterfaceC
                 continue;
             }
 
-            sendPeer(0xffffffff, PFChan_Core_PEER_GONE, ep);
+            sendPeer(0xffffffff, PFChan_Core_PEER_GONE, ep, 0xffff);
             ep->state = InterfaceController_PeerState_UNRESPONSIVE;
             SwitchCore_setInterfaceState(&ep->switchIf,
                                          SwitchCore_setInterfaceState_ifaceState_DOWN);
@@ -488,7 +491,7 @@ static Iface_DEFUN receivedPostCryptoAuth(struct Message* msg,
 
         if (caState == CryptoAuth_State_ESTABLISHED) {
             moveEndpointIfNeeded(ep);
-            //sendPeer(0xffffffff, PFChan_Core_PEER, ep);// version is not known at this point.
+            //sendPeer(0xffffffff, PFChan_Core_PEER, ep, 0xffff);// version is not known at this point.
         } else {
             // prevent some kinds of nasty things which could be done with packet replay.
             // This is checking the message switch header and will drop it unless the label
@@ -560,7 +563,7 @@ static int closeInterface(struct Allocator_OnFreeJob* job)
 {
     struct Peer* toClose = Identity_check((struct Peer*) job->userData);
 
-    sendPeer(0xffffffff, PFChan_Core_PEER_GONE, toClose);
+    sendPeer(0xffffffff, PFChan_Core_PEER_GONE, toClose, 0xffff);
 
     int index = Map_EndpointsBySockaddr_indexForHandle(toClose->handle, &toClose->ici->peerMap);
     Log_debug(toClose->ici->ic->logger,
@@ -682,7 +685,7 @@ static Iface_DEFUN handleBeacon(struct Message* msg, struct InterfaceController_
 
     // This should be safe because this is an outgoing request and we're sure the node will not
     // be relocated by moveEndpointIfNeeded()
-    sendPeer(0xffffffff, PFChan_Core_PEER, ep);
+    sendPeer(0xffffffff, PFChan_Core_PEER, ep, 0xffff);
     return NULL;
 }
 
@@ -808,7 +811,7 @@ static Iface_DEFUN handleIncomingFromWire(struct Message* msg, struct Iface* add
     PeerLink_recv(msg, ep->peerLink);
     if (ep->state == InterfaceController_PeerState_ESTABLISHED &&
         CryptoAuth_getState(ep->caSession) != CryptoAuth_State_ESTABLISHED) {
-        sendPeer(0xffffffff, PFChan_Core_PEER_GONE, ep);
+        sendPeer(0xffffffff, PFChan_Core_PEER_GONE, ep, 0xffff);
     }
     return receivedPostCryptoAuth(msg, ep, ici->ic);
 }
@@ -1113,7 +1116,7 @@ static Iface_DEFUN incomingFromEventEmitterIf(struct Message* msg, struct Iface*
         for (int i = 0; i < (int)ici->peerMap.count; i++) {
             struct Peer* peer = Identity_check((struct Peer*) ici->peerMap.values[i]);
             if (peer->state != InterfaceController_PeerState_ESTABLISHED) { continue; }
-            sendPeer(pathfinderId, PFChan_Core_PEER, peer);
+            sendPeer(pathfinderId, PFChan_Core_PEER, peer, 0xffff);
         }
     }
     return NULL;
