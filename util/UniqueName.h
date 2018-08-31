@@ -16,8 +16,8 @@
 #define UniqueName_H
 
 #ifdef __INTELLISENSE__
-#define UniqueName_get()
-#define UniqueName_last()
+#define UniqueName_get() UniqueName
+#define UniqueName_last() UniqueName
 #else
 <?js file.Constant_JS = file.Constant_JS || require('util/Constant.js'); ?>
 
