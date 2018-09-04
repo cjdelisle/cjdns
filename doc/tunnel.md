@@ -21,24 +21,7 @@ you will need to add a subsection called `IpTunnel`.
             of stuff here
             see the real version
             by running ./cjdroute --genconf
-        },
-
-You may also have to modity the `setuser` section in the `security` block, there is
-a new field called `exemptAngel` which needs to be set in order for cjdns to have
-permission to set the IPv6 and IPv4 addresses on the TUN device.
-
-        // Change the user id to this user after starting up and getting resources.
-        {
-            "setuser": "nobody"
-
-            // Exempt the Angel process from setting userId, the Angel is a small
-            // isolated piece of code which exists outside of the core's strict
-            // sandbox but does not handle network traffic.
-            // This must be enabled for IpTunnel to automatically set IP addresses
-            // for the TUN device.
-            "exemptAngel": 1
         }
-
 
 ## Connecting to a gateway
 
