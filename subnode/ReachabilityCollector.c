@@ -167,7 +167,7 @@ static void latencyUpdate(
     struct PeerInfo_pvt* pip,
     uint32_t lag)
 {
-    Log_debug(rcp->log, "Latency update for [%016x] [%u]ms", pip->pub.addr.path, lag);
+    Log_debug(rcp->log, "Latency update for [%" PRIx64 "] [%u]ms", pip->pub.addr.path, lag);
     pip->sumOfLag += lag;
     pip->lagSamples++;
     pip->timeOfLastLagUpdate = Time_currentTimeMilliseconds(rcp->base);
@@ -295,10 +295,10 @@ static void cycle(void* vrc)
 
     for (int j = 0; j < rcp->piList->length; j++) {
         struct PeerInfo_pvt* pi = ArrayList_OfPeerInfo_pvt_get(rcp->piList, j);
-        Log_debug(rcp->log, "Visiting peer [%016x] samples [%u]",
+        Log_debug(rcp->log, "Visiting peer [%" PRIx64 "] samples [%u]",
             pi->pub.addr.path, pi->lagSamples);
         if (pi->lagSamples == 0) {
-            Log_debug(rcp->log, "Triggering a ping to peer [%016x]", pi->pub.addr.path);
+            Log_debug(rcp->log, "Triggering a ping to peer [%" PRIx64 "]", pi->pub.addr.path);
             queryPeer(rcp, pi);
         }
 
