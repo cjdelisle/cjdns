@@ -25,6 +25,7 @@ struct Entry {
     void* data;
     uint32_t hashCode;
     struct Allocator* alloc;
+    struct Set_pvt* set;
     struct {
         struct Entry* rbe_left;
         struct Entry* rbe_right;
@@ -72,10 +73,8 @@ struct Set_pvt
 static int compare(const struct Entry* a, const struct Entry* b)
 {
     if (a->hashCode != b->hashCode) { return a->hashCode - b->hashCode; }
-    const struct Entry* root = a;
-    while (root->tree.rbe_parent) { root = root->tree.rbe_parent; }
-    const struct Set_pvt* set = Identity_containerOf(root, struct Set_pvt, activeTree.rbh_root);
-    return set->compare(a, b);
+    struct Set_pvt* set = Identity_check((struct Set_pvt*) a->set);
+    return set->compare(a->data, b->data);
 }
 RB_GENERATE_STATIC(ActiveTree, Entry, tree, compare)
 
@@ -105,6 +104,7 @@ static struct Entry* allocateBlock(struct Set_pvt* set)
     set->block = newBlock;
     uint32_t num = newBlock->number = (set->block ? set->block->number : -1) + 1;
     for (int i = 0; i < BLOCK_SZ; i++) {
+        newBlock->entries[i].set = set;
         newBlock->entries[i].hashCode = num;
         FreeTree_RB_INSERT(&set->freeTree, &newBlock->entries[i]);
     }
@@ -155,11 +155,12 @@ static void freeEntry(struct Set_pvt* set, struct Entry* e)
     if (!b->usedCount) { freeBlock(set, b); }
 }
 
-static struct Entry* get(struct Set_pvt* set, void* val)
+static struct Entry* get(struct Set_pvt* set, void* val, uint32_t hashCode)
 {
     struct Entry e = {
-        .hashCode = set->hashCode(val),
-        .data = val
+        .hashCode = hashCode,
+        .data = val,
+        .set = set
     };
     return ActiveTree_RB_FIND(&set->activeTree, &e);
 }
@@ -168,10 +169,10 @@ int Set_addCopy(struct Set* _set, void* val, uint32_t size)
 {
     struct Set_pvt* set = Identity_check((struct Set_pvt*) _set);
     uint32_t hashCode = set->hashCode(val);
-    struct Entry* e = get(set, val);
+    struct Entry* e = get(set, val, hashCode);
     if (!e) {
         struct Entry* e = newEntry(set);
-        e->hashCode = set->hashCode(val);
+        e->hashCode = hashCode;
         ActiveTree_RB_INSERT(&set->activeTree, e);
         struct Block* b = blockForEntry(set, e);
         e->alloc = Allocator_child(b->alloc);
@@ -185,11 +186,11 @@ int Set_add(struct Set* _set, void* val)
 {
     struct Set_pvt* set = Identity_check((struct Set_pvt*) _set);
     uint32_t hashCode = set->hashCode(val);
-    struct Entry* e = get(set, val);
+    struct Entry* e = get(set, val, hashCode);
     if (!e) {
         struct Entry* e = newEntry(set);
         e->data = val;
-        e->hashCode = set->hashCode(val);
+        e->hashCode = hashCode;
         ActiveTree_RB_INSERT(&set->activeTree, e);
     }
     return set->size;
@@ -221,7 +222,7 @@ void Set_iterNext(struct Set_Iter* iter)
 void* Set_remove(struct Set* _set, void* val)
 {
     struct Set_pvt* set = Identity_check((struct Set_pvt*) _set);
-    struct Entry* e = get(set, val);
+    struct Entry* e = get(set, val, set->hashCode(val));
     void* out = NULL;
     if (e) {
         out = e->data;
@@ -233,7 +234,7 @@ void* Set_remove(struct Set* _set, void* val)
 void* Set_get(struct Set* _set, void* val)
 {
     struct Set_pvt* set = Identity_check((struct Set_pvt*) _set);
-    struct Entry* e = get(set, val);
+    struct Entry* e = get(set, val, set->hashCode(val));
     void* out = NULL;
     if (e) { out = e->data; }
     return out;

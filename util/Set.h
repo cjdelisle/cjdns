@@ -16,7 +16,6 @@
 #define Set_H
 
 #include "memory/Allocator.h"
-#include "util/Hash.h"
 #include "util/Bits.h"
 #include "util/UniqueName.h"
 
@@ -46,6 +45,7 @@ int Set_addCopy(struct Set* _set, void* val, uint32_t size);
     for (Set_ ## name ## _iter(set, &UniqueName_last());       \
         ((out) = UniqueName_last().val);                       \
         Set_ ## name ## _iterNext(&UniqueName_last()))
+// CHECKFILES_IGNORE expecting a {
 
 #endif // Used multiple times...
 
@@ -71,7 +71,8 @@ struct Set_FULLNAME {
     int size;
 };
 
-struct Set_FUNCTION(Iter) {
+struct Set_FUNCTION(Iter)
+{
     Set_TYPE* val;
     void* internal;
 };
@@ -82,23 +83,24 @@ struct Set_FUNCTION(Iter) {
 #endif
 static inline uint32_t Set_FUNCTION(_hashCode)(const void* a)
 {
-    return Set_HASHCODE(((Set_TYPE**)a)[0]);
+    return Set_HASHCODE((Set_TYPE*)a);
 }
 static inline int Set_FUNCTION(_compare)(const void* a, const void* b)
 {
-    return Set_COMPARE(((Set_TYPE**)a)[0], ((Set_TYPE**)b)[0]);
+    return Set_COMPARE((Set_TYPE*)a, (Set_TYPE*)b);
 }
 #else
 #ifdef Set_HASHCODE
     #error cannot specify Set_HASHCODE without Set_COMPARE
 #endif
+#include "util/Hash.h"
 static inline uint32_t Set_FUNCTION(_hashCode)(const void* a)
 {
     return Hash_compute((uint8_t*) a, sizeof(Set_TYPE));
 }
 static inline int Set_FUNCTION(_compare)(const void* a, const void* b)
 {
-    return Bits_memcmp(((Set_TYPE**)a)[0], ((Set_TYPE**)b)[0], sizeof(Set_TYPE));
+    return Bits_memcmp(a, b, sizeof(Set_TYPE));
 }
 #endif
 

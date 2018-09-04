@@ -20,6 +20,7 @@
 #include "util/events/EventBase.h"
 #include "subnode/AddrSet.h"
 #include "subnode/MsgCore.h"
+#include "subnode/ReachabilityCollector.h"
 #include "dht/Address.h"
 #include "net/SwitchPinger.h"
 #include "util/Linker.h"
@@ -70,6 +71,7 @@ struct SupernodeHunter* SupernodeHunter_new(struct Allocator* allocator,
                                             struct SwitchPinger* sp,
                                             struct AddrSet* peers,
                                             struct MsgCore* msgCore,
-                                            struct Address* myAddress);
+                                            struct Address* myAddress,
+                                            struct ReachabilityCollector* rc);
 
 #endif

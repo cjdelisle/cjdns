@@ -57,6 +57,8 @@ struct SupernodeHunter_pvt
     struct Address* myAddress;
     String* selfAddrStr;
 
+    struct ReachabilityCollector* rc;
+
     Identity
 };
 
@@ -247,6 +249,7 @@ static void queryForAuthorized(struct SupernodeHunter_pvt* snp, struct Address* 
 
 static void peerResponseOK(struct SwitchPinger_Response* resp, struct SupernodeHunter_pvt* snp)
 {
+    ReachabilityCollector_lagSample(snp->rc, resp->label, resp->milliseconds);
     struct Address snode;
     Bits_memcpy(&snode, &resp->snode, sizeof(struct Address));
     if (!snode.path) {
@@ -372,7 +375,8 @@ struct SupernodeHunter* SupernodeHunter_new(struct Allocator* allocator,
                                             struct SwitchPinger* sp,
                                             struct AddrSet* peers,
                                             struct MsgCore* msgCore,
-                                            struct Address* myAddress)
+                                            struct Address* myAddress,
+                                            struct ReachabilityCollector* rc)
 {
     struct Allocator* alloc = Allocator_child(allocator);
     struct SupernodeHunter_pvt* out =
@@ -389,6 +393,7 @@ struct SupernodeHunter* SupernodeHunter_new(struct Allocator* allocator,
     out->alloc = alloc;
     out->msgCore = msgCore;
     out->myAddress = myAddress;
+    out->rc = rc;
     out->selfAddrStr = String_newBinary(myAddress->ip6.bytes, 16, alloc);
     out->sp = sp;
     out->snodePathUpdated = false;

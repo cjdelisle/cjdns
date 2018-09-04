@@ -59,8 +59,8 @@
 /** Wait 32 seconds between sending beacon messages. */
 #define BEACON_INTERVAL 32768
 
-/** Every 10 seconds, check the number of dropped packets and update the moving average. */
-#define CHECKDROPS_INTERVAL_MILLISECONDS 10000
+/** Every 3 seconds inform the pathfinder of the current link states. */
+#define LINKSTATE_UPDATE_INTERVAL 3000
 
 
 // ---------------- Map ----------------
@@ -197,8 +197,8 @@ struct InterfaceController_pvt
     /** The timeout event to use for pinging potentially unresponsive neighbors. */
     struct Timeout* const pingInterval;
 
-    /** The timeout event for updating the moving average of number of dropped packets. */
-    struct Timeout* const dropCheckInterval;
+    /** The timeout event for updating the link state to the pathfinders. */
+    struct Timeout* const linkStateInterval;
 
     /** For pinging lazy/unresponsive nodes. */
     struct SwitchPinger* const switchPinger;
@@ -322,34 +322,48 @@ static void sendPing(struct Peer* ep)
     }
 }
 
-static void iciCheckDrops(
-    struct InterfaceController_Iface_pvt* ici,
-    struct InterfaceController_pvt* ic)
-{
-    for (uint32_t i = 0; i < ici->peerMap.count; i++) {
-        struct Peer* ep = ici->peerMap.values[i];
-
-        uint32_t drops = ep->caSession->replayProtector.lostPackets;
-        uint64_t newDrops = 0;
-        if (drops > ep->_lastDrops) { newDrops = drops - ep->_lastDrops; }
-        ep->_lastDrops = drops;
-        ep->lastDrops += newDrops;
-
-        uint32_t packets = ep->caSession->replayProtector.baseOffset;
-        uint64_t newPackets = 0;
-        if (packets > ep->_lastPackets) { newPackets = packets - ep->_lastPackets; }
-        ep->_lastPackets = packets;
-        ep->lastPackets += newPackets;
-    }
-}
-
-static void checkDrops(void* vic)
+static void linkState(void* vic)
 {
     struct InterfaceController_pvt* ic = Identity_check((struct InterfaceController_pvt*) vic);
+    uint32_t msgLen = 64;
     for (int i = 0; i < ic->icis->length; i++) {
         struct InterfaceController_Iface_pvt* ici = ArrayList_OfIfaces_get(ic->icis, i);
-        iciCheckDrops(ici, ic);
+        msgLen += PFChan_LinkState_Entry_SIZE * ici->peerMap.count;
     }
+    struct Allocator* alloc = Allocator_child(ic->alloc);
+    struct Message* msg = Message_new(0, msgLen, alloc);
+
+    for (int i = 0; i < ic->icis->length; i++) {
+        struct InterfaceController_Iface_pvt* ici = ArrayList_OfIfaces_get(ic->icis, i);
+        for (uint32_t i = 0; i < ici->peerMap.count; i++) {
+            struct Peer* ep = ici->peerMap.values[i];
+
+            uint32_t drops = ep->caSession->replayProtector.lostPackets;
+            uint64_t newDrops = 0;
+            if (drops > ep->_lastDrops) { newDrops = drops - ep->_lastDrops; }
+            ep->_lastDrops = drops;
+            ep->lastDrops += newDrops;
+
+            uint32_t packets = ep->caSession->replayProtector.baseOffset;
+            uint64_t newPackets = 0;
+            if (packets > ep->_lastPackets) { newPackets = packets - ep->_lastPackets; }
+            ep->_lastPackets = packets;
+            ep->lastPackets += newPackets;
+
+            struct PFChan_LinkState_Entry e = {
+                .peerLabel_be = Endian_hostToBigEndian32((uint32_t) ep->addr.path),
+                .sumOfPackets_be = Endian_hostToBigEndian32(ep->lastPackets),
+                .sumOfDrops_be = Endian_hostToBigEndian32(ep->lastDrops),
+                .sumOfKb_be = Endian_hostToBigEndian32((uint32_t) (ep->bytesIn >> 10))
+            };
+            Message_push(msg, &e, PFChan_LinkState_Entry_SIZE, NULL);
+        }
+    }
+
+    Message_push32(msg, 0xffffffff, NULL);
+    Message_push32(msg, PFChan_Core_LINK_STATE, NULL);
+    Iface_send(&ic->eventEmitterIf, msg);
+    Allocator_free(alloc);
 }
 
 static void iciPing(struct InterfaceController_Iface_pvt* ici, struct InterfaceController_pvt* ic)
@@ -491,7 +505,7 @@ static Iface_DEFUN receivedPostCryptoAuth(struct Message* msg,
 
         if (caState == CryptoAuth_State_ESTABLISHED) {
             moveEndpointIfNeeded(ep);
-            //sendPeer(0xffffffff, PFChan_Core_PEER, ep, 0xffff);// version is not known at this point.
+            //sendPeer(0xffffffff, PFChan_Core_PEER, ep, 0xffff);// version is not known.
         } else {
             // prevent some kinds of nasty things which could be done with packet replay.
             // This is checking the message switch header and will drop it unless the label
@@ -1148,10 +1162,10 @@ struct InterfaceController* InterfaceController_new(struct CryptoAuth* ca,
         .forgetAfterMilliseconds = FORGET_AFTER_MILLISECONDS,
         .beaconInterval = BEACON_INTERVAL,
 
-        .dropCheckInterval = Timeout_setInterval(
-            checkDrops,
+        .linkStateInterval = Timeout_setInterval(
+            linkState,
             out,
-            CHECKDROPS_INTERVAL_MILLISECONDS,
+            LINKSTATE_UPDATE_INTERVAL,
             eventBase,
             alloc),
 

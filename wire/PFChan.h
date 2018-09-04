@@ -296,8 +296,24 @@ enum PFChan_Core
      */
     PFChan_Core_UNSETUP_SESSION = 1038,
 
-    PFChan_Core__TOO_HIGH = 1039,
+    /**
+     * Will be emitted once every 3 seconds to inform pathfinders of the link state of
+     * the peering links, contains an array of PFChan_LinkState_Entry.
+     * (emitted by: InterfaceController.c)
+     */
+    PFChan_Core_LINK_STATE = 1039,
+
+    PFChan_Core__TOO_HIGH = 1040,
 };
+
+struct PFChan_LinkState_Entry {
+    uint32_t peerLabel_be;
+    uint32_t sumOfPackets_be;
+    uint32_t sumOfDrops_be;
+    uint32_t sumOfKb_be;
+};
+#define PFChan_LinkState_Entry_SIZE 16
+Assert_compileTime(sizeof(struct PFChan_LinkState_Entry) == PFChan_LinkState_Entry_SIZE);
 
 struct PFChan_Core_SearchReq
 {
@@ -371,6 +387,7 @@ struct PFChan_FromCore
         struct PFChan_Msg msg;
         struct PFChan_Ping ping;
         struct PFChan_Ping pong;
+        struct PFChan_LinkState_Entry linkState;
         uint8_t bytes[4];
     } content;
 };

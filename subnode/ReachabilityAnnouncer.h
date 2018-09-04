@@ -34,12 +34,8 @@ struct ReachabilityAnnouncer
 // (pathThemToUs == 0) -> peer is gone.
 void ReachabilityAnnouncer_updatePeer(struct ReachabilityAnnouncer* ra,
                                       uint8_t ipv6[16],
-                                      uint64_t pathThemToUs,
-                                      uint64_t pathUsToThem,
-                                      uint32_t mtu,
-                                      uint16_t drops,
-                                      uint16_t latency,
-                                      uint16_t penalty);
+                                      uint32_t pathThemToUs,
+                                      uint32_t pathUsToThem);
 
 struct ReachabilityAnnouncer* ReachabilityAnnouncer_new(struct Allocator* allocator,
                                                         struct Log* log,

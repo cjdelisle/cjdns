@@ -107,6 +107,7 @@ static void pingerOnResponse(String* data, uint32_t milliseconds, void* context)
     if (mcp->currentReply) {
         rc = Identity_check(mcp->currentReply);
     }
+    pp->pub.lag = milliseconds;
 
     if (pp->pub.cb) {
         pp->pub.cb((rc) ? rc->content : NULL,

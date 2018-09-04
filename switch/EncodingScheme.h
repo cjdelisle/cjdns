@@ -109,4 +109,7 @@ int EncodingScheme_isSelfRoute(struct EncodingScheme* scheme, uint64_t routeLabe
  */
 int EncodingScheme_isOneHop(struct EncodingScheme* scheme, uint64_t routeLabel);
 
+#define EncodingScheme_parseDirector_INVALID -1
+int EncodingScheme_parseDirector(struct EncodingScheme* scheme, uint64_t label);
+
 #endif

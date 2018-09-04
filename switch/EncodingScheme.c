@@ -53,6 +53,20 @@ static bool is358(struct EncodingScheme* scheme)
     return true;
 }
 
+
+int EncodingScheme_parseDirector(struct EncodingScheme* scheme, uint64_t label)
+{
+    int formNum = EncodingScheme_getFormNum(scheme, label);
+    if (formNum == EncodingScheme_getFormNum_INVALID) {
+        return EncodingScheme_parseDirector_INVALID;
+    }
+    struct EncodingScheme_Form* currentForm = &scheme->forms[formNum];
+    if ((label & Bits_maxBits64(currentForm->prefixLen + currentForm->bitCount)) == 1) {
+        return 0;
+    }
+    return ((label >> currentForm->prefixLen) & Bits_maxBits64(currentForm->bitCount)) + 1;
+}
+
 uint64_t EncodingScheme_convertLabel(struct EncodingScheme* scheme,
                                      uint64_t routeLabel,
                                      int convertTo)

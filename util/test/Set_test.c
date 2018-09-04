@@ -38,7 +38,7 @@ static inline uint32_t hashCodeHighOnly(const uint32_t* a)
 #include <stdio.h>
 #include <stdbool.h>
 
-#define CYCLES 10000
+#define CYCLES 1
 
 #define COUNT 100
 
@@ -106,7 +106,7 @@ int main()
     struct Random* rand = Random_new(mainAlloc, NULL, NULL);
 
     for (int cycles = 0; cycles < CYCLES; cycles++) {
-        struct Allocator* alloc = MallocAllocator_new(1<<18);
+        struct Allocator* alloc = MallocAllocator_new(1<<25);
         simpleTest(alloc, rand);
         Allocator_free(alloc);
         alloc = MallocAllocator_new(1<<18);

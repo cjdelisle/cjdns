@@ -121,7 +121,7 @@ static Iface_DEFUN connected(struct SubnodePathfinder_pvt* pf, struct Message* m
     return NULL;
 }
 
-static void addressForNode(struct Address* addrOut, struct Message* msg)
+static uint32_t addressForNode(struct Address* addrOut, struct Message* msg)
 {
     struct PFChan_Node node;
     Message_pop(msg, &node, PFChan_Node_SIZE, NULL);
@@ -130,6 +130,7 @@ static void addressForNode(struct Address* addrOut, struct Message* msg)
     addrOut->path = Endian_bigEndianToHost64(node.path_be);
     Bits_memcpy(addrOut->key, node.publicKey, 32);
     Bits_memcpy(addrOut->ip6.bytes, node.ip6, 16);
+    return Endian_bigEndianToHost32(node.metric_be);
 }
 
 static Iface_DEFUN switchErr(struct Message* msg, struct SubnodePathfinder_pvt* pf)
@@ -253,22 +254,17 @@ static Iface_DEFUN searchReq(struct Message* msg, struct SubnodePathfinder_pvt* 
 
 static void rcChange(struct ReachabilityCollector* rc,
                      uint8_t nodeIpv6[16],
-                     uint64_t pathThemToUs,
-                     uint64_t pathUsToThem,
-                     uint32_t mtu,
-                     uint16_t drops,
-                     uint16_t latency,
-                     uint16_t penalty)
+                     uint32_t pathThemToUs,
+                     uint32_t pathUsToThem)
 {
     struct SubnodePathfinder_pvt* pf = Identity_check((struct SubnodePathfinder_pvt*) rc->userData);
-    ReachabilityAnnouncer_updatePeer(
-        pf->ra, nodeIpv6, pathThemToUs, pathUsToThem, mtu, drops, latency, penalty);
+    ReachabilityAnnouncer_updatePeer(pf->ra, nodeIpv6, pathThemToUs, pathUsToThem);
 }
 
 static Iface_DEFUN peer(struct Message* msg, struct SubnodePathfinder_pvt* pf)
 {
     struct Address addr;
-    addressForNode(&addr, msg);
+    uint32_t metric = addressForNode(&addr, msg);
     String* str = Address_toString(&addr, msg->alloc);
     Log_debug(pf->log, "Peer [%s]", str->bytes);
 
@@ -286,6 +282,9 @@ static Iface_DEFUN peer(struct Message* msg, struct SubnodePathfinder_pvt* pf)
     //NodeCache_discoverNode(pf->nc, &addr);
 
     ReachabilityCollector_change(pf->pub.rc, &addr);
+    if ((metric & 0xffff) < 0xffff) {
+        ReachabilityCollector_lagSample(pf->pub.rc, addr.path, (metric & 0xffff));
+    }
 
     return sendNode(msg, &addr, 0xfff00000, PFChan_Pathfinder_NODE, pf);
 }
@@ -445,6 +444,22 @@ static Iface_DEFUN incomingMsg(struct Message* msg, struct SubnodePathfinder_pvt
     return Iface_next(&pf->msgCoreIf, msg);
 }
 
+static Iface_DEFUN linkState(struct Message* msg, struct SubnodePathfinder_pvt* pf)
+{
+    while (msg->length) {
+        struct PFChan_LinkState_Entry lse;
+        Message_pop(msg, &lse, PFChan_LinkState_Entry_SIZE, NULL);
+        ReachabilityCollector_updateBandwidthAndDrops(
+            pf->pub.rc,
+            Endian_bigEndianToHost32(lse.peerLabel_be),
+            Endian_bigEndianToHost32(lse.sumOfPackets_be),
+            Endian_bigEndianToHost32(lse.sumOfDrops_be),
+            Endian_bigEndianToHost32(lse.sumOfKb_be)
+        );
+    }
+    return NULL;
+}
+
 static Iface_DEFUN incomingFromMsgCore(struct Message* msg, struct Iface* iface)
 {
     struct SubnodePathfinder_pvt* pf =
@@ -482,6 +497,7 @@ static Iface_DEFUN incomingFromEventIf(struct Message* msg, struct Iface* eventI
         case PFChan_Core_PONG: return handlePong(msg, pf);
         case PFChan_Core_CTRL_MSG: return ctrlMsg(msg, pf);
         case PFChan_Core_UNSETUP_SESSION: return unsetupSession(msg, pf);
+        case PFChan_Core_LINK_STATE: return linkState(msg, pf);
         default:;
     }
     Assert_failure("unexpected event [%d]", ev);
@@ -503,26 +519,25 @@ static void sendEvent(struct SubnodePathfinder_pvt* pf,
 void SubnodePathfinder_start(struct SubnodePathfinder* sp)
 {
     struct SubnodePathfinder_pvt* pf = Identity_check((struct SubnodePathfinder_pvt*) sp);
-    pf->msgCore = MsgCore_new(pf->base, pf->rand, pf->alloc, pf->log, pf->myScheme);
-    Iface_plumb(&pf->msgCoreIf, &pf->msgCore->interRouterIf);
+    struct MsgCore* msgCore = pf->msgCore =
+        MsgCore_new(pf->base, pf->rand, pf->alloc, pf->log, pf->myScheme);
+    Iface_plumb(&pf->msgCoreIf, &msgCore->interRouterIf);
 
-    PingResponder_new(pf->alloc, pf->log, pf->msgCore, pf->br);
+    PingResponder_new(pf->alloc, pf->log, msgCore, pf->br);
 
     GetPeersResponder_new(
-        pf->alloc, pf->log, pf->myPeers, pf->myAddress, pf->msgCore, pf->br, pf->myScheme);
+        pf->alloc, pf->log, pf->myPeers, pf->myAddress, msgCore, pf->br, pf->myScheme);
 
-    pf->pub.snh = SupernodeHunter_new(
-        pf->alloc, pf->log, pf->base, pf->sp, pf->myPeers, pf->msgCore, pf->myAddress);
+    struct ReachabilityCollector* rc = pf->pub.rc = ReachabilityCollector_new(
+        pf->alloc, msgCore, pf->log, pf->base, pf->br, pf->myAddress);
+    rc->userData = pf;
+    rc->onChange = rcChange;
+
+    struct SupernodeHunter* snh = pf->pub.snh = SupernodeHunter_new(
+        pf->alloc, pf->log, pf->base, pf->sp, pf->myPeers, msgCore, pf->myAddress, rc);
 
     pf->ra = ReachabilityAnnouncer_new(
-        pf->alloc, pf->log, pf->base, pf->rand, pf->msgCore, pf->pub.snh, pf->privateKey,
-            pf->myScheme);
-
-    pf->pub.rc = ReachabilityCollector_new(
-        pf->alloc, pf->msgCore, pf->log, pf->base, pf->br, pf->myAddress);
-
-    pf->pub.rc->userData = pf;
-    pf->pub.rc->onChange = rcChange;
+        pf->alloc, pf->log, pf->base, pf->rand, msgCore, snh, pf->privateKey, pf->myScheme);
 
     struct PFChan_Pathfinder_Connect conn = {
         .superiority_be = Endian_hostToBigEndian32(1),

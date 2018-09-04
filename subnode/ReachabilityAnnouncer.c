@@ -381,12 +381,8 @@ static void addServerStateMsg(struct ReachabilityAnnouncer_pvt* rap, struct Mess
 
 void ReachabilityAnnouncer_updatePeer(struct ReachabilityAnnouncer* ra,
                                       uint8_t ipv6[16],
-                                      uint64_t pathThemToUs,
-                                      uint64_t pathUsToThem,
-                                      uint32_t mtu,
-                                      uint16_t drops,
-                                      uint16_t latency,
-                                      uint16_t penalty)
+                                      uint32_t pathThemToUs,
+                                      uint32_t pathUsToThem)
 {
     struct ReachabilityAnnouncer_pvt* rap = Identity_check((struct ReachabilityAnnouncer_pvt*) ra);
 
@@ -394,18 +390,13 @@ void ReachabilityAnnouncer_updatePeer(struct ReachabilityAnnouncer* ra,
     AddrTools_printIp(ipPrinted, ipv6);
     Log_debug(rap->log, "Update peer [%s] [%08llx]", ipPrinted, (long long) pathThemToUs);
 
-    if (pathThemToUs > 0xffffffff) {
-        Log_warn(rap->log, "oversize path for [%08llx]", (long long) pathThemToUs);
-        return;
-    }
-
     struct Announce_Peer refPeer;
     Announce_Peer_init(&refPeer);
     refPeer.label_be = Endian_hostToBigEndian32(pathThemToUs);
-    refPeer.mtu8_be = Endian_hostToBigEndian16((mtu / 8));
-    refPeer.drops_be = Endian_hostToBigEndian16(drops);
-    refPeer.latency_be = Endian_hostToBigEndian16(latency);
-    refPeer.penalty_be = Endian_hostToBigEndian16(penalty);
+    // TODO(cjd): This needs to carry the observed MTU
+    refPeer.mtu8_be = 0;
+    refPeer.unused = 0xffffffff;
+    refPeer.peerNum_be = EncodingScheme_parseDirector(rap->myScheme, pathUsToThem);
     refPeer.encodingFormNum = EncodingScheme_getFormNum(rap->myScheme, pathUsToThem);
     Bits_memcpy(refPeer.ipv6, ipv6, 16);
 
@@ -438,7 +429,7 @@ void ReachabilityAnnouncer_updatePeer(struct ReachabilityAnnouncer* ra,
             return;
         }
         case updatePeer_UPDATE: {
-            if (drops == 0xffff) {
+            if (!pathThemToUs) {
                 Log_debug(rap->log, "update (peergone)");
                 stateUpdate(rap, ReachabilityAnnouncer_State_PEERGONE);
             } else {

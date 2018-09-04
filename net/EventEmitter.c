@@ -160,13 +160,17 @@ static bool PFChan_Core_sizeOk(enum PFChan_Core ev, int size)
         case PFChan_Core_CTRL_MSG:
             return (size >= 8 + PFChan_CtrlMsg_MIN_SIZE);
 
+        case PFChan_Core_LINK_STATE:
+            return (size >= 8 + PFChan_LinkState_Entry_SIZE) &&
+                !((size - 8) % PFChan_LinkState_Entry_SIZE);
+
         default:;
     }
     Assert_failure("invalid event [%d]", ev);
 }
 // Remember to add the event to this function too!
 Assert_compileTime(PFChan_Core__TOO_LOW == 1023);
-Assert_compileTime(PFChan_Core__TOO_HIGH == 1039);
+Assert_compileTime(PFChan_Core__TOO_HIGH == 1040);
 
 static Iface_DEFUN incomingFromCore(struct Message* msg, struct Iface* trickIf)
 {

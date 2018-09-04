@@ -56,6 +56,7 @@ struct MsgCore_Promise
     struct Allocator* alloc;
     void* userData;
     MsgCore_PromiseCb cb;
+    uint32_t lag;
 };
 
 struct MsgCore_Promise* MsgCore_createQuery(struct MsgCore* core,

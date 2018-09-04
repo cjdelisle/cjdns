@@ -80,9 +80,9 @@ static inline void Announce_EncodingScheme_push(struct Message* pushTo, String* 
  *     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  *   0 |     length    |      type     | encodingForm  |     flags     |
  *     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *   4 |      MTU (8 byte units)       |             drops             |
+ *   4 |      MTU (8 byte units)       |          peer number          |
  *     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *   8 |           latency             |            penalty            |
+ *   8 |                            Unused                             |
  *     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  *  12 |                                                               |
  *     +                                                               +
@@ -114,18 +114,12 @@ struct Announce_Peer
     // 0xffff = MTU of 542280 bytes
     uint16_t mtu8_be;
 
-    // Fraction of packets dropped in previous time-window (out of 65k)
+    // Number of the peer in the list, used for referencing in LinkState
     // 0xffff is unknown
-    uint16_t drops_be;
+    uint16_t peerNum_be;
 
-    // Average latency of packets in previous time-window (milliseconds)
-    // 0xffff is unknown
-    uint16_t latency_be;
-
-    // Penalty which would be applied to a packet (with current penalty 0)
-    // if it passes through this link.
-    // 0xffff is unknown
-    uint16_t penalty_be;
+    // 0xffffffff
+    uint32_t unused;
 
     // Ipv6 of a node from which this node is reachable
     uint8_t ipv6[16];
@@ -142,6 +136,38 @@ static inline void Announce_Peer_init(struct Announce_Peer* peer)
     Bits_memset(peer, 0, Announce_Peer_SIZE);
     peer->length = Announce_Peer_SIZE;
     peer->type = Announce_Type_PEER;
+    peer->unused = 0xffffffff;
+    peer->peerNum_be = 0xffff;
+}
+
+/**
+ *                      1               2               3
+ *      0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
+ *     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *   0 |     length    |      type     |     padding   |               |
+ *     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+               +
+ *   4 |                    Compressed Link State.....                 |
+ *     +                                                               +
+ */
+
+struct Announce_LinkState
+{
+    // Length of linkState + 2
+    uint8_t length;
+
+    // Announce_Type_LINK_STATE
+    uint8_t type;
+
+    // number of zero bytes before beginning of packed numbers
+    uint8_t padding;
+
+    // linkState
+    uint8_t linkState[2];
+};
+
+static inline void Announce_LinkState_applyHeader(struct Message* pushTo)
+{
+    Assert_failure("todo implement");
 }
 
 struct Announce_ItemHeader

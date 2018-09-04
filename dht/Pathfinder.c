@@ -453,6 +453,7 @@ static Iface_DEFUN incomingFromEventIf(struct Message* msg, struct Iface* eventI
         case PFChan_Core_PING: return handlePing(msg, pf);
         case PFChan_Core_PONG: return handlePong(msg, pf);
         case PFChan_Core_UNSETUP_SESSION:
+        case PFChan_Core_LINK_STATE:
         case PFChan_Core_CTRL_MSG: return NULL;
         default:;
     }
