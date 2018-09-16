@@ -16,6 +16,7 @@
 #define VarInt_H
 
 #include "util/Bits.h"
+#include "util/Gcc.h"
 
 #include <stdint.h>
 
@@ -68,12 +69,15 @@ static inline int VarInt_pop(struct VarInt_Iter* iter, uint64_t* _out)
             out |= *++bytes; out <<= 8;
             out |= *++bytes; out <<= 8;
             out |= *++bytes; out <<= 8;
+            Gcc_FALLTHRU
         case 0xfe:
             out |= *++bytes; out <<= 8;
             out |= *++bytes; out <<= 8;
+            Gcc_FALLTHRU
         case 0xfd:
             out |= *++bytes; out <<= 8;
             bytes++;
+            Gcc_FALLTHRU
         default:
             out |= *bytes++;
     }
