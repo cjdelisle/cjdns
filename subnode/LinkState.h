@@ -60,6 +60,7 @@ static inline int LinkState_encode(
         err |= VarInt_push(&iter, ls->lagSlots[idx]);
     }
     if (err) { return 1; }
+    if (!count) { return 0; }
 
     // index of the first slot which should be updated when parsing
     Assert_true(!VarInt_push(&iter, (i + 1) % LinkState_SLOTS));
