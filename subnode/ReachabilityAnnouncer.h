@@ -22,6 +22,7 @@
 #include "crypto/random/Random.h"
 #include "subnode/MsgCore.h"
 #include "subnode/SupernodeHunter.h"
+#include "subnode/ReachabilityCollector.h"
 #include "switch/EncodingScheme.h"
 #include "util/Linker.h"
 Linker_require("subnode/ReachabilityAnnouncer.c");
@@ -31,11 +32,10 @@ struct ReachabilityAnnouncer
     int unused;
 };
 
-// (pathThemToUs == 0) -> peer is gone.
+// (pi == NULL) -> peer is gone.
 void ReachabilityAnnouncer_updatePeer(struct ReachabilityAnnouncer* ra,
                                       uint8_t ipv6[16],
-                                      uint32_t pathThemToUs,
-                                      uint32_t pathUsToThem);
+                                      struct ReachabilityCollector_PeerInfo* pi);
 
 struct ReachabilityAnnouncer* ReachabilityAnnouncer_new(struct Allocator* allocator,
                                                         struct Log* log,

@@ -192,7 +192,7 @@ static void updateSnodePath2(Dict* msg, struct Address* src, struct MsgCore_Prom
     }
     struct Address_List* al = ReplySerializer_parse(src, msg, snp->log, false, prom->alloc);
     if (!al || al->length == 0) { return; }
-    Log_debug(snp->log, "Supernode path updated with[%s]",
+    Log_debug(snp->log, "Supernode path updated with [%s]",
                         Address_toString(&al->elems[0], prom->alloc)->bytes);
 
     snp->snodePathUpdated = true;

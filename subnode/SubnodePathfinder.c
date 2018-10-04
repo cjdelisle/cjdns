@@ -254,11 +254,10 @@ static Iface_DEFUN searchReq(struct Message* msg, struct SubnodePathfinder_pvt* 
 
 static void rcChange(struct ReachabilityCollector* rc,
                      uint8_t nodeIpv6[16],
-                     uint32_t pathThemToUs,
-                     uint32_t pathUsToThem)
+                     struct ReachabilityCollector_PeerInfo* pi)
 {
     struct SubnodePathfinder_pvt* pf = Identity_check((struct SubnodePathfinder_pvt*) rc->userData);
-    ReachabilityAnnouncer_updatePeer(pf->ra, nodeIpv6, pathThemToUs, pathUsToThem);
+    ReachabilityAnnouncer_updatePeer(pf->ra, nodeIpv6, pi);
 }
 
 static Iface_DEFUN peer(struct Message* msg, struct SubnodePathfinder_pvt* pf)
@@ -529,7 +528,7 @@ void SubnodePathfinder_start(struct SubnodePathfinder* sp)
         pf->alloc, pf->log, pf->myPeers, pf->myAddress, msgCore, pf->br, pf->myScheme);
 
     struct ReachabilityCollector* rc = pf->pub.rc = ReachabilityCollector_new(
-        pf->alloc, msgCore, pf->log, pf->base, pf->br, pf->myAddress);
+        pf->alloc, msgCore, pf->log, pf->base, pf->br, pf->myAddress, pf->myScheme);
     rc->userData = pf;
     rc->onChange = rcChange;
 

@@ -66,7 +66,9 @@ struct ReachabilityCollector_pvt
     struct BoilerplateResponder* br;
     struct Address* myAddr;
     struct EventBase* base;
+    struct EncodingScheme* myScheme;
     uint32_t resampleCycle;
+    uint32_t linkStateSamples;
 
     struct ArrayList_OfPeerInfo_pvt* piList;
 
@@ -96,7 +98,7 @@ static void change0(struct ReachabilityCollector_pvt* rcp,
                 Address_toString(&pi->pub.addr, tempAlloc)->bytes);
             ArrayList_OfPeerInfo_pvt_remove(rcp->piList, i);
             Allocator_free(pi->alloc);
-            rcp->pub.onChange(&rcp->pub, nodeAddr->ip6.bytes, 0, 0);
+            rcp->pub.onChange(&rcp->pub, nodeAddr->ip6.bytes, NULL);
         } else if (nodeAddr->path != pi->pub.addr.path) {
             Log_debug(rcp->log, "Peer [%s] changed path",
                 Address_toString(&pi->pub.addr, tempAlloc)->bytes);
@@ -104,6 +106,7 @@ static void change0(struct ReachabilityCollector_pvt* rcp,
             pi->pathToCheck = 1;
             pi->pub.querying = true;
             pi->pub.addr.path = nodeAddr->path;
+            pi->pub.linkState.nodeId = EncodingScheme_parseDirector(rcp->myScheme, nodeAddr->path);
             //rcp->pub.onChange(
             //    &rcp->pub, nodeAddr->ip6.bytes, pi->pub.pathThemToUs, nodeAddr->path);
             // Lets leave the peer in the list as working, our path to it changed
@@ -128,6 +131,7 @@ static void change0(struct ReachabilityCollector_pvt* rcp,
     pi->pathToCheck = 1;
     pi->pub.pathThemToUs = -1;
     pi->waitForResponse = false;
+    pi->pub.linkState.nodeId = EncodingScheme_parseDirector(rcp->myScheme, nodeAddr->path);
     ArrayList_OfPeerInfo_pvt_add(rcp->piList, pi);
     Log_debug(rcp->log, "Peer [%s] added", Address_toString(&pi->pub.addr, tempAlloc)->bytes);
     mkNextRequest(rcp);
@@ -217,7 +221,7 @@ static void onReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom
             Log_debug(rcp->log, "Found back-route for [%s]",
                 Address_toString(src, prom->alloc)->bytes);
             pi->pub.pathThemToUs = path;
-            rcp->pub.onChange(&rcp->pub, src->ip6.bytes, path, src->path);
+            rcp->pub.onChange(&rcp->pub, src->ip6.bytes, &pi->pub);
         }
         pi->pub.querying = false;
         mkNextRequest(rcp);
@@ -304,7 +308,7 @@ static void cycle(void* vrc)
 
         if (rcp->resampleCycle < 5) { continue; }
 
-        int sampleNum = pi->pub.linkState.samples % ReachabilityCollector_SLOTS;
+        int sampleNum = rcp->linkStateSamples % LinkState_SLOTS;
 
         uint64_t drops = pi->sumOfDrops - pi->sumOfDropsLastSlot;
         uint64_t packets = pi->sumOfPackets - pi->sumOfPacketsLastSlot;
@@ -319,9 +323,12 @@ static void cycle(void* vrc)
         pi->sumOfLag = 0;
         pi->lagSamples = 0;
 
-        pi->pub.linkState.samples++;
+        pi->pub.linkState.samples = rcp->linkStateSamples + 1;
     }
-    if (rcp->resampleCycle >= 5) { rcp->resampleCycle = 0; }
+    if (rcp->resampleCycle >= 5) {
+        rcp->resampleCycle = 0;
+        rcp->linkStateSamples++;
+    }
 }
 
 struct ReachabilityCollector_PeerInfo*
@@ -359,8 +366,7 @@ void ReachabilityCollector_updateBandwidthAndDrops(
 static void dummyOnChange(
     struct ReachabilityCollector* rc,
     uint8_t nodeIpv6[16],
-    uint32_t pathThemToUs,
-    uint32_t pathUsToThem)
+    struct ReachabilityCollector_PeerInfo* pi)
 {
     struct ReachabilityCollector_pvt* rcp = Identity_check((struct ReachabilityCollector_pvt*) rc);
     Log_debug(rcp->log, "dummyOnChange called, onChange unassigned");
@@ -371,7 +377,8 @@ struct ReachabilityCollector* ReachabilityCollector_new(struct Allocator* alloca
                                                         struct Log* log,
                                                         struct EventBase* base,
                                                         struct BoilerplateResponder* br,
-                                                        struct Address* myAddr)
+                                                        struct Address* myAddr,
+                                                        struct EncodingScheme* myScheme)
 {
     struct Allocator* alloc = Allocator_child(allocator);
     struct ReachabilityCollector_pvt* rcp =
@@ -384,6 +391,7 @@ struct ReachabilityCollector* ReachabilityCollector_new(struct Allocator* alloca
     rcp->br = br;
     rcp->base = base;
     rcp->pub.onChange = dummyOnChange;
+    rcp->myScheme = myScheme;
     Identity_set(rcp);
     Timeout_setInterval(cycle, rcp, 2000, base, alloc);
     return &rcp->pub;

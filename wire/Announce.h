@@ -28,7 +28,8 @@
 enum Announce_Type {
     Announce_Type_ENCODING_SCHEME,
     Announce_Type_PEER,
-    Announce_Type_VERSION
+    Announce_Type_VERSION,
+    Announce_Type_LINK_STATE
 };
 
 struct Announce_Version
@@ -44,7 +45,7 @@ struct Announce_Version
 #define Announce_Version_SIZE 4
 Assert_compileTime(sizeof(struct Announce_Version) == Announce_Version_SIZE);
 
-static void Announce_Version_init(struct Announce_Version* v)
+static inline void Announce_Version_init(struct Announce_Version* v)
 {
     v->length = Announce_Version_SIZE;
     v->type = Announce_Type_VERSION;
@@ -152,7 +153,7 @@ static inline void Announce_Peer_init(struct Announce_Peer* peer)
 
 struct Announce_LinkState
 {
-    // Length of linkState + 2
+    // Length of linkState + 3
     uint8_t length;
 
     // Announce_Type_LINK_STATE
@@ -162,7 +163,7 @@ struct Announce_LinkState
     uint8_t padding;
 
     // linkState
-    uint8_t linkState[2];
+    uint8_t linkState[1];
 };
 
 static inline void Announce_LinkState_applyHeader(struct Message* pushTo)

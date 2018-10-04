@@ -28,6 +28,13 @@ struct VarInt_Iter {
     uint8_t* start;
 };
 
+static inline void VarInt_clone(struct VarInt_Iter* out, const struct VarInt_Iter* in)
+{
+    out->ptr = in->ptr;
+    out->start = in->start;
+    out->end = in->end;
+}
+
 static inline void VarInt_mk(struct VarInt_Iter* out, uint8_t* ptr, int length)
 {
     out->ptr = ptr;
@@ -48,6 +55,11 @@ static inline void VarInt_toEnd(struct VarInt_Iter* iter)
 static inline int VarInt_hasMore(struct VarInt_Iter* iter)
 {
     return iter->end > iter->ptr;
+}
+
+static inline int VarInt_sizeOf(uint64_t val)
+{
+    return (!!(val >> 32)) * 4 + (!!(val >> 16)) * 2 + (!!((val + 3) >> 8)) + 1;
 }
 
 static inline int VarInt_pop(struct VarInt_Iter* iter, uint64_t* _out)
@@ -98,8 +110,7 @@ static inline int VarInt_push(struct VarInt_Iter* iter, uint64_t val)
             } else if (val > 0xffff) { return -1; }
         } else if (val > 0xffffffff) { return -1; }
     }
-    // 1, 2, 4, 8
-    int i = (!!(val >> 32)) * 4 + (!!(val >> 16)) * 2 + (!!((val + 3) >> 8)) + 1;
+    int i = VarInt_sizeOf(val);
     for (int j = 0; j < i; j++) { *--ptr = val & 0xff; val >>= 8; }
     switch (i) {
         case 8: *--ptr = 0xff; break;

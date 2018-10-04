@@ -30,7 +30,7 @@ struct Context {
 static List* numList(void* buf, uint32_t numberSz, struct Allocator* alloc)
 {
     List* l = List_new(alloc);
-    for (int i = 0; i < ReachabilityCollector_SLOTS; i++) {
+    for (int i = 0; i < LinkState_SLOTS; i++) {
         int64_t num;
         if (numberSz == 2) {
             num = ((uint16_t*)buf)[i];

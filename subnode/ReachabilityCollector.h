@@ -22,8 +22,6 @@
 #include "util/Linker.h"
 Linker_require("subnode/ReachabilityCollector.c");
 
-#define ReachabilityCollector_SLOTS 18
-
 struct ReachabilityCollector_PeerInfo
 {
     // Address of the peer from us
@@ -39,10 +37,10 @@ struct ReachabilityCollector_PeerInfo
 
 struct ReachabilityCollector;
 
+// pi == NULL -> peer dropped
 typedef void (* ReachabilityCollector_OnChange)(struct ReachabilityCollector* rc,
-                                                uint8_t nodeIpv6[16],
-                                                uint32_t pathThemToUs,
-                                                uint32_t pathUsToThem);
+                                                uint8_t ipv6[16],
+                                                struct ReachabilityCollector_PeerInfo* pi);
 
 struct ReachabilityCollector
 {
@@ -71,6 +69,7 @@ struct ReachabilityCollector* ReachabilityCollector_new(struct Allocator* alloca
                                                         struct Log* log,
                                                         struct EventBase* base,
                                                         struct BoilerplateResponder* br,
-                                                        struct Address* myAddr);
+                                                        struct Address* myAddr,
+                                                        struct EncodingScheme* myScheme);
 
 #endif
