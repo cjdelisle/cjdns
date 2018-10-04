@@ -112,6 +112,7 @@ struct Allocator_Allocation
 {
     unsigned long size;
 };
+#define Allocator_Allocation_SIZE __SIZEOF_LONG__
 
 /**
  * Get a child of a given allocator.
