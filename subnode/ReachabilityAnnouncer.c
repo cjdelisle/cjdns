@@ -379,6 +379,11 @@ static void stateReset(struct ReachabilityAnnouncer_pvt* rap)
 
     loadAllState(rap, false);
     rap->resetState = true;
+
+    for (int i = 0; i < rap->localPeers->length; i++) {
+        struct ReachabilityAnnouncer_Peer* p = ArrayList_OfLocalPeers_get(rap->localPeers, i);
+        p->samplesAnnounced = 0;
+    }
 }
 
 static void addServerStateMsg(struct ReachabilityAnnouncer_pvt* rap, struct Message* msg)

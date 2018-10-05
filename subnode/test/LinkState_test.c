@@ -17,6 +17,7 @@
 #include "subnode/LinkState.h"
 #include "util/Assert.h"
 #include "wire/Message.h"
+#include "util/Hex.h"
 
 #define CYCLES 10
 
@@ -109,8 +110,41 @@ static void assertSame(struct LinkState* beforeState,
     Assert_true(!Bits_memcmp(&local, updated, sizeof(struct LinkState)));
 }
 
+static void testStatic()
+{
+    uint8_t* hex =
+        "\x20\x03\x06\x00\x00\x00\x00\x00\x00"
+        "\x04"  "\x10"
+        "\x13\x00\x01"
+        "\x12\x00\x02"
+        "\x13\x00\x02"
+        "\x13\x00\x00"
+        "\x14\x00\x03"
+        "\x12\x00\x01"
+        "\x13\x00\x01";
+    struct LinkState ls = { .nodeId = 0 };
+    struct VarInt_Iter it = { .start = 0 };
+    struct Message msg = { .length = 32, .bytes = hex };
+    Assert_true(!LinkState_mkDecoder(&msg, &it));
+    Assert_true(!LinkState_decode(&it, &ls));
+    // printf("%u %u\n", ls.nodeId, ls.samples);
+    // for (int i = 0; i < LinkState_SLOTS; i++) {
+    //     printf("%u %u %u\n", ls.lagSlots[i], ls.dropSlots[i], ls.kbRecvSlots[i]);
+    // }
+
+    struct LinkState gold = {
+        .nodeId = 4,
+        .samples = 7,
+        .lagSlots = { 19, 19, 20, 18, 19, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 19, 18 },
+        .dropSlots = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+        .kbRecvSlots = { 2, 0, 3, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2 },
+    };
+    Assert_true(!Bits_memcmp(&ls, &gold, sizeof(struct LinkState)));
+}
+
 int main(int argc, char* argv[])
 {
+    testStatic();
     struct Allocator* mainAlloc = MallocAllocator_new(1<<18);
     struct Random* rand = Random_new(mainAlloc, NULL, NULL);
 
