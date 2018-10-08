@@ -447,7 +447,9 @@ void ReachabilityAnnouncer_updatePeer(struct ReachabilityAnnouncer* ra,
         // TODO(cjd): This needs to carry the observed MTU
         refPeer.mtu8_be = 0;
         refPeer.unused = 0xffffffff;
-        refPeer.peerNum_be = EncodingScheme_parseDirector(rap->myScheme, pi->addr.path);
+        refPeer.peerNum_be = Endian_hostToBigEndian16(
+            EncodingScheme_parseDirector(rap->myScheme, pi->addr.path)
+        );
         refPeer.encodingFormNum = EncodingScheme_getFormNum(rap->myScheme, pi->addr.path);
     }
     Bits_memcpy(refPeer.ipv6, ipv6, 16);
