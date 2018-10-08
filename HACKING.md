@@ -10,6 +10,16 @@ Small patches are easy to include and large ones are hard to validate. Consider
 breaking your evil plans up into a bunch of nice little changes which are easy
 to understand and prove safe.
 
+Minutiae:
+---------
+
+* Cjdns has no issue tracker, this is on purpose, it's for the same reasons that
+[git has no issue tracker](https://apenwarr.ca/log/20080628).
+* Everything gets merged to the `crashey` branch, merges to master **only**
+happen during releases, so making your pull requests against `crashey` is nicest.
+* Discussion happens on IRC, you can either start by joining and suggesting the
+change you want to make (or asking if anyone wants to make it for you) or you
+can do some work, make a pull request and begin the conversation on github.
 
 Codestyle:
 ----------
