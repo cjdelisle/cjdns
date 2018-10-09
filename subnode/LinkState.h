@@ -31,6 +31,7 @@ struct LinkState {
     uint32_t kbRecvSlots[LinkState_SLOTS];
     uint32_t samples;
     uint16_t nodeId;
+    uint16_t _pad;
 };
 
 static inline int LinkState_encode(
