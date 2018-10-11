@@ -194,6 +194,23 @@ static int convertLabel(struct EncodingScheme_Form* iform,
 
     uint64_t additional = label >> s.forms[0].prefixLen;
     uint64_t director = additional & Bits_maxBits64(s.forms[0].bitCount);
+
+    if (!EncodingScheme_is358(&s.scheme)) {
+    } else if (1 == (s.forms[0].prefix & Bits_maxBits64(s.forms[0].prefixLen))) {
+        director = director - (director == 1) + (director == 0);
+    } else {
+        director += (director > 0);
+    }
+
+    // here is where the director is actually correct
+
+    if (!EncodingScheme_is358(&s.scheme)) {
+    } else if (1 == (s.forms[1].prefix & Bits_maxBits64(s.forms[1].prefixLen))) {
+        director = director - (director == 1) + (director == 0);
+    } else {
+        director -= (director > 0);
+    }
+
     additional = additional >> s.forms[0].bitCount;
 
     uint64_t converted = (additional << s.forms[1].bitCount) | director;
@@ -205,6 +222,7 @@ static int convertLabel(struct EncodingScheme_Form* iform,
         return convertLabel_SELF_ROUTE;
     }
 
+    //printf("%lx == %lx", label2, converted);
     Assert_true(label2 == converted);
 
     uint64_t label3 = EncodingScheme_convertLabel(scheme, label2, iformNum);
@@ -274,6 +292,79 @@ static void isOneHopScheme(struct Allocator* allocator)
     Allocator_free(alloc);
 }
 
+typedef uint64_t (* EncodeNum)(uint32_t num);
+typedef uint32_t (* DecodeNum)(uint64_t label);
+static uint64_t encode358(uint32_t num)
+{
+    uint32_t bits = NumberCompress_v3x5x8_bitsUsedForNumber(num);
+    return NumberCompress_v3x5x8_getCompressed(num, bits);
+}
+static uint32_t decode358(uint64_t label)
+{
+    uint32_t bits = NumberCompress_v3x5x8_bitsUsedForLabel(label);
+    return NumberCompress_v3x5x8_getDecompressed(label, bits);
+}
+static uint64_t encode48(uint32_t num)
+{
+    uint32_t bits = NumberCompress_v4x8_bitsUsedForNumber(num);
+    return NumberCompress_v4x8_getCompressed(num, bits);
+}
+static uint32_t decode48(uint64_t label)
+{
+    uint32_t bits = NumberCompress_v4x8_bitsUsedForLabel(label);
+    return NumberCompress_v4x8_getDecompressed(label, bits);
+}
+
+static uint64_t encodef4(uint32_t num)
+{
+    uint32_t bits = NumberCompress_f4_bitsUsedForNumber(num);
+    return NumberCompress_f4_getCompressed(num, bits);
+}
+static uint32_t decodef4(uint64_t label)
+{
+    uint32_t bits = NumberCompress_f4_bitsUsedForLabel(label);
+    return NumberCompress_f4_getDecompressed(label, bits);
+}
+
+static void parseSerializeDir(struct EncodingScheme* scheme, EncodeNum en, DecodeNum dn)
+{
+    int max = Bits_maxBits64(scheme->forms[scheme->count - 1].bitCount);
+    for (int i = 0; i <= max; i++) {
+        //printf("\nTest [%d]\n", i);
+        uint64_t dir = EncodingScheme_serializeDirector(scheme, i, -1);
+        //printf("[%lu] == [%lu] (%d)\n", dir, en(i), i);
+        Assert_true(dir == en(i));
+        if (dir < ~0ull) {
+            int out = EncodingScheme_parseDirector(scheme, dir);
+            //printf("Test [%d] == [%u] decode(%lu)\n", i, (uint32_t)dn(dir), dir);
+            Assert_true((uint32_t)i == dn(dir));
+            //printf("[%d] == [%d]\n", i, out);
+            Assert_true(i == out);
+        }
+        for (int j = 0; j < scheme->count; j++) {
+            if (i >> scheme->forms[j].bitCount) { continue; }
+            //printf(" With form [%d]\n", j);
+            dir = scheme->forms[j].prefix | ( i << scheme->forms[j].prefixLen );
+            int out = EncodingScheme_parseDirector(scheme, dir);
+            Assert_true(out >= 0);
+            uint64_t dir2 = EncodingScheme_serializeDirector(scheme, out, j);
+            //printf(" [%lu] == [%lu] encode(%d)\n", dir2, dir, out);
+            Assert_true(dir2 == dir);
+        }
+    }
+}
+
+static void bitsUsed(struct EncodingScheme* es, DecodeNum getBits, struct Random* rand)
+{
+    uint64_t label = Random_uint64(rand);
+    int fn = EncodingScheme_getFormNum(es, label);
+    Assert_true(fn > -1);
+    uint32_t bits = getBits(label);
+    uint32_t esbits = es->forms[fn].bitCount + es->forms[fn].prefixLen;
+    //printf("%lx %u %u\n", label, bits, esbits);
+    Assert_true(bits == esbits);
+}
+
 int main()
 {
     struct Allocator* alloc = MallocAllocator_new(20000000);
@@ -290,6 +381,21 @@ int main()
         fuzzTest(alloc, rand);
     }
 
+    struct EncodingScheme* es48 = NumberCompress_v4x8_defineScheme(alloc);
+    struct EncodingScheme* es358 = NumberCompress_v3x5x8_defineScheme(alloc);
+    struct EncodingScheme* esf4 = NumberCompress_f4_defineScheme(alloc);
+
+    for (int i = 0; i < 1000; i++) {
+        bitsUsed(es48, NumberCompress_v4x8_bitsUsedForLabel, rand);
+    }
+    for (int i = 0; i < 1000; i++) {
+        bitsUsed(es358, NumberCompress_v3x5x8_bitsUsedForLabel, rand);
+    }
+
+    parseSerializeDir(es358, encode358, decode358);
+    parseSerializeDir(es48, encode48, decode48);
+    parseSerializeDir(esf4, encodef4, decodef4);
+
     // for testing individual conversions in isolation.
     /*convertLabel(
         &(struct EncodingScheme_Form){.bitCount = 15, .prefixLen = 20, .prefix = 792003},
@@ -301,6 +407,8 @@ int main()
         struct Allocator* tempAlloc = Allocator_child(alloc);
         struct EncodingScheme* scheme = randomScheme(rand, tempAlloc);
         convertLabelRand(rand, scheme);
+        convertLabelRand(rand, es48);
+        convertLabelRand(rand, es358);
         Allocator_free(tempAlloc);
     }
 

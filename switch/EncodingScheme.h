@@ -112,4 +112,10 @@ int EncodingScheme_isOneHop(struct EncodingScheme* scheme, uint64_t routeLabel);
 #define EncodingScheme_parseDirector_INVALID -1
 int EncodingScheme_parseDirector(struct EncodingScheme* scheme, uint64_t label);
 
+uint64_t EncodingScheme_serializeDirector(struct EncodingScheme* scheme, int number, int formNum);
+
+// Return true if the encoding scheme is the legacy 358 encoding scheme
+// which gets special treatment.
+bool EncodingScheme_is358(struct EncodingScheme* scheme);
+
 #endif

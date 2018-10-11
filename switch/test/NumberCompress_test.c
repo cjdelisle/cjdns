@@ -88,6 +88,7 @@ static void numberCompressions_generic(
                 int bitsB = bitsUsedForLabel(labelB);
                 Assert_true(bitsB == scheme->forms[k].prefixLen + scheme->forms[k].bitCount
                     || (i == 1 && bitsB == 4));
+                //printf("%u == %u (%lu / %d)\n", i, getDecompressed(labelB, bitsB), labelB, bitsB);
                 Assert_true(i == getDecompressed(labelB, bitsB));
 
                 uint64_t labelC = EncodingScheme_convertLabel(scheme, labelB, j);

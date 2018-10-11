@@ -273,7 +273,7 @@ static inline uint32_t NumberCompress_v4x8_bitsUsedForLabel(const uint64_t label
 static inline uint32_t NumberCompress_v4x8_bitsUsedForNumber(const uint32_t number)
 {
     Assert_ifTesting(number < 256);
-    return (number < 15) ? 5 : 9;
+    return (number < 16) ? 5 : 9;
 }
 
 #define NumberCompress_MKNAME(x) NumberCompress__MKNAME(NumberCompress_TYPE, x)
