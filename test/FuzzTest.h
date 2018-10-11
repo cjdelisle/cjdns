@@ -15,18 +15,11 @@
 #ifndef FuzzTest_H
 #define FuzzTest_H
 
+#include "memory/Allocator.h"
+#include "crypto/random/Random.h"
 #include "wire/Message.h"
-#include "util/Linker.h"
-
-struct FuzzTest
-{
-    char* name;
-    struct Message* fuzz;
-    struct FuzzTest* next;
-};
 
 void CJDNS_FUZZ_MAIN(void* vctx, struct Message* fuzz);
-struct FuzzTest* CJDNS_FUZZ_MK(struct Allocator* alloc);
 void* CJDNS_FUZZ_INIT(struct Allocator* alloc, struct Random* rand);
 
 #endif

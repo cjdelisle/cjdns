@@ -15,30 +15,7 @@
 #include "benc/serialization/json/JsonBencMessageReader.h"
 #include "crypto/random/Random.h"
 #include "memory/Allocator.h"
-#include "memory/MallocAllocator.h"
-#include "util/Bits.h"
-#include "util/Identity.h"
-#include "util/log/FileWriterLog.h"
-#include "util/CString.h"
-#include "util/events/EventBase.h"
-#include "crypto/random/test/DeterminentRandomSeed.h"
 #include "test/FuzzTest.h"
-#include "util/Js.h"
-
-Js({ file.lib = require('benc/serialization/json/test/JsonBencMessageReader_fuzzGen.js'); })
-
-struct FuzzTest* CJDNS_FUZZ_MK(struct Allocator* alloc)
-{
-    int len = 0;
-    Js({ return 'len=' + file.lib.defaultConfLen(); });
-    struct Message* msg = Message_new(len, 0, alloc);
-    uint8_t* x = msg->bytes;
-    Js({ return file.lib.defaultConf("x"); });
-    struct FuzzTest* out = Allocator_calloc(alloc, sizeof(struct FuzzTest), 1);
-    out->name = "JsonBencMessageReader_default";
-    out->fuzz = msg;
-    return out;
-}
 
 void CJDNS_FUZZ_MAIN(void* vctx, struct Message* fuzz)
 {

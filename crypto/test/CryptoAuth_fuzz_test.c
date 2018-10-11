@@ -267,16 +267,6 @@ static void mainLoop(struct Context* ctx)
     Assert_failure("Nodes could not sync");
 }
 
-struct FuzzTest* CJDNS_FUZZ_MK(struct Allocator* alloc)
-{
-    struct Message* msg = Message_new(64, 0, alloc);
-    Bits_memset(msg->bytes, 0, 64);
-    struct FuzzTest* out = Allocator_calloc(alloc, sizeof(struct FuzzTest), 1);
-    out->name = "CryptoAuth_fuzz_test_default";
-    out->fuzz = msg;
-    return out;
-}
-
 void* CJDNS_FUZZ_INIT(struct Allocator* alloc, struct Random* rand)
 {
     struct Context* ctx = Allocator_calloc(alloc, sizeof(struct Context), 1);

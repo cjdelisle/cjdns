@@ -24,16 +24,6 @@
 #define Map_ENABLE_HANDLES
 #include "util/Map.h"
 
-struct FuzzTest* CJDNS_FUZZ_MK(struct Allocator* alloc)
-{
-    struct Message* msg = Message_new(0, 2, alloc);
-    Message_push16(msg, 500, NULL);
-    struct FuzzTest* out = Allocator_calloc(alloc, sizeof(struct FuzzTest), 1);
-    out->name = "Map_fuzz_test_default";
-    out->fuzz = msg;
-    return out;
-}
-
 void* CJDNS_FUZZ_INIT(struct Allocator* alloc, struct Random* rand)
 {
     return alloc;

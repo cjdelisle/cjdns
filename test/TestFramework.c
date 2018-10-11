@@ -15,7 +15,9 @@
 #include "crypto/random/Random.h"
 #include "crypto/CryptoAuth.h"
 #include "crypto/AddressCalc.h"
+#ifndef SUBNODE
 #include "dht/Pathfinder.h"
+#endif
 #include "io/Writer.h"
 #include "io/FileWriter.h"
 #include "util/log/Log.h"
@@ -128,11 +130,15 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
     Iface_plumb(&spfAsync->ifA, &spf->eventIf);
     EventEmitter_regPathfinderIface(nc->ee, &spfAsync->ifB);
 
-    struct Pathfinder* pf = Pathfinder_register(allocator, logger, base, rand, NULL);
-    pf->fullVerify = true;
-    struct ASynchronizer* pfAsync = ASynchronizer_new(allocator, base, logger);
-    Iface_plumb(&pfAsync->ifA, &pf->eventIf);
-    EventEmitter_regPathfinderIface(nc->ee, &pfAsync->ifB);
+    #ifndef SUBNODE
+        struct Pathfinder* pf = Pathfinder_register(allocator, logger, base, rand, NULL);
+        pf->fullVerify = true;
+        struct ASynchronizer* pfAsync = ASynchronizer_new(allocator, base, logger);
+        Iface_plumb(&pfAsync->ifA, &pf->eventIf);
+        EventEmitter_regPathfinderIface(nc->ee, &pfAsync->ifB);
+    #endif
+
+    SubnodePathfinder_start(spf);
 
     struct TestFramework* tf = Allocator_calloc(allocator, sizeof(struct TestFramework), 1);
     Identity_set(tf);
@@ -144,7 +150,10 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
     tf->tunIf = &nc->tunAdapt->tunIf;
     tf->publicKey = nc->myAddress->key;
     tf->ip = nc->myAddress->ip6.bytes;
+    #ifndef SUBNODE
     tf->pathfinder = pf;
+    #endif
+    tf->subnodePathfinder = spf;
     tf->scheme = scheme;
 
     return tf;

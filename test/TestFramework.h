@@ -26,7 +26,12 @@ struct TestFramework
     struct Random* rand;
     struct EventBase* eventBase;
     struct Log* logger;
+
+    #ifndef SUBNODE
     struct Pathfinder* pathfinder;
+    #endif
+    struct SubnodePathfinder* subnodePathfinder;
+
     struct Iface* tunIf;
     struct NetCore* nc;
     struct EncodingScheme* scheme;

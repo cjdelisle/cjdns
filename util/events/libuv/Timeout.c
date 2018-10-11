@@ -32,8 +32,35 @@ struct Timeout
 
     struct Allocator* alloc;
 
+    struct Timeout* next;
+    struct Timeout** selfPtr;
+    struct EventBase_pvt* base;
+
     Identity
 };
+
+static void link(struct Timeout* timeout)
+{
+    timeout->next = (struct Timeout*) timeout->base->timeouts;
+    if (timeout->next) {
+        timeout->next->selfPtr = &timeout->next;
+    }
+    timeout->base->timeouts = timeout;
+    timeout->selfPtr = (struct Timeout**) &timeout->base->timeouts;
+}
+
+static void unlink(struct Timeout* timeout)
+{
+    if (timeout->selfPtr) {
+        *timeout->selfPtr = timeout->next;
+        if (timeout->next) {
+            Assert_true(&timeout->next == timeout->next->selfPtr);
+            timeout->next->selfPtr = timeout->selfPtr;
+            timeout->next = NULL;
+        }
+        timeout->selfPtr = NULL;
+    }
+}
 
 /**
  * The callback to be called by libuv.
@@ -55,6 +82,7 @@ static void onFree2(uv_handle_t* timer)
 static int onFree(struct Allocator_OnFreeJob* job)
 {
     struct Timeout* t = Identity_check((struct Timeout*) job->userData);
+    unlink(t);
     t->timer.data = job;
     uv_close((uv_handle_t*) &t->timer, onFree2);
     return Allocator_ONFREE_ASYNC;
@@ -91,6 +119,7 @@ static struct Timeout* setTimeout(void (* const callback)(void* callbackContext)
     timeout->milliseconds = milliseconds;
     timeout->alloc = alloc;
     timeout->isInterval = interval;
+    timeout->base = base;
     Identity_set(timeout);
 
     uv_timer_init(base->loop, &timeout->timer);
@@ -99,6 +128,8 @@ static struct Timeout* setTimeout(void (* const callback)(void* callbackContext)
     timeout->timer.data = timeout;
 
     Allocator_onFree(alloc, onFree, timeout);
+
+    link(timeout);
 
     return timeout;
 }
@@ -132,13 +163,33 @@ void Timeout_resetTimeout(struct Timeout* timeout,
                           const uint64_t milliseconds)
 {
     Timeout_clearTimeout(timeout);
+    link(timeout);
     uv_timer_start(&timeout->timer, handleEvent, milliseconds, 0);
 }
 
 /** See: Timeout.h */
 void Timeout_clearTimeout(struct Timeout* timeout)
 {
+    unlink(timeout);
     if (!uv_is_closing((uv_handle_t*) &timeout->timer)) {
         uv_timer_stop(&timeout->timer);
     }
+}
+
+void Timeout_clearAll(struct EventBase* eventBase)
+{
+    struct EventBase_pvt* base = EventBase_privatize(eventBase);
+    struct Timeout* to = base->timeouts;
+    if (!to) { return; }
+    while (to) {
+        struct Timeout* next = to->next;
+        Timeout_clearTimeout(to);
+        to = next;
+    }
+    Assert_true(!base->timeouts);
+}
+
+int Timeout_isActive(struct Timeout* timeout)
+{
+    return (timeout && timeout->selfPtr);
 }

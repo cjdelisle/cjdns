@@ -48,14 +48,17 @@ static const struct {
     Test func;
     char* name;
 } TESTS[] = { Js({ return file.testcjdroute_tests }) };
+static const int TEST_COUNT = (int) (sizeof(TESTS) / sizeof(*TESTS));
 
 static const struct {
     FuzzTestInit init;
     FuzzTest fuzz;
-    MkFuzz mkFuzz;
     char* name;
 } FUZZ_TESTS[] = { Js({ return file.testcjdroute_fuzzTests }) };
 static const int FUZZ_TEST_COUNT = (int) (sizeof(FUZZ_TESTS) / sizeof(*FUZZ_TESTS));
+
+static const char* FUZZ_CASES[] = { Js({ return file.testcjdroute_fuzzCases }) };
+static const int FUZZ_CASE_COUNT = (int) (sizeof(FUZZ_CASES) / sizeof(*FUZZ_CASES));
 
 static uint64_t runTest(Test test,
                         char* name,
@@ -82,8 +85,12 @@ static void usage(char* appName)
     printf("%s <test>     run one test\n", appName);
     printf("%s all        run every test\n\n", appName);
     printf("Available Tests:\n");
-    for (int i = 0; i < (int)(sizeof(TESTS)/sizeof(*TESTS)); i++) {
+    for (int i = 0; i < TEST_COUNT; i++) {
         printf("%s\n", TESTS[i].name);
+    }
+    printf("Available Fuzz Tests:\n");
+    for (int i = 0; i < FUZZ_CASE_COUNT; i++) {
+        printf("%s fuzz < %s\n", appName, FUZZ_CASES[i]);
     }
 }
 
@@ -95,7 +102,7 @@ static struct Message* readStdin(struct Allocator* alloc)
         printf("No test files over 4096 bytes\n");
         length = 0;
     }
-    struct Message* msg = Message_new(length, 0, alloc);
+    struct Message* msg = Message_new(length, 128, alloc);
     Bits_memcpy(msg->bytes, buff, length);
     return msg;
 }
@@ -152,7 +159,7 @@ static int fuzzMain()
     Allocator_free(alloc);
     return 0;
 }
-
+/*
 static int mkFuzz()
 {
     struct Allocator* alloc = MallocAllocator_new(1<<24);
@@ -173,11 +180,10 @@ static int mkFuzz()
         Allocator_free(child);
     }
     return 0;
-}
+}*/
 
 int main(int argc, char** argv)
 {
-    if (argc > 1 && !CString_strcmp("mkfuzz", argv[1])) { return mkFuzz(); }
     if (argc > 1 && !CString_strcmp("fuzz", argv[1])) { return fuzzMain(); }
     struct Allocator* alloc = MallocAllocator_new(4096);
     struct EventBase* base = EventBase_new(alloc);

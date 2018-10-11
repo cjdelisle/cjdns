@@ -13,18 +13,18 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "crypto/Key.h"
-//#include "io/FileWriter.h"
+#include "io/FileWriter.h"
 //#include "memory/MallocAllocator.h"
 #include "memory/Allocator.h"
 #include "crypto/random/Random.h"
 #include "interface/Iface.h"
 //#include "util/Base32.h"
 #include "util/Checksum.h"
-//#include "util/log/WriterLog.h"
+#include "util/log/WriterLog.h"
 #include "test/TestFramework.h"
 #include "wire/Headers.h"
-//#include "wire/Ethernet.h"
-//#include "interface/tuntap/TUNMessageType.h"
+#include "wire/Ethernet.h"
+#include "interface/tuntap/TUNMessageType.h"
 //#include "util/Hex.h"
 #include "util/events/Time.h"
 #include "util/events/Timeout.h"
@@ -71,6 +71,7 @@ static void notLinkedYet(struct Context* ctx)
 static void checkLinkage(void* vContext)
 {
     struct Context* ctx = Identity_check((struct Context*) vContext);
+    Log_debug(ctx->logger, "Check linkage");
 
     if (!ctx->beaconsSent) {
         if (Pathfinder_getNodeStore(ctx->nodeA->pathfinder) &&
@@ -82,7 +83,6 @@ static void checkLinkage(void* vContext)
         }
         return;
     }
-
 
     if (Pathfinder_getNodeStore(ctx->nodeA->pathfinder)->nodeCount < 2) {
         notLinkedYet(ctx);
@@ -96,7 +96,9 @@ static void checkLinkage(void* vContext)
     Log_debug(ctx->logger, "B seems to be linked with A");
     Log_debug(ctx->logger, "\n\nSetup Complete\n\n");
 
-    Timeout_clearTimeout(ctx->checkLinkageTimeout);
+    //Timeout_clearTimeout(ctx->checkLinkageTimeout);
+    //EventBase_endLoop(ctx->base);
+    Timeout_clearAll(ctx->base);
 }
 
 /*
@@ -121,21 +123,12 @@ static void runTest(struct Context* tn)
 }
 */
 
-struct FuzzTest* CJDNS_FUZZ_MK(struct Allocator* alloc)
-{
-    struct Message* msg = Message_new(0, 2, alloc);
-    Message_push16(msg, 500, NULL);
-    struct FuzzTest* out = Allocator_calloc(alloc, sizeof(struct FuzzTest), 1);
-    out->name = "Map_fuzz_test_default";
-    out->fuzz = msg;
-    return out;
-}
 
 void* CJDNS_FUZZ_INIT(struct Allocator* alloc, struct Random* rand)
 {
-    struct Log* logger = NULL;
-    //struct Writer* logwriter = FileWriter_new(stdout, alloc);
-    //struct Log* logger = WriterLog_new(logwriter, alloc);
+    struct Writer* logwriter = FileWriter_new(stdout, alloc);
+    struct Log* logger = WriterLog_new(logwriter, alloc);
+
     struct EventBase* base = EventBase_new(alloc);
     struct Context* ctx = Allocator_calloc(alloc, sizeof(struct Context), 1);
     Identity_set(ctx);
@@ -172,6 +165,7 @@ void* CJDNS_FUZZ_INIT(struct Allocator* alloc, struct Random* rand)
 
 void CJDNS_FUZZ_MAIN(void* vctx, struct Message* msg)
 {
+    printf("\n\nEnter main\n\n");
     struct Context* ctx = Identity_check((struct Context*) vctx);
     struct TestFramework* from = ctx->nodeA;
     struct TestFramework* to = ctx->nodeB;
@@ -185,7 +179,12 @@ void CJDNS_FUZZ_MAIN(void* vctx, struct Message* msg)
         struct RouteHeader* rh = (struct RouteHeader*) msg->bytes;
         if (!Bits_isZero(rh->ip6, 16)) { Bits_memcpy(rh->ip6, to->ip, 16); }
         if (!Bits_isZero(rh->publicKey, 32)) { Bits_memcpy(rh->publicKey, to->publicKey, 32); }
-        rh->sh.label_be = EncodingScheme_serializeDirector(from->scheme, 1, -1);
+
+        uint64_t label = EncodingScheme_serializeDirector(from->scheme, 0, -1);
+        int f = EncodingScheme_getFormNum(from->scheme, label);
+        label |= 1 << (from->scheme->forms[f].prefixLen + from->scheme->forms[f].bitCount);
+        rh->sh.label_be = Endian_hostToBigEndian64(label);
+        SwitchHeader_setLabelShift(&rh->sh, 0);
     }
 
     // We're not limited to sending data types which we have registered for
@@ -204,9 +203,23 @@ void CJDNS_FUZZ_MAIN(void* vctx, struct Message* msg)
     Bits_memcpy(&srcAndDest, from->ip, 16);
     uint16_t checksum = Checksum_udpIp6(srcAndDest, msg->bytes, msg->length);
     ((struct Headers_UDPHeader*)msg->bytes)->checksum_be = checksum;
+
     TestFramework_craftIPHeader(msg, srcAndDest, &srcAndDest[16]);
+    ((struct Headers_IP6Header*) msg->bytes)->nextHeader = 17;
+
+    TUNMessageType_push(msg, Ethernet_TYPE_IP6, NULL);
 
     Iface_send(&ctx->tunA, Message_clone(msg, from->alloc));
 
     TestFramework_assertLastMessageUnaltered(ctx->nodeA);
+
+    printf("\n\nDropping out\n\n");
+
+    //from->blockIncomingMsgs = true;
+    //to->blockIncomingMsgs = true;
+
+    printf("%d events", EventBase_eventCount(ctx->base));
+
+    EventBase_beginLoop(ctx->base);
+    //EventBase_endLoop(ctx->base);
 }

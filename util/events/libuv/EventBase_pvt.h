@@ -41,6 +41,8 @@ struct EventBase_pvt
     /** Number of milliseconds since epoch when the clock was calibrated. */
     uint64_t baseTime;
 
+    void* timeouts;
+
     Identity
 };
 

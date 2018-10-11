@@ -83,4 +83,8 @@ void Timeout_resetTimeout(struct Timeout* timeout,
  */
 void Timeout_clearTimeout(struct Timeout* timeout);
 
+void Timeout_clearAll(struct EventBase* eventBase);
+
+int Timeout_isActive(struct Timeout* timeout);
+
 #endif
