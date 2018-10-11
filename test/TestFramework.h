@@ -15,6 +15,7 @@
 #ifndef TestFramework_H
 #define TestFramework_H
 
+#include "switch/EncodingScheme.h"
 #include "net/NetCore.h"
 #include "util/Linker.h"
 Linker_require("test/TestFramework.c");
@@ -28,6 +29,7 @@ struct TestFramework
     struct Pathfinder* pathfinder;
     struct Iface* tunIf;
     struct NetCore* nc;
+    struct EncodingScheme* scheme;
 
     /** The last message which this node sent. */
     struct Message* lastMsg;

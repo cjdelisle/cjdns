@@ -22,6 +22,7 @@
 #include "memory/MallocAllocator.h"
 #include "memory/Allocator.h"
 #include "switch/SwitchCore.h"
+#include "subnode/SubnodePathfinder.h"
 #include "test/TestFramework.h"
 #include "util/log/WriterLog.h"
 #include "util/events/EventBase.h"
@@ -36,6 +37,7 @@
 #include "net/UpperDistributor.h"
 #include "net/TUNAdapter.h"
 #include "wire/Headers.h"
+#include "switch/NumberCompress.h"
 
 struct TestFramework_Link
 {
@@ -115,7 +117,16 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
         privateKey = (char*)pks;
     }
 
-    struct NetCore* nc = NetCore_new(privateKey, allocator, base, rand, logger);
+    struct EncodingScheme* scheme = NumberCompress_defineScheme(allocator);
+
+    struct NetCore* nc =
+        NetCore_new(privateKey, allocator, base, rand, logger);
+
+    struct SubnodePathfinder* spf = SubnodePathfinder_new(
+        allocator, logger, base, rand, nc->myAddress, privateKey, scheme);
+    struct ASynchronizer* spfAsync = ASynchronizer_new(allocator, base, logger);
+    Iface_plumb(&spfAsync->ifA, &spf->eventIf);
+    EventEmitter_regPathfinderIface(nc->ee, &spfAsync->ifB);
 
     struct Pathfinder* pf = Pathfinder_register(allocator, logger, base, rand, NULL);
     pf->fullVerify = true;
@@ -134,6 +145,7 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
     tf->publicKey = nc->myAddress->key;
     tf->ip = nc->myAddress->ip6.bytes;
     tf->pathfinder = pf;
+    tf->scheme = scheme;
 
     return tf;
 }

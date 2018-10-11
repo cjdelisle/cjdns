@@ -89,6 +89,7 @@ var parseFile = function (fileName, fileContent) {
         var n = name.replace(/_.*/, '');
         if ((/^\w+\s.*\(/).test(line)) {
             if (!(/^int main\(/.test(line)
+                || / CJDNS_/.test(line)
                 || line.indexOf(' '+n) > -1
                 || /^[ ]?static /.test(line)
                 || /^typedef /.test(line)))
