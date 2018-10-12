@@ -25,6 +25,7 @@
 #include "interface/tuntap/TUNMessageType.h"
 #include "util/events/Time.h"
 #include "util/events/Timeout.h"
+#include "util/version/Version.h"
 #include "test/FuzzTest.h"
 
 #include <stdio.h>
@@ -148,6 +149,7 @@ void CJDNS_FUZZ_MAIN(void* vctx, struct Message* msg)
         struct RouteHeader* rh = (struct RouteHeader*) msg->bytes;
         Bits_memcpy(rh->ip6, to->ip, 16);
         Bits_memcpy(rh->publicKey, to->publicKey, 32);
+        rh->version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL);
 
         uint64_t label = EncodingScheme_serializeDirector(from->scheme, 0, -1);
         int f = EncodingScheme_getFormNum(from->scheme, label);
