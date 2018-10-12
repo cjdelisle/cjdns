@@ -14,22 +14,17 @@
  */
 #include "crypto/Key.h"
 #include "io/FileWriter.h"
-//#include "memory/MallocAllocator.h"
 #include "memory/Allocator.h"
 #include "crypto/random/Random.h"
 #include "interface/Iface.h"
-//#include "util/Base32.h"
 #include "util/Checksum.h"
 #include "util/log/WriterLog.h"
 #include "test/TestFramework.h"
 #include "wire/Headers.h"
 #include "wire/Ethernet.h"
 #include "interface/tuntap/TUNMessageType.h"
-//#include "util/Hex.h"
 #include "util/events/Time.h"
 #include "util/events/Timeout.h"
-//#include "dht/dhtcore/NodeStore.h"
-#include "dht/Pathfinder_pvt.h"
 #include "test/FuzzTest.h"
 
 #include <stdio.h>
@@ -71,25 +66,22 @@ static void notLinkedYet(struct Context* ctx)
 static void checkLinkage(void* vContext)
 {
     struct Context* ctx = Identity_check((struct Context*) vContext);
-    Log_debug(ctx->logger, "Check linkage");
 
     if (!ctx->beaconsSent) {
-        if (Pathfinder_getNodeStore(ctx->nodeA->pathfinder) &&
-            Pathfinder_getNodeStore(ctx->nodeB->pathfinder))
-        {
-            Log_debug(ctx->logger, "Linking A and B");
-            TestFramework_linkNodes(ctx->nodeB, ctx->nodeA, true);
-            ctx->beaconsSent = true;
-        }
+        Log_debug(ctx->logger, "Linking A and B");
+        TestFramework_linkNodes(ctx->nodeB, ctx->nodeA, true);
+        ctx->beaconsSent = true;
         return;
     }
 
-    if (Pathfinder_getNodeStore(ctx->nodeA->pathfinder)->nodeCount < 2) {
+    if (TestFramework_peerCount(ctx->nodeA) < 1) {
         notLinkedYet(ctx);
         return;
     }
+
     Log_debug(ctx->logger, "A seems to be linked with B");
-    if (Pathfinder_getNodeStore(ctx->nodeB->pathfinder)->nodeCount < 2) {
+
+    if (TestFramework_peerCount(ctx->nodeB) < 1) {
         notLinkedYet(ctx);
         return;
     }

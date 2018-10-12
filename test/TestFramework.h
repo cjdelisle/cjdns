@@ -69,4 +69,6 @@ void TestFramework_craftIPHeader(struct Message* msg, uint8_t srcAddr[16], uint8
 /** Check if the last message sent was altered after having been sent. */
 void TestFramework_assertLastMessageUnaltered(struct TestFramework* tf);
 
+int TestFramework_peerCount(struct TestFramework* node);
+
 #endif

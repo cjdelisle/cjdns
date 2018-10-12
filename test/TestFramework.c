@@ -39,6 +39,9 @@
 #include "net/UpperDistributor.h"
 #include "net/TUNAdapter.h"
 #include "wire/Headers.h"
+
+// Needed just to get the encoding scheme that we're using
+#define NumberCompress_OLD_CODE
 #include "switch/NumberCompress.h"
 
 struct TestFramework_Link
@@ -241,4 +244,17 @@ void TestFramework_craftIPHeader(struct Message* msg, uint8_t srcAddr[16], uint8
     Bits_memcpy(ip->sourceAddr, srcAddr, 16);
     Bits_memcpy(ip->destinationAddr, destAddr, 16);
     Headers_setIpVersion(ip);
+}
+
+int TestFramework_peerCount(struct TestFramework* node)
+{
+    struct Allocator* alloc = Allocator_child(node->alloc);
+    struct InterfaceController_PeerStats* statsOut = NULL;
+    int len = InterfaceController_getPeerStats(node->nc->ifController, alloc, &statsOut);
+    int out = 0;
+    for (int i = 0; i < len; i++) {
+        out += (statsOut[i].state == InterfaceController_PeerState_ESTABLISHED);
+    }
+    Allocator_free(alloc);
+    return out;
 }
