@@ -65,25 +65,35 @@ static uint64_t runTest(Test test,
                         char* name,
                         uint64_t startTime,
                         int argc,
-                        char** argv)
+                        char** argv,
+                        int quiet)
 {
-    fprintf(stderr, "Running test %s", name);
+    if (!quiet) { fprintf(stderr, "Running test %s", name); }
     Assert_true(!test(argc, argv));
-    uint64_t now = Time_hrtime();
-    char* seventySpaces = "                                                                      ";
-    int count = CString_strlen(name);
-    if (count > 69) { count = 69; }
-    fprintf(stderr, "%s%d.%d ms\n",
-            &seventySpaces[count],
-            (int)((now - startTime)/1000000),
-            (int)((now - startTime)/1000)%1000);
-    return now;
+    if (!quiet) {
+        uint64_t now = Time_hrtime();
+        char* seventySpaces =
+            "                                                                      ";
+        int count = CString_strlen(name);
+        if (count > 69) { count = 69; }
+        fprintf(stderr, "%s%d.%d ms\n",
+                &seventySpaces[count],
+                (int)((now - startTime)/1000000),
+                (int)((now - startTime)/1000)%1000);
+        return now;
+    }
+    return startTime;
 }
 
 static void usage(char* appName)
 {
     printf("%s <test>     run one test\n", appName);
     printf("%s all        run every test\n\n", appName);
+    printf("Flags:\n");
+    printf("  --quiet                # Don't write test timings to stderr");
+    printf("  --stderr-to <path>     # Redirect stderr to a file (append mode)");
+    printf("  --inittests            # When using `fuzz` first initialize ALL tests");
+    printf("\n");
     printf("Available Tests:\n");
     for (int i = 0; i < TEST_COUNT; i++) {
         printf("%s\n", TESTS[i].name);
@@ -124,7 +134,8 @@ static int runFuzzTest(
     struct Allocator* alloc,
     struct Random* rand,
     struct Message* fuzz,
-    const char* testCase)
+    const char* testCase,
+    int quiet)
 {
     if (fuzz->length < 4) { return 100; }
     uint32_t selector = Message_pop32(fuzz, NULL);
@@ -133,7 +144,7 @@ static int runFuzzTest(
         return 100;
     }
     if (!testCase) { testCase = FUZZ_TESTS[selector].name; }
-    fprintf(stderr, "Running fuzz %s", testCase);
+    if (!quiet) { fprintf(stderr, "Running fuzz %s", testCase); }
     void* ctx = ctxs ? ctxs[selector] : FUZZ_TESTS[selector].init(alloc, rand);
     FUZZ_TESTS[selector].fuzz(ctx, fuzz);
     return 0;
@@ -143,24 +154,29 @@ static uint64_t runFuzzTestManual(
     struct Allocator* alloc,
     struct Random* detRand,
     const char* testCase,
-    uint64_t startTime)
+    uint64_t startTime,
+    int quiet)
 {
     int f = open(testCase, O_RDONLY);
     Assert_true(f > -1);
     struct Message* fuzz = readFile(f, alloc);
     close(f);
 
-    runFuzzTest(NULL, alloc, detRand, fuzz, testCase);
+    runFuzzTest(NULL, alloc, detRand, fuzz, testCase, quiet);
 
-    uint64_t now = Time_hrtime();
-    char* seventySpaces = "                                                                      ";
-    int count = CString_strlen(testCase);
-    if (count > 69) { count = 69; }
-    fprintf(stderr, "%s%d.%d ms\n",
-            &seventySpaces[count],
-            (int)((now - startTime)/1000000),
-            (int)((now - startTime)/1000)%1000);
-    return now;
+    if (!quiet) {
+        uint64_t now = Time_hrtime();
+        char* seventySpaces =
+            "                                                                      ";
+        int count = CString_strlen(testCase);
+        if (count > 69) { count = 69; }
+        fprintf(stderr, "%s%d.%d ms\n",
+                &seventySpaces[count],
+                (int)((now - startTime)/1000000),
+                (int)((now - startTime)/1000)%1000);
+        return now;
+    }
+    return startTime;
 }
 
 // We don't really want to let AFL write the random seed because the amount of mixing
@@ -174,7 +190,7 @@ static uint64_t runFuzzTestManual(
 // something for the future.
 #define RANDOM_SEED "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
-static int fuzzMain(struct Allocator* alloc, struct Random* detRand, int initTests)
+static int fuzzMain(struct Allocator* alloc, struct Random* detRand, int initTests, int quiet)
 {
 #ifdef __AFL_INIT
     // Enable AFL deferred forkserver mode. Requires compilation using afl-clang-fast
@@ -188,19 +204,29 @@ static int fuzzMain(struct Allocator* alloc, struct Random* detRand, int initTes
 #endif
 
     struct Message* fuzz = readFile(STDIN_FILENO, alloc);
-    int out = runFuzzTest(ctxs, alloc, detRand, fuzz, NULL);
+    int out = runFuzzTest(ctxs, alloc, detRand, fuzz, NULL, quiet);
     printf("\n");
     return out;
+}
+
+static void stderrTo(char* file)
+{
+    int f = open(file, O_CREAT | O_APPEND | O_WRONLY, 0666);
+    Assert_true(f > -1);
+    Assert_true(dup2(f, STDERR_FILENO) == STDERR_FILENO);
 }
 
 static int main2(int argc, char** argv, struct Allocator* alloc, struct Random* detRand)
 {
     int initTests = 0;
+    int quiet = 0;
     for (int i = 0; i < argc; i++) {
         if (!CString_strcmp("--inittests", argv[i])) { initTests = 1; }
+        if (!CString_strcmp("--stderr-to", argv[i]) && argc > i + 1) { stderrTo(argv[i + 1]); }
+        if (!CString_strcmp("--quiet", argv[i])) { quiet = 1; }
     }
     if (argc > 1 && !CString_strcmp("fuzz", argv[1])) {
-        return fuzzMain(alloc, detRand, initTests);
+        return fuzzMain(alloc, detRand, initTests, quiet);
     }
     uint64_t now = Time_hrtime();
     uint64_t startTime = now;
@@ -218,7 +244,7 @@ static int main2(int argc, char** argv, struct Allocator* alloc, struct Random* 
         }
         for (int i = 0; i < FUZZ_CASE_COUNT; i++) {
             if (!CString_strcmp(FUZZ_CASES[i], argv[1])) {
-                runFuzzTestManual(alloc, detRand, FUZZ_CASES[i], now);
+                runFuzzTestManual(alloc, detRand, FUZZ_CASES[i], now, quiet);
                 return 0;
             }
         }
@@ -226,7 +252,7 @@ static int main2(int argc, char** argv, struct Allocator* alloc, struct Random* 
         return 100;
     }
     for (int i = 0; i < TEST_COUNT; i++) {
-        now = runTest(TESTS[i].func, TESTS[i].name, now, argc, argv);
+        now = runTest(TESTS[i].func, TESTS[i].name, now, argc, argv, quiet);
     }
     for (int i = 0; i < FUZZ_CASE_COUNT; i++) {
         // TODO(cjd): Apparently a race condition in the allocator
@@ -236,12 +262,14 @@ static int main2(int argc, char** argv, struct Allocator* alloc, struct Random* 
         //struct Allocator* child = Allocator_child(alloc);
         struct Allocator* child = MallocAllocator_new(1<<24);
 
-        now = runFuzzTestManual(child, detRand, FUZZ_CASES[i], now);
+        now = runFuzzTestManual(child, detRand, FUZZ_CASES[i], now, quiet);
         Allocator_free(child);
     }
-    fprintf(stderr, "Total test time %d.%d ms\n",
-            (int)((now - startTime)/1000000),
-            (int)((now - startTime)/1000)%1000);
+    if (!quiet) {
+        fprintf(stderr, "Total test time %d.%d ms\n",
+                (int)((now - startTime)/1000000),
+                (int)((now - startTime)/1000)%1000);
+    }
     return 0;
 }
 
