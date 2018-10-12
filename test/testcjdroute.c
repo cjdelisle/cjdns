@@ -174,16 +174,17 @@ static uint64_t runFuzzTestManual(
 // something for the future.
 #define RANDOM_SEED "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
-static int fuzzMain(struct Allocator* alloc, struct Random* detRand)
+static int fuzzMain(struct Allocator* alloc, struct Random* detRand, int initTests)
 {
-    void** ctxs = NULL;
 #ifdef __AFL_INIT
     // Enable AFL deferred forkserver mode. Requires compilation using afl-clang-fast
-    ctxs = initFuzzTests(alloc, detRand);
+    initTests = 1;
+#endif
+
+    void** ctxs = (initTests) ? initFuzzTests(alloc, detRand) : NULL;
+
+#ifdef __AFL_INIT
     __AFL_INIT();
-#else
-    // avoid warning
-    if (0) { initFuzzTests(alloc, detRand); }
 #endif
 
     struct Message* fuzz = readFile(STDIN_FILENO, alloc);
@@ -194,7 +195,13 @@ static int fuzzMain(struct Allocator* alloc, struct Random* detRand)
 
 static int main2(int argc, char** argv, struct Allocator* alloc, struct Random* detRand)
 {
-    if (argc > 1 && !CString_strcmp("fuzz", argv[1])) { return fuzzMain(alloc, detRand); }
+    int initTests = 0;
+    for (int i = 0; i < argc; i++) {
+        if (!CString_strcmp("--inittests", argv[i])) { initTests = 1; }
+    }
+    if (argc > 1 && !CString_strcmp("fuzz", argv[1])) {
+        return fuzzMain(alloc, detRand, initTests);
+    }
     uint64_t now = Time_hrtime();
     uint64_t startTime = now;
     if (argc < 2) {

@@ -70,13 +70,13 @@ var rmFuzz = function (builder, cb) {
         Fs.readdir(inputs, function (err, list) {
             if (err) { throw err; }
             var nt = nThen;
-            list.forEach((f) => {
+            list.forEach(function (f) {
                 nt = nt(function (w) {
                     Fs.unlink(inputs + '/' + f, w(function (err) {
                         if (err) { throw err; }
                     }));
                 }).nThen;
-            })
+            });
             nt(function (w) { cb(); });
         });
     });
@@ -107,7 +107,7 @@ var mkFuzz = function (builder, testPath, testId, fuzzCases, cb) {
             }
             if (err) { throw err; }
             var nt = nThen;
-            list.forEach((f) => {
+            list.forEach(function (f) {
                 nt = nt(function (w) {
                     var fNoExt = f.replace(/\..*$/, '');
                     var outPath = inputs + '/' + (testPath + fNoExt).replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -115,7 +115,7 @@ var mkFuzz = function (builder, testPath, testId, fuzzCases, cb) {
                     var inFile = casesPath + '/' + f;
                     mkFuzzCase(inFile, outPath, testId, w());
                 }).nThen;
-            })
+            });
             nt(w());
         }));
     }).nThen(function (w) {
@@ -166,10 +166,10 @@ var generate = module.exports.generate = function (file, builder, isSubnode, cal
             }
         });
     }).nThen(function (w) {
-        file.testcjdroute_fuzzCases = fuzzCases.join('\n');
-        file.testcjdroute_tests = listContent.join('\n');
-        file.testcjdroute_fuzzTests = fuzzTests.join('\n');
-        file.testcjdroute_prototypes = prototypes.join('\n');
+        file.testcjdroute_fuzzCases = fuzzCases.join(' ');
+        file.testcjdroute_tests = listContent.join(' ');
+        file.testcjdroute_fuzzTests = fuzzTests.join(' ');
+        file.testcjdroute_prototypes = prototypes.join(' ');
         callback();
-    })
+    });
 };

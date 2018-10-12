@@ -154,8 +154,8 @@ void CJDNS_FUZZ_MAIN(void* vctx, struct Message* msg)
     // old packet dump will work fine for testing
     {
         struct RouteHeader* rh = (struct RouteHeader*) msg->bytes;
-        if (!Bits_isZero(rh->ip6, 16)) { Bits_memcpy(rh->ip6, to->ip, 16); }
-        if (!Bits_isZero(rh->publicKey, 32)) { Bits_memcpy(rh->publicKey, to->publicKey, 32); }
+        Bits_memcpy(rh->ip6, to->ip, 16);
+        Bits_memcpy(rh->publicKey, to->publicKey, 32);
 
         uint64_t label = EncodingScheme_serializeDirector(from->scheme, 0, -1);
         int f = EncodingScheme_getFormNum(from->scheme, label);
