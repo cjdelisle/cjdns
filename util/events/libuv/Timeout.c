@@ -39,7 +39,7 @@ struct Timeout
     Identity
 };
 
-static void link(struct Timeout* timeout)
+static void linkTo(struct Timeout* timeout)
 {
     timeout->next = (struct Timeout*) timeout->base->timeouts;
     if (timeout->next) {
@@ -49,7 +49,7 @@ static void link(struct Timeout* timeout)
     timeout->selfPtr = (struct Timeout**) &timeout->base->timeouts;
 }
 
-static void unlink(struct Timeout* timeout)
+static void unlinkTo(struct Timeout* timeout)
 {
     if (timeout->selfPtr) {
         *timeout->selfPtr = timeout->next;
@@ -82,7 +82,7 @@ static void onFree2(uv_handle_t* timer)
 static int onFree(struct Allocator_OnFreeJob* job)
 {
     struct Timeout* t = Identity_check((struct Timeout*) job->userData);
-    unlink(t);
+    unlinkTo(t);
     t->timer.data = job;
     uv_close((uv_handle_t*) &t->timer, onFree2);
     return Allocator_ONFREE_ASYNC;
@@ -129,7 +129,7 @@ static struct Timeout* setTimeout(void (* const callback)(void* callbackContext)
 
     Allocator_onFree(alloc, onFree, timeout);
 
-    link(timeout);
+    linkTo(timeout);
 
     return timeout;
 }
@@ -163,14 +163,14 @@ void Timeout_resetTimeout(struct Timeout* timeout,
                           const uint64_t milliseconds)
 {
     Timeout_clearTimeout(timeout);
-    link(timeout);
+    linkTo(timeout);
     uv_timer_start(&timeout->timer, handleEvent, milliseconds, 0);
 }
 
 /** See: Timeout.h */
 void Timeout_clearTimeout(struct Timeout* timeout)
 {
-    unlink(timeout);
+    unlinkTo(timeout);
     if (!uv_is_closing((uv_handle_t*) &timeout->timer)) {
         uv_timer_stop(&timeout->timer);
     }

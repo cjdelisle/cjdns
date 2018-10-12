@@ -128,7 +128,7 @@ static int runFuzzTest(
 {
     if (fuzz->length < 4) { return 100; }
     uint32_t selector = Message_pop32(fuzz, NULL);
-    if (selector >= FUZZ_TEST_COUNT) {
+    if (selector >= (uint32_t)FUZZ_TEST_COUNT) {
         printf("selector [%x] out of bounds [%u]\n", selector, FUZZ_TEST_COUNT);
         return 100;
     }
