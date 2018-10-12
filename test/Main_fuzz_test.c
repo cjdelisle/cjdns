@@ -101,29 +101,6 @@ static void checkLinkage(void* vContext)
     Timeout_clearAll(ctx->base);
 }
 
-/*
-static void runTest(struct Context* tn)
-{
-    sendMessage(tn, "Hello World!", tn->nodeA, tn->nodeB);
-    sendMessage(tn, "Hello cjdns!", tn->nodeB, tn->nodeA);
-    sendMessage(tn, "send", tn->nodeA, tn->nodeB);
-    sendMessage(tn, "a", tn->nodeB, tn->nodeA);
-    sendMessage(tn, "few", tn->nodeA, tn->nodeB);
-    sendMessage(tn, "packets", tn->nodeB, tn->nodeA);
-    sendMessage(tn, "to", tn->nodeA, tn->nodeB);
-    sendMessage(tn, "make", tn->nodeB, tn->nodeA);
-    sendMessage(tn, "sure", tn->nodeA, tn->nodeB);
-    sendMessage(tn, "the", tn->nodeB, tn->nodeA);
-    sendMessage(tn, "cryptoauth", tn->nodeA, tn->nodeB);
-    sendMessage(tn, "can", tn->nodeB, tn->nodeA);
-    sendMessage(tn, "establish", tn->nodeA, tn->nodeB);
-
-    Log_debug(tn->logger, "\n\nTest passed, shutting down\n\n");
-    EventBase_endLoop(tn->base);
-}
-*/
-
-
 void* CJDNS_FUZZ_INIT(struct Allocator* alloc, struct Random* rand)
 {
     struct Writer* logwriter = FileWriter_new(stdout, alloc);
@@ -213,13 +190,5 @@ void CJDNS_FUZZ_MAIN(void* vctx, struct Message* msg)
 
     TestFramework_assertLastMessageUnaltered(ctx->nodeA);
 
-    printf("\n\nDropping out\n\n");
-
-    //from->blockIncomingMsgs = true;
-    //to->blockIncomingMsgs = true;
-
-    printf("%d events", EventBase_eventCount(ctx->base));
-
     EventBase_beginLoop(ctx->base);
-    //EventBase_endLoop(ctx->base);
 }

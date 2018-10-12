@@ -53,6 +53,7 @@ static void timeoutTrigger(void* vASynchronizer)
         if (as->dryCycles++ < MAX_DRY_CYCLES || !as->timeoutAlloc) { return; }
         Allocator_free(as->timeoutAlloc);
         as->timeoutAlloc = NULL;
+        as->intr = NULL;
         as->dryCycles = 0;
         return;
     }

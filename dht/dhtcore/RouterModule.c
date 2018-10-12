@@ -313,6 +313,7 @@ static inline int handleQuery(struct DHTMessage* message,
 
     String* queryType = Dict_getString(query->asDict, CJDHTConstants_QUERY);
     if (String_equals(queryType, CJDHTConstants_QUERY_FN)) {
+        Log_debug(module->logger, "FindNode Query");
         // get the target
         String* target = Dict_getString(query->asDict, CJDHTConstants_TARGET);
         if (target == NULL || target->len != Address_SEARCH_TARGET_SIZE) {
@@ -330,6 +331,7 @@ static inline int handleQuery(struct DHTMessage* message,
                                              message->allocator);
 
     } else if (String_equals(queryType, CJDHTConstants_QUERY_GP)) {
+        Log_debug(module->logger, "GetPeers Query");
         // get the target
         String* target = Dict_getString(query->asDict, CJDHTConstants_TARGET);
         if (target == NULL || target->len != 8) {
@@ -343,6 +345,7 @@ static inline int handleQuery(struct DHTMessage* message,
             NodeStore_getPeers(targetPath, RouterModule_K, message->allocator, module->nodeStore);
 
     } else if (String_equals(queryType, CJDHTConstants_QUERY_NH)) {
+        Log_debug(module->logger, "HN Query");
         // get the target
         String* target = Dict_getString(query->asDict, CJDHTConstants_TARGET);
         if (target == NULL || target->len != Address_SEARCH_TARGET_SIZE) {

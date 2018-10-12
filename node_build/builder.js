@@ -830,7 +830,8 @@ var probeCompiler = function (state, callback) {
             version: undefined
         };
         compiler(state.gcc, ['-v'], waitFor(function (ret, out, err) {
-            if (ret !== 0) { throw new Error("Failed to probe compiler ret[" + ret + "]\n" + err); }
+            // TODO(cjd): afl-clang-fast errors when called with -v
+            //if (ret !== 0) { throw new Error("Failed to probe compiler ret[" + ret + "]\n" + err); }
             if (/Apple LLVM version /.test(err)) {
                 compilerType.isLLVM = true;
                 if (/clang/.test(err)) {

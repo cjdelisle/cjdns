@@ -60,12 +60,12 @@ static const int FUZZ_TEST_COUNT = (int) (sizeof(FUZZ_TESTS) / sizeof(*FUZZ_TEST
 static const char* FUZZ_CASES[] = { Js({ return file.testcjdroute_fuzzCases }) };
 static const int FUZZ_CASE_COUNT = (int) (sizeof(FUZZ_CASES) / sizeof(*FUZZ_CASES));
 
+
 static uint64_t runTest(Test test,
                         char* name,
                         uint64_t startTime,
                         int argc,
-                        char** argv,
-                        struct EventBase* base)
+                        char** argv)
 {
     fprintf(stderr, "Running test %s", name);
     Assert_true(!test(argc, argv));
@@ -88,32 +88,79 @@ static void usage(char* appName)
     for (int i = 0; i < TEST_COUNT; i++) {
         printf("%s\n", TESTS[i].name);
     }
-    printf("Available Fuzz Tests:\n");
+    printf("\nAvailable Fuzz Tests:\n");
     for (int i = 0; i < FUZZ_CASE_COUNT; i++) {
         printf("%s fuzz < %s\n", appName, FUZZ_CASES[i]);
     }
 }
 
-static struct Message* readStdin(struct Allocator* alloc)
+static struct Message* readFile(int fileNo, struct Allocator* alloc)
 {
     uint8_t buff[4096] = { 0 };
-    ssize_t length = read(STDIN_FILENO, buff, 4096);
+    ssize_t length = read(fileNo, buff, 4096);
     if (length >= 4096) {
         printf("No test files over 4096 bytes\n");
         length = 0;
     }
-    struct Message* msg = Message_new(length, 128, alloc);
+    int capacity = length;
+    while (capacity % 8) { capacity++; }
+    struct Message* msg = Message_new(capacity, 128, alloc);
+    msg->length = length;
     Bits_memcpy(msg->bytes, buff, length);
     return msg;
 }
 
-static void** initFuzzTests(struct Allocator* alloc, struct Random* rand, struct EventBase* base)
+static void** initFuzzTests(struct Allocator* alloc, struct Random* rand)
 {
     void** contexts = Allocator_calloc(alloc, sizeof(char*), FUZZ_TEST_COUNT);
     for (int i = 0; i < FUZZ_TEST_COUNT; i++) {
         contexts[i] = FUZZ_TESTS[i].init(alloc, rand);
     }
     return contexts;
+}
+
+static int runFuzzTest(
+    void** ctxs,
+    struct Allocator* alloc,
+    struct Random* rand,
+    struct Message* fuzz,
+    const char* testCase)
+{
+    if (fuzz->length < 4) { return 100; }
+    uint32_t selector = Message_pop32(fuzz, NULL);
+    if (selector >= FUZZ_TEST_COUNT) {
+        printf("selector [%x] out of bounds [%u]\n", selector, FUZZ_TEST_COUNT);
+        return 100;
+    }
+    if (!testCase) { testCase = FUZZ_TESTS[selector].name; }
+    fprintf(stderr, "Running fuzz %s", testCase);
+    void* ctx = ctxs ? ctxs[selector] : FUZZ_TESTS[selector].init(alloc, rand);
+    FUZZ_TESTS[selector].fuzz(ctx, fuzz);
+    return 0;
+}
+
+static uint64_t runFuzzTestManual(
+    struct Allocator* alloc,
+    struct Random* detRand,
+    const char* testCase,
+    uint64_t startTime)
+{
+    int f = open(testCase, O_RDONLY);
+    Assert_true(f > -1);
+    struct Message* fuzz = readFile(f, alloc);
+    close(f);
+
+    runFuzzTest(NULL, alloc, detRand, fuzz, testCase);
+
+    uint64_t now = Time_hrtime();
+    char* seventySpaces = "                                                                      ";
+    int count = CString_strlen(testCase);
+    if (count > 69) { count = 69; }
+    fprintf(stderr, "%s%d.%d ms\n",
+            &seventySpaces[count],
+            (int)((now - startTime)/1000000),
+            (int)((now - startTime)/1000)%1000);
+    return now;
 }
 
 // We don't really want to let AFL write the random seed because the amount of mixing
@@ -127,66 +174,27 @@ static void** initFuzzTests(struct Allocator* alloc, struct Random* rand, struct
 // something for the future.
 #define RANDOM_SEED "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
-static int fuzzMain()
+static int fuzzMain(struct Allocator* alloc, struct Random* detRand)
 {
-    struct Allocator* alloc = MallocAllocator_new(1<<24);
-    struct EventBase* base = EventBase_new(alloc);
-    struct RandomSeed* rs = DeterminentRandomSeed_new(alloc, RANDOM_SEED);
-    struct Random* rand = Random_newWithSeed(alloc, NULL, rs, NULL);
-
+    void** ctxs = NULL;
 #ifdef __AFL_INIT
     // Enable AFL deferred forkserver mode. Requires compilation using afl-clang-fast
-    void** ctxs = initFuzzTests(alloc, rand, base);
+    ctxs = initFuzzTests(alloc, detRand);
     __AFL_INIT();
-    #define CTX(selector) ctxs[selector]
 #else
     // avoid warning
-    if (0) { initFuzzTests(alloc, rand, base); }
-    #define CTX(selector) FUZZ_TESTS[selector].init(alloc, rand)
+    if (0) { initFuzzTests(alloc, detRand); }
 #endif
 
-    struct Message* fuzz = readStdin(alloc);
-    if (fuzz->length < 4) { return 100; }
-    uint32_t selector = Message_pop32(fuzz, NULL);
-    printf("x\n");
-    if (selector >= FUZZ_TEST_COUNT) {
-        printf("selector [%x] out of bounds [%u]\n", selector, FUZZ_TEST_COUNT);
-        return 100;
-    }
-    printf("Running [%s] ([%u])\n", FUZZ_TESTS[selector].name, selector);
-    void* ctx = CTX(selector);
-    FUZZ_TESTS[selector].fuzz(ctx, fuzz);
-    Allocator_free(alloc);
-    return 0;
+    struct Message* fuzz = readFile(STDIN_FILENO, alloc);
+    int out = runFuzzTest(ctxs, alloc, detRand, fuzz, NULL);
+    printf("\n");
+    return out;
 }
-/*
-static int mkFuzz()
-{
-    struct Allocator* alloc = MallocAllocator_new(1<<24);
-    for (int i = 0; i < FUZZ_TEST_COUNT; i++) {
-        printf("Making test data [%s]\n", FUZZ_TESTS[i].name);
-        struct Allocator* child = Allocator_child(alloc);
-        struct FuzzTest* ft = FUZZ_TESTS[i].mkFuzz(child);
-        uint32_t i_be = Endian_hostToBigEndian32(i);
-        while (ft) {
-            int f = open(ft->name, O_WRONLY | O_CREAT | O_TRUNC, 0666);
-            if (f == -1) { perror(""); }
-            Assert_true(f > -1);
-            Assert_true(write(f, &i_be, 4) == 4);
-            Assert_true(write(f, ft->fuzz->bytes, ft->fuzz->length) == ft->fuzz->length);
-            close(f);
-            ft = ft->next;
-        }
-        Allocator_free(child);
-    }
-    return 0;
-}*/
 
-int main(int argc, char** argv)
+static int main2(int argc, char** argv, struct Allocator* alloc, struct Random* detRand)
 {
-    if (argc > 1 && !CString_strcmp("fuzz", argv[1])) { return fuzzMain(); }
-    struct Allocator* alloc = MallocAllocator_new(4096);
-    struct EventBase* base = EventBase_new(alloc);
+    if (argc > 1 && !CString_strcmp("fuzz", argv[1])) { return fuzzMain(alloc, detRand); }
     uint64_t now = Time_hrtime();
     uint64_t startTime = now;
     if (argc < 2) {
@@ -195,21 +203,47 @@ int main(int argc, char** argv)
         return 100;
     }
     if (argc > 1 && CString_strcmp("all", argv[1])) {
-        for (int i = 0; i < (int)(sizeof(TESTS)/sizeof(*TESTS)); i++) {
+        for (int i = 0; i < TEST_COUNT; i++) {
             if (!CString_strcmp(TESTS[i].name, argv[1])) {
                 TESTS[i].func(argc, argv);
+                return 0;
+            }
+        }
+        for (int i = 0; i < FUZZ_CASE_COUNT; i++) {
+            if (!CString_strcmp(FUZZ_CASES[i], argv[1])) {
+                runFuzzTestManual(alloc, detRand, FUZZ_CASES[i], now);
                 return 0;
             }
         }
         usage(argv[0]);
         return 100;
     }
-    for (int i = 0; i < (int)(sizeof(TESTS)/sizeof(*TESTS)); i++) {
-        now = runTest(TESTS[i].func, TESTS[i].name, now, argc, argv, base);
+    for (int i = 0; i < TEST_COUNT; i++) {
+        now = runTest(TESTS[i].func, TESTS[i].name, now, argc, argv);
+    }
+    for (int i = 0; i < FUZZ_CASE_COUNT; i++) {
+        // TODO(cjd): Apparently a race condition in the allocator
+        // if you have async freeing in progress and then you come in and
+        // free the root allocator, you get an assertion.
+        //
+        //struct Allocator* child = Allocator_child(alloc);
+        struct Allocator* child = MallocAllocator_new(1<<24);
+
+        now = runFuzzTestManual(child, detRand, FUZZ_CASES[i], now);
+        Allocator_free(child);
     }
     fprintf(stderr, "Total test time %d.%d ms\n",
             (int)((now - startTime)/1000000),
             (int)((now - startTime)/1000)%1000);
-    Allocator_free(alloc);
     return 0;
+}
+
+int main(int argc, char** argv)
+{
+    struct Allocator* alloc = MallocAllocator_new(1<<24);
+    struct RandomSeed* rs = DeterminentRandomSeed_new(alloc, RANDOM_SEED);
+    struct Random* detRand = Random_newWithSeed(alloc, NULL, rs, NULL);
+    int out = main2(argc, argv, alloc, detRand);
+    Allocator_free(alloc);
+    return out;
 }

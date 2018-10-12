@@ -124,6 +124,14 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
     struct NetCore* nc =
         NetCore_new(privateKey, allocator, base, rand, logger);
 
+    struct RouteGen* rg = RouteGen_new(allocator, logger);
+
+    struct GlobalConfig* globalConf = GlobalConfig_new(allocator);
+    struct IpTunnel* ipTunnel =
+        IpTunnel_new(logger, base, allocator, rand, rg, globalConf);
+    Iface_plumb(&nc->tunAdapt->ipTunnelIf, &ipTunnel->tunInterface);
+    Iface_plumb(&nc->upper->ipTunnelIf, &ipTunnel->nodeInterface);
+
     struct SubnodePathfinder* spf = SubnodePathfinder_new(
         allocator, logger, base, rand, nc->myAddress, privateKey, scheme);
     struct ASynchronizer* spfAsync = ASynchronizer_new(allocator, base, logger);
@@ -151,7 +159,7 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
     tf->publicKey = nc->myAddress->key;
     tf->ip = nc->myAddress->ip6.bytes;
     #ifndef SUBNODE
-    tf->pathfinder = pf;
+        tf->pathfinder = pf;
     #endif
     tf->subnodePathfinder = spf;
     tf->scheme = scheme;

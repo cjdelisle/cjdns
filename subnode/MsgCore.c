@@ -310,9 +310,13 @@ static Iface_DEFUN incoming(struct Message* msg, struct Iface* interRouterIf)
 
     String* q = Dict_getStringC(content, "q");
 
+    String* txid = Dict_getStringC(content, "txid");
+    if (!txid) {
+        Log_debug(mcp->log, "Message with no txid [%s]", q->bytes);
+        return NULL;
+    }
+
     if (!Defined(SUBNODE)) {
-        String* txid = Dict_getStringC(content, "txid");
-        Assert_true(txid);
         if (q) {
             if (txid->bytes[0] != '1') {
                 Log_debug(mcp->log, "DROP query which begins with 0 and is for old pathfinder");
