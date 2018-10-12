@@ -721,7 +721,7 @@ var compile = function (file, outputFile, builder, callback) {
         var ldArgs = []
             .concat(state.ldflags)
             .concat(fileObj.ldflags || [])
-            .concat(['-o', outputFile, linkOrder, state.libs])
+            .concat(['-o', outputFile, linkOrder, state.libs]);
         debug('\033[1;31mLinking C executable ' + file + '\033[0m');
 
         cc(state.gcc, ldArgs, waitFor(function (err, ret) {
@@ -936,7 +936,7 @@ var configure = module.exports.configure = function (params, configFunc) {
                     var f = state.files[fn];
                     f.cflags = [];
                     f.ldflags = [];
-                })
+                });
             }));
         }));
 
