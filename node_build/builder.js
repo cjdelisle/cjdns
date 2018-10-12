@@ -122,7 +122,7 @@ var compiler = function (compilerPath, args, callback, content) {
 var cc = function (gcc, args, callback, content) {
     compiler(gcc, args, function (ret, out, err) {
         if (ret) {
-            callback(error("gcc " + args.join(' ') + "\n\n" + err));
+            callback(error("gcc " + args.map(String).join(' ') + "\n\n" + err));
         }
 
         if (err !== '') {
@@ -336,6 +336,7 @@ var getFile = function ()
         includes: [],
         links: [],
         cflags: [],
+        ldflags: [],
         oldmtime: 0
     };
 };
@@ -716,7 +717,11 @@ var compile = function (file, outputFile, builder, callback) {
             linkOrder[i] = state.buildDir + '/' + getObjectFile(linkOrder[i]);
         }
 
-        var ldArgs = [].concat(state.ldflags).concat(['-o', outputFile, linkOrder, state.libs]);
+        var fileObj = state.files[file] || {};
+        var ldArgs = []
+            .concat(state.ldflags)
+            .concat(fileObj.ldflags || [])
+            .concat(['-o', outputFile, linkOrder, state.libs])
         debug('\033[1;31mLinking C executable ' + file + '\033[0m');
 
         cc(state.gcc, ldArgs, waitFor(function (err, ret) {
@@ -926,6 +931,12 @@ var configure = module.exports.configure = function (params, configFunc) {
                 state.ldflags = [];
                 state.libs = [];
                 state.includeDirs = ['.'];
+
+                Object.keys(state.files).forEach(function (fn) {
+                    var f = state.files[fn];
+                    f.cflags = [];
+                    f.ldflags = [];
+                })
             }));
         }));
 
