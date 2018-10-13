@@ -360,9 +360,11 @@ static void linkState(void* vic)
         }
     }
 
-    Message_push32(msg, 0xffffffff, NULL);
-    Message_push32(msg, PFChan_Core_LINK_STATE, NULL);
-    Iface_send(&ic->eventEmitterIf, msg);
+    if (msg->length) {
+        Message_push32(msg, 0xffffffff, NULL);
+        Message_push32(msg, PFChan_Core_LINK_STATE, NULL);
+        Iface_send(&ic->eventEmitterIf, msg);
+    }
     Allocator_free(alloc);
 }
 

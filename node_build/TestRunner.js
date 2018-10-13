@@ -15,7 +15,11 @@ var Spawn = require('child_process').spawn;
 var Http = require("http");
 var Fs = require("fs");
 
-var TIMEOUT = process.env.TestRunner_TIMEOUT || 60000;
+var TIMEOUT = 600000;
+if (process.env.TestRunner_TIMEOUT && !isNaN(Number(process.env.TestRunner_TIMEOUT))) {
+    TIMEOUT = Number(process.env.TestRunner_TIMEOUT);
+}
+console.log("timeout is " + TIMEOUT);
 
 var parseURL = function (url)
 {
@@ -101,9 +105,11 @@ var client = function (url, fileName, argv) {
 var spawnProc = function(file, args, callback, timeoutMilliseconds) {
     var child = Spawn(file, args);
     var out = '', err = '';
+    var t0 = +new Date();
     var to = setTimeout(function() {
         child.kill('SIGKILL');
-        err += "TIMEOUT\n";
+        err += "test TIMEOUT in [" + ((+new Date()) - t0) +
+            "ms] try TestRunner_TIMEOUT=<number>\n";
         callback(1000, out, err);
     }, timeoutMilliseconds);
     child.stdout.on('data', function (data) { out += String(data); });
