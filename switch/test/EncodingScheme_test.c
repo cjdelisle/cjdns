@@ -294,37 +294,20 @@ static void isOneHopScheme(struct Allocator* allocator)
 
 typedef uint64_t (* EncodeNum)(uint32_t num);
 typedef uint32_t (* DecodeNum)(uint64_t label);
-static uint64_t encode358(uint32_t num)
-{
-    uint32_t bits = NumberCompress_v3x5x8_bitsUsedForNumber(num);
-    return NumberCompress_v3x5x8_getCompressed(num, bits);
-}
-static uint32_t decode358(uint64_t label)
-{
-    uint32_t bits = NumberCompress_v3x5x8_bitsUsedForLabel(label);
-    return NumberCompress_v3x5x8_getDecompressed(label, bits);
-}
-static uint64_t encode48(uint32_t num)
-{
-    uint32_t bits = NumberCompress_v4x8_bitsUsedForNumber(num);
-    return NumberCompress_v4x8_getCompressed(num, bits);
-}
-static uint32_t decode48(uint64_t label)
-{
-    uint32_t bits = NumberCompress_v4x8_bitsUsedForLabel(label);
-    return NumberCompress_v4x8_getDecompressed(label, bits);
-}
+#define MK_ENCODE_DECODE(x) \
+    static uint64_t encode_ ## x (uint32_t num) { \
+        uint32_t bits = NumberCompress_ ## x ## _bitsUsedForNumber(num); \
+        return NumberCompress_ ## x ## _getCompressed(num, bits); \
+    } \
+    static uint32_t decode_ ## x (uint64_t label) { \
+        uint32_t bits = NumberCompress_ ## x ## _bitsUsedForLabel(label); \
+        return NumberCompress_ ## x ## _getDecompressed(label, bits); \
+    }
 
-static uint64_t encodef4(uint32_t num)
-{
-    uint32_t bits = NumberCompress_f4_bitsUsedForNumber(num);
-    return NumberCompress_f4_getCompressed(num, bits);
-}
-static uint32_t decodef4(uint64_t label)
-{
-    uint32_t bits = NumberCompress_f4_bitsUsedForLabel(label);
-    return NumberCompress_f4_getDecompressed(label, bits);
-}
+MK_ENCODE_DECODE(v3x5x8)
+MK_ENCODE_DECODE(v4x8)
+MK_ENCODE_DECODE(f4)
+MK_ENCODE_DECODE(v3x6x10)
 
 static void parseSerializeDir(struct EncodingScheme* scheme, EncodeNum en, DecodeNum dn)
 {
@@ -381,6 +364,7 @@ int main()
         fuzzTest(alloc, rand);
     }
 
+    struct EncodingScheme* es3610 = NumberCompress_v3x6x10_defineScheme(alloc);
     struct EncodingScheme* es48 = NumberCompress_v4x8_defineScheme(alloc);
     struct EncodingScheme* es358 = NumberCompress_v3x5x8_defineScheme(alloc);
     struct EncodingScheme* esf4 = NumberCompress_f4_defineScheme(alloc);
@@ -392,9 +376,10 @@ int main()
         bitsUsed(es358, NumberCompress_v3x5x8_bitsUsedForLabel, rand);
     }
 
-    parseSerializeDir(es358, encode358, decode358);
-    parseSerializeDir(es48, encode48, decode48);
-    parseSerializeDir(esf4, encodef4, decodef4);
+    parseSerializeDir(es3610, encode_v3x6x10, decode_v3x6x10);
+    parseSerializeDir(es358, encode_v3x5x8, decode_v3x5x8);
+    parseSerializeDir(es48, encode_v4x8, decode_v4x8);
+    parseSerializeDir(esf4, encode_f4, decode_f4);
 
     // for testing individual conversions in isolation.
     /*convertLabel(
@@ -415,8 +400,8 @@ int main()
     struct Allocator* tempAlloc = Allocator_child(alloc);
     struct EncodingScheme* scheme = NumberCompress_v3x5x8_defineScheme(alloc);
     for (int i = 0; i < NumberCompress_v3x5x8_INTERFACES; i++) {
-        int bits = NumberCompress_bitsUsedForNumber(i);
-        uint64_t expected = NumberCompress_getCompressed(i, bits);
+        int bits = NumberCompress_v3x5x8_bitsUsedForNumber(i);
+        uint64_t expected = NumberCompress_v3x5x8_getCompressed(i, bits);
         Assert_true(expected == EncodingScheme_convertLabel(scheme, expected,
                     EncodingScheme_convertLabel_convertTo_CANNONICAL));
     }

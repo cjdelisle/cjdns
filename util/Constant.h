@@ -15,19 +15,21 @@
 #ifndef Constant_H
 #define Constant_H
 
-<?js file.Constant_JS = require("../util/Constant.js"); ?>
+#include "util/Js.h"
 
-#define Constant_stringForHex(hex) <?js return file.Constant_JS.stringForHex( hex ) ?>
+Js({ file.Constant_JS = require("../util/Constant.js"); })
 
-#define Constant_base2(num) <?js return file.Constant_JS.base2( #num ) ?>
+#define Constant_stringForHex(hex) JsOr({ return file.Constant_JS.stringForHex( hex ) }, "")
 
-#define Constant_rand64() <?js return file.Constant_JS.rand64(file); ?>
+#define Constant_base2(num) JsOr({ return file.Constant_JS.base2( #num ) }, 0)
 
-#define Constant_rand32() <?js return file.Constant_JS.rand32(file); ?>
+#define Constant_rand64() JsOr({ return file.Constant_JS.rand64(file); }, ((uint64_t)0ull))
+
+#define Constant_rand32() JsOr({ return file.Constant_JS.rand32(file); }, ((uint32_t)0ull))
 
 #define Constant_randHexString(len) \
-    <?js return file.Constant_JS.randHexString(#len, file); ?>
+    JsOr({ return file.Constant_JS.randHexString(#len, file); }, "")
 
-#define Constant_log2(num) <?js return file.Constant_JS.log2(num); ?>
+#define Constant_log2(num) JsOr({ return file.Constant_JS.log2(num); }, 0)
 
 #endif

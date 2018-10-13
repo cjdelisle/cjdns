@@ -29,6 +29,8 @@ static void numberCompressions_generic(
     uint32_t (*getDecompressed)(const uint64_t label, const uint32_t bitsUsed),
     struct EncodingScheme* (* defineScheme)(struct Allocator* alloc) )
 {
+    struct Allocator* alloc = MallocAllocator_new(20000);
+    struct EncodingScheme* scheme = defineScheme(alloc);
 
     uint8_t bitWidths[64] = { 0 };
 
@@ -49,7 +51,7 @@ static void numberCompressions_generic(
 
             uint64_t label = getCompressed(i, bits);
 
-            if (1 == i) {
+            if (1 == i && EncodingScheme_is358(scheme)) {
                 Assert_true(1 == label);
                 continue;
             }
@@ -62,7 +64,7 @@ static void numberCompressions_generic(
     for (uint64_t label = 0; label < 0x10000u; ++label) {
         uint32_t bits = bitsUsedForLabel(label);
         Assert_true(1 == bitWidths[bits]);
-        if (1 == (label & Bits_maxBits64(bits))) {
+        if (EncodingScheme_is358(scheme) && 1 == (label & Bits_maxBits64(bits))) {
             //Assert_true(4 == bits);
             Assert_true(1 == getDecompressed(label, bits));
         } else {
@@ -71,8 +73,6 @@ static void numberCompressions_generic(
         }
     }
 
-    struct Allocator* alloc = MallocAllocator_new(20000);
-    struct EncodingScheme* scheme = defineScheme(alloc);
     for (uint32_t i = 0; i < nInterfaces; i++) {
         for (int j = 0; j < scheme->count; j++) {
             int bits = EncodingScheme_formSize(&scheme->forms[j]);
@@ -118,5 +118,6 @@ int main()
     TEST(f8);
     TEST(v3x5x8);
     TEST(v4x8);
+    TEST(v3x6x10);
     return 0;
 }

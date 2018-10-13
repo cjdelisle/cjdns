@@ -63,18 +63,15 @@ int EncodingScheme_parseDirector(struct EncodingScheme* scheme, uint64_t label)
 
     int dir = (label >> currentForm->prefixLen) & Bits_maxBits64(currentForm->bitCount);
 
-    if (!EncodingScheme_is358(scheme)) {
-        // use ^1 to flip slots 0 and 1 in variable width schemes
-        return dir ^ (scheme->count > 1);
-    } else {
+    if (EncodingScheme_is358(scheme)) {
         // slot 0 must always be represented as a 1, so in 358, 0 and 1 are swapped.
         if (formNum > 0) {
             dir += (dir > 0);
         } else {
             dir += (dir == 0) - (dir == 1);
         }
-        return dir;
     }
+    return dir;
 }
 
 uint64_t EncodingScheme_serializeDirector(struct EncodingScheme* scheme, int dir, int formNum)
@@ -85,8 +82,6 @@ uint64_t EncodingScheme_serializeDirector(struct EncodingScheme* scheme, int dir
                 if (!(dir >> scheme->forms[formNum].bitCount)) { break; }
             }
         }
-        // use ^1 to flip slots 0 and 1 in variable width schemes
-        dir ^= (scheme->count > 1);
     } else {
         if (formNum < 0) {
             for (formNum = 0; formNum < scheme->count; formNum++) {
@@ -493,6 +488,7 @@ int EncodingScheme_compare(struct EncodingScheme* a, struct EncodingScheme* b)
  */
 int EncodingScheme_isSelfRoute(struct EncodingScheme* scheme, uint64_t routeLabel)
 {
+    if (!EncodingScheme_is358(scheme)) { return routeLabel == 1; }
     int formNum = EncodingScheme_getFormNum(scheme, routeLabel);
     if (formNum == EncodingScheme_getFormNum_INVALID) {
         return 0;

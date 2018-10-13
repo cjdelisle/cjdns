@@ -67,12 +67,6 @@ Builder.configure({
 
         '-g',
 
-        // f4 = 16 peers max, fixed width 4 bit
-        // f8 = 241 peers max, fixed width 8 bit
-        // v3x5x8 = 256 peers max, variable width, 3, 5 or 8 bits plus 1 or 2 bits of prefix
-        // v4x8 = 256 peers max, variable width, 4, or 8 bits plus 1 bit prefix
-        '-D', 'NumberCompress_TYPE=v3x5x8',
-
         // enable for safety (don't worry about speed, profiling shows they add ~nothing)
         '-D', 'Identity_CHECK=1',
         '-D', 'Allocator_USE_CANARIES=1',

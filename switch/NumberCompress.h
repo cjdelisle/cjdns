@@ -21,6 +21,7 @@
 
 #include "switch/EncodingScheme.h"
 #include "util/Bits.h"
+#include "util/Constant.h"
 #include <stdint.h>
 
 /* right now 4 implementations:
@@ -230,14 +231,13 @@ static inline struct EncodingScheme* NumberCompress_v4x8_defineScheme(struct All
 static inline uint32_t NumberCompress_v4x8_getDecompressed(const uint64_t label,
                                                            const uint32_t bitsUsed)
 {
-    if ((label & 0x1f) == 1) { return 1; }
     switch (bitsUsed) {
         case 5: {
-            return ((label >> 1) & 0xfu) ^ 1;
+            return ((label >> 1) & 0xfu);
         }
 
         case 9: {
-            return ((label >> 1) & 0xffu) ^ 1;
+            return ((label >> 1) & 0xffu);
         }
 
         default: Assert_ifTesting(0);
@@ -246,19 +246,17 @@ static inline uint32_t NumberCompress_v4x8_getDecompressed(const uint64_t label,
 }
 
 
-static inline uint64_t NumberCompress_v4x8_getCompressed(uint32_t number,
+static inline uint64_t NumberCompress_v4x8_getCompressed(const uint32_t number,
                                                          const uint32_t bitsUsed)
 {
-    if (1 == number) { return 1; }
-
     switch (bitsUsed) {
         case 5: {
             Assert_ifTesting(number < 16);
-            return (number << 1) ^ 3;
+            return (number << 1) | 1;
         }
         case 9: {
             Assert_ifTesting(number < 256);
-            return (number << 1) ^ 2;
+            return (number << 1);
         }
         default: Assert_ifTesting(0);
     }
@@ -275,6 +273,76 @@ static inline uint32_t NumberCompress_v4x8_bitsUsedForNumber(const uint32_t numb
     Assert_ifTesting(number < 256);
     return (number < 16) ? 5 : 9;
 }
+
+/*
+ * 3/6/10 Dynamic number compression scheme:
+ * This is a v21 new-world scheme, it has no slot for the router.
+ *
+ * scheme   data                      suffix         range    bits used
+ *   0     000-111                      1            0-8          4
+ *   1     000000-111111               10            0-64         8
+ *   2     0000000000-1111111111       00            0-1024      12
+ */
+# define NumberCompress_v3x6x10_INTERFACES 1024
+static inline struct EncodingScheme* NumberCompress_v3x6x10_defineScheme(struct Allocator* alloc)
+{
+    return EncodingScheme_defineDynWidthScheme(
+        ((struct EncodingScheme_Form[]) {
+            { .bitCount = 3,  .prefixLen = 1, .prefix = 1, },
+            { .bitCount = 6,  .prefixLen = 2, .prefix = 1<<1, },
+            { .bitCount = 10, .prefixLen = 2, .prefix = 0, },
+        }),
+        3,
+        alloc);
+}
+static inline uint32_t NumberCompress_v3x6x10_getDecompressed(const uint64_t label,
+                                                              const uint32_t bitsUsed)
+{
+    switch (bitsUsed) {
+        case 4:  return ( (label >> 1) & Constant_base2(111) );
+        case 8:  return ( (label >> 2) & Constant_base2(111111) );
+        case 12: return ( (label >> 2) & Constant_base2(1111111111) );
+        default: Assert_failure("bad bitsUsed");
+    }
+}
+static inline uint64_t NumberCompress_v3x6x10_getCompressed(const uint32_t number,
+                                                            const uint32_t bitsUsed)
+{
+    switch (bitsUsed) {
+        case 4: {
+            Assert_true(number < 8);
+            return (number << 1) | 1;
+        }
+        case 8: {
+            Assert_true(number < 64);
+            return (number << 2) | (1<<1);
+        }
+        case 12: {
+            Assert_true(number < 1024);
+            return (number << 2);
+        }
+        default: Assert_failure("bad bitsUsed");
+    }
+}
+static inline uint32_t NumberCompress_v3x6x10_bitsUsedForLabel(const uint64_t label)
+{
+    if (label & 1) { return 4; }
+    if (label & 3) { return 8; }
+    return 12;
+}
+static inline uint32_t NumberCompress_v3x6x10_bitsUsedForNumber(const uint32_t number)
+{
+    if (number < 8) { return 4; }
+    if (number < 64) { return 8; }
+    Assert_true(number < 1024);
+    return 12;
+}
+
+#if !defined(NumberCompress_TYPE)
+    #define NumberCompress_TYPE v3x6x10
+#elif NumberCompress_TYPE == v3x5x8 && Version_CURRENT_PROTOCOL >= 21
+    #error v358 is nolonger allowed in protocol versions over 21
+#endif
 
 #define NumberCompress_MKNAME(x) NumberCompress__MKNAME(NumberCompress_TYPE, x)
 #define NumberCompress__MKNAME(y, x) NumberCompress___MKNAME(y, x)

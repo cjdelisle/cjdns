@@ -16,10 +16,13 @@
 #define Js_H
 
 #define Js(x)
+#define JsOr(x, y) y
 
 #if !defined(__INTELLISENSE__)
     #undef Js
+    #undef JsOr
     #define Js(x) <?js do x while (0); ?>
+    #define JsOr(x, y) Js(x)
 #endif
 
 #endif
