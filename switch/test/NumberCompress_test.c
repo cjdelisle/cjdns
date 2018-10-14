@@ -80,7 +80,7 @@ static void numberCompressions_generic(
             uint64_t label = getCompressed(i, bits);
             for (int k = j; k < scheme->count; k++) {
                 uint64_t labelB = EncodingScheme_convertLabel(scheme, label, k);
-                if (1 == i && k != 0) {
+                if (EncodingScheme_is358(scheme) && 1 == i && k != 0) {
                     Assert_true(1 == label);
                     Assert_true(EncodingScheme_convertLabel_INVALID == labelB);
                     continue;

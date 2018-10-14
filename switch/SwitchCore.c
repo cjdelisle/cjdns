@@ -132,7 +132,7 @@ static Iface_DEFUN receiveMessage(struct Message* message, struct Iface* iface)
     const uint32_t labelShift = SwitchHeader_getLabelShift(header);
 
     int sourceIdx;
-    uint64_t sourceLabel;    
+    uint64_t sourceLabel;
     if (sourceIf == &core->routerIf) {
         // message coming from us
         sourceIdx = -1;
@@ -164,7 +164,7 @@ static Iface_DEFUN receiveMessage(struct Message* message, struct Iface* iface)
             DEBUG_SRC_DST(core->logger, "DROP interface is down");
             return sendError(sourceIf, message, Error_UNDELIVERABLE, core->logger);
         }
-    }      
+    }
 
     if (sourceIdx > -1 && NumberCompress_bitsUsedForNumber(sourceIdx) > bits) {
         DEBUG_SRC_DST(core->logger,

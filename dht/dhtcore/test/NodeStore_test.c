@@ -43,10 +43,17 @@ static uint8_t* ADDRS[] = {
     NULL
 };
 
-static void addNode(struct NodeStore* ns, uint8_t* address, struct Allocator* alloc)
+static void addNode(
+    struct NodeStore* ns,
+    uint8_t* address,
+    struct Allocator* alloc,
+    struct EncodingScheme* scheme)
 {
-    struct EncodingScheme* scheme = NumberCompress_v3x5x8_defineScheme(alloc);
     struct Address* addr = Address_fromString(String_new(address, alloc), alloc);
+    int dir = EncodingScheme_parseDirector(EncodingScheme_358(), addr->path);
+    addr->path = EncodingScheme_serializeDirector(scheme, dir, -1);
+    int formNum = EncodingScheme_getFormNum(scheme, addr->path);
+    addr->path |= 1 << (scheme->forms[formNum].bitCount + scheme->forms[formNum].prefixLen);
     Assert_true(NodeStore_discoverNode(ns, addr, scheme, 0, 100));
 }
 
@@ -83,7 +90,8 @@ static void getPeersTest(uint8_t* addrs[],
                          struct EventBase* base,
                          struct Log* logger,
                          struct Allocator* alloc,
-                         struct Random* rand)
+                         struct Random* rand,
+                         struct EncodingScheme* scheme)
 {
 
     uint8_t my_addr[] =
@@ -92,10 +100,10 @@ static void getPeersTest(uint8_t* addrs[],
 
     struct Address* myAddr = Address_fromString(String_new(my_addr, alloc), alloc);
     Assert_true(myAddr);
-    struct NodeStore* ns = NodeStore_new(myAddr, alloc, base, logger, NULL);
+    struct NodeStore* ns = NodeStore_new(myAddr, alloc, base, logger, NULL, scheme);
     NodeStore_setFullVerify(ns, true);
     for (int i = 0; addrs[i]; i++) {
-        addNode(ns, addrs[i], alloc);
+        addNode(ns, addrs[i], alloc, scheme);
     }
 
     struct NodeList* list = NodeStore_getPeers(0, 8, alloc, ns);
@@ -127,7 +135,10 @@ int main(int argc, char** argv)
     }
 #endif
 
-    getPeersTest(ADDRS, base, logger, alloc, rand);
+    getPeersTest(ADDRS, base, logger, alloc, rand, NumberCompress_v3x5x8_defineScheme(alloc));
+    //getPeersTest(ADDRS, base, logger, alloc, rand, NumberCompress_v4x8_defineScheme(alloc));
+    //getPeersTest(ADDRS, base, logger, alloc, rand, NumberCompress_v3x6x10_defineScheme(alloc));
+    //getPeersTest(ADDRS, base, logger, alloc, rand, NumberCompress_f4_defineScheme(alloc));
 
     Allocator_free(alloc);
     return 0;

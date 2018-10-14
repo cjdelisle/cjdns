@@ -69,7 +69,8 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
                                 struct Allocator* allocator,
                                 struct EventBase* eventBase,
                                 struct Log* logger,
-                                struct RumorMill* renumberMill);
+                                struct RumorMill* renumberMill,
+                                struct EncodingScheme* myScheme);
 
 /**
  * Discover a new node (or rediscover an existing one).

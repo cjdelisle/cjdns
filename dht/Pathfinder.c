@@ -65,6 +65,7 @@ struct Pathfinder_pvt
     struct SearchRunner* searchRunner;
     struct RumorMill* rumorMill;
     struct Janitor* janitor;
+    struct EncodingScheme* myScheme;
 
     Identity
 };
@@ -181,7 +182,8 @@ static Iface_DEFUN connected(struct Pathfinder_pvt* pf, struct Message* msg)
 
     pf->rumorMill = RumorMill_new(pf->alloc, &pf->myAddr, RUMORMILL_CAPACITY, pf->log, "extern");
 
-    pf->nodeStore = NodeStore_new(&pf->myAddr, pf->alloc, pf->base, pf->log, pf->rumorMill);
+    pf->nodeStore = NodeStore_new(
+        &pf->myAddr, pf->alloc, pf->base, pf->log, pf->rumorMill, pf->myScheme);
 
     if (pf->pub.fullVerify) {
         NodeStore_setFullVerify(pf->nodeStore, true);
@@ -480,7 +482,8 @@ struct Pathfinder* Pathfinder_register(struct Allocator* allocator,
                                        struct Log* log,
                                        struct EventBase* base,
                                        struct Random* rand,
-                                       struct Admin* admin)
+                                       struct Admin* admin,
+                                       struct EncodingScheme* myScheme)
 {
     struct Allocator* alloc = Allocator_child(allocator);
     struct Pathfinder_pvt* pf = Allocator_calloc(alloc, sizeof(struct Pathfinder_pvt), 1);
@@ -490,6 +493,7 @@ struct Pathfinder* Pathfinder_register(struct Allocator* allocator,
     pf->base = base;
     pf->rand = rand;
     pf->admin = admin;
+    pf->myScheme = myScheme;
 
     pf->pub.eventIf.send = incomingFromEventIf;
 

@@ -271,7 +271,8 @@ void Core_init(struct Allocator* alloc,
     EventEmitter_regPathfinderIface(nc->ee, &spfAsync->ifB);
 
     #ifndef SUBNODE
-        struct Pathfinder* opf = Pathfinder_register(alloc, logger, eventBase, rand, admin);
+        struct Pathfinder* opf = Pathfinder_register(
+            alloc, logger, eventBase, rand, admin, encodingScheme);
         struct ASynchronizer* opfAsync = ASynchronizer_new(alloc, eventBase, logger);
         Iface_plumb(&opfAsync->ifA, &opf->eventIf);
         EventEmitter_regPathfinderIface(nc->ee, &opfAsync->ifB);

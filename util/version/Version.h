@@ -446,23 +446,23 @@ Version_COMPAT(20, ([16,17,18,19]))
  * October 13, 2018
  *
  * This is a non-breaking protocol change which vastly simplifies the EncodingScheme rules.
- * An EncodingScheme is the description of the way that a node's switch will parse the bits
- * in a label in order to decide which next hop to forward it to. In the beginning (before v6)
- * there was no EncodingScheme so the way in which nodes bit-encoded their Directors in the switch
- * label was an implementation detail. Switches, as a rule, have 2 possible bit encoding methods,
- * either they use *fixed* encoding wherein every director uses the same number of hops, or they
- * use *variable* encoding, in which the number of bits used increases as the number of peers
- * increases. However, when forwarding a packet, the label is shifted by the number of bits in that
- * hop's Director and then the reverse path Director must be placed in the zero bits created by the
- * shift. Thus the reverse path director must be the same bit-width as the forward path director.
- * This means if the path from B->C takes only 4 bits but the path from B->A takes 8 bits to
- * represent, A sending a packet to C through B must use an 8 bit representation of the Director
- * for B->C so that B can represent the reverse path.
+ * The EncodingScheme is the description of the way that a node's switch will parse the bits
+ * in a label (known as a Director) in order to decide which next hop to forward it to.
+ * In the beginning (before v6) there was no EncodingScheme, the way that nodes bit-encoded their
+ * Directors in the switch label was an implementation detail. Switches, as a rule, have 2
+ * possible bit encoding methods, either they use *fixed* encoding wherein every Director uses
+ * the same number of bits, or they use *variable* encoding, in which the number of bits used
+ * increases as the number of peers increases. However, when forwarding a packet, the label is
+ * shifted by the number of bits in that hop's Director and then the reverse path Director must
+ * be placed in the zero bits created by the shift. Thus the reverse path director must be the
+ * same bit-width as the forward path director. This means if the path from B->C takes only 4
+ * bits but the path from B->A takes 8 bits to represent, A sending a packet to C through B must
+ * use an 8 bit representation of the Director for B->C so that B can represent the reverse path.
  *
  * Ya got all that ?
  *
- * Now, Pathfinder1 didn't infer any paths which it had not explicitly learned, so everybody fixed
- * up the first Director in a label when providing it to someone else see:
+ * Now, Pathfinder1 didn't infer any paths which it had not explicitly learned, so every node
+ * fixed up the first Director in a label when providing it to someone else.
  * See: https://github.com/cjdelisle/cjdns/blob/cjdns-v20.2/switch/NumberCompress.h#L304
  * However, this was quite inefficient because we might know a path like A->B->C->D and another
  * path like A->Z->C->Y, reasonably we should be able to infer a path like A->Z->C->D which would
@@ -490,17 +490,17 @@ Version_COMPAT(20, ([16,17,18,19]))
  *
  * You may notice that the bit-pattern 0001 is treated specially. This is a throwback to the
  * days when encoding schemess were an internal implementation detail. Every label ends with a
- * Director which tells the ultimate node switch to forward the packet up to it's own router, but
+ * Director which tells the ultimate node switch to send the packet up to it's own router, but
  * in order to splice two labels together, you need to be able to remove this Director from the
  * end of the label in order to splice "more hops" on in it's place. The solution adopted at the
  * time was to specify that the self-route must always be 0001, meaning that every EncodingScheme
- * needed to resolve 0001 to it's own router. In cjdns currently, the self-router occupies the
+ * needed to resolve 0001 to it's own router. In cjdns < v21, the self-router occupied the
  * second slot in the switch (slot 1, slot 0 is the first peer and the second peer gets slot 2).
  * For fixed width encoding schemes, this is easy, the 0001 corrisponds to a 1, the router slot.
  * However, for v3x5x8 (for example), the 1 in 0001 is the prefix, so v3x5x8 must swap positions 0
  * and 1. It is unfortunate to lose a number in the Director because the switch needs to be able
- * to accept the packet to its Self-Director. What's worse is that it is invalid to represent the
- * Self-Director as anything other than 0001, so one entry is lost in every form of the encoding
+ * to accept the packet to itself. What's worse is that it is invalid to represent the
+ * Self-Director as anything other than 0001, so one entry is lost for every form of the encoding
  * scheme. To deal with this, v3x5x8 has some additional hackery, for any form bigger other than
  * form 0, v3x5x8 re-uses slot 1 as slot 2, slot 2 as slot 3 and so on. This made sense at the
  * moment when v3x5x8 was created but once EncodingScheme was formalized, it became a burdon
@@ -515,14 +515,14 @@ Version_COMPAT(20, ([16,17,18,19]))
  * Fortunately, since v11 there has been a number in the SwitchHeader which is incremented as the
  * label is shifted by the various switches through the path. The initial reason for this number
  * was to deal with the possibility that a label might be crafted which contained no 0001 at the
- * end and thus the reverse path would again be parsed as a forward path and the packet might fly
- * through the network infinitely. It only cost 6 bits to add a "ttl field" which would count up
- * to 64 and then the packet would fail at that point.
+ * end and thus the reverse path would again be parsed as a forward path and the packet might
+ * potentially fly through the network infinitely. It only cost 6 bits to add a "ttl field" which
+ * would count up to 64 and then the packet would fail at that point.
  * https://github.com/cjdelisle/cjdns/blob/cjdns-v20.2/wire/SwitchHeader.h#L25
  *
- * The change of v21 is ridiculously simple, because lableShift allows us to distinguish between
+ * The change of v21 was ridiculously simple, because labelShift allows us to distinguish between
  * bits which belong to future hops from bits which belong to the reverse path that wraps around,
- * we can simply check if there are any bits left in future hops. Labels will still be terminated
+ * we can simply check if there are any bits left for future hops. Labels will still be terminated
  * with a 1, but the three zeros (0001) become optional and the EncodingScheme need not reserve
  * 0001 for the self route. Because v21 uses all switch slots for peers, it is thus incompatible
  * with v3x5x8 with the subtract trick. So the new default EncodingScheme is v3x6x10 which

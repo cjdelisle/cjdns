@@ -20,7 +20,7 @@
 #include "util/Endian.h"
 #include "util/Hex.h"
 
-int EncodingScheme_getFormNum(struct EncodingScheme* scheme, uint64_t routeLabel)
+int EncodingScheme_getFormNum(const struct EncodingScheme* scheme, uint64_t routeLabel)
 {
     if (scheme->count == 1) {
         return 0;
@@ -37,23 +37,26 @@ int EncodingScheme_getFormNum(struct EncodingScheme* scheme, uint64_t routeLabel
     return EncodingScheme_getFormNum_INVALID;
 }
 
-bool EncodingScheme_is358(struct EncodingScheme* scheme)
-{
-    struct EncodingScheme_Form v358[3] = {
+static const struct EncodingScheme ES_358 = {
+    .count = 3,
+    .forms = (struct EncodingScheme_Form[]) {
         { .bitCount = 3, .prefixLen = 1, .prefix = 1, },
         { .bitCount = 5, .prefixLen = 2, .prefix = 1<<1, },
         { .bitCount = 8, .prefixLen = 2, .prefix = 0, }
-    };
-    if (scheme->count != 3) { return false; }
-    for (int i = 0; i < 3; i++) {
-        if (Bits_memcmp(&v358[i], &scheme->forms[i], sizeof(struct EncodingScheme_Form))) {
-            return false;
-        }
     }
-    return true;
+};
+const struct EncodingScheme* EncodingScheme_358()
+{
+    return &ES_358;
 }
 
-int EncodingScheme_parseDirector(struct EncodingScheme* scheme, uint64_t label)
+bool EncodingScheme_is358(const struct EncodingScheme* scheme)
+{
+    if (scheme->count != 3) { return false; }
+    return !Bits_memcmp(ES_358.forms, scheme->forms, sizeof(struct EncodingScheme_Form) * 3);
+}
+
+int EncodingScheme_parseDirector(const struct EncodingScheme* scheme, uint64_t label)
 {
     int formNum = EncodingScheme_getFormNum(scheme, label);
     if (formNum == EncodingScheme_getFormNum_INVALID) {
@@ -74,7 +77,8 @@ int EncodingScheme_parseDirector(struct EncodingScheme* scheme, uint64_t label)
     return dir;
 }
 
-uint64_t EncodingScheme_serializeDirector(struct EncodingScheme* scheme, int dir, int formNum)
+uint64_t EncodingScheme_serializeDirector(
+    const struct EncodingScheme* scheme, int dir, int formNum)
 {
     if (!EncodingScheme_is358(scheme)) {
         if (formNum < 0) {
@@ -90,6 +94,7 @@ uint64_t EncodingScheme_serializeDirector(struct EncodingScheme* scheme, int dir
         }
 
         if (formNum) {
+            if (dir == 1) { return ~0ull; }
             // slot 1 is only represented in form 0 so in all other forms, it is skipped.
             dir -= (dir > 0);
         } else {
@@ -101,103 +106,30 @@ uint64_t EncodingScheme_serializeDirector(struct EncodingScheme* scheme, int dir
     if (formNum >= scheme->count) { return ~0ull; }
 
     struct EncodingScheme_Form* f = &scheme->forms[formNum];
-    return (dir << f->prefixLen) | f->prefix;
+    return (((uint64_t)dir) << f->prefixLen) | f->prefix;
 }
 
-uint64_t EncodingScheme_convertLabel(struct EncodingScheme* scheme,
+uint64_t EncodingScheme_convertLabel(const struct EncodingScheme* scheme,
                                      uint64_t routeLabel,
                                      int convertTo)
 {
     int formNum = EncodingScheme_getFormNum(scheme, routeLabel);
-    if (formNum == EncodingScheme_getFormNum_INVALID) {
+    if (formNum < 0) { return EncodingScheme_convertLabel_INVALID; }
+    struct EncodingScheme_Form* inForm = &scheme->forms[formNum];
+
+    int dir = EncodingScheme_parseDirector(scheme, routeLabel);
+    if (dir < 0) { return EncodingScheme_convertLabel_INVALID; }
+    uint64_t dirS = EncodingScheme_serializeDirector(scheme, dir, convertTo);
+    if (dirS == ~0ull) { return EncodingScheme_convertLabel_INVALID; }
+    int outFormNum = EncodingScheme_getFormNum(scheme, dirS);
+    struct EncodingScheme_Form* outForm = &scheme->forms[outFormNum];
+
+    routeLabel >>= (inForm->prefixLen + inForm->bitCount);
+    int outFormBits = (outForm->prefixLen + outForm->bitCount);
+    if (Bits_log2x64(routeLabel) + outFormBits > 59) {
         return EncodingScheme_convertLabel_INVALID;
     }
-
-    struct EncodingScheme_Form* currentForm = &scheme->forms[formNum];
-
-    if (scheme->count == 1
-        || (routeLabel & Bits_maxBits64(currentForm->prefixLen + currentForm->bitCount)) == 1)
-    {
-        // fixed width encoding or it's a self label, this is easy
-        switch (convertTo) {
-            case 0:
-            case EncodingScheme_convertLabel_convertTo_CANNONICAL: return routeLabel;
-            default: return EncodingScheme_convertLabel_INVALID;
-        }
-    }
-
-    routeLabel >>= currentForm->prefixLen;
-    uint64_t director = routeLabel & Bits_maxBits64(currentForm->bitCount);
-    routeLabel >>= currentForm->bitCount;
-
-    // ACKTUNG: Magic afoot!
-    // Conversions are necessary for two reasons.
-    // #1 ensure 0001 always references interface 1, the self interface.
-    // #2 reuse interface the binary encoding for interface 1 in other EncodingForms
-    //    because interface 1 cannot be expressed as anything other than 0001
-    if (!EncodingScheme_is358(scheme)) {
-        // don't pull this bug-workaround crap for sane encodings schemes.
-    } else if ((currentForm->prefix & Bits_maxBits64(currentForm->prefixLen)) == 1) {
-        // Swap 0 and 1 if the prefix is 1, this makes 0001 alias to 1
-        // because 0 can never show up in the wild, we reuse it for 1.
-        director = director - (director == 1) + (director == 0);
-    } else {
-        // Reuse the number 1 for 2 and 2 for 3 etc. to gain an extra slot in all other forms.
-        director += (director > 0);
-    }
-
-    if (convertTo == EncodingScheme_convertLabel_convertTo_CANNONICAL) {
-        // Take into account the fact that if the destination form does not have a 1 prefix,
-        // an extra number will be available.
-        int minBitsA = Bits_log2x64(director) + 1;
-        int minBitsB = Bits_log2x64(director - (director > 0)) + 1;
-        for (int i = 0; i < scheme->count; i++) {
-            struct EncodingScheme_Form* form = &scheme->forms[i];
-            int minBits = ((form->prefix & Bits_maxBits64(form->prefixLen)) == 1)
-                ? minBitsA : minBitsB;
-            if (form->bitCount >= minBits) {
-                convertTo = i;
-                break;
-            }
-        }
-    }
-
-    if (convertTo < 0 || convertTo >= scheme->count) {
-        // convertTo value is insane
-        return EncodingScheme_convertLabel_INVALID;
-    }
-
-    struct EncodingScheme_Form* nextForm = &scheme->forms[convertTo];
-
-    if (!EncodingScheme_is358(scheme)) {
-        // don't pull this bug-workaround crap for sane encodings schemes.
-    } else if ((nextForm->prefix & Bits_maxBits64(nextForm->prefixLen)) == 1) {
-        // Swap 1 and 0 back if necessary.
-        director = director - (director == 1) + (director == 0);
-    } else {
-        // Or move the numbers down by one.
-        director -= (director > 0);
-    }
-
-    if ((Bits_log2x64(director) + 1) > nextForm->bitCount) {
-        // won't fit in requested form
-        return EncodingScheme_convertLabel_INVALID;
-    }
-    if (Bits_log2x64(routeLabel) + EncodingScheme_formSize(nextForm) > 59) {
-        return EncodingScheme_convertLabel_INVALID;
-    }
-
-    routeLabel <<= nextForm->bitCount;
-    routeLabel |= director;
-    routeLabel <<= nextForm->prefixLen;
-    routeLabel |= nextForm->prefix;
-
-    if ((routeLabel & Bits_maxBits64(nextForm->prefixLen + nextForm->bitCount)) == 1) {
-        // looks like a self-route
-        return EncodingScheme_convertLabel_INVALID;
-    }
-
-    return routeLabel;
+    return (routeLabel << outFormBits) | dirS;
 }
 
 /**
@@ -250,7 +182,7 @@ static inline int encodeForm(struct EncodingScheme_Form* in, uint64_t* data, int
     return 5 + 5 + in->prefixLen;
 }
 
-bool EncodingScheme_isSane(struct EncodingScheme* scheme)
+bool EncodingScheme_isSane(const struct EncodingScheme* scheme)
 {
     // Check for obviously insane encoding.
     if (scheme->count == 0) {
@@ -310,7 +242,7 @@ bool EncodingScheme_isSane(struct EncodingScheme* scheme)
     return true;
 }
 
-List* EncodingScheme_asList(struct EncodingScheme* list, struct Allocator* alloc)
+List* EncodingScheme_asList(const struct EncodingScheme* list, struct Allocator* alloc)
 {
     Assert_ifParanoid(EncodingScheme_isSane(list));
     List* scheme = List_new(alloc);
@@ -362,7 +294,7 @@ struct EncodingScheme* EncodingScheme_fromList(List* scheme, struct Allocator* a
     return list;
 }
 
-String* EncodingScheme_serialize(struct EncodingScheme* list,
+String* EncodingScheme_serialize(const struct EncodingScheme* list,
                                  struct Allocator* alloc)
 {
     Assert_ifParanoid(EncodingScheme_isSane(list));
@@ -458,7 +390,7 @@ struct EncodingScheme* EncodingScheme_defineFixedWidthScheme(int bitCount, struc
 }
 
 
-struct EncodingScheme* EncodingScheme_defineDynWidthScheme(struct EncodingScheme_Form* forms,
+struct EncodingScheme* EncodingScheme_defineDynWidthScheme(const struct EncodingScheme_Form* forms,
                                                            int formCount,
                                                            struct Allocator* alloc)
 {
@@ -475,7 +407,7 @@ struct EncodingScheme* EncodingScheme_defineDynWidthScheme(struct EncodingScheme
     return scheme;
 }
 
-int EncodingScheme_compare(struct EncodingScheme* a, struct EncodingScheme* b)
+int EncodingScheme_compare(const struct EncodingScheme* a, const struct EncodingScheme* b)
 {
     if (a->count == b->count) {
         return Bits_memcmp(a->forms, b->forms, sizeof(struct EncodingScheme_Form) * a->count);
@@ -486,7 +418,7 @@ int EncodingScheme_compare(struct EncodingScheme* a, struct EncodingScheme* b)
 /**
  * Return true if the route is to the switch's router interface.
  */
-int EncodingScheme_isSelfRoute(struct EncodingScheme* scheme, uint64_t routeLabel)
+int EncodingScheme_isSelfRoute(const struct EncodingScheme* scheme, uint64_t routeLabel)
 {
     if (!EncodingScheme_is358(scheme)) { return routeLabel == 1; }
     int formNum = EncodingScheme_getFormNum(scheme, routeLabel);
@@ -499,7 +431,7 @@ int EncodingScheme_isSelfRoute(struct EncodingScheme* scheme, uint64_t routeLabe
     return (routeLabel & Bits_maxBits64(currentForm->prefixLen + currentForm->bitCount)) == 1;
 }
 
-int EncodingScheme_isOneHop(struct EncodingScheme* scheme, uint64_t routeLabel)
+int EncodingScheme_isOneHop(const struct EncodingScheme* scheme, uint64_t routeLabel)
 {
     int fn = EncodingScheme_getFormNum(scheme, routeLabel);
     if (fn == EncodingScheme_getFormNum_INVALID) { return 0; }

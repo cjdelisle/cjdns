@@ -172,15 +172,16 @@ static int convertLabel(struct EncodingScheme_Form* iform,
     Bits_memcpy(&s.forms[0], iform, sizeof(struct EncodingScheme_Form));
     Bits_memcpy(&s.forms[1], oform, sizeof(struct EncodingScheme_Form));
 
-    int iformNum = 0;
-    int oformNum = 1;
+    const int iformNum = 0;
+    const int oformNum = 1;
     struct EncodingScheme* scheme = &s.scheme;
 
     Assert_true(EncodingScheme_getFormNum(scheme, label) == iformNum);
 
     uint64_t label2 = EncodingScheme_convertLabel(scheme, label, oformNum);
 
-    if ((label & Bits_maxBits64(s.forms[0].prefixLen + s.forms[0].bitCount)) == 1) {
+    if (!EncodingScheme_is358(&s.scheme)) {
+    } else if ((label & Bits_maxBits64(s.forms[0].prefixLen + s.forms[0].bitCount)) == 1) {
         Assert_true(label2 == EncodingScheme_convertLabel_INVALID);
         return convertLabel_SELF_ROUTE;
     }
@@ -216,7 +217,8 @@ static int convertLabel(struct EncodingScheme_Form* iform,
     uint64_t converted = (additional << s.forms[1].bitCount) | director;
     converted = (converted << s.forms[1].prefixLen) | s.forms[1].prefix;
 
-    if ((converted & Bits_maxBits64(s.forms[1].prefixLen + s.forms[1].bitCount)) == 1) {
+    if (!EncodingScheme_is358(&s.scheme)) {
+    } else if ((converted & Bits_maxBits64(s.forms[1].prefixLen + s.forms[1].bitCount)) == 1) {
         // looks like a self-route
         Assert_true(label2 == EncodingScheme_convertLabel_INVALID);
         return convertLabel_SELF_ROUTE;
@@ -382,18 +384,18 @@ int main()
     parseSerializeDir(esf4, encode_f4, decode_f4);
 
     // for testing individual conversions in isolation.
-    /*convertLabel(
-        &(struct EncodingScheme_Form){.bitCount = 15, .prefixLen = 20, .prefix = 792003},
-        &(struct EncodingScheme_Form){.bitCount = 31, .prefixLen = 30, .prefix = 385462496},
-        11331704259
-    );*/
+    convertLabel(
+        &(struct EncodingScheme_Form){.bitCount = 9, .prefixLen = 27, .prefix = 80247196},
+        &(struct EncodingScheme_Form){.bitCount = 13, .prefixLen = 16, .prefix = 38250},
+        0x00003176c4c8799cull
+    );
 
     for (int i = 0; i < 10; i++) {
         struct Allocator* tempAlloc = Allocator_child(alloc);
-        struct EncodingScheme* scheme = randomScheme(rand, tempAlloc);
-        convertLabelRand(rand, scheme);
         convertLabelRand(rand, es48);
         convertLabelRand(rand, es358);
+        struct EncodingScheme* scheme = randomScheme(rand, tempAlloc);
+        convertLabelRand(rand, scheme);
         Allocator_free(tempAlloc);
     }
 

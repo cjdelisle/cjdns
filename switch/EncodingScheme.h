@@ -44,7 +44,7 @@ struct EncodingScheme
  * returned.
  */
 #define EncodingScheme_getFormNum_INVALID -1
-int EncodingScheme_getFormNum(struct EncodingScheme* scheme, uint64_t routeLabel);
+int EncodingScheme_getFormNum(const struct EncodingScheme* scheme, uint64_t routeLabel);
 
 /**
  * Convert the first director in a label from it's current form to the form given by convertTo.
@@ -59,7 +59,7 @@ int EncodingScheme_getFormNum(struct EncodingScheme* scheme, uint64_t routeLabel
  */
 #define EncodingScheme_convertLabel_convertTo_CANNONICAL (-5000)
 #define EncodingScheme_convertLabel_INVALID (~((uint64_t)0))
-uint64_t EncodingScheme_convertLabel(struct EncodingScheme* scheme,
+uint64_t EncodingScheme_convertLabel(const struct EncodingScheme* scheme,
                                      uint64_t routeLabel,
                                      int convertTo);
 
@@ -69,9 +69,9 @@ uint64_t EncodingScheme_convertLabel(struct EncodingScheme* scheme,
  * working deserializer) such as unrepresentable bit-widths but it will check that a representable
  * encoding scheme is indeed valid according to the protocol.
  */
-bool EncodingScheme_isSane(struct EncodingScheme* scheme);
+bool EncodingScheme_isSane(const struct EncodingScheme* scheme);
 
-String* EncodingScheme_serialize(struct EncodingScheme* list,
+String* EncodingScheme_serialize(const struct EncodingScheme* list,
                                  struct Allocator* alloc);
 
 struct EncodingScheme* EncodingScheme_deserialize(String* data,
@@ -80,7 +80,7 @@ struct EncodingScheme* EncodingScheme_deserialize(String* data,
 struct EncodingScheme* EncodingScheme_defineFixedWidthScheme(int bitCount, struct Allocator* alloc);
 
 
-struct EncodingScheme* EncodingScheme_defineDynWidthScheme(struct EncodingScheme_Form* forms,
+struct EncodingScheme* EncodingScheme_defineDynWidthScheme(const struct EncodingScheme_Form* forms,
                                                            int formCount,
                                                            struct Allocator* alloc);
 
@@ -92,30 +92,34 @@ static inline int EncodingScheme_formSize(const struct EncodingScheme_Form* form
     return form->bitCount + form->prefixLen;
 }
 
-int EncodingScheme_compare(struct EncodingScheme* a, struct EncodingScheme* b);
+int EncodingScheme_compare(const struct EncodingScheme* a, const struct EncodingScheme* b);
 
 #define EncodingScheme_equals(a,b) (!EncodingScheme_compare(a,b))
 
 struct EncodingScheme* EncodingScheme_fromList(List* scheme, struct Allocator* alloc);
-List* EncodingScheme_asList(struct EncodingScheme* list, struct Allocator* alloc);
+List* EncodingScheme_asList(const struct EncodingScheme* list, struct Allocator* alloc);
 
 /**
  * Return true if the route is to the switch's router interface.
  */
-int EncodingScheme_isSelfRoute(struct EncodingScheme* scheme, uint64_t routeLabel);
+int EncodingScheme_isSelfRoute(const struct EncodingScheme* scheme, uint64_t routeLabel);
 
 /**
  * @return non-zero if the route label is one hop.
  */
-int EncodingScheme_isOneHop(struct EncodingScheme* scheme, uint64_t routeLabel);
+int EncodingScheme_isOneHop(const struct EncodingScheme* scheme, uint64_t routeLabel);
 
 #define EncodingScheme_parseDirector_INVALID -1
-int EncodingScheme_parseDirector(struct EncodingScheme* scheme, uint64_t label);
+int EncodingScheme_parseDirector(
+    const struct EncodingScheme* scheme, uint64_t label);
 
-uint64_t EncodingScheme_serializeDirector(struct EncodingScheme* scheme, int number, int formNum);
+uint64_t EncodingScheme_serializeDirector(
+    const struct EncodingScheme* scheme, int number, int formNum);
 
 // Return true if the encoding scheme is the legacy 358 encoding scheme
 // which gets special treatment.
-bool EncodingScheme_is358(struct EncodingScheme* scheme);
+bool EncodingScheme_is358(const struct EncodingScheme* scheme);
+
+const struct EncodingScheme* EncodingScheme_358(void);
 
 #endif

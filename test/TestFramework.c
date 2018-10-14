@@ -142,7 +142,7 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
     EventEmitter_regPathfinderIface(nc->ee, &spfAsync->ifB);
 
     #ifndef SUBNODE
-        struct Pathfinder* pf = Pathfinder_register(allocator, logger, base, rand, NULL);
+        struct Pathfinder* pf = Pathfinder_register(allocator, logger, base, rand, NULL, scheme);
         pf->fullVerify = true;
         struct ASynchronizer* pfAsync = ASynchronizer_new(allocator, base, logger);
         Iface_plumb(&pfAsync->ifA, &pf->eventIf);

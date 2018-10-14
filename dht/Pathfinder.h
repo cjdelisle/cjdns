@@ -21,6 +21,7 @@
 
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
+#include "switch/EncodingScheme.h"
 #include "util/events/EventBase.h"
 #include "crypto/random/Random.h"
 #include "admin/Admin.h"
@@ -33,10 +34,11 @@ struct Pathfinder
     bool fullVerify;
 };
 
-struct Pathfinder* Pathfinder_register(struct Allocator* alloc,
-                                       struct Log* logger,
+struct Pathfinder* Pathfinder_register(struct Allocator* allocator,
+                                       struct Log* log,
                                        struct EventBase* base,
                                        struct Random* rand,
-                                       struct Admin* admin);
+                                       struct Admin* admin,
+                                       struct EncodingScheme* myScheme);
 
 #endif

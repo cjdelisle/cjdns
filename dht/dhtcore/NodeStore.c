@@ -21,7 +21,7 @@
 #include "util/Bits.h"
 #include "util/log/Log.h"
 #include "util/version/Version.h"
-#include "switch/NumberCompress.h"
+#include "switch/EncodingScheme.h"
 #include "switch/LabelSplicer.h"
 #include "util/Gcc.h"
 #include "util/Defined.h"
@@ -1608,7 +1608,8 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
                                 struct Allocator* allocator,
                                 struct EventBase* eventBase,
                                 struct Log* logger,
-                                struct RumorMill* renumberMill)
+                                struct RumorMill* renumberMill,
+                                struct EncodingScheme* myScheme)
 {
     struct Allocator* alloc = Allocator_child(allocator);
 
@@ -1629,7 +1630,7 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
     Assert_true(selfNode);
     Assert_true(myAddress);
     Bits_memcpy(&selfNode->address, myAddress, sizeof(struct Address));
-    selfNode->encodingScheme = NumberCompress_defineScheme(alloc);
+    selfNode->encodingScheme = myScheme;
     selfNode->alloc = alloc;
     Identity_set(selfNode);
     out->pub.selfNode = selfNode;
@@ -1766,7 +1767,9 @@ struct NodeList* NodeStore_getPeers(uint64_t label,
     // truncate the label to the part which this node uses PLUS
     // the self-interface bit for the next hop
     if (label > 1) {
-        int bitsUsed = NumberCompress_bitsUsedForLabel(label);
+        struct EncodingScheme* s = nodeStore->selfNode->encodingScheme;
+        int fn = EncodingScheme_getFormNum(s, label);
+        int bitsUsed = s->forms[fn].prefixLen + s->forms[fn].bitCount;
         label = (label & Bits_maxBits64(bitsUsed)) | 1 << bitsUsed;
     }
     struct NodeList* out = Allocator_calloc(allocator, sizeof(struct NodeList), 1);
