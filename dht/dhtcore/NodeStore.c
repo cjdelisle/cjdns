@@ -1043,9 +1043,10 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
 
     if (!link) { return NULL; }
 
-    uint64_t pathParentChild = findClosest(path, &link, store->selfLink, store);
+    // Dropped because v21 triggers this...
+    //uint64_t pathParentChild = findClosest(path, &link, store->selfLink, store);
     // This should always be 1 because the link is gone only because it was just split!
-    Assert_true(pathParentChild == 1);
+    //Assert_true(pathParentChild == 1);
 
     struct Node_Link* ol = NULL;
     struct Node_Link* nl = NULL;

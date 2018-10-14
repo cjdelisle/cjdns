@@ -302,7 +302,7 @@ static Iface_DEFUN incoming(struct Message* msg, struct Iface* interRouterIf)
     }
 
     int64_t* verP = Dict_getIntC(content, "p");
-    if (!verP) {
+    if (!verP || !*verP) {
         Log_debug(mcp->log, "DROP Message without version");
         return NULL;
     }

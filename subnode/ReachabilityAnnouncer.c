@@ -347,7 +347,7 @@ static void loadAllState(struct ReachabilityAnnouncer_pvt* rap, bool assertNoCha
 static void setupNextMsg(struct ReachabilityAnnouncer_pvt* rap)
 {
     struct Allocator* msgAlloc = Allocator_child(rap->alloc);
-    struct Message* nextMsg = Message_new(0, 1024, msgAlloc);
+    struct Message* nextMsg = Message_new(0, 1300, msgAlloc);
     Message_push(nextMsg, NULL, Announce_Header_SIZE, NULL);
     rap->nextMsg = nextMsg;
 }
