@@ -82,7 +82,7 @@ static inline int LinkState_encode(
     int finalLength = msg->length - beginLength;
     Message_push8(msg, finalLength + 1, NULL);
 
-    Assert_true(!((iter.end - msg->bytes) & 7));
+    Assert_true(!(((uintptr_t)msg->bytes) & 7));
     return 0;
 }
 
