@@ -87,8 +87,8 @@ var mkFuzzCase = function (inFile, outPath, testId, cb) {
         if (err) { throw err; }
         ret = ret.replace(/#[^\n]*\n/g, '');
         ret = ret.replace(/[\s]*/g, '');
-        var out = Buffer.from(ret, 'hex');
-        var id = Buffer.alloc(4);
+        var out = new Buffer(ret, 'hex');
+        var id = new Buffer(4);
         id.writeInt32BE(testId, 0);
         Fs.writeFile(outPath, Buffer.concat([id, out]), function (err) {
             if (err) { throw err; }

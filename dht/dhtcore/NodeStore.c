@@ -832,6 +832,10 @@ static struct Node_Link* discoverLinkC(struct NodeStore_pvt* store,
     if (pathParentChild == findClosest_INVALID) {
         return NULL;
     }
+    if (!EncodingScheme_isOneHop(closest->child->encodingScheme, pathParentChild)) {
+        Log_debug(store->logger, "Not discovering link because it's multi-hop");
+        return NULL;
+    }
 
     struct Node_Two* parent = closest->child;
 
