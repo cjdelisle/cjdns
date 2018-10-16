@@ -135,7 +135,7 @@ void* CJDNS_FUZZ_INIT(struct Allocator* alloc, struct Random* rand)
 
 void CJDNS_FUZZ_MAIN(void* vctx, struct Message* msg)
 {
-    printf("\n\nEnter main\n\n");
+    if (msg->length > 2048) { return; }
     struct Context* ctx = Identity_check((struct Context*) vctx);
     struct TestFramework* from = ctx->nodeA;
     struct TestFramework* to = ctx->nodeB;
