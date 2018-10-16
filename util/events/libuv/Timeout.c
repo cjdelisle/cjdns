@@ -28,7 +28,8 @@ struct Timeout
 
     uint64_t milliseconds;
 
-    int isInterval;
+    uint16_t isInterval;
+    uint16_t isArmed;
 
     struct Allocator* alloc;
 
@@ -47,6 +48,7 @@ static void linkTo(struct Timeout* timeout)
     }
     timeout->base->timeouts = timeout;
     timeout->selfPtr = (struct Timeout**) &timeout->base->timeouts;
+    timeout->isArmed = 1;
 }
 
 static void unlinkTo(struct Timeout* timeout)
@@ -60,6 +62,7 @@ static void unlinkTo(struct Timeout* timeout)
         }
         timeout->selfPtr = NULL;
     }
+    timeout->isArmed = 0;
 }
 
 /**
@@ -68,6 +71,7 @@ static void unlinkTo(struct Timeout* timeout)
 static void handleEvent(uv_timer_t* handle, int status)
 {
     struct Timeout* timeout = Identity_check((struct Timeout*) handle);
+    if (!timeout->isArmed) { return; }
     if (!timeout->isInterval) {
         Timeout_clearTimeout(timeout);
     }
