@@ -41,9 +41,9 @@ void Except__throw(char* file, int line, struct Except* eh, char* format, ...)
         }
         eh->exception(eh->message, eh);
     } else {
-        printf("%s:%d ", subFile, line);
-        vprintf(format, args);
-        printf("\n");
+        fprintf(stderr, "%s:%d ", subFile, line);
+        vfprintf(stderr, format, args);
+        fprintf(stderr, "\n");
     }
     abort();
     exit(100);
