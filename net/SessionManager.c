@@ -107,7 +107,7 @@ struct SessionManager_Session_pvt
         AddrTools_printPath(recvPath, (session)->pub.recvSwitchLabel);                 \
         AddrTools_printIp(ip, (session)->pub.caSession->herIp6);                       \
         Log_debug((logger), "Session[%p] sendPath[%s] recvPath[%s] ip[%s] " message,   \
-                  session,                                                             \
+                  (void*)session,                                                      \
                   sendPath,                                                            \
                   recvPath,                                                            \
                   ip,                                                                  \
