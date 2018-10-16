@@ -18,26 +18,6 @@
 #include "util/events/EventBase.h"
 #include "util/events/Pipe.h"
 
-#include <errno.h>
-#include <stdio.h>
-#include <sys/ioctl.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <stdlib.h>
-#include <stddef.h>
-#include <arpa/inet.h>
-#include <string.h>
-#include <linux/if.h>
-#include <linux/if_tun.h>
-#include <linux/if_ether.h>
-#include <net/if.h>
-
-#include <sys/un.h>
-#include <stdio.h>
-#include <unistd.h>
-
 struct Iface* SocketInterface_new(const char* socketFullPath,
                                     struct EventBase* base,
                                     struct Log* logger,
