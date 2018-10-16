@@ -114,7 +114,7 @@ static struct Message* readFile(int fileNo, struct Allocator* alloc)
     }
     int capacity = length;
     while (capacity % 8) { capacity++; }
-    struct Message* msg = Message_new(capacity, 128, alloc);
+    struct Message* msg = Message_new(capacity, 4000 - capacity, alloc);
     msg->length = length;
     Bits_memcpy(msg->bytes, buff, length);
     return msg;
@@ -215,18 +215,6 @@ static void stderrTo(char* file)
     Assert_true(f > -1);
     Assert_true(dup2(f, STDERR_FILENO) == STDERR_FILENO);
 }
-
-#ifdef WRAP_RAISE
-int __wrap_raise(int sig); // CHECKFILES_IGNORE
-int __real_raise(int sig); // CHECKFILES_IGNORE
-Js({ file.ldflags.push('-Wl,--wrap=raise'); })
-int __wrap_raise(int sig) // CHECKFILES_IGNORE
-{
-    fprintf(stderr, "raise called from(%p)\n", __builtin_return_address(0));
-    fflush(stderr);
-    return __real_raise(sig);
-}
-#endif
 
 static int main2(int argc, char** argv, struct Allocator* alloc, struct Random* detRand)
 {
