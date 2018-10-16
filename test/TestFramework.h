@@ -71,4 +71,6 @@ void TestFramework_assertLastMessageUnaltered(struct TestFramework* tf);
 
 int TestFramework_peerCount(struct TestFramework* node);
 
+int TestFramework_sessionCount(struct TestFramework* node);
+
 #endif

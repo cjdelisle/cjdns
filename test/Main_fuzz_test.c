@@ -75,14 +75,14 @@ static void checkLinkage(void* vContext)
         return;
     }
 
-    if (TestFramework_peerCount(ctx->nodeA) < 1) {
+    if (TestFramework_sessionCount(ctx->nodeA) < 1) {
         notLinkedYet(ctx);
         return;
     }
 
     Log_debug(ctx->logger, "A seems to be linked with B");
 
-    if (TestFramework_peerCount(ctx->nodeB) < 1) {
+    if (TestFramework_sessionCount(ctx->nodeB) < 1) {
         notLinkedYet(ctx);
         return;
     }

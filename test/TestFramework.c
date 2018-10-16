@@ -31,6 +31,7 @@
 #include "net/SwitchPinger.h"
 #include "net/ControlHandler.h"
 #include "net/InterfaceController.h"
+#include "net/SessionManager.h"
 #include "interface/ASynchronizer.h"
 #include "interface/Iface.h"
 #include "tunnel/IpTunnel.h"
@@ -257,4 +258,18 @@ int TestFramework_peerCount(struct TestFramework* node)
     }
     Allocator_free(alloc);
     return out;
+}
+
+int TestFramework_sessionCount(struct TestFramework* node)
+{
+    struct Allocator* alloc = Allocator_child(node->alloc);
+    struct SessionManager_HandleList* list = SessionManager_getHandleList(node->nc->sm, alloc);
+    int count = 0;
+    for (int i = 0; i < list->length; i++) {
+        struct SessionManager_Session* sess =
+            SessionManager_sessionForHandle(list->handles[i], node->nc->sm);
+        count += (CryptoAuth_getState(sess->caSession) == CryptoAuth_State_ESTABLISHED);
+    }
+    Allocator_free(alloc);
+    return count;
 }
