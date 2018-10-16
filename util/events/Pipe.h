@@ -67,6 +67,11 @@ struct Pipe* Pipe_named(const char* path,
                         struct Except* eh,
                         struct Allocator* userAlloc);
 
+struct Pipe* Pipe_namedConnect(const char* fullPath,
+                               struct EventBase* eb,
+                               struct Except* eh,
+                               struct Allocator* userAlloc);
+
 struct Pipe* Pipe_forFiles(int inFd,
                            int outFd,
                            struct EventBase* eb,

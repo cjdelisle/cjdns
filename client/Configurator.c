@@ -335,24 +335,16 @@ static void socketInterface(Dict* ifaceConf, struct Allocator* tempAlloc, struct
     }
 
     // Setup the interface.
-    String* socketDir = Dict_getStringC(ifaceConf, "socketDir");
-    String* socketName = Dict_getStringC(ifaceConf, "socketName");
+    String* socketFullPath = Dict_getStringC(ifaceConf, "socketFullPath");
 
     Dict* args = Dict_new(tempAlloc);
-    if (!socketDir) {
+    if (!socketFullPath) {
         Log_critical(ctx->logger, "In router.interface"
-                                  " 'socketDir' is required if it's SocketInterface.");
+                                  " 'socketFullPath' is required if it's SocketInterface.");
         exit(1);
     }
 
-    if (!socketName) {
-        Log_critical(ctx->logger, "In router.interface"
-                                  " 'socketName' is required if it's SocketInterface.");
-        exit(1);
-    }
-
-    Dict_putStringC(args, "socketDir", socketDir, tempAlloc);
-    Dict_putStringC(args, "socketName", socketName, tempAlloc);
+    Dict_putStringC(args, "socketFullPath", socketFullPath, tempAlloc);
     rpcCall0(String_CONST("Core_initSocket"), args, ctx, tempAlloc, NULL, true);
 }
 

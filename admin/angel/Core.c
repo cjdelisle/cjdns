@@ -148,17 +148,15 @@ static void sendResponse(String* error,
     Admin_sendMessage(output, txid, admin);
 }
 
-static void initSocket2(String* socketDir,
-                          String* socketName,
+static void initSocket2(String* socketFullPath,
                           struct Context* ctx,
                           uint8_t addressPrefix,
                           struct Except* eh)
 {
-    Log_debug(ctx->logger, "Initializing socket: %s/cjdns_pipe_%s;", socketDir->bytes,
-        socketName->bytes);
+    Log_debug(ctx->logger, "Initializing socket: %s;", socketFullPath->bytes);
 
     struct Iface* socketIf = SocketInterface_new(
-        socketDir->bytes, socketName->bytes, ctx->base, ctx->logger, NULL, ctx->alloc);
+        socketFullPath->bytes, ctx->base, ctx->logger, NULL, ctx->alloc);
 
     Iface_plumb(socketIf, &ctx->nc->tunAdapt->tunIf);
 }
@@ -243,9 +241,8 @@ static void initSocket(Dict* args, void* vcontext, String* txid, struct Allocato
 
     struct Jmp jmp;
     Jmp_try(jmp) {
-        String* socketDir = Dict_getStringC(args, "socketDir");
-        String* socketName = Dict_getStringC(args, "socketName");
-        initSocket2(socketDir, socketName, ctx, AddressCalc_ADDRESS_PREFIX_BITS, &jmp.handler);
+        String* socketFullPath = Dict_getStringC(args, "socketFullPath");
+        initSocket2(socketFullPath, ctx, AddressCalc_ADDRESS_PREFIX_BITS, &jmp.handler);
     } Jmp_catch {
         String* error = String_printf(requestAlloc, "Failed to configure socket [%s]",
             jmp.message);
@@ -368,8 +365,7 @@ void Core_init(struct Allocator* alloc,
 
     Admin_registerFunction("Core_initSocket", initSocket, ctx, true,
         ((struct Admin_FunctionArg[]) {
-            { .name = "socketDir", .required = 1, .type = "String" },
-            { .name = "socketName", .required = 1, .type = "String" }
+            { .name = "socketFullPath", .required = 1, .type = "String" }
         }), admin);
 }
 

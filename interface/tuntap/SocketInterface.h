@@ -25,16 +25,14 @@ Linker_require("interface/tuntap/SocketInterface_" + builder.config.systemName +
 /**
  * Create a new SocketInterface.
  *
- * @param socketDir socket directory.
- * @param socketName socket name.
+ * @param socketFullPath full path to the socket file.
  * @param base the libevent event base to use for listening for incoming packet events.
  * @param logger for logging messages about the tun device.
  * @param eh if this function fails, it will raise one an error.
  * @param allocator a means of getting memory.
  * @return a Interface.
  */
-struct Iface* SocketInterface_new(const char* socketDir,
-                                    const char* socketName,
+struct Iface* SocketInterface_new(const char* socketFullPath,
                                     struct EventBase* base,
                                     struct Log* logger,
                                     struct Except* eh,

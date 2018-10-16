@@ -23,6 +23,7 @@
 #include "wire/Error.h"
 
 #include <inttypes.h>
+#include <libgen.h>
 #include <stdio.h>
 
 struct Pipe_WriteRequest_pvt;
@@ -392,6 +393,61 @@ static struct Pipe_pvt* newPipe(struct EventBase* eb,
     return out;
 }
 
+static struct Pipe_pvt* newPipeAny(struct EventBase* eb,
+                                  const char* fullPath,
+                                  struct Except* eh,
+                                  struct Allocator* userAlloc)
+{
+    struct EventBase_pvt* ctx = EventBase_privatize(eb);
+    struct Allocator* alloc = Allocator_child(userAlloc);
+
+    char* name = Allocator_malloc(alloc, (fullPath ? CString_strlen(fullPath) : 0));
+    if (fullPath) {
+        Bits_memcpy(name, fullPath, CString_strlen(fullPath));
+        name = basename(name);
+    }
+
+    struct Pipe_pvt* out = Allocator_clone(alloc, (&(struct Pipe_pvt) {
+        .pub = {
+            .iface = {
+                .send = sendMessage
+            },
+            .fullName = fullPath,
+            .name = name,
+            .base = eb
+        },
+        .alloc = alloc
+    }));
+
+    int ret;
+
+    ret = uv_pipe_init(ctx->loop, &out->peer, 0);
+    if (ret) {
+        Except_throw(eh, "uv_pipe_init() failed [%s]", uv_strerror(ret));
+    }
+
+    ret = uv_pipe_init(ctx->loop, &out->server, 0);
+    if (ret) {
+        Except_throw(eh, "uv_pipe_init() failed [%s]", uv_strerror(ret));
+    }
+
+    #ifdef win32
+        out->pub.fd = &out->peer.handle;
+    #else
+        out->pub.fd = &out->peer.io_watcher.fd;
+    #endif
+
+    Allocator_onFree(alloc, closeHandlesOnFree, out);
+    Allocator_onFree(alloc, blockFreeInsideCallback, out);
+
+    out->peer.data = out;
+    out->server.data = out;
+    out->out = &out->peer;
+    Identity_set(out);
+
+    return out;
+}
+
 struct Pipe* Pipe_forFiles(int inFd,
                            int outFd,
                            struct EventBase* eb,
@@ -454,6 +510,26 @@ struct Pipe* Pipe_named(const char* path,
 
     Except_throw(eh, "uv_pipe_bind() failed [%s] for pipe [%s]",
                  uv_strerror(ret), out->pub.fullName);
+
+    return &out->pub;
+}
+
+struct Pipe* Pipe_namedConnect(const char* fullPath,
+                               struct EventBase* eb,
+                               struct Except* eh,
+                               struct Allocator* userAlloc)
+{
+    struct Pipe_pvt* out = newPipeAny(eb, fullPath, eh, userAlloc);
+
+    uv_connect_t* req = Allocator_malloc(out->alloc, sizeof(uv_connect_t));
+    req->data = out;
+    uv_pipe_connect(req, &out->peer, out->pub.fullName, connected);
+
+    int err = (&out->peer)->delayed_error;
+    if (err != 0) {
+        Except_throw(eh, "uv_pipe_connect() failed [%s] for pipe [%s]",
+                     uv_strerror(err), out->pub.fullName);
+    }
 
     return &out->pub;
 }

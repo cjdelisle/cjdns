@@ -38,16 +38,15 @@
 #include <stdio.h>
 #include <unistd.h>
 
-struct Iface* SocketInterface_new(const char* socketDir,
-                                    const char* socketName,
+struct Iface* SocketInterface_new(const char* socketFullPath,
                                     struct EventBase* base,
                                     struct Log* logger,
                                     struct Except* eh,
                                     struct Allocator* alloc)
 {
-    Log_info(logger, "Initializing socket: %s/cjdns_pipe_%s;", socketDir, socketName);
+    Log_info(logger, "Initializing socket: %s;", socketFullPath);
 
-    struct Pipe* p = Pipe_named(socketDir, socketName, base, eh, alloc);
+    struct Pipe* p = Pipe_namedConnect(socketFullPath, base, eh, alloc);
 
     return &p->iface;
 }
