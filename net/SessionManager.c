@@ -106,7 +106,8 @@ struct SessionManager_Session_pvt
         AddrTools_printPath(sendPath, (session)->pub.sendSwitchLabel);                 \
         AddrTools_printPath(recvPath, (session)->pub.recvSwitchLabel);                 \
         AddrTools_printIp(ip, (session)->pub.caSession->herIp6);                       \
-        Log_debug((logger), "Session sendPath[%s] recvPath[%s] ip[%s] " message,       \
+        Log_debug((logger), "Session[%p] sendPath[%s] recvPath[%s] ip[%s] " message,   \
+                  session,                                                             \
                   sendPath,                                                            \
                   recvPath,                                                            \
                   ip,                                                                  \
@@ -204,12 +205,14 @@ static struct SessionManager_Session_pvt* getSession(struct SessionManager_pvt* 
                                                      uint8_t pubKey[32],
                                                      uint32_t version,
                                                      uint64_t label,
-                                                     uint32_t metric)
+                                                     uint32_t metric,
+                                                     int maintainSession)
 {
     Assert_true(AddressCalc_validAddress(ip6));
     struct SessionManager_Session_pvt* sess = sessionForIp6(ip6, sm);
     if (sess) {
         sess->pub.version = (sess->pub.version) ? sess->pub.version : version;
+        sess->pub.maintainSession |= maintainSession;
         if (metric == 0xffffffff) {
             // this is a broken path
             if (sess->pub.sendSwitchLabel == label) {
@@ -263,6 +266,7 @@ static struct SessionManager_Session_pvt* getSession(struct SessionManager_pvt* 
     sess->pub.timeOfLastOut = Time_currentTimeMilliseconds(sm->eventBase);
     sess->pub.sendSwitchLabel = label;
     sess->pub.metric = metric;
+    sess->pub.maintainSession = maintainSession;
     //Allocator_onFree(alloc, sessionCleanup, sess);
     sendSession(sess, label, 0xffffffff, PFChan_Core_SESSION);
     check(sm, ifaceIndex);
@@ -375,7 +379,7 @@ static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface
         }
 
         uint64_t label = Endian_bigEndianToHost64(switchHeader->label_be);
-        session = getSession(sm, ip6, caHeader->publicKey, 0, label, 0xfffff000);
+        session = getSession(sm, ip6, caHeader->publicKey, 0, label, 0xfffff000, 0);
         CryptoAuth_resetIfTimeout(session->pub.caSession);
         debugHandlesAndLabel(sm->log, session, label, "new session nonce[%d]", nonceOrHandle);
     }
@@ -514,7 +518,9 @@ static void checkTimedOutSessions(struct SessionManager_pvt* sm)
             continue;
         }
 
-        if (now - sess->pub.lastSearchTime >= sm->pub.sessionSearchAfterMilliseconds) {
+        if (!sess->pub.maintainSession) {
+            // Let pathfinder maintain it's own sessions itself
+        } else if (now - sess->pub.lastSearchTime >= sm->pub.sessionSearchAfterMilliseconds) {
             // Session is not in idle state and requires a search
             // But we're only going to trigger one search per cycle.
             // Except for v20 because the snode will answer us.
@@ -678,7 +684,8 @@ static Iface_DEFUN incomingFromInsideIf(struct Message* msg, struct Iface* iface
                               header->publicKey,
                               Endian_bigEndianToHost32(header->version_be),
                               Endian_bigEndianToHost64(header->sh.label_be),
-                              0xfffffff0);
+                              0xfffffff0,
+                              !(header->flags & RouteHeader_flags_PATHFINDER));
         } else {
             needsLookup(sm, msg, false);
             return NULL;
@@ -753,7 +760,8 @@ static Iface_DEFUN incomingFromEventIf(struct Message* msg, struct Iface* iface)
                       node.publicKey,
                       Endian_bigEndianToHost32(node.version_be),
                       Endian_bigEndianToHost64(node.path_be),
-                      Endian_bigEndianToHost32(node.metric_be));
+                      Endian_bigEndianToHost32(node.metric_be),
+                      0);
 
     // Send what's on the buffer...
     if (index > -1 && CryptoAuth_getState(sess->pub.caSession) >= CryptoAuth_State_RECEIVED_KEY) {

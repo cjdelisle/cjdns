@@ -52,8 +52,9 @@ struct RouteHeader
      * If set, this header is incoming from another node, this means the ip6, publicKey and
      * switch label are of the *source* of the packet, not the destination.
      */
-    #define RouteHeader_flags_INCOMING 1
-    #define RouteHeader_flags_CTRLMSG (1<<1)
+    #define RouteHeader_flags_INCOMING    1
+    #define RouteHeader_flags_CTRLMSG    (1<<1)
+    #define RouteHeader_flags_PATHFINDER (1<<2)
     uint8_t flags;
 
     uint8_t unused;

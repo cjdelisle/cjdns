@@ -108,6 +108,9 @@ struct SessionManager_Session
 
     /** The switch label which this node uses for reaching us. */
     uint64_t recvSwitchLabel;
+
+    /** If non-zero, the peer will be periodically queries to maintain the session. */
+    int maintainSession;
 };
 
 struct SessionManager_HandleList

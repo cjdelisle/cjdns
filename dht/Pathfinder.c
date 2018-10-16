@@ -101,6 +101,7 @@ static int incomingFromDHT(struct DHTMessage* dmessage, void* vpf)
     Bits_memcpy(emsg->route.ip6, addr->ip6.bytes, 16);
     emsg->route.version_be = Endian_hostToBigEndian32(addr->protocolVersion);
     emsg->route.sh.label_be = Endian_hostToBigEndian64(addr->path);
+    emsg->route.flags |= RouteHeader_flags_PATHFINDER;
     SwitchHeader_setVersion(&emsg->route.sh, SwitchHeader_CURRENT_VERSION);
     Bits_memcpy(emsg->route.publicKey, addr->key, 32);
 
