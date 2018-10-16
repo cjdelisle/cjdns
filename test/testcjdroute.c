@@ -114,7 +114,9 @@ static struct Message* readFile(int fileNo, struct Allocator* alloc)
     }
     int capacity = length;
     while (capacity % 8) { capacity++; }
-    struct Message* msg = Message_new(capacity, 4000 - capacity, alloc);
+    int padding = 128;
+    if (capacity < 4000) { padding = 4000 - capacity; }
+    struct Message* msg = Message_new(capacity, padding, alloc);
     msg->length = length;
     Bits_memcpy(msg->bytes, buff, length);
     return msg;
