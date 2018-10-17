@@ -311,7 +311,7 @@ static Iface_DEFUN incoming(struct Message* msg, struct Iface* interRouterIf)
     String* q = Dict_getStringC(content, "q");
 
     String* txid = Dict_getStringC(content, "txid");
-    if (!txid) {
+    if (!txid || !txid->len) {
         Log_debug(mcp->log, "Message with no txid [%s]", q ? (q->bytes) : "(no query)");
         return NULL;
     }
