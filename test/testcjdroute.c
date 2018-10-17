@@ -96,7 +96,7 @@ static void usage(char* appName)
     printf("\n");
     printf("# Available Tests:\n");
     for (int i = 0; i < TEST_COUNT; i++) {
-        printf("%s\n", TESTS[i].name);
+        printf("%s %s\n", appName, TESTS[i].name);
     }
     printf("\n# Available Fuzz Tests:\n");
     for (int i = 0; i < FUZZ_CASE_COUNT; i++) {
