@@ -42,5 +42,7 @@ int main()
     Assert_true(!Sign_verifyMsg(&signingKeyPair[32], msg));
     Assert_true(!Sign_publicSigningKeyToCurve25519(curve25519publicB, &signingKeyPair[32]));
     Assert_true(!Bits_memcmp(curve25519publicB, curve25519public, 32));
+
+    Allocator_free(alloc);
     return 0;
 }

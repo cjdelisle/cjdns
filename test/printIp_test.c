@@ -55,6 +55,6 @@ int main()
         Assert_true(0 == Bits_memcmp(ip, ipFromFull, 16));
         Assert_true(0 == Bits_memcmp(ipFromFull, ipFromShort, 16));
     }
-
+    Allocator_free(alloc);
     return 0;
 }

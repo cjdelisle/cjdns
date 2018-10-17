@@ -68,5 +68,7 @@ int main()
             ret = 1;
         }
     }
+
+    Allocator_free(allocator);
     return ret;
 }

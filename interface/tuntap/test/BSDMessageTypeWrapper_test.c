@@ -61,5 +61,6 @@ int main()
     Iface_send(&ctx->inside, msg);
 
     Assert_true(ctx->received == 3);
+    Allocator_free(alloc);
     return 0;
 }

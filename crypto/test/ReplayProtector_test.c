@@ -52,5 +52,6 @@ int main()
     for (int i = 0; i < CYCLES; i++) {
         testDuplicates(rand);
     }
+    Allocator_free(alloc);
     return 0;
 }

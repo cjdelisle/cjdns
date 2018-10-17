@@ -388,14 +388,6 @@ int main()
     testAddr(ctx, "192.168.1.1", 16, 24, "fd00::1", 8, 64);
     testAddr(ctx, "192.168.1.1", 16, 24, "fd00::1", 64, 128);
 
-    //Allocator_free(alloc); //TODO(cjd): This is caused by an allocator bug.
-    /* To repeat the bug, create a test like this:
-    struct Allocator* allocx = Allocator_child(alloc);
-    Timeout_setInterval(NULL, NULL, 10000, eb, allocx);
-    Allocator_snapshot(alloc, true);
-    Allocator_free(allocx);
-    Allocator_snapshot(alloc, true);
-    return 0;
-    */
+    Allocator_free(alloc);
     return 0;
 }

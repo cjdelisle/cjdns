@@ -422,5 +422,7 @@ int main()
     }
     Allocator_free(tempAlloc);
 
+    Allocator_free(alloc);
+
     return 0;
 }
