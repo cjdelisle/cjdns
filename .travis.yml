@@ -17,9 +17,9 @@ env:
 script:
   - uname -a
   - echo $CJDNS_BUILD
-  - test "$CJDNS_BUILD" = "default" && ./do
-  - test "$CJDNS_BUILD" = "subnode" && SUBNODE=1 ./do
-  - test "$CJDNS_BUILD" = "android" && ./android_do
+  - if test "$CJDNS_BUILD" = "default"; then ./do; fi
+  - if test "$CJDNS_BUILD" = "subnode"; then SUBNODE=1 ./do; fi
+  - if test "$CJDNS_BUILD" = "android"; then ./android_do; fi
 
 matrix:
   include:
