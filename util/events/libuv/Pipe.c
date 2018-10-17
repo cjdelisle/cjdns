@@ -24,6 +24,7 @@
 
 #include <inttypes.h>
 #include <stdio.h>
+#include <unistd.h>
 
 struct Pipe_WriteRequest_pvt;
 
@@ -291,8 +292,7 @@ static void listenCallback(uv_stream_t* server, int status)
 
     #ifndef win32
         // get rid of the pipe after it has been connected.
-        uv_fs_t req;
-        uv_fs_unlink(pipe->peer.loop, &req, pipe->pub.fullName, NULL);
+        unlink(pipe->pub.fullName);
     #endif
 }
 

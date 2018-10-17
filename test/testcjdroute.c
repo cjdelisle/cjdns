@@ -87,18 +87,18 @@ static uint64_t runTest(Test test,
 
 static void usage(char* appName)
 {
-    printf("%s <test>     run one test\n", appName);
-    printf("%s all        run every test\n\n", appName);
-    printf("Flags:\n");
-    printf("  --quiet                # Don't write test timings to stderr");
-    printf("  --stderr-to <path>     # Redirect stderr to a file (append mode)");
-    printf("  --inittests            # When using `fuzz` first initialize ALL tests");
+    printf("# %s <test>     run one test\n", appName);
+    printf("# %s all        run every test\n\n", appName);
+    printf("# Flags:\n");
+    printf("#  --quiet                # Don't write test timings to stderr\n");
+    printf("#  --stderr-to <path>     # Redirect stderr to a file (append mode)\n");
+    printf("#  --inittests            # When using `fuzz` first initialize ALL tests\n");
     printf("\n");
-    printf("Available Tests:\n");
+    printf("# Available Tests:\n");
     for (int i = 0; i < TEST_COUNT; i++) {
         printf("%s\n", TESTS[i].name);
     }
-    printf("\nAvailable Fuzz Tests:\n");
+    printf("\n# Available Fuzz Tests:\n");
     for (int i = 0; i < FUZZ_CASE_COUNT; i++) {
         printf("%s fuzz < %s\n", appName, FUZZ_CASES[i]);
     }
