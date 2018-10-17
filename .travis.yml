@@ -1,33 +1,6 @@
 language: c
-branches:
-  only:
-    - crashey
-    - master
-
-compiler:
-  - gcc
-  - clang
-
-# 3 profiles for clang and gcc
-env:
-  - CJDNS_BUILD=default
-  - CJDNS_BUILD=subnode
-  - CJDNS_BUILD=android
-script:
-  - "uname -a"
-  - "echo $CJDNS_BUILD"
-  - "test "$CJDNS_BUILD" = "default" && ./do"
-  - "test "$CJDNS_BUILD" = "subnode" && SUBNODE=1 ./do"
-  - "test "$CJDNS_BUILD" = "android" && ./android_do"
-
 matrix:
   include:
-    # jshint check
-    - name: "check js"
-      script:
-        - "bash node_build/run_jshint"
-
-    # ASAN over the 
     - name: "AddressSanitizer"
       addons:
         apt:
