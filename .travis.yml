@@ -22,12 +22,9 @@ script:
 
 matrix:
   include:
-    # jshint check
     - name: "check js"
       script:
         - "bash node_build/run_jshint"
-
-    # ASAN over the 
     - name: "AddressSanitizer"
       addons:
         apt:
