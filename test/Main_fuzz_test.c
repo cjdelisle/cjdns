@@ -94,12 +94,11 @@ static void checkLinkage(void* vContext)
     Timeout_clearAll(ctx->base);
 }
 
-void* CJDNS_FUZZ_INIT(struct Allocator* alloc, struct Random* rand)
+void* CJDNS_FUZZ_INIT(struct Allocator* alloc, struct Random* rand, struct EventBase* base)
 {
     struct Writer* logwriter = FileWriter_new(stdout, alloc);
     struct Log* logger = WriterLog_new(logwriter, alloc);
 
-    struct EventBase* base = EventBase_new(alloc);
     struct Context* ctx = Allocator_calloc(alloc, sizeof(struct Context), 1);
     Identity_set(ctx);
     ctx->base = base;

@@ -388,6 +388,11 @@ int main()
     testAddr(ctx, "192.168.1.1", 16, 24, "fd00::1", 8, 64);
     testAddr(ctx, "192.168.1.1", 16, 24, "fd00::1", 64, 128);
 
+    // Counter-intuitively, we need to begin the loop in order for it to
+    // free up the timers which are registered with it, thus allowing the
+    // allocator to free cleanly.
+    EventBase_beginLoop(eb);
+
     Allocator_free(alloc);
     return 0;
 }

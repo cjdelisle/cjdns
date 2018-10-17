@@ -17,9 +17,10 @@
 
 #include "memory/Allocator.h"
 #include "crypto/random/Random.h"
+#include "util/events/EventBase.h"
 #include "wire/Message.h"
 
 void CJDNS_FUZZ_MAIN(void* vctx, struct Message* fuzz);
-void* CJDNS_FUZZ_INIT(struct Allocator* alloc, struct Random* rand);
+void* CJDNS_FUZZ_INIT(struct Allocator* alloc, struct Random* rand, struct EventBase*);
 
 #endif

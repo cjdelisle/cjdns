@@ -280,13 +280,18 @@ static void disconnect(struct Allocator_pvt* context)
     Assert_true(context->parent);
 
     if (context->lastSibling) {
+        // child other than first
         Assert_ifParanoid(context->lastSibling->nextSibling == context);
         Assert_ifParanoid(context->parent->firstChild != context);
         context->lastSibling->nextSibling = context->nextSibling;
+    } else if (context->parent == context) {
+        // root allocator
+        Assert_ifParanoid(!context->lastSibling);
+        Assert_ifParanoid(!context->nextSibling);
     } else {
-        // must be first in the list or a root allocator.
-        Assert_ifParanoid(context->parent->firstChild == context || context->parent == context);
-        Assert_ifParanoid(context->parent != context || !context->nextSibling);
+        // first child
+        Assert_ifParanoid(context->parent->firstChild == context);
+        Assert_ifParanoid(!context->lastSibling);
         context->parent->firstChild = context->nextSibling;
     }
     if (context->nextSibling) {
@@ -355,7 +360,7 @@ static int pivotChildrenToAdoptedParents0(struct Allocator_pvt* context,
 {
     int out = 0;
     if (depth == maxDepth) {
-        if (context->pub.isFreeing) { return 0; }
+        if (context->pub.isFreeing) { return 1; }
         if (context->adoptions) {
             // Attempt to pivot around to a parent in order to save this allocator
             if (context->adoptions->parents) {
@@ -450,18 +455,23 @@ static void doOnFreeJobs(struct Allocator_pvt* context)
     }
 }
 
-static void freeAllocator(struct Allocator_pvt* context)
+static void freeAllocator(struct Allocator_pvt* context, int recursing)
 {
     Assert_true(context->pub.isFreeing);
     int isTop = !context->parent->pub.isFreeing;
     if (isTop) {
+        Assert_true(!recursing);
         check(context);
         disconnect(context);
+    } else if (!recursing) {
+        // Someone tried to free us but a parent has already begun to be freed
+        // Lets just return and do nothing
+        return;
     }
     struct Allocator_pvt* child = context->firstChild;
     while (child) {
         struct Allocator_pvt* nextChild = child->nextSibling;
-        freeAllocator(child);
+        freeAllocator(child, 1);
         child = nextChild;
     }
 
@@ -485,10 +495,28 @@ void Allocator_onFreeComplete(struct Allocator_OnFreeJob* onFreeJob)
         failure(context, "OnFreeJob->complete() called multiple times", job->file, job->line);
     }
 
-    if (!context->onFree) {
-        // There are no more jobs, release the memory.
-        freeAllocator(context);
-    }
+    // more jobs
+    if (context->onFree) { return; }
+
+    // not the top of the tree, we only want to call freeAllocator once
+    if (context->parent->pub.isFreeing) { return; }
+
+    Assert_true(context->pub.isFreeing);
+
+    // Check if any of our child allocators might have had more
+    // children while we were doing onFree jobs
+    check(context);
+    pivotChildrenToAdoptedParents(context, "??", 0);
+    check(context);
+    marshalOnFreeJobs(context, context);
+    check(context);
+    doOnFreeJobs(context);
+    check(context);
+
+    if (context->onFree) { return; }
+
+    // There are no more jobs, release the memory.
+    freeAllocator(context, 0);
 }
 
 void Allocator__free(struct Allocator* alloc, const char* file, int line)
@@ -515,8 +543,15 @@ void Allocator__free(struct Allocator* alloc, const char* file, int line)
     check(context);
     doOnFreeJobs(context);
     check(context);
+
     if (!context->onFree) {
-        freeAllocator(context);
+        freeAllocator(context, 0);
+    } else if (context->rootAlloc == (struct Allocator_FirstCtx*)context) {
+        fprintf(stderr, "Uncompleted onFree jobs after root allocator is freed:\n");
+        for (struct Allocator_OnFreeJob_pvt* job = context->onFree; job; job = job->next) {
+            fprintf(stderr, "    %s:%d\n", job->file, job->line);
+        }
+        Assert_failure("Uncompleted onFree jobs");
     }
 }
 

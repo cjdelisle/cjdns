@@ -267,11 +267,10 @@ static void mainLoop(struct Context* ctx)
     Assert_failure("Nodes could not sync");
 }
 
-void* CJDNS_FUZZ_INIT(struct Allocator* alloc, struct Random* rand)
+void* CJDNS_FUZZ_INIT(struct Allocator* alloc, struct Random* rand, struct EventBase* base)
 {
     struct Context* ctx = Allocator_calloc(alloc, sizeof(struct Context), 1);
     Identity_set(ctx);
-    struct EventBase* base = EventBase_new(alloc);
     ctx->alloc = alloc;
     ctx->nodeA.ca = CryptoAuth_new(alloc, NULL, base, NULL, rand);
     ctx->nodeB.ca = CryptoAuth_new(alloc, NULL, base, NULL, rand);

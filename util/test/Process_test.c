@@ -119,7 +119,7 @@ int main(int argc, char** argv)
     struct Log* log = FileWriterLog_new(stdout, alloc);
     struct Context* ctx = Allocator_calloc(alloc, sizeof(struct Context), 1);
     Identity_set(ctx);
-    ctx->alloc = alloc;
+    ctx->alloc = Allocator_child(alloc);
     ctx->base = eb;
     ctx->log = log;
     ctx->iface.send = receiveMessageParent;
@@ -139,7 +139,7 @@ int main(int argc, char** argv)
     pipe->onConnection = onConnectionParent;
     Iface_plumb(&ctx->iface, &pipe->iface);
 
-    char* path = Process_getPath(alloc);
+    char* path = Process_getPath(ctx->alloc);
 
     Assert_true(path != NULL);
     #ifdef win32
@@ -155,10 +155,11 @@ int main(int argc, char** argv)
 
     char* args[] = { "Process_test", "child", name, NULL };
 
-    Assert_true(!Process_spawn(path, args, eb, alloc, NULL));
+    Assert_true(!Process_spawn(path, args, eb, ctx->alloc, NULL));
 
-    Timeout_setTimeout(timeout, NULL, 2000, eb, alloc);
+    Timeout_setTimeout(timeout, NULL, 2000, eb, ctx->alloc);
 
     EventBase_beginLoop(eb);
+    Allocator_free(alloc);
     return 0;
 }

@@ -31,9 +31,11 @@ static int onFree(struct Allocator_OnFreeJob* job)
     if (ctx->running) {
         // The job will be completed in EventLoop_beginLoop()
         ctx->onFree = job;
-        EventBase_endLoop((struct EventBase*) ctx);
+        // Freeing all of the events attached to the loop should free the loop as well.
+        //EventBase_endLoop((struct EventBase*) ctx);
         return Allocator_ONFREE_ASYNC;
     } else {
+        Assert_true(!uv_loop_alive(ctx->loop) && "Cannot free a loop with pending events");
         uv_loop_delete(ctx->loop);
         return 0;
     }

@@ -48,7 +48,6 @@ static void linkTo(struct Timeout* timeout)
     }
     timeout->base->timeouts = timeout;
     timeout->selfPtr = (struct Timeout**) &timeout->base->timeouts;
-    timeout->isArmed = 1;
 }
 
 static void unlinkTo(struct Timeout* timeout)
@@ -62,7 +61,6 @@ static void unlinkTo(struct Timeout* timeout)
         }
         timeout->selfPtr = NULL;
     }
-    timeout->isArmed = 0;
 }
 
 /**
@@ -87,6 +85,7 @@ static int onFree(struct Allocator_OnFreeJob* job)
 {
     struct Timeout* t = Identity_check((struct Timeout*) job->userData);
     unlinkTo(t);
+    t->isArmed = 0;
     t->timer.data = job;
     uv_close((uv_handle_t*) &t->timer, onFree2);
     return Allocator_ONFREE_ASYNC;
@@ -124,6 +123,7 @@ static struct Timeout* setTimeout(void (* const callback)(void* callbackContext)
     timeout->alloc = alloc;
     timeout->isInterval = interval;
     timeout->base = base;
+    timeout->isArmed = 1;
     Identity_set(timeout);
 
     uv_timer_init(base->loop, &timeout->timer);
@@ -166,18 +166,20 @@ struct Timeout* Timeout__setInterval(void (* const callback)(void* callbackConte
 void Timeout_resetTimeout(struct Timeout* timeout,
                           const uint64_t milliseconds)
 {
+    Assert_true(timeout->selfPtr && "timeout already freed");
     Timeout_clearTimeout(timeout);
-    linkTo(timeout);
+    timeout->isArmed = 1;
     uv_timer_start(&timeout->timer, handleEvent, milliseconds, 0);
 }
 
 /** See: Timeout.h */
 void Timeout_clearTimeout(struct Timeout* timeout)
 {
-    unlinkTo(timeout);
+    Assert_true(timeout->selfPtr && "timeout already freed");
     if (!uv_is_closing((uv_handle_t*) &timeout->timer)) {
         uv_timer_stop(&timeout->timer);
     }
+    timeout->isArmed = 0;
 }
 
 void Timeout_clearAll(struct EventBase* eventBase)
@@ -190,7 +192,6 @@ void Timeout_clearAll(struct EventBase* eventBase)
         Timeout_clearTimeout(to);
         to = next;
     }
-    Assert_true(!base->timeouts);
 }
 
 int Timeout_isActive(struct Timeout* timeout)

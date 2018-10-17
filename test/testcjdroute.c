@@ -40,7 +40,7 @@ Js({
 Js({ return file.testcjdroute_prototypes; })
 
 typedef int (* Test)(int argc, char** argv);
-typedef void* (* FuzzTestInit)(struct Allocator* alloc, struct Random* rand);
+typedef void* (* FuzzTestInit)(struct Allocator* alloc, struct Random* rand, struct EventBase*);
 typedef void (* FuzzTest)(void* ctx, struct Message* fuzz);
 typedef struct FuzzTest* (* MkFuzz)(struct Allocator* alloc);
 
@@ -122,11 +122,11 @@ static struct Message* readFile(int fileNo, struct Allocator* alloc)
     return msg;
 }
 
-static void** initFuzzTests(struct Allocator* alloc, struct Random* rand)
+static void** initFuzzTests(struct Allocator* alloc, struct Random* rand, struct EventBase* base)
 {
     void** contexts = Allocator_calloc(alloc, sizeof(char*), FUZZ_TEST_COUNT);
     for (int i = 0; i < FUZZ_TEST_COUNT; i++) {
-        contexts[i] = FUZZ_TESTS[i].init(alloc, rand);
+        contexts[i] = FUZZ_TESTS[i].init(alloc, rand, base);
     }
     return contexts;
 }
@@ -137,7 +137,8 @@ static int runFuzzTest(
     struct Random* rand,
     struct Message* fuzz,
     const char* testCase,
-    int quiet)
+    int quiet,
+    struct EventBase* base)
 {
     if (fuzz->length < 4) { return 100; }
     uint32_t selector = Message_pop32(fuzz, NULL);
@@ -147,7 +148,7 @@ static int runFuzzTest(
     }
     if (!testCase) { testCase = FUZZ_TESTS[selector].name; }
     if (!quiet) { fprintf(stderr, "Running fuzz %s", testCase); }
-    void* ctx = ctxs ? ctxs[selector] : FUZZ_TESTS[selector].init(alloc, rand);
+    void* ctx = ctxs ? ctxs[selector] : FUZZ_TESTS[selector].init(alloc, rand, base);
     FUZZ_TESTS[selector].fuzz(ctx, fuzz);
     return 0;
 }
@@ -164,7 +165,13 @@ static uint64_t runFuzzTestManual(
     struct Message* fuzz = readFile(f, alloc);
     close(f);
 
-    runFuzzTest(NULL, alloc, detRand, fuzz, testCase, quiet);
+    struct EventBase* base = EventBase_new(alloc);
+    struct Allocator* child = Allocator_child(alloc);
+
+    runFuzzTest(NULL, child, detRand, fuzz, testCase, quiet, base);
+
+    Allocator_free(child);
+    EventBase_beginLoop(base);
 
     if (!quiet) {
         uint64_t now = Time_hrtime();
@@ -178,6 +185,7 @@ static uint64_t runFuzzTestManual(
                 (int)((now - startTime)/1000)%1000);
         return now;
     }
+
     return startTime;
 }
 
@@ -194,19 +202,26 @@ static uint64_t runFuzzTestManual(
 
 static int fuzzMain(struct Allocator* alloc, struct Random* detRand, int initTests, int quiet)
 {
+    struct EventBase* base = EventBase_new(alloc);
+    struct Allocator* child = Allocator_child(alloc);
+
 #ifdef __AFL_INIT
     // Enable AFL deferred forkserver mode. Requires compilation using afl-clang-fast
     initTests = 1;
 #endif
 
-    void** ctxs = (initTests) ? initFuzzTests(alloc, detRand) : NULL;
+    void** ctxs = (initTests) ? initFuzzTests(child, detRand, base) : NULL;
 
 #ifdef __AFL_INIT
     __AFL_INIT();
 #endif
 
     struct Message* fuzz = readFile(STDIN_FILENO, alloc);
-    int out = runFuzzTest(ctxs, alloc, detRand, fuzz, NULL, quiet);
+    int out = runFuzzTest(ctxs, child, detRand, fuzz, NULL, quiet, base);
+
+    Allocator_free(child);
+    EventBase_beginLoop(base);
+
     printf("\n");
     return out;
 }
@@ -257,13 +272,7 @@ static int main2(int argc, char** argv, struct Allocator* alloc, struct Random* 
         now = runTest(TESTS[i].func, TESTS[i].name, now, argc, argv, quiet);
     }
     for (int i = 0; i < FUZZ_CASE_COUNT; i++) {
-        // TODO(cjd): Apparently a race condition in the allocator
-        // if you have async freeing in progress and then you come in and
-        // free the root allocator, you get an assertion.
-        //
-        //struct Allocator* child = Allocator_child(alloc);
-        struct Allocator* child = MallocAllocator_new(1<<24);
-
+        struct Allocator* child = Allocator_child(alloc);
         now = runFuzzTestManual(child, detRand, FUZZ_CASES[i], now, quiet);
         Allocator_free(child);
     }

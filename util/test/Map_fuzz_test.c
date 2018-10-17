@@ -24,7 +24,7 @@
 #define Map_ENABLE_HANDLES
 #include "util/Map.h"
 
-void* CJDNS_FUZZ_INIT(struct Allocator* alloc, struct Random* rand)
+void* CJDNS_FUZZ_INIT(struct Allocator* alloc, struct Random* rand, struct EventBase* base)
 {
     return alloc;
 }

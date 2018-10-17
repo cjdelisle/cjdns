@@ -146,7 +146,8 @@ var generate = module.exports.generate = function (file, builder, isSubnode, cal
                     '-D', 'CJDNS_FUZZ_MAIN='+testProto+'_FUZZ_MAIN'
                 );
                 prototypes.push(
-                    'void* '+testProto+'_FUZZ_INIT(struct Allocator* alloc, struct Random* rand);',
+                    'void* '+testProto+
+                        '_FUZZ_INIT(struct Allocator*, struct Random*, struct EventBase*);',
                     'void '+testProto+'_FUZZ_MAIN(void* ctx, struct Message* fuzz);'
                 );
                 mkFuzz(builder, test, fuzzTests.length, fuzzCases, w());
