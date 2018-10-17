@@ -27,7 +27,7 @@ int main()
 {
     struct Allocator* alloc = MallocAllocator_new(1<<22);
     struct Random* rand = Random_new(alloc, NULL, NULL);
-    struct Log* log = FileWriterLog_new(stdout, alloc);
+    //struct Log* log = FileWriterLog_new(stdout, alloc);
 
     uint8_t ip[16];
     uint8_t printedIp[40];
@@ -50,7 +50,7 @@ int main()
         AddrTools_parseIp(ipFromFull, printedIp);
         AddrTools_parseIp(ipFromShort, printedShortIp);
 
-        Log_debug(log, "print/parse %s", printedIp);
+        //Log_debug(log, "print/parse %s", printedIp);
 
         Assert_true(0 == Bits_memcmp(ip, ipFromFull, 16));
         Assert_true(0 == Bits_memcmp(ipFromFull, ipFromShort, 16));

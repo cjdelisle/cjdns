@@ -463,7 +463,7 @@ static void freeAllocator(struct Allocator_pvt* context, int recursing)
         Assert_true(!recursing);
         check(context);
         disconnect(context);
-    } else if (!recursing) {
+    } else if (!recursing && context->parent != context) {
         // Someone tried to free us but a parent has already begun to be freed
         // Lets just return and do nothing
         return;
