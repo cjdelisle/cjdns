@@ -3,6 +3,7 @@ branches:
   only:
     - crashey
     - master
+    - allocator-fixes
 
 compiler:
   - gcc
@@ -24,26 +25,26 @@ matrix:
       script:
         - "bash node_build/run_jshint"
 
-    - name: "AddressSanitizer"
-      # TODO(cjd): Remove after allocator-fixes is merged
-      branches: "allocator-fixes"
-      addons:
-        apt:
-          sources:
-            - llvm-toolchain-trusty-5.0
-          packages:
-            - llvm-5.0-dev
-            - clang-5.0
-            - libclang-common-5.0-dev
-      script:
-        - export CC=clang
-        - export CXX=clang++
-        - export PATH=/usr/lib/llvm-5.0/bin/:$PATH
-        - export CFLAGS=-fsanitize=address
-        - export LDFLAGS=-fsanitize=address
-        - export ASAN_SYMBOLIZER_PATH=/usr/lib/llvm-5.0/bin/llvm-symbolizer
-        - ./do
-        - ./build_*/test_testcjdroute_c | while read x; do test "$x" != "" && bash -c $x >/dev/null || exit 100; done
+    ## TODO(cjd) merge allocator-fixes and enable this
+    # - name: "AddressSanitizer"
+    #   addons:
+    #     apt:
+    #       sources:
+    #         - llvm-toolchain-trusty-5.0
+    #       packages:
+    #         - llvm-5.0-dev
+    #         - clang-5.0
+    #         - libclang-common-5.0-dev
+    #   script:
+    #     - export CC=clang
+    #     - export CXX=clang++
+    #     - export PATH=/usr/lib/llvm-5.0/bin/:$PATH
+    #     - export CFLAGS=-fsanitize=address
+    #     - export LDFLAGS=-fsanitize=address
+    #     - export ASAN_SYMBOLIZER_PATH=/usr/lib/llvm-5.0/bin/llvm-symbolizer
+    #     - ./do
+    #     - ./build_*/test_testcjdroute_c | while read x; do test "$x" != "" && bash -c $x >/dev/null || exit 100; done
+
     - name: "android"
       script:
         - ./android_do
