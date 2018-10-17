@@ -13,12 +13,13 @@ env:
   - CJDNS_BUILD=default
   - CJDNS_BUILD=subnode
   - CJDNS_BUILD=android
+
 script:
-  - "uname -a"
-  - "echo $CJDNS_BUILD"
-  - "test "$CJDNS_BUILD" = "default" && ./do"
-  - "test "$CJDNS_BUILD" = "subnode" && SUBNODE=1 ./do"
-  - "test "$CJDNS_BUILD" = "android" && ./android_do"
+  - uname -a
+  - echo $CJDNS_BUILD
+  - test "$CJDNS_BUILD" = "default" && ./do
+  - test "$CJDNS_BUILD" = "subnode" && SUBNODE=1 ./do
+  - test "$CJDNS_BUILD" = "android" && ./android_do
 
 matrix:
   include:
