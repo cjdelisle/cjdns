@@ -10,22 +10,20 @@ compiler:
 
 # 3 profiles for clang and gcc
 env:
-  - CJDNS_BUILD=default
-  - CJDNS_BUILD=subnode
-  - CJDNS_BUILD=android
+  -
+  - SUBNODE=1
 
 script:
   - uname -a
-  - echo $CJDNS_BUILD
-  - if test "$CJDNS_BUILD" = "default"; then ./do; fi
-  - if test "$CJDNS_BUILD" = "subnode"; then SUBNODE=1 ./do; fi
-  - if test "$CJDNS_BUILD" = "android"; then ./android_do; fi
+  - if test "1" = "$SUBNODE"; then echo "Subnode build"; fi
+  - ./do
 
 matrix:
   include:
     - name: "check js"
       script:
         - "bash node_build/run_jshint"
+
     - name: "AddressSanitizer"
       addons:
         apt:
@@ -42,5 +40,9 @@ matrix:
         - export CFLAGS=-fsanitize=address
         - export LDFLAGS=-fsanitize=address
         - export ASAN_SYMBOLIZER_PATH=/usr/lib/llvm-5.0/bin/llvm-symbolizer
+        - git checkout allocator-fixes
         - ./do
         - ./build_*/test_testcjdroute_c | while read x; do test "$x" != "" && bash -c $x >/dev/null || exit 100; done
+    - name: "android"
+      script:
+        - ./android_do
