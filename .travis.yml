@@ -18,4 +18,4 @@ matrix:
         - export LDFLAGS=-fsanitize=address
         - export ASAN_SYMBOLIZER_PATH=/usr/lib/llvm-5.0/bin/llvm-symbolizer
         - ./do
-        - ./build_*/test_testcjdroute_c | while read x; do test "$x" != "" && bash -c $x >/dev/null || exit 100; done
+        - ./build_*/test_testcjdroute_c | while read x; do test "$x" = "" && continue ; echo ">$x" ; bash -c "$x" >/dev/null || exit 100 ; done
