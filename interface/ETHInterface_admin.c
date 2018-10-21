@@ -198,7 +198,8 @@ void ETHInterface_admin_register(struct EventBase* base,
             { .name = "password", .required = 0, .type = "String" },
             { .name = "publicKey", .required = 1, .type = "String" },
             { .name = "macAddress", .required = 1, .type = "String" },
-            { .name = "login", .required = 0, .type = "String" }
+            { .name = "login", .required = 0, .type = "String" },
+            { .name = "peerName", .required = 0, .type = "String" }
         }), admin);
 
     Admin_registerFunction("ETHInterface_beacon", beacon, ctx, true,
