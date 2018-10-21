@@ -302,11 +302,15 @@ static Iface_DEFUN incoming(struct Message* msg, struct Iface* interRouterIf)
     }
 
     int64_t* verP = Dict_getIntC(content, "p");
-    if (!verP || !*verP) {
+    if (!verP) {
         Log_debug(mcp->log, "DROP Message without version");
         return NULL;
     }
     addr.protocolVersion = *verP;
+    if (!addr.protocolVersion) {
+        Log_debug(mcp->log, "DROP Message with zero version");
+        return NULL;
+    }
 
     String* q = Dict_getStringC(content, "q");
 
