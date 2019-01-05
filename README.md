@@ -142,11 +142,11 @@ Everything you need is available prebuild in FreeBSD' ports.
 
 #### Arch:
 
-You can install cjdns by running
+You can install cjdns by running:
 
     pacman -S cjdns
 
-If you need to build from source, everything you need can be installed like this
+If you need to build from source, everything you need can be installed like this:
 
     pacman -S nodejs git base-devel
 
