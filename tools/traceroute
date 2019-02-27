@@ -92,7 +92,7 @@ var main = function (target) {
         tracePath(target, self, cjdns, function (ret) {
             lastRet = ret;
             process.stdout.write('  ' + ret.ms + 'ms\n');
-            if (ret.nodes.length === 0) {
+            if (!ret.nodes || !ret.nodes.length) {
                 console.log('cornered');
             } else if (ret.nodes[0] !== ret.from) {
                 process.stdout.write(ret.nodes[0] + ' ' + highBits(ret.nodes[0]));
@@ -109,7 +109,7 @@ var main = function (target) {
             process.stdout.write('  ' + ret.ms + 'ms\n');
             if (ret.result === 'timeout') {
                 process.stdout.write('\n' + ret.from + ' ' + ret.result + '!');
-            } else if (ret.nodes.length === 0) {
+            } else if (!ret.nodes || !ret.nodes.length) {
                 console.log('cornered');
             } else if (ret.nodes[0] !== ret.from) {
                 process.stdout.write(ret.nodes[0] + ' ' + highBits(ret.nodes[0]));
