@@ -34,6 +34,7 @@
 #include "util/events/UDPAddrIface.h"
 #include "interface/tuntap/TUNInterface.h"
 #include "interface/tuntap/SocketInterface.h"
+#include "interface/tuntap/SocketWrapper.h"
 #include "interface/tuntap/AndroidWrapper.h"
 #include "interface/UDPInterface_admin.h"
 #ifdef HAS_ETH_INTERFACE
@@ -155,10 +156,18 @@ static void initSocket2(String* socketFullPath,
 {
     Log_debug(ctx->logger, "Initializing socket: %s;", socketFullPath->bytes);
 
-    struct Iface* socketIf = SocketInterface_new(
+    struct Iface* rawSocketIf = SocketInterface_new(
         socketFullPath->bytes, ctx->base, ctx->logger, NULL, ctx->alloc);
 
-    Iface_plumb(socketIf, &ctx->nc->tunAdapt->tunIf);
+    struct SocketWrapper* sw = SocketWrapper_new(ctx->alloc, ctx->logger);
+    Iface_plumb(&sw->externalIf, rawSocketIf);
+    Iface_plumb(&sw->internalIf, &ctx->nc->tunAdapt->tunIf);
+
+    //TODO(sssemil): Figure out why calling addAddress first will stop setMTU from ever being
+    //               called, and vice versa.
+    SocketWrapper_addAddress(&sw->externalIf, ctx->nc->myAddress->ip6.bytes, ctx->logger,
+                                eh, ctx->alloc);
+    SocketWrapper_setMTU(&sw->externalIf, DEFAULT_MTU, ctx->logger, eh, ctx->alloc);
 }
 
 static void initTunnel2(String* desiredDeviceName,
