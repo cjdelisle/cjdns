@@ -163,8 +163,6 @@ static void initSocket2(String* socketFullPath,
     Iface_plumb(&sw->externalIf, rawSocketIf);
     Iface_plumb(&sw->internalIf, &ctx->nc->tunAdapt->tunIf);
 
-    //TODO(sssemil): Figure out why calling addAddress first will stop setMTU from ever being
-    //               called, and vice versa.
     SocketWrapper_addAddress(&sw->externalIf, ctx->nc->myAddress->ip6.bytes, ctx->logger,
                                 eh, ctx->alloc);
     SocketWrapper_setMTU(&sw->externalIf, DEFAULT_MTU, ctx->logger, eh, ctx->alloc);
