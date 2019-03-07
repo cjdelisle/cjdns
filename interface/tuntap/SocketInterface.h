@@ -20,7 +20,7 @@
 #include "exception/Except.h"
 #include "memory/Allocator.h"
 #include "util/Linker.h"
-Linker_require("interface/tuntap/SocketInterface_" + builder.config.systemName + ".c");
+Linker_require("interface/tuntap/SocketInterface.c");
 
 /**
  * Create a new SocketInterface.
