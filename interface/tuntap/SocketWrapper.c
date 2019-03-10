@@ -54,7 +54,7 @@ static Iface_DEFUN incomingFromUs(struct Message* msg, struct Iface* internalIf)
     }
 
     // mark this as a normal tun packet
-    Message_push32(msg, SocketWrapper_TYPE_TUN_PACKET, NULL);
+    Message_push8(msg, SocketWrapper_TYPE_TUN_PACKET, NULL);
 
     return Iface_next(&ctx->pub.externalIf, msg);
 }
