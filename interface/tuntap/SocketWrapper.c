@@ -53,6 +53,8 @@ static Iface_DEFUN incomingFromUs(struct Message* msg, struct Iface* internalIf)
         return NULL;
     }
 
+    // send payload length
+    Message_push32(msg, msg->length, NULL);
     // mark this as a normal tun packet
     Message_push8(msg, SocketWrapper_TYPE_TUN_PACKET, NULL);
 
