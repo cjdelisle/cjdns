@@ -28,11 +28,12 @@ ln -s /opt/cjdns/cjdroute /usr/bin
 # https://github.com/cjdelisle/cjdns#2-find-a-friend
 ```
 
-Now press `CTRL` + `ALT` + `t` (while focusing a Chrome tab) and enter `vmc start termina` followed by `lxc config device add penguin tun unix-char path=/dev/net/tun`. You have to redo this after every restart. Now close the tab and go back to the terminal.
+Now press `CTRL` + `ALT` + `t` (while focusing a Chrome tab) and enter `vmc start termina` followed by `lxc config device add penguin tun unix-char path=/dev/net/tun`. *You have to redo this after every restart.* Now go back to the terminal:
 
 ```
 # Set up a system service that runs on startup
 cp contrib/systemd/cjdns.service /etc/systemd/system/
 systemctl enable cjdns
+# the service `cjdns-resume` does not work currently
 systemctl start cjdns
 ```
