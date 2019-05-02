@@ -316,8 +316,9 @@ reasons:
    resolution.
 
 To find a friend, get out there and join our [community](#community). Also, have
-a look at the [Hyperboria Map][] to find peers near you.
+a look at the [Hyperboria Map](https://www.fc00.org/) to find peers near you.
 
+You can also use the geographically assorted list of public peering credentials for joining Hyperboria at [hyperboria/peers](https://github.com/hyperboria/peers).
 
 ### 3. Connect your node to your friend's node
 
