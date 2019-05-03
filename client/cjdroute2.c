@@ -694,7 +694,7 @@ int main(int argc, char** argv)
     struct Allocator* corePipeAlloc = Allocator_child(allocator);
     char corePipeName[64] = "client-core-";
     Random_base32(rand, (uint8_t*)corePipeName+CString_strlen(corePipeName), 31);
-    String* pipePath = Dict_getStringC(&config, "pipe");
+    String* pipePath = Dict_getStringC(config, "pipe");
     String path;
     if (!pipePath) {
         path = *String_CONST(Pipe_PATH);
