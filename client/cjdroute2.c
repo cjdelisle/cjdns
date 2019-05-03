@@ -704,13 +704,6 @@ int main(int argc, char** argv)
         Except_throw(eh, "Pipe directory not writable: [%s]",pipePath->bytes);
     }
 
-    String* pipePath = Dict_getStringC(config, "pipe");
-    if (!pipePath) {
-        pipePath = String_CONST(Pipe_PATH);
-    }
-    if (!Defined(win32) && access(pipePath->bytes, W_OK)) {
-        Except_throw(eh, "Can't have writable permission to pipe directory.");
-    }
     Assert_ifParanoid(EventBase_eventCount(eventBase) == 0);
     struct Pipe* corePipe = Pipe_named(pipePath->bytes, corePipeName, eventBase,
                                        eh, corePipeAlloc);
