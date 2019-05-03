@@ -697,7 +697,7 @@ int main(int argc, char** argv)
     String* pipePath = Dict_getStringC(&config, "pipe");
     String path;
     if (!pipePath) {
-        path = String_CONST_V(Pipe_PATH);
+        path = *String_CONST(Pipe_PATH);
         pipePath = &path;
     }
     if (!Defined(win32) && access(pipePath->bytes, W_OK)) {
