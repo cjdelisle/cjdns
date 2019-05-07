@@ -22,6 +22,8 @@
 #include "util/Linker.h"
 Linker_require("interface/tuntap/SocketInterface.c");
 
+#include <stdbool.h>
+
 /**
  * Create a new SocketInterface.
  *
@@ -33,6 +35,7 @@ Linker_require("interface/tuntap/SocketInterface.c");
  * @return a Interface.
  */
 struct Iface* SocketInterface_new(const char* socketFullPath,
+                                    bool attemptToCreate,
                                     struct EventBase* base,
                                     struct Log* logger,
                                     struct Except* eh,

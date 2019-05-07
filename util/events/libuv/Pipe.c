@@ -515,11 +515,25 @@ struct Pipe* Pipe_named(const char* path,
 }
 
 struct Pipe* Pipe_namedConnect(const char* fullPath,
+                               bool attemptToCreate,
                                struct EventBase* eb,
                                struct Except* eh,
                                struct Allocator* userAlloc)
 {
     struct Pipe_pvt* out = newPipeAny(eb, fullPath, eh, userAlloc);
+
+    if (attemptToCreate) {
+        // Attempt to create pipe.
+        int ret = uv_pipe_bind(&out->server, out->pub.fullName);
+        if (!ret) {
+            ret = uv_listen((uv_stream_t*) &out->server, 1, listenCallback);
+            if (ret) {
+                Except_throw(eh, "uv_listen() failed [%s] for pipe [%s]",
+                             uv_strerror(ret), out->pub.fullName);
+            }
+            return &out->pub;
+        }
+    }
 
     uv_connect_t* req = Allocator_malloc(out->alloc, sizeof(uv_connect_t));
     req->data = out;

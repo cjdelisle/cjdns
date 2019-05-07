@@ -344,7 +344,16 @@ static void socketInterface(Dict* ifaceConf, struct Allocator* tempAlloc, struct
         exit(1);
     }
 
+    // false by default
+    int64_t attemptToCreate = 0;
+
+    int64_t* socketAttemptToCreate = Dict_getIntC(ifaceConf, "socketAttemptToCreate");
+    if (socketAttemptToCreate && *socketAttemptToCreate) {
+        attemptToCreate = 1;
+    }
+
     Dict_putStringC(args, "socketFullPath", socketFullPath, tempAlloc);
+    Dict_putIntC(args, "socketAttemptToCreate", attemptToCreate, tempAlloc);
     rpcCall0(String_CONST("Core_initSocket"), args, ctx, tempAlloc, NULL, true);
 }
 

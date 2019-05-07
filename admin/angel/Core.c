@@ -150,6 +150,7 @@ static void sendResponse(String* error,
 }
 
 static void initSocket2(String* socketFullPath,
+                          bool attemptToCreate,
                           struct Context* ctx,
                           uint8_t addressPrefix,
                           struct Except* eh)
@@ -157,7 +158,7 @@ static void initSocket2(String* socketFullPath,
     Log_debug(ctx->logger, "Initializing socket: %s;", socketFullPath->bytes);
 
     struct Iface* rawSocketIf = SocketInterface_new(
-        socketFullPath->bytes, ctx->base, ctx->logger, NULL, ctx->alloc);
+        socketFullPath->bytes, attemptToCreate, ctx->base, ctx->logger, NULL, ctx->alloc);
 
     struct SocketWrapper* sw = SocketWrapper_new(ctx->alloc, ctx->logger);
     Iface_plumb(&sw->externalIf, rawSocketIf);
@@ -249,7 +250,9 @@ static void initSocket(Dict* args, void* vcontext, String* txid, struct Allocato
     struct Jmp jmp;
     Jmp_try(jmp) {
         String* socketFullPath = Dict_getStringC(args, "socketFullPath");
-        initSocket2(socketFullPath, ctx, AddressCalc_ADDRESS_PREFIX_BITS, &jmp.handler);
+        bool socketAttemptToCreate = *Dict_getIntC(args, "socketAttemptToCreate");
+        initSocket2(socketFullPath, socketAttemptToCreate, ctx, AddressCalc_ADDRESS_PREFIX_BITS,
+            &jmp.handler);
     } Jmp_catch {
         String* error = String_printf(requestAlloc, "Failed to configure socket [%s]",
             jmp.message);
@@ -372,7 +375,8 @@ void Core_init(struct Allocator* alloc,
 
     Admin_registerFunction("Core_initSocket", initSocket, ctx, true,
         ((struct Admin_FunctionArg[]) {
-            { .name = "socketFullPath", .required = 1, .type = "String" }
+            { .name = "socketFullPath", .required = 1, .type = "String" },
+            { .name = "socketAttemptToCreate", .required = 1, .type = "Int" }
         }), admin);
 }
 

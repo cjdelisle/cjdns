@@ -19,6 +19,7 @@
 #include "util/events/Pipe.h"
 
 struct Iface* SocketInterface_new(const char* socketFullPath,
+                                    bool attemptToCreate,
                                     struct EventBase* base,
                                     struct Log* logger,
                                     struct Except* eh,
@@ -26,7 +27,7 @@ struct Iface* SocketInterface_new(const char* socketFullPath,
 {
     Log_info(logger, "Initializing socket: %s;", socketFullPath);
 
-    struct Pipe* p = Pipe_namedConnect(socketFullPath, base, eh, alloc);
+    struct Pipe* p = Pipe_namedConnect(socketFullPath, attemptToCreate, base, eh, alloc);
 
     return &p->iface;
 }

@@ -22,6 +22,8 @@
 #include "util/Linker.h"
 Linker_require("util/events/libuv/Pipe.c");
 
+#include <stdbool.h>
+
 struct Pipe;
 typedef void (* Pipe_callback)(struct Pipe* p, int status);
 
@@ -68,6 +70,7 @@ struct Pipe* Pipe_named(const char* path,
                         struct Allocator* userAlloc);
 
 struct Pipe* Pipe_namedConnect(const char* fullPath,
+                               bool attemptToCreate,
                                struct EventBase* eb,
                                struct Except* eh,
                                struct Allocator* userAlloc);
