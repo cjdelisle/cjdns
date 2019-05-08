@@ -88,7 +88,7 @@ static void mkRouteMsg(struct Message* msg,
             .sin_family = AF_INET,
             .sin_len = sizeof(struct sockaddr_in)
         };
-        mask.sin_addr.s_addr = Endian_hostToBigEndian32(~0 << (32 - addRoute->prefix));
+        mask.sin_addr.s_addr = Endian_hostToBigEndian32(~0u << (32 - addRoute->prefix));
         Message_push(msg, &mask, sizeof(struct sockaddr_in), eh);
     }
     if (!delete) {
@@ -243,7 +243,7 @@ static void addIp4Address(const char* interfaceName,
     struct sockaddr_in sin = { .sin_family = AF_INET, .sin_len = sizeof(struct sockaddr_in) };
     Bits_memcpy(&sin.sin_addr.s_addr, address, 4);
     Bits_memcpy(&ifarted.ifra_addr, &sin, sizeof(struct sockaddr_in));
-    sin.sin_addr.s_addr = Endian_hostToBigEndian32(~0 << (32 - prefixLen));
+    sin.sin_addr.s_addr = Endian_hostToBigEndian32(~0u << (32 - prefixLen));
     Bits_memcpy(&ifarted.ifra_mask, &sin, sizeof(struct sockaddr_in));
 
     int s = socket(AF_INET, SOCK_DGRAM, 0);
