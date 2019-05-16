@@ -539,6 +539,19 @@ static void security(struct Allocator* tempAlloc, List* conf, struct Log* log, s
     int64_t* group = NULL;
     int keepNetAdmin = 1;
 
+    do {
+        Dict* d = Dict_new(tempAlloc);
+        Dict_putStringCC(d, "user", "nobody", tempAlloc);
+        if (!Defined(win32)) {
+            Dict* ret = NULL;
+            int r = rpcCall0(String_CONST("Security_getUser"), d, ctx, tempAlloc, &ret, false);
+            if (!r) {
+                uid = *Dict_getIntC(ret, "uid");
+                group = Dict_getIntC(ret, "gid");
+            }
+        }
+    } while (0);
+
     for (int i = 0; conf && i < List_size(conf); i++) {
         Dict* elem = List_getDict(conf, i);
         String* s;
@@ -593,14 +606,9 @@ static void security(struct Allocator* tempAlloc, List* conf, struct Log* log, s
     }
 
     if (uid == -1) {
-        Dict* d = Dict_new(tempAlloc);
-        Dict_putStringCC(d, "user", "nobody", tempAlloc);
-        if (!Defined(win32)) {
-            Dict* ret = NULL;
-            rpcCall0(String_CONST("Security_getUser"), d, ctx, tempAlloc, &ret, true);
-            uid = *Dict_getIntC(ret, "uid");
-            group = Dict_getIntC(ret, "gid");
-        }
+        Log_critical(ctx->logger,
+                     "User \"nobody\" doesn't exist and no alternative user is set");
+        die(ctx->currentResult, ctx, tempAlloc);
     }
 
     if (chroot) {
