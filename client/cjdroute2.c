@@ -202,11 +202,15 @@ static int genconf(struct Random* rand, bool eth)
            "                    // Add connection credentials here to join the network\n"
            "                    // Ask somebody who is already connected.\n"
            "                }\n"
-           "            }\n");
+           "            }\n"
+           "        ]");
 #ifdef HAS_ETH_INTERFACE
-    printf("        ],\n");
     if (!eth) {
-        printf("        /*\n");
+        printf("\n"
+               "        /*\n"
+               "        ,\n");
+    } else {
+        printf(",\n\n");
     }
     printf("        // The interface which allows peering using layer-2 ethernet frames\n"
            "        \"ETHInterface\": [\n"
