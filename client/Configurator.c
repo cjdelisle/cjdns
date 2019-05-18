@@ -544,9 +544,11 @@ static void security(struct Allocator* tempAlloc, List* conf, struct Log* log, s
         Dict_putStringCC(d, "user", "nobody", tempAlloc);
         if (!Defined(win32)) {
             Dict* ret = NULL;
-            rpcCall0(String_CONST("Security_getUser"), d, ctx, tempAlloc, &ret, true);
-            uid = *Dict_getIntC(ret, "uid");
-            group = Dict_getIntC(ret, "gid");
+            int r = rpcCall0(String_CONST("Security_getUser"), d, ctx, tempAlloc, &ret, false);
+            if (!r) {
+                uid = *Dict_getIntC(ret, "uid");
+                group = Dict_getIntC(ret, "gid");
+            }
         }
     } while (0);
 
@@ -601,6 +603,12 @@ static void security(struct Allocator* tempAlloc, List* conf, struct Log* log, s
             continue;
         }
         Log_info(ctx->logger, "Unrecognized entry in security at index [%d]", i);
+    }
+
+    if (uid == -1) {
+        Log_critical(ctx->logger,
+                     "User \"nobody\" doesn't exist and no alternative user is set");
+        die(ctx->currentResult, ctx, tempAlloc);
     }
 
     if (chroot) {
