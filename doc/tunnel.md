@@ -140,7 +140,7 @@ address like `ipv6.google.com` too if you're expecting internet traffic to be ro
 For IPv4, you probably want to set up routing on the client side as well
 (assuming the cjdns interface in `tun0`:
 
-    ip route add 10.0.0.0/24 via tun0
+    ip route add 10.0.0.0/24 dev tun0
     ip route add default via 10.0.0.1
 
 Now if all went well your job is done, but if the connection isn't working yet you should continue on to
