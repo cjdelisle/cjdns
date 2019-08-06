@@ -19,20 +19,39 @@
 #include "util/Hex.h"
 
 #include <unistd.h>
-#include <sys/syscall.h>
-#include <sys/sysctl.h>
+#include <fcntl.h>
 
 static int getUUID(uint64_t output[2])
 {
-    int mib[] = { CTL_KERN, KERN_RANDOM, RANDOM_UUID };
-    size_t sixteen = 16;
-
+    uint8_t uuid[40];
     Bits_memset(output, 0, 16);
-    if (sysctl(mib, 3, output, &sixteen, NULL, 0)
+    int fd = open("/proc/sys/kernel/random/uuid",O_RDONLY);
+    if (fd < 0)
+    {
+        return -1;
+    }
+    int rc = read(fd,uuid,36);
+    close(fd);
+    if (rc < 32)
+    {
+        return -1;
+    }
+    uuid[rc] = 0;
+    /* strip '-' */
+    int i,j = 0;
+    for (i = 0; uuid[i] != 0; ++i) {
+        if (uuid[i] != '-')
+        {
+            uuid[j++] = uuid[i];
+        }
+    }
+    uuid[j] = 0;
+    if (Hex_decode((uint8_t*) output, 16, uuid, j) != 16
         || Bits_isZero(output, 16))
     {
         return -1;
     }
+
     return 0;
 }
 
