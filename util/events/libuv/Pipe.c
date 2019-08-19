@@ -21,6 +21,7 @@
 #include "util/CString.h"
 #include "wire/Message.h"
 #include "wire/Error.h"
+#include "benc/String.h"
 
 #include <inttypes.h>
 #include <libgen.h>
@@ -401,10 +402,9 @@ static struct Pipe_pvt* newPipeAny(struct EventBase* eb,
     struct EventBase_pvt* ctx = EventBase_privatize(eb);
     struct Allocator* alloc = Allocator_child(userAlloc);
 
-    char* name = Allocator_malloc(alloc, (fullPath ? CString_strlen(fullPath) : 0));
+    char* name = NULL;
     if (fullPath) {
-        Bits_memcpy(name, fullPath, CString_strlen(fullPath));
-        name = basename(name);
+        name = basename(String_new(fullPath, alloc)->bytes);
     }
 
     struct Pipe_pvt* out = Allocator_clone(alloc, (&(struct Pipe_pvt) {
