@@ -40,7 +40,18 @@ static Iface_DEFUN incomingFromSocket(struct Message* msg, struct Iface* externa
         return NULL;
     }
 
-    return Iface_next(&ctx->pub.internalIf, msg);
+    // get ess packet type
+    uint8_t type = Message_pop8(msg, NULL);
+    Log_debug(ctx->logger, "Packet type [%d]", type);
+
+    if (type == SocketWrapper_TYPE_TUN_PACKET) {
+        // skip tun packet length
+        Message_pop32(msg, NULL);
+        return Iface_next(&ctx->pub.internalIf, msg);
+    }
+
+    // skip all other types
+    return NULL;
 }
 
 static Iface_DEFUN incomingFromUs(struct Message* msg, struct Iface* internalIf)
