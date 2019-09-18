@@ -16,7 +16,13 @@ var nThen = require('nthen');
 var Spawn = require('child_process').spawn;
 var Fs = require('fs');
 
-var PYTHONS = ["python3", "python", "python2", "python2.7", "python3", "python3.7"];
+// We're going to prefer python2.7 or python2 because we know they work
+// and our test code is very strict.
+// If neither of those work, we'll try python3.7 or python3 which we
+// de-prioritize because the testing script accepts ANY python3 version
+// (as of this writing, we don't know what python3 versions actually work)
+// whereas we know that python2.7 is the only working python2 version.
+var PYTHONS = ["python2.7", "python2", "python3.7", "python3", "python"];
 
 var SCRIPT = [
     'import sys',
