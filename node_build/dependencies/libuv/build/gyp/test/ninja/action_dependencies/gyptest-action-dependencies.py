@@ -9,8 +9,16 @@ Verify that building an object file correctly depends on running actions in
 dependent targets, but not the targets themselves.
 """
 
+from __future__ import print_function
+
 import os
 import sys
+
+if sys.platform == 'win32':
+  print("This test is currently disabled: https://crbug.com/483696.")
+  sys.exit(0)
+
+
 import TestGyp
 
 # NOTE(piman): This test will not work with other generators because:

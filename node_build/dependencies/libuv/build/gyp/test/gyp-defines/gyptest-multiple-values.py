@@ -29,12 +29,6 @@ if test.format == 'msvs' and not test.uses_msbuild:
   # msvs versions before 2010 don't detect build rule changes not reflected
   # in file system timestamps. Rebuild to see differences.
   test.build('defines.gyp', rebuild=True)
-elif test.format == 'android':
-  # The Android build system doesn't currently have a way to get files whose
-  # build rules have changed (but whose timestamps haven't) to be rebuilt.
-  # See bug http://code.google.com/p/gyp/issues/detail?id=308
-  test.unlink('action.txt')
-  test.build('defines.gyp')
 else:
   test.build('defines.gyp')
 test.must_contain('action.txt', 'repeated_value')

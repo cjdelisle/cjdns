@@ -8,11 +8,16 @@
 Verifies mac bundles work with --generator-output.
 """
 
+from __future__ import print_function
+
 import TestGyp
 
 import sys
 
 if sys.platform == 'darwin':
+  print("This test is currently disabled: https://crbug.com/483696.")
+  sys.exit(0)
+
   test = TestGyp.TestGyp(formats=[])
 
   MAC_BUNDLE_DIR = 'mac-bundle'

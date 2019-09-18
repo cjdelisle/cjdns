@@ -45,13 +45,12 @@ static void close_cb(uv_handle_t* handle) {
 }
 
 
-static void do_accept(uv_timer_t* timer_handle, int status) {
+static void do_accept(uv_timer_t* timer_handle) {
   uv_tcp_t* server;
   uv_tcp_t* accepted_handle = (uv_tcp_t*)malloc(sizeof *accepted_handle);
   int r;
 
   ASSERT(timer_handle != NULL);
-  ASSERT(status == 0);
   ASSERT(accepted_handle != NULL);
 
   r = uv_tcp_init(uv_default_loop(), accepted_handle);
@@ -139,8 +138,8 @@ static void connect_cb(uv_connect_t* req, int status) {
   ASSERT(req != NULL);
   ASSERT(status == 0);
 
-  /* Not that the server will send anything, but otherwise we'll never know */
-  /* when the server closes the connection. */
+  /* Not that the server will send anything, but otherwise we'll never know
+   * when the server closes the connection. */
   r = uv_read_start((uv_stream_t*)(req->handle), alloc_cb, read_cb);
   ASSERT(r == 0);
 

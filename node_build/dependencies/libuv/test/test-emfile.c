@@ -25,7 +25,6 @@
 #include "task.h"
 
 #include <errno.h>
-#include <stdio.h>
 #include <sys/resource.h>
 #include <unistd.h>
 
@@ -44,6 +43,20 @@ TEST_IMPL(emfile) {
   uv_connect_t connect_req;
   uv_loop_t* loop;
   int first_fd;
+#if defined(_AIX) || defined(__MVS__)
+  /* On AIX, if a 'accept' call fails ECONNRESET is set on the socket
+   * which causes uv__emfile_trick to not work as intended and this test
+   * to fail.
+   */
+  RETURN_SKIP("uv__emfile_trick does not work on this OS");
+#endif
+
+  /* Lower the file descriptor limit and use up all fds save one. */
+  limits.rlim_cur = limits.rlim_max = maxfd + 1;
+  if (setrlimit(RLIMIT_NOFILE, &limits)) {
+    ASSERT(errno == EPERM);  /* Valgrind blocks the setrlimit() call. */
+    RETURN_SKIP("setrlimit(RLIMIT_NOFILE) failed, running under valgrind?");
+  }
 
   loop = uv_default_loop();
   ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
@@ -51,13 +64,6 @@ TEST_IMPL(emfile) {
   ASSERT(0 == uv_tcp_init(loop, &client_handle));
   ASSERT(0 == uv_tcp_bind(&server_handle, (const struct sockaddr*) &addr, 0));
   ASSERT(0 == uv_listen((uv_stream_t*) &server_handle, 8, connection_cb));
-
-  /* Lower the file descriptor limit and use up all fds save one. */
-  limits.rlim_cur = limits.rlim_max = maxfd + 1;
-  if (setrlimit(RLIMIT_NOFILE, &limits)) {
-    perror("setrlimit(RLIMIT_NOFILE)");
-    ASSERT(0);
-  }
 
   /* Remember the first one so we can clean up afterwards. */
   do
@@ -108,4 +114,8 @@ static void connect_cb(uv_connect_t* req, int status) {
   uv_close((uv_handle_t*) &client_handle, NULL);
 }
 
-#endif  /* !defined(_WIN32) */
+#else
+
+typedef int file_has_no_tests; /* ISO C forbids an empty translation unit. */
+
+#endif /* !_WIN32 */

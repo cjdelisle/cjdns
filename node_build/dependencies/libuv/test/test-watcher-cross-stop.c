@@ -26,7 +26,12 @@
 #include <errno.h>
 
 /* NOTE: Number should be big enough to trigger this problem */
+#if defined(__CYGWIN__) || defined(__MSYS__)
+/* Cygwin crashes or hangs in socket() with too many AF_INET sockets.  */
+static uv_udp_t sockets[1250];
+#else
 static uv_udp_t sockets[2500];
+#endif
 static uv_udp_send_t reqs[ARRAY_SIZE(sockets)];
 static char slab[1];
 static unsigned int recv_cb_called;
@@ -59,6 +64,9 @@ static void close_cb(uv_handle_t* handle) {
 
 
 TEST_IMPL(watcher_cross_stop) {
+#if defined(__MVS__)
+  RETURN_SKIP("zOS does not allow address or port reuse when using UDP sockets");
+#endif
   uv_loop_t* loop = uv_default_loop();
   unsigned int i;
   struct sockaddr_in addr;
@@ -73,7 +81,9 @@ TEST_IMPL(watcher_cross_stop) {
 
   for (i = 0; i < ARRAY_SIZE(sockets); i++) {
     ASSERT(0 == uv_udp_init(loop, &sockets[i]));
-    ASSERT(0 == uv_udp_bind(&sockets[i], (const struct sockaddr*) &addr, 0));
+    ASSERT(0 == uv_udp_bind(&sockets[i],
+                            (const struct sockaddr*) &addr,
+                            UV_UDP_REUSEADDR));
     ASSERT(0 == uv_udp_recv_start(&sockets[i], alloc_cb, recv_cb));
     ASSERT(0 == uv_udp_send(&reqs[i],
                             &sockets[i],
@@ -89,11 +99,11 @@ TEST_IMPL(watcher_cross_stop) {
   for (i = 0; i < ARRAY_SIZE(sockets); i++)
     uv_close((uv_handle_t*) &sockets[i], close_cb);
 
-  ASSERT(0 < recv_cb_called && recv_cb_called <= ARRAY_SIZE(sockets));
-  ASSERT(ARRAY_SIZE(sockets) == send_cb_called);
+  ASSERT(recv_cb_called > 0);
 
   uv_run(loop, UV_RUN_DEFAULT);
 
+  ASSERT(ARRAY_SIZE(sockets) == send_cb_called);
   ASSERT(ARRAY_SIZE(sockets) == close_cb_called);
 
   MAKE_VALGRIND_HAPPY();

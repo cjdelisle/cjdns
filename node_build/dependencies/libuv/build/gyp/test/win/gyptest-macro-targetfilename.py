@@ -8,12 +8,17 @@
 Make sure macro expansion of $(TargetFileName) is handled.
 """
 
+from __future__ import print_function
+
 import TestGyp
 
 import os
 import sys
 
 if sys.platform == 'win32':
+  print("This test is currently disabled: https://crbug.com/483696.")
+  sys.exit(0)
+
   test = TestGyp.TestGyp(formats=['msvs', 'ninja'])
   if not (test.format == 'msvs' and
           int(os.environ.get('GYP_MSVS_VERSION', 0)) == 2013):

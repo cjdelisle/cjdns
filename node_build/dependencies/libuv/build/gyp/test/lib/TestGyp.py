@@ -5,19 +5,19 @@
 """
 TestGyp.py:  a testing framework for GYP integration tests.
 """
+from __future__ import print_function
 
 import collections
-from contextlib import contextmanager
+import errno
 import itertools
 import os
-import random
 import re
 import shutil
-import stat
 import subprocess
 import sys
 import tempfile
-import time
+
+from contextlib import contextmanager
 
 import TestCmd
 import TestCommon
@@ -92,6 +92,8 @@ class TestGypBase(TestCommon.TestCommon):
   _lib = TestCommon.lib_suffix
   dll_ = TestCommon.dll_prefix
   _dll = TestCommon.dll_suffix
+  module_ = TestCommon.module_prefix
+  _module = TestCommon.module_suffix
 
   # Constants to represent different targets.
   ALL = '__all__'
@@ -101,6 +103,7 @@ class TestGypBase(TestCommon.TestCommon):
   EXECUTABLE = '__executable__'
   STATIC_LIB = '__static_lib__'
   SHARED_LIB = '__shared_lib__'
+  LOADABLE_MODULE = '__loadable_module__'
 
   def __init__(self, gyp=None, *args, **kw):
     self.origin_cwd = os.path.abspath(os.path.dirname(sys.argv[0]))
@@ -215,6 +218,27 @@ class TestGypBase(TestCommon.TestCommon):
         destination = source.replace(source_dir, dest_dir)
         shutil.copy2(source, destination)
 
+    # The gyp tests are run with HOME pointing to |dest_dir| to provide an
+    # hermetic environment. Symlink login.keychain and the 'Provisioning
+    # Profiles' folder to allow codesign to access to the data required for
+    # signing binaries.
+    if sys.platform == 'darwin':
+      old_keychain = GetDefaultKeychainPath()
+      old_provisioning_profiles = os.path.join(
+          os.environ['HOME'], 'Library', 'MobileDevice',
+          'Provisioning Profiles')
+
+      new_keychain = os.path.join(dest_dir, 'Library', 'Keychains')
+      MakeDirs(new_keychain)
+      os.symlink(old_keychain, os.path.join(new_keychain, 'login.keychain'))
+
+      if os.path.exists(old_provisioning_profiles):
+        new_provisioning_profiles = os.path.join(
+            dest_dir, 'Library', 'MobileDevice')
+        MakeDirs(new_provisioning_profiles)
+        os.symlink(old_provisioning_profiles,
+            os.path.join(new_provisioning_profiles, 'Provisioning Profiles'))
+
   def initialize_build_tool(self):
     """
     Initializes the .build_tool attribute.
@@ -261,13 +285,13 @@ class TestGypBase(TestCommon.TestCommon):
     that expect exact output from the command (make) can
     just set stdout= when they call the run_build() method.
     """
-    print "Build is not up-to-date:"
-    print self.banner('STDOUT ')
-    print self.stdout()
+    print("Build is not up-to-date:")
+    print(self.banner('STDOUT '))
+    print(self.stdout())
     stderr = self.stderr()
     if stderr:
-      print self.banner('STDERR ')
-      print stderr
+      print(self.banner('STDERR '))
+      print(stderr)
 
   def run_gyp(self, gyp_file, *args, **kw):
     """
@@ -282,7 +306,7 @@ class TestGypBase(TestCommon.TestCommon):
     # TODO:  --depth=. works around Chromium-specific tree climbing.
     depth = kw.pop('depth', '.')
     run_args = ['--depth='+depth]
-    run_args.extend(['--format='+f for f in self.formats]);
+    run_args.extend(['--format='+f for f in self.formats])
     run_args.append(gyp_file)
     if self.no_parallel:
       run_args += ['--no-parallel']
@@ -291,8 +315,9 @@ class TestGypBase(TestCommon.TestCommon):
     run_args.extend(self.extra_args)
     # Default xcode_ninja_target_pattern to ^.*$ to fix xcode-ninja tests
     xcode_ninja_target_pattern = kw.pop('xcode_ninja_target_pattern', '.*')
-    run_args.extend(
-      ['-G', 'xcode_ninja_target_pattern=%s' % xcode_ninja_target_pattern])
+    if self is TestGypXcodeNinja:
+      run_args.extend(
+        ['-G', 'xcode_ninja_target_pattern=%s' % xcode_ninja_target_pattern])
     run_args.extend(args)
     return self.run(program=self.gyp, arguments=run_args, **kw)
 
@@ -305,7 +330,7 @@ class TestGypBase(TestCommon.TestCommon):
     the tool-specific subclasses or clutter the tests themselves
     with platform-specific code.
     """
-    if kw.has_key('SYMROOT'):
+    if 'SYMROOT' in kw:
       del kw['SYMROOT']
     super(TestGypBase, self).run(*args, **kw)
 
@@ -364,6 +389,8 @@ class TestGypBase(TestCommon.TestCommon):
         name = self.lib_ + name + self._lib
       elif type == self.SHARED_LIB:
         name = self.dll_ + name + self._dll
+      elif type == self.LOADABLE_MODULE:
+        name = self.module_ + name + self._module
     return name
 
   def run_built_executable(self, name, *args, **kw):
@@ -409,276 +436,6 @@ class TestGypCustom(TestGypBase):
   def __init__(self, gyp=None, *args, **kw):
     self.format = kw.pop("format")
     super(TestGypCustom, self).__init__(*args, **kw)
-
-
-class TestGypAndroid(TestGypBase):
-  """
-  Subclass for testing the GYP Android makefile generator. Note that
-  build/envsetup.sh and lunch must have been run before running tests.
-  """
-  format = 'android'
-
-  # Note that we can't use mmm as the build tool because ...
-  # - it builds all targets, whereas we need to pass a target
-  # - it is a function, whereas the test runner assumes the build tool is a file
-  # Instead we use make and duplicate the logic from mmm.
-  build_tool_list = ['make']
-
-  # We use our custom target 'gyp_all_modules', as opposed to the 'all_modules'
-  # target used by mmm, to build only those targets which are part of the gyp
-  # target 'all'.
-  ALL = 'gyp_all_modules'
-
-  def __init__(self, gyp=None, *args, **kw):
-    # Android requires build and test output to be inside its source tree.
-    # We use the following working directory for the test's source, but the
-    # test's build output still goes to $ANDROID_PRODUCT_OUT.
-    # Note that some tests explicitly set format='gypd' to invoke the gypd
-    # backend. This writes to the source tree, but there's no way around this.
-    kw['workdir'] = os.path.join('/tmp', 'gyptest',
-                                 kw.get('workdir', 'testworkarea'))
-    # We need to remove all gyp outputs from out/. Ths is because some tests
-    # don't have rules to regenerate output, so they will simply re-use stale
-    # output if present. Since the test working directory gets regenerated for
-    # each test run, this can confuse things.
-    # We don't have a list of build outputs because we don't know which
-    # dependent targets were built. Instead we delete all gyp-generated output.
-    # This may be excessive, but should be safe.
-    out_dir = os.environ['ANDROID_PRODUCT_OUT']
-    obj_dir = os.path.join(out_dir, 'obj')
-    shutil.rmtree(os.path.join(obj_dir, 'GYP'), ignore_errors = True)
-    for x in ['EXECUTABLES', 'STATIC_LIBRARIES', 'SHARED_LIBRARIES']:
-      for d in os.listdir(os.path.join(obj_dir, x)):
-        if d.endswith('_gyp_intermediates'):
-          shutil.rmtree(os.path.join(obj_dir, x, d), ignore_errors = True)
-    for x in [os.path.join('obj', 'lib'), os.path.join('system', 'lib')]:
-      for d in os.listdir(os.path.join(out_dir, x)):
-        if d.endswith('_gyp.so'):
-          os.remove(os.path.join(out_dir, x, d))
-
-    super(TestGypAndroid, self).__init__(*args, **kw)
-    self._adb_path = os.path.join(os.environ['ANDROID_HOST_OUT'], 'bin', 'adb')
-    self._device_serial = None
-    adb_devices_out = self._call_adb(['devices'])
-    devices = [l.split()[0] for l in adb_devices_out.splitlines()[1:-1]
-               if l.split()[1] == 'device']
-    if len(devices) == 0:
-      self._device_serial = None
-    else:
-      if len(devices) > 1:
-        self._device_serial = random.choice(devices)
-      else:
-        self._device_serial = devices[0]
-      self._call_adb(['root'])
-    self._to_install = set()
-
-  def target_name(self, target):
-    if target == self.ALL:
-      return self.ALL
-    # The default target is 'droid'. However, we want to use our special target
-    # to build only the gyp target 'all'.
-    if target in (None, self.DEFAULT):
-      return self.ALL
-    return target
-
-  _INSTALLABLE_PREFIX = 'Install: '
-
-  def build(self, gyp_file, target=None, **kw):
-    """
-    Runs a build using the Android makefiles generated from the specified
-    gyp_file. This logic is taken from Android's mmm.
-    """
-    arguments = kw.get('arguments', [])[:]
-    arguments.append(self.target_name(target))
-    arguments.append('-C')
-    arguments.append(os.environ['ANDROID_BUILD_TOP'])
-    kw['arguments'] = arguments
-    chdir = kw.get('chdir', '')
-    makefile = os.path.join(self.workdir, chdir, 'GypAndroid.mk')
-    os.environ['ONE_SHOT_MAKEFILE'] = makefile
-    result = self.run(program=self.build_tool, **kw)
-    for l in self.stdout().splitlines():
-      if l.startswith(TestGypAndroid._INSTALLABLE_PREFIX):
-        self._to_install.add(os.path.abspath(os.path.join(
-            os.environ['ANDROID_BUILD_TOP'],
-            l[len(TestGypAndroid._INSTALLABLE_PREFIX):])))
-    del os.environ['ONE_SHOT_MAKEFILE']
-    return result
-
-  def android_module(self, group, name, subdir):
-    if subdir:
-      name = '%s_%s' % (subdir, name)
-    if group == 'SHARED_LIBRARIES':
-      name = 'lib_%s' % name
-    return '%s_gyp' % name
-
-  def intermediates_dir(self, group, module_name):
-    return os.path.join(os.environ['ANDROID_PRODUCT_OUT'], 'obj', group,
-                        '%s_intermediates' % module_name)
-
-  def built_file_path(self, name, type=None, **kw):
-    """
-    Returns a path to the specified file name, of the specified type,
-    as built by Android. Note that we don't support the configuration
-    parameter.
-    """
-    # Built files are in $ANDROID_PRODUCT_OUT. This requires copying logic from
-    # the Android build system.
-    if type == None or type == self.EXECUTABLE:
-      return os.path.join(os.environ['ANDROID_PRODUCT_OUT'], 'obj', 'GYP',
-                          'shared_intermediates', name)
-    subdir = kw.get('subdir')
-    if type == self.STATIC_LIB:
-      group = 'STATIC_LIBRARIES'
-      module_name = self.android_module(group, name, subdir)
-      return os.path.join(self.intermediates_dir(group, module_name),
-                          '%s.a' % module_name)
-    if type == self.SHARED_LIB:
-      group = 'SHARED_LIBRARIES'
-      module_name = self.android_module(group, name, subdir)
-      return os.path.join(self.intermediates_dir(group, module_name), 'LINKED',
-                          '%s.so' % module_name)
-    assert False, 'Unhandled type'
-
-  def _adb_failure(self, command, msg, stdout, stderr):
-    """ Reports a failed adb command and fails the containing test.
-
-    Args:
-      command: The adb command that failed.
-      msg: The error description.
-      stdout: The standard output.
-      stderr: The standard error.
-    """
-    print '%s failed%s' % (' '.join(command), ': %s' % msg if msg else '')
-    print self.banner('STDOUT ')
-    stdout.seek(0)
-    print stdout.read()
-    print self.banner('STDERR ')
-    stderr.seek(0)
-    print stderr.read()
-    self.fail_test()
-
-  def _call_adb(self, command, timeout=15, retry=3):
-    """ Calls the provided adb command.
-
-    If the command fails, the test fails.
-
-    Args:
-      command: The adb command to call.
-    Returns:
-      The command's output.
-    """
-    with tempfile.TemporaryFile(bufsize=0) as adb_out:
-      with tempfile.TemporaryFile(bufsize=0) as adb_err:
-        adb_command = [self._adb_path]
-        if self._device_serial:
-          adb_command += ['-s', self._device_serial]
-        is_shell = (command[0] == 'shell')
-        if is_shell:
-          command = [command[0], '%s; echo "\n$?";' % ' '.join(command[1:])]
-        adb_command += command
-
-        for attempt in xrange(1, retry + 1):
-          adb_out.seek(0)
-          adb_out.truncate(0)
-          adb_err.seek(0)
-          adb_err.truncate(0)
-          proc = subprocess.Popen(adb_command, stdout=adb_out, stderr=adb_err)
-          deadline = time.time() + timeout
-          timed_out = False
-          while proc.poll() is None and not timed_out:
-            time.sleep(1)
-            timed_out = time.time() > deadline
-          if timed_out:
-            print 'Timeout for command %s (attempt %d of %s)' % (
-                adb_command, attempt, retry)
-            try:
-              proc.kill()
-            except:
-              pass
-          else:
-            break
-
-        if proc.returncode != 0:  # returncode is None in the case of a timeout.
-          self._adb_failure(
-              adb_command, 'retcode=%s' % proc.returncode, adb_out, adb_err)
-          return
-
-        adb_out.seek(0)
-        output = adb_out.read()
-        if is_shell:
-          output = output.splitlines(True)
-          try:
-            output[-2] = output[-2].rstrip('\r\n')
-            output, rc = (''.join(output[:-1]), int(output[-1]))
-          except ValueError:
-            self._adb_failure(adb_command, 'unexpected output format',
-                              adb_out, adb_err)
-          if rc != 0:
-            self._adb_failure(adb_command, 'exited with %d' % rc, adb_out,
-                              adb_err)
-        return output
-
-  def run_built_executable(self, name, *args, **kw):
-    """
-    Runs an executable program built from a gyp-generated configuration.
-    """
-    match = kw.pop('match', self.match)
-
-    executable_file = self.built_file_path(name, type=self.EXECUTABLE, **kw)
-    if executable_file not in self._to_install:
-      self.fail_test()
-
-    if not self._device_serial:
-      self.skip_test(message='No devices attached.\n')
-
-    storage = self._call_adb(['shell', 'echo', '$ANDROID_DATA']).strip()
-    if not len(storage):
-      self.fail_test()
-
-    installed = set()
-    try:
-      for i in self._to_install:
-        a = os.path.abspath(
-            os.path.join(os.environ['ANDROID_BUILD_TOP'], i))
-        dest = '%s/%s' % (storage, os.path.basename(a))
-        self._call_adb(['push', os.path.abspath(a), dest])
-        installed.add(dest)
-        if i == executable_file:
-          device_executable = dest
-          self._call_adb(['shell', 'chmod', '755', device_executable])
-
-      out = self._call_adb(
-          ['shell', 'LD_LIBRARY_PATH=$LD_LIBRARY_PATH:%s' % storage,
-           device_executable],
-          timeout=60,
-          retry=1)
-      out = out.replace('\r\n', '\n')
-      self._complete(out, kw.pop('stdout', None), None, None, None, match)
-    finally:
-      if len(installed):
-        self._call_adb(['shell', 'rm'] + list(installed))
-
-  def match_single_line(self, lines = None, expected_line = None):
-    """
-    Checks that specified line appears in the text.
-    """
-    for line in lines.split('\n'):
-        if line == expected_line:
-            return 1
-    return
-
-  def up_to_date(self, gyp_file, target=None, **kw):
-    """
-    Verifies that a build of the specified target is up to date.
-    """
-    kw['stdout'] = ("make: Nothing to be done for `%s'." %
-                    self.target_name(target))
-
-    # We need to supply a custom matcher, since we don't want to depend on the
-    # exact stdout string.
-    kw['match'] = self.match_single_line
-    return self.build(gyp_file, target, **kw)
 
 
 class TestGypCMake(TestGypBase):
@@ -803,7 +560,7 @@ class TestGypMake(TestGypBase):
     # Makefile.gyp_filename), so use that if there is no Makefile.
     chdir = kw.get('chdir', '')
     if not os.path.exists(os.path.join(chdir, 'Makefile')):
-      print "NO Makefile in " + os.path.join(chdir, 'Makefile')
+      print("NO Makefile in " + os.path.join(chdir, 'Makefile'))
       arguments.insert(0, '-f')
       arguments.insert(1, os.path.splitext(gyp_file)[0] + '.Makefile')
     kw['arguments'] = arguments
@@ -816,7 +573,7 @@ class TestGypMake(TestGypBase):
       message_target = 'all'
     else:
       message_target = target
-    kw['stdout'] = "make: Nothing to be done for `%s'.\n" % message_target
+    kw['stdout'] = "make: Nothing to be done for '%s'.\n" % message_target
     return self.build(gyp_file, target, **kw)
   def run_built_executable(self, name, *args, **kw):
     """
@@ -877,6 +634,24 @@ def ConvertToCygpath(path):
   return path
 
 
+def MakeDirs(new_dir):
+  """A wrapper around os.makedirs() that emulates "mkdir -p"."""
+  try:
+    os.makedirs(new_dir)
+  except OSError as e:
+    if e.errno != errno.EEXIST:
+      raise
+
+def GetDefaultKeychainPath():
+  """Get the keychain path, for used before updating HOME."""
+  assert sys.platform == 'darwin'
+  # Format is:
+  # $ security default-keychain
+  #     "/Some/Path/To/default.keychain"
+  path = subprocess.check_output(['security', 'default-keychain']).decode(
+      'utf-8', 'ignore').strip()
+  return path[1:-1]
+
 def FindMSBuildInstallation(msvs_version = 'auto'):
   """Returns path to MSBuild for msvs_version or latest available.
 
@@ -893,7 +668,7 @@ def FindMSBuildInstallation(msvs_version = 'auto'):
 
   msbuild_basekey = r'HKLM\SOFTWARE\Microsoft\MSBuild\ToolsVersions'
   if not registry.KeyExists(msbuild_basekey):
-    print 'Error: could not find MSBuild base registry entry'
+    print('Error: could not find MSBuild base registry entry')
     return None
 
   msbuild_version = None
@@ -902,9 +677,9 @@ def FindMSBuildInstallation(msvs_version = 'auto'):
     if registry.KeyExists(msbuild_basekey + '\\' + msbuild_test_version):
       msbuild_version = msbuild_test_version
     else:
-      print ('Warning: Environment variable GYP_MSVS_VERSION specifies "%s" '
-             'but corresponding MSBuild "%s" was not found.' %
-             (msvs_version, msbuild_version))
+      print('Warning: Environment variable GYP_MSVS_VERSION specifies "%s" '
+            'but corresponding MSBuild "%s" was not found.' %
+            (msvs_version, msbuild_version))
   if not msbuild_version:
     for msvs_version in sorted(msvs_to_msbuild, reverse=True):
       msbuild_test_version = msvs_to_msbuild[msvs_version]
@@ -912,13 +687,13 @@ def FindMSBuildInstallation(msvs_version = 'auto'):
         msbuild_version = msbuild_test_version
         break
   if not msbuild_version:
-    print 'Error: could not find MSBuild registry entry'
+    print('Error: could not find MSBuild registry entry')
     return None
 
   msbuild_path = registry.GetValue(msbuild_basekey + '\\' + msbuild_version,
                                    'MSBuildToolsPath')
   if not msbuild_path:
-    print 'Error: could not get MSBuild registry entry value'
+    print('Error: could not get MSBuild registry entry value')
     return None
 
   return os.path.join(msbuild_path, 'MSBuild.exe')
@@ -932,10 +707,16 @@ def FindVisualStudioInstallation():
   search %PATH% and %PATHEXT% for a devenv.{exe,bat,...} executable.
   Failing that, we search for likely deployment paths.
   """
+  override_build_tool = os.environ.get('GYP_BUILD_TOOL')
+  if override_build_tool:
+    return override_build_tool, True, override_build_tool
+
   possible_roots = ['%s:\\Program Files%s' % (chr(drive), suffix)
                     for drive in range(ord('C'), ord('Z') + 1)
                     for suffix in ['', ' (x86)']]
   possible_paths = {
+      '2017': r'Microsoft Visual Studio\2017',
+      '2015': r'Microsoft Visual Studio 14.0\Common7\IDE\devenv.com',
       '2013': r'Microsoft Visual Studio 12.0\Common7\IDE\devenv.com',
       '2012': r'Microsoft Visual Studio 11.0\Common7\IDE\devenv.com',
       '2010': r'Microsoft Visual Studio 10.0\Common7\IDE\devenv.com',
@@ -949,6 +730,38 @@ def FindVisualStudioInstallation():
     msvs_version = flag.split('=')[-1]
   msvs_version = os.environ.get('GYP_MSVS_VERSION', msvs_version)
 
+  if msvs_version in ['2017', 'auto']:
+    msbuild_exes = []
+    try:
+      path = possible_paths['2017']
+      for r in possible_roots:
+        build_tool = os.path.join(r, path)
+        if os.path.exists(build_tool):
+          break;
+        else:
+          build_tool = None
+      if not build_tool:
+        args1 = ['reg', 'query',
+                    'HKLM\Software\Microsoft\VisualStudio\SxS\VS7',
+                    '/v', '15.0', '/reg:32']
+        build_tool = subprocess.check_output(args1).decode(
+            'utf-8', 'ignore').strip().split(b'\r\n').pop().split(b' ').pop()
+        build_tool = build_tool.decode('utf-8')
+      if build_tool:
+        args2 = ['cmd.exe', '/d', '/c',
+                'cd', '/d', build_tool,
+                '&', 'dir', '/b', '/s', 'msbuild.exe']
+        msbuild_exes = subprocess.check_output(args2).strip().split(b'\r\n')
+        msbuild_exes = [m.decode('utf-8') for m in msbuild_exes]
+      if len(msbuild_exes):
+        msbuild_Path = os.path.join(build_tool, msbuild_exes[0])
+        if os.path.exists(msbuild_Path):
+          os.environ['GYP_MSVS_VERSION'] = '2017'
+          os.environ['GYP_BUILD_TOOL'] = msbuild_Path
+          return msbuild_Path, True, msbuild_Path
+    except Exception as e:
+      pass
+
   if msvs_version in possible_paths:
     # Check that the path to the specified GYP_MSVS_VERSION exists.
     path = possible_paths[msvs_version]
@@ -959,8 +772,8 @@ def FindVisualStudioInstallation():
         msbuild_path = FindMSBuildInstallation(msvs_version)
         return build_tool, uses_msbuild, msbuild_path
     else:
-      print ('Warning: Environment variable GYP_MSVS_VERSION specifies "%s" '
-              'but corresponding "%s" was not found.' % (msvs_version, path))
+      print('Warning: Environment variable GYP_MSVS_VERSION specifies "%s" '
+            'but corresponding "%s" was not found.' % (msvs_version, path))
   # Neither GYP_MSVS_VERSION nor the path help us out.  Iterate through
   # the choices looking for a match.
   for version in sorted(possible_paths, reverse=True):
@@ -971,7 +784,7 @@ def FindVisualStudioInstallation():
         uses_msbuild = msvs_version >= '2010'
         msbuild_path = FindMSBuildInstallation(msvs_version)
         return build_tool, uses_msbuild, msbuild_path
-  print 'Error: could not find devenv'
+  print('Error: could not find devenv')
   sys.exit(1)
 
 class TestGypOnMSToolchain(TestGypBase):
@@ -982,8 +795,16 @@ class TestGypOnMSToolchain(TestGypBase):
   @staticmethod
   def _ComputeVsvarsPath(devenv_path):
     devenv_dir = os.path.split(devenv_path)[0]
-    vsvars_path = os.path.join(devenv_path, '../../Tools/vsvars32.bat')
-    return vsvars_path
+
+    # Check for location of Community install (in VS2017, at least).
+    vcvars_path = os.path.join(devenv_path, '..', '..', '..', '..', 'VC',
+                               'Auxiliary', 'Build', 'vcvars32.bat')
+    if os.path.exists(vcvars_path):
+      return os.path.abspath(vcvars_path)
+
+    vsvars_path = os.path.join(devenv_path, '..', '..', 'Tools',
+                               'vsvars32.bat')
+    return os.path.abspath(vsvars_path)
 
   def initialize_build_tool(self):
     super(TestGypOnMSToolchain, self).initialize_build_tool()
@@ -1001,7 +822,7 @@ class TestGypOnMSToolchain(TestGypBase):
     arguments = [cmd, '/c', self.vsvars_path, '&&', 'dumpbin']
     arguments.extend(dumpbin_args)
     proc = subprocess.Popen(arguments, stdout=subprocess.PIPE)
-    output = proc.communicate()[0]
+    output = proc.communicate()[0].decode('utf-8', 'ignore')
     assert not proc.returncode
     return output
 
@@ -1093,26 +914,42 @@ class TestGypMSVS(TestGypOnMSToolchain):
     Runs a Visual Studio build using the configuration generated
     from the specified gyp_file.
     """
-    configuration = self.configuration_buildname()
-    if clean:
-      build = '/Clean'
-    elif rebuild:
-      build = '/Rebuild'
+    if '15.0' in self.build_tool:
+      configuration = '/p:Configuration=' + (
+        self.configuration or self.configuration_buildname())
+      build = '/t'
+      if target not in (None, self.ALL, self.DEFAULT):
+        build += ':' + target
+      if clean:
+        build += ':Clean'
+      elif rebuild:
+        build += ':Rebuild'
+      elif ':' not in build:
+        build += ':Build'
+      arguments = kw.get('arguments', [])[:]
+      arguments.extend([gyp_file.replace('.gyp', '.sln'),
+                        build, configuration])
     else:
-      build = '/Build'
-    arguments = kw.get('arguments', [])[:]
-    arguments.extend([gyp_file.replace('.gyp', '.sln'),
-                      build, configuration])
-    # Note:  the Visual Studio generator doesn't add an explicit 'all'
-    # target, so we just treat it the same as the default.
-    if target not in (None, self.ALL, self.DEFAULT):
-      arguments.extend(['/Project', target])
-    if self.configuration:
-      arguments.extend(['/ProjectConfig', self.configuration])
+      configuration = self.configuration_buildname()
+      if clean:
+        build = '/Clean'
+      elif rebuild:
+        build = '/Rebuild'
+      else:
+        build = '/Build'
+      arguments = kw.get('arguments', [])[:]
+      arguments.extend([gyp_file.replace('.gyp', '.sln'),
+                        build, configuration])
+      # Note:  the Visual Studio generator doesn't add an explicit 'all'
+      # target, so we just treat it the same as the default.
+      if target not in (None, self.ALL, self.DEFAULT):
+        arguments.extend(['/Project', target])
+      if self.configuration:
+        arguments.extend(['/ProjectConfig', self.configuration])
     kw['arguments'] = arguments
     return self.run(program=self.build_tool, **kw)
   def up_to_date(self, gyp_file, target=None, **kw):
-    """
+    r"""
     Verifies that a build of the specified Visual Studio target is up to date.
 
     Beware that VS2010 will behave strangely if you build under
@@ -1230,7 +1067,7 @@ class TestGypXcode(TestGypBase):
                             "PhaseScriptExecution /\\S+/Script-[0-9A-F]+\\.sh\n"
                             "    cd /\\S+\n"
                             "    /bin/sh -c /\\S+/Script-[0-9A-F]+\\.sh\n"
-                            "(make: Nothing to be done for `all'\\.\n)?")
+                            "(make: Nothing to be done for .all.\\.\n)?")
 
   strip_up_to_date_expressions = [
     # Various actions or rules can run even when the overall build target
@@ -1278,7 +1115,10 @@ class TestGypXcode(TestGypBase):
         if not TestCmd.is_List(expected):
           expected = expected.split('\n')
         actual = [a for a in actual
-                    if 'No recorder, buildTask: <Xcode3BuildTask:' not in a]
+                    if 'No recorder, buildTask: <Xcode3BuildTask:' not in a and
+                       'Beginning test session' not in a and
+                       'Writing diagnostic log' not in a and
+                       'Logs/Test/' not in a]
       return match(actual, expected)
     kw['match'] = match_filter_xcode
 
@@ -1399,7 +1239,6 @@ class TestGypXcodeNinja(TestGypXcode):
 
 format_class_list = [
   TestGypGypd,
-  TestGypAndroid,
   TestGypCMake,
   TestGypMake,
   TestGypMSVS,
@@ -1417,4 +1256,4 @@ def TestGyp(*args, **kw):
   for format_class in format_class_list:
     if format == format_class.format:
       return format_class(*args, **kw)
-  raise Exception, "unknown format %r" % format
+  raise Exception("unknown format %r" % format)

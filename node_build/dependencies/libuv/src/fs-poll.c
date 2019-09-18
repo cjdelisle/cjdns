@@ -22,12 +22,20 @@
 #include "uv.h"
 #include "uv-common.h"
 
+#ifdef _WIN32
+#include "win/internal.h"
+#include "win/handle-inl.h"
+#define uv__make_close_pending(h) uv_want_endgame((h)->loop, (h))
+#else
+#include "unix/internal.h"
+#endif
+
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 
 struct poll_ctx {
-  uv_fs_poll_t* parent_handle; /* NULL if parent has been stopped or closed */
+  uv_fs_poll_t* parent_handle;
   int busy_polling;
   unsigned int interval;
   uint64_t start_time;
@@ -36,12 +44,13 @@ struct poll_ctx {
   uv_timer_t timer_handle;
   uv_fs_t fs_req; /* TODO(bnoordhuis) mark fs_req internal */
   uv_stat_t statbuf;
+  struct poll_ctx* previous; /* context from previous start()..stop() period */
   char path[1]; /* variable length */
 };
 
 static int statbuf_eq(const uv_stat_t* a, const uv_stat_t* b);
 static void poll_cb(uv_fs_t* req);
-static void timer_cb(uv_timer_t* timer, int status);
+static void timer_cb(uv_timer_t* timer);
 static void timer_close_cb(uv_handle_t* handle);
 
 static uv_stat_t zero_statbuf;
@@ -49,6 +58,7 @@ static uv_stat_t zero_statbuf;
 
 int uv_fs_poll_init(uv_loop_t* loop, uv_fs_poll_t* handle) {
   uv__handle_init(loop, (uv_handle_t*)handle, UV_FS_POLL);
+  handle->poll_ctx = NULL;
   return 0;
 }
 
@@ -60,13 +70,14 @@ int uv_fs_poll_start(uv_fs_poll_t* handle,
   struct poll_ctx* ctx;
   uv_loop_t* loop;
   size_t len;
+  int err;
 
-  if (uv__is_active(handle))
+  if (uv_is_active((uv_handle_t*)handle))
     return 0;
 
   loop = handle->loop;
   len = strlen(path);
-  ctx = calloc(1, sizeof(*ctx) + len);
+  ctx = uv__calloc(1, sizeof(*ctx) + len);
 
   if (ctx == NULL)
     return UV_ENOMEM;
@@ -78,38 +89,44 @@ int uv_fs_poll_start(uv_fs_poll_t* handle,
   ctx->parent_handle = handle;
   memcpy(ctx->path, path, len + 1);
 
-  if (uv_timer_init(loop, &ctx->timer_handle))
-    abort();
+  err = uv_timer_init(loop, &ctx->timer_handle);
+  if (err < 0)
+    goto error;
 
-  ctx->timer_handle.flags |= UV__HANDLE_INTERNAL;
+  ctx->timer_handle.flags |= UV_HANDLE_INTERNAL;
   uv__handle_unref(&ctx->timer_handle);
 
-  if (uv_fs_stat(loop, &ctx->fs_req, ctx->path, poll_cb))
-    abort();
+  err = uv_fs_stat(loop, &ctx->fs_req, ctx->path, poll_cb);
+  if (err < 0)
+    goto error;
 
+  if (handle->poll_ctx != NULL)
+    ctx->previous = handle->poll_ctx;
   handle->poll_ctx = ctx;
   uv__handle_start(handle);
 
   return 0;
+
+error:
+  uv__free(ctx);
+  return err;
 }
 
 
 int uv_fs_poll_stop(uv_fs_poll_t* handle) {
   struct poll_ctx* ctx;
 
-  if (!uv__is_active(handle))
+  if (!uv_is_active((uv_handle_t*)handle))
     return 0;
 
   ctx = handle->poll_ctx;
   assert(ctx != NULL);
-  assert(ctx->parent_handle != NULL);
-  ctx->parent_handle = NULL;
-  handle->poll_ctx = NULL;
+  assert(ctx->parent_handle == handle);
 
   /* Close the timer if it's active. If it's inactive, there's a stat request
    * in progress and poll_cb will take care of the cleanup.
    */
-  if (uv__is_active(&ctx->timer_handle))
+  if (uv_is_active((uv_handle_t*)&ctx->timer_handle))
     uv_close((uv_handle_t*)&ctx->timer_handle, timer_close_cb);
 
   uv__handle_stop(handle);
@@ -118,12 +135,41 @@ int uv_fs_poll_stop(uv_fs_poll_t* handle) {
 }
 
 
-void uv__fs_poll_close(uv_fs_poll_t* handle) {
-  uv_fs_poll_stop(handle);
+int uv_fs_poll_getpath(uv_fs_poll_t* handle, char* buffer, size_t* size) {
+  struct poll_ctx* ctx;
+  size_t required_len;
+
+  if (!uv_is_active((uv_handle_t*)handle)) {
+    *size = 0;
+    return UV_EINVAL;
+  }
+
+  ctx = handle->poll_ctx;
+  assert(ctx != NULL);
+
+  required_len = strlen(ctx->path);
+  if (required_len >= *size) {
+    *size = required_len + 1;
+    return UV_ENOBUFS;
+  }
+
+  memcpy(buffer, ctx->path, required_len);
+  *size = required_len;
+  buffer[required_len] = '\0';
+
+  return 0;
 }
 
 
-static void timer_cb(uv_timer_t* timer, int status) {
+void uv__fs_poll_close(uv_fs_poll_t* handle) {
+  uv_fs_poll_stop(handle);
+
+  if (handle->poll_ctx == NULL)
+    uv__make_close_pending((uv_handle_t*)handle);
+}
+
+
+static void timer_cb(uv_timer_t* timer) {
   struct poll_ctx* ctx;
 
   ctx = container_of(timer, struct poll_ctx, timer_handle);
@@ -140,14 +186,13 @@ static void poll_cb(uv_fs_t* req) {
   uv_stat_t* statbuf;
   struct poll_ctx* ctx;
   uint64_t interval;
+  uv_fs_poll_t* handle;
 
   ctx = container_of(req, struct poll_ctx, fs_req);
+  handle = ctx->parent_handle;
 
-  if (ctx->parent_handle == NULL) { /* handle has been stopped or closed */
-    uv_close((uv_handle_t*)&ctx->timer_handle, timer_close_cb);
-    uv_fs_req_cleanup(req);
-    return;
-  }
+  if (!uv_is_active((uv_handle_t*)handle) || uv__is_closing(handle))
+    goto out;
 
   if (req->result != 0) {
     if (ctx->busy_polling != req->result) {
@@ -172,7 +217,7 @@ static void poll_cb(uv_fs_t* req) {
 out:
   uv_fs_req_cleanup(req);
 
-  if (ctx->parent_handle == NULL) { /* handle has been stopped by callback */
+  if (!uv_is_active((uv_handle_t*)handle) || uv__is_closing(handle)) {
     uv_close((uv_handle_t*)&ctx->timer_handle, timer_close_cb);
     return;
   }
@@ -186,8 +231,27 @@ out:
 }
 
 
-static void timer_close_cb(uv_handle_t* handle) {
-  free(container_of(handle, struct poll_ctx, timer_handle));
+static void timer_close_cb(uv_handle_t* timer) {
+  struct poll_ctx* ctx;
+  struct poll_ctx* it;
+  struct poll_ctx* last;
+  uv_fs_poll_t* handle;
+
+  ctx = container_of(timer, struct poll_ctx, timer_handle);
+  handle = ctx->parent_handle;
+  if (ctx == handle->poll_ctx) {
+    handle->poll_ctx = ctx->previous;
+    if (handle->poll_ctx == NULL && uv__is_closing(handle))
+      uv__make_close_pending((uv_handle_t*)handle);
+  } else {
+    for (last = handle->poll_ctx, it = last->previous;
+         it != ctx;
+         last = it, it = it->previous) {
+      assert(last->previous != NULL);
+    }
+    last->previous = ctx->previous;
+  }
+  uv__free(ctx);
 }
 
 
@@ -215,7 +279,7 @@ static int statbuf_eq(const uv_stat_t* a, const uv_stat_t* b) {
 #include "win/handle-inl.h"
 
 void uv__fs_poll_endgame(uv_loop_t* loop, uv_fs_poll_t* handle) {
-  assert(handle->flags & UV__HANDLE_CLOSING);
+  assert(handle->flags & UV_HANDLE_CLOSING);
   assert(!(handle->flags & UV_HANDLE_CLOSED));
   uv__handle_close(handle);
 }

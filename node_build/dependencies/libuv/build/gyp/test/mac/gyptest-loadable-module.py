@@ -8,6 +8,8 @@
 Tests that a loadable_module target is built correctly.
 """
 
+from __future__ import print_function
+
 import TestGyp
 
 import os
@@ -15,6 +17,9 @@ import struct
 import sys
 
 if sys.platform == 'darwin':
+  print("This test is currently disabled: https://crbug.com/483696.")
+  sys.exit(0)
+
   test = TestGyp.TestGyp(formats=['ninja', 'make', 'xcode'])
 
   CHDIR = 'loadable-module'

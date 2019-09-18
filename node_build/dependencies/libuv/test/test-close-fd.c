@@ -54,7 +54,6 @@ TEST_IMPL(close_fd) {
   int fd[2];
 
   ASSERT(0 == pipe(fd));
-  ASSERT(0 == fcntl(fd[0], F_SETFL, O_NONBLOCK));
   ASSERT(0 == uv_pipe_init(uv_default_loop(), &pipe_handle, 0));
   ASSERT(0 == uv_pipe_open(&pipe_handle, fd[0]));
   fd[0] = -1;  /* uv_pipe_open() takes ownership of the file descriptor. */
@@ -74,4 +73,8 @@ TEST_IMPL(close_fd) {
   return 0;
 }
 
-#endif  /* !defined(_WIN32) */
+#else
+
+typedef int file_has_no_tests; /* ISO C forbids an empty translation unit. */
+
+#endif /* !_WIN32 */

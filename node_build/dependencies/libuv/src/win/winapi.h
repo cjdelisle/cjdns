@@ -4076,8 +4076,8 @@
 # define STATUS_HASH_NOT_PRESENT ((NTSTATUS) 0xC000A101L)
 #endif
 
-/* This is not the NTSTATUS_FROM_WIN32 that the DDK provides, because the */
-/* DDK got it wrong! */
+/* This is not the NTSTATUS_FROM_WIN32 that the DDK provides, because the DDK
+ * got it wrong! */
 #ifdef NTSTATUS_FROM_WIN32
 # undef NTSTATUS_FROM_WIN32
 #endif
@@ -4104,12 +4104,30 @@
 # define JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE          0x00002000
 #endif
 
+#ifndef SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE
+# define SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE 0x00000002
+#endif
+
+/* from winternl.h */
+#if !defined(__UNICODE_STRING_DEFINED) && defined(__MINGW32_)
+#define __UNICODE_STRING_DEFINED
+#endif
+typedef struct _UNICODE_STRING {
+  USHORT Length;
+  USHORT MaximumLength;
+  PWSTR  Buffer;
+} UNICODE_STRING, *PUNICODE_STRING;
+
+typedef const UNICODE_STRING *PCUNICODE_STRING;
+
+/* from ntifs.h */
 #ifndef DEVICE_TYPE
 # define DEVICE_TYPE DWORD
 #endif
 
-/* from ntifs.h */
-/* MinGW already has it, mingw-w64 does not. */
+/* MinGW already has a definition for REPARSE_DATA_BUFFER, but mingw-w64 does
+ * not.
+ */
 #if defined(_MSC_VER) || defined(__MINGW64_VERSION_MAJOR)
   typedef struct _REPARSE_DATA_BUFFER {
     ULONG  ReparseTag;
@@ -4134,7 +4152,7 @@
       struct {
         UCHAR  DataBuffer[1];
       } GenericReparseBuffer;
-    } DUMMYUNIONNAME;
+    };
   } REPARSE_DATA_BUFFER, *PREPARSE_DATA_BUFFER;
 #endif
 
@@ -4142,7 +4160,7 @@ typedef struct _IO_STATUS_BLOCK {
   union {
     NTSTATUS Status;
     PVOID Pointer;
-  } DUMMYUNIONNAME;
+  };
   ULONG_PTR Information;
 } IO_STATUS_BLOCK, *PIO_STATUS_BLOCK;
 
@@ -4204,6 +4222,37 @@ typedef enum _FILE_INFORMATION_CLASS {
   FileRemoteProtocolInformation,
   FileMaximumInformation
 } FILE_INFORMATION_CLASS, *PFILE_INFORMATION_CLASS;
+
+typedef struct _FILE_DIRECTORY_INFORMATION {
+  ULONG NextEntryOffset;
+  ULONG FileIndex;
+  LARGE_INTEGER CreationTime;
+  LARGE_INTEGER LastAccessTime;
+  LARGE_INTEGER LastWriteTime;
+  LARGE_INTEGER ChangeTime;
+  LARGE_INTEGER EndOfFile;
+  LARGE_INTEGER AllocationSize;
+  ULONG FileAttributes;
+  ULONG FileNameLength;
+  WCHAR FileName[1];
+} FILE_DIRECTORY_INFORMATION, *PFILE_DIRECTORY_INFORMATION;
+
+typedef struct _FILE_BOTH_DIR_INFORMATION {
+  ULONG NextEntryOffset;
+  ULONG FileIndex;
+  LARGE_INTEGER CreationTime;
+  LARGE_INTEGER LastAccessTime;
+  LARGE_INTEGER LastWriteTime;
+  LARGE_INTEGER ChangeTime;
+  LARGE_INTEGER EndOfFile;
+  LARGE_INTEGER AllocationSize;
+  ULONG FileAttributes;
+  ULONG FileNameLength;
+  ULONG EaSize;
+  CCHAR ShortNameLength;
+  WCHAR ShortName[12];
+  WCHAR FileName[1];
+} FILE_BOTH_DIR_INFORMATION, *PFILE_BOTH_DIR_INFORMATION;
 
 typedef struct _FILE_BASIC_INFORMATION {
   LARGE_INTEGER CreationTime;
@@ -4470,6 +4519,9 @@ typedef VOID (NTAPI *PIO_APC_ROUTINE)
               PIO_STATUS_BLOCK IoStatusBlock,
               ULONG Reserved);
 
+typedef NTSTATUS (NTAPI *sRtlGetVersion)
+                 (PRTL_OSVERSIONINFOW lpVersionInformation);
+
 typedef ULONG (NTAPI *sRtlNtStatusToDosError)
               (NTSTATUS Status);
 
@@ -4512,6 +4564,19 @@ typedef NTSTATUS (NTAPI *sNtQuerySystemInformation)
                   ULONG SystemInformationLength,
                   PULONG ReturnLength);
 
+typedef NTSTATUS (NTAPI *sNtQueryDirectoryFile)
+                 (HANDLE FileHandle,
+                  HANDLE Event,
+                  PIO_APC_ROUTINE ApcRoutine,
+                  PVOID ApcContext,
+                  PIO_STATUS_BLOCK IoStatusBlock,
+                  PVOID FileInformation,
+                  ULONG Length,
+                  FILE_INFORMATION_CLASS FileInformationClass,
+                  BOOLEAN ReturnSingleEntry,
+                  PUNICODE_STRING FileName,
+                  BOOLEAN RestartScan
+                );
 
 /*
  * Kernel32 headers
@@ -4551,8 +4616,36 @@ typedef NTSTATUS (NTAPI *sNtQuerySystemInformation)
 #endif
 
 /* from winerror.h */
+#ifndef ERROR_ELEVATION_REQUIRED
+# define ERROR_ELEVATION_REQUIRED 740
+#endif
+
 #ifndef ERROR_SYMLINK_NOT_SUPPORTED
 # define ERROR_SYMLINK_NOT_SUPPORTED 1464
+#endif
+
+#ifndef ERROR_MUI_FILE_NOT_FOUND
+# define ERROR_MUI_FILE_NOT_FOUND 15100
+#endif
+
+#ifndef ERROR_MUI_INVALID_FILE
+# define ERROR_MUI_INVALID_FILE 15101
+#endif
+
+#ifndef ERROR_MUI_INVALID_RC_CONFIG
+# define ERROR_MUI_INVALID_RC_CONFIG 15102
+#endif
+
+#ifndef ERROR_MUI_INVALID_LOCALE_NAME
+# define ERROR_MUI_INVALID_LOCALE_NAME 15103
+#endif
+
+#ifndef ERROR_MUI_INVALID_ULTIMATEFALLBACK_NAME
+# define ERROR_MUI_INVALID_ULTIMATEFALLBACK_NAME 15104
+#endif
+
+#ifndef ERROR_MUI_FILE_NOT_LOADED
+# define ERROR_MUI_FILE_NOT_LOADED 15105
 #endif
 
 typedef BOOL (WINAPI *sGetQueuedCompletionStatusEx)
@@ -4563,86 +4656,76 @@ typedef BOOL (WINAPI *sGetQueuedCompletionStatusEx)
               DWORD dwMilliseconds,
               BOOL fAlertable);
 
-typedef BOOL (WINAPI* sSetFileCompletionNotificationModes)
-             (HANDLE FileHandle,
-              UCHAR Flags);
+/* from powerbase.h */
+#ifndef DEVICE_NOTIFY_CALLBACK
+# define DEVICE_NOTIFY_CALLBACK 2
+#endif
 
-typedef BOOLEAN (WINAPI* sCreateSymbolicLinkW)
-                (LPCWSTR lpSymlinkFileName,
-                 LPCWSTR lpTargetFileName,
-                 DWORD dwFlags);
+#ifndef PBT_APMRESUMEAUTOMATIC
+# define PBT_APMRESUMEAUTOMATIC 18
+#endif
 
-typedef BOOL (WINAPI* sCancelIoEx)
-             (HANDLE hFile,
-              LPOVERLAPPED lpOverlapped);
+#ifndef PBT_APMRESUMESUSPEND
+# define PBT_APMRESUMESUSPEND 7
+#endif
 
-typedef VOID (WINAPI* sInitializeSRWLock)
-             (PSRWLOCK SRWLock);
+typedef ULONG CALLBACK _DEVICE_NOTIFY_CALLBACK_ROUTINE(
+  PVOID Context,
+  ULONG Type,
+  PVOID Setting
+);
+typedef _DEVICE_NOTIFY_CALLBACK_ROUTINE* _PDEVICE_NOTIFY_CALLBACK_ROUTINE;
 
-typedef VOID (WINAPI* sAcquireSRWLockShared)
-             (PSRWLOCK SRWLock);
+typedef struct _DEVICE_NOTIFY_SUBSCRIBE_PARAMETERS {
+  _PDEVICE_NOTIFY_CALLBACK_ROUTINE Callback;
+  PVOID Context;
+} _DEVICE_NOTIFY_SUBSCRIBE_PARAMETERS, *_PDEVICE_NOTIFY_SUBSCRIBE_PARAMETERS;
 
-typedef VOID (WINAPI* sAcquireSRWLockExclusive)
-             (PSRWLOCK SRWLock);
+typedef PVOID _HPOWERNOTIFY;
+typedef _HPOWERNOTIFY *_PHPOWERNOTIFY;
 
-typedef BOOL (WINAPI* sTryAcquireSRWLockShared)
-             (PSRWLOCK SRWLock);
+typedef DWORD (WINAPI *sPowerRegisterSuspendResumeNotification)
+              (DWORD         Flags,
+               HANDLE        Recipient,
+               _PHPOWERNOTIFY RegistrationHandle);
 
-typedef BOOL (WINAPI* sTryAcquireSRWLockExclusive)
-             (PSRWLOCK SRWLock);
+/* from Winuser.h */
+typedef VOID (CALLBACK* WINEVENTPROC)
+             (HWINEVENTHOOK hWinEventHook,
+              DWORD         event,
+              HWND          hwnd,
+              LONG          idObject,
+              LONG          idChild,
+              DWORD         idEventThread,
+              DWORD         dwmsEventTime);
 
-typedef VOID (WINAPI* sReleaseSRWLockShared)
-             (PSRWLOCK SRWLock);
-
-typedef VOID (WINAPI* sReleaseSRWLockExclusive)
-             (PSRWLOCK SRWLock);
-
-typedef VOID (WINAPI* sInitializeConditionVariable)
-             (PCONDITION_VARIABLE ConditionVariable);
-
-typedef BOOL (WINAPI* sSleepConditionVariableCS)
-             (PCONDITION_VARIABLE ConditionVariable,
-              PCRITICAL_SECTION CriticalSection,
-              DWORD dwMilliseconds);
-
-typedef BOOL (WINAPI* sSleepConditionVariableSRW)
-             (PCONDITION_VARIABLE ConditionVariable,
-              PSRWLOCK SRWLock,
-              DWORD dwMilliseconds,
-              ULONG Flags);
-
-typedef VOID (WINAPI* sWakeAllConditionVariable)
-             (PCONDITION_VARIABLE ConditionVariable);
-
-typedef VOID (WINAPI* sWakeConditionVariable)
-             (PCONDITION_VARIABLE ConditionVariable);
+typedef HWINEVENTHOOK (WINAPI *sSetWinEventHook)
+                      (UINT         eventMin,
+                       UINT         eventMax,
+                       HMODULE      hmodWinEventProc,
+                       WINEVENTPROC lpfnWinEventProc,
+                       DWORD        idProcess,
+                       DWORD        idThread,
+                       UINT         dwflags);
 
 
 /* Ntdll function pointers */
+extern sRtlGetVersion pRtlGetVersion;
 extern sRtlNtStatusToDosError pRtlNtStatusToDosError;
 extern sNtDeviceIoControlFile pNtDeviceIoControlFile;
 extern sNtQueryInformationFile pNtQueryInformationFile;
 extern sNtSetInformationFile pNtSetInformationFile;
 extern sNtQueryVolumeInformationFile pNtQueryVolumeInformationFile;
+extern sNtQueryDirectoryFile pNtQueryDirectoryFile;
 extern sNtQuerySystemInformation pNtQuerySystemInformation;
-
 
 /* Kernel32 function pointers */
 extern sGetQueuedCompletionStatusEx pGetQueuedCompletionStatusEx;
-extern sSetFileCompletionNotificationModes pSetFileCompletionNotificationModes;
-extern sCreateSymbolicLinkW pCreateSymbolicLinkW;
-extern sCancelIoEx pCancelIoEx;
-extern sInitializeSRWLock pInitializeSRWLock;
-extern sAcquireSRWLockShared pAcquireSRWLockShared;
-extern sAcquireSRWLockExclusive pAcquireSRWLockExclusive;
-extern sTryAcquireSRWLockShared pTryAcquireSRWLockShared;
-extern sTryAcquireSRWLockExclusive pTryAcquireSRWLockExclusive;
-extern sReleaseSRWLockShared pReleaseSRWLockShared;
-extern sReleaseSRWLockExclusive pReleaseSRWLockExclusive;
-extern sInitializeConditionVariable pInitializeConditionVariable;
-extern sSleepConditionVariableCS pSleepConditionVariableCS;
-extern sSleepConditionVariableSRW pSleepConditionVariableSRW;
-extern sWakeAllConditionVariable pWakeAllConditionVariable;
-extern sWakeConditionVariable pWakeConditionVariable;
+
+/* Powrprof.dll function pointer */
+extern sPowerRegisterSuspendResumeNotification pPowerRegisterSuspendResumeNotification;
+
+/* User32.dll function pointer */
+extern sSetWinEventHook pSetWinEventHook;
 
 #endif /* UV_WIN_WINAPI_H_ */

@@ -21,6 +21,7 @@
       ],
       'mac_bundle_resources': [
         'TestApp/English.lproj/InfoPlist.strings',
+        'TestApp/English.lproj/LanguageMap.plist',
         'TestApp/English.lproj/MainMenu.xib',
         'TestApp/English.lproj/Main_iPhone.storyboard',
       ],

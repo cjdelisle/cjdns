@@ -12,8 +12,8 @@ Verifies that Makefiles get rebuilt when a source gyp file changes and
 import TestGyp
 
 # Regenerating build files when a gyp file changes is currently only supported
-# by the make and Android generators, and --generator-output is not supported
-# by Android and ninja, so we can only test for make.
+# by the make generator, and --generator-output is not supported by ninja, so we
+# can only test for make.
 test = TestGyp.TestGyp(formats=['make'])
 
 CHDIR='generator-output'

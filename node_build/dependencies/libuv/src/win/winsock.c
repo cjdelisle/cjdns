@@ -40,7 +40,8 @@ struct sockaddr_in6 uv_addr_ip6_any_;
  */
 static BOOL uv_get_extension_function(SOCKET socket, GUID guid,
     void **target) {
-  DWORD result, bytes;
+  int result;
+  DWORD bytes;
 
   result = WSAIoctl(socket,
                     SIO_GET_EXTENSION_FUNCTION_POINTER,
@@ -79,18 +80,12 @@ static int error_means_no_support(DWORD error) {
 }
 
 
-void uv_winsock_init() {
+void uv_winsock_init(void) {
   WSADATA wsa_data;
   int errorno;
   SOCKET dummy;
   WSAPROTOCOL_INFOW protocol_info;
   int opt_len;
-
-  /* Initialize winsock */
-  errorno = WSAStartup(MAKEWORD(2, 2), &wsa_data);
-  if (errorno != 0) {
-    uv_fatal_error(errorno, "WSAStartup");
-  }
 
   /* Set implicit binding address used by connectEx */
   if (uv_ip4_addr("0.0.0.0", 0, &uv_addr_ip4_any_)) {
@@ -99,6 +94,15 @@ void uv_winsock_init() {
 
   if (uv_ip6_addr("::", 0, &uv_addr_ip6_any_)) {
     abort();
+  }
+
+  /* Skip initialization in safe mode without network support */
+  if (1 == GetSystemMetrics(SM_CLEANBOOT)) return;
+
+  /* Initialize winsock */
+  errorno = WSAStartup(MAKEWORD(2, 2), &wsa_data);
+  if (errorno != 0) {
+    uv_fatal_error(errorno, "WSAStartup");
   }
 
   /* Detect non-IFS LSPs */
@@ -166,13 +170,12 @@ int uv_ntstatus_to_winsock_error(NTSTATUS status) {
     case STATUS_COMMITMENT_LIMIT:
     case STATUS_WORKING_SET_QUOTA:
     case STATUS_NO_MEMORY:
-    case STATUS_CONFLICTING_ADDRESSES:
     case STATUS_QUOTA_EXCEEDED:
     case STATUS_TOO_MANY_PAGING_FILES:
     case STATUS_REMOTE_RESOURCES:
-    case STATUS_TOO_MANY_ADDRESSES:
       return WSAENOBUFS;
 
+    case STATUS_TOO_MANY_ADDRESSES:
     case STATUS_SHARING_VIOLATION:
     case STATUS_ADDRESS_ALREADY_EXISTS:
       return WSAEADDRINUSE;
@@ -241,6 +244,7 @@ int uv_ntstatus_to_winsock_error(NTSTATUS status) {
     case STATUS_PIPE_DISCONNECTED:
       return WSAESHUTDOWN;
 
+    case STATUS_CONFLICTING_ADDRESSES:
     case STATUS_INVALID_ADDRESS:
     case STATUS_INVALID_ADDRESS_COMPONENT:
       return WSAEADDRNOTAVAIL;
@@ -255,8 +259,8 @@ int uv_ntstatus_to_winsock_error(NTSTATUS status) {
     default:
       if ((status & (FACILITY_NTWIN32 << 16)) == (FACILITY_NTWIN32 << 16) &&
           (status & (ERROR_SEVERITY_ERROR | ERROR_SEVERITY_WARNING))) {
-        /* It's a windows error that has been previously mapped to an */
-        /* ntstatus code. */
+        /* It's a windows error that has been previously mapped to an ntstatus
+         * code. */
         return (DWORD) (status & 0xffff);
       } else {
         /* The default fallback for unmappable ntstatus codes. */
@@ -473,8 +477,8 @@ int WSAAPI uv_wsarecvfrom_workaround(SOCKET socket, WSABUF* buffers,
 }
 
 
-int WSAAPI uv_msafd_poll(SOCKET socket, AFD_POLL_INFO* info,
-    OVERLAPPED* overlapped) {
+int WSAAPI uv_msafd_poll(SOCKET socket, AFD_POLL_INFO* info_in,
+    AFD_POLL_INFO* info_out, OVERLAPPED* overlapped) {
   IO_STATUS_BLOCK iosb;
   IO_STATUS_BLOCK* iosb_ptr;
   HANDLE event = NULL;
@@ -512,14 +516,14 @@ int WSAAPI uv_msafd_poll(SOCKET socket, AFD_POLL_INFO* info,
                                   apc_context,
                                   iosb_ptr,
                                   IOCTL_AFD_POLL,
-                                  info,
-                                  sizeof *info,
-                                  info,
-                                  sizeof *info);
+                                  info_in,
+                                  sizeof *info_in,
+                                  info_out,
+                                  sizeof *info_out);
 
   if (overlapped == NULL) {
-    /* If this is a blocking operation, wait for the event to become */
-    /* signaled, and then grab the real status from the io status block. */
+    /* If this is a blocking operation, wait for the event to become signaled,
+     * and then grab the real status from the io status block. */
     if (status == STATUS_PENDING) {
       DWORD r = WaitForSingleObject(event, INFINITE);
 
@@ -556,5 +560,35 @@ int WSAAPI uv_msafd_poll(SOCKET socket, AFD_POLL_INFO* info,
     return 0;
   } else {
     return SOCKET_ERROR;
+  }
+}
+
+int uv__convert_to_localhost_if_unspecified(const struct sockaddr* addr,
+                                            struct sockaddr_storage* storage) {
+  struct sockaddr_in* dest4;
+  struct sockaddr_in6* dest6;
+
+  if (addr == NULL)
+    return UV_EINVAL;
+
+  switch (addr->sa_family) {
+  case AF_INET:
+    dest4 = (struct sockaddr_in*) storage;
+    memcpy(dest4, addr, sizeof(*dest4));
+    if (dest4->sin_addr.s_addr == 0)
+      dest4->sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    return 0;
+  case AF_INET6:
+    dest6 = (struct sockaddr_in6*) storage;
+    memcpy(dest6, addr, sizeof(*dest6));
+    if (memcmp(&dest6->sin6_addr,
+               &uv_addr_ip6_any_.sin6_addr,
+               sizeof(uv_addr_ip6_any_.sin6_addr)) == 0) {
+      struct in6_addr init_sin6_addr = IN6ADDR_LOOPBACK_INIT;
+      dest6->sin6_addr = init_sin6_addr;
+    }
+    return 0;
+  default:
+    return UV_EINVAL;
   }
 }

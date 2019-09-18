@@ -12,7 +12,7 @@ import sys
 
 import TestGyp
 
-test = TestGyp.TestGyp(formats=['!android'])
+test = TestGyp.TestGyp()
 
 lib_dir = test.tempdir('secret_location')
 

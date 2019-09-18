@@ -19,32 +19,103 @@
  * IN THE SOFTWARE.
  */
 
-/* Expose glibc-specific EAI_* error codes. Needs to be defined before we
- * include any headers.
- */
-#ifndef _GNU_SOURCE
-# define _GNU_SOURCE
-#endif
-
 #include "uv.h"
 #include "uv-common.h"
 
-#include <stdio.h>
 #include <assert.h>
+#include <errno.h>
+#include <stdarg.h>
 #include <stddef.h> /* NULL */
+#include <stdio.h>
 #include <stdlib.h> /* malloc */
 #include <string.h> /* memset */
 
-#if defined(UV_PLATFORM_HAS_IP6_LINK_LOCAL_ADDRESS) && !defined(_WIN32)
+#if defined(_WIN32)
+# include <malloc.h> /* malloc */
+#else
 # include <net/if.h> /* if_nametoindex */
+# include <sys/un.h> /* AF_UNIX, sockaddr_un */
 #endif
 
-/* EAI_* constants. */
-#if !defined(_WIN32)
-# include <sys/types.h>
-# include <sys/socket.h>
-# include <netdb.h>
-#endif
+
+typedef struct {
+  uv_malloc_func local_malloc;
+  uv_realloc_func local_realloc;
+  uv_calloc_func local_calloc;
+  uv_free_func local_free;
+} uv__allocator_t;
+
+static uv__allocator_t uv__allocator = {
+  malloc,
+  realloc,
+  calloc,
+  free,
+};
+
+char* uv__strdup(const char* s) {
+  size_t len = strlen(s) + 1;
+  char* m = uv__malloc(len);
+  if (m == NULL)
+    return NULL;
+  return memcpy(m, s, len);
+}
+
+char* uv__strndup(const char* s, size_t n) {
+  char* m;
+  size_t len = strlen(s);
+  if (n < len)
+    len = n;
+  m = uv__malloc(len + 1);
+  if (m == NULL)
+    return NULL;
+  m[len] = '\0';
+  return memcpy(m, s, len);
+}
+
+void* uv__malloc(size_t size) {
+  if (size > 0)
+    return uv__allocator.local_malloc(size);
+  return NULL;
+}
+
+void uv__free(void* ptr) {
+  int saved_errno;
+
+  /* Libuv expects that free() does not clobber errno.  The system allocator
+   * honors that assumption but custom allocators may not be so careful.
+   */
+  saved_errno = errno;
+  uv__allocator.local_free(ptr);
+  errno = saved_errno;
+}
+
+void* uv__calloc(size_t count, size_t size) {
+  return uv__allocator.local_calloc(count, size);
+}
+
+void* uv__realloc(void* ptr, size_t size) {
+  if (size > 0)
+    return uv__allocator.local_realloc(ptr, size);
+  uv__free(ptr);
+  return NULL;
+}
+
+int uv_replace_allocator(uv_malloc_func malloc_func,
+                         uv_realloc_func realloc_func,
+                         uv_calloc_func calloc_func,
+                         uv_free_func free_func) {
+  if (malloc_func == NULL || realloc_func == NULL ||
+      calloc_func == NULL || free_func == NULL) {
+    return UV_EINVAL;
+  }
+
+  uv__allocator.local_malloc = malloc_func;
+  uv__allocator.local_realloc = realloc_func;
+  uv__allocator.local_calloc = calloc_func;
+  uv__allocator.local_free = free_func;
+
+  return 0;
+}
 
 #define XX(uc, lc) case UV_##uc: return sizeof(uv_##lc##_t);
 
@@ -67,6 +138,11 @@ size_t uv_req_size(uv_req_type type) {
 #undef XX
 
 
+size_t uv_loop_size(void) {
+  return sizeof(uv_loop_t);
+}
+
+
 uv_buf_t uv_buf_init(char* base, unsigned int len) {
   uv_buf_t buf;
   buf.base = base;
@@ -75,25 +151,58 @@ uv_buf_t uv_buf_init(char* base, unsigned int len) {
 }
 
 
+static const char* uv__unknown_err_code(int err) {
+  char buf[32];
+  char* copy;
+
+  snprintf(buf, sizeof(buf), "Unknown system error %d", err);
+  copy = uv__strdup(buf);
+
+  return copy != NULL ? copy : "Unknown system error";
+}
+
+#define UV_ERR_NAME_GEN_R(name, _) \
+case UV_## name: \
+  uv__strscpy(buf, #name, buflen); break;
+char* uv_err_name_r(int err, char* buf, size_t buflen) {
+  switch (err) {
+    UV_ERRNO_MAP(UV_ERR_NAME_GEN_R)
+    default: snprintf(buf, buflen, "Unknown system error %d", err);
+  }
+  return buf;
+}
+#undef UV_ERR_NAME_GEN_R
+
+
 #define UV_ERR_NAME_GEN(name, _) case UV_ ## name: return #name;
 const char* uv_err_name(int err) {
   switch (err) {
     UV_ERRNO_MAP(UV_ERR_NAME_GEN)
-    default:
-      assert(0);
-      return NULL;
   }
+  return uv__unknown_err_code(err);
 }
 #undef UV_ERR_NAME_GEN
+
+
+#define UV_STRERROR_GEN_R(name, msg) \
+case UV_ ## name: \
+  snprintf(buf, buflen, "%s", msg); break;
+char* uv_strerror_r(int err, char* buf, size_t buflen) {
+  switch (err) {
+    UV_ERRNO_MAP(UV_STRERROR_GEN_R)
+    default: snprintf(buf, buflen, "Unknown system error %d", err);
+  }
+  return buf;
+}
+#undef UV_STRERROR_GEN_R
 
 
 #define UV_STRERROR_GEN(name, msg) case UV_ ## name: return msg;
 const char* uv_strerror(int err) {
   switch (err) {
     UV_ERRNO_MAP(UV_STRERROR_GEN)
-    default:
-      return "Unknown system error";
   }
+  return uv__unknown_err_code(err);
 }
 #undef UV_STRERROR_GEN
 
@@ -107,17 +216,17 @@ int uv_ip4_addr(const char* ip, int port, struct sockaddr_in* addr) {
 
 
 int uv_ip6_addr(const char* ip, int port, struct sockaddr_in6* addr) {
-#if defined(UV_PLATFORM_HAS_IP6_LINK_LOCAL_ADDRESS)
   char address_part[40];
   size_t address_part_size;
   const char* zone_index;
-#endif
 
   memset(addr, 0, sizeof(*addr));
   addr->sin6_family = AF_INET6;
   addr->sin6_port = htons(port);
+#ifdef SIN6_LEN
+  addr->sin6_len = sizeof(*addr);
+#endif
 
-#if defined(UV_PLATFORM_HAS_IP6_LINK_LOCAL_ADDRESS)
   zone_index = strchr(ip, '%');
   if (zone_index != NULL) {
     address_part_size = zone_index - ip;
@@ -136,18 +245,17 @@ int uv_ip6_addr(const char* ip, int port, struct sockaddr_in6* addr) {
     addr->sin6_scope_id = if_nametoindex(zone_index);
 #endif
   }
-#endif
 
   return uv_inet_pton(AF_INET6, ip, &addr->sin6_addr);
 }
 
 
-int uv_ip4_name(struct sockaddr_in* src, char* dst, size_t size) {
+int uv_ip4_name(const struct sockaddr_in* src, char* dst, size_t size) {
   return uv_inet_ntop(AF_INET, &src->sin_addr, dst, size);
 }
 
 
-int uv_ip6_name(struct sockaddr_in6* src, char* dst, size_t size) {
+int uv_ip6_name(const struct sockaddr_in6* src, char* dst, size_t size) {
   return uv_inet_ntop(AF_INET6, &src->sin6_addr, dst, size);
 }
 
@@ -210,16 +318,19 @@ int uv_tcp_connect(uv_connect_t* req,
 }
 
 
-int uv_udp_send(uv_udp_send_t* req,
-                uv_udp_t* handle,
-                const uv_buf_t bufs[],
-                unsigned int nbufs,
-                const struct sockaddr* addr,
-                uv_udp_send_cb send_cb) {
+int uv_udp_connect(uv_udp_t* handle, const struct sockaddr* addr) {
   unsigned int addrlen;
 
   if (handle->type != UV_UDP)
     return UV_EINVAL;
+
+  /* Disconnect the handle */
+  if (addr == NULL) {
+    if (!(handle->flags & UV_HANDLE_UDP_CONNECTED))
+      return UV_ENOTCONN;
+
+    return uv__udp_disconnect(handle);
+  }
 
   if (addr->sa_family == AF_INET)
     addrlen = sizeof(struct sockaddr_in);
@@ -228,7 +339,85 @@ int uv_udp_send(uv_udp_send_t* req,
   else
     return UV_EINVAL;
 
+  if (handle->flags & UV_HANDLE_UDP_CONNECTED)
+    return UV_EISCONN;
+
+  return uv__udp_connect(handle, addr, addrlen);
+}
+
+
+int uv__udp_is_connected(uv_udp_t* handle) {
+  struct sockaddr_storage addr;
+  int addrlen;
+  if (handle->type != UV_UDP)
+    return 0;
+
+  addrlen = sizeof(addr);
+  if (uv_udp_getpeername(handle, (struct sockaddr*) &addr, &addrlen) != 0)
+    return 0;
+
+  return addrlen > 0;
+}
+
+
+int uv__udp_check_before_send(uv_udp_t* handle, const struct sockaddr* addr) {
+  unsigned int addrlen;
+
+  if (handle->type != UV_UDP)
+    return UV_EINVAL;
+
+  if (addr != NULL && (handle->flags & UV_HANDLE_UDP_CONNECTED))
+    return UV_EISCONN;
+
+  if (addr == NULL && !(handle->flags & UV_HANDLE_UDP_CONNECTED))
+    return UV_EDESTADDRREQ;
+
+  if (addr != NULL) {
+    if (addr->sa_family == AF_INET)
+      addrlen = sizeof(struct sockaddr_in);
+    else if (addr->sa_family == AF_INET6)
+      addrlen = sizeof(struct sockaddr_in6);
+#if defined(AF_UNIX) && !defined(_WIN32)
+    else if (addr->sa_family == AF_UNIX)
+      addrlen = sizeof(struct sockaddr_un);
+#endif
+    else
+      return UV_EINVAL;
+  } else {
+    addrlen = 0;
+  }
+
+  return addrlen;
+}
+
+
+int uv_udp_send(uv_udp_send_t* req,
+                uv_udp_t* handle,
+                const uv_buf_t bufs[],
+                unsigned int nbufs,
+                const struct sockaddr* addr,
+                uv_udp_send_cb send_cb) {
+  int addrlen;
+
+  addrlen = uv__udp_check_before_send(handle, addr);
+  if (addrlen < 0)
+    return addrlen;
+
   return uv__udp_send(req, handle, bufs, nbufs, addr, addrlen, send_cb);
+}
+
+
+int uv_udp_try_send(uv_udp_t* handle,
+                    const uv_buf_t bufs[],
+                    unsigned int nbufs,
+                    const struct sockaddr* addr) {
+  int addrlen;
+
+  addrlen = uv__udp_check_before_send(handle, addr);
+  if (addrlen < 0)
+    return addrlen;
+
+  return uv__udp_try_send(handle, bufs, nbufs, addr, addrlen);
 }
 
 
@@ -250,78 +439,26 @@ int uv_udp_recv_stop(uv_udp_t* handle) {
 }
 
 
-struct thread_ctx {
-  void (*entry)(void* arg);
-  void* arg;
-};
-
-
-#ifdef _WIN32
-static UINT __stdcall uv__thread_start(void* arg)
-#else
-static void* uv__thread_start(void *arg)
-#endif
-{
-  struct thread_ctx *ctx_p;
-  struct thread_ctx ctx;
-
-  ctx_p = arg;
-  ctx = *ctx_p;
-  free(ctx_p);
-  ctx.entry(ctx.arg);
-
-  return 0;
-}
-
-
-int uv_thread_create(uv_thread_t *tid, void (*entry)(void *arg), void *arg) {
-  struct thread_ctx* ctx;
-  int err;
-
-  ctx = malloc(sizeof(*ctx));
-  if (ctx == NULL)
-    return UV_ENOMEM;
-
-  ctx->entry = entry;
-  ctx->arg = arg;
-
-#ifdef _WIN32
-  *tid = (HANDLE) _beginthreadex(NULL, 0, uv__thread_start, ctx, 0, NULL);
-  err = *tid ? 0 : errno;
-#else
-  err = pthread_create(tid, NULL, uv__thread_start, ctx);
-#endif
-
-  if (err)
-    free(ctx);
-
-  return err ? -1 : 0;
-}
-
-
-unsigned long uv_thread_self(void) {
-#ifdef _WIN32
-  return (unsigned long) GetCurrentThreadId();
-#else
-  return (unsigned long) pthread_self();
-#endif
-}
-
-
 void uv_walk(uv_loop_t* loop, uv_walk_cb walk_cb, void* arg) {
+  QUEUE queue;
   QUEUE* q;
   uv_handle_t* h;
 
-  QUEUE_FOREACH(q, &loop->handle_queue) {
+  QUEUE_MOVE(&loop->handle_queue, &queue);
+  while (!QUEUE_EMPTY(&queue)) {
+    q = QUEUE_HEAD(&queue);
     h = QUEUE_DATA(q, uv_handle_t, handle_queue);
-    if (h->flags & UV__HANDLE_INTERNAL) continue;
+
+    QUEUE_REMOVE(q);
+    QUEUE_INSERT_TAIL(&loop->handle_queue, q);
+
+    if (h->flags & UV_HANDLE_INTERNAL) continue;
     walk_cb(h, arg);
   }
 }
 
 
-#ifndef NDEBUG
-static void uv__print_handles(uv_loop_t* loop, int only_active) {
+static void uv__print_handles(uv_loop_t* loop, int only_active, FILE* stream) {
   const char* type;
   QUEUE* q;
   uv_handle_t* h;
@@ -342,26 +479,25 @@ static void uv__print_handles(uv_loop_t* loop, int only_active) {
       default: type = "<unknown>";
     }
 
-    fprintf(stderr,
+    fprintf(stream,
             "[%c%c%c] %-8s %p\n",
-            "R-"[!(h->flags & UV__HANDLE_REF)],
-            "A-"[!(h->flags & UV__HANDLE_ACTIVE)],
-            "I-"[!(h->flags & UV__HANDLE_INTERNAL)],
+            "R-"[!(h->flags & UV_HANDLE_REF)],
+            "A-"[!(h->flags & UV_HANDLE_ACTIVE)],
+            "I-"[!(h->flags & UV_HANDLE_INTERNAL)],
             type,
             (void*)h);
   }
 }
 
 
-void uv_print_all_handles(uv_loop_t* loop) {
-  uv__print_handles(loop, 0);
+void uv_print_all_handles(uv_loop_t* loop, FILE* stream) {
+  uv__print_handles(loop, 0, stream);
 }
 
 
-void uv_print_active_handles(uv_loop_t* loop) {
-  uv__print_handles(loop, 1);
+void uv_print_active_handles(uv_loop_t* loop, FILE* stream) {
+  uv__print_handles(loop, 1, stream);
 }
-#endif
 
 
 void uv_ref(uv_handle_t* handle) {
@@ -384,63 +520,269 @@ void uv_stop(uv_loop_t* loop) {
 }
 
 
-uint64_t uv_now(uv_loop_t* loop) {
+uint64_t uv_now(const uv_loop_t* loop) {
   return loop->time;
 }
 
 
-int uv__getaddrinfo_translate_error(int sys_err) {
-  switch (sys_err) {
-  case 0: return 0;
-#if defined(EAI_ADDRFAMILY)
-  case EAI_ADDRFAMILY: return UV_EAI_ADDRFAMILY;
-#endif
-#if defined(EAI_AGAIN)
-  case EAI_AGAIN: return UV_EAI_AGAIN;
-#endif
-#if defined(EAI_BADFLAGS)
-  case EAI_BADFLAGS: return UV_EAI_BADFLAGS;
-#endif
-#if defined(EAI_BADHINTS)
-  case EAI_BADHINTS: return UV_EAI_BADHINTS;
-#endif
-#if defined(EAI_CANCELED)
-  case EAI_CANCELED: return UV_EAI_CANCELED;
-#endif
-#if defined(EAI_FAIL)
-  case EAI_FAIL: return UV_EAI_FAIL;
-#endif
-#if defined(EAI_FAMILY)
-  case EAI_FAMILY: return UV_EAI_FAMILY;
-#endif
-#if defined(EAI_MEMORY)
-  case EAI_MEMORY: return UV_EAI_MEMORY;
-#endif
-#if defined(EAI_NODATA)
-  case EAI_NODATA: return UV_EAI_NODATA;
-#endif
-#if defined(EAI_NONAME)
-# if !defined(EAI_NODATA) || EAI_NODATA != EAI_NONAME
-  case EAI_NONAME: return UV_EAI_NONAME;
-# endif
-#endif
-#if defined(EAI_OVERFLOW)
-  case EAI_OVERFLOW: return UV_EAI_OVERFLOW;
-#endif
-#if defined(EAI_PROTOCOL)
-  case EAI_PROTOCOL: return UV_EAI_PROTOCOL;
-#endif
-#if defined(EAI_SERVICE)
-  case EAI_SERVICE: return UV_EAI_SERVICE;
-#endif
-#if defined(EAI_SOCKTYPE)
-  case EAI_SOCKTYPE: return UV_EAI_SOCKTYPE;
-#endif
-#if defined(EAI_SYSTEM)
-  case EAI_SYSTEM: return UV_EAI_SYSTEM;
-#endif
+
+size_t uv__count_bufs(const uv_buf_t bufs[], unsigned int nbufs) {
+  unsigned int i;
+  size_t bytes;
+
+  bytes = 0;
+  for (i = 0; i < nbufs; i++)
+    bytes += (size_t) bufs[i].len;
+
+  return bytes;
+}
+
+int uv_recv_buffer_size(uv_handle_t* handle, int* value) {
+  return uv__socket_sockopt(handle, SO_RCVBUF, value);
+}
+
+int uv_send_buffer_size(uv_handle_t* handle, int *value) {
+  return uv__socket_sockopt(handle, SO_SNDBUF, value);
+}
+
+int uv_fs_event_getpath(uv_fs_event_t* handle, char* buffer, size_t* size) {
+  size_t required_len;
+
+  if (!uv__is_active(handle)) {
+    *size = 0;
+    return UV_EINVAL;
   }
-  assert(!"unknown EAI_* error code");
-  abort();
-  return 0;  /* Pacify compiler. */
+
+  required_len = strlen(handle->path);
+  if (required_len >= *size) {
+    *size = required_len + 1;
+    return UV_ENOBUFS;
+  }
+
+  memcpy(buffer, handle->path, required_len);
+  *size = required_len;
+  buffer[required_len] = '\0';
+
+  return 0;
+}
+
+/* The windows implementation does not have the same structure layout as
+ * the unix implementation (nbufs is not directly inside req but is
+ * contained in a nested union/struct) so this function locates it.
+*/
+static unsigned int* uv__get_nbufs(uv_fs_t* req) {
+#ifdef _WIN32
+  return &req->fs.info.nbufs;
+#else
+  return &req->nbufs;
+#endif
+}
+
+/* uv_fs_scandir() uses the system allocator to allocate memory on non-Windows
+ * systems. So, the memory should be released using free(). On Windows,
+ * uv__malloc() is used, so use uv__free() to free memory.
+*/
+#ifdef _WIN32
+# define uv__fs_scandir_free uv__free
+#else
+# define uv__fs_scandir_free free
+#endif
+
+void uv__fs_scandir_cleanup(uv_fs_t* req) {
+  uv__dirent_t** dents;
+
+  unsigned int* nbufs = uv__get_nbufs(req);
+
+  dents = req->ptr;
+  if (*nbufs > 0 && *nbufs != (unsigned int) req->result)
+    (*nbufs)--;
+  for (; *nbufs < (unsigned int) req->result; (*nbufs)++)
+    uv__fs_scandir_free(dents[*nbufs]);
+
+  uv__fs_scandir_free(req->ptr);
+  req->ptr = NULL;
+}
+
+
+int uv_fs_scandir_next(uv_fs_t* req, uv_dirent_t* ent) {
+  uv__dirent_t** dents;
+  uv__dirent_t* dent;
+  unsigned int* nbufs;
+
+  /* Check to see if req passed */
+  if (req->result < 0)
+    return req->result;
+
+  /* Ptr will be null if req was canceled or no files found */
+  if (!req->ptr)
+    return UV_EOF;
+
+  nbufs = uv__get_nbufs(req);
+  assert(nbufs);
+
+  dents = req->ptr;
+
+  /* Free previous entity */
+  if (*nbufs > 0)
+    uv__fs_scandir_free(dents[*nbufs - 1]);
+
+  /* End was already reached */
+  if (*nbufs == (unsigned int) req->result) {
+    uv__fs_scandir_free(dents);
+    req->ptr = NULL;
+    return UV_EOF;
+  }
+
+  dent = dents[(*nbufs)++];
+
+  ent->name = dent->d_name;
+  ent->type = uv__fs_get_dirent_type(dent);
+
+  return 0;
+}
+
+uv_dirent_type_t uv__fs_get_dirent_type(uv__dirent_t* dent) {
+  uv_dirent_type_t type;
+
+#ifdef HAVE_DIRENT_TYPES
+  switch (dent->d_type) {
+    case UV__DT_DIR:
+      type = UV_DIRENT_DIR;
+      break;
+    case UV__DT_FILE:
+      type = UV_DIRENT_FILE;
+      break;
+    case UV__DT_LINK:
+      type = UV_DIRENT_LINK;
+      break;
+    case UV__DT_FIFO:
+      type = UV_DIRENT_FIFO;
+      break;
+    case UV__DT_SOCKET:
+      type = UV_DIRENT_SOCKET;
+      break;
+    case UV__DT_CHAR:
+      type = UV_DIRENT_CHAR;
+      break;
+    case UV__DT_BLOCK:
+      type = UV_DIRENT_BLOCK;
+      break;
+    default:
+      type = UV_DIRENT_UNKNOWN;
+  }
+#else
+  type = UV_DIRENT_UNKNOWN;
+#endif
+
+  return type;
+}
+
+void uv__fs_readdir_cleanup(uv_fs_t* req) {
+  uv_dir_t* dir;
+  uv_dirent_t* dirents;
+  int i;
+
+  if (req->ptr == NULL)
+    return;
+
+  dir = req->ptr;
+  dirents = dir->dirents;
+  req->ptr = NULL;
+
+  if (dirents == NULL)
+    return;
+
+  for (i = 0; i < req->result; ++i) {
+    uv__free((char*) dirents[i].name);
+    dirents[i].name = NULL;
+  }
+}
+
+
+int uv_loop_configure(uv_loop_t* loop, uv_loop_option option, ...) {
+  va_list ap;
+  int err;
+
+  va_start(ap, option);
+  /* Any platform-agnostic options should be handled here. */
+  err = uv__loop_configure(loop, option, ap);
+  va_end(ap);
+
+  return err;
+}
+
+
+static uv_loop_t default_loop_struct;
+static uv_loop_t* default_loop_ptr;
+
+
+uv_loop_t* uv_default_loop(void) {
+  if (default_loop_ptr != NULL)
+    return default_loop_ptr;
+
+  if (uv_loop_init(&default_loop_struct))
+    return NULL;
+
+  default_loop_ptr = &default_loop_struct;
+  return default_loop_ptr;
+}
+
+
+uv_loop_t* uv_loop_new(void) {
+  uv_loop_t* loop;
+
+  loop = uv__malloc(sizeof(*loop));
+  if (loop == NULL)
+    return NULL;
+
+  if (uv_loop_init(loop)) {
+    uv__free(loop);
+    return NULL;
+  }
+
+  return loop;
+}
+
+
+int uv_loop_close(uv_loop_t* loop) {
+  QUEUE* q;
+  uv_handle_t* h;
+#ifndef NDEBUG
+  void* saved_data;
+#endif
+
+  if (uv__has_active_reqs(loop))
+    return UV_EBUSY;
+
+  QUEUE_FOREACH(q, &loop->handle_queue) {
+    h = QUEUE_DATA(q, uv_handle_t, handle_queue);
+    if (!(h->flags & UV_HANDLE_INTERNAL))
+      return UV_EBUSY;
+  }
+
+  uv__loop_close(loop);
+
+#ifndef NDEBUG
+  saved_data = loop->data;
+  memset(loop, -1, sizeof(*loop));
+  loop->data = saved_data;
+#endif
+  if (loop == default_loop_ptr)
+    default_loop_ptr = NULL;
+
+  return 0;
+}
+
+
+void uv_loop_delete(uv_loop_t* loop) {
+  uv_loop_t* default_loop;
+  int err;
+
+  default_loop = default_loop_ptr;
+
+  err = uv_loop_close(loop);
+  (void) err;    /* Squelch compiler warnings. */
+  assert(err == 0);
+  if (loop != default_loop)
+    uv__free(loop);
 }

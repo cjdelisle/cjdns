@@ -19,13 +19,16 @@
 #include <string.h>
 
 #if defined(_MSC_VER) && _MSC_VER < 1600
-# include "stdint-msvc2008.h"
+# include "uv/stdint-msvc2008.h"
 #else
 # include <stdint.h>
 #endif
 
 #include "uv.h"
 #include "uv-common.h"
+
+#define UV__INET_ADDRSTRLEN         16
+#define UV__INET6_ADDRSTRLEN        46
 
 
 static int inet_ntop4(const unsigned char *src, char *dst, size_t size);
@@ -49,19 +52,14 @@ int uv_inet_ntop(int af, const void* src, char* dst, size_t size) {
 
 static int inet_ntop4(const unsigned char *src, char *dst, size_t size) {
   static const char fmt[] = "%u.%u.%u.%u";
-  char tmp[sizeof "255.255.255.255"];
+  char tmp[UV__INET_ADDRSTRLEN];
   int l;
 
-#ifndef _WIN32
   l = snprintf(tmp, sizeof(tmp), fmt, src[0], src[1], src[2], src[3]);
-#else
-  l = _snprintf(tmp, sizeof(tmp), fmt, src[0], src[1], src[2], src[3]);
-#endif
   if (l <= 0 || (size_t) l >= size) {
     return UV_ENOSPC;
   }
-  strncpy(dst, tmp, size);
-  dst[size - 1] = '\0';
+  uv__strscpy(dst, tmp, size);
   return 0;
 }
 
@@ -74,7 +72,7 @@ static int inet_ntop6(const unsigned char *src, char *dst, size_t size) {
    * Keep this in mind if you think this function should have been coded
    * to use pointer overlays.  All the world's not a VAX.
    */
-  char tmp[sizeof "ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255"], *tp;
+  char tmp[UV__INET6_ADDRSTRLEN], *tp;
   struct { int base, len; } best, cur;
   unsigned int words[sizeof(struct in6_addr) / sizeof(uint16_t)];
   int i;
@@ -143,24 +141,34 @@ static int inet_ntop6(const unsigned char *src, char *dst, size_t size) {
   if (best.base != -1 && (best.base + best.len) == ARRAY_SIZE(words))
     *tp++ = ':';
   *tp++ = '\0';
-
-  /*
-   * Check for overflow, copy, and we're done.
-   */
-  if ((size_t)(tp - tmp) > size) {
+  if (UV_E2BIG == uv__strscpy(dst, tmp, size))
     return UV_ENOSPC;
-  }
-  strcpy(dst, tmp);
   return 0;
 }
 
 
 int uv_inet_pton(int af, const char* src, void* dst) {
+  if (src == NULL || dst == NULL)
+    return UV_EINVAL;
+
   switch (af) {
   case AF_INET:
     return (inet_pton4(src, dst));
-  case AF_INET6:
-    return (inet_pton6(src, dst));
+  case AF_INET6: {
+    int len;
+    char tmp[UV__INET6_ADDRSTRLEN], *s, *p;
+    s = (char*) src;
+    p = strchr(src, '%');
+    if (p != NULL) {
+      s = tmp;
+      len = p - src;
+      if (len > UV__INET6_ADDRSTRLEN-1)
+        return UV_EINVAL;
+      memcpy(s, src, len);
+      s[len] = '\0';
+    }
+    return inet_pton6(s, dst);
+  }
   default:
     return UV_EAFNOSUPPORT;
   }

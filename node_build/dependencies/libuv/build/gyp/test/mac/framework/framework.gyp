@@ -68,6 +68,20 @@
       ],
     },
     {
+      'target_name': 'copy_embedded',
+      'type': 'none',
+      'dependencies': [ 'test_framework' ],
+      'copies': [
+        # Test copying framework to FRAMEWORK directory.
+        {
+          'destination': '$(BUILT_FRAMEWORKS_DIR)/Embedded',
+          'files': [
+            '<(PRODUCT_DIR)/Test Framework.framework',
+          ],
+        },
+      ],
+    },
+    {
       'target_name': 'copy_target_code_sign',
       'type': 'none',
       'dependencies': [ 'test_framework', 'dep_framework', ],

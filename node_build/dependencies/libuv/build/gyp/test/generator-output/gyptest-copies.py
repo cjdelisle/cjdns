@@ -11,8 +11,7 @@ target of 'all'.
 
 import TestGyp
 
-# Android doesn't support --generator-output.
-test = TestGyp.TestGyp(formats=['!android'])
+test = TestGyp.TestGyp()
 
 test.writable(test.workpath('copies'), False)
 

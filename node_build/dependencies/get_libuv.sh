@@ -12,23 +12,22 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 # script meant to be run manually, for getting a deterministic copy of libuv for cjdns.
-# After running:
-# cd libuv
-# $ find ./ -type f -exec sha256sum {} \; | sort | sha256sum
-#   5cbd29365b03eb0655822f008115cf92bc1b9c19007ecff637585ba7eb91dafd  -
-
+EXPECT_SUM=b5d78ff51506a633847b2546802bf9b5945a2a19cc318e43f57fa5096beb57b8
 
 die() {
     echo "ERROR: $1";
     exit 100;
 }
 
-git clone http://github.com/joyent/libuv.git || die 'clone libuv'
+git clone https://github.com/libuv/libuv || die 'clone libuv'
 cd libuv || die 'cd libuv'
-git checkout 336a1825309744f920230ec3e427e78571772347 || die 'checkout revision of libuv'
-rm -rf ./.git || die 'rm -rf ./.git'
+git checkout 1551969c84c2f546a429dac169c7fdac3e38115e || die 'checkout revision of libuv'
+rm -rf ./.git || die 'remove libuv/.git'
 mkdir -p build || die 'mkdir -p build'
-svn co https://gyp.googlecode.com/svn/trunk build/gyp || die 'failed checkout gyp'
+git clone https://chromium.googlesource.com/external/gyp build/gyp || die 'failed checkout gyp'
 cd build/gyp || die 'failed cd build/gyp'
-svn up 1857 || die 'failed to checkout revision 1857'
-rm -rf ./.svn || die 'failed to remove .svn'
+git checkout fcd686f1880fa52a1ee78d3e98af1b88cb334528 || die 'checkout revision of gyp'
+rm -rf ./.git || die 'remove gyp/.git'
+cd ../..
+find ./ -type f -exec sha256sum {} \; | sort | sha256sum | grep $EXPECT_SUM || die 'did not get the expected file shasum'
+echo "Looks good!"

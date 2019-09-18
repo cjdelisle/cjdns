@@ -8,51 +8,27 @@
   ],
   'targets': [
     {
-      'target_name': 'iphoneos-version-min-4.3',
+      'target_name': 'version-min-4.3',
       'type': 'static_library',
       'sources': [ 'check-version-min.c', ],
       'defines': [ 'GYPTEST_IOS_VERSION_MIN=40300', ],
       'xcode_settings': {
         'GCC_VERSION': 'com.apple.compilers.llvm.clang.1_0',
-        'ARCHS': [ 'armv7' ],
         'SDKROOT': 'iphoneos',
         'IPHONEOS_DEPLOYMENT_TARGET': '4.3',
       },
     },
     {
-      'target_name': 'iphoneos-version-min-5.0',
+      'target_name': 'version-min-5.0',
       'type': 'static_library',
       'sources': [ 'check-version-min.c', ],
       'defines': [ 'GYPTEST_IOS_VERSION_MIN=50000', ],
       'xcode_settings': {
         'GCC_VERSION': 'com.apple.compilers.llvm.clang.1_0',
-        'ARCHS': [ 'armv7' ],
         'SDKROOT': 'iphoneos',
         'IPHONEOS_DEPLOYMENT_TARGET': '5.0',
       },
-    },
-    {
-      'target_name': 'iphonesimulator-version-min-4.3',
-      'type': 'static_library',
-      'sources': [ 'check-version-min.c', ],
-      'defines': [ 'GYPTEST_IOS_VERSION_MIN=40300', ],
-      'xcode_settings': {
-        'GCC_VERSION': 'com.apple.compilers.llvm.clang.1_0',
-        'SDKROOT': 'iphonesimulator',
-        'IPHONEOS_DEPLOYMENT_TARGET': '4.3',
-      },
-    },
-    {
-      'target_name': 'iphonesimulator-version-min-5.0',
-      'type': 'static_library',
-      'sources': [ 'check-version-min.c', ],
-      'defines': [ 'GYPTEST_IOS_VERSION_MIN=50000', ],
-      'xcode_settings': {
-        'GCC_VERSION': 'com.apple.compilers.llvm.clang.1_0',
-        'SDKROOT': 'iphonesimulator',
-        'IPHONEOS_DEPLOYMENT_TARGET': '5.0',
-      },
-    },
+    }
   ],
 }
 

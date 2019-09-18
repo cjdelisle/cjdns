@@ -22,6 +22,10 @@ if sys.platform == 'win32':
   # Note: This marker is embedded in 'inline_test_main.cc'
   INLINE_MARKER = '==== inlined ===='
 
+  # link.exe generates following lines when LTCG is enabled.
+  # Note: Future link.exe may or may not generate them. Update as needed.
+  LTCG_LINKER_MESSAGES = ['Generating code', 'Finished generating code']
+
   # test 'LinkTimeCodeGenerationOptionDefault'
   test.build('ltcg.gyp', 'test_ltcg_off', chdir=CHDIR)
   test.run_built_executable('test_ltcg_off', chdir=CHDIR)
@@ -29,7 +33,11 @@ if sys.platform == 'win32':
 
   # test 'LinkTimeCodeGenerationOptionUse'
   test.build('ltcg.gyp', 'test_ltcg_on', chdir=CHDIR)
-  test.must_contain_any_line(test.stdout(), ['Generating code'])
+  if test.format == 'ninja':
+    # Make sure ninja win_tool.py filters out noisy lines.
+    test.must_not_contain_any_line(test.stdout(), LTCG_LINKER_MESSAGES)
+  elif test.format == 'msvs':
+    test.must_contain_any_line(test.stdout(), LTCG_LINKER_MESSAGES)
   test.run_built_executable('test_ltcg_on', chdir=CHDIR)
   test.must_contain_any_line(test.stdout(), [INLINE_MARKER])
 

@@ -10,6 +10,7 @@ Runs small tests.
 
 import imp
 import os
+import platform
 import sys
 import unittest
 
@@ -20,7 +21,7 @@ test = TestGyp.TestGyp()
 
 # Add pylib to the import path (so tests can import their dependencies).
 # This is consistant with the path.append done in the top file "gyp".
-sys.path.append(os.path.join(test._cwd, 'pylib'))
+sys.path.insert(0, os.path.join(test._cwd, 'pylib'))
 
 # Add new test suites here.
 files_to_test = [

@@ -72,8 +72,7 @@ static void cl_recv_cb(uv_udp_t* handle,
   }
 
   if (nread == 0) {
-    /* Returning unused buffer */
-    /* Don't count towards cl_recv_cb_called */
+    /* Returning unused buffer. Don't count towards cl_recv_cb_called */
     ASSERT(addr == NULL);
     return;
   }
@@ -128,8 +127,7 @@ static void sv_recv_cb(uv_udp_t* handle,
   }
 
   if (nread == 0) {
-    /* Returning unused buffer */
-    /* Don't count towards sv_recv_cb_called */
+    /* Returning unused buffer. Don't count towards sv_recv_cb_called */
     ASSERT(addr == NULL);
     return;
   }
@@ -205,6 +203,9 @@ TEST_IMPL(udp_send_and_recv) {
   ASSERT(sv_send_cb_called == 1);
   ASSERT(sv_recv_cb_called == 1);
   ASSERT(close_cb_called == 2);
+
+  ASSERT(client.send_queue_size == 0);
+  ASSERT(server.send_queue_size == 0);
 
   MAKE_VALGRIND_HAPPY();
   return 0;

@@ -19,6 +19,7 @@ def IgnoreOutput(string, expected_string):
 
 def CompilerVersion(compiler):
   stdout = subprocess.check_output([compiler, '-v'], stderr=subprocess.STDOUT)
+  stdout = stdout.decode('utf-8')
   return stdout.rstrip('\n')
 
 def CompilerSupportsWarnAboutInvalidOffsetOfMacro(test):
@@ -30,6 +31,9 @@ def CompilerSupportsWarnAboutInvalidOffsetOfMacro(test):
 
 if sys.platform == 'darwin':
   test = TestGyp.TestGyp(formats=['ninja', 'make', 'xcode'])
+
+  if test.format == 'xcode-ninja':
+    test.skip_test()
 
   CHDIR = 'xcode-gcc'
   test.run_gyp('test.gyp', chdir=CHDIR)
