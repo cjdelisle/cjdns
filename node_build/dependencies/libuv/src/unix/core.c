@@ -534,7 +534,7 @@ int uv__close_nocancel(int fd) {
   return close$NOCANCEL$UNIX2003(fd);
 #endif
 #pragma GCC diagnostic pop
-#elif defined(__linux__)
+#elif defined(__linux__) && !defined(ANDROID)
   return syscall(SYS_close, fd);
 #else
   return close(fd);
