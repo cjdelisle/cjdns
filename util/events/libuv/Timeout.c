@@ -68,7 +68,7 @@ static void unlinkTo(struct Timeout* timeout)
 /**
  * The callback to be called by libuv.
  */
-static void handleEvent(uv_timer_t* handle, int status)
+static void handleEvent(uv_timer_t* handle)
 {
     struct Timeout* timeout = Identity_check((struct Timeout*) handle);
     if (!timeout->isArmed) { return; }

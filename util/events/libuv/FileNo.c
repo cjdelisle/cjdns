@@ -77,15 +77,12 @@ static void onClose(uv_handle_t* handle)
 #endif
 #define ALLOC(buff) (((struct Allocator**) &(buff[-(8 + (((uintptr_t)buff) % 8))]))[0])
 
-static void incoming(uv_pipe_t* stream,
+static void incoming(uv_stream_t* stream,
                      ssize_t nread,
-                     const uv_buf_t* buf,
-                     uv_handle_type pending)
+                     const uv_buf_t* buf)
 {
     // Grab out the allocator which was placed there by allocate()
     struct Allocator* alloc = buf->base ? ALLOC(buf->base) : NULL;
-
-    Assert_true(pending == UV_UNKNOWN_HANDLE);
 
     if (nread < 0) {
         uv_close((uv_handle_t*) stream, onClose);
@@ -134,7 +131,7 @@ static void connected(uv_connect_t* req, int status)
                  fileno->pub.pipePath, uv_strerror(status) );
         uv_close((uv_handle_t*) &fileno->peer, onClose);
 
-    } else if ((ret = uv_read2_start((uv_stream_t*)&fileno->peer, allocate, incoming))) {
+    } else if ((ret = uv_read_start((uv_stream_t*)&fileno->peer, allocate, incoming))) {
         Log_info(fileno->pub.logger, "uv_read2_start() failed for pipe [%s] [%s]",
                  fileno->pub.pipePath, uv_strerror(ret));
         uv_close((uv_handle_t*) &fileno->peer, onClose);
