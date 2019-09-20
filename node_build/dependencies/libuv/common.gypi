@@ -44,7 +44,9 @@
         ]
       },
       'Release': {
-        'defines': [ 'NDEBUG' ],
+        'defines': [
+            # 'NDEBUG' ## cjdns remove NDEBUG in order to get all of the assertions
+        ],
         'cflags': [
           '-O3',
         ],
