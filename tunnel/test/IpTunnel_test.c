@@ -388,6 +388,8 @@ int main()
     testAddr(ctx, "192.168.1.1", 16, 24, "fd00::1", 8, 64);
     testAddr(ctx, "192.168.1.1", 16, 24, "fd00::1", 64, 128);
 
+    EventBase_beginLoop(eb);
+
     Allocator_free(alloc);
     return 0;
 }
