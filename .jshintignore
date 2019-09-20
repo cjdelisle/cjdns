@@ -1,2 +1,3 @@
 node_modules/
 contrib/
+node_build/dependencies
