@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #if you have cjdns android app somewhere else then change it
-NDK_VERSION=android-ndk-r21
+NDK_VERSION=android-ndk-r20
 
 #change this to valid ndk path, otherwise it will be downloaded
 NDK=/bad/path/to/${NDK_VERSION}/
@@ -67,7 +67,7 @@ declare -a APP_ABI2=("arm" "aarch64" "i686")
 declare -a TARGET_ARCH=("arm" "aarch64" "x64")
 declare -a EABI=("androideabi" "android" "android")
 declare -a PLATFORM=(16 21 16)
-declare -a TOOLCHAIN=("arm-linux-androideabi-4.9" "aarch64-linux-android-4.9" "x86-4.9")
+declare -a TOOLCHAIN=("arm-linux-androideabi-5.0" "aarch64-linux-android-5.0" "x86-5.0")
 
 for i in {0..2}
 do
