@@ -56,6 +56,7 @@ struct TwoNodes
     struct Timeout* checkLinkageTimeout;
     struct Log* logger;
     struct EventBase* base;
+    struct Allocator* alloc;
 
     uint64_t startTime;
 
@@ -179,6 +180,7 @@ static void start(struct Allocator* alloc,
     out->base = base;
     out->startTime = Time_currentTimeMilliseconds(base);
     out->runTest = runTest;
+    out->alloc = alloc;
 
     Log_debug(a->logger, "Waiting for nodes to link asynchronously...");
 }
@@ -242,7 +244,7 @@ static void runTest(struct TwoNodes* tn)
     sendMessage(tn, "establish", tn->nodeA, tn->nodeB);
 
     Log_debug(tn->logger, "\n\nTest passed, shutting down\n\n");
-    EventBase_endLoop(tn->base);
+    Allocator_free(tn->alloc);
 }
 
 /** Check if nodes A and C can communicate via B without A knowing that C exists. */
@@ -253,7 +255,7 @@ int main()
     struct Log* logger = WriterLog_new(logwriter, alloc);
     struct Random* rand = Random_new(alloc, logger, NULL);
     struct EventBase* base = EventBase_new(alloc);
-    start(alloc, logger, base, rand, runTest);
+    start(Allocator_child(alloc), logger, base, rand, runTest);
 
     EventBase_beginLoop(base);
     Allocator_free(alloc);

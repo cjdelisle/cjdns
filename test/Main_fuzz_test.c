@@ -42,6 +42,7 @@ struct Context
     struct Timeout* checkLinkageTimeout;
     struct Log* logger;
     struct EventBase* base;
+    struct Allocator* alloc;
 
     uint64_t startTime;
 
@@ -94,15 +95,17 @@ static void checkLinkage(void* vContext)
     Timeout_clearAll(ctx->base);
 }
 
-void* CJDNS_FUZZ_INIT(struct Allocator* alloc, struct Random* rand)
+void* CJDNS_FUZZ_INIT(struct Allocator* allocator, struct Random* rand)
 {
-    struct Writer* logwriter = FileWriter_new(stdout, alloc);
-    struct Log* logger = WriterLog_new(logwriter, alloc);
+    struct Writer* logwriter = FileWriter_new(stdout, allocator);
+    struct Log* logger = WriterLog_new(logwriter, allocator);
 
-    struct EventBase* base = EventBase_new(alloc);
-    struct Context* ctx = Allocator_calloc(alloc, sizeof(struct Context), 1);
+    struct EventBase* base = EventBase_new(allocator);
+    struct Context* ctx = Allocator_calloc(allocator, sizeof(struct Context), 1);
     Identity_set(ctx);
     ctx->base = base;
+
+    struct Allocator* alloc = Allocator_child(allocator);
 
     uint8_t address[16];
     uint8_t publicKey[32];
@@ -126,6 +129,7 @@ void* CJDNS_FUZZ_INIT(struct Allocator* alloc, struct Random* rand)
     ctx->checkLinkageTimeout = Timeout_setInterval(checkLinkage, ctx, 1, base, alloc);
     ctx->base = base;
     ctx->startTime = Time_currentTimeMilliseconds(base);
+    ctx->alloc = alloc;
 
     Log_debug(a->logger, "Waiting for nodes to link asynchronously...");
     EventBase_beginLoop(base);
@@ -184,5 +188,7 @@ void CJDNS_FUZZ_MAIN(void* vctx, struct Message* msg)
 
     TestFramework_assertLastMessageUnaltered(ctx->nodeA);
 
+    EventBase_beginLoop(ctx->base);
+    Allocator_free(ctx->alloc);
     EventBase_beginLoop(ctx->base);
 }

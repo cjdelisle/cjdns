@@ -636,6 +636,7 @@ struct Allocator* Allocator__child(struct Allocator* allocator, const char* file
         .pub = {
             .fileName = file,
             .lineNum = line,
+            .isFreeing = parent->pub.isFreeing
         },
         .rootAlloc = parent->rootAlloc
     };
@@ -766,6 +767,14 @@ struct Allocator_OnFreeJob* Allocator__onFree(struct Allocator* alloc,
                                               int line)
 {
     struct Allocator_pvt* context = Identity_check((struct Allocator_pvt*) alloc);
+
+    while (context->pub.isFreeing) {
+        // Assign new onFree jobs at the top level
+        if (context->parent == context || !context->parent->pub.isFreeing) {
+            break;
+        }
+        context = context->parent;
+    }
 
     struct Allocator_OnFreeJob_pvt* newJob =
         Allocator_clone(alloc, (&(struct Allocator_OnFreeJob_pvt) {
