@@ -1,10 +1,12 @@
 #!/bin/bash
 
-#change this to valid ndk path, otherwise it will be downloaded
-NDK=/bad/path/to/android-ndk-r11c/
-BUILD_PATH=$(pwd)/build_android
 #if you have cjdns android app somewhere else then change it
-NDK_VERSION="android-ndk-r11c"
+NDK_VERSION=android-ndk-r20
+
+#change this to valid ndk path, otherwise it will be downloaded
+NDK=/bad/path/to/${NDK_VERSION}/
+
+BUILD_PATH=$(pwd)/build_android
 
 case $(uname -s) in
     Darwin)
@@ -31,7 +33,7 @@ enabled_log=${LOG}
 
 mkdir $BUILD_PATH
 
-if [ "$NDK" == "/bad/path/to/android-ndk-r11c/" ]; then
+if [ "$NDK" == "/bad/path/to/${NDK_VERSION}/" ]; then
   if [ ! -d $BUILD_PATH/$NDK_VERSION/ ]; then
     echo "NDK path is not specified. Downloading it..."
 
@@ -61,11 +63,11 @@ Seccomp_NO=1
 mkdir $(pwd)/build_android/out
 
 declare -a APP_ABI=("armeabi-v7a" "arm64-v8a" "x86")
-declare -a APP_ABI2=("arm" "aarch64" "i686") 
+declare -a APP_ABI2=("arm" "aarch64" "i686")
 declare -a TARGET_ARCH=("arm" "aarch64" "x64")
 declare -a EABI=("androideabi" "android" "android")
 declare -a PLATFORM=(16 21 16)
-declare -a TOOLCHAIN=("arm-linux-androideabi-4.9" "aarch64-linux-android-4.9" "x86-4.9") 
+declare -a TOOLCHAIN=("arm-linux-androideabi-4.9" "aarch64-linux-android-4.9" "x86-4.9")
 
 for i in {0..2}
 do
