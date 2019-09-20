@@ -1,3 +1,4 @@
-node_modules/
-contrib/
-node_build/dependencies
+/node_modules/
+/contrib/
+/node_build/dependencies
+/build_*
