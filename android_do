@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #if you have cjdns android app somewhere else then change it
-NDK_VERSION=android-ndk-r20
+NDK_VERSION=android-ndk-r21
 
 #change this to valid ndk path, otherwise it will be downloaded
 NDK=/bad/path/to/${NDK_VERSION}/
