@@ -20,7 +20,7 @@ Over time the network has gotten bigger and the users have found new needs.
 In the age when packet inspection is universal and security breaches are
 commonplace, cryptographic integrity and confidentiality are becoming more of
 a requirement. The US government recognized this requirement and has been
-helping through [IPSEC] and [DNSSEC] efforts.
+helping through [IPsec] and [DNSSEC] efforts.
 
 Another issue is how are we going to route packets in a world where the global
 routing table is simply too large for any one router to hold it all? Despite
@@ -63,7 +63,7 @@ self-configuring protocols such as [OLSR], [HSLS], and [BATMAN].
 
 Not every problem listed has an existing solution and of the ones which do,
 many of the solutions are based on incompatible technology. For example: OLSR
-was not designed to operate with IPSEC and LISP. Even where the solutions exist
+was not designed to operate with IPsec and LISP. Even where the solutions exist
 and are ready for deployment, they still require mass technology adoption and
 they don't offer existing ISPs significant immediate gains.
 
@@ -846,7 +846,7 @@ now wishes to send more data MUST send that data as more (repeat) key packets.
 The content and temporary key is encrypted and authenticated using
 crypto_box_curve25519poly1305xsalsa20_afternm() function, using the shared
 secret computed using crypto_box_curve25519poly1305xsalsa20_beforenm()
-with one peer's temporary public key and the other peer's permament secret key.
+with one peer's temporary public key and the other peer's permanent secret key.
 
 It can be decrypted using crypto_box_curve25519poly1305xsalsa20_open_afternm(),
 with the shared secret computed, which can be computed the same way.
@@ -1056,7 +1056,7 @@ packet is written out to the TUN device.
 
 [Namecoin]: http://dot-bit.org/Main_Page "Namecoin: a peer-to-peer generic name/value datastore system based on Bitcoin technology (a decentralized cryptocurrency)."
 
-[IPSEC]: https://en.wikipedia.org/wiki/IPsec "IPsec: a protocol suite for securing Internet Protocol (IP) communications by authenticating and encrypting each IP packet of a communication session. IPsec also includes protocols for establishing mutual authentication between agents at the beginning of the session and negotiation of cryptographic keys to be used during the session."
+[IPsec]: https://en.wikipedia.org/wiki/IPsec "IPsec: a protocol suite for securing Internet Protocol (IP) communications by authenticating and encrypting each IP packet of a communication session. IPsec also includes protocols for establishing mutual authentication between agents at the beginning of the session and negotiation of cryptographic keys to be used during the session."
 
 [DNSSEC]: https://en.wikipedia.org/wiki/Domain_Name_System_Security_Extensions "A suite of Internet Engineering Task Force (IETF) specifications for securing certain kinds of information provided by the Domain Name System (DNS) as used on Internet Protocol (IP) networks. It is a set of extensions to DNS which provide to DNS clients (resolvers) origin authentication of DNS data, authenticated denial of existence, and data integrity, but not availability or confidentiality."
 

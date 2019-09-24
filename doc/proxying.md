@@ -11,7 +11,7 @@ This can be simply done using a SSH connection.
 Creating SOCKSv5 connection
 ----------------------------
 
-To create SOCKS SSH connection in Linux/OSX:
+To create SOCKS SSH connection in Linux/macOS:
 
 ```bash
 ssh -f -N -D 8080 [your_cjdns_capable_host]

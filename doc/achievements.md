@@ -11,7 +11,7 @@ Each achievement will have an associated value. Your score is the sum of these p
 Achievements expire, so if at any given time you don't qualify, you lose those points!
 
 1. Generate a PGP key
-2. Install Git and create a Github account so you can submit Pull Requests and issues.
+2. Install Git and create a GitHub account so you can submit Pull Requests and issues.
 3. Build cjdns from source
 4. Successfully peer with somebody.
 5. Run only the latest version of cjdns on all your nodes.

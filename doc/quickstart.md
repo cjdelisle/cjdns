@@ -18,7 +18,7 @@ Lots of this info is already in the repo, but it's scattered all over, and ideal
   + troubleshooting if you're not
     * do you have a tun device?
     * is your command line working? (ping6, curl)
-    * is your chrome/firefox working?
+    * is your Chrome/Firefox working?
 5. cool, now you're on
   + secure your device
   + get on hypeirc

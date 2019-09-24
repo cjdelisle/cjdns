@@ -11,7 +11,7 @@ You can call all of the functions which are called by cjdroute to collect inform
 the core's configuration.
 
 ## How a function works
-To call a function you send a udp packet containing a bencoded request to the core and it sends
+To call a function you send a UDP packet containing a bencoded request to the core and it sends
 back a bencoded response.
 
     echo -n 'd1:q4:pinge' | nc6 -u -t 1 -n -w3 127.0.0.1 11234
@@ -272,7 +272,7 @@ Examples:
 
 ETHInterface is a connector which allows cjdns nodes on the same lan to automatically connect
 without the need to IP addresses on the LAN or sharing of connection credentials. It works on
-wireless LANs as well as wired ethernet LANs.
+wireless LANs as well as wired Ethernet LANs.
 
 #### ETHInterface_new()
 
@@ -285,7 +285,7 @@ unless it is running as root and will fail with `process cannot open more files`
 
 Parameters:
 
-* required String **bindDevice** the name of the ethernet device to bind to, eg: `eth0` or `wlan0`.
+* required String **bindDevice** the name of the Ethernet device to bind to, eg: `eth0` or `wlan0`.
 
 Returns:
 
@@ -316,7 +316,7 @@ Other errors are self-explanitory.
 
 Enable or disable sending or receiving of ETHInterface beacon messages.
 ETHInterface uses periodic beacon messages to automatically peer nodes which are on the same LAN.
-Be mindful that if your lan has is open wifi, enabling beaconing will allow anyone to peer with you.
+Be mindful that if your LAN has is open wifi, enabling beaconing will allow anyone to peer with you.
 
 **Auth Required**
 
@@ -416,7 +416,7 @@ Examples:
 
 #### IpTunnel_removeConnection()
 
-Remove an IPTunnel connection from the list, the other end will nolonger be able to send traffic
+Remove an IPTunnel connection from the list, the other end will no longer be able to send traffic
 over this connection.
 
 **Auth Required**
@@ -627,7 +627,7 @@ by experimentation or by reading the source.
 
 **Note**: The list of functions is paged to make sure each message fits inside of a UDP packet, in
 order to get the whole list of functions, you must increment the `page` parameter until the result
-nolonger contains the `more` field.
+no longer contains the `more` field.
 
 Parameters:
 

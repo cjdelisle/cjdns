@@ -59,7 +59,7 @@ master since: 185fe28 - Nodes trying to ping themselves causing crashes (Fri Jan
   establish peering to every other node (also v13), but from v13 on, their
   traffic won't be switched any longer. They also won't make it into v13 nodes'
   routing tables.
-- The ETHInterface wire protocol now includes the payload length. A few ethernet
+- The ETHInterface wire protocol now includes the payload length. A few Ethernet
   adapters don't strip the checksum which is appended to the packet by the
   sender, and thus confuse the decrypter.
 - `NodeStore_getBest()` no longer takes DHT k-buckets into accounts -- the
@@ -77,5 +77,5 @@ master since: 185fe28 - Nodes trying to ping themselves causing crashes (Fri Jan
   the running process, avoiding the otherwise neccessary restart:
   `contrib/bash/peers.sh user user@example.net <user's ipv6>`
 - Minor Fixes for Android
-- It's now possible to cross-compile for ARM, on an OSX host.
+- It's now possible to cross-compile for ARM, on an macOS host.
 - Documentation, and scripts in `contrib/` have been improved.

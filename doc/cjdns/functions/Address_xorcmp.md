@@ -21,4 +21,4 @@ uint32_t ref = target;
 return ((negativeIfCloser ^ ref) < (positiveIfCloser ^ ref)) ? -1 : 1;
 ```
 simple stuff right?
-TODO: explain how the build config files tie in to this Endian business.  
+TODO: explain how the build config files tie in to this Endian business.

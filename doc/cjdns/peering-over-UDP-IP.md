@@ -30,12 +30,12 @@ If you have a static IP, reading this document in-order should make learning abo
 
 ## Dynamic IP <a name="dynamic-ip"></a>
 
-Giving other people your IP address will not be a good way for your peer to reach you over the UDP/IP layer because, your IP address is subject to change without notice. However, if you know of someone with a static IP you can still connect by making an **outbound** connection to them.  
+Giving other people your IP address will not be a good way for your peer to reach you over the UDP/IP layer because, your IP address is subject to change without notice. However, if you know of someone with a static IP you can still connect by making an **outbound** connection to them.
 **tl;dr** don't choose an option below where you give out your IP address.
 
 ## cexec <a name="cexec"></a>
 
-If you have any trouble in this section it is safe to skip but, you will need to use another tool or shutdown your cjdroute to add a new peer.  
+If you have any trouble in this section it is safe to skip but, you will need to use another tool or shutdown your cjdroute to add a new peer.
 
 Usage:
 
@@ -59,7 +59,7 @@ If you like you can put it in your `~/.*rc` for your terminal flavor.
 
 ## Adding peers <a name="add-peers"></a>
 
-It is essential at this point in time that peers stay connected the network is small and subject to do strange things.  
+It is essential at this point in time that peers stay connected the network is small and subject to do strange things.
 Reasons you should have your peers contact information:
 
 - Network diagnosis
@@ -97,7 +97,7 @@ Reasons you should have your peers contact information:
 
 ### InboundPeering<a name="inbound"></a>
 
-You give your peer your IP address, port, and password.  
+You give your peer your IP address, port, and password.
 Prerequisites:
 
 - A long passphrase that you do not have to remember
@@ -196,7 +196,7 @@ Find out more about this command in the [admin/README.md][cjd-admin-readme] ([cl
 
 #### Update your peer <a name="update-peer"></a>
 
-Securely transfer the connectTo block you created for your peer.  
+Securely transfer the connectTo block you created for your peer.
 Ways to do this:
 
 - Get [GPG][]
@@ -206,7 +206,7 @@ Ways to do this:
 
 ### Outbound Peering<a name="outbound"></a>
 
-You will receve a connectTo block through secure means.  
+You will receve a connectTo block through secure means.
 Prerequisites:
 
 - A peer that has agreed to accept an inbound connection
@@ -239,7 +239,7 @@ Save cjdroute.conf
 
 #### Update cjdroute <a name="update-cjdroute-outbound"></a>
 
-There are 2 ways to do this.  
+There are 2 ways to do this.
 ```bash
 sudo killall cjdroute
 ```
