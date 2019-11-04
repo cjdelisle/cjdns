@@ -26,11 +26,7 @@ ln -s /opt/cjdns/cjdroute /usr/bin
 (umask 077 && ./cjdroute --genconf > /etc/cjdroute.conf)
 # Regarding cjdns' configuration you can continue reading here:
 # https://github.com/cjdelisle/cjdns#2-find-a-friend
-```
 
-Now press `CTRL` + `ALT` + `t` (while focusing a Chrome tab) and enter `vmc start termina` followed by `lxc config device add penguin tun unix-char path=/dev/net/tun`. *You have to redo this after every restart.* Now go back to the terminal:
-
-```
 # Set up a system service that runs on startup
 cp contrib/systemd/cjdns.service /etc/systemd/system/
 systemctl enable cjdns
