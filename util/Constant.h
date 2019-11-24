@@ -46,3 +46,5 @@
 #define Constant_log2(num) <?js return file.Constant_JS.log2(num); ?>
 
 #endif
+
+#endif
