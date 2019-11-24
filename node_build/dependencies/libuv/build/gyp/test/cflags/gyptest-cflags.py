@@ -39,8 +39,19 @@ with TestGyp.LocalEnv({'CFLAGS': '-DFOO=1',
 expect = """FOO defined\n"""
 test.run_built_executable('cflags', stdout=expect)
 
-# Environment variables shouldn't influence the flags for the host.
+# Environment variable CFLAGS shouldn't influence the flags for the host.
 expect = """FOO not defined\n"""
+test.run_built_executable('cflags_host', stdout=expect)
+
+test.sleep()
+
+with TestGyp.LocalEnv({'CFLAGS_host': '-DFOO=1',
+                       'GYP_CROSSCOMPILE': '1'}):
+  test.run_gyp('cflags.gyp')
+  test.build('cflags.gyp')
+
+# Environment variable CFLAGS_host should influence the flags for the host.
+expect = """FOO defined\n"""
 test.run_built_executable('cflags_host', stdout=expect)
 
 test.sleep()

@@ -40,7 +40,7 @@ if test.format == 'xcode-ninja':
   test.pass_test()
 
 # TODO(mmoss) Make consistent with msvs, with 'dir1' before 'out/Default'?
-if test.format in ('make', 'ninja', 'android', 'cmake'):
+if test.format in ('make', 'ninja', 'cmake'):
   chdir='relocate/src'
 else:
   chdir='relocate/src/dir1'

@@ -8,6 +8,8 @@
 Verifies that app bundles are built correctly.
 """
 
+from __future__ import print_function
+
 import TestGyp
 import TestMac
 
@@ -17,16 +19,21 @@ import subprocess
 import sys
 
 
+if sys.platform in ('darwin', 'win32'):
+  print("This test is currently disabled: https://crbug.com/483696.")
+  sys.exit(0)
+
+
 def CheckFileXMLPropertyList(file):
   output = subprocess.check_output(['file', file])
   # The double space after XML is intentional.
   if not 'XML  document text' in output:
-    print 'File: Expected XML  document text, got %s' % output
+    print('File: Expected XML  document text, got %s' % output)
     test.fail_test()
 
 def ExpectEq(expected, actual):
   if expected != actual:
-    print >>sys.stderr, 'Expected "%s", got "%s"' % (expected, actual)
+    print('Expected "%s", got "%s"' % (expected, actual), file=sys.stderr)
     test.fail_test()
 
 def ls(path):

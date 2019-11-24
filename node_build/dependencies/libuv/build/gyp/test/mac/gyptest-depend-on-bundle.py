@@ -8,11 +8,16 @@
 Verifies that a dependency on a bundle causes the whole bundle to be built.
 """
 
+from __future__ import print_function
+
 import TestGyp
 
 import sys
 
 if sys.platform == 'darwin':
+  print("This test is currently disabled: https://crbug.com/483696.")
+  sys.exit(0)
+
   test = TestGyp.TestGyp(formats=['ninja', 'make', 'xcode'])
 
   test.run_gyp('test.gyp', chdir='depend-on-bundle')

@@ -7,6 +7,7 @@ This module helps emulate Visual Studio 2008 behavior on top of other
 build systems, primarily ninja.
 """
 
+import collections
 import os
 import re
 import subprocess
@@ -15,6 +16,12 @@ import sys
 from gyp.common import OrderedSet
 import gyp.MSVSUtil
 import gyp.MSVSVersion
+
+try:
+  # basestring was removed in python3.
+  basestring
+except NameError:
+  basestring = str
 
 
 windows_quoter_regex = re.compile(r'(\\*)"')
@@ -29,6 +36,10 @@ def QuoteForRspFile(arg):
   # for the shell, because the shell doesn't do anything in Windows. This
   # works more or less because most programs (including the compiler, etc.)
   # use that function to handle command line arguments.
+
+  # Use a heuristic to try to find args that are paths, and normalize them
+  if arg.find('/') > 0 or arg.count('/') > 1:
+    arg = os.path.normpath(arg)
 
   # For a literal quote, CommandLineToArgvW requires 2n+1 backslashes
   # preceding it, and results in n backslashes + the quote. So we substitute
@@ -80,8 +91,8 @@ def _AddPrefix(element, prefix):
   """Add |prefix| to |element| or each subelement if element is iterable."""
   if element is None:
     return element
-  # Note, not Iterable because we don't want to handle strings like that.
-  if isinstance(element, list) or isinstance(element, tuple):
+  if (isinstance(element, collections.Iterable) and
+      not isinstance(element, basestring)):
     return [prefix + e for e in element]
   else:
     return prefix + element
@@ -93,7 +104,8 @@ def _DoRemapping(element, map):
   if map is not None and element is not None:
     if not callable(map):
       map = map.get # Assume it's a dict, otherwise a callable to do the remap.
-    if isinstance(element, list) or isinstance(element, tuple):
+    if (isinstance(element, collections.Iterable) and
+        not isinstance(element, basestring)):
       element = filter(None, [map(elem) for elem in element])
     else:
       element = map(element)
@@ -105,7 +117,8 @@ def _AppendOrReturn(append, element):
   then add |element| to it, adding each item in |element| if it's a list or
   tuple."""
   if append is not None and element is not None:
-    if isinstance(element, list) or isinstance(element, tuple):
+    if (isinstance(element, collections.Iterable) and
+        not isinstance(element, basestring)):
       append.extend(element)
     else:
       append.append(element)
@@ -205,7 +218,7 @@ class MsvsSettings(object):
     configs = spec['configurations']
     for field, default in supported_fields:
       setattr(self, field, {})
-      for configname, config in configs.iteritems():
+      for configname, config in configs.items():
         getattr(self, field)[configname] = config.get(field, default())
 
     self.msvs_cygwin_dirs = spec.get('msvs_cygwin_dirs', ['.'])
@@ -269,7 +282,8 @@ class MsvsSettings(object):
   def AdjustLibraries(self, libraries):
     """Strip -l from library if it's specified with that."""
     libs = [lib[2:] if lib.startswith('-l') else lib for lib in libraries]
-    return [lib + '.lib' if not lib.endswith('.lib') else lib for lib in libs]
+    return [lib + '.lib' if not lib.lower().endswith('.lib') else lib
+            for lib in libs]
 
   def _GetAndMunge(self, field, path, default, prefix, append, map):
     """Retrieve a value from |field| at |path| or return |default|. If
@@ -306,7 +320,10 @@ class MsvsSettings(object):
     # There's two levels of architecture/platform specification in VS. The
     # first level is globally for the configuration (this is what we consider
     # "the" config at the gyp level, which will be something like 'Debug' or
-    # 'Release_x64'), and a second target-specific configuration, which is an
+    # 'Release'), VS2015 and later only use this level
+    if self.vs_version.short_name >= 2015:
+      return config
+    # and a second target-specific configuration, which is an
     # override for the global one. |config| is remapped here to take into
     # account the local target-specific overrides to the global configuration.
     arch = self.GetArch(config)
@@ -442,6 +459,7 @@ class MsvsSettings(object):
     cl('FloatingPointModel',
         map={'0': 'precise', '1': 'strict', '2': 'fast'}, prefix='/fp:',
         default='0')
+    cl('CompileAsManaged', map={'false': '', 'true': '/clr'})
     cl('WholeProgramOptimization', map={'true': '/GL'})
     cl('WarningLevel', prefix='/W')
     cl('WarnAsError', map={'true': '/WX'})
@@ -467,11 +485,13 @@ class MsvsSettings(object):
         prefix='/arch:')
     cflags.extend(['/FI' + f for f in self._Setting(
         ('VCCLCompilerTool', 'ForcedIncludeFiles'), config, default=[])])
-    if self.vs_version.short_name in ('2013', '2013e', '2015'):
-      # New flag required in 2013 to maintain previous PDB behavior.
+    if self.vs_version.project_version >= 12.0:
+      # New flag introduced in VS2013 (project version 12.0) Forces writes to
+      # the program database (PDB) to be serialized through MSPDBSRV.EXE.
+      # https://msdn.microsoft.com/en-us/library/dn502518.aspx
       cflags.append('/FS')
     # ninja handles parallelism by itself, don't have the compiler do it too.
-    cflags = filter(lambda x: not x.startswith('/MP'), cflags)
+    cflags = [x for x in cflags if not x.startswith('/MP')]
     return cflags
 
   def _GetPchFlags(self, config, extension):
@@ -484,8 +504,9 @@ class MsvsSettings(object):
     if self.msvs_precompiled_header[config]:
       source_ext = os.path.splitext(self.msvs_precompiled_source[config])[1]
       if _LanguageMatchesForPch(source_ext, extension):
-        pch = os.path.split(self.msvs_precompiled_header[config])[1]
-        return ['/Yu' + pch, '/FI' + pch, '/Fp${pchprefix}.' + pch + '.pch']
+        pch = self.msvs_precompiled_header[config]
+        pchbase = os.path.split(pch)[1]
+        return ['/Yu' + pch, '/FI' + pch, '/Fp${pchprefix}.' + pchbase + '.pch']
     return  []
 
   def GetCflagsC(self, config):
@@ -527,7 +548,8 @@ class MsvsSettings(object):
     """Returns the .def file from sources, if any.  Otherwise returns None."""
     spec = self.spec
     if spec['type'] in ('shared_library', 'loadable_module', 'executable'):
-      def_files = [s for s in spec.get('sources', []) if s.endswith('.def')]
+      def_files = [s for s in spec.get('sources', [])
+                   if s.lower().endswith('.def')]
       if len(def_files) == 1:
         return gyp_to_build_path(def_files[0])
       elif len(def_files) > 1:
@@ -593,6 +615,15 @@ class MsvsSettings(object):
             '2': 'WINDOWS%s' % minimum_required_version},
        prefix='/SUBSYSTEM:')
 
+    stack_reserve_size = self._Setting(
+        ('VCLinkerTool', 'StackReserveSize'), config, default='')
+    if stack_reserve_size:
+      stack_commit_size = self._Setting(
+          ('VCLinkerTool', 'StackCommitSize'), config, default='')
+      if stack_commit_size:
+        stack_commit_size = ',' + stack_commit_size
+      ldflags.append('/STACK:%s%s' % (stack_reserve_size, stack_commit_size))
+
     ld('TerminalServerAware', map={'1': ':NO', '2': ''}, prefix='/TSAWARE')
     ld('LinkIncremental', map={'1': ':NO', '2': ''}, prefix='/INCREMENTAL')
     ld('BaseAddress', prefix='/BASE:')
@@ -627,19 +658,17 @@ class MsvsSettings(object):
 
     # If the base address is not specifically controlled, DYNAMICBASE should
     # be on by default.
-    base_flags = filter(lambda x: 'DYNAMICBASE' in x or x == '/FIXED',
-                        ldflags)
-    if not base_flags:
+    if not any('DYNAMICBASE' in flag or flag == '/FIXED' for flag in ldflags):
       ldflags.append('/DYNAMICBASE')
 
     # If the NXCOMPAT flag has not been specified, default to on. Despite the
     # documentation that says this only defaults to on when the subsystem is
     # Vista or greater (which applies to the linker), the IDE defaults it on
     # unless it's explicitly off.
-    if not filter(lambda x: 'NXCOMPAT' in x, ldflags):
+    if not any('NXCOMPAT' in flag for flag in ldflags):
       ldflags.append('/NXCOMPAT')
 
-    have_def_file = filter(lambda x: x.startswith('/DEF:'), ldflags)
+    have_def_file = any(flag.startswith('/DEF:') for flag in ldflags)
     manifest_flags, intermediate_manifest, manifest_files = \
         self._GetLdManifestFlags(config, manifest_base_name, gyp_to_build_path,
                                  is_executable and not have_def_file, build_dir)
@@ -878,7 +907,7 @@ class PrecompiledHeader(object):
   def _PchHeader(self):
     """Get the header that will appear in an #include line for all source
     files."""
-    return os.path.split(self.settings.msvs_precompiled_header[self.config])[1]
+    return self.settings.msvs_precompiled_header[self.config]
 
   def GetObjDependencies(self, sources, objs, arch):
     """Given a list of sources files and the corresponding object files,
@@ -931,7 +960,7 @@ def ExpandMacros(string, expansions):
   """Expand $(Variable) per expansions dict. See MsvsSettings.GetVSMacroEnv
   for the canonical way to retrieve a suitable dict."""
   if '$' in string:
-    for old, new in expansions.iteritems():
+    for old, new in expansions.items():
       assert '$(' not in new, new
       string = string.replace(old, new)
   return string
@@ -951,6 +980,10 @@ def _ExtractImportantEnvironment(output_of_set):
       'tmp',
       )
   env = {}
+  # This occasionally happens and leads to misleading SYSTEMROOT error messages
+  # if not caught here.
+  if output_of_set.count('=') == 0:
+    raise Exception('Invalid output_of_set. Value is:\n%s' % output_of_set)
   for line in output_of_set.splitlines():
     for envvar in envvars_to_save:
       if re.match(envvar + '=', line.lower()):
@@ -975,7 +1008,7 @@ def _FormatAsEnvironmentBlock(envvar_dict):
   CreateProcess documentation for more details."""
   block = ''
   nul = '\0'
-  for key, value in envvar_dict.iteritems():
+  for key, value in envvar_dict.items():
     block += key + '=' + value + nul
   block += nul
   return block
@@ -1019,6 +1052,8 @@ def GenerateEnvironmentFiles(toplevel_build_dir, generator_flags,
     popen = subprocess.Popen(
         args, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     variables, _ = popen.communicate()
+    if popen.returncode != 0:
+      raise Exception('"%s" failed with error %d' % (args, popen.returncode))
     env = _ExtractImportantEnvironment(variables)
 
     # Inject system includes from gyp files into INCLUDE.
@@ -1028,7 +1063,7 @@ def GenerateEnvironmentFiles(toplevel_build_dir, generator_flags,
       env['INCLUDE'] = ';'.join(system_includes)
 
     env_block = _FormatAsEnvironmentBlock(env)
-    f = open_out(os.path.join(toplevel_build_dir, 'environment.' + arch), 'wb')
+    f = open_out(os.path.join(toplevel_build_dir, 'environment.' + arch), 'w')
     f.write(env_block)
     f.close()
 
@@ -1050,7 +1085,7 @@ def VerifyMissingSources(sources, build_dir, generator_flags, gyp_to_ninja):
   if int(generator_flags.get('msvs_error_on_missing_sources', 0)):
     no_specials = filter(lambda x: '$' not in x, sources)
     relative = [os.path.join(build_dir, gyp_to_ninja(s)) for s in no_specials]
-    missing = filter(lambda x: not os.path.exists(x), relative)
+    missing = [x for x in relative if not os.path.exists(x)]
     if missing:
       # They'll look like out\Release\..\..\stuff\things.cc, so normalize the
       # path for a slightly less crazy looking output.

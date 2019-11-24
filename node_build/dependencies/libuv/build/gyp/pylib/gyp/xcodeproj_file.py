@@ -137,6 +137,7 @@ Strings of class unicode are handled properly and encoded in UTF-8 when
 a project file is output.
 """
 
+import functools
 import gyp.common
 import posixpath
 import re
@@ -154,6 +155,18 @@ except ImportError:
   import sha
   _new_sha1 = sha.new
 
+try:
+  # basestring was removed in python3.
+  basestring
+except NameError:
+  basestring = str
+
+try:
+  # cmp was removed in python3.
+  cmp
+except NameError:
+  def cmp(a, b):
+    return (a > b) - (a < b)
 
 # See XCObject._EncodeString.  This pattern is used to determine when a string
 # can be printed unquoted.  Strings that match this pattern may be printed
@@ -314,7 +327,7 @@ class XCObject(object):
     """
 
     that = self.__class__(id=self.id, parent=self.parent)
-    for key, value in self._properties.iteritems():
+    for key, value in self._properties.items():
       is_strong = self._schema[key][2]
 
       if isinstance(value, XCObject):
@@ -324,8 +337,7 @@ class XCObject(object):
           that._properties[key] = new_value
         else:
           that._properties[key] = value
-      elif isinstance(value, str) or isinstance(value, unicode) or \
-           isinstance(value, int):
+      elif isinstance(value, basestring) or isinstance(value, int):
         that._properties[key] = value
       elif isinstance(value, list):
         if is_strong:
@@ -419,7 +431,7 @@ class XCObject(object):
       """
 
       hash.update(struct.pack('>i', len(data)))
-      hash.update(data)
+      hash.update(data.encode('utf-8'))
 
     if seed_hash is None:
       seed_hash = _new_sha1()
@@ -449,10 +461,10 @@ class XCObject(object):
       # is 160 bits.  Instead of throwing out 64 bits of the digest, xor them
       # into the portion that gets used.
       assert hash.digest_size % 4 == 0
-      digest_int_count = hash.digest_size / 4
+      digest_int_count = hash.digest_size // 4
       digest_ints = struct.unpack('>' + 'I' * digest_int_count, hash.digest())
       id_ints = [0, 0, 0]
-      for index in xrange(0, digest_int_count):
+      for index in range(0, digest_int_count):
         id_ints[index % 3] ^= digest_ints[index]
       self.id = '%08X%08X%08X' % tuple(id_ints)
 
@@ -475,7 +487,7 @@ class XCObject(object):
     """Returns a list of all of this object's owned (strong) children."""
 
     children = []
-    for property, attributes in self._schema.iteritems():
+    for property, attributes in self._schema.items():
       (is_list, property_type, is_strong) = attributes[0:3]
       if is_strong and property in self._properties:
         if not is_list:
@@ -603,7 +615,12 @@ class XCObject(object):
       comment = value.Comment()
     elif isinstance(value, str):
       printable += self._EncodeString(value)
-    elif isinstance(value, unicode):
+    # A python3 compatible way of saying isinstance(value, unicode).
+    # basestring is str in python3 so this is equivalent to the above
+    # isinstance. Thus if it failed above it will fail here.
+    # In python2 we test against str and unicode at this point. str has already
+    # failed in the above isinstance so we test against unicode.
+    elif isinstance(value, basestring):
       printable += self._EncodeString(value.encode('utf-8'))
     elif isinstance(value, int):
       printable += str(value)
@@ -622,7 +639,7 @@ class XCObject(object):
         printable += end_tabs + ')'
     elif isinstance(value, dict):
       printable = '{' + sep
-      for item_key, item_value in sorted(value.iteritems()):
+      for item_key, item_value in sorted(value.items()):
         printable += element_tabs + \
             self._XCPrintableValue(tabs + 1, item_key, flatten_list) + ' = ' + \
             self._XCPrintableValue(tabs + 1, item_value, flatten_list) + ';' + \
@@ -691,7 +708,7 @@ class XCObject(object):
           printable_value[0] == '"' and printable_value[-1] == '"':
         printable_value = printable_value[1:-1]
       printable += printable_key + ' = ' + printable_value + ';' + after_kv
-    except TypeError, e:
+    except TypeError as e:
       gyp.common.ExceptionAppend(e,
                                  'while printing key "%s"' % key)
       raise
@@ -730,7 +747,7 @@ class XCObject(object):
     self._XCKVPrint(file, 3, 'isa', self.__class__.__name__)
 
     # The remaining elements of an object dictionary are sorted alphabetically.
-    for property, value in sorted(self._properties.iteritems()):
+    for property, value in sorted(self._properties.items()):
       self._XCKVPrint(file, 3, property, value)
 
     # End the object.
@@ -752,7 +769,7 @@ class XCObject(object):
     if properties is None:
       return
 
-    for property, value in properties.iteritems():
+    for property, value in properties.items():
       # Make sure the property is in the schema.
       if not property in self._schema:
         raise KeyError(property + ' not in ' + self.__class__.__name__)
@@ -766,7 +783,7 @@ class XCObject(object):
                 ' must be list, not ' + value.__class__.__name__)
         for item in value:
           if not isinstance(item, property_type) and \
-             not (item.__class__ == unicode and property_type == str):
+             not (isinstance(item, basestring) and property_type == str):
             # Accept unicode where str is specified.  str is treated as
             # UTF-8-encoded.
             raise TypeError(
@@ -774,7 +791,7 @@ class XCObject(object):
                   ' must be ' + property_type.__name__ + ', not ' + \
                   item.__class__.__name__)
       elif not isinstance(value, property_type) and \
-           not (value.__class__ == unicode and property_type == str):
+           not (isinstance(value, basestring) and property_type == str):
         # Accept unicode where str is specified.  str is treated as
         # UTF-8-encoded.
         raise TypeError(
@@ -788,8 +805,7 @@ class XCObject(object):
             self._properties[property] = value.Copy()
           else:
             self._properties[property] = value
-        elif isinstance(value, str) or isinstance(value, unicode) or \
-             isinstance(value, int):
+        elif isinstance(value, basestring) or isinstance(value, int):
           self._properties[property] = value
         elif isinstance(value, list):
           if is_strong:
@@ -865,7 +881,7 @@ class XCObject(object):
 
     # TODO(mark): A stronger verification mechanism is needed.  Some
     # subclasses need to perform validation beyond what the schema can enforce.
-    for property, attributes in self._schema.iteritems():
+    for property, attributes in self._schema.items():
       (is_list, property_type, is_strong, is_required) = attributes[0:4]
       if is_required and not property in self._properties:
         raise KeyError(self.__class__.__name__ + ' requires ' + property)
@@ -875,7 +891,7 @@ class XCObject(object):
     overwrite properties that have already been set."""
 
     defaults = {}
-    for property, attributes in self._schema.iteritems():
+    for property, attributes in self._schema.items():
       (is_list, property_type, is_strong, is_required) = attributes[0:4]
       if is_required and len(attributes) >= 5 and \
           not property in self._properties:
@@ -1402,7 +1418,8 @@ class PBXGroup(XCHierarchicalElement):
 
   def SortGroup(self):
     self._properties['children'] = \
-        sorted(self._properties['children'], cmp=lambda x,y: x.Compare(y))
+        sorted(self._properties['children'],
+               key=functools.cmp_to_key(XCHierarchicalElement.Compare))
 
     # Recurse.
     for child in self._properties['children']:
@@ -1426,8 +1443,8 @@ class XCFileLikeElement(XCHierarchicalElement):
     xche = self
     while xche != None and isinstance(xche, XCHierarchicalElement):
       xche_hashables = xche.Hashables()
-      for index in xrange(0, len(xche_hashables)):
-        hashables.insert(index, xche_hashables[index])
+      for index, xche_hashable in enumerate(xche_hashables):
+        hashables.insert(index, xche_hashable)
       xche = xche.parent
     return hashables
 
@@ -1492,6 +1509,7 @@ class PBXFileReference(XCFileLikeElement, XCContainerPortal, XCRemoteObject):
         'icns':        'image.icns',
         'java':        'sourcecode.java',
         'js':          'sourcecode.javascript',
+        'kext':        'wrapper.kext',
         'm':           'sourcecode.c.objc',
         'mm':          'sourcecode.cpp.objcpp',
         'nib':         'wrapper.nib',
@@ -1515,6 +1533,7 @@ class PBXFileReference(XCFileLikeElement, XCContainerPortal, XCRemoteObject):
         'xcdatamodeld':'wrapper.xcdatamodeld',
         'xib':         'file.xib',
         'y':           'sourcecode.yacc',
+        'tbd':         'sourcecode.text-based-dylib-definition',
       }
 
       prop_map = {
@@ -1944,24 +1963,40 @@ class PBXCopyFilesBuildPhase(XCBuildPhase):
     'name':             [0, str, 0, 0],
   })
 
-  # path_tree_re matches "$(DIR)/path" or just "$(DIR)".  Match group 1 is
-  # "DIR", match group 3 is "path" or None.
-  path_tree_re = re.compile('^\\$\\((.*)\\)(/(.*)|)$')
+  # path_tree_re matches "$(DIR)/path", "$(DIR)/$(DIR2)/path" or just "$(DIR)".
+  # Match group 1 is "DIR", group 3 is "path" or "$(DIR2") or "$(DIR2)/path"
+  # or None. If group 3 is "path", group 4 will be None otherwise group 4 is
+  # "DIR2" and group 6 is "path".
+  path_tree_re = re.compile(r'^\$\((.*?)\)(/(\$\((.*?)\)(/(.*)|)|(.*)|)|)$')
 
-  # path_tree_to_subfolder maps names of Xcode variables to the associated
-  # dstSubfolderSpec property value used in a PBXCopyFilesBuildPhase object.
-  path_tree_to_subfolder = {
-    'BUILT_PRODUCTS_DIR': 16,  # Products Directory
-    # Other types that can be chosen via the Xcode UI.
-    # TODO(mark): Map Xcode variable names to these.
-    # : 1,  # Wrapper
-    # : 6,  # Executables: 6
-    # : 7,  # Resources
-    # : 15,  # Java Resources
-    # : 10,  # Frameworks
-    # : 11,  # Shared Frameworks
-    # : 12,  # Shared Support
-    # : 13,  # PlugIns
+  # path_tree_{first,second}_to_subfolder map names of Xcode variables to the
+  # associated dstSubfolderSpec property value used in a PBXCopyFilesBuildPhase
+  # object.
+  path_tree_first_to_subfolder = {
+    # Types that can be chosen via the Xcode UI.
+    'BUILT_PRODUCTS_DIR':               16,  # Products Directory
+    'BUILT_FRAMEWORKS_DIR':             10,  # Not an official Xcode macro.
+                                             # Existed before support for the
+                                             # names below was added. Maps to
+                                             # "Frameworks".
+  }
+
+  path_tree_second_to_subfolder = {
+    'WRAPPER_NAME':                      1,  # Wrapper
+    # Although Xcode's friendly name is "Executables", the destination
+    # is demonstrably the value of the build setting
+    # EXECUTABLE_FOLDER_PATH not EXECUTABLES_FOLDER_PATH.
+    'EXECUTABLE_FOLDER_PATH':            6,  # Executables.
+    'UNLOCALIZED_RESOURCES_FOLDER_PATH': 7,  # Resources
+    'JAVA_FOLDER_PATH':                 15,  # Java Resources
+    'FRAMEWORKS_FOLDER_PATH':           10,  # Frameworks
+    'SHARED_FRAMEWORKS_FOLDER_PATH':    11,  # Shared Frameworks
+    'SHARED_SUPPORT_FOLDER_PATH':       12,  # Shared Support
+    'PLUGINS_FOLDER_PATH':              13,  # PlugIns
+    # For XPC Services, Xcode sets both dstPath and dstSubfolderSpec.
+    # Note that it re-uses the BUILT_PRODUCTS_DIR value for
+    # dstSubfolderSpec. dstPath is set below.
+    'XPCSERVICES_FOLDER_PATH':          16,  # XPC Services.
   }
 
   def Name(self):
@@ -1982,14 +2017,61 @@ class PBXCopyFilesBuildPhase(XCBuildPhase):
 
     path_tree_match = self.path_tree_re.search(path)
     if path_tree_match:
-      # Everything else needs to be relative to an Xcode variable.
-      path_tree = path_tree_match.group(1)
-      relative_path = path_tree_match.group(3)
-
-      if path_tree in self.path_tree_to_subfolder:
-        subfolder = self.path_tree_to_subfolder[path_tree]
+      path_tree = path_tree_match.group(1);
+      if path_tree in self.path_tree_first_to_subfolder:
+        subfolder = self.path_tree_first_to_subfolder[path_tree]
+        relative_path = path_tree_match.group(3)
         if relative_path is None:
           relative_path = ''
+
+        if subfolder == 16 and path_tree_match.group(4) is not None:
+          # BUILT_PRODUCTS_DIR (16) is the first element in a path whose
+          # second element is possibly one of the variable names in
+          # path_tree_second_to_subfolder. Xcode sets the values of all these
+          # variables to relative paths so .gyp files must prefix them with
+          # BUILT_PRODUCTS_DIR, e.g.
+          # $(BUILT_PRODUCTS_DIR)/$(PLUGINS_FOLDER_PATH). Then
+          # xcode_emulation.py can export these variables with the same values
+          # as Xcode yet make & ninja files can determine the absolute path
+          # to the target. Xcode uses the dstSubfolderSpec value set here
+          # to determine the full path.
+          #
+          # An alternative of xcode_emulation.py setting the values to absolute
+          # paths when exporting these variables has been ruled out because
+          # then the values would be different depending on the build tool.
+          #
+          # Another alternative is to invent new names for the variables used
+          # to match to the subfolder indices in the second table. .gyp files
+          # then will not need to prepend $(BUILT_PRODUCTS_DIR) because
+          # xcode_emulation.py can set the values of those variables to
+          # the absolute paths when exporting. This is possibly the thinking
+          # behind BUILT_FRAMEWORKS_DIR which is used in exactly this manner.
+          #
+          # Requiring prepending BUILT_PRODUCTS_DIR has been chosen because
+          # this same way could be used to specify destinations in .gyp files
+          # that pre-date this addition to GYP. However they would only work
+          # with the Xcode generator. The previous version of xcode_emulation.py
+          # does not export these variables. Such files will get the benefit
+          # of the Xcode UI showing the proper destination name simply by
+          # regenerating the projects with this version of GYP.
+          path_tree = path_tree_match.group(4)
+          relative_path = path_tree_match.group(6)
+          separator = '/'
+
+          if path_tree in self.path_tree_second_to_subfolder:
+            subfolder = self.path_tree_second_to_subfolder[path_tree]
+            if relative_path is None:
+              relative_path = ''
+              separator = ''
+            if path_tree == 'XPCSERVICES_FOLDER_PATH':
+              relative_path = '$(CONTENTS_FOLDER_PATH)/XPCServices' \
+                              + separator + relative_path
+          else:
+            # subfolder = 16 from above
+            # The second element of the path is an unrecognized variable.
+            # Include it and any remaining elements in relative_path.
+            relative_path = path_tree_match.group(3);
+
       else:
         # The path starts with an unrecognized Xcode variable
         # name like $(SRCROOT).  Xcode will still handle this
@@ -2260,8 +2342,12 @@ class PBXNativeTarget(XCTarget):
                                                  '', ''],
     'com.apple.product-type.bundle.unit-test':  ['wrapper.cfbundle',
                                                  '', '.xctest'],
+    'com.apple.product-type.bundle.ui-testing':  ['wrapper.cfbundle',
+                                                  '', '.xctest'],
     'com.googlecode.gyp.xcode.bundle':          ['compiled.mach-o.dylib',
                                                  '', '.so'],
+    'com.apple.product-type.kernel-extension':  ['wrapper.kext',
+                                                 '', '.kext'],
   }
 
   def __init__(self, properties=None, id=None, parent=None,
@@ -2314,7 +2400,9 @@ class PBXNativeTarget(XCTarget):
             force_extension = suffix[1:]
 
         if self._properties['productType'] == \
-           'com.apple.product-type-bundle.unit.test':
+           'com.apple.product-type-bundle.unit.test' or \
+           self._properties['productType'] == \
+           'com.apple.product-type-bundle.ui-testing':
           if force_extension is None:
             force_extension = suffix[1:]
 
@@ -2398,8 +2486,7 @@ class PBXNativeTarget(XCTarget):
       # The headers phase should come before the resources, sources, and
       # frameworks phases, if any.
       insert_at = len(self._properties['buildPhases'])
-      for index in xrange(0, len(self._properties['buildPhases'])):
-        phase = self._properties['buildPhases'][index]
+      for index, phase in enumerate(self._properties['buildPhases']):
         if isinstance(phase, PBXResourcesBuildPhase) or \
            isinstance(phase, PBXSourcesBuildPhase) or \
            isinstance(phase, PBXFrameworksBuildPhase):
@@ -2419,8 +2506,7 @@ class PBXNativeTarget(XCTarget):
       # The resources phase should come before the sources and frameworks
       # phases, if any.
       insert_at = len(self._properties['buildPhases'])
-      for index in xrange(0, len(self._properties['buildPhases'])):
-        phase = self._properties['buildPhases'][index]
+      for index, phase in enumerate(self._properties['buildPhases']):
         if isinstance(phase, PBXSourcesBuildPhase) or \
            isinstance(phase, PBXFrameworksBuildPhase):
           insert_at = index
@@ -2638,7 +2724,7 @@ class PBXProject(XCContainerPortal):
     # according to their defined order.
     self._properties['mainGroup']._properties['children'] = \
         sorted(self._properties['mainGroup']._properties['children'],
-               cmp=lambda x,y: x.CompareRootGroup(y))
+               key=functools.cmp_to_key(XCHierarchicalElement.CompareRootGroup))
 
     # Sort everything else by putting group before files, and going
     # alphabetically by name within sections of groups and files.  SortGroup
@@ -2729,9 +2815,8 @@ class PBXProject(XCContainerPortal):
 
       # Xcode seems to sort this list case-insensitively
       self._properties['projectReferences'] = \
-          sorted(self._properties['projectReferences'], cmp=lambda x,y:
-                 cmp(x['ProjectRef'].Name().lower(),
-                     y['ProjectRef'].Name().lower()))
+          sorted(self._properties['projectReferences'],
+                 key=lambda x: x['ProjectRef'].Name().lower())
     else:
       # The link already exists.  Pull out the relevnt data.
       project_ref_dict = self._other_pbxprojects[other_pbxproject]
@@ -2828,20 +2913,7 @@ class PBXProject(XCContainerPortal):
     # same order that the targets are sorted in the remote project file.  This
     # is the sort order used by Xcode.
 
-    def CompareProducts(x, y, remote_products):
-      # x and y are PBXReferenceProxy objects.  Go through their associated
-      # PBXContainerItem to get the remote PBXFileReference, which will be
-      # present in the remote_products list.
-      x_remote = x._properties['remoteRef']._properties['remoteGlobalIDString']
-      y_remote = y._properties['remoteRef']._properties['remoteGlobalIDString']
-      x_index = remote_products.index(x_remote)
-      y_index = remote_products.index(y_remote)
-
-      # Use the order of each remote PBXFileReference in remote_products to
-      # determine the sort order.
-      return cmp(x_index, y_index)
-
-    for other_pbxproject, ref_dict in self._other_pbxprojects.iteritems():
+    for other_pbxproject, ref_dict in self._other_pbxprojects.items():
       # Build up a list of products in the remote project file, ordered the
       # same as the targets that produce them.
       remote_products = []
@@ -2855,7 +2927,7 @@ class PBXProject(XCContainerPortal):
       product_group = ref_dict['ProductGroup']
       product_group._properties['children'] = sorted(
           product_group._properties['children'],
-          cmp=lambda x, y, rp=remote_products: CompareProducts(x, y, rp))
+          key=lambda x: remote_products.index(x._properties['remoteRef']._properties['remoteGlobalIDString']))
 
 
 class XCProjectFile(XCObject):
@@ -2886,8 +2958,7 @@ class XCProjectFile(XCObject):
       self._XCPrint(file, 0, '{ ')
     else:
       self._XCPrint(file, 0, '{\n')
-    for property, value in sorted(self._properties.iteritems(),
-                                  cmp=lambda x, y: cmp(x, y)):
+    for property, value in sorted(self._properties.items()):
       if property == 'objects':
         self._PrintObjects(file)
       else:
@@ -2914,7 +2985,7 @@ class XCProjectFile(XCObject):
       self._XCPrint(file, 0, '\n')
       self._XCPrint(file, 0, '/* Begin ' + class_name + ' section */\n')
       for object in sorted(objects_by_class[class_name],
-                           cmp=lambda x, y: cmp(x.id, y.id)):
+                           key=lambda x: x.id):
         object.Print(file)
       self._XCPrint(file, 0, '/* End ' + class_name + ' section */\n')
 

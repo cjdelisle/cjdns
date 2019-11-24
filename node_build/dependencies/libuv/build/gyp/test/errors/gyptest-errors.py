@@ -47,9 +47,34 @@ stderr = (".*file_cycle0.*file_cycle1.*file_cycle0.*")
 test.run_gyp('file_cycle0.gyp', status=1, stderr=stderr,
              match=TestCmd.match_re_dotall)
 
+stderr = 'gyp: Duplicate basenames in sources section, see list above\n'
+test.run_gyp('duplicate_basenames.gyp', status=1, stderr=stderr)
+
+# Check if '--no-duplicate-basename-check' works.
+if ((test.format == 'make' and sys.platform == 'darwin') or
+    (test.format == 'msvs' and
+        int(os.environ.get('GYP_MSVS_VERSION', 2010)) < 2010)):
+  stderr = 'gyp: Duplicate basenames in sources section, see list above\n'
+  test.run_gyp('duplicate_basenames.gyp', '--no-duplicate-basename-check',
+               status=1, stderr=stderr)
+else:
+  test.run_gyp('duplicate_basenames.gyp', '--no-duplicate-basename-check')
+
 stderr = ("gyp: Dependency '.*missing_dep.gyp:missing.gyp#target' not found "
           "while trying to load target .*missing_dep.gyp:foo#target\n")
 test.run_gyp('missing_dep.gyp', status=1, stderr=stderr,
              match=TestCmd.match_re)
+
+# Make sure invalid <!() command invocations say what command it was and
+# mention the gyp file name. Use a "random" command name to trigger an ENOENT.
+stderr = (".*invalid-command-name-egtyevNif3.*netDurj9.*missing_command.gyp.*")
+test.run_gyp('missing_command.gyp', status=1, stderr=stderr,
+             match=TestCmd.match_re_dotall)
+
+# Make sure <!() commands that error out result in a message that mentions
+# the command and gyp file name
+stderr = (".*python.*-c.*import sys.*sys.exit.*3.*error_command.gyp.*")
+test.run_gyp('error_command.gyp', status=1, stderr=stderr,
+             match=TestCmd.match_re_dotall)
 
 test.pass_test()

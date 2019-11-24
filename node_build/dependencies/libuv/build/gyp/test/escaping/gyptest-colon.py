@@ -9,12 +9,20 @@ Tests that filenames that contain colons are handled correctly.
 (This is important for absolute paths on Windows.)
 """
 
+from __future__ import print_function
+
 import os
 import sys
+
+if sys.platform == 'win32':
+  print("This test is currently disabled: https://crbug.com/483696.")
+  sys.exit(0)
+
+
 import TestGyp
 
 # TODO: Make colons in filenames work with make, if required.
-test = TestGyp.TestGyp(formats=['!make', '!android'])
+test = TestGyp.TestGyp(formats=['!make'])
 CHDIR = 'colon'
 
 source_name = 'colon/a:b.c'

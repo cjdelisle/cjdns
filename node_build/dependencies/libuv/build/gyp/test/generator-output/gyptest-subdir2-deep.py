@@ -12,8 +12,7 @@ configuration files in a separate directory tree.
 
 import TestGyp
 
-# Android doesn't support --generator-output.
-test = TestGyp.TestGyp(formats=['!android'])
+test = TestGyp.TestGyp()
 
 test.writable(test.workpath('src'), False)
 
