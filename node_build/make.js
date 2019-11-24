@@ -18,7 +18,7 @@ var Codestyle = require('./Codestyle');
 var Cp = require('./Cp');
 var Spawn = require('child_process').spawn;
 var Os = require('os');
-var FindPython2 = require('./FindPython2');
+var FindPython = require('./FindPython');
 var CanCompile = require('./CanCompile');
 var Builder = require('./builder');
 var TestRunner = require('./TestRunner');
@@ -345,7 +345,7 @@ Builder.configure({
         }).nThen(function (waitFor) {
 
             if (libuvBuilt) { return; }
-            FindPython2.find(builder.tmpFile(), waitFor(function (err, pythonExec) {
+            FindPython.find(builder.tmpFile(), waitFor(function (err, pythonExec) {
                 if (err) { throw err; }
                 python = pythonExec;
             }));

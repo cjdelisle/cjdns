@@ -16,12 +16,17 @@ var nThen = require('nthen');
 var Spawn = require('child_process').spawn;
 var Fs = require('fs');
 
-var PYTHONS = ["python", "python2", "python2.7", "python2.6", "python2.5"];
+var PYTHONS = ["python3", "python", "python2", "python2.7", "python3", "python3.7"];
 
 var SCRIPT = [
-    'import sys;',
-    'print(sys.version_info);',
-    'exit(sys.version_info[0] != 2 or sys.version_info[1] < 7);'
+    'import sys',
+    'print(sys.version_info)',
+
+    // we know <= 2.6 is no good
+    'if sys.version_info[0] == 2 and sys.version_info[1] >= 7: exit(0)',
+
+    // Lets hope that all python3 versions are ok...
+    'if sys.version_info[0] == 3: exit(0)',
 ].join('\n');
 
 var find = module.exports.find = function (tempFile, callback) {
@@ -56,6 +61,6 @@ var find = module.exports.find = function (tempFile, callback) {
         }).nThen;
     });
     nt(function (waitFor) {
-        callback(new Error("no sutible python2 executable found ( < 2.7 unsupported)"));
+        callback(new Error("no sutible python2 or python3 executable found ( < 2.7 unsupported)"));
     });
 };
