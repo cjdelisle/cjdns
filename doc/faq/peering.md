@@ -74,9 +74,9 @@ Technically, only the IP, port, publicKey, and password are required. IPV6 will 
 
 [Read this](https://en.wikipedia.org/wiki/Small-world_network)
 
-People are much more receptive to peering requests if you have already connected to Hyperboria.  EFNet has a much wider audience, and as such is treated with skepticism. Those with their foot already in the door will have an easier time making friends. If you think this is clique-ish or elitist, you may be right. If you want it to change, then <a class="clearnet" href="http://www.elephantjournal.com/2011/08/be-the-change-you-wish-to-see-in-the-world-not-gandhi/">be the change you want to see in the world</a>, and get on EFNet and start helping!
+People are much more receptive to peering requests if you have already connected to Hyperboria. EFNet has a much wider audience, and as such is treated with skepticism. Those with their foot already in the door will have an easier time making friends. If you think this is clique-ish or elitist, you may be right. If you want it to change, then <a class="clearnet" href="http://www.elephantjournal.com/2011/08/be-the-change-you-wish-to-see-in-the-world-not-gandhi/">be the change you want to see in the world</a>, and get on EFNet and start helping!
 
-It's  a bit circular, but it's a not a rule we have, more of an emergent behaviour. Many of us have spent a lot of time on EFNet helping newcomers to connect, only to have them leave after connecting for fifteen minutes.  Once we've seen that you are competent enough to connect, and that you have some lasting interest, there is far more incentive to spend time getting to know you.
+It's  a bit circular, but it's a not a rule we have, more of an emergent behaviour. Many of us have spent a lot of time on EFNet helping newcomers to connect, only to have them leave after connecting for fifteen minutes. Once we've seen that you are competent enough to connect, and that you have some lasting interest, there is far more incentive to spend time getting to know you.
 
 As to how the technical specifications of the network architecture...
 
@@ -146,7 +146,7 @@ To find your peers, run `cjdns/contrib/nodejs/tools/peerStats.js`
 
 Alternatively, you can use [this tool which does a few other things as well](https://github.com/ehmry/cjdcmd-ng).
 
-## How to sniff for ethernet cjdns traffic?
+## How to sniff for Ethernet cjdns traffic?
 
 ```
 tcpdump -nn -s0 -t -vv -e -i mon0 ether proto 0xfc00

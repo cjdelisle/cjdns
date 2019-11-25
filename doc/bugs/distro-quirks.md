@@ -1,6 +1,6 @@
 # OS/distribution-specific quirks
 
-## OSX
+## macOS
 
 ### Failure to autopeer
 
@@ -15,7 +15,7 @@
 16:49 <@Arceliar> or bug people who own a mac to write ETHInterface_darwin.c
 ```
 
-There you have it, Macs don't autopeer via ethernet frames.
+There you have it, Macs don't autopeer via Ethernet frames.
 
 This is also probably why it doesn't work on windows, either.
 

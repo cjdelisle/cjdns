@@ -57,7 +57,7 @@ it works.
 
 Running your own gateway is not automated, so you will want to implement some scripts to
 set the addresses for you. Lets imagine your ISP has given you the IPv6 prefix
-`1111:1111:1111:1111::/64` and your ISP's router is `1111:1111:1111:1111::1`. Your ethernet
+`1111:1111:1111:1111::/64` and your ISP's router is `1111:1111:1111:1111::1`. Your Ethernet
 card is probably set to `1111:1111:1111:1111::2` so you'll begin allocating above that.
 First you will have to reserve one address (eg: `1111:1111:1111:1111::3`) for your `tun0`
 device's address, then each client can have an address, so the first client will be issued
@@ -84,7 +84,7 @@ it is for later.
             ]
 
 Note the `ip6Prefix` field: it specifies the netmask that the client should use.
-We have set it to 0, so the client will think the entire IPv6 addfress space is
+We have set it to 0, so the client will think the entire IPv6 address space is
 accessible over the tunnel (which it is, since we're building a
 cjdns-to-clearnet gateway). This avoids us having to set up an IPv6 default
 gateway manually on the client node. If you want to advertise a smaller network
@@ -100,7 +100,7 @@ so you must set that next with the following command:
 Now that your tun device has an address, your client should be able to connect to and
 ping `1111:1111:1111:1111::3`, but it definitely won't be able to reach the rest of the
 world until you add a static route on the gateway to your ISP's router's address: `1111:1111:1111:1111::1`.
-This will make it route over the ethernet device and add a static route to allow the rest of
+This will make it route over the Ethernet device and add a static route to allow the rest of
 your /64 to route down the TUN device. Once you're finished, you'll want to set a default
 route via your ISP's router's address so outgoing IPv6 packets are forwarded correctly.
 
@@ -122,7 +122,7 @@ and to make it permanent, edit your `/etc/sysctl.conf` file and *uncomment* the 
     #net.ipv6.conf.all.forwarding=1
     #net.ipv4.ip_forward = 1
 
-Run `sysctl --system` to use those new settigns.
+Run `sysctl --system` to use those new settings.
 
 For IPv4, you probably want to set up NAT between the `tun0` cjdns interface and
 the uplink `eth0`:
@@ -167,14 +167,14 @@ to the ones below (take special note of which device is associated with each lin
     default via 1111:1111:1111:1111:1111:1111:1111:1 dev eth0 metric 1024
 
 If your routes are correct and things still aren't working, continue to let the ping process run on the client
-and run `tcpdump -n -i eth0 icmp6` on the gateway to check the traffic flowing through its ethernet device.
+and run `tcpdump -n -i eth0 icmp6` on the gateway to check the traffic flowing through its Ethernet device.
 Look for any connections to or from the ipv6 address associated with your client on the tunnel, and if you see
 any with strange messages about "neighbor solicitation" or "neighbor advertisement", the problem is that your
 ISP's equipment is dropping replies instead of routing return traffic despite the addresses in use being
 allocated to you. This problem exists because of something called NDP (Neighbor Discovery Protocol), in which a
 request for 'neighbours' is made, and traffic isn't allowed to be sent back unless the ISP receives a response.
 
-A recent linux kernel allows you to set this directly, by
+A recent Linux kernel allows you to set this directly, by
 
     sysctl -w net.ipv6.conf.all.proxy_ndp=1
     ip -6 neigh add proxy 1111:1111:1111:1111::4 dev eth0

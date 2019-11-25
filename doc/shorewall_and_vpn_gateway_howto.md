@@ -8,9 +8,9 @@ Tutorial for setting up an IP tunnel gateway from cjdns to clearnet, using a VPN
  `ip6tables -A INPUT -i tun0 -p tcp --destination-port 22 -j REJECT`
 
 ## VPN
-Connect to a VPN provider (I used mullvad.net). Make sure you can pay with bitcoins. Recommended connection: openvpn.
+Connect to a VPN provider (I used mullvad.net). Make sure you can pay with bitcoins. Recommended connection: OpenVPN.
 
-## Firewall (shorewall)
+## Firewall (Shorewall)
 ### Interfaces
 ```
  #ZONE INTERFACE BROADCAST OPTIONS
@@ -78,7 +78,7 @@ The default gw for the clients (to vpn):
 
  `ip addr add 10.42.0.1/32 dev tun1`
 
-Masqurading (NAT):
+Masquerading (NAT):
 
  `iptables -t nat -A POSTROUTING -o tun1 -j MASQUERADE`
 

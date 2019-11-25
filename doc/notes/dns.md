@@ -117,7 +117,7 @@ Would it be possible to have it be a part of cjdns? eg one less step to use? // 
 - That being said, conventional DNS (A LA hypeDNS and paraDNS) is not difficult to set up. I've detailed the way to do it http://couch.syrinxist.org/dns <- here for paraDNS
 - When HypeDNS comes back online (supposedly on the weekend when finn isn't in school), I will add instructions for that.
 - It's literally 3 commands (at least on Debian/ubuntu/mint/arch).
-- I am willing to list instructions for OSX or other linux distros, but I am only able to test instructions on distros I run.
+- I am willing to list instructions for macOS or other Linux distros, but I am only able to test instructions on distros I run.
 - If you figure out how to do it on anything else, let me know and I'll list it.
 
 it was proposed (by prurigro) that an address be somehow based upon the owner's cjdns IPV6

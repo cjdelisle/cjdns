@@ -7,8 +7,8 @@ Configure a host to act as a NAT gateway to provide access to Hyperboria for
 devices on your LAN (Windows PC, tablet, smart phone).
 
 This is a guide to setting up Ubuntu 13.04 to act as an IPv6 router and NAT
-gateway for CJDNS.  Those who prefer other distros should find it trivial to
-adapt these instructions as required. If you do not have a linux server on your
+gateway for CJDNS. Those who prefer other distros should find it trivial to
+adapt these instructions as required. If you do not have a Linux server on your
 LAN already, consider purchasing a BeagleBone Black (for only $45 dollars!).
 You can find instructions [here](http://hyperboria.name/bbb/) on how to set it
 up for CJDNS.
@@ -27,9 +27,9 @@ You will need:
 
 *OR*
 
-* One device running the linux of your choice with kernel 3.7 or later and
+* One device running the Linux of your choice with kernel 3.7 or later and
   connected to your LAN
-* Sufficient knowledge to adapt this guide to your prefered linux
+* Sufficient knowledge to adapt this guide to your prefered Linux
 
 ## Update and Configure iptables
 
@@ -37,7 +37,7 @@ You will find it much easier to do this as root rather then using sudo, so run
 `sudo -i` first.
 
 You will need iptables 1.4.17 or better to properly configure IPv6 NAT with
-masqurade.  Unfortunately, the latest Ubuntu as of the writing of this guide
+masquerade. Unfortunately, the latest Ubuntu as of the writing of this guide
 (13.04) only has 1.4.12, so you will need to download and install these
 packages (in order) before continuing:
 
@@ -55,14 +55,14 @@ later installed. You can confirm your version by running the following command:
 
         iptables --version
 
-Also note that you will need linux kernel 3.7 or later to have support for IPv6
+Also note that you will need Linux kernel 3.7 or later to have support for IPv6
 NAT at all.
 
 Next you need to enable forwarding for IPv6:
 
     echo 1 > /proc/sys/net/ipv6/conf/all/forwarding
 
-Make it permenant by editing `/etc/sysctl.conf` to include the following line:
+Make it permenent by editing `/etc/sysctl.conf` to include the following line:
 
     net.ipv6.conf.all.forwarding=1
 
@@ -135,7 +135,7 @@ is still working:
     reboot
 
 Don't forget to start CJDNS after it's done booting if you haven't set it up to
-start automatically.  Alternatively, if you do not want to reboot at this time,
+start automatically. Alternatively, if you do not want to reboot at this time,
 you can run the following command to assign the IP address to the interface
 manually:
 
