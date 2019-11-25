@@ -327,6 +327,36 @@ static void tunInterface(Dict* ifaceConf, struct Allocator* tempAlloc, struct Co
     }
 }
 
+static void socketInterface(Dict* ifaceConf, struct Allocator* tempAlloc, struct Context* ctx)
+{
+    String* ifaceType = Dict_getStringC(ifaceConf, "type");
+    if (!String_equals(ifaceType, String_CONST("SocketInterface"))) {
+        return;
+    }
+
+    // Setup the interface.
+    String* socketFullPath = Dict_getStringC(ifaceConf, "socketFullPath");
+
+    Dict* args = Dict_new(tempAlloc);
+    if (!socketFullPath) {
+        Log_critical(ctx->logger, "In router.interface"
+                                  " 'socketFullPath' is required if it's SocketInterface.");
+        exit(1);
+    }
+
+    // false by default
+    int64_t attemptToCreate = 0;
+
+    int64_t* socketAttemptToCreate = Dict_getIntC(ifaceConf, "socketAttemptToCreate");
+    if (socketAttemptToCreate && *socketAttemptToCreate) {
+        attemptToCreate = 1;
+    }
+
+    Dict_putStringC(args, "socketFullPath", socketFullPath, tempAlloc);
+    Dict_putIntC(args, "socketAttemptToCreate", attemptToCreate, tempAlloc);
+    rpcCall0(String_CONST("Core_initSocket"), args, ctx, tempAlloc, NULL, true);
+}
+
 static void ipTunnel(Dict* ifaceConf, struct Allocator* tempAlloc, struct Context* ctx)
 {
     List* incoming = Dict_getListC(ifaceConf, "allowedConnections");
@@ -411,6 +441,7 @@ static void supernodes(List* supernodes, struct Allocator* tempAlloc, struct Con
 static void routerConfig(Dict* routerConf, struct Allocator* tempAlloc, struct Context* ctx)
 {
     tunInterface(Dict_getDictC(routerConf, "interface"), tempAlloc, ctx);
+    socketInterface(Dict_getDictC(routerConf, "interface"), tempAlloc, ctx);
     ipTunnel(Dict_getDictC(routerConf, "ipTunnel"), tempAlloc, ctx);
     supernodes(Dict_getListC(routerConf, "supernodes"), tempAlloc, ctx);
 }

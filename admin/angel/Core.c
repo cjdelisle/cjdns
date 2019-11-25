@@ -33,6 +33,8 @@
 #include "interface/Iface.h"
 #include "util/events/UDPAddrIface.h"
 #include "interface/tuntap/TUNInterface.h"
+#include "interface/tuntap/SocketInterface.h"
+#include "interface/tuntap/SocketWrapper.h"
 #include "interface/tuntap/AndroidWrapper.h"
 #include "interface/UDPInterface_admin.h"
 #ifdef HAS_ETH_INTERFACE
@@ -147,6 +149,26 @@ static void sendResponse(String* error,
     Admin_sendMessage(output, txid, admin);
 }
 
+static void initSocket2(String* socketFullPath,
+                          bool attemptToCreate,
+                          struct Context* ctx,
+                          uint8_t addressPrefix,
+                          struct Except* eh)
+{
+    Log_debug(ctx->logger, "Initializing socket: %s;", socketFullPath->bytes);
+
+    struct Iface* rawSocketIf = SocketInterface_new(
+        socketFullPath->bytes, attemptToCreate, ctx->base, ctx->logger, NULL, ctx->alloc);
+
+    struct SocketWrapper* sw = SocketWrapper_new(ctx->alloc, ctx->logger);
+    Iface_plumb(&sw->externalIf, rawSocketIf);
+    Iface_plumb(&sw->internalIf, &ctx->nc->tunAdapt->tunIf);
+
+    SocketWrapper_addAddress(&sw->externalIf, ctx->nc->myAddress->ip6.bytes, ctx->logger,
+                                eh, ctx->alloc);
+    SocketWrapper_setMTU(&sw->externalIf, DEFAULT_MTU, ctx->logger, eh, ctx->alloc);
+}
+
 static void initTunnel2(String* desiredDeviceName,
                         struct Context* ctx,
                         uint8_t addressPrefix,
@@ -214,6 +236,26 @@ static void initTunnel(Dict* args, void* vcontext, String* txid, struct Allocato
         initTunnel2(desiredName, ctx, AddressCalc_ADDRESS_PREFIX_BITS, &jmp.handler);
     } Jmp_catch {
         String* error = String_printf(requestAlloc, "Failed to configure tunnel [%s]", jmp.message);
+        sendResponse(error, ctx->admin, txid, requestAlloc);
+        return;
+    }
+
+    sendResponse(String_CONST("none"), ctx->admin, txid, requestAlloc);
+}
+
+static void initSocket(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
+{
+    struct Context* const ctx = Identity_check((struct Context*) vcontext);
+
+    struct Jmp jmp;
+    Jmp_try(jmp) {
+        String* socketFullPath = Dict_getStringC(args, "socketFullPath");
+        bool socketAttemptToCreate = *Dict_getIntC(args, "socketAttemptToCreate");
+        initSocket2(socketFullPath, socketAttemptToCreate, ctx, AddressCalc_ADDRESS_PREFIX_BITS,
+            &jmp.handler);
+    } Jmp_catch {
+        String* error = String_printf(requestAlloc, "Failed to configure socket [%s]",
+            jmp.message);
         sendResponse(error, ctx->admin, txid, requestAlloc);
         return;
     }
@@ -330,6 +372,12 @@ void Core_init(struct Allocator* alloc,
         }), admin);
 
     Admin_registerFunction("Core_nodeInfo", nodeInfo, ctx, false, NULL, admin);
+
+    Admin_registerFunction("Core_initSocket", initSocket, ctx, true,
+        ((struct Admin_FunctionArg[]) {
+            { .name = "socketFullPath", .required = 1, .type = "String" },
+            { .name = "socketAttemptToCreate", .required = 1, .type = "Int" }
+        }), admin);
 }
 
 int Core_main(int argc, char** argv)
