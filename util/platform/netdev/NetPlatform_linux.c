@@ -78,7 +78,7 @@ static int socketForIfName(const char* interfaceName,
     }
 
     memset(ifRequestOut, 0, sizeof(struct ifreq));
-    strncpy(ifRequestOut->ifr_name, interfaceName, IFNAMSIZ);
+    strncpy(ifRequestOut->ifr_name, interfaceName, IFNAMSIZ-1);
 
     if (ioctl(s, SIOCGIFINDEX, ifRequestOut) < 0) {
         int err = errno;
