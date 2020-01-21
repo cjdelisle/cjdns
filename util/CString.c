@@ -61,7 +61,9 @@ char* CString_strcpy(char* restrict dest, const char* restrict src)
     return strcpy(dest, src);
 }
 
-char* CString_strncpy(char* restrict dest, const char *restrict src, size_t n)
+char* CString_safeStrncpy(char* restrict dest, const char *restrict src, size_t n)
 {
-    return strncpy(dest, src, n);
+    char* ret = strncpy(dest, src, n);
+    dest[n - 1] = '\0';
+    return ret;
 }

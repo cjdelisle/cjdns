@@ -103,7 +103,7 @@ int Sockaddr_parse(const char* input, struct Sockaddr_storage* out)
     if (CString_strlen(input) > 63) {
         return -1;
     }
-    CString_strncpy(buff, input, 63);
+    CString_safeStrncpy(buff, input, 63);
 
     int64_t port = 0;
     char* lastColon = CString_strrchr(buff, ':');

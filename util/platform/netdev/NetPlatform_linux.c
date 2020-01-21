@@ -19,6 +19,7 @@
 #include "wire/Message.h"
 #include "util/AddrTools.h"
 #include "util/Assert.h"
+#include "util/CString.h"
 
 #include <stdbool.h>
 #include <string.h>
@@ -78,7 +79,7 @@ static int socketForIfName(const char* interfaceName,
     }
 
     memset(ifRequestOut, 0, sizeof(struct ifreq));
-    strncpy(ifRequestOut->ifr_name, interfaceName, IFNAMSIZ-1);
+    CString_safeStrncpy(ifRequestOut->ifr_name, interfaceName, IFNAMSIZ);
 
     if (ioctl(s, SIOCGIFINDEX, ifRequestOut) < 0) {
         int err = errno;

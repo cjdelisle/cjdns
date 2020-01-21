@@ -56,6 +56,8 @@
  *  59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include "util/CString.h"
+
 #include <stdio.h>
 #include <windows.h>
 
@@ -231,7 +233,7 @@ static struct Taps* get_all_taps(struct Allocator* alloc, struct Except* eh)
 
         if (status == ERROR_FILE_NOT_FOUND) {
             // The interface has no name.
-            strncpy(name_data, "",  sizeof (name_data));
+            CString_safeStrncpy(name_data, "",  sizeof (name_data));
         } else if (status != ERROR_SUCCESS) {
             WinFail_fail(eh, "RegQueryValueEx() for interface name failed", status);
         } else {

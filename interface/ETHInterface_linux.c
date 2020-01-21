@@ -27,6 +27,7 @@
 #include "util/AddrTools.h"
 #include "util/version/Version.h"
 #include "util/events/Timeout.h"
+#include "util/CString.h"
 
 #include <string.h>
 #include <sys/socket.h>
@@ -249,7 +250,7 @@ struct ETHInterface* ETHInterface_new(struct EventBase* eventBase,
     }
     Allocator_onFree(alloc, closeSocket, ctx);
 
-    CString_strncpy(ifr.ifr_name, bindDevice, IFNAMSIZ - 1);
+    CString_safeStrncpy(ifr.ifr_name, bindDevice, IFNAMSIZ);
     ctx->ifName = String_new(bindDevice, alloc);
 
     if (ioctl(ctx->socket, SIOCGIFINDEX, &ifr) == -1) {

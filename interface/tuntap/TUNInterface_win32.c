@@ -29,7 +29,7 @@ struct Iface* TUNInterface_new(const char* interfaceName,
                                    struct Allocator* alloc)
 {
     struct TAPInterface* tap = TAPInterface_new(interfaceName, eh, logger, base, alloc);
-    CString_strncpy(assignedInterfaceName, tap->assignedName, TUNInterface_IFNAMSIZ);
+    CString_safeStrncpy(assignedInterfaceName, tap->assignedName, TUNInterface_IFNAMSIZ);
     if (isTapMode) { return &tap->generic; }
     struct TAPWrapper* tapWrapper = TAPWrapper_new(&tap->generic, logger, alloc);
     struct NDPServer* ndp =

@@ -15,6 +15,7 @@
 #include "util/platform/netdev/NetPlatform.h"
 #include "util/Assert.h"
 #include "util/platform/Sockaddr.h"
+#include "util/CString.h"
 
 #include <errno.h>
 #include <stdio.h>
@@ -121,7 +122,7 @@ static void addIp6Address(const char* interfaceName,
     struct sockaddr_in6* sin6 = (struct sockaddr_in6 *) &ifr.lifr_addr;
     maskForPrefix((uint8_t*) sin6->sin6_addr.s6_addr, prefixLen);
     ifr.lifr_addr.ss_family = AF_INET6;
-    strncpy(ifr.lifr_name, interfaceName, LIFNAMSIZ);
+    CString_safeStrncpy(ifr.lifr_name, interfaceName, LIFNAMSIZ);
 
     int udpSock = socket(AF_INET6, SOCK_DGRAM, 0);
     if (udpSock < 0) {

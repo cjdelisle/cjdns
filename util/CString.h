@@ -53,6 +53,6 @@ Gcc_NONNULL(1,2)
 char* CString_strcpy(char* restrict dest, const char* restrict src);
 
 Gcc_NONNULL(1,2)
-char* CString_strncpy(char* restrict dest, const char *restrict src, size_t n);
+char* CString_safeStrncpy(char* restrict dest, const char *restrict src, size_t n);
 
 #endif

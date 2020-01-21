@@ -17,6 +17,7 @@
 #include "interface/tuntap/BSDMessageTypeWrapper.h"
 #include "util/AddrTools.h"
 #include "util/events/Pipe.h"
+#include "util/CString.h"
 
 #include <errno.h>
 #include <stdio.h>
@@ -75,7 +76,7 @@ struct Iface* TUNInterface_new(const char* interfaceName,
     /* get the utun control id */
     struct ctl_info info;
     memset(&info, 0, sizeof(info));
-    strncpy(info.ctl_name, APPLE_UTUN_CONTROL, strlen(APPLE_UTUN_CONTROL));
+    CString_safeStrncpy(info.ctl_name, APPLE_UTUN_CONTROL, strlen(APPLE_UTUN_CONTROL));
 
     if (ioctl(tunFd, CTLIOCGINFO, &info) < 0) {
         int err = errno;

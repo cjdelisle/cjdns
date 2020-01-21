@@ -473,7 +473,7 @@ static void init(void* vpf)
         .superiority_be = Endian_hostToBigEndian32(1),
         .version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL)
     };
-    CString_strncpy(conn.userAgent, "Cjdns internal pathfinder", 64);
+    CString_safeStrncpy(conn.userAgent, "Cjdns internal pathfinder", 64);
     sendEvent(pf, PFChan_Pathfinder_CONNECT, &conn, PFChan_Pathfinder_Connect_SIZE);
 }
 

@@ -16,6 +16,7 @@
 #include "exception/Except.h"
 #include "util/AddrTools.h"
 #include "util/platform/Sockaddr.h"
+#include "util/CString.h"
 
 #include <errno.h>
 #include <ctype.h>
@@ -143,7 +144,7 @@ static void addIp6Address(const char* interfaceName,
         *cp = 0xff << (8 - len);
     }
 
-    strncpy(in6_addreq.ifra_name, interfaceName, sizeof(in6_addreq.ifra_name));
+    CString_safeStrncpy(in6_addreq.ifra_name, interfaceName, sizeof(in6_addreq.ifra_name));
 
     /* do the actual assignment ioctl */
     int s = socket(AF_INET6, SOCK_DGRAM, 0);
@@ -193,7 +194,7 @@ void NetPlatform_setMTU(const char* interfaceName,
 
     struct ifreq ifRequest;
 
-    strncpy(ifRequest.ifr_name, interfaceName, IFNAMSIZ);
+    CString_safeStrncpy(ifRequest.ifr_name, interfaceName, IFNAMSIZ);
     ifRequest.ifr_mtu = mtu;
 
     Log_info(logger, "Setting MTU for device [%s] to [%u] bytes.", interfaceName, mtu);

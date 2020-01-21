@@ -99,7 +99,7 @@ static void mkRouteMsg(struct Message* msg,
             .sdl_index = ifIndex,
             .sdl_nlen = CString_strlen(ifName)
         };
-        CString_strncpy(link.sdl_data, ifName, 12);
+        CString_safeStrncpy(link.sdl_data, ifName, 12);
         Message_push(msg, &link, sizeof(struct sockaddr_dl), eh);
     }
     void* dest = Sockaddr_asNative(addRoute);
@@ -238,7 +238,7 @@ static void addIp4Address(const char* interfaceName,
 {
     struct ifaliasreq ifarted;
     Bits_memset(&ifarted, 0, sizeof(struct ifaliasreq));
-    CString_strncpy(ifarted.ifra_name, interfaceName, IFNAMSIZ);
+    CString_safeStrncpy(ifarted.ifra_name, interfaceName, IFNAMSIZ);
 
     struct sockaddr_in sin = { .sin_family = AF_INET, .sin_len = sizeof(struct sockaddr_in) };
     Bits_memcpy(&sin.sin_addr.s_addr, address, 4);
@@ -253,7 +253,7 @@ static void addIp4Address(const char* interfaceName,
 
     // will probably fail, ignore result.
     struct ifreq ifr = { .ifr_flags = 0 };
-    CString_strncpy(ifr.ifr_name, interfaceName, IFNAMSIZ);
+    CString_safeStrncpy(ifr.ifr_name, interfaceName, IFNAMSIZ);
     ioctl(s, SIOCDIFADDR, &ifr);
 
     if (ioctl(s, SIOCSIFADDR, &ifarted) < 0) {
@@ -311,7 +311,7 @@ static void addIp6Address(const char* interfaceName,
         ((uint8_t*)&mask->sin6_addr)[prefixLen>>3] = 0xff << (8 - (prefixLen%8));
     }
 
-    strncpy(in6_addreq.ifra_name, interfaceName, sizeof(in6_addreq.ifra_name));
+    CString_safeStrncpy(in6_addreq.ifra_name, interfaceName, sizeof(in6_addreq.ifra_name));
 
     /* do the actual assignment ioctl */
     int s = socket(AF_INET6, SOCK_DGRAM, 0);
@@ -360,7 +360,7 @@ void NetPlatform_setMTU(const char* interfaceName,
 
     struct ifreq ifRequest;
 
-    strncpy(ifRequest.ifr_name, interfaceName, IFNAMSIZ);
+    CString_safeStrncpy(ifRequest.ifr_name, interfaceName, IFNAMSIZ);
     ifRequest.ifr_mtu = mtu;
 
     Log_info(logger, "Setting MTU for device [%s] to [%u] bytes.", interfaceName, mtu);
