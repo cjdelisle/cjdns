@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "util/events/libuv/UvWrapper.h"
 #include "memory/Allocator.h"
@@ -28,12 +28,42 @@ struct Timeout
 
     uint64_t milliseconds;
 
-    int isInterval;
+    uint16_t isInterval;
+    uint16_t isArmed;
 
     struct Allocator* alloc;
 
+    struct Timeout* next;
+    struct Timeout** selfPtr;
+    struct EventBase_pvt* base;
+
     Identity
 };
+
+static void linkTo(struct Timeout* timeout)
+{
+    timeout->next = (struct Timeout*) timeout->base->timeouts;
+    if (timeout->next) {
+        timeout->next->selfPtr = &timeout->next;
+    }
+    timeout->base->timeouts = timeout;
+    timeout->selfPtr = (struct Timeout**) &timeout->base->timeouts;
+    timeout->isArmed = 1;
+}
+
+static void unlinkTo(struct Timeout* timeout)
+{
+    if (timeout->selfPtr) {
+        *timeout->selfPtr = timeout->next;
+        if (timeout->next) {
+            Assert_true(&timeout->next == timeout->next->selfPtr);
+            timeout->next->selfPtr = timeout->selfPtr;
+            timeout->next = NULL;
+        }
+        timeout->selfPtr = NULL;
+    }
+    timeout->isArmed = 0;
+}
 
 /**
  * The callback to be called by libuv.
@@ -41,6 +71,7 @@ struct Timeout
 static void handleEvent(uv_timer_t* handle, int status)
 {
     struct Timeout* timeout = Identity_check((struct Timeout*) handle);
+    if (!timeout->isArmed) { return; }
     if (!timeout->isInterval) {
         Timeout_clearTimeout(timeout);
     }
@@ -55,6 +86,7 @@ static void onFree2(uv_handle_t* timer)
 static int onFree(struct Allocator_OnFreeJob* job)
 {
     struct Timeout* t = Identity_check((struct Timeout*) job->userData);
+    unlinkTo(t);
     t->timer.data = job;
     uv_close((uv_handle_t*) &t->timer, onFree2);
     return Allocator_ONFREE_ASYNC;
@@ -91,6 +123,7 @@ static struct Timeout* setTimeout(void (* const callback)(void* callbackContext)
     timeout->milliseconds = milliseconds;
     timeout->alloc = alloc;
     timeout->isInterval = interval;
+    timeout->base = base;
     Identity_set(timeout);
 
     uv_timer_init(base->loop, &timeout->timer);
@@ -99,6 +132,8 @@ static struct Timeout* setTimeout(void (* const callback)(void* callbackContext)
     timeout->timer.data = timeout;
 
     Allocator_onFree(alloc, onFree, timeout);
+
+    linkTo(timeout);
 
     return timeout;
 }
@@ -132,13 +167,33 @@ void Timeout_resetTimeout(struct Timeout* timeout,
                           const uint64_t milliseconds)
 {
     Timeout_clearTimeout(timeout);
+    linkTo(timeout);
     uv_timer_start(&timeout->timer, handleEvent, milliseconds, 0);
 }
 
 /** See: Timeout.h */
 void Timeout_clearTimeout(struct Timeout* timeout)
 {
+    unlinkTo(timeout);
     if (!uv_is_closing((uv_handle_t*) &timeout->timer)) {
         uv_timer_stop(&timeout->timer);
     }
+}
+
+void Timeout_clearAll(struct EventBase* eventBase)
+{
+    struct EventBase_pvt* base = EventBase_privatize(eventBase);
+    struct Timeout* to = base->timeouts;
+    if (!to) { return; }
+    while (to) {
+        struct Timeout* next = to->next;
+        Timeout_clearTimeout(to);
+        to = next;
+    }
+    Assert_true(!base->timeouts);
+}
+
+int Timeout_isActive(struct Timeout* timeout)
+{
+    return (timeout && timeout->selfPtr);
 }

@@ -18,6 +18,10 @@ import sys
 if sys.platform == 'darwin':
   test = TestGyp.TestGyp(formats=['ninja', 'xcode'])
 
+  if test.format == 'xcode':
+    # This test appears to hang flakily.
+    test.skip_test()  # bug=532
+
   test_cases = [
     ('Default', 'TestArch32Bits', ['i386']),
     ('Default-iphoneos', 'TestArch32Bits', ['armv7']),
@@ -48,7 +52,7 @@ if sys.platform == 'darwin':
         kwds['arguments'].extend(['-arch', archs[0]])
 
     test.set_configuration(configuration)
-    filename = '%s.bundle/%s' % (target, target)
+    filename = '%s.app/%s' % (target, target)
     test.build('test-archs.gyp', target, chdir='app-bundle', **kwds)
     result_file = test.built_file_path(filename, chdir='app-bundle')
 

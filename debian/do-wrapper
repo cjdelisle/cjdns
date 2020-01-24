@@ -7,6 +7,19 @@ export MARCH="${DEB_HOST_GNU_CPU}"
 # work around cjdns being unspecific about x86 compiler targets such as i686
 echo "${DEB_HOST_GNU_CPU}" | grep -q 'i.86' && export MARCH="x86"
 
+if [[ "${DEB_BUILD_OPTIONS}" =~ nocheck ]]; then
+    export NO_TEST=1
+fi
+
+# Pass through prefix overrides if they are set
+if [[ ${DEB_ADDRESS_PREFIX} && ${DEB_ADDRESS_PREFIX-x} ]]; then
+    export ADDRESS_PREFIX="${DEB_ADDRESS_PREFIX}"
+fi
+
+if [[ ${DEB_ADDRESS_PREFIX_BITS} && ${DEB_ADDRESS_PREFIX_BITS-x} ]]; then
+    export ADDRESS_PREFIX_BITS="${DEB_ADDRESS_PREFIX_BITS}"
+fi
+
 # Unset CFLAGS set by debhelper to fix a number of issues.
 # It usually contains something like this:
 # -g -O2 -fstack-protector --param=ssp-buffer-size=4 -Wformat -Wformat-security

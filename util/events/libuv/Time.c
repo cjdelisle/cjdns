@@ -10,13 +10,13 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "util/events/libuv/UvWrapper.h"
 #include "util/events/Time.h"
 #include "util/events/libuv/EventBase_pvt.h"
 
-uint64_t Time_hrtime()
+uint64_t Time_hrtime(void)
 {
     return uv_hrtime();
 }

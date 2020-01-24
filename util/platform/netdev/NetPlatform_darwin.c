@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "exception/Except.h"
 #include "util/platform/netdev/NetPlatform.h"
@@ -88,7 +88,7 @@ static void mkRouteMsg(struct Message* msg,
             .sin_family = AF_INET,
             .sin_len = sizeof(struct sockaddr_in)
         };
-        mask.sin_addr.s_addr = Endian_hostToBigEndian32(~0 << (32 - addRoute->prefix));
+        mask.sin_addr.s_addr = Endian_hostToBigEndian32(~0u << (32 - addRoute->prefix));
         Message_push(msg, &mask, sizeof(struct sockaddr_in), eh);
     }
     if (!delete) {
@@ -99,7 +99,7 @@ static void mkRouteMsg(struct Message* msg,
             .sdl_index = ifIndex,
             .sdl_nlen = CString_strlen(ifName)
         };
-        CString_strncpy(link.sdl_data, ifName, 12);
+        CString_safeStrncpy(link.sdl_data, ifName, 12);
         Message_push(msg, &link, sizeof(struct sockaddr_dl), eh);
     }
     void* dest = Sockaddr_asNative(addRoute);
@@ -215,7 +215,7 @@ static struct ArrayList_OfSockaddr* getRoutes(uint32_t ifIndex,
         // printf("GOT ROUTE %s\n", Hex_print(rtm, rtm->rtm_msglen, tempAlloc));
         int prefix;
         if (&buf[i] < &mask[mask[0]] || mask[0] == 0) {
-            Assert_true(rtm->rtm_flags & RTF_HOST);
+            //Assert_true(rtm->rtm_flags & RTF_HOST);
             prefix = (ipv6) ? 128 : 32;
         } else {
             prefix = prefixFromWeirdBSDMask(mask, ipv6);
@@ -238,12 +238,12 @@ static void addIp4Address(const char* interfaceName,
 {
     struct ifaliasreq ifarted;
     Bits_memset(&ifarted, 0, sizeof(struct ifaliasreq));
-    CString_strncpy(ifarted.ifra_name, interfaceName, IFNAMSIZ);
+    CString_safeStrncpy(ifarted.ifra_name, interfaceName, IFNAMSIZ);
 
     struct sockaddr_in sin = { .sin_family = AF_INET, .sin_len = sizeof(struct sockaddr_in) };
     Bits_memcpy(&sin.sin_addr.s_addr, address, 4);
     Bits_memcpy(&ifarted.ifra_addr, &sin, sizeof(struct sockaddr_in));
-    sin.sin_addr.s_addr = Endian_hostToBigEndian32(~0 << (32 - prefixLen));
+    sin.sin_addr.s_addr = Endian_hostToBigEndian32(~0u << (32 - prefixLen));
     Bits_memcpy(&ifarted.ifra_mask, &sin, sizeof(struct sockaddr_in));
 
     int s = socket(AF_INET, SOCK_DGRAM, 0);
@@ -253,7 +253,7 @@ static void addIp4Address(const char* interfaceName,
 
     // will probably fail, ignore result.
     struct ifreq ifr = { .ifr_flags = 0 };
-    CString_strncpy(ifr.ifr_name, interfaceName, IFNAMSIZ);
+    CString_safeStrncpy(ifr.ifr_name, interfaceName, IFNAMSIZ);
     ioctl(s, SIOCDIFADDR, &ifr);
 
     if (ioctl(s, SIOCSIFADDR, &ifarted) < 0) {
@@ -311,7 +311,7 @@ static void addIp6Address(const char* interfaceName,
         ((uint8_t*)&mask->sin6_addr)[prefixLen>>3] = 0xff << (8 - (prefixLen%8));
     }
 
-    strncpy(in6_addreq.ifra_name, interfaceName, sizeof(in6_addreq.ifra_name));
+    CString_safeStrncpy(in6_addreq.ifra_name, interfaceName, sizeof(in6_addreq.ifra_name));
 
     /* do the actual assignment ioctl */
     int s = socket(AF_INET6, SOCK_DGRAM, 0);
@@ -322,7 +322,7 @@ static void addIp6Address(const char* interfaceName,
     if (ioctl(s, SIOCAIFADDR_IN6, &in6_addreq) < 0) {
         int err = errno;
         close(s);
-        Except_throw(eh, "ioctl(SIOCAIFADDR) [%s]", strerror(err));
+        Except_throw(eh, "ioctl(SIOCAIFADDR) [%s] for [%s]", strerror(err), interfaceName);
     }
 
     Log_info(logger, "Configured IPv6 [%s/%i] for [%s]", myIp, prefixLen, interfaceName);
@@ -360,7 +360,7 @@ void NetPlatform_setMTU(const char* interfaceName,
 
     struct ifreq ifRequest;
 
-    strncpy(ifRequest.ifr_name, interfaceName, IFNAMSIZ);
+    CString_safeStrncpy(ifRequest.ifr_name, interfaceName, IFNAMSIZ);
     ifRequest.ifr_mtu = mtu;
 
     Log_info(logger, "Setting MTU for device [%s] to [%u] bytes.", interfaceName, mtu);
@@ -370,6 +370,7 @@ void NetPlatform_setMTU(const char* interfaceName,
        close(s);
        Except_throw(eh, "ioctl(SIOCSIFMTU) [%s]", strerror(err));
     }
+    close(s);
 }
 
 void NetPlatform_setRoutes(const char* ifName,

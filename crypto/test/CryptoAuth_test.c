@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "crypto/random/Random.h"
 #include "crypto/CryptoAuth.h"
@@ -236,7 +236,7 @@ static void hellosCrossedOnTheWire()
     struct Message* hello1 = encryptMsg(ctx, ctx->sess1, "hello1");
 
     decryptMsg(ctx, hello2, ctx->sess1, "hello2");
-    decryptMsg(ctx, hello1, ctx->sess2, NULL); //"hello1"); // The message is suppressed.
+    decryptMsg(ctx, hello1, ctx->sess2, "hello1");
 
     sendToIf2(ctx, "hello world");
     sendToIf1(ctx, "hello cjdns");
@@ -254,8 +254,8 @@ static void reset()
     sendToIf2(ctx, "hai");
     sendToIf1(ctx, "brb");
 
-    Assert_true(CryptoAuth_getState(ctx->sess1) == CryptoAuth_ESTABLISHED);
-    Assert_true(CryptoAuth_getState(ctx->sess2) == CryptoAuth_ESTABLISHED);
+    Assert_true(CryptoAuth_getState(ctx->sess1) == CryptoAuth_State_ESTABLISHED);
+    Assert_true(CryptoAuth_getState(ctx->sess2) == CryptoAuth_State_ESTABLISHED);
 
     CryptoAuth_reset(ctx->sess1);
 
@@ -271,8 +271,8 @@ static void reset()
     sendToIf1(ctx, "ok works");
     sendToIf2(ctx, "yup");
 
-    Assert_true(CryptoAuth_getState(ctx->sess1) == CryptoAuth_ESTABLISHED);
-    Assert_true(CryptoAuth_getState(ctx->sess2) == CryptoAuth_ESTABLISHED);
+    Assert_true(CryptoAuth_getState(ctx->sess1) == CryptoAuth_State_ESTABLISHED);
+    Assert_true(CryptoAuth_getState(ctx->sess2) == CryptoAuth_State_ESTABLISHED);
 
     Allocator_free(ctx->alloc);
 }

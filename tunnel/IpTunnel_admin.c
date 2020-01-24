@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "admin/Admin.h"
 #include "benc/String.h"
@@ -55,13 +55,13 @@ static void allowConnection(Dict* args,
 {
     struct Context* context = (struct Context*) vcontext;
     String* publicKeyOfAuthorizedNode =
-        Dict_getString(args, String_CONST("publicKeyOfAuthorizedNode"));
-    String* ip6Address = Dict_getString(args, String_CONST("ip6Address"));
-    int64_t* ip6Prefix = Dict_getInt(args, String_CONST("ip6Prefix"));
-    int64_t* ip6Alloc = Dict_getInt(args, String_CONST("ip6Alloc"));
-    String* ip4Address = Dict_getString(args, String_CONST("ip4Address"));
-    int64_t* ip4Prefix = Dict_getInt(args, String_CONST("ip4Prefix"));
-    int64_t* ip4Alloc = Dict_getInt(args, String_CONST("ip4Alloc"));
+        Dict_getStringC(args, "publicKeyOfAuthorizedNode");
+    String* ip6Address = Dict_getStringC(args, "ip6Address");
+    int64_t* ip6Prefix = Dict_getIntC(args, "ip6Prefix");
+    int64_t* ip6Alloc = Dict_getIntC(args, "ip6Alloc");
+    String* ip4Address = Dict_getStringC(args, "ip4Address");
+    int64_t* ip4Prefix = Dict_getIntC(args, "ip4Prefix");
+    int64_t* ip4Alloc = Dict_getIntC(args, "ip4Alloc");
 
     uint8_t pubKey[32];
     uint8_t ip6Addr[16];
@@ -125,7 +125,7 @@ static void connectTo(Dict* args, void* vcontext, String* txid, struct Allocator
 {
     struct Context* context = vcontext;
     String* publicKeyOfNodeToConnectTo =
-        Dict_getString(args, String_CONST("publicKeyOfNodeToConnectTo"));
+        Dict_getStringC(args, "publicKeyOfNodeToConnectTo");
 
     uint8_t pubKey[32];
     uint8_t ip6[16];
@@ -145,7 +145,7 @@ static void removeConnection(Dict* args,
 {
     struct Context* context = vcontext;
 
-    int conn = (int) *(Dict_getInt(args, String_CONST("connection")));
+    int conn = (int) *(Dict_getIntC(args, "connection"));
     if (IpTunnel_removeConnection_NOT_FOUND == IpTunnel_removeConnection(conn, context->ipTun)) {
         sendError("not_found", txid, context->admin);
         return;
@@ -165,8 +165,8 @@ static void listConnections(Dict* args,
         List_addInt(l, context->ipTun->connectionList.connections[i].number, alloc);
     }
     Dict* resp = Dict_new(alloc);
-    Dict_putList(resp, String_CONST("connections"), l, alloc);
-    Dict_putString(resp, String_CONST("error"), String_CONST("none"), alloc);
+    Dict_putListC(resp, "connections", l, alloc);
+    Dict_putStringCC(resp, "error", "none", alloc);
     Admin_sendMessage(resp, txid, context->admin);
 }
 
@@ -183,9 +183,9 @@ static void showConn(struct IpTunnel_Connection* conn,
         Assert_true(16 == Sockaddr_getAddress(addr, &address));
         Bits_memcpy(address, conn->connectionIp6, 16);
         char* printedAddr = Sockaddr_print(addr, alloc);
-        Dict_putString(d, String_CONST("ip6Address"), String_CONST(printedAddr), alloc);
-        Dict_putInt(d, String_CONST("ip6Prefix"), conn->connectionIp6Prefix, alloc);
-        Dict_putInt(d, String_CONST("ip6Alloc"), conn->connectionIp6Alloc, alloc);
+        Dict_putStringCC(d, "ip6Address", printedAddr, alloc);
+        Dict_putIntC(d, "ip6Prefix", conn->connectionIp6Prefix, alloc);
+        Dict_putIntC(d, "ip6Alloc", conn->connectionIp6Alloc, alloc);
     }
 
     if (!Bits_isZero(conn->connectionIp4, 4)) {
@@ -194,15 +194,15 @@ static void showConn(struct IpTunnel_Connection* conn,
         Assert_true(4 == Sockaddr_getAddress(addr, &address));
         Bits_memcpy(address, conn->connectionIp4, 4);
         char* printedAddr = Sockaddr_print(addr, alloc);
-        Dict_putString(d, String_CONST("ip4Address"), String_CONST(printedAddr), alloc);
-        Dict_putInt(d, String_CONST("ip4Prefix"), conn->connectionIp4Prefix, alloc);
-        Dict_putInt(d, String_CONST("ip4Alloc"), conn->connectionIp4Alloc, alloc);
+        Dict_putStringCC(d, "ip4Address", printedAddr, alloc);
+        Dict_putIntC(d, "ip4Prefix", conn->connectionIp4Prefix, alloc);
+        Dict_putIntC(d, "ip4Alloc", conn->connectionIp4Alloc, alloc);
     }
 
-    Dict_putString(d, String_CONST("key"),
+    Dict_putStringC(d, "key",
                       Key_stringify(conn->routeHeader.publicKey, alloc), alloc);
-    Dict_putInt(d, String_CONST("outgoing"), (conn->isOutgoing) ? 1 : 0, alloc);
-    Dict_putString(d, String_CONST("error"), String_CONST("none"), alloc);
+    Dict_putIntC(d, "outgoing", (conn->isOutgoing) ? 1 : 0, alloc);
+    Dict_putStringCC(d, "error", "none", alloc);
 
     Admin_sendMessage(d, txid, admin);
 }
@@ -210,7 +210,7 @@ static void showConn(struct IpTunnel_Connection* conn,
 static void showConnection(Dict* args, void* vcontext, String* txid, struct Allocator* alloc)
 {
     struct Context* context = vcontext;
-    int connNum = (int) *(Dict_getInt(args, String_CONST("connection")));
+    int connNum = (int) *(Dict_getIntC(args, "connection"));
 
     for (int i = 0; i < (int)context->ipTun->connectionList.count; i++) {
         if (connNum == context->ipTun->connectionList.connections[i].number) {

@@ -10,23 +10,26 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+#include "dht/Address.h"
 #include "net/ControlHandler.h"
 #include "util/Identity.h"
 #include "util/AddrTools.h"
 #include "util/Checksum.h"
 #include "wire/Control.h"
 #include "wire/Error.h"
+#define NumberCompress_OLD_CODE
+#include "switch/NumberCompress.h"
 
 struct ControlHandler_pvt
 {
     struct ControlHandler pub;
     struct Log* log;
     struct Allocator* alloc;
-    struct Router* router;
     uint8_t myPublicKey[32];
     struct Iface eventIf;
+    struct Address activeSnode;
     Identity
 };
 
@@ -37,13 +40,15 @@ struct ControlHandler_pvt
 static Iface_DEFUN handleError(struct Message* msg,
                                struct ControlHandler_pvt* ch,
                                uint64_t label,
-                               uint8_t* labelStr)
+                               uint8_t* labelStr,
+                               struct RouteHeader* rh)
 {
     if (msg->length < handleError_MIN_SIZE) {
         Log_info(ch->log, "DROP runt error packet from [%s]", labelStr);
         return NULL;
     }
-    Message_shift(msg, SwitchHeader_SIZE + 4, NULL);
+    msg->length = handleError_MIN_SIZE;
+    Message_push(msg, &rh->sh, SwitchHeader_SIZE, NULL);
     Message_push32(msg, 0xffffffff, NULL);
     Message_push32(msg, PFChan_Core_SWITCH_ERR, NULL);
     return Iface_next(&ch->eventIf, msg);
@@ -97,7 +102,8 @@ static Iface_DEFUN handlePing(struct Message* msg,
         Bits_memcpy(keyPing->key, ch->myPublicKey, 32);
 
     } else if (messageType_be == Control_PING_be) {
-        Log_debug(ch->log, "got switch ping from [%s]", labelStr);
+        // Happens in benchmark.
+        //Log_debug(ch->log, "got switch ping from [%s]", labelStr);
         if (ping->magic != Control_Ping_MAGIC) {
             Log_debug(ch->log, "DROP ping (bad magic)");
             return NULL;
@@ -116,15 +122,72 @@ static Iface_DEFUN handlePing(struct Message* msg,
     ctrl->header.checksum_be = 0;
     ctrl->header.checksum_be = Checksum_engine(msg->bytes, msg->length);
 
-    Message_push32(msg, 0xffffffff, NULL);
+    Message_shift(msg, RouteHeader_SIZE, NULL);
 
-    Message_shift(msg, SwitchHeader_SIZE, NULL);
+    struct RouteHeader* routeHeader = (struct RouteHeader*) msg->bytes;
+    Bits_memset(routeHeader, 0, RouteHeader_SIZE);
+    SwitchHeader_setVersion(&routeHeader->sh, SwitchHeader_CURRENT_VERSION);
+    routeHeader->sh.label_be = Endian_hostToBigEndian64(label);
+    routeHeader->flags |= RouteHeader_flags_CTRLMSG;
 
-    struct SwitchHeader* switchHeader = (struct SwitchHeader*) msg->bytes;
-    Bits_memset(switchHeader, 0, SwitchHeader_SIZE);
-    SwitchHeader_setVersion(switchHeader, SwitchHeader_CURRENT_VERSION);
-    switchHeader->label_be = Endian_hostToBigEndian64(label);
+    return Iface_next(&ch->pub.coreIf, msg);
+}
 
+/**
+ * Expects [ SwitchHeader ][ Ctrl ][ SupernodeQuery ][ data etc.... ]
+ */
+#define handleGetSnodeQuery_MIN_SIZE (Control_Header_SIZE + Control_GetSnode_HEADER_SIZE)
+static Iface_DEFUN handleGetSnodeQuery(struct Message* msg,
+                                       struct ControlHandler_pvt* ch,
+                                       uint64_t label,
+                                       uint8_t* labelStr)
+{
+    Log_debug(ch->log, "incoming getSupernode query");
+    if (msg->length < handleGetSnodeQuery_MIN_SIZE) {
+        Log_info(ch->log, "DROP runt getSupernode query");
+        return NULL;
+    }
+
+    struct Control* ctrl = (struct Control*) msg->bytes;
+    struct Control_GetSnode* snq = &ctrl->content.getSnode;
+
+    if (snq->magic != Control_GETSNODE_QUERY_MAGIC) {
+        Log_debug(ch->log, "DROP getSupernode query (bad magic)");
+        return NULL;
+    }
+
+    uint32_t herVersion = Endian_bigEndianToHost32(snq->version_be);
+    if (!Version_isCompatible(Version_CURRENT_PROTOCOL, herVersion)) {
+        Log_debug(ch->log, "DROP getSupernode query from incompatible version [%d]", herVersion);
+        return NULL;
+    }
+
+    ctrl->header.type_be = Control_GETSNODE_REPLY_be;
+    snq->kbps_be = 0xffffffff;
+    snq->version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL);
+    snq->magic = Control_GETSNODE_REPLY_MAGIC;
+    if (ch->activeSnode.path) {
+        uint64_t fixedLabel = NumberCompress_getLabelFor(ch->activeSnode.path, label);
+        uint64_t fixedLabel_be = Endian_hostToBigEndian64(fixedLabel);
+        Bits_memcpy(snq->pathToSnode_be, &fixedLabel_be, 8);
+        Bits_memcpy(&snq->snodeKey, ch->activeSnode.key, 32);
+        snq->snodeVersion_be = Endian_hostToBigEndian32(ch->activeSnode.protocolVersion);
+
+    } else {
+        snq->snodeVersion_be = 0;
+        Bits_memset(snq->pathToSnode_be, 0, 8);
+        Bits_memcpy(&snq->snodeKey, ch->activeSnode.key, 32);
+    }
+
+    ctrl->header.checksum_be = 0;
+    ctrl->header.checksum_be = Checksum_engine(msg->bytes, msg->length);
+
+    Message_shift(msg, RouteHeader_SIZE, NULL);
+    struct RouteHeader* routeHeader = (struct RouteHeader*) msg->bytes;
+    Bits_memset(routeHeader, 0, RouteHeader_SIZE);
+    SwitchHeader_setVersion(&routeHeader->sh, SwitchHeader_CURRENT_VERSION);
+    routeHeader->sh.label_be = Endian_hostToBigEndian64(label);
+    routeHeader->flags |= RouteHeader_flags_CTRLMSG;
     return Iface_next(&ch->pub.coreIf, msg);
 }
 
@@ -142,19 +205,20 @@ static Iface_DEFUN incomingFromCore(struct Message* msg, struct Iface* coreIf)
 {
     struct ControlHandler_pvt* ch = Identity_check((struct ControlHandler_pvt*) coreIf);
 
-    struct SwitchHeader switchHeader;
-    Message_pop(msg, &switchHeader, SwitchHeader_SIZE, NULL);
+    struct RouteHeader routeHdr;
+    Message_pop(msg, &routeHdr, RouteHeader_SIZE, NULL);
     uint8_t labelStr[20];
-    uint64_t label = Endian_bigEndianToHost64(switchHeader.label_be);
+    uint64_t label = Endian_bigEndianToHost64(routeHdr.sh.label_be);
     AddrTools_printPath(labelStr, label);
-    Log_debug(ch->log, "ctrl packet from [%s]", labelStr);
+    // happens in benchmark
+    // Log_debug(ch->log, "ctrl packet from [%s]", labelStr);
 
     if (msg->length < 4 + Control_Header_SIZE) {
         Log_info(ch->log, "DROP runt ctrl packet from [%s]", labelStr);
         return NULL;
     }
 
-    Assert_true(Message_pop32(msg, NULL) == 0xffffffff);
+    Assert_true(routeHdr.flags & RouteHeader_flags_CTRLMSG);
 
     if (Checksum_engine(msg->bytes, msg->length)) {
         Log_info(ch->log, "DROP ctrl packet from [%s] with invalid checksum", labelStr);
@@ -164,7 +228,7 @@ static Iface_DEFUN incomingFromCore(struct Message* msg, struct Iface* coreIf)
     struct Control* ctrl = (struct Control*) msg->bytes;
 
     if (ctrl->header.type_be == Control_ERROR_be) {
-        return handleError(msg, ch, label, labelStr);
+        return handleError(msg, ch, label, labelStr, &routeHdr);
 
     } else if (ctrl->header.type_be == Control_KEYPING_be
             || ctrl->header.type_be == Control_PING_be)
@@ -175,9 +239,18 @@ static Iface_DEFUN incomingFromCore(struct Message* msg, struct Iface* coreIf)
             || ctrl->header.type_be == Control_PONG_be)
     {
         Log_debug(ch->log, "got switch pong from [%s]", labelStr);
-        // Shift back over the header
-        Message_shift(msg, 4 + SwitchHeader_SIZE, NULL);
+        Message_push(msg, &routeHdr, RouteHeader_SIZE, NULL);
         return Iface_next(&ch->pub.switchPingerIf, msg);
+
+    } else if (ctrl->header.type_be == Control_GETSNODE_QUERY_be) {
+        return handleGetSnodeQuery(msg, ch, label, labelStr);
+
+    } else if (ctrl->header.type_be == Control_GETSNODE_REPLY_be) {
+        Log_debug(ch->log, "got GETSNODE_REPLY from [%s]", labelStr);
+        Message_push(msg, &routeHdr, RouteHeader_SIZE, NULL);
+        Message_push32(msg, 0xffffffff, NULL);
+        Message_push32(msg, PFChan_Core_CTRL_MSG, NULL);
+        return Iface_next(&ch->eventIf, msg);
     }
 
     Log_info(ch->log, "DROP control packet of unknown type from [%s], type [%d]",
@@ -194,6 +267,25 @@ static Iface_DEFUN incomingFromSwitchPinger(struct Message* msg, struct Iface* s
     return Iface_next(&ch->pub.coreIf, msg);
 }
 
+static Iface_DEFUN changeSnode(struct Message* msg, struct Iface* eventIf)
+{
+    struct ControlHandler_pvt* ch =
+        Identity_containerOf(eventIf, struct ControlHandler_pvt, eventIf);
+    enum PFChan_Pathfinder ev = Message_pop32(msg, NULL);
+    Assert_true(ev == PFChan_Pathfinder_SNODE);
+    Message_pop32(msg, NULL);
+
+    struct PFChan_Node node;
+    Message_pop(msg, &node, PFChan_Node_SIZE, NULL);
+    Assert_true(!msg->length);
+
+    Bits_memcpy(ch->activeSnode.key, node.publicKey, 32);
+    ch->activeSnode.path = Endian_bigEndianToHost64(node.path_be);
+    ch->activeSnode.protocolVersion = Endian_bigEndianToHost32(node.version_be);
+
+    return NULL;
+}
+
 struct ControlHandler* ControlHandler_new(struct Allocator* allocator,
                                           struct Log* logger,
                                           struct EventEmitter* ee,
@@ -206,7 +298,8 @@ struct ControlHandler* ControlHandler_new(struct Allocator* allocator,
     Bits_memcpy(ch->myPublicKey, myPublicKey, 32);
     ch->pub.coreIf.send = incomingFromCore;
     ch->pub.switchPingerIf.send = incomingFromSwitchPinger;
-    EventEmitter_regCore(ee, &ch->eventIf, 0);
+    ch->eventIf.send = changeSnode;
+    EventEmitter_regCore(ee, &ch->eventIf, PFChan_Pathfinder_SNODE);
     Identity_set(ch);
     return &ch->pub;
 }

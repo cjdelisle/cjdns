@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 var Os = require('os');
 var Fs = require('fs');
@@ -82,6 +82,9 @@ var sema = Semaphore.create(PROCESSORS);
 var compiler = function (compilerPath, args, callback, content) {
     args = expandArgs(args);
     sema.take(function (returnAfter) {
+        if (process.env.VERBOSE) {
+            console.log(compilerPath + ' ' + args.join(' '));
+        }
         var gcc = Spawn(compilerPath, args);
         var err = '';
         var out = '';
@@ -119,7 +122,7 @@ var compiler = function (compilerPath, args, callback, content) {
 var cc = function (gcc, args, callback, content) {
     compiler(gcc, args, function (ret, out, err) {
         if (ret) {
-            callback(error("gcc " + args.join(' ') + "\n\n" + err));
+            callback(error("gcc " + args.map(String).join(' ') + "\n\n" + err));
         }
 
         if (err !== '') {
@@ -333,6 +336,7 @@ var getFile = function ()
         includes: [],
         links: [],
         cflags: [],
+        ldflags: [],
         oldmtime: 0
     };
 };
@@ -400,6 +404,7 @@ var compileFile = function (fileName, builder, tempDir, callback)
     var outFile = state.buildDir + '/' + getObjectFile(fileName);
     var fileContent;
     var fileObj = getFile();
+    fileObj.name = fileName;
 
     nThen(function (waitFor) {
 
@@ -548,7 +553,7 @@ var removeFile = function (state, fileName, callback)
             }
 
             if (state.files[file].includes.indexOf(fileName) !== -1) {
-                removeFile(state, file, waitFor());
+                setTimeout(waitFor(function () { removeFile(state, file, waitFor()); }));
             }
         });
 
@@ -712,7 +717,11 @@ var compile = function (file, outputFile, builder, callback) {
             linkOrder[i] = state.buildDir + '/' + getObjectFile(linkOrder[i]);
         }
 
-        var ldArgs = [state.ldflags, '-o', outputFile, linkOrder, state.libs];
+        var fileObj = state.files[file] || {};
+        var ldArgs = []
+            .concat(state.ldflags)
+            .concat(fileObj.ldflags || [])
+            .concat(['-o', outputFile, linkOrder, state.libs]);
         debug('\033[1;31mLinking C executable ' + file + '\033[0m');
 
         cc(state.gcc, ldArgs, waitFor(function (err, ret) {
@@ -826,7 +835,8 @@ var probeCompiler = function (state, callback) {
             version: undefined
         };
         compiler(state.gcc, ['-v'], waitFor(function (ret, out, err) {
-            if (ret !== 0) { throw new Error("Failed to probe compiler ret[" + ret + "]\n" + err); }
+            // TODO(cjd): afl-clang-fast errors when called with -v
+            //if (ret !== 0) { throw new Error("Failed to probe compiler ret[" + ret + "]\n" + err); }
             if (/Apple LLVM version /.test(err)) {
                 compilerType.isLLVM = true;
                 if (/clang/.test(err)) {
@@ -916,6 +926,17 @@ var configure = module.exports.configure = function (params, configFunc) {
                 if (err) { throw err; }
 
                 state = JSON.parse(ret);
+                // cflags, ldflags and libs are setup by make.js and should not be restored.
+                state.cflags = [];
+                state.ldflags = [];
+                state.libs = [];
+                state.includeDirs = ['.'];
+
+                Object.keys(state.files).forEach(function (fn) {
+                    var f = state.files[fn];
+                    f.cflags = [];
+                    f.ldflags = [];
+                });
             }));
         }));
 

@@ -9,7 +9,7 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import os
 import json
@@ -86,6 +86,15 @@ def streamRoutingTable(cjdns, delay=10):
 
         sleep(delay)
 
+def parseAddr(addr):
+    tokens = addr.split('.', 5)
+    res = {
+            'version': tokens[0].strip('v'),
+            'switchLabel': '.'.join(tokens[1:5]),
+            'publicKey': tokens[5],
+            }
+    return res
+
 def peerStats(cjdns,up=False,verbose=False,human_readable=False):
     from publicToIp6 import PublicToIp6_convert;
 
@@ -93,9 +102,10 @@ def peerStats(cjdns,up=False,verbose=False,human_readable=False):
 
     i = 0;
     while True:
-        ps = cjdns.InterfaceController_peerStats(i);
+        ps = cjdns.InterfaceController_peerStats(page=i);
         peers = ps['peers']
         for p in peers:
+            p.update(parseAddr(p['addr']))
             if p['state'] == 'UNRESPONSIVE' and up:
                 continue
             allPeers.append(p)
@@ -104,7 +114,7 @@ def peerStats(cjdns,up=False,verbose=False,human_readable=False):
         i += 1
 
     if verbose:
-        STAT_FORMAT = '%s\tv%s\t%s\tin %s\tout %s\t%s\tdup %d los %d oor %d'
+        STAT_FORMAT = '%s\t%s\tv%s\t%s\tin %s\tout %s\t%s\tdup %d los %d oor %d'
 
         for peer in allPeers:
             ip = PublicToIp6_convert(peer['publicKey'])
@@ -115,7 +125,7 @@ def peerStats(cjdns,up=False,verbose=False,human_readable=False):
 				b_in  = sizeof_fmt(b_in)
 				b_out = sizeof_fmt(b_out)
             
-            p = STAT_FORMAT % (ip, peer['version'], peer['switchLabel'],
+            p = STAT_FORMAT % (peer['lladdr'], ip, peer['version'], peer['switchLabel'],
                                str(b_in), str(b_out), peer['state'],
                                peer['duplicates'], peer['lostPackets'],
                                peer['receivedOutOfRange'])

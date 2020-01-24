@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "interface/tuntap/TUNInterface.h"
 #include "exception/Except.h"
@@ -56,7 +56,8 @@ struct Iface* TUNInterface_new(const char* interfaceName,
         snprintf(file, TUNInterface_IFNAMSIZ, "/dev/%s", interfaceName);
         tunFd = open(file, O_RDWR);
     } else {
-        for (ppa = 0;tunFd == -1 && ppa < 99;ppa++) {
+        for (int i = 0; tunFd == -1 && i < 99; i++) {
+            ppa = i;
             snprintf(file, TUNInterface_IFNAMSIZ, "/dev/tun%d", ppa);
             tunFd = open(file, O_RDWR);
         }

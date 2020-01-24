@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "memory/MallocAllocator.h"
 #include "util/AverageRoller.h"
@@ -68,5 +68,7 @@ int main()
             ret = 1;
         }
     }
+
+    Allocator_free(allocator);
     return ret;
 }

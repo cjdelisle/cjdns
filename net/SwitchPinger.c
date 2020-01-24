@@ -10,9 +10,10 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "benc/String.h"
+#include "crypto/AddressCalc.h"
 #include "net/SwitchPinger.h"
 #include "dht/Address.h"
 #include "util/Bits.h"
@@ -21,7 +22,7 @@
 #include "util/Pinger.h"
 #include "util/version/Version.h"
 #include "util/Identity.h"
-#include "wire/SwitchHeader.h"
+#include "wire/RouteHeader.h"
 #include "wire/Control.h"
 #include "wire/Error.h"
 
@@ -50,6 +51,8 @@ struct SwitchPinger_pvt
     uint32_t incomingVersion;
 
     uint8_t incomingKey[32];
+    struct Address incomingSnodeAddr;
+    uint32_t incomingSnodeKbps;
 
     /** The error code if an error has been returned (see Error.h) */
     int error;
@@ -79,20 +82,10 @@ struct Ping
 static Iface_DEFUN messageFromControlHandler(struct Message* msg, struct Iface* iface)
 {
     struct SwitchPinger_pvt* ctx = Identity_check((struct SwitchPinger_pvt*) iface);
-    struct SwitchHeader* switchHeader = (struct SwitchHeader*) msg->bytes;
-    ctx->incomingLabel = Endian_bigEndianToHost64(switchHeader->label_be);
+    struct RouteHeader rh;
+    Message_pop(msg, &rh, RouteHeader_SIZE, NULL);
+    ctx->incomingLabel = Endian_bigEndianToHost64(rh.sh.label_be);
     ctx->incomingVersion = 0;
-    Message_shift(msg, -SwitchHeader_SIZE, NULL);
-
-    uint32_t handle = Message_pop32(msg, NULL);
-    #ifdef Version_7_COMPAT
-    if (handle != 0xffffffff) {
-        Message_push32(msg, handle, NULL);
-        handle = 0xffffffff;
-        Assert_true(SwitchHeader_isV7Ctrl(switchHeader));
-    }
-    #endif
-    Assert_true(handle == 0xffffffff);
 
     struct Control* ctrl = (struct Control*) msg->bytes;
     if (ctrl->header.type_be == Control_PONG_be) {
@@ -130,6 +123,31 @@ static Iface_DEFUN messageFromControlHandler(struct Message* msg, struct Iface* 
             Log_debug(ctx->logger, "got runt key-pong message, length: [%d]", msg->length);
             return NULL;
         }
+
+    } else if (ctrl->header.type_be == Control_GETSNODE_REPLY_be) {
+        Message_shift(msg, -Control_Header_SIZE, NULL);
+        ctx->error = Error_NONE;
+        if (msg->length < Control_GetSnode_HEADER_SIZE) {
+            Log_debug(ctx->logger, "got runt GetSnode message, length: [%d]", msg->length);
+            return NULL;
+        }
+        struct Control_GetSnode* hdr = (struct Control_GetSnode*) msg->bytes;
+        if (hdr->magic != Control_GETSNODE_REPLY_MAGIC) {
+            Log_debug(ctx->logger, "dropped invalid GetSnode");
+            return NULL;
+        }
+        if (!AddressCalc_addressForPublicKey(ctx->incomingSnodeAddr.ip6.bytes, hdr->snodeKey)) {
+            Log_debug(ctx->logger, "dropped invalid GetSnode key");
+            return NULL;
+        }
+        ctx->incomingVersion = Endian_hostToBigEndian32(hdr->version_be);
+        Bits_memcpy(ctx->incomingSnodeAddr.key, hdr->snodeKey, 32);
+        uint64_t pathToSnode_be;
+        Bits_memcpy(&pathToSnode_be, hdr->pathToSnode_be, 8);
+        ctx->incomingSnodeAddr.path = Endian_bigEndianToHost64(pathToSnode_be);
+        ctx->incomingSnodeAddr.protocolVersion = Endian_bigEndianToHost32(hdr->snodeVersion_be);
+        ctx->incomingSnodeKbps = Endian_bigEndianToHost32(hdr->kbps_be);
+        Message_shift(msg, -Control_GetSnode_HEADER_SIZE, NULL);
 
     } else if (ctrl->header.type_be == Control_ERROR_be) {
         Message_shift(msg, -Control_Header_SIZE, NULL);
@@ -203,6 +221,8 @@ static void onPingResponse(String* data, uint32_t milliseconds, void* vping)
     resp->milliseconds = milliseconds;
     resp->version = version;
     Bits_memcpy(resp->key, p->context->incomingKey, 32);
+    Bits_memcpy(&resp->snode, &p->context->incomingSnodeAddr, sizeof(struct Address));
+    resp->kbpsLimit = p->context->incomingSnodeKbps;
     resp->ping = &p->pub;
     p->onResponse(resp, p->pub.onResponseContext);
 }
@@ -221,45 +241,52 @@ static void sendPing(String* data, void* sendPingContext)
     Message_push(msg, data->bytes, data->len, NULL);
     Assert_true(!((uintptr_t)msg->bytes % 4) && "alignment fault");
 
-    if (p->pub.keyPing) {
-        Message_shift(msg, Control_KeyPing_HEADER_SIZE, NULL);
+    if (p->pub.type == SwitchPinger_Type_KEYPING) {
+        Message_push(msg, NULL, Control_KeyPing_HEADER_SIZE, NULL);
         struct Control_KeyPing* keyPingHeader = (struct Control_KeyPing*) msg->bytes;
         keyPingHeader->magic = Control_KeyPing_MAGIC;
         keyPingHeader->version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL);
         Bits_memcpy(keyPingHeader->key, p->context->myAddr->key, 32);
-    } else {
-        Message_shift(msg, Control_Ping_HEADER_SIZE, NULL);
+    } else if (p->pub.type == SwitchPinger_Type_PING) {
+        Message_push(msg, NULL, Control_Ping_HEADER_SIZE, NULL);
         struct Control_Ping* pingHeader = (struct Control_Ping*) msg->bytes;
         pingHeader->magic = Control_Ping_MAGIC;
         pingHeader->version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL);
+    } else if (p->pub.type == SwitchPinger_Type_GETSNODE) {
+        Message_push(msg, NULL, Control_GetSnode_HEADER_SIZE, NULL);
+        struct Control_GetSnode* hdr = (struct Control_GetSnode*) msg->bytes;
+        hdr->magic = Control_GETSNODE_QUERY_MAGIC;
+        hdr->version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL);
+        hdr->kbps_be = Endian_hostToBigEndian32(p->pub.kbpsLimit);
+        Bits_memcpy(hdr->snodeKey, p->pub.snode.key, 32);
+        uint64_t pathToSnode_be = Endian_hostToBigEndian64(p->pub.snode.path);
+        Bits_memcpy(hdr->pathToSnode_be, &pathToSnode_be, 8);
+        hdr->snodeVersion_be = Endian_hostToBigEndian32(p->pub.snode.protocolVersion);
+    } else {
+        Assert_failure("unexpected ping type");
     }
 
     Message_shift(msg, Control_Header_SIZE, NULL);
     struct Control* ctrl = (struct Control*) msg->bytes;
     ctrl->header.checksum_be = 0;
-    ctrl->header.type_be = (p->pub.keyPing) ? Control_KEYPING_be : Control_PING_be;
+    if (p->pub.type == SwitchPinger_Type_PING) {
+        ctrl->header.type_be = Control_PING_be;
+    } else if (p->pub.type == SwitchPinger_Type_KEYPING) {
+        ctrl->header.type_be = Control_KEYPING_be;
+    } else if (p->pub.type == SwitchPinger_Type_GETSNODE) {
+        ctrl->header.type_be = Control_GETSNODE_QUERY_be;
+    } else {
+        Assert_failure("unexpected type");
+    }
     ctrl->header.checksum_be = Checksum_engine(msg->bytes, msg->length);
 
-    #ifdef Version_7_COMPAT
-        if (0) {
-    #endif
-    Message_push32(msg, 0xffffffff, NULL);
-    #ifdef Version_7_COMPAT
-        }
-    #endif
+    struct RouteHeader rh;
+    Bits_memset(&rh, 0, RouteHeader_SIZE);
+    rh.flags |= RouteHeader_flags_CTRLMSG;
+    rh.sh.label_be = Endian_hostToBigEndian64(p->label);
+    SwitchHeader_setVersion(&rh.sh, SwitchHeader_CURRENT_VERSION);
 
-    Message_shift(msg, SwitchHeader_SIZE, NULL);
-    struct SwitchHeader* switchHeader = (struct SwitchHeader*) msg->bytes;
-    Bits_memset(switchHeader, 0, SwitchHeader_SIZE);
-    switchHeader->label_be = Endian_hostToBigEndian64(p->label);
-    SwitchHeader_setVersion(switchHeader, SwitchHeader_CURRENT_VERSION);
-
-    #ifdef Version_7_COMPAT
-        // v7 detects ctrl packets by the bit which has been
-        // re-appropriated for suppression of errors.
-        switchHeader->congestAndSuppressErrors = 1;
-        SwitchHeader_setVersion(switchHeader, 0);
-    #endif
+    Message_push(msg, &rh, RouteHeader_SIZE, NULL);
 
     Iface_send(&p->context->pub.controlHandlerIf, msg);
 }

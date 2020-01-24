@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "crypto/random/Random.h"
 #include "io/Reader.h"
@@ -26,7 +26,7 @@
 
 int main()
 {
-    struct Allocator* alloc = MallocAllocator_new(1024);
+    struct Allocator* alloc = MallocAllocator_new(2048);
     struct Random* rand = Random_new(alloc, NULL, NULL);
 
     FILE* tmp = tmpfile();

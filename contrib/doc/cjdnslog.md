@@ -10,7 +10,7 @@ cjdnslog(1) -- display cjdroute log messages
 Cjdroute has numerous log points.  Cjdnslog enables and taps selected log
 points and sends the resulting log messages to stdout.
 
-##OPTIONS
+## OPTIONS
 
 With no options, cjdnslog logs everything.
 
@@ -28,13 +28,13 @@ With no options, cjdnslog logs everything.
     Restrict output to message generated on source line lineno.  Normally
     used in conjunction with `-f`.
 
-##USAGE
+## USAGE
 
 Running cjdnslog requires admin privilege.  The cjdnsadmin lib will 
 try to read `/etc/cjdroute.conf` for the admin password.  This will 
 normally succeed only for root.  Otherwise, it tries `~/.cjdnsadmin`
 
-##FILES
+## FILES
 
 `~/.cjdnsadmin`
 

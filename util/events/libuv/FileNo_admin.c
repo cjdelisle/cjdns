@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "admin/Admin.h"
 #include "benc/Dict.h"
@@ -49,17 +49,17 @@ static void onResponse(struct FileNo_Promise* promise, int tunfd)
     struct FileNoRequest* fr= Identity_check((struct FileNoRequest*)promise->userData);
     Dict* resp = Dict_new(promise->alloc);
 
-    Dict_putInt(resp, String_CONST("tunfd"), tunfd, promise->alloc);
-    Dict_putInt(resp, String_CONST("type"), fr->type, promise->alloc);
-    Dict_putString(resp, String_CONST("error"), String_CONST("none"), promise->alloc);
+    Dict_putIntC(resp, "tunfd", tunfd, promise->alloc);
+    Dict_putIntC(resp, "type", fr->type, promise->alloc);
+    Dict_putStringCC(resp, "error", "none", promise->alloc);
     Admin_sendMessage(resp, fr->txid, fr->ctx->admin);
 }
 
 static void import(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* ctx = Identity_check((struct Context*) vcontext);
-    String* path = Dict_getString(args, String_CONST("path"));
-    String* type = Dict_getString(args, String_CONST("type"));
+    String* path = Dict_getStringC(args, "path");
+    String* type = Dict_getStringC(args, "type");
     char* err = NULL;
 
     if (Defined(win32)) {

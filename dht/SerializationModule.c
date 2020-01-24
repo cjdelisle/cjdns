@@ -10,12 +10,14 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "benc/Object.h"
+#include "benc/String.h"
 #include "dht/DHTMessage.h"
 #include "dht/DHTModule.h"
 #include "dht/DHTModuleRegistry.h"
+#include "dht/SerializationModule.h"
 #include "memory/Allocator.h"
 #include "benc/serialization/standard/BencMessageReader.h"
 #include "benc/serialization/standard/BencMessageWriter.h"
@@ -72,6 +74,16 @@ static int handleOutgoing(struct DHTMessage* message,
     Assert_true(!message->binMessage->length);
     Assert_true(!((uintptr_t)message->binMessage->bytes % 4) || !"alignment fault0");
 
+    String* q = Dict_getStringC(message->asDict, "q");
+    if (q) {
+        String* txid = Dict_getStringC(message->asDict, "txid");
+        Assert_true(txid);
+        String* newTxid = String_newBinary(NULL, txid->len + 1, message->allocator);
+        newTxid->bytes[0] = '0';
+        Bits_memcpy(&newTxid->bytes[1], txid->bytes, txid->len);
+        Dict_putStringC(message->asDict, "txid", newTxid, message->allocator);
+    }
+
     BencMessageWriter_write(message->asDict, message->binMessage, NULL);
 
     Assert_true(!((uintptr_t)message->binMessage->bytes % 4) || !"alignment fault");
@@ -98,5 +110,26 @@ static int handleIncoming(struct DHTMessage* message,
         Log_info(context->logger, "Message contains [%d] bytes of crap at the end",
                  (int)message->binMessage->length);
     }
+
+    String* q = Dict_getStringC(message->asDict, "q");
+    String* txid = Dict_getStringC(message->asDict, "txid");
+    if (!txid) {
+        Log_info(context->logger, "query with no txid");
+        return -2;
+    }
+    if (q) {
+        if (txid->bytes[0] == '1') {
+            Log_debug(context->logger, "query txid which appears to be meant for subnode");
+            return -2;
+        }
+    } else {
+        if (txid->bytes[0] != '0') {
+            Log_debug(context->logger, "reply txid which is not from old pathfinder");
+            return -2;
+        }
+        String* newTxid = String_newBinary(&txid->bytes[1], txid->len - 1, message->allocator);
+        Dict_putStringC(message->asDict, "txid", newTxid, message->allocator);
+    }
+
     return 0;
 }

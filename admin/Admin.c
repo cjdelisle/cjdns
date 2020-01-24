@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "admin/Admin.h"
 #include "benc/String.h"
@@ -30,6 +30,7 @@
 #include "util/Defined.h"
 
 #include <crypto_hash_sha256.h>
+#include <crypto_verify_32.h>
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -213,14 +214,14 @@ int Admin_sendMessage(Dict* message, String* txid, struct Admin* adminPub)
 
 static inline bool authValid(Dict* message, struct Message* messageBytes, struct Admin_pvt* admin)
 {
-    String* cookieStr = Dict_getString(message, String_CONST("cookie"));
+    String* cookieStr = Dict_getStringC(message, "cookie");
     uint32_t cookie = (cookieStr != NULL) ? strtoll(cookieStr->bytes, NULL, 10) : 0;
     if (!cookie) {
-        int64_t* cookieInt = Dict_getInt(message, String_CONST("cookie"));
+        int64_t* cookieInt = Dict_getIntC(message, "cookie");
         cookie = (cookieInt) ? *cookieInt : 0;
     }
     uint64_t nowSecs = Time_currentTimeSeconds(admin->eventBase);
-    String* submittedHash = Dict_getString(message, String_CONST("hash"));
+    String* submittedHash = Dict_getStringC(message, "hash");
     if (cookie >  nowSecs || cookie < nowSecs - 20 || !submittedHash || submittedHash->len != 64) {
         return false;
     }
@@ -239,7 +240,9 @@ static inline bool authValid(Dict* message, struct Message* messageBytes, struct
 
     crypto_hash_sha256(hash, messageBytes->bytes, messageBytes->length);
     Hex_encode(hashPtr, 64, hash, 32);
-    return Bits_memcmp(hashPtr, submittedHash->bytes, 64) == 0;
+    int res = crypto_verify_32(hashPtr, submittedHash->bytes);
+    res |= crypto_verify_32(hashPtr + 32, submittedHash->bytes + 32);
+    return res == 0;
 }
 
 static bool checkArgs(Dict* args,
@@ -255,10 +258,10 @@ static bool checkArgs(Dict* args,
         Assert_ifParanoid(entry->val->type == Object_DICT);
         Dict* value = entry->val->as.dictionary;
         entry = entry->next;
-        if (*Dict_getInt(value, String_CONST("required")) == 0) {
+        if (*Dict_getIntC(value, "required") == 0) {
             continue;
         }
-        String* type = Dict_getString(value, String_CONST("type"));
+        String* type = Dict_getStringC(value, "type");
         if ((type == STRING && !Dict_getString(args, key))
             || (type == DICT && !Dict_getDict(args, key))
             || (type == INTEGER && !Dict_getInt(args, key))
@@ -290,7 +293,7 @@ static void asyncEnabled(Dict* args, void* vAdmin, String* txid, struct Allocato
 static void availableFunctions(Dict* args, void* vAdmin, String* txid, struct Allocator* tempAlloc)
 {
     struct Admin_pvt* admin = Identity_check((struct Admin_pvt*) vAdmin);
-    int64_t* page = Dict_getInt(args, String_CONST("page"));
+    int64_t* page = Dict_getIntC(args, "page");
     uint32_t i = (page) ? *page * ENTRIES_PER_PAGE : 0;
 
     Dict* d = Dict_new(tempAlloc);
@@ -299,11 +302,10 @@ static void availableFunctions(Dict* args, void* vAdmin, String* txid, struct Al
     for (; i < (uint32_t)admin->functionCount && count++ < ENTRIES_PER_PAGE; i++) {
         Dict_putDict(functions, admin->functions[i].name, admin->functions[i].args, tempAlloc);
     }
-    String* more = String_CONST("more");
     if (count >= ENTRIES_PER_PAGE) {
-        Dict_putInt(d, more, 1, tempAlloc);
+        Dict_putIntC(d, "more", 1, tempAlloc);
     }
-    Dict_putDict(d, String_CONST("availableFunctions"), functions, tempAlloc);
+    Dict_putDictC(d, "availableFunctions", functions, tempAlloc);
 
     Admin_sendMessage(d, txid, &admin->pub);
 }
@@ -314,7 +316,7 @@ static void handleRequest(Dict* messageDict,
                           struct Allocator* allocator,
                           struct Admin_pvt* admin)
 {
-    String* query = Dict_getString(messageDict, String_CONST("q"));
+    String* query = Dict_getStringC(messageDict, "q");
     if (!query) {
         Log_info(admin->logger, "Got a non-query from admin interface");
         return;
@@ -348,11 +350,11 @@ static void handleRequest(Dict* messageDict,
     if (String_equals(query, auth)) {
         if (!authValid(messageDict, message, admin)) {
             Dict* d = Dict_new(allocator);
-            Dict_putString(d, String_CONST("error"), String_CONST("Auth failed."), allocator);
+            Dict_putStringCC(d, "error", "Auth failed.", allocator);
             Admin_sendMessage(d, txid, &admin->pub);
             return;
         }
-        query = Dict_getString(messageDict, String_CONST("aq"));
+        query = Dict_getStringC(messageDict, "aq");
         authed = true;
     }
 
@@ -374,7 +376,7 @@ static void handleRequest(Dict* messageDict,
         admin->asyncEnabled = 0;
     }
 
-    Dict* args = Dict_getDict(messageDict, String_CONST("args"));
+    Dict* args = Dict_getDictC(messageDict, "args");
     bool noFunctionsCalled = true;
     for (int i = 0; i < admin->functionCount; i++) {
         if (String_equals(query, admin->functions[i].name)

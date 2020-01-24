@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "benc/String.h"
 #include "benc/Dict.h"
@@ -298,7 +298,7 @@ static struct ArrayList_OfPrefix4* invertPrefix4(struct Prefix4* toInvert, struc
     struct ArrayList_OfPrefix4* result = ArrayList_OfPrefix4_new(alloc);
     for (int i = 32 - toInvert->prefix; i < 32; i++) {
         struct Prefix4* pfx = Allocator_calloc(alloc, sizeof(struct Prefix4), 1);
-        pfx->bits = ( toInvert->bits & ((uint32_t)~0 << i) ) ^ (1 << i);
+        pfx->bits = ( toInvert->bits & ((uint32_t)~0 << i) ) ^ ((uint32_t)1 << i);
         pfx->prefix = 32 - i;
         ArrayList_OfPrefix4_add(result, pfx);
     }
@@ -364,7 +364,7 @@ static void mergePrefixSets4(struct ArrayList_OfPrefix4* mergeInto,
 
     struct Prefix4 target;
     Bits_memcpy(&target, highestPrefix, sizeof(struct Prefix4));
-    target.bits ^= (target.prefix) ? (1 << (32 - target.prefix)) : 0;
+    target.bits ^= (target.prefix) ? ((uint32_t)1 << (32 - target.prefix)) : 0;
     for (int i = mergeInto->length - 1; i >= 0; i--) {
         struct Prefix4* result = ArrayList_OfPrefix4_get(mergeInto, i);
         Assert_true(result);

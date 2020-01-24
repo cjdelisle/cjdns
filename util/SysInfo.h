@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #ifndef SysInfo_H
 #define SysInfo_H
@@ -40,7 +40,7 @@ struct SysInfo
 };
 Assert_compileTime(sizeof(struct SysInfo) == 4);
 
-struct SysInfo SysInfo_detect();
+struct SysInfo SysInfo_detect(void);
 
 char* SysInfo_describe(struct SysInfo si, struct Allocator* alloc);
 

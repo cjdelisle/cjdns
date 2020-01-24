@@ -1,0 +1,60 @@
+#!/usr/bin/env php
+<?php
+/**
+ * Ping public peers from github and show broken peers
+ */
+
+// clone or update peers repo
+if (file_exists('peers'))
+	passthru('cd peers; git pull > /dev/null; cd ..');
+else
+	passthru('git clone "https://github.com/hyperboria/peers.git" > /dev/null');
+
+// get peers and ping it
+require_once 'publicKey2ipv6.php';
+$data = json_decode(@file_get_contents(FNAME), true);
+if (!$data) $data = [];
+
+printf("%-15s | %4s | %5s | %4s | %s
+--------------- | ---- | ----- | ---- | -----\n", 'IPv4', 'ping', 'IPv6', 'ping', 'url');
+foreach(get_files('peers') as $fname)
+{
+	$st = file_get_contents($fname);
+	parse($st, $fname);
+}
+
+function get_files($dir)
+{
+	ob_start();
+	passthru("find $dir | grep '\.k'");
+	$st = ob_get_clean();
+	return explode("\n", trim($st));
+}
+
+function parse($st, $fname)
+{
+	global $data;
+	$a = json_decode($st, true);
+	foreach ($a as $k => $a)
+	if (strpos($k, '[') === false)
+	{
+		$st = '';
+
+		$ip = explode(':', $k)[0];
+		$st .= sprintf("%-15s", $ip);
+		exec("ping -c3 -W5 $ip", $out, $res);
+		$st .= sprintf(" | %4s", $res ? 'FAIL' : 'OK');
+
+		$ip = publicKey2ipv6($a['publicKey']); $x = explode(':', $ip);
+		$st .= sprintf(" | %5s", ':'.$x[count($x)-1]);
+		exec("ping -c3 -6 -W5 $ip", $out, $res);
+		$st .= sprintf(" | %4s", $res ? 'FAIL' : 'OK');
+
+		$x = str_replace('peers/', '', $fname);
+		$x = "[$x](https://github.com/hyperboria/peers/blob/master/$x)";
+		$st .=  ' | '.$x;
+		$st .= "\n";
+
+		if (strpos($st, 'FAIL')) echo $st;
+	}
+}

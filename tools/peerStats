@@ -12,7 +12,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 var Cjdns = require('./lib/cjdnsadmin/cjdnsadmin');
 var PublicToIp6 = require('./lib/publicToIp6');
@@ -23,7 +23,7 @@ Cjdns.connectAsAnon(function (cjdns) {
         cjdns.InterfaceController_peerStats(i, function (err, ret) {
             if (err) { throw err; }
             ret.peers.forEach(function (peer) {
-                p = peer['addr'] + ' ' + peer['state'] +
+                p = peer['lladdr'] + ' ' + peer['addr'] + ' ' + peer['state'] +
                     ' in ' + peer['recvKbps'] + 'kb/s' +
                     ' out ' + peer['sendKbps'] + 'kb/s';
 

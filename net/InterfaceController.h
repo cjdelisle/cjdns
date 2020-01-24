@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #ifndef InterfaceController_H
 #define InterfaceController_H
@@ -37,16 +37,18 @@ enum InterfaceController_PeerState
      * In state >= NEW, a valid packet has been received but it could still be a replay.
      * Or it's an outgoing connection so we don't care about authentication.
      */
-    InterfaceController_PeerState_NEW = CryptoAuth_NEW,
+    InterfaceController_PeerState_INIT = CryptoAuth_State_INIT,
 
-    InterfaceController_PeerState_HANDSHAKE1 = CryptoAuth_HANDSHAKE1,
+    InterfaceController_PeerState_SENT_HELLO = CryptoAuth_State_SENT_HELLO,
 
-    InterfaceController_PeerState_HANDSHAKE2 = CryptoAuth_HANDSHAKE2,
+    InterfaceController_PeerState_RECEIVED_HELLO = CryptoAuth_State_RECEIVED_HELLO,
 
-    InterfaceController_PeerState_HANDSHAKE3 = CryptoAuth_HANDSHAKE3,
+    InterfaceController_PeerState_SENT_KEY = CryptoAuth_State_SENT_KEY,
+
+    InterfaceController_PeerState_RECEIVED_KEY = CryptoAuth_State_RECEIVED_KEY,
 
     /** In state == ESTABLISHED, we know the node at the other end is authentic. */
-    InterfaceController_PeerState_ESTABLISHED = CryptoAuth_ESTABLISHED,
+    InterfaceController_PeerState_ESTABLISHED = CryptoAuth_State_ESTABLISHED,
 
     /** If state == UNRESPONSIVE, the peer has not responded to pings in the required timeframe. */
     InterfaceController_PeerState_UNRESPONSIVE = -1,
@@ -54,18 +56,35 @@ enum InterfaceController_PeerState
     /** If state is UNAUTHENTICATED, the other node has not sent a single valid packet. */
     InterfaceController_PeerState_UNAUTHENTICATED = -2,
 };
-Assert_compileTime(CryptoAuth_STATE_COUNT == 5);
 
 static inline char* InterfaceController_stateString(enum InterfaceController_PeerState ps)
 {
     switch (ps) {
-        case InterfaceController_PeerState_NEW: return "NEW";
-        case InterfaceController_PeerState_HANDSHAKE1: return "HANDSHAKE1";
-        case InterfaceController_PeerState_HANDSHAKE2: return "HANDSHAKE2";
-        case InterfaceController_PeerState_HANDSHAKE3: return "HANDSHAKE3";
-        case InterfaceController_PeerState_ESTABLISHED: return "ESTABLISHED";
-        case InterfaceController_PeerState_UNRESPONSIVE: return "UNRESPONSIVE";
+        case InterfaceController_PeerState_INIT:            return "INIT";
+        case InterfaceController_PeerState_SENT_HELLO:      return "SENT_HELLO";
+        case InterfaceController_PeerState_RECEIVED_HELLO:  return "RECEIVED_HELLO";
+        case InterfaceController_PeerState_SENT_KEY:        return "SENT_KEY";
+        case InterfaceController_PeerState_RECEIVED_KEY:    return "RECEIVED_KEY";
+        case InterfaceController_PeerState_ESTABLISHED:     return "ESTABLISHED";
+        case InterfaceController_PeerState_UNRESPONSIVE:    return "UNRESPONSIVE";
         case InterfaceController_PeerState_UNAUTHENTICATED: return "UNAUTHENTICATED";
+        default: return "INVALID";
+    }
+}
+
+enum InterfaceController_BeaconState
+{
+    InterfaceController_BeaconState_DISABLED,
+    InterfaceController_BeaconState_ACCEPTING,
+    InterfaceController_BeaconState_SENDING
+};
+
+static inline char* InterfaceController_beaconStateString(enum InterfaceController_BeaconState bs)
+{
+    switch (bs) {
+        case InterfaceController_BeaconState_DISABLED:  return "DISABLED";
+        case InterfaceController_BeaconState_ACCEPTING: return "ACCEPTING";
+        case InterfaceController_BeaconState_SENDING:   return "SENDING";
         default: return "INVALID";
     }
 }
@@ -76,7 +95,9 @@ static inline char* InterfaceController_stateString(enum InterfaceController_Pee
 struct InterfaceController_PeerStats
 {
     struct Address addr;
+    struct Sockaddr* lladdr;
     int state;
+    int ifNum;
     uint64_t timeOfLastMessage;
     uint64_t bytesOut;
     uint64_t bytesIn;
@@ -86,6 +107,7 @@ struct InterfaceController_PeerStats
     /** Packet loss/duplication statistics. see: ReplayProtector */
     uint32_t duplicates;
     uint32_t lostPackets;
+    uint32_t receivedPackets;
     uint32_t receivedOutOfRange;
 
     uint32_t sendKbps;
@@ -94,7 +116,12 @@ struct InterfaceController_PeerStats
 
 struct InterfaceController
 {
-    int unused;
+    /*
+     * If set to true, high resolution timestamp data will be collected for each
+     * packet to help with estimating available bandwidth. Caution: this implies
+     * an extra syscall per packet.
+     */
+    bool timestampPackets;
 };
 
 struct InterfaceController_Iface
@@ -103,6 +130,10 @@ struct InterfaceController_Iface
 
     /** Interface number within InterfaceController. */
     int ifNum;
+
+    enum InterfaceController_BeaconState beaconState;
+
+    String* name;
 };
 
 /**
@@ -117,6 +148,13 @@ struct InterfaceController_Iface
 struct InterfaceController_Iface* InterfaceController_newIface(struct InterfaceController* ifc,
                                                  String* name,
                                                  struct Allocator* alloc);
+
+/** Get the number of interfaces registered with the controller. */
+int InterfaceController_ifaceCount(struct InterfaceController* ifc);
+
+/** Get an interface from the InterfaceController. */
+struct InterfaceController_Iface* InterfaceController_getIface(struct InterfaceController* ifc,
+                                                               int ifNum);
 
 /**
  * Add a new peer.

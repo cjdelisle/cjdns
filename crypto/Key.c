@@ -10,14 +10,32 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
 #include "crypto/Key.h"
+#include "crypto/random/Random.h"
 #include "util/Base32.h"
 #include "crypto/AddressCalc.h"
 
+#include "crypto_scalarmult_curve25519.h"
+
 #include <stddef.h>
+
+int Key_gen(uint8_t addressOut[16],
+            uint8_t publicKeyOut[32],
+            uint8_t privateKeyOut[32],
+            struct Random* rand)
+{
+    for (;;) {
+        Random_bytes(rand, privateKeyOut, 32);
+        crypto_scalarmult_curve25519_base(publicKeyOut, privateKeyOut);
+        // Brute force for keys until one matches FC00:/8
+        if (AddressCalc_addressForPublicKey(addressOut, publicKeyOut)) {
+            return 0;
+        }
+    }
+}
 
 char* Key_parse_strerror(int error)
 {

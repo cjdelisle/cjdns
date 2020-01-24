@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "memory/Allocator.h"
 #include "util/SysInfo.h"
@@ -21,7 +21,7 @@
 
 #include <stdio.h>
 
-struct SysInfo SysInfo_detect()
+struct SysInfo SysInfo_detect(void)
 {
     struct SysInfo out = { .os = 0 };
     if (Defined(linux)) {
@@ -48,7 +48,7 @@ struct SysInfo SysInfo_detect()
     return out;
 }
 
-char* getName(enum SysInfo_Os os)
+static char* getName(enum SysInfo_Os os)
 {
     switch (os) {
         case SysInfo_Os_LINUX: return "linux";

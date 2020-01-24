@@ -1,21 +1,50 @@
 language: c
-
 branches:
   only:
     - crashey
     - master
-    - stable-0.4
-    - stable-0.5
-    - stable-0.6
+    - allocator-fixes
 
 compiler:
   - gcc
+  - clang
 
-# migrate to travis' new container infrastructure
-sudo: false
+# 3 profiles for clang and gcc
+env:
+  -
+  - SUBNODE=1
 
 script:
-  - "uname -a"
-  - "bash node_build/run_jshint"
-  - "./do"
-  - "./android_do"
+  - uname -a
+  - if test "1" = "$SUBNODE"; then echo "Subnode build"; fi
+  - ./do
+
+matrix:
+  include:
+    - name: "check js"
+      script:
+        - "bash node_build/run_jshint"
+
+    ## TODO(cjd) merge allocator-fixes and enable this
+    # - name: "AddressSanitizer"
+    #   addons:
+    #     apt:
+    #       sources:
+    #         - llvm-toolchain-trusty-5.0
+    #       packages:
+    #         - llvm-5.0-dev
+    #         - clang-5.0
+    #         - libclang-common-5.0-dev
+    #   script:
+    #     - export CC=clang
+    #     - export CXX=clang++
+    #     - export PATH=/usr/lib/llvm-5.0/bin/:$PATH
+    #     - export CFLAGS=-fsanitize=address
+    #     - export LDFLAGS=-fsanitize=address
+    #     - export ASAN_SYMBOLIZER_PATH=/usr/lib/llvm-5.0/bin/llvm-symbolizer
+    #     - ./do
+    #     - ./build_*/test_testcjdroute_c | while read x; do test "$x" != "" && bash -c $x >/dev/null || exit 100; done
+
+    - name: "android"
+      script:
+        - ./android_do

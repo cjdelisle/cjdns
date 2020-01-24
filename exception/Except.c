@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #define _POSIX_C_SOURCE 200112L
 
@@ -41,9 +41,9 @@ void Except__throw(char* file, int line, struct Except* eh, char* format, ...)
         }
         eh->exception(eh->message, eh);
     } else {
-        printf("%s:%d ", subFile, line);
-        vprintf(format, args);
-        printf("\n");
+        fprintf(stderr, "%s:%d ", subFile, line);
+        vfprintf(stderr, format, args);
+        fprintf(stderr, "\n");
     }
     abort();
     exit(100);

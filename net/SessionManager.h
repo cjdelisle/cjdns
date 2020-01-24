@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #ifndef SessionManager_H
 #define SessionManager_H
@@ -61,23 +61,11 @@ struct SessionManager
     int64_t sessionTimeoutMilliseconds;
 
     /**
-     * Should be set to a number less than sessionSearchAfterMilliseconds, if no incoming nor
-     * outgoing messages were sent on this session for this amount of time, re-running of the
-     * search will be skipped when sessionSearchAfterMilliseconds is reached allowing the session
-     * to be removed from the table after sessionTimeoutMilliseconds.
-     */
-    #define SessionManager_SESSION_IDLE_AFTER_MILLISECONDS_DEFAULT 50000
-    int64_t sessionIdleAfterMilliseconds;
-
-    /**
      * Number of milliseconds after which a new DHT search will be run to verify the path.
-     * If the session is in "idle" state (sessionIdleAfterMilliseconds has elapsed without any
-     * incoming or outgoing traffic) then the search will be skipped, although it will be triggered
-     * again if more traffic is sent.
      * This is guaged off of lastSearchTime so it need not be less than sessionTimeoutMilliseconds
      * which is guaged off of time of last incoming message (timeOfLastIn).
      */
-    #define SessionManager_SESSION_SEARCH_AFTER_MILLISECONDS_DEFAULT 100000
+    #define SessionManager_SESSION_SEARCH_AFTER_MILLISECONDS_DEFAULT 30000
     int64_t sessionSearchAfterMilliseconds;
 };
 
@@ -85,10 +73,16 @@ struct SessionManager_Session
 {
     struct CryptoAuth_Session* caSession;
 
-    /** When the last message was received on this session (milliseconds since epoch). */
+    /**
+     * When the last message was received on this session (milliseconds since epoch).
+     * Used for session keep alive.
+     */
+    int64_t timeOfKeepAliveIn;
+
+    /** When the last non-CJDHT message was received on this session (milliseconds since epoch). */
     int64_t timeOfLastIn;
 
-    /** When the last message was sent on this session (milliseconds since epoch). */
+    /** When the last non-CJDHT message was sent on this session (milliseconds since epoch). */
     int64_t timeOfLastOut;
 
     uint64_t bytesOut;
@@ -107,11 +101,16 @@ struct SessionManager_Session
     /** The version of the other node. */
     uint32_t version;
 
+    uint32_t metric;
+
     /** The best known switch label for reaching this node. */
     uint64_t sendSwitchLabel;
 
     /** The switch label which this node uses for reaching us. */
     uint64_t recvSwitchLabel;
+
+    /** If non-zero, the peer will be periodically queries to maintain the session. */
+    int maintainSession;
 };
 
 struct SessionManager_HandleList

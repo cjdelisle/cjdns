@@ -5,7 +5,7 @@
 {
   'targets': [
     {
-      'target_name': 'all',
+      'target_name': 'allx',
       'type': 'none',
       'dependencies': [
         'a',

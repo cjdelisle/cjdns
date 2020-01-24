@@ -10,13 +10,14 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "interface/tuntap/TUNInterface.h"
 #include "exception/Except.h"
 #include "memory/Allocator.h"
 #include "util/events/EventBase.h"
 #include "util/events/Pipe.h"
+#include "util/CString.h"
 
 #include <errno.h>
 #include <stdio.h>
@@ -56,7 +57,7 @@ struct Iface* TUNInterface_new(const char* interfaceName,
         if (strlen(interfaceName) > maxNameSize) {
             Except_throw(eh, "tunnel name too big, limit is [%d] characters", maxNameSize);
         }
-        strncpy(ifRequest.ifr_name, interfaceName, maxNameSize);
+        CString_safeStrncpy(ifRequest.ifr_name, interfaceName, maxNameSize);
     }
     int fileno = open(DEVICE_PATH, O_RDWR);
 
@@ -70,7 +71,7 @@ struct Iface* TUNInterface_new(const char* interfaceName,
         Except_throw(eh, "ioctl(TUNSETIFF) [%s]", strerror(err));
     }
     if (assignedInterfaceName) {
-        strncpy(assignedInterfaceName, ifRequest.ifr_name, maxNameSize);
+        CString_safeStrncpy(assignedInterfaceName, ifRequest.ifr_name, maxNameSize);
     }
 
     struct Pipe* p = Pipe_forFiles(fileno, fileno, base, eh, alloc);

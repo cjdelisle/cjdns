@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #define _WIN32_WINNT 0x0600
 #include "exception/WinFail.h"
@@ -225,6 +225,13 @@ void NetPlatform_setMTU(const char* interfaceName,
     Log_debug(logger, "Going to run command: %s", buffer);
 
     // Make the netsh call, and die if it returns the wrong thing.
+    WinFail_check(eh, system(buffer));
+
+    // We should also configure the MTU for ipv4 (IpTunnel) case
+    const char* format1 = ("netsh interface ipv4 set subinterface "
+        "\"%s\" mtu=%d");
+    snprintf(buffer, totalSize, format1, interfaceName, mtu);
+    Log_debug(logger, "Going to run command: %s", buffer);
     WinFail_check(eh, system(buffer));
 }
 

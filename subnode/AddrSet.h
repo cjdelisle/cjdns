@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #ifndef AddrSet_H
 #define AddrSet_H
@@ -24,6 +24,9 @@ struct AddrSet
 {
     int length;
 };
+
+// only accounts for the key, not the label.
+int AddrSet_indexOf(struct AddrSet* as, struct Address* addr);
 
 void AddrSet_add(struct AddrSet* as, struct Address* addr);
 

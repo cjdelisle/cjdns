@@ -1,4 +1,5 @@
 # Hyperboria/docs
+[Español](README_ES.md)
 
 ## What is Hyperboria?
 

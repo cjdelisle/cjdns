@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #ifndef Bits_H
 #define Bits_H
@@ -41,11 +41,7 @@ static inline int Bits_ffs64(uint64_t number)
 
 static inline int Bits_popCountx64(uint64_t number)
 {
-    int out = 0;
-    for (int i = 0; i < 64; i++) {
-        out += ((number >> i) & 1);
-    }
-    return out;
+    return __builtin_popcountll(number);
 }
 
 static inline int Bits_popCountx32(uint32_t number)

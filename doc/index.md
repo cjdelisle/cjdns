@@ -40,7 +40,7 @@ You can contribute to its documentaion: https://github.com/hyperboria/docs
   - [OpenWrt](install/openwrt.md)
   - [Android](install/android.md) *TODO*
   - [Firefox OS](install/firefoxos.md) *TODO*
-  - [OS X](install/osx.md)
+  - [macOS](install/osx.md)
   - [Debian Wheezy](install/debian-wheezy.md)
   - [Debian Jessie](install/debian-jessie.md)
   - [Arch](install/arch.md)

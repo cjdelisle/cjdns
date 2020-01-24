@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "crypto/random/seed/ProcSysKernelRandomUuidRandomSeed.h"
 #include "util/Identity.h"
@@ -33,7 +33,7 @@ static int getUUID(uint64_t output[2])
         int fd = -1;
         int tries = 0;
         while ((fd = open("/proc/sys/kernel/random/uuid", O_RDONLY, 0)) < 0) {
-            if (++tries > MAX_TRIES || errno == ENOENT) {
+            if (++tries > MAX_TRIES || errno != EINTR) {
                 return -1;
             }
             sleep(1);

@@ -8,12 +8,29 @@
 Verifies that ios app extensions are built correctly.
 """
 
+from __future__ import print_function
+
 import TestGyp
 import TestMac
-
+import subprocess
 import sys
+
+def CheckStrip(p, expected):
+  if expected not in subprocess.check_output(['nm','-gU', p]):
+    print(expected + " shouldn't get stripped out.")
+    test.fail_test()
+
+def CheckEntrypoint(p, expected):
+  if expected not in subprocess.check_output(['nm', p]):
+    print(expected + "not found.")
+    test.fail_test()
+
 if sys.platform == 'darwin' and TestMac.Xcode.Version()>="0600":
+
   test = TestGyp.TestGyp(formats=['ninja', 'xcode'])
+
+  if test.format in ('ninja', 'xcode-ninja'):
+    test.skip_test()  # bug=534
 
   test.run_gyp('extension.gyp', chdir='extension')
 
@@ -23,6 +40,12 @@ if sys.platform == 'darwin' and TestMac.Xcode.Version()>="0600":
   test.built_file_must_exist(
       'ExtensionContainer.app/PlugIns/ActionExtension.appex',
       chdir='extension')
+
+  path = test.built_file_path(
+      'ExtensionContainer.app/PlugIns/ActionExtension.appex/ActionExtension',
+      chdir='extension')
+  CheckStrip(path, "ActionViewController")
+  CheckEntrypoint(path, "_NSExtensionMain")
 
   test.pass_test()
 

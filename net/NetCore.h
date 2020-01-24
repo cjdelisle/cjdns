@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #ifndef NetCore_H
 #define NetCore_H
@@ -28,7 +28,6 @@
 #include "tunnel/IpTunnel.h"
 #include "net/EventEmitter.h"
 #include "net/SessionManager.h"
-#include "net/SwitchAdapter.h"
 #include "net/UpperDistributor.h"
 #include "net/TUNAdapter.h"
 #include "util/Linker.h"
@@ -44,7 +43,6 @@ struct NetCore
     struct EventEmitter* ee;
     struct Address* myAddress;
     struct SwitchCore* switchCore;
-    struct SwitchAdapter* switchAdapter;
     struct ControlHandler* controlHandler;
     struct SwitchPinger* sp;
     struct InterfaceController* ifController;

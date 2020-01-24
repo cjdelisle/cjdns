@@ -1,0 +1,2 @@
+-I./
+-D__INTELLISENSE__=1

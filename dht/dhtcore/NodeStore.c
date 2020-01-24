@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "dht/Address.h"
 #include "dht/dhtcore/Node.h"
@@ -28,7 +28,7 @@
 #include "util/Endian.h"
 #include "util/events/Time.h"
 
-#include <tree.h>
+#include <node_build/dependencies/tree.h>
 
 /** A list of DHT nodes. */
 struct NodeStore_pvt
@@ -58,6 +58,12 @@ struct NodeStore_pvt
 
     /** To track time, for e.g. figuring out when nodes were last pinged */
     struct EventBase* eventBase;
+
+    // If this is non-zero then check() and verify() will be inactive.
+    // Increment this if you're going to do the check yourself after the function you call is done.
+    int disarmCheck;
+
+    int fullVerify;
 
     Identity
 };
@@ -131,9 +137,7 @@ static void logLink(struct NodeStore_pvt* store,
 
 static void _checkNode(struct Node_Two* node, struct NodeStore_pvt* store, char* file, int line)
 {
-    if (!Defined(PARANOIA)) {
-        return;
-    }
+    if (!Defined(PARANOIA) || (store->disarmCheck && !store->fullVerify)) { return; }
 
     Assert_true(node->address.path ==
         EncodingScheme_convertLabel(store->pub.selfNode->encodingScheme,
@@ -210,14 +214,18 @@ static void _checkNode(struct Node_Two* node, struct NodeStore_pvt* store, char*
 }
 #define checkNode(node, store) _checkNode(node, store, Gcc_SHORT_FILE, Gcc_LINE)
 
-static void _verifyNode(struct Node_Two* node, struct NodeStore_pvt* store, char* file, int line)
+static void _verifyNode(struct Node_Two* node,
+                        struct NodeStore_pvt* store,
+                        bool full,
+                        char* file,
+                        int line)
 {
-    return; // Too much CPU consumption.
-    if (!Defined(PARANOIA)) {
-        return;
-    }
+    if (!Defined(PARANOIA) || (store->disarmCheck && !store->fullVerify)) { return; }
+
     // #1 check the node (do the basic checks)
     _checkNode(node, store, file, line);
+
+    if (!full || !store->fullVerify) { return; }
 
     // #2 make sure all of the node's outgoing links are split properly
     struct Node_Link* link = NULL;
@@ -258,37 +266,28 @@ static void _verifyNode(struct Node_Two* node, struct NodeStore_pvt* store, char
         Assert_true(Node_getCost(node) == cost);
     }
 }
-#define verifyNode(node, store) _verifyNode(node, store, Gcc_SHORT_FILE, Gcc_LINE)
+#define verifyNode(node, store) _verifyNode(node, store, true, Gcc_SHORT_FILE, Gcc_LINE)
 
 // Verify is more thorough than check because it makes sure all links are split properly.
-static void _verify(struct NodeStore_pvt* store, char* file, int line)
+static void _verify(struct NodeStore_pvt* store, bool full, char* file, int line)
 {
-    if (!Defined(PARANOIA)) {
+    if (!Defined(PARANOIA) || (store->disarmCheck && !store->fullVerify)) {
         return;
     }
     Assert_true(Node_getBestParent(store->pub.selfNode) == store->selfLink || !store->selfLink);
     int linkedNodes = 0;
+    int nodeCount = 0;
     struct Node_Two* nn = NULL;
     RB_FOREACH(nn, NodeRBTree, &store->nodeTree) {
-        _verifyNode(nn, store, file, line);
+        _verifyNode(nn, store, full, file, line);
         if (Node_getBestParent(nn)) { linkedNodes++; }
+        nodeCount++;
     }
     Assert_fileLine(linkedNodes == store->pub.linkedNodes, file, line);
+    Assert_fileLine(nodeCount == store->pub.nodeCount, file, line);
 }
-#define verify(store) _verify(store, Gcc_SHORT_FILE, Gcc_LINE)
-
-static void _check(struct NodeStore_pvt* store, char* file, int line)
-{
-    if (!Defined(PARANOIA)) {
-        return;
-    }
-    Assert_true(Node_getBestParent(store->pub.selfNode) == store->selfLink || !store->selfLink);
-    struct Node_Two* nn = NULL;
-    RB_FOREACH(nn, NodeRBTree, &store->nodeTree) {
-        _checkNode(nn, store, file, line);
-    }
-}
-#define check(store) _check(store, Gcc_SHORT_FILE, Gcc_LINE)
+#define verify(store) _verify(store, true, Gcc_SHORT_FILE, Gcc_LINE)
+#define check(store) _verify(store, false, Gcc_SHORT_FILE, Gcc_LINE)
 
 /**
  * Extend a route by splicing on another link.
@@ -435,10 +434,11 @@ static bool findBestParent0(struct Node_Two* node, struct NodeStore_pvt* store)
     return false;
 }
 
-static void findBestParent(struct Node_Two* node, struct NodeStore_pvt* store)
+// Returns true if anything was modified
+static bool findBestParent(struct Node_Two* node, struct NodeStore_pvt* store)
 {
-    uint64_t time0 = Time_hrtime(store->eventBase);
-    if (!findBestParent0(node, store)) { return; }
+    uint64_t time0 = Time_hrtime();
+    if (!findBestParent0(node, store)) { return false; }
     int ret = 0;
     int cycle = 0;
     do {
@@ -453,11 +453,12 @@ static void findBestParent(struct Node_Two* node, struct NodeStore_pvt* store)
             }
         }
     } while (ret);
-    uint64_t time1 = Time_currentTimeMilliseconds(store->eventBase);
-    if ((int64_t)(time1 - time0) > 1) {
+    uint64_t time1 = Time_hrtime();
+    if ((int64_t)(time1 - time0) > 1000000) {
         Log_warn(store->logger, "\n\nfindBestParent() took [%lld] ms\n\n",
-            (long long) (time1 - time0));
+            (long long) ((time1 - time0) / 1000000));
     }
+    return true;
 }
 
 /**
@@ -473,9 +474,11 @@ static void handleLinkNews(struct Node_Link* link,
     int64_t linkCostDiff = newLinkCost;
     linkCostDiff -= link->linkCost;
     update(link, linkCostDiff, store);
-    check(store);
-    findBestParent(link->child, store);
-    check(store);
+    //check(store);
+    if (findBestParent(link->child, store)) {
+        // This is a hot spot here, so we'll only check if the node tree was modified.
+        check(store);
+    }
 }
 
 void NodeStore_unlinkNodes(struct NodeStore* nodeStore, struct Node_Link* link)
@@ -630,6 +633,20 @@ static struct Node_Link* linkNodes(struct Node_Two* parent,
     Assert_ifParanoid(!RB_FIND(PeerRBTree, &parent->peerTree, link));
     RB_INSERT(PeerRBTree, &parent->peerTree, link);
 
+    // store entry
+    if (!RB_FIND(NodeRBTree, &store->nodeTree, child)) {
+        if (child == parent) {
+            Assert_true(cannonicalLabel == 1);
+            Assert_true(!store->pub.nodeCount);
+            Assert_true(!store->selfLink);
+            store->selfLink = link;
+            Node_setParentCostAndPath(child, link, 0, 1);
+            store->pub.linkedNodes++;
+        }
+        RB_INSERT(NodeRBTree, &store->nodeTree, child);
+        store->pub.nodeCount++;
+    }
+
     handleLinkNews(link, linkCostDiff+link->linkCost, store);
 
     if (parent == store->pub.selfNode && child != store->pub.selfNode) {
@@ -723,9 +740,22 @@ static uint64_t firstHopInPath(uint64_t label,
         return firstHopInPath_NO_NEXT_LINK;
     }
 
+    // Old:
     // check for a looping link, this should never happen but adding the assert helps me
     // refactor this function a little more agressively.
-    Assert_true(nextLink != parentLink);
+    //Assert_true(nextLink != parentLink);
+    //
+    // New:
+    // There *can* be loopy links because they are kept around in the hope that they'll be
+    // split later as more information comes in. For example we can discover A->A->D->E
+    // and later on we discover A->B->C->A->D->E because the B->C part was hidden, we saw
+    // it as A->A. If we encounter one of these loopey links, what we probably *should*
+    // do is skip the loop and resolve the next part of the path, but returning NO_NEXT_LINK
+    // is ok because we don't claim to have a full knowledge of the network and that is
+    // much easier. Update stops a rare assertion failure.
+    if (nextLink == parentLink) {
+        return firstHopInPath_NO_NEXT_LINK;
+    }
 
     if (label == nextLink->cannonicalLabel) {
         //logLink(store, nextLink, "Exact match");
@@ -800,6 +830,10 @@ static struct Node_Link* discoverLinkC(struct NodeStore_pvt* store,
     uint64_t pathParentChild = findClosest(pathKnownParentChild, &closest, closestKnown, store);
 
     if (pathParentChild == findClosest_INVALID) {
+        return NULL;
+    }
+    if (!EncodingScheme_isOneHop(closest->child->encodingScheme, pathParentChild)) {
+        Log_debug(store->logger, "Not discovering link because it's multi-hop");
         return NULL;
     }
 
@@ -889,12 +923,6 @@ static struct Node_Link* discoverLinkC(struct NodeStore_pvt* store,
                                              discoveredPath,
                                              store);
 
-    if (!RB_FIND(NodeRBTree, &store->nodeTree, child)) {
-        checkNode(child, store);
-        RB_INSERT(NodeRBTree, &store->nodeTree, child);
-        store->pub.nodeCount++;
-    }
-
     check(store);
 
     return parentLink;
@@ -942,6 +970,7 @@ static void fixLink(struct Node_Link* parentLink,
             // unsplice and cannonicalize so we now have a path from child to grandchild
             uint64_t childToGrandchild =
                 LabelSplicer_unsplice(splitLink->cannonicalLabel, parentLink->cannonicalLabel);
+            Assert_true(parentLink->child);
             childToGrandchild =
                 EncodingScheme_convertLabel(parentLink->child->encodingScheme,
                                             childToGrandchild,
@@ -1018,9 +1047,10 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
 
     if (!link) { return NULL; }
 
-    uint64_t pathParentChild = findClosest(path, &link, store->selfLink, store);
+    // Dropped because v21 triggers this...
+    //uint64_t pathParentChild = findClosest(path, &link, store->selfLink, store);
     // This should always be 1 because the link is gone only because it was just split!
-    Assert_true(pathParentChild == 1);
+    //Assert_true(pathParentChild == 1);
 
     struct Node_Link* ol = NULL;
     struct Node_Link* nl = NULL;
@@ -1285,15 +1315,12 @@ static uint32_t calcNextCost(const uint64_t oldCost)
     return out;
 }
 
-struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
-                                         struct Address* addr,
-                                         struct EncodingScheme* scheme,
-                                         int inverseLinkEncodingFormNumber,
-                                         uint64_t milliseconds)
+static struct Node_Link* discoverNode(struct NodeStore_pvt* store,
+                                      struct Address* addr,
+                                      struct EncodingScheme* scheme,
+                                      int inverseLinkEncodingFormNumber,
+                                      uint64_t milliseconds)
 {
-    struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
-    verify(store);
-
     struct Node_Two* child = nodeForIp(store, addr->ip6.bytes);
 
     if (Defined(Log_DEBUG)) {
@@ -1421,6 +1448,21 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
     return link;
 }
 
+struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
+                                         struct Address* addr,
+                                         struct EncodingScheme* scheme,
+                                         int inverseLinkEncodingFormNumber,
+                                         uint64_t milliseconds)
+{
+    struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
+    store->disarmCheck++;
+    struct Node_Link* out =
+        discoverNode(store, addr, scheme, inverseLinkEncodingFormNumber, milliseconds);
+    store->disarmCheck--;
+    verify(store);
+    return out;
+}
+
 struct Node_Two* NodeStore_nodeForAddr(struct NodeStore* nodeStore, uint8_t addr[16])
 {
     struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
@@ -1536,25 +1578,23 @@ uint64_t NodeStore_optimizePath(struct NodeStore* nodeStore, uint64_t path)
                                      linkToParent->child->encodingScheme,
                                      next,
                                      linkToParent->inverseLinkEncodingFormNumber);
-    if (optimized != UINT64_MAX) {
+
+    if (optimized != extendRoute_INVALID && optimized != extendRoute_TOOLONG) {
         return optimized;
     }
 
-    if (optimized == extendRoute_INVALID) {
-        if (Defined(Log_DEBUG)) {
-            do {
-                uint8_t pathStr[20];
-                uint8_t nextStr[20];
-                uint8_t bestPathStr[20];
-                AddrTools_printPath(pathStr, path);
-                AddrTools_printPath(nextStr, next);
-                AddrTools_printPath(bestPathStr, linkToParent->child->address.path);
-                Log_debug(store->logger, "Failed to optimize path [%s] with closest known [%s] and "
-                                         "best path to closest known [%s]",
-                                         pathStr, nextStr, bestPathStr);
-            } while (0);
-        }
-        return path;
+    if (Defined(Log_DEBUG)) {
+        do {
+            uint8_t pathStr[20];
+            uint8_t nextStr[20];
+            uint8_t bestPathStr[20];
+            AddrTools_printPath(pathStr, path);
+            AddrTools_printPath(nextStr, next);
+            AddrTools_printPath(bestPathStr, linkToParent->child->address.path);
+            Log_debug(store->logger, "Failed to optimize path [%s] with closest known [%s] and "
+                                     "best path to closest known [%s]",
+                                     pathStr, nextStr, bestPathStr);
+        } while (0);
     }
 
     return path;
@@ -1591,17 +1631,15 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
 
     // Create the self node
     struct Node_Two* selfNode = Allocator_calloc(alloc, sizeof(struct Node_Two), 1);
+    Assert_true(selfNode);
+    Assert_true(myAddress);
     Bits_memcpy(&selfNode->address, myAddress, sizeof(struct Address));
     selfNode->encodingScheme = NumberCompress_defineScheme(alloc);
     selfNode->alloc = alloc;
     Identity_set(selfNode);
-    out->pub.linkedNodes = 1;
     out->pub.selfNode = selfNode;
-    struct Node_Link* selfLink = linkNodes(selfNode, selfNode, 1, 0, 0, 1, out);
-    Node_setParentCostAndPath(selfNode, selfLink, 0, 1);
+    linkNodes(selfNode, selfNode, 1, 0, 0, 1, out);
     selfNode->timeLastPinged = Time_currentTimeMilliseconds(out->eventBase);
-    out->selfLink = selfLink;
-    RB_INSERT(NodeRBTree, &out->nodeTree, selfNode);
 
     out->pub.selfAddress = &out->selfLink->child->address;
     out->pub.selfAddress->protocolVersion = Version_CURRENT_PROTOCOL;
@@ -1754,7 +1792,9 @@ struct NodeList* NodeStore_getPeers(uint64_t label,
         }
         switch (j) {
             default: Bits_memmove(out->nodes, &out->nodes[1], (j - 1) * sizeof(char*));
+                Gcc_FALLTHRU;
             case 1: out->nodes[j - 1] = next->child;
+                Gcc_FALLTHRU;
             case 0:;
         }
     }
@@ -2016,7 +2056,10 @@ void NodeStore_pathResponse(struct NodeStore* nodeStore, uint64_t path, uint64_t
         // so we can calculate the expected cost for an arbitrary path
         newCost = calcNextCost(UINT64_MAX);
     }
+    store->disarmCheck++;
     updatePathCost(store, path, newCost);
+    store->disarmCheck--;
+    verify(store);
 }
 
 void NodeStore_pathTimeout(struct NodeStore* nodeStore, uint64_t path)
@@ -2100,4 +2143,16 @@ uint64_t NodeStore_timeSinceLastPing(struct NodeStore* nodeStore, struct Node_Tw
         link = Node_getBestParent(link->parent);
     }
     return now - lastSeen;
+}
+
+bool NodeStore_getFullVerify(struct NodeStore* nodeStore)
+{
+    struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
+    return store->fullVerify != 0;
+}
+
+void NodeStore_setFullVerify(struct NodeStore* nodeStore, bool fullVerify)
+{
+    struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
+    store->fullVerify = (fullVerify != 0);
 }

@@ -1,0 +1,12 @@
+language: node_js
+
+node_js:
+  - '6'
+  - '5'
+  - '4'
+  - '0.12'
+
+script:
+  - npm run-script test
+  - npm run-script lint
+  - npm run-script flow

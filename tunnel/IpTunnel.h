@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #ifndef IpTunnel_H
 #define IpTunnel_H
@@ -21,6 +21,7 @@
 #include "util/log/Log.h"
 #include "util/events/EventBase.h"
 #include "util/platform/Sockaddr.h"
+#include "util/GlobalConfig.h"
 #include "wire/RouteHeader.h"
 #include "tunnel/RouteGen.h"
 #include "util/Linker.h"
@@ -84,12 +85,14 @@ struct IpTunnel
  * @param eventBase the event base.
  * @param alloc an allocator.
  * @param rand a random generator.
+ * @param gc for getting the name of the tun device (to be able to setup routes to it)
  */
 struct IpTunnel* IpTunnel_new(struct Log* logger,
                               struct EventBase* eventBase,
                               struct Allocator* alloc,
                               struct Random* rand,
-                              struct RouteGen* rg);
+                              struct RouteGen* rg,
+                              struct GlobalConfig* globalConf);
 
 /**
  * Allow another node to tunnel IPv4 and/or ICANN IPv6 through this node.
@@ -130,8 +133,5 @@ int IpTunnel_connectTo(uint8_t publicKeyOfNodeToConnectTo[32], struct IpTunnel* 
  */
 #define IpTunnel_removeConnection_NOT_FOUND -1
 int IpTunnel_removeConnection(int connectionNumber, struct IpTunnel* tunnel);
-
-
-void IpTunnel_setTunName(char* interfaceName, struct IpTunnel* ipTun);
 
 #endif

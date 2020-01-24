@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "util/events/libuv/UvWrapper.h"
 #include "benc/String.h"
@@ -103,7 +103,7 @@ int Sockaddr_parse(const char* input, struct Sockaddr_storage* out)
     if (CString_strlen(input) > 63) {
         return -1;
     }
-    CString_strncpy(buff, input, 63);
+    CString_safeStrncpy(buff, input, 63);
 
     int64_t port = 0;
     char* lastColon = CString_strrchr(buff, ':');
@@ -189,7 +189,8 @@ char* Sockaddr_print(struct Sockaddr* sockaddr, struct Allocator* alloc)
             break;
         default: {
             uint8_t buff[Sockaddr_MAXSIZE * 2 + 1] = {0};
-            Hex_encode(buff, sizeof(buff), (uint8_t*)&addr->ss, sockaddr->addrLen);
+            Hex_encode(buff, sizeof(buff), (uint8_t*)&addr->ss,
+                sockaddr->addrLen - Sockaddr_OVERHEAD);
             String* out = String_printf(alloc, "unknown (%s)", buff);
             return out->bytes;
         }

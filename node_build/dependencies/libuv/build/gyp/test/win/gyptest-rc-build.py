@@ -8,11 +8,16 @@
 Make sure we build and include .rc files.
 """
 
+from __future__ import print_function
+
 import TestGyp
 
 import sys
 
 if sys.platform == 'win32':
+  print("This test is currently disabled: https://crbug.com/483696.")
+  sys.exit(0)
+
   test = TestGyp.TestGyp(formats=['msvs', 'ninja'])
 
   CHDIR = 'rc-build'

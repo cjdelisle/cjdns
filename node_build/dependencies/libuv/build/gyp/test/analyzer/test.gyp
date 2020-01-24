@@ -17,7 +17,7 @@
 #     exe2.c
 #   #exe3 -> subdir/subdir.gyp#foo, subdir/subdir.gyp#subdir2a
 #     exe3.c
-#   #all (type none) -> exe, exe3
+#   #allx (type none) -> exe, exe3
 # 
 # subdir/subdir.gyp
 #   #foo
@@ -64,6 +64,7 @@
             'action_input.c',
             '../bad_path1.h',
             '../../bad_path2.h',
+            './rel_path1.h',
           ],
           'outputs': [
             'action_output.c',
@@ -102,7 +103,7 @@
       ],
     },
     {
-      'target_name': 'all',
+      'target_name': 'allx',
       'type': 'none',
       'dependencies': [
         'exe',

@@ -54,7 +54,7 @@ A password which can be used to peer with your node\&.
 .PP
 \fI"user":\fR "..."
 .RS 4
-An optional human-readable string that identifies what password a peer is using
+A human-readable string that identifies what password a peer is using
 on the admin interface\&. If omitted, the password will be identified by its
 position within the array (starting from 0)
 .RE
@@ -129,6 +129,7 @@ UDPInterface Example:
 "1\&.2\&.3\&.4:54321":
 .br
 {
+    "login": "login From Your Peer's authorizedPasswords",
     "password": "password From Your Peer's authorizedPasswords",
     "publicKey": "Your Peer's publicKey\&.k"
 .br
@@ -137,6 +138,7 @@ UDPInterface Example:
 "5\&.6\&.7\&.8:46321":
 .br
 {
+    "login": "cueball",
     "password": "Correct Horse Battery Staple",
     "publicKey": "Other Peer's publicKey\&.k"
 .br

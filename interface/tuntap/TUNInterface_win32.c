@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "interface/Iface.h"
 #include "interface/tuntap/TUNInterface.h"
@@ -29,7 +29,7 @@ struct Iface* TUNInterface_new(const char* interfaceName,
                                    struct Allocator* alloc)
 {
     struct TAPInterface* tap = TAPInterface_new(interfaceName, eh, logger, base, alloc);
-    CString_strncpy(assignedInterfaceName, tap->assignedName, TUNInterface_IFNAMSIZ);
+    CString_safeStrncpy(assignedInterfaceName, tap->assignedName, TUNInterface_IFNAMSIZ);
     if (isTapMode) { return &tap->generic; }
     struct TAPWrapper* tapWrapper = TAPWrapper_new(&tap->generic, logger, alloc);
     struct NDPServer* ndp =

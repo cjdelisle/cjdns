@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "util/Hex.h"
 
@@ -70,7 +70,7 @@ int Hex_decode(uint8_t* output,
                const uint8_t* hex,
                const uint32_t length)
 {
-    if (length % 1) {
+    if (length & 1) {
         return Hex_BAD_INPUT;
     } else if (outLength < (length / 2)) {
         return Hex_TOO_BIG;

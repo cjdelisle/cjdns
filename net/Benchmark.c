@@ -10,12 +10,13 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "net/Benchmark.h"
 #include "memory/MallocAllocator.h"
 #include "memory/Allocator.h"
 #include "crypto/random/Random.h"
+#include "crypto/Key.h"
 #include "interface/Iface.h"
 #include "util/log/FileWriterLog.h"
 #include "util/events/Time.h"
@@ -136,18 +137,16 @@ static Iface_DEFUN aliceCtrlRecv(struct Message* msg, struct Iface* aliceCtrlIf)
     return NULL;
 }
 
-#define SECRETA \
-    "\xd8\x54\x3e\x70\xb9\xae\x7c\x41\xbc\x18\xa4\x9a\x9c\xee\xca\x9c" \
-    "\xdc\x45\x01\x96\x6b\xbd\x7e\x76\xcf\x3a\x9f\xbc\x12\xed\x8b\xb4"
-
-#define SECRETB \
-    "\xad\x7e\xa3\x26\xaa\x01\x94\x0a\x25\xbc\x9e\x01\x26\x22\xdb\x69" \
-    "\x4f\xd9\xb4\x17\x7c\xf3\xf8\x91\x16\xf3\xcf\xe8\x5c\x80\xe1\x4a"
-
 static void switching(struct Context* ctx)
 {
     Log_info(ctx->log, "Setting up salsa20/poly1305 benchmark (encryption and decryption only)");
     struct Allocator* alloc = Allocator_child(ctx->alloc);;
+    uint8_t ipv6[16];
+    uint8_t publicKey[32];
+    uint8_t privateKeyA[32];
+    uint8_t privateKeyB[32];
+    Key_gen(ipv6, publicKey, privateKeyA, ctx->rand);
+    Key_gen(ipv6, publicKey, privateKeyB, ctx->rand);
 
     struct SwitchingContext* sc = Allocator_calloc(alloc, sizeof(struct SwitchingContext), 1);
     Identity_set(sc);
@@ -156,12 +155,12 @@ static void switching(struct Context* ctx)
     sc->bobIf.send = bobToAlice;
     sc->aliceCtrlIf.send = aliceCtrlRecv;
 
-    struct NetCore* alice = NetCore_new(SECRETA, alloc, ctx->base, ctx->rand, ctx->log);
+    struct NetCore* alice = NetCore_new(privateKeyA, alloc, ctx->base, ctx->rand, ctx->log);
     struct InterfaceController_Iface* aliceIci =
         InterfaceController_newIface(alice->ifController, String_CONST("alice"), alloc);
     Iface_plumb(&sc->aliceIf, &aliceIci->addrIf);
 
-    struct NetCore* bob = NetCore_new(SECRETB, alloc, ctx->base, ctx->rand, ctx->log);
+    struct NetCore* bob = NetCore_new(privateKeyB, alloc, ctx->base, ctx->rand, ctx->log);
     struct InterfaceController_Iface* bobIci =
         InterfaceController_newIface(bob->ifController, String_CONST("bob"), alloc);
     Iface_plumb(&sc->bobIf, &bobIci->addrIf);
@@ -179,21 +178,26 @@ static void switching(struct Context* ctx)
                                                 alloc);
     Assert_true(!ret);
 
-    Iface_unplumb(alice->switchAdapter->controlIf.connectedIf, &alice->switchAdapter->controlIf);
-    Iface_plumb(&alice->switchAdapter->controlIf, &sc->aliceCtrlIf);
+    Iface_unplumb(alice->upper->controlHandlerIf.connectedIf,
+                  &alice->upper->controlHandlerIf);
+    Iface_plumb(&alice->upper->controlHandlerIf, &sc->aliceCtrlIf);
 
     struct Message* msg = Message_new(Control_Ping_MIN_SIZE + Control_Header_SIZE, 256, alloc);
     struct Control_Header* ch = (struct Control_Header*) msg->bytes;
     struct Control_Ping* ping = (struct Control_Ping*) &ch[1];
     ping->version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL);
-    Message_push32(msg, 0xffffffff, NULL);
-    uint32_t* handle_be = (uint32_t*)msg->bytes;
-    Message_push(msg, NULL, SwitchHeader_SIZE, NULL);
-    struct SwitchHeader* sh = (struct SwitchHeader*) msg->bytes;
+    Message_push(msg, NULL, RouteHeader_SIZE, NULL);
+    struct RouteHeader* rh = (struct RouteHeader*) msg->bytes;
     // TODO(cjd): this will fail with a different encoding scheme
-    sh->label_be = Endian_hostToBigEndian64(0x13);
+    rh->sh.label_be = Endian_hostToBigEndian64(0x13);
+    rh->flags |= RouteHeader_flags_CTRLMSG;
 
-    for (int i = 1; i < 6; i++) {
+    int count = 100000;
+    // This is the easiest way to represent that the packet does out and back
+    // so it should be double counted in "packets per second".
+    begin(ctx, "Switching", count * 2, "packets");
+    for (int i = 1; i < count; i++) {
+        rh->flags &= ~RouteHeader_flags_INCOMING;
         ping->magic = Control_Ping_MAGIC;
         ch->type_be = Control_PING_be;
         ch->checksum_be = 0;
@@ -201,20 +205,11 @@ static void switching(struct Context* ctx)
 
         Iface_send(&sc->aliceCtrlIf, msg);
 
+        Assert_true(msg->bytes == (void*)rh);
         Assert_true(sc->msgCount == i);
-        Assert_true(msg->bytes == (void*)sh);
         Assert_true(ping->magic == Control_Pong_MAGIC);
         Assert_true(ch->type_be = Control_PONG_be);
         Assert_true(!Checksum_engine((void*)ch, Control_Ping_MIN_SIZE + Control_Header_SIZE));
-    }
-
-    *handle_be = 0xfffffff0;
-    int count = 1000000;
-    begin(ctx, "Switching", count, "packets");
-    for (int i = 0; i < count; i++) {
-        sh->versionAndLabelShift = SwitchHeader_CURRENT_VERSION << 6;
-        Iface_send(&sc->aliceCtrlIf, msg);
-        Assert_true(msg->bytes == (void*)sh);
     }
     done(ctx);
 
@@ -223,7 +218,7 @@ static void switching(struct Context* ctx)
 }
 
 /** Check if nodes A and C can communicate via B without A knowing that C exists. */
-void Benchmark_runAll()
+void Benchmark_runAll(void)
 {
     struct Allocator* alloc = MallocAllocator_new(1<<22);
     struct Context* ctx = Allocator_calloc(alloc, sizeof(struct Context), 1);

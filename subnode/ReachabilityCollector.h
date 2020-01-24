@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #ifndef ReachabilityCollector_H
 #define ReachabilityCollector_H
@@ -18,19 +18,29 @@
 #include "dht/Address.h"
 #include "memory/Allocator.h"
 #include "subnode/MsgCore.h"
+#include "subnode/LinkState.h"
 #include "util/Linker.h"
 Linker_require("subnode/ReachabilityCollector.c");
 
+struct ReachabilityCollector_PeerInfo
+{
+    // Address of the peer from us
+    struct Address addr;
+
+    // Their path to us
+    uint64_t pathThemToUs;
+
+    bool querying;
+
+    struct LinkState linkState;
+};
+
 struct ReachabilityCollector;
 
+// pi == NULL -> peer dropped
 typedef void (* ReachabilityCollector_OnChange)(struct ReachabilityCollector* rc,
-                                                uint8_t nodeIpv6[16],
-                                                uint64_t pathThemToUs,
-                                                uint64_t pathUsToThem,
-                                                uint32_t mtu, // 0 = unknown
-                                                uint16_t drops, // 0xffff = unknown
-                                                uint16_t latency, // 0xffff = unknown
-                                                uint16_t penalty); // 0xffff = unknown
+                                                uint8_t ipv6[16],
+                                                struct ReachabilityCollector_PeerInfo* pi);
 
 struct ReachabilityCollector
 {
@@ -38,14 +48,28 @@ struct ReachabilityCollector
     void* userData;
 };
 
+struct ReachabilityCollector_PeerInfo*
+    ReachabilityCollector_getPeerInfo(struct ReachabilityCollector* rc, int peerNum);
+
 // NodeAddr->path should be 0 if the node is not reachable.
 void ReachabilityCollector_change(struct ReachabilityCollector* rc, struct Address* nodeAddr);
+
+void ReachabilityCollector_lagSample(
+    struct ReachabilityCollector* rc, uint64_t label, uint32_t milliseconds);
+
+void ReachabilityCollector_updateBandwidthAndDrops(
+    struct ReachabilityCollector* rc,
+    uint64_t label,
+    uint32_t sumOfPackets,
+    uint32_t sumOfDrops,
+    uint32_t sumOfKb);
 
 struct ReachabilityCollector* ReachabilityCollector_new(struct Allocator* allocator,
                                                         struct MsgCore* mc,
                                                         struct Log* log,
                                                         struct EventBase* base,
                                                         struct BoilerplateResponder* br,
-                                                        struct Address* myAddr);
+                                                        struct Address* myAddr,
+                                                        struct EncodingScheme* myScheme);
 
 #endif

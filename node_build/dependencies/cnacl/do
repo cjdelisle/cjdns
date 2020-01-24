@@ -418,7 +418,7 @@ echo "=== `date` === starting curvecp"
 
 okabi \
 | awk '
-  { if ($1=="amd64" || $1=="ia64" || $1=="ppc64" || $1=="sparcv9" || $1=="mips64") print 1,$1
+  { if ($1=="amd64" || $1=="ia64" || $1=="ppc64" || $1=="sparcv9" || $1=="mips64" || $1=="s390x") print 1,$1
     else if ($1 == "mips32") print 2,$1
     else print 3,$1
   }

@@ -8,10 +8,18 @@
 Verifies that ios watch extensions and apps are built correctly.
 """
 
+from __future__ import print_function
+
 import TestGyp
 import TestMac
 
 import sys
+
+if sys.platform == 'darwin':
+  print("This test is currently disabled: https://crbug.com/483696.")
+  sys.exit(0)
+
+
 if sys.platform == 'darwin' and TestMac.Xcode.Version() >= "0620":
   test = TestGyp.TestGyp(formats=['ninja', 'xcode'])
 

@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #ifndef Address_H
 #define Address_H
@@ -76,6 +76,34 @@ uint32_t Address_getPrefix(struct Address* addr);
 uint32_t Address_prefixForIp6(uint8_t ip6[16]);
 
 uint32_t Address_prefixForSearchTarget(const uint8_t searchTarget[16]);
+
+/**
+ * Address_serialize and Address_parse use the following format:
+ *
+ *                       1               2               3
+ *       0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
+ *      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *    0 |                                                               |
+ *      +                                                               +
+ *    4 |                                                               |
+ *      +                                                               +
+ *    8 |                                                               |
+ *      +                                                               +
+ *   12 |                                                               |
+ *      +                          Public Key                           +
+ *   16 |                                                               |
+ *      +                                                               +
+ *   20 |                                                               |
+ *      +                                                               +
+ *   24 |                                                               |
+ *      +                                                               +
+ *   28 |                                                               |
+ *      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *   32 |                                                               |
+ *      +                          Route Label                          +
+ *   36 |                                                               |
+ *      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ */
 
 void Address_serialize(uint8_t output[Address_SERIALIZED_SIZE], const struct Address* addr);
 

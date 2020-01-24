@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "util/platform/netdev/NetPlatform.h"
 #include "util/platform/Sockaddr.h"
@@ -19,6 +19,7 @@
 #include "wire/Message.h"
 #include "util/AddrTools.h"
 #include "util/Assert.h"
+#include "util/CString.h"
 
 #include <stdbool.h>
 #include <string.h>
@@ -49,14 +50,12 @@
  * the same structures, leading to redefinition errors.
  * For the second operand, we're grateful to android/bionic, platform level 21.
  */
-#if !defined(_LINUX_IN6_H) && !defined(_UAPI_LINUX_IN6_H)
-    struct in6_ifreq
-    {
-        struct in6_addr ifr6_addr;
-        uint32_t ifr6_prefixlen;
-        int ifr6_ifindex;
-    };
-#endif
+struct Cjdns_in6_ifreq
+{
+    struct in6_addr ifr6_addr;
+    uint32_t ifr6_prefixlen;
+    int ifr6_ifindex;
+};
 
 /**
  * Get a socket and ifRequest for a given interface by name.
@@ -80,7 +79,7 @@ static int socketForIfName(const char* interfaceName,
     }
 
     memset(ifRequestOut, 0, sizeof(struct ifreq));
-    strncpy(ifRequestOut->ifr_name, interfaceName, IFNAMSIZ);
+    CString_safeStrncpy(ifRequestOut->ifr_name, interfaceName, IFNAMSIZ);
 
     if (ioctl(s, SIOCGIFINDEX, ifRequestOut) < 0) {
         int err = errno;
@@ -141,7 +140,7 @@ void NetPlatform_addAddress(const char* interfaceName,
     checkInterfaceUp(s, &ifRequest, logger, eh);
 
     if (addrFam == Sockaddr_AF_INET6) {
-        struct in6_ifreq ifr6 = {
+        struct Cjdns_in6_ifreq ifr6 = {
             .ifr6_ifindex = ifIndex,
             .ifr6_prefixlen = prefixLen
         };
@@ -150,7 +149,11 @@ void NetPlatform_addAddress(const char* interfaceName,
         if (ioctl(s, SIOCSIFADDR, &ifr6) < 0) {
             int err = errno;
             close(s);
-            Except_throw(eh, "ioctl(SIOCSIFADDR) [%s]", strerror(err));
+            if (err == EPERM) {
+                  Except_throw(eh, "ioctl permission denied, Are you root and is ipv6 enabled?");
+            } else {
+                  Except_throw(eh, "ioctl(SIOCSIFADDR) failed: [%s]", strerror(err));
+            }
         }
 
 

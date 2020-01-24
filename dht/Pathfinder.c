@@ -10,8 +10,9 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+#include "crypto/AddressCalc.h"
 #include "dht/Pathfinder.h"
 #include "dht/DHTModule.h"
 #include "dht/Address.h"
@@ -19,6 +20,7 @@
 #include "wire/RouteHeader.h"
 #include "dht/ReplyModule.h"
 #include "dht/EncodingSchemeModule.h"
+#include "dht/Pathfinder_pvt.h"
 #include "dht/SerializationModule.h"
 #include "dht/dhtcore/RouterModule.h"
 #include "dht/dhtcore/RouterModule_admin.h"
@@ -87,7 +89,7 @@ static int incomingFromDHT(struct DHTMessage* dmessage, void* vpf)
     }
 
     // Sanity check (make sure the addr was actually calculated)
-    Assert_true(addr->ip6.bytes[0] == 0xfc);
+    Assert_true(AddressCalc_validAddress(addr->ip6.bytes));
 
     Message_shift(msg, PFChan_Msg_MIN_SIZE, NULL);
     struct PFChan_Msg* emsg = (struct PFChan_Msg*) msg->bytes;
@@ -99,6 +101,7 @@ static int incomingFromDHT(struct DHTMessage* dmessage, void* vpf)
     Bits_memcpy(emsg->route.ip6, addr->ip6.bytes, 16);
     emsg->route.version_be = Endian_hostToBigEndian32(addr->protocolVersion);
     emsg->route.sh.label_be = Endian_hostToBigEndian64(addr->path);
+    emsg->route.flags |= RouteHeader_flags_PATHFINDER;
     SwitchHeader_setVersion(&emsg->route.sh, SwitchHeader_CURRENT_VERSION);
     Bits_memcpy(emsg->route.publicKey, addr->key, 32);
 
@@ -124,7 +127,7 @@ static void nodeForAddress(struct PFChan_Node* nodeOut, struct Address* addr, ui
 {
     Bits_memset(nodeOut, 0, PFChan_Node_SIZE);
     nodeOut->version_be = Endian_hostToBigEndian32(addr->protocolVersion);
-    nodeOut->metric_be = Endian_hostToBigEndian32(metric);
+    nodeOut->metric_be = Endian_hostToBigEndian32(metric | 0xffff0000);
     nodeOut->path_be = Endian_hostToBigEndian64(addr->path);
     Bits_memcpy(nodeOut->publicKey, addr->key, 32);
     Bits_memcpy(nodeOut->ip6, addr->ip6.bytes, 16);
@@ -148,14 +151,15 @@ static Iface_DEFUN sendNode(struct Message* msg,
 static void onBestPathChange(void* vPathfinder, struct Node_Two* node)
 {
     struct Pathfinder_pvt* pf = Identity_check((struct Pathfinder_pvt*) vPathfinder);
-    if (pf->bestPathChanges > 128) {
-        Log_debug(pf->log, "Ignore best path change from NodeStore, calm down...");
-        return;
-    }
-    pf->bestPathChanges++;
     struct Allocator* alloc = Allocator_child(pf->alloc);
-    struct Message* msg = Message_new(0, 256, alloc);
-    Iface_CALL(sendNode, msg, &node->address, Node_getCost(node), pf);
+    if (pf->bestPathChanges > 128) {
+        String* addrPrinted = Address_toString(&node->address, alloc);
+        Log_debug(pf->log, "Ignore best path change from NodeStore [%s]", addrPrinted->bytes);
+    } else {
+        pf->bestPathChanges++;
+        struct Message* msg = Message_new(0, 256, alloc);
+        Iface_CALL(sendNode, msg, &node->address, Node_getCost(node), pf);
+    }
     Allocator_free(alloc);
 }
 
@@ -179,6 +183,10 @@ static Iface_DEFUN connected(struct Pathfinder_pvt* pf, struct Message* msg)
     pf->rumorMill = RumorMill_new(pf->alloc, &pf->myAddr, RUMORMILL_CAPACITY, pf->log, "extern");
 
     pf->nodeStore = NodeStore_new(&pf->myAddr, pf->alloc, pf->base, pf->log, pf->rumorMill);
+
+    if (pf->pub.fullVerify) {
+        NodeStore_setFullVerify(pf->nodeStore, true);
+    }
 
     pf->nodeStore->onBestPathChange = onBestPathChange;
     pf->nodeStore->onBestPathChangeCtx = pf;
@@ -273,6 +281,9 @@ static Iface_DEFUN searchReq(struct Message* msg, struct Pathfinder_pvt* pf)
 {
     uint8_t addr[16];
     Message_pop(msg, addr, 16, NULL);
+    Message_pop32(msg, NULL);
+    uint32_t version = Message_pop32(msg, NULL);
+    if (version && version >= 20) { return NULL; }
     Assert_true(!msg->length);
     uint8_t printedAddr[40];
     AddrTools_printIp(printedAddr, addr);
@@ -437,6 +448,9 @@ static Iface_DEFUN incomingFromEventIf(struct Message* msg, struct Iface* eventI
         case PFChan_Core_MSG: return incomingMsg(msg, pf);
         case PFChan_Core_PING: return handlePing(msg, pf);
         case PFChan_Core_PONG: return handlePong(msg, pf);
+        case PFChan_Core_UNSETUP_SESSION:
+        case PFChan_Core_LINK_STATE:
+        case PFChan_Core_CTRL_MSG: return NULL;
         default:;
     }
     Assert_failure("unexpected event [%d]", ev);
@@ -459,7 +473,7 @@ static void init(void* vpf)
         .superiority_be = Endian_hostToBigEndian32(1),
         .version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL)
     };
-    CString_strncpy(conn.userAgent, "Cjdns internal pathfinder", 64);
+    CString_safeStrncpy(conn.userAgent, "Cjdns internal pathfinder", 64);
     sendEvent(pf, PFChan_Pathfinder_CONNECT, &conn, PFChan_Pathfinder_Connect_SIZE);
 }
 

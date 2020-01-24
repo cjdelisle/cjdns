@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #ifndef ReachabilityAnnouncer_H
 #define ReachabilityAnnouncer_H
@@ -22,6 +22,7 @@
 #include "crypto/random/Random.h"
 #include "subnode/MsgCore.h"
 #include "subnode/SupernodeHunter.h"
+#include "subnode/ReachabilityCollector.h"
 #include "switch/EncodingScheme.h"
 #include "util/Linker.h"
 Linker_require("subnode/ReachabilityAnnouncer.c");
@@ -31,15 +32,10 @@ struct ReachabilityAnnouncer
     int unused;
 };
 
-// (pathThemToUs == 0) -> peer is gone.
+// (pi == NULL) -> peer is gone.
 void ReachabilityAnnouncer_updatePeer(struct ReachabilityAnnouncer* ra,
                                       uint8_t ipv6[16],
-                                      uint64_t pathThemToUs,
-                                      uint64_t pathUsToThem,
-                                      uint32_t mtu,
-                                      uint16_t drops,
-                                      uint16_t latency,
-                                      uint16_t penalty);
+                                      struct ReachabilityCollector_PeerInfo* pi);
 
 struct ReachabilityAnnouncer* ReachabilityAnnouncer_new(struct Allocator* allocator,
                                                         struct Log* log,

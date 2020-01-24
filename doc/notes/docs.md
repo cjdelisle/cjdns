@@ -25,7 +25,7 @@ Tutorials specifically for newbs
 - community guidelines
 
 
-stuff on OSX
+stuff on macOS
 
 - http://couch.syrinxist.org:9001/p/osx
 

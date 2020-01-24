@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "crypto/random/Random.h"
 #include "crypto/CryptoAuth.h"
@@ -25,6 +25,7 @@
 #include "crypto/random/test/DeterminentRandomSeed.h"
 #include "crypto/random/Random.h"
 #include "crypto/AddressCalc.h"
+#include "test/FuzzTest.h"
 
 struct DelayedMsg {
     struct Message* msg;
@@ -49,6 +50,7 @@ struct Context {
     struct Log* log;
     /** Number of messages which make back and forth *while* both CAs are in ESTABLISHED state. */
     int successMessageCount;
+    Identity
 };
 
 // Increase this number to make the fuzz test run longer.
@@ -218,8 +220,8 @@ static void sendFrom(struct Context* ctx, struct Node* from, struct Message* msg
             Assert_true(!CryptoAuth_encrypt(to->session, msg));
             to->sendCounter++;
             sendFrom(ctx, to, msg);
-        } else if (CryptoAuth_getState(ctx->nodeA.session) == CryptoAuth_ESTABLISHED &&
-            CryptoAuth_getState(ctx->nodeB.session) == CryptoAuth_ESTABLISHED)
+        } else if (CryptoAuth_getState(ctx->nodeA.session) == CryptoAuth_State_ESTABLISHED &&
+            CryptoAuth_getState(ctx->nodeB.session) == CryptoAuth_State_ESTABLISHED)
         {
             ctx->successMessageCount++;
         }
@@ -265,23 +267,28 @@ static void mainLoop(struct Context* ctx)
     Assert_failure("Nodes could not sync");
 }
 
-static void cycle(uint8_t randSeed[64],
-                  struct EventBase* base,
-                  struct Log* logger,
-                  struct Allocator* alloc)
+void* CJDNS_FUZZ_INIT(struct Allocator* alloc, struct Random* rand)
 {
     struct Context* ctx = Allocator_calloc(alloc, sizeof(struct Context), 1);
+    Identity_set(ctx);
+    struct EventBase* base = EventBase_new(alloc);
     ctx->alloc = alloc;
-    ctx->log = logger;
-    struct RandomSeed* seed = DeterminentRandomSeed_new(alloc, randSeed);
-    struct Random* rand = ctx->rand = Random_newWithSeed(alloc, logger, seed, NULL);
-
-    ctx->nodeA.ca = CryptoAuth_new(alloc, NULL, base, logger, rand);
-    ctx->nodeB.ca = CryptoAuth_new(alloc, NULL, base, logger, rand);
+    ctx->nodeA.ca = CryptoAuth_new(alloc, NULL, base, NULL, rand);
+    ctx->nodeB.ca = CryptoAuth_new(alloc, NULL, base, NULL, rand);
     ctx->nodeA.session = CryptoAuth_newSession(
         ctx->nodeA.ca, alloc, ctx->nodeB.ca->publicKey, false, "nodeA");
     ctx->nodeB.session = CryptoAuth_newSession(
         ctx->nodeB.ca, alloc, ctx->nodeA.ca->publicKey, false, "nodeB");
+    return ctx;
+}
+
+void CJDNS_FUZZ_MAIN(void* vctx, struct Message* fuzz)
+{
+    struct Context* ctx = Identity_check((struct Context*) vctx);
+
+    // This is not ideal, but this test was already written before AFL.
+    struct RandomSeed* rs = DeterminentRandomSeed_new(ctx->alloc, fuzz->bytes);
+    ctx->rand = Random_newWithSeed(ctx->alloc, NULL, rs, NULL);
 
     if (maybe(ctx, 2)) {
         CryptoAuth_addUser_ipv6(String_CONST("pass"), String_CONST("user"), NULL, ctx->nodeB.ca);
@@ -305,31 +312,4 @@ static void cycle(uint8_t randSeed[64],
     }
 
     mainLoop(ctx);
-}
-
-int main(int argc, char** argv)
-{
-    struct Allocator* alloc = MallocAllocator_new(1048576);
-    struct Log* logger = FileWriterLog_new(stdout, alloc);
-    struct Random* rand = Random_new(alloc, logger, NULL);
-    struct EventBase* base = EventBase_new(alloc);
-
-    int cycles = QUICK_CYCLES;
-    for (int i = 0; i < argc; i++) {
-        if (!CString_strcmp("--fuzz", argv[i])) {
-            cycles = SLOW_CYCLES;
-            break;
-        }
-    }
-
-    uint8_t randSeed[64] = {0};
-    for (int i = 0; i < cycles; i++) {
-        Random_base32(rand, randSeed, 32);
-        struct Allocator* tempAlloc = Allocator_child(alloc);
-        Log_debug(logger, "===== %s =====", randSeed);
-        cycle(randSeed, base, logger, tempAlloc);
-        Allocator_free(tempAlloc);
-    }
-    Log_debug(logger, "===+++=== Completed Ok ===++++===");
-    return 0;
 }

@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "interface/ETHInterface_admin.h"
 #include "interface/ETHInterface.h"
@@ -40,13 +40,13 @@ static void beginConnection(Dict* args,
 {
     struct Context* ctx = Identity_check((struct Context*) vcontext);
 
-    String* password = Dict_getString(args, String_CONST("password"));
-    String* login = Dict_getString(args, String_CONST("login"));
-    String* publicKey = Dict_getString(args, String_CONST("publicKey"));
-    String* macAddress = Dict_getString(args, String_CONST("macAddress"));
-    int64_t* interfaceNumber = Dict_getInt(args, String_CONST("interfaceNumber"));
+    String* password = Dict_getStringC(args, "password");
+    String* login = Dict_getStringC(args, "login");
+    String* publicKey = Dict_getStringC(args, "publicKey");
+    String* macAddress = Dict_getStringC(args, "macAddress");
+    int64_t* interfaceNumber = Dict_getIntC(args, "interfaceNumber");
     uint32_t ifNum = (interfaceNumber) ? ((uint32_t) *interfaceNumber) : 0;
-    String* peerName = Dict_getString(args, String_CONST("peerName"));
+    String* peerName = Dict_getStringC(args, "peerName");
     char* error = "none";
 
     uint8_t pkBytes[32];
@@ -77,14 +77,14 @@ static void beginConnection(Dict* args,
     }
 
     Dict* out = Dict_new(requestAlloc);
-    Dict_putString(out, String_CONST("error"), String_new(error, requestAlloc), requestAlloc);
+    Dict_putStringC(out, "error", String_new(error, requestAlloc), requestAlloc);
     Admin_sendMessage(out, txid, ctx->admin);
 }
 
 static void newInterface(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* const ctx = Identity_check((struct Context*) vcontext);
-    String* const bindDevice = Dict_getString(args, String_CONST("bindDevice"));
+    String* const bindDevice = Dict_getStringC(args, "bindDevice");
     struct Allocator* const alloc = Allocator_child(ctx->alloc);
 
     struct ETHInterface* ethIf = NULL;
@@ -94,7 +94,7 @@ static void newInterface(Dict* args, void* vcontext, String* txid, struct Alloca
             ctx->eventBase, bindDevice->bytes, alloc, &jmp.handler, ctx->logger);
     } Jmp_catch {
         Dict* out = Dict_new(requestAlloc);
-        Dict_putString(out, String_CONST("error"), String_CONST(jmp.message), requestAlloc);
+        Dict_putStringCC(out, "error", jmp.message, requestAlloc);
         Admin_sendMessage(out, txid, ctx->admin);
         Allocator_free(alloc);
         return;
@@ -106,16 +106,16 @@ static void newInterface(Dict* args, void* vcontext, String* txid, struct Alloca
     Iface_plumb(&ici->addrIf, &ethIf->generic.iface);
 
     Dict* out = Dict_new(requestAlloc);
-    Dict_putString(out, String_CONST("error"), String_CONST("none"), requestAlloc);
-    Dict_putInt(out, String_CONST("interfaceNumber"), ici->ifNum, requestAlloc);
+    Dict_putStringCC(out, "error", "none", requestAlloc);
+    Dict_putIntC(out, "interfaceNumber", ici->ifNum, requestAlloc);
 
     Admin_sendMessage(out, txid, ctx->admin);
 }
 
 static void beacon(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
-    int64_t* stateP = Dict_getInt(args, String_CONST("state"));
-    int64_t* ifNumP = Dict_getInt(args, String_CONST("interfaceNumber"));
+    int64_t* stateP = Dict_getIntC(args, "state");
+    int64_t* ifNumP = Dict_getIntC(args, "interfaceNumber");
     uint32_t ifNum = (ifNumP) ? ((uint32_t) *ifNumP) : 0;
     uint32_t state = (stateP) ? ((uint32_t) *stateP) : 0xffffffff;
     struct Context* ctx = Identity_check((struct Context*) vcontext);
@@ -132,7 +132,7 @@ static void beacon(Dict* args, void* vcontext, String* txid, struct Allocator* r
 
     if (error) {
         Dict* out = Dict_new(requestAlloc);
-        Dict_putString(out, String_CONST("error"), String_CONST(error), requestAlloc);
+        Dict_putStringCC(out, "error", error, requestAlloc);
         Admin_sendMessage(out, txid, ctx->admin);
         return;
     }
@@ -161,14 +161,14 @@ static void listDevices(Dict* args, void* vcontext, String* txid, struct Allocat
         devices = ETHInterface_listDevices(requestAlloc, &jmp.handler);
     } Jmp_catch {
         Dict* out = Dict_new(requestAlloc);
-        Dict_putString(out, String_CONST("error"), String_CONST(jmp.message), requestAlloc);
+        Dict_putStringCC(out, "error", jmp.message, requestAlloc);
         Admin_sendMessage(out, txid, ctx->admin);
         return;
     }
 
     Dict* out = Dict_new(requestAlloc);
-    Dict_putString(out, String_CONST("error"), String_CONST("none"), requestAlloc);
-    Dict_putList(out, String_CONST("devices"), devices, requestAlloc);
+    Dict_putStringCC(out, "error", "none", requestAlloc);
+    Dict_putListC(out, "devices", devices, requestAlloc);
     Admin_sendMessage(out, txid, ctx->admin);
 }
 
@@ -198,7 +198,8 @@ void ETHInterface_admin_register(struct EventBase* base,
             { .name = "password", .required = 0, .type = "String" },
             { .name = "publicKey", .required = 1, .type = "String" },
             { .name = "macAddress", .required = 1, .type = "String" },
-            { .name = "login", .required = 0, .type = "String" }
+            { .name = "login", .required = 0, .type = "String" },
+            { .name = "peerName", .required = 0, .type = "String" }
         }), admin);
 
     Admin_registerFunction("ETHInterface_beacon", beacon, ctx, true,

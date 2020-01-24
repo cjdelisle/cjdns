@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "benc/String.h"
 #include "benc/Dict.h"
@@ -28,13 +28,11 @@
 #include "util/Checksum.h"
 #include "util/CString.h"
 #include "util/Escape.h"
+#include "util/GlobalConfig.h"
 #include "wire/DataHeader.h"
 #include "wire/Message.h"
 #include "wire/Headers.h"
 #include "wire/Ethernet.h"
-
-#define PUBKEY "f3yqyp5qpmpfgvjyvtklff40510gxuuuh52vpyzvpbhh5glyfr60.k"
-#define IPV6 "fca9:f505:c650:8723:72a8:a524:530a:25c3"
 
 struct Context
 {
@@ -229,7 +227,8 @@ static void testAddr(struct Context* ctx,
                      char* addr6, int prefix6, int alloc6)
 {
     struct Allocator* alloc = Allocator_child(ctx->alloc);
-    struct IpTunnel* ipTun = IpTunnel_new(ctx->log, ctx->base, alloc, ctx->rand, NULL);
+    struct GlobalConfig* gc = GlobalConfig_new(alloc);
+    struct IpTunnel* ipTun = IpTunnel_new(ctx->log, ctx->base, alloc, ctx->rand, NULL, gc);
 
     struct Sockaddr* sa4 = NULL;
     struct Sockaddr_storage ip6ToGive;
@@ -373,12 +372,13 @@ int main()
     struct Log* logger = FileWriterLog_new(stdout, alloc);
     struct Random* rand = Random_new(alloc, logger, NULL);
     struct Context* ctx = Allocator_calloc(alloc, sizeof(struct Context), 1);
+    uint8_t privateKey[32];
     Identity_set(ctx);
     ctx->alloc = alloc;
     ctx->log = logger;
     ctx->rand = rand;
     ctx->base = eb;
-    Assert_true(!Key_parse(String_CONST(PUBKEY), ctx->pubKey, ctx->ipv6));
+    Assert_true(!Key_gen(ctx->ipv6, ctx->pubKey, privateKey, rand));
 
     testAddr(ctx, "192.168.1.1", 0, 32, NULL, 0, 0);
     testAddr(ctx, "192.168.1.1", 16, 24, NULL, 0, 0);
@@ -388,14 +388,8 @@ int main()
     testAddr(ctx, "192.168.1.1", 16, 24, "fd00::1", 8, 64);
     testAddr(ctx, "192.168.1.1", 16, 24, "fd00::1", 64, 128);
 
-    //Allocator_free(alloc); //TODO(cjd): This is caused by an allocator bug.
-    /* To repeat the bug, create a test like this:
-    struct Allocator* allocx = Allocator_child(alloc);
-    Timeout_setInterval(NULL, NULL, 10000, eb, allocx);
-    Allocator_snapshot(alloc, true);
-    Allocator_free(allocx);
-    Allocator_snapshot(alloc, true);
-    return 0;
-    */
+    EventBase_beginLoop(eb);
+
+    Allocator_free(alloc);
     return 0;
 }

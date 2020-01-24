@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
 // sigaction() siginfo_t SIG_UNBLOCK
@@ -337,6 +337,12 @@ static struct sock_fprog* mkFilter(struct Allocator* alloc, struct Except* eh)
         #ifdef __NR_getsockname
         IFEQ(__NR_getsockname, success),
         #endif
+
+        // musl free() calls madvise()
+        #ifdef __NR_madvise
+        IFEQ(__NR_madvise, success),
+        #endif
+
         RET(SECCOMP_RET_TRAP),
 
         LABEL(socket),
@@ -408,7 +414,7 @@ void Seccomp_dropPermissions(struct Allocator* tempAlloc, struct Log* logger, st
     }
 }
 
-int Seccomp_isWorking()
+int Seccomp_isWorking(void)
 {
     errno = 0;
     // If seccomp is not working, this will fail setting errno to EINVAL
@@ -422,7 +428,7 @@ int Seccomp_isWorking()
     return (ret == -1 && err == IS_WORKING_ERRNO) || (ret == -IS_WORKING_ERRNO && err == 0);
 }
 
-int Seccomp_exists()
+int Seccomp_exists(void)
 {
     return 1;
 }

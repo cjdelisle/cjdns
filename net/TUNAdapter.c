@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "interface/Iface.h"
 #include "memory/Allocator.h"
@@ -126,7 +126,7 @@ static Iface_DEFUN incomingFromUpperDistributorIf(struct Message* msg,
     struct RouteHeader* hdr = (struct RouteHeader*) msg->bytes;
     struct DataHeader* dh = (struct DataHeader*) &hdr[1];
     enum ContentType type = DataHeader_getContentType(dh);
-    Assert_true(type <= ContentType_IP6_RAW);
+    Assert_true(type <= ContentType_IP6_MAX);
 
     // Shift ip address into destination slot.
     Bits_memmove(hdr->ip6 + DataHeader_SIZE - 16, hdr->ip6, 16);

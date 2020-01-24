@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "crypto/random/seed/RandomSeed.h"
 #include "util/log/Log.h"
@@ -22,6 +22,7 @@
 #include "crypto/random/seed/LinuxRandomUuidSysctlRandomSeed.h"
 #include "crypto/random/seed/ProcSysKernelRandomUuidRandomSeed.h"
 #include "crypto/random/seed/GetEntropyRandomSeed.h"
+#include "crypto/random/seed/SystemRandomSeed.h"
 
 static RandomSeed_Provider PROVIDERS[] = { RandomSeedProvider_list() };
 #define PROVIDERS_COUNT ((int)(sizeof(PROVIDERS) / sizeof(RandomSeed_Provider)))

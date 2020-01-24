@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "dht/EncodingSchemeModule.h"
 #include "dht/Address.h"
@@ -73,7 +73,12 @@ static int handleIncoming(struct DHTMessage* message, void* vcontext)
     message->encodingScheme = scheme;
 
     int64_t* version = Dict_getInt(message->asDict, CJDHTConstants_PROTOCOL);
-    if (!version || !Version_isCompatible(Version_CURRENT_PROTOCOL, *version)) {
+    if (!version) {
+        Log_debug(ctx->logger, "Protocol version missing");
+        Assert_ifTesting(0);
+        return -1;
+    }
+    if (!Version_isCompatible(Version_CURRENT_PROTOCOL, *version)) {
         Log_debug(ctx->logger, "Incompatible version");
         Assert_ifTesting(0);
         return -1;

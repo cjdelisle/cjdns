@@ -15,15 +15,14 @@ import sys
 
 def CheckFileXMLPropertyList(file):
   output = subprocess.check_output(['file', file])
-  # The double space after XML is intentional.
-  if not 'XML  document text' in output:
-    print 'File: Expected XML  document text, got %s' % output
+  if not 'XML 1.0 document text' in output:
+    print('File: Expected XML 1.0 document text, got %s' % output)
     test.fail_test()
 
 def CheckFileBinaryPropertyList(file):
   output = subprocess.check_output(['file', file])
   if not 'Apple binary property list' in output:
-    print 'File: Expected Apple binary property list, got %s' % output
+    print('File: Expected Apple binary property list, got %s' % output)
     test.fail_test()
 
 if sys.platform == 'darwin':
@@ -54,6 +53,12 @@ if sys.platform == 'darwin':
       chdir='app-bundle')
   test.built_file_must_exist(strings_file)
   CheckFileBinaryPropertyList(strings_file)
+
+  extra_plist_file = test.built_file_path(
+      'Test App Gyp.app/English.lproj/LanguageMap.plist',
+      chdir='app-bundle')
+  test.built_file_must_exist(extra_plist_file)
+  CheckFileBinaryPropertyList(extra_plist_file)
 
   test.built_file_must_exist(
       'Test App Gyp.app/English.lproj/MainMenu.nib',

@@ -2,31 +2,44 @@ Installing CJDNS on Fedora
 ==========================
 (last tested on Fedora 22, those with fedora versions older than 22 should substitute yum for dnf.)
 
-#Prerequisites
+## Install from dnf (easy)
+
 ```bash
-sudo dnf install git automake nodejs libseccomp-devel gcc 
+sudo dnf install cjdns
 ```
 
-#Getting cjdns
+Skip straight down to "Generating a config"
+
+## For development
+
+### Prerequisites
 ```bash
-git clone https://github.com/hyperboria/cjdns
+sudo dnf install git nodejs gcc
 ```
 
-#Building cjdns
+### Getting cjdns
 ```bash
+git clone https://github.com/cjdelisle/cjdns
 cd cjdns/
+```
+
+### Do you want to build crashey branch ?  (optional)
+
+```bash
+git checkout crashey
+```
+
+### Building cjdns
+```bash
 ./do
 ```
 
-#Generating a config
+## Generating a config
 ```bash
-./cjdroute --genconf > cjdroute.conf
+./cjdroute --genconf | sudo tee /etc/cjdroute.conf
 ```
 
-#Setting cjdns to autostart on boot.
-
-First you'll want to edit contrib/systemd/cjdns.service to properly reflect where your cjdns binary and configuration are.
-Then, run these commands:
+## Setting cjdns to autostart on boot
 
 ```bash
 sudo cp cjdns.service /etc/systemd/system/cjdns.service # This gives systemd some information about cjdns.
@@ -34,7 +47,7 @@ sudo systemctl enable cjdns.service #This sets cjdns to be started on boot. if y
 sudo systemctl start cjdns.service #This actually starts cjdns.
 ```
 
-Checking the logs:
+## Check the logs
 ```bash
 sudo systemctl status -l cjdns
 ```

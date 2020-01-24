@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #ifndef NumberCompress_H
 #define NumberCompress_H
@@ -273,7 +273,7 @@ static inline uint32_t NumberCompress_v4x8_bitsUsedForLabel(const uint64_t label
 static inline uint32_t NumberCompress_v4x8_bitsUsedForNumber(const uint32_t number)
 {
     Assert_ifTesting(number < 256);
-    return (number < 15) ? 5 : 9;
+    return (number < 16) ? 5 : 9;
 }
 
 #define NumberCompress_MKNAME(x) NumberCompress__MKNAME(NumberCompress_TYPE, x)

@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #ifndef Pathfinder_H
 #define Pathfinder_H
@@ -30,6 +30,7 @@ Linker_require("dht/Pathfinder.c");
 struct Pathfinder
 {
     struct Iface eventIf;
+    bool fullVerify;
 };
 
 struct Pathfinder* Pathfinder_register(struct Allocator* alloc,

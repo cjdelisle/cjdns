@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "crypto/ReplayProtector.h"
 #include "crypto/random/Random.h"
@@ -52,5 +52,6 @@ int main()
     for (int i = 0; i < CYCLES; i++) {
         testDuplicates(rand);
     }
+    Allocator_free(alloc);
     return 0;
 }

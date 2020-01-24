@@ -1,7 +1,7 @@
 Proxying
 ===========================
 
-#Keep in mind that we'd rather you put cjdns on all your machines!
+**Keep in mind that we'd rather you put cjdns on all your machines!**
 
 Sometimes it's just not possible to get cjdns working on a machine.
 
@@ -11,7 +11,7 @@ This can be simply done using a SSH connection.
 Creating SOCKSv5 connection
 ----------------------------
 
-To create SOCKS SSH connection in Linux/OSX:
+To create SOCKS SSH connection in Linux/macOS:
 
 ```bash
 ssh -f -N -D 8080 [your_cjdns_capable_host]

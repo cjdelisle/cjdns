@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "util/events/libuv/UvWrapper.h"
 #include "exception/Except.h"
@@ -57,7 +57,7 @@ struct UDPAddrIface_WriteRequest_pvt {
     Identity
 };
 
-struct UDPAddrIface_pvt* ifaceForHandle(uv_udp_t* handle)
+static struct UDPAddrIface_pvt* ifaceForHandle(uv_udp_t* handle)
 {
     char* hp = ((char*)handle) - offsetof(struct UDPAddrIface_pvt, uvHandle);
     return Identity_check((struct UDPAddrIface_pvt*) hp);
@@ -231,6 +231,31 @@ static int blockFreeInsideCallback(struct Allocator_OnFreeJob* job)
     }
     context->blockFreeInsideCallback = job;
     return Allocator_ONFREE_ASYNC;
+}
+
+int UDPAddrIface_setDSCP(struct UDPAddrIface* iface, uint8_t dscp)
+{
+    int res = 0;
+    /* For win32 setsockopt is unable to mark the TOS field in IP header, do not support it now */
+    #ifndef win32
+        struct UDPAddrIface_pvt* context = Identity_check((struct UDPAddrIface_pvt*) iface);
+        /* 6-bit DSCP, 2-bit ENC(useless for UDP) */
+        int tos = dscp << 2;
+        if (Sockaddr_getFamily(context->pub.generic.addr) == Sockaddr_AF_INET) {
+            res = setsockopt(context->uvHandle.io_watcher.fd, IPPROTO_IP, IP_TOS,
+                           &tos, sizeof(tos));
+        } else if (Sockaddr_getFamily(context->pub.generic.addr) == Sockaddr_AF_INET6) {
+            res = setsockopt(context->uvHandle.io_watcher.fd, IPPROTO_IPV6, IPV6_TCLASS,
+                           &tos, sizeof(tos));
+        }
+    #endif
+    return res;
+}
+
+int UDPAddrIface_setBroadcast(struct UDPAddrIface* iface, bool enable)
+{
+    struct UDPAddrIface_pvt* context = Identity_check((struct UDPAddrIface_pvt*) iface);
+    return uv_udp_set_broadcast(&context->uvHandle, enable ? 1 : 0);
 }
 
 struct UDPAddrIface* UDPAddrIface_new(struct EventBase* eventBase,

@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "benc/List.h"
 #include "benc/String.h"
@@ -196,21 +196,21 @@ static void testGetUsers()
     struct EventBase* base = EventBase_new(allocator);
     struct CryptoAuth* ca =
         CryptoAuth_new(allocator, NULL, base, NULL, evilRandom(allocator, NULL));
-    List* users = NULL;
+    struct StringList* users = NULL;
 
     users = CryptoAuth_getUsers(ca, allocator);
-    Assert_true(List_size(users) == 0);
+    Assert_true(users->length == 0);
 
     CryptoAuth_addUser(String_CONST("pass1"), String_CONST("user1"), ca);
     users = CryptoAuth_getUsers(ca, allocator);
-    Assert_true(List_size(users) == 1);
-    Assert_true(String_equals(String_CONST("user1"), List_getString(users,0)));
+    Assert_true(users->length == 1);
+    Assert_true(String_equals(String_CONST("user1"), StringList_get(users,0)));
 
     CryptoAuth_addUser(String_CONST("pass2"), String_CONST("user2"), ca);
     users = CryptoAuth_getUsers(ca, allocator);
-    Assert_true(List_size(users) == 2);
-    Assert_true(String_equals(String_CONST("user2"),List_getString(users,0)));
-    Assert_true(String_equals(String_CONST("user1"),List_getString(users,1)));
+    Assert_true(users->length == 2);
+    Assert_true(String_equals(String_CONST("user2"),StringList_get(users,1)));
+    Assert_true(String_equals(String_CONST("user1"),StringList_get(users,0)));
 
     Allocator_free(allocator);
 }

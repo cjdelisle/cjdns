@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "benc/Dict.h"
 #include "benc/String.h"
@@ -40,7 +40,7 @@ static void unregisterHandler(Dict* args, void* vctx, String* txid, struct Alloc
     struct Context* ctx = Identity_check((struct Context*) vctx);
     int64_t* udpPort = Dict_getIntC(args, "udpPort");
     char* err;
-    if (*udpPort < 1 && *udpPort > 65536) {
+    if (*udpPort < 1 || *udpPort > 65535) {
         err = "invalid_udpPort";
     } else {
         int ret = UpperDistributor_unregisterHandler(ctx->ud, (int) *udpPort);

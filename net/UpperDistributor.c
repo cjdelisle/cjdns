@@ -10,8 +10,9 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+#include "crypto/AddressCalc.h"
 #include "dht/Address.h"
 #include "interface/Iface.h"
 #include "memory/Allocator.h"
@@ -45,10 +46,13 @@ struct UpperDistributor_pvt
     struct Map_OfHandlers* handlers;
 
     struct Allocator* alloc;
+    int noSendToHandler;
     Identity
 };
 
 #define MAGIC_PORT 1
+
+static Iface_DEFUN incomingFromSessionManagerIf(struct Message*, struct Iface*);
 
 static Iface_DEFUN fromHandler(struct Message* msg, struct UpperDistributor_pvt* ud)
 {
@@ -57,32 +61,41 @@ static Iface_DEFUN fromHandler(struct Message* msg, struct UpperDistributor_pvt*
     Message_pop(msg, &dh, DataHeader_SIZE, NULL);
     enum ContentType type = DataHeader_getContentType(&dh);
     if (type != ContentType_IP6_UDP) {
-        Log_debug(ud->log, "Message from handler with invalid type [%d]", type);
+        Log_debug(ud->log, "DROP Message from handler with invalid type [%d]", type);
         return NULL;
     }
     if (msg->length < Headers_UDPHeader_SIZE + RouteHeader_SIZE + DataHeader_SIZE) {
-        Log_debug(ud->log, "runt");
+        Log_debug(ud->log, "DROP runt");
         return NULL;
     }
-    uint8_t srcAndDest[32] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0xfc,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1};
+    uint8_t srcAndDest[32] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1};
+    AddressCalc_makeValidAddress(&srcAndDest[16]);
     Bits_memcpy(srcAndDest, ud->myAddress->ip6.bytes, 16);
     struct Headers_UDPHeader* udp = (struct Headers_UDPHeader*) msg->bytes;
     if (Checksum_udpIp6(srcAndDest, msg->bytes, msg->length)) {
-        Log_debug(ud->log, "Bad checksum");
+        Log_debug(ud->log, "DROP Bad checksum");
         return NULL;
     }
     if (udp->destPort_be != Endian_bigEndianToHost16(MAGIC_PORT)) {
-        Log_debug(ud->log, "Message to unknown port [%d]",
+        Log_debug(ud->log, "DROP Message to unknown port [%d]",
             Endian_bigEndianToHost16(udp->destPort_be));
         return NULL;
     }
     int udpPort = Endian_bigEndianToHost16(udp->srcPort_be);
     int index = Map_OfHandlers_indexForKey(&udpPort, ud->handlers);
     if (index < 0) {
-        Log_debug(ud->log, "Message from unregistered port [%d]", udpPort);
+        Log_debug(ud->log, "DROP Message from unregistered port [%d]", udpPort);
         return NULL;
     }
     Message_pop(msg, NULL, Headers_UDPHeader_SIZE, NULL);
+
+    Assert_true(msg->length >= RouteHeader_SIZE);
+    struct RouteHeader* hdr = (struct RouteHeader*) msg->bytes;
+    if (!Bits_memcmp(hdr->ip6, ud->myAddress->ip6.bytes, 16)) {
+        ud->noSendToHandler = 1;
+        Log_debug(ud->log, "Message to self");
+        return incomingFromSessionManagerIf(msg, &ud->pub.sessionManagerIf);
+    }
 
     return Iface_next(&ud->pub.sessionManagerIf, msg);
 }
@@ -91,6 +104,10 @@ static void sendToHandlers(struct Message* msg,
                            enum ContentType type,
                            struct UpperDistributor_pvt* ud)
 {
+    if (ud->noSendToHandler) {
+        ud->noSendToHandler--;
+        return;
+    }
     for (int i = 0; i < (int)ud->handlers->count; i++) {
         if (ud->handlers->values[i]->pub.type != type) { continue; }
         struct Allocator* alloc = Allocator_child(msg->alloc);
@@ -103,7 +120,8 @@ static void sendToHandlers(struct Message* msg,
             udpH.length_be = Endian_hostToBigEndian16(cmsg->length + Headers_UDPHeader_SIZE);
             udpH.checksum_be = 0;
             Message_push(cmsg, &udpH, Headers_UDPHeader_SIZE, NULL);
-            uint8_t srcAndDest[32] = {0xfc,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1};
+            uint8_t srcAndDest[32] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1};
+            AddressCalc_makeValidAddress(srcAndDest);
             Bits_memcpy(&srcAndDest[16], ud->myAddress->ip6.bytes, 16);
             uint16_t checksum = Checksum_udpIp6(srcAndDest, cmsg->bytes, cmsg->length);
             ((struct Headers_UDPHeader*)cmsg->bytes)->checksum_be = checksum;
@@ -117,8 +135,9 @@ static void sendToHandlers(struct Message* msg,
         {
             struct RouteHeader rh = {
                 .version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL),
-                .ip6 = {0xfc,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1}
+                .ip6 = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1}
             };
+            AddressCalc_makeValidAddress(rh.ip6);
             Message_push(cmsg, &rh, RouteHeader_SIZE, NULL);
         }
 
@@ -141,7 +160,9 @@ static Iface_DEFUN incomingFromEventIf(struct Message* msg, struct Iface* eventI
 {
     struct UpperDistributor_pvt* ud =
         Identity_containerOf(eventIf, struct UpperDistributor_pvt, eventIf);
-    Assert_true(Message_pop32(msg, NULL) == PFChan_Pathfinder_SENDMSG);
+    uint32_t messageType = Message_pop32(msg, NULL);
+    Assert_true(messageType == PFChan_Pathfinder_SENDMSG ||
+        messageType == PFChan_Pathfinder_CTRL_SENDMSG);
     Message_pop32(msg, NULL);
     return toSessionManagerIf(msg, ud);
 }
@@ -152,7 +173,9 @@ static Iface_DEFUN incomingFromTunAdapterIf(struct Message* msg, struct Iface* t
         Identity_containerOf(tunAdapterIf, struct UpperDistributor_pvt, pub.tunAdapterIf);
     struct RouteHeader* rh = (struct RouteHeader*) msg->bytes;
     Assert_true(msg->length >= RouteHeader_SIZE);
-    if (!Bits_memcmp(rh->ip6, "\xfc\0\0\0\0\0\0\0\0\0\0\0\0\0\0\1", 16)) {
+    uint8_t expected_ip6[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1};
+    AddressCalc_makeValidAddress(expected_ip6);
+    if (!Bits_memcmp(rh->ip6, expected_ip6, 16)) {
         return fromHandler(msg, ud);
     }
     return toSessionManagerIf(msg, ud);
@@ -165,16 +188,34 @@ static Iface_DEFUN incomingFromIpTunnelIf(struct Message* msg, struct Iface* ipT
     return toSessionManagerIf(msg, ud);
 }
 
+static Iface_DEFUN incomingFromControlHandlerIf(struct Message* msg, struct Iface* iface)
+{
+    struct UpperDistributor_pvt* ud =
+        Identity_containerOf(iface, struct UpperDistributor_pvt, pub.controlHandlerIf);
+    Assert_true(msg->length >= RouteHeader_SIZE);
+    struct RouteHeader* hdr = (struct RouteHeader*) msg->bytes;
+    Assert_true(hdr->flags & RouteHeader_flags_CTRLMSG);
+    Assert_true(!(hdr->flags & RouteHeader_flags_INCOMING));
+    sendToHandlers(msg, ContentType_CTRL, ud);
+    return Iface_next(&ud->pub.sessionManagerIf, msg);
+}
+
 static Iface_DEFUN incomingFromSessionManagerIf(struct Message* msg, struct Iface* sessionManagerIf)
 {
     struct UpperDistributor_pvt* ud =
         Identity_containerOf(sessionManagerIf, struct UpperDistributor_pvt, pub.sessionManagerIf);
-    Assert_true(msg->length >= RouteHeader_SIZE + DataHeader_SIZE);
+    Assert_true(msg->length >= RouteHeader_SIZE);
     struct RouteHeader* hdr = (struct RouteHeader*) msg->bytes;
+    if (hdr->flags & RouteHeader_flags_CTRLMSG) {
+        sendToHandlers(msg, ContentType_CTRL, ud);
+        return Iface_next(&ud->pub.controlHandlerIf, msg);
+    }
+    Assert_true(msg->length >= RouteHeader_SIZE + DataHeader_SIZE);
+
     struct DataHeader* dh = (struct DataHeader*) &hdr[1];
     enum ContentType type = DataHeader_getContentType(dh);
     sendToHandlers(msg, type, ud);
-    if (type <= ContentType_IP6_RAW) {
+    if (type <= ContentType_IP6_MAX) {
         return Iface_next(&ud->pub.tunAdapterIf, msg);
     }
     if (type == ContentType_CJDHT) {
@@ -255,11 +296,13 @@ struct UpperDistributor* UpperDistributor_new(struct Allocator* allocator,
     out->pub.tunAdapterIf.send = incomingFromTunAdapterIf;
     out->pub.ipTunnelIf.send = incomingFromIpTunnelIf;
     out->pub.sessionManagerIf.send = incomingFromSessionManagerIf;
+    out->pub.controlHandlerIf.send = incomingFromControlHandlerIf;
     out->log = log;
     out->alloc = alloc;
     out->myAddress = myAddress;
 
     EventEmitter_regCore(ee, &out->eventIf, PFChan_Pathfinder_SENDMSG);
+    EventEmitter_regCore(ee, &out->eventIf, PFChan_Pathfinder_CTRL_SENDMSG);
 
     return &out->pub;
 }

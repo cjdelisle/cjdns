@@ -10,10 +10,25 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #ifndef Constant_H
 #define Constant_H
+
+#ifdef __INTELLISENSE__
+#define Constant_stringForHex(hex) ""
+
+#define Constant_base2(num) 0xffffffff
+
+#define Constant_rand64() 0x12345678abcdefull
+
+#define Constant_rand32() 0x12345678u
+
+#define Constant_randHexString(len) ""
+
+#define Constant_log2(num) 0
+
+#else
 
 <?js file.Constant_JS = require("../util/Constant.js"); ?>
 
@@ -21,12 +36,15 @@
 
 #define Constant_base2(num) <?js return file.Constant_JS.base2( #num ) ?>
 
-#define Constant_rand64() <?js return file.Constant_JS.rand64(); ?>
+#define Constant_rand64() <?js return file.Constant_JS.rand64(file); ?>
 
-#define Constant_rand32() <?js return file.Constant_JS.rand32(); ?>
+#define Constant_rand32() <?js return file.Constant_JS.rand32(file); ?>
 
-#define Constant_randHexString(len) <?js return file.Constant_JS.randHexString(#len); ?>
+#define Constant_randHexString(len) \
+    <?js return file.Constant_JS.randHexString(#len, file); ?>
 
 #define Constant_log2(num) <?js return file.Constant_JS.log2(num); ?>
+
+#endif
 
 #endif

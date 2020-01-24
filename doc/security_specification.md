@@ -1,8 +1,8 @@
-#Security Specification
+# Security Specification
 
 This document is here to help define security flaws in a way that can be agreed upon.
 
-##Definitions
+## Definitions
 
 * Reveal: To reveal a piece of content is to send over the wire that content or something from which
 that content can be mathematically derived (not withstanding theoretical attacks
@@ -15,14 +15,14 @@ address.
 * Permanent Private Key: The key which is in the configuration file which defines the node's
 identity.
 
-##Limitation of Scope
+## Limitation of Scope
 
 This document applies to the current version (latest master branch) of cjdns compiled and running
 on a Linux system using a version of GCC with no known security issues and running on an
 x86 or amd64 processor. Older versions and git branches may be non-compliant with this
 specification.
 
-##Integrity and Confidentiality
+## Integrity and Confidentiality
 
 1. It must not be possible to reveal the permanent private key or any temporary session private keys
 to anyone.
@@ -31,15 +31,15 @@ to anyone.
 identity (permanent public key) with which the session has been established.
 
 3. It must not be possible to reveal the content of any packet with an fc00::/8 destination address
-which enters cjdns through the TUN device, except revealing it to the holder(s) of the Matching
+which enters cjdns through the TUN device, except to the holder(s) of the Matching
 Keypair for that address.
 
 4. It must not be possible to receive any packet with an fc00::/8 source address unless the sender
 is in possession of the Matching Keypair for that address and the content (not including fields in
 the IPv6 header other than source and destination addresses) has not been altered en-route.
 
-5. It must not be possible to receive a packet which is part of an ESTABLISHED session of that
-packet was already received before.
+5. It must not be possible to receive a packet which is part of an ESTABLISHED session if that
+packet has already been received.
 
 6. If the permanent private key is compromised, any traffic which was sent during a previous
 ESTABLISHED session which has since ended will not be compromised as a result.

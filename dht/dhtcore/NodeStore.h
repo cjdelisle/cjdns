@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #ifndef NodeStore_H
 #define NodeStore_H
@@ -90,6 +90,8 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
 struct Node_Two* NodeStore_nodeForAddr(struct NodeStore* nodeStore, uint8_t addr[16]);
 
 struct Node_Two* NodeStore_closestNode(struct NodeStore* nodeStore, uint64_t path);
+
+struct Node_Two* NodeStore_dumpTable(struct NodeStore* nodeStore, uint32_t index);
 
 struct Node_Link* NodeStore_linkForPath(struct NodeStore* nodeStore, uint64_t path);
 
@@ -230,5 +232,9 @@ struct NodeList* NodeStore_getNodesForBucket(struct NodeStore* nodeStore,
                                              struct Allocator* allocator,
                                              uint16_t bucket,
                                              const uint32_t count);
+
+
+bool NodeStore_getFullVerify(struct NodeStore* nodeStore);
+void NodeStore_setFullVerify(struct NodeStore* nodeStore, bool fullVerify);
 
 #endif

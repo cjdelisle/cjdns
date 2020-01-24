@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #ifndef UDPAddrIface_H
 #define UDPAddrIface_H
@@ -23,6 +23,8 @@
 #include "util/log/Log.h"
 #include "util/Linker.h"
 Linker_require("util/events/libuv/UDPAddrIface.c");
+
+#include <stdbool.h>
 
 #define UDPAddrIface_PADDING_AMOUNT 512
 #define UDPAddrIface_BUFFER_CAP 3496
@@ -48,4 +50,9 @@ struct UDPAddrIface* UDPAddrIface_new(struct EventBase* base,
                                       struct Allocator* allocator,
                                       struct Except* exHandler,
                                       struct Log* logger);
+
+int UDPAddrIface_setDSCP(struct UDPAddrIface* iface, uint8_t dscp);
+
+int UDPAddrIface_setBroadcast(struct UDPAddrIface* iface, bool enable);
+
 #endif

@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "util/Bits.h"
 #include "util/Pinger.h"
@@ -164,6 +164,10 @@ void Pinger_pongReceived(String* data, struct Pinger* pinger)
         }
         data->len -= 8;
         data->bytes += 8;
+        if (!p->timeSent) {
+            Log_debug(pinger->logger, "Duplicate response");
+            return;
+        }
         callback(data, p);
     }
 }

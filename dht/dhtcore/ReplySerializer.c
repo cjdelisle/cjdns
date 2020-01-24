@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "benc/Dict.h"
 #include "benc/String.h"
@@ -40,7 +40,10 @@ struct Address_List* ReplySerializer_parse(struct Address* fromNode,
 {
     String* nodes = Dict_getString(result, CJDHTConstants_NODES);
 
-    if (!nodes) { return NULL; }
+    if (!nodes) {
+        Log_debug(log, "Missing 'n' field in reply");
+        return NULL;
+    }
 
     if (nodes->len == 0 || nodes->len % Address_SERIALIZED_SIZE != 0) {
         Log_debug(log, "Dropping unrecognized reply");

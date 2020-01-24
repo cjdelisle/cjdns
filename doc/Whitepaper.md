@@ -20,13 +20,13 @@ Over time the network has gotten bigger and the users have found new needs.
 In the age when packet inspection is universal and security breaches are
 commonplace, cryptographic integrity and confidentiality are becoming more of
 a requirement. The US government recognized this requirement and has been
-helping through [IPSEC] and [DNSSEC] efforts.
+helping through [IPsec] and [DNSSEC] efforts.
 
 Another issue is how are we going to route packets in a world where the global
 routing table is simply too large for any one router to hold it all? Despite
 the heroic efforts of core network engineers, the growth of the global routing
 table seems an unstoppable march. Cisco router company has proposed a plan
-called Locater/Identifier Separation Protocol, or [LISP] which aims to solve
+called Locator/Identifier Separation Protocol, or [LISP] which aims to solve
 this by re-aggregating the routing table without forcing people to change their
 precious IP addresses. A different view of this problem is IP address
 allocation, currently it is done by a central organization which assigns IP
@@ -56,14 +56,14 @@ tuning of the race car, an art, passed from master to apprentice and shared on
 mailing lists. Suffice to say, the bar of entry into the ISP realm is too high.
 Users, particularly in the ad-hoc wireless network arena, have observed the high
 bar of entry into traditional routing and have developed a menu of alternative,
-self-configuring protocols such as [OSLR], [HSLS], and [BATMAN].
+self-configuring protocols such as [OLSR], [HSLS], and [BATMAN].
 
 
 ## So the problems are already solved?
 
 Not every problem listed has an existing solution and of the ones which do,
-many of the solutions are based on incompatible technology. For example: OSLR
-was not designed to operate with IPSEC and LISP. Even where the solutions exist
+many of the solutions are based on incompatible technology. For example: OLSR
+was not designed to operate with IPsec and LISP. Even where the solutions exist
 and are ready for deployment, they still require mass technology adoption and
 they don't offer existing ISPs significant immediate gains.
 
@@ -161,7 +161,7 @@ network is organized at the cost of the core ISPs whose only defense is the
 "we will not route that" nuclear option which would no doubt bring about a
 revolt from the edge ISPs.
 
-Each of these problems hurts everyone, DDoS forces ISPs to over prevision their
+Each of these problems hurts everyone, DDoS forces ISPs to over provision their
 lines, denial of service through faux legal action increases the cost of running
 a community website or ISP since each accusation must be reviewed and its
 validity assessed, and address deaggregation means everyone must pay more to
@@ -441,7 +441,7 @@ while still preserving Variable Width Encoding, a node is required to describe
 its Encoding Scheme to other nodes and adhere to a few rules to make possible
 the conversion of a Director to a wider bit width by other nodes.
 
-The Encoding Scheme Definition consists of a array of representations of the
+The Encoding Scheme Definition consists of an array of representations of the
 Encoding Forms allowed in that Encoding Scheme, each Encoding Form
 representation having the following three fields:
 
@@ -457,7 +457,7 @@ value must be the same as the prefix which will be seen in the Director in the
 label but since it is opaque, no specific byte order is defined.
 
 The Encoding Scheme Definition is represented on the wire as a concatenation
-of Encoding Forms. Each form is represented in *reverse* the order given above
+of Encoding Forms. Each form is represented in the *reverse* order given above
 with **prefix** furthest to the left, followed by **bitCount** then
 **prefixLen** furthest to the right. It is sent over the wire in *little endian*
 byte order allowing the buffer to be read and written forward while the data is
@@ -491,11 +491,14 @@ without saying.
 
 
 
-### In Memory Representation
+### Wire format
 
-While the switch protocol is inherently linked to the underlying carrier, there
-are certain expectations made by the protocols above the switch layer about how
-a switch header will appear in memory.
+#### Switch Header
+
+Two switches exchange messages prefixed by a Switch Header, eventually
+wrapped in CryptoAuth sessions (called “outer” or “point-to-point”
+CryptoAuth sessions).
+The Switch Header layout is the following:
 
 
                         1               2               3
@@ -505,15 +508,47 @@ a switch header will appear in memory.
        -                          Route Label                          -
      4 |                                                               |
        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-     8 |      Type     |                  Priority                     |
+     8 |   Congest   |S| V |labelShift |            Penalty            |
        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 The `Route Label` field unsurprisingly holds the 8 byte `Route Label`, the
-`Type` field indicates the type of packet. Reserved packet types are `0` for
-opaque data, and `1` for switch control messages (eg errors). The `Priority`
-field is reserved for Quality of Service purposes, in the current implementation
-it is always zero.
+`Type` field indicates the type of packet.
 
+The Switch Header may be followed by three different types of packets:
+
+* If the first four bytes are `0xffffffff`, then the Switch Header is
+  followed by a Switch Control Packet (see below).
+* If these first four bytes after the Header are a big-endian 0, 1, 2, or 3,
+  the Switch Header is followed by a CryptoAuth handshake packet.
+  This 0, 1, 2, or 3 is the session state of the CryptoAuth session.
+  The CryptoAuth handshake packet contains the Session Handle (that should
+  be used by the recipient to prefix CryptoAuth data packets sent after that),
+  eventually followed by a Switch Data Header.
+* Otherwise, these first four bytes are a Session Handle, which the receipient
+  of these packet chose earlier to identify the emitted. They are followed
+  by a CryptoAuth Data Packet, containing a Switch Data Header.
+
+#### Switch Control Packet
+
+TODO
+
+See [this parser](https://github.com/cjdelisle/cjdnsctrl) for more information
+about the CTRL packet.
+
+#### Switch Data Header
+
+The layout of the Switch Data Header is the following:
+
+                        1               2               3
+        0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     0 |  ver  | unusd |     unused    |         Content Type          |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+The `ver`sion should be `1`.
+
+A `Content Type` set to 256 indicates this header is followed by a
+Route Header.
 
 ## The Router
 
@@ -533,8 +568,8 @@ Upon receiving a search response containing one's own address, a node SHOULD
 purge all entries from its table whose routes begin with that route. This will
 control the proliferation of redundant routes.
 
-The "address space distance" between any two given addresses is defined as the
-of the result of the two addresses XOR'd against one another, rotated 64 bits,
+The "address space distance" between any two given addresses is defined as
+the result of the two addresses XOR'd against one another, rotated 64 bits,
 then interpreted as a big endian integer. The so called "XOR metric" was
 pioneered in the work on [Kademlia] DHT system and is used to forward a packet
 to someone who probably knows the whole route to the destination. The 64 bit
@@ -545,14 +580,17 @@ Adding nodes to the routing table from search responses is done by splicing the
 route to the node which was asked with the route to the node in the response,
 yielding a route to the final destination through them.
 
-Router messages are sent as normal UDP/IPv6 packets except that their UDP source
-and destination port numbers are zero and the hop limit (TTL) field in the IPv6
-header is set to zero. Any packet which meets these characteristics is to be
-considered a router message and any packet which doesn't is not. It is critical
-that inter-router communications are themselves, not routed because it would
-break the label splicing for search responses.
+Routers choose the node to forward a packet to in a similar way to how they
+answer search queries. They select nodes from their routing table except in this
+case the selection contains only one node. The packet is sent through the
+CryptoAuth session corresponding to this node and the label for getting to it is
+applied to the packet before sending to the switch. The "search target" for
+forwarding a packet is the IPv6 destination address of the packet.
 
-The content of the inter-router messages is [bEncoded][bEncode] dictionaries.
+### Format of router messages
+
+Router messages are sent as Data Packets whose content-type is 256 (Route Header).
+The payload of these inter-router messages is [bEncoded][bEncode] dictionaries.
 Routers send search queries which have a key called "q", and replies which
 don't. Routers SHOULD reply to a message with a "q" entry but MUST NOT reply if
 there is none, lest they reply to a reply. All messages have a transaction id
@@ -586,18 +624,68 @@ in most cases the number would be an implementation specific constant around 8.
 
 Same reply bEncoded
 
-    d1:n80:cdefghijklmnopqrstuvwxyzabcdefghi1234567qponmlkjihgzyxwvutsrstuvwxyzabcde2345678e
+    d1:n80:cdefghijklmnopqrstuvwxyzabcdefghi1234567qponmlkjihgzyxwvutsrstuvwxyzabcde23456784:txid5:12345e
 
 
 The nodes in an fn reply are ordered from worst to best so the best answer is
 the last entry in the reply.
 
-Routers choose the node to forward a packet to in a similar way to how they
-answer search queries. They select nodes from their routing table except in this
-case the selection contains only one node. The packet is sent through the
-CryptoAuth session corresponding to this node and the label for getting to it is
-applied to the packet before sending to the switch. The "search target" for
-forwarding a packet is the IPv6 destination address of the packet.
+### Keys of a router message's dictionary
+
+Possible keys in a router message include:
+
+* `q` (ascii string): the query type. May be:
+  * absent
+  * `gp`: get peers, expects a reply with a list of nodes (`n` key) and
+    their versions (`pn` key) which are direct peers of the recipient.
+    If the target address `tar` is provided, the replied nodes should be the
+    closest to this address.
+  * `fn`: find node, expects a reply with a list of nodes (`n` key) and
+    their versions (`pn` key) which are close to the provided target
+    address `tar`.
+  * `pn`: ping node
+* `ei` (integer): the encoding index. References one of the forms of the
+  encoding scheme `es`. This is needed when crafting the label to send a
+  packet through the node which has returned this message. The following hop
+  must be encoded in this form or a greater one otherwise the return path
+  cannot be represented.
+* `es` (byte string): the encoding scheme. See the section above about its
+  format.
+* `n` (byte string): list of nodes. See below for its serialization.
+* `np` (byte string): list of nodes' protocol version. The first byte is the
+  number of bytes taken by each version in  the list (always 1 for now),
+  followed by the versions themselves, encoded in big endian.
+* `p` (integer): protocol version. Matches the cjdns version.
+* `tar` (byte string): the target address. If provided, contains an address
+  the sender wants to reach.
+* `txid` (byte string): transaction id. Opaque value choosen by senders of
+  queries, which must be used in responses.
+
+The serialization of each item of the list of nodes `n` is:
+
+                          1               2               3
+          0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
+         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       0 |                                                               |
+         +                                                               +
+       4 |                                                               |
+         +                                                               +
+       8 |                                                               |
+         +                                                               +
+      12 |                                                               |
+         +                          Public Key                           +
+      16 |                                                               |
+         +                                                               +
+      20 |                                                               |
+         +                                                               +
+      24 |                                                               |
+         +                                                               +
+      28 |                                                               |
+         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      32 |                                                               |
+         +                          Route Label                          +
+      36 |                                                               |
+         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 
 ## The CryptoAuth
@@ -612,25 +700,23 @@ against replay attacks and has no forward secrecy if the private key is
 compromised. The CryptoAuth header adds takes 120 bytes of overhead to the
 packet, causing a fluctuating MTU.
 
-There are 5 types of CryptoAuth header:
+There are 4 types of CryptoAuth header:
 
 1. Connect To Me - Used to start a session without knowing the other node's key.
 2. Hello Packet  - The first message in beginning a session.
 3. Key Packet    - The second message in a session.
-4. Data Packet   - A normal traffic packet.
-5. Authenticated - A traffic packet with Poly1305 authentication.
+4. Data Packet   - A traffic packet with Poly1305 authentication.
 
 All CryptoAuth headers are 120 bytes long except for the Data Packet header
-which is 4 bytes and the Authenticated header which is 20 bytes. The first 4
+which is 20 bytes. The first 4
 bytes of any CryptoAuth header is a big endian number which is used to determine
 its type, this is the so-called "Session State" number. If it is the inverse of
 zero, it is a Connect To Me header, if it is zero, it is a Hello Packet, if one
 or two, it is a Hello Packet or repeated Hello Packet, if it is three or four,
 it is a Key Packet or repeated Key Packet. If it is any number larger than four,
-it is either a Data Packet or an Authenticated packet, depending on whether
-authentication was requested during the handshake.
+it is a Data Packet.
 
-Handshake packet structure:
+Handshake packet structure (Connect To Me, Hello, Key):
 
                           1               2               3
           0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
@@ -699,11 +785,30 @@ Handshake packet structure:
          +        Variable Length Encrypted/Authenticated Content        +
          |                                                               |
 
+Data packet structure:
 
+                          1               2               3
+          0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
+         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       0 |                              Nonce                            |
+         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       4 |                                                               |
+         +                                                               +
+       8 |                     Poly 1305 Authenticator                   |
+         +                                                               +
+      12 |                                                               |
+         +                                                               +
+      16 |                                                               |
+         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      20 |                                                               |
+         +                       Variable Length Data                    +
+      24 |                                                               |
+      
+      
 ### 1) Connect To Me Packet
 
 If "Session State" is equal to the bitwise complement of zero, the sender is
-requesting that the recipient begin a connection with him, this is done in cases
+requesting that the recipient begins a connection with him, this is done in cases
 when the initiator of the connection does not know the key for the recipient.
 If the entire header is not present the recipient MUST drop the packet silently,
 the only field which is read in the packet is the "Permanent Public Key" field,
@@ -724,8 +829,9 @@ Hello Packet, has gotten no response and now wishes to send more data MUST send
 that data as more (repeat) Hello Packets. The temporary public key and the
 content are encrypted and authenticated using the permanent public keys of the
 two nodes and "Random Nonce" in the header. The content and temporary key is
-encrypted and authenticated using crypto_box_curve25519poly1305xsalsa20()
-function.
+encrypted and authenticated using crypto_box_curve25519poly1305xsalsa20_afternm()
+function, using the shared secret computed as described in the Authentication
+field's section.
 
 
 ### 3) Key Packet
@@ -737,47 +843,77 @@ Once a node receives a Key Packet it may begin sending data packets. A node who
 has received a Hello Packet, sent a Key Packet, gotten no further response, and
 now wishes to send more data MUST send that data as more (repeat) key packets.
 
+The content and temporary key is encrypted and authenticated using
+crypto_box_curve25519poly1305xsalsa20_afternm() function, using the shared
+secret computed using crypto_box_curve25519poly1305xsalsa20_beforenm()
+with one peer's temporary public key and the other peer's permanent secret key.
+
+It can be decrypted using crypto_box_curve25519poly1305xsalsa20_open_afternm(),
+with the shared secret computed, which can be computed the same way.
+
 
 ### 4) Data Packet
 
-The traditional data packet has only 4 bytes of header, these 4 bytes are the
-nonce which is used for the cipher, the packet is enciphered using
-crypto_stream_salsa20_xor() with the nonce, converted to little endian encoding,
-and copied to the first four bytes of the 8 byte nonce required by
-crypto_stream_salsa20_xor() unless the node is the initiator of the connection
-(the sender of the hello packet), in which case it is copied over the second
-four bytes of the space, thus allowing for a single session to handle 2^32
-packets in either direction.
+The Data Packet is the default data packet. The first 4 bytes are used
+as the nonce (see next paragraph), in this case it is a 24 byte nonce and
+crypto_box_curve25519poly1305xsalsa20_afternm() is used to encrypt and
+decrypt the data, using the shared secret computed using
+crypto_box_curve25519poly1305xsalsa20_beforenm() with one peer's temporary
+public key and the other peer's temporary secret key (both roles are
+symmetrical and produce the same shared secret).
 
+As crypto_box_curve25519poly1305xsalsa20_afternm() requires a 24-byte nonce, the
+4-byte nonce is copied in a 24-byte array that is passed to the primitive.
+The peer which sent the Key packet writes it in the first four bytes of the
+array; and the other peer to the next four bytes.
+This distinction is made so that packets from one peer can not be sent
+back to this peer to make it believe it is from the other peer.
 
-### 5) Authenticated Packet
-
-The Authenticated Packet is sent if Poly1305 authentication was requested by
-either node during the handshake. Like the Data Packet, the first 4 bytes is
-used as the nonce, in this case it is a 24 byte nonce and
-crypto_box_curve25519poly1305xsalsa20() is used to encrypt and decrypt the data,
-but the methodology is exactly the same. If a packet is not authenticated, it
-MUST be silently dropped.
-
+A peer should always send its nonce in increasing big-endian
+order, otherwise they will be dropped by the Replay Protector of the
+receiver if they are too much out of order.
 
 #### ReplayProtector
 
-When packet authentication is enabled, the packet is checked for replay attacks
-(intentional or accidental) the replay protection method is to use a 32 bit
-offset and a 32 bit bitfield to create a sliding window. When a packet comes in,
-its nonce is compared to the offset, if it is less then the offset, it is
-discarded. If when subtracted from the offset, the result is less than or equal
-to 32, 1 is shifted left by the result, bitwise ANDed against the bitfield and
-compared to zero, if it is not zero then the packet is a duplicate and is
-discarded. If it is zero then it is OR'd against the bitfield to set the same
-bit is set and the packet is passed along. If the result of subtraction is
-greater than 32, 32 is subtracted from it, this result is added to the offset,
-the bitfield is shifted left by this amount, then the least significant bit in
-the bitfield is set. This is obviously only available when packets are
-authenticated but provides a secure protection against replay attacks and
-accidentally duplicated packets EG: from 802.11 noise.
+The replay protector is a feature cjdns implementations provide.
+It is however not part of the protocol itself.
 
-This solution is limited in that packets which are more then 32 "slots" out of
+##### Simplest replay protector
+
+A simple replay protector would be to drop any data packet whose nonce
+is lower or equal to the highest packet nonce received so far.
+This way, a packet can never be sent twice to a node, preventing
+[replay attacks](https://en.wikipedia.org/wiki/Replay_attack).
+
+##### Replay protector with sliding window
+
+This section describes the replay protector used by the “official” cjdns
+implementation. It is not mandatory to implement it to support the protocol.
+
+Whenever a node receives a packet, it compares its nonce to the highest
+nonce received so far (big-endian). If it is greater, everything is fine,
+the incoming packet can not be a replay.
+Otherwise, the packet is a late packet, meaning we already received a packet
+newer than it. It may be a replay, but it may also be that the channel
+has a non-uniform latency.
+The slotted replay protector allows for late packets to be received,
+assuming they are not “too late” and are not replays.
+
+To do that, it stores a 64-bit bitfield, with a bit for each of the 64
+nonces before the highest nonce received so far.
+Every time a packet is received with a nonce between `highestnonce - 64`
+(excluded) and `highestnonce` (included), it substracts the packet's nonce
+to the highest nonce, giving a number n, and looks at the n-th bit
+of the bitfield. If it is one, the packet is a replay and is dropped.
+If it is zero, the packet passes, and the bit is set to one.
+And whenever a packet with a nonce higher than the current highest nonce,
+the bitfield is shifted by the difference between so two.
+
+This provides a secure protection against replay attacks and
+accidentally duplicated packets EG: from 802.11 noise; but does not discard
+packets that arrive slightly out of order.
+
+This solution is limited in that packets which are more then 64 "slots" out of
 order will be discarded. In some cases, this could be a benefit since in best
 effort networking, never is often better than late.
 
@@ -794,18 +930,19 @@ the AuthType field specifies how the secret should be used to connect.
       +-+-+-+-+-+-+-+-+        AuthType Specific                      +
     4 |                                                               |
       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    8 |A|                      AuthType Specific                      |
+    8 |                             Unused                            |
       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
-The "A" flag is used to indicate that the node is requesting the session use
-Poly1305 authentication for all of its packets. The "AuthType Specific" fields
-specific to the authentication type.
+The "AuthType Specific" field is specific to the authentication type.
 
 
 #### AuthType Zero
 
 AuthType Zero is no authentication at all. If the AuthType is set to zero, all
 AuthType Specific fields are disregarded and SHOULD be set to random numbers.
+
+This AuthType is the one used in Key packets and for inner (end-to-end)
+cryptoauth sessions.
 
 
 #### AuthType One
@@ -819,7 +956,7 @@ AuthType One is a SHA-256 based authentication method.
       +-+-+-+-+-+-+-+-+           Hash Code                           +
     4 |                                                               |
       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    8 |A|        Derivations          |           Additional          |
+    8 |                             Unused                            |
       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 With AuthType One, the shared secret (password) is hashed once and the result is
@@ -828,21 +965,19 @@ these 64 bytes are hashed again with SHA-256 to make the symmetric key to be
 used for the session. It is also hashed a second time and the result copied over
 the first 8 bytes of the authentication header before the AuthType field is set.
 The effect being that the "Hash Code" field contains bytes 2 through 8 the hash
-of the hash of the password. This is used as a sort of username so that the
-other end knows which password to try using in the handshake.
+of the hash of the password (counting indexes from 1). This is used as a sort
+of username so that the other end knows which password to try using in the
+handshake.
 
-If Derivations is non-zero, an additional step is included, the two most
-significant bytes of the password hash are XORed against the two bytes of the
-network representation of Derivations and it is hashed using SHA-256 once
-again before being included in the generation of the symmetric key. This form is
-notably NOT used in the Hash Code field.
+AuthType Two is prefered to this method because it may be harder to crack
+(does not leak bytes of the value computing from the password).
 
-This allows a node Alice, to give a secret to Charlie, which he can use to start
-a CryptoAuth session with Bob, without leaking Alice's shared secret. This
-allows nodes to generate, share and derive secrets through trusted connections,
-creating new trusted connections and use them to share more secrets, adding a
-measure of forward secrecy in the event of a cryptographic weakness found in
-the asymmetric cryptography.
+##### AuthType Two
+
+AuthType Two is similar to AuthType One, except that bytes 2 to 8 of the Hash
+Code are bytes 2 to 8 of the SHA-256 hash of a login, which is known by the
+received of the packet to be associated with the password used for making
+the symmetric secret.
 
 
 ## Pulling It All Together
@@ -880,7 +1015,7 @@ Upon receiving the packet, the next node sends the packet through its
 CryptoAuth session thus revealing the switch header and it sends the packet to
 its switch. The switch most likely will send the packet out to another endpoint
 as per the dictate of the packet label but may send it to its router, eventually
-the node for which the packet is destine will receive it.
+the node for which the packet is destined will receive it.
 
 The router, upon receiving the packet will examine it to see if it appears to be
 a CryptoAuth Connect To Me packet, Hello packet, or Key packet. If it is one of
@@ -905,11 +1040,11 @@ packet is written out to the TUN device.
 ![illustration](https://github.com/cjdelisle/cjdns/raw/master/doc/CjdnsModules.png)
 
 
-[OSLR]: http://tools.ietf.org/html/rfc3626
+[OLSR]: http://tools.ietf.org/html/rfc3626
 
-[HSLS]: http://www.ir.bbn.com/documents/techmemos/TM1301.pdf
+[HSLS]: https://en.wikipedia.org/wiki/Hazy_Sighted_Link_State_Routing_Protocol
 
-[BATMAN]: http://en.wikipedia.org/wiki/B.A.T.M.A.N.
+[BATMAN]: https://en.wikipedia.org/wiki/B.A.T.M.A.N.
 
 [1]: http://www.cert.org/tech_tips/denial_of_service.html
 
@@ -921,22 +1056,22 @@ packet is written out to the TUN device.
 
 [Namecoin]: http://dot-bit.org/Main_Page "Namecoin: a peer-to-peer generic name/value datastore system based on Bitcoin technology (a decentralized cryptocurrency)."
 
-[IPSEC]: http://en.wikipedia.org/wiki/IPsec "IPsec: a protocol suite for securing Internet Protocol (IP) communications by authenticating and encrypting each IP packet of a communication session. IPsec also includes protocols for establishing mutual authentication between agents at the beginning of the session and negotiation of cryptographic keys to be used during the session."
+[IPsec]: https://en.wikipedia.org/wiki/IPsec "IPsec: a protocol suite for securing Internet Protocol (IP) communications by authenticating and encrypting each IP packet of a communication session. IPsec also includes protocols for establishing mutual authentication between agents at the beginning of the session and negotiation of cryptographic keys to be used during the session."
 
-[DNSSEC]: http://en.wikipedia.org/wiki/Domain_Name_System_Security_Extensions "A suite of Internet Engineering Task Force (IETF) specifications for securing certain kinds of information provided by the Domain Name System (DNS) as used on Internet Protocol (IP) networks. It is a set of extensions to DNS which provide to DNS clients (resolvers) origin authentication of DNS data, authenticated denial of existence, and data integrity, but not availability or confidentiality."
+[DNSSEC]: https://en.wikipedia.org/wiki/Domain_Name_System_Security_Extensions "A suite of Internet Engineering Task Force (IETF) specifications for securing certain kinds of information provided by the Domain Name System (DNS) as used on Internet Protocol (IP) networks. It is a set of extensions to DNS which provide to DNS clients (resolvers) origin authentication of DNS data, authenticated denial of existence, and data integrity, but not availability or confidentiality."
 
 [DNS]: https://en.wikipedia.org/wiki/Domain_Name_System "A hierarchical distributed naming system for computers, services, or any resource connected to the Internet or a private network. It associates various information with domain names assigned to each of the participating entities. Most importantly, it translates domain names meaningful to humans into the numerical identifiers associated with networking equipment for the purpose of locating and addressing these devices worldwide."
 
-[P2P]: http://en.wikipedia.org/wiki/Peer-to-peer "Peer-to-peer (P2P) computing or networking is a distributed application architecture that partitions tasks or workloads among peers. Peers are equally privileged, equipotent participants in the application. They are said to form a peer-to-peer network of nodes."
+[P2P]: https://en.wikipedia.org/wiki/Peer-to-peer "Peer-to-peer (P2P) computing or networking is a distributed application architecture that partitions tasks or workloads among peers. Peers are equally privileged, equipotent participants in the application. They are said to form a peer-to-peer network of nodes."
 
-[Internet]: http://en.wikipedia.org/wiki/Internet "A global system of interconnected computer networks that use the standard Internet protocol suite (TCP/IP) to serve billions of users worldwide. It is a network of networks that consists of millions of private, public, academic, business, and government networks, of local to global scope, that are linked by a broad array of electronic, wireless and optical networking technologies."
+[Internet]: https://en.wikipedia.org/wiki/Internet "A global system of interconnected computer networks that use the standard Internet protocol suite (TCP/IP) to serve billions of users worldwide. It is a network of networks that consists of millions of private, public, academic, business, and government networks, of local to global scope, that are linked by a broad array of electronic, wireless and optical networking technologies."
 
-[DDoS]: http://en.wikipedia.org/wiki/Denial-of-service_attack "An attempt to make a computer or network resource unavailable to its intended users. Although the means to carry out, motives for, and targets of a DoS attack may vary, it generally consists of the concerted efforts of a person, or multiple people to prevent an Internet site or service from functioning efficiently or at all, temporarily or indefinitely."
+[DDoS]: https://en.wikipedia.org/wiki/Denial-of-service_attack "An attempt to make a computer or network resource unavailable to its intended users. Although the means to carry out, motives for, and targets of a DoS attack may vary, it generally consists of the concerted efforts of a person, or multiple people to prevent an Internet site or service from functioning efficiently or at all, temporarily or indefinitely."
 
-[bEncode]: http://en.wikipedia.org/wiki/Bencode "The encoding used by the peer-to-peer file sharing system BitTorrent for storing and transmitting loosely structured data."
+[bEncode]: https://en.wikipedia.org/wiki/Bencode "The encoding used by the peer-to-peer file sharing system BitTorrent for storing and transmitting loosely structured data."
 
-[DHT]: http://en.wikipedia.org/wiki/Distributed_hash_table "A class of a decentralized distributed system that provides a lookup service similar to a hash table; (key, value) pairs are stored in a DHT, and any participating node can efficiently retrieve the value associated with a given key. Responsibility for maintaining the mapping from keys to values is distributed among the nodes, in such a way that a change in the set of participants causes a minimal amount of disruption. This allows a DHT to scale to extremely large numbers of nodes and to handle continual node arrivals, departures, and failures."
+[DHT]: https://en.wikipedia.org/wiki/Distributed_hash_table "A class of a decentralized distributed system that provides a lookup service similar to a hash table; (key, value) pairs are stored in a DHT, and any participating node can efficiently retrieve the value associated with a given key. Responsibility for maintaining the mapping from keys to values is distributed among the nodes, in such a way that a change in the set of participants causes a minimal amount of disruption. This allows a DHT to scale to extremely large numbers of nodes and to handle continual node arrivals, departures, and failures."
 
-[BitTorrent]: http://en.wikipedia.org/wiki/BitTorrent_(protocol) "A peer-to-peer file sharing protocol used for distributing large amounts of data over the Internet. "
+[BitTorrent]: https://en.wikipedia.org/wiki/BitTorrent_(protocol) "A peer-to-peer file sharing protocol used for distributing large amounts of data over the Internet. "
 
 [Kademlia]: http://pdos.csail.mit.edu/~petar/papers/maymounkov-kademlia-lncs.pdf

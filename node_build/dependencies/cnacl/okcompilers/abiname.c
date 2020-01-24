@@ -14,6 +14,8 @@ const char *abi(void)
    return "ppc64";
 #elif defined(__powerpc__) || defined(__ppc__) || defined(__PPC__) || defined(_ARCH_PPC)
    return "ppc32";
+#elif defined(__s390x__)
+   return "s390x"
 #elif defined(__sparcv9__) || defined(__sparcv9)
    return "sparcv9";
 #elif defined(__sparc_v8__)

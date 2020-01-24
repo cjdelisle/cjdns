@@ -10,11 +10,12 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #ifndef TestFramework_H
 #define TestFramework_H
 
+#include "switch/EncodingScheme.h"
 #include "net/NetCore.h"
 #include "util/Linker.h"
 Linker_require("test/TestFramework.c");
@@ -25,9 +26,15 @@ struct TestFramework
     struct Random* rand;
     struct EventBase* eventBase;
     struct Log* logger;
+
+    #ifndef SUBNODE
     struct Pathfinder* pathfinder;
+    #endif
+    struct SubnodePathfinder* subnodePathfinder;
+
     struct Iface* tunIf;
     struct NetCore* nc;
+    struct EncodingScheme* scheme;
 
     /** The last message which this node sent. */
     struct Message* lastMsg;
@@ -61,5 +68,9 @@ void TestFramework_craftIPHeader(struct Message* msg, uint8_t srcAddr[16], uint8
 
 /** Check if the last message sent was altered after having been sent. */
 void TestFramework_assertLastMessageUnaltered(struct TestFramework* tf);
+
+int TestFramework_peerCount(struct TestFramework* node);
+
+int TestFramework_sessionCount(struct TestFramework* node);
 
 #endif

@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #ifndef CString_H
 #define CString_H
@@ -53,6 +53,6 @@ Gcc_NONNULL(1,2)
 char* CString_strcpy(char* restrict dest, const char* restrict src);
 
 Gcc_NONNULL(1,2)
-char* CString_strncpy(char* restrict dest, const char *restrict src, size_t n);
+char* CString_safeStrncpy(char* restrict dest, const char *restrict src, size_t n);
 
 #endif

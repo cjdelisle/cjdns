@@ -1,0 +1,21 @@
+#!/usr/bin/env php
+<?php
+/**
+ * Create list of active peers for cjdroute.conf file
+ */
+
+define('FNAME',          'publicPeers.json');
+define('LAST_SEEN_DAYS', 7); // COMMENT: peer seen less than week ago
+
+if (!file_exists(FNAME)) die('Can not find '.FNAME."\n");
+
+$a = @json_decode(@file_get_contents(FNAME), true);
+foreach ($a as $k => $a)
+if (time() - @$a['lastseen'] < LAST_SEEN_DAYS*24*3600)
+{
+	echo '"'.$k.'" : {'."\n";
+	$x = 'publicKey'; echo "\t".'"'.$x.'": "'.$a[$x].'",'."\n";
+	$x = 'password';  echo "\t".'"'.$x.'": "'.$a[$x].'",'."\n";
+	$x = 'peerName';  echo "\t".'"'.$x.'": "'.$a[$x].'",'."\n";
+	echo "},\n";
+}

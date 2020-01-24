@@ -10,15 +10,22 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #ifndef UniqueName_H
 #define UniqueName_H
 
+#ifdef __INTELLISENSE__
+#define UniqueName_get() UniqueName
+#define UniqueName_last() UniqueName
+#else
+<?js file.Constant_JS = file.Constant_JS || require('util/Constant.js'); ?>
+
 #define UniqueName_get() <?js return \
-    file.UniqueName_last = 'UniqueName_'+String(Math.random()).substring(2); \
+    file.UniqueName_last = 'UniqueName_' + \
+        JSON.parse(file.Constant_JS.randHexString(20, file)); \
 ?>
 
 #define UniqueName_last() <?js return file.UniqueName_last; ?>
-
+#endif
 #endif

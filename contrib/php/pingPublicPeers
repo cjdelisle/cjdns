@@ -1,0 +1,61 @@
+#!/usr/bin/env php
+<?php
+
+define('FNAME', 'publicPeers.json');
+define('CACHE', 3600); // COMMENT: cache time in seconds for ping
+
+
+// clone or update peers repo
+if (file_exists('peers'))
+	passthru('cd peers; git pull; cd ..');
+else
+	passthru('git clone "https://github.com/hyperboria/peers.git"');
+
+
+// get peers and ping
+require_once 'publicKey2ipv6.php';
+$data = json_decode(@file_get_contents(FNAME), true);
+if (!$data) $data = [];
+
+foreach(get_files('peers') as $fname)
+{
+	$st = file_get_contents($fname);
+	parse($st);
+}
+
+function get_files($dir)
+{
+	ob_start();
+	passthru("find $dir | grep '\.k'");
+	$st = ob_get_clean();
+	return explode("\n", trim($st));
+}
+
+function parse($st)
+{
+	global $data;
+	$a = json_decode($st, true);
+	foreach ($a as $k => $a)
+	if (time() - @$data[$k]['updated'] > CACHE)
+	{
+		$ip = publicKey2ipv6($a['publicKey']);
+		echo "Ping $ip... ";
+		exec("ping -c3 -6 -W5 $ip", $out, $res);
+		$res = $res === 0 ? true : false;
+		echo $res ? '[ OK ]' : '[FAIL]';
+		echo "\n";
+		update($k, $a, $res);
+	}
+}
+
+function update($k, $a, $res)
+{
+	global $data;
+	$a['updated'] = time();
+	if ($res) $a['lastseen'] = time();
+	$data[$k] = $a;
+	$st = json_encode($data);
+	$st = str_replace('},"', "},\n\"", $st);
+	if ($st)
+		file_put_contents(FNAME, $st);
+}

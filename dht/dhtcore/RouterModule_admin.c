@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "admin/Admin.h"
 #include "benc/Dict.h"
@@ -38,7 +38,7 @@ struct Context {
 static void lookup(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* ctx = vcontext;
-    String* addrStr = Dict_getString(args, String_CONST("address"));
+    String* addrStr = Dict_getStringC(args, "address");
     char* err = NULL;
     uint8_t addr[16];
     uint8_t resultBuff[60];
@@ -85,31 +85,31 @@ static void pingResponse(struct RouterModule_Promise* promise,
     if (versionBin && versionBin->len == 20) {
         String* versionStr = String_newBinary(NULL, 40, tempAlloc);
         Hex_encode(versionStr->bytes, 40, versionBin->bytes, 20);
-        Dict_putString(resp, String_CONST("version"), versionStr, tempAlloc);
+        Dict_putStringC(resp, "version", versionStr, tempAlloc);
     } else {
-        Dict_putString(resp, String_CONST("version"), String_CONST("unknown"), tempAlloc);
+        Dict_putStringCC(resp, "version", "unknown", tempAlloc);
     }
 
     String* result = (responseDict) ? String_CONST("pong") : String_CONST("timeout");
-    Dict_putString(resp, String_CONST("result"), result, tempAlloc);
+    Dict_putStringC(resp, "result", result, tempAlloc);
 
     int64_t* protocolVersion = Dict_getInt(responseDict, CJDHTConstants_PROTOCOL);
     if (protocolVersion) {
-        Dict_putInt(resp, String_CONST("protocol"), *protocolVersion, tempAlloc);
+        Dict_putIntC(resp, "protocol", *protocolVersion, tempAlloc);
     }
 
-    Dict_putInt(resp, String_CONST("ms"), lag, tempAlloc);
+    Dict_putIntC(resp, "ms", lag, tempAlloc);
 
     if (from) {
         uint8_t fromStr[60] = "";
         Address_print(fromStr, from);
-        Dict_putString(resp, String_CONST("from"), String_new(fromStr, tempAlloc), tempAlloc);
+        Dict_putStringC(resp, "from", String_new(fromStr, tempAlloc), tempAlloc);
         String* addr = Address_toString(from, tempAlloc);
-        Dict_putString(resp, String_CONST("addr"), addr, tempAlloc);
+        Dict_putStringC(resp, "addr", addr, tempAlloc);
     }
 
-    Dict_putString(resp, String_CONST("deprecation"),
-        String_CONST("from,protocol,version will soon be removed"), tempAlloc);
+    Dict_putStringCC(resp, "deprecation",
+        "from,protocol,version will soon be removed", tempAlloc);
 
     Admin_sendMessage(resp, ping->txid, ping->ctx->admin);
 }
@@ -124,7 +124,7 @@ static void genericResponse(struct RouterModule_Promise* promise,
     struct Ping* ping = Identity_check((struct Ping*)promise->userData);
     Dict* out = Dict_new(promise->alloc);
     String* result = (responseDict) ? name : String_CONST("timeout");
-    Dict_putString(out, String_CONST("result"), result, promise->alloc);
+    Dict_putStringC(out, "result", result, promise->alloc);
 
     if (responseDict) {
         struct Address_List* addrs =
@@ -149,9 +149,9 @@ static void genericResponse(struct RouterModule_Promise* promise,
         }
     }
 
-    Dict_putInt(out, String_CONST("ms"), lag, promise->alloc);
+    Dict_putIntC(out, "ms", lag, promise->alloc);
 
-    Dict_putString(out, String_CONST("error"), String_CONST("none"), promise->alloc);
+    Dict_putStringCC(out, "error", "none", promise->alloc);
 
     Admin_sendMessage(out, ping->txid, ping->ctx->admin);
 }
@@ -208,8 +208,8 @@ static struct Address* getNode(String* pathStr,
 static void pingNode(Dict* args, void* vctx, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* ctx = Identity_check((struct Context*) vctx);
-    String* pathStr = Dict_getString(args, String_CONST("path"));
-    int64_t* timeoutPtr = Dict_getInt(args, String_CONST("timeout"));
+    String* pathStr = Dict_getStringC(args, "path");
+    int64_t* timeoutPtr = Dict_getIntC(args, "timeout");
     uint32_t timeout = (timeoutPtr && *timeoutPtr > 0) ? *timeoutPtr : 0;
 
     char* err = NULL;
@@ -235,9 +235,9 @@ static void pingNode(Dict* args, void* vctx, String* txid, struct Allocator* req
 static void getPeers(Dict* args, void* vctx, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* ctx = Identity_check((struct Context*) vctx);
-    String* nearbyLabelStr = Dict_getString(args, String_CONST("nearbyPath"));
-    String* pathStr = Dict_getString(args, String_CONST("path"));
-    int64_t* timeoutPtr = Dict_getInt(args, String_CONST("timeout"));
+    String* nearbyLabelStr = Dict_getStringC(args, "nearbyPath");
+    String* pathStr = Dict_getStringC(args, "path");
+    int64_t* timeoutPtr = Dict_getIntC(args, "timeout");
     uint32_t timeout = (timeoutPtr && *timeoutPtr > 0) ? *timeoutPtr : 0;
 
     char* err = NULL;
@@ -271,9 +271,9 @@ static void getPeers(Dict* args, void* vctx, String* txid, struct Allocator* req
 static void findNode(Dict* args, void* vctx, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* ctx = Identity_check((struct Context*) vctx);
-    String* nodeToQueryStr = Dict_getString(args, String_CONST("nodeToQuery"));
-    String* targetStr = Dict_getString(args, String_CONST("target"));
-    int64_t* timeoutPtr = Dict_getInt(args, String_CONST("timeout"));
+    String* nodeToQueryStr = Dict_getStringC(args, "nodeToQuery");
+    String* targetStr = Dict_getStringC(args, "target");
+    int64_t* timeoutPtr = Dict_getIntC(args, "timeout");
     uint32_t timeout = (timeoutPtr && *timeoutPtr > 0) ? *timeoutPtr : 0;
 
     char* err = NULL;
@@ -307,9 +307,9 @@ static void findNode(Dict* args, void* vctx, String* txid, struct Allocator* req
 static void nextHop(Dict* args, void* vctx, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* ctx = Identity_check((struct Context*) vctx);
-    String* nodeToQueryStr = Dict_getString(args, String_CONST("nodeToQuery"));
-    String* targetStr = Dict_getString(args, String_CONST("target"));
-    int64_t* timeoutPtr = Dict_getInt(args, String_CONST("timeout"));
+    String* nodeToQueryStr = Dict_getStringC(args, "nodeToQuery");
+    String* targetStr = Dict_getStringC(args, "target");
+    int64_t* timeoutPtr = Dict_getIntC(args, "timeout");
     uint32_t timeout = (timeoutPtr && *timeoutPtr > 0) ? *timeoutPtr : 0;
 
     char* err = NULL;

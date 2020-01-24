@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "admin/Admin.h"
 #include "admin/AdminLog.h"
@@ -23,16 +23,18 @@
 #include "crypto/AddressCalc.h"
 #include "crypto/random/Random.h"
 #include "crypto/random/libuv/LibuvEntropyProvider.h"
-#ifdef SUBNODE
 #include "subnode/SubnodePathfinder.h"
 #include "subnode/SupernodeHunter_admin.h"
-#else
+#include "subnode/ReachabilityCollector_admin.h"
+#ifndef SUBNODE
 #include "dht/Pathfinder.h"
 #endif
 #include "exception/Jmp.h"
 #include "interface/Iface.h"
 #include "util/events/UDPAddrIface.h"
 #include "interface/tuntap/TUNInterface.h"
+#include "interface/tuntap/SocketInterface.h"
+#include "interface/tuntap/SocketWrapper.h"
 #include "interface/tuntap/AndroidWrapper.h"
 #include "interface/UDPInterface_admin.h"
 #ifdef HAS_ETH_INTERFACE
@@ -41,7 +43,6 @@
 #include "net/InterfaceController_admin.h"
 #include "interface/addressable/PacketHeaderToUDPAddrIface.h"
 #include "interface/ASynchronizer.h"
-#include "interface/FramingIface.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
 #include "memory/Allocator_admin.h"
@@ -64,6 +65,7 @@
 #include "util/Security_admin.h"
 #include "util/Security.h"
 #include "util/version/Version.h"
+#include "util/GlobalConfig.h"
 #include "net/SessionManager_admin.h"
 #include "wire/SwitchHeader.h"
 #include "wire/CryptoHeader.h"
@@ -118,6 +120,7 @@ struct Context
     struct NetCore* nc;
     struct IpTunnel* ipTunnel;
     struct EncodingScheme* encodingScheme;
+    struct GlobalConfig* globalConf;
     Identity
 };
 
@@ -142,8 +145,28 @@ static void sendResponse(String* error,
                          struct Allocator* tempAlloc)
 {
     Dict* output = Dict_new(tempAlloc);
-    Dict_putString(output, String_CONST("error"), error, tempAlloc);
+    Dict_putStringC(output, "error", error, tempAlloc);
     Admin_sendMessage(output, txid, admin);
+}
+
+static void initSocket2(String* socketFullPath,
+                          bool attemptToCreate,
+                          struct Context* ctx,
+                          uint8_t addressPrefix,
+                          struct Except* eh)
+{
+    Log_debug(ctx->logger, "Initializing socket: %s;", socketFullPath->bytes);
+
+    struct Iface* rawSocketIf = SocketInterface_new(
+        socketFullPath->bytes, attemptToCreate, ctx->base, ctx->logger, NULL, ctx->alloc);
+
+    struct SocketWrapper* sw = SocketWrapper_new(ctx->alloc, ctx->logger);
+    Iface_plumb(&sw->externalIf, rawSocketIf);
+    Iface_plumb(&sw->internalIf, &ctx->nc->tunAdapt->tunIf);
+
+    SocketWrapper_addAddress(&sw->externalIf, ctx->nc->myAddress->ip6.bytes, ctx->logger,
+                                eh, ctx->alloc);
+    SocketWrapper_setMTU(&sw->externalIf, DEFAULT_MTU, ctx->logger, eh, ctx->alloc);
 }
 
 static void initTunnel2(String* desiredDeviceName,
@@ -162,7 +185,7 @@ static void initTunnel2(String* desiredDeviceName,
 
     Iface_plumb(tun, &ctx->nc->tunAdapt->tunIf);
 
-    IpTunnel_setTunName(assignedTunName, ctx->ipTunnel);
+    GlobalConfig_setTunName(ctx->globalConf, String_CONST(assignedTunName));
 
     struct Sockaddr* myAddr =
         Sockaddr_fromBytes(ctx->nc->myAddress->ip6.bytes, Sockaddr_AF_INET6, ctx->alloc);
@@ -177,8 +200,8 @@ static void initTunfd(Dict* args, void* vcontext, String* txid, struct Allocator
     struct Context* ctx = Identity_check((struct Context*) vcontext);
     struct Jmp jmp;
     Jmp_try(jmp) {
-        int64_t* tunfd = Dict_getInt(args, String_CONST("tunfd"));
-        int64_t* tuntype = Dict_getInt(args, String_CONST("type"));
+        int64_t* tunfd = Dict_getIntC(args, "tunfd");
+        int64_t* tuntype = Dict_getIntC(args, "type");
         if (!tunfd || *tunfd < 0) {
             String* error = String_printf(requestAlloc, "Invalid tunfd");
             sendResponse(error, ctx->admin, txid, requestAlloc);
@@ -209,10 +232,30 @@ static void initTunnel(Dict* args, void* vcontext, String* txid, struct Allocato
 
     struct Jmp jmp;
     Jmp_try(jmp) {
-        String* desiredName = Dict_getString(args, String_CONST("desiredTunName"));
-        initTunnel2(desiredName, ctx, 8, &jmp.handler);
+        String* desiredName = Dict_getStringC(args, "desiredTunName");
+        initTunnel2(desiredName, ctx, AddressCalc_ADDRESS_PREFIX_BITS, &jmp.handler);
     } Jmp_catch {
         String* error = String_printf(requestAlloc, "Failed to configure tunnel [%s]", jmp.message);
+        sendResponse(error, ctx->admin, txid, requestAlloc);
+        return;
+    }
+
+    sendResponse(String_CONST("none"), ctx->admin, txid, requestAlloc);
+}
+
+static void initSocket(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
+{
+    struct Context* const ctx = Identity_check((struct Context*) vcontext);
+
+    struct Jmp jmp;
+    Jmp_try(jmp) {
+        String* socketFullPath = Dict_getStringC(args, "socketFullPath");
+        bool socketAttemptToCreate = *Dict_getIntC(args, "socketAttemptToCreate");
+        initSocket2(socketFullPath, socketAttemptToCreate, ctx, AddressCalc_ADDRESS_PREFIX_BITS,
+            &jmp.handler);
+    } Jmp_catch {
+        String* error = String_printf(requestAlloc, "Failed to configure socket [%s]",
+            jmp.message);
         sendResponse(error, ctx->admin, txid, requestAlloc);
         return;
     }
@@ -250,44 +293,48 @@ void Core_init(struct Allocator* alloc,
     if (!noSec) {
         sec = Security_new(alloc, logger, eventBase);
     }
+    struct GlobalConfig* globalConf = GlobalConfig_new(alloc);
     struct NetCore* nc = NetCore_new(privateKey, alloc, eventBase, rand, logger);
 
     struct RouteGen* rg = RouteGen_new(alloc, logger);
 
-    struct IpTunnel* ipTunnel = IpTunnel_new(logger, eventBase, alloc, rand, rg);
+    struct IpTunnel* ipTunnel =
+        IpTunnel_new(logger, eventBase, alloc, rand, rg, globalConf);
     Iface_plumb(&nc->tunAdapt->ipTunnelIf, &ipTunnel->tunInterface);
     Iface_plumb(&nc->upper->ipTunnelIf, &ipTunnel->nodeInterface);
 
     struct EncodingScheme* encodingScheme = NumberCompress_defineScheme(alloc);
 
     // The link between the Pathfinder and the core needs to be asynchronous.
-    #ifdef SUBNODE
-        struct SubnodePathfinder* pf = SubnodePathfinder_new(
-            alloc, logger, eventBase, rand, nc->myAddress, privateKey, encodingScheme);
-    #else
-        struct Pathfinder* pf = Pathfinder_register(alloc, logger, eventBase, rand, admin);
+    struct SubnodePathfinder* spf = SubnodePathfinder_new(
+        alloc, logger, eventBase, rand, nc->myAddress, privateKey, encodingScheme);
+    struct ASynchronizer* spfAsync = ASynchronizer_new(alloc, eventBase, logger);
+    Iface_plumb(&spfAsync->ifA, &spf->eventIf);
+    EventEmitter_regPathfinderIface(nc->ee, &spfAsync->ifB);
+
+    #ifndef SUBNODE
+        struct Pathfinder* opf = Pathfinder_register(alloc, logger, eventBase, rand, admin);
+        struct ASynchronizer* opfAsync = ASynchronizer_new(alloc, eventBase, logger);
+        Iface_plumb(&opfAsync->ifA, &opf->eventIf);
+        EventEmitter_regPathfinderIface(nc->ee, &opfAsync->ifB);
     #endif
-    struct ASynchronizer* pfAsync = ASynchronizer_new(alloc, eventBase, logger);
-    Iface_plumb(&pfAsync->ifA, &pf->eventIf);
-    EventEmitter_regPathfinderIface(nc->ee, &pfAsync->ifB);
-    #ifdef SUBNODE
-        SubnodePathfinder_start(pf);
-    #endif
+
+    SubnodePathfinder_start(spf);
 
     // ------------------- Register RPC functions ----------------------- //
     UpperDistributor_admin_register(nc->upper, admin, alloc);
     RouteGen_admin_register(rg, admin, alloc);
     InterfaceController_admin_register(nc->ifController, admin, alloc);
     SwitchPinger_admin_register(nc->sp, admin, alloc);
-    UDPInterface_admin_register(eventBase, alloc, logger, admin, nc->ifController, fakeNet);
+    UDPInterface_admin_register(
+        eventBase, alloc, logger, admin, nc->ifController, fakeNet, globalConf);
 #ifdef HAS_ETH_INTERFACE
     ETHInterface_admin_register(eventBase, alloc, logger, admin, nc->ifController);
 #endif
     FileNo_admin_register(admin, alloc, eventBase, logger, eh);
 
-#ifdef SUBNODE
-    SupernodeHunter_admin_register(pf->snh, admin, alloc);
-#endif
+    SupernodeHunter_admin_register(spf->snh, admin, alloc);
+    ReachabilityCollector_admin_register(spf->rc, admin, alloc);
 
     AuthorizedPasswords_init(admin, nc->ca, alloc);
     Admin_registerFunction("ping", adminPing, admin, false, NULL, admin);
@@ -307,6 +354,7 @@ void Core_init(struct Allocator* alloc,
     ctx->ipTunnel = ipTunnel;
     ctx->nc = nc;
     ctx->encodingScheme = encodingScheme;
+    ctx->globalConf = globalConf;
 
     Admin_registerFunction("Core_exit", adminExit, ctx, true, NULL, admin);
 
@@ -324,6 +372,12 @@ void Core_init(struct Allocator* alloc,
         }), admin);
 
     Admin_registerFunction("Core_nodeInfo", nodeInfo, ctx, false, NULL, admin);
+
+    Admin_registerFunction("Core_initSocket", initSocket, ctx, true,
+        ((struct Admin_FunctionArg[]) {
+            { .name = "socketFullPath", .required = 1, .type = "String" },
+            { .name = "socketAttemptToCreate", .required = 1, .type = "Int" }
+        }), admin);
 }
 
 int Core_main(int argc, char** argv)
@@ -357,10 +411,10 @@ int Core_main(int argc, char** argv)
     Log_debug(logger, "Finished getting pre-configuration from client");
     Dict* config = BencMessageReader_read(preConf, tempAlloc, eh);
 
-    String* privateKeyHex = Dict_getString(config, String_CONST("privateKey"));
-    Dict* adminConf = Dict_getDict(config, String_CONST("admin"));
-    String* pass = Dict_getString(adminConf, String_CONST("pass"));
-    String* bind = Dict_getString(adminConf, String_CONST("bind"));
+    String* privateKeyHex = Dict_getStringC(config, "privateKey");
+    Dict* adminConf = Dict_getDictC(config, "admin");
+    String* pass = Dict_getStringC(adminConf, "pass");
+    String* bind = Dict_getStringC(adminConf, "bind");
     if (!(pass && privateKeyHex && bind)) {
         if (!pass) {
             Except_throw(eh, "Expected 'pass'");
@@ -393,8 +447,8 @@ int Core_main(int argc, char** argv)
     struct Admin* admin = Admin_new(&udpAdmin->generic, logger, eventBase, pass);
 
     // --------------------- Setup the Logger --------------------- //
-    Dict* logging = Dict_getDict(config, String_CONST("logging"));
-    String* logTo = Dict_getString(logging, String_CONST("logTo"));
+    Dict* logging = Dict_getDictC(config, "logging");
+    String* logTo = Dict_getStringC(logging, "logTo");
     if (logTo && String_equals(logTo, String_CONST("stdout"))) {
         // do nothing, continue logging to stdout.
     } else {

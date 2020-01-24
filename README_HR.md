@@ -1,15 +1,22 @@
 # cjdns
 
-README na Engleskom: [README.md](README.md)
+[English](README.md)
+[Русская версия](README_RU.md)
+[Svenska](README_SV.md)
+[Ελληνικά](README_GR.md)
+[Deutsch](README_DE.md)
+[繁體中文](README_ZHT.md)
+[Español](README_ES.md)
+[Français](README_FR.md)
 
 #### *Umrežavanje iznova*
 
-Cjdns provodi šifriranu IPv6 mrežu koristeći public-key kriptografiju za
-dodjelu adresa i distribuiranu hash tablicu za usmjeravanje. To omogućuje
-gotovo nikakvu mrežnu konfiguraciju i sprječava mnoge sigurnosne i
+Cjdns je šifrirana IPv6 mreža koja koristi public-key kriptografiju za
+dodjelu adresa i DHT za usmjeravanje. To omogućuje gotovo nikakvu
+mrežnu konfiguraciju i sprječava mnoge sigurnosne i
 skalabilne probleme koje muče trenutne mreže.
 
-[![Build Status](https://travis-ci.org/cjdelisle/cjdns.svg?branch=master)](https://travis-ci.org/cjdelisle/cjdns)
+[![Build Status](https://api.travis-ci.org/cjdelisle/cjdns.svg?branch=master)](https://travis-ci.org/cjdelisle/cjdns)
 [![napojnica za sljedeću promjenu](https://tip4commit.com/projects/941.svg)](https://tip4commit.com/github/cjdelisle/cjdns)
 
 ## Iskustva
@@ -27,44 +34,6 @@ skalabilne probleme koje muče trenutne mreže.
     <DuoNoxSol> it's notably more reliable than the normal internet
     <DuoNoxSol> even though it really really shouldn't be
     <DuoNoxSol> seeing as the connections are largely over the normal internet
-
-
-## Kada će biti završen?
-
-[Hyperboria][] je najveća cjdns mreža, sa stotinama aktivnih jedinica
-po cijelom svijetu.
-
-Cjdns je testiran na x86, amd64, ARMv5, ARMv7, MIPS, and PowerPC.
-Stalno se [testira][buildbots] na Linuxu, FreeBSDu, OS X-u, Windowsu and Illumos
-systemima.
-
-Protokoli i algoritmi su eksperimentalni i mogli bi se promijeniti.
-Kako biste smanjili štetu mreže, molimo često nadograđujte vaše cjdns jedinke.
-
-
-### I Vi možete pomoći!
-
-We are in need of some buildbots on more obscure systems and architectures.
-If you would like to donate one, you could mail it, or you could administer
-it and provide remote shell access. Please email `buildbot@seattlemesh.net`
-if you'd like to run a buildbot. Note that it is not a general support inbox,
-other questions should be directed toward IRC.
-
-
-
-## Kako radi usmjeravanje?
-
-U cjdns mreži, paket ode do routera i router označi paket
-sa instrukcijama do rutera koji će ga najbolje obratiti. That is, a router which
-is physically nearby and has an address numerically close to the destination
-address of the packet. The directions are added to the packet to allow it to go
-through a number of routers with minimal handling, *a verifiable form of source
-routing*. They just read the label and bounce the packet wherever the next bits
-in the label tell them to. Routers have a responsibility to "keep in touch"
-with other routers that are physically close by and numerically near to their
-address.
-
-Motor usmjerivača je modificirana implementacija [Kademlia][] ddistribuirane hash tablice.
 
 
 ## Zajednica
@@ -88,11 +57,7 @@ Napredna konfiguracija:
 * [Setup a cjdns NAT gateway for your LAN](doc/nat-gateway.md)
 * [Instaliraj cjdns na OpenIndiani](doc/open-indiana.md)
 
-### Licenca
-
-[Dostupna ovdje](LICENSE)
-
-Hvala Vam za Vaše vrijeme i interes,
+Hvala Vam za vaše vrijeme i interes,
 
 Cjdns programeri.
 
@@ -100,17 +65,17 @@ Cjdns programeri.
 
 ## Kako instalirati cjdns
 
-Ove instrukcije su namijenjene za distribucije bazirane na Debian Linux-u i OSX-u. Trebale bi biti
-dovoljno informativne za korištenje na ostalim distribucijama, ali ne očekujte
-da će raditi od prve.
+Ove instrukcije su namijenjene za distribucije bazirane na Debian Linux-u i macOS-u.
+Trebale bi biti dovoljno informativne za korištenje na ostalim distribucijama,
+ali ne očekujte da će raditi od prve.
 
 ### 0. Install dependencies
 
-On both platforms, installing [Node.js](http://nodejs.org/), although preferable,
+On both platforms, installing [Node.js](https://nodejs.org/), although preferable,
 is not strictly necessary. If Node.js is unavailable or an unacceptable version,
 it will be downloaded and installed in the source tree.
 
-#### Distribucija bazirana na Debian-u:
+#### Distribucija bazirana na Debianu:
 
     sudo apt-get install nodejs git build-essential python2.7
 
@@ -119,44 +84,23 @@ it will be downloaded and installed in the source tree.
     sudo dnf install install nodejs git
     sudo dnf install @development-tools
     
-#### Distribucija bazirana na RHEL-u (adds the EPEL repo):
+#### Distribucija bazirana na RHELu (dodaje EPEL repozitorij):
 
     sudo yum localinstall https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
     sudo yum install install nodejs git
     sudo yum install @development-tools
 
-#### OS X:
+#### macOS:
 
-On OS X, you must install the Command Line Developer Tools. If
-you already have a recent version of Xcode (>= OS X 10.9 and >= Xcode 5.0.1), run the
-following command:
+Instalacija putem [Homebrewa](https://brew.sh/):
 
-    xcode-select --install
+    brew install cjdns
 
-If Xcode is not installed, you can either install it through the App
-Store and run the command above, or make a free Apple Developer account here:
-[https://developer.apple.com/downloads/index.action](https://developer.apple.com/downloads/index.action).
-Then sign in, search for Command Line Tools, and install the latest package
-compatible with your version of OS X. If you encounter issues, there is a
-thorough [stackoverflow post](http://stackoverflow.com/a/9329325) on installing
-the Command Line Tools.
+Instalacija putem [MacPortsa](https://www.macports.org/):
 
-You must also install git and Node.js. There are a few options. If you use [Homebrew](http://brew.sh/):
-
-    brew install git nodejs
-
-Ako koristite [Macports](https://www.macports.org/):
-
-    sudo port install git-core nodejs
-
-Or if you use neither and would like to install the binaries from their websites:
-doc
-- Node.js: [http://nodejs.org/download/](http://nodejs.org/download/)
-- git: [http://git-scm.com/download](http://git-scm.com/download)
+    sudo port install cjdns
 
 #### OpenBSD:
-
-Nažalost, OpenBSD je trenutno eksperimentalan.
 
     pkg_add git node gcc gmake bash
 
@@ -164,12 +108,107 @@ Odaberite verziju gcc-4.8.1p2 ili noviju.
 
 #### FreeBSD:
 
-The compiler expects GCC version 4.7, please install it from ports first.
+    pkg install gmake node
+    
+#### Arch:
 
-    portsnap fetch extract
-    cd /usr/ports/lang/gcc47/ && make config && make install clean
+Možete instalirati cjdns sljedećom naredbom;
 
-### 1. Retrieve cjdns from GitHub
+    pacman -S cjdns
+
+If you need to build from source, everything you need can be installed like this
+
+    pacman -S nodejs git base-devel
+
+Alternatively, you may like to install via AUR from the package, `cjdns-git`.
+Nakon instalacije konfiguracijska datoteka će se nalaziti u `/etc/cjdroute.conf`.
+Za pokrenuti servis `cjdns.service`, pokrenite sljedeću naredbu:
+
+        systemctl start cjdns
+
+Za zaustavljanje:
+
+       systemctl stop cjdns
+
+#### Gentoo:
+
+cjdns is not yet in the main Gentoo repository, so you will have to use an overlay.
+The easiest way is to use Layman but you can do it by hand, too.
+
+##### Layman:
+
+Prvo treba te instalirati layman:
+
+      emerge layman
+
+If layman is installed correctly, you can add the overlay
+
+      layman -f
+      layman -a weuxel
+
+For future update of the overlay use
+
+      layman -S
+
+Now you can install cjdns
+
+      emerge cjdns
+
+##### By hand:
+
+You will have to clone the overlay repository
+
+       cd /opt
+       git clone https://github.com/Weuxel/portage-weuxel.git
+
+Now tell portage to use this repo
+
+       cd /etc/portage/repos.conf/
+
+Create a file `portage-weuxel.conf` containing
+
+       [weuxel]
+       location = /opt/portage-weuxel
+       masters = gentoo
+       auto-sync = yes
+
+Now sync
+
+       emerge --sync
+
+And install cjdns
+
+   emerge cjdns
+
+#### Automatic crash detection and restart
+
+Copy the the openrc init script from `contrib/openrc` to `/etc/init.d/` and modify the `CONFFILE` and `command` parameter to your needs.
+Then start cjdns by issuing
+
+   /etc/init.d/cjdns start
+
+Configure the init system to autostart cjdns
+
+   rc-update add cjdns default
+
+Copy the service_restart script `contrib/gentoo/service_restart.sh` to any convenient directory on
+your system and modify the eMail address. If you do not wish to be notified, comment out the whole line.
+Now add a crontab entry like this
+
+   # Restart crashed Services
+   * * * * *       root	/path/to/script/service_restart.sh
+
+#### Solus:
+
+Dependencies:
+
+      sudo eopkg install nodejs git build-essential system.devel python gcc binutils kernal-headers xorg-server-devel
+
+Then Follow the steps below:
+
+*Sorry for so many steps. A package is being worked on currently*
+    
+### 1. Preuzmite cjdns sa GitHuba
 
 Clone the repository from GitHub and change to the source directory:
 
@@ -180,8 +219,7 @@ Clone the repository from GitHub and change to the source directory:
 
     ./do
 
-Look for `Build completed successfully, type ./cjdroute to begin setup.`, then
-proceed below:
+Potražite `Build completed successfully, type ./cjdroute to begin setup.`, zatim nastavite:
 
 --------------------------------------------------------------------------------
 
@@ -191,31 +229,31 @@ Run cjdroute without options for HELP:
 
     ./cjdroute
 
-### 0. Make sure you've got the stuff.
+### 0. Provjerite imate li potrebne stvari
 
     LANG=C cat /dev/net/tun
 
-If it says: `cat: /dev/net/tun: File descriptor in bad state` Good!
+Ako kaže: `cat: /dev/net/tun: File descriptor in bad state`, sve je u redu!
 
-If it says: `cat: /dev/net/tun: No such file or directory`, create it using:
+Ako kaže: `cat: /dev/net/tun: No such file or directory`, stvorite ga putem:
 
     sudo mkdir -p /dev/net &&
     sudo mknod /dev/net/tun c 10 200 &&
     sudo chmod 0666 /dev/net/tun
 
-Zatim pokrenite `cat /dev/net/tun` opet.
+Zatim opet pokrenite `cat /dev/net/tun`.
 
-If it says: `cat: /dev/net/tun: Permission denied` You're probably using a VPS
-based on the OpenVZ virtualization platform. Ask your provider to enable the
-TUN/TAP device - this is standard protocol so they should know exactly what you
-need. If you're on OS X, don't worry about this step.
+Ako kaže: `cat: /dev/net/tun: Permission denied` vjerojatno koristite VPS
+baziran na OpenVZ virtualizacijskoj platformi. Pitajte vašeg pružatelja usluga da vam omogući
+TUN/TAP - ovo je standardni protokol tako da bi trebali znati što trebate.
+Ako ste na macOSu, ne morate se brinuti u vezi ove greške.
 
 
 ### 1. Stvorite novu konfiguracijsku datoteku
 
     ./cjdroute --genconf >> cjdroute.conf
 
-**Zaštitite Vašu conf datoteku!** A lost conf file means you lost your password and
+**Zaštitite Vašu konfiguraciju!** A lost conf file means you lost your password and
 connections and anyone who connected to you will no longer be able to connect.
 A compromised conf file means that other people can impersonate you on the
 network.
@@ -228,9 +266,8 @@ read it and write to it:
 
 ### 2. Pronađite prijatelja
 
-To get into an existing network (e.g. Hyperboria), you need to connect to
-someone who is already in the network. This is required for a number of
-reasons:
+Kako biste ušli u postojeću mrežu (npr. Hyperboria), morate se spojiti s nekime
+tko je već unutar te mreže. To je tako zbog nekoliko razloga:
 
 1. It helps prevent abuse because bad people will be less likely to abuse a
    system after they were, in an act of human kindness, given access to that
@@ -246,9 +283,9 @@ To find a friend, get out there and join our [community](#community). Also, have
 a look at the [Hyperboria Map][] to find peers near you.
 
 
-### 3. Connect your node to your friend's node
+### 3. Spojite vaš node sa nodeom prijatelja
 
-**To initiate the connection OUTbound**
+**Za pokretanje izlazne konekcije**
 
 U Vašoj conf datoteci vidjeti ćete:
 
@@ -292,46 +329,45 @@ following JSON syntax.
 U Vašoj conf datoteci vidjeti ćete:
 ``` javascript
 "authorizedPasswords":
-    [
-        // A unique string which is known to the client and server.
-        {"password": "thisisauniquestring_001"}
+[
+    // A unique string which is known to the client and server.
+    {"password": "password001", "login": "default-login"}
 
-        // More passwords should look like this.
-        // {"password": "thisisauniquestring_002"}
-        // {"password": "thisisauniquestring_003"}
-        // {"password": "thisisauniquestring_004"}
-        ...
+    // More passwords should look like this.
+    // {"password": "password002", "login": "my-second-peer"}
+    // {"password": "password003", "login": "my-third-peer}
+    // {"password": "password004", "login": "my-fourth-peer"}
+    ...
 
-        // "your.external.ip.goes.here:45678":{"password": "thisisauniquestring_001","publicKey":thisisauniqueKEY_001.k"}
+    // "your.external.ip.goes.here:45678":{"login": "default-login", "password": "password001","publicKey":thisisauniqueKEY_001.k"}
 
-    ],
+],
 ```
 
 A conf file with multiple friend-nodes, setup INbound, should look like:
 ``` javascript
 "authorizedPasswords":
-    [
-        // A unique string which is known to the client and server.
-        {"password": "thisisauniquestring_001"}
+[
+    // A unique string which is known to the client and server.
+    {"password": "thisisauniquestring_001", "user": "k.alexander"}
 
-        // More passwords should look like this.
-        //friend_3 (IPv4: 0.1.2.3; IPv6 fcaa:5bac:66e4:713:cb00:e446:c317:fc39)
-        {"password": "thisisauniquestring_002"}
-        //friend_4 (IPv4: 5.1.2.3; IPv6 fcbb:5bac:66e4:713:cb00:e446:c317:fc39)
-        {"password": "thisisauniquestring_003"}
-        // {"password": "thisisauniquestring_004"}
-        ...
+    // More passwords should look like this.
+    //William Jevons (IPv4: 0.1.2.3; IPv6 fcaa:5bac:66e4:713:cb00:e446:c317:fc39)
+    {"password": "thisisauniquestring_002", "user": "William Jevons"}
+    //Marilyn Patel (IPv4: 5.1.2.3; IPv6 fcbb:5bac:66e4:713:cb00:e446:c317:fc39)
+    {"password": "thisisauniquestring_003", "user": "Marilyn Patel"}
+    // {"password": "thisisauniquestring_004"}
+    ...
 
-        // "your.external.ip.goes.here:45678":{"password": "thisisauniquestring_001","publicKey":thisisauniqueKEY_001.k"}
-
-    ],
+    // "your.external.ip.goes.here:45678":{"password": "thisisauniquestring_001","publicKey":thisisauniqueKEY_001.k"}
+],
 ```
 
 
 Morate dati friend_3 (who is making the INbound connection) sljedeće 4 stvari:
 
 1. Vašu vanjsku IPv4 adresu
-2. The port found in your conf file here:
+2. Port iz konfiguracijske datoteke:
 
                 `// Bind to this port.
                 "bind": "0.0.0.0:yourportnumberishere",`
@@ -352,10 +388,10 @@ including how to peer with other cjdns nodes over ethernet and wifi.
 
 ### 4. Zaštitite Vaš sustav - check for listening services
 
-Once your node is running, you're now a newly minted IPv6 host. Your operating
-system may automatically reconfigure network services to use this new address.
-If this is not what you intend, you should check to see that you are not
-offering more services then you intended to. ;)
+Nakon što se Vaš node pokrene, postajete IPv6 host. Vaš operativni
+sustav će automatski konfigurirati mrežne servise kako bi koristili novu adresu.
+Ako ovo nije Vaš cilj, trebali bi ste provjeriti da ne pružate više servisa
+nego što mislite. ;)
 
 Pogledajte [doc/network-services.md](doc/network-services.md) za instrukcije.
 
@@ -364,52 +400,50 @@ Pogledajte [doc/network-services.md](doc/network-services.md) za instrukcije.
 
     sudo ./cjdroute < cjdroute.conf
 
-If you want to have your logs written to a file:
+Ako želite da se logovi zapisuju u datoteku:
 
     sudo ./cjdroute < cjdroute.conf > cjdroute.log
 
-To stop cjdns:
+Za zaustavljanje cjdns-a:
 
     sudo killall cjdroute
 
-If you are having problems use `killall cjdroute` to return to sanity. Use
-`pgrep cjdroute` or `top` to see if it running.
+Ako imate problema koristite `killall cjdroute`.
+Koristite `pgrep cjdroute` ili `top` kako bi ste provjerili radi li cjdns.
 
-**Note:** this starts cjdns as the root user so it can configure your system
-without concern for permissions. To start cjdns as a non-root user, see
+**Note:** ovo pokreće cjdns kao putem korisnika tako da može konfigurirati Vaš sustav
+bez potrebnih dozvola. Za pokretanje cjdns-a putem običnog korisnika, pogledajte
 [doc/non-root-user.md](doc/non-root-user.md).
 
 
-### 6. Get in IRC
+### 6. Dođite na IRC
 
-Dobrodošli u mrežu! Sada ste mrežni administrator. There are
-responsibilities which come with being a network administrator which include
-being available in case there is something wrong with your equipment. You should
-stay on [IRC](#community) so that people can reach you.
+Dobrodošli u mrežu! Sada ste mrežni administrator. Kao mrežni
+administrator odgovorni ste za stvari poput kvara opreme.
+Budite na [IRC-u](#community) kako bi vas ljudi mogli kontaktirati.
 
 
 ## Administratorsko sučelje
 
-When cjdnroute is up and running, the admin interface will be available at
-`udp://localhost:11234` (this can be changed in the cjdroute.conf
-configuration file). See [doc/admin-api.md](doc/admin-api.md) for more
-information about the admin interface. There are several tools in `contrib/`
-that can interact with it.
+Kada je cjdnroute pokrenut, administratorsko sučelje biti će dostupna na
+`udp://localhost:11234` (ovo se može promijeniti u cjdroute.conf
+konfiguracijskoj datoteci). Pogledajte [doc/admin-api.md](doc/admin-api.md) za više
+informacija o administratorskom sučelju. U `contrib/` se nalazi nekoliko alata
+s kojima može komunicirati.
 
 Možete pristupiti administratorskom API-ju putem:
 
-* the **Python library**; see
+* the **Python library**; pogledajte
   [contrib/python/README.md](contrib/python/README.md).
-* the **Perl library**, maintained by Mikey; see
+* the **Perl library**, održava Mikey; pogledajte
   [contrib/perl/CJDNS/README](contrib/perl/CJDNS/README).
 
 
 [IRC Web]: http://chat.efnet.org/irc.cgi?chan=%23cjdns
-[Hyperboria]: http://hyperboria.net
-[Projekt Meshnet]: https://projectmeshnet.org
-[/r/darknetplan]: http://www.reddit.com/r/darknetplan
+[Hyperboria]: https://hyperboria.net
+[/r/darknetplan]: https://www.reddit.com/r/darknetplan
 [#cjdns na Twitteru]: https://twitter.com/hashtag/cjdns
-[Hyperboria Map]: http://www.fc00.org/
+[Hyperboria Map]: https://www.fc00.org/
 [Buildbots]: https://buildbot.meshwith.me/cjdns/waterfall
 
 [Cjdns na Wikepediji]: https://en.wikipedia.org/wiki/Cjdns
@@ -418,5 +452,5 @@ Možete pristupiti administratorskom API-ju putem:
 [Kademlia]: https://en.wikipedia.org/wiki/Kademlia
 
 [Tor]: https://www.torproject.org
-[I2P]: http://www.i2p2.de
+[I2P]: https://geti2p.net/en/
 [Freenet]: https://freenetproject.org

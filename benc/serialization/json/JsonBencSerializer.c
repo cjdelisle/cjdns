@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "memory/Allocator.h"
 #include "io/Reader.h"
@@ -19,6 +19,7 @@
 #include "benc/List.h"
 #include "benc/String.h"
 #include "benc/serialization/BencSerializer.h"
+#include "benc/serialization/json/JsonBencSerializer.h"
 #include "util/Bits.h"
 #include "util/Hex.h"
 
@@ -72,15 +73,15 @@ static int32_t serializeString(struct Writer* writer,
     Writer_write(writer, "\"", 1);
     size_t i;
     uint8_t chr;
-    char buffer[4];
+    char buffer[5];
     for (i = 0; i < string->len; i++) {
         chr = (uint8_t) string->bytes[i] & 0xFF;
         /* Nonprinting chars, \ and " are hex'd */
         if (chr < 126 && chr > 31 && chr != '\\' && chr != '"') {
-            snprintf(buffer, 4, "%c", chr);
+            snprintf(buffer, 5, "%c", chr);
             Writer_write(writer, buffer, 1);
         } else {
-            snprintf(buffer, 4, "\\x%.2X", chr);
+            snprintf(buffer, 5, "\\x%.2X", chr);
             Writer_write(writer, buffer, 4);
         }
     }
@@ -396,8 +397,8 @@ static int32_t parseDictionary(struct Reader* reader,
 
     String* key;
     Object* value;
-    struct Dict_Entry* entryPointer;
-    struct Dict_Entry* lastEntryPointer = NULL;
+    struct Dict_Entry* first = NULL;
+    struct Dict_Entry* last = NULL;
     int ret = 0;
 
     for (;;) {
@@ -409,7 +410,7 @@ static int32_t parseDictionary(struct Reader* reader,
 
                 case '}':
                     Reader_skip(reader, 1);
-                    *output = lastEntryPointer;
+                    *output = first;
                     return 0;
 
                 case '/':
@@ -439,12 +440,15 @@ static int32_t parseDictionary(struct Reader* reader,
         }
 
         /* Allocate the entry. */
-        entryPointer = Allocator_malloc(allocator, sizeof(struct Dict_Entry));
-
-        entryPointer->next = lastEntryPointer;
-        entryPointer->key = key;
-        entryPointer->val = value;
-        lastEntryPointer = entryPointer;
+        struct Dict_Entry* entry = Allocator_calloc(allocator, sizeof(struct Dict_Entry), 1);
+        entry->key = key;
+        entry->val = value;
+        if (last) {
+            last->next = entry;
+        } else {
+            first = entry;
+        }
+        last = entry;
     }
 }
 
@@ -582,7 +586,7 @@ static const struct BencSerializer SERIALIZER =
     .parseDictionary = parseDictionary
 };
 
-const struct BencSerializer* JsonBencSerializer_get()
+const struct BencSerializer* JsonBencSerializer_get(void)
 {
     return &SERIALIZER;
 }

@@ -10,17 +10,26 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #ifndef Key_H
 #define Key_H
 
 #include "benc/String.h"
+#include "crypto/random/Random.h"
 #include "memory/Allocator.h"
 #include "util/Linker.h"
 Linker_require("crypto/Key.c");
 
 #include <stdint.h>
+
+/**
+ * Generates a new key such that its derived IP address is in fc00::/8.
+ */
+int Key_gen(uint8_t addressOut[16],
+            uint8_t publicKeyOut[32],
+            uint8_t privateKeyOut[32],
+            struct Random* rand);
 
 char* Key_parse_strerror(int error);
 

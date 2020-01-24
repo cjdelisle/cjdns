@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "crypto/Sign.h"
 #include "crypto/random/Random.h"
@@ -42,5 +42,7 @@ int main()
     Assert_true(!Sign_verifyMsg(&signingKeyPair[32], msg));
     Assert_true(!Sign_publicSigningKeyToCurve25519(curve25519publicB, &signingKeyPair[32]));
     Assert_true(!Bits_memcmp(curve25519publicB, curve25519public, 32));
+
+    Allocator_free(alloc);
     return 0;
 }

@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #ifndef EventBase_pvt_H
 #define EventBase_pvt_H
@@ -40,6 +40,8 @@ struct EventBase_pvt
 
     /** Number of milliseconds since epoch when the clock was calibrated. */
     uint64_t baseTime;
+
+    void* timeouts;
 
     Identity
 };

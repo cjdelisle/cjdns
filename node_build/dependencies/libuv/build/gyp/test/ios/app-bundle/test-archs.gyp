@@ -6,7 +6,6 @@
     ['CC', '/usr/bin/clang'],
   ],
   'target_defaults': {
-    'product_extension': 'bundle',
     'mac_bundle_resources': [
       'TestApp/English.lproj/InfoPlist.strings',
       'TestApp/English.lproj/MainMenu.xib',
@@ -22,7 +21,7 @@
         '-fobjc-abi-version=2',
       ],
       'CODE_SIGNING_REQUIRED': 'NO',
-      'SDKROOT': 'iphonesimulator',  # -isysroot
+      'SDKROOT': 'iphoneos',  # -isysroot
       'TARGETED_DEVICE_FAMILY': '1,2',
       'INFOPLIST_FILE': 'TestApp/TestApp-Info.plist',
       'IPHONEOS_DEPLOYMENT_TARGET': '7.0',

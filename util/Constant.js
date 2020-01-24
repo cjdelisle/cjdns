@@ -10,8 +10,13 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+
+var Crypto = require('crypto');
+var seed = process.env.SOURCE_DATE_EPOCH || Crypto.randomBytes(32).toString('hex');
+
+if (process.env.SOURCE_DATE_EPOCH) { console.log('\n\n\nYES\n\n\n');}
 
 var TABLE = {
     '0000': '0',
@@ -62,23 +67,24 @@ var base2 = module.exports.base2 = function (numStr) {
     return '((' + type + ') 0x' + base2ToHex(numStr) + ((type === 'uint64_t') ? 'ull' : 'ul') + ')';
 };
 
-var randomHex = function (bytes) {
-    var hex = '';
-    var len = Number(bytes * 2); // One byte is two hex digits
-    while (hex.length < len) { hex += Math.random().toString(16).substring(2); }
-    return hex.substring(0,len);
+var randomHex = function (bytes, file) {
+    if (!file) { throw new Error('file unspecified'); }
+    var nonce = file.Constant_JS_nonce = (file.Constant_JS_nonce || 0) + 1;
+    var material = new Crypto.Hash('sha512').update(seed).update(file.name).update(String(nonce)).digest();
+    if (bytes > 64) { throw new Error("meh, randomHex of over 64 bytes is unimplemented"); }
+    return material.slice(0, bytes).toString('hex');
 };
 
-var rand64 = module.exports.rand64 = function () {
-    return '((uint64_t) 0x' + randomHex(64 / 8) + 'ull)';
+var rand64 = module.exports.rand64 = function (file) {
+    return '((uint64_t) 0x' + randomHex(64 / 8, file) + 'ull)';
 };
 
-var rand32 = module.exports.rand32 = function () {
-    return '((uint32_t) 0x' + randomHex(32 / 8) + 'ul)';
+var rand32 = module.exports.rand32 = function (file) {
+    return '((uint32_t) 0x' + randomHex(32 / 8, file) + 'ul)';
 };
 
-var randHexString = module.exports.randHexString = function (lenStr) {
-    return '"' + randomHex(lenStr / 2) + '"';
+var randHexString = module.exports.randHexString = function (lenStr, file) {
+    return '"' + randomHex(lenStr / 2, file) + '"';
 };
 
 var log2 = module.exports.log2 = function (val) {

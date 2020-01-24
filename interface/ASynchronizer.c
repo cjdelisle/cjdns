@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "interface/Iface.h"
 #include "interface/ASynchronizer.h"
@@ -39,6 +39,7 @@ struct ASynchronizer_pvt
     struct ArrayList_Messages* msgsToB;
 
     struct Allocator* timeoutAlloc;
+    struct Timeout* intr;
     int dryCycles;
 
     Identity
@@ -52,6 +53,7 @@ static void timeoutTrigger(void* vASynchronizer)
         if (as->dryCycles++ < MAX_DRY_CYCLES || !as->timeoutAlloc) { return; }
         Allocator_free(as->timeoutAlloc);
         as->timeoutAlloc = NULL;
+        as->intr = NULL;
         as->dryCycles = 0;
         return;
     }
@@ -80,9 +82,15 @@ static void timeoutTrigger(void* vASynchronizer)
 
 static void checkTimeout(struct ASynchronizer_pvt* as)
 {
+    // The timeout might still be present but inactive because Timeout_clearAll() was called
+    // to setup a test, in that case lets re-arm it in order to get the message to the other side.
+    if (as->intr && !Timeout_isActive(as->intr)) {
+        Allocator_free(as->timeoutAlloc);
+        as->timeoutAlloc = NULL;
+    }
     if (as->timeoutAlloc) { return; }
     as->timeoutAlloc = Allocator_child(as->alloc);
-    Timeout_setInterval(timeoutTrigger, as, 1, as->base, as->timeoutAlloc);
+    as->intr = Timeout_setInterval(timeoutTrigger, as, 1, as->base, as->timeoutAlloc);
 }
 
 static Iface_DEFUN fromA(struct Message* msg, struct Iface* ifA)

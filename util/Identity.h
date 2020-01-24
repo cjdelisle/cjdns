@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #ifndef Identity_H
 #define Identity_H
@@ -18,11 +18,11 @@
 #include "util/Assert.h"
 #include "util/Constant.h"
 
-<?js file.Identity_hash = "0x" + Constant_randHexString(16) + "ull"; ?>
-
-#define Identity_MAGIC ((unsigned long) <?js return file.Identity_hash ?>)
-
 #if defined(Identity_CHECK)
+
+    <?js file.Identity_hash = "0x" + Constant_randHexString(16) + "ull"; ?>
+
+    #define Identity_MAGIC ((unsigned long) <?js return file.Identity_hash ?>)
 
     /** This goes in each structure which will be checked. */
     #define Identity \

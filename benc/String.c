@@ -10,14 +10,15 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "memory/Allocator.h"
-#include "benc/String.h"
 #include "util/Bits.h"
 
 #include <stdio.h>
 #include <stdarg.h>
+
+#include "benc/String.h"
 
 /** @see Object.h */
 String* String_new(const char* bytes, struct Allocator* allocator)

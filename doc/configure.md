@@ -49,19 +49,19 @@ The `authorizedPasswords` section is the area where you can specify passwords to
     "authorizedPasswords":
     [
         // A unique string which is known to the client and server.
-        {"password": "zxl6zgxpl4stnuybdt0xlg4tn2cdl5h"}
+        {"password": "zxl6zgxpl4stnuybdt0xlg4tn2cdl5h", "user": "default-login"}
 
         // More passwords should look like this.
-        // {"password": "10ru8br0mhk25ccpvubv0sqnl7kuc6s"},
-        // {"password": "y68jm490dztxn3d2gvuv09bz55wqmjj"},
-        // {"password": "bnpphnq205v8nf2ksrs1fknfr572xzc"},
+        // {"password": "10ru8br0mhk25ccpvubv0sqnl7kuc6s", "user": "my-second-peer"},
+        // {"password": "y68jm490dztxn3d2gvuv09bz55wqmjj", "user": "my-third-peer"},
+        // {"password": "bnpphnq205v8nf2ksrs1fknfr572xzc", "user": "my-fourth-peer"},
 
         // These are your connection credentials
         // for people connecting to you with your default password.
         // adding more passwords for different users is advisable
         // so that leaks can be isolated.
         //
-        // "your.external.ip.goes.here:33808":{"password":"zxl6zgxpl4stnuybdt0xlg4tn2cdl5h","publicKey":"u2jf87mgqlxfzdnywp60z3tx6tkulvgh2nyc2jk1zc69zzt2s8u0.k"}
+        // "your.external.ip.goes.here:33808":{"login": "default-login", "password":"zxl6zgxpl4stnuybdt0xlg4tn2cdl5h","publicKey":"u2jf87mgqlxfzdnywp60z3tx6tkulvgh2nyc2jk1zc69zzt2s8u0.k"}
     ],
 ````
 - `password`: This is the password that another system can give to your node and be allowed to connect. You would place it in the `password` section in the next part.
@@ -104,6 +104,22 @@ This specifies the settings for the connection interfaces to your node. Right no
             {
                 // Bind to this port.
                 "bind": "0.0.0.0:33808",
+
+                // Automatically connect to other nodes on the same LAN
+                // This works by binding a second port and sending beacons
+                // containing the main data port.
+                // beacon is a number between 0 and 2:
+                //   0 -> do not beacon nor connect to other nodes who beacon
+                //   1 -> quiet mode, accept beacons from other nodes only
+                //   2 -> send and accept beacons
+                // beaconDevices is a list which can contain names of devices such
+                // as eth0, as well as broadcast addresses to send to, such as
+                // 192.168.101.255, or the pseudo-name "all".
+                // in order to auto-peer, all cjdns nodes must use the same
+                // beaconPort.
+                "beacon": 2,
+                "beaconDevices": [ "all" ],
+                "beaconPort": 64512,
 
                 // Nodes to connect to.
                 "connectTo":
@@ -152,6 +168,12 @@ This specifies the settings for the connection interfaces to your node. Right no
 
 - `UDPInterface`:
     - `bind`: This tells cjdns what IP and port to use for listening to connections.
+    - `beacon`: his controls peer auto-discovery. Set to 0 to disable auto-peering, 1 to use broadcast
+    auto-peering passwords contained in "beacon" messages from other nodes, and 2 to both broadcast and accept beacons.
+    - `beaconDevices`: A list of broadcast devices, including device names such as "eth0", address names and the
+    pseudo-name "all" which means it will use broadcast addresses of all interfaces. For example:
+    `[ "eth0", "wlan0", "192.168.300.255" ]`
+    - `beaconPort`: The UDP port for sending beacon messages on, all nodes must have the same beaconPort to auto-peer.
     - `connectTo`: This is where you put the connection details for peers that you want to connect to. The format for this generally looks like this,
         "12.34.56.78:12345":
         {
@@ -169,7 +191,7 @@ This specifies the settings for the connection interfaces to your node. Right no
     - `bind`: This tells cjdns which device the ETHInterface should bind to. This may be different depending on your setup.
     - `connectTo`: The connectTo for the ETHInterface functions almost exactly like it does for the the UDPInterface, except instead of an IP address and a port at the beginning, it is a MAC address.
     - `beacon`: This controls peer auto-discovery. Set to 0 to disable auto-peering, 1 to use broadcast auto-peering passwords contained in "beacon" messages from other nodes, and 2 to both broadcast and accept beacons.
-    - In earlier versions of cjdns, it was necessary to uncomment the ETHInterface if you want to use it, however, now it is uncommented by default in the `crashey` branch which will eventually be merged to master.
+    - In earlier versions of cjdns, it was necessary to uncomment the ETHInterface if you want to use it, however, now it is uncommented by default.
 
 Router
 ------

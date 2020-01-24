@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #ifndef Announce_H
 #define Announce_H
@@ -28,7 +28,8 @@
 enum Announce_Type {
     Announce_Type_ENCODING_SCHEME,
     Announce_Type_PEER,
-    Announce_Type_VERSION
+    Announce_Type_VERSION,
+    Announce_Type_LINK_STATE
 };
 
 struct Announce_Version
@@ -44,7 +45,7 @@ struct Announce_Version
 #define Announce_Version_SIZE 4
 Assert_compileTime(sizeof(struct Announce_Version) == Announce_Version_SIZE);
 
-static void Announce_Version_init(struct Announce_Version* v)
+static inline void Announce_Version_init(struct Announce_Version* v)
 {
     v->length = Announce_Version_SIZE;
     v->type = Announce_Type_VERSION;
@@ -80,9 +81,9 @@ static inline void Announce_EncodingScheme_push(struct Message* pushTo, String* 
  *     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  *   0 |     length    |      type     | encodingForm  |     flags     |
  *     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *   4 |      MTU (8 byte units)       |             drops             |
+ *   4 |      MTU (8 byte units)       |          peer number          |
  *     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *   8 |           latency             |            penalty            |
+ *   8 |                            Unused                             |
  *     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  *  12 |                                                               |
  *     +                                                               +
@@ -114,18 +115,12 @@ struct Announce_Peer
     // 0xffff = MTU of 542280 bytes
     uint16_t mtu8_be;
 
-    // Fraction of packets dropped in previous time-window (out of 65k)
+    // Number of the peer in the list, used for referencing in LinkState
     // 0xffff is unknown
-    uint16_t drops_be;
+    uint16_t peerNum_be;
 
-    // Average latency of packets in previous time-window (milliseconds)
-    // 0xffff is unknown
-    uint16_t latency_be;
-
-    // Penalty which would be applied to a packet (with current penalty 0)
-    // if it passes through this link.
-    // 0xffff is unknown
-    uint16_t penalty_be;
+    // 0xffffffff
+    uint32_t unused;
 
     // Ipv6 of a node from which this node is reachable
     uint8_t ipv6[16];
@@ -142,6 +137,38 @@ static inline void Announce_Peer_init(struct Announce_Peer* peer)
     Bits_memset(peer, 0, Announce_Peer_SIZE);
     peer->length = Announce_Peer_SIZE;
     peer->type = Announce_Type_PEER;
+    peer->unused = 0xffffffff;
+    peer->peerNum_be = 0xffff;
+}
+
+/**
+ *                      1               2               3
+ *      0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
+ *     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *   0 |     length    |      type     |     padding   |               |
+ *     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+               +
+ *   4 |                    Compressed Link State.....                 |
+ *     +                                                               +
+ */
+
+struct Announce_LinkState
+{
+    // Length of linkState + 3
+    uint8_t length;
+
+    // Announce_Type_LINK_STATE
+    uint8_t type;
+
+    // number of zero bytes before beginning of packed numbers
+    uint8_t padding;
+
+    // linkState
+    uint8_t linkState[1];
+};
+
+static inline void Announce_LinkState_applyHeader(struct Message* pushTo)
+{
+    Assert_failure("todo implement");
 }
 
 struct Announce_ItemHeader
@@ -231,14 +258,16 @@ struct Announce_Header
     uint8_t snodeIp[16];
 
     // Milliseconds since the epoch when this message was crafted and reset flag
-    uint64_t timeStampVersionFlags_be;
+    uint8_t timeStampVersionFlags_be[8];
 };
 #define Announce_Header_SIZE 120
 Assert_compileTime(sizeof(struct Announce_Header) == Announce_Header_SIZE);
 
 static inline int64_t Announce_Header_getTimestamp(struct Announce_Header* hdr)
 {
-    return Endian_bigEndianToHost64(hdr->timeStampVersionFlags_be) >> 4;
+    uint64_t ts_be;
+    Bits_memcpy(&ts_be, hdr->timeStampVersionFlags_be, sizeof(uint64_t));
+    return Endian_bigEndianToHost64(ts_be) >> 4;
 }
 
 static inline void Announce_Header_setTimestamp(struct Announce_Header* hdr,
@@ -250,36 +279,45 @@ static inline void Announce_Header_setTimestamp(struct Announce_Header* hdr,
     // It will also fail for negative timestamps.
     Assert_true(!(uTime >> 60));
 
-    hdr->timeStampVersionFlags_be =
-        (hdr->timeStampVersionFlags_be & Endian_hostToBigEndian64(0x0f)) |
-            Endian_hostToBigEndian64(uTime << 4);
+    uint64_t ts_be;
+    Bits_memcpy(&ts_be, hdr->timeStampVersionFlags_be, sizeof(uint64_t));
+    ts_be = (ts_be & Endian_hostToBigEndian64(0x0f)) | Endian_hostToBigEndian64(uTime << 4);
+    Bits_memcpy(hdr->timeStampVersionFlags_be, &ts_be, sizeof(uint64_t));
 }
 
 static inline bool Announce_Header_isReset(struct Announce_Header* hdr)
 {
-    return (Endian_bigEndianToHost64(hdr->timeStampVersionFlags_be) >> 3) & 1;
+    uint64_t ts_be;
+    Bits_memcpy(&ts_be, hdr->timeStampVersionFlags_be, sizeof(uint64_t));
+    return (Endian_bigEndianToHost64(ts_be) >> 3) & 1;
 }
 
 static inline void Announce_Header_setReset(struct Announce_Header* hdr, bool isReset)
 {
+    uint64_t ts_be;
+    Bits_memcpy(&ts_be, hdr->timeStampVersionFlags_be, sizeof(uint64_t));
     if (isReset) {
-        hdr->timeStampVersionFlags_be |= Endian_hostToBigEndian64(1<<3);
+        ts_be |= Endian_hostToBigEndian64(1<<3);
     } else {
-        hdr->timeStampVersionFlags_be &= ~Endian_hostToBigEndian64(1<<3);
+        ts_be &= ~Endian_hostToBigEndian64(1<<3);
     }
+    Bits_memcpy(hdr->timeStampVersionFlags_be, &ts_be, sizeof(uint64_t));
 }
 
 static inline int Announce_Header_getVersion(struct Announce_Header* hdr)
 {
-    return Endian_bigEndianToHost64(hdr->timeStampVersionFlags_be) & 0x07;
+    uint64_t ts_be;
+    Bits_memcpy(&ts_be, hdr->timeStampVersionFlags_be, sizeof(uint64_t));
+    return Endian_bigEndianToHost64(ts_be) & 0x07;
 }
 
 #define Announce_Header_CURRENT_VERSION 1
 static inline void Announce_Header_setVersion(struct Announce_Header* hdr, int version)
 {
-    hdr->timeStampVersionFlags_be =
-        (hdr->timeStampVersionFlags_be & ~Endian_hostToBigEndian64(0x07)) |
-            Endian_hostToBigEndian64(version & 0x07);
+    uint64_t ts_be;
+    Bits_memcpy(&ts_be, hdr->timeStampVersionFlags_be, sizeof(uint64_t));
+    ts_be = (ts_be & ~Endian_hostToBigEndian64(0x07)) | Endian_hostToBigEndian64(version & 0x07);
+    Bits_memcpy(hdr->timeStampVersionFlags_be, &ts_be, sizeof(uint64_t));
 }
 
 static inline struct Announce_ItemHeader* Announce_ItemHeader_next(struct Message* msg, void* last)

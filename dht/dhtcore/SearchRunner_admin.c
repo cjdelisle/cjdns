@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "admin/Admin.h"
 #include "benc/Dict.h"
@@ -33,7 +33,7 @@ struct Context {
 static void showActiveSearch(Dict* args, void* vctx, String* txid, struct Allocator* alloc)
 {
     struct Context* ctx = Identity_check((struct Context*) vctx);
-    int number = *(Dict_getInt(args, String_CONST("number")));
+    int number = *(Dict_getIntC(args, "number"));
 
     struct SearchRunner_SearchData* search =
         SearchRunner_showActiveSearch(ctx->runner, number, alloc);
@@ -81,17 +81,17 @@ static void searchResponse(struct RouterModule_Promise* promise,
 
     Dict* resp = Dict_new(alloc);
     if (!from) {
-        Dict_putString(resp, String_CONST("error"), String_CONST("none"), alloc);
-        Dict_putInt(resp, String_CONST("complete"), 1, alloc);
+        Dict_putStringCC(resp, "error", "none", alloc);
+        Dict_putIntC(resp, "complete", 1, alloc);
         Admin_sendMessage(resp, search->txid, search->ctx->admin);
-        Allocator_free(search->alloc);
+        Allocator_free(alloc);
         return;
     }
 
     String* fromStr = Address_toString(from, alloc);
-    Dict_putString(resp, String_CONST("from"), fromStr, alloc);
+    Dict_putStringC(resp, "from", fromStr, alloc);
 
-    Dict_putInt(resp, String_CONST("ms"), lag, alloc);
+    Dict_putIntC(resp, "ms", lag, alloc);
 
     struct Address_List* addrs = ReplySerializer_parse(from, responseDict, NULL, true, alloc);
     List* nodes = List_new(alloc);
@@ -99,7 +99,7 @@ static void searchResponse(struct RouterModule_Promise* promise,
         String* addr = Address_toString(&addrs->elems[i], alloc);
         List_addString(nodes, addr, alloc);
     }
-    Dict_putList(resp, String_CONST("nodes"), nodes, alloc);
+    Dict_putListC(resp, "nodes", nodes, alloc);
 
     Admin_sendMessage(resp, search->txid, search->ctx->admin);
 }
@@ -107,16 +107,16 @@ static void searchResponse(struct RouterModule_Promise* promise,
 static void search(Dict* args, void* vctx, String* txid, struct Allocator* reqAlloc)
 {
     struct Context* ctx = Identity_check((struct Context*) vctx);
-    String* addrStr = Dict_getString(args, String_CONST("ipv6"));
+    String* addrStr = Dict_getStringC(args, "ipv6");
 
     int maxRequests = -1;
-    uint64_t* maxRequestsPtr = Dict_getInt(args, String_CONST("maxRequests"));
+    uint64_t* maxRequestsPtr = Dict_getIntC(args, "maxRequests");
     if (maxRequestsPtr) { maxRequests = *maxRequestsPtr; }
 
     uint8_t addr[16];
     if (AddrTools_parseIp(addr, (uint8_t*) addrStr->bytes)) {
         Dict* resp = Dict_new(reqAlloc);
-        Dict_putString(resp, String_CONST("error"), String_CONST("ipv6 invalid"), reqAlloc);
+        Dict_putStringCC(resp, "error", "ipv6 invalid", reqAlloc);
         Admin_sendMessage(resp, txid, ctx->admin);
     } else {
         struct Allocator* alloc = Allocator_child(ctx->allocator);
@@ -129,7 +129,7 @@ static void search(Dict* args, void* vctx, String* txid, struct Allocator* reqAl
 
         if (!s->promise) {
             Dict* resp = Dict_new(reqAlloc);
-            Dict_putString(resp, String_CONST("error"), String_CONST("creating search"), reqAlloc);
+            Dict_putStringCC(resp, "error", "creating search", reqAlloc);
             Admin_sendMessage(resp, txid, ctx->admin);
             Allocator_free(alloc);
             return;

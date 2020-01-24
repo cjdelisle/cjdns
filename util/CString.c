@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "util/CString.h"
 
@@ -61,7 +61,9 @@ char* CString_strcpy(char* restrict dest, const char* restrict src)
     return strcpy(dest, src);
 }
 
-char* CString_strncpy(char* restrict dest, const char *restrict src, size_t n)
+char* CString_safeStrncpy(char* restrict dest, const char *restrict src, size_t n)
 {
-    return strncpy(dest, src, n);
+    char* ret = strncpy(dest, src, n);
+    dest[n - 1] = '\0';
+    return ret;
 }

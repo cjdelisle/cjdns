@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #ifndef RouteHeader_H
 #define RouteHeader_H
@@ -52,7 +52,9 @@ struct RouteHeader
      * If set, this header is incoming from another node, this means the ip6, publicKey and
      * switch label are of the *source* of the packet, not the destination.
      */
-    #define RouteHeader_flags_INCOMING 1
+    #define RouteHeader_flags_INCOMING    1
+    #define RouteHeader_flags_CTRLMSG    (1<<1)
+    #define RouteHeader_flags_PATHFINDER (1<<2)
     uint8_t flags;
 
     uint8_t unused;

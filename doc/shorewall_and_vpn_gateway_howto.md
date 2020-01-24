@@ -3,22 +3,22 @@ Tutorial for setting up an IP tunnel gateway from cjdns to clearnet, using a VPN
 
 * From: https://wiki.projectmeshnet.org/Gateway_server_howto
 
-##General
+## General
 * Close any open ports also on IPv6, e.g.:
  `ip6tables -A INPUT -i tun0 -p tcp --destination-port 22 -j REJECT`
 
-##VPN
-Connect to a VPN provider (I used mullvad.net). Make sure you can pay with bitcoins. Recommended connection: openvpn.
+## VPN
+Connect to a VPN provider (I used mullvad.net). Make sure you can pay with bitcoins. Recommended connection: OpenVPN.
 
-##Firewall (shorewall)
-###Interfaces 
+## Firewall (Shorewall)
+### Interfaces
 ```
  #ZONE INTERFACE BROADCAST OPTIONS
  net eth0 detect routefilter,dhcp,tcpflags,logmartians,nosmurfs
  cjdns tun0 detect routefilter,dhcp,tcpflags,logmartians,nosmurfs
  vpn tun1 detect routefilter,dhcp,tcpflags,logmartians,nosmurfs
 ```
-###Zones
+### Zones
 ```
  #ZONE   TYPE    OPTIONS                 IN                      OUT
  #                                       OPTIONS                 OPTIONS
@@ -27,7 +27,7 @@ Connect to a VPN provider (I used mullvad.net). Make sure you can pay with bitco
  cjdns   ipv4
  vpn     ipv4
 ```
-###Policy
+### Policy
 ```
  #SOURCE         DEST            POLICY          LOG LEVEL       LIMIT:BURST
  $FW             net             ACCEPT
@@ -42,7 +42,7 @@ Connect to a VPN provider (I used mullvad.net). Make sure you can pay with bitco
  # The FOLLOWING POLICY MUST BE LAST
  all             all             REJECT          info
 ```
-###Rules
+### Rules
 ```
  #ACTION         SOURCE                  DEST            PROTO   DEST
  #                                                       PORT
@@ -57,7 +57,7 @@ Connect to a VPN provider (I used mullvad.net). Make sure you can pay with bitco
  ACCEPT          $FW                     cjdns           icmp
  ACCEPT          cjdns                   $FW             icmp
 ```
-##Networking
+## Networking
 Give an IPV4 address to the server side of the cjdns tunnel:
 
  `ip addr add 10.42.0.3/32 dev tun0`
@@ -78,7 +78,7 @@ The default gw for the clients (to vpn):
 
  `ip addr add 10.42.0.1/32 dev tun1`
 
-Masqurading (NAT):
+Masquerading (NAT):
 
  `iptables -t nat -A POSTROUTING -o tun1 -j MASQUERADE`
 
@@ -90,7 +90,7 @@ Remove original gateway:
 Use DNS server from VPN provider to avoid leaks:
  `cp /etc/resolv.conf.vpn /etc/resolv.conf`
 
-##Add user
+## Add user
 
 
 For convenience, I check the last 20 characters of the public key (not including .k) e.g.:
@@ -110,7 +110,7 @@ And under `ipTunnel` `allowedConnections`:
    "ip4Address": "10.42.something.else",
  },
 ```
-##Quota
+## Quota
 
 Add a user
 ```

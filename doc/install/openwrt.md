@@ -1,6 +1,6 @@
 # Running cjdns on commodity routers w/ OpenWrt
 
-From: http://www.reddit.com/r/darknetplan/comments/2lmpqg/running_cjdns_on_commodity_routers_w_openwrt/
+From: https://www.reddit.com/r/darknetplan/comments/2lmpqg/running_cjdns_on_commodity_routers_w_openwrt/
 
 Since the assumption pops up every other day that cjdns wouldn't run on commodity routers:
 

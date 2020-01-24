@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
 var UDP = require('dgram');
@@ -43,7 +43,7 @@ var sendmsg = function (sock, addr, port, msg, txid, callback) {
 
 var callFunc = function (sock, addr, port, pass, func, args, callback) {
     var cookieTxid = String(sock.counter++);
-    var cookieMsg = new Buffer(Bencode.encode({'q':'cookie','txid':cookieTxid}));
+    var cookieMsg = Buffer.from(Bencode.encode({'q':'cookie','txid':cookieTxid}));
     sendmsg(sock, addr, port, cookieMsg, cookieTxid, function (err, ret) {
         if (err) { callback(err); return; }
         var cookie = ret.cookie;
@@ -64,7 +64,7 @@ var callFunc = function (sock, addr, port, pass, func, args, callback) {
             json.hash = Crypto.createHash('sha256').update(pass + cookie).digest('hex');
             json.hash = Crypto.createHash('sha256').update(Bencode.encode(json)).digest('hex');
         }
-        sendmsg(sock, addr, port, new Buffer(Bencode.encode(json)), json.txid, callback);
+        sendmsg(sock, addr, port, Buffer.from(Bencode.encode(json)), json.txid, callback);
     });
 };
 

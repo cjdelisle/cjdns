@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "util/events/libuv/UvWrapper.h"
 #include "memory/Allocator.h"
@@ -21,8 +21,10 @@
 #include "util/CString.h"
 #include "wire/Message.h"
 #include "wire/Error.h"
+#include "benc/String.h"
 
 #include <inttypes.h>
+#include <libgen.h>
 #include <stdio.h>
 
 struct Pipe_WriteRequest_pvt;
@@ -392,6 +394,60 @@ static struct Pipe_pvt* newPipe(struct EventBase* eb,
     return out;
 }
 
+static struct Pipe_pvt* newPipeAny(struct EventBase* eb,
+                                  const char* fullPath,
+                                  struct Except* eh,
+                                  struct Allocator* userAlloc)
+{
+    struct EventBase_pvt* ctx = EventBase_privatize(eb);
+    struct Allocator* alloc = Allocator_child(userAlloc);
+
+    char* name = NULL;
+    if (fullPath) {
+        name = basename(String_new(fullPath, alloc)->bytes);
+    }
+
+    struct Pipe_pvt* out = Allocator_clone(alloc, (&(struct Pipe_pvt) {
+        .pub = {
+            .iface = {
+                .send = sendMessage
+            },
+            .fullName = fullPath,
+            .name = name,
+            .base = eb
+        },
+        .alloc = alloc
+    }));
+
+    int ret;
+
+    ret = uv_pipe_init(ctx->loop, &out->peer, 0);
+    if (ret) {
+        Except_throw(eh, "uv_pipe_init() failed [%s]", uv_strerror(ret));
+    }
+
+    ret = uv_pipe_init(ctx->loop, &out->server, 0);
+    if (ret) {
+        Except_throw(eh, "uv_pipe_init() failed [%s]", uv_strerror(ret));
+    }
+
+    #ifdef win32
+        out->pub.fd = &out->peer.handle;
+    #else
+        out->pub.fd = &out->peer.io_watcher.fd;
+    #endif
+
+    Allocator_onFree(alloc, closeHandlesOnFree, out);
+    Allocator_onFree(alloc, blockFreeInsideCallback, out);
+
+    out->peer.data = out;
+    out->server.data = out;
+    out->out = &out->peer;
+    Identity_set(out);
+
+    return out;
+}
+
 struct Pipe* Pipe_forFiles(int inFd,
                            int outFd,
                            struct EventBase* eb,
@@ -454,6 +510,40 @@ struct Pipe* Pipe_named(const char* path,
 
     Except_throw(eh, "uv_pipe_bind() failed [%s] for pipe [%s]",
                  uv_strerror(ret), out->pub.fullName);
+
+    return &out->pub;
+}
+
+struct Pipe* Pipe_namedConnect(const char* fullPath,
+                               bool attemptToCreate,
+                               struct EventBase* eb,
+                               struct Except* eh,
+                               struct Allocator* userAlloc)
+{
+    struct Pipe_pvt* out = newPipeAny(eb, fullPath, eh, userAlloc);
+
+    if (attemptToCreate) {
+        // Attempt to create pipe.
+        int ret = uv_pipe_bind(&out->server, out->pub.fullName);
+        if (!ret) {
+            ret = uv_listen((uv_stream_t*) &out->server, 1, listenCallback);
+            if (ret) {
+                Except_throw(eh, "uv_listen() failed [%s] for pipe [%s]",
+                             uv_strerror(ret), out->pub.fullName);
+            }
+            return &out->pub;
+        }
+    }
+
+    uv_connect_t* req = Allocator_malloc(out->alloc, sizeof(uv_connect_t));
+    req->data = out;
+    uv_pipe_connect(req, &out->peer, out->pub.fullName, connected);
+
+    int err = (&out->peer)->delayed_error;
+    if (err != 0) {
+        Except_throw(eh, "uv_pipe_connect() failed [%s] for pipe [%s]",
+                     uv_strerror(err), out->pub.fullName);
+    }
 
     return &out->pub;
 }

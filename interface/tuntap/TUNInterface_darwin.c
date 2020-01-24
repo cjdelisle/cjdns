@@ -10,13 +10,14 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "interface/tuntap/TUNInterface.h"
 #include "exception/Except.h"
 #include "interface/tuntap/BSDMessageTypeWrapper.h"
 #include "util/AddrTools.h"
 #include "util/events/Pipe.h"
+#include "util/CString.h"
 
 #include <errno.h>
 #include <stdio.h>
@@ -75,7 +76,7 @@ struct Iface* TUNInterface_new(const char* interfaceName,
     /* get the utun control id */
     struct ctl_info info;
     memset(&info, 0, sizeof(info));
-    strncpy(info.ctl_name, APPLE_UTUN_CONTROL, strlen(APPLE_UTUN_CONTROL));
+    CString_safeStrncpy(info.ctl_name, APPLE_UTUN_CONTROL, strlen(APPLE_UTUN_CONTROL));
 
     if (ioctl(tunFd, CTLIOCGINFO, &info) < 0) {
         int err = errno;

@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "dht/Address.h"
 #include "crypto/AddressCalc.h"
@@ -57,7 +57,8 @@ uint32_t Address_prefixForSearchTarget(const uint8_t searchTarget[16])
 
 void Address_serialize(uint8_t output[Address_SERIALIZED_SIZE], const struct Address* addr)
 {
-    Bits_memcpy(output, addr->key, Address_SERIALIZED_SIZE);
+    Bits_memcpy(output, addr->key, Address_KEY_SIZE);
+    Bits_memcpy(output+Address_KEY_SIZE, &addr->path, sizeof(addr->path));
     if (!Endian_isBigEndian()) {
         uint64_t path_be = Endian_hostToBigEndian64(addr->path);
         Bits_memcpy(output + Address_KEY_SIZE, &path_be, Address_NETWORK_ADDR_SIZE);
@@ -67,14 +68,16 @@ void Address_serialize(uint8_t output[Address_SERIALIZED_SIZE], const struct Add
 void Address_parse(struct Address* addr, const uint8_t input[Address_SERIALIZED_SIZE])
 {
     Bits_memset(addr->ip6.bytes, 0, 16);
-    Bits_memcpy(addr->key, input, Address_SERIALIZED_SIZE);
+    Bits_memcpy(addr->key, input, Address_KEY_SIZE);
+    Bits_memcpy(&addr->path, input+Address_KEY_SIZE, sizeof(addr->path));
     addr->path = Endian_bigEndianToHost64(addr->path);
 }
 
 bool Address_isSame(const struct Address* addr,
                     const struct Address* addr2)
 {
-    return Bits_memcmp(addr->key, addr2->key, Address_SERIALIZED_SIZE) == 0;
+    return (Bits_memcmp(addr->key, addr2->key, Address_KEY_SIZE) == 0
+            && addr->path == addr2->path);
 }
 
 bool Address_isSameIp(const struct Address* addr,

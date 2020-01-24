@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "memory/Allocator.h"
 #include "benc/List.h"
@@ -21,7 +21,7 @@
 
 List* List_new(struct Allocator* alloc)
 {
-    return Allocator_calloc(alloc, sizeof(List*), 1);
+    return Allocator_calloc(alloc, sizeof(List), 1);
 }
 
 int32_t List_size(const List* list)

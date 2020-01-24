@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #ifndef EncodingScheme_H
 #define EncodingScheme_H
@@ -108,5 +108,14 @@ int EncodingScheme_isSelfRoute(struct EncodingScheme* scheme, uint64_t routeLabe
  * @return non-zero if the route label is one hop.
  */
 int EncodingScheme_isOneHop(struct EncodingScheme* scheme, uint64_t routeLabel);
+
+#define EncodingScheme_parseDirector_INVALID -1
+int EncodingScheme_parseDirector(struct EncodingScheme* scheme, uint64_t label);
+
+uint64_t EncodingScheme_serializeDirector(struct EncodingScheme* scheme, int number, int formNum);
+
+// Return true if the encoding scheme is the legacy 358 encoding scheme
+// which gets special treatment.
+bool EncodingScheme_is358(struct EncodingScheme* scheme);
 
 #endif

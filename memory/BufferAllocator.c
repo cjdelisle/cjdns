@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 struct BufferAllocator_pvt;
 #define Allocator_Provider_CONTEXT_TYPE struct BufferAllocator_pvt
@@ -27,8 +27,7 @@ struct BufferAllocator_pvt;
  *            ancestors is freed, not just the root.
  */
 
-/* Define alignment as the size of a pointer which is usually 4 or 8 bytes. */
-#define ALIGNMENT sizeof(char*)
+#define ALIGNMENT __BIGGEST_ALIGNMENT__
 
 /** Internal state for Allocator. */
 struct BufferAllocator_pvt

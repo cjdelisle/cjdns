@@ -30,12 +30,12 @@ If you have a static IP, reading this document in-order should make learning abo
 
 ## Dynamic IP <a name="dynamic-ip"></a>
 
-Giving other people your IP address will not be a good way for your peer to reach you over the UDP/IP layer because, your IP address is subject to change without notice. However, if you know of someone with a static IP you can still connect by making an **outbound** connection to them.  
+Giving other people your IP address will not be a good way for your peer to reach you over the UDP/IP layer because, your IP address is subject to change without notice. However, if you know of someone with a static IP you can still connect by making an **outbound** connection to them.
 **tl;dr** don't choose an option below where you give out your IP address.
 
 ## cexec <a name="cexec"></a>
 
-If you have any trouble in this section it is safe to skip but, you will need to use another tool or shutdown your cjdroute to add a new peer.  
+If you have any trouble in this section it is safe to skip but, you will need to use another tool or shutdown your cjdroute to add a new peer.
 
 Usage:
 
@@ -59,7 +59,7 @@ If you like you can put it in your `~/.*rc` for your terminal flavor.
 
 ## Adding peers <a name="add-peers"></a>
 
-It is essential at this point in time that peers stay connected the network is small and subject to do strange things.  
+It is essential at this point in time that peers stay connected the network is small and subject to do strange things.
 Reasons you should have your peers contact information:
 
 - Network diagnosis
@@ -97,7 +97,7 @@ Reasons you should have your peers contact information:
 
 ### InboundPeering<a name="inbound"></a>
 
-You give your peer your IP address, port, and password.  
+You give your peer your IP address, port, and password.
 Prerequisites:
 
 - A long passphrase that you do not have to remember
@@ -110,6 +110,7 @@ Prerequisites:
 
 ```javascript
         {
+                "user": "login for your peer",
                 "password": "vt1ly5f4ydmm9gjk196t160z23t6uju",
                 "name": "[put your peers name here]",
                 "contact": "[put your peers contact info here]"
@@ -117,6 +118,7 @@ Prerequisites:
 ```
 Things that are parsed:
 
+- login
 - password
 
 Everything else is for humans.
@@ -127,6 +129,7 @@ Everything else is for humans.
 
 ```javascript
                         "[your IP address]:[your open port]": {
+                                "login": "[the login your peer has for you]",
                                 "password": "[your long passphrase]",
                                 "location": "New York City, NY, US",
                                 "[insert cool noun here]": "[something witty]",
@@ -137,6 +140,7 @@ Everything else is for humans.
 ```
 Things that are parsed:
 
+- login
 - IP address and port number combo
 - password
 - pubkey
@@ -156,15 +160,16 @@ Like this.
         //default password
         {"password": "pnc8q05llp9sx7d1b4bc3d6ru0krgbl"},
         {
+                "user": "login for your peer",
                 "password": "vt1ly5f4ydmm9gjk196t160z23t6uju",
                 "name": "[put your peers name here]",
                 "contact": "[put your peers contact info here]"
         },
 
         // More passwords should look like this.
-        // {"password": "tjrwwlsh4ugddk032yu8vrnv11v8z5f"},
-        // {"password": "pm0643f911j71w0pctj5s7bkk0s8htv"},
-        // {"password": "2vls52j3q4151dk8h2kz939kt0ldu75"},
+        // {"password": "tjrwwlsh4ugddk032yu8vrnv11v8z5f", "user": "my-second-peer"},
+        // {"password": "pm0643f911j71w0pctj5s7bkk0s8htv", "user": "my-third-peer"},
+        // {"password": "2vls52j3q4151dk8h2kz939kt0ldu75", "user": "my-fourth-peer"},
 
         // Below is an example of your connection credentials
         // that you can give to other people so they can connect
@@ -172,7 +177,7 @@ Like this.
         // Adding a unique password for each user is advisable
         // so that leaks can be isolated.
         //
-        // "your.external.ip.goes.here:43653":{"password":"vt1ly5f4ydmm9gjk196t160z23t6uju","publicKey":"3u2fz3fcyblrz7nspwzkcxp7xph80h5hwu1qu4qrumrqym80r0u0.k"}
+        // "your.external.ip.goes.here:43653":{"login": "default-login", "password":"vt1ly5f4ydmm9gjk196t160z23t6uju","publicKey":"3u2fz3fcyblrz7nspwzkcxp7xph80h5hwu1qu4qrumrqym80r0u0.k"}
     ],
 ```
 Save cjdroute.conf
@@ -191,7 +196,7 @@ Find out more about this command in the [admin/README.md][cjd-admin-readme] ([cl
 
 #### Update your peer <a name="update-peer"></a>
 
-Securely transfer the connectTo block you created for your peer.  
+Securely transfer the connectTo block you created for your peer.
 Ways to do this:
 
 - Get [GPG][]
@@ -201,7 +206,7 @@ Ways to do this:
 
 ### Outbound Peering<a name="outbound"></a>
 
-You will receve a connectTo block through secure means.  
+You will receve a connectTo block through secure means.
 Prerequisites:
 
 - A peer that has agreed to accept an inbound connection
@@ -234,7 +239,7 @@ Save cjdroute.conf
 
 #### Update cjdroute <a name="update-cjdroute-outbound"></a>
 
-There are 2 ways to do this.  
+There are 2 ways to do this.
 ```bash
 sudo killall cjdroute
 ```

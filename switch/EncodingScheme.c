@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "benc/String.h"
 #include "benc/Dict.h"
@@ -37,7 +37,7 @@ int EncodingScheme_getFormNum(struct EncodingScheme* scheme, uint64_t routeLabel
     return EncodingScheme_getFormNum_INVALID;
 }
 
-static bool is358(struct EncodingScheme* scheme)
+bool EncodingScheme_is358(struct EncodingScheme* scheme)
 {
     struct EncodingScheme_Form v358[3] = {
         { .bitCount = 3, .prefixLen = 1, .prefix = 1, },
@@ -51,6 +51,62 @@ static bool is358(struct EncodingScheme* scheme)
         }
     }
     return true;
+}
+
+int EncodingScheme_parseDirector(struct EncodingScheme* scheme, uint64_t label)
+{
+    int formNum = EncodingScheme_getFormNum(scheme, label);
+    if (formNum == EncodingScheme_getFormNum_INVALID) {
+        return EncodingScheme_parseDirector_INVALID;
+    }
+    struct EncodingScheme_Form* currentForm = &scheme->forms[formNum];
+
+    int dir = (label >> currentForm->prefixLen) & Bits_maxBits64(currentForm->bitCount);
+
+    if (!EncodingScheme_is358(scheme)) {
+        // use ^1 to flip slots 0 and 1 in variable width schemes
+        return dir ^ (scheme->count > 1);
+    } else {
+        // slot 0 must always be represented as a 1, so in 358, 0 and 1 are swapped.
+        if (formNum > 0) {
+            dir += (dir > 0);
+        } else {
+            dir += (dir == 0) - (dir == 1);
+        }
+        return dir;
+    }
+}
+
+uint64_t EncodingScheme_serializeDirector(struct EncodingScheme* scheme, int dir, int formNum)
+{
+    if (!EncodingScheme_is358(scheme)) {
+        if (formNum < 0) {
+            for (formNum = 0; formNum < scheme->count; formNum++) {
+                if (!(dir >> scheme->forms[formNum].bitCount)) { break; }
+            }
+        }
+        // use ^1 to flip slots 0 and 1 in variable width schemes
+        dir ^= (scheme->count > 1);
+    } else {
+        if (formNum < 0) {
+            for (formNum = 0; formNum < scheme->count; formNum++) {
+                if (!((dir - (!!formNum)) >> scheme->forms[formNum].bitCount)) { break; }
+            }
+        }
+
+        if (formNum) {
+            // slot 1 is only represented in form 0 so in all other forms, it is skipped.
+            dir -= (dir > 0);
+        } else {
+            // slot 0 must always be represented as a 1, so 0 and 1 are swapped.
+            dir += (dir == 0) - (dir == 1);
+        }
+    }
+
+    if (formNum >= scheme->count) { return ~0ull; }
+
+    struct EncodingScheme_Form* f = &scheme->forms[formNum];
+    return (dir << f->prefixLen) | f->prefix;
 }
 
 uint64_t EncodingScheme_convertLabel(struct EncodingScheme* scheme,
@@ -84,23 +140,22 @@ uint64_t EncodingScheme_convertLabel(struct EncodingScheme* scheme,
     // #1 ensure 0001 always references interface 1, the self interface.
     // #2 reuse interface the binary encoding for interface 1 in other EncodingForms
     //    because interface 1 cannot be expressed as anything other than 0001
-    if (!is358(scheme)) {
+    if (!EncodingScheme_is358(scheme)) {
         // don't pull this bug-workaround crap for sane encodings schemes.
     } else if ((currentForm->prefix & Bits_maxBits64(currentForm->prefixLen)) == 1) {
         // Swap 0 and 1 if the prefix is 1, this makes 0001 alias to 1
         // because 0 can never show up in the wild, we reuse it for 1.
-        Assert_true(director != 0);
-        if (director == 1) { director--; }
-    } else if (director) {
-        // Reuse the number 1 for 2 and 2 for 3 etc. to gain an extra slot in all other encodings.
-        director++;
+        director = director - (director == 1) + (director == 0);
+    } else {
+        // Reuse the number 1 for 2 and 2 for 3 etc. to gain an extra slot in all other forms.
+        director += (director > 0);
     }
 
     if (convertTo == EncodingScheme_convertLabel_convertTo_CANNONICAL) {
         // Take into account the fact that if the destination form does not have a 1 prefix,
         // an extra number will be available.
         int minBitsA = Bits_log2x64(director) + 1;
-        int minBitsB = Bits_log2x64(director-1) + 1;
+        int minBitsB = Bits_log2x64(director - (director > 0)) + 1;
         for (int i = 0; i < scheme->count; i++) {
             struct EncodingScheme_Form* form = &scheme->forms[i];
             int minBits = ((form->prefix & Bits_maxBits64(form->prefixLen)) == 1)
@@ -119,14 +174,14 @@ uint64_t EncodingScheme_convertLabel(struct EncodingScheme* scheme,
 
     struct EncodingScheme_Form* nextForm = &scheme->forms[convertTo];
 
-    if (!is358(scheme)) {
+    if (!EncodingScheme_is358(scheme)) {
         // don't pull this bug-workaround crap for sane encodings schemes.
-    } else  if ((nextForm->prefix & Bits_maxBits64(nextForm->prefixLen)) == 1) {
+    } else if ((nextForm->prefix & Bits_maxBits64(nextForm->prefixLen)) == 1) {
         // Swap 1 and 0 back if necessary.
-        if (director == 0) { director++; }
-    } else if (director) {
+        director = director - (director == 1) + (director == 0);
+    } else {
         // Or move the numbers down by one.
-        director--;
+        director -= (director > 0);
     }
 
     if ((Bits_log2x64(director) + 1) > nextForm->bitCount) {
@@ -151,8 +206,22 @@ uint64_t EncodingScheme_convertLabel(struct EncodingScheme* scheme,
 }
 
 /**
- * Decode a form from it's binary representation.
+ * Decode a form from its binary representation.
  * Can only use a maximum of 41 bits.
+ *
+ * One or more of these binary representation are bitwise concatenated to
+ * give an unsigned integer; which is encoded in **little endian** to give
+ * the serialization of Encoding Scheme.
+ *
+ * Ten least significant bits of a form are:
+ *
+ *                     1
+ *     0 1 2 3 4 5 6 7 0 1
+ *    +-+-+-+-+-+-+-+-+-+-+
+ *  0 | bitcount| preflen |
+ *    +-+-+-+-+-+-+-+-+-+-+
+ *
+ * Previous 'preflen' bits are the prefix
  *
  * @param out the output which will be populated with the encoding form data.
  * @param data the binary data in host order.
@@ -278,9 +347,9 @@ struct EncodingScheme* EncodingScheme_fromList(List* scheme, struct Allocator* a
     list->forms = Allocator_malloc(alloc, sizeof(struct EncodingScheme_Form) * list->count);
     for (int i = 0; i < (int)list->count; i++) {
         Dict* form = List_getDict(scheme, i);
-        uint64_t* prefixLen = Dict_getInt(form, String_CONST("prefixLen"));
-        uint64_t* bitCount = Dict_getInt(form, String_CONST("bitCount"));
-        String* prefixStr = Dict_getString(form, String_CONST("prefix"));
+        uint64_t* prefixLen = Dict_getIntC(form, "prefixLen");
+        uint64_t* bitCount = Dict_getIntC(form, "bitCount");
+        String* prefixStr = Dict_getStringC(form, "prefix");
         if (!prefixLen || !bitCount || !prefixStr || prefixStr->len != 8) {
             return NULL;
         }

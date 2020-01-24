@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #ifndef Control_H
 #define Control_H
@@ -22,7 +22,8 @@
 /**
  * Type two, error.
  */
-#define Control_ERROR_be Endian_hostToBigEndian16(2)
+#define Control_ERROR 2
+#define Control_ERROR_be Endian_hostToBigEndian16(Control_ERROR)
 #define Control_Error_HEADER_SIZE 4
 #define Control_Error_MIN_SIZE (Control_Error_HEADER_SIZE + SwitchHeader_SIZE + 4)
 #define Control_Error_MAX_SIZE 256
@@ -104,6 +105,45 @@ Assert_compileTime(sizeof(struct Control_KeyPing) == Control_KeyPing_HEADER_SIZE
 #define Control_KeyPong_MAX_SIZE Control_KeyPing_MAX_SIZE
 #define Control_KeyPong_MAGIC Endian_hostToBigEndian32(0x89abcdef)
 
+
+#define Control_GETSNODE_QUERY_be Endian_hostToBigEndian16(7)
+#define Control_GETSNODE_QUERY_MAGIC Endian_hostToBigEndian32(0x736e6f71) // snoq
+#define Control_GETSNODE_REPLY_be Endian_hostToBigEndian16(8)
+#define Control_GETSNODE_REPLY_MAGIC Endian_hostToBigEndian32(0x736e6f72) // snor
+#define Control_GetSnode_HEADER_SIZE 56
+struct Control_GetSnode
+{
+    // Control_SNODE_QUERY_MAGIC for queries
+    // Control_SNODE_REPLY_MAGIC for replies
+    uint32_t magic;
+
+    // version of the node sending the packet
+    uint32_t version_be;
+
+    // version of the supernode belonging to the node sending the packet
+    // 0 if unknown
+    uint32_t snodeVersion_be;
+
+    // If the highest bit is set then this number is per configuration and no more than this
+    // should be sent by the peer, otherwise it is an estimate of the link speed.
+    // Nodes should send no more than min(minimumConfigured, avg(nodeAVal, nodeBVal)
+    // so if A configures 1000Mb, B estimates 100Mb -> use avg(100, 1000)
+    // but if A configures or estimates 1000Mb, B configures 100Mb -> use 100Mb
+    //
+    // Nodes MUST check if this message comes from a direct peer before using this value.
+    // 0 if unknown
+    uint32_t kbps_be;
+
+    // Key of the supernode belonging to the node sending, zero if no supernode is known or
+    // configured.
+    uint8_t snodeKey[32];
+
+    // Path from sender to sender's supernode, "corrected" so that recipient can splice to it
+    // without knowing sender's encoding scheme. 0 if unknown.
+    uint8_t pathToSnode_be[8];
+};
+Assert_compileTime(sizeof(struct Control_GetSnode) == Control_GetSnode_HEADER_SIZE);
+
 static inline char* Control_typeString(uint16_t type_be)
 {
     if (type_be == Control_ERROR_be) {
@@ -116,6 +156,10 @@ static inline char* Control_typeString(uint16_t type_be)
         return "KEYPING";
     } else if (type_be == Control_KEYPONG_be) {
         return "KEYPONG";
+    } else if (type_be == Control_GETSNODE_QUERY_be) {
+        return "GETSNODE_QUERY";
+    } else if (type_be == Control_GETSNODE_REPLY_be) {
+        return "GETSNODE_REPLY";
     } else {
         return "UNKNOWN";
     }
@@ -158,12 +202,15 @@ struct Control
         struct Control_Ping pong;
         struct Control_KeyPing keyPing;
         struct Control_Ping keyPong;
+        struct Control_GetSnode getSnode;
 
         /** The control packet content. */
         uint8_t bytes[4];
     } content;
 };
 // Control_KeyPing is the largest structure and thus defines the length of the "content" union.
-Assert_compileTime(sizeof(struct Control) == Control_Header_SIZE + Control_KeyPing_HEADER_SIZE);
+Assert_compileTime(
+    sizeof(struct Control) == (Control_Header_SIZE + Control_GetSnode_HEADER_SIZE)
+);
 
 #endif

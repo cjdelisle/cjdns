@@ -34,12 +34,12 @@ Or just use
     from cjdnsadmin.cjdnsadmin import connectWithAdminInfo;
     cjdns = connectWithAdminInfo();
 
-It get data from `~/.cjdnsadmin`
+It gets data from `~/.cjdnsadmin`
 
 ## Use it!
 
 The `cjdns` object returned from `connect()` and `connectWithAdminInfo()`
-contains functions corrisponding to each of the RPC calls in the router.
+contains functions corresponding to each of the RPC calls in the router.
 There is a field called `cjdns.functions` which contains a list of the
 functions and their parameters.
 

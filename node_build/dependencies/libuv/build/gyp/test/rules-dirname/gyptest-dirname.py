@@ -8,11 +8,18 @@
 Verifies simple rules when using an explicit build target of 'all'.
 """
 
+from __future__ import print_function
+
 import TestGyp
 import os
 import sys
 
-test = TestGyp.TestGyp(formats=['make', 'ninja', 'android', 'xcode', 'msvs'])
+if sys.platform == 'win32':
+  print("This test is currently disabled: https://crbug.com/483696.")
+  sys.exit(0)
+
+
+test = TestGyp.TestGyp(formats=['make', 'ninja', 'xcode', 'msvs'])
 
 test.run_gyp('actions.gyp', chdir='src')
 

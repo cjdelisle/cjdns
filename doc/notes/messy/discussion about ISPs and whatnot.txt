@@ -173,7 +173,7 @@
 13:25 < jercos> it has.
 13:26 < jercos> interfect put together an installer even
 13:26 < jercos> I'm still using the version from that installer on my windows machine at home :)
-13:26 < nat3r> http://www.reddit.com/r/darknetplan/comments/2hvjbe/installer_for_cjdns_on_windows/
+13:26 < nat3r> https://www.reddit.com/r/darknetplan/comments/2hvjbe/installer_for_cjdns_on_windows/
 13:26 < nat3r> yess
 13:26 < nat3r> one sec
 13:28 < nat3r> ok back

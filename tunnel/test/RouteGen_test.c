@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "benc/String.h"
 #include "benc/Dict.h"
@@ -49,8 +49,8 @@ static void runTest0(char** prefixes,
         RouteGen_addException(rg, mkSockaddr(exceptions6[i], alloc));
     }
     Dict* routes = RouteGen_getGeneratedRoutes(rg, alloc);
-    List* routes4 = Dict_getList(routes, String_CONST("ipv4"));
-    List* routes6 = Dict_getList(routes, String_CONST("ipv6"));
+    List* routes4 = Dict_getListC(routes, "ipv4");
+    List* routes6 = Dict_getListC(routes, "ipv6");
     if (expectedOut4) {
         for (int i = 0; expectedOut4[i]; i++) {
             Log_debug(log, "%s\n", expectedOut4[i]);

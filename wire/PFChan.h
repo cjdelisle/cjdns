@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #ifndef PFChan_H
 #define PFChan_H
@@ -46,6 +46,15 @@ struct PFChan_Msg
 #define PFChan_Msg_MIN_SIZE (RouteHeader_SIZE + DataHeader_SIZE)
 Assert_compileTime(sizeof(struct PFChan_Msg) == PFChan_Msg_MIN_SIZE);
 #pragma GCC poison PFChan_Msg_SIZE
+
+struct PFChan_CtrlMsg
+{
+    struct RouteHeader route;
+    struct Control_Header ctrlHdr;
+};
+#define PFChan_CtrlMsg_MIN_SIZE (RouteHeader_SIZE + Control_Header_SIZE)
+Assert_compileTime(sizeof(struct PFChan_Msg) == PFChan_CtrlMsg_MIN_SIZE);
+#pragma GCC poison PFChan_CtrlMsg_SIZE
 
 struct PFChan_Ping
 {
@@ -150,7 +159,21 @@ enum PFChan_Pathfinder
      */
     PFChan_Pathfinder_PATHFINDERS = 520,
 
-    PFChan_Pathfinder__TOO_HIGH = 521,
+    /**
+     * Send from the Pathfinder in order to send off a CTRL message.
+     * Send under this, a RouteHeader and the control frame after it.
+     * (Received by: UpperDistributor.c)
+     */
+    PFChan_Pathfinder_CTRL_SENDMSG = 521,
+
+    /**
+     * You must send this whenever you have adopted a supernode.
+     * Send with address set to all zeros if you lost your supernode.
+     * (Received by: ControlHandler.c)
+     */
+    PFChan_Pathfinder_SNODE = 522,
+
+    PFChan_Pathfinder__TOO_HIGH = 523,
 };
 
 struct PFChan_FromPathfinder
@@ -260,14 +283,47 @@ enum PFChan_Core
      */
     PFChan_Core_PONG = 1036,
 
-    PFChan_Core__TOO_HIGH = 1037,
+    /**
+     * Will be emitted by the core when a control message (response) is incoming.
+     * TODO(cjd): This doesn't cover all control message types yet.
+     */
+    PFChan_Core_CTRL_MSG = 1037,
+
+    /**
+     * Will be emitted when the core has a path to a node but the session is not setup.
+     * Structure is a PFChan_Node
+     * (emitted by: SessionManager.c)
+     */
+    PFChan_Core_UNSETUP_SESSION = 1038,
+
+    /**
+     * Will be emitted once every 3 seconds to inform pathfinders of the link state of
+     * the peering links, contains an array of PFChan_LinkState_Entry.
+     * (emitted by: InterfaceController.c)
+     */
+    PFChan_Core_LINK_STATE = 1039,
+
+    PFChan_Core__TOO_HIGH = 1040,
 };
+
+struct PFChan_LinkState_Entry {
+    uint32_t peerLabel_be;
+    uint32_t sumOfPackets_be;
+    uint32_t sumOfDrops_be;
+    uint32_t sumOfKb_be;
+};
+#define PFChan_LinkState_Entry_SIZE 16
+Assert_compileTime(sizeof(struct PFChan_LinkState_Entry) == PFChan_LinkState_Entry_SIZE);
 
 struct PFChan_Core_SearchReq
 {
     uint8_t ipv6[16];
+
+    uint32_t pad;
+
+    uint32_t version_be;
 };
-#define PFChan_Core_SearchReq_SIZE 16
+#define PFChan_Core_SearchReq_SIZE 24
 Assert_compileTime(sizeof(struct PFChan_Core_SearchReq) == PFChan_Core_SearchReq_SIZE);
 
 struct PFChan_Core_Pathfinder
@@ -301,13 +357,13 @@ Assert_compileTime(sizeof(struct PFChan_Core_Connect) == PFChan_Core_Connect_SIZ
 struct PFChan_Core_SwitchErr
 {
     struct SwitchHeader sh;
-    uint32_t ffffffff;
     struct Control_Header ctrlHeader;
     struct Control_Error ctrlErr;
+    struct SwitchHeader shAtErrorHop;
 };
 #pragma GCC poison PFChan_Core_SwitchErr_SIZE
 #define PFChan_Core_SwitchErr_MIN_SIZE \
-    (SwitchHeader_SIZE + 4 + Control_Header_SIZE + Control_Error_MIN_SIZE)
+    (SwitchHeader_SIZE + Control_Header_SIZE + Control_Error_MIN_SIZE + SwitchHeader_SIZE)
 Assert_compileTime(sizeof(struct PFChan_Core_SwitchErr) == PFChan_Core_SwitchErr_MIN_SIZE);
 
 struct PFChan_FromCore
@@ -331,6 +387,7 @@ struct PFChan_FromCore
         struct PFChan_Msg msg;
         struct PFChan_Ping ping;
         struct PFChan_Ping pong;
+        struct PFChan_LinkState_Entry linkState;
         uint8_t bytes[4];
     } content;
 };

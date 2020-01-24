@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #ifndef Seccomp_H
 #define Seccomp_H
@@ -23,8 +23,8 @@
 
 void Seccomp_dropPermissions(struct Allocator* tempAlloc, struct Log* logger, struct Except* eh);
 
-int Seccomp_isWorking();
+int Seccomp_isWorking(void);
 
-int Seccomp_exists();
+int Seccomp_exists(void);
 
 #endif

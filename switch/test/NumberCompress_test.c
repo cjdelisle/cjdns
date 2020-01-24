@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #define NumberCompress_OLD_CODE
 #include "switch/NumberCompress.h"
@@ -88,6 +88,7 @@ static void numberCompressions_generic(
                 int bitsB = bitsUsedForLabel(labelB);
                 Assert_true(bitsB == scheme->forms[k].prefixLen + scheme->forms[k].bitCount
                     || (i == 1 && bitsB == 4));
+                //printf("%u == %u (%lu / %d)\n", i, getDecompressed(labelB, bitsB), labelB, bitsB);
                 Assert_true(i == getDecompressed(labelB, bitsB));
 
                 uint64_t labelC = EncodingScheme_convertLabel(scheme, labelB, j);

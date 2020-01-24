@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "benc/String.h"
 #include "benc/Dict.h"
@@ -18,6 +18,7 @@
 #include "benc/Int.h"
 #include "benc/serialization/standard/BencMessageWriter.h"
 #include "benc/serialization/standard/BencMessageReader.h"
+#include "crypto/AddressCalc.h"
 #include "crypto/random/Random.h"
 #include "exception/Jmp.h"
 #include "interface/tuntap/TUNMessageType.h"
@@ -54,8 +55,8 @@ struct IpTunnel_pvt
     /** An always incrementing number which represents the connections. */
     uint32_t nextConnectionNumber;
 
-    /** The name of the TUN interface so that ip addresses can be added. */
-    String* ifName;
+    /** To get the name of the TUN interface so that ip addresses can be added. */
+    struct GlobalConfig* globalConf;
 
     /**
      * Every 10 seconds check for connections which the other end has
@@ -364,29 +365,29 @@ static Iface_DEFUN requestForAddresses(Dict* request,
     Dict* addresses = Dict_new(requestAlloc);
     bool noAddresses = true;
     if (!Bits_isZero(conn->connectionIp6, 16)) {
-        Dict_putString(addresses,
-                       String_CONST("ip6"),
+        Dict_putStringC(addresses,
+                       "ip6",
                        String_newBinary((char*)conn->connectionIp6, 16, requestAlloc),
                        requestAlloc);
-        Dict_putInt(addresses,
-                    String_CONST("ip6Prefix"), (int64_t)conn->connectionIp6Prefix,
+        Dict_putIntC(addresses,
+                    "ip6Prefix", (int64_t)conn->connectionIp6Prefix,
                     requestAlloc);
-        Dict_putInt(addresses,
-                    String_CONST("ip6Alloc"), (int64_t)conn->connectionIp6Alloc,
+        Dict_putIntC(addresses,
+                    "ip6Alloc", (int64_t)conn->connectionIp6Alloc,
                     requestAlloc);
 
         noAddresses = false;
     }
     if (!Bits_isZero(conn->connectionIp4, 4)) {
-        Dict_putString(addresses,
-                       String_CONST("ip4"),
+        Dict_putStringC(addresses,
+                       "ip4",
                        String_newBinary((char*)conn->connectionIp4, 4, requestAlloc),
                        requestAlloc);
-        Dict_putInt(addresses,
-                    String_CONST("ip4Prefix"), (int64_t)conn->connectionIp4Prefix,
+        Dict_putIntC(addresses,
+                    "ip4Prefix", (int64_t)conn->connectionIp4Prefix,
                     requestAlloc);
-        Dict_putInt(addresses,
-                    String_CONST("ip4Alloc"), (int64_t)conn->connectionIp4Alloc,
+        Dict_putIntC(addresses,
+                    "ip4Alloc", (int64_t)conn->connectionIp4Alloc,
                     requestAlloc);
 
         noAddresses = false;
@@ -397,11 +398,11 @@ static Iface_DEFUN requestForAddresses(Dict* request,
     }
 
     Dict* msg = Dict_new(requestAlloc);
-    Dict_putDict(msg, String_CONST("addresses"), addresses, requestAlloc);
+    Dict_putDictC(msg, "addresses", addresses, requestAlloc);
 
-    String* txid = Dict_getString(request, String_CONST("txid"));
+    String* txid = Dict_getStringC(request, "txid");
     if (txid) {
-        Dict_putString(msg, String_CONST("txid"), txid, requestAlloc);
+        Dict_putStringC(msg, "txid", txid, requestAlloc);
     }
 
     sendControlMessage(msg, conn, requestAlloc, context);
@@ -411,7 +412,8 @@ static Iface_DEFUN requestForAddresses(Dict* request,
 static void addAddress(char* printedAddr, uint8_t prefixLen,
                        uint8_t allocSize, struct IpTunnel_pvt* ctx)
 {
-    if (!ctx->ifName) {
+    String* tunName = GlobalConfig_getTunName(ctx->globalConf);
+    if (!tunName) {
         Log_error(ctx->logger, "Failed to set IP address because TUN interface is not setup");
         return;
     }
@@ -425,7 +427,7 @@ static void addAddress(char* printedAddr, uint8_t prefixLen,
     ss.addr.prefix = allocSize;
     struct Jmp j;
     Jmp_try(j) {
-        NetDev_addAddress(ctx->ifName->bytes, &ss.addr, ctx->logger, &j.handler);
+        NetDev_addAddress(tunName->bytes, &ss.addr, ctx->logger, &j.handler);
     } Jmp_catch {
         Log_error(ctx->logger, "Error setting ip address on TUN [%s]", j.message);
         return;
@@ -455,7 +457,7 @@ static Iface_DEFUN incomingAddresses(Dict* d,
         return 0;
     }
 
-    String* txid = Dict_getString(d, String_CONST("txid"));
+    String* txid = Dict_getStringC(d, "txid");
     if (!txid || txid->len != 4) {
         Log_info(context->logger, "missing or wrong length txid");
         return 0;
@@ -484,11 +486,11 @@ static Iface_DEFUN incomingAddresses(Dict* d,
         }
     }
 
-    Dict* addresses = Dict_getDict(d, String_CONST("addresses"));
+    Dict* addresses = Dict_getDictC(d, "addresses");
 
-    String* ip4 = Dict_getString(addresses, String_CONST("ip4"));
-    int64_t* ip4Prefix = Dict_getInt(addresses, String_CONST("ip4Prefix"));
-    int64_t* ip4Alloc = Dict_getInt(addresses, String_CONST("ip4Alloc"));
+    String* ip4 = Dict_getStringC(addresses, "ip4");
+    int64_t* ip4Prefix = Dict_getIntC(addresses, "ip4Prefix");
+    int64_t* ip4Alloc = Dict_getIntC(addresses, "ip4Alloc");
 
     if (ip4 && ip4->len == 4) {
         Bits_memcpy(conn->connectionIp4, ip4->bytes, 4);
@@ -517,9 +519,9 @@ static Iface_DEFUN incomingAddresses(Dict* d,
         addAddress(printedAddr, conn->connectionIp4Prefix, conn->connectionIp4Alloc, context);
     }
 
-    String* ip6 = Dict_getString(addresses, String_CONST("ip6"));
-    int64_t* ip6Prefix = Dict_getInt(addresses, String_CONST("ip6Prefix"));
-    int64_t* ip6Alloc = Dict_getInt(addresses, String_CONST("ip6Alloc"));
+    String* ip6 = Dict_getStringC(addresses, "ip6");
+    int64_t* ip6Prefix = Dict_getIntC(addresses, "ip6Prefix");
+    int64_t* ip6Alloc = Dict_getIntC(addresses, "ip6Alloc");
 
     if (ip6 && ip6->len == 16) {
         Bits_memcpy(conn->connectionIp6, ip6->bytes, 16);
@@ -548,13 +550,14 @@ static Iface_DEFUN incomingAddresses(Dict* d,
         addAddress(printedAddr, conn->connectionIp6Prefix, conn->connectionIp6Alloc, context);
     }
     if (context->rg->hasUncommittedChanges) {
-        if (!context->ifName) {
+        String* tunName = GlobalConfig_getTunName(context->globalConf);
+        if (!tunName) {
             Log_error(context->logger, "Failed to set routes because TUN interface is not setup");
             return 0;
         }
         struct Jmp j;
         Jmp_try(j) {
-            RouteGen_commit(context->rg, context->ifName->bytes, alloc,  &j.handler);
+            RouteGen_commit(context->rg, tunName->bytes, alloc,  &j.handler);
         } Jmp_catch {
             Log_error(context->logger, "Error setting routes for TUN [%s]", j.message);
             return 0;
@@ -590,11 +593,11 @@ static Iface_DEFUN incomingControlMessage(struct Message* message,
         return 0;
     }
 
-    if (Dict_getDict(d, String_CONST("addresses"))) {
+    if (Dict_getDictC(d, "addresses")) {
         return incomingAddresses(d, conn, alloc, context);
     }
     if (String_equals(String_CONST("IpTunnel_getAddresses"),
-                      Dict_getString(d, String_CONST("q"))))
+                      Dict_getStringC(d, "q")))
     {
         return requestForAddresses(d, conn, alloc, context);
     }
@@ -660,7 +663,10 @@ static bool isValidAddress6(uint8_t sourceAndDestIp6[32],
                             bool isFromTun,
                             struct IpTunnel_Connection* conn)
 {
-    if (sourceAndDestIp6[0] == 0xfc || sourceAndDestIp6[16] == 0xfc) { return false; }
+    if (AddressCalc_validAddress(sourceAndDestIp6)
+        || AddressCalc_validAddress(&sourceAndDestIp6[16])) {
+        return false;
+    }
     uint8_t* compareAddr = (isFromTun)
         ? ((conn->isOutgoing) ? sourceAndDestIp6 : &sourceAndDestIp6[16])
         : ((conn->isOutgoing) ? &sourceAndDestIp6[16] : sourceAndDestIp6);
@@ -727,7 +733,9 @@ static Iface_DEFUN ip6FromNode(struct Message* message,
         return 0;
     }
     if (!isValidAddress6(header->sourceAddr, false, conn)) {
-        Log_debug(context->logger, "Got message with wrong address for connection");
+        uint8_t addr[40];
+        AddrTools_printIp(addr, header->sourceAddr);
+        Log_debug(context->logger, "Got message with wrong address for connection [%s]", addr);
         return 0;
     }
 
@@ -824,17 +832,12 @@ static void timeout(void* vcontext)
     } while (i != beginning);
 }
 
-void IpTunnel_setTunName(char* interfaceName, struct IpTunnel* ipTun)
-{
-    struct IpTunnel_pvt* ctx = Identity_check((struct IpTunnel_pvt*) ipTun);
-    ctx->ifName = String_new(interfaceName, ctx->allocator);
-}
-
 struct IpTunnel* IpTunnel_new(struct Log* logger,
                               struct EventBase* eventBase,
                               struct Allocator* alloc,
                               struct Random* rand,
-                              struct RouteGen* rg)
+                              struct RouteGen* rg,
+                              struct GlobalConfig* globalConf)
 {
     struct IpTunnel_pvt* context = Allocator_clone(alloc, (&(struct IpTunnel_pvt) {
         .pub = {
@@ -844,7 +847,8 @@ struct IpTunnel* IpTunnel_new(struct Log* logger,
         .allocator = alloc,
         .logger = logger,
         .rand = rand,
-        .rg = rg
+        .rg = rg,
+        .globalConf = globalConf
     }));
     context->timeout = Timeout_setInterval(timeout, context, 10000, eventBase, alloc);
     Identity_set(context);

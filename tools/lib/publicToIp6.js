@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
 var Crypto = require('crypto');
@@ -56,14 +56,14 @@ var Base32_decode = function (input) {
         throw new Error("bits is " + bits + " and nextByte is " + nextByte);
     }
 
-    return new Buffer(output);
+    return Buffer.from(output);
 };
 
 var convert = module.exports.convert = function (pubKey) {
     if (pubKey.substring(pubKey.length-2) !== ".k") { throw new Error("key does not end with .k"); }
     keyBytes = Base32_decode(pubKey.substring(0, pubKey.length-2));
     //console.log(keyBytes.toString('hex'));
-    var hashOneBuff = new Buffer(Crypto.createHash('sha512').update(keyBytes).digest('hex'), 'hex');
+    var hashOneBuff = Buffer.from(Crypto.createHash('sha512').update(keyBytes).digest('hex'), 'hex');
     var hashTwo = Crypto.createHash('sha512').update(hashOneBuff).digest('hex');
     var first16 = hashTwo.substring(0,32);
     var out = [];

@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #ifndef UDPInterface_admin_H
 #define UDPInterface_admin_H
@@ -21,6 +21,7 @@
 #include "util/log/Log.h"
 #include "util/events/EventBase.h"
 #include "util/events/FakeNetwork.h"
+#include "util/GlobalConfig.h"
 #include "util/Linker.h"
 Linker_require("interface/UDPInterface_admin.c");
 
@@ -29,6 +30,7 @@ void UDPInterface_admin_register(struct EventBase* base,
                                  struct Log* logger,
                                  struct Admin* admin,
                                  struct InterfaceController* ic,
-                                 struct FakeNetwork* fakeNet);
+                                 struct FakeNetwork* fakeNet,
+                                 struct GlobalConfig* globalConf);
 
 #endif

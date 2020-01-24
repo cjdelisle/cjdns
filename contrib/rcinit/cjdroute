@@ -1,0 +1,21 @@
+#! /bin/sh
+
+# PROVIDE: cjdroute
+# KEYWORD: shutdown
+
+# Add the following line to /etc/rc.conf to enable cjdroute:
+# cjdroute_enable="YES"
+
+. /etc/rc.subr
+
+name="cjdroute"
+rcvar="cjdroute_enable"
+
+load_rc_config $name
+
+: ${cjdroute_config:=/usr/local/etc/cjdroute.conf}
+
+command="/usr/local/bin/cjdroute"
+command_args=" < ${cjdroute_config}"
+
+run_rc_command "$1"

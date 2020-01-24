@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
 var Fs = require('fs');
@@ -31,7 +31,7 @@ var headerLines = [
     ' * GNU General Public License for more details.',
     ' *',
     ' * You should have received a copy of the GNU General Public License',
-    ' * along with this program.  If not, see <http://www.gnu.org/licenses/>.',
+    ' * along with this program.  If not, see <https://www.gnu.org/licenses/>.',
     ' */'
 ];
 
@@ -89,6 +89,7 @@ var parseFile = function (fileName, fileContent) {
         var n = name.replace(/_.*/, '');
         if ((/^\w+\s.*\(/).test(line)) {
             if (!(/^int main\(/.test(line)
+                || / CJDNS_/.test(line)
                 || line.indexOf(' '+n) > -1
                 || /^[ ]?static /.test(line)
                 || /^typedef /.test(line)))

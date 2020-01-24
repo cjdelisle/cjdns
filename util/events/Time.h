@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #ifndef Time_H
 #define Time_H
@@ -22,10 +22,13 @@ Linker_require("util/events/libuv/Time.c");
 #include <stdint.h>
 
 /** Nanosecond time which has no relationship to any wall clock. */
-uint64_t Time_hrtime();
+uint64_t Time_hrtime(void);
 
+// Monotonic time based on wall clock at time of node startup.
+// CAUTION: only updated once per tick, not for profiling.
 uint64_t Time_currentTimeMilliseconds(struct EventBase* eventBase);
 
+// Same as currentTimeMilliseconds.
 uint64_t Time_currentTimeSeconds(struct EventBase* eventBase);
 
 #endif

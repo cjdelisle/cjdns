@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #ifndef Allocator_H
 #define Allocator_H
@@ -110,12 +110,9 @@ struct Allocator
 
 struct Allocator_Allocation
 {
-    const char* fileName;
-
-    int lineNum;
-
     unsigned long size;
 };
+#define Allocator_Allocation_SIZE __SIZEOF_LONG__
 
 /**
  * Get a child of a given allocator.

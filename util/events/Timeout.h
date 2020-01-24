@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #ifndef Timeout_H
 #define Timeout_H
@@ -82,5 +82,9 @@ void Timeout_resetTimeout(struct Timeout* timeout,
  * @param timeout the timeout or interval event to stop.
  */
 void Timeout_clearTimeout(struct Timeout* timeout);
+
+void Timeout_clearAll(struct EventBase* eventBase);
+
+int Timeout_isActive(struct Timeout* timeout);
 
 #endif

@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #ifndef Defined_H
 #define Defined_H
@@ -23,8 +23,12 @@
  *     doLinuxSpecificStuff();
  * }
  */
-#define Defined_Q <?js return String.fromCharCode(34); ?>
-#define Defined(macro) \
-    <?js return ( Defined_Q macro Defined_Q === ' ' + #macro + ' ' ) ? '0' : '1'; ?>
+#ifdef __INTELLISENSE__
+    #define Defined(macro) 1
+#else
+    #define Defined_Q <?js return String.fromCharCode(34); ?>
+    #define Defined(macro) \
+        <?js return ( Defined_Q macro Defined_Q === ' ' + #macro + ' ' ) ? '0' : '1'; ?>
+#endif
 
 #endif

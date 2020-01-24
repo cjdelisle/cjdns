@@ -1512,7 +1512,7 @@ here you have a new benchmark. It's this cheap ADSL router:
 http://wiki.openwrt.org/toh/comtrend/ar5387un
 
 The cjdns code is as e9bcb0f9f06870d6f4904149e1c15eca09c7ed8a
-(That's mentioned in the meshbox thing I used in openwrt to build it:
+(That's mentioned in the meshbox thing I used in OpenWrt to build it:
 https://github.com/SeattleMeshnet/meshbox/blob/master/cjdns/Makefile )
 
 The results (better than my 1.2GHz ARM Sheevaplug!):

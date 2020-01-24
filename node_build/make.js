@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 var Fs = require('fs');
 var nThen = require('nthen');
@@ -18,7 +18,7 @@ var Codestyle = require('./Codestyle');
 var Cp = require('./Cp');
 var Spawn = require('child_process').spawn;
 var Os = require('os');
-var FindPython2 = require('./FindPython2');
+var FindPython = require('./FindPython');
 var CanCompile = require('./CanCompile');
 var Builder = require('./builder');
 var TestRunner = require('./TestRunner');
@@ -29,7 +29,7 @@ var GCC = process.env['CC'];
 var CFLAGS = process.env['CFLAGS'];
 var LDFLAGS = process.env['LDFLAGS'];
 
-var NO_MARCH_FLAG = ['ppc', 'ppc64'];
+var NO_MARCH_FLAG = ['arm', 'ppc', 'ppc64'];
 
 if (GCC) {
     // Already specified.
@@ -46,17 +46,9 @@ Builder.configure({
     crossCompiling: process.env['CROSS'] !== undefined,
     gcc:            GCC,
     tempDir:        process.env['CJDNS_BUILD_TMPDIR'] || '/tmp',
-    optimizeLevel:  '-O3',
+    optimizeLevel:  '-O0',
     logLevel:       process.env['Log_LEVEL'] || 'DEBUG'
 }, function (builder, waitFor) {
-
-    // This is a hack to cover for the fact that builder.js stores the cflags
-    // then more cflags get piled on top of them. TODO(cjd): Fix this is builder.js.
-    for (var i = 0; i < builder.config.cflags.length; i++) {
-        if (/CJD_PACKAGE_VERSION/.test(builder.config.cflags[i])) {
-            builder.config.cflags.splice(i-1, 2);
-        }
-    }
 
     builder.config.cflags.push(
         '-std=c99',
@@ -64,6 +56,7 @@ Builder.configure({
         '-Wextra',
         '-Werror',
         '-Wno-pointer-sign',
+        '-Wmissing-prototypes',
         '-pedantic',
         '-D', builder.config.systemName + '=1',
         '-D', 'CJD_PACKAGE_VERSION="' + builder.config.version + '"',
@@ -99,8 +92,15 @@ Builder.configure({
         builder.config.cflags.push('-D', 'TESTING=1');
     }
 
+    if (process.env['ADDRESS_PREFIX'] !== undefined) {
+        builder.config.cflags.push('-D', 'ADDRESS_PREFIX=' + process.env['ADDRESS_PREFIX']);
+    }
+    if (process.env['ADDRESS_PREFIX_BITS'] !== undefined) {
+        builder.config.cflags.push('-D', 'ADDRESS_PREFIX_BITS=' + process.env['ADDRESS_PREFIX_BITS']);
+    }
+
     if (!builder.config.crossCompiling) {
-        if (NO_MARCH_FLAG.indexOf(process.arch) < -1) {
+        if (NO_MARCH_FLAG.indexOf(process.arch) == -1) {
             builder.config.cflags.push('-march=native');
         }
     }
@@ -163,6 +163,10 @@ Builder.configure({
         });
     }
 
+    if (!/^\-O0$/.test(builder.config.optimizeLevel)) {
+        builder.config.cflags.push('-D_FORTIFY_SOURCE=2');
+    }
+
     // We also need to pass various architecture/floating point flags to GCC when invoked as
     // a linker.
     if (LDFLAGS) {
@@ -173,21 +177,25 @@ Builder.configure({
         builder.config.cflags.push('-Dandroid=1');
     }
 
-    CanCompile.check(builder,
-                     'int main() { return 0; }',
-                     [ builder.config.cflags, '-flto', '-x', 'c' ],
-                     function (err, can) {
-        if (can) {
-            console.log("Compiler supports link time optimization");
-            builder.config.ldflags.push(
-                '-flto',
-                builder.config.optimizeLevel
-            );
-        } else {
-            console.log("Link time optimization not supported [" + err + "]");
-        }
-        builder.config.cflags.push(builder.config.optimizeLevel);
-    });
+    if (process.env.NO_LTO) {
+        console.log("Link time optimization disabled");
+    } else {
+        CanCompile.check(builder,
+                        'int main() { return 0; }',
+                        [ builder.config.cflags, '-flto', '-x', 'c' ],
+                        function (err, can) {
+            if (can) {
+                console.log("Compiler supports link time optimization");
+                builder.config.ldflags.push(
+                    '-flto',
+                    builder.config.optimizeLevel
+                );
+            } else {
+                console.log("Link time optimization not supported [" + err + "]");
+            }
+            builder.config.cflags.push(builder.config.optimizeLevel);
+        });
+    }
 
     var uclibc = process.env['UCLIBC'] == '1';
     var libssp;
@@ -273,13 +281,17 @@ Builder.configure({
 
                 args.unshift(builder.config.optimizeLevel, '-fomit-frame-pointer');
 
+                if (!/^\-O0$/.test(builder.config.optimizeLevel)) {
+                    args.unshift('-D_FORTIFY_SOURCE=2');
+                }
+
                 if (CFLAGS) {
                     [].push.apply(args, CFLAGS.split(' '));
                 }
 
                 if (!builder.config.crossCompiling) {
-                    if (NO_MARCH_FLAG.indexOf(process.arch) < -1) {
-                        builder.config.cflags.push('-march=native');
+                    if (NO_MARCH_FLAG.indexOf(process.arch) == -1) {
+                        args.unshift('-march=native');
                     }
                 }
 
@@ -333,7 +345,7 @@ Builder.configure({
         }).nThen(function (waitFor) {
 
             if (libuvBuilt) { return; }
-            FindPython2.find(builder.tmpFile(), waitFor(function (err, pythonExec) {
+            FindPython.find(builder.tmpFile(), waitFor(function (err, pythonExec) {
                 if (err) { throw err; }
                 python = pythonExec;
             }));
@@ -386,6 +398,10 @@ Builder.configure({
                     'V=1'
                 ];
                 var cflags = [builder.config.optimizeLevel, '-DNO_EMFILE_TRICK=1'];
+
+                if (!/^\-O0$/.test(builder.config.optimizeLevel)) {
+                    cflags.push('-D_FORTIFY_SOURCE=2');
+                }
 
                 if (!(/darwin|win32/i.test(builder.config.systemName))) {
                     cflags.push('-fPIC');

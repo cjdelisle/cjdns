@@ -11,8 +11,7 @@ same destination directory.
 
 import TestGyp
 
-# The Android build system doesn't allow output to go to arbitrary places.
-test = TestGyp.TestGyp(formats=['!android'])
+test = TestGyp.TestGyp()
 test.run_gyp('copies-samedir.gyp', chdir='src')
 
 test.relocate('src', 'relocate/src')

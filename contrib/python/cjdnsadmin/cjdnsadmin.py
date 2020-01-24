@@ -8,7 +8,7 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import sys
 import os
@@ -173,21 +173,38 @@ def _getMessage(session, txid):
                 print "message with no txid: " + str(next)
 
 
-def _functionFabric(func_name, argList, oargList, password):
+def _functionFabric(func_name, argList, oargs, oargNames, password):
     """Function fabric for Session class"""
 
     def functionHandler(self, *args, **kwargs):
         call_args = {}
-
-        for (key, value) in oargList.items():
-            call_args[key] = value
-
-        for i, arg in enumerate(argList):
-            if (i < len(args)):
-                call_args[arg] = args[i]
+        
+        pos = 0
+        for value in args:
+            if (pos < len(argList)):
+                call_args[argList[pos]] = value
+                pos += 1
+            elif (pos < len(argList) + len(oargNames)):
+                call_args[oargNames[pos - len(argList)]] = value
+            else:
+                print("warning: extraneous argument passed to function",func_name,value)
 
         for (key, value) in kwargs.items():
-            call_args[key] = value
+            if key not in oargs:
+                if key in argList:
+                    # this is a positional argument, given a keyword name
+                    # that happens in python.
+                    # TODO: we can't handle this along with unnamed positional args.
+                    pos = argList.index(key)
+                    call_args[argList[pos]] = value
+                    continue
+                else:
+                    print("warning: not an argument to this function",func_name,key)
+                    print(oargs)
+            else:
+                # TODO: check oargs[key] type matches value
+                # warn, if doesn't
+                call_args[key] = value
 
         return _callFunc(self, func_name, password, call_args)
 
@@ -231,25 +248,25 @@ def connect(ipAddr, port, password):
     for (i, func) in availableFunctions.items():
         items = func.items()
 
-        # grab all the required args first
-        # append all the optional args
-        rargList = [arg for arg,atts in items if atts['required']]
-        argList = rargList + [arg for arg,atts in items if not atts['required']]
-
-        # for each optional arg setup a default value with
-        # a type which will be ignored by the core.
-        oargList = {}
+        # required args
+        argList = []
+        # optional args
+        oargs = {}
+        # order of optional args for python-style calling
+        oargNames = []
+        
         for (arg,atts) in items:
-            if not atts['required']:
-                oargList[arg] = (
-                    "''" if (func[arg]['type'] == 'Int')
-                    else "0")
+            if atts['required']:
+                argList.append(arg)
+            else:
+                oargs[arg] = atts['type']
+                oargNames.append(arg)
 
         setattr(Session, i, _functionFabric(
-            i, argList, oargList, password))
+            i, argList, oargs, oargNames, password))
 
-        funcArgs[i] = rargList
-        funcOargs[i] = oargList
+        funcArgs[i] = argList
+        funcOargs[i] = oargs
 
     session = Session(sock)
 

@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 var nThen = require("nthen");
 var Fs = require("fs");
@@ -36,6 +36,15 @@ module.exports.check = function (builder, code, cflags, callback) {
         flags.push.apply(flags, ["-o", outputFile, file]);
 
         builder.cc([cflags, "-o", outputFile, file], waitFor(function (ret, out, err) {
+            [file, outputFile].forEach(function(tmpFile) {
+                Fs.exists(tmpFile, waitFor(function (exists) {
+                    if (!exists) { return; }
+
+                    Fs.unlink(tmpFile, waitFor(function (err) {
+                        if (err) { throw err; }
+                    }));
+                }));
+            });
             if (ret) {
                 callback(err, false);
             } else {

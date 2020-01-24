@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "util/ArchInfo.h"
 #include "util/Endian.h"
@@ -159,12 +159,12 @@ gcc arch.c
     #error architecture unknown
 #endif
 
-uint32_t ArchInfo_getAuditArch()
+uint32_t ArchInfo_getAuditArch(void)
 {
     return ARCH;
 }
 
-char* ArchInfo_getArchStr()
+char* ArchInfo_getArchStr(void)
 {
     return ARCHSTR;
 }

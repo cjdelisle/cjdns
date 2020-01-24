@@ -15,7 +15,7 @@ scalability issues that plague existing networks.
 cjdroute runs in the background and either decrypts packets addressed to
 this node, or sends them on to the next node in the route.
 
-##OPTIONS
+## OPTIONS
 
   * `--help`:
     Print usage summary.
@@ -36,7 +36,7 @@ this node, or sends them on to the next node in the route.
   * `--nobg`                
     Never fork to the background no matter the config.
 
-##USAGE
+## USAGE
 
 To get the router up and running:
 
@@ -53,7 +53,7 @@ To get the router up and running:
 
   * Step 2:
     Find somebody to connect to.
-    Check out the IRC channel or http://hyperboria.net/
+    Check out the IRC channel or https://hyperboria.net/
     for information about how to meet new people and make connect to them.
     Read more here: https://github.com/cjdelisle/cjdns/#2-find-a-friend
 

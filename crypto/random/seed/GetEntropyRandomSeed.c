@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #define _GNU_SOURCE
 #include "crypto/random/seed/GetEntropyRandomSeed.h"
@@ -21,8 +21,15 @@
 #include <errno.h>
 #include <sys/syscall.h>
 
-#ifndef __OPENBSD__
-static int getentropy(void *buf, size_t buflen)
+#if defined(__OPENBSD__)
+    // just use the builtin getentropy
+    #define getEntropy getentropy
+#else
+// getentropy is available in glibc >= 2.25
+// to avoid a whole bunch of edgecases we shim this anyway
+// we can drop this when every major system with SYS_getrandom
+// has getentropy in its libc
+static int getEntropy(void *buf, size_t buflen)
 {
     int ret;
 
@@ -48,7 +55,7 @@ static int getentropy(void *buf, size_t buflen)
 
 static int get(struct RandomSeed* randomSeed, uint64_t output[8])
 {
-    if (getentropy(output, 64) < 0) {
+    if (getEntropy(output, 64) < 0) {
         return -1;
     } else {
         return 0;

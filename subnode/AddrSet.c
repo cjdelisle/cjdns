@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
 #include "util/Bits.h"
@@ -50,6 +50,12 @@ static int indexOf(struct AddrSet_pvt* ap, struct Address* addr)
         if (Address_isSameIp(addr, &el->addr)) { return i; }
     }
     return -1;
+}
+
+int AddrSet_indexOf(struct AddrSet* as, struct Address* addr)
+{
+    struct AddrSet_pvt* ap = Identity_check((struct AddrSet_pvt*) as);
+    return indexOf(ap, addr);
 }
 
 void AddrSet_add(struct AddrSet* as, struct Address* addr)

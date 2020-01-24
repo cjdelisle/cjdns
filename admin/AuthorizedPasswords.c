@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "admin/AuthorizedPasswords.h"
 #include "benc/Int.h"
@@ -29,7 +29,7 @@ struct Context
 static void sendResponse(String* msg, struct Admin* admin, String* txid, struct Allocator* alloc)
 {
     Dict* output = Dict_new(alloc);
-    Dict_putString(output, String_CONST("error"), msg, alloc);
+    Dict_putStringC(output, "error", msg, alloc);
     Admin_sendMessage(output, txid, admin);
 }
 
@@ -37,9 +37,9 @@ static void add(Dict* args, void* vcontext, String* txid, struct Allocator* allo
 {
     struct Context* context = Identity_check((struct Context*) vcontext);
 
-    String* passwd = Dict_getString(args, String_CONST("password"));
-    String* user = Dict_getString(args, String_CONST("user"));
-    String* ipv6 = Dict_getString(args, String_CONST("ipv6"));
+    String* passwd = Dict_getStringC(args, "password");
+    String* user = Dict_getStringC(args, "user");
+    String* ipv6 = Dict_getStringC(args, "ipv6");
 
     uint8_t ipv6Bytes[16];
     uint8_t* ipv6Arg;
@@ -69,7 +69,7 @@ static void add(Dict* args, void* vcontext, String* txid, struct Allocator* allo
 static void remove(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* context = Identity_check((struct Context*) vcontext);
-    String* user = Dict_getString(args, String_CONST("user"));
+    String* user = Dict_getStringC(args, "user");
 
     int32_t ret = CryptoAuth_removeUsers(context->ca, user);
     if (ret) {
@@ -82,19 +82,19 @@ static void remove(Dict* args, void* vcontext, String* txid, struct Allocator* r
 static void list(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* context = Identity_check((struct Context*) vcontext);
-    struct Allocator* child = Allocator_child(context->allocator);
 
-    List* users = CryptoAuth_getUsers(context->ca, child);
-    uint32_t count = List_size(users);
+    int64_t* page_p = Dict_getIntC(args, "page");
+    int page = (page_p) ? *page_p : 0;
 
-    Dict response = Dict_CONST(
-        String_CONST("total"), Int_OBJ(count), Dict_CONST(
-        String_CONST("users"), List_OBJ(users), NULL
-    ));
-
-    Admin_sendMessage(&response, txid, context->admin);
-
-    Allocator_free(child);
+    struct StringList* users = CryptoAuth_getUsers(context->ca, requestAlloc);
+    List* out = List_new(requestAlloc);
+    for (int i = page * 16; i < users->length && i < (page + 1) * 16; i++) {
+        List_addString(out, StringList_get(users, i), requestAlloc);
+    }
+    Dict* response = Dict_new(requestAlloc);
+    Dict_putIntC(response, "total", users->length, requestAlloc);
+    Dict_putListC(response, "users", out, requestAlloc);
+    Admin_sendMessage(response, txid, context->admin);
 }
 
 void AuthorizedPasswords_init(struct Admin* admin,
@@ -117,5 +117,8 @@ void AuthorizedPasswords_init(struct Admin* admin,
         ((struct Admin_FunctionArg[]){
             { .name = "user", .required = 1, .type = "String" }
         }), admin);
-    Admin_registerFunction("AuthorizedPasswords_list", list, context, true, NULL, admin);
+    Admin_registerFunction("AuthorizedPasswords_list", list, context, true,
+        ((struct Admin_FunctionArg[]){
+            { .name = "page", .required = 0, .type = "Int" }
+        }), admin);
 }

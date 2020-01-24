@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "util/platform/Sockaddr.h"
 #include "util/log/Log.h"
@@ -59,8 +59,8 @@ void NetDev_addAddress(const char* ifName,
 
     checkAddressAndPrefix(sa, &addrFam, &printedAddr, &addr, alloc, eh);
 
-    Log_info(logger, "Setting IP address [%s/%d] on interface [%s]",
-             printedAddr, sa->prefix, ifName);
+    Log_info(logger, "Setting IP address [%s] on interface [%s]",
+             printedAddr, ifName);
 
     NetPlatform_addAddress(ifName, addr, sa->prefix, addrFam, logger, alloc, eh);
 }

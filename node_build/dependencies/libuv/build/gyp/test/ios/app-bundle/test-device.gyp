@@ -2,15 +2,41 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 {
-  'make_global_settings': [
-    ['CC', '/usr/bin/clang'],
+  'conditions': [
+    ['"<(GENERATOR)"=="xcode"', {
+      'target_defaults': {
+        'configurations': {
+          'Default': {
+            'xcode_settings': {
+              'SDKROOT': 'iphonesimulator',
+              'CONFIGURATION_BUILD_DIR':'build/Default',
+            }
+          },
+          'Default-iphoneos': {
+            'xcode_settings': {
+              'SDKROOT': 'iphoneos',
+              'CONFIGURATION_BUILD_DIR':'build/Default-iphoneos',
+            }
+          },
+        },
+      },
+    }, {
+      'target_defaults': {
+        'configurations': {
+          'Default': {
+            'xcode_settings': {
+              'SDKROOT': 'iphonesimulator',
+            }
+          },
+        },
+      },
+    }],
   ],
   'targets': [
     {
       'target_name': 'test_app',
       'product_name': 'Test App Gyp',
       'type': 'executable',
-      'product_extension': 'bundle',
       'mac_bundle': 1,
       'sources': [
         'TestApp/main.m',
@@ -31,16 +57,19 @@
         ],
         'SDKROOT': 'iphonesimulator',  # -isysroot
         'TARGETED_DEVICE_FAMILY': '1,2',
+        'INFOPLIST_OUTPUT_FORMAT':'xml',
+        'GCC_VERSION': 'com.apple.compilers.llvm.clang.1_0',
         'INFOPLIST_FILE': 'TestApp/TestApp-Info.plist',
-        'IPHONEOS_DEPLOYMENT_TARGET': '4.2',
-        'CONFIGURATION_BUILD_DIR':'build/Default',
+        'IPHONEOS_DEPLOYMENT_TARGET': '8.0',
+        'CODE_SIGNING_REQUIRED': 'NO',
+        'CODE_SIGN_IDENTITY[sdk=iphoneos*]': '',
+
       },
     },
     {
       'target_name': 'sig_test',
-      'product_name': 'sig_test',
+      'product_name': 'sigtest',
       'type': 'executable',
-      'product_extension': 'bundle',
       'mac_bundle': 1,
       'sources': [
         'TestApp/main.m',
@@ -70,8 +99,9 @@
         ],
         'SDKROOT': 'iphonesimulator',  # -isysroot
         'CODE_SIGN_IDENTITY[sdk=iphoneos*]': 'iPhone Developer',
+        'INFOPLIST_OUTPUT_FORMAT':'xml',
         'INFOPLIST_FILE': 'TestApp/TestApp-Info.plist',
-        'IPHONEOS_DEPLOYMENT_TARGET': '4.2',
+        'IPHONEOS_DEPLOYMENT_TARGET': '8.0',
         'CONFIGURATION_BUILD_DIR':'buildsig/Default',
       },
     },

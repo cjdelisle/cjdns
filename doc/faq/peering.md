@@ -1,8 +1,8 @@
 ## What is Hyperboria?
 
-[Hyperboria](http://hyperboria.net) is an encrypted [Mesh Network](http://en.wikipedia.org/wiki/Mesh_networking) designed for privacy and resiliency to censorship.
+[Hyperboria](https://hyperboria.net) is an encrypted [Mesh Network](https://en.wikipedia.org/wiki/Mesh_networking) designed for privacy and resiliency to censorship.
 
-It currently exists as an [Overlay](http://en.wikipedia.org/wiki/Overlay_network) test network for [Project Meshnet](https://projectmeshnet.org/), and is only accessible to those who install [cjdns](http://en.wikipedia.org/wiki/Cjdns).
+It currently exists as an [Overlay](https://en.wikipedia.org/wiki/Overlay_network) test network for [Project Meshnet](https://projectmeshnet.org/), and is only accessible to those who install [cjdns](https://en.wikipedia.org/wiki/Cjdns).
 
 Ultimately, we hope to build a viable alternative to the regular internet, which we call [clearnet](http://www.urbandictionary.com/define.php?term=clearnet). Our ultimate goal is to replace the existing hierarchical internet with a non-hierarchical model.
 
@@ -24,7 +24,7 @@ You can, but you might have trouble finding willing peers, since you're not real
 
 This project is run entirely by volunteers. In fact, 'run' might give you the idea that it's some kind of beureaucratic body. It isn't. We argue about things, sometimes <a class="clearnet" href="http://www.bestbytepc.com/uploads/2/6/6/1/2661857/7237729_orig.jpg">IN ALL CAPS</a>. Sometimes people <a href="https://encyclopediadramatica.es/Quitting_IRC_forever">QUIT IRC FOREVER</a>. We reach a consensus, or we don't, and people just do what they want. Actually, even if we do reach a consensus, we're still just doing what we want. If you expected something other than anarchy, I encourage you to read more about what a meshnet is.
 
-That means you should be patient, since you're relying on other people's good will (crazy, I know). This is a friend of a friend network, which shocks people, because they actually have to make friends. Tell us about yourself. Where are you located? Do you operate any servers, or are you new to this? If you're new, why do you want to learn? Maybe you maintain a <a class="clearnet" href="http://blag.xkcd.com/">blag</a> or something? That's pretty much what we do on Hyperboria. If you aren't interested in doing that kind of thing, but want access, I'm not sure what your motivation is. We're basically a bunch of DIYers making our own internet. That kind of thing takes time. Think in terms of years, not months. Read <a class="clearnet" href="http://en.wikipedia.org/wiki/Internetwork">this</a> and <a class="clearnet" href="http://en.wikipedia.org/wiki/History_of_the_Internet#Three_terminals_and_an_ARPA">this</a> to get a sense of context for what this project is about.
+That means you should be patient, since you're relying on other people's good will (crazy, I know). This is a friend of a friend network, which shocks people, because they actually have to make friends. Tell us about yourself. Where are you located? Do you operate any servers, or are you new to this? If you're new, why do you want to learn? Maybe you maintain a <a class="clearnet" href="http://blag.xkcd.com/">blag</a> or something? That's pretty much what we do on Hyperboria. If you aren't interested in doing that kind of thing, but want access, I'm not sure what your motivation is. We're basically a bunch of DIYers making our own internet. That kind of thing takes time. Think in terms of years, not months. Read <a class="clearnet" href="https://en.wikipedia.org/wiki/Internetwork">this</a> and <a class="clearnet" href="https://en.wikipedia.org/wiki/History_of_the_Internet#Three_terminals_and_an_ARPA">this</a> to get a sense of context for what this project is about.
 
 With that in mind, say hi, tell us what you're doing. We're pretty enthusiastic about sharing our interests if it's unlikely that you're a <a class="clearnet" href="http://www.urbandictionary.com/define.php?term=feds">FED</a>.
 
@@ -68,15 +68,15 @@ It won't hurt for you to add each other to your conf file, but unless one of you
 }
 ```
 
-Technically, only the IP, port, publicKey, and password are required. IPV6 will make it easier to keep track of who is connected, and what kind of latency they are experiencing. The location helps your peer direct possible local meshers your way. Contact should be some non-hyperborian method, in case your connection breaks. <a class="clearnet" href="http://en.wikipedia.org/wiki/Simple_Mail_Transfer_Protocol">Email</a>, <a class="clearnet" href="http://rows.io/">XMPP</a>, <a href="/gpg">PGP</a>, <a href="https://keybase.io/">Keybase.io</a>, <a href="/contact">etc</a>.
+Technically, only the IP, port, publicKey, and password are required. IPV6 will make it easier to keep track of who is connected, and what kind of latency they are experiencing. The location helps your peer direct possible local meshers your way. Contact should be some non-hyperborian method, in case your connection breaks. <a class="clearnet" href="https://en.wikipedia.org/wiki/Simple_Mail_Transfer_Protocol">Email</a>, <a class="clearnet" href="http://rows.io/">XMPP</a>, <a href="/gpg">PGP</a>, <a href="https://keybase.io/">Keybase.io</a>, <a href="/contact">etc</a>.
 
 ## Beyond my first peer, how can I set up a more efficient network?
 
-[Read this](http://en.wikipedia.org/wiki/Small-world_network)
+[Read this](https://en.wikipedia.org/wiki/Small-world_network)
 
-People are much more receptive to peering requests if you have already connected to Hyperboria.  EFNet has a much wider audience, and as such is treated with skepticism. Those with their foot already in the door will have an easier time making friends. If you think this is clique-ish or elitist, you may be right. If you want it to change, then <a class="clearnet" href="http://www.elephantjournal.com/2011/08/be-the-change-you-wish-to-see-in-the-world-not-gandhi/">be the change you want to see in the world</a>, and get on EFNet and start helping!
+People are much more receptive to peering requests if you have already connected to Hyperboria. EFNet has a much wider audience, and as such is treated with skepticism. Those with their foot already in the door will have an easier time making friends. If you think this is clique-ish or elitist, you may be right. If you want it to change, then <a class="clearnet" href="http://www.elephantjournal.com/2011/08/be-the-change-you-wish-to-see-in-the-world-not-gandhi/">be the change you want to see in the world</a>, and get on EFNet and start helping!
 
-It's  a bit circular, but it's a not a rule we have, more of an emergent behaviour. Many of us have spent a lot of time on EFNet helping newcomers to connect, only to have them leave after connecting for fifteen minutes.  Once we've seen that you are competent enough to connect, and that you have some lasting interest, there is far more incentive to spend time getting to know you.
+It's  a bit circular, but it's a not a rule we have, more of an emergent behaviour. Many of us have spent a lot of time on EFNet helping newcomers to connect, only to have them leave after connecting for fifteen minutes. Once we've seen that you are competent enough to connect, and that you have some lasting interest, there is far more incentive to spend time getting to know you.
 
 As to how the technical specifications of the network architecture...
 
@@ -90,11 +90,11 @@ If, however, you are trying to peer with, say, a home connection with a decent d
 
 If you're peering up a VPS with high throughput and unlimited data, you have the capacity to do things most residential connections can not. You are capable of acting as a highway for the meshnet. Keep in mind that it can be a bad idea for highway traffic to have direct exits into residential areas (metaphorically speaking). It's a good idea to use your connection to establish long range links between your meshLocal and others in far off places. Trans-Oceanic links help link together a greater number of node operators across the globe, and allow us all to communicate what kinds of issues we are each experiencing.
 
-It would be unrealistic to expect any network to be completely uniform. The optimal configuration changes over time according to the habits of its many users. Healthy configurations look less like a <a class="clearnet" href="http://en.wikipedia.org/wiki/Spoke-hub_distribution_paradigm">spoke-hub distribution</a> and more alike a river, or tree. It is possible to have an efficient hierarchy without being centralized, just avoid <a class="clearnet" href="http://en.wikipedia.org/wiki/Single_point_of_failure">SPOF</a>s.
+It would be unrealistic to expect any network to be completely uniform. The optimal configuration changes over time according to the habits of its many users. Healthy configurations look less like a <a class="clearnet" href="https://en.wikipedia.org/wiki/Spoke-hub_distribution_paradigm">spoke-hub distribution</a> and more alike a river, or tree. It is possible to have an efficient hierarchy without being centralized, just avoid <a class="clearnet" href="https://en.wikipedia.org/wiki/Single_point_of_failure">SPOF</a>s.
 
-This may sound a lot like urban planning to you. It is! Consider <a class="clearnet" href="http://en.wikipedia.org/wiki/The_100-Mile_Diet">The 100-Mile Diet</a>. You don't want to have to 'drive halfway across town to get to the grocery store'. We are simply trying to mitigate the unpleasant side effects of urban sprawl. We are planning for <a class="clearnet" href="http://en.wikipedia.org/wiki/Walkability">walkable neigbourhoods</a>.
+This may sound a lot like urban planning to you. It is! Consider <a class="clearnet" href="https://en.wikipedia.org/wiki/The_100-Mile_Diet">The 100-Mile Diet</a>. You don't want to have to 'drive halfway across town to get to the grocery store'. We are simply trying to mitigate the unpleasant side effects of urban sprawl. We are planning for <a class="clearnet" href="https://en.wikipedia.org/wiki/Walkability">walkable neigbourhoods</a>.
 
-If there is only one grocery store in a 400-mile radius, then everyone needs a car. Prime real estate (that which is close to the store) becomes quite expensive, while it is cheaper, yet <a class="clearnet" href="http://en.wikipedia.org/wiki/End-to-end_principle">inefficient</a>, to live on the fringe. Following this metaphor, ISPs are basically a grocery delivery service. If they decide not to deliver your groceries (remember <a class="clearnet" href="http://beattheblockade.org/">the wikileaks blockade</a>?) you starve. We want to help you plant a community garden, where everyone can benefit - as long as they contribute their fair share. I may have no reason to just give away vegetables that I worked hard for, but I'd be happy to trade for a different crop simply because I enjoy variety.
+If there is only one grocery store in a 400-mile radius, then everyone needs a car. Prime real estate (that which is close to the store) becomes quite expensive, while it is cheaper, yet <a class="clearnet" href="https://en.wikipedia.org/wiki/End-to-end_principle">inefficient</a>, to live on the fringe. Following this metaphor, ISPs are basically a grocery delivery service. If they decide not to deliver your groceries (remember <a class="clearnet" href="http://beattheblockade.org/">the wikileaks blockade</a>?) you starve. We want to help you plant a community garden, where everyone can benefit - as long as they contribute their fair share. I may have no reason to just give away vegetables that I worked hard for, but I'd be happy to trade for a different crop simply because I enjoy variety.
 
 ## How can I generate passwords for new peers?
 
@@ -122,7 +122,7 @@ Check <a href="/locals">this page</a> for a basic list of some general areas. It
 01:55 -!- newguy [webchat@198.20.69.234] has quit [Client Quit]
 ```
 
-We see this **a lot**. You should read [ircerr's peers.txt](/peers), [the peering section of my old faq](/faq#peering), and [my page about meshlocals](/locals).
+We see this **a lot**. You should read [ircerr's peers.txt](http://web.archive.org/web/20140119050902/http://ircerr.ca/cjdns/peers.txt), [the peering section of my old faq](/faq#peering), and [my page about meshlocals](../meshlocals).
 
 TL;DR :: this isn't a public network, and we're under no obligation to give credentials to everyone who asks. We aren't a non-profit, or a corporation, or even a cohesive group. Everyone here has their own motivations and ideas of what the network should be, and you need to find someone who wants to connect to you. Don't be shy, introduce yourself.
 
@@ -146,7 +146,7 @@ To find your peers, run `cjdns/contrib/nodejs/tools/peerStats.js`
 
 Alternatively, you can use [this tool which does a few other things as well](https://github.com/ehmry/cjdcmd-ng).
 
-## How to sniff for ethernet cjdns traffic?
+## How to sniff for Ethernet cjdns traffic?
 
 ```
 tcpdump -nn -s0 -t -vv -e -i mon0 ether proto 0xfc00

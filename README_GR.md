@@ -4,6 +4,10 @@
 [Русская версия](README_RU.md)
 [Hrvatski](README_HR.md)
 [Svenska](README_SV.md)
+[Deutsch](README_DE.md)
+[繁體中文](README_ZHT.md)
+[Español](README_ES.md)
+[Français](README_FR.md)
 
 #### *Η δικτύωση επανεφευρέθηκε*
 
@@ -12,7 +16,7 @@ Cjdns υλοποιεί ένα κρυπτογραφημένο δίκτυο IPV6 �
 σχεδόν-μηδενικής-ρύθμισης δικτύωση, και αποτρέπει πολλά ζητήματα ασφαλείας και
 επεκτασιμότητας που μαστίζουν τα υπάρχοντα δίκτυα.
 
-[![Build Status](https://travis-ci.org/cjdelisle/cjdns.svg?branch=master)](https://travis-ci.org/cjdelisle/cjdns)
+[![Build Status](https://api.travis-ci.org/cjdelisle/cjdns.svg?branch=master)](https://travis-ci.org/cjdelisle/cjdns)
 [![tip for next commit](https://tip4commit.com/projects/941.svg)](https://tip4commit.com/github/cjdelisle/cjdns)
 [![irc](https://img.shields.io/badge/irc%20chat-%23cjdns-blue.svg)](https://kiwiirc.com/client/irc.efnet.org/?nick=visitor|?#cjdns)
 
@@ -41,7 +45,6 @@ Cjdns υλοποιεί ένα κρυπτογραφημένο δίκτυο IPV6 �
 
 * [irc://irc.efnet.org/#cjdns][IRC Web]
 * [Hyperboria][] the largest cjdns network, as of October 2015 there are 2100 nodes.
-* [Project Meshnet][]
 * [/r/darknetplan][]
 * [#cjdns on Twitter][]
 
@@ -65,13 +68,13 @@ Cjdns υλοποιεί ένα κρυπτογραφημένο δίκτυο IPV6 �
 
 ## Πώς να εγκαταστήσετε το cjdns
 
-Αυτές οι οδηγίες είναι για διανομές Debian-based Linux και OS X. Θα ήταν
+Αυτές οι οδηγίες είναι για διανομές Debian-based Linux και macOS. Θα ήταν
 αρκετά πληροφοριακές για χρήση σε άλλες διανομές - απλά μην περιμένετε να
 δουλέψουν αυτολεξεί.
 
 ### 0. Εγκατάσταση εξαρτήσεων
 
-Και στις δύο πλατφόρμες, η εγκατάσταση του [Node.js](http://nodejs.org/), αν και προτιμούμενη,
+Και στις δύο πλατφόρμες, η εγκατάσταση του [Node.js](https://nodejs.org/en), αν και προτιμούμενη,
 δεν είναι αυστηρά απαραίτητη. Αν το Node.js δεν είναι διαθέσιμο ή δεν είναι αποδεκτής έκδοσης,
 θα κατέβει και θα εγκατασταθεί στο πηγαίο δέντρο.
 
@@ -90,11 +93,15 @@ Cjdns υλοποιεί ένα κρυπτογραφημένο δίκτυο IPV6 �
     sudo yum install install nodejs git
     sudo yum install @development-tools
 
-#### OS X:
+#### macOS:
 
-Εγκατάσταση με το homebrew:
+Εγκατάσταση με το [Homebrew](https://brew.sh/):
 
     brew install cjdns
+
+Εγκατάσταση με το [MacPorts](https://www.macports.org/):
+
+    sudo port install cjdns
 
 #### OpenBSD:
 
@@ -159,7 +166,7 @@ Cjdns υλοποιεί ένα κρυπτογραφημένο δίκτυο IPV6 �
 Αν λέει: `cat: /dev/net/tun: Permission denied` Πιθανώς χρησιμοποιείται κάποιο VPS
 βασισμένο στην OpenVZ πλατφόρμα εικονικοποίησης. Ζητήστε από τον παροχό σας να ενεργοποιήσει τη
 TUN/TAP συσκευή - αυτό είναι στάνταρ πρωτόκολλο ώστε να ξέρουν ακριβώς τι χρειάζεστε.
-Αν εργάζεστε σε OS X, δε χρειάζεται να ανησυχείτε για αυτό το βήμα.
+Αν εργάζεστε σε macOS, δε χρειάζεται να ανησυχείτε για αυτό το βήμα.
 
 
 ### 1. Δημιουργήστε ένα νέο αρχείο επιλογών
@@ -250,15 +257,15 @@ TUN/TAP συσκευή - αυτό είναι στάνταρ πρωτόκολλο
 "authorizedPasswords":
 [
     // A unique string which is known to the client and server.
-    {"password": "thisisauniquestring_001"}
+    {"password": "password001", "login": "default-login"}
 
     // More passwords should look like this.
-    // {"password": "thisisauniquestring_002"}
-    // {"password": "thisisauniquestring_003"}
-    // {"password": "thisisauniquestring_004"}
+    // {"password": "password002", "login": "my-second-peer"}
+    // {"password": "password003", "login": "my-third-peer}
+    // {"password": "password004", "login": "my-fourth-peer"}
     ...
 
-    // "your.external.ip.goes.here:45678":{"password": "thisisauniquestring_001","publicKey":thisisauniqueKEY_001.k"}
+    // "your.external.ip.goes.here:45678":{"login": "default-login", "password": "password001","publicKey":thisisauniqueKEY_001.k"}
 
 ],
 ```
@@ -368,11 +375,10 @@ TUN/TAP συσκευή - αυτό είναι στάνταρ πρωτόκολλο
 
 
 [IRC Web]: http://chat.efnet.org/irc.cgi?chan=%23cjdns
-[Hyperboria]: http://hyperboria.net
-[Project Meshnet]: https://projectmeshnet.org
-[/r/darknetplan]: http://www.reddit.com/r/darknetplan
+[Hyperboria]: https://hyperboria.net
+[/r/darknetplan]: https://www.reddit.com/r/darknetplan
 [#cjdns on Twitter]: https://twitter.com/hashtag/cjdns
-[Hyperboria Map]: http://www.fc00.org/
+[Hyperboria Map]: https://www.fc00.org/
 [Buildbots]: https://buildbot.meshwith.me/cjdns/waterfall
 
 [Cjdns on Wikipedia]: https://en.wikipedia.org/wiki/Cjdns
@@ -381,5 +387,5 @@ TUN/TAP συσκευή - αυτό είναι στάνταρ πρωτόκολλο
 [Kademlia]: https://en.wikipedia.org/wiki/Kademlia
 
 [Tor]: https://www.torproject.org
-[I2P]: http://www.i2p2.de
+[I2P]: https://geti2p.net/en/
 [Freenet]: https://freenetproject.org

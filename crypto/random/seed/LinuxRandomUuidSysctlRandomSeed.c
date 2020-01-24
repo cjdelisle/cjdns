@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #define _GNU_SOURCE
 #include "crypto/random/seed/LinuxRandomUuidSysctlRandomSeed.h"
@@ -20,6 +20,7 @@
 
 #include <unistd.h>
 #include <sys/syscall.h>
+#ifndef SYS_getrandom
 #include <sys/sysctl.h>
 
 static int getUUID(uint64_t output[2])
@@ -35,6 +36,7 @@ static int getUUID(uint64_t output[2])
     }
     return 0;
 }
+#endif
 
 static int get(struct RandomSeed* randomSeed, uint64_t output[8])
 {
@@ -48,11 +50,13 @@ static int get(struct RandomSeed* randomSeed, uint64_t output[8])
     if (ret == 64 && !Bits_isZero(output, 64)) {
         return 0;
     }
-#endif
+    return -1;
+#else
     if (getUUID(output) || getUUID(output+2) || getUUID(output+4) || getUUID(output+6)) {
         return -1;
     }
     return 0;
+#endif
 }
 
 struct RandomSeed* LinuxRandomUuidSysctlRandomSeed_new(struct Allocator* alloc)

@@ -19,7 +19,11 @@ override_dh_install:
 	dh_install --fail-missing
 
 override_dh_strip:
-	dh_strip --dbg-package=cjdns-dbg
+	dh_strip --dbgsym-migration='cjdns-dbg (<< 0.20~)'
 
 override_dh_auto_install:
 	dh_auto_install --destdir=debian/cjdns
+
+override_dh_installinit:
+	dh_installinit --name=cjdns
+	dh_installinit --name=cjdns-resume
