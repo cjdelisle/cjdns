@@ -39,8 +39,8 @@ int Socket_recvfrom(int fd,
 
 int Socket_connect(int fd, const struct Sockaddr* sa, struct Allocator* alloc);
 
-const int Socket_SOCK_DGRAM;
-const int Socket_SOCK_STREAM;
+extern const int Socket_SOCK_DGRAM;
+extern const int Socket_SOCK_STREAM;
 int Socket_socket(int af, int type, int protocol, struct Allocator* alloc);
 
 int Socket_bind(int fd, const struct Sockaddr* sa);

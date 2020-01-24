@@ -50,11 +50,11 @@ struct Sockaddr_storage
 };
 
 /** 127.0.0.1 and ::1 addresses for building from. */
-const struct Sockaddr* const Sockaddr_LOOPBACK_be;
-const struct Sockaddr* const Sockaddr_LOOPBACK_le;
+extern const struct Sockaddr* const Sockaddr_LOOPBACK_be;
+extern const struct Sockaddr* const Sockaddr_LOOPBACK_le;
 #define Sockaddr_LOOPBACK (Endian_isBigEndian() ? Sockaddr_LOOPBACK_be : Sockaddr_LOOPBACK_le)
 
-const struct Sockaddr* const Sockaddr_LOOPBACK6;
+extern const struct Sockaddr* const Sockaddr_LOOPBACK6;
 
 int Sockaddr_getPrefix(struct Sockaddr* addr);
 
