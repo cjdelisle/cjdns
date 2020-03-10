@@ -10,14 +10,15 @@
 /usr/sbin/cjdroute {
     #include <abstractions/base>
     #include <abstractions/nameservice>
+    #include <abstractions/dovecot-common>
 
     capability net_admin,
     capability net_raw,
     capability setuid,
     capability sys_chroot,
-
-
-
+    
+    network packet dgram,
+    
     / r,
     /dev/net/tun rw,
     /etc/passwd mr,
