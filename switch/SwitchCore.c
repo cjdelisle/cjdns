@@ -274,8 +274,8 @@ int SwitchCore_addInterface(struct SwitchCore* switchCore,
     int ifIndex = 0;
     // If there's a vacent spot where another iface was before it was removed, use that.
     for (;;ifIndex++) {
-        if (!core->interfaces[ifIndex].iface.send) { break; }
         if (ifIndex == NumberCompress_INTERFACES) { return SwitchCore_addInterface_OUT_OF_SPACE; }
+        if (!core->interfaces[ifIndex].iface.send) { break; }
     }
 
     struct SwitchInterface* newIf = &core->interfaces[ifIndex];
