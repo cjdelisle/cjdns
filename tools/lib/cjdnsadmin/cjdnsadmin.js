@@ -194,6 +194,7 @@ var connect = module.exports.connect = function (addr, port, pass, callback) {
     nThen(function (waitFor) {
         callFunc(sock, addr, port, pass, 'ping', {}, waitFor(function (err, ret) {
             if (err) { throw err; }
+            if (ret.error) { throw new Error(`Connect Error: ${ret.error}`) }
             //console.log("got pong! [" + JSON.stringify(ret) + "]");
         }));
     }).nThen(function (waitFor) {
