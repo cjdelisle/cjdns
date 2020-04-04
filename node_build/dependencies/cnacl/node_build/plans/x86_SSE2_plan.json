@@ -78,7 +78,7 @@
     [
       "crypto_scalarmult",
       "curve25519",
-      "athlon"
+      "donna"
     ],
     [
       "crypto_hashblocks",
