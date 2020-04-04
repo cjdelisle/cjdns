@@ -76,7 +76,7 @@ struct Iface* TUNInterface_new(const char* interfaceName,
     /* get the utun control id */
     struct ctl_info info;
     memset(&info, 0, sizeof(info));
-    CString_safeStrncpy(info.ctl_name, APPLE_UTUN_CONTROL, strlen(APPLE_UTUN_CONTROL));
+    CString_safeStrncpy(info.ctl_name, APPLE_UTUN_CONTROL, sizeof info.ctl_name);
 
     if (ioctl(tunFd, CTLIOCGINFO, &info) < 0) {
         int err = errno;
