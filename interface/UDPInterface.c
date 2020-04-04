@@ -67,7 +67,7 @@ static struct Sockaddr* mkBcastAddr(
     return Sockaddr_fromNative(&bcast4, sizeof(struct sockaddr_in), alloc);
 }
 
-static void updateBcastAddrs(struct UDPInterface_pvt* ctx)
+static int updateBcastAddrs(struct UDPInterface_pvt* ctx)
 {
     bool all = false;
     for (int i = 0; ctx->bcastIfaces && i < ctx->bcastIfaces->length; i++) {
@@ -79,7 +79,7 @@ static void updateBcastAddrs(struct UDPInterface_pvt* ctx)
     int res = uv_interface_addresses(&interfaces, &count);
     if (res) {
         Log_info(ctx->log, "uv_interface_addresses failed [%s]", uv_strerror(-res));
-        return;
+        return -1;
     }
 
     if (ctx->bcastAddrAlloc) { Allocator_free(ctx->bcastAddrAlloc); }
@@ -108,6 +108,7 @@ static void updateBcastAddrs(struct UDPInterface_pvt* ctx)
         ArrayList_Sockaddr_add(ctx->bcastAddrs, addr);
     }
     uv_free_interface_addresses(interfaces, count);
+    return 0;
 }
 
 static Iface_DEFUN sendPacket(struct Message* m, struct Iface* iface)
@@ -122,7 +123,9 @@ static Iface_DEFUN sendPacket(struct Message* m, struct Iface* iface)
     // Regular traffic
     if (!(sa->flags & Sockaddr_flags_BCAST)) { return Iface_next(&ctx->commSock, m); }
 
-    updateBcastAddrs(ctx);
+    if (updateBcastAddrs(ctx)) {
+        return NULL;
+    }
 
     // bcast
     struct UDPInterface_BroadcastHeader hdr = {
@@ -291,8 +294,11 @@ List* UDPInterface_getBroadcastDevices(struct UDPInterface* udpif, struct Alloca
 List* UDPInterface_getBroadcastAddrs(struct UDPInterface* udpif, struct Allocator* alloc)
 {
     struct UDPInterface_pvt* ctx = Identity_check((struct UDPInterface_pvt*) udpif);
-    updateBcastAddrs(ctx);
     List* out = List_new(alloc);
+    if (updateBcastAddrs(ctx)) {
+        // TODO(cjd): There should be some way to return the fact that there was an error
+        return out;
+    }
     for (int i = 0; i < ctx->bcastAddrs->length; i++) {
         char* addr = Sockaddr_print(ArrayList_Sockaddr_get(ctx->bcastAddrs, i), alloc);
         List_addStringC(out, addr, alloc);
