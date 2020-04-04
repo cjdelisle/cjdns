@@ -78,7 +78,7 @@
     [
       "crypto_scalarmult",
       "curve25519",
-      "donna"
+      "ref10"
     ],
     [
       "crypto_hashblocks",
