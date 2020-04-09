@@ -130,13 +130,17 @@ static Iface_DEFUN sendMessage(struct Message* m, struct Iface* iface)
     Identity_set(req);
 
     if (pipe->isActive) {
+        Log_debug(pipe->pub.logger, "Pipe [%s] sending a message len [%d]",
+            pipe->pub.name, (int)m->length);
         sendMessage2(req);
     } else {
         if (!pipe->bufferedRequest) {
-            Log_debug(pipe->pub.logger, "Buffering a message");
+            Log_debug(pipe->pub.logger, "Pipe [%s] buffering a message",
+                pipe->pub.name);
             pipe->bufferedRequest = req;
         } else {
-            Log_debug(pipe->pub.logger, "Appending to the buffered message");
+            Log_debug(pipe->pub.logger, "Pipe [%s] appending to the buffered message",
+                pipe->pub.name);
             uint8_t* buff =
                 Allocator_malloc(reqAlloc, m->length + pipe->bufferedRequest->msg->length);
             Bits_memcpy(buff,
