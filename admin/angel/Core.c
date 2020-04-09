@@ -212,6 +212,7 @@ static void initTunfd(Dict* args, void* vcontext, String* txid, struct Allocator
         Log_debug(ctx->logger, "Initializing TUN device from file [%d] type [%s]",
             fileno, (type == FileNo_Type_ANDROID) ? "android" : "normal");
         struct Pipe* p = Pipe_forFiles(fileno, fileno, ctx->base, &jmp.handler, ctx->alloc);
+        Log_debug(ctx->logger, "Pipe created");
         p->logger = ctx->logger;
         if (type == FileNo_Type_ANDROID) {
             struct AndroidWrapper* aw = AndroidWrapper_new(ctx->alloc, ctx->logger);
@@ -222,6 +223,7 @@ static void initTunfd(Dict* args, void* vcontext, String* txid, struct Allocator
         }
         sendResponse(String_CONST("none"), ctx->admin, txid, requestAlloc);
     } Jmp_catch {
+        Log_debug(ctx->logger, "Failed to create pipe [%s]", jmp.message);
         String* error = String_printf(requestAlloc, "Failed to configure tunnel [%s]", jmp.message);
         sendResponse(error, ctx->admin, txid, requestAlloc);
         return;
