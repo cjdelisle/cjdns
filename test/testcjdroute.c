@@ -104,22 +104,14 @@ static void usage(char* appName)
     }
 }
 
-static struct Message* readFile(int fileNo, struct Allocator* alloc)
+static void readFile(int fileNo, struct Allocator* alloc, struct Message* fuzz)
 {
-    uint8_t buff[4096] = { 0 };
-    ssize_t length = read(fileNo, buff, 4096);
-    if (length >= 4096) {
-        printf("No test files over 4096 bytes\n");
+    ssize_t length = read(fileNo, fuzz->bytes, fuzz->length);
+    if (length >= fuzz->length) {
+        printf("No test files over [%d] bytes\n", fuzz->length);
         length = 0;
     }
-    int capacity = length;
-    while (capacity % 8) { capacity++; }
-    int padding = 128;
-    if (capacity < 4000) { padding = 4000 - capacity; }
-    struct Message* msg = Message_new(capacity, padding, alloc);
-    msg->length = length;
-    Bits_memcpy(msg->bytes, buff, length);
-    return msg;
+    fuzz->length = length;
 }
 
 static void** initFuzzTests(struct Allocator* alloc, struct Random* rand)
@@ -161,7 +153,8 @@ static uint64_t runFuzzTestManual(
 {
     int f = open(testCase, O_RDONLY);
     Assert_true(f > -1);
-    struct Message* fuzz = readFile(f, alloc);
+    struct Message* fuzz = Message_new(4096, 128, alloc);
+    readFile(f, alloc, fuzz);
     close(f);
 
     runFuzzTest(NULL, alloc, detRand, fuzz, testCase, quiet);
@@ -194,6 +187,8 @@ static uint64_t runFuzzTestManual(
 
 static int fuzzMain(struct Allocator* alloc, struct Random* detRand, int initTests, int quiet)
 {
+    struct Message* fuzz = Message_new(4096, 128, alloc);
+
 #ifdef __AFL_INIT
     // Enable AFL deferred forkserver mode. Requires compilation using afl-clang-fast
     initTests = 1;
@@ -205,7 +200,7 @@ static int fuzzMain(struct Allocator* alloc, struct Random* detRand, int initTes
     __AFL_INIT();
 #endif
 
-    struct Message* fuzz = readFile(STDIN_FILENO, alloc);
+    readFile(STDIN_FILENO, alloc, fuzz);
     int out = runFuzzTest(ctxs, alloc, detRand, fuzz, NULL, quiet);
     printf("\n");
     return out;
