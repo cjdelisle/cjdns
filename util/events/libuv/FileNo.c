@@ -96,7 +96,7 @@ static void incoming(uv_pipe_t* stream,
         if (fileno->peer.accepted_fd != -1) {
             struct FileNoContext* fctx = (struct FileNoContext*) fileno->pub.userData;
             Log_info(fileno->pub.logger, "Got TUN file descriptor [%d] cb = [%x]",
-                fileno->peer.accepted_fd, fctx->pub.callback);
+                fileno->peer.accepted_fd, (uintptr_t) (void*) fctx->pub.callback);
             if (fctx->pub.callback) {
                 fctx->pub.callback(&fctx->pub, fileno->peer.accepted_fd);
             }
