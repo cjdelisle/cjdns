@@ -163,6 +163,7 @@ Builder.configure({
         });
     }
 
+    builder.config.cflags.push(builder.config.optimizeLevel);
     if (!/^\-O0$/.test(builder.config.optimizeLevel)) {
         builder.config.cflags.push('-D_FORTIFY_SOURCE=2');
     }
@@ -193,7 +194,6 @@ Builder.configure({
             } else {
                 console.log("Link time optimization not supported [" + err + "]");
             }
-            builder.config.cflags.push(builder.config.optimizeLevel);
         });
     }
 
