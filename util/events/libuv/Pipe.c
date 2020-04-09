@@ -454,12 +454,14 @@ struct Pipe* Pipe_forFiles(int inFd,
                            int outFd,
                            struct EventBase* eb,
                            struct Except* eh,
+                           struct Log* logger,
                            struct Allocator* userAlloc)
 {
     char buff[32] = {0};
     snprintf(buff, 31, "forFiles(%d,%d)", inFd, outFd);
 
     struct Pipe_pvt* out = newPipe(eb, NULL, buff, eh, userAlloc);
+    out->pub.logger = logger;
 
     int ret = uv_pipe_open(&out->peer, inFd);
     if (ret) {

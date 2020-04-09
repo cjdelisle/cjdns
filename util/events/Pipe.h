@@ -79,6 +79,7 @@ struct Pipe* Pipe_forFiles(int inFd,
                            int outFd,
                            struct EventBase* eb,
                            struct Except* eh,
+                           struct Log* logger,
                            struct Allocator* userAlloc);
 
 #endif

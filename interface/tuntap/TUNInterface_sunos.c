@@ -184,7 +184,7 @@ struct Iface* TUNInterface_new(const char* interfaceName,
 
     close(ipFd);
 
-    struct Pipe* p = Pipe_forFiles(tunFd, tunFd, base, eh, alloc);
+    struct Pipe* p = Pipe_forFiles(tunFd, tunFd, base, eh, logger, alloc);
 
     struct TUNInterface_Illumos_pvt* ctx =
         Allocator_clone(alloc, (&(struct TUNInterface_Illumos_pvt) {

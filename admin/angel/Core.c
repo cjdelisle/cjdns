@@ -211,7 +211,8 @@ static void initTunfd(Dict* args, void* vcontext, String* txid, struct Allocator
         int type = (*tuntype) ? *tuntype : FileNo_Type_NORMAL;
         Log_debug(ctx->logger, "Initializing TUN device from file [%d] type [%s]",
             fileno, (type == FileNo_Type_ANDROID) ? "android" : "normal");
-        struct Pipe* p = Pipe_forFiles(fileno, fileno, ctx->base, &jmp.handler, ctx->alloc);
+        struct Pipe* p = Pipe_forFiles(
+            fileno, fileno, ctx->base, &jmp.handler, ctx->logger, ctx->alloc);
         Log_debug(ctx->logger, "Pipe created");
         p->logger = ctx->logger;
         if (type == FileNo_Type_ANDROID) {

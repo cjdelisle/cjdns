@@ -112,7 +112,7 @@ struct Iface* TUNInterface_new(const char* interfaceName,
         Except_throw(eh, "getting utun interface name [%s]", strerror(err));
     }
 
-    struct Pipe* p = Pipe_forFiles(tunFd, tunFd, base, eh, alloc);
+    struct Pipe* p = Pipe_forFiles(tunFd, tunFd, base, eh, logger, alloc);
 
     struct BSDMessageTypeWrapper* bmtw = BSDMessageTypeWrapper_new(alloc, logger);
     Iface_plumb(&p->iface, &bmtw->wireSide);
