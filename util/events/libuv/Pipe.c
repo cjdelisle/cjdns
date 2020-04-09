@@ -190,6 +190,7 @@ static void incoming(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf)
         //Log_debug(pipe->pub.logger, "Pipe 0 length read [%s]", pipe->pub.fullName);
 
     } else {
+        Log_debug(pipe->pub.logger, "Pipe read [%s] [%d]", pipe->pub.fullName, nread);
         Assert_true(alloc);
         struct Message* m = Allocator_calloc(alloc, sizeof(struct Message), 1);
         m->length = nread;
