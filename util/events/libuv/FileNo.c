@@ -95,8 +95,8 @@ static void incoming(uv_pipe_t* stream,
         struct FileNo_pvt* fileno = Identity_check((struct FileNo_pvt*) stream->data);
         if (fileno->peer.accepted_fd != -1) {
             struct FileNoContext* fctx = (struct FileNoContext*) fileno->pub.userData;
-            Log_info(fileno->pub.logger, "Got TUN file descriptor [%d] cb = [%x]",
-                fileno->peer.accepted_fd, (uintptr_t) (void*) fctx->pub.callback);
+            Log_info(fileno->pub.logger, "Got TUN file descriptor [%d] cb exists [%d]",
+                fileno->peer.accepted_fd, fctx->pub.callback != NULL);
             if (fctx->pub.callback) {
                 fctx->pub.callback(&fctx->pub, fileno->peer.accepted_fd);
             }
