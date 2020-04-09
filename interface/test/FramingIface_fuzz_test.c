@@ -46,7 +46,7 @@ static Iface_DEFUN ifaceRecvMsg(struct Message* message, struct Iface* thisInter
 void CJDNS_FUZZ_MAIN(void* vctx, struct Message* fuzz)
 {
     struct Context* ctx = Identity_check((struct Context*) vctx);
-    if (fuzz->length < 2) { return; }
+    if (fuzz->length <= 2) { return; }
     ctx->messageLen = Message_pop16(fuzz, NULL) % BUF_SZ;
     ctx->buf->length = ctx->messageLen;
     Message_push32(ctx->buf, ctx->messageLen, NULL);
