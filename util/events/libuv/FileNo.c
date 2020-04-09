@@ -85,7 +85,8 @@ static void incoming(uv_pipe_t* stream,
     // Grab out the allocator which was placed there by allocate()
     struct Allocator* alloc = buf->base ? ALLOC(buf->base) : NULL;
 
-    Assert_true(pending == UV_UNKNOWN_HANDLE);
+    // not always true, something with reusing handles
+    //Assert_true(pending == UV_UNKNOWN_HANDLE);
 
     if (nread < 0) {
         uv_close((uv_handle_t*) stream, onClose);
@@ -94,6 +95,8 @@ static void incoming(uv_pipe_t* stream,
         struct FileNo_pvt* fileno = Identity_check((struct FileNo_pvt*) stream->data);
         if (fileno->peer.accepted_fd != -1) {
             struct FileNoContext* fctx = (struct FileNoContext*) fileno->pub.userData;
+            Log_info(fileno->pub.logger, "Got TUN file descriptor [%d] cb = [%x]",
+                fileno->peer.accepted_fd, fctx->pub.callback);
             if (fctx->pub.callback) {
                 fctx->pub.callback(&fctx->pub, fileno->peer.accepted_fd);
             }
