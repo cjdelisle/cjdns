@@ -306,19 +306,7 @@ static void tunInterface(Dict* ifaceConf, struct Allocator* tempAlloc, struct Co
 
     Dict* args = Dict_new(tempAlloc);
     if (tunfd && device) {
-        Dict_putStringC(args, "path", device, tempAlloc);
-        Dict_putStringC(args, "type",
-                       String_new(tunfd->bytes, tempAlloc), tempAlloc);
-        Dict* res = NULL;
-        rpcCall0(String_CONST("FileNo_import"), args, ctx, tempAlloc, &res, false);
-        if (res) {
-            Dict* args = Dict_new(tempAlloc);
-            int64_t* tunfd = Dict_getIntC(res, "tunfd");
-            int64_t* type = Dict_getIntC(res, "type");
-            Dict_putIntC(args, "tunfd", *tunfd, tempAlloc);
-            Dict_putIntC(args, "type", *type, tempAlloc);
-            rpcCall0(String_CONST("Core_initTunfd"), args, ctx, tempAlloc, NULL, false);
-        }
+        Log_warn(ctx->logger, "tunfd is nolonger used, see Admin_importFd() and Core_initTunFd()");
     } else {
         if (device) {
             Dict_putStringC(args, "desiredTunName", device, tempAlloc);
@@ -344,16 +332,12 @@ static void socketInterface(Dict* ifaceConf, struct Allocator* tempAlloc, struct
         exit(1);
     }
 
-    // false by default
-    int64_t attemptToCreate = 0;
-
-    int64_t* socketAttemptToCreate = Dict_getIntC(ifaceConf, "socketAttemptToCreate");
-    if (socketAttemptToCreate && *socketAttemptToCreate) {
-        attemptToCreate = 1;
+    if (Dict_getIntC(ifaceConf, "socketAttemptToCreate")) {
+        Log_warn(ctx->logger, "SocketInterface \"socketAttemptToCreate\" nolonger has any "
+            "effect, you must create the socket from the outside");
     }
 
     Dict_putStringC(args, "socketFullPath", socketFullPath, tempAlloc);
-    Dict_putIntC(args, "socketAttemptToCreate", attemptToCreate, tempAlloc);
     rpcCall0(String_CONST("Core_initSocket"), args, ctx, tempAlloc, NULL, true);
 }
 

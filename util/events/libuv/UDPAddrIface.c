@@ -252,6 +252,16 @@ int UDPAddrIface_setDSCP(struct UDPAddrIface* iface, uint8_t dscp)
     return res;
 }
 
+int UDPAddrIface_getFd(struct UDPAddrIface* iface)
+{
+    struct UDPAddrIface_pvt* context = Identity_check((struct UDPAddrIface_pvt*) iface);
+    int out = -1;
+    #ifndef win32
+        out = context->uvHandle.io_watcher.fd;
+    #endif
+    return out;
+}
+
 int UDPAddrIface_setBroadcast(struct UDPAddrIface* iface, bool enable)
 {
     struct UDPAddrIface_pvt* context = Identity_check((struct UDPAddrIface_pvt*) iface);

@@ -274,7 +274,9 @@ static void mkNextRequest(struct ReachabilityCollector_pvt* rcp)
         if (pi->pub.querying && !pi->waitForResponse) { break; }
     }
     if (!pi || !pi->pub.querying) {
-        Log_debug(rcp->log, "All [%u] peers have been queried", rcp->piList->length);
+        if (rcp->piList->length > 0) {
+            Log_debug(rcp->log, "All [%u] peers have been queried", rcp->piList->length);
+        }
         return;
     }
     if (pi->waitForResponse) {

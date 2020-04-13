@@ -144,6 +144,10 @@ Builder.configure({
             '-Wno-error'
         );
         builder.config.cflags.slice(builder.config.cflags.indexOf('-Werror'), 1);
+    } else {
+        builder.config.cflags.push(
+            '-fdiagnostics-color=always'
+        )
     }
 
     // Install any user-defined CFLAGS. Necessary if you are messing about with building cnacl

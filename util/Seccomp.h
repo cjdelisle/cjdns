@@ -18,8 +18,9 @@
 #include "exception/Except.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
+#include "util/Js.h"
 
-<?js require("../util/Seccomp.js").detect(this.async, file, builder); ?>
+Js({ require("../util/Seccomp.js").detect(this.async, file, builder); })
 
 void Seccomp_dropPermissions(struct Allocator* tempAlloc, struct Log* logger, struct Except* eh);
 

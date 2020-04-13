@@ -55,4 +55,6 @@ int UDPAddrIface_setDSCP(struct UDPAddrIface* iface, uint8_t dscp);
 
 int UDPAddrIface_setBroadcast(struct UDPAddrIface* iface, bool enable);
 
+int UDPAddrIface_getFd(struct UDPAddrIface*);
+
 #endif

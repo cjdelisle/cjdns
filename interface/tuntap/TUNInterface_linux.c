@@ -74,7 +74,7 @@ struct Iface* TUNInterface_new(const char* interfaceName,
         CString_safeStrncpy(assignedInterfaceName, ifRequest.ifr_name, maxNameSize);
     }
 
-    struct Pipe* p = Pipe_forFiles(fileno, fileno, base, eh, logger, alloc);
+    struct Pipe* p = Pipe_forFd(fileno, false, base, eh, logger, alloc);
 
     return &p->iface;
 }

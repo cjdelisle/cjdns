@@ -42,6 +42,8 @@
 #endif
 #include "net/InterfaceController_admin.h"
 #include "interface/addressable/PacketHeaderToUDPAddrIface.h"
+#include "interface/addressable/AddrIfaceMuxer.h"
+#include "interface/tuntap/TUNMessageType.h"
 #include "interface/ASynchronizer.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
@@ -55,8 +57,8 @@
 #include "tunnel/IpTunnel_admin.h"
 #include "tunnel/RouteGen_admin.h"
 #include "util/events/EventBase.h"
-#include "util/events/libuv/FileNo_admin.h"
 #include "util/events/Pipe.h"
+#include "util/events/PipeServer.h"
 #include "util/events/Timeout.h"
 #include "util/Hex.h"
 #include "util/log/FileWriterLog.h"
@@ -121,6 +123,10 @@ struct Context
     struct IpTunnel* ipTunnel;
     struct EncodingScheme* encodingScheme;
     struct GlobalConfig* globalConf;
+
+    struct Iface* tunDevice;
+    struct Allocator* tunAlloc;
+
     Identity
 };
 
@@ -150,19 +156,25 @@ static void sendResponse(String* error,
 }
 
 static void initSocket2(String* socketFullPath,
-                          bool attemptToCreate,
                           struct Context* ctx,
                           uint8_t addressPrefix,
                           struct Except* eh)
 {
     Log_debug(ctx->logger, "Initializing socket: %s;", socketFullPath->bytes);
 
-    struct Iface* rawSocketIf = SocketInterface_new(
-        socketFullPath->bytes, attemptToCreate, ctx->base, ctx->logger, NULL, ctx->alloc);
+    if (ctx->tunDevice) {
+        Iface_unplumb(ctx->tunDevice, &ctx->nc->tunAdapt->tunIf);
+        Allocator_free(ctx->tunAlloc);
+    }
+    ctx->tunAlloc = Allocator_child(ctx->alloc);
 
-    struct SocketWrapper* sw = SocketWrapper_new(ctx->alloc, ctx->logger);
+    struct Iface* rawSocketIf = SocketInterface_new(
+        socketFullPath->bytes, ctx->base, ctx->logger, NULL, ctx->tunAlloc);
+    struct SocketWrapper* sw = SocketWrapper_new(ctx->tunAlloc, ctx->logger);
     Iface_plumb(&sw->externalIf, rawSocketIf);
-    Iface_plumb(&sw->internalIf, &ctx->nc->tunAdapt->tunIf);
+
+    ctx->tunDevice = &sw->internalIf;
+    Iface_plumb(ctx->tunDevice, &ctx->nc->tunAdapt->tunIf);
 
     SocketWrapper_addAddress(&sw->externalIf, ctx->nc->myAddress->ip6.bytes, ctx->logger,
                                 eh, ctx->alloc);
@@ -180,19 +192,63 @@ static void initTunnel2(String* desiredDeviceName,
     char assignedTunName[TUNInterface_IFNAMSIZ];
     char* desiredName = (desiredDeviceName) ? desiredDeviceName->bytes : NULL;
 
-    struct Iface* tun = TUNInterface_new(
-        desiredName, assignedTunName, 0, ctx->base, ctx->logger, eh, ctx->alloc);
+    if (ctx->tunDevice) {
+        Iface_unplumb(&ctx->nc->tunAdapt->tunIf, ctx->tunDevice);
+        Allocator_free(ctx->tunAlloc);
+    }
+    ctx->tunAlloc = Allocator_child(ctx->alloc);
+    ctx->tunDevice = TUNInterface_new(
+        desiredName, assignedTunName, 0, ctx->base, ctx->logger, eh, ctx->tunAlloc);
 
-    Iface_plumb(tun, &ctx->nc->tunAdapt->tunIf);
+    Iface_plumb(ctx->tunDevice, &ctx->nc->tunAdapt->tunIf);
 
     GlobalConfig_setTunName(ctx->globalConf, String_CONST(assignedTunName));
 
     struct Sockaddr* myAddr =
-        Sockaddr_fromBytes(ctx->nc->myAddress->ip6.bytes, Sockaddr_AF_INET6, ctx->alloc);
+        Sockaddr_fromBytes(ctx->nc->myAddress->ip6.bytes, Sockaddr_AF_INET6, ctx->tunAlloc);
     myAddr->prefix = addressPrefix;
     myAddr->flags |= Sockaddr_flags_PREFIX;
     NetDev_addAddress(assignedTunName, myAddr, ctx->logger, eh);
     NetDev_setMTU(assignedTunName, DEFAULT_MTU, ctx->logger, eh);
+}
+
+static void initTunFd0(
+    struct Context* ctx,
+    Dict* args,
+    String* txid,
+    struct Except* eh,
+    struct Allocator* requestAlloc)
+{
+    int64_t* tunfd = Dict_getIntC(args, "tunfd");
+    int64_t* tuntype = Dict_getIntC(args, "type");
+    if (!tunfd || *tunfd < 0) {
+        String* error = String_printf(requestAlloc, "Invalid tunfd");
+        sendResponse(error, ctx->admin, txid, requestAlloc);
+        return;
+    }
+    int fileno = *tunfd;
+    int type = (*tuntype) ? *tuntype : TUNMessageType_guess();
+
+    struct Allocator* tunAlloc = Allocator_child(ctx->alloc);
+    struct Pipe* p = Pipe_forFd(fileno, false, ctx->base, eh, ctx->logger, tunAlloc);
+    struct Iface* iface = NULL;
+    if (type == TUNMessageType_NONE) {
+        struct AndroidWrapper* aw = AndroidWrapper_new(tunAlloc, ctx->logger);
+        Iface_plumb(&aw->externalIf, &p->iface);
+        iface = &aw->internalIf;
+    } else {
+        iface = &p->iface;
+    }
+
+    if (ctx->tunDevice) {
+        Iface_unplumb(&ctx->nc->tunAdapt->tunIf, ctx->tunDevice);
+        Allocator_free(ctx->tunAlloc);
+    }
+    ctx->tunAlloc = tunAlloc;
+    ctx->tunDevice = iface;
+    Iface_plumb(&p->iface, &ctx->nc->tunAdapt->tunIf);
+
+    sendResponse(String_CONST("none"), ctx->admin, txid, requestAlloc);
 }
 
 static void initTunfd(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
@@ -200,29 +256,7 @@ static void initTunfd(Dict* args, void* vcontext, String* txid, struct Allocator
     struct Context* ctx = Identity_check((struct Context*) vcontext);
     struct Jmp jmp;
     Jmp_try(jmp) {
-        int64_t* tunfd = Dict_getIntC(args, "tunfd");
-        int64_t* tuntype = Dict_getIntC(args, "type");
-        if (!tunfd || *tunfd < 0) {
-            String* error = String_printf(requestAlloc, "Invalid tunfd");
-            sendResponse(error, ctx->admin, txid, requestAlloc);
-            return;
-        }
-        int fileno = *tunfd;
-        int type = (*tuntype) ? *tuntype : FileNo_Type_NORMAL;
-        Log_debug(ctx->logger, "Initializing TUN device from file [%d] type [%s]",
-            fileno, (type == FileNo_Type_ANDROID) ? "android" : "normal");
-        struct Pipe* p = Pipe_forFiles(
-            fileno, fileno, ctx->base, &jmp.handler, ctx->logger, ctx->alloc);
-        Log_debug(ctx->logger, "Pipe created");
-        p->logger = ctx->logger;
-        if (type == FileNo_Type_ANDROID) {
-            struct AndroidWrapper* aw = AndroidWrapper_new(ctx->alloc, ctx->logger);
-            Iface_plumb(&aw->externalIf, &p->iface);
-            Iface_plumb(&aw->internalIf, &ctx->nc->tunAdapt->tunIf);
-        } else {
-            Iface_plumb(&p->iface, &ctx->nc->tunAdapt->tunIf);
-        }
-        sendResponse(String_CONST("none"), ctx->admin, txid, requestAlloc);
+        initTunFd0(ctx, args, txid, &jmp.handler, requestAlloc);
     } Jmp_catch {
         Log_debug(ctx->logger, "Failed to create pipe [%s]", jmp.message);
         String* error = String_printf(requestAlloc, "Failed to configure tunnel [%s]", jmp.message);
@@ -255,9 +289,7 @@ static void initSocket(Dict* args, void* vcontext, String* txid, struct Allocato
     struct Jmp jmp;
     Jmp_try(jmp) {
         String* socketFullPath = Dict_getStringC(args, "socketFullPath");
-        bool socketAttemptToCreate = *Dict_getIntC(args, "socketAttemptToCreate");
-        initSocket2(socketFullPath, socketAttemptToCreate, ctx, AddressCalc_ADDRESS_PREFIX_BITS,
-            &jmp.handler);
+        initSocket2(socketFullPath, ctx, AddressCalc_ADDRESS_PREFIX_BITS, &jmp.handler);
     } Jmp_catch {
         String* error = String_printf(requestAlloc, "Failed to configure socket [%s]",
             jmp.message);
@@ -336,7 +368,6 @@ void Core_init(struct Allocator* alloc,
 #ifdef HAS_ETH_INTERFACE
     ETHInterface_admin_register(eventBase, alloc, logger, admin, nc->ifController);
 #endif
-    FileNo_admin_register(admin, alloc, eventBase, logger, eh);
 
     SupernodeHunter_admin_register(spf->snh, admin, alloc);
     ReachabilityCollector_admin_register(spf->rc, admin, alloc);
@@ -381,7 +412,7 @@ void Core_init(struct Allocator* alloc,
     Admin_registerFunction("Core_initSocket", initSocket, ctx, true,
         ((struct Admin_FunctionArg[]) {
             { .name = "socketFullPath", .required = 1, .type = "String" },
-            { .name = "socketAttemptToCreate", .required = 1, .type = "Int" }
+            { .name = "socketAttemptToCreate", .required = 0, .type = "Int" }
         }), admin);
 }
 
@@ -389,7 +420,7 @@ int Core_main(int argc, char** argv)
 {
     struct Except* eh = NULL;
 
-    if (argc != 4) {
+    if (argc != 3) {
         Except_throw(eh, "This is internal to cjdns and shouldn't started manually.");
     }
 
@@ -408,12 +439,13 @@ int Core_main(int argc, char** argv)
     Allocator_setCanary(alloc, (unsigned long)Random_uint64(rand));
 
     struct Allocator* tempAlloc = Allocator_child(alloc);
-    struct Pipe* clientPipe = Pipe_named(argv[2], argv[3], eventBase, eh, tempAlloc);
-    clientPipe->logger = logger;
+    // Not using tempalloc because we're going to keep this pipe around for admin
+    struct PipeServer* clientPipe = PipeServer_named(argv[2], eventBase, eh, logger, alloc);
     Log_debug(logger, "Getting pre-configuration from client");
     struct Message* preConf =
-        InterfaceWaiter_waitForData(&clientPipe->iface, eventBase, tempAlloc, eh);
+        InterfaceWaiter_waitForData(&clientPipe->iface.iface, eventBase, tempAlloc, eh);
     Log_debug(logger, "Finished getting pre-configuration from client");
+    struct Sockaddr* addr = Sockaddr_clone(AddrIface_popAddr(preConf, eh), tempAlloc);
     Dict* config = BencMessageReader_read(preConf, tempAlloc, eh);
 
     String* privateKeyHex = Dict_getStringC(config, "privateKey");
@@ -448,8 +480,13 @@ int Core_main(int argc, char** argv)
     // --------------------- Bind Admin UDP --------------------- //
     struct UDPAddrIface* udpAdmin = UDPAddrIface_new(eventBase, &bindAddr.addr, alloc, eh, logger);
 
+    // ---- Setup a muxer so we can get admin from socket or UDP ---- //
+    struct AddrIfaceMuxer* muxer = AddrIfaceMuxer_new(logger, alloc);
+    Iface_plumb(&udpAdmin->generic.iface, AddrIfaceMuxer_registerIface(muxer, alloc));
+    Iface_plumb(&clientPipe->iface.iface, AddrIfaceMuxer_registerIface(muxer, alloc));
+
     // --------------------- Setup Admin --------------------- //
-    struct Admin* admin = Admin_new(&udpAdmin->generic, logger, eventBase, pass);
+    struct Admin* admin = Admin_new(&muxer->iface, logger, eventBase, pass);
 
     // --------------------- Setup the Logger --------------------- //
     Dict* logging = Dict_getDictC(config, "logging");
@@ -474,10 +511,10 @@ int Core_main(int argc, char** argv)
     // This always times out because the angel doesn't respond.
     struct Message* clientResponse = Message_new(0, 512, tempAlloc);
     BencMessageWriter_write(&response, clientResponse, eh);
-    Iface_CALL(clientPipe->iface.send, clientResponse, &clientPipe->iface);
+    AddrIface_pushAddr(clientResponse, addr, eh);
+    Iface_CALL(clientPipe->iface.iface.send, clientResponse, &clientPipe->iface.iface);
 
     Allocator_free(tempAlloc);
-
 
     Core_init(alloc, logger, eventBase, privateKey, admin, rand, eh, NULL, false);
     EventBase_beginLoop(eventBase);

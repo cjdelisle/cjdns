@@ -13,6 +13,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "util/CString.h"
+#include "util/Bits.h"
 
 #include <string.h>
 
@@ -66,4 +67,12 @@ char* CString_safeStrncpy(char* restrict dest, const char *restrict src, size_t 
     char* ret = strncpy(dest, src, n);
     dest[n - 1] = '\0';
     return ret;
+}
+
+char* CString_strdup(const char* string, struct Allocator* alloc)
+{
+    int len = CString_strlen(string);
+    char* out = Allocator_calloc(alloc, len+1, 1);
+    Bits_memcpy(out, string, len);
+    return out;
 }

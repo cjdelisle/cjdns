@@ -15,6 +15,7 @@
 #ifndef TUNMessageType_H
 #define TUNMessageType_H
 
+#include "util/Defined.h"
 #include "wire/Message.h"
 
 static inline void TUNMessageType_push(struct Message* message,
@@ -30,6 +31,28 @@ static inline uint16_t TUNMessageType_pop(struct Message* message, struct Except
 {
     Message_shift(message, -4, eh);
     return ((uint16_t*) message->bytes)[-1];
+}
+
+enum TUNMessageType {
+    // Ethertype header, used by linux
+    TUNMessageType_ETHERTYPE = 0,
+
+    // No header, used by android and sunos, ipv4 and ipv6 only
+    TUNMessageType_NONE  = 1,
+
+    // address family header, used by BSD
+    TUNMessageType_AF  = 2,
+};
+
+static inline enum TUNMessageType TUNMessageType_guess()
+{
+    if (Defined(android) || Defined(sunos)) {
+        return TUNMessageType_NONE;
+    } else if (Defined(linux) || Defined(win32)) {
+        return TUNMessageType_ETHERTYPE;
+    } else {
+        return TUNMessageType_AF;
+    }
 }
 
 #endif

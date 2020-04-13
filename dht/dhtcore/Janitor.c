@@ -634,7 +634,7 @@ static void maintanenceCycle(void* vcontext)
         // Ping a random link from a random node.
 
     } else {
-        Log_debug(janitor->logger, "Could not find anything to do");
+        //Log_debug(janitor->logger, "Could not find anything to do");
     }
 
     // Try to ping the existing node we have heard from least recently.
@@ -658,11 +658,11 @@ static void maintanenceCycle(void* vcontext)
         //return;
     }
 
-    Log_debug(janitor->logger,
-              "Global Mean Response Time: %u nodes [%d] links [%d]",
-              RouterModule_globalMeanResponseTime(janitor->routerModule),
-              janitor->nodeStore->nodeCount,
-              janitor->nodeStore->linkCount);
+    // Log_debug(janitor->logger,
+    //           "Global Mean Response Time: %u nodes [%d] links [%d]",
+    //           RouterModule_globalMeanResponseTime(janitor->routerModule),
+    //           janitor->nodeStore->nodeCount,
+    //           janitor->nodeStore->linkCount);
 
     if (now > janitor->timeOfNextGlobalMaintainence) {
         //search(addr.ip6.bytes, janitor);

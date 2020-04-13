@@ -315,6 +315,17 @@ static void beacon(Dict* args, void* vcontext, String* txid, struct Allocator* r
     Admin_sendMessage(&out, txid, ctx->admin);
 }
 
+static void getFd(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
+{
+    struct Context* ctx = Identity_check((struct Context*) vcontext);
+    struct UDPInterface* udpif = getIface(ctx, args, txid, requestAlloc, NULL);
+    int fd = UDPInterface_getFd(udpif);
+    Dict* out = Dict_new(requestAlloc);
+    Dict_putIntC(out, "fd", fd, requestAlloc);
+    Dict_putStringCC(out, "error", "none", requestAlloc);
+    Admin_sendMessage(out, txid, ctx->admin);
+}
+
 void UDPInterface_admin_register(struct EventBase* base,
                                  struct Allocator* alloc,
                                  struct Log* logger,
@@ -374,5 +385,10 @@ void UDPInterface_admin_register(struct EventBase* base,
         ((struct Admin_FunctionArg[]) {
             { .name = "interfaceNumber", .required = 0, .type = "Int" },
             { .name = "state", .required = 0, .type = "Int" }
+        }), admin);
+
+    Admin_registerFunction("UDPInterface_getFd", getFd, ctx, true,
+        ((struct Admin_FunctionArg[]) {
+            { .name = "interfaceNumber", .required = 0, .type = "Int" },
         }), admin);
 }

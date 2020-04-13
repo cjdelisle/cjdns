@@ -15,6 +15,7 @@
 #ifndef CString_H
 #define CString_H
 
+#include "memory/Allocator.h"
 #include "util/Gcc.h"
 #include "util/Linker.h"
 Linker_require("util/CString.c");
@@ -54,5 +55,7 @@ char* CString_strcpy(char* restrict dest, const char* restrict src);
 
 Gcc_NONNULL(1,2)
 char* CString_safeStrncpy(char* restrict dest, const char *restrict src, size_t n);
+
+char* CString_strdup(const char* string, struct Allocator* alloc);
 
 #endif

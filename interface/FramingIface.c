@@ -60,8 +60,12 @@ static struct Message* mergeMessage(struct FramingIface_pvt* fi, struct Message*
 
     struct Message* out = Message_new(0, length + REQUIRED_PADDING, fi->frameAlloc);
     Message_push(out, last->bytes, last->length, NULL);
+    out->associatedFd = last->associatedFd;
     for (part = fi->frameParts; part; part = part->next) {
         Message_push(out, part->msg->bytes, part->msg->length, NULL);
+        if (!out->associatedFd) {
+            out->associatedFd = part->msg->associatedFd;
+        }
     }
 
     Assert_true(length <= out->length);
@@ -74,7 +78,7 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* streamIf)
 
     if (fi->bytesRemaining > fi->maxMessageSize) {
         // Oversize message
-Assert_true(0);
+        Assert_ifTesting(0);
         return NULL;
     }
 
@@ -93,7 +97,7 @@ Assert_true(0);
         }
         fi->bytesRemaining -= msg->length;
         Allocator_adopt(fi->frameAlloc, msg->alloc);
-        struct MessageList* parts = Allocator_malloc(fi->frameAlloc, sizeof(struct MessageList));
+        struct MessageList* parts = Allocator_calloc(fi->frameAlloc, sizeof(struct MessageList), 1);
         parts->msg = msg;
         parts->next = fi->frameParts;
         fi->frameParts = parts;
@@ -114,7 +118,7 @@ Assert_true(0);
         fi->bytesRemaining = Endian_bigEndianToHost32(fi->header.length_be);
         if (fi->bytesRemaining > fi->maxMessageSize) {
             // oversize
-Assert_true(0);
+            Assert_ifTesting(0);
             return NULL;
         }
 
@@ -125,6 +129,7 @@ Assert_true(0);
         } else if (fi->bytesRemaining < (uint32_t)msg->length) {
             struct Allocator* alloc = Allocator_child(msg->alloc);
             struct Message* m = Message_new(fi->bytesRemaining, REQUIRED_PADDING, alloc);
+            m->associatedFd = msg->associatedFd;
             Bits_memcpy(m->bytes, msg->bytes, fi->bytesRemaining);
             Message_shift(msg, -fi->bytesRemaining, NULL);
             fi->bytesRemaining = 0;
@@ -135,15 +140,16 @@ Assert_true(0);
         } else {
             fi->frameAlloc = Allocator_child(fi->alloc);
             struct Message* m = Allocator_calloc(fi->frameAlloc, sizeof(struct Message), 1);
+            m->associatedFd = msg->associatedFd;
             m->capacity = m->length = msg->length + 4;
-            m->bytes = Allocator_malloc(fi->frameAlloc, m->length);
+            m->bytes = Allocator_calloc(fi->frameAlloc, m->length, 1);
             m->alloc = fi->frameAlloc;
             Message_shift(m, -m->length, NULL);
             Message_push(m, msg->bytes, msg->length, NULL);
             Message_push(m, fi->header.bytes, 4, NULL);
 
             fi->bytesRemaining -= msg->length;
-            fi->frameParts = Allocator_malloc(fi->frameAlloc, sizeof(struct MessageList));
+            fi->frameParts = Allocator_calloc(fi->frameAlloc, sizeof(struct MessageList), 1);
             fi->frameParts->msg = m;
             fi->frameParts->next = NULL;
         }

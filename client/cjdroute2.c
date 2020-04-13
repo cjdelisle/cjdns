@@ -12,6 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+#define _POSIX_C_SOURCE 200112L
 #include "client/AdminClient.h"
 #include "admin/angel/Core.h"
 #include "admin/angel/InterfaceWaiter.h"
@@ -58,8 +59,16 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <errno.h>
+#include <string.h>
+#include <time.h>
+#include <stdlib.h>
 
 #define DEFAULT_TUN_DEV "tun0"
+
+#ifndef CJD_PACKAGE_VERSION
+    #define CJD_PACKAGE_VERSION "unknown"
+#endif
 
 static int genconf(struct Random* rand, bool eth)
 {
@@ -265,11 +274,7 @@ static int genconf(struct Random* rand, bool eth)
            "        // The interface which is used for connecting to the cjdns network.\n"
            "        \"interface\": {\n"
            "            // The type of interface (only TUNInterface is supported for now)\n"
-           "            \"type\": \"TUNInterface\"\n"
-           "            // The type of tunfd (only \"android\" for now)\n"
-           "            // If \"android\" here, the tunDevice should be used as the pipe path\n"
-           "            // to transfer the tun file description.\n"
-           "            // \"tunfd\" : \"android\"\n");
+           "            \"type\": \"TUNInterface\"\n");
 #ifndef __APPLE__
     printf("\n"
            "            // The name of a persistent TUN device to use.\n"
@@ -290,10 +295,6 @@ static int genconf(struct Random* rand, bool eth)
            "\n"
            "            // The filesystem path to the socket to create or connect to.\n"
            "            \"socketFullPath\": \"/var/run/cjdns.sock\",\n"
-           "\n"
-           "            // If non-zero, we will attempt to create the socket file if it doesn't\n"
-           "            // exist, otherwise we will simply try to connect to an existing socket\n"
-           "            \"socketAttemptToCreate\": 1\n"
            "        },\n"
            "\n");
     printf("        // System for tunneling IPv4 and ICANN IPv6 through cjdns.\n"
@@ -566,6 +567,27 @@ static struct Message* readToMsg(FILE* f, struct Allocator* alloc)
     return out;
 }
 
+static String* getPipePath(Dict* config, struct Allocator* alloc)
+{
+    String* pipePath = Dict_getStringC(config, "pipe");
+    char* pp = (pipePath) ? pipePath->bytes : "cjdroute.sock";
+    if (pp[0] == Pipe_PATH_SEP[0]) {
+        return pipePath;
+    }
+    char* path = Pipe_PATH;
+    if (Defined(android)) {
+        char* t = getenv("TEMP");
+        if (t) {
+            path = t;
+        }
+    }
+    String* out = String_newBinary(NULL,
+        strlen(pp) + strlen(Pipe_PATH_SEP) + strlen(path) + 2, alloc);
+    snprintf(out->bytes, out->len, "%s%s%s", path, Pipe_PATH_SEP, pp);
+    out->len = strlen(out->bytes);
+    return out;
+}
+
 int main(int argc, char** argv)
 {
     #ifdef Log_KEYS
@@ -713,26 +735,26 @@ int main(int argc, char** argv)
 
     // --------------------- Setup Pipes to Angel --------------------- //
     struct Allocator* corePipeAlloc = Allocator_child(allocator);
-    char corePipeName[64] = "client-core-";
-    Random_base32(rand, (uint8_t*)corePipeName+CString_strlen(corePipeName), 31);
-    String* pipePath = Dict_getStringC(config, "pipe");
-    String* path = String_CONST(Pipe_PATH);
-    if (!pipePath) {
-        pipePath = path;
+    String* pipePath = getPipePath(config, corePipeAlloc);
+    if (!Defined(win32)) {
+        // win32 sockets are not files
+        char* lastsep = strrchr(pipePath->bytes, '/');
+        Assert_true(lastsep);
+        *lastsep = '\0';
+        int ret = access(pipePath->bytes, W_OK);
+        *lastsep = '/';
+        if (ret) {
+            Except_throw(eh, "Pipe directory not writable: [%s]", pipePath->bytes);
+        }
+        if (unlink(pipePath->bytes) && (errno != ENOENT)) {
+            Except_throw(eh, "Unable to delete existing pipe at path [%s] err [%s]",
+                pipePath->bytes, strerror(errno));
+        }
     }
-    if (!Defined(win32) && access(pipePath->bytes, W_OK)) {
-        Except_throw(eh, "Pipe directory not writable: [%s]",pipePath->bytes);
-    }
 
-    Assert_ifParanoid(EventBase_eventCount(eventBase) == 0);
-    struct Pipe* corePipe = Pipe_named(pipePath->bytes, corePipeName, eventBase,
-                                       eh, corePipeAlloc);
-    Assert_ifParanoid(EventBase_eventCount(eventBase) == 2);
-    corePipe->logger = logger;
+    char* args[] = { "core", pipePath->bytes, NULL };
 
-    char* args[] = { "core", pipePath->bytes, corePipeName, NULL };
-
-    // --------------------- Spawn Angel --------------------- //
+    // --------------------- Spawn Core --------------------- //
     String* privateKey = Dict_getStringC(config, "privateKey");
 
     char* corePath = Process_getPath(allocator);
@@ -746,6 +768,26 @@ int main(int argc, char** argv)
         Except_throw(eh, "Need to specify privateKey.");
     }
     Process_spawn(corePath, args, eventBase, allocator, onCoreExit);
+
+    // --------------------- Wait for socket ------------------------- //
+    // cycle for up to 1 minute
+    int exists = 0;
+    for (int i = 0; i < 2 * 10 * 60; i++) {
+        if (Pipe_exists(pipePath->bytes, eh)) {
+            exists = 1;
+            break;
+        }
+        // sleep 50ms
+        struct timespec timeout = { 0, 1000000 * 50 };
+        nanosleep(&timeout, NULL);
+    }
+    if (!exists) {
+        Except_throw(eh, "Core did not setup pipe file [%s] within 60 seconds",
+            pipePath->bytes);
+    }
+
+    // --------------------- Connect to socket ------------------------- //
+    struct Pipe* corePipe = Pipe_named(pipePath->bytes, eventBase, eh, logger, allocator);
 
     // --------------------- Pre-Configure Core ------------------------- //
     Dict* preConf = Dict_new(allocator);
@@ -788,7 +830,7 @@ int main(int argc, char** argv)
                      adminBind->bytes);
     }
 
-    Assert_ifParanoid(EventBase_eventCount(eventBase) == 1);
+    //Assert_ifParanoid(EventBase_eventCount(eventBase) == 1);
 
     // --------------------- Configuration ------------------------- //
     Configurator_config(config,

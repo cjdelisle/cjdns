@@ -37,6 +37,13 @@ struct Message
     /** Amount of bytes of storage space available in the message. */
     int32_t capacity;
 
+    /**
+     * When sending/receiving a Message on a unix socket, a file descriptor to attach.
+     * Caviat: In order to maintain backward compatibility with a Message which is
+     * allocated using calloc, file descriptor 0 is referred to by -1
+     */
+    int associatedFd;
+
     #ifdef PARANOIA
         /** This is used inside of Iface.h to support Iface_next() */
         struct Iface* currentIface;
@@ -66,6 +73,28 @@ static inline struct Message* Message_new(uint32_t messageLength,
     out->padding = amountOfPadding;
     out->alloc = alloc;
     return out;
+}
+
+static inline void Message_setAssociatedFd(struct Message* msg, int fd)
+{
+    if (fd == -1) {
+        msg->associatedFd = 0;
+    } else if (fd == 0) {
+        msg->associatedFd = -1;
+    } else {
+        msg->associatedFd = fd;
+    }
+}
+
+static inline int Message_getAssociatedFd(struct Message* msg)
+{
+    if (msg->associatedFd == -1) {
+        return 0;
+    } else if (msg->associatedFd == 0) {
+        return -1;
+    } else {
+        return msg->associatedFd;
+    }
 }
 
 static inline struct Message* Message_clone(struct Message* toClone, struct Allocator* alloc)
@@ -153,31 +182,53 @@ static inline void Message_pop(struct Message* restrict msg,
     }
 }
 
-#define Message_popGeneric(size) \
-    static inline uint ## size ## _t Message_pop ## size (struct Message* msg, struct Except* eh) \
+#define Message_pushH(size) \
+    static inline void Message_push ## size ## h                                          \
+        (struct Message* msg, uint ## size ## _t dat, struct Except* eh)                  \
+    {                                                                                     \
+        Message_push(msg, &dat, (size)/8, eh);                                            \
+    }
+#define Message_popH(size) \
+    static inline uint ## size ## _t Message_pop ## size ## h \
+        (struct Message* msg, struct Except* eh) \
     {                                                                                             \
         uint ## size ## _t out;                                                                   \
         Message_pop(msg, &out, (size)/8, eh);                                                     \
-        return Endian_bigEndianToHost ## size (out);                                              \
+        return out;                                                                               \
     }
 
-Message_popGeneric(8)
-Message_popGeneric(16)
-Message_popGeneric(32)
-Message_popGeneric(64)
-
-
-#define Message_pushGeneric(size) \
-    static inline void Message_push ## size                                               \
-        (struct Message* msg, uint ## size ## _t dat, struct Except* eh)                  \
-    {                                                                                     \
-        uint ## size ## _t x = Endian_hostToBigEndian ## size (dat);                      \
-        Message_push(msg, &x, (size)/8, eh);                                              \
+#define Message_pushBE(size) \
+    static inline void Message_push ## size \
+            (struct Message* msg, uint ## size ## _t dat, struct Except* eh)                      \
+    {                                                                                             \
+        Message_push ## size ## h(msg, Endian_hostToBigEndian ## size (dat), eh);                 \
+    }
+#define Message_pushLE(size) \
+    static inline void Message_push ## size ## le \
+            (struct Message* msg, uint ## size ## _t dat, struct Except* eh)                      \
+    {                                                                                             \
+        Message_push ## size ## h(msg, Endian_hostToLittleEndian ## size (dat), eh);              \
+    }
+#define Message_popBE(size) \
+    static inline uint ## size ## _t Message_pop ## size (struct Message* msg, struct Except* eh) \
+    {                                                                                             \
+        return Endian_bigEndianToHost ## size (Message_pop ## size ## h(msg, eh));                \
+    }
+#define Message_popLE(size) \
+    static inline uint ## size ## _t Message_pop ## size ## le \
+        (struct Message* msg, struct Except* eh) \
+    {                                                                                             \
+        return Endian_littleEndianToHost ## size (Message_pop ## size ## h(msg, eh));             \
     }
 
-Message_pushGeneric(8)
-Message_pushGeneric(16)
-Message_pushGeneric(32)
-Message_pushGeneric(64)
+#define Message_pushPop(size) \
+    Message_pushH(size) Message_popH(size) \
+    Message_pushBE(size) Message_popBE(size) \
+    Message_pushLE(size) Message_popLE(size)
+
+Message_pushPop(8)
+Message_pushPop(16)
+Message_pushPop(32)
+Message_pushPop(64)
 
 #endif

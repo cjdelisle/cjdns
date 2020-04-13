@@ -108,9 +108,6 @@ struct Admin_pvt
     /** non-zero if this session able to receive asynchronous messages. */
     int asyncEnabled;
 
-    /** Length of addresses of clients which communicate with admin. */
-    uint32_t addrLen;
-
     struct Message* tempSendMsg;
 
     Identity
@@ -127,12 +124,14 @@ static void sendMessage(struct Message* message, struct Sockaddr* dest, struct A
 static void sendBenc(Dict* message,
                      struct Sockaddr* dest,
                      struct Allocator* alloc,
-                     struct Admin_pvt* admin)
+                     struct Admin_pvt* admin,
+                     int fd)
 {
     Message_reset(admin->tempSendMsg);
     BencMessageWriter_write(message, admin->tempSendMsg, NULL);
     struct Message* msg = Message_new(0, admin->tempSendMsg->length + 32, alloc);
     Message_push(msg, admin->tempSendMsg->bytes, admin->tempSendMsg->length, NULL);
+    Message_setAssociatedFd(msg, fd);
     sendMessage(msg, dest, admin);
 }
 
@@ -167,49 +166,57 @@ static void clearExpiredAddresses(void* vAdmin)
     Log_debug(admin->logger, "Cleared [%d] expired sessions", count);
 }
 
-/**
- * public function to send responses
- */
-int Admin_sendMessage(Dict* message, String* txid, struct Admin* adminPub)
+static int sendMessage0(Dict* message, String* txid, struct Admin* adminPub, int fd)
 {
     struct Admin_pvt* admin = Identity_check((struct Admin_pvt*) adminPub);
     if (!admin) {
         return 0;
     }
-    Identity_check(admin);
-    Assert_true(txid && txid->len >= admin->addrLen);
+    Assert_true(txid && txid->len >= sizeof(struct Sockaddr));
+    uint16_t addrLen = 0;
+    Bits_memcpy(&addrLen, txid->bytes, 2);
+    Assert_true(txid->len >= addrLen);
 
-    struct Sockaddr_storage addr;
-    Bits_memcpy(&addr, txid->bytes, admin->addrLen);
+    struct Allocator* alloc = NULL;
+    if (admin->currentRequest) {
+        alloc = admin->currentRequest->alloc;
+    } else {
+        alloc = Allocator_child(admin->allocator);
+    }
+    struct Sockaddr* addr = Sockaddr_clone((struct Sockaddr*) txid->bytes, alloc);
 
     // if this is an async call, check if we've got any input from that client.
     // if the client is nresponsive then fail the call so logs don't get sent
     // out forever after a disconnection.
     if (!admin->currentRequest) {
-        struct Sockaddr* addrPtr = (struct Sockaddr*) &addr.addr;
-        int index = Map_LastMessageTimeByAddr_indexForKey(&addrPtr, &admin->map);
+        int index = Map_LastMessageTimeByAddr_indexForKey(&addr, &admin->map);
         uint64_t now = Time_currentTimeMilliseconds(admin->eventBase);
         if (index < 0 || checkAddress(admin, index, now)) {
             return Admin_sendMessage_CHANNEL_CLOSED;
         }
     }
 
-    struct Allocator* alloc = Allocator_child(admin->allocator);
-
     // Bounce back the user-supplied txid.
-    String* userTxid =
-        String_newBinary(&txid->bytes[admin->addrLen], txid->len - admin->addrLen, alloc);
-    if (txid->len > admin->addrLen) {
+    if (txid->len > addr->addrLen) {
+        String* userTxid =
+            String_newBinary(&txid->bytes[addr->addrLen], txid->len - addr->addrLen, alloc);
         Dict_putString(message, TXID, userTxid, alloc);
     }
 
-    sendBenc(message, &addr.addr, alloc, admin);
+    sendBenc(message, addr, alloc, admin, fd);
 
     Dict_remove(message, TXID);
 
-    Allocator_free(alloc);
+    if (!admin->currentRequest) {
+        Allocator_free(alloc);
+    }
 
     return 0;
+}
+
+int Admin_sendMessage(Dict* message, String* txid, struct Admin* adminPub)
+{
+    return sendMessage0(message, txid, adminPub, -1);
 }
 
 static inline bool authValid(Dict* message, struct Message* messageBytes, struct Admin_pvt* admin)
@@ -431,7 +438,9 @@ static void handleMessage(struct Message* message,
     if (err) {
         Log_warn(admin->logger,
                  "Unparsable data from [%s] content: [%s] error: [%s]",
-                 Sockaddr_print(src, alloc), message->bytes, err);
+                 Sockaddr_print(src, alloc),
+                 Hex_print(message->bytes, message->length, alloc),
+                 err);
         return;
     }
 
@@ -451,15 +460,11 @@ static void handleMessage(struct Message* message,
 static Iface_DEFUN receiveMessage(struct Message* message, struct Iface* iface)
 {
     struct Admin_pvt* admin = Identity_containerOf(iface, struct Admin_pvt, iface);
-
-    Assert_ifParanoid(message->length >= (int)admin->addrLen);
-    struct Sockaddr_storage addrStore = { .addr = { .addrLen = 0 } };
-    Message_pop(message, &addrStore, admin->addrLen, NULL);
-
     struct Allocator* alloc = Allocator_child(admin->allocator);
-    admin->currentRequest = message;
+    struct Sockaddr* addrPtr = AddrIface_popAddr(message, NULL);
 
-    handleMessage(message, &addrStore.addr, alloc, admin);
+    admin->currentRequest = message;
+    handleMessage(message, Sockaddr_clone(addrPtr, alloc), alloc, admin);
 
     admin->currentRequest = NULL;
     Allocator_free(alloc);
@@ -511,6 +516,51 @@ void Admin_registerFunctionWithArgCount(char* name,
     }
 }
 
+static void importFd(Dict* args, void* vAdmin, String* txid, struct Allocator* requestAlloc)
+{
+    struct Admin_pvt* admin = Identity_check((struct Admin_pvt*) vAdmin);
+    int fd = admin->currentRequest->associatedFd;
+    Dict* res = Dict_new(requestAlloc);
+    char* error = "none";
+    if (fd < 0) {
+        if (Defined(win32)) {
+            error = "Admin_importFd() does not support win32";
+        } else {
+            error = "file descriptor was not attached to message";
+        }
+    } else {
+        Dict_putIntC(res, "fd", fd, requestAlloc);
+    }
+    Dict_putStringCC(res, "error", error, requestAlloc);
+    Admin_sendMessage(res, txid, &admin->pub);
+}
+
+static void exportFd(Dict* args, void* vAdmin, String* txid, struct Allocator* requestAlloc)
+{
+    struct Admin_pvt* admin = Identity_check((struct Admin_pvt*) vAdmin);
+    int64_t* fd_p = Dict_getIntC(args, "fd");
+    if (!fd_p || *fd_p < 0) {
+        Dict* res = Dict_new(requestAlloc);
+        Dict_putStringCC(res, "error", "invalid fd", requestAlloc);
+        Admin_sendMessage(res, txid, &admin->pub);
+        return;
+    }
+    int fd = *fd_p;
+    Dict* res = Dict_new(requestAlloc);
+    char* error = "none";
+    if (fd < 0) {
+        if (Defined(win32)) {
+            error = "Admin_exportFd() does not support win32";
+        } else {
+            error = "file descriptor was not attached to message";
+        }
+    } else {
+        Dict_putIntC(res, "fd", fd, requestAlloc);
+    }
+    Dict_putStringCC(res, "error", error, requestAlloc);
+    Admin_sendMessage(res, txid, &admin->pub);
+}
+
 struct Admin* Admin_new(struct AddrIface* ai,
                         struct Log* logger,
                         struct EventBase* eventBase,
@@ -522,7 +572,6 @@ struct Admin* Admin_new(struct AddrIface* ai,
     admin->allocator = alloc;
     admin->logger = logger;
     admin->eventBase = eventBase;
-    admin->addrLen = ai->addr->addrLen;
     admin->map.allocator = alloc;
     admin->iface.send = receiveMessage;
     Iface_plumb(&admin->iface, &ai->iface);
@@ -537,6 +586,11 @@ struct Admin* Admin_new(struct AddrIface* ai,
         ((struct Admin_FunctionArg[]) {
             { .name = "page", .required = 0, .type = "Int" }
         }), &admin->pub);
+    Admin_registerFunction("Admin_importFd", importFd, admin, true, NULL, &admin->pub);
+    Admin_registerFunction("Admin_exportFd", exportFd, admin, true,
+        ((struct Admin_FunctionArg[]) {
+        { .name = "fd", .required = 1, .type = "Int" }
+    }), &admin->pub);
 
     return &admin->pub;
 }

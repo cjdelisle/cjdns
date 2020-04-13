@@ -29,7 +29,11 @@ struct Sockaddr
 
     #define Sockaddr_flags_BCAST  1
     #define Sockaddr_flags_PREFIX (1<<1)
-    uint16_t flags;
+    uint8_t flags;
+
+    #define Sockaddr_PLATFORM 0
+    #define Sockaddr_HANDLE 1
+    uint8_t type;
 
     /** Only applies if flags & Sockaddr_flags_PREFIX is true. */
     uint8_t prefix;
@@ -55,6 +59,21 @@ extern const struct Sockaddr* const Sockaddr_LOOPBACK_le;
 #define Sockaddr_LOOPBACK (Endian_isBigEndian() ? Sockaddr_LOOPBACK_be : Sockaddr_LOOPBACK_le)
 
 extern const struct Sockaddr* const Sockaddr_LOOPBACK6;
+
+/**
+ * Parse an internal form of Sockaddr which is used to represent a uint32_t handle.
+ * If the length of the address is not equal to sizeof(struct Sockaddr) or the type is not
+ * Sockaddr_HANDLE then this returns Sockaddr_addrHandle_INVALID.
+ */
+#define Sockaddr_addrHandle_INVALID 0xffffffffu
+uint32_t Sockaddr_addrHandle(const struct Sockaddr* addr);
+
+/**
+ * Create a handle sockaddr from a numeric handle, if handle is equal to
+ * Sockaddr_addrHandle_INVALID then this will trigger an assertion.
+ */
+void Sockaddr_addrFromHandle(struct Sockaddr* addr, uint32_t handle);
+
 
 int Sockaddr_getPrefix(struct Sockaddr* addr);
 

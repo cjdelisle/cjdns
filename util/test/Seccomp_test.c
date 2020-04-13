@@ -12,16 +12,20 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+#include "benc/String.h"
 #include "util/log/FileWriterLog.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
 #include "util/Seccomp.h"
 #include "util/events/EventBase.h"
 #include "util/events/Process.h"
+#include "util/events/PipeServer.h"
 #include "util/events/Pipe.h"
 #include "util/events/Timeout.h"
 #include "util/CString.h"
 #include "crypto/random/Random.h"
+
+#include <unistd.h>
 
 struct Context
 {
@@ -36,25 +40,32 @@ static void childComplete(void* vEventBase)
     EventBase_endLoop((struct EventBase*)vEventBase);
 }
 
-static void onConnectionChild(struct Pipe* p, int status)
+struct ChildCtx
 {
-    // hax
-    struct Allocator* alloc = (struct Allocator*) p->userData;
-    struct Log* logger = p->logger;
+    struct EventBase* base;
+    struct Log* log;
+    struct Pipe* pipe;
+    struct Allocator* alloc;
+    Identity
+};
 
-    Seccomp_dropPermissions(alloc, logger, NULL);
+static void onConnectionChild(struct Pipe* pipe, int status)
+{
+    struct ChildCtx* child = Identity_check((struct ChildCtx*) pipe->userData);
+
+    Seccomp_dropPermissions(child->alloc, child->log, NULL);
     Assert_true(Seccomp_isWorking());
 
-    struct Message* ok = Message_new(0, 512, alloc);
+    struct Message* ok = Message_new(0, 512, child->alloc);
     Message_push(ok, "OK", 3, NULL);
 
     struct Iface iface = { .send = NULL };
-    Iface_plumb(&p->iface, &iface);
+    Iface_plumb(&pipe->iface, &iface);
     Iface_send(&iface, ok);
 
     // just set a timeout long enough that we're pretty sure the parent will get the message
     // before we quit.
-    Timeout_setInterval(childComplete, p->base, 10, p->base, alloc);
+    Timeout_setInterval(childComplete, child->base, 10, child->base, child->alloc);
 }
 
 static void timeout(void* vNULL)
@@ -64,14 +75,16 @@ static void timeout(void* vNULL)
 
 static int child(char* pipeName, struct Allocator* alloc, struct Log* logger)
 {
-    struct EventBase* eb = EventBase_new(alloc);
-    struct Pipe* pipe = Pipe_named(Pipe_PATH, pipeName, eb, NULL, alloc);
-    pipe->onConnection = onConnectionChild;
-    pipe->logger = logger;
-    pipe->userData = alloc;
-
-    Timeout_setTimeout(timeout, eb, 2000, eb, alloc);
-    EventBase_beginLoop(eb);
+    struct ChildCtx* ctx = Allocator_calloc(alloc, sizeof(struct ChildCtx), 1);
+    ctx->base = EventBase_new(alloc);
+    ctx->alloc = alloc;
+    ctx->log = logger;
+    ctx->pipe = Pipe_named(pipeName, ctx->base, NULL, logger, alloc);
+    ctx->pipe->onConnection = onConnectionChild;
+    ctx->pipe->userData = ctx;
+    Identity_set(ctx);
+    Timeout_setTimeout(timeout, ctx->base, 2000, ctx->base, alloc);
+    EventBase_beginLoop(ctx->base);
 
     return 0;
 }
@@ -79,6 +92,8 @@ static int child(char* pipeName, struct Allocator* alloc, struct Log* logger)
 static Iface_DEFUN receiveMessageParent(struct Message* msg, struct Iface* iface)
 {
     struct Context* ctx = Identity_check((struct Context*) iface);
+    // PipeServer pushes a uint32 identifier of the client who sent the message
+    AddrIface_popAddr(msg, NULL);
     Assert_true(msg->length == 3);
     Assert_true(!Bits_memcmp(msg->bytes, "OK", 3));
     EventBase_endLoop(ctx->eventBase);
@@ -102,8 +117,9 @@ int main(int argc, char** argv)
 
     struct EventBase* eb = EventBase_new(alloc);
     struct Random* rand = Random_new(alloc, logger, NULL);
-    char name[32] = {0};
-    Random_base32(rand, (uint8_t*)name, 31);
+    char randName[32] = {0};
+    Random_base32(rand, (uint8_t*)randName, 31);
+    String* name = String_printf(alloc, "%s%scjdns-test-%s", Pipe_PATH, Pipe_PATH_SEP, randName);
 
     struct Context* ctx = Allocator_calloc(alloc, sizeof(struct Context), 1);
     Identity_set(ctx);
@@ -111,17 +127,17 @@ int main(int argc, char** argv)
     ctx->iface.send = receiveMessageParent;
     ctx->eventBase = eb;
 
-    struct Pipe* pipe = Pipe_named(Pipe_PATH, name, eb, NULL, alloc);
-    pipe->logger = logger;
-    Iface_plumb(&ctx->iface, &pipe->iface);
+    struct PipeServer* pipe = PipeServer_named(name->bytes, eb, NULL, logger, alloc);
+    Iface_plumb(&ctx->iface, &pipe->iface.iface);
 
     char* path = Process_getPath(alloc);
-    char* args[] = { "Seccomp_test", "child", name, NULL };
+    char* args[] = { "Seccomp_test", "child", name->bytes, NULL };
 
     Assert_true(!Process_spawn(path, args, eb, alloc, NULL));
 
     Timeout_setTimeout(timeout, NULL, 2000, eb, alloc);
 
     EventBase_beginLoop(eb);
+    unlink(name->bytes);
     return 0;
 }

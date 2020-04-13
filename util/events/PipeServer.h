@@ -12,40 +12,38 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef FileNo_H
-#define FileNo_H
+#ifndef PipeServer_H
+#define PipeServer_H
 
 #include "memory/Allocator.h"
 #include "exception/Except.h"
+#include "interface/addressable/AddrIface.h"
 #include "util/events/EventBase.h"
 #include "util/Linker.h"
-#include "util/log/Log.h"
-Linker_require("util/events/libuv/FileNo.c");
+Linker_require("util/events/libuv/PipeServer.c");
 
-enum FileNo_Type {
-    /** Normal tunfd type, no need other wrapper */
-    FileNo_Type_NORMAL = 0,
+#include <stdbool.h>
 
-    /** Android tunfd, need AndroidWrapper */
-    FileNo_Type_ANDROID
-};
+struct PipeServer;
+typedef void (* PipeServer_callback)(struct PipeServer* p, struct Sockaddr* client);
 
-struct FileNo_Promise;
-struct FileNo_Promise
+struct PipeServer
 {
-    void (* callback)(struct FileNo_Promise* promise,
-                      int fileno);
+    struct AddrIface iface;
+
+    /** The name of the file eg: "/tmp/cjdns_pipe_foo" */
+    const char* const fullName;
+
     void* userData;
-    struct Allocator* alloc;
+
+    PipeServer_callback onConnection;
+    PipeServer_callback onDisconnection;
 };
 
-#define FileNo_PADDING_AMOUNT   512
-#define FileNo_BUFFER_CAP       4000
-
-struct FileNo_Promise* FileNo_import(const char* path,
-                                     struct EventBase* eb,
-                                     struct Except* eh,
-                                     struct Log* logger,
-                                     struct Allocator* alloc);
+struct PipeServer* PipeServer_named(const char* fullPath,
+                                    struct EventBase* eb,
+                                    struct Except* eh,
+                                    struct Log* log,
+                                    struct Allocator* userAlloc);
 
 #endif

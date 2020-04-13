@@ -12,28 +12,27 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef AddrInterface_H
-#define AddrInterface_H
+#ifndef AddrIfaceMuxer_H
+#define AddrIfaceMuxer_H
 
-#include "interface/Interface.h"
-#include "util/platform/Sockaddr.h"
+#include "interface/addressable/AddrIface.h"
+#include "memory/Allocator.h"
+#include "util/log/Log.h"
+#include "util/Linker.h"
+Linker_require("interface/addressable/AddrIfaceMuxer.c");
+
+struct AddrIfaceMuxer
+{
+    struct AddrIface iface;
+};
 
 /**
- * An AddrInterface, short for "Adderssable Interface" is an interface which
- * sends and accepts an address as the header of the messages sent to and
- * recieved from it.
+ * Register an interface with the muxer.
+ * After registering, you will have the interface which you can then interact with.
+ * To unregister, free the allocator which is provided in this function.
  */
-struct AddrInterface
-{
-    /** As a generic interface. */
-    struct Iface generic;
+struct Iface* AddrIfaceMuxer_registerIface(struct AddrIfaceMuxer* muxer, struct Allocator* alloc);
 
-    /**
-     * The address of this node if applicable to the implementation.
-     * addr->addrLen will always tell how many of the first bytes of each
-     * message are reserved for the address.
-     */
-    struct Sockaddr* addr;
-};
+struct AddrIfaceMuxer* AddrIfaceMuxer_new(struct Log* log, struct Allocator* alloc);
 
 #endif

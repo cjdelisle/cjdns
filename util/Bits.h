@@ -143,4 +143,16 @@ static inline void* Bits__memcpy(void* out,
 
 void* Bits_memmem(const void* haystack, size_t haystackLen, const void* needle, size_t needleLen);
 
+static inline uint16_t Bits_get16(uint8_t* bytes)
+{
+    uint16_t x = 0;
+    Bits_memcpy(&x, bytes, 2);
+    return x;
+}
+
+static inline void Bits_put16(uint8_t* bytes, uint16_t num)
+{
+    Bits_memcpy(bytes, &num, 2);
+}
+
 #endif

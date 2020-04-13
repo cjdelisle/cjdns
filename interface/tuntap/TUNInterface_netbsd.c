@@ -88,7 +88,7 @@ struct Iface* TUNInterface_new(const char* interfaceName,
             snprintf(assignedInterfaceName, TUNInterface_IFNAMSIZ, "tun%d", ppa);
         }
     }
-    struct Pipe* p = Pipe_forFiles(tunFd, tunFd, base, eh, logger, alloc);
+    struct Pipe* p = Pipe_forFd(tunFd, false, base, eh, logger, alloc);
 
     struct BSDMessageTypeWrapper* bmtw = BSDMessageTypeWrapper_new(alloc, logger);
     Iface_plumb(&p->iface, &bmtw->wireSide);

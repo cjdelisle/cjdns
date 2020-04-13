@@ -343,6 +343,11 @@ static struct sock_fprog* mkFilter(struct Allocator* alloc, struct Except* eh)
         IFEQ(__NR_madvise, success),
         #endif
 
+        // accept() for PipeServer
+        #ifdef __NR_accept4
+        IFEQ(__NR_accept4, success),
+        #endif
+
         RET(SECCOMP_RET_TRAP),
 
         LABEL(socket),

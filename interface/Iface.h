@@ -138,6 +138,11 @@ static inline Iface_DEFUN Iface_next(struct Iface* iface, struct Message* msg)
  * it directly.
  * If you are calling from a Iface_Callback function, you must not use this function to call
  * the next function with the message passed to you. In that case just call the function directly.
+ *
+ * Why is there code using this weird function rather than simply calling Iface_send() ?
+ * Iface_send() only works when you send to *your* iface which is plumbed to the iface that you want
+ * the data to go to, this macro will be used when you want to bypass the need to create a local
+ * iface and plumb it to the remote one just in order to send one message.
  */
 #ifdef PARANOIA
     #define Iface_CALL(func, msg, ...) \

@@ -314,3 +314,9 @@ int UDPInterface_setDSCP(struct UDPInterface* udpif, uint8_t dscp)
     if (ctx->bcastIf) { return UDPAddrIface_setDSCP(ctx->bcastIf, dscp); }
     return 0;
 }
+
+int UDPInterface_getFd(struct UDPInterface* udpif)
+{
+    struct UDPInterface_pvt* ctx = Identity_check((struct UDPInterface_pvt*) udpif);
+    return UDPAddrIface_getFd(ctx->commIf);
+}

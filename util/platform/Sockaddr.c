@@ -326,3 +326,22 @@ int Sockaddr_compare(const struct Sockaddr* a, const struct Sockaddr* b)
 {
     return Bits_memcmp(a, b, a->addrLen);
 }
+
+uint32_t Sockaddr_addrHandle(const struct Sockaddr* addr)
+{
+    if (addr->addrLen != sizeof(struct Sockaddr) || addr->type != Sockaddr_HANDLE) {
+        return Sockaddr_addrHandle_INVALID;
+    }
+    uint32_t handle;
+    Bits_memcpy(&handle, &((uint8_t*)addr)[4], 4);
+    return handle;
+}
+
+void Sockaddr_addrFromHandle(struct Sockaddr* addr, uint32_t handle)
+{
+    Assert_true(handle != Sockaddr_addrHandle_INVALID);
+    Bits_memset(addr, 0, sizeof(struct Sockaddr));
+    addr->type = Sockaddr_HANDLE;
+    addr->addrLen = sizeof(struct Sockaddr);
+    Bits_memcpy(&((uint8_t*)addr)[4], &handle, 4);
+}

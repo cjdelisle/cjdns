@@ -15,10 +15,11 @@
 #ifndef Pipe_H
 #define Pipe_H
 
-#include "memory/Allocator.h"
 #include "exception/Except.h"
 #include "interface/Iface.h"
+#include "memory/Allocator.h"
 #include "util/events/EventBase.h"
+#include "util/log/Log.h"
 #include "util/Linker.h"
 Linker_require("util/events/libuv/Pipe.c");
 
@@ -31,27 +32,23 @@ struct Pipe
 {
     struct Iface iface;
 
-    /** the name as provided by the user eg: "foo" */
-    const char* const name;
-
     /** The name of the file eg: "/tmp/cjdns_pipe_foo" */
     const char* const fullName;
 
-    /** A pointer to the platform dependent file descriptor or handle. */
-    void* fd;
-
     void* userData;
-
-    struct EventBase* const base;
 
     Pipe_callback onConnection;
     Pipe_callback onClose;
-
-    struct Log* logger;
 };
 
 #define Pipe_PADDING_AMOUNT 512
 #define Pipe_BUFFER_CAP 4000
+
+#ifdef win32
+    #define Pipe_PATH_SEP "\\"
+#else
+    #define Pipe_PATH_SEP "/"
+#endif
 
 #ifndef Pipe_PATH
     #ifdef win32
@@ -63,23 +60,19 @@ struct Pipe
     #endif
 #endif
 
-struct Pipe* Pipe_named(const char* path,
-                        const char* name,
+struct Pipe* Pipe_named(const char* fullPath,
                         struct EventBase* eb,
                         struct Except* eh,
+                        struct Log* log,
                         struct Allocator* userAlloc);
 
-struct Pipe* Pipe_namedConnect(const char* fullPath,
-                               bool attemptToCreate,
-                               struct EventBase* eb,
-                               struct Except* eh,
-                               struct Allocator* userAlloc);
+struct Pipe* Pipe_forFd(int fd,
+                        bool ipc,
+                        struct EventBase* eb,
+                        struct Except* eh,
+                        struct Log* log,
+                        struct Allocator* userAlloc);
 
-struct Pipe* Pipe_forFiles(int inFd,
-                           int outFd,
-                           struct EventBase* eb,
-                           struct Except* eh,
-                           struct Log* logger,
-                           struct Allocator* userAlloc);
+bool Pipe_exists(const char* fullPath, struct Except* eh);
 
 #endif

@@ -114,4 +114,6 @@ List* UDPInterface_getBroadcastAddrs(struct UDPInterface* udpif, struct Allocato
  */
 int UDPInterface_setDSCP(struct UDPInterface* udpif, uint8_t dscp);
 
+int UDPInterface_getFd(struct UDPInterface* udpif);
+
 #endif

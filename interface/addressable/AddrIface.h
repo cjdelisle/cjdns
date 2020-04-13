@@ -17,6 +17,8 @@
 
 #include "interface/Iface.h"
 #include "util/platform/Sockaddr.h"
+#include "exception/Except.h"
+#include "wire/Message.h"
 
 /**
  * An AddrInterface, short for "Adderssable Interface" is an interface which
@@ -37,5 +39,21 @@ struct AddrIface
 
     struct Allocator* alloc;
 };
+
+static inline void AddrIface_pushAddr(
+    struct Message* msg,
+    struct Sockaddr* addr,
+    struct Except* eh)
+{
+    Message_push(msg, addr, addr->addrLen, eh);
+}
+
+static inline struct Sockaddr* AddrIface_popAddr(struct Message* msg, struct Except* eh)
+{
+    struct Sockaddr* out = (struct Sockaddr*) msg->bytes;
+    uint16_t len = Message_pop16h(msg, eh);
+    Message_pop(msg, NULL, len - 2, eh);
+    return out;
+}
 
 #endif

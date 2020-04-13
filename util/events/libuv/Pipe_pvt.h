@@ -12,26 +12,20 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef FileNo_admin_H
-#define FileNo_admin_H
+#ifndef Pipe_pvt_H
+#define Pipe_pvt_H
 
-#include "admin/Admin.h"
-#include "memory/Allocator.h"
-#include "util/log/Log.h"
-#include "util/events/EventBase.h"
-#include "util/events/FileNo.h"
+#include "util/events/libuv/UvWrapper.h"
+#include "util/events/Pipe.h"
 #include "util/Linker.h"
-Linker_require("util/events/libuv/FileNo_admin.c");
+Linker_require("util/events/libuv/Pipe.c");
 
-struct FileNo_admin
-{
-    void* userData;
-};
+#include <stdbool.h>
 
-void FileNo_admin_register(struct Admin* admin,
-                           struct Allocator* alloc,
-                           struct EventBase* base,
-                           struct Log* logger,
-                           struct Except* eh);
-
+struct Pipe* Pipe_serverAccept(uv_pipe_t* server,
+                               const char* pipeName,
+                               struct EventBase* eb,
+                               struct Except* eh,
+                               struct Log* log,
+                               struct Allocator* userAlloc);
 #endif
