@@ -9,12 +9,12 @@
 [Español](README_ES.md)
 [Français](README_FR.md)
 
-#### *Networking Reinvented*
+#### *Rede Reinventada*
 
-Cjdns implements an encrypted IPv6 network using public-key cryptography for
-address allocation and a distributed hash table for routing. This provides
-near-zero-configuration networking, and prevents many of the security and
-scalability issues that plague existing networks.
+O Cjdns implementa uma rede IPv6 criptografada usando criptografia de chave pública para
+alocação de endereços e uma tabela de hash distribuída para roteamento. Isso fornece
+rede de configuração quase zero e evita muitos dos aspectos de segurança e
+problemas de escalabilidade que afetam as redes existentes.
 
 [![Build Status](https://api.travis-ci.org/cjdelisle/cjdns.svg?branch=master)](https://travis-ci.org/cjdelisle/cjdns)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/387/badge)](https://bestpractices.coreinfrastructure.org/projects/387)
@@ -22,7 +22,7 @@ scalability issues that plague existing networks.
 [![irc](https://img.shields.io/badge/irc%20chat-%23cjdns-blue.svg)](https://kiwiirc.com/client/irc.efnet.org/?nick=visitor|?#cjdns)
 ![License](https://img.shields.io/github/license/cjdelisle/cjdns.svg)
 
-## Testimonials
+## Depoimentos
 
     23:26 <@jercos> well, cjdns is now officially more reliable than the open
                     internet for getting to my cheaper VPSes :|
@@ -49,70 +49,70 @@ scalability issues that plague existing networks.
 
     <davidar> Yeah, I have to admit I sort of avoided hypeirc because of stuff like that
 
-## Community
+## Comunidade
 
 * [irc://irc.efnet.org/#cjdns][IRC Web]
-* [Hyperboria][] the largest cjdns network, as of October 2015 there are 2100 nodes.
+* [Hyperboria][] a maior rede de cjdns, em outubro de 2015, havia 2100 nós.
 * [/r/darknetplan][]
-* [#cjdns on Twitter][]
+* [#cjdns no Twitter][]
 * [/r/CJDNS](https://www.reddit.com/r/cjdns/)
 
 
-## Documentation
+## Documentação
 
-* [Project Goals](doc/projectGoals.md)
+* [Objetivos do projeto](doc/projectGoals.md)
 * [Cjdns Whitepaper](doc/Whitepaper.md)
-* [Cjdns on Wikipedia][]
+* [Cjdns na Wikipedia][]
 
-Advanced configuration:
+Configuração avançada:
 
-* [Setup a cjdns NAT gateway for your LAN](doc/nat-gateway.md)
-* [Install cjdns on OpenIndiana](doc/open-indiana.md)
+* [Configure um gateway NAT cjdns para sua LAN](doc/nat-gateway.md)
+* [Instale cjdns no OpenIndiana](doc/open-indiana.md)
 
-Thank you for your time and interest,
+Obrigado por seu tempo e interesse,
 
-The cjdns developers.
+Os desenvolvedores do cjdns.
 
 --------------------------------------------------------------------------------
 
-## How to install cjdns
+## Como instalar o cjdns
 
-These instructions are for Debian-based Linux distributions and macOS. They should be
-informative enough for use on other distributions - just don't expect them to
-work verbatim. If you want to know what [operating system's base is go here](https://upload.wikimedia.org/wikipedia/commons/1/1b/Linux_Distribution_Timeline.svg).
+Estas instruções são para distribuições Linux baseadas no Debian e macOS. Eles deveriam ser
+informativo o suficiente para uso em outras distribuições - apenas não espere que
+trabalhar literalmente. Se você quer saber qual é a [base do sistema operacional, clique aqui](https://upload.wikimedia.org/wikipedia/commons/1/1b/Linux_Distribution_Timeline.svg).
 
-### 0. Install dependencies
+### 0. Instalar dependências
 
-On both platforms, installing [Node.js](https://nodejs.org/), although preferable,
-is not strictly necessary. If Node.js is unavailable or an unacceptable version,
-it will be downloaded and installed in the source tree.
+Nas duas plataformas, a instalação do [Node.js] (https://nodejs.org/), embora seja preferível,
+não é estritamente necessário. Se o Node.js estiver indisponível ou uma versão inaceitável,
+ele será baixado e instalado na árvore de origem.
 
-#### Debian-based distro:
+#### Distribuição baseada no Debian:
 
     sudo apt-get install nodejs git build-essential python2.7
 
-#### Fedora 22+ based distro:
+#### Distro baseado no Fedora 22+:
 
     sudo dnf install nodejs git
     sudo dnf install @development-tools
 
-#### RHEL based distro (adds the EPEL repo):
+#### Distribuição baseada em RHEL (adiciona o repositório EPEL):
 
     sudo yum localinstall https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
     sudo yum install nodejs git
     sudo yum install @development-tools
 
-#### Building from package:
+#### Construção a partir do pacote:
 
     sudo yum localinstall https://kojipkgs.fedoraproject.org//packages/cjdns/17.4/4.el6/src/cjdns-17.4-4.el6.src.rpm
 
-If you are on a laptop and suspend or hibernate it, cjdroute will take a few
-minutes to make coffee and figure out what just happened when it wakes up.  You
-can speed this up dramatically with:
+Se você estiver em um laptop e o suspender ou hibernar, o cjdroute levará alguns
+minutos para fazer café e descobrir o que aconteceu quando acorda. Vocês
+pode acelerar drasticamente isso com:
 
     systemctl enable cjdns-resume
 
-The resume service restarts cjdns when the system wakes up from sleep.
+O serviço de reinicialização reinicia o cjdns quando o sistema acorda do modo de suspensão.
 
 #### Gentoo
 
@@ -120,11 +120,11 @@ The resume service restarts cjdns when the system wakes up from sleep.
 
 #### macOS:
 
-Install with [Homebrew](https://brew.sh/):
+Instale com [Homebrew](https://brew.sh/):
 
     brew install cjdns
 
-Install with [MacPorts](https://www.macports.org/):
+Instale com [MacPorts](https://www.macports.org/):
 
     sudo port install cjdns
 
@@ -132,199 +132,188 @@ Install with [MacPorts](https://www.macports.org/):
 
     pkg_add git node gcc gmake bash
 
-Select version gcc-4.8.1p2 or more recent.
+Selecione a versão gcc-4.8.1p2 ou mais recente.
 
 #### FreeBSD:
 
-Everything you need is available prebuild in FreeBSD' ports.
+Tudo o que você precisa está disponível pré-compilado nas portas do FreeBSD.
 
     pkg install gmake node
 
 #### Arch:
 
-You can install cjdns by running:
+Você pode instalar cjdns executando:
 
     pacman -S cjdns
 
-If you need to build from source, everything you need can be installed like this:
+Se você precisa construir a partir do código-fonte, tudo o que você precisa pode ser instalado assim:
 
     pacman -S nodejs git base-devel
 
-Alternatively, you may like to install via AUR from the package, `cjdns-git`.
-After Installation, The configuration file is located at `/etc/cjdroute.conf`.
-To start the service `cjdns.service`, do:
+Como alternativa, você pode instalar via AUR a partir do pacote, `cjdns-git`.
+Após a instalação, o arquivo de configuração está localizado em `/etc/cjdroute.conf`.
+Para iniciar o serviço `cjdns.service`, faça:
 
     systemctl start cjdns
 
-To stop it:
+Para parar:
 
     systemctl stop cjdns
 
 #### Gentoo:
 
-cjdns is not yet in the main Gentoo repository, so you will have to use an overlay.
-The easiest way is to use Layman but you can do it by hand, too.
+O cjdns ainda não está no repositório principal do Gentoo, então você terá que usar uma sobreposição.
+A maneira mais fácil é usar o Layman, mas você também pode fazê-lo manualmente.
 
 ##### Layman:
 
-First, you need to install layman.
+Primeiro, você precisa instalar layman.
 
     emerge layman
 
-If layman is installed correctly, you can add the overlay
+Se o layman estiver instalado corretamente, você poderá adicionar a sobreposição
 
     layman -f
     layman -a weuxel
 
-For future update of the overlay use
+Para atualização futura da sobreposição, use
 
     layman -S
 
-Now you can install cjdns
+Agora você pode instalar o cjdns
 
     emerge cjdns
 
-##### By hand:
+##### À mão:
 
-You will have to clone the overlay repository
+Você precisará clonar o repositório de sobreposições
 
     cd /opt
     git clone https://github.com/Weuxel/portage-weuxel.git
 
-Now tell portage to use this repo
+Agora diga ao portage para usar este repositório
 
     cd /etc/portage/repos.conf/
 
-Create a file `portage-weuxel.conf` containing
+Crie um arquivo `portage-weuxel.conf` contendo
 
     [weuxel]
     location = /opt/portage-weuxel
     masters = gentoo
     auto-sync = yes
 
-Now sync
+Agora sincronize
 
     emerge --sync
 
-And install cjdns
+E instale cjdns
 
     emerge cjdns
 
-#### Automatic crash detection and restart
+#### Detecção e reinício automáticos de falhas
 
-Copy the the openrc init script from `contrib/openrc` to `/etc/init.d/` and modify the `CONFFILE` and `command` parameter to your needs.
-Then start cjdns by issuing
+Copie o script init openrc de `contrib/openrc` para `/etc/init.d/` e modifique o `CONFFILE` e `command` parâmetro para suas necessidades.
+Em seguida, inicie o cjdns emitindo
 
     /etc/init.d/cjdns start
 
-Configure the init system to autostart cjdns
+Configure o sistema init para iniciar automaticamente cjdns
 
     rc-update add cjdns default
 
-Copy the service_restart script `contrib/gentoo/service_restart.sh` to any convenient directory on
-your system and modify the eMail address. If you do not wish to be notified, comment out the whole line.
-Now add a crontab entry like this
+Copie o script service_restart `contrib/gentoo/service_restart.sh` para qualquer diretório conveniente em
+seu sistema e modifique o endereço de e-mail. Se você não deseja ser notificado, comente toda a linha.
+Agora adicione uma entrada crontab como esta
 
     # Restart crashed Services
     * * * * *       root	/path/to/script/service_restart.sh
 
 #### Solus:
 
-Dependencies:
+Dependências:
 
     sudo eopkg install nodejs git build-essential system.devel python gcc binutils kernal-headers xorg-server-devel
 
-Then Follow the steps below:
+Siga as etapas abaixo:
 
-*Sorry for so many steps. A package is being worked on currently*
+* Desculpe por tantas etapas. Um pacote está sendo trabalhado atualmente *
 
-##### 1. Retrieve cjdns from GitHub
+##### 1. Recuperar cjdns do GitHub
 
-Clone the repository from GitHub and change to the source directory:
+Clone o repositório do GitHub e mude para o diretório de origem:
 
     git clone https://github.com/cjdelisle/cjdns.git cjdns
     cd cjdns
 
-##### 2. Build
+##### 2. Construir
 
     ./do
 
-Look for `Build completed successfully, type ./cjdroute to begin setup.`, then
-proceed below:
+Procure por `Build completed successfully, type ./cjdroute to begin setup.`e, em seguida,
+prossiga abaixo:
 
 --------------------------------------------------------------------------------
 
-## Setup
+## Configuração
 
-Run cjdroute without options for HELP:
+Execute cjdroute sem opções para HELP:
 
     ./cjdroute
 
-### 0. Make sure you've got the stuff.
+### 0. Verifique se você tem as coisas.
 
-If you're on macOS, don't worry about this step.
+Se você estiver no macOS, não se preocupe com esta etapa.
 
     LANG=C cat /dev/net/tun
 
-If it says: `cat: /dev/net/tun: File descriptor in bad state` Good!
+Se diz: `cat: /dev/net/tun: File descriptor in bad state` Bom!
 
-If it says: `cat: /dev/net/tun: No such file or directory`, create it using:
+Se diz: `cat: /dev/net/tun: No such file or directory`, crie usando:
 
     sudo mkdir -p /dev/net &&
     sudo mknod /dev/net/tun c 10 200 &&
     sudo chmod 0666 /dev/net/tun
 
-Then `cat /dev/net/tun` again.
+Então `cat /dev/net/tun` novamente.
 
-If it says: `cat: /dev/net/tun: Permission denied` You're probably using a VPS
-based on the OpenVZ virtualization platform. Ask your provider to enable the
-TUN/TAP device - this is standard protocol so they should know exactly what you
-need.
+Se diz: `cat: /dev/net/tun: Permission denied` Você provavelmente está usando um VPS
+com base na plataforma de virtualização OpenVZ. Peça ao seu provedor para ativar o
+Dispositivo TUN / TAP - este é o protocolo padrão para que eles saibam exatamente o que você
+necessita.
 
 
-### 1. Generate a new configuration file
+### 1. Gere um novo arquivo de configuração
 
     ./cjdroute --genconf >> cjdroute.conf
 
-**Protect your conf file!**
+**Proteja seu arquivo conf!**
 
-A lost conf file means you lost your password and
-connections and anyone who connected to you will no longer be able to connect.
-A compromised conf file means that other people can impersonate you on the
-network.
+Um arquivo conf perdido significa que você perdeu sua senha e
+conexões e qualquer pessoa conectada a você não poderá mais se conectar.
+Um arquivo conf comprometido significa que outras pessoas podem se passar por você na rede.
 
-To generate a conf file with permissions set so that only your user can
-read it and write to it:
+Para gerar um arquivo conf com permissões definidas, para que somente seu usuário possa lê-lo e gravá-lo:
 
     (umask 077 && ./cjdroute --genconf > cjdroute.conf)
 
 
-### 2. Find a friend
+### 2. Encontre um amigo
 
-To get into an existing network (e.g. Hyperboria), you need to connect to
-someone who is already in the network. This is required for a number of
-reasons:
+Para entrar em uma rede existente (por exemplo, Hyperboria), você precisa se conectar a alguém que já esteja na rede. Isso é necessário por vários motivos:
 
-1. It helps prevent abuse because bad people will be less likely to abuse a
-   system after they were, in an act of human kindness, given access to that
-   system.
-2. This is not intended to overlay The Old Internet, it is intended to replace
-   it. Each connection will in due time be replaced by a wire, a fiber optic
-   cable, or a wireless network connection.
-3. In any case of a disagreement, there will be a "chain of friends" linking
-   the people involved so there will already be a basis for coming to a
-   resolution.
+1. Ajuda a evitar abusos, porque as pessoas más terão menos probabilidade de abusar de um sistema depois de terem, em um ato de bondade humana, acesso a esse sistema.
+2. Não se destina a sobrepor a Internet antiga, mas a substituí-la. No momento oportuno, cada conexão será substituída por um fio, um cabo de fibra ótica ou uma conexão de rede sem fio.
+3. Em qualquer caso de desacordo, haverá uma "cadeia de amigos" ligando as pessoas envolvidas, para que já haja uma base para chegar a uma resolução.
 
-To find a friend, get out there and join our [community](#community). Also, have
-a look at the [Hyperboria Map](https://www.fc00.org/) to find peers near you.
+Para encontrar um amigo, vá lá e participe de nossa [comunidade] (# comunidade). Além disso, dê uma olhada no [Mapa da Hyperboria] (https://www.fc00.org/) para encontrar colegas perto de você.
 
-You can also use the geographically assorted list of public peering credentials for joining Hyperboria at [hyperboria/peers](https://github.com/hyperboria/peers).
+Você também pode usar a lista geograficamente variada de credenciais de emparelhamento público para ingressar no Hyperboria em [hyperboria / peers] (https://github.com/hyperboria/peers).
 
-### 3. Connect your node to your friend's node
+### 3. Conecte seu nó ao nó do seu amigo
 
-**To initiate the connection OUTbound**
+**Para iniciar a conexão OUTbound**
 
-In your conf file, you will see:
+No seu arquivo conf, você verá:
 
 ``` javascript
 // Nodes to connect to.
@@ -335,7 +324,7 @@ In your conf file, you will see:
 }
 ```
 
-A conf file with multiple friend-nodes, setup OUTbound, should look like:
+Um arquivo conf com vários nós amigos, configuração OUTbound, deve se parecer com:
 
 ``` javascript
 // Nodes to connect to.
@@ -359,13 +348,13 @@ A conf file with multiple friend-nodes, setup OUTbound, should look like:
 }
 ```
 
-You can add as many connections as you want to the `connectTo` attribute,
-following JSON syntax.
+Você pode adicionar quantas conexões desejar ao atributo `connectTo`,
+seguindo a sintaxe JSON.
 
 
-**To allow your friend to initiate the connection INbound**
+**Para permitir que seu amigo inicie a conexão INbound**
 
-In your conf file, you will see:
+No seu arquivo conf, você verá:
 
 ``` javascript
 "authorizedPasswords":
@@ -384,7 +373,7 @@ In your conf file, you will see:
 ],
 ```
 
-A conf file with multiple friend-nodes, setup INbound, should look like:
+Um arquivo conf com vários nós amigos, configuração INbound, deve se parecer com:
 ``` javascript
 "authorizedPasswords":
 [
@@ -404,19 +393,19 @@ A conf file with multiple friend-nodes, setup INbound, should look like:
 ```
 
 
-You need to give William Jevons (who is making the INbound connection) the following 4 items:
+Você precisa fornecer a William Jevons (que está fazendo a conexão de entrada) os seguintes 4 itens:
 
-1. Your external IPv4
-2. The port found in your conf file here:
+1. Seu IPv4 externo
+2. A porta encontrada no seu arquivo conf aqui:
 
     `// Bind to this port.
     "bind": "0.0.0.0:yourportnumberishere",`
 
-3. Their unique password that you uncommented or created: `"password": "thisisauniquestring_002"`
-4. Your public key: `"publicKey": "thisisauniqueKEY_001.k"`
-5. His username: "William Jevons"
+3. A senha exclusiva deles que você descomentou ou criou: `"password": "thisisauniquestring_002"`
+4. Sua chave pública: `"publicKey": "thisisauniqueKEY_001.k"`
+5. O nome de usuário dele: "William Jevons"
 
-His login credentials will look something like this (with your IPv4 and port):
+Suas credenciais de login terão a seguinte aparência (com seu IPv4 e porta):
 
 ```javascript
 "1.2.3.4:56789": {
@@ -426,100 +415,90 @@ His login credentials will look something like this (with your IPv4 and port):
 }
 ```
 
-Please note that you and your friend can *initiate* a
-connection either outbound (from YOU --> FRIEND) or inbound (from FRIEND --> YOU)
-but traffic flows both ways once the connection is established.
+Observe que você e seu amigo podem * iniciar * uma conexão de saída (de VOCÊ -> AMIGO) ou de entrada (de AMIGO -> VOCÊ), mas o tráfego flui para os dois lados quando a conexão é estabelecida.
 
-See [doc/configure.md](doc/configure.md) for more details on configuration,
-including how to peer with other cjdns nodes over ethernet and wifi.
+Consulte [doc/configure.md](doc/configure.md) para obter mais detalhes sobre configuração,
+incluindo como fazer pares com outros nós cjdns por Ethernet e Wi-Fi.
 
 
-### 4. Secure your system - check for listening services
+### 4. Proteja seu sistema - verifique se há serviços de escuta
 
-Once your node is running, you're now a newly minted IPv6 host. Your operating
-system may automatically reconfigure network services to use this new address.
-If this is not what you intend, you should check to see that you are not
-offering more services than you intended to. ;)
+Depois que o nó estiver em execução, você será um host IPv6 recém-criado. Seu sistema operacional pode reconfigurar automaticamente os serviços de rede para usar esse novo endereço.
+Se não é isso que você pretende, verifique se não está
+oferecendo mais serviços do que você pretendia. ;)
 
-See [doc/network-services.md](doc/network-services.md) for instructions.
+Consulte [doc/network-services.md](doc/network-services.md) para obter instruções.
 
 
-### 5. Start it up!
+### 5. Iniciar!
 
     sudo ./cjdroute < cjdroute.conf
 
-If you want to have your logs written to a file:
+Se você deseja que seus logs sejam gravados em um arquivo:
 
     sudo ./cjdroute < cjdroute.conf > cjdroute.log
 
-To stop cjdns:
+Para parar cjdns:
 
     sudo killall cjdroute
 
-If you are having problems use `killall cjdroute` to return to sanity. Use
-`pgrep cjdroute` or `top` to see if it running.
+Se você estiver tendo problemas, use `killall cjdroute` para retornar à sanidade. Use
+`pgrep cjdroute` ou `top` para ver se está rodando.
 
-**NOTE!**
+**NOTA!**
 
-This starts cjdns as the root user so it can configure your system
-without concern for permissions. To start cjdns as a non-root user, see
+Isso inicia o cjdns como usuário root, para que ele possa configurar seu sistema sem se preocupar com permissões. Para iniciar o cjdns como um usuário não root, consulte
 [doc/non-root-user.md](doc/non-root-user.md).
 
 
-### 6. Get in IRC
+### 6. Entre no IRC
 
-Welcome to the network! You're now a network administrator. There are
-responsibilities which come with being a network administrator which include
-being available in case there is something wrong with your equipment. You should
-stay on [IRC](#community) so that people can reach you.
+Bem-vindo à rede! Agora você é um administrador de rede. Existem responsabilidades inerentes ao administrador da rede, que incluem a disponibilidade, caso haja algo errado com o seu equipamento. Você deve permanecer no [IRC](#community) para que as pessoas possam alcançá-lo.
 
+## Interface de administração
 
-## Admin interface
+Quando o cjdroute estiver em funcionamento, a interface administrativa estará disponível em
+`udp://localhost:11234` (isso pode ser alterado no arquivo de configuração `cjdroute.conf`). Consulte [doc/admin-api.md](doc/admin-api.md) para mais
+informações sobre a interface de administração. Existem várias ferramentas no `contrib/`
+que pode interagir com ele.
 
-When cjdroute is up and running, the admin interface will be available at
-`udp://localhost:11234` (this can be changed in the `cjdroute.conf`
-configuration file). See [doc/admin-api.md](doc/admin-api.md) for more
-information about the admin interface. There are several tools in `contrib/`
-that can interact with it.
+Você pode acessar a API do administrador com:
 
-You can access the admin API with:
-
-* the **Python library**; see [here](contrib/python/README.md).
-* the **Perl library**, maintained by Mikey; see [here](contrib/perl/CJDNS/README).
+* o **Python library**; consulte [aqui](contrib/python/README.md).
+* o **Perl library**, mantido por Mikey; consulte [aqui](contrib/perl/CJDNS/README).
 
 
-## Reporting issues
-1. Don't report in this repo, please instead report it at https://github.com/hyperboria/bugs/issues
-2. Get on IRC and talk to somebody
-3. What will happen is either
- * Someone feels like fixing it
- * You feel like fixing it
- * Nobody cares about it and it will be forgotten for a while and maybe someone will hit it later
- and fix it or else it will get wiped away in a refactoring
- * Nobody can fix it at the moment but it is considered worth remembering because it has great
- significance to the way the code is developed, in this case it needs to be explained in technical
- terms by someone with strong familiarity with the code. They will make a pull request to the
- docs/bugs directory.
+## Relatar problemas
+1. Não reporte neste repositório, em vez disso, https://github.com/hyperboria/bugs/issues
+2. Entre no IRC e converse com alguém
+3. O que vai acontecer é
+  * Alguém quer consertar
+  * Você quer consertá-lo
+  * Ninguém se importa com isso e será esquecido por um tempo e talvez alguém o acerte mais tarde
+  e conserte-o, caso contrário ele será apagado em uma refatoração
+  * Ninguém pode consertá-lo no momento, mas é considerado digno de lembrança, porque possui ótimas
+  importante para a maneira como o código é desenvolvido, nesse caso, ele precisa ser explicado em detalhes técnicos.
+  termos por alguém com forte familiaridade com o código. Eles farão uma solicitação de recebimento para o
+  diretório docs/bugs.
 
-### Security
-Security issues should be reported on IRC the same as other bugs. We don't have a closed
-group of people with special knowledge so that means the default security reporting method is
-full disclosure.
+### Segurança
+Os problemas de segurança devem ser relatados no IRC da mesma forma que outros bugs. Não temos um fechado
+grupo de pessoas com conhecimentos especiais, o que significa que o método padrão de relatório de segurança é
+transparência completa.
 
-See: [security_specification.md](https://github.com/cjdelisle/cjdns/blob/master/doc/security_specification.md) to see if a
-possible security issue is really a security issue.
+Consulte: [security_specification.md](https://github.com/cjdelisle/cjdns/blob/master/doc/security_specification.md) para ver se um possível problema de segurança é realmente um problema de segurança.
 
-That time of year again... Time for some open source Projects!
+Naquela época do ano novamente ... Hora de alguns projetos de código aberto!
 [![Hacktoberfest](https://img.shields.io/badge/Open%20Source-Hacktoberfest-orange.svg)](https://hacktoberfest.digitalocean.com/)
 
 [IRC Web]: http://chat.efnet.org/irc.cgi?chan=%23cjdns
 [Hyperboria]: https://hyperboria.net
 [/r/darknetplan]: https://www.reddit.com/r/darknetplan
-[#cjdns on Twitter]: https://twitter.com/hashtag/cjdns
+[#cjdns no Twitter]: https://twitter.com/hashtag/cjdns
 [Hyperboria Map]: https://www.fc00.org/
 [Buildbots]: https://buildbot.meshwith.me/cjdns/waterfall
 
-[Cjdns on Wikipedia]: https://en.wikipedia.org/wiki/Cjdns
+[Cjdns na Wikipedia]: https://en.wikipedia.org/wiki/Cjdns
 [Distributed Hash Table]: https://en.wikipedia.org/wiki/Distributed_hash_table
 [Beyond Pain]: https://lists.torproject.org/pipermail/tor-dev/2012-October/004063.html
 [Kademlia]: https://en.wikipedia.org/wiki/Kademlia
