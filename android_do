@@ -5,7 +5,19 @@
 # ./android_do
 die() { echo "Error: $1"; exit 1; }
 need() { which "$1" >/dev/null 2>/dev/null || die "Missing $1"; }
-echo which wget git make patch find unzip ls uname pwd mkdir rm | while read x; do need $x; done
+need which
+need wget
+need git
+need make
+need patch
+need find
+need unzip
+need ls
+need uname
+need pwd
+need mkdir
+need rm
+need time
 
 #change this to valid ndk path, otherwise it will be downloaded
 BUILD_PATH=$(pwd)/build_android
@@ -31,7 +43,7 @@ elif test "x$TYPE" = xlinux; then
   CJDNS_NDK_PATH_HINT=`echo $HOME/Android/Sdk/ndk/* | tail -1`
 fi
 
-if test "x$CJDNS_NDK_PATH" == "x"; then
+if test "x$CJDNS_NDK_PATH" = "x"; then
   if test "x$CJDNS_NDK_PATH_HINT" != "x" && [ -d "$CJDNS_NDK_PATH_HINT" ]; then
     echo "Using NDK at path $CJDNS_NDK_PATH_HINT"
     CJDNS_NDK_PATH=$CJDNS_NDK_PATH_HINT
@@ -56,7 +68,7 @@ enabled_log=${LOG}
 
 mkdir $BUILD_PATH 2>/dev/null
 
-if test "x$CJDNS_NDK_PATH" == "x"; then
+if test "x$CJDNS_NDK_PATH" = "x"; then
   cd "$BUILD_PATH"
   filename="$NDK_VERSION-${TYPE}-${cpu_arch}.zip"
   echo "$filename"
@@ -112,7 +124,7 @@ for i in `seq 0 100`; do
   mkdir -p $(pwd)/build_android/out/${APP_ABI}/${VERSION}/
   rm -rf build_linux
 
-  export PLATFORM=android
+  #export PLATFORM=android
   export SYSTEM=linux
 
   CROSS_PATH=$CJDNS_NDK_PATH/toolchains/llvm/prebuilt/${TYPE}-${cpu_arch}/bin
