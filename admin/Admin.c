@@ -383,6 +383,11 @@ static void handleRequest(Dict* messageDict,
         admin->asyncEnabled = 0;
     }
 
+    if (String_equals(admin->password, String_CONST("NONE"))) {
+        // If there's no password then we'll consider everything to be authed
+        authed = true;
+    }
+
     Dict* args = Dict_getDictC(messageDict, "args");
     bool noFunctionsCalled = true;
     for (int i = 0; i < admin->functionCount; i++) {
@@ -554,11 +559,9 @@ static void exportFd(Dict* args, void* vAdmin, String* txid, struct Allocator* r
         } else {
             error = "file descriptor was not attached to message";
         }
-    } else {
-        Dict_putIntC(res, "fd", fd, requestAlloc);
     }
     Dict_putStringCC(res, "error", error, requestAlloc);
-    Admin_sendMessage(res, txid, &admin->pub);
+    sendMessage0(res, txid, &admin->pub, fd);
 }
 
 struct Admin* Admin_new(struct AddrIface* ai,

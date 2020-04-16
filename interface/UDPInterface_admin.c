@@ -319,6 +319,9 @@ static void getFd(Dict* args, void* vcontext, String* txid, struct Allocator* re
 {
     struct Context* ctx = Identity_check((struct Context*) vcontext);
     struct UDPInterface* udpif = getIface(ctx, args, txid, requestAlloc, NULL);
+    if (!udpif) {
+        return;
+    }
     int fd = UDPInterface_getFd(udpif);
     Dict* out = Dict_new(requestAlloc);
     Dict_putIntC(out, "fd", fd, requestAlloc);

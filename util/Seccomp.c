@@ -348,6 +348,12 @@ static struct sock_fprog* mkFilter(struct Allocator* alloc, struct Except* eh)
         IFEQ(__NR_accept4, success),
         #endif
 
+        #ifdef android
+            #ifdef __NR_rt_sigprocmask
+            IFEQ(__NR_rt_sigprocmask, success),
+            #endif
+        #endif
+
         RET(SECCOMP_RET_TRAP),
 
         LABEL(socket),

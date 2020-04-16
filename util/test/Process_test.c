@@ -161,7 +161,7 @@ int main(int argc, char** argv)
     if (!Defined(win32)) {
         String* textName =
             String_printf(alloc, "%s%scjdns-test-%s.txt", Pipe_PATH, Pipe_PATH_SEP, randName);
-        int fd = open(textName->bytes, O_CREAT | O_TRUNC | O_RDWR);
+        int fd = open(textName->bytes, O_CREAT | O_TRUNC | O_RDWR, 0600);
         Assert_true(fd >= 0);
         Assert_true(write(fd, name->bytes, name->len) == ((ssize_t)name->len));
         ctx->fd = fd;

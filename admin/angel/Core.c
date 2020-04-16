@@ -227,7 +227,7 @@ static void initTunFd0(
         return;
     }
     int fileno = *tunfd;
-    int type = (*tuntype) ? *tuntype : TUNMessageType_guess();
+    int type = (tuntype) ? *tuntype : TUNMessageType_guess();
 
     struct Allocator* tunAlloc = Allocator_child(ctx->alloc);
     struct Pipe* p = Pipe_forFd(fileno, false, ctx->base, eh, ctx->logger, tunAlloc);
@@ -244,9 +244,10 @@ static void initTunFd0(
         Iface_unplumb(&ctx->nc->tunAdapt->tunIf, ctx->tunDevice);
         Allocator_free(ctx->tunAlloc);
     }
+    Assert_true(!ctx->nc->tunAdapt->tunIf.connectedIf);
     ctx->tunAlloc = tunAlloc;
     ctx->tunDevice = iface;
-    Iface_plumb(&p->iface, &ctx->nc->tunAdapt->tunIf);
+    Iface_plumb(ctx->tunDevice, &ctx->nc->tunAdapt->tunIf);
 
     sendResponse(String_CONST("none"), ctx->admin, txid, requestAlloc);
 }
@@ -262,6 +263,18 @@ static void initTunfd(Dict* args, void* vcontext, String* txid, struct Allocator
         String* error = String_printf(requestAlloc, "Failed to configure tunnel [%s]", jmp.message);
         sendResponse(error, ctx->admin, txid, requestAlloc);
         return;
+    }
+}
+
+static void stopTun(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
+{
+    struct Context* ctx = Identity_check((struct Context*) vcontext);
+    if (ctx->tunDevice) {
+        Iface_unplumb(&ctx->nc->tunAdapt->tunIf, ctx->tunDevice);
+        Allocator_free(ctx->tunAlloc);
+        sendResponse("none", ctx->admin, txid, requestAlloc);
+    } else {
+        sendResponse("no tun currently configured", ctx->admin, txid, requestAlloc);
     }
 }
 
@@ -308,6 +321,10 @@ static void nodeInfo(Dict* args, void* vcontext, String* txid, struct Allocator*
     List* schemeList = EncodingScheme_asList(ctx->encodingScheme, requestAlloc);
     Dict* out = Dict_new(requestAlloc);
     Dict_putStringC(out, "myAddr", myAddr, requestAlloc);
+    String* myIp6 = String_newBinary(NULL, 41, requestAlloc);
+    Address_printIp(myIp6->bytes, ctx->nc->myAddress);
+    myIp6->len = CString_strlen(myIp6->bytes);
+    Dict_putStringC(out, "myIp6", myIp6, requestAlloc);
     char* schemeHex = Hex_print(schemeStr->bytes, schemeStr->len, requestAlloc);
     Dict_putStringCC(out, "compressedSchemeHex", schemeHex, requestAlloc);
     Dict_putListC(out, "encodingScheme", schemeList, requestAlloc);
@@ -406,6 +423,8 @@ void Core_init(struct Allocator* alloc,
             { .name = "tunfd", .required = 1, .type = "Int" },
             { .name = "type", .required = 0, .type = "Int" }
         }), admin);
+
+    Admin_registerFunction("Core_stopTun", stopTun, ctx, true, NULL, admin);
 
     Admin_registerFunction("Core_nodeInfo", nodeInfo, ctx, false, NULL, admin);
 

@@ -1,10 +1,15 @@
-#!/bin/bash
+#!/bin/sh
+
+# Android build on fedora
+# dnf install wget git make which patch findutils unzip
+# ./android_do
+die() { echo "Error: $1"; exit 1; }
+need() { which "$1" >/dev/null 2>/dev/null || die "Missing $1"; }
+echo which wget git make patch find unzip ls uname pwd mkdir rm | while read x; do need $x; done
 
 #change this to valid ndk path, otherwise it will be downloaded
-NDK=/bad/path/to/android-ndk-r11c/
 BUILD_PATH=$(pwd)/build_android
-#if you have cjdns android app somewhere else then change it
-NDK_VERSION="android-ndk-r11c"
+NDK_VERSION="android-ndk-r21"
 
 case $(uname -s) in
     Darwin)
@@ -18,99 +23,134 @@ case $(uname -s) in
         ;;
 esac
 
+if test "x$CJDNS_NDK_PATH" != "x"; then
+  false # we already have an ndk path...
+elif test "x$TYPE" = xdarwin; then
+  CJDNS_NDK_PATH_HINT=`echo $HOME/Library/Android/sdk/ndk/* | tail -1`
+elif test "x$TYPE" = xlinux; then
+  CJDNS_NDK_PATH_HINT=`echo $HOME/Android/Sdk/ndk/* | tail -1`
+fi
+
+if test "x$CJDNS_NDK_PATH" == "x"; then
+  if test "x$CJDNS_NDK_PATH_HINT" != "x" && [ -d "$CJDNS_NDK_PATH_HINT" ]; then
+    echo "Using NDK at path $CJDNS_NDK_PATH_HINT"
+    CJDNS_NDK_PATH=$CJDNS_NDK_PATH_HINT
+  elif [ -d "$BUILD_PATH/$NDK_VERSION/" ]; then
+    CJDNS_NDK_PATH="$BUILD_PATH/$NDK_VERSION"
+    echo "Using previously downloaded NDK $CJDNS_NDK_PATH"
+  else
+    echo "No NDK path known, NDK will be downloaded"
+  fi
+elif [ -d "$CJDNS_NDK_PATH" ]; then
+  echo "Using NDK at specified path $CJDNS_NDK_PATH"
+else
+  die "NDK path $CJDNS_NDK_PATH is not a directory"
+fi
+
 cpu_arch="$(uname -m)"
-[[ -z "$cpu_arch" ]] && {
-    echo "ERROR: NO CPU ARCHITECTURE DETECTED"
-    exit 1
-}
-[[ "$cpu_arch" = "i686" ]] \
-    && cpu_arch="x86"
+[ -z "$cpu_arch" ] && die "NO CPU ARCHITECTURE DETECTED"
+[ "$cpu_arch" = "i686" ] && cpu_arch="x86"
 
 android_log=android_build_$$.log
 enabled_log=${LOG}
 
-mkdir $BUILD_PATH
+mkdir $BUILD_PATH 2>/dev/null
 
-if [ "$NDK" == "/bad/path/to/android-ndk-r11c/" ]; then
-  if [ ! -d $BUILD_PATH/$NDK_VERSION/ ]; then
-    echo "NDK path is not specified. Downloading it..."
-
-    NDK=$BUILD_PATH/$NDK_VERSION/
-
-    ##SETUP NDK
-    cd "$BUILD_PATH"
-    if [ ! -d "$NDK" ]; then
-          echo "$NDK_VERSION-${TYPE}-${cpu_arch}.tar.bz2"
-          [[ -f "$NDK_VERSION-${TYPE}-${cpu_arch}.tar.bz2" ]] \
-              || wget "https://dl.google.com/android/repository/$NDK_VERSION-${TYPE}-${cpu_arch}.zip" \
-              || (echo "Can't find download for your system"; exit 1)
-          [[ -d "$NDK_VERSION" ]] || (unzip -q "$NDK_VERSION-${TYPE}-${cpu_arch}.zip" || exit 1)
-    fi
-
-    [[ ! -d "$NDK" ]] && {
-        echo "The NDK variable is not pointing to a valid directory"
-        exit 1
-    }
-    cd ..
-  else
-    NDK=$BUILD_PATH/$NDK_VERSION/
+if test "x$CJDNS_NDK_PATH" == "x"; then
+  cd "$BUILD_PATH"
+  filename="$NDK_VERSION-${TYPE}-${cpu_arch}.zip"
+  echo "$filename"
+  if ! [ -f "$filename" ]; then
+    url="https://dl.google.com/android/repository/$NDK_VERSION-${TYPE}-${cpu_arch}.zip"
+    wget "$url" || die "wget $url failed"
   fi
+  if ! [ -d "$NDK_VERSION" ]; then
+    unzip -q "$filename" || die "failed to unzip "
+  fi
+  CJDNS_NDK_PATH="$BUILD_PATH/$NDK_VERSION"
+  [ -d "$CJDNS_NDK_PATH" ] || die "NDK zip file does not contain expected content"
+  cd ..
 fi
 
 Seccomp_NO=1
-mkdir $(pwd)/build_android/out
+mkdir $(pwd)/build_android/out 2>/dev/null
 
-declare -a APP_ABI=("armeabi-v7a" "arm64-v8a" "x86")
-declare -a APP_ABI2=("arm" "aarch64" "i686") 
-declare -a TARGET_ARCH=("arm" "aarch64" "x64")
-declare -a EABI=("androideabi" "android" "android")
-declare -a PLATFORM=(16 21 16)
-declare -a TOOLCHAIN=("arm-linux-androideabi-4.9" "aarch64-linux-android-4.9" "x86-4.9") 
+BUILD_0='
+  APP_ABI=armv7a
+  TOOLCHAIN_PREFIX=arm
+  EABI=androideabi
+  VERSION=16
+'
+BUILD_1='
+  APP_ABI=aarch64
+  VERSION=21
+'
+BUILD_2='
+  APP_ABI=i686
+  VERSION=16
+'
+BUILD_3='
+  APP_ABI=x86_64
+  VERSION=21
+'
 
-for i in {0..2}
-do
-    GCC=$BUILD_PATH/${APP_ABI2[$i]}-${TYPE}-${EABI[$i]}/bin/${APP_ABI2[$i]}-linux-${EABI[$i]}-gcc
-    [[ ! -x "$GCC" ]] && {
-        $NDK/build/tools/make-standalone-toolchain.sh --platform=android-${PLATFORM[$i]} --toolchain=${TOOLCHAIN[$i]} --install-dir=$BUILD_PATH/${APP_ABI2[$i]}-${TYPE}-${EABI[$i]}/ \
-        || exit 1
-    }
+for i in `seq 0 100`; do
+  BUILD=`eval echo "\\\$BUILD_$i"`
+  if test "x$BUILD" = "x"; then
+    continue
+  fi
+  export APP_ABI=
+  export TOOLCHAIN_PREFIX=
+  export EABI=
+  export VERSION=
+  export EABI=android
+  export $BUILD
+  if test "x$TOOLCHAIN_PREFIX" = "x"; then
+    export TOOLCHAIN_PREFIX=$APP_ABI
+  fi
 
-    mkdir $(pwd)/build_android/out/${APP_ABI[$i]}
-    rm -rf build_linux
+  mkdir -p $(pwd)/build_android/out/${APP_ABI}/${VERSION}/
+  rm -rf build_linux
 
-    export PLATFORM=android
-    export SYSTEM=linux
+  export PLATFORM=android
+  export SYSTEM=linux
 
-    export CROSS_COMPILE=$BUILD_PATH/${APP_ABI2[$i]}-${TYPE}-${EABI[$i]}/bin/${APP_ABI2[$i]}-linux-${EABI[$i]}-
-    export CROSS=${CROSS_COMPILE}
-    export CC=${CROSS}gcc
-    export AR=${CROSS}ar
-    export RANLIB=${CROSS}ranlib
-    export CFLAGS=${CROSS_CFLAGS}
-    export LDFLAGS=${CROSS_LDFLAGS}
+  CROSS_PATH=$CJDNS_NDK_PATH/toolchains/llvm/prebuilt/${TYPE}-${cpu_arch}/bin
+  export CC=${CROSS_PATH}/${APP_ABI}-linux-${EABI}${VERSION}-clang
+  export CROSS=${CROSS_PATH}/${TOOLCHAIN_PREFIX}-linux-${EABI}
+  export AR=${CROSS}-ar
+  export LINK=${CROSS}-ld
+  export RANLIB=${CROSS}-ranlib
+  export CFLAGS=${CROSS_CFLAGS}
+  export LDFLAGS=${CROSS_LDFLAGS}
 
-    gcc_version=$(${CC} --version)
-    echo Using $gcc_version
-    echo Compiler CC: $CC
-    echo Compiler CFLAGS: $CFLAGS
-    echo Compiler LDFLAGS: $LDFLAGS
-    time ./do
-    cp cjdroute $(pwd)/build_android/out/${APP_ABI[$i]}/ || ret=$?
+  gcc_version=$(${CC} --version)
+  echo Using $gcc_version
+  echo Compiler CC: $CC
+  echo Compiler LINK: $LINK
+  echo Compiler CFLAGS: $CFLAGS
+  echo Compiler LDFLAGS: $LDFLAGS
+  time ./do
+  cp cjdroute $(pwd)/build_android/out/${APP_ABI}/${VERSION}/ || ret=$?
 
-    if [ "$ret" != "" ] && [ "$ret" != "0" ]; then
-      echo -e "\e[1;31mCopying ${APP_ABI[$i]} binary failed, non zero status returned - $ret\e[0m"
-      exit 1
-    else
-      echo -e "\e[1;32mCopied ${APP_ABI[$i]} successfully\e[0m"
-    fi
+  if [ "$ret" != "" ] && [ "$ret" != "0" ]; then
+    printf "\e[1;31mCopying ${APP_ABI} binary failed, non zero status returned - $ret\e[0m\n"
+    exit 1
+  else
+    printf "\e[1;32mCopied ${APP_ABI} successfully\e[0m\n\n"
+  fi
 
-    rm cjdroute
+  rm cjdroute 2>/dev/null
 done
 
-echo -e "\n\e[1;34mOutput:\e[0m"
-for i in {0..2}
-do
-    echo -e   "\e[1;34m        $(pwd)/build_android/out/${APP_ABI[$i]}/cjdroute\e[0m"
+printf "\n\e[1;34mOutput:\e[0m\n"
+for i in `seq 0 100`; do
+  BUILD=`eval echo "\\\$BUILD_$i"`
+  if test "x$BUILD" = "x"; then
+    continue
+  fi
+  export $BUILD
+  printf "\e[1;34m        $(pwd)/build_android/out/${APP_ABI}/${VERSION}/cjdroute\e[0m\n"
 done
 
 exit $ret

@@ -294,7 +294,7 @@ static int genconf(struct Random* rand, bool eth)
            "            \"type\": \"SocketInterface\",\n"
            "\n"
            "            // The filesystem path to the socket to create or connect to.\n"
-           "            \"socketFullPath\": \"/var/run/cjdns.sock\",\n"
+           "            \"socketFullPath\": \"/var/run/cjdns.sock\"\n"
            "        },\n"
            "\n");
     printf("        // System for tunneling IPv4 and ICANN IPv6 through cjdns.\n"
@@ -357,9 +357,13 @@ static int genconf(struct Random* rand, bool eth)
            "        // If keepNetAdmin is set to 0, IPTunnel will be unable to set IP addresses\n"
            "        // and ETHInterface will be unable to hot-add new interfaces\n"
            "        // Use { \"setuser\": 0 } to disable.\n"
-           "        // Default: enabled with keepNetAdmin\n"
-           "        { \"setuser\": \"nobody\", \"keepNetAdmin\": 1 },\n"
-           "\n"
+           "        // Default: enabled with keepNetAdmin\n");
+           if (Defined(android)) {
+    printf("        { \"setuser\": 0 },\n");
+           } else {
+    printf("        { \"setuser\": \"nobody\", \"keepNetAdmin\": 1 },\n");
+           }
+    printf("\n"
            "        // Chroot changes the filesystem root directory which cjdns sees, blocking it\n"
            "        // from accessing files outside of the chroot sandbox, if the user does not\n"
            "        // have permission to use chroot(), this will fail quietly.\n"
@@ -576,7 +580,10 @@ static String* getPipePath(Dict* config, struct Allocator* alloc)
     }
     char* path = Pipe_PATH;
     if (Defined(android)) {
-        char* t = getenv("TEMP");
+        char* t = getenv("TMPDIR");
+        if (!t) {
+            t = getenv("HOME");
+        }
         if (t) {
             path = t;
         }

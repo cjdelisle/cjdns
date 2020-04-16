@@ -372,6 +372,7 @@ Builder.configure({
             //args.push('--root-target=libuv');
             if (android) {
                 args.push('-DOS=android');
+                args.push('--format=make-linux')
             }
 
             if (builder.config.systemName === 'win32') {
