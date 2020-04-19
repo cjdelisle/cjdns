@@ -272,9 +272,13 @@ static void stopTun(Dict* args, void* vcontext, String* txid, struct Allocator* 
     if (ctx->tunDevice) {
         Iface_unplumb(&ctx->nc->tunAdapt->tunIf, ctx->tunDevice);
         Allocator_free(ctx->tunAlloc);
-        sendResponse("none", ctx->admin, txid, requestAlloc);
+        sendResponse(String_new("none", requestAlloc), ctx->admin, txid, requestAlloc);
     } else {
-        sendResponse("no tun currently configured", ctx->admin, txid, requestAlloc);
+        sendResponse(
+            String_new("no tun currently configured", requestAlloc),
+            ctx->admin,
+            txid,
+            requestAlloc);
     }
 }
 
