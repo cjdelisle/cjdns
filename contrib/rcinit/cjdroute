@@ -1,6 +1,7 @@
 #! /bin/sh
 
 # PROVIDE: cjdroute
+# REQUIRE: networking
 # KEYWORD: shutdown
 
 # Add the following line to /etc/rc.conf to enable cjdroute:
@@ -17,5 +18,36 @@ load_rc_config $name
 
 command="/usr/local/bin/cjdroute"
 command_args=" < ${cjdroute_config}"
+
+start_cmd="${name}_start"
+stop_cmd="${name}_stop"
+
+test ! -d /var/run/cjdroute/ && mkdir /var/run/cjdroute/
+
+if_cjd="$(cat /usr/local/etc/cjdroute.conf | egrep -o '"tunDevice": "t[a,u][p,n][0-9]{1,2}"' | egrep -o 't[a,u][p,n][0-9]{1,2}')"
+
+cjdroute_start() {
+ test ! -f /usr/local/etc/cjdroute.conf && (
+  logger -s -t cjdroute "Generate a configuration in /usr/local/etc/cjdroute.conf"
+  exit 1
+ )
+ if [ "$if_cjd" = "" ]; then logger -s -t cjdroute "Tunnel adapter not found. Specify adapter name in cjdroute.conf."; exit 1; fi
+ /sbin/ifconfig $if_cjd >/dev/null 2>&1
+ if [ "$?" = 0 ] ; then ifconfig $if_cjd destroy; fi
+ /sbin/ifconfig $if_cjd create || logger -s -t cjdroute "Failed to create ${if_cjd} adapter"
+ /usr/local/bin/cjdroute < /usr/local/etc/cjdroute.conf &
+ /sbin/route -6 add fc00::/8 -iface $if_cjd
+} 
+
+cjdroute_stop() {
+ logger -s -t cjdroute "Stopping cjdroute"
+ if [ "$rc_pid" != "" ]; then
+ kill -TERM $rc_pid ; fi
+ /sbin/ifconfig $if_cjd >/dev/null 1>/dev/null 2>dev/null
+ if [ "$?" = 0 ]; then /sbin/ifconfig $if_cjd destroy ||  logger -s -t cjdroute "Failed to destroy $if_cjd adapter"; fi
+}
+
+load_rc_config $name
+: ${cjdroute_enable:=no}
 
 run_rc_command "$1"
