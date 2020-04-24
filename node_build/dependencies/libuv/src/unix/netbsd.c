@@ -39,6 +39,10 @@
 #include <sys/types.h>
 #include <sys/sysctl.h>
 
+#ifdef __NetBSD__
+#include <uvm/uvm_extern.h>
+#endif
+
 #include <unistd.h>
 #include <time.h>
 
