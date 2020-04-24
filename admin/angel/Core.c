@@ -165,6 +165,7 @@ static void initSocket2(String* socketFullPath,
     if (ctx->tunDevice) {
         Iface_unplumb(ctx->tunDevice, &ctx->nc->tunAdapt->tunIf);
         Allocator_free(ctx->tunAlloc);
+        ctx->tunDevice = NULL;
     }
     ctx->tunAlloc = Allocator_child(ctx->alloc);
 
@@ -195,6 +196,7 @@ static void initTunnel2(String* desiredDeviceName,
     if (ctx->tunDevice) {
         Iface_unplumb(&ctx->nc->tunAdapt->tunIf, ctx->tunDevice);
         Allocator_free(ctx->tunAlloc);
+        ctx->tunDevice = NULL;
     }
     ctx->tunAlloc = Allocator_child(ctx->alloc);
     ctx->tunDevice = TUNInterface_new(
@@ -243,6 +245,7 @@ static void initTunFd0(
     if (ctx->tunDevice) {
         Iface_unplumb(&ctx->nc->tunAdapt->tunIf, ctx->tunDevice);
         Allocator_free(ctx->tunAlloc);
+        ctx->tunDevice = NULL;
     }
     Assert_true(!ctx->nc->tunAdapt->tunIf.connectedIf);
     ctx->tunAlloc = tunAlloc;
@@ -272,6 +275,7 @@ static void stopTun(Dict* args, void* vcontext, String* txid, struct Allocator* 
     if (ctx->tunDevice) {
         Iface_unplumb(&ctx->nc->tunAdapt->tunIf, ctx->tunDevice);
         Allocator_free(ctx->tunAlloc);
+        ctx->tunDevice = NULL;
         sendResponse(String_new("none", requestAlloc), ctx->admin, txid, requestAlloc);
     } else {
         sendResponse(

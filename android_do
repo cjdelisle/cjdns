@@ -1,7 +1,10 @@
 #!/bin/sh
 
-# Android build on fedora
+# Fedora
 # dnf install wget git make which patch findutils unzip
+# Ubuntu
+# apt install wget git build-essential unzip time python
+
 # ./android_do
 die() { echo "Error: $1"; exit 1; }
 need() { which "$1" >/dev/null 2>/dev/null || die "Missing $1"; }
@@ -124,7 +127,6 @@ for i in `seq 0 100`; do
   mkdir -p $(pwd)/build_android/out/${APP_ABI}/${VERSION}/
   rm -rf build_linux
 
-  #export PLATFORM=android
   export SYSTEM=linux
 
   CROSS_PATH=$CJDNS_NDK_PATH/toolchains/llvm/prebuilt/${TYPE}-${cpu_arch}/bin
