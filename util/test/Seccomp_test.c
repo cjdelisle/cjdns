@@ -73,6 +73,11 @@ static void timeout(void* vNULL)
     Assert_true(!"timed out");
 }
 
+static void timeout2(void* vNULL)
+{
+    Assert_true(!"time out 2");
+}
+
 static int child(char* pipeName, struct Allocator* alloc, struct Log* logger)
 {
     struct ChildCtx* ctx = Allocator_calloc(alloc, sizeof(struct ChildCtx), 1);
@@ -135,7 +140,7 @@ int main(int argc, char** argv)
 
     Assert_true(!Process_spawn(path, args, eb, alloc, NULL));
 
-    Timeout_setTimeout(timeout, NULL, 2000, eb, alloc);
+    Timeout_setTimeout(timeout2, NULL, 2000, eb, alloc);
 
     EventBase_beginLoop(eb);
     unlink(name->bytes);
