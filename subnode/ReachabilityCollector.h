@@ -60,9 +60,9 @@ void ReachabilityCollector_lagSample(
 void ReachabilityCollector_updateBandwidthAndDrops(
     struct ReachabilityCollector* rc,
     uint64_t label,
-    uint32_t sumOfPackets,
-    uint32_t sumOfDrops,
-    uint32_t sumOfKb);
+    uint64_t sumOfPackets,
+    uint64_t sumOfDrops,
+    uint64_t sumOfKb);
 
 struct ReachabilityCollector* ReachabilityCollector_new(struct Allocator* allocator,
                                                         struct MsgCore* mc,

@@ -147,9 +147,9 @@ struct Peer
      * are monotonic and so probably what you want.
      */
     uint32_t _lastDrops;
-    uint32_t lastDrops;
     uint32_t _lastPackets;
-    uint32_t lastPackets;
+    uint64_t lastDrops;
+    uint64_t lastPackets;
 
     // traffic counters
     uint64_t bytesOut;
@@ -340,6 +340,7 @@ static void linkState(void* vic)
 
             uint32_t drops = ep->caSession->replayProtector.lostPackets;
             uint64_t newDrops = 0;
+            // We're checking uint32 rollover here
             if (drops > ep->_lastDrops) { newDrops = drops - ep->_lastDrops; }
             ep->_lastDrops = drops;
             ep->lastDrops += newDrops;
@@ -351,10 +352,10 @@ static void linkState(void* vic)
             ep->lastPackets += newPackets;
 
             struct PFChan_LinkState_Entry e = {
-                .peerLabel_be = Endian_hostToBigEndian32((uint32_t) ep->addr.path),
-                .sumOfPackets_be = Endian_hostToBigEndian32(ep->lastPackets),
-                .sumOfDrops_be = Endian_hostToBigEndian32(ep->lastDrops),
-                .sumOfKb_be = Endian_hostToBigEndian32((uint32_t) (ep->bytesIn >> 10))
+                .peerLabel = ep->addr.path,
+                .sumOfPackets = ep->lastPackets,
+                .sumOfDrops = ep->lastDrops,
+                .sumOfKb = (ep->bytesIn >> 10),
             };
             Message_push(msg, &e, PFChan_LinkState_Entry_SIZE, NULL);
         }

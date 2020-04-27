@@ -450,11 +450,10 @@ static Iface_DEFUN linkState(struct Message* msg, struct SubnodePathfinder_pvt* 
         Message_pop(msg, &lse, PFChan_LinkState_Entry_SIZE, NULL);
         ReachabilityCollector_updateBandwidthAndDrops(
             pf->pub.rc,
-            Endian_bigEndianToHost32(lse.peerLabel_be),
-            Endian_bigEndianToHost32(lse.sumOfPackets_be),
-            Endian_bigEndianToHost32(lse.sumOfDrops_be),
-            Endian_bigEndianToHost32(lse.sumOfKb_be)
-        );
+            lse.peerLabel,
+            lse.sumOfPackets,
+            lse.sumOfDrops,
+            lse.sumOfKb);
     }
     return NULL;
 }

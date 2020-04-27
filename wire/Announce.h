@@ -32,6 +32,13 @@ enum Announce_Type {
     Announce_Type_LINK_STATE
 };
 
+/**
+ *                      1               2               3
+ *      0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
+ *     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *   0 |     length    |      type     |             version           |
+ *     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ */
 struct Announce_Version
 {
     // Announce_Version_SIZE

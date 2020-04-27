@@ -306,13 +306,14 @@ enum PFChan_Core
     PFChan_Core__TOO_HIGH = 1040,
 };
 
+// All values are in host order
 struct PFChan_LinkState_Entry {
-    uint32_t peerLabel_be;
-    uint32_t sumOfPackets_be;
-    uint32_t sumOfDrops_be;
-    uint32_t sumOfKb_be;
+    uint64_t peerLabel;
+    uint64_t sumOfPackets;
+    uint64_t sumOfDrops;
+    uint64_t sumOfKb;
 };
-#define PFChan_LinkState_Entry_SIZE 16
+#define PFChan_LinkState_Entry_SIZE 32
 Assert_compileTime(sizeof(struct PFChan_LinkState_Entry) == PFChan_LinkState_Entry_SIZE);
 
 struct PFChan_Core_SearchReq

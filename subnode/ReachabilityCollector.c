@@ -37,13 +37,13 @@ struct PeerInfo_pvt
     uint32_t lagSamples;
     uint32_t timeOfLastLagUpdate;
 
-    uint32_t sumOfDropsLastSlot;
-    uint32_t sumOfPacketsLastSlot;
-    uint32_t sumOfKbLastSlot;
+    uint64_t sumOfDropsLastSlot;
+    uint64_t sumOfPacketsLastSlot;
+    uint64_t sumOfKbLastSlot;
 
-    uint32_t sumOfDrops;
-    uint32_t sumOfPackets;
-    uint32_t sumOfKb;
+    uint64_t sumOfDrops;
+    uint64_t sumOfPackets;
+    uint64_t sumOfKb;
 
     // This peer is waiting for response
     bool waitForResponse;
@@ -313,7 +313,9 @@ static void cycle(void* vrc)
         int sampleNum = rcp->linkStateSamples % LinkState_SLOTS;
 
         uint64_t drops = pi->sumOfDrops - pi->sumOfDropsLastSlot;
+        if (drops < pi->sumOfDrops) { drops = pi->sumOfDrops; }
         uint64_t packets = pi->sumOfPackets - pi->sumOfPacketsLastSlot;
+        if (packets < pi->sumOfPackets) { drops = pi->sumOfPackets; }
         uint64_t dropRateShl18 = packets ? (drops << 18) / packets : 0;
         pi->pub.linkState.dropSlots[sampleNum] = dropRateShl18 > 0xfffe ? 0xfffe : dropRateShl18;
         pi->sumOfDropsLastSlot = pi->sumOfDrops;
@@ -353,9 +355,9 @@ void ReachabilityCollector_lagSample(
 void ReachabilityCollector_updateBandwidthAndDrops(
     struct ReachabilityCollector* rc,
     uint64_t label,
-    uint32_t sumOfPackets,
-    uint32_t sumOfDrops,
-    uint32_t sumOfKb)
+    uint64_t sumOfPackets,
+    uint64_t sumOfDrops,
+    uint64_t sumOfKb)
 {
     struct ReachabilityCollector_pvt* rcp = Identity_check((struct ReachabilityCollector_pvt*) rc);
     struct PeerInfo_pvt* pi = piForLabel(rcp, label);
