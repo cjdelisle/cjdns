@@ -51,7 +51,7 @@ scalability issues that plague existing networks.
 
 ## Community
 
-* [irc://irc.efnet.org/#cjdns][IRC Web]
+* [irc://irc.freenode.org/#cjdns][IRC Web]
 * [Hyperboria][] the largest cjdns network, as of October 2015 there are 2100 nodes.
 * [/r/darknetplan][]
 * [#cjdns on Twitter][]
@@ -519,7 +519,7 @@ That time of year again... Time for some open source Projects!
 [Hyperboria Map]: https://www.fc00.org/
 [Buildbots]: https://buildbot.meshwith.me/cjdns/waterfall
 
-[Cjdns on Wikipedia]: https://en.wikipedia.org/wiki/Cjdns
+[Cjdns on Wikipedia]: https://fr.wikipedia.org/wiki/Cjdns
 [Distributed Hash Table]: https://en.wikipedia.org/wiki/Distributed_hash_table
 [Beyond Pain]: https://lists.torproject.org/pipermail/tor-dev/2012-October/004063.html
 [Kademlia]: https://en.wikipedia.org/wiki/Kademlia
