@@ -33,7 +33,7 @@ void CJDNS_FUZZ_MAIN(void* vctx, struct Message* fuzz)
 {
     struct Allocator* alloc = (struct Allocator*) vctx;
     if (fuzz->length < 4) { return; }
-    uint32_t size = Message_pop16(fuzz, NULL) % 4096;
+    uint32_t size = Er_assert(Message_epop16be(fuzz)) % 4096;
 
     struct Map_OfLongsByInteger* map = Map_OfLongsByInteger_new(alloc);
     size = size % 4096;

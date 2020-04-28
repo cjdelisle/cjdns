@@ -242,8 +242,8 @@ static void sendPeer(uint32_t pathfinderId,
     } else {
         node->metric_be = 0xffffffff;
     }
-    Message_push32(msg, pathfinderId, NULL);
-    Message_push32(msg, ev, NULL);
+    Er_assert(Message_epush32be(msg, pathfinderId));
+    Er_assert(Message_epush32be(msg, ev));
     Iface_send(&ic->eventEmitterIf, msg);
     Allocator_free(alloc);
 }
@@ -357,13 +357,13 @@ static void linkState(void* vic)
                 .sumOfDrops = ep->lastDrops,
                 .sumOfKb = (ep->bytesIn >> 10),
             };
-            Message_push(msg, &e, PFChan_LinkState_Entry_SIZE, NULL);
+            Er_assert(Message_epush(msg, &e, PFChan_LinkState_Entry_SIZE));
         }
     }
 
     if (msg->length) {
-        Message_push32(msg, 0xffffffff, NULL);
-        Message_push32(msg, PFChan_Core_LINK_STATE, NULL);
+        Er_assert(Message_epush32be(msg, 0xffffffff));
+        Er_assert(Message_epush32be(msg, PFChan_Core_LINK_STATE));
         Iface_send(&ic->eventEmitterIf, msg);
     }
     Allocator_free(alloc);
@@ -562,7 +562,7 @@ static Iface_DEFUN sendFromSwitch(struct Message* msg, struct Iface* switchIf)
         Assert_true(!(((uintptr_t)msg->bytes) % 4) && "alignment fault");
 
         // push the lladdr...
-        Message_push(msg, ep->lladdr, ep->lladdr->addrLen, NULL);
+        Er_assert(Message_epush(msg, ep->lladdr, ep->lladdr->addrLen));
 
         // very noisy
         if (Defined(Log_DEBUG) && false) {
@@ -619,10 +619,10 @@ static Iface_DEFUN handleBeacon(struct Message* msg, struct InterfaceController_
     // clear the bcast flag
     lladdrInmsg->flags = 0;
 
-    Message_shift(msg, -lladdrInmsg->addrLen, NULL);
+    Er_assert(Message_eshift(msg, -lladdrInmsg->addrLen));
 
     struct Headers_Beacon beacon;
-    Message_pop(msg, &beacon, Headers_Beacon_SIZE, NULL);
+    Er_assert(Message_epop(msg, &beacon, Headers_Beacon_SIZE));
 
     if (Defined(Log_DEBUG)) {
         char* content = Hex_print(&beacon, Headers_Beacon_SIZE, msg->alloc);
@@ -716,7 +716,7 @@ static Iface_DEFUN handleUnexpectedIncoming(struct Message* msg,
     struct InterfaceController_pvt* ic = ici->ic;
 
     struct Sockaddr* lladdr = (struct Sockaddr*) msg->bytes;
-    Message_shift(msg, -lladdr->addrLen, NULL);
+    Er_assert(Message_eshift(msg, -lladdr->addrLen));
     if (msg->length < CryptoHeader_SIZE) {
         return NULL;
     }
@@ -800,7 +800,7 @@ static Iface_DEFUN handleIncomingFromWire(struct Message* msg, struct Iface* add
     }
 
     struct Peer* ep = Identity_check((struct Peer*) ici->peerMap.values[epIndex]);
-    Message_shift(msg, -lladdr->addrLen, NULL);
+    Er_assert(Message_eshift(msg, -lladdr->addrLen));
     CryptoAuth_resetIfTimeout(ep->caSession);
     uint32_t nonce = Endian_bigEndianToHost32( ((uint32_t*)msg->bytes)[0] );
     if (CryptoAuth_decrypt(ep->caSession, msg)) {
@@ -884,7 +884,7 @@ static void sendBeacon(struct InterfaceController_Iface_pvt* ici, struct Allocat
     Log_debug(ici->ic->logger, "sendBeacon(%s)", ici->pub.name->bytes);
 
     struct Message* msg = Message_new(0, 128, tempAlloc);
-    Message_push(msg, &ici->ic->beacon, Headers_Beacon_SIZE, NULL);
+    Er_assert(Message_epush(msg, &ici->ic->beacon, Headers_Beacon_SIZE));
 
     if (Defined(Log_DEBUG)) {
         char* content = Hex_print(msg->bytes, msg->length, tempAlloc);
@@ -895,7 +895,7 @@ static void sendBeacon(struct InterfaceController_Iface_pvt* ici, struct Allocat
         .addrLen = Sockaddr_OVERHEAD,
         .flags = Sockaddr_flags_BCAST
     };
-    Message_push(msg, &sa, Sockaddr_OVERHEAD, NULL);
+    Er_assert(Message_epush(msg, &sa, Sockaddr_OVERHEAD));
 
     Iface_send(&ici->pub.addrIf, msg);
 }
@@ -1124,8 +1124,9 @@ static Iface_DEFUN incomingFromEventEmitterIf(struct Message* msg, struct Iface*
 {
     struct InterfaceController_pvt* ic =
          Identity_containerOf(eventEmitterIf, struct InterfaceController_pvt, eventEmitterIf);
-    Assert_true(Message_pop32(msg, NULL) == PFChan_Pathfinder_PEERS);
-    uint32_t pathfinderId = Message_pop32(msg, NULL);
+    uint32_t peers = Er_assert(Message_epop32be(msg));
+    Assert_true(peers == PFChan_Pathfinder_PEERS);
+    uint32_t pathfinderId = Er_assert(Message_epop32be(msg));
     Assert_true(!msg->length);
 
     for (int j = 0; j < ic->icis->length; j++) {

@@ -132,7 +132,7 @@ static int runFuzzTest(
     int quiet)
 {
     if (fuzz->length < 4) { return 100; }
-    uint32_t selector = Message_pop32(fuzz, NULL);
+    uint32_t selector = Er_assert(Message_epop32be(fuzz));
     if (selector >= (uint32_t)FUZZ_TEST_COUNT) {
         printf("selector [%x] out of bounds [%u]\n", selector, FUZZ_TEST_COUNT);
         return 100;

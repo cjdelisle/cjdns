@@ -171,7 +171,7 @@ void CJDNS_FUZZ_MAIN(void* vctx, struct Message* msg)
         .length_be = Endian_hostToBigEndian16(msg->length + Headers_UDPHeader_SIZE),
         .checksum_be = 0,
     };
-    Message_push(msg, &udp, Headers_UDPHeader_SIZE, NULL);
+    Er_assert(Message_epush(msg, &udp, Headers_UDPHeader_SIZE));
     uint8_t srcAndDest[32] = { [31] = 1 };
     // fc00::1
     AddressCalc_makeValidAddress(&srcAndDest[16]);
@@ -182,7 +182,7 @@ void CJDNS_FUZZ_MAIN(void* vctx, struct Message* msg)
     TestFramework_craftIPHeader(msg, srcAndDest, &srcAndDest[16]);
     ((struct Headers_IP6Header*) msg->bytes)->nextHeader = 17;
 
-    TUNMessageType_push(msg, Ethernet_TYPE_IP6, NULL);
+    Er_assert(TUNMessageType_push(msg, Ethernet_TYPE_IP6));
 
     Iface_send(&ctx->tunA, Message_clone(msg, from->alloc));
 

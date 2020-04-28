@@ -90,7 +90,7 @@ static int calculateAuth(Dict* message,
 
     // serialize the message with the password hash
     struct Message* msg = Message_new(0, AdminClient_MAX_MESSAGE_SIZE, alloc);
-    BencMessageWriter_write(message, msg, NULL);
+    Er_assert(BencMessageWriter_write(message, msg));
 
     // calculate the hash of the message with the password hash
     crypto_hash_sha256(hash, msg->bytes, msg->length);
@@ -118,7 +118,7 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* addrIface)
     struct Context* ctx = Identity_containerOf(addrIface, struct Context, addrIface);
 
     struct Sockaddr_storage source;
-    Message_pop(msg, &source, ctx->targetAddr->addrLen, NULL);
+    Er_assert(Message_epop(msg, &source, ctx->targetAddr->addrLen));
     if (Bits_memcmp(&source, ctx->targetAddr, ctx->targetAddr->addrLen)) {
         Log_info(ctx->logger, "Got spurious message from [%s], expecting messages from [%s]",
                  Sockaddr_print(&source.addr, msg->alloc),
@@ -134,7 +134,7 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* addrIface)
     Dict* d = NULL;
     const char* err = BencMessageReader_readNoExcept(msg, alloc, &d);
     if (err) { return NULL; }
-    Message_shift(msg, origLen, NULL);
+    Er_assert(Message_eshift(msg, origLen));
 
     String* txid = Dict_getStringC(d, "txid");
     if (!txid || txid->len != 8) { return NULL; }
@@ -197,7 +197,7 @@ static struct Request* sendRaw(Dict* messageDict,
 
     struct Allocator* child = Allocator_child(req->alloc);
     struct Message* msg = Message_new(0, AdminClient_MAX_MESSAGE_SIZE + 256, child);
-    BencMessageWriter_write(messageDict, msg, NULL);
+    Er_assert(BencMessageWriter_write(messageDict, msg));
 
     req->timeoutAlloc = Allocator_child(req->alloc);
     req->timeout = Timeout_setTimeout(timeout,
@@ -209,7 +209,7 @@ static struct Request* sendRaw(Dict* messageDict,
 
     req->callback = callback;
 
-    Message_push(msg, ctx->targetAddr, ctx->targetAddr->addrLen, NULL);
+    Er_assert(Message_epush(msg, ctx->targetAddr, ctx->targetAddr->addrLen));
 
     Iface_send(&ctx->addrIface, msg);
     Allocator_free(child);

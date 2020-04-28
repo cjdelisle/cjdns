@@ -81,7 +81,7 @@ static void applyStateUpdates(struct LinkState* local, struct Message* msg)
     uint32_t id = 0;
     Assert_true(!LinkState_getNodeId(&it, &id));
     Assert_true(id == local->nodeId);
-    Message_shift(msg, -length, NULL);
+    Er_assert(Message_eshift(msg, -length));
     applyStateUpdates(local, msg);
     Assert_true(!LinkState_decode(&it, local));
 }

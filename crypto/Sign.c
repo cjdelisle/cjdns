@@ -59,7 +59,7 @@ void Sign_signMsg(uint8_t keyPair[64], struct Message* msg, struct Random* rand)
     az[31] |= 64;
 
     // hash message + secret number
-    Message_push(msg, &az[32], 32, NULL);
+    Er_assert(Message_epush(msg, &az[32], 32));
     crypto_hash_sha512(r, msg->bytes, msg->length);
 
     // Replace secret number with public key
@@ -68,7 +68,7 @@ void Sign_signMsg(uint8_t keyPair[64], struct Message* msg, struct Random* rand)
     // push pointMul(r) to message
     sc_reduce(r);
     ge_scalarmult_base(&R,r);
-    Message_shift(msg, 32, NULL);
+    Er_assert(Message_eshift(msg, 32));
     ge_p3_tobytes(msg->bytes,&R);
 
     crypto_hash_sha512(hram, msg->bytes, msg->length);
@@ -87,7 +87,7 @@ int Sign_verifyMsg(uint8_t publicSigningKey[32], struct Message* msg)
     if (ret) {
         return -1;
     }
-    Message_pop(msg, NULL, 64, NULL);
+    Er_assert(Message_epop(msg, NULL, 64));
     return 0;
 }
 

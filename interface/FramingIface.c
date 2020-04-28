@@ -59,10 +59,10 @@ static struct Message* mergeMessage(struct FramingIface_pvt* fi, struct Message*
     }
 
     struct Message* out = Message_new(0, length + REQUIRED_PADDING, fi->frameAlloc);
-    Message_push(out, last->bytes, last->length, NULL);
+    Er_assert(Message_epush(out, last->bytes, last->length));
     out->associatedFd = last->associatedFd;
     for (part = fi->frameParts; part; part = part->next) {
-        Message_push(out, part->msg->bytes, part->msg->length, NULL);
+        Er_assert(Message_epush(out, part->msg->bytes, part->msg->length));
         if (!out->associatedFd) {
             out->associatedFd = part->msg->associatedFd;
         }
@@ -110,7 +110,7 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* streamIf)
                 return NULL;
             }
             fi->header.bytes[fi->headerIndex] = msg->bytes[0];
-            Message_shift(msg, -1, NULL);
+            Er_assert(Message_eshift(msg, -1));
             fi->headerIndex++;
         }
         fi->headerIndex = 0;
@@ -131,7 +131,7 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* streamIf)
             struct Message* m = Message_new(fi->bytesRemaining, REQUIRED_PADDING, alloc);
             m->associatedFd = msg->associatedFd;
             Bits_memcpy(m->bytes, msg->bytes, fi->bytesRemaining);
-            Message_shift(msg, -fi->bytesRemaining, NULL);
+            Er_assert(Message_eshift(msg, -fi->bytesRemaining));
             fi->bytesRemaining = 0;
             Iface_send(&fi->messageIf, m);
             Allocator_free(alloc);
@@ -144,9 +144,9 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* streamIf)
             m->capacity = m->length = msg->length + 4;
             m->bytes = Allocator_calloc(fi->frameAlloc, m->length, 1);
             m->alloc = fi->frameAlloc;
-            Message_shift(m, -m->length, NULL);
-            Message_push(m, msg->bytes, msg->length, NULL);
-            Message_push(m, fi->header.bytes, 4, NULL);
+            Er_assert(Message_eshift(m, -m->length));
+            Er_assert(Message_epush(m, msg->bytes, msg->length));
+            Er_assert(Message_epush(m, fi->header.bytes, 4));
 
             fi->bytesRemaining -= msg->length;
             fi->frameParts = Allocator_calloc(fi->frameAlloc, sizeof(struct MessageList), 1);
@@ -161,7 +161,7 @@ static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* messageIf)
 {
     struct FramingIface_pvt* fi =
         Identity_containerOf(messageIf, struct FramingIface_pvt, messageIf);
-    Message_push32(msg, msg->length, NULL);
+    Er_assert(Message_epush32be(msg, msg->length));
     return Iface_next(&fi->streamIf, msg);
 }
 

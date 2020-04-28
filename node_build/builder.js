@@ -195,7 +195,7 @@ var mkBuilder = function (state) {
 };
 
 // You Were Warned
-var execJs = function (js, builder, file, fileName, callback) {
+var execJs = function (js, builder, file, fileName, callback, content) {
     var res;
     var x;
     var err;
@@ -248,7 +248,8 @@ var execJs = function (js, builder, file, fileName, callback) {
                           builder);
         } catch (e) {
             err = e;
-            err.message += "\nContent: [" + js + "]";
+            err.message += "\nContent: [" + js + "] in File [" + fileName + "] ";
+                //"full content: [" + content + "]";
             clearTimeout(to);
             throw err;
         }
@@ -265,7 +266,7 @@ var execJs = function (js, builder, file, fileName, callback) {
 
 var debug = console.log;
 
-var preprocessBlock = function (block, builder, fileObj, fileName, callback) {
+var preprocessBlock = function (block, builder, fileObj, fileName, callback, content) {
     // a block is an array of strings and arrays, any inside arrays must be
     // preprocessed first. deep first top to bottom.
 
@@ -280,7 +281,7 @@ var preprocessBlock = function (block, builder, fileObj, fileName, callback) {
                 if (err) { throw err; }
 
                 block[i] = ret;
-            }));
+            }), content);
         }).nThen;
     });
 
@@ -291,7 +292,7 @@ var preprocessBlock = function (block, builder, fileObj, fileName, callback) {
         execJs(capture, builder, fileObj, fileName, waitFor(function (err, ret) {
             if (err) { throw err; }
             callback(undefined, ret);
-        }));
+        }), content);
 
     });
 };
@@ -333,7 +334,7 @@ var preprocess = function (content, builder, fileObj, fileName, callback) {
                 if (err) { throw err; }
 
                 elems[i] = ret;
-            }));
+            }), content);
         }).nThen;
     });
 

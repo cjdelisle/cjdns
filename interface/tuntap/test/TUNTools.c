@@ -58,8 +58,8 @@ static void sendHello(void* vctx)
     struct TUNTools_pvt* ctx = Identity_check((struct TUNTools_pvt*) vctx);
     struct Allocator* tempAlloc = Allocator_child(ctx->pub.alloc);
     struct Message* msg = Message_new(0, 64, tempAlloc);
-    Message_push(msg, "Hello World", 12, NULL);
-    Message_push(msg, ctx->pub.tunDestAddr, ctx->pub.tunDestAddr->addrLen, NULL);
+    Er_assert(Message_epush(msg, "Hello World", 12));
+    Er_assert(Message_epush(msg, ctx->pub.tunDestAddr, ctx->pub.tunDestAddr->addrLen));
     Iface_send(&ctx->pub.udpIface, msg);
     Allocator_free(tempAlloc);
 }
@@ -79,7 +79,7 @@ const uint8_t* TUNTools_testIP6AddrC = (uint8_t[])
 
 Iface_DEFUN TUNTools_genericIP6Echo(struct Message* msg, struct TUNTools* tt)
 {
-    uint16_t ethertype = TUNMessageType_pop(msg, NULL);
+    uint16_t ethertype = Er_assert(TUNMessageType_pop(msg));
     if (ethertype != Ethernet_TYPE_IP6) {
         Log_debug(tt->log, "Spurious packet with ethertype [%04x]\n",
                   Endian_bigEndianToHost16(ethertype));
@@ -105,7 +105,7 @@ Iface_DEFUN TUNTools_genericIP6Echo(struct Message* msg, struct TUNTools* tt)
     Sockaddr_getAddress(tt->tunDestAddr, &address);
     Bits_memcpy(header->sourceAddr, address, 16);
 
-    TUNMessageType_push(msg, ethertype, NULL);
+    Er_assert(TUNMessageType_push(msg, ethertype));
 
     return Iface_next(&tt->tunIface, msg);
 }

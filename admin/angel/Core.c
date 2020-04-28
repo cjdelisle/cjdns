@@ -458,7 +458,7 @@ int Core_main(int argc, char** argv)
     struct Message* preConf =
         InterfaceWaiter_waitForData(&clientPipe->iface.iface, eventBase, tempAlloc, eh);
     Log_debug(logger, "Finished getting pre-configuration from client");
-    struct Sockaddr* addr = Sockaddr_clone(AddrIface_popAddr(preConf, eh), tempAlloc);
+    struct Sockaddr* addr = Sockaddr_clone(Er_assert(AddrIface_popAddr(preConf)), tempAlloc);
     Dict* config = Except_er(eh, BencMessageReader_read(preConf, tempAlloc));
 
     String* privateKeyHex = Dict_getStringC(config, "privateKey");
@@ -524,8 +524,8 @@ int Core_main(int argc, char** argv)
     ));
     // This always times out because the angel doesn't respond.
     struct Message* clientResponse = Message_new(0, 512, tempAlloc);
-    BencMessageWriter_write(&response, clientResponse, eh);
-    AddrIface_pushAddr(clientResponse, addr, eh);
+    Er_assert(BencMessageWriter_write(&response, clientResponse));
+    Er_assert(AddrIface_pushAddr(clientResponse, addr));
     Iface_CALL(clientPipe->iface.iface.send, clientResponse, &clientPipe->iface.iface);
 
     Allocator_free(tempAlloc);

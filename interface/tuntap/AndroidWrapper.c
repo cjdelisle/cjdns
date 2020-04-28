@@ -57,7 +57,7 @@ static Iface_DEFUN incomingFromWire(struct Message* msg, struct Iface* externalI
         return NULL;
     }
 
-    Message_shift(msg, 4, NULL);
+    Er_assert(Message_eshift(msg, 4));
     ((uint16_t*) msg->bytes)[0] = 0;
     ((uint16_t*) msg->bytes)[1] = ethertype;
 
@@ -74,7 +74,7 @@ static Iface_DEFUN incomingFromUs(struct Message* msg, struct Iface* internalIf)
         return NULL;
     }
 
-    Message_shift(msg, -4, NULL);
+    Er_assert(Message_eshift(msg, -4));
 
     return Iface_next(&ctx->pub.externalIf, msg);
 }

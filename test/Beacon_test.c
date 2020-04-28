@@ -71,8 +71,9 @@ struct TwoNodes
 static Iface_DEFUN incomingTunB(struct Message* msg, struct Iface* tunB)
 {
     struct TwoNodes* tn = Identity_containerOf(tunB, struct TwoNodes, tunB);
-    Assert_true(TUNMessageType_pop(msg, NULL) == Ethernet_TYPE_IP6);
-    Message_shift(msg, -Headers_IP6Header_SIZE, NULL);
+    uint16_t t = Er_assert(TUNMessageType_pop(msg));
+    Assert_true(t == Ethernet_TYPE_IP6);
+    Er_assert(Message_eshift(msg, -Headers_IP6Header_SIZE));
     printf("Message from TUN in node B [%s]\n", msg->bytes);
     tn->messageFrom = TUNB;
     return 0;
@@ -81,8 +82,9 @@ static Iface_DEFUN incomingTunB(struct Message* msg, struct Iface* tunB)
 static Iface_DEFUN incomingTunA(struct Message* msg, struct Iface* tunA)
 {
     struct TwoNodes* tn = Identity_containerOf(tunA, struct TwoNodes, tunA);
-    Assert_true(TUNMessageType_pop(msg, NULL) == Ethernet_TYPE_IP6);
-    Message_shift(msg, -Headers_IP6Header_SIZE, NULL);
+    uint16_t t = Er_assert(TUNMessageType_pop(msg));
+    Assert_true(t == Ethernet_TYPE_IP6);
+    Er_assert(Message_eshift(msg, -Headers_IP6Header_SIZE));
     uint8_t buff[1024];
     Hex_encode(buff, 1024, msg->bytes, msg->length);
     printf("Message from TUN in node A [%s] [%d] [%s]\n", msg->bytes, msg->length, buff);
@@ -185,13 +187,24 @@ static void start(struct Allocator* alloc,
     Log_debug(a->logger, "Waiting for nodes to link asynchronously...");
 }
 
+
+#define STACKMSG(name, messageLength, amountOfPadding) \
+    uint8_t UniqueName_get()[messageLength + amountOfPadding]; \
+    name = &(struct Message){                                  \
+        .length = messageLength,                               \
+        .bytes = UniqueName_last() + amountOfPadding,          \
+        .padding = amountOfPadding,                            \
+        .capacity = messageLength                              \
+    }
+
+
 static void sendMessage(struct TwoNodes* tn,
                         char* message,
                         struct TestFramework* from,
                         struct TestFramework* to)
 {
     struct Message* msg;
-    Message_STACK(msg, 64, 512);
+    STACKMSG(msg, 64, 512);
 
     Bits_memcpy(msg->bytes, message, CString_strlen(message) + 1);
     msg->length = CString_strlen(message) + 1;
@@ -210,7 +223,7 @@ static void sendMessage(struct TwoNodes* tn,
         Assert_true(false);
     }
 
-    TUNMessageType_push(msg, Ethernet_TYPE_IP6, NULL);
+    Er_assert(TUNMessageType_push(msg, Ethernet_TYPE_IP6));
     Iface_send(fromIf, msg);
 
     if (to == tn->nodeA) {

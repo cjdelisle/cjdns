@@ -199,7 +199,7 @@ static inline Gcc_USE_RET int decryptRndNonce(uint8_t nonce[24],
     }
 
     Bits_memcpy(startAt, paddingSpace, 16);
-    Message_shift(msg, -16, NULL);
+    Er_assert(Message_eshift(msg, -16));
     return 0;
 }
 
@@ -227,7 +227,7 @@ static inline void encryptRndNonce(uint8_t nonce[24],
     }
 
     Bits_memcpy(startAt, paddingSpace, 16);
-    Message_shift(msg, 16, NULL);
+    Er_assert(Message_eshift(msg, 16));
 }
 
 /**
@@ -342,7 +342,7 @@ static void encryptHandshake(struct Message* message,
                              struct CryptoAuth_Session_pvt* session,
                              int setupMessage)
 {
-    Message_shift(message, CryptoHeader_SIZE, NULL);
+    Er_assert(Message_eshift(message, CryptoHeader_SIZE));
 
     struct CryptoHeader* header = (struct CryptoHeader*) message->bytes;
 
@@ -447,7 +447,7 @@ static void encryptHandshake(struct Message* message,
                 Bits_isZero(session->herTempPubKey, 32));
 
     // Shift message over the encryptedTempKey field.
-    Message_shift(message, 32 - CryptoHeader_SIZE, NULL);
+    Er_assert(Message_eshift(message, 32 - CryptoHeader_SIZE));
 
     encryptRndNonce(header->handshakeNonce, message, sharedSecret);
 
@@ -467,7 +467,7 @@ static void encryptHandshake(struct Message* message,
     }
 
     // Shift it back -- encryptRndNonce adds 16 bytes of authenticator.
-    Message_shift(message, CryptoHeader_SIZE - 32 - 16, NULL);
+    Er_assert(Message_eshift(message, CryptoHeader_SIZE - 32 - 16));
 }
 
 /** @return 0 on success, -1 otherwise. */
@@ -517,7 +517,7 @@ int CryptoAuth_encrypt(struct CryptoAuth_Session* sessionPub, struct Message* ms
 
     encrypt(session->nextNonce, msg, session->sharedSecret, session->isInitiator);
 
-    Message_push32(msg, session->nextNonce, NULL);
+    Er_assert(Message_epush32be(msg, session->nextNonce));
     session->nextNonce++;
     return 0;
 }
@@ -641,7 +641,7 @@ static enum CryptoAuth_DecryptErr decryptHandshake(struct CryptoAuth_Session_pvt
     }
 
     // Shift it on top of the authenticator before the encrypted public key
-    Message_shift(message, 48 - CryptoHeader_SIZE, NULL);
+    Er_assert(Message_eshift(message, 48 - CryptoHeader_SIZE));
 
     if (Defined(Log_KEYS)) {
         uint8_t sharedSecretHex[65];
@@ -681,7 +681,7 @@ static enum CryptoAuth_DecryptErr decryptHandshake(struct CryptoAuth_Session_pvt
                   tempKeyHex);
     }
 
-    Message_shift(message, -32, NULL);
+    Er_assert(Message_eshift(message, -32));
 
     // Post-decryption checking
     if (nonce == Nonce_HELLO) {
@@ -847,7 +847,7 @@ enum CryptoAuth_DecryptErr CryptoAuth_decrypt(struct CryptoAuth_Session* session
     Assert_true(!((uintptr_t)msg->bytes % 4) || !"alignment fault");
     Assert_true(!(msg->capacity % 4) || !"length fault");
 
-    Message_shift(msg, -4, NULL);
+    Er_assert(Message_eshift(msg, -4));
 
     uint32_t nonce = Endian_bigEndianToHost32(header->nonce);
 
@@ -888,7 +888,7 @@ enum CryptoAuth_DecryptErr CryptoAuth_decrypt(struct CryptoAuth_Session* session
             return ret;
         }
 
-        Message_shift(msg, 4, NULL);
+        Er_assert(Message_eshift(msg, 4));
         return decryptHandshake(session, nonce, msg, header);
 
     } else if (nonce >= Nonce_FIRST_TRAFFIC_PACKET) {
@@ -904,7 +904,7 @@ enum CryptoAuth_DecryptErr CryptoAuth_decrypt(struct CryptoAuth_Session* session
         }
     } else if (nonce <= Nonce_REPEAT_HELLO) {
         cryptoAuthDebug(session, "hello packet during established session nonce=[%d]", nonce);
-        Message_shift(msg, 4, NULL);
+        Er_assert(Message_eshift(msg, 4));
         return decryptHandshake(session, nonce, msg, header);
     } else {
         cryptoAuthDebug(session, "DROP key packet during established session nonce=[%d]", nonce);

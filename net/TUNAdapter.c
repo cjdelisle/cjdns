@@ -37,7 +37,7 @@ static Iface_DEFUN incomingFromTunIf(struct Message* msg, struct Iface* tunIf)
 {
     struct TUNAdapter_pvt* ud = Identity_containerOf(tunIf, struct TUNAdapter_pvt, pub.tunIf);
 
-    uint16_t ethertype = TUNMessageType_pop(msg, NULL);
+    uint16_t ethertype = Er_assert(TUNMessageType_pop(msg));
 
     int version = Headers_getIpVersion(msg->bytes);
     if ((ethertype == Ethernet_TYPE_IP4 && version != 4)
@@ -80,14 +80,14 @@ static Iface_DEFUN incomingFromTunIf(struct Message* msg, struct Iface* tunIf)
     }
     if (!Bits_memcmp(header->destinationAddr, ud->myIp6, 16)) {
         // I'm Gonna Sit Right Down and Write Myself a Letter
-        TUNMessageType_push(msg, ethertype, NULL);
+        Er_assert(TUNMessageType_push(msg, ethertype));
         return Iface_next(tunIf, msg);
     }
 
     // first move the dest addr to the right place.
     Bits_memmove(header->destinationAddr - DataHeader_SIZE, header->destinationAddr, 16);
 
-    Message_shift(msg, DataHeader_SIZE + RouteHeader_SIZE - Headers_IP6Header_SIZE, NULL);
+    Er_assert(Message_eshift(msg, DataHeader_SIZE + RouteHeader_SIZE - Headers_IP6Header_SIZE));
     struct RouteHeader* rh = (struct RouteHeader*) msg->bytes;
 
     struct DataHeader* dh = (struct DataHeader*) &rh[1];
@@ -133,14 +133,14 @@ static Iface_DEFUN incomingFromUpperDistributorIf(struct Message* msg,
     // put my address as destination.
     Bits_memcpy(&hdr->ip6[DataHeader_SIZE], ud->myIp6, 16);
 
-    Message_shift(msg, Headers_IP6Header_SIZE - DataHeader_SIZE - RouteHeader_SIZE, NULL);
+    Er_assert(Message_eshift(msg, Headers_IP6Header_SIZE - DataHeader_SIZE - RouteHeader_SIZE));
     struct Headers_IP6Header* ip6 = (struct Headers_IP6Header*) msg->bytes;
     Bits_memset(ip6, 0, Headers_IP6Header_SIZE - 32);
     Headers_setIpVersion(ip6);
     ip6->payloadLength_be = Endian_bigEndianToHost16(msg->length - Headers_IP6Header_SIZE);
     ip6->nextHeader = type;
     ip6->hopLimit = 42;
-    TUNMessageType_push(msg, Ethernet_TYPE_IP6, NULL);
+    Er_assert(TUNMessageType_push(msg, Ethernet_TYPE_IP6));
     return sendToTunIf(msg, ud);
 }
 

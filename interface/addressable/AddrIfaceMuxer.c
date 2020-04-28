@@ -48,13 +48,13 @@ static Iface_DEFUN incomingFromAddrIf(struct Message* msg, struct Iface* addrIf)
     struct AddrIfaceMuxer_pvt* ctx =
         Identity_containerOf(addrIf, struct AddrIfaceMuxer_pvt, pub.iface.iface);
 
-    struct Sockaddr* addr = AddrIface_popAddr(msg, NULL);
+    struct Sockaddr* addr = Er_assert(AddrIface_popAddr(msg));
     if (addr->addrLen > sizeof(struct Sockaddr)) {
         // There's another address packed under this one
         struct Sockaddr* subaddr = &addr[1];
         Assert_true(subaddr->addrLen == addr->addrLen - sizeof(struct Sockaddr));
         // Move the needle back to include it
-        Message_shift(msg, subaddr->addrLen, NULL);
+        Er_assert(Message_eshift(msg, subaddr->addrLen));
         addr->addrLen -= subaddr->addrLen;
     }
     uint32_t handle = Sockaddr_addrHandle(addr);
@@ -77,7 +77,7 @@ static Iface_DEFUN incomingFromInputIf(struct Message* msg, struct Iface* inputI
     }
 
     uint16_t addrLen = Bits_get16(msg->bytes);
-    AddrIface_pushAddr(msg, &cli->addr, NULL);
+    Er_assert(AddrIface_pushAddr(msg, &cli->addr));
 
     // After pushing the address, tweak the length
     Bits_put16(msg->bytes, cli->addr.addrLen + addrLen);

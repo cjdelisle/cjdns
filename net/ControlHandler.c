@@ -48,9 +48,9 @@ static Iface_DEFUN handleError(struct Message* msg,
         return NULL;
     }
     msg->length = handleError_MIN_SIZE;
-    Message_push(msg, &rh->sh, SwitchHeader_SIZE, NULL);
-    Message_push32(msg, 0xffffffff, NULL);
-    Message_push32(msg, PFChan_Core_SWITCH_ERR, NULL);
+    Er_assert(Message_epush(msg, &rh->sh, SwitchHeader_SIZE));
+    Er_assert(Message_epush32be(msg, 0xffffffff));
+    Er_assert(Message_epush32be(msg, PFChan_Core_SWITCH_ERR));
     return Iface_next(&ch->eventIf, msg);
 }
 
@@ -70,7 +70,7 @@ static Iface_DEFUN handlePing(struct Message* msg,
     }
 
     struct Control* ctrl = (struct Control*) msg->bytes;
-    Message_shift(msg, -Control_Header_SIZE, NULL);
+    Er_assert(Message_eshift(msg, -Control_Header_SIZE));
 
     // Ping and keyPing share version location
     struct Control_Ping* ping = (struct Control_Ping*) msg->bytes;
@@ -117,12 +117,12 @@ static Iface_DEFUN handlePing(struct Message* msg,
 
     ping->version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL);
 
-    Message_shift(msg, Control_Header_SIZE, NULL);
+    Er_assert(Message_eshift(msg, Control_Header_SIZE));
 
     ctrl->header.checksum_be = 0;
     ctrl->header.checksum_be = Checksum_engine(msg->bytes, msg->length);
 
-    Message_shift(msg, RouteHeader_SIZE, NULL);
+    Er_assert(Message_eshift(msg, RouteHeader_SIZE));
 
     struct RouteHeader* routeHeader = (struct RouteHeader*) msg->bytes;
     Bits_memset(routeHeader, 0, RouteHeader_SIZE);
@@ -182,7 +182,7 @@ static Iface_DEFUN handleGetSnodeQuery(struct Message* msg,
     ctrl->header.checksum_be = 0;
     ctrl->header.checksum_be = Checksum_engine(msg->bytes, msg->length);
 
-    Message_shift(msg, RouteHeader_SIZE, NULL);
+    Er_assert(Message_eshift(msg, RouteHeader_SIZE));
     struct RouteHeader* routeHeader = (struct RouteHeader*) msg->bytes;
     Bits_memset(routeHeader, 0, RouteHeader_SIZE);
     SwitchHeader_setVersion(&routeHeader->sh, SwitchHeader_CURRENT_VERSION);
@@ -206,7 +206,7 @@ static Iface_DEFUN incomingFromCore(struct Message* msg, struct Iface* coreIf)
     struct ControlHandler_pvt* ch = Identity_check((struct ControlHandler_pvt*) coreIf);
 
     struct RouteHeader routeHdr;
-    Message_pop(msg, &routeHdr, RouteHeader_SIZE, NULL);
+    Er_assert(Message_epop(msg, &routeHdr, RouteHeader_SIZE));
     uint8_t labelStr[20];
     uint64_t label = Endian_bigEndianToHost64(routeHdr.sh.label_be);
     AddrTools_printPath(labelStr, label);
@@ -239,7 +239,7 @@ static Iface_DEFUN incomingFromCore(struct Message* msg, struct Iface* coreIf)
             || ctrl->header.type_be == Control_PONG_be)
     {
         Log_debug(ch->log, "got switch pong from [%s]", labelStr);
-        Message_push(msg, &routeHdr, RouteHeader_SIZE, NULL);
+        Er_assert(Message_epush(msg, &routeHdr, RouteHeader_SIZE));
         return Iface_next(&ch->pub.switchPingerIf, msg);
 
     } else if (ctrl->header.type_be == Control_GETSNODE_QUERY_be) {
@@ -247,9 +247,9 @@ static Iface_DEFUN incomingFromCore(struct Message* msg, struct Iface* coreIf)
 
     } else if (ctrl->header.type_be == Control_GETSNODE_REPLY_be) {
         Log_debug(ch->log, "got GETSNODE_REPLY from [%s]", labelStr);
-        Message_push(msg, &routeHdr, RouteHeader_SIZE, NULL);
-        Message_push32(msg, 0xffffffff, NULL);
-        Message_push32(msg, PFChan_Core_CTRL_MSG, NULL);
+        Er_assert(Message_epush(msg, &routeHdr, RouteHeader_SIZE));
+        Er_assert(Message_epush32be(msg, 0xffffffff));
+        Er_assert(Message_epush32be(msg, PFChan_Core_CTRL_MSG));
         return Iface_next(&ch->eventIf, msg);
     }
 
@@ -271,12 +271,12 @@ static Iface_DEFUN changeSnode(struct Message* msg, struct Iface* eventIf)
 {
     struct ControlHandler_pvt* ch =
         Identity_containerOf(eventIf, struct ControlHandler_pvt, eventIf);
-    enum PFChan_Pathfinder ev = Message_pop32(msg, NULL);
+    enum PFChan_Pathfinder ev = Er_assert(Message_epop32be(msg));
     Assert_true(ev == PFChan_Pathfinder_SNODE);
-    Message_pop32(msg, NULL);
+    Er_assert(Message_epop32be(msg));
 
     struct PFChan_Node node;
-    Message_pop(msg, &node, PFChan_Node_SIZE, NULL);
+    Er_assert(Message_epop(msg, &node, PFChan_Node_SIZE));
     Assert_true(!msg->length);
 
     Bits_memcpy(ch->activeSnode.key, node.publicKey, 32);

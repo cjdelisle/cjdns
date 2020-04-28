@@ -18,80 +18,89 @@
 #include "benc/Dict.h"
 #include "benc/List.h"
 #include "benc/serialization/standard/BencMessageWriter.h"
-#include "exception/Except.h"
+#include "exception/Er.h"
 #include "wire/Message.h"
 #include "util/Base10.h"
 
-static void writeGeneric(Object* obj, struct Message* msg, struct Except* eh);
+static Er_DEFUN(void writeGeneric(Object* obj, struct Message* msg));
 
-static void writeListItems(struct List_Item* item, struct Message* msg, struct Except* eh)
+static Er_DEFUN(void writeListItems(struct List_Item* item, struct Message* msg))
 {
-    if (!item) { return; }
-    writeListItems(item->next, msg, eh);
-    writeGeneric(item->elem, msg, eh);
+    if (!item) { Er_ret(); }
+    Er(writeListItems(item->next, msg));
+    Er(writeGeneric(item->elem, msg));
+    Er_ret();
 }
 
-static void writeList(List* l, struct Message* msg, struct Except* eh)
+static Er_DEFUN(void writeList(List* l, struct Message* msg))
 {
-    Message_push8(msg, 'e', eh);
-    writeListItems(*l, msg, eh);
-    Message_push8(msg, 'l', eh);
+    Er(Message_epush8(msg, 'e'));
+    Er(writeListItems(*l, msg));
+    Er(Message_epush8(msg, 'l'));
+    Er_ret();
 }
 
-static void writeInt(int64_t num, struct Message* msg, struct Except* eh)
+static Er_DEFUN(void writeInt(int64_t num, struct Message* msg))
 {
-    Message_push8(msg, 'e', eh);
-    Base10_write(msg, num, eh);
-    Message_push8(msg, 'i', eh);
+    Er(Message_epush8(msg, 'e'));
+    Er(Base10_write(msg, num));
+    Er(Message_epush8(msg, 'i'));
+    Er_ret();
 }
 
-static void writeString(String* str, struct Message* msg, struct Except* eh)
+static Er_DEFUN(void writeString(String* str, struct Message* msg))
 {
-    Message_push(msg, str->bytes, str->len, eh);
-    Message_push8(msg, ':', eh);
-    Base10_write(msg, str->len, eh);
+    Er(Message_epush(msg, str->bytes, str->len));
+    Er(Message_epush8(msg, ':'));
+    Er(Base10_write(msg, str->len));
+    Er_ret();
 }
 
-static void writeDictEntries(struct Dict_Entry* entry, struct Message* msg, struct Except* eh)
+static Er_DEFUN(void writeDictEntries(struct Dict_Entry* entry, struct Message* msg))
 {
-    if (!entry) { return; }
-    writeDictEntries(entry->next, msg, eh);
-    writeGeneric(entry->val, msg, eh);
-    writeString(entry->key, msg, eh);
+    if (!entry) { Er_ret(); }
+    Er(writeDictEntries(entry->next, msg));
+    Er(writeGeneric(entry->val, msg));
+    Er(writeString(entry->key, msg));
+    Er_ret();
 }
 
-static void writeDict(Dict* d, struct Message* msg, struct Except* eh)
+static Er_DEFUN(void writeDict(Dict* d, struct Message* msg))
 {
-    Message_push8(msg, 'e', eh);
-    writeDictEntries(*d, msg, eh);
-    Message_push8(msg, 'd', eh);
+    Er(Message_epush8(msg, 'e'));
+    Er(writeDictEntries(*d, msg));
+    Er(Message_epush8(msg, 'd'));
+    Er_ret();
 }
 
-static void writeGeneric(Object* obj, struct Message* msg, struct Except* eh)
+static Er_DEFUN(void writeGeneric(Object* obj, struct Message* msg))
 {
     switch (obj->type) {
-        case Object_STRING:  writeString(obj->as.string, msg, eh); break;
-        case Object_DICT:    writeDict(obj->as.dictionary, msg, eh); break;
-        case Object_LIST:    writeList(obj->as.list, msg, eh); break;
-        case Object_INTEGER: writeInt(obj->as.number, msg, eh); break;
+        case Object_STRING:  Er(writeString(obj->as.string, msg)); break;
+        case Object_DICT:    Er(writeDict(obj->as.dictionary, msg)); break;
+        case Object_LIST:    Er(writeList(obj->as.list, msg)); break;
+        case Object_INTEGER: Er(writeInt(obj->as.number, msg)); break;
         default: Assert_failure("object of unknown type [%d]", obj->type);
     }
+    Er_ret();
 }
 
-void BencMessageWriter_write(Dict* toWrite, struct Message* msg, struct Except* eh)
+Er_DEFUN(void BencMessageWriter_write(Dict* toWrite, struct Message* msg))
 {
-    writeDict(toWrite, msg, eh);
+    Er(writeDict(toWrite, msg));
 
     // lucky
-    if (!((uintptr_t)msg->bytes % 8)) { return; }
+    if (!((uintptr_t)msg->bytes % 8)) { Er_ret(); }
 
-    Assert_true(Message_pop8(msg, eh) == 'd');
+    char d = Er(Message_epop8(msg));
+    Assert_true(d == 'd');
     Assert_true(msg->bytes[0] != 'e' && "Can't serialize empty messages");
     Assert_true(msg->bytes[0] >= '1' && msg->bytes[0] <= '9');
 
     // put the message into alignment by padding out the number with leading zeros :)
-    do { Message_push8(msg, '0', eh); } while ((uintptr_t)msg->bytes % 8);
+    do { Er(Message_epush8(msg, '0')); } while ((uintptr_t)msg->bytes % 8);
 
-    Message_pop8(msg, eh);
-    Message_push8(msg, 'd', eh);
+    Er(Message_epop8(msg));
+    Er(Message_epush8(msg, 'd'));
+    Er_ret();
 }

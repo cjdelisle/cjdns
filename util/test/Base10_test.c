@@ -34,11 +34,11 @@ int main()
     for (int i = 0; i < 1000; i++) {
         // zero it
         Message_reset(msg);
-        Message_push(msg, NULL, 32, NULL);
+        Er_assert(Message_epush(msg, NULL, 32));
         Message_reset(msg);
 
         long long num = Random_int64(rand);
-        Base10_write(msg, num, NULL);
+        Er_assert(Base10_write(msg, num));
 
         snprintf(buff, 31, "%lld", num);
 

@@ -73,9 +73,9 @@ static bool isNeighborSolicitation(struct Message* msg, struct NDPServer_pvt* ns
 static Iface_DEFUN answerNeighborSolicitation(struct Message* msg, struct NDPServer_pvt* ns)
 {
     struct Headers_IP6Header ip6;
-    Message_pop(msg, &ip6, Headers_IP6Header_SIZE, NULL);
+    Er_assert(Message_epop(msg, &ip6, Headers_IP6Header_SIZE));
     struct NDPHeader_NeighborSolicitation sol;
-    Message_pop(msg, &sol, NDPHeader_NeighborSolicitation_SIZE, NULL);
+    Er_assert(Message_epop(msg, &sol, NDPHeader_NeighborSolicitation_SIZE));
     if (msg->length) {
         /* Right now we ignore any ICMP options. Windows will send them. */
         Log_debug(ns->log, "%d extra bytes (ICMP options?) in neighbor solicitation",
@@ -87,7 +87,7 @@ static Iface_DEFUN answerNeighborSolicitation(struct Message* msg, struct NDPSer
         .one = 1
     };
     Bits_memcpy(macOpt.mac, ns->localMac, Ethernet_ADDRLEN);
-    Message_push(msg, &macOpt, sizeof(struct NDPHeader_MacOpt), NULL);
+    Er_assert(Message_epush(msg, &macOpt, sizeof(struct NDPHeader_MacOpt)));
 
     struct NDPHeader_NeighborAdvert na = {
         .oneThirtySix = 136,
@@ -98,7 +98,7 @@ static Iface_DEFUN answerNeighborSolicitation(struct Message* msg, struct NDPSer
             | NDPHeader_NeighborAdvert_bits_OVERRIDE
     };
     Bits_memcpy(na.targetAddr, sol.targetAddr, 16);
-    Message_push(msg, &na, sizeof(struct NDPHeader_NeighborAdvert), NULL);
+    Er_assert(Message_epush(msg, &na, sizeof(struct NDPHeader_NeighborAdvert)));
 
     Bits_memcpy(ip6.destinationAddr, ip6.sourceAddr, 16);
     Bits_memcpy(ip6.sourceAddr, sol.targetAddr, 16);
@@ -108,9 +108,9 @@ static Iface_DEFUN answerNeighborSolicitation(struct Message* msg, struct NDPSer
     struct NDPHeader_RouterAdvert* adv = (struct NDPHeader_RouterAdvert*) msg->bytes;
     adv->checksum = Checksum_icmp6(ip6.sourceAddr, msg->bytes, msg->length);
 
-    Message_push(msg, &ip6, sizeof(struct Headers_IP6Header), NULL);
+    Er_assert(Message_epush(msg, &ip6, sizeof(struct Headers_IP6Header)));
 
-    TUNMessageType_push(msg, Ethernet_TYPE_IP6, NULL);
+    Er_assert(TUNMessageType_push(msg, Ethernet_TYPE_IP6));
 
     Log_debug(ns->log, "Sending neighbor advert");
 
@@ -122,13 +122,13 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* external)
     struct NDPServer_pvt* ns = Identity_containerOf(external, struct NDPServer_pvt, external);
 
     if (msg->length > Headers_IP6Header_SIZE + 4) {
-        uint16_t ethertype = TUNMessageType_pop(msg, NULL);
+        uint16_t ethertype = Er_assert(TUNMessageType_pop(msg));
         if (ethertype != Ethernet_TYPE_IP6) {
         } else if (isNeighborSolicitation(msg, ns)) {
             //TODO(cjdns, Kubuxu): Filtering basing on cjdns network and tunnels.
             return answerNeighborSolicitation(msg, ns);
         }
-        TUNMessageType_push(msg, ethertype, NULL);
+        Er_assert(TUNMessageType_push(msg, ethertype));
     }
     return Iface_next(&ns->pub.internal, msg);
 }

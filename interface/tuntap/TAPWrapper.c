@@ -40,10 +40,10 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* external)
     }
 
     // wacky 14 byte headers, back off into outer-space to create the padding...
-    Message_shift(msg, 2, NULL);
+    Er_assert(Message_eshift(msg, 2));
 
     struct Ethernet eth;
-    Message_pop(msg, &eth, sizeof(struct Ethernet), NULL);
+    Er_assert(Message_epop(msg, &eth, sizeof(struct Ethernet)));
 
     // Not for us and not multicast...
     if (Bits_memcmp(eth.destAddr, TAPWrapper_LOCAL_MAC, Ethernet_ADDRLEN)
@@ -69,7 +69,7 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* external)
             return 0;
         }
     }
-    TUNMessageType_push(msg, eth.ethertype, NULL);
+    Er_assert(TUNMessageType_push(msg, eth.ethertype));
     return Iface_next(&tw->pub.internal, msg);
 }
 
@@ -77,7 +77,7 @@ static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* internal)
 {
     struct TAPWrapper_pvt* tw = Identity_containerOf(internal, struct TAPWrapper_pvt, pub.internal);
 
-    uint16_t etherType = TUNMessageType_pop(msg, NULL);
+    uint16_t etherType = Er_assert(TUNMessageType_pop(msg));
     struct Ethernet eth = { .ethertype = etherType };
     Bits_memcpy(eth.srcAddr, TAPWrapper_LOCAL_MAC, Ethernet_ADDRLEN);
     Bits_memcpy(eth.destAddr, tw->pub.peerAddress, Ethernet_ADDRLEN);
@@ -86,10 +86,10 @@ static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* internal)
         return NULL;
     }
 
-    Message_push(msg, &eth, sizeof(struct Ethernet), NULL);
+    Er_assert(Message_epush(msg, &eth, sizeof(struct Ethernet)));
 
     // struct Ethernet contains 2 bytes of padding at the beginning.
-    Message_shift(msg, -2, NULL);
+    Er_assert(Message_eshift(msg, -2));
 
     return Iface_next(&tw->external, msg);
 }

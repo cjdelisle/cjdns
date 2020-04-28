@@ -57,8 +57,8 @@ static void onConnectionParent(struct PipeServer* p, struct Sockaddr* addr)
     struct Context* c = Identity_check((struct Context*) p->userData);
     struct Allocator* alloc = Allocator_child(c->alloc);
     struct Message* msg = Message_new(0, 256, alloc);
-    Message_push(msg, MESSAGE, CString_strlen(MESSAGE) + 1, NULL);
-    AddrIface_pushAddr(msg, addr, NULL);
+    Er_assert(Message_epush(msg, MESSAGE, CString_strlen(MESSAGE) + 1));
+    Er_assert(AddrIface_pushAddr(msg, addr));
     if (!Defined(win32)) {
         Message_setAssociatedFd(msg, c->fd);
     }
@@ -70,7 +70,7 @@ static void onConnectionParent(struct PipeServer* p, struct Sockaddr* addr)
 static Iface_DEFUN receiveMessageParent(struct Message* msg, struct Iface* iface)
 {
     struct Context* c = Identity_check((struct Context*) iface);
-    AddrIface_popAddr(msg, NULL);
+    Er_assert(AddrIface_popAddr(msg));
     Assert_true(msg->length == (int)CString_strlen(MESSAGEB)+1);
     Assert_true(!Bits_memcmp(msg->bytes, MESSAGEB, CString_strlen(MESSAGEB)+1));
     Allocator_free(c->alloc);
@@ -114,8 +114,8 @@ static Iface_DEFUN receiveMessageChild(struct Message* msg, struct Iface* iface)
         }
     }
 
-    Message_shift(m, -((int)CString_strlen(MESSAGE)), NULL);
-    Message_push(m, MESSAGEB, CString_strlen(MESSAGEB), NULL);
+    Er_assert(Message_eshift(m, -((int)CString_strlen(MESSAGE))));
+    Er_assert(Message_epush(m, MESSAGEB, CString_strlen(MESSAGEB)));
 
     Iface_send(&c->iface, m);
 

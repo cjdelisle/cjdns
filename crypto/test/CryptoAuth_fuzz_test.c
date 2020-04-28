@@ -258,7 +258,7 @@ static void mainLoop(struct Context* ctx)
 
         struct Allocator* alloc = Allocator_child(ctx->alloc);
         struct Message* msg = Message_new(0, 512, alloc);
-        Message_push(msg, "hey", 4, NULL);
+        Er_assert(Message_epush(msg, "hey", 4));
         Assert_true(!CryptoAuth_encrypt(ctx->nodeA.session, msg));
         sendFrom(ctx, &ctx->nodeA, msg);
         Allocator_free(alloc);

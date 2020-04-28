@@ -61,16 +61,16 @@ struct FakeNetwork_UDPIface_pvt
 static void popSockaddr(struct Message* msg, struct Sockaddr_storage* ss)
 {
     uint64_t length = 0;
-    Message_pop(msg, &length, 8, NULL);
-    Message_shift(msg, 8, NULL);
+    Er_assert(Message_epop(msg, &length, 8));
+    Er_assert(Message_eshift(msg, 8));
     Assert_true(length >= Sockaddr_OVERHEAD);
     Assert_true(length <= sizeof(struct Sockaddr_storage));
-    Message_pop(msg, ss, length, NULL);
+    Er_assert(Message_epop(msg, ss, length));
 }
 
 static void pushSockaddr(struct Message* msg, struct Sockaddr* sa)
 {
-    Message_push(msg, sa, sa->addrLen, NULL);
+    Er_assert(Message_epush(msg, sa, sa->addrLen));
 }
 
 static Iface_DEFUN fromAsync(struct Message* msg, struct Iface* fnpFromAsync)

@@ -117,7 +117,7 @@ static void sendMessage(struct Message* message, struct Sockaddr* dest, struct A
 {
     // stack overflow when used with admin logger.
     //Log_keys(admin->logger, "sending message to angel [%s]", message->bytes);
-    Message_push(message, dest, dest->addrLen, NULL);
+    Er_assert(Message_epush(message, dest, dest->addrLen));
     Iface_send(&admin->iface, message);
 }
 
@@ -128,9 +128,9 @@ static void sendBenc(Dict* message,
                      int fd)
 {
     Message_reset(admin->tempSendMsg);
-    BencMessageWriter_write(message, admin->tempSendMsg, NULL);
+    Er_assert(BencMessageWriter_write(message, admin->tempSendMsg));
     struct Message* msg = Message_new(0, admin->tempSendMsg->length + 32, alloc);
-    Message_push(msg, admin->tempSendMsg->bytes, admin->tempSendMsg->length, NULL);
+    Er_assert(Message_epush(msg, admin->tempSendMsg->bytes, admin->tempSendMsg->length));
     Message_setAssociatedFd(msg, fd);
     sendMessage(msg, dest, admin);
 }
@@ -457,7 +457,7 @@ static void handleMessage(struct Message* message,
     }
 
     // put the data back in the front of the message because it is used by the auth checker.
-    Message_shift(message, origMessageLen, NULL);
+    Er_assert(Message_eshift(message, origMessageLen));
 
     handleRequest(messageDict, message, src, alloc, admin);
 }
@@ -466,7 +466,7 @@ static Iface_DEFUN receiveMessage(struct Message* message, struct Iface* iface)
 {
     struct Admin_pvt* admin = Identity_containerOf(iface, struct Admin_pvt, iface);
     struct Allocator* alloc = Allocator_child(admin->allocator);
-    struct Sockaddr* addrPtr = AddrIface_popAddr(message, NULL);
+    struct Sockaddr* addrPtr = Er_assert(AddrIface_popAddr(message));
 
     admin->currentRequest = message;
     handleMessage(message, Sockaddr_clone(addrPtr, alloc), alloc, admin);

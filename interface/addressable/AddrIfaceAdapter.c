@@ -34,7 +34,7 @@ static Iface_DEFUN incomingFromAddrIf(struct Message* msg, struct Iface* addrIf)
     struct AddrIfaceAdapter_pvt* ctx =
         Identity_containerOf(addrIf, struct AddrIfaceAdapter_pvt, pub.generic.iface);
 
-    Message_shift(msg, -(ctx->pub.generic.addr->addrLen), NULL);
+    Er_assert(Message_eshift(msg, -(ctx->pub.generic.addr->addrLen)));
     return Iface_next(&ctx->pub.inputIf, msg);
 }
 
@@ -43,7 +43,7 @@ static Iface_DEFUN incomingFromInputIf(struct Message* msg, struct Iface* inputI
     struct AddrIfaceAdapter_pvt* ctx =
         Identity_containerOf(inputIf, struct AddrIfaceAdapter_pvt, pub.inputIf);
 
-    Message_push(msg, ctx->pub.generic.addr, ctx->pub.generic.addr->addrLen, NULL);
+    Er_assert(Message_epush(msg, ctx->pub.generic.addr, ctx->pub.generic.addr->addrLen));
     return Iface_next(&ctx->pub.generic.iface, msg);
 }
 

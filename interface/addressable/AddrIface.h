@@ -40,20 +40,18 @@ struct AddrIface
     struct Allocator* alloc;
 };
 
-static inline void AddrIface_pushAddr(
-    struct Message* msg,
-    struct Sockaddr* addr,
-    struct Except* eh)
+static inline Er_DEFUN(void AddrIface_pushAddr(struct Message* msg, struct Sockaddr* addr))
 {
-    Message_push(msg, addr, addr->addrLen, eh);
+    Er(Message_epush(msg, addr, addr->addrLen));
+    Er_ret();
 }
 
-static inline struct Sockaddr* AddrIface_popAddr(struct Message* msg, struct Except* eh)
+static inline Er_DEFUN(struct Sockaddr* AddrIface_popAddr(struct Message* msg))
 {
     struct Sockaddr* out = (struct Sockaddr*) msg->bytes;
-    uint16_t len = Message_pop16h(msg, eh);
-    Message_pop(msg, NULL, len - 2, eh);
-    return out;
+    uint16_t len = Er(Message_epop16h(msg));
+    Er(Message_epop(msg, NULL, len - 2));
+    Er_ret(out);
 }
 
 #endif

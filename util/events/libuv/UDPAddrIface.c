@@ -111,7 +111,7 @@ static Iface_DEFUN incomingFromIface(struct Message* m, struct Iface* iface)
     Identity_set(req);
 
     struct Sockaddr_storage ss;
-    Message_pop(m, &ss, context->pub.generic.addr->addrLen, NULL);
+    Er_assert(Message_epop(m, &ss, context->pub.generic.addr->addrLen));
     Assert_true(ss.addr.addrLen == context->pub.generic.addr->addrLen);
 
     req->length = m->length;
@@ -164,13 +164,13 @@ static void incoming(uv_udp_t* handle,
         m->capacity = buf->len;
         m->bytes = (uint8_t*)buf->base;
         m->alloc = alloc;
-        Message_push(m, addr, context->pub.generic.addr->addrLen - Sockaddr_OVERHEAD, NULL);
+        Er_assert(Message_epush(m, addr, context->pub.generic.addr->addrLen - Sockaddr_OVERHEAD));
 
         // make sure the sockaddr doesn't have crap in it which will
         // prevent it from being used as a lookup key
         Sockaddr_normalizeNative((struct sockaddr*) m->bytes);
 
-        Message_push(m, context->pub.generic.addr, Sockaddr_OVERHEAD, NULL);
+        Er_assert(Message_epush(m, context->pub.generic.addr, Sockaddr_OVERHEAD));
 
         /*uint8_t buff[256] = {0};
         Assert_true(Hex_encode(buff, 255, m->bytes, context->pub.generic.addr->addrLen));

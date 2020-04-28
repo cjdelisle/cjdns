@@ -20,22 +20,23 @@
 
 #include <stdbool.h>
 
-void Base10_write(struct Message* msg, int64_t num, struct Except* eh)
+Er_DEFUN(void Base10_write(struct Message* msg, int64_t num))
 {
     bool negative = num < 0;
     if (negative) {
         num = -num;
     } else if (num == 0) {
-        Message_push8(msg, '0', eh);
-        return;
+        Er(Message_epush8(msg, '0'));
+        Er_ret();
     }
     while (num > 0) {
-        Message_push8(msg, '0' + (num % 10), eh);
+        Er(Message_epush8(msg, '0' + (num % 10)));
         num /= 10;
     }
     if (negative) {
-        Message_push8(msg, '-', eh);
+        Er(Message_epush8(msg, '-'));
     }
+    Er_ret();
 }
 
 Er_DEFUN(int64_t Base10_read(struct Message* msg))

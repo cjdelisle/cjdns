@@ -78,7 +78,7 @@ static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* iface)
     Assert_true(sa->addrLen <= ETHInterface_Sockaddr_SIZE);
 
     struct ETHInterface_Sockaddr sockaddr = { .generic = { .addrLen = 0 } };
-    Message_pop(msg, &sockaddr, sa->addrLen, NULL);
+    Er_assert(Message_epop(msg, &sockaddr, sa->addrLen));
 
     struct ETHInterface_Header hdr = {
         .version = ETHInterface_CURRENT_VERSION,
@@ -86,7 +86,7 @@ static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* iface)
         .length_be = Endian_hostToBigEndian16(msg->length + ETHInterface_Header_SIZE),
         .fc00_be = Endian_hostToBigEndian16(0xfc00)
     };
-    Message_push(msg, &hdr, ETHInterface_Header_SIZE, NULL);
+    Er_assert(Message_epush(msg, &hdr, ETHInterface_Header_SIZE));
 
     struct ethernet_frame ethFr = {
         .type = Ethernet_TYPE_CJDNS
@@ -97,14 +97,14 @@ static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* iface)
         Bits_memcpy(ethFr.dest, sockaddr.mac, 6);
     }
     Bits_memcpy(ethFr.src, ctx->myMac, 6);
-    Message_push(msg, &ethFr, ethernet_frame_SIZE, NULL);
+    Er_assert(Message_epush(msg, &ethFr, ethernet_frame_SIZE));
   /*
     struct bpf_hdr bpfPkt = {
         .bh_caplen = msg->length,
         .bh_datalen = msg->length,
         .bh_hdrlen = BPF_WORDALIGN(sizeof(struct bpf_hdr))
     };
-    Message_push(msg, &bpfPkt, bpfPkt.bh_hdrlen, NULL);
+    Er_assert(Message_epush(msg, &bpfPkt, bpfPkt.bh_hdrlen));
 */
     if (msg->length != write(ctx->socket, msg->bytes, msg->length)) {
         Log_debug(ctx->logger, "Error writing to eth device [%s]", strerror(errno));
@@ -160,7 +160,7 @@ static void handleEvent2(struct ETHInterface_pvt* context,
         sockaddr.generic.flags |= Sockaddr_flags_BCAST;
     }
 
-    Message_push(msg, &sockaddr, ETHInterface_Sockaddr_SIZE, NULL);
+    Er_assert(Message_epush(msg, &sockaddr, ETHInterface_Sockaddr_SIZE));
 
     Assert_true(!((uintptr_t)msg->bytes % 4) && "Alignment fault");
 

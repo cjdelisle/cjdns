@@ -57,7 +57,7 @@ static void onConnectionChild(struct Pipe* pipe, int status)
     Assert_true(Seccomp_isWorking());
 
     struct Message* ok = Message_new(0, 512, child->alloc);
-    Message_push(ok, "OK", 3, NULL);
+    Er_assert(Message_epush(ok, "OK", 3));
 
     struct Iface iface = { .send = NULL };
     Iface_plumb(&pipe->iface, &iface);
@@ -98,7 +98,7 @@ static Iface_DEFUN receiveMessageParent(struct Message* msg, struct Iface* iface
 {
     struct Context* ctx = Identity_check((struct Context*) iface);
     // PipeServer pushes a uint32 identifier of the client who sent the message
-    AddrIface_popAddr(msg, NULL);
+    Er_assert(AddrIface_popAddr(msg));
     Assert_true(msg->length == 3);
     Assert_true(!Bits_memcmp(msg->bytes, "OK", 3));
     EventBase_endLoop(ctx->eventBase);

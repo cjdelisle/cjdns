@@ -18,19 +18,19 @@
 #include "util/Defined.h"
 #include "wire/Message.h"
 
-static inline void TUNMessageType_push(struct Message* message,
-                                       uint16_t ethertype,
-                                       struct Except* eh)
+static inline Er_DEFUN(void TUNMessageType_push(struct Message* message,
+                                       uint16_t ethertype))
 {
-    Message_shift(message, 4, eh);
+    Er(Message_eshift(message, 4));
     ((uint16_t*) message->bytes)[0] = 0;
     ((uint16_t*) message->bytes)[1] = ethertype;
+    Er_ret();
 }
 
-static inline uint16_t TUNMessageType_pop(struct Message* message, struct Except* eh)
+static inline Er_DEFUN(uint16_t TUNMessageType_pop(struct Message* message))
 {
-    Message_shift(message, -4, eh);
-    return ((uint16_t*) message->bytes)[-1];
+    Er(Message_eshift(message, -4));
+    Er_ret( ((uint16_t*) message->bytes)[-1] );
 }
 
 enum TUNMessageType {

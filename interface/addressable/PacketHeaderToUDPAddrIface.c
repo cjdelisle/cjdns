@@ -34,7 +34,7 @@ static Iface_DEFUN incomingFromUdpIf(struct Message* message, struct Iface* udpI
         Identity_containerOf(udpIf, struct PacketHeaderToUDPAddrIface_pvt, pub.udpIf.iface);
 
     struct Sockaddr_storage ss;
-    Message_pop(message, &ss, context->pub.udpIf.addr->addrLen, NULL);
+    Er_assert(Message_epop(message, &ss, context->pub.udpIf.addr->addrLen));
     struct Sockaddr* addr = &ss.addr;
 
     struct Headers_UDPHeader udp;
@@ -42,7 +42,7 @@ static Iface_DEFUN incomingFromUdpIf(struct Message* message, struct Iface* udpI
     udp.destPort_be = Endian_hostToBigEndian16(Sockaddr_getPort(addr));
     udp.length_be = Endian_hostToBigEndian16(message->length + Headers_UDPHeader_SIZE);
     udp.checksum_be = 0;
-    Message_push(message, &udp, sizeof(struct Headers_UDPHeader), NULL);
+    Er_assert(Message_epush(message, &udp, sizeof(struct Headers_UDPHeader)));
 
     struct Headers_IP6Header ip = {
         .nextHeader = 17,
@@ -59,7 +59,7 @@ static Iface_DEFUN incomingFromUdpIf(struct Message* message, struct Iface* udpI
     uint16_t checksum = Checksum_udpIp6(ip.sourceAddr, message->bytes, message->length);
     ((struct Headers_UDPHeader*)message->bytes)->checksum_be = checksum;
 
-    Message_push(message, &ip, sizeof(struct Headers_IP6Header), NULL);
+    Er_assert(Message_epush(message, &ip, sizeof(struct Headers_IP6Header)));
 
     return Iface_next(&context->pub.headerIf, message);
 }
@@ -96,8 +96,8 @@ static Iface_DEFUN incomingFromHeaderIf(struct Message* message, struct Iface* i
         return NULL;
     }
 
-    Message_shift(message, -(Headers_IP6Header_SIZE + Headers_UDPHeader_SIZE), NULL);
-    Message_push(message, addr, addr->addrLen, NULL);
+    Er_assert(Message_eshift(message, -(Headers_IP6Header_SIZE + Headers_UDPHeader_SIZE)));
+    Er_assert(Message_epush(message, addr, addr->addrLen));
 
     return Iface_next(&context->pub.udpIf.iface, message);
 }

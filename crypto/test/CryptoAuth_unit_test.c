@@ -105,7 +105,7 @@ static void testHello(uint8_t* password, uint8_t* expectedOutput)
     struct Allocator* alloc = MallocAllocator_new(1<<20);
     struct Context* ctx = setUp(NULL, HERPUBKEY, password, alloc);
     struct Message* msg = Message_new(0, CryptoHeader_SIZE + 12, alloc);
-    Message_push(msg, HELLOWORLD, HELLOWORLDLEN, NULL);
+    Er_assert(Message_epush(msg, HELLOWORLD, HELLOWORLDLEN));
 
     Assert_true(!CryptoAuth_encrypt(ctx->sess, msg));
 
@@ -172,12 +172,12 @@ static void repeatHello()
     struct Allocator* alloc = MallocAllocator_new(1<<20);
     struct Context* ctx = setUp(NULL, HERPUBKEY, "password", alloc);
     struct Message* msg = Message_new(0, CryptoHeader_SIZE + HELLOWORLDLEN, alloc);
-    Message_push(msg, HELLOWORLD, HELLOWORLDLEN, NULL);
+    Er_assert(Message_epush(msg, HELLOWORLD, HELLOWORLDLEN));
 
     Assert_true(!CryptoAuth_encrypt(ctx->sess, msg));
 
     Message_reset(msg);
-    Message_push(msg, HELLOWORLD, HELLOWORLDLEN, NULL);
+    Er_assert(Message_epush(msg, HELLOWORLD, HELLOWORLDLEN));
 
     Assert_true(!CryptoAuth_encrypt(ctx->sess, msg));
 

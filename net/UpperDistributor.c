@@ -56,9 +56,9 @@ static Iface_DEFUN incomingFromSessionManagerIf(struct Message*, struct Iface*);
 
 static Iface_DEFUN fromHandler(struct Message* msg, struct UpperDistributor_pvt* ud)
 {
-    Message_pop(msg, NULL, RouteHeader_SIZE, NULL);
+    Er_assert(Message_epop(msg, NULL, RouteHeader_SIZE));
     struct DataHeader dh;
-    Message_pop(msg, &dh, DataHeader_SIZE, NULL);
+    Er_assert(Message_epop(msg, &dh, DataHeader_SIZE));
     enum ContentType type = DataHeader_getContentType(&dh);
     if (type != ContentType_IP6_UDP) {
         Log_debug(ud->log, "DROP Message from handler with invalid type [%d]", type);
@@ -87,7 +87,7 @@ static Iface_DEFUN fromHandler(struct Message* msg, struct UpperDistributor_pvt*
         Log_debug(ud->log, "DROP Message from unregistered port [%d]", udpPort);
         return NULL;
     }
-    Message_pop(msg, NULL, Headers_UDPHeader_SIZE, NULL);
+    Er_assert(Message_epop(msg, NULL, Headers_UDPHeader_SIZE));
 
     Assert_true(msg->length >= RouteHeader_SIZE);
     struct RouteHeader* hdr = (struct RouteHeader*) msg->bytes;
@@ -119,7 +119,7 @@ static void sendToHandlers(struct Message* msg,
             udpH.destPort_be = Endian_hostToBigEndian16(ud->handlers->values[i]->pub.udpPort);
             udpH.length_be = Endian_hostToBigEndian16(cmsg->length + Headers_UDPHeader_SIZE);
             udpH.checksum_be = 0;
-            Message_push(cmsg, &udpH, Headers_UDPHeader_SIZE, NULL);
+            Er_assert(Message_epush(cmsg, &udpH, Headers_UDPHeader_SIZE));
             uint8_t srcAndDest[32] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1};
             AddressCalc_makeValidAddress(srcAndDest);
             Bits_memcpy(&srcAndDest[16], ud->myAddress->ip6.bytes, 16);
@@ -130,7 +130,7 @@ static void sendToHandlers(struct Message* msg,
             struct DataHeader dh = { .unused = 0 };
             DataHeader_setVersion(&dh, DataHeader_CURRENT_VERSION);
             DataHeader_setContentType(&dh, ContentType_IP6_UDP);
-            Message_push(cmsg, &dh, DataHeader_SIZE, NULL);
+            Er_assert(Message_epush(cmsg, &dh, DataHeader_SIZE));
         }
         {
             struct RouteHeader rh = {
@@ -138,7 +138,7 @@ static void sendToHandlers(struct Message* msg,
                 .ip6 = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1}
             };
             AddressCalc_makeValidAddress(rh.ip6);
-            Message_push(cmsg, &rh, RouteHeader_SIZE, NULL);
+            Er_assert(Message_epush(cmsg, &rh, RouteHeader_SIZE));
         }
 
         Iface_send(&ud->pub.tunAdapterIf, cmsg);
@@ -160,10 +160,10 @@ static Iface_DEFUN incomingFromEventIf(struct Message* msg, struct Iface* eventI
 {
     struct UpperDistributor_pvt* ud =
         Identity_containerOf(eventIf, struct UpperDistributor_pvt, eventIf);
-    uint32_t messageType = Message_pop32(msg, NULL);
+    uint32_t messageType = Er_assert(Message_epop32be(msg));
     Assert_true(messageType == PFChan_Pathfinder_SENDMSG ||
         messageType == PFChan_Pathfinder_CTRL_SENDMSG);
-    Message_pop32(msg, NULL);
+    Er_assert(Message_epop32be(msg));
     return toSessionManagerIf(msg, ud);
 }
 
@@ -219,8 +219,8 @@ static Iface_DEFUN incomingFromSessionManagerIf(struct Message* msg, struct Ifac
         return Iface_next(&ud->pub.tunAdapterIf, msg);
     }
     if (type == ContentType_CJDHT) {
-        Message_push32(msg, 0xffffffff, NULL);
-        Message_push32(msg, PFChan_Core_MSG, NULL);
+        Er_assert(Message_epush32be(msg, 0xffffffff));
+        Er_assert(Message_epush32be(msg, PFChan_Core_MSG));
         return Iface_next(&ud->eventIf, msg);
     }
     if (type == ContentType_IPTUN) {

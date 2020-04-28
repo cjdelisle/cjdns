@@ -32,7 +32,7 @@ static const uint8_t testAddrB[4] = {11, 0, 0, 2};
 
 static Iface_DEFUN receiveMessageTUN(struct Message* msg, struct TUNTools* tt)
 {
-    uint16_t ethertype = TUNMessageType_pop(msg, NULL);
+    uint16_t ethertype = Er_assert(TUNMessageType_pop(msg));
     if (ethertype != Ethernet_TYPE_IP4) {
         Log_debug(tt->log, "Spurious packet with ethertype [%u]\n",
                   Endian_bigEndianToHost16(ethertype));
@@ -49,7 +49,7 @@ static Iface_DEFUN receiveMessageTUN(struct Message* msg, struct TUNTools* tt)
     Bits_memcpy(header->destAddr, testAddrA, 4);
     Bits_memcpy(header->sourceAddr, testAddrB, 4);
 
-    TUNMessageType_push(msg, ethertype, NULL);
+    Er_assert(TUNMessageType_push(msg, ethertype));
 
     return Iface_next(&tt->tunIface, msg);
 }

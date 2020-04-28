@@ -564,7 +564,7 @@ static struct Message* readToMsg(FILE* f, struct Allocator* alloc)
     } while (c->length == Chunk_MAX_LEN);
     struct Message* out = Message_new(0, totalLength, alloc);
     while (c) {
-        Message_push(out, c->buf, c->length, NULL);
+        Er_assert(Message_epush(out, c->buf, c->length));
         c = c->next;
     }
     Allocator_free(child);
@@ -810,7 +810,7 @@ int main(int argc, char** argv)
     }
 
     struct Message* toCoreMsg = Message_new(0, 1024, allocator);
-    BencMessageWriter_write(preConf, toCoreMsg, eh);
+    Er_assert(BencMessageWriter_write(preConf, toCoreMsg));
     Iface_CALL(corePipe->iface.send, toCoreMsg, &corePipe->iface);
 
     Log_debug(logger, "Sent [%d] bytes to core", toCoreMsg->length);

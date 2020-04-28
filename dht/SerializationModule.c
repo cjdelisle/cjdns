@@ -84,7 +84,7 @@ static int handleOutgoing(struct DHTMessage* message,
         Dict_putStringC(message->asDict, "txid", newTxid, message->allocator);
     }
 
-    BencMessageWriter_write(message->asDict, message->binMessage, NULL);
+    Er_assert(BencMessageWriter_write(message->asDict, message->binMessage));
 
     Assert_true(!((uintptr_t)message->binMessage->bytes % 4) || !"alignment fault");
 

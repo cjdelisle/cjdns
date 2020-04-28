@@ -37,8 +37,8 @@ struct ARPServer_pvt
 static bool isValidARP(struct Message* msg)
 {
     struct ARPHeader_6_4 arp;
-    Message_pop(msg, &arp, ARPHeader_6_4_SIZE, NULL);
-    Message_shift(msg, ARPHeader_6_4_SIZE, NULL); // Get copy and restore.
+    Er_assert(Message_epop(msg, &arp, ARPHeader_6_4_SIZE));
+    Er_assert(Message_eshift(msg, ARPHeader_6_4_SIZE)); // Get copy and restore.
     if (!ARPHeader_isEthIP4(&arp.prefix)) {
         return false; // not ARP.
     }
@@ -57,7 +57,7 @@ static bool isValidARP(struct Message* msg)
 static Iface_DEFUN answerARP(struct Message* msg, struct ARPServer_pvt* as)
 {
     struct ARPHeader_6_4 arp;
-    Message_pop(msg, &arp, ARPHeader_6_4_SIZE, NULL);
+    Er_assert(Message_epop(msg, &arp, ARPHeader_6_4_SIZE));
     if (msg->length) {
         Log_warn(as->log, "%d extra bytes in ARP, weird", msg->length);
     }
@@ -72,8 +72,8 @@ static Iface_DEFUN answerARP(struct Message* msg, struct ARPServer_pvt* as)
     // Set answer opcode.
     arp.prefix.operation = ARPHeader_OP_A;
 
-    Message_push(msg, &arp, ARPHeader_6_4_SIZE, NULL);
-    TUNMessageType_push(msg, Ethernet_TYPE_ARP, NULL);
+    Er_assert(Message_epush(msg, &arp, ARPHeader_6_4_SIZE));
+    Er_assert(TUNMessageType_push(msg, Ethernet_TYPE_ARP));
 
     Log_debug(as->log, "Sending ARP answer.");
 
@@ -85,13 +85,13 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* external)
     struct ARPServer_pvt* as = Identity_containerOf(external, struct ARPServer_pvt, external);
     // Length should be ARP + Ethertype
     if (msg->length >= ARPHeader_6_4_SIZE + 4) {
-        uint16_t ethertype = TUNMessageType_pop(msg, NULL);
+        uint16_t ethertype = Er_assert(TUNMessageType_pop(msg));
         if (ethertype == Ethernet_TYPE_ARP) {
             if (isValidARP(msg)) {
                 return answerARP(msg, as);
             }
         }
-        TUNMessageType_push(msg, ethertype, NULL);
+        Er_assert(TUNMessageType_push(msg, ethertype));
     }
     return Iface_next(&as->pub.internal, msg);
 }

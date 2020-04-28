@@ -96,9 +96,9 @@ static void hashMsgList(struct ArrayList_OfMessages* msgList, uint8_t out[64])
     uint8_t hash[64] = {0};
     for (int i = 0; i < msgList->length; i++) {
         struct Message* msg = ArrayList_OfMessages_get(msgList, i);
-        Message_push(msg, hash, 64, NULL);
+        Er_assert(Message_epush(msg, hash, 64));
         crypto_hash_sha512(hash, msg->bytes, msg->length);
-        Message_pop(msg, NULL, 64, NULL);
+        Er_assert(Message_epop(msg, NULL, 64));
     }
     Bits_memcpy(out, hash, 64);
 }
@@ -240,7 +240,7 @@ static bool pushLinkState(struct ReachabilityAnnouncer_pvt* rap,
             Log_debug(rap->log, "Failed to add link state for [%s]", peerIpPrinted);
         }
         if (msg->length > 904) {
-            Message_pop(msg, NULL, msg->length - lastLen, NULL);
+            Er_assert(Message_epop(msg, NULL, msg->length - lastLen));
             Log_debug(rap->log, "Couldn't add link state for [%s] (out of space)", peerIpPrinted);
             return true;
         } else {
@@ -300,9 +300,9 @@ static int updatePeer(struct ReachabilityAnnouncer_pvt* rap,
         return updatePeer_ENOSPACE;
     }
 
-    Message_pop(rap->nextMsg, NULL, Announce_Header_SIZE, NULL);
-    Message_push(rap->nextMsg, refPeer, Announce_Peer_SIZE, NULL);
-    Message_push(rap->nextMsg, NULL, Announce_Header_SIZE, NULL);
+    Er_assert(Message_epop(rap->nextMsg, NULL, Announce_Header_SIZE));
+    Er_assert(Message_epush(rap->nextMsg, refPeer, Announce_Peer_SIZE));
+    Er_assert(Message_epush(rap->nextMsg, NULL, Announce_Header_SIZE));
     return (peer) ? updatePeer_UPDATE : updatePeer_ADD;
 }
 
@@ -348,7 +348,7 @@ static void setupNextMsg(struct ReachabilityAnnouncer_pvt* rap)
 {
     struct Allocator* msgAlloc = Allocator_child(rap->alloc);
     struct Message* nextMsg = Message_new(0, 1300, msgAlloc);
-    Message_push(nextMsg, NULL, Announce_Header_SIZE, NULL);
+    Er_assert(Message_epush(nextMsg, NULL, Announce_Header_SIZE));
     rap->nextMsg = nextMsg;
 }
 
@@ -668,7 +668,7 @@ static void onAnnounceCycle(void* vRap)
         loadAllState(rap, true);
     }
 
-    Message_pop(msg, NULL, Announce_Header_SIZE, NULL);
+    Er_assert(Message_epop(msg, NULL, Announce_Header_SIZE));
 
     if (pushLinkState(rap, msg)) {
         stateUpdate(rap, ReachabilityAnnouncer_State_LINKSTATE_FULL);
@@ -679,10 +679,10 @@ static void onAnnounceCycle(void* vRap)
         Announce_EncodingScheme_push(msg, rap->encodingSchemeStr);
         struct Announce_Version version;
         Announce_Version_init(&version);
-        Message_push(msg, &version, Announce_Version_SIZE, NULL);
+        Er_assert(Message_epush(msg, &version, Announce_Version_SIZE));
     }
 
-    Message_push(msg, NULL, Announce_Header_SIZE, NULL);
+    Er_assert(Message_epush(msg, NULL, Announce_Header_SIZE));
 
     struct Announce_Header* hdr = (struct Announce_Header*) msg->bytes;
     Bits_memset(hdr, 0, Announce_Header_SIZE);
@@ -692,7 +692,7 @@ static void onAnnounceCycle(void* vRap)
     Announce_Header_setTimestamp(hdr, snNow);
     Bits_memcpy(hdr->pubSigningKey, rap->pubSigningKey, 32);
     Bits_memcpy(hdr->snodeIp, rap->snode.ip6.bytes, 16);
-    Message_pop(msg, NULL, 64, NULL);
+    Er_assert(Message_epop(msg, NULL, 64));
     Sign_signMsg(rap->signingKeypair, msg, rap->rand);
 
     struct MsgCore_Promise* qp = MsgCore_createQuery(rap->msgCore, 0, rap->alloc);

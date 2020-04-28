@@ -74,7 +74,7 @@ struct PipeServer_pvt
 static Iface_DEFUN sendMessage(struct Message* m, struct Iface* iface)
 {
     struct PipeServer_pvt* psp = Identity_check((struct PipeServer_pvt*) iface);
-    struct Sockaddr* addr = AddrIface_popAddr(m, NULL);
+    struct Sockaddr* addr = Er_assert(AddrIface_popAddr(m));
     uint32_t handle = Sockaddr_addrHandle(addr);
     int idx = Map_Clients_indexForHandle(handle, &psp->clients);
     if (idx < 0) {
@@ -89,7 +89,7 @@ static Iface_DEFUN incomingFromClient(struct Message* msg, struct Iface* iface)
 {
     struct Client* cli = Identity_containerOf(iface, struct Client, iface);
     struct PipeServer_pvt* psp = Identity_check(cli->psp);
-    AddrIface_pushAddr(msg, &cli->addr, NULL);
+    Er_assert(AddrIface_pushAddr(msg, &cli->addr));
     return Iface_next(&psp->pub.iface.iface, msg);
 }
 

@@ -155,7 +155,7 @@ static void sendMsg(struct MsgCore_pvt* mcp,
     }
 
     struct Message* msg = Message_new(0, 2048, alloc);
-    BencMessageWriter_write(msgDict, msg, NULL);
+    Er_assert(BencMessageWriter_write(msgDict, msg));
 
     //Log_debug(mcp->log, "Sending msg [%s]", Escape_getEscaped(msg->bytes, msg->length, alloc));
 
@@ -166,7 +166,7 @@ static void sendMsg(struct MsgCore_pvt* mcp,
     Bits_memset(&data, 0, sizeof(struct DataHeader));
     DataHeader_setVersion(&data, DataHeader_CURRENT_VERSION);
     DataHeader_setContentType(&data, ContentType_CJDHT);
-    Message_push(msg, &data, sizeof(struct DataHeader), NULL);
+    Er_assert(Message_epush(msg, &data, sizeof(struct DataHeader)));
 
     struct RouteHeader route;
     Bits_memset(&route, 0, sizeof(struct RouteHeader));
@@ -174,7 +174,7 @@ static void sendMsg(struct MsgCore_pvt* mcp,
     route.version_be = Endian_hostToBigEndian32(addr->protocolVersion);
     route.sh.label_be = Endian_hostToBigEndian64(addr->path);
     Bits_memcpy(route.publicKey, addr->key, 32);
-    Message_push(msg, &route, sizeof(struct RouteHeader), NULL);
+    Er_assert(Message_epush(msg, &route, sizeof(struct RouteHeader)));
 
     Iface_send(&mcp->pub.interRouterIf, msg);
 }
@@ -281,7 +281,7 @@ static Iface_DEFUN incoming(struct Message* msg, struct Iface* interRouterIf)
 
     struct Address addr = { .padding = 0 };
     struct RouteHeader* hdr = (struct RouteHeader*) msg->bytes;
-    Message_shift(msg, -(RouteHeader_SIZE + DataHeader_SIZE), NULL);
+    Er_assert(Message_eshift(msg, -(RouteHeader_SIZE + DataHeader_SIZE)));
     Bits_memcpy(addr.ip6.bytes, hdr->ip6, 16);
     Bits_memcpy(addr.key, hdr->publicKey, 32);
     addr.protocolVersion = Endian_bigEndianToHost32(hdr->version_be);

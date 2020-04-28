@@ -134,14 +134,14 @@ static Iface_DEFUN sendPacket(struct Message* m, struct Iface* iface)
         .zero = 0,
         .commPort_be = ctx->commPort_be
     };
-    Message_shift(m, -sa->addrLen, NULL);
-    Message_push(m, &hdr, UDPInterface_BroadcastHeader_SIZE, NULL);
+    Er_assert(Message_eshift(m, -sa->addrLen));
+    Er_assert(Message_epush(m, &hdr, UDPInterface_BroadcastHeader_SIZE));
 
     for (int i = 0; i < ctx->bcastAddrs->length; i++) {
         struct Allocator* tmpAlloc = Allocator_child(ctx->allocator);
         struct Message* mm = Message_clone(m, tmpAlloc);
         struct Sockaddr* addr = ArrayList_Sockaddr_get(ctx->bcastAddrs, i);
-        Message_push(mm, addr, addr->addrLen, NULL);
+        Er_assert(Message_epush(mm, addr, addr->addrLen));
         Iface_send(&ctx->bcastSock, mm);
         Allocator_free(tmpAlloc);
     }
@@ -167,15 +167,15 @@ static Iface_DEFUN fromBcastSock(struct Message* m, struct Iface* iface)
     }
 
     struct Sockaddr_storage ss;
-    Message_pop(m, &ss, Sockaddr_OVERHEAD, NULL);
+    Er_assert(Message_epop(m, &ss, Sockaddr_OVERHEAD));
     if (m->length < UDPInterface_BroadcastHeader_SIZE + ss.addr.addrLen - Sockaddr_OVERHEAD) {
         Log_debug(ctx->log, "DROP runt bcast");
         return NULL;
     }
-    Message_pop(m, &ss.nativeAddr, ss.addr.addrLen - Sockaddr_OVERHEAD, NULL);
+    Er_assert(Message_epop(m, &ss.nativeAddr, ss.addr.addrLen - Sockaddr_OVERHEAD));
 
     struct UDPInterface_BroadcastHeader hdr;
-    Message_pop(m, &hdr, UDPInterface_BroadcastHeader_SIZE, NULL);
+    Er_assert(Message_epop(m, &hdr, UDPInterface_BroadcastHeader_SIZE));
 
     if (hdr.fffffffc_be != Endian_hostToBigEndian32(0xfffffffc)) {
         Log_debug(ctx->log, "DROP bcast bad magic, expected 0xfffffffc got [%08x]",
@@ -199,7 +199,7 @@ static Iface_DEFUN fromBcastSock(struct Message* m, struct Iface* iface)
     Sockaddr_setPort(&ss.addr, commPort);
     ss.addr.flags |= Sockaddr_flags_BCAST;
 
-    Message_push(m, &ss.addr, ss.addr.addrLen, NULL);
+    Er_assert(Message_epush(m, &ss.addr, ss.addr.addrLen));
 
     return Iface_next(&ctx->pub.generic.iface, m);
 }

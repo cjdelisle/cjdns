@@ -41,12 +41,12 @@ static Iface_DEFUN incomingFromSocket(struct Message* msg, struct Iface* externa
     }
 
     // get ess packet type
-    uint8_t type = Message_pop8(msg, NULL);
+    uint8_t type = Er_assert(Message_epop8h(msg));
     Log_debug(ctx->logger, "Packet type [%d]", type);
 
     if (type == SocketWrapper_TYPE_TUN_PACKET) {
         // skip tun packet length
-        Message_pop32(msg, NULL);
+        Er_assert(Message_epop32be(msg));
         return Iface_next(&ctx->pub.internalIf, msg);
     }
 
@@ -65,9 +65,9 @@ static Iface_DEFUN incomingFromUs(struct Message* msg, struct Iface* internalIf)
     }
 
     // send payload length
-    Message_push32(msg, msg->length, NULL);
+    Er_assert(Message_epush32be(msg, msg->length));
     // mark this as a normal tun packet
-    Message_push8(msg, SocketWrapper_TYPE_TUN_PACKET, NULL);
+    Er_assert(Message_epush8(msg, SocketWrapper_TYPE_TUN_PACKET));
 
     return Iface_next(&ctx->pub.externalIf, msg);
 }
