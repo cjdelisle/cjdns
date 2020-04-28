@@ -29,12 +29,12 @@ Linker_require("util/platform/netdev/NetDev.c");
  * @param sa the ip address to set.
  * @param prefixLen the number of bits netmask to include in the route.
  * @param logger
- * @param eh an exception handler.
+ * @param alloc allocator for errors.
  */
-void NetDev_addAddress(const char* ifName,
+Er_DEFUN(void NetDev_addAddress(const char* ifName,
                        struct Sockaddr* sa,
                        struct Log* logger,
-                       struct Except* eh);
+                       struct Allocator* alloc));
 
 /**
  * Set the MTU of an interface.
@@ -44,26 +44,19 @@ void NetDev_addAddress(const char* ifName,
  * @param logger where to write information.
  * @param eh an exception handler.
  */
-void NetDev_setMTU(const char* interfaceName,
+Er_DEFUN(void NetDev_setMTU(const char* interfaceName,
                    uint32_t mtu,
                    struct Log* logger,
-                   struct Except* eh);
+                   struct Allocator* alloc));
 
-void NetDev_flushAddresses(const char* deviceName, struct Except* eh);
+Er_DEFUN(void NetDev_flushAddresses(const char* deviceName, struct Allocator* alloc));
 
 /**
  * Set a route to an interface.
- *
- * @param ifName the name of the interface to alter.
- * @param sa the ip address to use use for route base.
- * @param prefixLen the number of bits netmast to include in the route.
- * @param logger
- * @param eh an exception handler.
  */
-void NetDev_setRoutes(const char* ifName,
+Er_DEFUN(void NetDev_setRoutes(const char* ifName,
                       struct Sockaddr** prefixSet,
                       int prefixCount,
                       struct Log* logger,
-                      struct Allocator* tempAlloc,
-                      struct Except* eh);
+                      struct Allocator* tempAlloc));
 #endif

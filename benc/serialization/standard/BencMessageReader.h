@@ -16,14 +16,15 @@
 #define BencMessageReader_H
 
 #include "benc/Dict.h"
-#include "exception/Except.h"
+#include "exception/Er.h"
 #include "memory/Allocator.h"
 #include "wire/Message.h"
 #include "util/Linker.h"
 Linker_require("benc/serialization/standard/BencMessageReader.c");
 
-Dict* BencMessageReader_read(struct Message* msg, struct Allocator* alloc, struct Except* eh);
+Er_DEFUN(Dict* BencMessageReader_read(struct Message* msg, struct Allocator* alloc));
 
-char* BencMessageReader_readNoExcept(struct Message* msg, struct Allocator* alloc, Dict** outPtr);
+const char* BencMessageReader_readNoExcept(
+    struct Message* msg, struct Allocator* alloc, Dict** outPtr);
 
 #endif

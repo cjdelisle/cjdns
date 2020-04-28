@@ -268,11 +268,10 @@ int UDPAddrIface_setBroadcast(struct UDPAddrIface* iface, bool enable)
     return uv_udp_set_broadcast(&context->uvHandle, enable ? 1 : 0);
 }
 
-struct UDPAddrIface* UDPAddrIface_new(struct EventBase* eventBase,
+Er_DEFUN(struct UDPAddrIface* UDPAddrIface_new(struct EventBase* eventBase,
                                       struct Sockaddr* addr,
                                       struct Allocator* alloc,
-                                      struct Except* exHandler,
-                                      struct Log* logger)
+                                      struct Log* logger))
 {
     struct EventBase_pvt* base = EventBase_privatize(eventBase);
 
@@ -303,15 +302,14 @@ struct UDPAddrIface* UDPAddrIface_new(struct EventBase* eventBase,
     ret = uv_udp_bind(&context->uvHandle, (const struct sockaddr*)native, 0);
 
     if (ret) {
-        Except_throw(exHandler, "call to uv_udp_bind() failed [%s]",
-                     uv_strerror(ret));
+        Er_raise(alloc, "call to uv_udp_bind() failed [%s]", uv_strerror(ret));
     }
 
     ret = uv_udp_recv_start(&context->uvHandle, allocate, incoming);
     if (ret) {
         const char* err = uv_strerror(ret);
         uv_close((uv_handle_t*) &context->uvHandle, NULL);
-        Except_throw(exHandler, "uv_udp_recv_start() failed [%s]", err);
+        Er_raise(alloc, "uv_udp_recv_start() failed [%s]", err);
     }
 
     int nameLen = sizeof(struct Sockaddr_storage);
@@ -320,7 +318,7 @@ struct UDPAddrIface* UDPAddrIface_new(struct EventBase* eventBase,
     if (ret) {
         const char* err = uv_strerror(ret);
         uv_close((uv_handle_t*) &context->uvHandle, NULL);
-        Except_throw(exHandler, "uv_udp_getsockname() failed [%s]", err);
+        Er_raise(alloc, "uv_udp_getsockname() failed [%s]", err);
     }
     ss.addr.addrLen = nameLen + 8;
 
@@ -330,5 +328,5 @@ struct UDPAddrIface* UDPAddrIface_new(struct EventBase* eventBase,
     Allocator_onFree(alloc, closeHandleOnFree, context);
     Allocator_onFree(alloc, blockFreeInsideCallback, context);
 
-    return &context->pub;
+    Er_ret(&context->pub);
 }

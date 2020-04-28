@@ -26,7 +26,6 @@
 #include "util/Linker.h"
 Linker_require("interface/ETHInterface_" + builder.config.systemName + ".c");
 
-Gcc_PACKED
 struct ETHInterface_Header
 {
     /** ETHInterface_CURRENT_VERSION, no communication is possible with different versions. */
@@ -40,7 +39,7 @@ struct ETHInterface_Header
 
     /** Pad to align boundry, also magic. */
     uint16_t fc00_be;
-};
+} Gcc_PACKED;
 #define ETHInterface_Header_SIZE 6
 Assert_compileTime(sizeof(struct ETHInterface_Header) == ETHInterface_Header_SIZE);
 
@@ -65,12 +64,11 @@ struct ETHInterface
     struct AddrIface generic;
 };
 
-struct ETHInterface* ETHInterface_new(struct EventBase* eventBase,
+Er_DEFUN(struct ETHInterface* ETHInterface_new(struct EventBase* eventBase,
                                       const char* bindDevice,
                                       struct Allocator* alloc,
-                                      struct Except* exHandler,
-                                      struct Log* logger);
+                                      struct Log* logger));
 
-List* ETHInterface_listDevices(struct Allocator* alloc, struct Except* eh);
+Er_DEFUN(List* ETHInterface_listDevices(struct Allocator* alloc));
 
 #endif

@@ -508,7 +508,7 @@ static void checkRunningInstance(struct Allocator* allocator,
                      addr->bytes);
     }
 
-    struct UDPAddrIface* udp = UDPAddrIface_new(base, NULL, alloc, NULL, logger);
+    struct UDPAddrIface* udp = Except_er(eh, UDPAddrIface_new(base, NULL, alloc, logger));
     struct AdminClient* adminClient =
         AdminClient_new(&udp->generic, &pingAddrStorage.addr, password, base, logger, alloc);
 
@@ -684,7 +684,7 @@ int main(int argc, char** argv)
     struct Reader* confReader = ArrayReader_new(confMsg->bytes, confMsg->length, allocator);
     Dict _config;
     Dict* config = &_config;
-    char* err = JsonBencMessageReader_readNoExcept(confMsg, allocator, &config, false);
+    const char* err = JsonBencMessageReader_readNoExcept(confMsg, allocator, &config, false);
     if (!err) {
         // If old version is specified, always use old parser so there is no possible error
         uint64_t* v = Dict_getIntC(config, "version");
@@ -780,7 +780,7 @@ int main(int argc, char** argv)
     // cycle for up to 1 minute
     int exists = 0;
     for (int i = 0; i < 2 * 10 * 60; i++) {
-        if (Pipe_exists(pipePath->bytes, eh)) {
+        if (Except_er(eh, Pipe_exists(pipePath->bytes, allocator))) {
             exists = 1;
             break;
         }
@@ -794,7 +794,8 @@ int main(int argc, char** argv)
     }
 
     // --------------------- Connect to socket ------------------------- //
-    struct Pipe* corePipe = Pipe_named(pipePath->bytes, eventBase, eh, logger, allocator);
+    struct Pipe* corePipe =
+        Except_er(eh, Pipe_named(pipePath->bytes, eventBase, logger, allocator));
 
     // --------------------- Pre-Configure Core ------------------------- //
     Dict* preConf = Dict_new(allocator);
@@ -818,7 +819,7 @@ int main(int argc, char** argv)
 
     struct Message* fromCoreMsg =
         InterfaceWaiter_waitForData(&corePipe->iface, eventBase, allocator, eh);
-    Dict* responseFromCore = BencMessageReader_read(fromCoreMsg, allocator, eh);
+    Dict* responseFromCore = Except_er(eh, BencMessageReader_read(fromCoreMsg, allocator));
 
     // --------------------- Close the Core Pipe --------------------- //
     Allocator_free(corePipeAlloc);

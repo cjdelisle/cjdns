@@ -26,23 +26,21 @@ Linker_require("util/platform/netdev/NetPlatform_" + builder.config.systemName +
 
 void NetPlatform_flushAddresses(const char* deviceName, struct Except* eh);
 
-void NetPlatform_addAddress(const char* interfaceName,
+Er_DEFUN(void NetPlatform_addAddress(const char* interfaceName,
                             const uint8_t* address,
                             int prefixLen,
                             int addrFam,
                             struct Log* logger,
-                            struct Allocator* tempAlloc,
-                            struct Except* eh);
+                            struct Allocator* tempAlloc));
 
-void NetPlatform_setMTU(const char* interfaceName,
+Er_DEFUN(void NetPlatform_setMTU(const char* interfaceName,
                         uint32_t mtu,
                         struct Log* logger,
-                        struct Except* eh);
+                        struct Allocator* errAlloc));
 
-void NetPlatform_setRoutes(const char* ifName,
+Er_DEFUN(void NetPlatform_setRoutes(const char* ifName,
                            struct Sockaddr** prefixSet,
                            int prefixCount,
                            struct Log* logger,
-                           struct Allocator* tempAlloc,
-                           struct Except* eh);
+                           struct Allocator* tempAlloc));
 #endif

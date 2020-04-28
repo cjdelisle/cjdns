@@ -12,6 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+#include "exception/Er.h"
 #include "util/platform/netdev/NetPlatform.h"
 #include "util/Assert.h"
 #include "util/platform/Sockaddr.h"
@@ -55,10 +56,10 @@ struct RouteMessage {
 };
 Assert_compileTime(sizeof(struct RouteMessage) == 172);
 
-static void setupRoute(const uint8_t address[16],
+static Er_DEFUN(void setupRoute(const uint8_t address[16],
                        int prefixLen,
                        struct Log* logger,
-                       struct Except* eh)
+                       struct Allocator* alloc))
 {
     struct RouteMessage rm = {
         .header = {
@@ -85,34 +86,34 @@ static void setupRoute(const uint8_t address[16],
 
     int sock = socket(PF_ROUTE, SOCK_RAW, 0);
     if (sock == -1) {
-        Except_throw(eh, "open route socket [%s]", strerror(errno));
+        Er_raise(alloc, "open route socket [%s]", strerror(errno));
     }
 
     ssize_t returnLen = write(sock, (char*) &rm, rm.header.rtm_msglen);
     if (returnLen < 0) {
-        Except_throw(eh, "insert route [%s]", strerror(errno));
+        Er_raise(alloc, "insert route [%s]", strerror(errno));
     } else if (returnLen < rm.header.rtm_msglen) {
-        Except_throw(eh,
-                     "insert route returned only [%d] of [%d]",
+        Er_raise(alloc, "insert route returned only [%d] of [%d]",
                      (int)returnLen, rm.header.rtm_msglen);
     }
+    Er_ret();
 }
 
-static void addIp4Address(const char* interfaceName,
+static Er_DEFUN(void addIp4Address(const char* interfaceName,
                           const uint8_t address[4],
                           int prefixLen,
                           struct Log* logger,
-                          struct Except* eh)
+                          struct Allocator* alloc))
 {
     // TODO(cjd): implement this and then remove the exception from TUNInterface_ipv4_root_test.c
-    Except_throw(eh, "unimplemented");
+    Er_raise(alloc, "unimplemented");
 }
 
-static void addIp6Address(const char* interfaceName,
+static Er_DEFUN(void addIp6Address(const char* interfaceName,
                           const uint8_t address[16],
                           int prefixLen,
                           struct Log* logger,
-                          struct Except* eh)
+                          struct Allocator* alloc))
 {
     struct lifreq ifr = {
         .lifr_ppa = 0,
@@ -156,45 +157,44 @@ static void addIp6Address(const char* interfaceName,
     if (error) {
         int err = errno;
         close(udpSock);
-        Except_throw(eh, "%s [%s]",
-                     error, strerror(err));
+        Er_raise(alloc, "%s [%s]", error, strerror(err));
     }
     close(udpSock);
 
-    setupRoute(address, prefixLen, logger, eh);
+    Er(setupRoute(address, prefixLen, logger, alloc));
+    Er_ret();
 }
 
-void NetPlatform_addAddress(const char* interfaceName,
+Er_DEFUN(void NetPlatform_addAddress(const char* interfaceName,
                             const uint8_t* address,
                             int prefixLen,
                             int addrFam,
                             struct Log* logger,
-                            struct Allocator* tempAlloc,
-                            struct Except* eh)
+                            struct Allocator* tempAlloc))
 {
     if (addrFam == Sockaddr_AF_INET6) {
-        addIp6Address(interfaceName, address, prefixLen, logger, eh);
+        addIp6Address(interfaceName, address, prefixLen, logger, tempAlloc);
     } else if (addrFam == Sockaddr_AF_INET) {
-        addIp4Address(interfaceName, address, prefixLen, logger, eh);
+        addIp4Address(interfaceName, address, prefixLen, logger, tempAlloc);
     } else {
         Assert_true(0);
     }
+    Er_ret();
 }
 
-void NetPlatform_setMTU(const char* interfaceName,
+Er_DEFUN(void NetPlatform_setMTU(const char* interfaceName,
                         uint32_t mtu,
                         struct Log* logger,
-                        struct Except* eh)
+                        struct Allocator* errAlloc))
 {
-    Except_throw(eh, "Not implemented in Illumos");
+    Er_raise(errAlloc, "Not implemented in Illumos");
 }
 
-void NetPlatform_setRoutes(const char* ifName,
+Er_DEFUN(void NetPlatform_setRoutes(const char* ifName,
                            struct Sockaddr** prefixSet,
                            int prefixCount,
                            struct Log* logger,
-                           struct Allocator* tempAlloc,
-                           struct Except* eh)
+                           struct Allocator* tempAlloc))
 {
-    Except_throw(eh, "NetPlatform_setRoutes is not implemented in this platform.");
+    Er_raise(tempAlloc, "NetPlatform_setRoutes is not implemented in this platform.");
 }

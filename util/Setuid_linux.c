@@ -16,7 +16,6 @@
 #include "memory/Allocator.h"
 #include "exception/Except.h"
 
-//#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
@@ -51,7 +50,7 @@ static inline int capGet(cap_user_header_t hdr, cap_user_data_t data)
     return capget(hdr, data);
 }
 
-void Setuid_preSetuid(struct Allocator* alloc, struct Except* eh)
+Er_DEFUN(void Setuid_preSetuid(struct Allocator* alloc))
 {
     cap_user_header_t hdr = Allocator_calloc(alloc, sizeof(*hdr), 1);
     cap_user_data_t data = Allocator_calloc(alloc, sizeof(*data), 2);
@@ -59,22 +58,23 @@ void Setuid_preSetuid(struct Allocator* alloc, struct Except* eh)
     hdr->version = _LINUX_CAPABILITY_VERSION_3;
     hdr->pid = 0;
     if (capGet(hdr, data)) {
-        Except_throw(eh, "Error getting capabilities: [errno:%d (%s)]", errno, strerror(errno));
+        Er_raise(alloc, "Error getting capabilities: [errno:%d (%s)]", errno, strerror(errno));
     }
 
     data->permitted &= PERMITTED_MASK | CAP_TO_MASK(CAP_SETUID) | CAP_TO_MASK(CAP_SETGID);
     data->effective = data->permitted;
     data->inheritable = 0;
     if (capSet(hdr, data)) {
-        Except_throw(eh, "Error setting capabilities: [errno:%d (%s)]", errno, strerror(errno));
+        Er_raise(alloc, "Error setting capabilities: [errno:%d (%s)]", errno, strerror(errno));
     }
 
     if (prctl(PR_SET_KEEPCAPS, 1)) {
-        Except_throw(eh, "Error keeping capabilities: [errno:%d (%s)]", errno, strerror(errno));
+        Er_raise(alloc, "Error keeping capabilities: [errno:%d (%s)]", errno, strerror(errno));
     }
+    Er_ret();
 }
 
-void Setuid_postSetuid(struct Allocator* alloc, struct Except* eh)
+Er_DEFUN(void Setuid_postSetuid(struct Allocator* alloc))
 {
     cap_user_header_t hdr = Allocator_calloc(alloc, sizeof(*hdr), 1);
     cap_user_data_t data = Allocator_calloc(alloc, sizeof(*data), 2);
@@ -82,7 +82,7 @@ void Setuid_postSetuid(struct Allocator* alloc, struct Except* eh)
     hdr->version = _LINUX_CAPABILITY_VERSION_3;
     hdr->pid = 0;
     if (capGet(hdr, data)) {
-        Except_throw(eh, "Error getting capabilities (post-setuid): [errno:%d (%s)]",
+        Er_raise(alloc, "Error getting capabilities (post-setuid): [errno:%d (%s)]",
                      errno, strerror(errno));
     }
 
@@ -90,12 +90,13 @@ void Setuid_postSetuid(struct Allocator* alloc, struct Except* eh)
     data->effective = data->permitted;
     data->inheritable = 0;
     if (capSet(hdr, data)) {
-        Except_throw(eh, "Error setting capabilities (post-setuid): [errno:%d (%s)]",
+        Er_raise(alloc, "Error setting capabilities (post-setuid): [errno:%d (%s)]",
                      errno, strerror(errno));
     }
 
     if (prctl(PR_SET_KEEPCAPS, 0)) {
-        Except_throw(eh, "Error un-keeping capabilities (post-setuid): [errno:%d (%s)]",
+        Er_raise(alloc, "Error un-keeping capabilities (post-setuid): [errno:%d (%s)]",
                      errno, strerror(errno));
     }
+    Er_ret();
 }

@@ -17,36 +17,20 @@
 
 #include "util/Js.h"
 
-#if !defined(__clang__) && \
-    defined(__GNUC__) && \
-    (__GNUC__ > 6)
+// GCC > 6
+#if defined(__GNUC__) && (__GNUC__ > 6)
 
 #define Gcc_FALLTHRU \
     __attribute__((fallthrough));
-
-#else
-#define Gcc_FALLTHRU
-
 #endif
 
-#if !defined(__clang__) && \
-    defined(__GNUC__) && \
-    (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 4))
+
+// clang OR GCC >= 4.4
+#if defined(__clang__) || (defined(__GNUC__) && \
+    (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 4)))
 
 #define Gcc_PRINTF( format_idx, arg_idx ) \
     __attribute__((__format__ (__printf__, format_idx, arg_idx)))
-
-#define Gcc_NORETURN \
-    __attribute__((__noreturn__))
-
-#define Gcc_NONNULL(...) \
-    __attribute__((__nonnull__(__VA_ARGS__)))
-
-#define Gcc_PURE \
-    __attribute__ ((__pure__))
-
-#define Gcc_PACKED \
-    __attribute__ ((packed))
 
 #define Gcc_ALLOC_SIZE(...) \
     __attribute__ ((alloc_size(__VA_ARGS__)))
@@ -54,15 +38,35 @@
 #define Gcc_USE_RET \
     __attribute__ ((warn_unused_result))
 
-#elif defined(__clang__)
+#define Gcc_PACKED \
+    __attribute__ ((packed))
 
 #define Gcc_NORETURN \
     __attribute__((__noreturn__))
-
-#define Gcc_USE_RET \
-    __attribute__ ((warn_unused_result))
-
 #endif
+
+
+// GCC >= 4.4
+#if !defined(__clang__) && \
+    defined(__GNUC__) && \
+    (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 4))
+
+#define Gcc_NONNULL(...) \
+    __attribute__((__nonnull__(__VA_ARGS__)))
+
+#define Gcc_PURE \
+    __attribute__ ((__pure__))
+#endif
+
+
+// clang only
+#if defined(__clang__)
+// C11 only
+//#define Gcc_NORETURN _Noreturn
+#endif
+
+
+
 
 #ifndef Gcc_PRINTF
     #define Gcc_PRINTF( format_idx, arg_idx )
@@ -76,8 +80,12 @@
 #ifndef Gcc_PURE
     #define Gcc_PURE
 #endif
-#ifndef Gcc_PACKED
-    #define Gcc_PACKED
+// Missing this will lead to very wrong code
+// #ifndef Gcc_PACKED
+//     #define Gcc_PACKED
+// #endif
+#ifndef Gcc_FALLTHRU
+    #define Gcc_FALLTHRU
 #endif
 #ifndef Gcc_ALLOC_SIZE
     #define Gcc_ALLOC_SIZE(...)

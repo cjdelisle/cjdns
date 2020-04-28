@@ -15,13 +15,14 @@
 #ifndef Message_H
 #define Message_H
 
+#include "exception/Er.h"
 #include "exception/Except.h"
-#include <stdint.h>
-
 #include "memory/Allocator.h"
 #include "util/Bits.h"
 #include "util/Endian.h"
 #include "util/UniqueName.h"
+
+#include <stdint.h>
 
 struct Message
 {
@@ -151,11 +152,41 @@ static inline int Message_shift(struct Message* toShift, int32_t amount, struct 
     return 1;
 }
 
+static inline Er_DEFUN(void Message_eshift(struct Message* toShift, int32_t amount))
+{
+    if (amount > 0 && toShift->padding < amount) {
+        Er_raise(toShift->alloc, "buffer overflow adding %d to length %d",
+            amount, toShift->length);
+    } else if (toShift->length < (-amount)) {
+        Er_raise(toShift->alloc, "buffer underflow");
+    }
+
+    toShift->length += amount;
+    toShift->capacity += amount;
+    toShift->bytes -= amount;
+    toShift->padding -= amount;
+
+    Er_ret();
+}
+
 static inline void Message_reset(struct Message* toShift)
 {
     Assert_true(toShift->length <= toShift->capacity);
     toShift->length = toShift->capacity;
     Message_shift(toShift, -toShift->length, NULL);
+}
+
+static inline Er_DEFUN(void Message_epush(struct Message* restrict msg,
+                                          const void* restrict object,
+                                          size_t size))
+{
+    Er(Message_eshift(msg, (int)size));
+    if (object) {
+        Bits_memcpy(msg->bytes, object, size);
+    } else {
+        Bits_memset(msg->bytes, 0x00, size);
+    }
+    Er_ret();
 }
 
 static inline void Message_push(struct Message* restrict msg,
@@ -182,11 +213,28 @@ static inline void Message_pop(struct Message* restrict msg,
     }
 }
 
+static inline Er_DEFUN(void Message_epop(struct Message* restrict msg,
+                                         void* restrict object,
+                                         size_t size))
+{
+    Er(Message_eshift(msg, -(int)size));
+    if (object) {
+        Bits_memcpy(object, &msg->bytes[-((int)size)], size);
+    }
+    Er_ret();
+}
+
 #define Message_pushH(size) \
     static inline void Message_push ## size ## h                                          \
         (struct Message* msg, uint ## size ## _t dat, struct Except* eh)                  \
     {                                                                                     \
         Message_push(msg, &dat, (size)/8, eh);                                            \
+    } \
+    static inline Er_DEFUN(void Message_epush ## size ## h                                \
+        (struct Message* msg, uint ## size ## _t dat))                                    \
+    {                                                                                     \
+        Er(Message_epush(msg, &dat, (size)/8));                                           \
+        Er_ret(); \
     }
 #define Message_popH(size) \
     static inline uint ## size ## _t Message_pop ## size ## h \
@@ -195,6 +243,12 @@ static inline void Message_pop(struct Message* restrict msg,
         uint ## size ## _t out;                                                                   \
         Message_pop(msg, &out, (size)/8, eh);                                                     \
         return out;                                                                               \
+    } \
+    static inline Er_DEFUN(uint ## size ## _t Message_epop ## size ## h(struct Message* msg))     \
+    {                                                                                             \
+        uint ## size ## _t out;                                                                   \
+        Er(Message_epop(msg, &out, (size)/8));                                                    \
+        Er_ret(out); \
     }
 
 #define Message_pushBE(size) \
@@ -213,12 +267,24 @@ static inline void Message_pop(struct Message* restrict msg,
     static inline uint ## size ## _t Message_pop ## size (struct Message* msg, struct Except* eh) \
     {                                                                                             \
         return Endian_bigEndianToHost ## size (Message_pop ## size ## h(msg, eh));                \
+    } \
+    static inline Er_DEFUN(uint ## size ## _t Message_epop ## size ## be(struct Message* msg)) \
+    {                                                                                             \
+        uint ## size ## _t out = Er(Message_epop ## size ## h(msg));                              \
+        uint ## size ## _t out1 = Endian_bigEndianToHost ## size (out);                           \
+        Er_ret(out1);                                                                             \
     }
 #define Message_popLE(size) \
     static inline uint ## size ## _t Message_pop ## size ## le \
         (struct Message* msg, struct Except* eh) \
     {                                                                                             \
         return Endian_littleEndianToHost ## size (Message_pop ## size ## h(msg, eh));             \
+    } \
+    static inline Er_DEFUN(uint ## size ## _t Message_epop ## size ## le(struct Message* msg)) \
+    {                                                                                             \
+        uint ## size ## _t out = Er(Message_epop ## size ## h(msg));                              \
+        uint ## size ## _t out1 = Endian_littleEndianToHost ## size (out);                        \
+        Er_ret(out1);                                                                             \
     }
 
 #define Message_pushPop(size) \
@@ -226,9 +292,24 @@ static inline void Message_pop(struct Message* restrict msg,
     Message_pushBE(size) Message_popBE(size) \
     Message_pushLE(size) Message_popLE(size)
 
-Message_pushPop(8)
+Message_pushH(8)
+Message_popH(8)
+#define Message_push8 Message_push8h
+#define Message_pop8 Message_pop8h
+
+#define Message_epush8 Message_epush8h
+#define Message_epop8 Message_epop8h
+
 Message_pushPop(16)
 Message_pushPop(32)
 Message_pushPop(64)
+
+#define Message_epush16le(msg, x) Message_epush16h(msg, Endian_hostToLittleEndian16(x))
+#define Message_epush32le(msg, x) Message_epush16h(msg, Endian_hostToLittleEndian32(x))
+#define Message_epush64le(msg, x) Message_epush16h(msg, Endian_hostToLittleEndian64(x))
+
+#define Message_epush16be(msg, x) Message_epush16h(msg, Endian_hostToBigEndian16(x))
+#define Message_epush32be(msg, x) Message_epush32h(msg, Endian_hostToBigEndian32(x))
+#define Message_epush64be(msg, x) Message_epush64h(msg, Endian_hostToBigEndian64(x))
 
 #endif

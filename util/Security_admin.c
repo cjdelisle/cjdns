@@ -15,8 +15,7 @@
 #include "admin/Admin.h"
 #include "benc/String.h"
 #include "benc/Dict.h"
-#include "exception/Except.h"
-#include "exception/Jmp.h"
+#include "exception/Er.h"
 #include "util/log/Log.h"
 #include "util/Security.h"
 #include "util/Security_admin.h"
@@ -29,64 +28,54 @@ struct Context
     Identity
 };
 
-static void sendError(char* errorMessage, String* txid, struct Admin* admin)
+static void sendError(const char* errorMessage, String* txid, struct Admin* admin)
 {
-    Dict error = Dict_CONST(String_CONST("error"), String_OBJ(String_CONST(errorMessage)), NULL);
+    Dict error = Dict_CONST(String_CONST("error"),
+        String_OBJ(String_CONST((char*)errorMessage)), NULL);
     Admin_sendMessage(&error, txid, admin);
 }
 
 static void setUser(Dict* args, void* vctx, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* const ctx = Identity_check((struct Context*) vctx);
-    struct Jmp jmp;
-    Jmp_try(jmp) {
-        int64_t* user = Dict_getIntC(args, "uid");
-        int64_t* group = Dict_getIntC(args, "gid");
-        int gid = group ? (int)*group : 0;
-        int64_t* keepNetAdmin = Dict_getIntC(args, "keepNetAdmin");
-        Security_setUser(*user, gid, *keepNetAdmin, ctx->logger, &jmp.handler, requestAlloc);
-    } Jmp_catch {
-        sendError(jmp.message, txid, ctx->admin);
+    int64_t* user = Dict_getIntC(args, "uid");
+    int64_t* group = Dict_getIntC(args, "gid");
+    int gid = group ? (int)*group : 0;
+    int64_t* keepNetAdmin = Dict_getIntC(args, "keepNetAdmin");
+    struct Er_Ret* er = NULL;
+    Er_check(&er, Security_setUser(*user, gid, *keepNetAdmin, ctx->logger, requestAlloc));
+    if (er) {
+        sendError(er->message, txid, ctx->admin);
         return;
     }
     sendError("none", txid, ctx->admin);
 }
 
-static void checkPermissionsB(struct Except* eh,
-                              String* txid,
-                              struct Admin* admin,
-                              struct Allocator* requestAlloc)
+static void checkPermissions(Dict* args, void* vctx, String* txid, struct Allocator* requestAlloc)
 {
-    struct Security_Permissions* sp = Security_checkPermissions(requestAlloc, eh);
+    struct Context* const ctx = Identity_check((struct Context*) vctx);
+    struct Er_Ret* er = NULL;
+    struct Security_Permissions* sp = Er_check(&er, Security_checkPermissions(requestAlloc));
+    if (er) {
+        sendError(er->message, txid, ctx->admin);
+        return;
+    }
     Dict* out = Dict_new(requestAlloc);
     Dict_putIntC(out, "noOpenFiles", sp->noOpenFiles, requestAlloc);
     Dict_putIntC(out, "seccompExists", sp->seccompExists, requestAlloc);
     Dict_putIntC(out, "seccompEnforcing", sp->seccompEnforcing, requestAlloc);
     Dict_putIntC(out, "userId", sp->uid, requestAlloc);
     Dict_putStringCC(out, "error", "none", requestAlloc);
-    Admin_sendMessage(out, txid, admin);
+    Admin_sendMessage(out, txid, ctx->admin);
 }
 
-static void checkPermissions(Dict* args, void* vctx, String* txid, struct Allocator* requestAlloc)
-{
-    struct Context* const ctx = Identity_check((struct Context*) vctx);
-    struct Jmp jmp;
-    Jmp_try(jmp) {
-        checkPermissionsB(&jmp.handler, txid, ctx->admin, requestAlloc);
-    } Jmp_catch {
-        sendError(jmp.message, txid, ctx->admin);
-        return;
-    }
-}
-
-#define NOARG_CALL(vctx, txid, func) \
+#define NOARG_CALL(vctx, txid, func, requestAlloc) \
     do {                                                                    \
         struct Context* const ctx = Identity_check((struct Context*) vctx); \
-        struct Jmp jmp;                                                     \
-        Jmp_try(jmp) {                                                      \
-            func(&jmp.handler);                                             \
-        } Jmp_catch {                                                       \
-            sendError(jmp.message, txid, ctx->admin);                       \
+        struct Er_Ret* er = NULL;                                           \
+        Er_check(&er, func(requestAlloc));                                  \
+        if (er) {                                                           \
+            sendError(er->message, txid, ctx->admin);                       \
             return;                                                         \
         }                                                                   \
         sendError("none", txid, ctx->admin);                                \
@@ -95,23 +84,22 @@ static void checkPermissions(Dict* args, void* vctx, String* txid, struct Alloca
 
 static void nofiles(Dict* args, void* vctx, String* txid, struct Allocator* requestAlloc)
 {
-    NOARG_CALL(vctx, txid, Security_nofiles);
+    NOARG_CALL(vctx, txid, Security_nofiles, requestAlloc);
 }
 
 static void noforks(Dict* args, void* vctx, String* txid, struct Allocator* requestAlloc)
 {
-    NOARG_CALL(vctx, txid, Security_noforks);
+    NOARG_CALL(vctx, txid, Security_noforks, requestAlloc);
 }
 
 static void chroot(Dict* args, void* vctx, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* const ctx = Identity_check((struct Context*) vctx);
-    struct Jmp jmp;
-    Jmp_try(jmp) {
-        String* root = Dict_getStringC(args, "root");
-        Security_chroot(root->bytes, &jmp.handler);
-    } Jmp_catch {
-        sendError(jmp.message, txid, ctx->admin);
+    struct Er_Ret* er = NULL;
+    String* root = Dict_getStringC(args, "root");
+    Er_check(&er, Security_chroot(root->bytes, requestAlloc));
+    if (er) {
+        sendError(er->message, txid, ctx->admin);
         return;
     }
     sendError("none", txid, ctx->admin);
@@ -120,17 +108,19 @@ static void chroot(Dict* args, void* vctx, String* txid, struct Allocator* reque
 static void seccomp(Dict* args, void* vctx, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* const ctx = Identity_check((struct Context*) vctx);
-    struct Jmp jmp;
-    struct Except* eh = &jmp.handler;
-    Jmp_try(jmp) {
-        struct Security_Permissions* sp = Security_checkPermissions(requestAlloc, eh);
-        if (!sp->seccompEnforcing) {
-            Security_seccomp(requestAlloc, ctx->logger, eh);
-        } else {
-            sendError("seccomp is already enabled", txid, ctx->admin);
-        }
-    } Jmp_catch {
-        sendError(jmp.message, txid, ctx->admin);
+    struct Er_Ret* er = NULL;
+    struct Security_Permissions* sp = Er_check(&er, Security_checkPermissions(requestAlloc));
+    if (er) {
+        sendError(er->message, txid, ctx->admin);
+        return;
+    }
+    if (sp->seccompEnforcing) {
+        sendError("seccomp is already enabled", txid, ctx->admin);
+        return;
+    }
+    Er_check(&er, Security_seccomp(requestAlloc, ctx->logger));
+    if (er) {
+        sendError(er->message, txid, ctx->admin);
         return;
     }
     sendError("none", txid, ctx->admin);

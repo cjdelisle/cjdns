@@ -15,7 +15,7 @@
 #include "benc/String.h"
 #include "benc/Dict.h"
 #include "benc/List.h"
-#include "exception/Jmp.h"
+#include "exception/Er.h"
 #include "memory/Allocator.h"
 #include "tunnel/RouteGen.h"
 #include "admin/Admin.h"
@@ -178,18 +178,14 @@ static void commit(Dict* args,
     struct RouteGen_admin_Ctx* const ctx = Identity_check((struct RouteGen_admin_Ctx*) vcontext);
     String* const tunName = Dict_getStringC(args, "tunName");
     Dict* const ret = Dict_new(requestAlloc);
-    char* error;
-    struct Jmp j;
-    Jmp_try(j) {
-        RouteGen_commit(ctx->rg, tunName->bytes, requestAlloc, &j.handler);
-        error = "none";
-    } Jmp_catch {
-        error = j.message;
+    const char* error = "none";
+
+    struct Er_Ret* er = NULL;
+    Er_check(&er, RouteGen_commit(ctx->rg, tunName->bytes, requestAlloc));
+    if (er) {
+        error = er->message;
     }
-    Dict_putString(ret,
-                   String_new("error", requestAlloc),
-                   String_new(error, requestAlloc),
-                   requestAlloc);
+    Dict_putStringCC(ret, "error", error, requestAlloc);
     Admin_sendMessage(ret, txid, ctx->admin);
 }
 

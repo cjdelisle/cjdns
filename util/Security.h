@@ -17,7 +17,7 @@
 
 #include "benc/Dict.h"
 #include "memory/Allocator.h"
-#include "exception/Except.h"
+#include "exception/Er.h"
 #include "util/log/Log.h"
 #include "util/events/EventBase.h"
 #include "util/Linker.h"
@@ -43,20 +43,19 @@ struct Security
     bool setupComplete;
 };
 
-void Security_setUser(int uid,
+Er_DEFUN(void Security_setUser(int uid,
                       int gid,
                       bool keepNetAdmin,
                       struct Log* logger,
-                      struct Except* eh,
-                      struct Allocator* alloc);
+                      struct Allocator* alloc));
 
-void Security_nofiles(struct Except* eh);
+Er_DEFUN(void Security_nofiles(struct Allocator* errAlloc));
 
-void Security_noforks(struct Except* eh);
+Er_DEFUN(void Security_noforks(struct Allocator* errAlloc));
 
-void Security_chroot(char* root, struct Except* eh);
+Er_DEFUN(void Security_chroot(char* root, struct Allocator* errAlloc));
 
-void Security_seccomp(struct Allocator* tempAlloc, struct Log* logger, struct Except* eh);
+Er_DEFUN(void Security_seccomp(struct Allocator* tempAlloc, struct Log* logger));
 
 void Security_setupComplete(struct Security* security);
 
@@ -64,6 +63,6 @@ struct Security* Security_new(struct Allocator* alloc, struct Log* log, struct E
 
 Dict* Security_getUser(char* userName, struct Allocator* retAlloc);
 
-struct Security_Permissions* Security_checkPermissions(struct Allocator* alloc, struct Except* eh);
+Er_DEFUN(struct Security_Permissions* Security_checkPermissions(struct Allocator* alloc));
 
 #endif

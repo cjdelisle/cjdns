@@ -29,7 +29,7 @@
 #ifndef SUBNODE
 #include "dht/Pathfinder.h"
 #endif
-#include "exception/Jmp.h"
+#include "exception/Er.h"
 #include "interface/Iface.h"
 #include "util/events/UDPAddrIface.h"
 #include "interface/tuntap/TUNInterface.h"
@@ -155,10 +155,9 @@ static void sendResponse(String* error,
     Admin_sendMessage(output, txid, admin);
 }
 
-static void initSocket2(String* socketFullPath,
+static Er_DEFUN(void initSocket2(String* socketFullPath,
                           struct Context* ctx,
-                          uint8_t addressPrefix,
-                          struct Except* eh)
+                          uint8_t addressPrefix))
 {
     Log_debug(ctx->logger, "Initializing socket: %s;", socketFullPath->bytes);
 
@@ -169,23 +168,24 @@ static void initSocket2(String* socketFullPath,
     }
     ctx->tunAlloc = Allocator_child(ctx->alloc);
 
-    struct Iface* rawSocketIf = SocketInterface_new(
-        socketFullPath->bytes, ctx->base, ctx->logger, NULL, ctx->tunAlloc);
+    struct Iface* rawSocketIf = Er(SocketInterface_new(
+        socketFullPath->bytes, ctx->base, ctx->logger, ctx->tunAlloc));
     struct SocketWrapper* sw = SocketWrapper_new(ctx->tunAlloc, ctx->logger);
     Iface_plumb(&sw->externalIf, rawSocketIf);
 
     ctx->tunDevice = &sw->internalIf;
     Iface_plumb(ctx->tunDevice, &ctx->nc->tunAdapt->tunIf);
 
-    SocketWrapper_addAddress(&sw->externalIf, ctx->nc->myAddress->ip6.bytes, ctx->logger,
-                                eh, ctx->alloc);
-    SocketWrapper_setMTU(&sw->externalIf, DEFAULT_MTU, ctx->logger, eh, ctx->alloc);
+    Er(SocketWrapper_addAddress(
+        &sw->externalIf, ctx->nc->myAddress->ip6.bytes, ctx->logger, ctx->alloc));
+    Er(SocketWrapper_setMTU(&sw->externalIf, DEFAULT_MTU, ctx->logger, ctx->alloc));
+    Er_ret();
 }
 
-static void initTunnel2(String* desiredDeviceName,
+static Er_DEFUN(void initTunnel2(String* desiredDeviceName,
                         struct Context* ctx,
                         uint8_t addressPrefix,
-                        struct Except* eh)
+                        struct Allocator* errAlloc))
 {
     Log_debug(ctx->logger, "Initializing TUN device [%s]",
               (desiredDeviceName) ? desiredDeviceName->bytes : "<auto>");
@@ -199,8 +199,8 @@ static void initTunnel2(String* desiredDeviceName,
         ctx->tunDevice = NULL;
     }
     ctx->tunAlloc = Allocator_child(ctx->alloc);
-    ctx->tunDevice = TUNInterface_new(
-        desiredName, assignedTunName, 0, ctx->base, ctx->logger, eh, ctx->tunAlloc);
+    ctx->tunDevice = Er(TUNInterface_new(
+        desiredName, assignedTunName, 0, ctx->base, ctx->logger, ctx->tunAlloc));
 
     Iface_plumb(ctx->tunDevice, &ctx->nc->tunAdapt->tunIf);
 
@@ -210,17 +210,14 @@ static void initTunnel2(String* desiredDeviceName,
         Sockaddr_fromBytes(ctx->nc->myAddress->ip6.bytes, Sockaddr_AF_INET6, ctx->tunAlloc);
     myAddr->prefix = addressPrefix;
     myAddr->flags |= Sockaddr_flags_PREFIX;
-    NetDev_addAddress(assignedTunName, myAddr, ctx->logger, eh);
-    NetDev_setMTU(assignedTunName, DEFAULT_MTU, ctx->logger, eh);
+    Er(NetDev_addAddress(assignedTunName, myAddr, ctx->logger, errAlloc));
+    Er(NetDev_setMTU(assignedTunName, DEFAULT_MTU, ctx->logger, errAlloc));
+    Er_ret();
 }
 
-static void initTunFd0(
-    struct Context* ctx,
-    Dict* args,
-    String* txid,
-    struct Except* eh,
-    struct Allocator* requestAlloc)
+static void initTunfd(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
+    struct Context* ctx = Identity_check((struct Context*) vcontext);
     int64_t* tunfd = Dict_getIntC(args, "tunfd");
     int64_t* tuntype = Dict_getIntC(args, "type");
     if (!tunfd || *tunfd < 0) {
@@ -232,7 +229,15 @@ static void initTunFd0(
     int type = (tuntype) ? *tuntype : TUNMessageType_guess();
 
     struct Allocator* tunAlloc = Allocator_child(ctx->alloc);
-    struct Pipe* p = Pipe_forFd(fileno, false, ctx->base, eh, ctx->logger, tunAlloc);
+    struct Er_Ret* er = NULL;
+    struct Pipe* p = Er_check(&er, Pipe_forFd(fileno, false, ctx->base, ctx->logger, tunAlloc));
+    if (er) {
+        Log_debug(ctx->logger, "Failed to create pipe [%s]", er->message);
+        String* error =
+            String_printf(requestAlloc, "Failed to configure tunnel [%s]", er->message);
+        sendResponse(error, ctx->admin, txid, requestAlloc);
+        return;
+    }
     struct Iface* iface = NULL;
     if (type == TUNMessageType_NONE) {
         struct AndroidWrapper* aw = AndroidWrapper_new(tunAlloc, ctx->logger);
@@ -255,20 +260,6 @@ static void initTunFd0(
     sendResponse(String_CONST("none"), ctx->admin, txid, requestAlloc);
 }
 
-static void initTunfd(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
-{
-    struct Context* ctx = Identity_check((struct Context*) vcontext);
-    struct Jmp jmp;
-    Jmp_try(jmp) {
-        initTunFd0(ctx, args, txid, &jmp.handler, requestAlloc);
-    } Jmp_catch {
-        Log_debug(ctx->logger, "Failed to create pipe [%s]", jmp.message);
-        String* error = String_printf(requestAlloc, "Failed to configure tunnel [%s]", jmp.message);
-        sendResponse(error, ctx->admin, txid, requestAlloc);
-        return;
-    }
-}
-
 static void stopTun(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* ctx = Identity_check((struct Context*) vcontext);
@@ -289,13 +280,11 @@ static void stopTun(Dict* args, void* vcontext, String* txid, struct Allocator* 
 static void initTunnel(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* const ctx = Identity_check((struct Context*) vcontext);
-
-    struct Jmp jmp;
-    Jmp_try(jmp) {
-        String* desiredName = Dict_getStringC(args, "desiredTunName");
-        initTunnel2(desiredName, ctx, AddressCalc_ADDRESS_PREFIX_BITS, &jmp.handler);
-    } Jmp_catch {
-        String* error = String_printf(requestAlloc, "Failed to configure tunnel [%s]", jmp.message);
+    String* desiredName = Dict_getStringC(args, "desiredTunName");
+    struct Er_Ret* er = NULL;
+    Er_check(&er, initTunnel2(desiredName, ctx, AddressCalc_ADDRESS_PREFIX_BITS, requestAlloc));
+    if (er) {
+        String* error = String_printf(requestAlloc, "Failed to configure tunnel [%s]", er->message);
         sendResponse(error, ctx->admin, txid, requestAlloc);
         return;
     }
@@ -306,18 +295,15 @@ static void initTunnel(Dict* args, void* vcontext, String* txid, struct Allocato
 static void initSocket(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* const ctx = Identity_check((struct Context*) vcontext);
-
-    struct Jmp jmp;
-    Jmp_try(jmp) {
-        String* socketFullPath = Dict_getStringC(args, "socketFullPath");
-        initSocket2(socketFullPath, ctx, AddressCalc_ADDRESS_PREFIX_BITS, &jmp.handler);
-    } Jmp_catch {
+    String* socketFullPath = Dict_getStringC(args, "socketFullPath");
+    struct Er_Ret* er = NULL;
+    Er_check(&er, initSocket2(socketFullPath, ctx, AddressCalc_ADDRESS_PREFIX_BITS));
+    if (er) {
         String* error = String_printf(requestAlloc, "Failed to configure socket [%s]",
-            jmp.message);
+            er->message);
         sendResponse(error, ctx->admin, txid, requestAlloc);
         return;
     }
-
     sendResponse(String_CONST("none"), ctx->admin, txid, requestAlloc);
 }
 
@@ -473,7 +459,7 @@ int Core_main(int argc, char** argv)
         InterfaceWaiter_waitForData(&clientPipe->iface.iface, eventBase, tempAlloc, eh);
     Log_debug(logger, "Finished getting pre-configuration from client");
     struct Sockaddr* addr = Sockaddr_clone(AddrIface_popAddr(preConf, eh), tempAlloc);
-    Dict* config = BencMessageReader_read(preConf, tempAlloc, eh);
+    Dict* config = Except_er(eh, BencMessageReader_read(preConf, tempAlloc));
 
     String* privateKeyHex = Dict_getStringC(config, "privateKey");
     Dict* adminConf = Dict_getDictC(config, "admin");
@@ -505,7 +491,8 @@ int Core_main(int argc, char** argv)
     }
 
     // --------------------- Bind Admin UDP --------------------- //
-    struct UDPAddrIface* udpAdmin = UDPAddrIface_new(eventBase, &bindAddr.addr, alloc, eh, logger);
+    struct UDPAddrIface* udpAdmin =
+        Except_er(eh, UDPAddrIface_new(eventBase, &bindAddr.addr, alloc, logger));
 
     // ---- Setup a muxer so we can get admin from socket or UDP ---- //
     struct AddrIfaceMuxer* muxer = AddrIfaceMuxer_new(logger, alloc);

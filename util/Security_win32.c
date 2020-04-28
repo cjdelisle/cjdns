@@ -14,7 +14,7 @@
  */
 #include "benc/Dict.h"
 #include "benc/String.h"
-#include "exception/Except.h"
+#include "exception/Er.h"
 #include "util/log/Log.h"
 #include "util/Security.h"
 #include "memory/Allocator.h"
@@ -33,28 +33,27 @@ Dict* Security_getUser(char* userName, struct Allocator* retAlloc)
     return ret;
 }
 
-void Security_setUser(int uid,
+Er_DEFUN(void Security_setUser(int uid,
                       int gid,
                       bool keepNetAdmin,
                       struct Log* logger,
-                      struct Except* eh,
-                      struct Allocator* alloc)
+                      struct Allocator* alloc))
 {
 }
 
-void Security_nofiles(struct Except* eh)
+Er_DEFUN(void Security_nofiles(struct Allocator* errAlloc))
 {
 }
 
-void Security_noforks(struct Except* eh)
+Er_DEFUN(void Security_noforks(struct Allocator* errAlloc))
 {
 }
 
-void Security_chroot(char* root, struct Except* eh)
+Er_DEFUN(void Security_chroot(char* root, struct Allocator* errAlloc))
 {
 }
 
-void Security_seccomp(struct Allocator* tempAlloc, struct Log* logger, struct Except* eh)
+Er_DEFUN(void Security_seccomp(struct Allocator* tempAlloc, struct Log* logger))
 {
 }
 
@@ -90,7 +89,7 @@ struct Security* Security_new(struct Allocator* alloc, struct Log* log, struct E
     return &sec->pub;
 }
 
-struct Security_Permissions* Security_checkPermissions(struct Allocator* alloc, struct Except* eh)
+Er_DEFUN(struct Security_Permissions* Security_checkPermissions(struct Allocator* alloc))
 {
     struct Security_Permissions* out =
         Allocator_calloc(alloc, sizeof(struct Security_Permissions), 1);

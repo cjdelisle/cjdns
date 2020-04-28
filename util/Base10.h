@@ -15,6 +15,7 @@
 #ifndef Base10_H
 #define Base10_H
 
+#include "exception/Er.h"
 #include "exception/Except.h"
 #include "wire/Message.h"
 #include "util/Linker.h"
@@ -23,7 +24,7 @@ Linker_require("util/Base10.c");
 #include <stdint.h>
 
 void Base10_write(struct Message* msg, int64_t num, struct Except* eh);
-int64_t Base10_read(struct Message* msg, struct Except* eh);
+Er_DEFUN(int64_t Base10_read(struct Message* msg));
 int Base10_fromString(uint8_t* str, int64_t* numOut);
 
 #endif

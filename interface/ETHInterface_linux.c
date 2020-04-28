@@ -205,13 +205,13 @@ static void handleEvent(void* vcontext)
     Allocator_free(messageAlloc);
 }
 
-List* ETHInterface_listDevices(struct Allocator* alloc, struct Except* eh)
+Er_DEFUN(List* ETHInterface_listDevices(struct Allocator* alloc))
 {
     List* out = List_new(alloc);
 #ifndef android
     struct ifaddrs* ifaddr = NULL;
     if (getifaddrs(&ifaddr) || ifaddr == NULL) {
-        Except_throw(eh, "getifaddrs() -> errno:%d [%s]", errno, strerror(errno));
+        Er_raise(alloc, "getifaddrs() -> errno:%d [%s]", errno, strerror(errno));
     }
     for (struct ifaddrs* ifa = ifaddr; ifa; ifa = ifa->ifa_next) {
         if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_PACKET) {
@@ -220,7 +220,7 @@ List* ETHInterface_listDevices(struct Allocator* alloc, struct Except* eh)
     }
     freeifaddrs(ifaddr);
 #endif
-    return out;
+    Er_ret(out);
 }
 
 static int closeSocket(struct Allocator_OnFreeJob* j)
@@ -230,11 +230,10 @@ static int closeSocket(struct Allocator_OnFreeJob* j)
     return 0;
 }
 
-struct ETHInterface* ETHInterface_new(struct EventBase* eventBase,
+Er_DEFUN(struct ETHInterface* ETHInterface_new(struct EventBase* eventBase,
                                       const char* bindDevice,
                                       struct Allocator* alloc,
-                                      struct Except* exHandler,
-                                      struct Log* logger)
+                                      struct Log* logger))
 {
     struct ETHInterface_pvt* ctx = Allocator_calloc(alloc, sizeof(struct ETHInterface_pvt), 1);
     Identity_set(ctx);
@@ -246,7 +245,7 @@ struct ETHInterface* ETHInterface_new(struct EventBase* eventBase,
 
     ctx->socket = socket(AF_PACKET, SOCK_DGRAM, Ethernet_TYPE_CJDNS);
     if (ctx->socket == -1) {
-        Except_throw(exHandler, "call to socket() failed. [%s]", strerror(errno));
+        Er_raise(alloc, "call to socket() failed. [%s]", strerror(errno));
     }
     Allocator_onFree(alloc, closeSocket, ctx);
 
@@ -254,18 +253,18 @@ struct ETHInterface* ETHInterface_new(struct EventBase* eventBase,
     ctx->ifName = String_new(bindDevice, alloc);
 
     if (ioctl(ctx->socket, SIOCGIFINDEX, &ifr) == -1) {
-        Except_throw(exHandler, "failed to find interface index [%s]", strerror(errno));
+        Er_raise(alloc, "failed to find interface index [%s]", strerror(errno));
     }
     ctx->ifindex = ifr.ifr_ifindex;
 
     if (ioctl(ctx->socket, SIOCGIFFLAGS, &ifr) < 0) {
-        Except_throw(exHandler, "ioctl(SIOCGIFFLAGS) [%s]", strerror(errno));
+        Er_raise(alloc, "ioctl(SIOCGIFFLAGS) [%s]", strerror(errno));
     }
     if (!((ifr.ifr_flags & IFF_UP) && (ifr.ifr_flags & IFF_RUNNING))) {
         Log_info(logger, "Bringing up interface [%s]", ifr.ifr_name);
         ifr.ifr_flags |= IFF_UP | IFF_RUNNING;
         if (ioctl(ctx->socket, SIOCSIFFLAGS, &ifr) < 0) {
-            Except_throw(exHandler, "ioctl(SIOCSIFFLAGS) [%s]", strerror(errno));
+            Er_raise(alloc, "ioctl(SIOCSIFFLAGS) [%s]", strerror(errno));
         }
     }
 
@@ -279,12 +278,12 @@ struct ETHInterface* ETHInterface_new(struct EventBase* eventBase,
     };
 
     if (bind(ctx->socket, (struct sockaddr*) &ctx->addrBase, sizeof(struct sockaddr_ll))) {
-        Except_throw(exHandler, "call to bind() failed [%s]", strerror(errno));
+        Er_raise(alloc, "call to bind() failed [%s]", strerror(errno));
     }
 
     Socket_makeNonBlocking(ctx->socket);
 
-    Event_socketRead(handleEvent, ctx, ctx->socket, eventBase, alloc, exHandler);
+    Event_socketRead(handleEvent, ctx, ctx->socket, eventBase, alloc);
 
-    return &ctx->pub;
+    Er_ret(&ctx->pub);
 }

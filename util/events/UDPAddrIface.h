@@ -15,7 +15,7 @@
 #ifndef UDPAddrIface_H
 #define UDPAddrIface_H
 
-#include "exception/Except.h"
+#include "exception/Er.h"
 #include "interface/Iface.h"
 #include "interface/addressable/AddrIface.h"
 #include "memory/Allocator.h"
@@ -41,15 +41,13 @@ struct UDPAddrIface
  * @param base the event loop context.
  * @param bindAddr the address/port to bind to.
  * @param allocator the memory allocator for this message.
- * @param exHandler the handler to deal with whatever exception arises.
  * @param logger
  * @return a new UDPInterfaceBase.
  */
-struct UDPAddrIface* UDPAddrIface_new(struct EventBase* base,
-                                      struct Sockaddr* bindAddr,
-                                      struct Allocator* allocator,
-                                      struct Except* exHandler,
-                                      struct Log* logger);
+Er_DEFUN(struct UDPAddrIface* UDPAddrIface_new(struct EventBase* eventBase,
+                                      struct Sockaddr* addr,
+                                      struct Allocator* alloc,
+                                      struct Log* logger));
 
 int UDPAddrIface_setDSCP(struct UDPAddrIface* iface, uint8_t dscp);
 

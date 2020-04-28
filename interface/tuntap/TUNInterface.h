@@ -15,10 +15,11 @@
 #ifndef TUNInterface_H
 #define TUNInterface_H
 
+#include "exception/Er.h"
+#include "interface/Iface.h"
+#include "memory/Allocator.h"
 #include "util/events/EventBase.h"
 #include "util/log/Log.h"
-#include "exception/Except.h"
-#include "memory/Allocator.h"
 #include "util/Linker.h"
 Linker_require("interface/tuntap/TUNInterface_" + builder.config.systemName + ".c");
 
@@ -42,15 +43,13 @@ Linker_require("interface/tuntap/TUNInterface_" + builder.config.systemName + ".
  * @param isTapMode if true, the TUN device will be initialized in TAP mode if supported.
  * @param base the libevent event base to use for listening for incoming packet events.
  * @param logger for logging messages about the tun device.
- * @param eh if this function fails, it will raise one an error.
  * @param allocator a means of getting memory.
  * @return a Interface.
  */
-struct Iface* TUNInterface_new(const char* interfaceName,
+Er_DEFUN(struct Iface* TUNInterface_new(const char* interfaceName,
                                    char assignedInterfaceName[TUNInterface_IFNAMSIZ],
                                    int isTapMode,
                                    struct EventBase* base,
                                    struct Log* logger,
-                                   struct Except* eh,
-                                   struct Allocator* alloc);
+                                   struct Allocator* alloc));
 #endif

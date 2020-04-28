@@ -38,14 +38,14 @@ void Base10_write(struct Message* msg, int64_t num, struct Except* eh)
     }
 }
 
-int64_t Base10_read(struct Message* msg, struct Except* eh)
+Er_DEFUN(int64_t Base10_read(struct Message* msg))
 {
     int64_t out = 0;
     bool negative = false;
-    uint8_t chr = Message_pop8(msg, eh);
+    uint8_t chr = Er(Message_epop8(msg));
     if (chr == '-') {
         negative = true;
-        chr = Message_pop8(msg, eh);
+        chr = Er(Message_epop8(msg));
     }
     if (chr >= '0' && chr <= '9') {
         while (chr >= '0' && chr <= '9') {
@@ -53,16 +53,16 @@ int64_t Base10_read(struct Message* msg, struct Except* eh)
             out += chr - '0';
             if (msg->length == 0) {
                 if (negative) { out = -out; }
-                return out;
+                Er_ret(out);
             }
-            chr = Message_pop8(msg, eh);
+            chr = Er(Message_epop8(msg));
         }
-        Message_push8(msg, chr, eh);
+        Er(Message_epush8(msg, chr));
         if (negative) { out = -out; }
-        return out;
+        Er_ret(out);
     } else {
-        Message_push8(msg, chr, eh);
-        Except_throw(eh, "No base10 characters found");
+        Er(Message_epush8(msg, chr));
+        Er_raise(msg->alloc, "No base10 characters found");
     }
 }
 
@@ -79,6 +79,6 @@ int Base10_fromString(uint8_t* str, int64_t* numOut)
         return -1;
     }
     struct Message msg = { .length = len, .bytes = str, .capacity = len };
-    *numOut = Base10_read(&msg, NULL);
+    *numOut = Er_assert(Base10_read(&msg));
     return 0;
 }

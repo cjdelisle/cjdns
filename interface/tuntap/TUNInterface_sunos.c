@@ -89,16 +89,15 @@ static Iface_DEFUN incomingFromUs(struct Message* message, struct Iface* interna
     return Iface_next(&ctx->externalIf, message);
 }
 
-struct Iface* TUNInterface_new(const char* interfaceName,
+Er_DEFUN(struct Iface* TUNInterface_new(const char* interfaceName,
                                    char assignedInterfaceName[TUNInterface_IFNAMSIZ],
                                    int isTapMode,
                                    struct EventBase* base,
                                    struct Log* logger,
-                                   struct Except* eh,
-                                   struct Allocator* alloc)
+                                   struct Allocator* alloc))
 {
     // tap mode is not supported at all by the sunos tun driver.
-    if (isTapMode) { Except_throw(eh, "tap mode not supported on this platform"); }
+    if (isTapMode) { Er_raise(alloc, "tap mode not supported on this platform"); }
 
     // Extract the number eg: 0 from tun0
     int ppa = 0;
@@ -140,7 +139,7 @@ struct Iface* TUNInterface_new(const char* interfaceName,
         } else if (tunFd2 < 0) {
             error = "open(\"/dev/tun\") (opening for plumbing interface)";
         }
-        Except_throw(eh, "%s [%s]", error, strerror(err));
+        Er_raise(alloc, "%s [%s]", error, strerror(err));
     }
 
     struct lifreq ifr = {
@@ -179,12 +178,12 @@ struct Iface* TUNInterface_new(const char* interfaceName,
         close(ipFd);
         close(tunFd2);
         close(tunFd);
-        Except_throw(eh, "%s [%s]", error, strerror(err));
+        Er_raise(alloc, "%s [%s]", error, strerror(err));
     }
 
     close(ipFd);
 
-    struct Pipe* p = Pipe_forFd(tunFd, false, base, eh, logger, alloc);
+    struct Pipe* p = Er(Pipe_forFd(tunFd, false, base, logger, alloc));
 
     struct TUNInterface_Illumos_pvt* ctx =
         Allocator_clone(alloc, (&(struct TUNInterface_Illumos_pvt) {
@@ -195,5 +194,5 @@ struct Iface* TUNInterface_new(const char* interfaceName,
     Iface_plumb(&ctx->externalIf, p);
     Identity_set(ctx);
 
-    return &ctx->generic;
+    Er_ret(&ctx->generic);
 }

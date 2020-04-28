@@ -132,7 +132,7 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* addrIface)
 
     int origLen = msg->length;
     Dict* d = NULL;
-    char* err = BencMessageReader_readNoExcept(msg, alloc, &d);
+    const char* err = BencMessageReader_readNoExcept(msg, alloc, &d);
     if (err) { return NULL; }
     Message_shift(msg, origLen, NULL);
 

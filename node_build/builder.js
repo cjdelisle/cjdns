@@ -202,6 +202,18 @@ var execJs = function (js, builder, file, fileName, callback) {
 
     // # 74 "./wire/Message.h"
     js = js.replace(/\n#.*\n/g, '');
+
+    // Js_SQ Js_DQ
+    const qs = js.split('Js_Q');
+    if (qs.length && !(qs.length % 2)) {
+        throw new Error("Uneven number of Js_Q, content: [" + js + "]");
+    }
+    for (let i = 1; i < qs.length; i += 2) {
+        // escape nested quotes, they'll come back out in the final .i file
+        qs[i] = qs[i].replace(/\'/g, '\\u0027');
+    }
+    js = qs.join("'");
+
     var to = setTimeout(function () {
         throw new Error("Inline JS did not return after 120 seconds [" + js + "]");
     }, 120000);

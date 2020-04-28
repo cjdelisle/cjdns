@@ -12,20 +12,18 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef Seccomp_H
-#define Seccomp_H
-
-#include "exception/Er.h"
+#include "util/Setuid.h"
 #include "memory/Allocator.h"
-#include "util/log/Log.h"
-#include "util/Js.h"
+#include "exception/Er.h"
 
-Js({ require("../util/Seccomp.js").detect(this.async, file, builder); })
+// This implementation does nothing
 
-Er_DEFUN(void Seccomp_dropPermissions(struct Allocator* tempAlloc, struct Log* logger));
+Er_DEFUN(void Setuid_preSetuid(struct Allocator* alloc))
+{
+    Er_ret();
+}
 
-int Seccomp_isWorking(void);
-
-int Seccomp_exists(void);
-
-#endif
+Er_DEFUN(void Setuid_postSetuid(struct Allocator* alloc))
+{
+    Er_ret();
+}

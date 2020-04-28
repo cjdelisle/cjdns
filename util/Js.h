@@ -15,6 +15,9 @@
 #ifndef Js_H
 #define Js_H
 
+// Js_Q is defined directly in builder.js because
+// you cannot define ' as a macro without the compiler complaining.
+
 #define Js_or(x,y) y
 
 #define Js(x)

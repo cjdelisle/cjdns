@@ -17,7 +17,6 @@
 #include "benc/Int.h"
 #include "admin/Admin.h"
 #include "crypto/Key.h"
-#include "exception/Jmp.h"
 #include "memory/Allocator.h"
 #include "net/InterfaceController.h"
 #include "util/AddrTools.h"
@@ -87,14 +86,12 @@ static void newInterface(Dict* args, void* vcontext, String* txid, struct Alloca
     String* const bindDevice = Dict_getStringC(args, "bindDevice");
     struct Allocator* const alloc = Allocator_child(ctx->alloc);
 
-    struct ETHInterface* ethIf = NULL;
-    struct Jmp jmp;
-    Jmp_try(jmp) {
-        ethIf = ETHInterface_new(
-            ctx->eventBase, bindDevice->bytes, alloc, &jmp.handler, ctx->logger);
-    } Jmp_catch {
+    struct Er_Ret* er = NULL;
+    struct ETHInterface* ethIf =
+        Er_check(&er, ETHInterface_new(ctx->eventBase, bindDevice->bytes, alloc, ctx->logger));
+    if (er) {
         Dict* out = Dict_new(requestAlloc);
-        Dict_putStringCC(out, "error", jmp.message, requestAlloc);
+        Dict_putStringCC(out, "error", er->message, requestAlloc);
         Admin_sendMessage(out, txid, ctx->admin);
         Allocator_free(alloc);
         return;
@@ -155,13 +152,11 @@ static void beacon(Dict* args, void* vcontext, String* txid, struct Allocator* r
 static void listDevices(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* ctx = Identity_check((struct Context*) vcontext);
-    List* devices = NULL;
-    struct Jmp jmp;
-    Jmp_try(jmp) {
-        devices = ETHInterface_listDevices(requestAlloc, &jmp.handler);
-    } Jmp_catch {
+    struct Er_Ret* er = NULL;
+    List* devices = Er_check(&er, ETHInterface_listDevices(requestAlloc));
+    if (er) {
         Dict* out = Dict_new(requestAlloc);
-        Dict_putStringCC(out, "error", jmp.message, requestAlloc);
+        Dict_putStringCC(out, "error", er->message, requestAlloc);
         Admin_sendMessage(out, txid, ctx->admin);
         return;
     }

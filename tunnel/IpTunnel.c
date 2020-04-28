@@ -20,7 +20,6 @@
 #include "benc/serialization/standard/BencMessageReader.h"
 #include "crypto/AddressCalc.h"
 #include "crypto/random/Random.h"
-#include "exception/Jmp.h"
 #include "interface/tuntap/TUNMessageType.h"
 #include "memory/Allocator.h"
 #include "tunnel/IpTunnel.h"
@@ -410,7 +409,8 @@ static Iface_DEFUN requestForAddresses(Dict* request,
 }
 
 static void addAddress(char* printedAddr, uint8_t prefixLen,
-                       uint8_t allocSize, struct IpTunnel_pvt* ctx)
+                       uint8_t allocSize, struct IpTunnel_pvt* ctx,
+                       struct Allocator* tempAlloc)
 {
     String* tunName = GlobalConfig_getTunName(ctx->globalConf);
     if (!tunName) {
@@ -425,11 +425,10 @@ static void addAddress(char* printedAddr, uint8_t prefixLen,
     ss.addr.flags |= Sockaddr_flags_PREFIX;
 
     ss.addr.prefix = allocSize;
-    struct Jmp j;
-    Jmp_try(j) {
-        NetDev_addAddress(tunName->bytes, &ss.addr, ctx->logger, &j.handler);
-    } Jmp_catch {
-        Log_error(ctx->logger, "Error setting ip address on TUN [%s]", j.message);
+    struct Er_Ret* er = NULL;
+    Er_check(&er, NetDev_addAddress(tunName->bytes, &ss.addr, ctx->logger, tempAlloc));
+    if (er) {
+        Log_error(ctx->logger, "Error setting ip address on TUN [%s]", er->message);
         return;
     }
 
@@ -516,7 +515,8 @@ static Iface_DEFUN incomingAddresses(Dict* d,
         Log_info(context->logger, "Got issued address [%s/%d:%d] for connection [%d]",
                  printedAddr, conn->connectionIp4Alloc, conn->connectionIp4Prefix, conn->number);
 
-        addAddress(printedAddr, conn->connectionIp4Prefix, conn->connectionIp4Alloc, context);
+        addAddress(printedAddr,
+            conn->connectionIp4Prefix, conn->connectionIp4Alloc, context, alloc);
     }
 
     String* ip6 = Dict_getStringC(addresses, "ip6");
@@ -547,7 +547,8 @@ static Iface_DEFUN incomingAddresses(Dict* d,
         Log_info(context->logger, "Got issued address block [%s/%d:%d] for connection [%d]",
                  printedAddr, conn->connectionIp6Alloc, conn->connectionIp6Prefix, conn->number);
 
-        addAddress(printedAddr, conn->connectionIp6Prefix, conn->connectionIp6Alloc, context);
+        addAddress(printedAddr,
+            conn->connectionIp6Prefix, conn->connectionIp6Alloc, context, alloc);
     }
     if (context->rg->hasUncommittedChanges) {
         String* tunName = GlobalConfig_getTunName(context->globalConf);
@@ -555,11 +556,10 @@ static Iface_DEFUN incomingAddresses(Dict* d,
             Log_error(context->logger, "Failed to set routes because TUN interface is not setup");
             return 0;
         }
-        struct Jmp j;
-        Jmp_try(j) {
-            RouteGen_commit(context->rg, tunName->bytes, alloc,  &j.handler);
-        } Jmp_catch {
-            Log_error(context->logger, "Error setting routes for TUN [%s]", j.message);
+        struct Er_Ret* er = NULL;
+        Er_check(&er, RouteGen_commit(context->rg, tunName->bytes, alloc));
+        if (er) {
+            Log_error(context->logger, "Error setting routes for TUN [%s]", er->message);
             return 0;
         }
     }
@@ -587,7 +587,7 @@ static Iface_DEFUN incomingControlMessage(struct Message* message,
     struct Allocator* alloc = Allocator_child(message->alloc);
 
     Dict* d = NULL;
-    char* err = BencMessageReader_readNoExcept(message, alloc, &d);
+    const char* err = BencMessageReader_readNoExcept(message, alloc, &d);
     if (err) {
         Log_info(context->logger, "Failed to parse message [%s]", err);
         return 0;

@@ -17,7 +17,8 @@
 
 #include "util/events/EventBase.h"
 #include "util/log/Log.h"
-#include "exception/Except.h"
+#include "exception/Er.h"
+#include "interface/Iface.h"
 #include "memory/Allocator.h"
 #include "util/Linker.h"
 Linker_require("interface/tuntap/SocketInterface.c");
@@ -34,9 +35,8 @@ Linker_require("interface/tuntap/SocketInterface.c");
  * @param allocator a means of getting memory.
  * @return a Interface.
  */
-struct Iface* SocketInterface_new(const char* socketFullPath,
+Er_DEFUN(struct Iface* SocketInterface_new(const char* socketFullPath,
                                     struct EventBase* base,
                                     struct Log* logger,
-                                    struct Except* eh,
-                                    struct Allocator* alloc);
+                                    struct Allocator* alloc));
 #endif

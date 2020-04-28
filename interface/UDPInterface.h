@@ -15,6 +15,7 @@
 #ifndef UDPInterface_H
 #define UDPInterface_H
 
+#include "exception/Er.h"
 #include "interface/addressable/AddrIface.h"
 #include "benc/List.h"
 #include "util/events/EventBase.h"
@@ -62,25 +63,22 @@ struct UDPInterface
  * @param bcastPort (optional) if specifed, another socket will be created for beacon messages
  *                  if zero then no other socket will be created.
  * @param alloc allocator which will be used to create the interface
- * @param exHandler in case setup fails
  * @param logger
  * @param globalConf for getting the name of the TUN device to avoid bcasting to it
  */
-struct UDPInterface* UDPInterface_new(struct EventBase* eventBase,
+Er_DEFUN(struct UDPInterface* UDPInterface_new(struct EventBase* eventBase,
                                       struct Sockaddr* bindAddr,
-                                      uint16_t bcastPort,
+                                      uint16_t beaconPort,
                                       struct Allocator* alloc,
-                                      struct Except* exHandler,
                                       struct Log* logger,
-                                      struct GlobalConfig* globalConf);
+                                      struct GlobalConfig* globalConf));
 
 /**
  * List all devices which can be broadcasted to, this will provide the name of the devices.
  *
  * @param alloc
- * @param eh exception in case libuv is unable to get the device list
  */
-List* UDPInterface_listDevices(struct Allocator* alloc, struct Except* eh);
+Er_DEFUN(List* UDPInterface_listDevices(struct Allocator* alloc));
 
 /**
  * Specify broadcast devices, this function accepts device names, address names and

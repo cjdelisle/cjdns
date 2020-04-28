@@ -100,7 +100,7 @@ static int handleIncoming(struct DHTMessage* message,
                           void* vcontext)
 {
     struct SerializationModule_context* context = vcontext;
-    char* err =
+    const char* err =
         BencMessageReader_readNoExcept(message->binMessage, message->allocator, &message->asDict);
     if (err) {
         Log_info(context->logger, "Failed to parse message [%s]", err);

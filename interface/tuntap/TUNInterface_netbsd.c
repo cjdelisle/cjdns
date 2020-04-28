@@ -39,15 +39,14 @@
 
 /* Tun Configurator for NetBSD. */
 
-struct Iface* TUNInterface_new(const char* interfaceName,
+Er_DEFUN(struct Iface* TUNInterface_new(const char* interfaceName,
                                    char assignedInterfaceName[TUNInterface_IFNAMSIZ],
                                    int isTapMode,
                                    struct EventBase* base,
                                    struct Log* logger,
-                                   struct Except* eh,
-                                   struct Allocator* alloc)
+                                   struct Allocator* alloc))
 {
-    if (isTapMode) { Except_throw(eh, "tap mode not supported on this platform"); }
+    if (isTapMode) { Er_raise(alloc, "tap mode not supported on this platform"); }
     int err;
     char file[TUNInterface_IFNAMSIZ];
     int i;
@@ -65,7 +64,7 @@ struct Iface* TUNInterface_new(const char* interfaceName,
     if (tunFd < 0 ) {
         err = errno;
         close(tunFd);
-        Except_throw(eh, "%s [%s]", "open(\"/dev/tunX\")", strerror(err));
+        Er_raise(alloc, "%s [%s]", "open(\"/dev/tunX\")", strerror(err));
     }
 /* from the NetBSD tun man page:
      TUNSIFHEAD  The argument should be a pointer to an int; a non-zero value
@@ -77,7 +76,7 @@ struct Iface* TUNInterface_new(const char* interfaceName,
     if (ioctl(tunFd, TUNSIFHEAD, &i) == -1) {
         err = errno;
         close(tunFd);
-        Except_throw(eh, "%s [%s]", "ioctl(tunFd,TUNSIFHEAD,&2)", strerror(err));
+        Er_raise(alloc, "%s [%s]", "ioctl(tunFd,TUNSIFHEAD,&2)", strerror(err));
     }
     // Since devices are numbered rather than named, it's not possible to have tun0 and cjdns0
     // so we'll skip the pretty names and call everything tunX
@@ -88,9 +87,9 @@ struct Iface* TUNInterface_new(const char* interfaceName,
             snprintf(assignedInterfaceName, TUNInterface_IFNAMSIZ, "tun%d", ppa);
         }
     }
-    struct Pipe* p = Pipe_forFd(tunFd, false, base, eh, logger, alloc);
+    struct Pipe* p = Er(Pipe_forFd(tunFd, false, base, logger, alloc));
 
     struct BSDMessageTypeWrapper* bmtw = BSDMessageTypeWrapper_new(alloc, logger);
     Iface_plumb(&p->iface, &bmtw->wireSide);
-    return &bmtw->inside;
+    Er_ret(&bmtw->inside);
 }

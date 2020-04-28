@@ -15,7 +15,7 @@
 #include "interface/tuntap/TUNMessageType.h"
 #include "interface/tuntap/test/TUNTools.h"
 #include "util/events/UDPAddrIface.h"
-#include "exception/Jmp.h"
+#include "exception/Er.h"
 #include "util/events/Timeout.h"
 #include "wire/Ethernet.h"
 #include "wire/Headers.h"
@@ -27,21 +27,6 @@
     #include <unistd.h>
 #endif
 
-static struct AddrIface* setupUDP2(struct EventBase* base,
-                                   struct Sockaddr* bindAddr,
-                                   struct Allocator* allocator,
-                                   struct Log* logger)
-{
-    struct Jmp jmp;
-    Jmp_try(jmp) {
-        struct UDPAddrIface* ua = UDPAddrIface_new(base, bindAddr, allocator, &jmp.handler, logger);
-        return &ua->generic;
-    } Jmp_catch {
-        sleep(1);
-        return NULL;
-    }
-}
-
 static struct AddrIface* setupUDP(struct EventBase* base,
                                   struct Sockaddr* bindAddr,
                                   struct Allocator* allocator,
@@ -49,14 +34,17 @@ static struct AddrIface* setupUDP(struct EventBase* base,
 {
     // Mac OSX and BSD do not set up their TUN devices synchronously.
     // We'll just keep on trying until this works.
-    struct AddrIface* udp = NULL;
+    struct UDPAddrIface* udp = NULL;
+    struct Er_Ret* er = NULL;
     for (int i = 0; i < 20; i++) {
-        if ((udp = setupUDP2(base, bindAddr, allocator, logger))) {
+        udp = Er_check(&er, UDPAddrIface_new(base, bindAddr, allocator, logger));
+        if (udp) {
             break;
         }
+        sleep(1);
     }
     Assert_true(udp);
-    return udp;
+    return &udp->generic;
 }
 
 struct TUNTools_pvt

@@ -14,7 +14,6 @@
  */
 #include "benc/Int.h"
 #include "admin/Admin.h"
-#include "exception/Jmp.h"
 #include "memory/Allocator.h"
 #include "net/InterfaceController.h"
 #include "util/events/EventBase.h"
@@ -152,22 +151,19 @@ static struct UDPInterface* setupLibuvUDP(struct Context* ctx,
                                        String* txid,
                                        struct Allocator* alloc)
 {
-    struct UDPInterface* udpIf = NULL;
-    struct Jmp jmp;
-    Jmp_try(jmp) {
-        udpIf = UDPInterface_new(
-            ctx->eventBase, addr, beaconPort, alloc, &jmp.handler, ctx->logger, ctx->globalConf);
-        if (dscp) {
-            if (UDPInterface_setDSCP(udpIf, dscp)) {
-                Log_warn(ctx->logger, "Set DSCP failed");
-            }
-        }
-    } Jmp_catch {
+    struct Er_Ret* er = NULL;
+    struct UDPInterface* udpIf = Er_check(&er, UDPInterface_new(
+        ctx->eventBase, addr, beaconPort, alloc, ctx->logger, ctx->globalConf));
+    if (er) {
         Dict* out = Dict_new(alloc);
-        Dict_putStringCC(out, "error", jmp.message, alloc);
+        Dict_putStringCC(out, "error", er->message, alloc);
         Admin_sendMessage(out, txid, ctx->admin);
         Allocator_free(alloc);
         return NULL;
+    } else if (dscp) {
+        if (UDPInterface_setDSCP(udpIf, dscp)) {
+            Log_warn(ctx->logger, "Set DSCP failed");
+        }
     }
     return udpIf;
 }
@@ -227,12 +223,12 @@ static void listDevices(Dict* args, void* vcontext, String* txid, struct Allocat
 {
     struct Context* ctx = Identity_check((struct Context*) vcontext);
     Dict* out = Dict_new(requestAlloc);
-    struct Jmp jmp;
-    Jmp_try(jmp) {
-        List* list = UDPInterface_listDevices(requestAlloc, &jmp.handler);
+    struct Er_Ret* er = NULL;
+    List* list = Er_check(&er, UDPInterface_listDevices(requestAlloc));
+    if (er) {
+        Dict_putStringCC(out, "error", er->message, requestAlloc);
+    } else {
         Dict_putListC(out, "ret", list, requestAlloc);
-    } Jmp_catch {
-        Dict_putStringCC(out, "error", jmp.message, requestAlloc);
     }
     Admin_sendMessage(out, txid, ctx->admin);
 }

@@ -17,15 +17,15 @@
 
 #include "util/events/libuv/UvWrapper.h"
 #include "util/events/Pipe.h"
+#include "exception/Er.h"
 #include "util/Linker.h"
 Linker_require("util/events/libuv/Pipe.c");
 
 #include <stdbool.h>
 
-struct Pipe* Pipe_serverAccept(uv_pipe_t* server,
+Er_DEFUN(struct Pipe* Pipe_serverAccept(uv_pipe_t* server,
                                const char* pipeName,
                                struct EventBase* eb,
-                               struct Except* eh,
                                struct Log* log,
-                               struct Allocator* userAlloc);
+                               struct Allocator* userAlloc));
 #endif

@@ -21,7 +21,7 @@ void CJDNS_FUZZ_MAIN(void* vctx, struct Message* fuzz)
 {
     struct Allocator* alloc = (struct Allocator*) vctx;
     Dict* out = NULL;
-    char* res = JsonBencMessageReader_readNoExcept(fuzz, alloc, &out, true);
+    const char* res = JsonBencMessageReader_readNoExcept(fuzz, alloc, &out, true);
     if (res) { return; }
     res = JsonBencMessageReader_readNoExcept(fuzz, alloc, &out, false);
 }

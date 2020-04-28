@@ -15,7 +15,6 @@
 #ifndef Event_H
 #define Event_H
 
-#include "exception/Except.h"
 #include "memory/Allocator.h"
 #include "util/events/EventBase.h"
 #include "util/Linker.h"
@@ -30,7 +29,6 @@ struct Event* Event_socketRead(void (* const callback)(void* callbackContext),
                                void* const callbackContext,
                                int s,
                                struct EventBase* base,
-                               struct Allocator* alloc,
-                               struct Except* eh);
+                               struct Allocator* alloc);
 
 #endif

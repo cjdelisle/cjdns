@@ -713,7 +713,7 @@ void Configurator_config(Dict* config,
                          struct Allocator* alloc)
 {
     struct Allocator* tempAlloc = Allocator_child(alloc);
-    struct UDPAddrIface* udp = UDPAddrIface_new(eventBase, NULL, alloc, NULL, logger);
+    struct UDPAddrIface* udp = Er_assert(UDPAddrIface_new(eventBase, NULL, alloc, logger));
     struct AdminClient* client =
         AdminClient_new(&udp->generic, sockAddr, adminPassword, eventBase, logger, tempAlloc);
 

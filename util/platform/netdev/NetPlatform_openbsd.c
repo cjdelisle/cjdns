@@ -12,7 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#include "exception/Except.h"
+#include "exception/Er.h"
 #include "util/platform/netdev/NetPlatform.h"
 #include "util/AddrTools.h"
 #include "util/platform/Sockaddr.h"
@@ -37,20 +37,20 @@
 #include <netinet6/in6_var.h>
 #include <netinet6/nd6.h>
 
-static void addIp4Address(const char* interfaceName,
+static Er_DEFUN(void addIp4Address(const char* interfaceName,
                           const uint8_t address[4],
                           int prefixLen,
                           struct Log* logger,
-                          struct Except* eh)
+                          struct Allocator* alloc))
 {
-    Except_throw(eh, "unimplemented");
+    Er_raise(alloc, "unimplemented");
 }
 
-static void addIp6Address(const char* interfaceName,
+static Er_DEFUN(void addIp6Address(const char* interfaceName,
                           const uint8_t address[16],
                           int prefixLen,
                           struct Log* logger,
-                          struct Except* eh)
+                          struct Allocator* alloc))
 {
     /* stringify our IP address */
     char myIp[40];
@@ -70,7 +70,7 @@ static void addIp6Address(const char* interfaceName,
     int err = getaddrinfo((const char *)myIp, NULL, &hints, &result);
     if (err) {
         // Should never happen since the address is specified as binary.
-        Except_throw(eh, "bad IPv6 address [%s]", gai_strerror(err));
+        Er_raise(alloc, "bad IPv6 address [%s]", gai_strerror(err));
     }
 
     memcpy(&in6_addreq.ifra_addr, result->ai_addr, result->ai_addrlen);
@@ -96,46 +96,47 @@ static void addIp6Address(const char* interfaceName,
     /* do the actual assignment ioctl */
     int s = socket(AF_INET6, SOCK_DGRAM, 0);
     if (s < 0) {
-        Except_throw(eh, "socket() [%s]", strerror(errno));
+        Er_raise(alloc, "socket() [%s]", strerror(errno));
     }
 
     if (ioctl(s, SIOCAIFADDR_IN6, &in6_addreq) < 0) {
         int err = errno;
         close(s);
-        Except_throw(eh, "ioctl(SIOCAIFADDR) [%s] for [%s]", strerror(err), interfaceName);
+        Er_raise(alloc, "ioctl(SIOCAIFADDR) [%s] for [%s]", strerror(err), interfaceName);
     }
 
     Log_info(logger, "Configured IPv6 [%s/%i] for [%s]", myIp, prefixLen, interfaceName);
 
     close(s);
+    Er_ret();
 }
 
-void NetPlatform_addAddress(const char* interfaceName,
+Er_DEFUN(void NetPlatform_addAddress(const char* interfaceName,
                             const uint8_t* address,
                             int prefixLen,
                             int addrFam,
                             struct Log* logger,
-                            struct Allocator* tempAlloc,
-                            struct Except* eh)
+                            struct Allocator* tempAlloc))
 {
     if (addrFam == Sockaddr_AF_INET6) {
-        addIp6Address(interfaceName, address, prefixLen, logger, eh);
+        addIp6Address(interfaceName, address, prefixLen, logger, tempAlloc);
     } else if (addrFam == Sockaddr_AF_INET) {
-        addIp4Address(interfaceName, address, prefixLen, logger, eh);
+        addIp4Address(interfaceName, address, prefixLen, logger, tempAlloc);
     } else {
         Assert_true(0);
     }
+    Er_ret();
 }
 
-void NetPlatform_setMTU(const char* interfaceName,
+Er_DEFUN(void NetPlatform_setMTU(const char* interfaceName,
                         uint32_t mtu,
                         struct Log* logger,
-                        struct Except* eh)
+                        struct Allocator* errAlloc))
 {
     int s = socket(AF_INET6, SOCK_DGRAM, 0);
 
     if (s < 0) {
-        Except_throw(eh, "socket() [%s]", strerror(errno));
+        Er_raise(errAlloc, "socket() [%s]", strerror(errno));
     }
 
 
@@ -149,16 +150,15 @@ void NetPlatform_setMTU(const char* interfaceName,
     if (ioctl(s, SIOCSIFMTU, &ifRequest) < 0) {
        int err = errno;
        close(s);
-       Except_throw(eh, "ioctl(SIOCSIFMTU) [%s]", strerror(err));
+       Er_raise(errAlloc, "ioctl(SIOCSIFMTU) [%s]", strerror(err));
     }
 }
 
-void NetPlatform_setRoutes(const char* ifName,
+Er_DEFUN(void NetPlatform_setRoutes(const char* ifName,
                            struct Sockaddr** prefixSet,
                            int prefixCount,
                            struct Log* logger,
-                           struct Allocator* tempAlloc,
-                           struct Except* eh)
+                           struct Allocator* tempAlloc))
 {
-    Except_throw(eh, "NetPlatform_setRoutes is not implemented in this platform.");
+    Er_raise(tempAlloc, "NetPlatform_setRoutes is not implemented in this platform.");
 }

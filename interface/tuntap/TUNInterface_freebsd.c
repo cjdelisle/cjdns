@@ -38,17 +38,16 @@
 #include <netinet6/in6_var.h>
 #include <netinet6/nd6.h>
 
-struct Iface* TUNInterface_new(const char* interfaceName,
+Er_DEFUN(struct Iface* TUNInterface_new(const char* interfaceName,
                                    char assignedInterfaceName[TUNInterface_IFNAMSIZ],
                                    int isTapMode,
                                    struct EventBase* base,
                                    struct Log* logger,
-                                   struct Except* eh,
-                                   struct Allocator* alloc)
+                                   struct Allocator* alloc))
 {
     char deviceFile[TUNInterface_IFNAMSIZ];
 
-    if (isTapMode) { Except_throw(eh, "tap mode not supported on this platform"); }
+    if (isTapMode) { Er_raise(alloc, "tap mode not supported on this platform"); }
 
     // We are on FreeBSD so we just need to read /dev/tunxx to create the tun interface
     if (interfaceName) {
@@ -83,7 +82,7 @@ struct Iface* TUNInterface_new(const char* interfaceName,
         } else if (ppa < 0) {
             error = "fdevname/getting number from fdevname";
         }
-        Except_throw(eh, "%s [%s]", error, strerror(err));
+        Er_raise(alloc, "%s [%s]", error, strerror(err));
     }
 
     // Since devices are numbered rather than named, it's not possible to have tun0 and cjdns0
@@ -110,12 +109,12 @@ struct Iface* TUNInterface_new(const char* interfaceName,
     if (error) {
         int err = errno;
         close(tunFd);
-        Except_throw(eh, "%s [%s]", error, strerror(err));
+        Er_raise(alloc, "%s [%s]", error, strerror(err));
     }
 
-    struct Pipe* p = Pipe_forFd(tunFd, false, base, eh, logger, alloc);
+    struct Pipe* p = Er(Pipe_forFd(tunFd, false, base, logger, alloc));
 
     struct BSDMessageTypeWrapper* bmtw = BSDMessageTypeWrapper_new(alloc, logger);
     Iface_plumb(&p->iface, &bmtw->wireSide);
-    return &bmtw->inside;
+    Er_ret(&bmtw->inside);
 }

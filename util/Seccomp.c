@@ -127,7 +127,7 @@ static struct sock_fprog* compile(struct Filter* input, int inputLen, struct All
 #define RET_ERRNO(x) (0x00050000u | ((x) & 0x0000ffffu))
 #define RET_SUCCESS   0x7fff0000u
 
-static struct sock_fprog* mkFilter(struct Allocator* alloc, struct Except* eh)
+static Er_DEFUN(struct sock_fprog* mkFilter(struct Allocator* alloc))
 {
     // Adding exceptions to the syscall filter:
     //
@@ -397,10 +397,11 @@ static struct sock_fprog* mkFilter(struct Allocator* alloc, struct Except* eh)
         RET(SECCOMP_RET_ALLOW),
     };
 
-    return compile(seccompFilter, sizeof(seccompFilter)/sizeof(seccompFilter[0]), alloc);
+    Er_ret(compile(seccompFilter, sizeof(seccompFilter)/sizeof(seccompFilter[0]), alloc));
 }
 
-static void installFilter(struct sock_fprog* filter, struct Log* logger, struct Except* eh)
+static Er_DEFUN(void installFilter(
+    struct sock_fprog* filter, struct Log* logger, struct Allocator* alloc))
 {
     struct sigaction sa = { .sa_sigaction = catchViolation, .sa_flags = SA_SIGINFO };
     if (sigaction(SIGSYS, &sa, NULL)) {
@@ -412,17 +413,19 @@ static void installFilter(struct sock_fprog* filter, struct Log* logger, struct 
         Log_warn(logger, "prctl(PR_SET_NO_NEW_PRIVS) -> [%s]\n", strerror(errno));
     }
     if (prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, filter) == -1) {
-        Except_throw(eh, "prctl(PR_SET_SECCOMP) -> [%s]\n", strerror(errno));
+        Er_raise(alloc, "prctl(PR_SET_SECCOMP) -> [%s]\n", strerror(errno));
     }
+    Er_ret();
 }
 
-void Seccomp_dropPermissions(struct Allocator* tempAlloc, struct Log* logger, struct Except* eh)
+Er_DEFUN(void Seccomp_dropPermissions(struct Allocator* tempAlloc, struct Log* logger))
 {
-    struct sock_fprog* filter = mkFilter(tempAlloc, eh);
-    installFilter(filter, logger, eh);
+    struct sock_fprog* filter = Er(mkFilter(tempAlloc));
+    Er(installFilter(filter, logger, tempAlloc));
     if (!Seccomp_isWorking()) {
-        Except_throw(eh, "Seccomp filter not installed properly, Seccomp_isWorking() -> false");
+        Er_raise(tempAlloc, "Seccomp filter not installed properly, Seccomp_isWorking() -> false");
     }
+    Er_ret();
 }
 
 int Seccomp_isWorking(void)

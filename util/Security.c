@@ -57,17 +57,16 @@ Dict* Security_getUser(char* userName, struct Allocator* retAlloc)
     return ret;
 }
 
-void Security_setUser(int uid,
+Er_DEFUN(void Security_setUser(int uid,
                       int gid,
                       bool keepNetAdmin,
                       struct Log* logger,
-                      struct Except* eh,
-                      struct Allocator* alloc)
+                      struct Allocator* alloc))
 {
     int gidErrno = 0;
     int uidErrno = 0;
     if (keepNetAdmin) {
-        Setuid_preSetuid(alloc, eh);
+        Er(Setuid_preSetuid(alloc));
     }
     if (gid && setgid(gid)) {
         gidErrno = errno;
@@ -77,20 +76,21 @@ void Security_setUser(int uid,
         uidErrno = errno;
     }
     if (keepNetAdmin) {
-        Setuid_postSetuid(alloc, eh);
+        Er(Setuid_postSetuid(alloc));
     }
     if (uidErrno > 0) {
-        Except_throw(eh, "Failed to set UID [%s]", strerror(uidErrno));
+        Er_raise(alloc, "Failed to set UID [%s]", strerror(uidErrno));
     }
     if (uid != (int) getuid()) {
-        Except_throw(eh, "Failed to set UID but seemed to succeed");
+        Er_raise(alloc, "Failed to set UID but seemed to succeed");
     }
     if (gidErrno > 0) {
-        Except_throw(eh, "Failed to set GID [%s]", strerror(gidErrno));
+        Er_raise(alloc, "Failed to set GID [%s]", strerror(gidErrno));
     }
     if (gid != (int) getgid()) {
-        Except_throw(eh, "Failed to set GID but seemed to succeed");
+        Er_raise(alloc, "Failed to set GID but seemed to succeed");
     }
+    Er_ret();
 }
 
 static int canOpenFiles()
@@ -100,43 +100,47 @@ static int canOpenFiles()
     return file >= 0;
 }
 
-void Security_nofiles(struct Except* eh)
+Er_DEFUN(void Security_nofiles(struct Allocator* errAlloc))
 {
     #if !defined(RLIMIT_NOFILE) && defined(RLIMIT_OFILE)
         #define RLIMIT_NOFILE RLIMIT_OFILE
     #endif
 
     if (!canOpenFiles()) {
-        Except_throw(eh, "Unable to dupe stdin");
+        Er_raise(errAlloc, "Unable to dupe stdin");
     }
     if (setrlimit(RLIMIT_NOFILE, &(struct rlimit){ 0, 0 })) {
-        Except_throw(eh, "Failed to set open file limit to 0 [%s]", strerror(errno));
+        Er_raise(errAlloc, "Failed to set open file limit to 0 [%s]", strerror(errno));
     }
     if (canOpenFiles()) {
-        Except_throw(eh, "Still able to dupe stdin after setting number of files to 0!");
+        Er_raise(errAlloc, "Still able to dupe stdin after setting number of files to 0!");
     }
+    Er_ret();
 }
 
-void Security_noforks(struct Except* eh)
+Er_DEFUN(void Security_noforks(struct Allocator* errAlloc))
 {
     if (setrlimit(RLIMIT_NPROC, &(struct rlimit){ 0, 0 })) {
-        Except_throw(eh, "Failed to set fork limit to 0 [%s]", strerror(errno));
+        Er_raise(errAlloc, "Failed to set fork limit to 0 [%s]", strerror(errno));
     }
+    Er_ret();
 }
 
-void Security_chroot(char* root, struct Except* eh)
+Er_DEFUN(void Security_chroot(char* root, struct Allocator* errAlloc))
 {
     if (chdir(root)) {
-        Except_throw(eh, "chdir(%s) -> [%s]", root, strerror(errno));
+        Er_raise(errAlloc, "chdir(%s) -> [%s]", root, strerror(errno));
     }
     if (chroot(root)) {
-        Except_throw(eh, "chroot(%s) -> [%s]", root, strerror(errno));
+        Er_raise(errAlloc, "chroot(%s) -> [%s]", root, strerror(errno));
     }
+    Er_ret();
 }
 
-void Security_seccomp(struct Allocator* tempAlloc, struct Log* logger, struct Except* eh)
+Er_DEFUN(void Security_seccomp(struct Allocator* tempAlloc, struct Log* logger))
 {
-    Seccomp_dropPermissions(tempAlloc, logger, eh);
+    Er(Seccomp_dropPermissions(tempAlloc, logger));
+    Er_ret();
 }
 
 struct Security_pvt
@@ -171,7 +175,7 @@ struct Security* Security_new(struct Allocator* alloc, struct Log* log, struct E
     return &sec->pub;
 }
 
-struct Security_Permissions* Security_checkPermissions(struct Allocator* alloc, struct Except* eh)
+Er_DEFUN(struct Security_Permissions* Security_checkPermissions(struct Allocator* alloc))
 {
     struct Security_Permissions* out =
         Allocator_calloc(alloc, sizeof(struct Security_Permissions), 1);
@@ -181,5 +185,5 @@ struct Security_Permissions* Security_checkPermissions(struct Allocator* alloc, 
     out->seccompEnforcing = Seccomp_isWorking();
     out->uid = getuid();
 
-    return out;
+    Er_ret(out);
 }

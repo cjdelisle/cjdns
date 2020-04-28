@@ -15,6 +15,7 @@
 #ifndef Except_H
 #define Except_H
 
+#include "exception/Er.h"
 #include "util/Gcc.h"
 #include "util/Linker.h"
 Linker_require("exception/Except.c");
@@ -36,5 +37,11 @@ Gcc_PRINTF(4, 5)
 void Except__throw(char* file, int line, struct Except* eh, char* format, ...);
 #define Except_throw(...) Except__throw(Gcc_SHORT_FILE, Gcc_LINE, __VA_ARGS__)
 
+#define Except_er(eh, expr) (__extension__({ \
+    struct Er_Ret* ret = (struct Er_Ret*)0; \
+    __auto_type o = Er_check(&ret, expr); \
+    if (ret) { Except_throw(eh, "%s", ret->message); } \
+    o; \
+}))
 
 #endif

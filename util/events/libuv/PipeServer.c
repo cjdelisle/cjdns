@@ -15,7 +15,7 @@
 #include "util/events/libuv/UvWrapper.h"
 
 #include "benc/String.h"
-#include "exception/Jmp.h"
+#include "exception/Er.h"
 #include "memory/Allocator.h"
 #include "util/events/Pipe.h"
 #include "util/events/PipeServer.h"
@@ -105,15 +105,14 @@ static void onClose(uv_handle_t* handle)
 
 static struct Pipe* getPipe(struct PipeServer_pvt* psp, struct Allocator* alloc)
 {
-    struct Jmp j;
-    Jmp_try(j) {
-        return Pipe_serverAccept(
-            &psp->server, psp->pub.fullName, &psp->base->pub, &j.handler, psp->log, alloc);
-    } Jmp_catch {
+    struct Er_Ret* er = NULL;
+    struct Pipe* out = Er_check(&er, Pipe_serverAccept(
+            &psp->server, psp->pub.fullName, &psp->base->pub, psp->log, alloc));
+    if (er) {
         Log_warn(psp->log, "failed to connect to client on pipe [%s] [%s]",
-                 psp->pub.fullName, j.message);
+                 psp->pub.fullName, er->message);
     }
-    return NULL;
+    return out;
 }
 
 static int removeClientOnFree(struct Allocator_OnFreeJob* job)

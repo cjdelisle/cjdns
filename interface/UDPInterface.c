@@ -204,22 +204,21 @@ static Iface_DEFUN fromBcastSock(struct Message* m, struct Iface* iface)
     return Iface_next(&ctx->pub.generic.iface, m);
 }
 
-struct UDPInterface* UDPInterface_new(struct EventBase* eventBase,
+Er_DEFUN(struct UDPInterface* UDPInterface_new(struct EventBase* eventBase,
                                       struct Sockaddr* bindAddr,
                                       uint16_t beaconPort,
                                       struct Allocator* alloc,
-                                      struct Except* exHandler,
                                       struct Log* logger,
-                                      struct GlobalConfig* globalConf)
+                                      struct GlobalConfig* globalConf))
 {
     if (beaconPort && Sockaddr_getFamily(bindAddr) != Sockaddr_AF_INET) {
-        Except_throw(exHandler, "UDP broadcast only supported by ipv4.");
+        Er_raise(alloc, "UDP broadcast only supported by ipv4.");
     }
     if (beaconPort && Sockaddr_getPort(bindAddr) == beaconPort) {
-        Except_throw(exHandler, "UDP broadcast port must be different from communication port.");
+        Er_raise(alloc, "UDP broadcast port must be different from communication port.");
     }
 
-    struct UDPAddrIface* uai = UDPAddrIface_new(eventBase, bindAddr, alloc, exHandler, logger);
+    struct UDPAddrIface* uai = Er(UDPAddrIface_new(eventBase, bindAddr, alloc, logger));
 
     uint16_t commPort = Sockaddr_getPort(uai->generic.addr);
 
@@ -242,22 +241,22 @@ struct UDPInterface* UDPInterface_new(struct EventBase* eventBase,
         struct Sockaddr* bcastAddr = Sockaddr_clone(bindAddr, alloc);
         Sockaddr_setPort(bcastAddr, beaconPort);
         struct UDPAddrIface* bcast =
-            UDPAddrIface_new(eventBase, bcastAddr, alloc, exHandler, logger);
+            Er(UDPAddrIface_new(eventBase, bcastAddr, alloc, logger));
         UDPAddrIface_setBroadcast(bcast, 1);
         Iface_plumb(&bcast->generic.iface, &context->bcastSock);
         context->bcastIf = bcast;
     }
 
-    return &context->pub;
+    Er_ret(&context->pub);
 }
 
-List* UDPInterface_listDevices(struct Allocator* alloc, struct Except* eh)
+Er_DEFUN(List* UDPInterface_listDevices(struct Allocator* alloc))
 {
     List* out = List_new(alloc);
     uv_interface_address_t* interfaces;
     int count;
     int res = uv_interface_addresses(&interfaces, &count);
-    if (res) { Except_throw(eh, "uv_interface_addresses failed [%s]", uv_strerror(-res)); }
+    if (res) { Er_raise(alloc, "uv_interface_addresses failed [%s]", uv_strerror(-res)); }
 
     for (int i = 0; i < count; i++) {
         if (interfaces[i].is_internal) { continue; }
@@ -265,7 +264,7 @@ List* UDPInterface_listDevices(struct Allocator* alloc, struct Except* eh)
         List_addString(out, String_new(interfaces[i].name, alloc), alloc);
     }
     uv_free_interface_addresses(interfaces, count);
-    return out;
+    Er_ret(out);
 }
 
 void UDPInterface_setBroadcastDevices(struct UDPInterface* udpif, List* devices)

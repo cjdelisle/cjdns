@@ -17,10 +17,9 @@
 #include "benc/List.h"
 #include "benc/Dict.h"
 #include "benc/String.h"
-#include "exception/Except.h"
+#include "exception/Er.h"
 #include "memory/Allocator.h"
 #include "wire/Message.h"
-#include "exception/Jmp.h"
 #include "util/Gcc.h"
 #include "util/Hex.h"
 #include "util/Base10.h"
@@ -29,7 +28,6 @@
 
 struct Context {
     struct Message* const msg;
-    struct Except* const eh;
     struct Allocator* const alloc;
     const bool lax;
     int line;
@@ -42,21 +40,21 @@ static int getColumn(struct Context* ctx)
 }
 
 #define ERROR0(ctx, message) \
-    Except__throw(Gcc_SHORT_FILE, Gcc_LINE, ctx->eh,    \
+    return Er__raise(Gcc_SHORT_FILE, Gcc_LINE, ctx->alloc,    \
         "Error parsing config (line %d column %d): " message, \
         ctx->line, getColumn(ctx))
 #define ERROR(ctx, message, ...) \
-    Except__throw(Gcc_SHORT_FILE, Gcc_LINE, ctx->eh,    \
+    return Er__raise(Gcc_SHORT_FILE, Gcc_LINE, ctx->alloc,    \
         "Error parsing config (line %d column %d): " message, \
         ctx->line, getColumn(ctx), __VA_ARGS__)
 
-static uint8_t peak(struct Context* ctx)
+static Er_DEFUN(uint8_t peak(struct Context* ctx))
 {
     if (!ctx->msg->length) { ERROR0(ctx, "Out of content while reading"); }
-    return ctx->msg->bytes[0];
+    Er_ret(ctx->msg->bytes[0]);
 }
 
-static void skip(struct Context* ctx, int num)
+static Er_DEFUN(void skip(struct Context* ctx, int num))
 {
     if (num > ctx->msg->length) { ERROR0(ctx, "Out of content while reading"); }
     for (int i = 0; i < num; i++) {
@@ -65,65 +63,67 @@ static void skip(struct Context* ctx, int num)
             ctx->line++;
         }
     }
-    Message_shift(ctx->msg, -num, ctx->eh);
+    Er(Message_eshift(ctx->msg, -num));
+    Er_ret();
 }
 
-static bool assertChar(struct Context* ctx, char chr, bool lax)
+static Er_DEFUN(bool assertChar(struct Context* ctx, char chr, bool lax))
 {
-    if (peak(ctx) != chr) {
-        if (lax == true) { return false; }
-        ERROR(ctx, "Expected char [%c] but got [%c]", chr, peak(ctx));
+    char c = Er(peak(ctx));
+    if (c != chr) {
+        if (lax == true) { Er_ret(false); }
+        ERROR(ctx, "Expected char [%c] but got [%c]", chr, c);
     }
-    return true;
+    Er_ret(true);
 }
 
-static void parseComment(struct Context* ctx)
+static Er_DEFUN(void parseComment(struct Context* ctx))
 {
-    assertChar(ctx, '/', false);
-    skip(ctx, 1);
-    uint8_t secondChar = peak(ctx);
+    Er(assertChar(ctx, '/', false));
+    Er(skip(ctx, 1));
+    uint8_t secondChar = Er(peak(ctx));
     if (secondChar != '/' && secondChar != '*') { ERROR(ctx, "Unexpected char [%c]", secondChar); }
     bool lastCharSplat = false;
     for (;;) {
-        skip(ctx, 1);
-        uint8_t chr = peak(ctx);
+        Er(skip(ctx, 1));
+        uint8_t chr = Er(peak(ctx));
         if (lastCharSplat && secondChar == '*' && chr == '/') {
             // get rid of the trailing *
-            skip(ctx, 1);
+            Er(skip(ctx, 1));
         } else if (secondChar == '/' && chr == '\n') {
         } else {
             lastCharSplat = (chr == '*');
             continue;
         }
-        return;
+        Er_ret();
     }
 }
 
-static void parseWhitespaceAndComments(struct Context* ctx)
+static Er_DEFUN(void parseWhitespaceAndComments(struct Context* ctx))
 {
     for (;;) {
-        switch (peak(ctx)) {
+        switch (Er(peak(ctx))) {
             case '\n':
             case ' ':
             case '\r':
             case '\t':
-                skip(ctx, 1);
+                Er(skip(ctx, 1));
                 continue;
 
             case '/':
-                parseComment(ctx);
+                Er(parseComment(ctx));
                 continue;
 
             default: break;
         }
-        return;
+        Er_ret();
     }
     ERROR0(ctx, "Reached end of message while parsing");
 }
 
-static String* parseString(struct Context* ctx)
+static Er_DEFUN(String* parseString(struct Context* ctx))
 {
-    assertChar(ctx, '"', false);
+    Er(assertChar(ctx, '"', false));
     int line = ctx->line;
     uintptr_t beginningLastLine = ctx->beginningLastLine;
     int msgLen = ctx->msg->length;
@@ -140,16 +140,16 @@ static String* parseString(struct Context* ctx)
     // CHECKFILES_IGNORE expecting a ;
 
     for (;;) {
-        skip(ctx, 1);
-        uint8_t bchar = peak(ctx);
+        Er(skip(ctx, 1));
+        uint8_t bchar = Er(peak(ctx));
         switch (bchar) {
             case '"': {
-                skip(ctx, 1);
-                if (out) { return out; }
+                Er(skip(ctx, 1));
+                if (out) { Er_ret(out); }
                 // got the length, reset and then copy the string next cycle
                 ctx->line = line;
                 ctx->beginningLastLine = beginningLastLine;
-                Message_shift(ctx->msg, msgLen - ctx->msg->length, NULL);
+                Er(Message_eshift(ctx->msg, msgLen - ctx->msg->length));
                 out = String_newBinary(NULL, pos, ctx->alloc);
                 pos = 0;
                 continue;
@@ -159,15 +159,15 @@ static String* parseString(struct Context* ctx)
                 ERROR0(ctx, "Unterminated string");
             }
             case '\\': {
-                skip(ctx, 1);
-                uint8_t x = peak(ctx);
-                skip(ctx, 1);
+                Er(skip(ctx, 1));
+                uint8_t x = Er(peak(ctx));
+                Er(skip(ctx, 1));
                 if (x != 'x') {
                     ERROR0(ctx, "Char \\ only allowed if followed by x (as in \\xff)");
                 }
-                uint8_t high = peak(ctx);
-                skip(ctx, 1);
-                uint8_t low = peak(ctx);
+                uint8_t high = Er(peak(ctx));
+                Er(skip(ctx, 1));
+                uint8_t low = Er(peak(ctx));
                 int byte = Hex_decodeByte(high, low);
                 if (byte < 0 || (byte > 255)) { ERROR0(ctx, "Invalid hex encoding"); }
                 PUSHOUT(byte);
@@ -182,38 +182,38 @@ static String* parseString(struct Context* ctx)
     #undef PUSHOUT
 }
 
-static int64_t parseInteger(struct Context* ctx)
+static Er_DEFUN(int64_t parseInteger(struct Context* ctx))
 {
-    return Base10_read(ctx->msg, ctx->eh);
+    Er_ret( Er(Base10_read(ctx->msg)) );
 }
 
-static Object* parseGeneric(struct Context* ctx);
+static Er_DEFUN(Object* parseGeneric(struct Context* ctx));
 
-static List* parseList(struct Context* ctx)
+static Er_DEFUN(List* parseList(struct Context* ctx))
 {
-    assertChar(ctx, '[', false);
-    skip(ctx, 1);
+    Er(assertChar(ctx, '[', false));
+    Er(skip(ctx, 1));
     struct List_Item* first = NULL;
     struct List_Item* last = NULL;
     for (int i = 0; ; i++) {
         for (;;) {
-            parseWhitespaceAndComments(ctx);
+            Er(parseWhitespaceAndComments(ctx));
             // lax mode, allow ,, extra ,,, commas
-            if (!ctx->lax || peak(ctx) != ',') { break; }
-            skip(ctx, 1);
+            if (!ctx->lax || Er(peak(ctx)) != ',') { break; }
+            Er(skip(ctx, 1));
         }
-        if (peak(ctx) == ']') {
-            skip(ctx, 1);
+        if (Er(peak(ctx)) == ']') {
+            Er(skip(ctx, 1));
             List* out = Allocator_malloc(ctx->alloc, sizeof(List));
             *out = first;
-            return out;
+            Er_ret(out);
         }
-        if (i && assertChar(ctx, ',', ctx->lax)) {
-            skip(ctx, 1);
-            parseWhitespaceAndComments(ctx);
+        if (i && Er(assertChar(ctx, ',', ctx->lax))) {
+            Er(skip(ctx, 1));
+            Er(parseWhitespaceAndComments(ctx));
         }
         struct List_Item* item = Allocator_calloc(ctx->alloc, sizeof(struct List_Item), 1);
-        item->elem = parseGeneric(ctx);
+        item->elem = Er(parseGeneric(ctx));
         if (last) {
             last->next = item;
         } else {
@@ -223,36 +223,36 @@ static List* parseList(struct Context* ctx)
     }
 }
 
-static Dict* parseDict(struct Context* ctx)
+static Er_DEFUN(Dict* parseDict(struct Context* ctx))
 {
-    assertChar(ctx, '{', false);
-    skip(ctx, 1);
+    Er(assertChar(ctx, '{', false));
+    Er(skip(ctx, 1));
     struct Dict_Entry* last = NULL;
     struct Dict_Entry* first = NULL;
     for (int i = 0; ; i++) {
         for (;;) {
-            parseWhitespaceAndComments(ctx);
-            if (!ctx->lax || peak(ctx) != ',') { break; }
-            skip(ctx, 1);
+            Er(parseWhitespaceAndComments(ctx));
+            if (!ctx->lax || Er(peak(ctx)) != ',') { break; }
+            Er(skip(ctx, 1));
         }
-        if (peak(ctx) == '}') {
-            skip(ctx, 1);
+        if (Er(peak(ctx)) == '}') {
+            Er(skip(ctx, 1));
             Dict* out = Allocator_malloc(ctx->alloc, sizeof(Dict));
             *out = first;
-            return out;
+            Er_ret(out);
         }
-        if (i && assertChar(ctx, ',', ctx->lax)) {
-            skip(ctx, 1);
-            parseWhitespaceAndComments(ctx);
+        if (i && Er(assertChar(ctx, ',', ctx->lax))) {
+            Er(skip(ctx, 1));
+            Er(parseWhitespaceAndComments(ctx));
         }
         struct Dict_Entry* entry = Allocator_calloc(ctx->alloc, sizeof(struct Dict_Entry), 1);
-        entry->key = parseString(ctx);
-        parseWhitespaceAndComments(ctx);
-        if (assertChar(ctx, ':', ctx->lax)) {
-            skip(ctx, 1);
-            parseWhitespaceAndComments(ctx);
+        entry->key = Er(parseString(ctx));
+        Er(parseWhitespaceAndComments(ctx));
+        if (Er(assertChar(ctx, ':', ctx->lax))) {
+            Er(skip(ctx, 1));
+            Er(parseWhitespaceAndComments(ctx));
         }
-        entry->val = parseGeneric(ctx);
+        entry->val = Er(parseGeneric(ctx));
         if (last) {
             last->next = entry;
         } else {
@@ -262,10 +262,11 @@ static Dict* parseDict(struct Context* ctx)
     }
 }
 
-static Object* parseGeneric(struct Context* ctx)
+static Er_DEFUN(Object* parseGeneric(struct Context* ctx))
 {
     Object* out = Allocator_calloc(ctx->alloc, sizeof(Object), 1);
-    switch (peak(ctx)) {
+    uint8_t c = Er(peak(ctx));
+    switch (c) {
         case '-':
         case '0':
         case '1':
@@ -278,62 +279,58 @@ static Object* parseGeneric(struct Context* ctx)
         case '8':
         case '9': {
             out->type = Object_INTEGER;
-            out->as.number = parseInteger(ctx);
+            out->as.number = Er(parseInteger(ctx));
             break;
         }
         case '[': {
             out->type = Object_LIST;
-            out->as.list = parseList(ctx);
+            out->as.list = Er(parseList(ctx));
             break;
         }
         case '{': {
             out->type = Object_DICT;
-            out->as.dictionary = parseDict(ctx);
+            out->as.dictionary = Er(parseDict(ctx));
             break;
         }
         case '"': {
             out->type = Object_STRING;
-            out->as.string = parseString(ctx);
+            out->as.string = Er(parseString(ctx));
             break;
         }
         default:
             ERROR(ctx, "While looking for something to parse: "
-                   "expected one of - 0 1 2 3 4 5 6 7 8 9 [ { \", found [%c]", peak(ctx));
+                   "expected one of - 0 1 2 3 4 5 6 7 8 9 [ { \", found [%c]", c);
     }
-    return out;
+    Er_ret(out);
 }
 
-Dict* JsonBencMessageReader_read(
+Er_DEFUN(Dict* JsonBencMessageReader_read(
     struct Message* msg,
     struct Allocator* alloc,
-    struct Except* eh,
     bool lax
-) {
+)) {
     struct Context ctx = {
         .msg = msg,
-        .eh = eh,
         .alloc = alloc,
         .lax = lax,
         .line = 1,
         .beginningLastLine = (uintptr_t) msg->bytes
     };
-    return parseDict(&ctx);
+    Er_ret( Er(parseDict(&ctx)) );
 }
 
-char* JsonBencMessageReader_readNoExcept(
+const char* JsonBencMessageReader_readNoExcept(
     struct Message* msg,
     struct Allocator* alloc,
     Dict** outPtr,
-    bool lax
-) {
-    struct Jmp j;
-    Jmp_try(j) {
-        Dict* out = JsonBencMessageReader_read(msg, alloc, &j.handler, lax);
-        *outPtr = out;
-        return NULL;
-    } Jmp_catch {
-        String* str = String_new(j.message, alloc);
-        return str->bytes;
+    bool lax)
+{
+    struct Er_Ret* er = NULL;
+    Dict* out = Er_check(&er, JsonBencMessageReader_read(msg, alloc, lax));
+    if (er) {
+        return er->message;
     }
+    *outPtr = out;
+    return NULL;
 }
 

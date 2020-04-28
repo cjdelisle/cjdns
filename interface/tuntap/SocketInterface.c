@@ -13,20 +13,17 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "interface/tuntap/SocketInterface.h"
-#include "exception/Except.h"
+#include "exception/Er.h"
 #include "memory/Allocator.h"
 #include "util/events/EventBase.h"
 #include "util/events/Pipe.h"
 
-struct Iface* SocketInterface_new(const char* socketFullPath,
+Er_DEFUN(struct Iface* SocketInterface_new(const char* socketFullPath,
                                     struct EventBase* base,
                                     struct Log* logger,
-                                    struct Except* eh,
-                                    struct Allocator* alloc)
+                                    struct Allocator* alloc))
 {
     Log_info(logger, "Initializing socket: %s;", socketFullPath);
-
-    struct Pipe* p = Pipe_named(socketFullPath, base, eh, logger, alloc);
-
-    return &p->iface;
+    struct Pipe* p = Er(Pipe_named(socketFullPath, base, logger, alloc));
+    Er_ret(&p->iface);
 }

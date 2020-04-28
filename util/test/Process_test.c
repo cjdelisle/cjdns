@@ -127,7 +127,7 @@ static Iface_DEFUN receiveMessageChild(struct Message* msg, struct Iface* iface)
 
 static void child(char* name, struct Context* ctx)
 {
-    struct Pipe* pipe = Pipe_named(name, ctx->base, NULL, ctx->log, ctx->alloc);
+    struct Pipe* pipe = Er_assert(Pipe_named(name, ctx->base, ctx->log, ctx->alloc));
     pipe->onConnection = onConnectionChild;
     pipe->userData = ctx;
     ctx->iface.send = receiveMessageChild;

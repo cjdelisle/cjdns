@@ -53,7 +53,7 @@ static void onConnectionChild(struct Pipe* pipe, int status)
 {
     struct ChildCtx* child = Identity_check((struct ChildCtx*) pipe->userData);
 
-    Seccomp_dropPermissions(child->alloc, child->log, NULL);
+    Er_assert(Seccomp_dropPermissions(child->alloc, child->log));
     Assert_true(Seccomp_isWorking());
 
     struct Message* ok = Message_new(0, 512, child->alloc);
@@ -84,7 +84,7 @@ static int child(char* pipeName, struct Allocator* alloc, struct Log* logger)
     ctx->base = EventBase_new(alloc);
     ctx->alloc = alloc;
     ctx->log = logger;
-    ctx->pipe = Pipe_named(pipeName, ctx->base, NULL, logger, alloc);
+    ctx->pipe = Er_assert(Pipe_named(pipeName, ctx->base, logger, alloc));
     ctx->pipe->onConnection = onConnectionChild;
     ctx->pipe->userData = ctx;
     Identity_set(ctx);

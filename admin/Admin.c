@@ -439,7 +439,7 @@ static void handleMessage(struct Message* message,
 
     int origMessageLen = message->length;
     Dict* messageDict = NULL;
-    char* err = BencMessageReader_readNoExcept(message, alloc, &messageDict);
+    const char* err = BencMessageReader_readNoExcept(message, alloc, &messageDict);
     if (err) {
         Log_warn(admin->logger,
                  "Unparsable data from [%s] content: [%s] error: [%s]",

@@ -60,19 +60,17 @@ struct Pipe
     #endif
 #endif
 
-struct Pipe* Pipe_named(const char* fullPath,
-                        struct EventBase* eb,
-                        struct Except* eh,
-                        struct Log* log,
-                        struct Allocator* userAlloc);
-
-struct Pipe* Pipe_forFd(int fd,
+Er_DEFUN(struct Pipe* Pipe_forFd(int fd,
                         bool ipc,
                         struct EventBase* eb,
-                        struct Except* eh,
                         struct Log* log,
-                        struct Allocator* userAlloc);
+                        struct Allocator* userAlloc));
 
-bool Pipe_exists(const char* fullPath, struct Except* eh);
+Er_DEFUN(struct Pipe* Pipe_named(const char* fullPath,
+                        struct EventBase* eb,
+                        struct Log* log,
+                        struct Allocator* userAlloc));
+
+Er_DEFUN(bool Pipe_exists(const char* path, struct Allocator* errAlloc));
 
 #endif

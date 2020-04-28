@@ -13,6 +13,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "util/events/libuv/UvWrapper.h"
+#include "exception/Er.h"
 #include "memory/Allocator.h"
 #include "util/events/Pipe.h"
 #include "util/events/libuv/Pipe_pvt.h"
@@ -315,12 +316,11 @@ static int closeHandlesOnFree(struct Allocator_OnFreeJob* job)
     return 0;
 }
 
-static struct Pipe_pvt* newPipeAny(struct EventBase* eb,
+static Er_DEFUN(struct Pipe_pvt* newPipeAny(struct EventBase* eb,
                                   const char* fullPath,
                                   bool ipc,
                                   struct Log* log,
-                                  struct Except* eh,
-                                  struct Allocator* userAlloc)
+                                  struct Allocator* userAlloc))
 {
     struct EventBase_pvt* ctx = EventBase_privatize(eb);
     struct Allocator* alloc = Allocator_child(userAlloc);
@@ -339,7 +339,7 @@ static struct Pipe_pvt* newPipeAny(struct EventBase* eb,
 
     int ret = uv_pipe_init(ctx->loop, &out->peer, ipc);
     if (ret) {
-        Except_throw(eh, "uv_pipe_init() failed [%s]", uv_strerror(ret));
+        Er_raise(alloc, "uv_pipe_init() failed [%s]", uv_strerror(ret));
     }
 
     Allocator_onFree(alloc, closeHandlesOnFree, out);
@@ -348,40 +348,37 @@ static struct Pipe_pvt* newPipeAny(struct EventBase* eb,
     out->peer.data = out;
     Identity_set(out);
 
-    return out;
+    Er_ret(out);
 }
 
-struct Pipe* Pipe_forFd(int fd,
+Er_DEFUN(struct Pipe* Pipe_forFd(int fd,
                         bool ipc,
                         struct EventBase* eb,
-                        struct Except* eh,
                         struct Log* log,
-                        struct Allocator* userAlloc)
+                        struct Allocator* userAlloc))
 {
     char buff[32] = {0};
     snprintf(buff, 31, "forFd(%d)", fd);
 
-    struct Pipe_pvt* out = newPipeAny(eb, buff, ipc, log, eh, userAlloc);
+    struct Pipe_pvt* out = Er(newPipeAny(eb, buff, ipc, log, userAlloc));
 
     int ret = uv_pipe_open(&out->peer, fd);
     if (ret) {
-        Except_throw(eh, "uv_pipe_open(inFd) failed [%s]",
-                     uv_strerror(ret));
+        Er_raise(out->alloc, "uv_pipe_open(inFd) failed [%s]", uv_strerror(ret));
     }
 
     uv_connect_t req = { .handle = (uv_stream_t*) &out->peer };
     connected(&req, 0);
 
-    return &out->pub;
+    Er_ret(&out->pub);
 }
 
-struct Pipe* Pipe_named(const char* fullPath,
+Er_DEFUN(struct Pipe* Pipe_named(const char* fullPath,
                         struct EventBase* eb,
-                        struct Except* eh,
                         struct Log* log,
-                        struct Allocator* userAlloc)
+                        struct Allocator* userAlloc))
 {
-    struct Pipe_pvt* out = newPipeAny(eb, fullPath, true, log, eh, userAlloc);
+    struct Pipe_pvt* out = Er(newPipeAny(eb, fullPath, true, log, userAlloc));
 
     uv_connect_t* req = Allocator_malloc(out->alloc, sizeof(uv_connect_t));
     req->data = out;
@@ -389,40 +386,39 @@ struct Pipe* Pipe_named(const char* fullPath,
 
     int err = (&out->peer)->delayed_error;
     if (err != 0) {
-        Except_throw(eh, "uv_pipe_connect() failed [%s] for pipe [%s]",
+        Er_raise(out->alloc, "uv_pipe_connect() failed [%s] for pipe [%s]",
                      uv_strerror(err), out->pub.fullName);
     }
 
-    return &out->pub;
+    Er_ret(&out->pub);
 }
 
-struct Pipe* Pipe_serverAccept(uv_pipe_t* server,
+Er_DEFUN(struct Pipe* Pipe_serverAccept(uv_pipe_t* server,
                                const char* pipeName,
                                struct EventBase* eb,
-                               struct Except* eh,
                                struct Log* log,
-                               struct Allocator* userAlloc)
+                               struct Allocator* userAlloc))
 {
-    struct Pipe_pvt* out = newPipeAny(eb, NULL, true, log, eh, userAlloc);
+    struct Pipe_pvt* out = Er(newPipeAny(eb, NULL, true, log, userAlloc));
     int ret = uv_accept((uv_stream_t*) server, (uv_stream_t*) &out->peer);
     if (ret) {
         uv_close((uv_handle_t*) &out->peer, onClose);
-        Except_throw(eh, "uv_accept() failed: pipe [%s] [%s]",
-            pipeName, uv_strerror(ret) );
+        Er_raise(out->alloc, "uv_accept() failed: pipe [%s] [%s]",
+            pipeName, uv_strerror(ret));
     } else {
         uv_connect_t req = { .handle = (uv_stream_t*) &out->peer };
         connected(&req, 0);
     }
-    return &out->pub;
+    Er_ret(&out->pub);
 }
 
-bool Pipe_exists(const char* path, struct Except* eh)
+Er_DEFUN(bool Pipe_exists(const char* path, struct Allocator* errAlloc))
 {
     struct stat st;
     if (stat(path, &st)) {
-        if (errno == ENOENT) { return false; }
-        Except_throw(eh, "Failed stat(%s) [%s]", path, strerror(errno));
+        if (errno == ENOENT) { Er_ret(false); }
+        Er_raise(errAlloc, "Failed stat(%s) [%s]", path, strerror(errno));
     } else {
-        return (st.st_mode & S_IFMT) == S_IFSOCK;
+        Er_ret((st.st_mode & S_IFMT) == S_IFSOCK);
     }
 }

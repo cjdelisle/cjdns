@@ -41,15 +41,14 @@
 #define APPLE_UTUN_CONTROL "com.apple.net.utun_control"
 #define UTUN_OPT_IFNAME 2
 
-struct Iface* TUNInterface_new(const char* interfaceName,
+Er_DEFUN(struct Iface* TUNInterface_new(const char* interfaceName,
                                    char assignedInterfaceName[TUNInterface_IFNAMSIZ],
                                    int isTapMode,
                                    struct EventBase* base,
                                    struct Log* logger,
-                                   struct Except* eh,
-                                   struct Allocator* alloc)
+                                   struct Allocator* alloc))
 {
-    if (isTapMode) { Except_throw(eh, "tap mode not supported on this platform"); }
+    if (isTapMode) { Er_raise(alloc, "tap mode not supported on this platform"); }
 
     int maxNameSize = (IFNAMSIZ < TUNInterface_IFNAMSIZ) ? IFNAMSIZ : TUNInterface_IFNAMSIZ;
     int tunUnit = 0; /* allocate dynamically by default */
@@ -58,7 +57,7 @@ struct Iface* TUNInterface_new(const char* interfaceName,
         int parsedUnit = 0;
 
         if (sscanf(interfaceName, "utun%i", &parsedUnit) != 1 || parsedUnit < 0) {
-            Except_throw(eh, "Invalid utun device %s", interfaceName);
+            Er_raise(alloc, "Invalid utun device %s", interfaceName);
         }
 
         tunUnit = parsedUnit + 1; /* device number used is unit - 1*/
@@ -70,7 +69,7 @@ struct Iface* TUNInterface_new(const char* interfaceName,
 
     int tunFd = socket(PF_SYSTEM, SOCK_DGRAM, SYSPROTO_CONTROL);
     if (tunFd < 0) {
-        Except_throw(eh, "socket(PF_SYSTEM, SOCK_DGRAM, SYSPROTO_CONTROL) [%s]", strerror(errno));
+        Er_raise(alloc, "socket(PF_SYSTEM, SOCK_DGRAM, SYSPROTO_CONTROL) [%s]", strerror(errno));
     }
 
     /* get the utun control id */
@@ -81,7 +80,7 @@ struct Iface* TUNInterface_new(const char* interfaceName,
     if (ioctl(tunFd, CTLIOCGINFO, &info) < 0) {
         int err = errno;
         close(tunFd);
-        Except_throw(eh, "getting utun device id [%s]", strerror(err));
+        Er_raise(alloc, "getting utun device id [%s]", strerror(err));
     }
 
     /* connect the utun device */
@@ -96,7 +95,7 @@ struct Iface* TUNInterface_new(const char* interfaceName,
     if (connect(tunFd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
         int err = errno;
         close(tunFd);
-        Except_throw(eh, "connecting to utun device [%s]", strerror(err));
+        Er_raise(alloc, "connecting to utun device [%s]", strerror(err));
     }
 
     char assignedIfName[TUNInterface_IFNAMSIZ];
@@ -109,12 +108,12 @@ struct Iface* TUNInterface_new(const char* interfaceName,
     } else {
         int err = errno;
         close(tunFd);
-        Except_throw(eh, "getting utun interface name [%s]", strerror(err));
+        Er_raise(alloc, "getting utun interface name [%s]", strerror(err));
     }
 
-    struct Pipe* p = Pipe_forFd(tunFd, false, base, eh, logger, alloc);
+    struct Pipe* p = Er(Pipe_forFd(tunFd, false, base, logger, alloc));
 
     struct BSDMessageTypeWrapper* bmtw = BSDMessageTypeWrapper_new(alloc, logger);
     Iface_plumb(&p->iface, &bmtw->wireSide);
-    return &bmtw->inside;
+    Er_ret(&bmtw->inside);
 }

@@ -19,6 +19,7 @@
 #define SocketWrapper_TYPE_CONF_ADD_IPV6_ADDRESS 0x1
 #define SocketWrapper_TYPE_CONF_SET_MTU 0x2
 
+#include "exception/Er.h"
 #include "interface/Iface.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
@@ -33,15 +34,13 @@ struct SocketWrapper
 
 struct SocketWrapper* SocketWrapper_new(struct Allocator* alloc, struct Log* log);
 
-void SocketWrapper_addAddress(struct Iface* rawSocketIf,
+Er_DEFUN(void SocketWrapper_addAddress(struct Iface* rawSocketIf,
                                 uint8_t* ipv6Addr,
                                 struct Log* logger,
-                                struct Except* eh,
-                                struct Allocator* alloc);
+                                struct Allocator* alloc));
 
-void SocketWrapper_setMTU(struct Iface* rawSocketIf,
+Er_DEFUN(void SocketWrapper_setMTU(struct Iface* rawSocketIf,
                             uint32_t mtu,
                             struct Log* logger,
-                            struct Except* eh,
-                            struct Allocator* alloc);
+                            struct Allocator* alloc));
 #endif

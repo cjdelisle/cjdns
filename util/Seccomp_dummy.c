@@ -16,8 +16,9 @@
 
 // This file is for machines which do not support seccomp.
 
-void Seccomp_dropPermissions(struct Allocator* tempAlloc, struct Log* logger, struct Except* eh)
+Er_DEFUN(void Seccomp_dropPermissions(struct Allocator* tempAlloc, struct Log* logger))
 {
+    Er_ret();
 }
 
 int Seccomp_isWorking()

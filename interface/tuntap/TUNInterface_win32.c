@@ -20,21 +20,20 @@
 #include "interface/tuntap/ARPServer.h"
 #include "util/CString.h"
 
-struct Iface* TUNInterface_new(const char* interfaceName,
+Er_DEFUN(struct Iface* TUNInterface_new(const char* interfaceName,
                                    char assignedInterfaceName[TUNInterface_IFNAMSIZ],
                                    int isTapMode,
                                    struct EventBase* base,
                                    struct Log* logger,
-                                   struct Except* eh,
-                                   struct Allocator* alloc)
+                                   struct Allocator* alloc))
 {
     struct TAPInterface* tap = TAPInterface_new(interfaceName, eh, logger, base, alloc);
     CString_safeStrncpy(assignedInterfaceName, tap->assignedName, TUNInterface_IFNAMSIZ);
-    if (isTapMode) { return &tap->generic; }
+    if (isTapMode) { Er_ret(&tap->generic); }
     struct TAPWrapper* tapWrapper = TAPWrapper_new(&tap->generic, logger, alloc);
     struct NDPServer* ndp =
         NDPServer_new(&tapWrapper->internal, logger, TAPWrapper_LOCAL_MAC, alloc);
     struct ARPServer* arp =
         ARPServer_new(&ndp->internal, logger, TAPWrapper_LOCAL_MAC, alloc);
-    return &arp->internal;
+    Er_ret(&arp->internal);
 }

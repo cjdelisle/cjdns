@@ -41,13 +41,12 @@
   #define DEVICE_PATH "/dev/net/tun"
 #endif
 
-struct Iface* TUNInterface_new(const char* interfaceName,
+Er_DEFUN(struct Iface* TUNInterface_new(const char* interfaceName,
                                    char assignedInterfaceName[TUNInterface_IFNAMSIZ],
                                    int isTapMode,
                                    struct EventBase* base,
                                    struct Log* logger,
-                                   struct Except* eh,
-                                   struct Allocator* alloc)
+                                   struct Allocator* alloc))
 {
     uint32_t maxNameSize = (IFNAMSIZ < TUNInterface_IFNAMSIZ) ? IFNAMSIZ : TUNInterface_IFNAMSIZ;
     Log_info(logger, "Initializing tun device [%s]", ((interfaceName) ? interfaceName : "auto"));
@@ -55,26 +54,26 @@ struct Iface* TUNInterface_new(const char* interfaceName,
     struct ifreq ifRequest = { .ifr_flags = (isTapMode) ? IFF_TAP : IFF_TUN };
     if (interfaceName) {
         if (strlen(interfaceName) > maxNameSize) {
-            Except_throw(eh, "tunnel name too big, limit is [%d] characters", maxNameSize);
+            Er_raise(alloc, "tunnel name too big, limit is [%d] characters", maxNameSize);
         }
         CString_safeStrncpy(ifRequest.ifr_name, interfaceName, maxNameSize);
     }
-    int fileno = open(DEVICE_PATH, O_RDWR);
+    int tunFd = open(DEVICE_PATH, O_RDWR);
 
-    if (fileno < 0) {
-        Except_throw(eh, "open(\"%s\") [%s]", DEVICE_PATH, strerror(errno));
+    if (tunFd < 0) {
+        Er_raise(alloc, "open(\"%s\") [%s]", DEVICE_PATH, strerror(errno));
     }
 
-    if (ioctl(fileno, TUNSETIFF, &ifRequest) < 0) {
+    if (ioctl(tunFd, TUNSETIFF, &ifRequest) < 0) {
         int err = errno;
-        close(fileno);
-        Except_throw(eh, "ioctl(TUNSETIFF) [%s]", strerror(err));
+        close(tunFd);
+        Er_raise(alloc, "ioctl(TUNSETIFF) [%s]", strerror(err));
     }
     if (assignedInterfaceName) {
         CString_safeStrncpy(assignedInterfaceName, ifRequest.ifr_name, maxNameSize);
     }
 
-    struct Pipe* p = Pipe_forFd(fileno, false, base, eh, logger, alloc);
+    struct Pipe* p = Er(Pipe_forFd(tunFd, false, base, logger, alloc));
 
-    return &p->iface;
+    Er_ret(&p->iface);
 }

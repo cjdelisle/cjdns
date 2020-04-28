@@ -18,96 +18,95 @@
 #include "benc/Dict.h"
 #include "benc/List.h"
 #include "benc/serialization/standard/BencMessageReader.h"
-#include "exception/Except.h"
-#include "exception/Jmp.h"
+#include "exception/Er.h"
 #include "wire/Message.h"
 #include "util/Base10.h"
 
-static Object* readGeneric(struct Message* msg, struct Allocator* alloc, struct Except* eh);
+static Er_DEFUN(Object* readGeneric(struct Message* msg, struct Allocator* alloc));
 
-static int64_t readInt(struct Message* msg, struct Allocator* alloc, struct Except* eh)
+static Er_DEFUN(int64_t readInt(struct Message* msg, struct Allocator* alloc))
 {
-    int64_t num = Base10_read(msg, eh);
-    if (Message_pop8(msg, eh) != 'e') {
-        Except_throw(eh, "Int not terminated with 'e'");
+    int64_t num = Er(Base10_read(msg));
+    if (Er(Message_epop8(msg)) != 'e') {
+        Er_raise(msg->alloc, "Int not terminated with 'e'");
     }
-    return num;
+    Er_ret(num);
 }
 
-static String* readString(struct Message* msg, struct Allocator* alloc, struct Except* eh)
+static Er_DEFUN(String* readString(struct Message* msg, struct Allocator* alloc))
 {
-    int64_t len = Base10_read(msg, eh);
+    int64_t len = Er(Base10_read(msg));
     if (len < 0) {
-        Except_throw(eh, "Negative string length");
+        Er_raise(alloc, "Negative string length");
     }
-    if (Message_pop8(msg, eh) != ':') {
-        Except_throw(eh, "String not deliniated with a ':'");
+    if (Er(Message_epop8(msg)) != ':') {
+        Er_raise(alloc, "String not deliniated with a ':'");
     }
     if (len > msg->length) {
-        Except_throw(eh, "String too long");
+        Er_raise(alloc, "String too long");
     }
     String* str = String_newBinary(NULL, len, alloc);
-    Message_pop(msg, str->bytes, len, eh);
-    return str;
+    Er(Message_epop(msg, str->bytes, len));
+    Er_ret(str);
 }
 
-static List* readList(struct Message* msg, struct Allocator* alloc, struct Except* eh)
+static Er_DEFUN(List* readList(struct Message* msg, struct Allocator* alloc))
 {
     struct List_Item* last = NULL;
     for (;;) {
-        uint8_t chr = Message_pop8(msg, eh);
+        uint8_t chr = Er(Message_epop8(msg));
         if (chr == 'e') {
             List* out = Allocator_malloc(alloc, sizeof(List));
             *out = last;
-            return out;
+            Er_ret(out);
         }
-        Message_push8(msg, chr, eh);
+        Er(Message_epush8(msg, chr));
 
         struct List_Item* item = Allocator_malloc(alloc, sizeof(struct List_Item));
-        item->elem = readGeneric(msg, alloc, eh);
+        item->elem = Er(readGeneric(msg, alloc));
         item->next = last;
         last = item;
     }
 }
 
-static Dict* readDict(struct Message* msg, struct Allocator* alloc, struct Except* eh)
+static Er_DEFUN(Dict* readDict(struct Message* msg, struct Allocator* alloc))
 {
     struct Dict_Entry* last = NULL;
     for (;;) {
-        uint8_t chr = Message_pop8(msg, eh);
+        uint8_t chr = Er(Message_epop8(msg));
         if (chr == 'e') {
             Dict* out = Allocator_malloc(alloc, sizeof(Dict));
             *out = last;
-            return out;
+            Er_ret(out);
         }
-        Message_push8(msg, chr, eh);
+        Er(Message_epush8(msg, chr));
 
         struct Dict_Entry* entry = Allocator_malloc(alloc, sizeof(struct Dict_Entry));
-        entry->key = readString(msg, alloc, eh);
-        entry->val = readGeneric(msg, alloc, eh);
+        entry->key = Er(readString(msg, alloc));
+        entry->val = Er(readGeneric(msg, alloc));
         entry->next = last;
         last = entry;
     }
 }
 
-static Object* readGeneric(struct Message* msg, struct Allocator* alloc, struct Except* eh)
+static Er_DEFUN(Object* readGeneric(struct Message* msg, struct Allocator* alloc))
 {
-    uint8_t chr = Message_pop8(msg, eh);
+    uint8_t chr = Er(Message_epop8(msg));
     Object* out = Allocator_calloc(alloc, sizeof(Object), 1);
     switch (chr) {
         case 'l': {
             out->type = Object_LIST;
-            out->as.list = readList(msg, alloc, eh);
+            out->as.list = Er(readList(msg, alloc));
             break;
         }
         case 'd': {
             out->type = Object_DICT;
-            out->as.dictionary = readDict(msg, alloc, eh);
+            out->as.dictionary = Er(readDict(msg, alloc));
             break;
         }
         case 'i': {
             out->type = Object_INTEGER;
-            out->as.number = readInt(msg, alloc, eh);
+            out->as.number = Er(readInt(msg, alloc));
             break;
         }
         case '0':
@@ -121,32 +120,32 @@ static Object* readGeneric(struct Message* msg, struct Allocator* alloc, struct 
         case '8':
         case '9': {
             out->type = Object_STRING;
-            Message_push8(msg, chr, eh);
-            out->as.string = readString(msg, alloc, eh);
+            Er(Message_epush8(msg, chr));
+            out->as.string = Er(readString(msg, alloc));
             break;
         }
-        default: Except_throw(eh, "Unexpected character in message [%c]", (char)chr);
+        default: Er_raise(alloc, "Unexpected character in message [%c]", (char)chr);
     }
-    return out;
+    Er_ret(out);
 }
 
-Dict* BencMessageReader_read(struct Message* msg, struct Allocator* alloc, struct Except* eh)
+Er_DEFUN(Dict* BencMessageReader_read(struct Message* msg, struct Allocator* alloc))
 {
-    if (Message_pop8(msg, eh) != 'd') {
-        Except_throw(eh, "Message does not begin with a 'd' to open the dictionary");
+    if (Er(Message_epop8h(msg)) != 'd') {
+        Er_raise(alloc, "Message does not begin with a 'd' to open the dictionary");
     }
-    return readDict(msg, alloc, eh);
+    Dict* out = Er(readDict(msg, alloc));
+    Er_ret(out);
 }
 
-char* BencMessageReader_readNoExcept(struct Message* msg, struct Allocator* alloc, Dict** outPtr)
+const char* BencMessageReader_readNoExcept(
+    struct Message* msg, struct Allocator* alloc, Dict** outPtr)
 {
-    struct Jmp j;
-    Jmp_try(j) {
-        Dict* out = BencMessageReader_read(msg, alloc, &j.handler);
-        *outPtr = out;
-        return NULL;
-    } Jmp_catch {
-        String* str = String_new(j.message, alloc);
-        return str->bytes;
+    struct Er_Ret* er = NULL;
+    Dict* out = Er_check(&er, BencMessageReader_read(msg, alloc));
+    if (er) {
+        return er->message;
     }
+    *outPtr = out;
+    return NULL;
 }

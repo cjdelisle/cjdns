@@ -13,7 +13,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #define _WIN32_WINNT 0x0600
-#include "exception/WinFail.h"
+#include "exception/WinEr.h"
 #include "util/platform/netdev/NetPlatform.h"
 #include "util/Bits.h"
 #include "util/platform/Sockaddr.h"
@@ -53,15 +53,15 @@ typedef NET_LUID IF_LUID, *PIF_LUID;
 #include <ifdef.h>
 #include <iphlpapi.h>
 
-static NET_LUID getLuid(const char* name, struct Except* eh)
+static Er_DEFUN(NET_LUID getLuid(const char* name, struct Allocator* alloc))
 {
     uint16_t ifName[IF_MAX_STRING_SIZE + 1] = {0};
-    WinFail_check(eh,
+    WinEr_check(alloc,
         (!MultiByteToWideChar(CP_ACP, 0, name, strlen(name), ifName, IF_MAX_STRING_SIZE + 1))
     );
     NET_LUID out;
-    WinFail_check(eh, ConvertInterfaceAliasToLuid(ifName, &out));
-    return out;
+    WinEr_check(alloc, ConvertInterfaceAliasToLuid(ifName, &out));
+    Er_ret(out);
 }
 
 static LONG flushAddresses(NET_LUID luid, MIB_UNICASTIPADDRESS_TABLE* table)
@@ -77,24 +77,25 @@ static LONG flushAddresses(NET_LUID luid, MIB_UNICASTIPADDRESS_TABLE* table)
     return out;
 }
 
-void NetPlatform_flushAddresses(const char* deviceName, struct Except* eh)
+Er_DEFUN(void NetPlatform_flushAddresses(const char* deviceName, struct Allocator* alloc))
 {
-    NET_LUID luid = getLuid(deviceName, eh);
+    NET_LUID luid = getLuid(deviceName, alloc);
     MIB_UNICASTIPADDRESS_TABLE* table;
 
-    WinFail_check(eh, GetUnicastIpAddressTable(AF_INET, &table));
+    WinEr_check(alloc, GetUnicastIpAddressTable(AF_INET, &table));
     LONG ret = flushAddresses(luid, table);
     FreeMibTable(table);
     if (ret) {
-        WinFail_fail(eh, "DeleteUnicastIpAddressEntry(&table->Table[i])", ret);
+        WinEr_fail(alloc, "DeleteUnicastIpAddressEntry(&table->Table[i])", ret);
     }
 
-    WinFail_check(eh, GetUnicastIpAddressTable(AF_INET6, &table));
+    WinEr_check(alloc, GetUnicastIpAddressTable(AF_INET6, &table));
     ret = flushAddresses(luid, table);
     FreeMibTable(table);
     if (ret) {
-        WinFail_fail(eh, "DeleteUnicastIpAddressEntry(&table->Table[i])", ret);
+        WinEr_fail(alloc, "DeleteUnicastIpAddressEntry(&table->Table[i])", ret);
     }
+    Er_ret();
 }
 #include "util/Hex.h"
 #include <stdio.h>
@@ -103,12 +104,12 @@ static void setupRoute(const char* deviceName,
                        const uint8_t* addrBytes,
                        int prefixLen,
                        int addrFam,
-                       struct Except* eh)
+                       struct Allocator* alloc)
 {
     void WINAPI InitializeIpForwardEntry(PMIB_IPFORWARD_ROW2 Row);
 
     MIB_IPFORWARD_ROW2 row = {
-        .InterfaceLuid = getLuid(deviceName, eh),
+        .InterfaceLuid = getLuid(deviceName, alloc),
         .ValidLifetime = WSA_INFINITE,
         .PreferredLifetime = WSA_INFINITE,
         .Metric = 0xffffffff,
@@ -156,16 +157,16 @@ static void setupRoute(const char* deviceName,
 //    Hex_encode(buff, sizeof(buff), (uint8_t*) &row, sizeof(row));
 //    printf("%s %d<\n", buff, row.SitePrefixLength);
 
-    WinFail_check(eh, CreateIpForwardEntry2(&row));
+    WinEr_check(alloc, CreateIpForwardEntry2(&row));
+    Er_ret();
 }
 
-void NetPlatform_addAddress(const char* interfaceName,
+Er_DEFUN(void NetPlatform_addAddress(const char* interfaceName,
                             const uint8_t* address,
                             int prefixLen,
                             int addrFam,
                             struct Log* logger,
-                            struct Allocator* tempAlloc,
-                            struct Except* eh)
+                            struct Allocator* tempAlloc))
 {
     MIB_UNICASTIPADDRESS_ROW ipRow = {
         .PrefixOrigin = IpPrefixOriginUnchanged,
@@ -188,15 +189,15 @@ void NetPlatform_addAddress(const char* interfaceName,
 
     ipRow.OnLinkPrefixLength = prefixLen;
 
-    WinFail_check(eh, CreateUnicastIpAddressEntry(&ipRow));
-return;
-    setupRoute(interfaceName, address, prefixLen, addrFam, eh);
+    WinEr_check(CreateUnicastIpAddressEntry(&ipRow));
+    //setupRoute(interfaceName, address, prefixLen, addrFam, eh);
+    Er_ret();
 }
 
-void NetPlatform_setMTU(const char* interfaceName,
+Er_DEFUN(void NetPlatform_setMTU(const char* interfaceName,
                         uint32_t mtu,
                         struct Log* logger,
-                        struct Except* eh)
+                        struct Allocator* errAlloc))
 {
 
     // I looked all through the Windows API and setting the MTU is beyond me.
@@ -225,22 +226,22 @@ void NetPlatform_setMTU(const char* interfaceName,
     Log_debug(logger, "Going to run command: %s", buffer);
 
     // Make the netsh call, and die if it returns the wrong thing.
-    WinFail_check(eh, system(buffer));
+    WinEr_check(eh, system(buffer));
 
     // We should also configure the MTU for ipv4 (IpTunnel) case
     const char* format1 = ("netsh interface ipv4 set subinterface "
         "\"%s\" mtu=%d");
     snprintf(buffer, totalSize, format1, interfaceName, mtu);
     Log_debug(logger, "Going to run command: %s", buffer);
-    WinFail_check(eh, system(buffer));
+    WinEr_check(eh, system(buffer));
+    Er_ret();
 }
 
-void NetPlatform_setRoutes(const char* ifName,
+Er_DEFUN(void NetPlatform_setRoutes(const char* ifName,
                            struct Sockaddr** prefixSet,
                            int prefixCount,
                            struct Log* logger,
-                           struct Allocator* tempAlloc,
-                           struct Except* eh)
+                           struct Allocator* tempAlloc))
 {
-    Except_throw(eh, "NetPlatform_setRoutes is not implemented in this platform.");
+    Er_raise(tempAlloc, "NetPlatform_setRoutes is not implemented in this platform.");
 }

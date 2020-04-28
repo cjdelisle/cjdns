@@ -361,7 +361,11 @@ void Allocator_snapshot(struct Allocator* alloc, int includeAllocations);
 #ifndef Allocator_Provider_CONTEXT_TYPE
     #define Allocator_Provider_CONTEXT_TYPE void
 #endif
-Gcc_ALLOC_SIZE(3)
+
+#ifndef __clang__
+    // clang unsupported on function pointers
+    Gcc_ALLOC_SIZE(3)
+#endif
 typedef void* (* Allocator_Provider)(Allocator_Provider_CONTEXT_TYPE* ctx,
                                      struct Allocator_Allocation* original,
                                      unsigned long size,

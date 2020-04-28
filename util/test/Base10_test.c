@@ -45,7 +45,7 @@ int main()
         Assert_true(msg->length == (int)CString_strlen(buff));
         Assert_true(!Bits_memcmp(msg->bytes, buff, msg->length));
 
-        int64_t read = Base10_read(msg, NULL);
+        int64_t read = Er_assert(Base10_read(msg));
         Assert_true(read == num);
         Assert_true(msg->length == 0);
     }

@@ -58,8 +58,7 @@ struct Event* Event_socketRead(void (* const callback)(void* callbackContext),
                                void* const callbackContext,
                                int s,
                                struct EventBase* eventBase,
-                               struct Allocator* allocator,
-                               struct Except* eh)
+                               struct Allocator* allocator)
 {
     struct EventBase_pvt* base = EventBase_privatize(eventBase);
     struct Allocator* alloc = Allocator_child(allocator);
