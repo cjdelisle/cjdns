@@ -44,6 +44,7 @@ struct Er_Ret* Er__raise(char* file, int line, struct Allocator* alloc, char* fo
         snprintf(buf, len, "%s:%d ", file, line);
         vsnprintf(&buf[written], len - written, format, args);
         struct Er_Ret* res = Allocator_calloc(alloc, sizeof(struct Er_Ret), 1);
+        res->message = buf;
         va_end(args);
         return res;
     } else {
