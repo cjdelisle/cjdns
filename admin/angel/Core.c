@@ -23,6 +23,7 @@
 #include "crypto/AddressCalc.h"
 #include "crypto/random/Random.h"
 #include "crypto/random/libuv/LibuvEntropyProvider.h"
+#include "crypto/Sign_admin.h"
 #include "subnode/SubnodePathfinder.h"
 #include "subnode/SupernodeHunter_admin.h"
 #include "subnode/ReachabilityCollector_admin.h"
@@ -391,6 +392,7 @@ void Core_init(struct Allocator* alloc,
     IpTunnel_admin_register(ipTunnel, admin, alloc);
     SessionManager_admin_register(nc->sm, admin, alloc);
     Allocator_admin_register(alloc, admin);
+    Sign_admin_register(privateKey, admin, rand, alloc);
 
     struct Context* ctx = Allocator_calloc(alloc, sizeof(struct Context), 1);
     Identity_set(ctx);
