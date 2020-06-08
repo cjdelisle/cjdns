@@ -3,6 +3,7 @@
 /build_freebsd
 /build_openbsd
 /build_win32
+/build_win64
 /build_darwin
 /build_sunos
 /node_android
