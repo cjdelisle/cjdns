@@ -552,7 +552,7 @@ static void checkRunningInstance(struct Allocator* allocator,
    from a MingGW cross compiled program.  This is pretty much the only way...
 */
 static char const * cjdroute2_global_program_name;
-#if defined(win64)
+#if defined(__MINGW64__)
 #pragma GCC push_options
 #pragma GCC optimize ("O0")
 #pragma GCC diagnostic ignored "-Wunused-function"
