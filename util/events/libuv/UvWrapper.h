@@ -18,7 +18,7 @@
 #ifndef _GNU_SOURCE
     #define _GNU_SOURCE // CHECKFILES_IGNORE libuv's fault
 #endif
-#ifdef win32
+#if defined(win32) || defined(__MINGW64__)
     #define _WIN32_WINNT 0x0600 // CHECKFILES_IGNORE
 
     // Remove compiler flags which blow up when running with windows.

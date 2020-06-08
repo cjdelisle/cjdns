@@ -30,7 +30,8 @@ enum SysInfo_Os
     SysInfo_Os_SUNOS,
     SysInfo_Os_DARWIN,
     SysInfo_Os_FREEBSD,
-    SysInfo_Os_WIN32
+    SysInfo_Os_WIN32,
+    SysInfo_Os_WIN64
 };
 
 struct SysInfo

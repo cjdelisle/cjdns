@@ -21,6 +21,7 @@
 #include "util/Linker.h"
 
 #ifndef _WIN32
+#ifndef __MINGW64__
 #include <sys/syscall.h>
 
 #if defined(__OPENBSD__)
@@ -40,4 +41,6 @@
 #endif
 
 #endif
+#endif
+
 #endif

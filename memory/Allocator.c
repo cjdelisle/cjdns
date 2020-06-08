@@ -14,7 +14,13 @@
  */
 
 #include "memory/Allocator.h"
+
+#if defined(__GNUC__) && defined(__MINGW64__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
 #include "memory/Allocator_pvt.h"
+#endif
+
 #include "util/Bits.h"
 #include "util/Defined.h"
 
@@ -589,9 +595,17 @@ void* Allocator__realloc(struct Allocator* allocator,
     }
 
     size_t realSize = getRealSize(size);
+
+#if defined (win64)
+    if (context->rootAlloc->spaceAvailable + origLoc->pub.size < (int64_t)realSize) {
+        failure(context, "Out of memory, limit exceeded.", fileName, lineNum);
+    }
+#else
     if (context->rootAlloc->spaceAvailable + origLoc->pub.size < realSize) {
         failure(context, "Out of memory, limit exceeded.", fileName, lineNum);
     }
+#endif
+
     context->rootAlloc->spaceAvailable += origLoc->pub.size;
     context->rootAlloc->spaceAvailable -= realSize;
     context->allocatedHere -= origLoc->pub.size;

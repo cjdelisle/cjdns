@@ -1182,10 +1182,13 @@ struct InterfaceController* InterfaceController_new(struct CryptoAuth* ca,
             : NULL
 
     }), sizeof(struct InterfaceController_pvt));
+    Bits_memcpy(out->beacon.publicKey, ca->publicKey, 32);
+
+    // Timeout here to avoid race condition
+    Timeout_setTimeout(beaconInterval, out, BEACON_INTERVAL, eventBase, alloc);
+
     Identity_set(out);
-
     out->icis = ArrayList_OfIfaces_new(alloc);
-
     out->eventEmitterIf.send = incomingFromEventEmitterIf;
     EventEmitter_regCore(ee, &out->eventEmitterIf, PFChan_Pathfinder_PEERS);
 
@@ -1196,10 +1199,7 @@ struct InterfaceController* InterfaceController_new(struct CryptoAuth* ca,
     if (ret) {
         Log_warn(logger, "CryptoAuth_addUser() returned [%d]", ret);
     }
-    Bits_memcpy(out->beacon.publicKey, ca->publicKey, 32);
+
     out->beacon.version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL);
-
-    Timeout_setTimeout(beaconInterval, out, BEACON_INTERVAL, eventBase, alloc);
-
     return &out->pub;
 }

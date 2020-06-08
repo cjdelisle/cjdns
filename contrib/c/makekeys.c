@@ -36,7 +36,9 @@ int main(int argc, char** argv)
     uint8_t printedIp[40];
 
 #ifndef win32
+  #if !defined(__MINGW64__)
     signal(SIGPIPE,SIG_DFL);
+  #endif
 #endif
 
     for (;;) {

@@ -12,6 +12,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+#include <stdio.h>
+
+#if defined(__MINGW64__)
+#include "util/crypto.h"
+#endif
+
 #include "crypto/random/Random.h"
 #include "crypto/random/seed/RandomSeed.h"
 #include "crypto/random/seed/SystemRandomSeed.h"
@@ -22,8 +28,10 @@
 #include "util/Identity.h"
 #include "util/Endian.h"
 
+#if !defined(__MINGW64__)
 #include <crypto_hash_sha256.h>
 #include <crypto_stream_salsa20.h>
+#endif
 
 /**
  * cjdns random generator:

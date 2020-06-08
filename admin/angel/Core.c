@@ -12,6 +12,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+#include <stdio.h>
+#include <signal.h>
 #include "admin/Admin.h"
 #include "admin/AdminLog.h"
 #include "admin/angel/Core.h"
@@ -80,6 +82,10 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#if defined(win32) || defined(__MINGW64__)
+#include <windows.h>
+#endif
+
 // Failsafe: abort if more than 2^23 bytes are allocated (8MB)
 #define ALLOCATOR_FAILSAFE (1<<23)
 
@@ -131,7 +137,7 @@ struct Context
     Identity
 };
 
-static void shutdown(void* vcontext)
+static void shutdownCore(void* vcontext)
 {
     struct Context* context = Identity_check((struct Context*) vcontext);
     Allocator_free(context->alloc);
@@ -143,7 +149,7 @@ static void adminExit(Dict* input, void* vcontext, String* txid, struct Allocato
     Log_info(context->logger, "Got request to exit");
     Dict d = Dict_CONST(String_CONST("error"), String_OBJ(String_CONST("none")), NULL);
     Admin_sendMessage(&d, txid, context->admin);
-    Timeout_setTimeout(shutdown, context, 1, context->base, context->alloc);
+    Timeout_setTimeout(shutdownCore, context, 1, context->base, context->alloc);
 }
 
 static void sendResponse(String* error,
@@ -434,7 +440,6 @@ void Core_init(struct Allocator* alloc,
 int Core_main(int argc, char** argv)
 {
     struct Except* eh = NULL;
-
     if (argc != 3) {
         Except_throw(eh, "This is internal to cjdns and shouldn't started manually.");
     }
@@ -531,7 +536,6 @@ int Core_main(int argc, char** argv)
     Iface_CALL(clientPipe->iface.iface.send, clientResponse, &clientPipe->iface.iface);
 
     Allocator_free(tempAlloc);
-
     Core_init(alloc, logger, eventBase, privateKey, admin, rand, eh, NULL, false);
     EventBase_beginLoop(eventBase);
     return 0;

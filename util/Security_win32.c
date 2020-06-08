@@ -39,22 +39,27 @@ Er_DEFUN(void Security_setUser(int uid,
                       struct Log* logger,
                       struct Allocator* alloc))
 {
+    Er_ret(0);
 }
 
 Er_DEFUN(void Security_nofiles(struct Allocator* errAlloc))
 {
+    Er_ret(0);
 }
 
 Er_DEFUN(void Security_noforks(struct Allocator* errAlloc))
 {
+    Er_ret(0);
 }
 
 Er_DEFUN(void Security_chroot(char* root, struct Allocator* errAlloc))
 {
+    Er_ret(0);
 }
 
 Er_DEFUN(void Security_seccomp(struct Allocator* tempAlloc, struct Log* logger))
 {
+    Er_ret(0);
 }
 
 struct Security_pvt
@@ -93,5 +98,5 @@ Er_DEFUN(struct Security_Permissions* Security_checkPermissions(struct Allocator
 {
     struct Security_Permissions* out =
         Allocator_calloc(alloc, sizeof(struct Security_Permissions), 1);
-    return out;
+    Er_ret(out);
 }

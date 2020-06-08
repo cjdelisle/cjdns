@@ -40,6 +40,11 @@
 
 #include <stddef.h>
 
+#if (defined(win64) || defined(win32)) && defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#endif
+
 struct IpTunnel_pvt
 {
     struct IpTunnel pub;
@@ -605,6 +610,13 @@ static Iface_DEFUN incomingControlMessage(struct Message* message,
     return 0;
 }
 
+#if (defined(win64) || defined(win32)) && defined(__GNUC__)
+#define GET64(buffer) ({ \
+    uint64_t x = (uint64_t) (((uint32_t*)(buffer))[0]); \
+    x |= (( (uint64_t) ((uint32_t*)(buffer))[1]) << 32); \
+    Endian_bigEndianToHost64(x); \
+  })
+#else
 #define GET64(buffer) \
     (__extension__ ({                                               \
         Assert_true(!((long)(buffer) % 4));                         \
@@ -612,13 +624,21 @@ static Iface_DEFUN incomingControlMessage(struct Message* message,
         x |= (( (uint64_t) ((uint32_t*)(buffer))[1]) << 32);        \
         Endian_bigEndianToHost64(x);                                \
     }))
+#endif
 
+#if (defined(win64) || defined(win32)) && defined(__GNUC__)
+#define GET32(buffer) ({ \
+    uint32_t x = (((uint32_t*)(buffer))[0]); \
+    Endian_bigEndianToHost32(x); \
+  })
+#else
 #define GET32(buffer) \
     (__extension__ ({                                               \
         Assert_true(!((long)(buffer) % 4));                         \
         uint32_t x = (((uint32_t*)(buffer))[0]);                    \
         Endian_bigEndianToHost32(x);                                \
     }))
+#endif
 
 static bool prefixMatches6(uint8_t* addressA, uint8_t* refAddr, uint8_t prefixLen)
 {

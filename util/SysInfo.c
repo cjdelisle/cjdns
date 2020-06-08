@@ -39,6 +39,9 @@ struct SysInfo SysInfo_detect(void)
     } else if (Defined(win32)) {
         out.os = SysInfo_Os_WIN32;
 
+    } else if (Defined(__MINW64__)) {
+        out.os = SysInfo_Os_WIN64;
+
     } else {
         out.os = SysInfo_Os_UNKNOWN;
     }
@@ -56,6 +59,7 @@ static char* getName(enum SysInfo_Os os)
         case SysInfo_Os_DARWIN: return "darwin";
         case SysInfo_Os_FREEBSD: return "freebsd";
         case SysInfo_Os_WIN32: return "win32";
+        case SysInfo_Os_WIN64: return "mingw64";
         default: return "os_unknown";
     }
 }

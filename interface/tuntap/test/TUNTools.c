@@ -20,7 +20,7 @@
 #include "wire/Ethernet.h"
 #include "wire/Headers.h"
 
-#ifdef win32
+#if defined(win32) || defined(__MINGW64__)
     #include <windows.h>
     #define sleep(x) Sleep(1000*x)
 #else

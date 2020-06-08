@@ -20,7 +20,7 @@
 #include "memory/Allocator.h"
 #include "util/Linker.h"
 
-#ifdef win32
+#if defined(win32) || defined(__MINGW64__)
     Linker_require("crypto/random/seed/RtlGenRandomSeed.c");
     struct RandomSeed* RtlGenRandomSeed_new(struct Allocator* alloc);
     RandomSeedProvider_register(RtlGenRandomSeed_new)

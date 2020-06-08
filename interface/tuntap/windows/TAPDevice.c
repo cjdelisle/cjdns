@@ -13,6 +13,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <stdio.h>
 #include <stdbool.h>
 #include "util/Bits.h"
 #include "exception/Except.h"
@@ -102,7 +103,7 @@ static int is_tap_win32_dev(const char *guid)
         char enum_name[256];
         char unit_string[256];
         HKEY unit_key;
-        char component_id_string[] = "ComponentId";
+        char component_id_string[] = "MatchingDeviceId";
         char component_id[256];
         char net_cfg_instance_id_string[] = "NetCfgInstanceId";
         char net_cfg_instance_id[256];

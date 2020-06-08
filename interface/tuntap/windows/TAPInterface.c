@@ -247,7 +247,11 @@ struct TAPInterface* TAPInterface_new(const char* preferredName,
 
     struct TAPDevice* dev = TAPDevice_find(preferredName, eh, alloc);
 
-    NetDev_flushAddresses(dev->name, eh);
+    #if defined(__GNUC__) && defined(__MINGW64__)
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wunused-result"
+    NetDev_flushAddresses(dev->name, alloc);
+    #endif
 
     Log_debug(logger, "Opening TAP-Windows device [%s] at location [%s]", dev->name, dev->path);
 

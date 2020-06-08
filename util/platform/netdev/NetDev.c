@@ -75,7 +75,7 @@ Er_DEFUN(void NetDev_setMTU(const char* interfaceName,
 
 Er_DEFUN(void NetDev_flushAddresses(const char* deviceName, struct Allocator* alloc))
 {
-    #ifdef win32
+    #if defined(win32) || defined(__MINGW64__)
         Er(NetPlatform_flushAddresses(deviceName, alloc));
     #endif
     Er_ret();

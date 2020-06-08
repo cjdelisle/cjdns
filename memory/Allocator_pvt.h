@@ -58,6 +58,7 @@ struct Allocator_Allocation_pvt {
     long lineNum;
     const char* fileName;
 };
+
 Assert_compileTime(sizeof(struct Allocator_Allocation_pvt) == Allocator_Allocation_pvt_SIZE);
 Assert_compileTime(!(Allocator_Allocation_pvt_SIZE % __BIGGEST_ALIGNMENT__));
 

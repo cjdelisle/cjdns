@@ -17,7 +17,13 @@
 #include <stdio.h>
 
 #include "memory/Allocator.h"
+
+#if defined(__GNUC__) && defined(__MINGW64__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
 #include "memory/Allocator_pvt.h"
+#endif
+
 #include "memory/MallocAllocator.h"
 
 #ifdef Allocator_USE_CANARIES

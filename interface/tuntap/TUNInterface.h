@@ -30,6 +30,8 @@ Linker_require("interface/tuntap/TUNInterface_" + builder.config.systemName + ".
  */
 #ifdef win32
     #define TUNInterface_IFNAMSIZ 256
+#elif __MINGW64__
+    #define TUNInterface_IFNAMSIZ 256
 #else
     #define TUNInterface_IFNAMSIZ 16
 #endif

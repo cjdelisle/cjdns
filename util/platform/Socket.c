@@ -22,7 +22,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-#ifdef win32
+#if defined(win32) || defined(__MINGW64__)
     #define SIGNED_IF_WIN32_uint32_t int32_t
 #else
     #define SIGNED_IF_WIN32_uint32_t uint32_t

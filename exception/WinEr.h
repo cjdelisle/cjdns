@@ -12,8 +12,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef WinFail_H
-#define WinFail_H
+#ifndef WinEr_H
+#define WinEr_H
 
 #include "exception/Er.h"
 #include "exception/WinFail.h"

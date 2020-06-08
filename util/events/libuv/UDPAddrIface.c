@@ -237,7 +237,7 @@ int UDPAddrIface_setDSCP(struct UDPAddrIface* iface, uint8_t dscp)
 {
     int res = 0;
     /* For win32 setsockopt is unable to mark the TOS field in IP header, do not support it now */
-    #ifndef win32
+    #if !defined(win32) && !defined(__MINGW64__)
         struct UDPAddrIface_pvt* context = Identity_check((struct UDPAddrIface_pvt*) iface);
         /* 6-bit DSCP, 2-bit ENC(useless for UDP) */
         int tos = dscp << 2;
@@ -254,11 +254,13 @@ int UDPAddrIface_setDSCP(struct UDPAddrIface* iface, uint8_t dscp)
 
 int UDPAddrIface_getFd(struct UDPAddrIface* iface)
 {
-    struct UDPAddrIface_pvt* context = Identity_check((struct UDPAddrIface_pvt*) iface);
     int out = -1;
-    #ifndef win32
-        out = context->uvHandle.io_watcher.fd;
-    #endif
+
+#if !defined(win32) && !defined(__MINGW64__)
+    struct UDPAddrIface_pvt* context = Identity_check((struct UDPAddrIface_pvt*) iface);
+    out = context->uvHandle.io_watcher.fd;
+#endif
+
     return out;
 }
 

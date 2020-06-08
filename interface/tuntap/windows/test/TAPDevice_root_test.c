@@ -12,7 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef win32
+#if !defined(win32) && !defined(__MINGW64__)
 int main(int argc, char** argv)
 {
     return 0;

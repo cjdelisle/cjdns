@@ -12,6 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+#include <stdio.h>
 #include "client/AdminClient.h"
 #include "client/Configurator.h"
 #include "benc/String.h"
@@ -546,7 +547,7 @@ static void security(struct Allocator* tempAlloc, List* conf, struct Log* log, s
     int chroot = 1;
     int setupComplete = 1;
     int setuser = 1;
-    if (Defined(win32)) {
+    if (Defined(win32) || Defined(__MINGW64__)) {
         setuser = 0;
     }
 
@@ -557,7 +558,7 @@ static void security(struct Allocator* tempAlloc, List* conf, struct Log* log, s
     do {
         Dict* d = Dict_new(tempAlloc);
         Dict_putStringCC(d, "user", "nobody", tempAlloc);
-        if (!Defined(win32)) {
+        if (!Defined(win32) && !Defined(__MINGW64__)) {
             Dict* ret = NULL;
             int r = rpcCall0(String_CONST("Security_getUser"), d, ctx, tempAlloc, &ret, false);
             if (!r) {
@@ -620,10 +621,12 @@ static void security(struct Allocator* tempAlloc, List* conf, struct Log* log, s
         Log_info(ctx->logger, "Unrecognized entry in security at index [%d]", i);
     }
 
-    if (uid == -1) {
-        Log_critical(ctx->logger,
-                     "User \"nobody\" doesn't exist and no alternative user is set");
-        die(ctx->currentResult, ctx, tempAlloc);
+    if (!Defined(win32) && !Defined(__MINGW64__)) {
+        if (uid == -1) {
+            Log_critical(ctx->logger,
+                "User \"nobody\" doesn't exist and no alternative user is set");
+            die(ctx->currentResult, ctx, tempAlloc);
+        }
     }
 
     if (chroot) {

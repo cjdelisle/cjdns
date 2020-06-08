@@ -18,7 +18,7 @@
 #include "util/Assert.h"
 #include "util/Identity.h"
 
-#ifdef win32
+#if defined(win32) || defined(__MINGW64__)
     #include <sys/timeb.h>
     #include <time.h>
 #else
@@ -51,7 +51,11 @@ static void calibrateTime(struct EventBase_pvt* base)
         milliseconds = tb.millitm;
     #else // sane operating systems.
         struct timeval tv;
-        gettimeofday(&tv, NULL);
+        #if __MINGW64__
+          mingw_gettimeofday(&tv, NULL);
+        #else
+          gettimeofday(&tv, NULL);
+        #endif
         seconds = tv.tv_sec;
         milliseconds = tv.tv_usec / 1000;
     #endif

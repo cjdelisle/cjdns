@@ -658,6 +658,7 @@ static void maintanenceCycle(void* vcontext)
         //return;
     }
 
+    // can't seem to get this to function with MINGW64
     // Log_debug(janitor->logger,
     //           "Global Mean Response Time: %u nodes [%d] links [%d]",
     //           RouterModule_globalMeanResponseTime(janitor->routerModule),

@@ -13,12 +13,18 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#if defined(__MINGW64__)
+#include "util/crypto.h"
+#endif
+
 #include "crypto/Key.h"
 #include "crypto/random/Random.h"
 #include "util/Base32.h"
 #include "crypto/AddressCalc.h"
 
+#if !defined(__MINGW64__)
 #include "crypto_scalarmult_curve25519.h"
+#endif
 
 #include <stddef.h>
 

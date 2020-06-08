@@ -96,6 +96,7 @@ static void sendMessage2(struct Pipe_WriteRequest_pvt* req)
     };
 
     int ret = -1;
+#if !defined(__MINGW64__)
     if (pipe->ipc && m->associatedFd) {
         int fd = Message_getAssociatedFd(m);
         uv_stream_t* fake_handle = Allocator_calloc(req->alloc, sizeof(uv_stream_t), 1);
@@ -110,8 +111,11 @@ static void sendMessage2(struct Pipe_WriteRequest_pvt* req)
             sendMessageCallback);
         Log_debug(pipe->log, "Sending message with fd [%d]", fd);
     } else {
+#endif
         ret = uv_write(&req->uvReq, (uv_stream_t*) &pipe->peer, buffers, 1, sendMessageCallback);
+#if !defined(__MINGW64__)
     }
+#endif
     if (ret) {
         Log_info(pipe->log, "Failed writing to pipe [%s] [%s]",
                  pipe->pub.fullName, uv_strerror(ret) );
@@ -215,7 +219,7 @@ static void incoming(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf)
         m->bytes = (uint8_t*)buf->base;
         m->alloc = alloc;
         if (pipe->ipc) {
-            #ifndef win32
+            #if !defined(win32) && !defined(__MINGW64__)
                 Message_setAssociatedFd(m, stream->accepted_fd);
             #endif
         }
@@ -384,12 +388,13 @@ Er_DEFUN(struct Pipe* Pipe_named(const char* fullPath,
     req->data = out;
     uv_pipe_connect(req, &out->peer, out->pub.fullName, connected);
 
+#if !defined(__MINGW64__)
     int err = (&out->peer)->delayed_error;
     if (err != 0) {
         Er_raise(out->alloc, "uv_pipe_connect() failed [%s] for pipe [%s]",
                      uv_strerror(err), out->pub.fullName);
     }
-
+#endif
     Er_ret(&out->pub);
 }
 
@@ -419,6 +424,7 @@ Er_DEFUN(bool Pipe_exists(const char* path, struct Allocator* errAlloc))
         if (errno == ENOENT) { Er_ret(false); }
         Er_raise(errAlloc, "Failed stat(%s) [%s]", path, strerror(errno));
     } else {
-        Er_ret((st.st_mode & S_IFMT) == S_IFSOCK);
+        //Er_ret((st.st_mode & S_IFMT) == S_IFSOCK);
+        Er_ret(true);
     }
 }

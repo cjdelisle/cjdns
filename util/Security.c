@@ -25,14 +25,17 @@
 #include "util/events/EventBase.h"
 #include "util/events/Timeout.h"
 
+#if !defined(__MINGW64__)
 #include <sys/resource.h>
-#include <sys/types.h>
 #include <pwd.h>
+#include <sys/mman.h>
+#endif
+
+#include <sys/types.h>
 #include <unistd.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/mman.h>
 #include <stdio.h>
 
 Dict* Security_getUser(char* userName, struct Allocator* retAlloc)
