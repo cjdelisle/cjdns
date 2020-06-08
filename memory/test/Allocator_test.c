@@ -22,6 +22,9 @@
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
 #include "memory/Allocator_pvt.h"
+#pragma GCC diagnostic pop
+#else
+#include "memory/Allocator_pvt.h"
 #endif
 
 #include "memory/MallocAllocator.h"
