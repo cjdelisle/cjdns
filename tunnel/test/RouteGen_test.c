@@ -107,6 +107,8 @@ static void runTest(char** prefixes,
     struct Allocator* alloc = Allocator_child(allocator);
     Log_debug(log, "Forward");
     runTest0(prefixes, exceptions4, exceptions6, expectedOut4, expectedOut6, alloc, log);
+    Allocator_free(alloc);
+    alloc = Allocator_child(allocator);
     Log_debug(log, "Reverse");
     runTest0(prefixes, expectedOut4, expectedOut6, exceptions4, exceptions6, alloc, log);
     Allocator_free(alloc);
@@ -114,7 +116,7 @@ static void runTest(char** prefixes,
 
 int main()
 {
-    struct Allocator* alloc = MallocAllocator_new(1<<20);
+    struct Allocator* alloc = MallocAllocator_new(1<<21);
     struct Log* log = FileWriterLog_new(stdout, alloc);
 
     runTest((char*[]){ "0.0.0.0/0", NULL },
