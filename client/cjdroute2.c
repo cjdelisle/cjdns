@@ -26,6 +26,7 @@
 #include "benc/serialization/json/JsonBencMessageReader.h"
 #include "benc/serialization/standard/BencMessageReader.h"
 #include "benc/serialization/standard/BencMessageWriter.h"
+#include "crypto/random/test/DeterminentRandomSeed.h"
 #include "crypto/AddressCalc.h"
 #include "crypto/CryptoAuth.h"
 #include "dht/Address.h"
@@ -70,8 +71,16 @@
     #define CJD_PACKAGE_VERSION "unknown"
 #endif
 
-static int genconf(struct Random* rand, bool eth)
+static int genconf(struct Allocator* alloc, struct Random* rand, bool eth, bool seed)
 {
+    if (seed) {
+        uint8_t seedbuf[64];
+        Bits_memset(seedbuf, 0, 64);
+        Assert_true(64 == read(STDIN_FILENO, seedbuf, 64));
+        struct RandomSeed* rs = DeterminentRandomSeed_new(alloc, seedbuf);
+        rand = Random_newWithSeed(alloc, NULL, rs, NULL);
+    }
+
     uint8_t password[32];
     uint8_t password2[32];
     uint8_t password3[32];
@@ -212,17 +221,10 @@ static int genconf(struct Random* rand, bool eth)
            "                    // Ask somebody who is already connected.\n"
            "                }\n"
            "            }\n"
-           "        ]");
+           "        ],\n\n");
 #ifdef HAS_ETH_INTERFACE
-    if (!eth) {
-        printf("\n"
-               "        /*\n"
-               "        ,\n");
-    } else {
-        printf(",\n\n");
-    }
     printf("        // The interface which allows peering using layer-2 ethernet frames\n"
-           "        \"ETHInterface\": [\n"
+           "        \"%sETHInterface\": [\n"
            "            // Alternatively bind to just one device and either beacon and/or\n"
            "            // connect to a specified MAC address\n"
            "            {\n"
@@ -254,11 +256,7 @@ static int genconf(struct Random* rand, bool eth)
            "                    // \"01:02:03:04:05:06\":{\"password\":\"a\",\"publicKey\":\"b\"}\n"
            "                }\n"
            "            }\n"
-           "        ]\n");
-    if (!eth) {
-        printf("        */\n");
-    }
-    printf("\n");
+           "        ]\n\n", (eth) ? "" : "_disabled_");
 #else
     printf("        ]\n");
 #endif
@@ -444,9 +442,12 @@ static int usage(struct Allocator* alloc, char* appName)
     printf("Cjdns %s %s\n"
            "Usage:\n"
            "    cjdroute --help                This information\n"
-           "    cjdroute --genconf [--no-eth]  Generate a configuration file, write it to stdout\n"
-           "                                   if --no-eth is specified then eth beaconing will\n"
-           "                                   be disabled.\n"
+           "    cjdroute --genconf [--eth]     Generate a configuration file, write it to stdout\n"
+           "                                   if --eth is specified then eth beaconing will\n"
+           "                                   be enabled. Caution it can interfere with UDP\n"
+           "                                   beaconing\n"
+           "    cjdroute --genconf-seed [--eth] Generate a configuration file from a 64 byte seed\n"
+           "                                   which is read in from stdin."
            "    cjdroute --bench               Run some cryptography performance benchmarks.\n"
            "    cjdroute --version             Print the protocol version which this node speaks.\n"
            "    cjdroute --cleanconf < conf    Print a clean (valid json) version of the config.\n"
@@ -459,7 +460,7 @@ static int usage(struct Allocator* alloc, char* appName)
            "\n"
            "Step 2:\n"
            "  Find somebody to connect to.\n"
-           "  Check out the IRC channel or https://hyperboria.net/\n"
+           "  Check out the IRC channel #cjdns on Efnet and Freenode\n"
            "  for information about how to meet new people and make connect to them.\n"
            "  Read more here: https://github.com/cjdelisle/cjdns/#2-find-a-friend\n"
            "\n"
@@ -617,14 +618,10 @@ int main(int argc, char** argv)
         // one argument
         if ((CString_strcmp(argv[1], "--help") == 0) || (CString_strcmp(argv[1], "-h") == 0)) {
             return usage(allocator, argv[0]);
+        } else if (CString_strcmp(argv[1], "--genconf-seed") == 0) {
+            return genconf(allocator, rand, 0, 1);
         } else if (CString_strcmp(argv[1], "--genconf") == 0) {
-            return genconf(rand, 1);
-        } else if (CString_strcmp(argv[1], "--pidfile") == 0) {
-            // deprecated
-            fprintf(stderr, "'--pidfile' option is deprecated.\n");
-            return 0;
-        } else if (CString_strcmp(argv[1], "--reconf") == 0) {
-            // Performed after reading the configuration
+            return genconf(allocator, rand, 0, 0);
         } else if (CString_strcmp(argv[1], "--bench") == 0) {
             Benchmark_runAll();
             return 0;
@@ -648,18 +645,20 @@ int main(int argc, char** argv)
         // because of '--pidfile $filename'?
         if (CString_strcmp(argv[1], "--pidfile") == 0) {
             fprintf(stderr, "\n'--pidfile' option is deprecated.\n");
-        } else if (CString_strcmp(argv[1], "--genconf") == 0) {
-            bool eth = 1;
+        } else if (CString_strcmp(argv[1], "--genconf") == 0 ||
+            CString_strcmp(argv[1], "--genconf-seed") == 0)
+        {
+            bool eth = 0;
             for (int i = 2; i < argc; i++) {
-                if (!CString_strcmp(argv[i], "--no-eth")) {
-                    eth = 0;
+                if (!CString_strcmp(argv[i], "--eth")) {
+                    eth = 1;
                 } else {
                     fprintf(stderr, "%s: unrecognized option '%s'\n", argv[0], argv[i]);
                     fprintf(stderr, "Try `%s --help' for more information.\n", argv[0]);
                     return -1;
                 }
             }
-            return genconf(rand, eth);
+            return genconf(allocator, rand, eth, CString_strcmp(argv[1], "--genconf-seed") == 0);
         } else {
             fprintf(stderr, "%s: too many arguments [%s]\n", argv[0], argv[1]);
             fprintf(stderr, "Try `%s --help' for more information.\n", argv[0]);
