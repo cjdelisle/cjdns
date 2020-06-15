@@ -356,7 +356,7 @@ static int genconf(struct Allocator* alloc, struct Random* rand, bool eth, bool 
            "        // and ETHInterface will be unable to hot-add new interfaces\n"
            "        // Use { \"setuser\": 0 } to disable.\n"
            "        // Default: enabled with keepNetAdmin\n");
-           if (Defined(android)) {
+           if (Defined(android) || Defined(darwin)) {
     printf("        { \"setuser\": 0 },\n");
            } else {
     printf("        { \"setuser\": \"nobody\", \"keepNetAdmin\": 1 },\n");
