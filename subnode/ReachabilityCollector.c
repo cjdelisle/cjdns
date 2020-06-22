@@ -313,12 +313,17 @@ static void cycle(void* vrc)
         int sampleNum = rcp->linkStateSamples % LinkState_SLOTS;
 
         uint64_t drops = pi->sumOfDrops - pi->sumOfDropsLastSlot;
-        if (drops < pi->sumOfDrops) { drops = pi->sumOfDrops; }
+        // uint64 rollover, will "never" happen
+        //if (drops < pi->sumOfDrops) { drops = pi->sumOfDrops; }
         uint64_t packets = pi->sumOfPackets - pi->sumOfPacketsLastSlot;
-        if (packets < pi->sumOfPackets) { drops = pi->sumOfPackets; }
+        //if (packets < pi->sumOfPackets) { drops = pi->sumOfPackets; }
         uint64_t dropRateShl18 = packets ? (drops << 18) / packets : 0;
         pi->pub.linkState.dropSlots[sampleNum] = dropRateShl18 > 0xfffe ? 0xfffe : dropRateShl18;
         pi->sumOfDropsLastSlot = pi->sumOfDrops;
+
+        Log_debug(rcp->log,
+            "[%" PRIx64 "] has sumOfDrops [%" PRIu64 "] sumOfDropsLastSlot [%" PRIu64 "]",
+            pi->pub.addr.path, pi->sumOfDrops, pi->sumOfDropsLastSlot);
 
         pi->pub.linkState.kbRecvSlots[sampleNum] = pi->sumOfKb - pi->sumOfKbLastSlot;
         pi->sumOfKbLastSlot = pi->sumOfKb;
