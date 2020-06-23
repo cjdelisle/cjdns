@@ -16,7 +16,6 @@
 #include "subnode/AddrSet.h"
 #include "subnode/MsgCore.h"
 #include "subnode/SupernodeHunter.h"
-#include "subnode/GetPeersResponder.h"
 #include "subnode/PingResponder.h"
 #include "subnode/BoilerplateResponder.h"
 #include "subnode/ReachabilityCollector.h"
@@ -533,9 +532,6 @@ void SubnodePathfinder_start(struct SubnodePathfinder* sp)
     Iface_plumb(&pf->msgCoreIf, &msgCore->interRouterIf);
 
     PingResponder_new(pf->alloc, pf->log, msgCore, pf->br);
-
-    GetPeersResponder_new(
-        pf->alloc, pf->log, pf->myPeers, pf->myAddress, msgCore, pf->br, pf->myScheme);
 
     struct ReachabilityCollector* rc = pf->pub.rc = ReachabilityCollector_new(
         pf->alloc, msgCore, pf->log, pf->base, pf->br, pf->myAddress, pf->myScheme);
