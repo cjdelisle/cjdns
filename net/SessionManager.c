@@ -524,7 +524,7 @@ static void checkTimedOutSessions(struct SessionManager_pvt* sm)
             // Session is not in idle state and requires a search
             // But we're only going to trigger one search per cycle.
             // Except for v20 because the snode will answer us.
-            if (searchTriggered && sess->pub.version < 20) { continue; }
+            //if (searchTriggered && sess->pub.version < 20) { continue; }
             debugSession0(sm->log, sess, "triggering search");
             triggerSearch(sm, sess->pub.caSession->herIp6, sess->pub.version);
             sess->pub.lastSearchTime = now;
