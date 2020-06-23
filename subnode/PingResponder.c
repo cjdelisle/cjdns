@@ -12,6 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+#include "benc/Dict.h"
 #include "subnode/PingResponder.h"
 #include "util/Identity.h"
 
@@ -42,7 +43,22 @@ static void onPing(Dict* msg,
     }
 
     Dict* responseDict = Dict_new(tmpAlloc);
+
+    String* q = Dict_getStringC(msg, "q");
+    if (!q || !String_equals(q, String_CONST("pn"))) {
+        Dict_putStringCC(responseDict, "error", "unsupported query type", tmpAlloc);
+    }
+
+    if (src->protocolVersion && src->protocolVersion < 21) {
+        Log_debug(prp->log, "DROP query from [%s] because their version is [%d] and they won't "
+            "respect do-not-disturb",
+            Address_toString(src, tmpAlloc)->bytes,
+            src->protocolVersion);
+        return;
+    }
+
     Dict_putStringC(responseDict, "txid", txid, tmpAlloc);
+    Dict_putIntC(msg, "dnd", 1, tmpAlloc); // do not disturb
     BoilerplateResponder_addBoilerplate(prp->br, responseDict, src, tmpAlloc);
     MsgCore_sendResponse(prp->msgCore, responseDict, src, tmpAlloc);
 }

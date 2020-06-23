@@ -145,11 +145,8 @@ static void sendMsg(struct MsgCore_pvt* mcp,
             Assert_true(txid);
             String* newTxid = String_newBinary(NULL, txid->len + 1, alloc);
             Bits_memcpy(&newTxid->bytes[1], txid->bytes, txid->len);
-            newTxid->bytes[0] = '1';
-            if (String_equals(q, String_CONST("gp"))) {
-                // direct all GP requests to the old system because the new one is broken :(
-                newTxid->bytes[0] = '0';
-            }
+            // Always direct queries to the old pathfinder
+            newTxid->bytes[0] = '0';
             Dict_putStringC(msgDict, "txid", newTxid, alloc);
         }
     }
@@ -217,30 +214,35 @@ struct MsgCore_Promise* MsgCore_createQuery(struct MsgCore* core,
     return &out->pub;
 }
 
+static struct QueryHandler* getQueryHandler(struct MsgCore_pvt* mcp, String* q)
+{
+    for (int i = 0; i < mcp->qh->length; i++) {
+        struct QueryHandler* qhx = ArrayList_OfQueryHandlers_get(mcp->qh, i);
+        Identity_check(qhx);
+        if (String_equals(qhx->queryType, q)) {
+            return qhx;
+        }
+    }
+    return NULL;
+}
+
 static Iface_DEFUN queryMsg(struct MsgCore_pvt* mcp,
                             Dict* content,
                             struct Address* src,
                             struct Message* msg)
 {
     String* q = Dict_getStringC(content, "q");
-    struct QueryHandler* qh = NULL;
-    for (int i = 0; i < mcp->qh->length; i++) {
-        struct QueryHandler* qhx = ArrayList_OfQueryHandlers_get(mcp->qh, i);
-        Identity_check(qhx);
-        if (String_equals(qhx->queryType, q)) {
-            qh = qhx;
-            break;
-        }
+    struct QueryHandler* qh = getQueryHandler(mcp, q);
+    if (!qh) {
+        qh = getQueryHandler(mcp, String_CONST("pn"));
     }
     if (!qh) {
         Log_debug(mcp->log, "Unhandled query type [%s]", q->bytes);
-        return NULL;
-    }
-    if (!qh->pub.cb) {
+    } else if (!qh->pub.cb) {
         Log_info(mcp->log, "Query handler for [%s] not setup", q->bytes);
-        return NULL;
+    } else {
+        qh->pub.cb(content, src, msg->alloc, &qh->pub);
     }
-    qh->pub.cb(content, src, msg->alloc, &qh->pub);
     return NULL;
 }
 
@@ -320,22 +322,13 @@ static Iface_DEFUN incoming(struct Message* msg, struct Iface* interRouterIf)
         return NULL;
     }
 
-    if (!Defined(SUBNODE)) {
-        if (q) {
-            if (txid->bytes[0] != '1') {
-                Log_debug(mcp->log, "DROP query which begins with 0 and is for old pathfinder");
-                return NULL;
-            }
-        } else {
-            String* newTxid = String_newBinary(NULL, txid->len - 1, msg->alloc);
-            Bits_memcpy(newTxid->bytes, &txid->bytes[1], txid->len - 1);
-            Dict_putStringC(content, "txid", newTxid, msg->alloc);
-            txid = newTxid;
-        }
-    }
-
     if (q) {
-        return queryMsg(mcp, content, &addr, msg);
+        if (Defined(SUBNODE)) {
+            return queryMsg(mcp, content, &addr, msg);
+        } else {
+            // Let the old pathfinder handle every query if it is present
+            return NULL;
+        }
     } else {
         return replyMsg(mcp, content, &addr, msg);
     }

@@ -117,12 +117,7 @@ static int handleIncoming(struct DHTMessage* message,
         Log_info(context->logger, "query with no txid");
         return -2;
     }
-    if (q) {
-        if (txid->bytes[0] == '1') {
-            Log_debug(context->logger, "query txid which appears to be meant for subnode");
-            return -2;
-        }
-    } else {
+    if (!q) {
         if (txid->bytes[0] != '0') {
             Log_debug(context->logger, "reply txid which is not from old pathfinder");
             return -2;
