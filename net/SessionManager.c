@@ -504,7 +504,6 @@ static void triggerSearch(struct SessionManager_pvt* sm, uint8_t target[16], uin
 
 static void checkTimedOutSessions(struct SessionManager_pvt* sm)
 {
-    bool searchTriggered = false;
     for (int i = (int)sm->ifaceMap.count - 1; i >= 0; i--) {
         struct SessionManager_Session_pvt* sess = sm->ifaceMap.values[i];
         int64_t now = Time_currentTimeMilliseconds(sm->eventBase);
@@ -522,13 +521,9 @@ static void checkTimedOutSessions(struct SessionManager_pvt* sm)
             // Let pathfinder maintain it's own sessions itself
         } else if (now - sess->pub.lastSearchTime >= sm->pub.sessionSearchAfterMilliseconds) {
             // Session is not in idle state and requires a search
-            // But we're only going to trigger one search per cycle.
-            // Except for v20 because the snode will answer us.
-            //if (searchTriggered && sess->pub.version < 20) { continue; }
             debugSession0(sm->log, sess, "triggering search");
             triggerSearch(sm, sess->pub.caSession->herIp6, sess->pub.version);
             sess->pub.lastSearchTime = now;
-            searchTriggered = true;
         } else if (CryptoAuth_getState(sess->pub.caSession) < CryptoAuth_State_RECEIVED_KEY) {
             debugSession0(sm->log, sess, "triggering unsetupSession");
             unsetupSession(sm, sess);
