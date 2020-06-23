@@ -206,13 +206,18 @@ static Iface_DEFUN searchReq(struct Message* msg, struct SubnodePathfinder_pvt* 
     for (int i = 0; i < pf->myPeers->length; ++i) {
         struct Address* myPeer = AddrSet_get(pf->myPeers, i);
         if (!Bits_memcmp(myPeer->ip6.bytes, addr, 16)) {
+            Log_debug(pf->log, "Skip search for [%s] because it's a peer", printedAddr);
             return sendNode(msg, myPeer, 0xfff00000, PFChan_Pathfinder_NODE, pf);
         }
     }
 
-    if (!pf->pub.snh || !pf->pub.snh->snodeAddr.path) { return NULL; }
+    if (!pf->pub.snh || !pf->pub.snh->snodeAddr.path) {
+        Log_debug(pf->log, "Skip search for [%s] because we have no snode", printedAddr);
+        return NULL;
+    }
 
     if (!Bits_memcmp(pf->pub.snh->snodeAddr.ip6.bytes, addr, 16)) {
+        Log_debug(pf->log, "Skip search for [%s] because it is our snode", printedAddr);
         return sendNode(msg, &pf->pub.snh->snodeAddr, 0xfff00000, PFChan_Pathfinder_NODE, pf);
     }
 
