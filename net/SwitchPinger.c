@@ -54,6 +54,9 @@ struct SwitchPinger_pvt
     struct Address incomingSnodeAddr;
     uint32_t incomingSnodeKbps;
 
+    // If it's an rpath message
+    uint64_t rpath;
+
     /** The error code if an error has been returned (see Error.h) */
     int error;
 
@@ -149,6 +152,24 @@ static Iface_DEFUN messageFromControlHandler(struct Message* msg, struct Iface* 
         ctx->incomingSnodeKbps = Endian_bigEndianToHost32(hdr->kbps_be);
         Er_assert(Message_eshift(msg, -Control_GetSnode_HEADER_SIZE));
 
+    } else if (ctrl->header.type_be == Control_RPATH_REPLY_be) {
+        Er_assert(Message_eshift(msg, -Control_Header_SIZE));
+        ctx->error = Error_NONE;
+        if (msg->length < Control_RPath_HEADER_SIZE) {
+            Log_debug(ctx->logger, "got runt RPath message, length: [%d]", msg->length);
+            return NULL;
+        }
+        struct Control_RPath* hdr = (struct Control_RPath*) msg->bytes;
+        if (hdr->magic != Control_RPATH_REPLY_MAGIC) {
+            Log_debug(ctx->logger, "dropped invalid RPATH (bad magic)");
+            return NULL;
+        }
+        ctx->incomingVersion = Endian_hostToBigEndian32(hdr->version_be);
+        uint64_t rpath_be;
+        Bits_memcpy(&rpath_be, hdr->rpath_be, 8);
+        ctx->rpath = Endian_bigEndianToHost64(rpath_be);
+        Er_assert(Message_eshift(msg, -Control_GetSnode_HEADER_SIZE));
+
     } else if (ctrl->header.type_be == Control_ERROR_be) {
         Er_assert(Message_eshift(msg, -Control_Header_SIZE));
         Assert_true((uint8_t*)&ctrl->content.error.errorType_be == msg->bytes);
@@ -223,6 +244,7 @@ static void onPingResponse(String* data, uint32_t milliseconds, void* vping)
     Bits_memcpy(resp->key, p->context->incomingKey, 32);
     Bits_memcpy(&resp->snode, &p->context->incomingSnodeAddr, sizeof(struct Address));
     resp->kbpsLimit = p->context->incomingSnodeKbps;
+    resp->rpath = p->context->rpath;
     resp->ping = &p->pub;
     p->onResponse(resp, p->pub.onResponseContext);
 }
@@ -247,11 +269,13 @@ static void sendPing(String* data, void* sendPingContext)
         keyPingHeader->magic = Control_KeyPing_MAGIC;
         keyPingHeader->version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL);
         Bits_memcpy(keyPingHeader->key, p->context->myAddr->key, 32);
+
     } else if (p->pub.type == SwitchPinger_Type_PING) {
         Er_assert(Message_epush(msg, NULL, Control_Ping_HEADER_SIZE));
         struct Control_Ping* pingHeader = (struct Control_Ping*) msg->bytes;
         pingHeader->magic = Control_Ping_MAGIC;
         pingHeader->version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL);
+
     } else if (p->pub.type == SwitchPinger_Type_GETSNODE) {
         Er_assert(Message_epush(msg, NULL, Control_GetSnode_HEADER_SIZE));
         struct Control_GetSnode* hdr = (struct Control_GetSnode*) msg->bytes;
@@ -262,6 +286,15 @@ static void sendPing(String* data, void* sendPingContext)
         uint64_t pathToSnode_be = Endian_hostToBigEndian64(p->pub.snode.path);
         Bits_memcpy(hdr->pathToSnode_be, &pathToSnode_be, 8);
         hdr->snodeVersion_be = Endian_hostToBigEndian32(p->pub.snode.protocolVersion);
+
+    } else if (p->pub.type == SwitchPinger_Type_RPATH) {
+        Er_assert(Message_epush(msg, NULL, Control_RPath_HEADER_SIZE));
+        struct Control_RPath* hdr = (struct Control_RPath*) msg->bytes;
+        hdr->magic = Control_RPATH_QUERY_MAGIC;
+        hdr->version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL);
+        uint64_t path_be = Endian_hostToBigEndian64(p->label);
+        Bits_memcpy(hdr->rpath_be, &path_be, 8);
+
     } else {
         Assert_failure("unexpected ping type");
     }
@@ -275,6 +308,8 @@ static void sendPing(String* data, void* sendPingContext)
         ctrl->header.type_be = Control_KEYPING_be;
     } else if (p->pub.type == SwitchPinger_Type_GETSNODE) {
         ctrl->header.type_be = Control_GETSNODE_QUERY_be;
+    } else if (p->pub.type == SwitchPinger_Type_RPATH) {
+        ctrl->header.type_be = Control_RPATH_QUERY_be;
     } else {
         Assert_failure("unexpected type");
     }
