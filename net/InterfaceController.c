@@ -464,34 +464,6 @@ static void pingCallback(void* vic)
     }
 }
 
-/** If there's already an endpoint with the same public key, merge the new one with the old one. */
-static void moveEndpointIfNeeded(struct Peer* ep)
-{
-    struct InterfaceController_Iface_pvt* ici = ep->ici;
-    Log_debug(ici->ic->logger, "Checking for old sessions to merge with.");
-    for (uint32_t i = 0; i < ici->peerMap.count; i++) {
-        struct Peer* thisEp = ici->peerMap.values[i];
-        if (thisEp != ep && !Bits_memcmp(thisEp->addr.key, ep->addr.key, 32)) {
-            Log_info(ici->ic->logger, "Moving endpoint to merge new session with old.");
-
-            ep->addr.path = thisEp->addr.path;
-            SwitchCore_swapInterfaces(&thisEp->switchIf, &ep->switchIf);
-
-            Assert_true(ep->switchIf.connectedIf->send);
-            Assert_true(thisEp->switchIf.connectedIf->send);
-            Allocator_free(thisEp->alloc);
-
-            // This check cannot really be relied upon because thisEp->alloc is what
-            // allocates thisEp and if the free is not blocked by an asynchronous onFree job
-            // then it could overwrite and free the memory in which case the assertion would fail.
-            //Assert_true(!thisEp->switchIf.connectedIf->send);
-
-            Assert_true(ep->switchIf.connectedIf->send);
-            return;
-        }
-    }
-}
-
 // Incoming message which has passed through the cryptoauth and needs to be forwarded to the switch.
 static Iface_DEFUN receivedPostCryptoAuth(struct Message* msg,
                                           struct Peer* ep,
@@ -508,10 +480,7 @@ static Iface_DEFUN receivedPostCryptoAuth(struct Message* msg,
         Bits_memcpy(ep->addr.key, ep->caSession->herPublicKey, 32);
         Address_getPrefix(&ep->addr);
 
-        if (caState == CryptoAuth_State_ESTABLISHED) {
-            moveEndpointIfNeeded(ep);
-            //sendPeer(0xffffffff, PFChan_Core_PEER, ep, 0xffff);// version is not known.
-        } else {
+        if (caState != CryptoAuth_State_ESTABLISHED) {
             // prevent some kinds of nasty things which could be done with packet replay.
             // This is checking the message switch header and will drop it unless the label
             // directs it to *this* router.
@@ -702,8 +671,6 @@ static Iface_DEFUN handleBeacon(struct Message* msg, struct InterfaceController_
     Log_info(ic->logger, "Added peer [%s] from beacon",
         Address_toString(&ep->addr, msg->alloc)->bytes);
 
-    // This should be safe because this is an outgoing request and we're sure the node will not
-    // be relocated by moveEndpointIfNeeded()
     sendPeer(0xffffffff, PFChan_Core_PEER, ep, 0xffff);
     return NULL;
 }
