@@ -75,6 +75,9 @@ struct SwitchPinger_Response
     uint32_t kbpsLimit;
     struct Address snode;
 
+    // relevant only to messages of type RPATH
+    uint64_t rpath;
+
     struct SwitchPinger_Ping* ping;
 };
 
@@ -85,7 +88,8 @@ enum SwitchPinger_Type
 {
     SwitchPinger_Type_PING,
     SwitchPinger_Type_KEYPING,
-    SwitchPinger_Type_GETSNODE
+    SwitchPinger_Type_GETSNODE,
+    SwitchPinger_Type_RPATH
 };
 
 struct SwitchPinger_Ping

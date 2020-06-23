@@ -134,6 +134,47 @@ static Iface_DEFUN handlePing(struct Message* msg,
 }
 
 /**
+ * Expects [ SwitchHeader ][ Ctrl ][ RPath ][ data etc.... ]
+ */
+#define handleRPathQuery_MIN_SIZE (Control_Header_SIZE + Control_RPath_HEADER_SIZE)
+static Iface_DEFUN handleRPathQuery(struct Message* msg,
+                                    struct ControlHandler_pvt* ch,
+                                    uint64_t label,
+                                    uint8_t* labelStr)
+{
+    Log_debug(ch->log, "Incoming RPATH query");
+    if (msg->length < handleRPathQuery_MIN_SIZE) {
+        Log_info(ch->log, "DROP runt RPATH query");
+        return NULL;
+    }
+
+    struct Control* ctrl = (struct Control*) msg->bytes;
+    struct Control_RPath* rpa = &ctrl->content.rpath;
+
+    if (rpa->magic != Control_RPATH_QUERY_MAGIC) {
+        Log_debug(ch->log, "DROP RPATH query (bad magic)");
+        return NULL;
+    }
+
+    ctrl->header.type_be = Control_RPATH_REPLY_be;
+    rpa->version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL);
+    rpa->magic = Control_RPATH_REPLY_MAGIC;
+    uint64_t label_be = Endian_hostToBigEndian64(label);
+    Bits_memcpy(rpa->rpath_be, &label_be, 8);
+
+    ctrl->header.checksum_be = 0;
+    ctrl->header.checksum_be = Checksum_engine(msg->bytes, msg->length);
+
+    Er_assert(Message_eshift(msg, RouteHeader_SIZE));
+    struct RouteHeader* routeHeader = (struct RouteHeader*) msg->bytes;
+    Bits_memset(routeHeader, 0, RouteHeader_SIZE);
+    SwitchHeader_setVersion(&routeHeader->sh, SwitchHeader_CURRENT_VERSION);
+    routeHeader->sh.label_be = label_be;
+    routeHeader->flags |= RouteHeader_flags_CTRLMSG;
+    return Iface_next(&ch->pub.coreIf, msg);
+}
+
+/**
  * Expects [ SwitchHeader ][ Ctrl ][ SupernodeQuery ][ data etc.... ]
  */
 #define handleGetSnodeQuery_MIN_SIZE (Control_Header_SIZE + Control_GetSnode_HEADER_SIZE)
@@ -245,12 +286,19 @@ static Iface_DEFUN incomingFromCore(struct Message* msg, struct Iface* coreIf)
     } else if (ctrl->header.type_be == Control_GETSNODE_QUERY_be) {
         return handleGetSnodeQuery(msg, ch, label, labelStr);
 
-    } else if (ctrl->header.type_be == Control_GETSNODE_REPLY_be) {
-        Log_debug(ch->log, "got GETSNODE_REPLY from [%s]", labelStr);
+    } else if (ctrl->header.type_be == Control_GETSNODE_REPLY_be
+            || ctrl->header.type_be == Control_RPATH_REPLY_be)
+    {
+        Log_debug(ch->log, "got %s REPLY from [%s]",
+            (ctrl->header.type_be == Control_GETSNODE_REPLY_be) ? "GETSNODE" : "RPATH",
+            labelStr);
         Er_assert(Message_epush(msg, &routeHdr, RouteHeader_SIZE));
         Er_assert(Message_epush32be(msg, 0xffffffff));
         Er_assert(Message_epush32be(msg, PFChan_Core_CTRL_MSG));
         return Iface_next(&ch->eventIf, msg);
+
+    } else if (ctrl->header.type_be == Control_RPATH_QUERY_be) {
+        return handleRPathQuery(msg, ch, label, labelStr);
     }
 
     Log_info(ch->log, "DROP control packet of unknown type from [%s], type [%d]",

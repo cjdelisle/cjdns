@@ -144,6 +144,24 @@ struct Control_GetSnode
 };
 Assert_compileTime(sizeof(struct Control_GetSnode) == Control_GetSnode_HEADER_SIZE);
 
+#define Control_RPATH_QUERY_be Endian_hostToBigEndian16(9)
+#define Control_RPATH_QUERY_MAGIC Endian_hostToBigEndian32(0x736e6f71) // rpaq
+#define Control_RPATH_REPLY_be Endian_hostToBigEndian16(10)
+#define Control_RPATH_REPLY_MAGIC Endian_hostToBigEndian32(0x736e6f72) // rpar
+#define Control_RPath_HEADER_SIZE 16
+struct Control_RPath
+{
+    // Control_RPATH_QUERY_MAGIC for queries
+    // Control_RPATH_REPLY_MAGIC for replies
+    uint32_t magic;
+
+    // Version of the node sending the query or the reply
+    uint32_t version_be;
+
+    // The reverse path back to the node who sent the query
+    uint8_t rpath_be[8];
+};
+
 static inline char* Control_typeString(uint16_t type_be)
 {
     if (type_be == Control_ERROR_be) {
@@ -160,6 +178,10 @@ static inline char* Control_typeString(uint16_t type_be)
         return "GETSNODE_QUERY";
     } else if (type_be == Control_GETSNODE_REPLY_be) {
         return "GETSNODE_REPLY";
+    } else if (type_be == Control_RPATH_QUERY_be) {
+        return "RPATH_QUERY";
+    } else if (type_be == Control_RPATH_REPLY_be) {
+        return "RPATH_REPLY";
     } else {
         return "UNKNOWN";
     }
@@ -203,6 +225,7 @@ struct Control
         struct Control_KeyPing keyPing;
         struct Control_Ping keyPong;
         struct Control_GetSnode getSnode;
+        struct Control_RPath rpath;
 
         /** The control packet content. */
         uint8_t bytes[4];
