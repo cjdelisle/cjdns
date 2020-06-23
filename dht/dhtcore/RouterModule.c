@@ -255,14 +255,20 @@ static inline int sendNodes(struct NodeList* nodeList,
                             uint32_t askerVersion)
 {
     struct DHTMessage* query = message->replyTo;
+
+    int count = 0;
+    for (int i = 0; i < (int)nodeList->size; i++) {
+        count += !nodeList->nodes[i]->dnd;
+    }
+
     String* nodes =
-        String_newBinary(NULL, nodeList->size * Address_SERIALIZED_SIZE, message->allocator);
+        String_newBinary(NULL, count * Address_SERIALIZED_SIZE, message->allocator);
 
-    struct VersionList* versions = VersionList_new(nodeList->size, message->allocator);
+    struct VersionList* versions = VersionList_new(count, message->allocator);
 
-    int i = 0;
-    for (; i < (int)nodeList->size; i++) {
-
+    int j = 0;
+    for (int i = 0; i < (int)nodeList->size; i++) {
+        if (nodeList->nodes[i]->dnd) { continue; }
         // We have to modify the reply in case this node uses a longer label discriminator
         // in our switch than its target address, the target address *must* have the same
         // length or longer.
@@ -271,16 +277,17 @@ static inline int sendNodes(struct NodeList* nodeList,
 
         addr.path = NumberCompress_getLabelFor(addr.path, query->address->path);
 
-        Address_serialize(&nodes->bytes[i * Address_SERIALIZED_SIZE], &addr);
+        Address_serialize(&nodes->bytes[j * Address_SERIALIZED_SIZE], &addr);
 
-        versions->versions[i] = nodeList->nodes[i]->address.protocolVersion;
+        versions->versions[j] = nodeList->nodes[i]->address.protocolVersion;
 
         Assert_ifParanoid(!Bits_isZero(&nodes->bytes[i * Address_SERIALIZED_SIZE],
                                        Address_SERIALIZED_SIZE));
+        j++;
     }
-    nodes->len = i * Address_SERIALIZED_SIZE;
-    versions->length = i;
-    if (i > 0) {
+    nodes->len = j * Address_SERIALIZED_SIZE;
+    versions->length = j;
+    if (j > 0) {
         Dict_putString(message->asDict, CJDHTConstants_NODES, nodes, message->allocator);
         String* versionsStr = VersionList_stringify(versions, message->allocator);
         Dict_putString(message->asDict,
@@ -514,6 +521,14 @@ static void onResponseOrTimeout(String* data, uint32_t milliseconds, void* vping
 
     struct Node_Two* node = NodeStore_closestNode(module->nodeStore, message->address->path);
     if (node && !Bits_memcmp(node->address.key, message->address->key, 32)) {
+        int64_t* dnd = Dict_getIntC(message->asDict, "dnd");
+        if (dnd && *dnd) {
+            // do not disturb
+            // We'll still keep it in the table but we won't tell anybody about it
+            node->dnd = 1;
+        } else {
+            node->dnd = 0;
+        }
         NodeStore_pathResponse(module->nodeStore, message->address->path, milliseconds);
     } else {
         NodeStore_discoverNode(module->nodeStore,

@@ -39,6 +39,9 @@ struct Node_Two
     /** This is used to mark/sweep nodes in getWorstNode(), it's meaningless otherwise. */
     uint32_t marked;
 
+    // true if this node is flagged do-not-disturb
+    int dnd;
+
     /** Time the node was last pinged, *not* reset on path changes. */
     uint64_t timeLastPinged;
 
