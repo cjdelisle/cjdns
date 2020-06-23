@@ -15,6 +15,8 @@
 #ifndef Metric_H
 #define Metric_H
 
+#include <stdint.h>
+
 // This is INTERNAL to cjdns, it does not get used in the protocol at all,
 // but it is an internal protocol which is used to coordinate the different
 // modules.
@@ -32,40 +34,39 @@
 // Because this is not inter-node protocol, you can change these numbers at any
 // time.
 
-enum Metric {
-    // This is known to be a peer by InterfaceController, OR'd with the latency
-    Metric_IC_PEER =         0xff000000,
-    Metric_IC_PEER_MASK =    0x0000ffff,
 
-    // Node is a direct peer according to the SubnodePathfinder
-    Metric_PF_PEER =         0xff100000,
+// This is known to be a peer by InterfaceController, OR'd with the latency
+static const uint32_t Metric_IC_PEER =         0xff000000;
+static const uint32_t Metric_IC_PEER_MASK =    0x0000ffff;
 
-    // The snode says this is a path to the node
-    Metric_SNODE_SAYS =      0xff200000,
+// Node is a direct peer according to the SubnodePathfinder
+static const uint32_t Metric_PF_PEER =         0xff100000;
 
-    // This is our discovered path to our snode
-    Metric_SNODE =           0xff300000,
+// The snode says this is a path to the node
+static const uint32_t Metric_SNODE_SAYS =      0xff200000;
 
-    // Node is a direct peer according to the (dht) Pathfinder
-    Metric_DHT_PEER =        0xff400000,
+// This is our discovered path to our snode
+static const uint32_t Metric_SNODE =           0xff300000;
 
-    // We sent a ping to a node to complete the session setup, it replied.
-    // This is a path which we know works, but we don't know if it's any good.
-    Metric_PING_REPLY =      0xff500000,
-    Metric_DHT_INCOMING =    0xff510000,
+// Node is a direct peer according to the (dht) Pathfinder
+static const uint32_t Metric_DHT_PEER =        0xff400000;
 
-    // Anything that comes from the DHT Pathfinder is &'d with Metric_DHT_MASK
-    // and OR'd with Metric_DHT.
-    Metric_DHT =             0xff600000,
-    Metric_DHT_MASK =        0x000fffff,
+// We sent a ping to a node to complete the session setup, it replied.
+// This is a path which we know works, but we don't know if it's any good.
+static const uint32_t Metric_PING_REPLY =      0xff500000;
+static const uint32_t Metric_DHT_INCOMING =    0xff510000;
 
-    // Incoming message, CryptoAuth has not yet checked that the key is real
-    Metric_SM_INCOMING =     0xff700000,
-    // Outgoing message, some upper layer thinks this is the path
-    Metric_SM_SEND =         0xff710000,
+// Anything that comes from the DHT Pathfinder is &'d with Metric_DHT_MASK
+// and OR'd with Metric_DHT.
+static const uint32_t Metric_DHT =             0xff600000;
+static const uint32_t Metric_DHT_MASK =        0x000fffff;
 
-    // This will cause the SM to kill off a path
-    Metric_DEAD_LINK =       0xffffffff
-};
+// Incoming message, CryptoAuth has not yet checked that the key is real
+static const uint32_t Metric_SM_INCOMING =     0xff700000;
+// Outgoing message, some upper layer thinks this is the path
+static const uint32_t Metric_SM_SEND =         0xff710000;
+
+// This will cause the SM to kill off a path
+static const uint32_t Metric_DEAD_LINK =       0xffffffff;
 
 #endif

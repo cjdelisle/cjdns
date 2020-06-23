@@ -142,7 +142,7 @@ static Iface_DEFUN switchErr(struct Message* msg, struct SubnodePathfinder_pvt* 
     uint64_t path = Endian_bigEndianToHost64(switchErr.sh.label_be);
 
     if (pf->pub.snh->snodeAddr.path &&
-        pf->pub.snh->snodeAddr.path != path &&
+        // pf->pub.snh->snodeAddr.path != path && // ctrl errors from the snode should be same
         LabelSplicer_routesThrough(pf->pub.snh->snodeAddr.path, path)) {
         uint8_t pathStr[20];
         AddrTools_printPath(pathStr, path);
@@ -154,6 +154,10 @@ static Iface_DEFUN switchErr(struct Message* msg, struct SubnodePathfinder_pvt* 
             pf->pub.snh->onSnodeUnreachable(pf->pub.snh, 0, 0);
         }
     }
+
+    // TODO(cjd): We should be reporting a bad link to the session manager but
+    // we only really have the ability to report a node with known IPv6 address
+    // so we will need to add a new event type to PFChan.
 
     return NULL;
 }
