@@ -64,7 +64,7 @@ struct SubnodePathfinder_pvt
 
     struct Address* myAddress;
 
-    struct AddrSet* myPeers;
+    struct AddrSet* myPeerAddrs;
 
     struct MsgCore* msgCore;
 
@@ -207,23 +207,25 @@ static Iface_DEFUN searchReq(struct Message* msg, struct SubnodePathfinder_pvt* 
     AddrTools_printIp(printedAddr, addr);
     Log_debug(pf->log, "Search req [%s]", printedAddr);
 
-    for (int i = 0; i < pf->myPeers->length; ++i) {
-        struct Address* myPeer = AddrSet_get(pf->myPeers, i);
-        if (!Bits_memcmp(myPeer->ip6.bytes, addr, 16)) {
-            Log_debug(pf->log, "Skip search for [%s] because it's a peer", printedAddr);
-            return sendNode(msg, myPeer, Metric_PF_PEER, PFChan_Pathfinder_NODE, pf);
-        }
-    }
+    // There might actually be a better path to the peer rather than direct
+    // for (int i = 0; i < pf->myPeers->length; ++i) {
+    //     struct Address* myPeer = AddrSet_get(pf->myPeers, i);
+    //     if (!Bits_memcmp(myPeer->ip6.bytes, addr, 16)) {
+    //         Log_debug(pf->log, "Skip search for [%s] because it's a peer", printedAddr);
+    //         return sendNode(msg, myPeer, Metric_PF_PEER, PFChan_Pathfinder_NODE, pf);
+    //     }
+    // }
 
     if (!pf->pub.snh || !pf->pub.snh->snodeAddr.path) {
         Log_debug(pf->log, "Skip search for [%s] because we have no snode", printedAddr);
         return NULL;
     }
 
-    if (!Bits_memcmp(pf->pub.snh->snodeAddr.ip6.bytes, addr, 16)) {
-        Log_debug(pf->log, "Skip search for [%s] because it is our snode", printedAddr);
-        return sendNode(msg, &pf->pub.snh->snodeAddr, Metric_SNODE, PFChan_Pathfinder_NODE, pf);
-    }
+    // No harm in asking
+    // if (!Bits_memcmp(pf->pub.snh->snodeAddr.ip6.bytes, addr, 16)) {
+    //     Log_debug(pf->log, "Skip search for [%s] because it is our snode", printedAddr);
+    //     return sendNode(msg, &pf->pub.snh->snodeAddr, Metric_SNODE, PFChan_Pathfinder_NODE, pf);
+    // }
 
     struct Query q = { .routeFrom = { 0 } };
     Bits_memcpy(&q.target, &pf->pub.snh->snodeAddr, sizeof(struct Address));
@@ -262,11 +264,11 @@ static Iface_DEFUN searchReq(struct Message* msg, struct SubnodePathfinder_pvt* 
 }
 
 static void rcChange(struct ReachabilityCollector* rc,
-                     uint8_t nodeIpv6[16],
+                     struct Address* nodeAddr,
                      struct ReachabilityCollector_PeerInfo* pi)
 {
     struct SubnodePathfinder_pvt* pf = Identity_check((struct SubnodePathfinder_pvt*) rc->userData);
-    ReachabilityAnnouncer_updatePeer(pf->ra, nodeIpv6, pi);
+    ReachabilityAnnouncer_updatePeer(pf->ra, nodeAddr, pi);
 }
 
 static Iface_DEFUN peer(struct Message* msg, struct SubnodePathfinder_pvt* pf)
@@ -276,18 +278,14 @@ static Iface_DEFUN peer(struct Message* msg, struct SubnodePathfinder_pvt* pf)
     String* str = Address_toString(&addr, msg->alloc);
     Log_debug(pf->log, "Peer [%s]", str->bytes);
 
-    int index = AddrSet_indexOf(pf->myPeers, &addr);
+    int index = AddrSet_indexOf(pf->myPeerAddrs, &addr, AddrSet_Match_BOTH);
     if (index > -1) {
-        struct Address* myPeer = AddrSet_get(pf->myPeers, index);
-        if (myPeer->path == addr.path && myPeer->protocolVersion == addr.protocolVersion) {
-            return NULL;
-        }
-        AddrSet_remove(pf->myPeers, myPeer);
+        struct Address* myPeer = AddrSet_get(pf->myPeerAddrs, index);
+        // Just in case there is a difference
+        myPeer->protocolVersion = addr.protocolVersion;
+    } else {
+        AddrSet_add(pf->myPeerAddrs, &addr, AddrSet_Match_BOTH);
     }
-
-    AddrSet_add(pf->myPeers, &addr);
-
-    //NodeCache_discoverNode(pf->nc, &addr);
 
     ReachabilityCollector_change(pf->pub.rc, &addr);
 
@@ -302,24 +300,8 @@ static Iface_DEFUN peerGone(struct Message* msg, struct SubnodePathfinder_pvt* p
 {
     struct Address addr;
     addressForNode(&addr, msg);
-
-    for (int i = pf->myPeers->length - 1; i >= 0; i--) {
-        struct Address* myPeer = AddrSet_get(pf->myPeers, i);
-        if (myPeer->path == addr.path) {
-            String* str = Address_toString(myPeer, msg->alloc);
-            AddrSet_remove(pf->myPeers, myPeer);
-            Log_debug(pf->log, "Peer gone [%s]", str->bytes);
-        }
-    }
-
-    //NodeCache_forgetNode(pf->nc, &addr);
-
-    struct Address zaddr;
-    Bits_memcpy(&zaddr, &addr, Address_SIZE);
-    zaddr.path = 0;
-    ReachabilityCollector_change(pf->pub.rc, &zaddr);
-
-    // We notify about the node but with max metric so it will be removed soon.
+    AddrSet_remove(pf->myPeerAddrs, &addr, AddrSet_Match_BOTH);
+    ReachabilityCollector_unreachable(pf->pub.rc, &addr);
     return sendNode(msg, &addr, Metric_DEAD_LINK, PFChan_Pathfinder_NODE, pf);
 }
 
@@ -534,15 +516,15 @@ void SubnodePathfinder_start(struct SubnodePathfinder* sp)
     PingResponder_new(pf->alloc, pf->log, msgCore, pf->br);
 
     struct ReachabilityCollector* rc = pf->pub.rc = ReachabilityCollector_new(
-        pf->alloc, msgCore, pf->log, pf->base, pf->br, pf->myAddress, pf->myScheme);
+        pf->alloc, msgCore, pf->log, pf->base, pf->br, pf->myAddress, pf->myScheme, pf->sp);
     rc->userData = pf;
     rc->onChange = rcChange;
 
     struct SupernodeHunter* snh = pf->pub.snh = SupernodeHunter_new(
-        pf->alloc, pf->log, pf->base, pf->sp, pf->myPeers, msgCore, pf->myAddress, rc);
+        pf->alloc, pf->log, pf->base, pf->sp, pf->myPeerAddrs, msgCore, pf->myAddress, rc);
 
     pf->ra = ReachabilityAnnouncer_new(
-        pf->alloc, pf->log, pf->base, pf->rand, msgCore, snh, pf->privateKey, pf->myScheme);
+        pf->alloc, pf->log, pf->base, pf->rand, msgCore, snh, pf->privateKey, pf->myScheme, rc);
 
     struct PFChan_Pathfinder_Connect conn = {
         .superiority_be = Endian_hostToBigEndian32(1),
@@ -578,7 +560,7 @@ struct SubnodePathfinder* SubnodePathfinder_new(struct Allocator* allocator,
     pf->base = base;
     pf->rand = rand;
     pf->myAddress = myAddress;
-    pf->myPeers = AddrSet_new(alloc);
+    pf->myPeerAddrs = AddrSet_new(alloc);
     pf->pub.eventIf.send = incomingFromEventIf;
     pf->msgCoreIf.send = incomingFromMsgCore;
     pf->privateKey = privateKey;

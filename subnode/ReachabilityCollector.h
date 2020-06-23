@@ -17,6 +17,7 @@
 #include "subnode/BoilerplateResponder.h"
 #include "dht/Address.h"
 #include "memory/Allocator.h"
+#include "net/SwitchPinger.h"
 #include "subnode/MsgCore.h"
 #include "subnode/LinkState.h"
 #include "util/Linker.h"
@@ -30,6 +31,9 @@ struct ReachabilityCollector_PeerInfo
     // Their path to us
     uint64_t pathThemToUs;
 
+    // True when we are not sure about the connection to this peer
+    // so we will be sending queries to it. Does not mean we're waiting
+    // for a response from them.
     bool querying;
 
     struct LinkState linkState;
@@ -39,7 +43,7 @@ struct ReachabilityCollector;
 
 // pi == NULL -> peer dropped
 typedef void (* ReachabilityCollector_OnChange)(struct ReachabilityCollector* rc,
-                                                uint8_t ipv6[16],
+                                                struct Address* addr,
                                                 struct ReachabilityCollector_PeerInfo* pi);
 
 struct ReachabilityCollector
@@ -50,6 +54,8 @@ struct ReachabilityCollector
 
 struct ReachabilityCollector_PeerInfo*
     ReachabilityCollector_getPeerInfo(struct ReachabilityCollector* rc, int peerNum);
+
+void ReachabilityCollector_unreachable(struct ReachabilityCollector* rc, struct Address* nodeAddr);
 
 // NodeAddr->path should be 0 if the node is not reachable.
 void ReachabilityCollector_change(struct ReachabilityCollector* rc, struct Address* nodeAddr);
@@ -65,11 +71,12 @@ void ReachabilityCollector_updateBandwidthAndDrops(
     uint64_t sumOfKb);
 
 struct ReachabilityCollector* ReachabilityCollector_new(struct Allocator* allocator,
-                                                        struct MsgCore* mc,
+                                                        struct MsgCore* msgCore,
                                                         struct Log* log,
                                                         struct EventBase* base,
                                                         struct BoilerplateResponder* br,
                                                         struct Address* myAddr,
-                                                        struct EncodingScheme* myScheme);
+                                                        struct EncodingScheme* myScheme,
+                                                        struct SwitchPinger* sp);
 
 #endif

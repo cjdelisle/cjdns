@@ -34,7 +34,7 @@ struct SupernodeHunter_pvt
     struct AddrSet* authorizedSnodes;
 
     /** Our peers, DO NOT TOUCH, changed from in SubnodePathfinder. */
-    struct AddrSet* peers;
+    struct AddrSet* myPeerAddrs;
 
     // Number of the next peer to ping in the peers AddrSet
     int nextPeer;
@@ -80,7 +80,7 @@ int SupernodeHunter_addSnode(struct SupernodeHunter* snh, struct Address* snodeA
 {
     struct SupernodeHunter_pvt* snp = Identity_check((struct SupernodeHunter_pvt*) snh);
     int length0 = snp->authorizedSnodes->length;
-    AddrSet_add(snp->authorizedSnodes, snodeAddr);
+    AddrSet_add(snp->authorizedSnodes, snodeAddr, AddrSet_Match_ADDRESS_ONLY);
     if (snp->authorizedSnodes->length == length0) {
         return SupernodeHunter_addSnode_EXISTS;
     }
@@ -104,7 +104,7 @@ int SupernodeHunter_removeSnode(struct SupernodeHunter* snh, struct Address* toR
 {
     struct SupernodeHunter_pvt* snp = Identity_check((struct SupernodeHunter_pvt*) snh);
     int length0 = snp->authorizedSnodes->length;
-    AddrSet_remove(snp->authorizedSnodes, toRemove);
+    AddrSet_remove(snp->authorizedSnodes, toRemove, AddrSet_Match_ADDRESS_ONLY);
     if (snp->authorizedSnodes->length == length0) {
         return SupernodeHunter_removeSnode_NONEXISTANT;
     }
@@ -113,12 +113,12 @@ int SupernodeHunter_removeSnode(struct SupernodeHunter* snh, struct Address* toR
 
 static struct Address* getPeerByNpn(struct SupernodeHunter_pvt* snp, int npn)
 {
-    npn = npn % snp->peers->length;
+    npn = npn % snp->myPeerAddrs->length;
     int i = npn;
     do {
-        struct Address* peer = AddrSet_get(snp->peers, i);
+        struct Address* peer = AddrSet_get(snp->myPeerAddrs, i);
         if (peer && peer->protocolVersion > 19) { return peer; }
-        i = (i + 1) % snp->peers->length;
+        i = (i + 1) % snp->myPeerAddrs->length;
     } while (i != npn);
     return NULL;
 }
@@ -148,7 +148,9 @@ static void adoptSupernode2(Dict* msg, struct Address* src, struct MsgCore_Promi
         // is reachable, we will not try to change their snode.
     } else if (snp->pub.onSnodeChange) {
         Bits_memcpy(&snp->pub.snodeAddr, src, Address_SIZE);
-        snp->pub.snodeIsReachable = (AddrSet_indexOf(snp->authorizedSnodes, src) != -1) ? 2 : 1;
+        snp->pub.snodeIsReachable = (
+            AddrSet_indexOf(snp->authorizedSnodes, src, AddrSet_Match_ADDRESS_ONLY) != -1
+        ) ? 2 : 1;
         snp->pub.onSnodeChange(&snp->pub, q->sendTime, *snodeRecvTime);
     } else {
         Log_warn(snp->log, "onSnodeChange is not set");
@@ -202,7 +204,9 @@ static void updateSnodePath2(Dict* msg, struct Address* src, struct MsgCore_Prom
     Bits_memcpy(&snp->pub.snodeAddr, &al->elems[0], Address_SIZE);
     Bits_memcpy(&snp->snodeCandidate, &al->elems[0], Address_SIZE);
     if (snp->pub.onSnodeChange) {
-        snp->pub.snodeIsReachable = (AddrSet_indexOf(snp->authorizedSnodes, src) != -1) ? 2 : 1;
+        snp->pub.snodeIsReachable = (
+            AddrSet_indexOf(snp->authorizedSnodes, src, AddrSet_Match_ADDRESS_ONLY) != -1
+        ) ? 2 : 1;
         snp->pub.onSnodeChange(&snp->pub, q->sendTime, *snodeRecvTime);
     }
 }
@@ -287,7 +291,8 @@ static void peerResponseOK(struct SwitchPinger_Response* resp, struct SupernodeH
 
     // 2.
     // If this snode is one of our authorized snodes OR if we have none defined, accept this one.
-    if (!snp->authorizedSnodes->length || AddrSet_indexOf(snp->authorizedSnodes, &snode) > -1) {
+    if (snp->authorizedSnodes->length) {
+    } else if (AddrSet_indexOf(snp->authorizedSnodes, &snode, AddrSet_Match_ADDRESS_ONLY) > -1) {
         Address_getPrefix(&snode);
         adoptSupernode(snp, &snode);
         return;
@@ -329,11 +334,11 @@ static void probePeerCycle(void* vsn)
 
     if (snp->pub.snodeIsReachable > 1) { return; }
     if (snp->pub.snodeIsReachable && !snp->authorizedSnodes->length) { return; }
-    if (!snp->peers->length) { return; }
+    if (!snp->myPeerAddrs->length) { return; }
 
     //Log_debug(snp->log, "probePeerCycle()");
 
-    if (AddrSet_indexOf(snp->authorizedSnodes, snp->myAddress) != -1) {
+    if (AddrSet_indexOf(snp->authorizedSnodes, snp->myAddress, AddrSet_Match_ADDRESS_ONLY) != -1) {
         Log_info(snp->log, "Self is specified as supernode, pinging...");
         adoptSupernode(snp, snp->myAddress);
         return;
@@ -383,7 +388,7 @@ struct SupernodeHunter* SupernodeHunter_new(struct Allocator* allocator,
         Allocator_calloc(alloc, sizeof(struct SupernodeHunter_pvt), 1);
     Identity_set(out);
     out->authorizedSnodes = AddrSet_new(alloc);
-    out->peers = peers;
+    out->myPeerAddrs = peers;
     out->base = base;
     //out->rand = rand;
     //out->nodes = AddrSet_new(alloc);

@@ -34,7 +34,7 @@ struct ReachabilityAnnouncer
 
 // (pi == NULL) -> peer is gone.
 void ReachabilityAnnouncer_updatePeer(struct ReachabilityAnnouncer* ra,
-                                      uint8_t ipv6[16],
+                                      struct Address* nodeAddr,
                                       struct ReachabilityCollector_PeerInfo* pi);
 
 struct ReachabilityAnnouncer* ReachabilityAnnouncer_new(struct Allocator* allocator,
@@ -44,6 +44,7 @@ struct ReachabilityAnnouncer* ReachabilityAnnouncer_new(struct Allocator* alloca
                                                         struct MsgCore* msgCore,
                                                         struct SupernodeHunter* snh,
                                                         uint8_t* privateKey,
-                                                        struct EncodingScheme* myScheme);
+                                                        struct EncodingScheme* myScheme,
+                                                        struct ReachabilityCollector* rc);
 
 #endif

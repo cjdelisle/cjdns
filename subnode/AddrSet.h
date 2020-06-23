@@ -25,12 +25,17 @@ struct AddrSet
     int length;
 };
 
-// only accounts for the key, not the label.
-int AddrSet_indexOf(struct AddrSet* as, struct Address* addr);
+enum AddrSet_Match {
+    AddrSet_Match_ADDRESS_ONLY = 0,
+    AddrSet_Match_LABEL_ONLY = 1,
+    AddrSet_Match_BOTH = 2,
+};
 
-void AddrSet_add(struct AddrSet* as, struct Address* addr);
+int AddrSet_indexOf(struct AddrSet* as, struct Address* addr, enum AddrSet_Match m);
 
-void AddrSet_remove(struct AddrSet* as, struct Address* addr);
+void AddrSet_add(struct AddrSet* as, struct Address* addr, enum AddrSet_Match m);
+
+void AddrSet_remove(struct AddrSet* as, struct Address* addr, enum AddrSet_Match m);
 
 struct Address* AddrSet_get(struct AddrSet* as, int i);
 

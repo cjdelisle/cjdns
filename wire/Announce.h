@@ -130,7 +130,7 @@ struct Announce_Peer
     uint32_t unused;
 
     // Ipv6 of a node from which this node is reachable
-    uint8_t ipv6[16];
+    uint8_t peerIpv6[16];
 
     // Label for getting to this node from the given node
     // 0 means withdraw the link.
