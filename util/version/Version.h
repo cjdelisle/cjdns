@@ -442,17 +442,33 @@ Version_COMPAT(19, ([16,17,18]))
 Version_COMPAT(20, ([16,17,18,19]))
 
 /**
+ * Version 21:
+ * June 23, 2020
+ *
+ * Disintermediated
+ *
+ * Changes to allow multiple peerings to the same node over different media. For example over
+ * IPv4 and IPv6, or Ethernet and IPv4. To support this there is a new switch message called
+ * RPATH which gets the reverse path for a connection. Perviously we used getpeers and then
+ * found ourselves in the list, but since we may appear in the list multiple times, that is
+ * nolonger acceptable.
+ * Secondly, we changed the way announcements to the route server are filtered, filtering them
+ * by label (actually peerNum) rather than by ipv6. This means the sync with snode is different.
+ * Third, we added a new field "dnd" (do not disturb) to DHT messages, which indicates that our
+ * DHT server is down and we would rather not be bothered with lots of find-node or get-peer
+ * traffic. When running in SUBNODE mode, "dnd" is enabled.
+ */
+Version_COMPAT(21, ([20]))
+
+
+/**
  * The current protocol version.
  */
-#define Version_CURRENT_PROTOCOL 20
-#define Version_16_COMPAT
-#define Version_17_COMPAT
-#define Version_18_COMPAT
-#define Version_19_COMPAT
+#define Version_CURRENT_PROTOCOL 21
 #define Version_20_COMPAT
 
-#define Version_MINIMUM_COMPATIBLE 16
-#define Version_DEFAULT_ASSUMPTION 16
+#define Version_MINIMUM_COMPATIBLE 20
+#define Version_DEFAULT_ASSUMPTION 20
 
 /**
  * Check the compatibility matrix and return whether two versions are compatible.

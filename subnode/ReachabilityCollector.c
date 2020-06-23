@@ -305,6 +305,7 @@ static void peerResponse(struct SwitchPinger_Response* resp, void* userData)
         mkNextRequest(rcp);
         return;
     }
+    Log_debug(rcp->log, "Response from [%" PRIx64 "] !", resp->label);
     pi->waitForResponse = false;
     char* err = "";
     switch (resp->res) {

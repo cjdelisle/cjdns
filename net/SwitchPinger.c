@@ -89,6 +89,10 @@ static Iface_DEFUN messageFromControlHandler(struct Message* msg, struct Iface* 
     Er_assert(Message_epop(msg, &rh, RouteHeader_SIZE));
     ctx->incomingLabel = Endian_bigEndianToHost64(rh.sh.label_be);
     ctx->incomingVersion = 0;
+    Bits_memset(&ctx->incomingSnodeAddr, 0, sizeof ctx->incomingSnodeAddr);
+    Bits_memset(ctx->incomingKey, 0, sizeof ctx->incomingKey);
+    ctx->incomingSnodeKbps = 0;
+    ctx->rpath = 0;
 
     struct Control* ctrl = (struct Control*) msg->bytes;
     if (ctrl->header.type_be == Control_PONG_be) {
@@ -168,7 +172,7 @@ static Iface_DEFUN messageFromControlHandler(struct Message* msg, struct Iface* 
         uint64_t rpath_be;
         Bits_memcpy(&rpath_be, hdr->rpath_be, 8);
         ctx->rpath = Endian_bigEndianToHost64(rpath_be);
-        Er_assert(Message_eshift(msg, -Control_GetSnode_HEADER_SIZE));
+        Er_assert(Message_eshift(msg, -Control_RPath_HEADER_SIZE));
 
     } else if (ctrl->header.type_be == Control_ERROR_be) {
         Er_assert(Message_eshift(msg, -Control_Header_SIZE));

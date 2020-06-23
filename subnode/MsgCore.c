@@ -330,6 +330,12 @@ static Iface_DEFUN incoming(struct Message* msg, struct Iface* interRouterIf)
             return NULL;
         }
     } else {
+        if (!Defined(SUBNODE)) {
+            if (txid->bytes[0] == '0') {
+                txid->bytes = &txid->bytes[1];
+                txid->len--;
+            }
+        }
         return replyMsg(mcp, content, &addr, msg);
     }
 }

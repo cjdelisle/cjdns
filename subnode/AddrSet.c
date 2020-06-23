@@ -44,7 +44,7 @@ static int indexOf(struct AddrSet_pvt* ap, struct Address* addr, enum AddrSet_Ma
         if (m == AddrSet_Match_ADDRESS_ONLY) {
             if (Address_isSameIp(addr, &el->addr)) { return i; }
         } else if (m == AddrSet_Match_LABEL_ONLY) {
-            if (addr->path, &el->addr.path) { return i; }
+            if (addr->path == el->addr.path) { return i; }
         } else if (m == AddrSet_Match_BOTH) {
             if (Address_isSame(addr, &el->addr)) { return i; }
         } else {

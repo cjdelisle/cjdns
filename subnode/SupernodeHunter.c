@@ -36,6 +36,8 @@ struct SupernodeHunter_pvt
     /** Our peers, DO NOT TOUCH, changed from in SubnodePathfinder. */
     struct AddrSet* myPeerAddrs;
 
+    struct AddrSet* blacklist;
+
     // Number of the next peer to ping in the peers AddrSet
     int nextPeer;
 
@@ -131,6 +133,14 @@ static void adoptSupernode2(Dict* msg, struct Address* src, struct MsgCore_Promi
     if (!src) {
         String* addrStr = Address_toString(prom->target, prom->alloc);
         Log_debug(snp->log, "timeout sending to %s", addrStr->bytes);
+
+        // If we're in this state and it doesn't work, we're going to drop the snode and
+        // go back to the beginning because while there's a possibility of a lost packet,
+        // it's a bigger possibility that we don't have a working path and we'd better
+        // try another one.
+        AddrSet_add(snp->blacklist, prom->target, AddrSet_Match_BOTH);
+        Bits_memset(&snp->snodeCandidate, 0, Address_SIZE);
+        snp->snodePathUpdated = false;
         return;
     }
     String* addrStr = Address_toString(src, prom->alloc);
@@ -170,6 +180,9 @@ static void adoptSupernode(struct SupernodeHunter_pvt* snp, struct Address* cand
     qp->userData = q;
     qp->target = Address_clone(candidate, qp->alloc);
 
+    // NOTE: we don't immediately request a path because the RS doesn't know about us
+    // quite yet, so it will tell us it doesn't know a path, so we need to ping it
+    // and take it on faith until we get some announcements announced.
     Log_debug(snp->log, "Pinging snode [%s]", Address_toString(qp->target, qp->alloc)->bytes);
     Dict_putStringCC(msg, "sq", "pn", qp->alloc);
 
@@ -193,16 +206,23 @@ static void updateSnodePath2(Dict* msg, struct Address* src, struct MsgCore_Prom
         return;
     }
     struct Address_List* al = ReplySerializer_parse(src, msg, snp->log, false, prom->alloc);
-    if (!al || al->length == 0) { return; }
+    if (!al || al->length == 0) {
+        Log_debug(snp->log, "Requesting route to snode [%s], it doesn't know one",
+            Address_toString(prom->target, prom->alloc)->bytes);
+        return;
+    }
     Log_debug(snp->log, "Supernode path updated with [%s]",
                         Address_toString(&al->elems[0], prom->alloc)->bytes);
 
     snp->snodePathUpdated = true;
     if (!Bits_memcmp(&snp->pub.snodeAddr, &al->elems[0], Address_SIZE)) {
+        Log_debug(snp->log, "Requestes route to snode [%s], the one we have is fine",
+            Address_toString(prom->target, prom->alloc)->bytes);
         return;
     }
     Bits_memcpy(&snp->pub.snodeAddr, &al->elems[0], Address_SIZE);
     Bits_memcpy(&snp->snodeCandidate, &al->elems[0], Address_SIZE);
+    AddrSet_flush(snp->blacklist);
     if (snp->pub.onSnodeChange) {
         snp->pub.snodeIsReachable = (
             AddrSet_indexOf(snp->authorizedSnodes, src, AddrSet_Match_ADDRESS_ONLY) != -1
@@ -270,6 +290,15 @@ static void peerResponseOK(struct SwitchPinger_Response* resp, struct SupernodeH
     }
     snode.path = path;
 
+    struct Address peerAddr = { .path = resp->label };
+    int i = AddrSet_indexOf(snp->myPeerAddrs, &peerAddr, AddrSet_Match_LABEL_ONLY);
+    if (i == -1) {
+        Log_info(snp->log, "We got a snode reply from a node which is not in peer list");
+        return;
+    }
+    struct Address* peer = AddrSet_get(snp->myPeerAddrs, i);
+
+
     struct Address* firstPeer = getPeerByNpn(snp, 0);
     if (!firstPeer) {
         Log_info(snp->log, "All peers have gone away while packet was outstanding");
@@ -279,26 +308,47 @@ static void peerResponseOK(struct SwitchPinger_Response* resp, struct SupernodeH
     // 1.
     // If we have looped around and queried all of our peers returning to the first and we have
     // still not found an snode in our authorized snodes list, we should simply accept this one.
-    if (!snp->pub.snodeIsReachable && snp->nextPeer > 1 && firstPeer->path == resp->label) {
+    if (!snp->pub.snodeIsReachable &&
+        snp->nextPeer >= snp->myPeerAddrs->length &&
+        Address_isSameIp(firstPeer, peer))
+    {
         if (!snp->snodeCandidate.path) {
             Log_info(snp->log, "No snode candidate found");
             snp->nextPeer = 0;
+            AddrSet_flush(snp->blacklist);
             return;
         }
+        Log_debug(snp->log, "Peer [%s] has proposed we use supernode [%s] we will accept it",
+            Address_toString(peer, resp->ping->pingAlloc)->bytes,
+            Address_toString(&snp->snodeCandidate, resp->ping->pingAlloc)->bytes);
+
         adoptSupernode(snp, &snp->snodeCandidate);
         return;
     }
 
     // 2.
     // If this snode is one of our authorized snodes OR if we have none defined, accept this one.
-    if (snp->authorizedSnodes->length) {
-    } else if (AddrSet_indexOf(snp->authorizedSnodes, &snode, AddrSet_Match_ADDRESS_ONLY) > -1) {
+    if (AddrSet_indexOf(snp->blacklist, &snode, AddrSet_Match_BOTH) > -1) {
+        Log_debug(snp->log, "Peer [%s] [%" PRIx64 "] has proposed supernode [%s] "
+            "but it is blacklisted, continue",
+            Address_toString(peer, resp->ping->pingAlloc)->bytes,
+            resp->label,
+            Address_toString(&snode, resp->ping->pingAlloc)->bytes);
+    } else if (!snp->authorizedSnodes->length ||
+        AddrSet_indexOf(snp->authorizedSnodes, &snode, AddrSet_Match_ADDRESS_ONLY) > -1)
+    {
         Address_getPrefix(&snode);
+        Log_debug(snp->log, "Peer [%s] has proposed supernode [%s] and %s so we will use it",
+            Address_toString(peer, resp->ping->pingAlloc)->bytes,
+            Address_toString(&snode, resp->ping->pingAlloc)->bytes,
+            (snp->authorizedSnodes->length) ? "it is authorized" : "we have none authorized");
         adoptSupernode(snp, &snode);
         return;
-    }
-
-    if (!snp->snodeCandidate.path) {
+    } else if (!snp->snodeCandidate.path) {
+        Log_debug(snp->log, "Peer [%s] has proposed supernode [%s], we're not using it yet "
+            "but we will store it as a candidate.",
+            Address_toString(peer, resp->ping->pingAlloc)->bytes,
+            Address_toString(&snp->snodeCandidate, resp->ping->pingAlloc)->bytes);
         Bits_memcpy(&snp->snodeCandidate, &snode, sizeof(struct Address));
         Address_getPrefix(&snp->snodeCandidate);
     }
@@ -321,7 +371,8 @@ static void peerResponse(struct SwitchPinger_Response* resp, void* userData)
         case SwitchPinger_Result_TIMEOUT: err = "TIMEOUT"; break;
         default: err = "unknown error"; break;
     }
-    Log_debug(snp->log, "Error sending snp query to peer [%s]", err);
+    Log_debug(snp->log, "Error sending snp query to peer [%" PRIx64 "] [%s]",
+        resp->label, err);
 }
 
 static void probePeerCycle(void* vsn)
@@ -349,11 +400,18 @@ static void probePeerCycle(void* vsn)
         Log_info(snp->log, "No peer found who is version >= 20");
         return;
     }
-    snp->nextPeer++;
 
     struct SwitchPinger_Ping* p =
         SwitchPinger_newPing(peer->path, String_CONST(""), 3000, peerResponse, snp->alloc, snp->sp);
     Assert_true(p);
+
+    Log_debug(snp->log, "Querying peer [%s] [%d] total [%d], blacklist size [%d]",
+        Address_toString(peer, p->pingAlloc)->bytes,
+        snp->nextPeer,
+        snp->myPeerAddrs->length,
+        snp->blacklist->length);
+
+    snp->nextPeer++;
 
     p->type = SwitchPinger_Type_GETSNODE;
     if (snp->pub.snodeIsReachable) {
@@ -388,6 +446,7 @@ struct SupernodeHunter* SupernodeHunter_new(struct Allocator* allocator,
         Allocator_calloc(alloc, sizeof(struct SupernodeHunter_pvt), 1);
     Identity_set(out);
     out->authorizedSnodes = AddrSet_new(alloc);
+    out->blacklist = AddrSet_new(alloc);
     out->myPeerAddrs = peers;
     out->base = base;
     //out->rand = rand;
