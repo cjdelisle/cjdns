@@ -33,6 +33,7 @@
 #include "wire/PFChan.h"
 #include "wire/DataHeader.h"
 #include "util/CString.h"
+#include "wire/Metric.h"
 
 #include "subnode/ReachabilityAnnouncer.h"
 
@@ -188,7 +189,7 @@ static void getRouteReply(Dict* msg, struct Address* src, struct MsgCore_Promise
 
     //NodeCache_discoverNode(pf->nc, &al->elems[0]);
     struct Message* msgToCore = Message_new(0, 512, prom->alloc);
-    Iface_CALL(sendNode, msgToCore, &al->elems[0], 0xfff00033, PFChan_Pathfinder_NODE, pf);
+    Iface_CALL(sendNode, msgToCore, &al->elems[0], Metric_SNODE_SAYS, PFChan_Pathfinder_NODE, pf);
 }
 
 static Iface_DEFUN searchReq(struct Message* msg, struct SubnodePathfinder_pvt* pf)
@@ -207,7 +208,7 @@ static Iface_DEFUN searchReq(struct Message* msg, struct SubnodePathfinder_pvt* 
         struct Address* myPeer = AddrSet_get(pf->myPeers, i);
         if (!Bits_memcmp(myPeer->ip6.bytes, addr, 16)) {
             Log_debug(pf->log, "Skip search for [%s] because it's a peer", printedAddr);
-            return sendNode(msg, myPeer, 0xfff00000, PFChan_Pathfinder_NODE, pf);
+            return sendNode(msg, myPeer, Metric_PF_PEER, PFChan_Pathfinder_NODE, pf);
         }
     }
 
@@ -218,7 +219,7 @@ static Iface_DEFUN searchReq(struct Message* msg, struct SubnodePathfinder_pvt* 
 
     if (!Bits_memcmp(pf->pub.snh->snodeAddr.ip6.bytes, addr, 16)) {
         Log_debug(pf->log, "Skip search for [%s] because it is our snode", printedAddr);
-        return sendNode(msg, &pf->pub.snh->snodeAddr, 0xfff00000, PFChan_Pathfinder_NODE, pf);
+        return sendNode(msg, &pf->pub.snh->snodeAddr, Metric_SNODE, PFChan_Pathfinder_NODE, pf);
     }
 
     struct Query q = { .routeFrom = { 0 } };
@@ -286,11 +287,12 @@ static Iface_DEFUN peer(struct Message* msg, struct SubnodePathfinder_pvt* pf)
     //NodeCache_discoverNode(pf->nc, &addr);
 
     ReachabilityCollector_change(pf->pub.rc, &addr);
-    if ((metric & 0xffff) < 0xffff) {
-        ReachabilityCollector_lagSample(pf->pub.rc, addr.path, (metric & 0xffff));
+
+    if ((metric & ~Metric_IC_PEER_MASK) == Metric_IC_PEER) {
+        ReachabilityCollector_lagSample(pf->pub.rc, addr.path, (metric & Metric_IC_PEER_MASK));
     }
 
-    return sendNode(msg, &addr, 0xfff00000, PFChan_Pathfinder_NODE, pf);
+    return sendNode(msg, &addr, metric, PFChan_Pathfinder_NODE, pf);
 }
 
 static Iface_DEFUN peerGone(struct Message* msg, struct SubnodePathfinder_pvt* pf)
@@ -315,7 +317,7 @@ static Iface_DEFUN peerGone(struct Message* msg, struct SubnodePathfinder_pvt* p
     ReachabilityCollector_change(pf->pub.rc, &zaddr);
 
     // We notify about the node but with max metric so it will be removed soon.
-    return sendNode(msg, &addr, 0xffffffff, PFChan_Pathfinder_NODE, pf);
+    return sendNode(msg, &addr, Metric_DEAD_LINK, PFChan_Pathfinder_NODE, pf);
 }
 
 static Iface_DEFUN session(struct Message* msg, struct SubnodePathfinder_pvt* pf)
@@ -395,7 +397,7 @@ static void unsetupSessionPingReply(Dict* msg, struct Address* src, struct MsgCo
     //Log_debug(pf->log, "\n\n\n\nPING reply from [%s]!\n\n\n\n",
     //    Address_toString(src, prom->alloc)->bytes);
     struct Message* msgToCore = Message_new(0, 512, prom->alloc);
-    Iface_CALL(sendNode, msgToCore, src, 0xfffffff0, PFChan_Pathfinder_NODE, pf);
+    Iface_CALL(sendNode, msgToCore, src, Metric_PING_REPLY, PFChan_Pathfinder_NODE, pf);
 }
 
 static Iface_DEFUN unsetupSession(struct Message* msg, struct SubnodePathfinder_pvt* pf)

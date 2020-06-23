@@ -23,6 +23,7 @@
 #include "wire/RouteHeader.h"
 #include "util/events/Timeout.h"
 #include "util/Checksum.h"
+#include "wire/Metric.h"
 
 /** Handle numbers 0-3 are reserved for CryptoAuth nonces. */
 #define MIN_FIRST_HANDLE 4
@@ -213,25 +214,23 @@ static struct SessionManager_Session_pvt* getSession(struct SessionManager_pvt* 
     if (sess) {
         sess->pub.version = (sess->pub.version) ? sess->pub.version : version;
         sess->pub.maintainSession |= maintainSession;
-        if (metric == 0xffffffff) {
+        if (metric == Metric_DEAD_LINK) {
             // this is a broken path
             if (sess->pub.sendSwitchLabel == label) {
                 debugSession0(sm->log, sess, "broken path");
                 if (sess->pub.sendSwitchLabel == sess->pub.recvSwitchLabel) {
                     sess->pub.sendSwitchLabel = 0;
-                    sess->pub.metric = 0xffffffff;
+                    sess->pub.metric = Metric_DEAD_LINK;
                 } else {
                     sess->pub.sendSwitchLabel = sess->pub.recvSwitchLabel;
-                    sess->pub.metric = 0xfffffff0;
+                    sess->pub.metric = Metric_SM_INCOMING;
                 }
             }
-        } else {
-            if (metric <= sess->pub.metric) {
-                sess->pub.sendSwitchLabel = label;
-                sess->pub.version = (version) ? version : sess->pub.version;
-                sess->pub.metric = metric;
-                debugSession0(sm->log, sess, "discovered path");
-            }
+        } else if (metric <= sess->pub.metric && label) {
+            sess->pub.sendSwitchLabel = label;
+            sess->pub.version = (version) ? version : sess->pub.version;
+            sess->pub.metric = metric;
+            debugSession0(sm->log, sess, "discovered path");
         }
         return sess;
     }
@@ -379,7 +378,7 @@ static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface
         }
 
         uint64_t label = Endian_bigEndianToHost64(switchHeader->label_be);
-        session = getSession(sm, ip6, caHeader->publicKey, 0, label, 0xfffff000, 0);
+        session = getSession(sm, ip6, caHeader->publicKey, 0, label, Metric_SM_INCOMING, 0);
         CryptoAuth_resetIfTimeout(session->pub.caSession);
         debugHandlesAndLabel(sm->log, session, label, "new session nonce[%d]", nonceOrHandle);
     }
@@ -476,10 +475,11 @@ static void unsetupSession(struct SessionManager_pvt* sm, struct SessionManager_
     }
     struct Allocator* eventAlloc = Allocator_child(sm->alloc);
     struct Message* eventMsg = Message_new(0, 512, eventAlloc);
-    struct PFChan_Node n;
+    struct PFChan_Node n = { .metric_be = Endian_hostToBigEndian32(Metric_DEAD_LINK) };
     n.path_be = Endian_hostToBigEndian64(sess->pub.sendSwitchLabel ?
                                          sess->pub.sendSwitchLabel : sess->pub.recvSwitchLabel);
     n.version_be = Endian_hostToBigEndian32(sess->pub.version);
+    n.metric_be = Endian_bigEndianToHost32(sess->pub.metric);
     Bits_memcpy(n.publicKey, sess->pub.caSession->herPublicKey, 32);
     Bits_memcpy(n.ip6, sess->pub.caSession->herIp6, 16);
     Er_assert(Message_epush(eventMsg, &n, PFChan_Node_SIZE));
@@ -679,7 +679,7 @@ static Iface_DEFUN incomingFromInsideIf(struct Message* msg, struct Iface* iface
                               header->publicKey,
                               Endian_bigEndianToHost32(header->version_be),
                               Endian_bigEndianToHost64(header->sh.label_be),
-                              0xfffffff0,
+                              Metric_SM_SEND,
                               !(header->flags & RouteHeader_flags_PATHFINDER));
         } else {
             needsLookup(sm, msg, false);
@@ -748,7 +748,7 @@ static Iface_DEFUN incomingFromEventIf(struct Message* msg, struct Iface* iface)
         // Node we don't care about.
         if (index == -1) { return NULL; }
         // Broken path to a node we don't have a session for...
-        if (node.metric_be == 0xffffffff) { return NULL; }
+        if (node.metric_be == Metric_DEAD_LINK) { return NULL; }
     }
     sess = getSession(sm,
                       node.ip6,

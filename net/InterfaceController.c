@@ -34,6 +34,7 @@
 #include "wire/Error.h"
 #include "wire/Message.h"
 #include "wire/Headers.h"
+#include "wire/Metric.h"
 
 /** After this number of milliseconds, a node will be regarded as unresponsive. */
 #define UNRESPONSIVE_AFTER_MILLISECONDS (20*1024)
@@ -238,9 +239,10 @@ static void sendPeer(uint32_t pathfinderId,
     node->version_be = Endian_hostToBigEndian32(peer->addr.protocolVersion);
     if (ev != PFChan_Core_PEER_GONE) {
         Assert_true(peer->addr.protocolVersion);
-        node->metric_be = Endian_hostToBigEndian32(0xfff00000 | latency);
+        node->metric_be =
+            Endian_hostToBigEndian32(Metric_IC_PEER | (latency & Metric_IC_PEER_MASK));
     } else {
-        node->metric_be = 0xffffffff;
+        node->metric_be = Endian_hostToBigEndian32(Metric_DEAD_LINK);
     }
     Er_assert(Message_epush32be(msg, pathfinderId));
     Er_assert(Message_epush32be(msg, ev));

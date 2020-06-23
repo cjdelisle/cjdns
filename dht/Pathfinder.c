@@ -36,6 +36,7 @@
 #include "wire/Error.h"
 #include "wire/PFChan.h"
 #include "util/CString.h"
+#include "wire/Metric.h"
 
 ///////////////////// [ Address ][ content... ]
 
@@ -127,7 +128,7 @@ static void nodeForAddress(struct PFChan_Node* nodeOut, struct Address* addr, ui
 {
     Bits_memset(nodeOut, 0, PFChan_Node_SIZE);
     nodeOut->version_be = Endian_hostToBigEndian32(addr->protocolVersion);
-    nodeOut->metric_be = Endian_hostToBigEndian32(metric | 0xffff0000);
+    nodeOut->metric_be = Endian_hostToBigEndian32(metric);
     nodeOut->path_be = Endian_hostToBigEndian64(addr->path);
     Bits_memcpy(nodeOut->publicKey, addr->key, 32);
     Bits_memcpy(nodeOut->ip6, addr->ip6.bytes, 16);
@@ -158,7 +159,9 @@ static void onBestPathChange(void* vPathfinder, struct Node_Two* node)
     } else {
         pf->bestPathChanges++;
         struct Message* msg = Message_new(0, 256, alloc);
-        Iface_CALL(sendNode, msg, &node->address, Node_getCost(node), pf);
+        Iface_CALL(sendNode, msg, &node->address,
+            (Node_getCost(node) & Metric_DHT_MASK) | Metric_DHT,
+            pf);
     }
     Allocator_free(alloc);
 }
@@ -317,7 +320,7 @@ static Iface_DEFUN peer(struct Message* msg, struct Pathfinder_pvt* pf)
     //RumorMill_addNode(pf->rumorMill, &addr);
     Router_sendGetPeers(pf->router, &addr, 0, 0, pf->alloc);
 
-    return sendNode(msg, &addr, 0xffffff00, pf);
+    return sendNode(msg, &addr, Metric_DHT_PEER, pf);
 }
 
 static Iface_DEFUN peerGone(struct Message* msg, struct Pathfinder_pvt* pf)
@@ -329,7 +332,7 @@ static Iface_DEFUN peerGone(struct Message* msg, struct Pathfinder_pvt* pf)
     NodeStore_disconnectedPeer(pf->nodeStore, addr.path);
 
     // We notify about the node but with max metric so it will be removed soon.
-    return sendNode(msg, &addr, 0xffffffff, pf);
+    return sendNode(msg, &addr, Metric_DEAD_LINK, pf);
 }
 
 static Iface_DEFUN session(struct Message* msg, struct Pathfinder_pvt* pf)
@@ -417,7 +420,7 @@ static Iface_DEFUN incomingMsg(struct Message* msg, struct Pathfinder_pvt* pf)
     DHTModuleRegistry_handleIncoming(&dht, pf->registry);
 
     struct Message* nodeMsg = Message_new(0, 256, msg->alloc);
-    Iface_CALL(sendNode, nodeMsg, &addr, 0xfffffff0u, pf);
+    Iface_CALL(sendNode, nodeMsg, &addr, Metric_DHT_INCOMING, pf);
 
     if (dht.pleaseRespond) {
         // what a beautiful hack, see incomingFromDHT
