@@ -20,6 +20,7 @@
 #include "crypto/AddressCalc.h"
 #include "crypto/Sign.h"
 #include "util/AddrTools.h"
+#include "util/Hex.h"
 
 #include "crypto_hash_sha512.h"
 
@@ -399,6 +400,10 @@ static void addServerStateMsg(struct ReachabilityAnnouncer_pvt* rap, struct Mess
     for (int i = rap->snodeState->length - 1; i >= 0; i--) {
         bool redundant = true;
         struct Message* m = ArrayList_OfMessages_get(rap->snodeState, i);
+        if (m == msg) {
+            // the currently added announcement is always safe from displacement
+            continue;
+        }
         struct Announce_Peer* p;
         for (p = Announce_Peer_next(m, NULL); p; p = Announce_Peer_next(m, p)) {
             bool inList = false;
@@ -574,7 +579,9 @@ static void onReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom
     }
     int64_t sentTime = rap->msgOnWireSentTime;
 
+    Log_debug(rap->log, "snode messages before [%d]", rap->snodeState->length);
     addServerStateMsg(rap, rap->msgOnWire);
+    Log_debug(rap->log, "snode messages after [%d]", rap->snodeState->length);
     rap->msgOnWire = NULL;
     rap->resetState = false;
     int64_t now = rap->timeOfLastReply = ourTime(rap);
@@ -609,7 +616,12 @@ static void onReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom
     } else if (snodeStateHash->len != 64) {
         Log_warn(rap->log, "bad stateHash in reply from snode");
     } else if (Bits_memcmp(snodeStateHash->bytes, ourStateHash, 64)) {
-        Log_warn(rap->log, "state mismatch with snode, [%u] announces", rap->snodeState->length);
+        uint8_t snodeHash[129];
+        Assert_true(128 == Hex_encode(snodeHash, 129, snodeStateHash->bytes, 64));
+        uint8_t ourHash[129];
+        Assert_true(128 == Hex_encode(ourHash, 129, ourStateHash, 64));
+        Log_warn(rap->log, "state mismatch with snode, [%u] announces\n[%s]\n[%s]",
+            rap->snodeState->length, snodeHash, ourHash);
     } else {
         return;
     }
