@@ -22,12 +22,13 @@
 #define DEBUG2(x, y)
 /* #define DEBUG2(x, y) fprintf(stderr, x, y); fflush(stderr) */
 
-struct DHTModuleRegistry* DHTModuleRegistry_new(struct Allocator* allocator)
+struct DHTModuleRegistry* DHTModuleRegistry_new(struct Allocator* allocator, struct Log* log)
 {
     struct DHTModuleRegistry* reg =
         Allocator_calloc(allocator, sizeof(struct DHTModuleRegistry), 1);
     reg->allocator = allocator;
     reg->members = Allocator_calloc(allocator, sizeof(char*), 1);
+    reg->log = log;
     return reg;
 }
 

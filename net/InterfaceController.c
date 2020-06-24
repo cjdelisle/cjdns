@@ -315,7 +315,7 @@ static void sendPing(struct Peer* ep)
         if (!ping) {
             Log_debug(ic->logger, "Failed to ping [%s.k], out of ping slots", key);
         } else {
-            Log_debug(ic->logger, "SwitchPing [%s.k]", key);
+            Log_debug(ic->logger, "Sending switch ping [%s.k]", key);
         }
     }
 

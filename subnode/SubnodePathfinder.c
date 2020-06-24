@@ -379,8 +379,8 @@ static void unsetupSessionPingReply(Dict* msg, struct Address* src, struct MsgCo
         //Log_debug(pf->log, "Ping timeout");
         return;
     }
-    //Log_debug(pf->log, "\n\n\n\nPING reply from [%s]!\n\n\n\n",
-    //    Address_toString(src, prom->alloc)->bytes);
+    Log_debug(pf->log, "unsetupSession ping reply from [%s]",
+        Address_toString(src, prom->alloc)->bytes);
     struct Message* msgToCore = Message_new(0, 512, prom->alloc);
     Iface_CALL(sendNode, msgToCore, src, Metric_PING_REPLY, PFChan_Pathfinder_NODE, pf);
 }
@@ -418,8 +418,8 @@ static Iface_DEFUN unsetupSession(struct Message* msg, struct SubnodePathfinder_
     Assert_true(addr->path);
     qp->target = Address_clone(addr, qp->alloc);
 
-    //Log_debug(pf->log, "unsetupSession sending ping to [%s]",
-    //    Address_toString(qp->target, qp->alloc)->bytes);
+    Log_debug(pf->log, "unsetupSession sending ping to [%s]",
+        Address_toString(qp->target, qp->alloc)->bytes);
     Dict_putStringCC(dict, "q", "pn", qp->alloc);
 
     BoilerplateResponder_addBoilerplate(pf->br, dict, addr, qp->alloc);

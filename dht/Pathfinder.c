@@ -180,7 +180,7 @@ static Iface_DEFUN connected(struct Pathfinder_pvt* pf, struct Message* msg)
 
     // begin
 
-    pf->registry = DHTModuleRegistry_new(pf->alloc);
+    pf->registry = DHTModuleRegistry_new(pf->alloc, pf->log);
     ReplyModule_register(pf->registry, pf->alloc);
 
     pf->rumorMill = RumorMill_new(pf->alloc, &pf->myAddr, RUMORMILL_CAPACITY, pf->log, "extern");

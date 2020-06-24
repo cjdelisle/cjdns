@@ -150,7 +150,6 @@ void ReachabilityCollector_change(struct ReachabilityCollector* rc, struct Addre
 
 struct Query {
     struct ReachabilityCollector_pvt* rcp;
-    String* addr;
     uint8_t targetPath[20];
     Identity
 };
@@ -258,7 +257,6 @@ static void queryOldPeer(struct ReachabilityCollector_pvt* rcp, struct PeerInfo_
     struct Query* q = Allocator_calloc(query->alloc, sizeof(struct Query), 1);
     Identity_set(q);
     q->rcp = rcp;
-    q->addr = Address_toString(&pi->pub.addr, query->alloc);
     query->userData = q;
     query->cb = onReplyOld;
     Assert_true(AddressCalc_validAddress(pi->pub.addr.ip6.bytes));
@@ -272,7 +270,7 @@ static void queryOldPeer(struct ReachabilityCollector_pvt* rcp, struct PeerInfo_
 
     AddrTools_printPath(q->targetPath, pi->pathToCheck);
     Log_debug(rcp->log, "Getting reverse path for peer [%s] tar [%s]",
-        q->addr->bytes, q->targetPath);
+        Address_toString(&pi->pub.addr, query->alloc)->bytes, q->targetPath);
 
     Dict_putStringC(d, "tar",
         String_newBinary(nearbyLabelBytes, 8, query->alloc), query->alloc);

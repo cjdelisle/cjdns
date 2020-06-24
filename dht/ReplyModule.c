@@ -18,8 +18,10 @@
 #include "dht/DHTModule.h"
 #include "dht/DHTModuleRegistry.h"
 #include "dht/ReplyModule.h"
+#include "dht/Address.h"
 #include "benc/Object.h"
 #include "wire/Message.h"
+#include "util/log/Log.h"
 
 /**
  * The reply module replies to all incoming queries.
@@ -55,11 +57,15 @@ void ReplyModule_register(struct DHTModuleRegistry* registry, struct Allocator* 
 
 static int handleIncoming(struct DHTMessage* message, void* vcontext)
 {
+    String* q = Dict_getString(message->asDict, CJDHTConstants_QUERY);
     if (Dict_getString(message->asDict, CJDHTConstants_QUERY) == NULL) {
         return 0;
     }
 
     struct DHTModuleRegistry* registry = (struct DHTModuleRegistry*) vcontext;
+
+    Log_debug(registry->log, "Replying to query of type [%s] from [%s]", q->bytes,
+        Address_toString(message->address, message->allocator)->bytes);
 
     Message_reset(message->binMessage);
     Assert_true(!((uintptr_t)message->binMessage->bytes % 4) || !"alignment fault0");

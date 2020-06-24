@@ -131,8 +131,8 @@ static void adoptSupernode2(Dict* msg, struct Address* src, struct MsgCore_Promi
     struct SupernodeHunter_pvt* snp = Identity_check(q->snp);
 
     if (!src) {
-        String* addrStr = Address_toString(prom->target, prom->alloc);
-        Log_debug(snp->log, "timeout sending to %s", addrStr->bytes);
+        Log_debug(snp->log, "timeout sending to %s",
+            Address_toString(prom->target, prom->alloc)->bytes);
 
         // If we're in this state and it doesn't work, we're going to drop the snode and
         // go back to the beginning because while there's a possibility of a lost packet,
@@ -143,8 +143,7 @@ static void adoptSupernode2(Dict* msg, struct Address* src, struct MsgCore_Promi
         snp->snodePathUpdated = false;
         return;
     }
-    String* addrStr = Address_toString(src, prom->alloc);
-    Log_debug(snp->log, "Reply from %s", addrStr->bytes);
+    Log_debug(snp->log, "Reply from %s", Address_toString(src, prom->alloc)->bytes);
 
     int64_t* snodeRecvTime = Dict_getIntC(msg, "recvTime");
     if (!snodeRecvTime) {

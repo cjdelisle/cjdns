@@ -65,7 +65,7 @@ static int testInputHandler()
 
     struct Allocator* allocator = MallocAllocator_new(2048);
 
-    struct DHTModuleRegistry* reg = DHTModuleRegistry_new(allocator);
+    struct DHTModuleRegistry* reg = DHTModuleRegistry_new(allocator, NULL);
     DHTModuleRegistry_register(&module, reg);
     DHTModuleRegistry_register(&module2, reg);
 

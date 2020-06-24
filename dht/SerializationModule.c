@@ -74,8 +74,7 @@ static int handleOutgoing(struct DHTMessage* message,
     Assert_true(!message->binMessage->length);
     Assert_true(!((uintptr_t)message->binMessage->bytes % 4) || !"alignment fault0");
 
-    String* q = Dict_getStringC(message->asDict, "q");
-    if (q) {
+    if (Dict_getStringC(message->asDict, "q")) {
         String* txid = Dict_getStringC(message->asDict, "txid");
         Assert_true(txid);
         String* newTxid = String_newBinary(NULL, txid->len + 2, message->allocator);
@@ -120,7 +119,8 @@ static int handleIncoming(struct DHTMessage* message,
     }
     if (!q) {
         if (txid->len < 2 || txid->bytes[0] != '0' || txid->bytes[1] != '0') {
-            Log_debug(context->logger, "reply txid which is not from old pathfinder");
+            // spammy
+            //Log_debug(context->logger, "reply txid which is not from old pathfinder");
             return -2;
         }
         String* newTxid = String_newBinary(&txid->bytes[2], txid->len - 2, message->allocator);

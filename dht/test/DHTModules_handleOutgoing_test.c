@@ -55,7 +55,7 @@ static int testOutputHandler()
 
     struct Allocator* allocator = MallocAllocator_new(2048);
 
-    struct DHTModuleRegistry* reg = DHTModuleRegistry_new(allocator);
+    struct DHTModuleRegistry* reg = DHTModuleRegistry_new(allocator, NULL);
     DHTModuleRegistry_register(&module, reg);
 
     DHTModuleRegistry_handleOutgoing(&theMessage, reg);

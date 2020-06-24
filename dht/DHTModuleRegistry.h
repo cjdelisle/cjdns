@@ -25,6 +25,7 @@
 #include "io/Reader.h"
 #include "io/Writer.h"
 #include "benc/Object.h"
+#include "util/log/Log.h"
 #include "util/Linker.h"
 Linker_require("dht/DHTModuleRegistry.c");
 
@@ -46,6 +47,8 @@ struct DHTModuleRegistry {
 
     /** Means of getting memory for the registry. */
     struct Allocator* allocator;
+
+    struct Log* log;
 };
 
 /**
@@ -54,7 +57,7 @@ struct DHTModuleRegistry {
  * @param allocator the means of getting memory to store the registry.
  * @return a new (empty) registry.
  */
-struct DHTModuleRegistry* DHTModuleRegistry_new(struct Allocator* allocator);
+struct DHTModuleRegistry* DHTModuleRegistry_new(struct Allocator* allocator, struct Log* log);
 
 /**
  * Register an event handler.
