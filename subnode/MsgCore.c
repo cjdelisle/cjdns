@@ -134,21 +134,20 @@ static void sendMsg(struct MsgCore_pvt* mcp,
     // send the protocol version
     Dict_putInt(msgDict, CJDHTConstants_PROTOCOL, Version_CURRENT_PROTOCOL, allocator);
 
-    if (!Defined(SUBNODE)) {
-        String* q = Dict_getStringC(msgDict, "q");
-        String* sq = Dict_getStringC(msgDict, "sq");
-        if (q || sq) {
-            Log_debug(mcp->log, "Send query [%s] to [%s]",
-                ((q) ? q->bytes : sq->bytes),
-                Address_toString(addr, alloc)->bytes);
-            String* txid = Dict_getStringC(msgDict, "txid");
-            Assert_true(txid);
-            String* newTxid = String_newBinary(NULL, txid->len + 1, alloc);
-            Bits_memcpy(&newTxid->bytes[1], txid->bytes, txid->len);
-            // Always direct queries to the old pathfinder
-            newTxid->bytes[0] = '0';
-            Dict_putStringC(msgDict, "txid", newTxid, alloc);
-        }
+    String* q = Dict_getStringC(msgDict, "q");
+    String* sq = Dict_getStringC(msgDict, "sq");
+    if (q || sq) {
+        Log_debug(mcp->log, "Send query [%s] to [%s]",
+            ((q) ? q->bytes : sq->bytes),
+            Address_toString(addr, alloc)->bytes);
+        String* txid = Dict_getStringC(msgDict, "txid");
+        Assert_true(txid);
+        String* newTxid = String_newBinary(NULL, txid->len + 2, alloc);
+        Bits_memcpy(&newTxid->bytes[2], txid->bytes, txid->len);
+        // Always direct queries to the old pathfinder
+        newTxid->bytes[0] = '0';
+        newTxid->bytes[1] = '1';
+        Dict_putStringC(msgDict, "txid", newTxid, alloc);
     }
 
     struct Message* msg = Message_new(0, 2048, alloc);
@@ -329,15 +328,12 @@ static Iface_DEFUN incoming(struct Message* msg, struct Iface* interRouterIf)
             // Let the old pathfinder handle every query if it is present
             return NULL;
         }
-    } else {
-        if (!Defined(SUBNODE)) {
-            if (txid->bytes[0] == '0') {
-                txid->bytes = &txid->bytes[1];
-                txid->len--;
-            }
-        }
+    } else if (txid->len >= 2 && txid->bytes[0] == '0' && txid->bytes[0] == '1') {
+        txid->bytes = &txid->bytes[2];
+        txid->len -= 2;
         return replyMsg(mcp, content, &addr, msg);
     }
+    return NULL;
 }
 
 struct MsgCore* MsgCore_new(struct EventBase* base,

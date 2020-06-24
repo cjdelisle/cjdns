@@ -78,9 +78,10 @@ static int handleOutgoing(struct DHTMessage* message,
     if (q) {
         String* txid = Dict_getStringC(message->asDict, "txid");
         Assert_true(txid);
-        String* newTxid = String_newBinary(NULL, txid->len + 1, message->allocator);
+        String* newTxid = String_newBinary(NULL, txid->len + 2, message->allocator);
         newTxid->bytes[0] = '0';
-        Bits_memcpy(&newTxid->bytes[1], txid->bytes, txid->len);
+        newTxid->bytes[1] = '0';
+        Bits_memcpy(&newTxid->bytes[2], txid->bytes, txid->len);
         Dict_putStringC(message->asDict, "txid", newTxid, message->allocator);
     }
 
@@ -118,11 +119,11 @@ static int handleIncoming(struct DHTMessage* message,
         return -2;
     }
     if (!q) {
-        if (txid->bytes[0] != '0') {
+        if (txid->len < 2 || txid->bytes[0] != '0' || txid->bytes[1] != '0') {
             Log_debug(context->logger, "reply txid which is not from old pathfinder");
             return -2;
         }
-        String* newTxid = String_newBinary(&txid->bytes[1], txid->len - 1, message->allocator);
+        String* newTxid = String_newBinary(&txid->bytes[2], txid->len - 2, message->allocator);
         Dict_putStringC(message->asDict, "txid", newTxid, message->allocator);
     }
 

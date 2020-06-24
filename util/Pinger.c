@@ -17,6 +17,7 @@
 #include "crypto/random/Random.h"
 #include "util/events/Time.h"
 #include "util/events/Timeout.h"
+#include "util/Hex.h"
 #include "util/Identity.h"
 
 struct Ping
@@ -139,8 +140,6 @@ struct Pinger_Ping* Pinger_newPing(String* data,
 
     return &ping->pub;
 }
-
-#include "util/Hex.h"
 
 void Pinger_pongReceived(String* data, struct Pinger* pinger)
 {
