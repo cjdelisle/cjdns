@@ -88,7 +88,7 @@ static void searchResponse(struct RouterModule_Promise* promise,
         return;
     }
 
-    String* fromStr = Address_toString(from, alloc);
+    String* fromStr = Address_toStringKey(from, alloc);
     Dict_putStringC(resp, "from", fromStr, alloc);
 
     Dict_putIntC(resp, "ms", lag, alloc);
@@ -96,7 +96,7 @@ static void searchResponse(struct RouterModule_Promise* promise,
     struct Address_List* addrs = ReplySerializer_parse(from, responseDict, NULL, true, alloc);
     List* nodes = List_new(alloc);
     for (int i = 0; addrs && i < addrs->length; i++) {
-        String* addr = Address_toString(&addrs->elems[i], alloc);
+        String* addr = Address_toStringKey(&addrs->elems[i], alloc);
         List_addString(nodes, addr, alloc);
     }
     Dict_putListC(resp, "nodes", nodes, alloc);

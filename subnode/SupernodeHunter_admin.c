@@ -120,7 +120,7 @@ static void status(Dict* args, void* vcontext, String* txid, struct Allocator* r
     char* activeSnode = "NONE";
     Dict* out = Dict_new(requestAlloc);
     if (ctx->snh->snodeIsReachable) {
-        String* as = Address_toString(&ctx->snh->snodeAddr, requestAlloc);
+        String* as = Address_toStringKey(&ctx->snh->snodeAddr, requestAlloc);
         activeSnode = as->bytes;
     }
     Dict_putIntC(out, "usingAuthorizedSnode", ctx->snh->snodeIsReachable > 1, requestAlloc);

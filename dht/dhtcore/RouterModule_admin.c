@@ -104,7 +104,7 @@ static void pingResponse(struct RouterModule_Promise* promise,
         uint8_t fromStr[60] = "";
         Address_print(fromStr, from);
         Dict_putStringC(resp, "from", String_new(fromStr, tempAlloc), tempAlloc);
-        String* addr = Address_toString(from, tempAlloc);
+        String* addr = Address_toStringKey(from, tempAlloc);
         Dict_putStringC(resp, "addr", addr, tempAlloc);
     }
 
@@ -132,7 +132,7 @@ static void genericResponse(struct RouterModule_Promise* promise,
 
         List* nodes = List_new(promise->alloc);
         for (int i = 0; addrs && i < addrs->length; i++) {
-            String* addr = Address_toString(&addrs->elems[i], promise->alloc);
+            String* addr = Address_toStringKey(&addrs->elems[i], promise->alloc);
             List_addString(nodes, addr, promise->alloc);
         }
         Dict_putList(out, name, nodes, promise->alloc);

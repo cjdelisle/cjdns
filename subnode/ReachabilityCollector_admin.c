@@ -57,7 +57,7 @@ static void getPeerInfo(Dict* args, void* vcontext, String* txid, struct Allocat
         struct ReachabilityCollector_PeerInfo* pi = ReachabilityCollector_getPeerInfo(ctx->rc, i);
         if (!pi) { break; }
         Dict* pid = Dict_new(requestAlloc);
-        Dict_putStringC(pid, "addr", Address_toString(&pi->addr, requestAlloc), requestAlloc);
+        Dict_putStringC(pid, "addr", Address_toStringKey(&pi->addr, requestAlloc), requestAlloc);
         uint8_t rpath[20];
         AddrTools_printPath(rpath, pi->pathThemToUs);
         Dict_putStringC(

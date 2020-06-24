@@ -63,7 +63,7 @@ static void dumpRumorMill(Dict* args, void* vcontext, String* txid, struct Alloc
 
     List* table = List_new(requestAlloc);
     for (int i = 0; i < ENTRIES_PER_PAGE && ctr < rm->count; i++) {
-        String* addr = Address_toString(&rm->addresses[ctr++], requestAlloc);
+        String* addr = Address_toStringKey(&rm->addresses[ctr++], requestAlloc);
         List_addString(table, addr, requestAlloc);
     }
     Dict_putListC(out, "addresses", table, requestAlloc);

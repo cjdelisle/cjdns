@@ -128,6 +128,8 @@ void Address_print(uint8_t output[60], struct Address* addr);
 
 String* Address_toString(struct Address* addr, struct Allocator* alloc);
 
+String* Address_toStringKey(struct Address* addr, struct Allocator* alloc);
+
 struct Address* Address_fromString(String* str, struct Allocator* alloc);
 
 struct Address* Address_clone(struct Address* orig, struct Allocator* alloc);

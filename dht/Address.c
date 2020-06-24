@@ -167,7 +167,7 @@ int Address_closest(struct Address* target,
     #undef Address_COMPARE
 }
 
-String* Address_toString(struct Address* addr, struct Allocator* alloc)
+String* Address_toStringKey(struct Address* addr, struct Allocator* alloc)
 {
     struct Allocator* temp = Allocator_child(alloc);
     String* key = Key_stringify(addr->key, temp);
@@ -175,6 +175,17 @@ String* Address_toString(struct Address* addr, struct Allocator* alloc)
     AddrTools_printPath(path->bytes, addr->path);
     String* out = String_printf(alloc, "v%u.%s.%s", addr->protocolVersion, path->bytes, key->bytes);
     Allocator_free(temp);
+    return out;
+}
+
+String* Address_toString(struct Address* addr, struct Allocator* alloc)
+{
+    Address_getPrefix(addr);
+    uint8_t ip[40];
+    AddrTools_printIp(ip, addr->ip6.bytes);
+    uint8_t path[20];
+    AddrTools_printPath(path, addr->path);
+    String* out = String_printf(alloc, "v%u.%s.%s", addr->protocolVersion, path, ip);
     return out;
 }
 

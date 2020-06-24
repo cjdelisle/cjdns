@@ -311,7 +311,7 @@ static void initSocket(Dict* args, void* vcontext, String* txid, struct Allocato
 static void nodeInfo(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* const ctx = Identity_check((struct Context*) vcontext);
-    String* myAddr = Address_toString(ctx->nc->myAddress, requestAlloc);
+    String* myAddr = Address_toStringKey(ctx->nc->myAddress, requestAlloc);
     String* schemeStr = EncodingScheme_serialize(ctx->encodingScheme, requestAlloc);
     List* schemeList = EncodingScheme_asList(ctx->encodingScheme, requestAlloc);
     Dict* out = Dict_new(requestAlloc);

@@ -90,7 +90,7 @@ static void outputSession(struct Context* context,
     addr.path = session->sendSwitchLabel;
     addr.protocolVersion = session->version;
 
-    Dict_putStringC(r, "addr", Address_toString(&addr, alloc), alloc);
+    Dict_putStringC(r, "addr", Address_toStringKey(&addr, alloc), alloc);
 
     Dict_putIntC(r, "handle", session->receiveHandle, alloc);
     Dict_putIntC(r, "sendHandle", session->sendHandle, alloc);

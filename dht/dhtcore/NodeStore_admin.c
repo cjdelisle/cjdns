@@ -53,7 +53,7 @@ static void dumpTable(Dict* args, void* vcontext, String* txid, struct Allocator
         Address_printIp(ip->bytes, &nn->address);
         Dict_putStringC(nodeDict, "ip", ip, requestAlloc);
 
-        String* addr = Address_toString(&nn->address, requestAlloc);
+        String* addr = Address_toStringKey(&nn->address, requestAlloc);
         Dict_putStringC(nodeDict, "addr", addr, requestAlloc);
 
         String* path = String_newBinary(NULL, 19, requestAlloc);
@@ -180,10 +180,10 @@ static void getLink(Dict* args, void* vcontext, String* txid, struct Allocator* 
     AddrTools_printPath(cannonicalLabel->bytes, link->cannonicalLabel);
     Dict_putString(result, String_new("cannonicalLabel", alloc), cannonicalLabel, alloc);
 
-    String* parent = Address_toString(&link->parent->address, alloc);
+    String* parent = Address_toStringKey(&link->parent->address, alloc);
     Dict_putString(result, String_new("parent", alloc), parent, alloc);
 
-    String* child = Address_toString(&link->child->address, alloc);
+    String* child = Address_toStringKey(&link->child->address, alloc);
     Dict_putString(result, String_new("child", alloc), child, alloc);
 
     Admin_sendMessage(ret, txid, ctx->admin);

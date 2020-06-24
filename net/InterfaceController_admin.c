@@ -87,7 +87,7 @@ static void adminPeerStats(Dict* args, void* vcontext, String* txid, struct Allo
         Dict_putIntC(d, "recvKbps", stats[i].recvKbps, alloc);
         Dict_putIntC(d, "sendKbps", stats[i].sendKbps, alloc);
 
-        Dict_putStringC(d, "addr", Address_toString(&stats[i].addr, alloc), alloc);
+        Dict_putStringC(d, "addr", Address_toStringKey(&stats[i].addr, alloc), alloc);
 
         String* lladdrString;
 #ifdef HAS_ETH_INTERFACE
