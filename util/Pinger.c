@@ -140,6 +140,8 @@ struct Pinger_Ping* Pinger_newPing(String* data,
     return &ping->pub;
 }
 
+#include "util/Hex.h"
+
 void Pinger_pongReceived(String* data, struct Pinger* pinger)
 {
     if (data->len < 12) {
@@ -151,7 +153,11 @@ void Pinger_pongReceived(String* data, struct Pinger* pinger)
     int index = Map_OutstandingPings_indexForHandle(handle - pinger->baseHandle,
                                                     &pinger->outstandingPings);
     if (index < 0) {
-        Log_debug(pinger->logger, "Invalid ping response handle [%u].", handle);
+        struct Allocator* alloc = Allocator_child(pinger->allocator);
+        char* encoded = Hex_print(data->bytes, data->len, alloc);
+        Log_debug(pinger->logger, "Invalid ping response handle [%u] txid = [%s]",
+            handle, encoded);
+        Allocator_free(alloc);
     } else {
         data->len -= 4;
         data->bytes += 4;
