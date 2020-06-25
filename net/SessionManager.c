@@ -580,7 +580,6 @@ static Iface_DEFUN readyToSend(struct Message* msg,
                                struct SessionManager_Session_pvt* sess)
 {
     struct RouteHeader* header = (struct RouteHeader*) msg->bytes;
-    struct DataHeader* dh = (struct DataHeader*) &header[1];
     Er_assert(Message_eshift(msg, -RouteHeader_SIZE));
     struct SwitchHeader* sh;
     CryptoAuth_resetIfTimeout(sess->pub.caSession);
