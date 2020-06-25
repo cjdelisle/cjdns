@@ -407,7 +407,6 @@ static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface
     struct RouteHeader* header = (struct RouteHeader*) msg->bytes;
 
     Assert_true(msg->length >= DataHeader_SIZE);
-    struct DataHeader* dh = (struct DataHeader*) &header[1];
     session->pub.bytesIn += msg->length;
     session->pub.timeOfLastIncoming = Time_currentTimeMilliseconds(sm->eventBase);
 
