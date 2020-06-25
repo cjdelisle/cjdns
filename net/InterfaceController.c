@@ -309,14 +309,14 @@ static void sendPing(struct Peer* ep)
                              ep->alloc,
                              ic->switchPinger);
 
-    if (Defined(Log_DEBUG)) {
-        uint8_t key[56];
-        Base32_encode(key, 56, ep->caSession->herPublicKey, 32);
-        if (!ping) {
-            Log_debug(ic->logger, "Failed to ping [%s.k], out of ping slots", key);
-        } else {
-            Log_debug(ic->logger, "Sending switch ping [%s.k]", key);
-        }
+    if (!ping) {
+        struct Allocator* alloc = Allocator_child(ep->alloc);
+        Log_debug(ic->logger, "Sending switch ping to [%s] failed, out of ping slots",
+            Address_toString(&ep->addr, alloc)->bytes);
+        Allocator_free(alloc);
+    } else {
+        Log_debug(ic->logger, "Sending switch ping to [%s]",
+            Address_toString(&ep->addr, ping->pingAlloc)->bytes);
     }
 
     if (ping) {
@@ -384,9 +384,9 @@ static void iciPing(struct InterfaceController_Iface_pvt* ici, struct InterfaceC
 
         struct Peer* ep = ici->peerMap.values[i];
 
-        uint8_t keyIfDebug[56];
+        uint8_t ipIfDebug[40];
         if (Defined(Log_DEBUG)) {
-            Base32_encode(keyIfDebug, 56, ep->caSession->herPublicKey, 32);
+            Address_printIp(ipIfDebug, &ep->addr);
         }
 
         if (ep->addr.protocolVersion && now < ep->timeOfLastMessage + ic->pingAfterMilliseconds) {
@@ -398,7 +398,7 @@ static void iciPing(struct InterfaceController_Iface_pvt* ici, struct InterfaceC
             // message once per second for whichever peer is the first that we address.
             if (count == 1 && ep->state == InterfaceController_PeerState_ESTABLISHED) {
                 Log_debug(ic->logger, "Notifying about peer number [%d/%d] [%s]",
-                    i, ici->peerMap.count, keyIfDebug);
+                    i, ici->peerMap.count, ipIfDebug);
                 sendPeer(0xffffffff, PFChan_Core_PEER, ep, 0xffff);
             }
 
@@ -411,9 +411,9 @@ static void iciPing(struct InterfaceController_Iface_pvt* ici, struct InterfaceC
         }
 
         if (ep->isIncomingConnection && now > ep->timeOfLastMessage + ic->forgetAfterMilliseconds) {
-            Log_debug(ic->logger, "Unresponsive peer [%s.k] has not responded in [%u] "
+            Log_debug(ic->logger, "Unresponsive peer [%s] has not responded in [%u] "
                                   "seconds, dropping connection",
-                                  keyIfDebug, ic->forgetAfterMilliseconds / 1024);
+                                  ipIfDebug, ic->forgetAfterMilliseconds / 1024);
             sendPeer(0xffffffff, PFChan_Core_PEER_GONE, ep, 0xffff);
             Allocator_free(ep->alloc);
             continue;
@@ -436,9 +436,9 @@ static void iciPing(struct InterfaceController_Iface_pvt* ici, struct InterfaceC
         }
 
         Log_debug(ic->logger,
-                  "Pinging %s peer [%s.k] lag [%u]",
+                  "Pinging %s peer [%s] lag [%u]",
                   (unresponsive ? "unresponsive" : "lazy"),
-                  keyIfDebug,
+                  ipIfDebug,
                   (uint32_t)((now - ep->timeOfLastMessage) / 1024));
 
         sendPing(ep);

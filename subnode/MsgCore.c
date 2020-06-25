@@ -169,6 +169,7 @@ static void sendMsg(struct MsgCore_pvt* mcp,
     Bits_memcpy(route.ip6, addr->ip6.bytes, 16);
     route.version_be = Endian_hostToBigEndian32(addr->protocolVersion);
     route.sh.label_be = Endian_hostToBigEndian64(addr->path);
+    route.flags |= RouteHeader_flags_PATHFINDER;
     Bits_memcpy(route.publicKey, addr->key, 32);
     Er_assert(Message_epush(msg, &route, sizeof(struct RouteHeader)));
 

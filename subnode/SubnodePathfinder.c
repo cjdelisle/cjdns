@@ -271,6 +271,63 @@ static void rcChange(struct ReachabilityCollector* rc,
     ReachabilityAnnouncer_updatePeer(pf->ra, nodeAddr, pi);
 }
 
+struct Ping {
+    struct SubnodePathfinder_pvt* pf;
+    uint32_t mapHandle;
+    Identity
+};
+
+static void pingReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom)
+{
+    struct Ping* usp = Identity_check((struct Ping*) prom->userData);
+    struct SubnodePathfinder_pvt* pf = Identity_check(usp->pf);
+    int index = Map_OfPromiseByQuery_indexForHandle(usp->mapHandle, &pf->queryMap);
+    Assert_true(index > -1);
+    Map_OfPromiseByQuery_remove(index, &pf->queryMap);
+
+    if (!src) {
+        //Log_debug(pf->log, "Ping timeout");
+        return;
+    }
+    Log_debug(pf->log, "Ping reply from [%s]", Address_toString(src, prom->alloc)->bytes);
+    struct Message* msgToCore = Message_new(0, 512, prom->alloc);
+    Iface_CALL(sendNode, msgToCore, src, Metric_PING_REPLY, PFChan_Pathfinder_NODE, pf);
+}
+
+static void pingNode(struct SubnodePathfinder_pvt* pf, struct Address* addr)
+{
+    struct Query q = { .routeFrom = { 0 } };
+    Bits_memcpy(&q.target, addr, sizeof(struct Address));
+    if (Map_OfPromiseByQuery_indexForKey(&q, &pf->queryMap) > -1) {
+        Log_debug(pf->log, "Skipping ping because one is already outstanding");
+        return;
+    }
+
+    // We have a path to the node but the session is not setup, lets ping them...
+    struct MsgCore_Promise* qp = MsgCore_createQuery(pf->msgCore, 0, pf->alloc);
+
+    struct Ping* usp = Allocator_calloc(qp->alloc, sizeof(struct Ping), 1);
+    Identity_set(usp);
+    usp->pf = pf;
+
+    Dict* dict = qp->msg = Dict_new(qp->alloc);
+    qp->cb = pingReply;
+    qp->userData = usp;
+
+    Assert_true(AddressCalc_validAddress(addr->ip6.bytes));
+    Assert_true(addr->path);
+    qp->target = Address_clone(addr, qp->alloc);
+
+    Log_debug(pf->log, "unsetupSession sending ping to [%s]",
+        Address_toString(qp->target, qp->alloc)->bytes);
+    Dict_putStringCC(dict, "q", "pn", qp->alloc);
+
+    BoilerplateResponder_addBoilerplate(pf->br, dict, addr, qp->alloc);
+
+    int index = Map_OfPromiseByQuery_put(&q, &qp, &pf->queryMap);
+    usp->mapHandle = pf->queryMap.handles[index];
+}
+
 static Iface_DEFUN peer(struct Message* msg, struct SubnodePathfinder_pvt* pf)
 {
     struct Address addr;
@@ -285,11 +342,15 @@ static Iface_DEFUN peer(struct Message* msg, struct SubnodePathfinder_pvt* pf)
         myPeer->protocolVersion = addr.protocolVersion;
     } else {
         AddrSet_add(pf->myPeerAddrs, &addr, AddrSet_Match_BOTH);
+        // immediately ping them
+        pingNode(pf, &addr);
     }
 
     ReachabilityCollector_change(pf->pub.rc, &addr);
 
-    if ((metric & ~Metric_IC_PEER_MASK) == Metric_IC_PEER) {
+    if ((metric & ~Metric_IC_PEER_MASK) != Metric_IC_PEER) {
+    } else if ((metric & Metric_IC_PEER_MASK) == Metric_IC_PEER_MASK) {
+    } else {
         ReachabilityCollector_lagSample(pf->pub.rc, addr.path, (metric & Metric_IC_PEER_MASK));
     }
 
@@ -360,73 +421,17 @@ static Iface_DEFUN ctrlMsg(struct Message* msg, struct SubnodePathfinder_pvt* pf
     return Iface_next(&pf->switchPingerIf, msg);
 }
 
-struct UnsetupSessionPing {
-    struct SubnodePathfinder_pvt* pf;
-    uint32_t mapHandle;
-    Identity
-};
-
-static void unsetupSessionPingReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom)
-{
-    struct UnsetupSessionPing* usp =
-        Identity_check((struct UnsetupSessionPing*) prom->userData);
-    struct SubnodePathfinder_pvt* pf = Identity_check(usp->pf);
-    int index = Map_OfPromiseByQuery_indexForHandle(usp->mapHandle, &pf->queryMap);
-    Assert_true(index > -1);
-    Map_OfPromiseByQuery_remove(index, &pf->queryMap);
-
-    if (!src) {
-        //Log_debug(pf->log, "Ping timeout");
-        return;
-    }
-    Log_debug(pf->log, "unsetupSession ping reply from [%s]",
-        Address_toString(src, prom->alloc)->bytes);
-    struct Message* msgToCore = Message_new(0, 512, prom->alloc);
-    Iface_CALL(sendNode, msgToCore, src, Metric_PING_REPLY, PFChan_Pathfinder_NODE, pf);
-}
-
 static Iface_DEFUN unsetupSession(struct Message* msg, struct SubnodePathfinder_pvt* pf)
 {
     struct PFChan_Node node;
     Er_assert(Message_epop(msg, &node, PFChan_Node_SIZE));
     Assert_true(!msg->length);
-    struct Query q = { .routeFrom = { 0 } };
-    struct Address* addr = &q.target;
-    Bits_memcpy(addr->ip6.bytes, node.ip6, 16);
-    Bits_memcpy(addr->key, node.publicKey, 32);
-    addr->protocolVersion = Endian_bigEndianToHost32(node.version_be);
-    addr->path = Endian_bigEndianToHost64(node.path_be);
-
-    if (Map_OfPromiseByQuery_indexForKey(&q, &pf->queryMap) > -1) {
-        Log_debug(pf->log, "Skipping ping because one is already outstanding");
-        return NULL;
-    }
-
-    // We have a path to the node but the session is not setup, lets ping them...
-    struct MsgCore_Promise* qp = MsgCore_createQuery(pf->msgCore, 0, pf->alloc);
-
-    struct UnsetupSessionPing* usp =
-        Allocator_calloc(qp->alloc, sizeof(struct UnsetupSessionPing), 1);
-    Identity_set(usp);
-    usp->pf = pf;
-
-    Dict* dict = qp->msg = Dict_new(qp->alloc);
-    qp->cb = unsetupSessionPingReply;
-    qp->userData = usp;
-
-    Assert_true(AddressCalc_validAddress(addr->ip6.bytes));
-    Assert_true(addr->path);
-    qp->target = Address_clone(addr, qp->alloc);
-
-    Log_debug(pf->log, "unsetupSession sending ping to [%s]",
-        Address_toString(qp->target, qp->alloc)->bytes);
-    Dict_putStringCC(dict, "q", "pn", qp->alloc);
-
-    BoilerplateResponder_addBoilerplate(pf->br, dict, addr, qp->alloc);
-
-    int index = Map_OfPromiseByQuery_put(&q, &qp, &pf->queryMap);
-    usp->mapHandle = pf->queryMap.handles[index];
-
+    struct Address addr;
+    Bits_memcpy(addr.ip6.bytes, node.ip6, 16);
+    Bits_memcpy(addr.key, node.publicKey, 32);
+    addr.protocolVersion = Endian_bigEndianToHost32(node.version_be);
+    addr.path = Endian_bigEndianToHost64(node.path_be);
+    pingNode(pf, &addr);
     return NULL;
 }
 
