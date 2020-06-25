@@ -279,11 +279,8 @@ struct Ping {
 
 static void pingReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom)
 {
-    struct Ping* usp = Identity_check((struct Ping*) prom->userData);
-    struct SubnodePathfinder_pvt* pf = Identity_check(usp->pf);
-    int index = Map_OfPromiseByQuery_indexForHandle(usp->mapHandle, &pf->queryMap);
-    Assert_true(index > -1);
-    Map_OfPromiseByQuery_remove(index, &pf->queryMap);
+    struct SubnodePathfinder_pvt* pf =
+        Identity_check((struct SubnodePathfinder_pvt*) prom->userData);
 
     if (!src) {
         //Log_debug(pf->log, "Ping timeout");
@@ -296,23 +293,11 @@ static void pingReply(Dict* msg, struct Address* src, struct MsgCore_Promise* pr
 
 static void pingNode(struct SubnodePathfinder_pvt* pf, struct Address* addr)
 {
-    struct Query q = { .routeFrom = { 0 } };
-    Bits_memcpy(&q.target, addr, sizeof(struct Address));
-    if (Map_OfPromiseByQuery_indexForKey(&q, &pf->queryMap) > -1) {
-        Log_debug(pf->log, "Skipping ping because one is already outstanding");
-        return;
-    }
-
-    // We have a path to the node but the session is not setup, lets ping them...
     struct MsgCore_Promise* qp = MsgCore_createQuery(pf->msgCore, 0, pf->alloc);
-
-    struct Ping* usp = Allocator_calloc(qp->alloc, sizeof(struct Ping), 1);
-    Identity_set(usp);
-    usp->pf = pf;
 
     Dict* dict = qp->msg = Dict_new(qp->alloc);
     qp->cb = pingReply;
-    qp->userData = usp;
+    qp->userData = pf;
 
     Assert_true(AddressCalc_validAddress(addr->ip6.bytes));
     Assert_true(addr->path);
@@ -323,9 +308,6 @@ static void pingNode(struct SubnodePathfinder_pvt* pf, struct Address* addr)
     Dict_putStringCC(dict, "q", "pn", qp->alloc);
 
     BoilerplateResponder_addBoilerplate(pf->br, dict, addr, qp->alloc);
-
-    int index = Map_OfPromiseByQuery_put(&q, &qp, &pf->queryMap);
-    usp->mapHandle = pf->queryMap.handles[index];
 }
 
 static Iface_DEFUN peer(struct Message* msg, struct SubnodePathfinder_pvt* pf)
