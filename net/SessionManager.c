@@ -764,8 +764,6 @@ static Iface_DEFUN incomingFromEventIf(struct Message* msg, struct Iface* iface)
         Iface_CALL(readyToSend, bm->msg, sm, sess);
         Map_BufferedMessages_remove(index, &sm->bufMap);
         Allocator_free(bm->alloc);
-    } else if (CryptoAuth_getState(sess->pub.caSession) < CryptoAuth_State_RECEIVED_KEY) {
-        unsetupSession(sm, sess);
     }
     return NULL;
 }

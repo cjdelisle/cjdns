@@ -318,7 +318,7 @@ static void pingNode(struct SubnodePathfinder_pvt* pf, struct Address* addr)
     Assert_true(addr->path);
     qp->target = Address_clone(addr, qp->alloc);
 
-    Log_debug(pf->log, "unsetupSession sending ping to [%s]",
+    Log_debug(pf->log, "Sending ping to [%s]",
         Address_toString(qp->target, qp->alloc)->bytes);
     Dict_putStringCC(dict, "q", "pn", qp->alloc);
 
