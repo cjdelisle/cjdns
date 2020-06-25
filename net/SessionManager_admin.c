@@ -95,11 +95,8 @@ static void outputSession(struct Context* context,
     Dict_putIntC(r, "handle", session->receiveHandle, alloc);
     Dict_putIntC(r, "sendHandle", session->sendHandle, alloc);
 
-    Dict_putIntC(r, "timeOfLastIn", session->timeOfLastIn, alloc);
-    Dict_putIntC(r, "timeOfLastOut", session->timeOfLastOut, alloc);
-
     Dict_putIntC(r, "metric", session->metric, alloc);
-    Dict_putIntC(r, "maintainSession", session->maintainSession, alloc);
+    Dict_putIntC(r, "timeOfLastUsage", session->timeOfLastUsage, alloc);
 
     Admin_sendMessage(r, txid, context->admin);
     return;

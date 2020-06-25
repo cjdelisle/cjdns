@@ -206,14 +206,12 @@ static struct SessionManager_Session_pvt* getSession(struct SessionManager_pvt* 
                                                      uint8_t pubKey[32],
                                                      uint32_t version,
                                                      uint64_t label,
-                                                     uint32_t metric,
-                                                     int maintainSession)
+                                                     uint32_t metric)
 {
     Assert_true(AddressCalc_validAddress(ip6));
     struct SessionManager_Session_pvt* sess = sessionForIp6(ip6, sm);
     if (sess) {
         sess->pub.version = (sess->pub.version) ? sess->pub.version : version;
-        sess->pub.maintainSession |= maintainSession;
         if (metric == Metric_DEAD_LINK) {
             // this is a broken path
             if (sess->pub.sendSwitchLabel == label) {
@@ -260,12 +258,9 @@ static struct SessionManager_Session_pvt* getSession(struct SessionManager_pvt* 
     sess->alloc = alloc;
     sess->sessionManager = sm;
     sess->pub.version = version;
-    sess->pub.timeOfLastIn = Time_currentTimeMilliseconds(sm->eventBase);
-    sess->pub.timeOfKeepAliveIn = Time_currentTimeMilliseconds(sm->eventBase);
-    sess->pub.timeOfLastOut = Time_currentTimeMilliseconds(sm->eventBase);
+    sess->pub.timeOfLastIncoming = Time_currentTimeMilliseconds(sm->eventBase);
     sess->pub.sendSwitchLabel = label;
     sess->pub.metric = metric;
-    sess->pub.maintainSession = maintainSession;
     //Allocator_onFree(alloc, sessionCleanup, sess);
     sendSession(sess, label, 0xffffffff, PFChan_Core_SESSION);
     check(sm, ifaceIndex);
@@ -378,7 +373,7 @@ static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface
         }
 
         uint64_t label = Endian_bigEndianToHost64(switchHeader->label_be);
-        session = getSession(sm, ip6, caHeader->publicKey, 0, label, Metric_SM_INCOMING, 0);
+        session = getSession(sm, ip6, caHeader->publicKey, 0, label, Metric_SM_INCOMING);
         CryptoAuth_resetIfTimeout(session->pub.caSession);
         debugHandlesAndLabel(sm->log, session, label, "new session nonce[%d]", nonceOrHandle);
     }
@@ -413,11 +408,8 @@ static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface
 
     Assert_true(msg->length >= DataHeader_SIZE);
     struct DataHeader* dh = (struct DataHeader*) &header[1];
-    if (DataHeader_getContentType(dh) != ContentType_CJDHT) {
-        session->pub.timeOfLastIn = Time_currentTimeMilliseconds(sm->eventBase);
-    }
     session->pub.bytesIn += msg->length;
-    session->pub.timeOfKeepAliveIn = Time_currentTimeMilliseconds(sm->eventBase);
+    session->pub.timeOfLastIncoming = Time_currentTimeMilliseconds(sm->eventBase);
 
     if (currentMessageSetup) {
         Bits_memcpy(&header->sh, switchHeader, SwitchHeader_SIZE);
@@ -509,7 +501,7 @@ static void checkTimedOutSessions(struct SessionManager_pvt* sm)
         int64_t now = Time_currentTimeMilliseconds(sm->eventBase);
 
         // Check if the session is timed out...
-        if (now - sess->pub.timeOfKeepAliveIn > sm->pub.sessionTimeoutMilliseconds) {
+        if (now - sess->pub.timeOfLastIncoming > sm->pub.sessionTimeoutMilliseconds) {
             debugSession0(sm->log, sess, "ended");
             sendSession(sess, sess->pub.sendSwitchLabel, 0xffffffff, PFChan_Core_SESSION_ENDED);
             Map_OfSessionsByIp6_remove(i, &sm->ifaceMap);
@@ -517,8 +509,12 @@ static void checkTimedOutSessions(struct SessionManager_pvt* sm)
             continue;
         }
 
-        if (!sess->pub.maintainSession) {
-            // Let pathfinder maintain it's own sessions itself
+        if (now - sess->pub.timeOfLastUsage > sm->pub.sessionTimeoutMilliseconds) {
+            // This session is either only used by the pathfinder or it is nolonger used
+            // let the pathfinder maintain it if it wants to, otherwise let it drop.
+            //
+            // This is a convenience for user tools to know that it's unmanaged.
+            sess->pub.timeOfLastUsage = 0;
         } else if (now - sess->pub.lastSearchTime >= sm->pub.sessionSearchAfterMilliseconds) {
             // Session is not in idle state and requires a search
             debugSession0(sm->log, sess, "triggering search");
@@ -585,9 +581,6 @@ static Iface_DEFUN readyToSend(struct Message* msg,
 {
     struct RouteHeader* header = (struct RouteHeader*) msg->bytes;
     struct DataHeader* dh = (struct DataHeader*) &header[1];
-    if (DataHeader_getContentType(dh) != ContentType_CJDHT) {
-        sess->pub.timeOfLastOut = Time_currentTimeMilliseconds(sm->eventBase);
-    }
     Er_assert(Message_eshift(msg, -RouteHeader_SIZE));
     struct SwitchHeader* sh;
     CryptoAuth_resetIfTimeout(sess->pub.caSession);
@@ -679,12 +672,16 @@ static Iface_DEFUN incomingFromInsideIf(struct Message* msg, struct Iface* iface
                               header->publicKey,
                               Endian_bigEndianToHost32(header->version_be),
                               Endian_bigEndianToHost64(header->sh.label_be),
-                              Metric_SM_SEND,
-                              !(header->flags & RouteHeader_flags_PATHFINDER));
+                              Metric_SM_SEND);
         } else {
             needsLookup(sm, msg, false);
             return NULL;
         }
+    }
+
+    if (!(header->flags & RouteHeader_flags_PATHFINDER)) {
+        // It's real life user traffic, lets tag the time of last use
+        sess->pub.timeOfLastUsage = Time_currentTimeMilliseconds(sm->eventBase);
     }
 
     if (header->version_be) { sess->pub.version = Endian_bigEndianToHost32(header->version_be); }
@@ -755,8 +752,7 @@ static Iface_DEFUN incomingFromEventIf(struct Message* msg, struct Iface* iface)
                       node.publicKey,
                       Endian_bigEndianToHost32(node.version_be),
                       Endian_bigEndianToHost64(node.path_be),
-                      Endian_bigEndianToHost32(node.metric_be),
-                      0);
+                      Endian_bigEndianToHost32(node.metric_be));
 
     // Send what's on the buffer...
     if (index > -1 && CryptoAuth_getState(sess->pub.caSession) >= CryptoAuth_State_RECEIVED_KEY) {

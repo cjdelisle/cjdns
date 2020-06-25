@@ -77,13 +77,11 @@ struct SessionManager_Session
      * When the last message was received on this session (milliseconds since epoch).
      * Used for session keep alive.
      */
-    int64_t timeOfKeepAliveIn;
+    int64_t timeOfLastIncoming;
 
-    /** When the last non-CJDHT message was received on this session (milliseconds since epoch). */
-    int64_t timeOfLastIn;
-
-    /** When the last non-CJDHT message was sent on this session (milliseconds since epoch). */
-    int64_t timeOfLastOut;
+    // This is used to know when we should stop maintaining the session.
+    // It is only flagged for real traffic, not router traffic.
+    int64_t timeOfLastUsage;
 
     uint64_t bytesOut;
 
@@ -108,9 +106,6 @@ struct SessionManager_Session
 
     /** The switch label which this node uses for reaching us. */
     uint64_t recvSwitchLabel;
-
-    /** If non-zero, the peer will be periodically queries to maintain the session. */
-    int maintainSession;
 };
 
 struct SessionManager_HandleList

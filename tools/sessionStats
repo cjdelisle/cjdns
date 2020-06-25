@@ -30,6 +30,7 @@ var printSession = function (session) {
     if (Number(session.duplicates) !== 0) { out.push(' DUP ', session.duplicates); }
     if (Number(session.lostPackets) !== 0) { out.push(' LOS ', session.lostPackets); }
     if (Number(session.receivedOutOfRange) !== 0) { out.push(' OOR ', session.receivedOutOfRange); }
+    if (Number(session.timeOfLastUsage) !== 0) { out.push('USE'); }
     console.log(out.join(' '));
 };
 
