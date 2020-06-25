@@ -62,7 +62,7 @@ static void getPeerInfo(Dict* args, void* vcontext, String* txid, struct Allocat
         AddrTools_printPath(rpath, pi->pathThemToUs);
         Dict_putStringC(
             pid, "pathThemToUs", String_newBinary(rpath, 19, requestAlloc), requestAlloc);
-        Dict_putIntC(pid, "querying", pi->querying, requestAlloc);
+        Dict_putIntC(pid, "querying", pi->isQuerying, requestAlloc);
 
         Dict_putListC(
             pid, "lagSlots", numList(pi->linkState.lagSlots, 2, requestAlloc), requestAlloc);

@@ -34,7 +34,7 @@ struct ReachabilityCollector_PeerInfo
     // True when we are not sure about the connection to this peer
     // so we will be sending queries to it. Does not mean we're waiting
     // for a response from them.
-    bool querying;
+    bool isQuerying;
 
     struct LinkState linkState;
 };

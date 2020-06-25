@@ -329,7 +329,7 @@ static Iface_DEFUN incoming(struct Message* msg, struct Iface* interRouterIf)
             // Let the old pathfinder handle every query if it is present
             return NULL;
         }
-    } else if (txid->len >= 2 && txid->bytes[0] == '0' && txid->bytes[0] == '1') {
+    } else if (txid->len >= 2 && txid->bytes[0] == '0' && txid->bytes[1] == '1') {
         txid->bytes = &txid->bytes[2];
         txid->len -= 2;
         return replyMsg(mcp, content, &addr, msg);

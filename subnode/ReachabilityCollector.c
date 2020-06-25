@@ -116,8 +116,8 @@ static void change0(struct ReachabilityCollector_pvt* rcp,
     struct PeerInfo_pvt* oldPi = piForLabel(rcp, nodeAddr->path);
     if (oldPi) {
         if (Address_isSame(&oldPi->pub.addr, nodeAddr)) {
-            Log_debug(rcp->log, "Peer [%s] message, peer already registered",
-                    Address_toString(nodeAddr, tempAlloc)->bytes);
+            // Log_debug(rcp->log, "Peer [%s] message, peer already registered",
+            //         Address_toString(nodeAddr, tempAlloc)->bytes);
             return;
         }
         Log_debug(rcp->log, "Dropping ghost peer [%s] to add peer [%s]",
@@ -130,7 +130,7 @@ static void change0(struct ReachabilityCollector_pvt* rcp,
     Identity_set(pi);
     Bits_memcpy(&pi->pub.addr, nodeAddr, Address_SIZE);
     pi->alloc = piAlloc;
-    pi->pub.querying = true;
+    pi->pub.isQuerying = true;
     pi->pathToCheck = 1;
     pi->pub.pathThemToUs = -1;
     pi->waitForResponse = false;
@@ -159,6 +159,8 @@ static void onReplyTimeout(struct MsgCore_Promise* prom)
     struct Query* q = Identity_check((struct Query*) prom->userData);
     struct ReachabilityCollector_pvt* rcp =
         Identity_check((struct ReachabilityCollector_pvt*) q->rcp);
+    Log_debug(rcp->log, "Timeout querying [%s]",
+        Address_toString(prom->target, prom->alloc)->bytes);
     struct PeerInfo_pvt* pi = NULL;
     for (int j = 0; j < rcp->piList->length; j++) {
         pi = ArrayList_OfPeerInfo_pvt_get(rcp->piList, j);
@@ -174,7 +176,7 @@ static void latencyUpdate(
     struct PeerInfo_pvt* pip,
     uint32_t lag)
 {
-    Log_debug(rcp->log, "Latency update for [%" PRIx64 "] [%u]ms", pip->pub.addr.path, lag);
+    //Log_debug(rcp->log, "Latency update for [%" PRIx64 "] [%u]ms", pip->pub.addr.path, lag);
     pip->sumOfLag += lag;
     pip->lagSamples++;
     pip->timeOfLastLagUpdate = Time_currentTimeMilliseconds(rcp->base);
@@ -190,6 +192,8 @@ static void onReplyOld(Dict* msg, struct Address* src, struct MsgCore_Promise* p
         mkNextRequest(rcp);
         return;
     }
+    Log_debug(rcp->log, "Got response from peer [%s]",
+        Address_toString(src, prom->alloc)->bytes);
 
     struct PeerInfo_pvt* pi = NULL;
     for (int j = 0; j < rcp->piList->length; j++) {
@@ -222,7 +226,9 @@ static void onReplyOld(Dict* msg, struct Address* src, struct MsgCore_Promise* p
         // We don't have a clue which one is correct, but we'll try to reduce
         // flap by sticking to one after we've adopted it.
         if (pi->pub.pathThemToUs == path) {
-            pi->pub.querying = false;
+            Log_debug(rcp->log, "Found back-route for [%s] (exact match)",
+                Address_toString(src, prom->alloc)->bytes);
+            pi->pub.isQuerying = false;
             mkNextRequest(rcp);
             return;
         }
@@ -235,13 +241,15 @@ static void onReplyOld(Dict* msg, struct Address* src, struct MsgCore_Promise* p
             Address_toString(src, prom->alloc)->bytes);
         pi->pub.pathThemToUs = path;
         rcp->pub.onChange(&rcp->pub, src, &pi->pub);
-        pi->pub.querying = false;
+        pi->pub.isQuerying = false;
         mkNextRequest(rcp);
         return;
     }
     if (results->length < 8) {
         // Peer's gp response does not include my addr, meaning the peer might not know us yet.
         // should wait peer sendPing (see InterfaceControl.c).
+        Log_debug(rcp->log, "Peer [%s] did",
+            Address_toString(src, prom->alloc)->bytes);
         pi->pathToCheck = 1;
         return;
     } else {
@@ -270,7 +278,8 @@ static void queryOldPeer(struct ReachabilityCollector_pvt* rcp, struct PeerInfo_
 
     AddrTools_printPath(q->targetPath, pi->pathToCheck);
     Log_debug(rcp->log, "Getting reverse path for peer [%s] tar [%s]",
-        Address_toString(&pi->pub.addr, query->alloc)->bytes, q->targetPath);
+        Address_toString(&pi->pub.addr, query->alloc)->bytes,
+        q->targetPath);
 
     Dict_putStringC(d, "tar",
         String_newBinary(nearbyLabelBytes, 8, query->alloc), query->alloc);
@@ -289,7 +298,7 @@ static void peerResponseOK(
         Address_toString(&pi->pub.addr, resp->ping->pingAlloc)->bytes);
     pi->pub.pathThemToUs = resp->rpath;
     rcp->pub.onChange(&rcp->pub, &pi->pub.addr, &pi->pub);
-    pi->pub.querying = false;
+    pi->pub.isQuerying = false;
     mkNextRequest(rcp);
 }
 
@@ -348,12 +357,12 @@ static void mkNextRequest(struct ReachabilityCollector_pvt* rcp)
     for (int i = 0; i < rcp->piList->length; i++) {
         pi = ArrayList_OfPeerInfo_pvt_get(rcp->piList, i);
         if (pi->pub.addr.protocolVersion == 0) { continue; }
-        if (pi->pub.querying && !pi->waitForResponse) { break; }
+        if (pi->pub.isQuerying && !pi->waitForResponse) { break; }
     }
-    if (!pi || !pi->pub.querying) {
-        if (rcp->piList->length > 0) {
-            Log_debug(rcp->log, "All [%u] peers have been queried", rcp->piList->length);
-        }
+    if (!pi || !pi->pub.isQuerying) {
+        // if (rcp->piList->length > 0) {
+        //     Log_debug(rcp->log, "All [%u] peers have been queried", rcp->piList->length);
+        // }
         return;
     }
     if (pi->waitForResponse) {
@@ -380,7 +389,7 @@ static void cycle(void* vrc)
         struct PeerInfo_pvt* pi = ArrayList_OfPeerInfo_pvt_get(rcp->piList, j);
         Log_debug(rcp->log, "Visiting peer [%" PRIx64 "] samples [%u]",
             pi->pub.addr.path, pi->lagSamples);
-        if (pi->lagSamples == 0) {
+        if (pi->lagSamples == 0 && !pi->waitForResponse) {
             Log_debug(rcp->log, "Triggering a ping to peer [%" PRIx64 "]", pi->pub.addr.path);
             queryPeer(rcp, pi);
         }
