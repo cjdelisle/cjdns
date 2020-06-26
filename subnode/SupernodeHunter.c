@@ -312,7 +312,8 @@ static void peerResponseOK(struct SwitchPinger_Response* resp, struct SupernodeH
         Address_isSameIp(firstPeer, peer))
     {
         if (!snp->snodeCandidate.path) {
-            Log_info(snp->log, "No snode candidate found");
+            Log_info(snp->log, "No snode candidate found [%s]",
+                Address_toStringKey(&snp->snodeCandidate, resp->ping->pingAlloc)->bytes);
             snp->nextPeer = 0;
             AddrSet_flush(snp->blacklist);
             return;

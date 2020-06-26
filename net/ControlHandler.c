@@ -211,13 +211,14 @@ static Iface_DEFUN handleGetSnodeQuery(struct Message* msg,
         uint64_t fixedLabel = NumberCompress_getLabelFor(ch->activeSnode.path, label);
         uint64_t fixedLabel_be = Endian_hostToBigEndian64(fixedLabel);
         Bits_memcpy(snq->pathToSnode_be, &fixedLabel_be, 8);
-        Bits_memcpy(&snq->snodeKey, ch->activeSnode.key, 32);
+        Bits_memcpy(snq->snodeKey, ch->activeSnode.key, 32);
         snq->snodeVersion_be = Endian_hostToBigEndian32(ch->activeSnode.protocolVersion);
 
     } else {
+        Log_debug(ch->log, "getSupernode query and we do not have a known snode");
         snq->snodeVersion_be = 0;
         Bits_memset(snq->pathToSnode_be, 0, 8);
-        Bits_memcpy(&snq->snodeKey, ch->activeSnode.key, 32);
+        Bits_memset(snq->snodeKey, 0, 32);
     }
 
     ctrl->header.checksum_be = 0;
@@ -330,6 +331,14 @@ static Iface_DEFUN changeSnode(struct Message* msg, struct Iface* eventIf)
     Bits_memcpy(ch->activeSnode.key, node.publicKey, 32);
     ch->activeSnode.path = Endian_bigEndianToHost64(node.path_be);
     ch->activeSnode.protocolVersion = Endian_bigEndianToHost32(node.version_be);
+
+    struct Address addr = {
+        .protocolVersion = ch->activeSnode.protocolVersion,
+        .path = ch->activeSnode.path,
+    };
+    Bits_memcpy(addr.key, ch->activeSnode.key, 32);
+    Log_debug(ch->log, "Set the current snode to [%s]",
+        Address_toStringKey(&addr, msg->alloc)->bytes);
 
     return NULL;
 }

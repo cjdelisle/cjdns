@@ -143,6 +143,10 @@ static Iface_DEFUN messageFromControlHandler(struct Message* msg, struct Iface* 
             Log_debug(ctx->logger, "dropped invalid GetSnode");
             return NULL;
         }
+        if (Bits_isZero(hdr->snodeKey, 32)) {
+            Log_debug(ctx->logger, "Peer doesn't have an snode");
+            return NULL;
+        }
         if (!AddressCalc_addressForPublicKey(ctx->incomingSnodeAddr.ip6.bytes, hdr->snodeKey)) {
             Log_debug(ctx->logger, "dropped invalid GetSnode key");
             return NULL;
