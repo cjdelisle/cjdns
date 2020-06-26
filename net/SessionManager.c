@@ -519,7 +519,7 @@ static void checkTimedOutSessions(struct SessionManager_pvt* sm)
             debugSession0(sm->log, sess, "triggering search");
             triggerSearch(sm, sess->pub.caSession->herIp6, sess->pub.version);
             sess->pub.lastSearchTime = now;
-        } else if (CryptoAuth_getState(sess->pub.caSession) < CryptoAuth_State_RECEIVED_KEY) {
+        } else if (CryptoAuth_getState(sess->pub.caSession) < CryptoAuth_State_ESTABLISHED) {
             debugSession0(sm->log, sess, "triggering unsetupSession");
             unsetupSession(sm, sess);
         }
@@ -533,7 +533,7 @@ static void periodically(void* vSessionManager)
     checkTimedOutBuffers(sm);
 }
 
-static void needsLookup(struct SessionManager_pvt* sm, struct Message* msg, bool setupSession)
+static void bufferPacket(struct SessionManager_pvt* sm, struct Message* msg)
 {
     Assert_true(msg->length >= (RouteHeader_SIZE + DataHeader_SIZE));
     struct RouteHeader* header = (struct RouteHeader*) msg->bytes;
@@ -545,7 +545,7 @@ static void needsLookup(struct SessionManager_pvt* sm, struct Message* msg, bool
     if (Defined(Log_DEBUG)) {
         uint8_t ipStr[40];
         AddrTools_printIp(ipStr, header->ip6);
-        Log_debug(sm->log, "Buffering a packet to [%s] and beginning a search", ipStr);
+        Log_debug(sm->log, "Buffering a packet to [%s]", ipStr);
     }
     int index = Map_BufferedMessages_indexForKey((struct Ip6*)header->ip6, &sm->bufMap);
     if (index > -1) {
@@ -570,7 +570,12 @@ static void needsLookup(struct SessionManager_pvt* sm, struct Message* msg, bool
     buffered->timeSentMilliseconds = Time_currentTimeMilliseconds(sm->eventBase);
     Allocator_adopt(lookupAlloc, msg->alloc);
     Assert_true(Map_BufferedMessages_put((struct Ip6*)header->ip6, &buffered, &sm->bufMap) > -1);
+}
 
+static void needsLookup(struct SessionManager_pvt* sm, struct Message* msg)
+{
+    struct RouteHeader* header = (struct RouteHeader*) msg->bytes;
+    bufferPacket(sm, msg);
     triggerSearch(sm, header->ip6, Endian_hostToBigEndian32(header->version_be));
 }
 
@@ -672,7 +677,7 @@ static Iface_DEFUN incomingFromInsideIf(struct Message* msg, struct Iface* iface
                               Endian_bigEndianToHost64(header->sh.label_be),
                               Metric_SM_SEND);
         } else {
-            needsLookup(sm, msg, false);
+            needsLookup(sm, msg);
             return NULL;
         }
     }
@@ -685,7 +690,7 @@ static Iface_DEFUN incomingFromInsideIf(struct Message* msg, struct Iface* iface
     if (header->version_be) { sess->pub.version = Endian_bigEndianToHost32(header->version_be); }
 
     if (!sess->pub.version) {
-        needsLookup(sm, msg, false);
+        needsLookup(sm, msg);
         return NULL;
     }
 
@@ -696,17 +701,26 @@ static Iface_DEFUN incomingFromInsideIf(struct Message* msg, struct Iface* iface
         header->sh.label_be = Endian_hostToBigEndian64(sess->pub.sendSwitchLabel);
         SwitchHeader_setVersion(&header->sh, SwitchHeader_CURRENT_VERSION);
     } else {
-        needsLookup(sm, msg, false);
+        needsLookup(sm, msg);
         return NULL;
     }
 
     // Forward secrecy, only send dht messages until the session is setup.
     CryptoAuth_resetIfTimeout(sess->pub.caSession);
-    if (DataHeader_getContentType(dataHeader) != ContentType_CJDHT &&
-        CryptoAuth_getState(sess->pub.caSession) < CryptoAuth_State_RECEIVED_KEY)
-    {
-        needsLookup(sm, msg, true);
-        return NULL;
+    if (CryptoAuth_getState(sess->pub.caSession) < CryptoAuth_State_RECEIVED_KEY) {
+        if (DataHeader_getContentType(dataHeader) == ContentType_CJDHT) {
+            if (sess->pub.timeOfLastUsage) {
+                // Any time any message of any kind is sent down a link that is
+                // currently in use, keep firing off unsetupSession
+                debugSession0(sm->log, sess, "CJDHT traffic on link in use, unsetupSession");
+                unsetupSession(sm, sess);
+            }
+        } else {
+            debugSession0(sm->log, sess, "user traffic, unsetupSession");
+            bufferPacket(sm, msg);
+            unsetupSession(sm, sess);
+            return NULL;
+        }
     }
 
     return readyToSend(msg, sm, sess);
@@ -791,7 +805,7 @@ struct SessionManager* SessionManager_new(struct Allocator* allocator,
     sm->firstHandle =
         (Random_uint32(rand) % (MAX_FIRST_HANDLE - MIN_FIRST_HANDLE)) + MIN_FIRST_HANDLE;
 
-    Timeout_setInterval(periodically, sm, 10000, eventBase, alloc);
+    Timeout_setInterval(periodically, sm, 1000, eventBase, alloc);
 
     Identity_set(sm);
 
