@@ -207,8 +207,9 @@ static Iface_DEFUN handleGetSnodeQuery(struct Message* msg,
     snq->kbps_be = 0xffffffff;
     snq->version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL);
     snq->magic = Control_GETSNODE_REPLY_MAGIC;
+    uint64_t fixedLabel = 0;
     if (ch->activeSnode.path) {
-        uint64_t fixedLabel = NumberCompress_getLabelFor(ch->activeSnode.path, label);
+        fixedLabel = NumberCompress_getLabelFor(ch->activeSnode.path, label);
         uint64_t fixedLabel_be = Endian_hostToBigEndian64(fixedLabel);
         Bits_memcpy(snq->pathToSnode_be, &fixedLabel_be, 8);
         Bits_memcpy(snq->snodeKey, ch->activeSnode.key, 32);
@@ -230,6 +231,10 @@ static Iface_DEFUN handleGetSnodeQuery(struct Message* msg,
     SwitchHeader_setVersion(&routeHeader->sh, SwitchHeader_CURRENT_VERSION);
     routeHeader->sh.label_be = Endian_hostToBigEndian64(label);
     routeHeader->flags |= RouteHeader_flags_CTRLMSG;
+
+    Log_debug(ch->log, "Replied to [%" PRIx64 "] with snode [%" PRIx64 "] aka [%" PRIx64 "]",
+        label, fixedLabel, ch->activeSnode.path);
+
     return Iface_next(&ch->pub.coreIf, msg);
 }
 
