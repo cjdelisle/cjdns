@@ -308,6 +308,7 @@ static void peerResponseOK(struct SwitchPinger_Response* resp, struct SupernodeH
     // If we have looped around and queried all of our peers returning to the first and we have
     // still not found an snode in our authorized snodes list, we should simply accept this one.
     if (!snp->pub.snodeIsReachable &&
+        snp->myPeerAddrs->length > 1 &&
         snp->nextPeer >= snp->myPeerAddrs->length &&
         Address_isSameIp(firstPeer, peer))
     {
