@@ -518,7 +518,7 @@ void SubnodePathfinder_start(struct SubnodePathfinder* sp)
         MsgCore_new(pf->base, pf->rand, pf->alloc, pf->log, pf->myScheme);
     Iface_plumb(&pf->msgCoreIf, &msgCore->interRouterIf);
 
-    PingResponder_new(pf->alloc, pf->log, msgCore, pf->br);
+    PingResponder_new(pf->alloc, pf->log, msgCore, pf->br, pf->myScheme);
 
     struct ReachabilityCollector* rc = pf->pub.rc = ReachabilityCollector_new(
         pf->alloc, msgCore, pf->log, pf->base, pf->br, pf->myAddress, pf->myScheme, pf->sp);

@@ -25,6 +25,7 @@ struct PingResponder_pvt
     struct Allocator* alloc;
     struct MsgCore* msgCore;
     struct BoilerplateResponder* br;
+    struct EncodingScheme* myScheme;
     Identity
 };
 
@@ -49,7 +50,11 @@ static void onPing(Dict* msg,
         Dict_putStringCC(responseDict, "error", "unsupported query type", tmpAlloc);
     }
 
-    if (src->protocolVersion && src->protocolVersion < 21) {
+    if (!src->protocolVersion) {
+    } else if (src->protocolVersion >= 21) {
+    } else if (EncodingScheme_isOneHop(prp->myScheme, src->path)) {
+        // Always reply to peers
+    } else {
         Log_debug(prp->log, "DROP query from [%s] because their version is [%d] and they won't "
             "respect do-not-disturb",
             Address_toString(src, tmpAlloc)->bytes,
@@ -66,7 +71,8 @@ static void onPing(Dict* msg,
 struct PingResponder* PingResponder_new(struct Allocator* allocator,
                                         struct Log* log,
                                         struct MsgCore* msgCore,
-                                        struct BoilerplateResponder* br)
+                                        struct BoilerplateResponder* br,
+                                        struct EncodingScheme* myScheme)
 {
     struct Allocator* alloc = Allocator_child(allocator);
     struct PingResponder_pvt* prp =
@@ -79,5 +85,6 @@ struct PingResponder* PingResponder_new(struct Allocator* allocator,
     prp->handler->userData = prp;
     prp->handler->cb = onPing;
     prp->br = br;
+    prp->myScheme = myScheme;
     return &prp->pub;
 }

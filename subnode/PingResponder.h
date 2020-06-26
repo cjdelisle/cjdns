@@ -19,6 +19,7 @@
 #include "util/log/Log.h"
 #include "subnode/MsgCore.h"
 #include "subnode/BoilerplateResponder.h"
+#include "switch/EncodingScheme.h"
 #include "util/Linker.h"
 
 Linker_require("subnode/PingResponder.c");
@@ -31,6 +32,7 @@ struct PingResponder
 struct PingResponder* PingResponder_new(struct Allocator* allocator,
                                         struct Log* log,
                                         struct MsgCore* msgCore,
-                                        struct BoilerplateResponder* br);
+                                        struct BoilerplateResponder* br,
+                                        struct EncodingScheme* myScheme);
 
 #endif

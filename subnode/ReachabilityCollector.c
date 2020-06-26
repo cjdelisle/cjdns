@@ -298,17 +298,57 @@ static void queryOldPeer(struct ReachabilityCollector_pvt* rcp, struct PeerInfo_
     pi->waitForResponse = true;
 }
 
+static void pingReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom)
+{
+    struct ReachabilityCollector_pvt* rcp =
+        Identity_check((struct ReachabilityCollector_pvt*) prom->userData);
+
+    if (!src) {
+        //Log_debug(pf->log, "Ping timeout");
+        return;
+    }
+    Log_debug(rcp->log, "Ping reply from [%s]", Address_toString(src, prom->alloc)->bytes);
+
+    struct PeerInfo_pvt* pi = piForAddr(rcp, src);
+    if (!pi) {
+        Log_debug(rcp->log, "Got message from peer [%s] which is gone from list",
+            Address_toString(src, prom->alloc)->bytes);
+        return;
+    }
+    latencyUpdate(rcp, pi, prom->lag);
+    pi->waitForResponse = false;
+}
+
+static void pingPeer(struct ReachabilityCollector_pvt* rcp, struct PeerInfo_pvt* pi)
+{
+    struct MsgCore_Promise* qp = MsgCore_createQuery(rcp->msgCore, 0, rcp->alloc);
+
+    Dict* dict = qp->msg = Dict_new(qp->alloc);
+    qp->cb = pingReply;
+    qp->userData = rcp;
+
+    Assert_true(AddressCalc_validAddress(pi->pub.addr.ip6.bytes));
+    Assert_true(pi->pub.addr.path);
+    qp->target = Address_clone(&pi->pub.addr, qp->alloc);
+
+    Log_debug(rcp->log, "Pinging [%s]", Address_toString(qp->target, qp->alloc)->bytes);
+    Dict_putStringCC(dict, "q", "pn", qp->alloc);
+
+    BoilerplateResponder_addBoilerplate(rcp->br, dict, qp->target, qp->alloc);
+}
+
 static void peerResponseOK(
     struct ReachabilityCollector_pvt* rcp,
     struct PeerInfo_pvt* pi,
     struct SwitchPinger_Response* resp)
 {
     ReachabilityCollector_lagSample(&rcp->pub, resp->label, resp->milliseconds);
-    Log_debug(rcp->log, "Found back-route for [%s]",
+    Log_debug(rcp->log, "Found back-route for [%s] (sp)",
         Address_toString(&pi->pub.addr, resp->ping->pingAlloc)->bytes);
     pi->pub.pathThemToUs = resp->rpath;
     rcp->pub.onChange(&rcp->pub, &pi->pub.addr, &pi->pub);
     pi->pub.isQuerying = false;
+    pingPeer(rcp, pi);
     mkNextRequest(rcp);
 }
 
@@ -360,45 +400,6 @@ static void queryBackroute(struct ReachabilityCollector_pvt* rcp, struct PeerInf
     p->type = SwitchPinger_Type_RPATH;
     p->onResponseContext = rcp;
     pi->waitForResponse = true;
-}
-
-static void pingReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom)
-{
-    struct ReachabilityCollector_pvt* rcp =
-        Identity_check((struct ReachabilityCollector_pvt*) prom->userData);
-
-    if (!src) {
-        //Log_debug(pf->log, "Ping timeout");
-        return;
-    }
-    Log_debug(rcp->log, "Ping reply from [%s]", Address_toString(src, prom->alloc)->bytes);
-
-    struct PeerInfo_pvt* pi = piForAddr(rcp, src);
-    if (!pi) {
-        Log_debug(rcp->log, "Got message from peer [%s] which is gone from list",
-            Address_toString(src, prom->alloc)->bytes);
-        return;
-    }
-    latencyUpdate(rcp, pi, prom->lag);
-    pi->waitForResponse = false;
-}
-
-static void pingPeer(struct ReachabilityCollector_pvt* rcp, struct PeerInfo_pvt* pi)
-{
-    struct MsgCore_Promise* qp = MsgCore_createQuery(rcp->msgCore, 0, rcp->alloc);
-
-    Dict* dict = qp->msg = Dict_new(qp->alloc);
-    qp->cb = pingReply;
-    qp->userData = rcp;
-
-    Assert_true(AddressCalc_validAddress(pi->pub.addr.ip6.bytes));
-    Assert_true(pi->pub.addr.path);
-    qp->target = Address_clone(&pi->pub.addr, qp->alloc);
-
-    Log_debug(rcp->log, "Pinging [%s]", Address_toString(qp->target, qp->alloc)->bytes);
-    Dict_putStringCC(dict, "q", "pn", qp->alloc);
-
-    BoilerplateResponder_addBoilerplate(rcp->br, dict, qp->target, qp->alloc);
 }
 
 static void mkNextRequest(struct ReachabilityCollector_pvt* rcp)
