@@ -384,6 +384,16 @@ static void iciPing(struct InterfaceController_Iface_pvt* ici, struct InterfaceC
 
         struct Peer* ep = ici->peerMap.values[i];
 
+        if (!ep->addr.protocolVersion) {
+        } else if (!Version_isCompatible(ep->addr.protocolVersion, Version_CURRENT_PROTOCOL) ||
+            (Defined(SUBNODE) && ep->addr.protocolVersion < 21))
+        {
+            // This is a version mismatch, we have nothing to do with this node
+            // but we keep the UNRESPONSIVE session alive to keep track of the
+            // fact that we don't want to talk to it.
+            continue;
+        }
+
         uint8_t ipIfDebug[40];
         if (Defined(Log_DEBUG)) {
             Address_printIp(ipIfDebug, &ep->addr);
@@ -522,6 +532,19 @@ static Iface_DEFUN sendFromSwitch(struct Message* msg, struct Iface* switchIf)
 {
     struct Peer* ep = Identity_check((struct Peer*) switchIf);
 
+    // Once we know it to be an incompetible version, we quarentine it
+    if (!ep->addr.protocolVersion) {
+        // unknown version yet
+    } else if (!Version_isCompatible(ep->addr.protocolVersion, Version_CURRENT_PROTOCOL) ||
+        (Defined(SUBNODE) && ep->addr.protocolVersion < 21))
+    {
+        if (Defined(Log_DEBUG)) {
+            Log_debug(ep->ici->ic->logger, "[%s] DROP msg to node with incompat version [%d] ",
+                Address_toString(&ep->addr, msg->alloc)->bytes, ep->addr.protocolVersion);
+        }
+        return NULL;
+    }
+
     ep->bytesOut += msg->length;
 
     int msgs = PeerLink_send(msg, ep->peerLink);
@@ -624,6 +647,13 @@ static Iface_DEFUN handleBeacon(struct Message* msg, struct InterfaceController_
             Log_debug(ic->logger, "[%s] DROP beacon from [%s] which was version [%d] "
                       "our version is [%d] making them incompatable", ici->pub.name->bytes,
                       printedAddr->bytes, addr.protocolVersion, Version_CURRENT_PROTOCOL);
+        }
+        return NULL;
+    } else if (Defined(SUBNODE) && addr.protocolVersion < 21) {
+        if (Defined(Log_DEBUG)) {
+            Log_debug(ic->logger, "[%s] DROP beacon from [%s] which was version [%d] "
+                      "which is incompatible with SUBNODE", ici->pub.name->bytes,
+                      printedAddr->bytes, addr.protocolVersion);
         }
         return NULL;
     }
@@ -770,6 +800,20 @@ static Iface_DEFUN handleIncomingFromWire(struct Message* msg, struct Iface* add
 
     struct Peer* ep = Identity_check((struct Peer*) ici->peerMap.values[epIndex]);
     Er_assert(Message_eshift(msg, -lladdr->addrLen));
+
+    // Once we know it to be an incompetible version, we quarentine it
+    if (!ep->addr.protocolVersion) {
+        // unknown version yet
+    } else if (!Version_isCompatible(ep->addr.protocolVersion, Version_CURRENT_PROTOCOL) ||
+        (Defined(SUBNODE) && ep->addr.protocolVersion < 21))
+    {
+        if (Defined(Log_DEBUG)) {
+            Log_debug(ici->ic->logger, "[%s] DROP msg from node with incompat version [%d] ",
+                Address_toString(&ep->addr, msg->alloc)->bytes, ep->addr.protocolVersion);
+        }
+        return NULL;
+    }
+
     CryptoAuth_resetIfTimeout(ep->caSession);
     uint32_t nonce = Endian_bigEndianToHost32( ((uint32_t*)msg->bytes)[0] );
     if (CryptoAuth_decrypt(ep->caSession, msg)) {
