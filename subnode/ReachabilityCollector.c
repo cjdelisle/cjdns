@@ -386,7 +386,9 @@ static void queryBackroute(struct ReachabilityCollector_pvt* rcp, struct PeerInf
         // here, we're going to discover it one way or another from talking to them.
         return;
     } else if (pi->pub.addr.protocolVersion < 21) {
-        queryOldPeer(rcp, pi);
+        if (!Defined(SUBNODE)) {
+            queryOldPeer(rcp, pi);
+        }
         return;
     }
     struct SwitchPinger_Ping* p = SwitchPinger_newPing(
