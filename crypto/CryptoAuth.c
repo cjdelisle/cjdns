@@ -405,9 +405,10 @@ static void encryptHandshake(struct Message* message,
                   tempKeyHex);
     }
 
-    cryptoAuthDebug(session, "Sending %s%s packet",
+    cryptoAuthDebug(session, "Sending %s%s packet (auth: %d)",
                     ((session->nextNonce & 1) ? "repeat " : ""),
-                    ((session->nextNonce < CryptoAuth_State_RECEIVED_HELLO) ? "hello" : "key"));
+                    ((session->nextNonce < CryptoAuth_State_RECEIVED_HELLO) ? "hello" : "key"),
+                    (passwordHash != NULL));
 
     uint8_t sharedSecret[32];
     if (session->nextNonce < CryptoAuth_State_RECEIVED_HELLO) {
@@ -607,13 +608,9 @@ static enum CryptoAuth_DecryptErr decryptHandshake(struct CryptoAuth_Session_pvt
     uint8_t sharedSecret[32];
 
     if (nonce < Nonce_KEY) { // HELLO or REPEAT_HELLO
-        if (nonce == Nonce_HELLO) {
-            cryptoAuthDebug(session, "Received a hello packet, using auth: %d",
-                            (userObj != NULL));
-        } else {
-            Assert_true(nonce == Nonce_REPEAT_HELLO);
-            cryptoAuthDebug0(session, "Received a repeat hello packet");
-        }
+        cryptoAuthDebug(session, "Received a %shello packet, using auth: %d",
+            (nonce == Nonce_REPEAT_HELLO) ? "repeat " : "",
+            (userObj != NULL));
 
         getSharedSecret(sharedSecret,
                         session->context->privateKey,
