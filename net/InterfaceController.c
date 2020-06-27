@@ -229,6 +229,12 @@ static void sendPeer(uint32_t pathfinderId,
                      struct Peer* peer,
                      uint16_t latency)
 {
+    if (!peer->addr.protocolVersion) {
+        // Don't know the protocol version, never add them
+        return;
+    } else if (Defined(SUBNODE) && peer->addr.protocolVersion < 21) {
+        // Subnode doesn't talk to peers with less than v21
+    }
     struct InterfaceController_pvt* ic = Identity_check(peer->ici->ic);
     struct Allocator* alloc = Allocator_child(ic->alloc);
     struct Message* msg = Message_new(PFChan_Node_SIZE, 512, alloc);
