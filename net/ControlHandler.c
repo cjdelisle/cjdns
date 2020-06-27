@@ -333,16 +333,48 @@ static Iface_DEFUN changeSnode(struct Message* msg, struct Iface* eventIf)
     Er_assert(Message_epop(msg, &node, PFChan_Node_SIZE));
     Assert_true(!msg->length);
 
-    Bits_memcpy(ch->activeSnode.key, node.publicKey, 32);
-    ch->activeSnode.path = Endian_bigEndianToHost64(node.path_be);
-    ch->activeSnode.protocolVersion = Endian_bigEndianToHost32(node.version_be);
+    uint64_t path = Endian_bigEndianToHost64(node.path_be);
+    uint32_t protocolVersion = Endian_bigEndianToHost32(node.version_be);
 
-    struct Address addr = {
+    const char* log = NULL;
+    if (!ch->activeSnode.path) {
+        if (node.path_be) {
+            log = "Found snode";
+        } else {
+            // didn't know the snode before, still don't
+            return NULL;
+        }
+    } else if (!node.path_be) {
+        // We had one, now we don't
+        log = "Removing snode";
+    } else {
+        if (Bits_memcmp(ch->activeSnode.key, node.publicKey, 32)) {
+            log = "Changing snode";
+        } else if (path != ch->activeSnode.path) { 
+            log = "Changing snode path";
+        } else if (ch->activeSnode.protocolVersion != protocolVersion) {
+            log = "Changing snode protocolVersion";
+        } else {
+            // Nothing has changed
+            return NULL;
+        }
+    }
+
+    struct Address old = {
         .protocolVersion = ch->activeSnode.protocolVersion,
         .path = ch->activeSnode.path,
     };
-    Bits_memcpy(addr.key, ch->activeSnode.key, 32);
-    Log_debug(ch->log, "Set the current snode to [%s]",
+    Bits_memcpy(old.key, ch->activeSnode.key, 32);
+
+    Bits_memcpy(ch->activeSnode.key, node.publicKey, 32);
+    ch->activeSnode.path = path;
+    ch->activeSnode.protocolVersion = protocolVersion;
+
+    struct Address addr = { .protocolVersion = protocolVersion, .path = path, };
+    Bits_memcpy(addr.key, node.publicKey, 32);
+    
+    Log_debug(ch->log, "%s [%s] -> [%s]",
+        Address_toStringKey(&old, msg->alloc)->bytes,
         Address_toStringKey(&addr, msg->alloc)->bytes);
 
     return NULL;

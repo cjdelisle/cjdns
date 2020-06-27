@@ -708,12 +708,12 @@ static Iface_DEFUN incomingFromTun(struct Message* message, struct Iface* tunIf)
         struct Headers_IP4Header* header = (struct Headers_IP4Header*) message->bytes;
         conn = findConnection(NULL, header->sourceAddr, true, context);
     } else {
-        Log_info(context->logger, "Message of unknown type from TUN");
+        Log_debug(context->logger, "Message of unknown type from TUN");
         return 0;
     }
 
     if (!conn) {
-        Log_info(context->logger, "Message with unrecognized address from TUN");
+        Log_debug(context->logger, "Message with unrecognized address from TUN");
         return 0;
     }
 

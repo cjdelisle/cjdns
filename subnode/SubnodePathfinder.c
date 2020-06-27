@@ -333,7 +333,6 @@ static Iface_DEFUN peer(struct Message* msg, struct SubnodePathfinder_pvt* pf)
     struct Address addr;
     uint32_t metric = addressForNode(&addr, msg);
     String* str = Address_toString(&addr, msg->alloc);
-    Log_debug(pf->log, "Peer [%s]", str->bytes);
 
     int index = AddrSet_indexOf(pf->myPeerAddrs, &addr, AddrSet_Match_BOTH);
     if (index > -1) {
@@ -341,6 +340,7 @@ static Iface_DEFUN peer(struct Message* msg, struct SubnodePathfinder_pvt* pf)
         // Just in case there is a difference
         myPeer->protocolVersion = addr.protocolVersion;
     } else {
+        Log_debug(pf->log, "Peer [%s]", str->bytes);
         AddrSet_add(pf->myPeerAddrs, &addr, AddrSet_Match_BOTH);
         // immediately ping them
         pingNode(pf, &addr);

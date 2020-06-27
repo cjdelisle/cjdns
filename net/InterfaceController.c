@@ -413,8 +413,9 @@ static void iciPing(struct InterfaceController_Iface_pvt* ici, struct InterfaceC
             // are still happily sending traffic. To break this bad cycle lets just send a PEER
             // message once per second for whichever peer is the first that we address.
             if (count == 1 && ep->state == InterfaceController_PeerState_ESTABLISHED) {
-                Log_debug(ic->logger, "Notifying about peer number [%d/%d] [%s]",
-                    i, ici->peerMap.count, ipIfDebug);
+                // noisy
+                //Log_debug(ic->logger, "Notifying about peer number [%d/%d] [%s]",
+                //    i, ici->peerMap.count, ipIfDebug);
                 sendPeer(0xffffffff, PFChan_Core_PEER, ep, 0xffff);
             }
 

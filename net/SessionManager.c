@@ -225,10 +225,12 @@ static struct SessionManager_Session_pvt* getSession(struct SessionManager_pvt* 
                 }
             }
         } else if (metric <= sess->pub.metric && label) {
+            if (sess->pub.sendSwitchLabel != label) {
+                debugSession0(sm->log, sess, "discovered path");
+            }
             sess->pub.sendSwitchLabel = label;
             sess->pub.version = (version) ? version : sess->pub.version;
             sess->pub.metric = metric;
-            debugSession0(sm->log, sess, "discovered path");
         }
         return sess;
     }
@@ -516,7 +518,7 @@ static void checkTimedOutSessions(struct SessionManager_pvt* sm)
             sess->pub.timeOfLastUsage = 0;
         } else if (now - sess->pub.lastSearchTime >= sm->pub.sessionSearchAfterMilliseconds) {
             // Session is not in idle state and requires a search
-            debugSession0(sm->log, sess, "triggering search");
+            debugSession0(sm->log, sess, "it's been a while, triggering search");
             triggerSearch(sm, sess->pub.caSession->herIp6, sess->pub.version);
             sess->pub.lastSearchTime = now;
         } else if (CryptoAuth_getState(sess->pub.caSession) < CryptoAuth_State_ESTABLISHED) {

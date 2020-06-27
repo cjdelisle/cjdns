@@ -179,7 +179,7 @@ static Iface_DEFUN receiveMessage(struct Message* message, struct Iface* iface)
                 return sendError(sourceIf, message, Error_MALFORMED_ADDRESS, core->logger);
             }
         } else {
-            Log_info(core->logger, "source exceeds dest");
+            //Log_info(core->logger, "source exceeds dest");
             DEBUG_SRC_DST(core->logger, "DROP packet because source address is "
                                                   "larger than destination address.");
             return sendError(sourceIf, message, Error_MALFORMED_ADDRESS, core->logger);
@@ -187,9 +187,12 @@ static Iface_DEFUN receiveMessage(struct Message* message, struct Iface* iface)
     }
 
     if (core->interfaces[destIndex].alloc == NULL) {
-        Log_info(core->logger, "no such iface");
-        DEBUG_SRC_DST(core->logger, "DROP packet because there is no interface "
-                                              "where the bits specify.");
+        if (sourceIndex == 1) {
+            DEBUG_SRC_DST(core->logger, "DROP packet we tried to send, no such peer");
+        }
+        // This is important, but it's someone else's important problem
+        // DEBUG_SRC_DST(core->logger, "DROP packet because there is no interface "
+        //                                       "where the bits specify.");
         return sendError(sourceIf, message, Error_MALFORMED_ADDRESS, core->logger);
     }
 
