@@ -350,7 +350,7 @@ static Iface_DEFUN changeSnode(struct Message* msg, struct Iface* eventIf)
     } else {
         if (Bits_memcmp(ch->activeSnode.key, node.publicKey, 32)) {
             log = "Changing snode";
-        } else if (path != ch->activeSnode.path) { 
+        } else if (path != ch->activeSnode.path) {
             log = "Changing snode path";
         } else if (ch->activeSnode.protocolVersion != protocolVersion) {
             log = "Changing snode protocolVersion";
@@ -372,8 +372,8 @@ static Iface_DEFUN changeSnode(struct Message* msg, struct Iface* eventIf)
 
     struct Address addr = { .protocolVersion = protocolVersion, .path = path, };
     Bits_memcpy(addr.key, node.publicKey, 32);
-    
-    Log_debug(ch->log, "%s [%s] -> [%s]",
+
+    Log_debug(ch->log, "%s [%s] -> [%s]", log,
         Address_toStringKey(&old, msg->alloc)->bytes,
         Address_toStringKey(&addr, msg->alloc)->bytes);
 
