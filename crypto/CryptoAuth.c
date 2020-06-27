@@ -311,7 +311,6 @@ static void reset(struct CryptoAuth_Session_pvt* session)
     Bits_memset(session->herTempPubKey, 0, 32);
     Bits_memset(session->sharedSecret, 0, 32);
     session->established = false;
-    session->partnerUsedPassword = false;
 
     Bits_memset(&session->pub.replayProtector, 0, sizeof(struct ReplayProtector));
 }
@@ -359,7 +358,7 @@ static void encryptHandshake(struct Message* message,
     // Password auth
     uint8_t* passwordHash = NULL;
     uint8_t passwordHashStore[32];
-    if (session->password != NULL && !session->partnerUsedPassword) {
+    if (session->password != NULL) {
         hashPassword(passwordHashStore,
                      &header->auth,
                      session->login,
@@ -823,7 +822,6 @@ static enum CryptoAuth_DecryptErr decryptHandshake(struct CryptoAuth_Session_pvt
         (session->nextNonce <= CryptoAuth_State_RECEIVED_KEY && nextNonce == session->nextNonce)
     );
     session->nextNonce = nextNonce;
-    session->partnerUsedPassword = (nonce < Nonce_KEY && passwordHash);
 
     Bits_memset(&session->pub.replayProtector, 0, sizeof(struct ReplayProtector));
 

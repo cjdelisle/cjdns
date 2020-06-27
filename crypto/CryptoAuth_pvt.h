@@ -105,12 +105,6 @@ struct CryptoAuth_Session_pvt
 
     bool established : 1;
 
-    // Set if the other party used a password, cleared when session is reset.
-    // Prevents failure condition when Alice and Bob are beaconing, Bob responds to Alice's beacon
-    // and they're happy, until Alice cycles... Then Alice responds to Bob's beacon and both have
-    // a password with the other, but those passwords don't match.
-    bool partnerUsedPassword : 1;
-
     /** A pointer back to the main cryptoauth context. */
     struct CryptoAuth_pvt* context;
 
