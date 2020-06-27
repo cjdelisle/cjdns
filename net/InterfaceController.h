@@ -55,6 +55,9 @@ enum InterfaceController_PeerState
 
     /** If state is UNAUTHENTICATED, the other node has not sent a single valid packet. */
     InterfaceController_PeerState_UNAUTHENTICATED = -2,
+
+    // The other node has a version which is incompatible with ours, no communication is possible
+    InterfaceController_PeerState_INCOMPATIBLE = -3,
 };
 
 static inline char* InterfaceController_stateString(enum InterfaceController_PeerState ps)
@@ -68,6 +71,7 @@ static inline char* InterfaceController_stateString(enum InterfaceController_Pee
         case InterfaceController_PeerState_ESTABLISHED:     return "ESTABLISHED";
         case InterfaceController_PeerState_UNRESPONSIVE:    return "UNRESPONSIVE";
         case InterfaceController_PeerState_UNAUTHENTICATED: return "UNAUTHENTICATED";
+        case InterfaceController_PeerState_INCOMPATIBLE:    return "INCOMPATIBLE";
         default: return "INVALID";
     }
 }

@@ -398,6 +398,7 @@ static void iciPing(struct InterfaceController_Iface_pvt* ici, struct InterfaceC
             // This is a version mismatch, we have nothing to do with this node
             // but we keep the UNRESPONSIVE session alive to keep track of the
             // fact that we don't want to talk to it.
+            ep->state = InterfaceController_PeerState_INCOMPATIBLE;
             continue;
         }
 
@@ -732,6 +733,13 @@ static Iface_DEFUN handleUnexpectedIncoming(struct Message* msg,
 
     Assert_true(!((uintptr_t)msg->bytes % 4) && "alignment fault");
 
+    struct CryptoHeader* ch = (struct CryptoHeader*) msg->bytes;
+    if (ch->nonce & Endian_bigEndianToHost32(~1)) {
+        // This cuts down on processing and logger noise because any packet
+        // which is not a setup packet will be summarily dropped.
+        return NULL;
+    }
+
     struct Peer* ep = Allocator_calloc(epAlloc, sizeof(struct Peer), 1);
     Identity_set(ep);
     ep->alloc = epAlloc;
@@ -739,7 +747,6 @@ static Iface_DEFUN handleUnexpectedIncoming(struct Message* msg,
     ep->lladdr = lladdr;
     ep->alloc = epAlloc;
     ep->peerLink = PeerLink_new(ic->eventBase, epAlloc);
-    struct CryptoHeader* ch = (struct CryptoHeader*) msg->bytes;
     ep->caSession = CryptoAuth_newSession(ic->ca, epAlloc, ch->publicKey, true, "outer");
     if (CryptoAuth_decrypt(ep->caSession, msg)) {
         // If the first message is a dud, drop all state for this peer.
