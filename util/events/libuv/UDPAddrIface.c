@@ -90,7 +90,8 @@ static Iface_DEFUN incomingFromIface(struct Message* m, struct Iface* iface)
     }
 
     if (context->queueLen > UDPAddrIface_MAX_QUEUE) {
-        Log_warn(context->logger, "DROP Maximum queue length reached");
+        Log_warn(context->logger, "DROP msg length [%d] to [%s] maximum queue length reached",
+            m->length, Sockaddr_print(context->pub.generic.addr, m->alloc));
         return NULL;
     }
 
