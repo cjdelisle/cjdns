@@ -118,6 +118,41 @@ static Er_DEFUN(void mkRouteMsg(struct Message* msg,
     Er_ret();
 }
 
+// This is a hack because OSX as of 10.15.4 refuses to a route with prefix /0
+static struct ArrayList_OfSockaddr* ipv6DefaultRoute(
+    struct ArrayList_OfSockaddr* list,
+    struct Allocator* alloc)
+{
+    struct Sockaddr* pfx0 =
+        Sockaddr_fromBytes("\x00\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", Sockaddr_AF_INET6, alloc);
+    struct Sockaddr* pfx1 =
+        Sockaddr_fromBytes("\x80\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", Sockaddr_AF_INET6, alloc);
+    pfx0->prefix = 1;
+    pfx1->prefix = 1;
+    struct ArrayList_OfSockaddr* arr = ArrayList_OfSockaddr_new(alloc);
+    ArrayList_OfSockaddr_add(arr, pfx0);
+    ArrayList_OfSockaddr_add(arr, pfx1);
+    for (int i = 0; i < list->length; i++) {
+        struct Sockaddr* pfx = ArrayList_OfSockaddr_get(list, i);
+        if (Sockaddr_getFamily(pfx) == Sockaddr_AF_INET6) { continue; }
+        ArrayList_OfSockaddr_add(arr, pfx);
+    }
+    return arr;
+}
+
+static bool isDefault6(struct ArrayList_OfSockaddr* prefixes)
+{
+    // v4 and v6 routes can be mixed together in one request
+    int sixCount = 0;
+    for (int i = 0; i < prefixes->length; i++) {
+        struct Sockaddr* pfx = ArrayList_OfSockaddr_get(prefixes, i);
+        if (Sockaddr_getFamily(pfx) != Sockaddr_AF_INET6) { continue; }
+        sixCount++;
+        if (pfx->prefix) { return false; }
+    }
+    return sixCount == 1;
+}
+
 static Er_DEFUN(void setRoutes(uint32_t ifIndex,
                       const char* ifName,
                       struct ArrayList_OfSockaddr* toRemove,
@@ -134,6 +169,9 @@ static Er_DEFUN(void setRoutes(uint32_t ifIndex,
     }
     bool err = false;
     ssize_t returnLen = 0;
+
+    if (isDefault6(toRemove)) { toRemove = ipv6DefaultRoute(toRemove, alloc); }
+    if (isDefault6(toAdd)) { toAdd = ipv6DefaultRoute(toAdd, alloc); }
 
     for (int i = 0; !err && i < toRemove->length; i++) {
         struct Sockaddr* pfx = ArrayList_OfSockaddr_get(toRemove, i);
