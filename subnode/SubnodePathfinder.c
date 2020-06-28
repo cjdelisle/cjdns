@@ -195,50 +195,15 @@ static void getRouteReply(Dict* msg, struct Address* src, struct MsgCore_Promise
     Iface_CALL(sendNode, msgToCore, &al->elems[0], Metric_SNODE_SAYS, PFChan_Pathfinder_NODE, pf);
 }
 
-static Iface_DEFUN searchReq(struct Message* msg, struct SubnodePathfinder_pvt* pf)
+static void queryRs(struct SubnodePathfinder_pvt* pf, uint8_t addr[16], uint8_t printedAddr[40])
 {
-    uint8_t addr[16];
-    Er_assert(Message_epop(msg, addr, 16));
-    Er_assert(Message_epop32be(msg));
-    uint32_t version = Er_assert(Message_epop32be(msg));
-    if (version && version < 20) { return NULL; }
-    Assert_true(!msg->length);
-    uint8_t printedAddr[40];
-    AddrTools_printIp(printedAddr, addr);
-
-    // We're not going to query for a direct peer because it slows down the process significantly
-    // and right now, Metric.h always prefers a reported peer to the advice of the snode, which
-    for (int i = 0; i < pf->myPeerAddrs->length; ++i) {
-        struct Address* myPeer = AddrSet_get(pf->myPeerAddrs, i);
-        if (!Bits_memcmp(myPeer->ip6.bytes, addr, 16)) {
-            Log_debug(pf->log, "Skip for [%s] is our peer, provide that immediately", printedAddr);
-            // warning: msg is nolonger usable, it has disappeared into sendNode
-            Iface_CALL(sendNode, msg, myPeer, Metric_PF_PEER, PFChan_Pathfinder_NODE, pf);
-            msg = NULL;
-            break;
-        }
-    }
-
-    if (!pf->pub.snh || !pf->pub.snh->snodeAddr.path) {
-        Log_debug(pf->log, "Search for [%s] impossible because we have no snode", printedAddr);
-        return NULL;
-    }
-
-    if (msg && !Bits_memcmp(pf->pub.snh->snodeAddr.ip6.bytes, addr, 16)) {
-        // Querying for a path TO our snode, we can return the path we know right now but also
-        // make the query...
-        Log_debug(pf->log, "Skip for [%s] is our snode, provide that immediately", printedAddr);
-        Iface_CALL(sendNode,
-            msg, &pf->pub.snh->snodeAddr, Metric_SNODE, PFChan_Pathfinder_NODE, pf);
-    }
-
     struct Query q = { .routeFrom = { 0 } };
     Bits_memcpy(&q.target, &pf->pub.snh->snodeAddr, sizeof(struct Address));
     Bits_memcpy(q.routeFrom, pf->myAddress->ip6.bytes, 16);
     Bits_memcpy(q.routeFrom, addr, 16);
     if (Map_OfPromiseByQuery_indexForKey(&q, &pf->queryMap) > -1) {
         Log_debug(pf->log, "Search for [%s] skipped because one is outstanding", printedAddr);
-        return NULL;
+        return;
     }
 
     struct MsgCore_Promise* qp = MsgCore_createQuery(pf->msgCore, 0, pf->alloc);
@@ -265,8 +230,42 @@ static Iface_DEFUN searchReq(struct Message* msg, struct SubnodePathfinder_pvt* 
 
     int index = Map_OfPromiseByQuery_put(&q, &qp, &pf->queryMap);
     snq->mapHandle = pf->queryMap.handles[index];
+}
 
-    return NULL;
+static Iface_DEFUN searchReq(struct Message* msg, struct SubnodePathfinder_pvt* pf)
+{
+    uint8_t addr[16];
+    Er_assert(Message_epop(msg, addr, 16));
+    Er_assert(Message_epop32be(msg));
+    uint32_t version = Er_assert(Message_epop32be(msg));
+    if (version && version < 20) { return NULL; }
+    Assert_true(!msg->length);
+    uint8_t printedAddr[40];
+    AddrTools_printIp(printedAddr, addr);
+
+    // We're not going to query for a direct peer because it slows down the process significantly
+    // and right now, Metric.h always prefers a reported peer to the advice of the snode, which
+    for (int i = 0; i < pf->myPeerAddrs->length; ++i) {
+        struct Address* myPeer = AddrSet_get(pf->myPeerAddrs, i);
+        if (Bits_memcmp(myPeer->ip6.bytes, addr, 16)) { continue; }
+        Log_debug(pf->log, "Skip for [%s] is our peer, provide that immediately", printedAddr);
+        // warning: msg is nolonger usable, it has disappeared into sendNode
+        queryRs(pf, addr, printedAddr);
+        return sendNode(msg, myPeer, Metric_PF_PEER, PFChan_Pathfinder_NODE, pf);
+    }
+
+    if (!pf->pub.snh || !pf->pub.snh->snodeAddr.path) {
+        Log_debug(pf->log, "Search for [%s] impossible because we have no snode", printedAddr);
+        return NULL;
+    }
+
+    if (msg && !Bits_memcmp(pf->pub.snh->snodeAddr.ip6.bytes, addr, 16)) {
+        // Querying for a path TO our snode, we can return the path we know right now but also
+        // make the query...
+        Log_debug(pf->log, "Skip for [%s] is our snode, provide that immediately", printedAddr);
+        queryRs(pf, addr, printedAddr);
+        return sendNode(msg, &pf->pub.snh->snodeAddr, Metric_SNODE, PFChan_Pathfinder_NODE, pf);
+    }
 }
 
 static void rcChange(struct ReachabilityCollector* rc,
