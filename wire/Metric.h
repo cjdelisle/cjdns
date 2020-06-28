@@ -34,16 +34,11 @@
 // Because this is not inter-node protocol, you can change these numbers at any
 // time.
 
-
-// This is known to be a peer by InterfaceController, OR'd with the latency
-static const uint32_t Metric_IC_PEER =         0xff000000;
-static const uint32_t Metric_IC_PEER_MASK =    0x0000ffff;
+// The snode says this is a path to the node
+static const uint32_t Metric_SNODE_SAYS =      0xff100000;
 
 // Node is a direct peer according to the SubnodePathfinder
-static const uint32_t Metric_PF_PEER =         0xff100000;
-
-// The snode says this is a path to the node
-static const uint32_t Metric_SNODE_SAYS =      0xff200000;
+static const uint32_t Metric_PF_PEER =         0xff200000;
 
 // This is our discovered path to our snode
 static const uint32_t Metric_SNODE =           0xff300000;
@@ -68,5 +63,13 @@ static const uint32_t Metric_SM_SEND =         0xff710000;
 
 // This will cause the SM to kill off a path
 static const uint32_t Metric_DEAD_LINK =       0xffffffff;
+
+
+
+// This is known to be a peer by InterfaceController, OR'd with the latency
+// This is NEVER used as a metric in the SessionManager, it is only how
+// the InterfaceController reports a peer to the pathfinders.
+static const uint32_t Metric_IC_PEER =         0xffff0000;
+static const uint32_t Metric_IC_PEER_MASK =    0x0000ffff;
 
 #endif

@@ -205,34 +205,38 @@ static Iface_DEFUN searchReq(struct Message* msg, struct SubnodePathfinder_pvt* 
     Assert_true(!msg->length);
     uint8_t printedAddr[40];
     AddrTools_printIp(printedAddr, addr);
-    Log_debug(pf->log, "Search req [%s]", printedAddr);
 
-    // There might actually be a better path to the peer rather than direct
-    // for (int i = 0; i < pf->myPeers->length; ++i) {
-    //     struct Address* myPeer = AddrSet_get(pf->myPeers, i);
-    //     if (!Bits_memcmp(myPeer->ip6.bytes, addr, 16)) {
-    //         Log_debug(pf->log, "Skip search for [%s] because it's a peer", printedAddr);
-    //         return sendNode(msg, myPeer, Metric_PF_PEER, PFChan_Pathfinder_NODE, pf);
-    //     }
-    // }
+    // We're not going to query for a direct peer because it slows down the process significantly
+    // and right now, Metric.h always prefers a reported peer to the advice of the snode, which
+    for (int i = 0; i < pf->myPeerAddrs->length; ++i) {
+        struct Address* myPeer = AddrSet_get(pf->myPeerAddrs, i);
+        if (!Bits_memcmp(myPeer->ip6.bytes, addr, 16)) {
+            Log_debug(pf->log, "Skip for [%s] is our peer, provide that immediately", printedAddr);
+            // warning: msg is nolonger usable, it has disappeared into sendNode
+            Iface_CALL(sendNode, msg, myPeer, Metric_PF_PEER, PFChan_Pathfinder_NODE, pf);
+            msg = NULL;
+            break;
+        }
+    }
 
     if (!pf->pub.snh || !pf->pub.snh->snodeAddr.path) {
-        Log_debug(pf->log, "Skip search for [%s] because we have no snode", printedAddr);
+        Log_debug(pf->log, "Search for [%s] impossible because we have no snode", printedAddr);
         return NULL;
     }
 
-    // No harm in asking
-    // if (!Bits_memcmp(pf->pub.snh->snodeAddr.ip6.bytes, addr, 16)) {
-    //     Log_debug(pf->log, "Skip search for [%s] because it is our snode", printedAddr);
-    //     return sendNode(msg, &pf->pub.snh->snodeAddr, Metric_SNODE, PFChan_Pathfinder_NODE, pf);
-    // }
+    if (msg && !Bits_memcmp(pf->pub.snh->snodeAddr.ip6.bytes, addr, 16)) {
+        // Querying for a path TO our snode, we can return the path we know right now but also
+        // make the query...
+        Log_debug(pf->log, "Skip for [%s] is our snode, provide that immediately", printedAddr);
+        Iface_CALL(sendNode, msg, &pf->pub.snh->snodeAddr, Metric_SNODE, PFChan_Pathfinder_NODE, pf);
+    }
 
     struct Query q = { .routeFrom = { 0 } };
     Bits_memcpy(&q.target, &pf->pub.snh->snodeAddr, sizeof(struct Address));
     Bits_memcpy(q.routeFrom, pf->myAddress->ip6.bytes, 16);
     Bits_memcpy(q.routeFrom, addr, 16);
     if (Map_OfPromiseByQuery_indexForKey(&q, &pf->queryMap) > -1) {
-        Log_debug(pf->log, "Skipping snode query because one is outstanding");
+        Log_debug(pf->log, "Search for [%s] skipped because one is outstanding", printedAddr);
         return NULL;
     }
 
@@ -249,8 +253,9 @@ static Iface_DEFUN searchReq(struct Message* msg, struct SubnodePathfinder_pvt* 
     Assert_true(AddressCalc_validAddress(pf->pub.snh->snodeAddr.ip6.bytes));
     qp->target = &pf->pub.snh->snodeAddr;
 
-    Log_debug(pf->log, "Sending getRoute to snode %s",
-        Address_toString(qp->target, qp->alloc)->bytes);
+    Log_debug(pf->log, "Sending getRoute to snode [%s] for [%s]",
+        Address_toString(qp->target, qp->alloc)->bytes,
+        printedAddr);
     Dict_putStringCC(dict, "sq", "gr", qp->alloc);
     String* src = String_newBinary(pf->myAddress->ip6.bytes, 16, qp->alloc);
     Dict_putStringC(dict, "src", src, qp->alloc);
@@ -354,7 +359,10 @@ static Iface_DEFUN peer(struct Message* msg, struct SubnodePathfinder_pvt* pf)
         ReachabilityCollector_lagSample(pf->pub.rc, addr.path, (metric & Metric_IC_PEER_MASK));
     }
 
-    return sendNode(msg, &addr, metric, PFChan_Pathfinder_NODE, pf);
+    // We send this as Metric_PF_PEER because if it happens that this is a really crappy
+    // peering link, we would prefer to take the route server's advice and bounce the connection
+    // over a link which makes more sense to use.
+    return sendNode(msg, &addr, Metric_PF_PEER, PFChan_Pathfinder_NODE, pf);
 }
 
 static Iface_DEFUN peerGone(struct Message* msg, struct SubnodePathfinder_pvt* pf)
