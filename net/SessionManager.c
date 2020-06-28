@@ -544,17 +544,17 @@ static void bufferPacket(struct SessionManager_pvt* sm, struct Message* msg)
     struct DataHeader* dataHeader = (struct DataHeader*) &header[1];
     Assert_true(DataHeader_getContentType(dataHeader) != ContentType_CJDHT);
 
-    if (Defined(Log_DEBUG)) {
-        uint8_t ipStr[40];
-        AddrTools_printIp(ipStr, header->ip6);
-        Log_debug(sm->log, "Buffering a packet to [%s]", ipStr);
-    }
+    uint8_t ipStr[40];
+    AddrTools_printIp(ipStr, header->ip6);
+
     int index = Map_BufferedMessages_indexForKey((struct Ip6*)header->ip6, &sm->bufMap);
     if (index > -1) {
         struct BufferedMessage* buffered = sm->bufMap.values[index];
         Map_BufferedMessages_remove(index, &sm->bufMap);
         Allocator_free(buffered->alloc);
-        Log_debug(sm->log, "DROP message which needs lookup because new one received");
+        Log_debug(sm->log, "Buffering a packet to [%s] DROP replacing one in the buffer", ipStr);
+    } else {
+        Log_debug(sm->log, "Buffering a packet to [%s]", ipStr);
     }
     if ((int)sm->bufMap.count >= sm->pub.maxBufferedMessages) {
         checkTimedOutBuffers(sm);

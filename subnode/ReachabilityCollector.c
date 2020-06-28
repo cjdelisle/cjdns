@@ -287,7 +287,7 @@ static void queryOldPeer(struct ReachabilityCollector_pvt* rcp, struct PeerInfo_
     Bits_memcpy(nearbyLabelBytes, &label_be, 8);
 
     AddrTools_printPath(q->targetPath, pi->pathToCheck);
-    Log_debug(rcp->log, "Getting reverse path for peer [%s] tar [%s]",
+    Log_debug(rcp->log, "Getting reverse path for old peer [%s] tar [%s]",
         Address_toString(&pi->pub.addr, query->alloc)->bytes,
         q->targetPath);
 
@@ -331,7 +331,8 @@ static void pingPeer(struct ReachabilityCollector_pvt* rcp, struct PeerInfo_pvt*
     Assert_true(pi->pub.addr.path);
     qp->target = Address_clone(&pi->pub.addr, qp->alloc);
 
-    Log_debug(rcp->log, "Pinging [%s]", Address_toString(qp->target, qp->alloc)->bytes);
+    Log_debug(rcp->log, "Pinging [%s] to determine latency",
+        Address_toString(qp->target, qp->alloc)->bytes);
     Dict_putStringCC(dict, "q", "pn", qp->alloc);
 
     BoilerplateResponder_addBoilerplate(rcp->br, dict, qp->target, qp->alloc);
@@ -397,6 +398,8 @@ static void queryBackroute(struct ReachabilityCollector_pvt* rcp, struct PeerInf
         rcp->alloc,
         rcp->sp);
     Assert_true(p);
+    Log_debug(rcp->log, "Getting reverse path for new peer [%s]",
+        Address_toString(&pi->pub.addr, p->pingAlloc)->bytes);
     p->type = SwitchPinger_Type_RPATH;
     p->onResponseContext = rcp;
     pi->waitForResponse = true;
@@ -441,8 +444,6 @@ static void cycle(void* vrc)
         Log_debug(rcp->log, "Visiting peer [%" PRIx64 "] samples [%u]",
             pi->pub.addr.path, pi->lagSamples);
         if (pi->lagSamples == 0 && !pi->waitForResponse) {
-            Log_debug(rcp->log, "Triggering a ping to peer [%" PRIx64 "]",
-                pi->pub.addr.path);
             pingPeer(rcp, pi);
         }
 
