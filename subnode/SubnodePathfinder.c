@@ -266,6 +266,9 @@ static Iface_DEFUN searchReq(struct Message* msg, struct SubnodePathfinder_pvt* 
         queryRs(pf, addr, printedAddr);
         return sendNode(msg, &pf->pub.snh->snodeAddr, Metric_SNODE, PFChan_Pathfinder_NODE, pf);
     }
+
+    queryRs(pf, addr, printedAddr);
+    return NULL;
 }
 
 static void rcChange(struct ReachabilityCollector* rc,
