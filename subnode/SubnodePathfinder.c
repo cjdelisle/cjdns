@@ -228,7 +228,8 @@ static Iface_DEFUN searchReq(struct Message* msg, struct SubnodePathfinder_pvt* 
         // Querying for a path TO our snode, we can return the path we know right now but also
         // make the query...
         Log_debug(pf->log, "Skip for [%s] is our snode, provide that immediately", printedAddr);
-        Iface_CALL(sendNode, msg, &pf->pub.snh->snodeAddr, Metric_SNODE, PFChan_Pathfinder_NODE, pf);
+        Iface_CALL(sendNode,
+            msg, &pf->pub.snh->snodeAddr, Metric_SNODE, PFChan_Pathfinder_NODE, pf);
     }
 
     struct Query q = { .routeFrom = { 0 } };
