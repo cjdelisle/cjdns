@@ -197,6 +197,10 @@ static void getRouteReply(Dict* msg, struct Address* src, struct MsgCore_Promise
 
 static void queryRs(struct SubnodePathfinder_pvt* pf, uint8_t addr[16], uint8_t printedAddr[40])
 {
+    if (!pf->pub.snh || !pf->pub.snh->snodeAddr.path) {
+        Log_debug(pf->log, "Search for [%s] impossible because we have no snode", printedAddr);
+        return;
+    }
     struct Query q = { .routeFrom = { 0 } };
     Bits_memcpy(&q.target, &pf->pub.snh->snodeAddr, sizeof(struct Address));
     Bits_memcpy(q.routeFrom, pf->myAddress->ip6.bytes, 16);
@@ -254,12 +258,7 @@ static Iface_DEFUN searchReq(struct Message* msg, struct SubnodePathfinder_pvt* 
         return sendNode(msg, myPeer, Metric_PF_PEER, PFChan_Pathfinder_NODE, pf);
     }
 
-    if (!pf->pub.snh || !pf->pub.snh->snodeAddr.path) {
-        Log_debug(pf->log, "Search for [%s] impossible because we have no snode", printedAddr);
-        return NULL;
-    }
-
-    if (msg && !Bits_memcmp(pf->pub.snh->snodeAddr.ip6.bytes, addr, 16)) {
+    if (pf->pub.snh && !Bits_memcmp(pf->pub.snh->snodeAddr.ip6.bytes, addr, 16)) {
         // Querying for a path TO our snode, we can return the path we know right now but also
         // make the query...
         Log_debug(pf->log, "Skip for [%s] is our snode, provide that immediately", printedAddr);
