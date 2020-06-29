@@ -1,0 +1,58 @@
+.TH cjdroute "2020-06-27" "" "Cjdns Reference"
+
+.SH NAME
+
+.B
+cjdroute
+\- cjdns router daemon
+
+.SH DESCRIPTION
+
+Cjdns provides an encrypted IPv6 network using public-key cryptography
+for address allocation and a distributed hash table for routing.
+.I cjdroute
+acts as one node in the cjdns network.
+
+In normal operation,
+.I cjdroute
+is invoked with no options, and reads its configuration from standard input
+before starting. See
+.BR cjdroute.conf (5)
+for the format of the configuration.
+
+.TP
+.B --help
+Print a usage summary and exit.
+
+.TP
+.B --genconf
+Generate a new example configuration, including a new keypair, and write it to
+the standard output.
+
+.TP
+.B --version
+Print the protocol version which this node speaks.
+
+.TP
+.B --cleanconf
+Read a configuration on standard input, and print a clean version of that configuration
+on standard output.
+
+.TP
+.B --nobg
+The configuration is read and the router is started, but the
+.B noBackground
+configuration parameter is forced to
+.BR true .
+
+.PP
+Additional options exist for development and testing. See the project documentation
+for details.
+
+.SH "SEE ALSO"
+
+.BR cjdroute.conf (5),
+.UR https://github.com/cjdelisle/cjdns
+.UE .
+
+.\" EOF
