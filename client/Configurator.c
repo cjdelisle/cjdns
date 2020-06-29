@@ -632,13 +632,6 @@ static void security(struct Allocator* tempAlloc, List* conf, struct Log* log, s
         Dict_putStringCC(d, "root", "/var/run/", tempAlloc);
         rpcCall0(String_CONST("Security_chroot"), d, ctx, tempAlloc, NULL, false);
     }
-    /* FIXME(sdg): moving noforks after setuser might make nproc <- 0,0 work
-     on older kernels, where doing it before causes setuid to fail w EAGAIN. */
-    if (noforks) {
-        Log_debug(log, "Security_noforks()");
-        Dict* d = Dict_new(tempAlloc);
-        rpcCall(String_CONST("Security_noforks"), d, ctx, tempAlloc);
-    }
     if (setuser) {
         Log_debug(log, "Security_setUser(uid:%d, keepNetAdmin:%d)", uid, keepNetAdmin);
         Dict* d = Dict_new(tempAlloc);
@@ -648,6 +641,11 @@ static void security(struct Allocator* tempAlloc, List* conf, struct Log* log, s
         }
         Dict_putIntC(d, "keepNetAdmin", keepNetAdmin, tempAlloc);
         rpcCall0(String_CONST("Security_setUser"), d, ctx, tempAlloc, NULL, false);
+    }
+    if (noforks) {
+        Log_debug(log, "Security_noforks()");
+        Dict* d = Dict_new(tempAlloc);
+        rpcCall(String_CONST("Security_noforks"), d, ctx, tempAlloc);
     }
     if (nofiles) {
         Log_debug(log, "Security_nofiles()");
