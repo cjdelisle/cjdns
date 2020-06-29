@@ -728,8 +728,6 @@ static Iface_DEFUN handleUnexpectedIncoming(struct Message* msg,
     if (msg->length < CryptoHeader_SIZE) {
         return NULL;
     }
-    struct Allocator* epAlloc = Allocator_child(ici->alloc);
-    lladdr = Sockaddr_clone(lladdr, epAlloc);
 
     Assert_true(!((uintptr_t)msg->bytes % 4) && "alignment fault");
 
@@ -739,6 +737,9 @@ static Iface_DEFUN handleUnexpectedIncoming(struct Message* msg,
         // which is not a setup packet will be summarily dropped.
         return NULL;
     }
+
+    struct Allocator* epAlloc = Allocator_child(ici->alloc);
+    lladdr = Sockaddr_clone(lladdr, epAlloc);
 
     struct Peer* ep = Allocator_calloc(epAlloc, sizeof(struct Peer), 1);
     Identity_set(ep);
