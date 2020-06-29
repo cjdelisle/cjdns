@@ -235,6 +235,8 @@ static void sendPeer(uint32_t pathfinderId,
     } else if (Defined(SUBNODE) && peer->addr.protocolVersion < 21) {
         // Subnode doesn't talk to peers with less than v21
         return;
+    } else if (!Version_isCompatible(peer->addr.protocolVersion, Version_CURRENT_PROTOCOL)) {
+        return;
     }
     struct InterfaceController_pvt* ic = Identity_check(peer->ici->ic);
     struct Allocator* alloc = Allocator_child(ic->alloc);
