@@ -453,46 +453,32 @@ void ReachabilityAnnouncer_updatePeer(struct ReachabilityAnnouncer* ra,
 
     struct Announce_Peer refPeer;
     Announce_Peer_init(&refPeer);
-    if (pi) {
-        refPeer.label_be = Endian_hostToBigEndian32(pi->pathThemToUs);
-        // TODO(cjd): This needs to carry the observed MTU
-        refPeer.mtu8_be = 0;
-        refPeer.unused = 0xffffffff;
-        refPeer.peerNum_be = Endian_hostToBigEndian16(
-            EncodingScheme_parseDirector(rap->myScheme, pi->addr.path)
-        );
-        refPeer.encodingFormNum = EncodingScheme_getFormNum(rap->myScheme, pi->addr.path);
-    }
+    refPeer.encodingFormNum = EncodingScheme_getFormNum(rap->myScheme, nodeAddr->path);
+    refPeer.peerNum_be =
+        Endian_hostToBigEndian16(EncodingScheme_parseDirector(rap->myScheme, nodeAddr->path));
     Bits_memcpy(refPeer.peerIpv6, nodeAddr->ip6.bytes, 16);
+    if (pi) { refPeer.label_be = Endian_hostToBigEndian32(pi->pathThemToUs); }
 
     struct ReachabilityAnnouncer_Peer* peer = NULL;
-    bool unreachable = true;
+    bool weWereIsolatedBefore = true;
     for (int i = 0; i < rap->localPeers->length; i++) {
-        peer = ArrayList_OfLocalPeers_get(rap->localPeers, i);
-        if (peer->ap.label_be) { unreachable = false; }
-        if (refPeer.peerNum_be != peer->ap.peerNum_be) {
-            peer = NULL;
-            continue;
-        }
-        if (!Bits_memcmp(&refPeer, &peer->ap, Announce_Peer_SIZE)) {
-            Log_debug(rap->log, "Update peer [%s] peer exists and needs no update", addrPrinted);
-            return;
-        }
-        if (pi) {
-            // It's an announce, copy the refPeer over the peer
-            Bits_memcpy(&peer->ap, &refPeer, Announce_Peer_SIZE);
-        } else {
-            // It's a withdraw, keep the peer in order but zero the label to indicate
-            // it's being withdrawn.
-            peer->ap.label_be = 0;
-        }
-        break;
+        struct ReachabilityAnnouncer_Peer* peer0 = ArrayList_OfLocalPeers_get(rap->localPeers, i);
+        if (peer0->ap.label_be) { weWereIsolatedBefore = false; }
+        if (refPeer.peerNum_be == peer0->ap.peerNum_be) { peer = peer0; }
     }
-    if (!peer) {
-        if (!pi) {
-            Log_debug(rap->log, "[%s] didnt exist before and is now unreachable", addrPrinted);
+    if (peer) {
+        if (!Bits_memcmp(&refPeer, &peer->ap, Announce_Peer_SIZE)) {
+            Log_debug(rap->log, "Peer [%s] exists and needs no update", addrPrinted);
             return;
         }
+        // If this is an announce, the refPeer will provide the new info
+        // if it's a withdraw then the refPeer already contains a label_be of 0
+        Bits_memcpy(&peer->ap, &refPeer, Announce_Peer_SIZE);
+    } else if (!pi) {
+        Log_debug(rap->log, "[%s] didnt exist before and is now unreachable", addrPrinted);
+        return;
+    } else {
+        // we don't know about this peer, and we just discovered it
         peer = addLocalStatePeer(rap, &refPeer);
     }
     switch (updatePeer(rap, &peer->ap, 0)) {
@@ -510,7 +496,7 @@ void ReachabilityAnnouncer_updatePeer(struct ReachabilityAnnouncer* ra,
             return;
         }
         case updatePeer_ADD: {
-            if (unreachable) {
+            if (weWereIsolatedBefore) {
                 Log_debug(rap->log, "first peer");
                 stateUpdate(rap, ReachabilityAnnouncer_State_FIRSTPEER);
             } else {

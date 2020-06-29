@@ -258,7 +258,7 @@ static void onReplyOld(Dict* msg, struct Address* src, struct MsgCore_Promise* p
     if (results->length < 8) {
         // Peer's gp response does not include my addr, meaning the peer might not know us yet.
         // should wait peer sendPing (see InterfaceControl.c).
-        Log_debug(rcp->log, "Peer [%s] did",
+        Log_debug(rcp->log, "No back-route found for peer [%s]",
             Address_toString(src, prom->alloc)->bytes);
         pi->pathToCheck = 1;
         return;
