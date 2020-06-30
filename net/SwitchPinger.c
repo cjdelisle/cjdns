@@ -238,6 +238,7 @@ static void onPingResponse(String* data, uint32_t milliseconds, void* vping)
         }
     } else {
         err = SwitchPinger_Result_TIMEOUT;
+        label = p->label;
     }
 
     uint32_t version = p->context->incomingVersion;
