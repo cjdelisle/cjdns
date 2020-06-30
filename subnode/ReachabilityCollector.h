@@ -37,6 +37,10 @@ struct ReachabilityCollector_PeerInfo
     bool isQuerying;
 
     struct LinkState linkState;
+
+    // This is set by ReachabilityAnnouncer when it announces a set of data
+    // so that the same data won't be announced twice.
+    uint32_t lastAnnouncedSamples;
 };
 
 struct ReachabilityCollector;
@@ -51,6 +55,9 @@ struct ReachabilityCollector
     ReachabilityCollector_OnChange onChange;
     void* userData;
 };
+
+struct ReachabilityCollector_PeerInfo*
+    ReachabilityCollector_piForLabel(struct ReachabilityCollector* rc, uint64_t label);
 
 struct ReachabilityCollector_PeerInfo*
     ReachabilityCollector_getPeerInfo(struct ReachabilityCollector* rc, int peerNum);

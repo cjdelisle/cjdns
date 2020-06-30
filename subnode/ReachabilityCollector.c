@@ -90,6 +90,15 @@ static struct PeerInfo_pvt* piForLabel(struct ReachabilityCollector_pvt* rcp, ui
     return NULL;
 }
 
+struct ReachabilityCollector_PeerInfo*
+    ReachabilityCollector_piForLabel(struct ReachabilityCollector* rc, uint64_t label)
+{
+    struct ReachabilityCollector_pvt* rcp = Identity_check((struct ReachabilityCollector_pvt*) rc);
+    struct PeerInfo_pvt* out = piForLabel(rcp, label);
+    return out ? &out->pub : NULL;
+}
+
+
 static struct PeerInfo_pvt* piForAddr(struct ReachabilityCollector_pvt* rcp, struct Address* addr)
 {
     struct PeerInfo_pvt* pi = piForLabel(rcp, addr->path);
@@ -152,9 +161,6 @@ static void change0(struct ReachabilityCollector_pvt* rcp,
     pi->alloc = piAlloc;
     pi->pub.isQuerying = true;
     pi->pathToCheck = 1;
-    pi->pub.pathThemToUs = -1;
-    pi->waitForResponse = false;
-    pi->pub.linkState.nodeId = EncodingScheme_parseDirector(rcp->myScheme, nodeAddr->path);
     Allocator_onFree(piAlloc, piOnFree, pi);
     ArrayList_OfPeerInfo_pvt_add(rcp->piList, pi);
     Log_debug(rcp->log, "Peer [%s] added", Address_toString(&pi->pub.addr, tempAlloc)->bytes);
@@ -218,9 +224,9 @@ static void onReplyOld(Dict* msg, struct Address* src, struct MsgCore_Promise* p
             Address_toString(src, prom->alloc)->bytes);
         return;
     }
+    pi->waitForResponse = false;
     latencyUpdate(rcp, pi, prom->lag);
 
-    pi->waitForResponse = false;
 
     struct Address_List* results = ReplySerializer_parse(src, msg, rcp->log, false, prom->alloc);
     uint64_t path = 1;
@@ -303,20 +309,21 @@ static void pingReply(Dict* msg, struct Address* src, struct MsgCore_Promise* pr
     struct ReachabilityCollector_pvt* rcp =
         Identity_check((struct ReachabilityCollector_pvt*) prom->userData);
 
+    struct PeerInfo_pvt* pi = piForAddr(rcp, prom->target);
+    if (!pi) {
+        if (src) {
+            Log_debug(rcp->log, "Got message from peer [%s] which is gone from list",
+                Address_toString(src, prom->alloc)->bytes);
+        }
+        return;
+    }
+    pi->waitForResponse = false;
     if (!src) {
         //Log_debug(pf->log, "Ping timeout");
         return;
     }
     Log_debug(rcp->log, "Ping reply from [%s]", Address_toString(src, prom->alloc)->bytes);
-
-    struct PeerInfo_pvt* pi = piForAddr(rcp, src);
-    if (!pi) {
-        Log_debug(rcp->log, "Got message from peer [%s] which is gone from list",
-            Address_toString(src, prom->alloc)->bytes);
-        return;
-    }
     latencyUpdate(rcp, pi, prom->lag);
-    pi->waitForResponse = false;
 }
 
 static void pingPeer(struct ReachabilityCollector_pvt* rcp, struct PeerInfo_pvt* pi)
@@ -363,7 +370,7 @@ static void peerResponse(struct SwitchPinger_Response* resp, void* userData)
         mkNextRequest(rcp);
         return;
     }
-    Log_debug(rcp->log, "Response from [%" PRIx64 "] !", resp->label);
+    Log_debug(rcp->log, "Response from [%" PRIx64 "] [%d]", resp->label, pi->waitForResponse);
     pi->waitForResponse = false;
     char* err = "";
     switch (resp->res) {
