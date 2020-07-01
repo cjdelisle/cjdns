@@ -42,7 +42,6 @@
     static inline uint32_t Map_FUNCTION(hash)(Map_KEY_TYPE* key);
     #ifndef Map_USE_HASH
         #include "util/Hash.h"
-        // Get the last 4 bytes of the key by default.
         static inline uint32_t Map_FUNCTION(hash)(Map_KEY_TYPE* key)
         {
             return Hash_compute((uint8_t*)key, sizeof(Map_KEY_TYPE));
@@ -52,7 +51,6 @@
 
     static inline int Map_FUNCTION(compare)(Map_KEY_TYPE* keyA, Map_KEY_TYPE* keyB);
     #ifndef Map_USE_COMPARATOR
-        // Get the last 4 bytes of the key by default.
         static inline int Map_FUNCTION(compare)(Map_KEY_TYPE* keyA, Map_KEY_TYPE* keyB)
         {
             return Bits_memcmp(keyA, keyB, sizeof(Map_KEY_TYPE));
