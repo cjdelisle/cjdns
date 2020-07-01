@@ -209,6 +209,7 @@ static void queryRs(struct SubnodePathfinder_pvt* pf, uint8_t addr[16], uint8_t 
         Log_debug(pf->log, "Search for [%s] skipped because one is outstanding", printedAddr);
         return;
     }
+    Log_debug(pf->log, "Ping not in map [%08x]", Hash_compute((uint8_t*)&q, sizeof(struct Query)));
 
     struct MsgCore_Promise* qp = MsgCore_createQuery(pf->msgCore, 0, pf->alloc);
 
@@ -334,6 +335,7 @@ static void pingNode(struct SubnodePathfinder_pvt* pf, struct Address* addr)
 
     int index = Map_OfPromiseByQuery_put(&q, &qp, &pf->queryMap);
     usp->mapHandle = pf->queryMap.handles[index];
+    Log_debug(pf->log, "Put ping in map with hash [%08x]", pf->queryMap.hashCodes[index]);
 }
 
 static Iface_DEFUN peer(struct Message* msg, struct SubnodePathfinder_pvt* pf)
