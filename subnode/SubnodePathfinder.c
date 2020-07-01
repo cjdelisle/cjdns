@@ -123,6 +123,7 @@ static Iface_DEFUN connected(struct SubnodePathfinder_pvt* pf, struct Message* m
 
 static uint32_t addressForNode(struct Address* addrOut, struct Message* msg)
 {
+    Bits_memset(addr, 0, sizeof(struct Address));
     struct PFChan_Node node;
     Er_assert(Message_epop(msg, &node, PFChan_Node_SIZE));
     Assert_true(!msg->length);
@@ -209,7 +210,6 @@ static void queryRs(struct SubnodePathfinder_pvt* pf, uint8_t addr[16], uint8_t 
         Log_debug(pf->log, "Search for [%s] skipped because one is outstanding", printedAddr);
         return;
     }
-    Log_debug(pf->log, "Ping not in map [%08x]", Hash_compute((uint8_t*)&q, sizeof(struct Query)));
 
     struct MsgCore_Promise* qp = MsgCore_createQuery(pf->msgCore, 0, pf->alloc);
 
@@ -335,7 +335,6 @@ static void pingNode(struct SubnodePathfinder_pvt* pf, struct Address* addr)
 
     int index = Map_OfPromiseByQuery_put(&q, &qp, &pf->queryMap);
     usp->mapHandle = pf->queryMap.handles[index];
-    Log_debug(pf->log, "Put ping in map with hash [%08x]", pf->queryMap.hashCodes[index]);
 }
 
 static Iface_DEFUN peer(struct Message* msg, struct SubnodePathfinder_pvt* pf)
@@ -439,11 +438,12 @@ static Iface_DEFUN unsetupSession(struct Message* msg, struct SubnodePathfinder_
     struct PFChan_Node node;
     Er_assert(Message_epop(msg, &node, PFChan_Node_SIZE));
     Assert_true(!msg->length);
-    struct Address addr;
+    struct Address addr = {
+        .protocolVersion = Endian_bigEndianToHost32(node.version_be),
+        .path = Endian_bigEndianToHost64(node.path_be),
+    };
     Bits_memcpy(addr.ip6.bytes, node.ip6, 16);
     Bits_memcpy(addr.key, node.publicKey, 32);
-    addr.protocolVersion = Endian_bigEndianToHost32(node.version_be);
-    addr.path = Endian_bigEndianToHost64(node.path_be);
     pingNode(pf, &addr);
     return NULL;
 }
