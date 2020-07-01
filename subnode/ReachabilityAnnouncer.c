@@ -83,17 +83,16 @@ static int64_t timestampFromMsg(struct Message* msg)
 static struct Announce_Peer* peerFromSnodeState(struct ArrayList_OfMessages* snodeState,
                                                 uint16_t peerNum_be,
                                                 int64_t sinceTime,
-                                                uint64_t* timeOut)
+                                                int64_t* timeOut)
 {
     for (int i = snodeState->length - 1; i >= 0; i--) {
         struct Message* msg = ArrayList_OfMessages_get(snodeState, i);
-        uint64_t ts = timestampFromMsg(msg);
-        if (sinceTime > ts) { return NULL; }
         struct Announce_Peer* p = peerFromMsg(msg, peerNum_be);
-        if (p) {
-            if (timeOut) { *timeOut = ts; }
-            return p;
-        }
+        if (!p) { continue; }
+        int64_t ts = timestampFromMsg(msg);
+        if (sinceTime > ts) { return NULL; }
+        if (timeOut) { *timeOut = ts; }
+        return p;
     }
     return NULL;
 }
@@ -297,7 +296,7 @@ static int updatePeer(struct ReachabilityAnnouncer_pvt* rap,
         peer = peerFromMsg(rap->onTheWire->msg, refPeer->peerNum_be);
     }
     if (!peer) {
-        uint64_t peerTime = 0;
+        int64_t peerTime = 0;
         peer = peerFromSnodeState(rap->snodeState, refPeer->peerNum_be, sinceTime, &peerTime);
         if (peer && !Bits_memcmp(peer, refPeer, Announce_Peer_SIZE)) {
             if (isReannounceTime(serverTime, peerTime)) {
