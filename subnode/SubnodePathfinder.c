@@ -123,7 +123,7 @@ static Iface_DEFUN connected(struct SubnodePathfinder_pvt* pf, struct Message* m
 
 static uint32_t addressForNode(struct Address* addrOut, struct Message* msg)
 {
-    Bits_memset(addr, 0, sizeof(struct Address));
+    Bits_memset(addrOut, 0, sizeof(struct Address));
     struct PFChan_Node node;
     Er_assert(Message_epop(msg, &node, PFChan_Node_SIZE));
     Assert_true(!msg->length);
