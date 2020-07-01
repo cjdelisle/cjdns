@@ -293,7 +293,8 @@ static void pingReply(Dict* msg, struct Address* src, struct MsgCore_Promise* pr
     Map_OfPromiseByQuery_remove(index, &pf->queryMap);
 
     if (!src) {
-        //Log_debug(pf->log, "Ping timeout");
+        Log_debug(pf->log, "Ping timeout pinging [%s]",
+            Address_toString(prom->target, prom->alloc)->bytes);
         return;
     }
     Log_debug(pf->log, "Ping reply from [%s]", Address_toString(src, prom->alloc)->bytes);
