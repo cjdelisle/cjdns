@@ -39,6 +39,29 @@
 
 // -- Generic Functions -- //
 
+// We must reannounce before the agreed timeout because if it happens that there are
+// too many peers to fit in one packet, the packet will go out and re-announce the ones
+// who fit but the others will not fit in the packet and once the timestamp comes in,
+// they will be pulled by the route server.
+//
+// We could just declare that we are re-announcing everything at minute 15 but if we
+// do so then there will potentially be be a flood of full packets every 15 minutes
+// and link state will not be communicated.
+//
+// To fix this, we begin re-announcing after 14 minutes, which peers are eligable to be
+// re-announced is randomized by the timestamp of the previous announcement (something
+// which changes each cycle). Re-announcements occur between minutes 14 and minutes 19
+// with the last minute reserved as a 1 minute "quiet period" where announcements can
+// catch up before minute 20 when peers will be dropped by the route server.
+//
+#define QUIET_PERIOD_MS (1000 * 60 * 60)
+static bool isReannounceTime(int64_t nowServerTime, int64_t lastAnnouncedTime)
+{
+    int64_t timeSince = nowServerTime - lastAnnouncedTime;
+    int64_t random5Min = (lastAnnouncedTime % 600) * 1000;
+    return timeSince + random5Min > AGREED_TIMEOUT_MS - QUIET_PERIOD_MS;
+}
+
 static struct Announce_Peer* peerFromMsg(struct Message* msg, uint16_t peerNum_be)
 {
     if (!msg) { return NULL; }
@@ -59,13 +82,18 @@ static int64_t timestampFromMsg(struct Message* msg)
 
 static struct Announce_Peer* peerFromSnodeState(struct ArrayList_OfMessages* snodeState,
                                                 uint16_t peerNum_be,
-                                                int64_t sinceTime)
+                                                int64_t sinceTime,
+                                                uint64_t* timeOut)
 {
     for (int i = snodeState->length - 1; i >= 0; i--) {
         struct Message* msg = ArrayList_OfMessages_get(snodeState, i);
-        if (sinceTime > timestampFromMsg(msg)) { return NULL; }
+        uint64_t ts = timestampFromMsg(msg);
+        if (sinceTime > ts) { return NULL; }
         struct Announce_Peer* p = peerFromMsg(msg, peerNum_be);
-        if (p) { return p; }
+        if (p) {
+            if (timeOut) { *timeOut = ts; }
+            return p;
+        }
     }
     return NULL;
 }
@@ -261,17 +289,23 @@ static int updatePeer(struct ReachabilityAnnouncer_pvt* rap,
         Log_debug(rap->log, "updatePeer [%s]", printPeer(buf, rap, refPeer));
     }
 
-    int64_t sinceTime = snTime(rap) - AGREED_TIMEOUT_MS;
+    int64_t serverTime = snTime(rap);
+    int64_t sinceTime = serverTime - AGREED_TIMEOUT_MS;
 
     struct Announce_Peer* peer = NULL;
     if (rap->onTheWire) {
         peer = peerFromMsg(rap->onTheWire->msg, refPeer->peerNum_be);
     }
     if (!peer) {
-        peer = peerFromSnodeState(rap->snodeState, refPeer->peerNum_be, sinceTime);
+        uint64_t peerTime = 0;
+        peer = peerFromSnodeState(rap->snodeState, refPeer->peerNum_be, sinceTime, &peerTime);
         if (peer && !Bits_memcmp(peer, refPeer, Announce_Peer_SIZE)) {
-            Log_debug(rap->log, "Peer found in snodeState, noop");
-            return updatePeer_NOOP;
+            if (isReannounceTime(serverTime, peerTime)) {
+                Log_debug(rap->log, "Peer found in route server but needs re-announce");
+            } else {
+                Log_debug(rap->log, "Peer found in snodeState, noop");
+                return updatePeer_NOOP;
+            }
         } else if (peer) {
             Log_debug(rap->log, "Peer found in snodeState but needs update");
         } else {
