@@ -55,11 +55,11 @@
 // catch up before minute 20 when peers will be dropped by the route server.
 //
 #define QUIET_PERIOD_MS (1000 * 60 * 60)
-static bool isReannounceTime(int64_t nowServerTime, int64_t lastAnnouncedTime)
+static int64_t timeUntilReannounce(int64_t nowServerTime, int64_t lastAnnouncedTime)
 {
     int64_t timeSince = nowServerTime - lastAnnouncedTime;
     int64_t random5Min = (lastAnnouncedTime % 600) * 1000;
-    return timeSince + random5Min > AGREED_TIMEOUT_MS - QUIET_PERIOD_MS;
+    return timeSince + random5Min - AGREED_TIMEOUT_MS - QUIET_PERIOD_MS;
 }
 
 static struct Announce_Peer* peerFromMsg(struct Message* msg, uint16_t peerNum_be)
@@ -299,10 +299,11 @@ static int updatePeer(struct ReachabilityAnnouncer_pvt* rap,
         int64_t peerTime = 0;
         peer = peerFromSnodeState(rap->snodeState, refPeer->peerNum_be, sinceTime, &peerTime);
         if (peer && !Bits_memcmp(peer, refPeer, Announce_Peer_SIZE)) {
-            if (isReannounceTime(serverTime, peerTime)) {
+            int64_t tur = timeUntilReannounce(serverTime, peerTime);
+            if (tur < 0) {
                 Log_debug(rap->log, "Peer found in route server but needs re-announce");
             } else {
-                Log_debug(rap->log, "Peer found in snodeState, noop");
+                Log_debug(rap->log, "No re-announce needed for [%d] sec", (int)(tur / 1000));
                 return updatePeer_NOOP;
             }
         } else if (peer) {
