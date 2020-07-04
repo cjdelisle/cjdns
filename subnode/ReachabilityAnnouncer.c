@@ -59,7 +59,7 @@ static int64_t timeUntilReannounce(int64_t nowServerTime, int64_t lastAnnouncedT
 {
     int64_t timeSince = nowServerTime - lastAnnouncedTime;
     int64_t random5Min = (lastAnnouncedTime % 600) * 1000;
-    return timeSince + random5Min - AGREED_TIMEOUT_MS - QUIET_PERIOD_MS;
+    return (AGREED_TIMEOUT_MS - QUIET_PERIOD_MS) - (timeSince + random5Min);
 }
 
 static struct Announce_Peer* peerFromMsg(struct Message* msg, uint16_t peerNum_be)
