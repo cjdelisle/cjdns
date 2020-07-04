@@ -65,7 +65,7 @@ static int64_t timeUntilReannounce(
     // anns were made at the same time. In general each peer will fall in a different
     // minute.
     uint16_t peerNum = Endian_bigEndianToHost16(peerNum_be);
-    int64_t random5Min = (lastAnnouncedTime + (peerNum * 64) % 600) * 1000;
+    int64_t random5Min = ((lastAnnouncedTime + (peerNum * 64)) % 600) * 1000;
     return (AGREED_TIMEOUT_MS - QUIET_PERIOD_MS) - (timeSince + random5Min);
 }
 
