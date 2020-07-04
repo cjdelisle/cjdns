@@ -22,6 +22,7 @@
 #include "switch/LabelSplicer.h"
 #include "util/AddrTools.h"
 #include "util/Hex.h"
+#include "util/Hash.h"
 
 #include "crypto_hash_sha512.h"
 
@@ -31,6 +32,10 @@
 
 #define ArrayList_TYPE struct Message
 #define ArrayList_NAME OfMessages
+#include "util/ArrayList.h"
+
+#define ArrayList_TYPE struct Announce_ItemHeader
+#define ArrayList_NAME OfAnnItems
 #include "util/ArrayList.h"
 
 #define ArrayList_TYPE struct Announce_Peer
@@ -58,26 +63,12 @@
 static int64_t timeUntilReannounce(
     int64_t nowServerTime,
     int64_t lastAnnouncedTime,
-    uint16_t peerNum_be)
+    struct Announce_ItemHeader* item)
 {
+    uint32_t hash = Hash_compute((uint8_t*)item, item->length);
     int64_t timeSince = nowServerTime - lastAnnouncedTime;
-    // Mixing in peerNum_be is just to create additional randomness when multiple
-    // anns were made at the same time. In general each peer will fall in a different
-    // minute.
-    uint16_t peerNum = Endian_bigEndianToHost16(peerNum_be);
-    int64_t random5Min = ((lastAnnouncedTime + (peerNum * 64)) % 600) * 1000;
+    int64_t random5Min = (((uint64_t)lastAnnouncedTime + hash) % 600) * 1000;
     return (AGREED_TIMEOUT_MS - QUIET_PERIOD_MS) - (timeSince + random5Min);
-}
-
-static struct Announce_Peer* peerFromMsg(struct Message* msg, uint16_t peerNum_be)
-{
-    if (!msg) { return NULL; }
-    struct Announce_Peer* p = NULL;
-    do {
-        p = Announce_Peer_next(msg, p);
-        if (p && p->peerNum_be == peerNum_be) { return p; }
-    } while (p);
-    return NULL;
 }
 
 static int64_t timestampFromMsg(struct Message* msg)
@@ -87,19 +78,19 @@ static int64_t timestampFromMsg(struct Message* msg)
     return Announce_Header_getTimestamp(hdr);
 }
 
-static struct Announce_Peer* peerFromSnodeState(struct ArrayList_OfMessages* snodeState,
-                                                uint16_t peerNum_be,
-                                                int64_t sinceTime,
-                                                int64_t* timeOut)
+static struct Announce_ItemHeader* itemFromSnodeState(struct ArrayList_OfMessages* snodeState,
+                                                      struct Announce_ItemHeader* ref,
+                                                      int64_t sinceTime,
+                                                      int64_t* timeOut)
 {
     for (int i = snodeState->length - 1; i >= 0; i--) {
         struct Message* msg = ArrayList_OfMessages_get(snodeState, i);
-        struct Announce_Peer* p = peerFromMsg(msg, peerNum_be);
-        if (!p) { continue; }
+        struct Announce_ItemHeader* item = Announce_itemInMessage(msg, ref);
+        if (!item) { continue; }
         int64_t ts = timestampFromMsg(msg);
         if (sinceTime > ts) { return NULL; }
         if (timeOut) { *timeOut = ts; }
-        return p;
+        return item;
     }
     return NULL;
 }
@@ -194,6 +185,7 @@ struct ReachabilityAnnouncer_pvt
     struct EncodingScheme* myScheme;
     struct ReachabilityCollector* rc;
     String* encodingSchemeStr;
+    struct Announce_ItemHeader* mySchemeItem;
 
     uint8_t signingKeypair[64];
     uint8_t pubSigningKey[32];
@@ -255,6 +247,23 @@ static char* printPeer(
     return out;
 }
 
+static char* printItem(
+    char out[60],
+    struct ReachabilityAnnouncer_pvt* rap,
+    struct Announce_ItemHeader* item)
+{
+    if (item->type == Announce_Type_PEER) {
+        struct Announce_Peer* p = (struct Announce_Peer*) item;
+        return printPeer(out, rap, p);
+    } else if (item->type == Announce_Type_ENCODING_SCHEME) {
+        return "encoding scheme";
+    } else if (item->type == Announce_Type_VERSION) {
+        return "version";
+    } else {
+        return "unknown";
+    }
+}
+
 static bool pushLinkState(struct ReachabilityAnnouncer_pvt* rap,
                           struct Message* msg)
 {
@@ -282,56 +291,63 @@ static bool pushLinkState(struct ReachabilityAnnouncer_pvt* rap,
 }
 
 // Insert or update the state information for a peer in a msgList
-#define updatePeer_NOOP 0
-#define updatePeer_ADD 1
-#define updatePeer_UPDATE 2
-#define updatePeer_ENOSPACE -1
-static int updatePeer(struct ReachabilityAnnouncer_pvt* rap,
+#define updateItem_NOOP 0
+#define updateItem_ADD 1
+#define updateItem_UPDATE 2
+#define updateItem_ENOSPACE -1
+static int updateItem(struct ReachabilityAnnouncer_pvt* rap,
                       struct Message* msg,
-                      struct Announce_Peer* refPeer)
+                      struct Announce_ItemHeader* refItem)
 {
+    char buf[60];
+    const char* logInfo = "";
     if (Defined(Log_DEBUG)) {
-        char buf[60];
-        Log_debug(rap->log, "updatePeer [%s]", printPeer(buf, rap, refPeer));
+        logInfo = printItem(buf, rap, refItem);
     }
 
     int64_t serverTime = snTime(rap);
     int64_t sinceTime = serverTime - AGREED_TIMEOUT_MS;
 
-    struct Announce_Peer* peer = NULL;
+    struct Announce_ItemHeader* item = NULL;
     if (rap->onTheWire) {
-        peer = peerFromMsg(rap->onTheWire->msg, refPeer->peerNum_be);
+        item = Announce_itemInMessage(rap->onTheWire->msg, refItem);
     }
-    if (!peer) {
+    if (!item) {
         int64_t peerTime = 0;
-        peer = peerFromSnodeState(rap->snodeState, refPeer->peerNum_be, sinceTime, &peerTime);
-        if (peer && !Bits_memcmp(peer, refPeer, Announce_Peer_SIZE)) {
-            int64_t tur = timeUntilReannounce(serverTime, peerTime, refPeer->peerNum_be);
+        item = itemFromSnodeState(rap->snodeState, refItem, sinceTime, &peerTime);
+        if (item && Announce_ItemHeader_equals(item, refItem)) {
+            int64_t tur = timeUntilReannounce(serverTime, peerTime, item);
             if (tur < 0) {
-                Log_debug(rap->log, "Peer found in route server but needs re-announce");
+                Log_debug(rap->log, "updateItem [%s] needs re-announce", logInfo);
             } else {
-                Log_debug(rap->log, "No re-announce needed for [%d] sec", (int)(tur / 1000));
-                return updatePeer_NOOP;
+                Log_debug(rap->log, "updateItem [%s] no re-announce for [%d] sec",
+                    logInfo, (int)(tur / 1000));
+                return updateItem_NOOP;
             }
-        } else if (peer) {
-            Log_debug(rap->log, "Peer found in snodeState but needs update");
+        } else if (item) {
+            Log_debug(rap->log, "updateItem [%s] needs update (changed)", logInfo);
         } else {
-            Log_debug(rap->log, "Peer not found in snodeState");
+            Log_debug(rap->log, "updateItem [%s] not found in snodeState", logInfo);
         }
-    } else if (!Bits_memcmp(peer, refPeer, Announce_Peer_SIZE)) {
-        Log_debug(rap->log, "Peer found in onTheWire, noop");
-        return updatePeer_NOOP;
+    } else if (Announce_ItemHeader_equals(item, refItem)) {
+        Log_debug(rap->log, "updateItem [%s] found onTheWire, noop", logInfo);
+        return updateItem_NOOP;
     } else {
-        Log_debug(rap->log, "Peer found in msgOnWire but needs update");
+        Log_debug(rap->log, "updateItem [%s] found onTheWire but needs update", logInfo);
     }
 
     if (msg->length > 700) {
-        Log_debug(rap->log, "msg is too big to [%s] peer", peer ? "UPDATE" : "INSERT");
-        return updatePeer_ENOSPACE;
+        Log_debug(rap->log, "updateItem [%s] msg is too big to [%s] item",
+            logInfo, item ? "UPDATE" : "INSERT");
+        return updateItem_ENOSPACE;
     }
 
-    Er_assert(Message_epush(msg, refPeer, Announce_Peer_SIZE));
-    return (peer) ? updatePeer_UPDATE : updatePeer_ADD;
+    Er_assert(Message_epush(msg, refItem, refItem->length));
+    while ((uintptr_t)msg->bytes % 4) {
+        // Ensure alignment
+        Er_assert(Message_epush8(msg, 1));
+    }
+    return (item) ? updateItem_UPDATE : updateItem_ADD;
 }
 
 static void stateUpdate(struct ReachabilityAnnouncer_pvt* rap, enum ReachabilityAnnouncer_State st)
@@ -354,13 +370,14 @@ static void annPeerForPi(struct ReachabilityAnnouncer_pvt* rap,
 
 static bool pushPeers(struct ReachabilityAnnouncer_pvt* rap, struct Message* msg)
 {
-    Log_debug(rap->log, "pushPeers()");
     for (int i = 0;; i++) {
         struct ReachabilityCollector_PeerInfo* pi = ReachabilityCollector_getPeerInfo(rap->rc, i);
         if (!pi || !pi->pathThemToUs) { return false; }
         struct Announce_Peer annP;
         annPeerForPi(rap, &annP, pi);
-        if (updatePeer(rap, msg, &annP) == updatePeer_ENOSPACE) { return true; }
+        if (updateItem(rap, msg, (struct Announce_ItemHeader*) &annP) == updateItem_ENOSPACE) {
+            return true;
+        }
     }
 }
 
@@ -391,38 +408,36 @@ static void addServerStateMsg(struct ReachabilityAnnouncer_pvt* rap, struct Mess
 
     // Filter completely redundant messages and messages older than sinceTime
     struct Allocator* tempAlloc = Allocator_child(rap->alloc);
-    struct ArrayList_OfBarePeers* peerList = ArrayList_OfBarePeers_new(tempAlloc);
+    struct ArrayList_OfAnnItems* knownItems = ArrayList_OfAnnItems_new(tempAlloc);
     for (int i = rap->snodeState->length - 1; i >= 0; i--) {
         bool redundant = true;
         struct Message* m = ArrayList_OfMessages_get(rap->snodeState, i);
-        if (m == msg) {
-            // the currently added announcement is always safe from displacement
-            continue;
-        }
-        struct Announce_Peer* p;
-        for (p = Announce_Peer_next(m, NULL); p; p = Announce_Peer_next(m, p)) {
+        struct Announce_ItemHeader* item = Announce_ItemHeader_next(m, NULL);
+        for (; item; item = Announce_ItemHeader_next(m, item)) {
+            if (Announce_ItemHeader_isEphimeral(item)) {
+                // Ephimeral items do not make a message non-redundant
+                continue;
+            }
             bool inList = false;
-            for (int j = 0; j < peerList->length; j++) {
-                struct Announce_Peer* knownPeer = ArrayList_OfBarePeers_get(peerList, j);
-                if (knownPeer->peerNum_be == p->peerNum_be) {
+            for (int j = 0; j < knownItems->length; j++) {
+                struct Announce_ItemHeader* knownItem = ArrayList_OfAnnItems_get(knownItems, j);
+                if (Announce_ItemHeader_doesReplace(knownItem, item)) {
                     inList = true;
                     break;
                 }
             }
             if (!inList) {
-                ArrayList_OfBarePeers_add(peerList, p);
+                ArrayList_OfAnnItems_add(knownItems, item);
                 redundant = false;
-                break;
             }
         }
-        if (redundant) {
+        if (redundant && m != msg) {
             ArrayList_OfMessages_remove(rap->snodeState, i);
             Allocator_free(m->alloc);
-            // TODO(cjd): else if the peer is dropped...
-        } else {
-            // We should be adding back all of the peers necessary to make redundant anything older
-            // than the most recent message, make sure that is the case.
-            Assert_true(timestampFromMsg(m) >= sinceTime);
+        } else if (timestampFromMsg(m) < sinceTime) {
+            // this will cause an immediate reset of state because we don't remove it and
+            // the server side will.
+            Log_warn(rap->log, "Announcement expiring which has not been replaced in time");
         }
     }
     Allocator_free(tempAlloc);
@@ -572,6 +587,42 @@ static void onReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom
     stateReset(rap);
 }
 
+static bool pushMeta(struct ReachabilityAnnouncer_pvt* rap, struct Message* msg)
+{
+    struct Announce_Version version;
+    Announce_Version_init(&version);
+    if (updateItem(rap, msg, (struct Announce_ItemHeader*)&version) == updateItem_ENOSPACE) {
+        return true;
+    } else if (updateItem(rap, msg, rap->mySchemeItem) == updateItem_ENOSPACE) {
+        return true;
+    }
+    return false;
+}
+
+static bool pushWithdrawLinks(struct ReachabilityAnnouncer_pvt* rap, struct Message* msg)
+{
+    // First withdraw any announcements which are nolonger valid
+    struct Allocator* tempAlloc = Allocator_child(rap->alloc);
+    struct ArrayList_OfBarePeers* snodePeers = getSnodeStatePeers(rap, tempAlloc);
+    bool outOfSpace = false;
+    for (int i = 0; i < snodePeers->length; i++) {
+        struct Announce_Peer* p = ArrayList_OfBarePeers_get(snodePeers, i);
+        uint64_t path = Endian_bigEndianToHost16(p->peerNum_be);
+        struct ReachabilityCollector_PeerInfo* pi =
+            ReachabilityCollector_piForLabel(rap->rc, path);
+        if (pi && pi->pathThemToUs) { continue; }
+        char buf[60];
+        Log_debug(rap->log, "Withdrawing route to [%s]", printPeer(buf, rap, p));
+        p->label_be = 0;
+        if (updateItem(rap, msg, (struct Announce_ItemHeader*) p) == updateItem_ENOSPACE) {
+            outOfSpace = true;
+            break;
+        }
+    }
+    Allocator_free(tempAlloc);
+    return outOfSpace;
+}
+
 static void onAnnounceCycle(void* vRap)
 {
     struct ReachabilityAnnouncer_pvt* rap =
@@ -591,40 +642,22 @@ static void onAnnounceCycle(void* vRap)
     struct Allocator* queryAlloc = Allocator_child(qp->alloc);
     struct Message* msg = Message_new(0, 1300, queryAlloc);
 
-    // First withdraw any announcements which are nolonger valid
-    struct Allocator* tempAlloc = Allocator_child(qp->alloc);
-    struct ArrayList_OfBarePeers* snodePeers = getSnodeStatePeers(rap, tempAlloc);
-    for (int i = 0; i < snodePeers->length; i++) {
-        struct Announce_Peer* p = ArrayList_OfBarePeers_get(snodePeers, i);
-        uint64_t path = Endian_bigEndianToHost16(p->peerNum_be);
-        struct ReachabilityCollector_PeerInfo* pi =
-            ReachabilityCollector_piForLabel(rap->rc, path);
-        if (pi && pi->pathThemToUs) { continue; }
-        char buf[60];
-        Log_debug(rap->log, "Withdrawing route to [%s]", printPeer(buf, rap, p));
-        p->label_be = 0;
-        if (updatePeer(rap, msg, p) == updatePeer_ENOSPACE) {
-            stateUpdate(rap, ReachabilityAnnouncer_State_MSGFULL);
-            break;
-        }
-    }
-    Allocator_free(tempAlloc);
+    Log_debug(rap->log, "\n");
 
-    if (pushPeers(rap, msg)) {
-        // ran out of space pushing peers
+    if (pushMeta(rap, msg)) {
+        Log_debug(rap->log, "Out of space pushing metadata o_O");
+        stateUpdate(rap, ReachabilityAnnouncer_State_MSGFULL);
+    } else if (pushWithdrawLinks(rap, msg)) {
+        Log_debug(rap->log, "Out of space pushing peer withdrawals");
+        stateUpdate(rap, ReachabilityAnnouncer_State_MSGFULL);
+    } else if (pushPeers(rap, msg)) {
+        Log_debug(rap->log, "Out of space pushing peers");
         stateUpdate(rap, ReachabilityAnnouncer_State_MSGFULL);
     } else if (pushLinkState(rap, msg)) {
-        // out of space
+        Log_debug(rap->log, "Out of space pushing link state");
         stateUpdate(rap, ReachabilityAnnouncer_State_LINKSTATE_FULL);
     } else if (ReachabilityAnnouncer_State_LINKSTATE_FULL == rap->state) {
         rap->state = ReachabilityAnnouncer_State_NORMAL;
-    }
-
-    if (rap->resetState) {
-        Announce_EncodingScheme_push(msg, rap->encodingSchemeStr);
-        struct Announce_Version version;
-        Announce_Version_init(&version);
-        Er_assert(Message_epush(msg, &version, Announce_Version_SIZE));
     }
 
     Er_assert(Message_epush(msg, NULL, Announce_Header_SIZE));
@@ -703,6 +736,24 @@ static void onSnodeChange(struct SupernodeHunter* sh,
     stateReset(rap);
 }
 
+static struct Announce_ItemHeader* mkEncodingSchemeItem(
+    struct Allocator* alloc,
+    String* compressedScheme)
+{
+    struct Allocator* tmpAlloc = Allocator_child(alloc);
+    struct Message* esMsg = Message_new(0, 256, tmpAlloc);
+
+    Assert_true(compressedScheme->len + 2 < 256);
+    Er_assert(Message_epush(esMsg, compressedScheme->bytes, compressedScheme->len));
+    Er_assert(Message_epush8(esMsg, Announce_Type_ENCODING_SCHEME));
+    Er_assert(Message_epush8(esMsg, compressedScheme->len + 2));
+
+    struct Announce_ItemHeader* item = Allocator_calloc(alloc, esMsg->length, 1);
+    Bits_memcpy(item, esMsg->bytes, esMsg->length);
+    Allocator_free(tmpAlloc);
+    return item;
+}
+
 struct ReachabilityAnnouncer* ReachabilityAnnouncer_new(struct Allocator* allocator,
                                                         struct Log* log,
                                                         struct EventBase* base,
@@ -727,6 +778,8 @@ struct ReachabilityAnnouncer* ReachabilityAnnouncer_new(struct Allocator* alloca
     rap->myScheme = myScheme;
     rap->encodingSchemeStr = EncodingScheme_serialize(myScheme, alloc);
     rap->rc = rc;
+    rap->mySchemeItem =
+        (struct Announce_ItemHeader*) mkEncodingSchemeItem(alloc, rap->encodingSchemeStr);
 
     rap->snh = snh;
     snh->onSnodeChange = onSnodeChange;

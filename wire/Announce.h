@@ -351,6 +351,60 @@ static inline struct Announce_ItemHeader* Announce_ItemHeader_next(struct Messag
     return NULL;
 }
 
+static inline bool Announce_ItemHeader_isEphimeral(struct Announce_ItemHeader* h)
+{
+    switch (h->type) {
+        case Announce_Type_VERSION:
+        case Announce_Type_PEER:
+        case Announce_Type_ENCODING_SCHEME: return false;
+        default: return true;
+    }
+}
+
+static inline bool Announce_ItemHeader_equals(
+    struct Announce_ItemHeader* h0,
+    struct Announce_ItemHeader* h1)
+{
+    if (h0->type != h1->type || h0->length != h1->length) {
+        return false;
+    }
+    return !Bits_memcmp(h0, h1, h0->length);
+}
+
+// Check if one item is a replacement for another
+static inline bool Announce_ItemHeader_doesReplace(
+    struct Announce_ItemHeader* h0,
+    struct Announce_ItemHeader* h1)
+{
+    if (h0->type != h1->type) { return false; }
+    switch (h0->type) {
+        case Announce_Type_ENCODING_SCHEME:
+        case Announce_Type_VERSION: {
+            // only one version or encoding scheme is allowed at a time
+            return true;
+        }
+        case Announce_Type_PEER: {
+            // peers are identified by their peernum
+            struct Announce_Peer* p0 = (struct Announce_Peer*) h0;
+            struct Announce_Peer* p1 = (struct Announce_Peer*) h1;
+            return p0->peerNum_be == p1->peerNum_be;
+        }
+        // Ephimeral entities never replace one another
+        default: return false;
+    }
+}
+
+static inline struct Announce_ItemHeader* Announce_itemInMessage(
+    struct Message* msg,
+    struct Announce_ItemHeader* ref)
+{
+    struct Announce_ItemHeader* ih = NULL;
+    do {
+        ih = Announce_ItemHeader_next(msg, ih);
+    } while (ih && !Announce_ItemHeader_doesReplace(ref, ih));
+    return ih;
+}
+
 static inline bool Announce_isValid(struct Message* msg)
 {
     struct Announce_ItemHeader* ih = NULL;
