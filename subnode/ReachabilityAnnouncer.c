@@ -27,7 +27,7 @@
 
 // This is the time between the timestamp of the newest message and the point where
 // snode and subnode agree to drop messages from the snode state.
-#define AGREED_TIMEOUT_MS (1000 * 60 * 60 * 20)
+#define AGREED_TIMEOUT_MS (1000 * 60 * 20)
 
 #define ArrayList_TYPE struct Message
 #define ArrayList_NAME OfMessages
@@ -54,11 +54,18 @@
 // with the last minute reserved as a 1 minute "quiet period" where announcements can
 // catch up before minute 20 when peers will be dropped by the route server.
 //
-#define QUIET_PERIOD_MS (1000 * 60 * 60)
-static int64_t timeUntilReannounce(int64_t nowServerTime, int64_t lastAnnouncedTime)
+#define QUIET_PERIOD_MS (1000 * 60)
+static int64_t timeUntilReannounce(
+    int64_t nowServerTime,
+    int64_t lastAnnouncedTime,
+    uint16_t peerNum_be)
 {
     int64_t timeSince = nowServerTime - lastAnnouncedTime;
-    int64_t random5Min = (lastAnnouncedTime % 600) * 1000;
+    // Mixing in peerNum_be is just to create additional randomness when multiple
+    // anns were made at the same time. In general each peer will fall in a different
+    // minute.
+    uint16_t peerNum = Endian_bigEndianToHost16(peerNum_be);
+    int64_t random5Min = (lastAnnouncedTime + (peerNum * 64) % 600) * 1000;
     return (AGREED_TIMEOUT_MS - QUIET_PERIOD_MS) - (timeSince + random5Min);
 }
 
@@ -299,7 +306,7 @@ static int updatePeer(struct ReachabilityAnnouncer_pvt* rap,
         int64_t peerTime = 0;
         peer = peerFromSnodeState(rap->snodeState, refPeer->peerNum_be, sinceTime, &peerTime);
         if (peer && !Bits_memcmp(peer, refPeer, Announce_Peer_SIZE)) {
-            int64_t tur = timeUntilReannounce(serverTime, peerTime);
+            int64_t tur = timeUntilReannounce(serverTime, peerTime, refPeer->peerNum_be);
             if (tur < 0) {
                 Log_debug(rap->log, "Peer found in route server but needs re-announce");
             } else {
