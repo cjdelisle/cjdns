@@ -519,7 +519,8 @@ static void onReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom
 
     if (rap->onTheWire != q) {
         Log_debug(rap->log, "Got a reply from [%s] which was outstanding when "
-            "we triggered a state reset, discarding", Address_toString(src, prom->alloc)->bytes);
+            "we triggered a state reset, discarding",
+            Address_toString(prom->target, prom->alloc)->bytes);
         return;
     }
     rap->onTheWire = NULL;
