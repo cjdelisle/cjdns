@@ -22,7 +22,7 @@
 #include "benc/serialization/standard/BencMessageWriter.h"
 #include "crypto/AddressCalc.h"
 #include "crypto/random/Random.h"
-#include "crypto/random/libuv/LibuvEntropyProvider.h"
+#include "crypto/random/nanotime/NanotimeEntropyProvider.h"
 #include "crypto/Sign_admin.h"
 #include "subnode/SubnodePathfinder.h"
 #include "subnode/SupernodeHunter_admin.h"
@@ -448,7 +448,7 @@ int Core_main(int argc, char** argv)
     IndirectLog_set(logger, preLogger);
 
     // -------------------- Setup the PRNG ---------------------- //
-    struct Random* rand = LibuvEntropyProvider_newDefaultRandom(eventBase, logger, eh, alloc);
+    struct Random* rand = NanotimeEntropyProvider_newDefaultRandom(eventBase, logger, eh, alloc);
 
     // -------------------- Change Canary Value ---------------------- //
     Allocator_setCanary(alloc, (unsigned long)Random_uint64(rand));

@@ -12,8 +12,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#include "util/events/libuv/UvWrapper.h"
-#include "crypto/random/libuv/LibuvEntropyProvider.h"
+#include "util/events/Time.h"
+#include "crypto/random/nanotime/NanotimeEntropyProvider.h"
 #include "crypto/random/Random.h"
 #include "memory/Allocator.h"
 #include "util/events/EventBase.h"
@@ -30,7 +30,7 @@
  */
 #define SAMPLE_MILLISECONDS 1000
 
-struct LibuvEntropyProvider
+struct NanotimeEntropyProvider
 {
     struct Allocator* alloc;
     struct Random* rand;
@@ -39,23 +39,23 @@ struct LibuvEntropyProvider
     Identity
 };
 
-static void takeSample(void* vLibuvEntropyProvider)
+static void takeSample(void* vNanotimeEntropyProvider)
 {
-    struct LibuvEntropyProvider* lep =
-        Identity_check((struct LibuvEntropyProvider*) vLibuvEntropyProvider);
-    uint64_t nanotime = uv_hrtime();
+    struct NanotimeEntropyProvider* lep =
+        Identity_check((struct NanotimeEntropyProvider*) vNanotimeEntropyProvider);
+    uint64_t nanotime = Time_hrtime();
     Log_keys(lep->logger, "Adding high-res time [%" PRIu64 "] to random generator", nanotime);
     uint32_t input = (uint32_t) (nanotime ^ (nanotime >> 32));
     Random_addRandom(lep->rand, input);
 }
 
-void LibuvEntropyProvider_start(struct Random* provideTo,
+void NanotimeEntropyProvider_start(struct Random* provideTo,
                                 struct EventBase* base,
                                 struct Log* logger,
                                 struct Allocator* alloc)
 {
-    struct LibuvEntropyProvider* lep =
-        Allocator_calloc(alloc, sizeof(struct LibuvEntropyProvider), 1);
+    struct NanotimeEntropyProvider* lep =
+        Allocator_calloc(alloc, sizeof(struct NanotimeEntropyProvider), 1);
     Log_info(logger, "Taking clock samples every [%d]ms for random generator", SAMPLE_MILLISECONDS);
     lep->alloc = alloc;
     lep->rand = provideTo;
@@ -64,12 +64,12 @@ void LibuvEntropyProvider_start(struct Random* provideTo,
     Identity_set(lep);
 }
 
-struct Random* LibuvEntropyProvider_newDefaultRandom(struct EventBase* base,
+struct Random* NanotimeEntropyProvider_newDefaultRandom(struct EventBase* base,
                                                      struct Log* logger,
                                                      struct Except* eh,
                                                      struct Allocator* alloc)
 {
     struct Random* rand = Random_new(alloc, logger, eh);
-    LibuvEntropyProvider_start(rand, base, logger, alloc);
+    NanotimeEntropyProvider_start(rand, base, logger, alloc);
     return rand;
 }

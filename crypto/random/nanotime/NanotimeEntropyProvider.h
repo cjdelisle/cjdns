@@ -12,24 +12,24 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef LibuvEntropyProvider_H
-#define LibuvEntropyProvider_H
+#ifndef NanotimeEntropyProvider_H
+#define NanotimeEntropyProvider_H
 
 #include "crypto/random/Random.h"
 #include "memory/Allocator.h"
 #include "util/events/EventBase.h"
 #include "util/log/Log.h"
 #include "util/Linker.h"
-Linker_require("crypto/random/libuv/LibuvEntropyProvider.c");
+Linker_require("crypto/random/nanotime/NanotimeEntropyProvider.c");
 
-struct LibuvEntropyProvider;
+struct NanotimeEntropyProvider;
 
-void LibuvEntropyProvider_start(struct Random* provideTo,
+void NanotimeEntropyProvider_start(struct Random* provideTo,
                                 struct EventBase* base,
                                 struct Log* logger,
                                 struct Allocator* alloc);
 
-struct Random* LibuvEntropyProvider_newDefaultRandom(struct EventBase* base,
+struct Random* NanotimeEntropyProvider_newDefaultRandom(struct EventBase* base,
                                                      struct Log* logger,
                                                      struct Except* eh,
                                                      struct Allocator* alloc);

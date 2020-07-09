@@ -28,7 +28,7 @@
 #include "wire/Message.h"
 #include "util/events/EventBase.h"
 #include "crypto/random/Random.h"
-#include "crypto/random/libuv/LibuvEntropyProvider.h"
+#include "crypto/random/nanotime/NanotimeEntropyProvider.h"
 #include "exception/Except.h"
 #include "util/events/Timeout.h"
 #include "crypto/Key.h"
@@ -369,7 +369,7 @@ static void letErRip(Dict* config, struct Allocator* alloc)
     struct Except* eh = NULL;
     struct Log* logger = FileWriterLog_new(stdout, alloc);
     struct EventBase* base = EventBase_new(alloc);
-    struct Random* rand = LibuvEntropyProvider_newDefaultRandom(base, logger, eh, alloc);
+    struct Random* rand = NanotimeEntropyProvider_newDefaultRandom(base, logger, eh, alloc);
     Allocator_setCanary(alloc, (unsigned long)Random_uint64(rand));
 
     struct Context sctx = {
