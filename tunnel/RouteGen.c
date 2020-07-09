@@ -448,6 +448,44 @@ static struct Prefix6* clonePrefix6(struct Prefix6* original, struct Allocator* 
     return clone;
 }
 
+static struct ArrayList_OfPrefix4* mkPseudoDefault4(struct Allocator* alloc)
+{
+    struct Prefix4* pfxs = Allocator_calloc(alloc, sizeof(struct Prefix4), 2);
+    pfxs[0].prefix = 1;
+    pfxs[1].prefix = 1;
+    pfxs[1].bits = 0x80000000;
+    struct ArrayList_OfPrefix4* out = ArrayList_OfPrefix4_new(alloc);
+    ArrayList_OfPrefix4_add(out, &pfxs[0]);
+    ArrayList_OfPrefix4_add(out, &pfxs[1]);
+    return out;
+}
+
+static struct ArrayList_OfPrefix6* mkPseudoDefault6(struct Allocator* alloc)
+{
+    struct Prefix6* pfxs = Allocator_calloc(alloc, sizeof(struct Prefix6), 2);
+    pfxs[0].prefix = 1;
+    pfxs[1].prefix = 1;
+    pfxs[1].highBits = 0x8000000000000000ull;
+    struct ArrayList_OfPrefix6* out = ArrayList_OfPrefix6_new(alloc);
+    ArrayList_OfPrefix6_add(out, &pfxs[0]);
+    ArrayList_OfPrefix6_add(out, &pfxs[1]);
+    return out;
+}
+
+static bool isDefaultRoute4(struct ArrayList_OfPrefix4* prefixes)
+{
+    if (prefixes->length != 1) { return false; }
+    struct Prefix4* pfx = ArrayList_OfPrefix4_get(prefixes, 0);
+    return pfx->prefix == 0;
+}
+
+static bool isDefaultRoute6(struct ArrayList_OfPrefix6* prefixes)
+{
+    if (prefixes->length != 1) { return false; }
+    struct Prefix6* pfx = ArrayList_OfPrefix6_get(prefixes, 0);
+    return pfx->prefix == 0;
+}
+
 static struct ArrayList_OfPrefix4* genPrefixes4(struct ArrayList_OfPrefix4* prefixes,
                                                 struct ArrayList_OfPrefix4* exceptions,
                                                 struct ArrayList_OfPrefix4* localPrefixes,
@@ -617,11 +655,17 @@ static struct Prefix46* getGeneratedRoutes(struct RouteGen_pvt* rp, struct Alloc
     struct Prefix46* out = Allocator_calloc(alloc, sizeof(struct Prefix46), 1);
     if (rp->prefixes4->length > 0) {
         out->prefix4 = genPrefixes4(rp->prefixes4, rp->exceptions4, rp->localPrefixes4, alloc);
+        if (isDefaultRoute4(out->prefix4)) {
+            out->prefix4 = mkPseudoDefault4(alloc);
+        }
     } else {
         out->prefix4 = ArrayList_OfPrefix4_new(alloc);
     }
     if (rp->prefixes6->length > 0) {
         out->prefix6 = genPrefixes6(rp->prefixes6, rp->exceptions6, rp->localPrefixes6, alloc);
+        if (isDefaultRoute6(out->prefix6)) {
+            out->prefix6 = mkPseudoDefault6(alloc);
+        }
     } else {
         out->prefix6 = ArrayList_OfPrefix6_new(alloc);
     }

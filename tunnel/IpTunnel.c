@@ -249,8 +249,10 @@ static void sendControlMessage(Dict* dict,
 static void requestAddresses(struct IpTunnel_Connection* conn, struct IpTunnel_pvt* context)
 {
     if (Defined(Log_DEBUG)) {
-        uint8_t addr[40];
-        AddrTools_printIp(addr, conn->routeHeader.ip6);
+        uint8_t addr[60];
+        AddrTools_printPath(&addr[0], Endian_bigEndianToHost64(conn->routeHeader.sh.label_be));
+        addr[19] = '@';
+        AddrTools_printIp(&addr[20], conn->routeHeader.ip6);
         Log_debug(context->logger, "Requesting addresses from [%s] for connection [%d]",
                   addr, conn->number);
     }
