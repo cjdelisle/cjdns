@@ -96,10 +96,12 @@ static void sendMessage2(struct Pipe_WriteRequest_pvt* req)
     };
 
     int ret = -1;
-    if (pipe->ipc && m->associatedFd) {
+    if (pipe->ipc && m->associatedFd && !Defined(win32)) {
         int fd = Message_getAssociatedFd(m);
         uv_stream_t* fake_handle = Allocator_calloc(req->alloc, sizeof(uv_stream_t), 1);
-        fake_handle->io_watcher.fd = fd;
+        #ifndef win32
+            fake_handle->io_watcher.fd = fd;
+        #endif
         fake_handle->type = UV_TCP;
         ret = uv_write2(
             &req->uvReq,
