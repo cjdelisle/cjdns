@@ -386,7 +386,14 @@ Er_DEFUN(struct Pipe* Pipe_named(const char* fullPath,
     req->data = out;
     uv_pipe_connect(req, &out->peer, out->pub.fullName, connected);
 
-    int err = (&out->peer)->delayed_error;
+    int err = 0;
+
+    // We get the error back synchronously but windows doesn't support that
+    // TODO(cjd): Find a better way
+    #ifndef win32
+        err = (&out->peer)->delayed_error;
+    #endif
+
     if (err != 0) {
         Er_raise(out->alloc, "uv_pipe_connect() failed [%s] for pipe [%s]",
                      uv_strerror(err), out->pub.fullName);
