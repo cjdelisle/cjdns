@@ -54,7 +54,7 @@ String* String_new(const char* bytes, struct Allocator* allocator);
  * @param allocator a means of getting the memory to store the string object.
  * @return a bencoded string.
  */
-String* String_newBinary(const char* bytes, unsigned long length, struct Allocator* allocator);
+String* String_newBinary(const char* bytes, uintptr_t length, struct Allocator* allocator);
 
 #define String_clone(string, alloc) \
     ((string) ? String_newBinary(string->bytes, string->len, alloc) : NULL)

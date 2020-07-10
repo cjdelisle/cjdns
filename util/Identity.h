@@ -18,15 +18,16 @@
 #include "util/Assert.h"
 #include "util/Constant.h"
 
+#include <stdint.h>
+
 #if defined(Identity_CHECK)
 
     <?js file.Identity_hash = "0x" + Constant_randHexString(16) + "ull"; ?>
 
-    #define Identity_MAGIC ((unsigned long) <?js return file.Identity_hash ?>)
+    #define Identity_MAGIC ((uintptr_t) <?js return file.Identity_hash ?>)
 
     /** This goes in each structure which will be checked. */
-    #define Identity \
-        unsigned long Identity_verifier;
+    #define Identity uintptr_t Identity_verifier;
 
     #define Identity_set(pointer) \
         (pointer)->Identity_verifier = Identity_MAGIC

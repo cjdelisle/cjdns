@@ -609,7 +609,7 @@ static Iface_DEFUN incomingControlMessage(struct Message* message,
 
 #define GET64(buffer) \
     (__extension__ ({                                               \
-        Assert_true(!((long)(buffer) % 4));                         \
+        Assert_true(!((uintptr_t)(buffer) % 4));                    \
         uint64_t x = (uint64_t) (((uint32_t*)(buffer))[0]);         \
         x |= (( (uint64_t) ((uint32_t*)(buffer))[1]) << 32);        \
         Endian_bigEndianToHost64(x);                                \
@@ -617,7 +617,7 @@ static Iface_DEFUN incomingControlMessage(struct Message* message,
 
 #define GET32(buffer) \
     (__extension__ ({                                               \
-        Assert_true(!((long)(buffer) % 4));                         \
+        Assert_true(!((uintptr_t)(buffer) % 4));                    \
         uint32_t x = (((uint32_t*)(buffer))[0]);                    \
         Endian_bigEndianToHost32(x);                                \
     }))

@@ -163,7 +163,7 @@ static void delay(struct Context* ctx, struct Node* from, struct Message* msg, i
         logNode0(ctx, from, "OOM can't delay (drop instead)");
         return;
     }
-    logNode(ctx, from, "DELAY %d packets (ptr:%lx)", afterMsgs, (unsigned long)msg);
+    logNode(ctx, from, "DELAY %d packets (ptr:%p)", afterMsgs, (void*)msg);
     struct Allocator* alloc = Allocator_child(ctx->alloc);
     struct DelayedMsg* delayed = Allocator_calloc(alloc, sizeof(struct DelayedMsg), 1);
     Allocator_adopt(alloc, msg->alloc);
@@ -235,7 +235,7 @@ static bool sendQueued(struct Context* ctx, struct Node* fromNode)
     }
     struct DelayedMsg* dmsg = fromNode->delayedMsgs;
     fromNode->delayedMsgs = dmsg->next;
-    logNode(ctx, fromNode, "SENDING QUEUED (ptr:%lx)", (long)dmsg->msg);
+    logNode(ctx, fromNode, "SENDING QUEUED (ptr:%p)", (void*)dmsg->msg);
     sendFrom(ctx, fromNode, dmsg->msg);
     Allocator_free(dmsg->alloc);
     return true;

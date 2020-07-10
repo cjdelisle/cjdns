@@ -23,7 +23,7 @@
 typedef struct Dict_Entry* Dict;
 typedef struct List_Item* List;
 typedef struct {
-    unsigned long len;
+    uintptr_t len;
     char* bytes;
 } String;
 

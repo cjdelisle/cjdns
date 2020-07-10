@@ -20,6 +20,8 @@
 #include "util/Linker.h"
 Linker_require("memory/Allocator.c");
 
+#include <stdint.h>
+
 /**
  * A handle which is provided in response to calls to Allocator_onFree().
  * This handle is sutable for use with Allocator_notOnFree() to cancel a job.
@@ -110,9 +112,9 @@ struct Allocator
 
 struct Allocator_Allocation
 {
-    unsigned long size;
+    uintptr_t size;
 };
-#define Allocator_Allocation_SIZE __SIZEOF_LONG__
+#define Allocator_Allocation_SIZE __SIZEOF_POINTER__
 
 /**
  * Get a child of a given allocator.
@@ -321,7 +323,7 @@ void Allocator__disown(struct Allocator* parentAlloc,
  * By default the canaries are statically set but this allows the value to be changed so that
  * the value of the canaries is unpredictable in order to foil targetted attacks.
  */
-void Allocator_setCanary(struct Allocator* alloc, unsigned long value);
+void Allocator_setCanary(struct Allocator* alloc, uintptr_t value);
 
 /**
  * Get the number of bytes allocated by this allocator and all of it's children.

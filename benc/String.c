@@ -27,7 +27,7 @@ String* String_new(const char* bytes, struct Allocator* allocator)
 }
 
 /** @see Object.h */
-String* String_newBinary(const char* bytes, unsigned long length, struct Allocator* allocator)
+String* String_newBinary(const char* bytes, uintptr_t length, struct Allocator* allocator)
 {
     char* copy = Allocator_malloc(allocator, length + 1);
     // Make the string null terminated so it will print nicely.

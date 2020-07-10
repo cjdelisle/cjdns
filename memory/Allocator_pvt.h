@@ -43,7 +43,7 @@ struct Allocator_Allocation_pvt;
 #define Allocator_Allocation_pvt_SIZE_NOPAD ( \
     Allocator_Allocation_SIZE + \
     __SIZEOF_POINTER__ + \
-    __SIZEOF_LONG__ + \
+    __SIZEOF_POINTER__ + \
     __SIZEOF_POINTER__ \
 )
 struct Allocator_Allocation_pvt {
@@ -55,7 +55,7 @@ struct Allocator_Allocation_pvt {
     #else
         #define Allocator_Allocation_pvt_SIZE Allocator_Allocation_pvt_SIZE_NOPAD
     #endif
-    long lineNum;
+    uintptr_t lineNum;
     const char* fileName;
 };
 Assert_compileTime(sizeof(struct Allocator_Allocation_pvt) == Allocator_Allocation_pvt_SIZE);
@@ -118,10 +118,10 @@ struct Allocator_pvt
 
     #ifdef Allocator_USE_CANARIES
         /** The canary for allocations made with this allocator constant to allow varification. */
-        unsigned long canary;
+        uintptr_t canary;
 
         /** The canary which will be used for the next allocator, mutable. */
-        unsigned long nextCanary;
+        uintptr_t nextCanary;
     #endif
 
     /** For checking structure integrity. */

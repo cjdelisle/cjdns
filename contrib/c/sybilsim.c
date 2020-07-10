@@ -370,7 +370,7 @@ static void letErRip(Dict* config, struct Allocator* alloc)
     struct Log* logger = FileWriterLog_new(stdout, alloc);
     struct EventBase* base = EventBase_new(alloc);
     struct Random* rand = NanotimeEntropyProvider_newDefaultRandom(base, logger, eh, alloc);
-    Allocator_setCanary(alloc, (unsigned long)Random_uint64(rand));
+    Allocator_setCanary(alloc, (uintptr_t)Random_uint64(rand));
 
     struct Context sctx = {
         .rpcAlloc = Allocator_child(alloc),

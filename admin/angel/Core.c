@@ -451,7 +451,7 @@ int Core_main(int argc, char** argv)
     struct Random* rand = NanotimeEntropyProvider_newDefaultRandom(eventBase, logger, eh, alloc);
 
     // -------------------- Change Canary Value ---------------------- //
-    Allocator_setCanary(alloc, (unsigned long)Random_uint64(rand));
+    Allocator_setCanary(alloc, (uintptr_t)Random_uint64(rand));
 
     struct Allocator* tempAlloc = Allocator_child(alloc);
     // Not using tempalloc because we're going to keep this pipe around for admin

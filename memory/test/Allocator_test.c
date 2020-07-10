@@ -21,7 +21,7 @@
 #include "memory/MallocAllocator.h"
 
 #ifdef Allocator_USE_CANARIES
-    #define ALLOCATION_SIZE sizeof(struct Allocator_Allocation_pvt) + sizeof(long)
+    #define ALLOCATION_SIZE sizeof(struct Allocator_Allocation_pvt) + sizeof(uintptr_t)
 #else
     #define ALLOCATION_SIZE sizeof(struct Allocator_Allocation_pvt)
 #endif

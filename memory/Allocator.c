@@ -126,12 +126,12 @@ static inline unsigned long getRealSize(unsigned long requestedSize)
     return ((requestedSize + (sizeof(char*) - 1)) & ~(sizeof(char*) - 1)) // align
         + sizeof(struct Allocator_Allocation_pvt)
     #ifdef Allocator_USE_CANARIES
-        + sizeof(unsigned long)
+        + sizeof(uintptr_t)
     #endif
     ;
 }
 
-#define END_CANARY(alloc) ((unsigned long*) alloc)[ (alloc->pub.size / sizeof(unsigned long)) - 1 ]
+#define END_CANARY(alloc) ((uintptr_t*) alloc)[ (alloc->pub.size / sizeof(uintptr_t)) - 1 ]
 
 static inline void setCanaries(struct Allocator_Allocation_pvt* alloc,
                                struct Allocator_pvt* context)
@@ -822,8 +822,8 @@ struct Allocator* Allocator_new(unsigned long sizeLimit,
                 .lineNum = lineNum,
             },
             #ifdef Allocator_USE_CANARIES
-            .canary = (unsigned long) Constant_rand64(),
-            .nextCanary = (unsigned long) Constant_rand64(),
+            .canary = (uintptr_t) Constant_rand64(),
+            .nextCanary = (uintptr_t) Constant_rand64(),
             #endif
         }
     };
@@ -853,7 +853,7 @@ unsigned long Allocator_bytesAllocated(struct Allocator* allocator)
     return bytesAllocated(context);
 }
 
-void Allocator_setCanary(struct Allocator* alloc, unsigned long value)
+void Allocator_setCanary(struct Allocator* alloc, uintptr_t value)
 {
     #ifdef Allocator_USE_CANARIES
         struct Allocator_pvt* context = Identity_check((struct Allocator_pvt*) alloc);
