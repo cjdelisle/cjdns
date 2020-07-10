@@ -428,6 +428,12 @@ Er_DEFUN(bool Pipe_exists(const char* path, struct Allocator* errAlloc))
         if (errno == ENOENT) { Er_ret(false); }
         Er_raise(errAlloc, "Failed stat(%s) [%s]", path, strerror(errno));
     } else {
-        Er_ret((st.st_mode & S_IFMT) == S_IFSOCK);
+        int flag = 0;
+        #ifdef win32
+            flag = S_IFIFO;
+        #else
+            flag = S_IFSOCK;
+        #endif
+        Er_ret((st.st_mode & S_IFMT) == flag);
     }
 }
