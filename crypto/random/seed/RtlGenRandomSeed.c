@@ -17,14 +17,10 @@
 
 #include <stdint.h>
 #include <windows.h>
-
-static BOOLEAN (APIENTRY *RtlGenRandom)(void*, ULONG) = 0;
+#include <ntsecapi.h>
 
 static int get(struct RandomSeed* rand, uint64_t buff[8])
 {
-    if (!RtlGenRandom) {
-        return -1;
-    }
     Bits_memset(buff, 0, 64);
     int ret = RtlGenRandom(buff, 64);
     if (!ret || Bits_isZero(buff, 64)) {
@@ -33,15 +29,8 @@ static int get(struct RandomSeed* rand, uint64_t buff[8])
     return 0;
 }
 
-static void init()
-{
-    HMODULE hLib = LoadLibrary("advapi32.dll");
-    RtlGenRandom = (BOOLEAN (APIENTRY *)(void*,ULONG))GetProcAddress(hLib,"SystemFunction036");
-}
-
 struct RandomSeed* RtlGenRandomSeed_new(struct Allocator* alloc)
 {
-    init();
     return Allocator_clone(alloc, (&(struct RandomSeed) {
         .get = get,
         .name = "RtlGenRandom() (Windows)"
