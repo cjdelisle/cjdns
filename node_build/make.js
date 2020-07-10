@@ -372,11 +372,12 @@ Builder.configure({
             //args.push('--root-target=libuv');
             if (android) {
                 args.push('-DOS=android');
-                args.push('--format=make-linux')
+                args.push('-f', 'make-linux')
             }
 
             if (builder.config.systemName === 'win32') {
                 args.push('-DOS=win');
+                args.push('-f', 'make-linux')
             }
 
             if (env.GYP_ADDITIONAL_ARGS) {
