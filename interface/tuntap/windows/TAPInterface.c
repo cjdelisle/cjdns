@@ -17,8 +17,8 @@
 #include "util/events/libuv/UvWrapper.h"
 #include "util/events/libuv/EventBase_pvt.h"
 
-#include "exception/Except.h"
-#include "exception/WinFail.h"
+#include "exception/Er.h"
+#include "exception/WinEr.h"
 #include "memory/Allocator.h"
 #include "interface/tuntap/windows/TAPInterface.h"
 #include "interface/tuntap/windows/TAPDevice.h"
@@ -51,7 +51,10 @@ struct TAPInterface_Version_pvt {
     unsigned long debug;
 };
 
-static void getVersion(HANDLE tap, struct TAPInterface_Version_pvt* version, struct Except* eh)
+static Er_DEFUN(void getVersion(
+    HANDLE tap,
+    struct TAPInterface_Version_pvt* version,
+    struct Allocator* alloc))
 {
     ULONG version_len;
     BOOL bret = DeviceIoControl(tap,
@@ -65,16 +68,17 @@ static void getVersion(HANDLE tap, struct TAPInterface_Version_pvt* version, str
     if (!bret) {
         DWORD err = GetLastError();
         CloseHandle(tap);
-        WinFail_fail(eh, "DeviceIoControl(TAP_IOCTL_GET_VERSION)", err);
+        WinEr_fail(alloc, "DeviceIoControl(TAP_IOCTL_GET_VERSION)", err);
     }
     if (version_len != sizeof(struct TAPInterface_Version_pvt)) {
         CloseHandle(tap);
-        Except_throw(eh, "DeviceIoControl(TAP_IOCTL_GET_VERSION) out size [%d] expected [%d]",
+        Er_raise(alloc, "DeviceIoControl(TAP_IOCTL_GET_VERSION) out size [%d] expected [%d]",
                      (int)version_len, (int)sizeof(struct TAPInterface_Version_pvt));
     }
+    Er_ret();
 }
 
-static void setEnabled(HANDLE tap, int status, struct Except* eh)
+static Er_DEFUN(void setEnabled(HANDLE tap, int status, struct Allocator* alloc))
 {
     unsigned long len = 0;
 
@@ -84,8 +88,9 @@ static void setEnabled(HANDLE tap, int status, struct Except* eh)
     if (!bret) {
         DWORD err = GetLastError();
         CloseHandle(tap);
-        WinFail_fail(eh, "DeviceIoControl(TAP_IOCTL_SET_MEDIA_STATUS)", err);
+        WinEr_fail(alloc, "DeviceIoControl(TAP_IOCTL_SET_MEDIA_STATUS)", err);
     }
+    Er_ret();
 }
 
 #define WRITE_MESSAGE_SLOTS 20
@@ -126,7 +131,7 @@ static void postRead(struct TAPInterface_pvt* tap)
         switch (GetLastError()) {
             case ERROR_IO_PENDING:
             case ERROR_IO_INCOMPLETE: break;
-            default: Assert_failure("ReadFile(tap): %s\n", WinFail_strerror(GetLastError()));
+            default: Assert_failure("ReadFile(tap): %s\n", WinEr_strerror(GetLastError()));
         }
     } else {
         // It doesn't matter if it returns immediately, it will also return async.
@@ -142,7 +147,7 @@ static void readCallbackB(struct TAPInterface_pvt* tap)
     DWORD bytesRead;
     OVERLAPPED* readol = (OVERLAPPED*) tap->readIocp.overlapped;
     if (!GetOverlappedResult(tap->handle, readol, &bytesRead, FALSE)) {
-        Assert_failure("GetOverlappedResult(read, tap): %s\n", WinFail_strerror(GetLastError()));
+        Assert_failure("GetOverlappedResult(read, tap): %s\n", WinEr_strerror(GetLastError()));
     }
     msg->length = bytesRead;
     Log_debug(tap->log, "Read [%d] bytes", msg->length);
@@ -171,7 +176,7 @@ static void postWrite(struct TAPInterface_pvt* tap)
         switch (GetLastError()) {
             case ERROR_IO_PENDING:
             case ERROR_IO_INCOMPLETE: break;
-            default: Assert_failure("WriteFile(tap): %s\n", WinFail_strerror(GetLastError()));
+            default: Assert_failure("WriteFile(tap): %s\n", WinEr_strerror(GetLastError()));
         }
     } else {
         // It doesn't matter if it returns immediately, it will also return async.
@@ -185,7 +190,7 @@ static void writeCallbackB(struct TAPInterface_pvt* tap)
     DWORD bytesWritten;
     OVERLAPPED* writeol = (OVERLAPPED*) tap->writeIocp.overlapped;
     if (!GetOverlappedResult(tap->handle, writeol, &bytesWritten, FALSE)) {
-        Assert_failure("GetOverlappedResult(write, tap): %s\n", WinFail_strerror(GetLastError()));
+        Assert_failure("GetOverlappedResult(write, tap): %s\n", WinEr_strerror(GetLastError()));
     }
 
     Assert_true(tap->isPendingWrite);
@@ -237,17 +242,16 @@ static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* iface)
     return 0;
 }
 
-struct TAPInterface* TAPInterface_new(const char* preferredName,
-                                      struct Except* eh,
+Er_DEFUN(struct TAPInterface* TAPInterface_new(const char* preferredName,
                                       struct Log* logger,
                                       struct EventBase* base,
-                                      struct Allocator* alloc)
+                                      struct Allocator* alloc))
 {
     Log_debug(logger, "Getting TAP-Windows device name");
 
-    struct TAPDevice* dev = TAPDevice_find(preferredName, eh, alloc);
+    struct TAPDevice* dev = Er(TAPDevice_find(preferredName, alloc));
 
-    NetDev_flushAddresses(dev->name, eh);
+    Er(NetDev_flushAddresses(dev->name, alloc));
 
     Log_debug(logger, "Opening TAP-Windows device [%s] at location [%s]", dev->name, dev->path);
 
@@ -268,22 +272,22 @@ struct TAPInterface* TAPInterface_new(const char* preferredName,
                              0);
 
     if (tap->handle == INVALID_HANDLE_VALUE) {
-        WinFail_fail(eh, "CreateFile(tapDevice)", GetLastError());
+        WinEr_fail(alloc, "CreateFile(tapDevice)", GetLastError());
     }
 
     struct EventBase_pvt* ebp = EventBase_privatize(tap->base);
     int ret;
     if ((ret = uv_iocp_start(ebp->loop, &tap->readIocp, tap->handle, readCallback))) {
-        Except_throw(eh, "uv_iocp_start(readIocp): %s", uv_strerror(ret));
+        Er_raise(alloc, "uv_iocp_start(readIocp): %s", uv_strerror(ret));
     }
     if ((ret = uv_iocp_start(ebp->loop, &tap->writeIocp, tap->handle, writeCallback))) {
-        Except_throw(eh, "uv_iocp_start(writeIocp): %s", uv_strerror(ret));
+        Er_raise(alloc, "uv_iocp_start(writeIocp): %s", uv_strerror(ret));
     }
 
     struct TAPInterface_Version_pvt ver = { .major = 0 };
-    getVersion(tap->handle, &ver, eh);
+    Er(getVersion(tap->handle, &ver, alloc));
 
-    setEnabled(tap->handle, 1, eh);
+    Er(setEnabled(tap->handle, 1, alloc));
 
     Log_info(logger, "Opened TAP-Windows device [%s] version [%lu.%lu.%lu] at location [%s]",
              dev->name, ver.major, ver.minor, ver.debug, dev->path);
@@ -291,5 +295,5 @@ struct TAPInterface* TAPInterface_new(const char* preferredName,
     // begin listening.
     postRead(tap);
 
-    return &tap->pub;
+    Er_ret(&tap->pub);
 }

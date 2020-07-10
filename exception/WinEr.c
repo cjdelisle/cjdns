@@ -13,12 +13,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "exception/WinFail.h"
+#include "exception/WinEr.h"
 
 #include <windows.h>
 #include <ntstatus.h>
 
-char* WinFail_strerror(long status)
+char* WinEr_strerror(long status)
 {
     switch (status) {
         case ERROR_SUCCESS:
@@ -3052,14 +3052,4 @@ char* WinFail_strerror(long status)
         default:
             return "__UNKNOWN__";
     }
-}
-
-void WinFail_fail(struct Except* eh, const char* msg, LONG status)
-{
-    Except_throw(eh, "%s [%s]", msg, WinFail_strerror(status));
-}
-
-void WinFail_failWithLastError(struct Except* eh, const char* msg)
-{
-    Except_throw(eh, "%s [%s]", msg, WinFail_strerror(GetLastError()));
 }

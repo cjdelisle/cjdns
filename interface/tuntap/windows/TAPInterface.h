@@ -16,7 +16,7 @@
 #define TAPInterface_H
 
 #include "interface/Iface.h"
-#include "exception/Except.h"
+#include "exception/Er.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
 #include "util/events/EventBase.h"
@@ -29,10 +29,9 @@ struct TAPInterface
     char* assignedName;
 };
 
-struct TAPInterface* TAPInterface_new(const char* preferredName,
-                                      struct Except* eh,
+Er_DEFUN(struct TAPInterface* TAPInterface_new(const char* preferredName,
                                       struct Log* logger,
                                       struct EventBase* base,
-                                      struct Allocator* alloc);
+                                      struct Allocator* alloc));
 
 #endif

@@ -79,7 +79,7 @@ static LONG flushAddresses(NET_LUID luid, MIB_UNICASTIPADDRESS_TABLE* table)
 
 Er_DEFUN(void NetPlatform_flushAddresses(const char* deviceName, struct Allocator* alloc))
 {
-    NET_LUID luid = getLuid(deviceName, alloc);
+    NET_LUID luid = Er(getLuid(deviceName, alloc));
     MIB_UNICASTIPADDRESS_TABLE* table;
 
     WinEr_check(alloc, GetUnicastIpAddressTable(AF_INET, &table));
@@ -100,16 +100,16 @@ Er_DEFUN(void NetPlatform_flushAddresses(const char* deviceName, struct Allocato
 #include "util/Hex.h"
 #include <stdio.h>
 
-static void setupRoute(const char* deviceName,
+static Er_DEFUN(void setupRoute(const char* deviceName,
                        const uint8_t* addrBytes,
                        int prefixLen,
                        int addrFam,
-                       struct Allocator* alloc)
+                       struct Allocator* alloc))
 {
     void WINAPI InitializeIpForwardEntry(PMIB_IPFORWARD_ROW2 Row);
 
     MIB_IPFORWARD_ROW2 row = {
-        .InterfaceLuid = getLuid(deviceName, alloc),
+        .InterfaceLuid = Er(getLuid(deviceName, alloc)),
         .ValidLifetime = WSA_INFINITE,
         .PreferredLifetime = WSA_INFINITE,
         .Metric = 0xffffffff,
@@ -176,7 +176,7 @@ Er_DEFUN(void NetPlatform_addAddress(const char* interfaceName,
         .OnLinkPrefixLength = 0xFF
     };
 
-    ipRow.InterfaceLuid = getLuid(interfaceName, eh);
+    ipRow.InterfaceLuid = Er(getLuid(interfaceName, tempAlloc));
 
     ipRow.Address.si_family = addrFam;
     if (addrFam == Sockaddr_AF_INET6) {
@@ -189,8 +189,11 @@ Er_DEFUN(void NetPlatform_addAddress(const char* interfaceName,
 
     ipRow.OnLinkPrefixLength = prefixLen;
 
-    WinEr_check(CreateUnicastIpAddressEntry(&ipRow));
-    //setupRoute(interfaceName, address, prefixLen, addrFam, eh);
+    WinEr_check(tempAlloc, CreateUnicastIpAddressEntry(&ipRow));
+    if (0) {
+        // setupRoute was disabled in d7f5b302ac9215221428de81b9a496b40dcb3884
+        Er(setupRoute(interfaceName, address, prefixLen, addrFam, tempAlloc));
+    }
     Er_ret();
 }
 
@@ -226,14 +229,14 @@ Er_DEFUN(void NetPlatform_setMTU(const char* interfaceName,
     Log_debug(logger, "Going to run command: %s", buffer);
 
     // Make the netsh call, and die if it returns the wrong thing.
-    WinEr_check(eh, system(buffer));
+    WinEr_check(errAlloc, system(buffer));
 
     // We should also configure the MTU for ipv4 (IpTunnel) case
     const char* format1 = ("netsh interface ipv4 set subinterface "
         "\"%s\" mtu=%d");
     snprintf(buffer, totalSize, format1, interfaceName, mtu);
     Log_debug(logger, "Going to run command: %s", buffer);
-    WinEr_check(eh, system(buffer));
+    WinEr_check(errAlloc, system(buffer));
     Er_ret();
 }
 

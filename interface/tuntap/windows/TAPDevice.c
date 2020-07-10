@@ -15,8 +15,8 @@
 
 #include <stdbool.h>
 #include "util/Bits.h"
-#include "exception/Except.h"
-#include "exception/WinFail.h"
+#include "exception/Er.h"
+#include "exception/WinEr.h"
 #include "memory/Allocator.h"
 #include "interface/tuntap/windows/TAPDevice.h"
 #include "util/CString.h"
@@ -175,7 +175,7 @@ static int is_tap_win32_dev(const char *guid)
     return FALSE;
 }
 
-static struct Taps* get_all_taps(struct Allocator* alloc, struct Except* eh)
+static Er_DEFUN(struct Taps* get_all_taps(struct Allocator* alloc))
 {
     LONG status;
     HKEY control_net_key;
@@ -183,7 +183,7 @@ static struct Taps* get_all_taps(struct Allocator* alloc, struct Except* eh)
     struct Taps* taps = NULL;
     struct Taps* tail = NULL;
 
-    WinFail_check(eh, (
+    WinEr_check(alloc, (
         RegOpenKeyEx(HKEY_LOCAL_MACHINE, NETWORK_CONNECTIONS_KEY, 0, KEY_READ, &control_net_key)
     ));
 
@@ -205,7 +205,7 @@ static struct Taps* get_all_taps(struct Allocator* alloc, struct Except* eh)
         if (status == ERROR_NO_MORE_ITEMS) {
             break;
         } else if (status != ERROR_SUCCESS) {
-            WinFail_fail(eh, "RegEnumKeyEx() failed", status);
+            WinEr_fail(alloc, "RegEnumKeyEx() failed", status);
         }
 
         if (len != CString_strlen(NETWORK_ADAPTER_GUID)) {
@@ -219,7 +219,7 @@ static struct Taps* get_all_taps(struct Allocator* alloc, struct Except* eh)
              "%s\\%s\\Connection",
              NETWORK_CONNECTIONS_KEY, enum_name);
 
-        WinFail_check(eh, (
+        WinEr_check(alloc, (
             RegOpenKeyEx(HKEY_LOCAL_MACHINE, connection_string, 0, KEY_READ, &connKey)
         ));
 
@@ -235,11 +235,11 @@ static struct Taps* get_all_taps(struct Allocator* alloc, struct Except* eh)
             // The interface has no name.
             CString_safeStrncpy(name_data, "",  sizeof (name_data));
         } else if (status != ERROR_SUCCESS) {
-            WinFail_fail(eh, "RegQueryValueEx() for interface name failed", status);
+            WinEr_fail(alloc, "RegQueryValueEx() for interface name failed", status);
         } else {
             if (name_type != REG_SZ) {
                 // Someone named an interface with a non-string
-                WinFail_fail(eh, "RegQueryValueEx() name_type != REG_SZ", status);
+                WinEr_fail(alloc, "RegQueryValueEx() name_type != REG_SZ", status);
             }
         }
 
@@ -263,19 +263,18 @@ static struct Taps* get_all_taps(struct Allocator* alloc, struct Except* eh)
 
     RegCloseKey (control_net_key);
 
-    return taps;
+    Er_ret(taps);
 }
 
-static int get_device_guid(char *name,
+static Er_DEFUN(int get_device_guid(char *name,
     int name_size,
     char *actual_name,
     int actual_name_size,
-    struct Allocator* alloc,
-    struct Except* eh)
+    struct Allocator* alloc))
 {
     char buff[BUFF_SZ] = {0};
     HANDLE handle;
-    struct Taps* taps = get_all_taps(alloc, eh);
+    struct Taps* taps = Er(get_all_taps(alloc));
     while (taps) {
         if (actual_name && CString_strcmp(actual_name, "") != 0) {
             if (CString_strcmp(taps->name, actual_name) != 0) {
@@ -299,17 +298,16 @@ static int get_device_guid(char *name,
                 snprintf(actual_name, actual_name_size, "%s", taps->name);
             }
             CloseHandle(handle);
-            return 0;
+            Er_ret(0);
         }
         taps = taps->next;
     }
 
-    return -1;
+    Er_ret(-1);
 }
 
-struct TAPDevice* TAPDevice_find(const char* preferredName,
-                                 struct Except* eh,
-                                 struct Allocator* alloc)
+Er_DEFUN(struct TAPDevice* TAPDevice_find(const char* preferredName,
+                                 struct Allocator* alloc))
 {
     char guid[BUFF_SZ] = {0};
     char buff[BUFF_SZ] = {0};
@@ -317,8 +315,9 @@ struct TAPDevice* TAPDevice_find(const char* preferredName,
         snprintf(buff, sizeof(buff), "%s", preferredName);
     }
 
-    if (get_device_guid(guid, sizeof(guid), buff, sizeof(buff), alloc, eh)) {
-        return NULL;
+    int ret = Er(get_device_guid(guid, sizeof(guid), buff, sizeof(buff), alloc));
+    if (ret) {
+        Er_ret(NULL);
     }
 
     struct TAPDevice* out = Allocator_malloc(alloc, sizeof(struct TAPDevice));
@@ -329,5 +328,5 @@ struct TAPDevice* TAPDevice_find(const char* preferredName,
 
     out->path = Allocator_malloc(alloc, CString_strlen(buff)+1);
     Bits_memcpy(out->path, buff, CString_strlen(buff)+1);
-    return out;
+    Er_ret(out);
 }

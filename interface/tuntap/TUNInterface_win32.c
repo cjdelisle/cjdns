@@ -27,7 +27,7 @@ Er_DEFUN(struct Iface* TUNInterface_new(const char* interfaceName,
                                    struct Log* logger,
                                    struct Allocator* alloc))
 {
-    struct TAPInterface* tap = TAPInterface_new(interfaceName, eh, logger, base, alloc);
+    struct TAPInterface* tap = Er(TAPInterface_new(interfaceName, logger, base, alloc));
     CString_safeStrncpy(assignedInterfaceName, tap->assignedName, TUNInterface_IFNAMSIZ);
     if (isTapMode) { Er_ret(&tap->generic); }
     struct TAPWrapper* tapWrapper = TAPWrapper_new(&tap->generic, logger, alloc);

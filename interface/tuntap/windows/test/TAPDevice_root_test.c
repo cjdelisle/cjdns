@@ -29,7 +29,7 @@ int main(int argc, char** argv)
 int main(int argc, char** argv)
 {
     struct Allocator* alloc = MallocAllocator_new(1<<20);
-    struct TAPDevice* dev = TAPDevice_find(NULL, NULL, alloc);
+    struct TAPDevice* dev = Er_assert(TAPDevice_find(NULL, alloc));
     Assert_true(dev && dev->name && dev->path);
     printf("name [%s] path [%s]\n", dev->name, dev->path);
     return 0;

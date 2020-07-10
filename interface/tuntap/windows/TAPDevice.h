@@ -15,7 +15,7 @@
 #ifndef TAPDevice_H
 #define TAPDevice_H
 
-#include "exception/Except.h"
+#include "exception/Er.h"
 #include "memory/Allocator.h"
 #include "util/Linker.h"
 Linker_require("interface/tuntap/windows/TAPDevice.c");
@@ -29,8 +29,7 @@ struct TAPDevice
     char* path;
 };
 
-struct TAPDevice* TAPDevice_find(const char* preferredName,
-                                 struct Except* eh,
-                                 struct Allocator* alloc);
+Er_DEFUN(struct TAPDevice* TAPDevice_find(const char* preferredName,
+                                 struct Allocator* alloc));
 
 #endif

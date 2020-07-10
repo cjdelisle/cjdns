@@ -12,15 +12,17 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef WinFail_H
-#define WinFail_H
+#ifndef WinEr_H
+#define WinEr_H
 
 #include "exception/Er.h"
-#include "exception/WinFail.h"
 #include "util/Gcc.h"
+Linker_require("exception/WinEr.c");
+
+char* WinEr_strerror(long status);
 
 #define WinEr_fail(alloc, msg, status) \
-    Er_raise(alloc, "%s [%s]", msg, WinFail_strerror(status));
+    Er_raise(alloc, "%s [%s]", msg, WinEr_strerror(status));
 
 #define WinEr_check(alloc, expr) \
     do {                                              \
