@@ -98,35 +98,32 @@ struct SessionManager_Session_pvt
 #define debugHandlesAndLabel0(logger, session, label, message) \
     debugHandlesAndLabel(logger, session, label, "%s", message)
 
-#define debugSession(logger, session, message, ...) \
+#define debugSession(logger, session, label, message, ...) \
     do {                                                                               \
         if (!Defined(Log_DEBUG)) { break; }                                            \
         uint8_t sendPath[20];                                                          \
-        uint8_t recvPath[20];                                                          \
         uint8_t ip[40];                                                                \
-        AddrTools_printPath(sendPath, (session)->pub.sendSwitchLabel);                 \
-        AddrTools_printPath(recvPath, (session)->pub.recvSwitchLabel);                 \
+        AddrTools_printPath(sendPath, (label));                                        \
         AddrTools_printIp(ip, (session)->pub.caSession->herIp6);                       \
-        Log_debug((logger), "Session[%p] sendPath[%s] recvPath[%s] ip[%s] " message,   \
+        Log_debug((logger), "Session[%p] [%s.%s] " message,                            \
                   (void*)session,                                                      \
                   sendPath,                                                            \
-                  recvPath,                                                            \
                   ip,                                                                  \
                   __VA_ARGS__);                                                        \
     } while (0)
 //CHECKFILES_IGNORE ;
 
-#define debugSession0(logger, session, message) \
-    debugSession(logger, session, "%s", message)
+#define debugSession0(logger, session, label, message) \
+    debugSession(logger, session, label, "%s", message)
 
 static void sendSession(struct SessionManager_Session_pvt* sess,
-                        uint64_t path,
+                        SessionManager_Path_t* path,
                         uint32_t destPf,
                         enum PFChan_Core ev)
 {
     struct PFChan_Node session = {
-        .path_be = Endian_hostToBigEndian64(path),
-        .metric_be = Endian_bigEndianToHost32(sess->pub.metric),
+        .path_be = Endian_hostToBigEndian64(path->label),
+        .metric_be = Endian_bigEndianToHost32(path->metric),
         .version_be = Endian_hostToBigEndian32(sess->pub.version)
     };
     Bits_memcpy(session.ip6, sess->pub.caSession->herIp6, 16);
@@ -201,6 +198,102 @@ struct SessionManager_HandleList* SessionManager_getHandleList(struct SessionMan
     return out;
 }
 
+static uint32_t effectiveMetric(struct SessionManager_pvt* sm,
+                                SessionManager_Path_t* path)
+{
+    int64_t x = Time_currentTimeMilliseconds(sm->eventBase) - path->timeLastValidated;
+    x += path->metric;
+    return (x > Metric_NO_INFO) ? Metric_NO_INFO : x;
+}
+
+uint32_t SessionManager_effectiveMetric(struct SessionManager_Session* session)
+{
+    struct SessionManager_Session_pvt* sess =
+        Identity_check((struct SessionManager_Session_pvt*) session);
+    return effectiveMetric(sess->sessionManager, &sess->pub.paths[0]);
+}
+
+static SessionManager_Path_t* pathForLabel(struct SessionManager_Session_pvt* sess, uint64_t label)
+{
+    for (int i = 0; i < SessionManager_PATH_COUNT; i++) {
+        if (sess->pub.paths[i].label == label) {
+            return &sess->pub.paths[i];
+        }
+    }
+    return NULL;
+}
+
+static SessionManager_Path_t* worstPath(struct SessionManager_Session_pvt* sess)
+{
+    uint32_t worstEm = 0;
+    int worstI = 0;
+    for (int i = 0; i < SessionManager_PATH_COUNT; i++) {
+        uint32_t em = effectiveMetric(sess->sessionManager, &sess->pub.paths[i]);
+        if (em > worstEm) {
+            worstEm = em;
+            worstI = i;
+        }
+    }
+    return &sess->pub.paths[worstI];
+}
+
+static void rerankPaths(struct SessionManager_Session_pvt* sess)
+{
+    uint32_t bestEm = Metric_DEAD_LINK;
+    int bestI = 0;
+    for (int i = 0; i < SessionManager_PATH_COUNT; i++) {
+        uint32_t em = effectiveMetric(sess->sessionManager, &sess->pub.paths[i]);
+        if (em < bestEm) {
+            bestEm = em;
+            bestI = i;
+        }
+    }
+    if (bestI != 0) {
+        SessionManager_Path_t path0;
+        Bits_memcpy(&path0, &sess->pub.paths[0], sizeof(path0));
+        Bits_memcpy(&sess->pub.paths[0], &sess->pub.paths[bestI], sizeof(path0));
+        Bits_memcpy(&sess->pub.paths[bestI], &path0, sizeof(path0));
+    }
+}
+
+
+// Return true if the new path is an improvement
+static bool discoverPath(struct SessionManager_pvt* sm,
+                         struct SessionManager_Session_pvt* sess,
+                         uint64_t label,
+                         uint32_t metric)
+{
+    if (!label) {
+        return false;
+    }
+    SessionManager_Path_t* path = pathForLabel(sess, label);
+    uint64_t now = Time_currentTimeMilliseconds(sm->eventBase);
+    if (path) {
+        if (metric != Metric_DEAD_LINK && effectiveMetric(sm, path) <= metric) {
+            // already have a better source of truth
+            return false;
+        }
+        path->metric = metric;
+        path->timeLastValidated = now;
+        rerankPaths(sess);
+        return (sess->pub.paths[0].label == label);
+    } else {
+        path = worstPath(sess);
+        if (effectiveMetric(sm, path) <= metric) {
+            return false;
+        }
+        path->label = label;
+        path->metric = metric;
+        path->timeLastValidated = now;
+        rerankPaths(sess);
+        if (sess->pub.paths[0].label == label) {
+            sendSession(sess, &sess->pub.paths[0], 0xffffffff, PFChan_Core_DISCOVERED_PATH);
+            return true;
+        }
+        return false;
+    }
+}
+
 static struct SessionManager_Session_pvt* getSession(struct SessionManager_pvt* sm,
                                                      uint8_t ip6[16],
                                                      uint8_t pubKey[32],
@@ -212,25 +305,8 @@ static struct SessionManager_Session_pvt* getSession(struct SessionManager_pvt* 
     struct SessionManager_Session_pvt* sess = sessionForIp6(ip6, sm);
     if (sess) {
         sess->pub.version = (sess->pub.version) ? sess->pub.version : version;
-        if (metric == Metric_DEAD_LINK) {
-            // this is a broken path
-            if (sess->pub.sendSwitchLabel == label) {
-                debugSession0(sm->log, sess, "broken path");
-                if (sess->pub.sendSwitchLabel == sess->pub.recvSwitchLabel) {
-                    sess->pub.sendSwitchLabel = 0;
-                    sess->pub.metric = Metric_DEAD_LINK;
-                } else {
-                    sess->pub.sendSwitchLabel = sess->pub.recvSwitchLabel;
-                    sess->pub.metric = Metric_SM_INCOMING;
-                }
-            }
-        } else if (metric <= sess->pub.metric && label) {
-            if (sess->pub.sendSwitchLabel != label) {
-                debugSession0(sm->log, sess, "discovered path");
-            }
-            sess->pub.sendSwitchLabel = label;
+        if (discoverPath(sm, sess, label, metric)) {
             sess->pub.version = (version) ? version : sess->pub.version;
-            sess->pub.metric = metric;
         }
         return sess;
     }
@@ -257,14 +333,15 @@ static struct SessionManager_Session_pvt* getSession(struct SessionManager_pvt* 
                   printedIp6, sess->pub.receiveHandle);
     }
 
+    int64_t now = Time_currentTimeMilliseconds(sm->eventBase);
     sess->alloc = alloc;
     sess->sessionManager = sm;
     sess->pub.version = version;
-    sess->pub.timeOfLastIncoming = Time_currentTimeMilliseconds(sm->eventBase);
-    sess->pub.sendSwitchLabel = label;
-    sess->pub.metric = metric;
+    sess->pub.paths[0].timeLastValidated = now;
+    sess->pub.paths[0].label = label;
+    sess->pub.paths[0].metric = metric;
     //Allocator_onFree(alloc, sessionCleanup, sess);
-    sendSession(sess, label, 0xffffffff, PFChan_Core_SESSION);
+    sendSession(sess, &sess->pub.paths[0], 0xffffffff, PFChan_Core_SESSION);
     check(sm, ifaceIndex);
     return sess;
 }
@@ -410,7 +487,6 @@ static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface
 
     Assert_true(msg->length >= DataHeader_SIZE);
     session->pub.bytesIn += msg->length;
-    session->pub.timeOfLastIncoming = Time_currentTimeMilliseconds(sm->eventBase);
 
     if (currentMessageSetup) {
         Bits_memcpy(&header->sh, switchHeader, SwitchHeader_SIZE);
@@ -436,14 +512,8 @@ static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface
     header->unused = 0;
     header->flags = RouteHeader_flags_INCOMING;
 
-    uint64_t path = Endian_bigEndianToHost64(switchHeader->label_be);
-    if (!session->pub.sendSwitchLabel) {
-        session->pub.sendSwitchLabel = path;
-    }
-    if (path != session->pub.recvSwitchLabel) {
-        session->pub.recvSwitchLabel = path;
-        sendSession(session, path, 0xffffffff, PFChan_Core_DISCOVERED_PATH);
-    }
+    uint64_t label = Endian_bigEndianToHost64(switchHeader->label_be);
+    discoverPath(sm, session, label, Metric_SM_INCOMING);
 
     return Iface_next(&sm->pub.insideIf, msg);
 }
@@ -462,17 +532,16 @@ static void checkTimedOutBuffers(struct SessionManager_pvt* sm)
 
 static void unsetupSession(struct SessionManager_pvt* sm, struct SessionManager_Session_pvt* sess)
 {
-    if (!sess->pub.version || !(sess->pub.sendSwitchLabel || sess->pub.recvSwitchLabel)) {
-        // Nothing we can do here because it's not ok to send traffic without a version num.
+    if (!sess->pub.version || sess->pub.paths[0].metric == Metric_DEAD_LINK) {
+        // Nothing we can do here because it's not ok to send traffic without a version and path.
         return;
     }
     struct Allocator* eventAlloc = Allocator_child(sm->alloc);
     struct Message* eventMsg = Message_new(0, 512, eventAlloc);
     struct PFChan_Node n = { .metric_be = Endian_hostToBigEndian32(Metric_DEAD_LINK) };
-    n.path_be = Endian_hostToBigEndian64(sess->pub.sendSwitchLabel ?
-                                         sess->pub.sendSwitchLabel : sess->pub.recvSwitchLabel);
+    n.path_be = Endian_hostToBigEndian64(sess->pub.paths[0].label);
     n.version_be = Endian_hostToBigEndian32(sess->pub.version);
-    n.metric_be = Endian_bigEndianToHost32(sess->pub.metric);
+    n.metric_be = Endian_bigEndianToHost32(sess->pub.paths[0].metric);
     Bits_memcpy(n.publicKey, sess->pub.caSession->herPublicKey, 32);
     Bits_memcpy(n.ip6, sess->pub.caSession->herIp6, 16);
     Er_assert(Message_epush(eventMsg, &n, PFChan_Node_SIZE));
@@ -495,6 +564,19 @@ static void triggerSearch(struct SessionManager_pvt* sm, uint8_t target[16], uin
     Allocator_free(eventAlloc);
 }
 
+static SessionManager_Path_t* mostRecentValidatedPath(struct SessionManager_Session_pvt* sess)
+{
+    int64_t bestTime = 0;
+    int bestI = 0;
+    for (int i = 0; i < SessionManager_PATH_COUNT; i++) {
+        if (sess->pub.paths[i].timeLastValidated > bestTime) {
+            bestTime = sess->pub.paths[i].timeLastValidated;
+            bestI = i;
+        }
+    }
+    return &sess->pub.paths[bestI];
+}
+
 static void checkTimedOutSessions(struct SessionManager_pvt* sm)
 {
     for (int i = (int)sm->ifaceMap.count - 1; i >= 0; i--) {
@@ -502,9 +584,12 @@ static void checkTimedOutSessions(struct SessionManager_pvt* sm)
         int64_t now = Time_currentTimeMilliseconds(sm->eventBase);
 
         // Check if the session is timed out...
-        if (now - sess->pub.timeOfLastIncoming > sm->pub.sessionTimeoutMilliseconds) {
-            debugSession0(sm->log, sess, "ended");
-            sendSession(sess, sess->pub.sendSwitchLabel, 0xffffffff, PFChan_Core_SESSION_ENDED);
+        SessionManager_Path_t* path = mostRecentValidatedPath(sess);
+        if (now - path->timeLastValidated > sm->pub.sessionTimeoutMilliseconds) {
+            debugSession0(sm->log, sess, path->label, "ended");
+            // Only need to send this once because PFChan_Core_SESSION_ENDED
+            // means the whole session is done
+            sendSession(sess, path, 0xffffffff, PFChan_Core_SESSION_ENDED);
             Map_OfSessionsByIp6_remove(i, &sm->ifaceMap);
             Allocator_free(sess->alloc);
             continue;
@@ -518,11 +603,12 @@ static void checkTimedOutSessions(struct SessionManager_pvt* sm)
             sess->pub.timeOfLastUsage = 0;
         } else if (now - sess->pub.lastSearchTime >= sm->pub.sessionSearchAfterMilliseconds) {
             // Session is not in idle state and requires a search
-            debugSession0(sm->log, sess, "it's been a while, triggering search");
+            debugSession0(sm->log, sess, sess->pub.paths[0].label,
+                "it's been a while, triggering search");
             triggerSearch(sm, sess->pub.caSession->herIp6, sess->pub.version);
             sess->pub.lastSearchTime = now;
         } else if (CryptoAuth_getState(sess->pub.caSession) < CryptoAuth_State_ESTABLISHED) {
-            debugSession0(sm->log, sess, "triggering unsetupSession");
+            debugSession0(sm->log, sess, sess->pub.paths[0].label, "triggering unsetupSession");
             unsetupSession(sm, sess);
         }
     }
@@ -630,7 +716,7 @@ static Iface_DEFUN readyToSend(struct Message* msg,
 
     if (!sh->label_be) {
         Bits_memset(sh, 0, SwitchHeader_SIZE);
-        sh->label_be = Endian_hostToBigEndian64(sess->pub.sendSwitchLabel);
+        sh->label_be = Endian_hostToBigEndian64(sess->pub.paths[0].label);
         SwitchHeader_setVersion(sh, SwitchHeader_CURRENT_VERSION);
     }
 
@@ -677,7 +763,7 @@ static Iface_DEFUN incomingFromInsideIf(struct Message* msg, struct Iface* iface
                               header->publicKey,
                               Endian_bigEndianToHost32(header->version_be),
                               Endian_bigEndianToHost64(header->sh.label_be),
-                              Metric_SM_SEND);
+                              ((header->sh.label_be) ? Metric_SM_SEND : Metric_DEAD_LINK));
         } else {
             needsLookup(sm, msg);
             return NULL;
@@ -698,9 +784,9 @@ static Iface_DEFUN incomingFromInsideIf(struct Message* msg, struct Iface* iface
 
     if (header->sh.label_be) {
         // fallthrough
-    } else if (sess->pub.sendSwitchLabel) {
+    } else if (sess->pub.paths[0].metric < Metric_DEAD_LINK) {
         Bits_memset(&header->sh, 0, SwitchHeader_SIZE);
-        header->sh.label_be = Endian_hostToBigEndian64(sess->pub.sendSwitchLabel);
+        header->sh.label_be = Endian_hostToBigEndian64(sess->pub.paths[0].label);
         SwitchHeader_setVersion(&header->sh, SwitchHeader_CURRENT_VERSION);
     } else {
         needsLookup(sm, msg);
@@ -714,11 +800,11 @@ static Iface_DEFUN incomingFromInsideIf(struct Message* msg, struct Iface* iface
             if (sess->pub.timeOfLastUsage) {
                 // Any time any message of any kind is sent down a link that is
                 // currently in use, keep firing off unsetupSession
-                debugSession0(sm->log, sess, "CJDHT traffic on link in use, unsetupSession");
                 unsetupSession(sm, sess);
             }
         } else {
-            debugSession0(sm->log, sess, "user traffic, unsetupSession");
+            debugSession0(sm->log, sess,
+                Endian_bigEndianToHost64(header->sh.label_be), "user traffic, unsetupSession");
             bufferPacket(sm, msg);
             unsetupSession(sm, sess);
             return NULL;
@@ -734,7 +820,7 @@ static Iface_DEFUN sessions(struct SessionManager_pvt* sm,
 {
     for (int i = 0; i < (int)sm->ifaceMap.count; i++) {
         struct SessionManager_Session_pvt* sess = sm->ifaceMap.values[i];
-        sendSession(sess, sess->pub.sendSwitchLabel, sourcePf, PFChan_Core_SESSION);
+        sendSession(sess, &sess->pub.paths[0], sourcePf, PFChan_Core_SESSION);
     }
     return NULL;
 }

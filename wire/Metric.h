@@ -61,6 +61,9 @@ static const uint32_t Metric_SM_INCOMING =     0xff700000;
 // Outgoing message, some upper layer thinks this is the path
 static const uint32_t Metric_SM_SEND =         0xff710000;
 
+// We have no information about this path, but we don't know it to be dead
+static const uint32_t Metric_NO_INFO =         0xfffffffe;
+
 // This will cause the SM to kill off a path
 static const uint32_t Metric_DEAD_LINK =       0xffffffff;
 

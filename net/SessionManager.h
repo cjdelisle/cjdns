@@ -69,15 +69,20 @@ struct SessionManager
     int64_t sessionSearchAfterMilliseconds;
 };
 
+typedef struct SessionManager_Path_s
+{
+    int64_t timeLastValidated;
+    uint64_t label;
+    uint32_t metric;
+} SessionManager_Path_t;
+
+#define SessionManager_PATH_COUNT 3
+
 struct SessionManager_Session
 {
     struct CryptoAuth_Session* caSession;
 
-    /**
-     * When the last message was received on this session (milliseconds since epoch).
-     * Used for session keep alive.
-     */
-    int64_t timeOfLastIncoming;
+    SessionManager_Path_t paths[SessionManager_PATH_COUNT];
 
     // This is used to know when we should stop maintaining the session.
     // It is only flagged for real traffic, not router traffic.
@@ -98,14 +103,6 @@ struct SessionManager_Session
 
     /** The version of the other node. */
     uint32_t version;
-
-    uint32_t metric;
-
-    /** The best known switch label for reaching this node. */
-    uint64_t sendSwitchLabel;
-
-    /** The switch label which this node uses for reaching us. */
-    uint64_t recvSwitchLabel;
 };
 
 struct SessionManager_HandleList
@@ -113,6 +110,8 @@ struct SessionManager_HandleList
     int length;
     uint32_t* handles;
 };
+
+uint32_t SessionManager_effectiveMetric(struct SessionManager_Session* sess);
 
 /**
  * Get a session by its handle.

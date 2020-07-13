@@ -87,7 +87,7 @@ static void outputSession(struct Context* context,
 
     struct Address addr;
     Bits_memcpy(addr.key, session->caSession->herPublicKey, 32);
-    addr.path = session->sendSwitchLabel;
+    addr.path = session->paths[0].label;
     addr.protocolVersion = session->version;
 
     Dict_putStringC(r, "addr", Address_toStringKey(&addr, alloc), alloc);
@@ -95,7 +95,7 @@ static void outputSession(struct Context* context,
     Dict_putIntC(r, "handle", session->receiveHandle, alloc);
     Dict_putIntC(r, "sendHandle", session->sendHandle, alloc);
 
-    Dict_putIntC(r, "metric", session->metric, alloc);
+    Dict_putIntC(r, "metric", SessionManager_effectiveMetric(session), alloc);
     Dict_putIntC(r, "timeOfLastUsage", session->timeOfLastUsage, alloc);
 
     Admin_sendMessage(r, txid, context->admin);
