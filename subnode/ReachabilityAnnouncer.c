@@ -164,6 +164,18 @@ enum ReachabilityAnnouncer_State
     ReachabilityAnnouncer_State_NORMAL = 60000
 };
 
+static const char* printState(enum ReachabilityAnnouncer_State s) {
+    switch (s) {
+        case ReachabilityAnnouncer_State_MSGFULL: return "MSGFULL";
+        case ReachabilityAnnouncer_State_FIRSTPEER: return "FIRSTPEER";
+        case ReachabilityAnnouncer_State_LINKSTATE_FULL: return "LINKSTATE_FULL";
+        case ReachabilityAnnouncer_State_PEERGONE: return "PEERGONE";
+        case ReachabilityAnnouncer_State_NEWPEER: return "NEWPEER";
+        case ReachabilityAnnouncer_State_NORMAL: return "NORMAL";
+        default: return "unknown";
+    }
+}
+
 struct ReachabilityAnnouncer_pvt;
 struct Query {
     struct ReachabilityAnnouncer_pvt* rap;
@@ -555,6 +567,7 @@ static void onReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom
     rap->clockSkew = estimateImprovedClockSkew(sentTime, *snodeRecvTime, now, oldClockSkew);
     Log_debug(rap->log, "Adjusting clock skew by [%lld]",
         (long long int) (rap->clockSkew - oldClockSkew));
+    Log_debug(rap->log, "State [%s]", printState(rap->state));
 
     // We reset the state to NORMAL unless the synchronization of state took more space than
     // the last message could hold, however if the state was MSGFULL but then another message
@@ -658,6 +671,8 @@ static void onAnnounceCycle(void* vRap)
         Log_debug(rap->log, "Out of space pushing link state");
         stateUpdate(rap, ReachabilityAnnouncer_State_LINKSTATE_FULL);
     } else if (ReachabilityAnnouncer_State_LINKSTATE_FULL == rap->state) {
+        rap->state = ReachabilityAnnouncer_State_NORMAL;
+    } else if (ReachabilityAnnouncer_State_MSGFULL == rap->state) {
         rap->state = ReachabilityAnnouncer_State_NORMAL;
     }
 
