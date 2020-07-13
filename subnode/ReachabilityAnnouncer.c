@@ -164,7 +164,8 @@ enum ReachabilityAnnouncer_State
     ReachabilityAnnouncer_State_NORMAL = 60000
 };
 
-static const char* printState(enum ReachabilityAnnouncer_State s) {
+static const char* printState(enum ReachabilityAnnouncer_State s)
+{
     switch (s) {
         case ReachabilityAnnouncer_State_MSGFULL: return "MSGFULL";
         case ReachabilityAnnouncer_State_FIRSTPEER: return "FIRSTPEER";
