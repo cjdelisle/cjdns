@@ -431,9 +431,11 @@ Er_DEFUN(bool Pipe_exists(const char* path, struct Allocator* errAlloc))
         int flag = 0;
         #ifdef win32
             flag = S_IFIFO;
-        #else
+        #elif defined(S_IFSOCK)
             flag = S_IFSOCK;
+        #else
+            #error "missing S_IFSOCK"
         #endif
-        Er_ret((st.st_mode & S_IFMT) == flag);
+        Er_ret(((int)(st.st_mode & S_IFMT)) == flag);
     }
 }
