@@ -30,6 +30,11 @@
 // snode and subnode agree to drop messages from the snode state.
 #define AGREED_TIMEOUT_MS (1000 * 60 * 20)
 
+#define MSG_SIZE_LIMIT 700
+
+// Initial time between messages is 60 seconds, adjusted based on amount of full messages
+#define INITIAL_TBA 60000
+
 #define ArrayList_TYPE struct Message
 #define ArrayList_NAME OfMessages
 #include "util/ArrayList.h"
@@ -145,11 +150,6 @@ enum ReachabilityAnnouncer_State
     // (so we are effectively offline) we have to announce quickly in order to be online.
     ReachabilityAnnouncer_State_FIRSTPEER = 1000,
 
-    // The message became full adding link state info, it's not the same as MSGFULL
-    // because we need not worry about going out of sync with the snode, but we should
-    // send an update fairly soon
-    ReachabilityAnnouncer_State_LINKSTATE_FULL = 2000,
-
     // We have just dropped a peer, we should announce quickly in order to help the snode
     // know that our link is dead.
     ReachabilityAnnouncer_State_PEERGONE = 6000,
@@ -160,16 +160,14 @@ enum ReachabilityAnnouncer_State
 
     // No new peers or dropped peers, we'll just send announcements at a low interval in
     // order to keep our snode up to date on latencies and drop percentages of different
-    // links.
-    ReachabilityAnnouncer_State_NORMAL = 60000
+    // links. Cadence is regulated by timeBetweenAnns.
+    ReachabilityAnnouncer_State_NORMAL = -1
 };
 
 static const char* printState(enum ReachabilityAnnouncer_State s)
 {
     switch (s) {
-        case ReachabilityAnnouncer_State_MSGFULL: return "MSGFULL";
         case ReachabilityAnnouncer_State_FIRSTPEER: return "FIRSTPEER";
-        case ReachabilityAnnouncer_State_LINKSTATE_FULL: return "LINKSTATE_FULL";
         case ReachabilityAnnouncer_State_PEERGONE: return "PEERGONE";
         case ReachabilityAnnouncer_State_NEWPEER: return "NEWPEER";
         case ReachabilityAnnouncer_State_NORMAL: return "NORMAL";
@@ -231,6 +229,8 @@ struct ReachabilityAnnouncer_pvt
 
     enum ReachabilityAnnouncer_State state;
 
+    int timeBetweenAnns;
+
     Identity
 };
 
@@ -289,7 +289,7 @@ static bool pushLinkState(struct ReachabilityAnnouncer_pvt* rap,
             Log_debug(rap->log, "Failed to add link state for [%s]",
                 Address_toString(&pi->addr, msg->alloc)->bytes);
         }
-        if (msg->length > 904) {
+        if (msg->length > MSG_SIZE_LIMIT) {
             Er_assert(Message_epop(msg, NULL, msg->length - lastLen));
             Log_debug(rap->log, "Couldn't add link state for [%s] (out of space)",
                 Address_toString(&pi->addr, msg->alloc)->bytes);
@@ -349,7 +349,7 @@ static int updateItem(struct ReachabilityAnnouncer_pvt* rap,
         Log_debug(rap->log, "updateItem [%s] found onTheWire but needs update", logInfo);
     }
 
-    if (msg->length > 700) {
+    if (msg->length > MSG_SIZE_LIMIT) {
         Log_debug(rap->log, "updateItem [%s] msg is too big to [%s] item",
             logInfo, item ? "UPDATE" : "INSERT");
         return updateItem_ENOSPACE;
@@ -408,6 +408,7 @@ static void stateReset(struct ReachabilityAnnouncer_pvt* rap)
 
     // we must force the state to FIRSTPEER
     rap->state = ReachabilityAnnouncer_State_FIRSTPEER;
+    rap->timeBetweenAnns = INITIAL_TBA;
 
     rap->resetState = true;
 }
@@ -569,17 +570,9 @@ static void onReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom
     Log_debug(rap->log, "Adjusting clock skew by [%lld]",
         (long long int) (rap->clockSkew - oldClockSkew));
     Log_debug(rap->log, "State [%s]", printState(rap->state));
+    Log_debug(rap->log, "TBA [%d]", rap->timeBetweenAnns);
 
-    // We reset the state to NORMAL unless the synchronization of state took more space than
-    // the last message could hold, however if the state was MSGFULL but then another message
-    // was sent and now all state is synced (nothing new to send), we set to NORMAL.
-    // TODO(cjd): This implies a risk of oscillation wherein there is always a tiny bit of
-    //            additional state keeps being added (bouncing link?)
-    if (ReachabilityAnnouncer_State_LINKSTATE_FULL == rap->state) {
-        // LINKSTATE_FULL gets unflagged when the linkstate is pushed
-    } else if (ReachabilityAnnouncer_State_MSGFULL != rap->state) {
-        rap->state = ReachabilityAnnouncer_State_NORMAL;
-    }
+    rap->state = ReachabilityAnnouncer_State_NORMAL;
 
     String* snodeStateHash = Dict_getStringC(msg, "stateHash");
     uint8_t ourStateHash[64];
@@ -651,7 +644,12 @@ static void onAnnounceCycle(void* vRap)
     int64_t snNow = snTime(rap);
 
     // Not time to send yet?
-    if (now < rap->timeOfLastReply + rap->state) { return; }
+    int64_t delay = now - rap->timeOfLastReply;
+    if (rap->state == ReachabilityAnnouncer_State_NORMAL) {
+        if (delay < rap->timeBetweenAnns) { return; }
+    } else {
+        if (delay < rap->state) { return; }
+    }
 
     struct MsgCore_Promise* qp = MsgCore_createQuery(rap->msgCore, 0, rap->alloc);
     struct Allocator* queryAlloc = Allocator_child(qp->alloc);
@@ -659,22 +657,29 @@ static void onAnnounceCycle(void* vRap)
 
     Log_debug(rap->log, "\n");
 
-    if (pushMeta(rap, msg)) {
-        Log_debug(rap->log, "Out of space pushing metadata o_O");
+    for (;;) {
+        if (pushMeta(rap, msg)) {
+            Log_debug(rap->log, "Out of space pushing metadata o_O");
+        } else if (pushWithdrawLinks(rap, msg)) {
+            Log_debug(rap->log, "Out of space pushing peer withdrawals");
+        } else if (pushPeers(rap, msg)) {
+            Log_debug(rap->log, "Out of space pushing peers");
+        } else if (pushLinkState(rap, msg)) {
+            Log_debug(rap->log, "Out of space pushing link state");
+        } else {
+            // Inch the tba up whenever there's a "small" message
+            if (msg->length < 500) { rap->timeBetweenAnns += 100; }
+            // Cap at 60 seconds, going over this requires changing when
+            // nodes are re-announced.
+            if (rap->timeBetweenAnns > 60000) { rap->timeBetweenAnns = 60000; }
+            break;
+        }
         stateUpdate(rap, ReachabilityAnnouncer_State_MSGFULL);
-    } else if (pushWithdrawLinks(rap, msg)) {
-        Log_debug(rap->log, "Out of space pushing peer withdrawals");
-        stateUpdate(rap, ReachabilityAnnouncer_State_MSGFULL);
-    } else if (pushPeers(rap, msg)) {
-        Log_debug(rap->log, "Out of space pushing peers");
-        stateUpdate(rap, ReachabilityAnnouncer_State_MSGFULL);
-    } else if (pushLinkState(rap, msg)) {
-        Log_debug(rap->log, "Out of space pushing link state");
-        stateUpdate(rap, ReachabilityAnnouncer_State_LINKSTATE_FULL);
-    } else if (ReachabilityAnnouncer_State_LINKSTATE_FULL == rap->state) {
-        rap->state = ReachabilityAnnouncer_State_NORMAL;
-    } else if (ReachabilityAnnouncer_State_MSGFULL == rap->state) {
-        rap->state = ReachabilityAnnouncer_State_NORMAL;
+
+        // Cut the tba in half every time there's a MSGFULL
+        rap->timeBetweenAnns /= 2;
+        // minimum tba is 500ms
+        if (rap->timeBetweenAnns < 500) { rap->timeBetweenAnns = 500; }
     }
 
     Er_assert(Message_epush(msg, NULL, Announce_Header_SIZE));
@@ -789,7 +794,7 @@ struct ReachabilityAnnouncer* ReachabilityAnnouncer_new(struct Allocator* alloca
     rap->log = log;
     rap->base = base;
     rap->msgCore = msgCore;
-    rap->announceCycle = Timeout_setInterval(onAnnounceCycle, rap, 1000, base, alloc);
+    rap->announceCycle = Timeout_setInterval(onAnnounceCycle, rap, 250, base, alloc);
     rap->rand = rand;
     rap->snodeState = ArrayList_OfMessages_new(alloc);
     rap->myScheme = myScheme;
