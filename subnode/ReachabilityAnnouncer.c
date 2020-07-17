@@ -657,7 +657,7 @@ static void onAnnounceCycle(void* vRap)
 
     Log_debug(rap->log, "\n");
 
-    for (;;) {
+    do {
         if (pushMeta(rap, msg)) {
             Log_debug(rap->log, "Out of space pushing metadata o_O");
         } else if (pushWithdrawLinks(rap, msg)) {
@@ -680,7 +680,7 @@ static void onAnnounceCycle(void* vRap)
         rap->timeBetweenAnns /= 2;
         // minimum tba is 500ms
         if (rap->timeBetweenAnns < 500) { rap->timeBetweenAnns = 500; }
-    }
+    } while (0);
 
     Er_assert(Message_epush(msg, NULL, Announce_Header_SIZE));
 
