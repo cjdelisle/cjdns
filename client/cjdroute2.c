@@ -732,7 +732,7 @@ int main(int argc, char** argv)
 
     // --------------------- Welcome to cjdns ---------------------- //
     char* sysInfo = SysInfo_describe(SysInfo_detect(), allocator);
-    Log_info(logger, "Cjdns %s %s", ArchInfo_getArchStr(), sysInfo);
+    Log_info(logger, "%s %s %s", CJD_PACKAGE_VERSION, ArchInfo_getArchStr(), sysInfo);
 
     // --------------------- Check for running instance  --------------------- //
 
