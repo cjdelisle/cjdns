@@ -1,11 +1,6 @@
 {
   "PLAN_IMPLEMENTATIONS": [
     [
-      "crypto_sign",
-      "ed25519",
-      "ref10"
-    ],
-    [
       "crypto_stream",
       "aes128ctr",
       "portable"

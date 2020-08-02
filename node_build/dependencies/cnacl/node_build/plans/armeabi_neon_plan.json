@@ -51,11 +51,6 @@
       "ref"
     ],
     [
-      "crypto_sign",
-      "ed25519",
-      "ref10"
-    ],
-    [
       "crypto_onetimeauth",
       "poly1305",
       "neon2"

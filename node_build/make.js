@@ -452,7 +452,7 @@ Builder.configure({
     builder.buildExecutable('crypto/random/randombytes.c');
 
     builder.lintFiles(function (fileName, file, callback) {
-        if (/dependencies/.test(fileName)) {
+        if (/dependencies/.test(fileName) || /crypto\/sign/.test(fileName)) {
             callback('', false);
             return;
         }

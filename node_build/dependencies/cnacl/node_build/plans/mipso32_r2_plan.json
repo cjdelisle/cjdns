@@ -36,11 +36,6 @@
       "ref"
     ],
     [
-      "crypto_sign",
-      "ed25519",
-      "ref10"
-    ],
-    [
       "crypto_auth",
       "hmacsha512256",
       "ref"
