@@ -20,7 +20,7 @@
 #include "util/Js.h"
 
 #include "util/Linker.h"
-Linker_require("exception/Er.c");
+Linker_require("exception/Er.c")
 
 struct Er_Ret
 {

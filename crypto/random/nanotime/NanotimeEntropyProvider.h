@@ -20,8 +20,7 @@
 #include "util/events/EventBase.h"
 #include "util/log/Log.h"
 #include "util/Linker.h"
-Linker_require("crypto/random/nanotime/NanotimeEntropyProvider.c");
-
+Linker_require("crypto/random/nanotime/NanotimeEntropyProvider.c")
 struct NanotimeEntropyProvider;
 
 void NanotimeEntropyProvider_start(struct Random* provideTo,

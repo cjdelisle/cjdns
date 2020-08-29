@@ -18,7 +18,7 @@
 #include "benc/String.h"
 #include "memory/Allocator.h"
 #include "util/Linker.h"
-Linker_require("util/GlobalConfig.c");
+Linker_require("util/GlobalConfig.c")
 
 /**
  * Cjdns is mostly a very well structured project, there is not a lot of

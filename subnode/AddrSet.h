@@ -18,7 +18,7 @@
 #include "memory/Allocator.h"
 #include "dht/Address.h"
 #include "util/Linker.h"
-Linker_require("subnode/AddrSet.c");
+Linker_require("subnode/AddrSet.c")
 
 struct AddrSet
 {

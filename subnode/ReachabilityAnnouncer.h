@@ -25,7 +25,7 @@
 #include "subnode/ReachabilityCollector.h"
 #include "switch/EncodingScheme.h"
 #include "util/Linker.h"
-Linker_require("subnode/ReachabilityAnnouncer.c");
+Linker_require("subnode/ReachabilityAnnouncer.c")
 
 struct ReachabilityAnnouncer
 {

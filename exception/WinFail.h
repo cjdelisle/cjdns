@@ -12,31 +12,35 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef WinEr_H
-#define WinEr_H
+#ifndef WinFail_H
+#define WinFail_H
 
-#include "exception/Er.h"
+#include "exception/Except.h"
 #include "util/Gcc.h"
-Linker_require("exception/WinEr.c")
+#include "util/Linker.h"
+Linker_require("exception/WinFail.c")
 
-char* WinEr_strerror(long status);
+Gcc_NORETURN
+void WinFail_fail(struct Except* eh, const char* msg, long status);
 
-#define WinEr_fail(alloc, msg, status) \
-    Er_raise(alloc, "%s [%s]", msg, WinEr_strerror(status));
+Gcc_NORETURN
+void WinFail_failWithLastError(struct Except* eh, const char* msg);
 
-#define WinEr_check(alloc, expr) \
+char* WinFail_strerror(long status);
+
+#define WinFail_check(eh, expr) \
     do {                                              \
         long status = (expr);                         \
         if (status != ERROR_SUCCESS) {                \
-            WinEr_fail(alloc, #expr, status);         \
+            WinFail_fail(eh, #expr, status);          \
         }                                             \
     } while (0)
 // CHECKFILES_IGNORE expected ;
 
-#define WinEr_assert(eh, expr) \
+#define WinFail_assert(eh, expr) \
     do {                                              \
         if (!(expr)) {                                \
-            WinEr_fail(alloc, #expr, GetLastError()); \
+            WinFail_failWithLastError(eh, #expr);     \
         }                                             \
     } while (0)
 // CHECKFILES_IGNORE expected ;

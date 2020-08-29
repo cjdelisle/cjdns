@@ -24,7 +24,7 @@
 #include "switch/EncodingScheme.h"
 #include "util/log/Log.h"
 #include "util/Linker.h"
-Linker_require("subnode/MsgCore.c");
+Linker_require("subnode/MsgCore.c")
 
 struct MsgCore_Handler;
 struct MsgCore;

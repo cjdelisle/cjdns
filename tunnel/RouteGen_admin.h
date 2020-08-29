@@ -19,7 +19,7 @@
 #include "tunnel/RouteGen.h"
 #include "admin/Admin.h"
 #include "util/Linker.h"
-Linker_require("tunnel/RouteGen_admin.c");
+Linker_require("tunnel/RouteGen_admin.c")
 
 void RouteGen_admin_register(struct RouteGen* rg, struct Admin* admin, struct Allocator* alloc);
 

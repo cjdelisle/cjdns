@@ -18,7 +18,7 @@
 #include "memory/Allocator.h"
 #include "util/events/EventBase.h"
 #include "util/Linker.h"
-Linker_require("util/events/libuv/Event.c");
+Linker_require("util/events/libuv/Event.c")
 
 struct Event
 {

@@ -21,7 +21,7 @@
 #include "util/events/EventBase.h"
 #include "util/log/Log.h"
 #include "util/Linker.h"
-Linker_require("util/events/libuv/Pipe.c");
+Linker_require("util/events/libuv/Pipe.c")
 
 #include <stdbool.h>
 

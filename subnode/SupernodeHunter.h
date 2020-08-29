@@ -24,7 +24,7 @@
 #include "dht/Address.h"
 #include "net/SwitchPinger.h"
 #include "util/Linker.h"
-Linker_require("subnode/SupernodeHunter.c");
+Linker_require("subnode/SupernodeHunter.c")
 
 struct SupernodeHunter;
 

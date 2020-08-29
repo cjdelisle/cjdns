@@ -22,7 +22,7 @@
 #include "switch/EncodingScheme.h"
 #include "util/Linker.h"
 
-Linker_require("subnode/PingResponder.c");
+Linker_require("subnode/PingResponder.c")
 
 struct PingResponder
 {

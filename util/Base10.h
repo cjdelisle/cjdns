@@ -18,7 +18,7 @@
 #include "exception/Er.h"
 #include "wire/Message.h"
 #include "util/Linker.h"
-Linker_require("util/Base10.c");
+Linker_require("util/Base10.c")
 
 #include <stdint.h>
 

@@ -19,7 +19,7 @@
 #include "crypto/random/Random.h"
 #include "memory/Allocator.h"
 #include "util/Linker.h"
-Linker_require("crypto/Key.c");
+Linker_require("crypto/Key.c")
 
 #include <stdint.h>
 

@@ -18,7 +18,7 @@
 #include "crypto/random/Random.h"
 #include "wire/Message.h"
 #include "util/Linker.h"
-Linker_require("crypto/Sign.c");
+Linker_require("crypto/Sign.c")
 
 void Sign_signingKeyPairFromCurve25519(uint8_t keypairOut[64], uint8_t secretCryptoKey[32]);
 

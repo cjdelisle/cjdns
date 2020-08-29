@@ -20,7 +20,7 @@
 #include "benc/List.h"
 #include "util/log/Log.h"
 #include "util/Linker.h"
-Linker_require("tunnel/RouteGen.c");
+Linker_require("tunnel/RouteGen.c")
 
 #include <stdbool.h>
 

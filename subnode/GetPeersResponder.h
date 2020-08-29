@@ -12,35 +12,30 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef SubnodePathfinder_H
-#define SubnodePathfinder_H
+#ifndef GetPeersResponder_H
+#define GetPeersResponder_H
 
-#include "admin/Admin.h"
-#include "interface/Iface.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
-#include "util/events/EventBase.h"
-#include "crypto/random/Random.h"
-#include "subnode/SupernodeHunter.h"
+#include "subnode/AddrSet.h"
+#include "subnode/MsgCore.h"
+#include "subnode/BoilerplateResponder.h"
 #include "switch/EncodingScheme.h"
 #include "util/Linker.h"
-Linker_require("subnode/SubnodePathfinder.c")
 
-struct SubnodePathfinder
+Linker_require("subnode/GetPeersResponder.c")
+
+struct GetPeersResponder
 {
-    struct Iface eventIf;
-    struct SupernodeHunter* snh;
-    struct ReachabilityCollector* rc;
+    int unused;
 };
 
-void SubnodePathfinder_start(struct SubnodePathfinder*);
-
-struct SubnodePathfinder* SubnodePathfinder_new(struct Allocator* allocator,
+struct GetPeersResponder* GetPeersResponder_new(struct Allocator* allocator,
                                                 struct Log* log,
-                                                struct EventBase* base,
-                                                struct Random* rand,
-                                                struct Address* myAddress,
-                                                uint8_t* privateKey,
+                                                struct AddrSet* peers,
+                                                struct Address* selfAddr,
+                                                struct MsgCore* msgCore,
+                                                struct BoilerplateResponder* br,
                                                 struct EncodingScheme* myScheme);
 
 #endif

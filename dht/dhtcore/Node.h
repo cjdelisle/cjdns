@@ -24,7 +24,7 @@
 #include "memory/Allocator.h"
 #include "util/Identity.h"
 #include "util/Linker.h"
-Linker_require("dht/dhtcore/Node.c");
+Linker_require("dht/dhtcore/Node.c")
 
 struct Node_Link;
 

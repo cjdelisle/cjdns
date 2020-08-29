@@ -24,7 +24,7 @@
 #include "util/log/Log.h"
 #include "memory/Allocator.h"
 #include "util/Linker.h"
-Linker_require("interface/ETHInterface_" + builder.config.systemName + ".c");
+Linker_require("interface/ETHInterface_" + builder.config.systemName + ".c")
 
 struct ETHInterface_Header
 {

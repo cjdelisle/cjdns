@@ -15,12 +15,9 @@
 #ifndef Linker_H
 #define Linker_H
 
-// Trailing anonymous struct swollows the semicolon.
 #ifdef __INTELLISENSE__
 #define Linker_require(req)
 #else
-#define Linker_require(req) \
-    struct Linker_x<?js file.links.push(req); \
-        return Math.random(16).toString().replace(/[^0-9]/g,'') ?>
+#define Linker_require(req) <?js file.links.push(req); ?>
 #endif
 #endif

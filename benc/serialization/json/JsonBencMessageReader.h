@@ -20,7 +20,7 @@
 #include "memory/Allocator.h"
 #include "wire/Message.h"
 #include "util/Linker.h"
-Linker_require("benc/serialization/json/JsonBencMessageReader.c");
+Linker_require("benc/serialization/json/JsonBencMessageReader.c")
 
 #include <stdbool.h>
 

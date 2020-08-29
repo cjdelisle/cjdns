@@ -20,7 +20,7 @@
 #include "util/UniqueName.h"
 
 #include "util/Linker.h"
-Linker_require("util/Set.c");
+Linker_require("util/Set.c")
 
 /*
  * This struct is never defined anywhere.

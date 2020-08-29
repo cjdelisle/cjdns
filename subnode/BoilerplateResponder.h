@@ -21,7 +21,7 @@
 #include "switch/EncodingScheme.h"
 #include "util/Linker.h"
 
-Linker_require("subnode/BoilerplateResponder.c");
+Linker_require("subnode/BoilerplateResponder.c")
 
 struct BoilerplateResponder
 {

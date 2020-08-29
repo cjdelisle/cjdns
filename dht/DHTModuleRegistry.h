@@ -27,7 +27,7 @@
 #include "benc/Object.h"
 #include "util/log/Log.h"
 #include "util/Linker.h"
-Linker_require("dht/DHTModuleRegistry.c");
+Linker_require("dht/DHTModuleRegistry.c")
 
 
 /** State of the registry. */

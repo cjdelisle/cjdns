@@ -18,7 +18,7 @@
 #include "memory/Allocator.h"
 
 #include "util/Linker.h"
-Linker_require("util/ArrayList.c");
+Linker_require("util/ArrayList.c")
 
 /*
  * This struct is never defined anywhere.
