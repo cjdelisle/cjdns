@@ -22,7 +22,7 @@
 #include "util/events/EventBase.h"
 #include "util/log/Log.h"
 #include "util/Linker.h"
-Linker_require("util/events/libuv/UDPAddrIface.c");
+Linker_require("util/events/libuv/UDPAddrIface.c")
 
 #include <stdbool.h>
 

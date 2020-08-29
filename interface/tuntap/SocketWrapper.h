@@ -24,7 +24,7 @@
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
 #include "util/Linker.h"
-Linker_require("interface/tuntap/SocketWrapper.c");
+Linker_require("interface/tuntap/SocketWrapper.c")
 
 struct SocketWrapper
 {

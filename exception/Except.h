@@ -18,7 +18,7 @@
 #include "exception/Er.h"
 #include "util/Gcc.h"
 #include "util/Linker.h"
-Linker_require("exception/Except.c");
+Linker_require("exception/Except.c")
 
 #define Except_BUFFER_SZ 1024
 

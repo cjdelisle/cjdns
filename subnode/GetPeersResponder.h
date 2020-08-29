@@ -23,7 +23,7 @@
 #include "switch/EncodingScheme.h"
 #include "util/Linker.h"
 
-Linker_require("subnode/GetPeersResponder.c");
+Linker_require("subnode/GetPeersResponder.c")
 
 struct GetPeersResponder
 {

@@ -18,7 +18,7 @@
 #include "admin/Admin.h"
 #include "subnode/ReachabilityCollector.h"
 #include "util/Linker.h"
-Linker_require("subnode/ReachabilityCollector_admin.c");
+Linker_require("subnode/ReachabilityCollector_admin.c")
 
 void ReachabilityCollector_admin_register(struct ReachabilityCollector* rc,
                                           struct Admin* admin,

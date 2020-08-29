@@ -18,7 +18,7 @@
 #include "admin/Admin.h"
 #include "subnode/SupernodeHunter.h"
 #include "util/Linker.h"
-Linker_require("subnode/SupernodeHunter_admin.c");
+Linker_require("subnode/SupernodeHunter_admin.c")
 
 void SupernodeHunter_admin_register(struct SupernodeHunter* snh,
                                     struct Admin* admin,

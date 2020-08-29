@@ -20,7 +20,7 @@
 #include "util/Bits.h"
 #include "util/Endian.h"
 #include "util/Linker.h"
-Linker_require("wire/Message.c");
+Linker_require("wire/Message.c")
 
 #include <stdint.h>
 

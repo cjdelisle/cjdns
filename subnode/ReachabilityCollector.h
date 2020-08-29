@@ -20,7 +20,7 @@
 #include "subnode/MsgCore.h"
 #include "subnode/LinkState.h"
 #include "util/Linker.h"
-Linker_require("subnode/ReachabilityCollector.c");
+Linker_require("subnode/ReachabilityCollector.c")
 
 struct ReachabilityCollector_PeerInfo
 {

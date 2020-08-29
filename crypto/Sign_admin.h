@@ -19,7 +19,7 @@
 #include "memory/Allocator.h"
 #include "crypto/random/Random.h"
 #include "util/Linker.h"
-Linker_require("crypto/Sign_admin.c");
+Linker_require("crypto/Sign_admin.c")
 
 void Sign_admin_register(uint8_t* privateKey,
                          struct Admin* admin,

@@ -20,7 +20,7 @@
 #include "util/log/Log.h"
 #include "util/platform/Sockaddr.h"
 #include "util/Linker.h"
-Linker_require("util/platform/netdev/NetPlatform_" + builder.config.systemName + ".c");
+Linker_require("util/platform/netdev/NetPlatform_" + builder.config.systemName + ".c")
 
 #include <stdint.h>
 

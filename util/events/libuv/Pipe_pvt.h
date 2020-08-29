@@ -19,7 +19,7 @@
 #include "util/events/Pipe.h"
 #include "exception/Er.h"
 #include "util/Linker.h"
-Linker_require("util/events/libuv/Pipe.c");
+Linker_require("util/events/libuv/Pipe.c")
 
 #include <stdbool.h>
 

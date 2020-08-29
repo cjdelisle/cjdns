@@ -18,7 +18,7 @@
 #include "memory/Allocator.h"
 #include "util/Gcc.h"
 #include "util/Linker.h"
-Linker_require("util/CString.c");
+Linker_require("util/CString.c")
 
 #include <stddef.h> // size_t
 

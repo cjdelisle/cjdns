@@ -20,7 +20,7 @@
 #include "interface/addressable/AddrIface.h"
 #include "util/events/EventBase.h"
 #include "util/Linker.h"
-Linker_require("util/events/libuv/PipeServer.c");
+Linker_require("util/events/libuv/PipeServer.c")
 
 #include <stdbool.h>
 

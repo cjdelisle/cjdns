@@ -25,7 +25,7 @@
 #include "wire/RouteHeader.h"
 #include "tunnel/RouteGen.h"
 #include "util/Linker.h"
-Linker_require("tunnel/IpTunnel.c");
+Linker_require("tunnel/IpTunnel.c")
 
 struct IpTunnel_Connection
 {

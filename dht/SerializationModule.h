@@ -22,7 +22,7 @@
 #include "util/log/Log.h"
 #include "dht/DHTModuleRegistry.h"
 #include "util/Linker.h"
-Linker_require("dht/SerializationModule.c");
+Linker_require("dht/SerializationModule.c")
 
 /**
  * Register a new SerializationModule.

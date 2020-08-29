@@ -21,7 +21,7 @@
 #include "interface/Iface.h"
 #include "memory/Allocator.h"
 #include "util/Linker.h"
-Linker_require("interface/tuntap/SocketInterface.c");
+Linker_require("interface/tuntap/SocketInterface.c")
 
 #include <stdbool.h>
 

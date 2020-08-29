@@ -24,7 +24,7 @@
 #include "subnode/SupernodeHunter.h"
 #include "switch/EncodingScheme.h"
 #include "util/Linker.h"
-Linker_require("subnode/SubnodePathfinder.c");
+Linker_require("subnode/SubnodePathfinder.c")
 
 struct SubnodePathfinder
 {

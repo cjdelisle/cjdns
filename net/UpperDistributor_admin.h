@@ -19,7 +19,7 @@
 #include "memory/Allocator.h"
 #include "net/UpperDistributor.h"
 #include "util/Linker.h"
-Linker_require("net/UpperDistributor_admin.c");
+Linker_require("net/UpperDistributor_admin.c")
 
 void UpperDistributor_admin_register(struct UpperDistributor* ud,
                                      struct Admin* admin,

@@ -27,7 +27,7 @@
 #include "memory/Allocator.h"
 #include "util/events/UDPAddrIface.h"
 #include "util/Linker.h"
-Linker_require("interface/UDPInterface.c");
+Linker_require("interface/UDPInterface.c")
 
 struct UDPInterface_BroadcastHeader
 {
