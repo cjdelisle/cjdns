@@ -16,28 +16,10 @@
 #define GetEntropyRandomSeed_H
 
 #include "crypto/random/seed/RandomSeed.h"
-#include "crypto/random/seed/RandomSeedProvider.h"
 #include "memory/Allocator.h"
 #include "util/Linker.h"
 
-#ifndef _WIN32
-#include <sys/syscall.h>
+Linker_require("crypto/random/seed/GetEntropyRandomSeed.c")
+struct RandomSeed* GetEntropyRandomSeed_new(struct Allocator* alloc);
 
-#if defined(__OPENBSD__)
-    #define GetEntropyRandomSeed_USEIT
-#elif defined(SYS_getrandom)
-    #if SYS_getrandom == __NR_getrandom && !defined(__NR_getrandom)
-        // nope, SYS_getrandom points to __NR_getrandom which is undefined :(
-    #else
-        #define GetEntropyRandomSeed_USEIT
-    #endif
-#endif
-
-#ifdef GetEntropyRandomSeed_USEIT
-    Linker_require("crypto/random/seed/GetEntropyRandomSeed.c")
-    struct RandomSeed* GetEntropyRandomSeed_new(struct Allocator* alloc);
-    RandomSeedProvider_register(GetEntropyRandomSeed_new)
-#endif
-
-#endif
 #endif
