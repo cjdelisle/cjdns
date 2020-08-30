@@ -15,21 +15,6 @@
 #ifndef Constant_H
 #define Constant_H
 
-#ifdef __INTELLISENSE__
-#define Constant_stringForHex(hex) ""
-
-#define Constant_base2(num) 0xffffffff
-
-#define Constant_rand64() 0x12345678abcdefull
-
-#define Constant_rand32() 0x12345678u
-
-#define Constant_randHexString(len) ""
-
-#define Constant_log2(num) 0
-
-#else
-
 <?js file.Constant_JS = require("../util/Constant.js"); ?>
 
 #define Constant_stringForHex(hex) <?js return file.Constant_JS.stringForHex( hex ) ?>
@@ -44,7 +29,5 @@
     <?js return file.Constant_JS.randHexString(#len, file); ?>
 
 #define Constant_log2(num) <?js return file.Constant_JS.log2(num); ?>
-
-#endif
 
 #endif

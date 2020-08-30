@@ -18,7 +18,6 @@
 #include "exception/Er.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
-#include "util/Js.h"
 
 Linker_require(builder.jscfg.Seccomp_impl)
 
