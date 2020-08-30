@@ -246,6 +246,15 @@ Builder.configure({
         );
     }
 
+    builder.jscfg = {};
+    builder.jscfg.Setuid_impl = "util/Setuid_" + builder.config.systemName + ".c";
+    if (Fs.existsSync(builder.jscfg.Setuid_impl)) {
+        console.log("Has setuid keepNetAdmin");
+    } else {
+        builder.jscfg.Setuid_impl = "util/Setuid_dummy.c";
+        console.log("No setuid keepNetAdmin");
+    }
+
     var dependencyDir = builder.config.buildDir + '/dependencies';
     var libuvLib = dependencyDir + '/libuv/out/Release/libuv.a';
     if (['win32', 'netbsd'].indexOf(builder.config.systemName) >= 0) {//this might be needed for other BSDs
