@@ -16,14 +16,10 @@
 #define ProcSysKernelRandomUuidRandomSeed_H
 
 #include "crypto/random/seed/RandomSeed.h"
-#include "crypto/random/seed/RandomSeedProvider.h"
 #include "memory/Allocator.h"
 #include "util/Linker.h"
 
-#ifdef linux
-    Linker_require("crypto/random/seed/ProcSysKernelRandomUuidRandomSeed.c")
-    struct RandomSeed* ProcSysKernelRandomUuidRandomSeed_new(struct Allocator* alloc);
-    RandomSeedProvider_register(ProcSysKernelRandomUuidRandomSeed_new)
-#endif
+Linker_require("crypto/random/seed/ProcSysKernelRandomUuidRandomSeed.c")
+struct RandomSeed* ProcSysKernelRandomUuidRandomSeed_new(struct Allocator* alloc);
 
 #endif
