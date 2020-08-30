@@ -255,6 +255,8 @@ Builder.configure({
         console.log("No setuid keepNetAdmin");
     }
     require("../util/Seccomp.js").detect(builder, waitFor());
+    require("../test/testcjdroute.js").generate
+        (builder, !!process.env['SUBNODE'], waitFor());
 
     var dependencyDir = builder.config.buildDir + '/dependencies';
     var libuvLib = dependencyDir + '/libuv/out/Release/libuv.a';

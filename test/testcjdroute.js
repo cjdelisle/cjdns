@@ -123,7 +123,7 @@ var mkFuzz = function (builder, testPath, testId, fuzzCases, cb) {
     });
 };
 
-var generate = module.exports.generate = function (file, builder, isSubnode, callback)
+var generate = module.exports.generate = function (builder, isSubnode, callback)
 {
     var tests = [];
     var fuzzCases = [];
@@ -135,10 +135,11 @@ var generate = module.exports.generate = function (file, builder, isSubnode, cal
         getTests('.', tests, isSubnode, w());
         rmFuzz(builder, w());
     }).nThen(function (w) {
+        builder.jscfg.testcjdroute_links = [];
         tests.forEach(function (test) {
             //console.log(test);
             var testProto = /^.*\/([^\/]+)\.c$/.exec(test)[1];
-            file.links.push(test);
+            builder.jscfg.testcjdroute_links.push(test);
             var cflags = (builder.config['cflags'+test] = builder.config['cflags'+test] || []);
             if (test.indexOf('_fuzz_test') > -1) {
                 cflags.push(
@@ -166,10 +167,10 @@ var generate = module.exports.generate = function (file, builder, isSubnode, cal
             }
         });
     }).nThen(function (w) {
-        file.testcjdroute_fuzzCases = fuzzCases.join(' ');
-        file.testcjdroute_tests = listContent.join(' ');
-        file.testcjdroute_fuzzTests = fuzzTests.join(' ');
-        file.testcjdroute_prototypes = prototypes.join(' ');
+        builder.jscfg.testcjdroute_fuzzCases = fuzzCases.join(' ');
+        builder.jscfg.testcjdroute_tests = listContent.join(' ');
+        builder.jscfg.testcjdroute_fuzzTests = fuzzTests.join(' ');
+        builder.jscfg.testcjdroute_prototypes = prototypes.join(' ');
         callback();
     });
 };
