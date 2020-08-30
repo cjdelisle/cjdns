@@ -20,12 +20,10 @@
 #include "util/log/Log.h"
 #include "util/Js.h"
 
-Js({ require("../util/Seccomp.js").detect(this.async, file, builder); })
+Linker_require(builder.jscfg.Seccomp_impl)
 
 Er_DEFUN(void Seccomp_dropPermissions(struct Allocator* tempAlloc, struct Log* logger));
-
 int Seccomp_isWorking(void);
-
 int Seccomp_exists(void);
 
 #endif

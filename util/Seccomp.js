@@ -28,18 +28,6 @@ var TEST_PROGRAM = [
     "}"
 ].join('\n');
 
-var pushLinks = function (builder) {
-    builder.Seccomp_QUEUE.forEach(function (file) {
-        if (builder.Seccomp_EXISTS) {
-            file.links.push("util/Seccomp.c");
-        } else {
-            file.links.push("util/Seccomp_dummy.c");
-        }
-    });
-
-    builder.Seccomp_QUEUE = undefined;
-};
-
 // Turns a version string into an array of integers
 // 1.2.3-4-generic-x-5  -> [1, 2, 3, 4, 5]
 // 1.2.3-xx-14.2        -> [1, 2, 3, 14, 2]
@@ -79,20 +67,7 @@ var seccomp_version_check = function (version) {
     return compare_versions(ver_list, [3, 5, 0]);
 };
 
-var detect = module.exports.detect = function (async, file, builder)
-{
-    if (typeof(builder.Seccomp_QUEUE) !== 'undefined') {
-        builder.Seccomp_QUEUE.push(file);
-        return;
-    }
-
-    builder.Seccomp_QUEUE = [ file ];
-
-    if (typeof(builder.Seccomp_EXISTS) !== 'undefined') {
-        pushLinks(builder);
-        return;
-    }
-
+var detect = module.exports.detect = function (builder, done) {
     console.log("Searching for SECCOMP");
 
     var hasSeccomp = false;
@@ -105,24 +80,17 @@ var detect = module.exports.detect = function (async, file, builder)
     } else if (!builder.config.crossCompiling && (seccomp_version_check(osversion) === -1)) {
         console.log("SECCOMP filtering is only available in Linux 3.5+");
     } else {
-        var done = async();
         var CanCompile = require('../node_build/CanCompile');
         var cflags = [ builder.config.cflags, '-x', 'c' ];
-
         CanCompile.check(builder, TEST_PROGRAM, cflags, function (err, can) {
-            builder.Seccomp_EXISTS = !!can;
-
-            if (!can) {
+            if (can) {
+                builder.jscfg.Seccomp_impl = "util/Seccomp.c";
+                console.log("SECCOMP enabled in build");
+            } else {
+                builder.jscfg.Seccomp_impl = "util/Seccomp_dummy.c";
                 console.log("Failed to get SECCOMP, compile failure: [" + err + "]");
             }
-
-            pushLinks(builder);
             done();
         });
-
-        return;
     }
-
-    builder.Seccomp_EXISTS = hasSeccomp;
-    pushLinks(builder);
 };

@@ -254,6 +254,7 @@ Builder.configure({
         builder.jscfg.Setuid_impl = "util/Setuid_dummy.c";
         console.log("No setuid keepNetAdmin");
     }
+    require("../util/Seccomp.js").detect(builder, waitFor());
 
     var dependencyDir = builder.config.buildDir + '/dependencies';
     var libuvLib = dependencyDir + '/libuv/out/Release/libuv.a';
