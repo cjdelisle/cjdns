@@ -67,7 +67,7 @@ var base2 = module.exports.base2 = function (numStr) {
     return '((' + type + ') 0x' + base2ToHex(numStr) + ((type === 'uint64_t') ? 'ull' : 'ul') + ')';
 };
 
-var randomHex = function (bytes, file) {
+var randomHex = module.exports.randomHex = function (bytes, file) {
     if (!file) { throw new Error('file unspecified'); }
     var nonce = file.Constant_JS_nonce = (file.Constant_JS_nonce || 0) + 1;
     var material = new Crypto.Hash('sha512').update(seed).update(file.name).update(String(nonce)).digest();

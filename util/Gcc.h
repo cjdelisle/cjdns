@@ -92,9 +92,7 @@
     #define Gcc_USE_RET
 #endif
 
-<?js file.Gcc_shortFile = (x) => '"' + x.substring(x.lastIndexOf('/')+1) + '"'; ?>
-
-#define Gcc_SHORT_FILE <?js return file.Gcc_shortFile(__FILE__); ?>
+#define Gcc_SHORT_FILE __Js_Shorten__ __FILE__
 #define Gcc_FILE Gcc_SHORT_FILE
 #define Gcc_LINE __LINE__
 

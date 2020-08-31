@@ -76,7 +76,7 @@ static inline uint32_t Kbps_accumulate(struct Kbps* ctx, uint32_t now, uint32_t 
     // /= 2 ** 10               --> bits per second to kbits per second
     return (
         ctx->currentBpt <?js
-            var x = (Number(Kbps_TIMESPAN_SH) - 10 - 3 + 10);
+            var x = (Number(file.Constant_JS.log2(Kbps_TIMESPAN)) - 10 - 3 + 10);
             return ( ((x) < 0) ? "<<" : ">>" ) + " " + Math.abs(x);
         ?>
     );

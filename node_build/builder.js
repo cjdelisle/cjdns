@@ -195,7 +195,7 @@ var mkBuilder = function (state) {
 };
 
 // You Were Warned
-var execJs = function (js, builder, file, fileName, callback, content) {
+var execJs = function (js, builder, file, fileName, callback) {
     var res;
     var x;
     var err;
@@ -249,7 +249,6 @@ var execJs = function (js, builder, file, fileName, callback, content) {
         } catch (e) {
             err = e;
             err.message += "\nContent: [" + js + "] in File [" + fileName + "] ";
-                //"full content: [" + content + "]";
             clearTimeout(to);
             throw err;
         }
@@ -266,63 +265,19 @@ var execJs = function (js, builder, file, fileName, callback, content) {
 
 var debug = console.log;
 
-var preprocessBlock = function (block, builder, fileObj, fileName, callback, content) {
-    // a block is an array of strings and arrays, any inside arrays must be
-    // preprocessed first. deep first top to bottom.
-
-    var error = false;
-    var nt = nThen;
-
-    block.forEach(function (elem, i) {
-        if (typeof(elem) === 'string') { return; }
-
-        nt = nt(function (waitFor) {
-            preprocessBlock(elem, builder, fileObj, fileName, waitFor(function (err, ret) {
-                if (err) { throw err; }
-
-                block[i] = ret;
-            }), content);
-        }).nThen;
-    });
-
-    nt(function (waitFor) {
-
-        if (error) { return; }
-        var capture = block.join('');
-        execJs(capture, builder, fileObj, fileName, waitFor(function (err, ret) {
-            if (err) { throw err; }
-            callback(undefined, ret);
-        }), content);
-
-    });
-};
-
 var preprocess = function (content, builder, fileObj, fileName, callback) {
-    // <?js file.Test_mainFunc = "<?js return 'RootTest_'+file.RootTest_mainFunc; ?>" ?>
-    // worse:
-    // <?js file.Test_mainFunc = "<?js var done = this.async(); process.nextTick(done); ?>" ?>
-
-    var flatArray = content.split(/(<\?js|\?>)/);
+    content = content.replace(/__Js_Shorten__ "[^"]*?([^"\/]+)"/g, '"$1"');
+    const array = content.split(/(<\?js|\?>)/);
     var elems = [];
-    var unflatten = function (array, startAt, out) {
-        for (var i = startAt; i < array.length; i++) {
-            /* jshint -W018 */ // Suppress jshint warning on ! being confusing
-            if (!((i - startAt) % 2)) {
-                out.push(array[i]);
-            } else if (array[i] === '<?js') {
-                var next = [];
-                out.push(next);
-                i = unflatten(array, i+1, next);
-            } else if (array[i] === '?>') {
-                return i;
+    for (var i = 0; i < array.length; i++) {
+        if (array[i] === '<?js') {
+            i++; elems.push([array[i++]]);
+            if (array[i] !== '?>') {
+                throw new Error();
             }
+        } else {
+            elems.push(array[i]);
         }
-
-        return i;
-    };
-
-    if (unflatten(flatArray, 0, elems) !== flatArray.length) {
-        throw new Error();
     }
 
     var nt = nThen;
@@ -330,11 +285,10 @@ var preprocess = function (content, builder, fileObj, fileName, callback) {
         if (typeof(elem) === 'string') { return; }
 
         nt = nt(function (waitFor) {
-            preprocessBlock(elem, builder, fileObj, fileName, waitFor(function (err, ret) {
+            execJs(elem[0], builder, fileObj, fileName, waitFor(function (err, ret) {
                 if (err) { throw err; }
-
                 elems[i] = ret;
-            }), content);
+            }));
         }).nThen;
     });
 

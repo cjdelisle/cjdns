@@ -184,7 +184,8 @@ static Er_DEFUN(String* parseString(struct Context* ctx))
 
 static Er_DEFUN(int64_t parseInteger(struct Context* ctx))
 {
-    Er_ret( Er(Base10_read(ctx->msg)) );
+    int64_t out = Er(Base10_read(ctx->msg));
+    Er_ret(out);
 }
 
 static Er_DEFUN(Object* parseGeneric(struct Context* ctx));
@@ -316,7 +317,8 @@ Er_DEFUN(Dict* JsonBencMessageReader_read(
         .line = 1,
         .beginningLastLine = (uintptr_t) msg->bytes
     };
-    Er_ret( Er(parseDict(&ctx)) );
+    Dict* out = Er(parseDict(&ctx));
+    Er_ret(out);
 }
 
 const char* JsonBencMessageReader_readNoExcept(

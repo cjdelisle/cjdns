@@ -20,7 +20,7 @@
 
 #if defined(Identity_CHECK)
 
-    <?js file.Identity_hash = "0x" + Constant_randHexString(16) + "ull"; ?>
+    <?js file.Identity_hash = "0x" + file.Constant_JS.randomHex(8, file) + "ull"; ?>
 
     #define Identity_MAGIC ((unsigned long) <?js return file.Identity_hash ?>)
 
