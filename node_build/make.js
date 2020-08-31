@@ -246,7 +246,7 @@ Builder.configure({
         );
     }
 
-    builder.jscfg = {};
+    builder.jscfg = { systemName: builder.config.systemName };
     builder.jscfg1 = {};
     builder.jscfg.Setuid_impl = "util/Setuid_" + builder.config.systemName + ".c";
     if (Fs.existsSync(builder.jscfg.Setuid_impl)) {
@@ -451,7 +451,24 @@ Builder.configure({
 
     }).nThen(waitFor());
 
+}).prebuild(function (builder, waitFor) {
+
+    builder.jscfg.UvWrap_files = [];
+
+    builder.buildExecutable('client/cjdroute2.c', 0, 'cjdroute');
+    builder.buildExecutable('contrib/c/publictoip6.c', 0);
+    builder.buildExecutable('contrib/c/privatetopublic.c', 0);
+    builder.buildExecutable('contrib/c/sybilsim.c', 0);
+    builder.buildExecutable('contrib/c/makekeys.c', 0);
+    builder.buildExecutable('contrib/c/mkpasswd.c', 0);
+    builder.buildExecutable('crypto/random/randombytes.c', 0);
+    builder.buildTest('test/testcjdroute.c', 0);
+
 }).build(function (builder, waitFor) {
+
+    builder.jscfg.UvWrap_files.forEach(function (x) {
+        builder.config["cflags" + x] = ["!-pedantic"];
+    });
 
     builder.buildExecutable('client/cjdroute2.c', 1, 'cjdroute');
 

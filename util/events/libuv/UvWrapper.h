@@ -20,12 +20,7 @@
 #endif
 #ifdef win32
     #define _WIN32_WINNT 0x0600 // CHECKFILES_IGNORE
-
-    // Remove compiler flags which blow up when running with windows.
-    <$js
-        builder.config["cflags"+fileName] = builder.config["cflags"+fileName] || [];
-        builder.config["cflags"+fileName].push("!-pedantic");
-    $>
+    <$js jscfg.UvWrap_files.push(fileName); $>
 #endif
 
 #include <uv.h>

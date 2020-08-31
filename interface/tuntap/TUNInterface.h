@@ -21,7 +21,7 @@
 #include "util/events/EventBase.h"
 #include "util/log/Log.h"
 #include "util/Linker.h"
-Linker_require("interface/tuntap/TUNInterface_" + builder.config.systemName + ".c")
+Linker_require("interface/tuntap/TUNInterface_" + jscfg.systemName + ".c")
 
 /**
  * This is the maximum size that will be accepted as an interface name.

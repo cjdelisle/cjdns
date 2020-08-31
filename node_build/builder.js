@@ -234,7 +234,9 @@ var execJs = function (js, builder, file, fileName, phase, callback) {
 
         try {
             /* jshint -W054 */ // Suppress jshint warning on Function being a form of eval
-            var func = new Function('file', 'require', 'fileName', 'console', 'builder', js);
+            var func = phase ?
+                new Function('file', 'require', 'jscfg1', js) :
+                new Function('file', 'fileName', 'jscfg', js);
 
             func.async = function () {
                 return waitFor(function (result) {
@@ -242,12 +244,9 @@ var execJs = function (js, builder, file, fileName, phase, callback) {
                 });
             };
 
-            x = func.call(func,
-                          file,
-                          REQUIRE,
-                          fileName,
-                          console,
-                          builder);
+            x = phase ?
+                func.call(func, file, REQUIRE, builder.jscfg1) :
+                func.call(func, file, fileName, builder.jscfg);
         } catch (e) {
             err = e;
             err.message += "\nContent: [" + js + "] in File [" + fileName + "] ";
@@ -271,15 +270,16 @@ var preprocess = function (content, builder, fileObj, fileName, phase, callback)
     content = content.replace(/__Js_Shorten__ "[^"]*?([^"\/]+)"/g, '"$1"');
     const array = content.split(/(<\?js|\?>|<\$js|\$>)/);
     var elems = [];
+    var delims = [['<?js', '?>'], ['<$js', '$>']];
+	if (!phase) delims = [delims[1], delims[0]];
     for (var i = 0; i < array.length; i++) {
-        if (array[i] === '<?js' || array[i] === '<$js') {
+        if (array[i] === delims[0][0]) {
             i++; elems.push([array[i++]]);
-            if (array[i] !== '?>' && array[i] !== '$>') {
-                throw new Error();
-            }
-        } else {
-            elems.push(array[i]);
-        }
+            if (array[i] !== (delims[0][1])) { throw new Error(fileName); }
+        } else if (array[i] === delims[1][0]) {
+            i += 2;
+            if (array[i] !== (delims[1][1])) { throw new Error(fileName); }
+        } else { elems.push(array[i]); }
     }
 
     var nt = nThen;
@@ -306,7 +306,8 @@ var getFile = function ()
         links: [],
         cflags: [],
         ldflags: [],
-        oldmtime: 0
+        oldmtime: 0,
+        phase: -1
     };
 };
 
@@ -354,7 +355,10 @@ var currentlyCompiling = {};
 var compileFile = function (fileName, builder, tempDir, phase, callback)
 {
     var state = builder.config;
-    if (typeof(state.files[fileName]) !== 'undefined') {
+    var fileObj = state.files[fileName];
+    if (typeof(fileObj) == 'undefined') {
+        state.files[fileName] = getFile();
+    } else if (fileObj.phase >= phase) {
         callback();
         return;
     }
@@ -366,6 +370,7 @@ var compileFile = function (fileName, builder, tempDir, phase, callback)
         currentlyCompiling[fileName] = [];
     }
     currentlyCompiling[fileName].push(callback);
+    fileObj = state.files[fileName];
 
     //debug('\033[2;32mCompiling ' + fileName + '\033[0m');
 
@@ -373,10 +378,9 @@ var compileFile = function (fileName, builder, tempDir, phase, callback)
     var preprocessed = state.buildDir + '/' + getObjectFile(fileName) + '.i';
     var outFile = state.buildDir + '/' + getObjectFile(fileName);
     var fileContent;
-    var fileObj = getFile();
     fileObj.name = fileName;
 
-    nThen(function (waitFor) {
+    if (!phase) nThen(function (waitFor) {
 
         (function () {
             //debug("CPP -MM");
@@ -413,8 +417,8 @@ var compileFile = function (fileName, builder, tempDir, phase, callback)
 
             cc(state.gcc, flags, waitFor(function (err, output) {
                 if (err) { throw err; }
+                Fs.writeFileSync(cpped, output);
                 fileContent = output;
-                Fs.writeFileSync(cpped, fileContent);
             }));
         })();
 
@@ -430,7 +434,25 @@ var compileFile = function (fileName, builder, tempDir, phase, callback)
 
     }).nThen(function (waitFor) {
 
-        //debug("Preprocess");
+        preprocess(fileContent, builder, fileObj, fileName, phase, waitFor(function (err, output) {
+            if (err) { throw err; }
+        }));
+
+    }).nThen(function (waitFor) {
+
+        debug('\033[2;32mPreprocessing C object ' + fileName + ' complete\033[0m');
+
+        fileObj.phase = phase;
+        var callbacks = currentlyCompiling[fileName];
+        delete currentlyCompiling[fileName];
+
+        callbacks.forEach(function (cb) { cb(); });
+
+    });
+
+    else nThen(function (waitFor) {
+
+        fileContent = Fs.readFileSync(cpped).toString('utf8');
         preprocess(fileContent, builder, fileObj, fileName, phase, waitFor(function (err, output) {
             if (err) { throw err; }
 
@@ -463,7 +485,7 @@ var compileFile = function (fileName, builder, tempDir, phase, callback)
 
         debug('\033[2;32mBuilding C object ' + fileName + ' complete\033[0m');
 
-        state.files[fileName] = fileObj;
+        fileObj.phase = phase;
         var callbacks = currentlyCompiling[fileName];
         delete currentlyCompiling[fileName];
 
@@ -680,6 +702,7 @@ var compile = function (file, outputFile, builder, phase, callback) {
 
     }).nThen(function (waitFor) {
 
+        if (!phase) return;
         var linkOrder = getLinkOrder(file, state.files);
         for (var i = 0; i < linkOrder.length; i++) {
             linkOrder[i] = state.buildDir + '/' + getObjectFile(linkOrder[i]);

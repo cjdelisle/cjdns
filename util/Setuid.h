@@ -19,7 +19,7 @@
 #include "exception/Except.h"
 #include "util/Linker.h"
 
-Linker_require(builder.jscfg.Setuid_impl)
+Linker_require(jscfg.Setuid_impl)
 
 Er_DEFUN(void Setuid_preSetuid(struct Allocator* alloc));
 Er_DEFUN(void Setuid_postSetuid(struct Allocator* alloc));
