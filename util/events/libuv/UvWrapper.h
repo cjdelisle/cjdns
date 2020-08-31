@@ -22,10 +22,10 @@
     #define _WIN32_WINNT 0x0600 // CHECKFILES_IGNORE
 
     // Remove compiler flags which blow up when running with windows.
-    <?js
+    <$js
         builder.config["cflags"+fileName] = builder.config["cflags"+fileName] || [];
         builder.config["cflags"+fileName].push("!-pedantic");
-    ?>
+    $>
 #endif
 
 #include <uv.h>

@@ -167,10 +167,10 @@ var generate = module.exports.generate = function (builder, isSubnode, callback)
             }
         });
     }).nThen(function (w) {
-        builder.jscfg.testcjdroute_fuzzCases = fuzzCases.join(' ');
-        builder.jscfg.testcjdroute_tests = listContent.join(' ');
-        builder.jscfg.testcjdroute_fuzzTests = fuzzTests.join(' ');
-        builder.jscfg.testcjdroute_prototypes = prototypes.join(' ');
+        builder.jscfg1.testcjdroute_fuzzCases = fuzzCases.join(' ');
+        builder.jscfg1.testcjdroute_tests = listContent.join(' ');
+        builder.jscfg1.testcjdroute_fuzzTests = fuzzTests.join(' ');
+        builder.jscfg1.testcjdroute_prototypes = prototypes.join(' ');
         callback();
     });
 };

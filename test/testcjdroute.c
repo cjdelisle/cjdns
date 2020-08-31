@@ -26,8 +26,8 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-<?js builder.jscfg.testcjdroute_links.forEach(function (req) { file.links.push(req); }); ?>
-<?js return builder.jscfg.testcjdroute_prototypes; ?>
+<$js builder.jscfg.testcjdroute_links.forEach(function (req) { file.links.push(req); }); $>
+<?js return builder.jscfg1.testcjdroute_prototypes; ?>
 
 typedef int (* Test)(int argc, char** argv);
 typedef void* (* FuzzTestInit)(struct Allocator* alloc, struct Random* rand);
@@ -37,17 +37,17 @@ typedef struct FuzzTest* (* MkFuzz)(struct Allocator* alloc);
 static const struct {
     Test func;
     char* name;
-} TESTS[] = { <?js return builder.jscfg.testcjdroute_tests ?> };
+} TESTS[] = { <?js return builder.jscfg1.testcjdroute_tests ?> };
 static const int TEST_COUNT = (int) (sizeof(TESTS) / sizeof(*TESTS));
 
 static const struct {
     FuzzTestInit init;
     FuzzTest fuzz;
     char* name;
-} FUZZ_TESTS[] = { <?js return builder.jscfg.testcjdroute_fuzzTests ?> };
+} FUZZ_TESTS[] = { <?js return builder.jscfg1.testcjdroute_fuzzTests ?> };
 static const int FUZZ_TEST_COUNT = (int) (sizeof(FUZZ_TESTS) / sizeof(*FUZZ_TESTS));
 
-static const char* FUZZ_CASES[] = { <?js return builder.jscfg.testcjdroute_fuzzCases ?> };
+static const char* FUZZ_CASES[] = { <?js return builder.jscfg1.testcjdroute_fuzzCases ?> };
 static const int FUZZ_CASE_COUNT = (int) (sizeof(FUZZ_CASES) / sizeof(*FUZZ_CASES));
 
 

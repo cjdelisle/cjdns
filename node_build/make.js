@@ -247,6 +247,7 @@ Builder.configure({
     }
 
     builder.jscfg = {};
+    builder.jscfg1 = {};
     builder.jscfg.Setuid_impl = "util/Setuid_" + builder.config.systemName + ".c";
     if (Fs.existsSync(builder.jscfg.Setuid_impl)) {
         console.log("Has setuid keepNetAdmin");
@@ -452,15 +453,15 @@ Builder.configure({
 
 }).build(function (builder, waitFor) {
 
-    builder.buildExecutable('client/cjdroute2.c', 'cjdroute');
+    builder.buildExecutable('client/cjdroute2.c', 1, 'cjdroute');
 
-    builder.buildExecutable('contrib/c/publictoip6.c');
-    builder.buildExecutable('contrib/c/privatetopublic.c');
-    builder.buildExecutable('contrib/c/sybilsim.c');
-    builder.buildExecutable('contrib/c/makekeys.c');
-    builder.buildExecutable('contrib/c/mkpasswd.c');
+    builder.buildExecutable('contrib/c/publictoip6.c', 1);
+    builder.buildExecutable('contrib/c/privatetopublic.c', 1);
+    builder.buildExecutable('contrib/c/sybilsim.c', 1);
+    builder.buildExecutable('contrib/c/makekeys.c', 1);
+    builder.buildExecutable('contrib/c/mkpasswd.c', 1);
 
-    builder.buildExecutable('crypto/random/randombytes.c');
+    builder.buildExecutable('crypto/random/randombytes.c', 1);
 
     builder.lintFiles(function (fileName, file, callback) {
         if (/dependencies/.test(fileName)) {
@@ -471,7 +472,7 @@ Builder.configure({
         Codestyle.lint(fileName, file, callback);
     });
 
-    var testcjdroute = builder.buildTest('test/testcjdroute.c');
+    var testcjdroute = builder.buildTest('test/testcjdroute.c', 1);
     if (builder.config.crossCompiling) {
         console.log("Cross compiling. Building, but not running tests.");
         return;
