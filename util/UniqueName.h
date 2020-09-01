@@ -15,7 +15,7 @@
 #ifndef UniqueName_H
 #define UniqueName_H
 
-<?js file.Constant_JS = file.Constant_JS || require('util/Constant.js'); ?>
+<?js request('Constant_JS', './util/Constant.js'); ?>
 
 #define UniqueName_get() <?js return \
     file.UniqueName_last = 'UniqueName_' + \

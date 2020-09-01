@@ -19,7 +19,7 @@
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
 
-Linker_require(jscfg.Seccomp_impl)
+Linker_require(jscfg.seccompImpl)
 
 Er_DEFUN(void Seccomp_dropPermissions(struct Allocator* tempAlloc, struct Log* logger));
 int Seccomp_isWorking(void);

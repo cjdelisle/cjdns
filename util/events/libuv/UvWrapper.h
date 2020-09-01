@@ -20,7 +20,7 @@
 #endif
 #ifdef win32
     #define _WIN32_WINNT 0x0600 // CHECKFILES_IGNORE
-    <$js jscfg.UvWrap_files.push(fileName); $>
+    <$js jscfg.uvFiles.push(fileName); $>
 #endif
 
 #include <uv.h>

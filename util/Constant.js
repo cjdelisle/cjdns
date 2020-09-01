@@ -16,8 +16,6 @@
 var Crypto = require('crypto');
 var seed = process.env.SOURCE_DATE_EPOCH || Crypto.randomBytes(32).toString('hex');
 
-if (process.env.SOURCE_DATE_EPOCH) { console.log('\n\n\nYES\n\n\n');}
-
 var TABLE = {
     '0000': '0',
     '0001': '1',

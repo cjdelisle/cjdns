@@ -26,32 +26,22 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-<$js jscfg.testcjdroute_links.forEach(function (req) { file.links.push(req); }); $>
-<?js return jscfg1.testcjdroute_prototypes; ?>
+typedef int Test(int argc, char** argv);
+typedef void* FuzzTestInit(struct Allocator* alloc, struct Random* rand);
+typedef void FuzzTest(void* ctx, struct Message* fuzz);
 
-typedef int (* Test)(int argc, char** argv);
-typedef void* (* FuzzTestInit)(struct Allocator* alloc, struct Random* rand);
-typedef void (* FuzzTest)(void* ctx, struct Message* fuzz);
-typedef struct FuzzTest* (* MkFuzz)(struct Allocator* alloc);
+#define Fuzz_proto(base) \
+	FuzzTestInit base##_FUZZ_INIT; FuzzTest base##_FUZZ_MAIN;
+#define Fuzz_elem(base) { #base, base##_FUZZ_INIT, base##_FUZZ_MAIN }
+#define Test_elem(base) { #base, base##_main }
 
-static const struct {
-    Test func;
-    char* name;
-} TESTS[] = { <?js return jscfg1.testcjdroute_tests ?> };
+#include "test/testcjdroute_gen.h"
+
 static const int TEST_COUNT = (int) (sizeof(TESTS) / sizeof(*TESTS));
-
-static const struct {
-    FuzzTestInit init;
-    FuzzTest fuzz;
-    char* name;
-} FUZZ_TESTS[] = { <?js return jscfg1.testcjdroute_fuzzTests ?> };
 static const int FUZZ_TEST_COUNT = (int) (sizeof(FUZZ_TESTS) / sizeof(*FUZZ_TESTS));
-
-static const char* FUZZ_CASES[] = { <?js return jscfg1.testcjdroute_fuzzCases ?> };
 static const int FUZZ_CASE_COUNT = (int) (sizeof(FUZZ_CASES) / sizeof(*FUZZ_CASES));
 
-
-static uint64_t runTest(Test test,
+static uint64_t runTest(Test* test,
                         char* name,
                         uint64_t startTime,
                         int argc,
@@ -62,12 +52,12 @@ static uint64_t runTest(Test test,
     Assert_true(!test(argc, argv));
     if (!quiet) {
         uint64_t now = Time_hrtime();
-        char* seventySpaces =
-            "                                                                      ";
+        char* eightySpaces =
+            "                                                                                ";
         int count = CString_strlen(name);
-        if (count > 69) { count = 69; }
+        if (count > 79) { count = 79; }
         fprintf(stderr, "%s%d.%d ms\n",
-                &seventySpaces[count],
+                &eightySpaces[count],
                 (int)((now - startTime)/1000000),
                 (int)((now - startTime)/1000)%1000);
         return now;
@@ -151,12 +141,12 @@ static uint64_t runFuzzTestManual(
 
     if (!quiet) {
         uint64_t now = Time_hrtime();
-        char* seventySpaces =
-            "                                                                      ";
+        char* eightySpaces =
+            "                                                                                ";
         int count = CString_strlen(testCase);
-        if (count > 69) { count = 69; }
+        if (count > 79) { count = 79; }
         fprintf(stderr, "%s%d.%d ms\n",
-                &seventySpaces[count],
+                &eightySpaces[count],
                 (int)((now - startTime)/1000000),
                 (int)((now - startTime)/1000)%1000);
         return now;

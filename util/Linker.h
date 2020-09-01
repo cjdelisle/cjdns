@@ -15,5 +15,5 @@
 #ifndef Linker_H
 #define Linker_H
 
-#define Linker_require(req) <$js file.links.push(req); $>
+#define Linker_require(req) <$js jscfg.links[fileName].push(req); $>
 #endif
