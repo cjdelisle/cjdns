@@ -34,7 +34,7 @@ static int onFree(struct Allocator_OnFreeJob* job)
         EventBase_endLoop((struct EventBase*) ctx);
         return Allocator_ONFREE_ASYNC;
     } else {
-        uv_loop_delete(ctx->loop);
+        uv_loop_close(ctx->loop);
         return 0;
     }
 }
@@ -63,7 +63,8 @@ struct EventBase* EventBase_new(struct Allocator* allocator)
 {
     struct Allocator* alloc = Allocator_child(allocator);
     struct EventBase_pvt* base = Allocator_calloc(alloc, sizeof(struct EventBase_pvt), 1);
-    base->loop = uv_loop_new();
+    base->loop = Allocator_calloc(alloc, sizeof(uv_loop_t), 1);
+    uv_loop_init(base->loop);
     base->alloc = alloc;
     Identity_set(base);
 
@@ -85,7 +86,7 @@ void EventBase_beginLoop(struct EventBase* eventBase)
     ctx->running = 0;
 
     if (ctx->onFree) {
-        uv_loop_delete(ctx->loop);
+        uv_loop_close(ctx->loop);
         Allocator_onFreeComplete(ctx->onFree);
         return;
     }

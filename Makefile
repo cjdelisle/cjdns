@@ -1,8 +1,7 @@
 NODEJS = node
 CFLAGS = -g -O2 -std=c99 -Wall -Wextra -Werror \
 	-Wmissing-prototypes -Wno-pointer-sign -Wno-unused-parameter
-LDLIBS = ./build_linux/dependencies/cnacl/jsbuild/libnacl.a \
-	./build_linux/dependencies/libuv/out/Release/obj.target/libuv.a -lpthread
+LDLIBS = ./build_linux/dependencies/cnacl/jsbuild/libnacl.a -luv
 
 %.o: %.i
 	$(CC) $(CFLAGS) $(X_CFLAGS) -c -o $@ $<

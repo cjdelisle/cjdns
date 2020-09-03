@@ -232,11 +232,6 @@ static void incoming(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf)
     }
 }
 
-static void incoming2(uv_pipe_t* stream, ssize_t nread, const uv_buf_t* buf, uv_handle_type _)
-{
-    incoming((uv_stream_t*)stream, nread, buf);
-}
-
 static void allocate(uv_handle_t* handle, size_t size, uv_buf_t* buf)
 {
     struct Pipe_pvt* pipe = Identity_check((struct Pipe_pvt*) handle->data);
@@ -255,11 +250,7 @@ static void allocate(uv_handle_t* handle, size_t size, uv_buf_t* buf)
 
 static int startPipe(struct Pipe_pvt* pipe)
 {
-    if (pipe->ipc) {
-        return uv_read2_start((uv_stream_t*)&pipe->peer, allocate, incoming2);
-    } else {
-        return uv_read_start((uv_stream_t*)&pipe->peer, allocate, incoming);
-    }
+    return uv_read_start((uv_stream_t*)&pipe->peer, allocate, incoming);
 }
 
 static void connected(uv_connect_t* req, int status)
