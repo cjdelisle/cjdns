@@ -20,11 +20,13 @@
 #include "util/Base32.h"
 #include "util/Hex.h"
 
+#include <sodium.h>
 #include <signal.h>
 #include <stdio.h>
 
 int main(int argc, char** argv)
 {
+    if (sodium_init() < 0) return 1;
     struct Allocator* alloc = MallocAllocator_new(1<<22);
     struct Random* rand = Random_new(alloc, NULL, NULL);
 

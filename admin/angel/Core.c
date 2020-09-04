@@ -75,7 +75,7 @@
 #include "wire/Headers.h"
 #include "net/NetCore.h"
 
-#include <crypto_scalarmult_curve25519.h>
+#include <sodium.h>
 
 #include <stdlib.h>
 #include <unistd.h>

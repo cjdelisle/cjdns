@@ -22,8 +22,7 @@
 #include "util/Identity.h"
 #include "util/Endian.h"
 
-#include <crypto_hash_sha256.h>
-#include <crypto_stream_salsa20.h>
+#include <sodium.h>
 
 /**
  * cjdns random generator:

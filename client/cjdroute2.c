@@ -57,6 +57,8 @@
 #include "util/version/Version.h"
 #include "net/Benchmark.h"
 
+#include <sodium.h>
+
 #include <stdint.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -607,6 +609,7 @@ int main(int argc, char** argv)
     }
 
     Assert_ifParanoid(argc > 0);
+    Assert_true(sodium_init() >= 0);
     struct Except* eh = NULL;
 
     // Allow it to allocate 8MB

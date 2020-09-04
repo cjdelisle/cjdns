@@ -18,7 +18,7 @@
 #include "util/Base32.h"
 #include "crypto/AddressCalc.h"
 
-#include "crypto_scalarmult_curve25519.h"
+#include <sodium.h>
 
 #include <stddef.h>
 

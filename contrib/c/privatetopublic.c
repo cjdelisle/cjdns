@@ -17,7 +17,7 @@
 #include "util/Base32.h"
 #include "util/Hex.h"
 
-#include "crypto_scalarmult_curve25519.h"
+#include <sodium.h>
 
 #include <unistd.h>
 #include <stdio.h>
@@ -54,6 +54,7 @@ int main(int argc, char** argv)
     {
         return usage(argv[0]);
     }
+    if (sodium_init() < 0) return 1;
     if (read(0,privateKeyHexIn,64) < 0)
     {
         fprintf(stderr, "Reading private key failed: %s\n", strerror(errno));

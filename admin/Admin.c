@@ -29,8 +29,7 @@
 #include "util/platform/Sockaddr.h"
 #include "util/Defined.h"
 
-#include <crypto_hash_sha256.h>
-#include <crypto_verify_32.h>
+#include <sodium.h>
 
 #include <stdlib.h>
 #include <stdio.h>

@@ -16,11 +16,13 @@
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
 
+#include <sodium.h>
 #include <stdio.h>
 #include <unistd.h>
 
 int main()
 {
+    if (sodium_init() < 0) return 1;
     struct Allocator* alloc = MallocAllocator_new(1<<22);
     struct Random* rand = Random_new(alloc, NULL, NULL);
 

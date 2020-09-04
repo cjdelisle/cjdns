@@ -15,6 +15,7 @@
 #include "crypto/Key.h"
 #include "util/AddrTools.h"
 #include "util/CString.h"
+#include <sodium.h>
 #include <stdio.h>
 
 static int usage(char* appName)
@@ -32,6 +33,7 @@ int main(int argc, char** argv)
     if (argc < 2) {
         return usage(argv[0]);
     }
+    if (sodium_init() < 0) return 1;
 
     uint8_t keyBytes[32];
     uint8_t ip6Bytes[16];

@@ -16,6 +16,7 @@
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
 
+#include <sodium.h>
 #include <unistd.h>
 
 int main()
@@ -27,8 +28,9 @@ int main()
         uint64_t align;
         uint8_t buff[4096];
     } str;
-
     size_t out = 0;
+
+    if (sodium_init() < 0) return -1;
     for (;;) {
         Random_bytes(rand, str.buff, 4096);
         out = write(STDOUT_FILENO, str.buff, 4096);

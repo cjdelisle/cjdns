@@ -39,7 +39,7 @@
 #include "util/events/FakeNetwork.h"
 #include "util/Hash.h"
 
-#include "crypto_scalarmult_curve25519.h"
+#include <sodium.h>
 
 #include <unistd.h> // isatty()
 
@@ -441,6 +441,7 @@ int main(int argc, char** argv)
     if (isatty(STDIN_FILENO)) {
         return usage(argv[0]);
     }
+    Assert_true(sodium_init() >= 0);
 
     struct Allocator* alloc = MallocAllocator_new(1LL<<31);
 

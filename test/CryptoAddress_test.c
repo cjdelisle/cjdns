@@ -20,7 +20,7 @@
 #include "util/Hex.h"
 #include "util/Assert.h"
 
-#include "crypto_scalarmult_curve25519.h"
+#include <sodium.h>
 
 #include <stdio.h>
 

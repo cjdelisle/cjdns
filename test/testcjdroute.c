@@ -22,6 +22,8 @@
 #include "wire/Message.h"
 #include "test/FuzzTest.h"
 
+#include <sodium.h>
+
 #include <stdio.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -255,6 +257,7 @@ int main(int argc, char** argv)
     struct Allocator* alloc = MallocAllocator_new(1<<24);
     struct RandomSeed* rs = DeterminentRandomSeed_new(alloc, RANDOM_SEED);
     struct Random* detRand = Random_newWithSeed(alloc, NULL, rs, NULL);
+    Assert_true(sodium_init() >= 0);
     int out = main2(argc, argv, alloc, detRand);
     Allocator_free(alloc);
     return out;

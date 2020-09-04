@@ -13,16 +13,11 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "crypto/ref10/ge.h"
+#include "crypto/ref10/sc.h"
 #include "crypto/Sign.h"
 
-#include "node_build/dependencies/cnacl/crypto_sign/ed25519/ref10/ge.h"
-#include "node_build/dependencies/cnacl/crypto_sign/ed25519/ref10/sc.h"
-#include "crypto_hash_sha512.h"
-#include "crypto_sign_ed25519.h"
-
-#if crypto_sign_ed25519_open != crypto_sign_ed25519_ref10_open
-    Assert_compileTime(crypto_sign_ed25519_open == crypto_sign_ed25519_ref10_open);
-#endif
+#include <sodium.h>
 
 void Sign_signingKeyPairFromCurve25519(uint8_t keypairOut[64], uint8_t secretCryptoKey[32])
 {
