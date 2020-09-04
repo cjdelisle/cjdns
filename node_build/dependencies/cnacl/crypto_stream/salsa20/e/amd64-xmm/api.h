@@ -1,2 +1,0 @@
-#define crypto_stream_salsa20_e_amd64_xmm_KEYBYTES 32
-#define crypto_stream_salsa20_e_amd64_xmm_NONCEBYTES 8
