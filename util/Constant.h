@@ -15,7 +15,7 @@
 #ifndef Constant_H
 #define Constant_H
 
-<?js request("Constant_JS", "./util/Constant.js"); ?>
+<?js request("Constant_JS", "./node_build/Constant.js"); ?>
 
 #define Constant_stringForHex(hex) <?js return file.Constant_JS.stringForHex( hex ) ?>
 

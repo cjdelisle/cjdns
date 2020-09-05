@@ -27,7 +27,7 @@ struct Er_Ret
 };
 
 <?js
-	request("Er_JS", "./exception/Er.js");
+	request("Er_JS", "./node_build/Er.js");
 	if (!file.Er_JS.defun) file.Er_JS = file.Er_JS.create();
 ?>
 
