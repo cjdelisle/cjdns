@@ -26,25 +26,25 @@
 #else
     #include "crypto/random/seed/DevUrandomRandomSeed.h"
     RandomSeedProvider_register(DevUrandomRandomSeed_new)
-#ifdef linux
-    #include "crypto/random/seed/ProcSysKernelRandomUuidRandomSeed.h"
-    RandomSeedProvider_register(ProcSysKernelRandomUuidRandomSeed_new)
-#if !defined(__ILP32__) && !defined(__aarch64__) && defined(__GLIBC__)
-    #include "crypto/random/seed/LinuxRandomUuidSysctlRandomSeed.h"
-    RandomSeedProvider_register(LinuxRandomUuidSysctlRandomSeed_new)
-#endif
-#else
-#ifdef freebsd
-    #include "crypto/random/seed/BsdKernArndSysctlRandomSeed.h"
-    RandomSeedProvider_register(BsdKernArndSysctlRandomSeed_new)
-#endif
-#endif
-#include <sys/syscall.h>
-#if defined(__OPENBSD__) || (defined(SYS_getrandom) && \
-    (SYS_getrandom != __NR_getrandom || defined(__NR_getrandom)))
-    #include "crypto/random/seed/GetEntropyRandomSeed.h"
-    RandomSeedProvider_register(GetEntropyRandomSeed_new)
-#endif
+    #ifdef linux
+        #include "crypto/random/seed/ProcSysKernelRandomUuidRandomSeed.h"
+        RandomSeedProvider_register(ProcSysKernelRandomUuidRandomSeed_new)
+        #if !defined(__ILP32__) && !defined(__aarch64__) && defined(__GLIBC__)
+            #include "crypto/random/seed/LinuxRandomUuidSysctlRandomSeed.h"
+            RandomSeedProvider_register(LinuxRandomUuidSysctlRandomSeed_new)
+        #endif
+    #else
+        #ifdef freebsd
+            #include "crypto/random/seed/BsdKernArndSysctlRandomSeed.h"
+            RandomSeedProvider_register(BsdKernArndSysctlRandomSeed_new)
+        #endif
+    #endif
+    #include <sys/syscall.h>
+    #if defined(__OPENBSD__) || (defined(SYS_getrandom) && \
+        (SYS_getrandom != __NR_getrandom || defined(__NR_getrandom)))
+        #include "crypto/random/seed/GetEntropyRandomSeed.h"
+        RandomSeedProvider_register(GetEntropyRandomSeed_new)
+    #endif
 #endif
 
 static RandomSeed_Provider PROVIDERS[] = { RandomSeedProvider_list() };
