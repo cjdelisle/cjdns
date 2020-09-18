@@ -262,7 +262,13 @@ static Er_DEFUN(struct sock_fprog* mkFilter(struct Allocator* alloc))
         // older versions need system calls for getting the time.
         // i686 glibc-2.18's time() uses __NR_time
         // Raspberry Pi and BeagleBone Black don't provide __NR_time
-        IFEQ(__NR_clock_gettime, success),
+        // 32-bit systems with 64-bit time_t use __NR_clock_gettime64
+        #ifdef __NR_clock_gettime64
+            IFEQ(__NR_clock_gettime64, success),
+        #endif
+        #ifdef __NR_clock_gettime
+            IFEQ(__NR_clock_gettime, success),
+        #endif
         #ifdef __NR_time
             IFEQ(__NR_time, success),
         #endif
