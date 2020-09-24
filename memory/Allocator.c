@@ -59,9 +59,9 @@ static void unroll(struct Allocator_pvt* context,
         writeUnroller(&childUnroller);
         fprintf(stderr, "%s:%ld [%lu] bytes at [0x%lx]\n",
                 allocation->fileName,
-                allocation->lineNum,
-                allocation->pub.size,
-                (long)(uintptr_t)allocation);
+                (unsigned long)allocation->lineNum,
+                (unsigned long)allocation->pub.size,
+                (unsigned long)(uintptr_t)allocation);
         allocation = allocation->next;
     }
     if (context->nextSibling) {
