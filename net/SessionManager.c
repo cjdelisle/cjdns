@@ -302,6 +302,7 @@ static struct SessionManager_Session_pvt* getSession(struct SessionManager_pvt* 
                                                      uint32_t metric)
 {
     Assert_true(AddressCalc_validAddress(ip6));
+    if (!label) { metric = Metric_DEAD_LINK; }
     struct SessionManager_Session_pvt* sess = sessionForIp6(ip6, sm);
     if (sess) {
         sess->pub.version = (sess->pub.version) ? sess->pub.version : version;
@@ -540,6 +541,7 @@ static void unsetupSession(struct SessionManager_pvt* sm, struct SessionManager_
     struct Message* eventMsg = Message_new(0, 512, eventAlloc);
     struct PFChan_Node n = { .metric_be = Endian_hostToBigEndian32(Metric_DEAD_LINK) };
     n.path_be = Endian_hostToBigEndian64(sess->pub.paths[0].label);
+    Assert_true(n.path_be);
     n.version_be = Endian_hostToBigEndian32(sess->pub.version);
     n.metric_be = Endian_bigEndianToHost32(sess->pub.paths[0].metric);
     Bits_memcpy(n.publicKey, sess->pub.caSession->herPublicKey, 32);
