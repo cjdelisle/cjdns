@@ -2,5 +2,6 @@
     "laxcomma": true,
     "laxbreak": true,
     "node": true,
-    "sub": true
+    "sub": true,
+    "esversion": 6
 }
