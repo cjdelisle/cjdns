@@ -147,7 +147,7 @@ Builder.configure({
     } else {
         builder.config.cflags.push(
             '-fdiagnostics-color=always'
-        )
+        );
     }
 
     // Install any user-defined CFLAGS. Necessary if you are messing about with building cnacl
@@ -372,12 +372,12 @@ Builder.configure({
             //args.push('--root-target=libuv');
             if (android) {
                 args.push('-DOS=android');
-                args.push('-f', 'make-linux')
+                args.push('-f', 'make-linux');
             }
 
             if (builder.config.systemName === 'win32') {
                 args.push('-DOS=win');
-                args.push('-f', 'make-linux')
+                args.push('-f', 'make-linux');
             }
 
             if (env.GYP_ADDITIONAL_ARGS) {

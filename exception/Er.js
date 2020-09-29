@@ -19,7 +19,7 @@ const trim = (x) => {
             "with and end with a space, unrecognized [" + x + "]");
     }
     return x.trim();
-}
+};
 
 const defun = (ctx, spec) => {
     trim(spec);
