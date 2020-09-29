@@ -421,12 +421,11 @@ static int genconf(struct Allocator* alloc, struct Random* rand, bool eth, bool 
            "    // Recommended for use in conjunction with \"logTo\":\"stdout\".\n");
     printf("    \"noBackground\": %d,\n", Defined(win32) ? 1 : 0);
     printf("\n"
-           "    // Pipe file will store in this path, recommended value: /tmp (for unix),\n"
-           "    // \\\\.\\pipe (for windows) \n"
-           "    // /data/local/tmp (for rooted android) \n"
-           "    // /data/data/AppName (for non-root android)\n"
-           "    // This only needs to be specified if cjdroute's guess is incorrect\n");
-    printf("    // \"pipe\": \"%s\"\n", Pipe_PATH);
+           "    // Path for admin control pipe:\n"
+           "    // If you pass only a filename then cjdns will guess the full path\n"
+           "    // On unix the default path is /tmp/\n"
+           "    // On windows: \\\\.\\pipe\\\n"
+           "    \"pipe\": \"cjdroute.sock\",\n");
     printf("\n"
            "    // This is to make the configuration be parsed in strict mode, which allows\n"
            "    // it to be edited externally using cjdnsconf.\n"
