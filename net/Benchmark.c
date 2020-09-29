@@ -201,7 +201,8 @@ static void switching(struct Context* ctx)
         ping->magic = Control_Ping_MAGIC;
         ch->type_be = Control_PING_be;
         ch->checksum_be = 0;
-        ch->checksum_be = Checksum_engine((void*)ch, Control_Ping_MIN_SIZE + Control_Header_SIZE);
+        ch->checksum_be =
+            Checksum_engine_be((void*)ch, Control_Ping_MIN_SIZE + Control_Header_SIZE);
 
         Iface_send(&sc->aliceCtrlIf, msg);
 
@@ -209,7 +210,7 @@ static void switching(struct Context* ctx)
         Assert_true(sc->msgCount == i);
         Assert_true(ping->magic == Control_Pong_MAGIC);
         Assert_true(ch->type_be = Control_PONG_be);
-        Assert_true(!Checksum_engine((void*)ch, Control_Ping_MIN_SIZE + Control_Header_SIZE));
+        Assert_true(!Checksum_engine_be((void*)ch, Control_Ping_MIN_SIZE + Control_Header_SIZE));
     }
     done(ctx);
 

@@ -72,7 +72,7 @@ static Iface_DEFUN fromHandler(struct Message* msg, struct UpperDistributor_pvt*
     AddressCalc_makeValidAddress(&srcAndDest[16]);
     Bits_memcpy(srcAndDest, ud->myAddress->ip6.bytes, 16);
     struct Headers_UDPHeader* udp = (struct Headers_UDPHeader*) msg->bytes;
-    if (Checksum_udpIp6(srcAndDest, msg->bytes, msg->length)) {
+    if (Checksum_udpIp6_be(srcAndDest, msg->bytes, msg->length)) {
         Log_debug(ud->log, "DROP Bad checksum");
         return NULL;
     }
@@ -123,7 +123,7 @@ static void sendToHandlers(struct Message* msg,
             uint8_t srcAndDest[32] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1};
             AddressCalc_makeValidAddress(srcAndDest);
             Bits_memcpy(&srcAndDest[16], ud->myAddress->ip6.bytes, 16);
-            uint16_t checksum = Checksum_udpIp6(srcAndDest, cmsg->bytes, cmsg->length);
+            uint16_t checksum = Checksum_udpIp6_be(srcAndDest, cmsg->bytes, cmsg->length);
             ((struct Headers_UDPHeader*)cmsg->bytes)->checksum_be = checksum;
         }
         {

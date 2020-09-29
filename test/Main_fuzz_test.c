@@ -176,7 +176,7 @@ void CJDNS_FUZZ_MAIN(void* vctx, struct Message* msg)
     // fc00::1
     AddressCalc_makeValidAddress(&srcAndDest[16]);
     Bits_memcpy(&srcAndDest, from->ip, 16);
-    uint16_t checksum = Checksum_udpIp6(srcAndDest, msg->bytes, msg->length);
+    uint16_t checksum = Checksum_udpIp6_be(srcAndDest, msg->bytes, msg->length);
     ((struct Headers_UDPHeader*)msg->bytes)->checksum_be = checksum;
 
     TestFramework_craftIPHeader(msg, srcAndDest, &srcAndDest[16]);

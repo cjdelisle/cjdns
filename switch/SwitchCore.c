@@ -105,7 +105,7 @@ static inline Iface_DEFUN sendError(struct SwitchInterface* iface,
     err->ctrl.header.checksum_be = 0;
 
     err->ctrl.header.checksum_be =
-        Checksum_engine((uint8_t*) &err->ctrl, cause->length - SwitchHeader_SIZE - 4);
+        Checksum_engine_be((uint8_t*) &err->ctrl, cause->length - SwitchHeader_SIZE - 4);
 
     return Iface_next(&iface->iface, cause);
 }

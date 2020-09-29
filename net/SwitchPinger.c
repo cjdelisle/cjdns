@@ -322,7 +322,7 @@ static void sendPing(String* data, void* sendPingContext)
     } else {
         Assert_failure("unexpected type");
     }
-    ctrl->header.checksum_be = Checksum_engine(msg->bytes, msg->length);
+    ctrl->header.checksum_be = Checksum_engine_be(msg->bytes, msg->length);
 
     struct RouteHeader rh;
     Bits_memset(&rh, 0, RouteHeader_SIZE);

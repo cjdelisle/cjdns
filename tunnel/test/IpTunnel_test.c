@@ -74,7 +74,7 @@ static Iface_DEFUN responseWithIpCallback(struct Message* message, struct Iface*
 
     Er_assert(Message_eshift(message, -Headers_IP6Header_SIZE));
     struct Headers_UDPHeader* uh = (struct Headers_UDPHeader*) message->bytes;
-    Assert_true(!Checksum_udpIp6(ip->sourceAddr, message->bytes, length));
+    Assert_true(!Checksum_udpIp6_be(ip->sourceAddr, message->bytes, length));
 
     Assert_true(uh->srcPort_be == 0);
     Assert_true(uh->destPort_be == 0);
@@ -274,7 +274,7 @@ static void testAddr(struct Context* ctx,
     ip->payloadLength_be = Endian_hostToBigEndian16(msg->length - Headers_IP6Header_SIZE);
     ip->nextHeader = 17;
 
-    *checksum = Checksum_udpIp6(ip->sourceAddr, (uint8_t*) uh, length);
+    *checksum = Checksum_udpIp6_be(ip->sourceAddr, (uint8_t*) uh, length);
 
     pushRouteDataHeaders(ctx, msg);
 

@@ -239,7 +239,7 @@ static void sendControlMessage(Dict* dict,
     // zero the source and dest addresses.
     Bits_memset(header->sourceAddr, 0, 32);
 
-    uh->checksum_be = Checksum_udpIp6(header->sourceAddr,
+    uh->checksum_be = Checksum_udpIp6_be(header->sourceAddr,
                                       (uint8_t*) uh,
                                       msg->length - Headers_IP6Header_SIZE);
 
@@ -328,7 +328,7 @@ static bool isControlMessageInvalid(struct Message* message, struct IpTunnel_pvt
     Er_assert(Message_eshift(message, -Headers_IP6Header_SIZE));
     struct Headers_UDPHeader* udp = (struct Headers_UDPHeader*) message->bytes;
 
-    if (Checksum_udpIp6(header->sourceAddr, message->bytes, length)) {
+    if (Checksum_udpIp6_be(header->sourceAddr, message->bytes, length)) {
         Log_warn(context->logger, "Checksum mismatch");
         return true;
     }

@@ -27,6 +27,8 @@ static uint32_t Checksum_step(const uint8_t* buffer,
                               uint16_t length,
                               uint32_t state)
 {
+    Assert_true(!(((uintptr_t)buffer) % 2));
+
     // Checksum pairs.
     for (uint32_t i = 0; i < length / 2; i++) {
         state += ((uint16_t*) buffer)[i];
@@ -44,7 +46,7 @@ static uint32_t Checksum_step32(uint32_t content, uint32_t state)
     return state + (content >> 16) + (content & 0xFFFF);
 }
 
-static uint16_t Checksum_complete(uint32_t state)
+static uint16_t Checksum_complete_be(uint32_t state)
 {
     while (state > 0xFFFF) {
         state = (state >> 16) + (state & 0xFFFF);
@@ -60,10 +62,10 @@ static uint16_t Checksum_complete(uint32_t state)
  * @param length the number of bytes in the buffer.
  * @return the 1's complement checksum.
  */
-static inline uint16_t Checksum_engine(const uint8_t* buffer, uint16_t length)
+static inline uint16_t Checksum_engine_be(const uint8_t* buffer, uint16_t length)
 {
     Assert_true(!((uintptr_t)buffer % 2));
-    return Checksum_complete(Checksum_step(buffer, length, 0));
+    return Checksum_complete_be(Checksum_step(buffer, length, 0));
 }
 
 /**
@@ -78,7 +80,7 @@ static inline uint16_t Checksum_engine(const uint8_t* buffer, uint16_t length)
  * @param packetType_be the big endian representation of the packet type.
  * @return a 1's complement checksum
  */
-static inline uint16_t Checksum_Ip6(const uint8_t* restrict sourceAndDestAddrs,
+static inline uint16_t Checksum_Ip6_be(const uint8_t* restrict sourceAndDestAddrs,
                                     const uint8_t* restrict packetHeaderAndContent,
                                     uint16_t length,
                                     uint32_t packetType_be)
@@ -94,7 +96,7 @@ static inline uint16_t Checksum_Ip6(const uint8_t* restrict sourceAndDestAddrs,
     sum = Checksum_step32(packetType_be, sum);
     sum = Checksum_step(packetHeaderAndContent, length, sum);
 
-    return Checksum_complete(sum);
+    return Checksum_complete_be(sum);
 }
 
 /**
@@ -107,11 +109,11 @@ static inline uint16_t Checksum_Ip6(const uint8_t* restrict sourceAndDestAddrs,
  * @param length the length of the UDP header and content.
  * @return a 1's complement checksum
  */
-static inline uint16_t Checksum_udpIp6(const uint8_t* restrict sourceAndDestAddrs,
+static inline uint16_t Checksum_udpIp6_be(const uint8_t* restrict sourceAndDestAddrs,
                                        const uint8_t* restrict udpHeaderAndContent,
                                        uint16_t length)
 {
-    return Checksum_Ip6(sourceAndDestAddrs,
+    return Checksum_Ip6_be(sourceAndDestAddrs,
                         udpHeaderAndContent,
                         length,
                         Endian_hostToBigEndian32(17));
@@ -128,11 +130,11 @@ static inline uint16_t Checksum_udpIp6(const uint8_t* restrict sourceAndDestAddr
  * @param length the length of the ICMP6 header and content.
  * @return a 1's complement checksum
  */
-static inline uint16_t Checksum_icmp6(const uint8_t* restrict sourceAndDestAddrs,
+static inline uint16_t Checksum_icmp6_be(const uint8_t* restrict sourceAndDestAddrs,
                                       const uint8_t* restrict icmpHeaderAndContent,
                                       uint16_t length)
 {
-    return Checksum_Ip6(sourceAndDestAddrs,
+    return Checksum_Ip6_be(sourceAndDestAddrs,
                         icmpHeaderAndContent,
                         length,
                         Endian_hostToBigEndian32(58));

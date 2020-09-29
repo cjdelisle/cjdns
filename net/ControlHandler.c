@@ -120,7 +120,7 @@ static Iface_DEFUN handlePing(struct Message* msg,
     Er_assert(Message_eshift(msg, Control_Header_SIZE));
 
     ctrl->header.checksum_be = 0;
-    ctrl->header.checksum_be = Checksum_engine(msg->bytes, msg->length);
+    ctrl->header.checksum_be = Checksum_engine_be(msg->bytes, msg->length);
 
     Er_assert(Message_eshift(msg, RouteHeader_SIZE));
 
@@ -163,7 +163,7 @@ static Iface_DEFUN handleRPathQuery(struct Message* msg,
     Bits_memcpy(rpa->rpath_be, &label_be, 8);
 
     ctrl->header.checksum_be = 0;
-    ctrl->header.checksum_be = Checksum_engine(msg->bytes, msg->length);
+    ctrl->header.checksum_be = Checksum_engine_be(msg->bytes, msg->length);
 
     Er_assert(Message_eshift(msg, RouteHeader_SIZE));
     struct RouteHeader* routeHeader = (struct RouteHeader*) msg->bytes;
@@ -223,7 +223,7 @@ static Iface_DEFUN handleGetSnodeQuery(struct Message* msg,
     }
 
     ctrl->header.checksum_be = 0;
-    ctrl->header.checksum_be = Checksum_engine(msg->bytes, msg->length);
+    ctrl->header.checksum_be = Checksum_engine_be(msg->bytes, msg->length);
 
     Er_assert(Message_eshift(msg, RouteHeader_SIZE));
     struct RouteHeader* routeHeader = (struct RouteHeader*) msg->bytes;
@@ -267,7 +267,7 @@ static Iface_DEFUN incomingFromCore(struct Message* msg, struct Iface* coreIf)
 
     Assert_true(routeHdr.flags & RouteHeader_flags_CTRLMSG);
 
-    if (Checksum_engine(msg->bytes, msg->length)) {
+    if (Checksum_engine_be(msg->bytes, msg->length)) {
         Log_info(ch->log, "DROP ctrl packet from [%s] with invalid checksum", labelStr);
         return NULL;
     }

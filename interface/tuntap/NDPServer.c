@@ -106,7 +106,7 @@ static Iface_DEFUN answerNeighborSolicitation(struct Message* msg, struct NDPSer
     ip6.payloadLength_be = Endian_hostToBigEndian16(msg->length);
 
     struct NDPHeader_RouterAdvert* adv = (struct NDPHeader_RouterAdvert*) msg->bytes;
-    adv->checksum = Checksum_icmp6(ip6.sourceAddr, msg->bytes, msg->length);
+    adv->checksum = Checksum_icmp6_be(ip6.sourceAddr, msg->bytes, msg->length);
 
     Er_assert(Message_epush(msg, &ip6, sizeof(struct Headers_IP6Header)));
 

@@ -365,7 +365,7 @@ static Iface_DEFUN failedDecrypt(struct Message* msg,
     Er_assert(Message_epush32be(msg, Error_AUTHENTICATION));
     Er_assert(Message_epush16be(msg, Control_ERROR));
     Er_assert(Message_epush16be(msg, 0));
-    uint16_t csum = Checksum_engine(msg->bytes, msg->length);
+    uint16_t csum = Checksum_engine_be(msg->bytes, msg->length);
     Er_assert(Message_epop16be(msg));
     Er_assert(Message_epush16be(msg, csum));
 
