@@ -86,7 +86,8 @@ static inline void getSharedSecret(uint8_t outputSecret[32],
                                    struct Log* logger)
 {
     if (passwordHash == NULL) {
-        crypto_box_curve25519xsalsa20poly1305_beforenm(outputSecret, herPublicKey, myPrivateKey);
+        Assert_true(!crypto_box_curve25519xsalsa20poly1305_beforenm(
+            outputSecret, herPublicKey, myPrivateKey));
     } else {
         union {
             struct {
@@ -96,7 +97,7 @@ static inline void getSharedSecret(uint8_t outputSecret[32],
             uint8_t bytes[64];
         } buff;
 
-        crypto_scalarmult_curve25519(buff.components.key, myPrivateKey, herPublicKey);
+        Assert_true(!crypto_scalarmult_curve25519(buff.components.key, myPrivateKey, herPublicKey));
         Bits_memcpy(buff.components.passwd, passwordHash, 32);
         crypto_hash_sha256(outputSecret, buff.bytes, 64);
     }
