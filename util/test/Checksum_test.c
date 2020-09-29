@@ -26,7 +26,7 @@ static void checksumAlgorithmTestCase(const char* hex, uint16_t expectedSum)
     Assert_true(strlen(hex) < 512);
     uint8_t packetBuff[256];
     uint8_t* packet = packetBuff + ((uintptr_t)packetBuff % 2);
-    Assert_true(Hex_decode(packet, 256, hex, strlen(hex)) == strlen(hex) / 2);
+    Assert_true(Hex_decode(packet, 256, hex, strlen(hex)) == (int)(strlen(hex) / 2));
 
     uint16_t calcatedSum = Checksum_engine_be(packet, strlen(hex) / 2);
     uint16_t expected_be = Endian_hostToBigEndian16(expectedSum);
