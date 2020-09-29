@@ -56,8 +56,8 @@ static Iface_DEFUN incomingFromUdpIf(struct Message* message, struct Iface* udpI
     Assert_true(Sockaddr_getAddress(context->pub.udpIf.addr, &addrPtr) == 16);
     Bits_memcpy(ip.sourceAddr, addrPtr, 16);
 
-    uint16_t checksum = Checksum_udpIp6_be(ip.sourceAddr, message->bytes, message->length);
-    ((struct Headers_UDPHeader*)message->bytes)->checksum_be = checksum;
+    uint16_t checksum_be = Checksum_udpIp6_be(ip.sourceAddr, message->bytes, message->length);
+    ((struct Headers_UDPHeader*)message->bytes)->checksum_be = checksum_be;
 
     Er_assert(Message_epush(message, &ip, sizeof(struct Headers_IP6Header)));
 

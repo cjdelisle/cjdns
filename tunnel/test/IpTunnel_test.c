@@ -263,8 +263,8 @@ static void testAddr(struct Context* ctx,
     struct Headers_UDPHeader* uh = (struct Headers_UDPHeader*) msg->bytes;
     uh->length_be = Endian_hostToBigEndian16(msg->length - Headers_UDPHeader_SIZE);
 
-    uint16_t* checksum = &((struct Headers_UDPHeader*) msg->bytes)->checksum_be;
-    *checksum = 0;
+    uint16_t* checksum_be = &((struct Headers_UDPHeader*) msg->bytes)->checksum_be;
+    *checksum_be = 0;
     uint32_t length = msg->length;
 
     // Because of old reasons, we need to have at least an empty IPv6 header
@@ -274,7 +274,7 @@ static void testAddr(struct Context* ctx,
     ip->payloadLength_be = Endian_hostToBigEndian16(msg->length - Headers_IP6Header_SIZE);
     ip->nextHeader = 17;
 
-    *checksum = Checksum_udpIp6_be(ip->sourceAddr, (uint8_t*) uh, length);
+    *checksum_be = Checksum_udpIp6_be(ip->sourceAddr, (uint8_t*) uh, length);
 
     pushRouteDataHeaders(ctx, msg);
 
