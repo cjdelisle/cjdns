@@ -12,7 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#include "util/Setuid.h"
+#include "util/Setuid_impl.h"
 #include "memory/Allocator.h"
 #include "exception/Except.h"
 

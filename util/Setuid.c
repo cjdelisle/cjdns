@@ -12,11 +12,22 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef Setuid_H
-#define Setuid_H
+#include "util/Setuid.h"
+#include "util/Js.h"
 
-#include "util/Setuid_impl.h"
-#include "util/Linker.h"
-Linker_require("util/Setuid.c")
+Js({
+    const done = js.async();
+    const impl = "util/Setuid_" + builder.config.systemName + ".c";
+    require("fs").exists(impl, function (exists) {
+        var out = "";
+        if (!exists) {
+            console.log("No setuid keepNetAdmin");
+            js.linkerDependency("util/Setuid_dummy.c");
+        } else {
+            js.linkerDependency(impl);
+            console.log("Has setuid keepNetAdmin");
+        }
+        done();
+    });
+})
 
-#endif

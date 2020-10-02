@@ -12,11 +12,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef Setuid_H
-#define Setuid_H
+#ifndef Setuid_impl_H
+#define Setuid_impl_H
 
-#include "util/Setuid_impl.h"
-#include "util/Linker.h"
-Linker_require("util/Setuid.c")
+#include "memory/Allocator.h"
+#include "exception/Except.h"
+
+Er_DEFUN(void Setuid_preSetuid(struct Allocator* alloc));
+Er_DEFUN(void Setuid_postSetuid(struct Allocator* alloc));
 
 #endif
