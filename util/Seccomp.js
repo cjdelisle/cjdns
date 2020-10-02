@@ -85,8 +85,6 @@ module.exports.detect = function (js, builder)
         var cflags = [ builder.config.cflags, '-x', 'c' ];
 
         CanCompile.check(builder, TEST_PROGRAM, cflags, function (err, can) {
-            builder.Seccomp_EXISTS = !!can;
-
             if (can) {
                 console.log("SECCOMP enabled");
                 js.linkerDependency("util/Seccomp_linux.c");
