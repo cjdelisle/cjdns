@@ -483,21 +483,12 @@ const getFlags = function (ctx, cFile, includeDirs) {
     return flags;
 };
 
-const state1 = require('../build_darwin/state1.json');
-
-const currentlyPreprocessing = {};
 const preprocessFile = function (cFile, ctx, callback)
 {
     if (ctx.state.cFiles[cFile]) {
         return void callback();
     }
     const state = ctx.state;
-    if (typeof(currentlyPreprocessing[cFile]) !== 'undefined') {
-        currentlyPreprocessing[cFile].push(callback);
-        return;
-    } else {
-        currentlyPreprocessing[cFile] = [callback];
-    }
     //debug('  preprocessing ' + cFile);
 
     //debug('\x1b[2;32mCompiling ' + cFile + '\x1b[0m');
@@ -547,34 +538,35 @@ const preprocessFile = function (cFile, ctx, callback)
         });
 
     }).nThen(function (_) {
-
         debug('\x1b[2;36mPreprocessing ' + cFile + ' complete\x1b[0m');
         state.cFiles[cFile] = fileObj;
-        const callbacks = currentlyPreprocessing[cFile];
-        delete currentlyPreprocessing[cFile];
         ctx.toCompile[cFile] = fileObj;
-        callbacks.forEach(function (cb) { cb(); });
+        callback();
     });
 };
 
-const preprocessFiles = function (ctx, files, callback)
-{
+const preprocessFiles = function (ctx, files, callback) {
     const added = {};
     for (const f of files) { added[f] = 1; }
     const doMore = () => {
         if (files.length === 0) {
             return void callback();
         }
-        const file = files.pop();
-        //debug("compiling " + file);
-        preprocessFile(file, ctx, () => {
-            ctx.state.cFiles[file].links.forEach(function (link) {
-                if (link === file || added[link]) {
-                    return;
-                }
-                added[link] = 1;
-                files.push(link);
+        const filez = files;
+        files = [];
+        nThen((w) => {
+            filez.forEach((file) => {
+                preprocessFile(file, ctx, w(() => {
+                    ctx.state.cFiles[file].links.forEach(function (link) {
+                        if (link === file || added[link]) {
+                            return;
+                        }
+                        added[link] = 1;
+                        files.push(link);
+                    });
+                }));
             });
+        }).nThen((w) => {
             doMore();
         });
     };
