@@ -12,7 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-
+'use strict';
 var Crypto = require('crypto');
 var seed = process.env.SOURCE_DATE_EPOCH || Crypto.randomBytes(32).toString('hex');
 
@@ -67,24 +67,23 @@ var base2 = module.exports.base2 = function (numStr) {
     return '((' + type + ') 0x' + base2ToHex(numStr) + ((type === 'uint64_t') ? 'ull' : 'ul') + ')';
 };
 
-var randomHex = function (bytes, file) {
-    if (!file) { throw new Error('file unspecified'); }
-    var nonce = file.Constant_JS_nonce = (file.Constant_JS_nonce || 0) + 1;
-    var material = new Crypto.Hash('sha512').update(seed).update(file.name).update(String(nonce)).digest();
+var randomHex = function (bytes, self, fileName) {
+    var nonce = self.Constant_JS_nonce = (self.Constant_JS_nonce || 0) + 1;
+    var material = new Crypto.Hash('sha512').update(seed).update(fileName).update(String(nonce)).digest();
     if (bytes > 64) { throw new Error("meh, randomHex of over 64 bytes is unimplemented"); }
     return material.slice(0, bytes).toString('hex');
 };
 
-var rand64 = module.exports.rand64 = function (file) {
-    return '((uint64_t) 0x' + randomHex(64 / 8, file) + 'ull)';
+var rand64 = module.exports.rand64 = function (self, fileName) {
+    return '((uint64_t) 0x' + randomHex(64 / 8, self, fileName) + 'ull)';
 };
 
-var rand32 = module.exports.rand32 = function (file) {
-    return '((uint32_t) 0x' + randomHex(32 / 8, file) + 'ul)';
+var rand32 = module.exports.rand32 = function (self, fileName) {
+    return '((uint32_t) 0x' + randomHex(32 / 8, self, fileName) + 'ul)';
 };
 
-var randHexString = module.exports.randHexString = function (lenStr, file) {
-    return '"' + randomHex(lenStr / 2, file) + '"';
+var randHexString = module.exports.randHexString = function (lenStr, self, fileName) {
+    return '"' + randomHex(lenStr / 2, self, fileName) + '"';
 };
 
 var log2 = module.exports.log2 = function (val) {

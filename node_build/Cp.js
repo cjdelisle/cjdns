@@ -1,3 +1,4 @@
+'use strict';
 var Fs = require("fs");
 var Semaphore = require('../tools/lib/Semaphore');
 var nThen = require('nthen');

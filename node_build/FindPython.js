@@ -12,6 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+'use strict';
 var nThen = require('nthen');
 var Spawn = require('child_process').spawn;
 var Fs = require('fs');

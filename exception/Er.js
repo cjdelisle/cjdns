@@ -12,7 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-
+'use strict';
 const trim = (x) => {
     if (x[0] !== ' ' || x[x.length-1] !== ' ') {
         throw new Error("INTERNAL: Er input must begin " +

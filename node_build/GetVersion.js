@@ -1,3 +1,4 @@
+'use strict';
 var nThen = require('nthen');
 var Exec = require('child_process').exec;
 
