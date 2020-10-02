@@ -99,10 +99,10 @@ Builder.configure({
         builder.config.cflags.push('-D', 'TESTING=1');
     }
 
-    if (process.env['ADDRESS_PREFIX'] !== undefined) {
+    if (process.env['ADDRESS_PREFIX']) {
         builder.config.cflags.push('-D', 'ADDRESS_PREFIX=' + process.env['ADDRESS_PREFIX']);
     }
-    if (process.env['ADDRESS_PREFIX_BITS'] !== undefined) {
+    if (process.env['ADDRESS_PREFIX_BITS']) {
         builder.config.cflags.push('-D', 'ADDRESS_PREFIX_BITS=' + process.env['ADDRESS_PREFIX_BITS']);
     }
 
@@ -247,7 +247,7 @@ Builder.configure({
         console.log("Stack Smashing Protection (security feature) is disabled");
     }
 
-    if (process.env['Pipe_PREFIX'] !== undefined) {
+    if (process.env['Pipe_PREFIX']) {
         builder.config.cflags.push(
             '-D', 'Pipe_PREFIX="' + process.env['Pipe_PREFIX'] + '"'
         );
