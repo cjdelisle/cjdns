@@ -6,7 +6,7 @@
  */
 /*::
 export type Nthen_WaitFor_t = {
-    ((...any)=>any): (...any)=>any,
+    (?(...any)=>any): (...any)=>any,
     abort: ()=>void
 };
 export type Nthen_Ret_t = {
