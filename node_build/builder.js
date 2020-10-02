@@ -483,6 +483,8 @@ const getFlags = function (ctx, cFile, includeDirs) {
     return flags;
 };
 
+const state1 = require('../build_darwin/state1.json');
+
 const currentlyPreprocessing = {};
 const preprocessFile = function (cFile, ctx, callback)
 {
@@ -555,58 +557,28 @@ const preprocessFile = function (cFile, ctx, callback)
     });
 };
 
-const recursivePreprocess = function (cFile, ctx, callback)
+const preprocessFiles = function (ctx, files, callback)
 {
-    const state = ctx.state;
-    const doCycle = function (ppList, parentStack, callback) {
-        if (ppList.length === 0) {
-            callback();
-            return;
+    const added = {};
+    for (const f of files) { added[f] = 1; }
+    const doMore = () => {
+        if (files.length === 0) {
+            return void callback();
         }
-
-        nThen(function (waitFor) {
-
-            const filefunc = function (file) {
-                const stack = [];
-                stack.push.apply(stack, parentStack);
-                //debug("compiling " + file);
-                stack.push(file);
-
-                if (stack.indexOf(file) !== stack.length - 1) {
-                    throw new Error("Dependency loops are bad and you should feel bad\n" +
-                                    "Dependency stack:\n" + stack.reverse().join('\n'));
+        const file = files.pop();
+        //debug("compiling " + file);
+        preprocessFile(file, ctx, () => {
+            ctx.state.cFiles[file].links.forEach(function (link) {
+                if (link === file || added[link]) {
+                    return;
                 }
-
-                preprocessFile(file, ctx, waitFor(function () {
-                    const ppList = [];
-
-                    state.cFiles[file].links.forEach(function (link) {
-                        if (link === file) {
-                            return;
-                        }
-                        ppList.push(link);
-                    });
-
-                    doCycle(ppList, stack, waitFor(function () {
-                        if (stack[stack.length - 1] !== file) {
-                            throw new Error();
-                        }
-
-                        stack.pop();
-                    }));
-                }));
-            };
-
-            for (let file = ppList.pop(); file; file = ppList.pop()) {
-                filefunc(file);
-            }
-
-        }).nThen(function (_) {
-            callback();
+                added[link] = 1;
+                files.push(link);
+            });
+            doMore();
         });
     };
-
-    doCycle([cFile], [], callback);
+    doMore();
 };
 
 const getLinkOrder = function (cFile, files) /*:string[]*/ {
@@ -1093,9 +1065,9 @@ const postConfigure = (ctx /*:Builder_Ctx_t*/, time) => {
                 debug(`\x1b[1;31m${getExeFile(ctx, exe)} up to date\x1b[0m`);
                 return false;
             }
-            recursivePreprocess(exe.cFile, ctx, waitFor());
             return true;
         });
+        preprocessFiles(ctx, ctx.executables.map(exe => exe.cFile), waitFor());
     }).nThen(function (w) {
         debug("Preprocess " + time() + "ms");
         // save state
