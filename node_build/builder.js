@@ -1067,9 +1067,6 @@ const removeStaleFiles = (ctx, done) => {
 const postConfigure = (ctx /*:Builder_Ctx_t*/, time) => {
     const state = ctx.state;
     nThen((waitFor) => {
-        if (state.rebuildIfChangesHash) {
-            return;
-        }
 
         if (state.rebuildIfChanges.indexOf(module.parent.filename) === -1) {
             // Always always rebuild if the makefile was changed.
