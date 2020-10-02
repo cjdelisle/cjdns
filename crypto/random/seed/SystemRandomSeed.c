@@ -16,9 +16,9 @@
 #include "crypto/random/seed/SystemRandomSeed.h"
 #include "util/log/Log.h"
 
-<?js file.RandomSeedProvider_providers = []; ?>
-#define RandomSeedProvider_register(name) <?js file.RandomSeedProvider_providers.push(#name) ?>
-#define RandomSeedProvider_list() <?js return file.RandomSeedProvider_providers.join(','); ?>
+Js({ this.RandomSeedProvider_providers = []; })
+#define RandomSeedProvider_register(name) Js({ this.RandomSeedProvider_providers.push(#name) })
+#define RandomSeedProvider_list() Js({ return this.RandomSeedProvider_providers.join(','); })
 
 #ifdef win32
     #include "crypto/random/seed/RtlGenRandomSeed.h"

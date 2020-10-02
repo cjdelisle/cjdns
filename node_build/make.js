@@ -12,6 +12,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+/*@flow*/
+'use strict';
 var Fs = require('fs');
 var nThen = require('nthen');
 var Codestyle = require('./Codestyle');
@@ -22,6 +24,7 @@ var FindPython = require('./FindPython');
 var CanCompile = require('./CanCompile');
 var Builder = require('./builder');
 var TestRunner = require('./TestRunner');
+const CjdnsTest = require('./CjdnsTest');
 
 // ['linux','darwin','sunos','win32','freebsd','openbsd','netbsd']
 var SYSTEM = process.env['SYSTEM'] || process.platform;
@@ -79,6 +82,10 @@ Builder.configure({
         '-D', 'PARANOIA=1'
     );
 
+    if (process.env["CJDNS_RELEASE_VERSION"]) {
+        builder.config.version = '' + process.env["CJDNS_RELEASE_VERSION"];
+    }
+
     if (process.env['SUBNODE']) { builder.config.cflags.push('-DSUBNODE=1'); }
 
     if (process.env['GCOV']) {
@@ -129,7 +136,7 @@ Builder.configure({
         }
     }
 
-    if (builder.config.compilerType.isClang) {
+    if (builder.compilerType().isClang) {
         // blows up when preprocessing before js preprocessor
         builder.config.cflags.push(
             '-Wno-invalid-pp-token',
@@ -186,9 +193,9 @@ Builder.configure({
         console.log("Link time optimization disabled");
     } else {
         CanCompile.check(builder,
-                        'int main() { return 0; }',
+                        'int main() { return 0; }\n',
                         [ builder.config.cflags, '-flto', '-x', 'c' ],
-                        function (err, can) {
+                        waitFor(function (err, can) {
             if (can) {
                 console.log("Compiler supports link time optimization");
                 builder.config.ldflags.push(
@@ -198,7 +205,7 @@ Builder.configure({
             } else {
                 console.log("Link time optimization not supported [" + err + "]");
             }
-        });
+        }));
     }
 
     var uclibc = process.env['UCLIBC'] == '1';
@@ -246,6 +253,10 @@ Builder.configure({
         );
     }
 
+    if (typeof(builder.config.cjdnsTest_files) === 'undefined') {
+        CjdnsTest.generate(builder, process.env['SUBNODE'] !== '', waitFor());
+    }
+
     var dependencyDir = builder.config.buildDir + '/dependencies';
     var libuvLib = dependencyDir + '/libuv/out/Release/libuv.a';
     if (['win32', 'netbsd'].indexOf(builder.config.systemName) >= 0) {//this might be needed for other BSDs
@@ -277,6 +288,7 @@ Builder.configure({
             var cwd = process.cwd();
             process.chdir(dependencyDir + '/cnacl/');
 
+            // $FlowFixMe non-static require
             var NaCl = require(process.cwd() + '/node_build/make.js');
             NaCl.build(function (args, callback) {
                 if (builder.config.systemName !== 'win32') {
@@ -396,7 +408,7 @@ Builder.configure({
             });
             gyp.on('close', waitFor(function () {
                 var args = [
-                    '-j', builder.processors,
+                    '-j', ''+builder.processors,
                     '-C', 'out',
                     'BUILDTYPE=Release',
                     'CC=' + builder.config.gcc,
@@ -419,11 +431,11 @@ Builder.configure({
 
                 make.on('error', function (err) {
                     if (err.code === 'ENOENT') {
-                        console.error('\033[1;31mError: ' + makeCommand + ' is required!\033[0m');
+                        console.error('\x1b[1;31mError: ' + makeCommand + ' is required!\x1b[0m');
                     } else {
                         console.error(
-                            '\033[1;31mFail run ' + process.cwd() + ': ' + makeCommand + ' '
-                            + args.join(' ') + '\033[0m'
+                            '\x1b[1;31mFail run ' + process.cwd() + ': ' + makeCommand + ' '
+                            + args.join(' ') + '\x1b[0m'
                         );
                         console.error('Message:', err);
                     }
@@ -476,17 +488,11 @@ Builder.configure({
 
 }).success(function (builder, waitFor) {
 
-    console.log('\033[1;32mBuild completed successfully, type ./cjdroute to begin setup.\033[0m');
+    console.log('\x1b[1;32mBuild completed successfully, type ./cjdroute to begin setup.\x1b[0m');
 
 }).failure(function (builder, waitFor) {
 
-    console.log('\033[1;31mFailed to build cjdns.\033[0m');
+    console.log('\x1b[1;31mFailed to build cjdns.\x1b[0m');
     process.exit(1);
-
-}).complete(function (builder, waitFor) {
-
-    if (builder.failure) {
-        process.exit(1);
-    }
 
 });

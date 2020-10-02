@@ -15,36 +15,23 @@
 #ifndef Constant_H
 #define Constant_H
 
-#ifdef __INTELLISENSE__
-#define Constant_stringForHex(hex) ""
+#include "util/Js.h"
 
-#define Constant_base2(num) 0xffffffff
+Js({ this.Constant_JS = require("../util/Constant.js"); })
 
-#define Constant_rand64() 0x12345678abcdefull
+#define Constant_stringForHex(hex) Js_or({ return this.Constant_JS.stringForHex( hex ) }, "")
 
-#define Constant_rand32() 0x12345678u
+#define Constant_base2(num) Js_or({ return this.Constant_JS.base2( #num ); }, 0xffffffff)
 
-#define Constant_randHexString(len) ""
+#define Constant_rand64() \
+    Js_or({ return this.Constant_JS.rand64(this, js.currentFile); }, 0x12345678abcdefull)
 
-#define Constant_log2(num) 0
-
-#else
-
-<?js file.Constant_JS = require("../util/Constant.js"); ?>
-
-#define Constant_stringForHex(hex) <?js return file.Constant_JS.stringForHex( hex ) ?>
-
-#define Constant_base2(num) <?js return file.Constant_JS.base2( #num ) ?>
-
-#define Constant_rand64() <?js return file.Constant_JS.rand64(file); ?>
-
-#define Constant_rand32() <?js return file.Constant_JS.rand32(file); ?>
+#define Constant_rand32() \
+    Js_or({ return this.Constant_JS.rand32(this, js.currentFile); }, 0x12345678u)
 
 #define Constant_randHexString(len) \
-    <?js return file.Constant_JS.randHexString(#len, file); ?>
+    Js_or({ return this.Constant_JS.randHexString(#len, this, js.currentFile); }, "")
 
-#define Constant_log2(num) <?js return file.Constant_JS.log2(num); ?>
-
-#endif
+#define Constant_log2(num) Js_or({ return this.Constant_JS.log2(num); }, 0)
 
 #endif

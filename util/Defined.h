@@ -15,6 +15,8 @@
 #ifndef Defined_H
 #define Defined_H
 
+#include "util/Js.h"
+
 /**
  * Preprocesses to a 1 if the macro is defined, a 0 if it is not.
  * Example:
@@ -23,12 +25,7 @@
  *     doLinuxSpecificStuff();
  * }
  */
-#ifdef __INTELLISENSE__
-    #define Defined(macro) 1
-#else
-    #define Defined_Q <?js return String.fromCharCode(34); ?>
-    #define Defined(macro) \
-        <?js return ( Defined_Q macro Defined_Q === ' ' + #macro + ' ' ) ? '0' : '1'; ?>
-#endif
+#define Defined(macro) \
+    Js_or({ return ( Js_Q macro Js_Q === ' ' + #macro + ' ' ) ? '0' : '1'; }, 1)
 
 #endif

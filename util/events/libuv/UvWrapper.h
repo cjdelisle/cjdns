@@ -15,17 +15,13 @@
 #ifndef UvWrapper_H
 #define UvWrapper_H
 
+#include "util/Js.h"
+
 #ifndef _GNU_SOURCE
     #define _GNU_SOURCE // CHECKFILES_IGNORE libuv's fault
 #endif
 #ifdef win32
     #define _WIN32_WINNT 0x0600 // CHECKFILES_IGNORE
-
-    // Remove compiler flags which blow up when running with windows.
-    <?js
-        builder.config["cflags"+fileName] = builder.config["cflags"+fileName] || [];
-        builder.config["cflags"+fileName].push("!-pedantic");
-    ?>
 #endif
 
 #include <uv.h>

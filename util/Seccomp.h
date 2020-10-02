@@ -15,17 +15,8 @@
 #ifndef Seccomp_H
 #define Seccomp_H
 
-#include "exception/Er.h"
-#include "memory/Allocator.h"
-#include "util/log/Log.h"
-#include "util/Js.h"
-
-Js({ require("../util/Seccomp.js").detect(this.async, file, builder); })
-
-Er_DEFUN(void Seccomp_dropPermissions(struct Allocator* tempAlloc, struct Log* logger));
-
-int Seccomp_isWorking(void);
-
-int Seccomp_exists(void);
+#include "util/Seccomp_impl.h"
+#include "util/Linker.h"
+Linker_require("util/Seccomp.c")
 
 #endif

@@ -15,17 +15,13 @@
 #ifndef UniqueName_H
 #define UniqueName_H
 
-#ifdef __INTELLISENSE__
-#define UniqueName_get() UniqueName
-#define UniqueName_last() UniqueName
-#else
-<?js file.Constant_JS = file.Constant_JS || require('util/Constant.js'); ?>
+#include "util/Constant.h"
+#include "util/Js.h"
 
-#define UniqueName_get() <?js return \
-    file.UniqueName_last = 'UniqueName_' + \
-        JSON.parse(file.Constant_JS.randHexString(20, file)); \
-?>
+#define UniqueName_get() Js_or({ \
+    return this.UniqueName_last = 'UniqueName_' + Constant_randHexString(20); \
+}, UniqueName)
 
-#define UniqueName_last() <?js return file.UniqueName_last; ?>
-#endif
+#define UniqueName_last() Js_or({ return this.UniqueName_last; }, UniqueName)
+
 #endif

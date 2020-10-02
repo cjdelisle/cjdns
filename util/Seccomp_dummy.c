@@ -12,7 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#include "util/Seccomp.h"
+#include "util/Seccomp_impl.h"
 
 // This file is for machines which do not support seccomp.
 

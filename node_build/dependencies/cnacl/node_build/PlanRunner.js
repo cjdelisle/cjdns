@@ -165,7 +165,7 @@ var getPrototypes = function (onComplete) {
 
 var getCompiler = function(cc) {
   return function(compileCall, onComplete) {
-    console.log('\033[2;32mCompiling ' + compileCall.outFile + '\033[0m');
+    console.log('\x1b[2;32mCompiling ' + compileCall.outFile + '\x1b[0m');
     /*console.log('cc -o ' + compileCall.outFile + ' -c ' + compileCall.inFile + ' ' +
                   compileCall.args.join(' ')); */
     var args = [];
@@ -224,7 +224,7 @@ var archive = function(ar, ranlib, onComplete) {
   Fs.readdir(OBJ_DIR, function(err, files) {
     if (err) { throw err; }
     var args = ['cr', BUILD_DIR + '/libnacl.a'];
-    console.log('\033[1;31mLinking static C library ' + args[1] + '\033[0m');
+    console.log('\x1b[1;31mLinking static C library ' + args[1] + '\x1b[0m');
     files.forEach(function(file) {
       args.push(OBJ_DIR + '/' + file);
     });

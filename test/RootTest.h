@@ -16,17 +16,19 @@
 #define RootTest_H
 
 #include "util/CString.h"
+#include "util/Js.h"
+
 #include <stdio.h>
 
 #define RootTest_toStr(x) RootTest_toStr2(x)
 #define RootTest_toStr2(x) #x
-<?js
-    file.RootTest_mainFunc = RootTest_toStr(main);
-    file.RootTest_mainName = file.RootTest_mainFunc.replace(/_main$/, '');
-?>
-#define RootTest_mainName <?js return '"' + file.RootTest_mainName + '"' ?>
+Js({
+    this.RootTest_mainFunc = RootTest_toStr(main);
+    this.RootTest_mainName = this.RootTest_mainFunc.replace(/_main$/, '');
+})
+#define RootTest_mainName Js_or({ return '"' + this.RootTest_mainName + '"' }, "main")
 
-#define RootTest_main <?js return 'RootTest_'+file.RootTest_mainFunc; ?>
+#define RootTest_main Js_or({ return 'RootTest_' + this.RootTest_mainFunc; }, RootTest_main)
 
 int RootTest_main(int argc, char** argv);
 int main(int argc, char** argv)

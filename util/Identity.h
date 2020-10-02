@@ -17,14 +17,15 @@
 
 #include "util/Assert.h"
 #include "util/Constant.h"
+#include "util/Js.h"
 
 #include <stdint.h>
 
 #if defined(Identity_CHECK)
 
-    <?js file.Identity_hash = "0x" + Constant_randHexString(16) + "ull"; ?>
+    Js({ this.Identity_hash = "0x" + Constant_randHexString(16) + "ull"; })
 
-    #define Identity_MAGIC ((uintptr_t) <?js return file.Identity_hash ?>)
+    #define Identity_MAGIC ((uintptr_t) Js_or({ return this.Identity_hash }, 1))
 
     /** This goes in each structure which will be checked. */
     #define Identity uintptr_t Identity_verifier;

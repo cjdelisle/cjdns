@@ -12,10 +12,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-var Fs = require("fs");
-var nThen = require("nthen");
+'use strict';
+const Fs = require("fs");
+const nThen = require("nthen");
 
-var Fs_stat = function (file, callback) {
+const Fs_stat = function (file, callback) {
     Fs.stat(file, function (err, ret) {
         if (err === 'ENOENT') {
             console.log("Magical ENOENT on a file which definitely does exist, good job Linus");
@@ -28,7 +29,7 @@ var Fs_stat = function (file, callback) {
     });
 };
 
-var getTests = function (file, tests, isSubnode, callback) {
+const getTests = function (file, tests, isSubnode, callback) {
     if (/\/(.git|build_.*|node_build|contrib)\//.test(file)) { callback(); return; }
     if (isSubnode && /\/dht\//.test(file)) { callback(); return; }
     Fs_stat(file, function (err, stat) {
@@ -45,15 +46,19 @@ var getTests = function (file, tests, isSubnode, callback) {
                 callback();
             });
             return;
-        } else if (/_test\.c$/.test(file) && tests.indexOf(file) === -1) {
-            tests.push(file);
+        } else if (!/_test\.c$/.test(file)) {
+            // not a test
+        } else {
+            // get rid of the annoying ./
+            const f = file.replace(/^\.\//, '');
+            if (tests.indexOf(f) === -1) { tests.push(f); }
         }
         callback();
     });
 };
 
-var rmFuzz = function (builder, cb) {
-    var inputs = builder.config.buildDir + '/fuzz_inputs';
+const rmFuzz = function (builder, cb) {
+    const inputs = builder.config.buildDir + '/fuzz_inputs';
     Fs_stat(inputs, function (err, stat) {
         if (err && err.code === 'ENOENT') {
             Fs.mkdir(inputs, function (err, ret) {
@@ -69,7 +74,7 @@ var rmFuzz = function (builder, cb) {
         }
         Fs.readdir(inputs, function (err, list) {
             if (err) { throw err; }
-            var nt = nThen;
+            let nt = nThen;
             list.forEach(function (f) {
                 nt = nt(function (w) {
                     Fs.unlink(inputs + '/' + f, w(function (err) {
@@ -82,13 +87,13 @@ var rmFuzz = function (builder, cb) {
     });
 };
 
-var mkFuzzCase = function (inFile, outPath, testId, cb) {
+const mkFuzzCase = function (inFile, outPath, testId, cb) {
     Fs.readFile(inFile, 'utf8', function (err, ret) {
         if (err) { throw err; }
         ret = ret.replace(/#[^\n]*\n/g, '');
         ret = ret.replace(/[\s]*/g, '');
-        var out = Buffer.from(ret, 'hex');
-        var id = Buffer.alloc(4);
+        const out = Buffer.from(ret, 'hex');
+        const id = Buffer.alloc(4);
         id.writeInt32BE(testId, 0);
         Fs.writeFile(outPath, Buffer.concat([id, out]), function (err) {
             if (err) { throw err; }
@@ -97,22 +102,22 @@ var mkFuzzCase = function (inFile, outPath, testId, cb) {
     });
 };
 
-var mkFuzz = function (builder, testPath, testId, fuzzCases, cb) {
-    var inputs = builder.config.buildDir + '/fuzz_inputs';
+const mkFuzz = function (builder, testPath, testId, fuzzCases, cb) {
+    const inputs = builder.config.buildDir + '/fuzz_inputs';
     nThen(function (w) {
-        var casesPath = testPath.replace(/\.c$/, '_cases');
+        const casesPath = testPath.replace(/\.c$/, '_cases');
         Fs.readdir(casesPath, w(function (err, list) {
             if (err && err.code === 'ENOENT') {
                 return void console.log("Fuzz test [" + testPath + "] has no test cases");
             }
             if (err) { throw err; }
-            var nt = nThen;
+            let nt = nThen;
             list.forEach(function (f) {
                 nt = nt(function (w) {
-                    var fNoExt = f.replace(/\..*$/, '');
-                    var outPath = inputs + '/' + (testPath + fNoExt).replace(/[^a-zA-Z0-9_-]/g, '_');
+                    const fNoExt = f.replace(/\..*$/, '');
+                    const outPath = inputs + '/' + (testPath + fNoExt).replace(/[^a-zA-Z0-9_-]/g, '_');
                     fuzzCases.push('"' + outPath + '",');
-                    var inFile = casesPath + '/' + f;
+                    const inFile = casesPath + '/' + f;
                     mkFuzzCase(inFile, outPath, testId, w());
                 }).nThen;
             });
@@ -123,13 +128,13 @@ var mkFuzz = function (builder, testPath, testId, fuzzCases, cb) {
     });
 };
 
-var generate = module.exports.generate = function (file, builder, isSubnode, callback)
-{
-    var tests = [];
-    var fuzzCases = [];
-    var prototypes = [];
-    var listContent = [];
-    var fuzzTests = [];
+module.exports.generate = function (builder, isSubnode, callback) {
+    const tests = [];
+    const fuzzCases = [];
+    const prototypes = [];
+    const listContent = [];
+    const fuzzTests = [];
+    builder.config.cjdnsTest_files = builder.config.cjdnsTest_files || [];
 
     nThen(function (w) {
         getTests('.', tests, isSubnode, w());
@@ -137,9 +142,9 @@ var generate = module.exports.generate = function (file, builder, isSubnode, cal
     }).nThen(function (w) {
         tests.forEach(function (test) {
             //console.log(test);
-            var testProto = /^.*\/([^\/]+)\.c$/.exec(test)[1];
-            file.links.push(test);
-            var cflags = (builder.config['cflags'+test] = builder.config['cflags'+test] || []);
+            const testProto = /^.*\/([^\/]+)\.c$/.exec(test)[1];
+            builder.config.cjdnsTest_files.push(test);
+            const cflags = (builder.config.fileCflags[test] = builder.config.fileCflags[test] || []);
             if (test.indexOf('_fuzz_test') > -1) {
                 cflags.push(
                     '-D', 'CJDNS_FUZZ_INIT='+testProto+'_FUZZ_INIT',
@@ -166,10 +171,10 @@ var generate = module.exports.generate = function (file, builder, isSubnode, cal
             }
         });
     }).nThen(function (w) {
-        file.testcjdroute_fuzzCases = fuzzCases.join(' ');
-        file.testcjdroute_tests = listContent.join(' ');
-        file.testcjdroute_fuzzTests = fuzzTests.join(' ');
-        file.testcjdroute_prototypes = prototypes.join(' ');
+        builder.config.cjdnsTest_fuzzCases = fuzzCases.join(' ');
+        builder.config.cjdnsTest_tests = listContent.join(' ');
+        builder.config.cjdnsTest_fuzzTests = fuzzTests.join(' ');
+        builder.config.cjdnsTest_prototypes = prototypes.join(' ');
         callback();
     });
 };

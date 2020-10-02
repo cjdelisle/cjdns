@@ -12,16 +12,17 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+#include "util/Js.h"
 
-#define Version_COMPAT(one, twoRange) <?js \
-    file.Version_COMPAT = file.Version_COMPAT || []; \
-    file.Version_COMPAT[one] = twoRange;             \
-?>
+#define Version_COMPAT(one, twoRange) Js({ \
+    this.Version_COMPAT = this.Version_COMPAT || []; \
+    this.Version_COMPAT[one] = twoRange;             \
+})
 
 #include "util/version/Version.h"
 
 static const uint8_t VERSION_MATRIX[Version_CURRENT_PROTOCOL+1][Version_CURRENT_PROTOCOL+1] =
-<?js
+Js_or({
     var matrix = [];
     for (var i = 0; i <= Version_CURRENT_PROTOCOL; i++) {
         var row = matrix[matrix.length] = [];
@@ -30,12 +31,12 @@ static const uint8_t VERSION_MATRIX[Version_CURRENT_PROTOCOL+1][Version_CURRENT_
                 row[j] = 1;
             } else {
                 row[j] =
-                    (file.Version_COMPAT[Math.max(i, j)].indexOf(Math.min(i,j)) > -1) ? 1 : 0;
+                    (this.Version_COMPAT[Math.max(i, j)].indexOf(Math.min(i,j)) > -1) ? 1 : 0;
             }
         }
     }
     return JSON.stringify(matrix).replace(/\[/g,'{').replace(/\]/g,'}');
-?>;
+}, {});
 
 int Version_isCompatible(uint32_t one, uint32_t two)
 {

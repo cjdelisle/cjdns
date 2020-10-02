@@ -16,6 +16,7 @@
 #define Kbps_H
 
 #include "util/Constant.h"
+#include "util/Js.h"
 
 // Must be multiples of 2
 #define Kbps_WINDOW_SIZE 8
@@ -74,12 +75,10 @@ static inline uint32_t Kbps_accumulate(struct Kbps* ctx, uint32_t now, uint32_t 
     // *= 2 ** 10               --> bytes per millisecond to bytes per second
     // *= 2 ** 3                --> bytes per second to bits per second
     // /= 2 ** 10               --> bits per second to kbits per second
-    return (
-        ctx->currentBpt <?js
-            var x = (Number(Kbps_TIMESPAN_SH) - 10 - 3 + 10);
-            return ( ((x) < 0) ? "<<" : ">>" ) + " " + Math.abs(x);
-        ?>
-    );
+    return Js_or({
+        var x = (Number(Kbps_TIMESPAN_SH) - 10 - 3 + 10);
+        return "ctx->currentBpt" + ( ((x) < 0) ? "<<" : ">>" ) + " " + Math.abs(x);
+    }, ctx->currentBpt);
 }
 
 #endif

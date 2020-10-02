@@ -9,7 +9,7 @@ var WORKERS = 4;
 
 var getCompiler = function(cc) {
   return function(compileCall, onComplete) {
-    console.log('\033[2;32mCompiling Test ' + compileCall.outFile + '\033[0m');
+    console.log('\x1b[2;32mCompiling Test ' + compileCall.outFile + '\x1b[0m');
     /*console.log('cc -o ' + compileCall.outFile + ' -c ' + compileCall.inFile + ' ' +
                   compileCall.args.join(' ')); */
     var args = [];
@@ -89,7 +89,7 @@ var getRunner = function() {
     var expectedFile = 'tests/' + entry.outFile.replace(/^.*\//, '') + '.out';
     Fs.exists(expectedFile, function(exists) {
       if (!exists) { expectedFile = expectedFile.replace(/_[^_]*/, '') + '.out'; }
-      console.log('\033[2;36mRunning Test ' + expectedFile + '\033[0m');
+      console.log('\x1b[2;36mRunning Test ' + expectedFile + '\x1b[0m');
       Fs.readFile(expectedFile, function(err, expected) {
         if (err) { throw err; }
         expected = expected.toString();

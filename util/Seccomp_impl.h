@@ -12,30 +12,17 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef Setuid_H
-#define Setuid_H
+#ifndef Seccomp_impl_H
+#define Seccomp_impl_H
 
+#include "exception/Er.h"
 #include "memory/Allocator.h"
-#include "exception/Except.h"
-#include "util/Linker.h"
+#include "util/log/Log.h"
 
-Er_DEFUN(void Setuid_preSetuid(struct Allocator* alloc));
-Er_DEFUN(void Setuid_postSetuid(struct Allocator* alloc));
+Er_DEFUN(void Seccomp_dropPermissions(struct Allocator* tempAlloc, struct Log* logger));
 
-Js({
-    const done = js.async();
-    const impl = "util/Setuid_" + builder.config.systemName + ".c";
-    require("fs").exists(impl, function (exists) {
-        var out = "";
-        if (!exists) {
-            console.log("No setuid keepNetAdmin");
-            js.linkerDependency("util/Setuid_dummy.c");
-        } else {
-            js.linkerDependency(impl);
-            console.log("Has setuid keepNetAdmin");
-        }
-        done();
-    });
-})
+int Seccomp_isWorking(void);
+
+int Seccomp_exists(void);
 
 #endif

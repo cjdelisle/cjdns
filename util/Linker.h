@@ -15,9 +15,8 @@
 #ifndef Linker_H
 #define Linker_H
 
-#ifdef __INTELLISENSE__
-#define Linker_require(req)
-#else
-#define Linker_require(req) <?js file.links.push(req); ?>
-#endif
+#include "util/Js.h"
+
+#define Linker_require(req) Js({ js.linkerDependency(req); })
+
 #endif
