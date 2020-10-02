@@ -19,136 +19,7 @@ const Fs = require('fs');
 const Spawn = require('child_process').spawn;
 const nThen = require('nthen');
 const Crypto = require('crypto');
-const Semaphore = require('../tools/lib/Semaphore');
-const GetVersion = require('./GetVersion');
-
-/*
- * Why hello dear packager,
- *
- * I suppose you have found this place as you are trying to figure out how to work this into your
- * build system. You're probably faced with a decision between getting node.js into your build and
- * "fixing" this build process so it doesn't need such a silly thing. A 500 line script is certainly
- * not unapproachable, right?
- * The reason why I am speaking to you now is because I care about you. I want you to be happy
- * and live a carefree life, and because you are standing on the precipice of a cavern so dark and
- * deep that while you may well make it out alive, your personal pride and innocence almost
- * certainly will not. Imagine yourself after months of sleepless nights wallowing in the quicksand,
- * forever trying to slay the dragon which is always so close yet and so far away. Imagine the deep
- * hatred you will have for humanity, code, and the creator of this doomsday machine. I beg you to
- * turn back now while there is still hope. You need not die here, your life is important, and
- * whether you close this file now or not, in the end you will still end up including node.js in
- * your build.
- *
- * The Creator
- */
-
-// Since many of the compile operations are short, the best
-// performance seems to be when running 1.25x the number of jobs as
-// cpu cores. On BSD and iphone systems, os.cpus() is not reliable so
-// if it returns undefined let's just assume 1
-const cpus = Os.cpus(); // workaround, nodejs seems to be broken on openbsd (undefined result after second call)
-const PROCESSORS = Math.floor((typeof cpus === 'undefined' ? 1 : cpus.length) * 1.25);
-
-const error = function (message) /*:Error*/ {
-    try {
-        throw new Error(message);
-    } catch (e) {
-        return e;
-    }
-};
-
-const throwIfErr = function(err) {
-    if (err) {
-        throw new Error(err);
-    }
-};
-
-const expandArgs = function (args) {
-    const out = [];
-    for (let i = 0; i < args.length; i++) {
-        if (typeof(args[i]) === 'object') {
-            if (Array.isArray(args[i])) {
-                out.push.apply(out, expandArgs(args[i]));
-            } else {
-                throw new Error("object in arguments [" + args.join() + "]");
-            }
-        } else {
-            out.push(args[i]);
-        }
-    }
-    return out;
-};
-
-const sema = Semaphore.create(PROCESSORS);
-const compiler = function (
-    compilerPath /*:string*/,
-    args /*:string[]*/,
-    callback /*:(number, string, string)=>bool|void*/,
-    content /*:string*/
-) {
-    let stop = false;
-    args = expandArgs(args);
-    sema.take(function (returnAfter) {
-        if (stop) {
-            return returnAfter(function (ret) {
-                callback(1, '', 'interrupted');
-            });
-        }
-        if (process.env.VERBOSE) {
-            console.log(compilerPath + ' ' + args.join(' '));
-        }
-        const gcc = Spawn(compilerPath, args);
-        let err = '';
-        let out = '';
-
-        gcc.stdout.on('data', function (dat) { out += dat.toString(); });
-        gcc.stderr.on('data', function (dat) { err += dat.toString(); });
-        gcc.on('close', returnAfter(function (ret) {
-            if (callback(ret, out, err)) { stop = true; }
-        }));
-
-        gcc.on('error', function (err) {
-            if (err.code === 'ENOENT') {
-                console.error('\x1b[1;31mError: ' + compilerPath + ' is required!\x1b[0m');
-            } else {
-                console.error(
-                    '\x1b[1;31mFail run ' + process.cwd() + ': ' + compilerPath + ' '
-                    + args.join(' ') + '\x1b[0m'
-                );
-                console.error('Message:' + err);
-            }
-
-            // handle the error safely
-            console.log(args);
-        });
-
-        if (content) {
-            gcc.stdin.write(content, function (err) {
-                if (err) { throw err; }
-                gcc.stdin.end();
-            });
-        }
-    });
-};
-
-const cc = function (
-    gcc /*:string*/,
-    args /*:string[]*/,
-    callback /*:(?Error, ?string)=>bool|void*/,
-    content /*:string*/
-) {
-    compiler(gcc, args, function (ret, out, err) {
-        if (ret) {
-            return callback(error("gcc " + args.map(String).join(' ') + "\n\n" + err));
-        }
-
-        if (err !== '') {
-            //process.stdout.write(err);
-        }
-
-        return callback(undefined, out);
-    }, content);
-};
+const Saferphore = require('saferphore');
 
 /*::
 export type Builder_File_t = {|
@@ -184,34 +55,26 @@ export type Builder_t = {|
     lintFiles: (Builder_Linter_t)=>void,
     config: Builder_Config_t,
     tmpFile: (?string)=>string,
-    compilerType: () => Builder_Compiler_t,
-    processors: number,
+    compilerType: () => Builder_Compiler_t
 |};
 export type Builder_BaseConfig_t = {|
-    systemName: string,
-    crossCompiling: bool,
-    gcc: string,
-    tempDir: string,
-    optimizeLevel: string,
-    logLevel: string,
-    buildDir?: string,
+    systemName?: ?string,
+    gcc?: ?string,
+    buildDir?: ?string,
 |};
 export type Builder_Config_t = {
     systemName: string,
-    crossCompiling: bool,
     gcc: string,
     buildDir: string,
-    tempDir: string,
-    optimizeLevel: string,
-    logLevel: string,
     includeDirs: string[],
     cflags: string[],
     ldflags: string[],
     libs: string[],
-    version: string,
+    jobs: number,
     fileCflags: {[string]: string[]},
 } & {[string]:any};
 import type { Nthen_WaitFor_t } from 'nthen';
+import type { Saferphore_t } from 'saferphore';
 export type Builder_Stage_t = (Builder_t, Nthen_WaitFor_t)=>void;
 export type Builder_CompileJob_t = { cFile: string, outputFile: ?string };
 export type Builder_PreCtx_t = {
@@ -228,12 +91,108 @@ export type Builder_PreCtx_t = {
     tests: Array<(Builder_TestRunnerCb_t)=>void>,
     toCompile: { [string]: Builder_File_t },
     config: Builder_Config_t,
+    sema: Saferphore_t,
 };
 export type Builder_Ctx_t = Builder_PreCtx_t & {
     builder: Builder_t,
     state: Builder_State_t,
 };
 */
+
+const error = function (message) /*:Error*/ {
+    try {
+        throw new Error(message);
+    } catch (e) {
+        return e;
+    }
+};
+
+const expandArgs = function (args) {
+    const out = [];
+    for (let i = 0; i < args.length; i++) {
+        if (typeof(args[i]) === 'object') {
+            if (Array.isArray(args[i])) {
+                out.push.apply(out, expandArgs(args[i]));
+            } else {
+                throw new Error("object in arguments [" + args.join() + "]");
+            }
+        } else {
+            out.push(args[i]);
+        }
+    }
+    return out;
+};
+
+const compiler = function (
+    ctx /*:Builder_Ctx_t*/,
+    args /*:string[]*/,
+    callback /*:(number, string, string)=>bool|void*/,
+    content /*:string*/
+) {
+    let stop = false;
+    args = expandArgs(args);
+    ctx.sema.take(function (returnAfter) {
+        if (stop) {
+            return void returnAfter(function (ret) {
+                callback(1, '', 'interrupted');
+            });
+        }
+        if (process.env.VERBOSE) {
+            console.log(ctx.config.gcc + ' ' + args.join(' '));
+        }
+        const gcc = Spawn(ctx.config.gcc, args);
+        let err = '';
+        let out = '';
+
+        gcc.stdout.on('data', function (dat) { out += dat.toString(); });
+        gcc.stderr.on('data', function (dat) { err += dat.toString(); });
+        gcc.on('close', returnAfter(function (ret) {
+            if (callback(ret, out, err)) { stop = true; }
+        }));
+
+        gcc.on('error', function (err) {
+            if (err.code === 'ENOENT') {
+                console.error('\x1b[1;31mError: ' + ctx.config.gcc + ' is required!\x1b[0m');
+            } else {
+                console.error(
+                    '\x1b[1;31mFail run ' + process.cwd() + ': ' + ctx.config.gcc + ' '
+                    + args.join(' ') + '\x1b[0m'
+                );
+                console.error('Message:' + err);
+            }
+
+            // handle the error safely
+            console.log(args);
+        });
+
+        if (content) {
+            gcc.stdin.write(content, function (err) {
+                if (err) { throw err; }
+                gcc.stdin.end();
+            });
+        }
+    });
+};
+
+const cc = function (
+    ctx /*:Builder_Ctx_t*/,
+    args /*:string[]*/,
+    callback /*:(?Error, ?string)=>bool|void*/,
+    content /*:string*/
+) {
+    compiler(ctx, args, function (ret, out, err) {
+        if (ret) {
+            return callback(error("gcc " + args.map(String).join(' ') + "\n\n" + err));
+        }
+
+        if (err !== '') {
+            //process.stdout.write(err);
+        }
+
+        return callback(undefined, out);
+    }, content);
+};
+
 const getStatePrototype = function () /*:Builder_State_t*/ {
     return {
         rebuildIfChanges: [],
@@ -253,7 +212,7 @@ const getStatePrototype = function () /*:Builder_State_t*/ {
 
 const tmpFile = function (ctx /*:Builder_Ctx_t*/, name) {
     name = name || '';
-    return ctx.config.tempDir + '/jsmake-' + name + Crypto.pseudoRandomBytes(10).toString('hex');
+    return ctx.config.buildDir + '/tmp/' + name + Crypto.pseudoRandomBytes(10).toString('hex');
 };
 
 const finalizeCtx = function (
@@ -264,7 +223,7 @@ const finalizeCtx = function (
     ctx.state = state;
     ctx.builder = (Object.freeze({
         cc: function (args, callback) {
-            compiler(ctx.builder.config.gcc, args, callback, '');
+            compiler(ctx, args, callback, '');
         },
 
         buildExecutable: function (cFile, outputFile) {
@@ -293,8 +252,6 @@ const finalizeCtx = function (
 
         compilerType: () => JSON.parse(JSON.stringify(ctx.state.compilerType)),
 
-        // Concurrency...
-        processors: PROCESSORS
     }) /*:Builder_t*/);
     return ctx;
 };
@@ -500,7 +457,7 @@ const preprocessFile = function (cFile, ctx, callback)
 
     nThen((w) => {
         //debug("CPP");
-        cc(ctx.config.gcc, ['-E', ...cflags, cFile], w(function (err, output) {
+        cc(ctx, ['-E', ...cflags, cFile], w(function (err, output) {
             if (err) { throw err; }
             fileContent = output;
             return false;
@@ -635,25 +592,12 @@ const makeTime = function () {
 
 const link = function (cFile, callback, ctx /*:Builder_Ctx_t*/) {
     const state = ctx.state;
-    let tempDir;
-
     const temp = getTempExe(ctx, cFile);
-
-    nThen(function (waitFor) {
-
-        tempDir = tmpFile(ctx);
-        Fs.mkdir(tempDir, {}, waitFor(function (err) {
-            if (err) { throw err; }
-        }));
-        // TODO delete all other tmp files
-
-    }).nThen(function (waitFor) {
-
+    nThen((waitFor) => {
         const linkOrder = getLinkOrder(cFile, state.cFiles);
         for (let i = 0; i < linkOrder.length; i++) {
             linkOrder[i] = getOFile(ctx, linkOrder[i]);
         }
-
         const fileObj = state.cFiles[cFile];
         const ldArgs = []
             .concat(ctx.config.ldflags)
@@ -662,37 +606,11 @@ const link = function (cFile, callback, ctx /*:Builder_Ctx_t*/) {
             .concat(linkOrder)
             .concat(ctx.config.libs);
         debug('\x1b[1;31mLinking C executable ' + cFile + '\x1b[0m');
-
-        cc(ctx.config.gcc, ldArgs, waitFor(function (err, ret) {
+        cc(ctx, ldArgs, waitFor(function (err, ret) {
             if (err) { throw err; }
             return false;
         }), '');
-
-    }).nThen(function (waitFor) {
-
-        Fs.readdir(tempDir, waitFor(function (err, files) {
-            if (err) { throw err; }
-
-            files.forEach(function (file) {
-                Fs.unlink(tempDir + '/' + file, waitFor(function (err) {
-                    if (err) { throw err; }
-                }));
-            });
-        }));
-
-    }).nThen(function (waitFor) {
-
-        Fs.rmdir(tempDir, waitFor(function (err) {
-            if (err) { throw err; }
-        }));
-
-    }).nThen(function (waitFor) {
-
-        if (callback) {
-            callback();
-        }
-
-    });
+    }).nThen((_) => callback());
 };
 
 const compile = function (ctx, cFile, done) {
@@ -700,7 +618,7 @@ const compile = function (ctx, cFile, done) {
     const file = ctx.state.cFiles[cFile];
     const oFile = getOFile(ctx, cFile);
     const iFile = getIFile(ctx, cFile);
-    cc(ctx.config.gcc, ['-c', '-x', 'cpp-output', '-o', oFile, ...file.cflags, iFile], (err) => {
+    cc(ctx, ['-c', '-x', 'cpp-output', '-o', oFile, ...file.cflags, iFile], (err) => {
         done(err);
         return typeof(err) !== 'undefined';
     }, '');
@@ -753,7 +671,7 @@ const probeCompiler = function (ctx /*:Builder_Ctx_t*/, callback) {
             isGCC: false,
             version: ''
         };
-        compiler(ctx.config.gcc, ['-v'], waitFor(function (ret, out, err) {
+        compiler(ctx, ['-v'], waitFor(function (ret, out, err) {
             // TODO(cjd): afl-clang-fast errors when called with -v
             //if (ret !== 0) { throw new Error("Failed to probe compiler ret[" + ret + "]\n" + err); }
             if (/Apple LLVM version /.test(err)) {
@@ -788,7 +706,7 @@ const probeCompiler = function (ctx /*:Builder_Ctx_t*/, callback) {
                 compilerType.isGCC = true;
                 compilerType.version = err.match(/gcc version ([^ ]+) /)[1];
             }
-            console.log(JSON.stringify(compilerType));
+            //console.log(JSON.stringify(compilerType));
         }), '');
     }).nThen(callback);
 };
@@ -804,6 +722,34 @@ const deepFreeze = (obj) => {
     }
 };
 
+const sweep = (path, done) => {
+    let files = [];
+    nThen((w) => {
+        Fs.readdir(path, w((err, fls) => {
+            if (err) { throw err; }
+            files = fls;
+        }));
+    }).nThen((w) => {
+        files.forEach((f) => {
+            const file = path + '/' + f;
+            Fs.stat(file, w((err, st) => {
+                if (err) { throw err; }
+                if (st.isDirectory()) {
+                    sweep(file, w(() => {
+                        Fs.rmdir(file, w((err) => {
+                            if (err) { throw err; }
+                        }));
+                    }));
+                } else {
+                    Fs.unlink(file, w((err) => {
+                        if (err) { throw err; }
+                    }));
+                }
+            }));
+        });
+    }).nThen((_) => done());
+};
+
 module.exports.configure = function (
     params /*:Builder_BaseConfig_t*/,
     configFunc /*:(Builder_t, Nthen_WaitFor_t)=>void*/
@@ -813,11 +759,27 @@ module.exports.configure = function (
     const time = makeTime();
     time();
 
-    if (typeof(params.systemName) !== 'string') {
-        throw new Error("system not specified");
+    const systemName = params.systemName || process.platform;
+    const buildDir = params.buildDir || 'build_' + systemName;
+
+    let gcc;
+    if (params.gcc) {
+        gcc = params.gcc;
+    } else if (systemName === 'openbsd') {
+        gcc = 'egcc';
+    } else if (systemName === 'freebsd') {
+        gcc = 'clang';
+    } else {
+        gcc = 'gcc';
     }
 
-    const buildDir = params.buildDir = params.buildDir || 'build_' + params.systemName;
+    // Since many of the compile operations are short, the best
+    // performance seems to be when running 1.25x the number of jobs as
+    // cpu cores. On BSD and iphone systems, os.cpus() is not reliable so
+    // if it returns undefined let's just assume 1
+    // workaround, nodejs seems to be broken on openbsd (undefined result after second call)
+    const cpus = Os.cpus();
+    const jobs = Math.floor((typeof cpus === 'undefined' ? 1 : cpus.length) * 1.25);
 
     const pctx /*:Builder_PreCtx_t*/ = {
         buildStage: (_x,_y)=>{},
@@ -832,15 +794,12 @@ module.exports.configure = function (
         executables: [],
         tests: [],
         toCompile: {},
+        sema: Saferphore.create(1),
 
         config: {
-            crossCompiling: params.crossCompiling,
             buildDir,
-            gcc: params.gcc,
-            logLevel: params.logLevel,
-            optimizeLevel: params.optimizeLevel,
-            systemName: params.systemName,
-            tempDir: params.tempDir,
+            gcc,
+            systemName,
 
             version: '',
             includeDirs: ['.'],
@@ -848,6 +807,7 @@ module.exports.configure = function (
             ldflags: [],
             libs: [],
             fileCflags: {},
+            jobs,
         },
     };
     let state = getStatePrototype();
@@ -863,6 +823,18 @@ module.exports.configure = function (
             Fs.mkdir(buildDir, {}, waitFor(function (err) {
                 if (err) { throw err; }
             }));
+        }));
+
+    }).nThen(function (waitFor) {
+
+        Fs.exists(buildDir + '/tmp', waitFor(function (exists) {
+            if (exists) {
+                sweep(buildDir + '/tmp', waitFor());
+            } else {
+                Fs.mkdir(buildDir + '/tmp', {}, waitFor(function (err) {
+                    if (err) { throw err; }
+                }));
+            }
         }));
 
     }).nThen(function (waitFor) {
@@ -905,19 +877,21 @@ module.exports.configure = function (
         //if (!ctx.builder) { throw new Error(); }
         configFunc(ctx.builder, waitFor);
 
-    }).nThen(function (waitFor) {
+    }).nThen(function (_) {
+        ctx.sema = Saferphore.create(ctx.config.jobs);
 
-        if (!ctx.config.version) {
-            GetVersion(waitFor(function(err, data) {
-                if (err === null) {
-                    ctx.config.version = ('' + data).replace(/(\r\n|\n|\r)/gm, "");
-                } else {
-                    ctx.config.version = 'unknown';
-                }
-            }));
+        if (ctx.config.systemName !== systemName) {
+            throw new Error("systemName cannot be changed in configure phase " +
+                "it must be specified in the initial configuration " +
+                `initial systemName = ${systemName}, changed to ${ctx.config.systemName}`);
         }
 
-    }).nThen(function (_) {
+        if (ctx.config.gcc !== gcc) {
+            throw new Error("gcc cannot be changed in configure phase " +
+                "it must be specified in the initial configuration " +
+                `initial gcc = ${gcc}, changed to ${ctx.config.gcc}`);
+        }
+
         deepFreeze(ctx.config);
 
         debug("Configure " + time() + "ms");
@@ -1070,7 +1044,6 @@ const postConfigure = (ctx /*:Builder_Ctx_t*/, time) => {
             deepFreeze(state);
         }));
     }).nThen(function (w) {
-
         Object.keys(ctx.toCompile).forEach((cFile) => {
             compile(ctx, cFile, w((err) => {
                 if (err) {
@@ -1105,7 +1078,7 @@ const postConfigure = (ctx /*:Builder_Ctx_t*/, time) => {
 
         debug("Checking codestyle");
 
-        const sema = Semaphore.create(64);
+        const sema = Saferphore.create(64);
 
         Object.keys(ctx.toCompile).forEach(function (cFile) {
             sema.take(waitFor(function (returnAfter) {
@@ -1177,5 +1150,6 @@ const postConfigure = (ctx /*:Builder_Ctx_t*/, time) => {
 
         ctx.completeStage(ctx.builder, waitFor);
 
+        sweep(ctx.config.buildDir + '/tmp', waitFor());
     });
 };

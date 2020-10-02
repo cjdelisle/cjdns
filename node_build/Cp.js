@@ -1,6 +1,6 @@
 'use strict';
 var Fs = require("fs");
-var Semaphore = require('../tools/lib/Semaphore');
+var Semaphore = require('saferphore');
 var nThen = require('nthen');
 
 var sema = Semaphore.create(64);

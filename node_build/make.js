@@ -19,39 +19,23 @@ var nThen = require('nthen');
 var Codestyle = require('./Codestyle');
 var Cp = require('./Cp');
 var Spawn = require('child_process').spawn;
-var Os = require('os');
 var FindPython = require('./FindPython');
-var CanCompile = require('./CanCompile');
 var Builder = require('./builder');
 var TestRunner = require('./TestRunner');
 const CjdnsTest = require('./CjdnsTest');
+const GetVersion = require('./GetVersion');
 
-// ['linux','darwin','sunos','win32','freebsd','openbsd','netbsd']
-var SYSTEM = process.env['SYSTEM'] || process.platform;
-var GCC = process.env['CC'];
 var CFLAGS = process.env['CFLAGS'];
 var LDFLAGS = process.env['LDFLAGS'];
-
 var NO_MARCH_FLAG = ['arm', 'ppc', 'ppc64'];
 
-if (GCC) {
-    // Already specified.
-} else if (SYSTEM === 'openbsd') {
-    GCC = 'egcc';
-} else if (SYSTEM === 'freebsd') {
-    GCC = 'clang';
-} else {
-    GCC = 'gcc';
-}
-
 Builder.configure({
-    systemName:     SYSTEM,
-    crossCompiling: process.env['CROSS'] !== undefined,
-    gcc:            GCC,
-    tempDir:        process.env['CJDNS_BUILD_TMPDIR'] || '/tmp',
-    optimizeLevel:  '-O3',
-    logLevel:       process.env['Log_LEVEL'] || 'DEBUG'
+    systemName:     process.env['SYSTEM'] || process.platform,
+    gcc:            process.env['CC'],
 }, function (builder, waitFor) {
+
+    builder.config.crossCompiling = process.env['CROSS'] !== undefined;
+    let optimizeLevel = '-O3';
 
     builder.config.cflags.push(
         '-std=c99',
@@ -62,11 +46,10 @@ Builder.configure({
         '-Wmissing-prototypes',
         '-pedantic',
         '-D', builder.config.systemName + '=1',
-        '-D', 'CJD_PACKAGE_VERSION="' + builder.config.version + '"',
         '-Wno-unused-parameter',
         '-fomit-frame-pointer',
 
-        '-D', 'Log_' + builder.config.logLevel,
+        '-D', 'Log_' + (process.env['Log_LEVEL'] || 'DEBUG'),
 
         '-g',
 
@@ -164,18 +147,17 @@ Builder.configure({
         var cflags = CFLAGS.split(' ');
         cflags.forEach(function(flag) {
              if (/^\-O[^02s]$/.test(flag)) {
-                console.log("Skipping " + flag + ", assuming " +
-                            builder.config.optimizeLevel + " instead.");
+                console.log("Skipping " + flag + ", assuming " + optimizeLevel + " instead.");
             } else if (/^\-O[02s]$/.test(flag)) {
-                builder.config.optimizeLevel = flag;
+                optimizeLevel = flag;
             } else {
                 [].push.apply(builder.config.cflags, cflags);
             }
         });
     }
 
-    builder.config.cflags.push(builder.config.optimizeLevel);
-    if (!/^\-O0$/.test(builder.config.optimizeLevel)) {
+    builder.config.cflags.push(optimizeLevel);
+    if (!/^\-O0$/.test(optimizeLevel)) {
         builder.config.cflags.push('-D_FORTIFY_SOURCE=2');
     }
 
@@ -187,25 +169,6 @@ Builder.configure({
 
     if (android) {
         builder.config.cflags.push('-Dandroid=1');
-    }
-
-    if (process.env.NO_LTO) {
-        console.log("Link time optimization disabled");
-    } else {
-        CanCompile.check(builder,
-                        'int main() { return 0; }\n',
-                        [ builder.config.cflags, '-flto', '-x', 'c' ],
-                        waitFor(function (err, can) {
-            if (can) {
-                console.log("Compiler supports link time optimization");
-                builder.config.ldflags.push(
-                    '-flto',
-                    builder.config.optimizeLevel
-                );
-            } else {
-                console.log("Link time optimization not supported [" + err + "]");
-            }
-        }));
     }
 
     var uclibc = process.env['UCLIBC'] == '1';
@@ -257,6 +220,19 @@ Builder.configure({
         CjdnsTest.generate(builder, process.env['SUBNODE'] !== '', waitFor());
     }
 
+    nThen((w) => {
+        if (builder.config.version) { return; }
+        GetVersion(w(function(err, data) {
+            if (!err) {
+                builder.config.version = ('' + data).replace(/(\r\n|\n|\r)/gm, "");
+            } else {
+                builder.config.version = 'unknown';
+            }
+        }));
+    }).nThen((w) => {
+        builder.config.cflags.push('-D', 'CJD_PACKAGE_VERSION="' + builder.config.version + '"');
+    }).nThen(waitFor());
+
     var dependencyDir = builder.config.buildDir + '/dependencies';
     var libuvLib = dependencyDir + '/libuv/out/Release/libuv.a';
     if (['win32', 'netbsd'].indexOf(builder.config.systemName) >= 0) {//this might be needed for other BSDs
@@ -295,9 +271,9 @@ Builder.configure({
                     args.unshift('-fPIC');
                 }
 
-                args.unshift(builder.config.optimizeLevel, '-fomit-frame-pointer');
+                args.unshift(optimizeLevel, '-fomit-frame-pointer');
 
-                if (!/^\-O0$/.test(builder.config.optimizeLevel)) {
+                if (!/^\-O0$/.test(optimizeLevel)) {
                     args.unshift('-D_FORTIFY_SOURCE=2');
                 }
 
@@ -408,16 +384,16 @@ Builder.configure({
             });
             gyp.on('close', waitFor(function () {
                 var args = [
-                    '-j', ''+builder.processors,
+                    '-j', ''+builder.config.jobs,
                     '-C', 'out',
                     'BUILDTYPE=Release',
                     'CC=' + builder.config.gcc,
                     'CXX=' + builder.config.gcc,
                     'V=1'
                 ];
-                var cflags = [builder.config.optimizeLevel, '-DNO_EMFILE_TRICK=1'];
+                var cflags = [optimizeLevel, '-DNO_EMFILE_TRICK=1'];
 
-                if (!/^\-O0$/.test(builder.config.optimizeLevel)) {
+                if (!/^\-O0$/.test(optimizeLevel)) {
                     cflags.push('-D_FORTIFY_SOURCE=2');
                 }
 

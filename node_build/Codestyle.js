@@ -15,7 +15,7 @@
 'use strict';
 var Fs = require('fs');
 var nThen = require('nthen');
-var Semaphore = require('../tools/lib/Semaphore');
+var Semaphore = require('saferphore');
 var Child = require('child_process');
 
 var headerLines = [
