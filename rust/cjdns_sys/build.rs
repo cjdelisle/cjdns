@@ -66,6 +66,6 @@ fn main() -> Result<()> {
             build.object(path);
         }
     }
-    build.compile("cjdns-sys.a");
+    build.compile("cjdns_sys");
     Ok(())
 }

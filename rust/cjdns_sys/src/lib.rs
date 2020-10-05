@@ -1,3 +1,8 @@
+// This is needed to make sure the linker will pull in sodium here
+pub fn init_sodium() {
+    sodiumoxide::init().unwrap();
+}
+
 #[macro_export]
 macro_rules! c_main {
     ($cmain:ident) => {
@@ -8,7 +13,7 @@ macro_rules! c_main {
             fn $cmain(argc: c_int, argv: *const *mut c_char);
         }
         fn main() {
-            sodiumoxide::init().unwrap();
+            cjdns_sys::init_sodium();
             let c_args = std::env::args()
                 .map(|arg| CString::new(arg).unwrap())
                 .map(|arg| arg.into_raw())
