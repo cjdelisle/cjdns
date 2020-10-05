@@ -34,6 +34,7 @@ fn main() -> Result<()> {
 
     let mut cf: Vec<PathBuf> = Vec::new();
     cfiles(&mut cf, "../../")?;
+    cf.sort();
     for f in cf {
         println!("cargo:rerun-if-changed={}", f.to_str().unwrap());
     }
@@ -59,9 +60,9 @@ fn main() -> Result<()> {
     }
 
     let mut build = cc::Build::new();
-    for entry in std::fs::read_dir(out_dir)? {
-        let entry = entry?;
-        let path = entry.path();
+    let mut paths = std::fs::read_dir(out_dir)?.map(|x|x.unwrap().path()).collect::<Vec<PathBuf>>();
+    paths.sort();
+    for path in paths {
         if !path.is_dir() && path.extension().unwrap() == "o" {
             build.object(path);
         }
