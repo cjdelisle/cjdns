@@ -28,6 +28,7 @@ static int usage(char* appName)
 }
 
 // This is invoked from publictoip6.rs
+int publictoip6_main(int argc, char** argv);
 int publictoip6_main(int argc, char** argv)
 {
     if (argc < 2) {

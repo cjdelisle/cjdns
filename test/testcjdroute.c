@@ -267,6 +267,7 @@ static int main2(int argc, char** argv, struct Allocator* alloc, struct Random* 
     return 0;
 }
 
+int testcjdroute_main(int argc, char** argv);
 int testcjdroute_main(int argc, char** argv)
 {
     struct Allocator* alloc = MallocAllocator_new(1<<24);

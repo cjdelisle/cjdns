@@ -20,6 +20,7 @@
 #include <unistd.h>
 
 // This is invoked from mkpasswd.rs
+int mkpasswd_main(int argc, char** argv);
 int mkpasswd_main(int argc, char** argv)
 {
     struct Allocator* alloc = MallocAllocator_new(1<<22);

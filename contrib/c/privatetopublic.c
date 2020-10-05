@@ -44,6 +44,7 @@ static int usage(char* appName)
 }
 
 // This is invoked from privatetopublic.rs
+int privatetopublic_main(int argc, char** argv);
 int privatetopublic_main(int argc, char** argv)
 {
     struct Address address;

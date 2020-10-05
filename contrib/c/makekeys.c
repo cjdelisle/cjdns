@@ -24,6 +24,7 @@
 #include <stdio.h>
 
 // This is invoked from makekeys.rs
+int makekeys_main(int argc, char** argv);
 int makekeys_main(int argc, char** argv)
 {
     struct Allocator* alloc = MallocAllocator_new(1<<22);

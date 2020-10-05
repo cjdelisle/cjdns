@@ -436,6 +436,7 @@ static int usage(char* appName)
 }
 
 // This is invoked from sybilsim.rs
+int sybilsim_main(int argc, char** argv);
 int sybilsim_main(int argc, char** argv)
 {
     Assert_true(argc > 0);
