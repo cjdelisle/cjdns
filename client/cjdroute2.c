@@ -595,7 +595,8 @@ static String* getPipePath(Dict* config, struct Allocator* alloc)
     return out;
 }
 
-int main(int argc, char** argv)
+// This is invoked from cjdroute.rs
+int cjdroute2_main(int argc, char** argv)
 {
     #ifdef Log_KEYS
         fprintf(stderr, "Log_LEVEL = KEYS, EXPECT TO SEE PRIVATE KEYS IN YOUR LOGS!\n");

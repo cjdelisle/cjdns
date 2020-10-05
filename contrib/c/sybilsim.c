@@ -39,7 +39,7 @@
 #include "util/events/FakeNetwork.h"
 #include "util/Hash.h"
 
-#include "crypto_scalarmult_curve25519.h"
+#include <sodium/crypto_scalarmult_curve25519.h>
 
 #include <unistd.h> // isatty()
 
@@ -435,7 +435,8 @@ static int usage(char* appName)
     return 0;
 }
 
-int main(int argc, char** argv)
+// This is invoked from sybilsim.rs
+int sybilsim_main(int argc, char** argv)
 {
     Assert_true(argc > 0);
     if (isatty(STDIN_FILENO)) {

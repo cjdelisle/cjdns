@@ -39,8 +39,6 @@ export type Builder_Compiler_t = {|
     version: string
 |};
 export type Builder_State_t = {|
-    rebuildIfChanges: string[],
-    rebuildIfChangesHash: string,
     compilerType: Builder_Compiler_t,
     cFiles: { [string]: Builder_File_t },
     hFiles: { [string]: Builder_Hfile_t },
@@ -49,6 +47,7 @@ export type Builder_Linter_t = (string, string, (string, bool)=>void)=>void;
 export type Builder_TestRunnerCb_t = (string, bool)=>void;
 export type Builder_t = {|
     cc: (string[], (number, string, string)=>void)=>void,
+    buildLibrary: (string)=>void,
     buildExecutable: (string, ?string)=>void,
     buildTest: (string)=>string,
     runTest: (string, (string, Builder_TestRunnerCb_t)=>void)=>void,
@@ -76,7 +75,11 @@ export type Builder_Config_t = {
 import type { Nthen_WaitFor_t } from 'nthen';
 import type { Saferphore_t } from 'saferphore';
 export type Builder_Stage_t = (Builder_t, Nthen_WaitFor_t)=>void;
-export type Builder_CompileJob_t = { cFile: string, outputFile: ?string };
+export type Builder_CompileJob_t = {
+    cFile: string,
+    outputFile: ?string,
+    type: 'exe'|'lib'
+};
 export type Builder_PreCtx_t = {
     buildStage: Builder_Stage_t,
     testStage: Builder_Stage_t,
@@ -195,9 +198,6 @@ const cc = function (
 
 const getStatePrototype = function () /*:Builder_State_t*/ {
     return {
-        rebuildIfChanges: [],
-        rebuildIfChangesHash: '',
-
         compilerType: {
             isLLVM: false,
             isClang: false,
@@ -226,13 +226,17 @@ const finalizeCtx = function (
             compiler(ctx, args, callback, '');
         },
 
+        buildLibrary: function (cFile) {
+            ctx.executables.push({ cFile, outputFile: null, type: 'lib' });
+        },
+
         buildExecutable: function (cFile, outputFile) {
-            ctx.executables.push({ cFile, outputFile });
+            ctx.executables.push({ cFile, outputFile, type: 'exe' });
         },
 
         buildTest: function (cFile) {
             const outputFile = getTempExe(ctx, cFile);
-            ctx.executables.push({ cFile, outputFile });
+            ctx.executables.push({ cFile, outputFile, type: 'exe' });
             return outputFile;
         },
 
@@ -839,6 +843,11 @@ module.exports.configure = function (
 
     }).nThen(function (waitFor) {
 
+        if (process.env['CJDNS_FULL_REBUILD']) {
+            debug("CJDNS_FULL_REBUILD set, non-incremental build");
+            return;
+        }
+
         // read out the state if it exists
         Fs.exists(buildDir + '/state.json', waitFor(function (exists) {
             if (!exists) { return; }
@@ -848,15 +857,6 @@ module.exports.configure = function (
                 hasState = true;
                 debug("Loaded state file");
             }));
-        }));
-
-    }).nThen(function (waitFor) {
-
-        getRebuildIfChangesHash(state.rebuildIfChanges, waitFor(function (rich) {
-            if (rich !== state.rebuildIfChangesHash) {
-                debug("rebuildIfChanges changed, rebuilding everything");
-                state.cFiles = {};
-            }
         }));
 
     }).nThen(function (waitFor) {
@@ -1006,17 +1006,6 @@ const postConfigure = (ctx /*:Builder_Ctx_t*/, time) => {
     const state = ctx.state;
     nThen((waitFor) => {
 
-        if (state.rebuildIfChanges.indexOf(module.parent.filename) === -1) {
-            // Always always rebuild if the makefile was changed.
-            state.rebuildIfChanges.push(module.parent.filename);
-        }
-
-        getRebuildIfChangesHash(state.rebuildIfChanges, waitFor(function (rich) {
-            state.rebuildIfChangesHash = rich;
-        }));
-
-    }).nThen(function (waitFor) {
-
         removeStaleFiles(ctx, waitFor());
 
     }).nThen(function (waitFor) {
@@ -1055,7 +1044,9 @@ const postConfigure = (ctx /*:Builder_Ctx_t*/, time) => {
     }).nThen(function (waitFor) {
         debug("Compile " + time() + "ms");
         for (const exe of ctx.executables) {
-            link(exe.cFile, waitFor(), ctx);
+            if (exe.type === 'exe') {
+                link(exe.cFile, waitFor(), ctx);
+            }
         }
     }).nThen((w) => {
         debug("Link " + time() + "ms");

@@ -21,7 +21,6 @@ var Cp = require('./Cp');
 var Spawn = require('child_process').spawn;
 var FindPython = require('./FindPython');
 var Builder = require('./builder');
-var TestRunner = require('./TestRunner');
 const CjdnsTest = require('./CjdnsTest');
 const GetVersion = require('./GetVersion');
 
@@ -30,6 +29,7 @@ var LDFLAGS = process.env['LDFLAGS'];
 var NO_MARCH_FLAG = ['arm', 'ppc', 'ppc64'];
 
 Builder.configure({
+    buildDir:       process.env['OUT_DIR'], // set by cargo
     systemName:     process.env['SYSTEM'] || process.platform,
     gcc:            process.env['CC'],
 }, function (builder, waitFor) {
@@ -48,6 +48,8 @@ Builder.configure({
         '-D', builder.config.systemName + '=1',
         '-Wno-unused-parameter',
         '-fomit-frame-pointer',
+        '-ffunction-sections',
+        '-fdata-sections',
 
         '-D', 'Log_' + (process.env['Log_LEVEL'] || 'DEBUG'),
 
@@ -251,48 +253,17 @@ Builder.configure({
 
     }).nThen(function (waitFor) {
 
-        builder.config.libs.push(dependencyDir + '/cnacl/jsbuild/libnacl.a');
-        builder.config.includeDirs.push(dependencyDir + '/cnacl/jsbuild/include/');
-
-        // needed for Sign.c which pulls in crypto_int32.h
-        builder.config.includeDirs.push(dependencyDir + '/cnacl/jsbuild/include_internal/');
-
-        Fs.exists(dependencyDir + '/cnacl/jsbuild/libnacl.a', waitFor(function (exists) {
-            if (exists) { return; }
-
-            console.log("Build NaCl");
-            var cwd = process.cwd();
-            process.chdir(dependencyDir + '/cnacl/');
-
-            // $FlowFixMe non-static require
-            var NaCl = require(process.cwd() + '/node_build/make.js');
-            NaCl.build(function (args, callback) {
-                if (builder.config.systemName !== 'win32') {
-                    args.unshift('-fPIC');
-                }
-
-                args.unshift(optimizeLevel, '-fomit-frame-pointer');
-
-                if (!/^\-O0$/.test(optimizeLevel)) {
-                    args.unshift('-D_FORTIFY_SOURCE=2');
-                }
-
-                if (CFLAGS) {
-                    [].push.apply(args, CFLAGS.split(' '));
-                }
-
-                if (!builder.config.crossCompiling) {
-                    if (NO_MARCH_FLAG.indexOf(process.arch) == -1) {
-                        args.unshift('-march=native');
-                    }
-                }
-
-                builder.cc(args, callback);
-            },
-            builder.config,
-            waitFor(function () {
-                process.chdir(cwd);
-            }));
+        const profile = process.env.PROFILE || 'debug';
+        Fs.readdir(`./target/${profile}/build/`, waitFor((err, ret) => {
+            if (err) { throw err; }
+            for (const f of ret) {
+                if (!/^libsodium-sys-/.test(f)) { continue; }
+                builder.config.includeDirs.push(
+                    `./target/debug/${profile}/${f}/out/installed/include/`
+                );
+                return;
+            }
+            throw new Error("Unable to find a path to libsodium headers");
         }));
 
     }).nThen(function (waitFor) {
@@ -429,15 +400,15 @@ Builder.configure({
 
 }).build(function (builder, waitFor) {
 
-    builder.buildExecutable('client/cjdroute2.c', 'cjdroute');
+    builder.buildLibrary('client/cjdroute2.c');
 
-    builder.buildExecutable('contrib/c/publictoip6.c');
-    builder.buildExecutable('contrib/c/privatetopublic.c');
-    builder.buildExecutable('contrib/c/sybilsim.c');
-    builder.buildExecutable('contrib/c/makekeys.c');
-    builder.buildExecutable('contrib/c/mkpasswd.c');
+    builder.buildLibrary('contrib/c/publictoip6.c');
+    builder.buildLibrary('contrib/c/privatetopublic.c');
+    builder.buildLibrary('contrib/c/sybilsim.c');
+    builder.buildLibrary('contrib/c/makekeys.c');
+    builder.buildLibrary('contrib/c/mkpasswd.c');
 
-    builder.buildExecutable('crypto/random/randombytes.c');
+    builder.buildLibrary('crypto/random/randombytes.c');
 
     builder.lintFiles(function (fileName, file, callback) {
         if (/dependencies/.test(fileName) || /crypto\/sign/.test(fileName)) {
@@ -448,23 +419,7 @@ Builder.configure({
         Codestyle.lint(fileName, file, callback);
     });
 
-    var testcjdroute = builder.buildTest('test/testcjdroute.c');
-    if (builder.config.crossCompiling) {
-        console.log("Cross compiling. Building, but not running tests.");
-        return;
-    }
-
-    var testRunner = TestRunner.local(['all']);
-    if (process.env['REMOTE_TEST']) {
-        testRunner = TestRunner.remote(process.env['REMOTE_TEST'], ['all']);
-    }
-    if (!process.env['NO_TEST']) {
-        builder.runTest(testcjdroute, testRunner);
-    }
-
-}).success(function (builder, waitFor) {
-
-    console.log('\x1b[1;32mBuild completed successfully, type ./cjdroute to begin setup.\x1b[0m');
+    builder.buildLibrary('test/testcjdroute.c');
 
 }).failure(function (builder, waitFor) {
 

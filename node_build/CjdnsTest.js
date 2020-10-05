@@ -30,7 +30,7 @@ const Fs_stat = function (file, callback) {
 };
 
 const getTests = function (file, tests, isSubnode, callback) {
-    if (/\/(.git|build_.*|node_build|contrib)\//.test(file)) { callback(); return; }
+    if (/\/(.git|build_.*|node_build|contrib|target)\//.test(file)) { callback(); return; }
     if (isSubnode && /\/dht\//.test(file)) { callback(); return; }
     Fs_stat(file, function (err, stat) {
         if (err) { throw err; }

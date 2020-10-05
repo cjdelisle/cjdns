@@ -24,7 +24,7 @@
 #include "util/Identity.h"
 #include "wire/Message.h"
 
-#include <crypto_hash_sha256.h>
+#include <sodium/crypto_hash_sha256.h>
 
 #include <stdio.h>
 #include <stdlib.h>

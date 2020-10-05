@@ -1,8 +1,9 @@
 #include "crypto_sign.h"
-#include "crypto_hash_sha512.h"
-#include "crypto_verify_32.h"
 #include "ge.h"
 #include "sc.h"
+
+#include <sodium/crypto_hash_sha512.h>
+#include <sodium/crypto_verify_32.h>
 
 int crypto_sign_open(
   unsigned char *m,unsigned long long *mlen,

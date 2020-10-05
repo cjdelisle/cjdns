@@ -12,10 +12,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#include "crypto_hash_sha512.h"
 #include "util/Bits.h"
 #include "util/Endian.h"
 #include "crypto/AddressCalc.h"
+
+#include <sodium/crypto_hash_sha512.h>
 
 #include <stdint.h>
 #include <stdbool.h>

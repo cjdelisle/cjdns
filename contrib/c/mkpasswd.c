@@ -19,7 +19,8 @@
 #include <stdio.h>
 #include <unistd.h>
 
-int main()
+// This is invoked from mkpasswd.rs
+int mkpasswd_main(int argc, char** argv)
 {
     struct Allocator* alloc = MallocAllocator_new(1<<22);
     struct Random* rand = Random_new(alloc, NULL, NULL);

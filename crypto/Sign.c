@@ -15,8 +15,6 @@
 
 #include "crypto/Sign.h"
 
-#include "crypto_hash_sha512.h"
-
 #include "crypto/sign/crypto_sign_ed25519.h"
 #include "crypto/sign/ge.h"
 #include "crypto/sign/sc.h"
@@ -57,6 +55,8 @@ Linker_require("crypto/sign/ge_tobytes.c")
 Linker_require("crypto/sign/sc_muladd.c")
 Linker_require("crypto/sign/sc_reduce.c")
 Linker_require("crypto/sign/open.c")
+
+#include <sodium/crypto_hash_sha512.h>
 
 // This is fairly streight forward, we're taking a curve25519 private key and
 // interpreting it as an ed25519 key. This works in conjunction with the public

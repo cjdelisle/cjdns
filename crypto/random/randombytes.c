@@ -18,7 +18,7 @@
 
 #include <unistd.h>
 
-int main()
+int randombytes_main()
 {
     struct Allocator* alloc = MallocAllocator_new(1<<20);
     struct Random* rand = Random_new(alloc, NULL, NULL);

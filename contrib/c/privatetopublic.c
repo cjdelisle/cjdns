@@ -17,7 +17,7 @@
 #include "util/Base32.h"
 #include "util/Hex.h"
 
-#include "crypto_scalarmult_curve25519.h"
+#include <sodium/crypto_scalarmult_curve25519.h>
 
 #include <unistd.h>
 #include <stdio.h>
@@ -43,7 +43,8 @@ static int usage(char* appName)
     return 0;
 }
 
-int main(int argc, char** argv)
+// This is invoked from privatetopublic.rs
+int privatetopublic_main(int argc, char** argv)
 {
     struct Address address;
     uint8_t addressOut[40];

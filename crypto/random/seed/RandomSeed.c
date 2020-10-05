@@ -17,7 +17,7 @@
 #include "util/log/Log.h"
 #include "util/Bits.h"
 
-#include <crypto_hash_sha512.h>
+#include <sodium/crypto_hash_sha512.h>
 
 struct RandomSeed_pvt
 {

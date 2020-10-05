@@ -23,7 +23,8 @@
 #include <signal.h>
 #include <stdio.h>
 
-int main(int argc, char** argv)
+// This is invoked from makekeys.rs
+int makekeys_main(int argc, char** argv)
 {
     struct Allocator* alloc = MallocAllocator_new(1<<22);
     struct Random* rand = Random_new(alloc, NULL, NULL);
