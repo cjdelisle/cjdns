@@ -1,9 +1,9 @@
 #!/bin/sh
-##MAINJS=./node_build/make.js ./node_build/node.sh "$@"
-set -e
 CARGO=$(command -v cargo)
+set -e
 if test "x$CARGO" = "x"; then
-    printf "Rust is required in order to build cjdns, see https://rustup.rs/ for more info\n"
+    printf "Rust & Cargo are required in order to build cjdns\n"
+    printf "See https://rustup.rs/ for install instructions\n"
     exit 1
 fi
 $CARGO build -vv --release
