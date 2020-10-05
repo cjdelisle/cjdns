@@ -454,4 +454,5 @@ int sybilsim_main(int argc, char** argv)
     }
 
     letErRip(&config, alloc);
+    return 0;
 }
