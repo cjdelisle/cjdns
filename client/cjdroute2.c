@@ -596,6 +596,7 @@ static String* getPipePath(Dict* config, struct Allocator* alloc)
 }
 
 // This is invoked from cjdroute.rs
+int cjdroute2_main(int argc, char** argv);
 int cjdroute2_main(int argc, char** argv)
 {
     #ifdef Log_KEYS
