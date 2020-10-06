@@ -8,4 +8,4 @@ edition = "2018"
 
 [dependencies]
 cjdns_sys = { path = "../cjdns_sys" }
-sodiumoxide = "0.2"
+sodiumoxide = { version = "0.2", default-features = false, features = ["std"] }

@@ -93,12 +93,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde"
-version = "1.0.116"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "96fe57af81d28386a513cbc6858332abc6117cfdb5999647c6444b8f43a370a5"
-
-[[package]]
 name = "sodiumoxide"
 version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -106,7 +100,6 @@ checksum = "7038b67c941e23501573cb7242ffb08709abe9b11eb74bceff875bbda024a6a8"
 dependencies = [
  "libc",
  "libsodium-sys",
- "serde",
 ]
 
 [[package]]
