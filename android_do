@@ -21,8 +21,9 @@ need pwd
 need mkdir
 need rm
 need time
+need rustc
+need cargo
 
-#change this to valid ndk path, otherwise it will be downloaded
 BUILD_PATH=$(pwd)/build_android
 NDK_VERSION="android-ndk-r21"
 
@@ -41,9 +42,9 @@ esac
 if test "x$CJDNS_NDK_PATH" != "x"; then
   false # we already have an ndk path...
 elif test "x$TYPE" = xdarwin; then
-  CJDNS_NDK_PATH_HINT=`echo $HOME/Library/Android/sdk/ndk/* | tail -1`
+  CJDNS_NDK_PATH_HINT=$(echo "$HOME"/Library/Android/sdk/ndk/* | tail -1)
 elif test "x$TYPE" = xlinux; then
-  CJDNS_NDK_PATH_HINT=`echo $HOME/Android/Sdk/ndk/* | tail -1`
+  CJDNS_NDK_PATH_HINT=$(echo "$HOME"/Android/Sdk/ndk/* | tail -1)
 fi
 
 if test "x$CJDNS_NDK_PATH" = "x"; then
@@ -66,12 +67,8 @@ cpu_arch="$(uname -m)"
 [ -z "$cpu_arch" ] && die "NO CPU ARCHITECTURE DETECTED"
 [ "$cpu_arch" = "i686" ] && cpu_arch="x86"
 
-android_log=android_build_$$.log
-enabled_log=${LOG}
-
-mkdir $BUILD_PATH 2>/dev/null
-
 if test "x$CJDNS_NDK_PATH" = "x"; then
+  mkdir "$BUILD_PATH" 2>/dev/null
   cd "$BUILD_PATH"
   filename="$NDK_VERSION-${TYPE}-${cpu_arch}.zip"
   echo "$filename"
@@ -86,9 +83,6 @@ if test "x$CJDNS_NDK_PATH" = "x"; then
   [ -d "$CJDNS_NDK_PATH" ] || die "NDK zip file does not contain expected content"
   cd ..
 fi
-
-Seccomp_NO=1
-mkdir $(pwd)/build_android/out 2>/dev/null
 
 BUILD_0='
   APP_ABI=armv7a
@@ -109,62 +103,49 @@ BUILD_3='
   VERSION=21
 '
 
-for i in `seq 0 100`; do
-  BUILD=`eval echo "\\\$BUILD_$i"`
+for i in $(seq 1 100); do
+  BUILD=$(eval echo "\$BUILD_$i")
   if test "x$BUILD" = "x"; then
     continue
   fi
-  export APP_ABI=
-  export TOOLCHAIN_PREFIX=
-  export EABI=
-  export VERSION=
-  export EABI=android
+  TOOLCHAIN_PREFIX=
+  APP_ABI=
+  VERSION=
+  EABI=android
   export $BUILD
   if test "x$TOOLCHAIN_PREFIX" = "x"; then
-    export TOOLCHAIN_PREFIX=$APP_ABI
+    TOOLCHAIN_PREFIX=$APP_ABI
   fi
 
-  mkdir -p $(pwd)/build_android/out/${APP_ABI}/${VERSION}/
-  rm -rf build_linux
-
-  export SYSTEM=linux
-
-  CROSS_PATH=$CJDNS_NDK_PATH/toolchains/llvm/prebuilt/${TYPE}-${cpu_arch}/bin
-  export CC=${CROSS_PATH}/${APP_ABI}-linux-${EABI}${VERSION}-clang
-  export CROSS=${CROSS_PATH}/${TOOLCHAIN_PREFIX}-linux-${EABI}
-  export AR=${CROSS}-ar
-  export LINK=${CROSS}-ld
-  export RANLIB=${CROSS}-ranlib
-  export CFLAGS=${CROSS_CFLAGS}
-  export LDFLAGS=${CROSS_LDFLAGS}
-
-  gcc_version=$(${CC} --version)
-  echo Using $gcc_version
-  echo Compiler CC: $CC
-  echo Compiler LINK: $LINK
-  echo Compiler CFLAGS: $CFLAGS
-  echo Compiler LDFLAGS: $LDFLAGS
-  time ./do
-  cp cjdroute $(pwd)/build_android/out/${APP_ABI}/${VERSION}/ || ret=$?
-
-  if [ "$ret" != "" ] && [ "$ret" != "0" ]; then
-    printf "\e[1;31mCopying ${APP_ABI} binary failed, non zero status returned - $ret\e[0m\n"
-    exit 1
-  else
-    printf "\e[1;32mCopied ${APP_ABI} successfully\e[0m\n\n"
-  fi
-
-  rm cjdroute 2>/dev/null
-done
-
-printf "\n\e[1;34mOutput:\e[0m\n"
-for i in `seq 0 100`; do
-  BUILD=`eval echo "\\\$BUILD_$i"`
-  if test "x$BUILD" = "x"; then
+  RUST_TARGET="$APP_ABI-linux-$EABI"
+  if ! [ -d "$(rustc --target "$RUST_TARGET" --print target-libdir)" ]; then
+    echo
+    echo 'Skipping i686-linux-android because we dont have that toolchain'
+    echo "Use: \`rustup target add $RUST_TARGET\` to install it"
+    echo
+    echo
     continue
   fi
-  export $BUILD
-  printf "\e[1;34m        $(pwd)/build_android/out/${APP_ABI}/${VERSION}/cjdroute\e[0m\n"
-done
 
-exit $ret
+  CROSS_PATH=$CJDNS_NDK_PATH/toolchains/llvm/prebuilt/${TYPE}-${cpu_arch}/bin
+  CROSS_PREFIX=${CROSS_PATH}/${TOOLCHAIN_PREFIX}-linux-${EABI}
+
+  export CC=${CROSS_PATH}/${APP_ABI}-linux-${EABI}${VERSION}-clang
+
+  # Used by cjdns nodejs build
+  export SYSTEM=linux
+  export CROSS=1
+
+  # Used by cjdns libuv build AND sodiumoxide
+  export AR=${CROSS_PREFIX}-ar
+  export RANLIB=${CROSS_PREFIX}-ranlib
+
+  # Whatever target we happen to be using, use CC as the linker
+  export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER=$CC
+  export CARGO_TARGET_I686_LINUX_ANDROID_LINKER=$CC
+  export CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER=$CC
+  export CARGO_TARGET_ARMV7A_LINUX_ANDROIDEABI_LINKER=$CC
+
+  echo "Compiler CC: $CC - $(${CC} --version)"
+  cargo build --release -vv --target "$RUST_TARGET"
+done

@@ -9,8 +9,5 @@ build = "build.rs"
 sodiumoxide = "0.2"
 
 [build_dependencies]
-## This is also a build dependency in order to be sure it is present when the build script runs
-## because we need to have the headers in order to compile the C code
-sodiumoxide = "0.2"
 cc = "1.0"
 anyhow = "1.0"

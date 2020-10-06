@@ -253,13 +253,13 @@ Builder.configure({
 
     }).nThen(function (waitFor) {
 
-        const profile = process.env.PROFILE || 'debug';
-        Fs.readdir(`./target/${profile}/build/`, waitFor((err, ret) => {
+        const dir = `${builder.config.buildDir}/../..`;
+        Fs.readdir(dir, waitFor((err, ret) => {
             if (err) { throw err; }
             for (const f of ret) {
                 if (!/^libsodium-sys-/.test(f)) { continue; }
                 builder.config.includeDirs.push(
-                    `./target/debug/${profile}/${f}/out/installed/include/`
+                    `${dir}/${f}/out/source/libsodium/src/libsodium/include`
                 );
                 return;
             }
@@ -392,6 +392,14 @@ Builder.configure({
                 make.on('close', waitFor(function () {
                     process.chdir(cwd);
                 }));
+            }));
+
+        }).nThen((w) => {
+
+            Fs.exists(libuvLib, waitFor((exists) => {
+                if (!exists) {
+                    throw new Error("Libuv build failed");
+                }
             }));
 
         }).nThen(waitFor());
