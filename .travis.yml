@@ -1,10 +1,13 @@
-language: c
+language: rust
 branches:
   only:
     - crashey
     - master
     - allocator-fixes
 
+rust:
+  - stable
+  
 compiler:
   - gcc
   - clang
