@@ -6,7 +6,7 @@ edition = "2018"
 build = "build.rs"
 
 [dependencies]
-sodiumoxide = "0.2"
+sodiumoxide = { version = "0.2", default-features = false, features = ["std"] }
 
 [build_dependencies]
 cc = "1.0"
