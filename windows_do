@@ -1,0 +1,34 @@
+#!/bin/sh
+
+# OSX
+# brew install mingw-w64
+
+build() {
+    ARCH=$1
+    # libuv
+    export CC="$ARCH-w64-mingw32-gcc"
+
+    if ! command -v "$CC" > /dev/null; then
+        echo "Skipping build for $ARCH because $CC is not installed"
+        return
+    fi
+    if ! [ -d "$(rustc --target "$ARCH-pc-windows-gnu" --print target-libdir)" ]; then
+        echo "Skipping build for $ARCH because rust target $ARCH-pc-windows-gnu is not installed"
+        echo "You can install it with rustup using: \`rustup target add $ARCH-pc-windows-gnu\`"
+        return
+    fi
+
+    # Used by cjdns libuv build
+    export AR="$ARCH-w64-mingw32-ar"
+    export RANLIB="$ARCH-w64-mingw32-gcc-ranlib"
+    export TARGET="$ARCH-w64-mingw32"
+
+    # Used by cjdns nodejs build
+    export CROSS=1
+    export SYSTEM=win32
+
+    cargo build --release -vv --target="$ARCH-pc-windows-gnu"
+}
+
+# build i686 - impossible because rust: https://github.com/rust-lang/rust/issues/12859
+build x86_64

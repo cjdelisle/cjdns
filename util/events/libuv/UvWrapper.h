@@ -22,8 +22,14 @@
 #endif
 #ifdef win32
     #define _WIN32_WINNT 0x0600 // CHECKFILES_IGNORE
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wpedantic"
 #endif
 
 #include <uv.h>
+
+#ifdef win32
+    #pragma GCC diagnostic pop
+#endif
 
 #endif

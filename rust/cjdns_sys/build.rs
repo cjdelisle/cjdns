@@ -49,7 +49,8 @@ fn main() -> Result<()> {
         if Path::new(&p).exists() {
             println!(
                 "cargo:rustc-link-search={}/dependencies/libuv/out/Release{}",
-                out_dir, x);
+                out_dir, x
+            );
             println!("cargo:rustc-link-lib=static=uv");
             ok = true;
             break;
@@ -59,8 +60,17 @@ fn main() -> Result<()> {
         panic!("Unable to find libuv");
     }
 
+    let target = env::var("TARGET").unwrap();
+    if target.contains("-windows-gnu") {
+        println!("cargo:rustc-link-lib=iphlpapi"); // ConvertInterfaceAliasToLuid (cjdns)
+        println!("cargo:rustc-link-lib=psapi"); // GetProcessMemoryInfo (libuv)
+        println!("cargo:rustc-link-lib=ssp"); // memcpy_chk (libuv)
+    }
+
     let mut build = cc::Build::new();
-    let mut paths = std::fs::read_dir(out_dir)?.map(|x|x.unwrap().path()).collect::<Vec<PathBuf>>();
+    let mut paths = std::fs::read_dir(out_dir)?
+        .map(|x| x.unwrap().path())
+        .collect::<Vec<PathBuf>>();
     paths.sort();
     for path in paths {
         if !path.is_dir() && path.extension().unwrap() == "o" {
