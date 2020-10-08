@@ -242,6 +242,7 @@ Builder.configure({
     }
 
     // Build dependencies
+    let foundSodium = false;
     nThen(function (waitFor) {
 
         Fs.exists(dependencyDir, waitFor(function (exists) {
@@ -256,17 +257,24 @@ Builder.configure({
         const dir = `${builder.config.buildDir}/../..`;
         Fs.readdir(dir, waitFor((err, ret) => {
             if (err) { throw err; }
-            for (const f of ret) {
-                if (!/^libsodium-sys-/.test(f)) { continue; }
-                builder.config.includeDirs.push(
-                    `${dir}/${f}/out/source/libsodium/src/libsodium/include`
-                );
-                return;
-            }
-            throw new Error("Unable to find a path to libsodium headers");
+            ret.forEach((f) => {
+                if (!/^libsodium-sys-/.test(f)) { return; }
+                const inclPath = `${dir}/${f}/out/source/libsodium/src/libsodium/include`;
+                Fs.readdir(inclPath, waitFor((err, ret) => {
+                    if (foundSodium) { return; }
+                    if (err && err.code === 'ENOENT') { return; }
+                    if (err) { throw err; }
+                    builder.config.includeDirs.push(inclPath);
+                    foundSodium = true;
+                }));
+            });
         }));
 
     }).nThen(function (waitFor) {
+
+        if (!foundSodium) {
+            throw new Error("Unable to find a path to libsodium headers");
+        }
 
         builder.config.libs.push(libuvLib);
         if (!android) {

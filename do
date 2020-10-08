@@ -6,7 +6,7 @@ if test "x$CARGO" = "x"; then
     printf "See https://rustup.rs/ for install instructions\n"
     exit 1
 fi
-$CARGO build -vv --release
+$CARGO build --release
 ./target/release/testcjdroute all >/dev/null
 mv ./target/release/cjdroute ./
 mv ./target/release/makekeys ./
