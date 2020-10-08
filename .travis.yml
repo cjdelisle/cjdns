@@ -4,6 +4,7 @@ branches:
     - crashey
     - master
     - allocator-fixes
+    - rust-build
 
 rust:
   - stable
