@@ -90,7 +90,7 @@ static Iface_DEFUN fromAsync(struct Message* msg, struct Iface* fnpFromAsync)
         char* srcAddr = Sockaddr_print(dp, msg->alloc);
 
         Log_debug(fnp->log, "Message with unknown dest address [%s] from [%s]", destAddr, srcAddr);
-        return NULL;
+        return Error(INVALID);
     }
 
     struct FakeNetwork_UDPIface_pvt* fnip = Identity_check(fnp->map.values[idx]);

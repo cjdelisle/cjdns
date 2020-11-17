@@ -361,7 +361,7 @@ static Iface_DEFUN requestForAddresses(Dict* request,
 
     if (conn->isOutgoing) {
         Log_warn(context->logger, "got request for addresses from outgoing connection");
-        return 0;
+        return Error(INVALID);
     }
     Dict* addresses = Dict_new(requestAlloc);
     bool noAddresses = true;
@@ -395,7 +395,8 @@ static Iface_DEFUN requestForAddresses(Dict* request,
     }
     if (noAddresses) {
         Log_warn(context->logger, "no addresses to provide");
-        return 0;
+        // The message is ok, this one is our fault
+        return Error(NONE);
     }
 
     Dict* msg = Dict_new(requestAlloc);
@@ -407,7 +408,7 @@ static Iface_DEFUN requestForAddresses(Dict* request,
     }
 
     sendControlMessage(msg, conn, requestAlloc, context);
-    return 0;
+    return Error(NONE);
 }
 
 static void addAddress(char* printedAddr, uint8_t prefixLen,
@@ -455,20 +456,20 @@ static Iface_DEFUN incomingAddresses(Dict* d,
 {
     if (!conn->isOutgoing) {
         Log_warn(context->logger, "got offer of addresses from incoming connection");
-        return 0;
+        return Error(INVALID);
     }
 
     String* txid = Dict_getStringC(d, "txid");
     if (!txid || txid->len != 4) {
         Log_info(context->logger, "missing or wrong length txid");
-        return 0;
+        return Error(INVALID);
     }
 
     int number;
     Bits_memcpy(&number, txid->bytes, 4);
     if (number < 0 || number >= (int)context->nextConnectionNumber) {
         Log_info(context->logger, "txid out of range");
-        return 0;
+        return Error(INVALID);
     }
 
     if (number != conn->number) {
@@ -479,7 +480,7 @@ static Iface_DEFUN incomingAddresses(Dict* d,
                                 32))
                 {
                     Log_info(context->logger, "txid doesn't match origin");
-                    return 0;
+                    return Error(INVALID);
                 } else {
                     conn = &context->pub.connectionList.connections[i];
                 }
@@ -556,16 +557,16 @@ static Iface_DEFUN incomingAddresses(Dict* d,
         String* tunName = GlobalConfig_getTunName(context->globalConf);
         if (!tunName) {
             Log_error(context->logger, "Failed to set routes because TUN interface is not setup");
-            return 0;
+            return Error(INVALID);
         }
         struct Er_Ret* er = NULL;
         Er_check(&er, RouteGen_commit(context->rg, tunName->bytes, alloc));
         if (er) {
             Log_error(context->logger, "Error setting routes for TUN [%s]", er->message);
-            return 0;
+            return Error(INVALID);
         }
     }
-    return 0;
+    return Error(NONE);
 }
 
 static Iface_DEFUN incomingControlMessage(struct Message* message,
@@ -580,7 +581,7 @@ static Iface_DEFUN incomingControlMessage(struct Message* message,
 
     // This aligns the message on the content.
     if (isControlMessageInvalid(message, context)) {
-        return 0;
+        return Error(INVALID);
     }
 
     Log_debug(context->logger, "Message content [%s]",
@@ -592,7 +593,7 @@ static Iface_DEFUN incomingControlMessage(struct Message* message,
     const char* err = BencMessageReader_readNoExcept(message, alloc, &d);
     if (err) {
         Log_info(context->logger, "Failed to parse message [%s]", err);
-        return 0;
+        return Error(INVALID);
     }
 
     if (Dict_getDictC(d, "addresses")) {
@@ -604,7 +605,7 @@ static Iface_DEFUN incomingControlMessage(struct Message* message,
         return requestForAddresses(d, conn, alloc, context);
     }
     Log_warn(context->logger, "Message which is unhandled");
-    return 0;
+    return Error(INVALID);
 }
 
 #define GET64(buffer) \
@@ -698,6 +699,7 @@ static Iface_DEFUN incomingFromTun(struct Message* message, struct Iface* tunIf)
 
     if (message->length < 20) {
         Log_debug(context->logger, "DROP runt");
+        return Error(RUNT);
     }
 
     struct IpTunnel_Connection* conn = NULL;
@@ -711,12 +713,12 @@ static Iface_DEFUN incomingFromTun(struct Message* message, struct Iface* tunIf)
         conn = findConnection(NULL, header->sourceAddr, true, context);
     } else {
         Log_debug(context->logger, "Message of unknown type from TUN");
-        return 0;
+        return Error(INVALID);
     }
 
     if (!conn) {
         Log_debug(context->logger, "Message with unrecognized address from TUN");
-        return 0;
+        return Error(INVALID);
     }
 
     return sendToNode(message, conn, context);
@@ -732,13 +734,13 @@ static Iface_DEFUN ip6FromNode(struct Message* message,
             return incomingControlMessage(message, conn, context);
         }
         Log_debug(context->logger, "Got message with zero address");
-        return 0;
+        return Error(INVALID);
     }
     if (!isValidAddress6(header->sourceAddr, false, conn)) {
         uint8_t addr[40];
         AddrTools_printIp(addr, header->sourceAddr);
         Log_debug(context->logger, "Got message with wrong address for connection [%s]", addr);
-        return 0;
+        return Error(INVALID);
     }
 
     Er_assert(TUNMessageType_push(message, Ethernet_TYPE_IP6));
@@ -752,7 +754,7 @@ static Iface_DEFUN ip4FromNode(struct Message* message,
     struct Headers_IP4Header* header = (struct Headers_IP4Header*) message->bytes;
     if (Bits_isZero(header->sourceAddr, 4) || Bits_isZero(header->destAddr, 4)) {
         Log_debug(context->logger, "Got message with zero address");
-        return 0;
+        return Error(INVALID);
     } else if (!isValidAddress4(header->sourceAddr, false, conn)) {
         Log_debug(context->logger, "Got message with wrong address [%d.%d.%d.%d] for connection "
                                    "[%d.%d.%d.%d/%d:%d]",
@@ -761,7 +763,7 @@ static Iface_DEFUN ip4FromNode(struct Message* message,
                   conn->connectionIp4[0], conn->connectionIp4[1],
                   conn->connectionIp4[2], conn->connectionIp4[3],
                   conn->connectionIp4Alloc, conn->connectionIp4Prefix);
-        return 0;
+        return Error(INVALID);
     }
 
     Er_assert(TUNMessageType_push(message, Ethernet_TYPE_IP4));
@@ -786,7 +788,7 @@ static Iface_DEFUN incomingFromNode(struct Message* message, struct Iface* nodeI
             AddrTools_printIp(addr, rh->ip6);
             Log_debug(context->logger, "Got message from unrecognized node [%s]", addr);
         }
-        return 0;
+        return Error(NONE);
     }
 
     Er_assert(Message_eshift(message, -(RouteHeader_SIZE + DataHeader_SIZE)));
@@ -807,7 +809,7 @@ static Iface_DEFUN incomingFromNode(struct Message* message, struct Iface* nodeI
                   (message->length > 1) ? Headers_getIpVersion(message->bytes) : 0,
                   addr);
     }
-    return 0;
+    return Error(INVALID);
 }
 
 static void timeout(void* vcontext)

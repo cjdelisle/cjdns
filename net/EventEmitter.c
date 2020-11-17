@@ -85,7 +85,7 @@ static struct ArrayList_Ifaces* getHandlers(struct EventEmitter_pvt* ee,
 
 static Iface_DEFUN sendToPathfinder(struct Message* msg, struct Pathfinder* pf)
 {
-    if (!pf || pf->state != Pathfinder_state_CONNECTED) { return NULL; }
+    if (!pf || pf->state != Pathfinder_state_CONNECTED) { return Error(NONE); }
     if (pf->bytesSinceLastPing < 8192 && pf->bytesSinceLastPing + msg->length >= 8192) {
         struct Message* ping = Message_new(0, 512, msg->alloc);
         Er_assert(Message_epush32be(ping, pf->bytesSinceLastPing));
@@ -192,7 +192,7 @@ static Iface_DEFUN incomingFromCore(struct Message* msg, struct Iface* trickIf)
             Iface_CALL(sendToPathfinder, messageClone, pf);
         }
     }
-    return NULL;
+    return Error(NONE);
 }
 
 static struct Message* pathfinderMsg(enum PFChan_Core ev,
@@ -283,34 +283,34 @@ static Iface_DEFUN incomingFromPathfinder(struct Message* msg, struct Iface* ifa
     struct EventEmitter_pvt* ee = Identity_check((struct EventEmitter_pvt*) pf->ee);
     if (msg->length < 4) {
         Log_debug(ee->log, "DROPPF runt");
-        return NULL;
+        return Error(RUNT);
     }
     enum PFChan_Pathfinder ev = Er_assert(Message_epop32be(msg));
     Er_assert(Message_epush32be(msg, pf->pathfinderId));
     Er_assert(Message_epush32be(msg, ev));
     if (ev <= PFChan_Pathfinder__TOO_LOW || ev >= PFChan_Pathfinder__TOO_HIGH) {
         Log_debug(ee->log, "DROPPF invalid type [%d]", ev);
-        return NULL;
+        return Error(INVALID);
     }
     if (!PFChan_Pathfinder_sizeOk(ev, msg->length)) {
         Log_debug(ee->log, "DROPPF incorrect length[%d] for type [%d]", msg->length, ev);
-        return NULL;
+        return Error(INVALID);
     }
 
     if (pf->state == Pathfinder_state_DISCONNECTED) {
         if (ev != PFChan_Pathfinder_CONNECT) {
             Log_debug(ee->log, "DROPPF disconnected and event != CONNECT event:[%d]", ev);
-            return NULL;
+            return Error(INVALID);
         }
     } else if (pf->state != Pathfinder_state_CONNECTED) {
         Log_debug(ee->log, "DROPPF error state");
-        return NULL;
+        return Error(INVALID);
     }
 
-    if (handleFromPathfinder(ev, msg, ee, pf)) { return NULL; }
+    if (handleFromPathfinder(ev, msg, ee, pf)) { return Error(NONE); }
 
     struct ArrayList_Ifaces* handlers = getHandlers(ee, ev, false);
-    if (!handlers) { return NULL; }
+    if (!handlers) { return Error(NONE); }
     for (int i = 0; i < handlers->length; i++) {
         struct Message* messageClone = Message_clone(msg, msg->alloc);
         struct Iface* iface = ArrayList_Ifaces_get(handlers, i);
@@ -320,7 +320,7 @@ static Iface_DEFUN incomingFromPathfinder(struct Message* msg, struct Iface* ifa
         Assert_true(iface->send);
         Iface_CALL(iface->send, messageClone, iface);
     }
-    return NULL;
+    return Error(NONE);
 }
 
 void EventEmitter_regCore(struct EventEmitter* eventEmitter,

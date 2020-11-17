@@ -40,7 +40,7 @@ static Iface_DEFUN ifaceRecvMsg(struct Message* message, struct Iface* thisInter
     Assert_true(ctx->buf->length == 0);
     Assert_true(!Bits_memcmp(ctx->bufPtr, message->bytes, ctx->messageLen));
     ctx->success = 1;
-    return NULL;
+    return Error(NONE);
 }
 
 void CJDNS_FUZZ_MAIN(void* vctx, struct Message* fuzz)

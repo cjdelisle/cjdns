@@ -134,7 +134,7 @@ static Iface_DEFUN aliceCtrlRecv(struct Message* msg, struct Iface* aliceCtrlIf)
         Identity_containerOf(aliceCtrlIf, struct SwitchingContext, aliceCtrlIf);
     //Log_debug(sc->benchmarkCtx->log, "pong!");
     sc->msgCount++;
-    return NULL;
+    return Error(NONE);
 }
 
 static void switching(struct Context* ctx)

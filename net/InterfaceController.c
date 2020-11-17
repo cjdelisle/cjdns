@@ -507,7 +507,7 @@ static Iface_DEFUN receivedPostCryptoAuth(struct Message* msg,
             // directs it to *this* router.
             if (msg->length < 8 || msg->bytes[7] != 1) {
                 Log_info(ic->logger, "DROP message because CA is not established.");
-                return 0;
+                return Error(UNHANDLED);
             } else {
                 // When a "server" gets a new connection from a "client" the router doesn't
                 // know about that client so if the client sends a packet to the server, the
@@ -553,7 +553,7 @@ static Iface_DEFUN sendFromSwitch(struct Message* msg, struct Iface* switchIf)
             Log_debug(ep->ici->ic->logger, "[%s] DROP msg to node with incompat version [%d] ",
                 Address_toString(&ep->addr, msg->alloc)->bytes, ep->addr.protocolVersion);
         }
-        return NULL;
+        return Error(UNHANDLED);
     }
 
     ep->bytesOut += msg->length;
@@ -578,7 +578,7 @@ static Iface_DEFUN sendFromSwitch(struct Message* msg, struct Iface* switchIf)
 
         Iface_send(&ep->ici->pub.addrIf, msg);
     }
-    return NULL;
+    return Error(NONE);
 }
 
 static int closeInterface(struct Allocator_OnFreeJob* job)
@@ -606,19 +606,19 @@ static Iface_DEFUN handleBeacon(struct Message* msg, struct InterfaceController_
         // accepting beacons disabled.
         Log_debug(ic->logger, "[%s] Dropping beacon because beaconing is disabled",
                   ici->pub.name->bytes);
-        return NULL;
+        return Error(NONE);
     }
 
     if (msg->length < Sockaddr_OVERHEAD) {
         Log_debug(ic->logger, "[%s] Dropping runt beacon", ici->pub.name->bytes);
-        return NULL;
+        return Error(RUNT);
     }
 
     struct Sockaddr* lladdrInmsg = (struct Sockaddr*) msg->bytes;
 
     if (msg->length < lladdrInmsg->addrLen + Headers_Beacon_SIZE) {
         Log_debug(ic->logger, "[%s] Dropping runt beacon", ici->pub.name->bytes);
-        return NULL;
+        return Error(RUNT);
     }
 
     // clear the bcast flag
@@ -647,10 +647,10 @@ static Iface_DEFUN handleBeacon(struct Message* msg, struct InterfaceController_
 
     if (!AddressCalc_validAddress(addr.ip6.bytes)) {
         Log_debug(ic->logger, "handleBeacon invalid key [%s]", printedAddr->bytes);
-        return NULL;
+        return Error(INVALID);
     } else if (!Bits_memcmp(ic->ca->publicKey, addr.key, 32)) {
         // receive beacon from self, drop silent
-        return NULL;
+        return Error(NONE);
     }
 
     if (!Version_isCompatible(addr.protocolVersion, Version_CURRENT_PROTOCOL)) {
@@ -659,14 +659,14 @@ static Iface_DEFUN handleBeacon(struct Message* msg, struct InterfaceController_
                       "our version is [%d] making them incompatable", ici->pub.name->bytes,
                       printedAddr->bytes, addr.protocolVersion, Version_CURRENT_PROTOCOL);
         }
-        return NULL;
+        return Error(UNHANDLED);
     } else if (Defined(SUBNODE) && addr.protocolVersion < 21) {
         if (Defined(Log_DEBUG)) {
             Log_debug(ic->logger, "[%s] DROP beacon from [%s] which was version [%d] "
                       "which is incompatible with SUBNODE", ici->pub.name->bytes,
                       printedAddr->bytes, addr.protocolVersion);
         }
-        return NULL;
+        return Error(UNHANDLED);
     }
 
     String* beaconPass = String_newBinary(beacon.password, Headers_Beacon_PASSWORD_LEN, msg->alloc);
@@ -675,7 +675,7 @@ static Iface_DEFUN handleBeacon(struct Message* msg, struct InterfaceController_
         // The password might have changed!
         struct Peer* ep = ici->peerMap.values[epIndex];
         CryptoAuth_setAuth(beaconPass, NULL, ep->caSession);
-        return NULL;
+        return Error(NONE);
     }
 
     struct Allocator* epAlloc = Allocator_child(ici->alloc);
@@ -700,7 +700,7 @@ static Iface_DEFUN handleBeacon(struct Message* msg, struct InterfaceController_
     if (SwitchCore_addInterface(ic->switchCore, &ep->switchIf, epAlloc, &ep->addr.path)) {
         Log_debug(ic->logger, "handleBeacon() SwitchCore out of space");
         Allocator_free(epAlloc);
-        return NULL;
+        return Error(UNHANDLED);
     }
 
     // We want the node to immedietly be pinged but we don't want it to appear unresponsive because
@@ -713,7 +713,7 @@ static Iface_DEFUN handleBeacon(struct Message* msg, struct InterfaceController_
         Address_toString(&ep->addr, msg->alloc)->bytes);
 
     sendPeer(0xffffffff, PFChan_Core_PEER, ep, 0xffff);
-    return NULL;
+    return Error(NONE);
 }
 
 /**
@@ -728,7 +728,7 @@ static Iface_DEFUN handleUnexpectedIncoming(struct Message* msg,
     struct Sockaddr* lladdr = (struct Sockaddr*) msg->bytes;
     Er_assert(Message_eshift(msg, -lladdr->addrLen));
     if (msg->length < CryptoHeader_SIZE) {
-        return NULL;
+        return Error(RUNT);
     }
 
     Assert_true(!((uintptr_t)msg->bytes % 4) && "alignment fault");
@@ -737,7 +737,7 @@ static Iface_DEFUN handleUnexpectedIncoming(struct Message* msg,
     if (ch->nonce & Endian_bigEndianToHost32(~1)) {
         // This cuts down on processing and logger noise because any packet
         // which is not a setup packet will be summarily dropped.
-        return NULL;
+        return Error(INVALID);
     }
 
     struct Allocator* epAlloc = Allocator_child(ici->alloc);
@@ -755,7 +755,7 @@ static Iface_DEFUN handleUnexpectedIncoming(struct Message* msg,
         // If the first message is a dud, drop all state for this peer.
         // probably some random crap that wandered in the socket.
         Allocator_free(epAlloc);
-        return NULL;
+        return Error(AUTHENTICATION);
     }
     Assert_true(!Bits_isZero(ep->caSession->herPublicKey, 32));
     Assert_true(Map_EndpointsBySockaddr_indexForKey(&lladdr, &ici->peerMap) == -1);
@@ -770,7 +770,7 @@ static Iface_DEFUN handleUnexpectedIncoming(struct Message* msg,
     if (SwitchCore_addInterface(ic->switchCore, &ep->switchIf, epAlloc, &ep->addr.path)) {
         Log_debug(ic->logger, "handleUnexpectedIncoming() SwitchCore out of space");
         Allocator_free(epAlloc);
-        return NULL;
+        return Error(UNHANDLED);
     }
 
     // We want the node to immedietly be pinged but we don't want it to appear unresponsive because
@@ -795,7 +795,7 @@ static Iface_DEFUN handleIncomingFromWire(struct Message* msg, struct Iface* add
     struct Sockaddr* lladdr = (struct Sockaddr*) msg->bytes;
     if (msg->length < Sockaddr_OVERHEAD || msg->length < lladdr->addrLen) {
         Log_debug(ici->ic->logger, "DROP runt");
-        return NULL;
+        return Error(RUNT);
     }
 
     Assert_true(!((uintptr_t)msg->bytes % 4) && "alignment fault");
@@ -829,13 +829,13 @@ static Iface_DEFUN handleIncomingFromWire(struct Message* msg, struct Iface* add
             Log_debug(ici->ic->logger, "[%s] DROP msg from node with incompat version [%d] ",
                 Address_toString(&ep->addr, msg->alloc)->bytes, ep->addr.protocolVersion);
         }
-        return NULL;
+        return Error(NONE);
     }
 
     CryptoAuth_resetIfTimeout(ep->caSession);
     uint32_t nonce = Endian_bigEndianToHost32( ((uint32_t*)msg->bytes)[0] );
     if (CryptoAuth_decrypt(ep->caSession, msg)) {
-        return NULL;
+        return Error(AUTHENTICATION);
     }
 
     if (ici->ic->pub.timestampPackets) {
@@ -1168,7 +1168,7 @@ static Iface_DEFUN incomingFromEventEmitterIf(struct Message* msg, struct Iface*
             sendPeer(pathfinderId, PFChan_Core_PEER, peer, 0xffff);
         }
     }
-    return NULL;
+    return Error(NONE);
 }
 
 struct InterfaceController* InterfaceController_new(struct CryptoAuth* ca,

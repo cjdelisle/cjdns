@@ -74,7 +74,7 @@ static Iface_DEFUN receiveMessageParent(struct Message* msg, struct Iface* iface
     Assert_true(msg->length == (int)CString_strlen(MESSAGEB)+1);
     Assert_true(!Bits_memcmp(msg->bytes, MESSAGEB, CString_strlen(MESSAGEB)+1));
     Allocator_free(c->alloc);
-    return NULL;
+    return Error(NONE);
 }
 
 static void timeout(void* vNULL)
@@ -122,7 +122,7 @@ static Iface_DEFUN receiveMessageChild(struct Message* msg, struct Iface* iface)
     // shutdown
     Allocator_free(c->alloc);
 
-    return NULL;
+    return Error(NONE);
 }
 
 static void child(char* name, struct Context* ctx)

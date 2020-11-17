@@ -44,13 +44,13 @@ static void timeout(void* vcontext)
 static Iface_DEFUN receiveMessage(struct Message* message, struct Iface* iface)
 {
     struct Context* ctx = Identity_check((struct Context*) iface);
-    if (ctx->messageReceived) { return 0; }
+    if (ctx->messageReceived) { return Error(NONE); }
     ctx->message = Message_clone(message, ctx->alloc);
 
     Timeout_clearTimeout(ctx->timeout);
     EventBase_endLoop(ctx->eventBase);
 
-    return 0;
+    return Error(NONE);
 }
 
 struct Message* InterfaceWaiter_waitForData(struct Iface* iface,

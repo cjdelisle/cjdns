@@ -229,7 +229,7 @@ static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* iface)
     struct TAPInterface_pvt* tap = Identity_check((struct TAPInterface_pvt*) iface);
     if (tap->writeMessageCount >= WRITE_MESSAGE_SLOTS) {
         Log_info(tap->log, "DROP message because the tap is lagging");
-        return 0;
+        return Error(OVERFLOW);
     }
     if (!tap->pendingWritesAlloc) {
         tap->pendingWritesAlloc = Allocator_child(tap->alloc);
@@ -239,7 +239,7 @@ static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* iface)
     if (tap->writeMessageCount == 1) {
         postWrite(tap);
     }
-    return 0;
+    return Error(NONE);
 }
 
 Er_DEFUN(struct TAPInterface* TAPInterface_new(const char* preferredName,

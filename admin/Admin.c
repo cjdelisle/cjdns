@@ -113,26 +113,27 @@ struct Admin_pvt
     Identity
 };
 
-static void sendMessage(struct Message* message, struct Sockaddr* dest, struct Admin_pvt* admin)
+static struct Error_s sendMessage(
+    struct Message* message, struct Sockaddr* dest, struct Admin_pvt* admin)
 {
     // stack overflow when used with admin logger.
     //Log_keys(admin->logger, "sending message to angel [%s]", message->bytes);
     Er_assert(Message_epush(message, dest, dest->addrLen));
-    Iface_send(&admin->iface, message);
+    return Iface_send(&admin->iface, message);
 }
 
-static void sendBenc(Dict* message,
-                     struct Sockaddr* dest,
-                     struct Allocator* alloc,
-                     struct Admin_pvt* admin,
-                     int fd)
+static struct Error_s sendBenc(Dict* message,
+                               struct Sockaddr* dest,
+                               struct Allocator* alloc,
+                               struct Admin_pvt* admin,
+                               int fd)
 {
     Message_reset(admin->tempSendMsg);
     Er_assert(BencMessageWriter_write(message, admin->tempSendMsg));
     struct Message* msg = Message_new(0, admin->tempSendMsg->length + 32, alloc);
     Er_assert(Message_epush(msg, admin->tempSendMsg->bytes, admin->tempSendMsg->length));
     Message_setAssociatedFd(msg, fd);
-    sendMessage(msg, dest, admin);
+    return sendMessage(msg, dest, admin);
 }
 
 /**
@@ -473,7 +474,9 @@ static Iface_DEFUN receiveMessage(struct Message* message, struct Iface* iface)
 
     admin->currentRequest = NULL;
     Allocator_free(alloc);
-    return NULL;
+    // We don't return errors here because the caller can't make use of them
+    // instead we reply with anything which went wrong.
+    return Error(NONE);
 }
 
 void Admin_registerFunctionWithArgCount(char* name,

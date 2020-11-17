@@ -37,7 +37,7 @@ static Iface_DEFUN incomingFromSocket(struct Message* msg, struct Iface* externa
 
     if (!ctx->pub.internalIf.connectedIf) {
         Log_debug(ctx->logger, "DROP message for socket not inited");
-        return NULL;
+        return Error(INVALID);
     }
 
     // get ess packet type
@@ -51,7 +51,7 @@ static Iface_DEFUN incomingFromSocket(struct Message* msg, struct Iface* externa
     }
 
     // skip all other types
-    return NULL;
+    return Error(INVALID);
 }
 
 static Iface_DEFUN incomingFromUs(struct Message* msg, struct Iface* internalIf)
@@ -61,7 +61,7 @@ static Iface_DEFUN incomingFromUs(struct Message* msg, struct Iface* internalIf)
 
     if (!ctx->pub.externalIf.connectedIf) {
         Log_debug(ctx->logger, "DROP message for socket not inited");
-        return NULL;
+        return Error(INVALID);
     }
 
     // send payload length

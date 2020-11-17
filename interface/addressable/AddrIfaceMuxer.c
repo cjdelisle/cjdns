@@ -61,7 +61,7 @@ static Iface_DEFUN incomingFromAddrIf(struct Message* msg, struct Iface* addrIf)
     int idx = Map_Ifaces_indexForHandle(handle, &ctx->ifaces);
     if (idx < 0) {
         Log_info(ctx->log, "DROP message to nonexistant iface [0x%x]", handle);
-        return NULL;
+        return Error(UNHANDLED);
     }
     return Iface_next(&ctx->ifaces.values[idx]->iface, msg);
 }
@@ -73,7 +73,7 @@ static Iface_DEFUN incomingFromInputIf(struct Message* msg, struct Iface* inputI
     struct AddrIfaceMuxer_pvt* ctx = Identity_check(cli->muxer);
     if (msg->length < (int)sizeof(struct Sockaddr)) {
         Log_info(ctx->log, "DROP runt");
-        return NULL;
+        return Error(RUNT);
     }
 
     uint16_t addrLen = Bits_get16(msg->bytes);

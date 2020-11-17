@@ -45,7 +45,7 @@ static Iface_DEFUN incomingFromTunIf(struct Message* msg, struct Iface* tunIf)
     {
         Log_debug(ud->log, "DROP packet because ip version [%d] "
                   "doesn't match ethertype [%u].", version, Endian_bigEndianToHost16(ethertype));
-        return NULL;
+        return Error(INVALID);
     }
 
     if (ethertype == Ethernet_TYPE_IP4) {
@@ -54,12 +54,12 @@ static Iface_DEFUN incomingFromTunIf(struct Message* msg, struct Iface* tunIf)
     if (ethertype != Ethernet_TYPE_IP6) {
         Log_debug(ud->log, "DROP packet unknown ethertype [%u]",
                   Endian_bigEndianToHost16(ethertype));
-        return NULL;
+        return Error(INVALID);
     }
 
     if (msg->length < Headers_IP6Header_SIZE) {
         Log_debug(ud->log, "DROP runt");
-        return NULL;
+        return Error(RUNT);
     }
 
     struct Headers_IP6Header* header = (struct Headers_IP6Header*) msg->bytes;
@@ -76,7 +76,7 @@ static Iface_DEFUN incomingFromTunIf(struct Message* msg, struct Iface* tunIf)
                       "DROP packet from [%s] because all messages must have source address [%s]",
                       packetSource, expectedSource);
         }
-        return NULL;
+        return Error(INVALID);
     }
     if (!Bits_memcmp(header->destinationAddr, ud->myIp6, 16)) {
         // I'm Gonna Sit Right Down and Write Myself a Letter
@@ -105,7 +105,8 @@ static Iface_DEFUN sendToTunIf(struct Message* msg, struct TUNAdapter_pvt* ud)
 {
     if (!ud->pub.tunIf.connectedIf) {
         Log_debug(ud->log, "DROP message for tun because no device is defined");
-        return NULL;
+        // Nothing inherently wrong with this message
+        return Error(NONE);
     }
     return Iface_next(&ud->pub.tunIf, msg);
 }

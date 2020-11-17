@@ -130,7 +130,7 @@ static Iface_DEFUN sendMessage(struct Message* m, struct Iface* iface)
     struct Pipe_pvt* pipe = Identity_check((struct Pipe_pvt*) iface);
 
     if (pipe->queueLen > 50000) {
-        return 0;
+        return Error(OVERFLOW);
     }
 
     // This allocator will hold the message allocator in existance after it is freed.
@@ -171,7 +171,7 @@ static Iface_DEFUN sendMessage(struct Message* m, struct Iface* iface)
             pipe->bufferedRequest = req;
         }
     }
-    return NULL;
+    return Error(NONE);
 }
 
 /** Asynchronous allocator freeing. */

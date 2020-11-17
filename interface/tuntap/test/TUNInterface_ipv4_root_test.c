@@ -36,7 +36,7 @@ static Iface_DEFUN receiveMessageTUN(struct Message* msg, struct TUNTools* tt)
     if (ethertype != Ethernet_TYPE_IP4) {
         Log_debug(tt->log, "Spurious packet with ethertype [%u]\n",
                   Endian_bigEndianToHost16(ethertype));
-        return 0;
+        return Error(INVALID);
     }
 
     struct Headers_IP4Header* header = (struct Headers_IP4Header*) msg->bytes;

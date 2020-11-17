@@ -62,11 +62,11 @@ static Iface_DEFUN fromHandler(struct Message* msg, struct UpperDistributor_pvt*
     enum ContentType type = DataHeader_getContentType(&dh);
     if (type != ContentType_IP6_UDP) {
         Log_debug(ud->log, "DROP Message from handler with invalid type [%d]", type);
-        return NULL;
+        return Error(INVALID);
     }
     if (msg->length < Headers_UDPHeader_SIZE + RouteHeader_SIZE + DataHeader_SIZE) {
         Log_debug(ud->log, "DROP runt");
-        return NULL;
+        return Error(RUNT);
     }
     uint8_t srcAndDest[32] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1};
     AddressCalc_makeValidAddress(&srcAndDest[16]);
@@ -74,18 +74,18 @@ static Iface_DEFUN fromHandler(struct Message* msg, struct UpperDistributor_pvt*
     struct Headers_UDPHeader* udp = (struct Headers_UDPHeader*) msg->bytes;
     if (Checksum_udpIp6_be(srcAndDest, msg->bytes, msg->length)) {
         Log_debug(ud->log, "DROP Bad checksum");
-        return NULL;
+        return Error(INVALID);
     }
     if (udp->destPort_be != Endian_bigEndianToHost16(MAGIC_PORT)) {
         Log_debug(ud->log, "DROP Message to unknown port [%d]",
             Endian_bigEndianToHost16(udp->destPort_be));
-        return NULL;
+        return Error(INVALID);
     }
     int udpPort = Endian_bigEndianToHost16(udp->srcPort_be);
     int index = Map_OfHandlers_indexForKey(&udpPort, ud->handlers);
     if (index < 0) {
         Log_debug(ud->log, "DROP Message from unregistered port [%d]", udpPort);
-        return NULL;
+        return Error(INVALID);
     }
     Er_assert(Message_epop(msg, NULL, Headers_UDPHeader_SIZE));
 
@@ -95,6 +95,20 @@ static Iface_DEFUN fromHandler(struct Message* msg, struct UpperDistributor_pvt*
         ud->noSendToHandler = 1;
         Log_debug(ud->log, "Message to self");
         return incomingFromSessionManagerIf(msg, &ud->pub.sessionManagerIf);
+    }
+
+    struct DataHeader* dataHeader = (struct DataHeader*) &hdr[1];
+    if (DataHeader_getContentType(dataHeader) == ContentType_CJDHT) {
+        if (Bits_isZero(hdr->publicKey, 32)) {
+            Log_debug(ud->log, "DROP message with no pubkey");
+            return Error(INVALID);
+        } else if (hdr->sh.label_be == 0) {
+            Log_debug(ud->log, "DROP message with no label");
+            return Error(INVALID);
+        } else if (hdr->version_be == 0) {
+            Log_debug(ud->log, "DROP message with no version");
+            return Error(INVALID);
+        }
     }
 
     return Iface_next(&ud->pub.sessionManagerIf, msg);
@@ -227,7 +241,7 @@ static Iface_DEFUN incomingFromSessionManagerIf(struct Message* msg, struct Ifac
         return Iface_next(&ud->pub.ipTunnelIf, msg);
     }
     Log_debug(ud->log, "DROP message with unknown type [%d]", type);
-    return NULL;
+    return Error(INVALID);
 }
 
 int UpperDistributor_unregisterHandler(struct UpperDistributor* upper, int udpPort)

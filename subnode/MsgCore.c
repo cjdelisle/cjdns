@@ -83,7 +83,7 @@ static Iface_DEFUN replyMsg(struct MsgCore_pvt* mcp,
     String* txid = Dict_getStringC(content, "txid");
     if (!txid) {
         Log_debug(mcp->log, "DROP Message with no txid");
-        return NULL;
+        return Error(INVALID);
     }
 
     struct ReplyContext* rc = Allocator_calloc(msg->alloc, sizeof(struct ReplyContext), 1);
@@ -96,7 +96,7 @@ static Iface_DEFUN replyMsg(struct MsgCore_pvt* mcp,
     // Pops out in pingerOnResponse() if the reply is indeed valid...
     Pinger_pongReceived(txid, mcp->pinger);
     mcp->currentReply = NULL;
-    return NULL;
+    return Error(NONE);
 }
 
 static void pingerOnResponse(String* data, uint32_t milliseconds, void* context)
@@ -241,9 +241,9 @@ static Iface_DEFUN queryMsg(struct MsgCore_pvt* mcp,
     } else if (!qh->pub.cb) {
         Log_info(mcp->log, "Query handler for [%s] not setup", q->bytes);
     } else {
-        qh->pub.cb(content, src, msg->alloc, &qh->pub);
+        return qh->pub.cb(content, src, msg->alloc, &qh->pub);
     }
-    return NULL;
+    return Error(INVALID);
 }
 
 static int qhOnFree(struct Allocator_OnFreeJob* job)
@@ -300,18 +300,18 @@ static Iface_DEFUN incoming(struct Message* msg, struct Iface* interRouterIf)
     if (!content) {
         char* esc = Escape_getEscaped(msgBytes, length, msg->alloc);
         Log_debug(mcp->log, "DROP Malformed message [%s]", esc);
-        return NULL;
+        return Error(INVALID);
     }
 
     int64_t* verP = Dict_getIntC(content, "p");
     if (!verP) {
         Log_debug(mcp->log, "DROP Message without version");
-        return NULL;
+        return Error(INVALID);
     }
     addr.protocolVersion = *verP;
     if (!addr.protocolVersion) {
         Log_debug(mcp->log, "DROP Message with zero version");
-        return NULL;
+        return Error(INVALID);
     }
 
     String* q = Dict_getStringC(content, "q");
@@ -319,7 +319,7 @@ static Iface_DEFUN incoming(struct Message* msg, struct Iface* interRouterIf)
     String* txid = Dict_getStringC(content, "txid");
     if (!txid || !txid->len) {
         Log_debug(mcp->log, "Message with no txid [%s]", q ? (q->bytes) : "(no query)");
-        return NULL;
+        return Error(INVALID);
     }
 
     if (q) {
@@ -327,14 +327,14 @@ static Iface_DEFUN incoming(struct Message* msg, struct Iface* interRouterIf)
             return queryMsg(mcp, content, &addr, msg);
         } else {
             // Let the old pathfinder handle every query if it is present
-            return NULL;
+            return Error(NONE);
         }
     } else if (txid->len >= 2 && txid->bytes[0] == '0' && txid->bytes[1] == '1') {
         txid->bytes = &txid->bytes[2];
         txid->len -= 2;
         return replyMsg(mcp, content, &addr, msg);
     }
-    return NULL;
+    return Error(INVALID);
 }
 
 struct MsgCore* MsgCore_new(struct EventBase* base,

@@ -34,7 +34,7 @@ static Iface_DEFUN sendInside(struct Message* msg, struct Iface* inside)
     Assert_true(top == 0x00000800);
     Assert_true(!(ctx->received & 1));
     ctx->received |= 1;
-    return NULL;
+    return Error(NONE);
 }
 
 static Iface_DEFUN sendOutside(struct Message* msg, struct Iface* outside)

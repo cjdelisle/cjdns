@@ -36,7 +36,7 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* external)
 
     if (msg->length < Ethernet_SIZE-2) {
         Log_debug(tw->log, "runt");
-        return 0;
+        return Error(RUNT);
     }
 
     // wacky 14 byte headers, back off into outer-space to create the padding...
@@ -66,7 +66,7 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* external)
                 AddrTools_printMac(printedMac, eth.srcAddr);
                 Log_debug(tw->log, "DROP Packet with unexpected source MAC [%s]", printedMac);
             #endif
-            return 0;
+            return Error(INVALID);
         }
     }
     Er_assert(TUNMessageType_push(msg, eth.ethertype));
@@ -83,7 +83,7 @@ static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* internal)
     Bits_memcpy(eth.destAddr, tw->pub.peerAddress, Ethernet_ADDRLEN);
     if (Bits_isZero(tw->pub.peerAddress, Ethernet_ADDRLEN)) {
         Log_debug(tw->log, "DROP Packet because peers MAC is not yet known");
-        return NULL;
+        return Error(INVALID);
     }
 
     Er_assert(Message_epush(msg, &eth, sizeof(struct Ethernet)));

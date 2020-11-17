@@ -17,6 +17,7 @@
 
 #include <stdint.h>
 
+#include "wire/Error.h"
 #include "wire/Message.h"
 #include "util/Defined.h"
 
@@ -26,9 +27,9 @@ struct Iface;
  * @param thisInterface the interface which contains the sendMessage function pointer.
  * @param message the message
  */
-typedef struct Iface* (* Iface_Callback)(struct Message* message, struct Iface* thisInterface);
+typedef struct Error_s (* Iface_Callback)(struct Message* message, struct Iface* thisInterface);
 
-#define Iface_DEFUN __attribute__ ((warn_unused_result)) struct Iface*
+#define Iface_DEFUN __attribute__ ((warn_unused_result)) struct Error_s
 
 struct Iface
 {
@@ -52,51 +53,31 @@ struct Iface
  * assertion error, in order to forward the message which you received, you must use Iface_next()
  * and it must be a tail-call.
  */
-static inline void Iface_send(struct Iface* iface, struct Message* msg)
+static inline struct Error_s Iface_send(struct Iface* iface, struct Message* msg)
 {
-    do {
-        struct Iface* conn = iface->connectedIf;
+    struct Iface* conn = iface->connectedIf;
 
-        #ifdef PARANOIA
-            Assert_true(conn);
-            Assert_true(conn->send);
-            Assert_true(msg);
-            struct Message* currentMsg = conn->currentMsg;
-            msg->currentIface = conn;
-            conn->currentMsg = msg;
-        #endif
+    #ifdef PARANOIA
+        Assert_true(conn);
+        Assert_true(conn->send);
+        Assert_true(msg);
+        struct Message* currentMsg = conn->currentMsg;
+        msg->currentIface = conn;
+        conn->currentMsg = msg;
+    #endif
 
-        iface = conn->send(msg, conn);
+    struct Error_s ret = conn->send(msg, conn);
 
-        #ifdef PARANOIA
-            msg->currentIface = NULL;
-            conn->currentMsg = currentMsg;
-        #endif
+    #ifdef PARANOIA
+        msg->currentIface = NULL;
+        conn->currentMsg = currentMsg;
+    #endif
 
-        if (!Defined(Iface_OPTIMIZE)) {
-            Assert_true(!iface);
-        }
-    } while (iface);
+    return ret;
 }
 
 /**
  * Forward a message from inside of an Iface_Callback function.
- * This function must be a tail-call, you must return the value returned to you.
- * If you do anything between the call to this function and your return of it's return value,
- * the order in which that thing happens is undefined.
- *
- * Consider the following (bad) code:
- *     struct Iface* retVal = Iface_next(iface, msg);
- *     x++;
- *     return retVal;
- *
- * If Iface_OPTIMIZE is enabled, it becomes equivilant to:
- *     x++;
- *     struct Iface* retVal = Iface_next(iface, msg);
- *     return retVal;
- *
- * So simplify your life and follow the basic rule of always returning directly the value
- * from this function, IE: return Iface_next(iface, msg);
  */
 static inline Iface_DEFUN Iface_next(struct Iface* iface, struct Message* msg)
 {
@@ -108,27 +89,19 @@ static inline Iface_DEFUN Iface_next(struct Iface* iface, struct Message* msg)
         msg->currentIface->currentMsg = NULL;
     #endif
 
-    if (Defined(Iface_OPTIMIZE)) {
-        #ifdef PARANOIA
-            msg->currentIface = conn;
-            conn->currentMsg = msg;
-        #endif
-        return iface;
-    }
-
     #ifdef PARANOIA
         // done inside of Iface_send()
         msg->currentIface = NULL;
         conn->currentMsg = NULL;
     #endif
 
-    Iface_send(iface, msg);
+    struct Error_s ret = Iface_send(iface, msg);
 
     #ifdef PARANOIA
         conn->currentMsg = currentMsg;
     #endif
 
-    return NULL;
+    return ret;
 }
 
 /**
@@ -146,22 +119,17 @@ static inline Iface_DEFUN Iface_next(struct Iface* iface, struct Message* msg)
  */
 #ifdef PARANOIA
     #define Iface_CALL(func, msg, ...) \
-        do {                                                \
+        (__extension__ ({                                    \
             Assert_true(!msg->currentIface);                \
             struct Iface Iface_y = { .currentMsg = msg };   \
             msg->currentIface = &Iface_y;                   \
-            struct Iface* Iface_x = func(msg, __VA_ARGS__); \
+            struct Error_s ret = func(msg, __VA_ARGS__); \
             msg->currentIface = NULL;                       \
-            if (Iface_x) { Iface_send(Iface_x, msg); }      \
-        } while (0)
+            ret; \
+        }))
     // CHECKFILES_IGNORE missing ;
 #else
-    #define Iface_CALL(func, msg, ...) \
-        do {                                                 \
-            struct Iface* Iface_x = func(msg, __VA_ARGS__);  \
-            if (Iface_x) { Iface_send(Iface_x, msg); }       \
-        } while (0)
-    // CHECKFILES_IGNORE missing ;
+    #define Iface_CALL(func, msg, ...) func(msg, __VA_ARGS__)
 #endif
 
 static inline void Iface_plumb(struct Iface* a, struct Iface* b)

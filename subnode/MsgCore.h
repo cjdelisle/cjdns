@@ -29,10 +29,10 @@ Linker_require("subnode/MsgCore.c")
 struct MsgCore_Handler;
 struct MsgCore;
 
-typedef void (* MsgCore_HandlerCb)(Dict* msg,
-                                   struct Address* src,
-                                   struct Allocator* tmpAlloc,
-                                   struct MsgCore_Handler* handler);
+typedef struct Error_s (* MsgCore_HandlerCb)(Dict* msg,
+                                             struct Address* src,
+                                             struct Allocator* tmpAlloc,
+                                             struct MsgCore_Handler* handler);
 
 struct MsgCore_Handler
 {

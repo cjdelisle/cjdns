@@ -29,10 +29,10 @@ struct PingResponder_pvt
     Identity
 };
 
-static void onPing(Dict* msg,
-                   struct Address* src,
-                   struct Allocator* tmpAlloc,
-                   struct MsgCore_Handler* handler)
+static struct Error_s onPing(Dict* msg,
+                             struct Address* src,
+                             struct Allocator* tmpAlloc,
+                             struct MsgCore_Handler* handler)
 {
     struct PingResponder_pvt* prp = Identity_check((struct PingResponder_pvt*) handler->userData);
     Log_debug(prp->log, "Received ping req from [%s]", Address_toString(src, tmpAlloc)->bytes);
@@ -40,7 +40,7 @@ static void onPing(Dict* msg,
     String* txid = Dict_getStringC(msg, "txid");
     if (!txid) {
         Log_debug(prp->log, "ping missing txid");
-        return;
+        return Error(INVALID);
     }
 
     Dict* responseDict = Dict_new(tmpAlloc);
@@ -59,13 +59,14 @@ static void onPing(Dict* msg,
             "respect do-not-disturb",
             Address_toString(src, tmpAlloc)->bytes,
             src->protocolVersion);
-        return;
+        return Error(UNHANDLED);
     }
 
     Dict_putStringC(responseDict, "txid", txid, tmpAlloc);
     Dict_putIntC(msg, "dnd", 1, tmpAlloc); // do not disturb
     BoilerplateResponder_addBoilerplate(prp->br, responseDict, src, tmpAlloc);
     MsgCore_sendResponse(prp->msgCore, responseDict, src, tmpAlloc);
+    return Error(NONE);
 }
 
 struct PingResponder* PingResponder_new(struct Allocator* allocator,

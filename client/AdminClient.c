@@ -123,7 +123,8 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* addrIface)
         Log_info(ctx->logger, "Got spurious message from [%s], expecting messages from [%s]",
                  Sockaddr_print(&source.addr, msg->alloc),
                  Sockaddr_print(ctx->targetAddr, msg->alloc));
-        return NULL;
+        // The UDP interface can't make use of an error but we'll inform anyway
+        return Error(INVALID);
     }
 
     // we don't yet know with which message this data belongs,
@@ -133,17 +134,17 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* addrIface)
     int origLen = msg->length;
     Dict* d = NULL;
     const char* err = BencMessageReader_readNoExcept(msg, alloc, &d);
-    if (err) { return NULL; }
+    if (err) { return Error(INVALID); }
     Er_assert(Message_eshift(msg, origLen));
 
     String* txid = Dict_getStringC(d, "txid");
-    if (!txid || txid->len != 8) { return NULL; }
+    if (!txid || txid->len != 8) { return Error(INVALID); }
 
     // look up the result
     uint32_t handle = ~0u;
     Hex_decode((uint8_t*)&handle, 4, txid->bytes, 8);
     int idx = Map_OfRequestByHandle_indexForHandle(handle, &ctx->outstandingRequests);
-    if (idx < 0) { return NULL; }
+    if (idx < 0) { return Error(INVALID); }
 
     struct Request* req = ctx->outstandingRequests.values[idx];
 
@@ -157,7 +158,7 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* addrIface)
     Bits_memset(req->res.messageBytes, 0, AdminClient_MAX_MESSAGE_SIZE);
     Bits_memcpy(req->res.messageBytes, msg->bytes, len);
     done(req, AdminClient_Error_NONE);
-    return NULL;
+    return Error(NONE);
 }
 
 static int requestOnFree(struct Allocator_OnFreeJob* job)

@@ -72,14 +72,14 @@ static Iface_DEFUN incomingFromHeaderIf(struct Message* message, struct Iface* i
 
     if (message->length < Headers_IP6Header_SIZE + Headers_UDPHeader_SIZE) {
         // runt
-        return NULL;
+        return Error(RUNT);
     }
 
     struct Headers_IP6Header* ip = (struct Headers_IP6Header*) message->bytes;
 
     // udp
     if (ip->nextHeader != 17) {
-        return NULL;
+        return Error(INVALID);
     }
 
     struct Allocator* alloc = Allocator_child(message->alloc);
@@ -93,7 +93,7 @@ static Iface_DEFUN incomingFromHeaderIf(struct Message* message, struct Iface* i
 
     if (Sockaddr_getPort(context->pub.udpIf.addr) != Endian_bigEndianToHost16(udp->destPort_be)) {
         // not the right port
-        return NULL;
+        return Error(INVALID);
     }
 
     Er_assert(Message_eshift(message, -(Headers_IP6Header_SIZE + Headers_UDPHeader_SIZE)));

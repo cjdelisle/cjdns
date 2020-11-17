@@ -97,7 +97,7 @@ static Iface_DEFUN responseWithIpCallback(struct Message* message, struct Iface*
     Assert_true(!Bits_memcmp(message->bytes, ctx->expectedResponse->bytes, message->length));
     ctx->called |= 2;
 
-    return NULL;
+    return Error(NONE);
 }
 
 static Iface_DEFUN messageToTun(struct Message* msg, struct Iface* iface)
@@ -120,7 +120,7 @@ static Iface_DEFUN messageToTun(struct Message* msg, struct Iface* iface)
         Assert_failure("unrecognized message type %u", (unsigned int)type);
     }
     Assert_true(msg->length == 12 && CString_strcmp(msg->bytes, "hello world") == 0);
-    return 0;
+    return Error(NONE);
 }
 
 static void pushRouteDataHeaders(struct Context* ctx, struct Message* message)

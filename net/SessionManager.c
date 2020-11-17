@@ -389,7 +389,7 @@ static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface
     // SwitchHeader, handle, 0 or more bytes of control frame
     if (msg->length < SwitchHeader_SIZE + 4) {
         Log_debug(sm->log, "DROP runt");
-        return NULL;
+        return Error(RUNT);
     }
 
     struct SwitchHeader* switchHeader = (struct SwitchHeader*) msg->bytes;
@@ -410,7 +410,7 @@ static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface
     // handle, small cryptoAuth header
     if (msg->length < 4 + 20) {
         Log_debug(sm->log, "DROP runt");
-        return NULL;
+        return Error(RUNT);
     }
 
     // This is for handling error situations and being able to send back some kind of a message.
@@ -424,32 +424,32 @@ static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface
         session = sessionForHandle(nonceOrHandle, sm);
         if (!session) {
             Log_debug(sm->log, "DROP message with unrecognized handle [%u]", nonceOrHandle);
-            return NULL;
+            return Error(INVALID);
         }
         Er_assert(Message_eshift(msg, -4));
         uint32_t nonce = Endian_bigEndianToHost32(((uint32_t*)msg->bytes)[0]);
         if (nonce < 4) {
             Log_debug(sm->log, "DROP setup message [%u] with specified handle [%u]",
                 nonce, nonceOrHandle);
-            return NULL;
+            return Error(INVALID);
         }
     } else {
         // handle + big cryptoauth header
         if (msg->length < CryptoHeader_SIZE + 4) {
             Log_debug(sm->log, "DROP runt");
-            return NULL;
+            return Error(RUNT);
         }
         struct CryptoHeader* caHeader = (struct CryptoHeader*) msg->bytes;
         uint8_t ip6[16];
         // a packet which claims to be "from us" causes problems
         if (!AddressCalc_addressForPublicKey(ip6, caHeader->publicKey)) {
             Log_debug(sm->log, "DROP Handshake with non-fc key");
-            return NULL;
+            return Error(INVALID);
         }
 
         if (!Bits_memcmp(caHeader->publicKey, sm->cryptoAuth->publicKey, 32)) {
             Log_debug(sm->log, "DROP Handshake from 'ourselves'");
-            return NULL;
+            return Error(INVALID);
         }
 
         uint64_t label = Endian_bigEndianToHost64(switchHeader->label_be);
@@ -731,11 +731,11 @@ static Iface_DEFUN outgoingCtrlFrame(struct Message* msg, struct SessionManager_
     struct RouteHeader* header = (struct RouteHeader*) msg->bytes;
     if (!Bits_isZero(header->publicKey, 32) || !Bits_isZero(header->ip6, 16)) {
         Log_debug(sm->log, "DROP Ctrl frame with non-zero destination key or IP");
-        return NULL;
+        return Error(INVALID);
     }
     if (!(header->flags & RouteHeader_flags_CTRLMSG)) {
         Log_debug(sm->log, "DROP Ctrl frame w/o RouteHeader_flags_CTRLMSG flag");
-        return NULL;
+        return Error(INVALID);
     }
     struct SwitchHeader sh;
     Bits_memcpy(&sh, &header->sh, SwitchHeader_SIZE);
@@ -768,7 +768,7 @@ static Iface_DEFUN incomingFromInsideIf(struct Message* msg, struct Iface* iface
                               ((header->sh.label_be) ? Metric_SM_SEND : Metric_DEAD_LINK));
         } else {
             needsLookup(sm, msg);
-            return NULL;
+            return Error(NONE);
         }
     }
 
@@ -781,7 +781,7 @@ static Iface_DEFUN incomingFromInsideIf(struct Message* msg, struct Iface* iface
 
     if (!sess->pub.version) {
         needsLookup(sm, msg);
-        return NULL;
+        return Error(NONE);
     }
 
     if (header->sh.label_be) {
@@ -792,7 +792,7 @@ static Iface_DEFUN incomingFromInsideIf(struct Message* msg, struct Iface* iface
         SwitchHeader_setVersion(&header->sh, SwitchHeader_CURRENT_VERSION);
     } else {
         needsLookup(sm, msg);
-        return NULL;
+        return Error(NONE);
     }
 
     // Forward secrecy, only send dht messages until the session is setup.
@@ -809,7 +809,7 @@ static Iface_DEFUN incomingFromInsideIf(struct Message* msg, struct Iface* iface
                 Endian_bigEndianToHost64(header->sh.label_be), "user traffic, unsetupSession");
             bufferPacket(sm, msg);
             unsetupSession(sm, sess);
-            return NULL;
+            return Error(NONE);
         }
     }
 
@@ -824,7 +824,7 @@ static Iface_DEFUN sessions(struct SessionManager_pvt* sm,
         struct SessionManager_Session_pvt* sess = sm->ifaceMap.values[i];
         sendSession(sess, &sess->pub.paths[0], sourcePf, PFChan_Core_SESSION);
     }
-    return NULL;
+    return Error(NONE);
 }
 
 static Iface_DEFUN incomingFromEventIf(struct Message* msg, struct Iface* iface)
@@ -845,9 +845,9 @@ static Iface_DEFUN incomingFromEventIf(struct Message* msg, struct Iface* iface)
     struct SessionManager_Session_pvt* sess = sessionForIp6(node.ip6, sm);
     if (!sess) {
         // Node we don't care about.
-        if (index == -1) { return NULL; }
+        if (index == -1) { return Error(NONE); }
         // Broken path to a node we don't have a session for...
-        if (node.metric_be == Metric_DEAD_LINK) { return NULL; }
+        if (node.metric_be == Metric_DEAD_LINK) { return Error(NONE); }
     }
     sess = getSession(sm,
                       node.ip6,
@@ -863,7 +863,7 @@ static Iface_DEFUN incomingFromEventIf(struct Message* msg, struct Iface* iface)
         Map_BufferedMessages_remove(index, &sm->bufMap);
         Allocator_free(bm->alloc);
     }
-    return NULL;
+    return Error(NONE);
 }
 
 struct SessionManager* SessionManager_new(struct Allocator* allocator,

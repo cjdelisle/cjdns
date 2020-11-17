@@ -124,7 +124,7 @@ static Iface_DEFUN sendPacket(struct Message* m, struct Iface* iface)
     if (!(sa->flags & Sockaddr_flags_BCAST)) { return Iface_next(&ctx->commSock, m); }
 
     if (updateBcastAddrs(ctx)) {
-        return NULL;
+        return Error(INTERNAL);
     }
 
     // bcast
@@ -146,7 +146,7 @@ static Iface_DEFUN sendPacket(struct Message* m, struct Iface* iface)
         Allocator_free(tmpAlloc);
     }
 
-    return NULL;
+    return Error(NONE);
 }
 
 static Iface_DEFUN fromCommSock(struct Message* m, struct Iface* iface)
@@ -163,14 +163,14 @@ static Iface_DEFUN fromBcastSock(struct Message* m, struct Iface* iface)
 
     if (m->length < UDPInterface_BroadcastHeader_SIZE + Sockaddr_OVERHEAD) {
         Log_debug(ctx->log, "DROP runt bcast");
-        return NULL;
+        return Error(RUNT);
     }
 
     struct Sockaddr_storage ss;
     Er_assert(Message_epop(m, &ss, Sockaddr_OVERHEAD));
     if (m->length < UDPInterface_BroadcastHeader_SIZE + ss.addr.addrLen - Sockaddr_OVERHEAD) {
         Log_debug(ctx->log, "DROP runt bcast");
-        return NULL;
+        return Error(RUNT);
     }
     Er_assert(Message_epop(m, &ss.nativeAddr, ss.addr.addrLen - Sockaddr_OVERHEAD));
 
@@ -180,17 +180,17 @@ static Iface_DEFUN fromBcastSock(struct Message* m, struct Iface* iface)
     if (hdr.fffffffc_be != Endian_hostToBigEndian32(0xfffffffc)) {
         Log_debug(ctx->log, "DROP bcast bad magic, expected 0xfffffffc got [%08x]",
             Endian_bigEndianToHost32(hdr.fffffffc_be));
-        return NULL;
+        return Error(INVALID);
     }
 
     if (hdr.version != UDPInterface_CURRENT_VERSION) {
         Log_debug(ctx->log, "DROP bcast bad version [%u]", hdr.version);
-        return NULL;
+        return Error(INVALID);
     }
 
     if (hdr.zero) {
         Log_debug(ctx->log, "DROP bcast malformed (zero not zero)");
-        return NULL;
+        return Error(INVALID);
     }
 
     uint16_t commPort = Endian_bigEndianToHost16(hdr.commPort_be);
