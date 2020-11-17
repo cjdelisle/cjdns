@@ -365,6 +365,11 @@ static void handleRequest(Dict* messageDict,
         authed = true;
     }
 
+    if (String_equals(admin->password, String_CONST("NONE"))) {
+        // If there's no password then we'll consider everything to be authed
+        authed = true;
+    }
+
     // Then sent a valid authed query, lets track their address so they can receive
     // asynchronous messages.
     int index = Map_LastMessageTimeByAddr_indexForKey(&src, &admin->map);
@@ -381,11 +386,6 @@ static void handleRequest(Dict* messageDict,
         Map_LastMessageTimeByAddr_put(&storedAddr, &mv, &admin->map);
     } else {
         admin->asyncEnabled = 0;
-    }
-
-    if (String_equals(admin->password, String_CONST("NONE"))) {
-        // If there's no password then we'll consider everything to be authed
-        authed = true;
     }
 
     Dict* args = Dict_getDictC(messageDict, "args");
