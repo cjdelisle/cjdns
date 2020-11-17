@@ -1,4 +1,5 @@
 #!/bin/sh
+export PATH=$HOME/.cargo/bin:$PATH
 CARGO=$(command -v cargo)
 set -e
 if test "x$CARGO" = "x"; then
