@@ -84,9 +84,10 @@ work verbatim. If you want to know what [operating system's base is go here](htt
 
 ### 0. Install dependencies
 
-On both platforms, installing [Node.js](https://nodejs.org/), although preferable,
-is not strictly necessary. If Node.js is unavailable or an unacceptable version,
-it will be downloaded and installed in the source tree.
+**You must have Rust/Cargo**, see: https://rustup.rs/ for information about how to install.
+
+If you have [Node.js](https://nodejs.org/) installed, the build will be slightly faster but this is not necessary.
+If Node.js is unavailable or an unacceptable version, it will be downloaded and installed in the source tree.
 
 #### Debian-based distro:
 
@@ -103,27 +104,11 @@ it will be downloaded and installed in the source tree.
     sudo yum install nodejs git
     sudo yum install @development-tools
 
-#### Building from package:
-
-    sudo yum localinstall https://kojipkgs.fedoraproject.org//packages/cjdns/17.4/4.el6/src/cjdns-17.4-4.el6.src.rpm
-
-If you are on a laptop and suspend or hibernate it, cjdroute will take a few
-minutes to make coffee and figure out what just happened when it wakes up.  You
-can speed this up dramatically with:
-
-    systemctl enable cjdns-resume
-
-The resume service restarts cjdns when the system wakes up from sleep.
-
 #### Gentoo
 
     emerge --ask nodejs sys-devel/gcc dev-lang/python:3.4 dev-vcs/git
 
-#### macOS:
-
-Install with [Homebrew](https://brew.sh/):
-
-    brew install cjdns
+#### MacOS:
 
 Install with [MacPorts](https://www.macports.org/):
 
