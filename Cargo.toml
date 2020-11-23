@@ -11,3 +11,9 @@ members = [
     "rust/privatetopublic",
     "rust/makekeys",
 ]
+
+[profile.release]
+lto = true
+opt-level = "z"
+codegen-units = 1
+panic = "abort"
