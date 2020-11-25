@@ -29,4 +29,7 @@ struct AndroidWrapper
 
 struct AndroidWrapper* AndroidWrapper_new(struct Allocator* alloc, struct Log* log);
 
+Iface_DEFUN AndroidWrapper_incomingFromWire(struct Message* msg, struct Iface* externalIf);
+Iface_DEFUN AndroidWrapper_incomingFromUs(struct Message* msg, struct Iface* internalIf);
+
 #endif
