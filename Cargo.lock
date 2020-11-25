@@ -37,11 +37,12 @@ checksum = "2448f6066e80e3bfc792e9c98bf705b4b0fc6e8ef5b43e5889aff0eaa9c58743"
 [[package]]
 name = "libsodium-sys"
 version = "0.2.6"
-source = "git+https://github.com/cjdelisle/sodiumoxide?branch=mingw32-build#c1581f06bb1d436124fc29baa653d0310232cd6d"
+source = "git+https://github.com/cjdelisle/sodiumoxide?rev=3aa7e8e21b9cd61ad64f4a0ed125d5b1af2cf38d#3aa7e8e21b9cd61ad64f4a0ed125d5b1af2cf38d"
 dependencies = [
  "cc",
  "libc",
  "pkg-config",
+ "walkdir",
 ]
 
 [[package]]
@@ -86,9 +87,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "same-file"
+version = "1.0.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "93fc1dc3aaa9bfed95e02e6eadabb4baf7e3078b0bd1b4d7b6b0b68378900502"
+dependencies = [
+ "winapi-util",
+]
+
+[[package]]
 name = "sodiumoxide"
 version = "0.2.6"
-source = "git+https://github.com/cjdelisle/sodiumoxide?branch=mingw32-build#c1581f06bb1d436124fc29baa653d0310232cd6d"
+source = "git+https://github.com/cjdelisle/sodiumoxide?rev=3aa7e8e21b9cd61ad64f4a0ed125d5b1af2cf38d#3aa7e8e21b9cd61ad64f4a0ed125d5b1af2cf38d"
 dependencies = [
  "libc",
  "libsodium-sys",
@@ -107,3 +117,45 @@ version = "0.1.0"
 dependencies = [
  "cjdns_sys",
 ]
+
+[[package]]
+name = "walkdir"
+version = "2.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "777182bc735b6424e1a57516d35ed72cb8019d85c8c9bf536dccb3445c1a2f7d"
+dependencies = [
+ "same-file",
+ "winapi",
+ "winapi-util",
+]
+
+[[package]]
+name = "winapi"
+version = "0.3.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5c839a674fcd7a98952e593242ea400abe93992746761e38641405d28b00f419"
+dependencies = [
+ "winapi-i686-pc-windows-gnu",
+ "winapi-x86_64-pc-windows-gnu",
+]
+
+[[package]]
+name = "winapi-i686-pc-windows-gnu"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ac3b87c63620426dd9b991e5ce0329eff545bccbbb34f3be09ff6fb6ab51b7b6"
+
+[[package]]
+name = "winapi-util"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "70ec6ce85bb158151cae5e5c87f95a8e97d2c0c4b001223f33a334e3ce5de178"
+dependencies = [
+ "winapi",
+]
+
+[[package]]
+name = "winapi-x86_64-pc-windows-gnu"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
