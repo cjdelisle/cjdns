@@ -4,44 +4,63 @@
 //! file description opened by system process rather than in the cjd process,
 //! this InterfaceWrapper handle this case.
 
-#![allow(non_camel_case_types, non_snake_case)]
-
-use std::ffi::c_void;
-
 use crate::external::interface::iface::*;
-use crate::external::memory::allocator::*;
-use crate::external::util::identity::*;
-use crate::external::util::log::*;
-use crate::external::wire::error::*;
 use crate::external::wire::message::*;
 
-#[repr(C)]
-pub struct AndroidWrapper {
-    internalIf: Iface,
-    externalIf: Iface,
+use anyhow::Result;
+use std::sync::Arc;
+use std::sync::Mutex;
+
+#[derive(Default)]
+struct AndroidWrapperPvt {
+    incoming_count: usize,
+    outgoing_count: usize,
 }
 
-#[repr(C)]
-struct AndroidWrapper_pvt {
-    public: AndroidWrapper,
-    logger: *mut Log,
-    identity: Identity,
+pub struct AndroidWrapperInt {
+    pvt: Arc<Mutex<AndroidWrapperPvt>>,
+    ext: Iface,
 }
-
-extern "C" {
-    fn AndroidWrapper_incomingFromWire(msg: *const Message, externalIf: *mut Iface) -> Error_s;
-    fn AndroidWrapper_incomingFromUs(msg: *const Message, internalIf: *mut Iface) -> Error_s;
-}
-
-#[no_mangle]
-pub extern "C" fn AndroidWrapper_new(alloc: *mut Allocator, log: *mut Log) -> *mut AndroidWrapper {
-    let context = allocator_calloc_struct!(alloc, AndroidWrapper_pvt);
-    Identity::set(context as *mut c_void);
-    let p = unsafe { &mut (*context).public };
-    p.externalIf.send = AndroidWrapper_incomingFromWire;
-    p.internalIf.send = AndroidWrapper_incomingFromUs;
-    unsafe {
-        (*context).logger = log;
+impl IfRecv for AndroidWrapperInt {
+    fn recv(&self, m: &mut Message) -> Result<()> {
+        self.pvt.lock().unwrap().outgoing_count += 1;
+        // TODO: We need to pop bytes off of the message to make it Android compatible
+        self.ext.send(m)
     }
-    p as *mut AndroidWrapper
+}
+
+pub struct AndroidWrapperExt {
+    pvt: Arc<Mutex<AndroidWrapperPvt>>,
+    int: Iface,
+}
+impl IfRecv for AndroidWrapperExt {
+    fn recv(&self, m: &mut Message) -> Result<()> {
+        self.pvt.lock().unwrap().incoming_count += 1;
+        // TODO: We need to push bytes to the message
+        //       because cjdns expects an ethertype at the beginning
+        self.int.send(m)
+    }
+}
+
+pub struct AndroidWrapper {
+    pub int: Iface,
+    pub ext: Iface,
+}
+
+impl Default for AndroidWrapper {
+    fn default() -> AndroidWrapper {
+        let pvt = Arc::new(Mutex::new(AndroidWrapperPvt::default()));
+        let int = Iface::new("AndroidWrapper int");
+        let ext = Iface::new("AndroidWrapper ext");
+
+        int.set_receiver(AndroidWrapperInt {
+            pvt: pvt.clone(),
+            ext: ext.clone(),
+        });
+        ext.set_receiver(AndroidWrapperExt {
+            pvt,
+            int: int.clone(),
+        });
+        AndroidWrapper { int, ext }
+    }
 }

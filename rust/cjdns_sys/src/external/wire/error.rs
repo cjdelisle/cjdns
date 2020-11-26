@@ -7,7 +7,7 @@
 /// Corresponds to C `struct Error_s` from `wire/Error.h`.
 #[repr(C)]
 pub struct Error_s {
-    e: Error_e,
+    pub e: Error_e,
 }
 
 /// Error enum.
