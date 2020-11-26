@@ -22,3 +22,30 @@ macro_rules! c_main {
         }
     };
 }
+
+/// All the C implementations are gathered under this `external` module.
+#[macro_use]
+pub mod external {
+    pub mod interface {
+        pub mod iface;
+    }
+    #[macro_use]
+    pub mod memory {
+        #[macro_use]
+        pub mod allocator;
+    }
+    pub mod util {
+        pub mod identity;
+        pub mod log;
+    }
+    pub mod wire {
+        pub mod error;
+        pub mod message;
+    }
+}
+
+mod interface {
+    pub mod tuntap {
+        pub mod android;
+    }
+}

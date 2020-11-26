@@ -36,7 +36,7 @@ struct AndroidWrapper_pvt
     Identity
 };
 
-static Iface_DEFUN incomingFromWire(struct Message* msg, struct Iface* externalIf)
+Iface_DEFUN AndroidWrapper_incomingFromWire(struct Message* msg, struct Iface* externalIf)
 {
     struct AndroidWrapper_pvt* ctx =
         Identity_containerOf(externalIf, struct AndroidWrapper_pvt, pub.externalIf);
@@ -64,7 +64,7 @@ static Iface_DEFUN incomingFromWire(struct Message* msg, struct Iface* externalI
     return Iface_next(&ctx->pub.internalIf, msg);
 }
 
-static Iface_DEFUN incomingFromUs(struct Message* msg, struct Iface* internalIf)
+Iface_DEFUN AndroidWrapper_incomingFromUs(struct Message* msg, struct Iface* internalIf)
 {
     struct AndroidWrapper_pvt* ctx =
         Identity_containerOf(internalIf, struct AndroidWrapper_pvt, pub.internalIf);
@@ -77,16 +77,4 @@ static Iface_DEFUN incomingFromUs(struct Message* msg, struct Iface* internalIf)
     Er_assert(Message_eshift(msg, -4));
 
     return Iface_next(&ctx->pub.externalIf, msg);
-}
-
-struct AndroidWrapper* AndroidWrapper_new(struct Allocator* alloc, struct Log* log)
-{
-    struct AndroidWrapper_pvt* context =
-        Allocator_calloc(alloc, sizeof(struct AndroidWrapper_pvt), 1);
-    Identity_set(context);
-    context->pub.externalIf.send = incomingFromWire;
-    context->pub.internalIf.send = incomingFromUs;
-    context->logger = log;
-
-    return &context->pub;
 }
