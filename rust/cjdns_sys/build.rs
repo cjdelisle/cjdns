@@ -78,5 +78,22 @@ fn main() -> Result<()> {
         }
     }
     build.compile("cjdns_sys");
+
+    #[cfg(feature = "generate-bindings")]
+    {
+        let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
+        bindgen::Builder::default()
+            .header(
+                out_path
+                    .join("rust_cjdns_sys_bindings_c.i")
+                    .to_str()
+                    .unwrap(),
+            )
+            .generate_comments(false)
+            .generate()
+            .expect("Unable to generate bindings")
+            .write_to_file(out_path.join("bindings.rs"))
+            .expect("Couldn't write bindings!");
+    }
     Ok(())
 }

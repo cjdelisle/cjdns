@@ -12,14 +12,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef RustIface_H
-#define RustIface_H
 
-#include "interface/Iface.h"
 #include "memory/Allocator.h"
-#include "util/Linker.h"
-Linker_require("interface/RustIface.c")
+#include "interface/Iface.h"
 
-struct Iface* RustIface_wrap(void* rustIf, struct Allocator* alloc);
 
-#endif
+struct CCountWrapper {
+    struct Iface* internal;
+    struct Iface* external;
+};
+struct CCountWrapper countwrapper_create(struct Allocator* alloc);

@@ -5,7 +5,7 @@
 //! this InterfaceWrapper handle this case.
 
 use crate::external::interface::iface::*;
-use crate::external::wire::message::*;
+use crate::ffi::Message;
 
 use anyhow::Result;
 use std::sync::Arc;

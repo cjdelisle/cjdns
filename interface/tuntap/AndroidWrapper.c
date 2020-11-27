@@ -78,3 +78,8 @@ Iface_DEFUN AndroidWrapper_incomingFromUs(struct Message* msg, struct Iface* int
 
     return Iface_next(&ctx->pub.externalIf, msg);
 }
+
+struct AndroidWrapper* AndroidWrapper_new(struct Allocator* alloc, struct Log* log)
+{
+    return NULL;
+}

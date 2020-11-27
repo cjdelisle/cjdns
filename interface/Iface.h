@@ -21,6 +21,9 @@
 #include "wire/Message.h"
 #include "util/Defined.h"
 
+// Needed to make sure the rustIface code is available to the linker
+#include "interface/RustIface.h"
+
 struct Iface;
 
 /**
