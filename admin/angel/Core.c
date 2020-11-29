@@ -36,7 +36,6 @@
 #include "interface/tuntap/TUNInterface.h"
 #include "interface/tuntap/SocketInterface.h"
 #include "interface/tuntap/SocketWrapper.h"
-#include "interface/tuntap/AndroidWrapper.h"
 #include "interface/UDPInterface_admin.h"
 #ifdef HAS_ETH_INTERFACE
 #include "interface/ETHInterface_admin.h"
@@ -51,6 +50,7 @@
 #include "memory/Allocator_admin.h"
 #include "net/SwitchPinger_admin.h"
 #include "net/UpperDistributor_admin.h"
+#include "rust/cjdns_sys/Rffi.h"
 
 #define NumberCompress_OLD_CODE
 #include "switch/NumberCompress.h"
@@ -241,9 +241,9 @@ static void initTunfd(Dict* args, void* vcontext, String* txid, struct Allocator
     }
     struct Iface* iface = NULL;
     if (type == TUNMessageType_NONE) {
-        struct AndroidWrapper* aw = AndroidWrapper_new(tunAlloc, ctx->logger);
-        Iface_plumb(&aw->externalIf, &p->iface);
-        iface = &aw->internalIf;
+        Rffi_IfWrapper_t aw = Rffi_android_create(tunAlloc);
+        Iface_plumb(aw.external, &p->iface);
+        iface = aw.internal;
     } else {
         iface = &p->iface;
     }

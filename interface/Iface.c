@@ -12,14 +12,16 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef RustIface_H
-#define RustIface_H
-
+#include "interface/Iface.h"
 #include "interface/Iface.h"
 #include "memory/Allocator.h"
-#include "util/Linker.h"
-Linker_require("interface/RustIface.c")
+#include "util/Identity.h"
 
-struct Iface* RustIface_wrap(void* rustIf, struct Allocator* alloc);
-
-#endif
+// This needs to be in a C file in order to be accessible from Rust
+Iface_DEFUN Iface_incomingFromRust(struct Message* message, struct Iface* thisInterface)
+{
+    if (!thisInterface->connectedIf) {
+        return Error(INTERNAL);
+    }
+    return Iface_send(thisInterface, message);
+}

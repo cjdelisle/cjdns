@@ -1,17 +1,18 @@
 //! Network interface from C part of the project.
 
+use crate::cffi::Message;
 use anyhow::{bail, Result};
-use std::ffi::c_void;
-use std::sync::Arc;
 use std::sync::RwLock;
+use std::sync::{Arc, Weak};
+use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::external::memory::allocator;
-use crate::ffi::{Allocator, Error_e_Error_INTERNAL, Error_e_Error_NONE, Error_s, Message};
-
+/// This is the trait which you need to implement in order to implement
+/// a cjdns Iface.
 pub trait IfRecv {
     fn recv(&self, m: &mut Message) -> Result<()>;
 }
 
+// Receiver which just always causes an error, default if none other is registered
 struct DefaultRecv();
 impl IfRecv for DefaultRecv {
     fn recv(&self, _: &mut Message) -> Result<()> {
@@ -19,139 +20,192 @@ impl IfRecv for DefaultRecv {
     }
 }
 
-#[derive(Clone)]
-pub struct IfaceRecv {
+/// This is the private (internal) half of a cjdns Iface.
+/// When you create a new iface, this half is "yours" and you use it
+/// to send messages through your interface. The other half is given
+/// to the function that called your module so that it can "plumb" your
+/// module to another module to connect them together.
+pub struct IfacePvt {
+    // Name of the Iface
     name: String,
-    r: Arc<RwLock<Box<dyn IfRecv>>>,
-}
 
-#[derive(Clone)]
-pub struct Iface {
-    ir: IfaceRecv,
-    s: Arc<RwLock<Option<IfaceRecv>>>,
+    // Receiver of iface we are plumbed to, when we send a message, it goes here
+    peer_recv: Arc<RwLock<Option<Box<dyn IfRecv>>>>,
 }
-
-impl Iface {
-    pub fn name(&self) -> &str {
-        &self.ir.name
-    }
-    pub fn new<T: Into<String>>(name: T) -> Iface {
-        Iface {
-            ir: IfaceRecv {
-                name: name.into(),
-                r: Arc::new(RwLock::new(Box::new(DefaultRecv {}))),
-            },
-            s: Arc::new(RwLock::new(None)),
-        }
-    }
+impl IfacePvt {
+    /// This method is typically called from inside of a IfRecv::recv()
+    /// method, it allows you to pass a message on to whichever iface might
+    /// be plumbed to yours.
     pub fn send(&self, m: &mut Message) -> Result<()> {
-        let s_l = self.s.read().unwrap();
-        match &*s_l {
-            Some(s) => s.r.read().unwrap().recv(m),
-            None => bail!("No connected iface for {}", self.ir.name),
+        match &*self.peer_recv.read().unwrap() {
+            Some(s) => s.recv(m),
+            None => bail!("No connected iface for {}", self.name),
         }
     }
-    pub fn set_receiver<T: 'static + IfRecv>(&self, ir: T) {
-        let mut irr_l = self.ir.r.write().unwrap();
-        *irr_l = Box::new(ir);
+}
+
+fn kinda_random() -> u64 {
+    let t = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+    t.as_secs() + t.subsec_nanos() as u64
+}
+
+/// Create a new cjdns Iface
+/// An Iface comprises two parts, the Iface and the IfacePvt
+/// The Iface is the "public" component which allows different
+/// modules to be inter-connected to one another. The IfacePvt allows
+/// a module to send messages to the Iface with-which it is plumbed.
+///
+/// After creating a new Iface, you will want to store the IfacePvt
+/// inside of your structure (the one which implements IfRecv trait)
+/// so that you can send messages, then after that, you can register
+/// tour IfRecv trait with the Iface.
+pub fn new<T: Into<String>>(name: T) -> (Iface, IfacePvt) {
+    let a = Arc::new(RwLock::new(None));
+    let n: String = name.into();
+    (
+        Iface {
+            name: n.clone(),
+            id: kinda_random(),
+            peer_id: 0,
+            peer_recv: Arc::downgrade(&a),
+            our_recv: None,
+        },
+        IfacePvt {
+            name: n,
+            peer_recv: a,
+        },
+    )
+}
+
+/// This is the public-facing part of an Iface, it is able to be plumbed
+/// to another iface.
+pub struct Iface {
+    /// Name of the iface
+    pub name: String,
+
+    /// Unique id of this interface, used to prevent the wrong
+    /// iface being unplumbed
+    id: u64,
+
+    /// Id of the iface we are plumbed to, if we are
+    peer_id: u64,
+
+    /// Our receiver, which is placed with the Ext so that it can be taken by the peer
+    /// This is None if we're plumbed
+    our_recv: Option<Box<dyn IfRecv>>,
+
+    /// Receiver of iface we are plumbed to, None unless we are plumbed
+    peer_recv: Weak<RwLock<Option<Box<dyn IfRecv>>>>,
+}
+impl Iface {
+    /// Get the name of the Iface
+    pub fn name(&self) -> &str {
+        &self.name
     }
-    pub fn plumb(&self, other: &Iface) -> Result<()> {
-        let mut s_l = self.s.write().unwrap();
-        if s_l.is_some() {
+
+    /// Set the IfRecv of this iface. This will typically be called by the module which
+    /// creates the Iface before returning the Iface to it's caller.
+    pub fn set_receiver<T: 'static + IfRecv>(&mut self, ir: T) {
+        self.our_recv = Some(Box::new(ir));
+    }
+
+    fn get_peer_recv(&self, oname: &str) -> Result<Arc<RwLock<Option<Box<dyn IfRecv>>>>> {
+        if let Some(o) = self.peer_recv.upgrade() {
+            Ok(o)
+        } else {
             bail!(
-                "Plumbing: {} to {}, {} is already plumbed",
-                self.ir.name,
-                other.ir.name,
-                self.ir.name
+                "Plumbing: {} to {}, {} already dropped",
+                self.name,
+                oname,
+                self.name
             );
         }
-        let mut other_l = other.s.write().unwrap();
-        if other_l.is_some() {
+    }
+    fn check_our_recv_some(&self, oname: &str) -> Result<()> {
+        if self.our_recv.is_some() {
+            Ok(())
+        } else {
             bail!(
-                "Plumbing: {} to {}, {} is already plumbed",
-                self.ir.name,
-                other.ir.name,
-                other.ir.name
+                "Plumbing: {} to {}, {} already plumbed",
+                self.name,
+                oname,
+                self.name
             );
         }
-        s_l.replace(other.ir.clone());
-        other_l.replace(self.ir.clone());
+    }
+
+    /// Connect two Ifaces together, this will typically be done by
+    /// Code which is interconnecting different modules with one another.
+    pub fn plumb(&mut self, other: &mut Iface) -> Result<()> {
+        let spr = self.get_peer_recv(&other.name)?;
+        let opr = other.get_peer_recv(&self.name)?;
+
+        let mut spr_l = spr.write().unwrap();
+        let mut opr_l = opr.write().unwrap();
+
+        self.check_our_recv_some(&other.name)?;
+        other.check_our_recv_some(&self.name)?;
+
+        assert!(spr_l.replace(other.our_recv.take().unwrap()).is_none());
+        assert!(opr_l.replace(self.our_recv.take().unwrap()).is_none());
+        assert!(self.peer_id == 0);
+        assert!(other.peer_id == 0);
+        self.peer_id = other.id;
+        other.peer_id = self.id;
         Ok(())
     }
-    pub fn cif(self, alloc: *mut Allocator) -> *mut crate::ffi::Iface {
-        let out = allocator::adopt(
-            alloc,
-            CIface {
-                cif: crate::ffi::Iface {
-                    send: Some(from_c),
-                    currentMsg: 0 as *mut crate::ffi::Message,
-                    connectedIf: 0 as *mut crate::ffi::Iface,
-                },
-                id_tag: IFACE_IDENT,
-                rif: self,
-            },
-        );
-        {
-            let mut s_l = out.rif.s.write().unwrap();
-            s_l.replace(IfaceRecv {
-                name: format!("{} recv from C", out.rif.ir.name),
-                r: Arc::new(RwLock::new(Box::new(CRecv {
-                    c_iface: out as *const CIface,
-                }))),
-            });
-        }
-        (&mut out.cif) as *mut crate::ffi::Iface
-    }
-}
 
-extern "C" {
-    pub fn RustIface_incomingFromRust(msg: *mut Message, iface: *mut c_void) -> Error_s;
-}
-struct CRecv {
-    c_iface: *const CIface,
-}
-impl IfRecv for CRecv {
-    fn recv(&self, m: &mut Message) -> Result<()> {
-        let ers = unsafe {
-            let ifr = self.c_iface.as_ref().unwrap();
-            let cfr_p = &ifr.cif as *const crate::ffi::Iface;
-            RustIface_incomingFromRust(m as *mut Message, cfr_p as *mut c_void)
-        };
-        match ers.e {
-            crate::ffi::Error_e_Error_NONE => Ok(()),
-            _ => {
-                bail!("Error from C code {}", ers.e as usize);
-            }
+    /// Tell whether the Iface is currently plumbed to another iface or not.
+    pub fn is_plumbed(&self) -> bool {
+        // When we're plumbed, our our_recv is taken away and given to our peer
+        self.our_recv.is_none()
+    }
+
+    fn check_our_recv_none(&self, oname: &str) -> Result<()> {
+        if self.our_recv.is_none() {
+            Ok(())
+        } else {
+            bail!(
+                "Unplumbing: {} from {}, {} already plumbed",
+                self.name,
+                oname,
+                self.name
+            );
         }
     }
-}
 
-#[repr(C)]
-pub struct CIface {
-    cif: crate::ffi::Iface,
+    /// Disconnect two ifaces, the two ifaces which are being disconnected
+    /// must have been plumbed to eachother, otherwise this method returns
+    /// an error.
+    pub fn unplumb(&mut self, other: &mut Iface) -> Result<()> {
+        let spr = self.get_peer_recv(&other.name)?;
+        let opr = other.get_peer_recv(&self.name)?;
 
-    // Additional "private" fields
-    id_tag: u32,
-    rif: Iface,
-}
+        let mut spr_l = spr.write().unwrap();
+        let mut opr_l = opr.write().unwrap();
 
-// This is an assertion to make sure we're being passed something legit from C
-const IFACE_IDENT: u32 = 0xdeadbeef;
+        self.check_our_recv_none(&other.name)?;
+        other.check_our_recv_none(&self.name)?;
 
-pub unsafe extern "C" fn from_c(
-    msg: *mut crate::ffi::Message,
-    iface_p: *mut crate::ffi::Iface,
-) -> Error_s {
-    let iface = (iface_p as *mut CIface).as_ref().unwrap();
-    assert!(iface.id_tag == IFACE_IDENT);
-    let recv = iface.rif.ir.r.read().unwrap();
-    match recv.recv(msg.as_mut().unwrap()) {
-        // TODO: we need better error handling
-        Ok(_) => Error_s {
-            e: Error_e_Error_NONE,
-        },
-        Err(_) => Error_s {
-            e: Error_e_Error_INTERNAL,
-        },
+        if self.id != other.peer_id || other.id != self.peer_id {
+            bail!(
+                concat!(
+                    "Unplumbing: {} from {}, id mismatch:",
+                    "self: {} other: {}, self.peer_id: {} other.peer_id: {}"
+                ),
+                &self.name,
+                &other.name,
+                self.id,
+                other.id,
+                self.peer_id,
+                other.peer_id
+            );
+        }
+
+        assert!(other.our_recv.replace(spr_l.take().unwrap()).is_none());
+        assert!(self.our_recv.replace(opr_l.take().unwrap()).is_none());
+        self.peer_id = 0;
+        other.peer_id = 0;
+        Ok(())
     }
 }

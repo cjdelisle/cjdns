@@ -426,12 +426,12 @@ Builder.configure({
 
     builder.buildLibrary('crypto/random/randombytes.c');
 
-    builder.buildLibrary('rust/cjdns_sys/bindings.c');
+    builder.buildLibrary('rust/cjdns_sys/cffi.h');
 
     builder.lintFiles(function (fileName, file, callback) {
         if (/dependencies/.test(fileName) ||
             /crypto\/sign/.test(fileName) ||
-            /bindings.c/.test(fileName)
+            /.ffi\.h/.test(fileName)
         ) {
             callback('', false);
             return;

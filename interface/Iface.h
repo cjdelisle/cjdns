@@ -20,9 +20,8 @@
 #include "wire/Error.h"
 #include "wire/Message.h"
 #include "util/Defined.h"
-
-// Needed to make sure the rustIface code is available to the linker
-#include "interface/RustIface.h"
+#include "util/Linker.h"
+Linker_require("interface/Iface.c")
 
 struct Iface;
 
@@ -34,7 +33,7 @@ typedef struct Error_s (* Iface_Callback)(struct Message* message, struct Iface*
 
 #define Iface_DEFUN __attribute__ ((warn_unused_result)) struct Error_s
 
-struct Iface
+typedef struct Iface
 {
     /** Send a message through this interface. */
     Iface_Callback send;
@@ -46,7 +45,10 @@ struct Iface
 
     /** Interface to which this one is connected (if connected) */
     struct Iface* connectedIf;
-};
+} Iface_t;
+
+// This needs to be in a C file in order to be accessible from Rust
+Iface_DEFUN Iface_incomingFromRust(struct Message* message, struct Iface* thisInterface);
 
 /**
  * Send a message to an Iface.

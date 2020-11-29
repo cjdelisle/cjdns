@@ -21,6 +21,26 @@ fn cfiles<P: AsRef<Path>>(out: &mut Vec<PathBuf>, path: P) -> Result<()> {
 }
 
 fn main() -> Result<()> {
+    // Generate C bindings from rust
+    #[cfg(feature = "generate-rffi")]
+    {
+        println!("Generating rffi");
+        let mut conf = cbindgen::Config::default();
+        conf.language = cbindgen::Language::C;
+        conf.autogen_warning =
+            Some("// This file is generated from src/rffi.rs using cbindgen".to_owned());
+        conf.style = cbindgen::Style::Type;
+        conf.include_guard = Some("rffi_H".to_owned());
+        conf.includes = vec!["cffi.h".to_owned()];
+        cbindgen::Builder::new()
+            .with_src("./src/rffi.rs")
+            .with_config(conf)
+            .generate()
+            .expect("Unable to generate rffi")
+            .write_to_file("Rffi.h");
+        println!("Generating rffi done");
+    }
+
     let ret = Command::new("/bin/sh")
         .current_dir("../../")
         .env("MAINJS", "./node_build/make.js")
@@ -79,21 +99,26 @@ fn main() -> Result<()> {
     }
     build.compile("cjdns_sys");
 
-    #[cfg(feature = "generate-bindings")]
+    // Generate rust bindings from C
+    #[cfg(feature = "generate-cffi")]
     {
         let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
         bindgen::Builder::default()
-            .header(
-                out_path
-                    .join("rust_cjdns_sys_bindings_c.i")
-                    .to_str()
-                    .unwrap(),
-            )
+            .header(out_path.join("rust_cjdns_sys_cffi_h.i").to_str().unwrap())
             .generate_comments(false)
+            .layout_tests(false)
+            .default_enum_style(bindgen::EnumVariation::Rust {
+                non_exhaustive: false,
+            })
+            .raw_line("#![allow(non_snake_case)]")
+            .raw_line("#![allow(dead_code)]")
+            .raw_line("#![allow(non_camel_case_types)]")
+            .whitelist_function(".*")
+            .whitelist_type("RBindings_Whitelist")
             .generate()
-            .expect("Unable to generate bindings")
-            .write_to_file(out_path.join("bindings.rs"))
-            .expect("Couldn't write bindings!");
+            .expect("Unable to generate rbindings")
+            .write_to_file("src/cffi.rs")
+            .expect("Couldn't write rbindings");
     }
     Ok(())
 }

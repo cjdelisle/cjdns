@@ -26,6 +26,7 @@ macro_rules! c_main {
 /// All the C implementations are gathered under this `external` module.
 pub mod external {
     pub mod interface {
+        pub mod cif;
         pub mod iface;
     }
     pub mod memory {
@@ -37,7 +38,8 @@ mod interface {
     pub mod tuntap {
         pub mod android;
     }
-    pub mod countwrapper;
+    pub mod rustiface_test_wrapper;
 }
 
-mod ffi;
+mod cffi;
+mod rffi;

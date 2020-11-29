@@ -98,7 +98,7 @@ struct Allocator_OnFreeJob
  *
  * The function pointers in the allocator structure are best called through the associated macros.
  */
-struct Allocator
+typedef struct Allocator
 {
     /** The name of the file where this allocator was created. */
     const char* fileName;
@@ -108,7 +108,7 @@ struct Allocator
 
     /** Non-zero if allocator is currently freeing. */
     int isFreeing;
-};
+} Allocator_t;
 
 struct Allocator_Allocation
 {

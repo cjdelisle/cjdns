@@ -10,6 +10,37 @@ Small patches are easy to include and large ones are hard to validate. Consider
 breaking your evil plans up into a bunch of nice little changes which are easy
 to understand and prove safe.
 
+## Rust interop
+Cjdns codebase contains both C and Rust code. If you are planning on implementing
+new functionality, it is better to do it in Rust because it simplifies code review
+and maintainability.
+
+### Dependencies - ask first
+If you're planning to add *any* new dependencies to cjdns, ask before you add them.
+Binary size is important, cjdns runs on some small devices and pull requests adding
+large and/or needless dependencies will be rejected. If you want to include a new
+dependency, have a very good reason and ask before you do the work.
+
+### FFI
+There are two kinds of foreign function interface in cjdns: cffi and rffi. Cffi is
+Rust code which is generated from C code and Rffi is C code generated from Rust.
+
+* `rust/cjdns_sys/src/cffi.rs` is generated from `rust/cjdns_sys/cffi.h`
+* `rust/cjdns_sys/Rffi.h` is generated from `rust/cjdns_sys/src/rffi.rs`
+
+Normally these files are checked in to git and do not change, but if you need to add
+a C function to be called from Rust, or a Rust function to be called from C, you need
+to edit the relevant file and then rebuild cjdns_sys with generate-cffi and/or
+generate-rffi feature.
+
+```
+cd rust/cjdns_sys
+cargo build --features generate-rffi
+cargo build --features generate-cffi
+```
+
+Running these will update the generated files.
+
 Minutiae:
 ---------
 

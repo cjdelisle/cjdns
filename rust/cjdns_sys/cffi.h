@@ -13,12 +13,18 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+// This file is used to generate src/cffi.rs using bindgen
+
 #include "memory/Allocator.h"
 #include "interface/Iface.h"
+#include "interface/test/RustIface_test.h"
 
-
-struct CCountWrapper {
-    struct Iface* internal;
-    struct Iface* external;
+// This structure is guaranteed to be present in the generated rust code
+// Also all functions in the above headers will be present.
+// Any types which are not transitively included in either this structure
+// or in one of the functions will not be generated. This prevents generating
+// a bunch of platform-specific trash like uint_fast8_t etc.
+struct RBindings_Whitelist {
+    Allocator_t a;
+    Iface_t b;
 };
-struct CCountWrapper countwrapper_create(struct Allocator* alloc);
