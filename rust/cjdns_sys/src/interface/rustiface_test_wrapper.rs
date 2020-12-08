@@ -2,11 +2,14 @@
 //!
 //! This is used with RustIface_test.c to verify that the Rust/C Iface bridge works as expected.
 
-use crate::cffi::{self, Message};
-use crate::external::interface::iface::{self, IfRecv, Iface, IfacePvt};
-use anyhow::Result;
 use std::sync::Arc;
 use std::sync::Mutex;
+
+use anyhow::Result;
+
+use crate::cffi;
+use crate::external::interface::iface::{self, Iface, IfacePvt, IfRecv};
+use crate::interface::wire::message::Message;
 
 #[derive(Default)]
 struct TestWrapperPvt {

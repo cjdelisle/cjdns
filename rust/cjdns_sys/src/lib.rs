@@ -28,16 +28,26 @@ pub mod external {
     pub mod interface {
         pub mod cif;
         pub mod iface;
+        mod cmsg;
     }
+
     pub mod memory {
         pub mod allocator;
     }
 }
 
 mod interface {
+    #[allow(dead_code)]
+    pub mod wire {
+        pub mod message;
+        pub mod headers;
+        pub mod ethernet;
+    }
+
     pub mod tuntap {
         pub mod android;
     }
+
     pub mod rustiface_test_wrapper;
 }
 

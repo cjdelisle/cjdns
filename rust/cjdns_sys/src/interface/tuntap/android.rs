@@ -4,16 +4,19 @@
 //! file description opened by system process rather than in the cjd process,
 //! this InterfaceWrapper handle this case.
 
-use crate::cffi::Message;
-use crate::external::interface::iface::{self, IfRecv, Iface, IfacePvt};
-use anyhow::Result;
+use anyhow::{bail, Result};
+use byte_slice_cast::*;
+
+use crate::external::interface::iface::{self, Iface, IfacePvt, IfRecv};
+use crate::interface::wire::{ethernet, headers};
+use crate::interface::wire::message::Message;
 
 pub struct AndroidWrapperInt {
     ext_pvt: IfacePvt,
 }
 impl IfRecv for AndroidWrapperInt {
     fn recv(&self, m: &mut Message) -> Result<()> {
-        // TODO: We need to pop bytes off of the message to make it Android compatible
+        m.pop(4)?;
         self.ext_pvt.send(m)
     }
 }
@@ -23,8 +26,13 @@ pub struct AndroidWrapperExt {
 }
 impl IfRecv for AndroidWrapperExt {
     fn recv(&self, m: &mut Message) -> Result<()> {
-        // TODO: We need to push bytes to the message
-        //       because cjdns expects an ethertype at the beginning
+        let ethertype = match headers::get_ip_version(m.bytes()) {
+            4 => ethernet::TYPE_IP4,
+            6 => ethernet::TYPE_IP6,
+            _ => bail!("Message is not IP/IPv6, dropped."),
+        };
+        let hdr = [0, ethertype];
+        m.push(hdr.as_byte_slice())?;
         self.int_pvt.send(m)
     }
 }

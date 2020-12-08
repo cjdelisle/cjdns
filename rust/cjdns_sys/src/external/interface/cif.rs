@@ -1,15 +1,19 @@
-use crate::cffi::{self, Allocator, Error_e, Error_s, Message};
-use crate::external::interface::iface::{self, IfRecv, Iface, IfacePvt};
-use crate::external::memory::allocator;
 use anyhow::{bail, Result};
+
+use crate::cffi::{self, Allocator, Error_e, Error_s};
+use crate::external::interface::iface::{self, Iface, IfacePvt, IfRecv};
+use crate::external::memory::allocator;
+use crate::interface::wire::message::Message;
 
 // TODO: this is not even the tiniest big thread safe
 struct CRecv {
     c_iface: *mut cffi::Iface,
+    alloc: *mut Allocator,
 }
 impl IfRecv for CRecv {
     fn recv(&self, m: &mut Message) -> Result<()> {
-        let ers = unsafe { cffi::Iface_incomingFromRust(m as *mut Message, self.c_iface) };
+        let m = m.as_c_message(self.alloc);
+        let ers = unsafe { cffi::Iface_incomingFromRust(m as *mut cffi::Message, self.c_iface) };
         match ers.e {
             Error_e::Error_NONE => Ok(()),
             _ => {
@@ -44,7 +48,8 @@ unsafe extern "C" fn from_c(msg: *mut cffi::Message, iface_p: *mut cffi::Iface) 
     // check that this field id_tag is equal to the value we set it to initially.
     assert!(iface.id_tag == IFACE_IDENT);
 
-    match iface.rif.send(msg.as_mut().unwrap()) {
+    let mut msg = Message::from_c_message(msg);
+    match iface.rif.send(&mut msg) {
         // TODO: we need better error handling
         Ok(_) => Error_s {
             e: Error_e::Error_NONE,
@@ -75,7 +80,7 @@ pub fn new<T: Into<String>>(alloc: *mut Allocator, name: T) -> (Iface, *mut cffi
         },
     );
     let c_iface = (&mut out.cif) as *mut cffi::Iface;
-    iface.set_receiver(CRecv { c_iface });
+    iface.set_receiver(CRecv { c_iface, alloc });
     (iface, c_iface)
 }
 

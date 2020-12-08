@@ -1,10 +1,12 @@
 //! Network interface from C part of the project.
 
-use crate::cffi::Message;
-use anyhow::{bail, Result};
-use std::sync::RwLock;
 use std::sync::{Arc, Weak};
+use std::sync::RwLock;
 use std::time::{SystemTime, UNIX_EPOCH};
+
+use anyhow::{bail, Result};
+
+use crate::interface::wire::message::Message;
 
 /// This is the trait which you need to implement in order to implement
 /// a cjdns Iface.
