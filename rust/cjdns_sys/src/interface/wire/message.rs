@@ -28,8 +28,8 @@ pub enum MessageError {
     #[error("Buffer underflow, amount={0}, length={1}")]
     BufferUnderflow(i32, i32),
 
-    #[error("Buffer misaligned: item size {0}, required alignment {1}, buffer ptr 0x{2:x}")]
-    InvalidAlign(usize, usize, usize),
+    #[error("Buffer misaligned: item size {0}, required alignment {1}")]
+    InvalidAlign(usize, usize),
 }
 
 pub type Result<T> = std::result::Result<T, MessageError>;
@@ -149,80 +149,115 @@ impl Message {
     /// Push data item of type `T` *before* the message's existing data.
     /// The available padding must be enough to accommodate additional data,
     /// otherwise error is returned.
-    /// Current buffer pointer must be aligned to the align of `T`,
-    /// otherwise error is returned.
     pub fn push<T>(&mut self, mut value: T) -> Result<()> {
         let size = std::mem::size_of_val(&value);
         debug_assert!(size < i32::MAX as usize);
-        self.check_size_and_align::<T>(size as isize)?;
+        if size > self.pad() {
+            return Err(MessageError::InsufficientPadding(size, self.pad()));
+        }
+
         self.shift(size as i32)?;
-        let data_ref = self.data_ref_mut::<T>();
 
-        // Swap uninitialized buffer space with the value
-        std::mem::swap(data_ref, &mut value);
-
-        // Discard without dropping whatever value we got from uninitialized buffer
-        std::mem::forget(value);
+        // Try to use direct copying (faster) if the buffer is properly aligned
+        if let Some(dest) = self.data_ref_mut::<T>() {
+            // Swap uninitialized buffer space with the value
+            std::mem::swap(dest, &mut value);
+            // Discard without dropping whatever value we got from uninitialized buffer
+            std::mem::forget(value);
+        } else { // Fallback to slower byte slice copying
+            let bytes = self.bytes_mut();
+            let dest = &mut bytes[0..size];
+            let value_ptr = &value as *const T as *const u8;
+            let src = unsafe { from_raw_parts(value_ptr, size) };
+            dest.copy_from_slice(src);
+        }
 
         Ok(())
     }
 
     /// Pop data item of type `T` from the beginning of the message.
     /// The message must be big enough, otherwise error is returned.
-    /// Current buffer pointer must be aligned to the align of `T`,
-    /// otherwise error is returned.
     pub fn pop<T: Default>(&mut self) -> Result<T> {
-        self.check_size_and_align::<T>(0)?;
-        let data_ref = self.data_ref_mut::<T>();
-        let res = std::mem::take(data_ref);
-        let size = std::mem::size_of_val(&res);
+        let size = std::mem::size_of::<T>();
         debug_assert!(size < i32::MAX as usize);
+        if size > self.len() {
+            return Err(MessageError::InsufficientLength(size, self.len()));
+        }
+
+        let mut res;
+
+        // Try to use direct copying (faster) if the buffer is properly aligned
+        if let Some(src) = self.data_ref_mut::<T>() {
+            // Take the value leaving `Default::default()` on its place
+            res = std::mem::take(src);
+        } else { // Fallback to slower byte slice copying
+            let bytes = self.bytes();
+            let src = &bytes[0..size];
+            res = T::default();
+            let res_ptr = &mut res as *mut T as *mut u8;
+            let dest = unsafe { from_raw_parts_mut(res_ptr, size) };
+            dest.copy_from_slice(src);
+        }
+
         self.shift(-(size as i32))?;
+
         Ok(res)
     }
 
     /// Peek the item of type `T` at the beginning of the message as a reference.
     /// Error is returned if the message is too short or buffer pointer is misaligned.
     pub fn peek<T>(&self) -> Result<&T> {
-        self.check_size_and_align::<T>(0)?;
-        Ok(self.data_ref::<T>())
+        let size = std::mem::size_of::<T>();
+        if size > self.len() {
+            return Err(MessageError::InsufficientLength(size, self.len()));
+        }
+        if let Some(data_ref) = self.data_ref::<T>() {
+            Ok(data_ref)
+        } else {
+            return Err(MessageError::InvalidAlign(size, std::mem::align_of::<T>()));
+        }
     }
 
     /// Peek the item of type `T` at the beginning of the message as a mutable reference.
     /// Error is returned if the message is too short or buffer pointer is misaligned.
     pub fn peek_mut<T>(&mut self) -> Result<&mut T> {
-        self.check_size_and_align::<T>(0)?;
-        Ok(self.data_ref_mut::<T>())
-    }
-
-    #[inline]
-    fn check_size_and_align<T>(&self, offs: isize) -> Result<()> {
-        let msg = unsafe { &mut (*self.0) };
-        let ptr = (msg.bytes as isize + offs) as usize;
-        let length = msg.length as usize;
         let size = std::mem::size_of::<T>();
+        if size > self.len() {
+            return Err(MessageError::InsufficientLength(size, self.len()));
+        }
+        if let Some(data_ref) = self.data_ref_mut::<T>() {
+            Ok(data_ref)
+        } else {
+            return Err(MessageError::InvalidAlign(size, std::mem::align_of::<T>()));
+        }
+    }
+
+    #[inline]
+    fn data_ref<T>(&self) -> Option<&T> {
+        let msg = unsafe { &mut (*self.0) };
+        let ptr = msg.bytes as usize;
         let align = std::mem::align_of::<T>();
-        if length < size {
-            return Err(MessageError::InsufficientLength(size, length));
+        if ptr % align == 0 {
+            let ptr = ptr as *const T;
+            let data = unsafe { &*ptr };
+            Some(data)
+        } else {
+            None
         }
-        if ptr % align != 0 {
-            return Err(MessageError::InvalidAlign(size, align, ptr));
-        }
-        Ok(())
     }
 
     #[inline]
-    fn data_ref<T>(&self) -> &T {
+    fn data_ref_mut<T>(&mut self) -> Option<&mut T> {
         let msg = unsafe { &mut (*self.0) };
-        let ptr = msg.bytes as *const T;
-        unsafe { &*ptr }
-    }
-
-    #[inline]
-    fn data_ref_mut<T>(&mut self) -> &mut T {
-        let msg = unsafe { &mut (*self.0) };
-        let ptr = msg.bytes as *mut T;
-        unsafe { &mut *ptr }
+        let ptr = msg.bytes as usize;
+        let align = std::mem::align_of::<T>();
+        if ptr % align == 0 {
+            let ptr = ptr as *mut T;
+            let data = unsafe { &mut *ptr };
+            Some(data)
+        } else {
+            None
+        }
     }
 
     fn shift(&mut self, amount: i32) -> Result<()> {
@@ -308,7 +343,32 @@ mod tests {
         assert_eq!(msg.len(), 68);
         assert_eq!(msg.pop(), Ok(0x5678_u16));
         assert_eq!(msg.len(), 66);
+        assert_eq!(msg.peek(), Ok(&0x1234_u16));
         assert_eq!(msg.pop(), Ok(0x1234_u16));
         assert_eq!(msg.len(), 64);
+    }
+
+    #[test]
+    fn test_message_push_pop_unaligned() {
+        let alloc = alloc::new_allocator(1024);
+        let c_msg = unsafe { cffi::Message_new(64, 64, alloc) };
+        let mut msg = Message::from_c_message(c_msg);
+        assert_eq!(msg.len(), 64);
+
+        // Break the alignment
+        assert_eq!(msg.push(0xFF_u8), Ok(()));
+
+        // Push 4 bytes unaligned
+        assert_eq!(msg.push(0x12345678_u32), Ok(()));
+
+        // Peek can't read unaligned data - this is expected
+        assert!(msg.peek::<u32>().is_err());
+        assert!(msg.peek_mut::<u32>().is_err());
+
+        // Break more
+        assert_eq!(msg.push(0xEE_u8), Ok(()));
+
+        // Pop 4 bytes unaligned
+        assert_eq!(msg.pop(), Ok(0x345678EE_u32));
     }
 }
