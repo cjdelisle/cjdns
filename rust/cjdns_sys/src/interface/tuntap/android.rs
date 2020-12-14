@@ -5,18 +5,30 @@
 //! this InterfaceWrapper handle this case.
 
 use anyhow::{bail, Result};
-use byte_slice_cast::*;
 
 use crate::external::interface::iface::{self, Iface, IfacePvt, IfRecv};
 use crate::interface::wire::{ethernet, headers};
 use crate::interface::wire::message::Message;
+
+#[derive(Default, Clone)]
+#[repr(C)]
+struct Hdr {
+    dummy: u16,
+    ethertype: u16,
+}
 
 pub struct AndroidWrapperInt {
     ext_pvt: IfacePvt,
 }
 impl IfRecv for AndroidWrapperInt {
     fn recv(&self, m: &mut Message) -> Result<()> {
-        m.pop(4)?;
+        let hdr = m.pop::<Hdr>()?;
+        if hdr.dummy != 0 {
+            bail!("Unexpected header value: 0x{:x}", hdr.dummy);
+        }
+        if hdr.ethertype != ethernet::TYPE_IP4 && hdr.ethertype != ethernet::TYPE_IP6 {
+            bail!("Unexpected ethertype: 0x{:x}", hdr.ethertype);
+        }
         self.ext_pvt.send(m)
     }
 }
@@ -31,8 +43,11 @@ impl IfRecv for AndroidWrapperExt {
             6 => ethernet::TYPE_IP6,
             _ => bail!("Message is not IP/IPv6, dropped."),
         };
-        let hdr = [0, ethertype];
-        m.push(hdr.as_byte_slice())?;
+        let hdr = Hdr {
+            dummy: 0,
+            ethertype,
+        };
+        m.push(hdr)?;
         self.int_pvt.send(m)
     }
 }

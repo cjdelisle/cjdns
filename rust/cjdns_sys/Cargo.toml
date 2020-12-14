@@ -7,7 +7,6 @@ build = "build.rs"
 
 [dependencies]
 sodiumoxide = { git = "https://github.com/cjdelisle/sodiumoxide", rev = "3aa7e8e21b9cd61ad64f4a0ed125d5b1af2cf38d", version = "0.2", default-features = false, features = ["std"] }
-byte-slice-cast = "1.0"
 thiserror = "1.0"
 anyhow = "1.0"
 

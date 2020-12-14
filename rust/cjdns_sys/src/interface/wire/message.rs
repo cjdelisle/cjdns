@@ -27,6 +27,9 @@ pub enum MessageError {
 
     #[error("Buffer underflow, amount={0}, length={1}")]
     BufferUnderflow(i32, i32),
+
+    #[error("Buffer misaligned: item size {0}, required alignment {1}, buffer ptr 0x{2:x}")]
+    InvalidAlign(usize, usize, usize),
 }
 
 pub type Result<T> = std::result::Result<T, MessageError>;
@@ -96,7 +99,7 @@ impl Message {
     /// Push additional data `bytes` *before* the message's existing data.
     /// The available padding must be enough to accommodate additional data,
     /// otherwise error is returned.
-    pub fn push(&mut self, bytes: &[u8]) -> Result<()> {
+    pub fn push_bytes(&mut self, bytes: &[u8]) -> Result<()> {
         let count = bytes.len();
         debug_assert!(count < i32::MAX as usize);
         if count > self.pad() {
@@ -111,7 +114,7 @@ impl Message {
 
     /// Pop specified number of bytes from the beginning of the message.
     /// The message must be big enough, otherwise error is returned.
-    pub fn pop(&mut self, count: usize) -> Result<Vec<u8>> {
+    pub fn pop_bytes(&mut self, count: usize) -> Result<Vec<u8>> {
         debug_assert!(count < i32::MAX as usize);
         if self.len() < count {
             return Err(MessageError::InsufficientLength(count, self.len()));
@@ -125,7 +128,7 @@ impl Message {
 
     /// Peek the specified number of bytes from the beginning of the message as a byte slice.
     /// Error is returned if the message is too short.
-    pub fn peek(&self, count: usize) -> Result<&[u8]> {
+    pub fn peek_bytes(&self, count: usize) -> Result<&[u8]> {
         if self.len() < count {
             return Err(MessageError::InsufficientLength(count, self.len()));
         }
@@ -135,12 +138,91 @@ impl Message {
 
     /// Peek the specified number of bytes from the beginning of the message as a mutable byte slice.
     /// Error is returned if the message is too short.
-    pub fn peek_mut(&mut self, count: usize) -> Result<&mut [u8]> {
+    pub fn peek_bytes_mut(&mut self, count: usize) -> Result<&mut [u8]> {
         if self.len() < count {
             return Err(MessageError::InsufficientLength(count, self.len()));
         }
         let data = self.bytes_mut();
         Ok(&mut data[0..count])
+    }
+
+    /// Push data item of type `T` *before* the message's existing data.
+    /// The available padding must be enough to accommodate additional data,
+    /// otherwise error is returned.
+    /// Current buffer pointer must be aligned to the align of `T`,
+    /// otherwise error is returned.
+    pub fn push<T>(&mut self, mut value: T) -> Result<()> {
+        let size = std::mem::size_of_val(&value);
+        debug_assert!(size < i32::MAX as usize);
+        self.check_size_and_align::<T>(size as isize)?;
+        self.shift(size as i32)?;
+        let data_ref = self.data_ref_mut::<T>();
+
+        // Swap uninitialized buffer space with the value
+        std::mem::swap(data_ref, &mut value);
+
+        // Discard without dropping whatever value we got from uninitialized buffer
+        std::mem::forget(value);
+
+        Ok(())
+    }
+
+    /// Pop data item of type `T` from the beginning of the message.
+    /// The message must be big enough, otherwise error is returned.
+    /// Current buffer pointer must be aligned to the align of `T`,
+    /// otherwise error is returned.
+    pub fn pop<T: Default>(&mut self) -> Result<T> {
+        self.check_size_and_align::<T>(0)?;
+        let data_ref = self.data_ref_mut::<T>();
+        let res = std::mem::take(data_ref);
+        let size = std::mem::size_of_val(&res);
+        debug_assert!(size < i32::MAX as usize);
+        self.shift(-(size as i32))?;
+        Ok(res)
+    }
+
+    /// Peek the item of type `T` at the beginning of the message as a reference.
+    /// Error is returned if the message is too short or buffer pointer is misaligned.
+    pub fn peek<T>(&self) -> Result<&T> {
+        self.check_size_and_align::<T>(0)?;
+        Ok(self.data_ref::<T>())
+    }
+
+    /// Peek the item of type `T` at the beginning of the message as a mutable reference.
+    /// Error is returned if the message is too short or buffer pointer is misaligned.
+    pub fn peek_mut<T>(&mut self) -> Result<&mut T> {
+        self.check_size_and_align::<T>(0)?;
+        Ok(self.data_ref_mut::<T>())
+    }
+
+    #[inline]
+    fn check_size_and_align<T>(&self, offs: isize) -> Result<()> {
+        let msg = unsafe { &mut (*self.0) };
+        let ptr = (msg.bytes as isize + offs) as usize;
+        let length = msg.length as usize;
+        let size = std::mem::size_of::<T>();
+        let align = std::mem::align_of::<T>();
+        if length < size {
+            return Err(MessageError::InsufficientLength(size, length));
+        }
+        if ptr % align != 0 {
+            return Err(MessageError::InvalidAlign(size, align, ptr));
+        }
+        Ok(())
+    }
+
+    #[inline]
+    fn data_ref<T>(&self) -> &T {
+        let msg = unsafe { &mut (*self.0) };
+        let ptr = msg.bytes as *const T;
+        unsafe { &*ptr }
+    }
+
+    #[inline]
+    fn data_ref_mut<T>(&mut self) -> &mut T {
+        let msg = unsafe { &mut (*self.0) };
+        let ptr = msg.bytes as *mut T;
+        unsafe { &mut *ptr }
     }
 
     fn shift(&mut self, amount: i32) -> Result<()> {
@@ -191,7 +273,7 @@ mod tests {
     }
 
     #[test]
-    fn test_message() {
+    fn test_message_bytes() {
         let alloc = alloc::new_allocator(1024);
         let c_msg = unsafe { cffi::Message_new(4, 5, alloc) };
         let mut msg = Message::from_c_message(c_msg);
@@ -201,18 +283,32 @@ mod tests {
         assert_eq!(msg.bytes_mut().len(), 4);
         msg.bytes_mut().copy_from_slice(&[1, 2, 3, 4]);
         assert_eq!(msg.bytes(), &[1, 2, 3, 4]);
-        assert!(msg.push(&[42, 43]).is_ok());
+        assert!(msg.push_bytes(&[42, 43]).is_ok());
         assert_eq!(msg.bytes(), &[42, 43, 1, 2, 3, 4]);
         assert_eq!(msg.len(), 6);
         assert_eq!(msg.pad(), 3);
-        assert!(msg.push(&[10, 11, 12, 13]).is_err());
-        assert_eq!(msg.peek(3), Ok(&[42_u8, 43, 1][..]));
-        assert_eq!(msg.peek_mut(3), Ok(&mut [42_u8, 43, 1][..]));
-        assert!(msg.peek_mut(10).is_err());
-        assert_eq!(msg.pop(4), Ok(vec![42, 43, 1, 2]));
+        assert!(msg.push_bytes(&[10, 11, 12, 13]).is_err());
+        assert_eq!(msg.peek_bytes(3), Ok(&[42_u8, 43, 1][..]));
+        assert_eq!(msg.peek_bytes_mut(3), Ok(&mut [42_u8, 43, 1][..]));
+        assert!(msg.peek_bytes_mut(10).is_err());
+        assert_eq!(msg.pop_bytes(4), Ok(vec![42, 43, 1, 2]));
         assert_eq!(msg.bytes(), &[3, 4]);
-        assert_eq!(msg.pop(2), Ok(vec![3, 4]));
+        assert_eq!(msg.pop_bytes(2), Ok(vec![3, 4]));
         assert_eq!(msg.len(), 0);
         assert_eq!(msg.pad(), 9);
+    }
+
+    #[test]
+    fn test_message_push_pop() {
+        let alloc = alloc::new_allocator(1024);
+        let c_msg = unsafe { cffi::Message_new(64, 64, alloc) };
+        let mut msg = Message::from_c_message(c_msg);
+        assert_eq!(msg.len(), 64);
+        assert_eq!(msg.push(0x12345678_u32), Ok(()));
+        assert_eq!(msg.len(), 68);
+        assert_eq!(msg.pop(), Ok(0x5678_u16));
+        assert_eq!(msg.len(), 66);
+        assert_eq!(msg.pop(), Ok(0x1234_u16));
+        assert_eq!(msg.len(), 64);
     }
 }
