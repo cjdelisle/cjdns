@@ -8,12 +8,11 @@ use crate::interface::wire::message::Message;
 // TODO: this is not even the tiniest big thread safe
 struct CRecv {
     c_iface: *mut cffi::Iface,
-    alloc: *mut Allocator,
 }
 impl IfRecv for CRecv {
     fn recv(&self, m: &mut Message) -> Result<()> {
-        let m = m.as_c_message(self.alloc);
-        let ers = unsafe { cffi::Iface_incomingFromRust(m as *mut cffi::Message, self.c_iface) };
+        let c_msg = m.as_c_message();
+        let ers = unsafe { cffi::Iface_incomingFromRust(c_msg, self.c_iface) };
         match ers.e {
             Error_e::Error_NONE => Ok(()),
             _ => {
@@ -65,7 +64,6 @@ unsafe extern "C" fn from_c(msg: *mut cffi::Message, iface_p: *mut cffi::Iface) 
 /// and then pass the cffi::Iface to C code to be plumbed to another C Iface and
 /// messages passed to the C Iface will come out in your Iface
 pub fn new<T: Into<String>>(alloc: *mut Allocator, name: T) -> (Iface, *mut cffi::Iface) {
-    //pub fn new(alloc: *mut Allocator) -> (, Iface) {
     let (mut iface, iface_pvt) = iface::new(name);
     let out = allocator::adopt(
         alloc,
@@ -80,7 +78,7 @@ pub fn new<T: Into<String>>(alloc: *mut Allocator, name: T) -> (Iface, *mut cffi
         },
     );
     let c_iface = (&mut out.cif) as *mut cffi::Iface;
-    iface.set_receiver(CRecv { c_iface, alloc });
+    iface.set_receiver(CRecv { c_iface });
     (iface, c_iface)
 }
 

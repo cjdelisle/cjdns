@@ -1,19 +1,18 @@
 //! Message type.
 
+use std::slice::{from_raw_parts, from_raw_parts_mut};
+
 use thiserror::Error;
+
+use crate::cffi;
 
 /// A network message.
 ///
-/// Can be converted to/from to C `struct Message` from `wire/Message.h`.
+/// Wraps a pointer to C `struct Message` from `wire/Message.h`.
+///
+/// *Unsafe:* The original pointer *must* remain valid while this instance still in use.
 #[derive(Clone)]
-pub struct Message {
-    /// Actual data starts at offset `padding`.
-    data: Box<[u8]>,
-
-    /// The number of bytes of padding BEFORE the actual message data.
-    /// Useful to prepend additional data at no cost.
-    padding: usize,
-}
+pub struct Message(*mut cffi::Message);
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum MessageError {
@@ -22,59 +21,90 @@ pub enum MessageError {
 
     #[error("Can't take {0} bytes from the message, only {1} bytes available")]
     InsufficientLength(usize, usize),
+
+    #[error("Buffer overflow adding {0} to length {1}")]
+    BufferOverflow(i32, i32),
+
+    #[error("Buffer underflow, amount={0}, length={1}")]
+    BufferUnderflow(i32, i32),
 }
 
 pub type Result<T> = std::result::Result<T, MessageError>;
 
 impl Message {
-    /// Create new message with zero-initialized content of a specified size.
-    /// The `prepend_capacity` bytes is added to the message capacity *before* the actual data,
-    /// so that the message can be easily prepended with more data.
+    /// Construct a Rust `Message` by wrapping a pointer to C `Message`.
+    ///
+    /// *Unsafe:* The original pointer *must* remain valid until this instance is dropped.
     #[inline]
-    pub fn new(size: usize, prepend_capacity: usize) -> Self {
-        Message {
-            data: vec![0_u8; size + prepend_capacity].into_boxed_slice(),
-            padding: prepend_capacity,
-        }
+    pub fn from_c_message(c_msg: *mut cffi::Message) -> Self {
+        Message(c_msg)
+    }
+
+    /// Return original C `Message` pointer from this Rust `Message`.
+    #[inline]
+    pub fn as_c_message(&self) -> *mut cffi::Message {
+        let &Message(c_msg) = self;
+        c_msg
     }
 
     /// Get the message length.
     #[inline]
     pub fn len(&self) -> usize {
-        debug_assert!(self.data.len() >= self.padding);
-        self.data.len() - self.padding
+        let msg = unsafe { &mut (*self.0) };
+        debug_assert!(msg.length >= 0);
+        msg.length as usize
+    }
+
+    /// Get the message capacity.
+    #[inline]
+    pub fn cap(&self) -> usize {
+        let msg = unsafe { &mut (*self.0) };
+        debug_assert!(msg.capacity >= 0);
+        msg.capacity as usize
     }
 
     /// Get the available padding size.
     #[inline]
     pub fn pad(&self) -> usize {
-        self.padding
+        let msg = unsafe { &mut (*self.0) };
+        debug_assert!(msg.padding >= 0);
+        msg.padding as usize
     }
 
-    /// Get the read-only view into the message as byte slice.
+    /// Get the read-only view into the message data as byte slice.
     #[inline]
     pub fn bytes(&self) -> &[u8] {
-        debug_assert!(self.padding <= self.data.len());
-        &self.data[self.padding..]
+        let msg = unsafe { &mut (*self.0) };
+        debug_assert!(!msg.bytes.is_null());
+        debug_assert!(msg.length >= 0);
+        let ptr = msg.bytes as *const u8;
+        let len = msg.length as usize;
+        unsafe { from_raw_parts(ptr, len) }
     }
 
-    /// Get the mutable view into the message as byte slice.
+    /// Get the mutable view into the message data as byte slice.
     #[inline]
     pub fn bytes_mut(&mut self) -> &mut [u8] {
-        debug_assert!(self.padding <= self.data.len());
-        &mut self.data[self.padding..]
+        let msg = unsafe { &mut (*self.0) };
+        debug_assert!(!msg.bytes.is_null());
+        debug_assert!(msg.length >= 0);
+        let ptr = msg.bytes;
+        let len = msg.length as usize;
+        unsafe { from_raw_parts_mut(ptr, len) }
     }
 
     /// Push additional data `bytes` *before* the message's existing data.
     /// The available padding must be enough to accommodate additional data,
     /// otherwise error is returned.
     pub fn push(&mut self, bytes: &[u8]) -> Result<()> {
-        if bytes.len() > self.padding {
-            return Err(MessageError::InsufficientPadding(bytes.len(), self.padding));
+        let count = bytes.len();
+        debug_assert!(count < i32::MAX as usize);
+        if count > self.pad() {
+            return Err(MessageError::InsufficientPadding(count, self.pad()));
         }
-        self.padding -= bytes.len();
-        debug_assert!(self.padding <= self.data.len());
-        let dest = &mut self.data[self.padding..self.padding + bytes.len()];
+        self.shift(count as i32)?;
+        let data = self.bytes_mut();
+        let dest = &mut data[0..count];
         dest.copy_from_slice(bytes);
         Ok(())
     }
@@ -82,46 +112,89 @@ impl Message {
     /// Pop specified number of bytes from the beginning of the message.
     /// The message must be big enough, otherwise error is returned.
     pub fn pop(&mut self, count: usize) -> Result<Vec<u8>> {
+        debug_assert!(count < i32::MAX as usize);
         if self.len() < count {
             return Err(MessageError::InsufficientLength(count, self.len()));
         }
-        debug_assert!(self.padding <= self.data.len());
-        let src = &self.data[self.padding..self.padding + count];
+        let data = self.bytes();
+        let src = &data[0..count];
         let res = Vec::from(src);
-        self.padding += count;
+        self.shift(-(count as i32))?;
         Ok(res)
     }
 
-    /// Peek the specified number of bytes from the beginning of the message.
-    /// Error is returned is the message is too short.
+    /// Peek the specified number of bytes from the beginning of the message as a byte slice.
+    /// Error is returned if the message is too short.
     pub fn peek(&self, count: usize) -> Result<&[u8]> {
         if self.len() < count {
             return Err(MessageError::InsufficientLength(count, self.len()));
         }
-        debug_assert!(self.padding <= self.data.len());
-        let res = &self.data[self.padding..self.padding + count];
-        Ok(res)
+        let data = self.bytes();
+        Ok(&data[0..count])
     }
 
-    /// Peek the specified number of bytes from the beginning of the message as a mutable slice.
-    /// Error is returned is the message is too short.
+    /// Peek the specified number of bytes from the beginning of the message as a mutable byte slice.
+    /// Error is returned if the message is too short.
     pub fn peek_mut(&mut self, count: usize) -> Result<&mut [u8]> {
         if self.len() < count {
             return Err(MessageError::InsufficientLength(count, self.len()));
         }
-        debug_assert!(self.padding <= self.data.len());
-        let res = &mut self.data[self.padding..self.padding + count];
-        Ok(res)
+        let data = self.bytes_mut();
+        Ok(&mut data[0..count])
+    }
+
+    fn shift(&mut self, amount: i32) -> Result<()> {
+        let msg = unsafe { &mut (*self.0) };
+
+        debug_assert!(msg.length >= 0);
+        debug_assert!(msg.padding >= 0);
+
+        if amount > 0 {
+            if msg.padding < amount {
+                return Err(MessageError::BufferOverflow(amount, msg.length));
+            }
+        } else if amount < 0 {
+            if msg.length < -amount {
+                return Err(MessageError::BufferUnderflow(-amount, msg.length));
+            }
+        } else {
+            return Ok(());
+        }
+
+        msg.length += amount;
+        msg.capacity += amount;
+        msg.bytes = (msg.bytes as isize - amount as isize) as *mut u8;
+        msg.padding -= amount;
+
+        Ok(())
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::cffi;
+
     use super::Message;
+
+    mod alloc {
+        use std::os::raw::{c_char, c_int, c_ulong};
+
+        use crate::cffi::Allocator;
+
+        extern "C" {
+            pub fn MallocAllocator__new(size_limit: c_ulong, file_name: *const c_char, line_num: c_int) -> *mut Allocator;
+        }
+
+        pub(super) fn new_allocator(size_limit: u64) -> *mut Allocator {
+            unsafe { MallocAllocator__new(size_limit, "".as_ptr() as *const i8, 0) }
+        }
+    }
 
     #[test]
     fn test_message() {
-        let mut msg = Message::new(4, 5);
+        let alloc = alloc::new_allocator(1024);
+        let c_msg = unsafe { cffi::Message_new(4, 5, alloc) };
+        let mut msg = Message::from_c_message(c_msg);
         assert_eq!(msg.len(), 4);
         assert_eq!(msg.pad(), 5);
         assert_eq!(msg.bytes().len(), 4);

@@ -28,7 +28,6 @@ pub mod external {
     pub mod interface {
         pub mod cif;
         pub mod iface;
-        mod cmsg;
     }
 
     pub mod memory {
