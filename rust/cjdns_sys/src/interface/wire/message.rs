@@ -11,7 +11,6 @@ use crate::cffi;
 /// Wraps a pointer to C `struct Message` from `wire/Message.h`.
 ///
 /// *Unsafe:* The original pointer *must* remain valid while this instance still in use.
-#[derive(Clone)]
 pub struct Message(*mut cffi::Message);
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
@@ -164,7 +163,8 @@ impl Message {
             std::mem::swap(dest, &mut value);
             // Discard without dropping whatever value we got from uninitialized buffer
             std::mem::forget(value);
-        } else { // Fallback to slower byte slice copying
+        } else {
+            // Fallback to slower byte slice copying
             let bytes = self.bytes_mut();
             let dest = &mut bytes[0..size];
             let value_ptr = &value as *const T as *const u8;
@@ -190,7 +190,8 @@ impl Message {
         if let Some(src) = self.data_ref_mut::<T>() {
             // Take the value leaving `Default::default()` on its place
             res = std::mem::take(src);
-        } else { // Fallback to slower byte slice copying
+        } else {
+            // Fallback to slower byte slice copying
             let bytes = self.bytes();
             let src = &bytes[0..size];
             res = T::default();
