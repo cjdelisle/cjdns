@@ -57,7 +57,7 @@ static void unroll(struct Allocator_pvt* context,
     struct Allocator_Allocation_pvt* allocation = context->allocations;
     while (allocation && includeAllocations) {
         writeUnroller(&childUnroller);
-        fprintf(stderr, "%s:%ld [%lu] bytes at [0x%lx]\n",
+        fprintf(stderr, "%s:%tu [%tu] bytes at [0x%lx]\n",
                 allocation->fileName,
                 allocation->lineNum,
                 allocation->pub.size,
