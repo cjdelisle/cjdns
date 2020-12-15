@@ -16,6 +16,7 @@
 // This file is used to generate src/cffi.rs using bindgen
 
 #include "memory/Allocator.h"
+#include "memory/MallocAllocator.h"
 #include "interface/Iface.h"
 #include "interface/test/RustIface_test.h"
 

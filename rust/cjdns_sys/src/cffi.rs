@@ -147,6 +147,13 @@ extern "C" {
         lineNum: ::std::os::raw::c_int,
     ) -> *mut Allocator;
 }
+extern "C" {
+    pub fn MallocAllocator__new(
+        sizeLimit: ::std::os::raw::c_ulong,
+        file: *const ::std::os::raw::c_char,
+        line: ::std::os::raw::c_int,
+    ) -> *mut Allocator;
+}
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum Error_e {

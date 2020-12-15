@@ -294,16 +294,10 @@ mod tests {
     use super::Message;
 
     mod alloc {
-        use std::os::raw::{c_char, c_int, c_ulong};
-
         use crate::cffi::Allocator;
 
-        extern "C" {
-            pub fn MallocAllocator__new(size_limit: c_ulong, file_name: *const c_char, line_num: c_int) -> *mut Allocator;
-        }
-
         pub(super) fn new_allocator(size_limit: u64) -> *mut Allocator {
-            unsafe { MallocAllocator__new(size_limit, "".as_ptr() as *const i8, 0) }
+            unsafe { crate::cffi::MallocAllocator__new(size_limit, "".as_ptr() as *const i8, 0) }
         }
     }
 
