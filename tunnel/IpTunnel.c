@@ -652,41 +652,44 @@ static bool prefixMatches4(uint8_t* addressA, uint8_t* refAddr, uint32_t prefixL
     return !((a ^ b) >> (32 - prefixLen));
 }
 
-static bool isValidAddress4(uint8_t sourceAndDestIp4[8],
+static bool isValidAddress4(uint8_t sourceIp4[4],
+                            uint8_t destIp4[4],
                             bool isFromTun,
                             struct IpTunnel_Connection* conn)
 {
     uint8_t* compareAddr = (isFromTun)
-        ? ((conn->isOutgoing) ? sourceAndDestIp4 : &sourceAndDestIp4[4])
-        : ((conn->isOutgoing) ? &sourceAndDestIp4[4] : sourceAndDestIp4);
+        ? ((conn->isOutgoing) ? sourceIp4 : destIp4)
+        : ((conn->isOutgoing) ? destIp4 : sourceIp4);
     return prefixMatches4(compareAddr, conn->connectionIp4, conn->connectionIp4Alloc);
 }
 
-static bool isValidAddress6(uint8_t sourceAndDestIp6[32],
+static bool isValidAddress6(uint8_t sourceIp6[16],
+                            uint8_t destIp6[16],
                             bool isFromTun,
                             struct IpTunnel_Connection* conn)
 {
-    if (AddressCalc_validAddress(sourceAndDestIp6)
-        || AddressCalc_validAddress(&sourceAndDestIp6[16])) {
+    if (AddressCalc_validAddress(sourceIp6) || AddressCalc_validAddress(destIp6)) {
         return false;
     }
     uint8_t* compareAddr = (isFromTun)
-        ? ((conn->isOutgoing) ? sourceAndDestIp6 : &sourceAndDestIp6[16])
-        : ((conn->isOutgoing) ? &sourceAndDestIp6[16] : sourceAndDestIp6);
+        ? ((conn->isOutgoing) ? sourceIp6 : destIp6)
+        : ((conn->isOutgoing) ? destIp6 : sourceIp6);
     return prefixMatches6(compareAddr, conn->connectionIp6, conn->connectionIp6Alloc);
 }
 
-static struct IpTunnel_Connection* findConnection(uint8_t sourceAndDestIp6[32],
-                                                  uint8_t sourceAndDestIp4[8],
+static struct IpTunnel_Connection* findConnection(uint8_t sourceIp6[32],
+                                                  uint8_t destIp6[32],
+                                                  uint8_t sourceIp4[4],
+                                                  uint8_t destIp4[4],
                                                   bool isFromTun,
                                                   struct IpTunnel_pvt* context)
 {
     for (int i = 0; i < (int)context->pub.connectionList.count; i++) {
         struct IpTunnel_Connection* conn = &context->pub.connectionList.connections[i];
-        if (sourceAndDestIp6 && isValidAddress6(sourceAndDestIp6, isFromTun, conn)) {
+        if (sourceIp6 && destIp6 && isValidAddress6(sourceIp6, destIp6, isFromTun, conn)) {
             return conn;
         }
-        if (sourceAndDestIp4 && isValidAddress4(sourceAndDestIp4, isFromTun, conn)) {
+        if (sourceIp4 && destIp4 && isValidAddress4(sourceIp4, destIp4, isFromTun, conn)) {
             return conn;
         }
     }
@@ -707,10 +710,11 @@ static Iface_DEFUN incomingFromTun(struct Message* message, struct Iface* tunIf)
         // No connections authorized, fall through to "unrecognized address"
     } else if (message->length > 40 && Headers_getIpVersion(message->bytes) == 6) {
         struct Headers_IP6Header* header = (struct Headers_IP6Header*) message->bytes;
-        conn = findConnection(header->sourceAddr, NULL, true, context);
+        conn = findConnection(
+            header->sourceAddr, header->destinationAddr, NULL, NULL, true, context);
     } else if (message->length > 20 && Headers_getIpVersion(message->bytes) == 4) {
         struct Headers_IP4Header* header = (struct Headers_IP4Header*) message->bytes;
-        conn = findConnection(NULL, header->sourceAddr, true, context);
+        conn = findConnection(NULL, NULL, header->sourceAddr, header->destAddr, true, context);
     } else {
         Log_debug(context->logger, "Message of unknown type from TUN");
         return Error(INVALID);
@@ -736,7 +740,7 @@ static Iface_DEFUN ip6FromNode(struct Message* message,
         Log_debug(context->logger, "Got message with zero address");
         return Error(INVALID);
     }
-    if (!isValidAddress6(header->sourceAddr, false, conn)) {
+    if (!isValidAddress6(header->sourceAddr, header->destinationAddr, false, conn)) {
         uint8_t addr[40];
         AddrTools_printIp(addr, header->sourceAddr);
         Log_debug(context->logger, "Got message with wrong address for connection [%s]", addr);
@@ -755,7 +759,7 @@ static Iface_DEFUN ip4FromNode(struct Message* message,
     if (Bits_isZero(header->sourceAddr, 4) || Bits_isZero(header->destAddr, 4)) {
         Log_debug(context->logger, "Got message with zero address");
         return Error(INVALID);
-    } else if (!isValidAddress4(header->sourceAddr, false, conn)) {
+    } else if (!isValidAddress4(header->sourceAddr, header->destAddr, false, conn)) {
         Log_debug(context->logger, "Got message with wrong address [%d.%d.%d.%d] for connection "
                                    "[%d.%d.%d.%d/%d:%d]",
                   header->sourceAddr[0], header->sourceAddr[1],
