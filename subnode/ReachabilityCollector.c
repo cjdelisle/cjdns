@@ -23,6 +23,7 @@
 #include "util/events/Time.h"
 
 #include <stdbool.h>
+#include <inttypes.h>
 
 #define TIMEOUT_MILLISECONDS 10000
 

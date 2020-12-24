@@ -19,6 +19,7 @@
 #include "memory/MallocAllocator.h"
 #include "interface/Iface.h"
 #include "interface/test/RustIface_test.h"
+#include "crypto/CryptoAuth.h"
 
 // This structure is guaranteed to be present in the generated rust code
 // Also all functions in the above headers will be present.

@@ -24,6 +24,8 @@
 #include "util/events/Time.h"
 #include "switch/LabelSplicer.h"
 
+#include <inttypes.h>
+
 #define CYCLE_MS 3000
 
 struct SupernodeHunter_pvt

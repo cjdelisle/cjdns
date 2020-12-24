@@ -22,6 +22,8 @@
 #define NumberCompress_OLD_CODE
 #include "switch/NumberCompress.h"
 
+#include <inttypes.h>
+
 struct ControlHandler_pvt
 {
     struct ControlHandler pub;

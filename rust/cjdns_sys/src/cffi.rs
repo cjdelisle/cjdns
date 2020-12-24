@@ -261,6 +261,386 @@ extern "C" {
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
+pub struct String {
+    pub len: usize,
+    pub bytes: *mut ::std::os::raw::c_char,
+}
+extern "C" {
+    pub fn CString_strlen(str_: *const ::std::os::raw::c_char) -> ::std::os::raw::c_ulong;
+}
+extern "C" {
+    pub fn CString_strcmp(
+        a: *const ::std::os::raw::c_char,
+        b: *const ::std::os::raw::c_char,
+    ) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn CString_strncmp(
+        a: *const ::std::os::raw::c_char,
+        b: *const ::std::os::raw::c_char,
+        n: size_t,
+    ) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn CString_strchr(
+        a: *const ::std::os::raw::c_char,
+        b: ::std::os::raw::c_int,
+    ) -> *mut ::std::os::raw::c_char;
+}
+extern "C" {
+    pub fn CString_strrchr(
+        a: *const ::std::os::raw::c_char,
+        b: ::std::os::raw::c_int,
+    ) -> *mut ::std::os::raw::c_char;
+}
+extern "C" {
+    pub fn CString_strcasecmp(
+        a: *const ::std::os::raw::c_char,
+        b: *const ::std::os::raw::c_char,
+    ) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn CString_strstr(
+        a: *const ::std::os::raw::c_char,
+        b: *const ::std::os::raw::c_char,
+    ) -> *mut ::std::os::raw::c_char;
+}
+extern "C" {
+    pub fn CString_strcpy(
+        dest: *mut ::std::os::raw::c_char,
+        src: *const ::std::os::raw::c_char,
+    ) -> *mut ::std::os::raw::c_char;
+}
+extern "C" {
+    pub fn CString_safeStrncpy(
+        dest: *mut ::std::os::raw::c_char,
+        src: *const ::std::os::raw::c_char,
+        n: size_t,
+    ) -> *mut ::std::os::raw::c_char;
+}
+extern "C" {
+    pub fn CString_strdup(
+        string: *const ::std::os::raw::c_char,
+        alloc: *mut Allocator,
+    ) -> *mut ::std::os::raw::c_char;
+}
+extern "C" {
+    pub fn String_new(
+        bytes: *const ::std::os::raw::c_char,
+        allocator: *mut Allocator,
+    ) -> *mut String;
+}
+extern "C" {
+    pub fn String_newBinary(
+        bytes: *const ::std::os::raw::c_char,
+        length: usize,
+        allocator: *mut Allocator,
+    ) -> *mut String;
+}
+extern "C" {
+    pub fn String_printf(
+        allocator: *mut Allocator,
+        format: *const ::std::os::raw::c_char,
+        ...
+    ) -> *mut String;
+}
+extern "C" {
+    pub fn String_compare(a: *const String, b: *const String) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn String_equals(a: *const String, b: *const String) -> ::std::os::raw::c_int;
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct ArrayList {
+    _unused: [u8; 0],
+}
+extern "C" {
+    pub fn ArrayList_new(
+        alloc: *mut Allocator,
+        initialCapacity: ::std::os::raw::c_int,
+    ) -> *mut ::std::os::raw::c_void;
+}
+extern "C" {
+    pub fn ArrayList_add(
+        list: *mut ArrayList,
+        val: *mut ::std::os::raw::c_void,
+    ) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn ArrayList_get(
+        list: *mut ArrayList,
+        number: ::std::os::raw::c_int,
+    ) -> *mut ::std::os::raw::c_void;
+}
+extern "C" {
+    pub fn ArrayList_put(
+        list: *mut ArrayList,
+        number: ::std::os::raw::c_int,
+        val: *mut ::std::os::raw::c_void,
+    ) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn ArrayList_remove(
+        list: *mut ArrayList,
+        num: ::std::os::raw::c_int,
+    ) -> *mut ::std::os::raw::c_void;
+}
+extern "C" {
+    pub fn ArrayList_sort(
+        list: *mut ArrayList,
+        compare: ::std::option::Option<
+            unsafe extern "C" fn(
+                a: *const ::std::os::raw::c_void,
+                b: *const ::std::os::raw::c_void,
+            ) -> ::std::os::raw::c_int,
+        >,
+    );
+}
+extern "C" {
+    pub fn ArrayList_clone(
+        vlist: *mut ArrayList,
+        alloc: *mut Allocator,
+    ) -> *mut ::std::os::raw::c_void;
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct StringList {
+    pub length: ::std::os::raw::c_int,
+}
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct Except {
+    pub next: *mut Except,
+    pub exception: ::std::option::Option<
+        unsafe extern "C" fn(message: *mut ::std::os::raw::c_char, handler: *mut Except),
+    >,
+    pub message: [::std::os::raw::c_char; 1024usize],
+}
+extern "C" {
+    pub fn Except__throw(
+        file: *mut ::std::os::raw::c_char,
+        line: ::std::os::raw::c_int,
+        eh: *mut Except,
+        format: *mut ::std::os::raw::c_char,
+        ...
+    );
+}
+#[repr(u32)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum Log_Level {
+    Log_Level_KEYS = 0,
+    Log_Level_DEBUG = 1,
+    Log_Level_INFO = 2,
+    Log_Level_WARN = 3,
+    Log_Level_ERROR = 4,
+    Log_Level_CRITICAL = 5,
+    Log_Level_INVALID = 6,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct Log {
+    _unused: [u8; 0],
+}
+extern "C" {
+    pub fn Log_nameForLevel(logLevel: Log_Level) -> *mut ::std::os::raw::c_char;
+}
+extern "C" {
+    pub fn Log_levelForName(name: *mut ::std::os::raw::c_char) -> Log_Level;
+}
+extern "C" {
+    pub fn Log_print(
+        log: *mut Log,
+        logLevel: Log_Level,
+        file: *const ::std::os::raw::c_char,
+        line: ::std::os::raw::c_int,
+        format: *const ::std::os::raw::c_char,
+        ...
+    );
+}
+pub type RandomSeed_Provider =
+    ::std::option::Option<unsafe extern "C" fn(alloc: *mut Allocator) -> *mut RandomSeed>;
+pub type RandomSeed_Get = ::std::option::Option<
+    unsafe extern "C" fn(context: *mut RandomSeed, buff: *mut u64) -> ::std::os::raw::c_int,
+>;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct RandomSeed {
+    pub get: RandomSeed_Get,
+    pub name: *const ::std::os::raw::c_char,
+}
+extern "C" {
+    pub fn RandomSeed_new(
+        providers: *mut RandomSeed_Provider,
+        providerCount: ::std::os::raw::c_int,
+        logger: *mut Log,
+        alloc: *mut Allocator,
+    ) -> *mut RandomSeed;
+}
+extern "C" {
+    pub fn RandomSeed_get(rs: *mut RandomSeed, buffer: *mut u64) -> ::std::os::raw::c_int;
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct Random {
+    _unused: [u8; 0],
+}
+extern "C" {
+    pub fn Random_bytes(rand: *mut Random, location: *mut u8, count: u64);
+}
+extern "C" {
+    pub fn Random_base32(rand: *mut Random, output: *mut u8, length: u32);
+}
+extern "C" {
+    pub fn Random_addRandom(rand: *mut Random, randomNumber: u32);
+}
+extern "C" {
+    pub fn Random_newWithSeed(
+        alloc: *mut Allocator,
+        logger: *mut Log,
+        seed: *mut RandomSeed,
+        eh: *mut Except,
+    ) -> *mut Random;
+}
+extern "C" {
+    pub fn Random_new(alloc: *mut Allocator, logger: *mut Log, eh: *mut Except) -> *mut Random;
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct ReplayProtector {
+    pub bitfield: u64,
+    pub baseOffset: u32,
+    pub duplicates: u32,
+    pub lostPackets: u32,
+    pub receivedOutOfRange: u32,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct EventBase {
+    pub unused: ::std::os::raw::c_int,
+}
+extern "C" {
+    pub fn EventBase_new(alloc: *mut Allocator) -> *mut EventBase;
+}
+extern "C" {
+    pub fn EventBase_eventCount(eventBase: *mut EventBase) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn EventBase_beginLoop(eventBase: *mut EventBase);
+}
+extern "C" {
+    pub fn EventBase_endLoop(eventBase: *mut EventBase);
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct CryptoAuth {
+    pub publicKey: [u8; 32usize],
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct CryptoAuth_Session {
+    pub herPublicKey: [u8; 32usize],
+    pub displayName: *mut String,
+    pub replayProtector: ReplayProtector,
+    pub herIp6: [u8; 16usize],
+    pub resetAfterInactivitySeconds: u32,
+    pub setupResetAfterInactivitySeconds: u32,
+}
+extern "C" {
+    pub fn CryptoAuth_addUser_ipv6(
+        password: *mut String,
+        login: *mut String,
+        ipv6: *mut u8,
+        ca: *mut CryptoAuth,
+    ) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn CryptoAuth_removeUsers(
+        context: *mut CryptoAuth,
+        user: *mut String,
+    ) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn CryptoAuth_getUsers(context: *mut CryptoAuth, alloc: *mut Allocator) -> *mut StringList;
+}
+extern "C" {
+    pub fn CryptoAuth_new(
+        allocator: *mut Allocator,
+        privateKey: *const u8,
+        eventBase: *mut EventBase,
+        logger: *mut Log,
+        rand: *mut Random,
+    ) -> *mut CryptoAuth;
+}
+extern "C" {
+    pub fn CryptoAuth_newSession(
+        ca: *mut CryptoAuth,
+        alloc: *mut Allocator,
+        herPublicKey: *const u8,
+        requireAuth: bool,
+        name: *mut ::std::os::raw::c_char,
+    ) -> *mut CryptoAuth_Session;
+}
+extern "C" {
+    pub fn CryptoAuth_encrypt(
+        session: *mut CryptoAuth_Session,
+        msg: *mut Message,
+    ) -> ::std::os::raw::c_int;
+}
+#[repr(u32)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum CryptoAuth_DecryptErr {
+    CryptoAuth_DecryptErr_NONE = 0,
+    CryptoAuth_DecryptErr_RUNT = 1,
+    CryptoAuth_DecryptErr_NO_SESSION = 2,
+    CryptoAuth_DecryptErr_FINAL_SHAKE_FAIL = 3,
+    CryptoAuth_DecryptErr_FAILED_DECRYPT_RUN_MSG = 4,
+    CryptoAuth_DecryptErr_KEY_PKT_ESTABLISHED_SESSION = 5,
+    CryptoAuth_DecryptErr_WRONG_PERM_PUBKEY = 6,
+    CryptoAuth_DecryptErr_IP_RESTRICTED = 7,
+    CryptoAuth_DecryptErr_AUTH_REQUIRED = 8,
+    CryptoAuth_DecryptErr_UNRECOGNIZED_AUTH = 9,
+    CryptoAuth_DecryptErr_STRAY_KEY = 10,
+    CryptoAuth_DecryptErr_HANDSHAKE_DECRYPT_FAILED = 11,
+    CryptoAuth_DecryptErr_WISEGUY = 12,
+    CryptoAuth_DecryptErr_INVALID_PACKET = 13,
+    CryptoAuth_DecryptErr_REPLAY = 14,
+    CryptoAuth_DecryptErr_DECRYPT = 15,
+}
+extern "C" {
+    pub fn CryptoAuth_decrypt(
+        sess: *mut CryptoAuth_Session,
+        msg: *mut Message,
+    ) -> CryptoAuth_DecryptErr;
+}
+extern "C" {
+    pub fn CryptoAuth_setAuth(
+        password: *const String,
+        login: *const String,
+        caSession: *mut CryptoAuth_Session,
+    );
+}
+extern "C" {
+    pub fn CryptoAuth_resetIfTimeout(session: *mut CryptoAuth_Session);
+}
+extern "C" {
+    pub fn CryptoAuth_reset(caSession: *mut CryptoAuth_Session);
+}
+#[repr(u32)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum CryptoAuth_State {
+    CryptoAuth_State_INIT = 0,
+    CryptoAuth_State_SENT_HELLO = 1,
+    CryptoAuth_State_RECEIVED_HELLO = 2,
+    CryptoAuth_State_SENT_KEY = 3,
+    CryptoAuth_State_RECEIVED_KEY = 4,
+    CryptoAuth_State_ESTABLISHED = 100,
+}
+extern "C" {
+    pub fn CryptoAuth_getState(session: *mut CryptoAuth_Session) -> CryptoAuth_State;
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
 pub struct RBindings_Whitelist {
     pub a: Allocator_t,
     pub b: Iface_t,

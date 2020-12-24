@@ -26,6 +26,8 @@
 
 #include <sodium/crypto_hash_sha512.h>
 
+#include <inttypes.h>
+
 // This is the time between the timestamp of the newest message and the point where
 // snode and subnode agree to drop messages from the snode state.
 #define AGREED_TIMEOUT_MS (1000 * 60 * 20)

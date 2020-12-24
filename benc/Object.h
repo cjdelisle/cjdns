@@ -15,7 +15,7 @@
 #ifndef Object_H
 #define Object_H
 
-#include <inttypes.h>
+#include <stdint.h>
 
 #include "memory/Allocator.h"
 
