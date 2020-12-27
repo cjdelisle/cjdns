@@ -29,4 +29,7 @@
 struct RBindings_Whitelist {
     Allocator_t a;
     Iface_t b;
+    enum CryptoAuth_addUser_Res c;
+    Message_t d;
+    String_t e;
 };

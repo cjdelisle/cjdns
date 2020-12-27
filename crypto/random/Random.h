@@ -24,7 +24,7 @@ Linker_require("crypto/random/Random.c")
 
 #include <stdint.h>
 
-struct Random;
+typedef struct Random Random_t;
 
 void Random_bytes(struct Random* rand, uint8_t* location, uint64_t count);
 

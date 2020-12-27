@@ -24,7 +24,7 @@ Linker_require("wire/Message.c")
 
 #include <stdint.h>
 
-struct Message
+typedef struct Message
 {
     /** The length of the message. */
     int32_t length;
@@ -52,7 +52,7 @@ struct Message
 
     /** The allocator which allocated space for this message. */
     struct Allocator* alloc;
-};
+} Message_t;
 
 struct Message* Message_new(uint32_t messageLength,
                                           uint32_t amountOfPadding,

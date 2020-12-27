@@ -217,6 +217,7 @@ pub struct Message {
     pub currentIface: *mut Iface,
     pub alloc: *mut Allocator,
 }
+pub type Message_t = Message;
 extern "C" {
     pub fn Message_new(
         messageLength: u32,
@@ -261,10 +262,12 @@ extern "C" {
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
-pub struct String {
+pub struct String_s {
     pub len: usize,
     pub bytes: *mut ::std::os::raw::c_char,
 }
+pub type String = String_s;
+pub type String_t = String;
 extern "C" {
     pub fn CString_strlen(str_: *const ::std::os::raw::c_char) -> ::std::os::raw::c_ulong;
 }
@@ -546,6 +549,11 @@ pub struct CryptoAuth_Session {
     pub resetAfterInactivitySeconds: u32,
     pub setupResetAfterInactivitySeconds: u32,
 }
+#[repr(i32)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum CryptoAuth_addUser_Res {
+    CryptoAuth_addUser_DUPLICATE = -3,
+}
 extern "C" {
     pub fn CryptoAuth_addUser_ipv6(
         password: *mut String,
@@ -644,4 +652,7 @@ extern "C" {
 pub struct RBindings_Whitelist {
     pub a: Allocator_t,
     pub b: Iface_t,
+    pub c: CryptoAuth_addUser_Res,
+    pub d: Message_t,
+    pub e: String_t,
 }

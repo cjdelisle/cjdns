@@ -38,9 +38,9 @@ pub mod external {
 mod interface {
     #[allow(dead_code)]
     pub mod wire {
-        pub mod message;
-        pub mod headers;
         pub mod ethernet;
+        pub mod headers;
+        pub mod message;
     }
 
     pub mod tuntap {
@@ -52,5 +52,11 @@ mod interface {
 
 mod cffi;
 mod rffi;
-mod crypto;
+mod crypto {
+    pub mod crypto_auth;
+    mod crypto_header;
+    pub mod keys;
+    pub mod random;
+    mod replay_protector;
+}
 mod util;

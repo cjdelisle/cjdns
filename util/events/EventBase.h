@@ -19,10 +19,10 @@
 #include "util/Linker.h"
 Linker_require("util/events/libuv/EventBase.c")
 
-struct EventBase
+typedef struct EventBase
 {
     int unused;
-};
+} EventBase_t;
 
 struct EventBase* EventBase_new(struct Allocator* alloc);
 

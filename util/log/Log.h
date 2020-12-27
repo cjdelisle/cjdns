@@ -30,7 +30,7 @@ enum Log_Level
     Log_Level_INVALID
 };
 
-struct Log;
+typedef struct Log Log_t;
 
 char* Log_nameForLevel(enum Log_Level logLevel);
 

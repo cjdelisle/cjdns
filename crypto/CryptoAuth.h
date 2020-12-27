@@ -79,7 +79,9 @@ struct CryptoAuth_Session
  * @return 0 if all goes well,
  *         CryptoAuth_addUser_DUPLICATE if the same *password* already exists.
  */
-#define CryptoAuth_addUser_DUPLICATE         -3
+enum CryptoAuth_addUser_Res {
+    CryptoAuth_addUser_DUPLICATE = -3,
+};
 int CryptoAuth_addUser_ipv6(String* password,
                             String* login,
                             uint8_t ipv6[16],
