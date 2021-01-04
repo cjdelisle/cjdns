@@ -524,7 +524,7 @@ The Switch Header may be followed by three different types of packets:
   The CryptoAuth handshake packet contains the Session Handle (that should
   be used by the recipient to prefix CryptoAuth data packets sent after that),
   eventually followed by a Switch Data Header.
-* Otherwise, these first four bytes are a Session Handle, which the receipient
+* Otherwise, these first four bytes are a Session Handle, which the recipient
   of these packet chose earlier to identify the emitted. They are followed
   by a CryptoAuth Data Packet, containing a Switch Data Header.
 
@@ -658,7 +658,7 @@ Possible keys in a router message include:
 * `p` (integer): protocol version. Matches the cjdns version.
 * `tar` (byte string): the target address. If provided, contains an address
   the sender wants to reach.
-* `txid` (byte string): transaction id. Opaque value choosen by senders of
+* `txid` (byte string): transaction id. Opaque value chosen by senders of
   queries, which must be used in responses.
 
 The serialization of each item of the list of nodes `n` is:
@@ -902,7 +902,7 @@ assuming they are not “too late” and are not replays.
 To do that, it stores a 64-bit bitfield, with a bit for each of the 64
 nonces before the highest nonce received so far.
 Every time a packet is received with a nonce between `highestnonce - 64`
-(excluded) and `highestnonce` (included), it substracts the packet's nonce
+(excluded) and `highestnonce` (included), it subtracts the packet's nonce
 to the highest nonce, giving a number n, and looks at the n-th bit
 of the bitfield. If it is one, the packet is a replay and is dropped.
 If it is zero, the packet passes, and the bit is set to one.
@@ -969,7 +969,7 @@ of the hash of the password (counting indexes from 1). This is used as a sort
 of username so that the other end knows which password to try using in the
 handshake.
 
-AuthType Two is prefered to this method because it may be harder to crack
+AuthType Two is preferred to this method because it may be harder to crack
 (does not leak bytes of the value computing from the password).
 
 ##### AuthType Two
