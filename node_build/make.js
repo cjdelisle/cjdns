@@ -16,7 +16,6 @@
 'use strict';
 var Fs = require('fs');
 var nThen = require('nthen');
-var Codestyle = require('./Codestyle');
 var Cp = require('./Cp');
 var Spawn = require('child_process').spawn;
 var FindPython = require('./FindPython');
@@ -423,23 +422,8 @@ Builder.configure({
     builder.buildLibrary('contrib/c/sybilsim.c');
     builder.buildLibrary('contrib/c/makekeys.c');
     builder.buildLibrary('contrib/c/mkpasswd.c');
-
     builder.buildLibrary('crypto/random/randombytes.c');
-
     builder.buildLibrary('rust/cjdns_sys/cffi.h');
-
-    builder.lintFiles(function (fileName, file, callback) {
-        if (/dependencies/.test(fileName) ||
-            /crypto\/sign/.test(fileName) ||
-            /.ffi\.h/.test(fileName)
-        ) {
-            callback('', false);
-            return;
-        }
-
-        Codestyle.lint(fileName, file, callback);
-    });
-
     builder.buildLibrary('test/testcjdroute.c');
 
 }).failure(function (builder, waitFor) {
