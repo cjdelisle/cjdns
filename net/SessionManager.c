@@ -62,6 +62,7 @@ struct SessionManager_pvt
     struct CryptoAuth* cryptoAuth;
     struct EventBase* eventBase;
     uint32_t firstHandle;
+    uint8_t ourPubKey[32];
     Identity
 };
 
@@ -84,7 +85,9 @@ struct SessionManager_Session_pvt
         uint8_t path[20];                                                              \
         AddrTools_printPath(path, label);                                              \
         uint8_t ip[40];                                                                \
-        AddrTools_printIp(ip, session->pub.caSession->herIp6);                         \
+        uint8_t ipb[16];                                                               \
+        CryptoAuth_getHerIp6(session->pub.caSession, ipb);                             \
+        AddrTools_printIp(ip, ipb);                                                    \
         Log_debug(logger, "ver[%u] send[%d] recv[%u] ip[%s] path[%s] " message,        \
                   session->pub.version,                                                \
                   session->pub.sendHandle,                                             \
@@ -103,8 +106,10 @@ struct SessionManager_Session_pvt
         if (!Defined(Log_DEBUG)) { break; }                                            \
         uint8_t sendPath[20];                                                          \
         uint8_t ip[40];                                                                \
+        uint8_t ipb[16];                                                               \
+        CryptoAuth_getHerIp6(session->pub.caSession, ipb);                             \
+        AddrTools_printIp(ip, ipb);                                                    \
         AddrTools_printPath(sendPath, (label));                                        \
-        AddrTools_printIp(ip, (session)->pub.caSession->herIp6);                       \
         Log_debug((logger), "Session[%p] [%s.%s] " message,                            \
                   (void*)session,                                                      \
                   sendPath,                                                            \
@@ -126,8 +131,8 @@ static void sendSession(struct SessionManager_Session_pvt* sess,
         .metric_be = Endian_bigEndianToHost32(path->metric),
         .version_be = Endian_hostToBigEndian32(sess->pub.version)
     };
-    Bits_memcpy(session.ip6, sess->pub.caSession->herIp6, 16);
-    Bits_memcpy(session.publicKey, sess->pub.caSession->herPublicKey, 32);
+    CryptoAuth_getHerPubKey(sess->pub.caSession, session.publicKey);
+    CryptoAuth_getHerIp6(sess->pub.caSession, session.ip6);
 
     struct Allocator* alloc = Allocator_child(sess->alloc);
     struct Message* msg = Message_new(0, PFChan_Node_SIZE + 512, alloc);
@@ -142,7 +147,8 @@ static inline void check(struct SessionManager_pvt* sm, int mapIndex)
 {
     struct SessionManager_Session_pvt* ssp = Identity_check(sm->ifaceMap.values[mapIndex]);
     if (ssp->foundKey) { return; }
-    uint8_t* herPubKey = ssp->pub.caSession->herPublicKey;
+    uint8_t herPubKey[32];
+    CryptoAuth_getHerPubKey(ssp->pub.caSession, herPubKey);
     if (!Bits_isZero(herPubKey, 32)) {
         uint8_t ip6[16];
         AddressCalc_addressForPublicKey(ip6, herPubKey);
@@ -447,7 +453,7 @@ static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface
             return Error(INVALID);
         }
 
-        if (!Bits_memcmp(caHeader->publicKey, sm->cryptoAuth->publicKey, 32)) {
+        if (!Bits_memcmp(caHeader->publicKey, sm->ourPubKey, 32)) {
             Log_debug(sm->log, "DROP Handshake from 'ourselves'");
             return Error(INVALID);
         }
@@ -507,8 +513,8 @@ static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface
     }
 
     header->version_be = Endian_hostToBigEndian32(session->pub.version);
-    Bits_memcpy(header->ip6, session->pub.caSession->herIp6, 16);
-    Bits_memcpy(header->publicKey, session->pub.caSession->herPublicKey, 32);
+    CryptoAuth_getHerPubKey(session->pub.caSession, header->publicKey);
+    CryptoAuth_getHerIp6(session->pub.caSession, header->ip6);
 
     header->unused = 0;
     header->flags = RouteHeader_flags_INCOMING;
@@ -544,8 +550,8 @@ static void unsetupSession(struct SessionManager_pvt* sm, struct SessionManager_
     Assert_true(n.path_be);
     n.version_be = Endian_hostToBigEndian32(sess->pub.version);
     n.metric_be = Endian_bigEndianToHost32(sess->pub.paths[0].metric);
-    Bits_memcpy(n.publicKey, sess->pub.caSession->herPublicKey, 32);
-    Bits_memcpy(n.ip6, sess->pub.caSession->herIp6, 16);
+    CryptoAuth_getHerPubKey(sess->pub.caSession, n.publicKey);
+    CryptoAuth_getHerIp6(sess->pub.caSession, n.ip6);
     Er_assert(Message_epush(eventMsg, &n, PFChan_Node_SIZE));
     Er_assert(Message_epush32be(eventMsg, 0xffffffff));
     Er_assert(Message_epush32be(eventMsg, PFChan_Core_UNSETUP_SESSION));
@@ -607,7 +613,9 @@ static void checkTimedOutSessions(struct SessionManager_pvt* sm)
             // Session is not in idle state and requires a search
             debugSession0(sm->log, sess, sess->pub.paths[0].label,
                 "it's been a while, triggering search");
-            triggerSearch(sm, sess->pub.caSession->herIp6, sess->pub.version);
+            uint8_t herIp6[16];
+            CryptoAuth_getHerIp6(sess->pub.caSession, herIp6);
+            triggerSearch(sm, herIp6, sess->pub.version);
             sess->pub.lastSearchTime = now;
         } else if (CryptoAuth_getState(sess->pub.caSession) < CryptoAuth_State_ESTABLISHED) {
             debugSession0(sm->log, sess, sess->pub.paths[0].label, "triggering unsetupSession");
@@ -887,6 +895,8 @@ struct SessionManager* SessionManager_new(struct Allocator* allocator,
     sm->pub.maxBufferedMessages = SessionManager_MAX_BUFFERED_MESSAGES_DEFAULT;
     sm->pub.sessionSearchAfterMilliseconds =
         SessionManager_SESSION_SEARCH_AFTER_MILLISECONDS_DEFAULT;
+
+    CryptoAuth_getPubKey(cryptoAuth, sm->ourPubKey);
 
     sm->eventIf.send = incomingFromEventIf;
     EventEmitter_regCore(ee, &sm->eventIf, PFChan_Pathfinder_NODE);

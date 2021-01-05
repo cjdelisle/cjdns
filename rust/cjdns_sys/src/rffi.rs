@@ -7,32 +7,26 @@ use crate::crypto::keys::{IpV6, PrivateKey, PublicKey};
 use crate::external::interface::cif;
 use crate::external::memory::allocator;
 use crate::interface::wire::message::Message;
+use crate::rtypes::*;
 
-use std::os::raw::{c_char, c_int};
+use std::os::raw::{c_char, c_int, c_uchar};
 use std::sync::Arc;
 
 // This file is used to generate cbindings.h using cbindgen
 
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct Rffi_IfWrapper_t {
-    pub internal: *mut Iface_t,
-    pub external: *mut Iface_t,
-}
-
 #[no_mangle]
-pub unsafe extern "C" fn Rffi_testwrapper_create(a: *mut Allocator_t) -> Rffi_IfWrapper_t {
+pub unsafe extern "C" fn Rffi_testwrapper_create(a: *mut Allocator_t) -> RTypes_IfWrapper_t {
     let w = crate::interface::rustiface_test_wrapper::TestWrapper::default();
-    Rffi_IfWrapper_t {
+    RTypes_IfWrapper_t {
         external: cif::wrap(a, w.ext),
         internal: cif::wrap(a, w.int),
     }
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Rffi_android_create(a: *mut Allocator_t) -> Rffi_IfWrapper_t {
+pub unsafe extern "C" fn Rffi_android_create(a: *mut Allocator_t) -> RTypes_IfWrapper_t {
     let w = crate::interface::tuntap::android::AndroidWrapper::default();
-    Rffi_IfWrapper_t {
+    RTypes_IfWrapper_t {
         external: cif::wrap(a, w.ext),
         internal: cif::wrap(a, w.int),
     }
@@ -42,10 +36,7 @@ pub struct Rffi_CryptoAuth2_t(Arc<crypto_auth::CryptoAuth>);
 pub struct Rffi_CryptoAuth2_Session_t(crypto_auth::Session);
 
 unsafe fn cu8(s: *const u8, len: usize) -> Vec<u8> {
-    let x = std::slice::from_raw_parts::<u8>(s, len);
-    let mut out = Vec::with_capacity(x.len());
-    out.copy_from_slice(x);
-    out
+    std::slice::from_raw_parts::<u8>(s, len).to_vec()
 }
 
 unsafe fn cstr(s: *const String_t) -> Option<Vec<u8>> {
@@ -54,6 +45,13 @@ unsafe fn cstr(s: *const String_t) -> Option<Vec<u8>> {
     } else {
         Some(cu8((*s).bytes as *const u8, (*s).len))
     }
+}
+
+unsafe fn strc(alloc: *mut Allocator_t, mut s: Vec<u8>) -> *mut String_t {
+    let len = s.len();
+    let bytes = s.as_mut_ptr() as *mut i8;
+    allocator::adopt(alloc, s);
+    allocator::adopt(alloc, String_t { len, bytes })
 }
 
 #[no_mangle]
@@ -82,28 +80,26 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_addUser_ipv6(
 }
 
 #[no_mangle]
-pub unsafe fn Rffi_CryptoAuth2_removeUsers(
+pub unsafe extern "C" fn Rffi_CryptoAuth2_removeUsers(
     context: *mut Rffi_CryptoAuth2_t,
     user: *mut String_t,
 ) -> c_int {
     (*context).0.remove_users(cstr(user)) as c_int
 }
 
-#[repr(C)]
-pub struct Rffi_StrList_t {
-    len: usize,
-    items: *mut String_t,
-}
-
-// TODO(cjd): we can't return a Vec<Vec<u8>> to C because it becomes opaque
-// needs fixin'
 #[no_mangle]
 pub unsafe extern "C" fn Rffi_CryptoAuth2_getUsers(
     ca: *const Rffi_CryptoAuth2_t,
     alloc: *mut Allocator_t,
-) -> *mut Vec<Vec<u8>> {
-    let users = (*ca).0.get_users();
-    allocator::adopt(alloc, (*ca).0.get_users())
+) -> *mut RTypes_StrList_t {
+    let mut users = (*ca).0.get_users();
+    let mut str_users = users.drain(..).map(|u| strc(alloc, u)).collect::<Vec<_>>();
+    let out = RTypes_StrList_t {
+        len: str_users.len(),
+        items: str_users.as_mut_ptr(),
+    };
+    allocator::adopt(alloc, str_users);
+    allocator::adopt(alloc, out)
 }
 
 #[no_mangle]
@@ -132,6 +128,7 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_newSession(
     herPublicKey: *const u8,
     requireAuth: bool,
     name: *mut c_char,
+    useNoise: bool,
 ) -> *mut Rffi_CryptoAuth2_Session_t {
     allocator::adopt(
         alloc,
@@ -151,6 +148,7 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_newSession(
                     Err(_) => None,
                 }
             },
+            useNoise,
         )),
     )
 }
@@ -199,15 +197,57 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_reset(caSession: *mut Rffi_CryptoAuth2
 }
 
 #[no_mangle]
-unsafe extern "C" fn Rffi_CryptoAuth2_getState(
+pub unsafe extern "C" fn Rffi_CryptoAuth2_getState(
     session: *mut Rffi_CryptoAuth2_Session_t,
-) -> cffi::CryptoAuth_State {
-    match (*session).0.get_state() {
-        crypto_auth::State::Init => ffist::CryptoAuth_State_INIT,
-        crypto_auth::State::SentHello => ffist::CryptoAuth_State_SENT_HELLO,
-        crypto_auth::State::ReceivedHello => ffist::CryptoAuth_State_RECEIVED_HELLO,
-        crypto_auth::State::SentKey => ffist::CryptoAuth_State_SENT_KEY,
-        crypto_auth::State::ReceivedKey => ffist::CryptoAuth_State_RECEIVED_KEY,
-        crypto_auth::State::Established => ffist::CryptoAuth_State_ESTABLISHED,
+) -> RTypes_CryptoAuth_State_t {
+    (*session).0.get_state()
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn Rffi_CryptoAuth2_getHerPubKey(
+    session: *const Rffi_CryptoAuth2_Session_t,
+    pkOut: *mut u8,
+) {
+    let p = (*session).0.get_her_pubkey();
+    std::slice::from_raw_parts_mut(pkOut, 32).copy_from_slice(&p[..]);
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn Rffi_CryptoAuth2_getHerIp6(
+    session: *const Rffi_CryptoAuth2_Session_t,
+    ipOut: *mut u8,
+) {
+    let p = (*session).0.get_her_ip6();
+    std::slice::from_raw_parts_mut(ipOut, 16).copy_from_slice(&p[..]);
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn Rffi_CryptoAuth2_getName(
+    session: *const Rffi_CryptoAuth2_Session_t,
+    alloc: *mut Allocator_t,
+) -> *mut String_t {
+    match (*session).0.get_name() {
+        None => 0 as *mut String_t,
+        Some(n) => strc(alloc, n.into_bytes()),
     }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn Rffi_CryptoAuth2_getPubKey(ca: *mut Rffi_CryptoAuth2_t, pkOut: *mut u8) {
+    let p = (*ca).0.public_key.0;
+    std::slice::from_raw_parts_mut(pkOut, 32).copy_from_slice(&p[..]);
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn Rffi_CryptoAuth2_stats(
+    session: *const Rffi_CryptoAuth2_Session_t,
+    statsOut: *mut RTypes_CryptoStats_t,
+) {
+    let st = (*session).0.stats();
+    (*statsOut) = st;
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn Rffi_panic(msg: *const c_char) -> ! {
+    panic!("{}", std::ffi::CStr::from_ptr(msg).to_string_lossy())
 }

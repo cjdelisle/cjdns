@@ -15,7 +15,8 @@
 #ifndef CryptoAuth_H
 #define CryptoAuth_H
 
-#include "benc/StringList.h"
+#include "rust/cjdns_sys/RTypes.h"
+#include "benc/String.h"
 #include "crypto/random/Random.h"
 #include "crypto/ReplayProtector.h"
 #include "memory/Allocator.h"
@@ -34,31 +35,12 @@ Linker_require("crypto/CryptoAuth.c")
 
 struct CryptoAuth
 {
-    uint8_t publicKey[32];
+    int opaque;
 };
 
 struct CryptoAuth_Session
 {
-    uint8_t herPublicKey[32];
-
-    String* displayName;
-
-    struct ReplayProtector replayProtector;
-
-    /**
-     * Bind this CryptoAuth session to the other node's ip6 address,
-     * any packet avertizing a key which doesn't hash to this will be dropped.
-     */
-    uint8_t herIp6[16];
-
-    /**
-     * After this number of seconds of inactivity,
-     * a connection will be reset to prevent them hanging in a bad state.
-     */
-    uint32_t resetAfterInactivitySeconds;
-
-    /** If a session is not completely setup, reset it after this many seconds of inactivity. */
-    uint32_t setupResetAfterInactivitySeconds;
+    int opaque;
 };
 
 /**
@@ -108,7 +90,7 @@ int CryptoAuth_removeUsers(struct CryptoAuth* context, String* user);
  * @param alloc the Allocator to use to create the usersOut array.
  * @returns List* containing the user String's
  */
-struct StringList* CryptoAuth_getUsers(struct CryptoAuth* context, struct Allocator* alloc);
+RTypes_StrList_t* CryptoAuth_getUsers(const struct CryptoAuth* context, struct Allocator* alloc);
 
 /**
  * Create a new crypto authenticator.
@@ -223,28 +205,14 @@ void CryptoAuth_resetIfTimeout(struct CryptoAuth_Session* session);
 
 void CryptoAuth_reset(struct CryptoAuth_Session* caSession);
 
-enum CryptoAuth_State {
-    // New CryptoAuth session, has not sent or received anything
-    CryptoAuth_State_INIT = 0,
+#define CryptoAuth_State_INIT           RTypes_CryptoAuth_State_t_Init
+#define CryptoAuth_State_SENT_HELLO     RTypes_CryptoAuth_State_t_SentHello
+#define CryptoAuth_State_RECEIVED_HELLO RTypes_CryptoAuth_State_t_ReceivedHello
+#define CryptoAuth_State_SENT_KEY       RTypes_CryptoAuth_State_t_SentKey
+#define CryptoAuth_State_RECEIVED_KEY   RTypes_CryptoAuth_State_t_ReceivedKey
+#define CryptoAuth_State_ESTABLISHED    RTypes_CryptoAuth_State_t_Established
 
-    // Sent a hello message, waiting for reply
-    CryptoAuth_State_SENT_HELLO = 1,
-
-    // Received a hello message, have not yet sent a reply
-    CryptoAuth_State_RECEIVED_HELLO = 2,
-
-    // Received a hello message, sent a key message, waiting for the session to complete
-    CryptoAuth_State_SENT_KEY = 3,
-
-    // Sent a hello message, received a key message, may or may not have sent some data traffic
-    // but no data traffic has yet been received
-    CryptoAuth_State_RECEIVED_KEY = 4,
-
-    // Received data traffic, session is in run state
-    CryptoAuth_State_ESTABLISHED = 100
-};
-
-static inline char* CryptoAuth_stateString(int state)
+static inline char* CryptoAuth_stateString(RTypes_CryptoAuth_State_t state)
 {
     switch (state) {
         case CryptoAuth_State_INIT:           return "INIT";
@@ -257,6 +225,16 @@ static inline char* CryptoAuth_stateString(int state)
     }
 }
 
-enum CryptoAuth_State CryptoAuth_getState(struct CryptoAuth_Session* session);
+RTypes_CryptoAuth_State_t CryptoAuth_getState(struct CryptoAuth_Session* session);
+
+void CryptoAuth_getHerPubKey(const struct CryptoAuth_Session *session, uint8_t *pkOut);
+
+void CryptoAuth_getHerIp6(const struct CryptoAuth_Session *session, uint8_t *ipOut);
+
+void CryptoAuth_getPubKey(const struct CryptoAuth *ca, uint8_t *pkOut);
+
+String_t *CryptoAuth_getName(const struct CryptoAuth_Session *session, Allocator_t *alloc);
+
+void CryptoAuth_stats(const struct CryptoAuth_Session *session, RTypes_CryptoStats_t *statsOut);
 
 #endif

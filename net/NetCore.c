@@ -44,10 +44,12 @@ struct NetCore* NetCore_new(uint8_t* privateKey,
     nc->log = log;
 
     struct CryptoAuth* ca = nc->ca = CryptoAuth_new(alloc, privateKey, base, log, rand);
-    struct EventEmitter* ee = nc->ee = EventEmitter_new(alloc, log, ca->publicKey);
+    uint8_t ourPubKey[32];
+    CryptoAuth_getPubKey(ca, ourPubKey);
+    struct EventEmitter* ee = nc->ee = EventEmitter_new(alloc, log, ourPubKey);
 
     struct Address* myAddress = nc->myAddress = Allocator_calloc(alloc, sizeof(struct Address), 1);
-    Bits_memcpy(myAddress->key, ca->publicKey, 32);
+    Bits_memcpy(myAddress->key, ourPubKey, 32);
     Address_getPrefix(myAddress);
     myAddress->protocolVersion = Version_CURRENT_PROTOCOL;
     myAddress->path = 1;
@@ -61,7 +63,7 @@ struct NetCore* NetCore_new(uint8_t* privateKey,
     Iface_plumb(&sm->insideIf, &upper->sessionManagerIf);
 
     struct ControlHandler* controlHandler = nc->controlHandler =
-        ControlHandler_new(alloc, log, ee, ca->publicKey);
+        ControlHandler_new(alloc, log, ee, ourPubKey);
     Iface_plumb(&controlHandler->coreIf, &upper->controlHandlerIf);
 
     struct SwitchPinger* sp = nc->sp = SwitchPinger_new(base, rand, log, myAddress, alloc);

@@ -12,8 +12,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+#include "crypto/test/CryptoAuthFuzz.h"
 #include "crypto/random/Random.h"
-#include "crypto/CryptoAuth.h"
+#include "crypto/test/TestCa.h"
 #include "benc/String.h"
 #include "memory/MallocAllocator.h"
 #include "util/events/EventBase.h"
@@ -25,7 +26,6 @@
 #include "crypto/random/test/DeterminentRandomSeed.h"
 #include "crypto/random/Random.h"
 #include "crypto/AddressCalc.h"
-#include "test/FuzzTest.h"
 
 struct DelayedMsg {
     struct Message* msg;
@@ -36,10 +36,11 @@ struct DelayedMsg {
 };
 
 struct Node {
-    struct CryptoAuth* ca;
-    struct CryptoAuth_Session* session;
+    TestCa_t* ca;
+    TestCa_Session_t* session;
     struct DelayedMsg* delayedMsgs;
     int sendCounter;
+    uint8_t pubKey[32];
 };
 
 struct Context {
@@ -78,7 +79,7 @@ static bool maybe(struct Context* ctx, uint32_t chanceIsOneInWhat)
 static void resetNode(struct Context* ctx, struct Node* node)
 {
     logNode0(ctx, node, "RESET");
-    CryptoAuth_reset(node->session);
+    TestCa_reset(node->session);
 }
 
 /**
@@ -209,7 +210,7 @@ static void sendFrom(struct Context* ctx, struct Node* from, struct Message* msg
         flippedImmutable = true;
     }
 
-    if (!CryptoAuth_decrypt(to->session, msg)) {
+    if (!TestCa_decrypt(to->session, msg)) {
         Assert_true(!flippedImmutable);
         Assert_true(msg->length == 4 && !Bits_memcmp(msg->bytes, "hey", 4));
         if (to == &ctx->nodeB) {
@@ -217,11 +218,11 @@ static void sendFrom(struct Context* ctx, struct Node* from, struct Message* msg
             if (maybe(ctx, 10)) {
                 return;
             }
-            Assert_true(!CryptoAuth_encrypt(to->session, msg));
+            Assert_true(!TestCa_encrypt(to->session, msg));
             to->sendCounter++;
             sendFrom(ctx, to, msg);
-        } else if (CryptoAuth_getState(ctx->nodeA.session) == CryptoAuth_State_ESTABLISHED &&
-            CryptoAuth_getState(ctx->nodeB.session) == CryptoAuth_State_ESTABLISHED)
+        } else if (TestCa_getState(ctx->nodeA.session) == RTypes_CryptoAuth_State_t_Established &&
+            TestCa_getState(ctx->nodeB.session) == RTypes_CryptoAuth_State_t_Established)
         {
             ctx->successMessageCount++;
         }
@@ -259,7 +260,7 @@ static void mainLoop(struct Context* ctx)
         struct Allocator* alloc = Allocator_child(ctx->alloc);
         struct Message* msg = Message_new(0, 512, alloc);
         Er_assert(Message_epush(msg, "hey", 4));
-        Assert_true(!CryptoAuth_encrypt(ctx->nodeA.session, msg));
+        Assert_true(!TestCa_encrypt(ctx->nodeA.session, msg));
         sendFrom(ctx, &ctx->nodeA, msg);
         Allocator_free(alloc);
     }
@@ -267,22 +268,24 @@ static void mainLoop(struct Context* ctx)
     Assert_failure("Nodes could not sync");
 }
 
-void* CJDNS_FUZZ_INIT(struct Allocator* alloc, struct Random* rand)
+void* CryptoAuthFuzz_init(struct Allocator* alloc, struct Random* rand, enum TestCa_Config cfg)
 {
     struct Context* ctx = Allocator_calloc(alloc, sizeof(struct Context), 1);
     Identity_set(ctx);
     struct EventBase* base = EventBase_new(alloc);
     ctx->alloc = alloc;
-    ctx->nodeA.ca = CryptoAuth_new(alloc, NULL, base, NULL, rand);
-    ctx->nodeB.ca = CryptoAuth_new(alloc, NULL, base, NULL, rand);
-    ctx->nodeA.session = CryptoAuth_newSession(
-        ctx->nodeA.ca, alloc, ctx->nodeB.ca->publicKey, false, "nodeA");
-    ctx->nodeB.session = CryptoAuth_newSession(
-        ctx->nodeB.ca, alloc, ctx->nodeA.ca->publicKey, false, "nodeB");
+    ctx->nodeA.ca = TestCa_new(alloc, NULL, base, NULL, rand, cfg);
+    ctx->nodeB.ca = TestCa_new(alloc, NULL, base, NULL, rand, cfg);
+    TestCa_getPubKey(ctx->nodeA.ca, ctx->nodeA.pubKey);
+    TestCa_getPubKey(ctx->nodeB.ca, ctx->nodeB.pubKey);
+    ctx->nodeA.session = TestCa_newSession(
+        ctx->nodeA.ca, alloc, ctx->nodeB.pubKey, false, "nodeA", true);
+    ctx->nodeB.session = TestCa_newSession(
+        ctx->nodeB.ca, alloc, ctx->nodeA.pubKey, false, "nodeB", true);
     return ctx;
 }
 
-void CJDNS_FUZZ_MAIN(void* vctx, struct Message* fuzz)
+void CryptoAuthFuzz_main(void* vctx, struct Message* fuzz)
 {
     struct Context* ctx = Identity_check((struct Context*) vctx);
 
@@ -291,24 +294,24 @@ void CJDNS_FUZZ_MAIN(void* vctx, struct Message* fuzz)
     ctx->rand = Random_newWithSeed(ctx->alloc, NULL, rs, NULL);
 
     if (maybe(ctx, 2)) {
-        CryptoAuth_addUser_ipv6(String_CONST("pass"), String_CONST("user"), NULL, ctx->nodeB.ca);
+        TestCa_addUser_ipv6(String_CONST("pass"), String_CONST("user"), NULL, ctx->nodeB.ca);
     } else {
         uint8_t nodeAAddress[16];
-        AddressCalc_addressForPublicKey(nodeAAddress, ctx->nodeA.ca->publicKey);
-        CryptoAuth_addUser_ipv6(String_CONST("pass"),
+        AddressCalc_addressForPublicKey(nodeAAddress, ctx->nodeA.pubKey);
+        TestCa_addUser_ipv6(String_CONST("pass"),
                                 String_CONST("user"),
                                 nodeAAddress,
                                 ctx->nodeB.ca);
     }
     if (maybe(ctx, 3)) {
         // 33% chance of no authentication
-        CryptoAuth_removeUsers(ctx->nodeB.ca, String_CONST("user"));
+        TestCa_removeUsers(ctx->nodeB.ca, String_CONST("user"));
     } else if (maybe(ctx, 2)) {
         // 33% chance of authType 2
-        CryptoAuth_setAuth(String_CONST("pass"), String_CONST("user"), ctx->nodeA.session);
+        TestCa_setAuth(String_CONST("pass"), String_CONST("user"), ctx->nodeA.session);
     } else {
         // 33% chance of authType 1
-        CryptoAuth_setAuth(String_CONST("pass"), NULL, ctx->nodeA.session);
+        TestCa_setAuth(String_CONST("pass"), NULL, ctx->nodeA.session);
     }
 
     mainLoop(ctx);

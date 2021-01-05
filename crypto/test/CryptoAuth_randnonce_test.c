@@ -1,0 +1,55 @@
+/* vim: set expandtab ts=4 sw=4: */
+/*
+ * You may redistribute this program and/or modify it under the terms of
+ * the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+#include "crypto/CryptoAuth_pvt.h"
+#include "util/Hex.h"
+#include "util/Bits.h"
+
+#include <stdio.h>
+
+#define HELLOWORLDLOWER "hello world"
+#define HELLOWORLDLEN 12
+
+static void encryptRndNonceTest()
+{
+    uint8_t buff[44];
+    Bits_memset(buff, 0, 44);
+
+    uint8_t nonce[24];
+    Bits_memset(nonce, 0, 24);
+
+    uint8_t secret[32];
+    Bits_memset(secret, 0, 32);
+
+    struct Message m = { .bytes=&buff[32], .length=HELLOWORLDLEN, .padding=32};
+    CString_strcpy((char*) m.bytes, HELLOWORLDLOWER);
+
+    CryptoAuth_encryptRndNonce(nonce, &m, secret);
+
+    uint8_t* expected = (uint8_t*) "1391ac5d03ba9f7099bffbb6e6c69d67ae5bd79391a5b94399b293dc";
+    uint8_t output[57];
+    Hex_encode(output, 57, m.bytes, m.length);
+
+    printf("\n%s\n%s\n", (char*) expected, (char*) output);
+    Assert_true(!Bits_memcmp(expected, output, 56));
+
+    Assert_true(!CryptoAuth_decryptRndNonce(nonce, &m, secret));
+    Assert_true(m.length == HELLOWORLDLEN && !Bits_memcmp(m.bytes, HELLOWORLDLOWER, m.length));
+}
+
+int main()
+{
+    encryptRndNonceTest();
+    return 0;
+}

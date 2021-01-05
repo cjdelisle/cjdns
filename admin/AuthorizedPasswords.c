@@ -86,13 +86,13 @@ static void list(Dict* args, void* vcontext, String* txid, struct Allocator* req
     int64_t* page_p = Dict_getIntC(args, "page");
     int page = (page_p) ? *page_p : 0;
 
-    struct StringList* users = CryptoAuth_getUsers(context->ca, requestAlloc);
+    RTypes_StrList_t* users = CryptoAuth_getUsers(context->ca, requestAlloc);
     List* out = List_new(requestAlloc);
-    for (int i = page * 16; i < users->length && i < (page + 1) * 16; i++) {
-        List_addString(out, StringList_get(users, i), requestAlloc);
+    for (int i = page * 16; i < users->len && i < (page + 1) * 16; i++) {
+        List_addString(out, users->items[i], requestAlloc);
     }
     Dict* response = Dict_new(requestAlloc);
-    Dict_putIntC(response, "total", users->length, requestAlloc);
+    Dict_putIntC(response, "total", users->len, requestAlloc);
     Dict_putListC(response, "users", out, requestAlloc);
     Admin_sendMessage(response, txid, context->admin);
 }

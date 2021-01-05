@@ -86,7 +86,7 @@ int main()
     Identity_set(ctx);
     ctx->outside.send = sendOutside;
     ctx->inside.send = sendInside;
-    Rffi_IfWrapper_t wrapper = Rffi_testwrapper_create(alloc);
+    RTypes_IfWrapper_t wrapper = Rffi_testwrapper_create(alloc);
     Iface_plumb(&ctx->inside, wrapper.internal);
     Iface_plumb(&ctx->outside, wrapper.external);
 

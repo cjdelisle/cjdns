@@ -277,14 +277,14 @@ static inline void encrypt(uint32_t nonce,
 
 static inline bool knowHerKey(struct CryptoAuth_Session_pvt* session)
 {
-    return !Bits_isZero(session->pub.herPublicKey, 32);
+    return !Bits_isZero(session->herPublicKey, 32);
 }
 
 static void getIp6(struct CryptoAuth_Session_pvt* session, uint8_t* addr)
 {
     Assert_true(knowHerKey(session));
     uint8_t ip6[16];
-    AddressCalc_addressForPublicKey(ip6, session->pub.herPublicKey);
+    AddressCalc_addressForPublicKey(ip6, session->herPublicKey);
     AddrTools_printIp(addr, ip6);
 }
 
@@ -293,7 +293,7 @@ static void getIp6(struct CryptoAuth_Session_pvt* session, uint8_t* addr)
         if (!Defined(Log_DEBUG)) { break; }                                                      \
         uint8_t addr[40] = "unknown";                                                            \
         getIp6((session), addr);                                                                 \
-        String* dn = (session)->pub.displayName;                                                 \
+        String* dn = (session)->displayName;                                                     \
         Log_debug((session)->context->logger, "%p %s [%s] state[%d]: " format, (void*)(session), \
                   dn ? dn->bytes : "", addr, (session)->nextNonce, __VA_ARGS__);                 \
     } while (0)
@@ -313,7 +313,7 @@ static void reset(struct CryptoAuth_Session_pvt* session)
     Bits_memset(session->sharedSecret, 0, 32);
     session->established = false;
 
-    Bits_memset(&session->pub.replayProtector, 0, sizeof(struct ReplayProtector));
+    Bits_memset(&session->replayProtector, 0, sizeof(struct ReplayProtector));
 }
 
 static void resetIfTimeout(struct CryptoAuth_Session_pvt* session)
@@ -326,9 +326,9 @@ static void resetIfTimeout(struct CryptoAuth_Session_pvt* session)
     }
 
     uint64_t nowSecs = Time_currentTimeSeconds(session->context->eventBase);
-    if (nowSecs - session->timeOfLastPacket < session->pub.setupResetAfterInactivitySeconds) {
+    if (nowSecs - session->timeOfLastPacket < session->setupResetAfterInactivitySeconds) {
         return;
-    } else if (nowSecs - session->timeOfLastPacket < session->pub.resetAfterInactivitySeconds) {
+    } else if (nowSecs - session->timeOfLastPacket < session->resetAfterInactivitySeconds) {
         if (session->established) { return; }
     }
 
@@ -352,7 +352,7 @@ static void encryptHandshake(struct Message* message,
                  CryptoHeader_Challenge_SIZE + 24);
 
     // set the permanent key
-    Bits_memcpy(header->publicKey, session->context->pub.publicKey, 32);
+    Bits_memcpy(header->publicKey, session->context->pubKey, 32);
 
     Assert_true(knowHerKey(session));
 
@@ -414,7 +414,7 @@ static void encryptHandshake(struct Message* message,
     if (session->nextNonce < CryptoAuth_State_RECEIVED_HELLO) {
         getSharedSecret(sharedSecret,
                         session->context->privateKey,
-                        session->pub.herPublicKey,
+                        session->herPublicKey,
                         passwordHash,
                         session->context->logger);
 
@@ -540,7 +540,7 @@ static inline enum CryptoAuth_DecryptErr decryptMessage(struct CryptoAuth_Sessio
         cryptoAuthDebug0(session, "DROP authenticated decryption failed");
         return CryptoAuth_DecryptErr_DECRYPT;
     }
-    if (!ReplayProtector_checkNonce(nonce, &session->pub.replayProtector)) {
+    if (!ReplayProtector_checkNonce(nonce, &session->replayProtector)) {
         cryptoAuthDebug(session, "DROP nonce checking failed nonce=[%u]", nonce);
         return CryptoAuth_DecryptErr_REPLAY;
     }
@@ -572,7 +572,7 @@ static enum CryptoAuth_DecryptErr decryptHandshake(struct CryptoAuth_Session_pvt
     // nextNonce >3: handshake complete
 
     Assert_true(knowHerKey(session));
-    if (Bits_memcmp(session->pub.herPublicKey, header->publicKey, 32)) {
+    if (Bits_memcmp(session->herPublicKey, header->publicKey, 32)) {
         cryptoAuthDebug0(session, "DROP a packet with different public key than this session");
         return CryptoAuth_DecryptErr_WRONG_PERM_PUBKEY;
     }
@@ -587,7 +587,7 @@ static enum CryptoAuth_DecryptErr decryptHandshake(struct CryptoAuth_Session_pvt
         passwordHash = userObj->secret;
         if (userObj->restrictedToip6[0]) {
             restrictedToip6 = userObj->restrictedToip6;
-            if (!ip6MatchesKey(restrictedToip6, session->pub.herPublicKey)) {
+            if (!ip6MatchesKey(restrictedToip6, session->herPublicKey)) {
                 cryptoAuthDebug0(session, "DROP packet with key not matching restrictedToip6");
                 return CryptoAuth_DecryptErr_IP_RESTRICTED;
             }
@@ -614,7 +614,7 @@ static enum CryptoAuth_DecryptErr decryptHandshake(struct CryptoAuth_Session_pvt
 
         getSharedSecret(sharedSecret,
                         session->context->privateKey,
-                        session->pub.herPublicKey,
+                        session->herPublicKey,
                         passwordHash,
                         session->context->logger);
         nextNonce = CryptoAuth_State_RECEIVED_HELLO;
@@ -632,7 +632,7 @@ static enum CryptoAuth_DecryptErr decryptHandshake(struct CryptoAuth_Session_pvt
         // We sent the hello, this is a key
         getSharedSecret(sharedSecret,
                         session->ourTempPrivKey,
-                        session->pub.herPublicKey,
+                        session->herPublicKey,
                         passwordHash,
                         session->context->logger);
         nextNonce = CryptoAuth_State_RECEIVED_KEY;
@@ -762,8 +762,8 @@ static enum CryptoAuth_DecryptErr decryptHandshake(struct CryptoAuth_Session_pvt
             // fresh new hello packet, we should reset the session.
             switch (session->nextNonce) {
                 case CryptoAuth_State_SENT_HELLO: {
-                    if (Bits_memcmp(session->pub.herPublicKey,
-                                    session->context->pub.publicKey, 32) < 0)
+                    if (Bits_memcmp(session->herPublicKey,
+                                    session->context->pubKey, 32) < 0)
                     {
                         // It's a hello and we are the initiator but their permant public key is
                         // numerically lower than ours, this is so that in the event of two hello
@@ -824,7 +824,7 @@ static enum CryptoAuth_DecryptErr decryptHandshake(struct CryptoAuth_Session_pvt
     );
     session->nextNonce = nextNonce;
 
-    Bits_memset(&session->pub.replayProtector, 0, sizeof(struct ReplayProtector));
+    Bits_memset(&session->replayProtector, 0, sizeof(struct ReplayProtector));
 
     return 0;
 }
@@ -869,8 +869,8 @@ enum CryptoAuth_DecryptErr CryptoAuth_decrypt(struct CryptoAuth_Session* session
             enum CryptoAuth_DecryptErr ret = decryptMessage(session, nonce, msg, secret);
 
             // This prevents a few "ghost" dropped packets at the beginning of a session.
-            session->pub.replayProtector.baseOffset = nonce + 1;
-            session->pub.replayProtector.bitfield = 0;
+            session->replayProtector.baseOffset = nonce + 1;
+            session->replayProtector.bitfield = 0;
 
             if (!ret) {
                 cryptoAuthDebug0(session, "Final handshake step succeeded");
@@ -931,11 +931,11 @@ struct CryptoAuth* CryptoAuth_new(struct Allocator* allocator,
     } else {
         Random_bytes(rand, ca->privateKey, 32);
     }
-    crypto_scalarmult_curve25519_base(ca->pub.publicKey, ca->privateKey);
+    crypto_scalarmult_curve25519_base(ca->pubKey, ca->privateKey);
 
     if (Defined(Log_KEYS)) {
         uint8_t publicKeyHex[65];
-        printHexKey(publicKeyHex, ca->pub.publicKey);
+        printHexKey(publicKeyHex, ca->pubKey);
         uint8_t privateKeyHex[65];
         printHexKey(privateKeyHex, ca->privateKey);
         Log_keys(logger,
@@ -1023,16 +1023,25 @@ int CryptoAuth_removeUsers(struct CryptoAuth* context, String* login)
     return count;
 }
 
-struct StringList* CryptoAuth_getUsers(struct CryptoAuth* context, struct Allocator* alloc)
+RTypes_StrList_t* CryptoAuth_getUsers(const struct CryptoAuth* context, struct Allocator* alloc)
 {
     struct CryptoAuth_pvt* ca = Identity_check((struct CryptoAuth_pvt*) context);
 
-    struct StringList* users = StringList_new(alloc);
+    int count = 0;
     for (struct CryptoAuth_User* u = ca->users; u; u = u->next) {
-        StringList_add(users, String_clone(u->login, alloc));
+        count++;
     }
 
-    return users;
+    RTypes_StrList_t* out = Allocator_calloc(alloc, sizeof(RTypes_StrList_t), 1);
+    out->len = count;
+    out->items = Allocator_calloc(alloc, sizeof(String*), count);
+    int i = 0;
+    for (struct CryptoAuth_User* u = ca->users; u; u = u->next) {
+        out->items[i] = String_clone(u->login, alloc);
+        i++;
+    }
+
+    return out;
 }
 
 struct CryptoAuth_Session* CryptoAuth_newSession(struct CryptoAuth* ca,
@@ -1047,19 +1056,19 @@ struct CryptoAuth_Session* CryptoAuth_newSession(struct CryptoAuth* ca,
     Identity_set(session);
     session->context = context;
     session->requireAuth = requireAuth;
-    session->pub.displayName = displayName ? String_new(displayName, alloc) : NULL;
+    session->displayName = displayName ? String_new(displayName, alloc) : NULL;
     session->timeOfLastPacket = Time_currentTimeSeconds(context->eventBase);
     session->alloc = alloc;
 
-    session->pub.resetAfterInactivitySeconds = CryptoAuth_DEFAULT_RESET_AFTER_INACTIVITY_SECONDS;
-    session->pub.setupResetAfterInactivitySeconds =
+    session->resetAfterInactivitySeconds = CryptoAuth_DEFAULT_RESET_AFTER_INACTIVITY_SECONDS;
+    session->setupResetAfterInactivitySeconds =
         CryptoAuth_DEFAULT_SETUP_RESET_AFTER_INACTIVITY_SECONDS;
 
     Assert_true(herPublicKey);
-    Bits_memcpy(session->pub.herPublicKey, herPublicKey, 32);
+    Bits_memcpy(session->herPublicKey, herPublicKey, 32);
     uint8_t calculatedIp6[16];
     AddressCalc_addressForPublicKey(calculatedIp6, herPublicKey);
-    Bits_memcpy(session->pub.herIp6, calculatedIp6, 16);
+    Bits_memcpy(session->herIp6, calculatedIp6, 16);
 
     return &session->pub;
 }
@@ -1099,13 +1108,13 @@ void CryptoAuth_setAuth(const String* password,
     reset(session);
 }
 
-enum CryptoAuth_State CryptoAuth_getState(struct CryptoAuth_Session* caSession)
+RTypes_CryptoAuth_State_t CryptoAuth_getState(struct CryptoAuth_Session* caSession)
 {
     struct CryptoAuth_Session_pvt* session =
         Identity_check((struct CryptoAuth_Session_pvt*)caSession);
 
     if (session->nextNonce <= CryptoAuth_State_RECEIVED_KEY) {
-        return session->nextNonce;
+        return (RTypes_CryptoAuth_State_t) session->nextNonce;
     }
     return (session->established) ? CryptoAuth_State_ESTABLISHED : CryptoAuth_State_RECEIVED_KEY;
 }
@@ -1124,6 +1133,48 @@ void CryptoAuth_reset(struct CryptoAuth_Session* caSession)
     reset(session);
 }
 
+void CryptoAuth_getHerPubKey(const struct CryptoAuth_Session* session, uint8_t* pkOut)
+{
+    const struct CryptoAuth_Session_pvt* s =
+        Identity_check((struct CryptoAuth_Session_pvt*)session);
+    Bits_memcpy(pkOut, s->herPublicKey, 32);
+}
+
+void CryptoAuth_getHerIp6(const struct CryptoAuth_Session* session, uint8_t* ipOut)
+{
+    const struct CryptoAuth_Session_pvt* s =
+        Identity_check((struct CryptoAuth_Session_pvt*)session);
+    Bits_memcpy(ipOut, s->herIp6, 16);
+}
+
+void CryptoAuth_getPubKey(const struct CryptoAuth* ca, uint8_t* pkOut)
+{
+    const struct CryptoAuth_pvt* context = Identity_check((struct CryptoAuth_pvt*) ca);
+    Bits_memcpy(pkOut,  context->pubKey, 32);
+}
+
+String_t *CryptoAuth_getName(const struct CryptoAuth_Session* session, Allocator_t* alloc)
+{
+    const struct CryptoAuth_Session_pvt* s =
+        Identity_check((struct CryptoAuth_Session_pvt*)session);
+    if (s->displayName) {
+        return String_clone(s->displayName, alloc);
+    } else {
+        return NULL;
+    }
+}
+
+void CryptoAuth_stats(const struct CryptoAuth_Session* session, RTypes_CryptoStats_t* statsOut)
+{
+    const struct CryptoAuth_Session_pvt* s =
+        Identity_check((struct CryptoAuth_Session_pvt*)session);
+    statsOut->received_packets = s->replayProtector.baseOffset +
+        Bits_popCountx64(s->replayProtector.bitfield);
+    statsOut->lost_packets = s->replayProtector.lostPackets;
+    statsOut->received_unexpected = s->replayProtector.receivedOutOfRange;
+    statsOut->duplicate_packets = s->replayProtector.duplicates;
+}
+
 // For testing:
 void CryptoAuth_encryptRndNonce(uint8_t nonce[24], struct Message* msg, uint8_t secret[32])
 {
@@ -1134,3 +1185,4 @@ int CryptoAuth_decryptRndNonce(uint8_t nonce[24], struct Message* msg, uint8_t s
 {
     return decryptRndNonce(nonce, msg, secret);
 }
+

@@ -22,8 +22,28 @@ fn cfiles<P: AsRef<Path>>(out: &mut Vec<PathBuf>, path: P) -> Result<()> {
 
 fn main() -> Result<()> {
     // Generate C bindings from rust
-    #[cfg(feature = "generate-rffi")]
     {
+        println!("Generating rtypes");
+        let mut conf = cbindgen::Config::default();
+        conf.language = cbindgen::Language::C;
+        conf.autogen_warning =
+            Some("// This file is generated from src/rtypes.rs using cbindgen".to_owned());
+        conf.style = cbindgen::Style::Type;
+        conf.include_guard = Some("RTypes_H".to_owned());
+        conf.export.include = vec!["RTypes_ExportMe".to_owned()];
+        conf.no_includes = true;
+        conf.includes = vec!["RTypesPrefix.h".to_owned()];
+        conf.enumeration.prefix_with_name = true;
+        cbindgen::Builder::new()
+            .with_src("./src/rtypes.rs")
+            .with_config(conf)
+            .generate()
+            .expect("Unable to generate rtypes")
+            .write_to_file("RTypes.h");
+        println!("Generating rtypes done");
+
+        //
+
         println!("Generating rffi");
         let mut conf = cbindgen::Config::default();
         conf.language = cbindgen::Language::C;
@@ -31,7 +51,8 @@ fn main() -> Result<()> {
             Some("// This file is generated from src/rffi.rs using cbindgen".to_owned());
         conf.style = cbindgen::Style::Type;
         conf.include_guard = Some("rffi_H".to_owned());
-        conf.includes = vec!["cffi.h".to_owned()];
+        conf.no_includes = true;
+        conf.includes = vec!["RffiPrefix.h".to_owned()];
         cbindgen::Builder::new()
             .with_src("./src/rffi.rs")
             .with_config(conf)

@@ -241,7 +241,7 @@ static void initTunfd(Dict* args, void* vcontext, String* txid, struct Allocator
     }
     struct Iface* iface = NULL;
     if (type == TUNMessageType_NONE) {
-        Rffi_IfWrapper_t aw = Rffi_android_create(tunAlloc);
+        RTypes_IfWrapper_t aw = Rffi_android_create(tunAlloc);
         Iface_plumb(aw.external, &p->iface);
         iface = aw.internal;
     } else {

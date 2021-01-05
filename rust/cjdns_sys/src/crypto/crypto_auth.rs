@@ -14,6 +14,8 @@ use crate::crypto::keys::{IpV6, PrivateKey, PublicKey};
 use crate::crypto::random::Random;
 use crate::crypto::replay_protector::ReplayProtector;
 use crate::interface::wire::message::Message;
+use crate::rtypes::RTypes_CryptoAuth_State_t as State;
+use crate::rtypes::*;
 use crate::util::events::EventBase;
 
 pub struct CryptoAuth {
@@ -96,28 +98,6 @@ pub struct Session {
     context: Arc<CryptoAuth>,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
-pub enum State {
-    /// New CryptoAuth session, has not sent or received anything
-    Init = 0,
-
-    /// Sent a hello message, waiting for reply
-    SentHello = 1,
-
-    /// Received a hello message, have not yet sent a reply
-    ReceivedHello = 2,
-
-    /// Received a hello message, sent a key message, waiting for the session to complete
-    SentKey = 3,
-
-    /// Sent a hello message, received a key message, may or may not have sent some data traffic
-    /// but no data traffic has yet been received
-    ReceivedKey = 4,
-
-    /// Received data traffic, session is in run state
-    Established = 100,
-}
-
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum AddUserError {
     #[error("Duplicate user")]
@@ -128,37 +108,52 @@ pub enum AddUserError {
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum DecryptErr {
     #[error("NONE")]
-    NONE = 0,
+    None = 0,
+
     #[error("RUNT")]
-    RUNT = 1,
+    Runt = 1,
+
     #[error("NO_SESSION")]
-    NO_SESSION = 2,
+    NoSession = 2,
+
     #[error("FINAL_HANDSHAKE_FAIL")]
-    FINAL_SHAKE_FAIL = 3,
+    FinalShakeFail = 3,
+
     #[error("FAILED_DECRYPT_RUN_MSG")]
-    FAILED_DECRYPT_RUN_MSG = 4,
+    FailedDecryptionRunMsg = 4,
+
     #[error("KEY_PKT_ESTABLISHED_SESSION")]
-    KEY_PKT_ESTABLISHED_SESSION = 5,
+    KeyPktEstablishedSession = 5,
+
     #[error("WRONG_PERM_PUBKEY")]
-    WRONG_PERM_PUBKEY = 6,
+    WrongPermPubkey = 6,
+
     #[error("IP_RESTRICTED")]
-    IP_RESTRICTED = 7,
+    IpRestricted = 7,
+
     #[error("AUTH_REQUIRED")]
-    AUTH_REQUIRED = 8,
+    AuthRequired = 8,
+
     #[error("UNRECOGNIZED_AUTH")]
-    UNRECOGNIZED_AUTH = 9,
+    UnrecognizedAuth = 9,
+
     #[error("STRAY_KEY")]
-    STRAY_KEY = 10,
+    StrayKey = 10,
+
     #[error("HANDSHAKE_DECRYPT_FAILED")]
-    HANDSHAKE_DECRYPT_FAILED = 11,
+    HandshakeDecryptFailed = 11,
+
     #[error("WISEGUY")]
-    WISEGUY = 12,
+    Wiseguy = 12,
+
     #[error("INVALID_PACKET")]
-    INVALID_PACKET = 13,
+    InvalidPacket = 13,
+
     #[error("REPLAY")]
-    REPLAY = 14,
+    Replay = 14,
+
     #[error("DECRYPT")]
-    DECRYPT = 15,
+    Decrypt = 15,
 }
 
 fn crypto_scalarmult_curve25519_base(pvt: &[u8; 32]) -> [u8; 32] {
@@ -327,6 +322,18 @@ impl SessionMut {
         }
     }
 
+    pub fn get_her_pubkey(&self) -> [u8; 32] {
+        self.her_public_key.0.clone()
+    }
+
+    pub fn get_her_ip6(&self) -> [u8; 16] {
+        self.her_ip6.0.clone()
+    }
+
+    pub fn get_name(&self) -> Option<String> {
+        self.display_name.clone()
+    }
+
     pub fn reset_if_timeout(&mut self, event_base: &EventBase) {
         if self.next_nonce == State::SentHello as u32 {
             // Lets not reset the session, we just sent one or more hello packets and
@@ -379,8 +386,13 @@ impl Session {
         her_pub_key: PublicKey,
         require_auth: bool,
         display_name: Option<String>,
+        use_noise: bool,
     ) -> Self {
         let now = context.event_base.current_time_seconds();
+
+        if use_noise {
+            panic!("noise protocol not yet implemented");
+        }
 
         assert!(her_pub_key.is_non_zero());
         let her_ip6 = her_pub_key.address_for_public_key();
@@ -425,6 +437,27 @@ impl Session {
 
     pub fn get_state(&self) -> State {
         self.m.read().unwrap().get_state()
+    }
+
+    pub fn get_her_pubkey(&self) -> [u8; 32] {
+        self.m.read().unwrap().get_her_pubkey()
+    }
+
+    pub fn get_her_ip6(&self) -> [u8; 16] {
+        self.m.read().unwrap().get_her_ip6()
+    }
+
+    pub fn get_name(&self) -> Option<String> {
+        self.m.read().unwrap().get_name()
+    }
+
+    pub fn stats(&self) -> RTypes_CryptoStats_t {
+        // Stats come from the replay protector
+        let rp = self.replay_protector.lock().unwrap();
+        // RTypes_CryptoStats_t{
+        //     received_packets: rp.
+        // }
+        todo!()
     }
 
     pub fn reset_if_timeout(&self) {

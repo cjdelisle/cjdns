@@ -3,13 +3,7 @@
 members = [
     "rust/cjdns_sys",
     "rust/cjdroute",
-    "rust/publictoip6",
-    "rust/mkpasswd",
-    "rust/sybilsim",
     "rust/testcjdroute",
-    "rust/randombytes",
-    "rust/privatetopublic",
-    "rust/makekeys",
 ]
 
 [profile.release]

@@ -12,27 +12,17 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#include "util/Assert.h"
-#include "util/Gcc.h"
+#ifndef CRYPTOAUTHFUZZ_H
+#define CRYPTOAUTHFUZZ_H
 
-// We can't pull in Allocator or else we make a link dependency loop
-//#include "rust/cjdns_sys/Rffi.h"
-extern void Rffi_panic(const char* msg); // CHECKFILES_IGNORE
+#include "crypto/random/Random.h"
+#include "crypto/test/TestCa.h"
+#include "memory/Allocator.h"
+#include "wire/Message.h"
+#include "util/Linker.h"
+Linker_require("crypto/test/CryptoAuthFuzz.c")
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
+void* CryptoAuthFuzz_init(struct Allocator* alloc, struct Random* rand, enum TestCa_Config cfg);
+void CryptoAuthFuzz_main(void* vctx, struct Message* fuzz);
 
-Gcc_PRINTF(1, 2)
-void Assert_failure(const char* format, ...)
-{
-    printf("\n\n");
-    fflush(stdout);
-    fflush(stderr);
-    char buf[1024] = {0};
-    va_list args;
-    va_start(args, format);
-    vsnprintf(buf, 1023, format, args);
-    va_end(args);
-    Rffi_panic(buf);
-}
+#endif

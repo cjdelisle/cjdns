@@ -73,9 +73,9 @@ checksum = "cf1de2fe8c75bc145a2f577add951f8134889b4795d47466a54a5c846d691693"
 
 [[package]]
 name = "cbindgen"
-version = "0.15.0"
+version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1df6a11bba1d7cab86c166cecf4cf8acd7d02b7b65924d81b33d27197f22ee35"
+checksum = "9344318b9c787667b95cd2c5124f5eaf2bde35e959dd01ea04fc5b234c542c11"
 dependencies = [
  "clap",
  "heck",
@@ -298,24 +298,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "makekeys"
-version = "0.1.0"
-dependencies = [
- "cjdns_sys",
-]
-
-[[package]]
 name = "memchr"
 version = "2.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ee1c47aaa256ecabcaea351eae4a9b01ef39ed810004e298d2511ed284b1525"
-
-[[package]]
-name = "mkpasswd"
-version = "0.1.0"
-dependencies = [
- "cjdns_sys",
-]
 
 [[package]]
 name = "nom"
@@ -346,26 +332,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ac74c624d6b2d21f425f752262f42188365d7b8ff1aff74c82e45136510a4857"
 
 [[package]]
-name = "privatetopublic"
-version = "0.1.0"
-dependencies = [
- "cjdns_sys",
-]
-
-[[package]]
 name = "proc-macro2"
 version = "1.0.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1e0704ee1a7e00d7bb417d0770ea303c1bccbabf0ef1667dae92b5967f5f8a71"
 dependencies = [
  "unicode-xid",
-]
-
-[[package]]
-name = "publictoip6"
-version = "0.1.0"
-dependencies = [
- "cjdns_sys",
 ]
 
 [[package]]
@@ -422,13 +394,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ca3129af7b92a17112d59ad498c6f81eaf463253766b90396d39ea7a39d6613c"
 dependencies = [
  "rand_core",
-]
-
-[[package]]
-name = "randombytes"
-version = "0.1.0"
-dependencies = [
- "cjdns_sys",
 ]
 
 [[package]]
@@ -536,13 +501,6 @@ name = "strsim"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ea5119cdb4c55b55d432abb513a0429384878c15dde60cc77b1c99de1a95a6a"
-
-[[package]]
-name = "sybilsim"
-version = "0.1.0"
-dependencies = [
- "cjdns_sys",
-]
 
 [[package]]
 name = "syn"

@@ -15,6 +15,7 @@
 
 // This file is used to generate src/cffi.rs using bindgen
 
+#include "benc/String.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
 #include "interface/Iface.h"

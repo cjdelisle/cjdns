@@ -221,6 +221,8 @@ struct InterfaceController_pvt
 
     struct Headers_Beacon beacon;
 
+    uint8_t ourPubKey[32];
+
     Identity
 };
 
@@ -349,14 +351,16 @@ static void linkState(void* vic)
         for (uint32_t i = 0; i < ici->peerMap.count; i++) {
             struct Peer* ep = ici->peerMap.values[i];
 
-            uint32_t drops = ep->caSession->replayProtector.lostPackets;
+            RTypes_CryptoStats_t stats;
+            CryptoAuth_stats(ep->caSession, &stats);
+            uint32_t drops = stats.lost_packets;
             uint64_t newDrops = 0;
             // We're checking uint32 rollover here
             if (drops > ep->_lastDrops) { newDrops = drops - ep->_lastDrops; }
             ep->_lastDrops = drops;
             ep->lastDrops += newDrops;
 
-            uint32_t packets = ep->caSession->replayProtector.baseOffset;
+            uint32_t packets = stats.received_packets;
             uint64_t newPackets = 0;
             if (packets > ep->_lastPackets) { newPackets = packets - ep->_lastPackets; }
             ep->_lastPackets = packets;
@@ -498,7 +502,7 @@ static Iface_DEFUN receivedPostCryptoAuth(struct Message* msg,
         ep->state = caState;
         SwitchCore_setInterfaceState(&ep->switchIf, SwitchCore_setInterfaceState_ifaceState_UP);
 
-        Bits_memcpy(ep->addr.key, ep->caSession->herPublicKey, 32);
+        CryptoAuth_getHerPubKey(ep->caSession, ep->addr.key);
         Address_getPrefix(&ep->addr);
 
         if (caState != CryptoAuth_State_ESTABLISHED) {
@@ -648,7 +652,7 @@ static Iface_DEFUN handleBeacon(struct Message* msg, struct InterfaceController_
     if (!AddressCalc_validAddress(addr.ip6.bytes)) {
         Log_debug(ic->logger, "handleBeacon invalid key [%s]", printedAddr->bytes);
         return Error(INVALID);
-    } else if (!Bits_memcmp(ic->ca->publicKey, addr.key, 32)) {
+    } else if (!Bits_memcmp(ic->ourPubKey, addr.key, 32)) {
         // receive beacon from self, drop silent
         return Error(NONE);
     }
@@ -739,6 +743,9 @@ static Iface_DEFUN handleUnexpectedIncoming(struct Message* msg,
         // which is not a setup packet will be summarily dropped.
         return Error(INVALID);
     }
+    if (Bits_isZero(ch->publicKey, 32)) {
+        return Error(INVALID);
+    }
 
     struct Allocator* epAlloc = Allocator_child(ici->alloc);
     lladdr = Sockaddr_clone(lladdr, epAlloc);
@@ -757,7 +764,6 @@ static Iface_DEFUN handleUnexpectedIncoming(struct Message* msg,
         Allocator_free(epAlloc);
         return Error(AUTHENTICATION);
     }
-    Assert_true(!Bits_isZero(ep->caSession->herPublicKey, 32));
     Assert_true(Map_EndpointsBySockaddr_indexForKey(&lladdr, &ici->peerMap) == -1);
     int index = Map_EndpointsBySockaddr_put(&lladdr, &ep, &ici->peerMap);
     Assert_true(index >= 0);
@@ -779,8 +785,8 @@ static Iface_DEFUN handleUnexpectedIncoming(struct Message* msg,
     ep->timeOfLastMessage =
         Time_currentTimeMilliseconds(ic->eventBase) - ic->pingAfterMilliseconds - 1;
 
-    Bits_memcpy(ep->addr.key, ep->caSession->herPublicKey, 32);
-    Bits_memcpy(ep->addr.ip6.bytes, ep->caSession->herIp6, 16);
+    CryptoAuth_getHerPubKey(ep->caSession, ep->addr.key);
+    CryptoAuth_getHerIp6(ep->caSession, ep->addr.ip6.bytes);
     Log_info(ic->logger, "Added peer [%s] from incoming message",
         Address_toString(&ep->addr, msg->alloc)->bytes);
 
@@ -1002,7 +1008,7 @@ int InterfaceController_bootstrapPeer(struct InterfaceController* ifc,
 
     uint8_t ip6[16];
     AddressCalc_addressForPublicKey(ip6, herPublicKey);
-    if (!AddressCalc_validAddress(ip6) || !Bits_memcmp(ic->ca->publicKey, herPublicKey, 32)) {
+    if (!AddressCalc_validAddress(ip6) || !Bits_memcmp(ic->ourPubKey, herPublicKey, 32)) {
         return InterfaceController_bootstrapPeer_BAD_KEY;
     }
 
@@ -1026,11 +1032,8 @@ int InterfaceController_bootstrapPeer(struct InterfaceController* ifc,
     Allocator_onFree(alloc, freeAlloc, epAlloc);
 
     ep->peerLink = PeerLink_new(ic->eventBase, epAlloc);
-    ep->caSession = CryptoAuth_newSession(ic->ca, epAlloc, herPublicKey, false, "outer");
+    ep->caSession = CryptoAuth_newSession(ic->ca, epAlloc, herPublicKey, false, user);
     CryptoAuth_setAuth(password, login, ep->caSession);
-    if (user) {
-        ep->caSession->displayName = String_clone(user, epAlloc);
-    }
 
     ep->switchIf.send = sendFromSwitch;
 
@@ -1092,12 +1095,11 @@ int InterfaceController_getPeerStats(struct InterfaceController* ifController,
             s->timeOfLastMessage = peer->timeOfLastMessage;
             s->state = peer->state;
             s->isIncomingConnection = peer->isIncomingConnection;
-            if (peer->caSession->displayName) {
-                s->user = String_clone(peer->caSession->displayName, alloc);
-            }
-            struct ReplayProtector* rp = &peer->caSession->replayProtector;
-            s->duplicates = rp->duplicates;
-            s->receivedOutOfRange = rp->receivedOutOfRange;
+            s->user = CryptoAuth_getName(peer->caSession, alloc);
+            RTypes_CryptoStats_t stats;
+            CryptoAuth_stats(peer->caSession, &stats);
+            s->duplicates = stats.duplicate_packets;
+            s->receivedOutOfRange = stats.received_unexpected;
 
             struct PeerLink_Kbps kbps;
             PeerLink_kbps(peer->peerLink, &kbps);
@@ -1125,7 +1127,7 @@ void InterfaceController_resetPeering(struct InterfaceController* ifController,
         struct InterfaceController_Iface_pvt* ici = ArrayList_OfIfaces_get(ic->icis, j);
         for (int i = 0; i < (int)ici->peerMap.count; i++) {
             struct Peer* peer = ici->peerMap.values[i];
-            if (!herPublicKey || !Bits_memcmp(herPublicKey, peer->caSession->herPublicKey, 32)) {
+            if (!herPublicKey || !Bits_memcmp(herPublicKey, peer->addr.key, 32)) {
                 CryptoAuth_reset(peer->caSession);
             }
         }
@@ -1142,7 +1144,7 @@ int InterfaceController_disconnectPeer(struct InterfaceController* ifController,
         struct InterfaceController_Iface_pvt* ici = ArrayList_OfIfaces_get(ic->icis, j);
         for (int i = 0; i < (int)ici->peerMap.count; i++) {
             struct Peer* peer = ici->peerMap.values[i];
-            if (!Bits_memcmp(herPublicKey, peer->caSession->herPublicKey, 32)) {
+            if (!Bits_memcmp(herPublicKey, peer->addr.key, 32)) {
                 Allocator_free(peer->alloc);
                 return 0;
             }
@@ -1227,7 +1229,9 @@ struct InterfaceController* InterfaceController_new(struct CryptoAuth* ca,
     if (ret) {
         Log_warn(logger, "CryptoAuth_addUser() returned [%d]", ret);
     }
-    Bits_memcpy(out->beacon.publicKey, ca->publicKey, 32);
+
+    CryptoAuth_getPubKey(ca, out->ourPubKey);
+    Bits_memcpy(out->beacon.publicKey, out->ourPubKey, 32);
     out->beacon.version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL);
 
     Timeout_setTimeout(beaconInterval, out, BEACON_INTERVAL, eventBase, alloc);

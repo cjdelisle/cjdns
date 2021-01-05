@@ -52,6 +52,7 @@ mod interface {
 
 mod cffi;
 mod rffi;
+mod rtypes;
 mod crypto {
     pub mod crypto_auth;
     mod crypto_header;

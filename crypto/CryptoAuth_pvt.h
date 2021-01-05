@@ -51,6 +51,8 @@ struct CryptoAuth_pvt
 {
     struct CryptoAuth pub;
 
+    uint8_t pubKey[32];
+
     uint8_t privateKey[32];
 
     struct CryptoAuth_User* users;
@@ -68,6 +70,27 @@ struct CryptoAuth_pvt
 struct CryptoAuth_Session_pvt
 {
     struct CryptoAuth_Session pub;
+
+    uint8_t herPublicKey[32];
+
+    String* displayName;
+
+    struct ReplayProtector replayProtector;
+
+    /**
+     * Bind this CryptoAuth session to the other node's ip6 address,
+     * any packet avertizing a key which doesn't hash to this will be dropped.
+     */
+    uint8_t herIp6[16];
+
+    /**
+     * After this number of seconds of inactivity,
+     * a connection will be reset to prevent them hanging in a bad state.
+     */
+    uint32_t resetAfterInactivitySeconds;
+
+    /** If a session is not completely setup, reset it after this many seconds of inactivity. */
+    uint32_t setupResetAfterInactivitySeconds;
 
     struct Allocator* alloc;
 

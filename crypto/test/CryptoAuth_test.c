@@ -23,6 +23,7 @@
 #include "util/Endian.h"
 #include "util/log/FileWriterLog.h"
 #include "wire/CryptoHeader.h"
+#include "crypto/test/TestCa.h"
 
 #define PRIVATEKEY_A \
     Constant_stringForHex("53ff22b2eb94ce8c5f1852c0f557eb901f067e5273d541e0a21e143c20dff9da")
@@ -38,11 +39,11 @@
 
 struct Context
 {
-    struct CryptoAuth* ca1;
-    struct CryptoAuth_Session* sess1;
+    TestCa_t* ca1;
+    TestCa_Session_t* sess1;
 
-    struct CryptoAuth* ca2;
-    struct CryptoAuth_Session* sess2;
+    TestCa_t* ca2;
+    TestCa_Session_t* sess2;
 
     struct Allocator* alloc;
     struct Log* log;
@@ -54,7 +55,8 @@ static struct Context* init(uint8_t* privateKeyA,
                             uint8_t* publicKeyA,
                             uint8_t* password,
                             uint8_t* privateKeyB,
-                            uint8_t* publicKeyB)
+                            uint8_t* publicKeyB,
+                            enum TestCa_Config cfg)
 {
     struct Allocator* alloc = MallocAllocator_new(1048576);
     struct Context* ctx = Allocator_calloc(alloc, sizeof(struct Context), 1);
@@ -63,27 +65,27 @@ static struct Context* init(uint8_t* privateKeyA,
     struct Random* rand = ctx->rand = Random_new(alloc, logger, NULL);
     struct EventBase* base = ctx->base = EventBase_new(alloc);
 
-    ctx->ca1 = CryptoAuth_new(alloc, privateKeyA, base, logger, rand);
-    ctx->sess1 = CryptoAuth_newSession(ctx->ca1, alloc, publicKeyB, false, "cif1");
+    ctx->ca1 = TestCa_new(alloc, privateKeyA, base, logger, rand, cfg);
+    ctx->sess1 = TestCa_newSession(ctx->ca1, alloc, publicKeyB, false, "cif1", true);
 
-    ctx->ca2 = CryptoAuth_new(alloc, privateKeyB, base, logger, rand);
+    ctx->ca2 = TestCa_new(alloc, privateKeyB, base, logger, rand, cfg);
     if (password) {
         String* passStr = String_CONST(password);
-        CryptoAuth_setAuth(passStr, NULL, ctx->sess1);
-        CryptoAuth_addUser(passStr, String_new(USEROBJ, alloc), ctx->ca2);
+        TestCa_setAuth(passStr, NULL, ctx->sess1);
+        TestCa_addUser_ipv6(passStr, String_new(USEROBJ, alloc), NULL, ctx->ca2);
     }
-    ctx->sess2 = CryptoAuth_newSession(ctx->ca2, alloc, publicKeyA, false, "cif2");
+    ctx->sess2 = TestCa_newSession(ctx->ca2, alloc, publicKeyA, false, "cif2", true);
 
     return ctx;
 }
 
-static struct Context* simpleInit()
+static struct Context* simpleInit(enum TestCa_Config cfg)
 {
-    return init(PRIVATEKEY_A, PUBLICKEY_A, NULL, PRIVATEKEY_B, PUBLICKEY_B);
+    return init(PRIVATEKEY_A, PUBLICKEY_A, NULL, PRIVATEKEY_B, PUBLICKEY_B, cfg);
 }
 
 static struct Message* encryptMsg(struct Context* ctx,
-                                  struct CryptoAuth_Session* encryptWith,
+                                  TestCa_Session_t* encryptWith,
                                   const char* x)
 {
     struct Allocator* alloc = Allocator_child(ctx->alloc);
@@ -92,21 +94,21 @@ static struct Message* encryptMsg(struct Context* ctx,
     CString_strcpy(msg->bytes, x);
     msg->length = CString_strlen(x);
     msg->bytes[msg->length] = 0;
-    Assert_true(!CryptoAuth_encrypt(encryptWith, msg));
+    Assert_true(!TestCa_encrypt(encryptWith, msg));
     Assert_true(msg->length > ((int)CString_strlen(x) + 4));
     return msg;
 }
 
 static void decryptMsg(struct Context* ctx,
                        struct Message* msg,
-                       struct CryptoAuth_Session* decryptWith,
+                       TestCa_Session_t* decryptWith,
                        const char* x)
 {
     if (!x) {
         // x is null implying it is expected to fail.
-        Assert_true(CryptoAuth_decrypt(decryptWith, msg));
+        Assert_true(TestCa_decrypt(decryptWith, msg));
     } else {
-        Assert_true(!CryptoAuth_decrypt(decryptWith, msg));
+        Assert_true(!TestCa_decrypt(decryptWith, msg));
         if ((int)CString_strlen(x) != msg->length ||
             CString_strncmp(msg->bytes, x, msg->length))
         {
@@ -130,9 +132,9 @@ static void sendToIf2(struct Context* ctx, const char* x)
     Allocator_free(msg->alloc);
 }
 
-static void normal()
+static void normal(enum TestCa_Config cfg)
 {
-    struct Context* ctx = simpleInit();
+    struct Context* ctx = simpleInit(cfg);
     sendToIf2(ctx, "hello world");
     sendToIf1(ctx, "hello cjdns");
     sendToIf2(ctx, "hai");
@@ -140,20 +142,9 @@ static void normal()
     Allocator_free(ctx->alloc);
 }
 
-static void repeatKey()
+static void repeatKey(enum TestCa_Config cfg)
 {
-    struct Context* ctx = simpleInit();
-    sendToIf2(ctx, "hello world");
-    sendToIf2(ctx, "r u thar?");
-    sendToIf1(ctx, "hello cjdns");
-    sendToIf2(ctx, "hai");
-    sendToIf1(ctx, "goodbye");
-    Allocator_free(ctx->alloc);
-}
-
-static void repeatHello()
-{
-    struct Context* ctx = simpleInit();
+    struct Context* ctx = simpleInit(cfg);
     sendToIf2(ctx, "hello world");
     sendToIf2(ctx, "r u thar?");
     sendToIf1(ctx, "hello cjdns");
@@ -162,9 +153,20 @@ static void repeatHello()
     Allocator_free(ctx->alloc);
 }
 
-static void chatter()
+static void repeatHello(enum TestCa_Config cfg)
 {
-    struct Context* ctx = simpleInit();
+    struct Context* ctx = simpleInit(cfg);
+    sendToIf2(ctx, "hello world");
+    sendToIf2(ctx, "r u thar?");
+    sendToIf1(ctx, "hello cjdns");
+    sendToIf2(ctx, "hai");
+    sendToIf1(ctx, "goodbye");
+    Allocator_free(ctx->alloc);
+}
+
+static void chatter(enum TestCa_Config cfg)
+{
+    struct Context* ctx = simpleInit(cfg);
     sendToIf2(ctx, "hello world");
     sendToIf1(ctx, "hello cjdns");
     sendToIf2(ctx, "hai");
@@ -181,9 +183,10 @@ static void chatter()
     Allocator_free(ctx->alloc);
 }
 
-static void auth()
+static void auth(enum TestCa_Config cfg)
 {
-    struct Context* ctx = init(PRIVATEKEY_A, PUBLICKEY_A, "password", PRIVATEKEY_B, PUBLICKEY_B);
+    struct Context* ctx = init(
+        PRIVATEKEY_A, PUBLICKEY_A, "password", PRIVATEKEY_B, PUBLICKEY_B, cfg);
     sendToIf2(ctx, "hello world");
     sendToIf1(ctx, "hello cjdns");
     sendToIf2(ctx, "hai");
@@ -191,9 +194,9 @@ static void auth()
     Allocator_free(ctx->alloc);
 }
 
-static void replayKeyPacket(int scenario)
+static void replayKeyPacket(int scenario, enum TestCa_Config cfg)
 {
-    struct Context* ctx = simpleInit();
+    struct Context* ctx = simpleInit(cfg);
 
     sendToIf2(ctx, "hello world");
 
@@ -227,10 +230,14 @@ static void replayKeyPacket(int scenario)
  * This means two Hello packets crossed on the wire. Both arrived at their destination but
  * if each triggers a re-initialization of the CA session, nobody will be synchronized!
  */
-static void hellosCrossedOnTheWire()
+static void hellosCrossedOnTheWire(enum TestCa_Config cfg)
 {
-    struct Context* ctx = simpleInit();
-    Bits_memcpy(ctx->sess2->herPublicKey, ctx->ca1->publicKey, 32);
+    struct Context* ctx = simpleInit(cfg);
+    uint8_t pk1[32];
+    TestCa_getPubKey(ctx->ca1, pk1);
+    uint8_t hpk2[32];
+    TestCa_getHerPubKey(ctx->sess2, hpk2);
+    Assert_true(!Bits_memcmp(pk1, hpk2, 32));
 
     struct Message* hello2 = encryptMsg(ctx, ctx->sess2, "hello2");
     struct Message* hello1 = encryptMsg(ctx, ctx->sess1, "hello1");
@@ -246,18 +253,18 @@ static void hellosCrossedOnTheWire()
     Allocator_free(ctx->alloc);
 }
 
-static void reset()
+static void reset(enum TestCa_Config cfg)
 {
-    struct Context* ctx = simpleInit();
+    struct Context* ctx = simpleInit(cfg);
     sendToIf2(ctx, "hello world");
     sendToIf1(ctx, "hello cjdns");
     sendToIf2(ctx, "hai");
     sendToIf1(ctx, "brb");
 
-    Assert_true(CryptoAuth_getState(ctx->sess1) == CryptoAuth_State_ESTABLISHED);
-    Assert_true(CryptoAuth_getState(ctx->sess2) == CryptoAuth_State_ESTABLISHED);
+    Assert_true(TestCa_getState(ctx->sess1) == CryptoAuth_State_ESTABLISHED);
+    Assert_true(TestCa_getState(ctx->sess2) == CryptoAuth_State_ESTABLISHED);
 
-    CryptoAuth_reset(ctx->sess1);
+    TestCa_reset(ctx->sess1);
 
     // sess2 still talking to sess1 but sess1 is reset and cannot read the packets.
     decryptMsg(ctx, encryptMsg(ctx, ctx->sess2, "will be lost"), ctx->sess1, NULL);
@@ -271,17 +278,17 @@ static void reset()
     sendToIf1(ctx, "ok works");
     sendToIf2(ctx, "yup");
 
-    Assert_true(CryptoAuth_getState(ctx->sess1) == CryptoAuth_State_ESTABLISHED);
-    Assert_true(CryptoAuth_getState(ctx->sess2) == CryptoAuth_State_ESTABLISHED);
+    Assert_true(TestCa_getState(ctx->sess1) == CryptoAuth_State_ESTABLISHED);
+    Assert_true(TestCa_getState(ctx->sess2) == CryptoAuth_State_ESTABLISHED);
 
     Allocator_free(ctx->alloc);
 }
 
 // This is slightly different from replayKeyPacket because the second key packet is valid,
 // it's just delayed.
-static void twoKeyPackets(int scenario)
+static void twoKeyPackets(int scenario, enum TestCa_Config cfg)
 {
-    struct Context* ctx = simpleInit();
+    struct Context* ctx = simpleInit(cfg);
 
     sendToIf2(ctx, "hello world");
     sendToIf1(ctx, "key packet 1");
@@ -303,20 +310,27 @@ static void twoKeyPackets(int scenario)
     Allocator_free(ctx->alloc);
 }
 
+static void iteration(enum TestCa_Config cfg)
+{
+    normal(cfg);
+    repeatKey(cfg);
+    repeatHello(cfg);
+    chatter(cfg);
+    auth(cfg);
+    replayKeyPacket(1, cfg);
+    replayKeyPacket(2, cfg);
+    replayKeyPacket(3, cfg);
+    hellosCrossedOnTheWire(cfg);
+    reset(cfg);
+    twoKeyPackets(1, cfg);
+    twoKeyPackets(2, cfg);
+    twoKeyPackets(3, cfg);
+}
+
 int main()
 {
-    normal();
-    repeatKey();
-    repeatHello();
-    chatter();
-    auth();
-    replayKeyPacket(1);
-    replayKeyPacket(2);
-    replayKeyPacket(3);
-    hellosCrossedOnTheWire();
-    reset();
-    twoKeyPackets(1);
-    twoKeyPackets(2);
-    twoKeyPackets(3);
+    iteration(TestCa_Config_OLD);
+    //iteration(TestCa_Config_OLD_NEW);
+    //iteration(TestCa_Config_NOISE);
     return 0;
 }

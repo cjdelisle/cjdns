@@ -72,21 +72,24 @@ static void outputSession(struct Context* context,
         return;
     }
 
+    struct Address addr;
+    CryptoAuth_getHerPubKey(session->caSession, addr.key);
+    Address_getPrefix(&addr);
     uint8_t printedAddr[40];
-    AddrTools_printIp(printedAddr, session->caSession->herIp6);
+    AddrTools_printIp(printedAddr, addr.ip6.bytes);
     Dict_putStringC(r, "ip6", String_new(printedAddr, alloc), alloc);
 
     String* state =
         String_new(CryptoAuth_stateString(CryptoAuth_getState(session->caSession)), alloc);
     Dict_putStringC(r, "state", state, alloc);
 
-    struct ReplayProtector* rp = &session->caSession->replayProtector;
-    Dict_putIntC(r, "duplicates", rp->duplicates, alloc);
-    Dict_putIntC(r, "lostPackets", rp->lostPackets, alloc);
-    Dict_putIntC(r, "receivedOutOfRange", rp->receivedOutOfRange, alloc);
+    RTypes_CryptoStats_t stats;
+    CryptoAuth_stats(&session->caSession, &stats);
+    Dict_putIntC(r, "duplicates", stats.duplicate_packets, alloc);
+    Dict_putIntC(r, "lostPackets", stats.lost_packets, alloc);
+    Dict_putIntC(r, "receivedOutOfRange", stats.received_unexpected, alloc);
 
-    struct Address addr;
-    Bits_memcpy(addr.key, session->caSession->herPublicKey, 32);
+
     addr.path = session->paths[0].label;
     addr.protocolVersion = session->version;
 
