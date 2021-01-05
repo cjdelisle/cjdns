@@ -201,7 +201,7 @@ static void iteration(enum TestCa_Config cfg)
 int main()
 {
     iteration(TestCa_Config_OLD);
-    //iteration(TestCa_Config_OLD_NEW);
+    iteration(TestCa_Config_OLD_NEW);
 
     // This will always fail because we are expecting particular results
     // which are specific to the old CryptoAuth

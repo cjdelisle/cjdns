@@ -18,10 +18,9 @@
 
 void* CJDNS_FUZZ_INIT(struct Allocator* alloc, struct Random* rand)
 {
-    return NULL;
-    //return CryptoAuthFuzz_init(alloc, rand, TestCa_Config_OLD_NEW);
+    return CryptoAuthFuzz_init(alloc, rand, TestCa_Config_OLD_NEW);
 }
 void CJDNS_FUZZ_MAIN(void* vctx, struct Message* fuzz)
 {
-    //CryptoAuthFuzz_main(vctx, fuzz);
+    CryptoAuthFuzz_main(vctx, fuzz);
 }
