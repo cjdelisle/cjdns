@@ -12,25 +12,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef WinEr_H
-#define WinEr_H
+#ifndef WINTUN_H
+#define WINTUN_H
 
+#include "memory/Allocator.h"
 #include "exception/Er.h"
-#include "util/Gcc.h"
-Linker_require("exception/WinEr.c")
 
-char* WinEr_strerror(long status);
 
-#define WinEr_fail(alloc, msg, status) \
-    Er_raise(alloc, "%s [%s]", msg, WinEr_strerror(status));
-
-#define WinEr_check(alloc, expr) \
-    do {                                              \
-        long status = (expr);                         \
-        if (status != ERROR_SUCCESS) {                \
-            WinEr_fail(alloc, #expr, status);         \
-        }                                             \
-    } while (0)
-// CHECKFILES_IGNORE expected ;
 
 #endif
