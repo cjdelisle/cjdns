@@ -12,10 +12,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+#include "util/events/libuv/EventBase_pvt.h"
 #include "interface/Iface.h"
 #include "interface/tuntap/TUNInterface.h"
 #include "util/CString.h"
 #include "exception/WinEr.h"
+#include "wire/Message.h"
+
+#include <stdio.h>
 
 // MSVCisms which are not present in mingw-w64 as of the time of this writing
 #define _Out_cap_c_(x)
@@ -94,16 +98,45 @@ static Er_DEFUN(void initialize(struct Allocator* alloc)) {
     Er_ret();
 }
 
+typedef struct MsgLL_s {
+    struct Message* msg;
+    struct MsgLL_s* next;
+} MsgLL_t;
+
 typedef struct Ctx_s {
+    struct Iface pub;
+    uv_async_t notifier;
+
+    // lock guarded
+    uv_mutex_t lock;
+    MsgLL_t* msgs;
+    // end lock guarded
+
     HANDLE quitEvent;
     volatile BOOL shouldQuit;
 
     WINTUN_ADAPTER_HANDLE adapter;
-    HANDLE workers[2];
+    HANDLE receiveThread;
     WINTUN_SESSION_HANDLE session;
 
+    struct Allocator* alloc;
     Identity
 } Ctx_t;
+
+static void incomingMsgs(uv_async_t* handle, int status)
+{
+    Ctx_t* ctx = Identity_containerOf(handle, Ctx_t, notifier);
+    uv_mutex_lock(&ctx->lock);
+    MsgLL_t* msgs = ctx->msgs;
+    ctx->msgs = NULL;
+    uv_mutex_unlock(&ctx->lock);
+    while (msgs) {
+        Iface_send(&ctx->pub, msgs->msg);
+        struct Allocator* toFree = msgs->msg->alloc;
+        msgs = msgs->next;
+        Allocator_free(toFree);
+    }
+}
 
 static int onFree(struct Allocator_OnFreeJob* job)
 {
@@ -112,11 +145,8 @@ static int onFree(struct Allocator_OnFreeJob* job)
     if (ctx->quitEvent) {
         SetEvent(ctx->quitEvent);
     }
-    for (size_t i = 0; i < _countof(ctx->workers); i++) {
-        if (!ctx->workers[i]) { continue; }
-        WaitForSingleObject(ctx->workers[i], INFINITE);
-        CloseHandle(ctx->workers[i]);
-    }
+    WaitForSingleObject(ctx->receiveThread, INFINITE);
+    CloseHandle(ctx->receiveThread);
     if (ctx->session) {
         WintunEndSession(ctx->session);
     }
@@ -127,12 +157,14 @@ static int onFree(struct Allocator_OnFreeJob* job)
     if (ctx->quitEvent) {
         CloseHandle(ctx->quitEvent);
     }
+    uv_mutex_destroy(&ctx->lock);
+    return 0;
 }
 
-static DWORD WINAPI receivePackets(_Inout_ DWORD_PTR vctx)
+static DWORD WINAPI receivePackets(LPVOID vctx)
 {
     Ctx_t* ctx = Identity_check((Ctx_t*) vctx);
-    HANDLE WaitHandles[] = { WintunGetReadWaitEvent(ctx->session), ctx->quitEvent };
+    HANDLE handles[] = { WintunGetReadWaitEvent(ctx->session), ctx->quitEvent };
 
     while (!ctx->shouldQuit) {
         DWORD packetSize = 0;
@@ -141,36 +173,54 @@ static DWORD WINAPI receivePackets(_Inout_ DWORD_PTR vctx)
             struct Allocator* alloc = Allocator_child(ctx->alloc);
             struct Message* msg = Message_new(packetSize, 512, alloc);
             Bits_memcpy(msg->bytes, packet, packetSize);
-            PrintPacket(Packet, PacketSize);
-            WintunReleaseReceivePacket(Session, Packet);
+            WintunReleaseReceivePacket(ctx->session, packet);
+            MsgLL_t* ll = Allocator_calloc(alloc, sizeof(MsgLL_t), 1);
+            ll->msg = msg;
+            uv_mutex_lock(&ctx->lock);
+                ll->next = ctx->msgs;
+                ctx->msgs = ll;
+            uv_mutex_unlock(&ctx->lock);
         } else {
-            DWORD LastError = GetLastError();
-            switch (LastError)
-            {
-            case ERROR_NO_MORE_ITEMS:
-                if (WaitForMultipleObjects(_countof(WaitHandles), WaitHandles, FALSE, INFINITE) == WAIT_OBJECT_0)
-                    continue;
-                return ERROR_SUCCESS;
-            default:
-                LogError(L"Packet read failed", LastError);
-                return LastError;
+            DWORD le = GetLastError();
+            if (le != ERROR_NO_MORE_ITEMS) {
+                printf("Error getting message from TUN [%s]\n", WinEr_strerror(le));
+                continue;
             }
+            DWORD ret = WaitForMultipleObjects(_countof(handles), handles, FALSE, INFINITE);
+            if (ret == WAIT_OBJECT_0) {
+                continue;
+            }
+            break;
         }
     }
     return ERROR_SUCCESS;
 }
 
+static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* iface)
+{
+    Ctx_t* ctx = Identity_containerOf(iface, Ctx_t, pub);
+    BYTE* packet = WintunAllocateSendPacket(ctx->session, msg->length);
+    Bits_memcpy(packet, msg->bytes, msg->length);
+    WintunSendPacket(ctx->session, packet);
+    Allocator_free(msg->alloc);
+    return Error(NONE);
+}
+
 static Er_DEFUN(Ctx_t* createIface(const char* interfaceName,
                                    char assignedInterfaceName[TUNInterface_IFNAMSIZ],
                                    int isTapMode,
-                                   struct EventBase* base,
-                                   struct Log* logger,
+                                   struct EventBase* eventBase,
+                                   struct Log* log,
                                    struct Allocator* alloc))
 {
     Er(initialize(alloc));
 
     Ctx_t* ctx = Allocator_calloc(alloc, sizeof(Ctx_t), 1);
     Identity_set(ctx);
+    ctx->pub.send = sendMessage;
+    uv_async_init(EventBase_privatize(eventBase)->loop, &ctx->notifier, incomingMsgs);
+    uv_mutex_init(&ctx->lock);
+    ctx->alloc = alloc;
     Allocator_onFree(alloc, onFree, ctx);
 
     if (!(ctx->quitEvent = CreateEventW(NULL, TRUE, FALSE, NULL))) {
@@ -190,41 +240,22 @@ static Er_DEFUN(Ctx_t* createIface(const char* interfaceName,
     }
 
     DWORD winTunVer = WintunGetRunningDriverVersion();
-    Log_info("Using Wintun v%u.%u", (winTunVer >> 16) & 0xff, winTunVer & 0xff);
+    Log_info(log, "Using Wintun v%u.%u", (winTunVer >> 16) & 0xff, winTunVer & 0xff);
 
     if (!(ctx->session = WintunStartSession(ctx->adapter, 1<<22))) {
         Er_raise(alloc, "Unable open or create TUN adapter [%d]",
             WinEr_strerror(GetLastError()));
     }
 
-    ctx->workers[0] =
-        CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)receivePackets, (LPVOID)ctx, 0, NULL);
-    ctx->workers[1] =
-        CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)sendPackets, (LPVOID)ctx, 0, NULL);
-    
-    if (!ctx->workers[0] || !ctx->workers[1]) {
-        Er_raise(alloc, "Failed to create threads [%d]",
+    if (!(ctx->receiveThread = CreateThread(NULL, 0, receivePackets, (LPVOID)ctx, 0, NULL))) {
+        Er_raise(alloc, "Failed to create receiver thread [%s]",
             WinEr_strerror(GetLastError()));
     }
-    
 
-    
-    WaitForMultipleObjectsEx(_countof(Workers), Workers, TRUE, INFINITE, TRUE);
-    LastError = ERROR_SUCCESS;
-
-    // struct TAPInterface* tap = Er(TAPInterface_new(interfaceName, logger, base, alloc));
-    // CString_safeStrncpy(assignedInterfaceName, tap->assignedName, TUNInterface_IFNAMSIZ);
-    // if (isTapMode) { Er_ret(&tap->generic); }
-    // struct TAPWrapper* tapWrapper = TAPWrapper_new(&tap->generic, logger, alloc);
-    // struct NDPServer* ndp =
-    //     NDPServer_new(&tapWrapper->internal, logger, TAPWrapper_LOCAL_MAC, alloc);
-    // struct ARPServer* arp =
-    //     ARPServer_new(&ndp->internal, logger, TAPWrapper_LOCAL_MAC, alloc);
-    // Er_ret(&arp->internal);
-    Er_ret(NULL);
+    Er_ret(ctx);
 }
 
-Er_DEFUN(Ctx_t* TUNInterface_new(const char* interfaceName,
+Er_DEFUN(struct Iface* TUNInterface_new(const char* interfaceName,
                                    char assignedInterfaceName[TUNInterface_IFNAMSIZ],
                                    int isTapMode,
                                    struct EventBase* base,
@@ -241,5 +272,5 @@ Er_DEFUN(Ctx_t* TUNInterface_new(const char* interfaceName,
         Allocator_free(alloc);
         return er;
     }
-    Er_ret(out);
+    Er_ret(&out->pub);
 }

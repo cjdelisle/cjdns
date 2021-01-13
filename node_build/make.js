@@ -26,7 +26,7 @@ const GetVersion = require('./GetVersion');
 
 var CFLAGS = process.env['CFLAGS'];
 var LDFLAGS = process.env['LDFLAGS'];
-var NO_MARCH_FLAG = ['arm', 'ppc', 'ppc64'];
+var NO_MARCH_FLAG = ['arm', 'arm64', 'ppc', 'ppc64'];
 
 Builder.configure({
     buildDir:       process.env['OUT_DIR'], // set by cargo

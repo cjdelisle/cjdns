@@ -15,11 +15,11 @@
 #ifndef EventBase_pvt_H
 #define EventBase_pvt_H
 
+#include "util/events/libuv/UvWrapper.h"
+
 #include "memory/Allocator.h"
 #include "util/events/EventBase.h"
 #include "util/Identity.h"
-
-#include <uv.h>
 
 struct EventBase_pvt
 {
