@@ -7,6 +7,7 @@ build = "build.rs"
 
 [dependencies]
 sodiumoxide = { git = "https://github.com/cjdelisle/sodiumoxide", rev = "76dc0e6e587b8c8a4bb193ebba9f8ae8f090b81b", default-features = false, features = ["std"] }
+libuv-sys2 = { git = "https://github.com/cjdelisle/libuv-sys", rev = "ff461c39dcff45c782c7b2dd90abb89b56a5bd5e", default-features = false, features = ["no-bindings","with-headers"] }
 thiserror = "1.0"
 anyhow = "1.0"
 

@@ -243,16 +243,8 @@ Builder.configure({
 
     // Build dependencies
     let foundSodium = false;
+    let foundLibuv = false;
     nThen(function (waitFor) {
-
-        Fs.exists(dependencyDir, waitFor(function (exists) {
-            if (exists) { return; }
-
-            console.log("Copy dependencies");
-            Cp('./node_build/dependencies', dependencyDir, waitFor());
-        }));
-
-    }).nThen(function (waitFor) {
 
         const dir = `${builder.config.buildDir}/../..`;
         Fs.readdir(dir, waitFor((err, ret) => {
@@ -270,147 +262,33 @@ Builder.configure({
             });
         }));
 
+        // out/include/libuv/include
     }).nThen(function (waitFor) {
-
         if (!foundSodium) {
             throw new Error("Unable to find a path to libsodium headers");
         }
 
-        builder.config.libs.push(libuvLib);
-        if (!android) {
-            builder.config.libs.push('-lpthread');
-        }
-
-        if (builder.config.systemName === 'win32') {
-            builder.config.libs.push(
-                '-lws2_32',
-                '-lpsapi',   // GetProcessMemoryInfo()
-                '-liphlpapi' // GetAdapterAddresses()
-            );
-        } else if (builder.config.systemName === 'linux' && !android) {
-            builder.config.libs.push('-lrt'); // clock_gettime()
-        } else if (builder.config.systemName === 'darwin') {
-            builder.config.libs.push('-framework', 'CoreServices');
-        } else if (['freebsd', 'openbsd', 'netbsd'].indexOf(builder.config.systemName) >= 0) {
-            builder.config.cflags.push('-Wno-overlength-strings');
-            builder.config.libs.push('-lkvm');
-        } else if (builder.config.systemName === 'sunos') {
-            builder.config.libs.push(
-                '-lsocket',
-                '-lsendfile',
-                '-lkstat',
-                '-lnsl'
-            );
-        }
-
-        builder.config.includeDirs.push(dependencyDir + '/libuv/include/');
-
-        var libuvBuilt;
-        var python;
-        nThen(function (waitFor) {
-
-            Fs.exists(libuvLib, waitFor(function (exists) {
-                if (exists) { libuvBuilt = true; }
-            }));
-
-        }).nThen(function (waitFor) {
-
-            if (libuvBuilt) { return; }
-            FindPython.find(builder.tmpFile(), waitFor(function (err, pythonExec) {
-                if (err) { throw err; }
-                python = pythonExec;
-            }));
-
-        }).nThen(function (waitFor) {
-
-            if (libuvBuilt) { return; }
-            console.log("Build Libuv");
-            var cwd = process.cwd();
-            process.chdir(dependencyDir + '/libuv/');
-
-            var args = ['./gyp_uv.py'];
-            var env = process.env;
-            env.CC = builder.config.gcc;
-
-            if (env.TARGET_ARCH) {
-                args.push('-Dtarget_arch=' + env.TARGET_ARCH);
-            }
-
-            //args.push('--root-target=libuv');
-            if (android) {
-                args.push('-DOS=android');
-                args.push('-f', 'make-linux');
-            }
-
-            if (builder.config.systemName === 'win32') {
-                args.push('-DOS=win');
-                args.push('-f', 'make-linux');
-            }
-
-            if (env.GYP_ADDITIONAL_ARGS) {
-                args.push.apply(args, env.GYP_ADDITIONAL_ARGS.split(' '));
-            }
-
-            if (['freebsd', 'openbsd', 'netbsd'].indexOf(builder.config.systemName) !== -1) {
-                // This platform lacks a functioning sem_open implementation, therefore...
-                args.push('--no-parallel');
-                args.push('-DOS=' + builder.config.systemName);
-            }
-
-            var gyp = Spawn(python, args, {env:env, stdio:'inherit'});
-            gyp.on('error', function () {
-                console.error("couldn't launch gyp [" + python + "]");
-            });
-            gyp.on('close', waitFor(function () {
-                var args = [
-                    '-j', ''+builder.config.jobs,
-                    '-C', 'out',
-                    'BUILDTYPE=Release',
-                    'CC=' + builder.config.gcc,
-                    'CXX=' + builder.config.gcc,
-                    'V=1'
-                ];
-                var cflags = [optimizeLevel, '-DNO_EMFILE_TRICK=1'];
-
-                if (!/^\-O0$/.test(optimizeLevel)) {
-                    cflags.push('-D_FORTIFY_SOURCE=2');
-                }
-
-                if (!(/darwin|win32/i.test(builder.config.systemName))) {
-                    cflags.push('-fPIC');
-                }
-                args.push('CFLAGS=' + cflags.join(' '));
-
-                var makeCommand = ['freebsd', 'openbsd', 'netbsd'].indexOf(builder.config.systemName) >= 0 ? 'gmake' : 'make';
-                var make = Spawn(makeCommand, args, {stdio: 'inherit'});
-
-                make.on('error', function (err) {
-                    if (err.code === 'ENOENT') {
-                        console.error('\x1b[1;31mError: ' + makeCommand + ' is required!\x1b[0m');
-                    } else {
-                        console.error(
-                            '\x1b[1;31mFail run ' + process.cwd() + ': ' + makeCommand + ' '
-                            + args.join(' ') + '\x1b[0m'
-                        );
-                        console.error('Message:', err);
-                    }
-                    waitFor.abort();
-                });
-
-                make.on('close', waitFor(function () {
-                    process.chdir(cwd);
+        const dir = `${builder.config.buildDir}/../..`;
+        Fs.readdir(dir, waitFor((err, ret) => {
+            if (err) { throw err; }
+            ret.forEach((f) => {
+                if (!/^libuv-sys2-/.test(f)) { return; }
+                const inclPath = `${dir}/${f}/out/include/libuv/include`;
+                Fs.readdir(inclPath, waitFor((err, ret) => {
+                    if (foundLibuv) { return; }
+                    if (err && err.code === 'ENOENT') { return; }
+                    if (err) { throw err; }
+                    builder.config.includeDirs.push(inclPath);
+                    foundLibuv = true;
+                    console.log(`cargo:rustc-link-search=${dir}/${f}/out`);
+                    console.log("cargo:rustc-link-lib=static=uv");
                 }));
-            }));
-
-        }).nThen((w) => {
-
-            Fs.exists(libuvLib, waitFor((exists) => {
-                if (!exists) {
-                    throw new Error("Libuv build failed");
-                }
-            }));
-
-        }).nThen(waitFor());
+            });
+        }));
+    }).nThen(function (_) {
+        if (!foundLibuv) {
+            throw new Error("Unable to find a path to libuv headers");
+        }
 
     }).nThen(waitFor());
 

@@ -15,11 +15,10 @@
 #define Set_NOCREATE
 #include "util/Set.h"
 #include "util/Bits.h"
+#include "util/tree.h"
 
 #include <stddef.h>
 #include <stdlib.h>
-
-#include <node_build/dependencies/tree.h>
 
 struct Entry {
     void* data;

@@ -27,8 +27,7 @@
 #include "util/Defined.h"
 #include "util/Endian.h"
 #include "util/events/Time.h"
-
-#include <node_build/dependencies/tree.h>
+#include "util/tree.h"
 
 /** A list of DHT nodes. */
 struct NodeStore_pvt

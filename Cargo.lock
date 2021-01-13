@@ -125,6 +125,7 @@ dependencies = [
  "bindgen",
  "cbindgen",
  "cc",
+ "libuv-sys2",
  "sodiumoxide",
  "thiserror",
 ]
@@ -285,6 +286,16 @@ source = "git+https://github.com/cjdelisle/sodiumoxide?rev=76dc0e6e587b8c8a4bb19
 dependencies = [
  "cc",
  "libc",
+ "pkg-config",
+ "walkdir",
+]
+
+[[package]]
+name = "libuv-sys2"
+version = "1.40.0"
+source = "git+https://github.com/cjdelisle/libuv-sys?rev=ff461c39dcff45c782c7b2dd90abb89b56a5bd5e#ff461c39dcff45c782c7b2dd90abb89b56a5bd5e"
+dependencies = [
+ "cc",
  "pkg-config",
  "walkdir",
 ]
