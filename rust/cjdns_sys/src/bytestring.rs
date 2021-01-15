@@ -4,6 +4,7 @@
 //! Required to safely exchange text data with C code, because that text data
 //! is not always a valid UTF-8 and can not be stored in a `String`.
 
+use std::fmt;
 use std::ops::Deref;
 
 /// String-like type that can hold arbitrary byte sequence which is considered
@@ -56,5 +57,12 @@ impl Deref for ByteString {
     fn deref(&self) -> &[u8] {
         let ByteString(bytes) = self;
         bytes.as_slice()
+    }
+}
+
+impl fmt::Debug for ByteString {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let s = self.clone().into_debug_string();
+        f.write_str(&s)
     }
 }

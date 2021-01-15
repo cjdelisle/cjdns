@@ -75,7 +75,7 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_addUser_ipv6(
         .add_user_ipv6(cstr(password).expect("password"), cstr(login), ip6)
     {
         Ok(_) => 0,
-        Err(crypto_auth::AddUserError::Duplicate) => {
+        Err(crypto_auth::AddUserError::Duplicate { .. }) => {
             cffi::CryptoAuth_addUser_Res::CryptoAuth_addUser_DUPLICATE as i32
         }
     }

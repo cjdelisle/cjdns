@@ -101,8 +101,10 @@ pub struct Session {
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum AddUserError {
-    #[error("Duplicate user")]
-    Duplicate,
+    #[error("Duplicate user '{login:?}'")]
+    Duplicate {
+        login: ByteString
+    },
 }
 
 // Keep these numbers same as cffi::CryptoAuth_DecryptErr because we return numbers directly
@@ -233,7 +235,7 @@ impl CryptoAuth {
                 // Do nothing
             } else if let Some(login) = login.as_ref() {
                 if *login == u.login {
-                    return Err(AddUserError::Duplicate);
+                    return Err(AddUserError::Duplicate { login: login.clone() });
                 }
             }
         }
