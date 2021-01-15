@@ -60,4 +60,5 @@ mod crypto {
     pub mod random;
     mod replay_protector;
 }
+mod bytestring;
 mod util;

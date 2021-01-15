@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 #![allow(non_camel_case_types)]
-use crate::cffi::CryptoAuth_State as ffist;
-use crate::cffi::{self, Allocator_t, Iface_t, Message_t, String_t};
+use crate::bytestring::ByteString;
+use crate::cffi::{self, Allocator_t, Message_t, String_t};
 use crate::crypto::crypto_auth;
 use crate::crypto::keys::{IpV6, PrivateKey, PublicKey};
 use crate::external::interface::cif;
@@ -9,7 +9,7 @@ use crate::external::memory::allocator;
 use crate::interface::wire::message::Message;
 use crate::rtypes::*;
 
-use std::os::raw::{c_char, c_int, c_uchar};
+use std::os::raw::{c_char, c_int};
 use std::sync::Arc;
 
 // This file is used to generate cbindings.h using cbindgen
@@ -39,15 +39,17 @@ unsafe fn cu8(s: *const u8, len: usize) -> Vec<u8> {
     std::slice::from_raw_parts::<u8>(s, len).to_vec()
 }
 
-unsafe fn cstr(s: *const String_t) -> Option<Vec<u8>> {
+unsafe fn cstr(s: *const String_t) -> Option<ByteString> {
     if s.is_null() {
         None
     } else {
-        Some(cu8((*s).bytes as *const u8, (*s).len))
+        let bytes = cu8((*s).bytes as *const u8, (*s).len);
+        Some(ByteString(bytes))
     }
 }
 
-unsafe fn strc(alloc: *mut Allocator_t, mut s: Vec<u8>) -> *mut String_t {
+unsafe fn strc(alloc: *mut Allocator_t, s: ByteString) -> *mut String_t {
+    let ByteString(mut s) = s;
     let len = s.len();
     let bytes = s.as_mut_ptr() as *mut i8;
     allocator::adopt(alloc, s);
@@ -70,7 +72,7 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_addUser_ipv6(
     };
     match (*ca)
         .0
-        .add_user_ipv6(&cstr(password).unwrap(), cstr(login), ip6)
+        .add_user_ipv6(cstr(password).expect("password"), cstr(login), ip6)
     {
         Ok(_) => 0,
         Err(crypto_auth::AddUserError::Duplicate) => {
@@ -228,7 +230,7 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_getName(
 ) -> *mut String_t {
     match (*session).0.get_name() {
         None => 0 as *mut String_t,
-        Some(n) => strc(alloc, n.into_bytes()),
+        Some(name) => strc(alloc, ByteString::from(name)),
     }
 }
 

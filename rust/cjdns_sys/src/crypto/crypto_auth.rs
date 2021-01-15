@@ -8,6 +8,7 @@ use log::*;
 use sodiumoxide::crypto;
 use thiserror::Error;
 
+use crate::bytestring::ByteString;
 use crate::crypto::crypto_header::AuthType;
 use crate::crypto::crypto_header::Challenge;
 use crate::crypto::keys::{IpV6, PrivateKey, PublicKey};
@@ -34,7 +35,7 @@ struct User {
     /// Hash of username for AuthType 2
     user_name_hash: [u8; Challenge::KEYSIZE],
     secret: [u8; 32],
-    login: Vec<u8>,
+    login: ByteString,
     restricted_to_ip6: Option<IpV6>,
 }
 
@@ -64,10 +65,10 @@ pub struct SessionMut {
     our_temp_pub_key: [u8; 32],
 
     /// A password to use for authing with the other party.
-    password: Option<Vec<u8>>,
+    password: Option<ByteString>,
 
     /// The login name to auth with the other party.
-    login: Option<Vec<u8>>,
+    login: Option<ByteString>,
 
     /// The next nonce to use.
     next_nonce: u32,
@@ -164,15 +165,6 @@ fn crypto_scalarmult_curve25519_base(pvt: &[u8; 32]) -> [u8; 32] {
     o
 }
 
-// Don't use this for comparisons because anything with a non-utf8 char will be equal
-// to the same hex value, just for debugging...
-fn str_u8(b: Vec<u8>) -> String {
-    match String::from_utf8(b) {
-        Ok(x) => x,
-        Err(e) => hex::encode(e.into_bytes()),
-    }
-}
-
 impl CryptoAuth {
     const LOG_KEYS: bool = false;
 
@@ -204,16 +196,16 @@ impl CryptoAuth {
 
     pub fn add_user_ipv6(
         &self,
-        password: &[u8],
-        login: Option<Vec<u8>>,
+        password: ByteString,
+        login: Option<ByteString>,
         ipv6: Option<IpV6>,
     ) -> Result<(), AddUserError> {
         let mut users = self.users.write().unwrap();
         let mut user = User::default();
         if let Some(login) = login.clone() {
-            user.login = Vec::from(login);
+            user.login = login;
         } else {
-            user.login = format!("Anon #{}", users.len()).into_bytes();
+            user.login = ByteString::from(format!("Anon #{}", users.len()));
         }
 
         let mut ac = Challenge::default();
@@ -229,7 +221,7 @@ impl CryptoAuth {
         hash_password(
             &mut user.secret,
             &mut ac,
-            &[0; 0][..],
+            &ByteString::empty(),
             &password,
             AuthType::One,
         );
@@ -253,7 +245,7 @@ impl CryptoAuth {
         Ok(())
     }
 
-    pub fn remove_users(&self, login: Option<Vec<u8>>) -> usize {
+    pub fn remove_users(&self, login: Option<ByteString>) -> usize {
         let mut users = self.users.write().unwrap();
         let mut count = 0;
         users.retain(|u| {
@@ -267,7 +259,7 @@ impl CryptoAuth {
             debug!(
                 "Removing [{}] user(s) identified by [{}]",
                 count,
-                str_u8(Vec::from(login))
+                login.into_debug_string()
             );
         } else {
             debug!("Flushing [{}] users", count);
@@ -275,7 +267,7 @@ impl CryptoAuth {
         return count;
     }
 
-    pub fn get_users(&self) -> Vec<Vec<u8>> {
+    pub fn get_users(&self) -> Vec<ByteString> {
         self.users
             .read()
             .unwrap()
@@ -286,7 +278,7 @@ impl CryptoAuth {
 }
 
 impl SessionMut {
-    pub fn set_auth(&mut self, password: Option<Vec<u8>>, login: Option<Vec<u8>>) {
+    pub fn set_auth(&mut self, password: Option<ByteString>, login: Option<ByteString>) {
         if password.is_none() && (self.password.is_some() || self.auth_type != AuthType::Zero) {
             self.password = None;
             self.auth_type = AuthType::Zero;
@@ -431,7 +423,7 @@ impl Session {
         todo!();
     }
 
-    pub fn set_auth(&self, password: Option<Vec<u8>>, login: Option<Vec<u8>>) {
+    pub fn set_auth(&self, password: Option<ByteString>, login: Option<ByteString>) {
         self.m.write().unwrap().set_auth(password, login)
     }
 
