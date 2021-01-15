@@ -5,18 +5,17 @@ use std::sync::Mutex;
 use std::sync::RwLock;
 
 use log::*;
-use sodiumoxide::crypto;
 use thiserror::Error;
 
 use crate::bytestring::ByteString;
-use crate::crypto::crypto_header::AuthType;
-use crate::crypto::crypto_header::Challenge;
+use crate::crypto::crypto_header::{AuthType, Challenge};
 use crate::crypto::keys::{IpV6, PrivateKey, PublicKey};
 use crate::crypto::random::Random;
 use crate::crypto::replay_protector::ReplayProtector;
+use crate::crypto::utils::{crypto_hash_sha256, crypto_scalarmult_curve25519_base};
 use crate::interface::wire::message::Message;
-use crate::rtypes::RTypes_CryptoAuth_State_t as State;
 use crate::rtypes::*;
+use crate::rtypes::RTypes_CryptoAuth_State_t as State;
 use crate::util::events::EventBase;
 
 pub struct CryptoAuth {
@@ -159,25 +158,17 @@ pub enum DecryptErr {
     Decrypt = 15,
 }
 
-fn crypto_scalarmult_curve25519_base(pvt: &[u8; 32]) -> [u8; 32] {
-    let mut s = crypto::scalarmult::curve25519::Scalar(*pvt);
-    let o = crypto::scalarmult::curve25519::scalarmult_base(&s).0;
-    // zero dat stack
-    s.0 = [0; 32];
-    o
-}
-
 impl CryptoAuth {
     const LOG_KEYS: bool = false;
 
     pub fn new(private_key: Option<PrivateKey>, event_base: EventBase, rand: Random) -> Self {
         let private_key = private_key.unwrap_or_else(|| {
-            let mut pk: [u8; 32] = [0; 32];
-            rand.random_bytes(&mut pk);
-            PrivateKey(pk)
+            let mut pk = PrivateKey::default();
+            rand.random_bytes(&mut pk.0);
+            pk
         });
 
-        let public_key = PublicKey(crypto_scalarmult_curve25519_base(&private_key.0));
+        let public_key = crypto_scalarmult_curve25519_base(&private_key);
 
         if Self::LOG_KEYS {
             debug!(
@@ -396,7 +387,8 @@ impl Session {
                 her_public_key: her_pub_key,
                 display_name,
                 her_ip6,
-                reset_after_inactivity_seconds: Self::DEFAULT_RESET_AFTER_INACTIVITY_SECONDS,
+                reset_after_inactivity_seconds:
+                    Self::DEFAULT_RESET_AFTER_INACTIVITY_SECONDS,
                 setup_reset_after_inactivity_seconds:
                     Self::DEFAULT_SETUP_RESET_AFTER_INACTIVITY_SECONDS,
                 shared_secret: [0; 32],
@@ -472,10 +464,6 @@ impl Session {
     pub fn her_key_known(&self) -> bool {
         self.m.read().unwrap().her_key_known()
     }
-}
-
-fn crypto_hash_sha256(b: &[u8]) -> [u8; 32] {
-    crypto::hash::sha256::hash(b).0
 }
 
 #[inline]

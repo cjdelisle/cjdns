@@ -53,12 +53,6 @@ mod interface {
 mod cffi;
 mod rffi;
 mod rtypes;
-mod crypto {
-    pub mod crypto_auth;
-    mod crypto_header;
-    pub mod keys;
-    pub mod random;
-    mod replay_protector;
-}
+mod crypto;
 mod bytestring;
 mod util;

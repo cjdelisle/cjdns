@@ -3,6 +3,7 @@
 #[derive(Default)]
 pub struct PublicKey(pub [u8; 32]);
 
+#[derive(Default)]
 pub struct PrivateKey(pub [u8; 32]);
 
 #[derive(Default)]
