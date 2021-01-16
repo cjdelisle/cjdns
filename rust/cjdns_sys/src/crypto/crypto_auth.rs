@@ -15,9 +15,15 @@ use crate::crypto::random::Random;
 use crate::crypto::replay_protector::ReplayProtector;
 use crate::crypto::utils::{crypto_hash_sha256, crypto_scalarmult_curve25519_base};
 use crate::interface::wire::message::Message;
-use crate::rtypes::*;
-use crate::rtypes::RTypes_CryptoAuth_State_t as State;
 use crate::util::events::EventBase;
+
+use self::types::*;
+
+/// Re-export ugly types from `rtypes` with nice names
+mod types {
+    pub use crate::rtypes::RTypes_CryptoAuth_State_t as State;
+    pub use crate::rtypes::RTypes_CryptoStats_t as CryptoStats;
+}
 
 pub struct CryptoAuth {
     pub public_key: PublicKey,
@@ -89,11 +95,11 @@ pub struct SessionMut {
 }
 
 pub struct Session {
-    pub m: RwLock<SessionMut>,
+    session_mut: RwLock<SessionMut>,
 
     // This has to be briefly locked every packet, it should not contaminate the write lock
     // of the SessionMut so that multiple threads can decrypt at the same time...
-    pub replay_protector: Mutex<ReplayProtector>,
+    replay_protector: Mutex<ReplayProtector>,
 
     /// A pointer back to the main CryptoAuth context.
     context: Arc<CryptoAuth>,
@@ -107,9 +113,10 @@ pub enum AddUserError {
     },
 }
 
-// Keep these numbers same as cffi::CryptoAuth_DecryptErr because we return numbers directly
+/// Keep these numbers same as `cffi::CryptoAuth_DecryptErr`
+/// because we return numbers directly.
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
-pub enum DecryptErr {
+pub enum DecryptError {
     #[error("NONE")]
     None = 0,
 
@@ -159,6 +166,11 @@ pub enum DecryptErr {
     Decrypt = 15,
 }
 
+#[derive(Error, Debug, Clone, PartialEq, Eq)]
+pub enum EncryptError {
+    //TODO
+}
+
 impl CryptoAuth {
     const LOG_KEYS: bool = false;
 
@@ -175,10 +187,12 @@ impl CryptoAuth {
             );
         }
 
+        let users = RwLock::new(vec![]);
+
         CryptoAuth {
             public_key,
             private_key,
-            users: RwLock::new(vec![]),
+            users,
             event_base,
             rand,
         }
@@ -268,7 +282,7 @@ impl CryptoAuth {
 }
 
 impl SessionMut {
-    pub fn set_auth(&mut self, password: Option<ByteString>, login: Option<ByteString>) {
+    fn set_auth(&mut self, password: Option<ByteString>, login: Option<ByteString>) {
         if password.is_none() && (self.password.is_some() || self.auth_type != AuthType::Zero) {
             self.password = None;
             self.auth_type = AuthType::Zero;
@@ -285,7 +299,7 @@ impl SessionMut {
         self.reset();
     }
 
-    pub fn get_state(&self) -> State {
+    fn get_state(&self) -> State {
         if self.next_nonce <= State::ReceivedKey as u32 {
             let ret = match self.next_nonce {
                 0 => State::Init,
@@ -304,19 +318,19 @@ impl SessionMut {
         }
     }
 
-    pub fn get_her_pubkey(&self) -> [u8; 32] {
+    fn get_her_pubkey(&self) -> [u8; 32] {
         self.her_public_key.raw().clone()
     }
 
-    pub fn get_her_ip6(&self) -> [u8; 16] {
+    fn get_her_ip6(&self) -> [u8; 16] {
         self.her_ip6.raw().clone()
     }
 
-    pub fn get_name(&self) -> Option<String> {
+    fn get_name(&self) -> Option<String> {
         self.display_name.clone()
     }
 
-    pub fn reset_if_timeout(&mut self, event_base: &EventBase) {
+    fn reset_if_timeout(&mut self, event_base: &EventBase) {
         if self.next_nonce == State::SentHello as u32 {
             // Lets not reset the session, we just sent one or more hello packets and
             // have not received a response, if they respond after we reset then we'll
@@ -342,7 +356,7 @@ impl SessionMut {
         self.reset();
     }
 
-    // Does not reset the replay_protector
+    /// Does not reset the `replay_protector`
     fn reset(&mut self) {
         self.next_nonce = State::Init as u32;
         self.is_initiator = false;
@@ -354,8 +368,16 @@ impl SessionMut {
         self.established = false;
     }
 
-    pub fn her_key_known(&self) -> bool {
+    fn her_key_known(&self) -> bool {
         !self.her_public_key.is_zero()
+    }
+
+    fn encrypt(&self, _msg: &mut Message) -> Result<(), EncryptError> {
+        todo!()
+    }
+
+    fn decrypt(&self, _msg: &mut Message) -> Result<(), DecryptError> {
+        todo!()
     }
 }
 
@@ -373,7 +395,7 @@ impl Session {
         let now = context.event_base.current_time_seconds();
 
         if use_noise {
-            panic!("noise protocol not yet implemented");
+            unimplemented!("noise protocol");
         }
 
         assert!(!her_pub_key.is_zero());
@@ -382,7 +404,7 @@ impl Session {
         let her_ip6 = IpV6::try_from(&her_pub_key).expect("bad public key");
 
         Session {
-            m: RwLock::new(SessionMut {
+            session_mut: RwLock::new(SessionMut {
                 her_public_key: her_pub_key,
                 display_name,
                 her_ip6,
@@ -408,60 +430,60 @@ impl Session {
         }
     }
 
-    pub fn encrypt(&self, msg: &mut Message) -> anyhow::Result<()> {
-        todo!();
-    }
-
-    pub fn decrypt(&self, msg: &mut Message) -> Result<(), DecryptErr> {
-        todo!();
-    }
-
     pub fn set_auth(&self, password: Option<ByteString>, login: Option<ByteString>) {
-        self.m.write().unwrap().set_auth(password, login)
+        self.session_mut.write().unwrap().set_auth(password, login)
     }
 
     pub fn get_state(&self) -> State {
-        self.m.read().unwrap().get_state()
+        self.session_mut.read().unwrap().get_state()
     }
 
     pub fn get_her_pubkey(&self) -> [u8; 32] {
-        self.m.read().unwrap().get_her_pubkey()
+        self.session_mut.read().unwrap().get_her_pubkey()
     }
 
     pub fn get_her_ip6(&self) -> [u8; 16] {
-        self.m.read().unwrap().get_her_ip6()
+        self.session_mut.read().unwrap().get_her_ip6()
     }
 
     pub fn get_name(&self) -> Option<String> {
-        self.m.read().unwrap().get_name()
+        self.session_mut.read().unwrap().get_name()
     }
 
-    pub fn stats(&self) -> RTypes_CryptoStats_t {
+    pub fn stats(&self) -> CryptoStats {
         // Stats come from the replay protector
-        let rp = self.replay_protector.lock().unwrap();
+        let _rp = self.replay_protector.lock().unwrap();
         // RTypes_CryptoStats_t{
         //     received_packets: rp.
         // }
-        todo!()
+        todo!("implement replay_protector")
     }
 
     pub fn reset_if_timeout(&self) {
-        self.m
+        self.session_mut
             .write()
             .unwrap()
             .reset_if_timeout(&self.context.event_base)
     }
 
     pub fn reset(&self) {
-        // Make sure we're write() m when we do the replay because
-        // decrypt threads will read() m
-        let mut m = self.m.write().unwrap();
+        // Make sure we're write() session_mut when we do the replay because
+        // decrypt threads will read() session_mut
+        let mut session_mut = self.session_mut.write().unwrap();
         self.replay_protector.lock().unwrap().reset();
-        m.reset();
+        session_mut.reset();
     }
 
     pub fn her_key_known(&self) -> bool {
-        self.m.read().unwrap().her_key_known()
+        self.session_mut.read().unwrap().her_key_known()
+    }
+
+    pub fn encrypt(&self, _msg: &mut Message) -> Result<(), EncryptError> {
+        todo!()
+    }
+
+    pub fn decrypt(&self, _msg: &mut Message) -> Result<(), DecryptError> {
+        todo!()
     }
 }
 
