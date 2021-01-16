@@ -17,11 +17,10 @@ mod utils {
 
     #[inline(always)]
     pub fn crypto_scalarmult_curve25519_base(pk: &PrivateKey) -> PublicKey {
-        let PrivateKey(bytes) = pk;
-        let scalar = curve25519::Scalar(bytes.clone());
+        let scalar = pk.to_scalar();
         let curve25519::GroupElement(res) = curve25519::scalarmult_base(&scalar);
         scalar.wipe(); // Wipe sensitive data on the stack
-        PublicKey(res)
+        PublicKey::from(res)
     }
 
     #[inline(always)]

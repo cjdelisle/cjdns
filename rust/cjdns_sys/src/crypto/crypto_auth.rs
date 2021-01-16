@@ -1,5 +1,6 @@
 //! CryptoAuth
 
+use std::convert::TryFrom;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::RwLock;
@@ -162,19 +163,15 @@ impl CryptoAuth {
     const LOG_KEYS: bool = false;
 
     pub fn new(private_key: Option<PrivateKey>, event_base: EventBase, rand: Random) -> Self {
-        let private_key = private_key.unwrap_or_else(|| {
-            let mut pk = PrivateKey::default();
-            rand.random_bytes(&mut pk.0);
-            pk
-        });
+        let private_key = private_key.unwrap_or_else(|| PrivateKey::new_random());
 
         let public_key = crypto_scalarmult_curve25519_base(&private_key);
 
         if Self::LOG_KEYS {
             debug!(
-                "Initialized CryptoAuth:\n    myPrivateKey={}\n     myPublicKey={}\n",
-                hex::encode(&private_key.0),
-                hex::encode(&public_key.0),
+                "Initialized CryptoAuth:\n    myPrivateKey={:?}\n     myPublicKey={:?}\n",
+                &private_key,
+                &public_key,
             );
         }
 
@@ -308,11 +305,11 @@ impl SessionMut {
     }
 
     pub fn get_her_pubkey(&self) -> [u8; 32] {
-        self.her_public_key.0.clone()
+        self.her_public_key.raw().clone()
     }
 
     pub fn get_her_ip6(&self) -> [u8; 16] {
-        self.her_ip6.0.clone()
+        self.her_ip6.raw().clone()
     }
 
     pub fn get_name(&self) -> Option<String> {
@@ -358,7 +355,7 @@ impl SessionMut {
     }
 
     pub fn her_key_known(&self) -> bool {
-        self.her_public_key.is_non_zero()
+        !self.her_public_key.is_zero()
     }
 }
 
@@ -379,8 +376,10 @@ impl Session {
             panic!("noise protocol not yet implemented");
         }
 
-        assert!(her_pub_key.is_non_zero());
-        let her_ip6 = her_pub_key.address_for_public_key();
+        assert!(!her_pub_key.is_zero());
+        //TODO would panic if public key is not convertible to IPv6.
+        // Can we rely on valid pub key or need to redeclare this fn as fallible?
+        let her_ip6 = IpV6::try_from(&her_pub_key).expect("bad public key");
 
         Session {
             m: RwLock::new(SessionMut {
@@ -498,6 +497,10 @@ fn hash_password(
 }
 
 mod debug {
+    use std::convert::TryFrom;
+
+    use cjdns_keys::IpV6;
+
     use super::SessionMut;
 
     pub(super) fn log<F: FnOnce() -> String>(session: &SessionMut, msg: F) {
@@ -519,7 +522,9 @@ mod debug {
 
     fn get_ip6(session: &SessionMut) -> String {
         assert!(session.her_key_known());
-        let ipv6 = session.her_public_key.address_for_public_key();
-        hex::encode(&ipv6.0) //TODO Use proper formatting
+        match IpV6::try_from(&session.her_public_key) {
+            Ok(ipv6) => ipv6.to_string(),
+            Err(e) => e.to_string(),
+        }
     }
 }

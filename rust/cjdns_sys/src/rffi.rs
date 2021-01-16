@@ -1,5 +1,10 @@
 #![allow(non_snake_case)]
 #![allow(non_camel_case_types)]
+
+use std::convert::TryFrom;
+use std::os::raw::{c_char, c_int};
+use std::sync::Arc;
+
 use crate::bytestring::ByteString;
 use crate::cffi::{self, Allocator_t, Message_t, String_t};
 use crate::crypto::crypto_auth;
@@ -8,9 +13,6 @@ use crate::external::interface::cif;
 use crate::external::memory::allocator;
 use crate::interface::wire::message::Message;
 use crate::rtypes::*;
-
-use std::os::raw::{c_char, c_int};
-use std::sync::Arc;
 
 // This file is used to generate cbindings.h using cbindgen
 
@@ -66,8 +68,10 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_addUser_ipv6(
     let ip6 = if ipv6.is_null() {
         None
     } else {
-        let mut ip = IpV6::default();
-        ip.0.copy_from_slice(&cu8(ipv6, 16));
+        let bytes = std::slice::from_raw_parts(ipv6, 16);
+        //TODO this would panic in case of a bad IP6.
+        // Should we return some error code instead?
+        let ip = IpV6::try_from(bytes).expect("bad IPv6");
         Some(ip)
     };
     match (*ca)
@@ -115,7 +119,9 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_new(
             if privateKey.is_null() {
                 None
             } else {
-                Some(PrivateKey::from(&cu8(privateKey, 32)[..]))
+                let mut bytes = [0_u8; 32];
+                bytes.copy_from_slice(std::slice::from_raw_parts(privateKey, 32));
+                Some(PrivateKey::from(bytes))
             },
             crate::util::events::EventBase {},
             crate::crypto::random::Random {},
@@ -137,9 +143,9 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_newSession(
         Rffi_CryptoAuth2_Session_t(crypto_auth::Session::new(
             Arc::clone(&(*ca).0),
             {
-                let mut x: [u8; 32] = [0; 32];
-                x.copy_from_slice(std::slice::from_raw_parts(herPublicKey, 32));
-                PublicKey(x)
+                let mut bytes = [0_u8; 32];
+                bytes.copy_from_slice(std::slice::from_raw_parts(herPublicKey, 32));
+                PublicKey::from(bytes)
             },
             requireAuth,
             if name.is_null() {
@@ -236,7 +242,7 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_getName(
 
 #[no_mangle]
 pub unsafe extern "C" fn Rffi_CryptoAuth2_getPubKey(ca: *mut Rffi_CryptoAuth2_t, pkOut: *mut u8) {
-    let p = (*ca).0.public_key.0;
+    let p = (*ca).0.public_key.raw();
     std::slice::from_raw_parts_mut(pkOut, 32).copy_from_slice(&p[..]);
 }
 
