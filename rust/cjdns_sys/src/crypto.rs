@@ -36,6 +36,8 @@ mod wipe {
 
     use sodiumoxide::crypto::scalarmult::curve25519::Scalar;
 
+    use crate::crypto::crypto_header::CryptoHeader;
+
     /// Trait that defines `wipe` operation which securely overwrites sensitive
     /// data such as cryptographic keys with zeroes.
     pub trait Wipe {
@@ -49,6 +51,19 @@ mod wipe {
     #[inline(always)]
     fn volatile_write<T: Copy + Sized>(dst: &mut T, src: T) {
         unsafe { ptr::write_volatile(dst, src) }
+    }
+
+    /// Perform a volatile write to the slice.
+    #[inline(always)]
+    fn volatile_set<T: Copy + Sized>(dst: &mut [T], src: T) {
+        let count = dst.len();
+        let dst = dst.as_mut_ptr();
+        for i in 0..count {
+            unsafe {
+                let ptr = dst.add(i);
+                ptr::write_volatile(ptr, src);
+            }
+        }
     }
 
     /// Use fences to prevent accesses from being reordered before this
@@ -66,6 +81,31 @@ mod wipe {
             volatile_write(&mut self.0, [0; 32]);
             // Prevent reordering
             atomic_fence();
+        }
+    }
+
+    impl Wipe for CryptoHeader {
+        #[inline(always)]
+        fn wipe(mut self) {
+            // Prevent this write from being optimized away
+            volatile_set(self.as_mut_bytes(), 0_u8);
+            // Prevent reordering
+            atomic_fence();
+        }
+    }
+}
+
+mod zero {
+    /// Trait that defines zero-check operation.
+    pub trait IsZero {
+        /// Check whether this object is all-zeroes.
+        fn is_zero(&self) -> bool;
+    }
+
+    impl IsZero for [u8; 32] {
+        #[inline(always)]
+        fn is_zero(&self) -> bool {
+            *self == [0; 32]
         }
     }
 }

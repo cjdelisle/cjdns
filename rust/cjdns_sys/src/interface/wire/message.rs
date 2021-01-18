@@ -73,6 +73,14 @@ impl Message {
         msg.padding as usize
     }
 
+    /// Check the message data alignment.
+    #[inline]
+    pub fn is_aligned_to(&self, align: usize) -> bool {
+        let msg = unsafe { &mut (*self.0) };
+        let data_ptr = msg.bytes as usize;
+        data_ptr % align == 0
+    }
+
     /// Get the read-only view into the message data as byte slice.
     #[inline]
     pub fn bytes(&self) -> &[u8] {
@@ -123,6 +131,17 @@ impl Message {
         let res = Vec::from(src);
         self.shift(-(count as i32))?;
         Ok(res)
+    }
+
+    /// Discard specified number of bytes from the beginning of the message.
+    /// The message must be big enough, otherwise error is returned.
+    pub fn discard_bytes(&mut self, count: usize) -> Result<()> {
+        debug_assert!(count < i32::MAX as usize);
+        if self.len() < count {
+            return Err(MessageError::InsufficientLength(count, self.len()));
+        }
+        self.shift(-(count as i32))?;
+        Ok(())
     }
 
     /// Peek the specified number of bytes from the beginning of the message as a byte slice.
@@ -203,6 +222,20 @@ impl Message {
         self.shift(-(size as i32))?;
 
         Ok(res)
+    }
+
+    /// Discard data item of type `T` from the beginning of the message.
+    /// The message must be big enough, otherwise error is returned.
+    pub fn discard<T: Default>(&mut self) -> Result<()> {
+        let size = std::mem::size_of::<T>();
+        debug_assert!(size < i32::MAX as usize);
+        if size > self.len() {
+            return Err(MessageError::InsufficientLength(size, self.len()));
+        }
+
+        self.shift(-(size as i32))?;
+
+        Ok(())
     }
 
     /// Peek the item of type `T` at the beginning of the message as a reference.
