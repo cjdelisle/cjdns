@@ -502,9 +502,8 @@ impl SessionMut {
                 let ret = self.decrypt_message(nonce, msg, secret);
 
                 // This prevents a few "ghost" dropped packets at the beginning of a session.
-                //TODO implement ReplayProtector
-                //session->replayProtector.baseOffset = nonce + 1;
-                //session->replayProtector.bitfield = 0;
+                //TODO Need a mut ref to ReplayProtector - SessionMut::decrypt()
+                //self.replay_protector.init(nonce + 1);
 
                 if ret.is_ok() {
                     debug::log(self, || "Final handshake step succeeded");
@@ -949,7 +948,7 @@ impl SessionMut {
                             // packets crossing on the wire, the nodes will agree on who is the
                             // initiator.
                             debug::log(self, || "Incoming hello from node with lower key, resetting");
-                            self.reset(); //TODO do we need to reset ReplayProtector here?
+                            self.reset(); //TODO do we need to reset ReplayProtector here? - SessionMut::decrypt_handshake()
                             self.her_temp_pub_key = header.encrypted_temp_key;
                         } else {
                             // We are the initiator and thus we are sending HELLO packets, however they
@@ -965,7 +964,7 @@ impl SessionMut {
                     }
                     _ => {
                         debug::log(self, || "Incoming hello packet resetting session");
-                        self.reset(); //TODO do we need to reset ReplayProtector here?
+                        self.reset(); //TODO do we need to reset ReplayProtector here? - SessionMut::decrypt_handshake()
                         self.her_temp_pub_key = header.encrypted_temp_key;
                     }
                 }
@@ -997,8 +996,8 @@ impl SessionMut {
         );
         self.next_nonce = next_nonce;
 
-        //TODO Implement ReplayProtector
-        //Bits_memset(&session->replayProtector, 0, sizeof(struct ReplayProtector));
+        //TODO Need a mut ref to ReplayProtector here - SessionMut::decrypt_handshake()
+        //self.replay_protector.reset();
 
         Ok(())
     }
@@ -1012,10 +1011,10 @@ impl SessionMut {
             return Err(DecryptError::Decrypt);
         }
 
-        //TODO Implement ReplayProtector
-        //if (!ReplayProtector_checkNonce(nonce, &session->replayProtector)) {
-        //    cryptoAuthDebug(session, "DROP nonce checking failed nonce=[%u]", nonce);
-        //    return CryptoAuth_DecryptErr_REPLAY;
+        //TODO Need a mut ref to ReplayProtector - SessionMut::decrypt_message()
+        //if !self.replay_protector.check_nonce(nonce) {
+        //    debug::log(self, || format!("DROP nonce checking failed nonce=[{}]", nonce));
+        //    return Err(DecryptError::Replay);
         //}
 
         Ok(())
@@ -1071,7 +1070,7 @@ impl Session {
                 require_auth,
                 established: false,
             }),
-            replay_protector: Mutex::new(ReplayProtector::default()),
+            replay_protector: Mutex::new(ReplayProtector::new()),
             context,
         }
     }
@@ -1098,11 +1097,14 @@ impl Session {
 
     pub fn stats(&self) -> CryptoStats {
         // Stats come from the replay protector
-        let _rp = self.replay_protector.lock().unwrap();
-        // RTypes_CryptoStats_t{
-        //     received_packets: rp.
-        // }
-        todo!("implement replay_protector")
+        let rp = self.replay_protector.lock().unwrap();
+        let stats = rp.stats();
+        CryptoStats {
+            lost_packets: stats.lost_packets as u64,
+            received_unexpected: stats.received_unexpected as u64,
+            received_packets: stats.received_packets as u64,
+            duplicate_packets: stats.duplicate_packets as u64,
+        }
     }
 
     pub fn reset_if_timeout(&self) {
@@ -1116,7 +1118,8 @@ impl Session {
         // Make sure we're write() session_mut when we do the replay because
         // decrypt threads will read() session_mut
         let mut session_mut = self.session_mut.write().unwrap();
-        self.replay_protector.lock().unwrap().reset();
+        let mut replay_protector = self.replay_protector.lock().unwrap();
+        replay_protector.reset();
         session_mut.reset();
     }
 
