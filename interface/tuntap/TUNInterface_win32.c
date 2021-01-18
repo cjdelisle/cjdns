@@ -123,7 +123,7 @@ typedef struct Ctx_s {
     Identity
 } Ctx_t;
 
-static void incomingMsgs(uv_async_t* handle, int status)
+static void incomingMsgs(uv_async_t* handle)
 {
     Ctx_t* ctx = Identity_containerOf(handle, Ctx_t, notifier);
     uv_mutex_lock(&ctx->lock);

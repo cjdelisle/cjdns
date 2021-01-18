@@ -293,7 +293,7 @@ dependencies = [
 [[package]]
 name = "libuv-sys2"
 version = "1.40.0"
-source = "git+https://github.com/cjdelisle/libuv-sys?rev=ff461c39dcff45c782c7b2dd90abb89b56a5bd5e#ff461c39dcff45c782c7b2dd90abb89b56a5bd5e"
+source = "git+https://github.com/cjdelisle/libuv-sys?rev=dc3c3427fa7f4f9f6781ab462478ca5de97d577c#dc3c3427fa7f4f9f6781ab462478ca5de97d577c"
 dependencies = [
  "cc",
  "pkg-config",

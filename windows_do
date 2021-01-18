@@ -27,7 +27,7 @@ build() {
     export CROSS=1
     export SYSTEM=win32
 
-    cargo build --release -vv --target="$ARCH-pc-windows-gnu"
+    cargo build --release --target="$ARCH-pc-windows-gnu"
 }
 
 # build i686 - impossible because rust: https://github.com/rust-lang/rust/issues/12859
