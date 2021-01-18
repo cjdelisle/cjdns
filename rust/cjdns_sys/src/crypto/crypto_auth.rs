@@ -444,11 +444,8 @@ impl SessionMut {
                 return self.encrypt_handshake(msg, context);
             } else {
                 debug::log(self, || "Doing final step to send message. nonce=4");
-                #[cfg(PARANOIA)] //TODO need corresponding feature synced with C
-                {
-                    assert!(!self.our_temp_priv_key.is_zero());
-                    assert!(!self.her_temp_pub_key.is_zero());
-                }
+                debug_assert!(!self.our_temp_priv_key.is_zero());
+                debug_assert!(!self.her_temp_pub_key.is_zero());
                 self.shared_secret = get_shared_secret(
                     self.our_temp_priv_key,
                     self.her_temp_pub_key,
@@ -493,11 +490,8 @@ impl SessionMut {
 
                 debug::log(self, || format!("Trying final handshake step, nonce={}\n", nonce));
 
-                #[cfg(PARANOIA)] //TODO need corresponding feature synced with C
-                {
-                    assert!(!self.our_temp_priv_key.is_zero());
-                    assert!(!self.her_temp_pub_key.is_zero());
-                }
+                debug_assert!(!self.our_temp_priv_key.is_zero());
+                debug_assert!(!self.her_temp_pub_key.is_zero());
 
                 let secret = get_shared_secret(
                     self.our_temp_priv_key,
@@ -530,10 +524,7 @@ impl SessionMut {
                 self.decrypt_handshake(nonce, msg, header, context)
             }
         } else if nonce >= Nonce::FirstTrafficPacket as u32 {
-            #[cfg(PARANOIA)] //TODO need corresponding feature synced with C
-            {
-                assert!(!self.shared_secret.is_zero());
-            }
+            debug_assert!(!self.shared_secret.is_zero());
 
             let ret = self.decrypt_message(nonce, msg, self.shared_secret.clone());
             match ret {
@@ -667,10 +658,7 @@ impl SessionMut {
         } else {
             // Handshake2
             // her_temp_pub_key was set by decrypt_handshake()
-            #[cfg(PARANOIA)] //TODO need corresponding feature synced with C
-            {
-                assert!(!self.her_temp_pub_key.is_zero());
-            }
+            debug_assert!(!self.her_temp_pub_key.is_zero());
             shared_secret = get_shared_secret(
                 context.private_key.raw().clone(),
                 self.her_temp_pub_key,
@@ -933,11 +921,8 @@ impl SessionMut {
                         self.her_temp_pub_key = header.encrypted_temp_key;
                         debug::log(self, || "New key packet, recalculating shared secret");
 
-                        #[cfg(PARANOIA)] //TODO need corresponding feature synced with C
-                        {
-                            assert!(!self.our_temp_priv_key.is_zero());
-                            assert!(!self.her_temp_pub_key.is_zero());
-                        }
+                        debug_assert!(!self.our_temp_priv_key.is_zero());
+                        debug_assert!(!self.her_temp_pub_key.is_zero());
 
                         self.shared_secret = get_shared_secret(
                             self.our_temp_priv_key,
@@ -1296,7 +1281,6 @@ fn decrypt(nonce: u32, msg: &mut Message, secret: [u8; 32], is_initiator: bool) 
 fn encrypt_rnd_nonce(nonce: [u8; 24], msg: &mut Message, secret: [u8; 32]) {
     msg.push_bytes(&[0; 32]).expect("pad >= 32");
 
-    #[cfg(not(NSA_APPROVED))] //TODO need corresponding feature synced with C
     {
         use sodiumoxide::crypto::box_::curve25519xsalsa20poly1305::*;
         let bytes = msg.bytes_mut();
@@ -1322,7 +1306,6 @@ fn decrypt_rnd_nonce(nonce: [u8; 24], msg: &mut Message, secret: [u8; 32]) -> Re
 
     msg.push_bytes(&[0; 16]).expect("pad >= 16");
 
-    #[cfg(not(NSA_APPROVED))] //TODO need corresponding feature synced with C
     {
         use sodiumoxide::crypto::box_::curve25519xsalsa20poly1305::*;
         let bytes = msg.bytes_mut();
