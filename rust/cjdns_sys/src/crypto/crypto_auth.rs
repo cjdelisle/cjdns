@@ -225,25 +225,14 @@ impl CryptoAuth {
             user.login = ByteString::from(format!("Anon #{}", users.len()));
         }
 
-        let mut ac = Challenge::default();
         // Users specified with a login field might want to use authType 1 still.
-        hash_password(
-            &mut user.secret,
-            &mut ac,
-            &user.login,
-            &password,
-            AuthType::Two,
-        );
+        let (_secret, ac) = hash_password(&user.login, &password, AuthType::Two);
+        //user.secret = secret;
         user.user_name_hash.copy_from_slice(ac.as_key_bytes());
-        hash_password(
-            &mut user.secret,
-            &mut ac,
-            &ByteString::empty(),
-            &password,
-            AuthType::One,
-        );
+
+        let (secret, ac) = hash_password(&ByteString::empty(), &password, AuthType::One);
+        user.secret = secret;
         user.password_hash.copy_from_slice(ac.as_key_bytes());
-        //TODO user.secret being overwritten twice - what is the use of it?
 
         for u in &*users {
             if user.secret == u.secret {
@@ -592,15 +581,9 @@ impl SessionMut {
         // Password auth
         let password_hash;
         if let (Some(login), Some(password)) = (self.login.as_ref(), self.password.as_ref()) {
-            let mut password_hash_store = [0_u8; 32];
-            hash_password(
-                &mut password_hash_store,
-                &mut header.auth,
-                &*login,
-                &*password,
-                self.auth_type
-            );
-            password_hash = Some(password_hash_store);
+            let (pwd_hash, auth) = hash_password(&*login, &*password, self.auth_type);
+            header.auth = auth;
+            password_hash = Some(pwd_hash);
         } else {
             header.auth.auth_type = self.auth_type;
             header.auth.additional = 0;
@@ -1222,34 +1205,24 @@ fn get_shared_secret(
 }
 
 #[inline]
-fn hash_password(
-    secret_out: &mut [u8; 32],
-    challenge_out: &mut Challenge,
-    login: &[u8],
-    password: &[u8],
-    auth_type: AuthType,
-) {
-    *secret_out = crypto_hash_sha256(password);
+fn hash_password(login: &[u8], password: &[u8], auth_type: AuthType) -> ([u8; 32], Challenge) {
+    let secret_out = crypto_hash_sha256(password);
 
     let tmp_buf = match auth_type {
-        AuthType::One => crypto_hash_sha256(secret_out),
+        AuthType::Zero => panic!("Unsupported auth type [{}]", auth_type as u8),
+        AuthType::One => crypto_hash_sha256(&secret_out),
         AuthType::Two => crypto_hash_sha256(login),
-        _ => panic!("Unsupported auth type [{}]", auth_type as u8),
     };
 
-    // TODO In theory this would cause UB in Rust because enum `Challenge::auth_type` being overwritten with random data.
-    unsafe {
-        let src = &tmp_buf[0..Challenge::SIZE];
-        let dest = std::slice::from_raw_parts_mut(
-            challenge_out as *mut Challenge as *mut u8,
-            Challenge::SIZE,
-        );
-        dest.copy_from_slice(src);
-    }
+    let mut challenge_out = Challenge {
+        auth_type,
+        lookup: [0; 7],
+        require_packet_auth_and_derivation_count: 0,
+        additional: 0,
+    };
+    challenge_out.lookup.copy_from_slice(&tmp_buf[1..8]);
 
-    challenge_out.require_packet_auth_and_derivation_count = 0;
-    challenge_out.auth_type = auth_type;
-    challenge_out.additional = 0;
+    (secret_out, challenge_out)
 }
 
 /// Encrypt a packet.
