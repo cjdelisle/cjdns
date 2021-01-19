@@ -194,6 +194,12 @@ pub enum EncryptError {
     // Currently no errors defined
 }
 
+#[derive(Error, Debug, Clone, PartialEq, Eq)]
+pub enum KeyError {
+    #[error("PublicKey can not be converted to a valid IPv6 address")]
+    BadPublicKey
+}
+
 impl CryptoAuth {
     const LOG_KEYS: bool = false;
 
@@ -1060,7 +1066,7 @@ impl Session {
         require_auth: bool,
         display_name: Option<String>,
         use_noise: bool,
-    ) -> Self {
+    ) -> Result<Self, KeyError> {
         let now = context.event_base.current_time_seconds();
 
         if use_noise {
@@ -1068,11 +1074,9 @@ impl Session {
         }
 
         assert!(!her_pub_key.is_zero());
-        //TODO would panic if public key is not convertible to IPv6.
-        // Can we rely on valid pub key or need to redeclare this fn as fallible?
-        let her_ip6 = IpV6::try_from(&her_pub_key).expect("bad public key");
+        let her_ip6 = IpV6::try_from(&her_pub_key).map_err(|_| KeyError::BadPublicKey)?;
 
-        Session {
+        let sess = Session {
             session_mut: RwLock::new(SessionMut {
                 her_public_key: her_pub_key,
                 display_name,
@@ -1096,7 +1100,9 @@ impl Session {
             }),
             replay_protector: Mutex::new(ReplayProtector::new()),
             context,
-        }
+        };
+
+        Ok(sess)
     }
 
     pub fn set_auth(&self, password: Option<ByteString>, login: Option<ByteString>) {

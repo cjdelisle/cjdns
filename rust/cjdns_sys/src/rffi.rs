@@ -69,8 +69,7 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_addUser_ipv6(
         None
     } else {
         let bytes = std::slice::from_raw_parts(ipv6, 16);
-        //TODO this would panic in case of a bad IP6.
-        // Should we return some error code instead?
+        //TODO Pass this error to C code somehow instead of `expect()`.
         let ip = IpV6::try_from(bytes).expect("bad IPv6");
         Some(ip)
     };
@@ -140,26 +139,27 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_newSession(
     name: *mut c_char,
     useNoise: bool,
 ) -> *mut Rffi_CryptoAuth2_Session_t {
+    let session = crypto_auth::Session::new(
+        Arc::clone(&(*ca).0),
+        {
+            let mut bytes = [0_u8; 32];
+            bytes.copy_from_slice(std::slice::from_raw_parts(herPublicKey, 32));
+            PublicKey::from(bytes)
+        },
+        requireAuth,
+        if name.is_null() {
+            None
+        } else {
+            match std::ffi::CStr::from_ptr(name).to_str() {
+                Ok(s) => Some(s.to_string()),
+                Err(_) => None,
+            }
+        },
+        useNoise,
+    ).expect("bad public key"); //TODO Pass the error to C code somehow instead of `expect()`.
     allocator::adopt(
         alloc,
-        Rffi_CryptoAuth2_Session_t(crypto_auth::Session::new(
-            Arc::clone(&(*ca).0),
-            {
-                let mut bytes = [0_u8; 32];
-                bytes.copy_from_slice(std::slice::from_raw_parts(herPublicKey, 32));
-                PublicKey::from(bytes)
-            },
-            requireAuth,
-            if name.is_null() {
-                None
-            } else {
-                match std::ffi::CStr::from_ptr(name).to_str() {
-                    Ok(s) => Some(s.to_string()),
-                    Err(_) => None,
-                }
-            },
-            useNoise,
-        )),
+        Rffi_CryptoAuth2_Session_t(session),
     )
 }
 
