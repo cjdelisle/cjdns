@@ -25,12 +25,12 @@ const GetVersion = require('./GetVersion');
 
 var CFLAGS = process.env['CFLAGS'];
 var LDFLAGS = process.env['LDFLAGS'];
-var NO_MARCH_FLAG = ['arm', 'ppc', 'ppc64'];
+var NO_MARCH_FLAG = ['arm', 'arm64', 'ppc', 'ppc64'];
 
 Builder.configure({
-    buildDir:       process.env['OUT_DIR'], // set by cargo
-    systemName:     process.env['SYSTEM'] || process.platform,
-    gcc:            process.env['CC'],
+    buildDir: process.env['OUT_DIR'], // set by cargo
+    systemName: process.env['SYSTEM'] || process.platform,
+    gcc: process.env['CC'],
 }, function (builder, waitFor) {
 
     builder.config.crossCompiling = process.env['CROSS'] !== undefined;
@@ -106,14 +106,12 @@ Builder.configure({
     }
 
     if (process.env['NO_PIE'] === undefined && builder.config.systemName !== 'freebsd'
-        && builder.config.systemName !== 'win32')
-    {
+        && builder.config.systemName !== 'win32') {
         builder.config.cflags.push('-fPIE');
 
         // just using `-pie` on OS X >= 10.10 results in this warning:
         // clang: warning: argument unused during compilation: '-pie'
-        if (builder.config.systemName !== "darwin")
-        {
+        if (builder.config.systemName !== "darwin") {
             builder.config.ldflags.push('-pie');
         } else {
             builder.config.ldflags.push('-Wl,-pie');
@@ -146,8 +144,8 @@ Builder.configure({
     // Allow -O0 so while debugging all variables are present.
     if (CFLAGS) {
         var cflags = CFLAGS.split(' ');
-        cflags.forEach(function(flag) {
-             if (/^\-O[^02s]$/.test(flag)) {
+        cflags.forEach(function (flag) {
+            if (/^\-O[^02s]$/.test(flag)) {
                 console.log("Skipping " + flag + ", assuming " + optimizeLevel + " instead.");
             } else if (/^\-O[02s]$/.test(flag)) {
                 optimizeLevel = flag;
@@ -178,7 +176,7 @@ Builder.configure({
         case 'y':
         case '1': libssp = true; break;
         case 'n':
-        case '' :
+        case '':
         case '0': libssp = false; break;
         case undefined: break;
         default: throw new Error();
@@ -217,13 +215,13 @@ Builder.configure({
         );
     }
 
-    if (typeof(builder.config.cjdnsTest_files) === 'undefined') {
+    if (typeof (builder.config.cjdnsTest_files) === 'undefined') {
         CjdnsTest.generate(builder, process.env['SUBNODE'] !== '', waitFor());
     }
 
     nThen((w) => {
         if (builder.config.version) { return; }
-        GetVersion(w(function(err, data) {
+        GetVersion(w(function (err, data) {
             if (!err) {
                 builder.config.version = ('' + data).replace(/(\r\n|\n|\r)/gm, "");
             } else {
@@ -356,13 +354,13 @@ Builder.configure({
                 args.push('-DOS=' + builder.config.systemName);
             }
 
-            var gyp = Spawn(python, args, {env:env, stdio:'inherit'});
+            var gyp = Spawn(python, args, { env: env, stdio: 'inherit' });
             gyp.on('error', function () {
                 console.error("couldn't launch gyp [" + python + "]");
             });
             gyp.on('close', waitFor(function () {
                 var args = [
-                    '-j', ''+builder.config.jobs,
+                    '-j', '' + builder.config.jobs,
                     '-C', 'out',
                     'BUILDTYPE=Release',
                     'CC=' + builder.config.gcc,
@@ -381,7 +379,7 @@ Builder.configure({
                 args.push('CFLAGS=' + cflags.join(' '));
 
                 var makeCommand = ['freebsd', 'openbsd', 'netbsd'].indexOf(builder.config.systemName) >= 0 ? 'gmake' : 'make';
-                var make = Spawn(makeCommand, args, {stdio: 'inherit'});
+                var make = Spawn(makeCommand, args, { stdio: 'inherit' });
 
                 make.on('error', function (err) {
                     if (err.code === 'ENOENT') {

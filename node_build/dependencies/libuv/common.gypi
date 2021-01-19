@@ -191,6 +191,9 @@
           ['target_arch=="x64"', {
             'xcode_settings': {'ARCHS': ['x86_64']},
           }],
+          ['target_arch=="arm"', {
+            'xcode_settings': {'ARCHS': ['arm64']},
+          }],
         ],
         'target_conditions': [
           ['_type!="static_library"', {
