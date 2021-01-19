@@ -17,6 +17,7 @@
 
 // We can't pull in Allocator or else we make a link dependency loop
 //#include "rust/cjdns_sys/Rffi.h"
+Gcc_NORETURN
 extern void Rffi_panic(const char* msg); // CHECKFILES_IGNORE
 
 #include <stdio.h>
