@@ -1032,7 +1032,8 @@ int InterfaceController_bootstrapPeer(struct InterfaceController* ifc,
     Allocator_onFree(alloc, freeAlloc, epAlloc);
 
     ep->peerLink = PeerLink_new(ic->eventBase, epAlloc);
-    ep->caSession = CryptoAuth_newSession(ic->ca, epAlloc, herPublicKey, false, user);
+    ep->caSession = CryptoAuth_newSession(ic->ca, epAlloc, herPublicKey, false,
+        user ? user->bytes : NULL);
     CryptoAuth_setAuth(password, login, ep->caSession);
 
     ep->switchIf.send = sendFromSwitch;
