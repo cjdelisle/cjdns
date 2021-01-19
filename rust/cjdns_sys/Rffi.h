@@ -22,7 +22,9 @@ int Rffi_CryptoAuth2_removeUsers(Rffi_CryptoAuth2_t *context, String_t *user);
 
 RTypes_StrList_t *Rffi_CryptoAuth2_getUsers(const Rffi_CryptoAuth2_t *ca, Allocator_t *alloc);
 
-Rffi_CryptoAuth2_t *Rffi_CryptoAuth2_new(Allocator_t *allocator, const uint8_t *privateKey);
+Rffi_CryptoAuth2_t *Rffi_CryptoAuth2_new(Allocator_t *allocator,
+                                         const uint8_t *privateKey,
+                                         Random *random);
 
 Rffi_CryptoAuth2_Session_t *Rffi_CryptoAuth2_newSession(Rffi_CryptoAuth2_t *ca,
                                                         Allocator_t *alloc,

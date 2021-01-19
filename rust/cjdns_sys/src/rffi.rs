@@ -6,7 +6,7 @@ use std::os::raw::{c_char, c_int};
 use std::sync::Arc;
 
 use crate::bytestring::ByteString;
-use crate::cffi::{self, Allocator_t, Message_t, String_t};
+use crate::cffi::{self, Allocator_t, Message_t, Random, String_t};
 use crate::crypto::crypto_auth;
 use crate::crypto::keys::{IpV6, PrivateKey, PublicKey};
 use crate::external::interface::cif;
@@ -112,6 +112,7 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_getUsers(
 pub unsafe extern "C" fn Rffi_CryptoAuth2_new(
     allocator: *mut Allocator_t,
     privateKey: *const u8,
+    random: *mut Random,
 ) -> *mut Rffi_CryptoAuth2_t {
     allocator::adopt(
         allocator,
@@ -124,7 +125,8 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_new(
                 Some(PrivateKey::from(bytes))
             },
             crate::util::events::EventBase {},
-            crate::crypto::random::Random::new_sodium().expect("libsodium init() failed"),
+            //crate::crypto::random::Random::new_sodium().expect("libsodium init() failed"),
+            crate::crypto::random::Random::wrap_legacy(random),
         ))),
     )
 }

@@ -39,7 +39,7 @@ TestCa_t* TestCa_new(
         out->ca = CryptoAuth_new(allocator, privateKey, eventBase, logger, rand);
     }
     if (cfg == TestCa_Config_OLD_NEW || cfg == TestCa_Config_NOISE) {
-        out->ca2 = Rffi_CryptoAuth2_new(allocator, privateKey);
+        out->ca2 = Rffi_CryptoAuth2_new(allocator, privateKey, rand);
     }
     if (cfg == TestCa_Config_NOISE) {
         out->noise = true;
