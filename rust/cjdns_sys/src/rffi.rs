@@ -6,7 +6,7 @@ use std::os::raw::{c_char, c_int};
 use std::sync::Arc;
 
 use crate::bytestring::ByteString;
-use crate::cffi::{self, Allocator_t, Message_t, Random, String_t};
+use crate::cffi::{self, Allocator_t, Message_t, Random_t, String_t};
 use crate::crypto::crypto_auth;
 use crate::crypto::keys::{IpV6, PrivateKey, PublicKey};
 use crate::external::interface::cif;
@@ -111,7 +111,7 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_getUsers(
 pub unsafe extern "C" fn Rffi_CryptoAuth2_new(
     allocator: *mut Allocator_t,
     privateKey: *const u8,
-    random: *mut Random,
+    random: *mut Random_t,
 ) -> *mut Rffi_CryptoAuth2_t {
     allocator::adopt(
         allocator,
@@ -156,11 +156,9 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_newSession(
             }
         },
         useNoise,
-    ).expect("bad public key"); //TODO Pass the error to C code somehow instead of `expect()`.
-    allocator::adopt(
-        alloc,
-        Rffi_CryptoAuth2_Session_t(session),
     )
+    .expect("bad public key"); //TODO Pass the error to C code somehow instead of `expect()`.
+    allocator::adopt(alloc, Rffi_CryptoAuth2_Session_t(session))
 }
 
 #[no_mangle]

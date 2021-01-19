@@ -26,7 +26,7 @@ Linker_require("crypto/random/Random.c")
 
 typedef struct Random Random_t;
 
-void Random_bytes(struct Random* rand, uint8_t* location, uint64_t count);
+void Random_bytes(Random_t* rand, uint8_t* location, uint64_t count);
 
 /**
  * Get random Base32 text, great for password material.

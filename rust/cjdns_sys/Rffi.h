@@ -24,7 +24,7 @@ RTypes_StrList_t *Rffi_CryptoAuth2_getUsers(const Rffi_CryptoAuth2_t *ca, Alloca
 
 Rffi_CryptoAuth2_t *Rffi_CryptoAuth2_new(Allocator_t *allocator,
                                          const uint8_t *privateKey,
-                                         Random *random);
+                                         Random_t *random);
 
 Rffi_CryptoAuth2_Session_t *Rffi_CryptoAuth2_newSession(Rffi_CryptoAuth2_t *ca,
                                                         Allocator_t *alloc,
