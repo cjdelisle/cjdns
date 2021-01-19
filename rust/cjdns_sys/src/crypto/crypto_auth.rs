@@ -126,12 +126,15 @@ pub enum AddUserError {
 /// because we return numbers directly.
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum DecryptError {
+    /// No errors.
     #[error("NONE")]
     None = 0,
 
+    /// Packet too short.
     #[error("RUNT")]
     Runt = 1,
 
+    /// Received a run message to an un-setup session.
     #[error("NO_SESSION")]
     NoSession = 2,
 
@@ -147,30 +150,41 @@ pub enum DecryptError {
     #[error("WRONG_PERM_PUBKEY")]
     WrongPermPubkey = 6,
 
+    /// Only specific IPv6 can connect to this CA session and the request has the wrong one.
     #[error("IP_RESTRICTED")]
     IpRestricted = 7,
 
+    /// Authentication is required and is missing.
     #[error("AUTH_REQUIRED")]
     AuthRequired = 8,
 
+    /// Basically this means the login name doesn't exist, beware of giving this information up.
     #[error("UNRECOGNIZED_AUTH")]
     UnrecognizedAuth = 9,
 
+    /// Key packet received and we are not in a state to accept a key packet.
     #[error("STRAY_KEY")]
     StrayKey = 10,
 
     #[error("HANDSHAKE_DECRYPT_FAILED")]
     HandshakeDecryptFailed = 11,
 
+    /// Set zero as the temporary public key.
     #[error("WISEGUY")]
     Wiseguy = 12,
 
+    /// Duplicate hello or key packet (same temp key and not a repeat-packet type).
+    /// Or repeat key packet with different key than what is known.
+    /// Or a repeat hello packet for which we already know the temp key (meaning it is associated
+    /// with an existing session) when we are not in a state to accept a repeat hello.
     #[error("INVALID_PACKET")]
     InvalidPacket = 13,
 
+    /// Replay checker could not validate this packet.
     #[error("REPLAY")]
     Replay = 14,
 
+    /// Authenticated decryption failed.
     #[error("DECRYPT")]
     Decrypt = 15,
 }
@@ -183,6 +197,9 @@ pub enum EncryptError {
 impl CryptoAuth {
     const LOG_KEYS: bool = false;
 
+    /// Create a new crypto authenticator.
+    ///
+    /// If `private_key` is `None` one should be randomly generated.
     pub fn new(private_key: Option<PrivateKey>, event_base: EventBase, rand: Random) -> Self {
         let private_key = private_key.unwrap_or_else(|| PrivateKey::new_random(&rand));
 
@@ -211,6 +228,10 @@ impl CryptoAuth {
         }
     }
 
+    /// Associate a password with a user.
+    ///
+    /// If `ipv6` is not `None`, only allow connections to this CryptoAuth from
+    /// the key which hashes to the given IPv6 address.
     pub fn add_user_ipv6(
         &self,
         password: ByteString,
@@ -251,6 +272,12 @@ impl CryptoAuth {
         Ok(())
     }
 
+    /// Remove all users registered with this CryptoAuth.
+    ///
+    /// If `login` is not `None`, only users with this id will be removed,
+    /// otherwise all users will be removed.
+    ///
+    /// Returns the number of users removed.
     pub fn remove_users(&self, login: Option<ByteString>) -> usize {
         let mut users = self.users.write();
         let mut count = 0;
@@ -273,6 +300,7 @@ impl CryptoAuth {
         return count;
     }
 
+    /// Get a list of all the users' logins.
     pub fn get_users(&self) -> Vec<ByteString> {
         self.users
             .read()
