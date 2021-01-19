@@ -2,9 +2,9 @@
 
 use std::convert::TryFrom;
 use std::sync::Arc;
-use parking_lot::{Mutex, RwLock};
 
 use log::*;
+use parking_lot::{Mutex, RwLock, RwLockUpgradableReadGuard, RwLockWriteGuard};
 use thiserror::Error;
 
 use crate::bytestring::ByteString;
@@ -414,16 +414,18 @@ impl SessionMut {
         !self.her_public_key.is_zero()
     }
 
-    fn encrypt(&mut self, msg: &mut Message, context: Arc<CryptoAuth>) -> Result<(), EncryptError> {
+    fn encrypt(sess: &Session, msg: &mut Message) -> Result<(), EncryptError> {
+        let mut session = sess.session_mut.write();
+
         // If there has been no incoming traffic for a while, reset the connection to state 0.
         // This will prevent "connection in bad state" situations from lasting forever.
         // This will reset the session if it has timed out.
-        self.reset_if_timeout(&context.event_base);
+        session.reset_if_timeout(&sess.context.event_base);
 
         // If the nonce wraps, start over.
         const MAX_NONCE: u32 = u32::MAX - 0xF;
-        if self.next_nonce >= MAX_NONCE {
-            self.reset();
+        if session.next_nonce >= MAX_NONCE {
+            session.reset();
         }
 
         assert!(msg.is_aligned_to(4), "Alignment fault");
@@ -437,16 +439,16 @@ impl SessionMut {
         // If it's a blind handshake, every message will be empty and
         // next_nonce will remain zero until the first message
         // is received back.
-        if self.next_nonce <= State::ReceivedKey as u32 {
-            if self.next_nonce < State::ReceivedKey as u32 {
-                return self.encrypt_handshake(msg, context);
+        if session.next_nonce <= State::ReceivedKey as u32 {
+            if session.next_nonce < State::ReceivedKey as u32 {
+                return session.encrypt_handshake(msg, sess.context.clone());
             } else {
-                debug::log(self, || "Doing final step to send message. nonce=4");
-                debug_assert!(!self.our_temp_priv_key.is_zero());
-                debug_assert!(!self.her_temp_pub_key.is_zero());
-                self.shared_secret = get_shared_secret(
-                    self.our_temp_priv_key,
-                    self.her_temp_pub_key,
+                debug::log(&session, || "Doing final step to send message. nonce=4");
+                debug_assert!(!session.our_temp_priv_key.is_zero());
+                debug_assert!(!session.her_temp_pub_key.is_zero());
+                session.shared_secret = get_shared_secret(
+                    session.our_temp_priv_key,
+                    session.her_temp_pub_key,
                     None
                 );
             }
@@ -455,17 +457,23 @@ impl SessionMut {
         assert!(msg.len() > 0, "Empty packet during handshake");
         assert!(msg.pad() >= 36, "Not enough padding");
 
-        encrypt(self.next_nonce, msg, self.shared_secret.clone(), self.is_initiator);
+        let session = RwLockWriteGuard::downgrade_to_upgradable(session);
 
-        let r = msg.push(self.next_nonce.to_be()); // Big-endian push
+        encrypt(session.next_nonce, msg, session.shared_secret.clone(), session.is_initiator);
+
+        let mut session = RwLockUpgradableReadGuard::upgrade(session);
+
+        let r = msg.push(session.next_nonce.to_be()); // Big-endian push
         assert!(r.is_ok());
-        self.next_nonce += 1;
+        session.next_nonce += 1;
         Ok(())
     }
 
-    fn decrypt(&mut self, msg: &mut Message, context: Arc<CryptoAuth>) -> Result<(), DecryptError> {
+    fn decrypt(sess: &Session, msg: &mut Message) -> Result<(), DecryptError> {
+        let session = sess.session_mut.upgradable_read();
+
         if msg.len() < 20 {
-            debug::log(self, || "DROP runt");
+            debug::log(&session, || "DROP runt");
             return Err(DecryptError::Runt);
         }
         assert!(msg.pad() >= 12, "Need at least 12 bytes of padding in incoming message");
@@ -478,59 +486,64 @@ impl SessionMut {
 
         let nonce = header.nonce.to_be(); // Read as Big-Endian
 
-        if !self.established {
+        if !session.established {
             if nonce >= Nonce::FirstTrafficPacket as u32 {
-                if self.next_nonce < State::SentKey as u32 {
+                if session.next_nonce < State::SentKey as u32 {
                     // This is impossible because we have not exchanged hello and key messages.
-                    debug::log(self, || "DROP Received a run message to an un-setup session");
+                    debug::log(&session, || "DROP Received a run message to an un-setup session");
                     return Err(DecryptError::NoSession);
                 }
 
-                debug::log(self, || format!("Trying final handshake step, nonce={}\n", nonce));
+                debug::log(&session, || format!("Trying final handshake step, nonce={}\n", nonce));
 
-                debug_assert!(!self.our_temp_priv_key.is_zero());
-                debug_assert!(!self.her_temp_pub_key.is_zero());
+                debug_assert!(!session.our_temp_priv_key.is_zero());
+                debug_assert!(!session.her_temp_pub_key.is_zero());
 
                 let secret = get_shared_secret(
-                    self.our_temp_priv_key,
-                    self.her_temp_pub_key,
+                    session.our_temp_priv_key,
+                    session.her_temp_pub_key,
                     None
                 );
 
-                let ret = self.decrypt_message(nonce, msg, secret);
+                let ret = session.decrypt_message(nonce, msg, secret, sess);
 
                 // This prevents a few "ghost" dropped packets at the beginning of a session.
-                //TODO Need a mut ref to ReplayProtector - SessionMut::decrypt()
-                //self.replay_protector.init(nonce + 1);
+                sess.replay_protector.lock().init(nonce + 1);
 
                 if ret.is_ok() {
-                    debug::log(self, || "Final handshake step succeeded");
-                    self.shared_secret = secret;
+                    let mut session = RwLockUpgradableReadGuard::upgrade(session);
+
+                    debug::log(&session, || "Final handshake step succeeded");
+                    session.shared_secret = secret;
 
                     // Now we're in run mode, no more handshake packets will be accepted
-                    self.established = true;
-                    self.next_nonce += 3;
-                    self.update_time(msg, context);
+                    session.established = true;
+                    session.next_nonce += 3;
+                    session.update_time(msg, sess.context.clone());
                     return Ok(());
                 }
-                debug::log(self, || "DROP Final handshake step failed");
+                debug::log(&session, || "DROP Final handshake step failed");
                 ret
             } else {
                 msg.push(state).expect("push state back");
 
-                self.decrypt_handshake(nonce, msg, header, context)
+                let mut session = RwLockUpgradableReadGuard::upgrade(session);
+
+                session.decrypt_handshake(nonce, msg, header, sess)
             }
         } else if nonce >= Nonce::FirstTrafficPacket as u32 {
-            debug_assert!(!self.shared_secret.is_zero());
+            debug_assert!(!session.shared_secret.is_zero());
 
-            let ret = self.decrypt_message(nonce, msg, self.shared_secret.clone());
+            let ret = session.decrypt_message(nonce, msg, session.shared_secret.clone(), sess);
             match ret {
                 Ok(_) => {
-                    self.update_time(msg, context);
+                    let mut session = RwLockUpgradableReadGuard::upgrade(session);
+
+                    session.update_time(msg, sess.context.clone());
                     Ok(())
                 }
                 Err(err) => {
-                    debug::log(self, || {
+                    debug::log(&session, || {
                         format!(
                             "DROP Failed to [{}] message",
                             if err == DecryptError::Replay { "replay check" } else { "decrypt" },
@@ -540,11 +553,13 @@ impl SessionMut {
                 }
             }
         } else if nonce <= Nonce::RepeatHello as u32 {
-            debug::log(self, || format!("hello packet during established session nonce=[{}]", nonce));
+            let mut session = RwLockUpgradableReadGuard::upgrade(session);
+
+            debug::log(&session, || format!("hello packet during established session nonce=[{}]", nonce));
             msg.push(state).expect("push state back");
-            self.decrypt_handshake(nonce, msg, header, context)
+            session.decrypt_handshake(nonce, msg, header, sess)
         } else {
-            debug::log(self, || format!("DROP key packet during established session nonce=[{}]", nonce));
+            debug::log(&session, || format!("DROP key packet during established session nonce=[{}]", nonce));
             Err(DecryptError::KeyPktEstablishedSession)
         }
     }
@@ -710,7 +725,7 @@ impl SessionMut {
         Ok(())
     }
 
-    fn decrypt_handshake(&mut self, nonce: u32, msg: &mut Message, header: CryptoHeader, context: Arc<CryptoAuth>) -> Result<(), DecryptError> {
+    fn decrypt_handshake(&mut self, nonce: u32, msg: &mut Message, header: CryptoHeader, sess: &Session) -> Result<(), DecryptError> {
         if msg.len() < CryptoHeader::SIZE {
             debug::log(self, || "DROP runt");
             return Err(DecryptError::Runt);
@@ -734,7 +749,7 @@ impl SessionMut {
             self.her_temp_pub_key.is_zero(),
         );
 
-        let user_opt = context.get_auth(&header.auth);
+        let user_opt = sess.context.get_auth(&header.auth);
         let has_user = user_opt.is_some();
 
         let password_hash;
@@ -783,7 +798,7 @@ impl SessionMut {
             });
 
             shared_secret = get_shared_secret(
-                context.private_key.raw().clone(),
+                sess.context.private_key.raw().clone(),
                 self.her_public_key.raw().clone(),
                 password_hash,
             );
@@ -940,13 +955,14 @@ impl SessionMut {
                 // Fresh new hello packet, we should reset the session.
                 match self.next_nonce {
                     SENT_HELLO => {
-                        if self.her_public_key < context.public_key {
+                        if self.her_public_key < sess.context.public_key {
                             // It's a hello and we are the initiator but their permanent public key is
                             // numerically lower than ours, this is so that in the event of two hello
                             // packets crossing on the wire, the nodes will agree on who is the
                             // initiator.
                             debug::log(self, || "Incoming hello from node with lower key, resetting");
-                            self.reset(); //TODO do we need to reset ReplayProtector here? - SessionMut::decrypt_handshake()
+                            self.reset();
+                            sess.replay_protector.lock().reset();
                             self.her_temp_pub_key = header.encrypted_temp_key;
                         } else {
                             // We are the initiator and thus we are sending HELLO packets, however they
@@ -962,7 +978,8 @@ impl SessionMut {
                     }
                     _ => {
                         debug::log(self, || "Incoming hello packet resetting session");
-                        self.reset(); //TODO do we need to reset ReplayProtector here? - SessionMut::decrypt_handshake()
+                        self.reset();
+                        sess.replay_protector.lock().reset();
                         self.her_temp_pub_key = header.encrypted_temp_key;
                     }
                 }
@@ -994,14 +1011,13 @@ impl SessionMut {
         );
         self.next_nonce = next_nonce;
 
-        //TODO Need a mut ref to ReplayProtector here - SessionMut::decrypt_handshake()
-        //self.replay_protector.reset();
+        sess.replay_protector.lock().reset();
 
         Ok(())
     }
 
     #[inline]
-    fn decrypt_message(&self, nonce: u32, content: &mut Message, secret: [u8; 32]) -> Result<(), DecryptError> {
+    fn decrypt_message(&self, nonce: u32, content: &mut Message, secret: [u8; 32], sess: &Session) -> Result<(), DecryptError> {
         // Decrypt with authentication and replay prevention.
         let r = decrypt(nonce, content, secret, self.is_initiator);
         if r.is_err() {
@@ -1009,11 +1025,10 @@ impl SessionMut {
             return Err(DecryptError::Decrypt);
         }
 
-        //TODO Need a mut ref to ReplayProtector - SessionMut::decrypt_message()
-        //if !self.replay_protector.check_nonce(nonce) {
-        //    debug::log(self, || format!("DROP nonce checking failed nonce=[{}]", nonce));
-        //    return Err(DecryptError::Replay);
-        //}
+        if !sess.replay_protector.lock().check_nonce(nonce) {
+           debug::log(self, || format!("DROP nonce checking failed nonce=[{}]", nonce));
+           return Err(DecryptError::Replay);
+        }
 
         Ok(())
     }
@@ -1125,15 +1140,11 @@ impl Session {
     }
 
     pub fn encrypt(&self, msg: &mut Message) -> Result<(), EncryptError> {
-        let mut session_mut = self.session_mut.write();
-        let context = Arc::clone(&self.context);
-        session_mut.encrypt(msg, context)
+        SessionMut::encrypt(self, msg)
     }
 
     pub fn decrypt(&self, msg: &mut Message) -> Result<(), DecryptError> {
-        let mut session_mut = self.session_mut.write();
-        let context = Arc::clone(&self.context);
-        session_mut.decrypt(msg, context)
+        SessionMut::decrypt(self, msg)
     }
 }
 
