@@ -88,7 +88,7 @@ static void list(Dict* args, void* vcontext, String* txid, struct Allocator* req
 
     RTypes_StrList_t* users = CryptoAuth_getUsers(context->ca, requestAlloc);
     List* out = List_new(requestAlloc);
-    for (int i = page * 16; i < users->len && i < (page + 1) * 16; i++) {
+    for (int i = page * 16; i < (int)users->len && i < (page + 1) * 16; i++) {
         List_addString(out, users->items[i], requestAlloc);
     }
     Dict* response = Dict_new(requestAlloc);
