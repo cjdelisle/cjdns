@@ -31,15 +31,16 @@ TestCa_t* TestCa_new(
     const uint8_t *privateKey,
     struct EventBase* eventBase,
     struct Log* logger,
-    struct Random* rand,
+    struct Random* rand0,
+    struct Random* rand1,
     enum TestCa_Config cfg)
 {
     TestCa_t* out = Allocator_calloc(allocator, sizeof(TestCa_t), 1);
     if (cfg == TestCa_Config_OLD || cfg == TestCa_Config_OLD_NEW) {
-        out->ca = CryptoAuth_new(allocator, privateKey, eventBase, logger, rand);
+        out->ca = CryptoAuth_new(allocator, privateKey, eventBase, logger, rand0);
     }
     if (cfg == TestCa_Config_OLD_NEW || cfg == TestCa_Config_NOISE) {
-        out->ca2 = Rffi_CryptoAuth2_new(allocator, privateKey, rand);
+        out->ca2 = Rffi_CryptoAuth2_new(allocator, privateKey, rand1);
     }
     if (cfg == TestCa_Config_NOISE) {
         out->noise = true;

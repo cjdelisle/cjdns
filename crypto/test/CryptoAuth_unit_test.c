@@ -62,7 +62,8 @@ static struct Context* setUp(uint8_t* myPrivateKey,
     struct Log* log = ctx->log = FileWriterLog_new(stdout, alloc);
     struct EventBase* base = ctx->base = EventBase_new(alloc);
     TestCa_t* ca = ctx->ca =
-        TestCa_new(alloc, myPrivateKey, base, log, evilRandom(alloc, log), cfg);
+        TestCa_new(alloc, myPrivateKey, base, log,
+            evilRandom(alloc, log), evilRandom(alloc, log), cfg);
 
     TestCa_Session_t* sess = ctx->sess =
         TestCa_newSession(ca, alloc, herPublicKey, false, Gcc_FILE, true);
@@ -169,7 +170,8 @@ static void testGetUsers(enum TestCa_Config cfg)
 {
     struct Allocator* allocator = MallocAllocator_new(1<<20);
     struct EventBase* base = EventBase_new(allocator);
-    TestCa_t* ca = TestCa_new(allocator, NULL, base, NULL, evilRandom(allocator, NULL), cfg);
+    TestCa_t* ca = TestCa_new(allocator, NULL, base, NULL,
+        evilRandom(allocator, NULL), evilRandom(allocator, NULL), cfg);
     RTypes_StrList_t* users = NULL;
 
     users = TestCa_getUsers(ca, allocator);

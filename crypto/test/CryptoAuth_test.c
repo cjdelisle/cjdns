@@ -65,10 +65,10 @@ static struct Context* init(uint8_t* privateKeyA,
     struct Random* rand = ctx->rand = Random_new(alloc, logger, NULL);
     struct EventBase* base = ctx->base = EventBase_new(alloc);
 
-    ctx->ca1 = TestCa_new(alloc, privateKeyA, base, logger, rand, cfg);
+    ctx->ca1 = TestCa_new(alloc, privateKeyA, base, logger, rand, rand, cfg);
     ctx->sess1 = TestCa_newSession(ctx->ca1, alloc, publicKeyB, false, "cif1", true);
 
-    ctx->ca2 = TestCa_new(alloc, privateKeyB, base, logger, rand, cfg);
+    ctx->ca2 = TestCa_new(alloc, privateKeyB, base, logger, rand, rand, cfg);
     if (password) {
         String* passStr = String_CONST(password);
         TestCa_setAuth(passStr, NULL, ctx->sess1);

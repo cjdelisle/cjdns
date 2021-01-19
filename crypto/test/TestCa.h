@@ -36,7 +36,8 @@ TestCa_t* TestCa_new(
     const uint8_t *privateKey,
     struct EventBase* eventBase,
     struct Log* logger,
-    struct Random* rand,
+    struct Random* rand0,
+    struct Random* rand1,
     enum TestCa_Config cfg);
 
 int TestCa_addUser_ipv6(
