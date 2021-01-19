@@ -184,7 +184,7 @@ impl CryptoAuth {
     const LOG_KEYS: bool = false;
 
     pub fn new(private_key: Option<PrivateKey>, event_base: EventBase, rand: Random) -> Self {
-        let private_key = private_key.unwrap_or_else(|| PrivateKey::new_random());
+        let private_key = private_key.unwrap_or_else(|| PrivateKey::new_random(&rand));
 
         let public_key = crypto_scalarmult_curve25519_base(&private_key);
 

@@ -1,38 +1,46 @@
 //! Random numbers
 
-use parking_lot::Once;
+pub use cjdns_crypto::random::DefaultRandom as SodiumRandom;
+pub use cjdns_crypto::random::Random as Rand;
 
-use sodiumoxide::{self, randombytes};
+use crate::cffi::Random as CRandom;
+use crate::cffi::Random_bytes;
 
-pub struct Random;
+pub enum Random {
+    Sodium(SodiumRandom),
+    Legacy(*mut CRandom),
+}
 
 impl Random {
-    pub fn new() -> Result<Self, ()> {
-        if Self::init_sodiumoxide() {
-            Ok(Random {})
-        } else {
-            Err(())
+    #[inline]
+    pub fn new_sodium() -> Result<Self, ()> {
+        Ok(Random::Sodium(SodiumRandom::new()?))
+    }
+
+    #[inline]
+    pub fn wrap_legacy(c_random: *mut CRandom) -> Self {
+        Random::Legacy(c_random)
+    }
+
+    #[inline]
+    pub fn random_bytes(&self, dest: &mut [u8]) {
+        match self {
+            Random::Sodium(r) => r.random_bytes(dest),
+            Random::Legacy(r) => c_random_bytes(*r, dest),
         }
     }
+}
 
-    fn init_sodiumoxide() -> bool {
-        static INIT_SODIUMOXIDE: Once = Once::new();
-        static mut INITIALIZED: bool = false;
-
-        INIT_SODIUMOXIDE.call_once(|| {
-            let success = sodiumoxide::init().is_ok();
-            unsafe {
-                // Safe because of `call_once()` guarantees
-                INITIALIZED = success;
-            }
-        });
-
-        // Safe because of `call_once()` guarantees
-        unsafe { INITIALIZED }
+#[inline]
+fn c_random_bytes(rand: *mut CRandom, dest: &mut [u8]) {
+    unsafe {
+        Random_bytes(rand, dest.as_mut_ptr(), dest.len() as u64);
     }
+}
 
-    #[inline(always)]
-    pub fn random_bytes(&self, dest: &mut [u8]) {
-        randombytes::randombytes_into(dest);
+impl Rand for Random {
+    #[inline]
+    fn random_bytes(&self, dest: &mut [u8]) {
+        self.random_bytes(dest);
     }
 }

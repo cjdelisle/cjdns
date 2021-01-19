@@ -124,7 +124,7 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_new(
                 Some(PrivateKey::from(bytes))
             },
             crate::util::events::EventBase {},
-            crate::crypto::random::Random {},
+            crate::crypto::random::Random::new_sodium().expect("libsodium init() failed"),
         ))),
     )
 }

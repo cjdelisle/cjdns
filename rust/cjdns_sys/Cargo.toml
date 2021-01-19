@@ -8,6 +8,7 @@ build = "build.rs"
 [dependencies]
 sodiumoxide = { git = "https://github.com/cjdelisle/sodiumoxide", rev = "9f6a18d40a4db253edfebac9f2ce5c22d09b1f47", version = "0.2", default-features = false, features = ["std"] }
 cjdns-keys = { git = "https://github.com/CJDNS-Development-Team/CJDNS", version = "0.1.0" }
+cjdns-crypto = { git = "https://github.com/CJDNS-Development-Team/CJDNS", version = "0.1.0" }
 hex = "0.4"
 log = "0.4"
 parking_lot = "0.11"
