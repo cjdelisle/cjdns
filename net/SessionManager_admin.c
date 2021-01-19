@@ -84,7 +84,7 @@ static void outputSession(struct Context* context,
     Dict_putStringC(r, "state", state, alloc);
 
     RTypes_CryptoStats_t stats;
-    CryptoAuth_stats(&session->caSession, &stats);
+    CryptoAuth_stats(session->caSession, &stats);
     Dict_putIntC(r, "duplicates", stats.duplicate_packets, alloc);
     Dict_putIntC(r, "lostPackets", stats.lost_packets, alloc);
     Dict_putIntC(r, "receivedOutOfRange", stats.received_unexpected, alloc);
