@@ -125,7 +125,7 @@ pub enum AddUserError {
 /// Keep these numbers same as `cffi::CryptoAuth_DecryptErr`
 /// because we return numbers directly.
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
-pub enum DecryptError {
+pub enum DecryptErr {
     /// No errors.
     #[error("NONE")]
     None = 0,
@@ -190,14 +190,41 @@ pub enum DecryptError {
 }
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
+pub enum DecryptError {
+    #[error("DecryptErr: {0}")]
+    DecryptErr(DecryptErr),
+
+    #[error("Internal error: {0}")]
+    Internal(&'static str),
+}
+
+#[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum EncryptError {
-    // Currently no errors defined
+    #[error("Internal error: {0}")]
+    Internal(&'static str),
 }
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum KeyError {
     #[error("PublicKey can not be converted to a valid IPv6 address")]
-    BadPublicKey
+    BadPublicKey,
+
+    #[error("PublicKey is all zeroes")]
+    ZeroPublicKey,
+}
+
+/// Works like `assert!()` but returns Internal error instead of panicking.
+macro_rules! ensure {
+    ($cond:expr, $err_type:tt $(,)?) => {
+        if !$cond {
+            return Err($err_type::Internal(concat!("Condition failed: `", stringify!($cond), "`")));
+        }
+    };
+    ($cond:expr, $err_type:tt, $msg:literal $(,)?) => {
+        if !$cond {
+            return Err($err_type::Internal($msg));
+        }
+    };
 }
 
 impl CryptoAuth {
@@ -451,7 +478,7 @@ impl SessionMut {
             session.reset();
         }
 
-        assert!(msg.is_aligned_to(4), "Alignment fault");
+        ensure!(msg.is_aligned_to(4), EncryptError, "Alignment fault");
 
         // next_nonce 0: sending hello, we are initiating connection.
         // next_nonce 1: sending another hello, nothing received yet.
@@ -477,8 +504,8 @@ impl SessionMut {
             }
         }
 
-        assert!(msg.len() > 0, "Empty packet during handshake");
-        assert!(msg.pad() >= 36, "Not enough padding");
+        ensure!(msg.len() > 0, EncryptError, "Empty packet during handshake");
+        ensure!(msg.pad() >= 36, EncryptError, "Not enough padding");
 
         let session = RwLockWriteGuard::downgrade_to_upgradable(session);
 
@@ -487,7 +514,7 @@ impl SessionMut {
         let mut session = RwLockUpgradableReadGuard::upgrade(session);
 
         let r = msg.push(session.next_nonce.to_be()); // Big-endian push
-        assert!(r.is_ok());
+        ensure!(r.is_ok(), EncryptError, "push nonce failed");
         session.next_nonce += 1;
         Ok(())
     }
@@ -497,15 +524,18 @@ impl SessionMut {
 
         if msg.len() < 20 {
             debug::log(&session, || "DROP runt");
-            return Err(DecryptError::Runt);
+            return Err(DecryptError::DecryptErr(DecryptErr::Runt));
         }
-        assert!(msg.pad() >= 12, "Need at least 12 bytes of padding in incoming message");
-        assert!(msg.is_aligned_to(4), "Alignment fault");
-        assert_eq!(msg.cap() % 4, 0, "Length fault");
 
+        ensure!(msg.pad() >= 12, DecryptError, "Need at least 12 bytes of padding in incoming message");
+        ensure!(msg.is_aligned_to(4), DecryptError, "Alignment fault");
+        ensure!(msg.cap() % 4 == 0, DecryptError, "Length fault");
+
+        ensure!(msg.len() >= CryptoHeader::SIZE, DecryptError);
         let header = msg.peek::<CryptoHeader>().unwrap().clone();
 
-        let state = msg.pop::<u32>().expect("pop 4 bytes");
+        debug_assert!(msg.len() >= 4); // Due to the check in the beginning
+        let state = msg.pop::<u32>().expect("pop 4 bytes"); // Safe
 
         let nonce = header.nonce.to_be(); // Read as Big-Endian
 
@@ -514,7 +544,7 @@ impl SessionMut {
                 if session.next_nonce < State::SentKey as u32 {
                     // This is impossible because we have not exchanged hello and key messages.
                     debug::log(&session, || "DROP Received a run message to an un-setup session");
-                    return Err(DecryptError::NoSession);
+                    return Err(DecryptError::DecryptErr(DecryptErr::NoSession));
                 }
 
                 debug::log(&session, || format!("Trying final handshake step, nonce={}\n", nonce));
@@ -569,7 +599,11 @@ impl SessionMut {
                     debug::log(&session, || {
                         format!(
                             "DROP Failed to [{}] message",
-                            if err == DecryptError::Replay { "replay check" } else { "decrypt" },
+                            if err == DecryptError::DecryptErr(DecryptErr::Replay) {
+                                "replay check"
+                            } else {
+                                "decrypt"
+                            },
                         )
                     });
                     Err(err)
@@ -583,14 +617,14 @@ impl SessionMut {
             session.decrypt_handshake(nonce, msg, header, sess)
         } else {
             debug::log(&session, || format!("DROP key packet during established session nonce=[{}]", nonce));
-            Err(DecryptError::KeyPktEstablishedSession)
+            Err(DecryptError::DecryptErr(DecryptErr::KeyPktEstablishedSession))
         }
     }
 
     fn encrypt_handshake(&mut self, msg: &mut Message, context: Arc<CryptoAuth>) -> Result<(), EncryptError> {
         // Prepend message with a CryptoHeader struct
         let r = msg.push(CryptoHeader::default());
-        assert!(r.is_ok());
+        ensure!(r.is_ok(), EncryptError, "push CryptoHeader failed");
 
         // Garbage the auth challenge and set the nonce which follows it
         {
@@ -610,7 +644,7 @@ impl SessionMut {
         // Set the permanent key
         header.public_key = context.public_key.raw().clone();
 
-        assert!(self.her_key_known());
+        ensure!(self.her_key_known(), EncryptError);
 
         // Password auth
         let password_hash;
@@ -682,7 +716,7 @@ impl SessionMut {
 
             self.is_initiator = true;
 
-            assert!(self.next_nonce <= State::SentHello as u32);
+            ensure!(self.next_nonce <= State::SentHello as u32, EncryptError);
             self.next_nonce = State::SentHello as u32;
         } else {
             // Handshake2
@@ -694,7 +728,7 @@ impl SessionMut {
                 password_hash,
             );
 
-            assert!(self.next_nonce <= State::SentKey as u32);
+            ensure!(self.next_nonce <= State::SentKey as u32, EncryptError);
             self.next_nonce = State::SentKey as u32;
 
             if CryptoAuth::LOG_KEYS {
@@ -708,9 +742,9 @@ impl SessionMut {
             }
         }
 
-        assert_eq!(
-            self.next_nonce < State::ReceivedHello as u32,
-            self.her_temp_pub_key.is_zero(),
+        ensure!(
+            (self.next_nonce < State::ReceivedHello as u32) == self.her_temp_pub_key.is_zero(),
+            EncryptError,
         );
 
         let handshake_nonce = header.handshake_nonce;
@@ -745,7 +779,7 @@ impl SessionMut {
     fn decrypt_handshake(&mut self, nonce: u32, msg: &mut Message, header: CryptoHeader, sess: &Session) -> Result<(), DecryptError> {
         if msg.len() < CryptoHeader::SIZE {
             debug::log(self, || "DROP runt");
-            return Err(DecryptError::Runt);
+            return Err(DecryptError::DecryptErr(DecryptErr::Runt));
         }
 
         // handshake
@@ -755,15 +789,15 @@ impl SessionMut {
         // next_nonce 3: receiving first data packet.
         // next_nonce >3: handshake complete
 
-        assert!(self.her_key_known());
+        ensure!(self.her_key_known(), DecryptError);
         if *self.her_public_key.raw() != header.public_key {
             debug::log(self, || "DROP a packet with different public key than this session");
-            return Err(DecryptError::WrongPermPubkey);
+            return Err(DecryptError::DecryptErr(DecryptErr::WrongPermPubkey));
         }
 
-        assert_eq!(
-            self.next_nonce < State::ReceivedHello as u32,
-            self.her_temp_pub_key.is_zero(),
+        ensure!(
+            (self.next_nonce < State::ReceivedHello as u32) == self.her_temp_pub_key.is_zero(),
+            DecryptError,
         );
 
         let user_opt = sess.context.get_auth(&header.auth);
@@ -782,7 +816,7 @@ impl SessionMut {
                 };
                 if !ip6_matches_key {
                     debug::log(self, || "DROP packet with key not matching restrictedToIp6");
-                    return Err(DecryptError::IpRestricted);
+                    return Err(DecryptError::DecryptErr(DecryptErr::IpRestricted));
                 }
             }
         } else {
@@ -791,12 +825,12 @@ impl SessionMut {
 
         if self.require_auth && !has_user {
             debug::log(self, || "DROP message because auth was not given");
-            return Err(DecryptError::AuthRequired);
+            return Err(DecryptError::DecryptErr(DecryptErr::AuthRequired));
         }
 
         if !has_user && header.auth.auth_type != AuthType::Zero {
             debug::log(self, || "DROP message with unrecognized authenticator");
-            return Err(DecryptError::UnrecognizedAuth);
+            return Err(DecryptError::DecryptErr(DecryptErr::UnrecognizedAuth));
         }
 
         // What the nextNonce will become if this packet is valid.
@@ -825,13 +859,13 @@ impl SessionMut {
             if nonce == Nonce::Key as u32 {
                 debug::log(self, || "Received a key packet");
             } else {
-                assert_eq!(nonce, Nonce::RepeatKey as u32);
+                ensure!(nonce == Nonce::RepeatKey as u32, DecryptError);
                 debug::log(self, || "Received a repeat key packet");
             }
 
             if !self.is_initiator {
                 debug::log(self, || "DROP a stray key packet");
-                return Err(DecryptError::StrayKey);
+                return Err(DecryptError::DecryptErr(DecryptErr::StrayKey));
             }
 
             // We sent the hello, this is a key
@@ -866,13 +900,13 @@ impl SessionMut {
         if r.is_err() {
             header.wipe(); // Just in case
             debug::log(self, || format!("DROP message with nonce [{}], decryption failed", nonce));
-            return Err(DecryptError::HandshakeDecryptFailed);
+            return Err(DecryptError::DecryptErr(DecryptErr::HandshakeDecryptFailed));
         }
 
         if header.encrypted_temp_key.is_zero() {
             // We need to reject 0 public keys outright because they will be confused with "unknown"
             debug::log(self, || "DROP message with zero as temp public key");
-            return Err(DecryptError::Wiseguy);
+            return Err(DecryptError::DecryptErr(DecryptErr::Wiseguy));
         }
 
         if CryptoAuth::LOG_KEYS {
@@ -893,23 +927,23 @@ impl SessionMut {
             if self.her_temp_pub_key == header.encrypted_temp_key {
                 // Possible replay attack or duped packet
                 debug::log(self, || "DROP dupe hello packet with same temp key");
-                return Err(DecryptError::InvalidPacket);
+                return Err(DecryptError::DecryptErr(DecryptErr::InvalidPacket));
             }
         } else if nonce == Nonce::Key as u32 && self.next_nonce >= State::ReceivedKey as u32 {
             // We accept a new key packet and let it change the session since the other end might have
             // killed off the session while it was in the midst of setting up.
             // This is NOT a repeat key packet because it's nonce is 2, not 3.
             if self.her_temp_pub_key == header.encrypted_temp_key {
-                assert!(!self.her_temp_pub_key.is_zero());
+                ensure!(!self.her_temp_pub_key.is_zero(), DecryptError);
                 debug::log(self, || "DROP dupe key packet with same temp key");
-                return Err(DecryptError::InvalidPacket);
+                return Err(DecryptError::DecryptErr(DecryptErr::InvalidPacket));
             }
         } else if nonce == Nonce::RepeatKey as u32 && self.next_nonce >= State::ReceivedKey as u32 {
             // Got a repeat key packet, make sure the temp key is the same as the one we know.
             if self.her_temp_pub_key != header.encrypted_temp_key {
-                assert!(!self.her_temp_pub_key.is_zero());
+                ensure!(!self.her_temp_pub_key.is_zero(), DecryptError);
                 debug::log(self, || "DROP repeat key packet with different temp key");
-                return Err(DecryptError::InvalidPacket);
+                return Err(DecryptError::DecryptErr(DecryptErr::InvalidPacket));
             }
         }
 
@@ -928,11 +962,11 @@ impl SessionMut {
 
         // If we receive a (possibly repeat) key packet
         if next_nonce == State::ReceivedKey as u32 {
-            assert!(nonce == Nonce::Key as u32 || nonce == Nonce::RepeatKey as u32);
+            ensure!(nonce == Nonce::Key as u32 || nonce == Nonce::RepeatKey as u32, DecryptError);
             match self.next_nonce {
                 INIT | RECEIVED_HELLO | SENT_KEY => {
                     debug::log(self, || "DROP stray key packet");
-                    return Err(DecryptError::StrayKey);
+                    return Err(DecryptError::DecryptErr(DecryptErr::StrayKey));
                 }
                 SENT_HELLO => {
                     self.her_temp_pub_key = header.encrypted_temp_key;
@@ -941,11 +975,11 @@ impl SessionMut {
                     if nonce == Nonce::Key as u32 {
                         self.her_temp_pub_key = header.encrypted_temp_key;
                     } else {
-                        assert_eq!(self.her_temp_pub_key, header.encrypted_temp_key);
+                        ensure!(self.her_temp_pub_key == header.encrypted_temp_key, DecryptError);
                     }
                 }
                 _ => {
-                    assert!(!self.established);
+                    ensure!(!self.established, DecryptError);
                     if nonce == Nonce::Key as u32 {
                         self.her_temp_pub_key = header.encrypted_temp_key;
                         debug::log(self, || "New key packet, recalculating shared secret");
@@ -959,7 +993,7 @@ impl SessionMut {
                             None,
                         );
                     } else {
-                        assert_eq!(self.her_temp_pub_key, header.encrypted_temp_key);
+                        ensure!(self.her_temp_pub_key == header.encrypted_temp_key, DecryptError);
                     }
 
                     next_nonce = self.next_nonce + 1;
@@ -967,7 +1001,7 @@ impl SessionMut {
                 }
             }
         } else if next_nonce == State::ReceivedHello as u32 {
-            assert!(nonce == Nonce::Hello as u32 || nonce == Nonce::RepeatHello as u32);
+            ensure!(nonce == Nonce::Hello as u32 || nonce == Nonce::RepeatHello as u32, DecryptError);
             if self.her_temp_pub_key != header.encrypted_temp_key {
                 // Fresh new hello packet, we should reset the session.
                 match self.next_nonce {
@@ -1012,7 +1046,7 @@ impl SessionMut {
                         // our state has advanced past RECEIVED_HELLO or SENT_KEY or perhaps we
                         // are the initiator of this session and they're sending us what should
                         // be a key packet but is marked as hello, it's all invalid.
-                        return Err(DecryptError::InvalidPacket);
+                        return Err(DecryptError::DecryptErr(DecryptErr::InvalidPacket));
                     }
                 }
             }
@@ -1021,10 +1055,12 @@ impl SessionMut {
         }
 
         // Nonce can never go backward and can only "not advance" if they're 0,1,2,3,4 session state.
-        assert!(
+        ensure!(
             self.next_nonce < next_nonce
-                ||
-                (self.next_nonce <= State::ReceivedKey as u32 && next_nonce == self.next_nonce)
+            ||
+            (self.next_nonce <= State::ReceivedKey as u32 && next_nonce == self.next_nonce),
+            DecryptError,
+            "nonce sequence error",
         );
         self.next_nonce = next_nonce;
 
@@ -1039,12 +1075,12 @@ impl SessionMut {
         let r = decrypt(nonce, content, secret, self.is_initiator);
         if r.is_err() {
             debug::log(self, || "DROP authenticated decryption failed");
-            return Err(DecryptError::Decrypt);
+            return Err(DecryptError::DecryptErr(DecryptErr::Decrypt));
         }
 
         if !sess.replay_protector.lock().check_nonce(nonce) {
            debug::log(self, || format!("DROP nonce checking failed nonce=[{}]", nonce));
-           return Err(DecryptError::Replay);
+           return Err(DecryptError::DecryptErr(DecryptErr::Replay));
         }
 
         Ok(())
@@ -1073,7 +1109,9 @@ impl Session {
             unimplemented!("noise protocol");
         }
 
-        assert!(!her_pub_key.is_zero());
+        if her_pub_key.is_zero() {
+            return Err(KeyError::ZeroPublicKey);
+        }
         let her_ip6 = IpV6::try_from(&her_pub_key).map_err(|_| KeyError::BadPublicKey)?;
 
         let sess = Session {
