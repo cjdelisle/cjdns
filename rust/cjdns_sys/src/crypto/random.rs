@@ -1,6 +1,6 @@
 //! Random numbers
 
-use std::sync::Once;
+use parking_lot::Once;
 
 use sodiumoxide::{self, randombytes};
 

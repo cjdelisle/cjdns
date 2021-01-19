@@ -3,7 +3,7 @@
 //! This is used with RustIface_test.c to verify that the Rust/C Iface bridge works as expected.
 
 use std::sync::Arc;
-use std::sync::Mutex;
+use parking_lot::Mutex;
 
 use anyhow::Result;
 
@@ -30,7 +30,7 @@ pub struct TestWrapperInt {
 impl IfRecv for TestWrapperInt {
     fn recv(&self, m: &mut Message) -> Result<()> {
         {
-            let mut pvt_l = self.pvt.lock().unwrap();
+            let mut pvt_l = self.pvt.lock();
             pvt_l.outgoing_count += 1;
             unsafe { cffi::RustIface_gotOutgoing() };
             println!(
@@ -55,7 +55,7 @@ pub struct TestWrapperExt {
 impl IfRecv for TestWrapperExt {
     fn recv(&self, m: &mut Message) -> Result<()> {
         {
-            let mut pvt_l = self.pvt.lock().unwrap();
+            let mut pvt_l = self.pvt.lock();
             pvt_l.incoming_count += 1;
             unsafe { cffi::RustIface_gotIncoming() };
             println!(

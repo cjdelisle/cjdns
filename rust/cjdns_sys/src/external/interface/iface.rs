@@ -1,7 +1,7 @@
 //! Network interface from C part of the project.
 
 use std::sync::{Arc, Weak};
-use std::sync::RwLock;
+use parking_lot::RwLock;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{bail, Result};
@@ -39,7 +39,7 @@ impl IfacePvt {
     /// method, it allows you to pass a message on to whichever iface might
     /// be plumbed to yours.
     pub fn send(&self, m: &mut Message) -> Result<()> {
-        match &*self.peer_recv.read().unwrap() {
+        match &*self.peer_recv.read() {
             Some(s) => s.recv(m),
             None => bail!("No connected iface for {}", self.name),
         }
@@ -142,8 +142,8 @@ impl Iface {
         let spr = self.get_peer_recv(&other.name)?;
         let opr = other.get_peer_recv(&self.name)?;
 
-        let mut spr_l = spr.write().unwrap();
-        let mut opr_l = opr.write().unwrap();
+        let mut spr_l = spr.write();
+        let mut opr_l = opr.write();
 
         self.check_our_recv_some(&other.name)?;
         other.check_our_recv_some(&self.name)?;
@@ -183,8 +183,8 @@ impl Iface {
         let spr = self.get_peer_recv(&other.name)?;
         let opr = other.get_peer_recv(&self.name)?;
 
-        let mut spr_l = spr.write().unwrap();
-        let mut opr_l = opr.write().unwrap();
+        let mut spr_l = spr.write();
+        let mut opr_l = opr.write();
 
         self.check_our_recv_none(&other.name)?;
         other.check_our_recv_none(&self.name)?;

@@ -2,8 +2,7 @@
 
 use std::convert::TryFrom;
 use std::sync::Arc;
-use std::sync::Mutex;
-use std::sync::RwLock;
+use parking_lot::{Mutex, RwLock};
 
 use log::*;
 use thiserror::Error;
@@ -218,7 +217,7 @@ impl CryptoAuth {
         login: Option<ByteString>,
         ipv6: Option<IpV6>,
     ) -> Result<(), AddUserError> {
-        let mut users = self.users.write().unwrap();
+        let mut users = self.users.write();
         let mut user = User::default();
         if let Some(login) = login.clone() {
             user.login = login;
@@ -264,7 +263,7 @@ impl CryptoAuth {
     }
 
     pub fn remove_users(&self, login: Option<ByteString>) -> usize {
-        let mut users = self.users.write().unwrap();
+        let mut users = self.users.write();
         let mut count = 0;
         users.retain(|u| {
             let remove = login.is_none() || login.as_deref() == Some(&u.login);
@@ -288,7 +287,6 @@ impl CryptoAuth {
     pub fn get_users(&self) -> Vec<ByteString> {
         self.users
             .read()
-            .unwrap()
             .iter()
             .map(|user| user.login.clone())
             .collect()
@@ -302,7 +300,7 @@ impl CryptoAuth {
 
         let mut count = 0;
 
-        let users = self.users.read().unwrap();
+        let users = self.users.read();
         for u in users.iter() {
             count += 1;
             match auth.auth_type {
@@ -1076,28 +1074,28 @@ impl Session {
     }
 
     pub fn set_auth(&self, password: Option<ByteString>, login: Option<ByteString>) {
-        self.session_mut.write().unwrap().set_auth(password, login)
+        self.session_mut.write().set_auth(password, login)
     }
 
     pub fn get_state(&self) -> State {
-        self.session_mut.read().unwrap().get_state()
+        self.session_mut.read().get_state()
     }
 
     pub fn get_her_pubkey(&self) -> [u8; 32] {
-        self.session_mut.read().unwrap().get_her_pubkey()
+        self.session_mut.read().get_her_pubkey()
     }
 
     pub fn get_her_ip6(&self) -> [u8; 16] {
-        self.session_mut.read().unwrap().get_her_ip6()
+        self.session_mut.read().get_her_ip6()
     }
 
     pub fn get_name(&self) -> Option<String> {
-        self.session_mut.read().unwrap().get_name()
+        self.session_mut.read().get_name()
     }
 
     pub fn stats(&self) -> CryptoStats {
         // Stats come from the replay protector
-        let rp = self.replay_protector.lock().unwrap();
+        let rp = self.replay_protector.lock();
         let stats = rp.stats();
         CryptoStats {
             lost_packets: stats.lost_packets as u64,
@@ -1110,31 +1108,30 @@ impl Session {
     pub fn reset_if_timeout(&self) {
         self.session_mut
             .write()
-            .unwrap()
             .reset_if_timeout(&self.context.event_base)
     }
 
     pub fn reset(&self) {
         // Make sure we're write() session_mut when we do the replay because
         // decrypt threads will read() session_mut
-        let mut session_mut = self.session_mut.write().unwrap();
-        let mut replay_protector = self.replay_protector.lock().unwrap();
+        let mut session_mut = self.session_mut.write();
+        let mut replay_protector = self.replay_protector.lock();
         replay_protector.reset();
         session_mut.reset();
     }
 
     pub fn her_key_known(&self) -> bool {
-        self.session_mut.read().unwrap().her_key_known()
+        self.session_mut.read().her_key_known()
     }
 
     pub fn encrypt(&self, msg: &mut Message) -> Result<(), EncryptError> {
-        let mut session_mut = self.session_mut.write().unwrap();
+        let mut session_mut = self.session_mut.write();
         let context = Arc::clone(&self.context);
         session_mut.encrypt(msg, context)
     }
 
     pub fn decrypt(&self, msg: &mut Message) -> Result<(), DecryptError> {
-        let mut session_mut = self.session_mut.write().unwrap();
+        let mut session_mut = self.session_mut.write();
         let context = Arc::clone(&self.context);
         session_mut.decrypt(msg, context)
     }
