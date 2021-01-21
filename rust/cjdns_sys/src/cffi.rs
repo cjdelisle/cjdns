@@ -614,6 +614,19 @@ extern "C" {
         statsOut: *mut RTypes_CryptoStats_t,
     );
 }
+extern "C" {
+    pub fn Assert_compileTime(x: *mut ::std::os::raw::c_char);
+}
+extern "C" {
+    pub fn CryptoAuth_decryptRndNonce(
+        nonce: *const u8,
+        msg: *mut Message,
+        secret: *const u8,
+    ) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn CryptoAuth_encryptRndNonce(nonce: *const u8, msg: *mut Message, secret: *const u8);
+}
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct RBindings_Whitelist {

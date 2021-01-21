@@ -111,15 +111,13 @@ enum Nonce {
     RepeatHello = 1,
     Key = 2,
     RepeatKey = 3,
-    FirstTrafficPacket = 4
+    FirstTrafficPacket = 4,
 }
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum AddUserError {
     #[error("Duplicate user '{login:?}'")]
-    Duplicate {
-        login: ByteString
-    },
+    Duplicate { login: ByteString },
 }
 
 /// Keep these numbers same as `cffi::CryptoAuth_DecryptErr`
@@ -217,7 +215,11 @@ pub enum KeyError {
 macro_rules! ensure {
     ($cond:expr, $err_type:tt $(,)?) => {
         if !$cond {
-            return Err($err_type::Internal(concat!("Condition failed: `", stringify!($cond), "`")));
+            return Err($err_type::Internal(concat!(
+                "Condition failed: `",
+                stringify!($cond),
+                "`"
+            )));
         }
     };
     ($cond:expr, $err_type:tt, $msg:literal $(,)?) => {
@@ -293,7 +295,9 @@ impl CryptoAuth {
                 // Do nothing
             } else if let Some(login) = login.as_ref() {
                 if *login == u.login {
-                    return Err(AddUserError::Duplicate { login: login.clone() });
+                    return Err(AddUserError::Duplicate {
+                        login: login.clone(),
+                    });
                 }
             }
         }
@@ -496,11 +500,8 @@ impl SessionMut {
                 debug::log(&session, || "Doing final step to send message. nonce=4");
                 debug_assert!(!session.our_temp_priv_key.is_zero());
                 debug_assert!(!session.her_temp_pub_key.is_zero());
-                session.shared_secret = get_shared_secret(
-                    session.our_temp_priv_key,
-                    session.her_temp_pub_key,
-                    None
-                );
+                session.shared_secret =
+                    get_shared_secret(session.our_temp_priv_key, session.her_temp_pub_key, None);
             }
         }
 
@@ -509,7 +510,12 @@ impl SessionMut {
 
         let session = RwLockWriteGuard::downgrade_to_upgradable(session);
 
-        encrypt(session.next_nonce, msg, session.shared_secret.clone(), session.is_initiator);
+        encrypt(
+            session.next_nonce,
+            msg,
+            session.shared_secret.clone(),
+            session.is_initiator,
+        );
 
         let mut session = RwLockUpgradableReadGuard::upgrade(session);
 
@@ -527,7 +533,11 @@ impl SessionMut {
             return Err(DecryptError::DecryptErr(DecryptErr::Runt));
         }
 
-        ensure!(msg.pad() >= 12, DecryptError, "Need at least 12 bytes of padding in incoming message");
+        ensure!(
+            msg.pad() >= 12,
+            DecryptError,
+            "Need at least 12 bytes of padding in incoming message"
+        );
         ensure!(msg.is_aligned_to(4), DecryptError, "Alignment fault");
         ensure!(msg.cap() % 4 == 0, DecryptError, "Length fault");
 
@@ -543,20 +553,21 @@ impl SessionMut {
             if nonce >= Nonce::FirstTrafficPacket as u32 {
                 if session.next_nonce < State::SentKey as u32 {
                     // This is impossible because we have not exchanged hello and key messages.
-                    debug::log(&session, || "DROP Received a run message to an un-setup session");
+                    debug::log(&session, || {
+                        "DROP Received a run message to an un-setup session"
+                    });
                     return Err(DecryptError::DecryptErr(DecryptErr::NoSession));
                 }
 
-                debug::log(&session, || format!("Trying final handshake step, nonce={}\n", nonce));
+                debug::log(&session, || {
+                    format!("Trying final handshake step, nonce={}\n", nonce)
+                });
 
                 debug_assert!(!session.our_temp_priv_key.is_zero());
                 debug_assert!(!session.her_temp_pub_key.is_zero());
 
-                let secret = get_shared_secret(
-                    session.our_temp_priv_key,
-                    session.her_temp_pub_key,
-                    None
-                );
+                let secret =
+                    get_shared_secret(session.our_temp_priv_key, session.her_temp_pub_key, None);
 
                 let ret = session.decrypt_message(nonce, msg, secret, sess);
 
@@ -612,16 +623,29 @@ impl SessionMut {
         } else if nonce <= Nonce::RepeatHello as u32 {
             let mut session = RwLockUpgradableReadGuard::upgrade(session);
 
-            debug::log(&session, || format!("hello packet during established session nonce=[{}]", nonce));
+            debug::log(&session, || {
+                format!("hello packet during established session nonce=[{}]", nonce)
+            });
             msg.push(state).expect("push state back");
             session.decrypt_handshake(nonce, msg, header, sess)
         } else {
-            debug::log(&session, || format!("DROP key packet during established session nonce=[{}]", nonce));
-            Err(DecryptError::DecryptErr(DecryptErr::KeyPktEstablishedSession))
+            debug::log(&session, || {
+                format!(
+                    "DROP key packet during established session nonce=[{}]",
+                    nonce
+                )
+            });
+            Err(DecryptError::DecryptErr(
+                DecryptErr::KeyPktEstablishedSession,
+            ))
         }
     }
 
-    fn encrypt_handshake(&mut self, msg: &mut Message, context: Arc<CryptoAuth>) -> Result<(), EncryptError> {
+    fn encrypt_handshake(
+        &mut self,
+        msg: &mut Message,
+        context: Arc<CryptoAuth>,
+    ) -> Result<(), EncryptError> {
         // Prepend message with a CryptoHeader struct
         let r = msg.push(CryptoHeader::default());
         ensure!(r.is_ok(), EncryptError, "push CryptoHeader failed");
@@ -689,10 +713,7 @@ impl SessionMut {
 
         if CryptoAuth::LOG_KEYS {
             debug!(
-                concat!(
-                    "Wrapping temp public key:\n",
-                    "    {}\n",
-                ),
+                concat!("Wrapping temp public key:\n", "    {}\n",),
                 hex::encode(&header.encrypted_temp_key),
             );
         }
@@ -700,8 +721,16 @@ impl SessionMut {
         debug::log(self, || {
             format!(
                 "Sending {}{} packet (auth: {})",
-                if self.next_nonce & 1 != 0 { "repeat " } else { "" },
-                if self.next_nonce < State::ReceivedHello as u32 { "hello" } else { "key" },
+                if self.next_nonce & 1 != 0 {
+                    "repeat "
+                } else {
+                    ""
+                },
+                if self.next_nonce < State::ReceivedHello as u32 {
+                    "hello"
+                } else {
+                    "key"
+                },
                 password_hash.is_some(),
             )
         });
@@ -733,10 +762,7 @@ impl SessionMut {
 
             if CryptoAuth::LOG_KEYS {
                 debug!(
-                    concat!(
-                        "Using their temp public key:\n",
-                        "    {}\n",
-                    ),
+                    concat!("Using their temp public key:\n", "    {}\n",),
                     hex::encode(&self.her_temp_pub_key),
                 );
             }
@@ -776,7 +802,13 @@ impl SessionMut {
         Ok(())
     }
 
-    fn decrypt_handshake(&mut self, nonce: u32, msg: &mut Message, header: CryptoHeader, sess: &Session) -> Result<(), DecryptError> {
+    fn decrypt_handshake(
+        &mut self,
+        nonce: u32,
+        msg: &mut Message,
+        header: CryptoHeader,
+        sess: &Session,
+    ) -> Result<(), DecryptError> {
         if msg.len() < CryptoHeader::SIZE {
             debug::log(self, || "DROP runt");
             return Err(DecryptError::DecryptErr(DecryptErr::Runt));
@@ -791,7 +823,9 @@ impl SessionMut {
 
         ensure!(self.her_key_known(), DecryptError);
         if *self.her_public_key.raw() != header.public_key {
-            debug::log(self, || "DROP a packet with different public key than this session");
+            debug::log(self, || {
+                "DROP a packet with different public key than this session"
+            });
             return Err(DecryptError::DecryptErr(DecryptErr::WrongPermPubkey));
         }
 
@@ -839,11 +873,16 @@ impl SessionMut {
         // The secret for decrypting this message.
         let shared_secret: [u8; 32];
 
-        if nonce < Nonce::Key as u32 { // Nonce::Hello or Nonce::RepeatHello
+        if nonce < Nonce::Key as u32 {
+            // Nonce::Hello or Nonce::RepeatHello
             debug::log(self, || {
                 format!(
                     "Received a {}hello packet, using auth: {}",
-                    if nonce == Nonce::RepeatHello as u32 { "repeat" } else { "" },
+                    if nonce == Nonce::RepeatHello as u32 {
+                        "repeat"
+                    } else {
+                        ""
+                    },
                     has_user,
                 )
             });
@@ -879,7 +918,8 @@ impl SessionMut {
         }
 
         // Shift it on top of the authenticator before the encrypted public key
-        msg.discard_bytes(CryptoHeader::SIZE - 48).expect("discard above authenticator");
+        msg.discard_bytes(CryptoHeader::SIZE - 48)
+            .expect("discard above authenticator");
 
         if CryptoAuth::LOG_KEYS {
             debug!(
@@ -899,7 +939,9 @@ impl SessionMut {
         let r = decrypt_rnd_nonce(header.handshake_nonce.clone(), msg, shared_secret);
         if r.is_err() {
             header.wipe(); // Just in case
-            debug::log(self, || format!("DROP message with nonce [{}], decryption failed", nonce));
+            debug::log(self, || {
+                format!("DROP message with nonce [{}], decryption failed", nonce)
+            });
             return Err(DecryptError::DecryptErr(DecryptErr::HandshakeDecryptFailed));
         }
 
@@ -911,10 +953,7 @@ impl SessionMut {
 
         if CryptoAuth::LOG_KEYS {
             debug!(
-                concat!(
-                    "Unwrapping temp public key:\n",
-                    "    {}\n",
-                ),
+                concat!("Unwrapping temp public key:\n", "    {}\n",),
                 hex::encode(&header.encrypted_temp_key),
             );
         }
@@ -962,7 +1001,10 @@ impl SessionMut {
 
         // If we receive a (possibly repeat) key packet
         if next_nonce == State::ReceivedKey as u32 {
-            ensure!(nonce == Nonce::Key as u32 || nonce == Nonce::RepeatKey as u32, DecryptError);
+            ensure!(
+                nonce == Nonce::Key as u32 || nonce == Nonce::RepeatKey as u32,
+                DecryptError
+            );
             match self.next_nonce {
                 INIT | RECEIVED_HELLO | SENT_KEY => {
                     debug::log(self, || "DROP stray key packet");
@@ -975,7 +1017,10 @@ impl SessionMut {
                     if nonce == Nonce::Key as u32 {
                         self.her_temp_pub_key = header.encrypted_temp_key;
                     } else {
-                        ensure!(self.her_temp_pub_key == header.encrypted_temp_key, DecryptError);
+                        ensure!(
+                            self.her_temp_pub_key == header.encrypted_temp_key,
+                            DecryptError
+                        );
                     }
                 }
                 _ => {
@@ -987,13 +1032,13 @@ impl SessionMut {
                         debug_assert!(!self.our_temp_priv_key.is_zero());
                         debug_assert!(!self.her_temp_pub_key.is_zero());
 
-                        self.shared_secret = get_shared_secret(
-                            self.our_temp_priv_key,
-                            self.her_temp_pub_key,
-                            None,
-                        );
+                        self.shared_secret =
+                            get_shared_secret(self.our_temp_priv_key, self.her_temp_pub_key, None);
                     } else {
-                        ensure!(self.her_temp_pub_key == header.encrypted_temp_key, DecryptError);
+                        ensure!(
+                            self.her_temp_pub_key == header.encrypted_temp_key,
+                            DecryptError
+                        );
                     }
 
                     next_nonce = self.next_nonce + 1;
@@ -1001,7 +1046,10 @@ impl SessionMut {
                 }
             }
         } else if next_nonce == State::ReceivedHello as u32 {
-            ensure!(nonce == Nonce::Hello as u32 || nonce == Nonce::RepeatHello as u32, DecryptError);
+            ensure!(
+                nonce == Nonce::Hello as u32 || nonce == Nonce::RepeatHello as u32,
+                DecryptError
+            );
             if self.her_temp_pub_key != header.encrypted_temp_key {
                 // Fresh new hello packet, we should reset the session.
                 match self.next_nonce {
@@ -1011,7 +1059,9 @@ impl SessionMut {
                             // numerically lower than ours, this is so that in the event of two hello
                             // packets crossing on the wire, the nodes will agree on who is the
                             // initiator.
-                            debug::log(self, || "Incoming hello from node with lower key, resetting");
+                            debug::log(self, || {
+                                "Incoming hello from node with lower key, resetting"
+                            });
                             self.reset();
                             sess.replay_protector.lock().reset();
                             self.her_temp_pub_key = header.encrypted_temp_key;
@@ -1020,7 +1070,9 @@ impl SessionMut {
                             // have sent a hello to us and we already sent a HELLO
                             // We accept the packet (return 0) but we do not alter the state because
                             // we have our own state and we will respond with our (key) packet.
-                            debug::log(self, || "Incoming hello from node with higher key, not resetting");
+                            debug::log(self, || {
+                                "Incoming hello from node with higher key, not resetting"
+                            });
                             return Ok(());
                         }
                     }
@@ -1057,8 +1109,7 @@ impl SessionMut {
         // Nonce can never go backward and can only "not advance" if they're 0,1,2,3,4 session state.
         ensure!(
             self.next_nonce < next_nonce
-            ||
-            (self.next_nonce <= State::ReceivedKey as u32 && next_nonce == self.next_nonce),
+                || (self.next_nonce <= State::ReceivedKey as u32 && next_nonce == self.next_nonce),
             DecryptError,
             "nonce sequence error",
         );
@@ -1070,7 +1121,13 @@ impl SessionMut {
     }
 
     #[inline]
-    fn decrypt_message(&self, nonce: u32, content: &mut Message, secret: [u8; 32], sess: &Session) -> Result<(), DecryptError> {
+    fn decrypt_message(
+        &self,
+        nonce: u32,
+        content: &mut Message,
+        secret: [u8; 32],
+        sess: &Session,
+    ) -> Result<(), DecryptError> {
         // Decrypt with authentication and replay prevention.
         let r = decrypt(nonce, content, secret, self.is_initiator);
         if r.is_err() {
@@ -1079,8 +1136,10 @@ impl SessionMut {
         }
 
         if !sess.replay_protector.lock().check_nonce(nonce) {
-           debug::log(self, || format!("DROP nonce checking failed nonce=[{}]", nonce));
-           return Err(DecryptError::DecryptErr(DecryptErr::Replay));
+            debug::log(self, || {
+                format!("DROP nonce checking failed nonce=[{}]", nonce)
+            });
+            return Err(DecryptError::DecryptErr(DecryptErr::Replay));
         }
 
         Ok(())
@@ -1119,8 +1178,7 @@ impl Session {
                 her_public_key: her_pub_key,
                 display_name,
                 her_ip6,
-                reset_after_inactivity_seconds:
-                    Self::DEFAULT_RESET_AFTER_INACTIVITY_SECONDS,
+                reset_after_inactivity_seconds: Self::DEFAULT_RESET_AFTER_INACTIVITY_SECONDS,
                 setup_reset_after_inactivity_seconds:
                     Self::DEFAULT_SETUP_RESET_AFTER_INACTIVITY_SECONDS,
                 shared_secret: [0; 32],
@@ -1237,12 +1295,12 @@ fn get_shared_secret(
                 key: {
                     let n = Scalar(my_private_key);
                     let p = GroupElement(her_public_key);
-                    scalarmult(&n, &p).expect("crypto::scalarmult::curve25519").0
+                    scalarmult(&n, &p)
+                        .expect("crypto::scalarmult::curve25519")
+                        .0
                 },
-                passwd: {
-                    password_hash
-                },
-            }
+                passwd: { password_hash },
+            },
         };
 
         let bytes = unsafe { buff.bytes };
@@ -1394,8 +1452,9 @@ mod debug {
 
     #[inline]
     pub(super) fn log<S, F>(session: &SessionMut, msg: F)
-        where S: AsRef<str>,
-              F: FnOnce() -> S,
+    where
+        S: AsRef<str>,
+        F: FnOnce() -> S,
     {
         if log::log_enabled!(log::Level::Debug) {
             let sess_ptr = session as *const SessionMut;
@@ -1449,5 +1508,40 @@ mod debug {
             let public_key = crypto_scalarmult_curve25519_base(&private_key);
             hex_key(public_key.raw())
         }
+    }
+}
+
+mod tests {
+    use crate::cffi;
+    use crate::interface::wire::message::Message;
+    use std::os::raw::c_char;
+
+    fn mk_msg(padding: usize) -> Message {
+        unsafe {
+            let alloc =
+                cffi::MallocAllocator__new((padding as u64) + 256, "".as_ptr() as *const c_char, 0);
+            Message::from_c_message(cffi::Message_new(0, padding as u32, alloc))
+        }
+    }
+
+    #[test]
+    pub fn test_encrypt_rnd_nonce() {
+        let mut msg1 = mk_msg(128);
+        let mut msg2 = mk_msg(128);
+        msg1.push(b"Hello World").unwrap();
+        msg2.push(b"Hello World").unwrap();
+
+        let nonce = [0_u8; 24];
+        let secret = [0_u8; 32];
+        super::encrypt_rnd_nonce(nonce, &mut msg1, secret);
+        unsafe {
+            cffi::CryptoAuth_encryptRndNonce(
+                nonce[..].as_ptr(),
+                msg2.as_c_message(),
+                secret[..].as_ptr(),
+            );
+        }
+        println!("Rust: {}", hex::encode(msg1.bytes()));
+        println!("C:    {}", hex::encode(msg2.bytes()));
     }
 }

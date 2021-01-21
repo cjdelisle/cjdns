@@ -21,6 +21,7 @@
 #include "interface/Iface.h"
 #include "interface/test/RustIface_test.h"
 #include "crypto/CryptoAuth.h"
+#include "crypto/CryptoAuth_pvt.h" // encryptRndNonce
 
 // This structure is guaranteed to be present in the generated rust code
 // Also all functions in the above headers will be present.

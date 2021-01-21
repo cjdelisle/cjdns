@@ -141,8 +141,8 @@ struct CryptoAuth_Session_pvt
 //                                    struct CryptoAuth_Wrapper* wrapper,
 //                                    int setupMessage);
 
-int CryptoAuth_decryptRndNonce(uint8_t nonce[24], struct Message* msg, uint8_t secret[32]);
+int CryptoAuth_decryptRndNonce(const uint8_t nonce[24], struct Message* msg, const uint8_t secret[32]);
 
-void CryptoAuth_encryptRndNonce(uint8_t nonce[24], struct Message* msg, uint8_t secret[32]);
+void CryptoAuth_encryptRndNonce(const uint8_t nonce[24], struct Message* msg, const uint8_t secret[32]);
 
 #endif

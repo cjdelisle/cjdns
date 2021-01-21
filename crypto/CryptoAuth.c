@@ -179,9 +179,9 @@ static inline struct CryptoAuth_User* getAuth(struct CryptoHeader_Challenge* aut
  * @param secret a shared secret.
  * @return 0 if decryption is succeddful, otherwise -1.
  */
-static inline Gcc_USE_RET int decryptRndNonce(uint8_t nonce[24],
+static inline Gcc_USE_RET int decryptRndNonce(const uint8_t nonce[24],
                                               struct Message* msg,
-                                              uint8_t secret[32])
+                                              const uint8_t secret[32])
 {
     if (msg->length < 16) {
         return -1;
@@ -212,9 +212,9 @@ static inline Gcc_USE_RET int decryptRndNonce(uint8_t nonce[24],
  * @param msg a message to encipher and authenticate.
  * @param secret a shared secret.
  */
-static inline void encryptRndNonce(uint8_t nonce[24],
+static inline void encryptRndNonce(const uint8_t nonce[24],
                                    struct Message* msg,
-                                   uint8_t secret[32])
+                                   const uint8_t secret[32])
 {
     Assert_true(msg->padding >= 32);
     uint8_t* startAt = msg->bytes - 32;
@@ -1176,12 +1176,12 @@ void CryptoAuth_stats(const struct CryptoAuth_Session* session, RTypes_CryptoSta
 }
 
 // For testing:
-void CryptoAuth_encryptRndNonce(uint8_t nonce[24], struct Message* msg, uint8_t secret[32])
+void CryptoAuth_encryptRndNonce(const uint8_t nonce[24], struct Message* msg, const uint8_t secret[32])
 {
     encryptRndNonce(nonce, msg, secret);
 }
 
-int CryptoAuth_decryptRndNonce(uint8_t nonce[24], struct Message* msg, uint8_t secret[32])
+int CryptoAuth_decryptRndNonce(const uint8_t nonce[24], struct Message* msg, const uint8_t secret[32])
 {
     return decryptRndNonce(nonce, msg, secret);
 }
