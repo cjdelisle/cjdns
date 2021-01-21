@@ -9,6 +9,8 @@ use crate::cffi::Random_bytes;
 pub enum Random {
     Sodium(SodiumRandom),
     Legacy(*mut CRandom),
+    #[cfg(test)]
+    Fake,
 }
 
 impl Random {
@@ -27,6 +29,8 @@ impl Random {
         match self {
             Random::Sodium(r) => r.random_bytes(dest),
             Random::Legacy(r) => c_random_bytes(*r, dest),
+            #[cfg(test)]
+            Random::Fake => (0..dest.len()).for_each(|i| dest[i] = i as u8),
         }
     }
 }

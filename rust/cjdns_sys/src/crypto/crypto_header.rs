@@ -74,7 +74,7 @@ impl Default for AuthType {
 /// to see if the given password is known. It can be thought of as the "username" although it is
 /// a derivative of the password.
 #[repr(C)]
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 pub struct Challenge {
     pub auth_type: AuthType,
     pub lookup: [u8; 7],
@@ -198,7 +198,7 @@ fn test_challenge() {
 /// no further response who now wishes to send more data MUST send that data as more (repeat)
 /// key packets.
 #[repr(C)]
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 pub struct CryptoHeader {
     /// Numbers one through three are interpreted as handshake packets, `u32::MAX` is
     /// a connectToMe packet and anything else is a nonce in a traffic packet.

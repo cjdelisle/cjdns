@@ -1512,11 +1512,18 @@ mod debug {
 }
 
 mod tests {
+    use std::sync::Arc;
+
+    use cjdns_keys::{CJDNSKeysApi, PrivateKey, PublicKey};
+
+    use crate::bytestring::ByteString;
     use crate::cffi;
+    use crate::crypto::random::Random;
     use crate::interface::wire::message::Message;
-    use std::os::raw::c_char;
+    use crate::util::events::EventBase;
 
     fn mk_msg(padding: usize) -> Message {
+        use std::os::raw::c_char;
         unsafe {
             let alloc =
                 cffi::MallocAllocator__new((padding as u64) + 256, "".as_ptr() as *const c_char, 0);
@@ -1528,14 +1535,16 @@ mod tests {
     pub fn test_encrypt_decrypt_rnd_nonce() {
         // The message
         const TEST_STRING: &[u8] = b"Hello World";
+        const LEN: usize = TEST_STRING.len();
         let mut msg1 = mk_msg(128);
         let mut msg2 = mk_msg(128);
         msg1.push_bytes(TEST_STRING).unwrap();
         msg2.push_bytes(TEST_STRING).unwrap();
 
+        let nonce = [42_u8; 24];
+        let secret = [142_u8; 32];
+
         // Encrypt
-        let nonce = [0_u8; 24];
-        let secret = [0_u8; 32];
         super::encrypt_rnd_nonce(nonce, &mut msg1, secret);
         unsafe {
             cffi::CryptoAuth_encryptRndNonce(
@@ -1544,13 +1553,11 @@ mod tests {
                 secret[..].as_ptr(),
             );
         }
-        println!("Rust: {}", hex::encode(msg1.bytes()));
-        println!("C:    {}", hex::encode(msg2.bytes()));
+        //println!("Rust: {}", hex::encode(msg1.bytes()));
+        //println!("C:    {}", hex::encode(msg2.bytes()));
         assert_eq!(msg1.bytes(), msg2.bytes(), "Encrypt results are different");
 
         // Decrypt
-        let nonce = [0_u8; 24];
-        let secret = [0_u8; 32];
         let res = super::decrypt_rnd_nonce(nonce, &mut msg1, secret);
         assert!(res.is_ok(), "Decrypt (Rust) failed");
         let res = unsafe {
@@ -1561,14 +1568,123 @@ mod tests {
             )
         };
         assert_eq!(res, 0, "Decrypt (C) failed, err_code = {}", res);
-        println!("Rust: {}", hex::encode(msg1.bytes()));
-        println!("C:    {}", hex::encode(msg2.bytes()));
+        //println!("Rust: {}", hex::encode(msg1.bytes()));
+        //println!("C:    {}", hex::encode(msg2.bytes()));
         assert_eq!(msg1.bytes(), msg2.bytes(), "Results are different");
 
         // Ensure the message is the same
-        assert_eq!(msg1.len(), 11);
-        assert_eq!(msg2.len(), 11);
-        assert_eq!(msg1.pop_bytes(11).unwrap(), TEST_STRING);
-        assert_eq!(msg2.pop_bytes(11).unwrap(), TEST_STRING);
+        assert_eq!(msg1.len(), LEN);
+        assert_eq!(msg2.len(), LEN);
+        assert_eq!(msg1.pop_bytes(LEN).unwrap(), TEST_STRING);
+        assert_eq!(msg2.pop_bytes(LEN).unwrap(), TEST_STRING);
+    }
+
+    #[test]
+    pub fn test_encrypt_decrypt_without_auth() {
+        let keys_api = CJDNSKeysApi::new().unwrap();
+        let my_keys = keys_api.key_pair();
+        let her_keys = keys_api.key_pair();
+
+        fn mk_sess(my_priv_key: PrivateKey, her_pub_key: PublicKey, name: &str) -> super::Session {
+            let ca = super::CryptoAuth::new(
+                Some(my_priv_key),
+                EventBase{},
+                Random::Fake
+            );
+            let ca = Arc::new(ca);
+
+            let res = ca.add_user_ipv6(
+                ByteString::from(name.to_string()),
+                Some(ByteString::from(name.to_string())),
+                None,
+            );
+            assert_eq!(res.err(), None);
+
+            let sess = super::Session::new(
+                ca.clone(),
+                her_pub_key,
+                false,
+                Some(format!("{}'s session", name)),
+                false,
+            );
+            assert_eq!(sess.as_ref().err(), None);
+            sess.unwrap()
+        }
+
+        let my_session = mk_sess(my_keys.private_key.clone(), her_keys.public_key.clone(), "bob");
+
+        let mut msg = mk_msg(256);
+        msg.push_bytes(b"HelloWorld012345").unwrap();
+        let orig_length = msg.len();
+
+        let res = my_session.encrypt(&mut msg);
+        assert_eq!(res.err(), None);
+        assert_ne!(msg.len(), orig_length);
+
+        let her_session = mk_sess(her_keys.private_key.clone(), my_keys.public_key.clone(), "alice");
+
+        let res = her_session.decrypt(&mut msg);
+        assert_eq!(res.err(), None);
+        assert_eq!(msg.len(), orig_length);
+        assert_eq!(msg.bytes(), b"HelloWorld012345");
+    }
+
+    #[test]
+    pub fn test_encrypt_decrypt_with_auth() {
+        let keys_api = CJDNSKeysApi::new().unwrap();
+        let my_keys = keys_api.key_pair();
+        let her_keys = keys_api.key_pair();
+
+        fn mk_sess(my_priv_key: PrivateKey, her_pub_key: PublicKey, name: &str) -> super::Session {
+            let ca = super::CryptoAuth::new(
+                Some(my_priv_key),
+                EventBase{},
+                Random::Fake
+            );
+            let ca = Arc::new(ca);
+
+            let res = ca.add_user_ipv6(
+                ByteString::from(name.to_string()),
+                Some(ByteString::from(name.to_string())),
+                None,
+            );
+            assert_eq!(res.err(), None);
+
+            let sess = super::Session::new(
+                ca.clone(),
+                her_pub_key,
+                true,
+                Some(format!("{}'s session", name)),
+                false,
+            );
+            assert_eq!(sess.as_ref().err(), None);
+            sess.unwrap()
+        }
+
+        fn set_auth(sess: &super::Session, name: &str) {
+            sess.set_auth(
+                Some(ByteString::from(name.to_string())),
+                Some(ByteString::from(name.to_string())),
+            );
+        }
+
+        let my_session = mk_sess(my_keys.private_key.clone(), her_keys.public_key.clone(), "bob");
+        set_auth(&my_session, "alice");
+
+        let mut msg = mk_msg(256);
+        msg.push_bytes(b"HelloWorld012345").unwrap();
+        let orig_length = msg.len();
+
+        let res = my_session.encrypt(&mut msg);
+        assert_eq!(res.err(), None);
+        assert_ne!(msg.len(), orig_length);
+
+        let her_session = mk_sess(her_keys.private_key.clone(), my_keys.public_key.clone(), "alice");
+        set_auth(&her_session, "bob");
+
+        let res = her_session.decrypt(&mut msg);
+        assert_eq!(res.err(), None);
+        assert_eq!(msg.len(), orig_length);
+        assert_eq!(msg.bytes(), b"HelloWorld012345");
     }
 }
