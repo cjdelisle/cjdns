@@ -1332,10 +1332,10 @@ fn decrypt(nonce: u32, msg: &mut Message, secret: [u8; 32], is_initiator: bool) 
 }
 
 /// Encrypt and authenticate.
-/// Shifts the message by 16 bytes.
+/// Grows the message by 16 bytes.
 #[inline]
 fn encrypt_rnd_nonce(nonce: [u8; 24], msg: &mut Message, secret: [u8; 32]) {
-    msg.push_bytes(&[0; 32]).expect("pad >= 32");
+    //msg.push_bytes(&[0; 32]).expect("pad >= 32");
 
     {
         use sodiumoxide::crypto::box_::curve25519xsalsa20poly1305::*;
@@ -1343,24 +1343,26 @@ fn encrypt_rnd_nonce(nonce: [u8; 24], msg: &mut Message, secret: [u8; 32]) {
         let nonce = Nonce(nonce);
         let key = PrecomputedKey(secret);
         //TODO this data copying is suboptimal. Need proper fn binding.
-        let encrypted = seal_precomputed(bytes, &nonce, &key);
+        let encrypted = seal_precomputed(bytes, &nonce, &key); // adds 16 bytes
+        msg.push_bytes(&[0; 16]).expect("pad >= 16"); // also grow orig msg
         let dest = msg.bytes_mut();
         assert_eq!(dest.len(), encrypted.len());
         dest.copy_from_slice(&encrypted);
     }
 
     // Pop 16 bytes despite we pushed 32
-    msg.discard_bytes(16).expect("discard");
+    //msg.discard_bytes(16).expect("discard");
 }
 
 /// Decrypt and authenticate.
+/// Shrinks the message by 16 bytes.
 #[inline]
 fn decrypt_rnd_nonce(nonce: [u8; 24], msg: &mut Message, secret: [u8; 32]) -> Result<(), ()> {
     if msg.len() < 16 {
         return Err(());
     }
 
-    msg.push_bytes(&[0; 16]).expect("pad >= 16");
+    //msg.push_bytes(&[0; 16]).expect("pad >= 16");
 
     {
         use sodiumoxide::crypto::box_::curve25519xsalsa20poly1305::*;
@@ -1368,13 +1370,14 @@ fn decrypt_rnd_nonce(nonce: [u8; 24], msg: &mut Message, secret: [u8; 32]) -> Re
         let nonce = Nonce(nonce);
         let key = PrecomputedKey(secret);
         //TODO this data copying is suboptimal. Need proper fn binding.
-        let decrypted = open_precomputed(bytes, &nonce, &key)?;
+        let decrypted = open_precomputed(bytes, &nonce, &key)?; // 16 bytes less
+        msg.discard_bytes(16).expect("discard 16 bytes"); // Also shrink msg
         let dest = msg.bytes_mut();
         assert_eq!(dest.len(), decrypted.len());
         dest.copy_from_slice(&decrypted);
     }
 
-    msg.discard_bytes(16).expect("discard");
+    //msg.discard_bytes(16).expect("discard");
 
     Ok(())
 }
