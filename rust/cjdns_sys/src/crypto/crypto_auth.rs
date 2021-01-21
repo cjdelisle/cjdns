@@ -1525,12 +1525,15 @@ mod tests {
     }
 
     #[test]
-    pub fn test_encrypt_rnd_nonce() {
+    pub fn test_encrypt_decrypt_rnd_nonce() {
+        // The message
+        const TEST_STRING: &[u8] = b"Hello World";
         let mut msg1 = mk_msg(128);
         let mut msg2 = mk_msg(128);
-        msg1.push(b"Hello World").unwrap();
-        msg2.push(b"Hello World").unwrap();
+        msg1.push_bytes(TEST_STRING).unwrap();
+        msg2.push_bytes(TEST_STRING).unwrap();
 
+        // Encrypt
         let nonce = [0_u8; 24];
         let secret = [0_u8; 32];
         super::encrypt_rnd_nonce(nonce, &mut msg1, secret);
@@ -1543,5 +1546,29 @@ mod tests {
         }
         println!("Rust: {}", hex::encode(msg1.bytes()));
         println!("C:    {}", hex::encode(msg2.bytes()));
+        assert_eq!(msg1.bytes(), msg2.bytes(), "Encrypt results are different");
+
+        // Decrypt
+        let nonce = [0_u8; 24];
+        let secret = [0_u8; 32];
+        let res = super::decrypt_rnd_nonce(nonce, &mut msg1, secret);
+        assert!(res.is_ok(), "Decrypt (Rust) failed");
+        let res = unsafe {
+            cffi::CryptoAuth_decryptRndNonce(
+                nonce[..].as_ptr(),
+                msg2.as_c_message(),
+                secret[..].as_ptr(),
+            )
+        };
+        assert_eq!(res, 0, "Decrypt (C) failed, err_code = {}", res);
+        println!("Rust: {}", hex::encode(msg1.bytes()));
+        println!("C:    {}", hex::encode(msg2.bytes()));
+        assert_eq!(msg1.bytes(), msg2.bytes(), "Results are different");
+
+        // Ensure the message is the same
+        assert_eq!(msg1.len(), 11);
+        assert_eq!(msg2.len(), 11);
+        assert_eq!(msg1.pop_bytes(11).unwrap(), TEST_STRING);
+        assert_eq!(msg2.pop_bytes(11).unwrap(), TEST_STRING);
     }
 }
