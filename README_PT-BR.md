@@ -64,7 +64,7 @@ problemas de escalabilidade que afetam as redes existentes.
 
 * [Objetivos do projeto](doc/projectGoals.md)
 * [Cjdns Whitepaper](doc/Whitepaper.md)
-* [Cjdns na Wikipedia][]
+* [Cjdns na Wikipedia](https://fr.wikipedia.org/wiki/Cjdns)
 
 Configuração avançada:
 
