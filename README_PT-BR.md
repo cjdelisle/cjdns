@@ -11,11 +11,11 @@
 [Français](README_FR.md)
 [Português brasileiro](README_PT-BR.md)
 
-#### *Rede Reinventada*
+#### *Networking Reinventada*
 
 O Cjdns implementa uma rede IPv6 criptografada usando criptografia de chave pública para
 alocação de endereços e uma tabela de hash distribuída para roteamento. Isso fornece
-rede de configuração quase zero e evita muitos dos aspectos de segurança e
+configuração de rede quase zero e evita muitos dos aspectos de segurança e
 problemas de escalabilidade que afetam as redes existentes.
 
 [![Build Status](https://api.travis-ci.org/cjdelisle/cjdns.svg?branch=master)](https://travis-ci.org/cjdelisle/cjdns)
