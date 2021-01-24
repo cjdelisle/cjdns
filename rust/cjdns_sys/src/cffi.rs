@@ -427,14 +427,15 @@ extern "C" {
         ...
     );
 }
+pub type RandomSeed_t = RandomSeed_s;
 pub type RandomSeed_Provider =
-    ::std::option::Option<unsafe extern "C" fn(alloc: *mut Allocator) -> *mut RandomSeed>;
+    ::std::option::Option<unsafe extern "C" fn(alloc: *mut Allocator) -> *mut RandomSeed_t>;
 pub type RandomSeed_Get = ::std::option::Option<
-    unsafe extern "C" fn(context: *mut RandomSeed, buff: *mut u64) -> ::std::os::raw::c_int,
+    unsafe extern "C" fn(context: *mut RandomSeed_t, buff: *mut u64) -> ::std::os::raw::c_int,
 >;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
-pub struct RandomSeed {
+pub struct RandomSeed_s {
     pub get: RandomSeed_Get,
     pub name: *const ::std::os::raw::c_char,
 }
@@ -444,10 +445,10 @@ extern "C" {
         providerCount: ::std::os::raw::c_int,
         logger: *mut Log,
         alloc: *mut Allocator,
-    ) -> *mut RandomSeed;
+    ) -> *mut RandomSeed_t;
 }
 extern "C" {
-    pub fn RandomSeed_get(rs: *mut RandomSeed, buffer: *mut u64) -> ::std::os::raw::c_int;
+    pub fn RandomSeed_get(rs: *mut RandomSeed_t, buffer: *mut u64) -> ::std::os::raw::c_int;
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -468,7 +469,7 @@ extern "C" {
     pub fn Random_newWithSeed(
         alloc: *mut Allocator,
         logger: *mut Log,
-        seed: *mut RandomSeed,
+        seed: *mut RandomSeed_t,
         eh: *mut Except,
     ) -> *mut Random;
 }
@@ -626,6 +627,9 @@ extern "C" {
 }
 extern "C" {
     pub fn CryptoAuth_encryptRndNonce(nonce: *const u8, msg: *mut Message, secret: *const u8);
+}
+extern "C" {
+    pub fn DeterminentRandomSeed_new(alloc: *mut Allocator, buff: *mut u8) -> *mut RandomSeed_t;
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
