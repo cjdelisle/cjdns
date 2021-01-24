@@ -290,7 +290,7 @@ void CryptoAuthFuzz_main(void* vctx, struct Message* fuzz)
     struct Context* ctx = Identity_check((struct Context*) vctx);
 
     // This is not ideal, but this test was already written before AFL.
-    struct RandomSeed* rs = DeterminentRandomSeed_new(ctx->alloc, fuzz->bytes);
+    RandomSeed_t* rs = DeterminentRandomSeed_new(ctx->alloc, fuzz->bytes);
     ctx->rand = Random_newWithSeed(ctx->alloc, NULL, rs, NULL);
 
     if (maybe(ctx, 2)) {

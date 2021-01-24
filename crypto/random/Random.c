@@ -134,7 +134,7 @@ struct Random
     union Random_SeedGen* seedGen;
 
     /** The collector for getting the original permanent random seed from the operating system. */
-    struct RandomSeed* seed;
+    RandomSeed_t* seed;
 
     Identity
 };
@@ -228,7 +228,7 @@ void Random_base32(struct Random* rand, uint8_t* output, uint32_t length)
 
 struct Random* Random_newWithSeed(struct Allocator* alloc,
                                   struct Log* logger,
-                                  struct RandomSeed* seed,
+                                  RandomSeed_t* seed,
                                   struct Except* eh)
 {
     union Random_SeedGen* seedGen = Allocator_calloc(alloc, sizeof(union Random_SeedGen), 1);
@@ -253,6 +253,6 @@ struct Random* Random_newWithSeed(struct Allocator* alloc,
 
 struct Random* Random_new(struct Allocator* alloc, struct Log* logger, struct Except* eh)
 {
-    struct RandomSeed* rs = SystemRandomSeed_new(NULL, 0, logger, alloc);
+    RandomSeed_t* rs = SystemRandomSeed_new(NULL, 0, logger, alloc);
     return Random_newWithSeed(alloc, logger, rs, eh);
 }

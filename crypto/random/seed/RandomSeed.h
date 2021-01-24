@@ -22,12 +22,12 @@ Linker_require("crypto/random/seed/RandomSeed.c")
 
 #include <stdint.h>
 
-struct RandomSeed;
+typedef struct RandomSeed_s RandomSeed_t;
 
-typedef struct RandomSeed* (* RandomSeed_Provider)(struct Allocator* alloc);
-typedef int (* RandomSeed_Get)(struct RandomSeed* context, uint64_t buff[8]);
+typedef RandomSeed_t* (* RandomSeed_Provider)(struct Allocator* alloc);
+typedef int (* RandomSeed_Get)(RandomSeed_t* context, uint64_t buff[8]);
 
-struct RandomSeed
+struct RandomSeed_s
 {
     /**
      * Get some random numbers.
@@ -42,11 +42,11 @@ struct RandomSeed
     const char* name;
 };
 
-struct RandomSeed* RandomSeed_new(RandomSeed_Provider* providers,
+RandomSeed_t* RandomSeed_new(RandomSeed_Provider* providers,
                                   int providerCount,
                                   struct Log* logger,
                                   struct Allocator* alloc);
 
-int RandomSeed_get(struct RandomSeed* rs, uint64_t buffer[8]);
+int RandomSeed_get(RandomSeed_t* rs, uint64_t buffer[8]);
 
 #endif

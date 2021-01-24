@@ -77,7 +77,7 @@ static int genconf(struct Allocator* alloc, struct Random* rand, bool eth, bool 
         uint8_t seedbuf[64];
         Bits_memset(seedbuf, 0, 64);
         Assert_true(64 == read(STDIN_FILENO, seedbuf, 64));
-        struct RandomSeed* rs = DeterminentRandomSeed_new(alloc, seedbuf);
+        RandomSeed_t* rs = DeterminentRandomSeed_new(alloc, seedbuf);
         rand = Random_newWithSeed(alloc, NULL, rs, NULL);
     }
 

@@ -21,8 +21,8 @@
 
 struct RandomSeed_pvt
 {
-    struct RandomSeed pub;
-    struct RandomSeed** rsList;
+    RandomSeed_t pub;
+    RandomSeed_t** rsList;
     int rsCount;
     struct Log* logger;
     Identity
@@ -36,7 +36,7 @@ struct RandomSeed_Buffer
 #define RandomSeed_Buffer_SIZE 128
 Assert_compileTime(sizeof(struct RandomSeed_Buffer) == RandomSeed_Buffer_SIZE);
 
-static int get(struct RandomSeed* rs, uint64_t buffer[8])
+static int get(RandomSeed_t* rs, uint64_t buffer[8])
 {
     struct RandomSeed_pvt* ctx = Identity_check((struct RandomSeed_pvt*) rs);
     Log_info(ctx->logger, "Attempting to seed random number generator");
@@ -69,20 +69,20 @@ static int get(struct RandomSeed* rs, uint64_t buffer[8])
     }
 }
 
-int RandomSeed_get(struct RandomSeed* rs, uint64_t buffer[8])
+int RandomSeed_get(RandomSeed_t* rs, uint64_t buffer[8])
 {
     return rs->get(rs, buffer);
 }
 
-struct RandomSeed* RandomSeed_new(RandomSeed_Provider* providers,
+RandomSeed_t* RandomSeed_new(RandomSeed_Provider* providers,
                                   int providerCount,
                                   struct Log* logger,
                                   struct Allocator* alloc)
 {
-    struct RandomSeed** rsList = Allocator_calloc(alloc, sizeof(struct RandomSeed), providerCount);
+    RandomSeed_t** rsList = Allocator_calloc(alloc, sizeof(RandomSeed_t), providerCount);
     int i = 0;
     for (int j = 0; j < providerCount; j++) {
-        struct RandomSeed* rs = providers[j](alloc);
+        RandomSeed_t* rs = providers[j](alloc);
         if (rs) {
             rsList[i++] = rs;
         }

@@ -38,7 +38,7 @@ static int getUUID(uint64_t output[2])
 }
 #endif
 
-static int get(struct RandomSeed* randomSeed, uint64_t output[8])
+static int get(RandomSeed_t* randomSeed, uint64_t output[8])
 {
 
 #ifdef SYS_getrandom
@@ -59,9 +59,9 @@ static int get(struct RandomSeed* randomSeed, uint64_t output[8])
 #endif
 }
 
-struct RandomSeed* LinuxRandomUuidSysctlRandomSeed_new(struct Allocator* alloc)
+RandomSeed_t* LinuxRandomUuidSysctlRandomSeed_new(struct Allocator* alloc)
 {
-    return Allocator_clone(alloc, (&(struct RandomSeed) {
+    return Allocator_clone(alloc, (&(RandomSeed_t) {
         .get = get,
         .name = "sysctl(RANDOM_UUID) (Linux)"
     }));

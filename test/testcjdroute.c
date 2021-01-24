@@ -271,7 +271,7 @@ int testcjdroute_main(int argc, char** argv);
 int testcjdroute_main(int argc, char** argv)
 {
     struct Allocator* alloc = MallocAllocator_new(1<<24);
-    struct RandomSeed* rs = DeterminentRandomSeed_new(alloc, RANDOM_SEED);
+    RandomSeed_t* rs = DeterminentRandomSeed_new(alloc, RANDOM_SEED);
     struct Random* detRand = Random_newWithSeed(alloc, NULL, rs, NULL);
     int out = main2(argc, argv, alloc, detRand);
     Allocator_free(alloc);

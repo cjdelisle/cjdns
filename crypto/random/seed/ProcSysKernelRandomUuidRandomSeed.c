@@ -82,7 +82,7 @@ static int getUUID(uint64_t output[2])
     return 0;
 }
 
-static int get(struct RandomSeed* randomSeed, uint64_t output[8])
+static int get(RandomSeed_t* randomSeed, uint64_t output[8])
 {
     if (getUUID(output) || getUUID(output+2) || getUUID(output+4) || getUUID(output+6)) {
         return -1;
@@ -90,9 +90,9 @@ static int get(struct RandomSeed* randomSeed, uint64_t output[8])
     return 0;
 }
 
-struct RandomSeed* ProcSysKernelRandomUuidRandomSeed_new(struct Allocator* alloc)
+RandomSeed_t* ProcSysKernelRandomUuidRandomSeed_new(struct Allocator* alloc)
 {
-    return Allocator_clone(alloc, (&(struct RandomSeed) {
+    return Allocator_clone(alloc, (&(RandomSeed_t) {
         .get = get,
         .name = "/proc/sys/kernel/random/uuid (Linux)"
     }));

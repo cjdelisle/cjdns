@@ -103,7 +103,7 @@ static inline uint64_t Random_uint64(struct Random* rand)
 
 struct Random* Random_newWithSeed(struct Allocator* alloc,
                                   struct Log* logger,
-                                  struct RandomSeed* seed,
+                                  RandomSeed_t* seed,
                                   struct Except* eh);
 
 struct Random* Random_new(struct Allocator* alloc, struct Log* logger, struct Except* eh);

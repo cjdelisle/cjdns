@@ -21,12 +21,12 @@
  */
 
  struct DeterminentRandomSeed {
-     struct RandomSeed rs;
+     RandomSeed_t rs;
      uint8_t buff[64];
      Identity
  };
 
-static int get(struct RandomSeed* rand, uint64_t buff[8])
+static int get(RandomSeed_t* rand, uint64_t buff[8])
 {
     // chosen by fair dice roll, guaranteed random.
     struct DeterminentRandomSeed* drs = Identity_check((struct DeterminentRandomSeed*) rand);
@@ -34,7 +34,7 @@ static int get(struct RandomSeed* rand, uint64_t buff[8])
     return 0;
 }
 
-struct RandomSeed* DeterminentRandomSeed_new(struct Allocator* alloc, uint8_t buff[64])
+RandomSeed_t* DeterminentRandomSeed_new(struct Allocator* alloc, uint8_t buff[64])
 {
     struct DeterminentRandomSeed* drs = Allocator_clone(alloc, (&(struct DeterminentRandomSeed) {
         .rs = {

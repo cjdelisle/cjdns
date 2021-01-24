@@ -25,7 +25,7 @@
 /** Number of times to try each operation. */
 #define MAX_TRIES 10
 
-static int get(struct RandomSeed* randomSeed, uint64_t output[8])
+static int get(RandomSeed_t* randomSeed, uint64_t output[8])
 {
     Bits_memset(output, 0, 64);
     int fd = -1;
@@ -58,9 +58,9 @@ static int get(struct RandomSeed* randomSeed, uint64_t output[8])
     return -1;
 }
 
-struct RandomSeed* DevUrandomRandomSeed_new(struct Allocator* alloc)
+RandomSeed_t* DevUrandomRandomSeed_new(struct Allocator* alloc)
 {
-    return Allocator_clone(alloc, (&(struct RandomSeed) {
+    return Allocator_clone(alloc, (&(RandomSeed_t) {
         .get = get,
         .name = "/dev/urandom"
     }));
