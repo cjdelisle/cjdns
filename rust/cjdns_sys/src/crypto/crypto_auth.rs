@@ -1511,6 +1511,7 @@ mod debug {
     }
 }
 
+#[cfg(test)]
 mod tests {
     use std::sync::Arc;
 
@@ -1702,20 +1703,6 @@ mod tests {
         let my_keys = keys_api.key_pair();
         let her_keys = keys_api.key_pair();
 
-        fn fake_random() -> *mut cffi::Random_t {
-            use std::os::raw::c_char;
-            unsafe {
-                let alloc = cffi::MallocAllocator__new(1 << 20, "".as_ptr() as *const c_char, 0);
-                let fake_seed = cffi::DeterminentRandomSeed_new(alloc, std::ptr::null_mut());
-                cffi::Random_newWithSeed(
-                    alloc,
-                    std::ptr::null_mut(),
-                    fake_seed,
-                    std::ptr::null_mut(),
-                )
-            }
-        }
-
         let rust_session = {
             let priv_key = my_keys.private_key.clone();
             let pub_key = her_keys.public_key.clone();
@@ -1796,5 +1783,107 @@ mod tests {
         assert_eq!(res, cffi::CryptoAuth_DecryptErr::CryptoAuth_DecryptErr_NONE);
         assert_eq!(msg.len(), orig_length);
         assert_eq!(msg.bytes(), b"HelloWorld012345");
+    }
+
+    #[test]
+    pub fn test_cross_encrypt_decrypt_c_to_rust() {
+        let keys_api = CJDNSKeysApi::new().unwrap();
+        let my_keys = keys_api.key_pair();
+        let her_keys = keys_api.key_pair();
+
+        let c_session = {
+            let priv_key = my_keys.private_key.clone();
+            let pub_key = her_keys.public_key.clone();
+            let name = "bob";
+
+            let alloc = unsafe {
+                use std::os::raw::c_char;
+                cffi::MallocAllocator__new(1 << 20, "".as_ptr() as *const c_char, 0)
+            };
+
+            let event_base = unsafe { cffi::EventBase_new(alloc) };
+
+            let ca = unsafe {
+                cffi::CryptoAuth_new(
+                    alloc,
+                    priv_key.as_ptr(),
+                    event_base,
+                    std::ptr::null_mut(),
+                    fake_random(),
+                )
+            };
+
+            let res = unsafe {
+                let name = cffi::String_new(name.as_ptr() as *const i8, alloc);
+                cffi::CryptoAuth_addUser_ipv6(name, name, std::ptr::null_mut(), ca)
+            };
+            assert_eq!(res, 0, "CryptoAuth_addUser_ipv6() failed: {}", res);
+
+            let sess = unsafe {
+                cffi::CryptoAuth_newSession(
+                    ca,
+                    alloc,
+                    pub_key.as_ptr(),
+                    false,
+                    format!("{}'s session", name).as_mut_ptr() as *mut i8,
+                )
+            };
+
+            sess
+        };
+
+        let mut msg = mk_msg(256);
+        msg.push_bytes(b"HelloWorld012345").unwrap();
+        let orig_length = msg.len();
+
+        let res = unsafe { cffi::CryptoAuth_encrypt(c_session, msg.as_c_message()) };
+        assert_eq!(res, 0);
+        assert_ne!(msg.len(), orig_length);
+
+        let rust_session = {
+            let priv_key = her_keys.private_key.clone();
+            let pub_key = my_keys.public_key.clone();
+            let name = "alice";
+
+            let ca =
+                super::CryptoAuth::new(Some(priv_key), EventBase {}, Random::Legacy(fake_random()));
+            let ca = Arc::new(ca);
+
+            let res = ca.add_user_ipv6(
+                ByteString::from(name.to_string()),
+                Some(ByteString::from(name.to_string())),
+                None,
+            );
+            assert_eq!(res.err(), None);
+
+            let sess = super::Session::new(
+                ca.clone(),
+                pub_key,
+                false,
+                Some(format!("{}'s session", name)),
+                false,
+            );
+            assert_eq!(sess.as_ref().err(), None);
+            sess.unwrap()
+        };
+
+        let res = rust_session.decrypt(&mut msg);
+        assert_eq!(res.err(), None);
+        assert_eq!(msg.len(), orig_length);
+        assert_eq!(msg.bytes(), b"HelloWorld012345");
+    }
+
+    fn fake_random() -> *mut cffi::Random_t {
+        use std::os::raw::c_char;
+        unsafe {
+            let alloc = cffi::MallocAllocator__new(1 << 20, "".as_ptr() as *const c_char, 0);
+            let fake_seed = cffi::DeterminentRandomSeed_new(alloc, std::ptr::null_mut());
+            cffi::Random_newWithSeed(
+                alloc,
+                std::ptr::null_mut(),
+                fake_seed,
+                std::ptr::null_mut(),
+            )
+        }
     }
 }
