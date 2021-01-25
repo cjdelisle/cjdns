@@ -24,6 +24,8 @@
 #include "util/log/FileWriterLog.h"
 #include "wire/CryptoHeader.h"
 #include "crypto/test/TestCa.h"
+#include "crypto/random/test/DeterminentRandomSeed.h"
+#include "util/CString.h"
 
 #define PRIVATEKEY_A \
     Constant_stringForHex("53ff22b2eb94ce8c5f1852c0f557eb901f067e5273d541e0a21e143c20dff9da")
@@ -47,9 +49,17 @@ struct Context
 
     struct Allocator* alloc;
     struct Log* log;
-    struct Random* rand;
     struct EventBase* base;
 };
+
+static struct Random* evilRandom(struct Allocator* alloc, struct Log* logger, const char* seed)
+{
+    uint8_t buf[64] = {0};
+    Assert_true(CString_strlen(seed) < 60);
+    CString_strcpy(buf, seed);
+    RandomSeed_t* evilSeed = DeterminentRandomSeed_new(alloc, buf);
+    return Random_newWithSeed(alloc, logger, evilSeed, NULL);
+}
 
 static struct Context* init(uint8_t* privateKeyA,
                             uint8_t* publicKeyA,
@@ -62,13 +72,16 @@ static struct Context* init(uint8_t* privateKeyA,
     struct Context* ctx = Allocator_calloc(alloc, sizeof(struct Context), 1);
     ctx->alloc = alloc;
     struct Log* logger = ctx->log = FileWriterLog_new(stdout, alloc);
-    struct Random* rand = ctx->rand = Random_new(alloc, logger, NULL);
+    struct Random* randA = evilRandom(alloc, logger, "ALPHA");
+    struct Random* randB = evilRandom(alloc, logger, "ALPHA");
+    struct Random* randC = evilRandom(alloc, logger, "BRAVO");
+    struct Random* randD = evilRandom(alloc, logger, "BRAVO");
     struct EventBase* base = ctx->base = EventBase_new(alloc);
 
-    ctx->ca1 = TestCa_new(alloc, privateKeyA, base, logger, rand, rand, cfg);
+    ctx->ca1 = TestCa_new(alloc, privateKeyA, base, logger, randA, randB, cfg);
     ctx->sess1 = TestCa_newSession(ctx->ca1, alloc, publicKeyB, false, "cif1", true);
 
-    ctx->ca2 = TestCa_new(alloc, privateKeyB, base, logger, rand, rand, cfg);
+    ctx->ca2 = TestCa_new(alloc, privateKeyB, base, logger, randC, randD, cfg);
     if (password) {
         String* passStr = String_CONST(password);
         TestCa_setAuth(passStr, NULL, ctx->sess1);
