@@ -533,21 +533,19 @@ impl SessionMut {
             return Err(DecryptError::DecryptErr(DecryptErr::Runt));
         }
 
-        ensure!(
-            msg.pad() >= 12,
-            DecryptError,
-            "Need at least 12 bytes of padding in incoming message"
-        );
+        // Outdated check? No longer needed?
+        //ensure!(
+        //    msg.pad() >= 12,
+        //    DecryptError,
+        //    "Need at least 12 bytes of padding in incoming message"
+        //);
         ensure!(msg.is_aligned_to(4), DecryptError, "Alignment fault");
         ensure!(msg.cap() % 4 == 0, DecryptError, "Length fault");
-
-        ensure!(msg.len() >= CryptoHeader::SIZE, DecryptError);
-        let header = msg.peek::<CryptoHeader>().unwrap().clone();
 
         debug_assert!(msg.len() >= 4); // Due to the check in the beginning
         let state = msg.pop::<u32>().expect("pop 4 bytes"); // Safe
 
-        let nonce = header.nonce.to_be(); // Read as Big-Endian
+        let nonce = state.to_be(); // Read as Big-Endian
 
         if !session.established {
             if nonce >= Nonce::FirstTrafficPacket as u32 {
@@ -591,6 +589,9 @@ impl SessionMut {
             } else {
                 msg.push(state).expect("push state back");
 
+                ensure!(msg.len() >= CryptoHeader::SIZE, DecryptError);
+                let header = msg.peek::<CryptoHeader>().unwrap().clone();
+
                 let mut session = RwLockUpgradableReadGuard::upgrade(session);
 
                 session.decrypt_handshake(nonce, msg, header, sess)
@@ -627,6 +628,10 @@ impl SessionMut {
                 format!("hello packet during established session nonce=[{}]", nonce)
             });
             msg.push(state).expect("push state back");
+
+            ensure!(msg.len() >= CryptoHeader::SIZE, DecryptError);
+            let header = msg.peek::<CryptoHeader>().unwrap().clone();
+
             session.decrypt_handshake(nonce, msg, header, sess)
         } else {
             debug::log(&session, || {
@@ -660,6 +665,11 @@ impl SessionMut {
             const LEN: usize = Challenge::SIZE + 24;
             let dest = &mut header[OFFS..(OFFS + LEN)];
             context.rand.random_bytes(dest);
+
+            // Prevent UB when reading that byte array as CryptoHeader later:
+            // because enum values *must* always contain a correct discriminant value,
+            // we overwrite `CryptoHeader::Challenge::AuthType` field with zero (which is valid).
+            header[OFFS] = 0;
         }
 
         // Get inplace mutable CryptoHeader ref inside message
@@ -672,8 +682,9 @@ impl SessionMut {
 
         // Password auth
         let password_hash;
-        if let (Some(login), Some(password)) = (self.login.as_ref(), self.password.as_ref()) {
-            let (pwd_hash, auth) = hash_password(&*login, &*password, self.auth_type);
+        if let Some(password) = self.password.as_ref() {
+            let login = self.login.as_ref().map(|s| s.as_ref()).unwrap_or(b"");
+            let (pwd_hash, auth) = hash_password(login, &*password, self.auth_type);
             header.auth = auth;
             password_hash = Some(pwd_hash);
         } else {
@@ -806,7 +817,7 @@ impl SessionMut {
         &mut self,
         nonce: u32,
         msg: &mut Message,
-        header: CryptoHeader,
+        mut header: CryptoHeader,
         sess: &Session,
     ) -> Result<(), DecryptError> {
         if msg.len() < CryptoHeader::SIZE {
@@ -945,6 +956,8 @@ impl SessionMut {
             return Err(DecryptError::DecryptErr(DecryptErr::HandshakeDecryptFailed));
         }
 
+        header.encrypted_temp_key = msg.pop().expect("pop encrypted_temp_key");
+
         if header.encrypted_temp_key.is_zero() {
             // We need to reject 0 public keys outright because they will be confused with "unknown"
             debug::log(self, || "DROP message with zero as temp public key");
@@ -957,8 +970,6 @@ impl SessionMut {
                 hex::encode(&header.encrypted_temp_key),
             );
         }
-
-        msg.discard_bytes(32).expect("discard 32 bytes");
 
         // Post-decryption checking
         if nonce == Nonce::Hello as u32 {
