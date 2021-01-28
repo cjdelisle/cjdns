@@ -53,7 +53,7 @@ pub struct SessionMut {
 
     /// Bind this CryptoAuth session to the other node's ip6 address,
     /// any packet advertising a key which doesn't hash to this will be dropped.
-    pub her_ip6: IpV6,
+    pub her_ip6: [u8; 16],
 
     /// After this number of seconds of inactivity,
     /// a connection will be reset to prevent them hanging in a bad state.
@@ -419,7 +419,7 @@ impl SessionMut {
     }
 
     fn get_her_ip6(&self) -> [u8; 16] {
-        self.her_ip6.raw().clone()
+        self.her_ip6.clone()
     }
 
     fn get_name(&self) -> Option<String> {
@@ -1162,6 +1162,13 @@ impl SessionMut {
     }
 }
 
+fn ip6_from_key(key: &[u8; 32]) -> [u8; 16] {
+    let x = sodiumoxide::crypto::hash::sha512::hash(&key[..]);
+    let mut out = [0u8; 16];
+    out.copy_from_slice(&sodiumoxide::crypto::hash::sha512::hash(&x.0[..])[0..16]);
+    out
+}
+
 impl Session {
     const DEFAULT_RESET_AFTER_INACTIVITY_SECONDS: u32 = 60;
     const DEFAULT_SETUP_RESET_AFTER_INACTIVITY_SECONDS: u32 = 10;
@@ -1182,7 +1189,7 @@ impl Session {
         if her_pub_key.is_zero() {
             return Err(KeyError::ZeroPublicKey);
         }
-        let her_ip6 = IpV6::try_from(&her_pub_key).map_err(|_| KeyError::BadPublicKey)?;
+        let her_ip6 = ip6_from_key(&her_pub_key.raw());
 
         let sess = Session {
             session_mut: RwLock::new(SessionMut {
@@ -1889,12 +1896,7 @@ mod tests {
         unsafe {
             let alloc = cffi::MallocAllocator__new(1 << 20, "".as_ptr() as *const c_char, 0);
             let fake_seed = cffi::DeterminentRandomSeed_new(alloc, std::ptr::null_mut());
-            cffi::Random_newWithSeed(
-                alloc,
-                std::ptr::null_mut(),
-                fake_seed,
-                std::ptr::null_mut(),
-            )
+            cffi::Random_newWithSeed(alloc, std::ptr::null_mut(), fake_seed, std::ptr::null_mut())
         }
     }
 }
