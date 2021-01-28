@@ -274,8 +274,14 @@ void* CryptoAuthFuzz_init(struct Allocator* alloc, struct Random* rand, enum Tes
     Identity_set(ctx);
     struct EventBase* base = EventBase_new(alloc);
     ctx->alloc = alloc;
-    ctx->nodeA.ca = TestCa_new(alloc, NULL, base, NULL, rand, rand, cfg);
-    ctx->nodeB.ca = TestCa_new(alloc, NULL, base, NULL, rand, rand, cfg);
+
+    uint8_t buf[64];
+    Random_bytes(rand, buf, 64);
+    Random_t* r0 = Random_newWithSeed(alloc, NULL, DeterminentRandomSeed_new(alloc, buf), NULL);
+    Random_t* r1 = Random_newWithSeed(alloc, NULL, DeterminentRandomSeed_new(alloc, buf), NULL);
+
+    ctx->nodeA.ca = TestCa_new(alloc, NULL, base, NULL, r0, r1, cfg);
+    ctx->nodeB.ca = TestCa_new(alloc, NULL, base, NULL, r0, r1, cfg);
     TestCa_getPubKey(ctx->nodeA.ca, ctx->nodeA.pubKey);
     TestCa_getPubKey(ctx->nodeB.ca, ctx->nodeB.pubKey);
     ctx->nodeA.session = TestCa_newSession(
