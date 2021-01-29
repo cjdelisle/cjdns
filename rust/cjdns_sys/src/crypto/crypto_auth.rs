@@ -204,9 +204,6 @@ pub enum EncryptError {
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum KeyError {
-    #[error("PublicKey can not be converted to a valid IPv6 address")]
-    BadPublicKey,
-
     #[error("PublicKey is all zeroes")]
     ZeroPublicKey,
 }
