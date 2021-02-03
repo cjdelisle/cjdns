@@ -1,8 +1,11 @@
 //! CryptoAuth
 
 use std::convert::TryFrom;
+use std::str::FromStr;
 use std::sync::Arc;
 
+use boringtun::crypto::x25519::{X25519PublicKey, X25519SecretKey};
+use boringtun::noise::{Tunn, TunnResult};
 use log::*;
 use parking_lot::{Mutex, RwLock, RwLockUpgradableReadGuard, RwLockWriteGuard};
 use thiserror::Error;
@@ -104,6 +107,9 @@ pub struct Session {
 
     /// A pointer back to the main CryptoAuth context.
     context: Arc<CryptoAuth>,
+
+    /// WireGuard tunnel: if `None` the old protocol is used
+    tunnel: Option<Box<Tunn>>,
 }
 
 enum Nonce {
@@ -194,18 +200,27 @@ pub enum DecryptError {
 
     #[error("Internal error: {0}")]
     Internal(&'static str),
+
+    #[error("WireGuard error: {0}")]
+    WireGuardError(String),
 }
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum EncryptError {
     #[error("Internal error: {0}")]
     Internal(&'static str),
+
+    #[error("WireGuard error: {0}")]
+    WireGuardError(String),
 }
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum KeyError {
     #[error("PublicKey is all zeroes")]
     ZeroPublicKey,
+
+    #[error("Either PublicKey or PrivateKey cannot be used by WireGuard: {0}")]
+    BadWireGuardKey(&'static str),
 }
 
 /// Works like `assert!()` but returns Internal error instead of panicking.
@@ -361,7 +376,7 @@ impl CryptoAuth {
                         return Some(u.clone());
                     }
                 }
-                AuthType::Two => {
+                AuthType::Two | AuthType::Three => {
                     if *auth.as_key_bytes() == u.user_name_hash {
                         return Some(u.clone());
                     }
@@ -1179,14 +1194,17 @@ impl Session {
     ) -> Result<Self, KeyError> {
         let now = context.event_base.current_time_seconds();
 
-        if use_noise {
-            unimplemented!("noise protocol");
-        }
-
         if her_pub_key.is_zero() {
             return Err(KeyError::ZeroPublicKey);
         }
         let her_ip6 = ip6_from_key(&her_pub_key.raw());
+
+        let tunnel = if use_noise {
+            let res = Self::create_tunnel(&context, &her_pub_key);
+            Some(res.map_err(|s| KeyError::BadWireGuardKey(s))?)
+        } else {
+            None
+        };
 
         let sess = Session {
             session_mut: RwLock::new(SessionMut {
@@ -1211,9 +1229,30 @@ impl Session {
             }),
             replay_protector: Mutex::new(ReplayProtector::new()),
             context,
+            tunnel,
         };
 
         Ok(sess)
+    }
+
+    fn create_tunnel(ca: &CryptoAuth, her_pub_key: &PublicKey) -> Result<Box<Tunn>, &'static str> {
+        // Unfortunately, Boringtun private key cannot be constructed from raw bytes.
+        // As a workaround, we convert the key to a HEX string
+        // and then parse it into Boringtun secret key.
+        let priv_key_str = hex::encode(ca.private_key.raw());
+        let priv_key = X25519SecretKey::from_str(&priv_key_str)?;
+
+        let pub_key = X25519PublicKey::from(&her_pub_key.raw()[..]);
+
+        let mut t = Tunn::new(Arc::new(priv_key), Arc::new(pub_key), None, None, 0, None)?;
+
+        if log::log_enabled!(log::Level::Debug) {
+            t.set_logger(Box::new(|s: &str| {
+                debug!("[NOISE] {}", s);
+            }), boringtun::noise::Verbosity::Debug);
+        }
+
+        Ok(t)
     }
 
     pub fn set_auth(&self, password: Option<ByteString>, login: Option<ByteString>) {
@@ -1237,14 +1276,24 @@ impl Session {
     }
 
     pub fn stats(&self) -> CryptoStats {
-        // Stats come from the replay protector
-        let rp = self.replay_protector.lock();
-        let stats = rp.stats();
-        CryptoStats {
-            lost_packets: stats.lost_packets as u64,
-            received_unexpected: stats.received_unexpected as u64,
-            received_packets: stats.received_packets as u64,
-            duplicate_packets: stats.duplicate_packets as u64,
+        if let Some(tunnel) = self.tunnel.as_ref() {
+            let (_time, _tx_bytes, rx_bytes, _loss, _rtt) = tunnel.stats();
+            CryptoStats {
+                lost_packets: 0,
+                received_unexpected: 0,
+                received_packets: rx_bytes as u64, //TODO bytes vs packets
+                duplicate_packets: 0,
+            }
+        } else {
+            // Stats come from the replay protector
+            let rp = self.replay_protector.lock();
+            let stats = rp.stats();
+            CryptoStats {
+                lost_packets: stats.lost_packets as u64,
+                received_unexpected: stats.received_unexpected as u64,
+                received_packets: stats.received_packets as u64,
+                duplicate_packets: stats.duplicate_packets as u64,
+            }
         }
     }
 
@@ -1267,12 +1316,107 @@ impl Session {
         self.session_mut.read().her_key_known()
     }
 
+    /// Encrypts the message inplace. The new content of `msg` should be sent to the peer.
     pub fn encrypt(&self, msg: &mut Message) -> Result<(), EncryptError> {
-        SessionMut::encrypt(self, msg)
+        if let Some(tunnel) = self.tunnel.as_ref() {
+            Self::tun_send(tunnel, msg)
+        } else {
+            SessionMut::encrypt(self, msg)
+        }
     }
 
-    pub fn decrypt(&self, msg: &mut Message) -> Result<(), DecryptError> {
-        SessionMut::decrypt(self, msg)
+    /// Decrypt a packet from the peer inplace. If the msg is non-empty, it is the
+    /// decrypted plaintext. Also, additional messages might be required to send to the peer,
+    /// in that case the result is `Some` vec of packets. Each packet must be sent separately.
+    /// If no additional messages required, the result is `None` (handshake already completed).
+    pub fn decrypt(&self, msg: &mut Message) -> Result<Option<Vec<Vec<u8>>>, DecryptError> {
+        if let Some(tunnel) = self.tunnel.as_ref() {
+            Self::tun_recv(tunnel, msg)
+        } else {
+            SessionMut::decrypt(self, msg).map(|_| None)
+        }
+    }
+
+    fn tun_send(tun: &Tunn, msg: &mut Message) -> Result<(), EncryptError> {
+        // Prepend a fake IPv4 header to the buffer (required by BoringTun)
+        {
+            ensure!(msg.pad() >= 20, EncryptError);
+            let mut header = [0u8; 20];
+            let packet_len = msg.len() + header.len();
+            header[0] = 4 << 4;
+            header[2] = (packet_len >> 8) as u8;
+            header[2 + 1] = (packet_len & 0xFF) as u8;
+            msg.push_bytes(&header).expect("push IP header");
+        }
+
+        // Doc comment on Tun::encapsulate() says what buffer size should be.
+        // But in practice this is not enough, hence additional 128 bytes.
+        let buf_size = (msg.len() + 32).min(148) + 128;
+        ensure!(msg.len() + msg.pad() >= buf_size, EncryptError);
+        let mut buf = Vec::with_capacity(buf_size);
+        buf.resize(buf_size, 0);
+        let res = tun.encapsulate(msg.bytes(), &mut buf);
+        match res {
+            TunnResult::Err(e) => {
+                return Err(EncryptError::WireGuardError(format!("{:?}", e)));
+            }
+            TunnResult::Done => {
+                // This means we need to return empty buffer
+                msg.clear();
+                return Ok(());
+            }
+            TunnResult::WriteToNetwork(buf) => {
+                msg.clear();
+                msg.push_bytes(buf).expect("msg size");
+                return Ok(());
+            }
+            bad => unreachable!("unexpected TunnResult: {:?}", bad),
+        }
+    }
+
+    fn tun_recv(tun: &Tunn, msg: &mut Message) -> Result<Option<Vec<Vec<u8>>>, DecryptError> {
+        let buf_size = msg.len();
+        let mut tmp_buf = Vec::with_capacity(buf_size);
+        tmp_buf.resize(buf_size, 0);
+        let mut packets = Vec::new();
+
+        let mut res = tun.decapsulate(None, msg.bytes(), &mut tmp_buf);
+        loop {
+            match res {
+                TunnResult::Err(e) => {
+                    return Err(DecryptError::WireGuardError(format!("{:?}", e)));
+                }
+                TunnResult::Done => {
+                    msg.clear();
+                    break;
+                }
+                TunnResult::WriteToNetwork(buf) => {
+                    let buf = Vec::from(buf);
+                    packets.push(buf);
+                    // Request more data
+                    res = tun.decapsulate(None, &[], &mut tmp_buf);
+                }
+                TunnResult::WriteToTunnelV4(buf, _) |
+                TunnResult::WriteToTunnelV6(buf, _) => {
+                    // Successfully decrypted a packet - return it in the msg
+                    msg.clear();
+                    msg.push_bytes(buf).expect("insufficient buffer");
+                    break;
+                }
+            }
+        }
+
+        // Remove the fake IP header we added in send fn
+        if msg.len() > 0 {
+            ensure!(msg.len() >= 20, DecryptError, "Broken message - no IP header");
+            msg.discard_bytes(20).expect("drop IP header");
+        }
+
+        if packets.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(packets))
+        }
     }
 }
 
@@ -1357,6 +1501,7 @@ fn hash_password(login: &[u8], password: &[u8], auth_type: AuthType) -> ([u8; 32
         AuthType::Zero => panic!("Unsupported auth type [{}]", auth_type as u8),
         AuthType::One => crypto_hash_sha256(&secret_out),
         AuthType::Two => crypto_hash_sha256(login),
+        AuthType::Three => crypto_hash_sha256(login), // Same as Two
     };
 
     let mut challenge_out = Challenge {
@@ -1895,5 +2040,81 @@ mod tests {
             let fake_seed = cffi::DeterminentRandomSeed_new(alloc, std::ptr::null_mut());
             cffi::Random_newWithSeed(alloc, std::ptr::null_mut(), fake_seed, std::ptr::null_mut())
         }
+    }
+
+    #[test]
+    pub fn test_wireguard_encrypt_decrypt() {
+        let keys_api = CJDNSKeysApi::new().unwrap();
+        let my_keys = keys_api.key_pair();
+        let her_keys = keys_api.key_pair();
+
+        fn mk_sess(my_priv_key: PrivateKey, her_pub_key: PublicKey, name: &str) -> super::Session {
+            let ca = super::CryptoAuth::new(Some(my_priv_key), EventBase {}, Random::Fake);
+            let ca = Arc::new(ca);
+
+            let res = ca.add_user_ipv6(
+                ByteString::from(name.to_string()),
+                Some(ByteString::from(name.to_string())),
+                None,
+            );
+            assert_eq!(res.err(), None);
+
+            let sess = super::Session::new(
+                ca.clone(),
+                her_pub_key,
+                false,
+                Some(format!("{}'s session", name)),
+                true,
+            );
+            assert_eq!(sess.as_ref().err(), None);
+            sess.unwrap()
+        }
+
+        let her_session = mk_sess(
+            her_keys.private_key.clone(),
+            my_keys.public_key.clone(),
+            "alice",
+        );
+
+        let my_session = mk_sess(
+            my_keys.private_key.clone(),
+            her_keys.public_key.clone(),
+            "bob",
+        );
+
+        let mut msg = mk_msg(1024);
+        msg.push_bytes(b"Hello World").unwrap();
+        let orig_length = msg.len();
+
+        let res = my_session.encrypt(&mut msg);
+        assert_eq!(res.err(), None);
+        assert_ne!(msg.len(), orig_length);
+
+        let res = her_session.decrypt(&mut msg);
+        assert_eq!(res.as_ref().err(), None);
+        if let Some(Some(send_back)) = res.ok() {
+            'outer: for packet in send_back {
+                msg.clear();
+                msg.push_bytes(&packet).expect("msg size");
+                let res = my_session.decrypt(&mut msg);
+                assert_eq!(res.as_ref().err(), None);
+                assert_eq!(msg.len(), 0);
+
+                if let Some(Some(send_back)) = res.ok() {
+                    for packet in send_back {
+                        msg.clear();
+                        msg.push_bytes(&packet).expect("msg size");
+                        let res = her_session.decrypt(&mut msg);
+                        assert_eq!(res, Ok(None));
+                        if msg.len() > 0 {
+                            break 'outer;
+                        }
+                    }
+                }
+            }
+        }
+
+        assert_eq!(msg.len(), orig_length);
+        assert_eq!(msg.bytes(), b"Hello World");
     }
 }

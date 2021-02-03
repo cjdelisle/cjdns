@@ -34,6 +34,9 @@ pub enum AuthType {
     /// which is known by the received of the packet to be associated
     /// with the password used for making the symmetric secret.
     Two = 2,
+
+    /// AuthType Three uses WireGuard protocol, everything else is similar to AuthType Two.
+    Three = 3,
 }
 
 impl Default for AuthType {

@@ -14,6 +14,7 @@ log = "0.4"
 parking_lot = "0.11"
 thiserror = "1.0"
 anyhow = "1.0"
+boringtun = "0.3"
 
 [build_dependencies]
 cc = "1.0"

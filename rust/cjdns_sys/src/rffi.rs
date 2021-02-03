@@ -183,6 +183,7 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_decrypt(
         Ok(_) => 0,
         Err(crypto_auth::DecryptError::DecryptErr(e)) => e as c_int,
         Err(crypto_auth::DecryptError::Internal(_)) => 42 as c_int,
+        Err(crypto_auth::DecryptError::WireGuardError(_)) => 43 as c_int,
     }
 }
 
