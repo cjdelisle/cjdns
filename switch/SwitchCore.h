@@ -48,8 +48,4 @@ int SwitchCore_addInterface(struct SwitchCore* switchCore,
 
 void SwitchCore_swapInterfaces(struct Iface* if1, struct Iface* if2);
 
-#define SwitchCore_setInterfaceState_ifaceState_DOWN 0
-#define SwitchCore_setInterfaceState_ifaceState_UP   1
-void SwitchCore_setInterfaceState(struct Iface* iface, int ifaceState);
-
 #endif

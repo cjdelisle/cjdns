@@ -34,6 +34,10 @@ pub enum MessageError {
 pub type Result<T> = std::result::Result<T, MessageError>;
 
 impl Message {
+    pub fn new(&self, padding: usize) -> Self {
+        unsafe { Message(cffi::Message_new(0, padding as u32, (*self.0).alloc)) }
+    }
+
     /// Construct a Rust `Message` by wrapping a pointer to C `Message`.
     ///
     /// *Unsafe:* The original pointer *must* remain valid until this instance is dropped.

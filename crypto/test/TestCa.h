@@ -23,7 +23,10 @@
 Linker_require("crypto/test/TestCa.c")
 
 typedef struct TestCa_s TestCa_t;
-typedef struct TestCa_Session_s TestCa_Session_t;
+typedef struct TestCa_Session_s {
+    struct Iface plaintext;
+    struct Iface ciphertext;
+} TestCa_Session_t;
 
 enum TestCa_Config {
     TestCa_Config_OLD,
@@ -57,10 +60,6 @@ TestCa_Session_t * TestCa_newSession(
     bool requireAuth,
     char *name,
     bool useNoise);
-
-int TestCa_encrypt(TestCa_Session_t *session, Message_t *msg);
-
-int TestCa_decrypt(TestCa_Session_t *sess, Message_t *msg);
 
 void TestCa_setAuth(const String_t *password, const String_t *login, TestCa_Session_t *caSession);
 

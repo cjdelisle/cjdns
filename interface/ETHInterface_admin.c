@@ -62,7 +62,7 @@ static void beginConnection(Dict* args,
         error = "invalid macAddress";
     } else {
         int ret = InterfaceController_bootstrapPeer(
-            ctx->ic, ifNum, pkBytes, &sockaddr.generic, password, login, peerName, ctx->alloc);
+            ctx->ic, ifNum, pkBytes, &sockaddr.generic, password, login, peerName);
 
         if (ret == InterfaceController_bootstrapPeer_BAD_IFNUM) {
             error = "invalid interfaceNumber";

@@ -50,9 +50,9 @@ mod interface {
     pub mod rustiface_test_wrapper;
 }
 
+mod bytestring;
 mod cffi;
+mod crypto;
 mod rffi;
 mod rtypes;
-mod crypto;
-mod bytestring;
 mod util;

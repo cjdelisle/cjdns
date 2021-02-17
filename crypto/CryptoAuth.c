@@ -473,11 +473,8 @@ static void encryptHandshake(struct Message* message,
 }
 
 /** @return 0 on success, -1 otherwise. */
-int CryptoAuth_encrypt(struct CryptoAuth_Session* sessionPub, struct Message* msg)
+static int encryptPacket(struct CryptoAuth_Session_pvt* session, struct Message* msg)
 {
-    struct CryptoAuth_Session_pvt* session =
-        Identity_check((struct CryptoAuth_Session_pvt*) sessionPub);
-
     // If there has been no incoming traffic for a while, reset the connection to state 0.
     // This will prevent "connection in bad state" situations from lasting forever.
     // this will reset the session if it has timed out.
@@ -830,11 +827,9 @@ static enum CryptoAuth_DecryptErr decryptHandshake(struct CryptoAuth_Session_pvt
 }
 
 /** @return 0 on success, -1 otherwise. */
-enum CryptoAuth_DecryptErr CryptoAuth_decrypt(struct CryptoAuth_Session* sessionPub,
-                                              struct Message* msg)
+static enum CryptoAuth_DecryptErr decryptPacket(struct CryptoAuth_Session_pvt* session,
+                                                struct Message* msg)
 {
-    struct CryptoAuth_Session_pvt* session =
-        Identity_check((struct CryptoAuth_Session_pvt*) sessionPub);
     struct CryptoHeader* header = (struct CryptoHeader*) msg->bytes;
 
     if (msg->length < 20) {
@@ -1044,16 +1039,50 @@ RTypes_StrList_t* CryptoAuth_getUsers(const struct CryptoAuth* context, struct A
     return out;
 }
 
+static Iface_DEFUN plaintextMsg(struct Message* msg, struct Iface* iface)
+{
+    struct CryptoAuth_Session_pvt* sess =
+        Identity_containerOf(iface, struct CryptoAuth_Session_pvt, pub.plaintext);
+    if (encryptPacket(sess, msg)) {
+        return Error(INTERNAL);
+    }
+    return Iface_next(&sess->pub.ciphertext, msg);
+}
+
+static Iface_DEFUN ciphertextMsg(struct Message* msg, struct Iface* iface)
+{
+    struct CryptoAuth_Session_pvt* sess =
+        Identity_containerOf(iface, struct CryptoAuth_Session_pvt, pub.ciphertext);
+    if (msg->length < 16) {
+        return Error(RUNT);
+    }
+    uint8_t firstSixteen[16];
+    Bits_memcpy(firstSixteen, msg->bytes, 16);
+    enum CryptoAuth_DecryptErr e = decryptPacket(sess, msg);
+    if (e == CryptoAuth_DecryptErr_NONE) {
+        Er_assert(Message_epush32be(msg, CryptoAuth_DecryptErr_NONE));
+        return Iface_next(&sess->pub.plaintext, msg);
+    }
+    Er_assert(Message_epop(msg, NULL, msg->length));
+    Er_assert(Message_epush32be(msg, CryptoAuth_getState(&sess->pub)));
+    Er_assert(Message_epush32be(msg, e));
+    Er_assert(Message_epush(msg, firstSixteen, 16));
+    Er_assert(Message_epush32h(msg, e));
+    return Iface_next(&sess->pub.plaintext, msg);
+}
+
 struct CryptoAuth_Session* CryptoAuth_newSession(struct CryptoAuth* ca,
                                                  struct Allocator* alloc,
                                                  const uint8_t herPublicKey[32],
                                                  const bool requireAuth,
-                                                 char* displayName)
+                                                 const char* displayName)
 {
     struct CryptoAuth_pvt* context = Identity_check((struct CryptoAuth_pvt*) ca);
     struct CryptoAuth_Session_pvt* session =
         Allocator_calloc(alloc, sizeof(struct CryptoAuth_Session_pvt), 1);
     Identity_set(session);
+    session->pub.plaintext.send = plaintextMsg;
+    session->pub.ciphertext.send = ciphertextMsg;
     session->context = context;
     session->requireAuth = requireAuth;
     session->displayName = displayName ? String_new(displayName, alloc) : NULL;

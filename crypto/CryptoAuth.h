@@ -40,7 +40,8 @@ struct CryptoAuth
 
 struct CryptoAuth_Session
 {
-    int opaque;
+    struct Iface plaintext;
+    struct Iface ciphertext;
 };
 
 /**
@@ -127,10 +128,7 @@ struct CryptoAuth_Session* CryptoAuth_newSession(struct CryptoAuth* ca,
                                                  struct Allocator* alloc,
                                                  const uint8_t herPublicKey[32],
                                                  const bool requireAuth,
-                                                 char* name);
-
-/** @return 0 on success, -1 otherwise. */
-int CryptoAuth_encrypt(struct CryptoAuth_Session* session, struct Message* msg);
+                                                 const char* name);
 
 enum CryptoAuth_DecryptErr {
     CryptoAuth_DecryptErr_NONE = 0,
@@ -178,10 +176,6 @@ enum CryptoAuth_DecryptErr {
     // Authenticated decryption failed
     CryptoAuth_DecryptErr_DECRYPT = 15
 };
-
-// returns 0 if everything if ok, otherwise an encryption error.
-// If there is an error, the content of the message MIGHT already be decrypted !
-enum CryptoAuth_DecryptErr CryptoAuth_decrypt(struct CryptoAuth_Session* sess, struct Message* msg);
 
 /**
  * Choose the authentication credentials to use.

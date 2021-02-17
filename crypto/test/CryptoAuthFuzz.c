@@ -26,6 +26,7 @@
 #include "crypto/random/test/DeterminentRandomSeed.h"
 #include "crypto/random/Random.h"
 #include "crypto/AddressCalc.h"
+#include "crypto/CryptoAuth.h"
 
 struct DelayedMsg {
     struct Message* msg;
@@ -35,12 +36,18 @@ struct DelayedMsg {
     int sendAfter;
 };
 
+struct Context;
+
 struct Node {
     TestCa_t* ca;
     TestCa_Session_t* session;
+    struct Iface plaintext;
+    struct Iface ciphertext;
     struct DelayedMsg* delayedMsgs;
     int sendCounter;
     uint8_t pubKey[32];
+    struct Context* ctx;
+    Identity
 };
 
 struct Context {
@@ -210,23 +217,9 @@ static void sendFrom(struct Context* ctx, struct Node* from, struct Message* msg
         flippedImmutable = true;
     }
 
-    if (!TestCa_decrypt(to->session, msg)) {
-        Assert_true(!flippedImmutable);
-        Assert_true(msg->length == 4 && !Bits_memcmp(msg->bytes, "hey", 4));
-        if (to == &ctx->nodeB) {
-            // 1/10 chance the node decides not to reply.
-            if (maybe(ctx, 10)) {
-                return;
-            }
-            Assert_true(!TestCa_encrypt(to->session, msg));
-            to->sendCounter++;
-            sendFrom(ctx, to, msg);
-        } else if (TestCa_getState(ctx->nodeA.session) == RTypes_CryptoAuth_State_t_Established &&
-            TestCa_getState(ctx->nodeB.session) == RTypes_CryptoAuth_State_t_Established)
-        {
-            ctx->successMessageCount++;
-        }
-    }
+    Er_assert(Message_epushAd(msg, &flippedImmutable, sizeof flippedImmutable));
+
+    Iface_send(&to->ciphertext, msg); // --> afterDecrypt (hopefully)
 }
 
 static bool sendQueued(struct Context* ctx, struct Node* fromNode)
@@ -260,18 +253,57 @@ static void mainLoop(struct Context* ctx)
         struct Allocator* alloc = Allocator_child(ctx->alloc);
         struct Message* msg = Message_new(0, 512, alloc);
         Er_assert(Message_epush(msg, "hey", 4));
-        Assert_true(!TestCa_encrypt(ctx->nodeA.session, msg));
-        sendFrom(ctx, &ctx->nodeA, msg);
+        Iface_send(&ctx->nodeA.plaintext, msg);
+        //Assert_true(!TestCa_encrypt(ctx->nodeA.session, msg));
+        //sendFrom(ctx, &ctx->nodeA, msg);
         Allocator_free(alloc);
     }
 
     Assert_failure("Nodes could not sync");
 }
 
+static Iface_DEFUN afterEncrypt(struct Message* msg, struct Iface* iface)
+{
+    struct Node* n = Identity_containerOf(iface, struct Node, ciphertext);
+    sendFrom(n->ctx, n, msg);
+    return Error(NONE);
+}
+
+static Iface_DEFUN afterDecrypt(struct Message* msg, struct Iface* iface)
+{
+    bool flippedImmutable = false;
+    Er_assert(Message_epopAd(msg, &flippedImmutable, sizeof flippedImmutable));
+
+    struct Node* to = Identity_containerOf(iface, struct Node, plaintext);
+
+    enum CryptoAuth_DecryptErr e = Er_assert(Message_epop32h(msg));
+    if (!e) {
+        Assert_true(!flippedImmutable);
+        Assert_true(msg->length == 4 && !Bits_memcmp(msg->bytes, "hey", 4));
+        if (to == &to->ctx->nodeB) {
+            // 1/10 chance the node decides not to reply.
+            if (maybe(to->ctx, 10)) {
+                return Error(NONE);
+            }
+            //Assert_true(!TestCa_encrypt(to->session, msg));
+            to->sendCounter++;
+            Iface_send(&to->plaintext, msg);
+            //sendFrom(ctx, to, msg);
+        } else if (TestCa_getState(to->ctx->nodeA.session) == RTypes_CryptoAuth_State_t_Established &&
+            TestCa_getState(to->ctx->nodeB.session) == RTypes_CryptoAuth_State_t_Established)
+        {
+            to->ctx->successMessageCount++;
+        }
+    }
+    return Error(NONE);
+}
+
 void* CryptoAuthFuzz_init(struct Allocator* alloc, struct Random* rand, enum TestCa_Config cfg)
 {
     struct Context* ctx = Allocator_calloc(alloc, sizeof(struct Context), 1);
     Identity_set(ctx);
+    Identity_set(&ctx->nodeA);
+    Identity_set(&ctx->nodeB);
     struct EventBase* base = EventBase_new(alloc);
     ctx->alloc = alloc;
 
@@ -284,10 +316,22 @@ void* CryptoAuthFuzz_init(struct Allocator* alloc, struct Random* rand, enum Tes
     ctx->nodeB.ca = TestCa_new(alloc, NULL, base, NULL, r0, r1, cfg);
     TestCa_getPubKey(ctx->nodeA.ca, ctx->nodeA.pubKey);
     TestCa_getPubKey(ctx->nodeB.ca, ctx->nodeB.pubKey);
+
+    ctx->nodeA.ctx = ctx;
+    ctx->nodeA.ciphertext.send = afterEncrypt;
+    ctx->nodeA.plaintext.send = afterDecrypt;
     ctx->nodeA.session = TestCa_newSession(
         ctx->nodeA.ca, alloc, ctx->nodeB.pubKey, false, "nodeA", true);
+    Iface_plumb(&ctx->nodeA.ciphertext, &ctx->nodeA.session->ciphertext);
+    Iface_plumb(&ctx->nodeA.plaintext, &ctx->nodeA.session->plaintext);
+
+    ctx->nodeB.ctx = ctx;
+    ctx->nodeB.ciphertext.send = afterEncrypt;
+    ctx->nodeB.plaintext.send = afterDecrypt;
     ctx->nodeB.session = TestCa_newSession(
         ctx->nodeB.ca, alloc, ctx->nodeA.pubKey, false, "nodeB", true);
+    Iface_plumb(&ctx->nodeB.ciphertext, &ctx->nodeB.session->ciphertext);
+    Iface_plumb(&ctx->nodeB.plaintext, &ctx->nodeB.session->plaintext);
     return ctx;
 }
 

@@ -120,12 +120,7 @@ struct InterfaceController_PeerStats
 
 struct InterfaceController
 {
-    /*
-     * If set to true, high resolution timestamp data will be collected for each
-     * packet to help with estimating available bandwidth. Caution: this implies
-     * an extra syscall per packet.
-     */
-    bool timestampPackets;
+    int opaque;
 };
 
 struct InterfaceController_Iface
@@ -175,7 +170,6 @@ struct InterfaceController_Iface* InterfaceController_getIface(struct InterfaceC
  * @param login an identity to provide to the other node with the password,
  *        if null then authtype 1 will be used.
  * @param displayName the username to assign the other node in the CryptoAuth session. May be null.
- * @param alloc the peer will be dropped if this is freed.
  *
  * @return 0 if all goes well.
  *         InterfaceController_bootstrapPeer_BAD_IFNUM if there is no such interface for this num.
@@ -193,8 +187,7 @@ int InterfaceController_bootstrapPeer(struct InterfaceController* ifc,
                                       const struct Sockaddr* lladdr,
                                       String* password,
                                       String* login,
-                                      String* displayName,
-                                      struct Allocator* alloc);
+                                      String* displayName);
 
 #define InterfaceController_beaconState_newState_OFF    0
 #define InterfaceController_beaconState_newState_ACCEPT 1
@@ -220,10 +213,8 @@ void InterfaceController_resetPeering(struct InterfaceController* ifController,
  *
  * @param ic the if controller
  * @param herPublicKey the public key of the foreign node
- * @return 0 if all goes well.
- *         InterfaceController_disconnectPeer_NOTFOUND if no peer with herPublicKey is found.
+ * @return number of sessions disconnected
  */
-#define InterfaceController_disconnectPeer_NOTFOUND -1
 int InterfaceController_disconnectPeer(struct InterfaceController* ifc, uint8_t herPublicKey[32]);
 
 /**

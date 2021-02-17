@@ -230,8 +230,8 @@ static Er_DEFUN(int openBPF(struct Allocator* alloc))
 {
     for (int retry = 0; retry < 100; retry++) {
         for (int i = 0; i < 256; i++) {
-            char buf[11] = { 0 };
-            snprintf(buf, 10, "/dev/bpf%i", i);
+            char buf[21] = { 0 };
+            snprintf(buf, 20, "/dev/bpf%i", i);
             int bpf = open(buf, O_RDWR);
             if (bpf != -1) { Er_ret(bpf); }
         }

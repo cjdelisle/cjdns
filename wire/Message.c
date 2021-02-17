@@ -21,6 +21,8 @@ struct Message* Message_new(uint32_t messageLength,
 {
     uint8_t* buff = Allocator_malloc(alloc, messageLength + amountOfPadding);
     struct Message* out = Allocator_calloc(alloc, sizeof(struct Message), 1);
+    out->ad = buff;
+    out->adLen = 0;
     out->bytes = &buff[amountOfPadding];
     out->length = out->capacity = messageLength;
     out->padding = amountOfPadding;
@@ -63,23 +65,9 @@ struct Message* Message_clone(struct Message* toClone, struct Allocator* alloc)
         .length = toClone->length,
         .padding = toClone->padding,
         .bytes = allocation + toClone->padding,
+        .ad = allocation,
+        .adLen = toClone->adLen,
         .capacity = toClone->capacity,
         .alloc = alloc
     }));
-}
-
-void Message_copyOver(struct Message* output,
-                                    struct Message* input,
-                                    struct Allocator* allocator)
-{
-    size_t inTotalLength = input->length + input->padding;
-    size_t outTotalLength = output->length + output->padding;
-    uint8_t* allocation = output->bytes - output->padding;
-    if (inTotalLength > outTotalLength) {
-        allocation = Allocator_realloc(allocator, allocation, inTotalLength);
-    }
-    Bits_memcpy(allocation, input->bytes - input->padding, inTotalLength);
-    output->bytes = allocation + input->padding;
-    output->length = input->length;
-    output->padding = input->padding;
 }

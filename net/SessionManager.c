@@ -70,6 +70,9 @@ struct SessionManager_Session_pvt
 {
     struct SessionManager_Session pub;
 
+    struct Iface plaintext;
+    struct Iface ciphertext;
+
     struct SessionManager_pvt* sessionManager;
 
     struct Allocator* alloc;
@@ -264,8 +267,7 @@ static void rerankPaths(struct SessionManager_Session_pvt* sess)
 
 
 // Return true if the new path is an improvement
-static bool discoverPath(struct SessionManager_pvt* sm,
-                         struct SessionManager_Session_pvt* sess,
+static bool discoverPath(struct SessionManager_Session_pvt* sess,
                          uint64_t label,
                          uint32_t metric)
 {
@@ -273,9 +275,9 @@ static bool discoverPath(struct SessionManager_pvt* sm,
         return false;
     }
     SessionManager_Path_t* path = pathForLabel(sess, label);
-    uint64_t now = Time_currentTimeMilliseconds(sm->eventBase);
+    uint64_t now = Time_currentTimeMilliseconds(sess->sessionManager->eventBase);
     if (path) {
-        if (metric != Metric_DEAD_LINK && effectiveMetric(sm, path) <= metric) {
+        if (metric != Metric_DEAD_LINK && effectiveMetric(sess->sessionManager, path) <= metric) {
             // already have a better source of truth
             return false;
         }
@@ -285,7 +287,7 @@ static bool discoverPath(struct SessionManager_pvt* sm,
         return (sess->pub.paths[0].label == label);
     } else {
         path = worstPath(sess);
-        if (effectiveMetric(sm, path) <= metric) {
+        if (effectiveMetric(sess->sessionManager, path) <= metric) {
             return false;
         }
         path->label = label;
@@ -300,6 +302,113 @@ static bool discoverPath(struct SessionManager_pvt* sm,
     }
 }
 
+static Iface_DEFUN failedDecrypt(struct Message* msg,
+                                 uint64_t label_be,
+                                 struct SessionManager_pvt* sm)
+{
+    Er_assert(Message_epush32be(msg, Error_AUTHENTICATION));
+    Er_assert(Message_epush16be(msg, Control_ERROR));
+    Er_assert(Message_epush16be(msg, 0));
+    uint16_t csum_be = Checksum_engine_be(msg->bytes, msg->length);
+    Er_assert(Message_epop16h(msg));
+    Er_assert(Message_epush16h(msg, csum_be));
+
+    Er_assert(Message_epush32be(msg, 0xffffffff));
+
+    struct SwitchHeader sh;
+    Bits_memset(&sh, 0, SwitchHeader_SIZE);
+    SwitchHeader_setSuppressErrors(&sh, true);
+    SwitchHeader_setVersion(&sh, SwitchHeader_CURRENT_VERSION);
+    sh.label_be = label_be;
+    Er_assert(Message_epush(msg, &sh, SwitchHeader_SIZE));
+
+    return Iface_next(&sm->pub.switchIf, msg);
+}
+
+static Iface_DEFUN postDecryption(struct Message* msg, struct Iface* iface)
+{
+    struct SessionManager_Session_pvt* session =
+        Identity_containerOf(iface, struct SessionManager_Session_pvt, plaintext);
+
+    // The switch header is pushed as associated data
+    uint32_t nonceOrHandle = 0xffffffff;
+    Er_assert(Message_epopAd(msg, &nonceOrHandle, 4));
+    struct RouteHeader header = {
+        .flags = RouteHeader_flags_INCOMING,
+        .version_be = Endian_hostToBigEndian32(session->pub.version),
+    };
+    Er_assert(Message_epopAd(msg, &header.sh, SwitchHeader_SIZE));
+    CryptoAuth_getHerPubKey(session->pub.caSession, header.publicKey);
+    CryptoAuth_getHerIp6(session->pub.caSession, header.ip6);
+    uint64_t label = Endian_bigEndianToHost64(header.sh.label_be);
+
+    enum CryptoAuth_DecryptErr ret = Er_assert(Message_epop32h(msg));
+    if (ret) {
+        // If CryptoAuth fails to decrypt then it gives us:
+        // * CryptoAuth_DecryptErr - we already popped this
+        // * first16
+        // * CryptoAuth_DecryptErr
+        // * state
+        debugHandlesAndLabel(session->sessionManager->log, session,
+                             label,
+                             "DROP Failed decrypting message NoH[%d] state[%s]",
+                             nonceOrHandle,
+                             CryptoAuth_stateString(CryptoAuth_getState(session->pub.caSession)));
+        uint64_t label_be = header.sh.label_be;
+        // We want to preserve it "as it was" here
+        header.sh.label_be = Bits_bitReverse64(header.sh.label_be);
+        Er_assert(Message_epush(msg, &header.sh, SwitchHeader_SIZE));
+        return failedDecrypt(msg, label_be, session->sessionManager);
+    }
+
+    if (nonceOrHandle <= 3) {
+        session->pub.sendHandle = Er_assert(Message_epop32be(msg));
+        debugHandlesAndLabel0(
+            session->sessionManager->log, session, label, "received start message");
+    }
+
+    session->pub.bytesIn += msg->length;
+    Er_assert(Message_epush(msg, &header, sizeof header));
+
+    discoverPath(session, label, Metric_SM_INCOMING);
+    return Iface_next(&session->sessionManager->pub.insideIf, msg);
+}
+
+static Iface_DEFUN afterEncrypt(struct Message* msg, struct Iface* iface)
+{
+    //Assert_true(!CryptoAuth_encrypt(sess->pub.caSession, msg));
+    struct SessionManager_Session_pvt* sess =
+        Identity_containerOf(iface, struct SessionManager_Session_pvt, ciphertext);
+
+    struct RouteHeader header;
+    Er_assert(Message_epopAd(msg, &header, RouteHeader_SIZE));
+
+    if (CryptoAuth_getState(sess->pub.caSession) >= CryptoAuth_State_RECEIVED_KEY) {
+        if (0) { // Noisy
+            debugHandlesAndLabel0(sess->sessionManager->log,
+                                  sess,
+                                  Endian_bigEndianToHost64(header.sh.label_be),
+                                  "sending run message");
+        }
+        Er_assert(Message_epush32be(msg, sess->pub.sendHandle));
+    } else {
+        debugHandlesAndLabel0(sess->sessionManager->log,
+                              sess,
+                              Endian_bigEndianToHost64(header.sh.label_be),
+                              "sending start message");
+    }
+
+    if (!header.sh.label_be) {
+        Bits_memset(&header.sh, 0, SwitchHeader_SIZE);
+        header.sh.label_be = Endian_hostToBigEndian64(sess->pub.paths[0].label);
+        SwitchHeader_setVersion(&header.sh, SwitchHeader_CURRENT_VERSION);
+    }
+
+    Er_assert(Message_epush(msg, &header.sh, SwitchHeader_SIZE));
+
+    return Iface_next(&sess->sessionManager->pub.switchIf, msg);
+}
+
 static struct SessionManager_Session_pvt* getSession(struct SessionManager_pvt* sm,
                                                      uint8_t ip6[16],
                                                      uint8_t pubKey[32],
@@ -312,7 +421,7 @@ static struct SessionManager_Session_pvt* getSession(struct SessionManager_pvt* 
     struct SessionManager_Session_pvt* sess = sessionForIp6(ip6, sm);
     if (sess) {
         sess->pub.version = (sess->pub.version) ? sess->pub.version : version;
-        if (discoverPath(sm, sess, label, metric)) {
+        if (discoverPath(sess, label, metric)) {
             sess->pub.version = (version) ? version : sess->pub.version;
         }
         return sess;
@@ -321,7 +430,11 @@ static struct SessionManager_Session_pvt* getSession(struct SessionManager_pvt* 
     sess = Allocator_calloc(alloc, sizeof(struct SessionManager_Session_pvt), 1);
     Identity_set(sess);
 
+    sess->plaintext.send = postDecryption;
+    sess->ciphertext.send = afterEncrypt;
     sess->pub.caSession = CryptoAuth_newSession(sm->cryptoAuth, alloc, pubKey, false, "inner");
+    Iface_plumb(&sess->pub.caSession->plaintext, &sess->plaintext);
+    Iface_plumb(&sess->pub.caSession->ciphertext, &sess->ciphertext);
 
     sess->foundKey = !Bits_isZero(pubKey, 32);
     if (sess->foundKey) {
@@ -364,29 +477,6 @@ static Iface_DEFUN ctrlFrame(struct Message* msg, struct SessionManager_pvt* sm)
     return Iface_next(&sm->pub.insideIf, msg);
 }
 
-static Iface_DEFUN failedDecrypt(struct Message* msg,
-                                 uint64_t label_be,
-                                 struct SessionManager_pvt* sm)
-{
-    Er_assert(Message_epush32be(msg, Error_AUTHENTICATION));
-    Er_assert(Message_epush16be(msg, Control_ERROR));
-    Er_assert(Message_epush16be(msg, 0));
-    uint16_t csum_be = Checksum_engine_be(msg->bytes, msg->length);
-    Er_assert(Message_epop16h(msg));
-    Er_assert(Message_epush16h(msg, csum_be));
-
-    Er_assert(Message_epush32be(msg, 0xffffffff));
-
-    struct SwitchHeader sh;
-    Bits_memset(&sh, 0, SwitchHeader_SIZE);
-    SwitchHeader_setSuppressErrors(&sh, true);
-    SwitchHeader_setVersion(&sh, SwitchHeader_CURRENT_VERSION);
-    sh.label_be = label_be;
-    Er_assert(Message_epush(msg, &sh, SwitchHeader_SIZE));
-
-    return Iface_next(&sm->pub.switchIf, msg);
-}
-
 static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface)
 {
     struct SessionManager_pvt* sm =
@@ -398,18 +488,18 @@ static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface
         return Error(RUNT);
     }
 
-    struct SwitchHeader* switchHeader = (struct SwitchHeader*) msg->bytes;
-    Er_assert(Message_eshift(msg, -SwitchHeader_SIZE));
+    struct SwitchHeader switchHeader;
+    Er_assert(Message_epop(msg, &switchHeader, SwitchHeader_SIZE));
 
     // The label comes in reversed from the switch because the switch doesn't know that we aren't
     // another switch ready to parse more bits, bit reversing the label yields the source address.
     // (the field is still big endian!)
-    switchHeader->label_be = Bits_bitReverse64(switchHeader->label_be);
+    switchHeader.label_be = Bits_bitReverse64(switchHeader.label_be);
 
-    struct SessionManager_Session_pvt* session;
+    struct SessionManager_Session_pvt* session = NULL;
     uint32_t nonceOrHandle = Endian_bigEndianToHost32(((uint32_t*)msg->bytes)[0]);
     if (nonceOrHandle == 0xffffffff) {
-        Er_assert(Message_eshift(msg, SwitchHeader_SIZE));
+        Er_assert(Message_epush(msg, &switchHeader, SwitchHeader_SIZE));
         return ctrlFrame(msg, sm);
     }
 
@@ -418,12 +508,6 @@ static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface
         Log_debug(sm->log, "DROP runt");
         return Error(RUNT);
     }
-
-    // This is for handling error situations and being able to send back some kind of a message.
-    uint8_t firstSixteen[16];
-    uint32_t length0 = msg->length;
-    Assert_true(msg->length >= 16);
-    Bits_memcpy(firstSixteen, msg->bytes, 16);
 
     if (nonceOrHandle > 3) {
         // > 3 it's a handle.
@@ -458,71 +542,16 @@ static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface
             return Error(INVALID);
         }
 
-        uint64_t label = Endian_bigEndianToHost64(switchHeader->label_be);
+        uint64_t label = Endian_bigEndianToHost64(switchHeader.label_be);
         session = getSession(sm, ip6, caHeader->publicKey, 0, label, Metric_SM_INCOMING);
         CryptoAuth_resetIfTimeout(session->pub.caSession);
         debugHandlesAndLabel(sm->log, session, label, "new session nonce[%d]", nonceOrHandle);
     }
 
-    bool currentMessageSetup = (nonceOrHandle <= 3);
+    Er_assert(Message_epushAd(msg, &switchHeader, SwitchHeader_SIZE));
+    Er_assert(Message_epushAd(msg, &nonceOrHandle, 4));
 
-    enum CryptoAuth_DecryptErr ret = CryptoAuth_decrypt(session->pub.caSession, msg);
-    if (ret) {
-        debugHandlesAndLabel(sm->log, session,
-                             Endian_bigEndianToHost64(switchHeader->label_be),
-                             "DROP Failed decrypting message NoH[%d] state[%s]",
-                             nonceOrHandle,
-                             CryptoAuth_stateString(CryptoAuth_getState(session->pub.caSession)));
-        Er_assert(Message_eshift(msg, length0 - msg->length - 24));
-        msg->length = 0;
-        Er_assert(Message_epush32be(msg, CryptoAuth_getState(session->pub.caSession)));
-        Er_assert(Message_epush32be(msg, ret));
-        Er_assert(Message_epush(msg, firstSixteen, 16));
-        Er_assert(Message_eshift(msg, SwitchHeader_SIZE));
-        Assert_true(msg->bytes == (uint8_t*)switchHeader);
-        uint64_t label_be = switchHeader->label_be;
-        switchHeader->label_be = Bits_bitReverse64(switchHeader->label_be);
-        return failedDecrypt(msg, label_be, sm);
-    }
-
-    if (currentMessageSetup) {
-        session->pub.sendHandle = Er_assert(Message_epop32be(msg));
-    }
-
-    Er_assert(Message_eshift(msg, RouteHeader_SIZE));
-    struct RouteHeader* header = (struct RouteHeader*) msg->bytes;
-
-    Assert_true(msg->length >= DataHeader_SIZE);
-    session->pub.bytesIn += msg->length;
-
-    if (currentMessageSetup) {
-        Bits_memcpy(&header->sh, switchHeader, SwitchHeader_SIZE);
-        debugHandlesAndLabel0(sm->log,
-                              session,
-                              Endian_bigEndianToHost64(switchHeader->label_be),
-                              "received start message");
-    } else {
-        // RouteHeader is laid out such that no copy of switch header should be needed.
-        Assert_true(&header->sh == switchHeader);
-        if (0) { // noisey
-        debugHandlesAndLabel0(sm->log,
-                              session,
-                              Endian_bigEndianToHost64(switchHeader->label_be),
-                              "received run message");
-        }
-    }
-
-    header->version_be = Endian_hostToBigEndian32(session->pub.version);
-    CryptoAuth_getHerPubKey(session->pub.caSession, header->publicKey);
-    CryptoAuth_getHerIp6(session->pub.caSession, header->ip6);
-
-    header->unused = 0;
-    header->flags = RouteHeader_flags_INCOMING;
-
-    uint64_t label = Endian_bigEndianToHost64(switchHeader->label_be);
-    discoverPath(sm, session, label, Metric_SM_INCOMING);
-
-    return Iface_next(&sm->pub.insideIf, msg);
+    return Iface_next(&session->ciphertext, msg);
 }
 
 static void checkTimedOutBuffers(struct SessionManager_pvt* sm)
@@ -681,56 +710,21 @@ static Iface_DEFUN readyToSend(struct Message* msg,
                                struct SessionManager_pvt* sm,
                                struct SessionManager_Session_pvt* sess)
 {
-    struct RouteHeader* header = (struct RouteHeader*) msg->bytes;
-    Er_assert(Message_eshift(msg, -RouteHeader_SIZE));
-    struct SwitchHeader* sh;
+    struct RouteHeader header;
+    Er_assert(Message_epop(msg, &header, RouteHeader_SIZE));
+
     CryptoAuth_resetIfTimeout(sess->pub.caSession);
     if (CryptoAuth_getState(sess->pub.caSession) < CryptoAuth_State_RECEIVED_KEY) {
-        // Put the handle into the message so that it's authenticated.
+        // Put the handle into the message so that the other end knows how to address the session
         Er_assert(Message_epush32be(msg, sess->pub.receiveHandle));
-
-        // Copy back the SwitchHeader so it is not clobbered.
-        Er_assert(Message_eshift(msg, (CryptoHeader_SIZE + SwitchHeader_SIZE)));
-        Bits_memcpy(msg->bytes, &header->sh, SwitchHeader_SIZE);
-        sh = (struct SwitchHeader*) msg->bytes;
-        Er_assert(Message_eshift(msg, -(CryptoHeader_SIZE + SwitchHeader_SIZE)));
-    } else {
-        sh = &header->sh;
     }
-
-    // This pointer ceases to be useful.
-    header = NULL;
 
     sess->pub.bytesOut += msg->length;
 
-    Assert_true(!CryptoAuth_encrypt(sess->pub.caSession, msg));
+    // Move the route header to additional data
+    Er_assert(Message_epushAd(msg, &header, RouteHeader_SIZE));
 
-    if (CryptoAuth_getState(sess->pub.caSession) >= CryptoAuth_State_RECEIVED_KEY) {
-        if (0) { // Noisy
-            debugHandlesAndLabel0(sm->log,
-                                  sess,
-                                  Endian_bigEndianToHost64(sh->label_be),
-                                  "sending run message");
-        }
-        Er_assert(Message_epush32be(msg, sess->pub.sendHandle));
-    } else {
-        debugHandlesAndLabel0(sm->log,
-                              sess,
-                              Endian_bigEndianToHost64(sh->label_be),
-                              "sending start message");
-    }
-
-    // The SwitchHeader should have been moved to the correct location.
-    Er_assert(Message_eshift(msg, SwitchHeader_SIZE));
-    Assert_true((uint8_t*)sh == msg->bytes);
-
-    if (!sh->label_be) {
-        Bits_memset(sh, 0, SwitchHeader_SIZE);
-        sh->label_be = Endian_hostToBigEndian64(sess->pub.paths[0].label);
-        SwitchHeader_setVersion(sh, SwitchHeader_CURRENT_VERSION);
-    }
-
-    return Iface_next(&sm->pub.switchIf, msg);
+    return Iface_next(&sess->plaintext, msg);
 }
 
 static Iface_DEFUN outgoingCtrlFrame(struct Message* msg, struct SessionManager_pvt* sm)

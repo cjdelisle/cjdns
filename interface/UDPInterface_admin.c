@@ -111,7 +111,7 @@ static void beginConnection(Dict* args,
         }
 
         int ret = InterfaceController_bootstrapPeer(
-            ctx->ic, ifNum, pkBytes, addr, password, login, peerName, ctx->alloc);
+            ctx->ic, ifNum, pkBytes, addr, password, login, peerName);
 
         Allocator_free(tempAlloc);
 

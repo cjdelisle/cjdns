@@ -33,10 +33,6 @@ Rffi_CryptoAuth2_Session_t *Rffi_CryptoAuth2_newSession(Rffi_CryptoAuth2_t *ca,
                                                         char *name,
                                                         bool useNoise);
 
-int Rffi_CryptoAuth2_encrypt(Rffi_CryptoAuth2_Session_t *session, Message_t *msg);
-
-int Rffi_CryptoAuth2_decrypt(Rffi_CryptoAuth2_Session_t *sess, Message_t *msg);
-
 void Rffi_CryptoAuth2_setAuth(const String_t *password,
                               const String_t *login,
                               Rffi_CryptoAuth2_Session_t *caSession);

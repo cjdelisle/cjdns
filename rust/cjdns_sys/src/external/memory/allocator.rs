@@ -18,6 +18,7 @@ unsafe extern "C" fn drop_on_free(job_p: *mut Allocator_OnFreeJob) -> c_int {
 /// and then drops it, causing Rust to properly drop all of the memory which
 /// is related to the adopted structure, including any Arc, String, Vec or other
 /// heap objects which are owned by it.
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub fn adopt<T: 'static>(alloc: *mut Allocator, t: T) -> &'static mut T {
     let bat: Box<dyn Any> = Box::new(t);
     let out: *mut Box<dyn Any> = Box::into_raw(Box::new(bat));

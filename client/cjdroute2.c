@@ -55,7 +55,6 @@
 #include "util/log/FileWriterLog.h"
 #include "util/SysInfo.h"
 #include "util/version/Version.h"
-#include "net/Benchmark.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -447,7 +446,6 @@ static int usage(struct Allocator* alloc, char* appName)
            "                                   beaconing\n"
            "    cjdroute --genconf-seed [--eth] Generate a configuration file from a 64 byte seed\n"
            "                                   which is read in from stdin."
-           "    cjdroute --bench               Run some cryptography performance benchmarks.\n"
            "    cjdroute --version             Print the protocol version which this node speaks.\n"
            "    cjdroute --cleanconf < conf    Print a clean (valid json) version of the config.\n"
            "    cjdroute --nobg                Never fork to the background no matter the config.\n"
@@ -623,9 +621,6 @@ int cjdroute2_main(int argc, char** argv)
             return genconf(allocator, rand, 0, 1);
         } else if (CString_strcmp(argv[1], "--genconf") == 0) {
             return genconf(allocator, rand, 0, 0);
-        } else if (CString_strcmp(argv[1], "--bench") == 0) {
-            Benchmark_runAll();
-            return 0;
         } else if ((CString_strcmp(argv[1], "--version") == 0)
             || (CString_strcmp(argv[1], "-v") == 0))
         {

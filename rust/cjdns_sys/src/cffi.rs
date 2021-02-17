@@ -327,9 +327,6 @@ extern "C" {
 extern "C" {
     pub fn Message_clone(toClone: *mut Message, alloc: *mut Allocator) -> *mut Message;
 }
-extern "C" {
-    pub fn Message_copyOver(output: *mut Message, input: *mut Message, allocator: *mut Allocator);
-}
 pub type Iface_Callback = ::std::option::Option<
     unsafe extern "C" fn(message: *mut Message, thisInterface: *mut Iface) -> Error_s,
 >;

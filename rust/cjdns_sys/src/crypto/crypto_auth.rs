@@ -4,6 +4,7 @@ use std::convert::TryFrom;
 use std::str::FromStr;
 use std::sync::Arc;
 
+use anyhow::{bail, Result};
 use boringtun::crypto::x25519::{X25519PublicKey, X25519SecretKey};
 use boringtun::noise::{Tunn, TunnResult};
 use log::*;
@@ -18,6 +19,7 @@ use crate::crypto::replay_protector::ReplayProtector;
 use crate::crypto::utils::{crypto_hash_sha256, crypto_scalarmult_curve25519_base};
 use crate::crypto::wipe::Wipe;
 use crate::crypto::zero::IsZero;
+use crate::external::interface::iface::{self, IfRecv, Iface, IfacePvt};
 use crate::interface::wire::message::Message;
 use crate::util::events::EventBase;
 
@@ -46,7 +48,7 @@ struct User {
     user_name_hash: [u8; Challenge::KEYSIZE],
     secret: [u8; 32],
     login: ByteString,
-    restricted_to_ip6: Option<IpV6>,
+    restricted_to_ip6: Option<[u8; 16]>,
 }
 
 pub struct SessionMut {
@@ -110,6 +112,9 @@ pub struct Session {
 
     /// WireGuard tunnel: if `None` the old protocol is used
     tunnel: Option<Box<Tunn>>,
+
+    plain_pvt: IfacePvt,
+    cipher_pvt: IfacePvt,
 }
 
 enum Nonce {
@@ -200,18 +205,12 @@ pub enum DecryptError {
 
     #[error("Internal error: {0}")]
     Internal(&'static str),
-
-    #[error("WireGuard error: {0}")]
-    WireGuardError(String),
 }
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum EncryptError {
     #[error("Internal error: {0}")]
     Internal(&'static str),
-
-    #[error("WireGuard error: {0}")]
-    WireGuardError(String),
 }
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
@@ -231,12 +230,13 @@ macro_rules! ensure {
                 "Condition failed: `",
                 stringify!($cond),
                 "`"
-            )));
+            ))
+            .into());
         }
     };
     ($cond:expr, $err_type:tt, $msg:literal $(,)?) => {
         if !$cond {
-            return Err($err_type::Internal($msg));
+            return Err($err_type::Internal($msg).into());
         }
     };
 }
@@ -283,7 +283,7 @@ impl CryptoAuth {
         &self,
         password: ByteString,
         login: Option<ByteString>,
-        ipv6: Option<IpV6>,
+        ipv6: Option<[u8; 16]>,
     ) -> Result<(), AddUserError> {
         let mut users = self.users.write();
         let mut user = User::default();
@@ -480,7 +480,7 @@ impl SessionMut {
         !self.her_public_key.is_zero()
     }
 
-    fn encrypt(sess: &Session, msg: &mut Message) -> Result<(), EncryptError> {
+    fn encrypt(sess: &Session, msg: &mut Message) -> Result<()> {
         let mut session = sess.session_mut.write();
 
         // If there has been no incoming traffic for a while, reset the connection to state 0.
@@ -537,12 +537,12 @@ impl SessionMut {
         Ok(())
     }
 
-    fn decrypt(sess: &Session, msg: &mut Message) -> Result<(), DecryptError> {
+    fn decrypt(sess: &Session, msg: &mut Message) -> Result<()> {
         let session = sess.session_mut.upgradable_read();
 
         if msg.len() < 20 {
             debug::log(&session, || "DROP runt");
-            return Err(DecryptError::DecryptErr(DecryptErr::Runt));
+            return Err(DecryptError::DecryptErr(DecryptErr::Runt).into());
         }
 
         // Outdated check? No longer needed?
@@ -566,7 +566,7 @@ impl SessionMut {
                     debug::log(&session, || {
                         "DROP Received a run message to an un-setup session"
                     });
-                    return Err(DecryptError::DecryptErr(DecryptErr::NoSession));
+                    return Err(DecryptError::DecryptErr(DecryptErr::NoSession).into());
                 }
 
                 debug::log(&session, || {
@@ -621,16 +621,9 @@ impl SessionMut {
                 }
                 Err(err) => {
                     debug::log(&session, || {
-                        format!(
-                            "DROP Failed to [{}] message",
-                            if err == DecryptError::DecryptErr(DecryptErr::Replay) {
-                                "replay check"
-                            } else {
-                                "decrypt"
-                            },
-                        )
+                        format!("DROP Failed to decrypt message [{}]", err)
                     });
-                    Err(err)
+                    return Err(err.into());
                 }
             }
         } else if nonce <= Nonce::RepeatHello as u32 {
@@ -652,17 +645,11 @@ impl SessionMut {
                     nonce
                 )
             });
-            Err(DecryptError::DecryptErr(
-                DecryptErr::KeyPktEstablishedSession,
-            ))
+            return Err(DecryptError::DecryptErr(DecryptErr::KeyPktEstablishedSession).into());
         }
     }
 
-    fn encrypt_handshake(
-        &mut self,
-        msg: &mut Message,
-        context: Arc<CryptoAuth>,
-    ) -> Result<(), EncryptError> {
+    fn encrypt_handshake(&mut self, msg: &mut Message, context: Arc<CryptoAuth>) -> Result<()> {
         // Prepend message with a CryptoHeader struct
         let r = msg.push(CryptoHeader::default());
         ensure!(r.is_ok(), EncryptError, "push CryptoHeader failed");
@@ -831,10 +818,10 @@ impl SessionMut {
         msg: &mut Message,
         mut header: CryptoHeader,
         sess: &Session,
-    ) -> Result<(), DecryptError> {
+    ) -> Result<()> {
         if msg.len() < CryptoHeader::SIZE {
             debug::log(self, || "DROP runt");
-            return Err(DecryptError::DecryptErr(DecryptErr::Runt));
+            return Err(DecryptError::DecryptErr(DecryptErr::Runt).into());
         }
 
         // handshake
@@ -849,7 +836,7 @@ impl SessionMut {
             debug::log(self, || {
                 "DROP a packet with different public key than this session"
             });
-            return Err(DecryptError::DecryptErr(DecryptErr::WrongPermPubkey));
+            return Err(DecryptError::DecryptErr(DecryptErr::WrongPermPubkey).into());
         }
 
         ensure!(
@@ -865,15 +852,14 @@ impl SessionMut {
         if let Some(user) = user_opt {
             password_hash = Some(user.secret);
             let restricted_to_ip6 = user.restricted_to_ip6;
-            if restricted_to_ip6.is_some() {
+            if let Some(rip6) = restricted_to_ip6 {
                 let ip6_matches_key = {
                     let pub_key = &self.her_public_key;
-                    let calculated_ip6 = IpV6::try_from(pub_key).ok();
-                    restricted_to_ip6 == calculated_ip6
+                    rip6 == ip6_from_key(pub_key.raw())
                 };
                 if !ip6_matches_key {
                     debug::log(self, || "DROP packet with key not matching restrictedToIp6");
-                    return Err(DecryptError::DecryptErr(DecryptErr::IpRestricted));
+                    return Err(DecryptError::DecryptErr(DecryptErr::IpRestricted).into());
                 }
             }
         } else {
@@ -882,12 +868,12 @@ impl SessionMut {
 
         if self.require_auth && !has_user {
             debug::log(self, || "DROP message because auth was not given");
-            return Err(DecryptError::DecryptErr(DecryptErr::AuthRequired));
+            return Err(DecryptError::DecryptErr(DecryptErr::AuthRequired).into());
         }
 
         if !has_user && header.auth.auth_type != AuthType::Zero {
             debug::log(self, || "DROP message with unrecognized authenticator");
-            return Err(DecryptError::DecryptErr(DecryptErr::UnrecognizedAuth));
+            return Err(DecryptError::DecryptErr(DecryptErr::UnrecognizedAuth).into());
         }
 
         // What the nextNonce will become if this packet is valid.
@@ -927,7 +913,7 @@ impl SessionMut {
 
             if !self.is_initiator {
                 debug::log(self, || "DROP a stray key packet");
-                return Err(DecryptError::DecryptErr(DecryptErr::StrayKey));
+                return Err(DecryptError::DecryptErr(DecryptErr::StrayKey).into());
             }
 
             // We sent the hello, this is a key
@@ -965,7 +951,7 @@ impl SessionMut {
             debug::log(self, || {
                 format!("DROP message with nonce [{}], decryption failed", nonce)
             });
-            return Err(DecryptError::DecryptErr(DecryptErr::HandshakeDecryptFailed));
+            return Err(DecryptError::DecryptErr(DecryptErr::HandshakeDecryptFailed).into());
         }
 
         header.encrypted_temp_key = msg.pop().expect("pop encrypted_temp_key");
@@ -973,7 +959,7 @@ impl SessionMut {
         if header.encrypted_temp_key.is_zero() {
             // We need to reject 0 public keys outright because they will be confused with "unknown"
             debug::log(self, || "DROP message with zero as temp public key");
-            return Err(DecryptError::DecryptErr(DecryptErr::Wiseguy));
+            return Err(DecryptError::DecryptErr(DecryptErr::Wiseguy).into());
         }
 
         if CryptoAuth::LOG_KEYS {
@@ -989,7 +975,7 @@ impl SessionMut {
             if self.her_temp_pub_key == header.encrypted_temp_key {
                 // Possible replay attack or duped packet
                 debug::log(self, || "DROP dupe hello packet with same temp key");
-                return Err(DecryptError::DecryptErr(DecryptErr::InvalidPacket));
+                return Err(DecryptError::DecryptErr(DecryptErr::InvalidPacket).into());
             }
         } else if nonce == Nonce::Key as u32 && self.next_nonce >= State::ReceivedKey as u32 {
             // We accept a new key packet and let it change the session since the other end might have
@@ -998,14 +984,14 @@ impl SessionMut {
             if self.her_temp_pub_key == header.encrypted_temp_key {
                 ensure!(!self.her_temp_pub_key.is_zero(), DecryptError);
                 debug::log(self, || "DROP dupe key packet with same temp key");
-                return Err(DecryptError::DecryptErr(DecryptErr::InvalidPacket));
+                return Err(DecryptError::DecryptErr(DecryptErr::InvalidPacket).into());
             }
         } else if nonce == Nonce::RepeatKey as u32 && self.next_nonce >= State::ReceivedKey as u32 {
             // Got a repeat key packet, make sure the temp key is the same as the one we know.
             if self.her_temp_pub_key != header.encrypted_temp_key {
                 ensure!(!self.her_temp_pub_key.is_zero(), DecryptError);
                 debug::log(self, || "DROP repeat key packet with different temp key");
-                return Err(DecryptError::DecryptErr(DecryptErr::InvalidPacket));
+                return Err(DecryptError::DecryptErr(DecryptErr::InvalidPacket).into());
             }
         }
 
@@ -1031,7 +1017,7 @@ impl SessionMut {
             match self.next_nonce {
                 INIT | RECEIVED_HELLO | SENT_KEY => {
                     debug::log(self, || "DROP stray key packet");
-                    return Err(DecryptError::DecryptErr(DecryptErr::StrayKey));
+                    return Err(DecryptError::DecryptErr(DecryptErr::StrayKey).into());
                 }
                 SENT_HELLO => {
                     self.her_temp_pub_key = header.encrypted_temp_key;
@@ -1121,7 +1107,7 @@ impl SessionMut {
                         // our state has advanced past RECEIVED_HELLO or SENT_KEY or perhaps we
                         // are the initiator of this session and they're sending us what should
                         // be a key packet but is marked as hello, it's all invalid.
-                        return Err(DecryptError::DecryptErr(DecryptErr::InvalidPacket));
+                        return Err(DecryptError::DecryptErr(DecryptErr::InvalidPacket).into());
                     }
                 }
             }
@@ -1150,19 +1136,19 @@ impl SessionMut {
         content: &mut Message,
         secret: [u8; 32],
         sess: &Session,
-    ) -> Result<(), DecryptError> {
+    ) -> Result<()> {
         // Decrypt with authentication and replay prevention.
         let r = decrypt(nonce, content, secret, self.is_initiator);
         if r.is_err() {
             debug::log(self, || "DROP authenticated decryption failed");
-            return Err(DecryptError::DecryptErr(DecryptErr::Decrypt));
+            return Err(DecryptError::DecryptErr(DecryptErr::Decrypt).into());
         }
 
         if !sess.replay_protector.lock().check_nonce(nonce) {
             debug::log(self, || {
                 format!("DROP nonce checking failed nonce=[{}]", nonce)
             });
-            return Err(DecryptError::DecryptErr(DecryptErr::Replay));
+            return Err(DecryptError::DecryptErr(DecryptErr::Replay).into());
         }
 
         Ok(())
@@ -1181,6 +1167,19 @@ fn ip6_from_key(key: &[u8; 32]) -> [u8; 16] {
     out
 }
 
+pub struct PlaintextRecv(Arc<Session>);
+impl IfRecv for PlaintextRecv {
+    fn recv(&self, m: &mut Message) -> Result<()> {
+        self.0.encrypt(m)
+    }
+}
+pub struct CiphertextRecv(Arc<Session>);
+impl IfRecv for CiphertextRecv {
+    fn recv(&self, m: &mut Message) -> Result<()> {
+        self.0.decrypt(m)
+    }
+}
+
 impl Session {
     const DEFAULT_RESET_AFTER_INACTIVITY_SECONDS: u32 = 60;
     const DEFAULT_SETUP_RESET_AFTER_INACTIVITY_SECONDS: u32 = 10;
@@ -1191,11 +1190,11 @@ impl Session {
         require_auth: bool,
         display_name: Option<String>,
         use_noise: bool,
-    ) -> Result<Self, KeyError> {
+    ) -> Result<(Arc<Self>, Iface, Iface)> {
         let now = context.event_base.current_time_seconds();
 
         if her_pub_key.is_zero() {
-            return Err(KeyError::ZeroPublicKey);
+            return Err(KeyError::ZeroPublicKey.into());
         }
         let her_ip6 = ip6_from_key(&her_pub_key.raw());
 
@@ -1206,7 +1205,10 @@ impl Session {
             None
         };
 
-        let sess = Session {
+        let (mut plaintext, plain_pvt) = iface::new("CryptoAuth::Session plaintext");
+        let (mut ciphertext, cipher_pvt) = iface::new("CryptoAuth::Session ciphertext");
+
+        let sess = Arc::new(Session {
             session_mut: RwLock::new(SessionMut {
                 her_public_key: her_pub_key,
                 display_name,
@@ -1230,9 +1232,14 @@ impl Session {
             replay_protector: Mutex::new(ReplayProtector::new()),
             context,
             tunnel,
-        };
+            plain_pvt,
+            cipher_pvt,
+        });
 
-        Ok(sess)
+        plaintext.set_receiver(PlaintextRecv(Arc::clone(&sess)));
+        ciphertext.set_receiver(CiphertextRecv(Arc::clone(&sess)));
+
+        Ok((sess, plaintext, ciphertext))
     }
 
     fn create_tunnel(ca: &CryptoAuth, her_pub_key: &PublicKey) -> Result<Box<Tunn>, &'static str> {
@@ -1247,9 +1254,12 @@ impl Session {
         let mut t = Tunn::new(Arc::new(priv_key), Arc::new(pub_key), None, None, 0, None)?;
 
         if log::log_enabled!(log::Level::Debug) {
-            t.set_logger(Box::new(|s: &str| {
-                debug!("[NOISE] {}", s);
-            }), boringtun::noise::Verbosity::Debug);
+            t.set_logger(
+                Box::new(|s: &str| {
+                    debug!("[NOISE] {}", s);
+                }),
+                boringtun::noise::Verbosity::Debug,
+            );
         }
 
         Ok(t)
@@ -1317,7 +1327,7 @@ impl Session {
     }
 
     /// Encrypts the message inplace. The new content of `msg` should be sent to the peer.
-    pub fn encrypt(&self, msg: &mut Message) -> Result<(), EncryptError> {
+    fn encrypt(&self, msg: &mut Message) -> Result<()> {
         if let Some(tunnel) = self.tunnel.as_ref() {
             Self::tun_send(tunnel, msg)
         } else {
@@ -1329,15 +1339,23 @@ impl Session {
     /// decrypted plaintext. Also, additional messages might be required to send to the peer,
     /// in that case the result is `Some` vec of packets. Each packet must be sent separately.
     /// If no additional messages required, the result is `None` (handshake already completed).
-    pub fn decrypt(&self, msg: &mut Message) -> Result<Option<Vec<Vec<u8>>>, DecryptError> {
+    fn decrypt(&self, msg: &mut Message) -> Result<()> {
         if let Some(tunnel) = self.tunnel.as_ref() {
-            Self::tun_recv(tunnel, msg)
+            let sendme = match Self::tun_recv(tunnel, msg)? {
+                Some(sm) => sm,
+                None => return Ok(()),
+            };
+            for sm in sendme {
+                let mut m = msg.new(sm.len() + 256);
+                self.cipher_pvt.send(&mut m);
+            }
+            Ok(())
         } else {
-            SessionMut::decrypt(self, msg).map(|_| None)
+            SessionMut::decrypt(self, msg)
         }
     }
 
-    fn tun_send(tun: &Tunn, msg: &mut Message) -> Result<(), EncryptError> {
+    fn tun_send(tun: &Tunn, msg: &mut Message) -> Result<()> {
         // Prepend a fake IPv4 header to the buffer (required by BoringTun)
         {
             ensure!(msg.pad() >= 20, EncryptError);
@@ -1357,9 +1375,7 @@ impl Session {
         buf.resize(buf_size, 0);
         let res = tun.encapsulate(msg.bytes(), &mut buf);
         match res {
-            TunnResult::Err(e) => {
-                return Err(EncryptError::WireGuardError(format!("{:?}", e)));
-            }
+            TunnResult::Err(e) => bail!("Wiregiard error: {:?}", e),
             TunnResult::Done => {
                 // This means we need to return empty buffer
                 msg.clear();
@@ -1374,7 +1390,7 @@ impl Session {
         }
     }
 
-    fn tun_recv(tun: &Tunn, msg: &mut Message) -> Result<Option<Vec<Vec<u8>>>, DecryptError> {
+    fn tun_recv(tun: &Tunn, msg: &mut Message) -> Result<Option<Vec<Vec<u8>>>> {
         let buf_size = msg.len();
         let mut tmp_buf = Vec::with_capacity(buf_size);
         tmp_buf.resize(buf_size, 0);
@@ -1384,7 +1400,7 @@ impl Session {
         loop {
             match res {
                 TunnResult::Err(e) => {
-                    return Err(DecryptError::WireGuardError(format!("{:?}", e)));
+                    bail!("Wireguard error: {:?}", e);
                 }
                 TunnResult::Done => {
                     msg.clear();
@@ -1396,8 +1412,7 @@ impl Session {
                     // Request more data
                     res = tun.decapsulate(None, &[], &mut tmp_buf);
                 }
-                TunnResult::WriteToTunnelV4(buf, _) |
-                TunnResult::WriteToTunnelV6(buf, _) => {
+                TunnResult::WriteToTunnelV4(buf, _) | TunnResult::WriteToTunnelV6(buf, _) => {
                     // Successfully decrypted a packet - return it in the msg
                     msg.clear();
                     msg.push_bytes(buf).expect("insufficient buffer");
@@ -1408,7 +1423,11 @@ impl Session {
 
         // Remove the fake IP header we added in send fn
         if msg.len() > 0 {
-            ensure!(msg.len() >= 20, DecryptError, "Broken message - no IP header");
+            ensure!(
+                msg.len() >= 20,
+                DecryptError,
+                "Broken message - no IP header"
+            );
             msg.discard_bytes(20).expect("drop IP header");
         }
 
@@ -1679,6 +1698,7 @@ mod tests {
 
     use crate::bytestring::ByteString;
     use crate::cffi;
+    use crate::crypto::crypto_auth::Session;
     use crate::crypto::random::Random;
     use crate::interface::wire::message::Message;
     use crate::util::events::EventBase;
@@ -1746,7 +1766,11 @@ mod tests {
         let my_keys = keys_api.key_pair();
         let her_keys = keys_api.key_pair();
 
-        fn mk_sess(my_priv_key: PrivateKey, her_pub_key: PublicKey, name: &str) -> super::Session {
+        fn mk_sess(
+            my_priv_key: PrivateKey,
+            her_pub_key: PublicKey,
+            name: &str,
+        ) -> Arc<super::Session> {
             let ca = super::CryptoAuth::new(Some(my_priv_key), EventBase {}, Random::Fake);
             let ca = Arc::new(ca);
 
@@ -1800,7 +1824,11 @@ mod tests {
         let my_keys = keys_api.key_pair();
         let her_keys = keys_api.key_pair();
 
-        fn mk_sess(my_priv_key: PrivateKey, her_pub_key: PublicKey, name: &str) -> super::Session {
+        fn mk_sess(
+            my_priv_key: PrivateKey,
+            her_pub_key: PublicKey,
+            name: &str,
+        ) -> Arc<super::Session> {
             let ca = super::CryptoAuth::new(Some(my_priv_key), EventBase {}, Random::Fake);
             let ca = Arc::new(ca);
 
@@ -2048,7 +2076,11 @@ mod tests {
         let my_keys = keys_api.key_pair();
         let her_keys = keys_api.key_pair();
 
-        fn mk_sess(my_priv_key: PrivateKey, her_pub_key: PublicKey, name: &str) -> super::Session {
+        fn mk_sess(
+            my_priv_key: PrivateKey,
+            her_pub_key: PublicKey,
+            name: &str,
+        ) -> Arc<super::Session> {
             let ca = super::CryptoAuth::new(Some(my_priv_key), EventBase {}, Random::Fake);
             let ca = Arc::new(ca);
 
@@ -2090,13 +2122,13 @@ mod tests {
         assert_eq!(res.err(), None);
         assert_ne!(msg.len(), orig_length);
 
-        let res = her_session.decrypt(&mut msg);
+        let res = Session::tun_recv(&her_session.tunnel.unwrap(), &mut msg);
         assert_eq!(res.as_ref().err(), None);
         if let Some(Some(send_back)) = res.ok() {
             'outer: for packet in send_back {
                 msg.clear();
                 msg.push_bytes(&packet).expect("msg size");
-                let res = my_session.decrypt(&mut msg);
+                let res = Session::tun_recv(&my_session.tunnel.unwrap(), &mut msg);
                 assert_eq!(res.as_ref().err(), None);
                 assert_eq!(msg.len(), 0);
 

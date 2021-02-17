@@ -38,6 +38,12 @@ typedef struct Message
     /** Amount of bytes of storage space available in the message. */
     int32_t capacity;
 
+    // Amount of associated data
+    int32_t adLen;
+
+    // Pointer to associated data
+    uint8_t* ad;
+
     /**
      * When sending/receiving a Message on a unix socket, a file descriptor to attach.
      * Caviat: In order to maintain backward compatibility with a Message which is
@@ -64,10 +70,6 @@ int Message_getAssociatedFd(struct Message* msg);
 
 struct Message* Message_clone(struct Message* toClone, struct Allocator* alloc);
 
-void Message_copyOver(struct Message* output,
-                                    struct Message* input,
-                                    struct Allocator* allocator);
-
 /**
  * Pretend to shift the content forward by amount.
  * Really it shifts the bytes value backward.
@@ -89,9 +91,44 @@ static inline Er_DEFUN(void Message_eshift(struct Message* toShift, int32_t amou
     Er_ret();
 }
 
+static inline Er_DEFUN(void Message_epushAd(struct Message* restrict msg,
+                                            const void* restrict object,
+                                            size_t size))
+{
+    if (msg->padding < (int)size) {
+        Er_raise(msg->alloc, "not enough padding to push ad");
+    }
+    if (object) {
+        Bits_memcpy(msg->ad, object, size);
+    } else {
+        Bits_memset(msg->ad, 0x00, size);
+    }
+    msg->adLen += size;
+    msg->padding -= size;
+    msg->ad = &msg->ad[size];
+    Er_ret();
+}
+
+static inline Er_DEFUN(void Message_epopAd(struct Message* restrict msg,
+                                           void* restrict object,
+                                           size_t size))
+{
+    if (msg->adLen < (int)size) {
+        Er_raise(msg->alloc, "underflow, cannot pop ad");
+    }
+    msg->adLen -= size;
+    msg->padding += size;
+    msg->ad = &msg->ad[-((int)size)];
+    if (object) {
+        Bits_memcpy(object, msg->ad, size);
+    }
+    Er_ret();
+}
+
 static inline void Message_reset(struct Message* toShift)
 {
     Assert_true(toShift->length <= toShift->capacity);
+    Er_assert(Message_epopAd(toShift, NULL, toShift->adLen));
     toShift->length = toShift->capacity;
     Er_assert(Message_eshift(toShift, -toShift->length));
 }

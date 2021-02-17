@@ -21,10 +21,14 @@ struct TestCa_s {
     struct CryptoAuth* ca;
     bool noise;
 };
-struct TestCa_Session_s {
+typedef struct TestCa_Session_pvt_s {
+    TestCa_Session_t pub;
     Rffi_CryptoAuth2_Session_t* s2;
     struct CryptoAuth_Session* s;
-};
+    struct Iface sPlain;
+    struct Iface sCipher;
+    Identity
+} TestCa_Session_pvt_t;
 
 TestCa_t* TestCa_new(
     Allocator_t *allocator,
@@ -101,6 +105,74 @@ RTypes_StrList_t* TestCa_getUsers(const TestCa_t *ca, Allocator_t *alloc)
     return l1;
 }
 
+static Iface_DEFUN messagePlaintext(Message_t *msg, struct Iface* iface)
+{
+    TestCa_Session_pvt_t* sess = Identity_containerOf(iface, TestCa_Session_pvt_t, pub.plaintext);
+    Message_t* m2 = NULL;
+    if (sess->s2) {
+        if (sess->s) {
+            m2 = Message_clone(msg, msg->alloc);
+        } else {
+            m2 = msg;
+            msg = NULL;
+        }
+    }
+    struct Error_s i1 = Error(NONE);
+    if (sess->s) {
+        i1 = Iface_send(&sess->sPlain, msg);
+    }
+    if (sess->s2) {
+        struct Error_s i2 = Error(NONE); // Iface_send(&sess->s2->internal, m2); TODO DISABLED
+        if (sess->s) {
+            Assert_true(i2.e == i1.e);
+            Assert_true(msg->length == m2->length);
+            Assert_true(!Bits_memcmp(msg->bytes, m2->bytes, msg->length));
+        }
+        return i2;
+    }
+    return i1;
+}
+
+static Iface_DEFUN messageCiphertext(Message_t *msg, struct Iface* iface)
+{
+    TestCa_Session_pvt_t* sess = Identity_containerOf(iface, TestCa_Session_pvt_t, pub.ciphertext);
+    Message_t* m2 = NULL;
+    if (sess->s2) {
+        if (sess->s) {
+            m2 = Message_clone(msg, msg->alloc);
+        } else {
+            m2 = msg;
+            msg = NULL;
+        }
+    }
+    struct Error_s i1 = Error(NONE);
+    if (sess->s) {
+        i1 = Iface_send(&sess->sCipher, msg);
+    }
+    if (sess->s2) {
+        struct Error_s i2 = Error(NONE);//Rffi_CryptoAuth2_decrypt(sess->s2, m2); TODO DISABLED
+        if (sess->s) {
+            Assert_true(i2.e == i1.e);
+            Assert_true(msg->length == m2->length);
+            Assert_true(!Bits_memcmp(msg->bytes, m2->bytes, msg->length));
+        }
+        return i2;
+    }
+    return i1;
+}
+
+static Iface_DEFUN sPlainRecv(Message_t *msg, struct Iface* iface)
+{
+    TestCa_Session_pvt_t* sess = Identity_containerOf(iface, TestCa_Session_pvt_t, sPlain);
+    Iface_next(&sess->pub.plaintext, msg);
+}
+
+static Iface_DEFUN sCipherRecv(Message_t *msg, struct Iface* iface)
+{
+    TestCa_Session_pvt_t* sess = Identity_containerOf(iface, TestCa_Session_pvt_t, sCipher);
+    Iface_next(&sess->pub.ciphertext, msg);
+}
+
 TestCa_Session_t* TestCa_newSession(
     TestCa_t *ca,
     Allocator_t *alloc,
@@ -109,73 +181,27 @@ TestCa_Session_t* TestCa_newSession(
     char *name,
     bool useNoise)
 {
-    TestCa_Session_t* out = Allocator_calloc(alloc, sizeof(TestCa_Session_t), 1);
+    TestCa_Session_pvt_t* out = Allocator_calloc(alloc, sizeof(TestCa_Session_pvt_t), 1);
+    Identity_set(out);
+    out->sCipher.send = sCipherRecv;
+    out->sPlain.send = sPlainRecv;
     if (ca->ca) {
         out->s = CryptoAuth_newSession(ca->ca, alloc, herPublicKey, requireAuth, name);
+        Iface_plumb(&out->sCipher, &out->s->ciphertext);
+        Iface_plumb(&out->sPlain, &out->s->plaintext);
     }
     if (ca->ca2) {
         out->s2 = Rffi_CryptoAuth2_newSession(
             ca->ca2, alloc, herPublicKey, requireAuth, name, ca->noise && useNoise);
     }
-    return out;
+    out->pub.plaintext.send = messagePlaintext;
+    out->pub.ciphertext.send = messageCiphertext;
+    return &out->pub;
 }
 
-int TestCa_encrypt(TestCa_Session_t* sess, Message_t *msg)
+void TestCa_setAuth(const String_t* password, const String_t* login, TestCa_Session_t* session)
 {
-    Message_t* m2 = NULL;
-    if (sess->s2) {
-        if (sess->s) {
-            m2 = Message_clone(msg, msg->alloc);
-        } else {
-            m2 = msg;
-            msg = NULL;
-        }
-    }
-    int i1 = 0;
-    if (sess->s) {
-        i1 = CryptoAuth_encrypt(sess->s, msg);
-    }
-    if (sess->s2) {
-        int i2 = Rffi_CryptoAuth2_encrypt(sess->s2, m2);
-        if (sess->s) {
-            Assert_true(i2 == i1);
-            Assert_true(msg->length == m2->length);
-            Assert_true(!Bits_memcmp(msg->bytes, m2->bytes, msg->length));
-        }
-        return i2;
-    }
-    return i1;
-}
-
-int TestCa_decrypt(TestCa_Session_t *sess, Message_t *msg)
-{
-    Message_t* m2 = NULL;
-    if (sess->s2) {
-        if (sess->s) {
-            m2 = Message_clone(msg, msg->alloc);
-        } else {
-            m2 = msg;
-            msg = NULL;
-        }
-    }
-    int i1 = 0;
-    if (sess->s) {
-        i1 = CryptoAuth_decrypt(sess->s, msg);
-    }
-    if (sess->s2) {
-        int i2 = Rffi_CryptoAuth2_decrypt(sess->s2, m2);
-        if (sess->s) {
-            Assert_true(i2 == i1);
-            Assert_true(msg->length == m2->length);
-            Assert_true(!Bits_memcmp(msg->bytes, m2->bytes, msg->length));
-        }
-        return i2;
-    }
-    return i1;
-}
-
-void TestCa_setAuth(const String_t* password, const String_t* login, TestCa_Session_t* sess)
-{
+    TestCa_Session_pvt_t* sess = Identity_check((TestCa_Session_pvt_t*) session);
     if (sess->s) {
         CryptoAuth_setAuth(password, login, sess->s);
     }
@@ -184,8 +210,9 @@ void TestCa_setAuth(const String_t* password, const String_t* login, TestCa_Sess
     }
 }
 
-void TestCa_resetIfTimeout(TestCa_Session_t* sess)
+void TestCa_resetIfTimeout(TestCa_Session_t* session)
 {
+    TestCa_Session_pvt_t* sess = Identity_check((TestCa_Session_pvt_t*) session);
     if (sess->s) {
         CryptoAuth_resetIfTimeout(sess->s);
     }
@@ -194,8 +221,9 @@ void TestCa_resetIfTimeout(TestCa_Session_t* sess)
     }
 }
 
-void TestCa_reset(TestCa_Session_t* sess)
+void TestCa_reset(TestCa_Session_t* session)
 {
+    TestCa_Session_pvt_t* sess = Identity_check((TestCa_Session_pvt_t*) session);
     if (sess->s) {
         CryptoAuth_reset(sess->s);
     }
@@ -204,8 +232,9 @@ void TestCa_reset(TestCa_Session_t* sess)
     }
 }
 
-RTypes_CryptoAuth_State_t TestCa_getState(TestCa_Session_t* sess)
+RTypes_CryptoAuth_State_t TestCa_getState(TestCa_Session_t* session)
 {
+    TestCa_Session_pvt_t* sess = Identity_check((TestCa_Session_pvt_t*) session);
     RTypes_CryptoAuth_State_t st = 0;
     if (sess->s) {
         st = CryptoAuth_getState(sess->s);
@@ -220,8 +249,9 @@ RTypes_CryptoAuth_State_t TestCa_getState(TestCa_Session_t* sess)
     return st;
 }
 
-void TestCa_getHerPubKey(TestCa_Session_t* sess, uint8_t* buf)
+void TestCa_getHerPubKey(TestCa_Session_t* session, uint8_t* buf)
 {
+    TestCa_Session_pvt_t* sess = Identity_check((TestCa_Session_pvt_t*) session);
     uint8_t hpk1[32];
     if (sess->s) {
         CryptoAuth_getHerPubKey(sess->s, hpk1);

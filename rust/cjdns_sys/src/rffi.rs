@@ -35,7 +35,11 @@ pub unsafe extern "C" fn Rffi_android_create(a: *mut Allocator_t) -> RTypes_IfWr
 }
 
 pub struct Rffi_CryptoAuth2_t(Arc<crypto_auth::CryptoAuth>);
-pub struct Rffi_CryptoAuth2_Session_t(crypto_auth::Session);
+pub struct Rffi_CryptoAuth2_Session_t {
+    s: Arc<crypto_auth::Session>,
+    pub plaintext: *mut cffi::Iface_t,
+    pub ciphertext: *mut cffi::Iface_t,
+}
 
 unsafe fn cu8(s: *const u8, len: usize) -> Vec<u8> {
     std::slice::from_raw_parts::<u8>(s, len).to_vec()
@@ -68,9 +72,8 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_addUser_ipv6(
     let ip6 = if ipv6.is_null() {
         None
     } else {
-        let bytes = std::slice::from_raw_parts(ipv6, 16);
-        //TODO Pass this error to C code somehow instead of `expect()`.
-        let ip = IpV6::try_from(bytes).expect("bad IPv6");
+        let mut ip = [0_u8; 16];
+        ip.copy_from_slice(std::slice::from_raw_parts(ipv6, 16));
         Some(ip)
     };
     match (*ca)
@@ -139,7 +142,7 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_newSession(
     name: *mut c_char,
     useNoise: bool,
 ) -> *mut Rffi_CryptoAuth2_Session_t {
-    let session = crypto_auth::Session::new(
+    let (session, plaintext, ciphertext) = crypto_auth::Session::new(
         Arc::clone(&(*ca).0),
         {
             let mut bytes = [0_u8; 32];
@@ -158,33 +161,14 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_newSession(
         useNoise,
     )
     .expect("bad public key"); //TODO Pass the error to C code somehow instead of `expect()`.
-    allocator::adopt(alloc, Rffi_CryptoAuth2_Session_t(session))
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn Rffi_CryptoAuth2_encrypt(
-    session: *mut Rffi_CryptoAuth2_Session_t,
-    msg: *mut Message_t,
-) -> c_int {
-    let mut msg = Message::from_c_message(msg);
-    match (*session).0.encrypt(&mut msg) {
-        Ok(_) => 0,
-        Err(_) => -1,
-    }
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn Rffi_CryptoAuth2_decrypt(
-    sess: *mut Rffi_CryptoAuth2_Session_t,
-    msg: *mut Message_t,
-) -> c_int {
-    let mut msg = Message::from_c_message(msg);
-    match (*sess).0.decrypt(&mut msg) {
-        Ok(_) => 0,
-        Err(crypto_auth::DecryptError::DecryptErr(e)) => e as c_int,
-        Err(crypto_auth::DecryptError::Internal(_)) => 42 as c_int,
-        Err(crypto_auth::DecryptError::WireGuardError(_)) => 43 as c_int,
-    }
+    allocator::adopt(
+        alloc,
+        Rffi_CryptoAuth2_Session_t {
+            s: session,
+            ciphertext: cif::wrap(alloc, ciphertext),
+            plaintext: cif::wrap(alloc, plaintext),
+        },
+    )
 }
 
 #[no_mangle]
@@ -193,24 +177,24 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_setAuth(
     login: *const String_t,
     caSession: *mut Rffi_CryptoAuth2_Session_t,
 ) {
-    (*caSession).0.set_auth(cstr(password), cstr(login))
+    (*caSession).s.set_auth(cstr(password), cstr(login))
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn Rffi_CryptoAuth2_resetIfTimeout(session: *mut Rffi_CryptoAuth2_Session_t) {
-    (*session).0.reset_if_timeout()
+    (*session).s.reset_if_timeout()
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn Rffi_CryptoAuth2_reset(caSession: *mut Rffi_CryptoAuth2_Session_t) {
-    (*caSession).0.reset()
+    (*caSession).s.reset()
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn Rffi_CryptoAuth2_getState(
     session: *mut Rffi_CryptoAuth2_Session_t,
 ) -> RTypes_CryptoAuth_State_t {
-    (*session).0.get_state()
+    (*session).s.get_state()
 }
 
 #[no_mangle]
@@ -218,7 +202,7 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_getHerPubKey(
     session: *const Rffi_CryptoAuth2_Session_t,
     pkOut: *mut u8,
 ) {
-    let p = (*session).0.get_her_pubkey();
+    let p = (*session).s.get_her_pubkey();
     std::slice::from_raw_parts_mut(pkOut, 32).copy_from_slice(&p[..]);
 }
 
@@ -227,7 +211,7 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_getHerIp6(
     session: *const Rffi_CryptoAuth2_Session_t,
     ipOut: *mut u8,
 ) {
-    let p = (*session).0.get_her_ip6();
+    let p = (*session).s.get_her_ip6();
     std::slice::from_raw_parts_mut(ipOut, 16).copy_from_slice(&p[..]);
 }
 
@@ -236,7 +220,7 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_getName(
     session: *const Rffi_CryptoAuth2_Session_t,
     alloc: *mut Allocator_t,
 ) -> *mut String_t {
-    match (*session).0.get_name() {
+    match (*session).s.get_name() {
         None => 0 as *mut String_t,
         Some(name) => strc(alloc, ByteString::from(name)),
     }
@@ -253,7 +237,7 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_stats(
     session: *const Rffi_CryptoAuth2_Session_t,
     statsOut: *mut RTypes_CryptoStats_t,
 ) {
-    let st = (*session).0.stats();
+    let st = (*session).s.stats();
     (*statsOut) = st;
 }
 
