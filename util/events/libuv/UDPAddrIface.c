@@ -151,7 +151,7 @@ static void incoming(uv_udp_t* handle,
     context->inCallback = 1;
 
     // Grab out the allocator which was placed there by allocate()
-    struct Allocator* alloc = buf->base ? ALLOC(buf->base) : NULL;
+    struct Message* msg = buf->base ? ALLOC(buf->base) : NULL;
 
     // if nread < 0, we used to log uv_last_error, which doesn't exist anymore.
     if (nread == 0) {
@@ -159,30 +159,24 @@ static void incoming(uv_udp_t* handle,
         //Log_debug(context->logger, "0 length read");
 
     } else {
-        struct Message* m = Allocator_calloc(alloc, sizeof(struct Message), 1);
-        m->length = nread;
-        m->padding = UDPAddrIface_PADDING_AMOUNT + context->pub.generic.addr->addrLen;
-        m->capacity = buf->len;
-        m->bytes = (uint8_t*)buf->base;
-        m->ad = &m->bytes[-m->padding];
-        m->alloc = alloc;
-        Er_assert(Message_epush(m, addr, context->pub.generic.addr->addrLen - Sockaddr_OVERHEAD));
+        msg->length = nread;
+        Er_assert(Message_epush(msg, addr, context->pub.generic.addr->addrLen - Sockaddr_OVERHEAD));
 
         // make sure the sockaddr doesn't have crap in it which will
         // prevent it from being used as a lookup key
-        Sockaddr_normalizeNative((struct sockaddr*) m->bytes);
+        Sockaddr_normalizeNative((struct sockaddr*) msg->bytes);
 
-        Er_assert(Message_epush(m, context->pub.generic.addr, Sockaddr_OVERHEAD));
+        Er_assert(Message_epush(msg, context->pub.generic.addr, Sockaddr_OVERHEAD));
 
         /*uint8_t buff[256] = {0};
         Assert_true(Hex_encode(buff, 255, m->bytes, context->pub.generic.addr->addrLen));
         Log_debug(context->logger, "Message from [%s]", buff);*/
 
-        Iface_send(&context->pub.generic.iface, m);
+        Iface_send(&context->pub.generic.iface, msg);
     }
 
-    if (alloc) {
-        Allocator_free(alloc);
+    if (msg) {
+        Allocator_free(msg->alloc);
     }
 
     context->inCallback = 0;
@@ -199,12 +193,15 @@ static void allocate(uv_handle_t* handle, size_t size, uv_buf_t* buf)
     size_t fullSize = size + UDPAddrIface_PADDING_AMOUNT + context->pub.generic.addr->addrLen;
 
     struct Allocator* child = Allocator_child(context->allocator);
-    char* buff = Allocator_malloc(child, fullSize);
-    buff += UDPAddrIface_PADDING_AMOUNT + context->pub.generic.addr->addrLen;
+    struct Message* msg = Message_new(
+        UDPAddrIface_BUFFER_CAP,
+        UDPAddrIface_PADDING_AMOUNT + context->pub.generic.addr->addrLen,
+        child
+    );
 
-    ALLOC(buff) = child;
+    ALLOC(msg->bytes) = msg;
 
-    buf->base = buff;
+    buf->base = msg->bytes;
     buf->len = size;
 }
 

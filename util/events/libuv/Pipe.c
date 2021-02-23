@@ -96,8 +96,8 @@ static void sendMessage2(struct Pipe_WriteRequest_pvt* req)
     };
 
     int ret = -1;
-    if (pipe->ipc && m->associatedFd && !Defined(win32)) {
-        int fd = Message_getAssociatedFd(m);
+    int fd = Message_getAssociatedFd(m);
+    if (pipe->ipc && fd > -1 && !Defined(win32)) {
         uv_stream_t* fake_handle = Allocator_calloc(req->alloc, sizeof(uv_stream_t), 1);
         #ifndef win32
             fake_handle->io_watcher.fd = fd;
@@ -194,10 +194,10 @@ static void incoming(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf)
     struct Pipe_pvt* pipe = Identity_check((struct Pipe_pvt*) stream->data);
 
     // Grab out the allocator which was placed there by allocate()
-    struct Allocator* alloc = buf->base ? ALLOC(buf->base) : NULL;
+    struct Message* msg = buf->base ? ALLOC(buf->base) : NULL;
     pipe->isInCallback = 1;
 
-    Assert_true(!alloc || alloc->fileName == pipe->alloc->fileName);
+    Assert_true(!msg || msg->alloc->fileName == pipe->alloc->fileName);
 
     if (nread < 0) {
         if (pipe->pub.onClose) {
@@ -209,24 +209,18 @@ static void incoming(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf)
         //Log_debug(pipe->log, "Pipe 0 length read [%s]", pipe->pub.fullName);
 
     } else {
-        Assert_true(alloc);
-        struct Message* m = Allocator_calloc(alloc, sizeof(struct Message), 1);
-        m->length = nread;
-        m->padding = Pipe_PADDING_AMOUNT;
-        m->capacity = buf->len;
-        m->bytes = (uint8_t*)buf->base;
-        m->ad = &m->bytes[-Pipe_PADDING_AMOUNT];
-        m->alloc = alloc;
+        Assert_true(msg);
+        msg->length = nread;
         if (pipe->ipc) {
             #ifndef win32
-                Message_setAssociatedFd(m, stream->accepted_fd);
+                Message_setAssociatedFd(msg, stream->accepted_fd);
             #endif
         }
-        Iface_send(&pipe->pub.iface, m);
+        Iface_send(&pipe->pub.iface, msg);
     }
 
-    if (alloc) {
-        Allocator_free(alloc);
+    if (msg) {
+        Allocator_free(msg->alloc);
     }
 
     pipe->isInCallback = 0;
@@ -244,15 +238,13 @@ static void allocate(uv_handle_t* handle, size_t size, uv_buf_t* buf)
 {
     struct Pipe_pvt* pipe = Identity_check((struct Pipe_pvt*) handle->data);
     size = Pipe_BUFFER_CAP;
-    size_t fullSize = size + Pipe_PADDING_AMOUNT;
 
     struct Allocator* child = Allocator_child(pipe->alloc);
-    char* buff = Allocator_malloc(child, fullSize);
-    buff += Pipe_PADDING_AMOUNT;
+    struct Message* msg = Message_new(size, Pipe_PADDING_AMOUNT, child);
 
-    ALLOC(buff) = child;
+    ALLOC(msg->bytes) = msg;
 
-    buf->base = buff;
+    buf->base = msg->bytes;
     buf->len = size;
 }
 

@@ -42,14 +42,14 @@ typedef struct Message
     int32_t adLen;
 
     // Pointer to associated data
-    uint8_t* ad;
+    uint8_t* _ad;
 
     /**
      * When sending/receiving a Message on a unix socket, a file descriptor to attach.
      * Caviat: In order to maintain backward compatibility with a Message which is
      * allocated using calloc, file descriptor 0 is referred to by -1
      */
-    int associatedFd;
+    int _associatedFd;
 
     #ifdef PARANOIA
         /** This is used inside of Iface.h to support Iface_next() */
@@ -99,13 +99,13 @@ static inline Er_DEFUN(void Message_epushAd(struct Message* restrict msg,
         Er_raise(msg->alloc, "not enough padding to push ad");
     }
     if (object) {
-        Bits_memcpy(msg->ad, object, size);
+        Bits_memcpy(msg->_ad, object, size);
     } else {
-        Bits_memset(msg->ad, 0x00, size);
+        Bits_memset(msg->_ad, 0x00, size);
     }
     msg->adLen += size;
     msg->padding -= size;
-    msg->ad = &msg->ad[size];
+    msg->_ad = &msg->_ad[size];
     Er_ret();
 }
 
@@ -118,9 +118,9 @@ static inline Er_DEFUN(void Message_epopAd(struct Message* restrict msg,
     }
     msg->adLen -= size;
     msg->padding += size;
-    msg->ad = &msg->ad[-((int)size)];
+    msg->_ad = &msg->_ad[-((int)size)];
     if (object) {
-        Bits_memcpy(object, msg->ad, size);
+        Bits_memcpy(object, msg->_ad, size);
     }
     Er_ret();
 }

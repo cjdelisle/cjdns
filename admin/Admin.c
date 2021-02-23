@@ -527,7 +527,7 @@ void Admin_registerFunctionWithArgCount(char* name,
 static void importFd(Dict* args, void* vAdmin, String* txid, struct Allocator* requestAlloc)
 {
     struct Admin_pvt* admin = Identity_check((struct Admin_pvt*) vAdmin);
-    int fd = admin->currentRequest->associatedFd;
+    int fd = Message_getAssociatedFd(admin->currentRequest);
     Dict* res = Dict_new(requestAlloc);
     char* error = "none";
     if (fd < 0) {

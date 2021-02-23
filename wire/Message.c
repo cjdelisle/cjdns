@@ -21,7 +21,7 @@ struct Message* Message_new(uint32_t messageLength,
 {
     uint8_t* buff = Allocator_malloc(alloc, messageLength + amountOfPadding);
     struct Message* out = Allocator_calloc(alloc, sizeof(struct Message), 1);
-    out->ad = buff;
+    out->_ad = buff;
     out->adLen = 0;
     out->bytes = &buff[amountOfPadding];
     out->length = out->capacity = messageLength;
@@ -33,22 +33,22 @@ struct Message* Message_new(uint32_t messageLength,
 void Message_setAssociatedFd(struct Message* msg, int fd)
 {
     if (fd == -1) {
-        msg->associatedFd = 0;
+        msg->_associatedFd = 0;
     } else if (fd == 0) {
-        msg->associatedFd = -1;
+        msg->_associatedFd = -1;
     } else {
-        msg->associatedFd = fd;
+        msg->_associatedFd = fd;
     }
 }
 
 int Message_getAssociatedFd(struct Message* msg)
 {
-    if (msg->associatedFd == -1) {
+    if (msg->_associatedFd == -1) {
         return 0;
-    } else if (msg->associatedFd == 0) {
+    } else if (msg->_associatedFd == 0) {
         return -1;
     } else {
-        return msg->associatedFd;
+        return msg->_associatedFd;
     }
 }
 
@@ -65,7 +65,7 @@ struct Message* Message_clone(struct Message* toClone, struct Allocator* alloc)
         .length = toClone->length,
         .padding = toClone->padding,
         .bytes = allocation + toClone->adLen + toClone->padding,
-        .ad = allocation + toClone->adLen,
+        ._ad = allocation + toClone->adLen,
         .adLen = toClone->adLen,
         .capacity = toClone->capacity,
         .alloc = alloc
