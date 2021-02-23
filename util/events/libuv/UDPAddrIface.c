@@ -164,6 +164,7 @@ static void incoming(uv_udp_t* handle,
         m->padding = UDPAddrIface_PADDING_AMOUNT + context->pub.generic.addr->addrLen;
         m->capacity = buf->len;
         m->bytes = (uint8_t*)buf->base;
+        m->ad = &m->bytes[-m->padding];
         m->alloc = alloc;
         Er_assert(Message_epush(m, addr, context->pub.generic.addr->addrLen - Sockaddr_OVERHEAD));
 

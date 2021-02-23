@@ -55,17 +55,17 @@ int Message_getAssociatedFd(struct Message* msg)
 struct Message* Message_clone(struct Message* toClone, struct Allocator* alloc)
 {
     Assert_true(toClone->capacity >= toClone->length);
-    int32_t len = toClone->capacity + toClone->padding;
+    int32_t len = toClone->capacity + toClone->padding + toClone->adLen;
     uint8_t* allocation = Allocator_malloc(alloc, len + 8);
-    while (((uintptr_t)allocation % 8) != (((uintptr_t)toClone->bytes - toClone->padding) % 8)) {
+    while (((uintptr_t)allocation % 8) != (((uintptr_t)toClone->bytes - toClone->padding - toClone->adLen) % 8)) {
         allocation++;
     }
-    Bits_memcpy(allocation, toClone->bytes - toClone->padding, len);
+    Bits_memcpy(allocation, toClone->bytes - toClone->padding - toClone->adLen, len);
     return Allocator_clone(alloc, (&(struct Message) {
         .length = toClone->length,
         .padding = toClone->padding,
-        .bytes = allocation + toClone->padding,
-        .ad = allocation,
+        .bytes = allocation + toClone->adLen + toClone->padding,
+        .ad = allocation + toClone->adLen,
         .adLen = toClone->adLen,
         .capacity = toClone->capacity,
         .alloc = alloc

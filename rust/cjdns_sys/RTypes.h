@@ -63,10 +63,16 @@ typedef struct {
 } RTypes_CryptoStats_t;
 
 typedef struct {
+  Iface_t *plaintext;
+  Iface_t *ciphertext;
+} RTypes_CryptoAuth2_Session_t;
+
+typedef struct {
   RTypes_IfWrapper_t a;
   RTypes_StrList_t b;
   RTypes_CryptoAuth_State_t c;
   RTypes_CryptoStats_t d;
+  RTypes_CryptoAuth2_Session_t e;
 } RTypes_ExportMe;
 
 #endif /* RTypes_H */

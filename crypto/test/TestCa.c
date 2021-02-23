@@ -15,18 +15,21 @@
 #include "crypto/test/TestCa.h"
 #include "crypto/CryptoAuth.h"
 #include "rust/cjdns_sys/Rffi.h"
+#include "util/Hex.h"
 
 struct TestCa_s {
-    Rffi_CryptoAuth2_t* ca2;
+    RTypes_CryptoAuth2_t* ca2;
     struct CryptoAuth* ca;
     bool noise;
 };
 typedef struct TestCa_Session_pvt_s {
     TestCa_Session_t pub;
-    Rffi_CryptoAuth2_Session_t* s2;
+    RTypes_CryptoAuth2_Session_t* s2;
     struct CryptoAuth_Session* s;
     struct Iface sPlain;
     struct Iface sCipher;
+    struct Iface s2Plain;
+    struct Iface s2Cipher;
     Identity
 } TestCa_Session_pvt_t;
 
@@ -105,6 +108,12 @@ RTypes_StrList_t* TestCa_getUsers(const TestCa_t *ca, Allocator_t *alloc)
     return l1;
 }
 
+#define PASS 1
+#define STOP 2
+#define VERIFY 3
+
+#include <stdio.h>
+
 static Iface_DEFUN messagePlaintext(Message_t *msg, struct Iface* iface)
 {
     TestCa_Session_pvt_t* sess = Identity_containerOf(iface, TestCa_Session_pvt_t, pub.plaintext);
@@ -119,15 +128,23 @@ static Iface_DEFUN messagePlaintext(Message_t *msg, struct Iface* iface)
     }
     struct Error_s i1 = Error(NONE);
     if (sess->s) {
+        int flag = sess->s2 ? STOP : PASS;
+        Er_assert(Message_epushAd(msg, &flag, sizeof flag));
+        printf("Send [%d]\n", flag);
         i1 = Iface_send(&sess->sPlain, msg);
     }
     if (sess->s2) {
-        struct Error_s i2 = Error(NONE); // Iface_send(&sess->s2->internal, m2); TODO DISABLED
+        if (sess->s) {
+            Er_assert(Message_epushAd(m2, &msg, sizeof &msg));
+        }
+        int flag = sess->s ? VERIFY : PASS;
+        Er_assert(Message_epushAd(m2, &flag, sizeof flag));
+        printf("Send2 [%d]\n", flag);
+        struct Error_s i2 = Iface_send(&sess->s2Plain, m2);
         if (sess->s) {
             Assert_true(i2.e == i1.e);
-            Assert_true(msg->length == m2->length);
-            Assert_true(!Bits_memcmp(msg->bytes, m2->bytes, msg->length));
         }
+        printf("Send2 done\n");
         return i2;
     }
     return i1;
@@ -147,30 +164,84 @@ static Iface_DEFUN messageCiphertext(Message_t *msg, struct Iface* iface)
     }
     struct Error_s i1 = Error(NONE);
     if (sess->s) {
+        int flag = sess->s2 ? STOP : PASS;
+        Er_assert(Message_epushAd(msg, &flag, sizeof flag));
         i1 = Iface_send(&sess->sCipher, msg);
     }
     if (sess->s2) {
-        struct Error_s i2 = Error(NONE);//Rffi_CryptoAuth2_decrypt(sess->s2, m2); TODO DISABLED
+        int flag = PASS;
+        if (sess->s) {
+            uintptr_t mp = msg;
+            Er_assert(Message_epushAd(m2, &mp, sizeof &mp));
+            flag = VERIFY;
+        }
+        Er_assert(Message_epushAd(m2, &flag, sizeof flag));
+        struct Error_s i2 = Iface_send(&sess->s2Cipher, m2);
         if (sess->s) {
             Assert_true(i2.e == i1.e);
-            Assert_true(msg->length == m2->length);
-            Assert_true(!Bits_memcmp(msg->bytes, m2->bytes, msg->length));
         }
         return i2;
     }
     return i1;
 }
 
+static bool check(Message_t *msg, TestCa_Session_pvt_t* sess)
+{
+    int flag = 0;
+    Er_assert(Message_epopAd(msg, &flag, sizeof flag));
+    if (flag == PASS) {
+        printf("Passing message\n");
+    } else if (flag == STOP) {
+        // do nothing, wait for the next message to come through....
+        printf("Stopping message\n");
+        return true;
+    } else if (flag == VERIFY) {
+        uintptr_t m2p = 0;
+        Er_assert(Message_epopAd(msg, &m2p, sizeof m2p));
+        printf("Verifying message %x\n", m2p);
+        struct Message* m2 = (struct Message*) m2p;
+        if (msg->length != m2->length) {
+            Assert_failure("msg->length != m2->length: %d != %d",
+                msg->length, m2->length);
+        }
+        if (Bits_memcmp(msg->bytes, m2->bytes, msg->length)) {
+            const char* msgH = Hex_print(msg->bytes, msg->length, msg->alloc);
+            const char* m2H = Hex_print(m2->bytes, m2->length, m2->alloc);
+            Assert_failure("msg->bytes != m2->bytes:\n%s\n%s\n", msgH, m2H);
+        }
+        Assert_true(!Bits_memcmp(msg->bytes, m2->bytes, msg->length));
+    } else {
+        Assert_failure("unexpected flag [%d]", flag);
+    }
+    return false;
+}
+
 static Iface_DEFUN sPlainRecv(Message_t *msg, struct Iface* iface)
 {
     TestCa_Session_pvt_t* sess = Identity_containerOf(iface, TestCa_Session_pvt_t, sPlain);
-    Iface_next(&sess->pub.plaintext, msg);
+    if (check(msg, sess)) { return Error(NONE); }
+    return Iface_next(&sess->pub.plaintext, msg);
+}
+
+static Iface_DEFUN s2PlainRecv(Message_t *msg, struct Iface* iface)
+{
+    TestCa_Session_pvt_t* sess = Identity_containerOf(iface, TestCa_Session_pvt_t, s2Plain);
+    if (check(msg, sess)) { return Error(NONE); }
+    return Iface_next(&sess->pub.plaintext, msg);
 }
 
 static Iface_DEFUN sCipherRecv(Message_t *msg, struct Iface* iface)
 {
     TestCa_Session_pvt_t* sess = Identity_containerOf(iface, TestCa_Session_pvt_t, sCipher);
-    Iface_next(&sess->pub.ciphertext, msg);
+    if (check(msg, sess)) { return Error(NONE); }
+    return Iface_next(&sess->pub.ciphertext, msg);
+}
+
+static Iface_DEFUN s2CipherRecv(Message_t *msg, struct Iface* iface)
+{
+    TestCa_Session_pvt_t* sess = Identity_containerOf(iface, TestCa_Session_pvt_t, s2Cipher);
+    if (check(msg, sess)) { return Error(NONE); }
+    return Iface_next(&sess->pub.ciphertext, msg);
 }
 
 TestCa_Session_t* TestCa_newSession(
@@ -185,6 +256,8 @@ TestCa_Session_t* TestCa_newSession(
     Identity_set(out);
     out->sCipher.send = sCipherRecv;
     out->sPlain.send = sPlainRecv;
+    out->s2Cipher.send = s2CipherRecv;
+    out->s2Plain.send = s2PlainRecv;
     if (ca->ca) {
         out->s = CryptoAuth_newSession(ca->ca, alloc, herPublicKey, requireAuth, name);
         Iface_plumb(&out->sCipher, &out->s->ciphertext);
@@ -193,6 +266,8 @@ TestCa_Session_t* TestCa_newSession(
     if (ca->ca2) {
         out->s2 = Rffi_CryptoAuth2_newSession(
             ca->ca2, alloc, herPublicKey, requireAuth, name, ca->noise && useNoise);
+        Iface_plumb(&out->s2Cipher, out->s2->ciphertext);
+        Iface_plumb(&out->s2Plain, out->s2->plaintext);
     }
     out->pub.plaintext.send = messagePlaintext;
     out->pub.ciphertext.send = messageCiphertext;

@@ -215,6 +215,7 @@ static void incoming(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf)
         m->padding = Pipe_PADDING_AMOUNT;
         m->capacity = buf->len;
         m->bytes = (uint8_t*)buf->base;
+        m->ad = &m->bytes[-Pipe_PADDING_AMOUNT];
         m->alloc = alloc;
         if (pipe->ipc) {
             #ifndef win32

@@ -1,6 +1,9 @@
 #![allow(non_snake_case)]
 #![allow(non_camel_case_types)]
-use crate::cffi::{Iface_t, String_t};
+use std::sync::Arc;
+
+use crate::cffi::{self, Iface_t, String_t};
+use crate::crypto::crypto_auth;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -54,6 +57,12 @@ pub struct RTypes_CryptoStats_t {
     pub duplicate_packets: u64,
 }
 
+#[repr(C)]
+pub struct RTypes_CryptoAuth2_Session_t {
+    pub plaintext: *mut cffi::Iface_t,
+    pub ciphertext: *mut cffi::Iface_t,
+}
+
 #[allow(dead_code)]
 #[repr(C)]
 pub struct RTypes_ExportMe {
@@ -61,4 +70,5 @@ pub struct RTypes_ExportMe {
     b: RTypes_StrList_t,
     c: RTypes_CryptoAuth_State_t,
     d: RTypes_CryptoStats_t,
+    e: RTypes_CryptoAuth2_Session_t,
 }

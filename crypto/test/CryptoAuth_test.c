@@ -159,7 +159,7 @@ static struct Message* encryptMsg(struct Context* ctx,
 {
     struct Allocator* alloc = Allocator_child(ctx->alloc);
     int len = (((CString_strlen(x)+1) / 8) + 1) * 8;
-    struct Message* msg = Message_new(len, CryptoHeader_SIZE, alloc);
+    struct Message* msg = Message_new(len, CryptoHeader_SIZE + 32, alloc);
     CString_strcpy(msg->bytes, x);
     msg->length = CString_strlen(x);
     msg->bytes[msg->length] = 0;
@@ -398,7 +398,7 @@ static void iteration(enum TestCa_Config cfg)
 int main()
 {
     iteration(TestCa_Config_OLD);
-    // iteration(TestCa_Config_OLD_NEW); TODO DISABLED TEST
+    iteration(TestCa_Config_OLD_NEW);
     //iteration(TestCa_Config_NOISE); TODO(cjd): re-enable this
     return 0;
 }

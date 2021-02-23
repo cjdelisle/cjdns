@@ -1,6 +1,5 @@
 //! CryptoAuth
 
-use std::convert::TryFrom;
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -13,7 +12,7 @@ use thiserror::Error;
 
 use crate::bytestring::ByteString;
 use crate::crypto::crypto_header::{AuthType, Challenge, CryptoHeader};
-use crate::crypto::keys::{IpV6, PrivateKey, PublicKey};
+use crate::crypto::keys::{PrivateKey, PublicKey};
 use crate::crypto::random::Random;
 use crate::crypto::replay_protector::ReplayProtector;
 use crate::crypto::utils::{crypto_hash_sha256, crypto_scalarmult_curve25519_base};
@@ -346,7 +345,7 @@ impl CryptoAuth {
         } else {
             debug!("Flushing [{}] users", count);
         }
-        return count;
+        count
     }
 
     /// Get a list of all the users' logins.
@@ -427,17 +426,18 @@ impl SessionMut {
     }
 
     fn get_her_pubkey(&self) -> [u8; 32] {
-        self.her_public_key.raw().clone()
+        *self.her_public_key.raw()
     }
 
     fn get_her_ip6(&self) -> [u8; 16] {
-        self.her_ip6.clone()
+        self.her_ip6
     }
 
     fn get_name(&self) -> Option<String> {
         self.display_name.clone()
     }
 
+    #[allow(clippy::if_same_then_else)]
     fn reset_if_timeout(&mut self, event_base: &EventBase) {
         if self.next_nonce == State::SentHello as u32 {
             // Lets not reset the session, we just sent one or more hello packets and
@@ -451,10 +451,8 @@ impl SessionMut {
         let delta = now_secs - time_of_last_packet;
         if delta < self.setup_reset_after_inactivity_seconds as i64 {
             return;
-        } else if delta < self.reset_after_inactivity_seconds as i64 {
-            if self.established {
-                return;
-            }
+        } else if delta < self.reset_after_inactivity_seconds as i64 && self.established {
+            return;
         }
 
         debug::log(self, || {
@@ -525,7 +523,7 @@ impl SessionMut {
         encrypt(
             session.next_nonce,
             msg,
-            session.shared_secret.clone(),
+            session.shared_secret,
             session.is_initiator,
         );
 
@@ -611,7 +609,7 @@ impl SessionMut {
         } else if nonce >= Nonce::FirstTrafficPacket as u32 {
             debug_assert!(!session.shared_secret.is_zero());
 
-            let ret = session.decrypt_message(nonce, msg, session.shared_secret.clone(), sess);
+            let ret = session.decrypt_message(nonce, msg, session.shared_secret, sess);
             match ret {
                 Ok(_) => {
                     let mut session = RwLockUpgradableReadGuard::upgrade(session);
@@ -623,7 +621,7 @@ impl SessionMut {
                     debug::log(&session, || {
                         format!("DROP Failed to decrypt message [{}]", err)
                     });
-                    return Err(err.into());
+                    Err(err)
                 }
             }
         } else if nonce <= Nonce::RepeatHello as u32 {
@@ -645,7 +643,7 @@ impl SessionMut {
                     nonce
                 )
             });
-            return Err(DecryptError::DecryptErr(DecryptErr::KeyPktEstablishedSession).into());
+            Err(DecryptError::DecryptErr(DecryptErr::KeyPktEstablishedSession).into())
         }
     }
 
@@ -675,7 +673,7 @@ impl SessionMut {
         let header = msg.peek_mut::<CryptoHeader>().unwrap();
 
         // Set the permanent key
-        header.public_key = context.public_key.raw().clone();
+        header.public_key = *context.public_key.raw();
 
         ensure!(self.her_key_known(), EncryptError);
 
@@ -701,9 +699,9 @@ impl SessionMut {
             context.rand.random_bytes(&mut self.our_temp_priv_key);
             self.our_temp_pub_key = {
                 //TODO Likely to be simplified after using proper types everywhere
-                let priv_key = PrivateKey::from(self.our_temp_priv_key.clone());
+                let priv_key = PrivateKey::from(self.our_temp_priv_key);
                 let pub_key = crypto_scalarmult_curve25519_base(&priv_key);
-                pub_key.raw().clone()
+                *pub_key.raw()
             };
 
             if CryptoAuth::LOG_KEYS {
@@ -748,8 +746,8 @@ impl SessionMut {
         let shared_secret;
         if self.next_nonce < State::ReceivedHello as u32 {
             shared_secret = get_shared_secret(
-                context.private_key.raw().clone(),
-                self.her_public_key.raw().clone(),
+                *context.private_key.raw(),
+                *self.her_public_key.raw(),
                 password_hash,
             );
 
@@ -762,7 +760,7 @@ impl SessionMut {
             // her_temp_pub_key was set by decrypt_handshake()
             debug_assert!(!self.her_temp_pub_key.is_zero());
             shared_secret = get_shared_secret(
-                context.private_key.raw().clone(),
+                *context.private_key.raw(),
                 self.her_temp_pub_key,
                 password_hash,
             );
@@ -788,7 +786,7 @@ impl SessionMut {
         // Temporarily remove CryptoHeader until the encrypted_temp_key field.
         let mut saved = msg.pop_bytes(CryptoHeader::SIZE - 32).expect("pop");
 
-        encrypt_rnd_nonce(handshake_nonce.clone(), msg, shared_secret);
+        encrypt_rnd_nonce(handshake_nonce, msg, shared_secret);
 
         if CryptoAuth::LOG_KEYS {
             debug!(
@@ -897,8 +895,8 @@ impl SessionMut {
             });
 
             shared_secret = get_shared_secret(
-                sess.context.private_key.raw().clone(),
-                self.her_public_key.raw().clone(),
+                *sess.context.private_key.raw(),
+                *self.her_public_key.raw(),
                 password_hash,
             );
 
@@ -918,8 +916,8 @@ impl SessionMut {
 
             // We sent the hello, this is a key
             shared_secret = get_shared_secret(
-                self.our_temp_priv_key.clone(),
-                self.her_public_key.raw().clone(),
+                self.our_temp_priv_key,
+                *self.her_public_key.raw(),
                 password_hash,
             );
 
@@ -945,7 +943,7 @@ impl SessionMut {
         }
 
         // Decrypt her temp public key and the message.
-        let r = decrypt_rnd_nonce(header.handshake_nonce.clone(), msg, shared_secret);
+        let r = decrypt_rnd_nonce(header.handshake_nonce, msg, shared_secret);
         if r.is_err() {
             header.wipe(); // Just in case
             debug::log(self, || {
@@ -1170,13 +1168,43 @@ fn ip6_from_key(key: &[u8; 32]) -> [u8; 16] {
 pub struct PlaintextRecv(Arc<Session>);
 impl IfRecv for PlaintextRecv {
     fn recv(&self, m: &mut Message) -> Result<()> {
-        self.0.encrypt(m)
+        println!("Encrypt");
+        self.0.encrypt(m)?;
+        self.0.cipher_pvt.send(m)
     }
 }
 pub struct CiphertextRecv(Arc<Session>);
 impl IfRecv for CiphertextRecv {
     fn recv(&self, m: &mut Message) -> Result<()> {
-        self.0.decrypt(m)
+        let mut first16 = [0_u8; 16];
+        first16.copy_from_slice(m.peek_bytes(16)?);
+        match self.0.decrypt(m) {
+            Ok(()) => {
+                m.push(0_u32)?;
+                self.0.plain_pvt.send(m)
+            }
+            Err(e) => {
+                println!("Error decrypting {} {}", e, m.len());
+                let ee = match e.downcast_ref::<DecryptError>() {
+                    Some(ee) => match ee {
+                        DecryptError::DecryptErr(ee) => ee,
+                        DecryptError::Internal(_) => {
+                            return Err(e);
+                        }
+                    },
+                    None => {
+                        return Err(e);
+                    }
+                }
+                .clone() as u32;
+                m.clear();
+                m.push((self.0.get_state() as u32).to_be())?;
+                m.push(ee.to_be())?;
+                m.push_bytes(&first16)?;
+                m.push(ee)?;
+                self.0.plain_pvt.send(m)
+            }
+        }
     }
 }
 
@@ -1379,12 +1407,12 @@ impl Session {
             TunnResult::Done => {
                 // This means we need to return empty buffer
                 msg.clear();
-                return Ok(());
+                Ok(())
             }
             TunnResult::WriteToNetwork(buf) => {
                 msg.clear();
                 msg.push_bytes(buf).expect("msg size");
-                return Ok(());
+                Ok(())
             }
             bad => unreachable!("unexpected TunnResult: {:?}", bad),
         }
@@ -1700,6 +1728,7 @@ mod tests {
     use crate::cffi;
     use crate::crypto::crypto_auth::Session;
     use crate::crypto::random::Random;
+    use crate::external::interface::iface::Iface;
     use crate::interface::wire::message::Message;
     use crate::util::events::EventBase;
 
@@ -1770,7 +1799,7 @@ mod tests {
             my_priv_key: PrivateKey,
             her_pub_key: PublicKey,
             name: &str,
-        ) -> Arc<super::Session> {
+        ) -> (Arc<super::Session>, Iface, Iface) {
             let ca = super::CryptoAuth::new(Some(my_priv_key), EventBase {}, Random::Fake);
             let ca = Arc::new(ca);
 
@@ -1782,17 +1811,17 @@ mod tests {
             assert_eq!(res.err(), None);
 
             let sess = super::Session::new(
-                ca.clone(),
+                ca,
                 her_pub_key,
                 false,
                 Some(format!("{}'s session", name)),
                 false,
             );
-            assert_eq!(sess.as_ref().err(), None);
+            assert!(sess.is_ok());
             sess.unwrap()
         }
 
-        let my_session = mk_sess(
+        let (my_session, my_plain, my_cipher) = mk_sess(
             my_keys.private_key.clone(),
             her_keys.public_key.clone(),
             "bob",
@@ -1803,17 +1832,14 @@ mod tests {
         let orig_length = msg.len();
 
         let res = my_session.encrypt(&mut msg);
-        assert_eq!(res.err(), None);
+        assert!(res.is_ok());
         assert_ne!(msg.len(), orig_length);
 
-        let her_session = mk_sess(
-            her_keys.private_key.clone(),
-            my_keys.public_key.clone(),
-            "alice",
-        );
+        let (her_session, her_plain, her_cipher) =
+            mk_sess(her_keys.private_key, my_keys.public_key, "alice");
 
         let res = her_session.decrypt(&mut msg);
-        assert_eq!(res.err(), None);
+        assert!(res.is_ok());
         assert_eq!(msg.len(), orig_length);
         assert_eq!(msg.bytes(), b"HelloWorld012345");
     }
@@ -1828,7 +1854,7 @@ mod tests {
             my_priv_key: PrivateKey,
             her_pub_key: PublicKey,
             name: &str,
-        ) -> Arc<super::Session> {
+        ) -> (Arc<super::Session>, Iface, Iface) {
             let ca = super::CryptoAuth::new(Some(my_priv_key), EventBase {}, Random::Fake);
             let ca = Arc::new(ca);
 
@@ -1840,13 +1866,13 @@ mod tests {
             assert_eq!(res.err(), None);
 
             let sess = super::Session::new(
-                ca.clone(),
+                ca,
                 her_pub_key,
                 true,
                 Some(format!("{}'s session", name)),
                 false,
             );
-            assert_eq!(sess.as_ref().err(), None);
+            assert!(sess.is_ok());
             sess.unwrap()
         }
 
@@ -1857,7 +1883,7 @@ mod tests {
             );
         }
 
-        let my_session = mk_sess(
+        let (my_session, my_plain, my_cipher) = mk_sess(
             my_keys.private_key.clone(),
             her_keys.public_key.clone(),
             "bob",
@@ -1869,18 +1895,15 @@ mod tests {
         let orig_length = msg.len();
 
         let res = my_session.encrypt(&mut msg);
-        assert_eq!(res.err(), None);
+        assert!(res.is_ok());
         assert_ne!(msg.len(), orig_length);
 
-        let her_session = mk_sess(
-            her_keys.private_key.clone(),
-            my_keys.public_key.clone(),
-            "alice",
-        );
+        let (her_session, her_plain, her_cipher) =
+            mk_sess(her_keys.private_key, my_keys.public_key, "alice");
         set_auth(&her_session, "bob");
 
         let res = her_session.decrypt(&mut msg);
-        assert_eq!(res.err(), None);
+        assert!(res.is_ok());
         assert_eq!(msg.len(), orig_length);
         assert_eq!(msg.bytes(), b"HelloWorld012345");
     }
@@ -1891,7 +1914,7 @@ mod tests {
         let my_keys = keys_api.key_pair();
         let her_keys = keys_api.key_pair();
 
-        let rust_session = {
+        let (rust_session, rust_plain, rust_cipher) = {
             let priv_key = my_keys.private_key.clone();
             let pub_key = her_keys.public_key.clone();
             let name = "bob";
@@ -1908,13 +1931,13 @@ mod tests {
             assert_eq!(res.err(), None);
 
             let sess = super::Session::new(
-                ca.clone(),
+                ca,
                 pub_key,
                 false,
                 Some(format!("{}'s session", name)),
                 false,
             );
-            assert_eq!(sess.as_ref().err(), None);
+            assert!(sess.is_ok());
             sess.unwrap()
         };
 
@@ -1923,12 +1946,12 @@ mod tests {
         let orig_length = msg.len();
 
         let res = rust_session.encrypt(&mut msg);
-        assert_eq!(res.err(), None);
+        assert!(res.is_ok());
         assert_ne!(msg.len(), orig_length);
 
         let c_session = {
-            let priv_key = her_keys.private_key.clone();
-            let pub_key = my_keys.public_key.clone();
+            let priv_key = her_keys.private_key;
+            let pub_key = my_keys.public_key;
             let name = "alice";
 
             let alloc = unsafe {
@@ -1954,7 +1977,7 @@ mod tests {
             };
             assert_eq!(res, 0, "CryptoAuth_addUser_ipv6() failed: {}", res);
 
-            let sess = unsafe {
+            unsafe {
                 cffi::CryptoAuth_newSession(
                     ca,
                     alloc,
@@ -1962,9 +1985,7 @@ mod tests {
                     false,
                     format!("{}'s session", name).as_mut_ptr() as *mut i8,
                 )
-            };
-
-            sess
+            }
         };
 
         let res = unsafe { cffi::CryptoAuth_decrypt(c_session, msg.as_c_message()) };
@@ -2007,7 +2028,7 @@ mod tests {
             };
             assert_eq!(res, 0, "CryptoAuth_addUser_ipv6() failed: {}", res);
 
-            let sess = unsafe {
+            unsafe {
                 cffi::CryptoAuth_newSession(
                     ca,
                     alloc,
@@ -2015,9 +2036,7 @@ mod tests {
                     false,
                     format!("{}'s session", name).as_mut_ptr() as *mut i8,
                 )
-            };
-
-            sess
+            }
         };
 
         let mut msg = mk_msg(256);
@@ -2028,9 +2047,9 @@ mod tests {
         assert_eq!(res, 0);
         assert_ne!(msg.len(), orig_length);
 
-        let rust_session = {
-            let priv_key = her_keys.private_key.clone();
-            let pub_key = my_keys.public_key.clone();
+        let (rust_session, rust_plain, rust_cipher) = {
+            let priv_key = her_keys.private_key;
+            let pub_key = my_keys.public_key;
             let name = "alice";
 
             let ca =
@@ -2045,18 +2064,18 @@ mod tests {
             assert_eq!(res.err(), None);
 
             let sess = super::Session::new(
-                ca.clone(),
+                ca,
                 pub_key,
                 false,
                 Some(format!("{}'s session", name)),
                 false,
             );
-            assert_eq!(sess.as_ref().err(), None);
+            assert!(sess.is_ok());
             sess.unwrap()
         };
 
         let res = rust_session.decrypt(&mut msg);
-        assert_eq!(res.err(), None);
+        assert!(res.is_ok());
         assert_eq!(msg.len(), orig_length);
         assert_eq!(msg.bytes(), b"HelloWorld012345");
     }
@@ -2080,7 +2099,7 @@ mod tests {
             my_priv_key: PrivateKey,
             her_pub_key: PublicKey,
             name: &str,
-        ) -> Arc<super::Session> {
+        ) -> (Arc<super::Session>, Iface, Iface) {
             let ca = super::CryptoAuth::new(Some(my_priv_key), EventBase {}, Random::Fake);
             let ca = Arc::new(ca);
 
@@ -2092,52 +2111,48 @@ mod tests {
             assert_eq!(res.err(), None);
 
             let sess = super::Session::new(
-                ca.clone(),
+                ca,
                 her_pub_key,
                 false,
                 Some(format!("{}'s session", name)),
                 true,
             );
-            assert_eq!(sess.as_ref().err(), None);
             sess.unwrap()
         }
 
-        let her_session = mk_sess(
+        let (her_session, her_plain, her_cipher) = mk_sess(
             her_keys.private_key.clone(),
             my_keys.public_key.clone(),
             "alice",
         );
 
-        let my_session = mk_sess(
-            my_keys.private_key.clone(),
-            her_keys.public_key.clone(),
-            "bob",
-        );
+        let (my_session, my_plain, my_cipher) =
+            mk_sess(my_keys.private_key, her_keys.public_key, "bob");
 
         let mut msg = mk_msg(1024);
         msg.push_bytes(b"Hello World").unwrap();
         let orig_length = msg.len();
 
         let res = my_session.encrypt(&mut msg);
-        assert_eq!(res.err(), None);
+        assert!(res.is_ok());
         assert_ne!(msg.len(), orig_length);
 
-        let res = Session::tun_recv(&her_session.tunnel.unwrap(), &mut msg);
-        assert_eq!(res.as_ref().err(), None);
-        if let Some(Some(send_back)) = res.ok() {
+        let res = Session::tun_recv(her_session.tunnel.as_ref().unwrap(), &mut msg);
+        assert!(res.is_ok());
+        if let Ok(Some(send_back)) = res {
             'outer: for packet in send_back {
                 msg.clear();
                 msg.push_bytes(&packet).expect("msg size");
-                let res = Session::tun_recv(&my_session.tunnel.unwrap(), &mut msg);
-                assert_eq!(res.as_ref().err(), None);
+                let res = Session::tun_recv(my_session.tunnel.as_ref().unwrap(), &mut msg);
+                assert!(res.is_ok());
                 assert_eq!(msg.len(), 0);
 
-                if let Some(Some(send_back)) = res.ok() {
+                if let Ok(Some(send_back)) = res {
                     for packet in send_back {
                         msg.clear();
                         msg.push_bytes(&packet).expect("msg size");
                         let res = her_session.decrypt(&mut msg);
-                        assert_eq!(res, Ok(None));
+                        assert!(res.is_ok());
                         if msg.len() > 0 {
                             break 'outer;
                         }

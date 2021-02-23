@@ -533,15 +533,13 @@ static int closeInterface(struct Allocator_OnFreeJob* job)
     struct Peer* toClose = Identity_check((struct Peer*) job->userData);
 
     int index = Map_EndpointsBySockaddr_indexForHandle(toClose->handle, &toClose->ici->peerMap);
-    if (index < 0) {
+    if (index < 0 || toClose->ici->peerMap.values[index] != toClose) {
         // Happens if the ep was created as a result of handleUnexpectedIncoming
         return 0;
     }
     sendPeer(0xffffffff, PFChan_Core_PEER_GONE, toClose, 0xffff);
     Log_debug(toClose->ici->ic->logger,
         "Closing interface [%d] with handle [%u]", index, toClose->handle);
-    Assert_true(index >= 0);
-    Assert_true(toClose->ici->peerMap.values[index] == toClose);
     Map_EndpointsBySockaddr_remove(index, &toClose->ici->peerMap);
     return 0;
 }
