@@ -63,7 +63,7 @@ Er_DEFUN(int64_t Base10_read(struct Message* msg))
         Er_ret(out);
     } else {
         Er(Message_epush8(msg, chr));
-        Er_raise(msg->alloc, "No base10 characters found");
+        Er_raise(Message_getAlloc(msg), "No base10 characters found");
     }
 }
 

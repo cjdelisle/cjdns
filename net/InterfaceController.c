@@ -499,7 +499,7 @@ static Iface_DEFUN afterEncrypt(struct Message* msg, struct Iface* ciphertext)
     // very noisy
     if (Defined(Log_DEBUG) && false) {
         char* printedAddr =
-            Hex_print(&ep->lladdr[1], ep->lladdr->addrLen - Sockaddr_OVERHEAD, msg->alloc);
+            Hex_print(&ep->lladdr[1], ep->lladdr->addrLen - Sockaddr_OVERHEAD, Message_getAlloc(msg));
         Log_debug(ep->ici->ic->logger, "Outgoing message to [%s]", printedAddr);
     }
 
@@ -515,7 +515,7 @@ static Iface_DEFUN sendFromSwitch(struct Message* msg, struct Iface* switchIf)
     if (knownIncompatibleVersion(ep->addr.protocolVersion)) {
         if (Defined(Log_DEBUG)) {
             Log_debug(ep->ici->ic->logger, "[%s] DROP msg to node with incompat version [%d] ",
-                Address_toString(&ep->addr, msg->alloc)->bytes, ep->addr.protocolVersion);
+                Address_toString(&ep->addr, Message_getAlloc(msg))->bytes, ep->addr.protocolVersion);
         }
         ep->state = InterfaceController_PeerState_INCOMPATIBLE;
         return Error(UNHANDLED);
@@ -607,7 +607,7 @@ static Iface_DEFUN handleBeacon(struct Message* msg, struct InterfaceController_
     Er_assert(Message_epop(msg, &beacon, Headers_Beacon_SIZE));
 
     if (Defined(Log_DEBUG)) {
-        char* content = Hex_print(&beacon, Headers_Beacon_SIZE, msg->alloc);
+        char* content = Hex_print(&beacon, Headers_Beacon_SIZE, Message_getAlloc(msg));
         Log_debug(ici->ic->logger, "RECV BEACON CONTENT[%s]", content);
     }
 
@@ -619,7 +619,7 @@ static Iface_DEFUN handleBeacon(struct Message* msg, struct InterfaceController_
 
     String* printedAddr = NULL;
     if (Defined(Log_DEBUG)) {
-        printedAddr = Address_toString(&addr, msg->alloc);
+        printedAddr = Address_toString(&addr, Message_getAlloc(msg));
     }
 
     if (!AddressCalc_validAddress(addr.ip6.bytes)) {
@@ -639,7 +639,7 @@ static Iface_DEFUN handleBeacon(struct Message* msg, struct InterfaceController_
         return Error(UNHANDLED);
     }
 
-    String* beaconPass = String_newBinary(beacon.password, Headers_Beacon_PASSWORD_LEN, msg->alloc);
+    String* beaconPass = String_newBinary(beacon.password, Headers_Beacon_PASSWORD_LEN, Message_getAlloc(msg));
     int epIndex = Map_EndpointsBySockaddr_indexForKey(&lladdrInmsg, &ici->peerMap);
     if (epIndex > -1) {
         // The password might have changed!
@@ -670,7 +670,7 @@ static Iface_DEFUN handleBeacon(struct Message* msg, struct InterfaceController_
         Time_currentTimeMilliseconds(ic->eventBase) - ic->pingAfterMilliseconds - 1;
 
     Log_info(ic->logger, "Added peer [%s] from beacon",
-        Address_toString(&ep->addr, msg->alloc)->bytes);
+        Address_toString(&ep->addr, Message_getAlloc(msg))->bytes);
 
     // Ping them immediately, this prevents beacon tests from taking 1 second each
     sendPing(ep);
@@ -730,7 +730,7 @@ static Iface_DEFUN handleIncomingFromWire(struct Message* msg, struct Iface* add
 
     // noisy
     if (Defined(Log_DEBUG) && false) {
-        char* printedAddr = Hex_print(&lladdr[1], lladdr->addrLen - Sockaddr_OVERHEAD, msg->alloc);
+        char* printedAddr = Hex_print(&lladdr[1], lladdr->addrLen - Sockaddr_OVERHEAD, Message_getAlloc(msg));
         Log_debug(ici->ic->logger, "Incoming message from [%s]", printedAddr);
     }
 
@@ -750,7 +750,7 @@ static Iface_DEFUN handleIncomingFromWire(struct Message* msg, struct Iface* add
     if (knownIncompatibleVersion(ep->addr.protocolVersion)) {
         if (Defined(Log_DEBUG)) {
             Log_debug(ici->ic->logger, "[%s] DROP msg from node with incompat version [%d] ",
-                Address_toString(&ep->addr, msg->alloc)->bytes, ep->addr.protocolVersion);
+                Address_toString(&ep->addr, Message_getAlloc(msg))->bytes, ep->addr.protocolVersion);
         }
         ep->state = InterfaceController_PeerState_INCOMPATIBLE;
         return Error(NONE);
@@ -807,7 +807,7 @@ static Iface_DEFUN afterDecrypt(struct Message* msg, struct Iface* plaintext)
             Time_currentTimeMilliseconds(ic->eventBase) - ic->pingAfterMilliseconds - 1;
 
         Log_info(ic->logger, "Added peer [%s] from incoming message",
-            Address_toString(&ep->addr, msg->alloc)->bytes);
+            Address_toString(&ep->addr, Message_getAlloc(msg))->bytes);
     }
 
     Kbps_accumulate(&ep->recvBw, Time_currentTimeMilliseconds(ic->eventBase), msg->length);

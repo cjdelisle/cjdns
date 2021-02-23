@@ -377,8 +377,8 @@ static Iface_DEFUN changeSnode(struct Message* msg, struct Iface* eventIf)
     Bits_memcpy(addr.key, node.publicKey, 32);
 
     Log_debug(ch->log, "%s [%s] -> [%s]", log,
-        Address_toStringKey(&old, msg->alloc)->bytes,
-        Address_toStringKey(&addr, msg->alloc)->bytes);
+        Address_toStringKey(&old, Message_getAlloc(msg))->bytes,
+        Address_toStringKey(&addr, Message_getAlloc(msg))->bytes);
 
     return Error(NONE);
 }

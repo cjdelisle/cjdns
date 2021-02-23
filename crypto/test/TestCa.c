@@ -120,7 +120,7 @@ static Iface_DEFUN messagePlaintext(Message_t *msg, struct Iface* iface)
     Message_t* m2 = NULL;
     if (sess->s2) {
         if (sess->s) {
-            m2 = Message_clone(msg, msg->alloc);
+            m2 = Message_clone(msg, Message_getAlloc(msg));
         } else {
             m2 = msg;
             msg = NULL;
@@ -156,7 +156,7 @@ static Iface_DEFUN messageCiphertext(Message_t *msg, struct Iface* iface)
     Message_t* m2 = NULL;
     if (sess->s2) {
         if (sess->s) {
-            m2 = Message_clone(msg, msg->alloc);
+            m2 = Message_clone(msg, Message_getAlloc(msg));
         } else {
             m2 = msg;
             msg = NULL;
@@ -205,8 +205,8 @@ static bool check(Message_t *msg, TestCa_Session_pvt_t* sess)
                 msg->length, m2->length);
         }
         if (Bits_memcmp(msg->bytes, m2->bytes, msg->length)) {
-            const char* msgH = Hex_print(msg->bytes, msg->length, msg->alloc);
-            const char* m2H = Hex_print(m2->bytes, m2->length, m2->alloc);
+            const char* msgH = Hex_print(msg->bytes, msg->length, Message_getAlloc(msg));
+            const char* m2H = Hex_print(m2->bytes, m2->length, Message_getAlloc(m2));
             Assert_failure("msg->bytes != m2->bytes:\n%s\n%s\n", msgH, m2H);
         }
         Assert_true(!Bits_memcmp(msg->bytes, m2->bytes, msg->length));

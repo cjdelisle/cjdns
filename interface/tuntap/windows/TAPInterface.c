@@ -152,7 +152,7 @@ static void readCallbackB(struct TAPInterface_pvt* tap)
     msg->length = bytesRead;
     Log_debug(tap->log, "Read [%d] bytes", msg->length);
     Iface_send(&tap->pub.generic, msg);
-    Allocator_free(msg->alloc);
+    Allocator_free(Message_getAlloc(msg));
     postRead(tap);
 }
 
@@ -235,7 +235,7 @@ static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* iface)
         tap->pendingWritesAlloc = Allocator_child(tap->alloc);
     }
     tap->writeMsgs[tap->writeMessageCount++] = msg;
-    Allocator_adopt(tap->pendingWritesAlloc, msg->alloc);
+    Allocator_adopt(tap->pendingWritesAlloc, Message_getAlloc(msg));
     if (tap->writeMessageCount == 1) {
         postWrite(tap);
     }

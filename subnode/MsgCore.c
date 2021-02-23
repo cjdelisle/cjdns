@@ -79,14 +79,14 @@ static Iface_DEFUN replyMsg(struct MsgCore_pvt* mcp,
                             struct Address* src,
                             struct Message* msg)
 {
-    Log_debug(mcp->log, "Got reply from [%s]", Address_toString(src, msg->alloc)->bytes);
+    Log_debug(mcp->log, "Got reply from [%s]", Address_toString(src, Message_getAlloc(msg))->bytes);
     String* txid = Dict_getStringC(content, "txid");
     if (!txid) {
         Log_debug(mcp->log, "DROP Message with no txid");
         return Error(INVALID);
     }
 
-    struct ReplyContext* rc = Allocator_calloc(msg->alloc, sizeof(struct ReplyContext), 1);
+    struct ReplyContext* rc = Allocator_calloc(Message_getAlloc(msg), sizeof(struct ReplyContext), 1);
     rc->src = src;
     rc->content = content;
     rc->msg = msg;
@@ -241,7 +241,7 @@ static Iface_DEFUN queryMsg(struct MsgCore_pvt* mcp,
     } else if (!qh->pub.cb) {
         Log_info(mcp->log, "Query handler for [%s] not setup", q->bytes);
     } else {
-        return qh->pub.cb(content, src, msg->alloc, &qh->pub);
+        return qh->pub.cb(content, src, Message_getAlloc(msg), &qh->pub);
     }
     return Error(INVALID);
 }
@@ -293,12 +293,12 @@ static Iface_DEFUN incoming(struct Message* msg, struct Iface* interRouterIf)
     uint8_t* msgBytes = msg->bytes;
     int length = msg->length;
     //Log_debug(mcp->log, "Receive msg [%s] from [%s]",
-    //    Escape_getEscaped(msg->bytes, msg->length, msg->alloc),
-    //    Address_toString(&addr, msg->alloc)->bytes);
+    //    Escape_getEscaped(msg->bytes, msg->length, Message_getAlloc(msg)),
+    //    Address_toString(&addr, Message_getAlloc(msg))->bytes);
     //
-    BencMessageReader_readNoExcept(msg, msg->alloc, &content);
+    BencMessageReader_readNoExcept(msg, Message_getAlloc(msg), &content);
     if (!content) {
-        char* esc = Escape_getEscaped(msgBytes, length, msg->alloc);
+        char* esc = Escape_getEscaped(msgBytes, length, Message_getAlloc(msg));
         Log_debug(mcp->log, "DROP Malformed message [%s]", esc);
         return Error(INVALID);
     }

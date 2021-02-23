@@ -70,7 +70,7 @@ static Er_DEFUN(void mkRouteMsg(struct Message* msg,
                        bool delete))
 {
     if (CString_strlen(ifName) >= 12) {
-        Er_raise(msg->alloc, "ifName [%s] too long, limit 11 chars", ifName);
+        Er_raise(Message_getAlloc(msg), "ifName [%s] too long, limit 11 chars", ifName);
     }
     int lengthBegin = msg->length;
     bool ipv6 = Sockaddr_getFamily(addRoute) == Sockaddr_AF_INET6;

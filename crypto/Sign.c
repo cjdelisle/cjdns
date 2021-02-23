@@ -171,7 +171,7 @@ void Sign_signMsg(uint8_t keyPair[64], struct Message* msg, struct Random* rand)
 int Sign_verifyMsg(uint8_t publicSigningKey[32], struct Message* msg)
 {
     if (msg->length < 64) { return -1; }
-    struct Allocator* alloc = Allocator_child(msg->alloc);
+    struct Allocator* alloc = Allocator_child(Message_getAlloc(msg));
     uint8_t* buff = Allocator_malloc(alloc, msg->length);
     unsigned long long ml = msg->length;
     int ret = crypto_sign_ed25519_open(buff, &ml, msg->bytes, msg->length, publicSigningKey);

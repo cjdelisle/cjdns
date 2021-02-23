@@ -98,7 +98,7 @@ static Iface_DEFUN fromA(struct Message* msg, struct Iface* ifA)
     struct ASynchronizer_pvt* as = Identity_containerOf(ifA, struct ASynchronizer_pvt, pub.ifA);
     if (!as->cycleAlloc) { as->cycleAlloc = Allocator_child(as->alloc); }
     if (!as->msgsToB) { as->msgsToB = ArrayList_Messages_new(as->cycleAlloc); }
-    Allocator_adopt(as->cycleAlloc, msg->alloc);
+    Allocator_adopt(as->cycleAlloc, Message_getAlloc(msg));
     ArrayList_Messages_add(as->msgsToB, msg);
     checkTimeout(as);
     return Error(NONE);
@@ -109,7 +109,7 @@ static Iface_DEFUN fromB(struct Message* msg, struct Iface* ifB)
     struct ASynchronizer_pvt* as = Identity_containerOf(ifB, struct ASynchronizer_pvt, pub.ifB);
     if (!as->cycleAlloc) { as->cycleAlloc = Allocator_child(as->alloc); }
     if (!as->msgsToA) { as->msgsToA = ArrayList_Messages_new(as->cycleAlloc); }
-    Allocator_adopt(as->cycleAlloc, msg->alloc);
+    Allocator_adopt(as->cycleAlloc, Message_getAlloc(msg));
     ArrayList_Messages_add(as->msgsToA, msg);
     checkTimeout(as);
     return Error(NONE);

@@ -91,17 +91,13 @@ static Iface_DEFUN incomingFromIface(struct Message* m, struct Iface* iface)
 
     if (context->queueLen > UDPAddrIface_MAX_QUEUE) {
         Log_warn(context->logger, "DROP msg length [%d] to [%s] maximum queue length reached",
-            m->length, Sockaddr_print(context->pub.generic.addr, m->alloc));
+            m->length, Sockaddr_print(context->pub.generic.addr, Message_getAlloc(m)));
         return Error(OVERFLOW);
     }
 
     // This allocator will hold the message allocator in existance after it is freed.
     struct Allocator* reqAlloc = Allocator_child(context->allocator);
-    if (m->alloc) {
-        Allocator_adopt(reqAlloc, m->alloc);
-    } else {
-        m = Message_clone(m, reqAlloc);
-    }
+    Allocator_adopt(reqAlloc, Message_getAlloc(m));
 
     struct UDPAddrIface_WriteRequest_pvt* req =
         Allocator_clone(reqAlloc, (&(struct UDPAddrIface_WriteRequest_pvt) {
@@ -176,7 +172,7 @@ static void incoming(uv_udp_t* handle,
     }
 
     if (msg) {
-        Allocator_free(msg->alloc);
+        Allocator_free(Message_getAlloc(msg));
     }
 
     context->inCallback = 0;

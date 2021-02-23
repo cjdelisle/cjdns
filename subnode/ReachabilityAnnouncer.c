@@ -289,16 +289,16 @@ static bool pushLinkState(struct ReachabilityAnnouncer_pvt* rap,
         pi->linkState.nodeId = pi->addr.path & 0xffff;
         if (LinkState_encode(msg, &pi->linkState, pi->lastAnnouncedSamples)) {
             Log_debug(rap->log, "Failed to add link state for [%s]",
-                Address_toString(&pi->addr, msg->alloc)->bytes);
+                Address_toString(&pi->addr, Message_getAlloc(msg))->bytes);
         }
         if (msg->length > MSG_SIZE_LIMIT) {
             Er_assert(Message_epop(msg, NULL, msg->length - lastLen));
             Log_debug(rap->log, "Couldn't add link state for [%s] (out of space)",
-                Address_toString(&pi->addr, msg->alloc)->bytes);
+                Address_toString(&pi->addr, Message_getAlloc(msg))->bytes);
             return true;
         } else {
             Log_debug(rap->log, "Updated link state for [%s]",
-                Address_toString(&pi->addr, msg->alloc)->bytes);
+                Address_toString(&pi->addr, Message_getAlloc(msg))->bytes);
             pi->lastAnnouncedSamples = pi->linkState.samples;
         }
     }
@@ -400,7 +400,7 @@ static void stateReset(struct ReachabilityAnnouncer_pvt* rap)
 {
     for (int i = rap->snodeState->length - 1; i >= 0; i--) {
         struct Message* msg = ArrayList_OfMessages_remove(rap->snodeState, i);
-        Allocator_free(msg->alloc);
+        Allocator_free(Message_getAlloc(msg));
     }
 
     if (rap->onTheWire) {
@@ -449,7 +449,7 @@ static void addServerStateMsg(struct ReachabilityAnnouncer_pvt* rap, struct Mess
         }
         if (redundant && m != msg) {
             ArrayList_OfMessages_remove(rap->snodeState, i);
-            Allocator_free(m->alloc);
+            Allocator_free(Message_getAlloc(m));
         } else if (timestampFromMsg(m) < sinceTime) {
             // this will cause an immediate reset of state because we don't remove it and
             // the server side will.
@@ -557,7 +557,7 @@ static void onReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom
     Log_debug(rap->log, "snode messages before [%d]", rap->snodeState->length);
     // We need to takeover the message allocator because it belongs to the ping message which
     // will auto-free at the end of this cycle.
-    Allocator_adopt(rap->alloc, q->msg->alloc);
+    Allocator_adopt(rap->alloc, Message_getAlloc(q->msg));
     addServerStateMsg(rap, q->msg);
     Log_debug(rap->log, "snode messages after [%d]", rap->snodeState->length);
     rap->resetState = false;

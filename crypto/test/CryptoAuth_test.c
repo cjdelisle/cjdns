@@ -188,14 +188,14 @@ static void sendToIf1(struct Context* ctx, const char* x)
 {
     struct Message* msg = encryptMsg(ctx, &ctx->node2, x);
     decryptMsg(ctx, msg, &ctx->node1, x, CryptoAuth_DecryptErr_NONE);
-    Allocator_free(msg->alloc);
+    Allocator_free(Message_getAlloc(msg));
 }
 
 static void sendToIf2(struct Context* ctx, const char* x)
 {
     struct Message* msg = encryptMsg(ctx, &ctx->node1, x);
     decryptMsg(ctx, msg, &ctx->node2, x, CryptoAuth_DecryptErr_NONE);
-    Allocator_free(msg->alloc);
+    Allocator_free(Message_getAlloc(msg));
 }
 
 static void normal(enum TestCa_Config cfg)

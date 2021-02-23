@@ -180,7 +180,7 @@ static int sendMessage0(Dict* message, String* txid, struct Admin* adminPub, int
 
     struct Allocator* alloc = NULL;
     if (admin->currentRequest) {
-        alloc = admin->currentRequest->alloc;
+        alloc = Message_getAlloc(admin->currentRequest);
     } else {
         alloc = Allocator_child(admin->allocator);
     }
@@ -395,8 +395,8 @@ static void handleRequest(Dict* messageDict,
         if (String_equals(query, admin->functions[i].name)
             && (authed || !admin->functions[i].needsAuth))
         {
-            if (checkArgs(args, &admin->functions[i], txid, message->alloc, admin)) {
-                admin->functions[i].call(args, admin->functions[i].context, txid, message->alloc);
+            if (checkArgs(args, &admin->functions[i], txid, Message_getAlloc(message), admin)) {
+                admin->functions[i].call(args, admin->functions[i].context, txid, Message_getAlloc(message));
             }
             noFunctionsCalled = false;
         }

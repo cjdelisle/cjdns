@@ -98,7 +98,7 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* streamIf)
             return Error(NONE);
         }
         fi->bytesRemaining -= msg->length;
-        Allocator_adopt(fi->frameAlloc, msg->alloc);
+        Allocator_adopt(fi->frameAlloc, Message_getAlloc(msg));
         struct MessageList* parts = Allocator_calloc(fi->frameAlloc, sizeof(struct MessageList), 1);
         parts->msg = msg;
         parts->next = fi->frameParts;
@@ -129,7 +129,7 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* streamIf)
             return Iface_next(&fi->messageIf, msg);
 
         } else if (fi->bytesRemaining < (uint32_t)msg->length) {
-            struct Allocator* alloc = Allocator_child(msg->alloc);
+            struct Allocator* alloc = Allocator_child(Message_getAlloc(msg));
             struct Message* m = Message_new(fi->bytesRemaining, REQUIRED_PADDING, alloc);
             Message_setAssociatedFd(m, Message_getAssociatedFd(msg));
             Bits_memcpy(m->bytes, msg->bytes, fi->bytesRemaining);
@@ -141,12 +141,8 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* streamIf)
 
         } else {
             fi->frameAlloc = Allocator_child(fi->alloc);
-            struct Message* m = Allocator_calloc(fi->frameAlloc, sizeof(struct Message), 1);
+            struct Message* m = Message_new(0, msg->length + 4, fi->frameAlloc);
             Message_setAssociatedFd(m, Message_getAssociatedFd(msg));
-            m->capacity = m->length = msg->length + 4;
-            m->bytes = Allocator_calloc(fi->frameAlloc, m->length, 1);
-            m->alloc = fi->frameAlloc;
-            Er_assert(Message_eshift(m, -m->length));
             Er_assert(Message_epush(m, msg->bytes, msg->length));
             Er_assert(Message_epush(m, fi->header.bytes, 4));
 

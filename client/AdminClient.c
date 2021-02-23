@@ -121,15 +121,15 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* addrIface)
     Er_assert(Message_epop(msg, &source, ctx->targetAddr->addrLen));
     if (Bits_memcmp(&source, ctx->targetAddr, ctx->targetAddr->addrLen)) {
         Log_info(ctx->logger, "Got spurious message from [%s], expecting messages from [%s]",
-                 Sockaddr_print(&source.addr, msg->alloc),
-                 Sockaddr_print(ctx->targetAddr, msg->alloc));
+                 Sockaddr_print(&source.addr, Message_getAlloc(msg)),
+                 Sockaddr_print(ctx->targetAddr, Message_getAlloc(msg)));
         // The UDP interface can't make use of an error but we'll inform anyway
         return Error(INVALID);
     }
 
     // we don't yet know with which message this data belongs,
     // the message alloc lives the length of the message reception.
-    struct Allocator* alloc = Allocator_child(msg->alloc);
+    struct Allocator* alloc = Allocator_child(Message_getAlloc(msg));
 
     int origLen = msg->length;
     Dict* d = NULL;

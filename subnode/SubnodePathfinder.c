@@ -341,7 +341,7 @@ static Iface_DEFUN peer(struct Message* msg, struct SubnodePathfinder_pvt* pf)
 {
     struct Address addr;
     uint32_t metric = addressForNode(&addr, msg);
-    String* str = Address_toString(&addr, msg->alloc);
+    String* str = Address_toString(&addr, Message_getAlloc(msg));
 
     int index = AddrSet_indexOf(pf->myPeerAddrs, &addr, AddrSet_Match_BOTH);
     if (index > -1) {
@@ -382,7 +382,7 @@ static Iface_DEFUN session(struct Message* msg, struct SubnodePathfinder_pvt* pf
 {
     struct Address addr;
     addressForNode(&addr, msg);
-    String* str = Address_toString(&addr, msg->alloc);
+    String* str = Address_toString(&addr, Message_getAlloc(msg));
     Log_debug(pf->log, "Session [%s]", str->bytes);
     //if (addr.protocolVersion) { NodeCache_discoverNode(pf->nc, &addr); }
     return Error(NONE);
@@ -392,7 +392,7 @@ static Iface_DEFUN sessionEnded(struct Message* msg, struct SubnodePathfinder_pv
 {
     struct Address addr;
     addressForNode(&addr, msg);
-    String* str = Address_toString(&addr, msg->alloc);
+    String* str = Address_toString(&addr, Message_getAlloc(msg));
     Log_debug(pf->log, "Session ended [%s]", str->bytes);
     //NodeCache_forgetNode(pf->nc, &addr);
     return Error(NONE);
@@ -402,7 +402,7 @@ static Iface_DEFUN discoveredPath(struct Message* msg, struct SubnodePathfinder_
 {
     //struct Address addr;
     //addressForNode(&addr, msg);
-    //Log_debug(pf->log, "discoveredPath(%s)", Address_toString(&addr, msg->alloc)->bytes);
+    //Log_debug(pf->log, "discoveredPath(%s)", Address_toString(&addr, Message_getAlloc(msg))->bytes);
     //if (addr.protocolVersion) { NodeCache_discoverNode(pf->nc, &addr); }
     return Error(NONE);
 }

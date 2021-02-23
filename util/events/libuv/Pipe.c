@@ -135,11 +135,7 @@ static Iface_DEFUN sendMessage(struct Message* m, struct Iface* iface)
 
     // This allocator will hold the message allocator in existance after it is freed.
     struct Allocator* reqAlloc = Allocator_child(pipe->alloc);
-    if (m->alloc) {
-        Allocator_adopt(reqAlloc, m->alloc);
-    } else {
-        m = Message_clone(m, reqAlloc);
-    }
+    Allocator_adopt(reqAlloc, Message_getAlloc(m));
 
     struct Pipe_WriteRequest_pvt* req =
         Allocator_clone(reqAlloc, (&(struct Pipe_WriteRequest_pvt) {
@@ -197,7 +193,7 @@ static void incoming(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf)
     struct Message* msg = buf->base ? ALLOC(buf->base) : NULL;
     pipe->isInCallback = 1;
 
-    Assert_true(!msg || msg->alloc->fileName == pipe->alloc->fileName);
+    Assert_true(!msg || Message_getAlloc(msg)->fileName == pipe->alloc->fileName);
 
     if (nread < 0) {
         if (pipe->pub.onClose) {
@@ -220,7 +216,7 @@ static void incoming(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf)
     }
 
     if (msg) {
-        Allocator_free(msg->alloc);
+        Allocator_free(Message_getAlloc(msg));
     }
 
     pipe->isInCallback = 0;

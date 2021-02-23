@@ -102,7 +102,7 @@ static Iface_DEFUN receiveMessageChild(struct Message* msg, struct Iface* iface)
             printf("lseek(%d) failed: errno %s\n", fd, strerror(errno));
             Assert_failure("lseek()");
         }
-        uint8_t* buf = Allocator_calloc(msg->alloc, 2048, 1);
+        uint8_t* buf = Allocator_calloc(Message_getAlloc(msg), 2048, 1);
         if (read(fd, buf, 1024) < 0) {
             printf("read(%d) failed: errno %s\n", fd, strerror(errno));
             Assert_failure("read()");

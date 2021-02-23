@@ -174,7 +174,7 @@ static void delay(struct Context* ctx, struct Node* from, struct Message* msg, i
     logNode(ctx, from, "DELAY %d packets (ptr:%p)", afterMsgs, (void*)msg);
     struct Allocator* alloc = Allocator_child(ctx->alloc);
     struct DelayedMsg* delayed = Allocator_calloc(alloc, sizeof(struct DelayedMsg), 1);
-    Allocator_adopt(alloc, msg->alloc);
+    Allocator_adopt(alloc, Message_getAlloc(msg));
     delayed->msg = msg;
     delayed->sendAfter = from->sendCounter + afterMsgs;
     delayed->alloc = alloc;

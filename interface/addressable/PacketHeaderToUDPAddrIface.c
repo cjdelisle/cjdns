@@ -82,7 +82,7 @@ static Iface_DEFUN incomingFromHeaderIf(struct Message* message, struct Iface* i
         return Error(INVALID);
     }
 
-    struct Allocator* alloc = Allocator_child(message->alloc);
+    struct Allocator* alloc = Allocator_child(Message_getAlloc(message));
     struct Sockaddr* addr = Sockaddr_clone(context->pub.udpIf.addr, alloc);
     uint8_t* addrPtr = NULL;
     Assert_true(Sockaddr_getAddress(addr, &addrPtr) == 16);

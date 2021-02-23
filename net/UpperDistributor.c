@@ -124,7 +124,7 @@ static void sendToHandlers(struct Message* msg,
     }
     for (int i = 0; i < (int)ud->handlers->count; i++) {
         if (ud->handlers->values[i]->pub.type != type) { continue; }
-        struct Allocator* alloc = Allocator_child(msg->alloc);
+        struct Allocator* alloc = Allocator_child(Message_getAlloc(msg));
         struct Message* cmsg = Message_clone(msg, alloc);
 
         {

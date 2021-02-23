@@ -305,7 +305,7 @@ static Iface_DEFUN peer(struct Message* msg, struct Pathfinder_pvt* pf)
 {
     struct Address addr;
     addressForNode(&addr, msg);
-    String* str = Address_toString(&addr, msg->alloc);
+    String* str = Address_toString(&addr, Message_getAlloc(msg));
     Log_debug(pf->log, "Peer [%s]", str->bytes);
 
     struct Node_Link* link = NodeStore_linkForPath(pf->nodeStore, addr.path);
@@ -327,7 +327,7 @@ static Iface_DEFUN peerGone(struct Message* msg, struct Pathfinder_pvt* pf)
 {
     struct Address addr;
     addressForNode(&addr, msg);
-    String* str = Address_toString(&addr, msg->alloc);
+    String* str = Address_toString(&addr, Message_getAlloc(msg));
     Log_debug(pf->log, "Peer gone [%s]", str->bytes);
     NodeStore_disconnectedPeer(pf->nodeStore, addr.path);
 
@@ -339,7 +339,7 @@ static Iface_DEFUN session(struct Message* msg, struct Pathfinder_pvt* pf)
 {
     struct Address addr;
     addressForNode(&addr, msg);
-    String* str = Address_toString(&addr, msg->alloc);
+    String* str = Address_toString(&addr, Message_getAlloc(msg));
     Log_debug(pf->log, "Session [%s]", str->bytes);
 
     /* This triggers for every little ping we send to some random node out there which
@@ -356,7 +356,7 @@ static Iface_DEFUN sessionEnded(struct Message* msg, struct Pathfinder_pvt* pf)
 {
     struct Address addr;
     addressForNode(&addr, msg);
-    String* str = Address_toString(&addr, msg->alloc);
+    String* str = Address_toString(&addr, Message_getAlloc(msg));
     Log_debug(pf->log, "Session ended [%s]", str->bytes);
     return Error(NONE);
 }
@@ -380,7 +380,7 @@ static Iface_DEFUN discoveredPath(struct Message* msg, struct Pathfinder_pvt* pf
 
     addr.protocolVersion = nn->address.protocolVersion;
 
-    Log_debug(pf->log, "Discovered path [%s]", Address_toString(&addr, msg->alloc)->bytes);
+    Log_debug(pf->log, "Discovered path [%s]", Address_toString(&addr, Message_getAlloc(msg))->bytes);
     RumorMill_addNode(pf->rumorMill, &addr);
     return Error(NONE);
 }
@@ -414,12 +414,12 @@ static Iface_DEFUN incomingMsg(struct Message* msg, struct Pathfinder_pvt* pf)
     struct DHTMessage dht = {
         .address = &addr,
         .binMessage = msg,
-        .allocator = msg->alloc
+        .allocator = Message_getAlloc(msg)
     };
 
     DHTModuleRegistry_handleIncoming(&dht, pf->registry);
 
-    struct Message* nodeMsg = Message_new(0, 256, msg->alloc);
+    struct Message* nodeMsg = Message_new(0, 256, Message_getAlloc(msg));
     Iface_CALL(sendNode, nodeMsg, &addr, Metric_DHT_INCOMING, pf);
 
     if (dht.pleaseRespond) {

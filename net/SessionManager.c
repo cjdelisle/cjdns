@@ -695,7 +695,7 @@ static void bufferPacket(struct SessionManager_pvt* sm, struct Message* msg)
     buffered->msg = msg;
     buffered->alloc = lookupAlloc;
     buffered->timeSentMilliseconds = Time_currentTimeMilliseconds(sm->eventBase);
-    Allocator_adopt(lookupAlloc, msg->alloc);
+    Allocator_adopt(lookupAlloc, Message_getAlloc(msg));
     Assert_true(Map_BufferedMessages_put((struct Ip6*)header->ip6, &buffered, &sm->bufMap) > -1);
 }
 
@@ -836,7 +836,7 @@ static Iface_DEFUN incomingFromEventIf(struct Message* msg, struct Iface* iface)
     uint32_t sourcePf = Er_assert(Message_epop32be(msg));
     if (ev == PFChan_Pathfinder_SESSIONS) {
         Assert_true(!msg->length);
-        return sessions(sm, sourcePf, msg->alloc);
+        return sessions(sm, sourcePf, Message_getAlloc(msg));
     }
     Assert_true(ev == PFChan_Pathfinder_NODE);
 

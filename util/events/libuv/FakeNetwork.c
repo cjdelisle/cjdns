@@ -83,11 +83,11 @@ static Iface_DEFUN fromAsync(struct Message* msg, struct Iface* fnpFromAsync)
     popSockaddr(msg, &dest);
     int idx = Map_OfIfaces_indexForKey(&dp, &fnp->map);
     if (idx == -1) {
-        char* destAddr = Sockaddr_print(dp, msg->alloc);
+        char* destAddr = Sockaddr_print(dp, Message_getAlloc(msg));
 
         // hack, the 'dest' becomes the source.
         popSockaddr(msg, &dest);
-        char* srcAddr = Sockaddr_print(dp, msg->alloc);
+        char* srcAddr = Sockaddr_print(dp, Message_getAlloc(msg));
 
         Log_debug(fnp->log, "Message with unknown dest address [%s] from [%s]", destAddr, srcAddr);
         return Error(INVALID);

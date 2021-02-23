@@ -71,10 +71,10 @@ static Iface_DEFUN sendTo(struct Message* msg,
     // Store the original message and a copy of the original so they can be compared later.
     srcTf->lastMsgBackup = Message_clone(msg, srcTf->alloc);
     srcTf->lastMsg = msg;
-    if (msg->alloc) {
+    if (Message_getAlloc(msg)) {
         // If it's a message which was buffered inside of CryptoAuth then it will be freed
         // so by adopting the allocator we can hold it in memory.
-        Allocator_adopt(srcTf->alloc, msg->alloc);
+        Allocator_adopt(srcTf->alloc, Message_getAlloc(msg));
     }
 
     // Copy the original and send that to the other end.

@@ -585,9 +585,9 @@ static Iface_DEFUN incomingControlMessage(struct Message* message,
     }
 
     Log_debug(context->logger, "Message content [%s]",
-        Escape_getEscaped(message->bytes, message->length, message->alloc));
+        Escape_getEscaped(message->bytes, message->length, Message_getAlloc(message)));
 
-    struct Allocator* alloc = Allocator_child(message->alloc);
+    struct Allocator* alloc = Allocator_child(Message_getAlloc(message));
 
     Dict* d = NULL;
     const char* err = BencMessageReader_readNoExcept(message, alloc, &d);
