@@ -147,5 +147,5 @@ for i in $(seq 1 100); do
   export CARGO_TARGET_ARMV7A_LINUX_ANDROIDEABI_LINKER=$CC
 
   echo "Compiler CC: $CC - $(${CC} --version)"
-  cargo build --release -vv --target "$RUST_TARGET"
+  cargo build --release -v --target "$RUST_TARGET"
 done
