@@ -42,12 +42,12 @@ static inline int LinkState_encode(
     // Only encode the message if there is at least 255 bytes of headspace
     // We can then encode as many as possible and finally pop one which spills over the
     // size limit and then encode it again in the next message.
-    if (msg->padding < 255) { return 1; }
+    if (Message_getPadding(msg) < 255) { return 1; }
 
     struct VarInt_Iter iter = {
         .ptr = msg->bytes,
         .end = msg->bytes,
-        .start = &msg->bytes[-msg->padding]
+        .start = &msg->bytes[-Message_getPadding(msg)]
     };
 
     // Take the newest X entries where X = MIN(ls->samples - lastSamples, LinkState_SLOTS)

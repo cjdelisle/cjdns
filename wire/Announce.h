@@ -331,7 +331,7 @@ static inline struct Announce_ItemHeader* Announce_ItemHeader_next(struct Messag
 {
     struct Announce_ItemHeader* ih = (struct Announce_ItemHeader*) last;
     if (ih) {
-        Assert_true((uint8_t*)ih > &msg->bytes[-msg->padding]);
+        Assert_true((uint8_t*)ih > &msg->bytes[-Message_getPadding(msg)]);
         Assert_true((uint8_t*)ih < &msg->bytes[msg->length]);
         ih = (struct Announce_ItemHeader*) ( &((uint8_t*) ih)[ih->length] );
     } else {

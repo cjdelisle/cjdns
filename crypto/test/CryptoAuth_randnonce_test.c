@@ -32,8 +32,9 @@ static void encryptRndNonceTest()
     uint8_t secret[32];
     Bits_memset(secret, 0, 32);
 
-    struct Message m = { .bytes=&buff[32], .length=HELLOWORLDLEN, .padding=32};
-    CString_strcpy((char*) m.bytes, HELLOWORLDLOWER);
+    struct Message m = Message_foreign(44, buff);
+    Er_assert(Message_epop(&m, NULL, 44));
+    Er_assert(Message_epush(&m, HELLOWORLDLOWER, CString_strlen(HELLOWORLDLOWER)+1));
 
     CryptoAuth_encryptRndNonce(nonce, &m, secret);
 

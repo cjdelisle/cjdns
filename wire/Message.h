@@ -30,7 +30,7 @@ typedef struct Message
     int32_t length;
 
     /** The number of bytes of padding BEFORE where bytes begins. */
-    int32_t padding;
+    int32_t _padding;
 
     /** The content. */
     uint8_t* bytes;
@@ -65,6 +65,11 @@ static inline struct Allocator* Message_getAlloc(struct Message* msg)
     return msg->_alloc;
 }
 
+static inline uint32_t Message_getPadding(struct Message* msg)
+{
+    return msg->_padding;
+}
+
 static inline uint32_t Message_getCapacity(struct Message* msg)
 {
     return msg->_capacity;
@@ -96,7 +101,7 @@ struct Message* Message_clone(struct Message* toClone, struct Allocator* alloc);
  */
 static inline Er_DEFUN(void Message_eshift(struct Message* toShift, int32_t amount))
 {
-    if (amount > 0 && toShift->padding < amount) {
+    if (amount > 0 && toShift->_padding < amount) {
         Er_raise(toShift->_alloc, "buffer overflow adding %d to length %d",
             amount, toShift->length);
     } else if (toShift->length < (-amount)) {
@@ -106,7 +111,7 @@ static inline Er_DEFUN(void Message_eshift(struct Message* toShift, int32_t amou
     toShift->length += amount;
     toShift->_capacity += amount;
     toShift->bytes -= amount;
-    toShift->padding -= amount;
+    toShift->_padding -= amount;
 
     Er_ret();
 }
@@ -115,7 +120,7 @@ static inline Er_DEFUN(void Message_epushAd(struct Message* restrict msg,
                                             const void* restrict object,
                                             size_t size))
 {
-    if (msg->padding < (int)size) {
+    if (msg->_padding < (int)size) {
         Er_raise(msg->_alloc, "not enough padding to push ad");
     }
     if (object) {
@@ -124,7 +129,7 @@ static inline Er_DEFUN(void Message_epushAd(struct Message* restrict msg,
         Bits_memset(msg->_ad, 0x00, size);
     }
     msg->_adLen += size;
-    msg->padding -= size;
+    msg->_padding -= size;
     msg->_ad = &msg->_ad[size];
     Er_ret();
 }
@@ -137,7 +142,7 @@ static inline Er_DEFUN(void Message_epopAd(struct Message* restrict msg,
         Er_raise(msg->_alloc, "underflow, cannot pop ad");
     }
     msg->_adLen -= size;
-    msg->padding += size;
+    msg->_padding += size;
     msg->_ad = &msg->_ad[-((int)size)];
     if (object) {
         Bits_memcpy(object, msg->_ad, size);

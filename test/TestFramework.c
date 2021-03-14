@@ -178,7 +178,7 @@ void TestFramework_assertLastMessageUnaltered(struct TestFramework* tf)
     struct Message* a = tf->lastMsg;
     struct Message* b = tf->lastMsgBackup;
     Assert_true(a->length == b->length);
-    Assert_true(a->padding == b->padding);
+    Assert_true(Message_getPadding(a) == Message_getPadding(b));
     Assert_true(!Bits_memcmp(a->bytes, b->bytes, a->length));
 }
 

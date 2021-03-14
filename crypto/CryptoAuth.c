@@ -186,7 +186,7 @@ static inline Gcc_USE_RET int decryptRndNonce(const uint8_t nonce[24],
     if (msg->length < 16) {
         return -1;
     }
-    Assert_true(msg->padding >= 16);
+    Assert_true(Message_getPadding(msg) >= 16);
     uint8_t* startAt = msg->bytes - 16;
     uint8_t paddingSpace[16];
     Bits_memcpy(paddingSpace, startAt, 16);
@@ -216,7 +216,7 @@ static inline void encryptRndNonce(const uint8_t nonce[24],
                                    struct Message* msg,
                                    const uint8_t secret[32])
 {
-    Assert_true(msg->padding >= 32);
+    Assert_true(Message_getPadding(msg) >= 32);
     uint8_t* startAt = msg->bytes - 32;
     // This function trashes 16 bytes of the padding so we will put it back
     uint8_t paddingSpace[16];
@@ -512,7 +512,7 @@ static int encryptPacket(struct CryptoAuth_Session_pvt* session, struct Message*
     }
 
     Assert_true(msg->length > 0 && "Empty packet during handshake");
-    Assert_true(msg->padding >= 36 || !"not enough padding");
+    Assert_true(Message_getPadding(msg) >= 36 || !"not enough padding");
 
     encrypt(session->nextNonce, msg, session->sharedSecret, session->isInitiator);
 
@@ -836,7 +836,7 @@ static enum CryptoAuth_DecryptErr decryptPacket(struct CryptoAuth_Session_pvt* s
         cryptoAuthDebug0(session, "DROP runt");
         return CryptoAuth_DecryptErr_RUNT;
     }
-    Assert_true(msg->padding >= 12 || "need at least 12 bytes of padding in incoming message");
+    Assert_true(Message_getPadding(msg) >= 12 || "need at least 12 bytes of padding in incoming message");
     Assert_true(!((uintptr_t)msg->bytes % 4) || !"alignment fault");
     Assert_true(!(Message_getCapacity(msg) % 4) || !"length fault");
 

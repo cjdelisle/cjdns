@@ -25,7 +25,7 @@ struct Message* Message_new(uint32_t messageLength,
     out->_adLen = 0;
     out->bytes = &buff[amountOfPadding];
     out->length = out->_capacity = messageLength;
-    out->padding = amountOfPadding;
+    out->_padding = amountOfPadding;
     out->_alloc = alloc;
     return out;
 }
@@ -55,16 +55,16 @@ int Message_getAssociatedFd(struct Message* msg)
 struct Message* Message_clone(struct Message* toClone, struct Allocator* alloc)
 {
     Assert_true(toClone->_capacity >= toClone->length);
-    int32_t len = toClone->_capacity + toClone->padding + toClone->_adLen;
+    int32_t len = toClone->_capacity + toClone->_padding + toClone->_adLen;
     uint8_t* allocation = Allocator_malloc(alloc, len + 8);
-    while (((uintptr_t)allocation % 8) != (((uintptr_t)toClone->bytes - toClone->padding - toClone->_adLen) % 8)) {
+    while (((uintptr_t)allocation % 8) != (((uintptr_t)toClone->bytes - toClone->_padding - toClone->_adLen) % 8)) {
         allocation++;
     }
-    Bits_memcpy(allocation, toClone->bytes - toClone->padding - toClone->_adLen, len);
+    Bits_memcpy(allocation, toClone->bytes - toClone->_padding - toClone->_adLen, len);
     return Allocator_clone(alloc, (&(struct Message) {
         .length = toClone->length,
-        .padding = toClone->padding,
-        .bytes = allocation + toClone->_adLen + toClone->padding,
+        ._padding = toClone->_padding,
+        .bytes = allocation + toClone->_adLen + toClone->_padding,
         ._ad = allocation + toClone->_adLen,
         ._adLen = toClone->_adLen,
         ._capacity = toClone->_capacity,
