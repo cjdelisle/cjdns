@@ -153,16 +153,13 @@ static Iface_DEFUN sendMessage(struct Message* m, struct Iface* iface)
             pipe->bufferedRequest = req;
         } else {
             Log_debug(pipe->log, "Appending to the buffered message");
-            uint8_t* buff =
-                Allocator_malloc(reqAlloc, m->length + pipe->bufferedRequest->msg->length);
-            Bits_memcpy(buff,
-                        pipe->bufferedRequest->msg->bytes,
-                        pipe->bufferedRequest->msg->length);
-            Bits_memcpy(buff+pipe->bufferedRequest->msg->length, m->bytes, m->length);
-            m->length += pipe->bufferedRequest->msg->length;
-            m->capacity = m->length;
-            m->bytes = buff;
-
+            struct Message* m2 =
+                Message_new(0, m->length + pipe->bufferedRequest->msg->length, reqAlloc);
+            Er_assert(Message_epush(m2, m->bytes, m->length));
+            Er_assert(Message_epush(m2,
+                pipe->bufferedRequest->msg->bytes,
+                pipe->bufferedRequest->msg->length));
+            req->msg = m2;
             Allocator_free(pipe->bufferedRequest->alloc);
             pipe->bufferedRequest = req;
         }

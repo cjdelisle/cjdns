@@ -187,31 +187,19 @@ static void start(struct Allocator* alloc,
     Log_debug(a->logger, "Waiting for nodes to link asynchronously...");
 }
 
-
-#define STACKMSG(name, messageLength, amountOfPadding) \
-    uint8_t UniqueName_get()[messageLength + amountOfPadding]; \
-    name = &(struct Message){                                  \
-        .length = messageLength,                               \
-        .bytes = UniqueName_last() + amountOfPadding,          \
-        .padding = amountOfPadding,                            \
-        .capacity = messageLength                              \
-    }
-
-
 static void sendMessage(struct TwoNodes* tn,
                         char* message,
                         struct TestFramework* from,
                         struct TestFramework* to)
 {
-    struct Message* msg;
-    STACKMSG(msg, 64, 512);
-
-    Bits_memcpy(msg->bytes, message, CString_strlen(message) + 1);
-    msg->length = CString_strlen(message) + 1;
+    struct Message* msg = Message_new(0, 512, from->alloc);
+    for (int i = CString_strlen(message) + 1; i % 8; i++) {
+        Er_assert(Message_epush8(msg, 0));
+    }
+    msg->length = 0;
+    Er_assert(Message_epush(msg, message, CString_strlen(message) + 1));
 
     TestFramework_craftIPHeader(msg, from->ip, to->ip);
-
-    msg = Message_clone(msg, from->alloc);
 
     struct Iface* fromIf;
 

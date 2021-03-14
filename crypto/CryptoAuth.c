@@ -838,7 +838,7 @@ static enum CryptoAuth_DecryptErr decryptPacket(struct CryptoAuth_Session_pvt* s
     }
     Assert_true(msg->padding >= 12 || "need at least 12 bytes of padding in incoming message");
     Assert_true(!((uintptr_t)msg->bytes % 4) || !"alignment fault");
-    Assert_true(!(msg->capacity % 4) || !"length fault");
+    Assert_true(!(Message_getCapacity(msg) % 4) || !"length fault");
 
     Er_assert(Message_eshift(msg, -4));
 

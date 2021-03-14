@@ -845,7 +845,7 @@ static Iface_DEFUN afterDecrypt(struct Message* msg, struct Iface* plaintext)
     ep->state = caState;
 
     Identity_check(ep);
-    Assert_true(!(msg->capacity % 4));
+    Assert_true(!(Message_getCapacity(msg) % 4));
     return Iface_next(&ep->switchIf, msg);
 }
 

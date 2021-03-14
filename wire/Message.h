@@ -36,7 +36,7 @@ typedef struct Message
     uint8_t* bytes;
 
     /** Amount of bytes of storage space available in the message. */
-    int32_t capacity;
+    int32_t _capacity;
 
     // Amount of associated data
     int32_t _adLen;
@@ -60,10 +60,25 @@ typedef struct Message
     struct Allocator* _alloc;
 } Message_t;
 
-static struct Allocator* Message_getAlloc(struct Message* msg)
+static inline struct Allocator* Message_getAlloc(struct Message* msg)
 {
     return msg->_alloc;
 }
+
+static inline uint32_t Message_getCapacity(struct Message* msg)
+{
+    return msg->_capacity;
+}
+
+static inline Message_t Message_foreign(uint32_t len, uint8_t* bytes)
+{
+    return (Message_t){ .length = len, .bytes = bytes, ._capacity = len };
+}
+
+// static inline Er_DEFUN(void Message_ecopy(struct Message* to, struct Message* from, uint32_t amt))
+// {
+    
+// }
 
 struct Message* Message_new(uint32_t messageLength,
                                           uint32_t amountOfPadding,
@@ -89,7 +104,7 @@ static inline Er_DEFUN(void Message_eshift(struct Message* toShift, int32_t amou
     }
 
     toShift->length += amount;
-    toShift->capacity += amount;
+    toShift->_capacity += amount;
     toShift->bytes -= amount;
     toShift->padding -= amount;
 
@@ -132,9 +147,9 @@ static inline Er_DEFUN(void Message_epopAd(struct Message* restrict msg,
 
 static inline void Message_reset(struct Message* toShift)
 {
-    Assert_true(toShift->length <= toShift->capacity);
+    Assert_true(toShift->length <= toShift->_capacity);
     Er_assert(Message_epopAd(toShift, NULL, toShift->_adLen));
-    toShift->length = toShift->capacity;
+    toShift->length = toShift->_capacity;
     Er_assert(Message_eshift(toShift, -toShift->length));
 }
 

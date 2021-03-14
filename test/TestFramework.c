@@ -62,8 +62,8 @@ static Iface_DEFUN sendTo(struct Message* msg,
                           struct TestFramework* destTf)
 {
     Assert_true(!((uintptr_t)msg->bytes % 4) || !"alignment fault");
-    Assert_true(!(msg->capacity % 4) || !"length fault");
-    Assert_true(((int)msg->capacity >= msg->length) || !"length fault0");
+    Assert_true(!(Message_getCapacity(msg) % 4) || !"length fault");
+    Assert_true(((int)Message_getCapacity(msg) >= msg->length) || !"length fault0");
 
     Log_debug(srcTf->logger, "Transferring message to [%p] - message length [%d]\n",
               (void*)dest, msg->length);
