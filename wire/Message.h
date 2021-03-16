@@ -33,7 +33,7 @@ typedef struct Message
     int32_t _padding;
 
     /** The content. */
-    uint8_t* bytes;
+    uint8_t* msgbytes;
 
     /** Amount of bytes of storage space available in the message. */
     int32_t _capacity;
@@ -65,7 +65,7 @@ static inline struct Allocator* Message_getAlloc(struct Message* msg)
     return msg->_alloc;
 }
 
-static inline uint32_t Message_getLength(struct Message* msg)
+static inline int32_t Message_getLength(struct Message* msg)
 {
     return msg->_length;
 }
@@ -79,19 +79,19 @@ static inline Er_DEFUN(void Message_truncate(struct Message* msg, int32_t newLen
     Er_ret();
 }
 
-static inline uint32_t Message_getPadding(struct Message* msg)
+static inline int32_t Message_getPadding(struct Message* msg)
 {
     return msg->_padding;
 }
 
-static inline uint32_t Message_getCapacity(struct Message* msg)
+static inline int32_t Message_getCapacity(struct Message* msg)
 {
     return msg->_capacity;
 }
 
 static inline Message_t Message_foreign(uint32_t len, uint8_t* bytes)
 {
-    return (Message_t){ ._length = len, .bytes = bytes, ._capacity = len };
+    return (Message_t){ ._length = len, .msgbytes = bytes, ._capacity = len };
 }
 
 // static inline Er_DEFUN(void Message_ecopy(struct Message* to, struct Message* from, uint32_t amt))
@@ -114,7 +114,7 @@ static inline Er_DEFUN(uint8_t* Message_peakBytes(struct Message* msg, int32_t l
     if (len > msg->_length) {
         Er_raise(msg->_alloc, "peakBytes(%d) too big, message length is %d", len, msg->_length);
     }
-    Er_ret(msg->bytes);
+    Er_ret(msg->msgbytes);
 }
 
 /**
@@ -132,7 +132,7 @@ static inline Er_DEFUN(void Message_eshift(struct Message* toShift, int32_t amou
 
     toShift->_length += amount;
     toShift->_capacity += amount;
-    toShift->bytes -= amount;
+    toShift->msgbytes -= amount;
     toShift->_padding -= amount;
 
     Er_ret();
@@ -186,9 +186,9 @@ static inline Er_DEFUN(void Message_epush(struct Message* restrict msg,
 {
     Er(Message_eshift(msg, (int)size));
     if (object) {
-        Bits_memcpy(msg->bytes, object, size);
+        Bits_memcpy(msg->msgbytes, object, size);
     } else {
-        Bits_memset(msg->bytes, 0x00, size);
+        Bits_memset(msg->msgbytes, 0x00, size);
     }
     Er_ret();
 }
@@ -199,7 +199,7 @@ static inline Er_DEFUN(void Message_epop(struct Message* restrict msg,
 {
     Er(Message_eshift(msg, -(int)size));
     if (object) {
-        Bits_memcpy(object, &msg->bytes[-((int)size)], size);
+        Bits_memcpy(object, &msg->msgbytes[-((int)size)], size);
     }
     Er_ret();
 }

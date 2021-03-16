@@ -73,7 +73,7 @@ static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* iface)
     struct ETHInterface_pvt* ctx =
         Identity_containerOf(iface, struct ETHInterface_pvt, pub.generic.iface);
 
-    struct Sockaddr* sa = (struct Sockaddr*) msg->bytes;
+    struct Sockaddr* sa = (struct Sockaddr*) msg->msgbytes;
     Assert_true(Message_getLength(msg) >= Sockaddr_OVERHEAD);
     Assert_true(sa->addrLen <= ETHInterface_Sockaddr_SIZE);
 
@@ -106,7 +106,7 @@ static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* iface)
     };
     Er_assert(Message_epush(msg, &bpfPkt, bpfPkt.bh_hdrlen));
 */
-    if (Message_getLength(msg) != write(ctx->socket, msg->bytes, Message_getLength(msg))) {
+    if (Message_getLength(msg) != write(ctx->socket, msg->msgbytes, Message_getLength(msg))) {
         Log_debug(ctx->logger, "Error writing to eth device [%s]", strerror(errno));
     }
     return Error(NONE);
@@ -130,7 +130,7 @@ static void handleEvent2(struct ETHInterface_pvt* context,
     struct ETHInterface_Header hdr;
     Bits_memcpy(&hdr, data, ETHInterface_Header_SIZE);
 
-    Bits_memcpy(msg->bytes, &data[ETHInterface_Header_SIZE], contentLength);
+    Bits_memcpy(msg->msgbytes, &data[ETHInterface_Header_SIZE], contentLength);
 
     // here we could put a switch statement to handle different versions differently.
     if (hdr.version != ETHInterface_CURRENT_VERSION) {
@@ -161,7 +161,7 @@ static void handleEvent2(struct ETHInterface_pvt* context,
 
     Er_assert(Message_epush(msg, &sockaddr, ETHInterface_Sockaddr_SIZE));
 
-    Assert_true(!((uintptr_t)msg->bytes % 4) && "Alignment fault");
+    Assert_true(!((uintptr_t)msg->msgbytes % 4) && "Alignment fault");
 
     Iface_send(&context->pub.generic.iface, msg);
 }

@@ -241,7 +241,7 @@ static Er_DEFUN(bool getMoreMessages(struct RouteInfo** rio,
     bool retVal = false;
     struct Allocator* tempAlloc = Allocator_child(alloc);
     struct Message* msg = Message_new(BUFF_SZ, 0, tempAlloc);
-    ssize_t sz = recv(sock, msg->bytes, BUFF_SZ, MSG_TRUNC);
+    ssize_t sz = recv(sock, msg->msgbytes, BUFF_SZ, MSG_TRUNC);
     if (sz < (ssize_t)sizeof(struct nlmsghdr)) {
         Er_raise(tempAlloc, "recv() -> %s", strerror(errno));
     } else if (sz > BUFF_SZ) {
@@ -377,7 +377,7 @@ static Er_DEFUN(void addDeleteRoutes(int sock,
         Er(Message_epush(msg, &ifa, sizeof(struct IfIndexAttr)));
         int addrLen = (ri->af == AF_INET6) ? 16 : 4;
         Er(Message_epush(msg, ri->dstAddr, addrLen));
-        bitShave(msg->bytes, ri->prefix, ri->af);
+        bitShave(msg->msgbytes, ri->prefix, ri->af);
         struct rtattr rta = { .rta_len = sizeof(struct rtattr) + addrLen, .rta_type = RTA_DST };
         Er(Message_epush(msg, &rta, sizeof(struct rtattr)));
         struct rtmsg route = {
@@ -395,7 +395,7 @@ static Er_DEFUN(void addDeleteRoutes(int sock,
             .nlmsg_flags = NLM_F_REQUEST | ((delete) ? 0 : NLM_F_CREATE) // | NLM_F_ACK,
         };
         Er(Message_epush(msg, &hdr, sizeof(struct nlmsghdr)));
-        ssize_t sz = send(sock, msg->bytes, Message_getLength(msg), 0);
+        ssize_t sz = send(sock, msg->msgbytes, Message_getLength(msg), 0);
         if (sz < 0) {
             Er_raise(tempAlloc, "send() -> %s", strerror(errno));
         }

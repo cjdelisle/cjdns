@@ -72,7 +72,7 @@ static int handleOutgoing(struct DHTMessage* message,
 {
    // This is always at the end of the message.
     Assert_true(!Message_getLength(message->binMessage));
-    Assert_true(!((uintptr_t)message->binMessage->bytes % 4) || !"alignment fault0");
+    Assert_true(!((uintptr_t)message->binMessage->msgbytes % 4) || !"alignment fault0");
 
     if (Dict_getStringC(message->asDict, "q")) {
         String* txid = Dict_getStringC(message->asDict, "txid");
@@ -86,7 +86,7 @@ static int handleOutgoing(struct DHTMessage* message,
 
     Er_assert(BencMessageWriter_write(message->asDict, message->binMessage));
 
-    Assert_true(!((uintptr_t)message->binMessage->bytes % 4) || !"alignment fault");
+    Assert_true(!((uintptr_t)message->binMessage->msgbytes % 4) || !"alignment fault");
 
     return 0;
 }

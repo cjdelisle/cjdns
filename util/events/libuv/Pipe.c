@@ -92,7 +92,7 @@ static void sendMessage2(struct Pipe_WriteRequest_pvt* req)
     struct Message* m = req->msg;
 
     uv_buf_t buffers[] = {
-        { .base = (char*)m->bytes, .len = Message_getLength(m) }
+        { .base = (char*)m->msgbytes, .len = Message_getLength(m) }
     };
 
     int ret = -1;
@@ -155,9 +155,9 @@ static Iface_DEFUN sendMessage(struct Message* m, struct Iface* iface)
             Log_debug(pipe->log, "Appending to the buffered message");
             struct Message* m2 = Message_new(0,
                 Message_getLength(m) + Message_getLength(pipe->bufferedRequest->msg), reqAlloc);
-            Er_assert(Message_epush(m2, m->bytes, Message_getLength(m)));
+            Er_assert(Message_epush(m2, m->msgbytes, Message_getLength(m)));
             Er_assert(Message_epush(m2,
-                pipe->bufferedRequest->msg->bytes,
+                pipe->bufferedRequest->msg->msgbytes,
                 Message_getLength(pipe->bufferedRequest->msg)));
             req->msg = m2;
             Allocator_free(pipe->bufferedRequest->alloc);
@@ -235,9 +235,9 @@ static void allocate(uv_handle_t* handle, size_t size, uv_buf_t* buf)
     struct Allocator* child = Allocator_child(pipe->alloc);
     struct Message* msg = Message_new(size, Pipe_PADDING_AMOUNT, child);
 
-    ALLOC(msg->bytes) = msg;
+    ALLOC(msg->msgbytes) = msg;
 
-    buf->base = msg->bytes;
+    buf->base = msg->msgbytes;
     buf->len = size;
 }
 

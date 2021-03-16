@@ -46,7 +46,7 @@ Iface_DEFUN AndroidWrapper_incomingFromWire(struct Message* msg, struct Iface* e
         return Error(UNHANDLED);
     }
 
-    int version = Headers_getIpVersion(msg->bytes);
+    int version = Headers_getIpVersion(msg->msgbytes);
     uint16_t ethertype = 0;
     if (version == 4) {
         ethertype = Ethernet_TYPE_IP4;
@@ -58,8 +58,8 @@ Iface_DEFUN AndroidWrapper_incomingFromWire(struct Message* msg, struct Iface* e
     }
 
     Er_assert(Message_eshift(msg, 4));
-    ((uint16_t*) msg->bytes)[0] = 0;
-    ((uint16_t*) msg->bytes)[1] = ethertype;
+    ((uint16_t*) msg->msgbytes)[0] = 0;
+    ((uint16_t*) msg->msgbytes)[1] = ethertype;
 
     return Iface_next(&ctx->pub.internalIf, msg);
 }

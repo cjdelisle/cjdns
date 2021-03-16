@@ -97,7 +97,7 @@ static void testHello(uint8_t* password, uint8_t* expectedOutput, enum TestCa_Co
 
     Iface_send(&ctx->plaintext, msg);
 
-    char* actual = Hex_print(msg->bytes, Message_getLength(msg), alloc);
+    char* actual = Hex_print(msg->msgbytes, Message_getLength(msg), alloc);
     if (CString_strcmp(actual, expectedOutput)) {
         Assert_failure("Test failed.\n"
                        "Expected %s\n"
@@ -134,7 +134,7 @@ static void receiveHelloWithNoAuth(enum TestCa_Config cfg)
     struct Allocator* alloc = MallocAllocator_new(1<<20);
     struct Context* ctx = setUp(PRIVATEKEY, herPublic, NULL, alloc, cfg);
     struct Message* msg = Message_new(132, 32, alloc);
-    Assert_true(Hex_decode(msg->bytes, Message_getLength(msg),
+    Assert_true(Hex_decode(msg->msgbytes, Message_getLength(msg),
         "0000000000ffffffffffffff7fffffffffffffffffffffffffffffffffffffff"
         "ffffffffffffffff847c0d2c375234f365e660955187a3735a0f7613d1609d3a"
         "6a4d8c53aeaa5a22ea9cf275eee0185edf7f211192f12e8e642a325ed76925fe"
@@ -146,7 +146,7 @@ static void receiveHelloWithNoAuth(enum TestCa_Config cfg)
     Assert_true(!err);
 
     Assert_true(Message_getLength(msg) == HELLOWORLDLEN);
-    Assert_true(Bits_memcmp(HELLOWORLD, msg->bytes, HELLOWORLDLEN) == 0);
+    Assert_true(Bits_memcmp(HELLOWORLD, msg->msgbytes, HELLOWORLDLEN) == 0);
     Allocator_free(alloc);
     //printf("bytes=%s  length=%u\n", finalOut->bytes, finalOut->length);
 }
@@ -172,7 +172,7 @@ static void repeatHello(enum TestCa_Config cfg)
 
     Iface_send(&ctx->plaintext, msg);
 
-    char* actual = Hex_print(msg->bytes, Message_getLength(msg), alloc);
+    char* actual = Hex_print(msg->msgbytes, Message_getLength(msg), alloc);
     if (CString_strcmp(actual, expectedOutput)) {
         Assert_failure("Test failed.\n"
                        "Expected %s\n"

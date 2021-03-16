@@ -48,7 +48,7 @@ static inline Er_DEFUN(void AddrIface_pushAddr(struct Message* msg, struct Socka
 
 static inline Er_DEFUN(struct Sockaddr* AddrIface_popAddr(struct Message* msg))
 {
-    struct Sockaddr* out = (struct Sockaddr*) msg->bytes;
+    struct Sockaddr* out = (struct Sockaddr*) msg->msgbytes;
     uint16_t len = Er(Message_epop16h(msg));
     Er(Message_epop(msg, NULL, len - 2));
     Er_ret(out);

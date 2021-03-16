@@ -36,7 +36,7 @@ struct Context {
 
 static int getColumn(struct Context* ctx)
 {
-    return (uintptr_t) ctx->msg->bytes - ctx->beginningLastLine;
+    return (uintptr_t) ctx->msg->msgbytes - ctx->beginningLastLine;
 }
 
 #define ERROR0(ctx, message) \
@@ -51,15 +51,15 @@ static int getColumn(struct Context* ctx)
 static Er_DEFUN(uint8_t peak(struct Context* ctx))
 {
     if (!Message_getLength(ctx->msg)) { ERROR0(ctx, "Out of content while reading"); }
-    Er_ret(ctx->msg->bytes[0]);
+    Er_ret(ctx->msg->msgbytes[0]);
 }
 
 static Er_DEFUN(void skip(struct Context* ctx, int num))
 {
     if (num > Message_getLength(ctx->msg)) { ERROR0(ctx, "Out of content while reading"); }
     for (int i = 0; i < num; i++) {
-        if (ctx->msg->bytes[i] == '\n') {
-            ctx->beginningLastLine = (uintptr_t) &ctx->msg->bytes[i];
+        if (ctx->msg->msgbytes[i] == '\n') {
+            ctx->beginningLastLine = (uintptr_t) &ctx->msg->msgbytes[i];
             ctx->line++;
         }
     }
@@ -314,7 +314,7 @@ Er_DEFUN(Dict* JsonBencMessageReader_read(
         .alloc = alloc,
         .lax = lax,
         .line = 1,
-        .beginningLastLine = (uintptr_t) msg->bytes
+        .beginningLastLine = (uintptr_t) msg->msgbytes
     };
     Er_ret( Er(parseDict(&ctx)) );
 }

@@ -282,7 +282,7 @@ static Iface_DEFUN incoming(struct Message* msg, struct Iface* interRouterIf)
         Identity_containerOf(interRouterIf, struct MsgCore_pvt, pub.interRouterIf);
 
     struct Address addr = { .padding = 0 };
-    struct RouteHeader* hdr = (struct RouteHeader*) msg->bytes;
+    struct RouteHeader* hdr = (struct RouteHeader*) msg->msgbytes;
     Er_assert(Message_eshift(msg, -(RouteHeader_SIZE + DataHeader_SIZE)));
     Bits_memcpy(addr.ip6.bytes, hdr->ip6, 16);
     Bits_memcpy(addr.key, hdr->publicKey, 32);
@@ -290,7 +290,7 @@ static Iface_DEFUN incoming(struct Message* msg, struct Iface* interRouterIf)
     addr.path = Endian_bigEndianToHost64(hdr->sh.label_be);
 
     Dict* content = NULL;
-    uint8_t* msgBytes = msg->bytes;
+    uint8_t* msgBytes = msg->msgbytes;
     int length = Message_getLength(msg);
     //Log_debug(mcp->log, "Receive msg [%s] from [%s]",
     //    Escape_getEscaped(msg->bytes, Message_getLength(msg), Message_getAlloc(msg)),

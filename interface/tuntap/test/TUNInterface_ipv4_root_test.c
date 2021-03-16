@@ -39,7 +39,7 @@ static Iface_DEFUN receiveMessageTUN(struct Message* msg, struct TUNTools* tt)
         return Error(INVALID);
     }
 
-    struct Headers_IP4Header* header = (struct Headers_IP4Header*) msg->bytes;
+    struct Headers_IP4Header* header = (struct Headers_IP4Header*) msg->msgbytes;
 
     Assert_true(Message_getLength(msg) == Headers_IP4Header_SIZE + Headers_UDPHeader_SIZE + 12);
 

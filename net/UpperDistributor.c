@@ -71,8 +71,8 @@ static Iface_DEFUN fromHandler(struct Message* msg, struct UpperDistributor_pvt*
     uint8_t srcAndDest[32] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1};
     AddressCalc_makeValidAddress(&srcAndDest[16]);
     Bits_memcpy(srcAndDest, ud->myAddress->ip6.bytes, 16);
-    struct Headers_UDPHeader* udp = (struct Headers_UDPHeader*) msg->bytes;
-    if (Checksum_udpIp6_be(srcAndDest, msg->bytes, Message_getLength(msg))) {
+    struct Headers_UDPHeader* udp = (struct Headers_UDPHeader*) msg->msgbytes;
+    if (Checksum_udpIp6_be(srcAndDest, msg->msgbytes, Message_getLength(msg))) {
         Log_debug(ud->log, "DROP Bad checksum");
         return Error(INVALID);
     }
@@ -90,7 +90,7 @@ static Iface_DEFUN fromHandler(struct Message* msg, struct UpperDistributor_pvt*
     Er_assert(Message_epop(msg, NULL, Headers_UDPHeader_SIZE));
 
     Assert_true(Message_getLength(msg) >= RouteHeader_SIZE);
-    struct RouteHeader* hdr = (struct RouteHeader*) msg->bytes;
+    struct RouteHeader* hdr = (struct RouteHeader*) msg->msgbytes;
     if (!Bits_memcmp(hdr->ip6, ud->myAddress->ip6.bytes, 16)) {
         ud->noSendToHandler = 1;
         Log_debug(ud->log, "Message to self");
@@ -137,8 +137,8 @@ static void sendToHandlers(struct Message* msg,
             uint8_t srcAndDest[32] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1};
             AddressCalc_makeValidAddress(srcAndDest);
             Bits_memcpy(&srcAndDest[16], ud->myAddress->ip6.bytes, 16);
-            uint16_t checksum_be = Checksum_udpIp6_be(srcAndDest, cmsg->bytes, Message_getLength(cmsg));
-            ((struct Headers_UDPHeader*)cmsg->bytes)->checksum_be = checksum_be;
+            uint16_t checksum_be = Checksum_udpIp6_be(srcAndDest, cmsg->msgbytes, Message_getLength(cmsg));
+            ((struct Headers_UDPHeader*)cmsg->msgbytes)->checksum_be = checksum_be;
         }
         {
             struct DataHeader dh = { .unused = 0 };
@@ -163,7 +163,7 @@ static void sendToHandlers(struct Message* msg,
 static Iface_DEFUN toSessionManagerIf(struct Message* msg, struct UpperDistributor_pvt* ud)
 {
     Assert_true(Message_getLength(msg) >= RouteHeader_SIZE + DataHeader_SIZE);
-    struct RouteHeader* hdr = (struct RouteHeader*) msg->bytes;
+    struct RouteHeader* hdr = (struct RouteHeader*) msg->msgbytes;
     struct DataHeader* dh = (struct DataHeader*) &hdr[1];
     enum ContentType type = DataHeader_getContentType(dh);
     sendToHandlers(msg, type, ud);
@@ -185,7 +185,7 @@ static Iface_DEFUN incomingFromTunAdapterIf(struct Message* msg, struct Iface* t
 {
     struct UpperDistributor_pvt* ud =
         Identity_containerOf(tunAdapterIf, struct UpperDistributor_pvt, pub.tunAdapterIf);
-    struct RouteHeader* rh = (struct RouteHeader*) msg->bytes;
+    struct RouteHeader* rh = (struct RouteHeader*) msg->msgbytes;
     Assert_true(Message_getLength(msg) >= RouteHeader_SIZE);
     uint8_t expected_ip6[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1};
     AddressCalc_makeValidAddress(expected_ip6);
@@ -207,7 +207,7 @@ static Iface_DEFUN incomingFromControlHandlerIf(struct Message* msg, struct Ifac
     struct UpperDistributor_pvt* ud =
         Identity_containerOf(iface, struct UpperDistributor_pvt, pub.controlHandlerIf);
     Assert_true(Message_getLength(msg) >= RouteHeader_SIZE);
-    struct RouteHeader* hdr = (struct RouteHeader*) msg->bytes;
+    struct RouteHeader* hdr = (struct RouteHeader*) msg->msgbytes;
     Assert_true(hdr->flags & RouteHeader_flags_CTRLMSG);
     Assert_true(!(hdr->flags & RouteHeader_flags_INCOMING));
     sendToHandlers(msg, ContentType_CTRL, ud);
@@ -219,7 +219,7 @@ static Iface_DEFUN incomingFromSessionManagerIf(struct Message* msg, struct Ifac
     struct UpperDistributor_pvt* ud =
         Identity_containerOf(sessionManagerIf, struct UpperDistributor_pvt, pub.sessionManagerIf);
     Assert_true(Message_getLength(msg) >= RouteHeader_SIZE);
-    struct RouteHeader* hdr = (struct RouteHeader*) msg->bytes;
+    struct RouteHeader* hdr = (struct RouteHeader*) msg->msgbytes;
     if (hdr->flags & RouteHeader_flags_CTRLMSG) {
         sendToHandlers(msg, ContentType_CTRL, ud);
         return Iface_next(&ud->pub.controlHandlerIf, msg);

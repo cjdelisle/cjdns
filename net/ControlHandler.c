@@ -71,11 +71,11 @@ static Iface_DEFUN handlePing(struct Message* msg,
         return Error(RUNT);
     }
 
-    struct Control* ctrl = (struct Control*) msg->bytes;
+    struct Control* ctrl = (struct Control*) msg->msgbytes;
     Er_assert(Message_eshift(msg, -Control_Header_SIZE));
 
     // Ping and keyPing share version location
-    struct Control_Ping* ping = (struct Control_Ping*) msg->bytes;
+    struct Control_Ping* ping = (struct Control_Ping*) msg->msgbytes;
     uint32_t herVersion = Endian_bigEndianToHost32(ping->version_be);
     if (!Version_isCompatible(Version_CURRENT_PROTOCOL, herVersion)) {
         Log_debug(ch->log, "DROP ping from incompatible version [%d]", herVersion);
@@ -98,7 +98,7 @@ static Iface_DEFUN handlePing(struct Message* msg,
             return Error(INVALID);
         }
 
-        struct Control_KeyPing* keyPing = (struct Control_KeyPing*) msg->bytes;
+        struct Control_KeyPing* keyPing = (struct Control_KeyPing*) msg->msgbytes;
         keyPing->magic = Control_KeyPong_MAGIC;
         ctrl->header.type_be = Control_KEYPONG_be;
         Bits_memcpy(keyPing->key, ch->myPublicKey, 32);
@@ -122,11 +122,11 @@ static Iface_DEFUN handlePing(struct Message* msg,
     Er_assert(Message_eshift(msg, Control_Header_SIZE));
 
     ctrl->header.checksum_be = 0;
-    ctrl->header.checksum_be = Checksum_engine_be(msg->bytes, Message_getLength(msg));
+    ctrl->header.checksum_be = Checksum_engine_be(msg->msgbytes, Message_getLength(msg));
 
     Er_assert(Message_eshift(msg, RouteHeader_SIZE));
 
-    struct RouteHeader* routeHeader = (struct RouteHeader*) msg->bytes;
+    struct RouteHeader* routeHeader = (struct RouteHeader*) msg->msgbytes;
     Bits_memset(routeHeader, 0, RouteHeader_SIZE);
     SwitchHeader_setVersion(&routeHeader->sh, SwitchHeader_CURRENT_VERSION);
     routeHeader->sh.label_be = Endian_hostToBigEndian64(label);
@@ -150,7 +150,7 @@ static Iface_DEFUN handleRPathQuery(struct Message* msg,
         return Error(RUNT);
     }
 
-    struct Control* ctrl = (struct Control*) msg->bytes;
+    struct Control* ctrl = (struct Control*) msg->msgbytes;
     struct Control_RPath* rpa = &ctrl->content.rpath;
 
     if (rpa->magic != Control_RPATH_QUERY_MAGIC) {
@@ -165,10 +165,10 @@ static Iface_DEFUN handleRPathQuery(struct Message* msg,
     Bits_memcpy(rpa->rpath_be, &label_be, 8);
 
     ctrl->header.checksum_be = 0;
-    ctrl->header.checksum_be = Checksum_engine_be(msg->bytes, Message_getLength(msg));
+    ctrl->header.checksum_be = Checksum_engine_be(msg->msgbytes, Message_getLength(msg));
 
     Er_assert(Message_eshift(msg, RouteHeader_SIZE));
-    struct RouteHeader* routeHeader = (struct RouteHeader*) msg->bytes;
+    struct RouteHeader* routeHeader = (struct RouteHeader*) msg->msgbytes;
     Bits_memset(routeHeader, 0, RouteHeader_SIZE);
     SwitchHeader_setVersion(&routeHeader->sh, SwitchHeader_CURRENT_VERSION);
     routeHeader->sh.label_be = label_be;
@@ -191,7 +191,7 @@ static Iface_DEFUN handleGetSnodeQuery(struct Message* msg,
         return Error(RUNT);
     }
 
-    struct Control* ctrl = (struct Control*) msg->bytes;
+    struct Control* ctrl = (struct Control*) msg->msgbytes;
     struct Control_GetSnode* snq = &ctrl->content.getSnode;
 
     if (snq->magic != Control_GETSNODE_QUERY_MAGIC) {
@@ -226,10 +226,10 @@ static Iface_DEFUN handleGetSnodeQuery(struct Message* msg,
     }
 
     ctrl->header.checksum_be = 0;
-    ctrl->header.checksum_be = Checksum_engine_be(msg->bytes, Message_getLength(msg));
+    ctrl->header.checksum_be = Checksum_engine_be(msg->msgbytes, Message_getLength(msg));
 
     Er_assert(Message_eshift(msg, RouteHeader_SIZE));
-    struct RouteHeader* routeHeader = (struct RouteHeader*) msg->bytes;
+    struct RouteHeader* routeHeader = (struct RouteHeader*) msg->msgbytes;
     Bits_memset(routeHeader, 0, RouteHeader_SIZE);
     SwitchHeader_setVersion(&routeHeader->sh, SwitchHeader_CURRENT_VERSION);
     routeHeader->sh.label_be = Endian_hostToBigEndian64(label);
@@ -270,12 +270,12 @@ static Iface_DEFUN incomingFromCore(struct Message* msg, struct Iface* coreIf)
 
     Assert_true(routeHdr.flags & RouteHeader_flags_CTRLMSG);
 
-    if (Checksum_engine_be(msg->bytes, Message_getLength(msg))) {
+    if (Checksum_engine_be(msg->msgbytes, Message_getLength(msg))) {
         Log_info(ch->log, "DROP ctrl packet from [%s] with invalid checksum", labelStr);
         return Error(INVALID);
     }
 
-    struct Control* ctrl = (struct Control*) msg->bytes;
+    struct Control* ctrl = (struct Control*) msg->msgbytes;
 
     if (ctrl->header.type_be == Control_ERROR_be) {
         return handleError(msg, ch, label, labelStr, &routeHdr);

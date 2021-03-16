@@ -246,7 +246,7 @@ static void sendPeer(uint32_t pathfinderId,
     struct InterfaceController_pvt* ic = Identity_check(peer->ici->ic);
     struct Allocator* alloc = Allocator_child(ic->alloc);
     struct Message* msg = Message_new(PFChan_Node_SIZE, 512, alloc);
-    struct PFChan_Node* node = (struct PFChan_Node*) msg->bytes;
+    struct PFChan_Node* node = (struct PFChan_Node*) msg->msgbytes;
     Bits_memcpy(node->ip6, peer->addr.ip6.bytes, 16);
     Bits_memcpy(node->publicKey, peer->addr.key, 32);
     node->path_be = Endian_hostToBigEndian64(peer->addr.path);
@@ -591,7 +591,7 @@ static Iface_DEFUN handleBeacon(struct Message* msg, struct InterfaceController_
         return Error(RUNT);
     }
 
-    struct Sockaddr* lladdrInmsg = (struct Sockaddr*) msg->bytes;
+    struct Sockaddr* lladdrInmsg = (struct Sockaddr*) msg->msgbytes;
 
     if (Message_getLength(msg) < lladdrInmsg->addrLen + Headers_Beacon_SIZE) {
         Log_debug(ic->logger, "[%s] Dropping runt beacon", ici->pub.name->bytes);
@@ -684,15 +684,15 @@ static Iface_DEFUN handleBeacon(struct Message* msg, struct InterfaceController_
 static Iface_DEFUN handleUnexpectedIncoming(struct Message* msg,
                                             struct InterfaceController_Iface_pvt* ici)
 {
-    struct Sockaddr* lladdr = (struct Sockaddr*) msg->bytes;
+    struct Sockaddr* lladdr = (struct Sockaddr*) msg->msgbytes;
     Er_assert(Message_eshift(msg, -lladdr->addrLen));
     if (Message_getLength(msg) < CryptoHeader_SIZE) {
         return Error(RUNT);
     }
 
-    Assert_true(!((uintptr_t)msg->bytes % 4) && "alignment fault");
+    Assert_true(!((uintptr_t)msg->msgbytes % 4) && "alignment fault");
 
-    struct CryptoHeader* ch = (struct CryptoHeader*) msg->bytes;
+    struct CryptoHeader* ch = (struct CryptoHeader*) msg->msgbytes;
     if (ch->nonce & Endian_bigEndianToHost32(~1)) {
         // This cuts down on processing and logger noise because any packet
         // which is not a setup packet will be summarily dropped.
@@ -719,13 +719,13 @@ static Iface_DEFUN handleIncomingFromWire(struct Message* msg, struct Iface* add
     struct InterfaceController_Iface_pvt* ici =
         Identity_containerOf(addrIf, struct InterfaceController_Iface_pvt, pub.addrIf);
 
-    struct Sockaddr* lladdr = (struct Sockaddr*) msg->bytes;
+    struct Sockaddr* lladdr = (struct Sockaddr*) msg->msgbytes;
     if (Message_getLength(msg) < Sockaddr_OVERHEAD || Message_getLength(msg) < lladdr->addrLen) {
         Log_debug(ici->ic->logger, "DROP runt");
         return Error(RUNT);
     }
 
-    Assert_true(!((uintptr_t)msg->bytes % 4) && "alignment fault");
+    Assert_true(!((uintptr_t)msg->msgbytes % 4) && "alignment fault");
     Assert_true(!((uintptr_t)lladdr->addrLen % 4) && "alignment fault");
 
     // noisy
@@ -758,7 +758,7 @@ static Iface_DEFUN handleIncomingFromWire(struct Message* msg, struct Iface* add
 
     CryptoAuth_resetIfTimeout(ep->caSession);
 
-    uint32_t nonce = Endian_bigEndianToHost32( ((uint32_t*)msg->bytes)[0] );
+    uint32_t nonce = Endian_bigEndianToHost32( ((uint32_t*)msg->msgbytes)[0] );
     Er_assert(Message_epushAd(msg, &nonce, sizeof nonce));
     bool unexpected = false;
     Er_assert(Message_epushAd(msg, &unexpected, sizeof unexpected));
@@ -818,7 +818,7 @@ static Iface_DEFUN afterDecrypt(struct Message* msg, struct Iface* plaintext)
         // prevent some kinds of nasty things which could be done with packet replay.
         // This is checking the message switch header and will drop it unless the label
         // directs it to *this* router.
-        if (Message_getLength(msg) < 8 || msg->bytes[7] != 1) {
+        if (Message_getLength(msg) < 8 || msg->msgbytes[7] != 1) {
             Log_info(ic->logger, "DROP message because CA is not established.");
             return Error(UNHANDLED);
         } else {
@@ -896,7 +896,7 @@ static void sendBeacon(struct InterfaceController_Iface_pvt* ici, struct Allocat
     Er_assert(Message_epush(msg, &ici->ic->beacon, Headers_Beacon_SIZE));
 
     if (Defined(Log_DEBUG)) {
-        char* content = Hex_print(msg->bytes, Message_getLength(msg), tempAlloc);
+        char* content = Hex_print(msg->msgbytes, Message_getLength(msg), tempAlloc);
         Log_debug(ici->ic->logger, "SEND BEACON CONTENT[%s]", content);
     }
 

@@ -74,7 +74,7 @@ static Iface_DEFUN incomingTunB(struct Message* msg, struct Iface* tunB)
     uint16_t t = Er_assert(TUNMessageType_pop(msg));
     Assert_true(t == Ethernet_TYPE_IP6);
     Er_assert(Message_eshift(msg, -Headers_IP6Header_SIZE));
-    printf("Message from TUN in node B [%s]\n", msg->bytes);
+    printf("Message from TUN in node B [%s]\n", msg->msgbytes);
     tn->messageFrom = TUNB;
     return Error(NONE);
 }
@@ -86,8 +86,8 @@ static Iface_DEFUN incomingTunA(struct Message* msg, struct Iface* tunA)
     Assert_true(t == Ethernet_TYPE_IP6);
     Er_assert(Message_eshift(msg, -Headers_IP6Header_SIZE));
     uint8_t buff[1024];
-    Hex_encode(buff, 1024, msg->bytes, Message_getLength(msg));
-    printf("Message from TUN in node A [%s] [%d] [%s]\n", msg->bytes, Message_getLength(msg), buff);
+    Hex_encode(buff, 1024, msg->msgbytes, Message_getLength(msg));
+    printf("Message from TUN in node A [%s] [%d] [%s]\n", msg->msgbytes, Message_getLength(msg), buff);
     tn->messageFrom = TUNA;
     return Error(NONE);
 }

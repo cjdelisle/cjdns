@@ -106,9 +106,9 @@ static Iface_DEFUN sendNode(struct Message* msg,
 {
     Message_reset(msg);
     Er_assert(Message_eshift(msg, PFChan_Node_SIZE));
-    nodeForAddress((struct PFChan_Node*) msg->bytes, addr, metric);
+    nodeForAddress((struct PFChan_Node*) msg->msgbytes, addr, metric);
     if (addr->path == UINT64_MAX) {
-        ((struct PFChan_Node*) msg->bytes)->path_be = 0;
+        ((struct PFChan_Node*) msg->msgbytes)->path_be = 0;
     }
     Er_assert(Message_epush32be(msg, msgType));
     return Iface_next(&pf->pub.eventIf, msg);
@@ -473,7 +473,7 @@ static Iface_DEFUN incomingFromMsgCore(struct Message* msg, struct Iface* iface)
     struct SubnodePathfinder_pvt* pf =
         Identity_containerOf(iface, struct SubnodePathfinder_pvt, msgCoreIf);
     Assert_true(Message_getLength(msg) >= (RouteHeader_SIZE + DataHeader_SIZE));
-    struct RouteHeader* rh = (struct RouteHeader*) msg->bytes;
+    struct RouteHeader* rh = (struct RouteHeader*) msg->msgbytes;
     struct DataHeader* dh = (struct DataHeader*) &rh[1];
     Assert_true(DataHeader_getContentType(dh) == ContentType_CJDHT);
     Assert_true(!Bits_isZero(rh->publicKey, 32));

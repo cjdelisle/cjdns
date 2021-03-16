@@ -93,7 +93,7 @@ static void sign(Dict* args, void* vctx, String* txid, struct Allocator* request
         Er_assert(Message_epush(msg, msgHash->bytes, msgHash->len));
         Sign_signMsg(ctx->signingKeypair, msg, ctx->rand);
         uint8_t signB64[128];
-        Assert_true(Base32_encode(signB64, 128, msg->bytes, 64) > 0);
+        Assert_true(Base32_encode(signB64, 128, msg->msgbytes, 64) > 0);
         String* sig = String_printf(requestAlloc, "%s_%s", ctx->pubSigningKey, signB64);
         Dict_putStringC(out, "signature", sig, requestAlloc);
         Dict_putStringCC(out, "error", "none", requestAlloc);

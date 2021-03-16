@@ -117,7 +117,7 @@ static bool isMutableBit(int bitNum)
 static void flipBit(struct Message* msg, uint32_t bitNum)
 {
     Assert_true(Message_getLength(msg) * 8 > (int)bitNum);
-    msg->bytes[bitNum / 8] ^= 128 >> (bitNum % 8);
+    msg->msgbytes[bitNum / 8] ^= 128 >> (bitNum % 8);
 }
 
 static void flipMutableBit(struct Context* ctx, struct Node* from, struct Message* msg)
@@ -279,7 +279,7 @@ static Iface_DEFUN afterDecrypt(struct Message* msg, struct Iface* iface)
     enum CryptoAuth_DecryptErr e = Er_assert(Message_epop32h(msg));
     if (!e) {
         Assert_true(!flippedImmutable);
-        Assert_true(Message_getLength(msg) == 4 && !Bits_memcmp(msg->bytes, "hey", 4));
+        Assert_true(Message_getLength(msg) == 4 && !Bits_memcmp(msg->msgbytes, "hey", 4));
         if (to == &to->ctx->nodeB) {
             // 1/10 chance the node decides not to reply.
             if (maybe(to->ctx, 10)) {
@@ -340,7 +340,7 @@ void CryptoAuthFuzz_main(void* vctx, struct Message* fuzz)
     struct Context* ctx = Identity_check((struct Context*) vctx);
 
     // This is not ideal, but this test was already written before AFL.
-    RandomSeed_t* rs = DeterminentRandomSeed_new(ctx->alloc, fuzz->bytes);
+    RandomSeed_t* rs = DeterminentRandomSeed_new(ctx->alloc, fuzz->msgbytes);
     ctx->rand = Random_newWithSeed(ctx->alloc, NULL, rs, NULL);
 
     if (maybe(ctx, 2)) {

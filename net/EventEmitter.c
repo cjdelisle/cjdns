@@ -175,7 +175,7 @@ Assert_compileTime(PFChan_Core__TOO_HIGH == 1040);
 static Iface_DEFUN incomingFromCore(struct Message* msg, struct Iface* trickIf)
 {
     struct EventEmitter_pvt* ee = Identity_containerOf(trickIf, struct EventEmitter_pvt, trickIf);
-    Assert_true(!((uintptr_t)msg->bytes % 4) && "alignment");
+    Assert_true(!((uintptr_t)msg->msgbytes % 4) && "alignment");
     enum PFChan_Core ev = Er_assert(Message_epop32be(msg));
     Assert_true(PFChan_Core_sizeOk(ev, Message_getLength(msg)+4));
     uint32_t pathfinderNum = Er_assert(Message_epop32be(msg));
@@ -200,7 +200,7 @@ static struct Message* pathfinderMsg(enum PFChan_Core ev,
                                      struct Allocator* alloc)
 {
     struct Message* msg = Message_new(PFChan_Core_Pathfinder_SIZE, 512, alloc);
-    struct PFChan_Core_Pathfinder* pathfinder = (struct PFChan_Core_Pathfinder*) msg->bytes;
+    struct PFChan_Core_Pathfinder* pathfinder = (struct PFChan_Core_Pathfinder*) msg->msgbytes;
     pathfinder->superiority_be = Endian_hostToBigEndian32(pf->superiority);
     pathfinder->pathfinderId_be = Endian_hostToBigEndian32(pf->pathfinderId);
     Bits_memcpy(pathfinder->userAgent, pf->userAgent, 64);

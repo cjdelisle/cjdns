@@ -93,7 +93,7 @@ static int incomingFromDHT(struct DHTMessage* dmessage, void* vpf)
     Assert_true(AddressCalc_validAddress(addr->ip6.bytes));
 
     Er_assert(Message_eshift(msg, PFChan_Msg_MIN_SIZE));
-    struct PFChan_Msg* emsg = (struct PFChan_Msg*) msg->bytes;
+    struct PFChan_Msg* emsg = (struct PFChan_Msg*) msg->msgbytes;
     Bits_memset(emsg, 0, PFChan_Msg_MIN_SIZE);
 
     DataHeader_setVersion(&emsg->data, DataHeader_CURRENT_VERSION);
@@ -141,9 +141,9 @@ static Iface_DEFUN sendNode(struct Message* msg,
 {
     Message_reset(msg);
     Er_assert(Message_eshift(msg, PFChan_Node_SIZE));
-    nodeForAddress((struct PFChan_Node*) msg->bytes, addr, metric);
+    nodeForAddress((struct PFChan_Node*) msg->msgbytes, addr, metric);
     if (addr->path == UINT64_MAX) {
-        ((struct PFChan_Node*) msg->bytes)->path_be = 0;
+        ((struct PFChan_Node*) msg->msgbytes)->path_be = 0;
     }
     Er_assert(Message_epush32be(msg, PFChan_Pathfinder_NODE));
     return Iface_next(&pf->pub.eventIf, msg);
@@ -401,7 +401,7 @@ static Iface_DEFUN handlePong(struct Message* msg, struct Pathfinder_pvt* pf)
 static Iface_DEFUN incomingMsg(struct Message* msg, struct Pathfinder_pvt* pf)
 {
     struct Address addr;
-    struct RouteHeader* hdr = (struct RouteHeader*) msg->bytes;
+    struct RouteHeader* hdr = (struct RouteHeader*) msg->msgbytes;
     Er_assert(Message_eshift(msg, -(RouteHeader_SIZE + DataHeader_SIZE)));
     Bits_memcpy(addr.ip6.bytes, hdr->ip6, 16);
     Bits_memcpy(addr.key, hdr->publicKey, 32);

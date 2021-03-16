@@ -47,7 +47,7 @@ static bool isNeighborSolicitation(struct Message* msg, struct NDPServer_pvt* ns
         return false;
     }
 
-    struct Headers_IP6Header* ip6 = (struct Headers_IP6Header*) msg->bytes;
+    struct Headers_IP6Header* ip6 = (struct Headers_IP6Header*) msg->msgbytes;
     struct NDPHeader_NeighborSolicitation* sol = (struct NDPHeader_NeighborSolicitation*) &ip6[1];
 
     if (sol->oneThirtyFive != 135 || sol->zero != 0) {
@@ -105,8 +105,8 @@ static Iface_DEFUN answerNeighborSolicitation(struct Message* msg, struct NDPSer
     ip6.hopLimit = 255;
     ip6.payloadLength_be = Endian_hostToBigEndian16(Message_getLength(msg));
 
-    struct NDPHeader_RouterAdvert* adv = (struct NDPHeader_RouterAdvert*) msg->bytes;
-    adv->checksum = Checksum_icmp6_be(ip6.sourceAddr, msg->bytes, Message_getLength(msg));
+    struct NDPHeader_RouterAdvert* adv = (struct NDPHeader_RouterAdvert*) msg->msgbytes;
+    adv->checksum = Checksum_icmp6_be(ip6.sourceAddr, msg->msgbytes, Message_getLength(msg));
 
     Er_assert(Message_epush(msg, &ip6, sizeof(struct Headers_IP6Header)));
 

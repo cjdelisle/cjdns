@@ -34,7 +34,7 @@ Builder.configure({
 }, function (builder, waitFor) {
 
     builder.config.crossCompiling = process.env['CROSS'] !== undefined;
-    let optimizeLevel = '-O3';
+    let optimizeLevel = '-O0';
 
     builder.config.cflags.push(
         '-std=c99',

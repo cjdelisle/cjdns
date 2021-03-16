@@ -83,7 +83,7 @@ static Iface_DEFUN incomingFromIface(struct Message* m, struct Iface* iface)
     struct UDPAddrIface_pvt* context = Identity_check((struct UDPAddrIface_pvt*) iface);
 
     Assert_true(Message_getLength(m) >= Sockaddr_OVERHEAD);
-    if (((struct Sockaddr*)m->bytes)->flags & Sockaddr_flags_BCAST) {
+    if (((struct Sockaddr*)m->msgbytes)->flags & Sockaddr_flags_BCAST) {
         Log_debug(context->logger, "Attempted bcast, bcast unsupported");
         // bcast not supported.
         return Error(UNHANDLED);
@@ -114,7 +114,7 @@ static Iface_DEFUN incomingFromIface(struct Message* m, struct Iface* iface)
     req->length = Message_getLength(m);
 
     uv_buf_t buffers[] = {
-        { .base = (char*)m->bytes, .len = Message_getLength(m) }
+        { .base = (char*)m->msgbytes, .len = Message_getLength(m) }
     };
 
     int ret = uv_udp_send(&req->uvReq, &context->uvHandle, buffers, 1,
@@ -160,7 +160,7 @@ static void incoming(uv_udp_t* handle,
 
         // make sure the sockaddr doesn't have crap in it which will
         // prevent it from being used as a lookup key
-        Sockaddr_normalizeNative((struct sockaddr*) msg->bytes);
+        Sockaddr_normalizeNative((struct sockaddr*) msg->msgbytes);
 
         Er_assert(Message_epush(msg, context->pub.generic.addr, Sockaddr_OVERHEAD));
 
@@ -195,9 +195,9 @@ static void allocate(uv_handle_t* handle, size_t size, uv_buf_t* buf)
         child
     );
 
-    ALLOC(msg->bytes) = msg;
+    ALLOC(msg->msgbytes) = msg;
 
-    buf->base = msg->bytes;
+    buf->base = msg->msgbytes;
     buf->len = size;
 }
 

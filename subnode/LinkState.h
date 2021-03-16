@@ -45,9 +45,9 @@ static inline int LinkState_encode(
     if (Message_getPadding(msg) < 255) { return 1; }
 
     struct VarInt_Iter iter = {
-        .ptr = msg->bytes,
-        .end = msg->bytes,
-        .start = &msg->bytes[-Message_getPadding(msg)]
+        .ptr = msg->msgbytes,
+        .end = msg->msgbytes,
+        .start = &msg->msgbytes[-Message_getPadding(msg)]
     };
 
     // Take the newest X entries where X = MIN(ls->samples - lastSamples, LinkState_SLOTS)
@@ -68,11 +68,11 @@ static inline int LinkState_encode(
     Assert_true(!VarInt_push(&iter, ls->nodeId));
 
     int beginLength = Message_getLength(msg);
-    Er_assert(Message_eshift(msg, (msg->bytes - iter.ptr)));
-    Assert_true(msg->bytes == iter.ptr);
+    Er_assert(Message_eshift(msg, (msg->msgbytes - iter.ptr)));
+    Assert_true(msg->msgbytes == iter.ptr);
 
     int padCount = 0;
-    while ((uintptr_t)(&msg->bytes[-3]) & 7) {
+    while ((uintptr_t)(&msg->msgbytes[-3]) & 7) {
         Er_assert(Message_epush8(msg, 0));
         padCount++;
     }
@@ -82,19 +82,19 @@ static inline int LinkState_encode(
     int finalLength = Message_getLength(msg) - beginLength;
     Er_assert(Message_epush8(msg, finalLength + 1));
 
-    Assert_true(!(((uintptr_t)msg->bytes) & 7));
+    Assert_true(!(((uintptr_t)msg->msgbytes) & 7));
     return 0;
 }
 
 static inline int LinkState_mkDecoder(struct Message* msg, struct VarInt_Iter* it)
 {
     if (!Message_getLength(msg)) { return 1; }
-    uint8_t len = msg->bytes[0];
+    uint8_t len = msg->msgbytes[0];
     if (Message_getLength(msg) < len) { return 1; }
     if (len < 3) { return 1; }
-    it->ptr = &msg->bytes[1];
+    it->ptr = &msg->msgbytes[1];
     it->start = it->ptr;
-    it->end = &msg->bytes[len];
+    it->end = &msg->msgbytes[len];
     // Ok to pop this using VarInt because it's supposed to be 3, which is less than 253
     uint64_t type = 0;
     if (VarInt_pop(it, &type)) { return 1; }

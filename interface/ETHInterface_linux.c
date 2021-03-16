@@ -80,7 +80,7 @@ static void sendMessageInternal(struct Message* message,
     */
 
     if (sendto(context->socket,
-               message->bytes,
+               message->msgbytes,
                Message_getLength(message),
                0,
                (struct sockaddr*) addr,
@@ -105,7 +105,7 @@ static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* iface)
     struct ETHInterface_pvt* ctx =
         Identity_containerOf(iface, struct ETHInterface_pvt, pub.generic.iface);
 
-    struct Sockaddr* sa = (struct Sockaddr*) msg->bytes;
+    struct Sockaddr* sa = (struct Sockaddr*) msg->msgbytes;
     Assert_true(Message_getLength(msg) >= Sockaddr_OVERHEAD);
     Assert_true(sa->addrLen <= ETHInterface_Sockaddr_SIZE);
 
@@ -144,7 +144,7 @@ static void handleEvent2(struct ETHInterface_pvt* context, struct Allocator* mes
     Er_assert(Message_eshift(msg, 2));
 
     int rc = recvfrom(context->socket,
-                      msg->bytes,
+                      msg->msgbytes,
                       Message_getLength(msg),
                       0,
                       (struct sockaddr*) &addr,
@@ -191,7 +191,7 @@ static void handleEvent2(struct ETHInterface_pvt* context, struct Allocator* mes
 
     Er_assert(Message_epush(msg, &sockaddr, ETHInterface_Sockaddr_SIZE));
 
-    Assert_true(!((uintptr_t)msg->bytes % 4) && "Alignment fault");
+    Assert_true(!((uintptr_t)msg->msgbytes % 4) && "Alignment fault");
 
     Iface_send(&context->pub.generic.iface, msg);
 }

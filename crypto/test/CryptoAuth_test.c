@@ -84,13 +84,13 @@ static Iface_DEFUN afterDecrypt(struct Message* msg, struct Iface* if1)
         if (e) {
             return Error(NONE);
         }
-        Assert_failure("expected <NULL>, got [%s](%d)\n", msg->bytes, Message_getLength(msg));
+        Assert_failure("expected <NULL>, got [%s](%d)\n", msg->msgbytes, Message_getLength(msg));
     }
     if ((int)CString_strlen(n->expectPlaintext) != Message_getLength(msg) ||
-        CString_strncmp(msg->bytes, n->expectPlaintext, Message_getLength(msg)))
+        CString_strncmp(msg->msgbytes, n->expectPlaintext, Message_getLength(msg)))
     {
         Assert_failure("expected [%s](%d), got [%s](%d)\n",
-            n->expectPlaintext, (int)CString_strlen(n->expectPlaintext), msg->bytes, Message_getLength(msg));
+            n->expectPlaintext, (int)CString_strlen(n->expectPlaintext), msg->msgbytes, Message_getLength(msg));
     }
     n->expectPlaintext = NULL;
     return Error(NONE);
@@ -160,7 +160,7 @@ static struct Message* encryptMsg(struct Context* ctx,
     struct Allocator* alloc = Allocator_child(ctx->alloc);
     int len = (((CString_strlen(x)+1) / 8) + 1) * 8;
     struct Message* msg = Message_new(len, CryptoHeader_SIZE + 32, alloc);
-    CString_strcpy(msg->bytes, x);
+    CString_strcpy(msg->msgbytes, x);
     Er_assert(Message_truncate(msg, CString_strlen(x)));
     //msg->bytes[Message_getLength(msg)] = 0;
     struct Error_s e = Iface_send(&n->plaintext, msg);

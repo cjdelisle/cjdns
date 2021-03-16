@@ -187,7 +187,7 @@ static inline Gcc_USE_RET int decryptRndNonce(const uint8_t nonce[24],
         return -1;
     }
     Assert_true(Message_getPadding(msg) >= 16);
-    uint8_t* startAt = msg->bytes - 16;
+    uint8_t* startAt = msg->msgbytes - 16;
     uint8_t paddingSpace[16];
     Bits_memcpy(paddingSpace, startAt, 16);
     Bits_memset(startAt, 0, 16);
@@ -217,7 +217,7 @@ static inline void encryptRndNonce(const uint8_t nonce[24],
                                    const uint8_t secret[32])
 {
     Assert_true(Message_getPadding(msg) >= 32);
-    uint8_t* startAt = msg->bytes - 32;
+    uint8_t* startAt = msg->msgbytes - 32;
     // This function trashes 16 bytes of the padding so we will put it back
     uint8_t paddingSpace[16];
     Bits_memcpy(paddingSpace, startAt, 16);
@@ -345,7 +345,7 @@ static void encryptHandshake(struct Message* message,
 {
     Er_assert(Message_eshift(message, CryptoHeader_SIZE));
 
-    struct CryptoHeader* header = (struct CryptoHeader*) message->bytes;
+    struct CryptoHeader* header = (struct CryptoHeader*) message->msgbytes;
 
     // garbage the auth challenge and set the nonce which follows it
     Random_bytes(session->context->rand, (uint8_t*) &header->auth,
@@ -459,7 +459,7 @@ static void encryptHandshake(struct Message* message,
         uint8_t nonceHex[49];
         Hex_encode(nonceHex, 49, header->handshakeNonce, 24);
         uint8_t cipherHex[65];
-        printHexKey(cipherHex, message->bytes);
+        printHexKey(cipherHex, message->msgbytes);
         Log_keys(session->context->logger,
                   "Encrypting message with:\n"
                   "    nonce: %s\n"
@@ -485,7 +485,7 @@ static int encryptPacket(struct CryptoAuth_Session_pvt* session, struct Message*
         reset(session);
     }
 
-    Assert_true(!((uintptr_t)msg->bytes % 4) || !"alignment fault");
+    Assert_true(!((uintptr_t)msg->msgbytes % 4) || !"alignment fault");
 
     // nextNonce 0: sending hello, we are initiating connection.
     // nextNonce 1: sending another hello, nothing received yet.
@@ -644,7 +644,7 @@ static enum CryptoAuth_DecryptErr decryptHandshake(struct CryptoAuth_Session_pvt
         uint8_t nonceHex[49];
         Hex_encode(nonceHex, 49, header->handshakeNonce, 24);
         uint8_t cipherHex[65];
-        printHexKey(cipherHex, message->bytes);
+        printHexKey(cipherHex, message->msgbytes);
         Log_keys(session->context->logger,
                   "Decrypting message with:\n"
                   "    nonce: %s\n"
@@ -830,14 +830,14 @@ static enum CryptoAuth_DecryptErr decryptHandshake(struct CryptoAuth_Session_pvt
 static enum CryptoAuth_DecryptErr decryptPacket(struct CryptoAuth_Session_pvt* session,
                                                 struct Message* msg)
 {
-    struct CryptoHeader* header = (struct CryptoHeader*) msg->bytes;
+    struct CryptoHeader* header = (struct CryptoHeader*) msg->msgbytes;
 
     if (Message_getLength(msg) < 20) {
         cryptoAuthDebug0(session, "DROP runt");
         return CryptoAuth_DecryptErr_RUNT;
     }
     Assert_true(Message_getPadding(msg) >= 12 || "need at least 12 bytes of padding in incoming message");
-    Assert_true(!((uintptr_t)msg->bytes % 4) || !"alignment fault");
+    Assert_true(!((uintptr_t)msg->msgbytes % 4) || !"alignment fault");
     Assert_true(!(Message_getCapacity(msg) % 4) || !"length fault");
 
     Er_assert(Message_eshift(msg, -4));
@@ -1057,7 +1057,7 @@ static Iface_DEFUN ciphertextMsg(struct Message* msg, struct Iface* iface)
         return Error(RUNT);
     }
     uint8_t firstSixteen[16];
-    Bits_memcpy(firstSixteen, msg->bytes, 16);
+    Bits_memcpy(firstSixteen, msg->msgbytes, 16);
     enum CryptoAuth_DecryptErr e = decryptPacket(sess, msg);
     if (e == CryptoAuth_DecryptErr_NONE) {
         Er_assert(Message_epush32be(msg, CryptoAuth_DecryptErr_NONE));

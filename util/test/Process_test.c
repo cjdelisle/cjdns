@@ -72,7 +72,7 @@ static Iface_DEFUN receiveMessageParent(struct Message* msg, struct Iface* iface
     struct Context* c = Identity_check((struct Context*) iface);
     Er_assert(AddrIface_popAddr(msg));
     Assert_true(Message_getLength(msg) == (int)CString_strlen(MESSAGEB)+1);
-    Assert_true(!Bits_memcmp(msg->bytes, MESSAGEB, CString_strlen(MESSAGEB)+1));
+    Assert_true(!Bits_memcmp(msg->msgbytes, MESSAGEB, CString_strlen(MESSAGEB)+1));
     Allocator_free(c->alloc);
     return Error(NONE);
 }
@@ -94,7 +94,7 @@ static Iface_DEFUN receiveMessageChild(struct Message* msg, struct Iface* iface)
     struct Message* m = Message_clone(msg, c->alloc);
     printf("Child received message\n");
     Assert_true(Message_getLength(m) == (int)CString_strlen(MESSAGE)+1);
-    Assert_true(!Bits_memcmp(m->bytes, MESSAGE, CString_strlen(MESSAGE)+1));
+    Assert_true(!Bits_memcmp(m->msgbytes, MESSAGE, CString_strlen(MESSAGE)+1));
 
     if (!Defined(win32)) {
         int fd = Message_getAssociatedFd(msg);

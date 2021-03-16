@@ -150,7 +150,7 @@ void CJDNS_FUZZ_MAIN(void* vctx, struct Message* msg)
     // Lets fill in the ipv6, pubkey & label so that any
     // old packet dump will work fine for testing
     {
-        struct RouteHeader* rh = (struct RouteHeader*) msg->bytes;
+        struct RouteHeader* rh = (struct RouteHeader*) msg->msgbytes;
         Bits_memcpy(rh->ip6, to->ip, 16);
         Bits_memcpy(rh->publicKey, to->publicKey, 32);
         rh->version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL);
@@ -176,11 +176,11 @@ void CJDNS_FUZZ_MAIN(void* vctx, struct Message* msg)
     // fc00::1
     AddressCalc_makeValidAddress(&srcAndDest[16]);
     Bits_memcpy(&srcAndDest, from->ip, 16);
-    uint16_t checksum_be = Checksum_udpIp6_be(srcAndDest, msg->bytes, Message_getLength(msg));
-    ((struct Headers_UDPHeader*)msg->bytes)->checksum_be = checksum_be;
+    uint16_t checksum_be = Checksum_udpIp6_be(srcAndDest, msg->msgbytes, Message_getLength(msg));
+    ((struct Headers_UDPHeader*)msg->msgbytes)->checksum_be = checksum_be;
 
     TestFramework_craftIPHeader(msg, srcAndDest, &srcAndDest[16]);
-    ((struct Headers_IP6Header*) msg->bytes)->nextHeader = 17;
+    ((struct Headers_IP6Header*) msg->msgbytes)->nextHeader = 17;
 
     Er_assert(TUNMessageType_push(msg, Ethernet_TYPE_IP6));
 

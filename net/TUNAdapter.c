@@ -39,7 +39,7 @@ static Iface_DEFUN incomingFromTunIf(struct Message* msg, struct Iface* tunIf)
 
     uint16_t ethertype = Er_assert(TUNMessageType_pop(msg));
 
-    int version = Headers_getIpVersion(msg->bytes);
+    int version = Headers_getIpVersion(msg->msgbytes);
     if ((ethertype == Ethernet_TYPE_IP4 && version != 4)
         || (ethertype == Ethernet_TYPE_IP6 && version != 6))
     {
@@ -62,7 +62,7 @@ static Iface_DEFUN incomingFromTunIf(struct Message* msg, struct Iface* tunIf)
         return Error(RUNT);
     }
 
-    struct Headers_IP6Header* header = (struct Headers_IP6Header*) msg->bytes;
+    struct Headers_IP6Header* header = (struct Headers_IP6Header*) msg->msgbytes;
     if (!AddressCalc_validAddress(header->destinationAddr)) {
         return Iface_next(&ud->pub.ipTunnelIf, msg);
     }
@@ -88,7 +88,7 @@ static Iface_DEFUN incomingFromTunIf(struct Message* msg, struct Iface* tunIf)
     Bits_memmove(header->destinationAddr - DataHeader_SIZE, header->destinationAddr, 16);
 
     Er_assert(Message_eshift(msg, DataHeader_SIZE + RouteHeader_SIZE - Headers_IP6Header_SIZE));
-    struct RouteHeader* rh = (struct RouteHeader*) msg->bytes;
+    struct RouteHeader* rh = (struct RouteHeader*) msg->msgbytes;
 
     struct DataHeader* dh = (struct DataHeader*) &rh[1];
     Bits_memset(dh, 0, DataHeader_SIZE);
@@ -124,7 +124,7 @@ static Iface_DEFUN incomingFromUpperDistributorIf(struct Message* msg,
     struct TUNAdapter_pvt* ud =
         Identity_containerOf(upperDistributorIf, struct TUNAdapter_pvt, pub.upperDistributorIf);
     Assert_true(Message_getLength(msg) >= RouteHeader_SIZE + DataHeader_SIZE);
-    struct RouteHeader* hdr = (struct RouteHeader*) msg->bytes;
+    struct RouteHeader* hdr = (struct RouteHeader*) msg->msgbytes;
     struct DataHeader* dh = (struct DataHeader*) &hdr[1];
     enum ContentType type = DataHeader_getContentType(dh);
     Assert_true(type <= ContentType_IP6_MAX);
@@ -135,7 +135,7 @@ static Iface_DEFUN incomingFromUpperDistributorIf(struct Message* msg,
     Bits_memcpy(&hdr->ip6[DataHeader_SIZE], ud->myIp6, 16);
 
     Er_assert(Message_eshift(msg, Headers_IP6Header_SIZE - DataHeader_SIZE - RouteHeader_SIZE));
-    struct Headers_IP6Header* ip6 = (struct Headers_IP6Header*) msg->bytes;
+    struct Headers_IP6Header* ip6 = (struct Headers_IP6Header*) msg->msgbytes;
     Bits_memset(ip6, 0, Headers_IP6Header_SIZE - 32);
     Headers_setIpVersion(ip6);
     ip6->payloadLength_be = Endian_bigEndianToHost16(Message_getLength(msg) - Headers_IP6Header_SIZE);
