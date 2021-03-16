@@ -116,7 +116,7 @@ static bool isMutableBit(int bitNum)
 
 static void flipBit(struct Message* msg, uint32_t bitNum)
 {
-    Assert_true(msg->length * 8 > (int)bitNum);
+    Assert_true(Message_getLength(msg) * 8 > (int)bitNum);
     msg->bytes[bitNum / 8] ^= 128 >> (bitNum % 8);
 }
 
@@ -134,7 +134,7 @@ static void flipImmutableBit(struct Context* ctx, struct Node* from, struct Mess
 {
     uint32_t bitNum;
     do {
-        bitNum = Random_uint16(ctx->rand) % (msg->length * 8);
+        bitNum = Random_uint16(ctx->rand) % (Message_getLength(msg) * 8);
     } while (isMutableBit(bitNum));
     logNode(ctx, from, "FLIPPING IMMUTABLE BIT %u", bitNum);
     flipBit(msg, bitNum);
@@ -279,7 +279,7 @@ static Iface_DEFUN afterDecrypt(struct Message* msg, struct Iface* iface)
     enum CryptoAuth_DecryptErr e = Er_assert(Message_epop32h(msg));
     if (!e) {
         Assert_true(!flippedImmutable);
-        Assert_true(msg->length == 4 && !Bits_memcmp(msg->bytes, "hey", 4));
+        Assert_true(Message_getLength(msg) == 4 && !Bits_memcmp(msg->bytes, "hey", 4));
         if (to == &to->ctx->nodeB) {
             // 1/10 chance the node decides not to reply.
             if (maybe(to->ctx, 10)) {

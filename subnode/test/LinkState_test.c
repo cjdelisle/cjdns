@@ -74,7 +74,7 @@ static void randomLsUpdate(struct Random* rand, struct LinkState* ls)
 
 static void applyStateUpdates(struct LinkState* local, struct Message* msg)
 {
-    if (!msg->length) { return; }
+    if (!Message_getLength(msg)) { return; }
     uint8_t length = msg->bytes[0];
     struct VarInt_Iter it;
     Assert_true(!LinkState_mkDecoder(msg, &it));
@@ -124,7 +124,7 @@ static void testStatic()
         "\x13\x00\x01";
     struct LinkState ls = { .nodeId = 0 };
     struct VarInt_Iter it = { .start = 0 };
-    struct Message msg = { .length = 32, .bytes = hex };
+    struct Message msg = Message_foreign(32, hex);
     Assert_true(!LinkState_mkDecoder(&msg, &it));
     Assert_true(!LinkState_decode(&it, &ls));
     // printf("%u %u\n", ls.nodeId, ls.samples);
@@ -157,7 +157,7 @@ int main(int argc, char* argv[])
         struct LinkState ls = { .nodeId = nodeId, .samples = LinkState_SLOTS };
         randomLs(rand, &ls, false);
 
-        Assert_true(!msg->length);
+        Assert_true(!Message_getLength(msg));
         Assert_true(!LinkState_encode(msg, &ls, 0));
         assertSame(&ls0, &ls, msg);
 
@@ -165,14 +165,14 @@ int main(int argc, char* argv[])
             Bits_memcpy(&ls0, &ls, sizeof(struct LinkState));
             randomLsUpdate(rand, &ls);
             Assert_true(!LinkState_encode(msg, &ls, ls0.samples));
-            //printf("L>%d\n", msg->length);
-            //for (int i = 0; i < msg->length; i++) { printf("%02x", msg->bytes[i]); }
+            //printf("L>%d\n", Message_getLength(msg));
+            //for (int i = 0; i < Message_getLength(msg); i++) { printf("%02x", msg->bytes[i]); }
             //printf("\n");
             assertSame(&ls0, &ls, msg);
         }
 
-        //printf("Test %d\n", msg->length);
-        //for (int i = 0; i < msg->length; i++) { printf("%02x", msg->bytes[i]); }
+        //printf("Test %d\n", Message_getLength(msg));
+        //for (int i = 0; i < Message_getLength(msg); i++) { printf("%02x", msg->bytes[i]); }
         //printf("\n");
     }
     Allocator_free(mainAlloc);

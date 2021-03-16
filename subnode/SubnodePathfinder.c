@@ -126,7 +126,7 @@ static uint32_t addressForNode(struct Address* addrOut, struct Message* msg)
     Bits_memset(addrOut, 0, sizeof(struct Address));
     struct PFChan_Node node;
     Er_assert(Message_epop(msg, &node, PFChan_Node_SIZE));
-    Assert_true(!msg->length);
+    Assert_true(!Message_getLength(msg));
     addrOut->protocolVersion = Endian_bigEndianToHost32(node.version_be);
     addrOut->path = Endian_bigEndianToHost64(node.path_be);
     Bits_memcpy(addrOut->key, node.publicKey, 32);
@@ -244,7 +244,7 @@ static Iface_DEFUN searchReq(struct Message* msg, struct SubnodePathfinder_pvt* 
     Er_assert(Message_epop32be(msg));
     uint32_t version = Er_assert(Message_epop32be(msg));
     if (version && version < 20) { return Error(UNHANDLED); }
-    Assert_true(!msg->length);
+    Assert_true(!Message_getLength(msg));
     uint8_t printedAddr[40];
     AddrTools_printIp(printedAddr, addr);
 
@@ -437,7 +437,7 @@ static Iface_DEFUN unsetupSession(struct Message* msg, struct SubnodePathfinder_
 {
     struct PFChan_Node node;
     Er_assert(Message_epop(msg, &node, PFChan_Node_SIZE));
-    Assert_true(!msg->length);
+    Assert_true(!Message_getLength(msg));
     struct Address addr = {
         .protocolVersion = Endian_bigEndianToHost32(node.version_be),
         .path = Endian_bigEndianToHost64(node.path_be),
@@ -455,7 +455,7 @@ static Iface_DEFUN incomingMsg(struct Message* msg, struct SubnodePathfinder_pvt
 
 static Iface_DEFUN linkState(struct Message* msg, struct SubnodePathfinder_pvt* pf)
 {
-    while (msg->length) {
+    while (Message_getLength(msg)) {
         struct PFChan_LinkState_Entry lse;
         Er_assert(Message_epop(msg, &lse, PFChan_LinkState_Entry_SIZE));
         ReachabilityCollector_updateBandwidthAndDrops(
@@ -472,7 +472,7 @@ static Iface_DEFUN incomingFromMsgCore(struct Message* msg, struct Iface* iface)
 {
     struct SubnodePathfinder_pvt* pf =
         Identity_containerOf(iface, struct SubnodePathfinder_pvt, msgCoreIf);
-    Assert_true(msg->length >= (RouteHeader_SIZE + DataHeader_SIZE));
+    Assert_true(Message_getLength(msg) >= (RouteHeader_SIZE + DataHeader_SIZE));
     struct RouteHeader* rh = (struct RouteHeader*) msg->bytes;
     struct DataHeader* dh = (struct DataHeader*) &rh[1];
     Assert_true(DataHeader_getContentType(dh) == ContentType_CJDHT);

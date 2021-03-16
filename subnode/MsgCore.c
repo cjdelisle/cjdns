@@ -153,7 +153,7 @@ static void sendMsg(struct MsgCore_pvt* mcp,
     struct Message* msg = Message_new(0, 2048, alloc);
     Er_assert(BencMessageWriter_write(msgDict, msg));
 
-    //Log_debug(mcp->log, "Sending msg [%s]", Escape_getEscaped(msg->bytes, msg->length, alloc));
+    //Log_debug(mcp->log, "Sending msg [%s]", Escape_getEscaped(msg->bytes, Message_getLength(msg), alloc));
 
     // Sanity check (make sure the addr was actually calculated)
     Assert_true(AddressCalc_validAddress(addr->ip6.bytes));
@@ -291,9 +291,9 @@ static Iface_DEFUN incoming(struct Message* msg, struct Iface* interRouterIf)
 
     Dict* content = NULL;
     uint8_t* msgBytes = msg->bytes;
-    int length = msg->length;
+    int length = Message_getLength(msg);
     //Log_debug(mcp->log, "Receive msg [%s] from [%s]",
-    //    Escape_getEscaped(msg->bytes, msg->length, Message_getAlloc(msg)),
+    //    Escape_getEscaped(msg->bytes, Message_getLength(msg), Message_getAlloc(msg)),
     //    Address_toString(&addr, Message_getAlloc(msg))->bytes);
     //
     BencMessageReader_readNoExcept(msg, Message_getAlloc(msg), &content);

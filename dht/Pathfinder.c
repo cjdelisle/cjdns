@@ -172,7 +172,7 @@ static Iface_DEFUN connected(struct Pathfinder_pvt* pf, struct Message* msg)
 
     struct PFChan_Core_Connect conn;
     Er_assert(Message_epop(msg, &conn, PFChan_Core_Connect_SIZE));
-    Assert_true(!msg->length);
+    Assert_true(!Message_getLength(msg));
 
     Bits_memcpy(pf->myAddr.key, conn.publicKey, 32);
     Address_getPrefix(&pf->myAddr);
@@ -244,7 +244,7 @@ static void addressForNode(struct Address* addrOut, struct Message* msg)
 {
     struct PFChan_Node node;
     Er_assert(Message_epop(msg, &node, PFChan_Node_SIZE));
-    Assert_true(!msg->length);
+    Assert_true(!Message_getLength(msg));
     addrOut->protocolVersion = Endian_bigEndianToHost32(node.version_be);
     addrOut->path = Endian_bigEndianToHost64(node.path_be);
     Bits_memcpy(addrOut->key, node.publicKey, 32);
@@ -287,7 +287,7 @@ static Iface_DEFUN searchReq(struct Message* msg, struct Pathfinder_pvt* pf)
     Er_assert(Message_epop32be(msg));
     uint32_t version = Er_assert(Message_epop32be(msg));
     if (version && version >= 20) { return Error(NONE); }
-    Assert_true(!msg->length);
+    Assert_true(!Message_getLength(msg));
     uint8_t printedAddr[40];
     AddrTools_printIp(printedAddr, addr);
     Log_debug(pf->log, "Search req [%s]", printedAddr);

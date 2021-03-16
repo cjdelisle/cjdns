@@ -45,11 +45,11 @@ static Iface_DEFUN handleError(struct Message* msg,
                                uint8_t* labelStr,
                                struct RouteHeader* rh)
 {
-    if (msg->length < handleError_MIN_SIZE) {
+    if (Message_getLength(msg) < handleError_MIN_SIZE) {
         Log_info(ch->log, "DROP runt error packet from [%s]", labelStr);
         return Error(RUNT);
     }
-    msg->length = handleError_MIN_SIZE;
+    Er_assert(Message_truncate(msg, handleError_MIN_SIZE));
     Er_assert(Message_epush(msg, &rh->sh, SwitchHeader_SIZE));
     Er_assert(Message_epush32be(msg, 0xffffffff));
     Er_assert(Message_epush32be(msg, PFChan_Core_SWITCH_ERR));
@@ -66,7 +66,7 @@ static Iface_DEFUN handlePing(struct Message* msg,
                               uint8_t* labelStr,
                               uint16_t messageType_be)
 {
-    if (msg->length < handlePing_MIN_SIZE) {
+    if (Message_getLength(msg) < handlePing_MIN_SIZE) {
         Log_info(ch->log, "DROP runt ping");
         return Error(RUNT);
     }
@@ -84,12 +84,12 @@ static Iface_DEFUN handlePing(struct Message* msg,
 
     if (messageType_be == Control_KEYPING_be) {
         Log_debug(ch->log, "got switch keyPing from [%s]", labelStr);
-        if (msg->length < Control_KeyPing_HEADER_SIZE) {
+        if (Message_getLength(msg) < Control_KeyPing_HEADER_SIZE) {
             // min keyPing size is longer
             Log_debug(ch->log, "DROP runt keyPing");
             return Error(RUNT);
         }
-        if (msg->length > Control_KeyPing_MAX_SIZE) {
+        if (Message_getLength(msg) > Control_KeyPing_MAX_SIZE) {
             Log_debug(ch->log, "DROP long keyPing");
             return Error(INVALID);
         }
@@ -122,7 +122,7 @@ static Iface_DEFUN handlePing(struct Message* msg,
     Er_assert(Message_eshift(msg, Control_Header_SIZE));
 
     ctrl->header.checksum_be = 0;
-    ctrl->header.checksum_be = Checksum_engine_be(msg->bytes, msg->length);
+    ctrl->header.checksum_be = Checksum_engine_be(msg->bytes, Message_getLength(msg));
 
     Er_assert(Message_eshift(msg, RouteHeader_SIZE));
 
@@ -145,7 +145,7 @@ static Iface_DEFUN handleRPathQuery(struct Message* msg,
                                     uint8_t* labelStr)
 {
     Log_debug(ch->log, "Incoming RPATH query");
-    if (msg->length < handleRPathQuery_MIN_SIZE) {
+    if (Message_getLength(msg) < handleRPathQuery_MIN_SIZE) {
         Log_info(ch->log, "DROP runt RPATH query");
         return Error(RUNT);
     }
@@ -165,7 +165,7 @@ static Iface_DEFUN handleRPathQuery(struct Message* msg,
     Bits_memcpy(rpa->rpath_be, &label_be, 8);
 
     ctrl->header.checksum_be = 0;
-    ctrl->header.checksum_be = Checksum_engine_be(msg->bytes, msg->length);
+    ctrl->header.checksum_be = Checksum_engine_be(msg->bytes, Message_getLength(msg));
 
     Er_assert(Message_eshift(msg, RouteHeader_SIZE));
     struct RouteHeader* routeHeader = (struct RouteHeader*) msg->bytes;
@@ -186,7 +186,7 @@ static Iface_DEFUN handleGetSnodeQuery(struct Message* msg,
                                        uint8_t* labelStr)
 {
     Log_debug(ch->log, "incoming getSupernode query");
-    if (msg->length < handleGetSnodeQuery_MIN_SIZE) {
+    if (Message_getLength(msg) < handleGetSnodeQuery_MIN_SIZE) {
         Log_info(ch->log, "DROP runt getSupernode query");
         return Error(RUNT);
     }
@@ -226,7 +226,7 @@ static Iface_DEFUN handleGetSnodeQuery(struct Message* msg,
     }
 
     ctrl->header.checksum_be = 0;
-    ctrl->header.checksum_be = Checksum_engine_be(msg->bytes, msg->length);
+    ctrl->header.checksum_be = Checksum_engine_be(msg->bytes, Message_getLength(msg));
 
     Er_assert(Message_eshift(msg, RouteHeader_SIZE));
     struct RouteHeader* routeHeader = (struct RouteHeader*) msg->bytes;
@@ -263,14 +263,14 @@ static Iface_DEFUN incomingFromCore(struct Message* msg, struct Iface* coreIf)
     // happens in benchmark
     // Log_debug(ch->log, "ctrl packet from [%s]", labelStr);
 
-    if (msg->length < 4 + Control_Header_SIZE) {
+    if (Message_getLength(msg) < 4 + Control_Header_SIZE) {
         Log_info(ch->log, "DROP runt ctrl packet from [%s]", labelStr);
         return Error(RUNT);
     }
 
     Assert_true(routeHdr.flags & RouteHeader_flags_CTRLMSG);
 
-    if (Checksum_engine_be(msg->bytes, msg->length)) {
+    if (Checksum_engine_be(msg->bytes, Message_getLength(msg))) {
         Log_info(ch->log, "DROP ctrl packet from [%s] with invalid checksum", labelStr);
         return Error(INVALID);
     }
@@ -334,7 +334,7 @@ static Iface_DEFUN changeSnode(struct Message* msg, struct Iface* eventIf)
 
     struct PFChan_Node node;
     Er_assert(Message_epop(msg, &node, PFChan_Node_SIZE));
-    Assert_true(!msg->length);
+    Assert_true(!Message_getLength(msg));
 
     uint64_t path = Endian_bigEndianToHost64(node.path_be);
     uint32_t protocolVersion = Endian_bigEndianToHost32(node.version_be);

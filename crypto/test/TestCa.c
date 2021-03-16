@@ -200,16 +200,16 @@ static bool check(Message_t *msg, TestCa_Session_pvt_t* sess)
         Er_assert(Message_epopAd(msg, &m2p, sizeof m2p));
         printf("Verifying message %x\n", m2p);
         struct Message* m2 = (struct Message*) m2p;
-        if (msg->length != m2->length) {
-            Assert_failure("msg->length != m2->length: %d != %d",
-                msg->length, m2->length);
+        if (Message_getLength(msg) != Message_getLength(m2)) {
+            Assert_failure("Message_getLength(msg) != m2->length: %d != %d",
+                Message_getLength(msg), Message_getLength(m2));
         }
-        if (Bits_memcmp(msg->bytes, m2->bytes, msg->length)) {
-            const char* msgH = Hex_print(msg->bytes, msg->length, Message_getAlloc(msg));
-            const char* m2H = Hex_print(m2->bytes, m2->length, Message_getAlloc(m2));
+        if (Bits_memcmp(msg->bytes, m2->bytes, Message_getLength(msg))) {
+            const char* msgH = Hex_print(msg->bytes, Message_getLength(msg), Message_getAlloc(msg));
+            const char* m2H = Hex_print(m2->bytes, Message_getLength(m2), Message_getAlloc(m2));
             Assert_failure("msg->bytes != m2->bytes:\n%s\n%s\n", msgH, m2H);
         }
-        Assert_true(!Bits_memcmp(msg->bytes, m2->bytes, msg->length));
+        Assert_true(!Bits_memcmp(msg->bytes, m2->bytes, Message_getLength(msg)));
     } else {
         Assert_failure("unexpected flag [%d]", flag);
     }

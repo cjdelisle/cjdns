@@ -71,8 +71,8 @@ static void sendComplete(uv_udp_send_t* uvReq, int error)
         Log_debug(req->udp->logger, "DROP Failed to write to UDPAddrIface [%s]",
                   uv_strerror(error) );
     }
-    Assert_true(req->msg->length == req->length);
-    req->udp->queueLen -= req->msg->length;
+    Assert_true(Message_getLength(req->msg) == req->length);
+    req->udp->queueLen -= Message_getLength(req->msg);
     Assert_true(req->udp->queueLen >= 0);
     Allocator_free(req->alloc);
 }
@@ -82,7 +82,7 @@ static Iface_DEFUN incomingFromIface(struct Message* m, struct Iface* iface)
 {
     struct UDPAddrIface_pvt* context = Identity_check((struct UDPAddrIface_pvt*) iface);
 
-    Assert_true(m->length >= Sockaddr_OVERHEAD);
+    Assert_true(Message_getLength(m) >= Sockaddr_OVERHEAD);
     if (((struct Sockaddr*)m->bytes)->flags & Sockaddr_flags_BCAST) {
         Log_debug(context->logger, "Attempted bcast, bcast unsupported");
         // bcast not supported.
@@ -91,7 +91,7 @@ static Iface_DEFUN incomingFromIface(struct Message* m, struct Iface* iface)
 
     if (context->queueLen > UDPAddrIface_MAX_QUEUE) {
         Log_warn(context->logger, "DROP msg length [%d] to [%s] maximum queue length reached",
-            m->length, Sockaddr_print(context->pub.generic.addr, Message_getAlloc(m)));
+            Message_getLength(m), Sockaddr_print(context->pub.generic.addr, Message_getAlloc(m)));
         return Error(OVERFLOW);
     }
 
@@ -111,10 +111,10 @@ static Iface_DEFUN incomingFromIface(struct Message* m, struct Iface* iface)
     Er_assert(Message_epop(m, &ss, context->pub.generic.addr->addrLen));
     Assert_true(ss.addr.addrLen == context->pub.generic.addr->addrLen);
 
-    req->length = m->length;
+    req->length = Message_getLength(m);
 
     uv_buf_t buffers[] = {
-        { .base = (char*)m->bytes, .len = m->length }
+        { .base = (char*)m->bytes, .len = Message_getLength(m) }
     };
 
     int ret = uv_udp_send(&req->uvReq, &context->uvHandle, buffers, 1,
@@ -126,7 +126,7 @@ static Iface_DEFUN incomingFromIface(struct Message* m, struct Iface* iface)
         Allocator_free(req->alloc);
         return Error(UNHANDLED);
     }
-    context->queueLen += m->length;
+    context->queueLen += Message_getLength(m);
 
     return Error(NONE);
 }
@@ -155,7 +155,7 @@ static void incoming(uv_udp_t* handle,
         //Log_debug(context->logger, "0 length read");
 
     } else {
-        msg->length = nread;
+        Er_assert(Message_truncate(msg, nread));
         Er_assert(Message_epush(msg, addr, context->pub.generic.addr->addrLen - Sockaddr_OVERHEAD));
 
         // make sure the sockaddr doesn't have crap in it which will

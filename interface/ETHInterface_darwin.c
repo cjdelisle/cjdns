@@ -74,7 +74,7 @@ static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* iface)
         Identity_containerOf(iface, struct ETHInterface_pvt, pub.generic.iface);
 
     struct Sockaddr* sa = (struct Sockaddr*) msg->bytes;
-    Assert_true(msg->length >= Sockaddr_OVERHEAD);
+    Assert_true(Message_getLength(msg) >= Sockaddr_OVERHEAD);
     Assert_true(sa->addrLen <= ETHInterface_Sockaddr_SIZE);
 
     struct ETHInterface_Sockaddr sockaddr = { .generic = { .addrLen = 0 } };
@@ -83,7 +83,7 @@ static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* iface)
     struct ETHInterface_Header hdr = {
         .version = ETHInterface_CURRENT_VERSION,
         .zero = 0,
-        .length_be = Endian_hostToBigEndian16(msg->length + ETHInterface_Header_SIZE),
+        .length_be = Endian_hostToBigEndian16(Message_getLength(msg) + ETHInterface_Header_SIZE),
         .fc00_be = Endian_hostToBigEndian16(0xfc00)
     };
     Er_assert(Message_epush(msg, &hdr, ETHInterface_Header_SIZE));
@@ -100,13 +100,13 @@ static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* iface)
     Er_assert(Message_epush(msg, &ethFr, ethernet_frame_SIZE));
   /*
     struct bpf_hdr bpfPkt = {
-        .bh_caplen = msg->length,
-        .bh_datalen = msg->length,
+        .bh_caplen = Message_getLength(msg),
+        .bh_datalen = Message_getLength(msg),
         .bh_hdrlen = BPF_WORDALIGN(sizeof(struct bpf_hdr))
     };
     Er_assert(Message_epush(msg, &bpfPkt, bpfPkt.bh_hdrlen));
 */
-    if (msg->length != write(ctx->socket, msg->bytes, msg->length)) {
+    if (Message_getLength(msg) != write(ctx->socket, msg->bytes, Message_getLength(msg))) {
         Log_debug(ctx->logger, "Error writing to eth device [%s]", strerror(errno));
     }
     return Error(NONE);
@@ -140,12 +140,12 @@ static void handleEvent2(struct ETHInterface_pvt* context,
 
     uint16_t reportedLength = Endian_bigEndianToHost16(hdr.length_be);
     reportedLength -= ETHInterface_Header_SIZE;
-    if (msg->length != reportedLength) {
-        if (msg->length < reportedLength) {
+    if (Message_getLength(msg) != reportedLength) {
+        if (Message_getLength(msg) < reportedLength) {
             Log_debug(context->logger, "DROP size field is larger than frame");
             return;
         }
-        msg->length = reportedLength;
+        Er_assert(Message_truncate(msg, reportedLength));
     }
     if (hdr.fc00_be != Endian_hostToBigEndian16(0xfc00)) {
         Log_debug(context->logger, "DROP bad magic");

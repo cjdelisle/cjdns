@@ -149,8 +149,8 @@ static void readCallbackB(struct TAPInterface_pvt* tap)
     if (!GetOverlappedResult(tap->handle, readol, &bytesRead, FALSE)) {
         Assert_failure("GetOverlappedResult(read, tap): %s\n", WinEr_strerror(GetLastError()));
     }
-    msg->length = bytesRead;
-    Log_debug(tap->log, "Read [%d] bytes", msg->length);
+    Er_assert(Message_truncate(msg, bytesRead));
+    Log_debug(tap->log, "Read [%d] bytes", Message_getLength(msg));
     Iface_send(&tap->pub.generic, msg);
     Allocator_free(Message_getAlloc(msg));
     postRead(tap);
@@ -172,7 +172,7 @@ static void postWrite(struct TAPInterface_pvt* tap)
     tap->isPendingWrite = 1;
     struct Message* msg = tap->writeMsgs[0];
     OVERLAPPED* writeol = (OVERLAPPED*) tap->writeIocp.overlapped;
-    if (!WriteFile(tap->handle, msg->bytes, msg->length, NULL, writeol)) {
+    if (!WriteFile(tap->handle, msg->bytes, Message_getLength(msg), NULL, writeol)) {
         switch (GetLastError()) {
             case ERROR_IO_PENDING:
             case ERROR_IO_INCOMPLETE: break;
@@ -182,7 +182,7 @@ static void postWrite(struct TAPInterface_pvt* tap)
         // It doesn't matter if it returns immediately, it will also return async.
         //Log_debug(tap->log, "Write returned immediately");
     }
-    Log_debug(tap->log, "Posted write [%d] bytes", msg->length);
+    Log_debug(tap->log, "Posted write [%d] bytes", Message_getLength(msg));
 }
 
 static void writeCallbackB(struct TAPInterface_pvt* tap)
@@ -198,10 +198,10 @@ static void writeCallbackB(struct TAPInterface_pvt* tap)
     Assert_true(tap->writeMessageCount--);
 
     struct Message* msg = tap->writeMsgs[0];
-    if (msg->length != (int)bytesWritten) {
+    if (Message_getLength(msg) != (int)bytesWritten) {
         Log_info(tap->log, "Message of length [%d] truncated to [%d]",
-                 msg->length, (int)bytesWritten);
-        Assert_true(msg->length > (int)bytesWritten);
+                 Message_getLength(msg), (int)bytesWritten);
+        Assert_true(Message_getLength(msg) > (int)bytesWritten);
     }
 
     if (tap->writeMessageCount) {

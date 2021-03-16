@@ -183,7 +183,7 @@ static inline Gcc_USE_RET int decryptRndNonce(const uint8_t nonce[24],
                                               struct Message* msg,
                                               const uint8_t secret[32])
 {
-    if (msg->length < 16) {
+    if (Message_getLength(msg) < 16) {
         return -1;
     }
     Assert_true(Message_getPadding(msg) >= 16);
@@ -193,7 +193,7 @@ static inline Gcc_USE_RET int decryptRndNonce(const uint8_t nonce[24],
     Bits_memset(startAt, 0, 16);
     if (!Defined(NSA_APPROVED)) {
         if (crypto_box_curve25519xsalsa20poly1305_open_afternm(
-                startAt, startAt, msg->length + 16, nonce, secret) != 0)
+                startAt, startAt, Message_getLength(msg) + 16, nonce, secret) != 0)
         {
             return -1;
         }
@@ -224,7 +224,7 @@ static inline void encryptRndNonce(const uint8_t nonce[24],
     Bits_memset(startAt, 0, 32);
     if (!Defined(NSA_APPROVED)) {
         crypto_box_curve25519xsalsa20poly1305_afternm(
-            startAt, startAt, msg->length + 32, nonce, secret);
+            startAt, startAt, Message_getLength(msg) + 32, nonce, secret);
     }
 
     Bits_memcpy(startAt, paddingSpace, 16);
@@ -511,7 +511,7 @@ static int encryptPacket(struct CryptoAuth_Session_pvt* session, struct Message*
         }
     }
 
-    Assert_true(msg->length > 0 && "Empty packet during handshake");
+    Assert_true(Message_getLength(msg) > 0 && "Empty packet during handshake");
     Assert_true(Message_getPadding(msg) >= 36 || !"not enough padding");
 
     encrypt(session->nextNonce, msg, session->sharedSecret, session->isInitiator);
@@ -556,7 +556,7 @@ static enum CryptoAuth_DecryptErr decryptHandshake(struct CryptoAuth_Session_pvt
                                                    struct Message* message,
                                                    struct CryptoHeader* header)
 {
-    if (message->length < CryptoHeader_SIZE) {
+    if (Message_getLength(message) < CryptoHeader_SIZE) {
         cryptoAuthDebug0(session, "DROP runt");
         return CryptoAuth_DecryptErr_RUNT;
     }
@@ -832,7 +832,7 @@ static enum CryptoAuth_DecryptErr decryptPacket(struct CryptoAuth_Session_pvt* s
 {
     struct CryptoHeader* header = (struct CryptoHeader*) msg->bytes;
 
-    if (msg->length < 20) {
+    if (Message_getLength(msg) < 20) {
         cryptoAuthDebug0(session, "DROP runt");
         return CryptoAuth_DecryptErr_RUNT;
     }
@@ -1053,7 +1053,7 @@ static Iface_DEFUN ciphertextMsg(struct Message* msg, struct Iface* iface)
 {
     struct CryptoAuth_Session_pvt* sess =
         Identity_containerOf(iface, struct CryptoAuth_Session_pvt, pub.ciphertext);
-    if (msg->length < 16) {
+    if (Message_getLength(msg) < 16) {
         return Error(RUNT);
     }
     uint8_t firstSixteen[16];
@@ -1063,7 +1063,7 @@ static Iface_DEFUN ciphertextMsg(struct Message* msg, struct Iface* iface)
         Er_assert(Message_epush32be(msg, CryptoAuth_DecryptErr_NONE));
         return Iface_next(&sess->pub.plaintext, msg);
     }
-    Er_assert(Message_epop(msg, NULL, msg->length));
+    Er_assert(Message_epop(msg, NULL, Message_getLength(msg)));
     Er_assert(Message_epush32be(msg, CryptoAuth_getState(&sess->pub)));
     Er_assert(Message_epush32be(msg, e));
     Er_assert(Message_epush(msg, firstSixteen, 16));

@@ -19,6 +19,10 @@
     #error "new code should be trying to use EncodingScheme instead of NumberCompress"
 #endif
 
+#ifndef NumberCompress_TYPE
+    #define NumberCompress_TYPE v3x5x8
+#endif
+
 #include "switch/EncodingScheme.h"
 #include "util/Bits.h"
 #include <stdint.h>

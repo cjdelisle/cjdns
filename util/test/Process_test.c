@@ -62,7 +62,7 @@ static void onConnectionParent(struct PipeServer* p, struct Sockaddr* addr)
     if (!Defined(win32)) {
         Message_setAssociatedFd(msg, c->fd);
     }
-    printf("Parent sending message [%s] len [%d]\n", MESSAGE, msg->length);
+    printf("Parent sending message [%s] len [%d]\n", MESSAGE, Message_getLength(msg));
     Iface_send(&c->iface, msg);
     Allocator_free(alloc);
 }
@@ -71,7 +71,7 @@ static Iface_DEFUN receiveMessageParent(struct Message* msg, struct Iface* iface
 {
     struct Context* c = Identity_check((struct Context*) iface);
     Er_assert(AddrIface_popAddr(msg));
-    Assert_true(msg->length == (int)CString_strlen(MESSAGEB)+1);
+    Assert_true(Message_getLength(msg) == (int)CString_strlen(MESSAGEB)+1);
     Assert_true(!Bits_memcmp(msg->bytes, MESSAGEB, CString_strlen(MESSAGEB)+1));
     Allocator_free(c->alloc);
     return Error(NONE);
@@ -93,7 +93,7 @@ static Iface_DEFUN receiveMessageChild(struct Message* msg, struct Iface* iface)
     struct Context* c = Identity_check((struct Context*) iface);
     struct Message* m = Message_clone(msg, c->alloc);
     printf("Child received message\n");
-    Assert_true(m->length == (int)CString_strlen(MESSAGE)+1);
+    Assert_true(Message_getLength(m) == (int)CString_strlen(MESSAGE)+1);
     Assert_true(!Bits_memcmp(m->bytes, MESSAGE, CString_strlen(MESSAGE)+1));
 
     if (!Defined(win32)) {

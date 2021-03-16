@@ -67,7 +67,7 @@ static inline int LinkState_encode(
     Assert_true(!VarInt_push(&iter, (i + 1) % LinkState_SLOTS));
     Assert_true(!VarInt_push(&iter, ls->nodeId));
 
-    int beginLength = msg->length;
+    int beginLength = Message_getLength(msg);
     Er_assert(Message_eshift(msg, (msg->bytes - iter.ptr)));
     Assert_true(msg->bytes == iter.ptr);
 
@@ -79,7 +79,7 @@ static inline int LinkState_encode(
     Er_assert(Message_epush8(msg, padCount));
 
     Er_assert(Message_epush8(msg, Announce_Type_LINK_STATE));
-    int finalLength = msg->length - beginLength;
+    int finalLength = Message_getLength(msg) - beginLength;
     Er_assert(Message_epush8(msg, finalLength + 1));
 
     Assert_true(!(((uintptr_t)msg->bytes) & 7));
@@ -88,9 +88,9 @@ static inline int LinkState_encode(
 
 static inline int LinkState_mkDecoder(struct Message* msg, struct VarInt_Iter* it)
 {
-    if (!msg->length) { return 1; }
+    if (!Message_getLength(msg)) { return 1; }
     uint8_t len = msg->bytes[0];
-    if (msg->length < len) { return 1; }
+    if (Message_getLength(msg) < len) { return 1; }
     if (len < 3) { return 1; }
     it->ptr = &msg->bytes[1];
     it->start = it->ptr;

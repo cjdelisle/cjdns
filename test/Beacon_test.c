@@ -86,8 +86,8 @@ static Iface_DEFUN incomingTunA(struct Message* msg, struct Iface* tunA)
     Assert_true(t == Ethernet_TYPE_IP6);
     Er_assert(Message_eshift(msg, -Headers_IP6Header_SIZE));
     uint8_t buff[1024];
-    Hex_encode(buff, 1024, msg->bytes, msg->length);
-    printf("Message from TUN in node A [%s] [%d] [%s]\n", msg->bytes, msg->length, buff);
+    Hex_encode(buff, 1024, msg->bytes, Message_getLength(msg));
+    printf("Message from TUN in node A [%s] [%d] [%s]\n", msg->bytes, Message_getLength(msg), buff);
     tn->messageFrom = TUNA;
     return Error(NONE);
 }
@@ -192,12 +192,10 @@ static void sendMessage(struct TwoNodes* tn,
                         struct TestFramework* from,
                         struct TestFramework* to)
 {
-    struct Message* msg = Message_new(0, 512, from->alloc);
-    for (int i = CString_strlen(message) + 1; i % 8; i++) {
-        Er_assert(Message_epush8(msg, 0));
-    }
-    msg->length = 0;
-    Er_assert(Message_epush(msg, message, CString_strlen(message) + 1));
+    struct Message* msg = Message_new(64, 512, from->alloc);
+    uint8_t* b = Er_assert(Message_peakBytes(msg, 64));
+    CString_strcpy(b, message);
+    Er_assert(Message_truncate(msg, CString_strlen(message) + 1));
 
     TestFramework_craftIPHeader(msg, from->ip, to->ip);
 

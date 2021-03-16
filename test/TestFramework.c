@@ -63,10 +63,10 @@ static Iface_DEFUN sendTo(struct Message* msg,
 {
     Assert_true(!((uintptr_t)msg->bytes % 4) || !"alignment fault");
     Assert_true(!(Message_getCapacity(msg) % 4) || !"length fault");
-    Assert_true(((int)Message_getCapacity(msg) >= msg->length) || !"length fault0");
+    Assert_true(((int)Message_getCapacity(msg) >= Message_getLength(msg)) || !"length fault0");
 
     Log_debug(srcTf->logger, "Transferring message to [%p] - message length [%d]\n",
-              (void*)dest, msg->length);
+              (void*)dest, Message_getLength(msg));
 
     // Store the original message and a copy of the original so they can be compared later.
     srcTf->lastMsgBackup = Message_clone(msg, srcTf->alloc);
@@ -177,9 +177,9 @@ void TestFramework_assertLastMessageUnaltered(struct TestFramework* tf)
     }
     struct Message* a = tf->lastMsg;
     struct Message* b = tf->lastMsgBackup;
-    Assert_true(a->length == b->length);
+    Assert_true(Message_getLength(a) == Message_getLength(b));
     Assert_true(Message_getPadding(a) == Message_getPadding(b));
-    Assert_true(!Bits_memcmp(a->bytes, b->bytes, a->length));
+    Assert_true(!Bits_memcmp(a->bytes, b->bytes, Message_getLength(a)));
 }
 
 void TestFramework_linkNodes(struct TestFramework* client,
@@ -237,7 +237,7 @@ void TestFramework_craftIPHeader(struct Message* msg, uint8_t srcAddr[16], uint8
 
     ip->versionClassAndFlowLabel = 0;
     ip->flowLabelLow_be = 0;
-    ip->payloadLength_be = Endian_hostToBigEndian16(msg->length - Headers_IP6Header_SIZE);
+    ip->payloadLength_be = Endian_hostToBigEndian16(Message_getLength(msg) - Headers_IP6Header_SIZE);
     ip->nextHeader = 123; // made up number
     ip->hopLimit = 255;
     Bits_memcpy(ip->sourceAddr, srcAddr, 16);

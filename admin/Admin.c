@@ -130,8 +130,8 @@ static struct Error_s sendBenc(Dict* message,
 {
     Message_reset(admin->tempSendMsg);
     Er_assert(BencMessageWriter_write(message, admin->tempSendMsg));
-    struct Message* msg = Message_new(0, admin->tempSendMsg->length + 32, alloc);
-    Er_assert(Message_epush(msg, admin->tempSendMsg->bytes, admin->tempSendMsg->length));
+    struct Message* msg = Message_new(0, Message_getLength(admin->tempSendMsg) + 32, alloc);
+    Er_assert(Message_epush(msg, admin->tempSendMsg->bytes, Message_getLength(admin->tempSendMsg)));
     Message_setAssociatedFd(msg, fd);
     return sendMessage(msg, dest, admin);
 }
@@ -246,7 +246,7 @@ static inline bool authValid(Dict* message, struct Message* messageBytes, struct
     crypto_hash_sha256(hash, passAndCookie, CString_strlen((char*) passAndCookie));
     Hex_encode(hashPtr, 64, hash, 32);
 
-    crypto_hash_sha256(hash, messageBytes->bytes, messageBytes->length);
+    crypto_hash_sha256(hash, messageBytes->bytes, Message_getLength(messageBytes));
     Hex_encode(hashPtr, 64, hash, 32);
     int res = crypto_verify_32(hashPtr, submittedHash->bytes);
     res |= crypto_verify_32(hashPtr + 32, submittedHash->bytes + 32);
@@ -421,39 +421,39 @@ static void handleMessage(struct Message* message,
                           struct Admin_pvt* admin)
 {
     if (Defined(Log_KEYS)) {
-        uint8_t lastChar = message->bytes[message->length - 1];
-        message->bytes[message->length - 1] = '\0';
+        uint8_t lastChar = message->bytes[Message_getLength(message) - 1];
+        message->bytes[Message_getLength(message) - 1] = '\0';
         Log_keys(admin->logger, "Got message from [%s] [%s]",
                  Sockaddr_print(src, alloc), message->bytes);
-        message->bytes[message->length - 1] = lastChar;
+        message->bytes[Message_getLength(message) - 1] = lastChar;
     }
 
     // handle non empty message data
-    if (message->length > Admin_MAX_REQUEST_SIZE) {
+    if (Message_getLength(message) > Admin_MAX_REQUEST_SIZE) {
         #define TOO_BIG "d5:error16:Request too big.e"
         #define TOO_BIG_STRLEN (sizeof(TOO_BIG) - 1)
         Bits_memcpy(message->bytes, TOO_BIG, TOO_BIG_STRLEN);
-        message->length = TOO_BIG_STRLEN;
+        Er_assert(Message_truncate(message, TOO_BIG_STRLEN));
         sendMessage(message, src, admin);
         return;
     }
 
-    int origMessageLen = message->length;
+    int origMessageLen = Message_getLength(message);
     Dict* messageDict = NULL;
     const char* err = BencMessageReader_readNoExcept(message, alloc, &messageDict);
     if (err) {
         Log_warn(admin->logger,
                  "Unparsable data from [%s] content: [%s] error: [%s]",
                  Sockaddr_print(src, alloc),
-                 Hex_print(message->bytes, message->length, alloc),
+                 Hex_print(message->bytes, Message_getLength(message), alloc),
                  err);
         return;
     }
 
-    if (message->length) {
+    if (Message_getLength(message)) {
         Log_warn(admin->logger,
                  "Message from [%s] contained garbage after byte [%d] content: [%s]",
-                 Sockaddr_print(src, alloc), message->length, message->bytes);
+                 Sockaddr_print(src, alloc), Message_getLength(message), message->bytes);
         return;
     }
 

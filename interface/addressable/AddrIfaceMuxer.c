@@ -71,7 +71,7 @@ static Iface_DEFUN incomingFromInputIf(struct Message* msg, struct Iface* inputI
     struct AddrIfaceMuxer_Iface* cli =
         Identity_containerOf(inputIf, struct AddrIfaceMuxer_Iface, iface);
     struct AddrIfaceMuxer_pvt* ctx = Identity_check(cli->muxer);
-    if (msg->length < (int)sizeof(struct Sockaddr)) {
+    if (Message_getLength(msg) < (int)sizeof(struct Sockaddr)) {
         Log_info(ctx->log, "DROP runt");
         return Error(RUNT);
     }

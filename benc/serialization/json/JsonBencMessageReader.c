@@ -50,13 +50,13 @@ static int getColumn(struct Context* ctx)
 
 static Er_DEFUN(uint8_t peak(struct Context* ctx))
 {
-    if (!ctx->msg->length) { ERROR0(ctx, "Out of content while reading"); }
+    if (!Message_getLength(ctx->msg)) { ERROR0(ctx, "Out of content while reading"); }
     Er_ret(ctx->msg->bytes[0]);
 }
 
 static Er_DEFUN(void skip(struct Context* ctx, int num))
 {
-    if (num > ctx->msg->length) { ERROR0(ctx, "Out of content while reading"); }
+    if (num > Message_getLength(ctx->msg)) { ERROR0(ctx, "Out of content while reading"); }
     for (int i = 0; i < num; i++) {
         if (ctx->msg->bytes[i] == '\n') {
             ctx->beginningLastLine = (uintptr_t) &ctx->msg->bytes[i];
@@ -126,7 +126,7 @@ static Er_DEFUN(String* parseString(struct Context* ctx))
     Er(assertChar(ctx, '"', false));
     int line = ctx->line;
     uintptr_t beginningLastLine = ctx->beginningLastLine;
-    int msgLen = ctx->msg->length;
+    int msgLen = Message_getLength(ctx->msg);
 
     String* out = NULL;
     uint32_t pos = 0;
@@ -149,7 +149,7 @@ static Er_DEFUN(String* parseString(struct Context* ctx))
                 // got the length, reset and then copy the string next cycle
                 ctx->line = line;
                 ctx->beginningLastLine = beginningLastLine;
-                Er(Message_eshift(ctx->msg, msgLen - ctx->msg->length));
+                Er(Message_eshift(ctx->msg, msgLen - Message_getLength(ctx->msg)));
                 out = String_newBinary(NULL, pos, ctx->alloc);
                 pos = 0;
                 continue;

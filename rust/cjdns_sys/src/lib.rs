@@ -14,6 +14,9 @@ macro_rules! c_main {
         }
         fn main() {
             cjdns_sys::init_sodium();
+            if std::env::var("RUST_BACKTRACE").is_err() {
+                std::env::set_var("RUST_BACKTRACE", "1");
+            }
             let c_args = std::env::args()
                 .map(|arg| CString::new(arg).unwrap())
                 .map(|arg| arg.into_raw())

@@ -52,7 +52,7 @@ Er_DEFUN(int64_t Base10_read(struct Message* msg))
         while (chr >= '0' && chr <= '9') {
             out *= 10;
             out += chr - '0';
-            if (msg->length == 0) {
+            if (Message_getLength(msg) == 0) {
                 if (negative) { out = -out; }
                 Er_ret(out);
             }

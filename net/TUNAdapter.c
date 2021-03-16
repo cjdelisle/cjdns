@@ -57,7 +57,7 @@ static Iface_DEFUN incomingFromTunIf(struct Message* msg, struct Iface* tunIf)
         return Error(INVALID);
     }
 
-    if (msg->length < Headers_IP6Header_SIZE) {
+    if (Message_getLength(msg) < Headers_IP6Header_SIZE) {
         Log_debug(ud->log, "DROP runt");
         return Error(RUNT);
     }
@@ -123,7 +123,7 @@ static Iface_DEFUN incomingFromUpperDistributorIf(struct Message* msg,
 {
     struct TUNAdapter_pvt* ud =
         Identity_containerOf(upperDistributorIf, struct TUNAdapter_pvt, pub.upperDistributorIf);
-    Assert_true(msg->length >= RouteHeader_SIZE + DataHeader_SIZE);
+    Assert_true(Message_getLength(msg) >= RouteHeader_SIZE + DataHeader_SIZE);
     struct RouteHeader* hdr = (struct RouteHeader*) msg->bytes;
     struct DataHeader* dh = (struct DataHeader*) &hdr[1];
     enum ContentType type = DataHeader_getContentType(dh);
@@ -138,7 +138,7 @@ static Iface_DEFUN incomingFromUpperDistributorIf(struct Message* msg,
     struct Headers_IP6Header* ip6 = (struct Headers_IP6Header*) msg->bytes;
     Bits_memset(ip6, 0, Headers_IP6Header_SIZE - 32);
     Headers_setIpVersion(ip6);
-    ip6->payloadLength_be = Endian_bigEndianToHost16(msg->length - Headers_IP6Header_SIZE);
+    ip6->payloadLength_be = Endian_bigEndianToHost16(Message_getLength(msg) - Headers_IP6Header_SIZE);
     ip6->nextHeader = type;
     ip6->hopLimit = 42;
     Er_assert(TUNMessageType_push(msg, Ethernet_TYPE_IP6));

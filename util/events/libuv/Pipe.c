@@ -81,7 +81,7 @@ static void sendMessageCallback(uv_write_t* uvReq, int error)
         Log_info(req->pipe->log, "Failed to write to pipe [%s] [%s]",
                  req->pipe->pub.fullName, uv_strerror(error) );
     }
-    req->pipe->queueLen -= req->msg->length;
+    req->pipe->queueLen -= Message_getLength(req->msg);
     Assert_ifParanoid(req->pipe->queueLen >= 0);
     Allocator_free(req->alloc);
 }
@@ -92,7 +92,7 @@ static void sendMessage2(struct Pipe_WriteRequest_pvt* req)
     struct Message* m = req->msg;
 
     uv_buf_t buffers[] = {
-        { .base = (char*)m->bytes, .len = m->length }
+        { .base = (char*)m->bytes, .len = Message_getLength(m) }
     };
 
     int ret = -1;
@@ -120,7 +120,7 @@ static void sendMessage2(struct Pipe_WriteRequest_pvt* req)
         Allocator_free(req->alloc);
         return;
     }
-    pipe->queueLen += m->length;
+    pipe->queueLen += Message_getLength(m);
 
     return;
 }
@@ -153,12 +153,12 @@ static Iface_DEFUN sendMessage(struct Message* m, struct Iface* iface)
             pipe->bufferedRequest = req;
         } else {
             Log_debug(pipe->log, "Appending to the buffered message");
-            struct Message* m2 =
-                Message_new(0, m->length + pipe->bufferedRequest->msg->length, reqAlloc);
-            Er_assert(Message_epush(m2, m->bytes, m->length));
+            struct Message* m2 = Message_new(0,
+                Message_getLength(m) + Message_getLength(pipe->bufferedRequest->msg), reqAlloc);
+            Er_assert(Message_epush(m2, m->bytes, Message_getLength(m)));
             Er_assert(Message_epush(m2,
                 pipe->bufferedRequest->msg->bytes,
-                pipe->bufferedRequest->msg->length));
+                Message_getLength(pipe->bufferedRequest->msg)));
             req->msg = m2;
             Allocator_free(pipe->bufferedRequest->alloc);
             pipe->bufferedRequest = req;
@@ -186,7 +186,7 @@ static void incoming(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf)
 {
     struct Pipe_pvt* pipe = Identity_check((struct Pipe_pvt*) stream->data);
 
-    // Grab out the allocator which was placed there by allocate()
+    // Grab out the msg which was placed there by allocate()
     struct Message* msg = buf->base ? ALLOC(buf->base) : NULL;
     pipe->isInCallback = 1;
 
@@ -203,7 +203,7 @@ static void incoming(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf)
 
     } else {
         Assert_true(msg);
-        msg->length = nread;
+        Er_assert(Message_truncate(msg, nread));
         if (pipe->ipc) {
             #ifndef win32
                 Message_setAssociatedFd(msg, stream->accepted_fd);

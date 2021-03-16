@@ -40,7 +40,7 @@ static Iface_DEFUN incomingFromUdpIf(struct Message* message, struct Iface* udpI
     struct Headers_UDPHeader udp;
     udp.srcPort_be = Endian_hostToBigEndian16(Sockaddr_getPort(context->pub.udpIf.addr));
     udp.destPort_be = Endian_hostToBigEndian16(Sockaddr_getPort(addr));
-    udp.length_be = Endian_hostToBigEndian16(message->length + Headers_UDPHeader_SIZE);
+    udp.length_be = Endian_hostToBigEndian16(Message_getLength(message) + Headers_UDPHeader_SIZE);
     udp.checksum_be = 0;
     Er_assert(Message_epush(message, &udp, sizeof(struct Headers_UDPHeader)));
 
@@ -48,7 +48,7 @@ static Iface_DEFUN incomingFromUdpIf(struct Message* message, struct Iface* udpI
         .nextHeader = 17,
         .hopLimit = 255,
     };
-    ip.payloadLength_be = Endian_hostToBigEndian16(message->length);
+    ip.payloadLength_be = Endian_hostToBigEndian16(Message_getLength(message));
     Headers_setIpVersion(&ip);
     uint8_t* addrPtr = NULL;
     Assert_true(Sockaddr_getAddress(addr, &addrPtr) == 16);
@@ -56,7 +56,7 @@ static Iface_DEFUN incomingFromUdpIf(struct Message* message, struct Iface* udpI
     Assert_true(Sockaddr_getAddress(context->pub.udpIf.addr, &addrPtr) == 16);
     Bits_memcpy(ip.sourceAddr, addrPtr, 16);
 
-    uint16_t checksum_be = Checksum_udpIp6_be(ip.sourceAddr, message->bytes, message->length);
+    uint16_t checksum_be = Checksum_udpIp6_be(ip.sourceAddr, message->bytes, Message_getLength(message));
     ((struct Headers_UDPHeader*)message->bytes)->checksum_be = checksum_be;
 
     Er_assert(Message_epush(message, &ip, sizeof(struct Headers_IP6Header)));
@@ -70,7 +70,7 @@ static Iface_DEFUN incomingFromHeaderIf(struct Message* message, struct Iface* i
         Identity_check((struct PacketHeaderToUDPAddrIface_pvt*)
             ((uint8_t*)(iface) - offsetof(struct PacketHeaderToUDPAddrIface, headerIf)));
 
-    if (message->length < Headers_IP6Header_SIZE + Headers_UDPHeader_SIZE) {
+    if (Message_getLength(message) < Headers_IP6Header_SIZE + Headers_UDPHeader_SIZE) {
         // runt
         return Error(RUNT);
     }

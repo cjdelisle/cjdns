@@ -42,7 +42,7 @@ static Er_DEFUN(String* readString(struct Message* msg, struct Allocator* alloc)
     if (Er(Message_epop8(msg)) != ':') {
         Er_raise(alloc, "String not deliniated with a ':'");
     }
-    if (len > msg->length) {
+    if (len > Message_getLength(msg)) {
         Er_raise(alloc, "String too long");
     }
     String* str = String_newBinary(NULL, len, alloc);

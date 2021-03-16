@@ -81,7 +81,7 @@ static void sendMessageInternal(struct Message* message,
 
     if (sendto(context->socket,
                message->bytes,
-               message->length,
+               Message_getLength(message),
                0,
                (struct sockaddr*) addr,
                sizeof(struct sockaddr_ll)) < 0)
@@ -106,7 +106,7 @@ static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* iface)
         Identity_containerOf(iface, struct ETHInterface_pvt, pub.generic.iface);
 
     struct Sockaddr* sa = (struct Sockaddr*) msg->bytes;
-    Assert_true(msg->length >= Sockaddr_OVERHEAD);
+    Assert_true(Message_getLength(msg) >= Sockaddr_OVERHEAD);
     Assert_true(sa->addrLen <= ETHInterface_Sockaddr_SIZE);
 
     struct ETHInterface_Sockaddr sockaddr = { .generic = { .addrLen = 0 } };
@@ -124,7 +124,7 @@ static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* iface)
     struct ETHInterface_Header hdr = {
         .version = ETHInterface_CURRENT_VERSION,
         .zero = 0,
-        .length_be = Endian_hostToBigEndian16(msg->length + ETHInterface_Header_SIZE),
+        .length_be = Endian_hostToBigEndian16(Message_getLength(msg) + ETHInterface_Header_SIZE),
         .fc00_be = Endian_hostToBigEndian16(0xfc00)
     };
     Er_assert(Message_epush(msg, &hdr, ETHInterface_Header_SIZE));
@@ -145,7 +145,7 @@ static void handleEvent2(struct ETHInterface_pvt* context, struct Allocator* mes
 
     int rc = recvfrom(context->socket,
                       msg->bytes,
-                      msg->length,
+                      Message_getLength(msg),
                       0,
                       (struct sockaddr*) &addr,
                       &addrLen);
@@ -155,8 +155,7 @@ static void handleEvent2(struct ETHInterface_pvt* context, struct Allocator* mes
         return;
     }
 
-    Assert_true(msg->length >= rc);
-    msg->length = rc;
+    Er_assert(Message_truncate(msg, rc));
 
     //Assert_true(addrLen == SOCKADDR_LL_LEN);
 
@@ -171,12 +170,12 @@ static void handleEvent2(struct ETHInterface_pvt* context, struct Allocator* mes
 
     uint16_t reportedLength = Endian_bigEndianToHost16(hdr.length_be);
     reportedLength -= ETHInterface_Header_SIZE;
-    if (msg->length != reportedLength) {
-        if (msg->length < reportedLength) {
+    if (Message_getLength(msg) != reportedLength) {
+        if (Message_getLength(msg) < reportedLength) {
             Log_debug(context->logger, "DROP size field is larger than frame");
             return;
         }
-        msg->length = reportedLength;
+        Er_assert(Message_truncate(msg, reportedLength));
     }
     if (hdr.fc00_be != Endian_hostToBigEndian16(0xfc00)) {
         Log_debug(context->logger, "DROP bad magic");

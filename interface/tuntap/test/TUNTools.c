@@ -88,10 +88,10 @@ Iface_DEFUN TUNTools_genericIP6Echo(struct Message* msg, struct TUNTools* tt)
 
     struct Headers_IP6Header* header = (struct Headers_IP6Header*) msg->bytes;
 
-    if (msg->length != Headers_IP6Header_SIZE + Headers_UDPHeader_SIZE + 12) {
-        int type = (msg->length >= Headers_IP6Header_SIZE) ? header->nextHeader : -1;
+    if (Message_getLength(msg) != Headers_IP6Header_SIZE + Headers_UDPHeader_SIZE + 12) {
+        int type = (Message_getLength(msg) >= Headers_IP6Header_SIZE) ? header->nextHeader : -1;
         Log_debug(tt->log, "Message of unexpected length [%u] ip6->nextHeader: [%d]\n",
-                  msg->length, type);
+                  Message_getLength(msg), type);
         return Error(INVALID);
     }
     uint8_t* address;

@@ -676,7 +676,7 @@ int cjdroute2_main(int argc, char** argv)
     // and if the old parser fails or the parsed content contains "version": 2,
     // fail to launch
     struct Message* confMsg = readToMsg(stdin, allocator);
-    struct Reader* confReader = ArrayReader_new(confMsg->bytes, confMsg->length, allocator);
+    struct Reader* confReader = ArrayReader_new(confMsg->bytes, Message_getLength(confMsg), allocator);
     Dict _config;
     Dict* config = &_config;
     const char* err = JsonBencMessageReader_readNoExcept(confMsg, allocator, &config, false);
@@ -808,7 +808,7 @@ int cjdroute2_main(int argc, char** argv)
     Er_assert(BencMessageWriter_write(preConf, toCoreMsg));
     Iface_CALL(corePipe->iface.send, toCoreMsg, &corePipe->iface);
 
-    Log_debug(logger, "Sent [%d] bytes to core", toCoreMsg->length);
+    Log_debug(logger, "Sent [%d] bytes to core", Message_getLength(toCoreMsg));
 
     // --------------------- Get Response from Core --------------------- //
 

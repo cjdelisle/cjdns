@@ -215,7 +215,7 @@ static void sendControlMessage(Dict* dict,
     struct Message* msg = Message_new(0, 1024, requestAlloc);
     Er_assert(BencMessageWriter_write(dict, msg));
 
-    int length = msg->length;
+    int length = Message_getLength(msg);
 
     // do UDP header.
     Er_assert(Message_eshift(msg, Headers_UDPHeader_SIZE));
@@ -225,7 +225,7 @@ static void sendControlMessage(Dict* dict,
     uh->length_be = Endian_hostToBigEndian16(length);
     uh->checksum_be = 0;
 
-    uint16_t payloadLength = msg->length;
+    uint16_t payloadLength = Message_getLength(msg);
 
     Er_assert(Message_eshift(msg, Headers_IP6Header_SIZE));
     struct Headers_IP6Header* header = (struct Headers_IP6Header*) msg->bytes;
@@ -241,7 +241,7 @@ static void sendControlMessage(Dict* dict,
 
     uh->checksum_be = Checksum_udpIp6_be(header->sourceAddr,
                                       (uint8_t*) uh,
-                                      msg->length - Headers_IP6Header_SIZE);
+                                      Message_getLength(msg) - Headers_IP6Header_SIZE);
 
     Iface_CALL(sendToNode, msg, connection, context);
 }
@@ -320,7 +320,7 @@ static bool isControlMessageInvalid(struct Message* message, struct IpTunnel_pvt
 {
     struct Headers_IP6Header* header = (struct Headers_IP6Header*) message->bytes;
     uint16_t length = Endian_bigEndianToHost16(header->payloadLength_be);
-    if (header->nextHeader != 17 || message->length < length + Headers_IP6Header_SIZE) {
+    if (header->nextHeader != 17 || Message_getLength(message) < length + Headers_IP6Header_SIZE) {
         Log_warn(context->logger, "Invalid IPv6 packet (not UDP or length field too big)");
         return true;
     }
@@ -344,7 +344,7 @@ static bool isControlMessageInvalid(struct Message* message, struct IpTunnel_pvt
 
     Er_assert(Message_eshift(message, -Headers_UDPHeader_SIZE));
 
-    message->length = length;
+    Er_assert(Message_truncate(message, length));
     return false;
 }
 
@@ -585,7 +585,7 @@ static Iface_DEFUN incomingControlMessage(struct Message* message,
     }
 
     Log_debug(context->logger, "Message content [%s]",
-        Escape_getEscaped(message->bytes, message->length, Message_getAlloc(message)));
+        Escape_getEscaped(message->bytes, Message_getLength(message), Message_getAlloc(message)));
 
     struct Allocator* alloc = Allocator_child(Message_getAlloc(message));
 
@@ -697,7 +697,7 @@ static Iface_DEFUN incomingFromTun(struct Message* message, struct Iface* tunIf)
 {
     struct IpTunnel_pvt* context = Identity_check((struct IpTunnel_pvt*)tunIf);
 
-    if (message->length < 20) {
+    if (Message_getLength(message) < 20) {
         Log_debug(context->logger, "DROP runt");
         return Error(RUNT);
     }
@@ -705,10 +705,10 @@ static Iface_DEFUN incomingFromTun(struct Message* message, struct Iface* tunIf)
     struct IpTunnel_Connection* conn = NULL;
     if (!context->pub.connectionList.connections) {
         // No connections authorized, fall through to "unrecognized address"
-    } else if (message->length > 40 && Headers_getIpVersion(message->bytes) == 6) {
+    } else if (Message_getLength(message) > 40 && Headers_getIpVersion(message->bytes) == 6) {
         struct Headers_IP6Header* header = (struct Headers_IP6Header*) message->bytes;
         conn = findConnection(header->sourceAddr, NULL, true, context);
-    } else if (message->length > 20 && Headers_getIpVersion(message->bytes) == 4) {
+    } else if (Message_getLength(message) > 20 && Headers_getIpVersion(message->bytes) == 4) {
         struct Headers_IP4Header* header = (struct Headers_IP4Header*) message->bytes;
         conn = findConnection(NULL, header->sourceAddr, true, context);
     } else {
@@ -777,7 +777,7 @@ static Iface_DEFUN incomingFromNode(struct Message* message, struct Iface* nodeI
 
     //Log_debug(context->logger, "Got incoming message");
 
-    Assert_true(message->length >= RouteHeader_SIZE + DataHeader_SIZE);
+    Assert_true(Message_getLength(message) >= RouteHeader_SIZE + DataHeader_SIZE);
     struct RouteHeader* rh = (struct RouteHeader*) message->bytes;
     struct DataHeader* dh = (struct DataHeader*) &rh[1];
     Assert_true(DataHeader_getContentType(dh) == ContentType_IPTUN);
@@ -793,10 +793,10 @@ static Iface_DEFUN incomingFromNode(struct Message* message, struct Iface* nodeI
 
     Er_assert(Message_eshift(message, -(RouteHeader_SIZE + DataHeader_SIZE)));
 
-    if (message->length > 40 && Headers_getIpVersion(message->bytes) == 6) {
+    if (Message_getLength(message) > 40 && Headers_getIpVersion(message->bytes) == 6) {
         return ip6FromNode(message, conn, context);
     }
-    if (message->length > 20 && Headers_getIpVersion(message->bytes) == 4) {
+    if (Message_getLength(message) > 20 && Headers_getIpVersion(message->bytes) == 4) {
         return ip4FromNode(message, conn, context);
     }
 
@@ -805,8 +805,8 @@ static Iface_DEFUN incomingFromNode(struct Message* message, struct Iface* nodeI
         AddrTools_printIp(addr, rh->ip6);
         Log_debug(context->logger,
                   "Got message of unknown type, length: [%d], IP version [%d] from [%s]",
-                  message->length,
-                  (message->length > 1) ? Headers_getIpVersion(message->bytes) : 0,
+                  Message_getLength(message),
+                  (Message_getLength(message) > 1) ? Headers_getIpVersion(message->bytes) : 0,
                   addr);
     }
     return Error(INVALID);

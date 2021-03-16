@@ -139,13 +139,13 @@ void* CJDNS_FUZZ_INIT(struct Allocator* allocator, struct Random* rand)
 
 void CJDNS_FUZZ_MAIN(void* vctx, struct Message* msg)
 {
-    if (msg->length > 2048) { return; }
+    if (Message_getLength(msg) > 2048) { return; }
     struct Context* ctx = Identity_check((struct Context*) vctx);
     struct TestFramework* from = ctx->nodeA;
     struct TestFramework* to = ctx->nodeB;
 
     // forget it, it's gonna get killed in the Upper
-    if (msg->length < RouteHeader_SIZE) { return; }
+    if (Message_getLength(msg) < RouteHeader_SIZE) { return; }
 
     // Lets fill in the ipv6, pubkey & label so that any
     // old packet dump will work fine for testing
@@ -168,7 +168,7 @@ void CJDNS_FUZZ_MAIN(void* vctx, struct Message* msg)
     struct Headers_UDPHeader udp = {
         .srcPort_be = 0xfcfc,
         .destPort_be = Endian_hostToBigEndian16(1), // UpperDistributor MAGIC_PORT
-        .length_be = Endian_hostToBigEndian16(msg->length + Headers_UDPHeader_SIZE),
+        .length_be = Endian_hostToBigEndian16(Message_getLength(msg) + Headers_UDPHeader_SIZE),
         .checksum_be = 0,
     };
     Er_assert(Message_epush(msg, &udp, Headers_UDPHeader_SIZE));
@@ -176,7 +176,7 @@ void CJDNS_FUZZ_MAIN(void* vctx, struct Message* msg)
     // fc00::1
     AddressCalc_makeValidAddress(&srcAndDest[16]);
     Bits_memcpy(&srcAndDest, from->ip, 16);
-    uint16_t checksum_be = Checksum_udpIp6_be(srcAndDest, msg->bytes, msg->length);
+    uint16_t checksum_be = Checksum_udpIp6_be(srcAndDest, msg->bytes, Message_getLength(msg));
     ((struct Headers_UDPHeader*)msg->bytes)->checksum_be = checksum_be;
 
     TestFramework_craftIPHeader(msg, srcAndDest, &srcAndDest[16]);

@@ -146,7 +146,7 @@ void Sign_signMsg(uint8_t keyPair[64], struct Message* msg, struct Random* rand)
     // hash message + secret number, this is the same as crypto_sign()
     // If there isn't enough space in the message, we abort the process
     Er_assert(Message_epush(msg, &az[32], 32));
-    crypto_hash_sha512(r, msg->bytes, msg->length);
+    crypto_hash_sha512(r, msg->bytes, Message_getLength(msg));
 
     // Replace secret number with public key, this is the same as crypto_sign()
     Bits_memcpy(msg->bytes, &keyPair[32], 32);
@@ -162,7 +162,7 @@ void Sign_signMsg(uint8_t keyPair[64], struct Message* msg, struct Random* rand)
     // This final step is the same as crypto_sign()
     // Overwrite the public key which the verifier will replace in order to recompute
     // the hash.
-    crypto_hash_sha512(hram, msg->bytes, msg->length);
+    crypto_hash_sha512(hram, msg->bytes, Message_getLength(msg));
     sc_reduce(hram);
     sc_muladd(&msg->bytes[32], hram, az, r);
 }
@@ -170,11 +170,11 @@ void Sign_signMsg(uint8_t keyPair[64], struct Message* msg, struct Random* rand)
 // For verify, we're just using the normal sign_open() function, nothing special here.
 int Sign_verifyMsg(uint8_t publicSigningKey[32], struct Message* msg)
 {
-    if (msg->length < 64) { return -1; }
+    if (Message_getLength(msg) < 64) { return -1; }
     struct Allocator* alloc = Allocator_child(Message_getAlloc(msg));
-    uint8_t* buff = Allocator_malloc(alloc, msg->length);
-    unsigned long long ml = msg->length;
-    int ret = crypto_sign_ed25519_open(buff, &ml, msg->bytes, msg->length, publicSigningKey);
+    uint8_t* buff = Allocator_malloc(alloc, Message_getLength(msg));
+    unsigned long long ml = Message_getLength(msg);
+    int ret = crypto_sign_ed25519_open(buff, &ml, msg->bytes, Message_getLength(msg), publicSigningKey);
     Allocator_free(alloc);
     if (ret) {
         return -1;

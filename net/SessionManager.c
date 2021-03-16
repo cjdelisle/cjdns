@@ -309,7 +309,7 @@ static Iface_DEFUN failedDecrypt(struct Message* msg,
     Er_assert(Message_epush32be(msg, Error_AUTHENTICATION));
     Er_assert(Message_epush16be(msg, Control_ERROR));
     Er_assert(Message_epush16be(msg, 0));
-    uint16_t csum_be = Checksum_engine_be(msg->bytes, msg->length);
+    uint16_t csum_be = Checksum_engine_be(msg->bytes, Message_getLength(msg));
     Er_assert(Message_epop16h(msg));
     Er_assert(Message_epush16h(msg, csum_be));
 
@@ -367,7 +367,7 @@ static Iface_DEFUN postDecryption(struct Message* msg, struct Iface* iface)
             session->sessionManager->log, session, label, "received start message");
     }
 
-    session->pub.bytesIn += msg->length;
+    session->pub.bytesIn += Message_getLength(msg);
     Er_assert(Message_epush(msg, &header, sizeof header));
 
     discoverPath(session, label, Metric_SM_INCOMING);
@@ -483,7 +483,7 @@ static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface
         Identity_containerOf(iface, struct SessionManager_pvt, pub.switchIf);
 
     // SwitchHeader, handle, 0 or more bytes of control frame
-    if (msg->length < SwitchHeader_SIZE + 4) {
+    if (Message_getLength(msg) < SwitchHeader_SIZE + 4) {
         Log_debug(sm->log, "DROP runt");
         return Error(RUNT);
     }
@@ -504,7 +504,7 @@ static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface
     }
 
     // handle, small cryptoAuth header
-    if (msg->length < 4 + 20) {
+    if (Message_getLength(msg) < 4 + 20) {
         Log_debug(sm->log, "DROP runt");
         return Error(RUNT);
     }
@@ -525,7 +525,7 @@ static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface
         }
     } else {
         // handle + big cryptoauth header
-        if (msg->length < CryptoHeader_SIZE + 4) {
+        if (Message_getLength(msg) < CryptoHeader_SIZE + 4) {
             Log_debug(sm->log, "DROP runt");
             return Error(RUNT);
         }
@@ -662,7 +662,7 @@ static void periodically(void* vSessionManager)
 
 static void bufferPacket(struct SessionManager_pvt* sm, struct Message* msg)
 {
-    Assert_true(msg->length >= (RouteHeader_SIZE + DataHeader_SIZE));
+    Assert_true(Message_getLength(msg) >= (RouteHeader_SIZE + DataHeader_SIZE));
     struct RouteHeader* header = (struct RouteHeader*) msg->bytes;
 
     // We should never be sending CJDHT messages without full version, key, path known.
@@ -719,7 +719,7 @@ static Iface_DEFUN readyToSend(struct Message* msg,
         Er_assert(Message_epush32be(msg, sess->pub.receiveHandle));
     }
 
-    sess->pub.bytesOut += msg->length;
+    sess->pub.bytesOut += Message_getLength(msg);
 
     // Move the route header to additional data
     Er_assert(Message_epushAd(msg, &header, RouteHeader_SIZE));
@@ -729,7 +729,7 @@ static Iface_DEFUN readyToSend(struct Message* msg,
 
 static Iface_DEFUN outgoingCtrlFrame(struct Message* msg, struct SessionManager_pvt* sm)
 {
-    Assert_true(msg->length >= RouteHeader_SIZE);
+    Assert_true(Message_getLength(msg) >= RouteHeader_SIZE);
     struct RouteHeader* header = (struct RouteHeader*) msg->bytes;
     if (!Bits_isZero(header->publicKey, 32) || !Bits_isZero(header->ip6, 16)) {
         Log_debug(sm->log, "DROP Ctrl frame with non-zero destination key or IP");
@@ -751,12 +751,12 @@ static Iface_DEFUN incomingFromInsideIf(struct Message* msg, struct Iface* iface
 {
     struct SessionManager_pvt* sm =
         Identity_containerOf(iface, struct SessionManager_pvt, pub.insideIf);
-    Assert_true(msg->length >= RouteHeader_SIZE);
+    Assert_true(Message_getLength(msg) >= RouteHeader_SIZE);
     struct RouteHeader* header = (struct RouteHeader*) msg->bytes;
     if (header->flags & RouteHeader_flags_CTRLMSG) {
         return outgoingCtrlFrame(msg, sm);
     }
-    Assert_true(msg->length >= RouteHeader_SIZE + DataHeader_SIZE);
+    Assert_true(Message_getLength(msg) >= RouteHeader_SIZE + DataHeader_SIZE);
     struct DataHeader* dataHeader = (struct DataHeader*) &header[1];
 
     struct SessionManager_Session_pvt* sess = sessionForIp6(header->ip6, sm);
@@ -835,14 +835,14 @@ static Iface_DEFUN incomingFromEventIf(struct Message* msg, struct Iface* iface)
     enum PFChan_Pathfinder ev = Er_assert(Message_epop32be(msg));
     uint32_t sourcePf = Er_assert(Message_epop32be(msg));
     if (ev == PFChan_Pathfinder_SESSIONS) {
-        Assert_true(!msg->length);
+        Assert_true(!Message_getLength(msg));
         return sessions(sm, sourcePf, Message_getAlloc(msg));
     }
     Assert_true(ev == PFChan_Pathfinder_NODE);
 
     struct PFChan_Node node;
     Er_assert(Message_epop(msg, &node, PFChan_Node_SIZE));
-    Assert_true(!msg->length);
+    Assert_true(!Message_getLength(msg));
     int index = Map_BufferedMessages_indexForKey((struct Ip6*)node.ip6, &sm->bufMap);
     struct SessionManager_Session_pvt* sess = sessionForIp6(node.ip6, sm);
     if (!sess) {

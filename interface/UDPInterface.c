@@ -116,9 +116,9 @@ static Iface_DEFUN sendPacket(struct Message* m, struct Iface* iface)
     struct UDPInterface_pvt* ctx =
         Identity_containerOf(iface, struct UDPInterface_pvt, pub.generic.iface);
 
-    Assert_true(m->length > Sockaddr_OVERHEAD);
+    Assert_true(Message_getLength(m) > Sockaddr_OVERHEAD);
     struct Sockaddr* sa = (struct Sockaddr*) m->bytes;
-    Assert_true(m->length > sa->addrLen);
+    Assert_true(Message_getLength(m) > sa->addrLen);
 
     // Regular traffic
     if (!(sa->flags & Sockaddr_flags_BCAST)) { return Iface_next(&ctx->commSock, m); }
@@ -161,14 +161,14 @@ static Iface_DEFUN fromBcastSock(struct Message* m, struct Iface* iface)
     struct UDPInterface_pvt* ctx =
         Identity_containerOf(iface, struct UDPInterface_pvt, bcastSock);
 
-    if (m->length < UDPInterface_BroadcastHeader_SIZE + Sockaddr_OVERHEAD) {
+    if (Message_getLength(m) < UDPInterface_BroadcastHeader_SIZE + Sockaddr_OVERHEAD) {
         Log_debug(ctx->log, "DROP runt bcast");
         return Error(RUNT);
     }
 
     struct Sockaddr_storage ss;
     Er_assert(Message_epop(m, &ss, Sockaddr_OVERHEAD));
-    if (m->length < UDPInterface_BroadcastHeader_SIZE + ss.addr.addrLen - Sockaddr_OVERHEAD) {
+    if (Message_getLength(m) < UDPInterface_BroadcastHeader_SIZE + ss.addr.addrLen - Sockaddr_OVERHEAD) {
         Log_debug(ctx->log, "DROP runt bcast");
         return Error(RUNT);
     }

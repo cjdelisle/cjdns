@@ -34,7 +34,7 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* external)
 {
     struct TAPWrapper_pvt* tw = Identity_containerOf(external, struct TAPWrapper_pvt, external);
 
-    if (msg->length < Ethernet_SIZE-2) {
+    if (Message_getLength(msg) < Ethernet_SIZE-2) {
         Log_debug(tw->log, "runt");
         return Error(RUNT);
     }

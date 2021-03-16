@@ -86,14 +86,14 @@ static struct ArrayList_Ifaces* getHandlers(struct EventEmitter_pvt* ee,
 static Iface_DEFUN sendToPathfinder(struct Message* msg, struct Pathfinder* pf)
 {
     if (!pf || pf->state != Pathfinder_state_CONNECTED) { return Error(NONE); }
-    if (pf->bytesSinceLastPing < 8192 && pf->bytesSinceLastPing + msg->length >= 8192) {
+    if (pf->bytesSinceLastPing < 8192 && pf->bytesSinceLastPing + Message_getLength(msg) >= 8192) {
         struct Message* ping = Message_new(0, 512, Message_getAlloc(msg));
         Er_assert(Message_epush32be(ping, pf->bytesSinceLastPing));
         Er_assert(Message_epush32be(ping, PING_MAGIC));
         Er_assert(Message_epush32be(ping, PFChan_Core_PING));
         Iface_send(&pf->iface, ping);
     }
-    pf->bytesSinceLastPing += msg->length;
+    pf->bytesSinceLastPing += Message_getLength(msg);
     return Iface_next(&pf->iface, msg);
 }
 
@@ -177,7 +177,7 @@ static Iface_DEFUN incomingFromCore(struct Message* msg, struct Iface* trickIf)
     struct EventEmitter_pvt* ee = Identity_containerOf(trickIf, struct EventEmitter_pvt, trickIf);
     Assert_true(!((uintptr_t)msg->bytes % 4) && "alignment");
     enum PFChan_Core ev = Er_assert(Message_epop32be(msg));
-    Assert_true(PFChan_Core_sizeOk(ev, msg->length+4));
+    Assert_true(PFChan_Core_sizeOk(ev, Message_getLength(msg)+4));
     uint32_t pathfinderNum = Er_assert(Message_epop32be(msg));
     Er_assert(Message_epush32be(msg, ev));
     if (pathfinderNum != 0xffffffff) {
@@ -281,7 +281,7 @@ static Iface_DEFUN incomingFromPathfinder(struct Message* msg, struct Iface* ifa
 {
     struct Pathfinder* pf = Identity_containerOf(iface, struct Pathfinder, iface);
     struct EventEmitter_pvt* ee = Identity_check((struct EventEmitter_pvt*) pf->ee);
-    if (msg->length < 4) {
+    if (Message_getLength(msg) < 4) {
         Log_debug(ee->log, "DROPPF runt");
         return Error(RUNT);
     }
@@ -292,8 +292,8 @@ static Iface_DEFUN incomingFromPathfinder(struct Message* msg, struct Iface* ifa
         Log_debug(ee->log, "DROPPF invalid type [%d]", ev);
         return Error(INVALID);
     }
-    if (!PFChan_Pathfinder_sizeOk(ev, msg->length)) {
-        Log_debug(ee->log, "DROPPF incorrect length[%d] for type [%d]", msg->length, ev);
+    if (!PFChan_Pathfinder_sizeOk(ev, Message_getLength(msg))) {
+        Log_debug(ee->log, "DROPPF incorrect length[%d] for type [%d]", Message_getLength(msg), ev);
         return Error(INVALID);
     }
 

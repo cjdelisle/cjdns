@@ -27,7 +27,7 @@ Linker_require("wire/Message.c")
 typedef struct Message
 {
     /** The length of the message. */
-    int32_t length;
+    int32_t _length;
 
     /** The number of bytes of padding BEFORE where bytes begins. */
     int32_t _padding;
@@ -65,6 +65,20 @@ static inline struct Allocator* Message_getAlloc(struct Message* msg)
     return msg->_alloc;
 }
 
+static inline uint32_t Message_getLength(struct Message* msg)
+{
+    return msg->_length;
+}
+
+static inline Er_DEFUN(void Message_truncate(struct Message* msg, int32_t newLen))
+{
+    if (newLen > msg->_length) {
+        Er_raise(msg->_alloc, "Message_truncate(%d) message length is %d", newLen, msg->_length);
+    }
+    msg->_length = newLen;
+    Er_ret();
+}
+
 static inline uint32_t Message_getPadding(struct Message* msg)
 {
     return msg->_padding;
@@ -77,7 +91,7 @@ static inline uint32_t Message_getCapacity(struct Message* msg)
 
 static inline Message_t Message_foreign(uint32_t len, uint8_t* bytes)
 {
-    return (Message_t){ .length = len, .bytes = bytes, ._capacity = len };
+    return (Message_t){ ._length = len, .bytes = bytes, ._capacity = len };
 }
 
 // static inline Er_DEFUN(void Message_ecopy(struct Message* to, struct Message* from, uint32_t amt))
@@ -95,6 +109,14 @@ int Message_getAssociatedFd(struct Message* msg);
 
 struct Message* Message_clone(struct Message* toClone, struct Allocator* alloc);
 
+static inline Er_DEFUN(uint8_t* Message_peakBytes(struct Message* msg, int32_t len))
+{
+    if (len > msg->_length) {
+        Er_raise(msg->_alloc, "peakBytes(%d) too big, message length is %d", len, msg->_length);
+    }
+    Er_ret(msg->bytes);
+}
+
 /**
  * Pretend to shift the content forward by amount.
  * Really it shifts the bytes value backward.
@@ -103,12 +125,12 @@ static inline Er_DEFUN(void Message_eshift(struct Message* toShift, int32_t amou
 {
     if (amount > 0 && toShift->_padding < amount) {
         Er_raise(toShift->_alloc, "buffer overflow adding %d to length %d",
-            amount, toShift->length);
-    } else if (toShift->length < (-amount)) {
+            amount, toShift->_length);
+    } else if (toShift->_length < (-amount)) {
         Er_raise(toShift->_alloc, "buffer underflow");
     }
 
-    toShift->length += amount;
+    toShift->_length += amount;
     toShift->_capacity += amount;
     toShift->bytes -= amount;
     toShift->_padding -= amount;
@@ -152,10 +174,10 @@ static inline Er_DEFUN(void Message_epopAd(struct Message* restrict msg,
 
 static inline void Message_reset(struct Message* toShift)
 {
-    Assert_true(toShift->length <= toShift->_capacity);
+    Assert_true(toShift->_length <= toShift->_capacity);
     Er_assert(Message_epopAd(toShift, NULL, toShift->_adLen));
-    toShift->length = toShift->_capacity;
-    Er_assert(Message_eshift(toShift, -toShift->length));
+    toShift->_length = toShift->_capacity;
+    Er_assert(Message_eshift(toShift, -toShift->_length));
 }
 
 static inline Er_DEFUN(void Message_epush(struct Message* restrict msg,

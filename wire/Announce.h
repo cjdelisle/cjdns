@@ -332,15 +332,15 @@ static inline struct Announce_ItemHeader* Announce_ItemHeader_next(struct Messag
     struct Announce_ItemHeader* ih = (struct Announce_ItemHeader*) last;
     if (ih) {
         Assert_true((uint8_t*)ih > &msg->bytes[-Message_getPadding(msg)]);
-        Assert_true((uint8_t*)ih < &msg->bytes[msg->length]);
+        Assert_true((uint8_t*)ih < &msg->bytes[Message_getLength(msg)]);
         ih = (struct Announce_ItemHeader*) ( &((uint8_t*) ih)[ih->length] );
     } else {
         ih = (struct Announce_ItemHeader*) &msg->bytes[Announce_Header_SIZE];
     }
-    while ((uint8_t*)ih < &msg->bytes[msg->length]) {
+    while ((uint8_t*)ih < &msg->bytes[Message_getLength(msg)]) {
         if (!ih->length) { return NULL; } // invalid message
         if (ih->length > 1) {
-            if ( &((uint8_t*) ih)[ih->length] > &msg->bytes[msg->length] ) {
+            if ( &((uint8_t*) ih)[ih->length] > &msg->bytes[Message_getLength(msg)] ) {
                 // invalid message, overflow...
                 return NULL;
             }
@@ -411,7 +411,7 @@ static inline bool Announce_isValid(struct Message* msg)
     for (;;) {
         ih = Announce_ItemHeader_next(msg, ih);
         if (!ih) { return false; }
-        if ((uint8_t*)ih == &msg->bytes[msg->length - ih->length]) { return true; }
+        if ((uint8_t*)ih == &msg->bytes[Message_getLength(msg) - ih->length]) { return true; }
     }
 }
 

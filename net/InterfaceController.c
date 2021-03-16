@@ -382,7 +382,7 @@ static void linkState(void* vic)
         }
     }
 
-    if (msg->length) {
+    if (Message_getLength(msg)) {
         Er_assert(Message_epush32be(msg, 0xffffffff));
         Er_assert(Message_epush32be(msg, PFChan_Core_LINK_STATE));
         Iface_send(&ic->eventEmitterIf, msg);
@@ -521,9 +521,9 @@ static Iface_DEFUN sendFromSwitch(struct Message* msg, struct Iface* switchIf)
         return Error(UNHANDLED);
     }
 
-    ep->bytesOut += msg->length;
+    ep->bytesOut += Message_getLength(msg);
 
-    Kbps_accumulate(&ep->sendBw, Time_currentTimeMilliseconds(ep->ici->ic->eventBase), msg->length);
+    Kbps_accumulate(&ep->sendBw, Time_currentTimeMilliseconds(ep->ici->ic->eventBase), Message_getLength(msg));
 
     return Iface_next(&ep->plaintext, msg); // --> afterEncrypt
 }
@@ -586,14 +586,14 @@ static Iface_DEFUN handleBeacon(struct Message* msg, struct InterfaceController_
         return Error(NONE);
     }
 
-    if (msg->length < Sockaddr_OVERHEAD) {
+    if (Message_getLength(msg) < Sockaddr_OVERHEAD) {
         Log_debug(ic->logger, "[%s] Dropping runt beacon", ici->pub.name->bytes);
         return Error(RUNT);
     }
 
     struct Sockaddr* lladdrInmsg = (struct Sockaddr*) msg->bytes;
 
-    if (msg->length < lladdrInmsg->addrLen + Headers_Beacon_SIZE) {
+    if (Message_getLength(msg) < lladdrInmsg->addrLen + Headers_Beacon_SIZE) {
         Log_debug(ic->logger, "[%s] Dropping runt beacon", ici->pub.name->bytes);
         return Error(RUNT);
     }
@@ -686,7 +686,7 @@ static Iface_DEFUN handleUnexpectedIncoming(struct Message* msg,
 {
     struct Sockaddr* lladdr = (struct Sockaddr*) msg->bytes;
     Er_assert(Message_eshift(msg, -lladdr->addrLen));
-    if (msg->length < CryptoHeader_SIZE) {
+    if (Message_getLength(msg) < CryptoHeader_SIZE) {
         return Error(RUNT);
     }
 
@@ -720,7 +720,7 @@ static Iface_DEFUN handleIncomingFromWire(struct Message* msg, struct Iface* add
         Identity_containerOf(addrIf, struct InterfaceController_Iface_pvt, pub.addrIf);
 
     struct Sockaddr* lladdr = (struct Sockaddr*) msg->bytes;
-    if (msg->length < Sockaddr_OVERHEAD || msg->length < lladdr->addrLen) {
+    if (Message_getLength(msg) < Sockaddr_OVERHEAD || Message_getLength(msg) < lladdr->addrLen) {
         Log_debug(ici->ic->logger, "DROP runt");
         return Error(RUNT);
     }
@@ -810,15 +810,15 @@ static Iface_DEFUN afterDecrypt(struct Message* msg, struct Iface* plaintext)
             Address_toString(&ep->addr, Message_getAlloc(msg))->bytes);
     }
 
-    Kbps_accumulate(&ep->recvBw, Time_currentTimeMilliseconds(ic->eventBase), msg->length);
-    ep->bytesIn += msg->length;
+    Kbps_accumulate(&ep->recvBw, Time_currentTimeMilliseconds(ic->eventBase), Message_getLength(msg));
+    ep->bytesIn += Message_getLength(msg);
 
     int caState = CryptoAuth_getState(ep->caSession);
     if (caState != CryptoAuth_State_ESTABLISHED) {
         // prevent some kinds of nasty things which could be done with packet replay.
         // This is checking the message switch header and will drop it unless the label
         // directs it to *this* router.
-        if (msg->length < 8 || msg->bytes[7] != 1) {
+        if (Message_getLength(msg) < 8 || msg->bytes[7] != 1) {
             Log_info(ic->logger, "DROP message because CA is not established.");
             return Error(UNHANDLED);
         } else {
@@ -896,7 +896,7 @@ static void sendBeacon(struct InterfaceController_Iface_pvt* ici, struct Allocat
     Er_assert(Message_epush(msg, &ici->ic->beacon, Headers_Beacon_SIZE));
 
     if (Defined(Log_DEBUG)) {
-        char* content = Hex_print(msg->bytes, msg->length, tempAlloc);
+        char* content = Hex_print(msg->bytes, Message_getLength(msg), tempAlloc);
         Log_debug(ici->ic->logger, "SEND BEACON CONTENT[%s]", content);
     }
 
@@ -1113,7 +1113,7 @@ static Iface_DEFUN incomingFromEventEmitterIf(struct Message* msg, struct Iface*
     uint32_t peers = Er_assert(Message_epop32be(msg));
     Assert_true(peers == PFChan_Pathfinder_PEERS);
     uint32_t pathfinderId = Er_assert(Message_epop32be(msg));
-    Assert_true(!msg->length);
+    Assert_true(!Message_getLength(msg));
 
     for (int j = 0; j < ic->icis->length; j++) {
         struct InterfaceController_Iface_pvt* ici = ArrayList_OfIfaces_get(ic->icis, j);

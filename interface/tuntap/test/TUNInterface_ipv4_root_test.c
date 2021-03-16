@@ -41,7 +41,7 @@ static Iface_DEFUN receiveMessageTUN(struct Message* msg, struct TUNTools* tt)
 
     struct Headers_IP4Header* header = (struct Headers_IP4Header*) msg->bytes;
 
-    Assert_true(msg->length == Headers_IP4Header_SIZE + Headers_UDPHeader_SIZE + 12);
+    Assert_true(Message_getLength(msg) == Headers_IP4Header_SIZE + Headers_UDPHeader_SIZE + 12);
 
     Assert_true(!Bits_memcmp(header->destAddr, testAddrB, 4));
     Assert_true(!Bits_memcmp(header->sourceAddr, testAddrA, 4));

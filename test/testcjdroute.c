@@ -103,12 +103,14 @@ static void usage(char* appName)
 
 static void readFile(int fileNo, struct Allocator* alloc, struct Message* fuzz)
 {
-    ssize_t length = read(fileNo, fuzz->bytes, fuzz->length);
-    if (length >= fuzz->length) {
-        printf("No test files over [%d] bytes\n", fuzz->length);
+    uint32_t msgLen = Message_getLength(fuzz);
+    uint8_t* bytes = Er_assert(Message_peakBytes(fuzz, msgLen));
+    ssize_t length = read(fileNo, bytes, msgLen);
+    if (length >= msgLen) {
+        printf("No test files over [%d] bytes\n", msgLen);
         length = 0;
     }
-    fuzz->length = length;
+    Er_assert(Message_truncate(fuzz, length));
 }
 
 static void** initFuzzTests(struct Allocator* alloc, struct Random* rand)
@@ -128,7 +130,7 @@ static int runFuzzTest(
     const char* testCase,
     int quiet)
 {
-    if (fuzz->length < 4) { return 100; }
+    if (Message_getLength(fuzz) < 4) { return 100; }
     uint32_t selector = Er_assert(Message_epop32be(fuzz));
     if (selector >= (uint32_t)FUZZ_TEST_COUNT) {
         printf("selector [%x] out of bounds [%u]\n", selector, FUZZ_TEST_COUNT);

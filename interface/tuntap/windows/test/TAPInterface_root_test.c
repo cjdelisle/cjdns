@@ -34,7 +34,7 @@ int main(int argc, char** argv)
 static uint8_t receiveMessage(struct Message* msg, struct Iface* iface)
 {
     struct Allocator* alloc = iface->receiverContext;
-    if (msg->length < 20) {
+    if (Message_getLength(msg) < 20) {
         printf("runt\n");
         return 0;
     }
@@ -75,9 +75,9 @@ return 0;
 //6000000000083aff00000000000000000000000000000000ff020000000000000000000000000002 85007b
 //6000000000203aff fd000000000000000000000000000001 ff0200000000000000000001ff000002 8700.
 
-    int len = msg->length * 2 + 1;
+    int len = Message_getLength(msg) * 2 + 1;
     uint8_t* buff = Allocator_malloc(alloc, len + 2);
-    Hex_encode(buff, len, msg->bytes, msg->length);
+    Hex_encode(buff, len, msg->bytes, Message_getLength(msg));
 /*    if (typeCode == 6 && len > 86) {
         Bits_memmove(&buff[82], &buff[81], len - 81);
         Bits_memmove(&buff[49], &buff[48], len - 48);
@@ -85,7 +85,7 @@ return 0;
         buff[80] = buff[48] = buff[16] = ' ';
     }*/
 
-    if (msg->length > 45) {
+    if (Message_getLength(msg) > 45) {
         Bits_memcpy(buff+86, "...", 4);
     }
 

@@ -64,7 +64,7 @@ static Iface_DEFUN incomingFromWire(struct Message* message, struct Iface* exter
     struct TUNInterface_Illumos_pvt* ctx =
         Identity_containerOf(externalIf, struct TUNInterface_Illumos_pvt, externalIf);
 
-    if (message->length < 4) {
+    if (Message_getLength(message) < 4) {
         return 0;
     }
 

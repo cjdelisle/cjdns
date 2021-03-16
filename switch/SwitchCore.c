@@ -69,7 +69,7 @@ static inline Iface_DEFUN sendError(struct SwitchInterface* iface,
                                     uint32_t code,
                                     struct Log* logger)
 {
-    if (cause->length < SwitchHeader_SIZE + 4) {
+    if (Message_getLength(cause) < SwitchHeader_SIZE + 4) {
         Log_debug(logger, "runt");
         return Error(RUNT);
     }
@@ -82,8 +82,9 @@ static inline Iface_DEFUN sendError(struct SwitchInterface* iface,
     }
 
     // limit of 256 bytes
-    cause->length =
-        (cause->length < Control_Error_MAX_SIZE) ? cause->length : Control_Error_MAX_SIZE;
+    if (Message_getLength(cause) > Control_Error_MAX_SIZE) {
+        Er_assert(Message_truncate(cause, Control_Error_MAX_SIZE));
+    }
 
     // Shift back so we can add another header.
     Er_assert(Message_epush(cause,
@@ -103,7 +104,7 @@ static inline Iface_DEFUN sendError(struct SwitchInterface* iface,
     err->ctrl.header.checksum_be = 0;
 
     err->ctrl.header.checksum_be =
-        Checksum_engine_be((uint8_t*) &err->ctrl, cause->length - SwitchHeader_SIZE - 4);
+        Checksum_engine_be((uint8_t*) &err->ctrl, Message_getLength(cause) - SwitchHeader_SIZE - 4);
 
     return Iface_next(&iface->iface, cause);
 }
@@ -117,7 +118,7 @@ static Iface_DEFUN receiveMessage(struct Message* message, struct Iface* iface)
     struct SwitchInterface* sourceIf = Identity_check((struct SwitchInterface*) iface);
     struct SwitchCore_pvt* core = Identity_check(sourceIf->core);
 
-    if (message->length < SwitchHeader_SIZE) {
+    if (Message_getLength(message) < SwitchHeader_SIZE) {
         Log_debug(core->logger, "DROP runt");
         return Error(RUNT);
     }
@@ -203,8 +204,8 @@ static Iface_DEFUN receiveMessage(struct Message* message, struct Iface* iface)
     uint64_t sourceLabel = Bits_bitReverse64(NumberCompress_getCompressed(sourceIndex, bits));
     uint64_t targetLabel = (label >> bits) | sourceLabel;
 
-    int cloneLength = (message->length < Control_Error_MAX_SIZE) ?
-        message->length : Control_Error_MAX_SIZE;
+    int cloneLength = (Message_getLength(message) < Control_Error_MAX_SIZE) ?
+        Message_getLength(message) : Control_Error_MAX_SIZE;
     uint8_t messageClone[Control_Error_MAX_SIZE];
     Bits_memcpy(messageClone, message->bytes, cloneLength);
 

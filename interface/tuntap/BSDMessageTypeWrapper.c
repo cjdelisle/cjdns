@@ -42,7 +42,7 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* wireSide)
     struct BSDMessageTypeWrapper_pvt* ctx =
         Identity_containerOf(wireSide, struct BSDMessageTypeWrapper_pvt, pub.wireSide);
 
-    if (msg->length < 4) { return Error(RUNT); }
+    if (Message_getLength(msg) < 4) { return Error(RUNT); }
 
     uint16_t afType_be = ((uint16_t*) msg->bytes)[1];
     uint16_t ethertype = 0;
@@ -66,7 +66,7 @@ static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* inside)
     struct BSDMessageTypeWrapper_pvt* ctx =
         Identity_containerOf(inside, struct BSDMessageTypeWrapper_pvt, pub.inside);
 
-    Assert_true(msg->length >= 4);
+    Assert_true(Message_getLength(msg) >= 4);
 
     uint16_t ethertype = ((uint16_t*) msg->bytes)[1];
     uint16_t afType_be = 0;

@@ -65,7 +65,7 @@ static Iface_DEFUN incomingFromUs(struct Message* msg, struct Iface* internalIf)
     }
 
     // send payload length
-    Er_assert(Message_epush32be(msg, msg->length));
+    Er_assert(Message_epush32be(msg, Message_getLength(msg)));
     // mark this as a normal tun packet
     Er_assert(Message_epush8(msg, SocketWrapper_TYPE_TUN_PACKET));
 

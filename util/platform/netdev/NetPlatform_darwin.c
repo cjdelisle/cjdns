@@ -72,7 +72,7 @@ static Er_DEFUN(void mkRouteMsg(struct Message* msg,
     if (CString_strlen(ifName) >= 12) {
         Er_raise(Message_getAlloc(msg), "ifName [%s] too long, limit 11 chars", ifName);
     }
-    int lengthBegin = msg->length;
+    int lengthBegin = Message_getLength(msg);
     bool ipv6 = Sockaddr_getFamily(addRoute) == Sockaddr_AF_INET6;
     if (ipv6) {
         struct sockaddr_in6 mask = {
@@ -112,7 +112,7 @@ static Er_DEFUN(void mkRouteMsg(struct Message* msg,
         .rtm_seq = seq,
         .rtm_pid = getpid(),
         .rtm_addrs = RTA_DST | RTA_NETMASK | ((delete) ? 0 : RTA_GATEWAY),
-        .rtm_msglen = sizeof(struct rt_msghdr) + (msg->length - lengthBegin)
+        .rtm_msglen = sizeof(struct rt_msghdr) + (Message_getLength(msg) - lengthBegin)
     };
     Er(Message_epush(msg, &hdr, sizeof(struct rt_msghdr)));
     Er_ret();
@@ -140,18 +140,18 @@ static Er_DEFUN(void setRoutes(uint32_t ifIndex,
         Log_debug(logger, "DELETE ROUTE %s", Sockaddr_print(pfx, alloc));
         struct Message* msg = Message_new(0, 1024, alloc);
         Er(mkRouteMsg(msg, pfx, ifIndex, ifName, seq++, true));
-        //printf("DELETE ROUTE %s\n", Hex_print(msg->bytes, msg->length, alloc));
-        returnLen = write(sock, msg->bytes, msg->length);
-        if (returnLen < msg->length) { err = true; break; }
+        //printf("DELETE ROUTE %s\n", Hex_print(msg->bytes, Message_getLength(msg), alloc));
+        returnLen = write(sock, msg->bytes, Message_getLength(msg));
+        if (returnLen < Message_getLength(msg)) { err = true; break; }
     }
     for (int i = 0; !err && i < toAdd->length; i++) {
         struct Sockaddr* pfx = ArrayList_OfSockaddr_get(toAdd, i);
         Log_debug(logger, "ADD ROUTE %s", Sockaddr_print(pfx, alloc));
         struct Message* msg = Message_new(0, 1024, alloc);
         Er(mkRouteMsg(msg, pfx, ifIndex, ifName, seq++, false));
-        //printf("ADD ROUTE %s\n", Hex_print(msg->bytes, msg->length, alloc));
-        returnLen = write(sock, msg->bytes, msg->length);
-        if (returnLen < msg->length) { err = true; break; }
+        //printf("ADD ROUTE %s\n", Hex_print(msg->bytes, Message_getLength(msg), alloc));
+        returnLen = write(sock, msg->bytes, Message_getLength(msg));
+        if (returnLen < Message_getLength(msg)) { err = true; break; }
     }
 
     if (returnLen < 0) {

@@ -58,8 +58,8 @@ static Iface_DEFUN answerARP(struct Message* msg, struct ARPServer_pvt* as)
 {
     struct ARPHeader_6_4 arp;
     Er_assert(Message_epop(msg, &arp, ARPHeader_6_4_SIZE));
-    if (msg->length) {
-        Log_warn(as->log, "%d extra bytes in ARP, weird", msg->length);
+    if (Message_getLength(msg)) {
+        Log_warn(as->log, "%d extra bytes in ARP, weird", Message_getLength(msg));
     }
     // Swap sender with target.
     // 10 = Eth_Len + IP4_Len
@@ -84,7 +84,7 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* external)
 {
     struct ARPServer_pvt* as = Identity_containerOf(external, struct ARPServer_pvt, external);
     // Length should be ARP + Ethertype
-    if (msg->length >= ARPHeader_6_4_SIZE + 4) {
+    if (Message_getLength(msg) >= ARPHeader_6_4_SIZE + 4) {
         uint16_t ethertype = Er_assert(TUNMessageType_pop(msg));
         if (ethertype == Ethernet_TYPE_ARP) {
             if (isValidARP(msg)) {
