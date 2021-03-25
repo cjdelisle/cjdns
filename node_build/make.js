@@ -130,7 +130,7 @@ Builder.configure({
             // a case of if (1 == 1)
             '-Wno-tautological-compare',
 
-            '-Wno-error'
+            //'-Wno-error'
         );
         builder.config.cflags.slice(builder.config.cflags.indexOf('-Werror'), 1);
     } else {

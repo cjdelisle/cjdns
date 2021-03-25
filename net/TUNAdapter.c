@@ -85,7 +85,10 @@ static Iface_DEFUN incomingFromTunIf(struct Message* msg, struct Iface* tunIf)
     }
 
     // first move the dest addr to the right place.
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wfortify-source"
     Bits_memmove(header->destinationAddr - DataHeader_SIZE, header->destinationAddr, 16);
+    #pragma GCC diagnostic pop
 
     Er_assert(Message_eshift(msg, DataHeader_SIZE + RouteHeader_SIZE - Headers_IP6Header_SIZE));
     struct RouteHeader* rh = (struct RouteHeader*) msg->msgbytes;
@@ -130,7 +133,10 @@ static Iface_DEFUN incomingFromUpperDistributorIf(struct Message* msg,
     Assert_true(type <= ContentType_IP6_MAX);
 
     // Shift ip address into destination slot.
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wfortify-source"
     Bits_memmove(hdr->ip6 + DataHeader_SIZE - 16, hdr->ip6, 16);
+    #pragma GCC diagnostic pop
     // put my address as destination.
     Bits_memcpy(&hdr->ip6[DataHeader_SIZE], ud->myIp6, 16);
 

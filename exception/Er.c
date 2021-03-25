@@ -59,5 +59,5 @@ struct Er_Ret* Er__raise(char* file, int line, struct Allocator* alloc, char* fo
 void Er__assertFail(struct Er_Ret* er)
 {
     if (!er) { return; }
-    Assert_failure(er->message);
+    Assert_failure("%s", er->message);
 }
