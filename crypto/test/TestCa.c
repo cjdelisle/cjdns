@@ -171,7 +171,7 @@ static Iface_DEFUN messageCiphertext(Message_t *msg, struct Iface* iface)
     if (sess->s2) {
         int flag = PASS;
         if (sess->s) {
-            uintptr_t mp = msg;
+            uintptr_t mp = (uintptr_t)msg;
             Er_assert(Message_epushAd(m2, &mp, sizeof &mp));
             flag = VERIFY;
         }
@@ -198,7 +198,7 @@ static bool check(Message_t *msg, TestCa_Session_pvt_t* sess)
     } else if (flag == VERIFY) {
         uintptr_t m2p = 0;
         Er_assert(Message_epopAd(msg, &m2p, sizeof m2p));
-        printf("Verifying message %x\n", m2p);
+        printf("Verifying message %lx\n", m2p);
         struct Message* m2 = (struct Message*) m2p;
         if (Message_getLength(msg) != Message_getLength(m2)) {
             Assert_failure("Message_getLength(msg) != m2->length: %d != %d",
@@ -259,7 +259,7 @@ TestCa_Session_t* TestCa_newSession(
     out->s2Cipher.send = s2CipherRecv;
     out->s2Plain.send = s2PlainRecv;
     if (ca->ca) {
-        out->s = CryptoAuth_newSession(ca->ca, alloc, herPublicKey, requireAuth, name);
+        out->s = CryptoAuth_newSession(ca->ca, alloc, herPublicKey, requireAuth, name, false);
         Iface_plumb(&out->sCipher, &out->s->ciphertext);
         Iface_plumb(&out->sPlain, &out->s->plaintext);
     }

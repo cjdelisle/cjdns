@@ -1,7 +1,7 @@
 use anyhow::{bail, Result};
 
 use crate::cffi::{self, Allocator, Error_e, Error_s};
-use crate::external::interface::iface::{self, Iface, IfacePvt, IfRecv};
+use crate::external::interface::iface::{self, IfRecv, Iface, IfacePvt};
 use crate::external::memory::allocator;
 use crate::interface::wire::message::Message;
 
@@ -70,8 +70,8 @@ pub fn new<T: Into<String>>(alloc: *mut Allocator, name: T) -> (Iface, *mut cffi
         CIface {
             cif: cffi::Iface {
                 send: Some(from_c),
-                currentMsg: 0 as *mut cffi::Message,
-                connectedIf: 0 as *mut cffi::Iface,
+                currentMsg: std::ptr::null_mut(),
+                connectedIf: std::ptr::null_mut(),
             },
             id_tag: IFACE_IDENT,
             rif: iface_pvt,

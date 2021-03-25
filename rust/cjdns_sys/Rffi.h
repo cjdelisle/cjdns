@@ -28,7 +28,7 @@ RTypes_CryptoAuth2_Session_t *Rffi_CryptoAuth2_newSession(RTypes_CryptoAuth2_t *
                                                           Allocator_t *alloc,
                                                           const uint8_t *herPublicKey,
                                                           bool requireAuth,
-                                                          char *name,
+                                                          const char *name,
                                                           bool useNoise);
 
 void Rffi_CryptoAuth2_setAuth(const String_t *password,
@@ -47,7 +47,7 @@ void Rffi_CryptoAuth2_getHerIp6(const RTypes_CryptoAuth2_Session_t *session, uin
 
 String_t *Rffi_CryptoAuth2_getName(const RTypes_CryptoAuth2_Session_t *session, Allocator_t *alloc);
 
-void Rffi_CryptoAuth2_getPubKey(RTypes_CryptoAuth2_t *ca, uint8_t *pkOut);
+void Rffi_CryptoAuth2_getPubKey(const RTypes_CryptoAuth2_t *ca, uint8_t *pkOut);
 
 void Rffi_CryptoAuth2_stats(const RTypes_CryptoAuth2_Session_t *session,
                             RTypes_CryptoStats_t *statsOut);

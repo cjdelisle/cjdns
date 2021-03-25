@@ -73,18 +73,18 @@ static void outputSession(struct Context* context,
     }
 
     struct Address addr;
-    CryptoAuth_getHerPubKey(session->caSession, addr.key);
+    Ca_getHerPubKey(session->caSession, addr.key);
     Address_getPrefix(&addr);
     uint8_t printedAddr[40];
     AddrTools_printIp(printedAddr, addr.ip6.bytes);
     Dict_putStringC(r, "ip6", String_new(printedAddr, alloc), alloc);
 
     String* state =
-        String_new(CryptoAuth_stateString(CryptoAuth_getState(session->caSession)), alloc);
+        String_new(Ca_stateString(Ca_getState(session->caSession)), alloc);
     Dict_putStringC(r, "state", state, alloc);
 
     RTypes_CryptoStats_t stats;
-    CryptoAuth_stats(session->caSession, &stats);
+    Ca_stats(session->caSession, &stats);
     Dict_putIntC(r, "duplicates", stats.duplicate_packets, alloc);
     Dict_putIntC(r, "lostPackets", stats.lost_packets, alloc);
     Dict_putIntC(r, "receivedOutOfRange", stats.received_unexpected, alloc);
@@ -163,7 +163,7 @@ static void resetCA(Dict* args,
     struct Context* context = Identity_check((struct Context*) vcontext);
     struct SessionManager_Session* session = sessionForIP(args, context, txid, alloc);
     if (!session) { return; }
-    CryptoAuth_reset(session->caSession);
+    Ca_reset(session->caSession);
     Dict* r = Dict_new(alloc);
     Dict_putStringCC(r, "error", "none", alloc);
     Admin_sendMessage(r, txid, context->admin);

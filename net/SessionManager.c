@@ -59,7 +59,7 @@ struct SessionManager_pvt
     struct Map_BufferedMessages bufMap;
     struct Map_OfSessionsByIp6 ifaceMap;
     struct Log* log;
-    struct CryptoAuth* cryptoAuth;
+    Ca_t* cryptoAuth;
     struct EventBase* eventBase;
     uint32_t firstHandle;
     uint8_t ourPubKey[32];
@@ -89,7 +89,7 @@ struct SessionManager_Session_pvt
         AddrTools_printPath(path, label);                                              \
         uint8_t ip[40];                                                                \
         uint8_t ipb[16];                                                               \
-        CryptoAuth_getHerIp6(session->pub.caSession, ipb);                             \
+        Ca_getHerIp6(session->pub.caSession, ipb);                             \
         AddrTools_printIp(ip, ipb);                                                    \
         Log_debug(logger, "ver[%u] send[%d] recv[%u] ip[%s] path[%s] " message,        \
                   session->pub.version,                                                \
@@ -110,7 +110,7 @@ struct SessionManager_Session_pvt
         uint8_t sendPath[20];                                                          \
         uint8_t ip[40];                                                                \
         uint8_t ipb[16];                                                               \
-        CryptoAuth_getHerIp6(session->pub.caSession, ipb);                             \
+        Ca_getHerIp6(session->pub.caSession, ipb);                             \
         AddrTools_printIp(ip, ipb);                                                    \
         AddrTools_printPath(sendPath, (label));                                        \
         Log_debug((logger), "Session[%p] [%s.%s] " message,                            \
@@ -134,8 +134,8 @@ static void sendSession(struct SessionManager_Session_pvt* sess,
         .metric_be = Endian_bigEndianToHost32(path->metric),
         .version_be = Endian_hostToBigEndian32(sess->pub.version)
     };
-    CryptoAuth_getHerPubKey(sess->pub.caSession, session.publicKey);
-    CryptoAuth_getHerIp6(sess->pub.caSession, session.ip6);
+    Ca_getHerPubKey(sess->pub.caSession, session.publicKey);
+    Ca_getHerIp6(sess->pub.caSession, session.ip6);
 
     struct Allocator* alloc = Allocator_child(sess->alloc);
     struct Message* msg = Message_new(0, PFChan_Node_SIZE + 512, alloc);
@@ -151,7 +151,7 @@ static inline void check(struct SessionManager_pvt* sm, int mapIndex)
     struct SessionManager_Session_pvt* ssp = Identity_check(sm->ifaceMap.values[mapIndex]);
     if (ssp->foundKey) { return; }
     uint8_t herPubKey[32];
-    CryptoAuth_getHerPubKey(ssp->pub.caSession, herPubKey);
+    Ca_getHerPubKey(ssp->pub.caSession, herPubKey);
     if (!Bits_isZero(herPubKey, 32)) {
         uint8_t ip6[16];
         AddressCalc_addressForPublicKey(ip6, herPubKey);
@@ -338,22 +338,22 @@ static Iface_DEFUN postDecryption(struct Message* msg, struct Iface* iface)
         .version_be = Endian_hostToBigEndian32(session->pub.version),
     };
     Er_assert(Message_epopAd(msg, &header.sh, SwitchHeader_SIZE));
-    CryptoAuth_getHerPubKey(session->pub.caSession, header.publicKey);
-    CryptoAuth_getHerIp6(session->pub.caSession, header.ip6);
+    Ca_getHerPubKey(session->pub.caSession, header.publicKey);
+    Ca_getHerIp6(session->pub.caSession, header.ip6);
     uint64_t label = Endian_bigEndianToHost64(header.sh.label_be);
 
-    enum CryptoAuth_DecryptErr ret = Er_assert(Message_epop32h(msg));
+    enum Ca_DecryptErr ret = Er_assert(Message_epop32h(msg));
     if (ret) {
         // If CryptoAuth fails to decrypt then it gives us:
-        // * CryptoAuth_DecryptErr - we already popped this
+        // * Ca_DecryptErr - we already popped this
         // * first16
-        // * CryptoAuth_DecryptErr
+        // * Ca_DecryptErr
         // * state
         debugHandlesAndLabel(session->sessionManager->log, session,
                              label,
                              "DROP Failed decrypting message NoH[%d] state[%s]",
                              nonceOrHandle,
-                             CryptoAuth_stateString(CryptoAuth_getState(session->pub.caSession)));
+                             Ca_stateString(Ca_getState(session->pub.caSession)));
         uint64_t label_be = header.sh.label_be;
         // We want to preserve it "as it was" here
         header.sh.label_be = Bits_bitReverse64(header.sh.label_be);
@@ -376,14 +376,14 @@ static Iface_DEFUN postDecryption(struct Message* msg, struct Iface* iface)
 
 static Iface_DEFUN afterEncrypt(struct Message* msg, struct Iface* iface)
 {
-    //Assert_true(!CryptoAuth_encrypt(sess->pub.caSession, msg));
+    //Assert_true(!Ca_encrypt(sess->pub.caSession, msg));
     struct SessionManager_Session_pvt* sess =
         Identity_containerOf(iface, struct SessionManager_Session_pvt, ciphertext);
 
     struct RouteHeader header;
     Er_assert(Message_epopAd(msg, &header, RouteHeader_SIZE));
 
-    if (CryptoAuth_getState(sess->pub.caSession) >= CryptoAuth_State_RECEIVED_KEY) {
+    if (Ca_getState(sess->pub.caSession) >= Ca_State_RECEIVED_KEY) {
         if (0) { // Noisy
             debugHandlesAndLabel0(sess->sessionManager->log,
                                   sess,
@@ -432,9 +432,9 @@ static struct SessionManager_Session_pvt* getSession(struct SessionManager_pvt* 
 
     sess->plaintext.send = postDecryption;
     sess->ciphertext.send = afterEncrypt;
-    sess->pub.caSession = CryptoAuth_newSession(sm->cryptoAuth, alloc, pubKey, false, "inner");
-    Iface_plumb(&sess->pub.caSession->plaintext, &sess->plaintext);
-    Iface_plumb(&sess->pub.caSession->ciphertext, &sess->ciphertext);
+    sess->pub.caSession = Ca_newSession(sm->cryptoAuth, alloc, pubKey, false, "inner", false);
+    Iface_plumb(sess->pub.caSession->plaintext, &sess->plaintext);
+    Iface_plumb(sess->pub.caSession->ciphertext, &sess->ciphertext);
 
     sess->foundKey = !Bits_isZero(pubKey, 32);
     if (sess->foundKey) {
@@ -544,7 +544,7 @@ static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface
 
         uint64_t label = Endian_bigEndianToHost64(switchHeader.label_be);
         session = getSession(sm, ip6, caHeader->publicKey, 0, label, Metric_SM_INCOMING);
-        CryptoAuth_resetIfTimeout(session->pub.caSession);
+        Ca_resetIfTimeout(session->pub.caSession);
         debugHandlesAndLabel(sm->log, session, label, "new session nonce[%d]", nonceOrHandle);
     }
 
@@ -579,8 +579,8 @@ static void unsetupSession(struct SessionManager_pvt* sm, struct SessionManager_
     Assert_true(n.path_be);
     n.version_be = Endian_hostToBigEndian32(sess->pub.version);
     n.metric_be = Endian_bigEndianToHost32(sess->pub.paths[0].metric);
-    CryptoAuth_getHerPubKey(sess->pub.caSession, n.publicKey);
-    CryptoAuth_getHerIp6(sess->pub.caSession, n.ip6);
+    Ca_getHerPubKey(sess->pub.caSession, n.publicKey);
+    Ca_getHerIp6(sess->pub.caSession, n.ip6);
     Er_assert(Message_epush(eventMsg, &n, PFChan_Node_SIZE));
     Er_assert(Message_epush32be(eventMsg, 0xffffffff));
     Er_assert(Message_epush32be(eventMsg, PFChan_Core_UNSETUP_SESSION));
@@ -643,10 +643,10 @@ static void checkTimedOutSessions(struct SessionManager_pvt* sm)
             debugSession0(sm->log, sess, sess->pub.paths[0].label,
                 "it's been a while, triggering search");
             uint8_t herIp6[16];
-            CryptoAuth_getHerIp6(sess->pub.caSession, herIp6);
+            Ca_getHerIp6(sess->pub.caSession, herIp6);
             triggerSearch(sm, herIp6, sess->pub.version);
             sess->pub.lastSearchTime = now;
-        } else if (CryptoAuth_getState(sess->pub.caSession) < CryptoAuth_State_ESTABLISHED) {
+        } else if (Ca_getState(sess->pub.caSession) < Ca_State_ESTABLISHED) {
             debugSession0(sm->log, sess, sess->pub.paths[0].label, "triggering unsetupSession");
             unsetupSession(sm, sess);
         }
@@ -713,8 +713,10 @@ static Iface_DEFUN readyToSend(struct Message* msg,
     struct RouteHeader header;
     Er_assert(Message_epop(msg, &header, RouteHeader_SIZE));
 
-    CryptoAuth_resetIfTimeout(sess->pub.caSession);
-    if (CryptoAuth_getState(sess->pub.caSession) < CryptoAuth_State_RECEIVED_KEY) {
+    Assert_true(header.sh.label_be != 0xffffffffffffffffull);
+
+    Ca_resetIfTimeout(sess->pub.caSession);
+    if (Ca_getState(sess->pub.caSession) < Ca_State_RECEIVED_KEY) {
         // Put the handle into the message so that the other end knows how to address the session
         Er_assert(Message_epush32be(msg, sess->pub.receiveHandle));
     }
@@ -798,8 +800,8 @@ static Iface_DEFUN incomingFromInsideIf(struct Message* msg, struct Iface* iface
     }
 
     // Forward secrecy, only send dht messages until the session is setup.
-    CryptoAuth_resetIfTimeout(sess->pub.caSession);
-    if (CryptoAuth_getState(sess->pub.caSession) < CryptoAuth_State_RECEIVED_KEY) {
+    Ca_resetIfTimeout(sess->pub.caSession);
+    if (Ca_getState(sess->pub.caSession) < Ca_State_RECEIVED_KEY) {
         if (DataHeader_getContentType(dataHeader) == ContentType_CJDHT) {
             if (sess->pub.timeOfLastUsage) {
                 // Any time any message of any kind is sent down a link that is
@@ -859,7 +861,7 @@ static Iface_DEFUN incomingFromEventIf(struct Message* msg, struct Iface* iface)
                       Endian_bigEndianToHost32(node.metric_be));
 
     // Send what's on the buffer...
-    if (index > -1 && CryptoAuth_getState(sess->pub.caSession) >= CryptoAuth_State_RECEIVED_KEY) {
+    if (index > -1 && Ca_getState(sess->pub.caSession) >= Ca_State_RECEIVED_KEY) {
         struct BufferedMessage* bm = sm->bufMap.values[index];
         Iface_CALL(readyToSend, bm->msg, sm, sess);
         Map_BufferedMessages_remove(index, &sm->bufMap);
@@ -870,7 +872,7 @@ static Iface_DEFUN incomingFromEventIf(struct Message* msg, struct Iface* iface)
 
 struct SessionManager* SessionManager_new(struct Allocator* allocator,
                                           struct EventBase* eventBase,
-                                          struct CryptoAuth* cryptoAuth,
+                                          Ca_t* cryptoAuth,
                                           struct Random* rand,
                                           struct Log* log,
                                           struct EventEmitter* ee)
@@ -890,7 +892,7 @@ struct SessionManager* SessionManager_new(struct Allocator* allocator,
     sm->pub.sessionSearchAfterMilliseconds =
         SessionManager_SESSION_SEARCH_AFTER_MILLISECONDS_DEFAULT;
 
-    CryptoAuth_getPubKey(cryptoAuth, sm->ourPubKey);
+    Ca_getPubKey(cryptoAuth, sm->ourPubKey);
 
     sm->eventIf.send = incomingFromEventIf;
     EventEmitter_regCore(ee, &sm->eventIf, PFChan_Pathfinder_NODE);

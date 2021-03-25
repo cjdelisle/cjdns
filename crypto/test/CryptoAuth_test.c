@@ -13,7 +13,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "crypto/random/Random.h"
-#include "crypto/CryptoAuth.h"
+#include "crypto/Ca.h"
 #include "benc/String.h"
 #include "memory/MallocAllocator.h"
 #include "util/events/EventBase.h"
@@ -399,6 +399,6 @@ int main()
 {
     iteration(TestCa_Config_OLD);
     iteration(TestCa_Config_OLD_NEW);
-    //iteration(TestCa_Config_NOISE); TODO(cjd): re-enable this
+    //iteration(TestCa_Config_NOISE); // TODO(cjd): re-enable this
     return 0;
 }

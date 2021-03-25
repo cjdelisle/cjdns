@@ -28,7 +28,7 @@
 #include "benc/serialization/standard/BencMessageWriter.h"
 #include "crypto/random/test/DeterminentRandomSeed.h"
 #include "crypto/AddressCalc.h"
-#include "crypto/CryptoAuth.h"
+#include "crypto/Ca.h"
 #include "dht/Address.h"
 #include "exception/Except.h"
 #include "interface/Iface.h"

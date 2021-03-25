@@ -13,7 +13,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "crypto/random/Random.h"
-#include "crypto/CryptoAuth.h"
+#include "crypto/Ca.h"
 #include "memory/Allocator.h"
 #include "switch/SwitchCore.h"
 #include "net/NetCore.h"
@@ -43,9 +43,9 @@ struct NetCore* NetCore_new(uint8_t* privateKey,
     nc->rand = rand;
     nc->log = log;
 
-    struct CryptoAuth* ca = nc->ca = CryptoAuth_new(alloc, privateKey, base, log, rand);
+    Ca_t* ca = nc->ca = Ca_new(alloc, privateKey, base, log, rand);
     uint8_t ourPubKey[32];
-    CryptoAuth_getPubKey(ca, ourPubKey);
+    Ca_getPubKey(ca, ourPubKey);
     struct EventEmitter* ee = nc->ee = EventEmitter_new(alloc, log, ourPubKey);
 
     struct Address* myAddress = nc->myAddress = Allocator_calloc(alloc, sizeof(struct Address), 1);

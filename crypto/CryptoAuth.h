@@ -128,7 +128,8 @@ struct CryptoAuth_Session* CryptoAuth_newSession(struct CryptoAuth* ca,
                                                  struct Allocator* alloc,
                                                  const uint8_t herPublicKey[32],
                                                  const bool requireAuth,
-                                                 const char* name);
+                                                 const char* name,
+                                                 bool useNoise);
 
 enum CryptoAuth_DecryptErr {
     CryptoAuth_DecryptErr_NONE = 0,

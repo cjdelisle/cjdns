@@ -134,7 +134,7 @@ static Iface_DEFUN incomingFromIface(struct Message* m, struct Iface* iface)
 #if UDPAddrIface_PADDING_AMOUNT < 8
     #error
 #endif
-#define ALLOC(buff) (((struct Allocator**) &(buff[-(8 + (((uintptr_t)buff) % 8))]))[0])
+#define ALLOC(buff) (((struct Message**) &(buff[-(8 + (((uintptr_t)buff) % 8))]))[0])
 
 static void incoming(uv_udp_t* handle,
                      ssize_t nread,
@@ -186,7 +186,6 @@ static void allocate(uv_handle_t* handle, size_t size, uv_buf_t* buf)
     struct UDPAddrIface_pvt* context = ifaceForHandle((uv_udp_t*)handle);
 
     size = UDPAddrIface_BUFFER_CAP;
-    size_t fullSize = size + UDPAddrIface_PADDING_AMOUNT + context->pub.generic.addr->addrLen;
 
     struct Allocator* child = Allocator_child(context->allocator);
     struct Message* msg = Message_new(

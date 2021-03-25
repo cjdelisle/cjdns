@@ -16,7 +16,7 @@
 #define InterfaceController_H
 
 #include "benc/String.h"
-#include "crypto/CryptoAuth.h"
+#include "crypto/Ca.h"
 #include "dht/Address.h"
 #include "interface/Iface.h"
 #include "memory/Allocator.h"
@@ -37,18 +37,18 @@ enum InterfaceController_PeerState
      * In state >= NEW, a valid packet has been received but it could still be a replay.
      * Or it's an outgoing connection so we don't care about authentication.
      */
-    InterfaceController_PeerState_INIT = CryptoAuth_State_INIT,
+    InterfaceController_PeerState_INIT = Ca_State_INIT,
 
-    InterfaceController_PeerState_SENT_HELLO = CryptoAuth_State_SENT_HELLO,
+    InterfaceController_PeerState_SENT_HELLO = Ca_State_SENT_HELLO,
 
-    InterfaceController_PeerState_RECEIVED_HELLO = CryptoAuth_State_RECEIVED_HELLO,
+    InterfaceController_PeerState_RECEIVED_HELLO = Ca_State_RECEIVED_HELLO,
 
-    InterfaceController_PeerState_SENT_KEY = CryptoAuth_State_SENT_KEY,
+    InterfaceController_PeerState_SENT_KEY = Ca_State_SENT_KEY,
 
-    InterfaceController_PeerState_RECEIVED_KEY = CryptoAuth_State_RECEIVED_KEY,
+    InterfaceController_PeerState_RECEIVED_KEY = Ca_State_RECEIVED_KEY,
 
     /** In state == ESTABLISHED, we know the node at the other end is authentic. */
-    InterfaceController_PeerState_ESTABLISHED = CryptoAuth_State_ESTABLISHED,
+    InterfaceController_PeerState_ESTABLISHED = Ca_State_ESTABLISHED,
 
     /** If state == UNRESPONSIVE, the peer has not responded to pings in the required timeframe. */
     InterfaceController_PeerState_UNRESPONSIVE = -1,
@@ -199,7 +199,7 @@ int InterfaceController_beaconState(struct InterfaceController* ifc,
                                     int newState);
 
 /**
- * CryptoAuth_reset() a peer to reestablish the connection.
+ * Ca_reset() a peer to reestablish the connection.
  *
  * @param ic the if controller
  * @param herPublicKey the public key of the foreign node or NULL for all peers
@@ -229,7 +229,7 @@ int InterfaceController_getPeerStats(struct InterfaceController* ic,
                               struct Allocator* alloc,
                               struct InterfaceController_PeerStats** statsOut);
 
-struct InterfaceController* InterfaceController_new(struct CryptoAuth* ca,
+struct InterfaceController* InterfaceController_new(Ca_t* ca,
                                       struct SwitchCore* switchCore,
                                       struct Log* logger,
                                       struct EventBase* eventBase,

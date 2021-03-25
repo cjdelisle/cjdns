@@ -13,7 +13,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "crypto/random/Random.h"
-#include "crypto/CryptoAuth.h"
+#include "crypto/Ca.h"
 #include "crypto/AddressCalc.h"
 #ifndef SUBNODE
 #include "dht/Pathfinder.h"
@@ -217,7 +217,7 @@ void TestFramework_linkNodes(struct TestFramework* client,
         Assert_true(!ret);
     } else {
         // Except that it has an authorizedPassword added.
-        CryptoAuth_addUser(String_CONST("abcdefg123"), String_CONST("TEST"), server->nc->ca);
+        Ca_addUser(String_CONST("abcdefg123"), String_CONST("TEST"), server->nc->ca);
 
         // Client has pubKey and passwd for the server.
         InterfaceController_bootstrapPeer(client->nc->ifController,
@@ -266,7 +266,7 @@ int TestFramework_sessionCount(struct TestFramework* node)
     for (int i = 0; i < list->length; i++) {
         struct SessionManager_Session* sess =
             SessionManager_sessionForHandle(list->handles[i], node->nc->sm);
-        count += (CryptoAuth_getState(sess->caSession) == CryptoAuth_State_ESTABLISHED);
+        count += (Ca_getState(sess->caSession) == Ca_State_ESTABLISHED);
     }
     Allocator_free(alloc);
     return count;

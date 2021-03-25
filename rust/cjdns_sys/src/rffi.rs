@@ -140,7 +140,7 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_newSession(
     alloc: *mut Allocator_t,
     herPublicKey: *const u8,
     requireAuth: bool,
-    name: *mut c_char,
+    name: *const c_char,
     useNoise: bool,
 ) -> *mut RTypes_CryptoAuth2_Session_t {
     let (session, plaintext, ciphertext) = crypto_auth::Session::new(
@@ -244,7 +244,10 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_getName(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Rffi_CryptoAuth2_getPubKey(ca: *mut RTypes_CryptoAuth2_t, pkOut: *mut u8) {
+pub unsafe extern "C" fn Rffi_CryptoAuth2_getPubKey(
+    ca: *const RTypes_CryptoAuth2_t,
+    pkOut: *mut u8,
+) {
     let p = (*ca).0.public_key.raw();
     std::slice::from_raw_parts_mut(pkOut, 32).copy_from_slice(&p[..]);
 }

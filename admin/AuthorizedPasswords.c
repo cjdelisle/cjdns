@@ -21,7 +21,7 @@
 struct Context
 {
     struct Admin* admin;
-    struct CryptoAuth* ca;
+    Ca_t* ca;
     struct Allocator* allocator;
     Identity
 };
@@ -52,13 +52,13 @@ static void add(Dict* args, void* vcontext, String* txid, struct Allocator* allo
         ipv6Arg = ipv6Bytes;
     }
 
-    int32_t ret = CryptoAuth_addUser_ipv6(passwd, user, ipv6Arg, context->ca);
+    int32_t ret = Ca_addUser_ipv6(passwd, user, ipv6Arg, context->ca);
 
     switch (ret) {
         case 0:
             sendResponse(String_CONST("none"), context->admin, txid, alloc);
             break;
-        case CryptoAuth_addUser_DUPLICATE:
+        case Ca_addUser_DUPLICATE:
             sendResponse(String_CONST("Password already added."), context->admin, txid, alloc);
             break;
         default:
@@ -71,7 +71,7 @@ static void remove(Dict* args, void* vcontext, String* txid, struct Allocator* r
     struct Context* context = Identity_check((struct Context*) vcontext);
     String* user = Dict_getStringC(args, "user");
 
-    int32_t ret = CryptoAuth_removeUsers(context->ca, user);
+    int32_t ret = Ca_removeUsers(context->ca, user);
     if (ret) {
         sendResponse(String_CONST("none"), context->admin, txid, requestAlloc);
     } else {
@@ -86,7 +86,7 @@ static void list(Dict* args, void* vcontext, String* txid, struct Allocator* req
     int64_t* page_p = Dict_getIntC(args, "page");
     int page = (page_p) ? *page_p : 0;
 
-    RTypes_StrList_t* users = CryptoAuth_getUsers(context->ca, requestAlloc);
+    RTypes_StrList_t* users = Ca_getUsers(context->ca, requestAlloc);
     List* out = List_new(requestAlloc);
     for (int i = page * 16; i < (int)users->len && i < (page + 1) * 16; i++) {
         List_addString(out, users->items[i], requestAlloc);
@@ -98,7 +98,7 @@ static void list(Dict* args, void* vcontext, String* txid, struct Allocator* req
 }
 
 void AuthorizedPasswords_init(struct Admin* admin,
-                              struct CryptoAuth* ca,
+                              Ca_t* ca,
                               struct Allocator* allocator)
 {
     struct Context* context = Allocator_malloc(allocator, sizeof(struct Context));

@@ -13,7 +13,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "crypto/AddressCalc.h"
-#include "crypto/CryptoAuth_pvt.h"
+#include "crypto/Ca.h"
 #include "interface/Iface.h"
 #include "net/InterfaceController.h"
 #include "memory/Allocator.h"
@@ -109,7 +109,7 @@ struct Peer
 
     struct Allocator* alloc;
 
-    struct CryptoAuth_Session* caSession;
+    Ca_Session_t* caSession;
 
     struct Kbps sendBw;
     struct Kbps recvBw;
@@ -170,7 +170,7 @@ struct InterfaceController_pvt
 
     struct Allocator* const alloc;
 
-    struct CryptoAuth* const ca;
+    Ca_t* const ca;
 
     /** Switch for adding nodes when they are discovered. */
     struct SwitchCore* const switchCore;
@@ -356,7 +356,7 @@ static void linkState(void* vic)
             struct Peer* ep = ici->peerMap.values[i];
 
             RTypes_CryptoStats_t stats;
-            CryptoAuth_stats(ep->caSession, &stats);
+            Ca_stats(ep->caSession, &stats);
             uint64_t newDrops = 0;
             // Prevents invalid number when the session resets
             if (stats.lost_packets > ep->_lastDrops) {
@@ -564,9 +564,9 @@ static struct Peer* mkEp(
     ep->switchIf.send = sendFromSwitch;
     ep->ciphertext.send = afterEncrypt;
     ep->plaintext.send = afterDecrypt;
-    ep->caSession = CryptoAuth_newSession(ici->ic->ca, epAlloc, publicKey, authNeeded, name);
-    Iface_plumb(&ep->caSession->ciphertext, &ep->ciphertext);
-    Iface_plumb(&ep->caSession->plaintext, &ep->plaintext);
+    ep->caSession = Ca_newSession(ici->ic->ca, epAlloc, publicKey, authNeeded, name, false);
+    Iface_plumb(ep->caSession->ciphertext, &ep->ciphertext);
+    Iface_plumb(ep->caSession->plaintext, &ep->plaintext);
     Bits_memcpy(ep->addr.key, publicKey, 32);
     Address_getPrefix(&ep->addr);
     Allocator_onFree(epAlloc, closeInterface, ep);
@@ -644,7 +644,7 @@ static Iface_DEFUN handleBeacon(struct Message* msg, struct InterfaceController_
     if (epIndex > -1) {
         // The password might have changed!
         struct Peer* ep = ici->peerMap.values[epIndex];
-        CryptoAuth_setAuth(beaconPass, NULL, ep->caSession);
+        Ca_setAuth(beaconPass, NULL, ep->caSession);
         return Error(NONE);
     }
 
@@ -655,7 +655,7 @@ static Iface_DEFUN handleBeacon(struct Message* msg, struct InterfaceController_
     // it "incoming" because we replied to a beacon
     ep->isIncomingConnection = true;
     ep->addr.protocolVersion = addr.protocolVersion;
-    CryptoAuth_setAuth(beaconPass, NULL, ep->caSession);
+    Ca_setAuth(beaconPass, NULL, ep->caSession);
 
     if (SwitchCore_addInterface(ic->switchCore, &ep->switchIf, ep->alloc, &ep->addr.path)) {
         Log_debug(ic->logger, "handleBeacon() SwitchCore out of space");
@@ -756,7 +756,7 @@ static Iface_DEFUN handleIncomingFromWire(struct Message* msg, struct Iface* add
         return Error(NONE);
     }
 
-    CryptoAuth_resetIfTimeout(ep->caSession);
+    Ca_resetIfTimeout(ep->caSession);
 
     uint32_t nonce = Endian_bigEndianToHost32( ((uint32_t*)msg->msgbytes)[0] );
     Er_assert(Message_epushAd(msg, &nonce, sizeof nonce));
@@ -778,7 +778,7 @@ static Iface_DEFUN afterDecrypt(struct Message* msg, struct Iface* plaintext)
     struct InterfaceController_Iface_pvt* ici = Identity_check(ep->ici);
     struct InterfaceController_pvt* ic = Identity_check(ici->ic);
 
-    enum CryptoAuth_DecryptErr err = Er_assert(Message_epop32h(msg));
+    enum Ca_DecryptErr err = Er_assert(Message_epop32h(msg));
     if (err) {
         if (unexpected) {
             // We got an unexpected message and it did not validate, drop the allocator
@@ -813,8 +813,8 @@ static Iface_DEFUN afterDecrypt(struct Message* msg, struct Iface* plaintext)
     Kbps_accumulate(&ep->recvBw, Time_currentTimeMilliseconds(ic->eventBase), Message_getLength(msg));
     ep->bytesIn += Message_getLength(msg);
 
-    int caState = CryptoAuth_getState(ep->caSession);
-    if (caState != CryptoAuth_State_ESTABLISHED) {
+    int caState = Ca_getState(ep->caSession);
+    if (caState != Ca_State_ESTABLISHED) {
         // prevent some kinds of nasty things which could be done with packet replay.
         // This is checking the message switch header and will drop it unless the label
         // directs it to *this* router.
@@ -988,7 +988,7 @@ int InterfaceController_bootstrapPeer(struct InterfaceController* ifc,
     int index = Map_EndpointsBySockaddr_put(&ep->lladdr, &ep, &ici->peerMap);
     Assert_true(index >= 0);
     ep->handle = ici->peerMap.handles[index];
-    CryptoAuth_setAuth(password, login, ep->caSession);
+    Ca_setAuth(password, login, ep->caSession);
 
     if (SwitchCore_addInterface(ic->switchCore, &ep->switchIf, ep->alloc, &ep->addr.path)) {
         Log_debug(ic->logger, "bootstrapPeer() SwitchCore out of space");
@@ -1049,9 +1049,9 @@ int InterfaceController_getPeerStats(struct InterfaceController* ifController,
             s->timeOfLastMessage = peer->timeOfLastMessage;
             s->state = peer->state;
             s->isIncomingConnection = peer->isIncomingConnection;
-            s->user = CryptoAuth_getName(peer->caSession, alloc);
+            s->user = Ca_getName(peer->caSession, alloc);
             RTypes_CryptoStats_t stats;
-            CryptoAuth_stats(peer->caSession, &stats);
+            Ca_stats(peer->caSession, &stats);
             s->duplicates = stats.duplicate_packets;
             s->receivedOutOfRange = stats.received_unexpected;
 
@@ -1080,7 +1080,7 @@ void InterfaceController_resetPeering(struct InterfaceController* ifController,
         for (int i = 0; i < (int)ici->peerMap.count; i++) {
             struct Peer* peer = ici->peerMap.values[i];
             if (!herPublicKey || !Bits_memcmp(herPublicKey, peer->addr.key, 32)) {
-                CryptoAuth_reset(peer->caSession);
+                Ca_reset(peer->caSession);
             }
         }
     }
@@ -1126,7 +1126,7 @@ static Iface_DEFUN incomingFromEventEmitterIf(struct Message* msg, struct Iface*
     return Error(NONE);
 }
 
-struct InterfaceController* InterfaceController_new(struct CryptoAuth* ca,
+struct InterfaceController* InterfaceController_new(Ca_t* ca,
                                                     struct SwitchCore* switchCore,
                                                     struct Log* logger,
                                                     struct EventBase* eventBase,
@@ -1178,12 +1178,12 @@ struct InterfaceController* InterfaceController_new(struct CryptoAuth* ca,
     // Add the beaconing password.
     Random_base32(rand, out->beacon.password, Headers_Beacon_PASSWORD_LEN);
     String strPass = { .bytes=(char*)out->beacon.password, .len=Headers_Beacon_PASSWORD_LEN };
-    int ret = CryptoAuth_addUser(&strPass, String_CONST("Local Peers"), ca);
+    int ret = Ca_addUser(&strPass, String_CONST("Local Peers"), ca);
     if (ret) {
-        Log_warn(logger, "CryptoAuth_addUser() returned [%d]", ret);
+        Log_warn(logger, "Ca_addUser() returned [%d]", ret);
     }
 
-    CryptoAuth_getPubKey(ca, out->ourPubKey);
+    Ca_getPubKey(ca, out->ourPubKey);
     Bits_memcpy(out->beacon.publicKey, out->ourPubKey, 32);
     out->beacon.version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL);
 

@@ -1075,8 +1075,10 @@ struct CryptoAuth_Session* CryptoAuth_newSession(struct CryptoAuth* ca,
                                                  struct Allocator* alloc,
                                                  const uint8_t herPublicKey[32],
                                                  const bool requireAuth,
-                                                 const char* displayName)
+                                                 const char* displayName,
+                                                 bool useNoise)
 {
+    Assert_true(!useNoise && "Noise protocol not implemented in old CryptoAuth");
     struct CryptoAuth_pvt* context = Identity_check((struct CryptoAuth_pvt*) ca);
     struct CryptoAuth_Session_pvt* session =
         Allocator_calloc(alloc, sizeof(struct CryptoAuth_Session_pvt), 1);
