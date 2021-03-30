@@ -108,6 +108,7 @@ static int incomingFromDHT(struct DHTMessage* dmessage, void* vpf)
 
     Assert_true(!Bits_isZero(emsg->route.publicKey, 32));
     Assert_true(emsg->route.sh.label_be);
+    Assert_true(emsg->route.sh.label_be != 0xffffffffffffffffull);
     Assert_true(emsg->route.version_be);
 
     Er_assert(Message_epush32be(msg, PFChan_Pathfinder_SENDMSG));
