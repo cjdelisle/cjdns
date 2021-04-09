@@ -35,4 +35,5 @@ struct RBindings_Whitelist {
     enum CryptoAuth_addUser_Res c;
     Message_t d;
     String_t e;
+    Log_t* f;
 };

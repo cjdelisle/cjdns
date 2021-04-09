@@ -6,7 +6,6 @@ use std::sync::Arc;
 use anyhow::{bail, Result};
 use boringtun::crypto::x25519::{X25519PublicKey, X25519SecretKey};
 use boringtun::noise::{Tunn, TunnResult};
-use log::*;
 use parking_lot::{Mutex, RwLock, RwLockUpgradableReadGuard, RwLockWriteGuard};
 use thiserror::Error;
 
@@ -252,7 +251,7 @@ impl CryptoAuth {
         let public_key = crypto_scalarmult_curve25519_base(&private_key);
 
         if Self::LOG_KEYS {
-            debug!(
+            log::debug!(
                 concat!(
                     "Initialized CryptoAuth:\n",
                     "    myPrivateKey={}\n",
@@ -337,13 +336,13 @@ impl CryptoAuth {
             !remove
         });
         if let Some(login) = login {
-            debug!(
+            log::debug!(
                 "Removing [{}] user(s) identified by [{}]",
                 count,
                 login.into_debug_string()
             );
         } else {
-            debug!("Flushing [{}] users", count);
+            log::debug!("Flushing [{}] users", count);
         }
         count
     }
@@ -383,7 +382,7 @@ impl CryptoAuth {
             }
         }
 
-        debug!("Got unrecognized auth, password count = [{}]", count);
+        log::debug!("Got unrecognized auth, password count = [{}]", count);
         None
     }
 }
@@ -705,7 +704,7 @@ impl SessionMut {
             };
 
             if CryptoAuth::LOG_KEYS {
-                debug!(
+                log::debug!(
                     concat!(
                         "Generating temporary keypair\n",
                         "    myTempPrivateKey={}\n",
@@ -720,7 +719,7 @@ impl SessionMut {
         header.encrypted_temp_key = self.our_temp_pub_key;
 
         if CryptoAuth::LOG_KEYS {
-            debug!(
+            log::debug!(
                 concat!("Wrapping temp public key:\n", "    {}\n",),
                 hex::encode(&header.encrypted_temp_key),
             );
@@ -769,7 +768,7 @@ impl SessionMut {
             self.next_nonce = State::SentKey as u32;
 
             if CryptoAuth::LOG_KEYS {
-                debug!(
+                log::debug!(
                     concat!("Using their temp public key:\n", "    {}\n",),
                     hex::encode(&self.her_temp_pub_key),
                 );
@@ -789,7 +788,7 @@ impl SessionMut {
         encrypt_rnd_nonce(handshake_nonce, msg, shared_secret);
 
         if CryptoAuth::LOG_KEYS {
-            debug!(
+            log::debug!(
                 concat!(
                     "Encrypting message with:\n",
                     "    nonce: {}\n",
@@ -929,7 +928,7 @@ impl SessionMut {
             .expect("discard above authenticator");
 
         if CryptoAuth::LOG_KEYS {
-            debug!(
+            log::debug!(
                 concat!(
                     "Decrypting message with:\n",
                     "    nonce: {}\n",
@@ -961,7 +960,7 @@ impl SessionMut {
         }
 
         if CryptoAuth::LOG_KEYS {
-            debug!(
+            log::debug!(
                 concat!("Unwrapping temp public key:\n", "    {}\n",),
                 hex::encode(&header.encrypted_temp_key),
             );
@@ -1168,7 +1167,6 @@ fn ip6_from_key(key: &[u8; 32]) -> [u8; 16] {
 pub struct PlaintextRecv(Arc<Session>);
 impl IfRecv for PlaintextRecv {
     fn recv(&self, m: &mut Message) -> Result<()> {
-        println!("Encrypt");
         self.0.encrypt(m)?;
         self.0.cipher_pvt.send(m)
     }
@@ -1178,13 +1176,14 @@ impl IfRecv for CiphertextRecv {
     fn recv(&self, m: &mut Message) -> Result<()> {
         let mut first16 = [0_u8; 16];
         first16.copy_from_slice(m.peek_bytes(16)?);
+        log::debug!("Decrypt msg {}", m.len());
         match self.0.decrypt(m) {
             Ok(()) => {
                 m.push(0_u32)?;
                 self.0.plain_pvt.send(m)
             }
             Err(e) => {
-                println!("Error decrypting {} {}", e, m.len());
+                log::debug!("Error decrypting {} {}", e, m.len());
                 let ee = match e.downcast_ref::<DecryptError>() {
                     Some(ee) => match ee {
                         DecryptError::DecryptErr(ee) => ee,
@@ -1284,7 +1283,7 @@ impl Session {
         if log::log_enabled!(log::Level::Debug) {
             t.set_logger(
                 Box::new(|s: &str| {
-                    debug!("[NOISE] {}", s);
+                    log::debug!("[NOISE] {}", s);
                 }),
                 boringtun::noise::Verbosity::Debug,
             );
@@ -1522,7 +1521,7 @@ fn get_shared_secret(
     };
 
     if CryptoAuth::LOG_KEYS {
-        debug!(
+        log::debug!(
             concat!(
                 "Generated a shared secret:\n",
                 "     myPublicKey={}\n",

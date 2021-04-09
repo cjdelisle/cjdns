@@ -54,4 +54,6 @@ void Rffi_CryptoAuth2_stats(const RTypes_CryptoAuth2_Session_t *session,
 
 void Rffi_panic(const char *msg);
 
+void Rffi_setLogger(Log_t *l);
+
 #endif /* rffi_H */

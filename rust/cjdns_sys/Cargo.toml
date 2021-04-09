@@ -10,7 +10,7 @@ sodiumoxide = { git = "https://github.com/cjdelisle/sodiumoxide", rev = "9f6a18d
 cjdns-keys = { git = "https://github.com/CJDNS-Development-Team/CJDNS", version = "0.1.0" }
 cjdns-crypto = { git = "https://github.com/CJDNS-Development-Team/CJDNS", version = "0.1.0" }
 hex = "0.4"
-log = "0.4"
+log = { version = "0.4", features = ["std", "release_max_level_trace"] }
 parking_lot = "0.11"
 thiserror = "1.0"
 anyhow = "1.0"

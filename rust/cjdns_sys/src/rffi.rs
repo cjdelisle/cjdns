@@ -11,7 +11,6 @@ use crate::crypto::crypto_auth;
 use crate::crypto::keys::{IpV6, PrivateKey, PublicKey};
 use crate::external::interface::cif;
 use crate::external::memory::allocator;
-use crate::interface::wire::message::Message;
 use crate::rtypes::*;
 
 // This file is used to generate cbindings.h using cbindgen
@@ -264,4 +263,13 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_stats(
 #[no_mangle]
 pub unsafe extern "C" fn Rffi_panic(msg: *const c_char) -> ! {
     panic!("{}", std::ffi::CStr::from_ptr(msg).to_string_lossy())
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn Rffi_setLogger(l: *mut cffi::Log_t) {
+    //log::set_max_level(log::LevelFilter::Trace);
+    match log::set_boxed_logger(Box::new(crate::cjdnslog::CjdnsLog::new(l))) {
+        Ok(_) => (),
+        Err(e) => panic!("Unable to set logger: {}", e),
+    }
 }

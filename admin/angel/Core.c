@@ -441,6 +441,7 @@ int Core_main(int argc, char** argv)
 
     struct Allocator* alloc = MallocAllocator_new(ALLOCATOR_FAILSAFE);
     struct Log* preLogger = FileWriterLog_new(stderr, alloc);
+    Rffi_setLogger(preLogger);
     struct EventBase* eventBase = EventBase_new(alloc);
 
     // -------------------- Setup the Pre-Logger ---------------------- //
@@ -513,6 +514,7 @@ int Core_main(int argc, char** argv)
         struct Log* adminLogger = AdminLog_registerNew(admin, alloc, rand, eventBase);
         IndirectLog_set(logger, adminLogger);
         logger = adminLogger;
+        Rffi_setLogger(logger);
     }
 
     // --------------------- Inform client of UDP Addr --------------------- //

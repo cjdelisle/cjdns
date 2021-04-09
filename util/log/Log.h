@@ -68,6 +68,8 @@ void Log_print(struct Log* log,
                const char* format,
                ...);
 
+void Log_print0(struct Log* log, enum Log_Level lvl, const char* file, int line, const char* msg);
+
 #define Log_printf(log, level, ...) \
     do {                                                                   \
         if (log && level >= Log_MIN_LEVEL) {                               \

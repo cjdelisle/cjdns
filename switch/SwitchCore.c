@@ -188,7 +188,6 @@ static Iface_DEFUN receiveMessage(struct Message* message, struct Iface* iface)
     if (core->interfaces[destIndex].alloc == NULL) {
         if (sourceIndex == 1) {
             DEBUG_SRC_DST(core->logger, "DROP packet we tried to send, no such peer");
-            Assert_failure("");
         }
         // This is important, but it's someone else's important problem
         // DEBUG_SRC_DST(core->logger, "DROP packet because there is no interface "

@@ -88,6 +88,11 @@ static int incomingFromDHT(struct DHTMessage* dmessage, void* vpf)
         DHTModuleRegistry_handleIncoming(dmessage, pf->registry);
         return 0;
     }
+    // This seems to be happening, this whole section of the code is deprecated so lets not
+    // try to debug it too much and just squash the message.
+    if (addr->path == 0xffffffffffffffffull) {
+        return 0;
+    }
 
     // Sanity check (make sure the addr was actually calculated)
     Assert_true(AddressCalc_validAddress(addr->ip6.bytes));

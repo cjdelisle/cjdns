@@ -55,6 +55,7 @@ mod interface {
 
 mod bytestring;
 mod cffi;
+mod cjdnslog;
 mod crypto;
 mod rffi;
 mod rtypes;

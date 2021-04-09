@@ -302,13 +302,15 @@ extern "C" {
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct Message {
-    pub length: i32,
-    pub padding: i32,
-    pub bytes: *mut u8,
-    pub capacity: i32,
-    pub associatedFd: ::std::os::raw::c_int,
+    pub _length: i32,
+    pub _padding: i32,
+    pub msgbytes: *mut u8,
+    pub _capacity: i32,
+    pub _adLen: i32,
+    pub _ad: *mut u8,
+    pub _associatedFd: ::std::os::raw::c_int,
     pub currentIface: *mut Iface,
-    pub alloc: *mut Allocator,
+    pub _alloc: *mut Allocator,
 }
 pub type Message_t = Message;
 extern "C" {
@@ -408,6 +410,7 @@ pub enum Log_Level {
 pub struct Log {
     _unused: [u8; 0],
 }
+pub type Log_t = Log;
 extern "C" {
     pub fn Log_nameForLevel(logLevel: Log_Level) -> *mut ::std::os::raw::c_char;
 }
@@ -422,6 +425,23 @@ extern "C" {
         line: ::std::os::raw::c_int,
         format: *const ::std::os::raw::c_char,
         ...
+    );
+}
+extern "C" {
+    pub fn Log_shouldLog(
+        log: *mut Log,
+        logLevel: Log_Level,
+        file: *const ::std::os::raw::c_char,
+        line: ::std::os::raw::c_int,
+    ) -> bool;
+}
+extern "C" {
+    pub fn Log_print0(
+        log: *mut Log,
+        lvl: Log_Level,
+        file: *const ::std::os::raw::c_char,
+        line: ::std::os::raw::c_int,
+        msg: *const ::std::os::raw::c_char,
     );
 }
 pub type RandomSeed_t = RandomSeed_s;
@@ -498,7 +518,8 @@ pub struct CryptoAuth {
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct CryptoAuth_Session {
-    pub opaque: ::std::os::raw::c_int,
+    pub plaintext: Iface,
+    pub ciphertext: Iface,
 }
 #[repr(i32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -540,40 +561,9 @@ extern "C" {
         alloc: *mut Allocator,
         herPublicKey: *const u8,
         requireAuth: bool,
-        name: *mut ::std::os::raw::c_char,
+        name: *const ::std::os::raw::c_char,
+        useNoise: bool,
     ) -> *mut CryptoAuth_Session;
-}
-extern "C" {
-    pub fn CryptoAuth_encrypt(
-        session: *mut CryptoAuth_Session,
-        msg: *mut Message,
-    ) -> ::std::os::raw::c_int;
-}
-#[repr(u32)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum CryptoAuth_DecryptErr {
-    CryptoAuth_DecryptErr_NONE = 0,
-    CryptoAuth_DecryptErr_RUNT = 1,
-    CryptoAuth_DecryptErr_NO_SESSION = 2,
-    CryptoAuth_DecryptErr_FINAL_SHAKE_FAIL = 3,
-    CryptoAuth_DecryptErr_FAILED_DECRYPT_RUN_MSG = 4,
-    CryptoAuth_DecryptErr_KEY_PKT_ESTABLISHED_SESSION = 5,
-    CryptoAuth_DecryptErr_WRONG_PERM_PUBKEY = 6,
-    CryptoAuth_DecryptErr_IP_RESTRICTED = 7,
-    CryptoAuth_DecryptErr_AUTH_REQUIRED = 8,
-    CryptoAuth_DecryptErr_UNRECOGNIZED_AUTH = 9,
-    CryptoAuth_DecryptErr_STRAY_KEY = 10,
-    CryptoAuth_DecryptErr_HANDSHAKE_DECRYPT_FAILED = 11,
-    CryptoAuth_DecryptErr_WISEGUY = 12,
-    CryptoAuth_DecryptErr_INVALID_PACKET = 13,
-    CryptoAuth_DecryptErr_REPLAY = 14,
-    CryptoAuth_DecryptErr_DECRYPT = 15,
-}
-extern "C" {
-    pub fn CryptoAuth_decrypt(
-        sess: *mut CryptoAuth_Session,
-        msg: *mut Message,
-    ) -> CryptoAuth_DecryptErr;
 }
 extern "C" {
     pub fn CryptoAuth_setAuth(
@@ -636,4 +626,5 @@ pub struct RBindings_Whitelist {
     pub c: CryptoAuth_addUser_Res,
     pub d: Message_t,
     pub e: String_t,
+    pub f: *mut Log_t,
 }

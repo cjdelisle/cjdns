@@ -35,7 +35,7 @@ pub type Result<T> = std::result::Result<T, MessageError>;
 
 impl Message {
     pub fn new(&self, padding: usize) -> Self {
-        unsafe { Message(cffi::Message_new(0, padding as u32, (*self.0).alloc)) }
+        unsafe { Message(cffi::Message_new(0, padding as u32, (*self.0)._alloc)) }
     }
 
     /// Construct a Rust `Message` by wrapping a pointer to C `Message`.
@@ -57,31 +57,31 @@ impl Message {
     #[inline]
     pub fn len(&self) -> usize {
         let msg = unsafe { &mut (*self.0) };
-        debug_assert!(msg.length >= 0);
-        msg.length as usize
+        debug_assert!(msg._length >= 0);
+        msg._length as usize
     }
 
     /// Get the message capacity.
     #[inline]
     pub fn cap(&self) -> usize {
         let msg = unsafe { &mut (*self.0) };
-        debug_assert!(msg.capacity >= 0);
-        msg.capacity as usize
+        debug_assert!(msg._capacity >= 0);
+        msg._capacity as usize
     }
 
     /// Get the available padding size.
     #[inline]
     pub fn pad(&self) -> usize {
         let msg = unsafe { &mut (*self.0) };
-        debug_assert!(msg.padding >= 0);
-        msg.padding as usize
+        debug_assert!(msg._padding >= 0);
+        msg._padding as usize
     }
 
     /// Check the message data alignment.
     #[inline]
     pub fn is_aligned_to(&self, align: usize) -> bool {
         let msg = unsafe { &mut (*self.0) };
-        let data_ptr = msg.bytes as usize;
+        let data_ptr = msg.msgbytes as usize;
         data_ptr % align == 0
     }
 
@@ -89,10 +89,10 @@ impl Message {
     #[inline]
     pub fn bytes(&self) -> &[u8] {
         let msg = unsafe { &mut (*self.0) };
-        debug_assert!(!msg.bytes.is_null());
-        debug_assert!(msg.length >= 0);
-        let ptr = msg.bytes as *const u8;
-        let len = msg.length as usize;
+        debug_assert!(!msg.msgbytes.is_null());
+        debug_assert!(msg._length >= 0);
+        let ptr = msg.msgbytes as *const u8;
+        let len = msg._length as usize;
         unsafe { from_raw_parts(ptr, len) }
     }
 
@@ -100,10 +100,10 @@ impl Message {
     #[inline]
     pub fn bytes_mut(&mut self) -> &mut [u8] {
         let msg = unsafe { &mut (*self.0) };
-        debug_assert!(!msg.bytes.is_null());
-        debug_assert!(msg.length >= 0);
-        let ptr = msg.bytes;
-        let len = msg.length as usize;
+        debug_assert!(!msg.msgbytes.is_null());
+        debug_assert!(msg._length >= 0);
+        let ptr = msg.msgbytes;
+        let len = msg._length as usize;
         unsafe { from_raw_parts_mut(ptr, len) }
     }
 
@@ -273,7 +273,7 @@ impl Message {
     #[inline]
     fn data_ref<T>(&self) -> Option<&T> {
         let msg = unsafe { &mut (*self.0) };
-        let ptr = msg.bytes as usize;
+        let ptr = msg.msgbytes as usize;
         let align = std::mem::align_of::<T>();
         if ptr % align == 0 {
             let ptr = ptr as *const T;
@@ -287,7 +287,7 @@ impl Message {
     #[inline]
     fn data_ref_mut<T>(&mut self) -> Option<&mut T> {
         let msg = unsafe { &mut (*self.0) };
-        let ptr = msg.bytes as usize;
+        let ptr = msg.msgbytes as usize;
         let align = std::mem::align_of::<T>();
         if ptr % align == 0 {
             let ptr = ptr as *mut T;
@@ -301,25 +301,25 @@ impl Message {
     fn shift(&mut self, amount: i32) -> Result<()> {
         let msg = unsafe { &mut (*self.0) };
 
-        debug_assert!(msg.length >= 0);
-        debug_assert!(msg.padding >= 0);
+        debug_assert!(msg._length >= 0);
+        debug_assert!(msg._padding >= 0);
 
         if amount > 0 {
-            if msg.padding < amount {
-                return Err(MessageError::BufferOverflow(amount, msg.length));
+            if msg._padding < amount {
+                return Err(MessageError::BufferOverflow(amount, msg._length));
             }
         } else if amount < 0 {
-            if msg.length < -amount {
-                return Err(MessageError::BufferUnderflow(-amount, msg.length));
+            if msg._length < -amount {
+                return Err(MessageError::BufferUnderflow(-amount, msg._length));
             }
         } else {
             return Ok(());
         }
 
-        msg.length += amount;
-        msg.capacity += amount;
-        msg.bytes = (msg.bytes as isize - amount as isize) as *mut u8;
-        msg.padding -= amount;
+        msg._length += amount;
+        msg._capacity += amount;
+        msg.msgbytes = (msg.msgbytes as isize - amount as isize) as *mut u8;
+        msg._padding -= amount;
 
         Ok(())
     }
