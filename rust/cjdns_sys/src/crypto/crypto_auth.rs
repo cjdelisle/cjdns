@@ -1374,7 +1374,7 @@ impl Session {
             };
             for sm in sendme {
                 let mut m = msg.new(sm.len() + 256);
-                self.cipher_pvt.send(&mut m);
+                self.cipher_pvt.send(&mut m)?;
             }
             Ok(())
         } else {
