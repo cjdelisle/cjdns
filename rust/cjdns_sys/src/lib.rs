@@ -13,6 +13,7 @@ macro_rules! c_main {
             fn $cmain(argc: c_int, argv: *const *mut c_char);
         }
         fn main() {
+            cjdns_sys::cjdnslog::install();
             cjdns_sys::init_sodium();
             if std::env::var("RUST_BACKTRACE").is_err() {
                 std::env::set_var("RUST_BACKTRACE", "1");
@@ -55,7 +56,7 @@ mod interface {
 
 mod bytestring;
 mod cffi;
-mod cjdnslog;
+pub mod cjdnslog;
 mod crypto;
 mod rffi;
 mod rtypes;

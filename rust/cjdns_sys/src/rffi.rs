@@ -266,9 +266,5 @@ pub unsafe extern "C" fn Rffi_panic(msg: *const c_char) -> ! {
 
 #[no_mangle]
 pub unsafe extern "C" fn Rffi_setLogger(l: *mut cffi::Log_t) {
-    //log::set_max_level(log::LevelFilter::Trace);
-    match log::set_boxed_logger(Box::new(crate::cjdnslog::CjdnsLog::new(l))) {
-        Ok(_) => (),
-        Err(e) => panic!("Unable to set logger: {}", e),
-    }
+    crate::cjdnslog::set_ffi_logger(l);
 }

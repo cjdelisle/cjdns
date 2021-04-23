@@ -1,32 +1,69 @@
-use parking_lot::Mutex;
+//! Logger implementation that sends all messages to the native C logger.
+//!
+//! To use this logger, first call `install()` early in your program,
+//! this mut only be done once, and then call `set_ffi_logger()` at least one time.
+//!
+//! Repeated calls to `set_ffi_logger()` are allowed, but if it is not called at all,
+//! all log messages would be lost.
+
+use std::ffi::CString;
+use std::ptr::null_mut;
+
+use parking_lot::{const_mutex, Mutex};
 
 use crate::cffi;
 
-use std::ffi::CString;
-
+/// Wrapper over native C logger
 pub struct CjdnsLog {
     log: Mutex<*mut cffi::Log>,
 }
 unsafe impl Send for CjdnsLog {}
 unsafe impl Sync for CjdnsLog {}
 
-impl CjdnsLog {
-    pub fn new(l: *mut cffi::Log) -> CjdnsLog {
-        CjdnsLog { log: Mutex::new(l) }
-    }
-}
+/// The only instance of CjdnsLog, never dropped
+static INSTANCE: CjdnsLog = CjdnsLog::new();
 
 impl Drop for CjdnsLog {
     fn drop(&mut self) {
-        panic!("cjdnslog dropped");
+        panic!("CjdnsLog instance dropped - should never happen");
+    }
+}
+
+/// Install the logger, call early in the program.
+pub fn install() {
+    match log::set_logger(&INSTANCE) {
+        Ok(_) => (),
+        Err(e) => panic!("Unable to set logger: {}", e),
+    }
+    log::set_max_level(log::LevelFilter::Trace);
+}
+
+/// Set the native logger, call at least once after calling `install()`.
+pub fn set_ffi_logger(l: *mut cffi::Log) {
+    INSTANCE.set_ffi_logger_impl(l);
+}
+
+impl CjdnsLog {
+    const fn new() -> CjdnsLog {
+        CjdnsLog { log: const_mutex(null_mut()) }
+    }
+
+    fn set_ffi_logger_impl(&self, l: *mut cffi::Log) {
+        let mut log = self.log.lock();
+        *log = l;
     }
 }
 
 impl log::Log for CjdnsLog {
     fn enabled(&self, _metadata: &log::Metadata<'_>) -> bool {
-        true
+        !self.log.lock().is_null()
     }
+
     fn log(&self, record: &log::Record<'_>) {
+        if self.log.lock().is_null() {
+            return;
+        }
+
         let lvl = match record.level() {
             log::Level::Error => cffi::Log_Level::Log_Level_ERROR,
             log::Level::Warn => cffi::Log_Level::Log_Level_WARN,
@@ -59,5 +96,6 @@ impl log::Log for CjdnsLog {
             )
         };
     }
+
     fn flush(&self) {}
 }
