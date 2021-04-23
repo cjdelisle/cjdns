@@ -1,14 +1,13 @@
 #![allow(non_snake_case)]
 #![allow(non_camel_case_types)]
 
-use std::convert::TryFrom;
 use std::os::raw::{c_char, c_int};
 use std::sync::Arc;
 
 use crate::bytestring::ByteString;
-use crate::cffi::{self, Allocator_t, Message_t, Random_t, String_t};
+use crate::cffi::{self, Allocator_t, Random_t, String_t};
 use crate::crypto::crypto_auth;
-use crate::crypto::keys::{IpV6, PrivateKey, PublicKey};
+use crate::crypto::keys::{PrivateKey, PublicKey};
 use crate::external::interface::cif;
 use crate::external::memory::allocator;
 use crate::rtypes::*;

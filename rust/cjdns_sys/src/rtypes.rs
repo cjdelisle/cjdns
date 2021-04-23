@@ -1,9 +1,7 @@
 #![allow(non_snake_case)]
 #![allow(non_camel_case_types)]
-use std::sync::Arc;
 
 use crate::cffi::{self, Iface_t, String_t};
-use crate::crypto::crypto_auth;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
