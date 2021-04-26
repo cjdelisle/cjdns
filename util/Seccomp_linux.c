@@ -212,6 +212,11 @@ static Er_DEFUN(struct sock_fprog* mkFilter(struct Allocator* alloc))
         // Get the syscall num.
         LOAD(offsetof(struct seccomp_data, nr)),
 
+        // rust/threading
+        #ifdef __NR_futex
+            IFEQ(__NR_futex, success),
+        #endif
+
         // udp
         #ifdef __NR_sendmsg
             IFEQ(__NR_sendmsg, success),
