@@ -86,7 +86,9 @@ static Iface_DEFUN incomingFromTunIf(struct Message* msg, struct Iface* tunIf)
 
     // first move the dest addr to the right place.
     #pragma GCC diagnostic push
+    #ifdef __clang__
     #pragma GCC diagnostic ignored "-Wfortify-source"
+    #endif
     Bits_memmove(header->destinationAddr - DataHeader_SIZE, header->destinationAddr, 16);
     #pragma GCC diagnostic pop
 
@@ -134,7 +136,9 @@ static Iface_DEFUN incomingFromUpperDistributorIf(struct Message* msg,
 
     // Shift ip address into destination slot.
     #pragma GCC diagnostic push
+    #ifdef __clang__
     #pragma GCC diagnostic ignored "-Wfortify-source"
+    #endif
     Bits_memmove(hdr->ip6 + DataHeader_SIZE - 16, hdr->ip6, 16);
     #pragma GCC diagnostic pop
     // put my address as destination.
