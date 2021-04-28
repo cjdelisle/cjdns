@@ -326,6 +326,10 @@ impl Message {
 
     /// Clear the message: discard all data and set size to 0.
     pub fn clear(&mut self) {
+        unsafe {
+            let mut msg = &mut (*self.0);
+            msg._length = msg._capacity;
+        }
         let size = self.len() as i32;
         if size > 0 {
             self.shift(-size).expect("clear");

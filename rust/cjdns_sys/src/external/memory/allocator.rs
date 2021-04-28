@@ -7,7 +7,7 @@ use std::os::raw::{c_char, c_int, c_void};
 unsafe extern "C" fn drop_on_free(job_p: *mut Allocator_OnFreeJob) -> c_int {
     let job = job_p.as_ref().unwrap();
     Box::from_raw(job.userData as *mut Box<dyn std::any::Any>);
-    0 as c_int
+    0
 }
 
 /// "Adopt" a structure in Rust and transfer logical ownership to an Allocator.
@@ -28,7 +28,7 @@ pub fn adopt<T: 'static>(alloc: *mut Allocator, t: T) -> &'static mut T {
             Some(drop_on_free),
             out as *mut c_void,
             b"<rust>\0".as_ptr() as *const c_char,
-            0 as c_int,
+            0,
         );
         out.as_mut().unwrap().downcast_mut().unwrap()
     }
