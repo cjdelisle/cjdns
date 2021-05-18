@@ -521,6 +521,13 @@ static int encryptPacket(struct CryptoAuth_Session_pvt* session, struct Message*
     return 0;
 }
 
+/** @return 0 on success, -1 otherwise. */ // Now only used in unit tests on Rust side
+int CryptoAuth_encrypt(struct CryptoAuth_Session* sessionPub, struct Message* msg) {
+    struct CryptoAuth_Session_pvt *session =
+            Identity_check((struct CryptoAuth_Session_pvt *) sessionPub);
+    return encryptPacket(session, msg);
+}
+
 /** Call the external interface and tell it that a message has been received. */
 static inline void updateTime(struct CryptoAuth_Session_pvt* session, struct Message* message)
 {
@@ -904,6 +911,14 @@ static enum CryptoAuth_DecryptErr decryptPacket(struct CryptoAuth_Session_pvt* s
         return CryptoAuth_DecryptErr_KEY_PKT_ESTABLISHED_SESSION;
     }
     Assert_failure("unreachable");
+}
+
+/** @return 0 on success, -1 otherwise. */ // Now only used in unit tests on Rust side
+enum CryptoAuth_DecryptErr CryptoAuth_decrypt(struct CryptoAuth_Session* sessionPub,
+                                              struct Message* msg) {
+    struct CryptoAuth_Session_pvt *session =
+            Identity_check((struct CryptoAuth_Session_pvt *) sessionPub);
+    return decryptPacket(session, msg);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////

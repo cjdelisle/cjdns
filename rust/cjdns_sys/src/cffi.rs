@@ -565,6 +565,41 @@ extern "C" {
         useNoise: bool,
     ) -> *mut CryptoAuth_Session;
 }
+#[cfg(test)]
+extern "C" { // Used in unit tests only
+    pub fn CryptoAuth_encrypt(
+        session: *mut CryptoAuth_Session,
+        msg: *mut Message,
+    ) -> ::std::os::raw::c_int;
+}
+#[cfg(test)]
+#[repr(u32)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum CryptoAuth_DecryptErr { // Used in unit tests only
+    CryptoAuth_DecryptErr_NONE = 0,
+    CryptoAuth_DecryptErr_RUNT = 1,
+    CryptoAuth_DecryptErr_NO_SESSION = 2,
+    CryptoAuth_DecryptErr_FINAL_SHAKE_FAIL = 3,
+    CryptoAuth_DecryptErr_FAILED_DECRYPT_RUN_MSG = 4,
+    CryptoAuth_DecryptErr_KEY_PKT_ESTABLISHED_SESSION = 5,
+    CryptoAuth_DecryptErr_WRONG_PERM_PUBKEY = 6,
+    CryptoAuth_DecryptErr_IP_RESTRICTED = 7,
+    CryptoAuth_DecryptErr_AUTH_REQUIRED = 8,
+    CryptoAuth_DecryptErr_UNRECOGNIZED_AUTH = 9,
+    CryptoAuth_DecryptErr_STRAY_KEY = 10,
+    CryptoAuth_DecryptErr_HANDSHAKE_DECRYPT_FAILED = 11,
+    CryptoAuth_DecryptErr_WISEGUY = 12,
+    CryptoAuth_DecryptErr_INVALID_PACKET = 13,
+    CryptoAuth_DecryptErr_REPLAY = 14,
+    CryptoAuth_DecryptErr_DECRYPT = 15,
+}
+#[cfg(test)]
+extern "C" { // Used in unit tests only
+    pub fn CryptoAuth_decrypt(
+        sess: *mut CryptoAuth_Session,
+        msg: *mut Message,
+    ) -> CryptoAuth_DecryptErr;
+}
 extern "C" {
     pub fn CryptoAuth_setAuth(
         password: *const String,

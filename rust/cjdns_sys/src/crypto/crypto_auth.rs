@@ -1820,7 +1820,7 @@ mod tests {
             sess.unwrap()
         }
 
-        let (my_session, my_plain, my_cipher) = mk_sess(
+        let (my_session, _my_plain, _my_cipher) = mk_sess(
             my_keys.private_key.clone(),
             her_keys.public_key.clone(),
             "bob",
@@ -1834,7 +1834,7 @@ mod tests {
         assert!(res.is_ok());
         assert_ne!(msg.len(), orig_length);
 
-        let (her_session, her_plain, her_cipher) =
+        let (her_session, _her_plain, _her_cipher) =
             mk_sess(her_keys.private_key, my_keys.public_key, "alice");
 
         let res = her_session.decrypt(&mut msg);
@@ -1882,7 +1882,7 @@ mod tests {
             );
         }
 
-        let (my_session, my_plain, my_cipher) = mk_sess(
+        let (my_session, _my_plain, _my_cipher) = mk_sess(
             my_keys.private_key.clone(),
             her_keys.public_key.clone(),
             "bob",
@@ -1897,7 +1897,7 @@ mod tests {
         assert!(res.is_ok());
         assert_ne!(msg.len(), orig_length);
 
-        let (her_session, her_plain, her_cipher) =
+        let (her_session, _her_plain, _her_cipher) =
             mk_sess(her_keys.private_key, my_keys.public_key, "alice");
         set_auth(&her_session, "bob");
 
@@ -1913,7 +1913,7 @@ mod tests {
         let my_keys = keys_api.key_pair();
         let her_keys = keys_api.key_pair();
 
-        let (rust_session, rust_plain, rust_cipher) = {
+        let (rust_session, _rust_plain, _rust_cipher) = {
             let priv_key = my_keys.private_key.clone();
             let pub_key = her_keys.public_key.clone();
             let name = "bob";
@@ -1983,6 +1983,7 @@ mod tests {
                     pub_key.as_ptr(),
                     false,
                     format!("{}'s session", name).as_mut_ptr() as *mut i8,
+                    false,
                 )
             }
         };
@@ -2034,6 +2035,7 @@ mod tests {
                     pub_key.as_ptr(),
                     false,
                     format!("{}'s session", name).as_mut_ptr() as *mut i8,
+                    false,
                 )
             }
         };
@@ -2046,7 +2048,7 @@ mod tests {
         assert_eq!(res, 0);
         assert_ne!(msg.len(), orig_length);
 
-        let (rust_session, rust_plain, rust_cipher) = {
+        let (rust_session, _rust_plain, _rust_cipher) = {
             let priv_key = her_keys.private_key;
             let pub_key = my_keys.public_key;
             let name = "alice";
@@ -2119,13 +2121,13 @@ mod tests {
             sess.unwrap()
         }
 
-        let (her_session, her_plain, her_cipher) = mk_sess(
+        let (her_session, _her_plain, _her_cipher) = mk_sess(
             her_keys.private_key.clone(),
             my_keys.public_key.clone(),
             "alice",
         );
 
-        let (my_session, my_plain, my_cipher) =
+        let (my_session, _my_plain, _my_cipher) =
             mk_sess(my_keys.private_key, her_keys.public_key, "bob");
 
         let mut msg = mk_msg(1024);
