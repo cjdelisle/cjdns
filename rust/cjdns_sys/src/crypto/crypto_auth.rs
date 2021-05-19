@@ -1363,9 +1363,10 @@ impl Session {
     }
 
     /// Decrypt a packet from the peer inplace. If the msg is non-empty, it is the
-    /// decrypted plaintext. Also, additional messages might be required to send to the peer,
-    /// in that case the result is `Some` vec of packets. Each packet must be sent separately.
-    /// If no additional messages required, the result is `None` (handshake already completed).
+    /// decrypted plaintext.
+    ///
+    /// Additional messages might be sent to the peer (in the handshake phase),
+    /// the corresponding iface is used in that case.
     fn decrypt(&self, msg: &mut Message) -> Result<()> {
         if let Some(tunnel) = self.tunnel.as_ref() {
             let sendme = match Self::tun_recv(tunnel, msg)? {
