@@ -1167,6 +1167,7 @@ fn ip6_from_key(key: &[u8; 32]) -> [u8; 16] {
 pub struct PlaintextRecv(Arc<Session>);
 impl IfRecv for PlaintextRecv {
     fn recv(&self, m: &mut Message) -> Result<()> {
+        anyhow::ensure!(m.len() > 0, "Zero-length message is prohibited"); // No real message can be 0 bytes in length
         self.0.encrypt(m)?;
         self.0.cipher_pvt.send(m)
     }
@@ -1179,8 +1180,13 @@ impl IfRecv for CiphertextRecv {
         log::debug!("Decrypt msg {}", m.len());
         match self.0.decrypt(m) {
             Ok(()) => {
-                m.push(0_u32)?;
-                self.0.plain_pvt.send(m)
+                let is_system_handshake = m.len() == 0; // No real message can be 0 bytes in length
+                if is_system_handshake {
+                    Ok(())
+                } else {
+                    m.push(0_u32)?;
+                    self.0.plain_pvt.send(m)
+                }
             }
             Err(e) => {
                 log::debug!("Error decrypting {} {}", e, m.len());
@@ -1375,6 +1381,7 @@ impl Session {
             };
             for sm in sendme {
                 let mut m = msg.new(sm.len() + 256);
+                m.push_bytes(&sm)?;
                 self.cipher_pvt.send(&mut m)?;
             }
             Ok(())
@@ -1403,7 +1410,7 @@ impl Session {
         buf.resize(buf_size, 0);
         let res = tun.encapsulate(msg.bytes(), &mut buf);
         match res {
-            TunnResult::Err(e) => bail!("Wiregiard error: {:?}", e),
+            TunnResult::Err(e) => bail!("Wireguard error: {:?}", e),
             TunnResult::Done => {
                 // This means we need to return empty buffer
                 msg.clear();
@@ -1720,6 +1727,8 @@ mod debug {
 
 #[cfg(test)]
 mod tests {
+    use std::cell::RefCell;
+    use std::rc::Rc;
     use std::sync::Arc;
 
     use cjdns_keys::{CJDNSKeysApi, PrivateKey, PublicKey};
@@ -1738,6 +1747,19 @@ mod tests {
             let alloc =
                 cffi::MallocAllocator__new((padding as u64) + 256, "".as_ptr() as *const c_char, 0);
             Message::from_c_message(cffi::Message_new(0, padding as u32, alloc))
+        }
+    }
+
+    fn mk_msg_alloc(padding: usize, alloc: *mut cffi::Allocator) -> Message {
+        unsafe {
+            Message::from_c_message(cffi::Message_new(0, padding as u32, alloc))
+        }
+    }
+
+    fn mk_alloc(size: u64) -> *mut cffi::Allocator {
+        use std::os::raw::c_char;
+        unsafe {
+            cffi::MallocAllocator__new(size, "".as_ptr() as *const c_char, 0)
         }
     }
 
@@ -2165,5 +2187,96 @@ mod tests {
 
         assert_eq!(msg.len(), orig_length);
         assert_eq!(msg.bytes(), b"Hello World");
+    }
+
+    #[test]
+    pub fn test_wireguard_iface_encrypt_decrypt() {
+        let keys_api = CJDNSKeysApi::new().unwrap();
+        let alice_keys = keys_api.key_pair();
+        let bob_keys = keys_api.key_pair();
+
+        let mut msg = mk_msg_alloc(1024, mk_alloc(65536));
+        let alice_received_text = Rc::new(RefCell::new(Vec::new()));
+        let bob_received_text = Rc::new(RefCell::new(Vec::new()));
+
+        fn mk_sess(
+            my_priv_key: PrivateKey,
+            her_pub_key: PublicKey,
+            name: &str,
+        ) -> (Arc<super::Session>, Iface, Iface) {
+            let ca = super::CryptoAuth::new(Some(my_priv_key), EventBase {}, Random::Fake);
+            let ca = Arc::new(ca);
+
+            let res = ca.add_user_ipv6(
+                ByteString::from(name.to_string()),
+                Some(ByteString::from(name.to_string())),
+                None,
+            );
+            assert_eq!(res.err(), None);
+
+            let sess = super::Session::new(
+                ca,
+                her_pub_key,
+                false,
+                Some(format!("{}'s session", name)),
+                true,
+            );
+            sess.unwrap()
+        }
+
+        // Setup
+        let (alice_send, bob_send) = {
+            use crate::external::interface::iface::{self, IfRecv};
+
+            // Plaintext receiver
+            struct Plaintext(Rc<RefCell<Vec<u8>>>);
+            impl IfRecv for Plaintext {
+                fn recv(&self, m: &mut Message) -> anyhow::Result<()> {
+                    assert!(m.len() > 4, "empty message received");
+                    m.discard_bytes(4)?; // Extra zeroes added by CiphertextRecv
+                    self.0.borrow_mut().extend_from_slice(m.peek_bytes(m.len())?);
+                    Ok(())
+                }
+            }
+
+            let (_alice_session, mut alice_plain, mut alice_cipher) = mk_sess(alice_keys.private_key, bob_keys.public_key, "alice");
+            let (_bob_session, mut bob_plain, mut bob_cipher) = mk_sess(bob_keys.private_key, alice_keys.public_key, "bob");
+            let res = bob_cipher.plumb(&mut alice_cipher);
+            assert!(res.is_ok(), "plumbing sessions together failed");
+
+            let (mut alice_plaintext, alice_plaintext_pvt) = iface::new("Alice plaintext");
+            alice_plaintext.set_receiver(Plaintext(alice_received_text.clone()));
+            let res = alice_plaintext.plumb(&mut alice_plain);
+            assert!(res.is_ok(), "plumbing Alice failed");
+
+            let (mut bob_plaintext, bob_plaintext_pvt) = iface::new("Bob plaintext");
+            bob_plaintext.set_receiver(Plaintext(bob_received_text.clone()));
+            let res = bob_plaintext.plumb(&mut bob_plain);
+            assert!(res.is_ok(), "plumbing Bob failed");
+
+            (alice_plaintext_pvt, bob_plaintext_pvt)
+        };
+
+        assert!(alice_received_text.borrow().is_empty());
+        assert!(bob_received_text.borrow().is_empty());
+
+        // Message Bob -> Alice
+        assert_eq!(msg.len(), 0);
+        msg.push_bytes(b"Hello World").unwrap();
+
+        let res = bob_send.send(&mut msg);
+        assert!(res.is_ok());
+
+        assert_eq!(alice_received_text.borrow().as_slice(), b"Hello World");
+        assert!(bob_received_text.borrow().is_empty()); // still empty
+
+        // Message back Alice -> Bob
+        assert_eq!(msg.len(), 0);
+        msg.push_bytes(b"Goodbye Universe").unwrap();
+        let res = alice_send.send(&mut msg);
+        assert!(res.is_ok());
+
+        assert_eq!(bob_received_text.borrow().as_slice(), b"Goodbye Universe");
+        assert_eq!(alice_received_text.borrow().as_slice(), b"Hello World"); // still unchanged
     }
 }

@@ -34,6 +34,11 @@ pub enum MessageError {
 pub type Result<T> = std::result::Result<T, MessageError>;
 
 impl Message {
+    /// Create empty new message with the given amount of free space,
+    /// using the same allocator as `self` does.
+    ///
+    /// Note: this function does *NOT* clone original message,
+    /// the resulting message will be empty.
     pub fn new(&self, padding: usize) -> Self {
         unsafe { Message(cffi::Message_new(0, padding as u32, (*self.0)._alloc)) }
     }
