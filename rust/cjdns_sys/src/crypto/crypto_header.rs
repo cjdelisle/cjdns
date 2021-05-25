@@ -34,9 +34,6 @@ pub enum AuthType {
     /// which is known by the received of the packet to be associated
     /// with the password used for making the symmetric secret.
     Two = 2,
-
-    /// AuthType Three uses WireGuard protocol, everything else is similar to AuthType Two.
-    Three = 3,
 }
 
 impl Default for AuthType {
@@ -226,6 +223,9 @@ pub struct CryptoHeader {
 impl CryptoHeader {
     /// Total size of the `CryptoHeader` struct.
     pub const SIZE: usize = 120;
+
+    /// This value in the `nonce` field indicates Noise Protocol usage.
+    pub const NOISE_PROTOCOL_NONCE: u32 = 0xFFFF_FFFE;
 
     pub fn as_mut_bytes(&mut self) -> &mut [u8] {
         unsafe {

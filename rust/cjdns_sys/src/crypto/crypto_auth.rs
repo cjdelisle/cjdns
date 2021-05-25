@@ -1,5 +1,6 @@
 //! CryptoAuth
 
+use std::cell::RefCell;
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -109,7 +110,7 @@ pub struct Session {
     context: Arc<CryptoAuth>,
 
     /// WireGuard tunnel: if `None` the old protocol is used
-    tunnel: Option<Box<Tunn>>,
+    tunnel: RefCell<Option<Box<Tunn>>>,
 
     plain_pvt: IfacePvt,
     cipher_pvt: IfacePvt,
@@ -235,6 +236,21 @@ macro_rules! ensure {
     ($cond:expr, $err_type:tt, $msg:literal $(,)?) => {
         if !$cond {
             return Err($err_type::Internal($msg).into());
+        }
+    };
+}
+
+/// Works like `ensure!()` above but returns specified DecryptError.
+macro_rules! require {
+    ($cond:expr, $err:expr $(,)?) => {
+        if !$cond {
+            return Err(DecryptError::DecryptErr($err).into());
+        }
+    };
+    ($cond:expr, $err:expr, $sess:expr, $msg:literal $(,)?) => {
+        if !$cond {
+            debug::log($sess, || $msg);
+            return Err(DecryptError::DecryptErr($err).into());
         }
     };
 }
@@ -374,7 +390,7 @@ impl CryptoAuth {
                         return Some(u.clone());
                     }
                 }
-                AuthType::Two | AuthType::Three => {
+                AuthType::Two => {
                     if *auth.as_key_bytes() == u.user_name_hash {
                         return Some(u.clone());
                     }
@@ -534,7 +550,7 @@ impl SessionMut {
         Ok(())
     }
 
-    fn decrypt(sess: &Session, msg: &mut Message) -> Result<()> {
+    fn decrypt(sess: &Session, msg: &mut Message) -> Result<bool> {
         let session = sess.session_mut.upgradable_read();
 
         if msg.len() < 20 {
@@ -557,7 +573,10 @@ impl SessionMut {
         let nonce = state.to_be(); // Read as Big-Endian
 
         if !session.established {
-            if nonce >= Nonce::FirstTrafficPacket as u32 {
+            if nonce == CryptoHeader::NOISE_PROTOCOL_NONCE { // Auto-detect WireGuard protocol
+                msg.push(state).expect("push state back");
+                return Ok(true); // Retry decrypt in WireGuard mode
+            } else if nonce >= Nonce::FirstTrafficPacket as u32 {
                 if session.next_nonce < State::SentKey as u32 {
                     // This is impossible because we have not exchanged hello and key messages.
                     debug::log(&session, || {
@@ -591,10 +610,10 @@ impl SessionMut {
                     session.established = true;
                     session.next_nonce += 3;
                     session.update_time(msg, sess.context.clone());
-                    return Ok(());
+                    return Ok(false);
                 }
                 debug::log(&session, || "DROP Final handshake step failed");
-                ret
+                ret.map(|()| false)
             } else {
                 msg.push(state).expect("push state back");
 
@@ -603,7 +622,7 @@ impl SessionMut {
 
                 let mut session = RwLockUpgradableReadGuard::upgrade(session);
 
-                session.decrypt_handshake(nonce, msg, header, sess)
+                session.decrypt_handshake(nonce, msg, header, sess).map(|()| false)
             }
         } else if nonce >= Nonce::FirstTrafficPacket as u32 {
             debug_assert!(!session.shared_secret.is_zero());
@@ -614,7 +633,7 @@ impl SessionMut {
                     let mut session = RwLockUpgradableReadGuard::upgrade(session);
 
                     session.update_time(msg, sess.context.clone());
-                    Ok(())
+                    Ok(false)
                 }
                 Err(err) => {
                     debug::log(&session, || {
@@ -634,7 +653,7 @@ impl SessionMut {
             ensure!(msg.len() >= CryptoHeader::SIZE, DecryptError);
             let header = msg.peek::<CryptoHeader>().unwrap().clone();
 
-            session.decrypt_handshake(nonce, msg, header, sess)
+            session.decrypt_handshake(nonce, msg, header, sess).map(|()| false)
         } else {
             debug::log(&session, || {
                 format!(
@@ -1264,7 +1283,7 @@ impl Session {
             }),
             replay_protector: Mutex::new(ReplayProtector::new()),
             context,
-            tunnel,
+            tunnel: RefCell::new(tunnel),
             plain_pvt,
             cipher_pvt,
         });
@@ -1319,7 +1338,7 @@ impl Session {
     }
 
     pub fn stats(&self) -> CryptoStats {
-        if let Some(tunnel) = self.tunnel.as_ref() {
+        if let Some(tunnel) = self.tunnel.borrow().as_ref() {
             let (_time, _tx_bytes, rx_bytes, _loss, _rtt) = tunnel.stats();
             CryptoStats {
                 lost_packets: 0,
@@ -1361,8 +1380,8 @@ impl Session {
 
     /// Encrypts the message inplace. The new content of `msg` should be sent to the peer.
     fn encrypt(&self, msg: &mut Message) -> Result<()> {
-        if let Some(tunnel) = self.tunnel.as_ref() {
-            Self::tun_send(tunnel, msg)
+        if let Some(tunnel) = self.tunnel.borrow().as_ref() {
+            self.noise_encrypt(msg, tunnel)
         } else {
             SessionMut::encrypt(self, msg)
         }
@@ -1374,20 +1393,101 @@ impl Session {
     /// Additional messages might be sent to the peer (in the handshake phase),
     /// the corresponding iface is used in that case.
     fn decrypt(&self, msg: &mut Message) -> Result<()> {
-        if let Some(tunnel) = self.tunnel.as_ref() {
-            let sendme = match Self::tun_recv(tunnel, msg)? {
-                Some(sm) => sm,
-                None => return Ok(()),
-            };
-            for sm in sendme {
-                let mut m = msg.new(sm.len() + 256);
-                m.push_bytes(&sm)?;
-                self.cipher_pvt.send(&mut m)?;
-            }
-            Ok(())
-        } else {
-            SessionMut::decrypt(self, msg)
+        if let Some(tunnel) = self.tunnel.borrow().as_ref() {
+            return self.noise_decrypt(msg, tunnel);
         }
+
+        let autodetected_noise = SessionMut::decrypt(self, msg)?;
+        if autodetected_noise {
+            let res = Self::create_tunnel(&self.context, &self.session_mut.read().her_public_key);
+            let tun = Some(res.map_err(|s| KeyError::BadWireGuardKey(s))?);
+            {
+                let mut tunnel = self.tunnel.borrow_mut();
+                *tunnel = tun;
+            }
+            let tunnel = self.tunnel.borrow();
+            let tunnel = tunnel.as_ref().unwrap(); // Unwrap is safe because we've just set it
+            self.noise_decrypt(msg, tunnel)
+        } else {
+            Ok(())
+        }
+    }
+
+    fn noise_encrypt(&self, msg: &mut Message, tunnel: &Tunn) -> Result<()> {
+        Self::tun_send(tunnel, msg)?;
+
+        let session = self.session_mut.upgradable_read();
+
+        if session.established {
+            return Ok(());
+        }
+
+        // Prepend encrypted message with a CryptoHeader struct
+        ensure!(msg.pad() >= CryptoHeader::SIZE, EncryptError, "no space for CryptoHeader");
+        let mut header = CryptoHeader::default();
+
+        header.nonce = CryptoHeader::NOISE_PROTOCOL_NONCE.to_be(); // Big-endian
+
+        if let Some(password) = session.password.as_ref() {
+            let login = session.login.as_ref().map(|s| s.as_ref()).unwrap_or(b"");
+            let (_, auth) = hash_password(login, password, session.auth_type);
+            header.auth = auth;
+        } else {
+            header.auth.auth_type = session.auth_type; // Supposed to be AuthType::Zero
+        }
+
+        header.public_key = *self.context.public_key.raw();
+
+        let r = msg.push(header);
+        ensure!(r.is_ok(), EncryptError, "push CryptoHeader failed");
+
+        let mut session = RwLockUpgradableReadGuard::upgrade(session);
+        session.established = true;
+        Ok(())
+    }
+
+    fn noise_decrypt(&self, msg: &mut Message, tunnel: &Tunn) -> Result<()> {
+        let session = self.session_mut.upgradable_read();
+
+        // Parse and remove the prepended CryptoHeader struct
+        if !session.established {
+            ensure!(msg.len() >= CryptoHeader::SIZE, DecryptError, "no CryptoHeader");
+            let header = msg.pop::<CryptoHeader>()?;
+            require!(header.nonce.to_be() == CryptoHeader::NOISE_PROTOCOL_NONCE, DecryptErr::InvalidPacket, &session, "bad nonce: expected Noise handshake");
+
+            ensure!(session.her_key_known(), DecryptError, "unknown remote public key");
+            require!(*session.her_public_key.raw() == header.public_key, DecryptErr::WrongPermPubkey, &session, "DROP a packet with different public key than this session");
+
+            let user_opt = self.context.get_auth(&header.auth);
+            let has_user = user_opt.is_some();
+
+            if let Some(user) = user_opt {
+                if let Some(rip6) = user.restricted_to_ip6 {
+                    let ip6_matches_key = {
+                        let pub_key = &session.her_public_key;
+                        rip6 == ip6_from_key(pub_key.raw())
+                    };
+                    require!(ip6_matches_key, DecryptErr::IpRestricted, &session, "DROP packet with key not matching restrictedToIp6");
+                }
+            }
+
+            require!(!session.require_auth || has_user, DecryptErr::AuthRequired, &session, "DROP message because auth was not given");
+            require!(has_user || header.auth.auth_type == AuthType::Zero, DecryptErr::UnrecognizedAuth, &session, "DROP message with unrecognized authenticator");
+
+            let mut session = RwLockUpgradableReadGuard::upgrade(session);
+            session.established = true;
+        }
+
+        let sendme = match Self::tun_recv(tunnel, msg)? {
+            Some(sm) => sm,
+            None => return Ok(()),
+        };
+        for sm in sendme {
+            let mut m = msg.new(sm.len() + 256);
+            m.push_bytes(&sm)?;
+            self.cipher_pvt.send(&mut m)?;
+        }
+        Ok(())
     }
 
     fn tun_send(tun: &Tunn, msg: &mut Message) -> Result<()> {
@@ -1555,7 +1655,6 @@ fn hash_password(login: &[u8], password: &[u8], auth_type: AuthType) -> ([u8; 32
         AuthType::Zero => panic!("Unsupported auth type [{}]", auth_type as u8),
         AuthType::One => crypto_hash_sha256(&secret_out),
         AuthType::Two => crypto_hash_sha256(login),
-        AuthType::Three => crypto_hash_sha256(login), // Same as Two
     };
 
     let mut challenge_out = Challenge {
@@ -1735,7 +1834,6 @@ mod tests {
 
     use crate::bytestring::ByteString;
     use crate::cffi;
-    use crate::crypto::crypto_auth::Session;
     use crate::crypto::random::Random;
     use crate::external::interface::iface::Iface;
     use crate::interface::wire::message::Message;
@@ -2114,82 +2212,6 @@ mod tests {
     }
 
     #[test]
-    pub fn test_wireguard_encrypt_decrypt() {
-        let keys_api = CJDNSKeysApi::new().unwrap();
-        let my_keys = keys_api.key_pair();
-        let her_keys = keys_api.key_pair();
-
-        fn mk_sess(
-            my_priv_key: PrivateKey,
-            her_pub_key: PublicKey,
-            name: &str,
-        ) -> (Arc<super::Session>, Iface, Iface) {
-            let ca = super::CryptoAuth::new(Some(my_priv_key), EventBase {}, Random::Fake);
-            let ca = Arc::new(ca);
-
-            let res = ca.add_user_ipv6(
-                ByteString::from(name.to_string()),
-                Some(ByteString::from(name.to_string())),
-                None,
-            );
-            assert_eq!(res.err(), None);
-
-            let sess = super::Session::new(
-                ca,
-                her_pub_key,
-                false,
-                Some(format!("{}'s session", name)),
-                true,
-            );
-            sess.unwrap()
-        }
-
-        let (her_session, _her_plain, _her_cipher) = mk_sess(
-            her_keys.private_key.clone(),
-            my_keys.public_key.clone(),
-            "alice",
-        );
-
-        let (my_session, _my_plain, _my_cipher) =
-            mk_sess(my_keys.private_key, her_keys.public_key, "bob");
-
-        let mut msg = mk_msg(1024);
-        msg.push_bytes(b"Hello World").unwrap();
-        let orig_length = msg.len();
-
-        let res = my_session.encrypt(&mut msg);
-        assert!(res.is_ok());
-        assert_ne!(msg.len(), orig_length);
-
-        let res = Session::tun_recv(her_session.tunnel.as_ref().unwrap(), &mut msg);
-        assert!(res.is_ok());
-        if let Ok(Some(send_back)) = res {
-            'outer: for packet in send_back {
-                msg.clear();
-                msg.push_bytes(&packet).expect("msg size");
-                let res = Session::tun_recv(my_session.tunnel.as_ref().unwrap(), &mut msg);
-                assert!(res.is_ok());
-                assert_eq!(msg.len(), 0);
-
-                if let Ok(Some(send_back)) = res {
-                    for packet in send_back {
-                        msg.clear();
-                        msg.push_bytes(&packet).expect("msg size");
-                        let res = her_session.decrypt(&mut msg);
-                        assert!(res.is_ok());
-                        if msg.len() > 0 {
-                            break 'outer;
-                        }
-                    }
-                }
-            }
-        }
-
-        assert_eq!(msg.len(), orig_length);
-        assert_eq!(msg.bytes(), b"Hello World");
-    }
-
-    #[test]
     pub fn test_wireguard_iface_encrypt_decrypt() {
         let keys_api = CJDNSKeysApi::new().unwrap();
         let alice_keys = keys_api.key_pair();
@@ -2243,6 +2265,111 @@ mod tests {
             let (_bob_session, mut bob_plain, mut bob_cipher) = mk_sess(bob_keys.private_key, alice_keys.public_key, "bob");
             let res = bob_cipher.plumb(&mut alice_cipher);
             assert!(res.is_ok(), "plumbing sessions together failed");
+
+            let (mut alice_plaintext, alice_plaintext_pvt) = iface::new("Alice plaintext");
+            alice_plaintext.set_receiver(Plaintext(alice_received_text.clone()));
+            let res = alice_plaintext.plumb(&mut alice_plain);
+            assert!(res.is_ok(), "plumbing Alice failed");
+
+            let (mut bob_plaintext, bob_plaintext_pvt) = iface::new("Bob plaintext");
+            bob_plaintext.set_receiver(Plaintext(bob_received_text.clone()));
+            let res = bob_plaintext.plumb(&mut bob_plain);
+            assert!(res.is_ok(), "plumbing Bob failed");
+
+            (alice_plaintext_pvt, bob_plaintext_pvt)
+        };
+
+        assert!(alice_received_text.borrow().is_empty());
+        assert!(bob_received_text.borrow().is_empty());
+
+        // Message Bob -> Alice
+        assert_eq!(msg.len(), 0);
+        msg.push_bytes(b"Hello World").unwrap();
+
+        let res = bob_send.send(&mut msg);
+        assert!(res.is_ok());
+
+        assert_eq!(alice_received_text.borrow().as_slice(), b"Hello World");
+        assert!(bob_received_text.borrow().is_empty()); // still empty
+
+        // Message back Alice -> Bob
+        assert_eq!(msg.len(), 0);
+        msg.push_bytes(b"Goodbye Universe").unwrap();
+        let res = alice_send.send(&mut msg);
+        assert!(res.is_ok());
+
+        assert_eq!(bob_received_text.borrow().as_slice(), b"Goodbye Universe");
+        assert_eq!(alice_received_text.borrow().as_slice(), b"Hello World"); // still unchanged
+    }
+
+    #[test]
+    pub fn test_wireguard_iface_encrypt_decrypt_with_auth() {
+        let keys_api = CJDNSKeysApi::new().unwrap();
+        let alice_keys = keys_api.key_pair();
+        let bob_keys = keys_api.key_pair();
+
+        let mut msg = mk_msg_alloc(1024, mk_alloc(65536));
+        let alice_received_text = Rc::new(RefCell::new(Vec::new()));
+        let bob_received_text = Rc::new(RefCell::new(Vec::new()));
+
+        fn mk_sess(
+            my_priv_key: PrivateKey,
+            her_pub_key: PublicKey,
+            name: &str,
+            use_noise: bool,
+        ) -> (Arc<super::Session>, Iface, Iface) {
+            let ca = super::CryptoAuth::new(Some(my_priv_key), EventBase {}, Random::Fake);
+            let ca = Arc::new(ca);
+
+            let res = ca.add_user_ipv6(
+                ByteString::from(name.to_string()),
+                Some(ByteString::from(name.to_string())),
+                None,
+            );
+            assert_eq!(res.err(), None);
+
+            let sess = super::Session::new(
+                ca,
+                her_pub_key,
+                false,
+                Some(format!("{}'s session", name)),
+                use_noise,
+            );
+            sess.unwrap()
+        }
+
+        fn set_auth(sess: &super::Session, name: &str) {
+            sess.set_auth(
+                Some(ByteString::from(name.to_string())),
+                Some(ByteString::from(name.to_string())),
+            );
+        }
+
+        // Setup
+        let (alice_send, bob_send) = {
+            use crate::external::interface::iface::{self, IfRecv};
+
+            // Plaintext receiver
+            struct Plaintext(Rc<RefCell<Vec<u8>>>);
+            impl IfRecv for Plaintext {
+                fn recv(&self, m: &mut Message) -> anyhow::Result<()> {
+                    assert!(m.len() > 4, "empty message received");
+                    m.discard_bytes(4)?; // Extra zeroes added by CiphertextRecv
+                    self.0.borrow_mut().extend_from_slice(m.peek_bytes(m.len())?);
+                    Ok(())
+                }
+            }
+
+            // Here we create Bob's session with use_noise=true, but Alice's session has use_noise=false
+            // Since Bob is initiator, he will send message with Noise protocol enabled,
+            // and Alice will auto-detect it in spite of her session's use_noise=false.
+            let (alice_session, mut alice_plain, mut alice_cipher) = mk_sess(alice_keys.private_key, bob_keys.public_key, "alice", false);
+            let (bob_session, mut bob_plain, mut bob_cipher) = mk_sess(bob_keys.private_key, alice_keys.public_key, "bob", true);
+            let res = bob_cipher.plumb(&mut alice_cipher);
+            assert!(res.is_ok(), "plumbing sessions together failed");
+
+            set_auth(&alice_session, "bob");
+            set_auth(&bob_session, "alice");
 
             let (mut alice_plaintext, alice_plaintext_pvt) = iface::new("Alice plaintext");
             alice_plaintext.set_receiver(Plaintext(alice_received_text.clone()));
