@@ -11,3 +11,7 @@ lto = true
 opt-level = "z"
 codegen-units = 1
 panic = "unwind"
+
+# In debug mode, enable optimizations for dependencies, but not for our code
+[profile.dev.package."*"]
+opt-level = 3
