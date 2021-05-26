@@ -56,14 +56,10 @@ impl CjdnsLog {
 
 impl log::Log for CjdnsLog {
     fn enabled(&self, _metadata: &log::Metadata<'_>) -> bool {
-        !self.log.lock().is_null()
+        true
     }
 
     fn log(&self, record: &log::Record<'_>) {
-        if self.log.lock().is_null() {
-            return;
-        }
-
         let lvl = match record.level() {
             log::Level::Error => cffi::Log_Level::Log_Level_ERROR,
             log::Level::Warn => cffi::Log_Level::Log_Level_WARN,
@@ -84,15 +80,20 @@ impl log::Log for CjdnsLog {
             filebuf[0..file_slice.len()].copy_from_slice(file_slice);
         }
         let line = record.line().unwrap_or(0);
-        let msg = CString::new(format!("{}", record.args())).unwrap();
+        let msg = format!("{}", record.args());
         let log = self.log.lock();
+        if log.is_null() {
+            println!("{} {}:{} {}", record.level().as_str(), file, line, msg);
+            return;
+        }
+        let cmsg = CString::new(msg).unwrap();
         unsafe {
             cffi::Log_print0(
                 *log,
                 lvl,
                 filebuf.as_ptr() as *const i8,
                 line as i32,
-                msg.as_ptr() as *const i8,
+                cmsg.as_ptr() as *const i8,
             )
         };
     }

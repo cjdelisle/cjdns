@@ -695,7 +695,9 @@ static Iface_DEFUN handleUnexpectedIncoming(struct Message* msg,
     Assert_true(!((uintptr_t)msg->msgbytes % 4) && "alignment fault");
 
     struct CryptoHeader* ch = (struct CryptoHeader*) msg->msgbytes;
-    if (ch->nonce & Endian_bigEndianToHost32(~1)) {
+    if (ch->nonce & Endian_bigEndianToHost32(~1) &&
+        ch->nonce != Endian_bigEndianToHost32(0xfffffffe))
+    {
         // This cuts down on processing and logger noise because any packet
         // which is not a setup packet will be summarily dropped.
         return Error(INVALID);

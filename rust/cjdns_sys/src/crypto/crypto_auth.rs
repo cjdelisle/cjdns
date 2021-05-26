@@ -1478,6 +1478,7 @@ impl Session {
 
             let mut session = RwLockUpgradableReadGuard::upgrade(session);
             session.established = true;
+            log::debug!("Got noise setup packet");
         }
 
         let sendme = match Self::tun_recv(tunnel, msg)? {
