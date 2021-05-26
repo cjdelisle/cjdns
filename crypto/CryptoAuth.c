@@ -1219,6 +1219,7 @@ void CryptoAuth_stats(const struct CryptoAuth_Session* session, RTypes_CryptoSta
     statsOut->lost_packets = s->replayProtector.lostPackets;
     statsOut->received_unexpected = s->replayProtector.receivedOutOfRange;
     statsOut->duplicate_packets = s->replayProtector.duplicates;
+    statsOut->noise_proto = false;
 }
 
 // For testing:

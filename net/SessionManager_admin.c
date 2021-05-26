@@ -88,6 +88,7 @@ static void outputSession(struct Context* context,
     Dict_putIntC(r, "duplicates", stats.duplicate_packets, alloc);
     Dict_putIntC(r, "lostPackets", stats.lost_packets, alloc);
     Dict_putIntC(r, "receivedOutOfRange", stats.received_unexpected, alloc);
+    Dict_putIntC(r, "noiseProto", stats.noise_proto, alloc);
 
 
     addr.path = session->paths[0].label;

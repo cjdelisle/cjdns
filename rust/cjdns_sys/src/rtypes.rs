@@ -53,6 +53,9 @@ pub struct RTypes_CryptoStats_t {
 
     /// Number of packets which were received that were duplicates
     pub duplicate_packets: u64,
+
+    /// True if the session is using the Noise protocol
+    pub noise_proto: bool,
 }
 
 #[repr(C)]

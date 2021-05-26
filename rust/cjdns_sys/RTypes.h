@@ -60,6 +60,10 @@ typedef struct {
    * Number of packets which were received that were duplicates
    */
   uint64_t duplicate_packets;
+  /**
+   * True if the session is using the Noise protocol
+   */
+  bool noise_proto;
 } RTypes_CryptoStats_t;
 
 typedef struct {

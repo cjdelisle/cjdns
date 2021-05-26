@@ -551,7 +551,8 @@ static struct Peer* mkEp(
     struct InterfaceController_Iface_pvt* ici,
     uint8_t publicKey[32],
     bool authNeeded,
-    const char* name
+    const char* name,
+    bool useNoise
 ) {
     struct Allocator* epAlloc = Allocator_child(ici->alloc);
     struct Peer* ep = Allocator_calloc(epAlloc, sizeof(struct Peer), 1);
@@ -564,7 +565,7 @@ static struct Peer* mkEp(
     ep->switchIf.send = sendFromSwitch;
     ep->ciphertext.send = afterEncrypt;
     ep->plaintext.send = afterDecrypt;
-    ep->caSession = Ca_newSession(ici->ic->ca, epAlloc, publicKey, authNeeded, name, false);
+    ep->caSession = Ca_newSession(ici->ic->ca, epAlloc, publicKey, authNeeded, name, useNoise);
     Iface_plumb(ep->caSession->ciphertext, &ep->ciphertext);
     Iface_plumb(ep->caSession->plaintext, &ep->plaintext);
     Bits_memcpy(ep->addr.key, publicKey, 32);
@@ -648,7 +649,8 @@ static Iface_DEFUN handleBeacon(struct Message* msg, struct InterfaceController_
         return Error(NONE);
     }
 
-    struct Peer* ep = mkEp(lladdrInmsg, ici, beacon.publicKey, false, "beacon_peer");
+    bool useNoise = addr.protocolVersion >= 22;
+    struct Peer* ep = mkEp(lladdrInmsg, ici, beacon.publicKey, false, "beacon_peer", useNoise);
     int setIndex = Map_EndpointsBySockaddr_put(&ep->lladdr, &ep, &ici->peerMap);
     ep->handle = ici->peerMap.handles[setIndex];
     // We make the connection ourselves but we still consider
@@ -699,7 +701,8 @@ static Iface_DEFUN handleUnexpectedIncoming(struct Message* msg,
         return Error(INVALID);
     }
 
-    struct Peer* ep = mkEp(lladdr, ici, ch->publicKey, true, "incoming");
+    // Don't force noise for this message because we really have no idea what we're dealing with
+    struct Peer* ep = mkEp(lladdr, ici, ch->publicKey, true, "incoming", false);
     ep->isIncomingConnection = true;
 
     if (!AddressCalc_validAddress(ep->addr.ip6.bytes)) {
@@ -962,7 +965,8 @@ int InterfaceController_bootstrapPeer(struct InterfaceController* ifc,
                                       const struct Sockaddr* lladdrParm,
                                       String* password,
                                       String* login,
-                                      String* user)
+                                      String* user,
+                                      int version)
 {
     struct InterfaceController_pvt* ic = Identity_check((struct InterfaceController_pvt*) ifc);
 
@@ -983,7 +987,8 @@ int InterfaceController_bootstrapPeer(struct InterfaceController* ifc,
         return InterfaceController_bootstrapPeer_BAD_KEY;
     }
 
-    struct Peer* ep = mkEp(lladdrParm, ici, herPublicKey, false, user ? user->bytes : NULL);
+    bool useNoise = version >= 22;
+    struct Peer* ep = mkEp(lladdrParm, ici, herPublicKey, false, user ? user->bytes : NULL, useNoise);
 
     int index = Map_EndpointsBySockaddr_put(&ep->lladdr, &ep, &ici->peerMap);
     Assert_true(index >= 0);
@@ -1054,6 +1059,7 @@ int InterfaceController_getPeerStats(struct InterfaceController* ifController,
             Ca_stats(peer->caSession, &stats);
             s->duplicates = stats.duplicate_packets;
             s->receivedOutOfRange = stats.received_unexpected;
+            s->noiseProto = stats.noise_proto;
 
             s->recvKbps = Kbps_accumulate(&peer->recvBw, now, Kbps_accumulate_NO_PACKET);
             s->sendKbps = Kbps_accumulate(&peer->sendBw, now, Kbps_accumulate_NO_PACKET);

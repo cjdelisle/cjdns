@@ -30,11 +30,6 @@ struct CIface {
     id_tag: u32,
     rif: IfacePvt,
 }
-impl Drop for CIface {
-    fn drop(&mut self) {
-        println!("CIface dropped");
-    }
-}
 
 // This is an assertion to make sure we're being passed something legit from C
 const IFACE_IDENT: u32 = 0xdeadbeef;

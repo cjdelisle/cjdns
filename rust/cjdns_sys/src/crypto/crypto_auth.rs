@@ -1345,6 +1345,7 @@ impl Session {
                 received_unexpected: 0,
                 received_packets: rx_bytes as u64, //TODO bytes vs packets
                 duplicate_packets: 0,
+                noise_proto: true,
             }
         } else {
             // Stats come from the replay protector
@@ -1355,6 +1356,7 @@ impl Session {
                 received_unexpected: stats.received_unexpected as u64,
                 received_packets: stats.received_packets as u64,
                 duplicate_packets: stats.duplicate_packets as u64,
+                noise_proto: false,
             }
         }
     }

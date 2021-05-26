@@ -46,6 +46,9 @@ static void beginConnection(Dict* args,
     int64_t* interfaceNumber = Dict_getIntC(args, "interfaceNumber");
     uint32_t ifNum = (interfaceNumber) ? ((uint32_t) *interfaceNumber) : 0;
     String* peerName = Dict_getStringC(args, "peerName");
+    int64_t* versionP = Dict_getIntC(args, "version");
+    int version = Version_DEFAULT_ASSUMPTION;
+    if (versionP) { version = *versionP; }
     char* error = "none";
 
     uint8_t pkBytes[32];
@@ -62,7 +65,7 @@ static void beginConnection(Dict* args,
         error = "invalid macAddress";
     } else {
         int ret = InterfaceController_bootstrapPeer(
-            ctx->ic, ifNum, pkBytes, &sockaddr.generic, password, login, peerName);
+            ctx->ic, ifNum, pkBytes, &sockaddr.generic, password, login, peerName, version);
 
         if (ret == InterfaceController_bootstrapPeer_BAD_IFNUM) {
             error = "invalid interfaceNumber";
@@ -194,7 +197,8 @@ void ETHInterface_admin_register(struct EventBase* base,
             { .name = "publicKey", .required = 1, .type = "String" },
             { .name = "macAddress", .required = 1, .type = "String" },
             { .name = "login", .required = 0, .type = "String" },
-            { .name = "peerName", .required = 0, .type = "String" }
+            { .name = "peerName", .required = 0, .type = "String" },
+            { .name = "version", .required = 0, .type = "Int" },
         }), admin);
 
     Admin_registerFunction("ETHInterface_beacon", beacon, ctx, true,

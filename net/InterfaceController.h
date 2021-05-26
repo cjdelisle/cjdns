@@ -106,6 +106,7 @@ struct InterfaceController_PeerStats
     uint64_t bytesOut;
     uint64_t bytesIn;
     bool isIncomingConnection;
+    bool noiseProto;
     String* user;
 
     /** Packet loss/duplication statistics. see: ReplayProtector */
@@ -187,7 +188,8 @@ int InterfaceController_bootstrapPeer(struct InterfaceController* ifc,
                                       const struct Sockaddr* lladdr,
                                       String* password,
                                       String* login,
-                                      String* displayName);
+                                      String* displayName,
+                                      int version);
 
 #define InterfaceController_beaconState_newState_OFF    0
 #define InterfaceController_beaconState_newState_ACCEPT 1

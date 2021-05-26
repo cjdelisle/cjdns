@@ -226,7 +226,8 @@ void TestFramework_linkNodes(struct TestFramework* client,
                                    Sockaddr_LOOPBACK,
                                    String_CONST("abcdefg123"),
                                    NULL,
-                                   NULL);
+                                   NULL,
+                                   Version_CURRENT_PROTOCOL);
     }
 }
 

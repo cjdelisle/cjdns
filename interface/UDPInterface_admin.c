@@ -75,6 +75,9 @@ static void beginConnection(Dict* args,
     String* publicKey = Dict_getStringC(args, "publicKey");
     String* address = Dict_getStringC(args, "address");
     String* peerName = Dict_getStringC(args, "peerName");
+    int64_t* versionP = Dict_getIntC(args, "version");
+    int version = Version_DEFAULT_ASSUMPTION;
+    if (versionP) { version = *versionP; }
     char* error = NULL;
 
     Log_debug(ctx->logger, "Peering with [%s]", publicKey->bytes);
@@ -111,7 +114,7 @@ static void beginConnection(Dict* args,
         }
 
         int ret = InterfaceController_bootstrapPeer(
-            ctx->ic, ifNum, pkBytes, addr, password, login, peerName);
+            ctx->ic, ifNum, pkBytes, addr, password, login, peerName, version);
 
         Allocator_free(tempAlloc);
 
@@ -359,7 +362,8 @@ void UDPInterface_admin_register(struct EventBase* base,
             { .name = "publicKey", .required = 1, .type = "String" },
             { .name = "address", .required = 1, .type = "String" },
             { .name = "login", .required = 0, .type = "String" },
-            { .name = "peerName", .required = 0, .type = "String" }
+            { .name = "peerName", .required = 0, .type = "String" },
+            { .name = "version", .required = 0, .type = "Int" },
         }), admin);
 
     Admin_registerFunction("UDPInterface_listDevices", listDevices, ctx, true, NULL, admin);

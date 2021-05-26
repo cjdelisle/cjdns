@@ -113,6 +113,7 @@ static void adminPeerStats(Dict* args, void* vcontext, String* txid, struct Allo
         Dict_putIntC(d, "duplicates", stats[i].duplicates, alloc);
         Dict_putIntC(d, "lostPackets", stats[i].lostPackets, alloc);
         Dict_putIntC(d, "receivedOutOfRange", stats[i].receivedOutOfRange, alloc);
+        Dict_putIntC(d, "noiseProto", stats[i].noiseProto, alloc);
 
         Dict_putIntC(d, "ifNum", stats[i].ifNum, alloc);
 
