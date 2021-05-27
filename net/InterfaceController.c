@@ -851,6 +851,10 @@ static Iface_DEFUN afterDecrypt(struct Message* msg, struct Iface* plaintext)
     ep->state = caState;
 
     Identity_check(ep);
+    if (Message_getLength(msg) == 0) {
+        // NOISE setup packet
+        return NULL;
+    }
     Assert_true(!(Message_getCapacity(msg) % 4));
     return Iface_next(&ep->switchIf, msg);
 }

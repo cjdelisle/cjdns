@@ -1199,13 +1199,8 @@ impl IfRecv for CiphertextRecv {
         log::debug!("Decrypt msg {}", m.len());
         match self.0.decrypt(m) {
             Ok(()) => {
-                let is_system_handshake = m.len() == 0; // No real message can be 0 bytes in length
-                if is_system_handshake {
-                    Ok(())
-                } else {
-                    m.push(0_u32)?;
-                    self.0.plain_pvt.send(m)
-                }
+                m.push(0_u32)?;
+                self.0.plain_pvt.send(m)
             }
             Err(e) => {
                 log::debug!("Error decrypting {}", e);
