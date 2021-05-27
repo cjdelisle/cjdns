@@ -29,7 +29,7 @@ Linker_require("subnode/MsgCore.c")
 struct MsgCore_Handler;
 struct MsgCore;
 
-typedef struct Error_s (* MsgCore_HandlerCb)(Dict* msg,
+typedef struct RTypes_Error_t* (* MsgCore_HandlerCb)(Dict* msg,
                                              struct Address* src,
                                              struct Allocator* tmpAlloc,
                                              struct MsgCore_Handler* handler);

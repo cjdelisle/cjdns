@@ -54,7 +54,7 @@ struct Context
 
 static Iface_DEFUN incomingTun(struct Message* msg, struct Iface* tunB)
 {
-    return Error(NONE);
+    return NULL;
 }
 
 static void notLinkedYet(struct Context* ctx)

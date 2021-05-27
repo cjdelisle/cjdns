@@ -18,6 +18,7 @@
 #include "wire/Message.h"
 #include "util/events/UDPAddrIface.h"
 #include "util/GlobalConfig.h"
+#include "wire/Error.h"
 
 #define ArrayList_TYPE struct Sockaddr
 #define ArrayList_NAME Sockaddr
@@ -124,7 +125,7 @@ static Iface_DEFUN sendPacket(struct Message* m, struct Iface* iface)
     if (!(sa->flags & Sockaddr_flags_BCAST)) { return Iface_next(&ctx->commSock, m); }
 
     if (updateBcastAddrs(ctx)) {
-        return Error(INTERNAL);
+        return Error(m, "updateBcastAddrs check logs");
     }
 
     // bcast
@@ -146,7 +147,7 @@ static Iface_DEFUN sendPacket(struct Message* m, struct Iface* iface)
         Allocator_free(tmpAlloc);
     }
 
-    return Error(NONE);
+    return NULL;
 }
 
 static Iface_DEFUN fromCommSock(struct Message* m, struct Iface* iface)
@@ -163,14 +164,14 @@ static Iface_DEFUN fromBcastSock(struct Message* m, struct Iface* iface)
 
     if (Message_getLength(m) < UDPInterface_BroadcastHeader_SIZE + Sockaddr_OVERHEAD) {
         Log_debug(ctx->log, "DROP runt bcast");
-        return Error(RUNT);
+        return Error(m, "RUNT bcast");
     }
 
     struct Sockaddr_storage ss;
     Er_assert(Message_epop(m, &ss, Sockaddr_OVERHEAD));
     if (Message_getLength(m) < UDPInterface_BroadcastHeader_SIZE + ss.addr.addrLen - Sockaddr_OVERHEAD) {
         Log_debug(ctx->log, "DROP runt bcast");
-        return Error(RUNT);
+        return Error(m, "RUNT bcast");
     }
     Er_assert(Message_epop(m, &ss.nativeAddr, ss.addr.addrLen - Sockaddr_OVERHEAD));
 
@@ -180,17 +181,17 @@ static Iface_DEFUN fromBcastSock(struct Message* m, struct Iface* iface)
     if (hdr.fffffffc_be != Endian_hostToBigEndian32(0xfffffffc)) {
         Log_debug(ctx->log, "DROP bcast bad magic, expected 0xfffffffc got [%08x]",
             Endian_bigEndianToHost32(hdr.fffffffc_be));
-        return Error(INVALID);
+        return Error(m, "INVALID bcast, bad magic");
     }
 
     if (hdr.version != UDPInterface_CURRENT_VERSION) {
         Log_debug(ctx->log, "DROP bcast bad version [%u]", hdr.version);
-        return Error(INVALID);
+        return Error(m, "INVALID bcast, bad version");
     }
 
     if (hdr.zero) {
         Log_debug(ctx->log, "DROP bcast malformed (zero not zero)");
-        return Error(INVALID);
+        return Error(m, "INVALID bcast, hdr.zero isn't 0");
     }
 
     uint16_t commPort = Endian_bigEndianToHost16(hdr.commPort_be);

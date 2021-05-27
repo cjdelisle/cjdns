@@ -47,7 +47,7 @@ static Iface_DEFUN handleError(struct Message* msg,
 {
     if (Message_getLength(msg) < handleError_MIN_SIZE) {
         Log_info(ch->log, "DROP runt error packet from [%s]", labelStr);
-        return Error(RUNT);
+        return Error(msg, "RUNT");
     }
     Er_assert(Message_truncate(msg, handleError_MIN_SIZE));
     Er_assert(Message_epush(msg, &rh->sh, SwitchHeader_SIZE));
@@ -68,7 +68,7 @@ static Iface_DEFUN handlePing(struct Message* msg,
 {
     if (Message_getLength(msg) < handlePing_MIN_SIZE) {
         Log_info(ch->log, "DROP runt ping");
-        return Error(RUNT);
+        return Error(msg, "RUNT");
     }
 
     struct Control* ctrl = (struct Control*) msg->msgbytes;
@@ -79,7 +79,7 @@ static Iface_DEFUN handlePing(struct Message* msg,
     uint32_t herVersion = Endian_bigEndianToHost32(ping->version_be);
     if (!Version_isCompatible(Version_CURRENT_PROTOCOL, herVersion)) {
         Log_debug(ch->log, "DROP ping from incompatible version [%d]", herVersion);
-        return Error(INVALID);
+        return Error(msg, "INVALID");
     }
 
     if (messageType_be == Control_KEYPING_be) {
@@ -87,15 +87,15 @@ static Iface_DEFUN handlePing(struct Message* msg,
         if (Message_getLength(msg) < Control_KeyPing_HEADER_SIZE) {
             // min keyPing size is longer
             Log_debug(ch->log, "DROP runt keyPing");
-            return Error(RUNT);
+            return Error(msg, "RUNT");
         }
         if (Message_getLength(msg) > Control_KeyPing_MAX_SIZE) {
             Log_debug(ch->log, "DROP long keyPing");
-            return Error(INVALID);
+            return Error(msg, "INVALID");
         }
         if (ping->magic != Control_KeyPing_MAGIC) {
             Log_debug(ch->log, "DROP keyPing (bad magic)");
-            return Error(INVALID);
+            return Error(msg, "INVALID");
         }
 
         struct Control_KeyPing* keyPing = (struct Control_KeyPing*) msg->msgbytes;
@@ -108,7 +108,7 @@ static Iface_DEFUN handlePing(struct Message* msg,
         //Log_debug(ch->log, "got switch ping from [%s]", labelStr);
         if (ping->magic != Control_Ping_MAGIC) {
             Log_debug(ch->log, "DROP ping (bad magic)");
-            return Error(INVALID);
+            return Error(msg, "INVALID");
         }
         ping->magic = Control_Pong_MAGIC;
         ctrl->header.type_be = Control_PONG_be;
@@ -147,7 +147,7 @@ static Iface_DEFUN handleRPathQuery(struct Message* msg,
     Log_debug(ch->log, "Incoming RPATH query");
     if (Message_getLength(msg) < handleRPathQuery_MIN_SIZE) {
         Log_info(ch->log, "DROP runt RPATH query");
-        return Error(RUNT);
+        return Error(msg, "RUNT");
     }
 
     struct Control* ctrl = (struct Control*) msg->msgbytes;
@@ -155,7 +155,7 @@ static Iface_DEFUN handleRPathQuery(struct Message* msg,
 
     if (rpa->magic != Control_RPATH_QUERY_MAGIC) {
         Log_debug(ch->log, "DROP RPATH query (bad magic)");
-        return Error(INVALID);
+        return Error(msg, "INVALID");
     }
 
     ctrl->header.type_be = Control_RPATH_REPLY_be;
@@ -188,7 +188,7 @@ static Iface_DEFUN handleGetSnodeQuery(struct Message* msg,
     Log_debug(ch->log, "incoming getSupernode query");
     if (Message_getLength(msg) < handleGetSnodeQuery_MIN_SIZE) {
         Log_info(ch->log, "DROP runt getSupernode query");
-        return Error(RUNT);
+        return Error(msg, "RUNT");
     }
 
     struct Control* ctrl = (struct Control*) msg->msgbytes;
@@ -196,14 +196,14 @@ static Iface_DEFUN handleGetSnodeQuery(struct Message* msg,
 
     if (snq->magic != Control_GETSNODE_QUERY_MAGIC) {
         Log_debug(ch->log, "DROP getSupernode query (bad magic)");
-        return Error(INVALID);
+        return Error(msg, "INVALID");
     }
 
     uint32_t herVersion = Endian_bigEndianToHost32(snq->version_be);
     if (!Version_isCompatible(Version_CURRENT_PROTOCOL, herVersion)) {
         Log_debug(ch->log, "DROP getSupernode query from incompatible version [%d]", herVersion);
         // Nothing wrong with the query but we're just not going to answer it
-        return Error(NONE);
+        return NULL;
     }
 
     ctrl->header.type_be = Control_GETSNODE_REPLY_be;
@@ -265,14 +265,14 @@ static Iface_DEFUN incomingFromCore(struct Message* msg, struct Iface* coreIf)
 
     if (Message_getLength(msg) < 4 + Control_Header_SIZE) {
         Log_info(ch->log, "DROP runt ctrl packet from [%s]", labelStr);
-        return Error(RUNT);
+        return Error(msg, "RUNT");
     }
 
     Assert_true(routeHdr.flags & RouteHeader_flags_CTRLMSG);
 
     if (Checksum_engine_be(msg->msgbytes, Message_getLength(msg))) {
         Log_info(ch->log, "DROP ctrl packet from [%s] with invalid checksum", labelStr);
-        return Error(INVALID);
+        return Error(msg, "INVALID");
     }
 
     struct Control* ctrl = (struct Control*) msg->msgbytes;
@@ -313,7 +313,7 @@ static Iface_DEFUN incomingFromCore(struct Message* msg, struct Iface* coreIf)
     Log_info(ch->log, "DROP control packet of unknown type from [%s], type [%d]",
              labelStr, Endian_bigEndianToHost16(ctrl->header.type_be));
 
-    return Error(INVALID);
+    return Error(msg, "INVALID");
 }
 
 // Forward from switch pinger directly to core.
@@ -345,7 +345,7 @@ static Iface_DEFUN changeSnode(struct Message* msg, struct Iface* eventIf)
             log = "Found snode";
         } else {
             // didn't know the snode before, still don't
-            return Error(NONE);
+            return NULL;
         }
     } else if (!node.path_be) {
         // We had one, now we don't
@@ -359,7 +359,7 @@ static Iface_DEFUN changeSnode(struct Message* msg, struct Iface* eventIf)
             log = "Changing snode protocolVersion";
         } else {
             // Nothing has changed
-            return Error(NONE);
+            return NULL;
         }
     }
 
@@ -380,7 +380,7 @@ static Iface_DEFUN changeSnode(struct Message* msg, struct Iface* eventIf)
         Address_toStringKey(&old, Message_getAlloc(msg))->bytes,
         Address_toStringKey(&addr, Message_getAlloc(msg))->bytes);
 
-    return Error(NONE);
+    return NULL;
 }
 
 struct ControlHandler* ControlHandler_new(struct Allocator* allocator,

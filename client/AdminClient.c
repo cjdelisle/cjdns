@@ -23,6 +23,7 @@
 #include "util/events/Timeout.h"
 #include "util/Identity.h"
 #include "wire/Message.h"
+#include "wire/Error.h"
 
 #include <sodium/crypto_hash_sha256.h>
 
@@ -124,7 +125,7 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* addrIface)
                  Sockaddr_print(&source.addr, Message_getAlloc(msg)),
                  Sockaddr_print(ctx->targetAddr, Message_getAlloc(msg)));
         // The UDP interface can't make use of an error but we'll inform anyway
-        return Error(INVALID);
+        return Error(msg, "INVALID source addr");
     }
 
     // we don't yet know with which message this data belongs,
@@ -134,17 +135,17 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* addrIface)
     int origLen = Message_getLength(msg);
     Dict* d = NULL;
     const char* err = BencMessageReader_readNoExcept(msg, alloc, &d);
-    if (err) { return Error(INVALID); }
+    if (err) { return Error(msg, "Error decoding benc: %s", err); }
     Er_assert(Message_eshift(msg, origLen));
 
     String* txid = Dict_getStringC(d, "txid");
-    if (!txid || txid->len != 8) { return Error(INVALID); }
+    if (!txid || txid->len != 8) { return Error(msg, "INVALID missing or wrong size txid"); }
 
     // look up the result
     uint32_t handle = ~0u;
     Hex_decode((uint8_t*)&handle, 4, txid->bytes, 8);
     int idx = Map_OfRequestByHandle_indexForHandle(handle, &ctx->outstandingRequests);
-    if (idx < 0) { return Error(INVALID); }
+    if (idx < 0) { return Error(msg, "INVALID no such handle"); }
 
     struct Request* req = ctx->outstandingRequests.values[idx];
 
@@ -159,7 +160,7 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* addrIface)
     Bits_memset(req->res.messageBytes, 0, AdminClient_MAX_MESSAGE_SIZE);
     Bits_memcpy(req->res.messageBytes, msg->msgbytes, len);
     done(req, AdminClient_Error_NONE);
-    return Error(NONE);
+    return NULL;
 }
 
 static int requestOnFree(struct Allocator_OnFreeJob* job)

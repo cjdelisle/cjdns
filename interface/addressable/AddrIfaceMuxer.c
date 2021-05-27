@@ -18,6 +18,7 @@
 #include "util/Assert.h"
 #include "util/Identity.h"
 #include "wire/Message.h"
+#include "wire/Error.h"
 
 #include "util/Hex.h"
 
@@ -61,7 +62,7 @@ static Iface_DEFUN incomingFromAddrIf(struct Message* msg, struct Iface* addrIf)
     int idx = Map_Ifaces_indexForHandle(handle, &ctx->ifaces);
     if (idx < 0) {
         Log_info(ctx->log, "DROP message to nonexistant iface [0x%x]", handle);
-        return Error(UNHANDLED);
+        return Error(msg, "UNHANDLED (no such iface)");
     }
     return Iface_next(&ctx->ifaces.values[idx]->iface, msg);
 }
@@ -73,7 +74,7 @@ static Iface_DEFUN incomingFromInputIf(struct Message* msg, struct Iface* inputI
     struct AddrIfaceMuxer_pvt* ctx = Identity_check(cli->muxer);
     if (Message_getLength(msg) < (int)sizeof(struct Sockaddr)) {
         Log_info(ctx->log, "DROP runt");
-        return Error(RUNT);
+        return Error(msg, "RUNT");
     }
 
     uint16_t addrLen = Bits_get16(msg->msgbytes);

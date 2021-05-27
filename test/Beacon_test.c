@@ -76,7 +76,7 @@ static Iface_DEFUN incomingTunB(struct Message* msg, struct Iface* tunB)
     Er_assert(Message_eshift(msg, -Headers_IP6Header_SIZE));
     printf("Message from TUN in node B [%s]\n", msg->msgbytes);
     tn->messageFrom = TUNB;
-    return Error(NONE);
+    return NULL;
 }
 
 static Iface_DEFUN incomingTunA(struct Message* msg, struct Iface* tunA)
@@ -89,7 +89,7 @@ static Iface_DEFUN incomingTunA(struct Message* msg, struct Iface* tunA)
     Hex_encode(buff, 1024, msg->msgbytes, Message_getLength(msg));
     printf("Message from TUN in node A [%s] [%d] [%s]\n", msg->msgbytes, Message_getLength(msg), buff);
     tn->messageFrom = TUNA;
-    return Error(NONE);
+    return NULL;
 }
 
 static void notLinkedYet(struct TwoNodes* ctx)

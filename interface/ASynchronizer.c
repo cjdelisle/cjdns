@@ -101,7 +101,7 @@ static Iface_DEFUN fromA(struct Message* msg, struct Iface* ifA)
     Allocator_adopt(as->cycleAlloc, Message_getAlloc(msg));
     ArrayList_Messages_add(as->msgsToB, msg);
     checkTimeout(as);
-    return Error(NONE);
+    return NULL;
 }
 
 static Iface_DEFUN fromB(struct Message* msg, struct Iface* ifB)
@@ -112,7 +112,7 @@ static Iface_DEFUN fromB(struct Message* msg, struct Iface* ifB)
     Allocator_adopt(as->cycleAlloc, Message_getAlloc(msg));
     ArrayList_Messages_add(as->msgsToA, msg);
     checkTimeout(as);
-    return Error(NONE);
+    return NULL;
 }
 
 struct ASynchronizer* ASynchronizer_new(struct Allocator* alloc,

@@ -81,7 +81,7 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* streamIf)
     if (fi->bytesRemaining > fi->maxMessageSize) {
         // Oversize message
         Assert_ifTesting(0);
-        return Error(OVERSIZE_MESSAGE);
+        return Error(msg, "OVERSIZE_MESSAGE");
     }
 
     if (fi->frameParts) {
@@ -95,7 +95,7 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* streamIf)
             // Run the message through again since it's almost certainly not perfect size.
             Iface_CALL(receiveMessage, wholeMessage, streamIf);
             Allocator_free(frameAlloc);
-            return Error(NONE);
+            return NULL;
         }
         fi->bytesRemaining -= Message_getLength(msg);
         Allocator_adopt(fi->frameAlloc, Message_getAlloc(msg));
@@ -103,13 +103,13 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* streamIf)
         parts->msg = msg;
         parts->next = fi->frameParts;
         fi->frameParts = parts;
-        return Error(NONE);
+        return NULL;
     }
 
     for (;;) {
         while (fi->headerIndex < 4) {
             if (!Message_getLength(msg)) {
-                return Error(NONE);
+                return NULL;
             }
             fi->header.bytes[fi->headerIndex] = msg->msgbytes[0];
             Er_assert(Message_eshift(msg, -1));
@@ -121,7 +121,7 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* streamIf)
         if (fi->bytesRemaining > fi->maxMessageSize) {
             // oversize
             Assert_ifTesting(0);
-            return Error(OVERSIZE_MESSAGE);
+            return Error(msg, "OVERSIZE_MESSAGE");
         }
 
         if (fi->bytesRemaining == (uint32_t)Message_getLength(msg)) {
@@ -151,7 +151,7 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* streamIf)
             fi->frameParts->msg = m;
             fi->frameParts->next = NULL;
         }
-        return Error(NONE);
+        return NULL;
     }
 }
 

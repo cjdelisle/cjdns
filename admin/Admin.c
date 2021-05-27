@@ -113,7 +113,7 @@ struct Admin_pvt
     Identity
 };
 
-static struct Error_s sendMessage(
+static struct RTypes_Error_t* sendMessage(
     struct Message* message, struct Sockaddr* dest, struct Admin_pvt* admin)
 {
     // stack overflow when used with admin logger.
@@ -122,7 +122,7 @@ static struct Error_s sendMessage(
     return Iface_send(&admin->iface, message);
 }
 
-static struct Error_s sendBenc(Dict* message,
+static struct RTypes_Error_t* sendBenc(Dict* message,
                                struct Sockaddr* dest,
                                struct Allocator* alloc,
                                struct Admin_pvt* admin,
@@ -476,7 +476,7 @@ static Iface_DEFUN receiveMessage(struct Message* message, struct Iface* iface)
     Allocator_free(alloc);
     // We don't return errors here because the caller can't make use of them
     // instead we reply with anything which went wrong.
-    return Error(NONE);
+    return NULL;
 }
 
 void Admin_registerFunctionWithArgCount(char* name,

@@ -118,7 +118,7 @@ static Iface_DEFUN connected(struct SubnodePathfinder_pvt* pf, struct Message* m
 {
     Log_debug(pf->log, "INIT");
     pf->state = SubnodePathfinder_pvt_state_RUNNING;
-    return Error(NONE);
+    return NULL;
 }
 
 static uint32_t addressForNode(struct Address* addrOut, struct Message* msg)
@@ -147,8 +147,8 @@ static Iface_DEFUN switchErr(struct Message* msg, struct SubnodePathfinder_pvt* 
         uint8_t pathStr[20];
         AddrTools_printPath(pathStr, path);
         int err = Endian_bigEndianToHost32(switchErr.ctrlErr.errorType_be);
-        Log_debug(pf->log, "switch err from active snode [%s] type [%s][%d]",
-            pathStr, Error_strerror(err), err);
+        Log_debug(pf->log, "switch err from active snode [%s] type [%d]",
+            pathStr, err);
         pf->pub.snh->snodeIsReachable = false;
         if (pf->pub.snh->onSnodeUnreachable) {
             pf->pub.snh->onSnodeUnreachable(pf->pub.snh, 0, 0);
@@ -159,7 +159,7 @@ static Iface_DEFUN switchErr(struct Message* msg, struct SubnodePathfinder_pvt* 
     // we only really have the ability to report a node with known IPv6 address
     // so we will need to add a new event type to PFChan.
 
-    return Error(NONE);
+    return NULL;
 }
 
 struct SnodeQuery {
@@ -243,7 +243,7 @@ static Iface_DEFUN searchReq(struct Message* msg, struct SubnodePathfinder_pvt* 
     Er_assert(Message_epop(msg, addr, 16));
     Er_assert(Message_epop32be(msg));
     uint32_t version = Er_assert(Message_epop32be(msg));
-    if (version && version < 20) { return Error(UNHANDLED); }
+    if (version && version < 20) { return Error(msg, "UNHANDLED"); }
     Assert_true(!Message_getLength(msg));
     uint8_t printedAddr[40];
     AddrTools_printIp(printedAddr, addr);
@@ -268,7 +268,7 @@ static Iface_DEFUN searchReq(struct Message* msg, struct SubnodePathfinder_pvt* 
     }
 
     queryRs(pf, addr, printedAddr);
-    return Error(NONE);
+    return NULL;
 }
 
 static void rcChange(struct ReachabilityCollector* rc,
@@ -385,7 +385,7 @@ static Iface_DEFUN session(struct Message* msg, struct SubnodePathfinder_pvt* pf
     String* str = Address_toString(&addr, Message_getAlloc(msg));
     Log_debug(pf->log, "Session [%s]", str->bytes);
     //if (addr.protocolVersion) { NodeCache_discoverNode(pf->nc, &addr); }
-    return Error(NONE);
+    return NULL;
 }
 
 static Iface_DEFUN sessionEnded(struct Message* msg, struct SubnodePathfinder_pvt* pf)
@@ -395,7 +395,7 @@ static Iface_DEFUN sessionEnded(struct Message* msg, struct SubnodePathfinder_pv
     String* str = Address_toString(&addr, Message_getAlloc(msg));
     Log_debug(pf->log, "Session ended [%s]", str->bytes);
     //NodeCache_forgetNode(pf->nc, &addr);
-    return Error(NONE);
+    return NULL;
 }
 
 static Iface_DEFUN discoveredPath(struct Message* msg, struct SubnodePathfinder_pvt* pf)
@@ -404,7 +404,7 @@ static Iface_DEFUN discoveredPath(struct Message* msg, struct SubnodePathfinder_
     //addressForNode(&addr, msg);
     //Log_debug(pf->log, "discoveredPath(%s)", Address_toString(&addr, Message_getAlloc(msg))->bytes);
     //if (addr.protocolVersion) { NodeCache_discoverNode(pf->nc, &addr); }
-    return Error(NONE);
+    return NULL;
 }
 
 static Iface_DEFUN handlePing(struct Message* msg, struct SubnodePathfinder_pvt* pf)
@@ -417,7 +417,7 @@ static Iface_DEFUN handlePing(struct Message* msg, struct SubnodePathfinder_pvt*
 static Iface_DEFUN handlePong(struct Message* msg, struct SubnodePathfinder_pvt* pf)
 {
     //Log_debug(pf->log, "Received pong");
-    return Error(NONE);
+    return NULL;
 }
 
 static Iface_DEFUN ctrlMsgFromSwitchPinger(struct Message* msg, struct Iface* iface)
@@ -445,7 +445,7 @@ static Iface_DEFUN unsetupSession(struct Message* msg, struct SubnodePathfinder_
     Bits_memcpy(addr.ip6.bytes, node.ip6, 16);
     Bits_memcpy(addr.key, node.publicKey, 32);
     pingNode(pf, &addr);
-    return Error(NONE);
+    return NULL;
 }
 
 static Iface_DEFUN incomingMsg(struct Message* msg, struct SubnodePathfinder_pvt* pf)
@@ -465,7 +465,7 @@ static Iface_DEFUN linkState(struct Message* msg, struct SubnodePathfinder_pvt* 
             lse.sumOfDrops,
             lse.sumOfKb);
     }
-    return Error(NONE);
+    return NULL;
 }
 
 static Iface_DEFUN incomingFromMsgCore(struct Message* msg, struct Iface* iface)

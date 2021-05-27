@@ -43,7 +43,7 @@ Iface_DEFUN AndroidWrapper_incomingFromWire(struct Message* msg, struct Iface* e
 
     if (!ctx->pub.internalIf.connectedIf) {
         Log_debug(ctx->logger, "DROP message for android tun not inited");
-        return Error(UNHANDLED);
+        return Error(msg, "UNHANDLED");
     }
 
     int version = Headers_getIpVersion(msg->msgbytes);
@@ -54,7 +54,7 @@ Iface_DEFUN AndroidWrapper_incomingFromWire(struct Message* msg, struct Iface* e
         ethertype = Ethernet_TYPE_IP6;
     } else {
         Log_debug(ctx->logger, "Message is not IP/IPv6, dropped.");
-        return Error(INVALID);
+        return Error(msg, "INVALID not IP");
     }
 
     Er_assert(Message_eshift(msg, 4));
@@ -71,7 +71,7 @@ Iface_DEFUN AndroidWrapper_incomingFromUs(struct Message* msg, struct Iface* int
 
     if (!ctx->pub.externalIf.connectedIf) {
         Log_debug(ctx->logger, "DROP message for android tun not inited");
-        return Error(UNHANDLED);
+        return Error(msg, "UNHANDLED");
     }
 
     Er_assert(Message_eshift(msg, -4));

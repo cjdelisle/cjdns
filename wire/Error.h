@@ -15,6 +15,9 @@
 #ifndef Error_H
 #define Error_H
 
+#include "rust/cjdns_sys/Rffi.h"
+#include "wire/Message.h"
+
 enum Error_e {
     /** No error, everything is ok. */
     Error_NONE =                0,
@@ -59,31 +62,11 @@ enum Error_e {
     Error_INTERNAL =            13,
 };
 
-struct Error_s {
-    enum Error_e e;
-};
-
-#define Error(x) ((struct Error_s){ .e = Error_ ## x })
-
-static inline char* Error_strerror(int err)
-{
-    switch (err) {
-        case Error_NONE:                return "Error_NONE";
-        case Error_MALFORMED_ADDRESS:   return "Error_MALFORMED_ADDRESS";
-        case Error_FLOOD:               return "Error_FLOOD";
-        case Error_LINK_LIMIT_EXCEEDED: return "Error_LINK_LIMIT_EXCEEDED";
-        case Error_OVERSIZE_MESSAGE:    return "Error_OVERSIZE_MESSAGE";
-        case Error_RUNT:                return "Error_RUNT";
-        case Error_AUTHENTICATION:      return "Error_AUTHENTICATION";
-        case Error_INVALID:             return "Error_INVALID";
-        case Error_UNDELIVERABLE:       return "Error_UNDELIVERABLE";
-        case Error_LOOP_ROUTE:          return "Error_LOOP_ROUTE";
-        case Error_RETURN_PATH_INVALID: return "Error_RETURN_PATH_INVALID";
-        case Error_UNHANDLED:           return "Error_UNHANDLED";
-        case Error_INTERNAL:            return "Error_INTERNAL";
-        default: return "UNKNOWN";
-    }
-}
-
+#define Error(m, ...) \
+    Rffi_error_fl( \
+        String_printf(Message_getAlloc(m), __VA_ARGS__)->bytes, \
+        Gcc_SHORT_FILE, \
+        Gcc_LINE, \
+        Message_getAlloc(m))
 
 #endif

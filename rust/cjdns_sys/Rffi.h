@@ -56,4 +56,10 @@ void Rffi_panic(const char *msg);
 
 void Rffi_setLogger(Log_t *l);
 
+RTypes_Error_t *Rffi_error(const char *msg, Allocator_t *alloc);
+
+RTypes_Error_t *Rffi_error_fl(const char *msg, const char *file, int line, Allocator_t *alloc);
+
+const char *Rffi_printError(RTypes_Error_t *e, Allocator_t *alloc);
+
 #endif /* rffi_H */

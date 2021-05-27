@@ -268,3 +268,43 @@ pub unsafe extern "C" fn Rffi_panic(msg: *const c_char) -> ! {
 pub unsafe extern "C" fn Rffi_setLogger(l: *mut cffi::Log_t) {
     crate::cjdnslog::set_ffi_logger(l);
 }
+
+#[no_mangle]
+pub unsafe extern "C" fn Rffi_error(
+    msg: *const c_char,
+    alloc: *mut Allocator_t,
+) -> *mut RTypes_Error_t {
+    let s = std::ffi::CStr::from_ptr(msg).to_string_lossy();
+    allocator::adopt(alloc, RTypes_Error_t { e: Some(anyhow::anyhow!(s)) })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn Rffi_error_fl(
+    msg: *const c_char,
+    file: *const c_char,
+    line: c_int,
+    alloc: *mut Allocator_t,
+) -> *mut RTypes_Error_t {
+    let s = std::ffi::CStr::from_ptr(msg).to_string_lossy();
+    let f = std::ffi::CStr::from_ptr(file).to_string_lossy();
+    let ss = format!("{}:{}: {}", f, line, s);
+    allocator::adopt(alloc, RTypes_Error_t { e: Some(anyhow::anyhow!(ss)) })
+}
+
+fn str_to_c(s: &str, alloc: *mut Allocator_t) -> *const c_char {
+    let c_str = std::ffi::CString::new(s).unwrap();
+    let adopted = allocator::adopt(alloc, c_str);
+    return (*adopted).as_ptr()
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn Rffi_printError(
+    e: *mut RTypes_Error_t,
+    alloc: *mut Allocator_t,
+) -> *const c_char {
+    e.as_ref()
+        .map(|e|e.e.as_ref())
+        .flatten()
+        .map(|e|str_to_c(&format!("{:?}", e), alloc))
+        .unwrap_or_else(std::ptr::null)
+}

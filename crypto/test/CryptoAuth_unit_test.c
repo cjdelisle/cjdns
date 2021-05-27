@@ -56,7 +56,7 @@ struct Context
 
 static Iface_DEFUN doNothingSuccessfully(struct Message* msg, struct Iface* iface)
 {
-    return Error(NONE);
+    return NULL;
 }
 
 static struct Context* setUp(uint8_t* myPrivateKey,

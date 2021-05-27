@@ -243,7 +243,7 @@ static void updateSnodePath(struct SupernodeHunter_pvt* snp)
     Dict* msg = qp->msg = Dict_new(qp->alloc);
     qp->cb = updateSnodePath2;
     qp->userData = q;
-    qp->target = Address_clone(&snp->pub.snodeAddr, qp->alloc);;
+    qp->target = Address_clone(&snp->pub.snodeAddr, qp->alloc);
 
     Log_debug(snp->log, "Update snode [%s] path", Address_toString(qp->target, qp->alloc)->bytes);
     Dict_putStringCC(msg, "sq", "gr", qp->alloc);

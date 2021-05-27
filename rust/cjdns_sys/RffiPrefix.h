@@ -2,6 +2,7 @@
 #define RFFIPREFIX_H
 
 #include "rust/cjdns_sys/RTypes.h"
-#include "rust/cjdns_sys/cffi.h"
+#include "util/log/Log.h"
+#include "crypto/random/Random.h"
 
 #endif

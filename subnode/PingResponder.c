@@ -15,6 +15,7 @@
 #include "benc/Dict.h"
 #include "subnode/PingResponder.h"
 #include "util/Identity.h"
+#include "wire/Error.h"
 
 struct PingResponder_pvt
 {
@@ -29,7 +30,7 @@ struct PingResponder_pvt
     Identity
 };
 
-static struct Error_s onPing(Dict* msg,
+static struct RTypes_Error_t* onPing(Dict* msg,
                              struct Address* src,
                              struct Allocator* tmpAlloc,
                              struct MsgCore_Handler* handler)
@@ -40,7 +41,7 @@ static struct Error_s onPing(Dict* msg,
     String* txid = Dict_getStringC(msg, "txid");
     if (!txid) {
         Log_debug(prp->log, "ping missing txid");
-        return Error(INVALID);
+        return Rffi_error("INVALID", tmpAlloc);
     }
 
     Dict* responseDict = Dict_new(tmpAlloc);
@@ -59,14 +60,14 @@ static struct Error_s onPing(Dict* msg,
             "respect do-not-disturb",
             Address_toString(src, tmpAlloc)->bytes,
             src->protocolVersion);
-        return Error(UNHANDLED);
+        return Rffi_error("UNHANDLED", tmpAlloc);
     }
 
     Dict_putStringC(responseDict, "txid", txid, tmpAlloc);
     Dict_putIntC(msg, "dnd", 1, tmpAlloc); // do not disturb
     BoilerplateResponder_addBoilerplate(prp->br, responseDict, src, tmpAlloc);
     MsgCore_sendResponse(prp->msgCore, responseDict, src, tmpAlloc);
-    return Error(NONE);
+    return NULL;
 }
 
 struct PingResponder* PingResponder_new(struct Allocator* allocator,

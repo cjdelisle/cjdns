@@ -109,7 +109,7 @@ static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* iface)
     if (Message_getLength(msg) != write(ctx->socket, msg->msgbytes, Message_getLength(msg))) {
         Log_debug(ctx->logger, "Error writing to eth device [%s]", strerror(errno));
     }
-    return Error(NONE);
+    return NULL;
 }
 
 static void handleEvent2(struct ETHInterface_pvt* context,

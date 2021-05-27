@@ -2,6 +2,7 @@
 #define RTYPESPREFIX_H
 
 #include "benc/String.h"
-#include "interface/Iface.h"
+
+typedef struct Iface Iface_t;
 
 #endif

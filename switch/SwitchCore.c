@@ -71,14 +71,14 @@ static inline Iface_DEFUN sendError(struct SwitchInterface* iface,
 {
     if (Message_getLength(cause) < SwitchHeader_SIZE + 4) {
         Log_debug(logger, "runt");
-        return Error(RUNT);
+        return Error(cause, "RUNT");
     }
 
     struct SwitchHeader* causeHeader = (struct SwitchHeader*) cause->msgbytes;
 
     if (SwitchHeader_getSuppressErrors(causeHeader)) {
         // don't send errors if they're asking us to suppress them!
-        return Error(NONE);
+        return NULL;
     }
 
     // limit of 256 bytes
@@ -120,7 +120,7 @@ static Iface_DEFUN receiveMessage(struct Message* message, struct Iface* iface)
 
     if (Message_getLength(message) < SwitchHeader_SIZE) {
         Log_debug(core->logger, "DROP runt");
-        return Error(RUNT);
+        return Error(message, "RUNT");
     }
 
     struct SwitchHeader* header = (struct SwitchHeader*) message->msgbytes;
@@ -214,7 +214,7 @@ static Iface_DEFUN receiveMessage(struct Message* message, struct Iface* iface)
     if (labelShift > 63) {
         // TODO(cjd): hmm should we return an error packet?
         Log_debug(core->logger, "Label rolled over");
-        return Error(UNDELIVERABLE);
+        return Error(message, "UNDELIVERABLE");
     }
     SwitchHeader_setLabelShift(header, labelShift);
     SwitchHeader_setTrafficClass(header, 0xffff);

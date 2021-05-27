@@ -126,7 +126,7 @@ static Iface_DEFUN messagePlaintext(Message_t *msg, struct Iface* iface)
             msg = NULL;
         }
     }
-    struct Error_s i1 = Error(NONE);
+    struct RTypes_Error_t* i1 = NULL;
     if (sess->s) {
         int flag = sess->s2 ? STOP : PASS;
         Er_assert(Message_epushAd(msg, &flag, sizeof flag));
@@ -140,9 +140,9 @@ static Iface_DEFUN messagePlaintext(Message_t *msg, struct Iface* iface)
         int flag = sess->s ? VERIFY : PASS;
         Er_assert(Message_epushAd(m2, &flag, sizeof flag));
         printf("Send2 [%d]\n", flag);
-        struct Error_s i2 = Iface_send(&sess->s2Plain, m2);
+        struct RTypes_Error_t* i2 = Iface_send(&sess->s2Plain, m2);
         if (sess->s) {
-            Assert_true(i2.e == i1.e);
+            Assert_true((i2 == NULL) == (i1 == NULL));
         }
         printf("Send2 done\n");
         return i2;
@@ -162,7 +162,7 @@ static Iface_DEFUN messageCiphertext(Message_t *msg, struct Iface* iface)
             msg = NULL;
         }
     }
-    struct Error_s i1 = Error(NONE);
+    struct RTypes_Error_t* i1 = NULL;
     if (sess->s) {
         int flag = sess->s2 ? STOP : PASS;
         Er_assert(Message_epushAd(msg, &flag, sizeof flag));
@@ -176,9 +176,9 @@ static Iface_DEFUN messageCiphertext(Message_t *msg, struct Iface* iface)
             flag = VERIFY;
         }
         Er_assert(Message_epushAd(m2, &flag, sizeof flag));
-        struct Error_s i2 = Iface_send(&sess->s2Cipher, m2);
+        struct RTypes_Error_t* i2 = Iface_send(&sess->s2Cipher, m2);
         if (sess->s) {
-            Assert_true(i2.e == i1.e);
+            Assert_true((i2 == NULL) == (i1 == NULL));
         }
         return i2;
     }
@@ -219,28 +219,28 @@ static bool check(Message_t *msg, TestCa_Session_pvt_t* sess)
 static Iface_DEFUN sPlainRecv(Message_t *msg, struct Iface* iface)
 {
     TestCa_Session_pvt_t* sess = Identity_containerOf(iface, TestCa_Session_pvt_t, sPlain);
-    if (check(msg, sess)) { return Error(NONE); }
+    if (check(msg, sess)) { return NULL; }
     return Iface_next(&sess->pub.plaintext, msg);
 }
 
 static Iface_DEFUN s2PlainRecv(Message_t *msg, struct Iface* iface)
 {
     TestCa_Session_pvt_t* sess = Identity_containerOf(iface, TestCa_Session_pvt_t, s2Plain);
-    if (check(msg, sess)) { return Error(NONE); }
+    if (check(msg, sess)) { return NULL; }
     return Iface_next(&sess->pub.plaintext, msg);
 }
 
 static Iface_DEFUN sCipherRecv(Message_t *msg, struct Iface* iface)
 {
     TestCa_Session_pvt_t* sess = Identity_containerOf(iface, TestCa_Session_pvt_t, sCipher);
-    if (check(msg, sess)) { return Error(NONE); }
+    if (check(msg, sess)) { return NULL; }
     return Iface_next(&sess->pub.ciphertext, msg);
 }
 
 static Iface_DEFUN s2CipherRecv(Message_t *msg, struct Iface* iface)
 {
     TestCa_Session_pvt_t* sess = Identity_containerOf(iface, TestCa_Session_pvt_t, s2Cipher);
-    if (check(msg, sess)) { return Error(NONE); }
+    if (check(msg, sess)) { return NULL; }
     return Iface_next(&sess->pub.ciphertext, msg);
 }
 

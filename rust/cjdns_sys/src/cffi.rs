@@ -248,28 +248,36 @@ extern "C" {
         line: ::std::os::raw::c_int,
     ) -> *mut Allocator;
 }
+pub type Iface_t = Iface;
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum Error_e {
-    Error_NONE = 0,
-    Error_MALFORMED_ADDRESS = 1,
-    Error_FLOOD = 2,
-    Error_LINK_LIMIT_EXCEEDED = 3,
-    Error_OVERSIZE_MESSAGE = 4,
-    Error_RUNT = 5,
-    Error_AUTHENTICATION = 6,
-    Error_INVALID = 7,
-    Error_UNDELIVERABLE = 8,
-    Error_LOOP_ROUTE = 9,
-    Error_RETURN_PATH_INVALID = 10,
-    Error_UNHANDLED = 11,
-    Error_OVERFLOW = 12,
-    Error_INTERNAL = 13,
+pub enum RTypes_CryptoAuth_State_t {
+    RTypes_CryptoAuth_State_t_Init = 0,
+    RTypes_CryptoAuth_State_t_SentHello = 1,
+    RTypes_CryptoAuth_State_t_ReceivedHello = 2,
+    RTypes_CryptoAuth_State_t_SentKey = 3,
+    RTypes_CryptoAuth_State_t_ReceivedKey = 4,
+    RTypes_CryptoAuth_State_t_Established = 100,
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
-pub struct Error_s {
-    pub e: Error_e,
+pub struct RTypes_Error_t {
+    _unused: [u8; 0],
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct RTypes_StrList_t {
+    pub len: usize,
+    pub items: *mut *mut String_t,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct RTypes_CryptoStats_t {
+    pub lost_packets: u64,
+    pub received_unexpected: u64,
+    pub received_packets: u64,
+    pub duplicate_packets: u64,
+    pub noise_proto: bool,
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -330,7 +338,7 @@ extern "C" {
     pub fn Message_clone(toClone: *mut Message, alloc: *mut Allocator) -> *mut Message;
 }
 pub type Iface_Callback = ::std::option::Option<
-    unsafe extern "C" fn(message: *mut Message, thisInterface: *mut Iface) -> Error_s,
+    unsafe extern "C" fn(message: *mut Message, thisInterface: *mut Iface) -> *mut RTypes_Error_t,
 >;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -339,9 +347,11 @@ pub struct Iface {
     pub currentMsg: *mut Message,
     pub connectedIf: *mut Iface,
 }
-pub type Iface_t = Iface;
 extern "C" {
-    pub fn Iface_incomingFromRust(message: *mut Message, thisInterface: *mut Iface) -> Error_s;
+    pub fn Iface_incomingFromRust(
+        message: *mut Message,
+        thisInterface: *mut Iface,
+    ) -> *mut RTypes_Error_t;
 }
 extern "C" {
     pub fn RustIface_gotIncoming();
@@ -351,30 +361,6 @@ extern "C" {
 }
 extern "C" {
     pub fn RustIface_dropped();
-}
-#[repr(u32)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum RTypes_CryptoAuth_State_t {
-    RTypes_CryptoAuth_State_t_Init = 0,
-    RTypes_CryptoAuth_State_t_SentHello = 1,
-    RTypes_CryptoAuth_State_t_ReceivedHello = 2,
-    RTypes_CryptoAuth_State_t_SentKey = 3,
-    RTypes_CryptoAuth_State_t_ReceivedKey = 4,
-    RTypes_CryptoAuth_State_t_Established = 100,
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct RTypes_StrList_t {
-    pub len: usize,
-    pub items: *mut *mut String_t,
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct RTypes_CryptoStats_t {
-    pub lost_packets: u64,
-    pub received_unexpected: u64,
-    pub received_packets: u64,
-    pub duplicate_packets: u64,
 }
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -426,14 +412,6 @@ extern "C" {
         format: *const ::std::os::raw::c_char,
         ...
     );
-}
-extern "C" {
-    pub fn Log_shouldLog(
-        log: *mut Log,
-        logLevel: Log_Level,
-        file: *const ::std::os::raw::c_char,
-        line: ::std::os::raw::c_int,
-    ) -> bool;
 }
 extern "C" {
     pub fn Log_print0(
@@ -565,17 +543,15 @@ extern "C" {
         useNoise: bool,
     ) -> *mut CryptoAuth_Session;
 }
-#[cfg(test)]
-extern "C" { // Used in unit tests only
+extern "C" {
     pub fn CryptoAuth_encrypt(
         session: *mut CryptoAuth_Session,
         msg: *mut Message,
     ) -> ::std::os::raw::c_int;
 }
-#[cfg(test)]
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum CryptoAuth_DecryptErr { // Used in unit tests only
+pub enum CryptoAuth_DecryptErr {
     CryptoAuth_DecryptErr_NONE = 0,
     CryptoAuth_DecryptErr_RUNT = 1,
     CryptoAuth_DecryptErr_NO_SESSION = 2,
@@ -593,8 +569,7 @@ pub enum CryptoAuth_DecryptErr { // Used in unit tests only
     CryptoAuth_DecryptErr_REPLAY = 14,
     CryptoAuth_DecryptErr_DECRYPT = 15,
 }
-#[cfg(test)]
-extern "C" { // Used in unit tests only
+extern "C" {
     pub fn CryptoAuth_decrypt(
         sess: *mut CryptoAuth_Session,
         msg: *mut Message,

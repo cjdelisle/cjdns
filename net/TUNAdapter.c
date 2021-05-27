@@ -24,6 +24,7 @@
 #include "crypto/AddressCalc.h"
 #include "util/Defined.h"
 #include "util/AddrTools.h"
+#include "wire/Error.h"
 
 struct TUNAdapter_pvt
 {
@@ -45,7 +46,7 @@ static Iface_DEFUN incomingFromTunIf(struct Message* msg, struct Iface* tunIf)
     {
         Log_debug(ud->log, "DROP packet because ip version [%d] "
                   "doesn't match ethertype [%u].", version, Endian_bigEndianToHost16(ethertype));
-        return Error(INVALID);
+        return Error(msg, "INVALID");
     }
 
     if (ethertype == Ethernet_TYPE_IP4) {
@@ -54,12 +55,12 @@ static Iface_DEFUN incomingFromTunIf(struct Message* msg, struct Iface* tunIf)
     if (ethertype != Ethernet_TYPE_IP6) {
         Log_debug(ud->log, "DROP packet unknown ethertype [%u]",
                   Endian_bigEndianToHost16(ethertype));
-        return Error(INVALID);
+        return Error(msg, "INVALID");
     }
 
     if (Message_getLength(msg) < Headers_IP6Header_SIZE) {
         Log_debug(ud->log, "DROP runt");
-        return Error(RUNT);
+        return Error(msg, "RUNT");
     }
 
     struct Headers_IP6Header* header = (struct Headers_IP6Header*) msg->msgbytes;
@@ -76,7 +77,7 @@ static Iface_DEFUN incomingFromTunIf(struct Message* msg, struct Iface* tunIf)
                       "DROP packet from [%s] because all messages must have source address [%s]",
                       packetSource, expectedSource);
         }
-        return Error(INVALID);
+        return Error(msg, "INVALID");
     }
     if (!Bits_memcmp(header->destinationAddr, ud->myIp6, 16)) {
         // I'm Gonna Sit Right Down and Write Myself a Letter
@@ -111,7 +112,7 @@ static Iface_DEFUN sendToTunIf(struct Message* msg, struct TUNAdapter_pvt* ud)
     if (!ud->pub.tunIf.connectedIf) {
         Log_debug(ud->log, "DROP message for tun because no device is defined");
         // Nothing inherently wrong with this message
-        return Error(NONE);
+        return NULL;
     }
     return Iface_next(&ud->pub.tunIf, msg);
 }

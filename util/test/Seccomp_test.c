@@ -102,7 +102,7 @@ static Iface_DEFUN receiveMessageParent(struct Message* msg, struct Iface* iface
     Assert_true(Message_getLength(msg) == 3);
     Assert_true(!Bits_memcmp(msg->msgbytes, "OK", 3));
     EventBase_endLoop(ctx->eventBase);
-    return Error(NONE);
+    return NULL;
 }
 
 int main(int argc, char** argv)

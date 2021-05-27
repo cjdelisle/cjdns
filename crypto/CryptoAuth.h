@@ -16,6 +16,7 @@
 #define CryptoAuth_H
 
 #include "rust/cjdns_sys/RTypes.h"
+#include "interface/Iface.h"
 #include "benc/String.h"
 #include "crypto/random/Random.h"
 #include "crypto/ReplayProtector.h"

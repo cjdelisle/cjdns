@@ -60,7 +60,7 @@ static Iface_DEFUN sendOutside(struct Message* msg, struct Iface* outside)
     Assert_true(top == 0x00000800);
     Assert_true(!(ctx->received & 1));
     ctx->received |= 1;
-    return Error(NONE);
+    return NULL;
 }
 
 static Iface_DEFUN sendInside(struct Message* msg, struct Iface* inside)

@@ -20,6 +20,7 @@
 #include "util/log/Log.h"
 #include "util/log/FileWriterLog.h"
 #include "util/events/Timeout.h"
+#include "wire/Error.h"
 #include "wire/Ethernet.h"
 #include "wire/Headers.h"
 #include "util/platform/netdev/NetDev.h"
@@ -36,7 +37,7 @@ static Iface_DEFUN receiveMessageTUN(struct Message* msg, struct TUNTools* tt)
     if (ethertype != Ethernet_TYPE_IP4) {
         Log_debug(tt->log, "Spurious packet with ethertype [%u]\n",
                   Endian_bigEndianToHost16(ethertype));
-        return Error(INVALID);
+        return Error(msg, "INVALID");
     }
 
     struct Headers_IP4Header* header = (struct Headers_IP4Header*) msg->msgbytes;

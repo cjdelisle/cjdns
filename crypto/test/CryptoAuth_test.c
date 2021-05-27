@@ -14,6 +14,7 @@
  */
 #include "crypto/random/Random.h"
 #include "crypto/Ca.h"
+#include "crypto/CryptoAuth.h"
 #include "benc/String.h"
 #include "memory/MallocAllocator.h"
 #include "util/events/EventBase.h"
@@ -82,7 +83,7 @@ static Iface_DEFUN afterDecrypt(struct Message* msg, struct Iface* if1)
     n->expectErr = CryptoAuth_DecryptErr_NONE;
     if (!n->expectPlaintext) {
         if (e) {
-            return Error(NONE);
+            return NULL;
         }
         Assert_failure("expected <NULL>, got [%s](%d)\n", msg->msgbytes, Message_getLength(msg));
     }
@@ -93,12 +94,12 @@ static Iface_DEFUN afterDecrypt(struct Message* msg, struct Iface* if1)
             n->expectPlaintext, (int)CString_strlen(n->expectPlaintext), msg->msgbytes, Message_getLength(msg));
     }
     n->expectPlaintext = NULL;
-    return Error(NONE);
+    return NULL;
 }
 
 static Iface_DEFUN afterEncrypt(struct Message* msg, struct Iface* if1)
 {
-    return Error(NONE);
+    return NULL;
 }
 
 static struct Context* init(uint8_t* privateKeyA,
@@ -163,9 +164,11 @@ static struct Message* encryptMsg(struct Context* ctx,
     CString_strcpy(msg->msgbytes, x);
     Er_assert(Message_truncate(msg, CString_strlen(x)));
     //msg->bytes[Message_getLength(msg)] = 0;
-    struct Error_s e = Iface_send(&n->plaintext, msg);
-    printf("%x\n", e.e);
-    Assert_true(e.e == Error_NONE);
+    struct RTypes_Error_t* e = Iface_send(&n->plaintext, msg);
+    if (e) {
+        printf("%s\n", Rffi_printError(e, ctx->alloc));
+        Assert_failure("error was not null");
+    }
     Assert_true(Message_getLength(msg) > ((int)CString_strlen(x) + 4));
     return msg;
 }

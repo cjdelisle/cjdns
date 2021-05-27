@@ -1208,7 +1208,7 @@ impl IfRecv for CiphertextRecv {
                 }
             }
             Err(e) => {
-                log::debug!("Error decrypting {} {}", e, m.len());
+                log::debug!("Error decrypting {}", e);
                 let ee = match e.downcast_ref::<DecryptError>() {
                     Some(ee) => match ee {
                         DecryptError::DecryptErr(ee) => ee,

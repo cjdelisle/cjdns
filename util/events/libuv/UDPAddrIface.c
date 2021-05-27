@@ -86,13 +86,13 @@ static Iface_DEFUN incomingFromIface(struct Message* m, struct Iface* iface)
     if (((struct Sockaddr*)m->msgbytes)->flags & Sockaddr_flags_BCAST) {
         Log_debug(context->logger, "Attempted bcast, bcast unsupported");
         // bcast not supported.
-        return Error(UNHANDLED);
+        return Error(m, "UNHANDLED");
     }
 
     if (context->queueLen > UDPAddrIface_MAX_QUEUE) {
         Log_warn(context->logger, "DROP msg length [%d] to [%s] maximum queue length reached",
             Message_getLength(m), Sockaddr_print(context->pub.generic.addr, Message_getAlloc(m)));
-        return Error(OVERFLOW);
+        return Error(m, "OVERFLOW");
     }
 
     // This allocator will hold the message allocator in existance after it is freed.
@@ -124,11 +124,11 @@ static Iface_DEFUN incomingFromIface(struct Message* m, struct Iface* iface)
         Log_info(context->logger, "DROP Failed writing to UDPAddrIface [%s]",
                  uv_strerror(ret));
         Allocator_free(req->alloc);
-        return Error(UNHANDLED);
+        return Error(m, "UNHANDLED");
     }
     context->queueLen += Message_getLength(m);
 
-    return Error(NONE);
+    return NULL;
 }
 
 #if UDPAddrIface_PADDING_AMOUNT < 8

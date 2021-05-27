@@ -266,7 +266,7 @@ static Iface_DEFUN afterEncrypt(struct Message* msg, struct Iface* iface)
 {
     struct Node* n = Identity_containerOf(iface, struct Node, ciphertext);
     sendFrom(n->ctx, n, msg);
-    return Error(NONE);
+    return NULL;
 }
 
 static Iface_DEFUN afterDecrypt(struct Message* msg, struct Iface* iface)
@@ -283,7 +283,7 @@ static Iface_DEFUN afterDecrypt(struct Message* msg, struct Iface* iface)
         if (to == &to->ctx->nodeB) {
             // 1/10 chance the node decides not to reply.
             if (maybe(to->ctx, 10)) {
-                return Error(NONE);
+                return NULL;
             }
             //Assert_true(!TestCa_encrypt(to->session, msg));
             to->sendCounter++;
@@ -295,7 +295,7 @@ static Iface_DEFUN afterDecrypt(struct Message* msg, struct Iface* iface)
             to->ctx->successMessageCount++;
         }
     }
-    return Error(NONE);
+    return NULL;
 }
 
 void* CryptoAuthFuzz_init(struct Allocator* alloc, struct Random* rand, enum TestCa_Config cfg)

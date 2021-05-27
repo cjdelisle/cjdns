@@ -129,7 +129,7 @@ static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* iface)
     };
     Er_assert(Message_epush(msg, &hdr, ETHInterface_Header_SIZE));
     sendMessageInternal(msg, &addr, ctx);
-    return Error(NONE);
+    return NULL;
 }
 
 static void handleEvent2(struct ETHInterface_pvt* context, struct Allocator* messageAlloc)

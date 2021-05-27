@@ -17,6 +17,7 @@
 
 #include "benc/String.h"
 #include "rust/cjdns_sys/RTypes.h"
+#include "interface/Iface.h"
 #include "util/events/EventBase.h"
 #include "crypto/random/Random.h"
 #include "util/Linker.h"

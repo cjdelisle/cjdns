@@ -568,19 +568,28 @@ const getLinkOrder = function (cFile, files) /*:string[]*/ {
 // make sure everything is present.
 const needsToLink = function (ctx, cFile) {
     const nlCache = {};
+    const nll = [];
     const nl = (cFile) => {
         if (nlCache[cFile]) { return false; }
-        //debug('  ' + cFile);
-        if (typeof(ctx.state.cFiles[cFile]) !== 'object') {
-            return true;
+        if (nll.indexOf(cFile) > -1) {
+            throw new Error(`File ${cFile} is self-referencial:\n${nll.join('\n')}\n\n`);
         }
-        for (const l of ctx.state.cFiles[cFile].links) {
-            if (l !== cFile && nl(l)) {
+        nll.push(cFile);
+        const out = (() => {
+            //debug('  ' + cFile);
+            if (typeof(ctx.state.cFiles[cFile]) !== 'object') {
                 return true;
             }
-        }
-        nlCache[cFile] = true;
-        return false;
+            for (const l of ctx.state.cFiles[cFile].links) {
+                if (l !== cFile && nl(l)) {
+                    return true;
+                }
+            }
+            nlCache[cFile] = true;
+            return false;
+        })();
+        if (nll.pop() !== cFile) { throw new Error(); }
+        return out;
     };
     return nl(cFile);
 };

@@ -35,6 +35,7 @@
 #include "wire/Message.h"
 #include "wire/Headers.h"
 #include "wire/Metric.h"
+#include "wire/CryptoHeader.h"
 
 /** After this number of milliseconds, a node will be regarded as unresponsive. */
 #define UNRESPONSIVE_AFTER_MILLISECONDS (20*1024)
@@ -518,7 +519,7 @@ static Iface_DEFUN sendFromSwitch(struct Message* msg, struct Iface* switchIf)
                 Address_toString(&ep->addr, Message_getAlloc(msg))->bytes, ep->addr.protocolVersion);
         }
         ep->state = InterfaceController_PeerState_INCOMPATIBLE;
-        return Error(UNHANDLED);
+        return Error(msg, "UNHANDLED");
     }
 
     ep->bytesOut += Message_getLength(msg);
@@ -584,19 +585,19 @@ static Iface_DEFUN handleBeacon(struct Message* msg, struct InterfaceController_
         // accepting beacons disabled.
         Log_debug(ic->logger, "[%s] Dropping beacon because beaconing is disabled",
                   ici->pub.name->bytes);
-        return Error(NONE);
+        return NULL;
     }
 
     if (Message_getLength(msg) < Sockaddr_OVERHEAD) {
         Log_debug(ic->logger, "[%s] Dropping runt beacon", ici->pub.name->bytes);
-        return Error(RUNT);
+        return Error(msg, "RUNT");
     }
 
     struct Sockaddr* lladdrInmsg = (struct Sockaddr*) msg->msgbytes;
 
     if (Message_getLength(msg) < lladdrInmsg->addrLen + Headers_Beacon_SIZE) {
         Log_debug(ic->logger, "[%s] Dropping runt beacon", ici->pub.name->bytes);
-        return Error(RUNT);
+        return Error(msg, "RUNT");
     }
 
     // clear the bcast flag
@@ -625,10 +626,10 @@ static Iface_DEFUN handleBeacon(struct Message* msg, struct InterfaceController_
 
     if (!AddressCalc_validAddress(addr.ip6.bytes)) {
         Log_debug(ic->logger, "handleBeacon invalid key [%s]", printedAddr->bytes);
-        return Error(INVALID);
+        return Error(msg, "INVALID");
     } else if (!Bits_memcmp(ic->ourPubKey, addr.key, 32)) {
         // receive beacon from self, drop silent
-        return Error(NONE);
+        return NULL;
     }
 
     if (knownIncompatibleVersion(addr.protocolVersion)) {
@@ -637,7 +638,7 @@ static Iface_DEFUN handleBeacon(struct Message* msg, struct InterfaceController_
                       "our version is [%d] making them incompatable", ici->pub.name->bytes,
                       printedAddr->bytes, addr.protocolVersion, Version_CURRENT_PROTOCOL);
         }
-        return Error(UNHANDLED);
+        return Error(msg, "UNHANDLED");
     }
 
     String* beaconPass = String_newBinary(beacon.password, Headers_Beacon_PASSWORD_LEN, Message_getAlloc(msg));
@@ -646,7 +647,7 @@ static Iface_DEFUN handleBeacon(struct Message* msg, struct InterfaceController_
         // The password might have changed!
         struct Peer* ep = ici->peerMap.values[epIndex];
         Ca_setAuth(beaconPass, NULL, ep->caSession);
-        return Error(NONE);
+        return NULL;
     }
 
     bool useNoise = addr.protocolVersion >= 22;
@@ -662,7 +663,7 @@ static Iface_DEFUN handleBeacon(struct Message* msg, struct InterfaceController_
     if (SwitchCore_addInterface(ic->switchCore, &ep->switchIf, ep->alloc, &ep->addr.path)) {
         Log_debug(ic->logger, "handleBeacon() SwitchCore out of space");
         Allocator_free(ep->alloc);
-        return Error(UNHANDLED);
+        return Error(msg, "UNHANDLED");
     }
 
     // We want the node to immedietly be pinged but we don't want it to appear unresponsive because
@@ -676,7 +677,7 @@ static Iface_DEFUN handleBeacon(struct Message* msg, struct InterfaceController_
 
     // Ping them immediately, this prevents beacon tests from taking 1 second each
     sendPing(ep);
-    return Error(NONE);
+    return NULL;
 }
 
 /**
@@ -689,7 +690,7 @@ static Iface_DEFUN handleUnexpectedIncoming(struct Message* msg,
     struct Sockaddr* lladdr = (struct Sockaddr*) msg->msgbytes;
     Er_assert(Message_eshift(msg, -lladdr->addrLen));
     if (Message_getLength(msg) < CryptoHeader_SIZE) {
-        return Error(RUNT);
+        return Error(msg, "RUNT length: %d", Message_getLength(msg));
     }
 
     Assert_true(!((uintptr_t)msg->msgbytes % 4) && "alignment fault");
@@ -700,7 +701,7 @@ static Iface_DEFUN handleUnexpectedIncoming(struct Message* msg,
     {
         // This cuts down on processing and logger noise because any packet
         // which is not a setup packet will be summarily dropped.
-        return Error(INVALID);
+        return Error(msg, "INVALID");
     }
 
     // Don't force noise for this message because we really have no idea what we're dealing with
@@ -709,7 +710,7 @@ static Iface_DEFUN handleUnexpectedIncoming(struct Message* msg,
 
     if (!AddressCalc_validAddress(ep->addr.ip6.bytes)) {
         Allocator_free(ep->alloc);
-        return Error(INVALID);
+        return Error(msg, "INVALID");
     }
 
     uint32_t nonce = Endian_bigEndianToHost32(ch->nonce);
@@ -727,7 +728,7 @@ static Iface_DEFUN handleIncomingFromWire(struct Message* msg, struct Iface* add
     struct Sockaddr* lladdr = (struct Sockaddr*) msg->msgbytes;
     if (Message_getLength(msg) < Sockaddr_OVERHEAD || Message_getLength(msg) < lladdr->addrLen) {
         Log_debug(ici->ic->logger, "DROP runt");
-        return Error(RUNT);
+        return Error(msg, "RUNT");
     }
 
     Assert_true(!((uintptr_t)msg->msgbytes % 4) && "alignment fault");
@@ -758,7 +759,7 @@ static Iface_DEFUN handleIncomingFromWire(struct Message* msg, struct Iface* add
                 Address_toString(&ep->addr, Message_getAlloc(msg))->bytes, ep->addr.protocolVersion);
         }
         ep->state = InterfaceController_PeerState_INCOMPATIBLE;
-        return Error(NONE);
+        return NULL;
     }
 
     Ca_resetIfTimeout(ep->caSession);
@@ -789,14 +790,14 @@ static Iface_DEFUN afterDecrypt(struct Message* msg, struct Iface* plaintext)
             // We got an unexpected message and it did not validate, drop the allocator
             Allocator_free(ep->alloc);
         }
-        return Error(AUTHENTICATION);
+        return Error(msg, "AUTHENTICATION");
     } else if (unexpected) {
         // We got an unexpected message and it's valid, load the peer
 
         if (SwitchCore_addInterface(ic->switchCore, &ep->switchIf, ep->alloc, &ep->addr.path)) {
             Log_debug(ic->logger, "handleUnexpectedIncoming() SwitchCore out of space");
             Allocator_free(ep->alloc);
-            return Error(UNHANDLED);
+            return Error(msg, "UNHANDLED");
         }
 
         // TODO(cjd): when this becomes threaded, there will be a race here
@@ -825,7 +826,7 @@ static Iface_DEFUN afterDecrypt(struct Message* msg, struct Iface* plaintext)
         // directs it to *this* router.
         if (Message_getLength(msg) < 8 || msg->msgbytes[7] != 1) {
             Log_info(ic->logger, "DROP message because CA is not established.");
-            return Error(UNHANDLED);
+            return Error(msg, "UNHANDLED");
         } else {
             // When a "server" gets a new connection from a "client" the router doesn't
             // know about that client so if the client sends a packet to the server, the
@@ -1131,7 +1132,7 @@ static Iface_DEFUN incomingFromEventEmitterIf(struct Message* msg, struct Iface*
             sendPeer(pathfinderId, PFChan_Core_PEER, peer, 0xffff);
         }
     }
-    return Error(NONE);
+    return NULL;
 }
 
 struct InterfaceController* InterfaceController_new(Ca_t* ca,

@@ -79,7 +79,7 @@ static Iface_DEFUN sendMessage(struct Message* m, struct Iface* iface)
     int idx = Map_Clients_indexForHandle(handle, &psp->clients);
     if (idx < 0) {
         Log_warn(psp->log, "Attempted to send a message to client [0x%x] which is gone", handle);
-        return Error(UNHANDLED);
+        return Error(m, "UNHANDLED");
     }
     struct Client* cli = psp->clients.values[idx];
     return Iface_next(&cli->iface, m);

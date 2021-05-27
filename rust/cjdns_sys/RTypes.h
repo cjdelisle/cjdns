@@ -33,6 +33,8 @@ typedef enum {
   RTypes_CryptoAuth_State_t_Established = 100,
 } RTypes_CryptoAuth_State_t;
 
+typedef struct RTypes_Error_t RTypes_Error_t;
+
 typedef struct {
   Iface_t *internal;
   Iface_t *external;
@@ -77,6 +79,7 @@ typedef struct {
   RTypes_CryptoAuth_State_t c;
   RTypes_CryptoStats_t d;
   RTypes_CryptoAuth2_Session_t e;
+  RTypes_Error_t *f;
 } RTypes_ExportMe;
 
 #endif /* RTypes_H */

@@ -1,6 +1,7 @@
-use anyhow::{bail, Result};
+use anyhow::Result;
 
-use crate::cffi::{self, Allocator, Error_e, Error_s};
+use crate::cffi::{self, Allocator};
+use crate::rtypes::RTypes_Error_t;
 use crate::external::interface::iface::{self, IfRecv, Iface, IfacePvt};
 use crate::external::memory::allocator;
 use crate::interface::wire::message::Message;
@@ -12,12 +13,12 @@ struct CRecv {
 impl IfRecv for CRecv {
     fn recv(&self, m: &mut Message) -> Result<()> {
         let c_msg = m.as_c_message();
-        let ers = unsafe { cffi::Iface_incomingFromRust(c_msg, self.c_iface) };
-        match ers.e {
-            Error_e::Error_NONE => Ok(()),
-            _ => {
-                bail!("Error from C code {}", ers.e as usize);
-            }
+        unsafe {
+            (cffi::Iface_incomingFromRust(c_msg, self.c_iface) as *mut RTypes_Error_t).as_mut()
+                .map(|e|e.e.take())
+                .flatten()
+                .map(|e|Err(e))
+                .unwrap_or(Ok(()))
         }
     }
 }
@@ -34,7 +35,7 @@ struct CIface {
 // This is an assertion to make sure we're being passed something legit from C
 const IFACE_IDENT: u32 = 0xdeadbeef;
 
-unsafe extern "C" fn from_c(msg: *mut cffi::Message, iface_p: *mut cffi::Iface) -> Error_s {
+unsafe extern "C" fn from_c(msg: *mut cffi::Message, iface_p: *mut cffi::Iface) -> *mut cffi::RTypes_Error_t {
     let iface = (iface_p as *mut CIface).as_ref().unwrap();
 
     // We're getting called from C with a ffi::Iface which is supposed to be one of ours
@@ -42,15 +43,16 @@ unsafe extern "C" fn from_c(msg: *mut cffi::Message, iface_p: *mut cffi::Iface) 
     // check that this field id_tag is equal to the value we set it to initially.
     assert!(iface.id_tag == IFACE_IDENT);
 
+    let alloc = (*msg)._alloc;
+
     let mut msg = Message::from_c_message(msg);
     match iface.rif.send(&mut msg) {
         // TODO: we need better error handling
-        Ok(_) => Error_s {
-            e: Error_e::Error_NONE,
-        },
-        Err(_) => Error_s {
-            e: Error_e::Error_INTERNAL,
-        },
+        Ok(_) => std::ptr::null_mut(),
+        Err(e) => {
+            let e: *mut RTypes_Error_t = allocator::adopt(alloc, RTypes_Error_t { e: Some(e) });
+            e as *mut cffi::RTypes_Error_t
+        }
     }
 }
 

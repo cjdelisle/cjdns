@@ -42,7 +42,7 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* wireSide)
     struct BSDMessageTypeWrapper_pvt* ctx =
         Identity_containerOf(wireSide, struct BSDMessageTypeWrapper_pvt, pub.wireSide);
 
-    if (Message_getLength(msg) < 4) { return Error(RUNT); }
+    if (Message_getLength(msg) < 4) { return Error(msg, "RUNT"); }
 
     uint16_t afType_be = ((uint16_t*) msg->msgbytes)[1];
     uint16_t ethertype = 0;
@@ -53,7 +53,7 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* wireSide)
     } else {
         Log_debug(ctx->logger, "Message of unhandled aftype [0x%04x]",
                   Endian_bigEndianToHost16(afType_be));
-        return Error(INVALID);
+        return Error(msg, "INVALID");
     }
     ((uint16_t*) msg->msgbytes)[0] = 0;
     ((uint16_t*) msg->msgbytes)[1] = ethertype;

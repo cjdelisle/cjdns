@@ -1059,7 +1059,7 @@ static Iface_DEFUN plaintextMsg(struct Message* msg, struct Iface* iface)
     struct CryptoAuth_Session_pvt* sess =
         Identity_containerOf(iface, struct CryptoAuth_Session_pvt, pub.plaintext);
     if (encryptPacket(sess, msg)) {
-        return Error(INTERNAL);
+        return Error(msg, "INTERNAL");
     }
     return Iface_next(&sess->pub.ciphertext, msg);
 }
@@ -1069,7 +1069,7 @@ static Iface_DEFUN ciphertextMsg(struct Message* msg, struct Iface* iface)
     struct CryptoAuth_Session_pvt* sess =
         Identity_containerOf(iface, struct CryptoAuth_Session_pvt, pub.ciphertext);
     if (Message_getLength(msg) < 16) {
-        return Error(RUNT);
+        return Error(msg, "RUNT");
     }
     uint8_t firstSixteen[16];
     Bits_memcpy(firstSixteen, msg->msgbytes, 16);

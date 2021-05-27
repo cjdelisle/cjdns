@@ -64,6 +64,10 @@ pub struct RTypes_CryptoAuth2_Session_t {
     pub ciphertext: *mut cffi::Iface_t,
 }
 
+pub struct RTypes_Error_t {
+    pub e: Option<anyhow::Error>,
+}
+
 #[allow(dead_code)]
 #[repr(C)]
 pub struct RTypes_ExportMe {
@@ -72,4 +76,5 @@ pub struct RTypes_ExportMe {
     c: RTypes_CryptoAuth_State_t,
     d: RTypes_CryptoStats_t,
     e: RTypes_CryptoAuth2_Session_t,
+    f: *mut RTypes_Error_t,
 }
