@@ -1187,7 +1187,7 @@ pub struct PlaintextRecv(Arc<Session>);
 impl IfRecv for PlaintextRecv {
     fn recv(&self, m: &mut Message) -> Result<()> {
         anyhow::ensure!(m.len() > 0, "Zero-length message is prohibited"); // No real message can be 0 bytes in length
-        self.0.encrypt(m)?;
+        self.0.encrypt_msg(m)?;
         self.0.cipher_pvt.send(m)
     }
 }
@@ -1197,7 +1197,7 @@ impl IfRecv for CiphertextRecv {
         let mut first16 = [0_u8; 16];
         first16.copy_from_slice(m.peek_bytes(16)?);
         log::debug!("Decrypt msg {}", m.len());
-        match self.0.decrypt(m) {
+        match self.0.decrypt_msg(m) {
             Ok(()) => {
                 m.push(0_u32)?;
                 self.0.plain_pvt.send(m)
@@ -1376,7 +1376,7 @@ impl Session {
     }
 
     /// Encrypts the message inplace. The new content of `msg` should be sent to the peer.
-    fn encrypt(&self, msg: &mut Message) -> Result<()> {
+    fn encrypt_msg(&self, msg: &mut Message) -> Result<()> {
         if let Some(tunnel) = self.tunnel.borrow().as_ref() {
             self.noise_encrypt(msg, tunnel)
         } else {
@@ -1389,7 +1389,7 @@ impl Session {
     ///
     /// Additional messages might be sent to the peer (in the handshake phase),
     /// the corresponding iface is used in that case.
-    fn decrypt(&self, msg: &mut Message) -> Result<()> {
+    fn decrypt_msg(&self, msg: &mut Message) -> Result<()> {
         if let Some(tunnel) = self.tunnel.borrow().as_ref() {
             return self.noise_decrypt(msg, tunnel);
         }
@@ -1949,14 +1949,14 @@ mod tests {
         msg.push_bytes(b"HelloWorld012345").unwrap();
         let orig_length = msg.len();
 
-        let res = my_session.encrypt(&mut msg);
+        let res = my_session.encrypt_msg(&mut msg);
         assert!(res.is_ok());
         assert_ne!(msg.len(), orig_length);
 
         let (her_session, _her_plain, _her_cipher) =
             mk_sess(her_keys.private_key, my_keys.public_key, "alice");
 
-        let res = her_session.decrypt(&mut msg);
+        let res = her_session.decrypt_msg(&mut msg);
         assert!(res.is_ok());
         assert_eq!(msg.len(), orig_length);
         assert_eq!(msg.bytes(), b"HelloWorld012345");
@@ -2012,7 +2012,7 @@ mod tests {
         msg.push_bytes(b"HelloWorld012345").unwrap();
         let orig_length = msg.len();
 
-        let res = my_session.encrypt(&mut msg);
+        let res = my_session.encrypt_msg(&mut msg);
         assert!(res.is_ok());
         assert_ne!(msg.len(), orig_length);
 
@@ -2020,7 +2020,7 @@ mod tests {
             mk_sess(her_keys.private_key, my_keys.public_key, "alice");
         set_auth(&her_session, "bob");
 
-        let res = her_session.decrypt(&mut msg);
+        let res = her_session.decrypt_msg(&mut msg);
         assert!(res.is_ok());
         assert_eq!(msg.len(), orig_length);
         assert_eq!(msg.bytes(), b"HelloWorld012345");
@@ -2063,7 +2063,7 @@ mod tests {
         msg.push_bytes(b"HelloWorld012345").unwrap();
         let orig_length = msg.len();
 
-        let res = rust_session.encrypt(&mut msg);
+        let res = rust_session.encrypt_msg(&mut msg);
         assert!(res.is_ok());
         assert_ne!(msg.len(), orig_length);
 
@@ -2194,7 +2194,7 @@ mod tests {
             sess.unwrap()
         };
 
-        let res = rust_session.decrypt(&mut msg);
+        let res = rust_session.decrypt_msg(&mut msg);
         assert!(res.is_ok());
         assert_eq!(msg.len(), orig_length);
         assert_eq!(msg.bytes(), b"HelloWorld012345");
