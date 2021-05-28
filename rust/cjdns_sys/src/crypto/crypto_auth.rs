@@ -1198,9 +1198,15 @@ impl IfRecv for CiphertextRecv {
         first16.copy_from_slice(m.peek_bytes(16)?);
         log::debug!("Decrypt msg {}", m.len());
         match self.0.decrypt_msg(m) {
-            Ok(()) => {
+            Ok(sendme) => {
                 m.push(0_u32)?;
-                self.0.plain_pvt.send(m)
+                let ret = self.0.plain_pvt.send(m);
+                for sm in sendme {
+                    let mut msm = m.new(sm.len() + 256);
+                    msm.push_bytes(&sm)?;
+                    self.0.cipher_pvt.send(&mut msm)?;
+                }
+                ret
             }
             Err(e) => {
                 log::debug!("Error decrypting {}", e);
@@ -1389,7 +1395,7 @@ impl Session {
     ///
     /// Additional messages might be sent to the peer (in the handshake phase),
     /// the corresponding iface is used in that case.
-    fn decrypt_msg(&self, msg: &mut Message) -> Result<()> {
+    fn decrypt_msg(&self, msg: &mut Message) -> Result<Vec<Vec<u8>>> {
         if let Some(tunnel) = self.tunnel.borrow().as_ref() {
             return self.noise_decrypt(msg, tunnel);
         }
@@ -1406,7 +1412,7 @@ impl Session {
             let tunnel = tunnel.as_ref().unwrap(); // Unwrap is safe because we've just set it
             self.noise_decrypt(msg, tunnel)
         } else {
-            Ok(())
+            Ok(Vec::new())
         }
     }
 
@@ -1443,7 +1449,7 @@ impl Session {
         Ok(())
     }
 
-    fn noise_decrypt(&self, msg: &mut Message, tunnel: &Tunn) -> Result<()> {
+    fn noise_decrypt(&self, msg: &mut Message, tunnel: &Tunn) -> Result<Vec<Vec<u8>>> {
         let session = self.session_mut.upgradable_read();
 
         // Parse and remove the prepended CryptoHeader struct
@@ -1476,16 +1482,10 @@ impl Session {
             log::debug!("Got noise setup packet");
         }
 
-        let sendme = match Self::tun_recv(tunnel, msg)? {
+        Ok(match Self::tun_recv(tunnel, msg)? {
             Some(sm) => sm,
-            None => return Ok(()),
-        };
-        for sm in sendme {
-            let mut m = msg.new(sm.len() + 256);
-            m.push_bytes(&sm)?;
-            self.cipher_pvt.send(&mut m)?;
-        }
-        Ok(())
+            None => Vec::new(),
+        })
     }
 
     fn tun_send(tun: &Tunn, msg: &mut Message) -> Result<()> {
