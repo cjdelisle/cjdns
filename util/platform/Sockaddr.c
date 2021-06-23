@@ -22,6 +22,8 @@
 #include "util/Hash.h"
 #include "util/Base10.h"
 
+#include <sodium/crypto_hash_sha256.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
@@ -320,6 +322,48 @@ void Sockaddr_normalizeNative(void* nativeSockaddr)
 uint32_t Sockaddr_hash(const struct Sockaddr* addr)
 {
     return Hash_compute((uint8_t*)addr, addr->addrLen);
+}
+
+void Sockaddr_asIp6(uint8_t addrOut[static 16], const struct Sockaddr* sockaddr)
+{
+    Bits_memset(addrOut, 0, 16);
+    if (sockaddr->addrLen < (2 + Sockaddr_OVERHEAD)) {
+        // Corrupt sockaddr, whatever dude
+        addrOut[0] = 0xff;
+        addrOut[1] = 0xfc;
+        int len = sockaddr->addrLen;
+        Bits_memcpy(&addrOut[16-len], &sockaddr, len);
+    }
+    struct Sockaddr_pvt* sa = (struct Sockaddr_pvt*) sockaddr;
+    Bits_memset(addrOut, 0, 16);
+    switch (sa->ss.ss_family) {
+        case AF_INET: {
+            // IPv4 in 6
+            addrOut[10] = 0xff;
+            addrOut[11] = 0xff;
+            Bits_memcpy(&addrOut[12], &((struct sockaddr_in*)&sa->ss)->sin_addr, 4);
+            break;
+        }
+        case AF_INET6: {
+            // Normal IPv6
+            Bits_memcpy(addrOut, &((struct sockaddr_in6*)&sa->ss)->sin6_addr, 16);
+            break;
+        }
+        default: {
+            uint16_t len = sa->pub.addrLen - Sockaddr_OVERHEAD;
+            if (len <= 14) {
+                addrOut[0] = 0xff;
+                addrOut[1] = 0xfe;
+                Bits_memcpy(&addrOut[16-len], &sa->ss, len);
+            } else {
+                uint8_t hash[32];
+                crypto_hash_sha256(hash, (uint8_t*) &sa->ss, len);
+                addrOut[0] = 0xff;
+                addrOut[1] = 0xff;
+                Bits_memcpy(&addrOut[2], hash, 14);
+            }
+        }
+    }
 }
 
 int Sockaddr_compare(const struct Sockaddr* a, const struct Sockaddr* b)
