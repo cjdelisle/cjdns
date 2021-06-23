@@ -1,8 +1,16 @@
 //! Memory allocator from C part of the project.
 
-use crate::cffi::{Allocator, Allocator_OnFreeJob, Allocator__onFree};
+use crate::cffi::{
+    Allocator_t,
+    Allocator_OnFreeJob,
+    Allocator__onFree,
+    Allocator__free,
+    MallocAllocator__new,
+    Allocator__child,
+};
 use std::any::Any;
-use std::os::raw::{c_char, c_int, c_void};
+use std::os::raw::{c_char, c_int, c_void, c_ulong};
+use std::ffi::CString;
 
 unsafe extern "C" fn drop_on_free(job_p: *mut Allocator_OnFreeJob) -> c_int {
     let job = job_p.as_ref().unwrap();
@@ -19,7 +27,7 @@ unsafe extern "C" fn drop_on_free(job_p: *mut Allocator_OnFreeJob) -> c_int {
 /// is related to the adopted structure, including any Arc, String, Vec or other
 /// heap objects which are owned by it.
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
-pub fn adopt<T: 'static>(alloc: *mut Allocator, t: T) -> &'static mut T {
+pub fn adopt<T: 'static>(alloc: *mut Allocator_t, t: T) -> &'static mut T {
     let bat: Box<dyn Any> = Box::new(t);
     let out: *mut Box<dyn Any> = Box::into_raw(Box::new(bat));
     unsafe {
@@ -31,5 +39,34 @@ pub fn adopt<T: 'static>(alloc: *mut Allocator, t: T) -> &'static mut T {
             0,
         );
         out.as_mut().unwrap().downcast_mut().unwrap()
+    }
+}
+
+const NAME: *const i8 = b"allocator.rs\0".as_ptr() as *const i8;
+
+pub struct Allocator{
+    pub native: *mut Allocator_t,
+    pub owned: bool,
+}
+impl Allocator {
+    pub fn wrap(native: *mut Allocator_t) -> Allocator {
+        Allocator{ native, owned: false }
+    }
+    pub fn new(max_alloc: usize) -> Allocator {
+        let native = unsafe { MallocAllocator__new(max_alloc as c_ulong, NAME, line!() as i32) };
+        Allocator{ native, owned: true }
+    }
+    pub fn adopt<T: 'static>(&self, t: T) -> &'static mut T {
+        adopt(self.native, t)
+    }
+    pub fn child(&self) -> Allocator {
+        Allocator{ native: unsafe { Allocator__child(self.native, NAME, -1) }, owned: false }
+    }
+}
+impl Drop for Allocator {
+    fn drop(&mut self) {
+        if self.owned {
+            unsafe { Allocator__free(self.native, NAME, -1) };
+        }
     }
 }
