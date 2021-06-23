@@ -10,7 +10,6 @@ use crate::cffi::{
 };
 use std::any::Any;
 use std::os::raw::{c_char, c_int, c_void, c_ulong};
-use std::ffi::CString;
 
 unsafe extern "C" fn drop_on_free(job_p: *mut Allocator_OnFreeJob) -> c_int {
     let job = job_p.as_ref().unwrap();
