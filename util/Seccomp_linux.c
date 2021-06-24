@@ -365,6 +365,11 @@ static Er_DEFUN(struct sock_fprog* mkFilter(struct Allocator* alloc))
             #endif
         #endif
 
+        // rust/wg
+        #ifdef __NR_getrandom
+        IFEQ(__NR_getrandom, success),
+        #endif
+
         RET(SECCOMP_RET_TRAP),
 
         LABEL(socket),
