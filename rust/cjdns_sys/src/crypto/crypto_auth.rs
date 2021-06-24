@@ -1,16 +1,14 @@
 //! CryptoAuth
 
-use std::cell::RefCell;
-use std::str::FromStr;
 use std::sync::Arc;
+use std::net::Ipv6Addr;
 
-use anyhow::{bail, Result};
-use boringtun::crypto::x25519::{X25519PublicKey, X25519SecretKey};
-use boringtun::noise::{Tunn, TunnResult};
+use anyhow::Result;
 use parking_lot::{Mutex, RwLock, RwLockUpgradableReadGuard, RwLockWriteGuard};
 use thiserror::Error;
 
 use crate::bytestring::ByteString;
+use crate::crypto::crypto_noise;
 use crate::crypto::crypto_header::{AuthType, Challenge, CryptoHeader};
 use crate::crypto::keys::{PrivateKey, PublicKey};
 use crate::crypto::random::Random;
@@ -21,6 +19,10 @@ use crate::crypto::zero::IsZero;
 use crate::external::interface::iface::{self, IfRecv, Iface, IfacePvt};
 use crate::interface::wire::message::Message;
 use crate::util::events::EventBase;
+use crate::crypto::session::SessionTrait;
+use crate::crypto::cnoise;
+use crate::external::memory::allocator::Allocator;
+
 
 use self::types::*;
 
@@ -28,6 +30,7 @@ use self::types::*;
 mod types {
     pub use crate::rtypes::RTypes_CryptoAuth_State_t as State;
     pub use crate::rtypes::RTypes_CryptoStats_t as CryptoStats;
+    pub use crate::rtypes::RTypes_CryptoAuth2_TryHandshake_Code_t as TryHandshakeCode;
 }
 
 pub struct CryptoAuth {
@@ -37,6 +40,7 @@ pub struct CryptoAuth {
     users: RwLock<Vec<User>>,
     event_base: EventBase,
     rand: Random,
+    noise: Arc<crypto_noise::CryptoNoise>,
 }
 
 #[derive(Default, Clone)]
@@ -54,10 +58,6 @@ pub struct SessionMut {
     pub her_public_key: PublicKey,
 
     pub display_name: Option<String>,
-
-    /// Bind this CryptoAuth session to the other node's ip6 address,
-    /// any packet advertising a key which doesn't hash to this will be dropped.
-    pub her_ip6: [u8; 16],
 
     /// After this number of seconds of inactivity,
     /// a connection will be reset to prevent them hanging in a bad state.
@@ -99,7 +99,7 @@ pub struct SessionMut {
     established: bool,
 }
 
-pub struct Session {
+pub struct SessionInner {
     session_mut: RwLock<SessionMut>,
 
     // This has to be briefly locked every packet, it should not contaminate the write lock
@@ -109,8 +109,9 @@ pub struct Session {
     /// A pointer back to the main CryptoAuth context.
     context: Arc<CryptoAuth>,
 
-    /// WireGuard tunnel: if `None` the old protocol is used
-    tunnel: RefCell<Option<Box<Tunn>>>,
+    /// Bind this CryptoAuth session to the other node's ip6 address,
+    /// any packet advertising a key which doesn't hash to this will be dropped.
+    pub her_ip6: [u8; 16],
 
     plain_pvt: IfacePvt,
     cipher_pvt: IfacePvt,
@@ -195,6 +196,9 @@ pub enum DecryptErr {
     /// Authenticated decryption failed.
     #[error("DECRYPT")]
     Decrypt = 15,
+
+    #[error("INTERNAL")]
+    Internal = 16,
 }
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
@@ -240,21 +244,6 @@ macro_rules! ensure {
     };
 }
 
-/// Works like `ensure!()` above but returns specified DecryptError.
-macro_rules! require {
-    ($cond:expr, $err:expr $(,)?) => {
-        if !$cond {
-            return Err(DecryptError::DecryptErr($err).into());
-        }
-    };
-    ($cond:expr, $err:expr, $sess:expr, $msg:literal $(,)?) => {
-        if !$cond {
-            debug::log($sess, || $msg);
-            return Err(DecryptError::DecryptErr($err).into());
-        }
-    };
-}
-
 impl CryptoAuth {
     const LOG_KEYS: bool = false;
 
@@ -263,6 +252,8 @@ impl CryptoAuth {
     /// If `private_key` is `None` one should be randomly generated.
     pub fn new(private_key: Option<PrivateKey>, event_base: EventBase, rand: Random) -> Self {
         let private_key = private_key.unwrap_or_else(|| PrivateKey::new_random(&rand));
+
+        let noise = crypto_noise::CryptoNoise::new(&private_key);
 
         let public_key = crypto_scalarmult_curve25519_base(&private_key);
 
@@ -286,6 +277,7 @@ impl CryptoAuth {
             users,
             event_base,
             rand,
+            noise,
         }
     }
 
@@ -299,6 +291,7 @@ impl CryptoAuth {
         login: Option<ByteString>,
         ipv6: Option<[u8; 16]>,
     ) -> Result<(), AddUserError> {
+        self.noise.add_user_ipv6(password.clone(), login.clone(), ipv6);
         let mut users = self.users.write();
         let mut user = User::default();
         if let Some(login) = login.clone() {
@@ -403,6 +396,70 @@ impl CryptoAuth {
     }
 }
 
+pub fn new_session(
+    ca: &Arc<CryptoAuth>,
+    her_pub_key: PublicKey,
+    require_auth: bool,
+    display_name: Option<String>,
+    use_noise: bool,
+) -> Result<Arc<dyn SessionTrait>> {
+    if use_noise {
+        Ok(Arc::new(crypto_noise::Session::new(
+            Arc::clone(&ca.noise),
+            her_pub_key,
+            display_name.unwrap_or("<unknown>".to_owned()),
+        )?))
+    } else {
+        Ok(Arc::new(Session::new(Arc::clone(ca), her_pub_key, require_auth, display_name)?))
+    }
+}
+
+pub fn try_handshake(
+    ca: &Arc<CryptoAuth>,
+    msg: &mut Message,
+    require_auth: bool,
+) -> Result<(TryHandshakeCode, Option<Arc<dyn SessionTrait>>)> {
+    if msg.len() < 16 {
+        return Err(DecryptError::DecryptErr(DecryptErr::Runt).into());
+    }
+    let peer_id = {
+        let mut first16 = [0_u8; 16];
+        first16.copy_from_slice(&msg.bytes()[0..16]);
+        msg.discard_bytes(16)?;
+        Ipv6Addr::from(first16)
+    };
+
+    let nonce = u32::from_be(*msg.peek::<u32>()?);
+    match nonce {
+        0|1 => {
+            let header = msg.pop::<CryptoHeader>()?;
+            let session = Session::new(
+                Arc::clone(ca),
+                PublicKey::from(header.public_key),
+                require_auth,
+                None,
+            )?;
+            msg.push(header)?;
+            SessionMut::decrypt(&session.inner, msg)?;
+            Ok((TryHandshakeCode::RecvPlaintext, Some(Arc::new(session))))
+        },
+        cnoise::RECEIVE_INDEX_CTRL => {
+            //ca.try_noise_msg(msg)
+            let (reply, sess) = crypto_noise::handle_incoming(&ca.noise, msg, peer_id, require_auth)?;
+            if let Some(sess) = sess {
+                Ok((reply, Some(Arc::new(sess))))
+            } else {
+                Ok((reply, None))
+            }
+        },
+        _ => {
+            log::debug!("try_handshake unexpected nonce {:#x}", nonce);
+            Err(DecryptError::DecryptErr(DecryptErr::NoSession).into())
+        }
+    }
+}
+
+
 impl SessionMut {
     fn set_auth(&mut self, password: Option<ByteString>, login: Option<ByteString>) {
         if password.is_none() && (self.password.is_some() || self.auth_type != AuthType::Zero) {
@@ -442,10 +499,6 @@ impl SessionMut {
 
     fn get_her_pubkey(&self) -> [u8; 32] {
         *self.her_public_key.raw()
-    }
-
-    fn get_her_ip6(&self) -> [u8; 16] {
-        self.her_ip6
     }
 
     fn get_name(&self) -> Option<String> {
@@ -493,7 +546,7 @@ impl SessionMut {
         !self.her_public_key.is_zero()
     }
 
-    fn encrypt(sess: &Session, msg: &mut Message) -> Result<()> {
+    fn encrypt(sess: &SessionInner, msg: &mut Message) -> Result<()> {
         let mut session = sess.session_mut.write();
 
         // If there has been no incoming traffic for a while, reset the connection to state 0.
@@ -550,7 +603,7 @@ impl SessionMut {
         Ok(())
     }
 
-    fn decrypt(sess: &Session, msg: &mut Message) -> Result<bool> {
+    fn decrypt(sess: &SessionInner, msg: &mut Message) -> Result<()> {
         let session = sess.session_mut.upgradable_read();
 
         if msg.len() < 20 {
@@ -573,14 +626,11 @@ impl SessionMut {
         let nonce = state.to_be(); // Read as Big-Endian
 
         if !session.established {
-            if nonce == CryptoHeader::NOISE_PROTOCOL_NONCE { // Auto-detect WireGuard protocol
-                msg.push(state).expect("push state back");
-                return Ok(true); // Retry decrypt in WireGuard mode
-            } else if nonce >= Nonce::FirstTrafficPacket as u32 {
+            if nonce >= Nonce::FirstTrafficPacket as u32 {
                 if session.next_nonce < State::SentKey as u32 {
                     // This is impossible because we have not exchanged hello and key messages.
                     debug::log(&session, || {
-                        "DROP Received a run message to an un-setup session"
+                        format!("DROP Received a run message ({}) to an un-setup session", nonce)
                     });
                     return Err(DecryptError::DecryptErr(DecryptErr::NoSession).into());
                 }
@@ -610,10 +660,10 @@ impl SessionMut {
                     session.established = true;
                     session.next_nonce += 3;
                     session.update_time(msg, sess.context.clone());
-                    return Ok(false);
+                    return Ok(());
                 }
                 debug::log(&session, || "DROP Final handshake step failed");
-                ret.map(|()| false)
+                ret
             } else {
                 msg.push(state).expect("push state back");
 
@@ -622,7 +672,7 @@ impl SessionMut {
 
                 let mut session = RwLockUpgradableReadGuard::upgrade(session);
 
-                session.decrypt_handshake(nonce, msg, header, sess).map(|()| false)
+                session.decrypt_handshake(nonce, msg, header, sess)
             }
         } else if nonce >= Nonce::FirstTrafficPacket as u32 {
             debug_assert!(!session.shared_secret.is_zero());
@@ -633,7 +683,7 @@ impl SessionMut {
                     let mut session = RwLockUpgradableReadGuard::upgrade(session);
 
                     session.update_time(msg, sess.context.clone());
-                    Ok(false)
+                    Ok(())
                 }
                 Err(err) => {
                     debug::log(&session, || {
@@ -653,7 +703,7 @@ impl SessionMut {
             ensure!(msg.len() >= CryptoHeader::SIZE, DecryptError);
             let header = msg.peek::<CryptoHeader>().unwrap().clone();
 
-            session.decrypt_handshake(nonce, msg, header, sess).map(|()| false)
+            session.decrypt_handshake(nonce, msg, header, sess)
         } else {
             debug::log(&session, || {
                 format!(
@@ -833,7 +883,7 @@ impl SessionMut {
         nonce: u32,
         msg: &mut Message,
         mut header: CryptoHeader,
-        sess: &Session,
+        sess: &SessionInner,
     ) -> Result<()> {
         if msg.len() < CryptoHeader::SIZE {
             debug::log(self, || "DROP runt");
@@ -1151,7 +1201,7 @@ impl SessionMut {
         nonce: u32,
         content: &mut Message,
         secret: [u8; 32],
-        sess: &Session,
+        sess: &SessionInner,
     ) -> Result<()> {
         // Decrypt with authentication and replay prevention.
         let r = decrypt(nonce, content, secret, self.is_initiator);
@@ -1176,37 +1226,35 @@ impl SessionMut {
     }
 }
 
-fn ip6_from_key(key: &[u8; 32]) -> [u8; 16] {
+pub fn ip6_from_key(key: &[u8; 32]) -> [u8; 16] {
     let x = sodiumoxide::crypto::hash::sha512::hash(&key[..]);
     let mut out = [0u8; 16];
     out.copy_from_slice(&sodiumoxide::crypto::hash::sha512::hash(&x.0[..])[0..16]);
     out
 }
 
-pub struct PlaintextRecv(Arc<Session>);
+pub struct PlaintextRecv(Arc<SessionInner>);
 impl IfRecv for PlaintextRecv {
     fn recv(&self, m: &mut Message) -> Result<()> {
         anyhow::ensure!(m.len() > 0, "Zero-length message is prohibited"); // No real message can be 0 bytes in length
-        self.0.encrypt_msg(m)?;
+        SessionMut::encrypt(&self.0, m)?;
         self.0.cipher_pvt.send(m)
     }
 }
-pub struct CiphertextRecv(Arc<Session>);
+pub struct CiphertextRecv(Arc<SessionInner>);
 impl IfRecv for CiphertextRecv {
     fn recv(&self, m: &mut Message) -> Result<()> {
         let mut first16 = [0_u8; 16];
+        // grab the peer_id / ipv6 addr of the peer, unused
+        first16.copy_from_slice(&m.pop_bytes(16)?);
+
         first16.copy_from_slice(m.peek_bytes(16)?);
         log::debug!("Decrypt msg {}", m.len());
-        match self.0.decrypt_msg(m) {
-            Ok(sendme) => {
+
+        match SessionMut::decrypt(&self.0, m) {
+            Ok(()) => {
                 m.push(0_u32)?;
-                let ret = self.0.plain_pvt.send(m);
-                for sm in sendme {
-                    let mut msm = m.new(sm.len() + 256);
-                    msm.push_bytes(&sm)?;
-                    self.0.cipher_pvt.send(&mut msm)?;
-                }
-                ret
+                self.0.plain_pvt.send(m)
             }
             Err(e) => {
                 log::debug!("Error decrypting {}", e);
@@ -1223,7 +1271,7 @@ impl IfRecv for CiphertextRecv {
                 }
                 .clone() as u32;
                 m.clear();
-                m.push((self.0.get_state() as u32).to_be())?;
+                m.push(((*self.0).session_mut.read().get_state() as u32).to_be())?;
                 m.push(ee.to_be())?;
                 m.push_bytes(&first16)?;
                 m.push(ee)?;
@@ -1233,17 +1281,21 @@ impl IfRecv for CiphertextRecv {
     }
 }
 
+struct Session {
+    inner: Arc<SessionInner>,
+    ifaces: Mutex<Option<(Iface, Iface)>>,
+}
+
 impl Session {
     const DEFAULT_RESET_AFTER_INACTIVITY_SECONDS: u32 = 60;
     const DEFAULT_SETUP_RESET_AFTER_INACTIVITY_SECONDS: u32 = 10;
 
-    pub fn new(
+    fn new(
         context: Arc<CryptoAuth>,
         her_pub_key: PublicKey,
         require_auth: bool,
         display_name: Option<String>,
-        use_noise: bool,
-    ) -> Result<(Arc<Self>, Iface, Iface)> {
+    ) -> Result<Self> {
         let now = context.event_base.current_time_seconds();
 
         if her_pub_key.is_zero() {
@@ -1251,21 +1303,13 @@ impl Session {
         }
         let her_ip6 = ip6_from_key(&her_pub_key.raw());
 
-        let tunnel = if use_noise {
-            let res = Self::create_tunnel(&context, &her_pub_key);
-            Some(res.map_err(|s| KeyError::BadWireGuardKey(s))?)
-        } else {
-            None
-        };
-
         let (mut plaintext, plain_pvt) = iface::new("CryptoAuth::Session plaintext");
         let (mut ciphertext, cipher_pvt) = iface::new("CryptoAuth::Session ciphertext");
 
-        let sess = Arc::new(Session {
+        let inner = Arc::new(SessionInner {
             session_mut: RwLock::new(SessionMut {
                 her_public_key: her_pub_key,
                 display_name,
-                her_ip6,
                 reset_after_inactivity_seconds: Self::DEFAULT_RESET_AFTER_INACTIVITY_SECONDS,
                 setup_reset_after_inactivity_seconds:
                     Self::DEFAULT_SETUP_RESET_AFTER_INACTIVITY_SECONDS,
@@ -1284,110 +1328,22 @@ impl Session {
             }),
             replay_protector: Mutex::new(ReplayProtector::new()),
             context,
-            tunnel: RefCell::new(tunnel),
+            her_ip6,
             plain_pvt,
             cipher_pvt,
         });
 
-        plaintext.set_receiver(PlaintextRecv(Arc::clone(&sess)));
-        ciphertext.set_receiver(CiphertextRecv(Arc::clone(&sess)));
+        plaintext.set_receiver(PlaintextRecv(Arc::clone(&inner)));
+        ciphertext.set_receiver(CiphertextRecv(Arc::clone(&inner)));
 
-        Ok((sess, plaintext, ciphertext))
+        Ok(Session{inner, ifaces: Mutex::new(Some((plaintext,ciphertext)))})
     }
+}
 
-    fn create_tunnel(ca: &CryptoAuth, her_pub_key: &PublicKey) -> Result<Box<Tunn>, &'static str> {
-        // Unfortunately, Boringtun private key cannot be constructed from raw bytes.
-        // As a workaround, we convert the key to a HEX string
-        // and then parse it into Boringtun secret key.
-        let priv_key_str = hex::encode(ca.private_key.raw());
-        let priv_key = X25519SecretKey::from_str(&priv_key_str)?;
-
-        let pub_key = X25519PublicKey::from(&her_pub_key.raw()[..]);
-
-        let mut t = Tunn::new(Arc::new(priv_key), Arc::new(pub_key), None, None, 0, None)?;
-
-        if log::log_enabled!(log::Level::Debug) {
-            t.set_logger(
-                Box::new(|s: &str| {
-                    log::debug!("[NOISE] {}", s);
-                }),
-                boringtun::noise::Verbosity::Debug,
-            );
-        }
-
-        Ok(t)
-    }
-
-    pub fn set_auth(&self, password: Option<ByteString>, login: Option<ByteString>) {
-        self.session_mut.write().set_auth(password, login)
-    }
-
-    pub fn get_state(&self) -> State {
-        self.session_mut.read().get_state()
-    }
-
-    pub fn get_her_pubkey(&self) -> [u8; 32] {
-        self.session_mut.read().get_her_pubkey()
-    }
-
-    pub fn get_her_ip6(&self) -> [u8; 16] {
-        self.session_mut.read().get_her_ip6()
-    }
-
-    pub fn get_name(&self) -> Option<String> {
-        self.session_mut.read().get_name()
-    }
-
-    pub fn stats(&self) -> CryptoStats {
-        if let Some(tunnel) = self.tunnel.borrow().as_ref() {
-            let (_time, _tx_bytes, rx_bytes, _loss, _rtt) = tunnel.stats();
-            CryptoStats {
-                lost_packets: 0,
-                received_unexpected: 0,
-                received_packets: rx_bytes as u64, //TODO bytes vs packets
-                duplicate_packets: 0,
-                noise_proto: true,
-            }
-        } else {
-            // Stats come from the replay protector
-            let rp = self.replay_protector.lock();
-            let stats = rp.stats();
-            CryptoStats {
-                lost_packets: stats.lost_packets as u64,
-                received_unexpected: stats.received_unexpected as u64,
-                received_packets: stats.received_packets as u64,
-                duplicate_packets: stats.duplicate_packets as u64,
-                noise_proto: false,
-            }
-        }
-    }
-
-    pub fn reset_if_timeout(&self) {
-        self.session_mut
-            .write()
-            .reset_if_timeout(&self.context.event_base)
-    }
-
-    pub fn reset(&self) {
-        // Make sure we're write() session_mut when we do the replay because
-        // decrypt threads will read() session_mut
-        let mut session_mut = self.session_mut.write();
-        let mut replay_protector = self.replay_protector.lock();
-        replay_protector.reset();
-        session_mut.reset();
-    }
-
-    pub fn her_key_known(&self) -> bool {
-        self.session_mut.read().her_key_known()
-    }
-
+impl Session {
     /// Encrypts the message inplace. The new content of `msg` should be sent to the peer.
     fn encrypt_msg(&self, msg: &mut Message) -> Result<()> {
-        if let Some(tunnel) = self.tunnel.borrow().as_ref() {
-            self.noise_encrypt(msg, tunnel)
-        } else {
-            SessionMut::encrypt(self, msg)
-        }
+        SessionMut::encrypt(&self.inner, msg)
     }
 
     /// Decrypt a packet from the peer inplace. If the msg is non-empty, it is the
@@ -1395,180 +1351,70 @@ impl Session {
     ///
     /// Additional messages might be sent to the peer (in the handshake phase),
     /// the corresponding iface is used in that case.
-    fn decrypt_msg(&self, msg: &mut Message) -> Result<Vec<Vec<u8>>> {
-        if let Some(tunnel) = self.tunnel.borrow().as_ref() {
-            return self.noise_decrypt(msg, tunnel);
-        }
+    fn decrypt_msg(&self, msg: &mut Message) -> Result<()> {
+        SessionMut::decrypt(&self.inner, msg)
+    }
+}
 
-        let autodetected_noise = SessionMut::decrypt(self, msg)?;
-        if autodetected_noise {
-            let res = Self::create_tunnel(&self.context, &self.session_mut.read().her_public_key);
-            let tun = Some(res.map_err(|s| KeyError::BadWireGuardKey(s))?);
-            {
-                let mut tunnel = self.tunnel.borrow_mut();
-                *tunnel = tun;
-            }
-            let tunnel = self.tunnel.borrow();
-            let tunnel = tunnel.as_ref().unwrap(); // Unwrap is safe because we've just set it
-            self.noise_decrypt(msg, tunnel)
-        } else {
-            Ok(Vec::new())
+impl SessionTrait for Session {
+    fn set_auth(&self, password: Option<ByteString>, login: Option<ByteString>) {
+        self.inner.session_mut.write().set_auth(password, login)
+    }
+
+    fn get_state(&self) -> State {
+        self.inner.session_mut.read().get_state()
+    }
+
+    fn get_her_pubkey(&self) -> [u8; 32] {
+        self.inner.session_mut.read().get_her_pubkey()
+    }
+
+    fn get_her_ip6(&self) -> [u8; 16] {
+        self.inner.her_ip6
+    }
+
+    fn get_name(&self) -> Option<String> {
+        self.inner.session_mut.read().get_name()
+    }
+
+    fn stats(&self) -> CryptoStats {
+        // Stats come from the replay protector
+        let rp = self.inner.replay_protector.lock();
+        let stats = rp.stats();
+        CryptoStats {
+            lost_packets: stats.lost_packets as u64,
+            received_unexpected: stats.received_unexpected as u64,
+            received_packets: stats.received_packets as u64,
+            duplicate_packets: stats.duplicate_packets as u64,
+            noise_proto: false,
         }
     }
 
-    fn noise_encrypt(&self, msg: &mut Message, tunnel: &Tunn) -> Result<()> {
-        Self::tun_send(tunnel, msg)?;
-
-        let session = self.session_mut.upgradable_read();
-
-        if session.established {
-            return Ok(());
-        }
-
-        // Prepend encrypted message with a CryptoHeader struct
-        ensure!(msg.pad() >= CryptoHeader::SIZE, EncryptError, "no space for CryptoHeader");
-        let mut header = CryptoHeader::default();
-
-        header.nonce = CryptoHeader::NOISE_PROTOCOL_NONCE.to_be(); // Big-endian
-
-        if let Some(password) = session.password.as_ref() {
-            let login = session.login.as_ref().map(|s| s.as_ref()).unwrap_or(b"");
-            let (_, auth) = hash_password(login, password, session.auth_type);
-            header.auth = auth;
-        } else {
-            header.auth.auth_type = session.auth_type; // Supposed to be AuthType::Zero
-        }
-
-        header.public_key = *self.context.public_key.raw();
-
-        let r = msg.push(header);
-        ensure!(r.is_ok(), EncryptError, "push CryptoHeader failed");
-
-        let mut session = RwLockUpgradableReadGuard::upgrade(session);
-        session.established = true;
-        Ok(())
+    fn reset_if_timeout(&self) {
+        self.inner.session_mut
+            .write()
+            .reset_if_timeout(&self.inner.context.event_base)
     }
 
-    fn noise_decrypt(&self, msg: &mut Message, tunnel: &Tunn) -> Result<Vec<Vec<u8>>> {
-        let session = self.session_mut.upgradable_read();
-
-        // Parse and remove the prepended CryptoHeader struct
-        if !session.established {
-            ensure!(msg.len() >= CryptoHeader::SIZE, DecryptError, "no CryptoHeader");
-            let header = msg.pop::<CryptoHeader>()?;
-            require!(header.nonce.to_be() == CryptoHeader::NOISE_PROTOCOL_NONCE, DecryptErr::InvalidPacket, &session, "bad nonce: expected Noise handshake");
-
-            ensure!(session.her_key_known(), DecryptError, "unknown remote public key");
-            require!(*session.her_public_key.raw() == header.public_key, DecryptErr::WrongPermPubkey, &session, "DROP a packet with different public key than this session");
-
-            let user_opt = self.context.get_auth(&header.auth);
-            let has_user = user_opt.is_some();
-
-            if let Some(user) = user_opt {
-                if let Some(rip6) = user.restricted_to_ip6 {
-                    let ip6_matches_key = {
-                        let pub_key = &session.her_public_key;
-                        rip6 == ip6_from_key(pub_key.raw())
-                    };
-                    require!(ip6_matches_key, DecryptErr::IpRestricted, &session, "DROP packet with key not matching restrictedToIp6");
-                }
-            }
-
-            require!(!session.require_auth || has_user, DecryptErr::AuthRequired, &session, "DROP message because auth was not given");
-            require!(has_user || header.auth.auth_type == AuthType::Zero, DecryptErr::UnrecognizedAuth, &session, "DROP message with unrecognized authenticator");
-
-            let mut session = RwLockUpgradableReadGuard::upgrade(session);
-            session.established = true;
-            log::debug!("Got noise setup packet");
-        }
-
-        Ok(match Self::tun_recv(tunnel, msg)? {
-            Some(sm) => sm,
-            None => Vec::new(),
-        })
+    fn reset(&self) {
+        // Make sure we're write() session_mut when we do the replay because
+        // decrypt threads will read() session_mut
+        let mut session_mut = self.inner.session_mut.write();
+        let mut replay_protector = self.inner.replay_protector.lock();
+        replay_protector.reset();
+        session_mut.reset();
     }
 
-    fn tun_send(tun: &Tunn, msg: &mut Message) -> Result<()> {
-        // Prepend a fake IPv4 header to the buffer (required by BoringTun)
-        {
-            ensure!(msg.pad() >= 20, EncryptError);
-            let mut header = [0u8; 20];
-            let packet_len = msg.len() + header.len();
-            header[0] = 4 << 4;
-            header[2] = (packet_len >> 8) as u8;
-            header[2 + 1] = (packet_len & 0xFF) as u8;
-            msg.push_bytes(&header).expect("push IP header");
-        }
-
-        // Doc comment on Tun::encapsulate() says what buffer size should be.
-        // But in practice this is not enough, hence additional 128 bytes.
-        let buf_size = (msg.len() + 32).min(148) + 128;
-        ensure!(msg.len() + msg.pad() >= buf_size, EncryptError);
-        let mut buf = Vec::with_capacity(buf_size);
-        buf.resize(buf_size, 0);
-        let res = tun.encapsulate(msg.bytes(), &mut buf);
-        match res {
-            TunnResult::Err(e) => bail!("Wireguard error: {:?}", e),
-            TunnResult::Done => {
-                // This means we need to return empty buffer
-                msg.clear();
-                Ok(())
-            }
-            TunnResult::WriteToNetwork(buf) => {
-                msg.clear();
-                msg.push_bytes(buf).expect("msg size");
-                Ok(())
-            }
-            bad => unreachable!("unexpected TunnResult: {:?}", bad),
-        }
+    fn her_key_known(&self) -> bool {
+        self.inner.session_mut.read().her_key_known()
     }
 
-    fn tun_recv(tun: &Tunn, msg: &mut Message) -> Result<Option<Vec<Vec<u8>>>> {
-        let buf_size = msg.len();
-        let mut tmp_buf = Vec::with_capacity(buf_size);
-        tmp_buf.resize(buf_size, 0);
-        let mut packets = Vec::new();
+    fn ifaces(&self) -> Option<(Iface, Iface)> {
+        self.ifaces.lock().take()
+    }
 
-        let mut res = tun.decapsulate(None, msg.bytes(), &mut tmp_buf);
-        loop {
-            match res {
-                TunnResult::Err(e) => {
-                    bail!("Wireguard error: {:?}", e);
-                }
-                TunnResult::Done => {
-                    msg.clear();
-                    break;
-                }
-                TunnResult::WriteToNetwork(buf) => {
-                    let buf = Vec::from(buf);
-                    packets.push(buf);
-                    // Request more data
-                    res = tun.decapsulate(None, &[], &mut tmp_buf);
-                }
-                TunnResult::WriteToTunnelV4(buf, _) | TunnResult::WriteToTunnelV6(buf, _) => {
-                    // Successfully decrypted a packet - return it in the msg
-                    msg.clear();
-                    msg.push_bytes(buf).expect("insufficient buffer");
-                    break;
-                }
-            }
-        }
-
-        // Remove the fake IP header we added in send fn
-        if msg.len() > 0 {
-            ensure!(
-                msg.len() >= 20,
-                DecryptError,
-                "Broken message - no IP header"
-            );
-            msg.discard_bytes(20).expect("drop IP header");
-        }
-
-        if packets.is_empty() {
-            Ok(None)
-        } else {
-            Ok(Some(packets))
-        }
+    fn tick(&self, _: &mut Allocator) -> Result<Option<Message>> {
+        Ok(None)
     }
 }
 
@@ -1646,7 +1492,7 @@ fn get_shared_secret(
 }
 
 #[inline]
-fn hash_password(login: &[u8], password: &[u8], auth_type: AuthType) -> ([u8; 32], Challenge) {
+pub fn hash_password(login: &[u8], password: &[u8], auth_type: AuthType) -> ([u8; 32], Challenge) {
     let secret_out = crypto_hash_sha256(password);
 
     let tmp_buf = match auth_type {
@@ -1836,6 +1682,7 @@ mod tests {
     use crate::external::interface::iface::Iface;
     use crate::interface::wire::message::Message;
     use crate::util::events::EventBase;
+    use crate::crypto::session::SessionTrait;
 
     fn mk_msg(padding: usize) -> Message {
         use std::os::raw::c_char;
@@ -1917,7 +1764,7 @@ mod tests {
             my_priv_key: PrivateKey,
             her_pub_key: PublicKey,
             name: &str,
-        ) -> (Arc<super::Session>, Iface, Iface) {
+        ) -> super::Session {
             let ca = super::CryptoAuth::new(Some(my_priv_key), EventBase {}, Random::Fake);
             let ca = Arc::new(ca);
 
@@ -1933,13 +1780,12 @@ mod tests {
                 her_pub_key,
                 false,
                 Some(format!("{}'s session", name)),
-                false,
             );
             assert!(sess.is_ok());
             sess.unwrap()
         }
 
-        let (my_session, _my_plain, _my_cipher) = mk_sess(
+        let my_session = mk_sess(
             my_keys.private_key.clone(),
             her_keys.public_key.clone(),
             "bob",
@@ -1953,7 +1799,7 @@ mod tests {
         assert!(res.is_ok());
         assert_ne!(msg.len(), orig_length);
 
-        let (her_session, _her_plain, _her_cipher) =
+        let her_session =
             mk_sess(her_keys.private_key, my_keys.public_key, "alice");
 
         let res = her_session.decrypt_msg(&mut msg);
@@ -1972,7 +1818,7 @@ mod tests {
             my_priv_key: PrivateKey,
             her_pub_key: PublicKey,
             name: &str,
-        ) -> (Arc<super::Session>, Iface, Iface) {
+        ) -> super::Session {
             let ca = super::CryptoAuth::new(Some(my_priv_key), EventBase {}, Random::Fake);
             let ca = Arc::new(ca);
 
@@ -1988,7 +1834,6 @@ mod tests {
                 her_pub_key,
                 true,
                 Some(format!("{}'s session", name)),
-                false,
             );
             assert!(sess.is_ok());
             sess.unwrap()
@@ -2001,7 +1846,7 @@ mod tests {
             );
         }
 
-        let (my_session, _my_plain, _my_cipher) = mk_sess(
+        let my_session = mk_sess(
             my_keys.private_key.clone(),
             her_keys.public_key.clone(),
             "bob",
@@ -2016,7 +1861,7 @@ mod tests {
         assert!(res.is_ok());
         assert_ne!(msg.len(), orig_length);
 
-        let (her_session, _her_plain, _her_cipher) =
+        let her_session =
             mk_sess(her_keys.private_key, my_keys.public_key, "alice");
         set_auth(&her_session, "bob");
 
@@ -2032,7 +1877,7 @@ mod tests {
         let my_keys = keys_api.key_pair();
         let her_keys = keys_api.key_pair();
 
-        let (rust_session, _rust_plain, _rust_cipher) = {
+        let rust_session = {
             let priv_key = my_keys.private_key.clone();
             let pub_key = her_keys.public_key.clone();
             let name = "bob";
@@ -2053,7 +1898,6 @@ mod tests {
                 pub_key,
                 false,
                 Some(format!("{}'s session", name)),
-                false,
             );
             assert!(sess.is_ok());
             sess.unwrap()
@@ -2167,7 +2011,7 @@ mod tests {
         assert_eq!(res, 0);
         assert_ne!(msg.len(), orig_length);
 
-        let (rust_session, _rust_plain, _rust_cipher) = {
+        let rust_session = {
             let priv_key = her_keys.private_key;
             let pub_key = my_keys.public_key;
             let name = "alice";
@@ -2188,7 +2032,6 @@ mod tests {
                 pub_key,
                 false,
                 Some(format!("{}'s session", name)),
-                false,
             );
             assert!(sess.is_ok());
             sess.unwrap()
@@ -2209,6 +2052,30 @@ mod tests {
         }
     }
 
+    fn mk_sess_noise(
+        my_priv_key: PrivateKey,
+        her_pub_key: PublicKey,
+        name: &str,
+    ) -> (crate::crypto::crypto_noise::Session, Iface, Iface) {
+        let ca = super::CryptoAuth::new(Some(my_priv_key), EventBase {}, Random::Fake);
+        let ca = Arc::new(ca);
+
+        let res = ca.add_user_ipv6(
+            ByteString::from(name.to_string()),
+            Some(ByteString::from(name.to_string())),
+            None,
+        );
+        assert_eq!(res.err(), None);
+
+        let sess = crate::crypto::crypto_noise::Session::new(
+            Arc::clone(&ca.noise),
+            her_pub_key,
+            name.to_owned(),
+        ).unwrap();
+        let (pt, ct) = sess.ifaces().unwrap();
+        (sess, pt, ct)
+    }
+
     #[test]
     pub fn test_wireguard_iface_encrypt_decrypt() {
         let keys_api = CJDNSKeysApi::new().unwrap();
@@ -2218,31 +2085,6 @@ mod tests {
         let mut msg = mk_msg_alloc(1024, mk_alloc(65536));
         let alice_received_text = Rc::new(RefCell::new(Vec::new()));
         let bob_received_text = Rc::new(RefCell::new(Vec::new()));
-
-        fn mk_sess(
-            my_priv_key: PrivateKey,
-            her_pub_key: PublicKey,
-            name: &str,
-        ) -> (Arc<super::Session>, Iface, Iface) {
-            let ca = super::CryptoAuth::new(Some(my_priv_key), EventBase {}, Random::Fake);
-            let ca = Arc::new(ca);
-
-            let res = ca.add_user_ipv6(
-                ByteString::from(name.to_string()),
-                Some(ByteString::from(name.to_string())),
-                None,
-            );
-            assert_eq!(res.err(), None);
-
-            let sess = super::Session::new(
-                ca,
-                her_pub_key,
-                false,
-                Some(format!("{}'s session", name)),
-                true,
-            );
-            sess.unwrap()
-        }
 
         // Setup
         let (alice_send, bob_send) = {
@@ -2259,8 +2101,10 @@ mod tests {
                 }
             }
 
-            let (_alice_session, mut alice_plain, mut alice_cipher) = mk_sess(alice_keys.private_key, bob_keys.public_key, "alice");
-            let (_bob_session, mut bob_plain, mut bob_cipher) = mk_sess(bob_keys.private_key, alice_keys.public_key, "bob");
+            let (_alice_session, mut alice_plain, mut alice_cipher) =
+                mk_sess_noise(alice_keys.private_key, bob_keys.public_key, "alice");
+            let (_bob_session, mut bob_plain, mut bob_cipher) =
+                mk_sess_noise(bob_keys.private_key, alice_keys.public_key, "bob");
             let res = bob_cipher.plumb(&mut alice_cipher);
             assert!(res.is_ok(), "plumbing sessions together failed");
 
@@ -2282,10 +2126,9 @@ mod tests {
 
         // Message Bob -> Alice
         assert_eq!(msg.len(), 0);
-        msg.push_bytes(b"Hello World").unwrap();
+        msg.push_bytes(b"Hello World ").unwrap();
 
-        let res = bob_send.send(&mut msg);
-        assert!(res.is_ok());
+        bob_send.send(&mut msg).unwrap();
 
         assert_eq!(alice_received_text.borrow().as_slice(), b"Hello World");
         assert!(bob_received_text.borrow().is_empty()); // still empty
@@ -2310,33 +2153,7 @@ mod tests {
         let alice_received_text = Rc::new(RefCell::new(Vec::new()));
         let bob_received_text = Rc::new(RefCell::new(Vec::new()));
 
-        fn mk_sess(
-            my_priv_key: PrivateKey,
-            her_pub_key: PublicKey,
-            name: &str,
-            use_noise: bool,
-        ) -> (Arc<super::Session>, Iface, Iface) {
-            let ca = super::CryptoAuth::new(Some(my_priv_key), EventBase {}, Random::Fake);
-            let ca = Arc::new(ca);
-
-            let res = ca.add_user_ipv6(
-                ByteString::from(name.to_string()),
-                Some(ByteString::from(name.to_string())),
-                None,
-            );
-            assert_eq!(res.err(), None);
-
-            let sess = super::Session::new(
-                ca,
-                her_pub_key,
-                false,
-                Some(format!("{}'s session", name)),
-                use_noise,
-            );
-            sess.unwrap()
-        }
-
-        fn set_auth(sess: &super::Session, name: &str) {
+        fn set_auth(sess: &crate::crypto::crypto_noise::Session, name: &str) {
             sess.set_auth(
                 Some(ByteString::from(name.to_string())),
                 Some(ByteString::from(name.to_string())),
@@ -2361,8 +2178,8 @@ mod tests {
             // Here we create Bob's session with use_noise=true, but Alice's session has use_noise=false
             // Since Bob is initiator, he will send message with Noise protocol enabled,
             // and Alice will auto-detect it in spite of her session's use_noise=false.
-            let (alice_session, mut alice_plain, mut alice_cipher) = mk_sess(alice_keys.private_key, bob_keys.public_key, "alice", false);
-            let (bob_session, mut bob_plain, mut bob_cipher) = mk_sess(bob_keys.private_key, alice_keys.public_key, "bob", true);
+            let (alice_session, mut alice_plain, mut alice_cipher) = mk_sess_noise(alice_keys.private_key, bob_keys.public_key, "alice");
+            let (bob_session, mut bob_plain, mut bob_cipher) = mk_sess_noise(bob_keys.private_key, alice_keys.public_key, "bob");
             let res = bob_cipher.plumb(&mut alice_cipher);
             assert!(res.is_ok(), "plumbing sessions together failed");
 
@@ -2387,10 +2204,9 @@ mod tests {
 
         // Message Bob -> Alice
         assert_eq!(msg.len(), 0);
-        msg.push_bytes(b"Hello World").unwrap();
+        msg.push_bytes(b"Hello World ").unwrap();
 
-        let res = bob_send.send(&mut msg);
-        assert!(res.is_ok());
+        bob_send.send(&mut msg).unwrap();
 
         assert_eq!(alice_received_text.borrow().as_slice(), b"Hello World");
         assert!(bob_received_text.borrow().is_empty()); // still empty

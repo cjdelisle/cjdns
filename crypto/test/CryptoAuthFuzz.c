@@ -218,6 +218,7 @@ static void sendFrom(struct Context* ctx, struct Node* from, struct Message* msg
     }
 
     Er_assert(Message_epushAd(msg, &flippedImmutable, sizeof flippedImmutable));
+    Er_assert(Message_epush(msg, NULL, 16)); // peer ipv6
 
     Iface_send(&to->ciphertext, msg); // --> afterDecrypt (hopefully)
 }
@@ -298,6 +299,11 @@ static Iface_DEFUN afterDecrypt(struct Message* msg, struct Iface* iface)
     return NULL;
 }
 
+#define PRIVATEKEY_A \
+    Constant_stringForHex("53ff22b2eb94ce8c5f1852c0f557eb901f067e5273d541e0a21e143c20dff9da")
+#define PRIVATEKEY_B \
+    Constant_stringForHex("b71c4f43e3d4b1879b5065d44a1cb43eaf07ddba96de6a72ca761c4ef4bd2988")
+
 void* CryptoAuthFuzz_init(struct Allocator* alloc, struct Random* rand, enum TestCa_Config cfg)
 {
     struct Context* ctx = Allocator_calloc(alloc, sizeof(struct Context), 1);
@@ -312,8 +318,8 @@ void* CryptoAuthFuzz_init(struct Allocator* alloc, struct Random* rand, enum Tes
     Random_t* r0 = Random_newWithSeed(alloc, NULL, DeterminentRandomSeed_new(alloc, buf), NULL);
     Random_t* r1 = Random_newWithSeed(alloc, NULL, DeterminentRandomSeed_new(alloc, buf), NULL);
 
-    ctx->nodeA.ca = TestCa_new(alloc, NULL, base, NULL, r0, r1, cfg);
-    ctx->nodeB.ca = TestCa_new(alloc, NULL, base, NULL, r0, r1, cfg);
+    ctx->nodeA.ca = TestCa_new(alloc, PRIVATEKEY_A, base, NULL, r0, r1, cfg);
+    ctx->nodeB.ca = TestCa_new(alloc, PRIVATEKEY_B, base, NULL, r0, r1, cfg);
     TestCa_getPubKey(ctx->nodeA.ca, ctx->nodeA.pubKey);
     TestCa_getPubKey(ctx->nodeB.ca, ctx->nodeB.pubKey);
 

@@ -182,6 +182,7 @@ static struct Message* decryptMsg(struct Context* ctx,
     Assert_true(!n->expectPlaintext && !n->expectErr);
     n->expectPlaintext = expectResult;
     n->expectErr = expectErr;
+    Er_assert(Message_epush(msg, NULL, 16)); // peer ipv6
     Iface_send(&n->ciphertext, msg);
     Assert_true(!n->expectPlaintext && !n->expectErr);
     return msg;

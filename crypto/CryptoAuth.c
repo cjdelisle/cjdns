@@ -1068,9 +1068,11 @@ static Iface_DEFUN ciphertextMsg(struct Message* msg, struct Iface* iface)
 {
     struct CryptoAuth_Session_pvt* sess =
         Identity_containerOf(iface, struct CryptoAuth_Session_pvt, pub.ciphertext);
-    if (Message_getLength(msg) < 16) {
+    if (Message_getLength(msg) < 32) {
         return Error(msg, "RUNT");
     }
+    // Address is pushed on top of the message
+    Er_assert(Message_epop(msg, NULL, 16));
     uint8_t firstSixteen[16];
     Bits_memcpy(firstSixteen, msg->msgbytes, 16);
     enum CryptoAuth_DecryptErr e = decryptPacket(sess, msg);

@@ -477,6 +477,8 @@ static Iface_DEFUN ctrlFrame(struct Message* msg, struct SessionManager_pvt* sm)
     return Iface_next(&sm->pub.insideIf, msg);
 }
 
+static const uint8_t ADDR_PFX[8] = { 0xff, 0xfb, 0, 0, 0, 0, 0, 0 };
+
 static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface)
 {
     struct SessionManager_pvt* sm =
@@ -550,6 +552,9 @@ static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface
 
     Er_assert(Message_epushAd(msg, &switchHeader, SwitchHeader_SIZE));
     Er_assert(Message_epushAd(msg, &nonceOrHandle, 4));
+
+    Er_assert(Message_epush(msg, &switchHeader.label_be, 8));
+    Er_assert(Message_epush(msg, ADDR_PFX, 8));
 
     return Iface_next(&session->ciphertext, msg);
 }
@@ -726,7 +731,7 @@ static Iface_DEFUN readyToSend(struct Message* msg,
     // Move the route header to additional data
     Er_assert(Message_epushAd(msg, &header, RouteHeader_SIZE));
 
-    return Iface_next(&sess->plaintext, msg);
+    return Iface_next(&sess->plaintext, msg); // --> afterEncrypt
 }
 
 static Iface_DEFUN outgoingCtrlFrame(struct Message* msg, struct SessionManager_pvt* sm)

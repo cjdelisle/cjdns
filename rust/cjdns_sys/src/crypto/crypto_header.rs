@@ -2,7 +2,7 @@
 
 /// The AuthType specifies how the secret should be used to connect.
 #[repr(u8)]
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Hash)]
 pub enum AuthType {
     /// AuthType Zero is no authentication at all.
     ///
@@ -98,11 +98,20 @@ impl Challenge {
         }
     }
 }
+impl Into<Challenge2> for Challenge {
+    fn into(self) -> Challenge2 {
+        Challenge2 { auth_type: self.auth_type, lookup: self.lookup, }
+    }
+}
 
-#[test]
-fn test_challenge() {
-    assert_eq!(std::mem::size_of::<Challenge>(), Challenge::SIZE);
-    assert!(Challenge::KEYSIZE < Challenge::SIZE);
+#[repr(C)]
+#[derive(Default, Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Challenge2 {
+    pub auth_type: AuthType,
+    pub lookup: [u8; 7],
+}
+impl Challenge2 {
+    pub const SIZE: usize = std::mem::size_of::<Self>();
 }
 
 /// This is a handshake header packet, there are 2 required to begin an encrypted connection.

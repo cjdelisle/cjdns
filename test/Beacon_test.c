@@ -210,7 +210,10 @@ static void sendMessage(struct TwoNodes* tn,
     }
 
     Er_assert(TUNMessageType_push(msg, Ethernet_TYPE_IP6));
-    Iface_send(fromIf, msg);
+    RTypes_Error_t* err = Iface_send(fromIf, msg);
+    if (err) {
+        Assert_failure("%s\n", Rffi_printError(err, tn->alloc));
+    }
 
     if (to == tn->nodeA) {
         Assert_true(tn->messageFrom == TUNA);

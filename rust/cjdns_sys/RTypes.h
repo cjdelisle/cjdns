@@ -6,6 +6,13 @@
 #include "RTypesPrefix.h"
 
 typedef enum {
+  RTypes_CryptoAuth2_TryHandshake_Code_t_ReplyToPeer,
+  RTypes_CryptoAuth2_TryHandshake_Code_t_RecvPlaintext,
+  RTypes_CryptoAuth2_TryHandshake_Code_t_Error,
+  RTypes_CryptoAuth2_TryHandshake_Code_t_Done,
+} RTypes_CryptoAuth2_TryHandshake_Code_t;
+
+typedef enum {
   /**
    * New CryptoAuth session, has not sent or received anything
    */
@@ -74,12 +81,20 @@ typedef struct {
 } RTypes_CryptoAuth2_Session_t;
 
 typedef struct {
+  RTypes_CryptoAuth2_TryHandshake_Code_t code;
+  uint32_t err;
+  RTypes_CryptoAuth2_Session_t *sess;
+  Allocator_t *alloc;
+} RTypes_CryptoAuth2_TryHandshake_Ret_t;
+
+typedef struct {
   RTypes_IfWrapper_t a;
   RTypes_StrList_t b;
   RTypes_CryptoAuth_State_t c;
   RTypes_CryptoStats_t d;
   RTypes_CryptoAuth2_Session_t e;
   RTypes_Error_t *f;
+  RTypes_CryptoAuth2_TryHandshake_Ret_t g;
 } RTypes_ExportMe;
 
 #endif /* RTypes_H */

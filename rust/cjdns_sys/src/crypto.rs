@@ -2,11 +2,14 @@
 
 #![allow(dead_code)] //TODO remove when done
 
+pub mod cnoise;
 pub mod crypto_auth;
 pub mod crypto_header;
+pub mod crypto_noise;
 pub mod keys;
 pub mod random;
 pub mod replay_protector;
+pub mod session;
 
 mod utils {
     use sodiumoxide::crypto::hash::sha256;

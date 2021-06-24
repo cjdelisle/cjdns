@@ -68,6 +68,23 @@ pub struct RTypes_Error_t {
     pub e: Option<anyhow::Error>,
 }
 
+#[repr(C)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+pub enum RTypes_CryptoAuth2_TryHandshake_Code_t {
+    ReplyToPeer,
+    RecvPlaintext,
+    Error,
+    Done,
+}
+
+#[repr(C)]
+pub struct RTypes_CryptoAuth2_TryHandshake_Ret_t {
+    pub code: RTypes_CryptoAuth2_TryHandshake_Code_t,
+    pub err: u32,
+    pub sess: *mut RTypes_CryptoAuth2_Session_t,
+    pub alloc: *mut cffi::Allocator_t,
+}
+
 #[allow(dead_code)]
 #[repr(C)]
 pub struct RTypes_ExportMe {
@@ -77,4 +94,5 @@ pub struct RTypes_ExportMe {
     d: RTypes_CryptoStats_t,
     e: RTypes_CryptoAuth2_Session_t,
     f: *mut RTypes_Error_t,
+    g: RTypes_CryptoAuth2_TryHandshake_Ret_t,
 }

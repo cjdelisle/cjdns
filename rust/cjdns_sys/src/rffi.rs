@@ -7,10 +7,13 @@ use std::sync::Arc;
 use crate::bytestring::ByteString;
 use crate::cffi::{self, Allocator_t, Random_t, String_t};
 use crate::crypto::crypto_auth;
+use crate::crypto::session;
+use crate::crypto::crypto_auth::DecryptError;
 use crate::crypto::keys::{PrivateKey, PublicKey};
 use crate::external::interface::cif;
 use crate::external::memory::allocator;
 use crate::rtypes::*;
+use crate::interface::wire::message::Message;
 
 // This file is used to generate cbindings.h using cbindgen
 
@@ -56,7 +59,7 @@ unsafe fn strc(alloc: *mut Allocator_t, s: ByteString) -> *mut String_t {
 #[repr(C)]
 pub struct Rffi_CryptoAuth2_Session_t {
     r: RTypes_CryptoAuth2_Session_t,
-    s: Arc<crypto_auth::Session>,
+    s: Arc<dyn session::SessionTrait>,
 }
 
 pub struct RTypes_CryptoAuth2_t(pub Arc<crypto_auth::CryptoAuth>);
@@ -132,6 +135,59 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_new(
     )
 }
 
+fn wrap_session(
+    session: Arc<dyn crate::crypto::session::SessionTrait>,
+    alloc: *mut Allocator_t,
+) -> *mut RTypes_CryptoAuth2_Session_t {
+    let (plaintext, ciphertext) = session.ifaces().unwrap();
+    &mut allocator::adopt(
+        alloc,
+        Rffi_CryptoAuth2_Session_t {
+            r: RTypes_CryptoAuth2_Session_t {
+                ciphertext: cif::wrap(alloc, ciphertext),
+                plaintext: cif::wrap(alloc, plaintext),
+            },
+            s: session,
+        },
+    )
+    .r as *mut _
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn Rffi_CryptoAuth2_tryHandshake(
+    ca: *mut RTypes_CryptoAuth2_t,
+    c_msg: *mut cffi::Message_t,
+    alloc: *mut Allocator_t,
+    requireAuth: bool,
+    ret: *mut RTypes_CryptoAuth2_TryHandshake_Ret_t,
+) {
+    let mut msg = Message::from_c_message(c_msg);
+    match crypto_auth::try_handshake(&(*ca).0, &mut msg, requireAuth) {
+        Err(e) => {
+            let ee = match e.downcast_ref::<DecryptError>() {
+                Some(ee) => match ee {
+                    DecryptError::DecryptErr(ee) => ee,
+                    DecryptError::Internal(_) => {
+                        &crate::crypto::crypto_auth::DecryptErr::Internal
+                    }
+                },
+                None => &crate::crypto::crypto_auth::DecryptErr::Internal
+            }
+            .clone() as u32;
+            (*ret).err = ee;
+            (*ret).code = RTypes_CryptoAuth2_TryHandshake_Code_t::Error;
+        }
+        Ok((code, sess)) => {
+            (*ret).code = code;
+            if let Some(sess) = sess {
+                let child = cffi::Allocator__child(alloc, b"rffi_tryHandshake\0".as_ptr() as *const i8, 163);
+                (*ret).alloc = child;
+                (*ret).sess = wrap_session(sess, child)
+            }
+        }
+    }
+}
+
 #[no_mangle]
 pub unsafe extern "C" fn Rffi_CryptoAuth2_newSession(
     ca: *mut RTypes_CryptoAuth2_t,
@@ -141,9 +197,11 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_newSession(
     name: *const c_char,
     useNoise: bool,
 ) -> *mut RTypes_CryptoAuth2_Session_t {
-    let (session, plaintext, ciphertext) = crypto_auth::Session::new(
-        Arc::clone(&(*ca).0),
-        {
+    let session = crypto_auth::new_session(
+        &(*ca).0,
+        if herPublicKey.is_null() {
+            panic!("public key is null");
+        } else {
             let mut bytes = [0_u8; 32];
             bytes.copy_from_slice(std::slice::from_raw_parts(herPublicKey, 32));
             PublicKey::from(bytes)
@@ -160,17 +218,23 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_newSession(
         useNoise,
     )
     .expect("bad public key"); //TODO Pass the error to C code somehow instead of `expect()`.
-    &mut allocator::adopt(
-        alloc,
-        Rffi_CryptoAuth2_Session_t {
-            r: RTypes_CryptoAuth2_Session_t {
-                ciphertext: cif::wrap(alloc, ciphertext),
-                plaintext: cif::wrap(alloc, plaintext),
-            },
-            s: session,
-        },
-    )
-    .r as *mut _
+    wrap_session(session, alloc)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn Rffi_CryptoAuth2_noiseTick(
+    sess: *mut RTypes_CryptoAuth2_Session_t,
+    alloc: *mut Allocator_t,
+) -> *mut cffi::Message_t {
+    let mut alloc = allocator::Allocator::wrap(alloc);
+    match ffi_sess_mut(sess).s.tick(&mut alloc) {
+        Err(e) => {
+            log::warn!("Error in session::tick() {}", e);
+            std::ptr::null_mut()
+        }
+        Ok(Some(m)) => m.as_c_message(),
+        Ok(None) => std::ptr::null_mut(),
+    }
 }
 
 unsafe fn ffi_sess_mut(

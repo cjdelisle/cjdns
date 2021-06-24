@@ -24,12 +24,20 @@ RTypes_CryptoAuth2_t *Rffi_CryptoAuth2_new(Allocator_t *allocator,
                                            const uint8_t *privateKey,
                                            Random_t *random);
 
+void Rffi_CryptoAuth2_tryHandshake(RTypes_CryptoAuth2_t *ca,
+                                   Message_t *c_msg,
+                                   Allocator_t *alloc,
+                                   bool requireAuth,
+                                   RTypes_CryptoAuth2_TryHandshake_Ret_t *ret);
+
 RTypes_CryptoAuth2_Session_t *Rffi_CryptoAuth2_newSession(RTypes_CryptoAuth2_t *ca,
                                                           Allocator_t *alloc,
                                                           const uint8_t *herPublicKey,
                                                           bool requireAuth,
                                                           const char *name,
                                                           bool useNoise);
+
+Message_t *Rffi_CryptoAuth2_noiseTick(RTypes_CryptoAuth2_Session_t *sess, Allocator_t *alloc);
 
 void Rffi_CryptoAuth2_setAuth(const String_t *password,
                               const String_t *login,
