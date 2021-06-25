@@ -304,14 +304,20 @@ impl IfRecv for CiphertextRecv {
             (_, Some(_)) => {
                 // Really this should be a panic because it's a bug if there is a
                 // way to send a packet which does this.
-                bail!("DROP packet associated with existing session trying to create a new one");                
+                log::debug!("DROP packet associated with existing session trying to create a new one");
+                bail!("DROP packet associated with existing session trying to create a new one");
             },
             (TryMsgReply::ReplyToPeer, None) => {
+                log::debug!("Replying");
                 self.0.send_crypto(m)
             },
-            (TryMsgReply::Done, None) => Ok(()),
+            (TryMsgReply::Done, None) => {
+                log::debug!("Nothing to do");
+                Ok(())
+            },
             (TryMsgReply::Error, None) |
             (TryMsgReply::RecvPlaintext, None) => {
+                log::debug!("Unexpected result of handle_incoming");
                 bail!("Unexpected reply");
             }
         }
