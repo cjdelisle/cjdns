@@ -58,7 +58,8 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
                                           struct Allocator* allocator,
                                           struct EventBase* base,
                                           struct Random* rand,
-                                          struct Log* logger);
+                                          struct Log* logger,
+                                          bool enableNoise);
 
 void TestFramework_linkNodes(struct TestFramework* client,
                              struct TestFramework* server,

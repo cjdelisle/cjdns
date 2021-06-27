@@ -12,13 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifdef SUBNODE
-// TODO(cjd): Subnode beacon testing
-int main()
-{
-    return 0;
-}
-#else
+#include "test/BeaconFramework.h"
 #include "crypto/Key.h"
 #include "io/FileWriter.h"
 #include "memory/MallocAllocator.h"
@@ -28,6 +22,7 @@ int main()
 #include "util/Base32.h"
 #include "util/Checksum.h"
 #include "util/log/WriterLog.h"
+#include "subnode/SubnodePathfinder.h"
 #include "test/TestFramework.h"
 #include "wire/Headers.h"
 #include "wire/Ethernet.h"
@@ -35,8 +30,6 @@ int main()
 #include "util/Hex.h"
 #include "util/events/Time.h"
 #include "util/events/Timeout.h"
-#include "dht/dhtcore/NodeStore.h"
-#include "dht/Pathfinder_pvt.h"
 
 #include <stdio.h>
 
@@ -105,26 +98,23 @@ static void checkLinkage(void* vTwoNodes)
     struct TwoNodes* ctx = Identity_check((struct TwoNodes*) vTwoNodes);
 
     if (!ctx->beaconsSent) {
-        if (Pathfinder_getNodeStore(ctx->nodeA->pathfinder) &&
-            Pathfinder_getNodeStore(ctx->nodeB->pathfinder))
-        {
-            Log_debug(ctx->logger, "Linking A and B");
-            TestFramework_linkNodes(ctx->nodeB, ctx->nodeA, true);
-            ctx->beaconsSent = true;
-        }
+        Log_debug(ctx->logger, "Linking A and B");
+        TestFramework_linkNodes(ctx->nodeB, ctx->nodeA, true);
+        ctx->beaconsSent = true;
         return;
     }
 
-
-    if (Pathfinder_getNodeStore(ctx->nodeA->pathfinder)->nodeCount < 2) {
+    //Log_debug(ctx->logger, "Checking linkage");
+    if (ReachabilityCollector_peerCount(ctx->nodeA->subnodePathfinder->rc) < 1) {
         notLinkedYet(ctx);
         return;
     }
     Log_debug(ctx->logger, "A seems to be linked with B");
-    if (Pathfinder_getNodeStore(ctx->nodeB->pathfinder)->nodeCount < 2) {
+    if (ReachabilityCollector_peerCount(ctx->nodeB->subnodePathfinder->rc) < 1) {
         notLinkedYet(ctx);
         return;
     }
+
     Log_debug(ctx->logger, "B seems to be linked with A");
     Log_debug(ctx->logger, "\n\nSetup Complete\n\n");
 
@@ -137,7 +127,9 @@ static void start(struct Allocator* alloc,
                   struct Log* logger,
                   struct EventBase* base,
                   struct Random* rand,
-                  RunTest* runTest)
+                  RunTest* runTest,
+                  bool noiseA,
+                  bool noiseB)
 {
 
 #if defined(ADDRESS_PREFIX) || defined(ADDRESS_PREFIX_BITS)
@@ -146,24 +138,24 @@ static void start(struct Allocator* alloc,
     uint8_t privateKeyA[32];
     Key_gen(address, publicKey, privateKeyA, rand);
     struct TestFramework* a =
-        TestFramework_setUp((char*) privateKeyA, alloc, base, rand, logger);
+        TestFramework_setUp((char*) privateKeyA, alloc, base, rand, logger, noiseA);
 
     uint8_t privateKeyB[32];
     Key_gen(address, publicKey, privateKeyB, rand);
     struct TestFramework* b =
-        TestFramework_setUp((char*) privateKeyB, alloc, base, rand, logger);
+        TestFramework_setUp((char*) privateKeyB, alloc, base, rand, logger, noiseB);
 #else
      struct TestFramework* a =
         TestFramework_setUp("\xad\x7e\xa3\x26\xaa\x01\x94\x0a\x25\xbc\x9e\x01\x26\x22\xdb\x69"
                             "\x4f\xd9\xb4\x17\x7c\xf3\xf8\x91\x16\xf3\xcf\xe8\x5c\x80\xe1\x4a",
-                            alloc, base, rand, logger);
+                            alloc, base, rand, logger, noiseA);
     //"publicKey": "kmzm4w0kj9bswd5qmx74nu7kusv5pj40vcsmp781j6xxgpd59z00.k",
     //"ipv6": "fc41:94b5:0925:7ba9:3959:11ab:a006:367a",
 
     struct TestFramework* b =
         TestFramework_setUp("\xd8\x54\x3e\x70\xb9\xae\x7c\x41\xbc\x18\xa4\x9a\x9c\xee\xca\x9c"
                             "\xdc\x45\x01\x96\x6b\xbd\x7e\x76\xcf\x3a\x9f\xbc\x12\xed\x8b\xb4",
-                            alloc, base, rand, logger);
+                            alloc, base, rand, logger, noiseB);
     //"publicKey": "vz21tg07061s8v9mckrvgtfds7j2u5lst8cwl6nqhp81njrh5wg0.k",
     //"ipv6": "fc1f:5b96:e1c5:625d:afde:2523:a7fa:383a",
 #endif
@@ -250,17 +242,16 @@ static void runTest(struct TwoNodes* tn)
 }
 
 /** Check if nodes A and C can communicate via B without A knowing that C exists. */
-int main()
+int BeaconFramework_test(bool noiseA, bool noiseB)
 {
     struct Allocator* alloc = MallocAllocator_new(1<<22);
     struct Writer* logwriter = FileWriter_new(stdout, alloc);
     struct Log* logger = WriterLog_new(logwriter, alloc);
     struct Random* rand = Random_new(alloc, logger, NULL);
     struct EventBase* base = EventBase_new(alloc);
-    start(Allocator_child(alloc), logger, base, rand, runTest);
+    start(Allocator_child(alloc), logger, base, rand, runTest, noiseA, noiseB);
 
     EventBase_beginLoop(base);
     Allocator_free(alloc);
     return 0;
 }
-#endif

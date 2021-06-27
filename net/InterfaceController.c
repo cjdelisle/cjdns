@@ -203,6 +203,9 @@ struct InterfaceController_pvt
     /** How often to send beacon messages (milliseconds). */
     uint32_t beaconInterval;
 
+    // Whether or not to create sessions using the noise protocol
+    const bool enableNoise;
+
     /** The timeout event to use for pinging potentially unresponsive neighbors. */
     struct Timeout* const pingInterval;
 
@@ -573,6 +576,7 @@ static struct Peer* mkEp(
     ep->switchIf.send = sendFromSwitch;
     ep->ciphertext.send = afterEncrypt;
     ep->plaintext.send = afterDecrypt;
+    useNoise = useNoise && ici->ic->enableNoise;
     ep->caSession = Ca_newSession(ici->ic->ca, epAlloc, publicKey, authNeeded, name, useNoise);
     Iface_plumb(ep->caSession->ciphertext, &ep->ciphertext);
     Iface_plumb(ep->caSession->plaintext, &ep->plaintext);
@@ -602,6 +606,7 @@ static struct Peer* epFromSess(
     Iface_plumb(ep->caSession->ciphertext, &ep->ciphertext);
     Iface_plumb(ep->caSession->plaintext, &ep->plaintext);
     Ca_getHerPubKey(sess, ep->addr.key);
+    ep->addr.protocolVersion = Rffi_CryptoAuth2_cjdnsVer(sess);
     Address_getPrefix(&ep->addr);
     Allocator_onFree(alloc, closeInterface, ep);
     return ep;
@@ -770,6 +775,14 @@ static Iface_DEFUN handleIncomingFromWire(struct Message* msg, struct Iface* add
 
             Log_info(ici->ic->logger, "Added peer [%s] from incoming message",
                 Address_toString(&ep->addr, Message_getAlloc(msg))->bytes);
+
+            if (ep->addr.protocolVersion) {
+                // This will only work if the other end sent us their version (WG mode)
+                sendPeer(0xffffffff, PFChan_Core_PEER, ep, 0xffff);
+            } else {
+                // We don't know their version, ping them to find out
+                sendPing(ep);
+            }
 
             if (ret.code == RTypes_CryptoAuth2_TryHandshake_Code_t_RecvPlaintext) {
                 // receive the packet
@@ -1173,7 +1186,8 @@ struct InterfaceController* InterfaceController_new(Ca_t* ca,
                                                     struct SwitchPinger* switchPinger,
                                                     struct Random* rand,
                                                     struct Allocator* allocator,
-                                                    struct EventEmitter* ee)
+                                                    struct EventEmitter* ee,
+                                                    bool enableNoise)
 {
     struct Allocator* alloc = Allocator_child(allocator);
     struct InterfaceController_pvt* out =
@@ -1191,6 +1205,7 @@ struct InterfaceController* InterfaceController_new(Ca_t* ca,
         .timeoutMilliseconds = TIMEOUT_MILLISECONDS,
         .forgetAfterMilliseconds = FORGET_AFTER_MILLISECONDS,
         .beaconInterval = BEACON_INTERVAL,
+        .enableNoise = enableNoise,
 
         .linkStateInterval = Timeout_setInterval(
             linkState,
@@ -1231,7 +1246,12 @@ struct InterfaceController* InterfaceController_new(Ca_t* ca,
 
     Ca_getPubKey(ca, out->ourPubKey);
     Bits_memcpy(out->beacon.publicKey, out->ourPubKey, 32);
-    out->beacon.version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL);
+    if (enableNoise) {
+        out->beacon.version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL);
+    } else {
+        // this is mostly here for testing, we have to lie about our protocol version
+        out->beacon.version_be = Endian_hostToBigEndian32(21);
+    }
 
     Timeout_setTimeout(beaconInterval, out, BEACON_INTERVAL, eventBase, alloc);
 

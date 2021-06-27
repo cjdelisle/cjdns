@@ -495,6 +495,12 @@ struct ReachabilityCollector_PeerInfo*
     return pi ? &pi->pub : NULL;
 }
 
+int ReachabilityCollector_peerCount(struct ReachabilityCollector* rc)
+{
+    struct ReachabilityCollector_pvt* rcp = Identity_check((struct ReachabilityCollector_pvt*) rc);
+    return rcp->piList->length;
+}
+
 void ReachabilityCollector_lagSample(
     struct ReachabilityCollector* rc, uint64_t label, uint32_t milliseconds)
 {

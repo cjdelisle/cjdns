@@ -343,7 +343,7 @@ void Core_init(struct Allocator* alloc,
         sec = Security_new(alloc, logger, eventBase);
     }
     struct GlobalConfig* globalConf = GlobalConfig_new(alloc);
-    struct NetCore* nc = NetCore_new(privateKey, alloc, eventBase, rand, logger);
+    struct NetCore* nc = NetCore_new(privateKey, alloc, eventBase, rand, logger, !Defined(NOISE_NO));
 
     struct RouteGen* rg = RouteGen_new(alloc, logger);
 

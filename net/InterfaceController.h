@@ -238,6 +238,7 @@ struct InterfaceController* InterfaceController_new(Ca_t* ca,
                                       struct SwitchPinger* switchPinger,
                                       struct Random* rand,
                                       struct Allocator* allocator,
-                                      struct EventEmitter* ee);
+                                      struct EventEmitter* ee,
+                                      bool enableNoise);
 
 #endif

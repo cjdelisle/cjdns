@@ -112,12 +112,12 @@ void* CJDNS_FUZZ_INIT(struct Allocator* allocator, struct Random* rand)
     uint8_t privateKeyA[32];
     Key_gen(address, publicKey, privateKeyA, rand);
     struct TestFramework* a =
-        TestFramework_setUp((char*) privateKeyA, alloc, base, rand, logger);
+        TestFramework_setUp((char*) privateKeyA, alloc, base, rand, logger, !Defined(NOISE_NO));
 
     uint8_t privateKeyB[32];
     Key_gen(address, publicKey, privateKeyB, rand);
     struct TestFramework* b =
-        TestFramework_setUp((char*) privateKeyB, alloc, base, rand, logger);
+        TestFramework_setUp((char*) privateKeyB, alloc, base, rand, logger, !Defined(NOISE_NO));
 
     ctx->tunB.send = incomingTun;
     ctx->tunA.send = incomingTun;

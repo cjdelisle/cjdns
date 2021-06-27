@@ -101,7 +101,8 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
                                           struct Allocator* allocator,
                                           struct EventBase* base,
                                           struct Random* rand,
-                                          struct Log* logger)
+                                          struct Log* logger,
+                                          bool enableNoise)
 {
     if (!logger) {
         struct Writer* logwriter = FileWriter_new(stdout, allocator);
@@ -125,7 +126,7 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
     struct EncodingScheme* scheme = NumberCompress_defineScheme(allocator);
 
     struct NetCore* nc =
-        NetCore_new(privateKey, allocator, base, rand, logger);
+        NetCore_new(privateKey, allocator, base, rand, logger, enableNoise);
 
     struct RouteGen* rg = RouteGen_new(allocator, logger);
 
@@ -137,16 +138,12 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
 
     struct SubnodePathfinder* spf = SubnodePathfinder_new(
         allocator, logger, base, rand, nc->myAddress, privateKey, scheme);
-    struct ASynchronizer* spfAsync = ASynchronizer_new(allocator, base, logger);
-    Iface_plumb(&spfAsync->ifA, &spf->eventIf);
-    EventEmitter_regPathfinderIface(nc->ee, &spfAsync->ifB);
+    EventEmitter_regPathfinderIface(nc->ee, &spf->eventIf);
 
     #ifndef SUBNODE
         struct Pathfinder* pf = Pathfinder_register(allocator, logger, base, rand, NULL);
         pf->fullVerify = true;
-        struct ASynchronizer* pfAsync = ASynchronizer_new(allocator, base, logger);
-        Iface_plumb(&pfAsync->ifA, &pf->eventIf);
-        EventEmitter_regPathfinderIface(nc->ee, &pfAsync->ifB);
+        EventEmitter_regPathfinderIface(nc->ee, &pf->eventIf);
     #endif
 
     SubnodePathfinder_start(spf);

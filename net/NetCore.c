@@ -34,7 +34,8 @@ struct NetCore* NetCore_new(uint8_t* privateKey,
                             struct Allocator* allocator,
                             struct EventBase* base,
                             struct Random* rand,
-                            struct Log* log)
+                            struct Log* log,
+                            bool enableNoise)
 {
     struct Allocator* alloc = Allocator_child(allocator);
     struct NetCore* nc = Allocator_calloc(alloc, sizeof(struct NetCore), 1);
@@ -69,7 +70,7 @@ struct NetCore* NetCore_new(uint8_t* privateKey,
     struct SwitchPinger* sp = nc->sp = SwitchPinger_new(base, rand, log, myAddress, alloc);
     Iface_plumb(&controlHandler->switchPingerIf, &sp->controlHandlerIf);
 
-    nc->ifController = InterfaceController_new(ca, switchCore, log, base, sp, rand, alloc, ee);
+    nc->ifController = InterfaceController_new(ca, switchCore, log, base, sp, rand, alloc, ee, enableNoise);
 
     struct TUNAdapter* tunAdapt = nc->tunAdapt = TUNAdapter_new(alloc, log, myAddress->ip6.bytes);
     Iface_plumb(&tunAdapt->upperDistributorIf, &upper->tunAdapterIf);

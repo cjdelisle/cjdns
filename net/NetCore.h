@@ -55,6 +55,7 @@ struct NetCore* NetCore_new(uint8_t* privateKey,
                             struct Allocator* alloc,
                             struct EventBase* base,
                             struct Random* rand,
-                            struct Log* log);
+                            struct Log* log,
+                            bool enableNoise);
 
 #endif
