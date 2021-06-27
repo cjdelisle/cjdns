@@ -445,7 +445,9 @@ pub fn try_handshake(
         },
         cnoise::RECEIVE_INDEX_CTRL => {
             //ca.try_noise_msg(msg)
-            let (reply, sess) = crypto_noise::handle_incoming(&ca.noise, msg, peer_id, require_auth)?;
+            let (reply, sess, msg_type) =
+                crypto_noise::handle_incoming(&ca.noise, msg, peer_id, require_auth)?;
+            log::debug!("noise: handle_incoming with msg_type = {}", msg_type);
             if let Some(sess) = sess {
                 Ok((reply, Some(Arc::new(sess))))
             } else {

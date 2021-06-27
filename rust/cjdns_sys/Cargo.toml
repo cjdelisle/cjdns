@@ -14,7 +14,7 @@ log = { version = "0.4", features = ["std", "release_max_level_trace"] }
 parking_lot = "0.11"
 thiserror = "1.0"
 anyhow = { version = "1.0", features = ["backtrace"] }
-boringtun = { git = "https://github.com/cjdelisle/boringtun", rev = "a7bf976b6d8a61d1887de095fa0a337cec3d76fc", version = "0.3", features = ["additional_data"] }
+boringtun = { git = "https://github.com/cjdelisle/boringtun", rev = "9dd253904616ff5327267cc4073dcf61e60b858e", version = "0.3", features = ["additional_data"] }
 slog = { version = "2.7", features = ["release_max_level_trace"] }
 
 [build_dependencies]

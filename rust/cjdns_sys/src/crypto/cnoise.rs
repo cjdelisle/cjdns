@@ -61,7 +61,7 @@ pub fn pop_ent(msg: &mut Message) -> Result<CNoiseEntity> {
             if l as usize != std::mem::size_of::<u32>() {
                 bail!("CjdnsPsk entity size {}, expect {}", l, std::mem::size_of::<u32>());
             }
-            CNoiseEntity::PrevSessIndex( msg.pop()? )
+            CNoiseEntity::PrevSessIndex(u32::from_le(msg.pop()?))
         }
         _ => CNoiseEntity::Other( CNoiseOther { t, bytes: msg.pop_bytes(l as usize)? } ),
     })
@@ -75,7 +75,7 @@ pub fn push_ent(msg: &mut Message, ent: CNoiseEntity) -> Result<()> {
             CJDNS_PSK
         },
         CNoiseEntity::PrevSessIndex(id) => {
-            msg.push(id)?;
+            msg.push(id.to_le())?;
             PREV_SESS_INDEX
         },
         CNoiseEntity::Padding(l) => {
@@ -223,7 +223,7 @@ pub fn wg_from_cjdns(msg: &mut Message) -> Result<WgFromCjdnsRes> {
 }
 
 /// Change message type from WG back to cjdns, see wg_from_cjdns for details
-pub fn cjdns_from_wg(msg: &mut Message) -> Result<()> {
+pub fn cjdns_from_wg(msg: &mut Message) -> Result<u32> {
     let msg_type = u32::from_le(msg.pop::<u32>()?);
     if msg_type == WG_TYPE_RUN {
         let receiver_index = u32::from_le(msg.pop::<u32>()?);
@@ -237,5 +237,5 @@ pub fn cjdns_from_wg(msg: &mut Message) -> Result<()> {
         msg.push(msg_type.to_le())?;
         msg.push(RECEIVE_INDEX_CTRL)?;
     }
-    Ok(())
+    Ok(msg_type)
 }

@@ -118,7 +118,7 @@ checksum = "cf1de2fe8c75bc145a2f577add951f8134889b4795d47466a54a5c846d691693"
 [[package]]
 name = "boringtun"
 version = "0.3.0"
-source = "git+https://github.com/cjdelisle/boringtun?rev=a7bf976b6d8a61d1887de095fa0a337cec3d76fc#a7bf976b6d8a61d1887de095fa0a337cec3d76fc"
+source = "git+https://github.com/cjdelisle/boringtun?rev=9dd253904616ff5327267cc4073dcf61e60b858e#9dd253904616ff5327267cc4073dcf61e60b858e"
 dependencies = [
  "base64",
  "chrono",

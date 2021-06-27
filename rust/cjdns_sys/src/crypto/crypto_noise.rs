@@ -172,12 +172,12 @@ impl CryptoNoise {
     }
 }
 
-struct InitiatorSessionMut {
+struct SessionInnerMut {
     auth: Option<Challenge2>,
     peer_recv_index: Option<u32>,
     additional_data: Vec<u8>,
 }
-impl InitiatorSessionMut {
+impl SessionInnerMut {
     fn update_additional(&mut self) {
         let mut msg = Message::rnew(256);
         if let Some(peer_index) = self.peer_recv_index {
@@ -195,15 +195,13 @@ impl InitiatorSessionMut {
         //log::debug!("Auth format: {:?}", &self.additional_data);
     }
 }
-struct InitiatorSession {
-    m: RwLock<InitiatorSessionMut>,
-    peer_recv_index: AtomicUsize,
-}
 
 struct SessionInner {
+    m: RwLock<SessionInnerMut>,
+    peer_recv_index: AtomicUsize,
+
     tunnel: Box<Tunn>,
-    // None if we are the responder
-    initiator: Option<InitiatorSession>,
+
     her_pubkey: [u8; 32],
     her_ip6: [u8; 16],
 
@@ -218,17 +216,12 @@ struct SessionInner {
 }
 impl SessionInner {
     fn update_peer_index(&self, peer_index: u32) {
-        let initiator = if let Some(initiator) = &self.initiator {
-            initiator
-        } else {
-            return;
-        };
         let peer_index_us = peer_index as usize;
-        let old_idx = initiator.peer_recv_index.swap(peer_index_us, atomic::Ordering::Relaxed);
+        let old_idx = self.peer_recv_index.swap(peer_index_us, atomic::Ordering::Relaxed);
         if old_idx == peer_index_us {
             return;
         }
-        let mut m = initiator.m.write();
+        let mut m = self.m.write();
         m.peer_recv_index = Some(peer_index);
         m.update_additional();
     }
@@ -244,8 +237,8 @@ impl SessionInner {
 
     fn send_crypto(&self, msg: &mut Message) -> Result<()> {
         anyhow::ensure!(msg.is_aligned_to(4), "Alignment fault");
-        cnoise::cjdns_from_wg(msg)?;
-        log::debug!("send_crypto message length {}", msg.len());
+        let msg_type = cnoise::cjdns_from_wg(msg)?;
+        log::debug!("send_crypto message type {} length {}", msg_type, msg.len());
         self.cipher_pvt.send(msg)
     }
 }
@@ -259,12 +252,8 @@ impl IfRecv for PlaintextRecv {
         anyhow::ensure!(msg.is_aligned_to(4), "Alignment fault");
         THREAD_CTX.with(|tc| {
             let mut tc = tc.borrow_mut();
-            let result = if let Some(initiator) = &self.0.initiator {
-                let add = &initiator.m.read().additional_data;
-                self.0.tunnel.encapsulate_add(msg.bytes(), &mut tc.crypt_buf[..], &add[..])
-            } else {
-                self.0.tunnel.encapsulate(msg.bytes(), &mut tc.crypt_buf[..])
-            };
+            let add = &self.0.m.read().additional_data;
+            let result = self.0.tunnel.encapsulate_add(msg.bytes(), &mut tc.crypt_buf[..], &add[..]);
             match result {
                 TunnResult::Done => {
                     log::debug!("Encrypt msg ::Done");
@@ -300,24 +289,25 @@ impl IfRecv for CiphertextRecv {
             Ipv6Addr::from(first16)
         };
         log::debug!("Decrypt msg from [{}], len {}", peer_id, m.len());
-        match handle_incoming(&self.0.ca, m, peer_id, self.0.require_auth)? {
-            (_, Some(_)) => {
+        match handle_incoming1(&self.0.ca, m, peer_id, self.0.require_auth, Some(&self.0))? {
+            (_, Some(_), msg_type) => {
                 // Really this should be a panic because it's a bug if there is a
                 // way to send a packet which does this.
-                log::debug!("DROP packet associated with existing session trying to create a new one");
+                log::debug!("DROP packet trying to create new session (msg_type = {})", msg_type);
                 bail!("DROP packet associated with existing session trying to create a new one");
             },
-            (TryMsgReply::ReplyToPeer, None) => {
-                log::debug!("Replying");
-                self.0.send_crypto(m)
+            (TryMsgReply::ReplyToPeer, None, msg_type) => {
+                log::debug!("Replying to msg_type {}", msg_type);
+                anyhow::ensure!(m.is_aligned_to(4), "Alignment fault");
+                self.0.cipher_pvt.send(m)
             },
-            (TryMsgReply::Done, None) => {
-                log::debug!("Nothing to do");
+            (TryMsgReply::Done, None, msg_type) => {
+                log::debug!("Nothing to do (msg_type = {})", msg_type);
                 Ok(())
             },
-            (TryMsgReply::Error, None) |
-            (TryMsgReply::RecvPlaintext, None) => {
-                log::debug!("Unexpected result of handle_incoming");
+            (TryMsgReply::Error, None, msg_type) |
+            (TryMsgReply::RecvPlaintext, None, msg_type) => {
+                log::debug!("Unexpected result of handle_incoming (msg_type = {})", msg_type);
                 bail!("Unexpected reply");
             }
         }
@@ -351,7 +341,6 @@ impl Session {
         ca: Arc<CryptoNoise>,
         her_pub_key: &PublicKey,
         display_name: String,
-        is_initiator: bool,
         require_auth: bool,
         index: u32,
     ) -> Result<Self> {
@@ -375,25 +364,17 @@ impl Session {
         };
         tunnel.set_logger(slog::Logger::root(SlogAdapter, slog::o!()));
 
-        let initiator = if is_initiator {
-            Some(InitiatorSession{
-                m: RwLock::new(InitiatorSessionMut{
-                    additional_data: Vec::new(),
-                    auth: None,
-                    peer_recv_index: None,
-                }),
-                peer_recv_index: AtomicUsize::new(usize::MAX),
-            })
-        } else {
-            None
-        };
-
         let (mut plaintext, plain_pvt) = iface::new("CryptoAuth::Session plaintext");
         let (mut ciphertext, cipher_pvt) = iface::new("CryptoAuth::Session ciphertext");
 
         let inner = Arc::new(SessionInner {
+            m: RwLock::new(SessionInnerMut{
+                additional_data: Vec::new(),
+                auth: None,
+                peer_recv_index: None,
+            }),
+            peer_recv_index: AtomicUsize::new(usize::MAX),
             tunnel,
-            initiator,
             her_pubkey,
             her_ip6,
             plain_pvt,
@@ -420,14 +401,13 @@ impl Session {
         mut ca: Arc<CryptoNoise>,
         her_pub_key: PublicKey,
         mut display_name: String,
-        is_initiator: bool,
         require_auth: bool,
     ) -> Result<Self> {
         loop {
             // in the unlikely event that a session already exists, we will just keep making new ones
             // until we find an unused session index.
             let index = ca.next_sess_index.fetch_add(1, atomic::Ordering::Relaxed) as u32;
-            let sess = Self::new1(ca, &her_pub_key, display_name, is_initiator, require_auth, index)?;
+            let sess = Self::new1(ca, &her_pub_key, display_name, require_auth, index)?;
             let inner = Arc::clone(&sess.inner);
             {
                 let mut sessions_l = sess.ca.sessions.write();
@@ -439,8 +419,8 @@ impl Session {
                         continue;
                     },
                     None => {
-                        log::debug!("Inserted new initiator={} session with {} at index {}",
-                            is_initiator, Ipv6Addr::from(sess.her_ip6), index);
+                        log::debug!("Inserted new session with {} at index {}",
+                            Ipv6Addr::from(sess.her_ip6), index);
                     },
                 }
             }
@@ -453,21 +433,17 @@ impl Session {
         her_pub_key: PublicKey,
         display_name: String,
     ) -> Result<Self> {
-        Self::new0(ca, her_pub_key, display_name, true, false)
+        Self::new0(ca, her_pub_key, display_name, false)
     }
 }
 
 impl SessionTrait for Session {
     fn set_auth(&self, password: Option<ByteString>, login: Option<ByteString>) {
-        if let Some(initiator) = &self.inner.initiator {
-            let (secret, auth) = compute_auth(password, login);
-            let mut m = initiator.m.write();
-            m.auth = auth;
-            m.update_additional();
-            self.inner.tunnel.set_preshared_key(secret);
-        } else {
-            log::warn!("Set auth on CA session we are not the initiator, no effect");
-        }
+        let (secret, auth) = compute_auth(password, login);
+        let mut m = self.inner.m.write();
+        m.auth = auth;
+        m.update_additional();
+        self.inner.tunnel.set_preshared_key(secret);
     }
 
     fn get_state(&self) -> State {
@@ -514,8 +490,7 @@ impl SessionTrait for Session {
     fn tick(&self, alloc: &mut Allocator) -> Result<Option<Message>> {
         THREAD_CTX.with(|tc| {
             let mut tc = tc.borrow_mut();
-            let m = self.inner.initiator.as_ref().map(|init|init.m.read().additional_data.clone())
-                .unwrap_or_else(Vec::new);
+            let m = &self.inner.m.read().additional_data;
             let p = match self.inner.tunnel.update_timers_add(&mut tc.crypt_buf[..], &m[..]) {
                 TunnResult::Done => {
                     match self.inner.tunnel.decapsulate(None, &[], &mut tc.crypt_buf[..]) {
@@ -534,8 +509,6 @@ impl SessionTrait for Session {
                     None
                 }
                 TunnResult::WriteToNetwork(packet, _) => {
-                    log::debug!("Tick {} sending packet len {}",
-                        Ipv6Addr::from(self.her_ip6), packet.len());
                     Some(packet)
                 }
                 _ => panic!("Unexpected result from update_timers"),
@@ -544,7 +517,9 @@ impl SessionTrait for Session {
                 let mut alloc = alloc.child();
                 let mut msg = Message::anew(packet.len() + 512, &mut alloc);
                 msg.push_bytes(packet)?;
-                cnoise::cjdns_from_wg(&mut msg)?;
+                let msg_type = cnoise::cjdns_from_wg(&mut msg)?;
+                log::debug!("Tick {} sending packet type {} len {}",
+                    Ipv6Addr::from(self.her_ip6), msg_type, packet.len());
                 anyhow::ensure!(msg.is_aligned_to(4), "Alignment fault");
                 Ok(Some(msg))
             } else {
@@ -577,15 +552,25 @@ enum NextForward {
     Done,
 }
 
-/// Returns:
-/// * bool: true if the message should be send BACK down to wire to the originator
-/// * Option<Session> Some session in the case that a new session handle was created.
 pub fn handle_incoming(
     ca: &Arc<CryptoNoise>,
     msg: &mut Message,
     peer_id: Ipv6Addr,
     require_auth: bool,
-) -> Result<(TryMsgReply, Option<Session>)> {
+) -> Result<(TryMsgReply, Option<Session>, u32)> {
+    handle_incoming1(ca, msg, peer_id, require_auth, None)
+}
+
+/// Returns:
+/// * bool: true if the message should be send BACK down to wire to the originator
+/// * Option<Session> Some session in the case that a new session handle was created.
+fn handle_incoming1(
+    ca: &Arc<CryptoNoise>,
+    msg: &mut Message,
+    peer_id: Ipv6Addr,
+    require_auth: bool,
+    session_hint: Option<&Arc<SessionInner>>,
+) -> Result<(TryMsgReply, Option<Session>, u32)> {
     //log::debug!("Handle Incoming:  {}", hex::encode(msg.peek_bytes(16)?));
     let cnoise::WgFromCjdnsRes{ our_index, peer_index, msg_type } = cnoise::wg_from_cjdns(msg)?;
     //log::debug!("Handle Incoming1: {}", hex::encode(msg.peek_bytes(16)?));
@@ -604,7 +589,7 @@ pub fn handle_incoming(
                 TunnResult::Err(e) => {
                     // Put the message back as we found it
                     cnoise::cjdns_from_wg(msg)?;
-                    log::debug!("WG error: {:?}", e);
+                    log::debug!("WG error: {:?} in msg type: {}", e, msg_type);
                     let ee = (e as u32) + 1024; // TODO better errors ?
 
                     let mut first16 = [0_u8; 16];
@@ -654,12 +639,12 @@ pub fn handle_incoming(
             NextForward::Cipher => sess.send_crypto(msg)?,
             NextForward::Done => (),
         }
-        Ok((TryMsgReply::Done, None))
+        Ok((TryMsgReply::Done, None, msg_type))
     } else {
-        let ret = handle_init_msg(ca, msg, peer_id, require_auth)?;
+        let ret = handle_init_msg(ca, msg, peer_id, require_auth, session_hint)?;
         cnoise::cjdns_from_wg(msg)?;
         anyhow::ensure!(msg.is_aligned_to(4), "Alignment fault");
-        Ok((TryMsgReply::ReplyToPeer, ret))
+        Ok((TryMsgReply::ReplyToPeer, ret, msg_type))
     }
 }
 
@@ -668,6 +653,7 @@ fn handle_init_msg(
     msg: &mut Message,
     peer_id: Ipv6Addr,
     require_auth: bool,
+    prev_session: Option<&Arc<SessionInner>>,
 ) -> Result<Option<Session>> {
 
     // If we're under load then we will reply with a cookie (assuming it's a valid handshake)
@@ -764,6 +750,8 @@ fn handle_init_msg(
         None
     };
 
+    let sess = if sess.is_some() { sess } else { prev_session.map(Arc::clone) };
+
     let (sess, sess_outer) = if let Some(sess) = sess { (sess, None) } else {
         let hpk = PublicKey::from(valid_handshake.peer_static_public);
         let display = if let Some(user) = &user_opt {
@@ -771,7 +759,7 @@ fn handle_init_msg(
         } else {
             "<anon>".to_owned()
         };
-        let sess = Session::new0(Arc::clone(ca), hpk, display, false, require_auth)?;
+        let sess = Session::new0(Arc::clone(ca), hpk, display, require_auth)?;
         (Arc::clone(&sess.inner), Some(sess))
     };
 
