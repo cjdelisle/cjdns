@@ -29,6 +29,7 @@ mod types {
     pub use crate::rtypes::RTypes_CryptoAuth_State_t as State;
     pub use crate::rtypes::RTypes_CryptoStats_t as CryptoStats;
     pub use crate::rtypes::RTypes_CryptoAuth2_TryHandshake_Code_t as TryMsgReply;
+    pub use crate::cffi::RBindings_Version::RBindings_Version_CurrentProtocol as CURRENT_PROTOCOL;
 }
 
 
@@ -187,6 +188,7 @@ impl SessionInnerMut {
             //log::debug!("Pushing auth: {:?}", &ch);
             cnoise::push_ent(&mut msg, cnoise::CNoiseEntity::CjdnsPsk(ch.clone())).unwrap();
         }
+        cnoise::push_ent(&mut msg, cnoise::CNoiseEntity::CjdnsVer(CURRENT_PROTOCOL as u32)).unwrap();
         if msg.len() > 0 {
             cnoise::pad(&mut msg, 4).unwrap();
         }
@@ -202,6 +204,7 @@ struct SessionInner {
 
     tunnel: Box<Tunn>,
 
+    cjdns_ver: AtomicUsize,
     her_pubkey: [u8; 32],
     her_ip6: [u8; 16],
 
@@ -375,6 +378,7 @@ impl Session {
             }),
             peer_recv_index: AtomicUsize::new(usize::MAX),
             tunnel,
+            cjdns_ver: AtomicUsize::new(0),
             her_pubkey,
             her_ip6,
             plain_pvt,
@@ -382,6 +386,9 @@ impl Session {
             ca: Arc::clone(&ca),
             require_auth,
         });
+
+        // Set the version, even if nothing else...
+        inner.m.write().update_additional();
 
         plaintext.set_receiver(PlaintextRecv(Arc::clone(&inner)));
         ciphertext.set_receiver(CiphertextRecv(Arc::clone(&inner)));
@@ -526,6 +533,10 @@ impl SessionTrait for Session {
                 Ok(None)
             }
         })
+    }
+
+    fn cjdns_ver(&self) -> u32 {
+        self.inner.cjdns_ver.load(atomic::Ordering::Relaxed) as u32
     }
 }
 
@@ -707,27 +718,38 @@ fn handle_init_msg(
         return Err(DecryptError::DecryptErr(DecryptErr::HandshakeDecryptFailed).into());
     };
 
-    let (user_opt, prev_sess_id) = if let Some(ad) = &valid_handshake.additional_data {
+    let (user_opt, prev_sess_id, cjdns_ver) = if let Some(ad) = &valid_handshake.additional_data {
         let mut adm = msg.new(ad.len());
         adm.push_bytes(&ad)?;
-        let add = cnoise::parse_additional_data(&mut adm)?;
-
-        let user_opt = if let Some(psk) = add.cjdns_psk {
-            if let Some(user) = ca.get_auth(&psk) {
-                Some(user)
-            } else {
-                log::debug!("DROP message with unrecognized authenticator: {:?}", &psk);
-                for (c, u) in ca.users.read().iter() {
-                    log::debug!("NOTE: have authenticator: {:?} -> \"{:?}\"", c, u.login);
+        let mut user_opt = None;
+        let mut prev_sess_index = None;
+        let mut cjdns_ver = None;
+        for elem in cnoise::parse_additional_data(&mut adm) {
+            match elem? {
+                cnoise::CNoiseEntity::CjdnsPsk(psk) => {
+                    user_opt = if let Some(user) = ca.get_auth(&psk) {
+                        Some(user)
+                    } else {
+                        log::debug!("DROP message with unrecognized authenticator: {:?}", &psk);
+                        for (c, u) in ca.users.read().iter() {
+                            log::debug!("NOTE: have authenticator: {:?} -> \"{:?}\"", c, u.login);
+                        }
+                        return Err(DecryptError::DecryptErr(DecryptErr::UnrecognizedAuth).into());
+                    }
                 }
-                return Err(DecryptError::DecryptErr(DecryptErr::UnrecognizedAuth).into());
+                cnoise::CNoiseEntity::PrevSessIndex(ps) => {
+                    prev_sess_index = Some(ps);
+                }
+                cnoise::CNoiseEntity::CjdnsVer(v) => {
+                    cjdns_ver = Some(v)
+                }
+                _ => {}
             }
-        } else {
-            None
-        };
-        (user_opt, add.prev_sess_id)
+        }
+
+        (user_opt, prev_sess_index, cjdns_ver)
     } else {
-        (None, None)
+        (None, None, None)
     };
 
     if user_opt.is_none() && require_auth {
@@ -772,6 +794,10 @@ fn handle_init_msg(
         sess.tunnel.set_preshared_key(Some(user.secret));
     } else {
         sess.tunnel.set_preshared_key(None);
+    }
+
+    if let Some(cjdns_ver) = cjdns_ver {
+        sess.cjdns_ver.store(cjdns_ver as usize, atomic::Ordering::Relaxed);
     }
 
     match sess.tunnel.handle_verified_packet(packet, &mut work_buf[..], Some(valid_handshake)) {

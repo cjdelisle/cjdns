@@ -324,6 +324,17 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_stats(
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn Rffi_CryptoAuth2_cjdnsVer(
+    session: *const RTypes_CryptoAuth2_Session_t,
+) -> u32 {
+    ffi_sess(session).s.cjdns_ver()
+}
+
+#[no_mangle]
+pub static Rffi_CURRENT_PROTOCOL: usize =
+    cffi::RBindings_Version::RBindings_Version_CurrentProtocol as usize;
+
+#[no_mangle]
 pub unsafe extern "C" fn Rffi_panic(msg: *const c_char) -> ! {
     panic!("{}", std::ffi::CStr::from_ptr(msg).to_string_lossy())
 }

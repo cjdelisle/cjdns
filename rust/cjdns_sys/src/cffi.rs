@@ -630,6 +630,95 @@ extern "C" {
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
+pub struct Sockaddr {
+    pub addrLen: u16,
+    pub flags: u8,
+    pub type_: u8,
+    pub prefix: u8,
+    pub pad1: u8,
+    pub pad2: u16,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct Sockaddr_storage {
+    pub addr: Sockaddr,
+    pub nativeAddr: [u64; 16usize],
+}
+extern "C" {
+    pub fn Sockaddr_addrHandle(addr: *const Sockaddr) -> u32;
+}
+extern "C" {
+    pub fn Sockaddr_addrFromHandle(addr: *mut Sockaddr, handle: u32);
+}
+extern "C" {
+    pub fn Sockaddr_getPrefix(addr: *mut Sockaddr) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn Sockaddr_parse(
+        str_: *const ::std::os::raw::c_char,
+        out: *mut Sockaddr_storage,
+    ) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn Sockaddr_print(
+        addr: *mut Sockaddr,
+        alloc: *mut Allocator,
+    ) -> *mut ::std::os::raw::c_char;
+}
+extern "C" {
+    pub fn Sockaddr_getPort(sa: *mut Sockaddr) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn Sockaddr_setPort(sa: *mut Sockaddr, port: u16) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn Sockaddr_getFamily(sa: *mut Sockaddr) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn Sockaddr_getAddress(
+        sa: *mut Sockaddr,
+        addrPtr: *mut ::std::os::raw::c_void,
+    ) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn Sockaddr_asIp6(addrOut: *mut u8, sockaddr: *const Sockaddr);
+}
+extern "C" {
+    pub fn Sockaddr_fromNative(
+        ss: *const ::std::os::raw::c_void,
+        addrLen: ::std::os::raw::c_int,
+        alloc: *mut Allocator,
+    ) -> *mut Sockaddr;
+}
+extern "C" {
+    pub fn Sockaddr_fromBytes(
+        bytes: *const u8,
+        addrFamily: ::std::os::raw::c_int,
+        alloc: *mut Allocator,
+    ) -> *mut Sockaddr;
+}
+extern "C" {
+    pub fn Sockaddr_clone(addr: *const Sockaddr, alloc: *mut Allocator) -> *mut Sockaddr;
+}
+extern "C" {
+    pub fn Sockaddr_normalizeNative(nativeSockaddr: *mut ::std::os::raw::c_void);
+}
+extern "C" {
+    pub fn Sockaddr_hash(addr: *const Sockaddr) -> u32;
+}
+extern "C" {
+    pub fn Sockaddr_compare(a: *const Sockaddr, b: *const Sockaddr) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn Version_isCompatible(one: u32, two: u32) -> ::std::os::raw::c_int;
+}
+#[repr(u32)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum RBindings_Version {
+    RBindings_Version_CurrentProtocol = 22,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
 pub struct RBindings_Whitelist {
     pub a: Allocator_t,
     pub b: Iface_t,
@@ -637,4 +726,5 @@ pub struct RBindings_Whitelist {
     pub d: Message_t,
     pub e: String_t,
     pub f: *mut Log_t,
+    pub g: RBindings_Version,
 }

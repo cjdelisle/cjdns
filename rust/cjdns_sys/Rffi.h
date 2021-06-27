@@ -7,6 +7,8 @@
 
 typedef struct RTypes_CryptoAuth2_t RTypes_CryptoAuth2_t;
 
+extern const uintptr_t Rffi_CURRENT_PROTOCOL;
+
 RTypes_IfWrapper_t Rffi_testwrapper_create(Allocator_t *a);
 
 RTypes_IfWrapper_t Rffi_android_create(Allocator_t *a);
@@ -59,6 +61,8 @@ void Rffi_CryptoAuth2_getPubKey(const RTypes_CryptoAuth2_t *ca, uint8_t *pkOut);
 
 void Rffi_CryptoAuth2_stats(const RTypes_CryptoAuth2_Session_t *session,
                             RTypes_CryptoStats_t *statsOut);
+
+uint32_t Rffi_CryptoAuth2_cjdnsVer(const RTypes_CryptoAuth2_Session_t *session);
 
 void Rffi_panic(const char *msg);
 

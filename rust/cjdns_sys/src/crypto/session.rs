@@ -33,4 +33,6 @@ pub trait SessionTrait {
     fn ifaces(&self) -> Option<(Iface, Iface)>;
 
     fn tick(&self, alloc: &mut Allocator) -> Result<Option<Message>>;
+
+    fn cjdns_ver(&self) -> u32;
 }

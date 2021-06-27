@@ -14,6 +14,9 @@ pub const CJDNS_PSK: u8 = 1;
 /// Hint of the ID of the previous session, for matching a new handshake to the correct session
 pub const PREV_SESS_INDEX: u8 = 2;
 
+/// Version of cjdns protocol
+pub const CJDNS_VER: u8 = 3;
+
 
 /// Special receive index which indicates that we have a control frame
 pub const RECEIVE_INDEX_CTRL: u32 = 0xffffffff;
@@ -24,16 +27,18 @@ const WG_TYPE_REPLY: u32 = 2;
 const WG_TYPE_COOKIE: u32 = 3;
 const WG_TYPE_RUN: u32 = 4;
 
-
+#[derive(Debug)]
 pub struct CNoiseOther {
     t: u8,
     bytes: Vec<u8>,
 }
 
+#[derive(Debug)]
 pub enum CNoiseEntity {
     Padding(usize),
     CjdnsPsk(Challenge2),
     PrevSessIndex(u32),
+    CjdnsVer(u32),
     Other(CNoiseOther),
 }
 
@@ -63,6 +68,12 @@ pub fn pop_ent(msg: &mut Message) -> Result<CNoiseEntity> {
             }
             CNoiseEntity::PrevSessIndex(u32::from_le(msg.pop()?))
         }
+        CJDNS_VER => {
+            if l as usize != std::mem::size_of::<u32>() {
+                bail!("CjdnsVer entity size {}, expect {}", l, std::mem::size_of::<u32>());
+            }
+            CNoiseEntity::CjdnsVer(u32::from_le(msg.pop()?))
+        }
         _ => CNoiseEntity::Other( CNoiseOther { t, bytes: msg.pop_bytes(l as usize)? } ),
     })
 }
@@ -70,6 +81,10 @@ pub fn pop_ent(msg: &mut Message) -> Result<CNoiseEntity> {
 pub fn push_ent(msg: &mut Message, ent: CNoiseEntity) -> Result<()> {
     let l1 = msg.len();
     let t = match ent {
+        CNoiseEntity::CjdnsVer(v) => {
+            msg.push(v.to_le())?;
+            CJDNS_VER
+        }
         CNoiseEntity::CjdnsPsk(c2) => {
             msg.push(c2)?;
             CJDNS_PSK
@@ -106,23 +121,16 @@ pub fn pad(msg: &mut Message, align: usize) -> Result<()> {
     push_ent(msg, CNoiseEntity::Padding(to_add))
 }
 
-#[derive(Default)]
-pub struct CNoiseHandshake {
-    pub cjdns_psk: Option<Challenge2>,
-    pub prev_sess_id: Option<u32>,
-}
-
-pub fn parse_additional_data(msg: &mut Message) -> Result<CNoiseHandshake> {
-    let mut out = CNoiseHandshake::default();
-    while msg.len() > 0 {
-        match pop_ent(msg)? {
-            CNoiseEntity::PrevSessIndex(v) => out.prev_sess_id = Some(v),
-            CNoiseEntity::CjdnsPsk(c2) => out.cjdns_psk = Some(c2),
-            // We skip over unexpected types so additional items are ok
-            _ => (),
+pub fn parse_additional_data<'a>(
+    msg: &'a mut Message,
+) -> impl Iterator<Item = Result<CNoiseEntity>> + 'a {
+    std::iter::from_fn(move ||{
+        if msg.len() == 0 {
+            None
+        } else {
+            Some(pop_ent(msg))
         }
-    }
-    Ok(out)
+    })
 }
 
 /// wg_from_cjdns takes a cjdns on-wire message and converts it into WG form

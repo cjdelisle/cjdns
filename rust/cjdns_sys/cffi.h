@@ -24,6 +24,11 @@
 #include "crypto/CryptoAuth_pvt.h" // encryptRndNonce
 #include "crypto/random/test/DeterminentRandomSeed.h"
 #include "util/platform/Sockaddr.h"
+#include "util/version/Version.h"
+
+enum RBindings_Version {
+    RBindings_Version_CurrentProtocol = Version_CURRENT_PROTOCOL,
+};
 
 // This structure is guaranteed to be present in the generated rust code
 // Also all functions in the above headers will be present.
@@ -37,4 +42,5 @@ struct RBindings_Whitelist {
     Message_t d;
     String_t e;
     Log_t* f;
+    enum RBindings_Version g;
 };

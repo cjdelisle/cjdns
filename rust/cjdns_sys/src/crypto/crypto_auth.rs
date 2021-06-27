@@ -1418,6 +1418,10 @@ impl SessionTrait for Session {
     fn tick(&self, _: &mut Allocator) -> Result<Option<Message>> {
         Ok(None)
     }
+
+    fn cjdns_ver(&self) -> u32 {
+        0
+    }
 }
 
 /// Get a shared secret.
