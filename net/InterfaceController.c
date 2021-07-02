@@ -677,7 +677,7 @@ static Iface_DEFUN handleBeacon(
     if (epIndex > -1) {
         // The password might have changed!
         struct Peer* ep = ici->peerMap.values[epIndex];
-        Ca_setAuth(beaconPass, NULL, ep->caSession);
+        Ca_setAuth(beaconPass, String_CONST("Local Peers"), ep->caSession);
         return NULL;
     }
 
@@ -689,7 +689,7 @@ static Iface_DEFUN handleBeacon(
     // it "incoming" because we replied to a beacon
     ep->isIncomingConnection = true;
     ep->addr.protocolVersion = addr.protocolVersion;
-    Ca_setAuth(beaconPass, NULL, ep->caSession);
+    Ca_setAuth(beaconPass, String_CONST("Local Peers"), ep->caSession);
 
     if (SwitchCore_addInterface(ic->switchCore, &ep->switchIf, ep->alloc, &ep->addr.path)) {
         Log_debug(ic->logger, "handleBeacon() SwitchCore out of space");
