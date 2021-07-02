@@ -6,6 +6,7 @@ use std::sync::atomic::{self, AtomicUsize};
 use std::str::FromStr;
 
 use anyhow::{bail, Result};
+use boringtun::crypto::blake2s::Blake2s;
 use boringtun::crypto::x25519::{X25519PublicKey, X25519SecretKey};
 use boringtun::noise::{self, Tunn, TunnResult, rate_limiter::RateLimiter};
 use boringtun::noise::errors::WireGuardError;
@@ -18,7 +19,7 @@ use crate::crypto::utils::crypto_scalarmult_curve25519_base;
 use crate::crypto::cnoise;
 use crate::external::interface::iface::{self, IfRecv, Iface, IfacePvt};
 use crate::interface::wire::message::Message;
-use crate::crypto::crypto_auth::{ip6_from_key, hash_password, DecryptError, DecryptErr};
+use crate::crypto::crypto_auth::{ip6_from_key, DecryptError, DecryptErr};
 use crate::crypto::session::SessionTrait;
 use crate::external::memory::allocator::Allocator;
 
@@ -151,22 +152,11 @@ impl CryptoNoise {
         } else {
             user.login = ByteString::from(format!("Anon #{}", users.len()));
         }
-        // Auth type 1 login
-        if login.is_some() {
-            let mut user = user.clone();
-            let (secret, challenge) = compute_auth(Some(password.clone()), None);
-            user.secret = secret.unwrap(); // we know this will exist because there is a passwd
-            user.restricted_to_ip6 = ipv6;
-            users.insert(challenge.unwrap(), user);
-        }
-        // Auth type 2 login
-        {
-            let mut user = user.clone();
-            let (secret, challenge) = compute_auth(Some(password), login);
-            user.secret = secret.unwrap(); // we know this will exist because there is a passwd
-            user.restricted_to_ip6 = ipv6;
-            users.insert(challenge.unwrap(), user);
-        }
+        let mut user = user.clone();
+        let (secret, challenge) = compute_auth(Some(password), login);
+        user.secret = secret.unwrap(); // we know this will exist because there is a passwd
+        user.restricted_to_ip6 = ipv6;
+        users.insert(challenge.unwrap(), user);
     }
     fn get_auth(&self, ch: &Challenge2) -> Option<User> {
         self.users.read().get(ch).map(|u|u.clone())
@@ -544,17 +534,40 @@ fn compute_auth(
     password: Option<ByteString>,
     login: Option<ByteString>,
 ) -> (Option<[u8; 32]>, Option<Challenge2>,) {
+    let login = if let Some(login) = &login {
+        &login[..]
+    } else {
+        &b""[..]
+    };
     if let Some(password) = password {
-        let (login, auth_type) = if let Some(login) = &login {
-            (&login[..], AuthType::Two)
-        } else {
-            (&b""[..], AuthType::One)
-        };
-        let (secret, auth) = hash_password(login, &*password, auth_type);
+        let (secret, auth) = hash_password3(login, &*password);
         (Some(secret), Some(auth.into()))
     } else {
         (None, None)
     }
+}
+
+#[inline]
+fn hash_password3(
+    login: &[u8],
+    password: &[u8],
+) -> ([u8; 32], Challenge2) {
+    let intermediary = Blake2s::new_hmac(password)
+        .hash(login)
+        .hash(&[AuthType::Three as u8])
+        .finalize();
+    let secret = Blake2s::new_hmac(&intermediary)
+        .hash(&[0])
+        .finalize();
+    let challenge = Blake2s::new_hmac(&intermediary)
+        .hash(&[1])
+        .finalize();
+    let mut challenge_out = Challenge2 {
+        auth_type: AuthType::Three,
+        lookup: [0; 7],
+    };
+    challenge_out.lookup.copy_from_slice(&challenge[1..8]);
+    (secret, challenge_out)
 }
 
 enum NextForward {

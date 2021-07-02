@@ -377,7 +377,6 @@ impl CryptoAuth {
         for u in users.iter() {
             count += 1;
             match auth.auth_type {
-                AuthType::Zero => unreachable!(),
                 AuthType::One => {
                     if *auth.as_key_bytes() == u.password_hash {
                         return Some(u.clone());
@@ -388,6 +387,7 @@ impl CryptoAuth {
                         return Some(u.clone());
                     }
                 }
+                _ => unreachable!(),
             }
         }
 
@@ -1498,13 +1498,13 @@ fn get_shared_secret(
 }
 
 #[inline]
-pub fn hash_password(login: &[u8], password: &[u8], auth_type: AuthType) -> ([u8; 32], Challenge) {
+fn hash_password(login: &[u8], password: &[u8], auth_type: AuthType) -> ([u8; 32], Challenge) {
     let secret_out = crypto_hash_sha256(password);
 
     let tmp_buf = match auth_type {
-        AuthType::Zero => panic!("Unsupported auth type [{}]", auth_type as u8),
         AuthType::One => crypto_hash_sha256(&secret_out),
         AuthType::Two => crypto_hash_sha256(login),
+        _ => panic!("Unsupported auth type [{}]", auth_type as u8),
     };
 
     let mut challenge_out = Challenge {

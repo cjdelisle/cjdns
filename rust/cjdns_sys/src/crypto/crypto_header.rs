@@ -34,6 +34,10 @@ pub enum AuthType {
     /// which is known by the received of the packet to be associated
     /// with the password used for making the symmetric secret.
     Two = 2,
+
+    /// AuthType Three only appears when in Noise mode and it uses a Blake2s based HMAC
+    /// to hash both login and password.
+    Three = 3,
 }
 
 impl Default for AuthType {
