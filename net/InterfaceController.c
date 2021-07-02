@@ -572,7 +572,7 @@ static struct Peer* mkEp(
     ep->lladdr = Sockaddr_clone(lladdr, epAlloc);
     ep->alloc = epAlloc;
     ep->state = InterfaceController_PeerState_UNAUTHENTICATED;
-    ep->isIncomingConnection = true;
+    ep->isIncomingConnection = false;
     ep->switchIf.send = sendFromSwitch;
     ep->ciphertext.send = afterEncrypt;
     ep->plaintext.send = afterDecrypt;
@@ -1034,8 +1034,10 @@ int InterfaceController_bootstrapPeer(struct InterfaceController* ifc,
         return InterfaceController_bootstrapPeer_BAD_KEY;
     }
 
+    // We often don't know this, but in that case we will fallback to the old peering
     bool useNoise = version >= 22;
     struct Peer* ep = mkEp(lladdrParm, ici, herPublicKey, false, user ? user->bytes : NULL, useNoise);
+    ep->addr.protocolVersion = version;
 
     int index = Map_EndpointsBySockaddr_put(&ep->lladdr, &ep, &ici->peerMap);
     Assert_true(index >= 0);
