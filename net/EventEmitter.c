@@ -330,6 +330,7 @@ void EventEmitter_regCore(struct EventEmitter* eventEmitter,
 {
     struct EventEmitter_pvt* ee = Identity_check((struct EventEmitter_pvt*) eventEmitter);
     iface->connectedIf = &ee->trickIf;
+    Iface_setIdentity(iface);
     struct ArrayList_Ifaces* l = getHandlers(ee, ev, true);
     if (!l) {
         Assert_true(ev == 0);
@@ -365,6 +366,7 @@ struct EventEmitter* EventEmitter_new(struct Allocator* allocator,
     ee->log = log;
     ee->alloc = alloc;
     ee->trickIf.send = incomingFromCore;
+    Iface_setIdentity(&ee->trickIf);
     ee->pathfinders = ArrayList_Pathfinders_new(ee->alloc);
     Bits_memcpy(ee->publicKey, publicKey, 32);
     Identity_set(ee);

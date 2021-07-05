@@ -6,7 +6,7 @@ use crate::external::interface::iface::{self, IfRecv, Iface, IfacePvt};
 use crate::external::memory::allocator;
 use crate::interface::wire::message::Message;
 
-// TODO: this is not even the tiniest big thread safe
+// TODO: this is not even the tiniest bit thread safe
 struct CRecv {
     c_iface: *mut cffi::Iface,
 }
@@ -17,7 +17,7 @@ impl IfRecv for CRecv {
             (cffi::Iface_incomingFromRust(c_msg, self.c_iface) as *mut RTypes_Error_t).as_mut()
                 .map(|e|e.e.take())
                 .flatten()
-                .map(|e|Err(e))
+                .map(Err)
                 .unwrap_or(Ok(()))
         }
     }
@@ -66,6 +66,7 @@ pub fn new<T: Into<String>>(alloc: *mut Allocator, name: T) -> (Iface, *mut cffi
         alloc,
         CIface {
             cif: cffi::Iface {
+                Identity_verifier: 0,
                 send: Some(from_c),
                 currentMsg: std::ptr::null_mut(),
                 connectedIf: std::ptr::null_mut(),

@@ -346,12 +346,19 @@ pub struct Iface {
     pub send: Iface_Callback,
     pub currentMsg: *mut Message,
     pub connectedIf: *mut Iface,
+    pub Identity_verifier: usize,
 }
 extern "C" {
     pub fn Iface_incomingFromRust(
         message: *mut Message,
         thisInterface: *mut Iface,
     ) -> *mut RTypes_Error_t;
+}
+extern "C" {
+    pub fn Iface_setIdentity(iface: *mut Iface);
+}
+extern "C" {
+    pub fn Iface_checkIdentity(iface: *mut Iface);
 }
 extern "C" {
     pub fn RustIface_gotIncoming();

@@ -20,6 +20,7 @@
 #include "rust/cjdns_sys/RTypes.h"
 #include "wire/Message.h"
 #include "util/Defined.h"
+#include "util/Identity.h"
 #include "util/Linker.h"
 Linker_require("interface/Iface.c")
 
@@ -45,10 +46,15 @@ struct Iface
 
     /** Interface to which this one is connected (if connected) */
     struct Iface* connectedIf;
+
+    Identity
 } /* Iface_t defined in RffiPrefix.h */;
 
 // This needs to be in a C file in order to be accessible from Rust
 Iface_DEFUN Iface_incomingFromRust(struct Message* message, struct Iface* thisInterface);
+
+void Iface_setIdentity(struct Iface* iface);
+void Iface_checkIdentity(struct Iface* iface);
 
 /**
  * Send a message to an Iface.
@@ -60,7 +66,9 @@ Iface_DEFUN Iface_incomingFromRust(struct Message* message, struct Iface* thisIn
  */
 static inline struct RTypes_Error_t* Iface_send(struct Iface* iface, struct Message* msg)
 {
+    Iface_checkIdentity(iface);
     struct Iface* conn = iface->connectedIf;
+    Iface_checkIdentity(conn);
 
     #ifdef PARANOIA
         Assert_true(conn);
@@ -141,6 +149,8 @@ static inline void Iface_plumb(struct Iface* a, struct Iface* b)
 {
     Assert_true(!a->connectedIf);
     Assert_true(!b->connectedIf);
+    Iface_setIdentity(a);
+    Iface_setIdentity(b);
     a->connectedIf = b;
     b->connectedIf = a;
 }
