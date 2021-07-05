@@ -167,7 +167,7 @@ pub fn parse_additional_data<'a>(
 ///                       1               2               3
 ///       0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
 ///      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-///    0 |                      Receiver Index (BE)                      |
+///    0 |                      Receiver Index (LE)                      |
 ///      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 ///    4 |                       Counter Nonce (LE)                      |
 ///      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -192,7 +192,7 @@ pub struct WgFromCjdnsRes {
     pub msg_type: u32,
 }
 pub fn wg_from_cjdns(msg: &mut Message) -> Result<WgFromCjdnsRes> {
-    let receiver_index = u32::from_be(msg.pop::<u32>()?);
+    let receiver_index = u32::from_le(msg.pop::<u32>()?);
     if receiver_index != RECEIVE_INDEX_CTRL {
         // Data packet
         let counter_nonce = u32::from_le(msg.pop::<u32>()?);
@@ -234,13 +234,13 @@ pub fn wg_from_cjdns(msg: &mut Message) -> Result<WgFromCjdnsRes> {
 pub fn cjdns_from_wg(msg: &mut Message) -> Result<u32> {
     let msg_type = u32::from_le(msg.pop::<u32>()?);
     if msg_type == WG_TYPE_RUN {
-        let receiver_index = u32::from_le(msg.pop::<u32>()?);
+        let receiver_index_wire = msg.pop::<u32>()?;
         let counter_nonce = u64::from_le(msg.pop()?);
         if counter_nonce > 0xfffffff0 {
             bail!("counter_nonce allowed to get too big");
         }
         msg.push((counter_nonce as u32).to_le())?;
-        msg.push(receiver_index.to_be())?;
+        msg.push(receiver_index_wire)?;
     } else {
         msg.push(msg_type.to_le())?;
         msg.push(RECEIVE_INDEX_CTRL)?;

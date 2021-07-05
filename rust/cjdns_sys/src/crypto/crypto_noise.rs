@@ -403,7 +403,15 @@ impl Session {
         loop {
             // in the unlikely event that a session already exists, we will just keep making new ones
             // until we find an unused session index.
-            let index = ca.next_sess_index.fetch_add(1, atomic::Ordering::Relaxed) as u32;
+            let index = loop {
+                let index = ca.next_sess_index.fetch_add(1, atomic::Ordering::Relaxed) as u32;
+                // If the index, shifted up by 8 (to account for the sub-session index) is less than 4
+                // then we should not use this index because it will collide with an old CryptoAuth
+                // session setup packet.
+                if (index << 8).to_be() >= 4 {
+                    break index;
+                }
+            };
             let sess = Self::new1(ca, &her_pub_key, display_name, require_auth, index)?;
             let inner = Arc::clone(&sess.inner);
             {
