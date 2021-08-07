@@ -902,7 +902,7 @@ assuming they are not “too late” and are not replays.
 To do that, it stores a 64-bit bitfield, with a bit for each of the 64
 nonces before the highest nonce received so far.
 Every time a packet is received with a nonce between `highestnonce - 64`
-(excluded) and `highestnonce` (included), it substracts the packet's nonce
+(excluded) and `highestnonce` (included), it subtracts the packet's nonce
 to the highest nonce, giving a number n, and looks at the n-th bit
 of the bitfield. If it is one, the packet is a replay and is dropped.
 If it is zero, the packet passes, and the bit is set to one.

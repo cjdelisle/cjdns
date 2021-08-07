@@ -22,7 +22,7 @@ Linker_require("util/ArrayList.c")
 
 /*
  * This struct is never defined anywhere.
- * It's used in place to void* so that casts must be explicit to reduce likelyhood of error.
+ * It's used in place to void* so that casts must be explicit to reduce likelihood of error.
  */
 struct ArrayList;
 

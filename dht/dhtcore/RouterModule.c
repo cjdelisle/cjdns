@@ -466,7 +466,7 @@ static int handleIncoming(struct DHTMessage* message, void* vcontext)
 
     struct RouterModule* module = Identity_check((struct RouterModule*) vcontext);
 
-    // This is retreived below by onResponseOrTimeout()
+    // This is retrieved below by onResponseOrTimeout()
     module->currentMessage = message;
     Pinger_pongReceived(txid, module->pinger);
     module->currentMessage = NULL;
