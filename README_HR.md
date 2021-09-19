@@ -39,7 +39,7 @@ skalabilne probleme koje muče trenutne mreže.
 
 ## Zajednica
 
-* irc://irc.efnet.org/#cjdns ([web client][IRC Web])
+* [irc://irc.efnet.org/#cjdns][IRC Web]
 * [Hyperboria][]
 * [Projekt Meshnet][]
 * [/r/darknetplan][]
