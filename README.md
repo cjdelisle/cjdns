@@ -137,7 +137,7 @@ If you need to build from source, everything you need can be installed like this
     pacman -S nodejs git base-devel
 
 Alternatively, you may like to install via AUR from the package, `cjdns-git`.
-After Installation, The configuration file is located at `/etc/cjdroute.conf`.
+After installation, the configuration file is located at `/etc/cjdroute.conf`.
 To start the service `cjdns.service`, do:
 
     systemctl start cjdns
