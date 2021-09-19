@@ -130,6 +130,16 @@ Cjdns υλοποιεί ένα κρυπτογραφημένο δίκτυο IPV6 �
 
     pacman -S nodejs git base-devel
 
+Εναλλακτικά, μπορείτε να το εγκαταστήσετε μέσω του AUR από το πακέτο, `cjdns-git`.
+Μετά την εγκατάσταση, το αρχείο ρυθμίσεων βρίσκεται στην τοποθεσία `/etc/cjdroute.conf`.
+Για να ξεκινήσετε το service `cjdns.service`, κάντε:
+
+    systemctl start cjdns
+
+Για να το σταματήσετε:
+
+    systemctl stop cjdns
+
 #### Gentoo:
 
 Το cjdns δεν βρίσκεται ακόμα στο κύριο εναποθετήριο του Gentoo, οπότε θα χρειαστεί να χρησιμοποιήσετε το ένα overlay.
