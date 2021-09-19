@@ -8,6 +8,7 @@
 [繁體中文](README_ZHT.md)
 [Español](README_ES.md)
 [Français](README_FR.md)
+[Português brasileiro](README_PT-BR.md)
 
 #### *Η δικτύωση επανεφευρέθηκε*
 

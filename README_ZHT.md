@@ -1,4 +1,3 @@
-
 # cjdns
 
 [English](README.md)
@@ -9,6 +8,7 @@
 [Deutsch](README_DE.md)
 [Español](README_ES.md)
 [Français](README_FR.md)
+[Português brasileiro](README_PT-BR.md)
 
 #### *重朔整個網路*
 
