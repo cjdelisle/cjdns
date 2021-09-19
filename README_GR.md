@@ -130,11 +130,89 @@ Cjdns υλοποιεί ένα κρυπτογραφημένο δίκτυο IPV6 �
 
     pacman -S nodejs git base-devel
 
+#### Gentoo:
+
+Το cjdns δεν βρίσκεται ακόμα στο κύριο εναποθετήριο του Gentoo, οπότε θα χρειαστεί να χρησιμοποιήσετε το ένα overlay.
+Ο ευκολότερος τρόπος είναι να χρησιμοποιήσετε το Layman αλλά μπορείτε και χειροκίνητα επίσης.
+
+##### Layman:
+
+Πρώτα, θα χρειαστεί να εγκαταστήσετε το layman.
+
+    emerge layman
+
+Αν το layman εγκαταστάθηκε σωστά, μπορείτε να προσθέσετε το overlay
+
+    layman -f
+    layman -a weuxel
+
+Για μελλοντικές αναβαθμίσεις του overlay χρησιμοποιήστε
+
+    layman -S
+
+Τώρα μπορείτε να εγκαταστήσετε το cjdns
+
+    emerge cjdns
+
+##### Χειροκίνητα:
+
+Κλωνοποιήστε το εναποθετήριο του overlay
+
+    cd /opt
+    git clone https://github.com/Weuxel/portage-weuxel.git
+
+Πείτε στο portage να χρησιμοποιήσει το εναποθετήριο
+
+    cd /etc/portage/repos.conf/
+
+Δημιουργήστε ένα αρχείο με όνομα `portage-weuxel.conf` που να περιέχει
+
+    [weuxel]
+    location = /opt/portage-weuxel
+    masters = gentoo
+    auto-sync = yes
+
+Τώρα συγχρονίστε
+
+    emerge --sync
+
+Και εγκαταστήστε το cjdns
+
+    emerge cjdns
+
+#### Αυτόματος έλεγχος διακοπής λειτουργίας και επανεκκίνηση
+
+Αντιγράψτε το openrc init script από `contrib/openrc` στο φάκελο `/etc/init.d/` και αλλάξτε τις παραμέτρους `CONFFILE` και `command` σύμφωνα με τις ανάγκες σας.
+Μετά ξεκινήστε το cjdns πληκτρολογώντας
+
+    /etc/init.d/cjdns start
+
+Ρυθμίστε το init system ώστε να ξεκινά το cjdns αυτόματα
+
+    rc-update add cjdns default
+
+Αντιγράψτε το service_restart script `contrib/gentoo/service_restart.sh` σε οποιονδήποτε φάκελο πιστεύτε πως θα έπρεπε να βρίσκεται στο
+σύστημά σας και αλλάξτε τη διεύθυνση eMail. Αν δε θέλετε να ειδοποιήστε, μαρκάρετε τη γραμμή ως σχόλιο.
+Τώρα προσθέστε μια εγγραφή στο crontab με αυτό τον τρόπο
+
+    # Restart crashed Services
+    * * * * *       root    /path/to/script/service_restart.sh
+
+#### Solus:
+
+Εξαρτήσεις:
+
+    sudo eopkg install nodejs git build-essential system.devel python gcc binutils kernal-headers xorg-server-devel
+
+Ακολουθήστε τα βήματα παρακάτω:
+
+*Ζητούμε συγγνώμη για τα τόσα πολλά βήματα. Προετοιμάζεται ένα πακέτο*
+
 ### 1. Ανακτήστε το cjdns από το GitHub
 
 Κλωνοποίηστε το αποθετήριο από το GitHub και περάστε στο πηγαίο φάκελο:
 
-    git clone https://github.com/cjdelisle/cjdns.git
+    git clone https://github.com/cjdelisle/cjdns.git cjdns
     cd cjdns
 
 ### 2. Χτίστε
@@ -376,6 +454,19 @@ TUN/TAP συσκευή - αυτό είναι στάνταρ πρωτόκολλο
 * την **Python library**; δείτε [εδώ](contrib/python/README.md).
 * την **Perl library**, συντηρείται από τον Mikey; δείτε [εδώ](contrib/perl/CJDNS/README).
 
+## Αναφορά προβλημάτων
+1. Μην αναφέρετε σε αυτό το εναποθετήριο, αντ' αυτού παρακαλούμε αναφέρετέ το στο https://github.com/hyperboria/bugs/issues
+2. Μπείτε στο IRC και μιλήστε με κάποιο
+3. Το τι μπορεί να συμβεί είναι είτε
+ * κάποιος μπορεί να το φτιάξει
+ * εσείς μπορείτε να το φτιάξετε
+ * κανείς δεν ασχολείτε και παραμένει ξεχασμένο μέχρι κάποιος να πέσει πάνω του αργότερα και το φτιάξει ή απλά θα χαθεί σε κάποιο ανασχεδιασμό
+ * κανείς δε μπορεί να το φτιάξει εκείνη τη στιγμή αλλά είναι σημαντικό να το θυμόμαστε γιατί έχει μεγάλη σημασία στον τρόπο που δημιουργείται ο κώδικας, σε αυτή την περίπτωση χρειάζεται να εξηγηθεί με τεχνικούς όρους από κάποιον που είναι οικείος με τον κώδικα. Μπορούν να κάνουν κάποιο pull request στο φάκελο docs/bugs.
+
+### Ασφάλεια
+Τα προβλήματα ασφαλείας θα πρέπει να αναφέρονται στο IRC όπως και τα υπόλοιπα bugs. Δεν έχουμε κάποιο κλειστό group ανθρώπων με εξειδικευμένη γνώση οπότε αυτό σημαίνει πως η προεπιλεγμένη μέθοδος αναφοράς προβλημάτων ασφαλείας είναι η πλήρης περιγραφή.
+
+Δείτε: [security_specification.md](https://github.com/cjdelisle/cjdns/blob/master/doc/security_specification.md) ώστε να καταλάβετε αν ένα πιθανό πρόβλημα ασφάλεια είναι πραγματικά πρόβλημα ασφάλειας.
 
 [IRC Web]: http://chat.efnet.org/irc.cgi?chan=%23cjdns
 [Hyperboria]: https://hyperboria.net
