@@ -224,14 +224,14 @@ Then Follow the steps below:
 
 *Sorry for so many steps. A package is being worked on currently*
 
-#### 1. Retrieve cjdns from GitHub
+### 1. Retrieve cjdns from GitHub
 
 Clone the repository from GitHub and change to the source directory:
 
     git clone https://github.com/cjdelisle/cjdns.git cjdns
     cd cjdns
 
-#### 2. Build
+### 2. Build
 
     ./do
 
