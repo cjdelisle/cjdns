@@ -73,13 +73,13 @@ Now enter the ip6tables rules:
 
     ip6tables -t nat -A POSTROUTING -o tun0 -j MASQUERADE
     ip6tables -A FORWARD -i tun0 -o eth0 -m state --state RELATED,ESTABLISHED -j ACCEPT
-    ip6tables -A FORWARD -i eth1 -o eth0 -j ACCEPT
+    ip6tables -A FORWARD -i eth0 -o tun0 -j ACCEPT
     
 Or if you use nftables:
 
     nft add rule ip6 nat POSTROUTING oifname "tun0" counter masquerade
     nft add rule ip6 filter FORWARD iifname "tun0" oifname "eth0" ct state related,established accept
-    nft add rule ip6 filter FORWARD iifname "eth1" oifname "eth0" accept
+    nft add rule ip6 filter FORWARD iifname "eth0" oifname "tun0" accept
 
 Save the rules:
 
