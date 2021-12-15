@@ -6,7 +6,7 @@ edition = "2018"
 build = "build.rs"
 
 [dependencies]
-sodiumoxide = { git = "https://github.com/cjdelisle/sodiumoxide", rev = "3aa7e8e21b9cd61ad64f4a0ed125d5b1af2cf38d", version = "0.2", default-features = false, features = ["std"] }
+sodiumoxide = { git = "https://github.com/cjdelisle/sodiumoxide", rev = "9944dacef9bcd74364e95fe44d589645d844364e", version = "0.2", default-features = false, features = ["std"] }
 thiserror = "1.0"
 anyhow = "1.0"
 
