@@ -17,6 +17,9 @@
 #include "util/events/libuv/EventBase_pvt.h"
 #include "util/Assert.h"
 #include "util/Identity.h"
+#include "util/Js.h"
+
+Js({ require("../util/events/libuv/libuv.js")(builder, js); })
 
 #ifdef win32
     #include <sys/timeb.h>
