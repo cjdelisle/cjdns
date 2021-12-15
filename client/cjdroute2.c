@@ -220,10 +220,11 @@ static int genconf(struct Allocator* alloc, struct Random* rand, bool eth, bool 
            "                    // Add connection credentials here to join the network\n"
            "                    // Ask somebody who is already connected.\n"
            "                }\n"
-           "            }\n"
-           "        ],\n\n");
+           "            }\n");
 #ifdef HAS_ETH_INTERFACE
-    printf("        // The interface which allows peering using layer-2 ethernet frames\n"
+
+    printf("        ],\n\n"
+           "        // The interface which allows peering using layer-2 ethernet frames\n"
            "        \"%sETHInterface\": [\n"
            "            // Alternatively bind to just one device and either beacon and/or\n"
            "            // connect to a specified MAC address\n"
