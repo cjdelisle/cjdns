@@ -98,7 +98,7 @@ static inline uint64_t Bits_bitReverse64(uint64_t toReverse)
  * @length the nuber of bytes to check for zero'd-ness.
  * @return true if all bytes checked are zero.
  */
-static inline int Bits_isZero(void* buffer, size_t length)
+static inline int Bits_isZero(const void* buffer, size_t length)
 {
     uint8_t* buff = (uint8_t*) buffer;
     for (size_t i = 0; i < length; i++) {

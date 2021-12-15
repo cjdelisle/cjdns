@@ -44,7 +44,7 @@ void AddrTools_printShortIp(uint8_t output[40], const uint8_t binIp[16]);
  *                "fc4f:630d:e499:8f5b:c49f:6e6b:01ae:3120".
  * @return 0 if successful, -1 if the hexAddr is malformed.
  */
-int AddrTools_parseIp(uint8_t out[16], const uint8_t hexAddr[40]);
+int AddrTools_parseIp(uint8_t out[16], const uint8_t* hexAddr);
 
 /**
  * Parse out an ethernet MAC address.

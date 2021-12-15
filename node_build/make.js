@@ -17,15 +17,16 @@
 var Fs = require('fs');
 var nThen = require('nthen');
 var Cp = require('./Cp');
-var Spawn = require('child_process').spawn;
-var FindPython = require('./FindPython');
 var Builder = require('./builder');
 const CjdnsTest = require('./CjdnsTest');
 const GetVersion = require('./GetVersion');
 
 var CFLAGS = process.env['CFLAGS'];
 var LDFLAGS = process.env['LDFLAGS'];
-var NO_MARCH_FLAG = ['arm', 'arm64', 'ppc', 'ppc64'];
+// march=native really only makes a lot of sense on x86/amd64 where the available features
+// are a hodgepodge per-CPU. On arm (32) you may or may not have NEON available but in any
+// case clang doesn't reliably support march except on x86/amd64.
+var NO_MARCH_FLAG = ['arm', 'ppc', 'ppc64', 'arm64'];
 
 Builder.configure({
     buildDir: process.env['OUT_DIR'], // set by cargo
@@ -40,7 +41,7 @@ Builder.configure({
         '-std=c99',
         '-Wall',
         '-Wextra',
-        '-Werror',
+        //'-Werror',
         '-Wno-pointer-sign',
         '-Wmissing-prototypes',
         '-pedantic',
@@ -232,24 +233,9 @@ Builder.configure({
         builder.config.cflags.push('-D', 'CJD_PACKAGE_VERSION="' + builder.config.version + '"');
     }).nThen(waitFor());
 
-    var dependencyDir = builder.config.buildDir + '/dependencies';
-    var libuvLib = dependencyDir + '/libuv/out/Release/libuv.a';
-    if (['win32', 'netbsd'].indexOf(builder.config.systemName) >= 0) {//this might be needed for other BSDs
-        libuvLib = dependencyDir + '/libuv/out/Release/obj.target/libuv.a';
-    }
-
     // Build dependencies
     let foundSodium = false;
     nThen(function (waitFor) {
-
-        Fs.exists(dependencyDir, waitFor(function (exists) {
-            if (exists) { return; }
-
-            console.log("Copy dependencies");
-            Cp('./node_build/dependencies', dependencyDir, waitFor());
-        }));
-
-    }).nThen(function (waitFor) {
 
         const dir = `${builder.config.buildDir}/../..`;
         Fs.readdir(dir, waitFor((err, ret) => {
@@ -273,7 +259,6 @@ Builder.configure({
             throw new Error("Unable to find a path to libsodium headers");
         }
 
-        builder.config.libs.push(libuvLib);
         if (!android) {
             builder.config.libs.push('-lpthread');
         }
@@ -300,114 +285,8 @@ Builder.configure({
             );
         }
 
-        builder.config.includeDirs.push(dependencyDir + '/libuv/include/');
-
-        var libuvBuilt;
-        var python;
-        nThen(function (waitFor) {
-
-            Fs.exists(libuvLib, waitFor(function (exists) {
-                if (exists) { libuvBuilt = true; }
-            }));
-
-        }).nThen(function (waitFor) {
-
-            if (libuvBuilt) { return; }
-            FindPython.find(builder.tmpFile(), waitFor(function (err, pythonExec) {
-                if (err) { throw err; }
-                python = pythonExec;
-            }));
-
-        }).nThen(function (waitFor) {
-
-            if (libuvBuilt) { return; }
-            console.log("Build Libuv");
-            var cwd = process.cwd();
-            process.chdir(dependencyDir + '/libuv/');
-
-            var args = ['./gyp_uv.py'];
-            var env = process.env;
-            env.CC = builder.config.gcc;
-
-            if (env.TARGET_ARCH) {
-                args.push('-Dtarget_arch=' + env.TARGET_ARCH);
-            }
-
-            //args.push('--root-target=libuv');
-            if (android) {
-                args.push('-DOS=android');
-                args.push('-f', 'make-linux');
-            }
-
-            if (builder.config.systemName === 'win32') {
-                args.push('-DOS=win');
-                args.push('-f', 'make-linux');
-            }
-
-            if (env.GYP_ADDITIONAL_ARGS) {
-                args.push.apply(args, env.GYP_ADDITIONAL_ARGS.split(' '));
-            }
-
-            if (['freebsd', 'openbsd', 'netbsd'].indexOf(builder.config.systemName) !== -1) {
-                // This platform lacks a functioning sem_open implementation, therefore...
-                args.push('--no-parallel');
-                args.push('-DOS=' + builder.config.systemName);
-            }
-
-            var gyp = Spawn(python, args, { env: env, stdio: 'inherit' });
-            gyp.on('error', function () {
-                console.error("couldn't launch gyp [" + python + "]");
-            });
-            gyp.on('close', waitFor(function () {
-                var args = [
-                    '-j', '' + builder.config.jobs,
-                    '-C', 'out',
-                    'BUILDTYPE=Release',
-                    'CC=' + builder.config.gcc,
-                    'CXX=' + builder.config.gcc,
-                    'V=1'
-                ];
-                var cflags = [optimizeLevel, '-DNO_EMFILE_TRICK=1'];
-
-                if (!/^\-O0$/.test(optimizeLevel)) {
-                    cflags.push('-D_FORTIFY_SOURCE=2');
-                }
-
-                if (!(/darwin|win32/i.test(builder.config.systemName))) {
-                    cflags.push('-fPIC');
-                }
-                args.push('CFLAGS=' + cflags.join(' '));
-
-                var makeCommand = ['freebsd', 'openbsd', 'netbsd'].indexOf(builder.config.systemName) >= 0 ? 'gmake' : 'make';
-                var make = Spawn(makeCommand, args, { stdio: 'inherit' });
-
-                make.on('error', function (err) {
-                    if (err.code === 'ENOENT') {
-                        console.error('\x1b[1;31mError: ' + makeCommand + ' is required!\x1b[0m');
-                    } else {
-                        console.error(
-                            '\x1b[1;31mFail run ' + process.cwd() + ': ' + makeCommand + ' '
-                            + args.join(' ') + '\x1b[0m'
-                        );
-                        console.error('Message:', err);
-                    }
-                    waitFor.abort();
-                });
-
-                make.on('close', waitFor(function () {
-                    process.chdir(cwd);
-                }));
-            }));
-
-        }).nThen((w) => {
-
-            Fs.exists(libuvLib, waitFor((exists) => {
-                if (!exists) {
-                    throw new Error("Libuv build failed");
-                }
-            }));
-
-        }).nThen(waitFor());
+        builder.config.includeDirs.push('node_build/dependencies/libuv/include/');
+        builder.config.includeDirs.push('node_build/dependencies/libuv/src/');
 
     }).nThen(waitFor());
 

@@ -82,25 +82,6 @@ fn main() -> Result<()> {
 
     let out_dir = env::var("OUT_DIR").unwrap();
 
-    //.//target/cjdns_build/dependencies/libuv/out/Release/libuv.a
-    // OR /libuv/out/Release/obj.target/libuv.a
-    let mut ok = false;
-    for x in ["", "/obj.target"].iter() {
-        let p = format!("{}/dependencies/libuv/out/Release{}/libuv.a", out_dir, x);
-        if Path::new(&p).exists() {
-            println!(
-                "cargo:rustc-link-search={}/dependencies/libuv/out/Release{}",
-                out_dir, x
-            );
-            println!("cargo:rustc-link-lib=static=uv");
-            ok = true;
-            break;
-        }
-    }
-    if !ok {
-        panic!("Unable to find libuv");
-    }
-
     let target = env::var("TARGET").unwrap();
     if target.contains("-windows-gnu") {
         println!("cargo:rustc-link-lib=iphlpapi"); // ConvertInterfaceAliasToLuid (cjdns)
