@@ -80,6 +80,14 @@ export type Builder_CompileJob_t = {
     outputFile: ?string,
     type: 'exe'|'lib'
 };
+export type Builder_Pub_t = {|
+    build: (Builder_Stage_t)=>Builder_Pub_t,
+    test: (Builder_Stage_t)=>Builder_Pub_t,
+    pack: (Builder_Stage_t)=>Builder_Pub_t,
+    failure: (Builder_Stage_t)=>Builder_Pub_t,
+    success: (Builder_Stage_t)=>Builder_Pub_t,
+    complete: (Builder_Stage_t)=>Builder_Pub_t,
+|}
 export type Builder_PreCtx_t = {
     buildStage: Builder_Stage_t,
     testStage: Builder_Stage_t,
@@ -757,7 +765,7 @@ const sweep = (path, done) => {
 module.exports.configure = function (
     params /*:Builder_BaseConfig_t*/,
     configFunc /*:(Builder_t, Nthen_WaitFor_t)=>void*/
-) {
+) /*:Builder_Pub_t*/ {
 
     // Track time taken for various steps
     const time = makeTime();
