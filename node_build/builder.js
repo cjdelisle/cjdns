@@ -54,7 +54,8 @@ export type Builder_t = {|
     lintFiles: (Builder_Linter_t)=>void,
     config: Builder_Config_t,
     tmpFile: (?string)=>string,
-    compilerType: () => Builder_Compiler_t
+    compilerType: () => Builder_Compiler_t,
+    fileCflags: {[string]: string[]},
 |};
 export type Builder_BaseConfig_t = {|
     systemName?: ?string,
@@ -70,7 +71,6 @@ export type Builder_Config_t = {
     ldflags: string[],
     libs: string[],
     jobs: number,
-    fileCflags: {[string]: string[]},
 } & {[string]:any};
 import type { Nthen_WaitFor_t } from 'nthen';
 import type { Saferphore_t } from 'saferphore';
@@ -264,6 +264,8 @@ const finalizeCtx = function (
 
         compilerType: () => JSON.parse(JSON.stringify(ctx.state.compilerType)),
 
+        fileCflags: {},
+
     }) /*:Builder_t*/);
     return ctx;
 };
@@ -439,7 +441,7 @@ const getExeFile = function (ctx, exe /*:Builder_CompileJob_t*/) {
 const getFlags = function (ctx, cFile, includeDirs) {
     const flags = [];
     flags.push.apply(flags, ctx.config.cflags);
-    flags.push.apply(flags, ctx.builder.config.fileCflags[cFile] || []);
+    flags.push.apply(flags, ctx.builder.fileCflags[cFile] || []);
     if (includeDirs) {
         for (let i = 0; i < ctx.config.includeDirs.length; i++) {
             if (flags[flags.indexOf(ctx.config.includeDirs[i])-1] === '-I') {
@@ -818,7 +820,6 @@ module.exports.configure = function (
             cflags: [],
             ldflags: [],
             libs: [],
-            fileCflags: {},
             jobs,
         },
     };

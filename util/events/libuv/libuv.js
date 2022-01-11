@@ -11,8 +11,13 @@ module.exports = (builder, js) => {
         'src/uv-common.h',
         'src/version.c'
     ];
+    var cflags = ['-DHAVE_CONFIG_H'];
 
     if (builder.config.systemName === 'win32') {
+        cflags.push(
+            '-D_WIN32_WINNT=0x0600',
+            '-D_GNU_SOURCE',
+        )
         files.push(
             'include/uv-win.h',
             'src/win/async.c',
@@ -50,6 +55,10 @@ module.exports = (builder, js) => {
             'src/win/winsock.h',
         );
     } else {
+        cflags.push(
+            '-D_LARGEFILE_SOURCE',
+            '-D_FILE_OFFSET_BITS=64',
+        );
         files.push(
             'include/uv-unix.h',
             'include/uv-linux.h',
@@ -84,6 +93,7 @@ module.exports = (builder, js) => {
         files.push('src/unix/proctitle.c');
     }
     if (builder.config.systemName === 'darwin') {
+        cflags.push('-D_DARWIN_USE_64_BIT_INODE=1');
         files.push(
             'src/unix/darwin.c',
             'src/unix/fsevents.c',
@@ -91,6 +101,7 @@ module.exports = (builder, js) => {
         );
     }
     if (builder.config.systemName === 'linux') {
+        cflags.push('-D_POSIX_C_SOURCE=200112');
         files.push(
             'src/unix/linux-core.c',
             'src/unix/linux-inotify.c',
@@ -115,7 +126,10 @@ module.exports = (builder, js) => {
     for (f of files) {
         if (f.endsWith(".c")) {
             console.log("DEPENDENCY " + f);
-            js.linkerDependency("node_build/dependencies/libuv/" + f);
+            const file = "node_build/dependencies/libuv/" + f;
+            js.linkerDependency(file);
+            builder.fileCflags[file] = builder.fileCflags[file] || [];
+            builder.fileCflags[file].push(...cflags);
         }
     }
 }
