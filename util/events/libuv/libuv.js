@@ -13,6 +13,10 @@ module.exports = (builder, js) => {
     ];
     var cflags = ['-DHAVE_CONFIG_H'];
 
+    // Normally this is built using -std=gnu89 but we're building everything
+    // with -std=c99 so adding _GNU_SOURCE fixes this issue.
+    cflags.push('-D_GNU_SOURCE');
+
     if (builder.config.systemName === 'win32') {
         cflags.push(
             '-D_WIN32_WINNT=0x0600',
