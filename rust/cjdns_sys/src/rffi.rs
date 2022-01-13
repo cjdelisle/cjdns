@@ -1,6 +1,7 @@
 use crate::cffi::{Allocator_t, Iface_t};
 use crate::external::interface::cif;
-use std::ffi::c_void;
+use std::ffi::{c_void, CStr};
+use std::os::raw::c_char;
 
 // This file is used to generate cbindings.h using cbindgen
 
@@ -52,5 +53,27 @@ pub unsafe extern "C" fn Rffi_inet_ntop(
     let dst = std::slice::from_raw_parts_mut(dst, dst_sz as usize);
     dst[..ip_repr.len()].copy_from_slice(ip_repr.as_bytes());
     dst[ip_repr.len()] = b'\0';
+    0
+}
+
+/// Replaces libuv's function:
+///
+/// int uv_inet_pton(int af, const char* src, void* dst) {
+#[no_mangle]
+pub unsafe extern "C" fn Rffi_inet_pton(is_ip6: bool, src: *const c_char, addr: *mut u8) -> i32 {
+    let src = CStr::from_ptr(src).to_string_lossy();
+    let octets = if is_ip6 {
+        match src.parse::<std::net::Ipv6Addr>() {
+            Ok(addr) => addr.octets().to_vec(),
+            Err(_) => return -1,
+        }
+    } else {
+        match src.parse::<std::net::Ipv4Addr>() {
+            Ok(addr) => addr.octets().to_vec(),
+            Err(_) => return -1,
+        }
+    };
+    let addr = std::slice::from_raw_parts_mut(addr, octets.len());
+    addr.copy_from_slice(&octets);
     0
 }
