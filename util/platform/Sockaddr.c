@@ -13,6 +13,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "util/events/libuv/UvWrapper.h"
+#include "rust/cjdns_sys/Rffi.h"
 #include "benc/String.h"
 #include "memory/Allocator.h"
 #include "util/platform/Sockaddr.h"
@@ -136,7 +137,7 @@ int Sockaddr_parse(const char* input, struct Sockaddr_storage* out)
     if (lastColon != firstColon) {
         // ipv6
         struct sockaddr_in6* in6 = (struct sockaddr_in6*) Sockaddr_asNative(&out->addr);
-        if (uv_inet_pton(AF_INET6, (char*) ((buff[0] == '[') ? &buff[1] : buff), &in6->sin6_addr)) {
+        if (Rffi_inet_pton(1, (char*) ((buff[0] == '[') ? &buff[1] : buff), &in6->sin6_addr)) {
             return -1;
         }
         out->addr.addrLen = sizeof(struct sockaddr_in6) + Sockaddr_OVERHEAD;
@@ -144,7 +145,7 @@ int Sockaddr_parse(const char* input, struct Sockaddr_storage* out)
         in6->sin6_family = AF_INET6;
     } else {
         struct sockaddr_in* in = ((struct sockaddr_in*) Sockaddr_asNative(&out->addr));
-        if (uv_inet_pton(AF_INET, (char*) buff, &in->sin_addr)) {
+        if (Rffi_inet_pton(0, (char*) buff, &in->sin_addr)) {
             return -1;
         }
         out->addr.addrLen = sizeof(struct sockaddr_in) + Sockaddr_OVERHEAD;
@@ -198,7 +199,7 @@ char* Sockaddr_print(struct Sockaddr* sockaddr, struct Allocator* alloc)
 
     #define BUFF_SZ 64
     char printedAddr[BUFF_SZ] = {0};
-    int ret = uv_inet_ntop(addr->ss.ss_family, inAddr, printedAddr, BUFF_SZ - 1);
+    int ret = Rffi_inet_ntop(addr->ss.ss_family == AF_INET6, inAddr, printedAddr, BUFF_SZ - 1);
     if (ret != 0) {
         return "invalid";
     }
