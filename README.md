@@ -52,7 +52,7 @@ scalability issues that plague existing networks.
 
 ## Community
 
-* [irc://irc.freenode.org/#cjdns][IRC Web]
+* [irc://irc.efnet.org/#cjdns][IRC Web]
 * [Hyperboria][] the largest cjdns network, as of October 2015 there are 2100 nodes.
 * [/r/darknetplan][]
 * [#cjdns on Twitter][]
@@ -137,7 +137,7 @@ If you need to build from source, everything you need can be installed like this
     pacman -S nodejs git base-devel
 
 Alternatively, you may like to install via AUR from the package, `cjdns-git`.
-After Installation, The configuration file is located at `/etc/cjdroute.conf`.
+After installation, the configuration file is located at `/etc/cjdroute.conf`.
 To start the service `cjdns.service`, do:
 
     systemctl start cjdns

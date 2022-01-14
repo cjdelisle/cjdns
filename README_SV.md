@@ -8,6 +8,7 @@
 [繁體中文](README_ZHT.md)
 [Español](README_ES.md)
 [Français](README_FR.md)
+[Português brasileiro](README_PT-BR.md)
 
 #### *Datornätverk - Ett nytt sätt*
 
@@ -17,9 +18,11 @@ hashtabell (DHT, eller Distributed Hash Table på engelska). Genom denna design
 uppnås ett nätverk som knappt kräver någon konfiguration. Vi blir också av med
 många skalnings- och säkerhetsproblem som andra nätverk har.
 
-[![Build Status](https://travis-ci.org/cjdelisle/cjdns.svg?branch=master)](https://travis-ci.org/cjdelisle/cjdns)
+[![Build Status](https://api.travis-ci.org/cjdelisle/cjdns.svg?branch=master)](https://travis-ci.org/cjdelisle/cjdns)
+[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/387/badge)](https://bestpractices.coreinfrastructure.org/projects/387)
 [![tip for next commit](https://tip4commit.com/projects/941.svg)](https://tip4commit.com/github/cjdelisle/cjdns)
 [![irc](https://img.shields.io/badge/irc%20chat-%23cjdns-blue.svg)](https://kiwiirc.com/client/irc.efnet.org/?nick=visitor|?#cjdns)
+![License](https://img.shields.io/github/license/cjdelisle/cjdns.svg)
 
 ## Vitsord
 
