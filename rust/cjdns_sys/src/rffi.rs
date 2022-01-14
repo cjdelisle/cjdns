@@ -3,7 +3,7 @@ use crate::external::interface::cif;
 use std::ffi::{c_void, CStr};
 use std::os::raw::c_char;
 use std::sync::Once;
-use std::time::{Instant, SystemTime};
+use std::time::{Duration, Instant, SystemTime};
 
 // This file is used to generate cbindings.h using cbindgen
 
@@ -83,20 +83,25 @@ pub unsafe extern "C" fn Rffi_inet_pton(is_ip6: bool, src: *const c_char, addr: 
 /// Non-monotonic nanosecond time, which has no relationship to any wall clock.
 #[no_mangle]
 pub unsafe extern "C" fn Rffi_hrtime() -> u64 {
+    now_unix_epoch().as_nanos() as u64
+}
+
+fn now_unix_epoch() -> Duration {
     SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
         .unwrap()
-        .as_nanos() as u64
 }
 
-static mut BASE_TIME: Option<Instant> = None;
+static mut BASE_INSTANT: Option<Instant> = None;
+static mut INSTANT_OFFSET: u64 = 0;
 static INIT: Once = Once::new();
 
 /// Monotonic millisecond time.
 #[no_mangle]
 pub unsafe extern "C" fn Rffi_now_ms() -> u64 {
     INIT.call_once(|| {
-        BASE_TIME = Some(Instant::now());
+        BASE_INSTANT = Some(Instant::now());
+        INSTANT_OFFSET = now_unix_epoch().as_millis() as u64;
     });
-    (Instant::now() - BASE_TIME.unwrap()).as_millis() as u64
+    (Instant::now() - BASE_INSTANT.unwrap()).as_millis() as u64 + INSTANT_OFFSET
 }
