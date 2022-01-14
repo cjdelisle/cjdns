@@ -12,7 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#include "util/events/libuv/UvWrapper.h"
+#include <netinet/in.h>
 #include "rust/cjdns_sys/Rffi.h"
 #include "benc/String.h"
 #include "memory/Allocator.h"
