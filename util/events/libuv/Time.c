@@ -21,13 +21,12 @@ uint64_t Time_hrtime(void)
     return Rffi_hrtime();
 }
 
-uint64_t Time_currentTimeMilliseconds(struct EventBase* eventBase)
+uint64_t Time_currentTimeMilliseconds()
 {
-//    struct EventBase_pvt* base = EventBase_privatize(eventBase);
-    return Rffi_now_ms(); //(base->loop) + base->baseTime;
+    return Rffi_now_ms();
 }
 
-uint64_t Time_currentTimeSeconds(struct EventBase* eventBase)
+uint64_t Time_currentTimeSeconds()
 {
-    return Time_currentTimeMilliseconds(eventBase) / 1024;
+    return Time_currentTimeMilliseconds() / 1024;
 }

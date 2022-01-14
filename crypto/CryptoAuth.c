@@ -325,7 +325,7 @@ static void resetIfTimeout(struct CryptoAuth_Session_pvt* session)
         return;
     }
 
-    uint64_t nowSecs = Time_currentTimeSeconds(session->context->eventBase);
+    uint64_t nowSecs = Time_currentTimeSeconds();
     if (nowSecs - session->timeOfLastPacket < session->pub.setupResetAfterInactivitySeconds) {
         return;
     } else if (nowSecs - session->timeOfLastPacket < session->pub.resetAfterInactivitySeconds) {
@@ -527,7 +527,7 @@ int CryptoAuth_encrypt(struct CryptoAuth_Session* sessionPub, struct Message* ms
 /** Call the external interface and tell it that a message has been received. */
 static inline void updateTime(struct CryptoAuth_Session_pvt* session, struct Message* message)
 {
-    session->timeOfLastPacket = Time_currentTimeSeconds(session->context->eventBase);
+    session->timeOfLastPacket = Time_currentTimeSeconds();
 }
 
 static inline enum CryptoAuth_DecryptErr decryptMessage(struct CryptoAuth_Session_pvt* session,
@@ -1048,7 +1048,7 @@ struct CryptoAuth_Session* CryptoAuth_newSession(struct CryptoAuth* ca,
     session->context = context;
     session->requireAuth = requireAuth;
     session->pub.displayName = displayName ? String_new(displayName, alloc) : NULL;
-    session->timeOfLastPacket = Time_currentTimeSeconds(context->eventBase);
+    session->timeOfLastPacket = Time_currentTimeSeconds();
     session->alloc = alloc;
 
     session->pub.resetAfterInactivitySeconds = CryptoAuth_DEFAULT_RESET_AFTER_INACTIVITY_SECONDS;

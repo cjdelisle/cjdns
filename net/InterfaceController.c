@@ -292,7 +292,7 @@ static void onPingResponse(struct SwitchPinger_Response* resp, void* onResponseC
         sendPeer(0xffffffff, PFChan_Core_PEER, ep, resp->milliseconds);
     }
 
-    ep->timeOfLastPing = Time_currentTimeMilliseconds(ic->eventBase);
+    ep->timeOfLastPing = Time_currentTimeMilliseconds();
 
     if (Defined(Log_DEBUG)) {
         String* addr = Address_toString(&ep->addr, resp->ping->pingAlloc);
@@ -383,7 +383,7 @@ static void linkState(void* vic)
 static void iciPing(struct InterfaceController_Iface_pvt* ici, struct InterfaceController_pvt* ic)
 {
     if (!ici->peerMap.count) { return; }
-    uint64_t now = Time_currentTimeMilliseconds(ic->eventBase);
+    uint64_t now = Time_currentTimeMilliseconds();
 
     // scan for endpoints have not sent anything recently.
     uint32_t startAt = ici->lastPeerPinged = (ici->lastPeerPinged + 1) % ici->peerMap.count;
@@ -530,7 +530,7 @@ static Iface_DEFUN receivedPostCryptoAuth(struct Message* msg,
         ep->state = InterfaceController_PeerState_ESTABLISHED;
         SwitchCore_setInterfaceState(&ep->switchIf, SwitchCore_setInterfaceState_ifaceState_UP);
     } else {
-        ep->timeOfLastMessage = Time_currentTimeMilliseconds(ic->eventBase);
+        ep->timeOfLastMessage = Time_currentTimeMilliseconds();
     }
 
     Identity_check(ep);
@@ -707,7 +707,7 @@ static Iface_DEFUN handleBeacon(struct Message* msg, struct InterfaceController_
     // the pinger will only ping every (PING_INTERVAL * 8) so we set timeOfLastMessage to
     // (now - pingAfterMilliseconds - 1) so it will be considered a "lazy node".
     ep->timeOfLastMessage =
-        Time_currentTimeMilliseconds(ic->eventBase) - ic->pingAfterMilliseconds - 1;
+        Time_currentTimeMilliseconds() - ic->pingAfterMilliseconds - 1;
 
     Log_info(ic->logger, "Added peer [%s] from beacon",
         Address_toString(&ep->addr, msg->alloc)->bytes);
@@ -777,7 +777,7 @@ static Iface_DEFUN handleUnexpectedIncoming(struct Message* msg,
     // the pinger will only ping every (PING_INTERVAL * 8) so we set timeOfLastMessage to
     // (now - pingAfterMilliseconds - 1) so it will be considered a "lazy node".
     ep->timeOfLastMessage =
-        Time_currentTimeMilliseconds(ic->eventBase) - ic->pingAfterMilliseconds - 1;
+        Time_currentTimeMilliseconds() - ic->pingAfterMilliseconds - 1;
 
     Bits_memcpy(ep->addr.key, ep->caSession->herPublicKey, 32);
     Bits_memcpy(ep->addr.ip6.bytes, ep->caSession->herIp6, 16);
@@ -1044,7 +1044,7 @@ int InterfaceController_bootstrapPeer(struct InterfaceController* ifc,
     // the pinger will only ping every (PING_INTERVAL * 8) so we set timeOfLastMessage to
     // (now - pingAfterMilliseconds - 1) so it will be considered a "lazy node".
     ep->timeOfLastMessage =
-        Time_currentTimeMilliseconds(ic->eventBase) - ic->pingAfterMilliseconds - 1;
+        Time_currentTimeMilliseconds() - ic->pingAfterMilliseconds - 1;
 
     if (Defined(Log_INFO)) {
         struct Allocator* tempAlloc = Allocator_child(alloc);

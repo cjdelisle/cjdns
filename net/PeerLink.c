@@ -40,7 +40,7 @@ struct Message* PeerLink_poll(struct PeerLink* peerLink)
     struct Message* out = ArrayList_Messages_shift(pl->queue);
     if (!out) { return NULL; }
     Allocator_disown(pl->alloc, out->alloc);
-    Kbps_accumulate(&pl->sendBw, Time_currentTimeMilliseconds(pl->base), out->length);
+    Kbps_accumulate(&pl->sendBw, Time_currentTimeMilliseconds(), out->length);
     return out;
 }
 
@@ -55,13 +55,13 @@ int PeerLink_send(struct Message* msg, struct PeerLink* peerLink)
 void PeerLink_recv(struct Message* msg, struct PeerLink* peerLink)
 {
     struct PeerLink_pvt* pl = Identity_check((struct PeerLink_pvt*) peerLink);
-    Kbps_accumulate(&pl->recvBw, Time_currentTimeMilliseconds(pl->base), msg->length);
+    Kbps_accumulate(&pl->recvBw, Time_currentTimeMilliseconds(), msg->length);
 }
 
 void PeerLink_kbps(struct PeerLink* peerLink, struct PeerLink_Kbps* output)
 {
     struct PeerLink_pvt* pl = Identity_check((struct PeerLink_pvt*) peerLink);
-    uint32_t now = Time_currentTimeMilliseconds(pl->base);
+    uint32_t now = Time_currentTimeMilliseconds();
     output->recvKbps = Kbps_accumulate(&pl->recvBw, now, Kbps_accumulate_NO_PACKET);
     output->sendKbps = Kbps_accumulate(&pl->sendBw, now, Kbps_accumulate_NO_PACKET);
 }

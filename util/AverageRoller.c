@@ -30,7 +30,7 @@ struct AverageRoller* AverageRoller_new(const uint32_t windowSeconds,
     Bits_memcpy(roller, (&(struct AverageRoller_pvt) {
         .windowSeconds = windowSeconds,
         .eventBase = eventBase,
-        .lastUpdateTime = (uint32_t) Time_currentTimeSeconds(eventBase)
+        .lastUpdateTime = (uint32_t) Time_currentTimeSeconds()
     }), sizeof(struct AverageRoller_pvt));
 
     Identity_set(roller);
@@ -83,6 +83,6 @@ uint32_t AverageRoller_update(struct AverageRoller* averageRoller, const uint32_
 {
     struct AverageRoller_pvt* roller = Identity_check((struct AverageRoller_pvt*) averageRoller);
     return AverageRoller_updateAtTime(averageRoller,
-                                      Time_currentTimeSeconds(roller->eventBase),
+                                      Time_currentTimeSeconds(),
                                       newEntry);
 }
