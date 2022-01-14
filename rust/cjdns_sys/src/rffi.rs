@@ -2,6 +2,8 @@ use crate::cffi::{Allocator_t, Iface_t};
 use crate::external::interface::cif;
 use std::ffi::{c_void, CStr};
 use std::os::raw::c_char;
+use std::sync::Once;
+use std::time::{Instant, SystemTime};
 
 // This file is used to generate cbindings.h using cbindgen
 
@@ -76,4 +78,25 @@ pub unsafe extern "C" fn Rffi_inet_pton(is_ip6: bool, src: *const c_char, addr: 
     let addr = std::slice::from_raw_parts_mut(addr, octets.len());
     addr.copy_from_slice(&octets);
     0
+}
+
+/// Non-monotonic nanosecond time, which has no relationship to any wall clock.
+#[no_mangle]
+pub unsafe extern "C" fn Rffi_hrtime() -> u64 {
+    SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos() as u64
+}
+
+static mut BASE_TIME: Option<Instant> = None;
+static INIT: Once = Once::new();
+
+/// Monotonic millisecond time.
+#[no_mangle]
+pub unsafe extern "C" fn Rffi_now_ms() -> u64 {
+    INIT.call_once(|| {
+        BASE_TIME = Some(Instant::now());
+    });
+    (Instant::now() - BASE_TIME.unwrap()).as_millis() as u64
 }
