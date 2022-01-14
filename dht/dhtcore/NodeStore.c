@@ -622,7 +622,7 @@ static struct Node_Link* linkNodes(struct Node_Two* parent,
     link->parent = parent;
     link->discoveredPath = discoveredPath;
     link->linkCost = 0;
-    link->timeLastSeen = Time_currentTimeMilliseconds(store->eventBase);
+    link->timeLastSeen = Time_currentTimeMilliseconds();
     Identity_set(link);
 
     // reverse link
@@ -1358,7 +1358,7 @@ static struct Node_Link* discoverNode(struct NodeStore_pvt* store,
         child->alloc = alloc;
         Bits_memcpy(&child->address, addr, sizeof(struct Address));
         child->encodingScheme = EncodingScheme_clone(scheme, child->alloc);
-        child->timeLastPinged = Time_currentTimeMilliseconds(store->eventBase);
+        child->timeLastPinged = Time_currentTimeMilliseconds();
         Identity_set(child);
     }
 
@@ -1639,7 +1639,7 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
     Identity_set(selfNode);
     out->pub.selfNode = selfNode;
     linkNodes(selfNode, selfNode, 1, 0, 0, 1, out);
-    selfNode->timeLastPinged = Time_currentTimeMilliseconds(out->eventBase);
+    selfNode->timeLastPinged = Time_currentTimeMilliseconds();
 
     out->pub.selfAddress = &out->selfLink->child->address;
     out->pub.selfAddress->protocolVersion = Version_CURRENT_PROTOCOL;
@@ -2011,7 +2011,7 @@ static void updatePathCost(struct NodeStore_pvt* store, const uint64_t path, uin
 {
     struct Node_Link* link = store->selfLink;
     uint64_t pathFrag = path;
-    uint64_t now = Time_currentTimeMilliseconds(store->eventBase);
+    uint64_t now = Time_currentTimeMilliseconds();
     for (;;) {
         struct Node_Link* nextLink = NULL;
         uint64_t nextPath = firstHopInPath(pathFrag, &nextLink, link, store);
@@ -2135,7 +2135,7 @@ uint16_t NodeStore_bucketForAddr(struct Address* source, struct Address* dest)
 uint64_t NodeStore_timeSinceLastPing(struct NodeStore* nodeStore, struct Node_Two* node)
 {
     struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
-    uint64_t now = Time_currentTimeMilliseconds(store->eventBase);
+    uint64_t now = Time_currentTimeMilliseconds();
     uint64_t lastSeen = node->timeLastPinged;
     struct Node_Link* link = Node_getBestParent(node);
     while (link && link != store->selfLink) {

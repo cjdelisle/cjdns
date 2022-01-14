@@ -59,7 +59,7 @@ static Iface_DEFUN incomingTun(struct Message* msg, struct Iface* tunB)
 
 static void notLinkedYet(struct Context* ctx)
 {
-    uint64_t now = Time_currentTimeMilliseconds(ctx->base);
+    uint64_t now = Time_currentTimeMilliseconds();
     if ((now - ctx->startTime) > 5000) {
         Assert_failure("Failed to link in 5 seconds");
     }
@@ -128,7 +128,7 @@ void* CJDNS_FUZZ_INIT(struct Allocator* allocator, struct Random* rand)
     ctx->logger = logger;
     ctx->checkLinkageTimeout = Timeout_setInterval(checkLinkage, ctx, 1, base, alloc);
     ctx->base = base;
-    ctx->startTime = Time_currentTimeMilliseconds(base);
+    ctx->startTime = Time_currentTimeMilliseconds();
     ctx->alloc = alloc;
 
     Log_debug(a->logger, "Waiting for nodes to link asynchronously...");

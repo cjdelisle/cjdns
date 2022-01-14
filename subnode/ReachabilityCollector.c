@@ -202,7 +202,7 @@ static void latencyUpdate(
     //Log_debug(rcp->log, "Latency update for [%" PRIx64 "] [%u]ms", pip->pub.addr.path, lag);
     pip->sumOfLag += lag;
     pip->lagSamples++;
-    pip->timeOfLastLagUpdate = Time_currentTimeMilliseconds(rcp->base);
+    pip->timeOfLastLagUpdate = Time_currentTimeMilliseconds();
 }
 
 static void onReplyOld(Dict* msg, struct Address* src, struct MsgCore_Promise* prom)

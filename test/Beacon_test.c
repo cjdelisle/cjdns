@@ -94,7 +94,7 @@ static Iface_DEFUN incomingTunA(struct Message* msg, struct Iface* tunA)
 
 static void notLinkedYet(struct TwoNodes* ctx)
 {
-    uint64_t now = Time_currentTimeMilliseconds(ctx->base);
+    uint64_t now = Time_currentTimeMilliseconds();
     if ((now - ctx->startTime) > 5000) {
         Assert_failure("Failed to link in 5 seconds");
     }
@@ -180,7 +180,7 @@ static void start(struct Allocator* alloc,
     out->logger = logger;
     out->checkLinkageTimeout = Timeout_setInterval(checkLinkage, out, 1, base, alloc);
     out->base = base;
-    out->startTime = Time_currentTimeMilliseconds(base);
+    out->startTime = Time_currentTimeMilliseconds();
     out->runTest = runTest;
     out->alloc = alloc;
 
