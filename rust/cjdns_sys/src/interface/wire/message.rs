@@ -1,6 +1,7 @@
 //! Message type.
 
 use std::slice::{from_raw_parts, from_raw_parts_mut};
+use std::i32;
 
 use thiserror::Error;
 
