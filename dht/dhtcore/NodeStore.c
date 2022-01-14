@@ -1393,7 +1393,7 @@ static struct Node_Link* discoverNode(struct NodeStore_pvt* store,
         } while (firstHopInPath_INVALID != path);
 
         if (lastLink && LabelSplicer_routesThrough(addr->path, lastLink->child->address.path)) {
-            // checking for sillyness...
+            // checking for silliness...
             Assert_true(lastLink != store->selfLink);
             NodeStore_unlinkNodes(&store->pub, lastLink);
             continue;
