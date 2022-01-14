@@ -12,19 +12,19 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#include "util/events/libuv/UvWrapper.h"
+#include "rust/cjdns_sys/Rffi.h"
 #include "util/events/Time.h"
 #include "util/events/libuv/EventBase_pvt.h"
 
 uint64_t Time_hrtime(void)
 {
-    return uv_hrtime();
+    return Rffi_hrtime();
 }
 
 uint64_t Time_currentTimeMilliseconds(struct EventBase* eventBase)
 {
-    struct EventBase_pvt* base = EventBase_privatize(eventBase);
-    return uv_now(base->loop) + base->baseTime;
+//    struct EventBase_pvt* base = EventBase_privatize(eventBase);
+    return Rffi_now_ms(); //(base->loop) + base->baseTime;
 }
 
 uint64_t Time_currentTimeSeconds(struct EventBase* eventBase)
