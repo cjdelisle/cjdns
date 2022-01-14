@@ -32,4 +32,14 @@ int32_t Rffi_inet_ntop(bool is_ip6, const void *addr, uint8_t *dst, uint32_t dst
  */
 int32_t Rffi_inet_pton(bool is_ip6, const char *src, uint8_t *addr);
 
+/**
+ * Non-monotonic nanosecond time, which has no relationship to any wall clock.
+ */
+uint64_t Rffi_hrtime(void);
+
+/**
+ * Monotonic millisecond time.
+ */
+uint64_t Rffi_now_ms(void);
+
 #endif /* rffi_H */
