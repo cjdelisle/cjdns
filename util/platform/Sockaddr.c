@@ -12,7 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#include <netinet/in.h>
 #include "rust/cjdns_sys/Rffi.h"
 #include "benc/String.h"
 #include "memory/Allocator.h"
@@ -27,6 +26,7 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <netinet/in.h>
 
 struct Sockaddr_pvt
 {
