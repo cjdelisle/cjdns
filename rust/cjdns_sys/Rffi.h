@@ -74,4 +74,28 @@ RTypes_Error_t *Rffi_error_fl(const char *msg, const char *file, int line, Alloc
 
 const char *Rffi_printError(RTypes_Error_t *e, Allocator_t *alloc);
 
+/**
+ * Replaces libuv's function:
+ *
+ * int uv_inet_ntop(int af, const void* src, char* dst, size_t size)
+ */
+int32_t Rffi_inet_ntop(bool is_ip6, const void *addr, uint8_t *dst, uint32_t dst_sz);
+
+/**
+ * Replaces libuv's function:
+ *
+ * int uv_inet_pton(int af, const char* src, void* dst) {
+ */
+int32_t Rffi_inet_pton(bool is_ip6, const char *src, uint8_t *addr);
+
+/**
+ * Non-monotonic nanosecond time, which has no relationship to any wall clock.
+ */
+uint64_t Rffi_hrtime(void);
+
+/**
+ * Monotonic millisecond time.
+ */
+uint64_t Rffi_now_ms(void);
+
 #endif /* rffi_H */

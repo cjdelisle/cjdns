@@ -210,7 +210,7 @@ struct SessionManager_HandleList* SessionManager_getHandleList(struct SessionMan
 static uint32_t effectiveMetric(struct SessionManager_pvt* sm,
                                 SessionManager_Path_t* path)
 {
-    int64_t x = Time_currentTimeMilliseconds(sm->eventBase) - path->timeLastValidated;
+    int64_t x = Time_currentTimeMilliseconds() - path->timeLastValidated;
     x += path->metric;
     return (x > Metric_NO_INFO) ? Metric_NO_INFO : x;
 }
@@ -275,7 +275,7 @@ static bool discoverPath(struct SessionManager_Session_pvt* sess,
         return false;
     }
     SessionManager_Path_t* path = pathForLabel(sess, label);
-    uint64_t now = Time_currentTimeMilliseconds(sess->sessionManager->eventBase);
+    uint64_t now = Time_currentTimeMilliseconds();
     if (path) {
         if (metric != Metric_DEAD_LINK && effectiveMetric(sess->sessionManager, path) <= metric) {
             // already have a better source of truth
@@ -453,7 +453,7 @@ static struct SessionManager_Session_pvt* getSession(struct SessionManager_pvt* 
                   printedIp6, sess->pub.receiveHandle);
     }
 
-    int64_t now = Time_currentTimeMilliseconds(sm->eventBase);
+    int64_t now = Time_currentTimeMilliseconds();
     sess->alloc = alloc;
     sess->sessionManager = sm;
     sess->pub.version = version;
@@ -563,7 +563,7 @@ static void checkTimedOutBuffers(struct SessionManager_pvt* sm)
 {
     for (int i = 0; i < (int)sm->bufMap.count; i++) {
         struct BufferedMessage* buffered = sm->bufMap.values[i];
-        int64_t lag = Time_currentTimeMilliseconds(sm->eventBase) - buffered->timeSentMilliseconds;
+        int64_t lag = Time_currentTimeMilliseconds() - buffered->timeSentMilliseconds;
         if (lag < 10000) { continue; }
         Map_BufferedMessages_remove(i, &sm->bufMap);
         Allocator_free(buffered->alloc);
@@ -623,7 +623,7 @@ static void checkTimedOutSessions(struct SessionManager_pvt* sm)
 {
     for (int i = (int)sm->ifaceMap.count - 1; i >= 0; i--) {
         struct SessionManager_Session_pvt* sess = sm->ifaceMap.values[i];
-        int64_t now = Time_currentTimeMilliseconds(sm->eventBase);
+        int64_t now = Time_currentTimeMilliseconds();
 
         // Check if the session is timed out...
         SessionManager_Path_t* path = mostRecentValidatedPath(sess);
@@ -699,7 +699,7 @@ static void bufferPacket(struct SessionManager_pvt* sm, struct Message* msg)
         Allocator_calloc(lookupAlloc, sizeof(struct BufferedMessage), 1);
     buffered->msg = msg;
     buffered->alloc = lookupAlloc;
-    buffered->timeSentMilliseconds = Time_currentTimeMilliseconds(sm->eventBase);
+    buffered->timeSentMilliseconds = Time_currentTimeMilliseconds();
     Allocator_adopt(lookupAlloc, Message_getAlloc(msg));
     Assert_true(Map_BufferedMessages_put((struct Ip6*)header->ip6, &buffered, &sm->bufMap) > -1);
 }
@@ -783,7 +783,7 @@ static Iface_DEFUN incomingFromInsideIf(struct Message* msg, struct Iface* iface
 
     if (!(header->flags & RouteHeader_flags_PATHFINDER)) {
         // It's real life user traffic, lets tag the time of last use
-        sess->pub.timeOfLastUsage = Time_currentTimeMilliseconds(sm->eventBase);
+        sess->pub.timeOfLastUsage = Time_currentTimeMilliseconds();
     }
 
     if (header->version_be) { sess->pub.version = Endian_bigEndianToHost32(header->version_be); }

@@ -262,13 +262,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cjdroute"
-version = "0.1.0"
-dependencies = [
- "cjdns_sys",
-]
-
-[[package]]
 name = "clang-sys"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1001,13 +994,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2dfed899f0eb03f32ee8c6a0aabdb8a7949659e3466561fc0adf54e26d88c5f4"
 dependencies = [
  "winapi-util",
-]
-
-[[package]]
-name = "testcjdroute"
-version = "0.1.0"
-dependencies = [
- "cjdns_sys",
 ]
 
 [[package]]

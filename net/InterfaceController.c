@@ -308,7 +308,7 @@ static void onPingResponse(struct SwitchPinger_Response* resp, void* onResponseC
         sendPeer(0xffffffff, PFChan_Core_PEER, ep, resp->milliseconds);
     }
 
-    ep->timeOfLastPing = Time_currentTimeMilliseconds(ic->eventBase);
+    ep->timeOfLastPing = Time_currentTimeMilliseconds();
 
     if (Defined(Log_DEBUG)) {
         String* addr = Address_toString(&ep->addr, resp->ping->pingAlloc);
@@ -404,7 +404,7 @@ static void linkState(void* vic)
 static void iciPing(struct InterfaceController_Iface_pvt* ici, struct InterfaceController_pvt* ic)
 {
     if (!ici->peerMap.count) { return; }
-    uint64_t now = Time_currentTimeMilliseconds(ic->eventBase);
+    uint64_t now = Time_currentTimeMilliseconds();
 
     // scan for endpoints have not sent anything recently.
     uint32_t startAt = ici->lastPeerPinged = (ici->lastPeerPinged + 1) % ici->peerMap.count;
@@ -534,7 +534,7 @@ static Iface_DEFUN sendFromSwitch(struct Message* msg, struct Iface* switchIf)
 
     ep->bytesOut += Message_getLength(msg);
 
-    Kbps_accumulate(&ep->sendBw, Time_currentTimeMilliseconds(ep->ici->ic->eventBase), Message_getLength(msg));
+    Kbps_accumulate(&ep->sendBw, Time_currentTimeMilliseconds(), Message_getLength(msg));
 
     return Iface_next(&ep->plaintext, msg); // --> afterEncrypt
 }
@@ -701,10 +701,10 @@ static Iface_DEFUN handleBeacon(
     // the pinger will only ping every (PING_INTERVAL * 8) so we set timeOfLastMessage to
     // (now - pingAfterMilliseconds - 1) so it will be considered a "lazy node".
     ep->timeOfLastMessage =
-        Time_currentTimeMilliseconds(ic->eventBase) - ic->pingAfterMilliseconds - 1;
+        Time_currentTimeMilliseconds() - ic->pingAfterMilliseconds - 1;
 
     Log_info(ic->logger, "Added peer [%s] from beacon",
-        Address_toString(&ep->addr, Message_getAlloc(msg))->bytes);
+    Address_toString(&ep->addr, Message_getAlloc(msg))->bytes);
 
     // Ping them immediately, this prevents beacon tests from taking 1 second each
     sendPing(ep);
@@ -771,7 +771,7 @@ static Iface_DEFUN handleIncomingFromWire(struct Message* msg, struct Iface* add
             // the pinger will only ping every (PING_INTERVAL * 8) so we set timeOfLastMessage to
             // (now - pingAfterMilliseconds - 1) so it will be considered a "lazy node".
             ep->timeOfLastMessage =
-                Time_currentTimeMilliseconds(ici->ic->eventBase) - ici->ic->pingAfterMilliseconds - 1;
+                Time_currentTimeMilliseconds() - ici->ic->pingAfterMilliseconds - 1;
 
             Log_info(ici->ic->logger, "Added peer [%s] from incoming message",
                 Address_toString(&ep->addr, Message_getAlloc(msg))->bytes);
@@ -842,7 +842,7 @@ static Iface_DEFUN afterDecrypt(struct Message* msg, struct Iface* plaintext)
         return Error(msg, "AUTHENTICATION");
     }
 
-    Kbps_accumulate(&ep->recvBw, Time_currentTimeMilliseconds(ic->eventBase), Message_getLength(msg));
+    Kbps_accumulate(&ep->recvBw, Time_currentTimeMilliseconds(), Message_getLength(msg));
     ep->bytesIn += Message_getLength(msg);
 
     int caState = Ca_getState(ep->caSession);
@@ -872,7 +872,7 @@ static Iface_DEFUN afterDecrypt(struct Message* msg, struct Iface* plaintext)
         if (ep->state != caState) {
             sendPeer(0xffffffff, PFChan_Core_PEER, ep, 0xffff);
         }
-        ep->timeOfLastMessage = Time_currentTimeMilliseconds(ic->eventBase);
+        ep->timeOfLastMessage = Time_currentTimeMilliseconds();
     }
     ep->state = caState;
 
@@ -1054,7 +1054,7 @@ int InterfaceController_bootstrapPeer(struct InterfaceController* ifc,
     // the pinger will only ping every (PING_INTERVAL * 8) so we set timeOfLastMessage to
     // (now - pingAfterMilliseconds - 1) so it will be considered a "lazy node".
     ep->timeOfLastMessage =
-        Time_currentTimeMilliseconds(ic->eventBase) - ic->pingAfterMilliseconds - 1;
+        Time_currentTimeMilliseconds() - ic->pingAfterMilliseconds - 1;
 
     if (Defined(Log_INFO)) {
         struct Allocator* tempAlloc = Allocator_child(ep->alloc);
@@ -1087,7 +1087,7 @@ int InterfaceController_getPeerStats(struct InterfaceController* ifController,
     struct InterfaceController_PeerStats* stats =
         Allocator_calloc(alloc, sizeof(struct InterfaceController_PeerStats), count);
 
-    uint32_t now = Time_currentTimeMilliseconds(ic->eventBase);
+    uint32_t now = Time_currentTimeMilliseconds();
     int xcount = 0;
     for (int j = 0; j < ic->icis->length; j++) {
         struct InterfaceController_Iface_pvt* ici = ArrayList_OfIfaces_get(ic->icis, j);

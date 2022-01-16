@@ -2,6 +2,7 @@ Traduction à partir de la version
 [`cjdns-v19.1`](https://github.com/woshilapin/cjdns/blob/cjdns-v19.1/README.md)
 # cjdns
 
+[English](README.md)
 [Русская версия](README_RU.md)
 [Hrvatski](README_HR.md)
 [Svenska](README_SV.md)
@@ -9,7 +10,7 @@ Traduction à partir de la version
 [Deutsch](README_DE.md)
 [繁體中文](README_ZHT.md)
 [Español](README_ES.md)
-[Français](README_FR.md)
+[Português brasileiro](README_PT-BR.md)
 
 #### *Le réseau réinventé*
 

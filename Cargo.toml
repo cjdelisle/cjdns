@@ -1,10 +1,5 @@
 [workspace]
-
-members = [
-    "rust/cjdns_sys",
-    "rust/cjdroute",
-    "rust/testcjdroute",
-]
+members = ["rust/cjdns_sys"]
 
 [profile.release]
 lto = true

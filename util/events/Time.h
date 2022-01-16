@@ -25,10 +25,9 @@ Linker_require("util/events/libuv/Time.c")
 uint64_t Time_hrtime(void);
 
 // Monotonic time based on wall clock at time of node startup.
-// CAUTION: only updated once per tick, not for profiling.
-uint64_t Time_currentTimeMilliseconds(struct EventBase* eventBase);
+uint64_t Time_currentTimeMilliseconds(void);
 
 // Same as currentTimeMilliseconds.
-uint64_t Time_currentTimeSeconds(struct EventBase* eventBase);
+uint64_t Time_currentTimeSeconds(void);
 
 #endif

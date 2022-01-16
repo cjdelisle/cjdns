@@ -240,7 +240,7 @@ struct ReachabilityAnnouncer_pvt
 
 static int64_t ourTime(struct ReachabilityAnnouncer_pvt* rap)
 {
-    uint64_t now = Time_currentTimeMilliseconds(rap->base);
+    uint64_t now = Time_currentTimeMilliseconds();
     Assert_true(!(now >> 63));
     return (int64_t) now;
 }

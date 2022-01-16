@@ -157,7 +157,7 @@ static int checkAddress(struct Admin_pvt* admin, int index, uint64_t now)
 static void clearExpiredAddresses(void* vAdmin)
 {
     struct Admin_pvt* admin = Identity_check((struct Admin_pvt*) vAdmin);
-    uint64_t now = Time_currentTimeMilliseconds(admin->eventBase);
+    uint64_t now = Time_currentTimeMilliseconds();
     int count = 0;
     for (int i = admin->map.count - 1; i >= 0; i--) {
         if (checkAddress(admin, i, now)) {
@@ -191,7 +191,7 @@ static int sendMessage0(Dict* message, String* txid, struct Admin* adminPub, int
     // out forever after a disconnection.
     if (!admin->currentRequest) {
         int index = Map_LastMessageTimeByAddr_indexForKey(&addr, &admin->map);
-        uint64_t now = Time_currentTimeMilliseconds(admin->eventBase);
+        uint64_t now = Time_currentTimeMilliseconds();
         if (index < 0 || checkAddress(admin, index, now)) {
             return Admin_sendMessage_CHANNEL_CLOSED;
         }
@@ -228,7 +228,7 @@ static inline bool authValid(Dict* message, struct Message* messageBytes, struct
         int64_t* cookieInt = Dict_getIntC(message, "cookie");
         cookie = (cookieInt) ? *cookieInt : 0;
     }
-    uint64_t nowSecs = Time_currentTimeSeconds(admin->eventBase);
+    uint64_t nowSecs = Time_currentTimeSeconds();
     String* submittedHash = Dict_getStringC(message, "hash");
     if (cookie >  nowSecs || cookie < nowSecs - 20 || !submittedHash || submittedHash->len != 64) {
         return false;
@@ -345,7 +345,7 @@ static void handleRequest(Dict* messageDict,
         //Log_debug(admin->logger, "Got a request for a cookie");
         Dict* d = Dict_new(allocator);
         char bytes[32];
-        snprintf(bytes, 32, "%u", (uint32_t) Time_currentTimeSeconds(admin->eventBase));
+        snprintf(bytes, 32, "%u", (uint32_t) Time_currentTimeSeconds());
         String* theCookie = &(String) { .len = CString_strlen(bytes), .bytes = bytes };
         Dict_putString(d, cookie, theCookie, allocator);
         Admin_sendMessage(d, txid, &admin->pub);
@@ -374,7 +374,7 @@ static void handleRequest(Dict* messageDict,
     // Then sent a valid authed query, lets track their address so they can receive
     // asynchronous messages.
     int index = Map_LastMessageTimeByAddr_indexForKey(&src, &admin->map);
-    uint64_t now = Time_currentTimeMilliseconds(admin->eventBase);
+    uint64_t now = Time_currentTimeMilliseconds();
     admin->asyncEnabled = 1;
     if (index >= 0) {
         admin->map.values[index]->timeOfLastMessage = now;

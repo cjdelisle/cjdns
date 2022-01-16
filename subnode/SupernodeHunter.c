@@ -174,7 +174,7 @@ static void adoptSupernode(struct SupernodeHunter_pvt* snp, struct Address* cand
     struct Query* q = Allocator_calloc(qp->alloc, sizeof(struct Query), 1);
     Identity_set(q);
     q->snp = snp;
-    q->sendTime = Time_currentTimeMilliseconds(snp->base);
+    q->sendTime = Time_currentTimeMilliseconds();
 
     Dict* msg = qp->msg = Dict_new(qp->alloc);
     qp->cb = adoptSupernode2;
@@ -238,7 +238,7 @@ static void updateSnodePath(struct SupernodeHunter_pvt* snp)
     struct Query* q = Allocator_calloc(qp->alloc, sizeof(struct Query), 1);
     Identity_set(q);
     q->snp = snp;
-    q->sendTime = Time_currentTimeMilliseconds(snp->base);
+    q->sendTime = Time_currentTimeMilliseconds();
 
     Dict* msg = qp->msg = Dict_new(qp->alloc);
     qp->cb = updateSnodePath2;
@@ -260,7 +260,7 @@ static void queryForAuthorized(struct SupernodeHunter_pvt* snp, struct Address* 
     struct Query* q = Allocator_calloc(qp->alloc, sizeof(struct Query), 1);
     Identity_set(q);
     q->snp = snp;
-    q->sendTime = Time_currentTimeMilliseconds(snp->base);
+    q->sendTime = Time_currentTimeMilliseconds();
 
     Dict* msg = qp->msg = Dict_new(qp->alloc);
     qp->cb = onReply;
@@ -454,7 +454,7 @@ struct SupernodeHunter* SupernodeHunter_new(struct Allocator* allocator,
     out->base = base;
     //out->rand = rand;
     //out->nodes = AddrSet_new(alloc);
-    //out->timeSnodeCalled = Time_currentTimeMilliseconds(base);
+    //out->timeSnodeCalled = Time_currentTimeMilliseconds();
     //out->snodeCandidates = AddrSet_new(alloc);
     out->log = log;
     out->alloc = alloc;

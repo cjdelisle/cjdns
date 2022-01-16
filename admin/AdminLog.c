@@ -123,7 +123,7 @@ static Dict* makeLogMessage(struct Subscription* subscription,
                             String* message,
                             struct Allocator* alloc)
 {
-    int64_t now = (int64_t) Time_currentTimeSeconds(logger->base);
+    int64_t now = (int64_t) Time_currentTimeSeconds();
 
     Dict* out = Dict_new(alloc);
 
