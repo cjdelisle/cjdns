@@ -4,17 +4,17 @@
 use crate::bytestring::ByteString;
 use crate::cffi::{self, Allocator_t, Random_t, String_t};
 use crate::crypto::crypto_auth;
-use crate::crypto::session;
 use crate::crypto::crypto_auth::DecryptError;
 use crate::crypto::keys::{PrivateKey, PublicKey};
+use crate::crypto::session;
 use crate::external::interface::cif;
 use crate::external::memory::allocator;
-use crate::rtypes::*;
 use crate::interface::wire::message::Message;
+use crate::rtypes::*;
 use std::ffi::{c_void, CStr};
 use std::os::raw::{c_char, c_int};
-use std::sync::Once;
 use std::sync::Arc;
+use std::sync::Once;
 use std::time::{Duration, Instant, SystemTime};
 
 // This file is used to generate cbindings.h using cbindgen
@@ -169,11 +169,9 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_tryHandshake(
             let ee = match e.downcast_ref::<DecryptError>() {
                 Some(ee) => match ee {
                     DecryptError::DecryptErr(ee) => ee,
-                    DecryptError::Internal(_) => {
-                        &crate::crypto::crypto_auth::DecryptErr::Internal
-                    }
+                    DecryptError::Internal(_) => &crate::crypto::crypto_auth::DecryptErr::Internal,
                 },
-                None => &crate::crypto::crypto_auth::DecryptErr::Internal
+                None => &crate::crypto::crypto_auth::DecryptErr::Internal,
             }
             .clone() as u32;
             (*ret).err = ee;
@@ -182,7 +180,11 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_tryHandshake(
         Ok((code, sess)) => {
             (*ret).code = code;
             if let Some(sess) = sess {
-                let child = cffi::Allocator__child(alloc, b"rffi_tryHandshake\0".as_ptr() as *const i8, 163);
+                let child = cffi::Allocator__child(
+                    alloc,
+                    b"rffi_tryHandshake\0".as_ptr() as *const i8,
+                    163,
+                );
                 (*ret).alloc = child;
                 (*ret).sess = wrap_session(sess, child)
             }
@@ -352,7 +354,12 @@ pub unsafe extern "C" fn Rffi_error(
     alloc: *mut Allocator_t,
 ) -> *mut RTypes_Error_t {
     let s = std::ffi::CStr::from_ptr(msg).to_string_lossy();
-    allocator::adopt(alloc, RTypes_Error_t { e: Some(anyhow::anyhow!(s)) })
+    allocator::adopt(
+        alloc,
+        RTypes_Error_t {
+            e: Some(anyhow::anyhow!(s)),
+        },
+    )
 }
 
 #[no_mangle]
@@ -365,13 +372,18 @@ pub unsafe extern "C" fn Rffi_error_fl(
     let s = std::ffi::CStr::from_ptr(msg).to_string_lossy();
     let f = std::ffi::CStr::from_ptr(file).to_string_lossy();
     let ss = format!("{}:{}: {}", f, line, s);
-    allocator::adopt(alloc, RTypes_Error_t { e: Some(anyhow::anyhow!(ss)) })
+    allocator::adopt(
+        alloc,
+        RTypes_Error_t {
+            e: Some(anyhow::anyhow!(ss)),
+        },
+    )
 }
 
 fn str_to_c(s: &str, alloc: *mut Allocator_t) -> *const c_char {
     let c_str = std::ffi::CString::new(s).unwrap();
     let adopted = allocator::adopt(alloc, c_str);
-    return (*adopted).as_ptr()
+    return (*adopted).as_ptr();
 }
 
 #[no_mangle]
@@ -380,9 +392,9 @@ pub unsafe extern "C" fn Rffi_printError(
     alloc: *mut Allocator_t,
 ) -> *const c_char {
     e.as_ref()
-        .map(|e|e.e.as_ref())
+        .map(|e| e.e.as_ref())
         .flatten()
-        .map(|e|str_to_c(&format!("{:?}", e), alloc))
+        .map(|e| str_to_c(&format!("{:?}", e), alloc))
         .unwrap_or_else(std::ptr::null)
 }
 
