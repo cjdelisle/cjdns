@@ -458,16 +458,16 @@ fn now_unix_epoch() -> Duration {
         .unwrap()
 }
 
-static mut BASE_INSTANT: Option<Instant> = None;
-static mut INSTANT_OFFSET: u64 = 0;
-static INIT: Once = Once::new();
-
 /// Monotonic millisecond time.
 #[no_mangle]
 pub unsafe extern "C" fn Rffi_now_ms() -> u64 {
+    static mut BASE_INSTANT: Option<Instant> = None;
+    static mut INSTANT_OFFSET: u64 = 0;
+    static INIT: Once = Once::new();
     INIT.call_once(|| {
         BASE_INSTANT = Some(Instant::now());
         INSTANT_OFFSET = now_unix_epoch().as_millis() as u64;
     });
+
     (Instant::now() - BASE_INSTANT.unwrap()).as_millis() as u64 + INSTANT_OFFSET
 }
