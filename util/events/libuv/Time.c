@@ -14,7 +14,6 @@
  */
 #include "rust/cjdns_sys/Rffi.h"
 #include "util/events/Time.h"
-#include "util/events/libuv/EventBase_pvt.h"
 
 uint64_t Time_hrtime(void)
 {
