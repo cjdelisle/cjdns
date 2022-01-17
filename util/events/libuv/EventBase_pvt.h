@@ -18,8 +18,7 @@
 #include "memory/Allocator.h"
 #include "util/events/EventBase.h"
 #include "util/Identity.h"
-
-#include <uv.h>
+#include "util/events/libuv/UvWrapper.h"
 
 struct EventBase_pvt
 {
