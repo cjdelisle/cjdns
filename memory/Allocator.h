@@ -53,7 +53,7 @@ struct Allocator_OnFreeJob
  * In traditional C, each call to malloc() must be traced to a corresponding free() call, a
  * laborious process which can be partially automated but inevitably leaves some memory leak
  * investigative work to the developer. Allocator attempts to move the memory freeing operations
- * close to the memory allocations thus making bugs easy to spot without searching over large
+ * close to the memory allocations, thus making bugs easy to spot without searching over large
  * amounts of code.
  *
  * With Allocator, you might do the following:
@@ -69,11 +69,11 @@ struct Allocator_OnFreeJob
  *
  * #1 Do not create new root allocators, create child allocators instead.
  * When you call MallocAllocator_new() or equivalent, you are creating a parentless allocator and
- * you must take responsibility for it's freeing when you are finished with it. In cjdns there is
+ * you must take responsibility for its freeing when you are finished with it. In cjdns there is
  * only one call to a main allocator and all other allocators are spawned from it using
  * Allocator_child().
  * Exception: In certain code which interfaces with libuv, an alternate root allocator is necessary
- *    because libuv teardown process is asynchronous and memory used by libuv must not be freed
+ *    because libuv teardown process is asynchronous, and memory used by libuv must not be freed
  *    until this is complete.
  *
  * #2 Free your allocators and not anyone else's.
@@ -82,7 +82,7 @@ struct Allocator_OnFreeJob
  * things lying around expecting someone else to clean up after you. Sometimes you want to "take
  * ownership" of some memory which somebody else allocated and they are passing to you. Rather
  * than slowly allocate your own memory and copy the data over, you can use Allocator_adopt() to
- * hold that memory in existance until you and the creator both are finished with it.
+ * hold that memory in existence until you and the creator both are finished with it.
  *
  * #3 Assume that any allocator may be freed at any time.
  * A typical example is the ping message. When a ping is sent, a structure is allocated to hold
