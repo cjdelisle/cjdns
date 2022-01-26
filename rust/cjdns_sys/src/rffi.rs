@@ -11,6 +11,7 @@ use crate::external::interface::cif;
 use crate::external::memory::allocator;
 use crate::interface::wire::message::Message;
 use crate::rtypes::*;
+use std::convert::TryInto;
 use std::ffi::{c_void, CStr};
 use std::os::raw::{c_char, c_int};
 use std::sync::Arc;
@@ -470,4 +471,56 @@ pub unsafe extern "C" fn Rffi_now_ms() -> u64 {
     });
 
     (Instant::now() - BASE_INSTANT.unwrap()).as_millis() as u64 + INSTANT_OFFSET
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct Rffi_Address {
+    pub octets: [u8; 16],
+    pub netmask: [u8; 16],
+    pub is_ipv6: bool,
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct Rffi_NetworkInterface {
+    pub name: *const c_char,
+    pub is_internal: bool,
+    pub addr: Rffi_Address,
+}
+
+fn to_array<const N: usize>(value: impl AsRef<[u8]>) -> [u8; N] {
+    let mut value = value.as_ref().to_owned();
+    value.resize(N, 0);
+    value.try_into().unwrap()
+}
+
+/// Get a list of available network interfaces for the current machine.
+#[no_mangle]
+pub unsafe extern "C" fn Rffi_interface_addresses(
+    out: *mut *const Rffi_NetworkInterface,
+    alloc: *mut Allocator_t,
+) -> i32 {
+    let getn = |ip| match ip {
+        std::net::IpAddr::V4(ip) => ip.octets().to_vec(),
+        std::net::IpAddr::V6(ip) => ip.octets().to_vec(),
+    };
+    let ifs = pnet::datalink::interfaces();
+    let nis = ifs
+        .iter()
+        .map(|ni| (ni, str_to_c(&ni.name, alloc)))
+        .flat_map(|(ni, name)| ni.ips.iter().map(move |ip| (ni, name, ip)))
+        .map(|(ni, name, ipnet)| Rffi_NetworkInterface {
+            name,
+            is_internal: ni.is_loopback(),
+            addr: Rffi_Address {
+                octets: to_array(getn(ipnet.ip())),
+                netmask: to_array(getn(ipnet.mask())),
+                is_ipv6: ipnet.is_ipv6(),
+            },
+        })
+        .collect::<Vec<_>>();
+    let count = nis.len();
+    *out = (*allocator::adopt(alloc, nis)).as_mut_ptr();
+    count as _
 }

@@ -7,6 +7,18 @@
 
 typedef struct RTypes_CryptoAuth2_t RTypes_CryptoAuth2_t;
 
+typedef struct {
+  uint8_t octets[16];
+  uint8_t netmask[16];
+  bool is_ipv6;
+} Rffi_Address;
+
+typedef struct {
+  const char *name;
+  bool is_internal;
+  Rffi_Address addr;
+} Rffi_NetworkInterface;
+
 extern const uintptr_t Rffi_CURRENT_PROTOCOL;
 
 RTypes_IfWrapper_t Rffi_testwrapper_create(Allocator_t *a);
@@ -97,5 +109,10 @@ uint64_t Rffi_hrtime(void);
  * Monotonic millisecond time.
  */
 uint64_t Rffi_now_ms(void);
+
+/**
+ * Get a list of available network interfaces for the current machine.
+ */
+int32_t Rffi_interface_addresses(const Rffi_NetworkInterface **out, Allocator_t *alloc);
 
 #endif /* rffi_H */
