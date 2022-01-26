@@ -15,8 +15,9 @@ typedef struct {
 
 typedef struct {
   const char *name;
+  uint8_t phys_addr[6];
   bool is_internal;
-  Rffi_Address addr;
+  Rffi_Address address;
 } Rffi_NetworkInterface;
 
 extern const uintptr_t Rffi_CURRENT_PROTOCOL;

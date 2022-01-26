@@ -11,6 +11,7 @@ use crate::external::interface::cif;
 use crate::external::memory::allocator;
 use crate::interface::wire::message::Message;
 use crate::rtypes::*;
+use pnet::util::MacAddr;
 use std::convert::TryInto;
 use std::ffi::{c_void, CStr};
 use std::os::raw::{c_char, c_int};
@@ -485,8 +486,9 @@ pub struct Rffi_Address {
 #[derive(Debug)]
 pub struct Rffi_NetworkInterface {
     pub name: *const c_char,
+    pub phys_addr: [u8; 6],
     pub is_internal: bool,
-    pub addr: Rffi_Address,
+    pub address: Rffi_Address,
 }
 
 fn to_array<const N: usize>(value: impl AsRef<[u8]>) -> [u8; N] {
@@ -505,15 +507,17 @@ pub unsafe extern "C" fn Rffi_interface_addresses(
         std::net::IpAddr::V4(ip) => ip.octets().to_vec(),
         std::net::IpAddr::V6(ip) => ip.octets().to_vec(),
     };
-    let ifs = pnet::datalink::interfaces();
-    let nis = ifs
+    let mac = |mac: Option<MacAddr>| to_array(mac.map_or(vec![], |ma| ma.octets().to_vec()));
+
+    let nis = pnet::datalink::interfaces()
         .iter()
-        .map(|ni| (ni, str_to_c(&ni.name, alloc)))
-        .flat_map(|(ni, name)| ni.ips.iter().map(move |ip| (ni, name, ip)))
-        .map(|(ni, name, ipnet)| Rffi_NetworkInterface {
+        .map(|ni| (ni, str_to_c(&ni.name, alloc), mac(ni.mac)))
+        .flat_map(|(ni, name, phys_addr)| ni.ips.iter().map(move |ip| (ni, name, phys_addr, ip)))
+        .map(|(ni, name, phys_addr, ipnet)| Rffi_NetworkInterface {
             name,
+            phys_addr,
             is_internal: ni.is_loopback(),
-            addr: Rffi_Address {
+            address: Rffi_Address {
                 octets: to_array(getn(ipnet.ip())),
                 netmask: to_array(getn(ipnet.mask())),
                 is_ipv6: ipnet.is_ipv6(),
