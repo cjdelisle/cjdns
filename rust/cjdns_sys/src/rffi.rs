@@ -524,3 +524,25 @@ pub unsafe extern "C" fn Rffi_interface_addresses(
     *out = (*allocator::adopt(alloc, nis)).as_mut_ptr();
     count as _
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::external::memory::allocator::Allocator;
+
+    #[test]
+    fn test_interface_addresses() {
+        let alloc = Allocator::new(10000000);
+
+        let out = unsafe {
+            let mut x: *const Rffi_NetworkInterface = std::ptr::null();
+            let xp = &mut x as *mut *const Rffi_NetworkInterface;
+            let count = Rffi_interface_addresses(xp, alloc.native);
+            std::slice::from_raw_parts(x, count as _)
+        };
+
+        let ifs = pnet::datalink::interfaces();
+        let count = ifs.iter().map(|ni| ni.ips.len()).sum::<usize>();
+        assert_eq!(count, out.len());
+    }
+}
