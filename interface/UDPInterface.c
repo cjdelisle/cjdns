@@ -12,13 +12,16 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#include "util/events/libuv/UvWrapper.h"
+#include "rust/cjdns_sys/Rffi.h"
 #include "benc/StringList.h"
 #include "interface/UDPInterface.h"
 #include "wire/Message.h"
 #include "util/events/UDPAddrIface.h"
 #include "util/GlobalConfig.h"
 #include "wire/Error.h"
+
+#include <netinet/in.h>
+#include <string.h>
 
 #define ArrayList_TYPE struct Sockaddr
 #define ArrayList_NAME Sockaddr
@@ -51,18 +54,17 @@ struct UDPInterface_pvt
 
 static struct Sockaddr* mkBcastAddr(
     uint16_t beaconPort_be,
-    uv_interface_address_t* iface,
+    Rffi_NetworkInterface* iface,
     struct Allocator* alloc)
 {
+    uint32_t addr; memcpy(&addr, iface->address.octets, 4);
+    uint32_t nmAddr; memcpy(&nmAddr, iface->address.netmask, 4);
+
     struct sockaddr_in bcast4 = {
         .sin_family = AF_INET,
         .sin_port = beaconPort_be,
         .sin_addr = {
-            .s_addr =
-                (
-                    iface->address.address4.sin_addr.s_addr &
-                    iface->netmask.netmask4.sin_addr.s_addr
-                ) | ~iface->netmask.netmask4.sin_addr.s_addr
+            .s_addr = ( addr & nmAddr ) | ~nmAddr
         }
     };
     return Sockaddr_fromNative(&bcast4, sizeof(struct sockaddr_in), alloc);
@@ -75,13 +77,10 @@ static int updateBcastAddrs(struct UDPInterface_pvt* ctx)
         String* iface = StringList_get(ctx->bcastIfaces, i);
         if (String_equals(iface, String_CONST("all"))) { all = true; }
     }
-    uv_interface_address_t* interfaces;
-    int count;
-    int res = uv_interface_addresses(&interfaces, &count);
-    if (res) {
-        Log_info(ctx->log, "uv_interface_addresses failed [%s]", uv_strerror(-res));
-        return -1;
-    }
+
+    struct Allocator* tmpAlloc = Allocator_child(ctx->allocator);
+    Rffi_NetworkInterface* interfaces;
+    int count = Rffi_interface_addresses(&interfaces, tmpAlloc);
 
     if (ctx->bcastAddrAlloc) { Allocator_free(ctx->bcastAddrAlloc); }
     struct Allocator* alloc = ctx->bcastAddrAlloc = Allocator_child(ctx->allocator);
@@ -91,7 +90,7 @@ static int updateBcastAddrs(struct UDPInterface_pvt* ctx)
 
     for (int i = 0; i < count; i++) {
         if (interfaces[i].is_internal) { continue; }
-        if (interfaces[i].address.address4.sin_family != AF_INET) { continue; }
+        if (interfaces[i].address.is_ipv6) { continue; }
         if (tunDev && !CString_strncmp(interfaces[i].name, tunDev->bytes, tunDev->len)) {
             continue;
         }
@@ -108,7 +107,7 @@ static int updateBcastAddrs(struct UDPInterface_pvt* ctx)
         }
         ArrayList_Sockaddr_add(ctx->bcastAddrs, addr);
     }
-    uv_free_interface_addresses(interfaces, count);
+    Allocator_free(tmpAlloc);
     return 0;
 }
 
@@ -253,18 +252,15 @@ Er_DEFUN(struct UDPInterface* UDPInterface_new(struct EventBase* eventBase,
 
 Er_DEFUN(List* UDPInterface_listDevices(struct Allocator* alloc))
 {
-    List* out = List_new(alloc);
-    uv_interface_address_t* interfaces;
-    int count;
-    int res = uv_interface_addresses(&interfaces, &count);
-    if (res) { Er_raise(alloc, "uv_interface_addresses failed [%s]", uv_strerror(-res)); }
+    Rffi_NetworkInterface* interfaces;
+    int count = Rffi_interface_addresses(&interfaces, alloc);
 
+    List* out = List_new(alloc);
     for (int i = 0; i < count; i++) {
         if (interfaces[i].is_internal) { continue; }
-        if (interfaces[i].address.address4.sin_family != AF_INET) { continue; }
+        if (interfaces[i].address.is_ipv6) { continue; }
         List_addString(out, String_new(interfaces[i].name, alloc), alloc);
     }
-    uv_free_interface_addresses(interfaces, count);
     Er_ret(out);
 }
 

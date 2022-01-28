@@ -4,17 +4,19 @@
 use crate::bytestring::ByteString;
 use crate::cffi::{self, Allocator_t, Random_t, String_t};
 use crate::crypto::crypto_auth;
-use crate::crypto::session;
 use crate::crypto::crypto_auth::DecryptError;
 use crate::crypto::keys::{PrivateKey, PublicKey};
+use crate::crypto::session;
 use crate::external::interface::cif;
 use crate::external::memory::allocator;
-use crate::rtypes::*;
 use crate::interface::wire::message::Message;
+use crate::rtypes::*;
+use pnet::util::MacAddr;
+use std::convert::TryInto;
 use std::ffi::{c_void, CStr};
 use std::os::raw::{c_char, c_int};
-use std::sync::Once;
 use std::sync::Arc;
+use std::sync::Once;
 use std::time::{Duration, Instant, SystemTime};
 
 // This file is used to generate cbindings.h using cbindgen
@@ -169,11 +171,9 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_tryHandshake(
             let ee = match e.downcast_ref::<DecryptError>() {
                 Some(ee) => match ee {
                     DecryptError::DecryptErr(ee) => ee,
-                    DecryptError::Internal(_) => {
-                        &crate::crypto::crypto_auth::DecryptErr::Internal
-                    }
+                    DecryptError::Internal(_) => &crate::crypto::crypto_auth::DecryptErr::Internal,
                 },
-                None => &crate::crypto::crypto_auth::DecryptErr::Internal
+                None => &crate::crypto::crypto_auth::DecryptErr::Internal,
             }
             .clone() as u32;
             (*ret).err = ee;
@@ -182,7 +182,11 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_tryHandshake(
         Ok((code, sess)) => {
             (*ret).code = code;
             if let Some(sess) = sess {
-                let child = cffi::Allocator__child(alloc, b"rffi_tryHandshake\0".as_ptr() as *const i8, 163);
+                let child = cffi::Allocator__child(
+                    alloc,
+                    b"rffi_tryHandshake\0".as_ptr() as *const i8,
+                    163,
+                );
                 (*ret).alloc = child;
                 (*ret).sess = wrap_session(sess, child)
             }
@@ -352,7 +356,12 @@ pub unsafe extern "C" fn Rffi_error(
     alloc: *mut Allocator_t,
 ) -> *mut RTypes_Error_t {
     let s = std::ffi::CStr::from_ptr(msg).to_string_lossy();
-    allocator::adopt(alloc, RTypes_Error_t { e: Some(anyhow::anyhow!(s)) })
+    allocator::adopt(
+        alloc,
+        RTypes_Error_t {
+            e: Some(anyhow::anyhow!(s)),
+        },
+    )
 }
 
 #[no_mangle]
@@ -365,13 +374,18 @@ pub unsafe extern "C" fn Rffi_error_fl(
     let s = std::ffi::CStr::from_ptr(msg).to_string_lossy();
     let f = std::ffi::CStr::from_ptr(file).to_string_lossy();
     let ss = format!("{}:{}: {}", f, line, s);
-    allocator::adopt(alloc, RTypes_Error_t { e: Some(anyhow::anyhow!(ss)) })
+    allocator::adopt(
+        alloc,
+        RTypes_Error_t {
+            e: Some(anyhow::anyhow!(ss)),
+        },
+    )
 }
 
 fn str_to_c(s: &str, alloc: *mut Allocator_t) -> *const c_char {
     let c_str = std::ffi::CString::new(s).unwrap();
     let adopted = allocator::adopt(alloc, c_str);
-    return (*adopted).as_ptr()
+    return (*adopted).as_ptr();
 }
 
 #[no_mangle]
@@ -380,9 +394,9 @@ pub unsafe extern "C" fn Rffi_printError(
     alloc: *mut Allocator_t,
 ) -> *const c_char {
     e.as_ref()
-        .map(|e|e.e.as_ref())
+        .map(|e| e.e.as_ref())
         .flatten()
-        .map(|e|str_to_c(&format!("{:?}", e), alloc))
+        .map(|e| str_to_c(&format!("{:?}", e), alloc))
         .unwrap_or_else(std::ptr::null)
 }
 
@@ -446,16 +460,93 @@ fn now_unix_epoch() -> Duration {
         .unwrap()
 }
 
-static mut BASE_INSTANT: Option<Instant> = None;
-static mut INSTANT_OFFSET: u64 = 0;
-static INIT: Once = Once::new();
-
 /// Monotonic millisecond time.
 #[no_mangle]
 pub unsafe extern "C" fn Rffi_now_ms() -> u64 {
+    static mut BASE_INSTANT: Option<Instant> = None;
+    static mut INSTANT_OFFSET: u64 = 0;
+    static INIT: Once = Once::new();
     INIT.call_once(|| {
         BASE_INSTANT = Some(Instant::now());
         INSTANT_OFFSET = now_unix_epoch().as_millis() as u64;
     });
+
     (Instant::now() - BASE_INSTANT.unwrap()).as_millis() as u64 + INSTANT_OFFSET
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct Rffi_Address {
+    pub octets: [u8; 16],
+    pub netmask: [u8; 16],
+    pub is_ipv6: bool,
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct Rffi_NetworkInterface {
+    pub name: *const c_char,
+    pub phys_addr: [u8; 6],
+    pub is_internal: bool,
+    pub address: Rffi_Address,
+}
+
+fn to_array<const N: usize>(value: impl AsRef<[u8]>) -> [u8; N] {
+    let mut value = value.as_ref().to_owned();
+    value.resize(N, 0);
+    value.try_into().unwrap()
+}
+
+/// Get a list of available network interfaces for the current machine.
+#[no_mangle]
+pub unsafe extern "C" fn Rffi_interface_addresses(
+    out: *mut *const Rffi_NetworkInterface,
+    alloc: *mut Allocator_t,
+) -> i32 {
+    let getn = |ip| match ip {
+        std::net::IpAddr::V4(ip) => ip.octets().to_vec(),
+        std::net::IpAddr::V6(ip) => ip.octets().to_vec(),
+    };
+    let mac = |mac: Option<MacAddr>| to_array(mac.map_or(vec![], |ma| ma.octets().to_vec()));
+
+    let nis = pnet::datalink::interfaces()
+        .iter()
+        .map(|ni| (ni, str_to_c(&ni.name, alloc), mac(ni.mac)))
+        .flat_map(|(ni, name, phys_addr)| ni.ips.iter().map(move |ip| (ni, name, phys_addr, ip)))
+        .map(|(ni, name, phys_addr, ipnet)| Rffi_NetworkInterface {
+            name,
+            phys_addr,
+            is_internal: ni.is_loopback(),
+            address: Rffi_Address {
+                octets: to_array(getn(ipnet.ip())),
+                netmask: to_array(getn(ipnet.mask())),
+                is_ipv6: ipnet.is_ipv6(),
+            },
+        })
+        .collect::<Vec<_>>();
+    let count = nis.len();
+    *out = (*allocator::adopt(alloc, nis)).as_mut_ptr();
+    count as _
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::external::memory::allocator::Allocator;
+
+    #[test]
+    fn test_interface_addresses() {
+        let alloc = Allocator::new(10000000);
+
+        let out = unsafe {
+            let mut x: *const Rffi_NetworkInterface = std::ptr::null();
+            let xp = &mut x as *mut *const Rffi_NetworkInterface;
+            let count = Rffi_interface_addresses(xp, alloc.native);
+            std::slice::from_raw_parts(x, count as _)
+        };
+
+        let ifs = pnet::datalink::interfaces();
+        let count = ifs.iter().map(|ni| ni.ips.len()).sum::<usize>();
+        assert_eq!(count, out.len());
+    }
 }
