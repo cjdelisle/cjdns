@@ -525,6 +525,17 @@ pub unsafe extern "C" fn Rffi_interface_addresses(
     count as _
 }
 
+/// Get the full filesystem path of the current running executable.
+#[no_mangle]
+pub unsafe extern "C" fn Rffi_exepath(out: *mut *const c_char, alloc: *mut Allocator_t) -> i32 {
+    let path = match std::env::current_exe() {
+        Ok(p) => p,
+        Err(_) => return -1,
+    };
+    *out = str_to_c(path.to_string_lossy().as_ref(), alloc);
+    0
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
