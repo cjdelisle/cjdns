@@ -13,6 +13,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "util/events/libuv/UvWrapper.h"
+#include "rust/cjdns_sys/Rffi.h"
 #include "memory/Allocator.h"
 #include "util/events/libuv/EventBase_pvt.h"
 #include "util/events/Process.h"
@@ -92,11 +93,10 @@ int Process_spawn(char* binaryPath,
 
 char* Process_getPath(struct Allocator* alloc)
 {
-    char path[4096];
-    size_t sz = 4096;
-    uv_exepath(path, &sz);
-    char* out = Allocator_malloc(alloc, sz+1);
-    Bits_memcpy(out, path, sz);
-    out[sz] = 0;
+    char* out;
+    int ret = Rffi_exepath(&out, alloc);
+    if (ret < 0) {
+        out = 0;
+    }
     return out;
 }
