@@ -556,4 +556,21 @@ mod tests {
         let count = ifs.iter().map(|ni| ni.ips.len()).sum::<usize>();
         assert_eq!(count, out.len());
     }
+
+    #[test]
+    fn test_exepath() -> anyhow::Result<()> {
+        let alloc = Allocator::new(10000000);
+
+        let out = unsafe {
+            let mut x: *const c_char = std::ptr::null();
+            let xp = &mut x as *mut *const c_char;
+            let err = Rffi_exepath(xp, alloc.native);
+            assert_eq!(err, 0);
+            CStr::from_ptr(x).to_str()
+        }?;
+
+        let path = std::env::current_exe()?;
+        assert_eq!(out, &path.to_string_lossy());
+        Ok(())
+    }
 }
