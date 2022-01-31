@@ -400,9 +400,7 @@ pub unsafe extern "C" fn Rffi_printError(
         .unwrap_or_else(std::ptr::null)
 }
 
-/// Replaces libuv's function:
-///
-/// int uv_inet_ntop(int af, const void* src, char* dst, size_t size)
+/// Convert IPv4 and IPv6 addresses from binary to text form.
 #[no_mangle]
 pub unsafe extern "C" fn Rffi_inet_ntop(
     is_ip6: bool,
@@ -426,9 +424,7 @@ pub unsafe extern "C" fn Rffi_inet_ntop(
     0
 }
 
-/// Replaces libuv's function:
-///
-/// int uv_inet_pton(int af, const char* src, void* dst) {
+/// Convert IPv4 and IPv6 addresses from text to binary form.
 #[no_mangle]
 pub unsafe extern "C" fn Rffi_inet_pton(is_ip6: bool, src: *const c_char, addr: *mut u8) -> i32 {
     let src = CStr::from_ptr(src).to_string_lossy();
