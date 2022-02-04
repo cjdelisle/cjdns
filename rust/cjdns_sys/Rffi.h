@@ -117,4 +117,13 @@ int32_t Rffi_interface_addresses(const Rffi_NetworkInterface **out, Allocator_t 
  */
 int32_t Rffi_exepath(const char **out, Allocator_t *alloc);
 
+/**
+ * Spawn a new child process, and monitors its result.
+ */
+int32_t Rffi_spawn(const char *file,
+                   const char *const *args,
+                   int num_args,
+                   Allocator_t *_alloc,
+                   void (*cb)(long, int));
+
 #endif /* rffi_H */
