@@ -28,14 +28,12 @@ typedef void (* Process_OnExitCallback)(int64_t exit_status, int term_signal);
  *
  * @param binaryPath the path to the file to execute.
  * @param args a list of strings representing the arguments to the command followed by NULL.
- * @param base the event base.
  * @param alloc an allocator. The process to be killed when it is freed.
  * @param callback a function to be called when the spawn process exits.
  * @return 0 if all went well, -1 if forking fails.
  */
 int Process_spawn(char* binaryPath,
                   char** args,
-                  struct EventBase* base,
                   struct Allocator* alloc,
                   Process_OnExitCallback callback);
 
