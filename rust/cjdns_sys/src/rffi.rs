@@ -1,3 +1,7 @@
+//!
+//! This file is used to generate Rffi.h using cbindgen.
+//!
+
 #![allow(non_snake_case)]
 #![allow(non_camel_case_types)]
 
@@ -14,12 +18,11 @@ use crate::rtypes::*;
 use pnet::util::MacAddr;
 use std::convert::TryInto;
 use std::ffi::{c_void, CStr};
-use std::os::raw::{c_char, c_int};
-use std::sync::Arc;
-use std::sync::Once;
+use std::os::raw::{c_char, c_int, c_long};
+use std::os::unix::process::ExitStatusExt;
+use std::sync::{Arc, Once};
 use std::time::{Duration, Instant, SystemTime};
-
-// This file is used to generate cbindings.h using cbindgen
+use tokio::process::Command;
 
 #[no_mangle]
 pub unsafe extern "C" fn Rffi_testwrapper_create(a: *mut Allocator_t) -> RTypes_IfWrapper_t {
@@ -533,6 +536,42 @@ pub unsafe extern "C" fn Rffi_exepath(out: *mut *const c_char, alloc: *mut Alloc
         Err(_) => return -1,
     };
     *out = str_to_c(path.to_string_lossy().as_ref(), alloc);
+    0
+}
+
+/// Spawn a new child process, and monitors its result.
+#[no_mangle]
+pub unsafe extern "C" fn Rffi_spawn(
+    file: *const c_char,
+    args: *const *const c_char,
+    num_args: c_int,
+    _alloc: *mut Allocator_t, // perhaps create some Droppable and adopt it here, to kill the process.
+    cb: Option<extern "C" fn(c_long, c_int)>,
+) -> i32 {
+    let file = match CStr::from_ptr(file).to_str() {
+        Ok(f) => f,
+        Err(_) => return -1,
+    };
+    let args = match std::slice::from_raw_parts(args, num_args as _)
+        .iter()
+        .map(|a| CStr::from_ptr(*a).to_str())
+        .collect::<Result<Vec<_>, _>>()
+    {
+        Ok(args) => args,
+        Err(_) => return -2,
+    };
+    let child_status = Command::new(file).args(&args).status();
+
+    tokio::spawn(async move {
+        match (child_status.await, cb) {
+            (Ok(status), Some(f)) => f(
+                status.code().unwrap_or(-127) as _,
+                status.signal().unwrap_or(-127),
+            ),
+            (Ok(_), None) => {}
+            (Err(err), _) => eprintln!("  error spawning child '{}': {:?}", file, err),
+        }
+    });
     0
 }
 
