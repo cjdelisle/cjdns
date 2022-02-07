@@ -8,6 +8,7 @@
 
 use std::ffi::CString;
 use std::ptr::null_mut;
+use std::os::raw::c_char;
 
 use parking_lot::{const_mutex, Mutex};
 
@@ -91,9 +92,9 @@ impl log::Log for CjdnsLog {
             cffi::Log_print0(
                 *log,
                 lvl,
-                filebuf.as_ptr() as *const i8,
+                filebuf.as_ptr() as *const c_char,
                 line as i32,
-                cmsg.as_ptr() as *const i8,
+                cmsg.as_ptr() as *const c_char,
             )
         };
     }

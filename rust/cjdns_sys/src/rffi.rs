@@ -58,7 +58,7 @@ unsafe fn cstr(s: *const String_t) -> Option<ByteString> {
 unsafe fn strc(alloc: *mut Allocator_t, s: ByteString) -> *mut String_t {
     let ByteString(mut s) = s;
     let len = s.len();
-    let bytes = s.as_mut_ptr() as *mut i8;
+    let bytes = s.as_mut_ptr() as *mut c_char;
     allocator::adopt(alloc, s);
     allocator::adopt(alloc, String_t { len, bytes })
 }
@@ -187,7 +187,7 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_tryHandshake(
             if let Some(sess) = sess {
                 let child = cffi::Allocator__child(
                     alloc,
-                    b"rffi_tryHandshake\0".as_ptr() as *const i8,
+                    b"rffi_tryHandshake\0".as_ptr() as *const c_char,
                     163,
                 );
                 (*ret).alloc = child;
