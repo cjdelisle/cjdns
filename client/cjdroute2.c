@@ -770,7 +770,7 @@ int cjdroute2_main(int argc, char** argv)
     if (!privateKey) {
         Except_throw(eh, "Need to specify privateKey.");
     }
-    Process_spawn(corePath, args, eventBase, allocator, onCoreExit);
+    Process_spawn(corePath, args, allocator, onCoreExit);
 
     // --------------------- Wait for socket ------------------------- //
     // cycle for up to 1 minute

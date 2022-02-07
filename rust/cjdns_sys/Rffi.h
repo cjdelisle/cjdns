@@ -88,16 +88,12 @@ RTypes_Error_t *Rffi_error_fl(const char *msg, const char *file, int line, Alloc
 const char *Rffi_printError(RTypes_Error_t *e, Allocator_t *alloc);
 
 /**
- * Replaces libuv's function:
- *
- * int uv_inet_ntop(int af, const void* src, char* dst, size_t size)
+ * Convert IPv4 and IPv6 addresses from binary to text form.
  */
 int32_t Rffi_inet_ntop(bool is_ip6, const void *addr, uint8_t *dst, uint32_t dst_sz);
 
 /**
- * Replaces libuv's function:
- *
- * int uv_inet_pton(int af, const char* src, void* dst) {
+ * Convert IPv4 and IPv6 addresses from text to binary form.
  */
 int32_t Rffi_inet_pton(bool is_ip6, const char *src, uint8_t *addr);
 
@@ -115,5 +111,19 @@ uint64_t Rffi_now_ms(void);
  * Get a list of available network interfaces for the current machine.
  */
 int32_t Rffi_interface_addresses(const Rffi_NetworkInterface **out, Allocator_t *alloc);
+
+/**
+ * Get the full filesystem path of the current running executable.
+ */
+int32_t Rffi_exepath(const char **out, Allocator_t *alloc);
+
+/**
+ * Spawn a new child process, and monitors its result.
+ */
+int32_t Rffi_spawn(const char *file,
+                   const char *const *args,
+                   int num_args,
+                   Allocator_t *_alloc,
+                   void (*cb)(long, int));
 
 #endif /* rffi_H */

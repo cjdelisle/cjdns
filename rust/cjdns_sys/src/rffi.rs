@@ -1,3 +1,7 @@
+//!
+//! This file is used to generate Rffi.h using cbindgen.
+//!
+
 #![allow(non_snake_case)]
 #![allow(non_camel_case_types)]
 
@@ -14,12 +18,11 @@ use crate::rtypes::*;
 use pnet::util::MacAddr;
 use std::convert::TryInto;
 use std::ffi::{c_void, CStr};
-use std::os::raw::{c_char, c_int};
-use std::sync::Arc;
-use std::sync::Once;
+use std::os::raw::{c_char, c_int, c_long};
+use std::os::unix::process::ExitStatusExt;
+use std::sync::{Arc, Once};
 use std::time::{Duration, Instant, SystemTime};
-
-// This file is used to generate cbindings.h using cbindgen
+use tokio::process::Command;
 
 #[no_mangle]
 pub unsafe extern "C" fn Rffi_testwrapper_create(a: *mut Allocator_t) -> RTypes_IfWrapper_t {
@@ -400,9 +403,7 @@ pub unsafe extern "C" fn Rffi_printError(
         .unwrap_or_else(std::ptr::null)
 }
 
-/// Replaces libuv's function:
-///
-/// int uv_inet_ntop(int af, const void* src, char* dst, size_t size)
+/// Convert IPv4 and IPv6 addresses from binary to text form.
 #[no_mangle]
 pub unsafe extern "C" fn Rffi_inet_ntop(
     is_ip6: bool,
@@ -426,9 +427,7 @@ pub unsafe extern "C" fn Rffi_inet_ntop(
     0
 }
 
-/// Replaces libuv's function:
-///
-/// int uv_inet_pton(int af, const char* src, void* dst) {
+/// Convert IPv4 and IPv6 addresses from text to binary form.
 #[no_mangle]
 pub unsafe extern "C" fn Rffi_inet_pton(is_ip6: bool, src: *const c_char, addr: *mut u8) -> i32 {
     let src = CStr::from_ptr(src).to_string_lossy();
@@ -529,6 +528,53 @@ pub unsafe extern "C" fn Rffi_interface_addresses(
     count as _
 }
 
+/// Get the full filesystem path of the current running executable.
+#[no_mangle]
+pub unsafe extern "C" fn Rffi_exepath(out: *mut *const c_char, alloc: *mut Allocator_t) -> i32 {
+    let path = match std::env::current_exe() {
+        Ok(p) => p,
+        Err(_) => return -1,
+    };
+    *out = str_to_c(path.to_string_lossy().as_ref(), alloc);
+    0
+}
+
+/// Spawn a new child process, and monitors its result.
+#[no_mangle]
+pub unsafe extern "C" fn Rffi_spawn(
+    file: *const c_char,
+    args: *const *const c_char,
+    num_args: c_int,
+    _alloc: *mut Allocator_t, // perhaps create some Droppable and adopt it here, to kill the process.
+    cb: Option<extern "C" fn(c_long, c_int)>,
+) -> i32 {
+    let file = match CStr::from_ptr(file).to_str() {
+        Ok(f) => f,
+        Err(_) => return -1,
+    };
+    let args = match std::slice::from_raw_parts(args, num_args as _)
+        .iter()
+        .map(|a| CStr::from_ptr(*a).to_str())
+        .collect::<Result<Vec<_>, _>>()
+    {
+        Ok(args) => args,
+        Err(_) => return -2,
+    };
+    let child_status = Command::new(file).args(&args).status();
+
+    tokio::spawn(async move {
+        match (child_status.await, cb) {
+            (Ok(status), Some(f)) => f(
+                status.code().unwrap_or(-127) as _,
+                status.signal().unwrap_or(-127),
+            ),
+            (Ok(_), None) => {}
+            (Err(err), _) => eprintln!("  error spawning child '{}': {:?}", file, err),
+        }
+    });
+    0
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -548,5 +594,22 @@ mod tests {
         let ifs = pnet::datalink::interfaces();
         let count = ifs.iter().map(|ni| ni.ips.len()).sum::<usize>();
         assert_eq!(count, out.len());
+    }
+
+    #[test]
+    fn test_exepath() -> anyhow::Result<()> {
+        let alloc = Allocator::new(10000000);
+
+        let out = unsafe {
+            let mut x: *const c_char = std::ptr::null();
+            let xp = &mut x as *mut *const c_char;
+            let err = Rffi_exepath(xp, alloc.native);
+            assert_eq!(err, 0);
+            CStr::from_ptr(x).to_str()
+        }?;
+
+        let path = std::env::current_exe()?;
+        assert_eq!(out, &path.to_string_lossy());
+        Ok(())
     }
 }
