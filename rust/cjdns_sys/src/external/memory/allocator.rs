@@ -41,7 +41,7 @@ pub fn adopt<T: 'static>(alloc: *mut Allocator_t, t: T) -> &'static mut T {
     }
 }
 
-const NAME: *const i8 = b"allocator.rs\0".as_ptr() as *const c_char;
+const NAME: *const c_char = b"allocator.rs\0".as_ptr() as *const c_char;
 
 pub struct Allocator{
     pub native: *mut Allocator_t,
