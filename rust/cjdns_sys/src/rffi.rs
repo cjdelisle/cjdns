@@ -719,62 +719,68 @@ mod tests {
     async fn test_interval() {
         let alloc = Allocator::new(10000000);
 
-        let mut count = 0;
+        let (tx, rx) = std::sync::mpsc::sync_channel::<u8>(1);
         unsafe extern "C" fn callback(ctx: *mut c_void) {
-            let count = &mut *(ctx as *mut i32);
-            *count += 1;
-            println!("in callback! {}", *count);
+            println!("in callback!");
+            let tx = &*(ctx as *const std::sync::mpsc::SyncSender<u8>);
+            tx.send(1).unwrap();
         }
 
         let mut timer = std::ptr::null();
         Rffi_setTimeout(
             &mut timer as *mut *const c_void,
             callback,
-            &mut count as *mut i32 as _,
-            100,
+            &tx as *const std::sync::mpsc::SyncSender<_> as _,
+            1,
             true,
             alloc.native,
         );
 
-        std::thread::sleep(Duration::from_millis(550));
-        assert_eq!(count, 5);
+        // ensures the callback is being called repeatedly.
+        for _ in 0..5 {
+            rx.recv().unwrap();
+        }
 
-        let err = Rffi_resetTimeout(timer, 200);
+        let err = Rffi_resetTimeout(timer, 2);
         assert_eq!(err, 0);
 
-        std::thread::sleep(Duration::from_millis(550));
-        assert_eq!(count, 7);
+        // ensures the callback is still being called.
+        // we won't really test its accuracy here, since it's impossible to do it efficiently.
+        for _ in 0..5 {
+            rx.recv().unwrap();
+        }
 
         let err = Rffi_clearTimeout(timer);
         assert_eq!(err, 0);
 
-        std::thread::sleep(Duration::from_millis(550));
-        assert_eq!(count, 7);
+        // ensures the callback is not called anymore.
+        rx.recv_timeout(Duration::from_millis(10)).unwrap_err();
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn test_timeout() {
         let alloc = Allocator::new(10000000);
 
-        let mut count = 0;
+        let (tx, rx) = std::sync::mpsc::sync_channel::<u8>(1);
         unsafe extern "C" fn callback(ctx: *mut c_void) {
-            let count = &mut *(ctx as *mut i32);
-            *count += 1;
-            println!("in callback! {}", *count);
+            println!("in callback!");
+            let tx = &*(ctx as *const std::sync::mpsc::SyncSender<u8>);
+            tx.send(1).unwrap();
         }
 
         let mut timer = std::ptr::null();
         Rffi_setTimeout(
             &mut timer as *mut *const c_void,
             callback,
-            &mut count as *mut _ as _,
-            100,
+            &tx as *const std::sync::mpsc::SyncSender<_> as _,
+            1,
             false,
             alloc.native,
         );
 
-        std::thread::sleep(Duration::from_millis(300));
-        assert_eq!(count, 1);
+        // ensures the callback is called only once.
+        rx.recv().unwrap();
+        rx.recv_timeout(Duration::from_millis(10)).unwrap_err();
 
         let err = Rffi_resetTimeout(timer, 200);
         assert!(err < 0);
@@ -787,26 +793,26 @@ mod tests {
     async fn test_free_timer() {
         let alloc = Allocator::new(10000000);
 
-        let mut count = 0;
+        let (tx, rx) = std::sync::mpsc::sync_channel::<u8>(1);
         unsafe extern "C" fn callback(ctx: *mut c_void) {
-            let count = &mut *(ctx as *mut i32);
-            *count += 1;
-            println!("in callback! {}", *count);
+            println!("in callback!");
+            let tx = &*(ctx as *const std::sync::mpsc::SyncSender<u8>);
+            tx.send(1).unwrap();
         }
 
         let mut timer = std::ptr::null();
         Rffi_setTimeout(
             &mut timer as *mut *const c_void,
             callback,
-            &mut count as *mut i32 as _,
-            100,
+            &tx as *const std::sync::mpsc::SyncSender<_> as _,
+            10,
             false,
             alloc.native,
         );
 
         drop(alloc);
 
-        std::thread::sleep(Duration::from_millis(300));
-        assert_eq!(count, 0);
+        // ensures the callback is never called.
+        rx.recv_timeout(Duration::from_millis(10)).unwrap_err();
     }
 }
