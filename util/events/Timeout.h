@@ -45,7 +45,7 @@ struct Timeout* Timeout__setTimeout(void (* const callback)(void* callbackContex
 
 /**
  * Create a new interval event.
- * This event will continue to be fired periodicly until it is cleared or its allocator is freed.
+ * This event will continue to be fired periodically until it is cleared or its allocator is freed.
  *
  * @param callback the function to call after this event expires.
  * @param callbackContext a pointer to be passed to the callback when it is called.
