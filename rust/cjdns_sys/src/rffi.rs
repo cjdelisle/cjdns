@@ -449,7 +449,7 @@ pub unsafe extern "C" fn Rffi_inet_pton(is_ip6: bool, src: *const c_char, addr: 
 
 /// Non-monotonic nanosecond time, which has no relationship to any wall clock.
 #[no_mangle]
-pub unsafe extern "C" fn Rffi_hrtime() -> u64 {
+pub extern "C" fn Rffi_hrtime() -> u64 {
     now_unix_epoch().as_nanos() as u64
 }
 
@@ -498,7 +498,7 @@ fn to_array<const N: usize>(value: impl AsRef<[u8]>) -> [u8; N] {
 
 /// Get a list of available network interfaces for the current machine.
 #[no_mangle]
-pub unsafe extern "C" fn Rffi_interface_addresses(
+pub extern "C" fn Rffi_interface_addresses(
     out: *mut *const Rffi_NetworkInterface,
     alloc: *mut Allocator_t,
 ) -> i32 {
@@ -524,18 +524,22 @@ pub unsafe extern "C" fn Rffi_interface_addresses(
         })
         .collect::<Vec<_>>();
     let count = nis.len();
-    *out = (*allocator::adopt(alloc, nis)).as_mut_ptr();
+    unsafe {
+        *out = (*allocator::adopt(alloc, nis)).as_mut_ptr();
+    }
     count as _
 }
 
 /// Get the full filesystem path of the current running executable.
 #[no_mangle]
-pub unsafe extern "C" fn Rffi_exepath(out: *mut *const c_char, alloc: *mut Allocator_t) -> i32 {
+pub extern "C" fn Rffi_exepath(out: *mut *const c_char, alloc: *mut Allocator_t) -> i32 {
     let path = match std::env::current_exe() {
         Ok(p) => p,
         Err(_) => return -1,
     };
-    *out = str_to_c(path.to_string_lossy().as_ref(), alloc);
+    unsafe {
+        *out = str_to_c(path.to_string_lossy().as_ref(), alloc);
+    }
     0
 }
 
