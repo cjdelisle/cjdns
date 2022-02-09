@@ -714,4 +714,99 @@ mod tests {
         assert_eq!(out, &path.to_string_lossy());
         Ok(())
     }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_interval() {
+        let alloc = Allocator::new(10000000);
+
+        let mut count = 0;
+        unsafe extern "C" fn callback(ctx: *mut c_void) {
+            let count = &mut *(ctx as *mut i32);
+            *count += 1;
+            println!("in callback! {}", *count);
+        }
+
+        let mut timer = std::ptr::null();
+        Rffi_setTimeout(
+            &mut timer as *mut *const c_void,
+            callback,
+            &mut count as *mut i32 as _,
+            100,
+            true,
+            alloc.native,
+        );
+
+        std::thread::sleep(Duration::from_millis(550));
+        assert_eq!(count, 5);
+
+        let err = Rffi_resetTimeout(timer, 200);
+        assert_eq!(err, 0);
+
+        std::thread::sleep(Duration::from_millis(550));
+        assert_eq!(count, 7);
+
+        let err = Rffi_clearTimeout(timer);
+        assert_eq!(err, 0);
+
+        std::thread::sleep(Duration::from_millis(550));
+        assert_eq!(count, 7);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_timeout() {
+        let alloc = Allocator::new(10000000);
+
+        let mut count = 0;
+        unsafe extern "C" fn callback(ctx: *mut c_void) {
+            let count = &mut *(ctx as *mut i32);
+            *count += 1;
+            println!("in callback! {}", *count);
+        }
+
+        let mut timer = std::ptr::null();
+        Rffi_setTimeout(
+            &mut timer as *mut *const c_void,
+            callback,
+            &mut count as *mut _ as _,
+            100,
+            false,
+            alloc.native,
+        );
+
+        std::thread::sleep(Duration::from_millis(300));
+        assert_eq!(count, 1);
+
+        let err = Rffi_resetTimeout(timer, 200);
+        assert!(err < 0);
+
+        let err = Rffi_clearTimeout(timer);
+        assert!(err < 0);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_free_timer() {
+        let alloc = Allocator::new(10000000);
+
+        let mut count = 0;
+        unsafe extern "C" fn callback(ctx: *mut c_void) {
+            let count = &mut *(ctx as *mut i32);
+            *count += 1;
+            println!("in callback! {}", *count);
+        }
+
+        let mut timer = std::ptr::null();
+        Rffi_setTimeout(
+            &mut timer as *mut *const c_void,
+            callback,
+            &mut count as *mut i32 as _,
+            100,
+            false,
+            alloc.native,
+        );
+
+        drop(alloc);
+
+        std::thread::sleep(Duration::from_millis(300));
+        assert_eq!(count, 0);
+    }
 }
