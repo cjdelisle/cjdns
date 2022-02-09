@@ -126,4 +126,24 @@ int32_t Rffi_spawn(const char *file,
                    Allocator_t *_alloc,
                    void (*cb)(long, int));
 
+/**
+ * Spawn a timeout or interval task, that calls some callback whenever it triggers.
+ */
+void Rffi_setTimeout(const void **out,
+                     void (*cb)(void*),
+                     void *cb_context,
+                     unsigned long timeout_millis,
+                     bool repeat,
+                     Allocator_t *alloc);
+
+/**
+ * Reset a timeout or interval task to change its timing.
+ */
+int Rffi_resetTimeout(const void *out, unsigned long timeout_millis);
+
+/**
+ * Cancel a timeout or interval task.
+ */
+int Rffi_clearTimeout(const void *out);
+
 #endif /* rffi_H */
