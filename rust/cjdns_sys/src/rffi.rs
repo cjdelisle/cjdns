@@ -18,7 +18,7 @@ use crate::rtypes::*;
 use pnet::util::MacAddr;
 use std::convert::TryInto;
 use std::ffi::{c_void, CStr};
-use std::os::raw::{c_char, c_int, c_long};
+use std::os::raw::{c_char, c_int, c_long, c_ulong};
 use std::os::unix::process::ExitStatusExt;
 use std::sync::{Arc, Once};
 use std::time::{Duration, Instant, SystemTime};
@@ -578,6 +578,104 @@ pub unsafe extern "C" fn Rffi_spawn(
     });
     0
 }
+
+struct TimerCallback {
+    f: unsafe extern "C" fn(*mut c_void),
+    ctx: *mut c_void,
+}
+
+impl TimerCallback {
+    unsafe fn call(&self) {
+        (self.f)(self.ctx)
+    }
+}
+
+// SAFETY: this only holds if the C code is thread-safe, or the tokio Runtime uses only a single thread.
+unsafe impl Send for TimerCallback {}
+unsafe impl Sync for TimerCallback {}
+
+enum TimerCommand {
+    Reset(c_ulong),
+    Cancel,
+}
+
+/// Spawn a timeout or interval task, that calls some callback whenever it triggers.
+#[no_mangle]
+pub extern "C" fn Rffi_setTimeout(
+    out: *mut *const c_void,
+    cb: unsafe extern "C" fn(*mut c_void),
+    cb_context: *mut c_void,
+    timeout_millis: c_ulong,
+    repeat: bool,
+    alloc: *mut Allocator_t,
+) {
+    let cb = TimerCallback {
+        f: cb,
+        ctx: cb_context,
+    };
+
+    // it must be unbounded, since its Sender is sync, and can be used directly by the controller methods.
+    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+    unsafe {
+        *out = allocator::adopt(alloc, tx) as *mut _ as _;
+    }
+
+    println!("spawning task");
+    tokio::spawn(async move {
+        let mut timeout_millis = timeout_millis;
+        println!("  within task");
+        loop {
+            println!("  loop");
+            tokio::select! {
+                _ = tokio::time::sleep(Duration::from_millis(timeout_millis)) => {
+                    unsafe { cb.call() }
+                    if !repeat {
+                        break;
+                    }
+                }
+                msg = rx.recv() => {
+                    match msg {
+                        Some(TimerCommand::Reset(new_timeout)) => {
+                            println!("Received reset command: {} to {}", timeout_millis, new_timeout);
+                            timeout_millis = new_timeout;
+                        },
+                        Some(TimerCommand::Cancel) => {
+                            println!("Received cancel command");
+                            break
+                        },
+                        None => {
+                            println!("Allocator freed");
+                            break
+                        },
+                    }
+                }
+            }
+        }
+        println!("  task ended");
+    });
+}
+
+/// Reset a timeout or interval task to change its timing.
+#[no_mangle]
+pub extern "C" fn Rffi_resetTimeout(out: *const c_void, timeout_millis: c_ulong) -> c_int {
+    let out = unsafe { &*(out as *const tokio::sync::mpsc::UnboundedSender<_>) };
+    match out.send(TimerCommand::Reset(timeout_millis)) {
+        Ok(_) => 0,
+        Err(_) => -1,
+    }
+}
+
+/// Cancel a timeout or interval task.
+#[no_mangle]
+pub extern "C" fn Rffi_clearTimeout(out: *const c_void) -> c_int {
+    let out = unsafe { &*(out as *const tokio::sync::mpsc::UnboundedSender<_>) };
+    match out.send(TimerCommand::Cancel) {
+        Ok(_) => 0,
+        Err(_) => -1,
+    }
+}
+
+// , , clearAll and isActive...
 
 #[cfg(test)]
 mod tests {
