@@ -599,10 +599,13 @@ enum TimerCommand {
     Cancel,
 }
 
+/// The handle returned to C, used to talk to the timer task.
+pub struct Rffi_TimerTx(tokio::sync::mpsc::UnboundedSender<TimerCommand>);
+
 /// Spawn a timeout or interval task, that calls some callback whenever it triggers.
 #[no_mangle]
 pub extern "C" fn Rffi_setTimeout(
-    out: *mut *const c_void,
+    out_timer_tx: *mut *const Rffi_TimerTx,
     cb: unsafe extern "C" fn(*mut c_void),
     cb_context: *mut c_void,
     timeout_millis: c_ulong,
@@ -617,7 +620,7 @@ pub extern "C" fn Rffi_setTimeout(
     // it must be unbounded, since its Sender is sync, and can be used directly by the controller methods.
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
     unsafe {
-        *out = allocator::adopt(alloc, tx) as *mut _ as _;
+        *out_timer_tx = allocator::adopt(alloc, Rffi_TimerTx(tx)) as *mut _;
     }
 
     println!("spawning task");
@@ -657,9 +660,12 @@ pub extern "C" fn Rffi_setTimeout(
 
 /// Reset a timeout or interval task to change its timing.
 #[no_mangle]
-pub extern "C" fn Rffi_resetTimeout(out: *const c_void, timeout_millis: c_ulong) -> c_int {
-    let out = unsafe { &*(out as *const tokio::sync::mpsc::UnboundedSender<_>) };
-    match out.send(TimerCommand::Reset(timeout_millis)) {
+pub extern "C" fn Rffi_resetTimeout(
+    timer_tx: *const Rffi_TimerTx,
+    timeout_millis: c_ulong,
+) -> c_int {
+    let out = unsafe { &*timer_tx };
+    match out.0.send(TimerCommand::Reset(timeout_millis)) {
         Ok(_) => 0,
         Err(_) => -1,
     }
@@ -667,9 +673,9 @@ pub extern "C" fn Rffi_resetTimeout(out: *const c_void, timeout_millis: c_ulong)
 
 /// Cancel a timeout or interval task.
 #[no_mangle]
-pub extern "C" fn Rffi_clearTimeout(out: *const c_void) -> c_int {
-    let out = unsafe { &*(out as *const tokio::sync::mpsc::UnboundedSender<_>) };
-    match out.send(TimerCommand::Cancel) {
+pub extern "C" fn Rffi_clearTimeout(timer_tx: *const Rffi_TimerTx) -> c_int {
+    let out = unsafe { &*timer_tx };
+    match out.0.send(TimerCommand::Cancel) {
         Ok(_) => 0,
         Err(_) => -1,
     }
@@ -728,7 +734,7 @@ mod tests {
 
         let mut timer = std::ptr::null();
         Rffi_setTimeout(
-            &mut timer as *mut *const c_void,
+            &mut timer as _,
             callback,
             &tx as *const std::sync::mpsc::SyncSender<_> as _,
             1,
@@ -770,7 +776,7 @@ mod tests {
 
         let mut timer = std::ptr::null();
         Rffi_setTimeout(
-            &mut timer as *mut *const c_void,
+            &mut timer as _,
             callback,
             &tx as *const std::sync::mpsc::SyncSender<_> as _,
             1,
@@ -802,7 +808,7 @@ mod tests {
 
         let mut timer = std::ptr::null();
         Rffi_setTimeout(
-            &mut timer as *mut *const c_void,
+            &mut timer as _,
             callback,
             &tx as *const std::sync::mpsc::SyncSender<_> as _,
             10,
