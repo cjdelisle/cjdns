@@ -579,21 +579,16 @@ pub unsafe extern "C" fn Rffi_spawn(
     0
 }
 
+/// Used only internally, to send `*mut c_void` into a tokio task.
 struct TimerCallback {
     f: unsafe extern "C" fn(*mut c_void),
     ctx: *mut c_void,
 }
 
-impl TimerCallback {
-    unsafe fn call(&self) {
-        (self.f)(self.ctx)
-    }
-}
-
 // SAFETY: this only holds if the C code is thread-safe, or the tokio Runtime uses only a single thread.
 unsafe impl Send for TimerCallback {}
-unsafe impl Sync for TimerCallback {}
 
+/// Commands to control a Timer task.
 enum TimerCommand {
     Reset(c_ulong),
     Cancel,
@@ -623,15 +618,13 @@ pub extern "C" fn Rffi_setTimeout(
         *out_timer_tx = allocator::adopt(alloc, Rffi_TimerTx(tx)) as *mut _;
     }
 
-    println!("spawning task");
     tokio::spawn(async move {
         let mut timeout_millis = timeout_millis;
-        println!("  within task");
         loop {
-            println!("  loop");
             tokio::select! {
                 _ = tokio::time::sleep(Duration::from_millis(timeout_millis)) => {
-                    unsafe { cb.call() }
+                    let _guard = GCL.lock().unwrap();
+                    unsafe { (cb.f)(cb.ctx); }
                     if !repeat {
                         break;
                     }
@@ -647,14 +640,14 @@ pub extern "C" fn Rffi_setTimeout(
                             break
                         },
                         None => {
-                            println!("Allocator freed");
+                            println!("Allocator freed, stopping timer task");
                             break
                         },
                     }
                 }
             }
         }
-        println!("  task ended");
+        println!("  timer task stopped");
     });
 }
 
@@ -681,7 +674,6 @@ pub extern "C" fn Rffi_clearTimeout(timer_tx: *const Rffi_TimerTx) -> c_int {
     }
 }
 
-// , , clearAll and isActive...
 /// Global C lock, to make callbacks into C, while keeping libuv's and tokio's async Runtimes synced.
 static GCL: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 
