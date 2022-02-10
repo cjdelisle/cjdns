@@ -7,6 +7,13 @@
 
 typedef struct RTypes_CryptoAuth2_t RTypes_CryptoAuth2_t;
 
+typedef struct Rffi_Glock_guard Rffi_Glock_guard;
+
+/**
+ * The handle returned to C, used to talk to the timer task.
+ */
+typedef struct Rffi_TimerTx Rffi_TimerTx;
+
 typedef struct {
   uint8_t octets[16];
   uint8_t netmask[16];
@@ -129,7 +136,7 @@ int32_t Rffi_spawn(const char *file,
 /**
  * Spawn a timeout or interval task, that calls some callback whenever it triggers.
  */
-void Rffi_setTimeout(const void **out,
+void Rffi_setTimeout(const Rffi_TimerTx **out_timer_tx,
                      void (*cb)(void*),
                      void *cb_context,
                      unsigned long timeout_millis,
@@ -139,11 +146,21 @@ void Rffi_setTimeout(const void **out,
 /**
  * Reset a timeout or interval task to change its timing.
  */
-int Rffi_resetTimeout(const void *out, unsigned long timeout_millis);
+int Rffi_resetTimeout(const Rffi_TimerTx *timer_tx, unsigned long timeout_millis);
 
 /**
  * Cancel a timeout or interval task.
  */
-int Rffi_clearTimeout(const void *out);
+int Rffi_clearTimeout(const Rffi_TimerTx *timer_tx);
+
+/**
+ * Helper function to lock the Global C Lock, used only within libuv's core runtime (unix and windows).
+ */
+Rffi_Glock_guard *Rffi_glock(void);
+
+/**
+ * Helper function to unlock the Global C Lock, as noted above.
+ */
+void Rffi_gunlock(Rffi_Glock_guard *guard);
 
 #endif /* rffi_H */
