@@ -657,8 +657,8 @@ pub extern "C" fn Rffi_resetTimeout(
     timer_tx: *const Rffi_TimerTx,
     timeout_millis: c_ulong,
 ) -> c_int {
-    let out = unsafe { &*timer_tx };
-    match out.0.send(TimerCommand::Reset(timeout_millis)) {
+    let timer_tx = unsafe { &*timer_tx };
+    match timer_tx.0.send(TimerCommand::Reset(timeout_millis)) {
         Ok(_) => 0,
         Err(_) => -1,
     }
@@ -667,8 +667,8 @@ pub extern "C" fn Rffi_resetTimeout(
 /// Cancel a timeout or interval task.
 #[no_mangle]
 pub extern "C" fn Rffi_clearTimeout(timer_tx: *const Rffi_TimerTx) -> c_int {
-    let out = unsafe { &*timer_tx };
-    match out.0.send(TimerCommand::Cancel) {
+    let timer_tx = unsafe { &*timer_tx };
+    match timer_tx.0.send(TimerCommand::Cancel) {
         Ok(_) => 0,
         Err(_) => -1,
     }
