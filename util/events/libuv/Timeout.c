@@ -12,7 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#include "util/events/libuv/UvWrapper.h"
+#include "rust/cjdns_sys/Rffi.h"
 #include "memory/Allocator.h"
 #include "util/events/libuv/EventBase_pvt.h"
 #include "util/events/Timeout.h"
@@ -20,16 +20,7 @@
 
 struct Timeout
 {
-    uv_timer_t timer;
-
-    void (* callback)(void* callbackContext);
-
-    void* callbackContext;
-
-    uint64_t milliseconds;
-
-    uint16_t isInterval;
-    uint16_t isArmed;
+    Rffi_TimerTx* timer;
 
     struct Allocator* alloc;
 
@@ -48,7 +39,6 @@ static void linkTo(struct Timeout* timeout)
     }
     timeout->base->timeouts = timeout;
     timeout->selfPtr = (struct Timeout**) &timeout->base->timeouts;
-    timeout->isArmed = 1;
 }
 
 static void unlinkTo(struct Timeout* timeout)
@@ -62,34 +52,13 @@ static void unlinkTo(struct Timeout* timeout)
         }
         timeout->selfPtr = NULL;
     }
-    timeout->isArmed = 0;
-}
-
-/**
- * The callback to be called by libuv.
- */
-static void handleEvent(uv_timer_t* handle, int status)
-{
-    struct Timeout* timeout = Identity_check((struct Timeout*) handle);
-    if (!timeout->isArmed) { return; }
-    if (!timeout->isInterval) {
-        Timeout_clearTimeout(timeout);
-    }
-    timeout->callback(timeout->callbackContext);
-}
-
-static void onFree2(uv_handle_t* timer)
-{
-    Allocator_onFreeComplete(timer->data);
 }
 
 static int onFree(struct Allocator_OnFreeJob* job)
 {
     struct Timeout* t = Identity_check((struct Timeout*) job->userData);
     unlinkTo(t);
-    t->timer.data = job;
-    uv_close((uv_handle_t*) &t->timer, onFree2);
-    return Allocator_ONFREE_ASYNC;
+    return 0;
 }
 
 /**
@@ -118,18 +87,12 @@ static struct Timeout* setTimeout(void (* const callback)(void* callbackContext)
     struct Allocator* alloc = Allocator__child(allocator, file, line);
     struct Timeout* timeout = Allocator_calloc(alloc, sizeof(struct Timeout), 1);
 
-    timeout->callback = callback;
-    timeout->callbackContext = callbackContext;
-    timeout->milliseconds = milliseconds;
     timeout->alloc = alloc;
-    timeout->isInterval = interval;
     timeout->base = base;
     Identity_set(timeout);
 
-    uv_timer_init(base->loop, &timeout->timer);
-    uv_timer_start(&timeout->timer, handleEvent, milliseconds, (interval) ? milliseconds : 0);
-
-    timeout->timer.data = timeout;
+    Rffi_setTimeout(&timeout->timer, callback, callbackContext,
+        milliseconds, (interval) ? 1 : 0, alloc);
 
     Allocator_onFree(alloc, onFree, timeout);
 
@@ -166,18 +129,13 @@ struct Timeout* Timeout__setInterval(void (* const callback)(void* callbackConte
 void Timeout_resetTimeout(struct Timeout* timeout,
                           const uint64_t milliseconds)
 {
-    Timeout_clearTimeout(timeout);
-    linkTo(timeout);
-    uv_timer_start(&timeout->timer, handleEvent, milliseconds, 0);
+    Rffi_resetTimeout(&timeout->timer, milliseconds);
 }
 
 /** See: Timeout.h */
 void Timeout_clearTimeout(struct Timeout* timeout)
 {
-    unlinkTo(timeout);
-    if (!uv_is_closing((uv_handle_t*) &timeout->timer)) {
-        uv_timer_stop(&timeout->timer);
-    }
+    Rffi_clearTimeout(&timeout->timer);
 }
 
 void Timeout_clearAll(struct EventBase* eventBase)
