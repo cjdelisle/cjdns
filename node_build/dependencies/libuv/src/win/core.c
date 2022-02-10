@@ -28,6 +28,7 @@
 #include <string.h>
 #include <crtdbg.h>
 
+#include "rust/cjdns_sys/Rffi.h"
 #include "uv.h"
 #include "internal.h"
 #include "handle-inl.h"
@@ -311,6 +312,9 @@ int uv_run(uv_loop_t *loop, uv_run_mode mode) {
   else
     poll = &uv_poll;
 
+  // sync with the Rust async Runtime.
+  void *glock = Rffi_glock();
+
   r = uv__loop_alive(loop);
   if (!r)
     uv_update_time(loop);
@@ -323,6 +327,9 @@ int uv_run(uv_loop_t *loop, uv_run_mode mode) {
     uv_idle_invoke(loop);
     uv_prepare_invoke(loop);
 
+    // sync with the Rust async Runtime.
+    Rffi_gunlock(glock);
+
     (*poll)(loop, loop->idle_handles == NULL &&
                   loop->pending_reqs_tail == NULL &&
                   loop->endgame_handles == NULL &&
@@ -330,6 +337,9 @@ int uv_run(uv_loop_t *loop, uv_run_mode mode) {
                   (loop->active_handles > 0 ||
                    !QUEUE_EMPTY(&loop->active_reqs)) &&
                   !(mode & UV_RUN_NOWAIT));
+
+    // sync with the Rust async Runtime.
+    glock = Rffi_glock();
 
     uv_check_invoke(loop);
     uv_process_endgames(loop);
@@ -357,6 +367,9 @@ int uv_run(uv_loop_t *loop, uv_run_mode mode) {
    */
   if (loop->stop_flag != 0)
     loop->stop_flag = 0;
+
+  // sync with the Rust async Runtime.
+  Rffi_gunlock(glock);
 
   return r;
 }
