@@ -547,7 +547,7 @@ pub unsafe extern "C" fn Rffi_spawn(
     args: *const *const c_char,
     num_args: c_int,
     _alloc: *mut Allocator_t, // perhaps create some Droppable and adopt it here, to kill the process.
-    cb: Option<extern "C" fn(c_long, c_int)>,
+    cb: Option<unsafe extern "C" fn(c_long, c_int)>,
 ) -> i32 {
     let file = match CStr::from_ptr(file).to_str() {
         Ok(f) => f,
@@ -565,10 +565,13 @@ pub unsafe extern "C" fn Rffi_spawn(
 
     tokio::spawn(async move {
         match (child_status.await, cb) {
-            (Ok(status), Some(f)) => f(
-                status.code().unwrap_or(-127) as _,
-                status.signal().unwrap_or(-127),
-            ),
+            (Ok(status), Some(callback)) => {
+                let _guard = GCL.lock().unwrap();
+                callback(
+                    status.code().unwrap_or(-127) as _,
+                    status.signal().unwrap_or(-127),
+                )
+            }
             (Ok(_), None) => {}
             (Err(err), _) => eprintln!("  error spawning child '{}': {:?}", file, err),
         }
