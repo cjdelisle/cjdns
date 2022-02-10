@@ -15,12 +15,12 @@ use crate::external::interface::cif;
 use crate::external::memory::allocator;
 use crate::interface::wire::message::Message;
 use crate::rtypes::*;
+use once_cell::sync::Lazy;
 use pnet::util::MacAddr;
 use std::convert::TryInto;
 use std::ffi::{c_void, CStr};
 use std::os::raw::{c_char, c_int, c_long, c_ulong};
 use std::os::unix::process::ExitStatusExt;
-use std::sync::{Arc, Once};
 use std::time::{Duration, Instant, SystemTime};
 use tokio::process::Command;
 
@@ -461,16 +461,12 @@ fn now_unix_epoch() -> Duration {
 
 /// Monotonic millisecond time.
 #[no_mangle]
-pub unsafe extern "C" fn Rffi_now_ms() -> u64 {
-    static mut BASE_INSTANT: Option<Instant> = None;
-    static mut INSTANT_OFFSET: u64 = 0;
-    static INIT: Once = Once::new();
-    INIT.call_once(|| {
-        BASE_INSTANT = Some(Instant::now());
-        INSTANT_OFFSET = now_unix_epoch().as_millis() as u64;
-    });
+pub extern "C" fn Rffi_now_ms() -> u64 {
+    static BASE_INSTANT: Lazy<Instant> = Lazy::new(|| Instant::now());
+    static INSTANT_OFFSET: Lazy<u64> = Lazy::new(|| now_unix_epoch().as_millis() as _);
+    Lazy::force(&BASE_INSTANT);
 
-    (Instant::now() - BASE_INSTANT.unwrap()).as_millis() as u64 + INSTANT_OFFSET
+    (Instant::now() - *BASE_INSTANT).as_millis() as u64 + *INSTANT_OFFSET
 }
 
 #[repr(C)]
