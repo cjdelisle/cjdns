@@ -21,6 +21,7 @@ use std::convert::TryInto;
 use std::ffi::{c_void, CStr};
 use std::os::raw::{c_char, c_int, c_long, c_ulong};
 use std::os::unix::process::ExitStatusExt;
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{Duration, Instant, SystemTime};
 use tokio::process::Command;
 
@@ -678,6 +679,24 @@ pub extern "C" fn Rffi_clearTimeout(timer_tx: *const Rffi_TimerTx) -> c_int {
 }
 
 // , , clearAll and isActive...
+/// Global C lock, to make callbacks into C, while keeping libuv's and tokio's async Runtimes synced.
+static GCL: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
+
+pub struct Rffi_Glock_guard(MutexGuard<'static, ()>);
+
+/// Helper function to lock the Global C Lock, used only within libuv's core runtime (unix and windows).
+#[no_mangle]
+pub extern "C" fn Rffi_glock() -> *mut Rffi_Glock_guard {
+    let guard = GCL.lock().unwrap();
+    Box::into_raw(Box::new(Rffi_Glock_guard(guard)))
+}
+
+/// Helper function to unlock the Global C Lock, as noted above.
+#[no_mangle]
+pub extern "C" fn Rffi_gunlock(guard: *mut Rffi_Glock_guard) {
+    let _guard = unsafe { Box::from_raw(guard) };
+    // let the guard go out of scope, be dropped, and unlock the Mutex.
+}
 
 #[cfg(test)]
 mod tests {
