@@ -21,7 +21,7 @@ use std::convert::TryInto;
 use std::ffi::{c_void, CStr};
 use std::os::raw::{c_char, c_int, c_long, c_ulong};
 use std::os::unix::process::ExitStatusExt;
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::{Arc, Mutex, MutexGuard, Weak};
 use std::time::{Duration, Instant, SystemTime};
 use tokio::process::Command;
 
@@ -599,6 +599,9 @@ enum TimerCommand {
 /// The handle returned to C, used to talk to the timer task.
 pub struct Rffi_TimerTx(tokio::sync::mpsc::UnboundedSender<TimerCommand>);
 
+/// Keep a loose track of all timers created, for clearAll.
+static TIMER_COLLECTION: Lazy<Mutex<Vec<Weak<Rffi_TimerTx>>>> = Lazy::new(|| Mutex::new(vec![]));
+
 /// Spawn a timer task for a timeout or interval, that calls some callback whenever it triggers.
 #[no_mangle]
 pub extern "C" fn Rffi_setTimeout(
@@ -616,8 +619,12 @@ pub extern "C" fn Rffi_setTimeout(
 
     // it must be unbounded, since its Sender is sync, and can be used directly by the controller methods.
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+    let rtx = Arc::new(Rffi_TimerTx(tx));
+    TIMER_COLLECTION.lock().unwrap().push(Arc::downgrade(&rtx));
     unsafe {
-        *out_timer_tx = allocator::adopt(alloc, Rffi_TimerTx(tx)) as *mut _;
+        // Arc::as_ptr => The counts are not affected in any way and the Arc is not consumed.
+        // The pointer is valid for as long as there are strong counts in the Arc.
+        *out_timer_tx = Arc::as_ptr(allocator::adopt(alloc, rtx));
     }
 
     unsafe { EventBase_ref() }
