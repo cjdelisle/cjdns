@@ -599,7 +599,7 @@ enum TimerCommand {
 /// The handle returned to C, used to talk to the timer task.
 pub struct Rffi_TimerTx(tokio::sync::mpsc::UnboundedSender<TimerCommand>);
 
-/// Spawn a timeout or interval task, that calls some callback whenever it triggers.
+/// Spawn a timer task for a timeout or interval, that calls some callback whenever it triggers.
 #[no_mangle]
 pub extern "C" fn Rffi_setTimeout(
     out_timer_tx: *mut *const Rffi_TimerTx,
