@@ -651,27 +651,27 @@ pub extern "C" fn Rffi_setTimeout(
     });
 }
 
-/// Reset a timeout or interval task to change its timing.
+impl Rffi_TimerTx {
+    fn send(&self, msg: TimerCommand) -> c_int {
+        self.0.send(msg).map_or(-1, |_| 0)
+    }
+}
+
+/// Reset a timer task to change its timing.
 #[no_mangle]
 pub extern "C" fn Rffi_resetTimeout(
     timer_tx: *const Rffi_TimerTx,
     timeout_millis: c_ulong,
 ) -> c_int {
     let timer_tx = unsafe { &*timer_tx };
-    match timer_tx.0.send(TimerCommand::Reset(timeout_millis)) {
-        Ok(_) => 0,
-        Err(_) => -1,
-    }
+    timer_tx.send(TimerCommand::Reset(timeout_millis))
 }
 
-/// Cancel a timeout or interval task.
+/// Cancel a timer task.
 #[no_mangle]
 pub extern "C" fn Rffi_clearTimeout(timer_tx: *const Rffi_TimerTx) -> c_int {
     let timer_tx = unsafe { &*timer_tx };
-    match timer_tx.0.send(TimerCommand::Cancel) {
-        Ok(_) => 0,
-        Err(_) => -1,
-    }
+    timer_tx.send(TimerCommand::Cancel)
 }
 
 /// Global C lock, to make callbacks into C, while keeping libuv's and tokio's async Runtimes synced.
