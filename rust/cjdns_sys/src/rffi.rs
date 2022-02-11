@@ -685,6 +685,19 @@ pub extern "C" fn Rffi_clearTimeout(timer_tx: *const Rffi_TimerTx) -> c_int {
     timer_tx.send(TimerCommand::Cancel)
 }
 
+/// Cancel all timer tasks.
+#[no_mangle]
+pub extern "C" fn Rffi_clearAllTimeouts() -> c_int {
+    TIMER_COLLECTION
+        .lock()
+        .unwrap()
+        .drain(..)
+        .filter_map(|w| w.upgrade())
+        .map(|timer_tx| timer_tx.send(TimerCommand::Cancel))
+        .min()
+        .unwrap_or_default()
+}
+
 /// Global C lock, to make callbacks into C, while keeping libuv's and tokio's async Runtimes synced.
 static GCL: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 
