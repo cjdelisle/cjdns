@@ -26,6 +26,10 @@ struct EventBase_pvt
 
     uv_loop_t* loop;
 
+    // This little guy keeps the loop looping as long as there's
+    // something else happening in Rust/tokio.
+    uv_timer_t blockTimer;
+
     struct Allocator* alloc;
 
     /** True if the loop is running. */

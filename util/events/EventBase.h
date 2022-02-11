@@ -32,4 +32,8 @@ void EventBase_beginLoop(struct EventBase* eventBase);
 
 void EventBase_endLoop(struct EventBase* eventBase);
 
+void EventBase_ref();
+
+void EventBase_unref();
+
 #endif
