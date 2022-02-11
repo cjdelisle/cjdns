@@ -129,13 +129,13 @@ struct Timeout* Timeout__setInterval(void (* const callback)(void* callbackConte
 void Timeout_resetTimeout(struct Timeout* timeout,
                           const uint64_t milliseconds)
 {
-    Rffi_resetTimeout(&timeout->timer, milliseconds);
+    Rffi_resetTimeout(timeout->timer, milliseconds);
 }
 
 /** See: Timeout.h */
 void Timeout_clearTimeout(struct Timeout* timeout)
 {
-    Rffi_clearTimeout(&timeout->timer);
+    Rffi_clearTimeout(timeout->timer);
 }
 
 void Timeout_clearAll(struct EventBase* eventBase)
