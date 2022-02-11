@@ -495,6 +495,12 @@ extern "C" {
 extern "C" {
     pub fn EventBase_endLoop(eventBase: *mut EventBase);
 }
+extern "C" {
+    pub fn EventBase_ref();
+}
+extern "C" {
+    pub fn EventBase_unref();
+}
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct CryptoAuth {
