@@ -134,7 +134,7 @@ int32_t Rffi_spawn(const char *file,
                    void (*cb)(long, int));
 
 /**
- * Spawn a timeout or interval task, that calls some callback whenever it triggers.
+ * Spawn a timer task for a timeout or interval, that calls some callback whenever it triggers.
  */
 void Rffi_setTimeout(const Rffi_TimerTx **out_timer_tx,
                      void (*cb)(void*),
@@ -144,14 +144,19 @@ void Rffi_setTimeout(const Rffi_TimerTx **out_timer_tx,
                      Allocator_t *alloc);
 
 /**
- * Reset a timeout or interval task to change its timing.
+ * Reset a timer task to change its timing.
  */
 int Rffi_resetTimeout(const Rffi_TimerTx *timer_tx, unsigned long timeout_millis);
 
 /**
- * Cancel a timeout or interval task.
+ * Cancel a timer task.
  */
 int Rffi_clearTimeout(const Rffi_TimerTx *timer_tx);
+
+/**
+ * Cancel all timer tasks.
+ */
+int Rffi_clearAllTimeouts(void);
 
 /**
  * Helper function to lock the Global C Lock, used only within libuv's core runtime (unix and windows).
