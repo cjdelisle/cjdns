@@ -138,17 +138,9 @@ void Timeout_clearTimeout(struct Timeout* timeout)
     Rffi_clearTimeout(timeout->timer);
 }
 
-void Timeout_clearAll(struct EventBase* eventBase)
+void Timeout_clearAll()
 {
-    struct EventBase_pvt* base = EventBase_privatize(eventBase);
-    struct Timeout* to = base->timeouts;
-    if (!to) { return; }
-    while (to) {
-        struct Timeout* next = to->next;
-        Timeout_clearTimeout(to);
-        to = next;
-    }
-    Assert_true(!base->timeouts);
+    Rffi_clearAllTimeouts();
 }
 
 int Timeout_isActive(struct Timeout* timeout)

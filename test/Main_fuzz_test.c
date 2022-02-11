@@ -92,7 +92,7 @@ static void checkLinkage(void* vContext)
 
     //Timeout_clearTimeout(ctx->checkLinkageTimeout);
     //EventBase_endLoop(ctx->base);
-    Timeout_clearAll(ctx->base);
+    Timeout_clearAll();
 }
 
 void* CJDNS_FUZZ_INIT(struct Allocator* allocator, struct Random* rand)
