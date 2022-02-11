@@ -6,7 +6,7 @@
 #![allow(non_camel_case_types)]
 
 use crate::bytestring::ByteString;
-use crate::cffi::{self, Allocator_t, Random_t, String_t};
+use crate::cffi::{self, Allocator_t, EventBase_ref, EventBase_unref, Random_t, String_t};
 use crate::crypto::crypto_auth;
 use crate::crypto::crypto_auth::DecryptError;
 use crate::crypto::keys::{PrivateKey, PublicKey};
@@ -563,6 +563,7 @@ pub unsafe extern "C" fn Rffi_spawn(
     };
     let child_status = Command::new(file).args(&args).status();
 
+    EventBase_ref();
     tokio::spawn(async move {
         match (child_status.await, cb) {
             (Ok(status), Some(callback)) => {
@@ -575,6 +576,7 @@ pub unsafe extern "C" fn Rffi_spawn(
             (Ok(_), None) => {}
             (Err(err), _) => eprintln!("  error spawning child '{}': {:?}", file, err),
         }
+        EventBase_unref()
     });
     0
 }
@@ -618,6 +620,7 @@ pub extern "C" fn Rffi_setTimeout(
         *out_timer_tx = allocator::adopt(alloc, Rffi_TimerTx(tx)) as *mut _;
     }
 
+    unsafe { EventBase_ref() }
     tokio::spawn(async move {
         let mut timeout_millis = timeout_millis;
         loop {
@@ -648,6 +651,7 @@ pub extern "C" fn Rffi_setTimeout(
             }
         }
         println!("  timer task stopped");
+        unsafe { EventBase_unref() }
     });
 }
 
