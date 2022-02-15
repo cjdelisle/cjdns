@@ -108,5 +108,5 @@ void Timeout_clearAll(struct EventBase* eventBase)
 
 int Timeout_isActive(struct Timeout* timeout)
 {
-    return (timeout && timeout->selfPtr);
+    return Rffi_isTimeoutActive(timeout->timer);
 }
