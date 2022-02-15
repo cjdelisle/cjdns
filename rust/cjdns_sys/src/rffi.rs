@@ -610,6 +610,12 @@ pub struct Rffi_EventLoop {
 }
 
 
+impl Drop for Rffi_EventLoop {
+    fn drop(&mut self) {
+        Rffi_clearAllTimeouts(self)
+    }
+}
+
 /// Create a new EventLoop data repository.
 #[no_mangle]
 pub extern "C" fn Rffi_mkEventLoop(alloc: *mut Allocator_t) -> *mut Rffi_EventLoop {
