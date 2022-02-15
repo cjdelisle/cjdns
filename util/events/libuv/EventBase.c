@@ -12,6 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+#include "rust/cjdns_sys/Rffi.h"
 #include "util/events/libuv/UvWrapper.h"
 #include "memory/Allocator.h"
 #include "util/events/libuv/EventBase_pvt.h"
@@ -72,6 +73,7 @@ struct EventBase* EventBase_new(struct Allocator* allocator)
     struct Allocator* alloc = Allocator_child(allocator);
     struct EventBase_pvt* base = Allocator_calloc(alloc, sizeof(struct EventBase_pvt), 1);
     base->loop = uv_loop_new();
+    base->rffi_loop = Rffi_mkEventLoop(alloc);
     uv_timer_init(base->loop, &base->blockTimer);
     Assert_true(EventBase_refctr == 0);
     base->alloc = alloc;

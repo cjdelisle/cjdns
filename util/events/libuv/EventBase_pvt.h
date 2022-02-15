@@ -15,6 +15,7 @@
 #ifndef EventBase_pvt_H
 #define EventBase_pvt_H
 
+#include "rust/cjdns_sys/Rffi.h"
 #include "memory/Allocator.h"
 #include "util/events/EventBase.h"
 #include "util/Identity.h"
@@ -25,6 +26,7 @@ struct EventBase_pvt
     struct EventBase pub;
 
     uv_loop_t* loop;
+    Rffi_EventLoop* rffi_loop;
 
     // This little guy keeps the loop looping as long as there's
     // something else happening in Rust/tokio.
