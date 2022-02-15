@@ -21,6 +21,7 @@ use std::convert::TryInto;
 use std::ffi::{c_void, CStr};
 use std::os::raw::{c_char, c_int, c_long, c_ulong};
 use std::os::unix::process::ExitStatusExt;
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, Weak};
 use std::time::{Duration, Instant, SystemTime};
 use tokio::process::Command;
@@ -597,7 +598,10 @@ enum TimerCommand {
 }
 
 /// The handle returned to C, used to talk to the timer task.
-pub struct Rffi_TimerTx(tokio::sync::mpsc::UnboundedSender<TimerCommand>);
+pub struct Rffi_TimerTx {
+    tx: tokio::sync::mpsc::UnboundedSender<TimerCommand>,
+    active: Arc<AtomicBool>,
+}
 
 /// A data repository, that groups objects related to this event loop.
 pub struct Rffi_EventLoop {
@@ -633,10 +637,17 @@ pub extern "C" fn Rffi_setTimeout(
 
     // it must be unbounded, since its Sender is sync, and can be used directly by the controller methods.
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
-    let rtx = Arc::new(Rffi_TimerTx(tx));
+    let rtx = Arc::new(Rffi_TimerTx {
+        tx,
+        active: Arc::new(AtomicBool::new(true)),
+    });
 
     let event_loop = unsafe { &*event_loop };
     event_loop.timers.lock().unwrap().push(Arc::downgrade(&rtx));
+
+    // do not clone rtx so we don't keep another tx around, so the "Allocator freed" detection works.
+    // although with the new Drop impl for Rffi_EventLoop, the Cancel msg should get there first.
+    let is_active = rtx.active.clone();
 
     unsafe {
         // Arc::as_ptr => The counts are not affected in any way and the Arc is not consumed.
@@ -674,14 +685,16 @@ pub extern "C" fn Rffi_setTimeout(
                 }
             }
         }
+        is_active.store(false, Ordering::Relaxed);
         println!("  timer task stopped");
         unsafe { EventBase_unref() }
     });
 }
 
 impl Rffi_TimerTx {
-    fn send(&self, msg: TimerCommand) -> c_int {
-        self.0.send(msg).map_or(-1, |_| 0)
+    /// Sends to the internal channel, converting the errors into an i32.
+    fn rffi_send(&self, msg: TimerCommand) -> c_int {
+        self.tx.send(msg).map_or(-1, |_| 0)
     }
 }
 
@@ -692,14 +705,21 @@ pub extern "C" fn Rffi_resetTimeout(
     timeout_millis: c_ulong,
 ) -> c_int {
     let timer_tx = unsafe { &*timer_tx };
-    timer_tx.send(TimerCommand::Reset(timeout_millis))
+    timer_tx.rffi_send(TimerCommand::Reset(timeout_millis))
 }
 
 /// Cancel a timer task.
 #[no_mangle]
 pub extern "C" fn Rffi_clearTimeout(timer_tx: *const Rffi_TimerTx) -> c_int {
     let timer_tx = unsafe { &*timer_tx };
-    timer_tx.send(TimerCommand::Cancel)
+    timer_tx.rffi_send(TimerCommand::Cancel)
+}
+
+/// Return 1 if a timer task is still running, 0 otherwise.
+#[no_mangle]
+pub extern "C" fn Rffi_isTimeoutActive(timer_tx: *const Rffi_TimerTx) -> c_int {
+    let timer_tx = unsafe { &*timer_tx };
+    timer_tx.active.load(Ordering::Relaxed) as _
 }
 
 /// Cancel all timer tasks.
