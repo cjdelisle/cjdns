@@ -605,8 +605,6 @@ pub struct Rffi_EventLoop {
     timers: Mutex<Vec<Weak<Rffi_TimerTx>>>,
 }
 
-/// Keep a loose track of all timers created, for clearAll.
-static TIMER_COLLECTION: Lazy<Mutex<Vec<Weak<Rffi_TimerTx>>>> = Lazy::new(|| Mutex::new(vec![]));
 
 /// Create a new EventLoop data repository.
 #[no_mangle]
