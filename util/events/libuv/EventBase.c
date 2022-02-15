@@ -66,8 +66,6 @@ static void calibrateTime(struct EventBase_pvt* base)
     base->baseTime = (seconds * 1000) + milliseconds - uv_now(base->loop);
 }
 
-static _Atomic int EventBase_refctr = 0;
-
 struct EventBase* EventBase_new(struct Allocator* allocator)
 {
     struct Allocator* alloc = Allocator_child(allocator);
@@ -75,7 +73,7 @@ struct EventBase* EventBase_new(struct Allocator* allocator)
     base->loop = uv_loop_new();
     base->rffi_loop = Rffi_mkEventLoop(alloc);
     uv_timer_init(base->loop, &base->blockTimer);
-    Assert_true(EventBase_refctr == 0);
+    Assert_true(Rffi_eventLoopRefCtr(base->rffi_loop) == 0);
     base->alloc = alloc;
     Identity_set(base);
 
@@ -100,7 +98,7 @@ void EventBase_beginLoop(struct EventBase* eventBase)
         uv_timer_start(&ctx->blockTimer, doNothing, 1, 0);
         // start the loop.
         uv_run(ctx->loop, UV_RUN_DEFAULT);
-    } while (EventBase_refctr);
+    } while (Rffi_eventLoopRefCtr(ctx->rffi_loop));
 
     ctx->running = 0;
 
@@ -139,11 +137,4 @@ int EventBase_eventCount(struct EventBase* eventBase)
 struct EventBase_pvt* EventBase_privatize(struct EventBase* base)
 {
     return Identity_check((struct EventBase_pvt*) base);
-}
-
-void EventBase_ref() {
-    EventBase_refctr++;
-}
-void EventBase_unref() {
-    EventBase_refctr--;
 }
