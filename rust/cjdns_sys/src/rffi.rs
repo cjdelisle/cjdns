@@ -623,6 +623,7 @@ pub extern "C" fn Rffi_setTimeout(
     cb_context: *mut c_void,
     timeout_millis: c_ulong,
     repeat: bool,
+    event_loop: *mut Rffi_EventLoop,
     alloc: *mut Allocator_t,
 ) {
     let cb = TimerCallback {
@@ -633,7 +634,10 @@ pub extern "C" fn Rffi_setTimeout(
     // it must be unbounded, since its Sender is sync, and can be used directly by the controller methods.
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
     let rtx = Arc::new(Rffi_TimerTx(tx));
-    TIMER_COLLECTION.lock().unwrap().push(Arc::downgrade(&rtx));
+
+    let event_loop = unsafe { &*event_loop };
+    event_loop.timers.lock().unwrap().push(Arc::downgrade(&rtx));
+
     unsafe {
         // Arc::as_ptr => The counts are not affected in any way and the Arc is not consumed.
         // The pointer is valid for as long as there are strong counts in the Arc.
