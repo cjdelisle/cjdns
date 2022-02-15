@@ -767,6 +767,7 @@ pub extern "C" fn Rffi_clearAllTimeouts(event_loop: *mut Rffi_EventLoop) {
 /// Global C lock, to make callbacks into C, while keeping libuv's and tokio's async Runtimes synced.
 static GCL: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 
+/// The guard of an acquired [`GCL`].
 pub struct Rffi_Glock_guard(MutexGuard<'static, ()>);
 
 /// Helper function to lock the Global C Lock, used only within libuv's core runtime (unix and windows).
