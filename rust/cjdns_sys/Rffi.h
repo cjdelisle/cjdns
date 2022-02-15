@@ -7,6 +7,14 @@
 
 typedef struct RTypes_CryptoAuth2_t RTypes_CryptoAuth2_t;
 
+/**
+ * A data repository, that groups objects related to this event loop.
+ */
+typedef struct Rffi_EventLoop Rffi_EventLoop;
+
+/**
+ * The guard of an acquired [`GCL`].
+ */
 typedef struct Rffi_Glock_guard Rffi_Glock_guard;
 
 /**
@@ -131,7 +139,18 @@ int32_t Rffi_spawn(const char *file,
                    const char *const *args,
                    int num_args,
                    Allocator_t *_alloc,
+                   Rffi_EventLoop *event_loop,
                    void (*cb)(long, int));
+
+/**
+ * Create a new EventLoop data repository.
+ */
+Rffi_EventLoop *Rffi_mkEventLoop(Allocator_t *alloc);
+
+/**
+ * Return some EventLoop's ref counter to C.
+ */
+unsigned int Rffi_eventLoopRefCtr(Rffi_EventLoop *event_loop);
 
 /**
  * Spawn a timer task for a timeout or interval, that calls some callback whenever it triggers.
@@ -141,6 +160,7 @@ void Rffi_setTimeout(const Rffi_TimerTx **out_timer_tx,
                      void *cb_context,
                      unsigned long timeout_millis,
                      bool repeat,
+                     Rffi_EventLoop *event_loop,
                      Allocator_t *alloc);
 
 /**
@@ -154,9 +174,14 @@ int Rffi_resetTimeout(const Rffi_TimerTx *timer_tx, unsigned long timeout_millis
 int Rffi_clearTimeout(const Rffi_TimerTx *timer_tx);
 
 /**
+ * Return 1 if a timer task is still running, 0 otherwise.
+ */
+int Rffi_isTimeoutActive(const Rffi_TimerTx *timer_tx);
+
+/**
  * Cancel all timer tasks.
  */
-int Rffi_clearAllTimeouts(void);
+void Rffi_clearAllTimeouts(Rffi_EventLoop *event_loop);
 
 /**
  * Helper function to lock the Global C Lock, used only within libuv's core runtime (unix and windows).
