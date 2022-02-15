@@ -704,15 +704,16 @@ pub extern "C" fn Rffi_clearTimeout(timer_tx: *const Rffi_TimerTx) -> c_int {
 
 /// Cancel all timer tasks.
 #[no_mangle]
-pub extern "C" fn Rffi_clearAllTimeouts() -> c_int {
-    TIMER_COLLECTION
+pub extern "C" fn Rffi_clearAllTimeouts(event_loop: *mut Rffi_EventLoop) {
+    unsafe { &*event_loop }
+        .timers
         .lock()
         .unwrap()
         .drain(..)
         .filter_map(|w| w.upgrade())
-        .map(|timer_tx| timer_tx.send(TimerCommand::Cancel))
-        .min()
-        .unwrap_or_default()
+        .for_each(|timer_tx| {
+            timer_tx.rffi_send(TimerCommand::Cancel);
+        })
 }
 
 /// Global C lock, to make callbacks into C, while keeping libuv's and tokio's async Runtimes synced.
