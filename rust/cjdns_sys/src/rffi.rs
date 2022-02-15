@@ -794,7 +794,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn test_interval() {
+    async fn test_timer_interval() {
         let alloc = Allocator::new(10000000);
 
         let (tx, rx) = std::sync::mpsc::sync_channel::<u8>(1);
@@ -804,13 +804,15 @@ mod tests {
             tx.send(1).unwrap();
         }
 
+        let event_loop = Rffi_mkEventLoop(alloc.native);
         let mut timer = std::ptr::null();
         Rffi_setTimeout(
             &mut timer as _,
             callback,
-            &tx as *const std::sync::mpsc::SyncSender<_> as _,
+            &tx as *const _ as _,
             1,
             true,
+            event_loop,
             alloc.native,
         );
 
@@ -836,7 +838,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn test_timeout() {
+    async fn test_timer_timeout() {
         let alloc = Allocator::new(10000000);
 
         let (tx, rx) = std::sync::mpsc::sync_channel::<u8>(1);
@@ -846,13 +848,15 @@ mod tests {
             tx.send(1).unwrap();
         }
 
+        let event_loop = Rffi_mkEventLoop(alloc.native);
         let mut timer = std::ptr::null();
         Rffi_setTimeout(
             &mut timer as _,
             callback,
-            &tx as *const std::sync::mpsc::SyncSender<_> as _,
+            &tx as *const _ as _,
             1,
             false,
+            event_loop,
             alloc.native,
         );
 
@@ -868,7 +872,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn test_free_timer() {
+    async fn test_timer_drop() {
         let alloc = Allocator::new(10000000);
 
         let (tx, rx) = std::sync::mpsc::sync_channel::<u8>(1);
@@ -878,13 +882,15 @@ mod tests {
             tx.send(1).unwrap();
         }
 
+        let event_loop = Rffi_mkEventLoop(alloc.native);
         let mut timer = std::ptr::null();
         Rffi_setTimeout(
             &mut timer as _,
             callback,
-            &tx as *const std::sync::mpsc::SyncSender<_> as _,
-            10,
+            &tx as *const _ as _,
+            5,
             false,
+            event_loop,
             alloc.native,
         );
 
