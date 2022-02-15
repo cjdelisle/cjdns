@@ -20,13 +20,15 @@
 
 int Process_spawn(char* binaryPath,
                   char** args,
+                  struct EventBase* eventBase,
                   struct Allocator* alloc,
                   Process_OnExitCallback callback)
 {
     int i;
     for (i = 0; args[i]; i++) ;
 
-    return Rffi_spawn(binaryPath, args, i, alloc, callback);
+    struct EventBase_pvt* base = EventBase_privatize(eventBase);
+    return Rffi_spawn(binaryPath, args, i, base->rffi_loop, alloc, callback);
 }
 
 char* Process_getPath(struct Allocator* alloc)
