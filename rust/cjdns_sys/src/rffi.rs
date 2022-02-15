@@ -945,4 +945,40 @@ mod tests {
         // ensures no callbacks are called anymore.
         rx.recv_timeout(Duration::from_millis(10)).unwrap_err();
     }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_timer_drop_all() {
+        let alloc = Allocator::new(10000000);
+
+        let (tx, rx) = std::sync::mpsc::sync_channel::<u8>(1);
+        unsafe extern "C" fn callback(ctx: *mut c_void) {
+            println!("in callback!");
+            let tx = &*(ctx as *const std::sync::mpsc::SyncSender<u8>);
+            tx.send(1).unwrap();
+        }
+
+        let event_loop = Rffi_mkEventLoop(alloc.native);
+        let start_timer = move |t, r, a: &Allocator| {
+            let mut timer = std::ptr::null();
+            Rffi_setTimeout(
+                &mut timer as _,
+                callback,
+                &tx as *const _ as _,
+                t,
+                r,
+                event_loop,
+                a.native,
+            );
+        };
+
+        start_timer(1, false, &alloc);
+        start_timer(1, true, &alloc);
+        start_timer(100, false, &alloc);
+        start_timer(100, true, &alloc);
+
+        drop(alloc);
+
+        // ensures no callbacks are called anymore.
+        rx.recv_timeout(Duration::from_millis(10)).unwrap_err();
+    }
 }
