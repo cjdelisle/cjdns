@@ -92,11 +92,7 @@ static struct Timeout* setTimeout(void (* const callback)(void* callbackContext)
     Identity_set(timeout);
 
     Rffi_setTimeout(&timeout->timer, callback, callbackContext,
-        milliseconds, (interval) ? 1 : 0, alloc);
-
-    Allocator_onFree(alloc, onFree, timeout);
-
-    linkTo(timeout);
+        milliseconds, (interval) ? 1 : 0, base->rffi_loop, alloc);
 
     return timeout;
 }
@@ -138,9 +134,10 @@ void Timeout_clearTimeout(struct Timeout* timeout)
     Rffi_clearTimeout(timeout->timer);
 }
 
-void Timeout_clearAll()
+void Timeout_clearAll(struct EventBase* eventBase)
 {
-    Rffi_clearAllTimeouts();
+    struct EventBase_pvt* base = EventBase_privatize(eventBase);
+    Rffi_clearAllTimeouts(base->rffi_loop);
 }
 
 int Timeout_isActive(struct Timeout* timeout)
