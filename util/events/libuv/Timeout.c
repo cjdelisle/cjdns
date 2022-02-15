@@ -21,45 +21,11 @@
 struct Timeout
 {
     Rffi_TimerTx* timer;
-
     struct Allocator* alloc;
-
-    struct Timeout* next;
-    struct Timeout** selfPtr;
     struct EventBase_pvt* base;
 
     Identity
 };
-
-static void linkTo(struct Timeout* timeout)
-{
-    timeout->next = (struct Timeout*) timeout->base->timeouts;
-    if (timeout->next) {
-        timeout->next->selfPtr = &timeout->next;
-    }
-    timeout->base->timeouts = timeout;
-    timeout->selfPtr = (struct Timeout**) &timeout->base->timeouts;
-}
-
-static void unlinkTo(struct Timeout* timeout)
-{
-    if (timeout->selfPtr) {
-        *timeout->selfPtr = timeout->next;
-        if (timeout->next) {
-            Assert_true(&timeout->next == timeout->next->selfPtr);
-            timeout->next->selfPtr = timeout->selfPtr;
-            timeout->next = NULL;
-        }
-        timeout->selfPtr = NULL;
-    }
-}
-
-static int onFree(struct Allocator_OnFreeJob* job)
-{
-    struct Timeout* t = Identity_check((struct Timeout*) job->userData);
-    unlinkTo(t);
-    return 0;
-}
 
 /**
  * Create a timeout event.
