@@ -6,7 +6,7 @@
 #![allow(non_camel_case_types)]
 
 use crate::bytestring::ByteString;
-use crate::cffi::{self, Allocator_t, EventBase_ref, EventBase_unref, Random_t, String_t};
+use crate::cffi::{self, Allocator_t, Random_t, String_t};
 use crate::crypto::crypto_auth;
 use crate::crypto::crypto_auth::DecryptError;
 use crate::crypto::keys::{PrivateKey, PublicKey};
@@ -19,7 +19,7 @@ use once_cell::sync::Lazy;
 use pnet::util::MacAddr;
 use std::convert::TryInto;
 use std::ffi::{c_void, CStr};
-use std::os::raw::{c_char, c_int, c_long, c_ulong};
+use std::os::raw::{c_char, c_int, c_long, c_uint, c_ulong};
 use std::os::unix::process::ExitStatusExt;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, Weak};
@@ -548,6 +548,7 @@ pub unsafe extern "C" fn Rffi_spawn(
     args: *const *const c_char,
     num_args: c_int,
     _alloc: *mut Allocator_t, // perhaps create some Droppable and adopt it here, to kill the process.
+    event_loop: *mut Rffi_EventLoop,
     cb: Option<unsafe extern "C" fn(c_long, c_int)>,
 ) -> i32 {
     let file = match CStr::from_ptr(file).to_str() {
@@ -564,7 +565,8 @@ pub unsafe extern "C" fn Rffi_spawn(
     };
     let child_status = Command::new(file).args(&args).status();
 
-    EventBase_ref();
+    let event_loop = &*event_loop;
+    event_loop.incr_ref();
     tokio::spawn(async move {
         match (child_status.await, cb) {
             (Ok(status), Some(callback)) => {
@@ -577,7 +579,7 @@ pub unsafe extern "C" fn Rffi_spawn(
             (Ok(_), None) => {}
             (Err(err), _) => eprintln!("  error spawning child '{}': {:?}", file, err),
         }
-        EventBase_unref()
+        event_loop.decr_ref();
     });
     0
 }
@@ -605,10 +607,23 @@ pub struct Rffi_TimerTx {
 
 /// A data repository, that groups objects related to this event loop.
 pub struct Rffi_EventLoop {
+    /// Ref counter, to keep C's libuv running.
+    ref_ctr: AtomicU32,
     /// Keep a loose track of all timers created, for clearAll.
     timers: Mutex<Vec<Weak<Rffi_TimerTx>>>,
 }
 
+impl Rffi_EventLoop {
+    fn incr_ref(&self) -> u32 {
+        self.ref_ctr.fetch_add(1, Ordering::Relaxed)
+    }
+    fn decr_ref(&self) -> u32 {
+        self.ref_ctr.fetch_sub(1, Ordering::Relaxed)
+    }
+    fn curr_ref(&self) -> u32 {
+        self.ref_ctr.load(Ordering::Relaxed)
+    }
+}
 
 impl Drop for Rffi_EventLoop {
     fn drop(&mut self) {
@@ -620,9 +635,16 @@ impl Drop for Rffi_EventLoop {
 #[no_mangle]
 pub extern "C" fn Rffi_mkEventLoop(alloc: *mut Allocator_t) -> *mut Rffi_EventLoop {
     let data = Rffi_EventLoop {
+        ref_ctr: AtomicU32::new(0),
         timers: Mutex::new(vec![]),
     };
     allocator::adopt(alloc, data)
+}
+
+/// Return some EventLoop's ref counter to C.
+#[no_mangle]
+pub extern "C" fn Rffi_eventLoopRefCtr(event_loop: *mut Rffi_EventLoop) -> c_uint {
+    unsafe { &*event_loop }.curr_ref()
 }
 
 /// Spawn a timer task for a timeout or interval, that calls some callback whenever it triggers.
@@ -661,7 +683,7 @@ pub extern "C" fn Rffi_setTimeout(
         *out_timer_tx = Arc::as_ptr(allocator::adopt(alloc, rtx));
     }
 
-    unsafe { EventBase_ref() }
+    event_loop.incr_ref();
     tokio::spawn(async move {
         let mut timeout_millis = timeout_millis;
         loop {
@@ -693,7 +715,7 @@ pub extern "C" fn Rffi_setTimeout(
         }
         is_active.store(false, Ordering::Relaxed);
         println!("  timer task stopped");
-        unsafe { EventBase_unref() }
+        event_loop.decr_ref();
     });
 }
 
