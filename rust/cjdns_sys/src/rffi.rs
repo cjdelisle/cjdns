@@ -599,8 +599,23 @@ enum TimerCommand {
 /// The handle returned to C, used to talk to the timer task.
 pub struct Rffi_TimerTx(tokio::sync::mpsc::UnboundedSender<TimerCommand>);
 
+/// A data repository, that groups objects related to this event loop.
+pub struct Rffi_EventLoop {
+    /// Keep a loose track of all timers created, for clearAll.
+    timers: Mutex<Vec<Weak<Rffi_TimerTx>>>,
+}
+
 /// Keep a loose track of all timers created, for clearAll.
 static TIMER_COLLECTION: Lazy<Mutex<Vec<Weak<Rffi_TimerTx>>>> = Lazy::new(|| Mutex::new(vec![]));
+
+/// Create a new EventLoop data repository.
+#[no_mangle]
+pub extern "C" fn Rffi_mkEventLoop(alloc: *mut Allocator_t) -> *mut Rffi_EventLoop {
+    let data = Rffi_EventLoop {
+        timers: Mutex::new(vec![]),
+    };
+    allocator::adopt(alloc, data)
+}
 
 /// Spawn a timer task for a timeout or interval, that calls some callback whenever it triggers.
 #[no_mangle]
