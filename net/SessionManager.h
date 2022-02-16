@@ -126,6 +126,8 @@ struct SessionManager_Session* SessionManager_sessionForHandle(uint32_t handle,
 struct SessionManager_Session* SessionManager_sessionForIp6(uint8_t* lookupKey,
                                                             struct SessionManager* sm);
 
+int SessionManager_handleCount(struct SessionManager* sm);
+
 /**
  * Get the list of all handles.
  */

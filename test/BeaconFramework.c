@@ -105,12 +105,12 @@ static void checkLinkage(void* vTwoNodes)
     }
 
     //Log_debug(ctx->logger, "Checking linkage");
-    if (ReachabilityCollector_peerCount(ctx->nodeA->subnodePathfinder->rc) < 1) {
+    if (SessionManager_handleCount(ctx->nodeA->nc->sm) < 1) {
         notLinkedYet(ctx);
         return;
     }
     Log_debug(ctx->logger, "A seems to be linked with B");
-    if (ReachabilityCollector_peerCount(ctx->nodeB->subnodePathfinder->rc) < 1) {
+    if (SessionManager_handleCount(ctx->nodeA->nc->sm) < 1) {
         notLinkedYet(ctx);
         return;
     }

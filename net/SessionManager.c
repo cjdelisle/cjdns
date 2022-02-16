@@ -207,6 +207,12 @@ struct SessionManager_HandleList* SessionManager_getHandleList(struct SessionMan
     return out;
 }
 
+int SessionManager_handleCount(struct SessionManager* manager)
+{
+    struct SessionManager_pvt* sm = Identity_check((struct SessionManager_pvt*) manager);
+    return sm->ifaceMap.count;
+}
+
 static uint32_t effectiveMetric(struct SessionManager_pvt* sm,
                                 SessionManager_Path_t* path)
 {
