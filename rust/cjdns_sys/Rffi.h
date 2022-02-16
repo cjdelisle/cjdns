@@ -17,9 +17,6 @@ typedef struct Rffi_EventLoop Rffi_EventLoop;
  */
 typedef struct Rffi_Glock_guard Rffi_Glock_guard;
 
-/**
- * The handle returned to C, used to talk to the timer task.
- */
 typedef struct Rffi_TimerTx Rffi_TimerTx;
 
 typedef struct {

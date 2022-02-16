@@ -599,10 +599,13 @@ enum TimerCommand {
     Cancel,
 }
 
+pub struct Rffi_TimerTx(Arc<TimerTx>);
+
 /// The handle returned to C, used to talk to the timer task.
-pub struct Rffi_TimerTx {
+struct TimerTx {
     tx: tokio::sync::mpsc::UnboundedSender<TimerCommand>,
     active: Arc<AtomicBool>,
+    cb_int: u64,
 }
 
 /// A data repository, that groups objects related to this event loop.
@@ -610,7 +613,7 @@ pub struct Rffi_EventLoop {
     /// Ref counter, to keep C's libuv running.
     ref_ctr: AtomicU32,
     /// Keep a loose track of all timers created, for clearAll.
-    timers: Mutex<Vec<Weak<Rffi_TimerTx>>>,
+    timers: Mutex<Vec<Weak<TimerTx>>>,
 }
 
 impl Rffi_EventLoop {
@@ -658,6 +661,7 @@ pub extern "C" fn Rffi_setTimeout(
     event_loop: *mut Rffi_EventLoop,
     alloc: *mut Allocator_t,
 ) {
+    let cb_int = cb_context as u64;
     let cb = TimerCallback {
         f: cb,
         ctx: cb_context,
@@ -665,9 +669,10 @@ pub extern "C" fn Rffi_setTimeout(
 
     // it must be unbounded, since its Sender is sync, and can be used directly by the controller methods.
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
-    let rtx = Arc::new(Rffi_TimerTx {
+    let rtx = Arc::new(TimerTx {
         tx,
         active: Arc::new(AtomicBool::new(true)),
+        cb_int,
     });
 
     let event_loop = unsafe { &*event_loop };
@@ -680,7 +685,7 @@ pub extern "C" fn Rffi_setTimeout(
     unsafe {
         // Arc::as_ptr => The counts are not affected in any way and the Arc is not consumed.
         // The pointer is valid for as long as there are strong counts in the Arc.
-        *out_timer_tx = Arc::as_ptr(allocator::adopt(alloc, rtx));
+        *out_timer_tx = allocator::adopt(alloc, Rffi_TimerTx(rtx));
     }
 
     event_loop.incr_ref();
@@ -690,7 +695,9 @@ pub extern "C" fn Rffi_setTimeout(
             tokio::select! {
                 _ = tokio::time::sleep(Duration::from_millis(timeout_millis)) => {
                     let _guard = GCL.lock().unwrap();
-                    unsafe { (cb.f)(cb.ctx); }
+                    if is_active.load(Ordering::Relaxed) {
+                        unsafe { (cb.f)(cb.ctx); }
+                    }
                     if !repeat {
                         break;
                     }
@@ -698,15 +705,18 @@ pub extern "C" fn Rffi_setTimeout(
                 msg = rx.recv() => {
                     match msg {
                         Some(TimerCommand::Reset(new_timeout)) => {
-                            println!("Received reset command: {} to {}", timeout_millis, new_timeout);
+                            println!("({:#x})Received reset command: {} to {}",
+                                cb_int, timeout_millis, new_timeout);
                             timeout_millis = new_timeout;
                         },
                         Some(TimerCommand::Cancel) => {
-                            println!("Received cancel command");
-                            break
+                            println!("({:#x}) Received cancel command", cb_int);
+                            // Stay alive because we might receive a Reset in the future.
+                            // just put a nice long number so that we don't wake up too much.
+                            timeout_millis = 100_000;
                         },
                         None => {
-                            println!("Allocator freed, stopping timer task");
+                            println!("({:#x}) Allocator freed, stopping timer task", cb_int);
                             break
                         },
                     }
@@ -714,12 +724,19 @@ pub extern "C" fn Rffi_setTimeout(
             }
         }
         is_active.store(false, Ordering::Relaxed);
-        println!("  timer task stopped");
+        println!("({:#x})  timer task stopped", cb_int);
         event_loop.decr_ref();
     });
 }
 
-impl Rffi_TimerTx {
+impl Drop for TimerTx {
+    fn drop(&mut self) {
+        self.active.store(false, Ordering::Relaxed);
+        println!("({:#x}) the timer has been dropped", self.cb_int);
+    }
+}
+
+impl TimerTx {
     /// Sends to the internal channel, converting the errors into an i32.
     fn rffi_send(&self, msg: TimerCommand) -> c_int {
         self.tx.send(msg).map_or(-1, |_| 0)
@@ -733,21 +750,23 @@ pub extern "C" fn Rffi_resetTimeout(
     timeout_millis: c_ulong,
 ) -> c_int {
     let timer_tx = unsafe { &*timer_tx };
-    timer_tx.rffi_send(TimerCommand::Reset(timeout_millis))
+    timer_tx.0.active.store(true, Ordering::Relaxed);
+    timer_tx.0.rffi_send(TimerCommand::Reset(timeout_millis))
 }
 
 /// Cancel a timer task.
 #[no_mangle]
 pub extern "C" fn Rffi_clearTimeout(timer_tx: *const Rffi_TimerTx) -> c_int {
     let timer_tx = unsafe { &*timer_tx };
-    timer_tx.rffi_send(TimerCommand::Cancel)
+    timer_tx.0.active.store(false, Ordering::Relaxed);
+    timer_tx.0.rffi_send(TimerCommand::Cancel)
 }
 
 /// Return 1 if a timer task is still running, 0 otherwise.
 #[no_mangle]
 pub extern "C" fn Rffi_isTimeoutActive(timer_tx: *const Rffi_TimerTx) -> c_int {
     let timer_tx = unsafe { &*timer_tx };
-    timer_tx.active.load(Ordering::Relaxed) as _
+    timer_tx.0.active.load(Ordering::Relaxed) as _
 }
 
 /// Cancel all timer tasks.
@@ -760,6 +779,7 @@ pub extern "C" fn Rffi_clearAllTimeouts(event_loop: *mut Rffi_EventLoop) {
         .drain(..)
         .filter_map(|w| w.upgrade())
         .for_each(|timer_tx| {
+            timer_tx.active.store(false, Ordering::Relaxed);
             timer_tx.rffi_send(TimerCommand::Cancel);
         })
 }
