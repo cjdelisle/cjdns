@@ -3,6 +3,7 @@
 #![allow(non_snake_case)]
 #![allow(dead_code)]
 #![allow(non_camel_case_types)]
+#![allow(clippy::enum_variant_names)]
 
 extern "C" {
     pub fn Assert_failure(format: *const ::std::os::raw::c_char, ...);

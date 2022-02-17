@@ -24,15 +24,18 @@ fn main() -> Result<()> {
     // Generate C bindings from rust
     {
         println!("Generating rtypes");
-        let mut conf = cbindgen::Config::default();
-        conf.language = cbindgen::Language::C;
-        conf.autogen_warning =
-            Some("// This file is generated from src/rtypes.rs using cbindgen".to_owned());
-        conf.style = cbindgen::Style::Type;
-        conf.include_guard = Some("RTypes_H".to_owned());
+        let mut conf = cbindgen::Config {
+            language: cbindgen::Language::C,
+            autogen_warning: Some(
+                "// This file is generated from src/rtypes.rs using cbindgen".to_owned(),
+            ),
+            style: cbindgen::Style::Type,
+            include_guard: Some("RTypes_H".to_owned()),
+            no_includes: true,
+            includes: vec!["RTypesPrefix.h".to_owned()],
+            ..Default::default()
+        };
         conf.export.include = vec!["RTypes_ExportMe".to_owned()];
-        conf.no_includes = true;
-        conf.includes = vec!["RTypesPrefix.h".to_owned()];
         conf.enumeration.prefix_with_name = true;
         cbindgen::Builder::new()
             .with_src("./src/rtypes.rs")
@@ -45,14 +48,17 @@ fn main() -> Result<()> {
         //
 
         println!("Generating rffi");
-        let mut conf = cbindgen::Config::default();
-        conf.language = cbindgen::Language::C;
-        conf.autogen_warning =
-            Some("// This file is generated from src/rffi.rs using cbindgen".to_owned());
-        conf.style = cbindgen::Style::Type;
-        conf.include_guard = Some("rffi_H".to_owned());
-        conf.no_includes = true;
-        conf.includes = vec!["RffiPrefix.h".to_owned()];
+        let conf = cbindgen::Config {
+            language: cbindgen::Language::C,
+            autogen_warning: Some(
+                "// This file is generated from src/rffi.rs using cbindgen".to_owned(),
+            ),
+            style: cbindgen::Style::Type,
+            include_guard: Some("rffi_H".to_owned()),
+            no_includes: true,
+            includes: vec!["RffiPrefix.h".to_owned()],
+            ..Default::default()
+        };
         cbindgen::Builder::new()
             .with_src("./src/rffi/mod.rs")
             .with_config(conf)
@@ -115,6 +121,7 @@ fn main() -> Result<()> {
             .raw_line("#![allow(non_snake_case)]")
             .raw_line("#![allow(dead_code)]")
             .raw_line("#![allow(non_camel_case_types)]")
+            .raw_line("#![allow(clippy::enum_variant_names)]")
             .whitelist_function(".*")
             .whitelist_type("RBindings_Whitelist")
             .generate()
