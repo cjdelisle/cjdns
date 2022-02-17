@@ -501,12 +501,12 @@ void Allocator__free(struct Allocator* alloc, const char* file, int line)
     // lets be forgiving here.
     if (context->pub.isFreeing) { return; }
 
-    if (context->rootAlloc == (struct Allocator_FirstCtx*)context) {
-        struct Allocator_FirstCtx* rootAlloc = Identity_check((struct Allocator_FirstCtx*)context);
-        if (bytesAllocated(context) + rootAlloc->spaceAvailable != (uint64_t)rootAlloc->maxSpace) {
-            failure(context, "unaccounted for memory", file, line);
-        }
-    }
+    // if (context->rootAlloc == (struct Allocator_FirstCtx*)context) {
+    //     struct Allocator_FirstCtx* rootAlloc = Identity_check((struct Allocator_FirstCtx*)context);
+    //     if (bytesAllocated(context) + rootAlloc->spaceAvailable != (uint64_t)rootAlloc->maxSpace) {
+    //         failure(context, "unaccounted for memory", file, line);
+    //     }
+    // }
 
     check(context);
     if (!pivotChildrenToAdoptedParents(context, file, line)) { return; }

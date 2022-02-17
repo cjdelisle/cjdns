@@ -711,9 +711,7 @@ pub extern "C" fn Rffi_setTimeout(
                         },
                         Some(TimerCommand::Cancel) => {
                             println!("({:#x}) Received cancel command", cb_int);
-                            // Stay alive because we might receive a Reset in the future.
-                            // just put a nice long number so that we don't wake up too much.
-                            timeout_millis = 100_000;
+                            break
                         },
                         None => {
                             println!("({:#x}) Allocator freed, stopping timer task", cb_int);
@@ -750,7 +748,7 @@ pub extern "C" fn Rffi_resetTimeout(
     timeout_millis: c_ulong,
 ) -> c_int {
     let timer_tx = unsafe { &*timer_tx };
-    timer_tx.0.active.store(true, Ordering::Relaxed);
+    assert!(timer_tx.0.active.load(Ordering::Relaxed), "cannot reset a cancelled timer");
     timer_tx.0.rffi_send(TimerCommand::Reset(timeout_millis))
 }
 
