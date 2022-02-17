@@ -17,6 +17,9 @@ typedef struct Rffi_EventLoop Rffi_EventLoop;
  */
 typedef struct Rffi_Glock_guard Rffi_Glock_guard;
 
+/**
+ * The handle returned to C, used to talk to the timer task.
+ */
 typedef struct Rffi_TimerTx Rffi_TimerTx;
 
 typedef struct {
@@ -33,10 +36,6 @@ typedef struct {
 } Rffi_NetworkInterface;
 
 extern const uintptr_t Rffi_CURRENT_PROTOCOL;
-
-RTypes_IfWrapper_t Rffi_testwrapper_create(Allocator_t *a);
-
-RTypes_IfWrapper_t Rffi_android_create(Allocator_t *a);
 
 int Rffi_CryptoAuth2_addUser_ipv6(String_t *password,
                                   String_t *login,
@@ -89,40 +88,25 @@ void Rffi_CryptoAuth2_stats(const RTypes_CryptoAuth2_Session_t *session,
 
 uint32_t Rffi_CryptoAuth2_cjdnsVer(const RTypes_CryptoAuth2_Session_t *session);
 
-void Rffi_panic(const char *msg);
-
-void Rffi_setLogger(Log_t *l);
-
-RTypes_Error_t *Rffi_error(const char *msg, Allocator_t *alloc);
-
-RTypes_Error_t *Rffi_error_fl(const char *msg, const char *file, int line, Allocator_t *alloc);
-
-const char *Rffi_printError(RTypes_Error_t *e, Allocator_t *alloc);
+/**
+ * Helper function to lock the Global C Lock, used only within libuv's core runtime (unix and windows).
+ */
+Rffi_Glock_guard *Rffi_glock(void);
 
 /**
- * Convert IPv4 and IPv6 addresses from binary to text form.
+ * Helper function to unlock the Global C Lock, as noted above.
  */
-int32_t Rffi_inet_ntop(bool is_ip6, const void *addr, uint8_t *dst, uint32_t dst_sz);
+void Rffi_gunlock(Rffi_Glock_guard *guard);
 
 /**
- * Convert IPv4 and IPv6 addresses from text to binary form.
+ * Create a new EventLoop data repository.
  */
-int32_t Rffi_inet_pton(bool is_ip6, const char *src, uint8_t *addr);
+Rffi_EventLoop *Rffi_mkEventLoop(Allocator_t *alloc);
 
 /**
- * Non-monotonic nanosecond time, which has no relationship to any wall clock.
+ * Return some EventLoop's ref counter to C.
  */
-uint64_t Rffi_hrtime(void);
-
-/**
- * Monotonic millisecond time.
- */
-uint64_t Rffi_now_ms(void);
-
-/**
- * Get a list of available network interfaces for the current machine.
- */
-int32_t Rffi_interface_addresses(const Rffi_NetworkInterface **out, Allocator_t *alloc);
+unsigned int Rffi_eventLoopRefCtr(Rffi_EventLoop *event_loop);
 
 /**
  * Get the full filesystem path of the current running executable.
@@ -138,16 +122,6 @@ int32_t Rffi_spawn(const char *file,
                    Allocator_t *_alloc,
                    Rffi_EventLoop *event_loop,
                    void (*cb)(long, int));
-
-/**
- * Create a new EventLoop data repository.
- */
-Rffi_EventLoop *Rffi_mkEventLoop(Allocator_t *alloc);
-
-/**
- * Return some EventLoop's ref counter to C.
- */
-unsigned int Rffi_eventLoopRefCtr(Rffi_EventLoop *event_loop);
 
 /**
  * Spawn a timer task for a timeout or interval, that calls some callback whenever it triggers.
@@ -181,13 +155,42 @@ int Rffi_isTimeoutActive(const Rffi_TimerTx *timer_tx);
 void Rffi_clearAllTimeouts(Rffi_EventLoop *event_loop);
 
 /**
- * Helper function to lock the Global C Lock, used only within libuv's core runtime (unix and windows).
+ * Convert IPv4 and IPv6 addresses from binary to text form.
  */
-Rffi_Glock_guard *Rffi_glock(void);
+int32_t Rffi_inet_ntop(bool is_ip6, const void *addr, uint8_t *dst, uint32_t dst_sz);
 
 /**
- * Helper function to unlock the Global C Lock, as noted above.
+ * Convert IPv4 and IPv6 addresses from text to binary form.
  */
-void Rffi_gunlock(Rffi_Glock_guard *guard);
+int32_t Rffi_inet_pton(bool is_ip6, const char *src, uint8_t *addr);
+
+/**
+ * Get a list of available network interfaces for the current machine.
+ */
+int32_t Rffi_interface_addresses(const Rffi_NetworkInterface **out, Allocator_t *alloc);
+
+/**
+ * Non-monotonic nanosecond time, which has no relationship to any wall clock.
+ */
+uint64_t Rffi_hrtime(void);
+
+/**
+ * Monotonic millisecond time.
+ */
+uint64_t Rffi_now_ms(void);
+
+RTypes_IfWrapper_t Rffi_testwrapper_create(Allocator_t *a);
+
+RTypes_IfWrapper_t Rffi_android_create(Allocator_t *a);
+
+void Rffi_panic(const char *msg);
+
+void Rffi_setLogger(Log_t *l);
+
+RTypes_Error_t *Rffi_error(const char *msg, Allocator_t *alloc);
+
+RTypes_Error_t *Rffi_error_fl(const char *msg, const char *file, int line, Allocator_t *alloc);
+
+const char *Rffi_printError(RTypes_Error_t *e, Allocator_t *alloc);
 
 #endif /* rffi_H */

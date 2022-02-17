@@ -54,7 +54,7 @@ fn main() -> Result<()> {
         conf.no_includes = true;
         conf.includes = vec!["RffiPrefix.h".to_owned()];
         cbindgen::Builder::new()
-            .with_src("./src/rffi.rs")
+            .with_src("./src/rffi/mod.rs")
             .with_config(conf)
             .generate()
             .expect("Unable to generate rffi")
