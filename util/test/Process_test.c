@@ -173,7 +173,7 @@ int main(int argc, char** argv)
     pipe->onConnection = onConnectionParent;
     Iface_plumb(&ctx->iface, &pipe->iface.iface);
 
-    char* path = Process_getPath(alloc);
+    const char* path = Process_getPath(alloc);
 
     Assert_true(path != NULL);
     #ifdef win32
@@ -187,7 +187,7 @@ int main(int argc, char** argv)
         Assert_true(path[0] == '/');
     #endif
 
-    char* args[] = { "Process_test", "child", name->bytes, NULL };
+    const char* args[] = { "Process_test", "child", name->bytes, NULL };
 
     Assert_true(!Process_spawn(path, args, eb, alloc, NULL));
 

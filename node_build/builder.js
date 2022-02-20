@@ -440,7 +440,16 @@ const getExeFile = function (ctx, exe /*:Builder_CompileJob_t*/) {
 
 const getFlags = function (ctx, cFile, includeDirs) {
     const flags = [];
-    flags.push.apply(flags, ctx.config.cflags);
+    if (cFile.indexOf('node_build/dependencies/libuv') > -1) {
+        //console.log('cargo:warning=' + cFile);
+        for (const f of ctx.config.cflags) {
+            if (f !== '-Werror') {
+                flags.push(f);
+            }
+        }
+    } else {
+        flags.push.apply(flags, ctx.config.cflags);
+    }
     flags.push.apply(flags, ctx.builder.fileCflags[cFile] || []);
     if (includeDirs) {
         for (let i = 0; i < ctx.config.includeDirs.length; i++) {

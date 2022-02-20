@@ -135,8 +135,8 @@ int main(int argc, char** argv)
     struct PipeServer* pipe = PipeServer_named(name->bytes, eb, NULL, logger, alloc);
     Iface_plumb(&ctx->iface, &pipe->iface.iface);
 
-    char* path = Process_getPath(alloc);
-    char* args[] = { "Seccomp_test", "child", name->bytes, NULL };
+    const char* path = Process_getPath(alloc);
+    const char* args[] = { "Seccomp_test", "child", name->bytes, NULL };
 
     Assert_true(!Process_spawn(path, args, eb, alloc, NULL));
 

@@ -81,7 +81,6 @@ uint32_t AverageRoller_updateAtTime(struct AverageRoller* averageRoller,
 /** @see AverageRoller.h */
 uint32_t AverageRoller_update(struct AverageRoller* averageRoller, const uint32_t newEntry)
 {
-    struct AverageRoller_pvt* roller = Identity_check((struct AverageRoller_pvt*) averageRoller);
     return AverageRoller_updateAtTime(averageRoller,
                                       Time_currentTimeSeconds(),
                                       newEntry);

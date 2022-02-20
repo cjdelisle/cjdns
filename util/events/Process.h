@@ -33,8 +33,8 @@ typedef void (* Process_OnExitCallback)(int64_t exit_status, int term_signal);
  * @param callback a function to be called when the spawn process exits.
  * @return 0 if all went well, -1 if forking fails.
  */
-int Process_spawn(char* binaryPath,
-                  char** args,
+int Process_spawn(const char* binaryPath,
+                  const char* const* args,
                   struct EventBase* eventBase,
                   struct Allocator* alloc,
                   Process_OnExitCallback callback);
@@ -45,6 +45,6 @@ int Process_spawn(char* binaryPath,
  * @param alloc an allocator.
  * @return the binary path to the process or null if there was a failure.
  */
-char* Process_getPath(struct Allocator* alloc);
+const char* Process_getPath(struct Allocator* alloc);
 
 #endif

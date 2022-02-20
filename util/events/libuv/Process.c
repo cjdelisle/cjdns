@@ -18,8 +18,8 @@
 #include "util/Bits.h"
 #include "util/Identity.h"
 
-int Process_spawn(char* binaryPath,
-                  char** args,
+int Process_spawn(const char* binaryPath,
+                  const char* const* args,
                   struct EventBase* eventBase,
                   struct Allocator* alloc,
                   Process_OnExitCallback callback)
@@ -28,12 +28,12 @@ int Process_spawn(char* binaryPath,
     for (i = 0; args[i]; i++) ;
 
     struct EventBase_pvt* base = EventBase_privatize(eventBase);
-    return Rffi_spawn(binaryPath, args, i, base->rffi_loop, alloc, callback);
+    return Rffi_spawn(binaryPath, args, i, alloc, base->rffi_loop, callback);
 }
 
-char* Process_getPath(struct Allocator* alloc)
+const char* Process_getPath(struct Allocator* alloc)
 {
-    char* out;
+    const char* out;
     int ret = Rffi_exepath(&out, alloc);
     if (ret < 0) {
         out = 0;

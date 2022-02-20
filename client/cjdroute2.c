@@ -755,12 +755,12 @@ int cjdroute2_main(int argc, char** argv)
         }
     }
 
-    char* args[] = { "core", pipePath->bytes, NULL };
+    const char* args[] = { "core", pipePath->bytes, NULL };
 
     // --------------------- Spawn Core --------------------- //
     String* privateKey = Dict_getStringC(config, "privateKey");
 
-    char* corePath = Process_getPath(allocator);
+    const char* corePath = Process_getPath(allocator);
 
     if (!corePath) {
         Except_throw(eh, "Can't find a usable cjdns core executable, "

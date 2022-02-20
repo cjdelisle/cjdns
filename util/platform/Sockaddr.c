@@ -139,7 +139,7 @@ int Sockaddr_parse(const char* input, struct Sockaddr_storage* out)
     if (lastColon != firstColon) {
         // ipv6
         struct sockaddr_in6* in6 = (struct sockaddr_in6*) Sockaddr_asNative(&out->addr);
-        if (Rffi_inet_pton(1, (char*) ((buff[0] == '[') ? &buff[1] : buff), &in6->sin6_addr)) {
+        if (Rffi_inet_pton(1, (char*) ((buff[0] == '[') ? &buff[1] : buff), (uint8_t*) &in6->sin6_addr)) {
             return -1;
         }
         out->addr.addrLen = sizeof(struct sockaddr_in6) + Sockaddr_OVERHEAD;
@@ -147,7 +147,7 @@ int Sockaddr_parse(const char* input, struct Sockaddr_storage* out)
         in6->sin6_family = AF_INET6;
     } else {
         struct sockaddr_in* in = ((struct sockaddr_in*) Sockaddr_asNative(&out->addr));
-        if (Rffi_inet_pton(0, (char*) buff, &in->sin_addr)) {
+        if (Rffi_inet_pton(0, (char*) buff, (uint8_t*) &in->sin_addr)) {
             return -1;
         }
         out->addr.addrLen = sizeof(struct sockaddr_in) + Sockaddr_OVERHEAD;

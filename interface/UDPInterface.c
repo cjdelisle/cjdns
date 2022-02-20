@@ -54,7 +54,7 @@ struct UDPInterface_pvt
 
 static struct Sockaddr* mkBcastAddr(
     uint16_t beaconPort_be,
-    Rffi_NetworkInterface* iface,
+    const Rffi_NetworkInterface* iface,
     struct Allocator* alloc)
 {
     uint32_t addr; memcpy(&addr, iface->address.octets, 4);
@@ -79,7 +79,7 @@ static int updateBcastAddrs(struct UDPInterface_pvt* ctx)
     }
 
     struct Allocator* tmpAlloc = Allocator_child(ctx->allocator);
-    Rffi_NetworkInterface* interfaces;
+    const Rffi_NetworkInterface* interfaces;
     int count = Rffi_interface_addresses(&interfaces, tmpAlloc);
 
     if (ctx->bcastAddrAlloc) { Allocator_free(ctx->bcastAddrAlloc); }
@@ -101,7 +101,7 @@ static int updateBcastAddrs(struct UDPInterface_pvt* ctx)
             for (int j = 0; ctx->bcastIfaces && j < ctx->bcastIfaces->length; j++) {
                 String* iface = StringList_get(ctx->bcastIfaces, j);
                 if (String_equals(iface, addrStr)) { found = true; }
-                if (String_equals(iface, String_CONST(interfaces[i].name))) { found = true; }
+                if (CString_strncmp(iface->bytes, interfaces[i].name, iface->len)) { found = true; }
             }
             if (!found) { continue; }
         }
@@ -252,7 +252,7 @@ Er_DEFUN(struct UDPInterface* UDPInterface_new(struct EventBase* eventBase,
 
 Er_DEFUN(List* UDPInterface_listDevices(struct Allocator* alloc))
 {
-    Rffi_NetworkInterface* interfaces;
+    const Rffi_NetworkInterface* interfaces;
     int count = Rffi_interface_addresses(&interfaces, alloc);
 
     List* out = List_new(alloc);
