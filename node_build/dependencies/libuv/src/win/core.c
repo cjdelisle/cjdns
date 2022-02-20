@@ -175,9 +175,13 @@ uv_loop_t* uv_default_loop(void) {
   return &uv_default_loop_;
 }
 
+  // sync with the Rust async Runtime.
+static void* CJDNS_LOOP_LOCK = NULL;
 
 uv_loop_t* uv_loop_new(void) {
   uv_loop_t* loop;
+
+  CJDNS_LOOP_LOCK = Rffi_glock();
 
   /* Initialize libuv itself first */
   uv__once_init();
@@ -312,9 +316,6 @@ int uv_run(uv_loop_t *loop, uv_run_mode mode) {
   else
     poll = &uv_poll;
 
-  // sync with the Rust async Runtime.
-  void *glock = Rffi_glock();
-
   r = uv__loop_alive(loop);
   if (!r)
     uv_update_time(loop);
@@ -328,7 +329,7 @@ int uv_run(uv_loop_t *loop, uv_run_mode mode) {
     uv_prepare_invoke(loop);
 
     // sync with the Rust async Runtime.
-    Rffi_gunlock(glock);
+    Rffi_gunlock(CJDNS_LOOP_LOCK);
 
     (*poll)(loop, loop->idle_handles == NULL &&
                   loop->pending_reqs_tail == NULL &&
@@ -339,7 +340,7 @@ int uv_run(uv_loop_t *loop, uv_run_mode mode) {
                   !(mode & UV_RUN_NOWAIT));
 
     // sync with the Rust async Runtime.
-    glock = Rffi_glock();
+    CJDNS_LOOP_LOCK = Rffi_glock();
 
     uv_check_invoke(loop);
     uv_process_endgames(loop);
@@ -367,9 +368,6 @@ int uv_run(uv_loop_t *loop, uv_run_mode mode) {
    */
   if (loop->stop_flag != 0)
     loop->stop_flag = 0;
-
-  // sync with the Rust async Runtime.
-  Rffi_gunlock(glock);
 
   return r;
 }
