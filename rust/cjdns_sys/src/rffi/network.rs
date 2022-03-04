@@ -5,6 +5,17 @@ use pnet::util::MacAddr;
 use std::convert::TryInto;
 use std::ffi::{c_void, CStr};
 use std::os::raw::c_char;
+use std::net::{IpAddr, SocketAddr};
+
+fn n_to_ip(is_ip6: bool, addr: *const c_void) -> IpAddr {
+    if is_ip6 {
+        let addr = addr as *const [u8; 16];
+        IpAddr::from(std::net::Ipv6Addr::from(unsafe { *addr }))
+    } else {
+        let addr = addr as *const [u8; 4];
+        IpAddr::from(std::net::Ipv4Addr::from(unsafe { *addr }))
+    }
+}
 
 /// Convert IPv4 and IPv6 addresses from binary to text form.
 #[no_mangle]
