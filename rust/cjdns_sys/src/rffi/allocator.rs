@@ -14,7 +14,7 @@ struct Mem {
 }
 impl Drop for Mem {
     fn drop(&mut self) {
-        println!("Dropping memory {:p} from {}", &self.loc, self.alloc_ident);
+        println!("Dropping memory {:p} from {}", &self.loc[0], self.alloc_ident);
         for i in 0..self.loc.len() {
             self.loc[i] = 0xefefefefefefefefefefefefefefefef_u128;
         }
@@ -100,7 +100,7 @@ pub(crate) use child;
 
 impl Allocator {
     pub fn new(file: *const c_char, line: usize) -> Allocator {
-        let mut a = Allocator(Arc::new(AllocatorInner{
+        let a = Allocator(Arc::new(AllocatorInner{
             parents: Mutex::default(),
             children: Mutex::default(),
             mem: Mutex::default(),
@@ -121,7 +121,7 @@ impl Allocator {
     }
 
     pub fn child(&self, file: *const c_char, line: usize) -> Allocator {
-        let mut a = Allocator(Arc::new(AllocatorInner{
+        let a = Allocator(Arc::new(AllocatorInner{
             parents: Mutex::new(vec![ Arc::downgrade(&self.0) ]),
             children: Mutex::default(),
             mem: Mutex::default(),
