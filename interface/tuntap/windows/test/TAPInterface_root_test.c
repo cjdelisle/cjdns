@@ -22,7 +22,6 @@ int main(int argc, char** argv)
 #include "interface/tuntap/windows/NDPServer.h"
 #include "exception/Except.h"
 #include "memory/Allocator.h"
-#include "memory/MallocAllocator.h"
 #include "util/events/EventBase.h"
 #include "util/log/Log.h"
 #include "util/log/FileWriterLog.h"
@@ -103,7 +102,7 @@ printf("Test failed\n");
 int main(int argc, char** argv)
 {
 printf("init test");
-    struct Allocator* alloc = MallocAllocator_new(1<<20);
+    struct Allocator* alloc = Allocator_new(1<<20);
     struct Log* logger = FileWriterLog_new(stdout, alloc);
     struct EventBase* base = EventBase_new(alloc);
 

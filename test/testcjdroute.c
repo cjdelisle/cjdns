@@ -18,7 +18,7 @@
 #include "util/events/Time.h"
 #include "util/events/EventBase.h"
 #include "util/CString.h"
-#include "memory/MallocAllocator.h"
+#include "memory/Allocator.h"
 #include "wire/Message.h"
 #include "test/FuzzTest.h"
 #include "util/Js.h"
@@ -256,8 +256,7 @@ static int main2(int argc, char** argv, struct Allocator* alloc, struct Random* 
         // free the root allocator, you get an assertion.
         //
         //struct Allocator* child = Allocator_child(alloc);
-        struct Allocator* child = MallocAllocator_new(1<<24);
-
+        struct Allocator* child = Allocator_new(1<<24);
         now = runFuzzTestManual(child, detRand, FUZZ_CASES[i], now, quiet);
         Allocator_free(child);
     }
@@ -272,7 +271,9 @@ static int main2(int argc, char** argv, struct Allocator* alloc, struct Random* 
 int testcjdroute_main(int argc, char** argv);
 int testcjdroute_main(int argc, char** argv)
 {
-    struct Allocator* alloc = MallocAllocator_new(1<<24);
+    struct Allocator* alloc = Allocator_new(1<<24);
+    Allocator_free(alloc);
+    alloc = Allocator_new(1<<24);
     RandomSeed_t* rs = DeterminentRandomSeed_new(alloc, RANDOM_SEED);
     struct Random* detRand = Random_newWithSeed(alloc, NULL, rs, NULL);
     int out = main2(argc, argv, alloc, detRand);

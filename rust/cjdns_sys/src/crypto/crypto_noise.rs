@@ -21,7 +21,7 @@ use crate::external::interface::iface::{self, IfRecv, Iface, IfacePvt};
 use crate::interface::wire::message::Message;
 use crate::crypto::crypto_auth::{ip6_from_key, DecryptError, DecryptErr};
 use crate::crypto::session::SessionTrait;
-use crate::external::memory::allocator::Allocator;
+use crate::rffi::allocator::{self, Allocator};
 
 use self::types::*;
 
@@ -170,7 +170,8 @@ struct SessionInnerMut {
 }
 impl SessionInnerMut {
     fn update_additional(&mut self) {
-        let mut msg = Message::rnew(256);
+        let mut alloc = allocator::new!();
+        let mut msg = Message::anew(256, &mut alloc);
         if let Some(peer_index) = self.peer_recv_index {
             cnoise::push_ent(&mut msg, cnoise::CNoiseEntity::PrevSessIndex(peer_index)).unwrap();
         }
@@ -519,7 +520,7 @@ impl SessionTrait for Session {
                 _ => panic!("Unexpected result from update_timers"),
             };
             if let Some(packet) = p {
-                let mut alloc = alloc.child();
+                let mut alloc = allocator::child!(alloc);
                 let mut msg = Message::anew(packet.len() + 512, &mut alloc);
                 msg.push_bytes(packet)?;
                 let msg_type = cnoise::cjdns_from_wg(&mut msg)?;

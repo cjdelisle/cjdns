@@ -12,7 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#include "memory/MallocAllocator.h"
+#include "memory/Allocator.h"
 #include "crypto/random/Random.h"
 #include "util/VarInt.h"
 #include "util/Assert.h"
@@ -24,7 +24,7 @@
 
 static void fidelityTest()
 {
-    struct Allocator* alloc = MallocAllocator_new(1<<20);
+    struct Allocator* alloc = Allocator_new(1<<20);
     struct Random* rand = Random_new(alloc, NULL, NULL);
     uint64_t* buf = Allocator_malloc(alloc, BUF_SZ*8);
     Random_bytes(rand, (uint8_t*) buf, BUF_SZ*8);

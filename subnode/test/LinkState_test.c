@@ -13,7 +13,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "crypto/random/Random.h"
-#include "memory/MallocAllocator.h"
+#include "memory/Allocator.h"
 #include "subnode/LinkState.h"
 #include "util/Assert.h"
 #include "wire/Message.h"
@@ -145,7 +145,7 @@ static void testStatic()
 int main(int argc, char* argv[])
 {
     testStatic();
-    struct Allocator* mainAlloc = MallocAllocator_new(1<<18);
+    struct Allocator* mainAlloc = Allocator_new(1<<18);
     struct Random* rand = Random_new(mainAlloc, NULL, NULL);
 
     int cycles = CYCLES;

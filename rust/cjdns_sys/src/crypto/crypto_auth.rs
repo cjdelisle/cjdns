@@ -21,7 +21,7 @@ use crate::interface::wire::message::Message;
 use crate::util::events::EventBase;
 use crate::crypto::session::SessionTrait;
 use crate::crypto::cnoise;
-use crate::external::memory::allocator::Allocator;
+use crate::rffi::allocator::Allocator;
 
 
 use self::types::*;
@@ -1689,26 +1689,11 @@ mod tests {
     use crate::interface::wire::message::Message;
     use crate::util::events::EventBase;
     use crate::crypto::session::SessionTrait;
+    use crate::rffi::allocator::{self, Allocator};
 
-    fn mk_msg(padding: usize) -> Message {
-        use std::os::raw::c_char;
+    fn mk_msg(padding: usize, alloc: &mut Allocator) -> Message {
         unsafe {
-            let alloc =
-                cffi::MallocAllocator__new((padding as u64) + 256, "".as_ptr() as *const c_char, 0);
-            Message::from_c_message(cffi::Message_new(0, padding as u32, alloc))
-        }
-    }
-
-    fn mk_msg_alloc(padding: usize, alloc: *mut cffi::Allocator) -> Message {
-        unsafe {
-            Message::from_c_message(cffi::Message_new(0, padding as u32, alloc))
-        }
-    }
-
-    fn mk_alloc(size: u64) -> *mut cffi::Allocator {
-        use std::os::raw::c_char;
-        unsafe {
-            cffi::MallocAllocator__new(size, "".as_ptr() as *const c_char, 0)
+            Message::from_c_message(cffi::Message_new(0, padding as u32, alloc.c()))
         }
     }
 
@@ -1717,8 +1702,9 @@ mod tests {
         // The message
         const TEST_STRING: &[u8] = b"Hello World";
         const LEN: usize = TEST_STRING.len();
-        let mut msg1 = mk_msg(128);
-        let mut msg2 = mk_msg(128);
+        let mut alloc = allocator::new!();
+        let mut msg1 = mk_msg(128, &mut alloc);
+        let mut msg2 = mk_msg(128, &mut alloc);
         msg1.push_bytes(TEST_STRING).unwrap();
         msg2.push_bytes(TEST_STRING).unwrap();
 
@@ -1765,6 +1751,7 @@ mod tests {
         let keys_api = CJDNSKeysApi::new().unwrap();
         let my_keys = keys_api.key_pair();
         let her_keys = keys_api.key_pair();
+        let mut alloc = allocator::new!();
 
         fn mk_sess(
             my_priv_key: PrivateKey,
@@ -1797,7 +1784,7 @@ mod tests {
             "bob",
         );
 
-        let mut msg = mk_msg(256);
+        let mut msg = mk_msg(256, &mut alloc);
         msg.push_bytes(b"HelloWorld012345").unwrap();
         let orig_length = msg.len();
 
@@ -1819,6 +1806,7 @@ mod tests {
         let keys_api = CJDNSKeysApi::new().unwrap();
         let my_keys = keys_api.key_pair();
         let her_keys = keys_api.key_pair();
+        let mut alloc = allocator::new!();
 
         fn mk_sess(
             my_priv_key: PrivateKey,
@@ -1859,7 +1847,7 @@ mod tests {
         );
         set_auth(&my_session, "alice");
 
-        let mut msg = mk_msg(256);
+        let mut msg = mk_msg(256, &mut alloc);
         msg.push_bytes(b"HelloWorld012345").unwrap();
         let orig_length = msg.len();
 
@@ -1882,6 +1870,7 @@ mod tests {
         let keys_api = CJDNSKeysApi::new().unwrap();
         let my_keys = keys_api.key_pair();
         let her_keys = keys_api.key_pair();
+        let mut alloc = allocator::new!();
 
         let rust_session = {
             let priv_key = my_keys.private_key.clone();
@@ -1889,7 +1878,7 @@ mod tests {
             let name = "bob";
 
             let ca =
-                super::CryptoAuth::new(Some(priv_key), EventBase {}, Random::Legacy(fake_random()));
+                super::CryptoAuth::new(Some(priv_key), EventBase {}, Random::Legacy(fake_random(&mut alloc)));
             let ca = Arc::new(ca);
 
             let res = ca.add_user_ipv6(
@@ -1909,7 +1898,7 @@ mod tests {
             sess.unwrap()
         };
 
-        let mut msg = mk_msg(256);
+        let mut msg = mk_msg(256, &mut alloc);
         msg.push_bytes(b"HelloWorld012345").unwrap();
         let orig_length = msg.len();
 
@@ -1922,25 +1911,20 @@ mod tests {
             let pub_key = my_keys.public_key;
             let name = "alice";
 
-            let alloc = unsafe {
-                use std::os::raw::c_char;
-                cffi::MallocAllocator__new(1 << 20, "".as_ptr() as *const c_char, 0)
-            };
-
-            let event_base = unsafe { cffi::EventBase_new(alloc) };
+            let event_base = unsafe { cffi::EventBase_new(alloc.c()) };
 
             let ca = unsafe {
                 cffi::CryptoAuth_new(
-                    alloc,
+                    alloc.c(),
                     priv_key.as_ptr(),
                     event_base,
                     std::ptr::null_mut(),
-                    fake_random(),
+                    fake_random(&mut alloc),
                 )
             };
 
             let res = unsafe {
-                let name = cffi::String_new(name.as_ptr() as *const i8, alloc);
+                let name = cffi::String_new(name.as_ptr() as *const i8, alloc.c());
                 cffi::CryptoAuth_addUser_ipv6(name, name, std::ptr::null_mut(), ca)
             };
             assert_eq!(res, 0, "CryptoAuth_addUser_ipv6() failed: {}", res);
@@ -1948,7 +1932,7 @@ mod tests {
             unsafe {
                 cffi::CryptoAuth_newSession(
                     ca,
-                    alloc,
+                    alloc.c(),
                     pub_key.as_ptr(),
                     false,
                     format!("{}'s session", name).as_mut_ptr() as *mut i8,
@@ -1968,31 +1952,27 @@ mod tests {
         let keys_api = CJDNSKeysApi::new().unwrap();
         let my_keys = keys_api.key_pair();
         let her_keys = keys_api.key_pair();
+        let mut alloc = allocator::new!();
 
         let c_session = {
             let priv_key = my_keys.private_key.clone();
             let pub_key = her_keys.public_key.clone();
             let name = "bob";
 
-            let alloc = unsafe {
-                use std::os::raw::c_char;
-                cffi::MallocAllocator__new(1 << 20, "".as_ptr() as *const c_char, 0)
-            };
-
-            let event_base = unsafe { cffi::EventBase_new(alloc) };
+            let event_base = unsafe { cffi::EventBase_new(alloc.c()) };
 
             let ca = unsafe {
                 cffi::CryptoAuth_new(
-                    alloc,
+                    alloc.c(),
                     priv_key.as_ptr(),
                     event_base,
                     std::ptr::null_mut(),
-                    fake_random(),
+                    fake_random(&mut alloc),
                 )
             };
 
             let res = unsafe {
-                let name = cffi::String_new(name.as_ptr() as *const i8, alloc);
+                let name = cffi::String_new(name.as_ptr() as *const i8, alloc.c());
                 cffi::CryptoAuth_addUser_ipv6(name, name, std::ptr::null_mut(), ca)
             };
             assert_eq!(res, 0, "CryptoAuth_addUser_ipv6() failed: {}", res);
@@ -2000,7 +1980,7 @@ mod tests {
             unsafe {
                 cffi::CryptoAuth_newSession(
                     ca,
-                    alloc,
+                    alloc.c(),
                     pub_key.as_ptr(),
                     false,
                     format!("{}'s session", name).as_mut_ptr() as *mut i8,
@@ -2009,7 +1989,7 @@ mod tests {
             }
         };
 
-        let mut msg = mk_msg(256);
+        let mut msg = mk_msg(256, &mut alloc);
         msg.push_bytes(b"HelloWorld012345").unwrap();
         let orig_length = msg.len();
 
@@ -2023,7 +2003,7 @@ mod tests {
             let name = "alice";
 
             let ca =
-                super::CryptoAuth::new(Some(priv_key), EventBase {}, Random::Legacy(fake_random()));
+                super::CryptoAuth::new(Some(priv_key), EventBase {}, Random::Legacy(fake_random(&mut alloc)));
             let ca = Arc::new(ca);
 
             let res = ca.add_user_ipv6(
@@ -2049,12 +2029,10 @@ mod tests {
         assert_eq!(msg.bytes(), b"HelloWorld012345");
     }
 
-    fn fake_random() -> *mut cffi::Random_t {
-        use std::os::raw::c_char;
+    fn fake_random(alloc: &mut Allocator) -> *mut cffi::Random_t {
         unsafe {
-            let alloc = cffi::MallocAllocator__new(1 << 20, "".as_ptr() as *const c_char, 0);
-            let fake_seed = cffi::DeterminentRandomSeed_new(alloc, std::ptr::null_mut());
-            cffi::Random_newWithSeed(alloc, std::ptr::null_mut(), fake_seed, std::ptr::null_mut())
+            let fake_seed = cffi::DeterminentRandomSeed_new(alloc.c(), std::ptr::null_mut());
+            cffi::Random_newWithSeed(alloc.c(), std::ptr::null_mut(), fake_seed, std::ptr::null_mut())
         }
     }
 
@@ -2087,8 +2065,9 @@ mod tests {
         let keys_api = CJDNSKeysApi::new().unwrap();
         let alice_keys = keys_api.key_pair();
         let bob_keys = keys_api.key_pair();
+        let mut alloc = allocator::new!();
 
-        let mut msg = mk_msg_alloc(1024, mk_alloc(65536));
+        let mut msg = mk_msg(1024, &mut alloc);
         let alice_received_text = Rc::new(RefCell::new(Vec::new()));
         let bob_received_text = Rc::new(RefCell::new(Vec::new()));
 
@@ -2154,8 +2133,9 @@ mod tests {
         let keys_api = CJDNSKeysApi::new().unwrap();
         let alice_keys = keys_api.key_pair();
         let bob_keys = keys_api.key_pair();
+        let mut alloc = allocator::new!();
 
-        let mut msg = mk_msg_alloc(1024, mk_alloc(65536));
+        let mut msg = mk_msg(1024, &mut alloc);
         let alice_received_text = Rc::new(RefCell::new(Vec::new()));
         let bob_received_text = Rc::new(RefCell::new(Vec::new()));
 

@@ -16,7 +16,6 @@
 #include "memory/Allocator.h"
 #include "rust/cjdns_sys/Rffi.h"
 #include "interface/Iface.h"
-#include "memory/MallocAllocator.h"
 #include "util/Identity.h"
 #include "wire/Message.h"
 #include "util/Assert.h"
@@ -81,7 +80,7 @@ static Iface_DEFUN sendInside(struct Message* msg, struct Iface* inside)
 
 int main()
 {
-    struct Allocator* alloc = MallocAllocator_new(20000);
+    struct Allocator* alloc = Allocator_new(20000);
     struct Context* ctx = Allocator_calloc(alloc, sizeof(struct Context), 1);
     Identity_set(ctx);
     ctx->outside.send = sendOutside;

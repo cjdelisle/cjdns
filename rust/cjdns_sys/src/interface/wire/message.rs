@@ -6,7 +6,7 @@ use std::i32;
 use thiserror::Error;
 
 use crate::cffi;
-use crate::external::memory::allocator::Allocator;
+use crate::rffi::allocator::Allocator;
 
 /// A network message.
 ///
@@ -40,12 +40,7 @@ pub type Result<T> = std::result::Result<T, MessageError>;
 
 impl Message {
     pub fn anew(padding: usize, alloc: &mut Allocator) -> Self {
-        unsafe { Message { msg: cffi::Message_new(0, padding as u32, alloc.native), alloc: None } }
-    }
-
-    pub fn rnew(padding: usize) -> Self {
-        let alloc = Allocator::new(padding + 1024);
-        unsafe { Message { msg: cffi::Message_new(0, padding as u32, alloc.native), alloc: Some(alloc) } }
+        unsafe { Message { msg: cffi::Message_new(0, padding as u32, alloc.c()), alloc: None } }
     }
 
     /// Create empty new message with the given amount of free space,
@@ -366,19 +361,12 @@ mod tests {
     use crate::cffi;
 
     use super::Message;
-
-    mod alloc {
-        use crate::cffi::Allocator;
-
-        pub(super) fn new_allocator(size_limit: u64) -> *mut Allocator {
-            unsafe { crate::cffi::MallocAllocator__new(size_limit, "".as_ptr() as *const i8, 0) }
-        }
-    }
+    use crate::rffi::allocator::{self, Allocator};
 
     #[test]
     fn test_message_bytes() {
-        let alloc = alloc::new_allocator(1024);
-        let c_msg = unsafe { cffi::Message_new(4, 5, alloc) };
+        let mut alloc = allocator::new!();
+        let c_msg = unsafe { cffi::Message_new(4, 5, alloc.c()) };
         let mut msg = Message::from_c_message(c_msg);
         assert_eq!(msg.len(), 4);
         assert_eq!(msg.pad(), 5);
@@ -403,8 +391,8 @@ mod tests {
 
     #[test]
     fn test_message_push_pop() {
-        let alloc = alloc::new_allocator(1024);
-        let c_msg = unsafe { cffi::Message_new(64, 64, alloc) };
+        let mut alloc = allocator::new!();
+        let c_msg = unsafe { cffi::Message_new(64, 64, alloc.c()) };
         let mut msg = Message::from_c_message(c_msg);
         assert_eq!(msg.len(), 64);
         assert_eq!(msg.push(0x12345678_u32), Ok(()));
@@ -418,8 +406,8 @@ mod tests {
 
     #[test]
     fn test_message_push_pop_unaligned() {
-        let alloc = alloc::new_allocator(1024);
-        let c_msg = unsafe { cffi::Message_new(64, 64, alloc) };
+        let mut alloc = allocator::new!();
+        let c_msg = unsafe { cffi::Message_new(64, 64, alloc.c()) };
         let mut msg = Message::from_c_message(c_msg);
         assert_eq!(msg.len(), 64);
 

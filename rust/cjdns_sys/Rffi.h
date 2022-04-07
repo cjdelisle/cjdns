@@ -5,11 +5,10 @@
 
 #include "RffiPrefix.h"
 
+typedef struct OnFreeCtx OnFreeCtx;
+
 typedef struct RTypes_CryptoAuth2_t RTypes_CryptoAuth2_t;
 
-/**
- * A data repository, that groups objects related to this event loop.
- */
 typedef struct Rffi_EventLoop Rffi_EventLoop;
 
 /**
@@ -34,6 +33,8 @@ typedef struct {
   bool is_internal;
   Rffi_Address address;
 } Rffi_NetworkInterface;
+
+typedef void (*OnFreeFun)(void *ctx, OnFreeCtx *complete);
 
 extern const uintptr_t Rffi_CURRENT_PROTOCOL;
 
@@ -101,7 +102,7 @@ void Rffi_gunlock(Rffi_Glock_guard *guard);
 /**
  * Create a new EventLoop data repository.
  */
-Rffi_EventLoop *Rffi_mkEventLoop(Allocator_t *alloc);
+Rffi_EventLoop *Rffi_mkEventLoop(Allocator_t *alloc, void *base);
 
 /**
  * Return some EventLoop's ref counter to C.
@@ -121,12 +122,12 @@ int32_t Rffi_spawn(const char *file,
                    int num_args,
                    Allocator_t *_alloc,
                    Rffi_EventLoop *event_loop,
-                   void (*cb)(long, int));
+                   void (*cb)(int64_t, int));
 
 /**
  * Spawn a timer task for a timeout or interval, that calls some callback whenever it triggers.
  */
-void Rffi_setTimeout(const Rffi_TimerTx **out_timer_tx,
+void Rffi_setTimeout(Rffi_TimerTx **out_timer_tx,
                      void (*cb)(void*),
                      void *cb_context,
                      unsigned long timeout_millis,
@@ -192,5 +193,26 @@ RTypes_Error_t *Rffi_error(const char *msg, Allocator_t *alloc);
 RTypes_Error_t *Rffi_error_fl(const char *msg, const char *file, int line, Allocator_t *alloc);
 
 const char *Rffi_printError(RTypes_Error_t *e, Allocator_t *alloc);
+
+void Rffi_allocator_onFreeComplete(OnFreeCtx *c);
+
+/**
+ * Create a root level allocator.
+ */
+Allocator_t *Rffi_allocator_newRoot(const char *file, uintptr_t line);
+
+void Rffi_allocator_free(Allocator_t *a);
+
+Allocator_t *Rffi_allocator_child(Allocator_t *a, const char *file, uintptr_t line);
+
+uint8_t *Rffi_allocator_malloc(Allocator_t *a, uintptr_t size);
+
+uint8_t *Rffi_allocator_calloc(Allocator_t *a, uintptr_t size);
+
+uint8_t *Rffi_allocator_realloc(Allocator_t *a, uint8_t *ptr, uintptr_t new_size);
+
+void Rffi_allocator_onFree(Allocator_t *a, OnFreeFun fun, void *ctx);
+
+void Rffi_allocator_adopt(Allocator_t *a, Allocator_t *to_adopt);
 
 #endif /* rffi_H */

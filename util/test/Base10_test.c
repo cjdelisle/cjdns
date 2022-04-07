@@ -14,7 +14,6 @@
  */
 
 #include "memory/Allocator.h"
-#include "memory/MallocAllocator.h"
 #include "crypto/random/Random.h"
 #include "wire/Message.h"
 #include "util/Base10.h"
@@ -25,7 +24,7 @@
 
 int main()
 {
-    struct Allocator* alloc = MallocAllocator_new(1<<22);
+    struct Allocator* alloc = Allocator_new(1<<22);
     struct Random* rand = Random_new(alloc, NULL, NULL);
 
     struct Message* msg = Message_new(0, 32, alloc);

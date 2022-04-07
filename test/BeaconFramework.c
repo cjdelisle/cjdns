@@ -15,7 +15,6 @@
 #include "test/BeaconFramework.h"
 #include "crypto/Key.h"
 #include "io/FileWriter.h"
-#include "memory/MallocAllocator.h"
 #include "memory/Allocator.h"
 #include "crypto/random/Random.h"
 #include "interface/Iface.h"
@@ -244,7 +243,7 @@ static void runTest(struct TwoNodes* tn)
 /** Check if nodes A and C can communicate via B without A knowing that C exists. */
 int BeaconFramework_test(bool noiseA, bool noiseB)
 {
-    struct Allocator* alloc = MallocAllocator_new(1<<22);
+    struct Allocator* alloc = Allocator_new(1<<22);
     struct Writer* logwriter = FileWriter_new(stdout, alloc);
     struct Log* logger = WriterLog_new(logwriter, alloc);
     struct Random* rand = Random_new(alloc, logger, NULL);

@@ -46,7 +46,6 @@
 #include "interface/tuntap/TUNMessageType.h"
 #include "interface/ASynchronizer.h"
 #include "memory/Allocator.h"
-#include "memory/MallocAllocator.h"
 #include "memory/Allocator_admin.h"
 #include "net/SwitchPinger_admin.h"
 #include "net/UpperDistributor_admin.h"
@@ -439,7 +438,7 @@ int Core_main(int argc, char** argv)
         Except_throw(eh, "This is internal to cjdns and shouldn't started manually.");
     }
 
-    struct Allocator* alloc = MallocAllocator_new(ALLOCATOR_FAILSAFE);
+    struct Allocator* alloc = Allocator_new(ALLOCATOR_FAILSAFE);
     struct Log* preLogger = FileWriterLog_new(stderr, alloc);
     Rffi_setLogger(preLogger);
     struct EventBase* eventBase = EventBase_new(alloc);

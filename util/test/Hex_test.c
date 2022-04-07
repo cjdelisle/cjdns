@@ -13,7 +13,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "crypto/random/Random.h"
-#include "memory/MallocAllocator.h"
+#include "memory/Allocator.h"
 #include "util/Bits.h"
 #include "util/Hex.h"
 #include "util/Assert.h"
@@ -22,7 +22,7 @@
 
 int main()
 {
-    struct Allocator* alloc = MallocAllocator_new(20000);
+    struct Allocator* alloc = Allocator_new(20000);
     struct Random* rand = Random_new(alloc, NULL, NULL);
 
     uint8_t bytes[32];

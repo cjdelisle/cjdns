@@ -6,7 +6,7 @@ use crate::crypto::crypto_auth::DecryptError;
 use crate::crypto::keys::{PrivateKey, PublicKey};
 use crate::crypto::session;
 use crate::external::interface::cif;
-use crate::external::memory::allocator;
+use crate::rffi::allocator;
 use crate::interface::wire::message::Message;
 use crate::rtypes::*;
 use std::os::raw::{c_char, c_int};
@@ -96,7 +96,7 @@ fn wrap_session(
     alloc: *mut Allocator_t,
 ) -> *mut RTypes_CryptoAuth2_Session_t {
     let (plaintext, ciphertext) = session.ifaces().unwrap();
-    &mut allocator::adopt(
+    let out = allocator::adopt(
         alloc,
         Rffi_CryptoAuth2_Session_t {
             r: RTypes_CryptoAuth2_Session_t {
@@ -105,8 +105,8 @@ fn wrap_session(
             },
             s: session,
         },
-    )
-    .r as *mut _
+    );
+    unsafe { &mut (&mut *out).r as *mut _ }
 }
 
 #[no_mangle]
@@ -184,7 +184,7 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_noiseTick(
     sess: *mut RTypes_CryptoAuth2_Session_t,
     alloc: *mut Allocator_t,
 ) -> *mut cffi::Message_t {
-    let mut alloc = allocator::Allocator::wrap(alloc);
+    let mut alloc = allocator::rs(alloc);
     match ffi_sess_mut(sess).s.tick(&mut alloc) {
         Err(e) => {
             log::warn!("Error in session::tick() {}", e);

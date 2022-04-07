@@ -2,7 +2,7 @@ use super::{Rffi_EventLoop, GCL};
 use crate::cffi::Allocator_t;
 use crate::rffi::str_to_c;
 use std::ffi::CStr;
-use std::os::raw::{c_char, c_int, c_long};
+use std::os::raw::{c_char, c_int};
 use std::os::unix::process::ExitStatusExt;
 use tokio::process::Command;
 
@@ -27,7 +27,7 @@ pub unsafe extern "C" fn Rffi_spawn(
     num_args: c_int,
     _alloc: *mut Allocator_t, // perhaps create some Droppable and adopt it here, to kill the process.
     event_loop: *mut Rffi_EventLoop,
-    cb: Option<unsafe extern "C" fn(c_long, c_int)>,
+    cb: Option<unsafe extern "C" fn(i64, c_int)>,
 ) -> i32 {
     let file = match CStr::from_ptr(file).to_str() {
         Ok(f) => f,
@@ -43,8 +43,8 @@ pub unsafe extern "C" fn Rffi_spawn(
     };
     let child_status = Command::new(file).args(&args).status();
 
-    let event_loop = &*event_loop;
-    event_loop.incr_ref();
+    let event_loop = (&*event_loop).arc_clone();
+    //event_loop.incr_ref();
     tokio::spawn(async move {
         match (child_status.await, cb) {
             (Ok(status), Some(callback)) => {
@@ -57,7 +57,7 @@ pub unsafe extern "C" fn Rffi_spawn(
             (Ok(_), None) => {}
             (Err(err), _) => eprintln!("  error spawning child '{}': {:?}", file, err),
         }
-        event_loop.decr_ref();
+        //event_loop.decr_ref();
     });
     0
 }
@@ -65,16 +65,16 @@ pub unsafe extern "C" fn Rffi_spawn(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::external::memory::allocator::Allocator;
+    use crate::rffi::allocator::{self, Allocator};
 
     #[test]
     fn test_exepath() -> anyhow::Result<()> {
-        let alloc = Allocator::new(10000000);
+        let mut alloc = allocator::new!();
 
         let out = unsafe {
             let mut x: *const c_char = std::ptr::null();
             let xp = &mut x as *mut *const c_char;
-            let err = Rffi_exepath(xp, alloc.native);
+            let err = Rffi_exepath(xp, alloc.c());
             assert_eq!(err, 0);
             CStr::from_ptr(x).to_str()
         }?;

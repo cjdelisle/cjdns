@@ -12,7 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#include "memory/MallocAllocator.h"
+#include "memory/Allocator.h"
 #include "crypto/random/Random.h"
 #include "dht/dhtcore/VersionList.h"
 #include "util/Assert.h"
@@ -23,7 +23,7 @@
 
 int main()
 {
-    struct Allocator* alloc = MallocAllocator_new(1<<20);
+    struct Allocator* alloc = Allocator_new(1<<20);
     struct Random* rand = Random_new(alloc, NULL, NULL);
 
     for (int cycles = 0; cycles < 1; cycles++) {

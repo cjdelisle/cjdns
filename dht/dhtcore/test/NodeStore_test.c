@@ -12,7 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#include "memory/MallocAllocator.h"
+#include "memory/Allocator.h"
 #include "crypto/Key.h"
 #include "crypto/random/Random.h"
 #include "dht/Address.h"
@@ -109,7 +109,7 @@ static void getPeersTest(uint8_t* addrs[],
 
 int main(int argc, char** argv)
 {
-    struct Allocator* alloc = MallocAllocator_new(1<<20);
+    struct Allocator* alloc = Allocator_new(1<<20);
     struct Log* logger = FileWriterLog_new(stdout, alloc);
     struct EventBase* base = EventBase_new(alloc);
     struct Random* rand = Random_new(alloc, NULL, NULL);

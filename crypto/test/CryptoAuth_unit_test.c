@@ -17,7 +17,6 @@
 #include "crypto/random/Random.h"
 #include "crypto/random/test/DeterminentRandomSeed.h"
 #include "io/FileWriter.h"
-#include "memory/MallocAllocator.h"
 #include "memory/Allocator.h"
 #include "util/events/EventBase.h"
 #include "util/Assert.h"
@@ -90,7 +89,7 @@ static struct Context* setUp(uint8_t* myPrivateKey,
 static void testHello(uint8_t* password, uint8_t* expectedOutput, enum TestCa_Config cfg)
 {
     Assert_true(CString_strlen((char*)expectedOutput) == 264);
-    struct Allocator* alloc = MallocAllocator_new(1<<20);
+    struct Allocator* alloc = Allocator_new(1<<20);
     struct Context* ctx = setUp(NULL, HERPUBKEY, password, alloc, cfg);
     struct Message* msg = Message_new(0, CryptoHeader_SIZE + 32, alloc);
     Er_assert(Message_epush(msg, HELLOWORLD, HELLOWORLDLEN));
@@ -131,7 +130,7 @@ static void receiveHelloWithNoAuth(enum TestCa_Config cfg)
     uint8_t herPublic[32];
     Assert_true(Hex_decode(herPublic, 32,
         "847c0d2c375234f365e660955187a3735a0f7613d1609d3a6a4d8c53aeaa5a22", 64) > 0);
-    struct Allocator* alloc = MallocAllocator_new(1<<20);
+    struct Allocator* alloc = Allocator_new(1<<20);
     struct Context* ctx = setUp(PRIVATEKEY, herPublic, NULL, alloc, cfg);
     struct Message* msg = Message_new(132, 32, alloc);
     Assert_true(Hex_decode(msg->msgbytes, Message_getLength(msg),
@@ -161,7 +160,7 @@ static void repeatHello(enum TestCa_Config cfg)
         "97568f25a3fc2801aa707d954c78eccb970bcc8cb26867e9dbf0c9d6ef1b3f27"
         "24e7e550";
 
-    struct Allocator* alloc = MallocAllocator_new(1<<20);
+    struct Allocator* alloc = Allocator_new(1<<20);
     struct Context* ctx = setUp(NULL, HERPUBKEY, "password", alloc, cfg);
     struct Message* msg = Message_new(0, CryptoHeader_SIZE + HELLOWORLDLEN + 32, alloc);
     Er_assert(Message_epush(msg, HELLOWORLD, HELLOWORLDLEN));
@@ -184,7 +183,7 @@ static void repeatHello(enum TestCa_Config cfg)
 
 static void testGetUsers(enum TestCa_Config cfg)
 {
-    struct Allocator* allocator = MallocAllocator_new(1<<20);
+    struct Allocator* allocator = Allocator_new(1<<20);
     struct EventBase* base = EventBase_new(allocator);
     TestCa_t* ca = TestCa_new(allocator, NULL, base, NULL,
         evilRandom(allocator, NULL), evilRandom(allocator, NULL), cfg);

@@ -26,14 +26,16 @@ typedef struct EventBase
 
 struct EventBase* EventBase_new(struct Allocator* alloc);
 
-int EventBase_eventCount(struct EventBase* eventBase);
+int EventBase_eventCount(EventBase_t* eventBase);
 
-void EventBase_beginLoop(struct EventBase* eventBase);
+void EventBase_beginLoop(EventBase_t* eventBase);
 
-void EventBase_endLoop(struct EventBase* eventBase);
+void EventBase_endLoop(EventBase_t* eventBase);
 
 void EventBase_ref();
 
 void EventBase_unref();
+
+void EventBase_wakeup(void* eventBase);
 
 #endif

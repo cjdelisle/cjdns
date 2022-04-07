@@ -13,7 +13,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "crypto/random/Random.h"
-#include "memory/MallocAllocator.h"
+#include "memory/Allocator.h"
 #include "util/Assert.h"
 
 #define Set_NAME OfInts
@@ -102,14 +102,14 @@ static void comparitorTest(struct Allocator* alloc, struct Random* rand)
 
 int main()
 {
-    struct Allocator* mainAlloc = MallocAllocator_new(20000);
+    struct Allocator* mainAlloc = Allocator_new(20000);
     struct Random* rand = Random_new(mainAlloc, NULL, NULL);
 
     for (int cycles = 0; cycles < CYCLES; cycles++) {
-        struct Allocator* alloc = MallocAllocator_new(1<<25);
+        struct Allocator* alloc = Allocator_new(1<<25);
         simpleTest(alloc, rand);
         Allocator_free(alloc);
-        alloc = MallocAllocator_new(1<<18);
+        alloc = Allocator_new(1<<18);
         comparitorTest(alloc, rand);
         Allocator_free(alloc);
     }

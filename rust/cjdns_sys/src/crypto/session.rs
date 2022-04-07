@@ -1,6 +1,6 @@
 use crate::bytestring::ByteString;
 use crate::external::interface::iface::Iface;
-use crate::external::memory::allocator::Allocator;
+use crate::rffi::allocator::Allocator;
 use crate::interface::wire::message::Message;
 
 use anyhow::Result;

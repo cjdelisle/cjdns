@@ -1,7 +1,7 @@
 use super::str_to_c;
 use crate::cffi::{self, Allocator_t};
 use crate::external::interface::cif;
-use crate::external::memory::allocator;
+use crate::rffi::allocator;
 use crate::rtypes::*;
 use std::os::raw::{c_char, c_int};
 

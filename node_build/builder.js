@@ -591,7 +591,8 @@ const needsToLink = function (ctx, cFile) {
     const nl = (cFile) => {
         if (nlCache[cFile]) { return false; }
         if (nll.indexOf(cFile) > -1) {
-            throw new Error(`File ${cFile} is self-referencial:\n${nll.join('\n')}\n\n`);
+            return false;
+            //throw new Error(`File ${cFile} is self-referencial:\n${nll.join('\n')}\n\n`);
         }
         nll.push(cFile);
         const out = (() => {

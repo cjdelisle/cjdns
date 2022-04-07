@@ -13,7 +13,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "crypto/random/Random.h"
-#include "memory/MallocAllocator.h"
+#include "memory/Allocator.h"
 #include "util/Bits.h"
 #include "util/Endian.h"
 
@@ -34,7 +34,7 @@ static void log2x64(struct Random* rand)
 
 int main()
 {
-    struct Allocator* alloc = MallocAllocator_new(20000);
+    struct Allocator* alloc = Allocator_new(20000);
     struct Random* rand = Random_new(alloc, NULL, NULL);
 
     log2x64(rand);

@@ -18,7 +18,6 @@
 #define NumberCompress_OLD_CODE
 #include "switch/NumberCompress.h"
 #include "memory/Allocator.h"
-#include "memory/MallocAllocator.h"
 #include "util/Bits.h"
 
 #define Order_TYPE struct EncodingScheme_Form
@@ -367,7 +366,7 @@ static void bitsUsed(struct EncodingScheme* es, DecodeNum getBits, struct Random
 
 int main()
 {
-    struct Allocator* alloc = MallocAllocator_new(20000000);
+    struct Allocator* alloc = Allocator_new(20000000);
     struct Random* rand = Random_new(alloc, NULL, NULL);
 
     encoding(alloc);

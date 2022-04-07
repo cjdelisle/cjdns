@@ -16,7 +16,7 @@
 #include "crypto/Ca.h"
 #include "crypto/CryptoAuth.h"
 #include "benc/String.h"
-#include "memory/MallocAllocator.h"
+#include "memory/Allocator.h"
 #include "util/events/EventBase.h"
 #include "util/Assert.h"
 #include "util/Bits.h"
@@ -109,7 +109,7 @@ static struct Context* init(uint8_t* privateKeyA,
                             uint8_t* publicKeyB,
                             enum TestCa_Config cfg)
 {
-    struct Allocator* alloc = MallocAllocator_new(1048576);
+    struct Allocator* alloc = Allocator_new(1048576);
     struct Context* ctx = Allocator_calloc(alloc, sizeof(struct Context), 1);
     Identity_set(ctx);
     Identity_set(&ctx->node1);

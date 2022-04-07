@@ -16,7 +16,6 @@
 #include "io/Reader.h"
 #include "io/FileReader.h"
 #include "memory/Allocator.h"
-#include "memory/MallocAllocator.h"
 #include "util/Assert.h"
 #include "util/Bits.h"
 
@@ -26,7 +25,7 @@
 
 int main()
 {
-    struct Allocator* alloc = MallocAllocator_new(2048);
+    struct Allocator* alloc = Allocator_new(2048);
     struct Random* rand = Random_new(alloc, NULL, NULL);
 
     FILE* tmp = tmpfile();

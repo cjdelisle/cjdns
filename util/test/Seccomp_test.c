@@ -15,7 +15,6 @@
 #include "benc/String.h"
 #include "util/log/FileWriterLog.h"
 #include "memory/Allocator.h"
-#include "memory/MallocAllocator.h"
 #include "util/Seccomp.h"
 #include "util/events/EventBase.h"
 #include "util/events/Process.h"
@@ -107,7 +106,7 @@ static Iface_DEFUN receiveMessageParent(struct Message* msg, struct Iface* iface
 
 int main(int argc, char** argv)
 {
-    struct Allocator* alloc = MallocAllocator_new(20000);
+    struct Allocator* alloc = Allocator_new(20000);
     struct Log* logger = FileWriterLog_new(stdout, alloc);
 
     if (!Seccomp_exists()) {

@@ -37,7 +37,6 @@
 #include "io/Reader.h"
 #include "io/Writer.h"
 #include "memory/Allocator.h"
-#include "memory/MallocAllocator.h"
 #include "util/AddrTools.h"
 #include "util/ArchInfo.h"
 #include "util/Assert.h"
@@ -610,7 +609,7 @@ int cjdroute2_main(int argc, char** argv)
     struct Except* eh = NULL;
 
     // Allow it to allocate 8MB
-    struct Allocator* allocator = MallocAllocator_new(1<<23);
+    struct Allocator* allocator = Allocator_new(1<<23);
     struct Random* rand = Random_new(allocator, NULL, eh);
     struct EventBase* eventBase = EventBase_new(allocator);
 

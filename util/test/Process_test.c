@@ -19,7 +19,6 @@
 #include "util/events/Pipe.h"
 #include "util/events/Timeout.h"
 #include "memory/Allocator.h"
-#include "memory/MallocAllocator.h"
 #include "util/events/Process.h"
 #include "util/log/Log.h"
 #include "util/log/FileWriterLog.h"
@@ -139,7 +138,7 @@ static void child(char* name, struct Context* ctx)
 
 int main(int argc, char** argv)
 {
-    struct Allocator* alloc = MallocAllocator_new(1<<20);
+    struct Allocator* alloc = Allocator_new(1<<20);
     struct EventBase* eb = EventBase_new(alloc);
     struct Log* log = FileWriterLog_new(stdout, alloc);
     struct Context* ctx = Allocator_calloc(alloc, sizeof(struct Context), 1);

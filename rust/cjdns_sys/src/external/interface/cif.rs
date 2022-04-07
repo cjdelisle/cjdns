@@ -1,9 +1,9 @@
 use anyhow::Result;
 
-use crate::cffi::{self, Allocator};
+use crate::cffi::{self, Allocator_t};
+use crate::rffi::allocator;
 use crate::rtypes::RTypes_Error_t;
 use crate::external::interface::iface::{self, IfRecv, Iface, IfacePvt};
-use crate::external::memory::allocator;
 use crate::interface::wire::message::Message;
 
 // TODO: this is not even the tiniest bit thread safe
@@ -60,10 +60,9 @@ unsafe extern "C" fn from_c(msg: *mut cffi::Message, iface_p: *mut cffi::Iface) 
 /// After calling this, you will be able to plumb your iface of choice to the Iface
 /// and then pass the cffi::Iface to C code to be plumbed to another C Iface and
 /// messages passed to the C Iface will come out in your Iface
-pub fn new<T: Into<String>>(alloc: *mut Allocator, name: T) -> (Iface, *mut cffi::Iface) {
+pub fn new<T: Into<String>>(alloc: *mut Allocator_t, name: T) -> (Iface, *mut cffi::Iface) {
     let (mut iface, iface_pvt) = iface::new(name);
-    let out = allocator::adopt(
-        alloc,
+    let out = allocator::rs(alloc).adopt(
         CIface {
             cif: cffi::Iface {
                 Identity_verifier: 0,
@@ -75,13 +74,13 @@ pub fn new<T: Into<String>>(alloc: *mut Allocator, name: T) -> (Iface, *mut cffi
             rif: iface_pvt,
         },
     );
-    let c_iface = (&mut out.cif) as *mut cffi::Iface;
+    let c_iface = unsafe { &mut (*out).cif } as *mut cffi::Iface;
     iface.set_receiver(CRecv { c_iface });
     (iface, c_iface)
 }
 
 /// Helper function which just creates a C-iface to wrap an Iface
-pub fn wrap(alloc: *mut Allocator, mut iface: Iface) -> *mut cffi::Iface {
+pub fn wrap(alloc: *mut Allocator_t, mut iface: Iface) -> *mut cffi::Iface {
     let (mut ext, cext) = new(alloc, format!("cif::wrap({})", &iface.name));
     iface.plumb(&mut ext).unwrap();
     cext

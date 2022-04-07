@@ -33,6 +33,8 @@ struct Allocator_OnFreeJob
     /** Set by caller. */
     Allocator_OnFreeCallback callback;
     void* userData;
+    void* rContext;
+    Identity
 };
 
 /**
@@ -68,7 +70,7 @@ struct Allocator_OnFreeJob
  * have proven useful in preventing both memory leaks and dangling pointers.
  *
  * #1 Do not create new root allocators, create child allocators instead.
- * When you call MallocAllocator_new() or equivalent, you are creating a parentless allocator and
+ * When you call Allocator_new() or equivalent, you are creating a parentless allocator and
  * you must take responsibility for its freeing when you are finished with it. In cjdns there is
  * only one call to a main allocator and all other allocators are spawned from it using
  * Allocator_child().
@@ -98,41 +100,13 @@ struct Allocator_OnFreeJob
  *
  * The function pointers in the allocator structure are best called through the associated macros.
  */
-typedef struct Allocator
-{
-    /** The name of the file where this allocator was created. */
-    const char* fileName;
-
-    /** The number of the line where this allocator was created. */
-    int lineNum;
-
-    /** Non-zero if allocator is currently freeing. */
-    int isFreeing;
-} Allocator_t;
+typedef struct Allocator Allocator_t;
 
 struct Allocator_Allocation
 {
     uintptr_t size;
 };
 #define Allocator_Allocation_SIZE __SIZEOF_POINTER__
-
-/**
- * Get a child of a given allocator.
- *
- * @param alloc the parent
- * @param childNumber
- * @return a child allocator or NULL if childNumber is out of range.
- */
-struct Allocator* Allocator_getChild(struct Allocator* alloc, int childNumber);
-
-/**
- * Get one of the allocations held by this allocator.
- *
- * @param alloc the allocator.
- * @param allocNum the number of the allocation.
- * @return an allocation or NULL if allocNum is out of range.
- */
-struct Allocator_Allocation* Allocator_getAllocation(struct Allocator* alloc, int allocNum);
 
 /**
  * Allocate some memory from this memory allocator.
@@ -300,22 +274,6 @@ void Allocator__adopt(struct Allocator* parentAlloc,
 #define Allocator_adopt(a, b) Allocator__adopt((a),(b),Gcc_SHORT_FILE,Gcc_LINE)
 
 /**
- * Disown an allocator.
- *
- * Sever the link between an adopted parent allocator and the child which it has adopted.
- * If this causes the child allocator to disconnect from the tree entirely, it will be
- * freed.
- *
- * @param parentAlloc the parent which has adopted the child allocator.
- * @param childToDisown the child allocator which has been adopted.
- */
-void Allocator__disown(struct Allocator* parentAlloc,
-                       struct Allocator* allocToDisown,
-                       const char* fileName,
-                       int lineNum);
-#define Allocator_disown(a, b) Allocator__disown((a),(b),Gcc_SHORT_FILE,Gcc_LINE)
-
-/**
  * Set the heap protection canary for the next child allocator.
  * If heap protection canaries are enabled, they will be added at the beginning and end
  * of each memory allocation and checked during free and other operations. If one is corrupted
@@ -339,44 +297,9 @@ unsigned long Allocator_bytesAllocated(struct Allocator* allocator);
 void Allocator_snapshot(struct Allocator* alloc, int includeAllocations);
 
 
-/**
- * The underlying memory provider function which backs the allocator.
- * This function is roughly equivilant to realloc() API in that it is used for allocation,
- * reallocation and freeing but it also contains a context field which allows the provider
- * to store it's state in a non-global way and a group pointer.
- *
- * The group pointer is used to add memory to an allocation group. If the group pointer is set to
- * NULL, the provider is requested to begin a new group, if the group pointer is not null, it will
- * be set to an allocation which had previously been returned by the provider, in this case the
- * provider should internally group this allocation with the other as they will likely be freed
- * at the same time.
- *
- * @param ctx the context which was passed to Allocator_new() along with the provider.
- * @param original if this is NULL then the allocator is to provide a new allocation, otherwise it
- *                 should resize or free an existing allocation.
- * @param size if this is 0 then the allocator should free original and return NULL, if it is not
- *             zero then original should be resized or created.
- * @param group if this is not NULL then the provider is being informed that the current allocation
- *              and the allocation in group are likely to have the same life span and should be
- *              colocated if it is logical to do so.
- */
-#ifndef Allocator_Provider_CONTEXT_TYPE
-    #define Allocator_Provider_CONTEXT_TYPE void
-#endif
-
-#ifndef __clang__
-    // clang unsupported on function pointers
-    Gcc_ALLOC_SIZE(3)
-#endif
-typedef void* (* Allocator_Provider)(Allocator_Provider_CONTEXT_TYPE* ctx,
-                                     struct Allocator_Allocation* original,
-                                     unsigned long size,
-                                     struct Allocator* group);
-
-struct Allocator* Allocator_new(unsigned long sizeLimit,
-                                Allocator_Provider provider,
-                                Allocator_Provider_CONTEXT_TYPE* providerContext,
+struct Allocator* Allocator__new(unsigned long sizeLimit,
                                 const char* fileName,
                                 int lineNum);
+#define Allocator_new(x) Allocator__new(x,Gcc_SHORT_FILE,Gcc_LINE)
 
 #endif

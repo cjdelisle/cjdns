@@ -15,7 +15,7 @@
 #define NumberCompress_OLD_CODE
 #include "switch/NumberCompress.h"
 #include "switch/EncodingScheme.h"
-#include "memory/MallocAllocator.h"
+#include "memory/Allocator.h"
 #include "util/Assert.h"
 
 #include <stdio.h>
@@ -71,7 +71,7 @@ static void numberCompressions_generic(
         }
     }
 
-    struct Allocator* alloc = MallocAllocator_new(20000);
+    struct Allocator* alloc = Allocator_new(20000);
     struct EncodingScheme* scheme = defineScheme(alloc);
     for (uint32_t i = 0; i < nInterfaces; i++) {
         for (int j = 0; j < scheme->count; j++) {

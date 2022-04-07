@@ -12,7 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#include "memory/MallocAllocator.h"
+#include "memory/Allocator.h"
 #include "util/AverageRoller.h"
 #include "util/AverageRoller_pvt.h"
 #include "util/events/EventBase.h"
@@ -46,7 +46,7 @@ int main()
 
     const uint32_t windowSeconds = 3;
 
-    struct Allocator* allocator = MallocAllocator_new(4096);
+    struct Allocator* allocator = Allocator_new(4096);
 
     struct EventBase* eventBase = EventBase_new(allocator);
 

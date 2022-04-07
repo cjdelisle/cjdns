@@ -21,7 +21,6 @@
 #include "io/Writer.h"
 #include "io/FileWriter.h"
 #include "util/log/Log.h"
-#include "memory/MallocAllocator.h"
 #include "memory/Allocator.h"
 #include "switch/SwitchCore.h"
 #include "subnode/SubnodePathfinder.h"

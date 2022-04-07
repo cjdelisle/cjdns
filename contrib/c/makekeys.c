@@ -14,7 +14,7 @@
  */
 #include "crypto/Key.h"
 #include "crypto/random/Random.h"
-#include "memory/MallocAllocator.h"
+#include "memory/Allocator.h"
 #include "crypto/AddressCalc.h"
 #include "util/AddrTools.h"
 #include "util/Base32.h"
@@ -27,7 +27,7 @@
 int makekeys_main(int argc, char** argv);
 int makekeys_main(int argc, char** argv)
 {
-    struct Allocator* alloc = MallocAllocator_new(1<<22);
+    struct Allocator* alloc = Allocator_new(1<<22);
     struct Random* rand = Random_new(alloc, NULL, NULL);
 
     uint8_t privateKey[32];

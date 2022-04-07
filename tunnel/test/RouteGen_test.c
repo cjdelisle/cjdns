@@ -15,7 +15,6 @@
 #include "benc/String.h"
 #include "benc/Dict.h"
 #include "memory/Allocator.h"
-#include "memory/MallocAllocator.h"
 #include "util/log/Log.h"
 #include "util/log/FileWriterLog.h"
 #include "util/platform/Sockaddr.h"
@@ -116,7 +115,7 @@ static void runTest(char** prefixes,
 
 int main()
 {
-    struct Allocator* alloc = MallocAllocator_new(1<<21);
+    struct Allocator* alloc = Allocator_new(1<<21);
     struct Log* log = FileWriterLog_new(stdout, alloc);
 
     runTest((char*[]){ "0.0.0.0/0", NULL },

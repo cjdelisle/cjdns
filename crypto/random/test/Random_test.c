@@ -16,7 +16,6 @@
 #include "crypto/random/test/DeterminentRandomSeed.h"
 #include "io/FileWriter.h"
 #include "memory/Allocator.h"
-#include "memory/MallocAllocator.h"
 #include "util/Assert.h"
 #include "util/Bits.h"
 #include "util/log/Log.h"
@@ -89,7 +88,7 @@ static void test179(struct Allocator* alloc, struct Log* logger)
 
 int main()
 {
-    struct Allocator* alloc = MallocAllocator_new(1<<20);
+    struct Allocator* alloc = Allocator_new(1<<20);
     RandomSeed_t* seed = DeterminentRandomSeed_new(alloc, NULL);
     struct Writer* w = FileWriter_new(stdout, alloc);
     struct Log* logger = WriterLog_new(w, alloc);

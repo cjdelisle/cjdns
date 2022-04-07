@@ -16,32 +16,15 @@ pub type Allocator_OnFreeCallback = ::std::option::Option<
 pub struct Allocator_OnFreeJob {
     pub callback: Allocator_OnFreeCallback,
     pub userData: *mut ::std::os::raw::c_void,
+    pub rContext: *mut ::std::os::raw::c_void,
+    pub Identity_verifier: usize,
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct Allocator {
-    pub fileName: *const ::std::os::raw::c_char,
-    pub lineNum: ::std::os::raw::c_int,
-    pub isFreeing: ::std::os::raw::c_int,
+    _unused: [u8; 0],
 }
 pub type Allocator_t = Allocator;
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct Allocator_Allocation {
-    pub size: usize,
-}
-extern "C" {
-    pub fn Allocator_getChild(
-        alloc: *mut Allocator,
-        childNumber: ::std::os::raw::c_int,
-    ) -> *mut Allocator;
-}
-extern "C" {
-    pub fn Allocator_getAllocation(
-        alloc: *mut Allocator,
-        allocNum: ::std::os::raw::c_int,
-    ) -> *mut Allocator_Allocation;
-}
 extern "C" {
     pub fn Allocator__malloc(
         allocator: *mut Allocator,
@@ -115,14 +98,6 @@ extern "C" {
     );
 }
 extern "C" {
-    pub fn Allocator__disown(
-        parentAlloc: *mut Allocator,
-        allocToDisown: *mut Allocator,
-        fileName: *const ::std::os::raw::c_char,
-        lineNum: ::std::os::raw::c_int,
-    );
-}
-extern "C" {
     pub fn Allocator_setCanary(alloc: *mut Allocator, value: usize);
 }
 extern "C" {
@@ -131,19 +106,9 @@ extern "C" {
 extern "C" {
     pub fn Allocator_snapshot(alloc: *mut Allocator, includeAllocations: ::std::os::raw::c_int);
 }
-pub type Allocator_Provider = ::std::option::Option<
-    unsafe extern "C" fn(
-        ctx: *mut ::std::os::raw::c_void,
-        original: *mut Allocator_Allocation,
-        size: ::std::os::raw::c_ulong,
-        group: *mut Allocator,
-    ) -> *mut ::std::os::raw::c_void,
->;
 extern "C" {
-    pub fn Allocator_new(
+    pub fn Allocator__new(
         sizeLimit: ::std::os::raw::c_ulong,
-        provider: Allocator_Provider,
-        providerContext: *mut ::std::os::raw::c_void,
         fileName: *const ::std::os::raw::c_char,
         lineNum: ::std::os::raw::c_int,
     ) -> *mut Allocator;
@@ -241,13 +206,6 @@ extern "C" {
 }
 extern "C" {
     pub fn String_equals(a: *const String, b: *const String) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn MallocAllocator__new(
-        sizeLimit: ::std::os::raw::c_ulong,
-        file: *const ::std::os::raw::c_char,
-        line: ::std::os::raw::c_int,
-    ) -> *mut Allocator;
 }
 pub type Iface_t = Iface;
 #[repr(u32)]
@@ -484,23 +442,27 @@ extern "C" {
 pub struct EventBase {
     pub unused: ::std::os::raw::c_int,
 }
+pub type EventBase_t = EventBase;
 extern "C" {
     pub fn EventBase_new(alloc: *mut Allocator) -> *mut EventBase;
 }
 extern "C" {
-    pub fn EventBase_eventCount(eventBase: *mut EventBase) -> ::std::os::raw::c_int;
+    pub fn EventBase_eventCount(eventBase: *mut EventBase_t) -> ::std::os::raw::c_int;
 }
 extern "C" {
-    pub fn EventBase_beginLoop(eventBase: *mut EventBase);
+    pub fn EventBase_beginLoop(eventBase: *mut EventBase_t);
 }
 extern "C" {
-    pub fn EventBase_endLoop(eventBase: *mut EventBase);
+    pub fn EventBase_endLoop(eventBase: *mut EventBase_t);
 }
 extern "C" {
     pub fn EventBase_ref();
 }
 extern "C" {
     pub fn EventBase_unref();
+}
+extern "C" {
+    pub fn EventBase_wakeup(eventBase: *mut ::std::os::raw::c_void);
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -734,7 +696,6 @@ pub enum RBindings_Version {
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct RBindings_Whitelist {
-    pub a: Allocator_t,
     pub b: Iface_t,
     pub c: CryptoAuth_addUser_Res,
     pub d: Message_t,

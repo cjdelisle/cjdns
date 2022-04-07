@@ -13,7 +13,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "interface/Iface.h"
-#include "memory/MallocAllocator.h"
+#include "memory/Allocator.h"
 #include "interface/tuntap/BSDMessageTypeWrapper.h"
 #include "util/Identity.h"
 #include "wire/Message.h"
@@ -47,7 +47,7 @@ static Iface_DEFUN sendOutside(struct Message* msg, struct Iface* outside)
 
 int main()
 {
-    struct Allocator* alloc = MallocAllocator_new(20000);
+    struct Allocator* alloc = Allocator_new(20000);
     struct Context* ctx = Allocator_calloc(alloc, sizeof(struct Context), 1);
     Identity_set(ctx);
     ctx->outside.send = sendOutside;

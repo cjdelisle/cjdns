@@ -14,7 +14,7 @@
  */
 #include "crypto/Sign.h"
 #include "crypto/random/Random.h"
-#include "memory/MallocAllocator.h"
+#include "memory/Allocator.h"
 #include "util/Assert.h"
 #include "util/Bits.h"
 #include "util/log/FileWriterLog.h"
@@ -23,7 +23,7 @@
 
 int main()
 {
-    struct Allocator* alloc = MallocAllocator_new(1048576);
+    struct Allocator* alloc = Allocator_new(1048576);
     struct Log* logger = FileWriterLog_new(stdout, alloc);
     struct Random* rand = Random_new(alloc, logger, NULL);
 

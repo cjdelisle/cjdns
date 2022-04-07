@@ -16,7 +16,6 @@
 #include "benc/Dict.h"
 #include "benc/serialization/standard/BencMessageWriter.h"
 #include "memory/Allocator.h"
-#include "memory/MallocAllocator.h"
 #include "interface/tuntap/TUNMessageType.h"
 #include "util/log/Log.h"
 #include "util/log/FileWriterLog.h"
@@ -367,7 +366,7 @@ static void testAddr(struct Context* ctx,
 
 int main()
 {
-    struct Allocator* alloc = MallocAllocator_new(1<<20);
+    struct Allocator* alloc = Allocator_new(1<<20);
     struct EventBase* eb = EventBase_new(alloc);
     struct Log* logger = FileWriterLog_new(stdout, alloc);
     struct Random* rand = Random_new(alloc, logger, NULL);

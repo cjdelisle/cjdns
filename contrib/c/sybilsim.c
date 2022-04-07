@@ -22,7 +22,6 @@
 #include "client/AdminClient.h"
 #include "interface/ASynchronizer.h"
 #include "interface/addressable/AddrIfaceAdapter.h"
-#include "memory/MallocAllocator.h"
 #include "memory/Allocator.h"
 #include "util/log/FileWriterLog.h"
 #include "wire/Message.h"
@@ -444,7 +443,7 @@ int sybilsim_main(int argc, char** argv)
         return usage(argv[0]);
     }
 
-    struct Allocator* alloc = MallocAllocator_new(1LL<<31);
+    struct Allocator* alloc = Allocator_new(1LL<<31);
 
     struct Reader* stdinReader = FileReader_new(stdin, alloc);
     Dict config;

@@ -39,10 +39,6 @@ pub mod external {
         pub mod cif;
         pub mod iface;
     }
-
-    pub mod memory {
-        pub mod allocator;
-    }
 }
 
 mod interface {

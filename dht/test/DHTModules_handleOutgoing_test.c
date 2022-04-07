@@ -16,7 +16,6 @@
 #include "dht/DHTModule.h"
 #include "dht/DHTModuleRegistry.h"
 #include "memory/Allocator.h"
-#include "memory/MallocAllocator.h"
 
 #include <stdio.h>
 
@@ -53,7 +52,7 @@ static int testOutputHandler()
         .handleOutgoing = handleOutgoing
     };
 
-    struct Allocator* allocator = MallocAllocator_new(2048);
+    struct Allocator* allocator = Allocator_new(2048);
 
     struct DHTModuleRegistry* reg = DHTModuleRegistry_new(allocator, NULL);
     DHTModuleRegistry_register(&module, reg);

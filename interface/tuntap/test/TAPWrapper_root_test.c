@@ -14,7 +14,6 @@
  */
 #include "interface/tuntap/TUNInterface.h"
 #include "memory/Allocator.h"
-#include "memory/MallocAllocator.h"
 #include "util/log/Log.h"
 #include "util/log/FileWriterLog.h"
 #include "util/platform/netdev/NetDev.h"
@@ -26,7 +25,7 @@
 
 int main(int argc, char** argv)
 {
-    struct Allocator* alloc = MallocAllocator_new(1<<20);
+    struct Allocator* alloc = Allocator_new(1<<20);
     struct EventBase* base = EventBase_new(alloc);
     struct Log* log = FileWriterLog_new(stdout, alloc);
 

@@ -16,7 +16,7 @@
 #include "crypto/random/Random.h"
 #include "crypto/test/TestCa.h"
 #include "benc/String.h"
-#include "memory/MallocAllocator.h"
+#include "memory/Allocator.h"
 #include "util/events/EventBase.h"
 #include "util/Assert.h"
 #include "util/Bits.h"

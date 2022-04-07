@@ -14,7 +14,6 @@
  */
 #include "crypto/random/Random.h"
 #include "memory/Allocator.h"
-#include "memory/MallocAllocator.h"
 
 #include <stdio.h>
 #include <unistd.h>
@@ -23,7 +22,7 @@
 int mkpasswd_main(int argc, char** argv);
 int mkpasswd_main(int argc, char** argv)
 {
-    struct Allocator* alloc = MallocAllocator_new(1<<22);
+    struct Allocator* alloc = Allocator_new(1<<22);
     struct Random* rand = Random_new(alloc, NULL, NULL);
 
     uint8_t password[32];

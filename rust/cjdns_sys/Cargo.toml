@@ -19,6 +19,7 @@ slog = { version = "2.7", features = ["release_max_level_trace"] }
 pnet = "0.29"
 tokio = { version = "1", features = ["macros","time","sync","fs","rt-multi-thread","process"], default-features = false }
 once_cell = "1.9"
+async-recursion = "1"
 
 [build_dependencies]
 cc = "1.0"

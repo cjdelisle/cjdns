@@ -1,6 +1,6 @@
 use super::{Rffi_EventLoop, GCL};
 use crate::cffi::Allocator_t;
-use crate::external::memory::allocator;
+use crate::rffi::allocator;
 use std::ffi::c_void;
 use std::os::raw::{c_int, c_ulong};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -35,7 +35,7 @@ pub struct TimerTx {
 /// Spawn a timer task for a timeout or interval, that calls some callback whenever it triggers.
 #[no_mangle]
 pub extern "C" fn Rffi_setTimeout(
-    out_timer_tx: *mut *const Rffi_TimerTx,
+    out_timer_tx: *mut *mut Rffi_TimerTx,
     cb: unsafe extern "C" fn(*mut c_void),
     cb_context: *mut c_void,
     timeout_millis: c_ulong,
@@ -54,7 +54,7 @@ pub extern "C" fn Rffi_setTimeout(
         cb_int,
     });
 
-    let event_loop = unsafe { &*event_loop };
+    let event_loop = unsafe { (&*event_loop).arc_clone() };
     event_loop.timers.lock().unwrap().push(Arc::downgrade(&rtx));
 
     // do not clone rtx so we don't keep another tx around, so the "Allocator freed" detection works.
@@ -79,22 +79,27 @@ pub extern "C" fn Rffi_setTimeout(
                         break;
                     }
                 }
-                msg = rx.recv() => {
-                    match msg {
-                        Some(TimerCommand::Reset(new_timeout)) => {
-                            println!("({:#x}) Received reset command: {} to {}",
-                                cb_int, timeout_millis, new_timeout);
-                            timeout_millis = new_timeout;
-                        },
-                        Some(TimerCommand::Cancel) => {
-                            println!("({:#x}) Received cancel command", cb_int);
-                            break
-                        },
-                        None => {
-                            println!("({:#x}) Allocator freed, stopping timer task", cb_int);
-                            break
-                        },
-                    }
+                mut msg = rx.recv() => {
+                    if loop {
+                        match msg {
+                            Some(TimerCommand::Reset(new_timeout)) => {
+                                println!("({:#x}) Received reset command: {} to {}",
+                                    cb_int, timeout_millis, new_timeout);
+                                timeout_millis = new_timeout;
+                                break false;
+                            },
+                            Some(TimerCommand::Cancel) => {
+                                println!("({:#x}) Received cancel command", cb_int);
+                                event_loop.decr_ref();
+                                msg = rx.recv().await;
+                                event_loop.incr_ref();
+                            },
+                            None => {
+                                println!("({:#x}) Allocator freed, stopping timer task", cb_int);
+                                break true;
+                            },
+                        }
+                    } { break; }
                 }
             }
         }
@@ -125,10 +130,6 @@ pub extern "C" fn Rffi_resetTimeout(
     timeout_millis: c_ulong,
 ) -> c_int {
     let timer_tx = unsafe { &*timer_tx };
-    assert!(
-        timer_tx.0.active.load(Ordering::Relaxed),
-        "cannot reset a cancelled timer"
-    );
     timer_tx.0.rffi_send(TimerCommand::Reset(timeout_millis))
 }
 
@@ -150,8 +151,10 @@ pub extern "C" fn Rffi_isTimeoutActive(timer_tx: *const Rffi_TimerTx) -> c_int {
 /// Cancel all timer tasks.
 #[no_mangle]
 pub extern "C" fn Rffi_clearAllTimeouts(event_loop: *mut Rffi_EventLoop) {
-    unsafe { &*event_loop }
-        .timers
+    unsafe {
+        //assert!((&*event_loop).1 == 0xdeadbeef_cafebabe);
+        &*event_loop
+    }.0.timers
         .lock()
         .unwrap()
         .drain(..)
@@ -166,11 +169,11 @@ pub extern "C" fn Rffi_clearAllTimeouts(event_loop: *mut Rffi_EventLoop) {
 mod tests {
     use super::super::Rffi_mkEventLoop;
     use super::*;
-    use crate::external::memory::allocator::Allocator;
+    use crate::rffi::allocator::Allocator;
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn test_timer_interval() {
-        let alloc = Allocator::new(10000000);
+        let mut alloc = allocator::new!();
 
         let (tx, rx) = std::sync::mpsc::sync_channel::<u8>(1);
         unsafe extern "C" fn callback(ctx: *mut c_void) {
@@ -179,8 +182,8 @@ mod tests {
             tx.send(1).unwrap();
         }
 
-        let event_loop = Rffi_mkEventLoop(alloc.native);
-        let mut timer = std::ptr::null();
+        let event_loop = Rffi_mkEventLoop(alloc.c(), std::ptr::null_mut());
+        let mut timer = std::ptr::null_mut();
         Rffi_setTimeout(
             &mut timer as _,
             callback,
@@ -188,7 +191,7 @@ mod tests {
             1,
             true,
             event_loop,
-            alloc.native,
+            alloc.c(),
         );
 
         // ensures the callback is being called repeatedly.
@@ -214,7 +217,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn test_timer_timeout() {
-        let alloc = Allocator::new(10000000);
+        let mut alloc = allocator::new!();
 
         let (tx, rx) = std::sync::mpsc::sync_channel::<u8>(1);
         unsafe extern "C" fn callback(ctx: *mut c_void) {
@@ -223,8 +226,8 @@ mod tests {
             tx.send(1).unwrap();
         }
 
-        let event_loop = Rffi_mkEventLoop(alloc.native);
-        let mut timer = std::ptr::null();
+        let event_loop = Rffi_mkEventLoop(alloc.c(), std::ptr::null_mut());
+        let mut timer = std::ptr::null_mut();
         Rffi_setTimeout(
             &mut timer as _,
             callback,
@@ -232,7 +235,7 @@ mod tests {
             1,
             false,
             event_loop,
-            alloc.native,
+            alloc.c(),
         );
 
         // ensures the callback is called only once.
@@ -248,7 +251,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn test_timer_drop() {
-        let alloc = Allocator::new(10000000);
+        let mut alloc = allocator::new!();
 
         let (tx, rx) = std::sync::mpsc::sync_channel::<u8>(1);
         unsafe extern "C" fn callback(ctx: *mut c_void) {
@@ -257,8 +260,8 @@ mod tests {
             tx.send(1).unwrap();
         }
 
-        let event_loop = Rffi_mkEventLoop(alloc.native);
-        let mut timer = std::ptr::null();
+        let event_loop = Rffi_mkEventLoop(alloc.c(), std::ptr::null_mut());
+        let mut timer = std::ptr::null_mut();
         Rffi_setTimeout(
             &mut timer as _,
             callback,
@@ -266,7 +269,7 @@ mod tests {
             5,
             false,
             event_loop,
-            alloc.native,
+            alloc.c(),
         );
 
         drop(alloc);
@@ -277,7 +280,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn test_timer_clear_all() {
-        let alloc = Allocator::new(10000000);
+        let mut alloc = allocator::new!();
 
         let (tx, rx) = std::sync::mpsc::sync_channel::<u8>(1);
         unsafe extern "C" fn callback(ctx: *mut c_void) {
@@ -286,9 +289,9 @@ mod tests {
             tx.send(1).unwrap();
         }
 
-        let event_loop = Rffi_mkEventLoop(alloc.native);
-        let start_timer = move |t, r, a: &Allocator| {
-            let mut timer = std::ptr::null();
+        let event_loop = Rffi_mkEventLoop(alloc.c(), std::ptr::null_mut());
+        let start_timer = move |t, r, a: &mut Allocator| {
+            let mut timer = std::ptr::null_mut();
             Rffi_setTimeout(
                 &mut timer as _,
                 callback,
@@ -296,14 +299,14 @@ mod tests {
                 t,
                 r,
                 event_loop,
-                a.native,
+                a.c(),
             );
         };
 
-        start_timer(1, false, &alloc);
-        start_timer(1, true, &alloc);
-        start_timer(100, false, &alloc);
-        start_timer(100, true, &alloc);
+        start_timer(1, false, &mut alloc);
+        start_timer(1, true, &mut alloc);
+        start_timer(100, false, &mut alloc);
+        start_timer(100, true, &mut alloc);
 
         // ensures the first two timers were already triggered.
         rx.recv().unwrap();
@@ -317,7 +320,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn test_timer_drop_all() {
-        let alloc = Allocator::new(10000000);
+        let mut alloc = allocator::new!();
 
         let (tx, rx) = std::sync::mpsc::sync_channel::<u8>(1);
         unsafe extern "C" fn callback(ctx: *mut c_void) {
@@ -326,9 +329,9 @@ mod tests {
             tx.send(1).unwrap();
         }
 
-        let event_loop = Rffi_mkEventLoop(alloc.native);
-        let start_timer = move |t, r, a: &Allocator| {
-            let mut timer = std::ptr::null();
+        let event_loop = Rffi_mkEventLoop(alloc.c(), std::ptr::null_mut());
+        let start_timer = move |t, r, a: &mut Allocator| {
+            let mut timer = std::ptr::null_mut();
             Rffi_setTimeout(
                 &mut timer as _,
                 callback,
@@ -336,14 +339,14 @@ mod tests {
                 t,
                 r,
                 event_loop,
-                a.native,
+                a.c(),
             );
         };
 
-        start_timer(1, false, &alloc);
-        start_timer(1, true, &alloc);
-        start_timer(100, false, &alloc);
-        start_timer(100, true, &alloc);
+        start_timer(1, false, &mut alloc);
+        start_timer(1, true, &mut alloc);
+        start_timer(100, false, &mut alloc);
+        start_timer(100, true, &mut alloc);
 
         drop(alloc);
 

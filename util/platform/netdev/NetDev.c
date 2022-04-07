@@ -16,7 +16,6 @@
 #include "util/log/Log.h"
 #include "exception/Except.h"
 #include "memory/Allocator.h"
-#include "memory/BufferAllocator.h"
 #include "util/platform/netdev/NetDev.h"
 #include "util/platform/netdev/NetPlatform.h"
 

@@ -1,6 +1,6 @@
 use super::str_to_c;
 use crate::cffi::Allocator_t;
-use crate::external::memory::allocator;
+use crate::rffi::allocator;
 use pnet::util::MacAddr;
 use std::convert::TryInto;
 use std::ffi::{c_void, CStr};
@@ -110,16 +110,16 @@ pub extern "C" fn Rffi_interface_addresses(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::external::memory::allocator::Allocator;
+    use crate::rffi::allocator::Allocator;
 
     #[test]
     fn test_interface_addresses() {
-        let alloc = Allocator::new(10000000);
+        let mut alloc = allocator::new!();
 
         let out = unsafe {
             let mut x: *const Rffi_NetworkInterface = std::ptr::null();
             let xp = &mut x as *mut *const Rffi_NetworkInterface;
-            let count = Rffi_interface_addresses(xp, alloc.native);
+            let count = Rffi_interface_addresses(xp, alloc.c());
             std::slice::from_raw_parts(x, count as _)
         };
 

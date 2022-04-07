@@ -16,8 +16,6 @@
 // This file is used to generate src/cffi.rs using bindgen
 
 #include "benc/String.h"
-#include "memory/Allocator.h"
-#include "memory/MallocAllocator.h"
 #include "interface/Iface.h"
 #include "interface/test/RustIface_test.h"
 #include "crypto/CryptoAuth.h"
@@ -25,6 +23,7 @@
 #include "crypto/random/test/DeterminentRandomSeed.h"
 #include "util/platform/Sockaddr.h"
 #include "util/version/Version.h"
+#include "util/events/EventBase.h"
 
 enum RBindings_Version {
     RBindings_Version_CurrentProtocol = Version_CURRENT_PROTOCOL,
@@ -36,7 +35,6 @@ enum RBindings_Version {
 // or in one of the functions will not be generated. This prevents generating
 // a bunch of platform-specific trash like uint_fast8_t etc.
 struct RBindings_Whitelist {
-    Allocator_t a;
     Iface_t b;
     enum CryptoAuth_addUser_Res c;
     Message_t d;

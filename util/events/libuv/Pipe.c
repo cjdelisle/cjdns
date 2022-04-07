@@ -190,8 +190,6 @@ static void incoming(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf)
     struct Message* msg = buf->base ? ALLOC(buf->base) : NULL;
     pipe->isInCallback = 1;
 
-    Assert_true(!msg || Message_getAlloc(msg)->fileName == pipe->alloc->fileName);
-
     if (nread < 0) {
         if (pipe->pub.onClose) {
             pipe->pub.onClose(&pipe->pub, 0);

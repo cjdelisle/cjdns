@@ -10,10 +10,10 @@ mod event_loop;
 mod network;
 mod time;
 mod util;
+pub mod allocator;
 
 use crate::bytestring::ByteString;
 use crate::cffi::{Allocator_t, String_t};
-use crate::external::memory::allocator;
 use std::os::raw::c_char;
 
 unsafe fn cu8(s: *const u8, len: usize) -> Vec<u8> {
@@ -40,5 +40,5 @@ fn strc(alloc: *mut Allocator_t, s: ByteString) -> *mut String_t {
 fn str_to_c(s: &str, alloc: *mut Allocator_t) -> *const c_char {
     let c_str = std::ffi::CString::new(s).unwrap();
     let adopted = allocator::adopt(alloc, c_str);
-    (*adopted).as_ptr()
+    unsafe { (*adopted).as_ptr() }
 }

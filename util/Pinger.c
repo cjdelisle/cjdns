@@ -53,12 +53,13 @@ struct Pinger
 static void callback(String* data, struct Ping* ping)
 {
     uint32_t now = Time_currentTimeMilliseconds();
+    Allocator_t* alloc = ping->pub.pingAlloc;
     ping->onResponse(data, now - ping->timeSent, ping->pub.context);
 
     // Flag the freePing function to tell it that the ping was not terminated by the user...
     ping->timeSent = 0;
 
-    Allocator_free(ping->pub.pingAlloc);
+    if (alloc == ping->pub.pingAlloc) { Allocator_free(ping->pub.pingAlloc); }
 }
 
 static void timeoutCallback(void* vping)

@@ -28,8 +28,9 @@ struct EventBase_pvt
     uv_loop_t* loop;
     Rffi_EventLoop* rffi_loop;
 
-    // This little guy keeps the loop looping as long as there's
-    // something else happening in Rust/tokio.
+    // Wake up the loop if something comes from the rust/tokio side
+    uv_async_t uvAwakener;
+
     uv_timer_t blockTimer;
 
     struct Allocator* alloc;
