@@ -1,5 +1,5 @@
 use super::{Rffi_EventLoop, GCL};
-use crate::cffi::Allocator_t;
+use crate::cffi::{Allocator_t, Allocator__onFree, Allocator_OnFreeJob};
 use crate::rffi::allocator;
 use std::ffi::c_void;
 use std::os::raw::{c_int, c_ulong};
@@ -20,6 +20,7 @@ unsafe impl Send for TimerCallback {}
 enum TimerCommand {
     Reset(c_ulong),
     Cancel,
+    Free,
 }
 
 /// The handle returned to C, used to talk to the timer task.
@@ -30,6 +31,13 @@ pub struct TimerTx {
     tx: tokio::sync::mpsc::UnboundedSender<TimerCommand>,
     active: Arc<AtomicBool>,
     cb_int: u64,
+}
+
+pub extern "C" fn timeout_on_free(j: *mut Allocator_OnFreeJob) -> c_int {
+    let timer_tx = unsafe { &*((*j).userData as *mut Rffi_TimerTx) };
+    timer_tx.0.active.store(false, Ordering::Relaxed);
+    timer_tx.0.rffi_send(TimerCommand::Free);
+    0
 }
 
 /// Spawn a timer task for a timeout or interval, that calls some callback whenever it triggers.
@@ -62,7 +70,15 @@ pub extern "C" fn Rffi_setTimeout(
     let is_active = rtx.active.clone();
 
     unsafe {
-        *out_timer_tx = allocator::adopt(alloc, Rffi_TimerTx(rtx));
+        let timer_tx = allocator::adopt(alloc, Rffi_TimerTx(rtx));
+        // Note: we must close the event in the allocator onFree rather than in the drop
+        // because the drop only happens later, when Rust wants to.
+        Allocator__onFree(alloc,
+            Some(timeout_on_free),
+            timer_tx as *mut c_void,
+            ("timeout.rs").as_bytes().as_ptr() as *const ::std::os::raw::c_char,
+            0);
+        *out_timer_tx = timer_tx;
     }
 
     event_loop.incr_ref();
@@ -71,7 +87,7 @@ pub extern "C" fn Rffi_setTimeout(
         loop {
             tokio::select! {
                 _ = tokio::time::sleep(Duration::from_millis(timeout_millis)) => {
-                    let _guard = GCL.lock().unwrap();
+                    let _guard = GCL.lock();
                     if is_active.load(Ordering::Relaxed) {
                         unsafe { (tcb.cb)(tcb.cb_context); }
                     }
@@ -94,6 +110,7 @@ pub extern "C" fn Rffi_setTimeout(
                                 msg = rx.recv().await;
                                 event_loop.incr_ref();
                             },
+                            Some(TimerCommand::Free) |
                             None => {
                                 println!("({:#x}) Allocator freed, stopping timer task", cb_int);
                                 break true;

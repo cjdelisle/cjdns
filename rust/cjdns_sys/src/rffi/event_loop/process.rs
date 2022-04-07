@@ -48,7 +48,7 @@ pub unsafe extern "C" fn Rffi_spawn(
     tokio::spawn(async move {
         match (child_status.await, cb) {
             (Ok(status), Some(callback)) => {
-                let _guard = GCL.lock().unwrap();
+                let _guard = GCL.lock();
                 callback(
                     status.code().unwrap_or(-127) as _,
                     status.signal().unwrap_or(-127),

@@ -47,7 +47,8 @@ fn as_count(size: usize) -> usize {
 }
 
 #[async_recursion]
-async fn free_alloc(alloc: &Arc<AllocatorInner>) {
+async fn free_alloc(alloc: &Arc<AllocatorInner>, depth: i32) {
+    println!("free_alloc({}, {})", alloc.ident.borrow(), depth);
     let parents = alloc.parents.lock().drain(..).collect::<Vec<_>>();
     let children = alloc.children.lock().drain(..).collect::<Vec<_>>();
     let jobs = alloc.on_free.lock().drain(..).collect::<Vec<_>>();
@@ -61,10 +62,12 @@ async fn free_alloc(alloc: &Arc<AllocatorInner>) {
             let mut pl = c.0.parents.lock();
             pl.retain(|c| if let Some(c) = c.upgrade() { !std::ptr::eq(&c.obj, &alloc.obj) } else { false });
             if pl.len() > 0 {
+                println!("Continuing from child of {} because it has {} other parent",
+                    alloc.ident.borrow(), pl.len());
                 continue;
             }
         }
-        free_alloc(&c.0).await;
+        free_alloc(&c.0, depth + 1).await;
     }
     for job in jobs {
         let (tx, rx) = oneshot::channel();
@@ -205,7 +208,7 @@ impl Drop for Allocator {
         let a = Arc::clone(&self.0);
         tokio::spawn(async {
             let a = a;
-            free_alloc(&a).await
+            free_alloc(&a, 0).await
         });
     }
 }

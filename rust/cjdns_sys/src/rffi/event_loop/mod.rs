@@ -1,25 +1,23 @@
 use self::timeout::{Rffi_clearAllTimeouts, TimerTx};
 use crate::cffi::{self,Allocator_t};
 use crate::rffi::allocator;
-use once_cell::sync::Lazy;
+use crate::gcl::GCL;
+use parking_lot::ReentrantMutexGuard;
 use std::os::raw::{c_uint,c_void};
 use std::sync::atomic::{AtomicU32, Ordering};
-use std::sync::{Mutex, MutexGuard, Weak};
+use std::sync::{Mutex, Weak};
 use std::sync::Arc;
 
 mod process;
 mod timeout;
 
-/// Global C lock, to make callbacks into C, while keeping libuv's and tokio's async Runtimes synced.
-static GCL: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
-
 /// The guard of an acquired [`GCL`].
-pub struct Rffi_Glock_guard(MutexGuard<'static, ()>);
+pub struct Rffi_Glock_guard(ReentrantMutexGuard<'static, ()>);
 
 /// Helper function to lock the Global C Lock, used only within libuv's core runtime (unix and windows).
 #[no_mangle]
 pub extern "C" fn Rffi_glock() -> *mut Rffi_Glock_guard {
-    let guard = GCL.lock().unwrap();
+    let guard = GCL.lock();
     Box::into_raw(Box::new(Rffi_Glock_guard(guard)))
 }
 
@@ -58,7 +56,7 @@ impl EventLoop {
     fn decr_ref(&self) -> u32 {
         let ret = self.ref_ctr.fetch_sub(1, Ordering::Relaxed);
         if !self.base.is_null() && ret < (1_u32<<30) {
-            let _l = GCL.lock().unwrap();
+            let _l = GCL.lock();
             unsafe { cffi::EventBase_wakeup(self.base) };
         }
         ret

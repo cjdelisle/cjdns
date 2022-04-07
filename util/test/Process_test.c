@@ -118,6 +118,8 @@ static Iface_DEFUN receiveMessageChild(struct Message* msg, struct Iface* iface)
 
     Iface_send(&c->iface, m);
 
+    exit(0);
+
     // shutdown
     Allocator_free(c->alloc);
 

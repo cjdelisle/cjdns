@@ -1,6 +1,7 @@
 //! Test Wrapper
 //!
 //! This is used with RustIface_test.c to verify that the Rust/C Iface bridge works as expected.
+use crate::gcl::GCL;
 
 use std::sync::Arc;
 use parking_lot::Mutex;
@@ -18,6 +19,7 @@ struct TestWrapperPvt {
 }
 impl Drop for TestWrapperPvt {
     fn drop(&mut self) {
+        let _guard = GCL.lock();
         unsafe { cffi::RustIface_dropped() };
         println!("TestWrapperPvt dropped");
     }
@@ -43,6 +45,7 @@ impl IfRecv for TestWrapperInt {
 }
 impl Drop for TestWrapperInt {
     fn drop(&mut self) {
+        let _guard = GCL.lock();
         unsafe { cffi::RustIface_dropped() };
         println!("TestWrapperInt dropped");
     }
@@ -68,6 +71,7 @@ impl IfRecv for TestWrapperExt {
 }
 impl Drop for TestWrapperExt {
     fn drop(&mut self) {
+        let _guard = GCL.lock();
         unsafe { cffi::RustIface_dropped() };
         println!("TestWrapperExt dropped");
     }
