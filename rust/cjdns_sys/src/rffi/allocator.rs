@@ -6,12 +6,15 @@ use std::os::raw::c_char;
 use std::any::Any;
 use crate::cffi::Allocator_t;
 use async_recursion::async_recursion;
+use std::cell::RefCell;
 
 struct Mem {
+    alloc_ident: Arc<String>,
     loc: Vec<u128>,
 }
 impl Drop for Mem {
     fn drop(&mut self) {
+        println!("Dropping memory {:p} from {}", &self.loc, self.alloc_ident);
         for i in 0..self.loc.len() {
             self.loc[i] = 0xefefefefefefefefefefefefefefefef_u128;
         }
@@ -24,8 +27,7 @@ struct AllocatorInner {
     mem: Mutex<Vec<Mem>>,
     obj: Mutex<Vec<Box<dyn Any + Send>>>,
     on_free: Mutex<Vec<OnFreeJob>>,
-    file: *const c_char,
-    line: usize,
+    ident: RefCell<Arc<String>>,
 }
 unsafe impl Send for AllocatorInner {}
 unsafe impl Sync for AllocatorInner {}
@@ -98,34 +100,39 @@ pub(crate) use child;
 
 impl Allocator {
     pub fn new(file: *const c_char, line: usize) -> Allocator {
-        let a = Allocator(Arc::new(AllocatorInner{
+        let mut a = Allocator(Arc::new(AllocatorInner{
             parents: Mutex::default(),
             children: Mutex::default(),
             mem: Mutex::default(),
             obj: Mutex::default(),
             on_free: Mutex::default(),
-            file,
-            line,
+            ident: RefCell::default(),
         }));
+        a.0.ident.replace(
+            Arc::new(format!("{:?}:{}/{:p}", unsafe { CStr::from_ptr(file) }, line, &a.0.obj))
+        );
+
         println!("New root allocator {}", a.ident());
         a
     }
 
-    pub fn ident(&self) -> String {
-        format!("{:?}:{}/{:p}", unsafe { CStr::from_ptr(self.0.file) }, self.0.line, &self.0.obj)
+    pub fn ident(&self) -> Arc<String> {
+        Arc::clone(&*self.0.ident.borrow())
     }
 
     pub fn child(&self, file: *const c_char, line: usize) -> Allocator {
-        let a = Allocator(Arc::new(AllocatorInner{
+        let mut a = Allocator(Arc::new(AllocatorInner{
             parents: Mutex::new(vec![ Arc::downgrade(&self.0) ]),
             children: Mutex::default(),
             mem: Mutex::default(),
             obj: Mutex::default(),
             on_free: Mutex::default(),
-            file,
-            line,
+            ident: RefCell::default(),
         }));
         self.0.children.lock().push(Allocator(Arc::clone(&a.0)));
+        a.0.ident.replace(
+            Arc::new(format!("{:?}:{}/{:p}", unsafe { CStr::from_ptr(file) }, line, &a.0.obj))
+        );
         println!("New child allocator {} <- {}", a.ident(), self.ident());
         a
     }
@@ -135,7 +142,7 @@ impl Allocator {
             return std::ptr::null_mut();
         }
         let count = as_count(size);
-        let mut m = Mem{ loc: Vec::with_capacity(count) };
+        let mut m = Mem{ loc: Vec::with_capacity(count), alloc_ident: self.ident() };
         if zero_mem {
             for _ in 0..count {
                 m.loc.push(0);
