@@ -65,7 +65,7 @@ pub unsafe extern "C" fn Rffi_spawn(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::rffi::allocator::{self, Allocator};
+    use crate::rffi::allocator;
 
     #[test]
     fn test_exepath() -> anyhow::Result<()> {

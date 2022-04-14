@@ -110,7 +110,7 @@ pub extern "C" fn Rffi_interface_addresses(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::rffi::allocator::Allocator;
+    use crate::rffi::allocator;
 
     #[test]
     fn test_interface_addresses() {

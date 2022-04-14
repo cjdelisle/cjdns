@@ -361,7 +361,7 @@ mod tests {
     use crate::cffi;
 
     use super::Message;
-    use crate::rffi::allocator::{self, Allocator};
+    use crate::rffi::allocator;
 
     #[test]
     fn test_message_bytes() {
