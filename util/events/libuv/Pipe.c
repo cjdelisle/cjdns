@@ -63,6 +63,8 @@ struct Pipe_pvt
 
     struct Log* log;
 
+    struct EventBase* base;
+
     Identity
 };
 
@@ -112,6 +114,7 @@ static void sendMessage2(struct Pipe_WriteRequest_pvt* req)
             sendMessageCallback);
         Log_debug(pipe->log, "Sending message with fd [%d]", fd);
     } else {
+        Log_debug(pipe->log, "Sending message of length [%d]", Message_getLength(m));
         ret = uv_write(&req->uvReq, (uv_stream_t*) &pipe->peer, buffers, 1, sendMessageCallback);
     }
     if (ret) {
@@ -172,9 +175,9 @@ static void onClose(uv_handle_t* handle)
 {
     struct Pipe_pvt* pipe = Identity_check((struct Pipe_pvt*)handle->data);
     handle->data = NULL;
-    if (pipe->closeHandlesOnFree && !pipe->peer.data) {
-        Allocator_onFreeComplete((struct Allocator_OnFreeJob*) pipe->closeHandlesOnFree);
-    }
+    Log_debug(pipe->log, "Pipe closed");
+    Assert_true(pipe->closeHandlesOnFree && !pipe->peer.data);
+    Allocator_onFreeComplete((struct Allocator_OnFreeJob*) pipe->closeHandlesOnFree);
 }
 
 #if Pipe_PADDING_AMOUNT < 8
@@ -207,6 +210,7 @@ static void incoming(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf)
                 Message_setAssociatedFd(msg, stream->accepted_fd);
             #endif
         }
+        Log_debug(pipe->log, "Pipe incoming message len [%d]", Message_getLength(msg));
         Iface_send(&pipe->pub.iface, msg);
     }
 
@@ -258,12 +262,12 @@ static void connected(uv_connect_t* req, int status)
     if (status) {
         Log_info(pipe->log, "uv_pipe_connect() failed for pipe [%s] [%s]",
                  pipe->pub.fullName, uv_strerror(status) );
-        uv_close((uv_handle_t*) &pipe->peer, onClose);
+        uv_close((uv_handle_t*) &pipe->peer, NULL);
 
     } else if ((ret = startPipe(pipe))) {
         Log_info(pipe->log, "uv_read_start() failed for pipe [%s] [%s]",
                  pipe->pub.fullName, uv_strerror(ret));
-        uv_close((uv_handle_t*) &pipe->peer, onClose);
+        uv_close((uv_handle_t*) &pipe->peer, NULL);
 
     } else {
         pipe->isActive = 1;
@@ -295,11 +299,10 @@ static int closeHandlesOnFree(struct Allocator_OnFreeJob* job)
 {
     struct Pipe_pvt* pipe = Identity_check((struct Pipe_pvt*)job->userData);
     pipe->closeHandlesOnFree = job;
-    if (pipe->peer.data) {
-        uv_close((uv_handle_t*) &pipe->peer, onClose);
-        return Allocator_ONFREE_ASYNC;
-    }
-    return 0;
+    Assert_true(pipe->peer.data);
+    uv_close((uv_handle_t*) &pipe->peer, onClose);
+    EventBase_wakeup(pipe->base);
+    return Allocator_ONFREE_ASYNC;
 }
 
 static Er_DEFUN(struct Pipe_pvt* newPipeAny(struct EventBase* eb,
@@ -321,6 +324,7 @@ static Er_DEFUN(struct Pipe_pvt* newPipeAny(struct EventBase* eb,
         .alloc = alloc,
         .log = log,
         .ipc = ipc,
+        .base = eb,
     }));
 
     int ret = uv_pipe_init(ctx->loop, &out->peer, ipc);
@@ -395,7 +399,7 @@ Er_DEFUN(struct Pipe* Pipe_serverAccept(uv_pipe_t* server,
     struct Pipe_pvt* out = Er(newPipeAny(eb, NULL, true, log, userAlloc));
     int ret = uv_accept((uv_stream_t*) server, (uv_stream_t*) &out->peer);
     if (ret) {
-        uv_close((uv_handle_t*) &out->peer, onClose);
+        uv_close((uv_handle_t*) &out->peer, NULL);
         Er_raise(out->alloc, "uv_accept() failed: pipe [%s] [%s]",
             pipeName, uv_strerror(ret));
     } else {

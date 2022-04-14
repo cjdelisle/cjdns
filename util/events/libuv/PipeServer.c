@@ -184,6 +184,7 @@ static int closeHandlesOnFree(struct Allocator_OnFreeJob* job)
     psp->closeHandlesOnFree = job;
     if (psp->server.data) {
         uv_close((uv_handle_t*) &psp->server, onClose);
+        EventBase_wakeup(psp->base);
         return Allocator_ONFREE_ASYNC;
     }
     return 0;
