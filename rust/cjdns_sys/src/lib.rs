@@ -17,7 +17,14 @@ pub fn rust_main(cmain: unsafe extern "C" fn(c_int, *const *mut c_char)) {
         .enable_all()
         .build()
         .unwrap()
-        .block_on(async { unsafe { cmain(c_args.len() as c_int, c_args.as_ptr()) } })
+        .block_on(async {
+            let default_panic = std::panic::take_hook();
+            std::panic::set_hook(Box::new(move |info| {
+                default_panic(info);
+                std::process::abort();
+            }));
+            unsafe { cmain(c_args.len() as c_int, c_args.as_ptr()) }
+        })
 }
 
 #[macro_export]
