@@ -29,14 +29,12 @@ Js({ require("../util/events/libuv/libuv.js")(builder, js); })
     #include <sys/time.h>
 #endif
 
-#include <stdio.h>
 static int onFree(struct Allocator_OnFreeJob* job)
 {
     struct EventBase_pvt* ctx = Identity_check((struct EventBase_pvt*) job->userData);
     if (ctx->running) {
         // The job will be completed in EventLoop_beginLoop()
         ctx->onFree = job;
-        printf("Freeing\n");
         EventBase_endLoop((struct EventBase*) ctx);
         return Allocator_ONFREE_ASYNC;
     } else {
@@ -46,7 +44,9 @@ static int onFree(struct Allocator_OnFreeJob* job)
         if (!uv_is_closing((uv_handle_t*) &ctx->blockTimer)) {
             uv_close((uv_handle_t*) &ctx->blockTimer, NULL);
         }
-        uv_loop_delete(ctx->loop);
+        // This can't be safely done because the loop might still be used
+        // until it is completely done with - and the memory is trashed.
+        //uv_loop_delete(ctx->loop);
         return 0;
     }
 }
@@ -71,9 +71,6 @@ static void calibrateTime(struct EventBase_pvt* base)
     base->baseTime = (seconds * 1000) + milliseconds - uv_now(base->loop);
 }
 
-#include <sys/types.h>
-#include <unistd.h>
-
 static void doNothing(uv_async_t* handle, int status)
 {
     struct EventBase_pvt* base = Identity_containerOf(handle, struct EventBase_pvt, uvAwakener);
@@ -81,12 +78,12 @@ static void doNothing(uv_async_t* handle, int status)
         uv_stop(base->loop);
     }
     // title says it all
-    printf("[%d] Do nothing\n", getpid());
+    // printf("[%d] Do nothing\n", getpid());
 }
 
 static void blockTimer(uv_timer_t* timer, int status)
 {
-    printf("[%d] blockTimer\n", getpid());
+    //printf("[%d] blockTimer\n", getpid());
 }
 
 struct EventBase* EventBase_new(struct Allocator* allocator)
@@ -121,7 +118,6 @@ void EventBase_beginLoop(struct EventBase* eventBase)
         uv_run(ctx->loop, UV_RUN_DEFAULT);
         if (ctx->onFree) { break; }
         ret = Rffi_eventLoopRefCtr(ctx->rffi_loop);
-        printf("[%d] Cycled with %d\n", getpid(), ret);
     } while (ret);
 
     ctx->running = 0;
@@ -133,7 +129,9 @@ void EventBase_beginLoop(struct EventBase* eventBase)
         if (!uv_is_closing((uv_handle_t*) &ctx->blockTimer)) {
             uv_close((uv_handle_t*) &ctx->blockTimer, NULL);
         }
-        uv_loop_delete(ctx->loop);
+        // This can't be safely done because the loop might still be used
+        // until it is completely done with - and the memory is trashed.
+        //uv_loop_delete(ctx->loop);
         Allocator_onFreeComplete(ctx->onFree);
         return;
     }
@@ -145,9 +143,7 @@ void EventBase_endLoop(struct EventBase* eventBase)
     if (ctx->running == 0) { return; }
     ctx->running = 2;
     Rffi_clearAllTimeouts(ctx->rffi_loop);
-    //uv_stop(ctx->loop);
     uv_async_send(&ctx->uvAwakener);
-    printf("endLoop called\n");
 }
 
 void EventBase_wakeup(void* eventBase)
