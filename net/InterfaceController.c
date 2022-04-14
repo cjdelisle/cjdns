@@ -548,7 +548,9 @@ static int closeInterface(struct Allocator_OnFreeJob* job)
         // Happens if the ep was created as a result of handleUnexpectedIncoming
         return 0;
     }
-    sendPeer(0xffffffff, PFChan_Core_PEER_GONE, toClose, 0xffff);
+    if (!Allocator_isFreeing(toClose->ici->ic->alloc)) {
+        sendPeer(0xffffffff, PFChan_Core_PEER_GONE, toClose, 0xffff);
+    }
     Log_debug(toClose->ici->ic->logger,
         "Closing interface [%d] with handle [%u]", index, toClose->handle);
     Map_EndpointsBySockaddr_remove(index, &toClose->ici->peerMap);

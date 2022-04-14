@@ -23,6 +23,11 @@ void Allocator__free(struct Allocator* alloc, const char* file, int line)
     Rffi_allocator_free(alloc);
 }
 
+int Allocator_isFreeing(Allocator_t* alloc)
+{
+    return Rffi_allocator_isFreeing(alloc);
+}
+
 void* Allocator__malloc(struct Allocator* allocator,
                         unsigned long length,
                         const char* fileName,
@@ -107,7 +112,7 @@ struct Allocator_OnFreeJob* Allocator__onFree(struct Allocator* alloc,
     oj->callback = callback;
     oj->userData = callbackContext;
     oj->rContext = NULL;
-    Rffi_allocator_onFree(alloc, onFree, oj);
+    Rffi_allocator_onFree(alloc, onFree, oj, file, line);
     return oj;
 }
 

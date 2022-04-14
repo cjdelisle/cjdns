@@ -212,6 +212,8 @@ struct Allocator* Allocator__child(struct Allocator* alloc, const char* fileName
 void Allocator__free(struct Allocator* alloc, const char* file, int line);
 #define Allocator_free(a) Allocator__free((a),Gcc_SHORT_FILE,Gcc_LINE)
 
+int Allocator_isFreeing(Allocator_t* alloc);
+
 /**
  * Add a function to be called when the allocator is freed.
  * There is no guarantee of which order the onFree jobs will be executed.

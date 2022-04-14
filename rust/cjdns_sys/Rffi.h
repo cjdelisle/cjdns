@@ -203,6 +203,8 @@ Allocator_t *Rffi_allocator_newRoot(const char *file, uintptr_t line);
 
 void Rffi_allocator_free(Allocator_t *a);
 
+int Rffi_allocator_isFreeing(Allocator_t *a);
+
 Allocator_t *Rffi_allocator_child(Allocator_t *a, const char *file, uintptr_t line);
 
 uint8_t *Rffi_allocator_malloc(Allocator_t *a, uintptr_t size);
@@ -211,7 +213,11 @@ uint8_t *Rffi_allocator_calloc(Allocator_t *a, uintptr_t size);
 
 uint8_t *Rffi_allocator_realloc(Allocator_t *a, uint8_t *ptr, uintptr_t new_size);
 
-void Rffi_allocator_onFree(Allocator_t *a, OnFreeFun fun, void *ctx);
+void Rffi_allocator_onFree(Allocator_t *a,
+                           OnFreeFun fun,
+                           void *ctx,
+                           const char *file,
+                           uintptr_t line);
 
 void Rffi_allocator_adopt(Allocator_t *a, Allocator_t *to_adopt);
 

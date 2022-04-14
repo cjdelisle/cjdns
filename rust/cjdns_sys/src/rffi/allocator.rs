@@ -5,29 +5,34 @@ use std::ffi::{c_void, CStr};
 use std::os::raw::c_char;
 use std::any::Any;
 use crate::cffi::Allocator_t;
-use async_recursion::async_recursion;
-use std::cell::RefCell;
+use std::cell::{RefCell,Ref};
+use crate::gcl::GCL;
 
 struct Mem {
-    alloc_ident: Arc<String>,
     loc: Vec<u128>,
 }
-impl Drop for Mem {
-    fn drop(&mut self) {
-        println!("Dropping memory {:p} from {}", &self.loc[0], self.alloc_ident);
+impl Mem {
+    fn destroy(&mut self, alloc_ident: &str) {
+        log::trace!("Dropping memory {:p} from {}", &self.loc[0], alloc_ident);
         for i in 0..self.loc.len() {
             self.loc[i] = 0xefefefefefefefefefefefefefefefef_u128;
         }
     }
 }
 
+struct AllocatorMut {
+    parents: Vec<Weak<AllocatorInner>>,
+    children: Vec<Arc<AllocatorInner>>,
+    mem: Vec<Mem>,
+    obj: Vec<Box<dyn Any + Send>>,
+    on_free: Vec<OnFreeJob>,
+    is_freeing: bool,
+}
+
 struct AllocatorInner {
-    parents: Mutex<Vec<Weak<AllocatorInner>>>,
-    children: Mutex<Vec<Allocator>>,
-    mem: Mutex<Vec<Mem>>,
-    obj: Mutex<Vec<Box<dyn Any + Send>>>,
-    on_free: Mutex<Vec<OnFreeJob>>,
-    ident: RefCell<Arc<String>>,
+    m: Mutex<AllocatorMut>,
+    ident: RefCell<String>,
+    mebox: RefCell<*mut Allocator>,
 }
 unsafe impl Send for AllocatorInner {}
 unsafe impl Sync for AllocatorInner {}
@@ -35,6 +40,7 @@ unsafe impl Sync for AllocatorInner {}
 struct OnFreeJob {
     f: OnFreeFun,
     c: *mut c_void,
+    file_line: FileLine,
 }
 unsafe impl Send for OnFreeJob {}
 
@@ -46,34 +52,68 @@ fn as_count(size: usize) -> usize {
     count
 }
 
-#[async_recursion]
-async fn free_alloc(alloc: &Arc<AllocatorInner>, depth: i32) {
-    println!("free_alloc({}, {})", alloc.ident.borrow(), depth);
-    let parents = alloc.parents.lock().drain(..).collect::<Vec<_>>();
-    let children = alloc.children.lock().drain(..).collect::<Vec<_>>();
-    let jobs = alloc.on_free.lock().drain(..).collect::<Vec<_>>();
-    for p in parents {
-        if let Some(p) = p.upgrade() {
-            p.children.lock().retain(|c| !std::ptr::eq(&c.0.obj, &alloc.obj));
-        }
-    }
-    for c in children {
-        {
-            let mut pl = c.0.parents.lock();
-            pl.retain(|c| if let Some(c) = c.upgrade() { !std::ptr::eq(&c.obj, &alloc.obj) } else { false });
-            if pl.len() > 0 {
-                println!("Continuing from child of {} because it has {} other parent",
-                    alloc.ident.borrow(), pl.len());
-                continue;
+// Does not disconnect alloc from parent (!)
+fn get_to_free(
+    parent: Option<&Arc<AllocatorInner>>,
+    alloc: &Arc<AllocatorInner>,
+    depth: i32,
+    v: &mut Vec<(Arc<AllocatorInner>, i32)>,
+) {
+    let children = {
+        let mut m = alloc.m.lock();
+        if let Some(parent) = parent {
+            m.parents.retain(|p| p.upgrade().map(|p| p.ident != parent.ident).unwrap_or(false));
+            if !m.parents.is_empty() {
+                println!("Continuing from child {} of {} because it has {} other parent(s):",
+                    alloc.ident.borrow(), parent.ident.borrow(), m.parents.len());
+                for p in m.parents.iter().filter_map(|p|p.upgrade()) {
+                    println!("  {}", p.ident.borrow());
+                }
+                return;
             }
         }
-        free_alloc(&c.0, depth + 1).await;
+        assert!(!m.is_freeing);
+        m.is_freeing = true;
+        std::mem::take(&mut m.children)
+    };
+    for c in children {
+        get_to_free(Some(alloc), &c, depth + 1, v);
     }
-    for job in jobs {
-        let (tx, rx) = oneshot::channel();
-        let ofc = Arc::new(OnFreeCtx(Some(tx)));
-        (job.f)(job.c, &*ofc as *const OnFreeCtx as *mut OnFreeCtx);
-        rx.await.unwrap();
+    v.push((Arc::clone(alloc), depth));
+}
+
+async fn free_allocs(mut allocs: Vec<(Arc<AllocatorInner>, i32)>) {
+    allocs.sort_by(|a,b|b.1.cmp(&a.1));
+    for (alloc, depth) in allocs.iter() {
+        let jobs = {
+            let mut m = alloc.m.lock();
+            assert!(m.is_freeing);
+            m.on_free.drain(..).collect::<Vec<_>>()
+        };
+        let mut i = 0;
+        let jl = jobs.len();
+        for job in jobs {
+            log::trace!("Freeing job {} {}/{} depth {}",
+                job.file_line.print(), i, jl, depth);
+            i += 1;
+            let (tx, rx) = oneshot::channel();
+            let ofc = Arc::new(OnFreeCtx(Some(tx)));
+            {
+                let _guard = GCL.lock();
+                (job.f)(job.c, &*ofc as *const OnFreeCtx as *mut OnFreeCtx);
+            }
+            rx.await.unwrap();
+        }
+    }
+    for (alloc, _) in allocs {
+        log::trace!("Freeing {} 2", alloc.ident.borrow());
+        let mems = alloc.m.lock().mem.drain(..).collect::<Vec<_>>();
+        let ident = alloc.ident.borrow();
+        for mut mem in mems {
+            mem.destroy(&ident[..]);
+        }
+        // Drop the allocator box
+        unsafe { Box::from_raw(*alloc.mebox.borrow()) };
     }
 }
 
@@ -82,62 +122,125 @@ unsafe impl<T> Send for Adoption<T> {}
 
 // ---- //
 
-pub struct Allocator(Arc<AllocatorInner>);
+pub struct Allocator {
+    inner: Arc<AllocatorInner>,
+    magic: u32,
+    free_on_drop: bool,
+}
+
+const MAGIC: u32 = 0xdeaffeed;
 
 pub struct OnFreeCtx(Option<oneshot::Sender<()>>);
 
 pub type OnFreeFun = extern "C" fn(ctx: *mut c_void, complete: *mut OnFreeCtx);
 
+pub struct FileLine{
+    pub file_s: Option<&'static str>,
+    pub file_c: Option<*const c_char>,
+    pub line: usize,
+}
+
+impl FileLine {
+    fn print(&self) -> String {
+        if let Some(s) = self.file_s {
+            format!("{}:{}", s, self.line)
+        } else if let Some(file) = self.file_c {
+            unsafe { format!("{}:{}", CStr::from_ptr(file).to_string_lossy(), self.line) }
+        } else {
+            format!("<unknown>:{}", self.line)
+        }
+    }
+}
+
+macro_rules! file_line {
+    () => {
+        $crate::rffi::allocator::FileLine{
+            file_s: Some(file!()),
+            file_c: None,
+            line: line!() as usize,
+        }
+    }
+}
+pub(crate) use file_line;
 macro_rules! new {
     () => {
-        Allocator::new(file!().as_ptr() as *const std::os::raw::c_char, line!() as usize)
+        $crate::rffi::allocator::Allocator::owned(
+            $crate::rffi::allocator::new_c!()
+        )
     }
 }
 pub(crate) use new;
+macro_rules! new_c {
+    () => {
+        $crate::rffi::allocator::Allocator::new(
+            $crate::rffi::allocator::file_line!()
+        )
+    }
+}
+pub(crate) use new_c;
 macro_rules! child {
     ($a:expr) => {
-        $a.child(file!().as_ptr() as *const std::os::raw::c_char, line!() as usize)
+        $crate::rffi::allocator::Allocator::owned(
+            $a.child($crate::rffi::allocator::file_line!())
+        )
     }
 }
 pub(crate) use child;
 
 impl Allocator {
-    pub fn new(file: *const c_char, line: usize) -> Allocator {
-        let a = Allocator(Arc::new(AllocatorInner{
-            parents: Mutex::default(),
-            children: Mutex::default(),
-            mem: Mutex::default(),
-            obj: Mutex::default(),
-            on_free: Mutex::default(),
-            ident: RefCell::default(),
-        }));
-        a.0.ident.replace(
-            Arc::new(format!("{:?}:{}/{:p}", unsafe { CStr::from_ptr(file) }, line, &a.0.obj))
-        );
+    fn new_int(file_line: FileLine, parents: Vec<Weak<AllocatorInner>>) -> *mut Allocator_t {
+        let parent = if let Some(parent) = parents.get(0).map(|p|p.upgrade()).flatten() {
+            parent.ident.borrow().to_owned()
+        } else {
+            "<root>".to_owned()
+        };
+        let a = Box::new(Allocator{
+            inner: Arc::new(AllocatorInner{
+                m: Mutex::new(AllocatorMut{
+                    parents: parents,
+                    children: Vec::new(),
+                    mem: Vec::new(),
+                    obj: Vec::new(),
+                    on_free: Vec::new(),
+                    is_freeing: false,
+                }),
+                ident: RefCell::default(),
+                mebox: RefCell::new(std::ptr::null_mut()),
+            }),
+            magic: MAGIC,
+            free_on_drop: false,
+        });
+        // This "as" does not cast, but it fails if we're wrong
+        let a = Box::into_raw(a);
+        unsafe {
+            (*a).inner.ident.replace(format!("{}/{:p}", file_line.print(), a));
+            (*a).inner.mebox.replace(a);
+            log::trace!("New allocator {} <- {}", (*a).ident(), parent);
+        }
+        a as *mut Allocator_t
+    }
 
-        println!("New root allocator {}", a.ident());
+    pub fn owned(a: *mut Allocator_t) -> Allocator {
+        let mut a = rs(a);
+        a.free_on_drop = true;
         a
     }
 
-    pub fn ident(&self) -> Arc<String> {
-        Arc::clone(&*self.0.ident.borrow())
+    pub fn new(file_line: FileLine) -> *mut Allocator_t {
+        Self::new_int(file_line, Vec::new())
     }
 
-    pub fn child(&self, file: *const c_char, line: usize) -> Allocator {
-        let a = Allocator(Arc::new(AllocatorInner{
-            parents: Mutex::new(vec![ Arc::downgrade(&self.0) ]),
-            children: Mutex::default(),
-            mem: Mutex::default(),
-            obj: Mutex::default(),
-            on_free: Mutex::default(),
-            ident: RefCell::default(),
-        }));
-        self.0.children.lock().push(Allocator(Arc::clone(&a.0)));
-        a.0.ident.replace(
-            Arc::new(format!("{:?}:{}/{:p}", unsafe { CStr::from_ptr(file) }, line, &a.0.obj))
-        );
-        println!("New child allocator {} <- {}", a.ident(), self.ident());
-        a
+    pub fn ident(&self) -> Ref<String> {
+        self.inner.ident.borrow()
+    }
+
+    pub fn child(&self, file_line: FileLine) -> *mut Allocator_t {
+        let out = Self::new_int(file_line, vec![ Arc::downgrade(&self.inner) ]);
+        let a = Arc::clone(&rs(out).inner);
+        let mut m = self.inner.m.lock();
+        assert!(!m.is_freeing, "Cannot create child while freeing");
+        m.children.push(a);
+        out
     }
 
     pub fn malloc(&self, size: usize, zero_mem: bool) -> *mut u8 {
@@ -145,16 +248,18 @@ impl Allocator {
             return std::ptr::null_mut();
         }
         let count = as_count(size);
-        let mut m = Mem{ loc: Vec::with_capacity(count), alloc_ident: self.ident() };
+        let mut mem = Mem{ loc: Vec::with_capacity(count) };
         if zero_mem {
             for _ in 0..count {
-                m.loc.push(0);
+                mem.loc.push(0);
             }
         } else {
-            unsafe { m.loc.set_len(count); }
+            unsafe { mem.loc.set_len(count); }
         }
-        let p = &m.loc[0] as *const u128 as *const u8 as *mut u8;
-        self.0.mem.lock().push(m);
+        let p = &mem.loc[0] as *const u128 as *const u8 as *mut u8;
+        let mut m = self.inner.m.lock();
+        assert!(!m.is_freeing, "Cannot allocate while freeing");
+        m.mem.push(mem);
         p
     }
 
@@ -162,54 +267,82 @@ impl Allocator {
         if memptr.is_null() {
             return self.malloc(new_size, false);
         }
-        for m in self.0.mem.lock().iter_mut() {
-            let p = &m.loc[0] as *const u128 as *const u8 as *mut u8;
+        let mut m = self.inner.m.lock();
+        assert!(!m.is_freeing, "Cannot allocate while freeing");
+        for mem in m.mem.iter_mut() {
+            let p = &mem.loc[0] as *const u128 as *const u8 as *mut u8;
             if p == memptr {
-                m.loc.resize(as_count(new_size), 0);
-                return &m.loc[0] as *const u128 as *const u8 as *mut u8;
+                mem.loc.resize(as_count(new_size), 0);
+                return &mem.loc[0] as *const u128 as *const u8 as *mut u8;
             }
         }
         panic!("pointer {:p} is not in memory allocator {:p}", memptr, self);
     }
 
-    pub fn on_free(&self, f: OnFreeFun, c: *mut c_void) {
-        self.0.on_free.lock().push(OnFreeJob{f, c});
+    pub fn on_free(&self, f: OnFreeFun, c: *mut c_void, file_line: FileLine) {
+        let mut m = self.inner.m.lock();
+        assert!(!m.is_freeing, "Cannot on_free() while freeing");
+        m.on_free.push(OnFreeJob{f, c, file_line});
     }
 
     pub fn adopt_alloc(&self, a: Allocator) {
-        a.0.parents.lock().push(Arc::downgrade(&self.0));
-        self.0.children.lock().push(a);
+        if self.inner.ident == a.inner.ident {
+            return;
+        }
+        // Danger: possibility of deadlock if this is in the opposite order elsewhere!
+        let mut m = self.inner.m.lock();
+        let mut am = a.inner.m.lock();
+        assert!(!m.is_freeing, "Cannot adopt alloc while freeing");
+        assert!(!am.is_freeing, "Cannot be adopted while freeing");
+        if m.children.iter().find(|c|c.ident == a.inner.ident).is_some() {
+            return;
+        } else if a.inner.ident == self.inner.ident {
+            return;
+        }
+        m.children.push(Arc::clone(&a.inner));
+        am.parents.push(Arc::downgrade(&self.inner));
     }
 
     pub fn adopt<T: 'static>(&self, t: T) -> *mut T {
         let mut b: Box<dyn Any + Send> = Box::new(Adoption(t));
         let t = &mut b.downcast_mut::<Adoption<T>>().unwrap().0 as *mut T;
-        self.0.obj.lock().push(b);
+        let mut m = self.inner.m.lock();
+        assert!(!m.is_freeing, "Cannot adopt obj while freeing");
+        m.obj.push(b);
         t
     }
 
     pub fn c(&mut self) -> *mut Allocator_t {
-        self as *mut Allocator as *mut Allocator_t
+        *self.inner.mebox.borrow() as _
+    }
+
+    pub fn free(&mut self) {
+        let parent = {
+            let mut m = self.inner.m.lock();
+            if m.is_freeing {
+                println!("Alloc {} is already freeing", self.ident());
+                return;
+            }
+            m.parents.retain(|p|p.strong_count() > 0);
+            m.parents.iter().filter_map(|p|p.upgrade()).next()
+        };
+        // Disconnect this alloc from it's parent because get_to_free does not do that
+        if let Some(p) = &parent {
+            p.m.lock().children.retain(|c| c.ident != self.inner.ident);
+        }
+        let mut v = Vec::new();
+        get_to_free(parent.as_ref(), &self.inner, 0, &mut v);
+        tokio::spawn(async {
+            free_allocs(v).await
+        });
     }
 }
 
 impl Drop for Allocator {
     fn drop(&mut self) {
-        let parent_count = {
-            self.0.parents.lock().iter().filter(|p|p.strong_count() > 0).count()
-        };
-        let sc = Arc::strong_count(&self.0);
-        //println!("Dropping allocator {} ref count {}", self.ident(), sc);
-        if sc > parent_count + 1 {
-            return;
+        if self.free_on_drop {
+            self.free();
         }
-        assert!(sc == parent_count + 1);
-        println!("Dropping allocator {}", self.ident());
-        let a = Arc::clone(&self.0);
-        tokio::spawn(async {
-            let a = a;
-            free_alloc(&a, 0).await
-        });
     }
 }
 
@@ -225,19 +358,26 @@ pub extern "C" fn Rffi_allocator_onFreeComplete(c: *mut OnFreeCtx) {
 /// Create a root level allocator.
 #[no_mangle]
 pub extern "C" fn Rffi_allocator_newRoot(file: *const c_char, line: usize) -> *mut Allocator_t {
-    let a = Box::new(Allocator::new(file, line));
-    Box::into_raw(a) as *mut Allocator_t
+    Allocator::new(FileLine{ file_s: None, file_c: Some(file), line })
 }
 
 #[no_mangle]
 pub extern "C" fn Rffi_allocator_free(a: *mut Allocator_t) {
-    let b = unsafe { Box::from_raw(a as *mut Allocator) };
-    drop(b)
+    rs(a).free()
+}
+
+#[no_mangle]
+pub extern "C" fn Rffi_allocator_isFreeing(a: *mut Allocator_t) -> std::os::raw::c_int {
+    if rs(a).inner.m.lock().is_freeing {
+        1
+    } else {
+        0
+    }
 }
 
 #[no_mangle]
 pub extern "C" fn Rffi_allocator_child(a: *mut Allocator_t, file: *const c_char, line: usize) -> *mut Allocator_t {
-    Box::into_raw(Box::new(rs(a).child(file, line))) as *mut Allocator_t
+    rs(a).child(FileLine{ file_s: None, file_c: Some(file), line })
 }
 
 #[no_mangle]
@@ -256,8 +396,14 @@ pub extern "C" fn Rffi_allocator_realloc(a: *mut Allocator_t, ptr: *mut u8, new_
 }
 
 #[no_mangle]
-pub extern "C" fn Rffi_allocator_onFree(a: *mut Allocator_t, fun: OnFreeFun, ctx: *mut c_void) {
-    rs(a).on_free(fun, ctx)
+pub extern "C" fn Rffi_allocator_onFree(
+    a: *mut Allocator_t,
+    fun: OnFreeFun,
+    ctx: *mut c_void,
+    file: *const c_char,
+    line: usize,
+) {
+    rs(a).on_free(fun, ctx, FileLine{ file_s: None, file_c: Some(file), line })
 }
 
 #[no_mangle]
@@ -270,5 +416,13 @@ pub fn adopt<T: 'static>(a: *mut Allocator_t, t: T) -> *mut T {
 }
 
 pub fn rs(a: *mut Allocator_t) -> Allocator {
-    Allocator(Arc::clone(&unsafe { &*(a as *mut Allocator) }.0))
+    let b = unsafe { Box::from_raw(a as *mut Allocator) };
+    assert!(b.magic == MAGIC, "Wrong allocator magic {:#08x} != {:#08x}", b.magic, MAGIC);
+    let out = Allocator {
+        inner: Arc::clone(&b.inner),
+        magic: 0,
+        free_on_drop: false,
+    };
+    Box::into_raw(b);
+    out
 }
