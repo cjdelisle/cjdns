@@ -40,6 +40,7 @@
 struct Context {
     struct Iface iface;
     struct Allocator* alloc;
+    struct Allocator* rootAlloc;
     struct EventBase* base;
     struct Log* log;
 
@@ -66,13 +67,20 @@ static void onConnectionParent(struct PipeServer* p, struct Sockaddr* addr)
     Allocator_free(alloc);
 }
 
+static int g_childStopped = 0;
+static struct Context* g_context = NULL;
+
 static Iface_DEFUN receiveMessageParent(struct Message* msg, struct Iface* iface)
 {
     struct Context* c = Identity_check((struct Context*) iface);
     Er_assert(AddrIface_popAddr(msg));
     Assert_true(Message_getLength(msg) == (int)CString_strlen(MESSAGEB)+1);
     Assert_true(!Bits_memcmp(msg->msgbytes, MESSAGEB, CString_strlen(MESSAGEB)+1));
-    Allocator_free(c->alloc);
+    g_context = c;
+    if (g_childStopped) {
+        printf("Parent stopped in receiveMessageParent\n");
+        Allocator_free(c->rootAlloc);
+    }
     return NULL;
 }
 
@@ -121,7 +129,7 @@ static Iface_DEFUN receiveMessageChild(struct Message* msg, struct Iface* iface)
     exit(0);
 
     // shutdown
-    Allocator_free(c->alloc);
+    Allocator_free(c->rootAlloc);
 
     return NULL;
 }
@@ -138,14 +146,28 @@ static void child(char* name, struct Context* ctx)
     EventBase_beginLoop(ctx->base);
 }
 
+static void onChildExit(int64_t exit_status, int term_signal)
+{
+    printf("\n\n\nChild process exit status = %d term_signal = %d\n\n\n",
+        (int)exit_status, term_signal);
+    Assert_true(exit_status == 0);
+    g_childStopped = true;
+    if (g_context) {
+        printf("Parent stopped in onChildExit\n");
+        Allocator_free(g_context->rootAlloc);
+    }
+}
+
 int main(int argc, char** argv)
 {
-    struct Allocator* alloc = Allocator_new(1<<20);
-    struct EventBase* eb = EventBase_new(alloc);
+    struct Allocator* allocator = Allocator_new(1<<20);
+    struct EventBase* eb = EventBase_new(allocator);
+    struct Allocator* alloc = Allocator_child(allocator);
     struct Log* log = FileWriterLog_new(stdout, alloc);
     struct Context* ctx = Allocator_calloc(alloc, sizeof(struct Context), 1);
     Identity_set(ctx);
     ctx->alloc = alloc;
+    ctx->rootAlloc = allocator;
     ctx->base = eb;
     ctx->log = log;
     ctx->iface.send = receiveMessageParent;
@@ -190,7 +212,7 @@ int main(int argc, char** argv)
 
     const char* args[] = { "Process_test", "child", name->bytes, NULL };
 
-    Assert_true(!Process_spawn(path, args, eb, alloc, NULL));
+    Assert_true(!Process_spawn(path, args, eb, alloc, onChildExit));
 
     Timeout_setTimeout(timeout, NULL, 2000, eb, alloc);
 
