@@ -76,8 +76,8 @@ pub extern "C" fn Rffi_setTimeout(
         Allocator__onFree(alloc,
             Some(timeout_on_free),
             timer_tx as *mut c_void,
-            ("timeout.rs").as_bytes().as_ptr() as *const ::std::os::raw::c_char,
-            0);
+            ("timeout.rs\0").as_bytes().as_ptr() as *const ::std::os::raw::c_char,
+            line!() as std::os::raw::c_int);
         *out_timer_tx = timer_tx;
     }
 
