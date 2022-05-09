@@ -103,6 +103,11 @@ If Node.js is unavailable or an unacceptable version, it will be downloaded and 
     sudo yum localinstall https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
     sudo yum install nodejs git
     sudo yum install @development-tools
+   
+#### CentOS Stream 9
+    sudo dnf install nodejs git
+    sudo dnf groupinstall "Development Tools"
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
 #### Gentoo
 
