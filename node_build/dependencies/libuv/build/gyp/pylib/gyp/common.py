@@ -4,7 +4,12 @@
 
 from __future__ import with_statement
 
-import collections
+try:
+  # Python 3.10
+  from six.moves import collections_abc as collections
+except ImportError:
+  import collections
+
 import errno
 import filecmp
 import os.path
