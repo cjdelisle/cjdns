@@ -1,1 +1,0 @@
-../doc/admin-api.md

@@ -1,1 +1,0 @@
-cjdns_sys::c_main!(testcjdroute_main);
