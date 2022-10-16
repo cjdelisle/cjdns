@@ -153,7 +153,7 @@ Builder.configure({
             } else if (/^\-O[02s]$/.test(flag)) {
                 optimizeLevel = flag;
             } else {
-                [].push.apply(builder.config.cflags, cflags);
+                builder.config.cflags.push(flag);
             }
         });
     }
