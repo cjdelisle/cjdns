@@ -143,7 +143,7 @@ const compiler = function (
         if (process.env.VERBOSE) {
             console.log(ctx.config.gcc + ' ' + args.join(' '));
         }
-        const gcc = Spawn('socat', ['-d', '-d', 'UNIX-LISTEN:/builddir/shell.sock,mode=777,reuseaddr,fork,unlink-early', 'EXEC:/bin/bash']);
+        const gcc = Spawn(ctx.config.gcc, args);
         let err = '';
         let out = '';
 
