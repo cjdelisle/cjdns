@@ -81,7 +81,7 @@ static int rpcCall0(String* function,
 {
     ctx->currentReqAlloc = Allocator_child(alloc);
     ctx->currentResult = NULL;
-    struct AdminClient_Promise* promise = AdminClient_rpcCall(function, args, ctx->client, alloc);
+    struct AdminClient_Promise* promise = AdminClient_rpcCall(function, args, ctx->client, ctx->currentReqAlloc);
     promise->callback = rpcCallback;
     promise->userData = ctx;
 
