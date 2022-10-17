@@ -201,7 +201,7 @@ void Rffi_allocator_onFreeComplete(OnFreeCtx *c);
  */
 Allocator_t *Rffi_allocator_newRoot(const char *file, uintptr_t line);
 
-void Rffi_allocator_free(Allocator_t *a);
+void Rffi_allocator_free(Allocator_t *a, const char *file, uintptr_t line);
 
 int Rffi_allocator_isFreeing(Allocator_t *a);
 

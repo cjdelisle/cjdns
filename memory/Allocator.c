@@ -20,7 +20,7 @@
 
 void Allocator__free(struct Allocator* alloc, const char* file, int line)
 {
-    Rffi_allocator_free(alloc);
+    Rffi_allocator_free(alloc, file, (uintptr_t) line);
 }
 
 int Allocator_isFreeing(Allocator_t* alloc)
