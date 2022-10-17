@@ -41,7 +41,7 @@ Builder.configure({
         '-std=c99',
         '-Wall',
         '-Wextra',
-        '-Werror',
+        // '-Werror', // This is not practical because compilers increase their warnings over time.
         '-Wno-pointer-sign',
         '-Wmissing-prototypes',
         '-pedantic',
