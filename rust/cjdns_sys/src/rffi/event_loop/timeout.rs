@@ -112,7 +112,7 @@ pub extern "C" fn Rffi_setTimeout(
                             },
                             Some(TimerCommand::Free) |
                             None => {
-                                println!("({:#x}) Allocator freed, stopping timer task", cb_int);
+                                //println!("({:#x}) Allocator freed, stopping timer task", cb_int);
                                 break true;
                             },
                         }
@@ -121,7 +121,7 @@ pub extern "C" fn Rffi_setTimeout(
             }
         }
         is_active.store(false, Ordering::Relaxed);
-        println!("({:#x}) timer task stopped", cb_int);
+        //println!("({:#x}) timer task stopped", cb_int);
         event_loop.decr_ref();
     });
 }
@@ -129,7 +129,7 @@ pub extern "C" fn Rffi_setTimeout(
 impl Drop for TimerTx {
     fn drop(&mut self) {
         self.active.store(false, Ordering::Relaxed);
-        println!("({:#x}) the timer has been dropped", self.cb_int);
+        //println!("({:#x}) the timer has been dropped", self.cb_int);
     }
 }
 
