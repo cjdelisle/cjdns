@@ -1,4 +1,4 @@
-use std::sync::{Arc,Weak};
+use std::sync::Arc;
 use parking_lot::Mutex;
 use tokio::sync::oneshot;
 use std::ffi::{c_void, CStr};
@@ -12,8 +12,9 @@ struct Mem {
     loc: Vec<u128>,
 }
 impl Mem {
-    fn destroy(&mut self, alloc_ident: &str) {
-        log::trace!("Dropping memory {:p} from {}", &self.loc[0], alloc_ident);
+    fn destroy(&mut self, _alloc_ident: &str) {
+        // Too noisy, even for trace
+        //log::trace!("Dropping memory {:p} from {}", &self.loc[0], alloc_ident);
         for i in 0..self.loc.len() {
             self.loc[i] = 0xefefefefefefefefefefefefefefefef_u128;
         }
@@ -21,7 +22,8 @@ impl Mem {
 }
 
 struct AllocatorMut {
-    parents: Vec<Weak<AllocatorInner>>,
+    // This is a leak, but we're not relying on drop() semantics to clear allocators
+    parents: Vec<Arc<AllocatorInner>>,
     children: Vec<Arc<AllocatorInner>>,
     mem: Vec<Mem>,
     obj: Vec<Box<dyn Any + Send>>,
@@ -69,11 +71,11 @@ fn get_to_free(
     let children = {
         let mut m = alloc.m.lock();
         if let Some(parent) = parent {
-            m.parents.retain(|p| p.upgrade().map(|p| p.ident != parent.ident).unwrap_or(false));
+            m.parents.retain(|p| p.ident != parent.ident);
             if !m.parents.is_empty() {
                 log::trace!("Continuing from child {} of {} because it has {} other parent(s):",
                     alloc.ident.borrow(), parent.ident.borrow(), m.parents.len());
-                for p in m.parents.iter().filter_map(|p|p.upgrade()) {
+                for p in m.parents.iter() {
                     log::trace!("  {}", p.ident.borrow());
                 }
                 return;
@@ -197,8 +199,8 @@ macro_rules! child {
 pub(crate) use child;
 
 impl Allocator {
-    fn new_int(file_line: FileLine, parents: Vec<Weak<AllocatorInner>>) -> *mut Allocator_t {
-        let parent = if let Some(parent) = parents.get(0).map(|p|p.upgrade()).flatten() {
+    fn new_int(file_line: FileLine, parents: Vec<Arc<AllocatorInner>>) -> *mut Allocator_t {
+        let parent = if let Some(parent) = parents.get(0) {
             parent.ident.borrow().to_owned()
         } else {
             "<root>".to_owned()
@@ -244,7 +246,7 @@ impl Allocator {
     }
 
     pub fn child(&self, file_line: FileLine) -> *mut Allocator_t {
-        let out = Self::new_int(file_line, vec![ Arc::downgrade(&self.inner) ]);
+        let out = Self::new_int(file_line, vec![ Arc::clone(&self.inner) ]);
         let a = Arc::clone(&rs(out).inner);
         let mut m = self.inner.m.lock();
         assert_not_freeing(&*m, &self.inner, "create child");
@@ -311,14 +313,16 @@ impl Allocator {
             // Adopting a root allocator is a no-op
             return;
         }
-        log::trace!("Allocator [{}] being adopted by [{}]", a.ident(), self.ident());
         if m.children.iter().find(|c|c.ident == a.inner.ident).is_some() {
+            log::trace!("Allocator [{}] being adopted by [{}] but it is already a parent", a.ident(), self.ident());
             return;
         } else if a.inner.ident == self.inner.ident {
+            log::trace!("Allocator [{}] attempting to adopt itself", self.ident());
             return;
         }
+        log::trace!("Allocator [{}] being adopted by [{}]", a.ident(), self.ident());
         m.children.push(Arc::clone(&a.inner));
-        am.parents.push(Arc::downgrade(&self.inner));
+        am.parents.push(Arc::clone(&self.inner));
     }
 
     pub fn adopt<T: 'static>(&self, t: T) -> *mut T {
@@ -335,18 +339,26 @@ impl Allocator {
     }
 
     pub fn free(&mut self, source: &str) {
-        let parent = {
-            let mut m = self.inner.m.lock();
+        let (parent, parent_count) = {
+            let m = self.inner.m.lock();
             if m.is_freeing {
-                println!("Alloc {} is already freeing", self.ident());
+                log::trace!("Alloc {} is already freeing", self.ident());
                 return;
             }
-            m.parents.retain(|p|p.strong_count() > 0);
-            m.parents.iter().filter_map(|p|p.upgrade()).next()
+            (m.parents.get(0).map(Arc::clone), m.parents.len())
         };
         // Disconnect this alloc from it's parent because get_to_free does not do that
         if let Some(p) = &parent {
             p.m.lock().children.retain(|c| c.ident != self.inner.ident);
+            if parent_count > 1 {
+                log::trace!("Skip freeing [{}] at [{}] because it has [{}] more parents",
+                    self.inner.ident.borrow(), source, parent_count - 1);
+                let mut m = self.inner.m.lock();
+                let l0 = m.parents.len();
+                m.parents.retain(|p0|p0.as_ref() as *const _ != (p.as_ref() as *const _));
+                assert!(m.parents.len() == l0 - 1);
+                return;
+            }
         }
         let mut v = Vec::new();
         log::trace!("Freeing [{}] because [{}]", self.inner.ident.borrow(), source);
