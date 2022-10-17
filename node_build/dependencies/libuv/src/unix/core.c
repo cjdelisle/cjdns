@@ -265,9 +265,6 @@ int uv_run(uv_loop_t* loop, uv_run_mode mode) {
   int timeout;
   int r;
 
-  // sync with the Rust async Runtime.
-  void *glock = Rffi_glock();
-
   r = uv__loop_alive(loop);
   if (!r)
     uv__update_time(loop);
@@ -285,13 +282,7 @@ int uv_run(uv_loop_t* loop, uv_run_mode mode) {
     if ((mode & UV_RUN_NOWAIT) == 0)
       timeout = uv_backend_timeout(loop);
 
-    // sync with the Rust async Runtime.
-    Rffi_gunlock(glock);
-
     uv__io_poll(loop, timeout);
-
-    // sync with the Rust async Runtime.
-    glock = Rffi_glock();
 
     uv__run_check(loop);
     uv__run_closing_handles(loop);
@@ -321,9 +312,6 @@ int uv_run(uv_loop_t* loop, uv_run_mode mode) {
    */
   if (loop->stop_flag != 0)
     loop->stop_flag = 0;
-
-  // sync with the Rust async Runtime.
-  Rffi_gunlock(glock);
 
   return r;
 }

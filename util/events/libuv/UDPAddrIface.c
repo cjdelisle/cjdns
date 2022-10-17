@@ -65,6 +65,7 @@ static struct UDPAddrIface_pvt* ifaceForHandle(uv_udp_t* handle)
 
 static void sendComplete(uv_udp_send_t* uvReq, int error)
 {
+    void *glock = Rffi_glock();
     struct UDPAddrIface_WriteRequest_pvt* req =
         Identity_check((struct UDPAddrIface_WriteRequest_pvt*) uvReq);
     if (error) {
@@ -75,6 +76,7 @@ static void sendComplete(uv_udp_send_t* uvReq, int error)
     req->udp->queueLen -= Message_getLength(req->msg);
     Assert_true(req->udp->queueLen >= 0);
     Allocator_free(req->alloc);
+    Rffi_gunlock(glock);
 }
 
 
@@ -142,6 +144,7 @@ static void incoming(uv_udp_t* handle,
                      const struct sockaddr* addr,
                      unsigned flags)
 {
+    void *glock = Rffi_glock();
     struct UDPAddrIface_pvt* context = ifaceForHandle(handle);
 
     context->inCallback = 1;
@@ -179,10 +182,12 @@ static void incoming(uv_udp_t* handle,
     if (context->blockFreeInsideCallback) {
         Allocator_onFreeComplete((struct Allocator_OnFreeJob*) context->blockFreeInsideCallback);
     }
+    Rffi_gunlock(glock);
 }
 
 static void allocate(uv_handle_t* handle, size_t size, uv_buf_t* buf)
 {
+    void *glock = Rffi_glock();
     struct UDPAddrIface_pvt* context = ifaceForHandle((uv_udp_t*)handle);
 
     size = UDPAddrIface_BUFFER_CAP;
@@ -198,13 +203,16 @@ static void allocate(uv_handle_t* handle, size_t size, uv_buf_t* buf)
 
     buf->base = msg->msgbytes;
     buf->len = size;
+    Rffi_gunlock(glock);
 }
 
 static void onClosed(uv_handle_t* wasClosed)
 {
+    void *glock = Rffi_glock();
     struct UDPAddrIface_pvt* context =
         Identity_check((struct UDPAddrIface_pvt*) wasClosed->data);
     Allocator_onFreeComplete((struct Allocator_OnFreeJob*) context->closeHandleOnFree);
+    Rffi_gunlock(glock);
 }
 
 static int closeHandleOnFree(struct Allocator_OnFreeJob* job)
