@@ -102,18 +102,12 @@ static int calculateAuth(Dict* message,
     return 0;
 }
 
-#include <stdio.h>
-#include <pthread.h>
-
 static void done(struct Request* req, enum AdminClient_Error err)
 {
     req->res.err = err;
-    printf("(%p) DONE0 %p \n", (void*)pthread_self(), (void*) req);
     Allocator_t* ra = req->timeoutAlloc;
     req->callback(req);
-    printf("(%p) DONE %p \n", (void*)pthread_self(), (void*) req);
     if (ra == req->timeoutAlloc) { Allocator_free(req->timeoutAlloc); }
-    printf("DONE2 %p \n", (void*) req);
 }
 
 static void timeout(void* vreq)
@@ -156,8 +150,6 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* addrIface)
 
     struct Request* req = ctx->outstandingRequests.values[idx];
 
-    printf("(%p) GOT REPLY %p / %d\n", (void*)pthread_self(), (void*)req, req->handle);
-
     // now this data will outlive the life of the message.
     Allocator_adopt(req->promise->alloc, alloc);
 
@@ -177,10 +169,7 @@ static int requestOnFree(struct Allocator_OnFreeJob* job)
     struct Request* req = Identity_check((struct Request*) job->userData);
     int idx = Map_OfRequestByHandle_indexForHandle(req->handle, &req->ctx->outstandingRequests);
     if (idx > -1) {
-        printf("(%p) REMOVE REQ %p / %d\n", (void*)pthread_self(), (void*)req, req->handle);
         Map_OfRequestByHandle_remove(idx, &req->ctx->outstandingRequests);
-    } else {
-        printf("(%p) NO REMOVE REQ %p\n", (void*)pthread_self(), (void*)req);
     }
     return 0;
 }
