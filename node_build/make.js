@@ -35,7 +35,7 @@ Builder.configure({
 }, function (builder, waitFor) {
 
     builder.config.crossCompiling = process.env['CROSS'] !== undefined;
-    let optimizeLevel = '-O0';
+    let optimizeLevel = '-O2';
 
     builder.config.cflags.push(
         '-std=c99',
@@ -168,7 +168,8 @@ Builder.configure({
     }
 
     if (android) {
-        builder.config.cflags.push('-Dandroid=1');
+        // NDK uses the word `android` in places
+        builder.config.cflags.push('-Dandroid=android');
     }
 
     var uclibc = process.env['UCLIBC'] == '1';
