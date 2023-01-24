@@ -2,9 +2,7 @@
 members = ["rust/cjdns_sys"]
 
 [profile.release]
-lto = true
-opt-level = "z"
-codegen-units = 1
+opt-level = 2
 panic = "unwind"
 
 # In debug mode, enable optimizations for dependencies, but not for our code
