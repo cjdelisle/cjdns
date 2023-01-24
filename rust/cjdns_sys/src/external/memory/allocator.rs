@@ -13,7 +13,7 @@ use std::os::raw::{c_char, c_int, c_void, c_ulong};
 
 unsafe extern "C" fn drop_on_free(job_p: *mut Allocator_OnFreeJob) -> c_int {
     let job = job_p.as_ref().unwrap();
-    Box::from_raw(job.userData as *mut Box<dyn std::any::Any>);
+    drop(Box::from_raw(job.userData as *mut Box<dyn std::any::Any>));
     0
 }
 
