@@ -68,7 +68,7 @@ static void checkSig(Dict* args, void* vctx, String* txid, struct Allocator* req
         } else if (Sign_publicSigningKeyToCurve25519(curve25519key, publicSigningKey)) {
             Dict_putStringCC(out, "error", "not a valid curve25519 key", requestAlloc);
         } else {
-            struct Address addr;
+            struct Address addr = {0};
             Address_forKey(&addr, curve25519key);
             uint8_t ipv6[40];
             Address_printIp(ipv6, &addr);

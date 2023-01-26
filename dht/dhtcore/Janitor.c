@@ -371,7 +371,7 @@ static void peersResponseCallback(struct RouterModule_Promise* promise,
  */
 static void keyspaceMaintenance(struct Janitor_pvt* janitor)
 {
-    struct Address addr;
+    struct Address addr = {0};
     struct Address* selfAddr = janitor->nodeStore->selfAddress;
     if (!RumorMill_getNode(janitor->pub.dhtMill, &addr)) {
         // Try to fill the dhtMill for next time.
