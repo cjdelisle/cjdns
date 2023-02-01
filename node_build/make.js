@@ -169,7 +169,7 @@ Builder.configure({
 
     if (android) {
         // NDK uses the word `android` in places
-        builder.config.cflags.push('-Dandroid=android');
+        builder.config.cflags.push('-DCjdns_android=1');
     }
 
     var uclibc = process.env['UCLIBC'] == '1';

@@ -359,7 +359,7 @@ static Er_DEFUN(struct sock_fprog* mkFilter(struct Allocator* alloc))
         IFEQ(__NR_accept4, success),
         #endif
 
-        #ifdef android
+        #ifdef Cjdns_android
             #ifdef __NR_rt_sigprocmask
             IFEQ(__NR_rt_sigprocmask, success),
             #endif

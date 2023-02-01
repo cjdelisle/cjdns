@@ -356,7 +356,7 @@ static int genconf(struct Allocator* alloc, struct Random* rand, bool eth, bool 
            "        // and ETHInterface will be unable to hot-add new interfaces\n"
            "        // Use { \"setuser\": 0 } to disable.\n"
            "        // Default: enabled with keepNetAdmin\n");
-           if (Defined(android) || Defined(darwin)) {
+           if (Defined(Cjdns_android) || Defined(darwin)) {
     printf("        { \"setuser\": 0 },\n");
            } else {
     printf("        { \"setuser\": \"nobody\", \"keepNetAdmin\": 1 },\n");
@@ -366,7 +366,7 @@ static int genconf(struct Allocator* alloc, struct Random* rand, bool eth, bool 
            "        // from accessing files outside of the chroot sandbox, if the user does not\n"
            "        // have permission to use chroot(), this will fail quietly.\n"
            "        // Use { \"chroot\": 0 } to disable.\n");
-          if (Defined(android)) {
+          if (Defined(Cjdns_android)) {
     printf("        // Default: disabled\n"
            "        { \"chroot\": 0 },\n");
           }
@@ -391,7 +391,7 @@ static int genconf(struct Allocator* alloc, struct Random* rand, bool eth, bool 
            "        // SECCOMP_BPF to filter the system calls which cjdns is able to make on a\n"
            "        // linux system, strictly limiting it's access to the outside world\n"
            "        // This will fail quietly on any non-linux system\n");
-          if (Defined(android)) {
+          if (Defined(Cjdns_android)) {
     printf("        // Default: disabled\n"
            "        { \"seccomp\": 0 },\n");
           }
@@ -578,7 +578,7 @@ static String* getPipePath(Dict* config, struct Allocator* alloc)
         return pipePath;
     }
     char* path = Pipe_PATH;
-    if (Defined(android)) {
+    if (Defined(Cjdns_android)) {
         char* t = getenv("TMPDIR");
         if (!t) {
             t = getenv("HOME");
