@@ -370,6 +370,11 @@ static Er_DEFUN(struct sock_fprog* mkFilter(struct Allocator* alloc))
         IFEQ(__NR_getrandom, success),
         #endif
 
+        // https://github.com/cjdelisle/boringtun/blob/master/src/crypto/x25519/mod.rs#L22
+        #if defined(__ARM_EABI__) && defined(__NR_fcntl64)
+        IFEQ(__NR_fcntl64, success),
+        #endif
+
         RET(SECCOMP_RET_TRAP),
 
         LABEL(ioctl_setip),
