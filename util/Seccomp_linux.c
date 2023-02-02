@@ -332,7 +332,7 @@ static Er_DEFUN(struct sock_fprog* mkFilter(struct Allocator* alloc))
         // socketForIfName()
         // and ETHInterface_listDevices
         #ifdef __NR_socket
-            IFEQ(__NR_socket, socket),
+            IFEQ(__NR_socket, success),
         #endif
         IFEQ(__NR_ioctl, ioctl_setip),
 
@@ -370,13 +370,6 @@ static Er_DEFUN(struct sock_fprog* mkFilter(struct Allocator* alloc))
         IFEQ(__NR_getrandom, success),
         #endif
 
-        RET(SECCOMP_RET_TRAP),
-
-        LABEL(socket),
-        LOAD(offsetof(struct seccomp_data, args[1])),
-        IFEQ(SOCK_DGRAM, success),
-        LOAD(offsetof(struct seccomp_data, args[0])),
-        IFEQ(AF_NETLINK, success),
         RET(SECCOMP_RET_TRAP),
 
         LABEL(ioctl_setip),
