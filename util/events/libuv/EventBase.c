@@ -37,9 +37,6 @@ static int onFree(struct Allocator_OnFreeJob* job)
         EventBase_endLoop((struct EventBase*) ctx);
         return Allocator_ONFREE_ASYNC;
     } else {
-        if (!uv_is_closing((uv_handle_t*) &ctx->blockTimer)) {
-            uv_close((uv_handle_t*) &ctx->blockTimer, NULL);
-        }
         uv_loop_delete(ctx->loop);
         return 0;
     }
@@ -65,26 +62,17 @@ static void calibrateTime(struct EventBase_pvt* base)
     base->baseTime = (seconds * 1000) + milliseconds - uv_now(base->loop);
 }
 
-static _Atomic int EventBase_refctr = 0;
-
 struct EventBase* EventBase_new(struct Allocator* allocator)
 {
     struct Allocator* alloc = Allocator_child(allocator);
     struct EventBase_pvt* base = Allocator_calloc(alloc, sizeof(struct EventBase_pvt), 1);
     base->loop = uv_loop_new();
-    uv_timer_init(base->loop, &base->blockTimer);
-    Assert_true(EventBase_refctr == 0);
     base->alloc = alloc;
     Identity_set(base);
 
     Allocator_onFree(alloc, onFree, base);
     calibrateTime(base);
     return &base->pub;
-}
-
-static void doNothing(uv_timer_t* handle, int status)
-{
-    // title says it all
 }
 
 void EventBase_beginLoop(struct EventBase* eventBase)
@@ -94,18 +82,12 @@ void EventBase_beginLoop(struct EventBase* eventBase)
     Assert_true(!ctx->running); // double begin
     ctx->running = 1;
 
-    do {
-        uv_timer_start(&ctx->blockTimer, doNothing, 1, 0);
-        // start the loop.
-        uv_run(ctx->loop, UV_RUN_DEFAULT);
-    } while (EventBase_refctr);
+    // start the loop.
+    uv_run(ctx->loop, UV_RUN_DEFAULT);
 
     ctx->running = 0;
 
     if (ctx->onFree) {
-        if (!uv_is_closing((uv_handle_t*) &ctx->blockTimer)) {
-            uv_close((uv_handle_t*) &ctx->blockTimer, NULL);
-        }
         uv_loop_delete(ctx->loop);
         Allocator_onFreeComplete(ctx->onFree);
         return;
@@ -137,11 +119,4 @@ int EventBase_eventCount(struct EventBase* eventBase)
 struct EventBase_pvt* EventBase_privatize(struct EventBase* base)
 {
     return Identity_check((struct EventBase_pvt*) base);
-}
-
-void EventBase_ref() {
-    EventBase_refctr++;
-}
-void EventBase_unref() {
-    EventBase_refctr--;
 }
