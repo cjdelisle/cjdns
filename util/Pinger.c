@@ -65,7 +65,7 @@ static void callback(String* data, struct Ping* ping)
 static void timeoutCallback(void* vping)
 {
     struct Ping* p = Identity_check((struct Ping*) vping);
-    if (!p->timeSent) {
+    if (!p->timeSent || Allocator_isFreeing(p->pub.pingAlloc)) {
         // The ping came in at the same time that the timeout was scheduled to happen.
         return;
     }
