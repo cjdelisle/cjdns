@@ -84,7 +84,7 @@ pub fn new<T: Into<String>>(alloc: *mut Allocator_t, name: T) -> (Iface, *mut cf
             dg: drop_guard,
         },
     );
-    let c_iface = (&mut out.cif) as *mut cffi::Iface;
+    let c_iface = unsafe { (&mut (*out).cif) as *mut cffi::Iface };
     iface.set_receiver(CRecv { c_iface, dg: drop_guarded });
     (iface, c_iface)
 }
