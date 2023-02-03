@@ -4,24 +4,8 @@ use crate::rffi::allocator;
 use pnet::util::MacAddr;
 use std::convert::TryInto;
 use std::ffi::{c_void, CStr};
-use std::net::{IpAddr, SocketAddr};
-use std::os::raw::{c_char, c_ushort};
-
-#[derive(Debug)]
-pub struct Rffi_Sockaddr_t(SocketAddr);
-
-/// Create a Rust SockAddr equivalent.
-#[no_mangle]
-pub extern "C" fn Rffi_Sockaddr_toRust(
-    is_ip6: bool,
-    addr: *const c_void,
-    port: c_ushort,
-    alloc: *mut Allocator_t,
-) -> *const Rffi_Sockaddr_t {
-    let ip_addr = n_to_ip(is_ip6, addr);
-    let sock_addr = SocketAddr::new(ip_addr, port as u16);
-    allocator::adopt(alloc, Rffi_Sockaddr_t(sock_addr)) as _
-}
+use std::net::IpAddr;
+use std::os::raw::c_char;
 
 fn n_to_ip(is_ip6: bool, addr: *const c_void) -> IpAddr {
     if is_ip6 {

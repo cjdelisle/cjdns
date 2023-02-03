@@ -72,27 +72,6 @@ const struct Sockaddr* const Sockaddr_LOOPBACK6 =
         }
     });
 
-Rffi_Sockaddr_t* Sockaddr_toRust(struct Sockaddr* sa, struct Allocator* alloc) {
-    struct Sockaddr_pvt* addr = (struct Sockaddr_pvt*) sa;
-    void* inAddr;
-    uint16_t port;
-    switch (addr->ss.ss_family) {
-        case AF_INET:
-            inAddr = &((struct sockaddr_in*) &addr->ss)->sin_addr;
-            port = Endian_bigEndianToHost16(((struct sockaddr_in*)&addr->ss)->sin_port);
-            break;
-        case AF_INET6:
-            inAddr = &((struct sockaddr_in6*) &addr->ss)->sin6_addr;
-            port = Endian_bigEndianToHost16(((struct sockaddr_in6*)&addr->ss)->sin6_port);
-            break;
-        default: {
-            return 0;
-        }
-    };
-
-    return Rffi_Sockaddr_toRust(addr->ss.ss_family == AF_INET6, inAddr, port, alloc);
-}
-
 struct Sockaddr* Sockaddr_fromNative(const void* ss, int addrLen, struct Allocator* alloc)
 {
     struct Sockaddr_pvt* out = Allocator_calloc(alloc, addrLen + Sockaddr_OVERHEAD, 1);
