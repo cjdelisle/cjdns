@@ -16,6 +16,8 @@ typedef struct Rffi_EventLoop Rffi_EventLoop;
  */
 typedef struct Rffi_Glock_guard Rffi_Glock_guard;
 
+typedef struct Rffi_Sockaddr_t Rffi_Sockaddr_t;
+
 /**
  * The handle returned to C, used to talk to the timer task.
  */
@@ -154,6 +156,14 @@ int Rffi_isTimeoutActive(const Rffi_TimerTx *timer_tx);
  * Cancel all timer tasks.
  */
 void Rffi_clearAllTimeouts(Rffi_EventLoop *event_loop);
+
+/**
+ * Create a Rust SockAddr equivalent.
+ */
+const Rffi_Sockaddr_t *Rffi_Sockaddr_toRust(bool is_ip6,
+                                            const void *addr,
+                                            unsigned short port,
+                                            Allocator_t *alloc);
 
 /**
  * Convert IPv4 and IPv6 addresses from binary to text form.
