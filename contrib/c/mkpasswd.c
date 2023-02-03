@@ -23,6 +23,7 @@
 int mkpasswd_main(int argc, char** argv);
 int mkpasswd_main(int argc, char** argv)
 {
+    fprintf(stderr, "mkpasswd is deprecated and will be removed from the next release\n");
     struct Allocator* alloc = MallocAllocator_new(1<<22);
     struct Random* rand = Random_new(alloc, NULL, NULL);
 

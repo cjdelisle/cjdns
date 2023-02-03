@@ -439,6 +439,7 @@ static int usage(char* appName)
 int sybilsim_main(int argc, char** argv);
 int sybilsim_main(int argc, char** argv)
 {
+    fprintf(stderr, "sybilsim is deprecated and will be removed from the next release\n");
     Assert_true(argc > 0);
     if (isatty(STDIN_FILENO)) {
         return usage(argv[0]);
