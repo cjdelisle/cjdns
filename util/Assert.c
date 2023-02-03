@@ -35,6 +35,5 @@ void Assert_failure(const char* format, ...)
     va_start(args, format);
     vsnprintf(buf, 1023, format, args);
     va_end(args);
-    abort();
     Rffi_panic(buf);
 }
