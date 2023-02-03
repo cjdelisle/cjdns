@@ -309,7 +309,7 @@ static Iface_DEFUN searchReq(struct Message* msg, struct Pathfinder_pvt* pf)
 
 static Iface_DEFUN peer(struct Message* msg, struct Pathfinder_pvt* pf)
 {
-    struct Address addr;
+    struct Address addr = {0};
     addressForNode(&addr, msg);
     String* str = Address_toString(&addr, Message_getAlloc(msg));
     Log_debug(pf->log, "Peer [%s]", str->bytes);
@@ -331,7 +331,7 @@ static Iface_DEFUN peer(struct Message* msg, struct Pathfinder_pvt* pf)
 
 static Iface_DEFUN peerGone(struct Message* msg, struct Pathfinder_pvt* pf)
 {
-    struct Address addr;
+    struct Address addr = {0};
     addressForNode(&addr, msg);
     String* str = Address_toString(&addr, Message_getAlloc(msg));
     Log_debug(pf->log, "Peer gone [%s]", str->bytes);
@@ -343,7 +343,7 @@ static Iface_DEFUN peerGone(struct Message* msg, struct Pathfinder_pvt* pf)
 
 static Iface_DEFUN session(struct Message* msg, struct Pathfinder_pvt* pf)
 {
-    struct Address addr;
+    struct Address addr = {0};
     addressForNode(&addr, msg);
     String* str = Address_toString(&addr, Message_getAlloc(msg));
     Log_debug(pf->log, "Session [%s]", str->bytes);
@@ -360,7 +360,7 @@ static Iface_DEFUN session(struct Message* msg, struct Pathfinder_pvt* pf)
 
 static Iface_DEFUN sessionEnded(struct Message* msg, struct Pathfinder_pvt* pf)
 {
-    struct Address addr;
+    struct Address addr = {0};
     addressForNode(&addr, msg);
     String* str = Address_toString(&addr, Message_getAlloc(msg));
     Log_debug(pf->log, "Session ended [%s]", str->bytes);
@@ -369,7 +369,7 @@ static Iface_DEFUN sessionEnded(struct Message* msg, struct Pathfinder_pvt* pf)
 
 static Iface_DEFUN discoveredPath(struct Message* msg, struct Pathfinder_pvt* pf)
 {
-    struct Address addr;
+    struct Address addr = {0};
     addressForNode(&addr, msg);
 
     // We're somehow aware of this path (even if it's unused)
@@ -406,7 +406,7 @@ static Iface_DEFUN handlePong(struct Message* msg, struct Pathfinder_pvt* pf)
 
 static Iface_DEFUN incomingMsg(struct Message* msg, struct Pathfinder_pvt* pf)
 {
-    struct Address addr;
+    struct Address addr = {0};
     struct RouteHeader* hdr = (struct RouteHeader*) msg->msgbytes;
     Er_assert(Message_eshift(msg, -(RouteHeader_SIZE + DataHeader_SIZE)));
     Bits_memcpy(addr.ip6.bytes, hdr->ip6, 16);

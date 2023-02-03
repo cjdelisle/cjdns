@@ -646,8 +646,7 @@ static Iface_DEFUN handleBeacon(
         Log_debug(ici->ic->logger, "RECV BEACON CONTENT[%s]", content);
     }
 
-    struct Address addr;
-    Bits_memset(&addr, 0, sizeof(struct Address));
+    struct Address addr = {0};
     Bits_memcpy(addr.key, beacon.publicKey, 32);
     addr.protocolVersion = Endian_bigEndianToHost32(beacon.version_be);
     Address_getPrefix(&addr);

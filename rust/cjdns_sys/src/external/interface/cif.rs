@@ -1,4 +1,5 @@
-use anyhow::Result;
+use std::sync::{Arc,Weak};
+use anyhow::{Result,bail};
 
 use crate::cffi::{self, Allocator_t};
 use crate::rffi::allocator;
@@ -9,9 +10,13 @@ use crate::interface::wire::message::Message;
 // TODO: this is not even the tiniest bit thread safe
 struct CRecv {
     c_iface: *mut cffi::Iface,
+    dg: Weak<()>,
 }
 impl IfRecv for CRecv {
     fn recv(&self, m: &mut Message) -> Result<()> {
+        if self.dg.strong_count() < 1 {
+            bail!("Other end has been dropped");
+        }
         let c_msg = m.as_c_message();
         unsafe {
             (cffi::Iface_incomingFromRust(c_msg, self.c_iface) as *mut RTypes_Error_t).as_mut()
@@ -30,6 +35,7 @@ struct CIface {
     // Additional "private" fields
     id_tag: u32,
     rif: IfacePvt,
+    dg: Arc<()>,
 }
 
 // This is an assertion to make sure we're being passed something legit from C
@@ -62,7 +68,10 @@ unsafe extern "C" fn from_c(msg: *mut cffi::Message, iface_p: *mut cffi::Iface) 
 /// messages passed to the C Iface will come out in your Iface
 pub fn new<T: Into<String>>(alloc: *mut Allocator_t, name: T) -> (Iface, *mut cffi::Iface) {
     let (mut iface, iface_pvt) = iface::new(name);
-    let out = allocator::rs(alloc).adopt(
+    let drop_guard = Arc::new(());
+    let drop_guarded = Arc::downgrade(&drop_guard);
+    let out = allocator::adopt(
+        alloc,
         CIface {
             cif: cffi::Iface {
                 Identity_verifier: 0,
@@ -72,10 +81,11 @@ pub fn new<T: Into<String>>(alloc: *mut Allocator_t, name: T) -> (Iface, *mut cf
             },
             id_tag: IFACE_IDENT,
             rif: iface_pvt,
+            dg: drop_guard,
         },
     );
-    let c_iface = unsafe { &mut (*out).cif } as *mut cffi::Iface;
-    iface.set_receiver(CRecv { c_iface });
+    let c_iface = (&mut out.cif) as *mut cffi::Iface;
+    iface.set_receiver(CRecv { c_iface, dg: drop_guarded });
     (iface, c_iface)
 }
 

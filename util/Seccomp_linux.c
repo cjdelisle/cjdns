@@ -332,7 +332,7 @@ static Er_DEFUN(struct sock_fprog* mkFilter(struct Allocator* alloc))
         // socketForIfName()
         // and ETHInterface_listDevices
         #ifdef __NR_socket
-            IFEQ(__NR_socket, socket),
+            IFEQ(__NR_socket, success),
         #endif
         IFEQ(__NR_ioctl, ioctl_setip),
 
@@ -359,7 +359,7 @@ static Er_DEFUN(struct sock_fprog* mkFilter(struct Allocator* alloc))
         IFEQ(__NR_accept4, success),
         #endif
 
-        #ifdef android
+        #ifdef Cjdns_android
             #ifdef __NR_rt_sigprocmask
             IFEQ(__NR_rt_sigprocmask, success),
             #endif
@@ -370,13 +370,11 @@ static Er_DEFUN(struct sock_fprog* mkFilter(struct Allocator* alloc))
         IFEQ(__NR_getrandom, success),
         #endif
 
-        RET(SECCOMP_RET_TRAP),
+        // https://github.com/cjdelisle/boringtun/blob/master/src/crypto/x25519/mod.rs#L22
+        #if defined(__ARM_EABI__) && defined(__NR_fcntl64)
+        IFEQ(__NR_fcntl64, success),
+        #endif
 
-        LABEL(socket),
-        LOAD(offsetof(struct seccomp_data, args[1])),
-        IFEQ(SOCK_DGRAM, success),
-        LOAD(offsetof(struct seccomp_data, args[0])),
-        IFEQ(AF_NETLINK, success),
         RET(SECCOMP_RET_TRAP),
 
         LABEL(ioctl_setip),

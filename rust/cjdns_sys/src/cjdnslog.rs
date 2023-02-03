@@ -84,7 +84,8 @@ impl log::Log for CjdnsLog {
         let msg = format!("{}", record.args());
         let log = self.log.lock();
         if log.is_null() {
-            println!("{} {}:{} {}", record.level().as_str(), file, line, msg);
+            // Suppress logs when no logger is yet configured.
+            //println!("{} {}:{} {}", record.level().as_str(), file, line, msg);
             return;
         }
         let cmsg = CString::new(msg).unwrap();

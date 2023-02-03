@@ -339,7 +339,7 @@ static void pingNode(struct SubnodePathfinder_pvt* pf, struct Address* addr)
 
 static Iface_DEFUN peer(struct Message* msg, struct SubnodePathfinder_pvt* pf)
 {
-    struct Address addr;
+    struct Address addr = {0};
     uint32_t metric = addressForNode(&addr, msg);
     String* str = Address_toString(&addr, Message_getAlloc(msg));
 
@@ -371,7 +371,7 @@ static Iface_DEFUN peer(struct Message* msg, struct SubnodePathfinder_pvt* pf)
 
 static Iface_DEFUN peerGone(struct Message* msg, struct SubnodePathfinder_pvt* pf)
 {
-    struct Address addr;
+    struct Address addr = {0};
     addressForNode(&addr, msg);
     AddrSet_remove(pf->myPeerAddrs, &addr, AddrSet_Match_BOTH);
     ReachabilityCollector_unreachable(pf->pub.rc, &addr);
@@ -380,7 +380,7 @@ static Iface_DEFUN peerGone(struct Message* msg, struct SubnodePathfinder_pvt* p
 
 static Iface_DEFUN session(struct Message* msg, struct SubnodePathfinder_pvt* pf)
 {
-    struct Address addr;
+    struct Address addr = {0};
     addressForNode(&addr, msg);
     String* str = Address_toString(&addr, Message_getAlloc(msg));
     Log_debug(pf->log, "Session [%s]", str->bytes);
@@ -390,7 +390,7 @@ static Iface_DEFUN session(struct Message* msg, struct SubnodePathfinder_pvt* pf
 
 static Iface_DEFUN sessionEnded(struct Message* msg, struct SubnodePathfinder_pvt* pf)
 {
-    struct Address addr;
+    struct Address addr = {0};
     addressForNode(&addr, msg);
     String* str = Address_toString(&addr, Message_getAlloc(msg));
     Log_debug(pf->log, "Session ended [%s]", str->bytes);
@@ -400,7 +400,7 @@ static Iface_DEFUN sessionEnded(struct Message* msg, struct SubnodePathfinder_pv
 
 static Iface_DEFUN discoveredPath(struct Message* msg, struct SubnodePathfinder_pvt* pf)
 {
-    //struct Address addr;
+    //struct Address addr = {0};
     //addressForNode(&addr, msg);
     //Log_debug(pf->log, "discoveredPath(%s)", Address_toString(&addr, Message_getAlloc(msg))->bytes);
     //if (addr.protocolVersion) { NodeCache_discoverNode(pf->nc, &addr); }

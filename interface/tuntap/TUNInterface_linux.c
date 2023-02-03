@@ -35,7 +35,7 @@
 #include <linux/if_ether.h>
 #include <net/if.h>
 
-#if defined(android)
+#if defined(Cjdns_android)
   #define DEVICE_PATH "/dev/tun"
 #else
   #define DEVICE_PATH "/dev/net/tun"

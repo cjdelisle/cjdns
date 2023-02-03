@@ -193,7 +193,7 @@ const cc = function (
 ) {
     compiler(ctx, args, function (ret, out, err) {
         if (ret) {
-            return callback(error("gcc " + args.map(String).join(' ') + "\n\n" + err));
+            return callback(error(ctx.config.gcc + " " + args.map(String).join(' ') + "\n\n" + err));
         }
 
         if (err !== '') {

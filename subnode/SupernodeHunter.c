@@ -275,7 +275,7 @@ static void queryForAuthorized(struct SupernodeHunter_pvt* snp, struct Address* 
 static void peerResponseOK(struct SwitchPinger_Response* resp, struct SupernodeHunter_pvt* snp)
 {
     ReachabilityCollector_lagSample(snp->rc, resp->label, resp->milliseconds);
-    struct Address snode;
+    struct Address snode = {0};
     Bits_memcpy(&snode, &resp->snode, sizeof(struct Address));
     if (!snode.path) {
         uint8_t label[20];

@@ -46,7 +46,7 @@ enum TUNMessageType {
 
 static inline enum TUNMessageType TUNMessageType_guess()
 {
-    if (Defined(android) || Defined(sunos)) {
+    if (Defined(Cjdns_android) || Defined(sunos)) {
         return TUNMessageType_NONE;
     } else if (Defined(linux) || Defined(win32)) {
         return TUNMessageType_ETHERTYPE;

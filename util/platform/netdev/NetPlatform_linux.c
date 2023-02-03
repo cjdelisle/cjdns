@@ -35,7 +35,7 @@
 #include <arpa/inet.h>
 #include <linux/if.h>
 #include <linux/route.h>
-#if ! defined(android)
+#if ! defined(Cjdns_android)
     #include <linux/ipv6_route.h>
 #endif
 #include <linux/netlink.h>

@@ -53,7 +53,7 @@ struct Pipe
 #ifndef Pipe_PATH
     #ifdef win32
         #define Pipe_PATH "\\\\.\\pipe"
-    #elif defined(android)
+    #elif defined(Cjdns_android)
         #define Pipe_PATH "/data/local/tmp"
     #else
         #define Pipe_PATH "/tmp"

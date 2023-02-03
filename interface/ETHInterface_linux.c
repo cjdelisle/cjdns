@@ -39,7 +39,7 @@
 #include <unistd.h>
 #include <errno.h>
 
-#ifndef android
+#ifndef Cjdns_android
     #include <ifaddrs.h>
 #endif
 
@@ -207,7 +207,7 @@ static void handleEvent(void* vcontext)
 Er_DEFUN(List* ETHInterface_listDevices(struct Allocator* alloc))
 {
     List* out = List_new(alloc);
-#ifndef android
+#ifndef Cjdns_android
     struct ifaddrs* ifaddr = NULL;
     if (getifaddrs(&ifaddr) || ifaddr == NULL) {
         Er_raise(alloc, "getifaddrs() -> errno:%d [%s]", errno, strerror(errno));

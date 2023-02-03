@@ -72,7 +72,7 @@ static void outputSession(struct Context* context,
         return;
     }
 
-    struct Address addr;
+    struct Address addr = {0};
     Ca_getHerPubKey(session->caSession, addr.key);
     Address_getPrefix(&addr);
     uint8_t printedAddr[40];
