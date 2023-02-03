@@ -20,6 +20,7 @@
 
 #include "uv.h"
 #include "internal.h"
+#include "util/events/libuv/Glock.h"
 
 #include <assert.h>
 #include <stdlib.h>
@@ -127,12 +128,14 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       spec.tv_nsec = (timeout % 1000) * 1000000;
     }
 
+    Glock_beginBlockingCall();
     nfds = kevent(loop->backend_fd,
                   events,
                   nevents,
                   events,
                   ARRAY_SIZE(events),
                   timeout == -1 ? NULL : &spec);
+    Glock_endBlockingCall();
 
     /* Update loop->time unconditionally. It's tempting to skip the update when
      * timeout == 0 (i.e. non-blocking poll) but there is no guarantee that the

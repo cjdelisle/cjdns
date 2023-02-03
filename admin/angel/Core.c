@@ -60,6 +60,7 @@
 #include "util/events/Pipe.h"
 #include "util/events/PipeServer.h"
 #include "util/events/Timeout.h"
+#include "util/events/libuv/Glock.h"
 #include "util/Hex.h"
 #include "util/log/FileWriterLog.h"
 #include "util/log/IndirectLog.h"
@@ -432,6 +433,7 @@ void Core_init(struct Allocator* alloc,
 
 int Core_main(int argc, char** argv)
 {
+    Glock_init();
     struct Except* eh = NULL;
 
     if (argc != 3) {

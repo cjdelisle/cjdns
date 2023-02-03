@@ -33,21 +33,17 @@ struct Event_pvt
 
 static void handleEvent(uv_poll_t* handle, int status, int events)
 {
-    void *glock = Rffi_glock();
     struct Event_pvt* event =
         Identity_check((struct Event_pvt*) (((char*)handle) - offsetof(struct Event_pvt, handler)));
 
     if ((status == 0) && (events & UV_READABLE)) {
         event->callback(event->callbackContext);
     }
-    Rffi_gunlock(glock);
 }
 
 static void freeEvent2(uv_handle_t* handle)
 {
-    void *glock = Rffi_glock();
     Allocator_onFreeComplete((struct Allocator_OnFreeJob*)handle->data);
-    Rffi_gunlock(glock);
 }
 
 static int freeEvent(struct Allocator_OnFreeJob* job)

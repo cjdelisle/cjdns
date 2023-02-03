@@ -165,6 +165,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
 
     nfds = 1;
     saved_errno = 0;
+    Glock_beginBlockingCall();
     if (port_getn(loop->backend_fd,
                   events,
                   ARRAY_SIZE(events),
@@ -178,6 +179,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       else
         abort();
     }
+    Glock_endBlockingCall();
 
     /* Update loop->time unconditionally. It's tempting to skip the update when
      * timeout == 0 (i.e. non-blocking poll) but there is no guarantee that the

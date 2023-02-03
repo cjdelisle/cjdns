@@ -158,12 +158,10 @@ static void readCallbackB(struct TAPInterface_pvt* tap)
 
 static void readCallback(uv_iocp_t* readIocp)
 {
-    void *glock = Rffi_glock();
     struct TAPInterface_pvt* tap =
         Identity_check((struct TAPInterface_pvt*)
             (((char*)readIocp) - offsetof(struct TAPInterface_pvt, readIocp)));
     readCallbackB(tap);
-    Rffi_gunlock(glock);
 }
 
 static void writeCallbackB(struct TAPInterface_pvt* tap);
@@ -220,12 +218,10 @@ static void writeCallbackB(struct TAPInterface_pvt* tap)
 
 static void writeCallback(uv_iocp_t* writeIocp)
 {
-    void *glock = Rffi_glock();
     struct TAPInterface_pvt* tap =
         Identity_check((struct TAPInterface_pvt*)
             (((char*)writeIocp) - offsetof(struct TAPInterface_pvt, writeIocp)));
     writeCallbackB(tap);
-    Rffi_gunlock(glock);
 }
 
 static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* iface)

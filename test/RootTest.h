@@ -17,6 +17,7 @@
 
 #include "util/CString.h"
 #include "util/Js.h"
+#include "util/events/libuv/Glock.h"
 
 #include <stdio.h>
 
@@ -33,6 +34,7 @@ Js({
 int RootTest_main(int argc, char** argv);
 int main(int argc, char** argv)
 {
+    Glock_init();
     int runIt = 0;
     int j = 0;
     for (int i = 0; i < argc; i++) {

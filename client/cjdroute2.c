@@ -49,6 +49,7 @@
 #include "util/events/Pipe.h"
 #include "util/events/Process.h"
 #include "util/events/FakeNetwork.h"
+#include "util/events/libuv/Glock.h"
 #include "util/Hex.h"
 #include "util/log/Log.h"
 #include "util/log/FileWriterLog.h"
@@ -597,6 +598,7 @@ static String* getPipePath(Dict* config, struct Allocator* alloc)
 int cjdroute2_main(int argc, char** argv);
 int cjdroute2_main(int argc, char** argv)
 {
+    Glock_init();
     #ifdef Log_KEYS
         fprintf(stderr, "Log_LEVEL = KEYS, EXPECT TO SEE PRIVATE KEYS IN YOUR LOGS!\n");
     #endif

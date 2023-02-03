@@ -71,14 +71,12 @@ static void calibrateTime(struct EventBase_pvt* base)
 
 static void doNothing(uv_async_t* handle, int status)
 {
-    void *glock = Rffi_glock();
     struct EventBase_pvt* base = Identity_containerOf(handle, struct EventBase_pvt, uvAwakener);
     if (base->running == 2) {
         uv_stop(base->loop);
     }
     // title says it all
     // printf("[%d] Do nothing\n", getpid());
-    Rffi_gunlock(glock);
 }
 
 static void blockTimer(uv_timer_t* timer, int status)
@@ -154,12 +152,10 @@ void EventBase_wakeup(void* eventBase)
 
 static void countCallback(uv_handle_t* event, void* vEventCount)
 {
-    void *glock = Rffi_glock();
     int* eventCount = (int*) vEventCount;
     if (!uv_is_closing(event)) {
         *eventCount = *eventCount + 1;
     }
-    Rffi_gunlock(glock);
 }
 
 int EventBase_eventCount(struct EventBase* eventBase)

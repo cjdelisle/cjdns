@@ -78,7 +78,6 @@ struct Pipe_WriteRequest_pvt {
 
 static void sendMessageCallback(uv_write_t* uvReq, int error)
 {
-    void *glock = Rffi_glock();
     struct Pipe_WriteRequest_pvt* req = Identity_check((struct Pipe_WriteRequest_pvt*) uvReq);
     if (error) {
         Log_info(req->pipe->log, "Failed to write to pipe [%s] [%s]",
@@ -87,7 +86,6 @@ static void sendMessageCallback(uv_write_t* uvReq, int error)
     req->pipe->queueLen -= Message_getLength(req->msg);
     Assert_ifParanoid(req->pipe->queueLen >= 0);
     Allocator_free(req->alloc);
-    Rffi_gunlock(glock);
 }
 
 static void sendMessage2(struct Pipe_WriteRequest_pvt* req)
@@ -175,13 +173,11 @@ static Iface_DEFUN sendMessage(struct Message* m, struct Iface* iface)
 /** Asynchronous allocator freeing. */
 static void onClose(uv_handle_t* handle)
 {
-    void *glock = Rffi_glock();
     struct Pipe_pvt* pipe = Identity_check((struct Pipe_pvt*)handle->data);
     handle->data = NULL;
     Log_debug(pipe->log, "Pipe closed");
     Assert_true(pipe->closeHandlesOnFree && !pipe->peer.data);
     Allocator_onFreeComplete((struct Allocator_OnFreeJob*) pipe->closeHandlesOnFree);
-    Rffi_gunlock(glock);
 }
 
 #if Pipe_PADDING_AMOUNT < 8
@@ -191,7 +187,6 @@ static void onClose(uv_handle_t* handle)
 
 static void incoming(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf)
 {
-    void *glock = Rffi_glock();
     struct Pipe_pvt* pipe = Identity_check((struct Pipe_pvt*) stream->data);
 
     // Grab out the msg which was placed there by allocate()
@@ -227,7 +222,6 @@ static void incoming(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf)
     if (pipe->blockFreeInsideCallback) {
         Allocator_onFreeComplete((struct Allocator_OnFreeJob*) pipe->blockFreeInsideCallback);
     }
-    Rffi_gunlock(glock);
 }
 
 static void incoming2(uv_pipe_t* stream, ssize_t nread, const uv_buf_t* buf, uv_handle_type _)
@@ -237,7 +231,6 @@ static void incoming2(uv_pipe_t* stream, ssize_t nread, const uv_buf_t* buf, uv_
 
 static void allocate(uv_handle_t* handle, size_t size, uv_buf_t* buf)
 {
-    void *glock = Rffi_glock();
     struct Pipe_pvt* pipe = Identity_check((struct Pipe_pvt*) handle->data);
     size = Pipe_BUFFER_CAP;
 
@@ -248,7 +241,6 @@ static void allocate(uv_handle_t* handle, size_t size, uv_buf_t* buf)
 
     buf->base = msg->msgbytes;
     buf->len = size;
-    Rffi_gunlock(glock);
 }
 
 static int startPipe(struct Pipe_pvt* pipe)
@@ -262,7 +254,6 @@ static int startPipe(struct Pipe_pvt* pipe)
 
 static void connected(uv_connect_t* req, int status)
 {
-    void *glock = Rffi_glock();
     uv_stream_t* link = req->handle;
     struct Pipe_pvt* pipe = Identity_check((struct Pipe_pvt*) link->data);
     Log_debug(pipe->log, "Pipe [%s] established connection", pipe->pub.fullName);
@@ -292,7 +283,6 @@ static void connected(uv_connect_t* req, int status)
             pipe->bufferedRequest = NULL;
         }
     }
-    Rffi_gunlock(glock);
 }
 
 static int blockFreeInsideCallback(struct Allocator_OnFreeJob* job)

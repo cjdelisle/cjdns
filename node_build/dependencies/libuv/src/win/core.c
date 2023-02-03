@@ -28,7 +28,7 @@
 #include <string.h>
 #include <crtdbg.h>
 
-#include "rust/cjdns_sys/Rffi.h"
+#include "util/events/libuv/Glock.h"
 #include "uv.h"
 #include "internal.h"
 #include "handle-inl.h"
@@ -181,8 +181,6 @@ static void* CJDNS_LOOP_LOCK = NULL;
 uv_loop_t* uv_loop_new(void) {
   uv_loop_t* loop;
 
-  CJDNS_LOOP_LOCK = Rffi_glock();
-
   /* Initialize libuv itself first */
   uv__once_init();
 
@@ -234,11 +232,13 @@ static void uv_poll(uv_loop_t* loop, int block) {
     timeout = 0;
   }
 
+  Glock_beginBlockingCall();
   GetQueuedCompletionStatus(loop->iocp,
                             &bytes,
                             &key,
                             &overlapped,
                             timeout);
+  Glock_endBlockingCall();
 
   if (overlapped) {
     /* Package was dequeued */
@@ -270,12 +270,14 @@ static void uv_poll_ex(uv_loop_t* loop, int block) {
     timeout = 0;
   }
 
+  Glock_beginBlockingCall();
   success = pGetQueuedCompletionStatusEx(loop->iocp,
                                          overlappeds,
                                          ARRAY_SIZE(overlappeds),
                                          &count,
                                          timeout,
                                          FALSE);
+  Glock_endBlockingCall();
 
   if (success) {
     for (i = 0; i < count; i++) {
@@ -328,9 +330,6 @@ int uv_run(uv_loop_t *loop, uv_run_mode mode) {
     uv_idle_invoke(loop);
     uv_prepare_invoke(loop);
 
-    // sync with the Rust async Runtime.
-    Rffi_gunlock(CJDNS_LOOP_LOCK);
-
     (*poll)(loop, loop->idle_handles == NULL &&
                   loop->pending_reqs_tail == NULL &&
                   loop->endgame_handles == NULL &&
@@ -338,9 +337,6 @@ int uv_run(uv_loop_t *loop, uv_run_mode mode) {
                   (loop->active_handles > 0 ||
                    !QUEUE_EMPTY(&loop->active_reqs)) &&
                   !(mode & UV_RUN_NOWAIT));
-
-    // sync with the Rust async Runtime.
-    CJDNS_LOOP_LOCK = Rffi_glock();
 
     uv_check_invoke(loop);
     uv_process_endgames(loop);

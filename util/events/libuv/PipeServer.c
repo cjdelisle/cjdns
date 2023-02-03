@@ -96,13 +96,11 @@ static Iface_DEFUN incomingFromClient(struct Message* msg, struct Iface* iface)
 /** Asynchronous allocator freeing. */
 static void onClose(uv_handle_t* handle)
 {
-    void *glock = Rffi_glock();
     struct PipeServer_pvt* psp = Identity_check((struct PipeServer_pvt*)handle->data);
     handle->data = NULL;
     if (psp->closeHandlesOnFree && !psp->server.data) {
         Allocator_onFreeComplete((struct Allocator_OnFreeJob*) psp->closeHandlesOnFree);
     }
-    Rffi_gunlock(glock);
 }
 
 static struct Pipe* getPipe(struct PipeServer_pvt* psp, struct Allocator* alloc)
@@ -141,20 +139,17 @@ static void pipeOnClose(struct Pipe* p, int status)
 
 static void listenCallback(uv_stream_t* server, int status)
 {
-    void *glock = Rffi_glock();
     uv_pipe_t* pServer = (uv_pipe_t*) server;
     struct PipeServer_pvt* psp = Identity_containerOf(pServer, struct PipeServer_pvt, server);
     if (status == -1) {
         Log_info(psp->log, "failed to accept pipe connection [%s] [%s]",
                  psp->pub.fullName, uv_strerror(status));
-        Rffi_gunlock(glock);
         return;
     }
     struct Allocator* pipeAlloc = Allocator_child(psp->alloc);
     struct Pipe* p = getPipe(psp, pipeAlloc);
     if (p == NULL) {
         Allocator_free(pipeAlloc);
-        Rffi_gunlock(glock);
         return;
     }
     struct Client* cli = Allocator_calloc(pipeAlloc, sizeof(struct Client), 1);
@@ -180,7 +175,6 @@ static void listenCallback(uv_stream_t* server, int status)
         psp->pub.onConnection(&psp->pub, &cli->addr);
     }
     cli->pipe->onClose = pipeOnClose;
-    Rffi_gunlock(glock);
 }
 
 static int closeHandlesOnFree(struct Allocator_OnFreeJob* job)

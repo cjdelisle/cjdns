@@ -20,6 +20,7 @@
 
 #include "uv.h"
 #include "internal.h"
+#include "util/events/libuv/Glock.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -189,20 +190,24 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
 
   for (;;) {
     if (!no_epoll_wait) {
+      Glock_beginBlockingCall();
       nfds = uv__epoll_wait(loop->backend_fd,
                             events,
                             ARRAY_SIZE(events),
                             timeout);
+      Glock_endBlockingCall();
       if (nfds == -1 && errno == ENOSYS) {
         no_epoll_wait = 1;
         continue;
       }
     } else {
+      Glock_beginBlockingCall();
       nfds = uv__epoll_pwait(loop->backend_fd,
                              events,
                              ARRAY_SIZE(events),
                              timeout,
                              NULL);
+      Glock_endBlockingCall();
     }
 
     /* Update loop->time unconditionally. It's tempting to skip the update when

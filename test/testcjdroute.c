@@ -22,6 +22,7 @@
 #include "wire/Message.h"
 #include "test/FuzzTest.h"
 #include "util/Js.h"
+#include "util/events/libuv/Glock.h"
 
 #include <stdio.h>
 #include <unistd.h>
@@ -265,12 +266,16 @@ static int main2(int argc, char** argv, struct Allocator* alloc, struct Random* 
                 (int)((now - startTime)/1000000),
                 (int)((now - startTime)/1000)%1000);
     }
+
+    // We need to drop the lock before we exit, otherwise the rust thread can't complete.
+    Glock_beginBlockingCall();
     return 0;
 }
 
 int testcjdroute_main(int argc, char** argv);
 int testcjdroute_main(int argc, char** argv)
 {
+    Glock_init();
     struct Allocator* alloc = Allocator_new(1<<24);
     Allocator_free(alloc);
     alloc = Allocator_new(1<<24);
