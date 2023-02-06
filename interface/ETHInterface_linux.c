@@ -207,7 +207,6 @@ static void handleEvent(void* vcontext)
 Er_DEFUN(List* ETHInterface_listDevices(struct Allocator* alloc))
 {
     List* out = List_new(alloc);
-#ifndef Cjdns_android
     struct ifaddrs* ifaddr = NULL;
     if (getifaddrs(&ifaddr) || ifaddr == NULL) {
         Er_raise(alloc, "getifaddrs() -> errno:%d [%s]", errno, strerror(errno));
@@ -218,7 +217,6 @@ Er_DEFUN(List* ETHInterface_listDevices(struct Allocator* alloc))
         }
     }
     freeifaddrs(ifaddr);
-#endif
     Er_ret(out);
 }
 
