@@ -16,7 +16,7 @@
 #define SessionManager_H
 
 #include "crypto/random/Random.h"
-#include "crypto/CryptoAuth.h"
+#include "crypto/Ca.h"
 #include "memory/Allocator.h"
 #include "wire/PFChan.h"
 #include "net/EventEmitter.h"
@@ -80,7 +80,7 @@ typedef struct SessionManager_Path_s
 
 struct SessionManager_Session
 {
-    struct CryptoAuth_Session* caSession;
+    Ca_Session_t* caSession;
 
     SessionManager_Path_t paths[SessionManager_PATH_COUNT];
 
@@ -134,7 +134,7 @@ struct SessionManager_HandleList* SessionManager_getHandleList(struct SessionMan
 
 struct SessionManager* SessionManager_new(struct Allocator* alloc,
                                           struct EventBase* eventBase,
-                                          struct CryptoAuth* cryptoAuth,
+                                          Ca_t* cryptoAuth,
                                           struct Random* rand,
                                           struct Log* log,
                                           struct EventEmitter* ee);

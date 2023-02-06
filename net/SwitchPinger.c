@@ -94,62 +94,62 @@ static Iface_DEFUN messageFromControlHandler(struct Message* msg, struct Iface* 
     ctx->incomingSnodeKbps = 0;
     ctx->rpath = 0;
 
-    struct Control* ctrl = (struct Control*) msg->bytes;
+    struct Control* ctrl = (struct Control*) msg->msgbytes;
     if (ctrl->header.type_be == Control_PONG_be) {
         Er_assert(Message_eshift(msg, -Control_Header_SIZE));
         ctx->error = Error_NONE;
-        if (msg->length >= Control_Pong_MIN_SIZE) {
-            struct Control_Ping* pongHeader = (struct Control_Ping*) msg->bytes;
+        if (Message_getLength(msg) >= Control_Pong_MIN_SIZE) {
+            struct Control_Ping* pongHeader = (struct Control_Ping*) msg->msgbytes;
             ctx->incomingVersion = Endian_bigEndianToHost32(pongHeader->version_be);
             if (pongHeader->magic != Control_Pong_MAGIC) {
                 Log_debug(ctx->logger, "dropped invalid switch pong");
-                return Error(INVALID);
+                return Error(msg, "INVALID");
             }
             Er_assert(Message_eshift(msg, -Control_Pong_HEADER_SIZE));
         } else {
-            Log_debug(ctx->logger, "got runt pong message, length: [%d]", msg->length);
-            return Error(RUNT);
+            Log_debug(ctx->logger, "got runt pong message, length: [%d]", Message_getLength(msg));
+            return Error(msg, "RUNT");
         }
 
     } else if (ctrl->header.type_be == Control_KEYPONG_be) {
         Er_assert(Message_eshift(msg, -Control_Header_SIZE));
         ctx->error = Error_NONE;
-        if (msg->length >= Control_KeyPong_HEADER_SIZE && msg->length <= Control_KeyPong_MAX_SIZE) {
-            struct Control_KeyPing* pongHeader = (struct Control_KeyPing*) msg->bytes;
+        if (Message_getLength(msg) >= Control_KeyPong_HEADER_SIZE && Message_getLength(msg) <= Control_KeyPong_MAX_SIZE) {
+            struct Control_KeyPing* pongHeader = (struct Control_KeyPing*) msg->msgbytes;
             ctx->incomingVersion = Endian_bigEndianToHost32(pongHeader->version_be);
             if (pongHeader->magic != Control_KeyPong_MAGIC) {
                 Log_debug(ctx->logger, "dropped invalid switch key-pong");
-                return Error(INVALID);
+                return Error(msg, "INVALID");
             }
             Bits_memcpy(ctx->incomingKey, pongHeader->key, 32);
             Er_assert(Message_eshift(msg, -Control_KeyPong_HEADER_SIZE));
-        } else if (msg->length > Control_KeyPong_MAX_SIZE) {
-            Log_debug(ctx->logger, "got overlong key-pong message, length: [%d]", msg->length);
-            return Error(INVALID);
+        } else if (Message_getLength(msg) > Control_KeyPong_MAX_SIZE) {
+            Log_debug(ctx->logger, "got overlong key-pong message, length: [%d]", Message_getLength(msg));
+            return Error(msg, "INVALID");
         } else {
-            Log_debug(ctx->logger, "got runt key-pong message, length: [%d]", msg->length);
-            return Error(RUNT);
+            Log_debug(ctx->logger, "got runt key-pong message, length: [%d]", Message_getLength(msg));
+            return Error(msg, "RUNT");
         }
 
     } else if (ctrl->header.type_be == Control_GETSNODE_REPLY_be) {
         Er_assert(Message_eshift(msg, -Control_Header_SIZE));
         ctx->error = Error_NONE;
-        if (msg->length < Control_GetSnode_HEADER_SIZE) {
-            Log_debug(ctx->logger, "got runt GetSnode message, length: [%d]", msg->length);
-            return Error(RUNT);
+        if (Message_getLength(msg) < Control_GetSnode_HEADER_SIZE) {
+            Log_debug(ctx->logger, "got runt GetSnode message, length: [%d]", Message_getLength(msg));
+            return Error(msg, "RUNT");
         }
-        struct Control_GetSnode* hdr = (struct Control_GetSnode*) msg->bytes;
+        struct Control_GetSnode* hdr = (struct Control_GetSnode*) msg->msgbytes;
         if (hdr->magic != Control_GETSNODE_REPLY_MAGIC) {
             Log_debug(ctx->logger, "dropped invalid GetSnode");
-            return Error(INVALID);
+            return Error(msg, "INVALID");
         }
         if (Bits_isZero(hdr->snodeKey, 32)) {
             Log_debug(ctx->logger, "Peer doesn't have an snode");
-            return Error(NONE);
+            return NULL;
         }
         if (!AddressCalc_addressForPublicKey(ctx->incomingSnodeAddr.ip6.bytes, hdr->snodeKey)) {
             Log_debug(ctx->logger, "dropped invalid GetSnode key");
-            return Error(INVALID);
+            return Error(msg, "INVALID");
         }
         ctx->incomingVersion = Endian_hostToBigEndian32(hdr->version_be);
         Bits_memcpy(ctx->incomingSnodeAddr.key, hdr->snodeKey, 32);
@@ -163,14 +163,14 @@ static Iface_DEFUN messageFromControlHandler(struct Message* msg, struct Iface* 
     } else if (ctrl->header.type_be == Control_RPATH_REPLY_be) {
         Er_assert(Message_eshift(msg, -Control_Header_SIZE));
         ctx->error = Error_NONE;
-        if (msg->length < Control_RPath_HEADER_SIZE) {
-            Log_debug(ctx->logger, "got runt RPath message, length: [%d]", msg->length);
-            return Error(RUNT);
+        if (Message_getLength(msg) < Control_RPath_HEADER_SIZE) {
+            Log_debug(ctx->logger, "got runt RPath message, length: [%d]", Message_getLength(msg));
+            return Error(msg, "RUNT");
         }
-        struct Control_RPath* hdr = (struct Control_RPath*) msg->bytes;
+        struct Control_RPath* hdr = (struct Control_RPath*) msg->msgbytes;
         if (hdr->magic != Control_RPATH_REPLY_MAGIC) {
             Log_debug(ctx->logger, "dropped invalid RPATH (bad magic)");
-            return Error(INVALID);
+            return Error(msg, "INVALID");
         }
         ctx->incomingVersion = Endian_hostToBigEndian32(hdr->version_be);
         uint64_t rpath_be;
@@ -180,10 +180,10 @@ static Iface_DEFUN messageFromControlHandler(struct Message* msg, struct Iface* 
 
     } else if (ctrl->header.type_be == Control_ERROR_be) {
         Er_assert(Message_eshift(msg, -Control_Header_SIZE));
-        Assert_true((uint8_t*)&ctrl->content.error.errorType_be == msg->bytes);
-        if (msg->length < (Control_Error_HEADER_SIZE + SwitchHeader_SIZE + Control_Header_SIZE)) {
+        Assert_true((uint8_t*)&ctrl->content.error.errorType_be == msg->msgbytes);
+        if (Message_getLength(msg) < (Control_Error_HEADER_SIZE + SwitchHeader_SIZE + Control_Header_SIZE)) {
             Log_debug(ctx->logger, "runt error packet");
-            return Error(RUNT);
+            return Error(msg, "RUNT");
         }
 
         ctx->error = Er_assert(Message_epop32be(msg));
@@ -191,10 +191,10 @@ static Iface_DEFUN messageFromControlHandler(struct Message* msg, struct Iface* 
 
         Er_assert(Message_eshift(msg, -(Control_Error_HEADER_SIZE + SwitchHeader_SIZE)));
 
-        struct Control* origCtrl = (struct Control*) msg->bytes;
+        struct Control* origCtrl = (struct Control*) msg->msgbytes;
 
-        Log_debug(ctx->logger, "error [%s] was caused by our [%s]",
-                  Error_strerror(ctx->error),
+        Log_debug(ctx->logger, "error [%d] was caused by our [%s]",
+                  ctx->error,
                   Control_typeString(origCtrl->header.type_be));
 
         int shift;
@@ -205,7 +205,7 @@ static Iface_DEFUN messageFromControlHandler(struct Message* msg, struct Iface* 
         } else {
             Assert_failure("problem in Ducttape.c");
         }
-        if (msg->length < -shift) {
+        if (Message_getLength(msg) < -shift) {
             Log_debug(ctx->logger, "runt error packet");
         }
         Er_assert(Message_eshift(msg, shift));
@@ -215,10 +215,10 @@ static Iface_DEFUN messageFromControlHandler(struct Message* msg, struct Iface* 
         Assert_true(false);
     }
 
-    String* msgStr = &(String) { .bytes = (char*) msg->bytes, .len = msg->length };
+    String* msgStr = &(String) { .bytes = (char*) msg->msgbytes, .len = Message_getLength(msg) };
     Pinger_pongReceived(msgStr, ctx->pinger);
     Bits_memset(ctx->incomingKey, 0, 32);
-    return Error(NONE);
+    return NULL;
 }
 
 static void onPingResponse(String* data, uint32_t milliseconds, void* vping)
@@ -264,30 +264,30 @@ static void sendPing(String* data, void* sendPingContext)
 
     struct Message* msg = Message_new(0, data->len + 512, p->pub.pingAlloc);
 
-    while (((uintptr_t)msg->bytes - data->len) % 4) {
+    while (((uintptr_t)msg->msgbytes - data->len) % 4) {
         Er_assert(Message_epush8(msg, 0));
     }
-    msg->length = 0;
+    Er_assert(Message_truncate(msg, 0));
 
     Er_assert(Message_epush(msg, data->bytes, data->len));
-    Assert_true(!((uintptr_t)msg->bytes % 4) && "alignment fault");
+    Assert_true(!((uintptr_t)msg->msgbytes % 4) && "alignment fault");
 
     if (p->pub.type == SwitchPinger_Type_KEYPING) {
         Er_assert(Message_epush(msg, NULL, Control_KeyPing_HEADER_SIZE));
-        struct Control_KeyPing* keyPingHeader = (struct Control_KeyPing*) msg->bytes;
+        struct Control_KeyPing* keyPingHeader = (struct Control_KeyPing*) msg->msgbytes;
         keyPingHeader->magic = Control_KeyPing_MAGIC;
         keyPingHeader->version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL);
         Bits_memcpy(keyPingHeader->key, p->context->myAddr->key, 32);
 
     } else if (p->pub.type == SwitchPinger_Type_PING) {
         Er_assert(Message_epush(msg, NULL, Control_Ping_HEADER_SIZE));
-        struct Control_Ping* pingHeader = (struct Control_Ping*) msg->bytes;
+        struct Control_Ping* pingHeader = (struct Control_Ping*) msg->msgbytes;
         pingHeader->magic = Control_Ping_MAGIC;
         pingHeader->version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL);
 
     } else if (p->pub.type == SwitchPinger_Type_GETSNODE) {
         Er_assert(Message_epush(msg, NULL, Control_GetSnode_HEADER_SIZE));
-        struct Control_GetSnode* hdr = (struct Control_GetSnode*) msg->bytes;
+        struct Control_GetSnode* hdr = (struct Control_GetSnode*) msg->msgbytes;
         hdr->magic = Control_GETSNODE_QUERY_MAGIC;
         hdr->version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL);
         hdr->kbps_be = Endian_hostToBigEndian32(p->pub.kbpsLimit);
@@ -298,7 +298,7 @@ static void sendPing(String* data, void* sendPingContext)
 
     } else if (p->pub.type == SwitchPinger_Type_RPATH) {
         Er_assert(Message_epush(msg, NULL, Control_RPath_HEADER_SIZE));
-        struct Control_RPath* hdr = (struct Control_RPath*) msg->bytes;
+        struct Control_RPath* hdr = (struct Control_RPath*) msg->msgbytes;
         hdr->magic = Control_RPATH_QUERY_MAGIC;
         hdr->version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL);
         uint64_t path_be = Endian_hostToBigEndian64(p->label);
@@ -309,7 +309,7 @@ static void sendPing(String* data, void* sendPingContext)
     }
 
     Er_assert(Message_eshift(msg, Control_Header_SIZE));
-    struct Control* ctrl = (struct Control*) msg->bytes;
+    struct Control* ctrl = (struct Control*) msg->msgbytes;
     ctrl->header.checksum_be = 0;
     if (p->pub.type == SwitchPinger_Type_PING) {
         ctrl->header.type_be = Control_PING_be;
@@ -322,7 +322,7 @@ static void sendPing(String* data, void* sendPingContext)
     } else {
         Assert_failure("unexpected type");
     }
-    ctrl->header.checksum_be = Checksum_engine_be(msg->bytes, msg->length);
+    ctrl->header.checksum_be = Checksum_engine_be(msg->msgbytes, Message_getLength(msg));
 
     struct RouteHeader rh;
     Bits_memset(&rh, 0, RouteHeader_SIZE);

@@ -39,7 +39,7 @@
 #include <unistd.h>
 #include <errno.h>
 
-#ifndef android
+#ifndef Cjdns_android
     #include <ifaddrs.h>
 #endif
 
@@ -80,8 +80,8 @@ static void sendMessageInternal(struct Message* message,
     */
 
     if (sendto(context->socket,
-               message->bytes,
-               message->length,
+               message->msgbytes,
+               Message_getLength(message),
                0,
                (struct sockaddr*) addr,
                sizeof(struct sockaddr_ll)) < 0)
@@ -105,8 +105,8 @@ static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* iface)
     struct ETHInterface_pvt* ctx =
         Identity_containerOf(iface, struct ETHInterface_pvt, pub.generic.iface);
 
-    struct Sockaddr* sa = (struct Sockaddr*) msg->bytes;
-    Assert_true(msg->length >= Sockaddr_OVERHEAD);
+    struct Sockaddr* sa = (struct Sockaddr*) msg->msgbytes;
+    Assert_true(Message_getLength(msg) >= Sockaddr_OVERHEAD);
     Assert_true(sa->addrLen <= ETHInterface_Sockaddr_SIZE);
 
     struct ETHInterface_Sockaddr sockaddr = { .generic = { .addrLen = 0 } };
@@ -124,12 +124,12 @@ static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* iface)
     struct ETHInterface_Header hdr = {
         .version = ETHInterface_CURRENT_VERSION,
         .zero = 0,
-        .length_be = Endian_hostToBigEndian16(msg->length + ETHInterface_Header_SIZE),
+        .length_be = Endian_hostToBigEndian16(Message_getLength(msg) + ETHInterface_Header_SIZE),
         .fc00_be = Endian_hostToBigEndian16(0xfc00)
     };
     Er_assert(Message_epush(msg, &hdr, ETHInterface_Header_SIZE));
     sendMessageInternal(msg, &addr, ctx);
-    return Error(NONE);
+    return NULL;
 }
 
 static void handleEvent2(struct ETHInterface_pvt* context, struct Allocator* messageAlloc)
@@ -144,8 +144,8 @@ static void handleEvent2(struct ETHInterface_pvt* context, struct Allocator* mes
     Er_assert(Message_eshift(msg, 2));
 
     int rc = recvfrom(context->socket,
-                      msg->bytes,
-                      msg->length,
+                      msg->msgbytes,
+                      Message_getLength(msg),
                       0,
                       (struct sockaddr*) &addr,
                       &addrLen);
@@ -155,8 +155,7 @@ static void handleEvent2(struct ETHInterface_pvt* context, struct Allocator* mes
         return;
     }
 
-    Assert_true(msg->length >= rc);
-    msg->length = rc;
+    Er_assert(Message_truncate(msg, rc));
 
     //Assert_true(addrLen == SOCKADDR_LL_LEN);
 
@@ -171,12 +170,12 @@ static void handleEvent2(struct ETHInterface_pvt* context, struct Allocator* mes
 
     uint16_t reportedLength = Endian_bigEndianToHost16(hdr.length_be);
     reportedLength -= ETHInterface_Header_SIZE;
-    if (msg->length != reportedLength) {
-        if (msg->length < reportedLength) {
+    if (Message_getLength(msg) != reportedLength) {
+        if (Message_getLength(msg) < reportedLength) {
             Log_debug(context->logger, "DROP size field is larger than frame");
             return;
         }
-        msg->length = reportedLength;
+        Er_assert(Message_truncate(msg, reportedLength));
     }
     if (hdr.fc00_be != Endian_hostToBigEndian16(0xfc00)) {
         Log_debug(context->logger, "DROP bad magic");
@@ -192,7 +191,7 @@ static void handleEvent2(struct ETHInterface_pvt* context, struct Allocator* mes
 
     Er_assert(Message_epush(msg, &sockaddr, ETHInterface_Sockaddr_SIZE));
 
-    Assert_true(!((uintptr_t)msg->bytes % 4) && "Alignment fault");
+    Assert_true(!((uintptr_t)msg->msgbytes % 4) && "Alignment fault");
 
     Iface_send(&context->pub.generic.iface, msg);
 }
@@ -208,7 +207,7 @@ static void handleEvent(void* vcontext)
 Er_DEFUN(List* ETHInterface_listDevices(struct Allocator* alloc))
 {
     List* out = List_new(alloc);
-#ifndef android
+#ifndef Cjdns_android
     struct ifaddrs* ifaddr = NULL;
     if (getifaddrs(&ifaddr) || ifaddr == NULL) {
         Er_raise(alloc, "getifaddrs() -> errno:%d [%s]", errno, strerror(errno));

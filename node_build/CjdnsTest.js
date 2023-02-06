@@ -144,7 +144,7 @@ module.exports.generate = function (builder, isSubnode, callback) {
             //console.log(test);
             const testProto = /^.*\/([^\/]+)\.c$/.exec(test)[1];
             builder.config.cjdnsTest_files.push(test);
-            const cflags = (builder.config.fileCflags[test] = builder.config.fileCflags[test] || []);
+            const cflags = (builder.fileCflags[test] = builder.fileCflags[test] || []);
             if (test.indexOf('_fuzz_test') > -1) {
                 cflags.push(
                     '-D', 'CJDNS_FUZZ_INIT='+testProto+'_FUZZ_INIT',

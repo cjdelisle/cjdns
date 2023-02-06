@@ -27,6 +27,7 @@
 #include "wire/Message.h"
 #include "wire/DataHeader.h"
 #include "wire/RouteHeader.h"
+#include "wire/Error.h"
 
 #define DEFAULT_TIMEOUT_MILLISECONDS 6000
 
@@ -79,14 +80,14 @@ static Iface_DEFUN replyMsg(struct MsgCore_pvt* mcp,
                             struct Address* src,
                             struct Message* msg)
 {
-    Log_debug(mcp->log, "Got reply from [%s]", Address_toString(src, msg->alloc)->bytes);
+    Log_debug(mcp->log, "Got reply from [%s]", Address_toString(src, Message_getAlloc(msg))->bytes);
     String* txid = Dict_getStringC(content, "txid");
     if (!txid) {
         Log_debug(mcp->log, "DROP Message with no txid");
-        return Error(INVALID);
+        return Error(msg, "INVALID");
     }
 
-    struct ReplyContext* rc = Allocator_calloc(msg->alloc, sizeof(struct ReplyContext), 1);
+    struct ReplyContext* rc = Allocator_calloc(Message_getAlloc(msg), sizeof(struct ReplyContext), 1);
     rc->src = src;
     rc->content = content;
     rc->msg = msg;
@@ -96,7 +97,7 @@ static Iface_DEFUN replyMsg(struct MsgCore_pvt* mcp,
     // Pops out in pingerOnResponse() if the reply is indeed valid...
     Pinger_pongReceived(txid, mcp->pinger);
     mcp->currentReply = NULL;
-    return Error(NONE);
+    return NULL;
 }
 
 static void pingerOnResponse(String* data, uint32_t milliseconds, void* context)
@@ -153,7 +154,7 @@ static void sendMsg(struct MsgCore_pvt* mcp,
     struct Message* msg = Message_new(0, 2048, alloc);
     Er_assert(BencMessageWriter_write(msgDict, msg));
 
-    //Log_debug(mcp->log, "Sending msg [%s]", Escape_getEscaped(msg->bytes, msg->length, alloc));
+    //Log_debug(mcp->log, "Sending msg [%s]", Escape_getEscaped(msg->bytes, Message_getLength(msg), alloc));
 
     // Sanity check (make sure the addr was actually calculated)
     Assert_true(AddressCalc_validAddress(addr->ip6.bytes));
@@ -169,6 +170,7 @@ static void sendMsg(struct MsgCore_pvt* mcp,
     Bits_memcpy(route.ip6, addr->ip6.bytes, 16);
     route.version_be = Endian_hostToBigEndian32(addr->protocolVersion);
     route.sh.label_be = Endian_hostToBigEndian64(addr->path);
+    Assert_true(route.sh.label_be != 0xffffffffffffffffull);
     route.flags |= RouteHeader_flags_PATHFINDER;
     Bits_memcpy(route.publicKey, addr->key, 32);
     Er_assert(Message_epush(msg, &route, sizeof(struct RouteHeader)));
@@ -241,9 +243,9 @@ static Iface_DEFUN queryMsg(struct MsgCore_pvt* mcp,
     } else if (!qh->pub.cb) {
         Log_info(mcp->log, "Query handler for [%s] not setup", q->bytes);
     } else {
-        return qh->pub.cb(content, src, msg->alloc, &qh->pub);
+        return qh->pub.cb(content, src, Message_getAlloc(msg), &qh->pub);
     }
-    return Error(INVALID);
+    return Error(msg, "INVALID");
 }
 
 static int qhOnFree(struct Allocator_OnFreeJob* job)
@@ -282,7 +284,7 @@ static Iface_DEFUN incoming(struct Message* msg, struct Iface* interRouterIf)
         Identity_containerOf(interRouterIf, struct MsgCore_pvt, pub.interRouterIf);
 
     struct Address addr = { .padding = 0 };
-    struct RouteHeader* hdr = (struct RouteHeader*) msg->bytes;
+    struct RouteHeader* hdr = (struct RouteHeader*) msg->msgbytes;
     Er_assert(Message_eshift(msg, -(RouteHeader_SIZE + DataHeader_SIZE)));
     Bits_memcpy(addr.ip6.bytes, hdr->ip6, 16);
     Bits_memcpy(addr.key, hdr->publicKey, 32);
@@ -290,28 +292,28 @@ static Iface_DEFUN incoming(struct Message* msg, struct Iface* interRouterIf)
     addr.path = Endian_bigEndianToHost64(hdr->sh.label_be);
 
     Dict* content = NULL;
-    uint8_t* msgBytes = msg->bytes;
-    int length = msg->length;
+    uint8_t* msgBytes = msg->msgbytes;
+    int length = Message_getLength(msg);
     //Log_debug(mcp->log, "Receive msg [%s] from [%s]",
-    //    Escape_getEscaped(msg->bytes, msg->length, msg->alloc),
-    //    Address_toString(&addr, msg->alloc)->bytes);
+    //    Escape_getEscaped(msg->bytes, Message_getLength(msg), Message_getAlloc(msg)),
+    //    Address_toString(&addr, Message_getAlloc(msg))->bytes);
     //
-    BencMessageReader_readNoExcept(msg, msg->alloc, &content);
+    BencMessageReader_readNoExcept(msg, Message_getAlloc(msg), &content);
     if (!content) {
-        char* esc = Escape_getEscaped(msgBytes, length, msg->alloc);
+        char* esc = Escape_getEscaped(msgBytes, length, Message_getAlloc(msg));
         Log_debug(mcp->log, "DROP Malformed message [%s]", esc);
-        return Error(INVALID);
+        return Error(msg, "INVALID");
     }
 
     int64_t* verP = Dict_getIntC(content, "p");
     if (!verP) {
         Log_debug(mcp->log, "DROP Message without version");
-        return Error(INVALID);
+        return Error(msg, "INVALID");
     }
     addr.protocolVersion = *verP;
     if (!addr.protocolVersion) {
         Log_debug(mcp->log, "DROP Message with zero version");
-        return Error(INVALID);
+        return Error(msg, "INVALID");
     }
 
     String* q = Dict_getStringC(content, "q");
@@ -319,7 +321,7 @@ static Iface_DEFUN incoming(struct Message* msg, struct Iface* interRouterIf)
     String* txid = Dict_getStringC(content, "txid");
     if (!txid || !txid->len) {
         Log_debug(mcp->log, "Message with no txid [%s]", q ? (q->bytes) : "(no query)");
-        return Error(INVALID);
+        return Error(msg, "INVALID");
     }
 
     if (q) {
@@ -327,14 +329,14 @@ static Iface_DEFUN incoming(struct Message* msg, struct Iface* interRouterIf)
             return queryMsg(mcp, content, &addr, msg);
         } else {
             // Let the old pathfinder handle every query if it is present
-            return Error(NONE);
+            return NULL;
         }
     } else if (txid->len >= 2 && txid->bytes[0] == '0' && txid->bytes[1] == '1') {
         txid->bytes = &txid->bytes[2];
         txid->len -= 2;
         return replyMsg(mcp, content, &addr, msg);
     }
-    return Error(INVALID);
+    return Error(msg, "INVALID");
 }
 
 struct MsgCore* MsgCore_new(struct EventBase* base,

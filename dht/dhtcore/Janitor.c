@@ -101,7 +101,7 @@ struct Janitor_Search
 
 static bool isBlacklisted(struct Janitor_pvt* j, uint64_t path)
 {
-    int64_t now = Time_currentTimeMilliseconds(j->eventBase);
+    int64_t now = Time_currentTimeMilliseconds();
     for (int i = 0; i < Janitor_pvt_blacklist_NUM; i++) {
         struct Janitor_Blacklist* qp = &j->blacklist[i];
         if (qp->path == path && now - qp->timeAdded < j->pub.blacklistPathForMilliseconds) {
@@ -113,7 +113,7 @@ static bool isBlacklisted(struct Janitor_pvt* j, uint64_t path)
 
 static void blacklist(struct Janitor_pvt* j, uint64_t path)
 {
-    int64_t now = Time_currentTimeMilliseconds(j->eventBase);
+    int64_t now = Time_currentTimeMilliseconds();
     int oldestIndex = 0;
     int64_t oldestTime = INT64_MAX;
     for (int i = 0; i < Janitor_pvt_blacklist_NUM; i++) {
@@ -371,7 +371,7 @@ static void peersResponseCallback(struct RouterModule_Promise* promise,
  */
 static void keyspaceMaintenance(struct Janitor_pvt* janitor)
 {
-    struct Address addr;
+    struct Address addr = {0};
     struct Address* selfAddr = janitor->nodeStore->selfAddress;
     if (!RumorMill_getNode(janitor->pub.dhtMill, &addr)) {
         // Try to fill the dhtMill for next time.
@@ -598,7 +598,7 @@ static void maintanenceCycle(void* vcontext)
 {
     struct Janitor_pvt* const janitor = Identity_check((struct Janitor_pvt*) vcontext);
 
-    uint64_t now = Time_currentTimeMilliseconds(janitor->eventBase);
+    uint64_t now = Time_currentTimeMilliseconds();
 
     uint64_t nextTimeout = (janitor->pub.localMaintainenceMilliseconds / 2);
     nextTimeout += Random_uint32(janitor->rand) % (nextTimeout * 2);
@@ -705,7 +705,7 @@ struct Janitor* Janitor_new(struct RouterModule* routerModule,
     janitor->pub.localMaintainenceMilliseconds = Janitor_LOCAL_MAINTENANCE_MILLISECONDS_DEFAULT;
     janitor->pub.blacklistPathForMilliseconds = Janitor_BLACKLIST_PATH_FOR_MILLISECONDS_DEFAULT;
 
-    janitor->timeOfNextGlobalMaintainence = Time_currentTimeMilliseconds(eventBase);
+    janitor->timeOfNextGlobalMaintainence = Time_currentTimeMilliseconds();
 
     janitor->timeout = Timeout_setTimeout(maintanenceCycle,
                                           janitor,

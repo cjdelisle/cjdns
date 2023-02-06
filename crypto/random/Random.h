@@ -24,9 +24,9 @@ Linker_require("crypto/random/Random.c")
 
 #include <stdint.h>
 
-struct Random;
+typedef struct Random Random_t;
 
-void Random_bytes(struct Random* rand, uint8_t* location, uint64_t count);
+void Random_bytes(Random_t* rand, uint8_t* location, uint64_t count);
 
 /**
  * Get random Base32 text, great for password material.
@@ -103,7 +103,7 @@ static inline uint64_t Random_uint64(struct Random* rand)
 
 struct Random* Random_newWithSeed(struct Allocator* alloc,
                                   struct Log* logger,
-                                  struct RandomSeed* seed,
+                                  RandomSeed_t* seed,
                                   struct Except* eh);
 
 struct Random* Random_new(struct Allocator* alloc, struct Log* logger, struct Except* eh);

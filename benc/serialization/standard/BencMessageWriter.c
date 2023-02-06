@@ -90,15 +90,15 @@ Er_DEFUN(void BencMessageWriter_write(Dict* toWrite, struct Message* msg))
     Er(writeDict(toWrite, msg));
 
     // lucky
-    if (!((uintptr_t)msg->bytes % 8)) { Er_ret(); }
+    if (!((uintptr_t)msg->msgbytes % 8)) { Er_ret(); }
 
     char d = Er(Message_epop8(msg));
     Assert_true(d == 'd');
-    Assert_true(msg->bytes[0] != 'e' && "Can't serialize empty messages");
-    Assert_true(msg->bytes[0] >= '1' && msg->bytes[0] <= '9');
+    Assert_true(msg->msgbytes[0] != 'e' && "Can't serialize empty messages");
+    Assert_true(msg->msgbytes[0] >= '1' && msg->msgbytes[0] <= '9');
 
     // put the message into alignment by padding out the number with leading zeros :)
-    do { Er(Message_epush8(msg, '0')); } while ((uintptr_t)msg->bytes % 8);
+    do { Er(Message_epush8(msg, '0')); } while ((uintptr_t)msg->msgbytes % 8);
 
     Er(Message_epop8(msg));
     Er(Message_epush8(msg, 'd'));

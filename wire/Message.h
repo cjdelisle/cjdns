@@ -24,26 +24,32 @@ Linker_require("wire/Message.c")
 
 #include <stdint.h>
 
-struct Message
+typedef struct Message
 {
     /** The length of the message. */
-    int32_t length;
+    int32_t _length;
 
     /** The number of bytes of padding BEFORE where bytes begins. */
-    int32_t padding;
+    int32_t _padding;
 
     /** The content. */
-    uint8_t* bytes;
+    uint8_t* msgbytes;
 
     /** Amount of bytes of storage space available in the message. */
-    int32_t capacity;
+    int32_t _capacity;
+
+    // Amount of associated data
+    int32_t _adLen;
+
+    // Pointer to associated data
+    uint8_t* _ad;
 
     /**
      * When sending/receiving a Message on a unix socket, a file descriptor to attach.
      * Caviat: In order to maintain backward compatibility with a Message which is
      * allocated using calloc, file descriptor 0 is referred to by -1
      */
-    int associatedFd;
+    int _associatedFd;
 
     #ifdef PARANOIA
         /** This is used inside of Iface.h to support Iface_next() */
@@ -51,8 +57,47 @@ struct Message
     #endif
 
     /** The allocator which allocated space for this message. */
-    struct Allocator* alloc;
-};
+    struct Allocator* _alloc;
+} Message_t;
+
+static inline struct Allocator* Message_getAlloc(struct Message* msg)
+{
+    return msg->_alloc;
+}
+
+static inline int32_t Message_getLength(struct Message* msg)
+{
+    return msg->_length;
+}
+
+static inline Er_DEFUN(void Message_truncate(struct Message* msg, int32_t newLen))
+{
+    if (newLen > msg->_length) {
+        Er_raise(msg->_alloc, "Message_truncate(%d) message length is %d", newLen, msg->_length);
+    }
+    msg->_length = newLen;
+    Er_ret();
+}
+
+static inline int32_t Message_getPadding(struct Message* msg)
+{
+    return msg->_padding;
+}
+
+static inline int32_t Message_getCapacity(struct Message* msg)
+{
+    return msg->_capacity;
+}
+
+static inline Message_t Message_foreign(uint32_t len, uint8_t* bytes)
+{
+    return (Message_t){ ._length = len, .msgbytes = bytes, ._capacity = len };
+}
+
+// static inline Er_DEFUN(void Message_ecopy(struct Message* to, struct Message* from, uint32_t amt))
+// {
+    
+// }
 
 struct Message* Message_new(uint32_t messageLength,
                                           uint32_t amountOfPadding,
@@ -64,9 +109,13 @@ int Message_getAssociatedFd(struct Message* msg);
 
 struct Message* Message_clone(struct Message* toClone, struct Allocator* alloc);
 
-void Message_copyOver(struct Message* output,
-                                    struct Message* input,
-                                    struct Allocator* allocator);
+static inline Er_DEFUN(uint8_t* Message_peakBytes(struct Message* msg, int32_t len))
+{
+    if (len > msg->_length) {
+        Er_raise(msg->_alloc, "peakBytes(%d) too big, message length is %d", len, msg->_length);
+    }
+    Er_ret(msg->msgbytes);
+}
 
 /**
  * Pretend to shift the content forward by amount.
@@ -74,26 +123,61 @@ void Message_copyOver(struct Message* output,
  */
 static inline Er_DEFUN(void Message_eshift(struct Message* toShift, int32_t amount))
 {
-    if (amount > 0 && toShift->padding < amount) {
-        Er_raise(toShift->alloc, "buffer overflow adding %d to length %d",
-            amount, toShift->length);
-    } else if (toShift->length < (-amount)) {
-        Er_raise(toShift->alloc, "buffer underflow");
+    if (amount > 0 && toShift->_padding < amount) {
+        Er_raise(toShift->_alloc, "buffer overflow adding %d to length %d",
+            amount, toShift->_length);
+    } else if (toShift->_length < (-amount)) {
+        Er_raise(toShift->_alloc, "buffer underflow");
     }
 
-    toShift->length += amount;
-    toShift->capacity += amount;
-    toShift->bytes -= amount;
-    toShift->padding -= amount;
+    toShift->_length += amount;
+    toShift->_capacity += amount;
+    toShift->msgbytes -= amount;
+    toShift->_padding -= amount;
 
+    Er_ret();
+}
+
+static inline Er_DEFUN(void Message_epushAd(struct Message* restrict msg,
+                                            const void* restrict object,
+                                            size_t size))
+{
+    if (msg->_padding < (int)size) {
+        Er_raise(msg->_alloc, "not enough padding to push ad");
+    }
+    if (object) {
+        Bits_memcpy(msg->_ad, object, size);
+    } else {
+        Bits_memset(msg->_ad, 0x00, size);
+    }
+    msg->_adLen += size;
+    msg->_padding -= size;
+    msg->_ad = &msg->_ad[size];
+    Er_ret();
+}
+
+static inline Er_DEFUN(void Message_epopAd(struct Message* restrict msg,
+                                           void* restrict object,
+                                           size_t size))
+{
+    if (msg->_adLen < (int)size) {
+        Er_raise(msg->_alloc, "underflow, cannot pop ad");
+    }
+    msg->_adLen -= size;
+    msg->_padding += size;
+    msg->_ad = &msg->_ad[-((int)size)];
+    if (object) {
+        Bits_memcpy(object, msg->_ad, size);
+    }
     Er_ret();
 }
 
 static inline void Message_reset(struct Message* toShift)
 {
-    Assert_true(toShift->length <= toShift->capacity);
-    toShift->length = toShift->capacity;
-    Er_assert(Message_eshift(toShift, -toShift->length));
+    Assert_true(toShift->_length <= toShift->_capacity);
+    Er_assert(Message_epopAd(toShift, NULL, toShift->_adLen));
+    toShift->_length = toShift->_capacity;
+    Er_assert(Message_eshift(toShift, -toShift->_length));
 }
 
 static inline Er_DEFUN(void Message_epush(struct Message* restrict msg,
@@ -102,9 +186,9 @@ static inline Er_DEFUN(void Message_epush(struct Message* restrict msg,
 {
     Er(Message_eshift(msg, (int)size));
     if (object) {
-        Bits_memcpy(msg->bytes, object, size);
+        Bits_memcpy(msg->msgbytes, object, size);
     } else {
-        Bits_memset(msg->bytes, 0x00, size);
+        Bits_memset(msg->msgbytes, 0x00, size);
     }
     Er_ret();
 }
@@ -115,7 +199,7 @@ static inline Er_DEFUN(void Message_epop(struct Message* restrict msg,
 {
     Er(Message_eshift(msg, -(int)size));
     if (object) {
-        Bits_memcpy(object, &msg->bytes[-((int)size)], size);
+        Bits_memcpy(object, &msg->msgbytes[-((int)size)], size);
     }
     Er_ret();
 }

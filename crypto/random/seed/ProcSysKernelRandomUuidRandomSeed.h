@@ -20,6 +20,6 @@
 #include "util/Linker.h"
 
 Linker_require("crypto/random/seed/ProcSysKernelRandomUuidRandomSeed.c")
-struct RandomSeed* ProcSysKernelRandomUuidRandomSeed_new(struct Allocator* alloc);
+RandomSeed_t* ProcSysKernelRandomUuidRandomSeed_new(struct Allocator* alloc);
 
 #endif

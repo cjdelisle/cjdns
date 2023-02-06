@@ -1,17 +1,22 @@
 //! Message type.
 
 use std::slice::{from_raw_parts, from_raw_parts_mut};
+use std::i32;
 
 use thiserror::Error;
 
 use crate::cffi;
+use crate::external::memory::allocator::Allocator;
 
 /// A network message.
 ///
 /// Wraps a pointer to C `struct Message` from `wire/Message.h`.
 ///
 /// *Unsafe:* The original pointer *must* remain valid while this instance still in use.
-pub struct Message(*mut cffi::Message);
+pub struct Message {
+    msg: *mut cffi::Message,
+    alloc: Option<Allocator>,
+}
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum MessageError {
@@ -34,64 +39,95 @@ pub enum MessageError {
 pub type Result<T> = std::result::Result<T, MessageError>;
 
 impl Message {
+    pub fn anew(padding: usize, alloc: &mut Allocator) -> Self {
+        unsafe { Message { msg: cffi::Message_new(0, padding as u32, alloc.native), alloc: None } }
+    }
+
+    pub fn rnew(padding: usize) -> Self {
+        let alloc = Allocator::new(padding + 1024);
+        unsafe { Message { msg: cffi::Message_new(0, padding as u32, alloc.native), alloc: Some(alloc) } }
+    }
+
+    /// Create empty new message with the given amount of free space,
+    /// using the same allocator as `self` does.
+    ///
+    /// Note: this function does *NOT* clone original message,
+    /// the resulting message will be empty.
+    pub fn new(&self, padding: usize) -> Self {
+        unsafe { Message { msg: cffi::Message_new(0, padding as u32, (*self.msg)._alloc), alloc: None } }
+    }
+
     /// Construct a Rust `Message` by wrapping a pointer to C `Message`.
     ///
     /// *Unsafe:* The original pointer *must* remain valid until this instance is dropped.
     #[inline]
     pub fn from_c_message(c_msg: *mut cffi::Message) -> Self {
-        Message(c_msg)
+        Message { msg: c_msg, alloc: None }
     }
 
     /// Return original C `Message` pointer from this Rust `Message`.
     #[inline]
     pub fn as_c_message(&self) -> *mut cffi::Message {
-        let &Message(c_msg) = self;
-        c_msg
+        let &Message{ msg, .. } = self;
+        msg
     }
 
     /// Get the message length.
     #[inline]
     pub fn len(&self) -> usize {
-        let msg = unsafe { &mut (*self.0) };
-        debug_assert!(msg.length >= 0);
-        msg.length as usize
+        let msg = unsafe { &mut (*self.msg) };
+        debug_assert!(msg._length >= 0);
+        msg._length as usize
     }
 
     /// Get the message capacity.
     #[inline]
     pub fn cap(&self) -> usize {
-        let msg = unsafe { &mut (*self.0) };
-        debug_assert!(msg.capacity >= 0);
-        msg.capacity as usize
+        let msg = unsafe { &mut (*self.msg) };
+        debug_assert!(msg._capacity >= 0);
+        msg._capacity as usize
     }
 
     /// Get the available padding size.
     #[inline]
     pub fn pad(&self) -> usize {
-        let msg = unsafe { &mut (*self.0) };
-        debug_assert!(msg.padding >= 0);
-        msg.padding as usize
+        let msg = unsafe { &mut (*self.msg) };
+        debug_assert!(msg._padding >= 0);
+        msg._padding as usize
+    }
+
+    /// Check the message data alignment.
+    #[inline]
+    pub fn is_aligned_to(&self, align: usize) -> bool {
+        self.data_ptr() % align == 0
+    }
+
+    /// Check the message data alignment.
+    #[inline]
+    pub fn data_ptr(&self) -> usize {
+        let msg = unsafe { &mut (*self.msg) };
+        msg.msgbytes as usize
     }
 
     /// Get the read-only view into the message data as byte slice.
     #[inline]
     pub fn bytes(&self) -> &[u8] {
-        let msg = unsafe { &mut (*self.0) };
-        debug_assert!(!msg.bytes.is_null());
-        debug_assert!(msg.length >= 0);
-        let ptr = msg.bytes as *const u8;
-        let len = msg.length as usize;
+        let msg = unsafe { &mut (*self.msg) };
+        debug_assert!(!msg.msgbytes.is_null());
+        debug_assert!(msg._length >= 0);
+        let ptr = msg.msgbytes as *const u8;
+        let len = msg._length as usize;
         unsafe { from_raw_parts(ptr, len) }
     }
 
     /// Get the mutable view into the message data as byte slice.
     #[inline]
     pub fn bytes_mut(&mut self) -> &mut [u8] {
-        let msg = unsafe { &mut (*self.0) };
-        debug_assert!(!msg.bytes.is_null());
-        debug_assert!(msg.length >= 0);
-        let ptr = msg.bytes;
-        let len = msg.length as usize;
+        let msg = unsafe { &mut (*self.msg) };
+        debug_assert!(!msg.msgbytes.is_null());
+        debug_assert!(msg._length >= 0);
+        let ptr = msg.msgbytes;
+        let len = msg._length as usize;
         unsafe { from_raw_parts_mut(ptr, len) }
     }
 
@@ -123,6 +159,17 @@ impl Message {
         let res = Vec::from(src);
         self.shift(-(count as i32))?;
         Ok(res)
+    }
+
+    /// Discard specified number of bytes from the beginning of the message.
+    /// The message must be big enough, otherwise error is returned.
+    pub fn discard_bytes(&mut self, count: usize) -> Result<()> {
+        debug_assert!(count < i32::MAX as usize);
+        if self.len() < count {
+            return Err(MessageError::InsufficientLength(count, self.len()));
+        }
+        self.shift(-(count as i32))?;
+        Ok(())
     }
 
     /// Peek the specified number of bytes from the beginning of the message as a byte slice.
@@ -205,6 +252,20 @@ impl Message {
         Ok(res)
     }
 
+    /// Discard data item of type `T` from the beginning of the message.
+    /// The message must be big enough, otherwise error is returned.
+    pub fn discard<T: Default>(&mut self) -> Result<()> {
+        let size = std::mem::size_of::<T>();
+        debug_assert!(size < i32::MAX as usize);
+        if size > self.len() {
+            return Err(MessageError::InsufficientLength(size, self.len()));
+        }
+
+        self.shift(-(size as i32))?;
+
+        Ok(())
+    }
+
     /// Peek the item of type `T` at the beginning of the message as a reference.
     /// Error is returned if the message is too short or buffer pointer is misaligned.
     pub fn peek<T>(&self) -> Result<&T> {
@@ -235,8 +296,8 @@ impl Message {
 
     #[inline]
     fn data_ref<T>(&self) -> Option<&T> {
-        let msg = unsafe { &mut (*self.0) };
-        let ptr = msg.bytes as usize;
+        let msg = unsafe { &mut (*self.msg) };
+        let ptr = msg.msgbytes as usize;
         let align = std::mem::align_of::<T>();
         if ptr % align == 0 {
             let ptr = ptr as *const T;
@@ -249,8 +310,8 @@ impl Message {
 
     #[inline]
     fn data_ref_mut<T>(&mut self) -> Option<&mut T> {
-        let msg = unsafe { &mut (*self.0) };
-        let ptr = msg.bytes as usize;
+        let msg = unsafe { &mut (*self.msg) };
+        let ptr = msg.msgbytes as usize;
         let align = std::mem::align_of::<T>();
         if ptr % align == 0 {
             let ptr = ptr as *mut T;
@@ -262,29 +323,41 @@ impl Message {
     }
 
     fn shift(&mut self, amount: i32) -> Result<()> {
-        let msg = unsafe { &mut (*self.0) };
+        let msg = unsafe { &mut (*self.msg) };
 
-        debug_assert!(msg.length >= 0);
-        debug_assert!(msg.padding >= 0);
+        debug_assert!(msg._length >= 0);
+        debug_assert!(msg._padding >= 0);
 
         if amount > 0 {
-            if msg.padding < amount {
-                return Err(MessageError::BufferOverflow(amount, msg.length));
+            if msg._padding < amount {
+                return Err(MessageError::BufferOverflow(amount, msg._length));
             }
         } else if amount < 0 {
-            if msg.length < -amount {
-                return Err(MessageError::BufferUnderflow(-amount, msg.length));
+            if msg._length < -amount {
+                return Err(MessageError::BufferUnderflow(-amount, msg._length));
             }
         } else {
             return Ok(());
         }
 
-        msg.length += amount;
-        msg.capacity += amount;
-        msg.bytes = (msg.bytes as isize - amount as isize) as *mut u8;
-        msg.padding -= amount;
+        msg._length += amount;
+        msg._capacity += amount;
+        msg.msgbytes = (msg.msgbytes as isize - amount as isize) as *mut u8;
+        msg._padding -= amount;
 
         Ok(())
+    }
+
+    /// Clear the message: discard all data and set size to 0.
+    pub fn clear(&mut self) {
+        unsafe {
+            let mut msg = &mut (*self.msg);
+            msg._length = msg._capacity;
+        }
+        let size = self.len() as i32;
+        if size > 0 {
+            self.shift(-size).expect("clear");
+        }
     }
 }
 

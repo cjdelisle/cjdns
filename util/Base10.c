@@ -52,7 +52,7 @@ Er_DEFUN(int64_t Base10_read(struct Message* msg))
         while (chr >= '0' && chr <= '9') {
             out *= 10;
             out += chr - '0';
-            if (msg->length == 0) {
+            if (Message_getLength(msg) == 0) {
                 if (negative) { out = -out; }
                 Er_ret(out);
             }
@@ -63,7 +63,7 @@ Er_DEFUN(int64_t Base10_read(struct Message* msg))
         Er_ret(out);
     } else {
         Er(Message_epush8(msg, chr));
-        Er_raise(msg->alloc, "No base10 characters found");
+        Er_raise(Message_getAlloc(msg), "No base10 characters found");
     }
 }
 
@@ -79,7 +79,7 @@ int Base10_fromString(uint8_t* str, int64_t* numOut)
     } else if (str[0] < '0' || str[0] > '9') {
         return -1;
     }
-    struct Message msg = { .length = len, .bytes = str, .capacity = len };
+    struct Message msg = Message_foreign(len, str);
     *numOut = Er_assert(Base10_read(&msg));
     return 0;
 }

@@ -52,7 +52,7 @@ struct Pinger
 
 static void callback(String* data, struct Ping* ping)
 {
-    uint32_t now = Time_currentTimeMilliseconds(ping->pinger->eventBase);
+    uint32_t now = Time_currentTimeMilliseconds();
     ping->onResponse(data, now - ping->timeSent, ping->pub.context);
 
     // Flag the freePing function to tell it that the ping was not terminated by the user...
@@ -68,7 +68,7 @@ static void timeoutCallback(void* vping)
         // The ping came in at the same time that the timeout was scheduled to happen.
         return;
     }
-    int64_t now = Time_currentTimeMilliseconds(p->pinger->eventBase);
+    int64_t now = Time_currentTimeMilliseconds();
     long long diff = ((long long) now) - ((long long)p->timeSent);
     Assert_true(diff < 1000000000);
     Log_debug(p->pinger->logger, "Ping timeout for [%u] in [%lld] ms", p->pub.handle, diff);
@@ -112,7 +112,7 @@ struct Pinger_Ping* Pinger_newPing(String* data,
         },
         .sendPing = sendPing,
         .pinger = pinger,
-        .timeSent = Time_currentTimeMilliseconds(pinger->eventBase),
+        .timeSent = Time_currentTimeMilliseconds(),
         .onResponse = onResponse
     }));
     Identity_set(ping);

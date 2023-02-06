@@ -15,7 +15,7 @@
 #ifndef NetCore_H
 #define NetCore_H
 #include "crypto/random/Random.h"
-#include "crypto/CryptoAuth.h"
+#include "crypto/Ca.h"
 #include "crypto/AddressCalc.h"
 #include "memory/Allocator.h"
 #include "switch/SwitchCore.h"
@@ -39,7 +39,7 @@ struct NetCore
     struct EventBase* base;
     struct Random* rand;
     struct Log* log;
-    struct CryptoAuth* ca;
+    Ca_t* ca;
     struct EventEmitter* ee;
     struct Address* myAddress;
     struct SwitchCore* switchCore;
@@ -55,6 +55,7 @@ struct NetCore* NetCore_new(uint8_t* privateKey,
                             struct Allocator* alloc,
                             struct EventBase* base,
                             struct Random* rand,
-                            struct Log* log);
+                            struct Log* log,
+                            bool enableNoise);
 
 #endif

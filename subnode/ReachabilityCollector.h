@@ -62,6 +62,8 @@ struct ReachabilityCollector_PeerInfo*
 struct ReachabilityCollector_PeerInfo*
     ReachabilityCollector_getPeerInfo(struct ReachabilityCollector* rc, int peerNum);
 
+int ReachabilityCollector_peerCount(struct ReachabilityCollector* rc);
+
 void ReachabilityCollector_unreachable(struct ReachabilityCollector* rc, struct Address* nodeAddr);
 
 // NodeAddr->path should be 0 if the node is not reachable.

@@ -88,12 +88,17 @@ static int incomingFromDHT(struct DHTMessage* dmessage, void* vpf)
         DHTModuleRegistry_handleIncoming(dmessage, pf->registry);
         return 0;
     }
+    // This seems to be happening, this whole section of the code is deprecated so lets not
+    // try to debug it too much and just squash the message.
+    if (addr->path == 0xffffffffffffffffull) {
+        return 0;
+    }
 
     // Sanity check (make sure the addr was actually calculated)
     Assert_true(AddressCalc_validAddress(addr->ip6.bytes));
 
     Er_assert(Message_eshift(msg, PFChan_Msg_MIN_SIZE));
-    struct PFChan_Msg* emsg = (struct PFChan_Msg*) msg->bytes;
+    struct PFChan_Msg* emsg = (struct PFChan_Msg*) msg->msgbytes;
     Bits_memset(emsg, 0, PFChan_Msg_MIN_SIZE);
 
     DataHeader_setVersion(&emsg->data, DataHeader_CURRENT_VERSION);
@@ -108,6 +113,7 @@ static int incomingFromDHT(struct DHTMessage* dmessage, void* vpf)
 
     Assert_true(!Bits_isZero(emsg->route.publicKey, 32));
     Assert_true(emsg->route.sh.label_be);
+    Assert_true(emsg->route.sh.label_be != 0xffffffffffffffffull);
     Assert_true(emsg->route.version_be);
 
     Er_assert(Message_epush32be(msg, PFChan_Pathfinder_SENDMSG));
@@ -141,9 +147,9 @@ static Iface_DEFUN sendNode(struct Message* msg,
 {
     Message_reset(msg);
     Er_assert(Message_eshift(msg, PFChan_Node_SIZE));
-    nodeForAddress((struct PFChan_Node*) msg->bytes, addr, metric);
+    nodeForAddress((struct PFChan_Node*) msg->msgbytes, addr, metric);
     if (addr->path == UINT64_MAX) {
-        ((struct PFChan_Node*) msg->bytes)->path_be = 0;
+        ((struct PFChan_Node*) msg->msgbytes)->path_be = 0;
     }
     Er_assert(Message_epush32be(msg, PFChan_Pathfinder_NODE));
     return Iface_next(&pf->pub.eventIf, msg);
@@ -172,7 +178,7 @@ static Iface_DEFUN connected(struct Pathfinder_pvt* pf, struct Message* msg)
 
     struct PFChan_Core_Connect conn;
     Er_assert(Message_epop(msg, &conn, PFChan_Core_Connect_SIZE));
-    Assert_true(!msg->length);
+    Assert_true(!Message_getLength(msg));
 
     Bits_memcpy(pf->myAddr.key, conn.publicKey, 32);
     Address_getPrefix(&pf->myAddr);
@@ -237,14 +243,14 @@ static Iface_DEFUN connected(struct Pathfinder_pvt* pf, struct Message* msg)
 
     pf->state = Pathfinder_pvt_state_RUNNING;
 
-    return Error(NONE);
+    return NULL;
 }
 
 static void addressForNode(struct Address* addrOut, struct Message* msg)
 {
     struct PFChan_Node node;
     Er_assert(Message_epop(msg, &node, PFChan_Node_SIZE));
-    Assert_true(!msg->length);
+    Assert_true(!Message_getLength(msg));
     addrOut->protocolVersion = Endian_bigEndianToHost32(node.version_be);
     addrOut->path = Endian_bigEndianToHost64(node.path_be);
     Bits_memcpy(addrOut->key, node.publicKey, 32);
@@ -262,7 +268,7 @@ static Iface_DEFUN switchErr(struct Message* msg, struct Pathfinder_pvt* pf)
     uint8_t pathStr[20];
     AddrTools_printPath(pathStr, path);
     int err = Endian_bigEndianToHost32(switchErr.ctrlErr.errorType_be);
-    Log_debug(pf->log, "switch err from [%s] type [%s][%d]", pathStr, Error_strerror(err), err);
+    Log_debug(pf->log, "switch err from [%s] type [%d]", pathStr, err);
 
     struct Node_Link* link = NodeStore_linkForPath(pf->nodeStore, path);
     uint8_t nodeAddr[16];
@@ -277,7 +283,7 @@ static Iface_DEFUN switchErr(struct Message* msg, struct Pathfinder_pvt* pf)
         SearchRunner_search(nodeAddr, 20, 3, pf->searchRunner, pf->alloc);
     }
 
-    return Error(NONE);
+    return NULL;
 }
 
 static Iface_DEFUN searchReq(struct Message* msg, struct Pathfinder_pvt* pf)
@@ -286,8 +292,8 @@ static Iface_DEFUN searchReq(struct Message* msg, struct Pathfinder_pvt* pf)
     Er_assert(Message_epop(msg, addr, 16));
     Er_assert(Message_epop32be(msg));
     uint32_t version = Er_assert(Message_epop32be(msg));
-    if (version && version >= 20) { return Error(NONE); }
-    Assert_true(!msg->length);
+    if (version && version >= 20) { return NULL; }
+    Assert_true(!Message_getLength(msg));
     uint8_t printedAddr[40];
     AddrTools_printIp(printedAddr, addr);
     Log_debug(pf->log, "Search req [%s]", printedAddr);
@@ -298,14 +304,14 @@ static Iface_DEFUN searchReq(struct Message* msg, struct Pathfinder_pvt* pf)
     } else {
         SearchRunner_search(addr, 20, 3, pf->searchRunner, pf->alloc);
     }
-    return Error(NONE);
+    return NULL;
 }
 
 static Iface_DEFUN peer(struct Message* msg, struct Pathfinder_pvt* pf)
 {
-    struct Address addr;
+    struct Address addr = {0};
     addressForNode(&addr, msg);
-    String* str = Address_toString(&addr, msg->alloc);
+    String* str = Address_toString(&addr, Message_getAlloc(msg));
     Log_debug(pf->log, "Peer [%s]", str->bytes);
 
     struct Node_Link* link = NodeStore_linkForPath(pf->nodeStore, addr.path);
@@ -315,7 +321,7 @@ static Iface_DEFUN peer(struct Message* msg, struct Pathfinder_pvt* pf)
         && Node_getBestParent(link->child)->parent->address.path == 1
         && Node_getBestParent(link->child)->cannonicalLabel == addr.path)
     {
-        return Error(NONE);
+        return NULL;
     }
     //RumorMill_addNode(pf->rumorMill, &addr);
     Router_sendGetPeers(pf->router, &addr, 0, 0, pf->alloc);
@@ -325,9 +331,9 @@ static Iface_DEFUN peer(struct Message* msg, struct Pathfinder_pvt* pf)
 
 static Iface_DEFUN peerGone(struct Message* msg, struct Pathfinder_pvt* pf)
 {
-    struct Address addr;
+    struct Address addr = {0};
     addressForNode(&addr, msg);
-    String* str = Address_toString(&addr, msg->alloc);
+    String* str = Address_toString(&addr, Message_getAlloc(msg));
     Log_debug(pf->log, "Peer gone [%s]", str->bytes);
     NodeStore_disconnectedPeer(pf->nodeStore, addr.path);
 
@@ -337,9 +343,9 @@ static Iface_DEFUN peerGone(struct Message* msg, struct Pathfinder_pvt* pf)
 
 static Iface_DEFUN session(struct Message* msg, struct Pathfinder_pvt* pf)
 {
-    struct Address addr;
+    struct Address addr = {0};
     addressForNode(&addr, msg);
-    String* str = Address_toString(&addr, msg->alloc);
+    String* str = Address_toString(&addr, Message_getAlloc(msg));
     Log_debug(pf->log, "Session [%s]", str->bytes);
 
     /* This triggers for every little ping we send to some random node out there which
@@ -349,40 +355,40 @@ static Iface_DEFUN session(struct Message* msg, struct Pathfinder_pvt* pf)
         SearchRunner_search(addr.ip6.bytes, 20, 3, pf->searchRunner, pf->alloc);
     }*/
 
-    return Error(NONE);
+    return NULL;
 }
 
 static Iface_DEFUN sessionEnded(struct Message* msg, struct Pathfinder_pvt* pf)
 {
-    struct Address addr;
+    struct Address addr = {0};
     addressForNode(&addr, msg);
-    String* str = Address_toString(&addr, msg->alloc);
+    String* str = Address_toString(&addr, Message_getAlloc(msg));
     Log_debug(pf->log, "Session ended [%s]", str->bytes);
-    return Error(NONE);
+    return NULL;
 }
 
 static Iface_DEFUN discoveredPath(struct Message* msg, struct Pathfinder_pvt* pf)
 {
-    struct Address addr;
+    struct Address addr = {0};
     addressForNode(&addr, msg);
 
     // We're somehow aware of this path (even if it's unused)
-    if (NodeStore_linkForPath(pf->nodeStore, addr.path)) { return Error(NONE); }
+    if (NodeStore_linkForPath(pf->nodeStore, addr.path)) { return NULL; }
 
     // If we don't already care about the destination, then don't do anything.
     struct Node_Two* nn = NodeStore_nodeForAddr(pf->nodeStore, addr.ip6.bytes);
-    if (!nn) { return Error(NONE); }
+    if (!nn) { return NULL; }
 
     // Our best path is "shorter" (label bits which is somewhat representitive of hop count)
     // basically this is just to dampen the flood to the RM because otherwise it prevents Janitor
     // from getting any actual work done.
-    if (nn->address.path < addr.path) { return Error(NONE); }
+    if (nn->address.path < addr.path) { return NULL; }
 
     addr.protocolVersion = nn->address.protocolVersion;
 
-    Log_debug(pf->log, "Discovered path [%s]", Address_toString(&addr, msg->alloc)->bytes);
+    Log_debug(pf->log, "Discovered path [%s]", Address_toString(&addr, Message_getAlloc(msg))->bytes);
     RumorMill_addNode(pf->rumorMill, &addr);
-    return Error(NONE);
+    return NULL;
 }
 
 static Iface_DEFUN handlePing(struct Message* msg, struct Pathfinder_pvt* pf)
@@ -395,13 +401,13 @@ static Iface_DEFUN handlePing(struct Message* msg, struct Pathfinder_pvt* pf)
 static Iface_DEFUN handlePong(struct Message* msg, struct Pathfinder_pvt* pf)
 {
     Log_debug(pf->log, "Received pong");
-    return Error(NONE);
+    return NULL;
 }
 
 static Iface_DEFUN incomingMsg(struct Message* msg, struct Pathfinder_pvt* pf)
 {
-    struct Address addr;
-    struct RouteHeader* hdr = (struct RouteHeader*) msg->bytes;
+    struct Address addr = {0};
+    struct RouteHeader* hdr = (struct RouteHeader*) msg->msgbytes;
     Er_assert(Message_eshift(msg, -(RouteHeader_SIZE + DataHeader_SIZE)));
     Bits_memcpy(addr.ip6.bytes, hdr->ip6, 16);
     Bits_memcpy(addr.key, hdr->publicKey, 32);
@@ -414,12 +420,12 @@ static Iface_DEFUN incomingMsg(struct Message* msg, struct Pathfinder_pvt* pf)
     struct DHTMessage dht = {
         .address = &addr,
         .binMessage = msg,
-        .allocator = msg->alloc
+        .allocator = Message_getAlloc(msg)
     };
 
     DHTModuleRegistry_handleIncoming(&dht, pf->registry);
 
-    struct Message* nodeMsg = Message_new(0, 256, msg->alloc);
+    struct Message* nodeMsg = Message_new(0, 256, Message_getAlloc(msg));
     Iface_CALL(sendNode, nodeMsg, &addr, Metric_DHT_INCOMING, pf);
 
     if (dht.pleaseRespond) {
@@ -427,7 +433,7 @@ static Iface_DEFUN incomingMsg(struct Message* msg, struct Pathfinder_pvt* pf)
         return Iface_next(&pf->pub.eventIf, msg);
     }
 
-    return Error(NONE);
+    return NULL;
 }
 
 static Iface_DEFUN incomingFromEventIf(struct Message* msg, struct Iface* eventIf)
@@ -453,7 +459,7 @@ static Iface_DEFUN incomingFromEventIf(struct Message* msg, struct Iface* eventI
         case PFChan_Core_PONG: return handlePong(msg, pf);
         case PFChan_Core_UNSETUP_SESSION:
         case PFChan_Core_LINK_STATE:
-        case PFChan_Core_CTRL_MSG: return Error(NONE);
+        case PFChan_Core_CTRL_MSG: return NULL;
         default:;
     }
     Assert_failure("unexpected event [%d]", ev);

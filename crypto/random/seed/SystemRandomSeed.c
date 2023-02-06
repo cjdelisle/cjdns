@@ -50,7 +50,7 @@ Js({ this.RandomSeedProvider_providers = []; })
 static RandomSeed_Provider PROVIDERS[] = { RandomSeedProvider_list() };
 #define PROVIDERS_COUNT ((int)(sizeof(PROVIDERS) / sizeof(RandomSeed_Provider)))
 
-struct RandomSeed* SystemRandomSeed_new(RandomSeed_Provider* additionalProviders,
+RandomSeed_t* SystemRandomSeed_new(RandomSeed_Provider* additionalProviders,
                                         int additionalProviderCount,
                                         struct Log* logger,
                                         struct Allocator* alloc)

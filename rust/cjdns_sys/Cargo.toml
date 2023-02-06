@@ -6,16 +6,24 @@ edition = "2018"
 build = "build.rs"
 
 [dependencies]
-sodiumoxide = { git = "https://github.com/cjdelisle/sodiumoxide", branch = "cjdns", version = "0.2", default-features = false, features = ["std"] }
+sodiumoxide = { git = "https://github.com/cjdelisle/sodiumoxide", rev = "9f6a18d40a4db253edfebac9f2ce5c22d09b1f47", version = "0.2", default-features = false, features = ["std"] }
+cjdns-keys = { git = "https://github.com/CJDNS-Development-Team/CJDNS", version = "0.1.0" }
+cjdns-crypto = { git = "https://github.com/CJDNS-Development-Team/CJDNS", version = "0.1.0" }
+hex = "0.4"
+log = { version = "0.4", features = ["std", "release_max_level_trace"] }
+parking_lot = "0.11"
 thiserror = "1.0"
-anyhow = "1.0"
+anyhow = { version = "1.0", features = ["backtrace"] }
+boringtun = { git = "https://github.com/cjdelisle/boringtun", rev = "f288b2f461e7322a278b63b1ddc4ab705b5b7462", version = "0.3", features = ["additional_data"] }
+slog = { version = "2.7", features = ["release_max_level_trace"] }
+pnet = { version = "0.29" }
+tokio = { version = "1", features = ["macros","time","sync","fs","rt-multi-thread","process"], default-features = false }
 
 [build_dependencies]
 cc = "1.0"
 anyhow = "1.0"
-cbindgen = { version = "0.15", optional = true }
+cbindgen = { version = "0.16" }
 bindgen = { version = "0.55", optional = true }
 
 [features]
-generate-rffi = ["cbindgen"]
 generate-cffi = ["bindgen"]

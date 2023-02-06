@@ -28,7 +28,7 @@ struct Context {
 
 static struct Address* getAddr(Dict* args, struct Allocator* alloc)
 {
-    struct Address addr;
+    struct Address addr = {0};
     Bits_memset(&addr, 0, Address_SIZE);
     if (Key_parse(Dict_getStringC(args, "key"), addr.key, addr.ip6.bytes)) { return NULL; }
     return Address_clone(&addr, alloc);

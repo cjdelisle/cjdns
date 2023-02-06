@@ -20,6 +20,6 @@
 #include "util/Linker.h"
 
 Linker_require("crypto/random/seed/GetEntropyRandomSeed.c")
-struct RandomSeed* GetEntropyRandomSeed_new(struct Allocator* alloc);
+RandomSeed_t* GetEntropyRandomSeed_new(struct Allocator* alloc);
 
 #endif

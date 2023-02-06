@@ -29,6 +29,7 @@
    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include <pthread.h>
 
 /*Android doesn't provide pthread_barrier_t for now.*/
 #ifndef PTHREAD_BARRIER_SERIAL_THREAD

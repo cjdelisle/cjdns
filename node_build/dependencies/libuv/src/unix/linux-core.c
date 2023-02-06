@@ -139,6 +139,9 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   int op;
   int i;
   static int no_epoll_wait;
+  #ifdef Cjdns_android
+    no_epoll_wait = 1;
+  #endif
 
   if (loop->nfds == 0) {
     assert(QUEUE_EMPTY(&loop->watcher_queue));

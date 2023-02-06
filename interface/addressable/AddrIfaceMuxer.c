@@ -18,6 +18,7 @@
 #include "util/Assert.h"
 #include "util/Identity.h"
 #include "wire/Message.h"
+#include "wire/Error.h"
 
 #include "util/Hex.h"
 
@@ -61,7 +62,7 @@ static Iface_DEFUN incomingFromAddrIf(struct Message* msg, struct Iface* addrIf)
     int idx = Map_Ifaces_indexForHandle(handle, &ctx->ifaces);
     if (idx < 0) {
         Log_info(ctx->log, "DROP message to nonexistant iface [0x%x]", handle);
-        return Error(UNHANDLED);
+        return Error(msg, "UNHANDLED (no such iface)");
     }
     return Iface_next(&ctx->ifaces.values[idx]->iface, msg);
 }
@@ -71,16 +72,16 @@ static Iface_DEFUN incomingFromInputIf(struct Message* msg, struct Iface* inputI
     struct AddrIfaceMuxer_Iface* cli =
         Identity_containerOf(inputIf, struct AddrIfaceMuxer_Iface, iface);
     struct AddrIfaceMuxer_pvt* ctx = Identity_check(cli->muxer);
-    if (msg->length < (int)sizeof(struct Sockaddr)) {
+    if (Message_getLength(msg) < (int)sizeof(struct Sockaddr)) {
         Log_info(ctx->log, "DROP runt");
-        return Error(RUNT);
+        return Error(msg, "RUNT");
     }
 
-    uint16_t addrLen = Bits_get16(msg->bytes);
+    uint16_t addrLen = Bits_get16(msg->msgbytes);
     Er_assert(AddrIface_pushAddr(msg, &cli->addr));
 
     // After pushing the address, tweak the length
-    Bits_put16(msg->bytes, cli->addr.addrLen + addrLen);
+    Bits_put16(msg->msgbytes, cli->addr.addrLen + addrLen);
 
     return Iface_next(&ctx->pub.iface.iface, msg);
 }

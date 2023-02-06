@@ -17,6 +17,7 @@
 #include "net/EventEmitter.h"
 #include "util/Identity.h"
 #include "util/log/Log.h"
+#include "wire/Error.h"
 
 #include <stdbool.h>
 
@@ -85,15 +86,15 @@ static struct ArrayList_Ifaces* getHandlers(struct EventEmitter_pvt* ee,
 
 static Iface_DEFUN sendToPathfinder(struct Message* msg, struct Pathfinder* pf)
 {
-    if (!pf || pf->state != Pathfinder_state_CONNECTED) { return Error(NONE); }
-    if (pf->bytesSinceLastPing < 8192 && pf->bytesSinceLastPing + msg->length >= 8192) {
-        struct Message* ping = Message_new(0, 512, msg->alloc);
+    if (!pf || pf->state != Pathfinder_state_CONNECTED) { return NULL; }
+    if (pf->bytesSinceLastPing < 8192 && pf->bytesSinceLastPing + Message_getLength(msg) >= 8192) {
+        struct Message* ping = Message_new(0, 512, Message_getAlloc(msg));
         Er_assert(Message_epush32be(ping, pf->bytesSinceLastPing));
         Er_assert(Message_epush32be(ping, PING_MAGIC));
         Er_assert(Message_epush32be(ping, PFChan_Core_PING));
         Iface_send(&pf->iface, ping);
     }
-    pf->bytesSinceLastPing += msg->length;
+    pf->bytesSinceLastPing += Message_getLength(msg);
     return Iface_next(&pf->iface, msg);
 }
 
@@ -175,9 +176,9 @@ Assert_compileTime(PFChan_Core__TOO_HIGH == 1040);
 static Iface_DEFUN incomingFromCore(struct Message* msg, struct Iface* trickIf)
 {
     struct EventEmitter_pvt* ee = Identity_containerOf(trickIf, struct EventEmitter_pvt, trickIf);
-    Assert_true(!((uintptr_t)msg->bytes % 4) && "alignment");
+    Assert_true(!((uintptr_t)msg->msgbytes % 4) && "alignment");
     enum PFChan_Core ev = Er_assert(Message_epop32be(msg));
-    Assert_true(PFChan_Core_sizeOk(ev, msg->length+4));
+    Assert_true(PFChan_Core_sizeOk(ev, Message_getLength(msg)+4));
     uint32_t pathfinderNum = Er_assert(Message_epop32be(msg));
     Er_assert(Message_epush32be(msg, ev));
     if (pathfinderNum != 0xffffffff) {
@@ -188,11 +189,11 @@ static Iface_DEFUN incomingFromCore(struct Message* msg, struct Iface* trickIf)
         for (int i = 0; i < ee->pathfinders->length; i++) {
             struct Pathfinder* pf = ArrayList_Pathfinders_get(ee->pathfinders, i);
             if (!pf || pf->state != Pathfinder_state_CONNECTED) { continue; }
-            struct Message* messageClone = Message_clone(msg, msg->alloc);
+            struct Message* messageClone = Message_clone(msg, Message_getAlloc(msg));
             Iface_CALL(sendToPathfinder, messageClone, pf);
         }
     }
-    return Error(NONE);
+    return NULL;
 }
 
 static struct Message* pathfinderMsg(enum PFChan_Core ev,
@@ -200,7 +201,7 @@ static struct Message* pathfinderMsg(enum PFChan_Core ev,
                                      struct Allocator* alloc)
 {
     struct Message* msg = Message_new(PFChan_Core_Pathfinder_SIZE, 512, alloc);
-    struct PFChan_Core_Pathfinder* pathfinder = (struct PFChan_Core_Pathfinder*) msg->bytes;
+    struct PFChan_Core_Pathfinder* pathfinder = (struct PFChan_Core_Pathfinder*) msg->msgbytes;
     pathfinder->superiority_be = Endian_hostToBigEndian32(pf->superiority);
     pathfinder->pathfinderId_be = Endian_hostToBigEndian32(pf->pathfinderId);
     Bits_memcpy(pathfinder->userAgent, pf->userAgent, 64);
@@ -232,20 +233,20 @@ static int handleFromPathfinder(enum PFChan_Pathfinder ev,
             Bits_memcpy(resp.publicKey, ee->publicKey, 32);
             Er_assert(Message_epush(msg, &resp, PFChan_Core_Connect_SIZE));
             Er_assert(Message_epush32be(msg, PFChan_Core_CONNECT));
-            struct Message* sendMsg = Message_clone(msg, msg->alloc);
+            struct Message* sendMsg = Message_clone(msg, Message_getAlloc(msg));
             Iface_CALL(sendToPathfinder, sendMsg, pf);
             break;
         }
         case PFChan_Pathfinder_SUPERIORITY: {
             Er_assert(Message_eshift(msg, -8));
             pf->superiority = Er_assert(Message_epop32be(msg));
-            struct Message* resp = pathfinderMsg(PFChan_Core_PATHFINDER, pf, msg->alloc);
+            struct Message* resp = pathfinderMsg(PFChan_Core_PATHFINDER, pf, Message_getAlloc(msg));
             Iface_CALL(incomingFromCore, resp, &ee->trickIf);
             break;
         }
 
         case PFChan_Pathfinder_PING: {
-            struct Message* sendMsg = Message_clone(msg, msg->alloc);
+            struct Message* sendMsg = Message_clone(msg, Message_getAlloc(msg));
             Iface_send(&pf->iface, sendMsg);
             break;
         }
@@ -255,7 +256,7 @@ static int handleFromPathfinder(enum PFChan_Pathfinder ev,
             uint32_t count = Er_assert(Message_epop32be(msg));
             if (cookie != PING_MAGIC || count > pf->bytesSinceLastPing) {
                 pf->state = Pathfinder_state_ERROR;
-                struct Message* resp = pathfinderMsg(PFChan_Core_PATHFINDER_GONE, pf, msg->alloc);
+                struct Message* resp = pathfinderMsg(PFChan_Core_PATHFINDER_GONE, pf, Message_getAlloc(msg));
                 Iface_CALL(incomingFromCore, resp, &ee->trickIf);
             } else {
                 pf->bytesSinceLastPing -= count;
@@ -266,7 +267,7 @@ static int handleFromPathfinder(enum PFChan_Pathfinder ev,
             for (int i = 0; i < ee->pathfinders->length; i++) {
                 struct Pathfinder* xpf = ArrayList_Pathfinders_get(ee->pathfinders, i);
                 if (!xpf || xpf->state != Pathfinder_state_CONNECTED) { continue; }
-                struct Allocator* alloc = Allocator_child(msg->alloc);
+                struct Allocator* alloc = Allocator_child(Message_getAlloc(msg));
                 struct Message* resp = pathfinderMsg(PFChan_Core_PATHFINDER, pf, alloc);
                 Iface_CALL(sendToPathfinder, resp, pf);
                 Allocator_free(alloc);
@@ -281,38 +282,38 @@ static Iface_DEFUN incomingFromPathfinder(struct Message* msg, struct Iface* ifa
 {
     struct Pathfinder* pf = Identity_containerOf(iface, struct Pathfinder, iface);
     struct EventEmitter_pvt* ee = Identity_check((struct EventEmitter_pvt*) pf->ee);
-    if (msg->length < 4) {
+    if (Message_getLength(msg) < 4) {
         Log_debug(ee->log, "DROPPF runt");
-        return Error(RUNT);
+        return Error(msg, "RUNT");
     }
     enum PFChan_Pathfinder ev = Er_assert(Message_epop32be(msg));
     Er_assert(Message_epush32be(msg, pf->pathfinderId));
     Er_assert(Message_epush32be(msg, ev));
     if (ev <= PFChan_Pathfinder__TOO_LOW || ev >= PFChan_Pathfinder__TOO_HIGH) {
         Log_debug(ee->log, "DROPPF invalid type [%d]", ev);
-        return Error(INVALID);
+        return Error(msg, "INVALID");
     }
-    if (!PFChan_Pathfinder_sizeOk(ev, msg->length)) {
-        Log_debug(ee->log, "DROPPF incorrect length[%d] for type [%d]", msg->length, ev);
-        return Error(INVALID);
+    if (!PFChan_Pathfinder_sizeOk(ev, Message_getLength(msg))) {
+        Log_debug(ee->log, "DROPPF incorrect length[%d] for type [%d]", Message_getLength(msg), ev);
+        return Error(msg, "INVALID");
     }
 
     if (pf->state == Pathfinder_state_DISCONNECTED) {
         if (ev != PFChan_Pathfinder_CONNECT) {
             Log_debug(ee->log, "DROPPF disconnected and event != CONNECT event:[%d]", ev);
-            return Error(INVALID);
+            return Error(msg, "INVALID");
         }
     } else if (pf->state != Pathfinder_state_CONNECTED) {
         Log_debug(ee->log, "DROPPF error state");
-        return Error(INVALID);
+        return Error(msg, "INVALID");
     }
 
-    if (handleFromPathfinder(ev, msg, ee, pf)) { return Error(NONE); }
+    if (handleFromPathfinder(ev, msg, ee, pf)) { return NULL; }
 
     struct ArrayList_Ifaces* handlers = getHandlers(ee, ev, false);
-    if (!handlers) { return Error(NONE); }
+    if (!handlers) { return NULL; }
     for (int i = 0; i < handlers->length; i++) {
-        struct Message* messageClone = Message_clone(msg, msg->alloc);
+        struct Message* messageClone = Message_clone(msg, Message_getAlloc(msg));
         struct Iface* iface = ArrayList_Ifaces_get(handlers, i);
         // We have to call this manually because we don't have an interface handy which is
         // actually plumbed with this one.
@@ -320,7 +321,7 @@ static Iface_DEFUN incomingFromPathfinder(struct Message* msg, struct Iface* ifa
         Assert_true(iface->send);
         Iface_CALL(iface->send, messageClone, iface);
     }
-    return Error(NONE);
+    return NULL;
 }
 
 void EventEmitter_regCore(struct EventEmitter* eventEmitter,
@@ -329,6 +330,7 @@ void EventEmitter_regCore(struct EventEmitter* eventEmitter,
 {
     struct EventEmitter_pvt* ee = Identity_check((struct EventEmitter_pvt*) eventEmitter);
     iface->connectedIf = &ee->trickIf;
+    Iface_setIdentity(iface);
     struct ArrayList_Ifaces* l = getHandlers(ee, ev, true);
     if (!l) {
         Assert_true(ev == 0);
@@ -364,6 +366,7 @@ struct EventEmitter* EventEmitter_new(struct Allocator* allocator,
     ee->log = log;
     ee->alloc = alloc;
     ee->trickIf.send = incomingFromCore;
+    Iface_setIdentity(&ee->trickIf);
     ee->pathfinders = ArrayList_Pathfinders_new(ee->alloc);
     Bits_memcpy(ee->publicKey, publicKey, 32);
     Identity_set(ee);

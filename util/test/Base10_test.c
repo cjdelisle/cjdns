@@ -42,12 +42,12 @@ int main()
 
         snprintf(buff, 31, "%lld", num);
 
-        Assert_true(msg->length == (int)CString_strlen(buff));
-        Assert_true(!Bits_memcmp(msg->bytes, buff, msg->length));
+        Assert_true(Message_getLength(msg) == (int)CString_strlen(buff));
+        Assert_true(!Bits_memcmp(msg->msgbytes, buff, Message_getLength(msg)));
 
         int64_t read = Er_assert(Base10_read(msg));
         Assert_true(read == num);
-        Assert_true(msg->length == 0);
+        Assert_true(Message_getLength(msg) == 0);
     }
 
     Allocator_free(alloc);

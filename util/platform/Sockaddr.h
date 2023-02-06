@@ -130,6 +130,15 @@ int Sockaddr_getFamily(struct Sockaddr* sa);
 int Sockaddr_getAddress(struct Sockaddr* sa, void* addrPtr);
 
 /**
+ * Whatever the address is, attempt to represent it as an IPv6 address.
+ * IPv6 addresses are easy.
+ * IPv4 are represented as ::ffff::aabb::ccdd
+ * Other addresses smaller or equal than 14 bytes are represented as fffe::<address bytes>
+ * Other addresses larger than 14 bytes are represented as ffff::<14 bytes of sha256 hash of address>
+ */
+void Sockaddr_asIp6(uint8_t addrOut[static 16], const struct Sockaddr* sockaddr);
+
+/**
  * Get a new sockaddr from the native form, IE: sockaddr_in or sockaddr_in6.
  */
 struct Sockaddr* Sockaddr_fromNative(const void* ss, int addrLen, struct Allocator* alloc);

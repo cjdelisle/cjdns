@@ -42,8 +42,6 @@ struct SwitchInterface
 
     struct Allocator_OnFreeJob* onFree;
 
-    int state;
-
     Identity
 };
 
@@ -71,27 +69,28 @@ static inline Iface_DEFUN sendError(struct SwitchInterface* iface,
                                     uint32_t code,
                                     struct Log* logger)
 {
-    if (cause->length < SwitchHeader_SIZE + 4) {
+    if (Message_getLength(cause) < SwitchHeader_SIZE + 4) {
         Log_debug(logger, "runt");
-        return Error(RUNT);
+        return Error(cause, "RUNT");
     }
 
-    struct SwitchHeader* causeHeader = (struct SwitchHeader*) cause->bytes;
+    struct SwitchHeader* causeHeader = (struct SwitchHeader*) cause->msgbytes;
 
     if (SwitchHeader_getSuppressErrors(causeHeader)) {
         // don't send errors if they're asking us to suppress them!
-        return Error(NONE);
+        return NULL;
     }
 
     // limit of 256 bytes
-    cause->length =
-        (cause->length < Control_Error_MAX_SIZE) ? cause->length : Control_Error_MAX_SIZE;
+    if (Message_getLength(cause) > Control_Error_MAX_SIZE) {
+        Er_assert(Message_truncate(cause, Control_Error_MAX_SIZE));
+    }
 
     // Shift back so we can add another header.
     Er_assert(Message_epush(cause,
                  NULL,
                  SwitchHeader_SIZE + 4 + Control_Header_SIZE + Control_Error_HEADER_SIZE));
-    struct ErrorPacket8* err = (struct ErrorPacket8*) cause->bytes;
+    struct ErrorPacket8* err = (struct ErrorPacket8*) cause->msgbytes;
 
     err->switchHeader.label_be = Bits_bitReverse64(causeHeader->label_be);
     SwitchHeader_setSuppressErrors(&err->switchHeader, true);
@@ -105,7 +104,7 @@ static inline Iface_DEFUN sendError(struct SwitchInterface* iface,
     err->ctrl.header.checksum_be = 0;
 
     err->ctrl.header.checksum_be =
-        Checksum_engine_be((uint8_t*) &err->ctrl, cause->length - SwitchHeader_SIZE - 4);
+        Checksum_engine_be((uint8_t*) &err->ctrl, Message_getLength(cause) - SwitchHeader_SIZE - 4);
 
     return Iface_next(&iface->iface, cause);
 }
@@ -119,12 +118,12 @@ static Iface_DEFUN receiveMessage(struct Message* message, struct Iface* iface)
     struct SwitchInterface* sourceIf = Identity_check((struct SwitchInterface*) iface);
     struct SwitchCore_pvt* core = Identity_check(sourceIf->core);
 
-    if (message->length < SwitchHeader_SIZE) {
+    if (Message_getLength(message) < SwitchHeader_SIZE) {
         Log_debug(core->logger, "DROP runt");
-        return Error(RUNT);
+        return Error(message, "RUNT");
     }
 
-    struct SwitchHeader* header = (struct SwitchHeader*) message->bytes;
+    struct SwitchHeader* header = (struct SwitchHeader*) message->msgbytes;
     const uint64_t label = Endian_bigEndianToHost64(header->label_be);
     uint32_t bits = NumberCompress_bitsUsedForLabel(label);
     const uint32_t sourceIndex = sourceIf - core->interfaces;
@@ -196,13 +195,6 @@ static Iface_DEFUN receiveMessage(struct Message* message, struct Iface* iface)
         return sendError(sourceIf, message, Error_MALFORMED_ADDRESS, core->logger);
     }
 
-    if (core->interfaces[destIndex].state == SwitchCore_setInterfaceState_ifaceState_DOWN &&
-        1 != sourceIndex)
-    {
-        DEBUG_SRC_DST(core->logger, "DROP packet because interface is down");
-        return sendError(sourceIf, message, Error_UNDELIVERABLE, core->logger);
-    }
-
     /*if (sourceIndex == destIndex && sourceIndex != 1) {
         DEBUG_SRC_DST(core->logger, "DROP Packet with redundant route.");
         return sendError(sourceIf, message, Error_LOOP_ROUTE, core->logger);
@@ -211,10 +203,10 @@ static Iface_DEFUN receiveMessage(struct Message* message, struct Iface* iface)
     uint64_t sourceLabel = Bits_bitReverse64(NumberCompress_getCompressed(sourceIndex, bits));
     uint64_t targetLabel = (label >> bits) | sourceLabel;
 
-    int cloneLength = (message->length < Control_Error_MAX_SIZE) ?
-        message->length : Control_Error_MAX_SIZE;
+    int cloneLength = (Message_getLength(message) < Control_Error_MAX_SIZE) ?
+        Message_getLength(message) : Control_Error_MAX_SIZE;
     uint8_t messageClone[Control_Error_MAX_SIZE];
-    Bits_memcpy(messageClone, message->bytes, cloneLength);
+    Bits_memcpy(messageClone, message->msgbytes, cloneLength);
 
     // Update the header
     header->label_be = Endian_hostToBigEndian64(targetLabel);
@@ -222,7 +214,7 @@ static Iface_DEFUN receiveMessage(struct Message* message, struct Iface* iface)
     if (labelShift > 63) {
         // TODO(cjd): hmm should we return an error packet?
         Log_debug(core->logger, "Label rolled over");
-        return Error(UNDELIVERABLE);
+        return Error(message, "UNDELIVERABLE");
     }
     SwitchHeader_setLabelShift(header, labelShift);
     SwitchHeader_setTrafficClass(header, 0xffff);
@@ -235,13 +227,6 @@ static int removeInterface(struct Allocator_OnFreeJob* job)
     struct SwitchInterface* si = Identity_check((struct SwitchInterface*) job->userData);
     Bits_memset(si, 0, sizeof(struct SwitchInterface));
     return 0;
-}
-
-void SwitchCore_setInterfaceState(struct Iface* userIf, int ifaceState)
-{
-    struct SwitchInterface* sif = Identity_check((struct SwitchInterface*) userIf->connectedIf);
-    Assert_true(ifaceState == (ifaceState & 1));
-    sif->state = ifaceState;
 }
 
 void SwitchCore_swapInterfaces(struct Iface* userIf1, struct Iface* userIf2)
@@ -286,7 +271,6 @@ int SwitchCore_addInterface(struct SwitchCore* switchCore,
     newIf->core = core;
     newIf->alloc = alloc;
     newIf->onFree = Allocator_onFree(alloc, removeInterface, newIf);
-    newIf->state = SwitchCore_setInterfaceState_ifaceState_UP;
     Iface_plumb(iface, &newIf->iface);
 
     uint32_t bits = NumberCompress_bitsUsedForNumber(ifIndex);
@@ -310,7 +294,6 @@ struct SwitchCore* SwitchCore_new(struct Log* logger,
     routerIf->iface.send = receiveMessage;
     routerIf->core = core;
     routerIf->alloc = allocator;
-    routerIf->state = SwitchCore_setInterfaceState_ifaceState_UP;
     core->pub.routerIf = &routerIf->iface;
 
     return &core->pub;

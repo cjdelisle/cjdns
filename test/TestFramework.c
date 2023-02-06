@@ -13,7 +13,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "crypto/random/Random.h"
-#include "crypto/CryptoAuth.h"
+#include "crypto/Ca.h"
 #include "crypto/AddressCalc.h"
 #ifndef SUBNODE
 #include "dht/Pathfinder.h"
@@ -61,20 +61,20 @@ static Iface_DEFUN sendTo(struct Message* msg,
                           struct TestFramework* srcTf,
                           struct TestFramework* destTf)
 {
-    Assert_true(!((uintptr_t)msg->bytes % 4) || !"alignment fault");
-    Assert_true(!(msg->capacity % 4) || !"length fault");
-    Assert_true(((int)msg->capacity >= msg->length) || !"length fault0");
+    Assert_true(!((uintptr_t)msg->msgbytes % 4) || !"alignment fault");
+    Assert_true(!(Message_getCapacity(msg) % 4) || !"length fault");
+    Assert_true(((int)Message_getCapacity(msg) >= Message_getLength(msg)) || !"length fault0");
 
     Log_debug(srcTf->logger, "Transferring message to [%p] - message length [%d]\n",
-              (void*)dest, msg->length);
+              (void*)dest, Message_getLength(msg));
 
     // Store the original message and a copy of the original so they can be compared later.
     srcTf->lastMsgBackup = Message_clone(msg, srcTf->alloc);
     srcTf->lastMsg = msg;
-    if (msg->alloc) {
+    if (Message_getAlloc(msg)) {
         // If it's a message which was buffered inside of CryptoAuth then it will be freed
         // so by adopting the allocator we can hold it in memory.
-        Allocator_adopt(srcTf->alloc, msg->alloc);
+        Allocator_adopt(srcTf->alloc, Message_getAlloc(msg));
     }
 
     // Copy the original and send that to the other end.
@@ -101,7 +101,8 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
                                           struct Allocator* allocator,
                                           struct EventBase* base,
                                           struct Random* rand,
-                                          struct Log* logger)
+                                          struct Log* logger,
+                                          bool enableNoise)
 {
     if (!logger) {
         struct Writer* logwriter = FileWriter_new(stdout, allocator);
@@ -125,7 +126,7 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
     struct EncodingScheme* scheme = NumberCompress_defineScheme(allocator);
 
     struct NetCore* nc =
-        NetCore_new(privateKey, allocator, base, rand, logger);
+        NetCore_new(privateKey, allocator, base, rand, logger, enableNoise);
 
     struct RouteGen* rg = RouteGen_new(allocator, logger);
 
@@ -137,16 +138,12 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
 
     struct SubnodePathfinder* spf = SubnodePathfinder_new(
         allocator, logger, base, rand, nc->myAddress, privateKey, scheme);
-    struct ASynchronizer* spfAsync = ASynchronizer_new(allocator, base, logger);
-    Iface_plumb(&spfAsync->ifA, &spf->eventIf);
-    EventEmitter_regPathfinderIface(nc->ee, &spfAsync->ifB);
+    EventEmitter_regPathfinderIface(nc->ee, &spf->eventIf);
 
     #ifndef SUBNODE
         struct Pathfinder* pf = Pathfinder_register(allocator, logger, base, rand, NULL);
         pf->fullVerify = true;
-        struct ASynchronizer* pfAsync = ASynchronizer_new(allocator, base, logger);
-        Iface_plumb(&pfAsync->ifA, &pf->eventIf);
-        EventEmitter_regPathfinderIface(nc->ee, &pfAsync->ifB);
+        EventEmitter_regPathfinderIface(nc->ee, &pf->eventIf);
     #endif
 
     SubnodePathfinder_start(spf);
@@ -177,9 +174,9 @@ void TestFramework_assertLastMessageUnaltered(struct TestFramework* tf)
     }
     struct Message* a = tf->lastMsg;
     struct Message* b = tf->lastMsgBackup;
-    Assert_true(a->length == b->length);
-    Assert_true(a->padding == b->padding);
-    Assert_true(!Bits_memcmp(a->bytes, b->bytes, a->length));
+    Assert_true(Message_getLength(a) == Message_getLength(b));
+    Assert_true(Message_getPadding(a) == Message_getPadding(b));
+    Assert_true(!Bits_memcmp(a->msgbytes, b->msgbytes, Message_getLength(a)));
 }
 
 void TestFramework_linkNodes(struct TestFramework* client,
@@ -217,7 +214,7 @@ void TestFramework_linkNodes(struct TestFramework* client,
         Assert_true(!ret);
     } else {
         // Except that it has an authorizedPassword added.
-        CryptoAuth_addUser(String_CONST("abcdefg123"), String_CONST("TEST"), server->nc->ca);
+        Ca_addUser(String_CONST("abcdefg123"), String_CONST("TEST"), server->nc->ca);
 
         // Client has pubKey and passwd for the server.
         InterfaceController_bootstrapPeer(client->nc->ifController,
@@ -227,18 +224,18 @@ void TestFramework_linkNodes(struct TestFramework* client,
                                    String_CONST("abcdefg123"),
                                    NULL,
                                    NULL,
-                                   client->alloc);
+                                   Version_CURRENT_PROTOCOL);
     }
 }
 
 void TestFramework_craftIPHeader(struct Message* msg, uint8_t srcAddr[16], uint8_t destAddr[16])
 {
     Er_assert(Message_eshift(msg, Headers_IP6Header_SIZE));
-    struct Headers_IP6Header* ip = (struct Headers_IP6Header*) msg->bytes;
+    struct Headers_IP6Header* ip = (struct Headers_IP6Header*) msg->msgbytes;
 
     ip->versionClassAndFlowLabel = 0;
     ip->flowLabelLow_be = 0;
-    ip->payloadLength_be = Endian_hostToBigEndian16(msg->length - Headers_IP6Header_SIZE);
+    ip->payloadLength_be = Endian_hostToBigEndian16(Message_getLength(msg) - Headers_IP6Header_SIZE);
     ip->nextHeader = 123; // made up number
     ip->hopLimit = 255;
     Bits_memcpy(ip->sourceAddr, srcAddr, 16);
@@ -267,7 +264,7 @@ int TestFramework_sessionCount(struct TestFramework* node)
     for (int i = 0; i < list->length; i++) {
         struct SessionManager_Session* sess =
             SessionManager_sessionForHandle(list->handles[i], node->nc->sm);
-        count += (CryptoAuth_getState(sess->caSession) == CryptoAuth_State_ESTABLISHED);
+        count += (Ca_getState(sess->caSession) == Ca_State_ESTABLISHED);
     }
     Allocator_free(alloc);
     return count;

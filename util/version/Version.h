@@ -460,11 +460,22 @@ Version_COMPAT(20, ([16,17,18,19]))
  */
 Version_COMPAT(21, ([20]))
 
+/**
+ * Version 22:
+ * May 26, 2021
+ *
+ * Noisemaker
+ *
+ * When communicating with v22 or above, use a varient of NOISE protocol rather than the aging
+ * CryptoAuth code.
+ */
+Version_COMPAT(22, ([21,20]))
 
 /**
  * The current protocol version.
  */
-#define Version_CURRENT_PROTOCOL 21
+#define Version_CURRENT_PROTOCOL 22
+#define Version_21_COMPAT
 #define Version_20_COMPAT
 
 #define Version_MINIMUM_COMPATIBLE 20

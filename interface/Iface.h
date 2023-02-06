@@ -17,9 +17,10 @@
 
 #include <stdint.h>
 
-#include "wire/Error.h"
+#include "rust/cjdns_sys/RTypes.h"
 #include "wire/Message.h"
 #include "util/Defined.h"
+#include "util/Identity.h"
 #include "util/Linker.h"
 Linker_require("interface/Iface.c")
 
@@ -29,11 +30,11 @@ struct Iface;
  * @param thisInterface the interface which contains the sendMessage function pointer.
  * @param message the message
  */
-typedef struct Error_s (* Iface_Callback)(struct Message* message, struct Iface* thisInterface);
+typedef struct RTypes_Error_t* (* Iface_Callback)(struct Message* message, struct Iface* thisInterface);
 
-#define Iface_DEFUN __attribute__ ((warn_unused_result)) struct Error_s
+#define Iface_DEFUN __attribute__ ((warn_unused_result)) struct RTypes_Error_t*
 
-typedef struct Iface
+struct Iface
 {
     /** Send a message through this interface. */
     Iface_Callback send;
@@ -45,10 +46,15 @@ typedef struct Iface
 
     /** Interface to which this one is connected (if connected) */
     struct Iface* connectedIf;
-} Iface_t;
+
+    Identity
+} /* Iface_t defined in RffiPrefix.h */;
 
 // This needs to be in a C file in order to be accessible from Rust
 Iface_DEFUN Iface_incomingFromRust(struct Message* message, struct Iface* thisInterface);
+
+void Iface_setIdentity(struct Iface* iface);
+void Iface_checkIdentity(struct Iface* iface);
 
 /**
  * Send a message to an Iface.
@@ -58,9 +64,11 @@ Iface_DEFUN Iface_incomingFromRust(struct Message* message, struct Iface* thisIn
  * assertion error, in order to forward the message which you received, you must use Iface_next()
  * and it must be a tail-call.
  */
-static inline struct Error_s Iface_send(struct Iface* iface, struct Message* msg)
+static inline struct RTypes_Error_t* Iface_send(struct Iface* iface, struct Message* msg)
 {
+    Iface_checkIdentity(iface);
     struct Iface* conn = iface->connectedIf;
+    Iface_checkIdentity(conn);
 
     #ifdef PARANOIA
         Assert_true(conn);
@@ -71,7 +79,7 @@ static inline struct Error_s Iface_send(struct Iface* iface, struct Message* msg
         conn->currentMsg = msg;
     #endif
 
-    struct Error_s ret = conn->send(msg, conn);
+    struct RTypes_Error_t* ret = conn->send(msg, conn);
 
     #ifdef PARANOIA
         msg->currentIface = NULL;
@@ -100,7 +108,7 @@ static inline Iface_DEFUN Iface_next(struct Iface* iface, struct Message* msg)
         conn->currentMsg = NULL;
     #endif
 
-    struct Error_s ret = Iface_send(iface, msg);
+    struct RTypes_Error_t* ret = Iface_send(iface, msg);
 
     #ifdef PARANOIA
         conn->currentMsg = currentMsg;
@@ -128,7 +136,7 @@ static inline Iface_DEFUN Iface_next(struct Iface* iface, struct Message* msg)
             Assert_true(!msg->currentIface);                \
             struct Iface Iface_y = { .currentMsg = msg };   \
             msg->currentIface = &Iface_y;                   \
-            struct Error_s ret = func(msg, __VA_ARGS__); \
+            struct RTypes_Error_t* ret = func(msg, __VA_ARGS__); \
             msg->currentIface = NULL;                       \
             ret; \
         }))
@@ -141,6 +149,8 @@ static inline void Iface_plumb(struct Iface* a, struct Iface* b)
 {
     Assert_true(!a->connectedIf);
     Assert_true(!b->connectedIf);
+    Iface_setIdentity(a);
+    Iface_setIdentity(b);
     a->connectedIf = b;
     b->connectedIf = a;
 }

@@ -241,7 +241,7 @@ static void initTunfd(Dict* args, void* vcontext, String* txid, struct Allocator
     }
     struct Iface* iface = NULL;
     if (type == TUNMessageType_NONE) {
-        Rffi_IfWrapper_t aw = Rffi_android_create(tunAlloc);
+        RTypes_IfWrapper_t aw = Rffi_android_create(tunAlloc);
         Iface_plumb(aw.external, &p->iface);
         iface = aw.internal;
     } else {
@@ -343,7 +343,7 @@ void Core_init(struct Allocator* alloc,
         sec = Security_new(alloc, logger, eventBase);
     }
     struct GlobalConfig* globalConf = GlobalConfig_new(alloc);
-    struct NetCore* nc = NetCore_new(privateKey, alloc, eventBase, rand, logger);
+    struct NetCore* nc = NetCore_new(privateKey, alloc, eventBase, rand, logger, !Defined(NOISE_NO));
 
     struct RouteGen* rg = RouteGen_new(alloc, logger);
 
@@ -441,6 +441,7 @@ int Core_main(int argc, char** argv)
 
     struct Allocator* alloc = MallocAllocator_new(ALLOCATOR_FAILSAFE);
     struct Log* preLogger = FileWriterLog_new(stderr, alloc);
+    Rffi_setLogger(preLogger);
     struct EventBase* eventBase = EventBase_new(alloc);
 
     // -------------------- Setup the Pre-Logger ---------------------- //
@@ -513,6 +514,7 @@ int Core_main(int argc, char** argv)
         struct Log* adminLogger = AdminLog_registerNew(admin, alloc, rand, eventBase);
         IndirectLog_set(logger, adminLogger);
         logger = adminLogger;
+        Rffi_setLogger(logger);
     }
 
     // --------------------- Inform client of UDP Addr --------------------- //

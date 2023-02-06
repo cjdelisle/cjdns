@@ -24,6 +24,8 @@
 #include "util/events/Time.h"
 #include "switch/LabelSplicer.h"
 
+#include <inttypes.h>
+
 #define CYCLE_MS 3000
 
 struct SupernodeHunter_pvt
@@ -172,7 +174,7 @@ static void adoptSupernode(struct SupernodeHunter_pvt* snp, struct Address* cand
     struct Query* q = Allocator_calloc(qp->alloc, sizeof(struct Query), 1);
     Identity_set(q);
     q->snp = snp;
-    q->sendTime = Time_currentTimeMilliseconds(snp->base);
+    q->sendTime = Time_currentTimeMilliseconds();
 
     Dict* msg = qp->msg = Dict_new(qp->alloc);
     qp->cb = adoptSupernode2;
@@ -236,12 +238,12 @@ static void updateSnodePath(struct SupernodeHunter_pvt* snp)
     struct Query* q = Allocator_calloc(qp->alloc, sizeof(struct Query), 1);
     Identity_set(q);
     q->snp = snp;
-    q->sendTime = Time_currentTimeMilliseconds(snp->base);
+    q->sendTime = Time_currentTimeMilliseconds();
 
     Dict* msg = qp->msg = Dict_new(qp->alloc);
     qp->cb = updateSnodePath2;
     qp->userData = q;
-    qp->target = Address_clone(&snp->pub.snodeAddr, qp->alloc);;
+    qp->target = Address_clone(&snp->pub.snodeAddr, qp->alloc);
 
     Log_debug(snp->log, "Update snode [%s] path", Address_toString(qp->target, qp->alloc)->bytes);
     Dict_putStringCC(msg, "sq", "gr", qp->alloc);
@@ -258,7 +260,7 @@ static void queryForAuthorized(struct SupernodeHunter_pvt* snp, struct Address* 
     struct Query* q = Allocator_calloc(qp->alloc, sizeof(struct Query), 1);
     Identity_set(q);
     q->snp = snp;
-    q->sendTime = Time_currentTimeMilliseconds(snp->base);
+    q->sendTime = Time_currentTimeMilliseconds();
 
     Dict* msg = qp->msg = Dict_new(qp->alloc);
     qp->cb = onReply;
@@ -273,7 +275,7 @@ static void queryForAuthorized(struct SupernodeHunter_pvt* snp, struct Address* 
 static void peerResponseOK(struct SwitchPinger_Response* resp, struct SupernodeHunter_pvt* snp)
 {
     ReachabilityCollector_lagSample(snp->rc, resp->label, resp->milliseconds);
-    struct Address snode;
+    struct Address snode = {0};
     Bits_memcpy(&snode, &resp->snode, sizeof(struct Address));
     if (!snode.path) {
         uint8_t label[20];
@@ -452,7 +454,7 @@ struct SupernodeHunter* SupernodeHunter_new(struct Allocator* allocator,
     out->base = base;
     //out->rand = rand;
     //out->nodes = AddrSet_new(alloc);
-    //out->timeSnodeCalled = Time_currentTimeMilliseconds(base);
+    //out->timeSnodeCalled = Time_currentTimeMilliseconds();
     //out->snodeCandidates = AddrSet_new(alloc);
     out->log = log;
     out->alloc = alloc;

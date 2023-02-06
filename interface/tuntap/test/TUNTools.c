@@ -19,6 +19,7 @@
 #include "util/events/Timeout.h"
 #include "wire/Ethernet.h"
 #include "wire/Headers.h"
+#include "wire/Error.h"
 
 #ifdef win32
     #include <windows.h>
@@ -83,16 +84,16 @@ Iface_DEFUN TUNTools_genericIP6Echo(struct Message* msg, struct TUNTools* tt)
     if (ethertype != Ethernet_TYPE_IP6) {
         Log_debug(tt->log, "Spurious packet with ethertype [%04x]\n",
                   Endian_bigEndianToHost16(ethertype));
-        return Error(INVALID);
+        return Error(msg, "INVALID");
     }
 
-    struct Headers_IP6Header* header = (struct Headers_IP6Header*) msg->bytes;
+    struct Headers_IP6Header* header = (struct Headers_IP6Header*) msg->msgbytes;
 
-    if (msg->length != Headers_IP6Header_SIZE + Headers_UDPHeader_SIZE + 12) {
-        int type = (msg->length >= Headers_IP6Header_SIZE) ? header->nextHeader : -1;
+    if (Message_getLength(msg) != Headers_IP6Header_SIZE + Headers_UDPHeader_SIZE + 12) {
+        int type = (Message_getLength(msg) >= Headers_IP6Header_SIZE) ? header->nextHeader : -1;
         Log_debug(tt->log, "Message of unexpected length [%u] ip6->nextHeader: [%d]\n",
-                  msg->length, type);
-        return Error(INVALID);
+                  Message_getLength(msg), type);
+        return Error(msg, "INVALID");
     }
     uint8_t* address;
     Sockaddr_getAddress(tt->tunDestAddr, &address);
@@ -127,7 +128,7 @@ static Iface_DEFUN receiveMessageUDP(struct Message* msg, struct Iface* udpIface
         EventBase_endLoop(ctx->pub.base);
     }
 
-    return Error(NONE);
+    return NULL;
 }
 
 static void fail(void* ignored)

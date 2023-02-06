@@ -54,12 +54,12 @@ struct Context
 
 static Iface_DEFUN incomingTun(struct Message* msg, struct Iface* tunB)
 {
-    return Error(NONE);
+    return NULL;
 }
 
 static void notLinkedYet(struct Context* ctx)
 {
-    uint64_t now = Time_currentTimeMilliseconds(ctx->base);
+    uint64_t now = Time_currentTimeMilliseconds();
     if ((now - ctx->startTime) > 5000) {
         Assert_failure("Failed to link in 5 seconds");
     }
@@ -112,12 +112,12 @@ void* CJDNS_FUZZ_INIT(struct Allocator* allocator, struct Random* rand)
     uint8_t privateKeyA[32];
     Key_gen(address, publicKey, privateKeyA, rand);
     struct TestFramework* a =
-        TestFramework_setUp((char*) privateKeyA, alloc, base, rand, logger);
+        TestFramework_setUp((char*) privateKeyA, alloc, base, rand, logger, !Defined(NOISE_NO));
 
     uint8_t privateKeyB[32];
     Key_gen(address, publicKey, privateKeyB, rand);
     struct TestFramework* b =
-        TestFramework_setUp((char*) privateKeyB, alloc, base, rand, logger);
+        TestFramework_setUp((char*) privateKeyB, alloc, base, rand, logger, !Defined(NOISE_NO));
 
     ctx->tunB.send = incomingTun;
     ctx->tunA.send = incomingTun;
@@ -128,7 +128,7 @@ void* CJDNS_FUZZ_INIT(struct Allocator* allocator, struct Random* rand)
     ctx->logger = logger;
     ctx->checkLinkageTimeout = Timeout_setInterval(checkLinkage, ctx, 1, base, alloc);
     ctx->base = base;
-    ctx->startTime = Time_currentTimeMilliseconds(base);
+    ctx->startTime = Time_currentTimeMilliseconds();
     ctx->alloc = alloc;
 
     Log_debug(a->logger, "Waiting for nodes to link asynchronously...");
@@ -139,18 +139,18 @@ void* CJDNS_FUZZ_INIT(struct Allocator* allocator, struct Random* rand)
 
 void CJDNS_FUZZ_MAIN(void* vctx, struct Message* msg)
 {
-    if (msg->length > 2048) { return; }
+    if (Message_getLength(msg) > 2048) { return; }
     struct Context* ctx = Identity_check((struct Context*) vctx);
     struct TestFramework* from = ctx->nodeA;
     struct TestFramework* to = ctx->nodeB;
 
     // forget it, it's gonna get killed in the Upper
-    if (msg->length < RouteHeader_SIZE) { return; }
+    if (Message_getLength(msg) < RouteHeader_SIZE) { return; }
 
     // Lets fill in the ipv6, pubkey & label so that any
     // old packet dump will work fine for testing
     {
-        struct RouteHeader* rh = (struct RouteHeader*) msg->bytes;
+        struct RouteHeader* rh = (struct RouteHeader*) msg->msgbytes;
         Bits_memcpy(rh->ip6, to->ip, 16);
         Bits_memcpy(rh->publicKey, to->publicKey, 32);
         rh->version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL);
@@ -168,7 +168,7 @@ void CJDNS_FUZZ_MAIN(void* vctx, struct Message* msg)
     struct Headers_UDPHeader udp = {
         .srcPort_be = 0xfcfc,
         .destPort_be = Endian_hostToBigEndian16(1), // UpperDistributor MAGIC_PORT
-        .length_be = Endian_hostToBigEndian16(msg->length + Headers_UDPHeader_SIZE),
+        .length_be = Endian_hostToBigEndian16(Message_getLength(msg) + Headers_UDPHeader_SIZE),
         .checksum_be = 0,
     };
     Er_assert(Message_epush(msg, &udp, Headers_UDPHeader_SIZE));
@@ -176,11 +176,11 @@ void CJDNS_FUZZ_MAIN(void* vctx, struct Message* msg)
     // fc00::1
     AddressCalc_makeValidAddress(&srcAndDest[16]);
     Bits_memcpy(&srcAndDest, from->ip, 16);
-    uint16_t checksum_be = Checksum_udpIp6_be(srcAndDest, msg->bytes, msg->length);
-    ((struct Headers_UDPHeader*)msg->bytes)->checksum_be = checksum_be;
+    uint16_t checksum_be = Checksum_udpIp6_be(srcAndDest, msg->msgbytes, Message_getLength(msg));
+    ((struct Headers_UDPHeader*)msg->msgbytes)->checksum_be = checksum_be;
 
     TestFramework_craftIPHeader(msg, srcAndDest, &srcAndDest[16]);
-    ((struct Headers_IP6Header*) msg->bytes)->nextHeader = 17;
+    ((struct Headers_IP6Header*) msg->msgbytes)->nextHeader = 17;
 
     Er_assert(TUNMessageType_push(msg, Ethernet_TYPE_IP6));
 

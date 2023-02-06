@@ -21,6 +21,9 @@
 #include "util/Base32.h"
 #include "util/Identity.h"
 #include "util/Endian.h"
+#include "util/Hex.h"
+#include "util/Defined.h"
+#include "util/log/Log.h"
 
 #include <sodium/crypto_hash_sha256.h>
 #include <sodium/crypto_stream_salsa20.h>
@@ -134,7 +137,11 @@ struct Random
     union Random_SeedGen* seedGen;
 
     /** The collector for getting the original permanent random seed from the operating system. */
-    struct RandomSeed* seed;
+    RandomSeed_t* seed;
+
+    struct Allocator* alloc;
+
+    struct Log* log;
 
     Identity
 };
@@ -196,14 +203,30 @@ void Random_bytes(struct Random* rand, uint8_t* location, uint64_t count)
                                   (uint8_t*)&rand->nonce,
                                   (uint8_t*)rand->tempSeed);
         rand->nonce++;
+
+        if (Defined(Log_KEYS)) {
+            struct Allocator* alloc = Allocator_child(rand->alloc);
+            char* buf = Hex_print(location, count, alloc);
+            Log_keys(rand->log, "Random_bytes(%p) -> [%s]", (void*) rand, buf);
+            Allocator_free(alloc);
+        }
         return;
     }
+
+    uint8_t* loc0 = location;
+    uint64_t c0 = count;
 
     for (;;) {
         uintptr_t sz = randomCopy(rand, location, count);
         location += sz;
         count -= sz;
         if (count == 0) {
+            if (Defined(Log_KEYS)) {
+                struct Allocator* alloc = Allocator_child(rand->alloc);
+                char* buf = Hex_print(loc0, c0, alloc);
+                Log_keys(rand->log, "Random_bytes(%p) -> [%s]", (void*) rand, buf);
+                Allocator_free(alloc);
+            }
             return;
         }
         stir(rand);
@@ -228,7 +251,7 @@ void Random_base32(struct Random* rand, uint8_t* output, uint32_t length)
 
 struct Random* Random_newWithSeed(struct Allocator* alloc,
                                   struct Log* logger,
-                                  struct RandomSeed* seed,
+                                  RandomSeed_t* seed,
                                   struct Except* eh)
 {
     union Random_SeedGen* seedGen = Allocator_calloc(alloc, sizeof(union Random_SeedGen), 1);
@@ -241,6 +264,8 @@ struct Random* Random_newWithSeed(struct Allocator* alloc,
     rand->seedGen = seedGen;
     rand->seed = seed;
     rand->nextByte = BUFFSIZE;
+    rand->alloc = alloc;
+    rand->log = logger;
 
     Identity_set(rand);
 
@@ -253,6 +278,6 @@ struct Random* Random_newWithSeed(struct Allocator* alloc,
 
 struct Random* Random_new(struct Allocator* alloc, struct Log* logger, struct Except* eh)
 {
-    struct RandomSeed* rs = SystemRandomSeed_new(NULL, 0, logger, alloc);
+    RandomSeed_t* rs = SystemRandomSeed_new(NULL, 0, logger, alloc);
     return Random_newWithSeed(alloc, logger, rs, eh);
 }

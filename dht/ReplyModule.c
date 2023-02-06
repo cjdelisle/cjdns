@@ -68,7 +68,7 @@ static int handleIncoming(struct DHTMessage* message, void* vcontext)
         Address_toString(message->address, message->allocator)->bytes);
 
     Message_reset(message->binMessage);
-    Assert_true(!((uintptr_t)message->binMessage->bytes % 4) || !"alignment fault0");
+    Assert_true(!((uintptr_t)message->binMessage->msgbytes % 4) || !"alignment fault0");
 
     struct DHTMessage* reply = Allocator_clone(message->allocator, (&(struct DHTMessage) {
         .replyTo = message,

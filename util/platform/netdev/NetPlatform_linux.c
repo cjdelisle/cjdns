@@ -35,7 +35,7 @@
 #include <arpa/inet.h>
 #include <linux/if.h>
 #include <linux/route.h>
-#if ! defined(android)
+#if ! defined(Cjdns_android)
     #include <linux/ipv6_route.h>
 #endif
 #include <linux/netlink.h>
@@ -241,19 +241,19 @@ static Er_DEFUN(bool getMoreMessages(struct RouteInfo** rio,
     bool retVal = false;
     struct Allocator* tempAlloc = Allocator_child(alloc);
     struct Message* msg = Message_new(BUFF_SZ, 0, tempAlloc);
-    ssize_t sz = recv(sock, msg->bytes, BUFF_SZ, MSG_TRUNC);
+    ssize_t sz = recv(sock, msg->msgbytes, BUFF_SZ, MSG_TRUNC);
     if (sz < (ssize_t)sizeof(struct nlmsghdr)) {
         Er_raise(tempAlloc, "recv() -> %s", strerror(errno));
     } else if (sz > BUFF_SZ) {
         Er_raise(tempAlloc, "recv() -> buffer too small");
     }
 
-    msg->length = sz;
-    //printf("%s\n", Hex_print(msg->bytes, msg->length, tempAlloc));
+    Er_assert(Message_truncate(msg, sz));
+    //printf("%s\n", Hex_print(msg->bytes, Message_getLength(msg), tempAlloc));
 
-    while (msg->length) {
+    while (Message_getLength(msg)) {
         struct RouteInfo ri = { .protocol = 0 };
-        int initMsgLen = msg->length;
+        int initMsgLen = Message_getLength(msg);
         struct nlmsghdr hdr;
         Er(Message_epop(msg, &hdr, sizeof(struct nlmsghdr)));
         //printf("\nHEADER %04x %04x\n", hdr.nlmsg_type, hdr.nlmsg_flags);
@@ -268,10 +268,10 @@ static Er_DEFUN(bool getMoreMessages(struct RouteInfo** rio,
         ri.af = rtm.rtm_family;
         ri.protocol = rtm.rtm_protocol;
         for (;;) {
-            int remainingLen = hdr.nlmsg_len - (initMsgLen - msg->length);
+            int remainingLen = hdr.nlmsg_len - (initMsgLen - Message_getLength(msg));
             if (remainingLen <= (int)sizeof(struct rtattr)) { break; }
             struct rtattr attrHead;
-            //printf(">%s %d\n", Hex_print(msg->bytes, msg->length, tempAlloc), remainingLen);
+            //printf(">%s %d\n", Hex_print(msg->bytes, Message_getLength(msg), tempAlloc), remainingLen);
             Er(Message_epop(msg, &attrHead, sizeof(struct rtattr)));
             switch (attrHead.rta_type) {
                 case RTA_OIF: {
@@ -377,7 +377,7 @@ static Er_DEFUN(void addDeleteRoutes(int sock,
         Er(Message_epush(msg, &ifa, sizeof(struct IfIndexAttr)));
         int addrLen = (ri->af == AF_INET6) ? 16 : 4;
         Er(Message_epush(msg, ri->dstAddr, addrLen));
-        bitShave(msg->bytes, ri->prefix, ri->af);
+        bitShave(msg->msgbytes, ri->prefix, ri->af);
         struct rtattr rta = { .rta_len = sizeof(struct rtattr) + addrLen, .rta_type = RTA_DST };
         Er(Message_epush(msg, &rta, sizeof(struct rtattr)));
         struct rtmsg route = {
@@ -390,12 +390,12 @@ static Er_DEFUN(void addDeleteRoutes(int sock,
         };
         Er(Message_epush(msg, &route, sizeof(struct rtmsg)));
         struct nlmsghdr hdr = {
-            .nlmsg_len = msg->length + sizeof(struct nlmsghdr),
+            .nlmsg_len = Message_getLength(msg) + sizeof(struct nlmsghdr),
             .nlmsg_type = (delete) ? RTM_DELROUTE : RTM_NEWROUTE,
             .nlmsg_flags = NLM_F_REQUEST | ((delete) ? 0 : NLM_F_CREATE) // | NLM_F_ACK,
         };
         Er(Message_epush(msg, &hdr, sizeof(struct nlmsghdr)));
-        ssize_t sz = send(sock, msg->bytes, msg->length, 0);
+        ssize_t sz = send(sock, msg->msgbytes, Message_getLength(msg), 0);
         if (sz < 0) {
             Er_raise(tempAlloc, "send() -> %s", strerror(errno));
         }

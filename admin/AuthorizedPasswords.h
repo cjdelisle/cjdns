@@ -16,7 +16,7 @@
 #define AuthorizedPasswords_H
 
 #include "admin/Admin.h"
-#include "crypto/CryptoAuth.h"
+#include "crypto/Ca.h"
 #include "memory/Allocator.h"
 #include "util/Linker.h"
 Linker_require("admin/AuthorizedPasswords.c")
@@ -55,7 +55,7 @@ Linker_require("admin/AuthorizedPasswords.c")
  * @param allocator a persistent memory allocator.
  */
 void AuthorizedPasswords_init(struct Admin* admin,
-                              struct CryptoAuth* ca,
+                              Ca_t* ca,
                               struct Allocator* allocator);
 
 #endif

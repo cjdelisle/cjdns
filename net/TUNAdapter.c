@@ -24,6 +24,7 @@
 #include "crypto/AddressCalc.h"
 #include "util/Defined.h"
 #include "util/AddrTools.h"
+#include "wire/Error.h"
 
 struct TUNAdapter_pvt
 {
@@ -39,13 +40,13 @@ static Iface_DEFUN incomingFromTunIf(struct Message* msg, struct Iface* tunIf)
 
     uint16_t ethertype = Er_assert(TUNMessageType_pop(msg));
 
-    int version = Headers_getIpVersion(msg->bytes);
+    int version = Headers_getIpVersion(msg->msgbytes);
     if ((ethertype == Ethernet_TYPE_IP4 && version != 4)
         || (ethertype == Ethernet_TYPE_IP6 && version != 6))
     {
         Log_debug(ud->log, "DROP packet because ip version [%d] "
                   "doesn't match ethertype [%u].", version, Endian_bigEndianToHost16(ethertype));
-        return Error(INVALID);
+        return Error(msg, "INVALID");
     }
 
     if (ethertype == Ethernet_TYPE_IP4) {
@@ -54,15 +55,15 @@ static Iface_DEFUN incomingFromTunIf(struct Message* msg, struct Iface* tunIf)
     if (ethertype != Ethernet_TYPE_IP6) {
         Log_debug(ud->log, "DROP packet unknown ethertype [%u]",
                   Endian_bigEndianToHost16(ethertype));
-        return Error(INVALID);
+        return Error(msg, "INVALID");
     }
 
-    if (msg->length < Headers_IP6Header_SIZE) {
+    if (Message_getLength(msg) < Headers_IP6Header_SIZE) {
         Log_debug(ud->log, "DROP runt");
-        return Error(RUNT);
+        return Error(msg, "RUNT");
     }
 
-    struct Headers_IP6Header* header = (struct Headers_IP6Header*) msg->bytes;
+    struct Headers_IP6Header* header = (struct Headers_IP6Header*) msg->msgbytes;
     if (!AddressCalc_validAddress(header->destinationAddr)) {
         return Iface_next(&ud->pub.ipTunnelIf, msg);
     }
@@ -76,7 +77,7 @@ static Iface_DEFUN incomingFromTunIf(struct Message* msg, struct Iface* tunIf)
                       "DROP packet from [%s] because all messages must have source address [%s]",
                       packetSource, expectedSource);
         }
-        return Error(INVALID);
+        return Error(msg, "INVALID");
     }
     if (!Bits_memcmp(header->destinationAddr, ud->myIp6, 16)) {
         // I'm Gonna Sit Right Down and Write Myself a Letter
@@ -85,10 +86,15 @@ static Iface_DEFUN incomingFromTunIf(struct Message* msg, struct Iface* tunIf)
     }
 
     // first move the dest addr to the right place.
+    #pragma GCC diagnostic push
+    #ifdef __clang__
+    #pragma GCC diagnostic ignored "-Wfortify-source"
+    #endif
     Bits_memmove(header->destinationAddr - DataHeader_SIZE, header->destinationAddr, 16);
+    #pragma GCC diagnostic pop
 
     Er_assert(Message_eshift(msg, DataHeader_SIZE + RouteHeader_SIZE - Headers_IP6Header_SIZE));
-    struct RouteHeader* rh = (struct RouteHeader*) msg->bytes;
+    struct RouteHeader* rh = (struct RouteHeader*) msg->msgbytes;
 
     struct DataHeader* dh = (struct DataHeader*) &rh[1];
     Bits_memset(dh, 0, DataHeader_SIZE);
@@ -106,7 +112,7 @@ static Iface_DEFUN sendToTunIf(struct Message* msg, struct TUNAdapter_pvt* ud)
     if (!ud->pub.tunIf.connectedIf) {
         Log_debug(ud->log, "DROP message for tun because no device is defined");
         // Nothing inherently wrong with this message
-        return Error(NONE);
+        return NULL;
     }
     return Iface_next(&ud->pub.tunIf, msg);
 }
@@ -123,22 +129,27 @@ static Iface_DEFUN incomingFromUpperDistributorIf(struct Message* msg,
 {
     struct TUNAdapter_pvt* ud =
         Identity_containerOf(upperDistributorIf, struct TUNAdapter_pvt, pub.upperDistributorIf);
-    Assert_true(msg->length >= RouteHeader_SIZE + DataHeader_SIZE);
-    struct RouteHeader* hdr = (struct RouteHeader*) msg->bytes;
+    Assert_true(Message_getLength(msg) >= RouteHeader_SIZE + DataHeader_SIZE);
+    struct RouteHeader* hdr = (struct RouteHeader*) msg->msgbytes;
     struct DataHeader* dh = (struct DataHeader*) &hdr[1];
     enum ContentType type = DataHeader_getContentType(dh);
     Assert_true(type <= ContentType_IP6_MAX);
 
     // Shift ip address into destination slot.
+    #pragma GCC diagnostic push
+    #ifdef __clang__
+    #pragma GCC diagnostic ignored "-Wfortify-source"
+    #endif
     Bits_memmove(hdr->ip6 + DataHeader_SIZE - 16, hdr->ip6, 16);
+    #pragma GCC diagnostic pop
     // put my address as destination.
     Bits_memcpy(&hdr->ip6[DataHeader_SIZE], ud->myIp6, 16);
 
     Er_assert(Message_eshift(msg, Headers_IP6Header_SIZE - DataHeader_SIZE - RouteHeader_SIZE));
-    struct Headers_IP6Header* ip6 = (struct Headers_IP6Header*) msg->bytes;
+    struct Headers_IP6Header* ip6 = (struct Headers_IP6Header*) msg->msgbytes;
     Bits_memset(ip6, 0, Headers_IP6Header_SIZE - 32);
     Headers_setIpVersion(ip6);
-    ip6->payloadLength_be = Endian_bigEndianToHost16(msg->length - Headers_IP6Header_SIZE);
+    ip6->payloadLength_be = Endian_bigEndianToHost16(Message_getLength(msg) - Headers_IP6Header_SIZE);
     ip6->nextHeader = type;
     ip6->hopLimit = 42;
     Er_assert(TUNMessageType_push(msg, Ethernet_TYPE_IP6));

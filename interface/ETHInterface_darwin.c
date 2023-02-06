@@ -73,8 +73,8 @@ static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* iface)
     struct ETHInterface_pvt* ctx =
         Identity_containerOf(iface, struct ETHInterface_pvt, pub.generic.iface);
 
-    struct Sockaddr* sa = (struct Sockaddr*) msg->bytes;
-    Assert_true(msg->length >= Sockaddr_OVERHEAD);
+    struct Sockaddr* sa = (struct Sockaddr*) msg->msgbytes;
+    Assert_true(Message_getLength(msg) >= Sockaddr_OVERHEAD);
     Assert_true(sa->addrLen <= ETHInterface_Sockaddr_SIZE);
 
     struct ETHInterface_Sockaddr sockaddr = { .generic = { .addrLen = 0 } };
@@ -83,7 +83,7 @@ static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* iface)
     struct ETHInterface_Header hdr = {
         .version = ETHInterface_CURRENT_VERSION,
         .zero = 0,
-        .length_be = Endian_hostToBigEndian16(msg->length + ETHInterface_Header_SIZE),
+        .length_be = Endian_hostToBigEndian16(Message_getLength(msg) + ETHInterface_Header_SIZE),
         .fc00_be = Endian_hostToBigEndian16(0xfc00)
     };
     Er_assert(Message_epush(msg, &hdr, ETHInterface_Header_SIZE));
@@ -100,16 +100,16 @@ static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* iface)
     Er_assert(Message_epush(msg, &ethFr, ethernet_frame_SIZE));
   /*
     struct bpf_hdr bpfPkt = {
-        .bh_caplen = msg->length,
-        .bh_datalen = msg->length,
+        .bh_caplen = Message_getLength(msg),
+        .bh_datalen = Message_getLength(msg),
         .bh_hdrlen = BPF_WORDALIGN(sizeof(struct bpf_hdr))
     };
     Er_assert(Message_epush(msg, &bpfPkt, bpfPkt.bh_hdrlen));
 */
-    if (msg->length != write(ctx->socket, msg->bytes, msg->length)) {
+    if (Message_getLength(msg) != write(ctx->socket, msg->msgbytes, Message_getLength(msg))) {
         Log_debug(ctx->logger, "Error writing to eth device [%s]", strerror(errno));
     }
-    return Error(NONE);
+    return NULL;
 }
 
 static void handleEvent2(struct ETHInterface_pvt* context,
@@ -130,7 +130,7 @@ static void handleEvent2(struct ETHInterface_pvt* context,
     struct ETHInterface_Header hdr;
     Bits_memcpy(&hdr, data, ETHInterface_Header_SIZE);
 
-    Bits_memcpy(msg->bytes, &data[ETHInterface_Header_SIZE], contentLength);
+    Bits_memcpy(msg->msgbytes, &data[ETHInterface_Header_SIZE], contentLength);
 
     // here we could put a switch statement to handle different versions differently.
     if (hdr.version != ETHInterface_CURRENT_VERSION) {
@@ -140,12 +140,12 @@ static void handleEvent2(struct ETHInterface_pvt* context,
 
     uint16_t reportedLength = Endian_bigEndianToHost16(hdr.length_be);
     reportedLength -= ETHInterface_Header_SIZE;
-    if (msg->length != reportedLength) {
-        if (msg->length < reportedLength) {
+    if (Message_getLength(msg) != reportedLength) {
+        if (Message_getLength(msg) < reportedLength) {
             Log_debug(context->logger, "DROP size field is larger than frame");
             return;
         }
-        msg->length = reportedLength;
+        Er_assert(Message_truncate(msg, reportedLength));
     }
     if (hdr.fc00_be != Endian_hostToBigEndian16(0xfc00)) {
         Log_debug(context->logger, "DROP bad magic");
@@ -161,7 +161,7 @@ static void handleEvent2(struct ETHInterface_pvt* context,
 
     Er_assert(Message_epush(msg, &sockaddr, ETHInterface_Sockaddr_SIZE));
 
-    Assert_true(!((uintptr_t)msg->bytes % 4) && "Alignment fault");
+    Assert_true(!((uintptr_t)msg->msgbytes % 4) && "Alignment fault");
 
     Iface_send(&context->pub.generic.iface, msg);
 }
@@ -230,8 +230,8 @@ static Er_DEFUN(int openBPF(struct Allocator* alloc))
 {
     for (int retry = 0; retry < 100; retry++) {
         for (int i = 0; i < 256; i++) {
-            char buf[11] = { 0 };
-            snprintf(buf, 10, "/dev/bpf%i", i);
+            char buf[21] = { 0 };
+            snprintf(buf, 20, "/dev/bpf%i", i);
             int bpf = open(buf, O_RDWR);
             if (bpf != -1) { Er_ret(bpf); }
         }

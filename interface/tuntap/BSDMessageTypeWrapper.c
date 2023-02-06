@@ -42,9 +42,9 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* wireSide)
     struct BSDMessageTypeWrapper_pvt* ctx =
         Identity_containerOf(wireSide, struct BSDMessageTypeWrapper_pvt, pub.wireSide);
 
-    if (msg->length < 4) { return Error(RUNT); }
+    if (Message_getLength(msg) < 4) { return Error(msg, "RUNT"); }
 
-    uint16_t afType_be = ((uint16_t*) msg->bytes)[1];
+    uint16_t afType_be = ((uint16_t*) msg->msgbytes)[1];
     uint16_t ethertype = 0;
     if (afType_be == ctx->afInet_be) {
         ethertype = Ethernet_TYPE_IP4;
@@ -53,10 +53,10 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* wireSide)
     } else {
         Log_debug(ctx->logger, "Message of unhandled aftype [0x%04x]",
                   Endian_bigEndianToHost16(afType_be));
-        return Error(INVALID);
+        return Error(msg, "INVALID");
     }
-    ((uint16_t*) msg->bytes)[0] = 0;
-    ((uint16_t*) msg->bytes)[1] = ethertype;
+    ((uint16_t*) msg->msgbytes)[0] = 0;
+    ((uint16_t*) msg->msgbytes)[1] = ethertype;
 
     return Iface_next(&ctx->pub.inside, msg);
 }
@@ -66,9 +66,9 @@ static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* inside)
     struct BSDMessageTypeWrapper_pvt* ctx =
         Identity_containerOf(inside, struct BSDMessageTypeWrapper_pvt, pub.inside);
 
-    Assert_true(msg->length >= 4);
+    Assert_true(Message_getLength(msg) >= 4);
 
-    uint16_t ethertype = ((uint16_t*) msg->bytes)[1];
+    uint16_t ethertype = ((uint16_t*) msg->msgbytes)[1];
     uint16_t afType_be = 0;
     if (ethertype == Ethernet_TYPE_IP6) {
         afType_be = ctx->afInet6_be;
@@ -77,8 +77,8 @@ static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* inside)
     } else {
         Assert_true(!"Unsupported ethertype");
     }
-    ((uint16_t*) msg->bytes)[0] = 0;
-    ((uint16_t*) msg->bytes)[1] = afType_be;
+    ((uint16_t*) msg->msgbytes)[0] = 0;
+    ((uint16_t*) msg->msgbytes)[1] = afType_be;
 
     return Iface_next(&ctx->pub.wireSide, msg);
 }

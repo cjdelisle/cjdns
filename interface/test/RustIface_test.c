@@ -60,7 +60,7 @@ static Iface_DEFUN sendOutside(struct Message* msg, struct Iface* outside)
     Assert_true(top == 0x00000800);
     Assert_true(!(ctx->received & 1));
     ctx->received |= 1;
-    return Error(NONE);
+    return NULL;
 }
 
 static Iface_DEFUN sendInside(struct Message* msg, struct Iface* inside)
@@ -86,7 +86,7 @@ int main()
     Identity_set(ctx);
     ctx->outside.send = sendOutside;
     ctx->inside.send = sendInside;
-    Rffi_IfWrapper_t wrapper = Rffi_testwrapper_create(alloc);
+    RTypes_IfWrapper_t wrapper = Rffi_testwrapper_create(alloc);
     Iface_plumb(&ctx->inside, wrapper.internal);
     Iface_plumb(&ctx->outside, wrapper.external);
 

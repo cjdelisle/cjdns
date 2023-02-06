@@ -1,5 +1,6 @@
 # cjdns
 
+[English](README.md)
 [Русская версия](README_RU.md)
 [Hrvatski](README_HR.md)
 [Svenska](README_SV.md)
@@ -9,13 +10,12 @@
 [简体中文](README_ZHCN.md)
 [Español](README_ES.md)
 [Français](README_FR.md)
-[Português brasileiro](README_PT-BR.md)
 
-#### *Rede Reinventada*
+#### *Networking Reinventada*
 
 O Cjdns implementa uma rede IPv6 criptografada usando criptografia de chave pública para
 alocação de endereços e uma tabela de hash distribuída para roteamento. Isso fornece
-rede de configuração quase zero e evita muitos dos aspectos de segurança e
+configuração de rede quase zero e evita muitos dos aspectos de segurança e
 problemas de escalabilidade que afetam as redes existentes.
 
 [![Build Status](https://api.travis-ci.org/cjdelisle/cjdns.svg?branch=master)](https://travis-ci.org/cjdelisle/cjdns)
@@ -64,7 +64,7 @@ problemas de escalabilidade que afetam as redes existentes.
 
 * [Objetivos do projeto](doc/projectGoals.md)
 * [Cjdns Whitepaper](doc/Whitepaper.md)
-* [Cjdns na Wikipedia][]
+* [Cjdns na Wikipedia](https://fr.wikipedia.org/wiki/Cjdns)
 
 Configuração avançada:
 

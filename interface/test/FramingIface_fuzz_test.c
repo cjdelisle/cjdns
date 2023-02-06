@@ -36,28 +36,28 @@ static Iface_DEFUN ifaceRecvMsg(struct Message* message, struct Iface* thisInter
 {
     struct Context* ctx = Identity_containerOf(thisInterface, struct Context, iface);
     Assert_true(!ctx->success);
-    Assert_true(message->length == ctx->messageLen);
-    Assert_true(ctx->buf->length == 0);
-    Assert_true(!Bits_memcmp(ctx->bufPtr, message->bytes, ctx->messageLen));
+    Assert_true(Message_getLength(message) == ctx->messageLen);
+    Assert_true(Message_getLength(ctx->buf) == 0);
+    Assert_true(!Bits_memcmp(ctx->bufPtr, message->msgbytes, ctx->messageLen));
     ctx->success = 1;
-    return Error(NONE);
+    return NULL;
 }
 
 void CJDNS_FUZZ_MAIN(void* vctx, struct Message* fuzz)
 {
     struct Context* ctx = Identity_check((struct Context*) vctx);
-    if (fuzz->length <= 2) { return; }
+    if (Message_getLength(fuzz) <= 2) { return; }
     ctx->messageLen = Er_assert(Message_epop16be(fuzz)) % BUF_SZ;
-    ctx->buf->length = ctx->messageLen;
+    Er_assert(Message_truncate(ctx->buf, ctx->messageLen));
     Er_assert(Message_epush32be(ctx->buf, ctx->messageLen));
     for (int i = 0; ; i++) {
-        uint8_t len = fuzz->bytes[i % fuzz->length] + 1;
-        if (len > ctx->buf->length) {
-            len = ctx->buf->length;
+        uint8_t len = fuzz->msgbytes[i % Message_getLength(fuzz)] + 1;
+        if (len > Message_getLength(ctx->buf)) {
+            len = Message_getLength(ctx->buf);
         }
         struct Allocator* a = Allocator_child(ctx->alloc);
         struct Message* m = Message_new(len, 0, a);
-        Er_assert(Message_epop(ctx->buf, m->bytes, len));
+        Er_assert(Message_epop(ctx->buf, m->msgbytes, len));
         Iface_send(&ctx->outer, m);
         Allocator_free(a);
         if (ctx->success) {
@@ -74,8 +74,8 @@ void* CJDNS_FUZZ_INIT(struct Allocator* alloc, struct Random* rand)
     Iface_plumb(&ctx->iface, ctx->fi);
     ctx->alloc = alloc;
     ctx->buf = Message_new(BUF_SZ, 4, alloc);
-    Random_bytes(rand, ctx->buf->bytes, BUF_SZ);
-    ctx->bufPtr = ctx->buf->bytes;
+    Random_bytes(rand, ctx->buf->msgbytes, BUF_SZ);
+    ctx->bufPtr = ctx->buf->msgbytes;
     Identity_set(ctx);
     return ctx;
 }

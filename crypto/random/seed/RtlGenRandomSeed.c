@@ -19,7 +19,7 @@
 #include <windows.h>
 #include <ntsecapi.h>
 
-static int get(struct RandomSeed* rand, uint64_t buff[8])
+static int get(RandomSeed_t* rand, uint64_t buff[8])
 {
     Bits_memset(buff, 0, 64);
     int ret = RtlGenRandom(buff, 64);
@@ -29,9 +29,9 @@ static int get(struct RandomSeed* rand, uint64_t buff[8])
     return 0;
 }
 
-struct RandomSeed* RtlGenRandomSeed_new(struct Allocator* alloc)
+RandomSeed_t* RtlGenRandomSeed_new(struct Allocator* alloc)
 {
-    return Allocator_clone(alloc, (&(struct RandomSeed) {
+    return Allocator_clone(alloc, (&(RandomSeed_t) {
         .get = get,
         .name = "RtlGenRandom() (Windows)"
     }));

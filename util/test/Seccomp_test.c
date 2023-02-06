@@ -99,10 +99,10 @@ static Iface_DEFUN receiveMessageParent(struct Message* msg, struct Iface* iface
     struct Context* ctx = Identity_check((struct Context*) iface);
     // PipeServer pushes a uint32 identifier of the client who sent the message
     Er_assert(AddrIface_popAddr(msg));
-    Assert_true(msg->length == 3);
-    Assert_true(!Bits_memcmp(msg->bytes, "OK", 3));
+    Assert_true(Message_getLength(msg) == 3);
+    Assert_true(!Bits_memcmp(msg->msgbytes, "OK", 3));
     EventBase_endLoop(ctx->eventBase);
-    return Error(NONE);
+    return NULL;
 }
 
 int main(int argc, char** argv)
@@ -138,7 +138,7 @@ int main(int argc, char** argv)
     char* path = Process_getPath(alloc);
     char* args[] = { "Seccomp_test", "child", name->bytes, NULL };
 
-    Assert_true(!Process_spawn(path, args, eb, alloc, NULL));
+    Assert_true(!Process_spawn(path, args, alloc, NULL));
 
     Timeout_setTimeout(timeout2, NULL, 2000, eb, alloc);
 

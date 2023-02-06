@@ -28,7 +28,7 @@ static Er_DEFUN(int64_t readInt(struct Message* msg, struct Allocator* alloc))
 {
     int64_t num = Er(Base10_read(msg));
     if (Er(Message_epop8(msg)) != 'e') {
-        Er_raise(msg->alloc, "Int not terminated with 'e'");
+        Er_raise(Message_getAlloc(msg), "Int not terminated with 'e'");
     }
     Er_ret(num);
 }
@@ -42,7 +42,7 @@ static Er_DEFUN(String* readString(struct Message* msg, struct Allocator* alloc)
     if (Er(Message_epop8(msg)) != ':') {
         Er_raise(alloc, "String not deliniated with a ':'");
     }
-    if (len > msg->length) {
+    if (len > Message_getLength(msg)) {
         Er_raise(alloc, "String too long");
     }
     String* str = String_newBinary(NULL, len, alloc);

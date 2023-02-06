@@ -24,6 +24,9 @@
  * if (Defined(linux)) {
  *     doLinuxSpecificStuff();
  * }
+ * 
+ * CAUTION: Because of limitations of detection, if you `#define X X` then
+ * Defined(X) will be false!
  */
 #define Defined(macro) \
     Js_or({ return ( Js_Q macro Js_Q === ' ' + #macro + ' ' ) ? '0' : '1'; }, 1)

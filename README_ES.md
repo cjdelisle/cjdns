@@ -1,5 +1,6 @@
 # cjdns
 
+[English](README.md)
 [Русская версия](README_RU.md)
 [Hrvatski](README_HR.md)
 [Svenska](README_SV.md)
@@ -9,6 +10,7 @@
 [简体中文](README_ZHCN.md)
 [Español](README_ES.md)
 [Français](README_FR.md)
+[Português brasileiro](README_PT-BR.md)
 
 #### *Reinventando las redes*
 
@@ -17,7 +19,7 @@ la asignación de direcciones y una tabla distribuida de hashes para el
 ruteo. Esto provee redes de casi-nula-configuración, y previene mucho de los
 problemas de seguridad y escalabilidad que plagan a las redes existentes.
 
-[![Build Status](https://travis-ci.org/cjdelisle/cjdns.svg?branch=master)](https://travis-ci.org/cjdelisle/cjdns)
+[![Build Status](https://api.travis-ci.org/cjdelisle/cjdns.svg?branch=master)](https://travis-ci.org/cjdelisle/cjdns)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/387/badge)](https://bestpractices.coreinfrastructure.org/projects/387)
 [![tip for next commit](https://tip4commit.com/projects/941.svg)](https://tip4commit.com/github/cjdelisle/cjdns)
 [![irc](https://img.shields.io/badge/irc%20chat-%23cjdns-blue.svg)](https://kiwiirc.com/client/irc.efnet.org/?nick=visitor|?#cjdns)

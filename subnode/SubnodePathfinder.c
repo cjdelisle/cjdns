@@ -106,9 +106,9 @@ static Iface_DEFUN sendNode(struct Message* msg,
 {
     Message_reset(msg);
     Er_assert(Message_eshift(msg, PFChan_Node_SIZE));
-    nodeForAddress((struct PFChan_Node*) msg->bytes, addr, metric);
+    nodeForAddress((struct PFChan_Node*) msg->msgbytes, addr, metric);
     if (addr->path == UINT64_MAX) {
-        ((struct PFChan_Node*) msg->bytes)->path_be = 0;
+        ((struct PFChan_Node*) msg->msgbytes)->path_be = 0;
     }
     Er_assert(Message_epush32be(msg, msgType));
     return Iface_next(&pf->pub.eventIf, msg);
@@ -118,7 +118,7 @@ static Iface_DEFUN connected(struct SubnodePathfinder_pvt* pf, struct Message* m
 {
     Log_debug(pf->log, "INIT");
     pf->state = SubnodePathfinder_pvt_state_RUNNING;
-    return Error(NONE);
+    return NULL;
 }
 
 static uint32_t addressForNode(struct Address* addrOut, struct Message* msg)
@@ -126,7 +126,7 @@ static uint32_t addressForNode(struct Address* addrOut, struct Message* msg)
     Bits_memset(addrOut, 0, sizeof(struct Address));
     struct PFChan_Node node;
     Er_assert(Message_epop(msg, &node, PFChan_Node_SIZE));
-    Assert_true(!msg->length);
+    Assert_true(!Message_getLength(msg));
     addrOut->protocolVersion = Endian_bigEndianToHost32(node.version_be);
     addrOut->path = Endian_bigEndianToHost64(node.path_be);
     Bits_memcpy(addrOut->key, node.publicKey, 32);
@@ -147,8 +147,8 @@ static Iface_DEFUN switchErr(struct Message* msg, struct SubnodePathfinder_pvt* 
         uint8_t pathStr[20];
         AddrTools_printPath(pathStr, path);
         int err = Endian_bigEndianToHost32(switchErr.ctrlErr.errorType_be);
-        Log_debug(pf->log, "switch err from active snode [%s] type [%s][%d]",
-            pathStr, Error_strerror(err), err);
+        Log_debug(pf->log, "switch err from active snode [%s] type [%d]",
+            pathStr, err);
         pf->pub.snh->snodeIsReachable = false;
         if (pf->pub.snh->onSnodeUnreachable) {
             pf->pub.snh->onSnodeUnreachable(pf->pub.snh, 0, 0);
@@ -159,7 +159,7 @@ static Iface_DEFUN switchErr(struct Message* msg, struct SubnodePathfinder_pvt* 
     // we only really have the ability to report a node with known IPv6 address
     // so we will need to add a new event type to PFChan.
 
-    return Error(NONE);
+    return NULL;
 }
 
 struct SnodeQuery {
@@ -243,8 +243,8 @@ static Iface_DEFUN searchReq(struct Message* msg, struct SubnodePathfinder_pvt* 
     Er_assert(Message_epop(msg, addr, 16));
     Er_assert(Message_epop32be(msg));
     uint32_t version = Er_assert(Message_epop32be(msg));
-    if (version && version < 20) { return Error(UNHANDLED); }
-    Assert_true(!msg->length);
+    if (version && version < 20) { return Error(msg, "UNHANDLED"); }
+    Assert_true(!Message_getLength(msg));
     uint8_t printedAddr[40];
     AddrTools_printIp(printedAddr, addr);
 
@@ -268,7 +268,7 @@ static Iface_DEFUN searchReq(struct Message* msg, struct SubnodePathfinder_pvt* 
     }
 
     queryRs(pf, addr, printedAddr);
-    return Error(NONE);
+    return NULL;
 }
 
 static void rcChange(struct ReachabilityCollector* rc,
@@ -339,9 +339,9 @@ static void pingNode(struct SubnodePathfinder_pvt* pf, struct Address* addr)
 
 static Iface_DEFUN peer(struct Message* msg, struct SubnodePathfinder_pvt* pf)
 {
-    struct Address addr;
+    struct Address addr = {0};
     uint32_t metric = addressForNode(&addr, msg);
-    String* str = Address_toString(&addr, msg->alloc);
+    String* str = Address_toString(&addr, Message_getAlloc(msg));
 
     int index = AddrSet_indexOf(pf->myPeerAddrs, &addr, AddrSet_Match_BOTH);
     if (index > -1) {
@@ -371,7 +371,7 @@ static Iface_DEFUN peer(struct Message* msg, struct SubnodePathfinder_pvt* pf)
 
 static Iface_DEFUN peerGone(struct Message* msg, struct SubnodePathfinder_pvt* pf)
 {
-    struct Address addr;
+    struct Address addr = {0};
     addressForNode(&addr, msg);
     AddrSet_remove(pf->myPeerAddrs, &addr, AddrSet_Match_BOTH);
     ReachabilityCollector_unreachable(pf->pub.rc, &addr);
@@ -380,31 +380,31 @@ static Iface_DEFUN peerGone(struct Message* msg, struct SubnodePathfinder_pvt* p
 
 static Iface_DEFUN session(struct Message* msg, struct SubnodePathfinder_pvt* pf)
 {
-    struct Address addr;
+    struct Address addr = {0};
     addressForNode(&addr, msg);
-    String* str = Address_toString(&addr, msg->alloc);
+    String* str = Address_toString(&addr, Message_getAlloc(msg));
     Log_debug(pf->log, "Session [%s]", str->bytes);
     //if (addr.protocolVersion) { NodeCache_discoverNode(pf->nc, &addr); }
-    return Error(NONE);
+    return NULL;
 }
 
 static Iface_DEFUN sessionEnded(struct Message* msg, struct SubnodePathfinder_pvt* pf)
 {
-    struct Address addr;
+    struct Address addr = {0};
     addressForNode(&addr, msg);
-    String* str = Address_toString(&addr, msg->alloc);
+    String* str = Address_toString(&addr, Message_getAlloc(msg));
     Log_debug(pf->log, "Session ended [%s]", str->bytes);
     //NodeCache_forgetNode(pf->nc, &addr);
-    return Error(NONE);
+    return NULL;
 }
 
 static Iface_DEFUN discoveredPath(struct Message* msg, struct SubnodePathfinder_pvt* pf)
 {
-    //struct Address addr;
+    //struct Address addr = {0};
     //addressForNode(&addr, msg);
-    //Log_debug(pf->log, "discoveredPath(%s)", Address_toString(&addr, msg->alloc)->bytes);
+    //Log_debug(pf->log, "discoveredPath(%s)", Address_toString(&addr, Message_getAlloc(msg))->bytes);
     //if (addr.protocolVersion) { NodeCache_discoverNode(pf->nc, &addr); }
-    return Error(NONE);
+    return NULL;
 }
 
 static Iface_DEFUN handlePing(struct Message* msg, struct SubnodePathfinder_pvt* pf)
@@ -417,7 +417,7 @@ static Iface_DEFUN handlePing(struct Message* msg, struct SubnodePathfinder_pvt*
 static Iface_DEFUN handlePong(struct Message* msg, struct SubnodePathfinder_pvt* pf)
 {
     //Log_debug(pf->log, "Received pong");
-    return Error(NONE);
+    return NULL;
 }
 
 static Iface_DEFUN ctrlMsgFromSwitchPinger(struct Message* msg, struct Iface* iface)
@@ -437,7 +437,7 @@ static Iface_DEFUN unsetupSession(struct Message* msg, struct SubnodePathfinder_
 {
     struct PFChan_Node node;
     Er_assert(Message_epop(msg, &node, PFChan_Node_SIZE));
-    Assert_true(!msg->length);
+    Assert_true(!Message_getLength(msg));
     struct Address addr = {
         .protocolVersion = Endian_bigEndianToHost32(node.version_be),
         .path = Endian_bigEndianToHost64(node.path_be),
@@ -445,7 +445,7 @@ static Iface_DEFUN unsetupSession(struct Message* msg, struct SubnodePathfinder_
     Bits_memcpy(addr.ip6.bytes, node.ip6, 16);
     Bits_memcpy(addr.key, node.publicKey, 32);
     pingNode(pf, &addr);
-    return Error(NONE);
+    return NULL;
 }
 
 static Iface_DEFUN incomingMsg(struct Message* msg, struct SubnodePathfinder_pvt* pf)
@@ -455,7 +455,7 @@ static Iface_DEFUN incomingMsg(struct Message* msg, struct SubnodePathfinder_pvt
 
 static Iface_DEFUN linkState(struct Message* msg, struct SubnodePathfinder_pvt* pf)
 {
-    while (msg->length) {
+    while (Message_getLength(msg)) {
         struct PFChan_LinkState_Entry lse;
         Er_assert(Message_epop(msg, &lse, PFChan_LinkState_Entry_SIZE));
         ReachabilityCollector_updateBandwidthAndDrops(
@@ -465,15 +465,15 @@ static Iface_DEFUN linkState(struct Message* msg, struct SubnodePathfinder_pvt* 
             lse.sumOfDrops,
             lse.sumOfKb);
     }
-    return Error(NONE);
+    return NULL;
 }
 
 static Iface_DEFUN incomingFromMsgCore(struct Message* msg, struct Iface* iface)
 {
     struct SubnodePathfinder_pvt* pf =
         Identity_containerOf(iface, struct SubnodePathfinder_pvt, msgCoreIf);
-    Assert_true(msg->length >= (RouteHeader_SIZE + DataHeader_SIZE));
-    struct RouteHeader* rh = (struct RouteHeader*) msg->bytes;
+    Assert_true(Message_getLength(msg) >= (RouteHeader_SIZE + DataHeader_SIZE));
+    struct RouteHeader* rh = (struct RouteHeader*) msg->msgbytes;
     struct DataHeader* dh = (struct DataHeader*) &rh[1];
     Assert_true(DataHeader_getContentType(dh) == ContentType_CJDHT);
     Assert_true(!Bits_isZero(rh->publicKey, 32));

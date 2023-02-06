@@ -30,7 +30,7 @@ enum Log_Level
     Log_Level_INVALID
 };
 
-struct Log;
+typedef struct Log Log_t;
 
 char* Log_nameForLevel(enum Log_Level logLevel);
 
@@ -67,6 +67,8 @@ void Log_print(struct Log* log,
                int line,
                const char* format,
                ...);
+
+void Log_print0(struct Log* log, enum Log_Level lvl, const char* file, int line, const char* msg);
 
 #define Log_printf(log, level, ...) \
     do {                                                                   \

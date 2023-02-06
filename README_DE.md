@@ -9,6 +9,7 @@
 [简体中文](README_ZHCN.md)
 [Español](README_ES.md)
 [Français](README_FR.md)
+[Português brasileiro](README_PT-BR.md)
 
 #### *Netzwerk neu erfunden*
 

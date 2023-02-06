@@ -43,11 +43,11 @@ struct NDPServer_pvt
 
 static bool isNeighborSolicitation(struct Message* msg, struct NDPServer_pvt* ns)
 {
-    if (msg->length < Headers_IP6Header_SIZE + NDPHeader_NeighborSolicitation_SIZE) {
+    if (Message_getLength(msg) < Headers_IP6Header_SIZE + NDPHeader_NeighborSolicitation_SIZE) {
         return false;
     }
 
-    struct Headers_IP6Header* ip6 = (struct Headers_IP6Header*) msg->bytes;
+    struct Headers_IP6Header* ip6 = (struct Headers_IP6Header*) msg->msgbytes;
     struct NDPHeader_NeighborSolicitation* sol = (struct NDPHeader_NeighborSolicitation*) &ip6[1];
 
     if (sol->oneThirtyFive != 135 || sol->zero != 0) {
@@ -76,10 +76,10 @@ static Iface_DEFUN answerNeighborSolicitation(struct Message* msg, struct NDPSer
     Er_assert(Message_epop(msg, &ip6, Headers_IP6Header_SIZE));
     struct NDPHeader_NeighborSolicitation sol;
     Er_assert(Message_epop(msg, &sol, NDPHeader_NeighborSolicitation_SIZE));
-    if (msg->length) {
+    if (Message_getLength(msg)) {
         /* Right now we ignore any ICMP options. Windows will send them. */
         Log_debug(ns->log, "%d extra bytes (ICMP options?) in neighbor solicitation",
-            msg->length);
+            Message_getLength(msg));
     }
 
     struct NDPHeader_MacOpt macOpt = {
@@ -103,10 +103,10 @@ static Iface_DEFUN answerNeighborSolicitation(struct Message* msg, struct NDPSer
     Bits_memcpy(ip6.destinationAddr, ip6.sourceAddr, 16);
     Bits_memcpy(ip6.sourceAddr, sol.targetAddr, 16);
     ip6.hopLimit = 255;
-    ip6.payloadLength_be = Endian_hostToBigEndian16(msg->length);
+    ip6.payloadLength_be = Endian_hostToBigEndian16(Message_getLength(msg));
 
-    struct NDPHeader_RouterAdvert* adv = (struct NDPHeader_RouterAdvert*) msg->bytes;
-    adv->checksum = Checksum_icmp6_be(ip6.sourceAddr, msg->bytes, msg->length);
+    struct NDPHeader_RouterAdvert* adv = (struct NDPHeader_RouterAdvert*) msg->msgbytes;
+    adv->checksum = Checksum_icmp6_be(ip6.sourceAddr, msg->msgbytes, Message_getLength(msg));
 
     Er_assert(Message_epush(msg, &ip6, sizeof(struct Headers_IP6Header)));
 
@@ -121,7 +121,7 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* external)
 {
     struct NDPServer_pvt* ns = Identity_containerOf(external, struct NDPServer_pvt, external);
 
-    if (msg->length > Headers_IP6Header_SIZE + 4) {
+    if (Message_getLength(msg) > Headers_IP6Header_SIZE + 4) {
         uint16_t ethertype = Er_assert(TUNMessageType_pop(msg));
         if (ethertype != Ethernet_TYPE_IP6) {
         } else if (isNeighborSolicitation(msg, ns)) {

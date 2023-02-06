@@ -23,6 +23,7 @@
 #include "util/events/Time.h"
 
 #include <stdbool.h>
+#include <inttypes.h>
 
 #define TIMEOUT_MILLISECONDS 10000
 
@@ -202,7 +203,7 @@ static void latencyUpdate(
     //Log_debug(rcp->log, "Latency update for [%" PRIx64 "] [%u]ms", pip->pub.addr.path, lag);
     pip->sumOfLag += lag;
     pip->lagSamples++;
-    pip->timeOfLastLagUpdate = Time_currentTimeMilliseconds(rcp->base);
+    pip->timeOfLastLagUpdate = Time_currentTimeMilliseconds();
 }
 
 static void onReplyOld(Dict* msg, struct Address* src, struct MsgCore_Promise* prom)
@@ -492,6 +493,12 @@ struct ReachabilityCollector_PeerInfo*
     struct ReachabilityCollector_pvt* rcp = Identity_check((struct ReachabilityCollector_pvt*) rc);
     struct PeerInfo_pvt* pi = ArrayList_OfPeerInfo_pvt_get(rcp->piList, peerNum);
     return pi ? &pi->pub : NULL;
+}
+
+int ReachabilityCollector_peerCount(struct ReachabilityCollector* rc)
+{
+    struct ReachabilityCollector_pvt* rcp = Identity_check((struct ReachabilityCollector_pvt*) rc);
+    return rcp->piList->length;
 }
 
 void ReachabilityCollector_lagSample(

@@ -54,7 +54,8 @@ export type Builder_t = {|
     lintFiles: (Builder_Linter_t)=>void,
     config: Builder_Config_t,
     tmpFile: (?string)=>string,
-    compilerType: () => Builder_Compiler_t
+    compilerType: () => Builder_Compiler_t,
+    fileCflags: {[string]: string[]},
 |};
 export type Builder_BaseConfig_t = {|
     systemName?: ?string,
@@ -70,7 +71,6 @@ export type Builder_Config_t = {
     ldflags: string[],
     libs: string[],
     jobs: number,
-    fileCflags: {[string]: string[]},
 } & {[string]:any};
 import type { Nthen_WaitFor_t } from 'nthen';
 import type { Saferphore_t } from 'saferphore';
@@ -80,6 +80,14 @@ export type Builder_CompileJob_t = {
     outputFile: ?string,
     type: 'exe'|'lib'
 };
+export type Builder_Pub_t = {|
+    build: (Builder_Stage_t)=>Builder_Pub_t,
+    test: (Builder_Stage_t)=>Builder_Pub_t,
+    pack: (Builder_Stage_t)=>Builder_Pub_t,
+    failure: (Builder_Stage_t)=>Builder_Pub_t,
+    success: (Builder_Stage_t)=>Builder_Pub_t,
+    complete: (Builder_Stage_t)=>Builder_Pub_t,
+|}
 export type Builder_PreCtx_t = {
     buildStage: Builder_Stage_t,
     testStage: Builder_Stage_t,
@@ -256,6 +264,8 @@ const finalizeCtx = function (
 
         compilerType: () => JSON.parse(JSON.stringify(ctx.state.compilerType)),
 
+        fileCflags: {},
+
     }) /*:Builder_t*/);
     return ctx;
 };
@@ -431,7 +441,7 @@ const getExeFile = function (ctx, exe /*:Builder_CompileJob_t*/) {
 const getFlags = function (ctx, cFile, includeDirs) {
     const flags = [];
     flags.push.apply(flags, ctx.config.cflags);
-    flags.push.apply(flags, ctx.builder.config.fileCflags[cFile] || []);
+    flags.push.apply(flags, ctx.builder.fileCflags[cFile] || []);
     if (includeDirs) {
         for (let i = 0; i < ctx.config.includeDirs.length; i++) {
             if (flags[flags.indexOf(ctx.config.includeDirs[i])-1] === '-I') {
@@ -568,19 +578,28 @@ const getLinkOrder = function (cFile, files) /*:string[]*/ {
 // make sure everything is present.
 const needsToLink = function (ctx, cFile) {
     const nlCache = {};
+    const nll = [];
     const nl = (cFile) => {
         if (nlCache[cFile]) { return false; }
-        //debug('  ' + cFile);
-        if (typeof(ctx.state.cFiles[cFile]) !== 'object') {
-            return true;
+        if (nll.indexOf(cFile) > -1) {
+            throw new Error(`File ${cFile} is self-referencial:\n${nll.join('\n')}\n\n`);
         }
-        for (const l of ctx.state.cFiles[cFile].links) {
-            if (l !== cFile && nl(l)) {
+        nll.push(cFile);
+        const out = (() => {
+            //debug('  ' + cFile);
+            if (typeof(ctx.state.cFiles[cFile]) !== 'object') {
                 return true;
             }
-        }
-        nlCache[cFile] = true;
-        return false;
+            for (const l of ctx.state.cFiles[cFile].links) {
+                if (l !== cFile && nl(l)) {
+                    return true;
+                }
+            }
+            nlCache[cFile] = true;
+            return false;
+        })();
+        if (nll.pop() !== cFile) { throw new Error(); }
+        return out;
     };
     return nl(cFile);
 };
@@ -757,7 +776,7 @@ const sweep = (path, done) => {
 module.exports.configure = function (
     params /*:Builder_BaseConfig_t*/,
     configFunc /*:(Builder_t, Nthen_WaitFor_t)=>void*/
-) {
+) /*:Builder_Pub_t*/ {
 
     // Track time taken for various steps
     const time = makeTime();
@@ -810,7 +829,6 @@ module.exports.configure = function (
             cflags: [],
             ldflags: [],
             libs: [],
-            fileCflags: {},
             jobs,
         },
     };

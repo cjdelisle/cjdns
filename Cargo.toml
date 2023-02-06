@@ -1,19 +1,10 @@
 [workspace]
-
-members = [
-    "rust/cjdns_sys",
-    "rust/cjdroute",
-    "rust/publictoip6",
-    "rust/mkpasswd",
-    "rust/sybilsim",
-    "rust/testcjdroute",
-    "rust/randombytes",
-    "rust/privatetopublic",
-    "rust/makekeys",
-]
+members = ["rust/cjdns_sys"]
 
 [profile.release]
-lto = true
-opt-level = "z"
-codegen-units = 1
-panic = "abort"
+opt-level = 2
+panic = "unwind"
+
+# In debug mode, enable optimizations for dependencies, but not for our code
+[profile.dev.package."*"]
+opt-level = 2

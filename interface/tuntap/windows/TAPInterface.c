@@ -127,7 +127,7 @@ static void postRead(struct TAPInterface_pvt* tap)
     // Choose odd numbers so that the message will be aligned despite the weird header size.
     struct Message* msg = tap->readMsg = Message_new(1534, 514, alloc);
     OVERLAPPED* readol = (OVERLAPPED*) tap->readIocp.overlapped;
-    if (!ReadFile(tap->handle, msg->bytes, 1534, NULL, readol)) {
+    if (!ReadFile(tap->handle, msg->msgbytes, 1534, NULL, readol)) {
         switch (GetLastError()) {
             case ERROR_IO_PENDING:
             case ERROR_IO_INCOMPLETE: break;
@@ -149,10 +149,10 @@ static void readCallbackB(struct TAPInterface_pvt* tap)
     if (!GetOverlappedResult(tap->handle, readol, &bytesRead, FALSE)) {
         Assert_failure("GetOverlappedResult(read, tap): %s\n", WinEr_strerror(GetLastError()));
     }
-    msg->length = bytesRead;
-    Log_debug(tap->log, "Read [%d] bytes", msg->length);
+    Er_assert(Message_truncate(msg, bytesRead));
+    Log_debug(tap->log, "Read [%d] bytes", Message_getLength(msg));
     Iface_send(&tap->pub.generic, msg);
-    Allocator_free(msg->alloc);
+    Allocator_free(Message_getAlloc(msg));
     postRead(tap);
 }
 
@@ -172,7 +172,7 @@ static void postWrite(struct TAPInterface_pvt* tap)
     tap->isPendingWrite = 1;
     struct Message* msg = tap->writeMsgs[0];
     OVERLAPPED* writeol = (OVERLAPPED*) tap->writeIocp.overlapped;
-    if (!WriteFile(tap->handle, msg->bytes, msg->length, NULL, writeol)) {
+    if (!WriteFile(tap->handle, msg->msgbytes, Message_getLength(msg), NULL, writeol)) {
         switch (GetLastError()) {
             case ERROR_IO_PENDING:
             case ERROR_IO_INCOMPLETE: break;
@@ -182,7 +182,7 @@ static void postWrite(struct TAPInterface_pvt* tap)
         // It doesn't matter if it returns immediately, it will also return async.
         //Log_debug(tap->log, "Write returned immediately");
     }
-    Log_debug(tap->log, "Posted write [%d] bytes", msg->length);
+    Log_debug(tap->log, "Posted write [%d] bytes", Message_getLength(msg));
 }
 
 static void writeCallbackB(struct TAPInterface_pvt* tap)
@@ -198,10 +198,10 @@ static void writeCallbackB(struct TAPInterface_pvt* tap)
     Assert_true(tap->writeMessageCount--);
 
     struct Message* msg = tap->writeMsgs[0];
-    if (msg->length != (int)bytesWritten) {
+    if (Message_getLength(msg) != (int)bytesWritten) {
         Log_info(tap->log, "Message of length [%d] truncated to [%d]",
-                 msg->length, (int)bytesWritten);
-        Assert_true(msg->length > (int)bytesWritten);
+                 Message_getLength(msg), (int)bytesWritten);
+        Assert_true(Message_getLength(msg) > (int)bytesWritten);
     }
 
     if (tap->writeMessageCount) {
@@ -229,17 +229,17 @@ static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* iface)
     struct TAPInterface_pvt* tap = Identity_check((struct TAPInterface_pvt*) iface);
     if (tap->writeMessageCount >= WRITE_MESSAGE_SLOTS) {
         Log_info(tap->log, "DROP message because the tap is lagging");
-        return Error(OVERFLOW);
+        return Error(msg, "OVERFLOW");
     }
     if (!tap->pendingWritesAlloc) {
         tap->pendingWritesAlloc = Allocator_child(tap->alloc);
     }
     tap->writeMsgs[tap->writeMessageCount++] = msg;
-    Allocator_adopt(tap->pendingWritesAlloc, msg->alloc);
+    Allocator_adopt(tap->pendingWritesAlloc, Message_getAlloc(msg));
     if (tap->writeMessageCount == 1) {
         postWrite(tap);
     }
-    return Error(NONE);
+    return NULL;
 }
 
 Er_DEFUN(struct TAPInterface* TAPInterface_new(const char* preferredName,

@@ -47,7 +47,7 @@ static int usage(char* appName)
 int privatetopublic_main(int argc, char** argv);
 int privatetopublic_main(int argc, char** argv)
 {
-    struct Address address;
+    struct Address address = {0};
     uint8_t addressOut[40];
     uint8_t privateKey[32];
     uint8_t publicKeyBase32Out[53];

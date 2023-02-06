@@ -113,6 +113,7 @@ static void adminPeerStats(Dict* args, void* vcontext, String* txid, struct Allo
         Dict_putIntC(d, "duplicates", stats[i].duplicates, alloc);
         Dict_putIntC(d, "lostPackets", stats[i].lostPackets, alloc);
         Dict_putIntC(d, "receivedOutOfRange", stats[i].receivedOutOfRange, alloc);
+        Dict_putIntC(d, "noiseProto", stats[i].noiseProto, alloc);
 
         Dict_putIntC(d, "ifNum", stats[i].ifNum, alloc);
 
@@ -147,24 +148,25 @@ static void adminDisconnectPeer(Dict* args,
     // parse the key
     uint8_t pubkey[32];
     uint8_t addr[16];
-    int error = Key_parse(pubkeyString, pubkey, addr);
+    int count = 0;
 
     char* errorMsg = NULL;
-    if (error) {
+    if (Key_parse(pubkeyString, pubkey, addr)) {
         errorMsg = "bad key";
     } else {
         //  try to remove the peer if the key is valid
-        error = InterfaceController_disconnectPeer(context->ic,pubkey);
-        if (error) {
+        count = InterfaceController_disconnectPeer(context->ic,pubkey);
+        if (count == 0) {
             errorMsg = "no peer found for that key";
         }
     }
 
     Dict* response = Dict_new(requestAlloc);
-    Dict_putIntC(response, "success", error ? 0 : 1, requestAlloc);
-    if (error) {
+    Dict_putIntC(response, "success", errorMsg ? 0 : 1, requestAlloc);
+    if (errorMsg) {
         Dict_putStringCC(response, "error", errorMsg, requestAlloc);
     }
+    Dict_putIntC(response, "sessionsDisconnected", count, requestAlloc);
 
     Admin_sendMessage(response, txid, context->admin);
 }
@@ -202,23 +204,6 @@ static void adminResetPeering(Dict* args,
         Dict_putStringCC(response, "error", errorMsg, requestAlloc);
     }
 
-    Admin_sendMessage(response, txid, context->admin);
-}
-
-static void timestampPackets(Dict* args,
-                             void* vcontext,
-                             String* txid,
-                             struct Allocator* requestAlloc)
-{
-    struct Context* context = Identity_check((struct Context*)vcontext);
-    int64_t* enable = Dict_getIntC(args, "enable");
-    Dict* response = Dict_new(requestAlloc);
-    Dict_putStringCC(response, "error", "none", requestAlloc);
-    if (!enable) {
-        Dict_putIntC(response, "enabled", context->ic->timestampPackets, requestAlloc);
-    } else {
-        context->ic->timestampPackets = *enable;
-    }
     Admin_sendMessage(response, txid, context->admin);
 }
 
@@ -283,11 +268,6 @@ void InterfaceController_admin_register(struct InterfaceController* ic,
     Admin_registerFunction("InterfaceController_disconnectPeer", adminDisconnectPeer, ctx, true,
         ((struct Admin_FunctionArg[]) {
             { .name = "pubkey", .required = 1, .type = "String" }
-        }), admin);
-
-    Admin_registerFunction("InterfaceController_timestampPackets", timestampPackets, ctx, true,
-        ((struct Admin_FunctionArg[]) {
-            { .name = "enable", .required = 0, .type = "Int" }
         }), admin);
 
 }

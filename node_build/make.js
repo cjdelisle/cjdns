@@ -16,32 +16,32 @@
 'use strict';
 var Fs = require('fs');
 var nThen = require('nthen');
-var Codestyle = require('./Codestyle');
 var Cp = require('./Cp');
-var Spawn = require('child_process').spawn;
-var FindPython = require('./FindPython');
 var Builder = require('./builder');
 const CjdnsTest = require('./CjdnsTest');
 const GetVersion = require('./GetVersion');
 
 var CFLAGS = process.env['CFLAGS'];
 var LDFLAGS = process.env['LDFLAGS'];
-var NO_MARCH_FLAG = ['arm', 'ppc', 'ppc64'];
+// march=native really only makes a lot of sense on x86/amd64 where the available features
+// are a hodgepodge per-CPU. On arm (32) you may or may not have NEON available but in any
+// case clang doesn't reliably support march except on x86/amd64.
+var NO_MARCH_FLAG = ['arm', 'ppc', 'ppc64', 'arm64'];
 
 Builder.configure({
-    buildDir:       process.env['OUT_DIR'], // set by cargo
-    systemName:     process.env['SYSTEM'] || process.platform,
-    gcc:            process.env['CC'],
+    buildDir: process.env['OUT_DIR'], // set by cargo
+    systemName: process.env['SYSTEM'] || process.platform,
+    gcc: process.env['CC'],
 }, function (builder, waitFor) {
 
     builder.config.crossCompiling = process.env['CROSS'] !== undefined;
-    let optimizeLevel = '-O3';
+    let optimizeLevel = '-O2';
 
     builder.config.cflags.push(
         '-std=c99',
         '-Wall',
         '-Wextra',
-        // '-Werror', // This is not practical because compilers increase their warnings over time.
+        //'-Werror',
         '-Wno-pointer-sign',
         '-Wmissing-prototypes',
         '-pedantic',
@@ -107,14 +107,12 @@ Builder.configure({
     }
 
     if (process.env['NO_PIE'] === undefined && builder.config.systemName !== 'freebsd'
-        && builder.config.systemName !== 'win32')
-    {
+        && builder.config.systemName !== 'win32') {
         builder.config.cflags.push('-fPIE');
 
         // just using `-pie` on OS X >= 10.10 results in this warning:
         // clang: warning: argument unused during compilation: '-pie'
-        if (builder.config.systemName !== "darwin")
-        {
+        if (builder.config.systemName !== "darwin") {
             builder.config.ldflags.push('-pie');
         } else {
             builder.config.ldflags.push('-Wl,-pie');
@@ -133,7 +131,7 @@ Builder.configure({
             // a case of if (1 == 1)
             '-Wno-tautological-compare',
 
-            '-Wno-error'
+            //'-Wno-error'
         );
         builder.config.cflags.slice(builder.config.cflags.indexOf('-Werror'), 1);
     } else {
@@ -147,8 +145,8 @@ Builder.configure({
     // Allow -O0 so while debugging all variables are present.
     if (CFLAGS) {
         var cflags = CFLAGS.split(' ');
-        cflags.forEach(function(flag) {
-             if (/^\-O[^02s]$/.test(flag)) {
+        cflags.forEach(function (flag) {
+            if (/^\-O[^02s]$/.test(flag)) {
                 console.log("Skipping " + flag + ", assuming " + optimizeLevel + " instead.");
             } else if (/^\-O[02s]$/.test(flag)) {
                 optimizeLevel = flag;
@@ -170,7 +168,8 @@ Builder.configure({
     }
 
     if (android) {
-        builder.config.cflags.push('-Dandroid=1');
+        // NDK uses the word `android` in places
+        builder.config.cflags.push('-DCjdns_android=1');
     }
 
     var uclibc = process.env['UCLIBC'] == '1';
@@ -179,7 +178,7 @@ Builder.configure({
         case 'y':
         case '1': libssp = true; break;
         case 'n':
-        case '' :
+        case '':
         case '0': libssp = false; break;
         case undefined: break;
         default: throw new Error();
@@ -218,13 +217,13 @@ Builder.configure({
         );
     }
 
-    if (typeof(builder.config.cjdnsTest_files) === 'undefined') {
+    if (typeof (builder.config.cjdnsTest_files) === 'undefined') {
         CjdnsTest.generate(builder, process.env['SUBNODE'] !== '', waitFor());
     }
 
     nThen((w) => {
         if (builder.config.version) { return; }
-        GetVersion(w(function(err, data) {
+        GetVersion(w(function (err, data) {
             if (!err) {
                 builder.config.version = ('' + data).replace(/(\r\n|\n|\r)/gm, "");
             } else {
@@ -235,24 +234,9 @@ Builder.configure({
         builder.config.cflags.push('-D', 'CJD_PACKAGE_VERSION="' + builder.config.version + '"');
     }).nThen(waitFor());
 
-    var dependencyDir = builder.config.buildDir + '/dependencies';
-    var libuvLib = dependencyDir + '/libuv/out/Release/libuv.a';
-    if (['win32', 'netbsd'].indexOf(builder.config.systemName) >= 0) {//this might be needed for other BSDs
-        libuvLib = dependencyDir + '/libuv/out/Release/obj.target/libuv.a';
-    }
-
     // Build dependencies
     let foundSodium = false;
     nThen(function (waitFor) {
-
-        Fs.exists(dependencyDir, waitFor(function (exists) {
-            if (exists) { return; }
-
-            console.log("Copy dependencies");
-            Cp('./node_build/dependencies', dependencyDir, waitFor());
-        }));
-
-    }).nThen(function (waitFor) {
 
         const dir = `${builder.config.buildDir}/../..`;
         Fs.readdir(dir, waitFor((err, ret) => {
@@ -276,7 +260,6 @@ Builder.configure({
             throw new Error("Unable to find a path to libsodium headers");
         }
 
-        builder.config.libs.push(libuvLib);
         if (!android) {
             builder.config.libs.push('-lpthread');
         }
@@ -303,114 +286,8 @@ Builder.configure({
             );
         }
 
-        builder.config.includeDirs.push(dependencyDir + '/libuv/include/');
-
-        var libuvBuilt;
-        var python;
-        nThen(function (waitFor) {
-
-            Fs.exists(libuvLib, waitFor(function (exists) {
-                if (exists) { libuvBuilt = true; }
-            }));
-
-        }).nThen(function (waitFor) {
-
-            if (libuvBuilt) { return; }
-            FindPython.find(builder.tmpFile(), waitFor(function (err, pythonExec) {
-                if (err) { throw err; }
-                python = pythonExec;
-            }));
-
-        }).nThen(function (waitFor) {
-
-            if (libuvBuilt) { return; }
-            console.log("Build Libuv");
-            var cwd = process.cwd();
-            process.chdir(dependencyDir + '/libuv/');
-
-            var args = ['./gyp_uv.py'];
-            var env = process.env;
-            env.CC = builder.config.gcc;
-
-            if (env.TARGET_ARCH) {
-                args.push('-Dtarget_arch=' + env.TARGET_ARCH);
-            }
-
-            //args.push('--root-target=libuv');
-            if (android) {
-                args.push('-DOS=android');
-                args.push('-f', 'make-linux');
-            }
-
-            if (builder.config.systemName === 'win32') {
-                args.push('-DOS=win');
-                args.push('-f', 'make-linux');
-            }
-
-            if (env.GYP_ADDITIONAL_ARGS) {
-                args.push.apply(args, env.GYP_ADDITIONAL_ARGS.split(' '));
-            }
-
-            if (['freebsd', 'openbsd', 'netbsd'].indexOf(builder.config.systemName) !== -1) {
-                // This platform lacks a functioning sem_open implementation, therefore...
-                args.push('--no-parallel');
-                args.push('-DOS=' + builder.config.systemName);
-            }
-
-            var gyp = Spawn(python, args, {env:env, stdio:'inherit'});
-            gyp.on('error', function () {
-                console.error("couldn't launch gyp [" + python + "]");
-            });
-            gyp.on('close', waitFor(function () {
-                var args = [
-                    '-j', ''+builder.config.jobs,
-                    '-C', 'out',
-                    'BUILDTYPE=Release',
-                    'CC=' + builder.config.gcc,
-                    'CXX=' + builder.config.gcc,
-                    'V=1'
-                ];
-                var cflags = [optimizeLevel, '-DNO_EMFILE_TRICK=1'];
-
-                if (!/^\-O0$/.test(optimizeLevel)) {
-                    cflags.push('-D_FORTIFY_SOURCE=2');
-                }
-
-                if (!(/darwin|win32/i.test(builder.config.systemName))) {
-                    cflags.push('-fPIC');
-                }
-                args.push('CFLAGS=' + cflags.join(' '));
-
-                var makeCommand = ['freebsd', 'openbsd', 'netbsd'].indexOf(builder.config.systemName) >= 0 ? 'gmake' : 'make';
-                var make = Spawn(makeCommand, args, {stdio: 'inherit'});
-
-                make.on('error', function (err) {
-                    if (err.code === 'ENOENT') {
-                        console.error('\x1b[1;31mError: ' + makeCommand + ' is required!\x1b[0m');
-                    } else {
-                        console.error(
-                            '\x1b[1;31mFail run ' + process.cwd() + ': ' + makeCommand + ' '
-                            + args.join(' ') + '\x1b[0m'
-                        );
-                        console.error('Message:', err);
-                    }
-                    waitFor.abort();
-                });
-
-                make.on('close', waitFor(function () {
-                    process.chdir(cwd);
-                }));
-            }));
-
-        }).nThen((w) => {
-
-            Fs.exists(libuvLib, waitFor((exists) => {
-                if (!exists) {
-                    throw new Error("Libuv build failed");
-                }
-            }));
-
-        }).nThen(waitFor());
+        builder.config.includeDirs.push('node_build/dependencies/libuv/include/');
+        builder.config.includeDirs.push('node_build/dependencies/libuv/src/');
 
     }).nThen(waitFor());
 
@@ -423,23 +300,8 @@ Builder.configure({
     builder.buildLibrary('contrib/c/sybilsim.c');
     builder.buildLibrary('contrib/c/makekeys.c');
     builder.buildLibrary('contrib/c/mkpasswd.c');
-
     builder.buildLibrary('crypto/random/randombytes.c');
-
     builder.buildLibrary('rust/cjdns_sys/cffi.h');
-
-    builder.lintFiles(function (fileName, file, callback) {
-        if (/dependencies/.test(fileName) ||
-            /crypto\/sign/.test(fileName) ||
-            /.ffi\.h/.test(fileName)
-        ) {
-            callback('', false);
-            return;
-        }
-
-        Codestyle.lint(fileName, file, callback);
-    });
-
     builder.buildLibrary('test/testcjdroute.c');
 
 }).failure(function (builder, waitFor) {

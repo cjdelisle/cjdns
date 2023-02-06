@@ -26,6 +26,8 @@
 
 #include <sodium/crypto_hash_sha512.h>
 
+#include <inttypes.h>
+
 // This is the time between the timestamp of the newest message and the point where
 // snode and subnode agree to drop messages from the snode state.
 #define AGREED_TIMEOUT_MS (1000 * 60 * 20)
@@ -78,8 +80,8 @@ static int64_t timeUntilReannounce(
 
 static int64_t timestampFromMsg(struct Message* msg)
 {
-    struct Announce_Header* hdr = (struct Announce_Header*) msg->bytes;
-    Assert_true(msg->length >= Announce_Header_SIZE);
+    struct Announce_Header* hdr = (struct Announce_Header*) msg->msgbytes;
+    Assert_true(Message_getLength(msg) >= Announce_Header_SIZE);
     return Announce_Header_getTimestamp(hdr);
 }
 
@@ -108,7 +110,7 @@ static void hashMsgList(struct ArrayList_OfMessages* msgList, uint8_t out[64])
     for (int i = 0; i < msgList->length; i++) {
         struct Message* msg = ArrayList_OfMessages_get(msgList, i);
         Er_assert(Message_epush(msg, hash, 64));
-        crypto_hash_sha512(hash, msg->bytes, msg->length);
+        crypto_hash_sha512(hash, msg->msgbytes, Message_getLength(msg));
         Er_assert(Message_epop(msg, NULL, 64));
     }
     Bits_memcpy(out, hash, 64);
@@ -238,7 +240,7 @@ struct ReachabilityAnnouncer_pvt
 
 static int64_t ourTime(struct ReachabilityAnnouncer_pvt* rap)
 {
-    uint64_t now = Time_currentTimeMilliseconds(rap->base);
+    uint64_t now = Time_currentTimeMilliseconds();
     Assert_true(!(now >> 63));
     return (int64_t) now;
 }
@@ -283,20 +285,20 @@ static bool pushLinkState(struct ReachabilityAnnouncer_pvt* rap,
     for (int i = 0;; i++) {
         struct ReachabilityCollector_PeerInfo* pi = ReachabilityCollector_getPeerInfo(rap->rc, i);
         if (!pi || !pi->pathThemToUs) { break; }
-        int lastLen = msg->length;
+        int lastLen = Message_getLength(msg);
         pi->linkState.nodeId = pi->addr.path & 0xffff;
         if (LinkState_encode(msg, &pi->linkState, pi->lastAnnouncedSamples)) {
             Log_debug(rap->log, "Failed to add link state for [%s]",
-                Address_toString(&pi->addr, msg->alloc)->bytes);
+                Address_toString(&pi->addr, Message_getAlloc(msg))->bytes);
         }
-        if (msg->length > MSG_SIZE_LIMIT) {
-            Er_assert(Message_epop(msg, NULL, msg->length - lastLen));
+        if (Message_getLength(msg) > MSG_SIZE_LIMIT) {
+            Er_assert(Message_epop(msg, NULL, Message_getLength(msg) - lastLen));
             Log_debug(rap->log, "Couldn't add link state for [%s] (out of space)",
-                Address_toString(&pi->addr, msg->alloc)->bytes);
+                Address_toString(&pi->addr, Message_getAlloc(msg))->bytes);
             return true;
         } else {
             Log_debug(rap->log, "Updated link state for [%s]",
-                Address_toString(&pi->addr, msg->alloc)->bytes);
+                Address_toString(&pi->addr, Message_getAlloc(msg))->bytes);
             pi->lastAnnouncedSamples = pi->linkState.samples;
         }
     }
@@ -349,14 +351,14 @@ static int updateItem(struct ReachabilityAnnouncer_pvt* rap,
         Log_debug(rap->log, "updateItem [%s] found onTheWire but needs update", logInfo);
     }
 
-    if (msg->length > MSG_SIZE_LIMIT) {
+    if (Message_getLength(msg) > MSG_SIZE_LIMIT) {
         Log_debug(rap->log, "updateItem [%s] msg is too big to [%s] item",
             logInfo, item ? "UPDATE" : "INSERT");
         return updateItem_ENOSPACE;
     }
 
     Er_assert(Message_epush(msg, refItem, refItem->length));
-    while ((uintptr_t)msg->bytes % 4) {
+    while ((uintptr_t)msg->msgbytes % 4) {
         // Ensure alignment
         Er_assert(Message_epush8(msg, 1));
     }
@@ -398,7 +400,7 @@ static void stateReset(struct ReachabilityAnnouncer_pvt* rap)
 {
     for (int i = rap->snodeState->length - 1; i >= 0; i--) {
         struct Message* msg = ArrayList_OfMessages_remove(rap->snodeState, i);
-        Allocator_free(msg->alloc);
+        Allocator_free(Message_getAlloc(msg));
     }
 
     if (rap->onTheWire) {
@@ -415,7 +417,7 @@ static void stateReset(struct ReachabilityAnnouncer_pvt* rap)
 
 static void addServerStateMsg(struct ReachabilityAnnouncer_pvt* rap, struct Message* msg)
 {
-    Assert_true(msg->length >= Announce_Header_SIZE);
+    Assert_true(Message_getLength(msg) >= Announce_Header_SIZE);
     int64_t mostRecentTime = timestampFromMsg(msg);
     int64_t sinceTime = mostRecentTime - AGREED_TIMEOUT_MS;
     ArrayList_OfMessages_add(rap->snodeState, msg);
@@ -447,7 +449,7 @@ static void addServerStateMsg(struct ReachabilityAnnouncer_pvt* rap, struct Mess
         }
         if (redundant && m != msg) {
             ArrayList_OfMessages_remove(rap->snodeState, i);
-            Allocator_free(m->alloc);
+            Allocator_free(Message_getAlloc(m));
         } else if (timestampFromMsg(m) < sinceTime) {
             // this will cause an immediate reset of state because we don't remove it and
             // the server side will.
@@ -555,7 +557,7 @@ static void onReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom
     Log_debug(rap->log, "snode messages before [%d]", rap->snodeState->length);
     // We need to takeover the message allocator because it belongs to the ping message which
     // will auto-free at the end of this cycle.
-    Allocator_adopt(rap->alloc, q->msg->alloc);
+    Allocator_adopt(rap->alloc, Message_getAlloc(q->msg));
     addServerStateMsg(rap, q->msg);
     Log_debug(rap->log, "snode messages after [%d]", rap->snodeState->length);
     rap->resetState = false;
@@ -668,7 +670,7 @@ static void onAnnounceCycle(void* vRap)
             Log_debug(rap->log, "Out of space pushing link state");
         } else {
             // Inch the tba up whenever there's a "small" message
-            if (msg->length < 500) { rap->timeBetweenAnns += 100; }
+            if (Message_getLength(msg) < 500) { rap->timeBetweenAnns += 100; }
             // Cap at 60 seconds, going over this requires changing when
             // nodes are re-announced.
             if (rap->timeBetweenAnns > 60000) { rap->timeBetweenAnns = 60000; }
@@ -684,7 +686,7 @@ static void onAnnounceCycle(void* vRap)
 
     Er_assert(Message_epush(msg, NULL, Announce_Header_SIZE));
 
-    struct Announce_Header* hdr = (struct Announce_Header*) msg->bytes;
+    struct Announce_Header* hdr = (struct Announce_Header*) msg->msgbytes;
     Bits_memset(hdr, 0, Announce_Header_SIZE);
     Announce_Header_setVersion(hdr, Announce_Header_CURRENT_VERSION);
     Announce_Header_setReset(hdr, rap->resetState);
@@ -709,7 +711,7 @@ static void onAnnounceCycle(void* vRap)
     qp->target = &q->target;
 
     Dict_putStringCC(dict, "sq", "ann", qp->alloc);
-    String* annString = String_newBinary(msg->bytes, msg->length, qp->alloc);
+    String* annString = String_newBinary(msg->msgbytes, Message_getLength(msg), qp->alloc);
     Dict_putStringC(dict, "ann", annString, qp->alloc);
 
     rap->onTheWire = q;
@@ -770,8 +772,8 @@ static struct Announce_ItemHeader* mkEncodingSchemeItem(
     Er_assert(Message_epush8(esMsg, Announce_Type_ENCODING_SCHEME));
     Er_assert(Message_epush8(esMsg, compressedScheme->len + 2));
 
-    struct Announce_ItemHeader* item = Allocator_calloc(alloc, esMsg->length, 1);
-    Bits_memcpy(item, esMsg->bytes, esMsg->length);
+    struct Announce_ItemHeader* item = Allocator_calloc(alloc, Message_getLength(esMsg), 1);
+    Bits_memcpy(item, esMsg->msgbytes, Message_getLength(esMsg));
     Allocator_free(tmpAlloc);
     return item;
 }

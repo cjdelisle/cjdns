@@ -23,6 +23,7 @@
 #include "util/events/Timeout.h"
 #include "util/Identity.h"
 #include "wire/Message.h"
+#include "wire/Error.h"
 
 #include <sodium/crypto_hash_sha256.h>
 
@@ -93,7 +94,7 @@ static int calculateAuth(Dict* message,
     Er_assert(BencMessageWriter_write(message, msg));
 
     // calculate the hash of the message with the password hash
-    crypto_hash_sha256(hash, msg->bytes, msg->length);
+    crypto_hash_sha256(hash, msg->msgbytes, Message_getLength(msg));
 
     // swap the hash of the message with the password hash into the location
     // where the password hash was.
@@ -121,30 +122,30 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* addrIface)
     Er_assert(Message_epop(msg, &source, ctx->targetAddr->addrLen));
     if (Bits_memcmp(&source, ctx->targetAddr, ctx->targetAddr->addrLen)) {
         Log_info(ctx->logger, "Got spurious message from [%s], expecting messages from [%s]",
-                 Sockaddr_print(&source.addr, msg->alloc),
-                 Sockaddr_print(ctx->targetAddr, msg->alloc));
+                 Sockaddr_print(&source.addr, Message_getAlloc(msg)),
+                 Sockaddr_print(ctx->targetAddr, Message_getAlloc(msg)));
         // The UDP interface can't make use of an error but we'll inform anyway
-        return Error(INVALID);
+        return Error(msg, "INVALID source addr");
     }
 
     // we don't yet know with which message this data belongs,
     // the message alloc lives the length of the message reception.
-    struct Allocator* alloc = Allocator_child(msg->alloc);
+    struct Allocator* alloc = Allocator_child(Message_getAlloc(msg));
 
-    int origLen = msg->length;
+    int origLen = Message_getLength(msg);
     Dict* d = NULL;
     const char* err = BencMessageReader_readNoExcept(msg, alloc, &d);
-    if (err) { return Error(INVALID); }
+    if (err) { return Error(msg, "Error decoding benc: %s", err); }
     Er_assert(Message_eshift(msg, origLen));
 
     String* txid = Dict_getStringC(d, "txid");
-    if (!txid || txid->len != 8) { return Error(INVALID); }
+    if (!txid || txid->len != 8) { return Error(msg, "INVALID missing or wrong size txid"); }
 
     // look up the result
     uint32_t handle = ~0u;
     Hex_decode((uint8_t*)&handle, 4, txid->bytes, 8);
     int idx = Map_OfRequestByHandle_indexForHandle(handle, &ctx->outstandingRequests);
-    if (idx < 0) { return Error(INVALID); }
+    if (idx < 0) { return Error(msg, "INVALID no such handle"); }
 
     struct Request* req = ctx->outstandingRequests.values[idx];
 
@@ -153,12 +154,13 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* addrIface)
 
     req->res.responseDict = d;
 
-    int len =
-        (msg->length > AdminClient_MAX_MESSAGE_SIZE) ? AdminClient_MAX_MESSAGE_SIZE : msg->length;
+    int len = (Message_getLength(msg) > AdminClient_MAX_MESSAGE_SIZE)
+        ? AdminClient_MAX_MESSAGE_SIZE
+        : Message_getLength(msg);
     Bits_memset(req->res.messageBytes, 0, AdminClient_MAX_MESSAGE_SIZE);
-    Bits_memcpy(req->res.messageBytes, msg->bytes, len);
+    Bits_memcpy(req->res.messageBytes, msg->msgbytes, len);
     done(req, AdminClient_Error_NONE);
-    return Error(NONE);
+    return NULL;
 }
 
 static int requestOnFree(struct Allocator_OnFreeJob* job)

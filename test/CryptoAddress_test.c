@@ -47,7 +47,7 @@ static const char ipv6[] = "fc68:cb2c:60db:cb96:19ac:34a8:fd34:03fc";
 int main()
 {
     /* verify public key */
-    struct Address address;
+    struct Address address = {0};
     crypto_scalarmult_curve25519_base(address.key, privateKey);
 
     AddressCalc_addressForPublicKey(address.ip6.bytes, address.key);

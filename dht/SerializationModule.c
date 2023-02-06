@@ -71,8 +71,8 @@ static int handleOutgoing(struct DHTMessage* message,
                           void* vcontext)
 {
    // This is always at the end of the message.
-    Assert_true(!message->binMessage->length);
-    Assert_true(!((uintptr_t)message->binMessage->bytes % 4) || !"alignment fault0");
+    Assert_true(!Message_getLength(message->binMessage));
+    Assert_true(!((uintptr_t)message->binMessage->msgbytes % 4) || !"alignment fault0");
 
     if (Dict_getStringC(message->asDict, "q")) {
         String* txid = Dict_getStringC(message->asDict, "txid");
@@ -86,7 +86,7 @@ static int handleOutgoing(struct DHTMessage* message,
 
     Er_assert(BencMessageWriter_write(message->asDict, message->binMessage));
 
-    Assert_true(!((uintptr_t)message->binMessage->bytes % 4) || !"alignment fault");
+    Assert_true(!((uintptr_t)message->binMessage->msgbytes % 4) || !"alignment fault");
 
     return 0;
 }
@@ -106,9 +106,9 @@ static int handleIncoming(struct DHTMessage* message,
         Log_info(context->logger, "Failed to parse message [%s]", err);
         return -2;
     }
-    if (message->binMessage->length) {
+    if (Message_getLength(message->binMessage)) {
         Log_info(context->logger, "Message contains [%d] bytes of crap at the end",
-                 (int)message->binMessage->length);
+                 (int)Message_getLength(message->binMessage));
     }
 
     String* q = Dict_getStringC(message->asDict, "q");

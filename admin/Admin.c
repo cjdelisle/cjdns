@@ -113,7 +113,7 @@ struct Admin_pvt
     Identity
 };
 
-static struct Error_s sendMessage(
+static struct RTypes_Error_t* sendMessage(
     struct Message* message, struct Sockaddr* dest, struct Admin_pvt* admin)
 {
     // stack overflow when used with admin logger.
@@ -122,7 +122,7 @@ static struct Error_s sendMessage(
     return Iface_send(&admin->iface, message);
 }
 
-static struct Error_s sendBenc(Dict* message,
+static struct RTypes_Error_t* sendBenc(Dict* message,
                                struct Sockaddr* dest,
                                struct Allocator* alloc,
                                struct Admin_pvt* admin,
@@ -130,8 +130,8 @@ static struct Error_s sendBenc(Dict* message,
 {
     Message_reset(admin->tempSendMsg);
     Er_assert(BencMessageWriter_write(message, admin->tempSendMsg));
-    struct Message* msg = Message_new(0, admin->tempSendMsg->length + 32, alloc);
-    Er_assert(Message_epush(msg, admin->tempSendMsg->bytes, admin->tempSendMsg->length));
+    struct Message* msg = Message_new(0, Message_getLength(admin->tempSendMsg) + 32, alloc);
+    Er_assert(Message_epush(msg, admin->tempSendMsg->msgbytes, Message_getLength(admin->tempSendMsg)));
     Message_setAssociatedFd(msg, fd);
     return sendMessage(msg, dest, admin);
 }
@@ -157,7 +157,7 @@ static int checkAddress(struct Admin_pvt* admin, int index, uint64_t now)
 static void clearExpiredAddresses(void* vAdmin)
 {
     struct Admin_pvt* admin = Identity_check((struct Admin_pvt*) vAdmin);
-    uint64_t now = Time_currentTimeMilliseconds(admin->eventBase);
+    uint64_t now = Time_currentTimeMilliseconds();
     int count = 0;
     for (int i = admin->map.count - 1; i >= 0; i--) {
         if (checkAddress(admin, i, now)) {
@@ -180,7 +180,7 @@ static int sendMessage0(Dict* message, String* txid, struct Admin* adminPub, int
 
     struct Allocator* alloc = NULL;
     if (admin->currentRequest) {
-        alloc = admin->currentRequest->alloc;
+        alloc = Message_getAlloc(admin->currentRequest);
     } else {
         alloc = Allocator_child(admin->allocator);
     }
@@ -191,7 +191,7 @@ static int sendMessage0(Dict* message, String* txid, struct Admin* adminPub, int
     // out forever after a disconnection.
     if (!admin->currentRequest) {
         int index = Map_LastMessageTimeByAddr_indexForKey(&addr, &admin->map);
-        uint64_t now = Time_currentTimeMilliseconds(admin->eventBase);
+        uint64_t now = Time_currentTimeMilliseconds();
         if (index < 0 || checkAddress(admin, index, now)) {
             return Admin_sendMessage_CHANNEL_CLOSED;
         }
@@ -228,13 +228,13 @@ static inline bool authValid(Dict* message, struct Message* messageBytes, struct
         int64_t* cookieInt = Dict_getIntC(message, "cookie");
         cookie = (cookieInt) ? *cookieInt : 0;
     }
-    uint64_t nowSecs = Time_currentTimeSeconds(admin->eventBase);
+    uint64_t nowSecs = Time_currentTimeSeconds();
     String* submittedHash = Dict_getStringC(message, "hash");
     if (cookie >  nowSecs || cookie < nowSecs - 20 || !submittedHash || submittedHash->len != 64) {
         return false;
     }
 
-    uint8_t* hashPtr = CString_strstr(messageBytes->bytes, submittedHash->bytes);
+    uint8_t* hashPtr = CString_strstr(messageBytes->msgbytes, submittedHash->bytes);
 
     if (!hashPtr || !admin->password) {
         return false;
@@ -246,7 +246,7 @@ static inline bool authValid(Dict* message, struct Message* messageBytes, struct
     crypto_hash_sha256(hash, passAndCookie, CString_strlen((char*) passAndCookie));
     Hex_encode(hashPtr, 64, hash, 32);
 
-    crypto_hash_sha256(hash, messageBytes->bytes, messageBytes->length);
+    crypto_hash_sha256(hash, messageBytes->msgbytes, Message_getLength(messageBytes));
     Hex_encode(hashPtr, 64, hash, 32);
     int res = crypto_verify_32(hashPtr, submittedHash->bytes);
     res |= crypto_verify_32(hashPtr + 32, submittedHash->bytes + 32);
@@ -345,7 +345,7 @@ static void handleRequest(Dict* messageDict,
         //Log_debug(admin->logger, "Got a request for a cookie");
         Dict* d = Dict_new(allocator);
         char bytes[32];
-        snprintf(bytes, 32, "%u", (uint32_t) Time_currentTimeSeconds(admin->eventBase));
+        snprintf(bytes, 32, "%u", (uint32_t) Time_currentTimeSeconds());
         String* theCookie = &(String) { .len = CString_strlen(bytes), .bytes = bytes };
         Dict_putString(d, cookie, theCookie, allocator);
         Admin_sendMessage(d, txid, &admin->pub);
@@ -374,7 +374,7 @@ static void handleRequest(Dict* messageDict,
     // Then sent a valid authed query, lets track their address so they can receive
     // asynchronous messages.
     int index = Map_LastMessageTimeByAddr_indexForKey(&src, &admin->map);
-    uint64_t now = Time_currentTimeMilliseconds(admin->eventBase);
+    uint64_t now = Time_currentTimeMilliseconds();
     admin->asyncEnabled = 1;
     if (index >= 0) {
         admin->map.values[index]->timeOfLastMessage = now;
@@ -395,8 +395,8 @@ static void handleRequest(Dict* messageDict,
         if (String_equals(query, admin->functions[i].name)
             && (authed || !admin->functions[i].needsAuth))
         {
-            if (checkArgs(args, &admin->functions[i], txid, message->alloc, admin)) {
-                admin->functions[i].call(args, admin->functions[i].context, txid, message->alloc);
+            if (checkArgs(args, &admin->functions[i], txid, Message_getAlloc(message), admin)) {
+                admin->functions[i].call(args, admin->functions[i].context, txid, Message_getAlloc(message));
             }
             noFunctionsCalled = false;
         }
@@ -421,39 +421,39 @@ static void handleMessage(struct Message* message,
                           struct Admin_pvt* admin)
 {
     if (Defined(Log_KEYS)) {
-        uint8_t lastChar = message->bytes[message->length - 1];
-        message->bytes[message->length - 1] = '\0';
+        uint8_t lastChar = message->msgbytes[Message_getLength(message) - 1];
+        message->msgbytes[Message_getLength(message) - 1] = '\0';
         Log_keys(admin->logger, "Got message from [%s] [%s]",
-                 Sockaddr_print(src, alloc), message->bytes);
-        message->bytes[message->length - 1] = lastChar;
+                 Sockaddr_print(src, alloc), message->msgbytes);
+        message->msgbytes[Message_getLength(message) - 1] = lastChar;
     }
 
     // handle non empty message data
-    if (message->length > Admin_MAX_REQUEST_SIZE) {
+    if (Message_getLength(message) > Admin_MAX_REQUEST_SIZE) {
         #define TOO_BIG "d5:error16:Request too big.e"
         #define TOO_BIG_STRLEN (sizeof(TOO_BIG) - 1)
-        Bits_memcpy(message->bytes, TOO_BIG, TOO_BIG_STRLEN);
-        message->length = TOO_BIG_STRLEN;
+        Bits_memcpy(message->msgbytes, TOO_BIG, TOO_BIG_STRLEN);
+        Er_assert(Message_truncate(message, TOO_BIG_STRLEN));
         sendMessage(message, src, admin);
         return;
     }
 
-    int origMessageLen = message->length;
+    int origMessageLen = Message_getLength(message);
     Dict* messageDict = NULL;
     const char* err = BencMessageReader_readNoExcept(message, alloc, &messageDict);
     if (err) {
         Log_warn(admin->logger,
                  "Unparsable data from [%s] content: [%s] error: [%s]",
                  Sockaddr_print(src, alloc),
-                 Hex_print(message->bytes, message->length, alloc),
+                 Hex_print(message->msgbytes, Message_getLength(message), alloc),
                  err);
         return;
     }
 
-    if (message->length) {
+    if (Message_getLength(message)) {
         Log_warn(admin->logger,
                  "Message from [%s] contained garbage after byte [%d] content: [%s]",
-                 Sockaddr_print(src, alloc), message->length, message->bytes);
+                 Sockaddr_print(src, alloc), Message_getLength(message), message->msgbytes);
         return;
     }
 
@@ -476,7 +476,7 @@ static Iface_DEFUN receiveMessage(struct Message* message, struct Iface* iface)
     Allocator_free(alloc);
     // We don't return errors here because the caller can't make use of them
     // instead we reply with anything which went wrong.
-    return Error(NONE);
+    return NULL;
 }
 
 void Admin_registerFunctionWithArgCount(char* name,
@@ -527,7 +527,7 @@ void Admin_registerFunctionWithArgCount(char* name,
 static void importFd(Dict* args, void* vAdmin, String* txid, struct Allocator* requestAlloc)
 {
     struct Admin_pvt* admin = Identity_check((struct Admin_pvt*) vAdmin);
-    int fd = admin->currentRequest->associatedFd;
+    int fd = Message_getAssociatedFd(admin->currentRequest);
     Dict* res = Dict_new(requestAlloc);
     char* error = "none";
     if (fd < 0) {

@@ -22,15 +22,15 @@ static inline Er_DEFUN(void TUNMessageType_push(struct Message* message,
                                        uint16_t ethertype))
 {
     Er(Message_eshift(message, 4));
-    ((uint16_t*) message->bytes)[0] = 0;
-    ((uint16_t*) message->bytes)[1] = ethertype;
+    ((uint16_t*) message->msgbytes)[0] = 0;
+    ((uint16_t*) message->msgbytes)[1] = ethertype;
     Er_ret();
 }
 
 static inline Er_DEFUN(uint16_t TUNMessageType_pop(struct Message* message))
 {
     Er(Message_eshift(message, -4));
-    Er_ret( ((uint16_t*) message->bytes)[-1] );
+    Er_ret( ((uint16_t*) message->msgbytes)[-1] );
 }
 
 enum TUNMessageType {
@@ -46,7 +46,7 @@ enum TUNMessageType {
 
 static inline enum TUNMessageType TUNMessageType_guess()
 {
-    if (Defined(android) || Defined(sunos)) {
+    if (Defined(Cjdns_android) || Defined(sunos)) {
         return TUNMessageType_NONE;
     } else if (Defined(linux) || Defined(win32)) {
         return TUNMessageType_ETHERTYPE;

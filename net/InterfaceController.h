@@ -16,7 +16,7 @@
 #define InterfaceController_H
 
 #include "benc/String.h"
-#include "crypto/CryptoAuth.h"
+#include "crypto/Ca.h"
 #include "dht/Address.h"
 #include "interface/Iface.h"
 #include "memory/Allocator.h"
@@ -37,18 +37,18 @@ enum InterfaceController_PeerState
      * In state >= NEW, a valid packet has been received but it could still be a replay.
      * Or it's an outgoing connection so we don't care about authentication.
      */
-    InterfaceController_PeerState_INIT = CryptoAuth_State_INIT,
+    InterfaceController_PeerState_INIT = Ca_State_INIT,
 
-    InterfaceController_PeerState_SENT_HELLO = CryptoAuth_State_SENT_HELLO,
+    InterfaceController_PeerState_SENT_HELLO = Ca_State_SENT_HELLO,
 
-    InterfaceController_PeerState_RECEIVED_HELLO = CryptoAuth_State_RECEIVED_HELLO,
+    InterfaceController_PeerState_RECEIVED_HELLO = Ca_State_RECEIVED_HELLO,
 
-    InterfaceController_PeerState_SENT_KEY = CryptoAuth_State_SENT_KEY,
+    InterfaceController_PeerState_SENT_KEY = Ca_State_SENT_KEY,
 
-    InterfaceController_PeerState_RECEIVED_KEY = CryptoAuth_State_RECEIVED_KEY,
+    InterfaceController_PeerState_RECEIVED_KEY = Ca_State_RECEIVED_KEY,
 
     /** In state == ESTABLISHED, we know the node at the other end is authentic. */
-    InterfaceController_PeerState_ESTABLISHED = CryptoAuth_State_ESTABLISHED,
+    InterfaceController_PeerState_ESTABLISHED = Ca_State_ESTABLISHED,
 
     /** If state == UNRESPONSIVE, the peer has not responded to pings in the required timeframe. */
     InterfaceController_PeerState_UNRESPONSIVE = -1,
@@ -106,6 +106,7 @@ struct InterfaceController_PeerStats
     uint64_t bytesOut;
     uint64_t bytesIn;
     bool isIncomingConnection;
+    bool noiseProto;
     String* user;
 
     /** Packet loss/duplication statistics. see: ReplayProtector */
@@ -120,12 +121,7 @@ struct InterfaceController_PeerStats
 
 struct InterfaceController
 {
-    /*
-     * If set to true, high resolution timestamp data will be collected for each
-     * packet to help with estimating available bandwidth. Caution: this implies
-     * an extra syscall per packet.
-     */
-    bool timestampPackets;
+    int opaque;
 };
 
 struct InterfaceController_Iface
@@ -175,7 +171,6 @@ struct InterfaceController_Iface* InterfaceController_getIface(struct InterfaceC
  * @param login an identity to provide to the other node with the password,
  *        if null then authtype 1 will be used.
  * @param displayName the username to assign the other node in the CryptoAuth session. May be null.
- * @param alloc the peer will be dropped if this is freed.
  *
  * @return 0 if all goes well.
  *         InterfaceController_bootstrapPeer_BAD_IFNUM if there is no such interface for this num.
@@ -194,7 +189,7 @@ int InterfaceController_bootstrapPeer(struct InterfaceController* ifc,
                                       String* password,
                                       String* login,
                                       String* displayName,
-                                      struct Allocator* alloc);
+                                      int version);
 
 #define InterfaceController_beaconState_newState_OFF    0
 #define InterfaceController_beaconState_newState_ACCEPT 1
@@ -206,7 +201,7 @@ int InterfaceController_beaconState(struct InterfaceController* ifc,
                                     int newState);
 
 /**
- * CryptoAuth_reset() a peer to reestablish the connection.
+ * Ca_reset() a peer to reestablish the connection.
  *
  * @param ic the if controller
  * @param herPublicKey the public key of the foreign node or NULL for all peers
@@ -220,10 +215,8 @@ void InterfaceController_resetPeering(struct InterfaceController* ifController,
  *
  * @param ic the if controller
  * @param herPublicKey the public key of the foreign node
- * @return 0 if all goes well.
- *         InterfaceController_disconnectPeer_NOTFOUND if no peer with herPublicKey is found.
+ * @return number of sessions disconnected
  */
-#define InterfaceController_disconnectPeer_NOTFOUND -1
 int InterfaceController_disconnectPeer(struct InterfaceController* ifc, uint8_t herPublicKey[32]);
 
 /**
@@ -238,13 +231,14 @@ int InterfaceController_getPeerStats(struct InterfaceController* ic,
                               struct Allocator* alloc,
                               struct InterfaceController_PeerStats** statsOut);
 
-struct InterfaceController* InterfaceController_new(struct CryptoAuth* ca,
+struct InterfaceController* InterfaceController_new(Ca_t* ca,
                                       struct SwitchCore* switchCore,
                                       struct Log* logger,
                                       struct EventBase* eventBase,
                                       struct SwitchPinger* switchPinger,
                                       struct Random* rand,
                                       struct Allocator* allocator,
-                                      struct EventEmitter* ee);
+                                      struct EventEmitter* ee,
+                                      bool enableNoise);
 
 #endif

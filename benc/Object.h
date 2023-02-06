@@ -15,17 +15,19 @@
 #ifndef Object_H
 #define Object_H
 
-#include <inttypes.h>
+#include <stdint.h>
 
 #include "memory/Allocator.h"
 
 // Dictionaries and lists are pointers to the head entry so that the head can change.
 typedef struct Dict_Entry* Dict;
 typedef struct List_Item* List;
-typedef struct {
+typedef struct String_s {
     uintptr_t len;
     char* bytes;
 } String;
+
+typedef String String_t;
 
 enum Object_Type {
     Object_INTEGER,

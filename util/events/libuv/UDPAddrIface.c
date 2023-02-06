@@ -71,8 +71,8 @@ static void sendComplete(uv_udp_send_t* uvReq, int error)
         Log_debug(req->udp->logger, "DROP Failed to write to UDPAddrIface [%s]",
                   uv_strerror(error) );
     }
-    Assert_true(req->msg->length == req->length);
-    req->udp->queueLen -= req->msg->length;
+    Assert_true(Message_getLength(req->msg) == req->length);
+    req->udp->queueLen -= Message_getLength(req->msg);
     Assert_true(req->udp->queueLen >= 0);
     Allocator_free(req->alloc);
 }
@@ -82,26 +82,22 @@ static Iface_DEFUN incomingFromIface(struct Message* m, struct Iface* iface)
 {
     struct UDPAddrIface_pvt* context = Identity_check((struct UDPAddrIface_pvt*) iface);
 
-    Assert_true(m->length >= Sockaddr_OVERHEAD);
-    if (((struct Sockaddr*)m->bytes)->flags & Sockaddr_flags_BCAST) {
+    Assert_true(Message_getLength(m) >= Sockaddr_OVERHEAD);
+    if (((struct Sockaddr*)m->msgbytes)->flags & Sockaddr_flags_BCAST) {
         Log_debug(context->logger, "Attempted bcast, bcast unsupported");
         // bcast not supported.
-        return Error(UNHANDLED);
+        return Error(m, "UNHANDLED");
     }
 
     if (context->queueLen > UDPAddrIface_MAX_QUEUE) {
         Log_warn(context->logger, "DROP msg length [%d] to [%s] maximum queue length reached",
-            m->length, Sockaddr_print(context->pub.generic.addr, m->alloc));
-        return Error(OVERFLOW);
+            Message_getLength(m), Sockaddr_print(context->pub.generic.addr, Message_getAlloc(m)));
+        return Error(m, "OVERFLOW");
     }
 
     // This allocator will hold the message allocator in existance after it is freed.
     struct Allocator* reqAlloc = Allocator_child(context->allocator);
-    if (m->alloc) {
-        Allocator_adopt(reqAlloc, m->alloc);
-    } else {
-        m = Message_clone(m, reqAlloc);
-    }
+    Allocator_adopt(reqAlloc, Message_getAlloc(m));
 
     struct UDPAddrIface_WriteRequest_pvt* req =
         Allocator_clone(reqAlloc, (&(struct UDPAddrIface_WriteRequest_pvt) {
@@ -115,10 +111,10 @@ static Iface_DEFUN incomingFromIface(struct Message* m, struct Iface* iface)
     Er_assert(Message_epop(m, &ss, context->pub.generic.addr->addrLen));
     Assert_true(ss.addr.addrLen == context->pub.generic.addr->addrLen);
 
-    req->length = m->length;
+    req->length = Message_getLength(m);
 
     uv_buf_t buffers[] = {
-        { .base = (char*)m->bytes, .len = m->length }
+        { .base = (char*)m->msgbytes, .len = Message_getLength(m) }
     };
 
     int ret = uv_udp_send(&req->uvReq, &context->uvHandle, buffers, 1,
@@ -128,17 +124,17 @@ static Iface_DEFUN incomingFromIface(struct Message* m, struct Iface* iface)
         Log_info(context->logger, "DROP Failed writing to UDPAddrIface [%s]",
                  uv_strerror(ret));
         Allocator_free(req->alloc);
-        return Error(UNHANDLED);
+        return Error(m, "UNHANDLED");
     }
-    context->queueLen += m->length;
+    context->queueLen += Message_getLength(m);
 
-    return Error(NONE);
+    return NULL;
 }
 
 #if UDPAddrIface_PADDING_AMOUNT < 8
     #error
 #endif
-#define ALLOC(buff) (((struct Allocator**) &(buff[-(8 + (((uintptr_t)buff) % 8))]))[0])
+#define ALLOC(buff) (((struct Message**) &(buff[-(8 + (((uintptr_t)buff) % 8))]))[0])
 
 static void incoming(uv_udp_t* handle,
                      ssize_t nread,
@@ -151,7 +147,7 @@ static void incoming(uv_udp_t* handle,
     context->inCallback = 1;
 
     // Grab out the allocator which was placed there by allocate()
-    struct Allocator* alloc = buf->base ? ALLOC(buf->base) : NULL;
+    struct Message* msg = buf->base ? ALLOC(buf->base) : NULL;
 
     // if nread < 0, we used to log uv_last_error, which doesn't exist anymore.
     if (nread == 0) {
@@ -159,29 +155,24 @@ static void incoming(uv_udp_t* handle,
         //Log_debug(context->logger, "0 length read");
 
     } else {
-        struct Message* m = Allocator_calloc(alloc, sizeof(struct Message), 1);
-        m->length = nread;
-        m->padding = UDPAddrIface_PADDING_AMOUNT + context->pub.generic.addr->addrLen;
-        m->capacity = buf->len;
-        m->bytes = (uint8_t*)buf->base;
-        m->alloc = alloc;
-        Er_assert(Message_epush(m, addr, context->pub.generic.addr->addrLen - Sockaddr_OVERHEAD));
+        Er_assert(Message_truncate(msg, nread));
+        Er_assert(Message_epush(msg, addr, context->pub.generic.addr->addrLen - Sockaddr_OVERHEAD));
 
         // make sure the sockaddr doesn't have crap in it which will
         // prevent it from being used as a lookup key
-        Sockaddr_normalizeNative((struct sockaddr*) m->bytes);
+        Sockaddr_normalizeNative((struct sockaddr*) msg->msgbytes);
 
-        Er_assert(Message_epush(m, context->pub.generic.addr, Sockaddr_OVERHEAD));
+        Er_assert(Message_epush(msg, context->pub.generic.addr, Sockaddr_OVERHEAD));
 
         /*uint8_t buff[256] = {0};
         Assert_true(Hex_encode(buff, 255, m->bytes, context->pub.generic.addr->addrLen));
         Log_debug(context->logger, "Message from [%s]", buff);*/
 
-        Iface_send(&context->pub.generic.iface, m);
+        Iface_send(&context->pub.generic.iface, msg);
     }
 
-    if (alloc) {
-        Allocator_free(alloc);
+    if (msg) {
+        Allocator_free(Message_getAlloc(msg));
     }
 
     context->inCallback = 0;
@@ -195,15 +186,17 @@ static void allocate(uv_handle_t* handle, size_t size, uv_buf_t* buf)
     struct UDPAddrIface_pvt* context = ifaceForHandle((uv_udp_t*)handle);
 
     size = UDPAddrIface_BUFFER_CAP;
-    size_t fullSize = size + UDPAddrIface_PADDING_AMOUNT + context->pub.generic.addr->addrLen;
 
     struct Allocator* child = Allocator_child(context->allocator);
-    char* buff = Allocator_malloc(child, fullSize);
-    buff += UDPAddrIface_PADDING_AMOUNT + context->pub.generic.addr->addrLen;
+    struct Message* msg = Message_new(
+        UDPAddrIface_BUFFER_CAP,
+        UDPAddrIface_PADDING_AMOUNT + context->pub.generic.addr->addrLen,
+        child
+    );
 
-    ALLOC(buff) = child;
+    ALLOC(msg->msgbytes) = msg;
 
-    buf->base = buff;
+    buf->base = msg->msgbytes;
     buf->len = size;
 }
 

@@ -13,7 +13,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "crypto/random/Random.h"
-#include "crypto/CryptoAuth.h"
+#include "crypto/Ca.h"
 #include "memory/Allocator.h"
 #include "switch/SwitchCore.h"
 #include "net/NetCore.h"
@@ -34,7 +34,8 @@ struct NetCore* NetCore_new(uint8_t* privateKey,
                             struct Allocator* allocator,
                             struct EventBase* base,
                             struct Random* rand,
-                            struct Log* log)
+                            struct Log* log,
+                            bool enableNoise)
 {
     struct Allocator* alloc = Allocator_child(allocator);
     struct NetCore* nc = Allocator_calloc(alloc, sizeof(struct NetCore), 1);
@@ -43,11 +44,13 @@ struct NetCore* NetCore_new(uint8_t* privateKey,
     nc->rand = rand;
     nc->log = log;
 
-    struct CryptoAuth* ca = nc->ca = CryptoAuth_new(alloc, privateKey, base, log, rand);
-    struct EventEmitter* ee = nc->ee = EventEmitter_new(alloc, log, ca->publicKey);
+    Ca_t* ca = nc->ca = Ca_new(alloc, privateKey, base, log, rand);
+    uint8_t ourPubKey[32];
+    Ca_getPubKey(ca, ourPubKey);
+    struct EventEmitter* ee = nc->ee = EventEmitter_new(alloc, log, ourPubKey);
 
     struct Address* myAddress = nc->myAddress = Allocator_calloc(alloc, sizeof(struct Address), 1);
-    Bits_memcpy(myAddress->key, ca->publicKey, 32);
+    Bits_memcpy(myAddress->key, ourPubKey, 32);
     Address_getPrefix(myAddress);
     myAddress->protocolVersion = Version_CURRENT_PROTOCOL;
     myAddress->path = 1;
@@ -61,13 +64,13 @@ struct NetCore* NetCore_new(uint8_t* privateKey,
     Iface_plumb(&sm->insideIf, &upper->sessionManagerIf);
 
     struct ControlHandler* controlHandler = nc->controlHandler =
-        ControlHandler_new(alloc, log, ee, ca->publicKey);
+        ControlHandler_new(alloc, log, ee, ourPubKey);
     Iface_plumb(&controlHandler->coreIf, &upper->controlHandlerIf);
 
     struct SwitchPinger* sp = nc->sp = SwitchPinger_new(base, rand, log, myAddress, alloc);
     Iface_plumb(&controlHandler->switchPingerIf, &sp->controlHandlerIf);
 
-    nc->ifController = InterfaceController_new(ca, switchCore, log, base, sp, rand, alloc, ee);
+    nc->ifController = InterfaceController_new(ca, switchCore, log, base, sp, rand, alloc, ee, enableNoise);
 
     struct TUNAdapter* tunAdapt = nc->tunAdapt = TUNAdapter_new(alloc, log, myAddress->ip6.bytes);
     Iface_plumb(&tunAdapt->upperDistributorIf, &upper->tunAdapterIf);

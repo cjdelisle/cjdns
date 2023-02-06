@@ -53,7 +53,7 @@ static int getEntropy(void *buf, size_t buflen)
 }
 #endif
 
-static int get(struct RandomSeed* randomSeed, uint64_t output[8])
+static int get(RandomSeed_t* randomSeed, uint64_t output[8])
 {
     if (getEntropy(output, 64) < 0) {
         return -1;
@@ -62,9 +62,9 @@ static int get(struct RandomSeed* randomSeed, uint64_t output[8])
     }
 }
 
-struct RandomSeed* GetEntropyRandomSeed_new(struct Allocator* alloc)
+RandomSeed_t* GetEntropyRandomSeed_new(struct Allocator* alloc)
 {
-    return Allocator_clone(alloc, (&(struct RandomSeed) {
+    return Allocator_clone(alloc, (&(RandomSeed_t) {
         .get = get,
         .name = "getentropy(2)"
     }));

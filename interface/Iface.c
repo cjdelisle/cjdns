@@ -13,15 +13,25 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "interface/Iface.h"
-#include "interface/Iface.h"
 #include "memory/Allocator.h"
 #include "util/Identity.h"
+#include "wire/Error.h"
+
+void Iface_setIdentity(struct Iface* iface)
+{
+    Identity_set(iface);
+}
+
+void Iface_checkIdentity(struct Iface* iface)
+{
+    Identity_check(iface);
+}
 
 // This needs to be in a C file in order to be accessible from Rust
 Iface_DEFUN Iface_incomingFromRust(struct Message* message, struct Iface* thisInterface)
 {
     if (!thisInterface->connectedIf) {
-        return Error(INTERNAL);
+        return Error(message, "No connected interface");
     }
     return Iface_send(thisInterface, message);
 }

@@ -28,7 +28,7 @@
 #include "benc/serialization/standard/BencMessageWriter.h"
 #include "crypto/random/test/DeterminentRandomSeed.h"
 #include "crypto/AddressCalc.h"
-#include "crypto/CryptoAuth.h"
+#include "crypto/Ca.h"
 #include "dht/Address.h"
 #include "exception/Except.h"
 #include "interface/Iface.h"
@@ -55,7 +55,6 @@
 #include "util/log/FileWriterLog.h"
 #include "util/SysInfo.h"
 #include "util/version/Version.h"
-#include "net/Benchmark.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -77,7 +76,7 @@ static int genconf(struct Allocator* alloc, struct Random* rand, bool eth, bool 
         uint8_t seedbuf[64];
         Bits_memset(seedbuf, 0, 64);
         Assert_true(64 == read(STDIN_FILENO, seedbuf, 64));
-        struct RandomSeed* rs = DeterminentRandomSeed_new(alloc, seedbuf);
+        RandomSeed_t* rs = DeterminentRandomSeed_new(alloc, seedbuf);
         rand = Random_newWithSeed(alloc, NULL, rs, NULL);
     }
 
@@ -220,10 +219,11 @@ static int genconf(struct Allocator* alloc, struct Random* rand, bool eth, bool 
            "                    // Add connection credentials here to join the network\n"
            "                    // Ask somebody who is already connected.\n"
            "                }\n"
-           "            }\n"
-           "        ],\n\n");
+           "            }\n");
 #ifdef HAS_ETH_INTERFACE
-    printf("        // The interface which allows peering using layer-2 ethernet frames\n"
+
+    printf("        ],\n\n"
+           "        // The interface which allows peering using layer-2 ethernet frames\n"
            "        \"%sETHInterface\": [\n"
            "            // Alternatively bind to just one device and either beacon and/or\n"
            "            // connect to a specified MAC address\n"
@@ -356,7 +356,7 @@ static int genconf(struct Allocator* alloc, struct Random* rand, bool eth, bool 
            "        // and ETHInterface will be unable to hot-add new interfaces\n"
            "        // Use { \"setuser\": 0 } to disable.\n"
            "        // Default: enabled with keepNetAdmin\n");
-           if (Defined(android) || Defined(darwin)) {
+           if (Defined(Cjdns_android) || Defined(darwin)) {
     printf("        { \"setuser\": 0 },\n");
            } else {
     printf("        { \"setuser\": \"nobody\", \"keepNetAdmin\": 1 },\n");
@@ -366,7 +366,7 @@ static int genconf(struct Allocator* alloc, struct Random* rand, bool eth, bool 
            "        // from accessing files outside of the chroot sandbox, if the user does not\n"
            "        // have permission to use chroot(), this will fail quietly.\n"
            "        // Use { \"chroot\": 0 } to disable.\n");
-          if (Defined(android)) {
+          if (Defined(Cjdns_android)) {
     printf("        // Default: disabled\n"
            "        { \"chroot\": 0 },\n");
           }
@@ -391,7 +391,7 @@ static int genconf(struct Allocator* alloc, struct Random* rand, bool eth, bool 
            "        // SECCOMP_BPF to filter the system calls which cjdns is able to make on a\n"
            "        // linux system, strictly limiting it's access to the outside world\n"
            "        // This will fail quietly on any non-linux system\n");
-          if (Defined(android)) {
+          if (Defined(Cjdns_android)) {
     printf("        // Default: disabled\n"
            "        { \"seccomp\": 0 },\n");
           }
@@ -447,7 +447,6 @@ static int usage(struct Allocator* alloc, char* appName)
            "                                   beaconing\n"
            "    cjdroute --genconf-seed [--eth] Generate a configuration file from a 64 byte seed\n"
            "                                   which is read in from stdin."
-           "    cjdroute --bench               Run some cryptography performance benchmarks.\n"
            "    cjdroute --version             Print the protocol version which this node speaks.\n"
            "    cjdroute --cleanconf < conf    Print a clean (valid json) version of the config.\n"
            "    cjdroute --nobg                Never fork to the background no matter the config.\n"
@@ -579,7 +578,7 @@ static String* getPipePath(Dict* config, struct Allocator* alloc)
         return pipePath;
     }
     char* path = Pipe_PATH;
-    if (Defined(android)) {
+    if (Defined(Cjdns_android)) {
         char* t = getenv("TMPDIR");
         if (!t) {
             t = getenv("HOME");
@@ -623,9 +622,6 @@ int cjdroute2_main(int argc, char** argv)
             return genconf(allocator, rand, 0, 1);
         } else if (CString_strcmp(argv[1], "--genconf") == 0) {
             return genconf(allocator, rand, 0, 0);
-        } else if (CString_strcmp(argv[1], "--bench") == 0) {
-            Benchmark_runAll();
-            return 0;
         } else if ((CString_strcmp(argv[1], "--version") == 0)
             || (CString_strcmp(argv[1], "-v") == 0))
         {
@@ -681,7 +677,7 @@ int cjdroute2_main(int argc, char** argv)
     // and if the old parser fails or the parsed content contains "version": 2,
     // fail to launch
     struct Message* confMsg = readToMsg(stdin, allocator);
-    struct Reader* confReader = ArrayReader_new(confMsg->bytes, confMsg->length, allocator);
+    struct Reader* confReader = ArrayReader_new(confMsg->msgbytes, Message_getLength(confMsg), allocator);
     Dict _config;
     Dict* config = &_config;
     const char* err = JsonBencMessageReader_readNoExcept(confMsg, allocator, &config, false);
@@ -774,7 +770,7 @@ int cjdroute2_main(int argc, char** argv)
     if (!privateKey) {
         Except_throw(eh, "Need to specify privateKey.");
     }
-    Process_spawn(corePath, args, eventBase, allocator, onCoreExit);
+    Process_spawn(corePath, args, allocator, onCoreExit);
 
     // --------------------- Wait for socket ------------------------- //
     // cycle for up to 1 minute
@@ -813,7 +809,7 @@ int cjdroute2_main(int argc, char** argv)
     Er_assert(BencMessageWriter_write(preConf, toCoreMsg));
     Iface_CALL(corePipe->iface.send, toCoreMsg, &corePipe->iface);
 
-    Log_debug(logger, "Sent [%d] bytes to core", toCoreMsg->length);
+    Log_debug(logger, "Sent [%d] bytes to core", Message_getLength(toCoreMsg));
 
     // --------------------- Get Response from Core --------------------- //
 
