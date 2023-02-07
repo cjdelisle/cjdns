@@ -104,7 +104,7 @@ static void usage(char* appName)
 
 static void readFile(int fileNo, struct Allocator* alloc, struct Message* fuzz)
 {
-    uint32_t msgLen = Message_getLength(fuzz);
+    int32_t msgLen = Message_getLength(fuzz);
     uint8_t* bytes = Er_assert(Message_peakBytes(fuzz, msgLen));
     ssize_t length = read(fileNo, bytes, msgLen);
     if (length >= msgLen) {

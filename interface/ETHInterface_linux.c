@@ -38,10 +38,7 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 #include <errno.h>
-
-#ifndef Cjdns_android
-    #include <ifaddrs.h>
-#endif
+#include <ifaddrs.h>
 
 #define MAX_PACKET_SIZE 1496
 #define MIN_PACKET_SIZE 46

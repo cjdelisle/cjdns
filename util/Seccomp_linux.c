@@ -198,9 +198,8 @@ static Er_DEFUN(struct sock_fprog* mkFilter(struct Allocator* alloc))
     int fail = 2;
     int unmaskOnly = 3;
     int isworking = 4;
-    int socket = 5;
-    int ioctl_setip = 6;
-    int bind_netlink = 7;
+    int ioctl_setip = 5;
+    int bind_netlink = 6;
 
     uint32_t auditArch = ArchInfo_getAuditArch();
 
