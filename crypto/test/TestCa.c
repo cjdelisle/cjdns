@@ -198,7 +198,7 @@ static bool check(Message_t *msg, TestCa_Session_pvt_t* sess)
     } else if (flag == VERIFY) {
         uintptr_t m2p = 0;
         Er_assert(Message_epopAd(msg, &m2p, sizeof m2p));
-        printf("Verifying message %lx\n", m2p);
+        printf("Verifying message %lx\n", (unsigned long) m2p);
         struct Message* m2 = (struct Message*) m2p;
         if (Message_getLength(msg) != Message_getLength(m2)) {
             Assert_failure("Message_getLength(msg) != m2->length: %d != %d",
