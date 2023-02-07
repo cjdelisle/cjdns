@@ -86,7 +86,7 @@ pub extern "C" fn Rffi_setTimeout(
         let mut timeout_millis = timeout_millis;
         loop {
             tokio::select! {
-                _ = tokio::time::sleep(Duration::from_millis(timeout_millis)) => {
+                _ = tokio::time::sleep(Duration::from_millis(timeout_millis.into())) => {
                     let _guard = GCL.lock();
                     if is_active.load(Ordering::Relaxed) {
                         unsafe { (tcb.cb)(tcb.cb_context); }
