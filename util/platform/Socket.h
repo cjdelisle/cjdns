@@ -15,44 +15,9 @@
 #ifndef Socket_H
 #define Socket_H
 
-#include "memory/Allocator.h"
-#include "util/platform/Sockaddr.h"
 #include "util/Linker.h"
 Linker_require("util/platform/Socket.c")
 
-#include <stdint.h>
-
-#define Socket int
-
 int Socket_makeNonBlocking(int sock);
-int Socket_makeReusable(int sock);
-
-int Socket_close(int sock);
-
-int Socket_recv(int sockfd, void* buff, unsigned long bufferSize, int flags);
-
-int Socket_recvfrom(int fd,
-                    void* buff,
-                    unsigned long bufferSize,
-                    int flags,
-                    struct Sockaddr_storage* ss);
-
-extern const int Socket_SOCK_DGRAM;
-extern const int Socket_SOCK_STREAM;
-int Socket_socket(int af, int type, int protocol, struct Allocator* alloc);
-
-int Socket_bind(int fd, const struct Sockaddr* sa);
-
-int Socket_send(int socket, const void *buffer, unsigned long length, int flags);
-
-int Socket_sendto(int fd,
-                  const void* buffer,
-                  unsigned long len,
-                  int flags,
-                  const struct Sockaddr* destination);
-
-int Socket_accept(int fd, struct Sockaddr_storage* addr, struct Allocator* alloc);
-
-int Socket_getsockname(int sockfd, struct Sockaddr_storage* addr);
 
 #endif
