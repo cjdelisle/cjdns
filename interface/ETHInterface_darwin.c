@@ -54,7 +54,7 @@ struct ETHInterface_pvt
 {
     struct ETHInterface pub;
 
-    Socket socket;
+    int socket;
 
     struct Log* logger;
 

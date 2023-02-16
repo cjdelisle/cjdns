@@ -45,8 +45,13 @@
 #include <net/route.h>
 #include <sys/sysctl.h>
 
-#define ArrayList_TYPE struct Sockaddr
-#define ArrayList_NAME OfSockaddr
+struct Prefix {
+    struct sockaddr_storage ss;
+    int prefix;
+};
+
+#define ArrayList_TYPE struct Prefix
+#define ArrayList_NAME OfPrefix
 #include "util/ArrayList.h"
 
 Assert_compileTime(sizeof(struct in_addr) == 4);
@@ -63,7 +68,7 @@ Assert_compileTime(sizeof(struct sockaddr_dl) == 20);
 Assert_compileTime(sizeof(struct RouteMessage4) == 144);
 
 static Er_DEFUN(void mkRouteMsg(struct Message* msg,
-                       struct Sockaddr* addRoute,
+                       struct Prefix* addRoute,
                        int ifIndex,
                        const char* ifName,
                        int seq,
@@ -73,7 +78,7 @@ static Er_DEFUN(void mkRouteMsg(struct Message* msg,
         Er_raise(Message_getAlloc(msg), "ifName [%s] too long, limit 11 chars", ifName);
     }
     int lengthBegin = Message_getLength(msg);
-    bool ipv6 = Sockaddr_getFamily(addRoute) == Sockaddr_AF_INET6;
+    bool ipv6 = addRoute->ss.ss_family == AF_INET6;
     if (ipv6) {
         struct sockaddr_in6 mask = {
             .sin6_family = AF_INET6,
@@ -101,10 +106,9 @@ static Er_DEFUN(void mkRouteMsg(struct Message* msg,
         CString_safeStrncpy(link.sdl_data, ifName, 12);
         Er(Message_epush(msg, &link, sizeof(struct sockaddr_dl)));
     }
-    void* dest = Sockaddr_asNative(addRoute);
     int len = (ipv6) ? sizeof(struct sockaddr_in6) : sizeof(struct sockaddr_in);
-    ((struct sockaddr*)dest)->sa_len = len;
-    Er(Message_epush(msg, dest, len));
+    Assert_true(addRoute->ss.ss_len == len);
+    Er(Message_epush(msg, &addRoute->ss, len));
     struct rt_msghdr hdr = {
         .rtm_type = (delete) ? RTM_DELETE : RTM_ADD,
         .rtm_flags = RTF_UP | RTF_STATIC,
@@ -120,8 +124,8 @@ static Er_DEFUN(void mkRouteMsg(struct Message* msg,
 
 static Er_DEFUN(void setRoutes(uint32_t ifIndex,
                       const char* ifName,
-                      struct ArrayList_OfSockaddr* toRemove,
-                      struct ArrayList_OfSockaddr* toAdd,
+                      struct ArrayList_OfPrefix* toRemove,
+                      struct ArrayList_OfPrefix* toAdd,
                       struct Log* logger,
                       struct Allocator* alloc))
 {
@@ -136,8 +140,7 @@ static Er_DEFUN(void setRoutes(uint32_t ifIndex,
     ssize_t returnLen = 0;
 
     for (int i = 0; !err && i < toRemove->length; i++) {
-        struct Sockaddr* pfx = ArrayList_OfSockaddr_get(toRemove, i);
-        Log_debug(logger, "DELETE ROUTE %s", Sockaddr_print(pfx, alloc));
+        struct Prefix* pfx = ArrayList_OfPrefix_get(toRemove, i);
         struct Message* msg = Message_new(0, 1024, alloc);
         Er(mkRouteMsg(msg, pfx, ifIndex, ifName, seq++, true));
         //printf("DELETE ROUTE %s\n", Hex_print(msg->bytes, Message_getLength(msg), alloc));
@@ -145,8 +148,7 @@ static Er_DEFUN(void setRoutes(uint32_t ifIndex,
         if (returnLen < Message_getLength(msg)) { err = true; break; }
     }
     for (int i = 0; !err && i < toAdd->length; i++) {
-        struct Sockaddr* pfx = ArrayList_OfSockaddr_get(toAdd, i);
-        Log_debug(logger, "ADD ROUTE %s", Sockaddr_print(pfx, alloc));
+        struct Prefix* pfx = ArrayList_OfPrefix_get(toAdd, i);
         struct Message* msg = Message_new(0, 1024, alloc);
         Er(mkRouteMsg(msg, pfx, ifIndex, ifName, seq++, false));
         //printf("ADD ROUTE %s\n", Hex_print(msg->bytes, Message_getLength(msg), alloc));
@@ -183,7 +185,7 @@ static int prefixFromWeirdBSDMask(uint8_t* weirdBsdMask, bool ipv6)
     return out + Bits_popCountx32(weirdBsdMask[len - 1]);
 }
 
-static Er_DEFUN(struct ArrayList_OfSockaddr* getRoutes(uint32_t ifIndex,
+static Er_DEFUN(struct ArrayList_OfPrefix* getRoutes(uint32_t ifIndex,
                                               struct Log* logger,
                                               struct Allocator* allocator))
 {
@@ -197,7 +199,7 @@ static Er_DEFUN(struct ArrayList_OfSockaddr* getRoutes(uint32_t ifIndex,
     if (sysctl(mib, 6, buf, &needed, NULL, 0) < 0) {
         Er_raise(allocator, "sysctl(net.route.0.0.dump)");
     }
-    struct ArrayList_OfSockaddr* addrList = ArrayList_OfSockaddr_new(allocator);
+    struct ArrayList_OfPrefix* addrList = ArrayList_OfPrefix_new(allocator);
     for (int i = 0; i < (int)needed;) {
         struct rt_msghdr* rtm = (struct rt_msghdr*) (&buf[i]);
         i += rtm->rtm_msglen;
@@ -219,10 +221,11 @@ static Er_DEFUN(struct ArrayList_OfSockaddr* getRoutes(uint32_t ifIndex,
         } else {
             prefix = prefixFromWeirdBSDMask(mask, ipv6);
         }
-        struct Sockaddr* addr = Sockaddr_fromNative(sa1, sa1->sa_len, allocator);
-        addr->flags |= Sockaddr_flags_PREFIX;
-        addr->prefix = prefix;
-        ArrayList_OfSockaddr_add(addrList, addr);
+        struct Prefix* pfx = Allocator_calloc(allocator, sizeof(struct Prefix), 1);
+        Assert_compileTime(sizeof(pfx->ss) >= sa1->sa_len);
+        Bits_memcpy(&pfx->ss, sa1, sa1->sa_len);
+        pfx->prefix = prefix;
+        ArrayList_OfPrefix_add(addrList, pfx);
     }
     Allocator_free(tempAlloc);
     Er_ret(addrList);
@@ -380,23 +383,34 @@ Er_DEFUN(void NetPlatform_setRoutes(const char* ifName,
                            struct Log* logger,
                            struct Allocator* tempAlloc))
 {
-    struct ArrayList_OfSockaddr* newRoutes = ArrayList_OfSockaddr_new(tempAlloc);
+    struct ArrayList_OfPrefix* newRoutes = ArrayList_OfPrefix_new(tempAlloc);
     for (int i = 0; i < prefixCount; i++) {
+        struct Prefix* pfx = Allocator_calloc(tempAlloc, sizeof(struct Prefix), 1);
+        //Sockaddr_getAddress
+
         int addrFam = Sockaddr_getFamily(prefixSet[i]);
         if (addrFam == Sockaddr_AF_INET) {
             // OK
+            struct sockaddr_in* in = (struct sockaddr_in*) &pfx->ss;
+            in->sin_family = AF_INET;
+            Assert_compileTime(sizeof(in->sin_addr) == 4);
+            Assert_true(Sockaddr_getAddress(prefixSet[i], &in->sin_addr) == AF_INET);
         } else if (addrFam == Sockaddr_AF_INET6) {
             // OK
+            struct sockaddr_in6* in6 = (struct sockaddr_in6*) &pfx->ss;
+            in6->sin6_family = AF_INET6;
+            Assert_compileTime(sizeof(in6->sin6_addr) == 16);
+            Assert_true(Sockaddr_getAddress(prefixSet[i], &in6->sin6_addr) == AF_INET6);
         } else {
             Er_raise(tempAlloc, "Unrecognized address type %d", addrFam);
         }
-        ArrayList_OfSockaddr_add(newRoutes, prefixSet[i]);
+        ArrayList_OfPrefix_add(newRoutes, prefixSet[i]);
     }
     uint32_t ifIndex = if_nametoindex(ifName);
     if (!ifIndex) {
         Er_raise(tempAlloc, "tunName not recognized");
     }
-    struct ArrayList_OfSockaddr* oldRoutes = Er(getRoutes(ifIndex, logger, tempAlloc));
+    struct ArrayList_OfPrefix* oldRoutes = Er(getRoutes(ifIndex, logger, tempAlloc));
     Er(setRoutes(ifIndex, ifName, oldRoutes, newRoutes, logger, tempAlloc));
     Er_ret();
 }

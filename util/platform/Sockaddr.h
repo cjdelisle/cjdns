@@ -139,24 +139,15 @@ int Sockaddr_getAddress(struct Sockaddr* sa, void* addrPtr);
 void Sockaddr_asIp6(uint8_t addrOut[static 16], const struct Sockaddr* sockaddr);
 
 /**
- * Get a new sockaddr from the native form, IE: sockaddr_in or sockaddr_in6.
- */
-struct Sockaddr* Sockaddr_fromNative(const void* ss, int addrLen, struct Allocator* alloc);
-
-/**
  * Output the native form of a sockaddr.
  */
 static inline void* Sockaddr_asNative(struct Sockaddr* sa)
 {
     return (void*)(&sa[1]);
 }
-static inline const void* Sockaddr_asNativeConst(const struct Sockaddr* sa)
-{
-    return (const void*)(&sa[1]);
-}
 
 /**
- * Contrast with Sockaddr_fromNative(), Sockaddr_fromBytes() takes
+ * Sockaddr_fromBytes() takes
  * input as the bytes of the address eg: Sockaddr_fromBytes({127,0,0,1}, Sockaddr_AF_INET, alloc)
  */
 struct Sockaddr* Sockaddr_fromBytes(const uint8_t* bytes, int addrFamily, struct Allocator* alloc);

@@ -179,9 +179,9 @@ Er_DEFUN(void NetPlatform_addAddress(const char* interfaceName,
     ipRow.InterfaceLuid = Er(getLuid(interfaceName, tempAlloc));
 
     ipRow.Address.si_family = addrFam;
-    if (addrFam == Sockaddr_AF_INET6) {
+    if (addrFam == AF_INET6) {
         Bits_memcpy(&ipRow.Address.Ipv6.sin6_addr, address, 16);
-    } else if (addrFam == Sockaddr_AF_INET) {
+    } else if (addrFam == AF_INET) {
         Bits_memcpy(&ipRow.Address.Ipv4.sin_addr, address, 4);
     } else {
         Assert_true(0);

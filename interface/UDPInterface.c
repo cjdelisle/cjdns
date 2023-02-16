@@ -59,15 +59,12 @@ static struct Sockaddr* mkBcastAddr(
 {
     uint32_t addr; memcpy(&addr, iface->address.octets, 4);
     uint32_t nmAddr; memcpy(&nmAddr, iface->address.netmask, 4);
+    uint32_t bcastAddr = ( addr & nmAddr ) | ~nmAddr;
+    uint8_t bcastBytes[4]; memcpy(bcastBytes, &bcastAddr, 4);
 
-    struct sockaddr_in bcast4 = {
-        .sin_family = AF_INET,
-        .sin_port = beaconPort_be,
-        .sin_addr = {
-            .s_addr = ( addr & nmAddr ) | ~nmAddr
-        }
-    };
-    return Sockaddr_fromNative(&bcast4, sizeof(struct sockaddr_in), alloc);
+    struct Sockaddr* out = Sockaddr_fromBytes(bcastBytes, Sockaddr_AF_INET, alloc);
+    Sockaddr_setPort(out, Endian_bigEndianToHost16(beaconPort_be));
+    return out;
 }
 
 static int updateBcastAddrs(struct UDPInterface_pvt* ctx)

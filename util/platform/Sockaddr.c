@@ -72,15 +72,6 @@ const struct Sockaddr* const Sockaddr_LOOPBACK6 =
         }
     });
 
-struct Sockaddr* Sockaddr_fromNative(const void* ss, int addrLen, struct Allocator* alloc)
-{
-    struct Sockaddr_pvt* out = Allocator_calloc(alloc, addrLen + Sockaddr_OVERHEAD, 1);
-    Bits_memcpy(&out->ss, ss, addrLen);
-    out->pub.addrLen = addrLen + Sockaddr_OVERHEAD;
-    Sockaddr_normalizeNative(&out->ss);
-    return &out->pub;
-}
-
 int Sockaddr_getPrefix(struct Sockaddr* addr)
 {
     if (addr->flags & Sockaddr_flags_PREFIX) {

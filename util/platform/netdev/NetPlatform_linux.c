@@ -139,7 +139,7 @@ Er_DEFUN(void NetPlatform_addAddress(const char* interfaceName,
     // checkInterfaceUp() clobbers the ifindex.
     Er(checkInterfaceUp(s, &ifRequest, logger, tempAlloc));
 
-    if (addrFam == Sockaddr_AF_INET6) {
+    if (addrFam == AF_INET6) {
         struct Cjdns_in6_ifreq ifr6 = {
             .ifr6_ifindex = ifIndex,
             .ifr6_prefixlen = prefixLen
@@ -157,7 +157,7 @@ Er_DEFUN(void NetPlatform_addAddress(const char* interfaceName,
         }
 
 
-    } else if (addrFam == Sockaddr_AF_INET) {
+    } else if (addrFam == AF_INET) {
         struct sockaddr_in sin = { .sin_family = AF_INET, .sin_port = 0 };
         memcpy(&sin.sin_addr.s_addr, address, 4);
         memcpy(&ifRequest.ifr_addr, &sin, sizeof(struct sockaddr));

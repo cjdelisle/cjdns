@@ -171,9 +171,9 @@ Er_DEFUN(void NetPlatform_addAddress(const char* interfaceName,
                             struct Log* logger,
                             struct Allocator* tempAlloc))
 {
-    if (addrFam == Sockaddr_AF_INET6) {
+    if (addrFam == AF_INET6) {
         Er(addIp6Address(interfaceName, address, prefixLen, logger, tempAlloc));
-    } else if (addrFam == Sockaddr_AF_INET) {
+    } else if (addrFam == AF_INET) {
         Er(addIp4Address(interfaceName, address, prefixLen, logger, tempAlloc));
     } else {
         Assert_true(0);
