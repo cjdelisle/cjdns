@@ -540,7 +540,8 @@ static void checkRunningInstance(struct Allocator* allocator,
 
 static void onCoreExit(int64_t exit_status, int term_signal)
 {
-    Assert_failure("Core exited with status [%d], signal [%d]\n", (int)exit_status, term_signal);
+    printf("Core exited with status [%d], signal [%d]\n", (int)exit_status, term_signal);
+    exit(exit_status);
 }
 
 #define Chunk_MAX_LEN 4000
