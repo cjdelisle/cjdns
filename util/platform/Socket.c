@@ -94,15 +94,6 @@ static int closeSock(struct Allocator_OnFreeJob* j)
     return 0;
 }
 
-int Socket_connect(int fd, const struct Sockaddr* sa, struct Allocator* alloc)
-{
-    int out = connect(fd, Sockaddr_asNativeConst(sa), sa->addrLen - Sockaddr_OVERHEAD);
-    if (out > -1) {
-        Allocator_onFree(alloc, closeSock, (void*)(intptr_t)out);
-    }
-    return out;
-}
-
 int Socket_socket(int af, int type, int protocol, struct Allocator* alloc)
 {
     int out = socket(af, type, protocol);

@@ -37,8 +37,6 @@ int Socket_recvfrom(int fd,
                     int flags,
                     struct Sockaddr_storage* ss);
 
-int Socket_connect(int fd, const struct Sockaddr* sa, struct Allocator* alloc);
-
 extern const int Socket_SOCK_DGRAM;
 extern const int Socket_SOCK_STREAM;
 int Socket_socket(int af, int type, int protocol, struct Allocator* alloc);
