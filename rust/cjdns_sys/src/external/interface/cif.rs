@@ -13,7 +13,7 @@ struct CRecv {
     dg: Weak<()>,
 }
 impl IfRecv for CRecv {
-    fn recv(&self, m: &mut Message) -> Result<()> {
+    fn recv(&self, m: Message) -> Result<()> {
         if self.dg.strong_count() < 1 {
             bail!("Other end has been dropped");
         }
@@ -51,8 +51,8 @@ unsafe extern "C" fn from_c(msg: *mut cffi::Message, iface_p: *mut cffi::Iface) 
 
     let alloc = (*msg)._alloc;
 
-    let mut msg = Message::from_c_message(msg);
-    match iface.rif.send(&mut msg) {
+    let msg = Message::from_c_message(msg);
+    match iface.rif.send(msg) {
         // TODO: we need better error handling
         Ok(_) => std::ptr::null_mut(),
         Err(e) => {

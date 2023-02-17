@@ -117,8 +117,8 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_tryHandshake(
     requireAuth: bool,
     ret: *mut RTypes_CryptoAuth2_TryHandshake_Ret_t,
 ) {
-    let mut msg = Message::from_c_message(c_msg);
-    match crypto_auth::try_handshake(&(*ca).0, &mut msg, requireAuth) {
+    let msg = Message::from_c_message(c_msg);
+    match crypto_auth::try_handshake(&(*ca).0, msg, requireAuth) {
         Err(e) => {
             let ee = match e.downcast_ref::<DecryptError>() {
                 Some(ee) => match ee {

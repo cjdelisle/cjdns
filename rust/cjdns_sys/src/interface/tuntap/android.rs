@@ -21,7 +21,7 @@ pub struct AndroidWrapperInt {
     ext_pvt: IfacePvt,
 }
 impl IfRecv for AndroidWrapperInt {
-    fn recv(&self, m: &mut Message) -> Result<()> {
+    fn recv(&self, mut m: Message) -> Result<()> {
         let hdr = m.pop::<Hdr>()?;
         if hdr.dummy != 0 {
             bail!("Unexpected header value: 0x{:x}", hdr.dummy);
@@ -37,7 +37,7 @@ pub struct AndroidWrapperExt {
     int_pvt: IfacePvt,
 }
 impl IfRecv for AndroidWrapperExt {
-    fn recv(&self, m: &mut Message) -> Result<()> {
+    fn recv(&self, mut m: Message) -> Result<()> {
         let ethertype = match headers::get_ip_version(m.bytes()) {
             4 => ethernet::TYPE_IP4,
             6 => ethernet::TYPE_IP6,

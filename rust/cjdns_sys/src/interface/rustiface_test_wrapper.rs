@@ -30,7 +30,7 @@ pub struct TestWrapperInt {
     ext_pvt: IfacePvt,
 }
 impl IfRecv for TestWrapperInt {
-    fn recv(&self, m: &mut Message) -> Result<()> {
+    fn recv(&self, m: Message) -> Result<()> {
         {
             let mut pvt_l = self.pvt.lock();
             pvt_l.outgoing_count += 1;
@@ -56,7 +56,7 @@ pub struct TestWrapperExt {
     int_pvt: IfacePvt,
 }
 impl IfRecv for TestWrapperExt {
-    fn recv(&self, m: &mut Message) -> Result<()> {
+    fn recv(&self, m: Message) -> Result<()> {
         {
             let mut pvt_l = self.pvt.lock();
             pvt_l.incoming_count += 1;

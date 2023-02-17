@@ -416,7 +416,7 @@ pub fn new_session(
 
 pub fn try_handshake(
     ca: &Arc<CryptoAuth>,
-    msg: &mut Message,
+    mut msg: Message,
     require_auth: bool,
 ) -> Result<(TryHandshakeCode, Option<Arc<dyn SessionTrait>>)> {
     if msg.len() < 16 {
@@ -440,12 +440,12 @@ pub fn try_handshake(
                 None,
             )?;
             msg.push(header)?;
-            SessionMut::decrypt(&session.inner, msg)?;
+            SessionMut::decrypt(&session.inner, &mut msg)?;
             Ok((TryHandshakeCode::RecvPlaintext, Some(Arc::new(session))))
         },
         cnoise::RECEIVE_INDEX_CTRL => {
             //ca.try_noise_msg(msg)
-            let (reply, sess, msg_type) =
+            let (reply, sess, msg_type, _) =
                 crypto_noise::handle_incoming(&ca.noise, msg, peer_id, require_auth)?;
             log::debug!("noise: handle_incoming with msg_type = {}", msg_type);
             if let Some(sess) = sess {
@@ -1237,15 +1237,15 @@ pub fn ip6_from_key(key: &[u8; 32]) -> [u8; 16] {
 
 pub struct PlaintextRecv(Arc<SessionInner>);
 impl IfRecv for PlaintextRecv {
-    fn recv(&self, m: &mut Message) -> Result<()> {
+    fn recv(&self, mut m: Message) -> Result<()> {
         anyhow::ensure!(m.len() > 0, "Zero-length message is prohibited"); // No real message can be 0 bytes in length
-        SessionMut::encrypt(&self.0, m)?;
+        SessionMut::encrypt(&self.0, &mut m)?;
         self.0.cipher_pvt.send(m)
     }
 }
 pub struct CiphertextRecv(Arc<SessionInner>);
 impl IfRecv for CiphertextRecv {
-    fn recv(&self, m: &mut Message) -> Result<()> {
+    fn recv(&self, mut m: Message) -> Result<()> {
         let mut first16 = [0_u8; 16];
         // grab the peer_id / ipv6 addr of the peer, unused
         first16.copy_from_slice(&m.pop_bytes(16)?);
@@ -1253,7 +1253,7 @@ impl IfRecv for CiphertextRecv {
         first16.copy_from_slice(m.peek_bytes(16)?);
         log::debug!("Decrypt msg {}", m.len());
 
-        match SessionMut::decrypt(&self.0, m) {
+        match SessionMut::decrypt(&self.0, &mut m) {
             Ok(()) => {
                 m.push(0_u32)?;
                 self.0.plain_pvt.send(m)
@@ -2067,7 +2067,6 @@ mod tests {
         let bob_keys = keys_api.key_pair();
         let mut alloc = allocator::new!();
 
-        let mut msg = mk_msg(1024, &mut alloc);
         let alice_received_text = Rc::new(RefCell::new(Vec::new()));
         let bob_received_text = Rc::new(RefCell::new(Vec::new()));
 
@@ -2078,7 +2077,7 @@ mod tests {
             // Plaintext receiver
             struct Plaintext(Rc<RefCell<Vec<u8>>>);
             impl IfRecv for Plaintext {
-                fn recv(&self, m: &mut Message) -> anyhow::Result<()> {
+                fn recv(&self, mut m: Message) -> anyhow::Result<()> {
                     assert!(m.len() > 4, "empty message received");
                     m.discard_bytes(4)?; // Extra zeroes added by CiphertextRecv
                     self.0.borrow_mut().extend_from_slice(m.peek_bytes(m.len())?);
@@ -2110,18 +2109,18 @@ mod tests {
         assert!(bob_received_text.borrow().is_empty());
 
         // Message Bob -> Alice
-        assert_eq!(msg.len(), 0);
+        let mut msg = mk_msg(1024, &mut alloc);
         msg.push_bytes(b"Hello World ").unwrap();
 
-        bob_send.send(&mut msg).unwrap();
+        bob_send.send(msg).unwrap();
 
         assert_eq!(alice_received_text.borrow().as_slice(), b"Hello World");
         assert!(bob_received_text.borrow().is_empty()); // still empty
 
         // Message back Alice -> Bob
-        assert_eq!(msg.len(), 0);
+        let mut msg = mk_msg(1024, &mut alloc);
         msg.push_bytes(b"Goodbye Universe").unwrap();
-        let res = alice_send.send(&mut msg);
+        let res = alice_send.send(msg);
         assert!(res.is_ok());
 
         assert_eq!(bob_received_text.borrow().as_slice(), b"Goodbye Universe");
@@ -2153,7 +2152,7 @@ mod tests {
             // Plaintext receiver
             struct Plaintext(Rc<RefCell<Vec<u8>>>);
             impl IfRecv for Plaintext {
-                fn recv(&self, m: &mut Message) -> anyhow::Result<()> {
+                fn recv(&self, mut m: Message) -> anyhow::Result<()> {
                     assert!(m.len() > 4, "empty message received");
                     m.discard_bytes(4)?; // Extra zeroes added by CiphertextRecv
                     self.0.borrow_mut().extend_from_slice(m.peek_bytes(m.len())?);
@@ -2192,15 +2191,15 @@ mod tests {
         assert_eq!(msg.len(), 0);
         msg.push_bytes(b"Hello World ").unwrap();
 
-        bob_send.send(&mut msg).unwrap();
+        bob_send.send(msg).unwrap();
 
         assert_eq!(alice_received_text.borrow().as_slice(), b"Hello World");
         assert!(bob_received_text.borrow().is_empty()); // still empty
 
         // Message back Alice -> Bob
-        assert_eq!(msg.len(), 0);
+        let mut msg = mk_msg(1024, &mut alloc);
         msg.push_bytes(b"Goodbye Universe").unwrap();
-        let res = alice_send.send(&mut msg);
+        let res = alice_send.send(msg);
         assert!(res.is_ok());
 
         assert_eq!(bob_received_text.borrow().as_slice(), b"Goodbye Universe");

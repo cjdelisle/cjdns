@@ -229,9 +229,9 @@ impl SessionInner {
         }
     }
 
-    fn send_crypto(&self, msg: &mut Message) -> Result<()> {
+    fn send_crypto(&self, mut msg: Message) -> Result<()> {
         anyhow::ensure!(msg.is_aligned_to(4), "Alignment fault");
-        let msg_type = cnoise::cjdns_from_wg(msg)?;
+        let msg_type = cnoise::cjdns_from_wg(&mut msg)?;
         log::debug!("send_crypto message type {} length {}", msg_type, msg.len());
         self.cipher_pvt.send(msg)
     }
@@ -239,7 +239,7 @@ impl SessionInner {
 
 pub struct PlaintextRecv(Arc<SessionInner>);
 impl IfRecv for PlaintextRecv {
-    fn recv(&self, msg: &mut Message) -> Result<()> {
+    fn recv(&self, mut msg: Message) -> Result<()> {
         // No real message can be 0 bytes in length
         //log::debug!("Encrypt msg len {}", msg.len());
         anyhow::ensure!(msg.len() > 0, "Zero-length message is prohibited");
@@ -271,7 +271,7 @@ impl IfRecv for PlaintextRecv {
 }
 pub struct CiphertextRecv(Arc<SessionInner>);
 impl IfRecv for CiphertextRecv {
-    fn recv(&self, m: &mut Message) -> Result<()> {
+    fn recv(&self, mut m: Message) -> Result<()> {
         // grab the peer_id / ipv6 addr of the peer
         if m.len() < 16 {
             return Err(DecryptError::DecryptErr(DecryptErr::Runt).into());
@@ -284,23 +284,24 @@ impl IfRecv for CiphertextRecv {
         };
         log::debug!("Decrypt msg from [{}], len {}", peer_id, m.len());
         match handle_incoming1(&self.0.ca, m, peer_id, self.0.require_auth, Some(&self.0))? {
-            (_, Some(_), msg_type) => {
+            (_, Some(_), msg_type, _) => {
                 // Really this should be a panic because it's a bug if there is a
                 // way to send a packet which does this.
                 log::debug!("DROP packet trying to create new session (msg_type = {})", msg_type);
                 bail!("DROP packet associated with existing session trying to create a new one");
             },
-            (TryMsgReply::ReplyToPeer, None, msg_type) => {
+            (TryMsgReply::ReplyToPeer, None, msg_type, m) => {
+                let m = m.unwrap();
                 log::debug!("Replying to msg_type {}", msg_type);
                 anyhow::ensure!(m.is_aligned_to(4), "Alignment fault");
                 self.0.cipher_pvt.send(m)
             },
-            (TryMsgReply::Done, None, msg_type) => {
+            (TryMsgReply::Done, None, msg_type, _) => {
                 log::debug!("Nothing to do (msg_type = {})", msg_type);
                 Ok(())
             },
-            (TryMsgReply::Error, None, msg_type) |
-            (TryMsgReply::RecvPlaintext, None, msg_type) => {
+            (TryMsgReply::Error, None, msg_type, _) |
+            (TryMsgReply::RecvPlaintext, None, msg_type, _) => {
                 log::debug!("Unexpected result of handle_incoming (msg_type = {})", msg_type);
                 bail!("Unexpected reply");
             }
@@ -587,10 +588,10 @@ enum NextForward {
 
 pub fn handle_incoming(
     ca: &Arc<CryptoNoise>,
-    msg: &mut Message,
+    msg: Message,
     peer_id: Ipv6Addr,
     require_auth: bool,
-) -> Result<(TryMsgReply, Option<Session>, u32)> {
+) -> Result<(TryMsgReply, Option<Session>, u32, Option<Message>)> {
     handle_incoming1(ca, msg, peer_id, require_auth, None)
 }
 
@@ -599,13 +600,13 @@ pub fn handle_incoming(
 /// * Option<Session> Some session in the case that a new session handle was created.
 fn handle_incoming1(
     ca: &Arc<CryptoNoise>,
-    msg: &mut Message,
+    mut msg: Message,
     peer_id: Ipv6Addr,
     require_auth: bool,
     session_hint: Option<&Arc<SessionInner>>,
-) -> Result<(TryMsgReply, Option<Session>, u32)> {
+) -> Result<(TryMsgReply, Option<Session>, u32, Option<Message>)> {
     //log::debug!("Handle Incoming:  {}", hex::encode(msg.peek_bytes(16)?));
-    let cnoise::WgFromCjdnsRes{ our_index, peer_index, msg_type } = cnoise::wg_from_cjdns(msg)?;
+    let cnoise::WgFromCjdnsRes{ our_index, peer_index, msg_type } = cnoise::wg_from_cjdns(&mut msg)?;
     //log::debug!("Handle Incoming1: {}", hex::encode(msg.peek_bytes(16)?));
     if let Some(index) = our_index {
         let sess = if let Some(sess) = ca.sessions.read().get(&index) {
@@ -621,7 +622,7 @@ fn handle_incoming1(
             match res {
                 TunnResult::Err(e) => {
                     // Put the message back as we found it
-                    cnoise::cjdns_from_wg(msg)?;
+                    cnoise::cjdns_from_wg(&mut msg)?;
                     log::debug!("WG error: {:?} in msg type: {}", e, msg_type);
                     let ee = (e as u32) + 1024; // TODO better errors ?
 
@@ -672,12 +673,12 @@ fn handle_incoming1(
             NextForward::Cipher => sess.send_crypto(msg)?,
             NextForward::Done => (),
         }
-        Ok((TryMsgReply::Done, None, msg_type))
+        Ok((TryMsgReply::Done, None, msg_type, None))
     } else {
-        let ret = handle_init_msg(ca, msg, peer_id, require_auth, session_hint)?;
-        cnoise::cjdns_from_wg(msg)?;
+        let ret = handle_init_msg(ca, &mut msg, peer_id, require_auth, session_hint)?;
+        cnoise::cjdns_from_wg(&mut msg)?;
         anyhow::ensure!(msg.is_aligned_to(4), "Alignment fault");
-        Ok((TryMsgReply::ReplyToPeer, ret, msg_type))
+        Ok((TryMsgReply::ReplyToPeer, ret, msg_type, Some(msg)))
     }
 }
 

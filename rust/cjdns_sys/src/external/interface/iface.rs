@@ -11,13 +11,13 @@ use crate::interface::wire::message::Message;
 /// This is the trait which you need to implement in order to implement
 /// a cjdns Iface.
 pub trait IfRecv {
-    fn recv(&self, m: &mut Message) -> Result<()>;
+    fn recv(&self, m: Message) -> Result<()>;
 }
 
 // Receiver which just always causes an error, default if none other is registered
 struct DefaultRecv();
 impl IfRecv for DefaultRecv {
-    fn recv(&self, _: &mut Message) -> Result<()> {
+    fn recv(&self, _: Message) -> Result<()> {
         bail!("No recv implementation");
     }
 }
@@ -38,7 +38,7 @@ impl IfacePvt {
     /// This method is typically called from inside of a IfRecv::recv()
     /// method, it allows you to pass a message on to whichever iface might
     /// be plumbed to yours.
-    pub fn send(&self, m: &mut Message) -> Result<()> {
+    pub fn send(&self, m: Message) -> Result<()> {
         match &*self.peer_recv.read() {
             Some(s) => s.recv(m),
             None => bail!("No connected iface for {}", self.name),
