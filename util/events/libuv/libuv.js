@@ -20,8 +20,8 @@ module.exports = (builder, js) => {
     if (builder.config.systemName === 'win32') {
         cflags.push(
             '-D_WIN32_WINNT=0x0600',
-            '-D_GNU_SOURCE',
-        )
+            '-D_GNU_SOURCE'
+        );
         files.push(
             'include/uv-win.h',
             'src/win/async.c',
@@ -56,12 +56,12 @@ module.exports = (builder, js) => {
             'src/win/winapi.c',
             'src/win/winapi.h',
             'src/win/winsock.c',
-            'src/win/winsock.h',
+            'src/win/winsock.h'
         );
     } else {
         cflags.push(
             '-D_LARGEFILE_SOURCE',
-            '-D_FILE_OFFSET_BITS=64',
+            '-D_FILE_OFFSET_BITS=64'
         );
         files.push(
             'include/uv-unix.h',
@@ -89,7 +89,7 @@ module.exports = (builder, js) => {
             'src/unix/threadpool.c',
             'src/unix/timer.c',
             'src/unix/tty.c',
-            'src/unix/udp.c',
+            'src/unix/udp.c'
         )
     }
     var android = /android/i.test(builder.config.gcc);
@@ -101,7 +101,7 @@ module.exports = (builder, js) => {
         files.push(
             'src/unix/darwin.c',
             'src/unix/fsevents.c',
-            'src/unix/darwin-proctitle.c',
+            'src/unix/darwin-proctitle.c'
         );
     }
     if (builder.config.systemName === 'linux') {
@@ -110,7 +110,7 @@ module.exports = (builder, js) => {
             'src/unix/linux-core.c',
             'src/unix/linux-inotify.c',
             'src/unix/linux-syscalls.c',
-            'src/unix/linux-syscalls.h',
+            'src/unix/linux-syscalls.h'
         );
         if (android) {
             files.push('src/unix/pthread-fixes.c');
