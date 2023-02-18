@@ -129,7 +129,9 @@ Builder.configure({
 
             // lots of places where depending on preprocessor conditions, a statement might be
             // a case of if (1 == 1)
-            '-Wno-tautological-compare',
+            '-Wno-tautological-compare'
+
+            //'-Wno-error'
         );
     } else {
         builder.config.cflags.push(
