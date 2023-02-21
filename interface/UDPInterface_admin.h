@@ -20,7 +20,6 @@
 #include "net/InterfaceController.h"
 #include "util/log/Log.h"
 #include "util/events/EventBase.h"
-#include "util/events/FakeNetwork.h"
 #include "util/GlobalConfig.h"
 #include "util/Linker.h"
 Linker_require("interface/UDPInterface_admin.c")
@@ -30,7 +29,6 @@ void UDPInterface_admin_register(struct EventBase* base,
                                  struct Log* logger,
                                  struct Admin* admin,
                                  struct InterfaceController* ic,
-                                 struct FakeNetwork* fakeNet,
                                  struct GlobalConfig* globalConf);
 
 #endif

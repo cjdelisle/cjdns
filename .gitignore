@@ -17,7 +17,6 @@
 /cleanconfig*
 /privatetopublic*
 /publictoip6*
-/sybilsim*
 /makekeys*
 /mkpasswd*
 /node_build/node_modules/jshint

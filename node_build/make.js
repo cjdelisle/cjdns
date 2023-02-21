@@ -294,7 +294,6 @@ Builder.configure({
 
     builder.buildLibrary('contrib/c/publictoip6.c');
     builder.buildLibrary('contrib/c/privatetopublic.c');
-    builder.buildLibrary('contrib/c/sybilsim.c');
     builder.buildLibrary('contrib/c/makekeys.c');
     builder.buildLibrary('contrib/c/mkpasswd.c');
     builder.buildLibrary('crypto/random/randombytes.c');

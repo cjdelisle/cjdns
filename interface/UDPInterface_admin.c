@@ -17,7 +17,6 @@
 #include "memory/Allocator.h"
 #include "net/InterfaceController.h"
 #include "util/events/EventBase.h"
-#include "util/events/FakeNetwork.h"
 #include "util/platform/Sockaddr.h"
 #include "crypto/Key.h"
 #include "interface/UDPInterface_admin.h"
@@ -36,7 +35,6 @@ struct Context
     struct Admin* admin;
     struct ArrayList_UDPInterface* ifaces;
     struct InterfaceController* ic;
-    struct FakeNetwork* fakeNet;
     struct GlobalConfig* globalConf;
     Identity
 };
@@ -333,7 +331,6 @@ void UDPInterface_admin_register(struct EventBase* base,
                                  struct Log* logger,
                                  struct Admin* admin,
                                  struct InterfaceController* ic,
-                                 struct FakeNetwork* fakeNet,
                                  struct GlobalConfig* globalConf)
 {
     struct Context* ctx = Allocator_clone(alloc, (&(struct Context) {
@@ -342,7 +339,6 @@ void UDPInterface_admin_register(struct EventBase* base,
         .logger = logger,
         .admin = admin,
         .ic = ic,
-        .fakeNet = fakeNet,
         .globalConf = globalConf
     }));
     Identity_set(ctx);

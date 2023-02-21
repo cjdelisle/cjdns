@@ -335,7 +335,6 @@ void Core_init(struct Allocator* alloc,
                struct Admin* admin,
                struct Random* rand,
                struct Except* eh,
-               struct FakeNetwork* fakeNet,
                bool noSec)
 {
     struct Security* sec = NULL;
@@ -376,7 +375,7 @@ void Core_init(struct Allocator* alloc,
     InterfaceController_admin_register(nc->ifController, admin, alloc);
     SwitchPinger_admin_register(nc->sp, admin, alloc);
     UDPInterface_admin_register(
-        eventBase, alloc, logger, admin, nc->ifController, fakeNet, globalConf);
+        eventBase, alloc, logger, admin, nc->ifController, globalConf);
 #ifdef HAS_ETH_INTERFACE
     ETHInterface_admin_register(eventBase, alloc, logger, admin, nc->ifController);
 #endif
@@ -535,7 +534,7 @@ int Core_main(int argc, char** argv)
 
     Allocator_free(tempAlloc);
 
-    Core_init(alloc, logger, eventBase, privateKey, admin, rand, eh, NULL, false);
+    Core_init(alloc, logger, eventBase, privateKey, admin, rand, eh, false);
     EventBase_beginLoop(eventBase);
     return 0;
 }

@@ -121,8 +121,6 @@ ln contrib/selinux/cjdns.{te,fc} .	# for doc dir
 
 # install c and nodejs tools
 mkdir -p %{buildroot}%{_prefix}/lib/cjdns/{node_build,contrib}
-cp -p publictoip6 privatetopublic makekeys randombytes sybilsim \
-	$RPM_BUILD_ROOT%{_prefix}/lib/cjdns
 cp -pr tools $RPM_BUILD_ROOT%{_prefix}/lib/cjdns
 cp -p node_build/Semaphore.js $RPM_BUILD_ROOT%{_prefix}/lib/cjdns/node_build
 cp -pr contrib/nodejs $RPM_BUILD_ROOT%{_prefix}/lib/cjdns/contrib
