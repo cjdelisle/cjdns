@@ -10,15 +10,18 @@ use crate::interface::wire::message::Message;
 
 /// This is the trait which you need to implement in order to implement
 /// a cjdns Iface.
-pub trait IfRecv {
+pub trait IfRecv: Send + Sync {
     fn recv(&self, m: Message) -> Result<()>;
 }
 
 // Receiver which just always causes an error, default if none other is registered
-struct DefaultRecv();
+struct DefaultRecv{
+    name: Arc<String>,
+}
 impl IfRecv for DefaultRecv {
     fn recv(&self, _: Message) -> Result<()> {
-        bail!("No recv implementation");
+        log::warn!("Got message to {} but no recv was set", self.name);
+        bail!("No recv implementation in {}", self.name);
     }
 }
 
@@ -29,7 +32,7 @@ impl IfRecv for DefaultRecv {
 /// module to another module to connect them together.
 pub struct IfacePvt {
     // Name of the Iface
-    name: String,
+    name: Arc<String>,
 
     // Receiver of iface we are plumbed to, when we send a message, it goes here
     peer_recv: Arc<RwLock<Option<Box<dyn IfRecv>>>>,
@@ -63,14 +66,14 @@ fn kinda_random() -> u64 {
 /// tour IfRecv trait with the Iface.
 pub fn new<T: Into<String>>(name: T) -> (Iface, IfacePvt) {
     let a = Arc::new(RwLock::new(None));
-    let n: String = name.into();
+    let n: Arc<String> = Arc::new(name.into());
     (
         Iface {
-            name: n.clone(),
+            name: Arc::clone(&n),
             id: kinda_random(),
             peer_id: 0,
             peer_recv: Arc::downgrade(&a),
-            our_recv: None,
+            our_recv: Some(Box::new(DefaultRecv{name: Arc::clone(&n)})),
         },
         IfacePvt {
             name: n,
@@ -79,11 +82,27 @@ pub fn new<T: Into<String>>(name: T) -> (Iface, IfacePvt) {
     )
 }
 
+struct SimpleReceiver<T,F> where
+    T: 'static + Send + Sync,
+    F: Fn(&T, Message) -> Result<()> + Send + Sync,
+{
+    t: T,
+    f: F
+}
+impl <T,F> IfRecv for SimpleReceiver<T,F> where
+    T: 'static + Send + Sync,
+    F: Fn(&T, Message) -> Result<()> + Send + Sync,
+{
+    fn recv(&self, m: Message) -> Result<()> {
+        (self.f)(&self.t, m)
+    }
+}
+
 /// This is the public-facing part of an Iface, it is able to be plumbed
 /// to another iface.
 pub struct Iface {
     /// Name of the iface
-    pub name: String,
+    pub name: Arc<String>,
 
     /// Unique id of this interface, used to prevent the wrong
     /// iface being unplumbed
@@ -103,6 +122,13 @@ impl Iface {
     /// Get the name of the Iface
     pub fn name(&self) -> &str {
         &self.name
+    }
+
+    pub fn set_receiver_f<T, F>(&mut self, f: F, t: T) where
+        T: 'static + Send + Sync,
+        F: Fn(&T, Message) -> Result<()> + 'static + Send + Sync,
+    {
+        self.our_recv = Some(Box::new(SimpleReceiver{t, f}));
     }
 
     /// Set the IfRecv of this iface. This will typically be called by the module which
