@@ -13,7 +13,7 @@ unsafe impl<T: Copy> Sync for Protected<T> {}
 
 pub struct ProtectedMutexGuard<T: Copy> {
     t: T,
-    lock: ReentrantMutexGuard<'static, ()>,
+    _lock: ReentrantMutexGuard<'static, ()>,
 }
 impl<T: Copy> Deref for ProtectedMutexGuard<T> {
     type Target = T;
@@ -29,7 +29,7 @@ impl<T: Copy> Protected<T> {
     pub fn lock(&self) -> ProtectedMutexGuard<T> {
         ProtectedMutexGuard{
             t: self.t,
-            lock: GCL.lock(),
+            _lock: GCL.lock(),
         }
     }
 }
