@@ -124,6 +124,8 @@ fn main() -> Result<()> {
             .raw_line("#![allow(clippy::enum_variant_names)]")
             .whitelist_function(".*")
             .whitelist_type("RBindings_Whitelist")
+            .whitelist_var("Sockaddr_AF_INET")
+            .whitelist_var("Sockaddr_AF_INET6")
             .generate()
             .expect("Unable to generate rbindings")
             .write_to_file("src/cffi.rs")

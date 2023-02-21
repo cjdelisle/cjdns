@@ -75,6 +75,9 @@ extern "C" {
     );
 }
 extern "C" {
+    pub fn Allocator_isFreeing(alloc: *mut Allocator_t) -> ::std::os::raw::c_int;
+}
+extern "C" {
     pub fn Allocator__onFree(
         alloc: *mut Allocator,
         callback: Allocator_OnFreeCallback,
@@ -642,13 +645,19 @@ extern "C" {
     ) -> *mut ::std::os::raw::c_char;
 }
 extern "C" {
-    pub fn Sockaddr_getPort(sa: *mut Sockaddr) -> ::std::os::raw::c_int;
+    pub fn Sockaddr_getPort(sa: *const Sockaddr) -> ::std::os::raw::c_int;
 }
 extern "C" {
     pub fn Sockaddr_setPort(sa: *mut Sockaddr, port: u16) -> ::std::os::raw::c_int;
 }
 extern "C" {
-    pub fn Sockaddr_getFamily(sa: *mut Sockaddr) -> ::std::os::raw::c_int;
+    pub static Sockaddr_AF_INET: ::std::os::raw::c_int;
+}
+extern "C" {
+    pub static Sockaddr_AF_INET6: ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn Sockaddr_getFamily(sa: *const Sockaddr) -> ::std::os::raw::c_int;
 }
 extern "C" {
     pub fn Sockaddr_getAddress(
@@ -660,10 +669,10 @@ extern "C" {
     pub fn Sockaddr_asIp6(addrOut: *mut u8, sockaddr: *const Sockaddr);
 }
 extern "C" {
-    pub fn Sockaddr_fromNative(
-        ss: *const ::std::os::raw::c_void,
-        addrLen: ::std::os::raw::c_int,
-        alloc: *mut Allocator,
+    pub fn Sockaddr_initFromBytes(
+        out: *mut Sockaddr_storage,
+        bytes: *const u8,
+        addrFamily: ::std::os::raw::c_int,
     ) -> *mut Sockaddr;
 }
 extern "C" {
