@@ -230,9 +230,9 @@ static uint16_t* getPortPtr(struct Sockaddr* sockaddr)
     return NULL;
 }
 
-int Sockaddr_getPort(struct Sockaddr* sockaddr)
+int Sockaddr_getPort(const struct Sockaddr* sockaddr)
 {
-    uint16_t* pp = getPortPtr(sockaddr);
+    const uint16_t* pp = getPortPtr((struct Sockaddr*) sockaddr);
     return (pp) ? Endian_bigEndianToHost16(*pp) : -1;
 }
 
@@ -268,40 +268,44 @@ int Sockaddr_getAddress(struct Sockaddr* sockaddr, void* addrPtr)
 
 const int Sockaddr_AF_INET = AF_INET;
 const int Sockaddr_AF_INET6 = AF_INET6;
-int Sockaddr_getFamily(struct Sockaddr* sockaddr)
+int Sockaddr_getFamily(const struct Sockaddr* sockaddr)
 {
     if (sockaddr->addrLen < (2 + Sockaddr_OVERHEAD)) {
         return -1;
     }
-    struct Sockaddr_pvt* sa = (struct Sockaddr_pvt*) sockaddr;
+    const struct Sockaddr_pvt* sa = (const struct Sockaddr_pvt*) sockaddr;
     return sa->ss.ss_family;
 }
 
-struct Sockaddr* Sockaddr_fromBytes(const uint8_t* bytes, int addrFamily, struct Allocator* alloc)
+struct Sockaddr* Sockaddr_initFromBytes(struct Sockaddr_storage* out, const uint8_t* bytes, int addrFamily)
 {
-    struct sockaddr_storage ss;
-    Bits_memset(&ss, 0, sizeof(struct sockaddr_storage));
-    int addrLen;
     switch (addrFamily) {
         case AF_INET: {
-            ss.ss_family = AF_INET;
-            Bits_memcpy(&((struct sockaddr_in*)&ss)->sin_addr, bytes, 4);
-            addrLen = sizeof(struct sockaddr_in);
+            struct Sockaddr_in_pvt* in = (struct Sockaddr_in_pvt*) out;
+            Bits_memset(in, 0, sizeof *in);
+            in->si.sin_family = AF_INET;
+            Bits_memcpy(&in->si.sin_addr, bytes, 4);
+            in->pub.addrLen = sizeof(struct Sockaddr_in_pvt);
             break;
         }
         case AF_INET6: {
-            ss.ss_family = AF_INET6;
-            Bits_memcpy(&((struct sockaddr_in6*)&ss)->sin6_addr, bytes, 16);
-            addrLen = sizeof(struct sockaddr_in6);
+            struct Sockaddr_in6_pvt* in = (struct Sockaddr_in6_pvt*) out;
+            Bits_memset(in, 0, sizeof *in);
+            in->si.sin6_family = AF_INET6;
+            Bits_memcpy(&in->si.sin6_addr, bytes, 16);
+            in->pub.addrLen = sizeof(struct Sockaddr_in6_pvt);
             break;
         }
         default: Assert_failure("unrecognized address type [%d]", addrFamily);
     }
+    return &out->addr;
+}
 
-    struct Sockaddr_pvt* out = Allocator_calloc(alloc, addrLen + Sockaddr_OVERHEAD, 1);
-    Bits_memcpy(&out->ss, &ss, addrLen);
-    out->pub.addrLen = addrLen + Sockaddr_OVERHEAD;
-    return &out->pub;
+struct Sockaddr* Sockaddr_fromBytes(const uint8_t* bytes, int addrFamily, struct Allocator* alloc)
+{
+    struct Sockaddr_storage ss;
+    struct Sockaddr* sa = Sockaddr_initFromBytes(&ss, bytes, addrFamily);
+    return Sockaddr_clone(sa, alloc);
 }
 
 void Sockaddr_normalizeNative(void* nativeSockaddr)

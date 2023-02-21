@@ -98,7 +98,7 @@ char* Sockaddr_print(struct Sockaddr* addr, struct Allocator* alloc);
  * @param a sockaddr.
  * @return the port number or -1 if not applicable to this sockaddr.
  */
-int Sockaddr_getPort(struct Sockaddr* sa);
+int Sockaddr_getPort(const struct Sockaddr* sa);
 
 /**
  * Set the port for a sockaddr if applicable.
@@ -117,7 +117,7 @@ int Sockaddr_setPort(struct Sockaddr* sa, uint16_t port);
  */
 extern const int Sockaddr_AF_INET;
 extern const int Sockaddr_AF_INET6;
-int Sockaddr_getFamily(struct Sockaddr* sa);
+int Sockaddr_getFamily(const struct Sockaddr* sa);
 
 /**
  * Get the address stored in a sockaddr.
@@ -145,6 +145,16 @@ static inline void* Sockaddr_asNative(struct Sockaddr* sa)
 {
     return (void*)(&sa[1]);
 }
+
+/**
+ * @brief Initialize a Sockaddr in place from bytes.
+ * 
+ * @param out The location in memory to place the sockaddr data
+ * @param bytes The bytes of the address, e.g. {127,0,0,1} (port not included)
+ * @param addrFamily The address family (Sockaddr_AF_INET / Sockaddr_AF_INET6)
+ * @return struct Sockaddr* which points to the memory of `out`
+ */
+struct Sockaddr* Sockaddr_initFromBytes(struct Sockaddr_storage* out, const uint8_t* bytes, int addrFamily);
 
 /**
  * Sockaddr_fromBytes() takes
