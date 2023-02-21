@@ -6,20 +6,22 @@ use crate::rffi::allocator;
 use crate::rtypes::RTypes_Error_t;
 use crate::external::interface::iface::{self, IfRecv, Iface, IfacePvt};
 use crate::interface::wire::message::Message;
+use crate::gcl::Protected;
 
-// TODO: this is not even the tiniest bit thread safe
 struct CRecv {
-    c_iface: *mut cffi::Iface,
+    c_iface: Protected<*mut cffi::Iface>,
     dg: Weak<()>,
 }
+
 impl IfRecv for CRecv {
     fn recv(&self, m: Message) -> Result<()> {
         if self.dg.strong_count() < 1 {
             bail!("Other end has been dropped");
         }
         let c_msg = m.as_c_message();
+        let cif = self.c_iface.lock();
         unsafe {
-            (cffi::Iface_incomingFromRust(c_msg, self.c_iface) as *mut RTypes_Error_t).as_mut()
+            (cffi::Iface_incomingFromRust(c_msg, *cif) as *mut RTypes_Error_t).as_mut()
                 .map(|e|e.e.take())
                 .flatten()
                 .map(Err)
@@ -66,7 +68,7 @@ unsafe extern "C" fn from_c(msg: *mut cffi::Message, iface_p: *mut cffi::Iface) 
 /// After calling this, you will be able to plumb your iface of choice to the Iface
 /// and then pass the cffi::Iface to C code to be plumbed to another C Iface and
 /// messages passed to the C Iface will come out in your Iface
-pub fn new<T: Into<String>>(alloc: *mut Allocator_t, name: T) -> (Iface, *mut cffi::Iface) {
+fn new<T: Into<String>>(alloc: *mut Allocator_t, name: T) -> (Iface, *mut cffi::Iface) {
     let (mut iface, iface_pvt) = iface::new(name);
     let drop_guard = Arc::new(());
     let drop_guarded = Arc::downgrade(&drop_guard);
@@ -85,7 +87,7 @@ pub fn new<T: Into<String>>(alloc: *mut Allocator_t, name: T) -> (Iface, *mut cf
         },
     );
     let c_iface = unsafe { (&mut (*out).cif) as *mut cffi::Iface };
-    iface.set_receiver(CRecv { c_iface, dg: drop_guarded });
+    iface.set_receiver(CRecv { c_iface: Protected::new(c_iface), dg: drop_guarded });
     (iface, c_iface)
 }
 

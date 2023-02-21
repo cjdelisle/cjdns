@@ -1676,12 +1676,12 @@ mod debug {
 
 #[cfg(test)]
 mod tests {
-    use std::cell::RefCell;
-    use std::rc::Rc;
     use std::sync::Arc;
+    use parking_lot::Mutex;
 
     use cjdns_keys::{CJDNSKeysApi, PrivateKey, PublicKey};
 
+    use crate::gcl::Protected;
     use crate::bytestring::ByteString;
     use crate::cffi;
     use crate::crypto::random::Random;
@@ -1878,7 +1878,10 @@ mod tests {
             let name = "bob";
 
             let ca =
-                super::CryptoAuth::new(Some(priv_key), EventBase {}, Random::Legacy(fake_random(&mut alloc)));
+                super::CryptoAuth::new(Some(priv_key),
+                EventBase {},
+                Random::Legacy(Protected::new(fake_random(&mut alloc))),
+            );
             let ca = Arc::new(ca);
 
             let res = ca.add_user_ipv6(
@@ -2003,7 +2006,11 @@ mod tests {
             let name = "alice";
 
             let ca =
-                super::CryptoAuth::new(Some(priv_key), EventBase {}, Random::Legacy(fake_random(&mut alloc)));
+                super::CryptoAuth::new(
+                    Some(priv_key),
+                    EventBase {},
+                    Random::Legacy(Protected::new(fake_random(&mut alloc))),
+                );
             let ca = Arc::new(ca);
 
             let res = ca.add_user_ipv6(
@@ -2067,20 +2074,20 @@ mod tests {
         let bob_keys = keys_api.key_pair();
         let mut alloc = allocator::new!();
 
-        let alice_received_text = Rc::new(RefCell::new(Vec::new()));
-        let bob_received_text = Rc::new(RefCell::new(Vec::new()));
+        let alice_received_text = Arc::new(Mutex::new(Vec::new()));
+        let bob_received_text = Arc::new(Mutex::new(Vec::new()));
 
         // Setup
         let (alice_send, bob_send) = {
             use crate::external::interface::iface::{self, IfRecv};
 
             // Plaintext receiver
-            struct Plaintext(Rc<RefCell<Vec<u8>>>);
+            struct Plaintext(Arc<Mutex<Vec<u8>>>);
             impl IfRecv for Plaintext {
                 fn recv(&self, mut m: Message) -> anyhow::Result<()> {
                     assert!(m.len() > 4, "empty message received");
                     m.discard_bytes(4)?; // Extra zeroes added by CiphertextRecv
-                    self.0.borrow_mut().extend_from_slice(m.peek_bytes(m.len())?);
+                    self.0.lock().extend_from_slice(m.peek_bytes(m.len())?);
                     Ok(())
                 }
             }
@@ -2105,8 +2112,8 @@ mod tests {
             (alice_plaintext_pvt, bob_plaintext_pvt)
         };
 
-        assert!(alice_received_text.borrow().is_empty());
-        assert!(bob_received_text.borrow().is_empty());
+        assert!(alice_received_text.lock().is_empty());
+        assert!(bob_received_text.lock().is_empty());
 
         // Message Bob -> Alice
         let mut msg = mk_msg(1024, &mut alloc);
@@ -2114,8 +2121,8 @@ mod tests {
 
         bob_send.send(msg).unwrap();
 
-        assert_eq!(alice_received_text.borrow().as_slice(), b"Hello World");
-        assert!(bob_received_text.borrow().is_empty()); // still empty
+        assert_eq!(alice_received_text.lock().as_slice(), b"Hello World");
+        assert!(bob_received_text.lock().is_empty()); // still empty
 
         // Message back Alice -> Bob
         let mut msg = mk_msg(1024, &mut alloc);
@@ -2123,8 +2130,8 @@ mod tests {
         let res = alice_send.send(msg);
         assert!(res.is_ok());
 
-        assert_eq!(bob_received_text.borrow().as_slice(), b"Goodbye Universe");
-        assert_eq!(alice_received_text.borrow().as_slice(), b"Hello World"); // still unchanged
+        assert_eq!(bob_received_text.lock().as_slice(), b"Goodbye Universe");
+        assert_eq!(alice_received_text.lock().as_slice(), b"Hello World"); // still unchanged
     }
 
     #[test]
@@ -2135,8 +2142,8 @@ mod tests {
         let mut alloc = allocator::new!();
 
         let mut msg = mk_msg(1024, &mut alloc);
-        let alice_received_text = Rc::new(RefCell::new(Vec::new()));
-        let bob_received_text = Rc::new(RefCell::new(Vec::new()));
+        let alice_received_text = Arc::new(Mutex::new(Vec::new()));
+        let bob_received_text = Arc::new(Mutex::new(Vec::new()));
 
         fn set_auth(sess: &crate::crypto::crypto_noise::Session, name: &str) {
             sess.set_auth(
@@ -2150,12 +2157,12 @@ mod tests {
             use crate::external::interface::iface::{self, IfRecv};
 
             // Plaintext receiver
-            struct Plaintext(Rc<RefCell<Vec<u8>>>);
+            struct Plaintext(Arc<Mutex<Vec<u8>>>);
             impl IfRecv for Plaintext {
                 fn recv(&self, mut m: Message) -> anyhow::Result<()> {
                     assert!(m.len() > 4, "empty message received");
                     m.discard_bytes(4)?; // Extra zeroes added by CiphertextRecv
-                    self.0.borrow_mut().extend_from_slice(m.peek_bytes(m.len())?);
+                    self.0.lock().extend_from_slice(m.peek_bytes(m.len())?);
                     Ok(())
                 }
             }
@@ -2184,8 +2191,8 @@ mod tests {
             (alice_plaintext_pvt, bob_plaintext_pvt)
         };
 
-        assert!(alice_received_text.borrow().is_empty());
-        assert!(bob_received_text.borrow().is_empty());
+        assert!(alice_received_text.lock().is_empty());
+        assert!(bob_received_text.lock().is_empty());
 
         // Message Bob -> Alice
         assert_eq!(msg.len(), 0);
@@ -2193,8 +2200,8 @@ mod tests {
 
         bob_send.send(msg).unwrap();
 
-        assert_eq!(alice_received_text.borrow().as_slice(), b"Hello World");
-        assert!(bob_received_text.borrow().is_empty()); // still empty
+        assert_eq!(alice_received_text.lock().as_slice(), b"Hello World");
+        assert!(bob_received_text.lock().is_empty()); // still empty
 
         // Message back Alice -> Bob
         let mut msg = mk_msg(1024, &mut alloc);
@@ -2202,7 +2209,7 @@ mod tests {
         let res = alice_send.send(msg);
         assert!(res.is_ok());
 
-        assert_eq!(bob_received_text.borrow().as_slice(), b"Goodbye Universe");
-        assert_eq!(alice_received_text.borrow().as_slice(), b"Hello World"); // still unchanged
+        assert_eq!(bob_received_text.lock().as_slice(), b"Goodbye Universe");
+        assert_eq!(alice_received_text.lock().as_slice(), b"Hello World"); // still unchanged
     }
 }
