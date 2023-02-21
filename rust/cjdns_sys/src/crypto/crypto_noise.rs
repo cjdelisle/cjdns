@@ -742,7 +742,7 @@ fn handle_init_msg(
     };
 
     let (user_opt, prev_sess_id, cjdns_ver) = if let Some(ad) = &valid_handshake.additional_data {
-        let mut adm = msg.new(ad.len());
+        let mut adm = msg.new_same_alloc(ad.len());
         adm.push_bytes(&ad)?;
         let mut user_opt = None;
         let mut prev_sess_index = None;

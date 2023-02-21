@@ -6,7 +6,7 @@ use std::i32;
 use thiserror::Error;
 
 use crate::cffi;
-use crate::rffi::allocator::Allocator;
+use crate::rffi::allocator::{self, Allocator};
 
 /// A network message.
 ///
@@ -17,6 +17,9 @@ pub struct Message {
     msg: *mut cffi::Message,
     alloc: Option<Allocator>,
 }
+// Needed to use Message in an any async function
+unsafe impl Sync for Message {}
+unsafe impl Send for Message {}
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum MessageError {
@@ -38,7 +41,27 @@ pub enum MessageError {
 
 pub type Result<T> = std::result::Result<T, MessageError>;
 
+impl std::fmt::Debug for Message {
+     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+         f.debug_struct("Message")
+         .field("ptr", &format!("{:p}", self.msg))
+         .field("length", &self.len())
+         .field("cap", &self.cap())
+         .field("padding", &self.pad())
+         .finish()
+     }
+}
+
 impl Message {
+    /// Create a new message with a self-contained allocator,
+    /// this message is thus "owned" but Rust.
+    pub fn new(padding: usize) -> Self {
+        let mut alloc = allocator::new!();
+        let mut out = Self::anew(padding, &mut alloc);
+        out.alloc = Some(alloc);
+        out
+    }
+
     pub fn anew(padding: usize, alloc: &mut Allocator) -> Self {
         unsafe { Message { msg: cffi::Message_new(0, padding as u32, alloc.c()), alloc: None } }
     }
@@ -48,7 +71,7 @@ impl Message {
     ///
     /// Note: this function does *NOT* clone original message,
     /// the resulting message will be empty.
-    pub fn new(&self, padding: usize) -> Self {
+    pub fn new_same_alloc(&self, padding: usize) -> Self {
         unsafe { Message { msg: cffi::Message_new(0, padding as u32, (*self.msg)._alloc), alloc: None } }
     }
 
@@ -124,6 +147,33 @@ impl Message {
         let ptr = msg.msgbytes;
         let len = msg._length as usize;
         unsafe { from_raw_parts_mut(ptr, len) }
+    }
+
+    /// Allocate `count` additional data bytes *before* the message's existing data.
+    /// These bytes are not initialized and will contain whatever the Message last held.
+    /// The available padding must be enough to accommodate additional bytes
+    /// otherwise an error is returned.
+    pub fn allocate_uninitialized(&mut self, count: usize) -> Result<&mut [u8]> {
+        if count > self.pad() {
+            return Err(MessageError::InsufficientPadding(count, self.pad()));
+        }
+        self.shift(count as i32)?;
+        let data = self.bytes_mut();
+        let dest = &mut data[0..count];
+        Ok(dest)
+    }
+
+    /// Change the length of the message. This can only be done within the message's
+    /// capacity or else an error will occur.
+    pub fn set_len(&mut self, new_size: usize) -> Result<()> {
+        if new_size > self.cap() {
+            return Err(MessageError::InsufficientLength(new_size, self.cap()));
+        }
+        unsafe {
+            let mut msg = &mut (*self.msg);
+            msg._length = new_size as i32;
+        }
+        Ok(())
     }
 
     /// Push additional data `bytes` *before* the message's existing data.
