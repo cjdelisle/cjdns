@@ -41,4 +41,5 @@ struct RBindings_Whitelist {
     String_t e;
     Log_t* f;
     enum RBindings_Version g;
+    Sockaddr_t h;
 };

@@ -1,4 +1,6 @@
 use std::net::{SocketAddr, SocketAddrV6, SocketAddrV4, IpAddr, Ipv4Addr, Ipv6Addr};
+use crate::cffi::Allocator_t;
+use crate::rffi::allocator;
 use crate::cffi;
 use std::convert::TryFrom;
 use std::convert::TryInto;
@@ -15,6 +17,10 @@ impl Sockaddr {
     }
     pub fn byte_len(&self) -> usize {
         self.ss.addr.addrLen as usize
+    }
+    pub fn c(&self, a: *mut Allocator_t) -> *mut cffi::Sockaddr_t {
+        let ss = allocator::adopt(a, self.ss.clone());
+        unsafe { &mut (*ss).addr as *mut _ }
     }
     pub fn rs(&self) -> SocketAddr {
         unsafe {

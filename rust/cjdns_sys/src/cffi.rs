@@ -617,20 +617,21 @@ pub struct Sockaddr {
     pub pad1: u8,
     pub pad2: u16,
 }
+pub type Sockaddr_t = Sockaddr;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct Sockaddr_storage {
-    pub addr: Sockaddr,
+    pub addr: Sockaddr_t,
     pub nativeAddr: [u64; 16usize],
 }
 extern "C" {
-    pub fn Sockaddr_addrHandle(addr: *const Sockaddr) -> u32;
+    pub fn Sockaddr_addrHandle(addr: *const Sockaddr_t) -> u32;
 }
 extern "C" {
-    pub fn Sockaddr_addrFromHandle(addr: *mut Sockaddr, handle: u32);
+    pub fn Sockaddr_addrFromHandle(addr: *mut Sockaddr_t, handle: u32);
 }
 extern "C" {
-    pub fn Sockaddr_getPrefix(addr: *mut Sockaddr) -> ::std::os::raw::c_int;
+    pub fn Sockaddr_getPrefix(addr: *mut Sockaddr_t) -> ::std::os::raw::c_int;
 }
 extern "C" {
     pub fn Sockaddr_parse(
@@ -640,15 +641,15 @@ extern "C" {
 }
 extern "C" {
     pub fn Sockaddr_print(
-        addr: *mut Sockaddr,
+        addr: *mut Sockaddr_t,
         alloc: *mut Allocator,
     ) -> *mut ::std::os::raw::c_char;
 }
 extern "C" {
-    pub fn Sockaddr_getPort(sa: *const Sockaddr) -> ::std::os::raw::c_int;
+    pub fn Sockaddr_getPort(sa: *const Sockaddr_t) -> ::std::os::raw::c_int;
 }
 extern "C" {
-    pub fn Sockaddr_setPort(sa: *mut Sockaddr, port: u16) -> ::std::os::raw::c_int;
+    pub fn Sockaddr_setPort(sa: *mut Sockaddr_t, port: u16) -> ::std::os::raw::c_int;
 }
 extern "C" {
     pub static Sockaddr_AF_INET: ::std::os::raw::c_int;
@@ -657,42 +658,42 @@ extern "C" {
     pub static Sockaddr_AF_INET6: ::std::os::raw::c_int;
 }
 extern "C" {
-    pub fn Sockaddr_getFamily(sa: *const Sockaddr) -> ::std::os::raw::c_int;
+    pub fn Sockaddr_getFamily(sa: *const Sockaddr_t) -> ::std::os::raw::c_int;
 }
 extern "C" {
     pub fn Sockaddr_getAddress(
-        sa: *mut Sockaddr,
+        sa: *mut Sockaddr_t,
         addrPtr: *mut ::std::os::raw::c_void,
     ) -> ::std::os::raw::c_int;
 }
 extern "C" {
-    pub fn Sockaddr_asIp6(addrOut: *mut u8, sockaddr: *const Sockaddr);
+    pub fn Sockaddr_asIp6(addrOut: *mut u8, sockaddr: *const Sockaddr_t);
 }
 extern "C" {
     pub fn Sockaddr_initFromBytes(
         out: *mut Sockaddr_storage,
         bytes: *const u8,
         addrFamily: ::std::os::raw::c_int,
-    ) -> *mut Sockaddr;
+    ) -> *mut Sockaddr_t;
 }
 extern "C" {
     pub fn Sockaddr_fromBytes(
         bytes: *const u8,
         addrFamily: ::std::os::raw::c_int,
         alloc: *mut Allocator,
-    ) -> *mut Sockaddr;
+    ) -> *mut Sockaddr_t;
 }
 extern "C" {
-    pub fn Sockaddr_clone(addr: *const Sockaddr, alloc: *mut Allocator) -> *mut Sockaddr;
+    pub fn Sockaddr_clone(addr: *const Sockaddr_t, alloc: *mut Allocator) -> *mut Sockaddr_t;
 }
 extern "C" {
     pub fn Sockaddr_normalizeNative(nativeSockaddr: *mut ::std::os::raw::c_void);
 }
 extern "C" {
-    pub fn Sockaddr_hash(addr: *const Sockaddr) -> u32;
+    pub fn Sockaddr_hash(addr: *const Sockaddr_t) -> u32;
 }
 extern "C" {
-    pub fn Sockaddr_compare(a: *const Sockaddr, b: *const Sockaddr) -> ::std::os::raw::c_int;
+    pub fn Sockaddr_compare(a: *const Sockaddr_t, b: *const Sockaddr_t) -> ::std::os::raw::c_int;
 }
 extern "C" {
     pub fn Version_isCompatible(one: u32, two: u32) -> ::std::os::raw::c_int;
@@ -711,4 +712,5 @@ pub struct RBindings_Whitelist {
     pub e: String_t,
     pub f: *mut Log_t,
     pub g: RBindings_Version,
+    pub h: Sockaddr_t,
 }
