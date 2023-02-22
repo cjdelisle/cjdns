@@ -39,6 +39,7 @@ struct AddrIfaceMuxer_Iface {
 struct AddrIfaceMuxer_pvt
 {
     struct AddrIfaceMuxer pub;
+    Iface_t iface;
     struct Map_Ifaces ifaces;
     struct Log* log;
     Identity
@@ -47,7 +48,7 @@ struct AddrIfaceMuxer_pvt
 static Iface_DEFUN incomingFromAddrIf(struct Message* msg, struct Iface* addrIf)
 {
     struct AddrIfaceMuxer_pvt* ctx =
-        Identity_containerOf(addrIf, struct AddrIfaceMuxer_pvt, pub.iface.iface);
+        Identity_containerOf(addrIf, struct AddrIfaceMuxer_pvt, iface);
 
     struct Sockaddr* addr = Er_assert(AddrIface_popAddr(msg));
     if (addr->addrLen > sizeof(struct Sockaddr)) {
@@ -83,7 +84,7 @@ static Iface_DEFUN incomingFromInputIf(struct Message* msg, struct Iface* inputI
     // After pushing the address, tweak the length
     Bits_put16(msg->msgbytes, cli->addr.addrLen + addrLen);
 
-    return Iface_next(&ctx->pub.iface.iface, msg);
+    return Iface_next(ctx->pub.iface.iface, msg);
 }
 
 static int removeIfaceOnFree(struct Allocator_OnFreeJob* job)
@@ -117,13 +118,12 @@ struct Iface* AddrIfaceMuxer_registerIface(struct AddrIfaceMuxer* muxer, struct 
 struct AddrIfaceMuxer* AddrIfaceMuxer_new(struct Log* log, struct Allocator* alloc)
 {
     struct AddrIfaceMuxer_pvt* ctx = Allocator_clone(alloc, (&(struct AddrIfaceMuxer_pvt) {
-        .pub = {
-            .iface.iface.send = incomingFromAddrIf,
-            .iface.alloc = alloc,
-        },
+        .pub = { .iface.alloc = alloc },
+        .iface = { .send = incomingFromAddrIf },
         .log = log,
         .ifaces = { .allocator = alloc },
     }));
+    ctx->pub.iface.iface = &ctx->iface;
     Identity_set(ctx);
     return &ctx->pub;
 }

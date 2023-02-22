@@ -56,6 +56,8 @@ struct PipeServer_pvt
 
     uv_pipe_t server;
 
+    Iface_t iface;
+
     struct Map_Clients clients;
 
     struct Allocator_OnFreeJob* closeHandlesOnFree;
@@ -73,7 +75,7 @@ struct PipeServer_pvt
 
 static Iface_DEFUN sendMessage(struct Message* m, struct Iface* iface)
 {
-    struct PipeServer_pvt* psp = Identity_check((struct PipeServer_pvt*) iface);
+    struct PipeServer_pvt* psp = Identity_containerOf(iface, struct PipeServer_pvt, iface);
     struct Sockaddr* addr = Er_assert(AddrIface_popAddr(m));
     uint32_t handle = Sockaddr_addrHandle(addr);
     int idx = Map_Clients_indexForHandle(handle, &psp->clients);
@@ -90,7 +92,7 @@ static Iface_DEFUN incomingFromClient(struct Message* msg, struct Iface* iface)
     struct Client* cli = Identity_containerOf(iface, struct Client, iface);
     struct PipeServer_pvt* psp = Identity_check(cli->psp);
     Er_assert(AddrIface_pushAddr(msg, &cli->addr));
-    return Iface_next(&psp->pub.iface.iface, msg);
+    return Iface_next(psp->pub.iface.iface, msg);
 }
 
 /** Asynchronous allocator freeing. */
@@ -200,21 +202,16 @@ static struct PipeServer_pvt* newPipeAny(struct EventBase* eb,
 
     struct PipeServer_pvt* psp = Allocator_clone(alloc, (&(struct PipeServer_pvt) {
         .pub = {
-            .iface = {
-                .iface = {
-                    .send = sendMessage
-                },
-                .alloc = alloc,
-            },
-            .fullName = CString_strdup(fullPath, alloc),
+            .iface = { .alloc = alloc },
+            .fullName = CString_strdup(fullPath, alloc)
         },
-        .clients = {
-            .allocator = alloc
-        },
+        .iface = { .send = sendMessage },
+        .clients = { .allocator = alloc },
         .base = ctx,
         .alloc = alloc,
         .log = log,
     }));
+    psp->pub.iface.iface = &psp->iface;
 
     int ret = uv_pipe_init(ctx->loop, &psp->server, 0);
     if (ret) {

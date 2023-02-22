@@ -132,7 +132,7 @@ int main(int argc, char** argv)
     ctx->eventBase = eb;
 
     struct PipeServer* pipe = PipeServer_named(name->bytes, eb, NULL, logger, alloc);
-    Iface_plumb(&ctx->iface, &pipe->iface.iface);
+    Iface_plumb(&ctx->iface, pipe->iface.iface);
 
     const char* path = Process_getPath(alloc);
     const char* args[] = { "Seccomp_test", "child", name->bytes, NULL };

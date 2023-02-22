@@ -580,7 +580,7 @@ struct Admin* Admin_new(AddrIface_t* ai,
     admin->eventBase = eventBase;
     admin->map.allocator = alloc;
     admin->iface.send = receiveMessage;
-    Iface_plumb(&admin->iface, &ai->iface);
+    Iface_plumb(&admin->iface, ai->iface);
     admin->tempSendMsg = Message_new(0, Admin_MAX_RESPONSE_SIZE, alloc);
 
     admin->password = String_clone(password, alloc);

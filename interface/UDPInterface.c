@@ -33,6 +33,8 @@ struct UDPInterface_pvt
     struct Log* log;
     struct Allocator* allocator;
 
+    Iface_t iface;
+
     struct Allocator* bcastAddrAlloc;
     struct ArrayList_Sockaddr* bcastAddrs;
 
@@ -111,7 +113,7 @@ static int updateBcastAddrs(struct UDPInterface_pvt* ctx)
 static Iface_DEFUN sendPacket(struct Message* m, struct Iface* iface)
 {
     struct UDPInterface_pvt* ctx =
-        Identity_containerOf(iface, struct UDPInterface_pvt, pub.generic.iface);
+        Identity_containerOf(iface, struct UDPInterface_pvt, iface);
 
     Assert_true(Message_getLength(m) > Sockaddr_OVERHEAD);
     struct Sockaddr* sa = (struct Sockaddr*) m->msgbytes;
@@ -150,7 +152,7 @@ static Iface_DEFUN fromCommSock(struct Message* m, struct Iface* iface)
 {
     struct UDPInterface_pvt* ctx =
         Identity_containerOf(iface, struct UDPInterface_pvt, commSock);
-    return Iface_next(&ctx->pub.generic.iface, m);
+    return Iface_next(ctx->pub.generic.iface, m);
 }
 
 static Iface_DEFUN fromBcastSock(struct Message* m, struct Iface* iface)
@@ -198,7 +200,7 @@ static Iface_DEFUN fromBcastSock(struct Message* m, struct Iface* iface)
 
     Er_assert(Message_epush(m, &ss.addr, ss.addr.addrLen));
 
-    return Iface_next(&ctx->pub.generic.iface, m);
+    return Iface_next(ctx->pub.generic.iface, m);
 }
 
 Er_DEFUN(struct UDPInterface* UDPInterface_new(struct EventBase* eventBase,
@@ -227,12 +229,13 @@ Er_DEFUN(struct UDPInterface* UDPInterface_new(struct EventBase* eventBase,
     context->commPort_be = Endian_hostToBigEndian16(commPort);
     context->pub.generic.addr = uai->generic.addr;
     context->pub.generic.alloc = alloc;
-    context->pub.generic.iface.send = sendPacket;
+    context->iface.send = sendPacket;
+    context->pub.generic.iface = &context->iface;
     context->commSock.send = fromCommSock;
     context->bcastSock.send = fromBcastSock;
     context->commIf = uai;
     context->globalConf = globalConf;
-    Iface_plumb(&uai->generic.iface, &context->commSock);
+    Iface_plumb(uai->generic.iface, &context->commSock);
 
     if (beaconPort) {
         struct Sockaddr* bcastAddr = Sockaddr_clone(bindAddr, alloc);
@@ -240,7 +243,7 @@ Er_DEFUN(struct UDPInterface* UDPInterface_new(struct EventBase* eventBase,
         struct UDPAddrIface* bcast =
             Er(UDPAddrIface_new(eventBase, bcastAddr, alloc, logger));
         UDPAddrIface_setBroadcast(bcast, 1);
-        Iface_plumb(&bcast->generic.iface, &context->bcastSock);
+        Iface_plumb(bcast->generic.iface, &context->bcastSock);
         context->bcastIf = bcast;
     }
 

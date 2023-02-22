@@ -39,6 +39,8 @@ struct UDPAddrIface_pvt
     /** Job which blocks the freeing until the callback completes */
     struct Allocator_OnFreeJob* blockFreeInsideCallback;
 
+    Iface_t iface;
+
     uv_udp_t uvHandle;
     int queueLen;
 
@@ -80,7 +82,8 @@ static void sendComplete(uv_udp_send_t* uvReq, int error)
 
 static Iface_DEFUN incomingFromIface(struct Message* m, struct Iface* iface)
 {
-    struct UDPAddrIface_pvt* context = Identity_check((struct UDPAddrIface_pvt*) iface);
+    struct UDPAddrIface_pvt* context =
+        Identity_containerOf(iface, struct UDPAddrIface_pvt, iface);
 
     Assert_true(Message_getLength(m) >= Sockaddr_OVERHEAD);
     if (((struct Sockaddr*)m->msgbytes)->flags & Sockaddr_flags_BCAST) {
@@ -168,7 +171,7 @@ static void incoming(uv_udp_t* handle,
         Assert_true(Hex_encode(buff, 255, m->bytes, context->pub.generic.addr->addrLen));
         Log_debug(context->logger, "Message from [%s]", buff);*/
 
-        Iface_send(&context->pub.generic.iface, msg);
+        Iface_send(context->pub.generic.iface, msg);
     }
 
     if (msg) {
@@ -275,7 +278,8 @@ Er_DEFUN(struct UDPAddrIface* UDPAddrIface_new(struct EventBase* eventBase,
             .allocator = alloc
         }));
     context->pub.generic.alloc = alloc;
-    context->pub.generic.iface.send = incomingFromIface;
+    context->pub.generic.iface = &context->iface;
+    context->iface.send = incomingFromIface;
     Identity_set(context);
 
     if (addr) {

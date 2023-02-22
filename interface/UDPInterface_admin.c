@@ -186,7 +186,7 @@ static void newInterface2(struct Context* ctx,
 
     struct InterfaceController_Iface* ici =
         InterfaceController_newIface(ctx->ic, name, alloc);
-    Iface_plumb(&ici->addrIf, &udpif->generic.iface);
+    Iface_plumb(&ici->addrIf, udpif->generic.iface);
     ArrayList_UDPInterface_put(ctx->ifaces, ici->ifNum, udpif);
 
     Dict* out = Dict_new(requestAlloc);

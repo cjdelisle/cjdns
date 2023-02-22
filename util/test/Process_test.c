@@ -194,7 +194,7 @@ int main(int argc, char** argv)
     struct PipeServer* pipe = PipeServer_named(name->bytes, eb, NULL, log, alloc);
     pipe->userData = ctx;
     pipe->onConnection = onConnectionParent;
-    Iface_plumb(&ctx->iface, &pipe->iface.iface);
+    Iface_plumb(&ctx->iface, pipe->iface.iface);
 
     const char* path = Process_getPath(alloc);
 

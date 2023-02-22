@@ -158,7 +158,7 @@ void TUNTools_echoTest(struct Sockaddr* udpBindTo,
     Identity_set(ctx);
     ctx->pub.udpIface.send = receiveMessageUDP;
     ctx->pub.tunIface.send = receiveMessageTUN;
-    Iface_plumb(&ctx->pub.udpIface, &udp->iface);
+    Iface_plumb(&ctx->pub.udpIface, udp->iface);
     Iface_plumb(&ctx->pub.tunIface, tun);
     ctx->pub.cb = tunMessageHandler;
     ctx->pub.tunDestAddr = Sockaddr_clone(dest, alloc);

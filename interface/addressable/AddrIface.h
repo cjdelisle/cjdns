@@ -28,7 +28,7 @@
 typedef struct AddrIface
 {
     /** As a generic interface. */
-    struct Iface iface;
+    struct Iface* iface;
 
     /**
      * The address of this node if applicable to the implementation.

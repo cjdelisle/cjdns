@@ -103,7 +103,7 @@ static void newInterface(Dict* args, void* vcontext, String* txid, struct Alloca
     String* ifname = String_printf(requestAlloc, "ETH/%s", bindDevice->bytes);
 
     struct InterfaceController_Iface* ici = InterfaceController_newIface(ctx->ic, ifname, alloc);
-    Iface_plumb(&ici->addrIf, &ethIf->generic.iface);
+    Iface_plumb(&ici->addrIf, ethIf->generic.iface);
 
     Dict* out = Dict_new(requestAlloc);
     Dict_putStringCC(out, "error", "none", requestAlloc);

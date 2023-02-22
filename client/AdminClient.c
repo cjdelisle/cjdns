@@ -336,7 +336,7 @@ struct AdminClient* AdminClient_new(AddrIface_t* ai,
     }
     Log_debug(logger, "Connecting to [%s]", Sockaddr_print(context->targetAddr, alloc));
 
-    Iface_plumb(&ai->iface, &context->addrIface);
+    Iface_plumb(ai->iface, &context->addrIface);
 
     return &context->pub;
 }

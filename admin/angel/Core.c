@@ -458,7 +458,7 @@ int Core_main(int argc, char** argv)
     struct PipeServer* clientPipe = PipeServer_named(argv[2], eventBase, eh, logger, alloc);
     Log_debug(logger, "Getting pre-configuration from client");
     struct Message* preConf =
-        InterfaceWaiter_waitForData(&clientPipe->iface.iface, eventBase, tempAlloc, eh);
+        InterfaceWaiter_waitForData(clientPipe->iface.iface, eventBase, tempAlloc, eh);
     Log_debug(logger, "Finished getting pre-configuration from client");
     struct Sockaddr* addr = Sockaddr_clone(Er_assert(AddrIface_popAddr(preConf)), tempAlloc);
     Dict* config = Except_er(eh, BencMessageReader_read(preConf, tempAlloc));
@@ -498,8 +498,8 @@ int Core_main(int argc, char** argv)
 
     // ---- Setup a muxer so we can get admin from socket or UDP ---- //
     struct AddrIfaceMuxer* muxer = AddrIfaceMuxer_new(logger, alloc);
-    Iface_plumb(&udpAdmin->generic.iface, AddrIfaceMuxer_registerIface(muxer, alloc));
-    Iface_plumb(&clientPipe->iface.iface, AddrIfaceMuxer_registerIface(muxer, alloc));
+    Iface_plumb(udpAdmin->generic.iface, AddrIfaceMuxer_registerIface(muxer, alloc));
+    Iface_plumb(clientPipe->iface.iface, AddrIfaceMuxer_registerIface(muxer, alloc));
 
     // --------------------- Setup Admin --------------------- //
     struct Admin* admin = Admin_new(&muxer->iface, logger, eventBase, pass);
@@ -529,7 +529,7 @@ int Core_main(int argc, char** argv)
     struct Message* clientResponse = Message_new(0, 512, tempAlloc);
     Er_assert(BencMessageWriter_write(&response, clientResponse));
     Er_assert(AddrIface_pushAddr(clientResponse, addr));
-    Iface_CALL(clientPipe->iface.iface.send, clientResponse, &clientPipe->iface.iface);
+    Iface_CALL(clientPipe->iface.iface->send, clientResponse, clientPipe->iface.iface);
 
     Allocator_free(tempAlloc);
 
