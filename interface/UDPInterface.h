@@ -52,7 +52,7 @@ Assert_compileTime(
 
 struct UDPInterface
 {
-    struct AddrIface generic;
+    AddrIface_t generic;
 };
 
 /**

@@ -28,7 +28,7 @@
     #include <unistd.h>
 #endif
 
-static struct AddrIface* setupUDP(struct EventBase* base,
+static AddrIface_t* setupUDP(struct EventBase* base,
                                   struct Sockaddr* bindAddr,
                                   struct Allocator* allocator,
                                   struct Log* logger)
@@ -145,7 +145,7 @@ void TUNTools_echoTest(struct Sockaddr* udpBindTo,
                        struct Allocator* allocator)
 {
     struct Allocator* alloc = Allocator_child(allocator);
-    struct AddrIface* udp = setupUDP(base, udpBindTo, alloc, logger);
+    AddrIface_t* udp = setupUDP(base, udpBindTo, alloc, logger);
 
     struct Sockaddr* dest = Sockaddr_clone(udp->addr, alloc);
     uint8_t* tunDestAddrBytes = NULL;

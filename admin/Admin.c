@@ -567,7 +567,7 @@ static void exportFd(Dict* args, void* vAdmin, String* txid, struct Allocator* r
     sendMessage0(res, txid, &admin->pub, fd);
 }
 
-struct Admin* Admin_new(struct AddrIface* ai,
+struct Admin* Admin_new(AddrIface_t* ai,
                         struct Log* logger,
                         struct EventBase* eventBase,
                         String* password)

@@ -34,7 +34,7 @@ Linker_require("util/events/libuv/UDPAddrIface.c")
 
 struct UDPAddrIface
 {
-    struct AddrIface generic;
+    AddrIface_t generic;
 };
 
 /**

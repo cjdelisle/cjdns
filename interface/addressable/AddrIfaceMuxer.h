@@ -23,7 +23,7 @@ Linker_require("interface/addressable/AddrIfaceMuxer.c")
 
 struct AddrIfaceMuxer
 {
-    struct AddrIface iface;
+    AddrIface_t iface;
 };
 
 /**

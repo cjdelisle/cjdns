@@ -104,7 +104,7 @@ struct AdminClient_Promise* AdminClient_rpcCall(String* function,
                                                 struct Allocator* requestAlloc);
 
 
-struct AdminClient* AdminClient_new(struct AddrIface* ai,
+struct AdminClient* AdminClient_new(AddrIface_t* ai,
                                     struct Sockaddr* connectToAddress,
                                     String* adminPassword,
                                     struct EventBase* eventBase,

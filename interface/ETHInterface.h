@@ -61,7 +61,7 @@ Assert_compileTime(sizeof(struct ETHInterface_Sockaddr) == ETHInterface_Sockaddr
 
 struct ETHInterface
 {
-    struct AddrIface generic;
+    AddrIface_t generic;
 };
 
 Er_DEFUN(struct ETHInterface* ETHInterface_new(struct EventBase* eventBase,

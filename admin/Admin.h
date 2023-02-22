@@ -72,7 +72,7 @@ void Admin_registerFunctionWithArgCount(char* name,
 #define Admin_sendMessage_CHANNEL_CLOSED -1
 int Admin_sendMessage(Dict* message, String* txid, struct Admin* admin);
 
-struct Admin* Admin_new(struct AddrIface* ai,
+struct Admin* Admin_new(AddrIface_t* ai,
                         struct Log* logger,
                         struct EventBase* eventBase,
                         String* password);

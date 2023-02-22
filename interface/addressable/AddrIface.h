@@ -25,7 +25,7 @@
  * sends and accepts an address as the header of the messages sent to and
  * recieved from it.
  */
-struct AddrIface
+typedef struct AddrIface
 {
     /** As a generic interface. */
     struct Iface iface;
@@ -38,7 +38,7 @@ struct AddrIface
     struct Sockaddr* addr;
 
     struct Allocator* alloc;
-};
+} AddrIface_t;
 
 static inline Er_DEFUN(void AddrIface_pushAddr(struct Message* msg, struct Sockaddr* addr))
 {

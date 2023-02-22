@@ -29,7 +29,7 @@ typedef void (* PipeServer_callback)(struct PipeServer* p, struct Sockaddr* clie
 
 struct PipeServer
 {
-    struct AddrIface iface;
+    AddrIface_t iface;
 
     /** The name of the file eg: "/tmp/cjdns_pipe_foo" */
     const char* const fullName;
