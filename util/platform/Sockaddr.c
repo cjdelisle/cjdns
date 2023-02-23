@@ -35,6 +35,13 @@ struct Sockaddr_pvt
     struct Sockaddr pub;
     struct sockaddr_storage ss;
 };
+void Sockaddr_assertions(void);
+void Sockaddr_assertions() {
+    Assert_compileTime(sizeof(struct Sockaddr) == 8);
+    Assert_compileTime(sizeof(struct sockaddr_storage) == 128);
+    Assert_compileTime(sizeof(struct Sockaddr_pvt) == 128+8);
+    Assert_compileTime(sizeof(struct Sockaddr_storage) == 128+8);
+}
 
 struct Sockaddr_in_pvt
 {
@@ -163,9 +170,25 @@ struct Sockaddr* Sockaddr_clone(const struct Sockaddr* addr, struct Allocator* a
 
 char* Sockaddr_print(struct Sockaddr* sockaddr, struct Allocator* alloc)
 {
-    if (sockaddr->addrLen < (2 + Sockaddr_OVERHEAD)
+    if (sockaddr->addrLen < Sockaddr_OVERHEAD
         || sockaddr->addrLen > Sockaddr_MAXSIZE + Sockaddr_OVERHEAD) {
         return "invalid";
+    }
+
+    if (sockaddr->type == Sockaddr_HANDLE) {
+        // handle address
+        uint32_t handle = Sockaddr_addrHandle(sockaddr);
+        const char* target = "";
+        if (sockaddr->addrLen > Sockaddr_OVERHEAD) {
+            struct Sockaddr* sa2 = &sockaddr[1];
+            if (sa2->addrLen != sockaddr->addrLen - Sockaddr_OVERHEAD) {
+                target = "<invalid length>";
+            } else {
+                target = Sockaddr_print(sa2, alloc);
+            }
+        }
+        String* out = String_printf(alloc, "Handle:%u/%s", handle, target);
+        return out->bytes;
     }
 
     struct Sockaddr_pvt* addr = (struct Sockaddr_pvt*) sockaddr;
@@ -183,8 +206,7 @@ char* Sockaddr_print(struct Sockaddr* sockaddr, struct Allocator* alloc)
             break;
         default: {
             uint8_t buff[Sockaddr_MAXSIZE * 2 + 1] = {0};
-            Hex_encode(buff, sizeof(buff), (uint8_t*)&addr->ss,
-                sockaddr->addrLen - Sockaddr_OVERHEAD);
+            Hex_encode(buff, sizeof(buff), (uint8_t*)sockaddr, sockaddr->addrLen);
             String* out = String_printf(alloc, "unknown (%s)", buff);
             return out->bytes;
         }
