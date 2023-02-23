@@ -515,8 +515,10 @@ static void checkRunningInstance(struct Allocator* allocator,
 
     Dict* pingArgs = Dict_new(alloc);
 
+    // Indirection is needed otherwise adopt doesn't work
+    struct Allocator* alloc1 = Allocator_child(alloc);
     struct AdminClient_Promise* pingPromise =
-        AdminClient_rpcCall(String_new("ping", alloc), pingArgs, adminClient, alloc);
+        AdminClient_rpcCall(String_new("ping", alloc), pingArgs, adminClient, alloc1);
 
     struct CheckRunningInstanceContext* ctx =
         Allocator_malloc(alloc, sizeof(struct CheckRunningInstanceContext));
