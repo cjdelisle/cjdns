@@ -33,16 +33,8 @@ struct Allocator_OnFreeJob
     /** Set by caller. */
     Allocator_OnFreeCallback callback;
     void* userData;
-    void* rContext;
     Identity
 };
-
-/**
- * If an onFree job needs to complete asynchronously, it should return this,
- * then when it is complete it must call job->complete(job) on the OnFreeJob
- * which was passed to it.
- */
-#define Allocator_ONFREE_ASYNC 10000
 
 /**
  * Allocator for structured memory management.
@@ -236,13 +228,6 @@ struct Allocator_OnFreeJob* Allocator__onFree(struct Allocator* alloc,
  * @return 0 if the job was found and removed, -1 otherwise.
  */
 int Allocator_cancelOnFree(struct Allocator_OnFreeJob* toRemove);
-
-/**
- * Tell the allocator that an asynchronous onFree() job has completed.
- *
- * @param job the return value from calling Allocator_onFree().
- */
-void Allocator_onFreeComplete(struct Allocator_OnFreeJob* onFreeJob);
 
 /**
  * Adopt an allocator.

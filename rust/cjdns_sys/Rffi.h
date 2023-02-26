@@ -5,8 +5,6 @@
 
 #include "RffiPrefix.h"
 
-typedef struct OnFreeCtx OnFreeCtx;
-
 typedef struct RTypes_CryptoAuth2_t RTypes_CryptoAuth2_t;
 
 typedef struct Rffi_EventLoop Rffi_EventLoop;
@@ -34,7 +32,7 @@ typedef struct {
   Rffi_Address address;
 } Rffi_NetworkInterface;
 
-typedef void (*OnFreeFun)(void *ctx, OnFreeCtx *complete);
+typedef void (*OnFreeFun)(void *ctx);
 
 extern const uintptr_t Rffi_CURRENT_PROTOCOL;
 
@@ -98,6 +96,8 @@ Rffi_Glock_guard *Rffi_glock(void);
  * Helper function to unlock the Global C Lock, as noted above.
  */
 void Rffi_gunlock(Rffi_Glock_guard *guard);
+
+void Rffi_stopEventLoop(Rffi_EventLoop *event_loop);
 
 /**
  * Create a new EventLoop data repository.
@@ -193,8 +193,6 @@ RTypes_Error_t *Rffi_error(const char *msg, Allocator_t *alloc);
 RTypes_Error_t *Rffi_error_fl(const char *msg, const char *file, int line, Allocator_t *alloc);
 
 const char *Rffi_printError(RTypes_Error_t *e, Allocator_t *alloc);
-
-void Rffi_allocator_onFreeComplete(OnFreeCtx *c);
 
 /**
  * Create a root level allocator.

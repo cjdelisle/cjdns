@@ -29,15 +29,10 @@ struct UDPAddrIface_pvt
 {
     struct UDPAddrIface pub;
 
-    struct Allocator* allocator;
+    struct Allocator* userAlloc;
+    struct Allocator* alloc;
 
     struct Log* logger;
-
-    /** Job to close the handle when the allocator is freed */
-    struct Allocator_OnFreeJob* closeHandleOnFree;
-
-    /** Job which blocks the freeing until the callback completes */
-    struct Allocator_OnFreeJob* blockFreeInsideCallback;
 
     Iface_t iface;
 
@@ -99,7 +94,7 @@ static Iface_DEFUN incomingFromIface(struct Message* m, struct Iface* iface)
     }
 
     // This allocator will hold the message allocator in existance after it is freed.
-    struct Allocator* reqAlloc = Allocator_child(context->allocator);
+    struct Allocator* reqAlloc = Allocator_child(context->alloc);
     Allocator_adopt(reqAlloc, Message_getAlloc(m));
 
     struct UDPAddrIface_WriteRequest_pvt* req =
@@ -132,6 +127,13 @@ static Iface_DEFUN incomingFromIface(struct Message* m, struct Iface* iface)
     context->queueLen += Message_getLength(m);
 
     return NULL;
+}
+
+static void onClosed(uv_handle_t* wasClosed)
+{
+    struct UDPAddrIface_pvt* context =
+        Identity_check((struct UDPAddrIface_pvt*) wasClosed->data);
+    Allocator_free(context->alloc);
 }
 
 #if UDPAddrIface_PADDING_AMOUNT < 8
@@ -179,8 +181,8 @@ static void incoming(uv_udp_t* handle,
     }
 
     context->inCallback = 0;
-    if (context->blockFreeInsideCallback) {
-        Allocator_onFreeComplete((struct Allocator_OnFreeJob*) context->blockFreeInsideCallback);
+    if (context->userAlloc == NULL) {
+        uv_close((uv_handle_t*)&context->uvHandle, onClosed);
     }
 }
 
@@ -190,7 +192,7 @@ static void allocate(uv_handle_t* handle, size_t size, uv_buf_t* buf)
 
     size = UDPAddrIface_BUFFER_CAP;
 
-    struct Allocator* child = Allocator_child(context->allocator);
+    struct Allocator* child = Allocator_child(context->alloc);
     struct Message* msg = Message_new(
         UDPAddrIface_BUFFER_CAP,
         UDPAddrIface_PADDING_AMOUNT + context->pub.generic.addr->addrLen,
@@ -203,31 +205,15 @@ static void allocate(uv_handle_t* handle, size_t size, uv_buf_t* buf)
     buf->len = size;
 }
 
-static void onClosed(uv_handle_t* wasClosed)
-{
-    struct UDPAddrIface_pvt* context =
-        Identity_check((struct UDPAddrIface_pvt*) wasClosed->data);
-    Allocator_onFreeComplete((struct Allocator_OnFreeJob*) context->closeHandleOnFree);
-}
-
-static int closeHandleOnFree(struct Allocator_OnFreeJob* job)
+static int onFree(struct Allocator_OnFreeJob* job)
 {
     struct UDPAddrIface_pvt* context =
         Identity_check((struct UDPAddrIface_pvt*) job->userData);
-    context->closeHandleOnFree = job;
-    uv_close((uv_handle_t*)&context->uvHandle, onClosed);
-    return Allocator_ONFREE_ASYNC;
-}
-
-static int blockFreeInsideCallback(struct Allocator_OnFreeJob* job)
-{
-    struct UDPAddrIface_pvt* context =
-        Identity_check((struct UDPAddrIface_pvt*) job->userData);
+    context->userAlloc = NULL;
     if (!context->inCallback) {
-        return 0;
+        uv_close((uv_handle_t*)&context->uvHandle, onClosed);
     }
-    context->blockFreeInsideCallback = job;
-    return Allocator_ONFREE_ASYNC;
+    return 0;
 }
 
 int UDPAddrIface_setDSCP(struct UDPAddrIface* iface, uint8_t dscp)
@@ -267,15 +253,17 @@ int UDPAddrIface_setBroadcast(struct UDPAddrIface* iface, bool enable)
 
 Er_DEFUN(struct UDPAddrIface* UDPAddrIface_new(struct EventBase* eventBase,
                                       struct Sockaddr* addr,
-                                      struct Allocator* alloc,
+                                      struct Allocator* userAlloc,
                                       struct Log* logger))
 {
     struct EventBase_pvt* base = EventBase_privatize(eventBase);
+    struct Allocator* alloc = Allocator_child(base->alloc);
 
     struct UDPAddrIface_pvt* context =
         Allocator_clone(alloc, (&(struct UDPAddrIface_pvt) {
             .logger = logger,
-            .allocator = alloc
+            .userAlloc = userAlloc,
+            .alloc = alloc,
         }));
     context->pub.generic.alloc = alloc;
     context->pub.generic.iface = &context->iface;
@@ -323,8 +311,7 @@ Er_DEFUN(struct UDPAddrIface* UDPAddrIface_new(struct EventBase* eventBase,
     context->pub.generic.addr = Sockaddr_clone(&ss.addr, alloc);
     Log_debug(logger, "Bound to address [%s]", Sockaddr_print(context->pub.generic.addr, alloc));
 
-    Allocator_onFree(alloc, closeHandleOnFree, context);
-    Allocator_onFree(alloc, blockFreeInsideCallback, context);
+    Allocator_onFree(userAlloc, onFree, context);
 
     Er_ret(&context->pub);
 }

@@ -33,16 +33,15 @@ struct EventBase_pvt
 
     uv_timer_t blockTimer;
 
+    // This allocator is parent of all the event listeners registered with this loop
+    // It is freed only when the loop has no more events registered
     struct Allocator* alloc;
+
+    // This allocator comes from the user who creates the loop
+    struct Allocator* userAlloc;
 
     /** True if the loop is running. */
     int running;
-
-    /**
-     * The onFree job which is passed from onFree() to EventLoop_begin()
-     * so it can be completed after the loop has ended.
-     */
-    struct Allocator_OnFreeJob* onFree;
 
     /** Number of milliseconds since epoch when the clock was calibrated. */
     uint64_t baseTime;

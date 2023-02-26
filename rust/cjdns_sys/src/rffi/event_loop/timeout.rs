@@ -30,7 +30,6 @@ pub struct Rffi_TimerTx(Arc<TimerTx>);
 pub struct TimerTx {
     tx: tokio::sync::mpsc::UnboundedSender<TimerCommand>,
     active: Arc<AtomicBool>,
-    cb_int: u64,
 }
 
 pub extern "C" fn timeout_on_free(j: *mut Allocator_OnFreeJob) -> c_int {
@@ -59,11 +58,10 @@ pub extern "C" fn Rffi_setTimeout(
     let rtx = Arc::new(TimerTx {
         tx,
         active: Arc::new(AtomicBool::new(true)),
-        cb_int,
     });
 
     let event_loop = unsafe { (&*event_loop).arc_clone() };
-    event_loop.timers.lock().unwrap().push(Arc::downgrade(&rtx));
+    event_loop.0.timers.lock().push(Arc::downgrade(&rtx));
 
     // do not clone rtx so we don't keep another tx around, so the "Allocator freed" detection works.
     // although with the new Drop impl for Rffi_EventLoop, the Cancel msg should get there first.
@@ -81,8 +79,7 @@ pub extern "C" fn Rffi_setTimeout(
         *out_timer_tx = timer_tx;
     }
 
-    event_loop.incr_ref();
-    tokio::spawn(async move {
+    event_loop.arc_clone().event_job(async move {
         let mut timeout_millis = timeout_millis;
         loop {
             tokio::select! {
@@ -122,7 +119,6 @@ pub extern "C" fn Rffi_setTimeout(
         }
         is_active.store(false, Ordering::Relaxed);
         //println!("({:#x}) timer task stopped", cb_int);
-        event_loop.decr_ref();
     });
 }
 
@@ -173,7 +169,6 @@ pub extern "C" fn Rffi_clearAllTimeouts(event_loop: *mut Rffi_EventLoop) {
         &*event_loop
     }.0.timers
         .lock()
-        .unwrap()
         .drain(..)
         .filter_map(|w| w.upgrade())
         .for_each(|timer_tx| {

@@ -29,24 +29,38 @@ Js({ require("../util/events/libuv/libuv.js")(builder, js); })
     #include <sys/time.h>
 #endif
 
+static int onFree2(struct EventBase_pvt* ctx)
+{
+    if (!uv_is_closing((uv_handle_t*) &ctx->uvAwakener)) {
+        uv_close((uv_handle_t*) &ctx->uvAwakener, NULL);
+    }
+    if (!uv_is_closing((uv_handle_t*) &ctx->blockTimer)) {
+        uv_close((uv_handle_t*) &ctx->blockTimer, NULL);
+    }
+    uv_loop_delete(ctx->loop);
+    Allocator_free(ctx->alloc);
+    return 0;
+}
+
 static int onFree(struct Allocator_OnFreeJob* job)
 {
     struct EventBase_pvt* ctx = Identity_check((struct EventBase_pvt*) job->userData);
-    if (ctx->running) {
-        // The job will be completed in EventLoop_beginLoop()
-        ctx->onFree = job;
-        EventBase_endLoop((struct EventBase*) ctx);
-        return Allocator_ONFREE_ASYNC;
+    ctx->userAlloc = NULL;
+    Rffi_stopEventLoop(ctx->rffi_loop);
+    if (!ctx->running) {
+        if (Rffi_eventLoopRefCtr(ctx->rffi_loop)) {
+            // We cycle the loop once in order to let Rffi tear down
+            EventBase_beginLoop(&ctx->pub);
+        } else {
+            onFree2(ctx);
+        }
+    } else if (ctx->running == 2) {
+        // Don't allow a request to quit when we are freeing
+        ctx->running = 1;
     } else {
-        if (!uv_is_closing((uv_handle_t*) &ctx->uvAwakener)) {
-            uv_close((uv_handle_t*) &ctx->uvAwakener, NULL);
-        }
-        if (!uv_is_closing((uv_handle_t*) &ctx->blockTimer)) {
-            uv_close((uv_handle_t*) &ctx->blockTimer, NULL);
-        }
-        uv_loop_delete(ctx->loop);
-        return 0;
+        // Running and not freeing, continue...
     }
+    return 0;
 }
 
 static void calibrateTime(struct EventBase_pvt* base)
@@ -69,7 +83,7 @@ static void calibrateTime(struct EventBase_pvt* base)
     base->baseTime = (seconds * 1000) + milliseconds - uv_now(base->loop);
 }
 
-static void doNothing(uv_async_t* handle, int status)
+static void uvAwakener(uv_async_t* handle, int status)
 {
     struct EventBase_pvt* base = Identity_containerOf(handle, struct EventBase_pvt, uvAwakener);
     if (base->running == 2) {
@@ -86,18 +100,20 @@ static void blockTimer(uv_timer_t* timer, int status)
 
 struct EventBase* EventBase_new(struct Allocator* allocator)
 {
-    struct Allocator* alloc = Allocator_child(allocator);
-    struct EventBase_pvt* base = Allocator_calloc(alloc, sizeof(struct EventBase_pvt), 1);
+    struct Allocator* loopAlloc = Allocator_new(1<<24); // 4MB
+
+    struct EventBase_pvt* base = Allocator_calloc(loopAlloc, sizeof(struct EventBase_pvt), 1);
     base->loop = uv_loop_new();
-    base->rffi_loop = Rffi_mkEventLoop(alloc, &base->pub);
-    uv_async_init(base->loop, &base->uvAwakener, doNothing);
+    base->rffi_loop = Rffi_mkEventLoop(loopAlloc, &base->pub);
+    uv_async_init(base->loop, &base->uvAwakener, uvAwakener);
     uv_unref((uv_handle_t*) &base->uvAwakener);
     uv_timer_init(base->loop, &base->blockTimer);
     Assert_true(Rffi_eventLoopRefCtr(base->rffi_loop) == 0);
-    base->alloc = alloc;
+    base->alloc = loopAlloc;
+    base->userAlloc = allocator;
     Identity_set(base);
 
-    Allocator_onFree(alloc, onFree, base);
+    Allocator_onFree(allocator, onFree, base);
     calibrateTime(base);
     return &base->pub;
 }
@@ -109,38 +125,38 @@ void EventBase_beginLoop(struct EventBase* eventBase)
     Assert_true(!ctx->running); // double begin
     ctx->running = 1;
 
-    int ret = 0;
     do {
         uv_timer_start(&ctx->blockTimer, blockTimer, 1, 0);
         // start the loop.
         uv_run(ctx->loop, UV_RUN_DEFAULT);
-        if (ctx->onFree) { break; }
-        ret = Rffi_eventLoopRefCtr(ctx->rffi_loop);
-    } while (ret);
+        if (ctx->userAlloc == NULL) {
+            // Freeing = only exit if no more events left (they are being terminated)
+            if (Rffi_eventLoopRefCtr(ctx->rffi_loop) == 0) {
+                break;
+            }
+        } else if (ctx->running == 2) {
+            // Not freeing, request to exit
+            break;
+        } else if (Rffi_eventLoopRefCtr(ctx->rffi_loop) == 0) {
+            // Not freeing, no request to exit, cycle until no events left in Rust
+            break;
+        }
+    } while (1);
 
     ctx->running = 0;
 
-    if (ctx->onFree) {
-        if (!uv_is_closing((uv_handle_t*) &ctx->uvAwakener)) {
-            uv_close((uv_handle_t*) &ctx->uvAwakener, NULL);
-        }
-        if (!uv_is_closing((uv_handle_t*) &ctx->blockTimer)) {
-            uv_close((uv_handle_t*) &ctx->blockTimer, NULL);
-        }
-        // This can't be safely done because the loop might still be used
-        // until it is completely done with - and the memory is trashed.
-        //uv_loop_delete(ctx->loop);
-        Allocator_onFreeComplete(ctx->onFree);
-        return;
+    if (ctx->userAlloc == NULL) {
+        Assert_true(Rffi_eventLoopRefCtr(ctx->rffi_loop) == 0);
+        onFree2(ctx);
     }
 }
 
 void EventBase_endLoop(struct EventBase* eventBase)
 {
     struct EventBase_pvt* ctx = Identity_check((struct EventBase_pvt*) eventBase);
-    if (ctx->running == 0) { return; }
+    // End loop is a no-op when freeing, the loop will end when all events are shutdown.
+    if (ctx->running == 0 || ctx->userAlloc == NULL) { return; }
     ctx->running = 2;
-    Rffi_clearAllTimeouts(ctx->rffi_loop);
     uv_async_send(&ctx->uvAwakener);
 }
 

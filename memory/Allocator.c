@@ -86,19 +86,10 @@ void Allocator__adopt(struct Allocator* adoptedParent,
     Rffi_allocator_adopt(adoptedParent, childToAdopt);
 }
 
-void Allocator_onFreeComplete(struct Allocator_OnFreeJob* onFreeJob)
-{
-    Identity_check(onFreeJob);
-    Rffi_allocator_onFreeComplete((OnFreeCtx*) onFreeJob->rContext);
-}
-
-static void onFree(void* voj, OnFreeCtx *complete)
+static void onFree(void* voj)
 {
     struct Allocator_OnFreeJob* oj = Identity_check((struct Allocator_OnFreeJob*) voj);
-    oj->rContext = (void*) complete;
-    if (oj->callback(oj) != Allocator_ONFREE_ASYNC) {
-        Rffi_allocator_onFreeComplete(complete);
-    }
+    oj->callback(oj);
 }
 
 struct Allocator_OnFreeJob* Allocator__onFree(struct Allocator* alloc,
@@ -111,7 +102,6 @@ struct Allocator_OnFreeJob* Allocator__onFree(struct Allocator* alloc,
     Identity_set(oj);
     oj->callback = callback;
     oj->userData = callbackContext;
-    oj->rContext = NULL;
     Rffi_allocator_onFree(alloc, onFree, oj, file, line);
     return oj;
 }

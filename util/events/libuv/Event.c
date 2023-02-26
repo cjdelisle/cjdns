@@ -41,27 +41,28 @@ static void handleEvent(uv_poll_t* handle, int status, int events)
     }
 }
 
-static void freeEvent2(uv_handle_t* handle)
+static void onClose(uv_handle_t* handle)
 {
-    Allocator_onFreeComplete((struct Allocator_OnFreeJob*)handle->data);
+    struct Event_pvt* event = Identity_check((struct Event_pvt*) handle->data);
+    Allocator_free(event->alloc);
 }
 
-static int freeEvent(struct Allocator_OnFreeJob* job)
+static int onFree(struct Allocator_OnFreeJob* job)
 {
     struct Event_pvt* event = Identity_check((struct Event_pvt*) job->userData);
-    event->handler.data = job;
-    uv_close((uv_handle_t*) &event->handler, freeEvent2);
-    return Allocator_ONFREE_ASYNC;
+    event->handler.data = event;
+    uv_close((uv_handle_t*) &event->handler, onClose);
+    return 0;
 }
 
 struct Event* Event_socketRead(void (* const callback)(void* callbackContext),
                                void* const callbackContext,
                                int s,
                                struct EventBase* eventBase,
-                               struct Allocator* allocator)
+                               struct Allocator* userAlloc)
 {
     struct EventBase_pvt* base = EventBase_privatize(eventBase);
-    struct Allocator* alloc = Allocator_child(allocator);
+    struct Allocator* alloc = Allocator_child(base->alloc);
     struct Event_pvt* out = Allocator_clone(alloc, (&(struct Event_pvt) {
         .callback = callback,
         .callbackContext = callbackContext,
@@ -77,7 +78,7 @@ struct Event* Event_socketRead(void (* const callback)(void* callbackContext),
 
     out->handler.data = out;
 
-    Allocator_onFree(alloc, freeEvent, out);
+    Allocator_onFree(userAlloc, onFree, out);
 
     return &out->pub;
 }

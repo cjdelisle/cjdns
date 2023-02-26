@@ -252,12 +252,7 @@ static int main2(int argc, char** argv, struct Allocator* alloc, struct Random* 
         now = runTest(TESTS[i].func, TESTS[i].name, now, argc, argv, quiet);
     }
     for (int i = 0; i < FUZZ_CASE_COUNT; i++) {
-        // TODO(cjd): Apparently a race condition in the allocator
-        // if you have async freeing in progress and then you come in and
-        // free the root allocator, you get an assertion.
-        //
-        //struct Allocator* child = Allocator_child(alloc);
-        struct Allocator* child = Allocator_new(1<<24);
+        struct Allocator* child = Allocator_child(alloc);
         now = runFuzzTestManual(child, detRand, FUZZ_CASES[i], now, quiet);
         Allocator_free(child);
     }
@@ -267,8 +262,6 @@ static int main2(int argc, char** argv, struct Allocator* alloc, struct Random* 
                 (int)((now - startTime)/1000)%1000);
     }
 
-    // We need to drop the lock before we exit, otherwise the rust thread can't complete.
-    Glock_beginBlockingCall();
     return 0;
 }
 
@@ -283,5 +276,7 @@ int testcjdroute_main(int argc, char** argv)
     struct Random* detRand = Random_newWithSeed(alloc, NULL, rs, NULL);
     int out = main2(argc, argv, alloc, detRand);
     Allocator_free(alloc);
+    // We need to drop the lock before we exit, otherwise the rust thread can't complete.
+    Glock_beginBlockingCall();
     return out;
 }

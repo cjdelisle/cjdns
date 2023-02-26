@@ -63,6 +63,7 @@ struct PipeServer_pvt
     struct Allocator_OnFreeJob* closeHandlesOnFree;
 
     struct Allocator* alloc;
+    struct Allocator* userAlloc;
 
     struct EventBase_pvt* base;
 
@@ -90,6 +91,7 @@ static Iface_DEFUN sendMessage(struct Message* m, struct Iface* iface)
 static Iface_DEFUN incomingFromClient(struct Message* msg, struct Iface* iface)
 {
     struct Client* cli = Identity_containerOf(iface, struct Client, iface);
+    if (!cli->psp) { return NULL; }
     struct PipeServer_pvt* psp = Identity_check(cli->psp);
     Er_assert(AddrIface_pushAddr(msg, &cli->addr));
     return Iface_next(psp->pub.iface.iface, msg);
@@ -99,10 +101,7 @@ static Iface_DEFUN incomingFromClient(struct Message* msg, struct Iface* iface)
 static void onClose(uv_handle_t* handle)
 {
     struct PipeServer_pvt* psp = Identity_check((struct PipeServer_pvt*)handle->data);
-    handle->data = NULL;
-    if (psp->closeHandlesOnFree && !psp->server.data) {
-        Allocator_onFreeComplete((struct Allocator_OnFreeJob*) psp->closeHandlesOnFree);
-    }
+    Allocator_free(psp->alloc);
 }
 
 static struct Pipe* getPipe(struct PipeServer_pvt* psp, struct Allocator* alloc)
@@ -120,11 +119,13 @@ static struct Pipe* getPipe(struct PipeServer_pvt* psp, struct Allocator* alloc)
 static int removeClientOnFree(struct Allocator_OnFreeJob* job)
 {
     struct Client* cli = Identity_check((struct Client*)job->userData);
-    struct PipeServer_pvt* psp = Identity_check(cli->psp);
-    uint32_t handle = Sockaddr_addrHandle(&cli->addr);
-    int idx = Map_Clients_indexForHandle(handle, &psp->clients);
-    if (idx > -1) {
-        Map_Clients_remove(idx, &psp->clients);
+    if (cli->psp != NULL) {
+        struct PipeServer_pvt* psp = Identity_check(cli->psp);
+        uint32_t handle = Sockaddr_addrHandle(&cli->addr);
+        int idx = Map_Clients_indexForHandle(handle, &psp->clients);
+        if (idx > -1) {
+            Map_Clients_remove(idx, &psp->clients);
+        }
     }
     return 0;
 }
@@ -148,7 +149,7 @@ static void listenCallback(uv_stream_t* server, int status)
                  psp->pub.fullName, uv_strerror(status));
         return;
     }
-    struct Allocator* pipeAlloc = Allocator_child(psp->alloc);
+    struct Allocator* pipeAlloc = Allocator_child(psp->userAlloc);
     struct Pipe* p = getPipe(psp, pipeAlloc);
     if (p == NULL) {
         Allocator_free(pipeAlloc);
@@ -179,14 +180,18 @@ static void listenCallback(uv_stream_t* server, int status)
     cli->pipe->onClose = pipeOnClose;
 }
 
-static int closeHandlesOnFree(struct Allocator_OnFreeJob* job)
+static int onFree(struct Allocator_OnFreeJob* job)
 {
     struct PipeServer_pvt* psp = Identity_check((struct PipeServer_pvt*)job->userData);
-    psp->closeHandlesOnFree = job;
+    for (uint32_t i = 0; i < psp->clients.count; i++) {
+        // The clients will expire in their own time, just cut them loose so they don't
+        // try to reference the mothership after it's gone.
+        psp->clients.values[i]->pipe->onClose = NULL;
+        psp->clients.values[i]->psp = NULL;
+    }
     if (psp->server.data) {
         uv_close((uv_handle_t*) &psp->server, onClose);
         EventBase_wakeup(psp->base);
-        return Allocator_ONFREE_ASYNC;
     }
     return 0;
 }
@@ -198,7 +203,7 @@ static struct PipeServer_pvt* newPipeAny(struct EventBase* eb,
                                   struct Allocator* userAlloc)
 {
     struct EventBase_pvt* ctx = EventBase_privatize(eb);
-    struct Allocator* alloc = Allocator_child(userAlloc);
+    struct Allocator* alloc = Allocator_child(ctx->alloc);
 
     struct PipeServer_pvt* psp = Allocator_clone(alloc, (&(struct PipeServer_pvt) {
         .pub = {
@@ -209,6 +214,7 @@ static struct PipeServer_pvt* newPipeAny(struct EventBase* eb,
         .clients = { .allocator = alloc },
         .base = ctx,
         .alloc = alloc,
+        .userAlloc = userAlloc,
         .log = log,
     }));
     psp->pub.iface.iface = &psp->iface;
@@ -218,7 +224,7 @@ static struct PipeServer_pvt* newPipeAny(struct EventBase* eb,
         Except_throw(eh, "uv_pipe_init() failed [%s]", uv_strerror(ret));
     }
 
-    Allocator_onFree(alloc, closeHandlesOnFree, psp);
+    Allocator_onFree(userAlloc, onFree, psp);
 
     psp->server.data = psp;
     //out->out = &out->peer;

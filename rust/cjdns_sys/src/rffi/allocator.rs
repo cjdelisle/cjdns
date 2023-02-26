@@ -1,12 +1,10 @@
 use std::sync::Arc;
 use parking_lot::Mutex;
-use tokio::sync::oneshot;
 use std::ffi::{c_void, CStr};
 use std::os::raw::c_char;
 use std::any::Any;
 use crate::cffi::Allocator_t;
 use std::cell::{RefCell,Ref};
-use crate::gcl::GCL;
 
 struct Mem {
     loc: Vec<u128>,
@@ -93,7 +91,7 @@ fn get_to_free(
     v.push((Arc::clone(alloc), depth));
 }
 
-async fn free_allocs(mut allocs: Vec<(Arc<AllocatorInner>, i32)>) {
+fn free_allocs(mut allocs: Vec<(Arc<AllocatorInner>, i32)>) {
     allocs.sort_by(|a,b|b.1.cmp(&a.1));
     for (alloc, depth) in allocs.iter() {
         let jobs = {
@@ -107,13 +105,9 @@ async fn free_allocs(mut allocs: Vec<(Arc<AllocatorInner>, i32)>) {
             log::trace!("Freeing job {} {}/{} depth {}",
                 job.file_line.print(), i, jl, depth);
             i += 1;
-            let (tx, rx) = oneshot::channel();
-            let ofc = Arc::new(OnFreeCtx(Some(tx)));
             {
-                let _guard = GCL.lock();
-                (job.f)(job.c, &*ofc as *const OnFreeCtx as *mut OnFreeCtx);
+                (job.f)(job.c);
             }
-            rx.await.unwrap();
         }
     }
     for (alloc, _) in allocs {
@@ -141,9 +135,7 @@ pub struct Allocator {
 
 const MAGIC: u32 = 0xdeaffeed;
 
-pub struct OnFreeCtx(Option<oneshot::Sender<()>>);
-
-pub type OnFreeFun = extern "C" fn(ctx: *mut c_void, complete: *mut OnFreeCtx);
+pub type OnFreeFun = extern "C" fn(ctx: *mut c_void);
 
 pub struct FileLine{
     pub file_s: Option<&'static str>,
@@ -363,9 +355,7 @@ impl Allocator {
         let mut v = Vec::new();
         log::trace!("Freeing [{}] because [{}]", self.inner.ident.borrow(), source);
         get_to_free(parent.as_ref(), &self.inner, 0, &mut v, &self.inner.ident.borrow());
-        tokio::spawn(async {
-            free_allocs(v).await
-        });
+        free_allocs(v);
     }
 }
 
@@ -374,15 +364,6 @@ impl Drop for Allocator {
         if self.free_on_drop {
             self.free("<drop()>");
         }
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn Rffi_allocator_onFreeComplete(c: *mut OnFreeCtx) {
-    if let Some(x) = unsafe { (*c).0.take() } {
-        x.send(()).unwrap();
-    } else {
-        panic!("onFreeComplete called twice");
     }
 }
 

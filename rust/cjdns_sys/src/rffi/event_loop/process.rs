@@ -43,8 +43,7 @@ pub unsafe extern "C" fn Rffi_spawn(
     };
     let child_status = Command::new(file).args(&args).status();
 
-    let event_loop = (&*event_loop).arc_clone();
-    tokio::spawn(async move {
+    (&*event_loop).event_job(async move {
         match (child_status.await, cb) {
             (Ok(status), Some(callback)) => {
                 let _guard = GCL.lock();
@@ -56,7 +55,6 @@ pub unsafe extern "C" fn Rffi_spawn(
             (Ok(_), None) => {}
             (Err(err), _) => eprintln!("  error spawning child '{}': {:?}", file, err),
         }
-        drop(event_loop);
     });
     0
 }

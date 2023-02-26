@@ -39,12 +39,6 @@ struct Pipe_pvt
 
     uv_pipe_t peer;
 
-    /** Job to close the handles when the allocator is freed */
-    struct Allocator_OnFreeJob* closeHandlesOnFree;
-
-    /** Job which blocks the freeing until the callback completes */
-    struct Allocator_OnFreeJob* blockFreeInsideCallback;
-
     // true if we can pass file descriptors through this pipe
     bool ipc;
 
@@ -60,6 +54,7 @@ struct Pipe_pvt
     struct Pipe_WriteRequest_pvt* bufferedRequest;
 
     struct Allocator* alloc;
+    struct Allocator* userAlloc;
 
     struct Log* log;
 
@@ -132,6 +127,10 @@ static Iface_DEFUN sendMessage(struct Message* m, struct Iface* iface)
 {
     struct Pipe_pvt* pipe = Identity_check((struct Pipe_pvt*) iface);
 
+    if (pipe->userAlloc == NULL) {
+        return NULL;
+    }
+
     if (pipe->queueLen > 50000) {
         return Error(m, "OVERFLOW");
     }
@@ -176,8 +175,8 @@ static void onClose(uv_handle_t* handle)
     struct Pipe_pvt* pipe = Identity_check((struct Pipe_pvt*)handle->data);
     handle->data = NULL;
     Log_debug(pipe->log, "Pipe closed");
-    Assert_true(pipe->closeHandlesOnFree && !pipe->peer.data);
-    Allocator_onFreeComplete((struct Allocator_OnFreeJob*) pipe->closeHandlesOnFree);
+    Assert_true(!pipe->peer.data);
+    Allocator_free(pipe->alloc);
 }
 
 #if Pipe_PADDING_AMOUNT < 8
@@ -219,8 +218,8 @@ static void incoming(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf)
     }
 
     pipe->isInCallback = 0;
-    if (pipe->blockFreeInsideCallback) {
-        Allocator_onFreeComplete((struct Allocator_OnFreeJob*) pipe->blockFreeInsideCallback);
+    if (pipe->userAlloc == NULL) {
+        uv_close((uv_handle_t*) &pipe->peer, onClose);
     }
 }
 
@@ -256,6 +255,7 @@ static void connected(uv_connect_t* req, int status)
 {
     uv_stream_t* link = req->handle;
     struct Pipe_pvt* pipe = Identity_check((struct Pipe_pvt*) link->data);
+    if (pipe->userAlloc == NULL) { return; }
     Log_debug(pipe->log, "Pipe [%s] established connection", pipe->pub.fullName);
 
     int ret;
@@ -285,24 +285,16 @@ static void connected(uv_connect_t* req, int status)
     }
 }
 
-static int blockFreeInsideCallback(struct Allocator_OnFreeJob* job)
+static int onFree(struct Allocator_OnFreeJob* job)
 {
     struct Pipe_pvt* pipe = Identity_check((struct Pipe_pvt*)job->userData);
+    pipe->userAlloc = NULL;
     if (!pipe->isInCallback) {
-        return 0;
+        Assert_true(pipe->peer.data);
+        uv_close((uv_handle_t*) &pipe->peer, onClose);
+        EventBase_wakeup(pipe->base);        
     }
-    pipe->blockFreeInsideCallback = job;
-    return Allocator_ONFREE_ASYNC;
-}
-
-static int closeHandlesOnFree(struct Allocator_OnFreeJob* job)
-{
-    struct Pipe_pvt* pipe = Identity_check((struct Pipe_pvt*)job->userData);
-    pipe->closeHandlesOnFree = job;
-    Assert_true(pipe->peer.data);
-    uv_close((uv_handle_t*) &pipe->peer, onClose);
-    EventBase_wakeup(pipe->base);
-    return Allocator_ONFREE_ASYNC;
+    return 0;
 }
 
 static Er_DEFUN(struct Pipe_pvt* newPipeAny(struct EventBase* eb,
@@ -312,7 +304,7 @@ static Er_DEFUN(struct Pipe_pvt* newPipeAny(struct EventBase* eb,
                                   struct Allocator* userAlloc))
 {
     struct EventBase_pvt* ctx = EventBase_privatize(eb);
-    struct Allocator* alloc = Allocator_child(userAlloc);
+    struct Allocator* alloc = Allocator_child(ctx->alloc);
 
     struct Pipe_pvt* out = Allocator_clone(alloc, (&(struct Pipe_pvt) {
         .pub = {
@@ -322,6 +314,7 @@ static Er_DEFUN(struct Pipe_pvt* newPipeAny(struct EventBase* eb,
             .fullName = (fullPath) ? CString_strdup(fullPath, alloc) : NULL,
         },
         .alloc = alloc,
+        .userAlloc = userAlloc,
         .log = log,
         .ipc = ipc,
         .base = eb,
@@ -332,8 +325,7 @@ static Er_DEFUN(struct Pipe_pvt* newPipeAny(struct EventBase* eb,
         Er_raise(alloc, "uv_pipe_init() failed [%s]", uv_strerror(ret));
     }
 
-    Allocator_onFree(alloc, closeHandlesOnFree, out);
-    Allocator_onFree(alloc, blockFreeInsideCallback, out);
+    Allocator_onFree(userAlloc, onFree, out);
 
     out->peer.data = out;
     Identity_set(out);
