@@ -53,6 +53,7 @@ gcc arch.c
 #define ArchInfo_AUDIT_ARCH_IA64 0xc0000032
 #define ArchInfo_AUDIT_ARCH_PARISC 0x0000000f
 #define ArchInfo_AUDIT_ARCH_MIPS64 0x80000008
+#define ArchInfo_AUDIT_ARCH_RISCV64 0xc00000f3
 #define ArchInfo_AUDIT_ARCH_PPC64LE 0xc0000015
 #define ArchInfo_AUDIT_ARCH_ALPHA 0xc0009026
 #define ArchInfo_AUDIT_ARCH_MIPSEL 0x40000008
@@ -155,6 +156,9 @@ gcc arch.c
 #elif defined(__s390x__)
     #define ARCH ArchInfo_AUDIT_ARCH_S390X
     #define ARCHSTR "s390x"
+#elif defined(__riscv) && __riscv_xlen == 64
+    #define ARCH ArchInfo_AUDIT_ARCH_RISCV64
+    #define ARCHSTR "riscv64"
 #else
     #error architecture unknown
 #endif
