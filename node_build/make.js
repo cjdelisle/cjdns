@@ -144,7 +144,7 @@ Builder.configure({
     // with NEON on the BBB, or want to set -Os (OpenWrt)
     // Allow -O0 so while debugging all variables are present.
     if (CFLAGS) {
-        var cflags = CFLAGS.split(' ');
+        var cflags = CFLAGS.split.trim().split(/\s+/);
         cflags.forEach(function (flag) {
             if (/^\-O[^02s]$/.test(flag)) {
                 console.log("Skipping " + flag + ", assuming " + optimizeLevel + " instead.");
@@ -164,7 +164,7 @@ Builder.configure({
     // We also need to pass various architecture/floating point flags to GCC when invoked as
     // a linker.
     if (LDFLAGS) {
-        [].push.apply(builder.config.ldflags, LDFLAGS.split(' '));
+        [].push.apply(builder.config.ldflags, LDFLAGS.trim().split(/\s+/));
     }
 
     if (android) {
