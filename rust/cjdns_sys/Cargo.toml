@@ -6,9 +6,9 @@ edition = "2018"
 build = "build.rs"
 
 [dependencies]
-sodiumoxide = { git = "https://github.com/cjdelisle/sodiumoxide", rev = "f79b6656b84f02b049470f9ad556a6a0c9980bd7", version = "0.2", default-features = false, features = ["std"] }
-cjdns-keys = { git = "https://github.com/CJDNS-Development-Team/CJDNS", version = "0.1.0" }
-cjdns-crypto = { git = "https://github.com/CJDNS-Development-Team/CJDNS", version = "0.1.0" }
+cjdns-keys = { git = "https://github.com/cjdelisle/cjdns-route-server", rev = "0b2e8ae3d0b2c4d64095bdad8bc61c56455914bd", version = "0.1.0" }
+cjdns-crypto = { git = "https://github.com/cjdelisle/cjdns-route-server", rev = "0b2e8ae3d0b2c4d64095bdad8bc61c56455914bd", version = "0.1.0" }
+sodiumoxide = { git = "https://github.com/cjdelisle/sodiumoxide", rev = "f79b6656b84f02b049470f9ad556a6a0c9980bd7", version = "0.2" }
 hex = "0.4"
 log = { version = "0.4", features = ["std", "release_max_level_trace"] }
 parking_lot = "0.11"

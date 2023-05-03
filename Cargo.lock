@@ -239,7 +239,7 @@ dependencies = [
 [[package]]
 name = "cjdns-crypto"
 version = "0.1.0"
-source = "git+https://github.com/CJDNS-Development-Team/CJDNS#46c9c1b6828f746f00733c10d8e82c5295107514"
+source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=0b2e8ae3d0b2c4d64095bdad8bc61c56455914bd#0b2e8ae3d0b2c4d64095bdad8bc61c56455914bd"
 dependencies = [
  "libsodium-sys",
  "parking_lot 0.11.1",
@@ -249,13 +249,14 @@ dependencies = [
 [[package]]
 name = "cjdns-keys"
 version = "0.1.0"
-source = "git+https://github.com/CJDNS-Development-Team/CJDNS#46c9c1b6828f746f00733c10d8e82c5295107514"
+source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=0b2e8ae3d0b2c4d64095bdad8bc61c56455914bd#0b2e8ae3d0b2c4d64095bdad8bc61c56455914bd"
 dependencies = [
  "cjdns-crypto",
  "data-encoding",
  "hex",
  "lazy_static",
  "regex",
+ "serde",
  "thiserror",
 ]
 
@@ -561,7 +562,7 @@ dependencies = [
 [[package]]
 name = "libsodium-sys"
 version = "0.2.6"
-source = "git+https://github.com/cjdelisle/sodiumoxide?rev=9f6a18d40a4db253edfebac9f2ce5c22d09b1f47#9f6a18d40a4db253edfebac9f2ce5c22d09b1f47"
+source = "git+https://github.com/cjdelisle/sodiumoxide?rev=f79b6656b84f02b049470f9ad556a6a0c9980bd7#f79b6656b84f02b049470f9ad556a6a0c9980bd7"
 dependencies = [
  "cc",
  "libc",
@@ -1085,7 +1086,7 @@ checksum = "fe0f37c9e8f3c5a4a66ad655a93c74daac4ad00c441533bf5c6e7990bb42604e"
 [[package]]
 name = "sodiumoxide"
 version = "0.2.6"
-source = "git+https://github.com/cjdelisle/sodiumoxide?rev=9f6a18d40a4db253edfebac9f2ce5c22d09b1f47#9f6a18d40a4db253edfebac9f2ce5c22d09b1f47"
+source = "git+https://github.com/cjdelisle/sodiumoxide?rev=f79b6656b84f02b049470f9ad556a6a0c9980bd7#f79b6656b84f02b049470f9ad556a6a0c9980bd7"
 dependencies = [
  "ed25519",
  "libc",
