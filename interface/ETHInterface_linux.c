@@ -52,7 +52,7 @@ struct ETHInterface_pvt
 {
     struct ETHInterface pub;
 
-    Socket socket;
+    int socket;
 
     /** The unix interface index which is used to identify the eth device. */
     int ifindex;
@@ -190,7 +190,7 @@ static void handleEvent2(struct ETHInterface_pvt* context, struct Allocator* mes
 
     Assert_true(!((uintptr_t)msg->msgbytes % 4) && "Alignment fault");
 
-    Iface_send(&context->pub.generic.iface, msg);
+    Iface_send(context->pub.generic.iface, msg);
 }
 
 static void handleEvent(void* vcontext)
@@ -231,7 +231,7 @@ Er_DEFUN(struct ETHInterface* ETHInterface_new(struct EventBase* eventBase,
 {
     struct ETHInterface_pvt* ctx = Allocator_calloc(alloc, sizeof(struct ETHInterface_pvt), 1);
     Identity_set(ctx);
-    ctx->pub.generic.iface.send = sendMessage;
+    ctx->pub.generic.iface->send = sendMessage;
     ctx->pub.generic.alloc = alloc;
     ctx->logger = logger;
 
