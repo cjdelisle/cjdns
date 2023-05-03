@@ -52,6 +52,8 @@ struct ETHInterface_pvt
 {
     struct ETHInterface pub;
 
+    Iface_t iface;
+
     int socket;
 
     /** The unix interface index which is used to identify the eth device. */
@@ -99,8 +101,7 @@ static void sendMessageInternal(struct Message* message,
 
 static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* iface)
 {
-    struct ETHInterface_pvt* ctx =
-        Identity_containerOf(iface, struct ETHInterface_pvt, pub.generic.iface);
+    struct ETHInterface_pvt* ctx = Identity_containerOf(iface, struct ETHInterface_pvt, iface);
 
     struct Sockaddr* sa = (struct Sockaddr*) msg->msgbytes;
     Assert_true(Message_getLength(msg) >= Sockaddr_OVERHEAD);
@@ -231,7 +232,8 @@ Er_DEFUN(struct ETHInterface* ETHInterface_new(struct EventBase* eventBase,
 {
     struct ETHInterface_pvt* ctx = Allocator_calloc(alloc, sizeof(struct ETHInterface_pvt), 1);
     Identity_set(ctx);
-    ctx->pub.generic.iface->send = sendMessage;
+    ctx->iface.send = sendMessage;
+    ctx->pub.generic.iface = &ctx->iface;
     ctx->pub.generic.alloc = alloc;
     ctx->logger = logger;
 
