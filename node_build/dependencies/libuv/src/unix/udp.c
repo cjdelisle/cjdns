@@ -453,6 +453,9 @@ int uv_udp_set_membership(uv_udp_t* handle,
                           const char* multicast_addr,
                           const char* interface_addr,
                           uv_membership membership) {
+  return -ENOTSUP;
+  // This was causing a compile error because of missing ip_mreq
+  /*
   struct ip_mreq mreq;
   int optname;
 
@@ -486,6 +489,7 @@ int uv_udp_set_membership(uv_udp_t* handle,
   }
 
   return 0;
+  */
 }
 
 
