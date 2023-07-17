@@ -84,6 +84,6 @@ if (sizeof($argv) > 2) {
     $viaHereL = array_pop($argv);
     $goHereL = array_pop($argv);
     $result = splice(labelToBits($goHereL), labelToBits($viaHereL));
-    echo "Final output: \n".  bitsToLabel($result);
+    echo bitsToLabel($result) . "\n";
 }
 
