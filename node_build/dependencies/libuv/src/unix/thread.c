@@ -362,6 +362,7 @@ int uv_cond_timedwait(uv_cond_t* cond, uv_mutex_t* mutex, uint64_t timeout) {
   return -EINVAL;  /* Satisfy the compiler. */
 }
 
+#if 0
 
 #if defined(__APPLE__) && defined(__MACH__)
 
@@ -443,6 +444,8 @@ void uv_barrier_wait(uv_barrier_t* barrier) {
 }
 
 #endif /* defined(__APPLE__) && defined(__MACH__) */
+
+#endif // 0
 
 int uv_key_create(uv_key_t* key) {
   return -pthread_key_create(key, NULL);
