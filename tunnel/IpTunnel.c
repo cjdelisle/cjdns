@@ -677,8 +677,8 @@ static bool isValidAddress6(uint8_t sourceIp6[16],
     return prefixMatches6(compareAddr, conn->connectionIp6, conn->connectionIp6Alloc);
 }
 
-static struct IpTunnel_Connection* findConnection(uint8_t sourceIp6[32],
-                                                  uint8_t destIp6[32],
+static struct IpTunnel_Connection* findConnection(uint8_t sourceIp6[16],
+                                                  uint8_t destIp6[16],
                                                   uint8_t sourceIp4[4],
                                                   uint8_t destIp4[4],
                                                   bool isFromTun,
