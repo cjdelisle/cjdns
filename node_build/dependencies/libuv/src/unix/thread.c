@@ -90,7 +90,7 @@ void uv_mutex_unlock(uv_mutex_t* mutex) {
     abort();
 }
 
-
+#if 0
 int uv_rwlock_init(uv_rwlock_t* rwlock) {
   return -pthread_rwlock_init(rwlock, NULL);
 }
@@ -146,7 +146,7 @@ void uv_rwlock_wrunlock(uv_rwlock_t* rwlock) {
   if (pthread_rwlock_unlock(rwlock))
     abort();
 }
-
+#endif // 0
 
 void uv_once(uv_once_t* guard, void (*callback)(void)) {
   if (pthread_once(guard, callback))

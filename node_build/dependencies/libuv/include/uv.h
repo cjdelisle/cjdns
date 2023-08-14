@@ -2060,14 +2060,14 @@ UV_EXTERN void uv_mutex_unlock(uv_mutex_t* handle);
 /*
  * Same goes for the read/write lock functions.
  */
-UV_EXTERN int uv_rwlock_init(uv_rwlock_t* rwlock);
-UV_EXTERN void uv_rwlock_destroy(uv_rwlock_t* rwlock);
-UV_EXTERN void uv_rwlock_rdlock(uv_rwlock_t* rwlock);
-UV_EXTERN int uv_rwlock_tryrdlock(uv_rwlock_t* rwlock);
-UV_EXTERN void uv_rwlock_rdunlock(uv_rwlock_t* rwlock);
-UV_EXTERN void uv_rwlock_wrlock(uv_rwlock_t* rwlock);
-UV_EXTERN int uv_rwlock_trywrlock(uv_rwlock_t* rwlock);
-UV_EXTERN void uv_rwlock_wrunlock(uv_rwlock_t* rwlock);
+// UV_EXTERN int uv_rwlock_init(uv_rwlock_t* rwlock);
+// UV_EXTERN void uv_rwlock_destroy(uv_rwlock_t* rwlock);
+// UV_EXTERN void uv_rwlock_rdlock(uv_rwlock_t* rwlock);
+// UV_EXTERN int uv_rwlock_tryrdlock(uv_rwlock_t* rwlock);
+// UV_EXTERN void uv_rwlock_rdunlock(uv_rwlock_t* rwlock);
+// UV_EXTERN void uv_rwlock_wrlock(uv_rwlock_t* rwlock);
+// UV_EXTERN int uv_rwlock_trywrlock(uv_rwlock_t* rwlock);
+// UV_EXTERN void uv_rwlock_wrunlock(uv_rwlock_t* rwlock);
 
 /*
  * Same goes for the semaphore functions.
