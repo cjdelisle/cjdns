@@ -160,7 +160,7 @@ extern "C" {
   XX(UDP_SEND, udp_send)                                                      \
   XX(FS, fs)                                                                  \
   XX(WORK, work)                                                              \
-  XX(GETADDRINFO, getaddrinfo)                                                \
+
 
 typedef enum {
 #define XX(code, _) UV_ ## code = UV__ ## code,
@@ -210,7 +210,7 @@ typedef struct uv_signal_s uv_signal_t;
 
 /* Request types. */
 typedef struct uv_req_s uv_req_t;
-typedef struct uv_getaddrinfo_s uv_getaddrinfo_t;
+// typedef struct uv_getaddrinfo_s uv_getaddrinfo_t;
 typedef struct uv_shutdown_s uv_shutdown_t;
 typedef struct uv_write_s uv_write_t;
 typedef struct uv_connect_s uv_connect_t;
@@ -402,9 +402,9 @@ typedef void (*uv_walk_cb)(uv_handle_t* handle, void* arg);
 typedef void (*uv_fs_cb)(uv_fs_t* req);
 typedef void (*uv_work_cb)(uv_work_t* req);
 typedef void (*uv_after_work_cb)(uv_work_t* req, int status);
-typedef void (*uv_getaddrinfo_cb)(uv_getaddrinfo_t* req,
-                                  int status,
-                                  struct addrinfo* res);
+// typedef void (*uv_getaddrinfo_cb)(uv_getaddrinfo_t* req,
+//                                   int status,
+//                                   struct addrinfo* res);
 
 typedef struct {
   long tv_sec;
@@ -1399,6 +1399,7 @@ UV_EXTERN void uv_timer_set_repeat(uv_timer_t* handle, uint64_t repeat);
 
 UV_EXTERN uint64_t uv_timer_get_repeat(const uv_timer_t* handle);
 
+#if 0
 
 /*
  * uv_getaddrinfo_t is a subclass of uv_req_t
@@ -1443,6 +1444,7 @@ UV_EXTERN int uv_getaddrinfo(uv_loop_t* loop,
  */
 UV_EXTERN void uv_freeaddrinfo(struct addrinfo* ai);
 
+#endif
 
 /* uv_spawn() options */
 typedef enum {
