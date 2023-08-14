@@ -28,6 +28,17 @@ var LDFLAGS = process.env['LDFLAGS'];
 // case clang doesn't reliably support march except on x86/amd64.
 var NO_MARCH_FLAG = ['arm', 'ppc', 'ppc64', 'arm64'];
 
+if (process.version.replace('v','').split('.').map(Number)[0] >= 19) {
+    // OK
+} else if ('OLD_NODE_VERSION_I_EXPECT_ERRORS' in process.env) {
+    console.log('OLD_NODE_VERSION_I_EXPECT_ERRORS is set, ignoring old version');
+} else {
+    throw new Error("Your version of nodejs is old/untested. " +
+        "Old enough versions (pre-es6) do not work correctly and give weird build failures. " +
+        "If you want to force building anyway, try: " +
+        "OLD_NODE_VERSION_I_EXPECT_ERRORS=1 ./do");
+}
+
 Builder.configure({
     buildDir: process.env['OUT_DIR'], // set by cargo
     systemName: process.env['SYSTEM'] || process.platform,

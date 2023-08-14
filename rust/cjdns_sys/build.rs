@@ -68,15 +68,14 @@ fn main() -> Result<()> {
         println!("Generating rffi done");
     }
 
-    let ret = Command::new("/bin/sh")
+    let ret = Command::new("node")
         .current_dir("../../")
-        .env("MAINJS", "./node_build/make.js")
-        .arg("./node_build/node.sh")
+        .arg("./node_build/make.js")
         .status()?
         .code()
         .unwrap();
     if ret != 0 {
-        bail!("Failed to build cjdns");
+        bail!("Failed to build cjdns: {ret}");
     }
 
     let mut cf: Vec<PathBuf> = Vec::new();
