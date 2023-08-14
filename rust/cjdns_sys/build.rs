@@ -1,5 +1,6 @@
 use anyhow::{bail, Result};
 use std::env;
+use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -71,9 +72,22 @@ fn main() -> Result<()> {
     let ret = Command::new("node")
         .current_dir("../../")
         .arg("./node_build/make.js")
-        .status()?
-        .code()
-        .unwrap();
+        .status();
+    let ret = match ret {
+        Ok(es) => es,
+        Err(e) => {
+            if e.kind() == ErrorKind::NotFound {
+                bail!(concat!(
+                    "\n\n",
+                    "Could not find nodejs `node` executable\n",
+                    "In order to build cjdns, you must have nodejs installed"
+                ));
+            } else {
+                bail!("Failed to start nodejs: {e}");
+            }
+        }
+    };
+    let ret = ret.code().unwrap();
     if ret != 0 {
         bail!("Failed to build cjdns: {ret}");
     }
