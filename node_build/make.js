@@ -43,6 +43,8 @@ Builder.configure({
         '-Wextra',
         '-Werror',
         '-Wno-pointer-sign',
+        // This creates a lot of really pedantic errors about prototypes with (void)
+        '-Wno-strict-prototypes',
         '-Wmissing-prototypes',
         '-pedantic',
         '-D', builder.config.systemName + '=1',
