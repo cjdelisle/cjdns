@@ -2007,7 +2007,9 @@ void NodeStore_brokenLink(struct NodeStore* nodeStore, uint64_t path, uint64_t p
 }
 
 // When a response comes in, we need to pay attention to the path used.
-static void updatePathCost(struct NodeStore_pvt* store, const uint64_t path, uint64_t newCost)
+// NOTE(cjd): newCost was unused, I'm removing it now because this code is mostly deprecated anyway
+//            and I don't want to enable it right now and reason how how it should behave.
+static void updatePathCost(struct NodeStore_pvt* store, const uint64_t path/*, uint64_t newCost*/)
 {
     struct Node_Link* link = store->selfLink;
     uint64_t pathFrag = path;
@@ -2032,7 +2034,7 @@ static void updatePathCost(struct NodeStore_pvt* store, const uint64_t path, uin
 
         pathFrag = nextPath;
         link = nextLink;
-        newCost++;
+        // newCost++;
     }
 
     link->child->timeLastPinged = now;
@@ -2043,21 +2045,23 @@ void NodeStore_pathResponse(struct NodeStore* nodeStore, uint64_t path, uint64_t
     struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
     struct Node_Link* link = NodeStore_linkForPath(nodeStore, path);
     if (!link || link == store->selfLink) { return; }
-    struct Node_Two* node = link->child;
-    uint64_t newCost;
-    if (node->address.path == path) {
-        // Use old cost value to calculate new cost.
-        newCost = calcNextCost(Node_getCost(node));
-    }
-    else {
-        // Old cost value doesn't relate to this path, so we should do something different
-        // FIXME(arceliar): calcNextCost is guessing what the cost would stabilize to
-        // I think actually fixing this would require storing cost (or latency?) per link,
-        // so we can calculate the expected cost for an arbitrary path
-        newCost = calcNextCost(UINT64_MAX);
-    }
+
+    // NOTE(cjd): This code is now commented because it was not in fact being used.
+    // struct Node_Two* node = link->child;
+    // uint64_t newCost;
+    // if (node->address.path == path) {
+    //     // Use old cost value to calculate new cost.
+    //     newCost = calcNextCost(Node_getCost(node));
+    // }
+    // else {
+    //     // Old cost value doesn't relate to this path, so we should do something different
+    //     // FIXME(arceliar): calcNextCost is guessing what the cost would stabilize to
+    //     // I think actually fixing this would require storing cost (or latency?) per link,
+    //     // so we can calculate the expected cost for an arbitrary path
+    //     newCost = calcNextCost(UINT64_MAX);
+    // }
     store->disarmCheck++;
-    updatePathCost(store, path, newCost);
+    updatePathCost(store, path/*, newCost*/);
     store->disarmCheck--;
     verify(store);
 }
