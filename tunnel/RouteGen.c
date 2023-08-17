@@ -354,6 +354,9 @@ static void mergePrefixSets4(struct ArrayList_OfPrefix4* mergeInto,
                              struct ArrayList_OfPrefix4* prefixes)
 {
     struct Prefix4* highestPrefix = NULL;
+    if (prefixes->length == 0) {
+        return;
+    }
     for (int j = 0; j < prefixes->length; j++) {
         struct Prefix4* result = ArrayList_OfPrefix4_get(prefixes, j);
         Assert_true(result);
