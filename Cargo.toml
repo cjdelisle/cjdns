@@ -1,5 +1,5 @@
 [workspace]
-members = ["rust/cjdns_sys"]
+members = ["rust/cjdns_sys", "rust/cjdnstool"]
 
 [profile.release]
 opt-level = 2
