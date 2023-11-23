@@ -1,5 +1,6 @@
 use cjdns_admin::Opts;
 use clap::Args;
+use serde::{Deserialize, Deserializer};
 
 #[derive(Args)]
 pub struct CommonArgs {
@@ -37,4 +38,8 @@ impl CommonArgs {
             anon: false,
         }
     }
+}
+
+pub fn de_as_bool<'de, D: Deserializer<'de>>(deserializer: D) -> Result<bool, D::Error> {
+    i32::deserialize(deserializer).map(|i| i != 0)
 }

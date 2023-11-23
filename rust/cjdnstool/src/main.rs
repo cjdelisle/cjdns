@@ -21,10 +21,7 @@ struct Args {
 #[derive(Subcommand)]
 enum Command {
     /// Show cjdns peers.
-    PeerStats {
-        #[arg(short, long)]
-        page: Option<u32>,
-    },
+    PeerStats,
 }
 
 #[tokio::main]
@@ -32,9 +29,7 @@ async fn main() -> MainResult {
     use Command::*;
     match Args::try_parse() {
         Ok(args) => match args.command {
-            PeerStats { page } => peer_stats::peer_stats(args.common, page.unwrap_or(0))
-                .await
-                .into(),
+            PeerStats => peer_stats::peer_stats(args.common).await.into(),
         },
         Err(err) => err.into(),
     }
