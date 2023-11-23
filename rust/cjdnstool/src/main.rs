@@ -1,5 +1,6 @@
 mod common;
-mod peer_stats;
+mod peers;
+mod wire;
 
 use clap::{Parser, Subcommand};
 use std::{
@@ -20,8 +21,11 @@ struct Args {
 
 #[derive(Subcommand)]
 enum Command {
-    /// Show cjdns peers.
-    PeerStats,
+    /// Perform operations with cjdns peers (show current peers by default).
+    Peers {
+        #[command(subcommand)]
+        command: Option<peers::Command>,
+    },
 }
 
 #[tokio::main]
@@ -29,7 +33,9 @@ async fn main() -> MainResult {
     use Command::*;
     match Args::try_parse() {
         Ok(args) => match args.command {
-            PeerStats => peer_stats::peer_stats(args.common).await.into(),
+            Peers { command } => peers::peers(args.common, command.unwrap_or_default())
+                .await
+                .into(),
         },
         Err(err) => err.into(),
     }
