@@ -1,5 +1,7 @@
 mod common;
 mod peers;
+mod session;
+mod util;
 mod wire;
 
 use clap::{Parser, Subcommand};
@@ -26,6 +28,12 @@ enum Command {
         #[command(subcommand)]
         command: Option<peers::Command>,
     },
+
+    /// Perform operations with cjdns sessions (show current sessions by default).
+    Session {
+        #[command(subcommand)]
+        command: Option<session::Command>,
+    },
 }
 
 #[tokio::main]
@@ -34,6 +42,9 @@ async fn main() -> MainResult {
     match Args::try_parse() {
         Ok(args) => match args.command {
             Peers { command } => peers::peers(args.common, command.unwrap_or_default())
+                .await
+                .into(),
+            Session { command } => session::session(args.common, command.unwrap_or_default())
                 .await
                 .into(),
         },

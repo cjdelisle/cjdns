@@ -4,7 +4,7 @@ use crate::common::CommonArgs;
 use anyhow::Result;
 use clap::Subcommand;
 
-pub async fn peers(common: CommonArgs, command: Command) -> Result<()> {
+pub async fn session(common: CommonArgs, command: Command) -> Result<()> {
     use Command::*;
     match command {
         Show { ip6 } => show::show(common, ip6).await,
@@ -13,9 +13,9 @@ pub async fn peers(common: CommonArgs, command: Command) -> Result<()> {
 
 #[derive(Subcommand)]
 pub enum Command {
-    /// Show current cjdns peers (default).
+    /// Show current cjdns sessions (default).
     Show {
-        /// Print ipv6 of peers rather than pubkeys.
+        /// Print ipv6 of sessions rather than pubkeys.
         #[arg(short = '6', long)]
         ip6: bool,
     },
