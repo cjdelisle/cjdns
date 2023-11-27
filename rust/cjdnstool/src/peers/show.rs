@@ -61,23 +61,14 @@ struct Args {
     page: u32,
 }
 
-#[allow(dead_code)]
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Peer {
     addr: String,
-    bytes_in: u64,
-    bytes_out: u64,
     duplicates: u32,
-    if_num: u32,
-    #[serde(deserialize_with = "wire::as_bool")]
-    is_incoming: bool,
-    last: u64,
     lladdr: String,
     lost_packets: u64,
-    noise_proto: u32,
     received_out_of_range: u64,
-    received_packets: u64,
     recv_kbps: u32,
     send_kbps: u32,
     state: String,

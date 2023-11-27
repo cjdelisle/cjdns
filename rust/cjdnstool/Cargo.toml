@@ -7,7 +7,6 @@ description = "Command line tool for querying cjdns admin API."
 
 [dependencies]
 anyhow = "1.0"
-async-trait = "0.1"
 cjdns-admin = { git = "https://github.com/cjdelisle/cjdns-route-server", rev = "434d05d138e44090d7955a33a8fdfd8b0dff6cf9", version = "0.1.0" }
 clap = { version = "4", features = ["derive"] }
 data-encoding = "2"
