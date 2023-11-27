@@ -3,7 +3,7 @@ use crate::{
     util::{self, PushField},
     wire,
 };
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 pub async fn show(common: CommonArgs, ip6: bool) -> Result<()> {
@@ -11,10 +11,9 @@ pub async fn show(common: CommonArgs, ip6: bool) -> Result<()> {
     let mut lines = vec![];
     let mut page = 0;
     loop {
-        let resp = cjdns
-            .invoke::<_, Option<Peers>>("InterfaceController_peerStats", Args { page })
-            .await?
-            .ok_or_else(|| anyhow!("InterfaceController_peerStats: missing payload"))?;
+        let resp: Peers = cjdns
+            .invoke("InterfaceController_peerStats", Args { page })
+            .await?;
         for peer in resp.peers {
             let addr = if ip6 {
                 util::key_to_ip6(&peer.addr)?
@@ -31,8 +30,8 @@ pub async fn show(common: CommonArgs, ip6: bool) -> Result<()> {
             if peer.received_out_of_range != 0 {
                 last.push_field(format!("OOR {}", peer.received_out_of_range));
             }
-            if let Some(user) = peer.user {
-                last.push_field(format!("\"{user}\""));
+            if !peer.user.is_empty() {
+                last.push_field(format!("\"{}\"", peer.user));
             }
             lines.push([
                 peer.lladdr,
@@ -73,7 +72,7 @@ struct Peer {
     send_kbps: u32,
     state: String,
     #[serde(default)]
-    user: Option<String>,
+    user: String,
 }
 
 #[derive(Deserialize)]

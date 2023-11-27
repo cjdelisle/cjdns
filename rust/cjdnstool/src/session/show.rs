@@ -3,7 +3,7 @@ use crate::{
     util::{self, PushField},
     wire,
 };
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 pub async fn show(common: CommonArgs, ip6: bool) -> Result<()> {
@@ -16,10 +16,9 @@ pub async fn show(common: CommonArgs, ip6: bool) -> Result<()> {
     let mut handles = vec![];
     let mut page = 0;
     loop {
-        let mut resp = cjdns
-            .invoke::<_, Option<Handles>>("SessionManager_getHandles", HandlesArgs { page })
-            .await?
-            .ok_or_else(|| anyhow!("SessionManager_getHandles: missing payload"))?;
+        let mut resp: Handles = cjdns
+            .invoke("SessionManager_getHandles", HandlesArgs { page })
+            .await?;
         handles.append(&mut resp.handles);
         if resp.more {
             page += 1;
@@ -30,10 +29,9 @@ pub async fn show(common: CommonArgs, ip6: bool) -> Result<()> {
 
     let mut sessions = vec![];
     for handle in handles {
-        let resp = cjdns
-            .invoke::<_, Option<Session>>("SessionManager_sessionStats", SessionArgs { handle })
-            .await?
-            .ok_or_else(|| anyhow!("SessionManager_sessionStats: missing payload"))?;
+        let resp: Session = cjdns
+            .invoke("SessionManager_sessionStats", SessionArgs { handle })
+            .await?;
         sessions.push(resp);
     }
     sessions.sort_by(|a, b| no_v(a).cmp(no_v(b)));
