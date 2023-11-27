@@ -2,7 +2,19 @@ use anyhow::{anyhow, bail, Result};
 use data_encoding::{BitOrder, Encoding, Specification, Translate, Wrap};
 use lazy_static::lazy_static;
 use sha2::{Digest, Sha512};
-use std::iter;
+use std::{env, iter, path::MAIN_SEPARATOR};
+
+pub fn exe_name() -> String {
+    env::args()
+        .next()
+        .and_then(|path| {
+            path.rsplit(MAIN_SEPARATOR)
+                .next()
+                .filter(|exe| !exe.is_empty())
+                .map(str::to_owned)
+        })
+        .unwrap_or_else(|| "cjdnstool".to_owned())
+}
 
 pub trait PushField {
     fn push_field(&mut self, field: impl AsRef<str>);
