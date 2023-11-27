@@ -1,3 +1,4 @@
+mod cexec;
 mod common;
 mod peers;
 mod session;
@@ -5,11 +6,7 @@ mod util;
 mod wire;
 
 use clap::{Parser, Subcommand};
-use std::{
-    env,
-    path::MAIN_SEPARATOR,
-    process::{ExitCode, Termination},
-};
+use std::process::{ExitCode, Termination};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -23,6 +20,17 @@ struct Args {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Call specified cjdns RPC, or list available RPCs if none specified.
+    #[command(long_about = Some(cexec::LONG_ABOUT))]
+    Cexec {
+        /// Name of the specified RPC to call, or list RPCs if none.
+        rpc: Option<String>,
+
+        /// Arguments to the specified RPC, in the form --name=value.
+        #[arg(allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+
     /// Perform operations with cjdns peers (show current peers by default).
     Peers {
         #[command(subcommand)]
@@ -41,6 +49,10 @@ async fn main() -> MainResult {
     use Command::*;
     match Args::try_parse() {
         Ok(args) => match args.command {
+            Cexec {
+                rpc,
+                args: rpc_args,
+            } => cexec::cexec(args.common, rpc, rpc_args).await.into(),
             Peers { command } => peers::peers(args.common, command.unwrap_or_default())
                 .await
                 .into(),
@@ -88,11 +100,7 @@ impl Termination for MainResult {
                 ExitCode::from(err.exit_code() as u8)
             }
             Self::AnyhowError(err) => {
-                let arg0 = env::args().next();
-                let exe = arg0
-                    .as_ref()
-                    .and_then(|path| path.rsplit(MAIN_SEPARATOR).next())
-                    .unwrap_or("cjdnstool");
+                let exe = util::exe_name();
                 eprintln!("{exe}: {err}");
                 ExitCode::FAILURE
             }
