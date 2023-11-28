@@ -15,5 +15,5 @@ if echo "$@" | grep -q '\-\-debug'; then
 fi 
 RUSTFLAGS="$RUSTFLAGS -g" $CARGO build $release
 RUST_BACKTRACE=1 ./target/$path/testcjdroute all >/dev/null
-mv ./target/$path/cjdroute ./
+mv ./target/$path/cjdroute ./target/$path/cjdnstool ./
 printf "\x1b[1;32mBuild completed successfully, type ./cjdroute to begin setup.\x1b[0m\n"
