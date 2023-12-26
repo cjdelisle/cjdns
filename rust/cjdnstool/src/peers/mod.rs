@@ -1,6 +1,6 @@
 mod show;
 
-use crate::common::CommonArgs;
+use crate::common::args::CommonArgs;
 use anyhow::Result;
 use clap::Subcommand;
 

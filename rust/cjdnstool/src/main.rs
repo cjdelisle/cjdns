@@ -3,7 +3,6 @@ mod common;
 mod peers;
 mod session;
 mod util;
-mod wire;
 
 use clap::{Parser, Subcommand};
 use std::process::{ExitCode, Termination};
@@ -12,7 +11,7 @@ use std::process::{ExitCode, Termination};
 #[command(author, version, about, long_about = None)]
 struct Args {
     #[command(flatten)]
-    common: common::CommonArgs,
+    common: common::args::CommonArgs,
 
     #[command(subcommand)]
     command: Command,
@@ -42,6 +41,12 @@ enum Command {
         #[command(subcommand)]
         command: Option<session::Command>,
     },
+
+    /// Locally perform utility functions over data (public and private keys).
+    Util {
+        #[command(subcommand)]
+        command: util::Command,
+    },
 }
 
 #[tokio::main]
@@ -59,6 +64,7 @@ async fn main() -> MainResult {
             Session { command } => session::session(args.common, command.unwrap_or_default())
                 .await
                 .into(),
+            Util { command } => util::util(command).await.into(),
         },
         Err(err) => err.into(),
     }
@@ -100,7 +106,7 @@ impl Termination for MainResult {
                 ExitCode::from(err.exit_code() as u8)
             }
             Self::AnyhowError(err) => {
-                let exe = util::exe_name();
+                let exe = common::utils::exe_name();
                 eprintln!("{exe}: {err}");
                 ExitCode::FAILURE
             }

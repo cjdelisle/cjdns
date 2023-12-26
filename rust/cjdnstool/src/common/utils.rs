@@ -61,7 +61,7 @@ pub fn print_padded<const N: usize>(lines: Vec<[String; N]>) {
     }
 }
 
-pub fn key_to_ip6(with_key: &str) -> Result<String> {
+pub fn key_to_ip6(with_key: &str, with_prefix: bool) -> Result<String> {
     lazy_static! {
         static ref BASE32: Encoding = Specification {
             symbols: "0123456789bcdfghjklmnpqrstuvwxyz".to_owned(),
@@ -84,13 +84,16 @@ pub fn key_to_ip6(with_key: &str) -> Result<String> {
 
     if with_key.ends_with(".k") {
         let mut key = &with_key[..(with_key.len() - 2)];
-        let left = match key.rsplit_once('.') {
-            Some((l, r)) => {
-                key = r;
-                Some(l)
-            }
-            _ => None,
-        };
+        let prefix;
+        if with_prefix {
+            let pair = key
+                .rsplit_once('.')
+                .ok_or_else(|| anyhow!("expected prefix before key"))?;
+            prefix = Some(pair.0);
+            key = pair.1;
+        } else {
+            prefix = None;
+        }
         let bytes = BASE32
             .decode(key.as_bytes())
             .map_err(|e| anyhow!("invalid key format: {}", e))?;
@@ -109,8 +112,8 @@ pub fn key_to_ip6(with_key: &str) -> Result<String> {
                 .chain(iter::once(c))
             })
             .collect();
-        Ok(if let Some(left) = left {
-            format!("{left}.{ipv6}")
+        Ok(if let Some(prefix) = prefix {
+            format!("{prefix}.{ipv6}")
         } else {
             ipv6
         })
@@ -121,6 +124,12 @@ pub fn key_to_ip6(with_key: &str) -> Result<String> {
 
 #[cfg(test)]
 mod test {
+    fn test_key_to_ip6_samples(samples: &[(&str, &str)], with_prefix: bool) {
+        for (&ref key, &ref ip6) in samples {
+            assert_eq!(super::key_to_ip6(key, with_prefix).unwrap(), ip6);
+        }
+    }
+
     #[test]
     fn test_key_to_ip6() {
         const SAMPLES: &[(&str, &str)] = &[
@@ -132,6 +141,13 @@ mod test {
                 "RJNDC8RVG194DDF2J5V679CFJCPMSMHV8P022Q3LVPYM21CQWYH0.k",
                 "fc50:47a8:2ef5:1c82:952e:10fc:dbad:dba9",
             ),
+        ];
+        test_key_to_ip6_samples(SAMPLES, false)
+    }
+
+    #[test]
+    fn test_key_to_ip6_with_prefix() {
+        const SAMPLES: &[(&str, &str)] = &[
             (
                 "v21.0000.0000.0000.001d.08bz912l989nzqc21q9x5qr96ns465nd71f290hb9q40z94jjw60.k",
                 "v21.0000.0000.0000.001d.fc8d:56ed:a8f3:237e:e586:2447:9966:9be1",
@@ -145,8 +161,6 @@ mod test {
                 "v20.0000.0000.0000.0019.fc02:2735:e595:bb70:8ffc:5293:8af8:c4b7",
             ),
         ];
-        for (&ref key, &ref ip6) in SAMPLES {
-            assert_eq!(super::key_to_ip6(key).unwrap(), ip6);
-        }
+        test_key_to_ip6_samples(SAMPLES, true)
     }
 }

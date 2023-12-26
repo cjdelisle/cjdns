@@ -1,6 +1,6 @@
-use crate::{
-    common::CommonArgs,
-    util::{self, PushField},
+use crate::common::{
+    args::CommonArgs,
+    utils::{self, PushField},
     wire,
 };
 use anyhow::Result;
@@ -39,7 +39,7 @@ pub async fn show(common: CommonArgs, ip6: bool) -> Result<()> {
     let mut lines = Vec::with_capacity(sessions.len());
     for session in sessions {
         let addr = if ip6 {
-            util::key_to_ip6(&session.addr)?
+            utils::key_to_ip6(&session.addr, true)?
         } else {
             session.addr
         };
@@ -62,7 +62,7 @@ pub async fn show(common: CommonArgs, ip6: bool) -> Result<()> {
             last,
         ]);
     }
-    util::print_padded(lines);
+    utils::print_padded(lines);
     Ok(())
 }
 

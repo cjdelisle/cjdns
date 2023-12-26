@@ -1,6 +1,6 @@
-use crate::{
-    common::CommonArgs,
-    util::{self, PushField},
+use crate::common::{
+    args::CommonArgs,
+    utils::{self, PushField},
     wire,
 };
 use anyhow::Result;
@@ -16,7 +16,7 @@ pub async fn show(common: CommonArgs, ip6: bool) -> Result<()> {
             .await?;
         for peer in resp.peers {
             let addr = if ip6 {
-                util::key_to_ip6(&peer.addr)?
+                utils::key_to_ip6(&peer.addr, true)?
             } else {
                 peer.addr
             };
@@ -50,7 +50,7 @@ pub async fn show(common: CommonArgs, ip6: bool) -> Result<()> {
         }
     }
 
-    util::print_padded(lines);
+    utils::print_padded(lines);
 
     Ok(())
 }
