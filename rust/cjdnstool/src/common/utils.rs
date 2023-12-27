@@ -1,6 +1,5 @@
+use super::base32;
 use anyhow::{anyhow, bail, Result};
-use data_encoding::{BitOrder, Encoding, Specification, Translate, Wrap};
-use lazy_static::lazy_static;
 use sha2::{Digest, Sha512};
 use std::{env, iter, path::MAIN_SEPARATOR};
 
@@ -62,56 +61,21 @@ pub fn print_padded<const N: usize>(lines: Vec<[String; N]>) {
 }
 
 pub fn key_to_ip6(with_key: &str, with_prefix: bool) -> Result<String> {
-    lazy_static! {
-        static ref BASE32: Encoding = Specification {
-            symbols: "0123456789bcdfghjklmnpqrstuvwxyz".to_owned(),
-            bit_order: BitOrder::LeastSignificantFirst,
-            check_trailing_bits: true,
-            padding: None,
-            ignore: String::new(),
-            wrap: Wrap {
-                width: 0,
-                separator: String::new()
-            },
-            translate: Translate {
-                from: "BCDFGHJKLMNPQRSTUVWXYZ".to_owned(),
-                to: "bcdfghjklmnpqrstuvwxyz".to_owned(),
-            },
-        }
-        .encoding()
-        .expect("invalid encoding specification");
-    }
-
     if with_key.ends_with(".k") {
         let mut key = &with_key[..(with_key.len() - 2)];
         let prefix;
         if with_prefix {
-            let pair = key
+            let (l, r) = key
                 .rsplit_once('.')
                 .ok_or_else(|| anyhow!("expected prefix before key"))?;
-            prefix = Some(pair.0);
-            key = pair.1;
+            prefix = Some(l);
+            key = r;
         } else {
             prefix = None;
         }
-        let bytes = BASE32
-            .decode(key.as_bytes())
-            .map_err(|e| anyhow!("invalid key format: {}", e))?;
-        let hash = format!("{:x}", Sha512::digest(Sha512::digest(bytes)));
-        let ipv6 = hash
-            .chars()
-            .take(32)
-            .enumerate()
-            .flat_map(|(i, c)| {
-                if i != 0 && i % 4 == 0 {
-                    Some(':')
-                } else {
-                    None
-                }
-                .into_iter()
-                .chain(iter::once(c))
-            })
-            .collect();
+        let raw_key =
+            base32::decode(key.as_bytes()).map_err(|e| anyhow!("invalid key format: {}", e))?;
+        let ipv6 = raw_key_to_ip6(&raw_key);
         Ok(if let Some(prefix) = prefix {
             format!("{prefix}.{ipv6}")
         } else {
@@ -120,6 +84,23 @@ pub fn key_to_ip6(with_key: &str, with_prefix: bool) -> Result<String> {
     } else {
         bail!("invalid key format: missing \".k\" suffix")
     }
+}
+
+pub fn raw_key_to_ip6(raw_key: &[u8]) -> String {
+    let hash = format!("{:x}", Sha512::digest(Sha512::digest(raw_key)));
+    hash.chars()
+        .take(32)
+        .enumerate()
+        .flat_map(|(i, c)| {
+            if i != 0 && i % 4 == 0 {
+                Some(':')
+            } else {
+                None
+            }
+            .into_iter()
+            .chain(iter::once(c))
+        })
+        .collect()
 }
 
 #[cfg(test)]
