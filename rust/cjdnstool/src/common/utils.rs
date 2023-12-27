@@ -1,7 +1,10 @@
 use super::base32;
 use anyhow::{anyhow, bail, Result};
-use sha2::{Digest, Sha512};
-use std::{env, iter, path::MAIN_SEPARATOR};
+use sha2::{
+    digest::{Digest, Output},
+    Sha512,
+};
+use std::{env, fmt::Write, path::MAIN_SEPARATOR};
 
 pub fn exe_name() -> String {
     env::args()
@@ -75,7 +78,7 @@ pub fn key_to_ip6(with_key: &str, with_prefix: bool) -> Result<String> {
         }
         let raw_key =
             base32::decode(key.as_bytes()).map_err(|e| anyhow!("invalid key format: {}", e))?;
-        let ipv6 = raw_key_to_ip6(&raw_key);
+        let ipv6 = hash_to_ip6(Sha512::digest(Sha512::digest(raw_key)));
         Ok(if let Some(prefix) = prefix {
             format!("{prefix}.{ipv6}")
         } else {
@@ -86,21 +89,17 @@ pub fn key_to_ip6(with_key: &str, with_prefix: bool) -> Result<String> {
     }
 }
 
-pub fn raw_key_to_ip6(raw_key: &[u8]) -> String {
-    let hash = format!("{:x}", Sha512::digest(Sha512::digest(raw_key)));
-    hash.chars()
-        .take(32)
-        .enumerate()
-        .flat_map(|(i, c)| {
-            if i != 0 && i % 4 == 0 {
-                Some(':')
-            } else {
-                None
-            }
-            .into_iter()
-            .chain(iter::once(c))
-        })
-        .collect()
+pub fn hash_to_ip6(hash: Output<Sha512>) -> String {
+    const IP6_LEN: usize = 39;
+
+    let mut ip6 = String::with_capacity(IP6_LEN);
+    for chunk in hash.chunks(2).take(8) {
+        if !ip6.is_empty() {
+            ip6.push(':');
+        }
+        write!(ip6, "{:02x}{:02x}", chunk[0], chunk[1]).unwrap();
+    }
+    ip6
 }
 
 #[cfg(test)]
