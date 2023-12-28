@@ -1,6 +1,6 @@
-use crate::{
-    common::CommonArgs,
-    util::{self, PushField},
+use crate::common::{
+    args::CommonArgs,
+    utils::{self, PushField},
 };
 use anyhow::{bail, Result};
 use cjdns_admin::{ArgType, ArgValue, ArgValues, Func, ReturnValue};
@@ -37,7 +37,7 @@ pub async fn cexec(common: CommonArgs, rpc: Option<String>, rpc_args: Vec<String
             bail!("{} is not an RPC in cjdns", rpc);
         }
     } else {
-        let exe = util::exe_name();
+        let exe = utils::exe_name();
         println!("see: {FUNCTION_DOCS}");
         for func in cjdns.functions.iter() {
             let mut line = format!("{exe} cexec {}", func.name);

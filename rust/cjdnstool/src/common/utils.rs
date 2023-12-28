@@ -1,8 +1,10 @@
+use super::base32;
 use anyhow::{anyhow, bail, Result};
-use data_encoding::{BitOrder, Encoding, Specification, Translate, Wrap};
-use lazy_static::lazy_static;
-use sha2::{Digest, Sha512};
-use std::{env, iter, path::MAIN_SEPARATOR};
+use sha2::{
+    digest::{Digest, Output},
+    Sha512,
+};
+use std::{env, fmt::Write, path::MAIN_SEPARATOR};
 
 pub fn exe_name() -> String {
     env::args()
@@ -61,56 +63,24 @@ pub fn print_padded<const N: usize>(lines: Vec<[String; N]>) {
     }
 }
 
-pub fn key_to_ip6(with_key: &str) -> Result<String> {
-    lazy_static! {
-        static ref BASE32: Encoding = Specification {
-            symbols: "0123456789bcdfghjklmnpqrstuvwxyz".to_owned(),
-            bit_order: BitOrder::LeastSignificantFirst,
-            check_trailing_bits: true,
-            padding: None,
-            ignore: String::new(),
-            wrap: Wrap {
-                width: 0,
-                separator: String::new()
-            },
-            translate: Translate {
-                from: "BCDFGHJKLMNPQRSTUVWXYZ".to_owned(),
-                to: "bcdfghjklmnpqrstuvwxyz".to_owned(),
-            },
-        }
-        .encoding()
-        .expect("invalid encoding specification");
-    }
-
+pub fn key_to_ip6(with_key: &str, with_prefix: bool) -> Result<String> {
     if with_key.ends_with(".k") {
         let mut key = &with_key[..(with_key.len() - 2)];
-        let left = match key.rsplit_once('.') {
-            Some((l, r)) => {
-                key = r;
-                Some(l)
-            }
-            _ => None,
-        };
-        let bytes = BASE32
-            .decode(key.as_bytes())
-            .map_err(|e| anyhow!("invalid key format: {}", e))?;
-        let hash = format!("{:x}", Sha512::digest(Sha512::digest(bytes)));
-        let ipv6 = hash
-            .chars()
-            .take(32)
-            .enumerate()
-            .flat_map(|(i, c)| {
-                if i != 0 && i % 4 == 0 {
-                    Some(':')
-                } else {
-                    None
-                }
-                .into_iter()
-                .chain(iter::once(c))
-            })
-            .collect();
-        Ok(if let Some(left) = left {
-            format!("{left}.{ipv6}")
+        let prefix;
+        if with_prefix {
+            let (l, r) = key
+                .rsplit_once('.')
+                .ok_or_else(|| anyhow!("expected prefix before key"))?;
+            prefix = Some(l);
+            key = r;
+        } else {
+            prefix = None;
+        }
+        let raw_key =
+            base32::decode(key.as_bytes()).map_err(|e| anyhow!("invalid key format: {}", e))?;
+        let ipv6 = hash_to_ip6(Sha512::digest(Sha512::digest(raw_key)));
+        Ok(if let Some(prefix) = prefix {
+            format!("{prefix}.{ipv6}")
         } else {
             ipv6
         })
@@ -119,8 +89,27 @@ pub fn key_to_ip6(with_key: &str) -> Result<String> {
     }
 }
 
+pub fn hash_to_ip6(hash: Output<Sha512>) -> String {
+    const IP6_LEN: usize = 39;
+
+    let mut ip6 = String::with_capacity(IP6_LEN);
+    for chunk in hash.chunks(2).take(8) {
+        if !ip6.is_empty() {
+            ip6.push(':');
+        }
+        write!(ip6, "{:02x}{:02x}", chunk[0], chunk[1]).unwrap();
+    }
+    ip6
+}
+
 #[cfg(test)]
 mod test {
+    fn test_key_to_ip6_samples(samples: &[(&str, &str)], with_prefix: bool) {
+        for (&ref key, &ref ip6) in samples {
+            assert_eq!(super::key_to_ip6(key, with_prefix).unwrap(), ip6);
+        }
+    }
+
     #[test]
     fn test_key_to_ip6() {
         const SAMPLES: &[(&str, &str)] = &[
@@ -132,6 +121,13 @@ mod test {
                 "RJNDC8RVG194DDF2J5V679CFJCPMSMHV8P022Q3LVPYM21CQWYH0.k",
                 "fc50:47a8:2ef5:1c82:952e:10fc:dbad:dba9",
             ),
+        ];
+        test_key_to_ip6_samples(SAMPLES, false)
+    }
+
+    #[test]
+    fn test_key_to_ip6_with_prefix() {
+        const SAMPLES: &[(&str, &str)] = &[
             (
                 "v21.0000.0000.0000.001d.08bz912l989nzqc21q9x5qr96ns465nd71f290hb9q40z94jjw60.k",
                 "v21.0000.0000.0000.001d.fc8d:56ed:a8f3:237e:e586:2447:9966:9be1",
@@ -145,8 +141,6 @@ mod test {
                 "v20.0000.0000.0000.0019.fc02:2735:e595:bb70:8ffc:5293:8af8:c4b7",
             ),
         ];
-        for (&ref key, &ref ip6) in SAMPLES {
-            assert_eq!(super::key_to_ip6(key).unwrap(), ip6);
-        }
+        test_key_to_ip6_samples(SAMPLES, true)
     }
 }
