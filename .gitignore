@@ -32,3 +32,4 @@
 /contrib/docker/cjdns*/
 .vscode
 /target
+/cjdnstool
