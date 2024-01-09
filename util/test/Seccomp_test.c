@@ -115,7 +115,8 @@ int main(int argc, char** argv)
     }
     if (argc > 3 && !CString_strcmp("Seccomp_test", argv[1]) && !CString_strcmp("child", argv[2])) {
         child(argv[3], alloc, logger);
-        Allocator_free(alloc);
+        // Allocator_free(alloc); 
+        // TODO: Freeing the allocator causes a Identity_check() assertion crash in Pipe.c, replace after async allocator free is abolished.
         return 0;
     }
 

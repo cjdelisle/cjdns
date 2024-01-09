@@ -28,7 +28,7 @@ var LDFLAGS = process.env['LDFLAGS'];
 // case clang doesn't reliably support march except on x86/amd64.
 var NO_MARCH_FLAG = ['arm', 'ppc', 'ppc64', 'arm64'];
 
-if (process.version.replace('v','').split('.').map(Number)[0] >= 19) {
+if (process.version.replace('v','').split('.').map(Number)[0] >= 18) {
     // OK
 } else if ('OLD_NODE_VERSION_I_EXPECT_ERRORS' in process.env) {
     console.log('OLD_NODE_VERSION_I_EXPECT_ERRORS is set, ignoring old version');
