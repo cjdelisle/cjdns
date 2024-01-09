@@ -374,6 +374,12 @@ static Er_DEFUN(struct sock_fprog* mkFilter(struct Allocator* alloc))
         IFEQ(__NR_fcntl64, success),
         #endif
 
+        // 2024-01-09 by Caleb's advice
+        // it is used by Seccomp_test
+        #ifdef __NR_sigaltstack
+        IFEQ(__NR_sigaltstack, success),
+        #endif
+
         RET(SECCOMP_RET_TRAP),
 
         LABEL(ioctl_setip),
