@@ -77,9 +77,9 @@ static void adminPing(Dict* args, void* vcontext, String* txid, struct Allocator
     int64_t* keyPing = Dict_getIntC(args, "keyPing");
     uint32_t timeout = (timeoutPtr) ? *timeoutPtr : DEFAULT_TIMEOUT;
     uint64_t path;
-    String* err = NULL;
+    char* err = NULL;
     if (pathStr->len != 19 || AddrTools_parsePath(&path, (uint8_t*) pathStr->bytes)) {
-        err = String_CONST("path was not parsable.");
+        err = "path was not parsable.";
     } else {
         struct SwitchPinger_Ping* ping = SwitchPinger_newPing(path,
                                                               data,
@@ -89,7 +89,7 @@ static void adminPing(Dict* args, void* vcontext, String* txid, struct Allocator
                                                               context->switchPinger);
         if (keyPing && *keyPing) { ping->type = SwitchPinger_Type_KEYPING; }
         if (!ping) {
-            err = String_CONST("no open slots to store ping, try later.");
+            err = "no open slots to store ping, try later.";
         } else {
             ping->onResponseContext = Allocator_clone(ping->pingAlloc, (&(struct Ping) {
                 .context = context,
@@ -100,7 +100,7 @@ static void adminPing(Dict* args, void* vcontext, String* txid, struct Allocator
     }
 
     if (err) {
-        Dict d = Dict_CONST(String_CONST("error"), String_OBJ(err), NULL);
+        Dict d = Dict_CONST(String_CONST("error"), String_OBJ(String_CONST(err)), NULL);
         Admin_sendMessage(&d, txid, context->admin);
     }
 }
