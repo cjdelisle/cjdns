@@ -222,7 +222,7 @@ static Er_DEFUN(struct ArrayList_OfPrefix* getRoutes(uint32_t ifIndex,
             prefix = prefixFromWeirdBSDMask(mask, ipv6);
         }
         struct Prefix* pfx = Allocator_calloc(allocator, sizeof(struct Prefix), 1);
-        Assert_compileTime(sizeof(pfx->ss) >= sa1->sa_len);
+        Assert_true(sizeof(pfx->ss) >= sa1->sa_len);
         Bits_memcpy(&pfx->ss, sa1, sa1->sa_len);
         pfx->prefix = prefix;
         ArrayList_OfPrefix_add(addrList, pfx);
