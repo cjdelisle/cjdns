@@ -11,6 +11,10 @@
 [Français](README_FR.md)
 [Português brasileiro](README_PT-BR.md)
 
+## Status
+
+cjdns is [no longer being actively developed](https://github.com/hyperboria/bugs/issues/217).
+
 #### *Networking Reinvented*
 
 Cjdns implements an encrypted IPv6 network using public-key cryptography for
