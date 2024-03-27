@@ -18,6 +18,11 @@
 #include "util/Bits.h"
 #include "util/Identity.h"
 
+void Process_OnExitCallbackWrapper(long pid, int exitCode) {
+    long long pidLongLong = (long long) pid;
+    Process_OnExitCallback(pidLongLong, exitCode);
+}
+
 int Process_spawn(char* binaryPath,
                   char** args,
                   struct Allocator* alloc,
@@ -26,7 +31,7 @@ int Process_spawn(char* binaryPath,
     int i;
     for (i = 0; args[i]; i++) ;
 
-    return Rffi_spawn(binaryPath, args, i, alloc, callback);
+    return Rffi_spawn(binaryPath, args, i, alloc, Process_OnExitCallbackWrapper);
 }
 
 char* Process_getPath(struct Allocator* alloc)
