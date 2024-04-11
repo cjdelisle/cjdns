@@ -65,13 +65,21 @@ pub extern "C" fn Rffi_pollFdReadable(
         let fd = tokio::io::unix::AsyncFd::new(fd).unwrap();
         loop {
             tokio::select! {
-                _r = fd.readable() => {
-                    let _guard = GCL.lock();
-                    if active.load(Ordering::Relaxed) {
-                        unsafe { (frc.cb)(frc.cb_context); }
-                    } else {
+                r = fd.readable() => {
+                    if !active.load(Ordering::Relaxed) {
                         log::info!("Rffi_pollFdReadable down: active = false");
                         break;
+                    }
+                    match r {
+                        Ok(mut x) => {
+                            let guard = GCL.lock();
+                            unsafe { (frc.cb)(frc.cb_context); }
+                            drop(guard);
+                            x.clear_ready();
+                        }
+                        Err(e) => {
+                            log::debug!("Rffi_pollFdReadable returned error: {e} - continuing");
+                        }
                     }
                 }
                 _ = rx_kill.recv() => {
