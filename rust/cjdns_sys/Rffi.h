@@ -9,6 +9,8 @@ typedef struct RTypes_CryptoAuth2_t RTypes_CryptoAuth2_t;
 
 typedef struct Rffi_EventLoop Rffi_EventLoop;
 
+typedef struct Rffi_FdReadableTx Rffi_FdReadableTx;
+
 /**
  * The guard of an acquired [`GCL`].
  */
@@ -154,6 +156,13 @@ int Rffi_isTimeoutActive(const Rffi_TimerTx *timer_tx);
  * Cancel all timer tasks.
  */
 void Rffi_clearAllTimeouts(Rffi_EventLoop *event_loop);
+
+void Rffi_pollFdReadable(Rffi_FdReadableTx **out,
+                         void (*cb)(void*),
+                         void *cb_context,
+                         int fd,
+                         Rffi_EventLoop *event_loop,
+                         Allocator_t *alloc);
 
 /**
  * Convert IPv4 and IPv6 addresses from binary to text form.

@@ -20,15 +20,10 @@
 #include "util/Linker.h"
 Linker_require("util/events/libuv/Event.c")
 
-struct Event
-{
-    int unused;
-};
-
-struct Event* Event_socketRead(void (* const callback)(void* callbackContext),
-                               void* const callbackContext,
-                               int s,
-                               struct EventBase* base,
-                               struct Allocator* alloc);
+void Event_socketRead(void (* const callback)(void* callbackContext),
+                      void* const callbackContext,
+                      int s,
+                      struct EventBase* base,
+                      struct Allocator* alloc);
 
 #endif
