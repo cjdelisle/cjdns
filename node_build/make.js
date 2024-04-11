@@ -76,7 +76,10 @@ Builder.configure({
         // enable for safety (don't worry about speed, profiling shows they add ~nothing)
         '-D', 'Identity_CHECK=1',
         '-D', 'Allocator_USE_CANARIES=1',
-        '-D', 'PARANOIA=1'
+        '-D', 'PARANOIA=1',
+
+        // Noise protocol causes huge problems for beacon session setup
+        '-D', 'NOISE_NO=1'
     );
 
     if (process.env["CJDNS_RELEASE_VERSION"]) {
