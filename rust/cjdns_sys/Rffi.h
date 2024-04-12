@@ -158,6 +158,7 @@ int Rffi_isTimeoutActive(const Rffi_TimerTx *timer_tx);
 void Rffi_clearAllTimeouts(Rffi_EventLoop *event_loop);
 
 void Rffi_pollFdReadable(Rffi_FdReadableTx **out,
+                         const char **errout,
                          void (*cb)(void*),
                          void *cb_context,
                          int fd,

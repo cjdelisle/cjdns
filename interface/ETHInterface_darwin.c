@@ -316,7 +316,7 @@ Er_DEFUN(struct ETHInterface* ETHInterface_new(struct EventBase* eventBase,
 
     Socket_makeNonBlocking(ctx->socket);
 
-    Event_socketRead(handleEvent, ctx, ctx->socket, eventBase, alloc);
+    Er(Event_socketRead(handleEvent, ctx, ctx->socket, eventBase, alloc));
 
     Allocator_onFree(alloc, closeSocket, ctx);
 

@@ -1,8 +1,10 @@
+use tokio::io::Interest;
+use tokio::io::unix::AsyncFd;
 use super::{Rffi_EventLoop, GCL};
 use crate::cffi::{Allocator_t, Allocator__onFree, Allocator_OnFreeJob};
 use crate::rffi::allocator;
 use std::ffi::c_void;
-use std::os::raw::c_int;
+use std::os::raw::{c_int, c_char};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
@@ -31,13 +33,25 @@ pub extern "C" fn fd_readable_on_free(j: *mut Allocator_OnFreeJob) -> c_int {
 #[no_mangle]
 pub extern "C" fn Rffi_pollFdReadable(
     out: *mut *mut Rffi_FdReadableTx,
+    errout: *mut *const c_char,
     cb: unsafe extern "C" fn(*mut c_void),
     cb_context: *mut c_void,
     fd: c_int,
     event_loop: *mut Rffi_EventLoop,
     alloc: *mut Allocator_t,
 ) {
-    // let cb_int = cb_context as u64;
+    let fd = match AsyncFd::with_interest(fd, Interest::READABLE) {
+        Ok(fd) => fd,
+        Err(e) => {
+            let out = allocator::adopt(alloc, format!("Error making AsyncFd: {e}"));
+            let out = unsafe { (*out).as_bytes().as_ptr() } as *const c_char;
+            unsafe {
+                *errout = out;
+            }
+            return;
+        }
+    };
+
     let frc = FdReadableCallback{ cb, cb_context };
 
     let (kill, mut rx_kill) = tokio::sync::mpsc::unbounded_channel();
@@ -62,7 +76,6 @@ pub extern "C" fn Rffi_pollFdReadable(
     }
 
     event_loop.arc_clone().event_job(async move {
-        let fd = tokio::io::unix::AsyncFd::new(fd).unwrap();
         loop {
             tokio::select! {
                 r = fd.readable() => {
