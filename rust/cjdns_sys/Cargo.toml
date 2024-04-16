@@ -20,6 +20,7 @@ pnet = { version = "0.29" }
 tokio = { version = "1.25", features = ["macros","time","sync","fs","rt-multi-thread","process"], default-features = false }
 once_cell = "1.9"
 async-recursion = "1"
+socket2 = "0"
 
 [build_dependencies]
 cc = "1.0"

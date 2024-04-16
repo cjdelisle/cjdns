@@ -21,6 +21,14 @@ typedef struct Rffi_Glock_guard Rffi_Glock_guard;
  */
 typedef struct Rffi_TimerTx Rffi_TimerTx;
 
+typedef struct Rffi_UDPIface_pvt Rffi_UDPIface_pvt;
+
+typedef struct {
+  Rffi_UDPIface_pvt *pvt;
+  Iface_t *iface;
+  Sockaddr_t *local_addr;
+} Rffi_UDPIface;
+
 typedef struct {
   uint8_t octets[16];
   uint8_t netmask[16];
@@ -164,6 +172,17 @@ void Rffi_pollFdReadable(Rffi_FdReadableTx **out,
                          int fd,
                          Rffi_EventLoop *event_loop,
                          Allocator_t *alloc);
+
+int32_t Rffi_udpIfaceGetFd(Rffi_UDPIface_pvt *iface);
+
+int32_t Rffi_udpIfaceSetBroadcast(Rffi_UDPIface_pvt *iface, bool broadcast);
+
+int32_t Rffi_udpIfaceSetDscp(Rffi_UDPIface_pvt *iface, uint8_t dscp);
+
+void Rffi_udpIfaceNew(Rffi_UDPIface **outp,
+                      const char **errout,
+                      const Sockaddr_t *bind_addr,
+                      Allocator_t *c_alloc);
 
 /**
  * Convert IPv4 and IPv6 addresses from binary to text form.

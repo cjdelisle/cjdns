@@ -13,7 +13,7 @@ pub fn rust_main(cmain: unsafe extern "C" fn(c_int, *const *mut c_char)) {
         .collect::<Vec<_>>();
 
     tokio::runtime::Builder::new_multi_thread()
-        .worker_threads(1)
+        .worker_threads(8)
         .enable_all()
         .build()
         .unwrap()
@@ -61,6 +61,8 @@ mod interface {
     }
 
     pub mod rustiface_test_wrapper;
+
+    pub mod udpaddriface;
 }
 
 mod bytestring;

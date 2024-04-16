@@ -12,6 +12,7 @@ use tokio::sync::broadcast;
 mod process;
 mod timeout;
 mod fd_readable;
+mod udp;
 
 /// The guard of an acquired [`GCL`].
 pub struct Rffi_Glock_guard(ReentrantMutexGuard<'static, ()>);

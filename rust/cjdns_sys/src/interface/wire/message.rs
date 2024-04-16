@@ -56,8 +56,9 @@ impl Message {
     /// Create a new message with a self-contained allocator,
     /// this message is thus "owned" but Rust.
     pub fn new(padding: usize) -> Self {
-        let mut alloc = allocator::new!();
-        let mut out = Self::anew(padding, &mut alloc);
+        let alloc = allocator::new!();
+        let mut child = allocator::child!(alloc);
+        let mut out = Self::anew(padding, &mut child);
         out.alloc = Some(alloc);
         out
     }
@@ -80,7 +81,9 @@ impl Message {
     /// *Unsafe:* The original pointer *must* remain valid until this instance is dropped.
     #[inline]
     pub fn from_c_message(c_msg: *mut cffi::Message) -> Self {
-        Message { msg: c_msg, alloc: None }
+        let my_alloc = allocator::new!();
+        my_alloc.adopt_alloc(allocator::rs(unsafe { (*c_msg)._alloc }));
+        Message { msg: c_msg, alloc: Some(my_alloc) }
     }
 
     /// Return original C `Message` pointer from this Rust `Message`.

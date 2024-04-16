@@ -6,7 +6,8 @@ use crate::rffi::allocator;
 use crate::rtypes::RTypes_Error_t;
 use crate::external::interface::iface::{self, IfRecv, Iface, IfacePvt};
 use crate::interface::wire::message::Message;
-use crate::gcl::Protected;
+use crate::gcl::{Protected, GCL};
+use crate::util::identity::{Identity,from_c};
 
 struct CRecv {
     c_iface: Protected<*mut cffi::Iface>,
@@ -20,6 +21,7 @@ impl IfRecv for CRecv {
         }
         let c_msg = m.as_c_message();
         let cif = self.c_iface.lock();
+        let _lock = GCL.lock();
         unsafe {
             (cffi::Iface_incomingFromRust(c_msg, *cif) as *mut RTypes_Error_t).as_mut()
                 .map(|e|e.e.take())
@@ -35,24 +37,14 @@ struct CIface {
     cif: cffi::Iface,
 
     // Additional "private" fields
-    id_tag: u32,
+    identity: Identity<Self>,
     rif: IfacePvt,
     dg: Arc<()>,
 }
 
-// This is an assertion to make sure we're being passed something legit from C
-const IFACE_IDENT: u32 = 0xdeadbeef;
-
 unsafe extern "C" fn from_c(msg: *mut cffi::Message, iface_p: *mut cffi::Iface) -> *mut cffi::RTypes_Error_t {
-    let iface = (iface_p as *mut CIface).as_ref().unwrap();
-
-    // We're getting called from C with a ffi::Iface which is supposed to be one of ours
-    // i.e. a CIface, but at the end of the day, we're doing a dirty cast here so lets
-    // check that this field id_tag is equal to the value we set it to initially.
-    assert!(iface.id_tag == IFACE_IDENT);
-
+    let iface = from_c!(iface_p as *mut CIface);
     let alloc = (*msg)._alloc;
-
     let msg = Message::from_c_message(msg);
     match iface.rif.send(msg) {
         // TODO: we need better error handling
@@ -81,7 +73,7 @@ fn new<T: Into<String>>(alloc: *mut Allocator_t, name: T) -> (Iface, *mut cffi::
                 currentMsg: std::ptr::null_mut(),
                 connectedIf: std::ptr::null_mut(),
             },
-            id_tag: IFACE_IDENT,
+            identity: Default::default(),
             rif: iface_pvt,
             dg: drop_guard,
         },

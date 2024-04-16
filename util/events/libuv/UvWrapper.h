@@ -19,6 +19,7 @@
 
 #ifndef _GNU_SOURCE
     #define _GNU_SOURCE // CHECKFILES_IGNORE libuv's fault
+
 #endif
 #ifdef win32
     #define _WIN32_WINNT 0x0600 // CHECKFILES_IGNORE

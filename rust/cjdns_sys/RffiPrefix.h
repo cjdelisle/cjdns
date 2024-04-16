@@ -5,5 +5,6 @@
 #include "util/log/Log.h"
 #include "crypto/random/Random.h"
 #include "wire/Message.h"
+#include "util/platform/Sockaddr.h"
 
 #endif

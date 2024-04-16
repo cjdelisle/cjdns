@@ -376,6 +376,7 @@ dependencies = [
  "parking_lot 0.11.1",
  "pnet",
  "slog",
+ "socket2",
  "sodiumoxide",
  "thiserror",
  "tokio",

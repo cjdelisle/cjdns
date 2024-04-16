@@ -716,6 +716,7 @@ int cjdroute2_main(int argc, char** argv)
     }
 
     struct Log* logger = FileWriterLog_new(stdout, allocator);
+    Rffi_setLogger(logger);
 
     // --------------------- Get Admin  --------------------- //
     Dict* configAdmin = Dict_getDictC(config, "admin");

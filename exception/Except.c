@@ -16,6 +16,7 @@
 
 
 #include "exception/Except.h"
+#include "rust/cjdns_sys/Rffi.h"
 #include "util/CString.h"
 
 #include <stdarg.h>
@@ -41,9 +42,10 @@ void Except__throw(char* file, int line, struct Except* eh, char* format, ...)
         }
         eh->exception(eh->message, eh);
     } else {
-        fprintf(stderr, "%s:%d ", subFile, line);
-        vfprintf(stderr, format, args);
-        fprintf(stderr, "\n");
+        char* msg = calloc(1024, 1);
+        snprintf(msg, 1023, "%s:%d ", subFile, line);
+        vsnprintf(&msg[CString_strlen(msg)], 1023 - CString_strlen(msg), format, args);
+        Rffi_panic(msg);
     }
     abort();
     exit(100);

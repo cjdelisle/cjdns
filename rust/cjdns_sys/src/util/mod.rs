@@ -1,4 +1,5 @@
 pub mod sockaddr;
+pub mod identity;
 
 pub mod events {
     use std::time::{SystemTime, UNIX_EPOCH};
