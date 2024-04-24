@@ -1,8 +1,7 @@
 //! Network interface from C part of the project.
 
-use std::sync::{Arc, Weak};
+use std::sync::{atomic::AtomicU32, Arc, Weak};
 use parking_lot::RwLock;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{bail, Result};
 
@@ -49,10 +48,7 @@ impl IfacePvt {
     }
 }
 
-fn kinda_random() -> u64 {
-    let t = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
-    t.as_secs() + t.subsec_nanos() as u64
-}
+static NEXT_IFACE_ID: AtomicU32 = AtomicU32::new(0); 
 
 /// Create a new cjdns Iface
 /// An Iface comprises two parts, the Iface and the IfacePvt
@@ -70,7 +66,7 @@ pub fn new<T: Into<String>>(name: T) -> (Iface, IfacePvt) {
     (
         Iface {
             name: Arc::clone(&n),
-            id: kinda_random(),
+            id: NEXT_IFACE_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
             peer_id: 0,
             peer_recv: Arc::downgrade(&a),
             our_recv: Some(Box::new(DefaultRecv{name: Arc::clone(&n)})),
@@ -106,10 +102,10 @@ pub struct Iface {
 
     /// Unique id of this interface, used to prevent the wrong
     /// iface being unplumbed
-    id: u64,
+    id: u32,
 
     /// Id of the iface we are plumbed to, if we are
-    peer_id: u64,
+    peer_id: u32,
 
     /// Our receiver, which is placed with the Ext so that it can be taken by the peer
     /// This is None if we're plumbed
@@ -119,9 +115,17 @@ pub struct Iface {
     peer_recv: Weak<RwLock<Option<Box<dyn IfRecv>>>>,
 }
 impl Iface {
+    pub fn new<T: Into<String>>(name: T) -> (Iface, IfacePvt) {
+        new(name)
+    }
+
     /// Get the name of the Iface
     pub fn name(&self) -> &str {
         &self.name
+    }
+
+    pub fn id(&self) -> u32 {
+        self.id
     }
 
     pub fn set_receiver_f<T, F>(&mut self, f: F, t: T) where

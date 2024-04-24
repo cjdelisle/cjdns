@@ -1,6 +1,6 @@
 use tokio::io::Interest;
 use tokio::io::unix::AsyncFd;
-use super::{Rffi_EventLoop, GCL};
+use super::GCL;
 use crate::cffi::{Allocator_t, Allocator__onFree, Allocator_OnFreeJob};
 use crate::rffi::allocator;
 use std::ffi::c_void;
@@ -37,7 +37,6 @@ pub extern "C" fn Rffi_pollFdReadable(
     cb: unsafe extern "C" fn(*mut c_void),
     cb_context: *mut c_void,
     fd: c_int,
-    event_loop: *mut Rffi_EventLoop,
     alloc: *mut Allocator_t,
 ) {
     let fd = match AsyncFd::with_interest(fd, Interest::READABLE) {
@@ -60,7 +59,6 @@ pub extern "C" fn Rffi_pollFdReadable(
         active: Arc::new(AtomicBool::new(true)),
     });
 
-    let event_loop = unsafe { (&*event_loop).arc_clone() };
     let active = Arc::clone(&rtx.active);
 
     unsafe {
@@ -75,7 +73,7 @@ pub extern "C" fn Rffi_pollFdReadable(
         *out = event_tx;
     }
 
-    event_loop.arc_clone().event_job(async move {
+    tokio::task::spawn(async move {
         loop {
             tokio::select! {
                 r = fd.readable() => {

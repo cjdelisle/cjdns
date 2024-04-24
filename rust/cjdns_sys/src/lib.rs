@@ -13,7 +13,7 @@ pub fn rust_main(cmain: unsafe extern "C" fn(c_int, *const *mut c_char)) {
         .collect::<Vec<_>>();
 
     tokio::runtime::Builder::new_multi_thread()
-        .worker_threads(8)
+        .worker_threads(1)
         .enable_all()
         .build()
         .unwrap()
@@ -48,23 +48,7 @@ pub mod external {
     }
 }
 
-mod interface {
-    #[allow(dead_code)]
-    pub mod wire {
-        pub mod ethernet;
-        pub mod headers;
-        pub mod message;
-    }
-
-    pub mod tuntap {
-        pub mod android;
-    }
-
-    pub mod rustiface_test_wrapper;
-
-    pub mod udpaddriface;
-}
-
+mod interface;
 mod bytestring;
 mod cffi;
 pub mod cjdnslog;

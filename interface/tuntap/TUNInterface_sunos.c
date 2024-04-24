@@ -15,7 +15,7 @@
 #include "interface/tuntap/TUNInterface.h"
 #include "util/AddrTools.h"
 #include "util/Identity.h"
-#include "util/events/Pipe.h"
+#include "util/events/Socket.h"
 #include "wire/Ethernet.h"
 #include "wire/Error.h"
 
@@ -46,7 +46,6 @@ struct TUNInterface_Illumos_pvt
 {
     struct Iface internalIf;
     struct Iface externalIf;
-    struct Pipe* const pipe;
     Identity
 };
 
@@ -183,16 +182,16 @@ Er_DEFUN(struct Iface* TUNInterface_new(const char* interfaceName,
 
     close(ipFd);
 
-    struct Pipe* p = Er(Pipe_forFd(tunFd, false, base, logger, alloc));
+    struct Iface* s = Er(Socket_forFd(tunFd, Socket_forFd_FRAMES, alloc));
 
     struct TUNInterface_Illumos_pvt* ctx =
         Allocator_clone(alloc, (&(struct TUNInterface_Illumos_pvt) {
-            .pipe = p,
             .externalIf = { .send = incomingFromWire },
             .internalIf = { .send = incomingFromUs },
         }));
-    Iface_plumb(&ctx->externalIf, p);
+    Iface_plumb(&ctx->externalIf, s);
     Identity_set(ctx);
 
-    Er_ret(&ctx->generic);
+    // TODO(cjd): This needs to be tested
+    Er_ret(&ctx->internalIf);
 }

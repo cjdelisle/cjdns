@@ -16,7 +16,6 @@
 #define Event_H
 
 #include "memory/Allocator.h"
-#include "util/events/EventBase.h"
 #include "exception/Er.h"
 #include "util/Linker.h"
 Linker_require("util/events/libuv/Event.c")
@@ -24,7 +23,6 @@ Linker_require("util/events/libuv/Event.c")
 Er_DEFUN(void Event_socketRead(void (* const callback)(void* callbackContext),
                       void* const callbackContext,
                       int s,
-                      struct EventBase* base,
                       struct Allocator* alloc));
 
 #endif

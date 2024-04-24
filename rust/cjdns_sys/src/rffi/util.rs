@@ -7,19 +7,19 @@ use std::os::raw::{c_char, c_int};
 
 #[no_mangle]
 pub unsafe extern "C" fn Rffi_testwrapper_create(a: *mut Allocator_t) -> RTypes_IfWrapper_t {
-    let w = crate::interface::rustiface_test_wrapper::TestWrapper::default();
+    let mut w = crate::interface::rustiface_test_wrapper::TestWrapper::default();
     RTypes_IfWrapper_t {
-        external: cif::wrap(a, w.ext),
-        internal: cif::wrap(a, w.int),
+        external: cif::wrap(a, &mut w.ext),
+        internal: cif::wrap(a, &mut w.int),
     }
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn Rffi_android_create(a: *mut Allocator_t) -> RTypes_IfWrapper_t {
-    let w = crate::interface::tuntap::android::AndroidWrapper::default();
+    let mut w = crate::interface::tuntap::android::AndroidWrapper::default();
     RTypes_IfWrapper_t {
-        external: cif::wrap(a, w.ext),
-        internal: cif::wrap(a, w.int),
+        external: cif::wrap(a, &mut w.ext),
+        internal: cif::wrap(a, &mut w.int),
     }
 }
 

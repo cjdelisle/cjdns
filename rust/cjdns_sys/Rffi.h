@@ -16,6 +16,8 @@ typedef struct Rffi_FdReadableTx Rffi_FdReadableTx;
  */
 typedef struct Rffi_Glock_guard Rffi_Glock_guard;
 
+typedef struct Rffi_SocketServer Rffi_SocketServer;
+
 /**
  * The handle returned to C, used to talk to the timer task.
  */
@@ -170,7 +172,6 @@ void Rffi_pollFdReadable(Rffi_FdReadableTx **out,
                          void (*cb)(void*),
                          void *cb_context,
                          int fd,
-                         Rffi_EventLoop *event_loop,
                          Allocator_t *alloc);
 
 int32_t Rffi_udpIfaceGetFd(Rffi_UDPIface_pvt *iface);
@@ -183,6 +184,21 @@ void Rffi_udpIfaceNew(Rffi_UDPIface **outp,
                       const char **errout,
                       const Sockaddr_t *bind_addr,
                       Allocator_t *c_alloc);
+
+RTypes_Error_t *Rffi_fileExists(bool *existsOut, const char *path, Allocator_t *errorAlloc);
+
+RTypes_Error_t *Rffi_socketForFd(Iface_t **ifOut, int fd, int socket_type, Allocator_t *alloc);
+
+RTypes_Error_t *Rffi_unixSocketConnect(Iface_t **ifOut, const char *path, Allocator_t *alloc);
+
+void Rffi_unixSocketServerOnConnect(Rffi_SocketServer *rss,
+                                    void (*f)(void*, const Sockaddr_t*),
+                                    void *ctx);
+
+RTypes_Error_t *Rffi_unixSocketServer(Rffi_SocketServer **rssOut,
+                                      Iface_t **ifaceOut,
+                                      const char *path,
+                                      Allocator_t *alloc);
 
 /**
  * Convert IPv4 and IPv6 addresses from binary to text form.

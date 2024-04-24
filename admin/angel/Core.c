@@ -34,7 +34,6 @@
 #include "interface/Iface.h"
 #include "util/events/UDPAddrIface.h"
 #include "interface/tuntap/TUNInterface.h"
-#include "interface/tuntap/SocketInterface.h"
 #include "interface/tuntap/SocketWrapper.h"
 #include "interface/UDPInterface_admin.h"
 #ifdef HAS_ETH_INTERFACE
@@ -56,8 +55,7 @@
 #include "tunnel/IpTunnel_admin.h"
 #include "tunnel/RouteGen_admin.h"
 #include "util/events/EventBase.h"
-#include "util/events/Pipe.h"
-#include "util/events/PipeServer.h"
+#include "util/events/Socket.h"
 #include "util/events/Timeout.h"
 #include "util/events/libuv/Glock.h"
 #include "util/Hex.h"
@@ -166,8 +164,7 @@ static Er_DEFUN(void initSocket2(String* socketFullPath,
     }
     ctx->tunAlloc = Allocator_child(ctx->alloc);
 
-    struct Iface* rawSocketIf = Er(SocketInterface_new(
-        socketFullPath->bytes, ctx->base, ctx->logger, ctx->tunAlloc));
+    struct Iface* rawSocketIf = Er(Socket_connect(socketFullPath->bytes, ctx->tunAlloc));
     struct SocketWrapper* sw = SocketWrapper_new(ctx->tunAlloc, ctx->logger);
     Iface_plumb(&sw->externalIf, rawSocketIf);
 
@@ -228,7 +225,7 @@ static void initTunfd(Dict* args, void* vcontext, String* txid, struct Allocator
 
     struct Allocator* tunAlloc = Allocator_child(ctx->alloc);
     struct Er_Ret* er = NULL;
-    struct Pipe* p = Er_check(&er, Pipe_forFd(fileno, false, ctx->base, ctx->logger, tunAlloc));
+    struct Iface* socketIf = Er_check(&er, Socket_forFd(fileno, Socket_forFd_FRAMES, tunAlloc));
     if (er) {
         Log_debug(ctx->logger, "Failed to create pipe [%s]", er->message);
         String* error =
@@ -239,10 +236,10 @@ static void initTunfd(Dict* args, void* vcontext, String* txid, struct Allocator
     struct Iface* iface = NULL;
     if (type == TUNMessageType_NONE) {
         RTypes_IfWrapper_t aw = Rffi_android_create(tunAlloc);
-        Iface_plumb(aw.external, &p->iface);
+        Iface_plumb(aw.external, socketIf);
         iface = aw.internal;
     } else {
-        iface = &p->iface;
+        iface = socketIf;
     }
 
     if (ctx->tunDevice) {
@@ -453,10 +450,10 @@ int Core_main(int argc, char** argv)
 
     struct Allocator* tempAlloc = Allocator_child(alloc);
     // Not using tempalloc because we're going to keep this pipe around for admin
-    struct PipeServer* clientPipe = PipeServer_named(argv[2], eventBase, eh, logger, alloc);
+    Socket_Server_t* ss = Except_er(eh, Socket_server(argv[2], alloc));
     Log_debug(logger, "Getting pre-configuration from client");
     struct Message* preConf =
-        InterfaceWaiter_waitForData(clientPipe->iface.iface, eventBase, tempAlloc, eh);
+        InterfaceWaiter_waitForData(ss->iface, eventBase, tempAlloc, eh);
     Log_debug(logger, "Finished getting pre-configuration from client");
     struct Sockaddr* addr = Sockaddr_clone(Er_assert(AddrIface_popAddr(preConf)), tempAlloc);
     Dict* config = Except_er(eh, BencMessageReader_read(preConf, tempAlloc));
@@ -497,7 +494,7 @@ int Core_main(int argc, char** argv)
     // ---- Setup a muxer so we can get admin from socket or UDP ---- //
     struct AddrIfaceMuxer* muxer = AddrIfaceMuxer_new(logger, alloc);
     Iface_plumb(udpAdmin->generic.iface, AddrIfaceMuxer_registerIface(muxer, alloc));
-    Iface_plumb(clientPipe->iface.iface, AddrIfaceMuxer_registerIface(muxer, alloc));
+    Iface_plumb(ss->iface, AddrIfaceMuxer_registerIface(muxer, alloc));
 
     // --------------------- Setup Admin --------------------- //
     struct Admin* admin = Admin_new(&muxer->iface, logger, eventBase, pass);
@@ -527,7 +524,7 @@ int Core_main(int argc, char** argv)
     struct Message* clientResponse = Message_new(0, 512, tempAlloc);
     Er_assert(BencMessageWriter_write(&response, clientResponse));
     Er_assert(AddrIface_pushAddr(clientResponse, addr));
-    Iface_CALL(clientPipe->iface.iface->send, clientResponse, clientPipe->iface.iface);
+    Iface_CALL(ss->iface->send, clientResponse, ss->iface);
 
     Allocator_free(tempAlloc);
 

@@ -14,9 +14,10 @@
  */
 #include "benc/String.h"
 #include "crypto/random/Random.h"
+#include "rust/cjdns_sys/Rffi.h"
 #include "util/events/EventBase.h"
-#include "util/events/PipeServer.h"
 #include "util/events/Pipe.h"
+#include "util/events/Socket.h"
 #include "util/events/Timeout.h"
 #include "memory/Allocator.h"
 #include "util/events/Process.h"
@@ -26,6 +27,7 @@
 #include "util/Assert.h"
 #include "wire/Message.h"
 #include "wire/Error.h"
+#include "interface/addressable/AddrIface.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -52,9 +54,10 @@ struct Context {
     Identity
 };
 
-static void onConnectionParent(struct PipeServer* p, struct Sockaddr* addr)
+static void onConnectionParent(void* context, const struct Sockaddr* addr)
 {
-    struct Context* c = Identity_check((struct Context*) p->userData);
+    printf("onConnectionParent\n");
+    struct Context* c = Identity_check((struct Context*) context);
     struct Allocator* alloc = Allocator_child(c->alloc);
     struct Message* msg = Message_new(0, 256, alloc);
     Er_assert(Message_epush(msg, MESSAGE, CString_strlen(MESSAGE) + 1));
@@ -74,6 +77,7 @@ static Iface_DEFUN receiveMessageParent(struct Message* msg, struct Iface* iface
 {
     struct Context* c = Identity_check((struct Context*) iface);
     Er_assert(AddrIface_popAddr(msg));
+    printf("msg length is %d\n", Message_getLength(msg));
     Assert_true(Message_getLength(msg) == (int)CString_strlen(MESSAGEB)+1);
     Assert_true(!Bits_memcmp(msg->msgbytes, MESSAGEB, CString_strlen(MESSAGEB)+1));
     g_context = c;
@@ -89,22 +93,28 @@ static void timeout(void* vNULL)
     Assert_true(!"timed out.");
 }
 
-static void onConnectionChild(struct Pipe* p, int status)
-{
-    Assert_true(!status);
-    printf("Child connected\n");
+static int childDone(struct Allocator_OnFreeJob* ofj) {
+    printf("Shutdown child\n");
+    struct Context* c = Identity_check((struct Context*) ofj->userData);
+    EventBase_endLoop(c->base);
+    // This causes a segfault because the logger calles into freed memory
+    // Allocator_free(c->rootAlloc);
+    return 0;
 }
 
 static Iface_DEFUN receiveMessageChild(struct Message* msg, struct Iface* iface)
 {
     struct Context* c = Identity_check((struct Context*) iface);
-    struct Message* m = Message_clone(msg, c->alloc);
+    Allocator_t* alloc = Allocator_child(c->alloc);
+    Allocator_t* alloc1 = Allocator_child(alloc);
+    struct Message* m = Message_clone(msg, alloc1);
     printf("Child received message\n");
     Assert_true(Message_getLength(m) == (int)CString_strlen(MESSAGE)+1);
     Assert_true(!Bits_memcmp(m->msgbytes, MESSAGE, CString_strlen(MESSAGE)+1));
 
     if (!Defined(win32)) {
         int fd = Message_getAssociatedFd(msg);
+        Assert_true(fd > -1);
         if (lseek(fd, 0, SEEK_SET) < 0) {
             printf("lseek(%d) failed: errno %s\n", fd, strerror(errno));
             Assert_failure("lseek()");
@@ -124,25 +134,27 @@ static Iface_DEFUN receiveMessageChild(struct Message* msg, struct Iface* iface)
     Er_assert(Message_eshift(m, -((int)CString_strlen(MESSAGE))));
     Er_assert(Message_epush(m, MESSAGEB, CString_strlen(MESSAGEB)));
 
+    Allocator_onFree(alloc1, childDone, c);
+
     Iface_send(&c->iface, m);
 
-    exit(0);
+    Allocator_free(alloc);
+
+//    exit(0);
 
     // shutdown
-    Allocator_free(c->rootAlloc);
+    // Allocator_free(c->rootAlloc);
 
     return NULL;
 }
 
 static void child(char* name, struct Context* ctx)
 {
-    struct Pipe* pipe = Er_assert(Pipe_named(name, ctx->base, ctx->log, ctx->alloc));
-    pipe->onConnection = onConnectionChild;
-    pipe->userData = ctx;
+    Iface_t* iface = Er_assert(Socket_connect(name, ctx->alloc));
     ctx->iface.send = receiveMessageChild;
     ctx->name = name;
-    Iface_plumb(&ctx->iface, &pipe->iface);
-    Timeout_setTimeout(timeout, NULL, 2000, ctx->base, ctx->alloc);
+    Iface_plumb(&ctx->iface, iface);
+    Timeout_setTimeout(timeout, NULL, 10000, ctx->base, ctx->alloc);
     EventBase_beginLoop(ctx->base);
 }
 
@@ -154,7 +166,8 @@ static void onChildExit(int64_t exit_status, int term_signal)
     g_childStopped = true;
     if (g_context) {
         printf("Parent stopped in onChildExit\n");
-        Allocator_free(g_context->rootAlloc);
+        EventBase_endLoop(g_context->base);
+        // Allocator_free(g_context->rootAlloc);
     }
 }
 
@@ -164,6 +177,7 @@ int main(int argc, char** argv)
     struct EventBase* eb = EventBase_new(allocator);
     struct Allocator* alloc = Allocator_child(allocator);
     struct Log* log = FileWriterLog_new(stdout, alloc);
+    Rffi_setLogger(log);
     struct Context* ctx = Allocator_calloc(alloc, sizeof(struct Context), 1);
     Identity_set(ctx);
     ctx->alloc = alloc;
@@ -191,10 +205,9 @@ int main(int argc, char** argv)
         unlink(textName->bytes);
     }
 
-    struct PipeServer* pipe = PipeServer_named(name->bytes, eb, NULL, log, alloc);
-    pipe->userData = ctx;
-    pipe->onConnection = onConnectionParent;
-    Iface_plumb(&ctx->iface, pipe->iface.iface);
+    Socket_Server_t* ss = Er_assert(Socket_server(name->bytes, alloc));
+    Socket_serverOnConnect(ss, onConnectionParent, ctx);
+    Iface_plumb(&ctx->iface, ss->iface);
 
     const char* path = Process_getPath(alloc);
 
@@ -214,7 +227,7 @@ int main(int argc, char** argv)
 
     Assert_true(!Process_spawn(path, args, eb, alloc, onChildExit));
 
-    Timeout_setTimeout(timeout, NULL, 2000, eb, alloc);
+    Timeout_setTimeout(timeout, NULL, 10000, eb, alloc);
 
     EventBase_beginLoop(eb);
 

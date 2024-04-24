@@ -21,25 +21,6 @@
 #include "util/events/EventBase.h"
 #include "util/log/Log.h"
 #include "util/Linker.h"
-Linker_require("util/events/libuv/Pipe.c")
-
-#include <stdbool.h>
-
-struct Pipe;
-typedef void (* Pipe_callback)(struct Pipe* p, int status);
-
-struct Pipe
-{
-    struct Iface iface;
-
-    /** The name of the file eg: "/tmp/cjdns_pipe_foo" */
-    const char* const fullName;
-
-    void* userData;
-
-    Pipe_callback onConnection;
-    Pipe_callback onClose;
-};
 
 #define Pipe_PADDING_AMOUNT 512
 #define Pipe_BUFFER_CAP 4000
@@ -59,18 +40,5 @@ struct Pipe
         #define Pipe_PATH "/tmp"
     #endif
 #endif
-
-Er_DEFUN(struct Pipe* Pipe_forFd(int fd,
-                        bool ipc,
-                        struct EventBase* eb,
-                        struct Log* log,
-                        struct Allocator* userAlloc));
-
-Er_DEFUN(struct Pipe* Pipe_named(const char* fullPath,
-                        struct EventBase* eb,
-                        struct Log* log,
-                        struct Allocator* userAlloc));
-
-Er_DEFUN(bool Pipe_exists(const char* path, struct Allocator* errAlloc));
 
 #endif

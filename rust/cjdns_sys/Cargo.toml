@@ -21,6 +21,9 @@ tokio = { version = "1.25", features = ["macros","time","sync","fs","rt-multi-th
 once_cell = "1.9"
 async-recursion = "1"
 socket2 = "0"
+libc = "0"
+num_cpus = "1"
+async-trait = "0.1"
 
 [build_dependencies]
 cc = "1.0"

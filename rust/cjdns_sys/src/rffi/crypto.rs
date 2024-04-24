@@ -95,13 +95,13 @@ fn wrap_session(
     session: Arc<dyn crate::crypto::session::SessionTrait>,
     alloc: *mut Allocator_t,
 ) -> *mut RTypes_CryptoAuth2_Session_t {
-    let (plaintext, ciphertext) = session.ifaces().unwrap();
+    let (mut plaintext, mut ciphertext) = session.ifaces().unwrap();
     let out = allocator::adopt(
         alloc,
         Rffi_CryptoAuth2_Session_t {
             r: RTypes_CryptoAuth2_Session_t {
-                ciphertext: cif::wrap(alloc, ciphertext),
-                plaintext: cif::wrap(alloc, plaintext),
+                ciphertext: cif::wrap(alloc, &mut ciphertext),
+                plaintext: cif::wrap(alloc, &mut plaintext),
             },
             s: session,
         },

@@ -84,7 +84,7 @@ fn new<T: Into<String>>(alloc: *mut Allocator_t, name: T) -> (Iface, *mut cffi::
 }
 
 /// Helper function which just creates a C-iface to wrap an Iface
-pub fn wrap(alloc: *mut Allocator_t, mut iface: Iface) -> *mut cffi::Iface {
+pub fn wrap(alloc: *mut Allocator_t, iface: &mut Iface) -> *mut cffi::Iface {
     let (mut ext, cext) = new(alloc, format!("cif::wrap({})", &iface.name));
     iface.plumb(&mut ext).unwrap();
     cext

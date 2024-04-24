@@ -34,7 +34,7 @@ impl IfRecv for Arc<UDPAddrIfaceInternal> {
         let sa =
             Sockaddr::try_from(m.bytes()).context("Getting address from message")?;
         m.discard_bytes(sa.byte_len())?;
-        let sa = sa.rs();
+        let sa = sa.rs()?;
         self.to_go_out_send.try_send((m, sa)).context("Not enough buffer space to send pkt")?;
         Ok(())
     }

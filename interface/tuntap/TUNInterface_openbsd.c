@@ -16,7 +16,7 @@
 #include "exception/Except.h"
 #include "interface/tuntap/BSDMessageTypeWrapper.h"
 #include "util/AddrTools.h"
-#include "util/events/Pipe.h"
+#include "util/events/Socket.h"
 
 #include <errno.h>
 #include <ctype.h>
@@ -75,9 +75,9 @@ Er_DEFUN(struct Iface* TUNInterface_new(const char* interfaceName,
             snprintf(assignedInterfaceName, TUNInterface_IFNAMSIZ, "tun%d", ppa);
         }
     }
-    struct Pipe* p = Er(Pipe_forFd(tunFd, false, base, logger, alloc));
+    struct Iface* s = Er(Socket_forFd(tunFd, Socket_forFd_FRAMES, alloc));
 
     struct BSDMessageTypeWrapper* bmtw = BSDMessageTypeWrapper_new(alloc, logger);
-    Iface_plumb(&p->iface, &bmtw->wireSide);
+    Iface_plumb(s, &bmtw->wireSide);
     Er_ret(&bmtw->inside);
 }

@@ -21,10 +21,8 @@
 Er_DEFUN(void Event_socketRead(void (* const callback)(void* callbackContext),
                       void* const callbackContext,
                       int s,
-                      struct EventBase* eventBase,
                       struct Allocator* userAlloc))
 {
-    struct EventBase_pvt* base = EventBase_privatize(eventBase);
     Rffi_FdReadableTx* out = NULL;
     const char* errout = NULL;
     Rffi_pollFdReadable(
@@ -33,7 +31,6 @@ Er_DEFUN(void Event_socketRead(void (* const callback)(void* callbackContext),
         callback,
         callbackContext,
         s,
-        base->rffi_loop,
         userAlloc);
     if (errout != NULL) {
         Er_raise(userAlloc, "Event_socketRead error: %s", errout);

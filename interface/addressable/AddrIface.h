@@ -40,7 +40,7 @@ typedef struct AddrIface
     struct Allocator* alloc;
 } AddrIface_t;
 
-static inline Er_DEFUN(void AddrIface_pushAddr(struct Message* msg, struct Sockaddr* addr))
+static inline Er_DEFUN(void AddrIface_pushAddr(struct Message* msg, const struct Sockaddr* addr))
 {
     Er(Message_epush(msg, addr, addr->addrLen));
     Er_ret();

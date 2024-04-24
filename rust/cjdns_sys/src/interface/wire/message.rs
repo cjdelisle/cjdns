@@ -407,6 +407,28 @@ impl Message {
             self.shift(-size).expect("clear");
         }
     }
+
+    /// Set the accompanying file descriptor in this message
+    pub fn set_fd(&mut self, fd: i32) {
+        unsafe {
+            (*self.msg)._associatedFd = match fd {
+                0 => -1,
+                -1 => 0,
+                fd => fd
+            };
+        }
+    }
+
+    /// Get the accompanying file descriptor from this message
+    pub fn get_fd(&self) -> i32 {
+        unsafe {
+            match (*self.msg)._associatedFd {
+                0 => -1,
+                -1 => 0,
+                fd => fd
+            }
+        }
+    }
 }
 
 #[cfg(test)]

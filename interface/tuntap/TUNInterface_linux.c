@@ -16,8 +16,8 @@
 #include "exception/Except.h"
 #include "memory/Allocator.h"
 #include "util/events/EventBase.h"
-#include "util/events/Pipe.h"
 #include "util/CString.h"
+#include "util/events/Socket.h"
 
 #include <errno.h>
 #include <stdio.h>
@@ -73,7 +73,7 @@ Er_DEFUN(struct Iface* TUNInterface_new(const char* interfaceName,
         CString_safeStrncpy(assignedInterfaceName, ifRequest.ifr_name, maxNameSize);
     }
 
-    struct Pipe* p = Er(Pipe_forFd(tunFd, false, base, logger, alloc));
+    struct Iface* s = Er(Socket_forFd(tunFd, Socket_forFd_FRAMES, alloc));
 
-    Er_ret(&p->iface);
+    Er_ret(s);
 }

@@ -110,6 +110,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-trait"
+version = "0.1.76"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "531b97fb4cd3dfdce92c35dedbfdc1f0b9d8091c8ca943d6dae340ef5012d514"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.39",
+]
+
+[[package]]
 name = "atty"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -364,6 +375,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-recursion",
+ "async-trait",
  "bindgen",
  "boringtun",
  "cbindgen",
@@ -371,7 +383,9 @@ dependencies = [
  "cjdns-crypto",
  "cjdns-keys",
  "hex",
+ "libc",
  "log",
+ "num_cpus",
  "once_cell",
  "parking_lot 0.11.1",
  "pnet",

@@ -12,6 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+#include "util/events/Socket.h"
 #define _POSIX_C_SOURCE 200112L
 #include "client/AdminClient.h"
 #include "admin/angel/Core.h"
@@ -780,7 +781,7 @@ int cjdroute2_main(int argc, char** argv)
     // cycle for up to 1 minute
     int exists = 0;
     for (int i = 0; i < 2 * 10 * 60; i++) {
-        if (Except_er(eh, Pipe_exists(pipePath->bytes, allocator))) {
+        if (Except_er(eh, Socket_fileExists(pipePath->bytes, allocator))) {
             exists = 1;
             break;
         }
@@ -794,8 +795,7 @@ int cjdroute2_main(int argc, char** argv)
     }
 
     // --------------------- Connect to socket ------------------------- //
-    struct Pipe* corePipe =
-        Except_er(eh, Pipe_named(pipePath->bytes, eventBase, logger, allocator));
+    Iface_t* corePipe = Except_er(eh, Socket_connect(pipePath->bytes, allocator));
 
     // --------------------- Pre-Configure Core ------------------------- //
     Dict* preConf = Dict_new(allocator);
@@ -811,14 +811,14 @@ int cjdroute2_main(int argc, char** argv)
 
     struct Message* toCoreMsg = Message_new(0, 1024, allocator);
     Er_assert(BencMessageWriter_write(preConf, toCoreMsg));
-    Iface_CALL(corePipe->iface.send, toCoreMsg, &corePipe->iface);
+    Iface_CALL(corePipe->send, toCoreMsg, corePipe);
 
     Log_debug(logger, "Sent [%d] bytes to core", Message_getLength(toCoreMsg));
 
     // --------------------- Get Response from Core --------------------- //
 
     struct Message* fromCoreMsg =
-        InterfaceWaiter_waitForData(&corePipe->iface, eventBase, allocator, eh);
+        InterfaceWaiter_waitForData(corePipe, eventBase, allocator, eh);
     Dict* responseFromCore = Except_er(eh, BencMessageReader_read(fromCoreMsg, allocator));
 
     // --------------------- Close the Core Pipe --------------------- //

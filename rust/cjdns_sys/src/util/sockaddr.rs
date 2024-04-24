@@ -5,6 +5,10 @@ use crate::cffi;
 use std::convert::TryFrom;
 use std::convert::TryInto;
 
+pub const OVERHEAD: usize = std::mem::size_of::<crate::cffi::Sockaddr>();
+pub const TYPE_PLATFORM: u8 = 0;
+pub const TYPE_HANDLE: u8 = 1;
+
 pub struct Sockaddr {
     ss: cffi::Sockaddr_storage
 }
@@ -22,24 +26,37 @@ impl Sockaddr {
         let ss = allocator::adopt(a, self.ss.clone());
         unsafe { &mut (*ss).addr as *mut _ }
     }
-    pub fn rs(&self) -> SocketAddr {
-        unsafe {
-            let mut addr = [0u8; 16];
-            cffi::Sockaddr_asIp6(addr[..].as_mut_ptr(), &self.ss.addr as *const _);
-            let af = cffi::Sockaddr_getFamily(&self.ss.addr as *const _);
-            let ip = if af == cffi::Sockaddr_AF_INET {
-                let x: [u8; 4] = (&addr[12..]).try_into().unwrap();
-                IpAddr::V4(Ipv4Addr::from(x))
-            } else if af == cffi::Sockaddr_AF_INET6 {
-                let x: [u8; 16] = (&addr[..]).try_into().unwrap();
-                IpAddr::V6(Ipv6Addr::from(x))
-            } else {
-                panic!("Sockaddr_getFamily() returned [{}], not v4 [{}] or v6 [{}]", af,
-                    cffi::Sockaddr_AF_INET, cffi::Sockaddr_AF_INET6);
-            };
-            let port = cffi::Sockaddr_getPort(&self.ss.addr as *const _);
-            SocketAddr::new(ip, port as u16)
+    pub fn rs(&self) -> anyhow::Result<SocketAddr> {
+        SocketAddr::try_from(self)
+    }
+    pub fn as_handle(&self) -> Option<u32> {
+        if self.ss.addr.addrLen != OVERHEAD as _ || self.ss.addr.type_ != TYPE_HANDLE {
+            None
+        } else {
+            let mut buf = [
+                self.ss.addr.prefix,
+                self.ss.addr.pad1,
+                0,
+                0,
+            ];
+            let pad2 = u16::to_le_bytes(self.ss.addr.pad2);
+            buf[2] = pad2[0];
+            buf[3] = pad2[1];
+            Some(u32::from_le_bytes(buf))
         }
+    }
+}
+impl From<u32> for Sockaddr {
+    fn from(value: u32) -> Self {
+        let mut out = Self{ss: unsafe { std::mem::zeroed() } };
+        // handle
+        out.ss.addr.addrLen = OVERHEAD as _;
+        out.ss.addr.type_ = TYPE_HANDLE;
+        let value_bytes = value.to_le_bytes();
+        out.ss.addr.prefix = value_bytes[0];
+        out.ss.addr.pad1 = value_bytes[1];
+        out.ss.addr.pad2 = u16::from_le_bytes([value_bytes[2], value_bytes[3]]);
+        out
     }
 }
 impl TryFrom<&[u8]> for Sockaddr {
@@ -101,30 +118,35 @@ impl From<&SocketAddr> for Sockaddr {
         out
     }
 }
-impl From<&Sockaddr> for SocketAddr {
-    fn from(sa: &Sockaddr) -> Self {
+impl TryFrom<&Sockaddr> for SocketAddr {
+    type Error = anyhow::Error;
+    fn try_from(sa: &Sockaddr) -> anyhow::Result<Self> {
         let mut ip = [0u8; 16];
-        let (port, is_ip6) = unsafe {
+        let (port, is_ip6, is_handle) = unsafe {
             cffi::Sockaddr_asIp6(&mut ip as *mut _, &sa.ss.addr as *const _);
             (
                 cffi::Sockaddr_getPort(&sa.ss.addr as *const _),
                 cffi::Sockaddr_getFamily(&sa.ss.addr as *const _) == cffi::Sockaddr_AF_INET6,
+                sa.ss.addr.type_ != 0
             )
         };
+        if is_handle {
+            anyhow::bail!("Cannot convert handle type Sockaddr to SocketAddr");
+        }
         if is_ip6 {
-            SocketAddr::V6(SocketAddrV6::new(
+            Ok(SocketAddr::V6(SocketAddrV6::new(
                 Ipv6Addr::from(ip),
                 port as u16,
                 0,
                 0,
-            ))
+            )))
         } else {
             let mut ip4 = [0u8; 4];
             ip4.copy_from_slice(&ip[12..]);
-            SocketAddr::V4(SocketAddrV4::new(
+            Ok(SocketAddr::V4(SocketAddrV4::new(
                 Ipv4Addr::from(ip4),
                 port as u16,
-            ))
+            )))
         }
     }
 }
@@ -132,9 +154,12 @@ impl From<&Sockaddr> for SocketAddr {
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
+    use cjdns_crypto::hash::sha256;
     use std::convert::TryFrom;
     use super::SocketAddr;
     use super::Sockaddr;
+    use std::time::SystemTime;
+    use std::time::UNIX_EPOCH;
 
     #[test]
     fn test_sockaddr_roundtrip() -> Result<()> {
@@ -147,9 +172,30 @@ mod tests {
             let sa1 = Sockaddr::from(&sa);
             let sa2 = sa1.bytes();
             let sa3 = Sockaddr::try_from(sa2)?;
-            let sa2 = SocketAddr::from(&sa3);
+            let sa2 = SocketAddr::try_from(&sa3).unwrap();
             assert_eq!(sa, sa2);
         }
         Ok(())
+    }
+
+    fn kinda_random() -> u64 {
+        let t = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+        t.as_secs() + t.subsec_nanos() as u64
+    }
+
+    #[test]
+    fn handle_test() {
+        for _ in 0..100 {
+            let rand_u64 = kinda_random().to_le_bytes();
+            let h = sha256::hash(&rand_u64);
+            let mut rand_handle_bytes = [0_u8; 4];
+            rand_handle_bytes.copy_from_slice(&h.0[0..4]);
+            let rand_handle = u32::from_le_bytes(rand_handle_bytes);
+            //println!("Testing with handle: [{rand_handle:#0x}]");
+            let sa = Sockaddr::from(rand_handle);
+            assert_eq!(rand_handle, sa.as_handle().unwrap());
+            let c_handle = unsafe { crate::cffi::Sockaddr_addrHandle(&sa.ss.addr as _) };
+            assert_eq!(rand_handle, c_handle);
+        }
     }
 }

@@ -55,10 +55,10 @@ pub extern "C" fn Rffi_udpIfaceNew(
     let addr = if bind_addr.is_null() {
         "0.0.0.0:0".parse().unwrap()
     } else {
-        Sockaddr::from(bind_addr).rs()
+        Sockaddr::from(bind_addr).rs().unwrap()
     };
     log::info!("Binding UDP socket: {addr}");
-    let (udp, iface) = match UDPAddrIface::new(&addr) {
+    let (udp, mut iface) = match UDPAddrIface::new(&addr) {
         Ok(uai) => uai,
         Err(e) => {
             let e = e.to_string();
@@ -71,7 +71,7 @@ pub extern "C" fn Rffi_udpIfaceNew(
 
     let local_addr = Sockaddr::from(&udp.local_addr).c(c_alloc);
 
-    let iface = cif::wrap(c_alloc, iface);
+    let iface = cif::wrap(c_alloc, &mut iface);
 
     let out = allocator::adopt(c_alloc, Rffi_UDPIface{
         pvt: allocator::adopt(c_alloc, Rffi_UDPIface_pvt{

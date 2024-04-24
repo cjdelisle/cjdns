@@ -279,7 +279,7 @@ Er_DEFUN(struct ETHInterface* ETHInterface_new(struct EventBase* eventBase,
 
     Socket_makeNonBlocking(ctx->socket);
 
-    Er(Event_socketRead(handleEvent, ctx, ctx->socket, eventBase, alloc));
+    Er(Event_socketRead(handleEvent, ctx, ctx->socket, alloc));
 
     Er_ret(&ctx->pub);
 }

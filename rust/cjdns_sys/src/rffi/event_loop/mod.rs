@@ -13,6 +13,7 @@ mod process;
 mod timeout;
 mod fd_readable;
 mod udp;
+mod unix_socket;
 
 /// The guard of an acquired [`GCL`].
 pub struct Rffi_Glock_guard(ReentrantMutexGuard<'static, ()>);
@@ -78,7 +79,7 @@ impl Rffi_EventLoop {
     fn decr_ref(&self) -> u32 {
         let _l = GCL.lock();
         let ret = self.0.ref_ctr.fetch_sub(1, Ordering::SeqCst);
-        unsafe { cffi::EventBase_wakeup(self.0.base) };
+        //unsafe { cffi::EventBase_wakeup(self.0.base) };
         ret
     }
     fn curr_ref(&self) -> u32 {

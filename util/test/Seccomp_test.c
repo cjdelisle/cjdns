@@ -13,16 +13,18 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "benc/String.h"
+#include "util/Identity.h"
 #include "util/log/FileWriterLog.h"
 #include "memory/Allocator.h"
 #include "util/Seccomp.h"
 #include "util/events/EventBase.h"
 #include "util/events/Process.h"
-#include "util/events/PipeServer.h"
 #include "util/events/Pipe.h"
+#include "util/events/Socket.h"
 #include "util/events/Timeout.h"
 #include "util/CString.h"
 #include "crypto/random/Random.h"
+#include "interface/addressable/AddrIface.h"
 
 #include <unistd.h>
 
@@ -34,42 +36,51 @@ struct Context
     Identity
 };
 
-static void childComplete(void* vEventBase)
-{
-    EventBase_endLoop((struct EventBase*)vEventBase);
-}
-
 struct ChildCtx
 {
     struct EventBase* base;
     struct Log* log;
-    struct Pipe* pipe;
+    Iface_t* socket;
     struct Allocator* alloc;
     Identity
 };
 
-static void onConnectionChild(struct Pipe* pipe, int status)
-{
-    struct ChildCtx* child = Identity_check((struct ChildCtx*) pipe->userData);
-
-    Er_assert(Seccomp_dropPermissions(child->alloc, child->log));
-    Assert_true(Seccomp_isWorking());
-
-    struct Message* ok = Message_new(0, 512, child->alloc);
-    Er_assert(Message_epush(ok, "OK", 3));
-
-    struct Iface iface = { .send = NULL };
-    Iface_plumb(&pipe->iface, &iface);
-    Iface_send(&iface, ok);
-
-    // just set a timeout long enough that we're pretty sure the parent will get the message
-    // before we quit.
-    Timeout_setInterval(childComplete, child->base, 10, child->base, child->alloc);
+static int childMessageSent(struct Allocator_OnFreeJob* j) {
+    struct ChildCtx* child = Identity_check((struct ChildCtx*) j->userData);
+    printf("Child shutting down\n");
+    EventBase_endLoop(child->base);
+    return 0;
 }
 
 static void timeout(void* vNULL)
 {
     Assert_true(!"timed out");
+}
+
+static void onConnectionChild(struct ChildCtx* child)
+{
+    Er_assert(Seccomp_dropPermissions(child->alloc, child->log));
+    Assert_true(Seccomp_isWorking());
+
+    Allocator_t* alloc = Allocator_child(child->alloc);
+    Allocator_t* alloc1 = Allocator_child(alloc);
+
+    struct Message* ok = Message_new(0, 512, alloc1);
+    Er_assert(Message_epush(ok, "OK", 3));
+
+    struct Iface iface = { .send = NULL };
+    Iface_plumb(child->socket, &iface);
+    Iface_send(&iface, ok);
+
+    Allocator_onFree(alloc1, childMessageSent, child);
+
+    Allocator_free(alloc);
+
+    // just set a timeout long enough that we're pretty sure the parent will get the message
+    // before we quit.
+    // Timeout_setInterval(childComplete, child->base, 10, child->base, child->alloc);
+    Timeout_setTimeout(timeout, child->base, 2000, child->base, alloc);
+    EventBase_beginLoop(child->base);
 }
 
 static void timeout2(void* vNULL)
@@ -83,13 +94,9 @@ static int child(char* pipeName, struct Allocator* alloc, struct Log* logger)
     ctx->base = EventBase_new(alloc);
     ctx->alloc = alloc;
     ctx->log = logger;
-    ctx->pipe = Er_assert(Pipe_named(pipeName, ctx->base, logger, alloc));
-    ctx->pipe->onConnection = onConnectionChild;
-    ctx->pipe->userData = ctx;
+    ctx->socket = Er_assert(Socket_connect(pipeName, alloc));
     Identity_set(ctx);
-    Timeout_setTimeout(timeout, ctx->base, 2000, ctx->base, alloc);
-    EventBase_beginLoop(ctx->base);
-
+    onConnectionChild(ctx);
     return 0;
 }
 
@@ -100,6 +107,7 @@ static Iface_DEFUN receiveMessageParent(struct Message* msg, struct Iface* iface
     Er_assert(AddrIface_popAddr(msg));
     Assert_true(Message_getLength(msg) == 3);
     Assert_true(!Bits_memcmp(msg->msgbytes, "OK", 3));
+    printf("Parent got reply\n");
     EventBase_endLoop(ctx->eventBase);
     return NULL;
 }
@@ -132,8 +140,8 @@ int main(int argc, char** argv)
     ctx->iface.send = receiveMessageParent;
     ctx->eventBase = eb;
 
-    struct PipeServer* pipe = PipeServer_named(name->bytes, eb, NULL, logger, alloc);
-    Iface_plumb(&ctx->iface, pipe->iface.iface);
+    Socket_Server_t* ss = Er_assert(Socket_server(name->bytes, alloc));
+    Iface_plumb(&ctx->iface, ss->iface);
 
     const char* path = Process_getPath(alloc);
     const char* args[] = { "Seccomp_test", "child", name->bytes, NULL };
