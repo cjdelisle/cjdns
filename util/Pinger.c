@@ -41,7 +41,7 @@ struct Ping
 struct Pinger
 {
     struct Map_OutstandingPings outstandingPings;
-    struct EventBase* eventBase;
+    EventBase_t* eventBase;
     struct Random* rand;
     struct Log* logger;
     struct Allocator* allocator;
@@ -178,7 +178,7 @@ void Pinger_pongReceived(String* data, struct Pinger* pinger)
     }
 }
 
-struct Pinger* Pinger_new(struct EventBase* eventBase,
+struct Pinger* Pinger_new(EventBase_t* eventBase,
                           struct Random* rand,
                           struct Log* logger,
                           struct Allocator* alloc)

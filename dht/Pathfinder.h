@@ -35,7 +35,7 @@ struct Pathfinder
 
 struct Pathfinder* Pathfinder_register(struct Allocator* alloc,
                                        struct Log* logger,
-                                       struct EventBase* base,
+                                       EventBase_t* base,
                                        struct Random* rand,
                                        struct Admin* admin);
 

@@ -89,7 +89,7 @@ struct SearchRunner_SearchData* SearchRunner_showActiveSearch(struct SearchRunne
 
 struct SearchRunner* SearchRunner_new(struct NodeStore* nodeStore,
                                       struct Log* logger,
-                                      struct EventBase* base,
+                                      EventBase_t* base,
                                       struct RouterModule* module,
                                       uint8_t myAddress[16],
                                       struct RumorMill* rumorMill,

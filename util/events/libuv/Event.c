@@ -15,7 +15,6 @@
 #include "exception/Er.h"
 #include "rust/cjdns_sys/Rffi.h"
 #include "memory/Allocator.h"
-#include "util/events/libuv/EventBase_pvt.h"
 #include "util/events/Event.h"
 
 Er_DEFUN(void Event_socketRead(void (* const callback)(void* callbackContext),

@@ -29,7 +29,7 @@ struct ASynchronizer
 };
 
 struct ASynchronizer* ASynchronizer_new(struct Allocator* alloc,
-                                        struct EventBase* base,
+                                        EventBase_t* base,
                                         struct Log* log);
 
 #endif

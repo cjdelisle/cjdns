@@ -74,7 +74,7 @@ int Admin_sendMessage(Dict* message, String* txid, struct Admin* admin);
 
 struct Admin* Admin_new(AddrIface_t* ai,
                         struct Log* logger,
-                        struct EventBase* eventBase,
+                        EventBase_t* eventBase,
                         String* password);
 #else
 #include "util/UniqueName.h"

@@ -24,11 +24,11 @@ Linker_require("crypto/random/nanotime/NanotimeEntropyProvider.c")
 struct NanotimeEntropyProvider;
 
 void NanotimeEntropyProvider_start(struct Random* provideTo,
-                                struct EventBase* base,
+                                EventBase_t* base,
                                 struct Log* logger,
                                 struct Allocator* alloc);
 
-struct Random* NanotimeEntropyProvider_newDefaultRandom(struct EventBase* base,
+struct Random* NanotimeEntropyProvider_newDefaultRandom(EventBase_t* base,
                                                      struct Log* logger,
                                                      struct Except* eh,
                                                      struct Allocator* alloc);

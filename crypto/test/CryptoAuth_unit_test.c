@@ -50,7 +50,7 @@ struct Context
     struct Iface plaintext;
     struct Iface ciphertext;
     struct Log* log;
-    struct EventBase* base;
+    EventBase_t* base;
 };
 
 static Iface_DEFUN doNothingSuccessfully(struct Message* msg, struct Iface* iface)
@@ -66,7 +66,7 @@ static struct Context* setUp(uint8_t* myPrivateKey,
 {
     struct Context* ctx = Allocator_calloc(alloc, sizeof(struct Context), 1);
     struct Log* log = ctx->log = FileWriterLog_new(stdout, alloc);
-    struct EventBase* base = ctx->base = EventBase_new(alloc);
+    EventBase_t* base = ctx->base = EventBase_new(alloc);
     ctx->ciphertext.send = doNothingSuccessfully;
     ctx->plaintext.send = doNothingSuccessfully;
     TestCa_t* ca = ctx->ca =
@@ -184,7 +184,7 @@ static void repeatHello(enum TestCa_Config cfg)
 static void testGetUsers(enum TestCa_Config cfg)
 {
     struct Allocator* allocator = Allocator_new(1<<20);
-    struct EventBase* base = EventBase_new(allocator);
+    EventBase_t* base = EventBase_new(allocator);
     TestCa_t* ca = TestCa_new(allocator, NULL, base, NULL,
         evilRandom(allocator, NULL), evilRandom(allocator, NULL), cfg);
     RTypes_StrList_t* users = NULL;

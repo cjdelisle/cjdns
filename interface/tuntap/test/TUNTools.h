@@ -41,7 +41,7 @@ struct TUNTools
     struct Sockaddr* udpBindTo;
     struct Allocator* alloc;
     struct Log* log;
-    struct EventBase* base;
+    EventBase_t* base;
     TUNTools_Callback cb;
     int receivedMessageTUNCount;
 };
@@ -50,7 +50,7 @@ void TUNTools_echoTest(struct Sockaddr* udpBindTo,
                        struct Sockaddr* tunDestAddr,
                        TUNTools_Callback tunMessageHandler,
                        struct Iface* tun,
-                       struct EventBase* base,
+                       EventBase_t* base,
                        struct Log* logger,
                        struct Allocator* alloc);
 

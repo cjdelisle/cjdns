@@ -31,7 +31,7 @@ struct TAPInterface
 
 Er_DEFUN(struct TAPInterface* TAPInterface_new(const char* preferredName,
                                       struct Log* logger,
-                                      struct EventBase* base,
+                                      EventBase_t* base,
                                       struct Allocator* alloc));
 
 #endif

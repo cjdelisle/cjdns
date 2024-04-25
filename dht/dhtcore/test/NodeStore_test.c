@@ -80,7 +80,7 @@ static void genAddress(uint8_t* addr, struct Random* rand)
 }
 
 static void getPeersTest(uint8_t* addrs[],
-                         struct EventBase* base,
+                         EventBase_t* base,
                          struct Log* logger,
                          struct Allocator* alloc,
                          struct Random* rand)
@@ -111,7 +111,7 @@ int main(int argc, char** argv)
 {
     struct Allocator* alloc = Allocator_new(1<<20);
     struct Log* logger = FileWriterLog_new(stdout, alloc);
-    struct EventBase* base = EventBase_new(alloc);
+    EventBase_t* base = EventBase_new(alloc);
     struct Random* rand = Random_new(alloc, NULL, NULL);
 
 #if defined(ADDRESS_PREFIX) || defined(ADDRESS_PREFIX_BITS)

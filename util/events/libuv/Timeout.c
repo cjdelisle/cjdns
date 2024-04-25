@@ -14,7 +14,7 @@
  */
 #include "rust/cjdns_sys/Rffi.h"
 #include "memory/Allocator.h"
-#include "util/events/libuv/EventBase_pvt.h"
+#include "util/events/EventBase.h"
 #include "util/events/Timeout.h"
 #include "util/Identity.h"
 
@@ -22,7 +22,6 @@ struct Timeout
 {
     Rffi_TimerTx* timer;
     struct Allocator* alloc;
-    struct EventBase_pvt* base;
 
     Identity
 };
@@ -44,21 +43,19 @@ static struct Timeout* setTimeout(void (* const callback)(void* callbackContext)
                                   void* const callbackContext,
                                   const uint64_t milliseconds,
                                   const uint32_t interval,
-                                  struct EventBase* eventBase,
+                                  EventBase_t* base,
                                   struct Allocator* allocator,
                                   char* file,
                                   int line)
 {
-    struct EventBase_pvt* base = EventBase_privatize(eventBase);
     struct Allocator* alloc = Allocator__child(allocator, file, line);
     struct Timeout* timeout = Allocator_calloc(alloc, sizeof(struct Timeout), 1);
 
     timeout->alloc = alloc;
-    timeout->base = base;
     Identity_set(timeout);
 
     Rffi_setTimeout(&timeout->timer, callback, callbackContext,
-        milliseconds, (interval) ? 1 : 0, base->rffi_loop, alloc);
+        milliseconds, (interval) ? 1 : 0, base, alloc);
 
     return timeout;
 }
@@ -67,7 +64,7 @@ static struct Timeout* setTimeout(void (* const callback)(void* callbackContext)
 struct Timeout* Timeout__setTimeout(void (* const callback)(void* callbackContext),
                                     void* const callbackContext,
                                     const uint64_t milliseconds,
-                                    struct EventBase* eventBase,
+                                    EventBase_t* eventBase,
                                     struct Allocator* allocator,
                                     char* file,
                                     int line)
@@ -79,7 +76,7 @@ struct Timeout* Timeout__setTimeout(void (* const callback)(void* callbackContex
 struct Timeout* Timeout__setInterval(void (* const callback)(void* callbackContext),
                                      void* const callbackContext,
                                      const uint64_t milliseconds,
-                                     struct EventBase* eventBase,
+                                     EventBase_t* eventBase,
                                      struct Allocator* allocator,
                                      char* file,
                                      int line)
@@ -100,10 +97,9 @@ void Timeout_clearTimeout(struct Timeout* timeout)
     Rffi_clearTimeout(timeout->timer);
 }
 
-void Timeout_clearAll(struct EventBase* eventBase)
+void Timeout_clearAll(EventBase_t* eventBase)
 {
-    struct EventBase_pvt* base = EventBase_privatize(eventBase);
-    Rffi_clearAllTimeouts(base->rffi_loop);
+    Rffi_clearAllTimeouts(eventBase);
 }
 
 int Timeout_isActive(struct Timeout* timeout)

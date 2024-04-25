@@ -925,7 +925,7 @@ enum CryptoAuth_DecryptErr CryptoAuth_decrypt(struct CryptoAuth_Session* session
 
 struct CryptoAuth* CryptoAuth_new(struct Allocator* allocator,
                                   const uint8_t* privateKey,
-                                  struct EventBase* eventBase,
+                                  EventBase_t* eventBase,
                                   struct Log* logger,
                                   struct Random* rand)
 {

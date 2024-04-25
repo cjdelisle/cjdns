@@ -43,7 +43,7 @@ struct Context {
     struct Iface iface;
     struct Allocator* alloc;
     struct Allocator* rootAlloc;
-    struct EventBase* base;
+    EventBase_t* base;
     struct Log* log;
 
     // Parent only
@@ -174,7 +174,7 @@ static void onChildExit(int64_t exit_status, int term_signal)
 int main(int argc, char** argv)
 {
     struct Allocator* allocator = Allocator_new(1<<20);
-    struct EventBase* eb = EventBase_new(allocator);
+    EventBase_t* eb = EventBase_new(allocator);
     struct Allocator* alloc = Allocator_child(allocator);
     struct Log* log = FileWriterLog_new(stdout, alloc);
     Rffi_setLogger(log);
@@ -225,7 +225,7 @@ int main(int argc, char** argv)
 
     const char* args[] = { "Process_test", "child", name->bytes, NULL };
 
-    Assert_true(!Process_spawn(path, args, eb, alloc, onChildExit));
+    Assert_true(!Process_spawn(path, args, alloc, onChildExit));
 
     Timeout_setTimeout(timeout, NULL, 10000, eb, alloc);
 

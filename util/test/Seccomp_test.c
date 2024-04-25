@@ -32,13 +32,13 @@ struct Context
 {
     struct Iface iface;
     struct Allocator* alloc;
-    struct EventBase* eventBase;
+    EventBase_t* eventBase;
     Identity
 };
 
 struct ChildCtx
 {
-    struct EventBase* base;
+    EventBase_t* base;
     struct Log* log;
     Iface_t* socket;
     struct Allocator* alloc;
@@ -128,7 +128,7 @@ int main(int argc, char** argv)
         return 0;
     }
 
-    struct EventBase* eb = EventBase_new(alloc);
+    EventBase_t* eb = EventBase_new(alloc);
     struct Random* rand = Random_new(alloc, logger, NULL);
     char randName[32] = {0};
     Random_base32(rand, (uint8_t*)randName, 31);
@@ -146,7 +146,7 @@ int main(int argc, char** argv)
     const char* path = Process_getPath(alloc);
     const char* args[] = { "Seccomp_test", "child", name->bytes, NULL };
 
-    Assert_true(!Process_spawn(path, args, eb, alloc, NULL));
+    Assert_true(!Process_spawn(path, args, alloc, NULL));
 
     Timeout_setTimeout(timeout2, NULL, 2000, eb, alloc);
 

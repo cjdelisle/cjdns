@@ -59,7 +59,7 @@ Er_DEFUN(void Security_seccomp(struct Allocator* tempAlloc, struct Log* logger))
 
 void Security_setupComplete(struct Security* security);
 
-struct Security* Security_new(struct Allocator* alloc, struct Log* log, struct EventBase* base);
+struct Security* Security_new(struct Allocator* alloc, struct Log* log, EventBase_t* base);
 
 Dict* Security_getUser(char* userName, struct Allocator* retAlloc);
 

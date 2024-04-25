@@ -183,7 +183,7 @@ struct InterfaceController_pvt
 
     struct Log* const logger;
 
-    struct EventBase* const eventBase;
+    EventBase_t* const eventBase;
 
     /** For communicating with the Pathfinder. */
     struct Iface eventEmitterIf;
@@ -1185,7 +1185,7 @@ static Iface_DEFUN incomingFromEventEmitterIf(struct Message* msg, struct Iface*
 struct InterfaceController* InterfaceController_new(Ca_t* ca,
                                                     struct SwitchCore* switchCore,
                                                     struct Log* logger,
-                                                    struct EventBase* eventBase,
+                                                    EventBase_t* eventBase,
                                                     struct SwitchPinger* switchPinger,
                                                     struct Random* rand,
                                                     struct Allocator* allocator,

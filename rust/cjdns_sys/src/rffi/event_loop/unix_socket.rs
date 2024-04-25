@@ -27,10 +27,12 @@ pub extern "C" fn Rffi_fileExists(
     path: *const c_char,
     errorAlloc: *mut Allocator_t,
 ) -> *mut RTypes_Error_t {
-    unsafe {
+    // println!("Rffi_fileExists begin");
+    let out = unsafe {
         if let Ok(str) = CStr::from_ptr(path).to_str() {
             if let Ok(md) = std::fs::metadata(str) {
-                *existsOut = md.is_file();
+                // println!("File {str} exists and is_file = {}", md.is_file());
+                *existsOut = true;
             } else {
                 *existsOut = false;
             }
@@ -43,7 +45,9 @@ pub extern "C" fn Rffi_fileExists(
                 },
             )
         }
-    }
+    };
+    // println!("Rffi_fileExists end");
+    out
 }
 
 #[no_mangle]

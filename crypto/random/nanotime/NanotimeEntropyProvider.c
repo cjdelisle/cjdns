@@ -50,7 +50,7 @@ static void takeSample(void* vNanotimeEntropyProvider)
 }
 
 void NanotimeEntropyProvider_start(struct Random* provideTo,
-                                struct EventBase* base,
+                                EventBase_t* base,
                                 struct Log* logger,
                                 struct Allocator* alloc)
 {
@@ -64,7 +64,7 @@ void NanotimeEntropyProvider_start(struct Random* provideTo,
     Identity_set(lep);
 }
 
-struct Random* NanotimeEntropyProvider_newDefaultRandom(struct EventBase* base,
+struct Random* NanotimeEntropyProvider_newDefaultRandom(EventBase_t* base,
                                                      struct Log* logger,
                                                      struct Except* eh,
                                                      struct Allocator* alloc)

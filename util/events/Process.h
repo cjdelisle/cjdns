@@ -16,7 +16,6 @@
 #define Process_H
 
 #include "memory/Allocator.h"
-#include "util/events/libuv/EventBase_pvt.h"
 #include "util/Linker.h"
 Linker_require("util/events/libuv/Process.c")
 
@@ -35,7 +34,6 @@ typedef void (* Process_OnExitCallback)(int64_t exit_status, int term_signal);
  */
 int Process_spawn(const char* binaryPath,
                   const char* const* args,
-                  struct EventBase* eventBase,
                   struct Allocator* alloc,
                   Process_OnExitCallback callback);
 

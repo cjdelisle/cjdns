@@ -17,7 +17,6 @@
 #include "rust/cjdns_sys/Rffi.h"
 #include "util/events/UDPAddrIface.h"
 #include "memory/Allocator.h"
-#include "util/events/libuv/EventBase_pvt.h"
 #include "util/platform/Sockaddr.h"
 #include "util/Assert.h"
 #include "util/Identity.h"
@@ -49,7 +48,7 @@ int UDPAddrIface_setBroadcast(struct UDPAddrIface* iface, bool enable)
     return (int) Rffi_udpIfaceSetBroadcast(ifp->internal->pvt, enable);
 }
 
-Er_DEFUN(struct UDPAddrIface* UDPAddrIface_new(struct EventBase* eventBase,
+Er_DEFUN(struct UDPAddrIface* UDPAddrIface_new(EventBase_t* eventBase,
                                       struct Sockaddr* addr,
                                       struct Allocator* userAlloc,
                                       struct Log* logger))

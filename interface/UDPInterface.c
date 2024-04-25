@@ -203,7 +203,7 @@ static Iface_DEFUN fromBcastSock(struct Message* m, struct Iface* iface)
     return Iface_next(ctx->pub.generic.iface, m);
 }
 
-Er_DEFUN(struct UDPInterface* UDPInterface_new(struct EventBase* eventBase,
+Er_DEFUN(struct UDPInterface* UDPInterface_new(EventBase_t* eventBase,
                                       struct Sockaddr* bindAddr,
                                       uint16_t beaconPort,
                                       struct Allocator* alloc,

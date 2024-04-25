@@ -31,7 +31,7 @@ struct ASynchronizer_pvt
 {
     struct ASynchronizer pub;
     struct Allocator* alloc;
-    struct EventBase* base;
+    EventBase_t* base;
     struct Log* log;
 
     struct Allocator* cycleAlloc;
@@ -116,7 +116,7 @@ static Iface_DEFUN fromB(struct Message* msg, struct Iface* ifB)
 }
 
 struct ASynchronizer* ASynchronizer_new(struct Allocator* alloc,
-                                        struct EventBase* base,
+                                        EventBase_t* base,
                                         struct Log* log)
 {
     struct ASynchronizer_pvt* ctx = Allocator_calloc(alloc, sizeof(struct ASynchronizer_pvt), 1);

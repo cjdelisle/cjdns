@@ -417,7 +417,7 @@ struct SwitchPinger_Ping* SwitchPinger_newPing(uint64_t label,
     return &ping->pub;
 }
 
-struct SwitchPinger* SwitchPinger_new(struct EventBase* eventBase,
+struct SwitchPinger* SwitchPinger_new(EventBase_t* eventBase,
                                       struct Random* rand,
                                       struct Log* logger,
                                       struct Address* myAddr,

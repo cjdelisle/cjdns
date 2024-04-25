@@ -24,7 +24,7 @@
 
 struct Context
 {
-    struct EventBase* eventBase;
+    EventBase_t* eventBase;
     struct Allocator* alloc;
     struct Log* logger;
     struct Admin* admin;
@@ -170,7 +170,7 @@ static void listDevices(Dict* args, void* vcontext, String* txid, struct Allocat
     Admin_sendMessage(out, txid, ctx->admin);
 }
 
-void ETHInterface_admin_register(struct EventBase* base,
+void ETHInterface_admin_register(EventBase_t* base,
                                  struct Allocator* alloc,
                                  struct Log* logger,
                                  struct Admin* admin,

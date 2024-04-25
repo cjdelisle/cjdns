@@ -57,7 +57,7 @@ struct AverageRoller_pvt
     uint32_t average;
 
     /** Means of getting the current time. */
-    struct EventBase* eventBase;
+    EventBase_t* eventBase;
 
     Identity
 

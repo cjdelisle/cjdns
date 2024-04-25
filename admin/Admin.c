@@ -90,7 +90,7 @@ struct Admin_pvt
 
     struct Iface iface;
 
-    struct EventBase* eventBase;
+    EventBase_t* eventBase;
 
     struct Function* functions;
     int functionCount;
@@ -569,7 +569,7 @@ static void exportFd(Dict* args, void* vAdmin, String* txid, struct Allocator* r
 
 struct Admin* Admin_new(AddrIface_t* ai,
                         struct Log* logger,
-                        struct EventBase* eventBase,
+                        EventBase_t* eventBase,
                         String* password)
 {
     struct Allocator* alloc = ai->alloc;

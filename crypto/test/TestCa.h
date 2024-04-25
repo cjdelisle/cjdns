@@ -38,7 +38,7 @@ enum TestCa_Config {
 TestCa_t* TestCa_new(
     Allocator_t *allocator,
     const uint8_t *privateKey,
-    struct EventBase* eventBase,
+    EventBase_t* eventBase,
     struct Log* logger,
     struct Random* rand0,
     struct Random* rand1,

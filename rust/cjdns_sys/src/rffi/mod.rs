@@ -10,6 +10,7 @@ mod event_loop;
 mod network;
 mod time;
 mod util;
+mod glock;
 pub mod allocator;
 
 use crate::bytestring::ByteString;

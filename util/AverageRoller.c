@@ -20,7 +20,7 @@
 
 /** @see AverageRoller.h */
 struct AverageRoller* AverageRoller_new(const uint32_t windowSeconds,
-                                        struct EventBase* eventBase,
+                                        EventBase_t* eventBase,
                                         struct Allocator* allocator)
 {
     size_t size = sizeof(struct AverageRoller_pvt)

@@ -32,7 +32,7 @@ Linker_require("admin/angel/InterfaceWaiter.c")
  * @return the message.
  */
 struct Message* InterfaceWaiter_waitForData(struct Iface* iface,
-                                            struct EventBase* eventBase,
+                                            EventBase_t* eventBase,
                                             struct Allocator* alloc,
                                             struct Except* eh);
 

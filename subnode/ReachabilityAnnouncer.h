@@ -39,7 +39,7 @@ void ReachabilityAnnouncer_updatePeer(struct ReachabilityAnnouncer* ra,
 
 struct ReachabilityAnnouncer* ReachabilityAnnouncer_new(struct Allocator* allocator,
                                                         struct Log* log,
-                                                        struct EventBase* base,
+                                                        EventBase_t* base,
                                                         struct Random* rand,
                                                         struct MsgCore* msgCore,
                                                         struct SupernodeHunter* snh,

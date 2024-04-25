@@ -82,7 +82,7 @@ void ReachabilityCollector_updateBandwidthAndDrops(
 struct ReachabilityCollector* ReachabilityCollector_new(struct Allocator* allocator,
                                                         struct MsgCore* msgCore,
                                                         struct Log* log,
-                                                        struct EventBase* base,
+                                                        EventBase_t* base,
                                                         struct BoilerplateResponder* br,
                                                         struct Address* myAddr,
                                                         struct EncodingScheme* myScheme,

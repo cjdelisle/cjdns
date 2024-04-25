@@ -36,7 +36,7 @@ Linker_require("net/NetCore.c")
 struct NetCore
 {
     struct Allocator* alloc;
-    struct EventBase* base;
+    EventBase_t* base;
     struct Random* rand;
     struct Log* log;
     Ca_t* ca;
@@ -53,7 +53,7 @@ struct NetCore
 
 struct NetCore* NetCore_new(uint8_t* privateKey,
                             struct Allocator* alloc,
-                            struct EventBase* base,
+                            EventBase_t* base,
                             struct Random* rand,
                             struct Log* log,
                             bool enableNoise);

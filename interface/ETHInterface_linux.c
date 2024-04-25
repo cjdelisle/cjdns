@@ -225,7 +225,7 @@ static int closeSocket(struct Allocator_OnFreeJob* j)
     return 0;
 }
 
-Er_DEFUN(struct ETHInterface* ETHInterface_new(struct EventBase* eventBase,
+Er_DEFUN(struct ETHInterface* ETHInterface_new(EventBase_t* eventBase,
                                       const char* bindDevice,
                                       struct Allocator* alloc,
                                       struct Log* logger))

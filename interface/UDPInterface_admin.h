@@ -24,7 +24,7 @@
 #include "util/Linker.h"
 Linker_require("interface/UDPInterface_admin.c")
 
-void UDPInterface_admin_register(struct EventBase* base,
+void UDPInterface_admin_register(EventBase_t* base,
                                  struct Allocator* allocator,
                                  struct Log* logger,
                                  struct Admin* admin,

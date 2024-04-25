@@ -48,7 +48,7 @@ int main()
 
     struct Allocator* allocator = Allocator_new(4096);
 
-    struct EventBase* eventBase = EventBase_new(allocator);
+    EventBase_t* eventBase = EventBase_new(allocator);
 
     struct AverageRoller_pvt* roller =
         (struct AverageRoller_pvt*) AverageRoller_new(windowSeconds, eventBase, allocator);

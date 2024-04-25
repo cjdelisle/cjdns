@@ -62,7 +62,7 @@ int main(int argc, char** argv)
     #endif
 
     struct Allocator* alloc = Allocator_new(1<<20);
-    struct EventBase* base = EventBase_new(alloc);
+    EventBase_t* base = EventBase_new(alloc);
     struct Log* logger = FileWriterLog_new(stdout, alloc);
 
     struct Sockaddr* addrA = Sockaddr_fromBytes(testAddrA, Sockaddr_AF_INET, alloc);

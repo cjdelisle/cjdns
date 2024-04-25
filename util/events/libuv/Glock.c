@@ -17,21 +17,14 @@
 #include "rust/cjdns_sys/Rffi.h"
 #include "util/Assert.h"
 
-static void* glock = NULL;
-
 void Glock_init() {
-    if (glock == NULL) {
-        glock = Rffi_glock();
-    }
+    Rffi_glock();
 }
 
 void Glock_beginBlockingCall() {
-    Assert_true(glock != NULL);
-    Rffi_gunlock(glock);
-    glock = NULL;
+    Rffi_gunlock();
 }
 
 void Glock_endBlockingCall() {
-    Assert_true(glock == NULL);
-    glock = Rffi_glock();
+    Rffi_glock();
 }

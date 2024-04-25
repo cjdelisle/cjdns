@@ -37,7 +37,7 @@ void SubnodePathfinder_start(struct SubnodePathfinder*);
 
 struct SubnodePathfinder* SubnodePathfinder_new(struct Allocator* allocator,
                                                 struct Log* log,
-                                                struct EventBase* base,
+                                                EventBase_t* base,
                                                 struct Random* rand,
                                                 struct Address* myAddress,
                                                 uint8_t* privateKey,

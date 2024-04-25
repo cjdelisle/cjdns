@@ -34,7 +34,7 @@ struct SearchRunner_pvt
     struct SearchStore* searchStore;
     struct NodeStore* nodeStore;
     struct Log* logger;
-    struct EventBase* eventBase;
+    EventBase_t* eventBase;
     struct RouterModule* router;
     struct RumorMill* rumorMill;
     uint8_t myAddress[16];
@@ -386,7 +386,7 @@ struct RouterModule_Promise* SearchRunner_search(uint8_t target[16],
 
 struct SearchRunner* SearchRunner_new(struct NodeStore* nodeStore,
                                       struct Log* logger,
-                                      struct EventBase* base,
+                                      EventBase_t* base,
                                       struct RouterModule* module,
                                       uint8_t myAddress[16],
                                       struct RumorMill* rumorMill,

@@ -66,7 +66,7 @@ struct UDPInterface
  * @param logger
  * @param globalConf for getting the name of the TUN device to avoid bcasting to it
  */
-Er_DEFUN(struct UDPInterface* UDPInterface_new(struct EventBase* eventBase,
+Er_DEFUN(struct UDPInterface* UDPInterface_new(EventBase_t* eventBase,
                                       struct Sockaddr* bindAddr,
                                       uint16_t beaconPort,
                                       struct Allocator* alloc,

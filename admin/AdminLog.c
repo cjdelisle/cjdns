@@ -75,7 +75,7 @@ struct AdminLog
     struct Admin* admin;
     struct Allocator* alloc;
     struct Random* rand;
-    struct EventBase* base;
+    EventBase_t* base;
     Identity
 };
 
@@ -334,7 +334,7 @@ static void subscriptions(Dict* args, void* vcontext, String* txid, struct Alloc
 struct Log* AdminLog_registerNew(struct Admin* admin,
                                  struct Allocator* alloc,
                                  struct Random* rand,
-                                 struct EventBase* base)
+                                 EventBase_t* base)
 {
     struct AdminLog* log = Allocator_clone(alloc, (&(struct AdminLog) {
         .pub = {

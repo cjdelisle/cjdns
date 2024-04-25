@@ -55,7 +55,7 @@ struct SubnodePathfinder_pvt
 
     struct Allocator* alloc;
     struct Log* log;
-    struct EventBase* base;
+    EventBase_t* base;
     struct Random* rand;
 
     #define SubnodePathfinder_pvt_state_INITIALIZING 0
@@ -563,7 +563,7 @@ static void sendCurrentSupernode(void* vsp)
 
 struct SubnodePathfinder* SubnodePathfinder_new(struct Allocator* allocator,
                                                 struct Log* log,
-                                                struct EventBase* base,
+                                                EventBase_t* base,
                                                 struct Random* rand,
                                                 struct Address* myAddress,
                                                 uint8_t* privateKey,

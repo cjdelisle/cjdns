@@ -91,7 +91,7 @@ static Iface_DEFUN incomingFromUs(struct Message* message, struct Iface* interna
 Er_DEFUN(struct Iface* TUNInterface_new(const char* interfaceName,
                                    char assignedInterfaceName[TUNInterface_IFNAMSIZ],
                                    int isTapMode,
-                                   struct EventBase* base,
+                                   EventBase_t* base,
                                    struct Log* logger,
                                    struct Allocator* alloc))
 {

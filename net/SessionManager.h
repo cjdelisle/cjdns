@@ -135,7 +135,7 @@ struct SessionManager_HandleList* SessionManager_getHandleList(struct SessionMan
                                                                struct Allocator* alloc);
 
 struct SessionManager* SessionManager_new(struct Allocator* alloc,
-                                          struct EventBase* eventBase,
+                                          EventBase_t* eventBase,
                                           Ca_t* cryptoAuth,
                                           struct Random* rand,
                                           struct Log* log,

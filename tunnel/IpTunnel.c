@@ -841,7 +841,7 @@ static void timeout(void* vcontext)
 }
 
 struct IpTunnel* IpTunnel_new(struct Log* logger,
-                              struct EventBase* eventBase,
+                              EventBase_t* eventBase,
                               struct Allocator* alloc,
                               struct Random* rand,
                               struct RouteGen* rg,

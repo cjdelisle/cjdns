@@ -40,7 +40,7 @@ struct RouterModule
     struct DHTModuleRegistry* registry;
 
     /** The libevent event base for handling timeouts. */
-    struct EventBase* eventBase;
+    EventBase_t* eventBase;
 
     struct Log* logger;
 

@@ -72,7 +72,7 @@ struct MsgCore
     struct Iface interRouterIf;
 };
 
-struct MsgCore* MsgCore_new(struct EventBase* base,
+struct MsgCore* MsgCore_new(EventBase_t* base,
                             struct Random* rand,
                             struct Allocator* allocator,
                             struct Log* log,

@@ -261,7 +261,7 @@ static Er_DEFUN(void macaddr(const char* ifname, uint8_t addrOut[6], struct Allo
     Er_ret();
 }
 
-Er_DEFUN(struct ETHInterface* ETHInterface_new(struct EventBase* eventBase,
+Er_DEFUN(struct ETHInterface* ETHInterface_new(EventBase_t* eventBase,
                                       const char* bindDevice,
                                       struct Allocator* alloc,
                                       struct Log* logger))

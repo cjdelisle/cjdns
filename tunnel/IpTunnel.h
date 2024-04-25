@@ -88,7 +88,7 @@ struct IpTunnel
  * @param gc for getting the name of the tun device (to be able to setup routes to it)
  */
 struct IpTunnel* IpTunnel_new(struct Log* logger,
-                              struct EventBase* eventBase,
+                              EventBase_t* eventBase,
                               struct Allocator* alloc,
                               struct Random* rand,
                               struct RouteGen* rg,

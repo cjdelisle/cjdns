@@ -44,7 +44,7 @@ struct UDPAddrIface
  * @param logger
  * @return a new UDPInterfaceBase.
  */
-Er_DEFUN(struct UDPAddrIface* UDPAddrIface_new(struct EventBase* eventBase,
+Er_DEFUN(struct UDPAddrIface* UDPAddrIface_new(EventBase_t* eventBase,
                                       struct Sockaddr* addr,
                                       struct Allocator* alloc,
                                       struct Log* logger));

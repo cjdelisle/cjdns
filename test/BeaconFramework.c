@@ -20,6 +20,7 @@
 #include "interface/Iface.h"
 #include "util/Base32.h"
 #include "util/Checksum.h"
+#include "util/events/EventBase.h"
 #include "util/log/WriterLog.h"
 #include "subnode/SubnodePathfinder.h"
 #include "test/TestFramework.h"
@@ -47,7 +48,7 @@ struct TwoNodes
 
     struct Timeout* checkLinkageTimeout;
     struct Log* logger;
-    struct EventBase* base;
+    EventBase_t* base;
     struct Allocator* alloc;
 
     uint64_t startTime;
@@ -124,7 +125,7 @@ static void checkLinkage(void* vTwoNodes)
 
 static void start(struct Allocator* alloc,
                   struct Log* logger,
-                  struct EventBase* base,
+                  EventBase_t* base,
                   struct Random* rand,
                   RunTest* runTest,
                   bool noiseA,
@@ -237,7 +238,9 @@ static void runTest(struct TwoNodes* tn)
     sendMessage(tn, "establish", tn->nodeA, tn->nodeB);
 
     Log_debug(tn->logger, "\n\nTest passed, shutting down\n\n");
+    EventBase_t* base = tn->base;
     Allocator_free(tn->alloc);
+    EventBase_endLoop(base);
 }
 
 /** Check if nodes A and C can communicate via B without A knowing that C exists. */
@@ -247,7 +250,7 @@ int BeaconFramework_test(bool noiseA, bool noiseB)
     struct Writer* logwriter = FileWriter_new(stdout, alloc);
     struct Log* logger = WriterLog_new(logwriter, alloc);
     struct Random* rand = Random_new(alloc, logger, NULL);
-    struct EventBase* base = EventBase_new(alloc);
+    EventBase_t* base = EventBase_new(alloc);
     start(Allocator_child(alloc), logger, base, rand, runTest, noiseA, noiseB);
 
     EventBase_beginLoop(base);

@@ -84,7 +84,7 @@ static void fail(void* vSec)
     _exit(232);
 }
 
-struct Security* Security_new(struct Allocator* alloc, struct Log* log, struct EventBase* base)
+struct Security* Security_new(struct Allocator* alloc, struct Log* log, EventBase_t* base)
 {
     struct Security_pvt* sec = Allocator_calloc(alloc, sizeof(struct Security_pvt), 1);
     Identity_set(sec);

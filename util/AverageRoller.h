@@ -34,7 +34,7 @@ struct AverageRoller
  * @return a new roller.
  */
 struct AverageRoller* AverageRoller_new(const uint32_t windowSeconds,
-                                        struct EventBase* eventBase,
+                                        EventBase_t* eventBase,
                                         struct Allocator* allocator);
 
 /**

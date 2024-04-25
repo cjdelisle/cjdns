@@ -60,7 +60,7 @@ struct SessionManager_pvt
     struct Map_OfSessionsByIp6 ifaceMap;
     struct Log* log;
     Ca_t* cryptoAuth;
-    struct EventBase* eventBase;
+    EventBase_t* eventBase;
     uint32_t firstHandle;
     uint8_t ourPubKey[32];
     Identity
@@ -882,7 +882,7 @@ static Iface_DEFUN incomingFromEventIf(struct Message* msg, struct Iface* iface)
 }
 
 struct SessionManager* SessionManager_new(struct Allocator* allocator,
-                                          struct EventBase* eventBase,
+                                          EventBase_t* eventBase,
                                           Ca_t* cryptoAuth,
                                           struct Random* rand,
                                           struct Log* log,

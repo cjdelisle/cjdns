@@ -36,7 +36,7 @@ struct Timeout;
 struct Timeout* Timeout__setTimeout(void (* const callback)(void* callbackContext),
                                     void* const callbackContext,
                                     const uint64_t milliseconds,
-                                    struct EventBase* eventBase,
+                                    EventBase_t* eventBase,
                                     struct Allocator* allocator,
                                     char* file,
                                     int line);
@@ -57,7 +57,7 @@ struct Timeout* Timeout__setTimeout(void (* const callback)(void* callbackContex
 struct Timeout* Timeout__setInterval(void (* const callback)(void* callbackContext),
                                      void* const callbackContext,
                                      const uint64_t milliseconds,
-                                     struct EventBase* eventBase,
+                                     EventBase_t* eventBase,
                                      struct Allocator* allocator,
                                      char* file,
                                      int line);
@@ -83,7 +83,7 @@ void Timeout_resetTimeout(struct Timeout* timeout,
  */
 void Timeout_clearTimeout(struct Timeout* timeout);
 
-void Timeout_clearAll(struct EventBase* eventBase);
+void Timeout_clearAll(EventBase_t* eventBase);
 
 int Timeout_isActive(struct Timeout* timeout);
 

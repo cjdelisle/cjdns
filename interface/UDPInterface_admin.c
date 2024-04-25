@@ -29,7 +29,7 @@
 
 struct Context
 {
-    struct EventBase* eventBase;
+    EventBase_t* eventBase;
     struct Allocator* alloc;
     struct Log* logger;
     struct Admin* admin;
@@ -326,7 +326,7 @@ static void getFd(Dict* args, void* vcontext, String* txid, struct Allocator* re
     Admin_sendMessage(out, txid, ctx->admin);
 }
 
-void UDPInterface_admin_register(struct EventBase* base,
+void UDPInterface_admin_register(EventBase_t* base,
                                  struct Allocator* alloc,
                                  struct Log* logger,
                                  struct Admin* admin,

@@ -54,7 +54,7 @@ struct SupernodeHunter_pvt
 
     struct MsgCore* msgCore;
 
-    struct EventBase* base;
+    EventBase_t* base;
 
     struct SwitchPinger* sp;
 
@@ -437,7 +437,7 @@ static void onSnodeUnreachable(struct SupernodeHunter* snh,
 
 struct SupernodeHunter* SupernodeHunter_new(struct Allocator* allocator,
                                             struct Log* log,
-                                            struct EventBase* base,
+                                            EventBase_t* base,
                                             struct SwitchPinger* sp,
                                             struct AddrSet* peers,
                                             struct MsgCore* msgCore,

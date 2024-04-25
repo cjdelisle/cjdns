@@ -339,7 +339,7 @@ static Iface_DEFUN incoming(struct Message* msg, struct Iface* interRouterIf)
     return Error(msg, "INVALID");
 }
 
-struct MsgCore* MsgCore_new(struct EventBase* base,
+struct MsgCore* MsgCore_new(EventBase_t* base,
                             struct Random* rand,
                             struct Allocator* allocator,
                             struct Log* log,

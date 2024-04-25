@@ -29,7 +29,7 @@ Linker_require("client/Configurator.c")
 void Configurator_config(Dict* config,
                          struct Sockaddr* addr,
                          String* adminPassword,
-                         struct EventBase* eventBase,
+                         EventBase_t* eventBase,
                          struct Log* logger,
                          struct Allocator* alloc);
 

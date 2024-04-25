@@ -48,7 +48,7 @@ struct Pathfinder_pvt
     struct DHTModule dhtModule;
     struct Allocator* alloc;
     struct Log* log;
-    struct EventBase* base;
+    EventBase_t* base;
     struct Random* rand;
     struct Admin* admin;
 
@@ -488,7 +488,7 @@ static void init(void* vpf)
 
 struct Pathfinder* Pathfinder_register(struct Allocator* allocator,
                                        struct Log* log,
-                                       struct EventBase* base,
+                                       EventBase_t* base,
                                        struct Random* rand,
                                        struct Admin* admin)
 {

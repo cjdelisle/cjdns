@@ -114,7 +114,7 @@ struct TAPInterface_pvt
     struct Log* log;
     struct Allocator* alloc;
 
-    struct EventBase* base;
+    EventBase_t* base;
     Identity
 };
 
@@ -244,7 +244,7 @@ static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* iface)
 
 Er_DEFUN(struct TAPInterface* TAPInterface_new(const char* preferredName,
                                       struct Log* logger,
-                                      struct EventBase* base,
+                                      EventBase_t* base,
                                       struct Allocator* alloc))
 {
     Log_debug(logger, "Getting TAP-Windows device name");

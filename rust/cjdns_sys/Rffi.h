@@ -11,11 +11,6 @@ typedef struct Rffi_EventLoop Rffi_EventLoop;
 
 typedef struct Rffi_FdReadableTx Rffi_FdReadableTx;
 
-/**
- * The guard of an acquired [`GCL`].
- */
-typedef struct Rffi_Glock_guard Rffi_Glock_guard;
-
 typedef struct Rffi_SocketServer Rffi_SocketServer;
 
 /**
@@ -99,27 +94,14 @@ void Rffi_CryptoAuth2_stats(const RTypes_CryptoAuth2_Session_t *session,
 
 uint32_t Rffi_CryptoAuth2_cjdnsVer(const RTypes_CryptoAuth2_Session_t *session);
 
-/**
- * Helper function to lock the Global C Lock, used only within libuv's core runtime (unix and windows).
- */
-Rffi_Glock_guard *Rffi_glock(void);
-
-/**
- * Helper function to unlock the Global C Lock, as noted above.
- */
-void Rffi_gunlock(Rffi_Glock_guard *guard);
-
 void Rffi_stopEventLoop(Rffi_EventLoop *event_loop);
+
+void Rffi_startEventLoop(Rffi_EventLoop *event_loop);
 
 /**
  * Create a new EventLoop data repository.
  */
-Rffi_EventLoop *Rffi_mkEventLoop(Allocator_t *alloc, void *base);
-
-/**
- * Return some EventLoop's ref counter to C.
- */
-unsigned int Rffi_eventLoopRefCtr(Rffi_EventLoop *event_loop);
+Rffi_EventLoop *Rffi_mkEventLoop(Allocator_t *alloc);
 
 /**
  * Get the full filesystem path of the current running executable.
@@ -133,7 +115,6 @@ int32_t Rffi_spawn(const char *file,
                    const char *const *args,
                    int num_args,
                    Allocator_t *_alloc,
-                   Rffi_EventLoop *event_loop,
                    void (*cb)(int64_t, int));
 
 /**
@@ -238,6 +219,10 @@ RTypes_Error_t *Rffi_error(const char *msg, Allocator_t *alloc);
 RTypes_Error_t *Rffi_error_fl(const char *msg, const char *file, int line, Allocator_t *alloc);
 
 const char *Rffi_printError(RTypes_Error_t *e, Allocator_t *alloc);
+
+void Rffi_glock(void);
+
+void Rffi_gunlock(void);
 
 /**
  * Create a root level allocator.

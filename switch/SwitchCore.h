@@ -38,7 +38,7 @@ struct SwitchCore
  */
 struct SwitchCore* SwitchCore_new(struct Log* logger,
                                   struct Allocator* allocator,
-                                  struct EventBase* base);
+                                  EventBase_t* base);
 
 #define SwitchCore_addInterface_OUT_OF_SPACE -1
 int SwitchCore_addInterface(struct SwitchCore* switchCore,

@@ -23,7 +23,7 @@
 #include "util/Linker.h"
 Linker_require("interface/ETHInterface_admin.c")
 
-void ETHInterface_admin_register(struct EventBase* base,
+void ETHInterface_admin_register(EventBase_t* base,
                                  struct Allocator* alloc,
                                  struct Log* logger,
                                  struct Admin* admin,

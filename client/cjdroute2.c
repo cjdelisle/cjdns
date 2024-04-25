@@ -478,7 +478,7 @@ static int usage(struct Allocator* alloc, char* appName)
 
 struct CheckRunningInstanceContext
 {
-    struct EventBase* base;
+    EventBase_t* base;
     struct Allocator* alloc;
     struct AdminClient_Result* res;
 };
@@ -494,7 +494,7 @@ static void checkRunningInstanceCallback(struct AdminClient_Promise* p,
 }
 
 static void checkRunningInstance(struct Allocator* allocator,
-                                 struct EventBase* base,
+                                 EventBase_t* base,
                                  String* addr,
                                  String* password,
                                  struct Log* logger,
@@ -616,7 +616,7 @@ int cjdroute2_main(int argc, char** argv)
     // Allow it to allocate 8MB
     struct Allocator* allocator = Allocator_new(1<<23);
     struct Random* rand = Random_new(allocator, NULL, eh);
-    struct EventBase* eventBase = EventBase_new(allocator);
+    EventBase_t* eventBase = EventBase_new(allocator);
 
     if (argc == 2) {
         // one argument
@@ -687,7 +687,7 @@ int cjdroute2_main(int argc, char** argv)
     const char* err = JsonBencMessageReader_readNoExcept(confMsg, allocator, &config, false);
     if (!err) {
         // If old version is specified, always use old parser so there is no possible error
-        uint64_t* v = Dict_getIntC(config, "version");
+        int64_t* v = Dict_getIntC(config, "version");
         if (!v || *v < 2) { err = "using old parser"; }
     }
     if (err) {
@@ -775,7 +775,7 @@ int cjdroute2_main(int argc, char** argv)
     if (!privateKey) {
         Except_throw(eh, "Need to specify privateKey.");
     }
-    Process_spawn(corePath, args, eventBase, allocator, onCoreExit);
+    Process_spawn(corePath, args, allocator, onCoreExit);
 
     // --------------------- Wait for socket ------------------------- //
     // cycle for up to 1 minute

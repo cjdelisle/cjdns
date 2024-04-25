@@ -59,7 +59,7 @@ struct Context
 
     struct Allocator* alloc;
     struct Log* log;
-    struct EventBase* base;
+    EventBase_t* base;
     Identity
 };
 
@@ -124,7 +124,7 @@ static struct Context* init(uint8_t* privateKeyA,
     struct Random* randB = evilRandom(alloc, logger, "ALPHA");
     struct Random* randC = evilRandom(alloc, logger, "BRAVO");
     struct Random* randD = evilRandom(alloc, logger, "BRAVO");
-    struct EventBase* base = ctx->base = EventBase_new(alloc);
+    EventBase_t* base = ctx->base = EventBase_new(alloc);
 
     ctx->node1.log = logger;
     ctx->node2.log = logger;

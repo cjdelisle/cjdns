@@ -26,7 +26,6 @@ pub unsafe extern "C" fn Rffi_spawn(
     args: *const *const c_char,
     num_args: c_int,
     _alloc: *mut Allocator_t, // perhaps create some Droppable and adopt it here, to kill the process.
-    event_loop: *mut Rffi_EventLoop,
     cb: Option<unsafe extern "C" fn(i64, c_int)>,
 ) -> i32 {
     let file = match CStr::from_ptr(file).to_str() {
@@ -43,7 +42,7 @@ pub unsafe extern "C" fn Rffi_spawn(
     };
     let child_status = Command::new(file).args(&args).status();
 
-    (&*event_loop).event_job(async move {
+    tokio::task::spawn(async move {
         match (child_status.await, cb) {
             (Ok(status), Some(callback)) => {
                 let _guard = GCL.lock();

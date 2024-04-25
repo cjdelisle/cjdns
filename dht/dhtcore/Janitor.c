@@ -77,7 +77,7 @@ struct Janitor_pvt
     uint64_t timeOfNextSearchRepeat;
     uint64_t searchRepeatMilliseconds;
 
-    struct EventBase* eventBase;
+    EventBase_t* eventBase;
     struct Random* rand;
 
     /** Number of concurrent searches taking place. */
@@ -676,7 +676,7 @@ struct Janitor* Janitor_new(struct RouterModule* routerModule,
                             struct RumorMill* rumorMill,
                             struct Log* logger,
                             struct Allocator* allocator,
-                            struct EventBase* eventBase,
+                            EventBase_t* eventBase,
                             struct Random* rand)
 {
     struct Allocator* alloc = Allocator_child(allocator);

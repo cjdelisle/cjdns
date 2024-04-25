@@ -71,7 +71,7 @@ struct ReachabilityCollector_pvt
     struct Log* log;
     struct BoilerplateResponder* br;
     struct Address* myAddr;
-    struct EventBase* base;
+    EventBase_t* base;
     struct EncodingScheme* myScheme;
     struct SwitchPinger* sp;
     uint32_t resampleCycle;
@@ -537,7 +537,7 @@ static void dummyOnChange(
 struct ReachabilityCollector* ReachabilityCollector_new(struct Allocator* allocator,
                                                         struct MsgCore* msgCore,
                                                         struct Log* log,
-                                                        struct EventBase* base,
+                                                        EventBase_t* base,
                                                         struct BoilerplateResponder* br,
                                                         struct Address* myAddr,
                                                         struct EncodingScheme* myScheme,

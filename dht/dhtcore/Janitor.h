@@ -84,7 +84,7 @@ struct Janitor* Janitor_new(struct RouterModule* routerModule,
                             struct RumorMill* rumorMill,
                             struct Log* logger,
                             struct Allocator* alloc,
-                            struct EventBase* eventBase,
+                            EventBase_t* eventBase,
                             struct Random* rand);
 
 #endif

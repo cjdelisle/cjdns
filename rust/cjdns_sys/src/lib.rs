@@ -1,6 +1,8 @@
 use std::ffi::CString;
 use std::os::raw::{c_char, c_int};
 
+use tokio::sync::oneshot::channel;
+
 pub fn rust_main(cmain: unsafe extern "C" fn(c_int, *const *mut c_char)) {
     cjdnslog::install();
     sodiumoxide::init().unwrap();
@@ -8,12 +10,8 @@ pub fn rust_main(cmain: unsafe extern "C" fn(c_int, *const *mut c_char)) {
         std::env::set_var("RUST_BACKTRACE", "full");
     }
 
-    let c_args = std::env::args()
-        .map(|arg| CString::new(arg).unwrap().into_raw())
-        .collect::<Vec<_>>();
-
     tokio::runtime::Builder::new_multi_thread()
-        .worker_threads(1)
+        .worker_threads(8)
         .enable_all()
         .build()
         .unwrap()
@@ -23,7 +21,15 @@ pub fn rust_main(cmain: unsafe extern "C" fn(c_int, *const *mut c_char)) {
                 default_panic(info);
                 std::process::abort();
             }));
-            unsafe { cmain(c_args.len() as c_int, c_args.as_ptr()) }
+            let (done_send, done_recv) = channel::<()>();
+            tokio::task::spawn_blocking(move ||{
+                let _done_send = done_send;
+                let c_args = std::env::args()
+                    .map(|arg| CString::new(arg).unwrap().into_raw())
+                    .collect::<Vec<_>>();
+                unsafe { cmain(c_args.len() as c_int, c_args.as_ptr()) }
+            });
+            let _ = done_recv.await;
         })
 }
 

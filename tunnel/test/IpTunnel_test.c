@@ -38,7 +38,7 @@ struct Context
     struct Allocator* alloc;
     struct Log* log;
     struct Random* rand;
-    struct EventBase* base;
+    EventBase_t* base;
     uint8_t pubKey[32];
     uint8_t ipv6[16];
 
@@ -367,7 +367,7 @@ static void testAddr(struct Context* ctx,
 int main()
 {
     struct Allocator* alloc = Allocator_new(1<<20);
-    struct EventBase* eb = EventBase_new(alloc);
+    EventBase_t* eb = EventBase_new(alloc);
     struct Log* logger = FileWriterLog_new(stdout, alloc);
     struct Random* rand = Random_new(alloc, logger, NULL);
     struct Context* ctx = Allocator_calloc(alloc, sizeof(struct Context), 1);
@@ -386,8 +386,6 @@ int main()
     testAddr(ctx, "192.168.1.1", 16, 24, "fd00::1", 0, 64);
     testAddr(ctx, "192.168.1.1", 16, 24, "fd00::1", 8, 64);
     testAddr(ctx, "192.168.1.1", 16, 24, "fd00::1", 64, 128);
-
-    EventBase_beginLoop(eb);
 
     Allocator_free(alloc);
     return 0;

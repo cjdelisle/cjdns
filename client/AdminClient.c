@@ -62,7 +62,7 @@ struct Request
 struct Context
 {
     struct AdminClient pub;
-    struct EventBase* eventBase;
+    EventBase_t* eventBase;
     struct Iface addrIface;
     struct Sockaddr* targetAddr;
     struct Log* logger;
@@ -305,7 +305,7 @@ char* AdminClient_errorString(enum AdminClient_Error err)
 struct AdminClient* AdminClient_new(AddrIface_t* ai,
                                     struct Sockaddr* connectToAddress,
                                     String* adminPassword,
-                                    struct EventBase* eventBase,
+                                    EventBase_t* eventBase,
                                     struct Log* logger,
                                     struct Allocator* alloc)
 {

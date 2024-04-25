@@ -39,7 +39,7 @@ struct Context
     struct Allocator* currentReqAlloc;
     struct AdminClient_Result* currentResult;
 
-    struct EventBase* base;
+    EventBase_t* base;
 };
 
 static void rpcCallback(struct AdminClient_Promise* p, struct AdminClient_Result* res)
@@ -706,7 +706,7 @@ static void waitUntilPong(struct Context* ctx)
 void Configurator_config(Dict* config,
                          struct Sockaddr* sockAddr,
                          String* adminPassword,
-                         struct EventBase* eventBase,
+                         EventBase_t* eventBase,
                          struct Log* logger,
                          struct Allocator* alloc)
 {

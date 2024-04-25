@@ -67,7 +67,7 @@ struct NodeStore
  */
 struct NodeStore* NodeStore_new(struct Address* myAddress,
                                 struct Allocator* allocator,
-                                struct EventBase* eventBase,
+                                EventBase_t* eventBase,
                                 struct Log* logger,
                                 struct RumorMill* renumberMill);
 

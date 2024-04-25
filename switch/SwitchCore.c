@@ -51,7 +51,7 @@ struct SwitchCore_pvt
     struct SwitchInterface interfaces[NumberCompress_INTERFACES];
     bool routerAdded;
     struct Log* logger;
-    struct EventBase* eventBase;
+    EventBase_t* eventBase;
 
     struct Allocator* allocator;
     Identity
@@ -281,7 +281,7 @@ int SwitchCore_addInterface(struct SwitchCore* switchCore,
 
 struct SwitchCore* SwitchCore_new(struct Log* logger,
                                   struct Allocator* allocator,
-                                  struct EventBase* base)
+                                  EventBase_t* base)
 {
     struct SwitchCore_pvt* core = Allocator_calloc(allocator, sizeof(struct SwitchCore_pvt), 1);
     Identity_set(core);

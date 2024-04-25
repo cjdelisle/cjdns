@@ -29,7 +29,7 @@ typedef RTypes_CryptoAuth2_Session_t Ca_Session_t;
 #define Ca_IMPL(x) Rffi_CryptoAuth2_ ## x
 static inline Ca_t* Ca_new(struct Allocator* allocator,
                                   const uint8_t* privateKey,
-                                  struct EventBase* eventBase,
+                                  EventBase_t* eventBase,
                                   struct Log* logger,
                                   struct Random* rand)
 {

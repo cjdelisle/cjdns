@@ -107,7 +107,7 @@ RTypes_StrList_t* CryptoAuth_getUsers(const struct CryptoAuth* context, struct A
  */
 struct CryptoAuth* CryptoAuth_new(struct Allocator* allocator,
                                   const uint8_t* privateKey,
-                                  struct EventBase* eventBase,
+                                  EventBase_t* eventBase,
                                   struct Log* logger,
                                   struct Random* rand);
 

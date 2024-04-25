@@ -57,7 +57,7 @@ struct NodeStore_pvt
     struct Log* logger;
 
     /** To track time, for e.g. figuring out when nodes were last pinged */
-    struct EventBase* eventBase;
+    EventBase_t* eventBase;
 
     // If this is non-zero then check() and verify() will be inactive.
     // Increment this if you're going to do the check yourself after the function you call is done.
@@ -1611,7 +1611,7 @@ struct Node_Link* NodeStore_nextLink(struct Node_Two* parent, struct Node_Link* 
 /** See: NodeStore.h */
 struct NodeStore* NodeStore_new(struct Address* myAddress,
                                 struct Allocator* allocator,
-                                struct EventBase* eventBase,
+                                EventBase_t* eventBase,
                                 struct Log* logger,
                                 struct RumorMill* renumberMill)
 {

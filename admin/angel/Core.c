@@ -114,7 +114,7 @@ struct Context
     struct Allocator* alloc;
     struct Admin* admin;
     struct Log* logger;
-    struct EventBase* base;
+    EventBase_t* base;
     struct NetCore* nc;
     struct IpTunnel* ipTunnel;
     struct EncodingScheme* encodingScheme;
@@ -324,7 +324,7 @@ static void nodeInfo(Dict* args, void* vcontext, String* txid, struct Allocator*
 
 void Core_init(struct Allocator* alloc,
                struct Log* logger,
-               struct EventBase* eventBase,
+               EventBase_t* eventBase,
                uint8_t privateKey[32],
                struct Admin* admin,
                struct Random* rand,
@@ -436,7 +436,7 @@ int Core_main(int argc, char** argv)
     struct Allocator* alloc = Allocator_new(ALLOCATOR_FAILSAFE);
     struct Log* preLogger = FileWriterLog_new(stderr, alloc);
     Rffi_setLogger(preLogger);
-    struct EventBase* eventBase = EventBase_new(alloc);
+    EventBase_t* eventBase = EventBase_new(alloc);
 
     // -------------------- Setup the Pre-Logger ---------------------- //
     struct Log* logger = IndirectLog_new(alloc);

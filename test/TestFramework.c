@@ -98,7 +98,7 @@ static Iface_DEFUN sendServer(struct Message* msg, struct Iface* serverIf)
 
 struct TestFramework* TestFramework_setUp(char* privateKey,
                                           struct Allocator* allocator,
-                                          struct EventBase* base,
+                                          EventBase_t* base,
                                           struct Random* rand,
                                           struct Log* logger,
                                           bool enableNoise)

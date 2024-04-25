@@ -28,7 +28,7 @@
 int main(int argc, char** argv)
 {
     struct Allocator* alloc = Allocator_new(1<<20);
-    struct EventBase* base = EventBase_new(alloc);
+    EventBase_t* base = EventBase_new(alloc);
     struct Log* logger = FileWriterLog_new(stdout, alloc);
 
     struct Sockaddr* addrA = Sockaddr_fromBytes(TUNTools_testIP6AddrA, Sockaddr_AF_INET6, alloc);

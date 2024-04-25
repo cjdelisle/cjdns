@@ -310,7 +310,7 @@ void* CryptoAuthFuzz_init(struct Allocator* alloc, struct Random* rand, enum Tes
     Identity_set(ctx);
     Identity_set(&ctx->nodeA);
     Identity_set(&ctx->nodeB);
-    struct EventBase* base = EventBase_new(alloc);
+    EventBase_t* base = EventBase_new(alloc);
     ctx->alloc = alloc;
 
     uint8_t buf[64];

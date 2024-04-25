@@ -24,7 +24,7 @@ struct TestFramework
 {
     struct Allocator* alloc;
     struct Random* rand;
-    struct EventBase* eventBase;
+    EventBase_t* eventBase;
     struct Log* logger;
 
     #ifndef SUBNODE
@@ -56,7 +56,7 @@ struct TestFramework
 
 struct TestFramework* TestFramework_setUp(char* privateKey,
                                           struct Allocator* allocator,
-                                          struct EventBase* base,
+                                          EventBase_t* base,
                                           struct Random* rand,
                                           struct Log* logger,
                                           bool enableNoise);

@@ -204,7 +204,7 @@ static int handleOutgoing(struct DHTMessage* message, void* vcontext);
 struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
                                            struct Allocator* allocator,
                                            const uint8_t myAddress[Address_KEY_SIZE],
-                                           struct EventBase* eventBase,
+                                           EventBase_t* eventBase,
                                            struct Log* logger,
                                            struct Random* rand,
                                            struct NodeStore* nodeStore)

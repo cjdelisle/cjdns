@@ -41,7 +41,7 @@ struct Context
 
     struct Timeout* checkLinkageTimeout;
     struct Log* logger;
-    struct EventBase* base;
+    EventBase_t* base;
     struct Allocator* alloc;
 
     uint64_t startTime;
@@ -91,8 +91,8 @@ static void checkLinkage(void* vContext)
     Log_debug(ctx->logger, "\n\nSetup Complete\n\n");
 
     //Timeout_clearTimeout(ctx->checkLinkageTimeout);
-    //EventBase_endLoop(ctx->base);
-    Timeout_clearAll(ctx->base);
+    EventBase_endLoop(ctx->base);
+    // Timeout_clearAll(ctx->base);
 }
 
 void* CJDNS_FUZZ_INIT(struct Allocator* allocator, struct Random* rand)
@@ -100,7 +100,7 @@ void* CJDNS_FUZZ_INIT(struct Allocator* allocator, struct Random* rand)
     struct Writer* logwriter = FileWriter_new(stdout, allocator);
     struct Log* logger = WriterLog_new(logwriter, allocator);
 
-    struct EventBase* base = EventBase_new(allocator);
+    EventBase_t* base = EventBase_new(allocator);
     struct Context* ctx = Allocator_calloc(allocator, sizeof(struct Context), 1);
     Identity_set(ctx);
     ctx->base = base;
@@ -190,5 +190,5 @@ void CJDNS_FUZZ_MAIN(void* vctx, struct Message* msg)
 
     EventBase_beginLoop(ctx->base);
     Allocator_free(ctx->alloc);
-    EventBase_beginLoop(ctx->base);
+    //EventBase_beginLoop(ctx->base);
 }

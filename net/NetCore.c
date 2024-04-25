@@ -32,7 +32,7 @@
 
 struct NetCore* NetCore_new(uint8_t* privateKey,
                             struct Allocator* allocator,
-                            struct EventBase* base,
+                            EventBase_t* base,
                             struct Random* rand,
                             struct Log* log,
                             bool enableNoise)

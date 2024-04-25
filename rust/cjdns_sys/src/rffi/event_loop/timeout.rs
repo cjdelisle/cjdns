@@ -1,6 +1,7 @@
 use super::{Rffi_EventLoop, GCL};
 use crate::cffi::{Allocator_t, Allocator__onFree, Allocator_OnFreeJob};
 use crate::rffi::allocator;
+use crate::util::identity::from_c;
 use std::ffi::c_void;
 use std::os::raw::{c_int, c_ulong};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -60,8 +61,7 @@ pub extern "C" fn Rffi_setTimeout(
         active: Arc::new(AtomicBool::new(true)),
     });
 
-    let event_loop = unsafe { (&*event_loop).arc_clone() };
-    event_loop.0.timers.lock().push(Arc::downgrade(&rtx));
+    from_c!(event_loop).inner.timers.lock().push(Arc::downgrade(&rtx));
 
     // do not clone rtx so we don't keep another tx around, so the "Allocator freed" detection works.
     // although with the new Drop impl for Rffi_EventLoop, the Cancel msg should get there first.
@@ -79,7 +79,7 @@ pub extern "C" fn Rffi_setTimeout(
         *out_timer_tx = timer_tx;
     }
 
-    event_loop.arc_clone().event_job(async move {
+    tokio::task::spawn(async move {
         let mut timeout_millis = timeout_millis;
         loop {
             tokio::select! {
@@ -103,9 +103,7 @@ pub extern "C" fn Rffi_setTimeout(
                             },
                             Some(TimerCommand::Cancel) => {
                                 println!("({:#x}) Received cancel command", cb_int);
-                                event_loop.decr_ref();
                                 msg = rx.recv().await;
-                                event_loop.incr_ref();
                             },
                             Some(TimerCommand::Free) |
                             None => {
@@ -164,10 +162,9 @@ pub extern "C" fn Rffi_isTimeoutActive(timer_tx: *const Rffi_TimerTx) -> c_int {
 /// Cancel all timer tasks.
 #[no_mangle]
 pub extern "C" fn Rffi_clearAllTimeouts(event_loop: *mut Rffi_EventLoop) {
-    unsafe {
-        //assert!((&*event_loop).1 == 0xdeadbeef_cafebabe);
-        &*event_loop
-    }.0.timers
+    from_c!(event_loop)
+        .inner
+        .timers
         .lock()
         .drain(..)
         .filter_map(|w| w.upgrade())
@@ -195,7 +192,7 @@ mod tests {
             tx.send(1).unwrap();
         }
 
-        let event_loop = Rffi_mkEventLoop(alloc.c(), std::ptr::null_mut());
+        let event_loop = Rffi_mkEventLoop(alloc.c());
         let mut timer = std::ptr::null_mut();
         Rffi_setTimeout(
             &mut timer as _,
@@ -240,7 +237,7 @@ mod tests {
             tx.send(1).unwrap();
         }
 
-        let event_loop = Rffi_mkEventLoop(alloc.c(), std::ptr::null_mut());
+        let event_loop = Rffi_mkEventLoop(alloc.c());
         let mut timer = std::ptr::null_mut();
         Rffi_setTimeout(
             &mut timer as _,
@@ -275,7 +272,7 @@ mod tests {
             tx.send(1).unwrap();
         }
 
-        let event_loop = Rffi_mkEventLoop(alloc.c(), std::ptr::null_mut());
+        let event_loop = Rffi_mkEventLoop(alloc.c());
         let mut timer = std::ptr::null_mut();
         Rffi_setTimeout(
             &mut timer as _,
@@ -305,7 +302,7 @@ mod tests {
             tx.send(1).unwrap();
         }
 
-        let event_loop = Rffi_mkEventLoop(alloc.c(), std::ptr::null_mut());
+        let event_loop = Rffi_mkEventLoop(alloc.c());
         let start_timer = move |t, r, a: &mut Allocator| {
             let mut timer = std::ptr::null_mut();
             Rffi_setTimeout(
@@ -346,7 +343,7 @@ mod tests {
             tx.send(1).unwrap();
         }
 
-        let event_loop = Rffi_mkEventLoop(alloc.c(), std::ptr::null_mut());
+        let event_loop = Rffi_mkEventLoop(alloc.c());
         let start_timer = move |t, r, a: &mut Allocator| {
             let mut timer = std::ptr::null_mut();
             Rffi_setTimeout(

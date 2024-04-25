@@ -58,7 +58,7 @@ struct CryptoAuth_pvt
     struct CryptoAuth_User* users;
 
     struct Log* logger;
-    struct EventBase* eventBase;
+    EventBase_t* eventBase;
 
     struct Allocator* allocator;
     struct Random* rand;

@@ -67,7 +67,7 @@ int SupernodeHunter_removeSnode(struct SupernodeHunter* snh, struct Address* toR
   */
 struct SupernodeHunter* SupernodeHunter_new(struct Allocator* allocator,
                                             struct Log* log,
-                                            struct EventBase* base,
+                                            EventBase_t* base,
                                             struct SwitchPinger* sp,
                                             struct AddrSet* peers,
                                             struct MsgCore* msgCore,

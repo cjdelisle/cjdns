@@ -191,7 +191,7 @@ struct ReachabilityAnnouncer_pvt
     struct Timeout* announceCycle;
     struct Allocator* alloc;
     struct Log* log;
-    struct EventBase* base;
+    EventBase_t* base;
     struct MsgCore* msgCore;
     struct Random* rand;
     struct SupernodeHunter* snh;
@@ -780,7 +780,7 @@ static struct Announce_ItemHeader* mkEncodingSchemeItem(
 
 struct ReachabilityAnnouncer* ReachabilityAnnouncer_new(struct Allocator* allocator,
                                                         struct Log* log,
-                                                        struct EventBase* base,
+                                                        EventBase_t* base,
                                                         struct Random* rand,
                                                         struct MsgCore* msgCore,
                                                         struct SupernodeHunter* snh,

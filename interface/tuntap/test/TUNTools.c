@@ -28,7 +28,7 @@
     #include <unistd.h>
 #endif
 
-static AddrIface_t* setupUDP(struct EventBase* base,
+static AddrIface_t* setupUDP(EventBase_t* base,
                                   struct Sockaddr* bindAddr,
                                   struct Allocator* allocator,
                                   struct Log* logger)
@@ -140,7 +140,7 @@ void TUNTools_echoTest(struct Sockaddr* udpBindTo,
                        struct Sockaddr* tunDestAddr,
                        TUNTools_Callback tunMessageHandler,
                        struct Iface* tun,
-                       struct EventBase* base,
+                       EventBase_t* base,
                        struct Log* logger,
                        struct Allocator* allocator)
 {
