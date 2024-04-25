@@ -80,7 +80,7 @@ static int64_t timeUntilReannounce(
 
 static int64_t timestampFromMsg(struct Message* msg)
 {
-    struct Announce_Header* hdr = (struct Announce_Header*) msg->msgbytes;
+    struct Announce_Header* hdr = (struct Announce_Header*) Message_bytes(msg);
     Assert_true(Message_getLength(msg) >= Announce_Header_SIZE);
     return Announce_Header_getTimestamp(hdr);
 }
@@ -110,7 +110,7 @@ static void hashMsgList(struct ArrayList_OfMessages* msgList, uint8_t out[64])
     for (int i = 0; i < msgList->length; i++) {
         struct Message* msg = ArrayList_OfMessages_get(msgList, i);
         Er_assert(Message_epush(msg, hash, 64));
-        crypto_hash_sha512(hash, msg->msgbytes, Message_getLength(msg));
+        crypto_hash_sha512(hash, Message_bytes(msg), Message_getLength(msg));
         Er_assert(Message_epop(msg, NULL, 64));
     }
     Bits_memcpy(out, hash, 64);
@@ -358,7 +358,7 @@ static int updateItem(struct ReachabilityAnnouncer_pvt* rap,
     }
 
     Er_assert(Message_epush(msg, refItem, refItem->length));
-    while ((uintptr_t)msg->msgbytes % 4) {
+    while ((uintptr_t)Message_bytes(msg) % 4) {
         // Ensure alignment
         Er_assert(Message_epush8(msg, 1));
     }
@@ -686,7 +686,7 @@ static void onAnnounceCycle(void* vRap)
 
     Er_assert(Message_epush(msg, NULL, Announce_Header_SIZE));
 
-    struct Announce_Header* hdr = (struct Announce_Header*) msg->msgbytes;
+    struct Announce_Header* hdr = (struct Announce_Header*) Message_bytes(msg);
     Bits_memset(hdr, 0, Announce_Header_SIZE);
     Announce_Header_setVersion(hdr, Announce_Header_CURRENT_VERSION);
     Announce_Header_setReset(hdr, rap->resetState);
@@ -711,7 +711,7 @@ static void onAnnounceCycle(void* vRap)
     qp->target = &q->target;
 
     Dict_putStringCC(dict, "sq", "ann", qp->alloc);
-    String* annString = String_newBinary(msg->msgbytes, Message_getLength(msg), qp->alloc);
+    String* annString = String_newBinary(Message_bytes(msg), Message_getLength(msg), qp->alloc);
     Dict_putStringC(dict, "ann", annString, qp->alloc);
 
     rap->onTheWire = q;
@@ -773,7 +773,7 @@ static struct Announce_ItemHeader* mkEncodingSchemeItem(
     Er_assert(Message_epush8(esMsg, compressedScheme->len + 2));
 
     struct Announce_ItemHeader* item = Allocator_calloc(alloc, Message_getLength(esMsg), 1);
-    Bits_memcpy(item, esMsg->msgbytes, Message_getLength(esMsg));
+    Bits_memcpy(item, Message_bytes(esMsg), Message_getLength(esMsg));
     Allocator_free(tmpAlloc);
     return item;
 }

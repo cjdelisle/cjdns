@@ -315,7 +315,7 @@ static Iface_DEFUN failedDecrypt(struct Message* msg,
     Er_assert(Message_epush32be(msg, Error_AUTHENTICATION));
     Er_assert(Message_epush16be(msg, Control_ERROR));
     Er_assert(Message_epush16be(msg, 0));
-    uint16_t csum_be = Checksum_engine_be(msg->msgbytes, Message_getLength(msg));
+    uint16_t csum_be = Checksum_engine_be(Message_bytes(msg), Message_getLength(msg));
     Er_assert(Message_epop16h(msg));
     Er_assert(Message_epush16h(msg, csum_be));
 
@@ -505,7 +505,7 @@ static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface
     switchHeader.label_be = Bits_bitReverse64(switchHeader.label_be);
 
     struct SessionManager_Session_pvt* session = NULL;
-    uint32_t nonceOrHandle = Endian_bigEndianToHost32(((uint32_t*)msg->msgbytes)[0]);
+    uint32_t nonceOrHandle = Endian_bigEndianToHost32(((uint32_t*)Message_bytes(msg))[0]);
     if (nonceOrHandle == 0xffffffff) {
         Er_assert(Message_epush(msg, &switchHeader, SwitchHeader_SIZE));
         return ctrlFrame(msg, sm);
@@ -525,7 +525,7 @@ static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface
             return Error(msg, "INVALID");
         }
         Er_assert(Message_eshift(msg, -4));
-        uint32_t nonce = Endian_bigEndianToHost32(((uint32_t*)msg->msgbytes)[0]);
+        uint32_t nonce = Endian_bigEndianToHost32(((uint32_t*)Message_bytes(msg))[0]);
         if (nonce < 4) {
             Log_debug(sm->log, "DROP setup message [%u] with specified handle [%u]",
                 nonce, nonceOrHandle);
@@ -537,7 +537,7 @@ static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface
             Log_debug(sm->log, "DROP runt");
             return Error(msg, "RUNT");
         }
-        struct CryptoHeader* caHeader = (struct CryptoHeader*) msg->msgbytes;
+        struct CryptoHeader* caHeader = (struct CryptoHeader*) Message_bytes(msg);
         uint8_t ip6[16];
         // a packet which claims to be "from us" causes problems
         if (!AddressCalc_addressForPublicKey(ip6, caHeader->publicKey)) {
@@ -674,7 +674,7 @@ static void periodically(void* vSessionManager)
 static void bufferPacket(struct SessionManager_pvt* sm, struct Message* msg)
 {
     Assert_true(Message_getLength(msg) >= (RouteHeader_SIZE + DataHeader_SIZE));
-    struct RouteHeader* header = (struct RouteHeader*) msg->msgbytes;
+    struct RouteHeader* header = (struct RouteHeader*) Message_bytes(msg);
 
     // We should never be sending CJDHT messages without full version, key, path known.
     struct DataHeader* dataHeader = (struct DataHeader*) &header[1];
@@ -712,7 +712,7 @@ static void bufferPacket(struct SessionManager_pvt* sm, struct Message* msg)
 
 static void needsLookup(struct SessionManager_pvt* sm, struct Message* msg)
 {
-    struct RouteHeader* header = (struct RouteHeader*) msg->msgbytes;
+    struct RouteHeader* header = (struct RouteHeader*) Message_bytes(msg);
     bufferPacket(sm, msg);
     triggerSearch(sm, header->ip6, Endian_hostToBigEndian32(header->version_be));
 }
@@ -743,7 +743,7 @@ static Iface_DEFUN readyToSend(struct Message* msg,
 static Iface_DEFUN outgoingCtrlFrame(struct Message* msg, struct SessionManager_pvt* sm)
 {
     Assert_true(Message_getLength(msg) >= RouteHeader_SIZE);
-    struct RouteHeader* header = (struct RouteHeader*) msg->msgbytes;
+    struct RouteHeader* header = (struct RouteHeader*) Message_bytes(msg);
     if (!Bits_isZero(header->publicKey, 32) || !Bits_isZero(header->ip6, 16)) {
         Log_debug(sm->log, "DROP Ctrl frame with non-zero destination key or IP");
         return Error(msg, "INVALID");
@@ -765,7 +765,7 @@ static Iface_DEFUN incomingFromInsideIf(struct Message* msg, struct Iface* iface
     struct SessionManager_pvt* sm =
         Identity_containerOf(iface, struct SessionManager_pvt, pub.insideIf);
     Assert_true(Message_getLength(msg) >= RouteHeader_SIZE);
-    struct RouteHeader* header = (struct RouteHeader*) msg->msgbytes;
+    struct RouteHeader* header = (struct RouteHeader*) Message_bytes(msg);
     if (header->flags & RouteHeader_flags_CTRLMSG) {
         return outgoingCtrlFrame(msg, sm);
     }

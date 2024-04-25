@@ -127,16 +127,16 @@ impl Message {
     #[inline]
     pub fn data_ptr(&self) -> usize {
         let msg = unsafe { &mut (*self.msg) };
-        msg.msgbytes as usize
+        msg._msgbytes as usize
     }
 
     /// Get the read-only view into the message data as byte slice.
     #[inline]
     pub fn bytes(&self) -> &[u8] {
         let msg = unsafe { &mut (*self.msg) };
-        debug_assert!(!msg.msgbytes.is_null());
+        debug_assert!(!msg._msgbytes.is_null());
         debug_assert!(msg._length >= 0);
-        let ptr = msg.msgbytes as *const u8;
+        let ptr = msg._msgbytes as *const u8;
         let len = msg._length as usize;
         unsafe { from_raw_parts(ptr, len) }
     }
@@ -145,9 +145,9 @@ impl Message {
     #[inline]
     pub fn bytes_mut(&mut self) -> &mut [u8] {
         let msg = unsafe { &mut (*self.msg) };
-        debug_assert!(!msg.msgbytes.is_null());
+        debug_assert!(!msg._msgbytes.is_null());
         debug_assert!(msg._length >= 0);
-        let ptr = msg.msgbytes;
+        let ptr = msg._msgbytes;
         let len = msg._length as usize;
         unsafe { from_raw_parts_mut(ptr, len) }
     }
@@ -345,7 +345,7 @@ impl Message {
     #[inline]
     fn data_ref<T>(&self) -> Option<&T> {
         let msg = unsafe { &mut (*self.msg) };
-        let ptr = msg.msgbytes as usize;
+        let ptr = msg._msgbytes as usize;
         let align = std::mem::align_of::<T>();
         if ptr % align == 0 {
             let ptr = ptr as *const T;
@@ -359,7 +359,7 @@ impl Message {
     #[inline]
     fn data_ref_mut<T>(&mut self) -> Option<&mut T> {
         let msg = unsafe { &mut (*self.msg) };
-        let ptr = msg.msgbytes as usize;
+        let ptr = msg._msgbytes as usize;
         let align = std::mem::align_of::<T>();
         if ptr % align == 0 {
             let ptr = ptr as *mut T;
@@ -390,7 +390,7 @@ impl Message {
 
         msg._length += amount;
         msg._capacity += amount;
-        msg.msgbytes = (msg.msgbytes as isize - amount as isize) as *mut u8;
+        msg._msgbytes = (msg._msgbytes as isize - amount as isize) as *mut u8;
         msg._padding -= amount;
 
         Ok(())

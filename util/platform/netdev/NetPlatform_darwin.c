@@ -144,7 +144,7 @@ static Er_DEFUN(void setRoutes(uint32_t ifIndex,
         struct Message* msg = Message_new(0, 1024, alloc);
         Er(mkRouteMsg(msg, pfx, ifIndex, ifName, seq++, true));
         //printf("DELETE ROUTE %s\n", Hex_print(msg->bytes, Message_getLength(msg), alloc));
-        returnLen = write(sock, msg->msgbytes, Message_getLength(msg));
+        returnLen = write(sock, Message_bytes(msg), Message_getLength(msg));
         if (returnLen < Message_getLength(msg)) { err = true; break; }
     }
     for (int i = 0; !err && i < toAdd->length; i++) {
@@ -152,7 +152,7 @@ static Er_DEFUN(void setRoutes(uint32_t ifIndex,
         struct Message* msg = Message_new(0, 1024, alloc);
         Er(mkRouteMsg(msg, pfx, ifIndex, ifName, seq++, false));
         //printf("ADD ROUTE %s\n", Hex_print(msg->bytes, Message_getLength(msg), alloc));
-        returnLen = write(sock, msg->msgbytes, Message_getLength(msg));
+        returnLen = write(sock, Message_bytes(msg), Message_getLength(msg));
         if (returnLen < Message_getLength(msg)) { err = true; break; }
     }
 

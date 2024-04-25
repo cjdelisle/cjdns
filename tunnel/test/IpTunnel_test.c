@@ -59,12 +59,12 @@ struct IfaceContext
 static Iface_DEFUN responseWithIpCallback(struct Message* message, struct Iface* iface)
 {
     struct Context* ctx = Identity_check(((struct IfaceContext*)iface)->ctx);
-    struct RouteHeader* rh = (struct RouteHeader*) message->msgbytes;
+    struct RouteHeader* rh = (struct RouteHeader*) Message_bytes(message);
     Assert_true(!Bits_memcmp(ctx->ipv6, rh->ip6, 16));
     Assert_true(!Bits_memcmp(ctx->pubKey, rh->publicKey, 32));
 
     Er_assert(Message_eshift(message, -(RouteHeader_SIZE + DataHeader_SIZE)));
-    struct Headers_IP6Header* ip = (struct Headers_IP6Header*) message->msgbytes;
+    struct Headers_IP6Header* ip = (struct Headers_IP6Header*) Message_bytes(message);
     Assert_true(Headers_getIpVersion(ip) == 6);
     uint16_t length = Endian_bigEndianToHost16(ip->payloadLength_be);
     Assert_true(length + Headers_IP6Header_SIZE == Message_getLength(message));
@@ -72,8 +72,8 @@ static Iface_DEFUN responseWithIpCallback(struct Message* message, struct Iface*
     Assert_true(Bits_isZero(ip->sourceAddr, 32));
 
     Er_assert(Message_eshift(message, -Headers_IP6Header_SIZE));
-    struct Headers_UDPHeader* uh = (struct Headers_UDPHeader*) message->msgbytes;
-    Assert_true(!Checksum_udpIp6_be(ip->sourceAddr, message->msgbytes, length));
+    struct Headers_UDPHeader* uh = (struct Headers_UDPHeader*) Message_bytes(message);
+    Assert_true(!Checksum_udpIp6_be(ip->sourceAddr, Message_bytes(message), length));
 
     Assert_true(uh->srcPort_be == 0);
     Assert_true(uh->destPort_be == 0);
@@ -82,7 +82,7 @@ static Iface_DEFUN responseWithIpCallback(struct Message* message, struct Iface*
     Er_assert(Message_eshift(message, -Headers_UDPHeader_SIZE));
 
     struct Allocator* alloc = Allocator_child(ctx->alloc);
-    char* messageContent = Escape_getEscaped(message->msgbytes, Message_getLength(message), alloc);
+    char* messageContent = Escape_getEscaped(Message_bytes(message), Message_getLength(message), alloc);
     char* expectedContent =
         Escape_getEscaped(ctx->expectedResponse->bytes, ctx->expectedResponse->len, alloc);
     Log_debug(ctx->log, "Response: [%s]", messageContent);
@@ -93,7 +93,7 @@ static Iface_DEFUN responseWithIpCallback(struct Message* message, struct Iface*
     // alignment of the output but we can make sure the right content is there...
     // Message should start with "d0000" (with some number of zeros)
     Assert_true((int)ctx->expectedResponse->len == Message_getLength(message));
-    Assert_true(!Bits_memcmp(message->msgbytes, ctx->expectedResponse->bytes, Message_getLength(message)));
+    Assert_true(!Bits_memcmp(Message_bytes(message), ctx->expectedResponse->bytes, Message_getLength(message)));
     ctx->called |= 2;
 
     return NULL;
@@ -104,13 +104,13 @@ static Iface_DEFUN messageToTun(struct Message* msg, struct Iface* iface)
     struct Context* ctx = Identity_check(((struct IfaceContext*)iface)->ctx);
     uint16_t type = Er_assert(TUNMessageType_pop(msg));
     if (type == Ethernet_TYPE_IP6) {
-        struct Headers_IP6Header* ip = (struct Headers_IP6Header*) msg->msgbytes;
+        struct Headers_IP6Header* ip = (struct Headers_IP6Header*) Message_bytes(msg);
         Assert_true(Headers_getIpVersion(ip) == 6);
         Assert_true(!Bits_memcmp(ip->sourceAddr, ctx->sendingAddress, 16));
         Er_assert(Message_eshift(msg, -Headers_IP6Header_SIZE));
         ctx->called |= 4;
     } else if (type == Ethernet_TYPE_IP4) {
-        struct Headers_IP4Header* ip = (struct Headers_IP4Header*) msg->msgbytes;
+        struct Headers_IP4Header* ip = (struct Headers_IP4Header*) Message_bytes(msg);
         Assert_true(Headers_getIpVersion(ip) == 4);
         Assert_true(!Bits_memcmp(ip->sourceAddr, ctx->sendingAddress, 4));
         Er_assert(Message_eshift(msg, -Headers_IP4Header_SIZE));
@@ -118,14 +118,14 @@ static Iface_DEFUN messageToTun(struct Message* msg, struct Iface* iface)
     } else {
         Assert_failure("unrecognized message type %u", (unsigned int)type);
     }
-    Assert_true(Message_getLength(msg) == 12 && CString_strcmp(msg->msgbytes, "hello world") == 0);
+    Assert_true(Message_getLength(msg) == 12 && CString_strcmp(Message_bytes(msg), "hello world") == 0);
     return NULL;
 }
 
 static void pushRouteDataHeaders(struct Context* ctx, struct Message* message)
 {
     Er_assert(Message_eshift(message, RouteHeader_SIZE + DataHeader_SIZE));
-    struct RouteHeader* rh = (struct RouteHeader*) message->msgbytes;
+    struct RouteHeader* rh = (struct RouteHeader*) Message_bytes(message);
     struct DataHeader* dh = (struct DataHeader*) &rh[1];
     Bits_memset(rh, 0, RouteHeader_SIZE + DataHeader_SIZE);
     Bits_memcpy(rh->ip6, ctx->ipv6, 16);
@@ -141,7 +141,7 @@ static bool trySend4(struct Allocator* alloc,
     struct Message* msg4 = Message_new(0, 512, alloc);
     Er_assert(Message_epush(msg4, "hello world", 12));
     Er_assert(Message_epush(msg4, NULL, Headers_IP4Header_SIZE));
-    struct Headers_IP4Header* iph = (struct Headers_IP4Header*) msg4->msgbytes;
+    struct Headers_IP4Header* iph = (struct Headers_IP4Header*) Message_bytes(msg4);
     Headers_setIpVersion(iph);
     uint32_t addr_be = Endian_hostToBigEndian32(addr);
     Bits_memcpy(iph->sourceAddr, &addr_be, 4);
@@ -166,7 +166,7 @@ static bool trySend6(struct Allocator* alloc,
     struct Message* msg6 = Message_new(0, 512, alloc);
     Er_assert(Message_epush(msg6, "hello world", 12));
     Er_assert(Message_epush(msg6, NULL, Headers_IP6Header_SIZE));
-    struct Headers_IP6Header* iph = (struct Headers_IP6Header*) msg6->msgbytes;
+    struct Headers_IP6Header* iph = (struct Headers_IP6Header*) Message_bytes(msg6);
     Headers_setIpVersion(iph);
     uint64_t addrHigh_be = Endian_hostToBigEndian64(addrHigh);
     uint64_t addrLow_be = Endian_hostToBigEndian64(addrLow);
@@ -216,7 +216,7 @@ static String* getExpectedResponse(struct Sockaddr* sa4, int prefix4, int alloc4
     struct Message* msg = Message_new(0, 512, alloc);
     Er_assert(BencMessageWriter_write(output, msg));
 
-    String* outStr = String_newBinary(msg->msgbytes, Message_getLength(msg), allocator);
+    String* outStr = String_newBinary(Message_bytes(msg), Message_getLength(msg), allocator);
     Allocator_free(alloc);
     return outStr;
 }
@@ -255,20 +255,20 @@ static void testAddr(struct Context* ctx,
           "1:q" "21:IpTunnel_getAddresses"
           "4:txid" "4:abcd"
         "e";
-    CString_strcpy(msg->msgbytes, requestForAddresses);
+    CString_strcpy(Message_bytes(msg), requestForAddresses);
     Er_assert(Message_truncate(msg, CString_strlen(requestForAddresses)));
 
     Er_assert(Message_epush(msg, NULL, Headers_UDPHeader_SIZE));
-    struct Headers_UDPHeader* uh = (struct Headers_UDPHeader*) msg->msgbytes;
+    struct Headers_UDPHeader* uh = (struct Headers_UDPHeader*) Message_bytes(msg);
     uh->length_be = Endian_hostToBigEndian16(Message_getLength(msg) - Headers_UDPHeader_SIZE);
 
-    uint16_t* checksum_be = &((struct Headers_UDPHeader*) msg->msgbytes)->checksum_be;
+    uint16_t* checksum_be = &((struct Headers_UDPHeader*) Message_bytes(msg))->checksum_be;
     *checksum_be = 0;
     uint32_t length = Message_getLength(msg);
 
     // Because of old reasons, we need to have at least an empty IPv6 header
     Er_assert(Message_epush(msg, NULL, Headers_IP6Header_SIZE));
-    struct Headers_IP6Header* ip = (struct Headers_IP6Header*) msg->msgbytes;
+    struct Headers_IP6Header* ip = (struct Headers_IP6Header*) Message_bytes(msg);
     Headers_setIpVersion(ip);
     ip->payloadLength_be = Endian_hostToBigEndian16(Message_getLength(msg) - Headers_IP6Header_SIZE);
     ip->nextHeader = 17;

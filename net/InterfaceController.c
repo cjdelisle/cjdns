@@ -256,7 +256,7 @@ static void sendPeer(uint32_t pathfinderId,
     struct InterfaceController_pvt* ic = Identity_check(peer->ici->ic);
     struct Allocator* alloc = Allocator_child(ic->alloc);
     struct Message* msg = Message_new(PFChan_Node_SIZE, 512, alloc);
-    struct PFChan_Node* node = (struct PFChan_Node*) msg->msgbytes;
+    struct PFChan_Node* node = (struct PFChan_Node*) Message_bytes(msg);
     Bits_memcpy(node->ip6, peer->addr.ip6.bytes, 16);
     Bits_memcpy(node->publicKey, peer->addr.key, 32);
     node->path_be = Endian_hostToBigEndian64(peer->addr.path);
@@ -719,14 +719,14 @@ static Iface_DEFUN handleIncomingFromWire(struct Message* msg, struct Iface* add
     struct Sockaddr_storage lladdrStore;
     struct Sockaddr* lladdr = (struct Sockaddr*) &lladdrStore;
     {
-        struct Sockaddr* lladdr0 = (struct Sockaddr*) msg->msgbytes;
+        struct Sockaddr* lladdr0 = (struct Sockaddr*) Message_bytes(msg);
         if (Message_getLength(msg) < Sockaddr_OVERHEAD || Message_getLength(msg) < lladdr0->addrLen) {
             Log_debug(ici->ic->logger, "DROP runt");
             return Error(msg, "RUNT");
         }
         Er_assert(Message_epop(msg, lladdr, lladdr0->addrLen));
     }
-    Assert_true(!((uintptr_t)msg->msgbytes % 4) && "alignment fault");
+    Assert_true(!((uintptr_t)Message_bytes(msg) % 4) && "alignment fault");
     Assert_true(!((uintptr_t)lladdr->addrLen % 4) && "alignment fault");
 
     char* printedAddr = "<unknown>";
@@ -749,7 +749,7 @@ static Iface_DEFUN handleIncomingFromWire(struct Message* msg, struct Iface* add
     if (epIndex == -1) {
         // noise control message
         Er_assert(Message_epush(msg, NULL, 16));
-        Sockaddr_asIp6(msg->msgbytes, lladdr);
+        Sockaddr_asIp6(Message_bytes(msg), lladdr);
 
         RTypes_CryptoAuth2_TryHandshake_Ret_t ret = { .code = 0 };
         Rffi_CryptoAuth2_tryHandshake(ici->ic->ca, msg, ici->alloc, true, &ret);
@@ -825,7 +825,7 @@ static Iface_DEFUN handleIncomingFromWire(struct Message* msg, struct Iface* add
     Ca_resetIfTimeout(ep->caSession);
 
     Er_assert(Message_epush(msg, NULL, 16));
-    Sockaddr_asIp6(msg->msgbytes, lladdr);
+    Sockaddr_asIp6(Message_bytes(msg), lladdr);
 
     return Iface_next(&ep->ciphertext, msg); // -> afterDecrypt
 }
@@ -850,7 +850,7 @@ static Iface_DEFUN afterDecrypt(struct Message* msg, struct Iface* plaintext)
         // prevent some kinds of nasty things which could be done with packet replay.
         // This is checking the message switch header and will drop it unless the label
         // directs it to *this* router.
-        if (Message_getLength(msg) < 8 || msg->msgbytes[7] != 1) {
+        if (Message_getLength(msg) < 8 || Message_bytes(msg)[7] != 1) {
             Log_info(ic->logger, "DROP message because CA is not established.");
             return Error(msg, "UNHANDLED");
         } else {
@@ -927,7 +927,7 @@ static void sendBeacon(struct InterfaceController_Iface_pvt* ici, struct Allocat
     Er_assert(Message_epush(msg, &ici->ic->beacon, Headers_Beacon_SIZE));
 
     if (Defined(Log_DEBUG)) {
-        char* content = Hex_print(msg->msgbytes, Message_getLength(msg), tempAlloc);
+        char* content = Hex_print(Message_bytes(msg), Message_getLength(msg), tempAlloc);
         Log_debug(ici->ic->logger, "SEND BEACON CONTENT[%s]", content);
     }
 

@@ -75,7 +75,7 @@ static void randomLsUpdate(struct Random* rand, struct LinkState* ls)
 static void applyStateUpdates(struct LinkState* local, struct Message* msg)
 {
     if (!Message_getLength(msg)) { return; }
-    uint8_t length = msg->msgbytes[0];
+    uint8_t length = Message_bytes(msg)[0];
     struct VarInt_Iter it;
     Assert_true(!LinkState_mkDecoder(msg, &it));
     uint32_t id = 0;

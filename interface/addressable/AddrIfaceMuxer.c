@@ -78,11 +78,11 @@ static Iface_DEFUN incomingFromInputIf(struct Message* msg, struct Iface* inputI
         return Error(msg, "RUNT");
     }
 
-    uint16_t addrLen = Bits_get16(msg->msgbytes);
+    uint16_t addrLen = Bits_get16(Message_bytes(msg));
     Er_assert(AddrIface_pushAddr(msg, &cli->addr));
 
     // After pushing the address, tweak the length
-    Bits_put16(msg->msgbytes, cli->addr.addrLen + addrLen);
+    Bits_put16(Message_bytes(msg), cli->addr.addrLen + addrLen);
 
     return Iface_next(ctx->pub.iface.iface, msg);
 }

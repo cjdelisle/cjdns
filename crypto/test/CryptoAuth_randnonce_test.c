@@ -40,14 +40,14 @@ static void encryptRndNonceTest()
 
     uint8_t* expected = (uint8_t*) "1391ac5d03ba9f7099bffbb6e6c69d67ae5bd79391a5b94399b293dc";
     uint8_t output[57];
-    Hex_encode(output, 57, m.msgbytes, Message_getLength(&m));
+    Hex_encode(output, 57, Message_bytes(&m), Message_getLength(&m));
 
     printf("\n%s\n%s\n", (char*) expected, (char*) output);
     Assert_true(!Bits_memcmp(expected, output, 56));
 
     Assert_true(!CryptoAuth_decryptRndNonce(nonce, &m, secret));
     Assert_true(Message_getLength(&m) == HELLOWORLDLEN
-        && !Bits_memcmp(m.msgbytes, HELLOWORLDLOWER, Message_getLength(&m)));
+        && !Bits_memcmp(Message_bytes(&m), HELLOWORLDLOWER, Message_getLength(&m)));
 }
 
 int main()

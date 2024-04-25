@@ -42,7 +42,7 @@ int main()
         snprintf(buff, 31, "%lld", num);
 
         Assert_true(Message_getLength(msg) == (int)CString_strlen(buff));
-        Assert_true(!Bits_memcmp(msg->msgbytes, buff, Message_getLength(msg)));
+        Assert_true(!Bits_memcmp(Message_bytes(msg), buff, Message_getLength(msg)));
 
         int64_t read = Er_assert(Base10_read(msg));
         Assert_true(read == num);

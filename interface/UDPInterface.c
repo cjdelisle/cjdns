@@ -116,7 +116,7 @@ static Iface_DEFUN sendPacket(struct Message* m, struct Iface* iface)
         Identity_containerOf(iface, struct UDPInterface_pvt, iface);
 
     Assert_true(Message_getLength(m) > Sockaddr_OVERHEAD);
-    struct Sockaddr* sa = (struct Sockaddr*) m->msgbytes;
+    struct Sockaddr* sa = (struct Sockaddr*) Message_bytes(m);
     Assert_true(Message_getLength(m) > sa->addrLen);
 
     // Regular traffic

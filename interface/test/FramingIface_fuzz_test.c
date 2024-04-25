@@ -38,7 +38,7 @@ static Iface_DEFUN ifaceRecvMsg(struct Message* message, struct Iface* thisInter
     Assert_true(!ctx->success);
     Assert_true(Message_getLength(message) == ctx->messageLen);
     Assert_true(Message_getLength(ctx->buf) == 0);
-    Assert_true(!Bits_memcmp(ctx->bufPtr, message->msgbytes, ctx->messageLen));
+    Assert_true(!Bits_memcmp(ctx->bufPtr, Message_bytes(message), ctx->messageLen));
     ctx->success = 1;
     return NULL;
 }
@@ -51,13 +51,13 @@ void CJDNS_FUZZ_MAIN(void* vctx, struct Message* fuzz)
     Er_assert(Message_truncate(ctx->buf, ctx->messageLen));
     Er_assert(Message_epush32be(ctx->buf, ctx->messageLen));
     for (int i = 0; ; i++) {
-        uint8_t len = fuzz->msgbytes[i % Message_getLength(fuzz)] + 1;
+        uint8_t len = Message_bytes(fuzz)[i % Message_getLength(fuzz)] + 1;
         if (len > Message_getLength(ctx->buf)) {
             len = Message_getLength(ctx->buf);
         }
         struct Allocator* a = Allocator_child(ctx->alloc);
         struct Message* m = Message_new(len, 0, a);
-        Er_assert(Message_epop(ctx->buf, m->msgbytes, len));
+        Er_assert(Message_epop(ctx->buf, Message_bytes(m), len));
         Iface_send(&ctx->outer, m);
         Allocator_free(a);
         if (ctx->success) {
@@ -74,8 +74,8 @@ void* CJDNS_FUZZ_INIT(struct Allocator* alloc, struct Random* rand)
     Iface_plumb(&ctx->iface, ctx->fi);
     ctx->alloc = alloc;
     ctx->buf = Message_new(BUF_SZ, 4, alloc);
-    Random_bytes(rand, ctx->buf->msgbytes, BUF_SZ);
-    ctx->bufPtr = ctx->buf->msgbytes;
+    Random_bytes(rand, Message_bytes(ctx->buf), BUF_SZ);
+    ctx->bufPtr = Message_bytes(ctx->buf);
     Identity_set(ctx);
     return ctx;
 }

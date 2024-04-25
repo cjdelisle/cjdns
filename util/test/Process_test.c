@@ -79,7 +79,7 @@ static Iface_DEFUN receiveMessageParent(struct Message* msg, struct Iface* iface
     Er_assert(AddrIface_popAddr(msg));
     printf("msg length is %d\n", Message_getLength(msg));
     Assert_true(Message_getLength(msg) == (int)CString_strlen(MESSAGEB)+1);
-    Assert_true(!Bits_memcmp(msg->msgbytes, MESSAGEB, CString_strlen(MESSAGEB)+1));
+    Assert_true(!Bits_memcmp(Message_bytes(msg), MESSAGEB, CString_strlen(MESSAGEB)+1));
     g_context = c;
     if (g_childStopped) {
         printf("Parent stopped in receiveMessageParent\n");
@@ -109,7 +109,7 @@ static Iface_DEFUN receiveMessageChild(struct Message* msg, struct Iface* iface)
     struct Message* m = Message_clone(msg, alloc1);
     printf("Child received message\n");
     Assert_true(Message_getLength(m) == (int)CString_strlen(MESSAGE)+1);
-    Assert_true(!Bits_memcmp(m->msgbytes, MESSAGE, CString_strlen(MESSAGE)+1));
+    Assert_true(!Bits_memcmp(Message_bytes(m), MESSAGE, CString_strlen(MESSAGE)+1));
 
     if (!Defined(win32)) {
         int fd = Message_getAssociatedFd(msg);

@@ -105,7 +105,7 @@ static Iface_DEFUN receiveMessageParent(struct Message* msg, struct Iface* iface
     // PipeServer pushes a uint32 identifier of the client who sent the message
     Er_assert(AddrIface_popAddr(msg));
     Assert_true(Message_getLength(msg) == 3);
-    Assert_true(!Bits_memcmp(msg->msgbytes, "OK", 3));
+    Assert_true(!Bits_memcmp(Message_bytes(msg), "OK", 3));
     printf("Parent got reply\n");
     EventBase_endLoop(ctx->eventBase);
     return NULL;

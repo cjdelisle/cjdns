@@ -8,15 +8,13 @@
 extern "C" {
     pub fn Assert_failure(format: *const ::std::os::raw::c_char, ...);
 }
-pub type Allocator_OnFreeCallback = ::std::option::Option<
-    unsafe extern "C" fn(job: *mut Allocator_OnFreeJob) -> ::std::os::raw::c_int,
->;
+pub type Allocator_OnFreeCallback =
+    ::std::option::Option<unsafe extern "C" fn(job: *mut Allocator_OnFreeJob)>;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct Allocator_OnFreeJob {
     pub callback: Allocator_OnFreeCallback,
     pub userData: *mut ::std::os::raw::c_void,
-    pub rContext: *mut ::std::os::raw::c_void,
     pub Identity_verifier: usize,
 }
 #[repr(C)]
@@ -88,9 +86,6 @@ extern "C" {
 }
 extern "C" {
     pub fn Allocator_cancelOnFree(toRemove: *mut Allocator_OnFreeJob) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn Allocator_onFreeComplete(onFreeJob: *mut Allocator_OnFreeJob);
 }
 extern "C" {
     pub fn Allocator__adopt(
@@ -213,6 +208,14 @@ extern "C" {
 pub type Iface_t = Iface;
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum RTypes_CryptoAuth2_TryHandshake_Code_t {
+    RTypes_CryptoAuth2_TryHandshake_Code_t_ReplyToPeer = 0,
+    RTypes_CryptoAuth2_TryHandshake_Code_t_RecvPlaintext = 1,
+    RTypes_CryptoAuth2_TryHandshake_Code_t_Error = 2,
+    RTypes_CryptoAuth2_TryHandshake_Code_t_Done = 3,
+}
+#[repr(u32)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum RTypes_CryptoAuth_State_t {
     RTypes_CryptoAuth_State_t_Init = 0,
     RTypes_CryptoAuth_State_t_SentHello = 1,
@@ -228,6 +231,12 @@ pub struct RTypes_Error_t {
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
+pub struct RTypes_IfWrapper_t {
+    pub internal: *mut Iface_t,
+    pub external: *mut Iface_t,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
 pub struct RTypes_StrList_t {
     pub len: usize,
     pub items: *mut *mut String_t,
@@ -240,6 +249,20 @@ pub struct RTypes_CryptoStats_t {
     pub received_packets: u64,
     pub duplicate_packets: u64,
     pub noise_proto: bool,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct RTypes_CryptoAuth2_Session_t {
+    pub plaintext: *mut Iface_t,
+    pub ciphertext: *mut Iface_t,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct RTypes_CryptoAuth2_TryHandshake_Ret_t {
+    pub code: RTypes_CryptoAuth2_TryHandshake_Code_t,
+    pub err: u32,
+    pub sess: *mut RTypes_CryptoAuth2_Session_t,
+    pub alloc: *mut Allocator_t,
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -274,7 +297,7 @@ extern "C" {
 pub struct Message {
     pub _length: i32,
     pub _padding: i32,
-    pub msgbytes: *mut u8,
+    pub _msgbytes: *mut u8,
     pub _capacity: i32,
     pub _adLen: i32,
     pub _ad: *mut u8,
@@ -442,30 +465,469 @@ extern "C" {
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
-pub struct EventBase {
-    pub unused: ::std::os::raw::c_int,
+pub struct Sockaddr {
+    pub addrLen: u16,
+    pub flags: u8,
+    pub type_: u8,
+    pub prefix: u8,
+    pub pad1: u8,
+    pub pad2: u16,
 }
-pub type EventBase_t = EventBase;
-extern "C" {
-    pub fn EventBase_new(alloc: *mut Allocator) -> *mut EventBase;
+pub type Sockaddr_t = Sockaddr;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct Sockaddr_storage {
+    pub addr: Sockaddr_t,
+    pub nativeAddr: [u64; 16usize],
 }
 extern "C" {
-    pub fn EventBase_eventCount(eventBase: *mut EventBase_t) -> ::std::os::raw::c_int;
+    pub fn Sockaddr_addrHandle(addr: *const Sockaddr_t) -> u32;
+}
+extern "C" {
+    pub fn Sockaddr_addrFromHandle(addr: *mut Sockaddr_t, handle: u32);
+}
+extern "C" {
+    pub fn Sockaddr_getPrefix(addr: *mut Sockaddr_t) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn Sockaddr_parse(
+        str_: *const ::std::os::raw::c_char,
+        out: *mut Sockaddr_storage,
+    ) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn Sockaddr_print(
+        addr: *mut Sockaddr_t,
+        alloc: *mut Allocator,
+    ) -> *mut ::std::os::raw::c_char;
+}
+extern "C" {
+    pub fn Sockaddr_getPort(sa: *const Sockaddr_t) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn Sockaddr_setPort(sa: *mut Sockaddr_t, port: u16) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub static Sockaddr_AF_INET: ::std::os::raw::c_int;
+}
+extern "C" {
+    pub static Sockaddr_AF_INET6: ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn Sockaddr_getFamily(sa: *const Sockaddr_t) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn Sockaddr_getAddress(
+        sa: *mut Sockaddr_t,
+        addrPtr: *mut ::std::os::raw::c_void,
+    ) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn Sockaddr_asIp6(addrOut: *mut u8, sockaddr: *const Sockaddr_t);
+}
+extern "C" {
+    pub fn Sockaddr_initFromBytes(
+        out: *mut Sockaddr_storage,
+        bytes: *const u8,
+        addrFamily: ::std::os::raw::c_int,
+    ) -> *mut Sockaddr_t;
+}
+extern "C" {
+    pub fn Sockaddr_fromBytes(
+        bytes: *const u8,
+        addrFamily: ::std::os::raw::c_int,
+        alloc: *mut Allocator,
+    ) -> *mut Sockaddr_t;
+}
+extern "C" {
+    pub fn Sockaddr_clone(addr: *const Sockaddr_t, alloc: *mut Allocator) -> *mut Sockaddr_t;
+}
+extern "C" {
+    pub fn Sockaddr_normalizeNative(nativeSockaddr: *mut ::std::os::raw::c_void);
+}
+extern "C" {
+    pub fn Sockaddr_hash(addr: *const Sockaddr_t) -> u32;
+}
+extern "C" {
+    pub fn Sockaddr_compare(a: *const Sockaddr_t, b: *const Sockaddr_t) -> ::std::os::raw::c_int;
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct RTypes_CryptoAuth2_t {
+    _unused: [u8; 0],
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct Rffi_EventLoop {
+    _unused: [u8; 0],
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct Rffi_FdReadableTx {
+    _unused: [u8; 0],
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct Rffi_SocketServer {
+    _unused: [u8; 0],
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct Rffi_TimerTx {
+    _unused: [u8; 0],
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct Rffi_UDPIface_pvt {
+    _unused: [u8; 0],
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct Rffi_UDPIface {
+    pub pvt: *mut Rffi_UDPIface_pvt,
+    pub iface: *mut Iface_t,
+    pub local_addr: *mut Sockaddr_t,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct Rffi_Address {
+    pub octets: [u8; 16usize],
+    pub netmask: [u8; 16usize],
+    pub is_ipv6: bool,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct Rffi_NetworkInterface {
+    pub name: *const ::std::os::raw::c_char,
+    pub phys_addr: [u8; 6usize],
+    pub is_internal: bool,
+    pub address: Rffi_Address,
+}
+pub type OnFreeFun = ::std::option::Option<unsafe extern "C" fn(ctx: *mut ::std::os::raw::c_void)>;
+extern "C" {
+    pub fn Rffi_CryptoAuth2_addUser_ipv6(
+        password: *mut String_t,
+        login: *mut String_t,
+        ipv6: *mut u8,
+        ca: *mut RTypes_CryptoAuth2_t,
+    ) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn Rffi_CryptoAuth2_removeUsers(
+        context: *mut RTypes_CryptoAuth2_t,
+        user: *mut String_t,
+    ) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn Rffi_CryptoAuth2_getUsers(
+        ca: *const RTypes_CryptoAuth2_t,
+        alloc: *mut Allocator_t,
+    ) -> *mut RTypes_StrList_t;
+}
+extern "C" {
+    pub fn Rffi_CryptoAuth2_new(
+        allocator: *mut Allocator_t,
+        privateKey: *const u8,
+        random: *mut Random_t,
+    ) -> *mut RTypes_CryptoAuth2_t;
+}
+extern "C" {
+    pub fn Rffi_CryptoAuth2_tryHandshake(
+        ca: *mut RTypes_CryptoAuth2_t,
+        c_msg: *mut Message_t,
+        alloc: *mut Allocator_t,
+        requireAuth: bool,
+        ret: *mut RTypes_CryptoAuth2_TryHandshake_Ret_t,
+    );
+}
+extern "C" {
+    pub fn Rffi_CryptoAuth2_newSession(
+        ca: *mut RTypes_CryptoAuth2_t,
+        alloc: *mut Allocator_t,
+        herPublicKey: *const u8,
+        requireAuth: bool,
+        name: *const ::std::os::raw::c_char,
+        useNoise: bool,
+    ) -> *mut RTypes_CryptoAuth2_Session_t;
+}
+extern "C" {
+    pub fn Rffi_CryptoAuth2_noiseTick(
+        sess: *mut RTypes_CryptoAuth2_Session_t,
+        alloc: *mut Allocator_t,
+    ) -> *mut Message_t;
+}
+extern "C" {
+    pub fn Rffi_CryptoAuth2_setAuth(
+        password: *const String_t,
+        login: *const String_t,
+        caSession: *mut RTypes_CryptoAuth2_Session_t,
+    );
+}
+extern "C" {
+    pub fn Rffi_CryptoAuth2_resetIfTimeout(session: *mut RTypes_CryptoAuth2_Session_t);
+}
+extern "C" {
+    pub fn Rffi_CryptoAuth2_reset(caSession: *mut RTypes_CryptoAuth2_Session_t);
+}
+extern "C" {
+    pub fn Rffi_CryptoAuth2_getState(
+        session: *mut RTypes_CryptoAuth2_Session_t,
+    ) -> RTypes_CryptoAuth_State_t;
+}
+extern "C" {
+    pub fn Rffi_CryptoAuth2_getHerPubKey(
+        session: *const RTypes_CryptoAuth2_Session_t,
+        pkOut: *mut u8,
+    );
+}
+extern "C" {
+    pub fn Rffi_CryptoAuth2_getHerIp6(session: *const RTypes_CryptoAuth2_Session_t, ipOut: *mut u8);
+}
+extern "C" {
+    pub fn Rffi_CryptoAuth2_getName(
+        session: *const RTypes_CryptoAuth2_Session_t,
+        alloc: *mut Allocator_t,
+    ) -> *mut String_t;
+}
+extern "C" {
+    pub fn Rffi_CryptoAuth2_getPubKey(ca: *const RTypes_CryptoAuth2_t, pkOut: *mut u8);
+}
+extern "C" {
+    pub fn Rffi_CryptoAuth2_stats(
+        session: *const RTypes_CryptoAuth2_Session_t,
+        statsOut: *mut RTypes_CryptoStats_t,
+    );
+}
+extern "C" {
+    pub fn Rffi_CryptoAuth2_cjdnsVer(session: *const RTypes_CryptoAuth2_Session_t) -> u32;
+}
+extern "C" {
+    pub fn Rffi_stopEventLoop(event_loop: *mut Rffi_EventLoop);
+}
+extern "C" {
+    pub fn Rffi_startEventLoop(event_loop: *mut Rffi_EventLoop);
+}
+extern "C" {
+    pub fn Rffi_mkEventLoop(alloc: *mut Allocator_t) -> *mut Rffi_EventLoop;
+}
+extern "C" {
+    pub fn Rffi_exepath(out: *mut *const ::std::os::raw::c_char, alloc: *mut Allocator_t) -> i32;
+}
+extern "C" {
+    pub fn Rffi_spawn(
+        file: *const ::std::os::raw::c_char,
+        args: *const *const ::std::os::raw::c_char,
+        num_args: ::std::os::raw::c_int,
+        _alloc: *mut Allocator_t,
+        cb: ::std::option::Option<unsafe extern "C" fn(arg1: i64, arg2: ::std::os::raw::c_int)>,
+    ) -> i32;
+}
+extern "C" {
+    pub fn Rffi_setTimeout(
+        out_timer_tx: *mut *mut Rffi_TimerTx,
+        cb: ::std::option::Option<unsafe extern "C" fn(arg1: *mut ::std::os::raw::c_void)>,
+        cb_context: *mut ::std::os::raw::c_void,
+        timeout_millis: ::std::os::raw::c_ulong,
+        repeat: bool,
+        event_loop: *mut Rffi_EventLoop,
+        alloc: *mut Allocator_t,
+    );
+}
+extern "C" {
+    pub fn Rffi_resetTimeout(
+        timer_tx: *const Rffi_TimerTx,
+        timeout_millis: ::std::os::raw::c_ulong,
+    ) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn Rffi_clearTimeout(timer_tx: *const Rffi_TimerTx) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn Rffi_isTimeoutActive(timer_tx: *const Rffi_TimerTx) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn Rffi_clearAllTimeouts(event_loop: *mut Rffi_EventLoop);
+}
+extern "C" {
+    pub fn Rffi_pollFdReadable(
+        out: *mut *mut Rffi_FdReadableTx,
+        errout: *mut *const ::std::os::raw::c_char,
+        cb: ::std::option::Option<unsafe extern "C" fn(arg1: *mut ::std::os::raw::c_void)>,
+        cb_context: *mut ::std::os::raw::c_void,
+        fd: ::std::os::raw::c_int,
+        alloc: *mut Allocator_t,
+    );
+}
+extern "C" {
+    pub fn Rffi_udpIfaceGetFd(iface: *mut Rffi_UDPIface_pvt) -> i32;
+}
+extern "C" {
+    pub fn Rffi_udpIfaceSetBroadcast(iface: *mut Rffi_UDPIface_pvt, broadcast: bool) -> i32;
+}
+extern "C" {
+    pub fn Rffi_udpIfaceSetDscp(iface: *mut Rffi_UDPIface_pvt, dscp: u8) -> i32;
+}
+extern "C" {
+    pub fn Rffi_udpIfaceNew(
+        outp: *mut *mut Rffi_UDPIface,
+        errout: *mut *const ::std::os::raw::c_char,
+        bind_addr: *const Sockaddr_t,
+        c_alloc: *mut Allocator_t,
+    );
+}
+extern "C" {
+    pub fn Rffi_fileExists(
+        existsOut: *mut bool,
+        path: *const ::std::os::raw::c_char,
+        errorAlloc: *mut Allocator_t,
+    ) -> *mut RTypes_Error_t;
+}
+extern "C" {
+    pub fn Rffi_socketForFd(
+        ifOut: *mut *mut Iface_t,
+        fd: ::std::os::raw::c_int,
+        socket_type: ::std::os::raw::c_int,
+        alloc: *mut Allocator_t,
+    ) -> *mut RTypes_Error_t;
+}
+extern "C" {
+    pub fn Rffi_unixSocketConnect(
+        ifOut: *mut *mut Iface_t,
+        path: *const ::std::os::raw::c_char,
+        alloc: *mut Allocator_t,
+    ) -> *mut RTypes_Error_t;
+}
+extern "C" {
+    pub fn Rffi_unixSocketServerOnConnect(
+        rss: *mut Rffi_SocketServer,
+        f: ::std::option::Option<
+            unsafe extern "C" fn(arg1: *mut ::std::os::raw::c_void, arg2: *const Sockaddr_t),
+        >,
+        ctx: *mut ::std::os::raw::c_void,
+    );
+}
+extern "C" {
+    pub fn Rffi_unixSocketServer(
+        rssOut: *mut *mut Rffi_SocketServer,
+        ifaceOut: *mut *mut Iface_t,
+        path: *const ::std::os::raw::c_char,
+        alloc: *mut Allocator_t,
+    ) -> *mut RTypes_Error_t;
+}
+extern "C" {
+    pub fn Rffi_inet_ntop(
+        is_ip6: bool,
+        addr: *const ::std::os::raw::c_void,
+        dst: *mut u8,
+        dst_sz: u32,
+    ) -> i32;
+}
+extern "C" {
+    pub fn Rffi_inet_pton(is_ip6: bool, src: *const ::std::os::raw::c_char, addr: *mut u8) -> i32;
+}
+extern "C" {
+    pub fn Rffi_interface_addresses(
+        out: *mut *const Rffi_NetworkInterface,
+        alloc: *mut Allocator_t,
+    ) -> i32;
+}
+extern "C" {
+    pub fn Rffi_hrtime() -> u64;
+}
+extern "C" {
+    pub fn Rffi_now_ms() -> u64;
+}
+extern "C" {
+    pub fn Rffi_testwrapper_create(a: *mut Allocator_t) -> RTypes_IfWrapper_t;
+}
+extern "C" {
+    pub fn Rffi_android_create(a: *mut Allocator_t) -> RTypes_IfWrapper_t;
+}
+extern "C" {
+    pub fn Rffi_panic(msg: *const ::std::os::raw::c_char);
+}
+extern "C" {
+    pub fn Rffi_setLogger(l: *mut Log_t);
+}
+extern "C" {
+    pub fn Rffi_error(
+        msg: *const ::std::os::raw::c_char,
+        alloc: *mut Allocator_t,
+    ) -> *mut RTypes_Error_t;
+}
+extern "C" {
+    pub fn Rffi_error_fl(
+        msg: *const ::std::os::raw::c_char,
+        file: *const ::std::os::raw::c_char,
+        line: ::std::os::raw::c_int,
+        alloc: *mut Allocator_t,
+    ) -> *mut RTypes_Error_t;
+}
+extern "C" {
+    pub fn Rffi_printError(
+        e: *mut RTypes_Error_t,
+        alloc: *mut Allocator_t,
+    ) -> *const ::std::os::raw::c_char;
+}
+extern "C" {
+    pub fn Rffi_glock();
+}
+extern "C" {
+    pub fn Rffi_gunlock();
+}
+extern "C" {
+    pub fn Rffi_allocator_newRoot(
+        file: *const ::std::os::raw::c_char,
+        line: usize,
+    ) -> *mut Allocator_t;
+}
+extern "C" {
+    pub fn Rffi_allocator_free(
+        a: *mut Allocator_t,
+        file: *const ::std::os::raw::c_char,
+        line: usize,
+    );
+}
+extern "C" {
+    pub fn Rffi_allocator_isFreeing(a: *mut Allocator_t) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn Rffi_allocator_child(
+        a: *mut Allocator_t,
+        file: *const ::std::os::raw::c_char,
+        line: usize,
+    ) -> *mut Allocator_t;
+}
+extern "C" {
+    pub fn Rffi_allocator_malloc(a: *mut Allocator_t, size: usize) -> *mut u8;
+}
+extern "C" {
+    pub fn Rffi_allocator_calloc(a: *mut Allocator_t, size: usize) -> *mut u8;
+}
+extern "C" {
+    pub fn Rffi_allocator_realloc(a: *mut Allocator_t, ptr: *mut u8, new_size: usize) -> *mut u8;
+}
+extern "C" {
+    pub fn Rffi_allocator_onFree(
+        a: *mut Allocator_t,
+        fun: OnFreeFun,
+        ctx: *mut ::std::os::raw::c_void,
+        file: *const ::std::os::raw::c_char,
+        line: usize,
+    );
+}
+extern "C" {
+    pub fn Rffi_allocator_adopt(a: *mut Allocator_t, to_adopt: *mut Allocator_t);
+}
+pub type EventBase_t = Rffi_EventLoop;
+extern "C" {
+    pub fn EventBase_new(alloc: *mut Allocator) -> *mut EventBase_t;
 }
 extern "C" {
     pub fn EventBase_beginLoop(eventBase: *mut EventBase_t);
 }
 extern "C" {
     pub fn EventBase_endLoop(eventBase: *mut EventBase_t);
-}
-extern "C" {
-    pub fn EventBase_ref();
-}
-extern "C" {
-    pub fn EventBase_unref();
-}
-extern "C" {
-    pub fn EventBase_wakeup(eventBase: *mut ::std::os::raw::c_void);
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -507,7 +969,7 @@ extern "C" {
     pub fn CryptoAuth_new(
         allocator: *mut Allocator,
         privateKey: *const u8,
-        eventBase: *mut EventBase,
+        eventBase: *mut EventBase_t,
         logger: *mut Log,
         rand: *mut Random,
     ) -> *mut CryptoAuth;
@@ -606,94 +1068,6 @@ extern "C" {
 }
 extern "C" {
     pub fn DeterminentRandomSeed_new(alloc: *mut Allocator, buff: *mut u8) -> *mut RandomSeed_t;
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct Sockaddr {
-    pub addrLen: u16,
-    pub flags: u8,
-    pub type_: u8,
-    pub prefix: u8,
-    pub pad1: u8,
-    pub pad2: u16,
-}
-pub type Sockaddr_t = Sockaddr;
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct Sockaddr_storage {
-    pub addr: Sockaddr_t,
-    pub nativeAddr: [u64; 16usize],
-}
-extern "C" {
-    pub fn Sockaddr_addrHandle(addr: *const Sockaddr_t) -> u32;
-}
-extern "C" {
-    pub fn Sockaddr_addrFromHandle(addr: *mut Sockaddr_t, handle: u32);
-}
-extern "C" {
-    pub fn Sockaddr_getPrefix(addr: *mut Sockaddr_t) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn Sockaddr_parse(
-        str_: *const ::std::os::raw::c_char,
-        out: *mut Sockaddr_storage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn Sockaddr_print(
-        addr: *mut Sockaddr_t,
-        alloc: *mut Allocator,
-    ) -> *mut ::std::os::raw::c_char;
-}
-extern "C" {
-    pub fn Sockaddr_getPort(sa: *const Sockaddr_t) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn Sockaddr_setPort(sa: *mut Sockaddr_t, port: u16) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub static Sockaddr_AF_INET: ::std::os::raw::c_int;
-}
-extern "C" {
-    pub static Sockaddr_AF_INET6: ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn Sockaddr_getFamily(sa: *const Sockaddr_t) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn Sockaddr_getAddress(
-        sa: *mut Sockaddr_t,
-        addrPtr: *mut ::std::os::raw::c_void,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn Sockaddr_asIp6(addrOut: *mut u8, sockaddr: *const Sockaddr_t);
-}
-extern "C" {
-    pub fn Sockaddr_initFromBytes(
-        out: *mut Sockaddr_storage,
-        bytes: *const u8,
-        addrFamily: ::std::os::raw::c_int,
-    ) -> *mut Sockaddr_t;
-}
-extern "C" {
-    pub fn Sockaddr_fromBytes(
-        bytes: *const u8,
-        addrFamily: ::std::os::raw::c_int,
-        alloc: *mut Allocator,
-    ) -> *mut Sockaddr_t;
-}
-extern "C" {
-    pub fn Sockaddr_clone(addr: *const Sockaddr_t, alloc: *mut Allocator) -> *mut Sockaddr_t;
-}
-extern "C" {
-    pub fn Sockaddr_normalizeNative(nativeSockaddr: *mut ::std::os::raw::c_void);
-}
-extern "C" {
-    pub fn Sockaddr_hash(addr: *const Sockaddr_t) -> u32;
-}
-extern "C" {
-    pub fn Sockaddr_compare(a: *const Sockaddr_t, b: *const Sockaddr_t) -> ::std::os::raw::c_int;
 }
 extern "C" {
     pub fn Version_isCompatible(one: u32, two: u32) -> ::std::os::raw::c_int;

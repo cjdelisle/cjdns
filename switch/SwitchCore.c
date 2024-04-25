@@ -74,7 +74,7 @@ static inline Iface_DEFUN sendError(struct SwitchInterface* iface,
         return Error(cause, "RUNT");
     }
 
-    struct SwitchHeader* causeHeader = (struct SwitchHeader*) cause->msgbytes;
+    struct SwitchHeader* causeHeader = (struct SwitchHeader*) Message_bytes(cause);
 
     if (SwitchHeader_getSuppressErrors(causeHeader)) {
         // don't send errors if they're asking us to suppress them!
@@ -90,7 +90,7 @@ static inline Iface_DEFUN sendError(struct SwitchInterface* iface,
     Er_assert(Message_epush(cause,
                  NULL,
                  SwitchHeader_SIZE + 4 + Control_Header_SIZE + Control_Error_HEADER_SIZE));
-    struct ErrorPacket8* err = (struct ErrorPacket8*) cause->msgbytes;
+    struct ErrorPacket8* err = (struct ErrorPacket8*) Message_bytes(cause);
 
     err->switchHeader.label_be = Bits_bitReverse64(causeHeader->label_be);
     SwitchHeader_setSuppressErrors(&err->switchHeader, true);
@@ -123,7 +123,7 @@ static Iface_DEFUN receiveMessage(struct Message* message, struct Iface* iface)
         return Error(message, "RUNT");
     }
 
-    struct SwitchHeader* header = (struct SwitchHeader*) message->msgbytes;
+    struct SwitchHeader* header = (struct SwitchHeader*) Message_bytes(message);
     const uint64_t label = Endian_bigEndianToHost64(header->label_be);
     uint32_t bits = NumberCompress_bitsUsedForLabel(label);
     const uint32_t sourceIndex = sourceIf - core->interfaces;
@@ -206,7 +206,7 @@ static Iface_DEFUN receiveMessage(struct Message* message, struct Iface* iface)
     int cloneLength = (Message_getLength(message) < Control_Error_MAX_SIZE) ?
         Message_getLength(message) : Control_Error_MAX_SIZE;
     uint8_t messageClone[Control_Error_MAX_SIZE];
-    Bits_memcpy(messageClone, message->msgbytes, cloneLength);
+    Bits_memcpy(messageClone, Message_bytes(message), cloneLength);
 
     // Update the header
     header->label_be = Endian_hostToBigEndian64(targetLabel);

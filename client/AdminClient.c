@@ -94,7 +94,7 @@ static int calculateAuth(Dict* message,
     Er_assert(BencMessageWriter_write(message, msg));
 
     // calculate the hash of the message with the password hash
-    crypto_hash_sha256(hash, msg->msgbytes, Message_getLength(msg));
+    crypto_hash_sha256(hash, Message_bytes(msg), Message_getLength(msg));
 
     // swap the hash of the message with the password hash into the location
     // where the password hash was.
@@ -159,7 +159,7 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* addrIface)
         ? AdminClient_MAX_MESSAGE_SIZE
         : Message_getLength(msg);
     Bits_memset(req->res.messageBytes, 0, AdminClient_MAX_MESSAGE_SIZE);
-    Bits_memcpy(req->res.messageBytes, msg->msgbytes, len);
+    Bits_memcpy(req->res.messageBytes, Message_bytes(msg), len);
     done(req, AdminClient_Error_NONE);
     return NULL;
 }

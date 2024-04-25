@@ -681,7 +681,7 @@ int cjdroute2_main(int argc, char** argv)
     // and if the old parser fails or the parsed content contains "version": 2,
     // fail to launch
     struct Message* confMsg = readToMsg(stdin, allocator);
-    struct Reader* confReader = ArrayReader_new(confMsg->msgbytes, Message_getLength(confMsg), allocator);
+    struct Reader* confReader = ArrayReader_new(Message_bytes(confMsg), Message_getLength(confMsg), allocator);
     Dict _config;
     Dict* config = &_config;
     const char* err = JsonBencMessageReader_readNoExcept(confMsg, allocator, &config, false);

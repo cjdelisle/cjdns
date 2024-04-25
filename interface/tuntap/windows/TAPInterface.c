@@ -127,7 +127,7 @@ static void postRead(struct TAPInterface_pvt* tap)
     // Choose odd numbers so that the message will be aligned despite the weird header size.
     struct Message* msg = tap->readMsg = Message_new(1534, 514, alloc);
     OVERLAPPED* readol = (OVERLAPPED*) tap->readIocp.overlapped;
-    if (!ReadFile(tap->handle, msg->msgbytes, 1534, NULL, readol)) {
+    if (!ReadFile(tap->handle, Message_bytes(msg), 1534, NULL, readol)) {
         switch (GetLastError()) {
             case ERROR_IO_PENDING:
             case ERROR_IO_INCOMPLETE: break;
@@ -172,7 +172,7 @@ static void postWrite(struct TAPInterface_pvt* tap)
     tap->isPendingWrite = 1;
     struct Message* msg = tap->writeMsgs[0];
     OVERLAPPED* writeol = (OVERLAPPED*) tap->writeIocp.overlapped;
-    if (!WriteFile(tap->handle, msg->msgbytes, Message_getLength(msg), NULL, writeol)) {
+    if (!WriteFile(tap->handle, Message_bytes(msg), Message_getLength(msg), NULL, writeol)) {
         switch (GetLastError()) {
             case ERROR_IO_PENDING:
             case ERROR_IO_INCOMPLETE: break;

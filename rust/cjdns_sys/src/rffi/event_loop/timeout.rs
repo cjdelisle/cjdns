@@ -25,11 +25,10 @@ pub struct TimerTx {
     active: Arc<AtomicBool>,
 }
 
-pub extern "C" fn timeout_on_free(j: *mut Allocator_OnFreeJob) -> c_int {
+pub extern "C" fn timeout_on_free(j: *mut Allocator_OnFreeJob) {
     let timer_tx = unsafe { &*((*j).userData as *mut Rffi_TimerTx) };
     timer_tx.0.active.store(false, Ordering::Relaxed);
     timer_tx.0.rffi_send(TimerCommand::Free);
-    0
 }
 
 /// Spawn a timer task for a timeout or interval, that calls some callback whenever it triggers.

@@ -87,7 +87,7 @@ Iface_DEFUN TUNTools_genericIP6Echo(struct Message* msg, struct TUNTools* tt)
         return Error(msg, "INVALID");
     }
 
-    struct Headers_IP6Header* header = (struct Headers_IP6Header*) msg->msgbytes;
+    struct Headers_IP6Header* header = (struct Headers_IP6Header*) Message_bytes(msg);
 
     if (Message_getLength(msg) != Headers_IP6Header_SIZE + Headers_UDPHeader_SIZE + 12) {
         int type = (Message_getLength(msg) >= Headers_IP6Header_SIZE) ? header->nextHeader : -1;

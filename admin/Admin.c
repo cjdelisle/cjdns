@@ -131,7 +131,7 @@ static struct RTypes_Error_t* sendBenc(Dict* message,
     Message_reset(admin->tempSendMsg);
     Er_assert(BencMessageWriter_write(message, admin->tempSendMsg));
     struct Message* msg = Message_new(0, Message_getLength(admin->tempSendMsg) + 32, alloc);
-    Er_assert(Message_epush(msg, admin->tempSendMsg->msgbytes, Message_getLength(admin->tempSendMsg)));
+    Er_assert(Message_epush(msg, Message_bytes(admin->tempSendMsg), Message_getLength(admin->tempSendMsg)));
     Message_setAssociatedFd(msg, fd);
     return sendMessage(msg, dest, admin);
 }
@@ -234,7 +234,7 @@ static inline bool authValid(Dict* message, struct Message* messageBytes, struct
         return false;
     }
 
-    uint8_t* hashPtr = CString_strstr(messageBytes->msgbytes, submittedHash->bytes);
+    uint8_t* hashPtr = CString_strstr(Message_bytes(messageBytes), submittedHash->bytes);
 
     if (!hashPtr || !admin->password) {
         return false;
@@ -246,7 +246,7 @@ static inline bool authValid(Dict* message, struct Message* messageBytes, struct
     crypto_hash_sha256(hash, passAndCookie, CString_strlen((char*) passAndCookie));
     Hex_encode(hashPtr, 64, hash, 32);
 
-    crypto_hash_sha256(hash, messageBytes->msgbytes, Message_getLength(messageBytes));
+    crypto_hash_sha256(hash, Message_bytes(messageBytes), Message_getLength(messageBytes));
     Hex_encode(hashPtr, 64, hash, 32);
     int res = crypto_verify_32(hashPtr, submittedHash->bytes);
     res |= crypto_verify_32(hashPtr + 32, submittedHash->bytes + 32);
@@ -421,18 +421,18 @@ static void handleMessage(struct Message* message,
                           struct Admin_pvt* admin)
 {
     if (Defined(Log_KEYS)) {
-        uint8_t lastChar = message->msgbytes[Message_getLength(message) - 1];
-        message->msgbytes[Message_getLength(message) - 1] = '\0';
+        uint8_t lastChar = Message_bytes(message)[Message_getLength(message) - 1];
+        Message_bytes(message)[Message_getLength(message) - 1] = '\0';
         Log_keys(admin->logger, "Got message from [%s] [%s]",
-                 Sockaddr_print(src, alloc), message->msgbytes);
-        message->msgbytes[Message_getLength(message) - 1] = lastChar;
+                 Sockaddr_print(src, alloc), Message_bytes(message));
+        Message_bytes(message)[Message_getLength(message) - 1] = lastChar;
     }
 
     // handle non empty message data
     if (Message_getLength(message) > Admin_MAX_REQUEST_SIZE) {
         #define TOO_BIG "d5:error16:Request too big.e"
         #define TOO_BIG_STRLEN (sizeof(TOO_BIG) - 1)
-        Bits_memcpy(message->msgbytes, TOO_BIG, TOO_BIG_STRLEN);
+        Bits_memcpy(Message_bytes(message), TOO_BIG, TOO_BIG_STRLEN);
         Er_assert(Message_truncate(message, TOO_BIG_STRLEN));
         sendMessage(message, src, admin);
         return;
@@ -445,7 +445,7 @@ static void handleMessage(struct Message* message,
         Log_warn(admin->logger,
                  "Unparsable data from [%s] content: [%s] error: [%s]",
                  Sockaddr_print(src, alloc),
-                 Hex_print(message->msgbytes, Message_getLength(message), alloc),
+                 Hex_print(Message_bytes(message), Message_getLength(message), alloc),
                  err);
         return;
     }
@@ -453,7 +453,7 @@ static void handleMessage(struct Message* message,
     if (Message_getLength(message)) {
         Log_warn(admin->logger,
                  "Message from [%s] contained garbage after byte [%d] content: [%s]",
-                 Sockaddr_print(src, alloc), Message_getLength(message), message->msgbytes);
+                 Sockaddr_print(src, alloc), Message_getLength(message), Message_bytes(message));
         return;
     }
 

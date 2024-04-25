@@ -204,12 +204,12 @@ static bool check(Message_t *msg, TestCa_Session_pvt_t* sess)
             Assert_failure("Message_getLength(msg) != m2->length: %d != %d",
                 Message_getLength(msg), Message_getLength(m2));
         }
-        if (Bits_memcmp(msg->msgbytes, m2->msgbytes, Message_getLength(msg))) {
-            const char* msgH = Hex_print(msg->msgbytes, Message_getLength(msg), Message_getAlloc(msg));
-            const char* m2H = Hex_print(m2->msgbytes, Message_getLength(m2), Message_getAlloc(m2));
+        if (Bits_memcmp(Message_bytes(msg), Message_bytes(m2), Message_getLength(msg))) {
+            const char* msgH = Hex_print(Message_bytes(msg), Message_getLength(msg), Message_getAlloc(msg));
+            const char* m2H = Hex_print(Message_bytes(m2), Message_getLength(m2), Message_getAlloc(m2));
             Assert_failure("msg->bytes != m2->bytes:\n%s\n%s\n", msgH, m2H);
         }
-        Assert_true(!Bits_memcmp(msg->msgbytes, m2->msgbytes, Message_getLength(msg)));
+        Assert_true(!Bits_memcmp(Message_bytes(msg), Message_bytes(m2), Message_getLength(msg)));
     } else {
         Assert_failure("unexpected flag [%d]", flag);
     }

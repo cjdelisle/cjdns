@@ -59,10 +59,10 @@ static struct Message* mergeMessage(struct FramingIface_pvt* fi, struct Message*
     }
 
     struct Message* out = Message_new(0, length + REQUIRED_PADDING, fi->frameAlloc);
-    Er_assert(Message_epush(out, last->msgbytes, Message_getLength(last)));
+    Er_assert(Message_epush(out, Message_bytes(last), Message_getLength(last)));
     int fd = Message_getAssociatedFd(last);
     for (part = fi->frameParts; part; part = part->next) {
-        Er_assert(Message_epush(out, part->msg->msgbytes, Message_getLength(part->msg)));
+        Er_assert(Message_epush(out, Message_bytes(part->msg), Message_getLength(part->msg)));
         if (fd == -1) {
             fd = Message_getAssociatedFd(part->msg);
         }
@@ -111,7 +111,7 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* streamIf)
             if (!Message_getLength(msg)) {
                 return NULL;
             }
-            fi->header.bytes[fi->headerIndex] = msg->msgbytes[0];
+            fi->header.bytes[fi->headerIndex] = Message_bytes(msg)[0];
             Er_assert(Message_eshift(msg, -1));
             fi->headerIndex++;
         }
@@ -132,7 +132,7 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* streamIf)
             struct Allocator* alloc = Allocator_child(Message_getAlloc(msg));
             struct Message* m = Message_new(fi->bytesRemaining, REQUIRED_PADDING, alloc);
             Message_setAssociatedFd(m, Message_getAssociatedFd(msg));
-            Bits_memcpy(m->msgbytes, msg->msgbytes, fi->bytesRemaining);
+            Bits_memcpy(Message_bytes(m), Message_bytes(msg), fi->bytesRemaining);
             Er_assert(Message_eshift(msg, -fi->bytesRemaining));
             fi->bytesRemaining = 0;
             Iface_send(&fi->messageIf, m);
@@ -143,7 +143,7 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* streamIf)
             fi->frameAlloc = Allocator_child(fi->alloc);
             struct Message* m = Message_new(0, Message_getLength(msg) + 4, fi->frameAlloc);
             Message_setAssociatedFd(m, Message_getAssociatedFd(msg));
-            Er_assert(Message_epush(m, msg->msgbytes, Message_getLength(msg)));
+            Er_assert(Message_epush(m, Message_bytes(msg), Message_getLength(msg)));
             Er_assert(Message_epush(m, fi->header.bytes, 4));
 
             fi->bytesRemaining -= Message_getLength(msg);

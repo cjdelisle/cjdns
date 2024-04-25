@@ -15,10 +15,9 @@ struct FdReadable {
 
 pub struct Rffi_FdReadableTx(Arc<FdReadable>);
 
-pub extern "C" fn fd_readable_on_free(j: *mut Allocator_OnFreeJob) -> c_int {
+pub extern "C" fn fd_readable_on_free(j: *mut Allocator_OnFreeJob) {
     let timer_tx = unsafe { &*((*j).userData as *mut Rffi_FdReadableTx) };
     timer_tx.0.active.store(false, Ordering::Relaxed);
-    0
 }
 
 #[no_mangle]

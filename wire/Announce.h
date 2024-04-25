@@ -77,7 +77,7 @@ static inline void Announce_EncodingScheme_push(struct Message* pushTo, String* 
     Er_assert(Message_epush(pushTo, compressedScheme->bytes, compressedScheme->len));
     Er_assert(Message_epush8(pushTo, Announce_Type_ENCODING_SCHEME));
     Er_assert(Message_epush8(pushTo, compressedScheme->len + 2));
-    while ((uintptr_t)pushTo->msgbytes % 4) {
+    while ((uintptr_t)Message_bytes(pushTo) % 4) {
         Er_assert(Message_epush8(pushTo, 1));
     }
 }
@@ -331,16 +331,16 @@ static inline struct Announce_ItemHeader* Announce_ItemHeader_next(struct Messag
 {
     struct Announce_ItemHeader* ih = (struct Announce_ItemHeader*) last;
     if (ih) {
-        Assert_true((uint8_t*)ih > &msg->msgbytes[-Message_getPadding(msg)]);
-        Assert_true((uint8_t*)ih < &msg->msgbytes[Message_getLength(msg)]);
+        Assert_true((uint8_t*)ih > &Message_bytes(msg)[-Message_getPadding(msg)]);
+        Assert_true((uint8_t*)ih < &Message_bytes(msg)[Message_getLength(msg)]);
         ih = (struct Announce_ItemHeader*) ( &((uint8_t*) ih)[ih->length] );
     } else {
-        ih = (struct Announce_ItemHeader*) &msg->msgbytes[Announce_Header_SIZE];
+        ih = (struct Announce_ItemHeader*) &Message_bytes(msg)[Announce_Header_SIZE];
     }
-    while ((uint8_t*)ih < &msg->msgbytes[Message_getLength(msg)]) {
+    while ((uint8_t*)ih < &Message_bytes(msg)[Message_getLength(msg)]) {
         if (!ih->length) { return NULL; } // invalid message
         if (ih->length > 1) {
-            if ( &((uint8_t*) ih)[ih->length] > &msg->msgbytes[Message_getLength(msg)] ) {
+            if ( &((uint8_t*) ih)[ih->length] > &Message_bytes(msg)[Message_getLength(msg)] ) {
                 // invalid message, overflow...
                 return NULL;
             }
@@ -411,7 +411,7 @@ static inline bool Announce_isValid(struct Message* msg)
     for (;;) {
         ih = Announce_ItemHeader_next(msg, ih);
         if (!ih) { return false; }
-        if ((uint8_t*)ih == &msg->msgbytes[Message_getLength(msg) - ih->length]) { return true; }
+        if ((uint8_t*)ih == &Message_bytes(msg)[Message_getLength(msg) - ih->length]) { return true; }
     }
 }
 

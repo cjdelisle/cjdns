@@ -44,7 +44,7 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* wireSide)
 
     if (Message_getLength(msg) < 4) { return Error(msg, "RUNT"); }
 
-    uint16_t afType_be = ((uint16_t*) msg->msgbytes)[1];
+    uint16_t afType_be = ((uint16_t*) Message_bytes(msg))[1];
     uint16_t ethertype = 0;
     if (afType_be == ctx->afInet_be) {
         ethertype = Ethernet_TYPE_IP4;
@@ -55,8 +55,8 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* wireSide)
                   Endian_bigEndianToHost16(afType_be));
         return Error(msg, "INVALID");
     }
-    ((uint16_t*) msg->msgbytes)[0] = 0;
-    ((uint16_t*) msg->msgbytes)[1] = ethertype;
+    ((uint16_t*) Message_bytes(msg))[0] = 0;
+    ((uint16_t*) Message_bytes(msg))[1] = ethertype;
 
     return Iface_next(&ctx->pub.inside, msg);
 }
@@ -68,7 +68,7 @@ static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* inside)
 
     Assert_true(Message_getLength(msg) >= 4);
 
-    uint16_t ethertype = ((uint16_t*) msg->msgbytes)[1];
+    uint16_t ethertype = ((uint16_t*) Message_bytes(msg))[1];
     uint16_t afType_be = 0;
     if (ethertype == Ethernet_TYPE_IP6) {
         afType_be = ctx->afInet6_be;
@@ -77,8 +77,8 @@ static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* inside)
     } else {
         Assert_true(!"Unsupported ethertype");
     }
-    ((uint16_t*) msg->msgbytes)[0] = 0;
-    ((uint16_t*) msg->msgbytes)[1] = afType_be;
+    ((uint16_t*) Message_bytes(msg))[0] = 0;
+    ((uint16_t*) Message_bytes(msg))[1] = afType_be;
 
     return Iface_next(&ctx->pub.wireSide, msg);
 }

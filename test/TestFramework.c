@@ -60,7 +60,7 @@ static Iface_DEFUN sendTo(struct Message* msg,
                           struct TestFramework* srcTf,
                           struct TestFramework* destTf)
 {
-    Assert_true(!((uintptr_t)msg->msgbytes % 4) || !"alignment fault");
+    Assert_true(!((uintptr_t)Message_bytes(msg) % 4) || !"alignment fault");
     Assert_true(!(Message_getCapacity(msg) % 4) || !"length fault");
     Assert_true(((int)Message_getCapacity(msg) >= Message_getLength(msg)) || !"length fault0");
 
@@ -175,7 +175,7 @@ void TestFramework_assertLastMessageUnaltered(struct TestFramework* tf)
     struct Message* b = tf->lastMsgBackup;
     Assert_true(Message_getLength(a) == Message_getLength(b));
     Assert_true(Message_getPadding(a) == Message_getPadding(b));
-    Assert_true(!Bits_memcmp(a->msgbytes, b->msgbytes, Message_getLength(a)));
+    Assert_true(!Bits_memcmp(Message_bytes(a), Message_bytes(b), Message_getLength(a)));
 }
 
 void TestFramework_linkNodes(struct TestFramework* client,
@@ -230,7 +230,7 @@ void TestFramework_linkNodes(struct TestFramework* client,
 void TestFramework_craftIPHeader(struct Message* msg, uint8_t srcAddr[16], uint8_t destAddr[16])
 {
     Er_assert(Message_eshift(msg, Headers_IP6Header_SIZE));
-    struct Headers_IP6Header* ip = (struct Headers_IP6Header*) msg->msgbytes;
+    struct Headers_IP6Header* ip = (struct Headers_IP6Header*) Message_bytes(msg);
 
     ip->versionClassAndFlowLabel = 0;
     ip->flowLabelLow_be = 0;
