@@ -70,7 +70,7 @@ struct ETHInterface_pvt
     Identity
 };
 
-static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* iface)
+static Iface_DEFUN sendMessage(Message_t* msg, struct Iface* iface)
 {
     struct ETHInterface_pvt* ctx = Identity_containerOf(iface, struct ETHInterface_pvt, iface);
 
@@ -126,7 +126,7 @@ static void handleEvent2(struct ETHInterface_pvt* context,
     }
 
     uint32_t contentLength = BPF_WORDALIGN(length - ETHInterface_Header_SIZE);
-    struct Message* msg = Message_new(contentLength, PADDING, alloc);
+    Message_t* msg = Message_new(contentLength, PADDING, alloc);
 
     struct ETHInterface_Header hdr;
     Bits_memcpy(&hdr, data, ETHInterface_Header_SIZE);

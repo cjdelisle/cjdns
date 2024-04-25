@@ -35,7 +35,7 @@ struct ReplyContext
 {
     struct Address* src;
     Dict* content;
-    struct Message* msg;
+    Message_t* msg;
     Identity
 };
 
@@ -78,7 +78,7 @@ struct MsgCore_Promise_pvt
 static Iface_DEFUN replyMsg(struct MsgCore_pvt* mcp,
                             Dict* content,
                             struct Address* src,
-                            struct Message* msg)
+                            Message_t* msg)
 {
     Log_debug(mcp->log, "Got reply from [%s]", Address_toString(src, Message_getAlloc(msg))->bytes);
     String* txid = Dict_getStringC(content, "txid");
@@ -151,7 +151,7 @@ static void sendMsg(struct MsgCore_pvt* mcp,
         Dict_putStringC(msgDict, "txid", newTxid, alloc);
     }
 
-    struct Message* msg = Message_new(0, 2048, alloc);
+    Message_t* msg = Message_new(0, 2048, alloc);
     Er_assert(BencMessageWriter_write(msgDict, msg));
 
     //Log_debug(mcp->log, "Sending msg [%s]", Escape_getEscaped(msg->bytes, Message_getLength(msg), alloc));
@@ -231,7 +231,7 @@ static struct QueryHandler* getQueryHandler(struct MsgCore_pvt* mcp, String* q)
 static Iface_DEFUN queryMsg(struct MsgCore_pvt* mcp,
                             Dict* content,
                             struct Address* src,
-                            struct Message* msg)
+                            Message_t* msg)
 {
     String* q = Dict_getStringC(content, "q");
     struct QueryHandler* qh = getQueryHandler(mcp, q);
@@ -277,7 +277,7 @@ struct MsgCore_Handler* MsgCore_onQuery(struct MsgCore* core,
     return &qh->pub;
 }
 
-static Iface_DEFUN incoming(struct Message* msg, struct Iface* interRouterIf)
+static Iface_DEFUN incoming(Message_t* msg, struct Iface* interRouterIf)
 {
     struct MsgCore_pvt* mcp =
         Identity_containerOf(interRouterIf, struct MsgCore_pvt, pub.interRouterIf);

@@ -23,7 +23,7 @@
 #define MAX_DRY_CYCLES 16
 
 
-#define ArrayList_TYPE struct Message
+#define ArrayList_TYPE Message_t
 #define ArrayList_NAME Messages
 #include "util/ArrayList.h"
 
@@ -67,13 +67,13 @@ static void timeoutTrigger(void* vASynchronizer)
 
     if (msgsToA) {
         for (int i = 0; i < msgsToA->length; i++) {
-            struct Message* msg = ArrayList_Messages_get(msgsToA, i);
+            Message_t* msg = ArrayList_Messages_get(msgsToA, i);
             Iface_send(&as->pub.ifA, msg);
         }
     }
     if (msgsToB) {
         for (int i = 0; i < msgsToB->length; i++) {
-            struct Message* msg = ArrayList_Messages_get(msgsToB, i);
+            Message_t* msg = ArrayList_Messages_get(msgsToB, i);
             Iface_send(&as->pub.ifB, msg);
         }
     }
@@ -93,7 +93,7 @@ static void checkTimeout(struct ASynchronizer_pvt* as)
     as->intr = Timeout_setInterval(timeoutTrigger, as, 1, as->base, as->timeoutAlloc);
 }
 
-static Iface_DEFUN fromA(struct Message* msg, struct Iface* ifA)
+static Iface_DEFUN fromA(Message_t* msg, struct Iface* ifA)
 {
     struct ASynchronizer_pvt* as = Identity_containerOf(ifA, struct ASynchronizer_pvt, pub.ifA);
     if (!as->cycleAlloc) { as->cycleAlloc = Allocator_child(as->alloc); }
@@ -104,7 +104,7 @@ static Iface_DEFUN fromA(struct Message* msg, struct Iface* ifA)
     return NULL;
 }
 
-static Iface_DEFUN fromB(struct Message* msg, struct Iface* ifB)
+static Iface_DEFUN fromB(Message_t* msg, struct Iface* ifB)
 {
     struct ASynchronizer_pvt* as = Identity_containerOf(ifB, struct ASynchronizer_pvt, pub.ifB);
     if (!as->cycleAlloc) { as->cycleAlloc = Allocator_child(as->alloc); }

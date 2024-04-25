@@ -27,7 +27,7 @@ int main()
     struct Allocator* alloc = Allocator_new(1<<22);
     struct Random* rand = Random_new(alloc, NULL, NULL);
 
-    struct Message* msg = Message_new(0, 32, alloc);
+    Message_t* msg = Message_new(0, 32, alloc);
 
     uint8_t buff[32] = {0};
     for (int i = 0; i < 1000; i++) {

@@ -58,7 +58,7 @@ static void sendHello(void* vctx)
 {
     struct TUNTools_pvt* ctx = Identity_check((struct TUNTools_pvt*) vctx);
     struct Allocator* tempAlloc = Allocator_child(ctx->pub.alloc);
-    struct Message* msg = Message_new(0, 64, tempAlloc);
+    Message_t* msg = Message_new(0, 64, tempAlloc);
     Er_assert(Message_epush(msg, "Hello World", 12));
     Er_assert(Message_epush(msg, ctx->pub.tunDestAddr, ctx->pub.tunDestAddr->addrLen));
     Iface_send(&ctx->pub.udpIface, msg);
@@ -78,7 +78,7 @@ const uint8_t* TUNTools_testIP6AddrC = (uint8_t[])
     0xfd,0,0,0,0,0,0,0,0,0,0,0,0,0,0,5
 };
 
-Iface_DEFUN TUNTools_genericIP6Echo(struct Message* msg, struct TUNTools* tt)
+Iface_DEFUN TUNTools_genericIP6Echo(Message_t* msg, struct TUNTools* tt)
 {
     uint16_t ethertype = Er_assert(TUNMessageType_pop(msg));
     if (ethertype != Ethernet_TYPE_IP6) {
@@ -111,14 +111,14 @@ Iface_DEFUN TUNTools_genericIP6Echo(struct Message* msg, struct TUNTools* tt)
     return Iface_next(&tt->tunIface, msg);
 }
 
-static Iface_DEFUN receiveMessageTUN(struct Message* msg, struct Iface* tunIface)
+static Iface_DEFUN receiveMessageTUN(Message_t* msg, struct Iface* tunIface)
 {
     struct TUNTools_pvt* ctx = Identity_containerOf(tunIface, struct TUNTools_pvt, pub.tunIface);
     ctx->pub.receivedMessageTUNCount++;
     return ctx->pub.cb(msg, &ctx->pub);
 }
 
-static Iface_DEFUN receiveMessageUDP(struct Message* msg, struct Iface* udpIface)
+static Iface_DEFUN receiveMessageUDP(Message_t* msg, struct Iface* udpIface)
 {
     struct TUNTools_pvt* ctx = Identity_containerOf(udpIface, struct TUNTools_pvt, pub.udpIface);
 

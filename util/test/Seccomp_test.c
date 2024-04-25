@@ -64,7 +64,7 @@ static void onConnectionChild(struct ChildCtx* child)
     Allocator_t* alloc = Allocator_child(child->alloc);
     Allocator_t* alloc1 = Allocator_child(alloc);
 
-    struct Message* ok = Message_new(0, 512, alloc1);
+    Message_t* ok = Message_new(0, 512, alloc1);
     Er_assert(Message_epush(ok, "OK", 3));
 
     struct Iface iface = { .send = NULL };
@@ -99,7 +99,7 @@ static int child(char* pipeName, struct Allocator* alloc, struct Log* logger)
     return 0;
 }
 
-static Iface_DEFUN receiveMessageParent(struct Message* msg, struct Iface* iface)
+static Iface_DEFUN receiveMessageParent(Message_t* msg, struct Iface* iface)
 {
     struct Context* ctx = Identity_check((struct Context*) iface);
     // PipeServer pushes a uint32 identifier of the client who sent the message

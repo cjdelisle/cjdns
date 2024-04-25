@@ -17,7 +17,7 @@
 #include "memory/Allocator.h"
 #include "test/FuzzTest.h"
 
-void CJDNS_FUZZ_MAIN(void* vctx, struct Message* fuzz)
+void CJDNS_FUZZ_MAIN(void* vctx, Message_t* fuzz)
 {
     struct Allocator* alloc = (struct Allocator*) vctx;
     Dict* out = NULL;

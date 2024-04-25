@@ -20,7 +20,7 @@
 
 #include <stdbool.h>
 
-Er_DEFUN(void Base10_write(struct Message* msg, int64_t num))
+Er_DEFUN(void Base10_write(Message_t* msg, int64_t num))
 {
     bool negative = num < 0;
     if (negative) {
@@ -39,7 +39,7 @@ Er_DEFUN(void Base10_write(struct Message* msg, int64_t num))
     Er_ret();
 }
 
-Er_DEFUN(int64_t Base10_read(struct Message* msg))
+Er_DEFUN(int64_t Base10_read(Message_t* msg))
 {
     int64_t out = 0;
     bool negative = false;

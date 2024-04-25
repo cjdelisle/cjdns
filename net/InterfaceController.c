@@ -255,7 +255,7 @@ static void sendPeer(uint32_t pathfinderId,
     }
     struct InterfaceController_pvt* ic = Identity_check(peer->ici->ic);
     struct Allocator* alloc = Allocator_child(ic->alloc);
-    struct Message* msg = Message_new(PFChan_Node_SIZE, 512, alloc);
+    Message_t* msg = Message_new(PFChan_Node_SIZE, 512, alloc);
     struct PFChan_Node* node = (struct PFChan_Node*) Message_bytes(msg);
     Bits_memcpy(node->ip6, peer->addr.ip6.bytes, 16);
     Bits_memcpy(node->publicKey, peer->addr.key, 32);
@@ -359,7 +359,7 @@ static void linkState(void* vic)
         msgLen += PFChan_LinkState_Entry_SIZE * ici->peerMap.count;
     }
     struct Allocator* alloc = Allocator_child(ic->alloc);
-    struct Message* msg = Message_new(0, msgLen, alloc);
+    Message_t* msg = Message_new(0, msgLen, alloc);
 
     for (int i = 0; i < ic->icis->length; i++) {
         struct InterfaceController_Iface_pvt* ici = ArrayList_OfIfaces_get(ic->icis, i);
@@ -501,7 +501,7 @@ static void pingCycle(void* vic)
     }
 }
 
-static Iface_DEFUN afterEncrypt(struct Message* msg, struct Iface* ciphertext)
+static Iface_DEFUN afterEncrypt(Message_t* msg, struct Iface* ciphertext)
 {
     struct Peer* ep = Identity_containerOf(ciphertext, struct Peer, ciphertext);
     // push the lladdr...
@@ -518,7 +518,7 @@ static Iface_DEFUN afterEncrypt(struct Message* msg, struct Iface* ciphertext)
 }
 
 // This is directly called from SwitchCore, message is not encrypted.
-static Iface_DEFUN sendFromSwitch(struct Message* msg, struct Iface* switchIf)
+static Iface_DEFUN sendFromSwitch(Message_t* msg, struct Iface* switchIf)
 {
     struct Peer* ep = Identity_check((struct Peer*) switchIf);
 
@@ -556,7 +556,7 @@ static void closeInterface(struct Allocator_OnFreeJob* job)
     Map_EndpointsBySockaddr_remove(index, &toClose->ici->peerMap);
 }
 
-static Iface_DEFUN afterDecrypt(struct Message* msg, struct Iface* plaintext);
+static Iface_DEFUN afterDecrypt(Message_t* msg, struct Iface* plaintext);
 
 static struct Peer* mkEp(
     const struct Sockaddr* lladdr,
@@ -617,7 +617,7 @@ static struct Peer* epFromSess(
  * Expects [ struct LLAddress ][ beacon ]
  */
 static Iface_DEFUN handleBeacon(
-    struct Message* msg,
+    Message_t* msg,
     struct InterfaceController_Iface_pvt* ici,
     struct Sockaddr* lladdr)
 {
@@ -711,7 +711,7 @@ static Iface_DEFUN handleBeacon(
     return NULL;
 }
 
-static Iface_DEFUN handleIncomingFromWire(struct Message* msg, struct Iface* addrIf)
+static Iface_DEFUN handleIncomingFromWire(Message_t* msg, struct Iface* addrIf)
 {
     struct InterfaceController_Iface_pvt* ici =
         Identity_containerOf(addrIf, struct InterfaceController_Iface_pvt, pub.addrIf);
@@ -831,7 +831,7 @@ static Iface_DEFUN handleIncomingFromWire(struct Message* msg, struct Iface* add
 }
 
 // Expects result of CryptoAuth decrypt
-static Iface_DEFUN afterDecrypt(struct Message* msg, struct Iface* plaintext)
+static Iface_DEFUN afterDecrypt(Message_t* msg, struct Iface* plaintext)
 {
     struct Peer* ep = Identity_containerOf(plaintext, struct Peer, plaintext);
     struct InterfaceController_Iface_pvt* ici = Identity_check(ep->ici);
@@ -923,7 +923,7 @@ static void sendBeacon(struct InterfaceController_Iface_pvt* ici, struct Allocat
 
     Log_debug(ici->ic->logger, "sendBeacon(%s)", ici->pub.name->bytes);
 
-    struct Message* msg = Message_new(0, 128, tempAlloc);
+    Message_t* msg = Message_new(0, 128, tempAlloc);
     Er_assert(Message_epush(msg, &ici->ic->beacon, Headers_Beacon_SIZE));
 
     if (Defined(Log_DEBUG)) {
@@ -1161,7 +1161,7 @@ int InterfaceController_disconnectPeer(struct InterfaceController* ifController,
     return count;
 }
 
-static Iface_DEFUN incomingFromEventEmitterIf(struct Message* msg, struct Iface* eventEmitterIf)
+static Iface_DEFUN incomingFromEventEmitterIf(Message_t* msg, struct Iface* eventEmitterIf)
 {
     struct InterfaceController_pvt* ic =
          Identity_containerOf(eventEmitterIf, struct InterfaceController_pvt, eventEmitterIf);

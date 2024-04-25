@@ -90,7 +90,7 @@ static int calculateAuth(Dict* message,
     Dict_putString(message, String_new("cookie", alloc), cookieStr, alloc);
 
     // serialize the message with the password hash
-    struct Message* msg = Message_new(0, AdminClient_MAX_MESSAGE_SIZE, alloc);
+    Message_t* msg = Message_new(0, AdminClient_MAX_MESSAGE_SIZE, alloc);
     Er_assert(BencMessageWriter_write(message, msg));
 
     // calculate the hash of the message with the password hash
@@ -115,7 +115,7 @@ static void timeout(void* vreq)
     done((struct Request*) vreq, AdminClient_Error_TIMEOUT);
 }
 
-static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* addrIface)
+static Iface_DEFUN receiveMessage(Message_t* msg, struct Iface* addrIface)
 {
     struct Context* ctx = Identity_containerOf(addrIface, struct Context, addrIface);
 
@@ -199,7 +199,7 @@ static struct Request* sendRaw(Dict* messageDict,
     }
 
     struct Allocator* child = Allocator_child(req->alloc);
-    struct Message* msg = Message_new(0, AdminClient_MAX_MESSAGE_SIZE + 256, child);
+    Message_t* msg = Message_new(0, AdminClient_MAX_MESSAGE_SIZE + 256, child);
     Er_assert(BencMessageWriter_write(messageDict, msg));
 
     req->timeoutAlloc = Allocator_child(req->alloc);

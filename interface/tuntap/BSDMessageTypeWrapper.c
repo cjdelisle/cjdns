@@ -37,7 +37,7 @@ struct BSDMessageTypeWrapper_pvt
     Identity
 };
 
-static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* wireSide)
+static Iface_DEFUN receiveMessage(Message_t* msg, struct Iface* wireSide)
 {
     struct BSDMessageTypeWrapper_pvt* ctx =
         Identity_containerOf(wireSide, struct BSDMessageTypeWrapper_pvt, pub.wireSide);
@@ -61,7 +61,7 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* wireSide)
     return Iface_next(&ctx->pub.inside, msg);
 }
 
-static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* inside)
+static Iface_DEFUN sendMessage(Message_t* msg, struct Iface* inside)
 {
     struct BSDMessageTypeWrapper_pvt* ctx =
         Identity_containerOf(inside, struct BSDMessageTypeWrapper_pvt, pub.inside);

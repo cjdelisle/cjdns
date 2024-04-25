@@ -27,12 +27,12 @@ struct Context {
     int success;
     struct Allocator* alloc;
     int messageLen;
-    struct Message* buf;
+    Message_t* buf;
     uint8_t* bufPtr;
     Identity
 } ctx;
 
-static Iface_DEFUN ifaceRecvMsg(struct Message* message, struct Iface* thisInterface)
+static Iface_DEFUN ifaceRecvMsg(Message_t* message, struct Iface* thisInterface)
 {
     struct Context* ctx = Identity_containerOf(thisInterface, struct Context, iface);
     Assert_true(!ctx->success);
@@ -43,7 +43,7 @@ static Iface_DEFUN ifaceRecvMsg(struct Message* message, struct Iface* thisInter
     return NULL;
 }
 
-void CJDNS_FUZZ_MAIN(void* vctx, struct Message* fuzz)
+void CJDNS_FUZZ_MAIN(void* vctx, Message_t* fuzz)
 {
     struct Context* ctx = Identity_check((struct Context*) vctx);
     if (Message_getLength(fuzz) <= 2) { return; }
@@ -56,7 +56,7 @@ void CJDNS_FUZZ_MAIN(void* vctx, struct Message* fuzz)
             len = Message_getLength(ctx->buf);
         }
         struct Allocator* a = Allocator_child(ctx->alloc);
-        struct Message* m = Message_new(len, 0, a);
+        Message_t* m = Message_new(len, 0, a);
         Er_assert(Message_epop(ctx->buf, Message_bytes(m), len));
         Iface_send(&ctx->outer, m);
         Allocator_free(a);

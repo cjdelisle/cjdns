@@ -30,7 +30,7 @@
 static const uint8_t testAddrA[4] = {11, 0, 0, 1};
 static const uint8_t testAddrB[4] = {11, 0, 0, 2};
 
-static Iface_DEFUN receiveMessageTUN(struct Message* msg, struct TUNTools* tt)
+static Iface_DEFUN receiveMessageTUN(Message_t* msg, struct TUNTools* tt)
 {
     uint16_t ethertype = Er_assert(TUNMessageType_pop(msg));
     if (ethertype != Ethernet_TYPE_IP4) {

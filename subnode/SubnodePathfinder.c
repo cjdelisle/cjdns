@@ -98,7 +98,7 @@ static void nodeForAddress(struct PFChan_Node* nodeOut, struct Address* addr, ui
     Bits_memcpy(nodeOut->ip6, addr->ip6.bytes, 16);
 }
 
-static Iface_DEFUN sendNode(struct Message* msg,
+static Iface_DEFUN sendNode(Message_t* msg,
                             struct Address* addr,
                             uint32_t metric,
                             enum PFChan_Pathfinder msgType,
@@ -114,14 +114,14 @@ static Iface_DEFUN sendNode(struct Message* msg,
     return Iface_next(&pf->pub.eventIf, msg);
 }
 
-static Iface_DEFUN connected(struct SubnodePathfinder_pvt* pf, struct Message* msg)
+static Iface_DEFUN connected(struct SubnodePathfinder_pvt* pf, Message_t* msg)
 {
     Log_debug(pf->log, "INIT");
     pf->state = SubnodePathfinder_pvt_state_RUNNING;
     return NULL;
 }
 
-static uint32_t addressForNode(struct Address* addrOut, struct Message* msg)
+static uint32_t addressForNode(struct Address* addrOut, Message_t* msg)
 {
     Bits_memset(addrOut, 0, sizeof(struct Address));
     struct PFChan_Node node;
@@ -134,7 +134,7 @@ static uint32_t addressForNode(struct Address* addrOut, struct Message* msg)
     return Endian_bigEndianToHost32(node.metric_be);
 }
 
-static Iface_DEFUN switchErr(struct Message* msg, struct SubnodePathfinder_pvt* pf)
+static Iface_DEFUN switchErr(Message_t* msg, struct SubnodePathfinder_pvt* pf)
 {
     struct PFChan_Core_SwitchErr switchErr;
     Er_assert(Message_epop(msg, &switchErr, PFChan_Core_SwitchErr_MIN_SIZE));
@@ -192,7 +192,7 @@ static void getRouteReply(Dict* msg, struct Address* src, struct MsgCore_Promise
     }
 
     //NodeCache_discoverNode(pf->nc, &al->elems[0]);
-    struct Message* msgToCore = Message_new(0, 512, prom->alloc);
+    Message_t* msgToCore = Message_new(0, 512, prom->alloc);
     Iface_CALL(sendNode, msgToCore, &al->elems[0], Metric_SNODE_SAYS, PFChan_Pathfinder_NODE, pf);
 }
 
@@ -237,7 +237,7 @@ static void queryRs(struct SubnodePathfinder_pvt* pf, uint8_t addr[16], uint8_t 
     snq->mapHandle = pf->queryMap.handles[index];
 }
 
-static Iface_DEFUN searchReq(struct Message* msg, struct SubnodePathfinder_pvt* pf)
+static Iface_DEFUN searchReq(Message_t* msg, struct SubnodePathfinder_pvt* pf)
 {
     uint8_t addr[16];
     Er_assert(Message_epop(msg, addr, 16));
@@ -299,7 +299,7 @@ static void pingReply(Dict* msg, struct Address* src, struct MsgCore_Promise* pr
         return;
     }
     Log_debug(pf->log, "Ping reply from [%s]", Address_toString(src, prom->alloc)->bytes);
-    struct Message* msgToCore = Message_new(0, 512, prom->alloc);
+    Message_t* msgToCore = Message_new(0, 512, prom->alloc);
     Iface_CALL(sendNode, msgToCore, src, Metric_PING_REPLY, PFChan_Pathfinder_NODE, pf);
 }
 
@@ -337,7 +337,7 @@ static void pingNode(struct SubnodePathfinder_pvt* pf, struct Address* addr)
     usp->mapHandle = pf->queryMap.handles[index];
 }
 
-static Iface_DEFUN peer(struct Message* msg, struct SubnodePathfinder_pvt* pf)
+static Iface_DEFUN peer(Message_t* msg, struct SubnodePathfinder_pvt* pf)
 {
     struct Address addr = {0};
     uint32_t metric = addressForNode(&addr, msg);
@@ -369,7 +369,7 @@ static Iface_DEFUN peer(struct Message* msg, struct SubnodePathfinder_pvt* pf)
     return sendNode(msg, &addr, Metric_PF_PEER, PFChan_Pathfinder_NODE, pf);
 }
 
-static Iface_DEFUN peerGone(struct Message* msg, struct SubnodePathfinder_pvt* pf)
+static Iface_DEFUN peerGone(Message_t* msg, struct SubnodePathfinder_pvt* pf)
 {
     struct Address addr = {0};
     addressForNode(&addr, msg);
@@ -378,7 +378,7 @@ static Iface_DEFUN peerGone(struct Message* msg, struct SubnodePathfinder_pvt* p
     return sendNode(msg, &addr, Metric_DEAD_LINK, PFChan_Pathfinder_NODE, pf);
 }
 
-static Iface_DEFUN session(struct Message* msg, struct SubnodePathfinder_pvt* pf)
+static Iface_DEFUN session(Message_t* msg, struct SubnodePathfinder_pvt* pf)
 {
     struct Address addr = {0};
     addressForNode(&addr, msg);
@@ -388,7 +388,7 @@ static Iface_DEFUN session(struct Message* msg, struct SubnodePathfinder_pvt* pf
     return NULL;
 }
 
-static Iface_DEFUN sessionEnded(struct Message* msg, struct SubnodePathfinder_pvt* pf)
+static Iface_DEFUN sessionEnded(Message_t* msg, struct SubnodePathfinder_pvt* pf)
 {
     struct Address addr = {0};
     addressForNode(&addr, msg);
@@ -398,7 +398,7 @@ static Iface_DEFUN sessionEnded(struct Message* msg, struct SubnodePathfinder_pv
     return NULL;
 }
 
-static Iface_DEFUN discoveredPath(struct Message* msg, struct SubnodePathfinder_pvt* pf)
+static Iface_DEFUN discoveredPath(Message_t* msg, struct SubnodePathfinder_pvt* pf)
 {
     //struct Address addr = {0};
     //addressForNode(&addr, msg);
@@ -407,20 +407,20 @@ static Iface_DEFUN discoveredPath(struct Message* msg, struct SubnodePathfinder_
     return NULL;
 }
 
-static Iface_DEFUN handlePing(struct Message* msg, struct SubnodePathfinder_pvt* pf)
+static Iface_DEFUN handlePing(Message_t* msg, struct SubnodePathfinder_pvt* pf)
 {
     //Log_debug(pf->log, "Received ping");
     Er_assert(Message_epush32be(msg, PFChan_Pathfinder_PONG));
     return Iface_next(&pf->pub.eventIf, msg);
 }
 
-static Iface_DEFUN handlePong(struct Message* msg, struct SubnodePathfinder_pvt* pf)
+static Iface_DEFUN handlePong(Message_t* msg, struct SubnodePathfinder_pvt* pf)
 {
     //Log_debug(pf->log, "Received pong");
     return NULL;
 }
 
-static Iface_DEFUN ctrlMsgFromSwitchPinger(struct Message* msg, struct Iface* iface)
+static Iface_DEFUN ctrlMsgFromSwitchPinger(Message_t* msg, struct Iface* iface)
 {
     struct SubnodePathfinder_pvt* pf =
         Identity_containerOf(iface, struct SubnodePathfinder_pvt, switchPingerIf);
@@ -428,12 +428,12 @@ static Iface_DEFUN ctrlMsgFromSwitchPinger(struct Message* msg, struct Iface* if
     return Iface_next(&pf->pub.eventIf, msg);
 }
 
-static Iface_DEFUN ctrlMsg(struct Message* msg, struct SubnodePathfinder_pvt* pf)
+static Iface_DEFUN ctrlMsg(Message_t* msg, struct SubnodePathfinder_pvt* pf)
 {
     return Iface_next(&pf->switchPingerIf, msg);
 }
 
-static Iface_DEFUN unsetupSession(struct Message* msg, struct SubnodePathfinder_pvt* pf)
+static Iface_DEFUN unsetupSession(Message_t* msg, struct SubnodePathfinder_pvt* pf)
 {
     struct PFChan_Node node;
     Er_assert(Message_epop(msg, &node, PFChan_Node_SIZE));
@@ -448,12 +448,12 @@ static Iface_DEFUN unsetupSession(struct Message* msg, struct SubnodePathfinder_
     return NULL;
 }
 
-static Iface_DEFUN incomingMsg(struct Message* msg, struct SubnodePathfinder_pvt* pf)
+static Iface_DEFUN incomingMsg(Message_t* msg, struct SubnodePathfinder_pvt* pf)
 {
     return Iface_next(&pf->msgCoreIf, msg);
 }
 
-static Iface_DEFUN linkState(struct Message* msg, struct SubnodePathfinder_pvt* pf)
+static Iface_DEFUN linkState(Message_t* msg, struct SubnodePathfinder_pvt* pf)
 {
     while (Message_getLength(msg)) {
         struct PFChan_LinkState_Entry lse;
@@ -468,7 +468,7 @@ static Iface_DEFUN linkState(struct Message* msg, struct SubnodePathfinder_pvt* 
     return NULL;
 }
 
-static Iface_DEFUN incomingFromMsgCore(struct Message* msg, struct Iface* iface)
+static Iface_DEFUN incomingFromMsgCore(Message_t* msg, struct Iface* iface)
 {
     struct SubnodePathfinder_pvt* pf =
         Identity_containerOf(iface, struct SubnodePathfinder_pvt, msgCoreIf);
@@ -483,7 +483,7 @@ static Iface_DEFUN incomingFromMsgCore(struct Message* msg, struct Iface* iface)
     return Iface_next(&pf->pub.eventIf, msg);
 }
 
-static Iface_DEFUN incomingFromEventIf(struct Message* msg, struct Iface* eventIf)
+static Iface_DEFUN incomingFromEventIf(Message_t* msg, struct Iface* eventIf)
 {
     struct SubnodePathfinder_pvt* pf =
         Identity_containerOf(eventIf, struct SubnodePathfinder_pvt, pub.eventIf);
@@ -517,7 +517,7 @@ static void sendEvent(struct SubnodePathfinder_pvt* pf,
                       int size)
 {
     struct Allocator* alloc = Allocator_child(pf->alloc);
-    struct Message* msg = Message_new(0, 512+size, alloc);
+    Message_t* msg = Message_new(0, 512+size, alloc);
     Er_assert(Message_epush(msg, data, size));
     Er_assert(Message_epush32be(msg, ev));
     Iface_send(&pf->pub.eventIf, msg);
@@ -556,7 +556,7 @@ static void sendCurrentSupernode(void* vsp)
 {
     struct SubnodePathfinder_pvt* pf = Identity_check((struct SubnodePathfinder_pvt*) vsp);
     struct Allocator* alloc = Allocator_child(pf->alloc);
-    struct Message* msgToCore = Message_new(0, 512, alloc);
+    Message_t* msgToCore = Message_new(0, 512, alloc);
     Iface_CALL(sendNode, msgToCore, &pf->pub.snh->snodeAddr, 0, PFChan_Pathfinder_SNODE, pf);
     Allocator_free(alloc);
 }

@@ -116,7 +116,7 @@ void Sign_publicKeyFromKeyPair(uint8_t publicSigningKey[32], uint8_t keyPair[64]
 // same sha512 which produces the private key, but this is walking off of the beaten path
 // and throwing in a little bit of random each message should not make the situation any
 // worse.
-void Sign_signMsg(uint8_t keyPair[64], struct Message* msg, struct Random* rand)
+void Sign_signMsg(uint8_t keyPair[64], Message_t* msg, struct Random* rand)
 {
     // az is set to the secret key followed by another secret value
     // which since we don't have a secret seed in this algorithm is just the
@@ -168,7 +168,7 @@ void Sign_signMsg(uint8_t keyPair[64], struct Message* msg, struct Random* rand)
 }
 
 // For verify, we're just using the normal sign_open() function, nothing special here.
-int Sign_verifyMsg(uint8_t publicSigningKey[32], struct Message* msg)
+int Sign_verifyMsg(uint8_t publicSigningKey[32], Message_t* msg)
 {
     if (Message_getLength(msg) < 64) { return -1; }
     struct Allocator* alloc = Allocator_child(Message_getAlloc(msg));

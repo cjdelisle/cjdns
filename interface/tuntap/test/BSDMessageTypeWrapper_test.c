@@ -27,7 +27,7 @@ struct Context
     Identity
 };
 
-static Iface_DEFUN sendInside(struct Message* msg, struct Iface* inside)
+static Iface_DEFUN sendInside(Message_t* msg, struct Iface* inside)
 {
     struct Context* ctx = Identity_containerOf(inside, struct Context, inside);
     uint32_t top = Er_assert(Message_epop32be(msg));
@@ -37,7 +37,7 @@ static Iface_DEFUN sendInside(struct Message* msg, struct Iface* inside)
     return NULL;
 }
 
-static Iface_DEFUN sendOutside(struct Message* msg, struct Iface* outside)
+static Iface_DEFUN sendOutside(Message_t* msg, struct Iface* outside)
 {
     struct Context* ctx = Identity_containerOf(outside, struct Context, outside);
     Assert_true(!(ctx->received & 1<<1));
@@ -56,7 +56,7 @@ int main()
     Iface_plumb(&ctx->inside, &wrapper->inside);
     Iface_plumb(&ctx->outside, &wrapper->wireSide);
 
-    struct Message* msg = Message_new(256, 256, alloc);
+    Message_t* msg = Message_new(256, 256, alloc);
     Er_assert(Message_epush32be(msg, 0x00000800));
     Iface_send(&ctx->inside, msg);
 

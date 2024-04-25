@@ -32,7 +32,7 @@
 
 struct BufferedMessage
 {
-    struct Message* msg;
+    Message_t* msg;
     struct Allocator* alloc;
     uint64_t timeSentMilliseconds;
 };
@@ -138,7 +138,7 @@ static void sendSession(struct SessionManager_Session_pvt* sess,
     Ca_getHerIp6(sess->pub.caSession, session.ip6);
 
     struct Allocator* alloc = Allocator_child(sess->alloc);
-    struct Message* msg = Message_new(0, PFChan_Node_SIZE + 512, alloc);
+    Message_t* msg = Message_new(0, PFChan_Node_SIZE + 512, alloc);
     Er_assert(Message_epush(msg, &session, PFChan_Node_SIZE));
     Er_assert(Message_epush32be(msg, destPf));
     Er_assert(Message_epush32be(msg, ev));
@@ -308,7 +308,7 @@ static bool discoverPath(struct SessionManager_Session_pvt* sess,
     }
 }
 
-static Iface_DEFUN failedDecrypt(struct Message* msg,
+static Iface_DEFUN failedDecrypt(Message_t* msg,
                                  uint64_t label_be,
                                  struct SessionManager_pvt* sm)
 {
@@ -331,7 +331,7 @@ static Iface_DEFUN failedDecrypt(struct Message* msg,
     return Iface_next(&sm->pub.switchIf, msg);
 }
 
-static Iface_DEFUN postDecryption(struct Message* msg, struct Iface* iface)
+static Iface_DEFUN postDecryption(Message_t* msg, struct Iface* iface)
 {
     struct SessionManager_Session_pvt* session =
         Identity_containerOf(iface, struct SessionManager_Session_pvt, plaintext);
@@ -380,7 +380,7 @@ static Iface_DEFUN postDecryption(struct Message* msg, struct Iface* iface)
     return Iface_next(&session->sessionManager->pub.insideIf, msg);
 }
 
-static Iface_DEFUN afterEncrypt(struct Message* msg, struct Iface* iface)
+static Iface_DEFUN afterEncrypt(Message_t* msg, struct Iface* iface)
 {
     //Assert_true(!Ca_encrypt(sess->pub.caSession, msg));
     struct SessionManager_Session_pvt* sess =
@@ -472,7 +472,7 @@ static struct SessionManager_Session_pvt* getSession(struct SessionManager_pvt* 
     return sess;
 }
 
-static Iface_DEFUN ctrlFrame(struct Message* msg, struct SessionManager_pvt* sm)
+static Iface_DEFUN ctrlFrame(Message_t* msg, struct SessionManager_pvt* sm)
 {
     struct RouteHeader rh;
     Bits_memset(&rh, 0, RouteHeader_SIZE);
@@ -485,7 +485,7 @@ static Iface_DEFUN ctrlFrame(struct Message* msg, struct SessionManager_pvt* sm)
 
 static const uint8_t ADDR_PFX[8] = { 0xff, 0xfb, 0, 0, 0, 0, 0, 0 };
 
-static Iface_DEFUN incomingFromSwitchIf(struct Message* msg, struct Iface* iface)
+static Iface_DEFUN incomingFromSwitchIf(Message_t* msg, struct Iface* iface)
 {
     struct SessionManager_pvt* sm =
         Identity_containerOf(iface, struct SessionManager_pvt, pub.switchIf);
@@ -584,7 +584,7 @@ static void unsetupSession(struct SessionManager_pvt* sm, struct SessionManager_
         return;
     }
     struct Allocator* eventAlloc = Allocator_child(sm->alloc);
-    struct Message* eventMsg = Message_new(0, 512, eventAlloc);
+    Message_t* eventMsg = Message_new(0, 512, eventAlloc);
     struct PFChan_Node n = { .metric_be = Endian_hostToBigEndian32(Metric_DEAD_LINK) };
     n.path_be = Endian_hostToBigEndian64(sess->pub.paths[0].label);
     Assert_true(n.path_be);
@@ -602,7 +602,7 @@ static void unsetupSession(struct SessionManager_pvt* sm, struct SessionManager_
 static void triggerSearch(struct SessionManager_pvt* sm, uint8_t target[16], uint32_t version)
 {
     struct Allocator* eventAlloc = Allocator_child(sm->alloc);
-    struct Message* eventMsg = Message_new(0, 512, eventAlloc);
+    Message_t* eventMsg = Message_new(0, 512, eventAlloc);
     Er_assert(Message_epush32be(eventMsg, version));
     Er_assert(Message_epush32be(eventMsg, 0));
     Er_assert(Message_epush(eventMsg, target, 16));
@@ -671,7 +671,7 @@ static void periodically(void* vSessionManager)
     checkTimedOutBuffers(sm);
 }
 
-static void bufferPacket(struct SessionManager_pvt* sm, struct Message* msg)
+static void bufferPacket(struct SessionManager_pvt* sm, Message_t* msg)
 {
     Assert_true(Message_getLength(msg) >= (RouteHeader_SIZE + DataHeader_SIZE));
     struct RouteHeader* header = (struct RouteHeader*) Message_bytes(msg);
@@ -710,14 +710,14 @@ static void bufferPacket(struct SessionManager_pvt* sm, struct Message* msg)
     Assert_true(Map_BufferedMessages_put((struct Ip6*)header->ip6, &buffered, &sm->bufMap) > -1);
 }
 
-static void needsLookup(struct SessionManager_pvt* sm, struct Message* msg)
+static void needsLookup(struct SessionManager_pvt* sm, Message_t* msg)
 {
     struct RouteHeader* header = (struct RouteHeader*) Message_bytes(msg);
     bufferPacket(sm, msg);
     triggerSearch(sm, header->ip6, Endian_hostToBigEndian32(header->version_be));
 }
 
-static Iface_DEFUN readyToSend(struct Message* msg,
+static Iface_DEFUN readyToSend(Message_t* msg,
                                struct SessionManager_pvt* sm,
                                struct SessionManager_Session_pvt* sess)
 {
@@ -740,7 +740,7 @@ static Iface_DEFUN readyToSend(struct Message* msg,
     return Iface_next(&sess->plaintext, msg); // --> afterEncrypt
 }
 
-static Iface_DEFUN outgoingCtrlFrame(struct Message* msg, struct SessionManager_pvt* sm)
+static Iface_DEFUN outgoingCtrlFrame(Message_t* msg, struct SessionManager_pvt* sm)
 {
     Assert_true(Message_getLength(msg) >= RouteHeader_SIZE);
     struct RouteHeader* header = (struct RouteHeader*) Message_bytes(msg);
@@ -760,7 +760,7 @@ static Iface_DEFUN outgoingCtrlFrame(struct Message* msg, struct SessionManager_
     return Iface_next(&sm->pub.switchIf, msg);
 }
 
-static Iface_DEFUN incomingFromInsideIf(struct Message* msg, struct Iface* iface)
+static Iface_DEFUN incomingFromInsideIf(Message_t* msg, struct Iface* iface)
 {
     struct SessionManager_pvt* sm =
         Identity_containerOf(iface, struct SessionManager_pvt, pub.insideIf);
@@ -842,7 +842,7 @@ static Iface_DEFUN sessions(struct SessionManager_pvt* sm,
     return NULL;
 }
 
-static Iface_DEFUN incomingFromEventIf(struct Message* msg, struct Iface* iface)
+static Iface_DEFUN incomingFromEventIf(Message_t* msg, struct Iface* iface)
 {
     struct SessionManager_pvt* sm = Identity_containerOf(iface, struct SessionManager_pvt, eventIf);
     enum PFChan_Pathfinder ev = Er_assert(Message_epop32be(msg));

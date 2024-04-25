@@ -52,7 +52,7 @@ struct Context
 #define TUNB 2
 #define TUNA 1
 
-static Iface_DEFUN incomingTun(struct Message* msg, struct Iface* tunB)
+static Iface_DEFUN incomingTun(Message_t* msg, struct Iface* tunB)
 {
     return NULL;
 }
@@ -137,7 +137,7 @@ void* CJDNS_FUZZ_INIT(struct Allocator* allocator, struct Random* rand)
     return ctx;
 }
 
-void CJDNS_FUZZ_MAIN(void* vctx, struct Message* msg)
+void CJDNS_FUZZ_MAIN(void* vctx, Message_t* msg)
 {
     if (Message_getLength(msg) > 2048) { return; }
     struct Context* ctx = Identity_check((struct Context*) vctx);

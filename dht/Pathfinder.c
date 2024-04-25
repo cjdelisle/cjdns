@@ -79,7 +79,7 @@ struct NodeStore* Pathfinder_getNodeStore(struct Pathfinder* pathfinder)
 static int incomingFromDHT(struct DHTMessage* dmessage, void* vpf)
 {
     struct Pathfinder_pvt* pf = Identity_check((struct Pathfinder_pvt*) vpf);
-    struct Message* msg = dmessage->binMessage;
+    Message_t* msg = dmessage->binMessage;
     struct Address* addr = dmessage->address;
 
     if (addr->path == 1) {
@@ -140,7 +140,7 @@ static void nodeForAddress(struct PFChan_Node* nodeOut, struct Address* addr, ui
     Bits_memcpy(nodeOut->ip6, addr->ip6.bytes, 16);
 }
 
-static Iface_DEFUN sendNode(struct Message* msg,
+static Iface_DEFUN sendNode(Message_t* msg,
                             struct Address* addr,
                             uint32_t metric,
                             struct Pathfinder_pvt* pf)
@@ -164,7 +164,7 @@ static void onBestPathChange(void* vPathfinder, struct Node_Two* node)
         Log_debug(pf->log, "Ignore best path change from NodeStore [%s]", addrPrinted->bytes);
     } else {
         pf->bestPathChanges++;
-        struct Message* msg = Message_new(0, 256, alloc);
+        Message_t* msg = Message_new(0, 256, alloc);
         Iface_CALL(sendNode, msg, &node->address,
             (Node_getCost(node) & Metric_DHT_MASK) | Metric_DHT,
             pf);
@@ -172,7 +172,7 @@ static void onBestPathChange(void* vPathfinder, struct Node_Two* node)
     Allocator_free(alloc);
 }
 
-static Iface_DEFUN connected(struct Pathfinder_pvt* pf, struct Message* msg)
+static Iface_DEFUN connected(struct Pathfinder_pvt* pf, Message_t* msg)
 {
     Log_debug(pf->log, "INIT");
 
@@ -246,7 +246,7 @@ static Iface_DEFUN connected(struct Pathfinder_pvt* pf, struct Message* msg)
     return NULL;
 }
 
-static void addressForNode(struct Address* addrOut, struct Message* msg)
+static void addressForNode(struct Address* addrOut, Message_t* msg)
 {
     struct PFChan_Node node;
     Er_assert(Message_epop(msg, &node, PFChan_Node_SIZE));
@@ -257,7 +257,7 @@ static void addressForNode(struct Address* addrOut, struct Message* msg)
     Bits_memcpy(addrOut->ip6.bytes, node.ip6, 16);
 }
 
-static Iface_DEFUN switchErr(struct Message* msg, struct Pathfinder_pvt* pf)
+static Iface_DEFUN switchErr(Message_t* msg, struct Pathfinder_pvt* pf)
 {
     struct PFChan_Core_SwitchErr switchErr;
     Er_assert(Message_epop(msg, &switchErr, PFChan_Core_SwitchErr_MIN_SIZE));
@@ -286,7 +286,7 @@ static Iface_DEFUN switchErr(struct Message* msg, struct Pathfinder_pvt* pf)
     return NULL;
 }
 
-static Iface_DEFUN searchReq(struct Message* msg, struct Pathfinder_pvt* pf)
+static Iface_DEFUN searchReq(Message_t* msg, struct Pathfinder_pvt* pf)
 {
     uint8_t addr[16];
     Er_assert(Message_epop(msg, addr, 16));
@@ -307,7 +307,7 @@ static Iface_DEFUN searchReq(struct Message* msg, struct Pathfinder_pvt* pf)
     return NULL;
 }
 
-static Iface_DEFUN peer(struct Message* msg, struct Pathfinder_pvt* pf)
+static Iface_DEFUN peer(Message_t* msg, struct Pathfinder_pvt* pf)
 {
     struct Address addr = {0};
     addressForNode(&addr, msg);
@@ -329,7 +329,7 @@ static Iface_DEFUN peer(struct Message* msg, struct Pathfinder_pvt* pf)
     return sendNode(msg, &addr, Metric_DHT_PEER, pf);
 }
 
-static Iface_DEFUN peerGone(struct Message* msg, struct Pathfinder_pvt* pf)
+static Iface_DEFUN peerGone(Message_t* msg, struct Pathfinder_pvt* pf)
 {
     struct Address addr = {0};
     addressForNode(&addr, msg);
@@ -341,7 +341,7 @@ static Iface_DEFUN peerGone(struct Message* msg, struct Pathfinder_pvt* pf)
     return sendNode(msg, &addr, Metric_DEAD_LINK, pf);
 }
 
-static Iface_DEFUN session(struct Message* msg, struct Pathfinder_pvt* pf)
+static Iface_DEFUN session(Message_t* msg, struct Pathfinder_pvt* pf)
 {
     struct Address addr = {0};
     addressForNode(&addr, msg);
@@ -358,7 +358,7 @@ static Iface_DEFUN session(struct Message* msg, struct Pathfinder_pvt* pf)
     return NULL;
 }
 
-static Iface_DEFUN sessionEnded(struct Message* msg, struct Pathfinder_pvt* pf)
+static Iface_DEFUN sessionEnded(Message_t* msg, struct Pathfinder_pvt* pf)
 {
     struct Address addr = {0};
     addressForNode(&addr, msg);
@@ -367,7 +367,7 @@ static Iface_DEFUN sessionEnded(struct Message* msg, struct Pathfinder_pvt* pf)
     return NULL;
 }
 
-static Iface_DEFUN discoveredPath(struct Message* msg, struct Pathfinder_pvt* pf)
+static Iface_DEFUN discoveredPath(Message_t* msg, struct Pathfinder_pvt* pf)
 {
     struct Address addr = {0};
     addressForNode(&addr, msg);
@@ -391,20 +391,20 @@ static Iface_DEFUN discoveredPath(struct Message* msg, struct Pathfinder_pvt* pf
     return NULL;
 }
 
-static Iface_DEFUN handlePing(struct Message* msg, struct Pathfinder_pvt* pf)
+static Iface_DEFUN handlePing(Message_t* msg, struct Pathfinder_pvt* pf)
 {
     Log_debug(pf->log, "Received ping");
     Er_assert(Message_epush32be(msg, PFChan_Pathfinder_PONG));
     return Iface_next(&pf->pub.eventIf, msg);
 }
 
-static Iface_DEFUN handlePong(struct Message* msg, struct Pathfinder_pvt* pf)
+static Iface_DEFUN handlePong(Message_t* msg, struct Pathfinder_pvt* pf)
 {
     Log_debug(pf->log, "Received pong");
     return NULL;
 }
 
-static Iface_DEFUN incomingMsg(struct Message* msg, struct Pathfinder_pvt* pf)
+static Iface_DEFUN incomingMsg(Message_t* msg, struct Pathfinder_pvt* pf)
 {
     struct Address addr = {0};
     struct RouteHeader* hdr = (struct RouteHeader*) Message_bytes(msg);
@@ -425,7 +425,7 @@ static Iface_DEFUN incomingMsg(struct Message* msg, struct Pathfinder_pvt* pf)
 
     DHTModuleRegistry_handleIncoming(&dht, pf->registry);
 
-    struct Message* nodeMsg = Message_new(0, 256, Message_getAlloc(msg));
+    Message_t* nodeMsg = Message_new(0, 256, Message_getAlloc(msg));
     Iface_CALL(sendNode, nodeMsg, &addr, Metric_DHT_INCOMING, pf);
 
     if (dht.pleaseRespond) {
@@ -436,7 +436,7 @@ static Iface_DEFUN incomingMsg(struct Message* msg, struct Pathfinder_pvt* pf)
     return NULL;
 }
 
-static Iface_DEFUN incomingFromEventIf(struct Message* msg, struct Iface* eventIf)
+static Iface_DEFUN incomingFromEventIf(Message_t* msg, struct Iface* eventIf)
 {
     struct Pathfinder_pvt* pf = Identity_containerOf(eventIf, struct Pathfinder_pvt, pub.eventIf);
     enum PFChan_Core ev = Er_assert(Message_epop32be(msg));
@@ -468,7 +468,7 @@ static Iface_DEFUN incomingFromEventIf(struct Message* msg, struct Iface* eventI
 static void sendEvent(struct Pathfinder_pvt* pf, enum PFChan_Pathfinder ev, void* data, int size)
 {
     struct Allocator* alloc = Allocator_child(pf->alloc);
-    struct Message* msg = Message_new(0, 512+size, alloc);
+    Message_t* msg = Message_new(0, 512+size, alloc);
     Er_assert(Message_epush(msg, data, size));
     Er_assert(Message_epush32be(msg, ev));
     Iface_send(&pf->pub.eventIf, msg);

@@ -53,9 +53,9 @@ struct UpperDistributor_pvt
 
 #define MAGIC_PORT 1
 
-static Iface_DEFUN incomingFromSessionManagerIf(struct Message*, struct Iface*);
+static Iface_DEFUN incomingFromSessionManagerIf(Message_t*, struct Iface*);
 
-static Iface_DEFUN fromHandler(struct Message* msg, struct UpperDistributor_pvt* ud)
+static Iface_DEFUN fromHandler(Message_t* msg, struct UpperDistributor_pvt* ud)
 {
     Er_assert(Message_epop(msg, NULL, RouteHeader_SIZE));
     struct DataHeader dh;
@@ -115,7 +115,7 @@ static Iface_DEFUN fromHandler(struct Message* msg, struct UpperDistributor_pvt*
     return Iface_next(&ud->pub.sessionManagerIf, msg);
 }
 
-static void sendToHandlers(struct Message* msg,
+static void sendToHandlers(Message_t* msg,
                            enum ContentType type,
                            struct UpperDistributor_pvt* ud)
 {
@@ -126,7 +126,7 @@ static void sendToHandlers(struct Message* msg,
     for (int i = 0; i < (int)ud->handlers->count; i++) {
         if (ud->handlers->values[i]->pub.type != type) { continue; }
         struct Allocator* alloc = Allocator_child(Message_getAlloc(msg));
-        struct Message* cmsg = Message_clone(msg, alloc);
+        Message_t* cmsg = Message_clone(msg, alloc);
 
         {
             struct Headers_UDPHeader udpH;
@@ -161,7 +161,7 @@ static void sendToHandlers(struct Message* msg,
     }
 }
 
-static Iface_DEFUN toSessionManagerIf(struct Message* msg, struct UpperDistributor_pvt* ud)
+static Iface_DEFUN toSessionManagerIf(Message_t* msg, struct UpperDistributor_pvt* ud)
 {
     Assert_true(Message_getLength(msg) >= RouteHeader_SIZE + DataHeader_SIZE);
     struct RouteHeader* hdr = (struct RouteHeader*) Message_bytes(msg);
@@ -171,7 +171,7 @@ static Iface_DEFUN toSessionManagerIf(struct Message* msg, struct UpperDistribut
     return Iface_next(&ud->pub.sessionManagerIf, msg);
 }
 
-static Iface_DEFUN incomingFromEventIf(struct Message* msg, struct Iface* eventIf)
+static Iface_DEFUN incomingFromEventIf(Message_t* msg, struct Iface* eventIf)
 {
     struct UpperDistributor_pvt* ud =
         Identity_containerOf(eventIf, struct UpperDistributor_pvt, eventIf);
@@ -182,7 +182,7 @@ static Iface_DEFUN incomingFromEventIf(struct Message* msg, struct Iface* eventI
     return toSessionManagerIf(msg, ud);
 }
 
-static Iface_DEFUN incomingFromTunAdapterIf(struct Message* msg, struct Iface* tunAdapterIf)
+static Iface_DEFUN incomingFromTunAdapterIf(Message_t* msg, struct Iface* tunAdapterIf)
 {
     struct UpperDistributor_pvt* ud =
         Identity_containerOf(tunAdapterIf, struct UpperDistributor_pvt, pub.tunAdapterIf);
@@ -196,14 +196,14 @@ static Iface_DEFUN incomingFromTunAdapterIf(struct Message* msg, struct Iface* t
     return toSessionManagerIf(msg, ud);
 }
 
-static Iface_DEFUN incomingFromIpTunnelIf(struct Message* msg, struct Iface* ipTunnelIf)
+static Iface_DEFUN incomingFromIpTunnelIf(Message_t* msg, struct Iface* ipTunnelIf)
 {
     struct UpperDistributor_pvt* ud =
         Identity_containerOf(ipTunnelIf, struct UpperDistributor_pvt, pub.ipTunnelIf);
     return toSessionManagerIf(msg, ud);
 }
 
-static Iface_DEFUN incomingFromControlHandlerIf(struct Message* msg, struct Iface* iface)
+static Iface_DEFUN incomingFromControlHandlerIf(Message_t* msg, struct Iface* iface)
 {
     struct UpperDistributor_pvt* ud =
         Identity_containerOf(iface, struct UpperDistributor_pvt, pub.controlHandlerIf);
@@ -215,7 +215,7 @@ static Iface_DEFUN incomingFromControlHandlerIf(struct Message* msg, struct Ifac
     return Iface_next(&ud->pub.sessionManagerIf, msg);
 }
 
-static Iface_DEFUN incomingFromSessionManagerIf(struct Message* msg, struct Iface* sessionManagerIf)
+static Iface_DEFUN incomingFromSessionManagerIf(Message_t* msg, struct Iface* sessionManagerIf)
 {
     struct UpperDistributor_pvt* ud =
         Identity_containerOf(sessionManagerIf, struct UpperDistributor_pvt, pub.sessionManagerIf);

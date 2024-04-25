@@ -41,7 +41,7 @@ struct NDPServer_pvt
 
 #define ALL_ROUTERS    "\xff\x02\0\0\0\0\0\0\0\0\0\0\0\0\0\x02"
 
-static bool isNeighborSolicitation(struct Message* msg, struct NDPServer_pvt* ns)
+static bool isNeighborSolicitation(Message_t* msg, struct NDPServer_pvt* ns)
 {
     if (Message_getLength(msg) < Headers_IP6Header_SIZE + NDPHeader_NeighborSolicitation_SIZE) {
         return false;
@@ -70,7 +70,7 @@ static bool isNeighborSolicitation(struct Message* msg, struct NDPServer_pvt* ns
     return true;
 }
 
-static Iface_DEFUN answerNeighborSolicitation(struct Message* msg, struct NDPServer_pvt* ns)
+static Iface_DEFUN answerNeighborSolicitation(Message_t* msg, struct NDPServer_pvt* ns)
 {
     struct Headers_IP6Header ip6;
     Er_assert(Message_epop(msg, &ip6, Headers_IP6Header_SIZE));
@@ -117,7 +117,7 @@ static Iface_DEFUN answerNeighborSolicitation(struct Message* msg, struct NDPSer
     return Iface_next(&ns->external, msg);
 }
 
-static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* external)
+static Iface_DEFUN receiveMessage(Message_t* msg, struct Iface* external)
 {
     struct NDPServer_pvt* ns = Identity_containerOf(external, struct NDPServer_pvt, external);
 
@@ -133,7 +133,7 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* external)
     return Iface_next(&ns->pub.internal, msg);
 }
 
-static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* internal)
+static Iface_DEFUN sendMessage(Message_t* msg, struct Iface* internal)
 {
     struct NDPServer_pvt* ns = Identity_containerOf(internal, struct NDPServer_pvt, pub.internal);
     return Iface_next(&ns->external, msg);

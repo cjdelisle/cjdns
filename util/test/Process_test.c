@@ -59,7 +59,7 @@ static void onConnectionParent(void* context, const struct Sockaddr* addr)
     printf("onConnectionParent\n");
     struct Context* c = Identity_check((struct Context*) context);
     struct Allocator* alloc = Allocator_child(c->alloc);
-    struct Message* msg = Message_new(0, 256, alloc);
+    Message_t* msg = Message_new(0, 256, alloc);
     Er_assert(Message_epush(msg, MESSAGE, CString_strlen(MESSAGE) + 1));
     Er_assert(AddrIface_pushAddr(msg, addr));
     if (!Defined(win32)) {
@@ -73,7 +73,7 @@ static void onConnectionParent(void* context, const struct Sockaddr* addr)
 static int g_childStopped = 0;
 static struct Context* g_context = NULL;
 
-static Iface_DEFUN receiveMessageParent(struct Message* msg, struct Iface* iface)
+static Iface_DEFUN receiveMessageParent(Message_t* msg, struct Iface* iface)
 {
     struct Context* c = Identity_check((struct Context*) iface);
     Er_assert(AddrIface_popAddr(msg));
@@ -101,12 +101,12 @@ static void childDone(struct Allocator_OnFreeJob* ofj) {
     // Allocator_free(c->rootAlloc);
 }
 
-static Iface_DEFUN receiveMessageChild(struct Message* msg, struct Iface* iface)
+static Iface_DEFUN receiveMessageChild(Message_t* msg, struct Iface* iface)
 {
     struct Context* c = Identity_check((struct Context*) iface);
     Allocator_t* alloc = Allocator_child(c->alloc);
     Allocator_t* alloc1 = Allocator_child(alloc);
-    struct Message* m = Message_clone(msg, alloc1);
+    Message_t* m = Message_clone(msg, alloc1);
     printf("Child received message\n");
     Assert_true(Message_getLength(m) == (int)CString_strlen(MESSAGE)+1);
     Assert_true(!Bits_memcmp(Message_bytes(m), MESSAGE, CString_strlen(MESSAGE)+1));

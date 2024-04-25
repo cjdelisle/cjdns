@@ -30,7 +30,7 @@ struct SocketWrapper_pvt
     Identity
 };
 
-static Iface_DEFUN incomingFromSocket(struct Message* msg, struct Iface* externalIf)
+static Iface_DEFUN incomingFromSocket(Message_t* msg, struct Iface* externalIf)
 {
     struct SocketWrapper_pvt* ctx =
         Identity_containerOf(externalIf, struct SocketWrapper_pvt, pub.externalIf);
@@ -54,7 +54,7 @@ static Iface_DEFUN incomingFromSocket(struct Message* msg, struct Iface* externa
     return Error(msg, "INVALID");
 }
 
-static Iface_DEFUN incomingFromUs(struct Message* msg, struct Iface* internalIf)
+static Iface_DEFUN incomingFromUs(Message_t* msg, struct Iface* internalIf)
 {
     struct SocketWrapper_pvt* ctx =
         Identity_containerOf(internalIf, struct SocketWrapper_pvt, pub.internalIf);
@@ -90,7 +90,7 @@ Er_DEFUN(void SocketWrapper_addAddress(struct Iface* rawSocketIf,
                                 struct Allocator* alloc))
 {
     size_t len = 16 /* IPv6 Address length */ + 1 /* Type prefix length */;
-    struct Message* out = Message_new(0, len, alloc);
+    Message_t* out = Message_new(0, len, alloc);
     Er(Message_epush(out, ipv6Addr, 16));
     Er(Message_epush8(out, SocketWrapper_TYPE_CONF_ADD_IPV6_ADDRESS));
 
@@ -104,7 +104,7 @@ Er_DEFUN(void SocketWrapper_setMTU(struct Iface* rawSocketIf,
                             struct Allocator* alloc))
 {
     size_t len = 4 /* MTU var size */ + 1 /* Type prefix length */;
-    struct Message* out = Message_new(0, len, alloc);
+    Message_t* out = Message_new(0, len, alloc);
     Er(Message_epush32be(out, mtu));
     Er(Message_epush8(out, SocketWrapper_TYPE_CONF_SET_MTU));
 

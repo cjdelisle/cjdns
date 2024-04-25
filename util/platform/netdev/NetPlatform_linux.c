@@ -240,7 +240,7 @@ static Er_DEFUN(bool getMoreMessages(struct RouteInfo** rio,
 {
     bool retVal = false;
     struct Allocator* tempAlloc = Allocator_child(alloc);
-    struct Message* msg = Message_new(BUFF_SZ, 0, tempAlloc);
+    Message_t* msg = Message_new(BUFF_SZ, 0, tempAlloc);
     ssize_t sz = recv(sock, Message_bytes(msg), BUFF_SZ, MSG_TRUNC);
     if (sz < (ssize_t)sizeof(struct nlmsghdr)) {
         Er_raise(tempAlloc, "recv() -> %s", strerror(errno));
@@ -365,7 +365,7 @@ static Er_DEFUN(void addDeleteRoutes(int sock,
                             struct RouteInfo* ri,
                             struct Allocator* tempAlloc))
 {
-    struct Message* msg = Message_new(0, 512, tempAlloc);
+    Message_t* msg = Message_new(0, 512, tempAlloc);
     for (;ri;ri = ri->next) {
         struct IfIndexAttr ifa = {
             .rta = {

@@ -195,7 +195,7 @@ int IpTunnel_allowConnection(uint8_t publicKeyOfAuthorizedNode[32],
     return conn->number;
 }
 
-static Iface_DEFUN sendToNode(struct Message* message,
+static Iface_DEFUN sendToNode(Message_t* message,
                               struct IpTunnel_Connection* connection,
                               struct IpTunnel_pvt* context)
 {
@@ -212,7 +212,7 @@ static void sendControlMessage(Dict* dict,
                                struct Allocator* requestAlloc,
                                struct IpTunnel_pvt* context)
 {
-    struct Message* msg = Message_new(0, 1024, requestAlloc);
+    Message_t* msg = Message_new(0, 1024, requestAlloc);
     Er_assert(BencMessageWriter_write(dict, msg));
 
     int length = Message_getLength(msg);
@@ -316,7 +316,7 @@ int IpTunnel_removeConnection(int connectionNumber, struct IpTunnel* tunnel)
     return IpTunnel_removeConnection_NOT_FOUND;
 }
 
-static bool isControlMessageInvalid(struct Message* message, struct IpTunnel_pvt* context)
+static bool isControlMessageInvalid(Message_t* message, struct IpTunnel_pvt* context)
 {
     struct Headers_IP6Header* header = (struct Headers_IP6Header*) Message_bytes(message);
     uint16_t length = Endian_bigEndianToHost16(header->payloadLength_be);
@@ -569,7 +569,7 @@ static Iface_DEFUN incomingAddresses(Dict* d,
     return NULL;
 }
 
-static Iface_DEFUN incomingControlMessage(struct Message* message,
+static Iface_DEFUN incomingControlMessage(Message_t* message,
                                           struct IpTunnel_Connection* conn,
                                           struct IpTunnel_pvt* context)
 {
@@ -696,7 +696,7 @@ static struct IpTunnel_Connection* findConnection(uint8_t sourceIp6[16],
     return NULL;
 }
 
-static Iface_DEFUN incomingFromTun(struct Message* message, struct Iface* tunIf)
+static Iface_DEFUN incomingFromTun(Message_t* message, struct Iface* tunIf)
 {
     struct IpTunnel_pvt* context = Identity_check((struct IpTunnel_pvt*)tunIf);
 
@@ -728,7 +728,7 @@ static Iface_DEFUN incomingFromTun(struct Message* message, struct Iface* tunIf)
     return sendToNode(message, conn, context);
 }
 
-static Iface_DEFUN ip6FromNode(struct Message* message,
+static Iface_DEFUN ip6FromNode(Message_t* message,
                                struct IpTunnel_Connection* conn,
                                struct IpTunnel_pvt* context)
 {
@@ -751,7 +751,7 @@ static Iface_DEFUN ip6FromNode(struct Message* message,
     return Iface_next(&context->pub.tunInterface, message);
 }
 
-static Iface_DEFUN ip4FromNode(struct Message* message,
+static Iface_DEFUN ip4FromNode(Message_t* message,
                                struct IpTunnel_Connection* conn,
                                struct IpTunnel_pvt* context)
 {
@@ -774,7 +774,7 @@ static Iface_DEFUN ip4FromNode(struct Message* message,
     return Iface_next(&context->pub.tunInterface, message);
 }
 
-static Iface_DEFUN incomingFromNode(struct Message* message, struct Iface* nodeIf)
+static Iface_DEFUN incomingFromNode(Message_t* message, struct Iface* nodeIf)
 {
     struct IpTunnel_pvt* context =
         Identity_containerOf(nodeIf, struct IpTunnel_pvt, pub.nodeInterface);

@@ -67,7 +67,7 @@ Assert_compileTime(sizeof(struct sockaddr_in) == 16);
 Assert_compileTime(sizeof(struct sockaddr_dl) == 20);
 Assert_compileTime(sizeof(struct RouteMessage4) == 144);
 
-static Er_DEFUN(void mkRouteMsg(struct Message* msg,
+static Er_DEFUN(void mkRouteMsg(Message_t* msg,
                        struct Prefix* addRoute,
                        int ifIndex,
                        const char* ifName,
@@ -141,7 +141,7 @@ static Er_DEFUN(void setRoutes(uint32_t ifIndex,
 
     for (int i = 0; !err && i < toRemove->length; i++) {
         struct Prefix* pfx = ArrayList_OfPrefix_get(toRemove, i);
-        struct Message* msg = Message_new(0, 1024, alloc);
+        Message_t* msg = Message_new(0, 1024, alloc);
         Er(mkRouteMsg(msg, pfx, ifIndex, ifName, seq++, true));
         //printf("DELETE ROUTE %s\n", Hex_print(msg->bytes, Message_getLength(msg), alloc));
         returnLen = write(sock, Message_bytes(msg), Message_getLength(msg));
@@ -149,7 +149,7 @@ static Er_DEFUN(void setRoutes(uint32_t ifIndex,
     }
     for (int i = 0; !err && i < toAdd->length; i++) {
         struct Prefix* pfx = ArrayList_OfPrefix_get(toAdd, i);
-        struct Message* msg = Message_new(0, 1024, alloc);
+        Message_t* msg = Message_new(0, 1024, alloc);
         Er(mkRouteMsg(msg, pfx, ifIndex, ifName, seq++, false));
         //printf("ADD ROUTE %s\n", Hex_print(msg->bytes, Message_getLength(msg), alloc));
         returnLen = write(sock, Message_bytes(msg), Message_getLength(msg));

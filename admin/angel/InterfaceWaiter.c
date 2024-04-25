@@ -26,7 +26,7 @@ struct Context
 {
     struct Iface iface;
     EventBase_t* eventBase;
-    struct Message* message;
+    Message_t* message;
     struct Allocator* alloc;
     struct Timeout* timeout;
     int timedOut;
@@ -41,7 +41,7 @@ static void timeout(void* vcontext)
     EventBase_endLoop(ctx->eventBase);
 }
 
-static Iface_DEFUN receiveMessage(struct Message* message, struct Iface* iface)
+static Iface_DEFUN receiveMessage(Message_t* message, struct Iface* iface)
 {
     printf("interfacewaiter got a message\n");
     struct Context* ctx = Identity_check((struct Context*) iface);
@@ -54,7 +54,7 @@ static Iface_DEFUN receiveMessage(struct Message* message, struct Iface* iface)
     return NULL;
 }
 
-struct Message* InterfaceWaiter_waitForData(struct Iface* iface,
+Message_t* InterfaceWaiter_waitForData(struct Iface* iface,
                                             EventBase_t* eventBase,
                                             struct Allocator* alloc,
                                             struct Except* eh)

@@ -30,7 +30,7 @@ struct TAPWrapper_pvt
     Identity
 };
 
-static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* external)
+static Iface_DEFUN receiveMessage(Message_t* msg, struct Iface* external)
 {
     struct TAPWrapper_pvt* tw = Identity_containerOf(external, struct TAPWrapper_pvt, external);
 
@@ -73,7 +73,7 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* external)
     return Iface_next(&tw->pub.internal, msg);
 }
 
-static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* internal)
+static Iface_DEFUN sendMessage(Message_t* msg, struct Iface* internal)
 {
     struct TAPWrapper_pvt* tw = Identity_containerOf(internal, struct TAPWrapper_pvt, pub.internal);
 

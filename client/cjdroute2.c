@@ -552,7 +552,7 @@ struct Chunk {
     struct Chunk* next;
     uint8_t buf[Chunk_MAX_LEN];
 };
-static struct Message* readToMsg(FILE* f, struct Allocator* alloc)
+static Message_t* readToMsg(FILE* f, struct Allocator* alloc)
 {
     struct Allocator* child = Allocator_child(alloc);
     struct Chunk* c = NULL;
@@ -564,7 +564,7 @@ static struct Message* readToMsg(FILE* f, struct Allocator* alloc)
         cc->next = c;
         c = cc;
     } while (c->length == Chunk_MAX_LEN);
-    struct Message* out = Message_new(0, totalLength, alloc);
+    Message_t* out = Message_new(0, totalLength, alloc);
     while (c) {
         Er_assert(Message_epush(out, c->buf, c->length));
         c = c->next;
@@ -680,7 +680,7 @@ int cjdroute2_main(int argc, char** argv)
     // First try reading the conf with the new parser, then try the old parser
     // and if the old parser fails or the parsed content contains "version": 2,
     // fail to launch
-    struct Message* confMsg = readToMsg(stdin, allocator);
+    Message_t* confMsg = readToMsg(stdin, allocator);
     struct Reader* confReader = ArrayReader_new(Message_bytes(confMsg), Message_getLength(confMsg), allocator);
     Dict _config;
     Dict* config = &_config;
@@ -809,7 +809,7 @@ int cjdroute2_main(int argc, char** argv)
         Dict_putDictC(preConf, "logging", logging, allocator);
     }
 
-    struct Message* toCoreMsg = Message_new(0, 1024, allocator);
+    Message_t* toCoreMsg = Message_new(0, 1024, allocator);
     Er_assert(BencMessageWriter_write(preConf, toCoreMsg));
     Iface_CALL(corePipe->send, toCoreMsg, corePipe);
 
@@ -817,7 +817,7 @@ int cjdroute2_main(int argc, char** argv)
 
     // --------------------- Get Response from Core --------------------- //
 
-    struct Message* fromCoreMsg =
+    Message_t* fromCoreMsg =
         InterfaceWaiter_waitForData(corePipe, eventBase, allocator, eh);
     Dict* responseFromCore = Except_er(eh, BencMessageReader_read(fromCoreMsg, allocator));
 

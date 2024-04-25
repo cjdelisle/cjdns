@@ -65,7 +65,7 @@ struct ErrorPacket8 {
 Assert_compileTime(sizeof(struct ErrorPacket8) == SwitchHeader_SIZE + 4 + sizeof(struct Control));
 
 static inline Iface_DEFUN sendError(struct SwitchInterface* iface,
-                                    struct Message* cause,
+                                    Message_t* cause,
                                     uint32_t code,
                                     struct Log* logger)
 {
@@ -113,7 +113,7 @@ static inline Iface_DEFUN sendError(struct SwitchInterface* iface,
     Log_debug(logger, message " ([%u] to [%u])", sourceIndex, destIndex)
 
 /** This never returns an error, it sends an error packet instead. */
-static Iface_DEFUN receiveMessage(struct Message* message, struct Iface* iface)
+static Iface_DEFUN receiveMessage(Message_t* message, struct Iface* iface)
 {
     struct SwitchInterface* sourceIf = Identity_check((struct SwitchInterface*) iface);
     struct SwitchCore_pvt* core = Identity_check(sourceIf->core);

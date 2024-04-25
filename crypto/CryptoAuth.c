@@ -180,7 +180,7 @@ static inline struct CryptoAuth_User* getAuth(struct CryptoHeader_Challenge* aut
  * @return 0 if decryption is succeddful, otherwise -1.
  */
 static inline Gcc_USE_RET int decryptRndNonce(const uint8_t nonce[24],
-                                              struct Message* msg,
+                                              Message_t* msg,
                                               const uint8_t secret[32])
 {
     if (Message_getLength(msg) < 16) {
@@ -213,7 +213,7 @@ static inline Gcc_USE_RET int decryptRndNonce(const uint8_t nonce[24],
  * @param secret a shared secret.
  */
 static inline void encryptRndNonce(const uint8_t nonce[24],
-                                   struct Message* msg,
+                                   Message_t* msg,
                                    const uint8_t secret[32])
 {
     Assert_true(Message_getPadding(msg) >= 32);
@@ -240,7 +240,7 @@ static inline void encryptRndNonce(const uint8_t nonce[24],
  * @param isInitiator true if we started the connection.
  */
 static inline Gcc_USE_RET int decrypt(uint32_t nonce,
-                                      struct Message* msg,
+                                      Message_t* msg,
                                       uint8_t secret[32],
                                       bool isInitiator)
 {
@@ -262,7 +262,7 @@ static inline Gcc_USE_RET int decrypt(uint32_t nonce,
  * @param isInitiator true if we started the connection.
  */
 static inline void encrypt(uint32_t nonce,
-                           struct Message* msg,
+                           Message_t* msg,
                            uint8_t secret[32],
                            bool isInitiator)
 {
@@ -339,7 +339,7 @@ static void resetIfTimeout(struct CryptoAuth_Session_pvt* session)
     reset(session);
 }
 
-static void encryptHandshake(struct Message* message,
+static void encryptHandshake(Message_t* message,
                              struct CryptoAuth_Session_pvt* session,
                              int setupMessage)
 {
@@ -473,7 +473,7 @@ static void encryptHandshake(struct Message* message,
 }
 
 /** @return 0 on success, -1 otherwise. */
-static int encryptPacket(struct CryptoAuth_Session_pvt* session, struct Message* msg)
+static int encryptPacket(struct CryptoAuth_Session_pvt* session, Message_t* msg)
 {
     // If there has been no incoming traffic for a while, reset the connection to state 0.
     // This will prevent "connection in bad state" situations from lasting forever.
@@ -522,21 +522,21 @@ static int encryptPacket(struct CryptoAuth_Session_pvt* session, struct Message*
 }
 
 /** @return 0 on success, -1 otherwise. */ // Now only used in unit tests on Rust side
-int CryptoAuth_encrypt(struct CryptoAuth_Session* sessionPub, struct Message* msg) {
+int CryptoAuth_encrypt(struct CryptoAuth_Session* sessionPub, Message_t* msg) {
     struct CryptoAuth_Session_pvt *session =
             Identity_check((struct CryptoAuth_Session_pvt *) sessionPub);
     return encryptPacket(session, msg);
 }
 
 /** Call the external interface and tell it that a message has been received. */
-static inline void updateTime(struct CryptoAuth_Session_pvt* session, struct Message* message)
+static inline void updateTime(struct CryptoAuth_Session_pvt* session, Message_t* message)
 {
     session->timeOfLastPacket = Time_currentTimeSeconds();
 }
 
 static inline enum CryptoAuth_DecryptErr decryptMessage(struct CryptoAuth_Session_pvt* session,
                                                         uint32_t nonce,
-                                                        struct Message* content,
+                                                        Message_t* content,
                                                         uint8_t secret[32])
 {
     // Decrypt with authentication and replay prevention.
@@ -560,7 +560,7 @@ static bool ip6MatchesKey(uint8_t ip6[16], uint8_t key[32])
 
 static enum CryptoAuth_DecryptErr decryptHandshake(struct CryptoAuth_Session_pvt* session,
                                                    const uint32_t nonce,
-                                                   struct Message* message,
+                                                   Message_t* message,
                                                    struct CryptoHeader* header)
 {
     if (Message_getLength(message) < CryptoHeader_SIZE) {
@@ -835,7 +835,7 @@ static enum CryptoAuth_DecryptErr decryptHandshake(struct CryptoAuth_Session_pvt
 
 /** @return 0 on success, -1 otherwise. */
 static enum CryptoAuth_DecryptErr decryptPacket(struct CryptoAuth_Session_pvt* session,
-                                                struct Message* msg)
+                                                Message_t* msg)
 {
     struct CryptoHeader* header = (struct CryptoHeader*) Message_bytes(msg);
 
@@ -915,7 +915,7 @@ static enum CryptoAuth_DecryptErr decryptPacket(struct CryptoAuth_Session_pvt* s
 
 /** @return 0 on success, -1 otherwise. */ // Now only used in unit tests on Rust side
 enum CryptoAuth_DecryptErr CryptoAuth_decrypt(struct CryptoAuth_Session* sessionPub,
-                                              struct Message* msg) {
+                                              Message_t* msg) {
     struct CryptoAuth_Session_pvt *session =
             Identity_check((struct CryptoAuth_Session_pvt *) sessionPub);
     return decryptPacket(session, msg);
@@ -1054,7 +1054,7 @@ RTypes_StrList_t* CryptoAuth_getUsers(const struct CryptoAuth* context, struct A
     return out;
 }
 
-static Iface_DEFUN plaintextMsg(struct Message* msg, struct Iface* iface)
+static Iface_DEFUN plaintextMsg(Message_t* msg, struct Iface* iface)
 {
     struct CryptoAuth_Session_pvt* sess =
         Identity_containerOf(iface, struct CryptoAuth_Session_pvt, pub.plaintext);
@@ -1064,7 +1064,7 @@ static Iface_DEFUN plaintextMsg(struct Message* msg, struct Iface* iface)
     return Iface_next(&sess->pub.ciphertext, msg);
 }
 
-static Iface_DEFUN ciphertextMsg(struct Message* msg, struct Iface* iface)
+static Iface_DEFUN ciphertextMsg(Message_t* msg, struct Iface* iface)
 {
     struct CryptoAuth_Session_pvt* sess =
         Identity_containerOf(iface, struct CryptoAuth_Session_pvt, pub.ciphertext);
@@ -1225,12 +1225,12 @@ void CryptoAuth_stats(const struct CryptoAuth_Session* session, RTypes_CryptoSta
 }
 
 // For testing:
-void CryptoAuth_encryptRndNonce(const uint8_t nonce[24], struct Message* msg, const uint8_t secret[32])
+void CryptoAuth_encryptRndNonce(const uint8_t nonce[24], Message_t* msg, const uint8_t secret[32])
 {
     encryptRndNonce(nonce, msg, secret);
 }
 
-int CryptoAuth_decryptRndNonce(const uint8_t nonce[24], struct Message* msg, const uint8_t secret[32])
+int CryptoAuth_decryptRndNonce(const uint8_t nonce[24], Message_t* msg, const uint8_t secret[32])
 {
     return decryptRndNonce(nonce, msg, secret);
 }

@@ -55,7 +55,7 @@ struct TestFramework_Link
     Identity
 };
 
-static Iface_DEFUN sendTo(struct Message* msg,
+static Iface_DEFUN sendTo(Message_t* msg,
                           struct Iface* dest,
                           struct TestFramework* srcTf,
                           struct TestFramework* destTf)
@@ -78,18 +78,18 @@ static Iface_DEFUN sendTo(struct Message* msg,
 
     // Copy the original and send that to the other end.
     // Can't use Iface_next() when not sending the original msg.
-    struct Message* sendMsg = Message_clone(msg, destTf->alloc);
+    Message_t* sendMsg = Message_clone(msg, destTf->alloc);
     return Iface_send(dest, sendMsg);
 }
 
-static Iface_DEFUN sendClient(struct Message* msg, struct Iface* clientIf)
+static Iface_DEFUN sendClient(Message_t* msg, struct Iface* clientIf)
 {
     struct TestFramework_Link* link =
         Identity_containerOf(clientIf, struct TestFramework_Link, clientIf);
     return sendTo(msg, &link->serverIf, link->client, link->server);
 }
 
-static Iface_DEFUN sendServer(struct Message* msg, struct Iface* serverIf)
+static Iface_DEFUN sendServer(Message_t* msg, struct Iface* serverIf)
 {
     struct TestFramework_Link* link =
         Identity_containerOf(serverIf, struct TestFramework_Link, serverIf);
@@ -171,8 +171,8 @@ void TestFramework_assertLastMessageUnaltered(struct TestFramework* tf)
     if (!tf->lastMsg) {
         return;
     }
-    struct Message* a = tf->lastMsg;
-    struct Message* b = tf->lastMsgBackup;
+    Message_t* a = tf->lastMsg;
+    Message_t* b = tf->lastMsgBackup;
     Assert_true(Message_getLength(a) == Message_getLength(b));
     Assert_true(Message_getPadding(a) == Message_getPadding(b));
     Assert_true(!Bits_memcmp(Message_bytes(a), Message_bytes(b), Message_getLength(a)));
@@ -227,7 +227,7 @@ void TestFramework_linkNodes(struct TestFramework* client,
     }
 }
 
-void TestFramework_craftIPHeader(struct Message* msg, uint8_t srcAddr[16], uint8_t destAddr[16])
+void TestFramework_craftIPHeader(Message_t* msg, uint8_t srcAddr[16], uint8_t destAddr[16])
 {
     Er_assert(Message_eshift(msg, Headers_IP6Header_SIZE));
     struct Headers_IP6Header* ip = (struct Headers_IP6Header*) Message_bytes(msg);

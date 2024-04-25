@@ -15,12 +15,12 @@
 #include "wire/Message.h"
 #include "util/UniqueName.h"
 
-struct Message* Message_new(uint32_t messageLength,
+Message_t* Message_new(uint32_t messageLength,
                                           uint32_t amountOfPadding,
                                           struct Allocator* alloc)
 {
     uint8_t* buff = Allocator_malloc(alloc, messageLength + amountOfPadding);
-    struct Message* out = Allocator_calloc(alloc, sizeof(struct Message), 1);
+    Message_t* out = Allocator_calloc(alloc, sizeof(struct Message), 1);
     out->_ad = buff;
     out->_adLen = 0;
     out->_msgbytes = &buff[amountOfPadding];
@@ -30,7 +30,7 @@ struct Message* Message_new(uint32_t messageLength,
     return out;
 }
 
-void Message_setAssociatedFd(struct Message* msg, int fd)
+void Message_setAssociatedFd(Message_t* msg, int fd)
 {
     if (fd == -1) {
         msg->_associatedFd = 0;
@@ -41,7 +41,7 @@ void Message_setAssociatedFd(struct Message* msg, int fd)
     }
 }
 
-int Message_getAssociatedFd(struct Message* msg)
+int Message_getAssociatedFd(Message_t* msg)
 {
     if (msg->_associatedFd == -1) {
         return 0;
@@ -52,7 +52,7 @@ int Message_getAssociatedFd(struct Message* msg)
     }
 }
 
-struct Message* Message_clone(struct Message* toClone, struct Allocator* alloc)
+Message_t* Message_clone(Message_t* toClone, struct Allocator* alloc)
 {
     Assert_true(toClone->_capacity >= toClone->_length);
     int32_t len = toClone->_capacity + toClone->_padding + toClone->_adLen;

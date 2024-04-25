@@ -37,7 +37,7 @@
 // Initial time between messages is 60 seconds, adjusted based on amount of full messages
 #define INITIAL_TBA 60000
 
-#define ArrayList_TYPE struct Message
+#define ArrayList_TYPE Message_t
 #define ArrayList_NAME OfMessages
 #include "util/ArrayList.h"
 
@@ -78,7 +78,7 @@ static int64_t timeUntilReannounce(
     return (AGREED_TIMEOUT_MS - QUIET_PERIOD_MS) - (timeSince + random5Min);
 }
 
-static int64_t timestampFromMsg(struct Message* msg)
+static int64_t timestampFromMsg(Message_t* msg)
 {
     struct Announce_Header* hdr = (struct Announce_Header*) Message_bytes(msg);
     Assert_true(Message_getLength(msg) >= Announce_Header_SIZE);
@@ -91,7 +91,7 @@ static struct Announce_ItemHeader* itemFromSnodeState(struct ArrayList_OfMessage
                                                       int64_t* timeOut)
 {
     for (int i = snodeState->length - 1; i >= 0; i--) {
-        struct Message* msg = ArrayList_OfMessages_get(snodeState, i);
+        Message_t* msg = ArrayList_OfMessages_get(snodeState, i);
         struct Announce_ItemHeader* item = Announce_itemInMessage(msg, ref);
         if (!item) { continue; }
         int64_t ts = timestampFromMsg(msg);
@@ -108,7 +108,7 @@ static void hashMsgList(struct ArrayList_OfMessages* msgList, uint8_t out[64])
 {
     uint8_t hash[64] = {0};
     for (int i = 0; i < msgList->length; i++) {
-        struct Message* msg = ArrayList_OfMessages_get(msgList, i);
+        Message_t* msg = ArrayList_OfMessages_get(msgList, i);
         Er_assert(Message_epush(msg, hash, 64));
         crypto_hash_sha512(hash, Message_bytes(msg), Message_getLength(msg));
         Er_assert(Message_epop(msg, NULL, 64));
@@ -180,7 +180,7 @@ static const char* printState(enum ReachabilityAnnouncer_State s)
 struct ReachabilityAnnouncer_pvt;
 struct Query {
     struct ReachabilityAnnouncer_pvt* rap;
-    struct Message* msg;
+    Message_t* msg;
     struct Address target;
     Identity
 };
@@ -280,7 +280,7 @@ static char* printItem(
 }
 
 static bool pushLinkState(struct ReachabilityAnnouncer_pvt* rap,
-                          struct Message* msg)
+                          Message_t* msg)
 {
     for (int i = 0;; i++) {
         struct ReachabilityCollector_PeerInfo* pi = ReachabilityCollector_getPeerInfo(rap->rc, i);
@@ -311,7 +311,7 @@ static bool pushLinkState(struct ReachabilityAnnouncer_pvt* rap,
 #define updateItem_UPDATE 2
 #define updateItem_ENOSPACE -1
 static int updateItem(struct ReachabilityAnnouncer_pvt* rap,
-                      struct Message* msg,
+                      Message_t* msg,
                       struct Announce_ItemHeader* refItem)
 {
     char buf[60];
@@ -383,7 +383,7 @@ static void annPeerForPi(struct ReachabilityAnnouncer_pvt* rap,
     apOut->label_be = Endian_hostToBigEndian32(pi->pathThemToUs);
 }
 
-static bool pushPeers(struct ReachabilityAnnouncer_pvt* rap, struct Message* msg)
+static bool pushPeers(struct ReachabilityAnnouncer_pvt* rap, Message_t* msg)
 {
     for (int i = 0;; i++) {
         struct ReachabilityCollector_PeerInfo* pi = ReachabilityCollector_getPeerInfo(rap->rc, i);
@@ -399,7 +399,7 @@ static bool pushPeers(struct ReachabilityAnnouncer_pvt* rap, struct Message* msg
 static void stateReset(struct ReachabilityAnnouncer_pvt* rap)
 {
     for (int i = rap->snodeState->length - 1; i >= 0; i--) {
-        struct Message* msg = ArrayList_OfMessages_remove(rap->snodeState, i);
+        Message_t* msg = ArrayList_OfMessages_remove(rap->snodeState, i);
         Allocator_free(Message_getAlloc(msg));
     }
 
@@ -415,7 +415,7 @@ static void stateReset(struct ReachabilityAnnouncer_pvt* rap)
     rap->resetState = true;
 }
 
-static void addServerStateMsg(struct ReachabilityAnnouncer_pvt* rap, struct Message* msg)
+static void addServerStateMsg(struct ReachabilityAnnouncer_pvt* rap, Message_t* msg)
 {
     Assert_true(Message_getLength(msg) >= Announce_Header_SIZE);
     int64_t mostRecentTime = timestampFromMsg(msg);
@@ -427,7 +427,7 @@ static void addServerStateMsg(struct ReachabilityAnnouncer_pvt* rap, struct Mess
     struct ArrayList_OfAnnItems* knownItems = ArrayList_OfAnnItems_new(tempAlloc);
     for (int i = rap->snodeState->length - 1; i >= 0; i--) {
         bool redundant = true;
-        struct Message* m = ArrayList_OfMessages_get(rap->snodeState, i);
+        Message_t* m = ArrayList_OfMessages_get(rap->snodeState, i);
         struct Announce_ItemHeader* item = Announce_ItemHeader_next(m, NULL);
         for (; item; item = Announce_ItemHeader_next(m, item)) {
             if (Announce_ItemHeader_isEphimeral(item)) {
@@ -465,7 +465,7 @@ static struct ArrayList_OfBarePeers* getSnodeStatePeers(
 {
     struct ArrayList_OfBarePeers* out = ArrayList_OfBarePeers_new(alloc);
     for (int i = 0; i < rap->snodeState->length; i++) {
-        struct Message* snm = ArrayList_OfMessages_get(rap->snodeState, i);
+        Message_t* snm = ArrayList_OfMessages_get(rap->snodeState, i);
         struct Announce_Peer* p = NULL;
         for (p = Announce_Peer_next(snm, NULL); p; p = Announce_Peer_next(snm, p)) {
             bool found = false;
@@ -597,7 +597,7 @@ static void onReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom
     stateReset(rap);
 }
 
-static bool pushMeta(struct ReachabilityAnnouncer_pvt* rap, struct Message* msg)
+static bool pushMeta(struct ReachabilityAnnouncer_pvt* rap, Message_t* msg)
 {
     struct Announce_Version version;
     Announce_Version_init(&version);
@@ -609,7 +609,7 @@ static bool pushMeta(struct ReachabilityAnnouncer_pvt* rap, struct Message* msg)
     return false;
 }
 
-static bool pushWithdrawLinks(struct ReachabilityAnnouncer_pvt* rap, struct Message* msg)
+static bool pushWithdrawLinks(struct ReachabilityAnnouncer_pvt* rap, Message_t* msg)
 {
     // First withdraw any announcements which are nolonger valid
     struct Allocator* tempAlloc = Allocator_child(rap->alloc);
@@ -655,7 +655,7 @@ static void onAnnounceCycle(void* vRap)
 
     struct MsgCore_Promise* qp = MsgCore_createQuery(rap->msgCore, 0, rap->alloc);
     struct Allocator* queryAlloc = Allocator_child(qp->alloc);
-    struct Message* msg = Message_new(0, 1300, queryAlloc);
+    Message_t* msg = Message_new(0, 1300, queryAlloc);
 
     Log_debug(rap->log, "\n");
 
@@ -765,7 +765,7 @@ static struct Announce_ItemHeader* mkEncodingSchemeItem(
     String* compressedScheme)
 {
     struct Allocator* tmpAlloc = Allocator_child(alloc);
-    struct Message* esMsg = Message_new(0, 256, tmpAlloc);
+    Message_t* esMsg = Message_new(0, 256, tmpAlloc);
 
     Assert_true(compressedScheme->len + 2 < 256);
     Er_assert(Message_epush(esMsg, compressedScheme->bytes, compressedScheme->len));

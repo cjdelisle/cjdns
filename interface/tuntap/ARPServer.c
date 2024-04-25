@@ -34,7 +34,7 @@ struct ARPServer_pvt
     Identity
 };
 
-static bool isValidARP(struct Message* msg)
+static bool isValidARP(Message_t* msg)
 {
     struct ARPHeader_6_4 arp;
     Er_assert(Message_epop(msg, &arp, ARPHeader_6_4_SIZE));
@@ -54,7 +54,7 @@ static bool isValidARP(struct Message* msg)
     return true;
 }
 
-static Iface_DEFUN answerARP(struct Message* msg, struct ARPServer_pvt* as)
+static Iface_DEFUN answerARP(Message_t* msg, struct ARPServer_pvt* as)
 {
     struct ARPHeader_6_4 arp;
     Er_assert(Message_epop(msg, &arp, ARPHeader_6_4_SIZE));
@@ -80,7 +80,7 @@ static Iface_DEFUN answerARP(struct Message* msg, struct ARPServer_pvt* as)
     return Iface_next(&as->external, msg);
 }
 
-static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* external)
+static Iface_DEFUN receiveMessage(Message_t* msg, struct Iface* external)
 {
     struct ARPServer_pvt* as = Identity_containerOf(external, struct ARPServer_pvt, external);
     // Length should be ARP + Ethertype
@@ -96,7 +96,7 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* external)
     return Iface_next(&as->pub.internal, msg);
 }
 
-static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* internal)
+static Iface_DEFUN sendMessage(Message_t* msg, struct Iface* internal)
 {
     struct ARPServer_pvt* as = Identity_containerOf(internal, struct ARPServer_pvt, pub.internal);
     return Iface_next(&as->external, msg);

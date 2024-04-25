@@ -38,7 +38,7 @@ Js({ return builder.config.cjdnsTest_prototypes; })
 
 typedef int (* Test)(int argc, char** argv);
 typedef void* (* FuzzTestInit)(struct Allocator* alloc, struct Random* rand);
-typedef void (* FuzzTest)(void* ctx, struct Message* fuzz);
+typedef void (* FuzzTest)(void* ctx, Message_t* fuzz);
 typedef struct FuzzTest* (* MkFuzz)(struct Allocator* alloc);
 
 static const struct {
@@ -102,7 +102,7 @@ static void usage(char* appName)
     }
 }
 
-static void readFile(int fileNo, struct Allocator* alloc, struct Message* fuzz)
+static void readFile(int fileNo, struct Allocator* alloc, Message_t* fuzz)
 {
     int32_t msgLen = Message_getLength(fuzz);
     uint8_t* bytes = Er_assert(Message_peakBytes(fuzz, msgLen));
@@ -127,7 +127,7 @@ static int runFuzzTest(
     void** ctxs,
     struct Allocator* alloc,
     struct Random* rand,
-    struct Message* fuzz,
+    Message_t* fuzz,
     const char* testCase,
     int quiet)
 {
@@ -153,7 +153,7 @@ static uint64_t runFuzzTestManual(
 {
     int f = open(testCase, O_RDONLY);
     Assert_true(f > -1);
-    struct Message* fuzz = Message_new(4096, 128, alloc);
+    Message_t* fuzz = Message_new(4096, 128, alloc);
     readFile(f, alloc, fuzz);
     close(f);
 
@@ -187,7 +187,7 @@ static uint64_t runFuzzTestManual(
 
 static int fuzzMain(struct Allocator* alloc, struct Random* detRand, int initTests, int quiet)
 {
-    struct Message* fuzz = Message_new(4096, 128, alloc);
+    Message_t* fuzz = Message_new(4096, 128, alloc);
 
 #ifdef __AFL_INIT
     // Enable AFL deferred forkserver mode. Requires compilation using afl-clang-fast

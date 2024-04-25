@@ -27,7 +27,7 @@
 #include <stdbool.h>
 
 struct Context {
-    struct Message* const msg;
+    Message_t* const msg;
     struct Allocator* const alloc;
     const bool lax;
     int line;
@@ -305,7 +305,7 @@ static Er_DEFUN(Object* parseGeneric(struct Context* ctx))
 }
 
 Er_DEFUN(Dict* JsonBencMessageReader_read(
-    struct Message* msg,
+    Message_t* msg,
     struct Allocator* alloc,
     bool lax
 )) {
@@ -320,7 +320,7 @@ Er_DEFUN(Dict* JsonBencMessageReader_read(
 }
 
 const char* JsonBencMessageReader_readNoExcept(
-    struct Message* msg,
+    Message_t* msg,
     struct Allocator* alloc,
     Dict** outPtr,
     bool lax)

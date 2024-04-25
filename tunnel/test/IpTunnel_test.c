@@ -56,7 +56,7 @@ struct IfaceContext
     struct Context* ctx;
 };
 
-static Iface_DEFUN responseWithIpCallback(struct Message* message, struct Iface* iface)
+static Iface_DEFUN responseWithIpCallback(Message_t* message, struct Iface* iface)
 {
     struct Context* ctx = Identity_check(((struct IfaceContext*)iface)->ctx);
     struct RouteHeader* rh = (struct RouteHeader*) Message_bytes(message);
@@ -99,7 +99,7 @@ static Iface_DEFUN responseWithIpCallback(struct Message* message, struct Iface*
     return NULL;
 }
 
-static Iface_DEFUN messageToTun(struct Message* msg, struct Iface* iface)
+static Iface_DEFUN messageToTun(Message_t* msg, struct Iface* iface)
 {
     struct Context* ctx = Identity_check(((struct IfaceContext*)iface)->ctx);
     uint16_t type = Er_assert(TUNMessageType_pop(msg));
@@ -122,7 +122,7 @@ static Iface_DEFUN messageToTun(struct Message* msg, struct Iface* iface)
     return NULL;
 }
 
-static void pushRouteDataHeaders(struct Context* ctx, struct Message* message)
+static void pushRouteDataHeaders(struct Context* ctx, Message_t* message)
 {
     Er_assert(Message_eshift(message, RouteHeader_SIZE + DataHeader_SIZE));
     struct RouteHeader* rh = (struct RouteHeader*) Message_bytes(message);
@@ -138,7 +138,7 @@ static bool trySend4(struct Allocator* alloc,
                      struct Iface* sendTo,
                      struct Context* ctx)
 {
-    struct Message* msg4 = Message_new(0, 512, alloc);
+    Message_t* msg4 = Message_new(0, 512, alloc);
     Er_assert(Message_epush(msg4, "hello world", 12));
     Er_assert(Message_epush(msg4, NULL, Headers_IP4Header_SIZE));
     struct Headers_IP4Header* iph = (struct Headers_IP4Header*) Message_bytes(msg4);
@@ -163,7 +163,7 @@ static bool trySend6(struct Allocator* alloc,
                      struct Iface* sendTo,
                      struct Context* ctx)
 {
-    struct Message* msg6 = Message_new(0, 512, alloc);
+    Message_t* msg6 = Message_new(0, 512, alloc);
     Er_assert(Message_epush(msg6, "hello world", 12));
     Er_assert(Message_epush(msg6, NULL, Headers_IP6Header_SIZE));
     struct Headers_IP6Header* iph = (struct Headers_IP6Header*) Message_bytes(msg6);
@@ -213,7 +213,7 @@ static String* getExpectedResponse(struct Sockaddr* sa4, int prefix4, int alloc4
     Dict* output = Dict_new(alloc);
     Dict_putDict(output, String_new("addresses", alloc), addresses, alloc);
     Dict_putString(output, String_new("txid", alloc), String_new("abcd", alloc), alloc);
-    struct Message* msg = Message_new(0, 512, alloc);
+    Message_t* msg = Message_new(0, 512, alloc);
     Er_assert(BencMessageWriter_write(output, msg));
 
     String* outStr = String_newBinary(Message_bytes(msg), Message_getLength(msg), allocator);
@@ -249,7 +249,7 @@ static void testAddr(struct Context* ctx,
                              sa4, prefix4, alloc4,
                              ipTun);
 
-    struct Message* msg = Message_new(64, 512, alloc);
+    Message_t* msg = Message_new(64, 512, alloc);
     const char* requestForAddresses =
         "d"
           "1:q" "21:IpTunnel_getAddresses"

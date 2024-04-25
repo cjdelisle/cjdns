@@ -22,9 +22,9 @@
 #include "wire/Message.h"
 #include "util/Base10.h"
 
-static Er_DEFUN(Object* readGeneric(struct Message* msg, struct Allocator* alloc));
+static Er_DEFUN(Object* readGeneric(Message_t* msg, struct Allocator* alloc));
 
-static Er_DEFUN(int64_t readInt(struct Message* msg, struct Allocator* alloc))
+static Er_DEFUN(int64_t readInt(Message_t* msg, struct Allocator* alloc))
 {
     int64_t num = Er(Base10_read(msg));
     if (Er(Message_epop8(msg)) != 'e') {
@@ -33,7 +33,7 @@ static Er_DEFUN(int64_t readInt(struct Message* msg, struct Allocator* alloc))
     Er_ret(num);
 }
 
-static Er_DEFUN(String* readString(struct Message* msg, struct Allocator* alloc))
+static Er_DEFUN(String* readString(Message_t* msg, struct Allocator* alloc))
 {
     int64_t len = Er(Base10_read(msg));
     if (len < 0) {
@@ -50,7 +50,7 @@ static Er_DEFUN(String* readString(struct Message* msg, struct Allocator* alloc)
     Er_ret(str);
 }
 
-static Er_DEFUN(List* readList(struct Message* msg, struct Allocator* alloc))
+static Er_DEFUN(List* readList(Message_t* msg, struct Allocator* alloc))
 {
     struct List_Item* last = NULL;
     for (;;) {
@@ -69,7 +69,7 @@ static Er_DEFUN(List* readList(struct Message* msg, struct Allocator* alloc))
     }
 }
 
-static Er_DEFUN(Dict* readDict(struct Message* msg, struct Allocator* alloc))
+static Er_DEFUN(Dict* readDict(Message_t* msg, struct Allocator* alloc))
 {
     struct Dict_Entry* last = NULL;
     for (;;) {
@@ -89,7 +89,7 @@ static Er_DEFUN(Dict* readDict(struct Message* msg, struct Allocator* alloc))
     }
 }
 
-static Er_DEFUN(Object* readGeneric(struct Message* msg, struct Allocator* alloc))
+static Er_DEFUN(Object* readGeneric(Message_t* msg, struct Allocator* alloc))
 {
     uint8_t chr = Er(Message_epop8(msg));
     Object* out = Allocator_calloc(alloc, sizeof(Object), 1);
@@ -129,7 +129,7 @@ static Er_DEFUN(Object* readGeneric(struct Message* msg, struct Allocator* alloc
     Er_ret(out);
 }
 
-Er_DEFUN(Dict* BencMessageReader_read(struct Message* msg, struct Allocator* alloc))
+Er_DEFUN(Dict* BencMessageReader_read(Message_t* msg, struct Allocator* alloc))
 {
     if (Er(Message_epop8h(msg)) != 'd') {
         Er_raise(alloc, "Message does not begin with a 'd' to open the dictionary");
@@ -139,7 +139,7 @@ Er_DEFUN(Dict* BencMessageReader_read(struct Message* msg, struct Allocator* all
 }
 
 const char* BencMessageReader_readNoExcept(
-    struct Message* msg, struct Allocator* alloc, Dict** outPtr)
+    Message_t* msg, struct Allocator* alloc, Dict** outPtr)
 {
     struct Er_Ret* er = NULL;
     Dict* out = Er_check(&er, BencMessageReader_read(msg, alloc));

@@ -61,7 +61,7 @@ struct TwoNodes
 #define TUNB 2
 #define TUNA 1
 
-static Iface_DEFUN incomingTunB(struct Message* msg, struct Iface* tunB)
+static Iface_DEFUN incomingTunB(Message_t* msg, struct Iface* tunB)
 {
     struct TwoNodes* tn = Identity_containerOf(tunB, struct TwoNodes, tunB);
     uint16_t t = Er_assert(TUNMessageType_pop(msg));
@@ -72,7 +72,7 @@ static Iface_DEFUN incomingTunB(struct Message* msg, struct Iface* tunB)
     return NULL;
 }
 
-static Iface_DEFUN incomingTunA(struct Message* msg, struct Iface* tunA)
+static Iface_DEFUN incomingTunA(Message_t* msg, struct Iface* tunA)
 {
     struct TwoNodes* tn = Identity_containerOf(tunA, struct TwoNodes, tunA);
     uint16_t t = Er_assert(TUNMessageType_pop(msg));
@@ -184,7 +184,7 @@ static void sendMessage(struct TwoNodes* tn,
                         struct TestFramework* from,
                         struct TestFramework* to)
 {
-    struct Message* msg = Message_new(64, 512, from->alloc);
+    Message_t* msg = Message_new(64, 512, from->alloc);
     uint8_t* b = Er_assert(Message_peakBytes(msg, 64));
     CString_strcpy(b, message);
     Er_assert(Message_truncate(msg, CString_strlen(message) + 1));

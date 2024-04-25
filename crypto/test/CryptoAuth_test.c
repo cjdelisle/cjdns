@@ -72,7 +72,7 @@ static struct Random* evilRandom(struct Allocator* alloc, struct Log* logger, co
     return Random_newWithSeed(alloc, logger, evilSeed, NULL);
 }
 
-static Iface_DEFUN afterDecrypt(struct Message* msg, struct Iface* if1)
+static Iface_DEFUN afterDecrypt(Message_t* msg, struct Iface* if1)
 {
     struct Node* n = Identity_containerOf(if1, struct Node, plaintext);
     Log_debug(n->log, "Got message from afterDecrypt");
@@ -97,7 +97,7 @@ static Iface_DEFUN afterDecrypt(struct Message* msg, struct Iface* if1)
     return NULL;
 }
 
-static Iface_DEFUN afterEncrypt(struct Message* msg, struct Iface* if1)
+static Iface_DEFUN afterEncrypt(Message_t* msg, struct Iface* if1)
 {
     return NULL;
 }
@@ -154,13 +154,13 @@ static struct Context* simpleInit(enum TestCa_Config cfg)
     return init(PRIVATEKEY_A, PUBLICKEY_A, NULL, PRIVATEKEY_B, PUBLICKEY_B, cfg);
 }
 
-static struct Message* encryptMsg(struct Context* ctx,
+static Message_t* encryptMsg(struct Context* ctx,
                                   struct Node* n,
                                   const char* x)
 {
     struct Allocator* alloc = Allocator_child(ctx->alloc);
     int len = (((CString_strlen(x)+1) / 8) + 1) * 8;
-    struct Message* msg = Message_new(len, CryptoHeader_SIZE + 32, alloc);
+    Message_t* msg = Message_new(len, CryptoHeader_SIZE + 32, alloc);
     CString_strcpy(Message_bytes(msg), x);
     Er_assert(Message_truncate(msg, CString_strlen(x)));
     //msg->bytes[Message_getLength(msg)] = 0;
@@ -173,8 +173,8 @@ static struct Message* encryptMsg(struct Context* ctx,
     return msg;
 }
 
-static struct Message* decryptMsg(struct Context* ctx,
-                                  struct Message* msg,
+static Message_t* decryptMsg(struct Context* ctx,
+                                  Message_t* msg,
                                   struct Node* n,
                                   const char* expectResult,
                                   enum CryptoAuth_DecryptErr expectErr)
@@ -190,14 +190,14 @@ static struct Message* decryptMsg(struct Context* ctx,
 
 static void sendToIf1(struct Context* ctx, const char* x)
 {
-    struct Message* msg = encryptMsg(ctx, &ctx->node2, x);
+    Message_t* msg = encryptMsg(ctx, &ctx->node2, x);
     decryptMsg(ctx, msg, &ctx->node1, x, CryptoAuth_DecryptErr_NONE);
     Allocator_free(Message_getAlloc(msg));
 }
 
 static void sendToIf2(struct Context* ctx, const char* x)
 {
-    struct Message* msg = encryptMsg(ctx, &ctx->node1, x);
+    Message_t* msg = encryptMsg(ctx, &ctx->node1, x);
     decryptMsg(ctx, msg, &ctx->node2, x, CryptoAuth_DecryptErr_NONE);
     Allocator_free(Message_getAlloc(msg));
 }
@@ -270,8 +270,8 @@ static void replayKeyPacket(int scenario, enum TestCa_Config cfg)
 
     sendToIf2(ctx, "hello world");
 
-    struct Message* msg = encryptMsg(ctx, &ctx->node2, "hello replay key");
-    struct Message* toReplay = Message_clone(msg, ctx->alloc);
+    Message_t* msg = encryptMsg(ctx, &ctx->node2, "hello replay key");
+    Message_t* toReplay = Message_clone(msg, ctx->alloc);
     decryptMsg(ctx, msg, &ctx->node1, "hello replay key", CryptoAuth_DecryptErr_NONE);
 
     if (scenario == 1) {
@@ -309,8 +309,8 @@ static void hellosCrossedOnTheWire(enum TestCa_Config cfg)
     TestCa_getHerPubKey(ctx->node2.sess, hpk2);
     Assert_true(!Bits_memcmp(pk1, hpk2, 32));
 
-    struct Message* hello2 = encryptMsg(ctx, &ctx->node2, "hello2");
-    struct Message* hello1 = encryptMsg(ctx, &ctx->node1, "hello1");
+    Message_t* hello2 = encryptMsg(ctx, &ctx->node2, "hello2");
+    Message_t* hello1 = encryptMsg(ctx, &ctx->node1, "hello1");
 
     decryptMsg(ctx, hello2, &ctx->node1, "hello2", 0);
     decryptMsg(ctx, hello1, &ctx->node2, "hello1", 0);
@@ -364,7 +364,7 @@ static void twoKeyPackets(int scenario, enum TestCa_Config cfg)
 
     sendToIf2(ctx, "hello world");
     sendToIf1(ctx, "key packet 1");
-    struct Message* key2 = encryptMsg(ctx, &ctx->node2, "key packet 2");
+    Message_t* key2 = encryptMsg(ctx, &ctx->node2, "key packet 2");
 
     if (scenario == 1) {
         sendToIf1(ctx, "key packet 3");

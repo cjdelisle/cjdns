@@ -45,7 +45,7 @@ struct AddrIfaceMuxer_pvt
     Identity
 };
 
-static Iface_DEFUN incomingFromAddrIf(struct Message* msg, struct Iface* addrIf)
+static Iface_DEFUN incomingFromAddrIf(Message_t* msg, struct Iface* addrIf)
 {
     struct AddrIfaceMuxer_pvt* ctx =
         Identity_containerOf(addrIf, struct AddrIfaceMuxer_pvt, iface);
@@ -68,7 +68,7 @@ static Iface_DEFUN incomingFromAddrIf(struct Message* msg, struct Iface* addrIf)
     return Iface_next(&ctx->ifaces.values[idx]->iface, msg);
 }
 
-static Iface_DEFUN incomingFromInputIf(struct Message* msg, struct Iface* inputIf)
+static Iface_DEFUN incomingFromInputIf(Message_t* msg, struct Iface* inputIf)
 {
     struct AddrIfaceMuxer_Iface* cli =
         Identity_containerOf(inputIf, struct AddrIfaceMuxer_Iface, iface);

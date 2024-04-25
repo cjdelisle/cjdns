@@ -99,10 +99,10 @@ struct TAPInterface_pvt
     struct TAPInterface pub;
 
     uv_iocp_t readIocp;
-    struct Message* readMsg;
+    Message_t* readMsg;
 
     uv_iocp_t writeIocp;
-    struct Message* writeMsgs[WRITE_MESSAGE_SLOTS];
+    Message_t* writeMsgs[WRITE_MESSAGE_SLOTS];
     /** This allocator holds messages pending write in memory until they are complete. */
     struct Allocator* pendingWritesAlloc;
     int writeMessageCount;
@@ -125,7 +125,7 @@ static void postRead(struct TAPInterface_pvt* tap)
 {
     struct Allocator* alloc = Allocator_child(tap->alloc);
     // Choose odd numbers so that the message will be aligned despite the weird header size.
-    struct Message* msg = tap->readMsg = Message_new(1534, 514, alloc);
+    Message_t* msg = tap->readMsg = Message_new(1534, 514, alloc);
     OVERLAPPED* readol = (OVERLAPPED*) tap->readIocp.overlapped;
     if (!ReadFile(tap->handle, Message_bytes(msg), 1534, NULL, readol)) {
         switch (GetLastError()) {
@@ -142,7 +142,7 @@ static void postRead(struct TAPInterface_pvt* tap)
 
 static void readCallbackB(struct TAPInterface_pvt* tap)
 {
-    struct Message* msg = tap->readMsg;
+    Message_t* msg = tap->readMsg;
     tap->readMsg = NULL;
     DWORD bytesRead;
     OVERLAPPED* readol = (OVERLAPPED*) tap->readIocp.overlapped;
@@ -170,7 +170,7 @@ static void postWrite(struct TAPInterface_pvt* tap)
 {
     Assert_true(!tap->isPendingWrite);
     tap->isPendingWrite = 1;
-    struct Message* msg = tap->writeMsgs[0];
+    Message_t* msg = tap->writeMsgs[0];
     OVERLAPPED* writeol = (OVERLAPPED*) tap->writeIocp.overlapped;
     if (!WriteFile(tap->handle, Message_bytes(msg), Message_getLength(msg), NULL, writeol)) {
         switch (GetLastError()) {
@@ -197,7 +197,7 @@ static void writeCallbackB(struct TAPInterface_pvt* tap)
     tap->isPendingWrite = 0;
     Assert_true(tap->writeMessageCount--);
 
-    struct Message* msg = tap->writeMsgs[0];
+    Message_t* msg = tap->writeMsgs[0];
     if (Message_getLength(msg) != (int)bytesWritten) {
         Log_info(tap->log, "Message of length [%d] truncated to [%d]",
                  Message_getLength(msg), (int)bytesWritten);
@@ -224,7 +224,7 @@ static void writeCallback(uv_iocp_t* writeIocp)
     writeCallbackB(tap);
 }
 
-static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* iface)
+static Iface_DEFUN sendMessage(Message_t* msg, struct Iface* iface)
 {
     struct TAPInterface_pvt* tap = Identity_check((struct TAPInterface_pvt*) iface);
     if (tap->writeMessageCount >= WRITE_MESSAGE_SLOTS) {

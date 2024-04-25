@@ -29,7 +29,7 @@
 #include "crypto/CryptoAuth.h"
 
 struct DelayedMsg {
-    struct Message* msg;
+    Message_t* msg;
     struct DelayedMsg* next;
     struct Allocator* alloc;
     /** The relevant node's sendCounter must be this much for the packet to be forwarded */
@@ -114,13 +114,13 @@ static bool isMutableBit(int bitNum)
     return false;
 }
 
-static void flipBit(struct Message* msg, uint32_t bitNum)
+static void flipBit(Message_t* msg, uint32_t bitNum)
 {
     Assert_true(Message_getLength(msg) * 8 > (int)bitNum);
     Message_bytes(msg)[bitNum / 8] ^= 128 >> (bitNum % 8);
 }
 
-static void flipMutableBit(struct Context* ctx, struct Node* from, struct Message* msg)
+static void flipMutableBit(struct Context* ctx, struct Node* from, Message_t* msg)
 {
     uint32_t bitNum;
     do {
@@ -130,7 +130,7 @@ static void flipMutableBit(struct Context* ctx, struct Node* from, struct Messag
     flipBit(msg, bitNum);
 }
 
-static void flipImmutableBit(struct Context* ctx, struct Node* from, struct Message* msg)
+static void flipImmutableBit(struct Context* ctx, struct Node* from, Message_t* msg)
 {
     uint32_t bitNum;
     do {
@@ -150,7 +150,7 @@ static int queuedMessageCount(struct Node* node)
     return i;
 }
 
-static void duplicate(struct Context* ctx, struct Node* from, struct Message* msg)
+static void duplicate(struct Context* ctx, struct Node* from, Message_t* msg)
 {
     if (queuedMessageCount(from) > 500) {
         logNode0(ctx, from, "OOM can't duplicate");
@@ -165,7 +165,7 @@ static void duplicate(struct Context* ctx, struct Node* from, struct Message* ms
     delayed->alloc = alloc;
 }
 
-static void delay(struct Context* ctx, struct Node* from, struct Message* msg, int afterMsgs)
+static void delay(struct Context* ctx, struct Node* from, Message_t* msg, int afterMsgs)
 {
     if (queuedMessageCount(from) > 500) {
         logNode0(ctx, from, "OOM can't delay (drop instead)");
@@ -187,7 +187,7 @@ static void delay(struct Context* ctx, struct Node* from, struct Message* msg, i
     *dp = delayed;
 }
 
-static void sendFrom(struct Context* ctx, struct Node* from, struct Message* msg)
+static void sendFrom(struct Context* ctx, struct Node* from, Message_t* msg)
 {
     struct Node* to = (from == &ctx->nodeA) ? &ctx->nodeB : &ctx->nodeA;
     logNode0(ctx, from, "SEND");
@@ -252,7 +252,7 @@ static void mainLoop(struct Context* ctx)
         while (sendQueued(ctx, &ctx->nodeB)) ;
 
         struct Allocator* alloc = Allocator_child(ctx->alloc);
-        struct Message* msg = Message_new(0, 512, alloc);
+        Message_t* msg = Message_new(0, 512, alloc);
         Er_assert(Message_epush(msg, "hey", 4));
         Iface_send(&ctx->nodeA.plaintext, msg);
         //Assert_true(!TestCa_encrypt(ctx->nodeA.session, msg));
@@ -263,14 +263,14 @@ static void mainLoop(struct Context* ctx)
     Assert_failure("Nodes could not sync");
 }
 
-static Iface_DEFUN afterEncrypt(struct Message* msg, struct Iface* iface)
+static Iface_DEFUN afterEncrypt(Message_t* msg, struct Iface* iface)
 {
     struct Node* n = Identity_containerOf(iface, struct Node, ciphertext);
     sendFrom(n->ctx, n, msg);
     return NULL;
 }
 
-static Iface_DEFUN afterDecrypt(struct Message* msg, struct Iface* iface)
+static Iface_DEFUN afterDecrypt(Message_t* msg, struct Iface* iface)
 {
     bool flippedImmutable = false;
     Er_assert(Message_epopAd(msg, &flippedImmutable, sizeof flippedImmutable));
@@ -341,7 +341,7 @@ void* CryptoAuthFuzz_init(struct Allocator* alloc, struct Random* rand, enum Tes
     return ctx;
 }
 
-void CryptoAuthFuzz_main(void* vctx, struct Message* fuzz)
+void CryptoAuthFuzz_main(void* vctx, Message_t* fuzz)
 {
     struct Context* ctx = Identity_check((struct Context*) vctx);
 

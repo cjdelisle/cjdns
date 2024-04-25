@@ -22,9 +22,9 @@
 #include "wire/Message.h"
 #include "util/Base10.h"
 
-static Er_DEFUN(void writeGeneric(Object* obj, struct Message* msg));
+static Er_DEFUN(void writeGeneric(Object* obj, Message_t* msg));
 
-static Er_DEFUN(void writeListItems(struct List_Item* item, struct Message* msg))
+static Er_DEFUN(void writeListItems(struct List_Item* item, Message_t* msg))
 {
     if (!item) { Er_ret(); }
     Er(writeListItems(item->next, msg));
@@ -32,7 +32,7 @@ static Er_DEFUN(void writeListItems(struct List_Item* item, struct Message* msg)
     Er_ret();
 }
 
-static Er_DEFUN(void writeList(List* l, struct Message* msg))
+static Er_DEFUN(void writeList(List* l, Message_t* msg))
 {
     Er(Message_epush8(msg, 'e'));
     Er(writeListItems(*l, msg));
@@ -40,7 +40,7 @@ static Er_DEFUN(void writeList(List* l, struct Message* msg))
     Er_ret();
 }
 
-static Er_DEFUN(void writeInt(int64_t num, struct Message* msg))
+static Er_DEFUN(void writeInt(int64_t num, Message_t* msg))
 {
     Er(Message_epush8(msg, 'e'));
     Er(Base10_write(msg, num));
@@ -48,7 +48,7 @@ static Er_DEFUN(void writeInt(int64_t num, struct Message* msg))
     Er_ret();
 }
 
-static Er_DEFUN(void writeString(String* str, struct Message* msg))
+static Er_DEFUN(void writeString(String* str, Message_t* msg))
 {
     Er(Message_epush(msg, str->bytes, str->len));
     Er(Message_epush8(msg, ':'));
@@ -56,7 +56,7 @@ static Er_DEFUN(void writeString(String* str, struct Message* msg))
     Er_ret();
 }
 
-static Er_DEFUN(void writeDictEntries(struct Dict_Entry* entry, struct Message* msg))
+static Er_DEFUN(void writeDictEntries(struct Dict_Entry* entry, Message_t* msg))
 {
     if (!entry) { Er_ret(); }
     Er(writeDictEntries(entry->next, msg));
@@ -65,7 +65,7 @@ static Er_DEFUN(void writeDictEntries(struct Dict_Entry* entry, struct Message* 
     Er_ret();
 }
 
-static Er_DEFUN(void writeDict(Dict* d, struct Message* msg))
+static Er_DEFUN(void writeDict(Dict* d, Message_t* msg))
 {
     Er(Message_epush8(msg, 'e'));
     Er(writeDictEntries(*d, msg));
@@ -73,7 +73,7 @@ static Er_DEFUN(void writeDict(Dict* d, struct Message* msg))
     Er_ret();
 }
 
-static Er_DEFUN(void writeGeneric(Object* obj, struct Message* msg))
+static Er_DEFUN(void writeGeneric(Object* obj, Message_t* msg))
 {
     switch (obj->type) {
         case Object_STRING:  Er(writeString(obj->as.string, msg)); break;
@@ -85,7 +85,7 @@ static Er_DEFUN(void writeGeneric(Object* obj, struct Message* msg))
     Er_ret();
 }
 
-Er_DEFUN(void BencMessageWriter_write(Dict* toWrite, struct Message* msg))
+Er_DEFUN(void BencMessageWriter_write(Dict* toWrite, Message_t* msg))
 {
     Er(writeDict(toWrite, msg));
 

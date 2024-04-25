@@ -68,7 +68,7 @@ struct ETHInterface_pvt
     Identity
 };
 
-static void sendMessageInternal(struct Message* message,
+static void sendMessageInternal(Message_t* message,
                                 struct sockaddr_ll* addr,
                                 struct ETHInterface_pvt* context)
 {
@@ -99,7 +99,7 @@ static void sendMessageInternal(struct Message* message,
     return;
 }
 
-static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* iface)
+static Iface_DEFUN sendMessage(Message_t* msg, struct Iface* iface)
 {
     struct ETHInterface_pvt* ctx = Identity_containerOf(iface, struct ETHInterface_pvt, iface);
 
@@ -132,7 +132,7 @@ static Iface_DEFUN sendMessage(struct Message* msg, struct Iface* iface)
 
 static void handleEvent2(struct ETHInterface_pvt* context, struct Allocator* messageAlloc)
 {
-    struct Message* msg = Message_new(MAX_PACKET_SIZE, PADDING, messageAlloc);
+    Message_t* msg = Message_new(MAX_PACKET_SIZE, PADDING, messageAlloc);
 
     struct sockaddr_ll addr;
     uint32_t addrLen = sizeof(struct sockaddr_ll);

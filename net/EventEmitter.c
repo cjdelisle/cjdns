@@ -84,11 +84,11 @@ static struct ArrayList_Ifaces* getHandlers(struct EventEmitter_pvt* ee,
     return out;
 }
 
-static Iface_DEFUN sendToPathfinder(struct Message* msg, struct Pathfinder* pf)
+static Iface_DEFUN sendToPathfinder(Message_t* msg, struct Pathfinder* pf)
 {
     if (!pf || pf->state != Pathfinder_state_CONNECTED) { return NULL; }
     if (pf->bytesSinceLastPing < 8192 && pf->bytesSinceLastPing + Message_getLength(msg) >= 8192) {
-        struct Message* ping = Message_new(0, 512, Message_getAlloc(msg));
+        Message_t* ping = Message_new(0, 512, Message_getAlloc(msg));
         Er_assert(Message_epush32be(ping, pf->bytesSinceLastPing));
         Er_assert(Message_epush32be(ping, PING_MAGIC));
         Er_assert(Message_epush32be(ping, PFChan_Core_PING));
@@ -173,7 +173,7 @@ static bool PFChan_Core_sizeOk(enum PFChan_Core ev, int size)
 Assert_compileTime(PFChan_Core__TOO_LOW == 1023);
 Assert_compileTime(PFChan_Core__TOO_HIGH == 1040);
 
-static Iface_DEFUN incomingFromCore(struct Message* msg, struct Iface* trickIf)
+static Iface_DEFUN incomingFromCore(Message_t* msg, struct Iface* trickIf)
 {
     struct EventEmitter_pvt* ee = Identity_containerOf(trickIf, struct EventEmitter_pvt, trickIf);
     Assert_true(!((uintptr_t)Message_bytes(msg) % 4) && "alignment");
@@ -189,18 +189,18 @@ static Iface_DEFUN incomingFromCore(struct Message* msg, struct Iface* trickIf)
         for (int i = 0; i < ee->pathfinders->length; i++) {
             struct Pathfinder* pf = ArrayList_Pathfinders_get(ee->pathfinders, i);
             if (!pf || pf->state != Pathfinder_state_CONNECTED) { continue; }
-            struct Message* messageClone = Message_clone(msg, Message_getAlloc(msg));
+            Message_t* messageClone = Message_clone(msg, Message_getAlloc(msg));
             Iface_CALL(sendToPathfinder, messageClone, pf);
         }
     }
     return NULL;
 }
 
-static struct Message* pathfinderMsg(enum PFChan_Core ev,
+static Message_t* pathfinderMsg(enum PFChan_Core ev,
                                      struct Pathfinder* pf,
                                      struct Allocator* alloc)
 {
-    struct Message* msg = Message_new(PFChan_Core_Pathfinder_SIZE, 512, alloc);
+    Message_t* msg = Message_new(PFChan_Core_Pathfinder_SIZE, 512, alloc);
     struct PFChan_Core_Pathfinder* pathfinder = (struct PFChan_Core_Pathfinder*) Message_bytes(msg);
     pathfinder->superiority_be = Endian_hostToBigEndian32(pf->superiority);
     pathfinder->pathfinderId_be = Endian_hostToBigEndian32(pf->pathfinderId);
@@ -211,7 +211,7 @@ static struct Message* pathfinderMsg(enum PFChan_Core ev,
 }
 
 static int handleFromPathfinder(enum PFChan_Pathfinder ev,
-                                struct Message* msg,
+                                Message_t* msg,
                                 struct EventEmitter_pvt* ee,
                                 struct Pathfinder* pf)
 {
@@ -233,20 +233,20 @@ static int handleFromPathfinder(enum PFChan_Pathfinder ev,
             Bits_memcpy(resp.publicKey, ee->publicKey, 32);
             Er_assert(Message_epush(msg, &resp, PFChan_Core_Connect_SIZE));
             Er_assert(Message_epush32be(msg, PFChan_Core_CONNECT));
-            struct Message* sendMsg = Message_clone(msg, Message_getAlloc(msg));
+            Message_t* sendMsg = Message_clone(msg, Message_getAlloc(msg));
             Iface_CALL(sendToPathfinder, sendMsg, pf);
             break;
         }
         case PFChan_Pathfinder_SUPERIORITY: {
             Er_assert(Message_eshift(msg, -8));
             pf->superiority = Er_assert(Message_epop32be(msg));
-            struct Message* resp = pathfinderMsg(PFChan_Core_PATHFINDER, pf, Message_getAlloc(msg));
+            Message_t* resp = pathfinderMsg(PFChan_Core_PATHFINDER, pf, Message_getAlloc(msg));
             Iface_CALL(incomingFromCore, resp, &ee->trickIf);
             break;
         }
 
         case PFChan_Pathfinder_PING: {
-            struct Message* sendMsg = Message_clone(msg, Message_getAlloc(msg));
+            Message_t* sendMsg = Message_clone(msg, Message_getAlloc(msg));
             Iface_send(&pf->iface, sendMsg);
             break;
         }
@@ -256,7 +256,7 @@ static int handleFromPathfinder(enum PFChan_Pathfinder ev,
             uint32_t count = Er_assert(Message_epop32be(msg));
             if (cookie != PING_MAGIC || count > pf->bytesSinceLastPing) {
                 pf->state = Pathfinder_state_ERROR;
-                struct Message* resp = pathfinderMsg(PFChan_Core_PATHFINDER_GONE, pf, Message_getAlloc(msg));
+                Message_t* resp = pathfinderMsg(PFChan_Core_PATHFINDER_GONE, pf, Message_getAlloc(msg));
                 Iface_CALL(incomingFromCore, resp, &ee->trickIf);
             } else {
                 pf->bytesSinceLastPing -= count;
@@ -268,7 +268,7 @@ static int handleFromPathfinder(enum PFChan_Pathfinder ev,
                 struct Pathfinder* xpf = ArrayList_Pathfinders_get(ee->pathfinders, i);
                 if (!xpf || xpf->state != Pathfinder_state_CONNECTED) { continue; }
                 struct Allocator* alloc = Allocator_child(Message_getAlloc(msg));
-                struct Message* resp = pathfinderMsg(PFChan_Core_PATHFINDER, pf, alloc);
+                Message_t* resp = pathfinderMsg(PFChan_Core_PATHFINDER, pf, alloc);
                 Iface_CALL(sendToPathfinder, resp, pf);
                 Allocator_free(alloc);
             }
@@ -278,7 +278,7 @@ static int handleFromPathfinder(enum PFChan_Pathfinder ev,
     return true;
 }
 
-static Iface_DEFUN incomingFromPathfinder(struct Message* msg, struct Iface* iface)
+static Iface_DEFUN incomingFromPathfinder(Message_t* msg, struct Iface* iface)
 {
     struct Pathfinder* pf = Identity_containerOf(iface, struct Pathfinder, iface);
     struct EventEmitter_pvt* ee = Identity_check((struct EventEmitter_pvt*) pf->ee);
@@ -313,7 +313,7 @@ static Iface_DEFUN incomingFromPathfinder(struct Message* msg, struct Iface* ifa
     struct ArrayList_Ifaces* handlers = getHandlers(ee, ev, false);
     if (!handlers) { return NULL; }
     for (int i = 0; i < handlers->length; i++) {
-        struct Message* messageClone = Message_clone(msg, Message_getAlloc(msg));
+        Message_t* messageClone = Message_clone(msg, Message_getAlloc(msg));
         struct Iface* iface = ArrayList_Ifaces_get(handlers, i);
         // We have to call this manually because we don't have an interface handy which is
         // actually plumbed with this one.

@@ -103,18 +103,18 @@ struct Admin_pvt
     struct Map_LastMessageTimeByAddr map;
 
     /** non-null if we are currently in an admin request. */
-    struct Message* currentRequest;
+    Message_t* currentRequest;
 
     /** non-zero if this session able to receive asynchronous messages. */
     int asyncEnabled;
 
-    struct Message* tempSendMsg;
+    Message_t* tempSendMsg;
 
     Identity
 };
 
 static struct RTypes_Error_t* sendMessage(
-    struct Message* message, struct Sockaddr* dest, struct Admin_pvt* admin)
+    Message_t* message, struct Sockaddr* dest, struct Admin_pvt* admin)
 {
     // stack overflow when used with admin logger.
     //Log_keys(admin->logger, "sending message to angel [%s]", message->bytes);
@@ -130,7 +130,7 @@ static struct RTypes_Error_t* sendBenc(Dict* message,
 {
     Message_reset(admin->tempSendMsg);
     Er_assert(BencMessageWriter_write(message, admin->tempSendMsg));
-    struct Message* msg = Message_new(0, Message_getLength(admin->tempSendMsg) + 32, alloc);
+    Message_t* msg = Message_new(0, Message_getLength(admin->tempSendMsg) + 32, alloc);
     Er_assert(Message_epush(msg, Message_bytes(admin->tempSendMsg), Message_getLength(admin->tempSendMsg)));
     Message_setAssociatedFd(msg, fd);
     return sendMessage(msg, dest, admin);
@@ -220,7 +220,7 @@ int Admin_sendMessage(Dict* message, String* txid, struct Admin* adminPub)
     return sendMessage0(message, txid, adminPub, -1);
 }
 
-static inline bool authValid(Dict* message, struct Message* messageBytes, struct Admin_pvt* admin)
+static inline bool authValid(Dict* message, Message_t* messageBytes, struct Admin_pvt* admin)
 {
     String* cookieStr = Dict_getStringC(message, "cookie");
     uint32_t cookie = (cookieStr != NULL) ? strtoll(cookieStr->bytes, NULL, 10) : 0;
@@ -319,7 +319,7 @@ static void availableFunctions(Dict* args, void* vAdmin, String* txid, struct Al
 }
 
 static void handleRequest(Dict* messageDict,
-                          struct Message* message,
+                          Message_t* message,
                           struct Sockaddr* src,
                           struct Allocator* allocator,
                           struct Admin_pvt* admin)
@@ -415,7 +415,7 @@ static void handleRequest(Dict* messageDict,
     return;
 }
 
-static void handleMessage(struct Message* message,
+static void handleMessage(Message_t* message,
                           struct Sockaddr* src,
                           struct Allocator* alloc,
                           struct Admin_pvt* admin)
@@ -463,7 +463,7 @@ static void handleMessage(struct Message* message,
     handleRequest(messageDict, message, src, alloc, admin);
 }
 
-static Iface_DEFUN receiveMessage(struct Message* message, struct Iface* iface)
+static Iface_DEFUN receiveMessage(Message_t* message, struct Iface* iface)
 {
     struct Admin_pvt* admin = Identity_containerOf(iface, struct Admin_pvt, iface);
     struct Allocator* alloc = Allocator_child(admin->allocator);

@@ -110,7 +110,7 @@ static int updateBcastAddrs(struct UDPInterface_pvt* ctx)
     return 0;
 }
 
-static Iface_DEFUN sendPacket(struct Message* m, struct Iface* iface)
+static Iface_DEFUN sendPacket(Message_t* m, struct Iface* iface)
 {
     struct UDPInterface_pvt* ctx =
         Identity_containerOf(iface, struct UDPInterface_pvt, iface);
@@ -138,7 +138,7 @@ static Iface_DEFUN sendPacket(struct Message* m, struct Iface* iface)
 
     for (int i = 0; i < ctx->bcastAddrs->length; i++) {
         struct Allocator* tmpAlloc = Allocator_child(ctx->allocator);
-        struct Message* mm = Message_clone(m, tmpAlloc);
+        Message_t* mm = Message_clone(m, tmpAlloc);
         struct Sockaddr* addr = ArrayList_Sockaddr_get(ctx->bcastAddrs, i);
         Er_assert(Message_epush(mm, addr, addr->addrLen));
         Iface_send(&ctx->bcastSock, mm);
@@ -148,14 +148,14 @@ static Iface_DEFUN sendPacket(struct Message* m, struct Iface* iface)
     return NULL;
 }
 
-static Iface_DEFUN fromCommSock(struct Message* m, struct Iface* iface)
+static Iface_DEFUN fromCommSock(Message_t* m, struct Iface* iface)
 {
     struct UDPInterface_pvt* ctx =
         Identity_containerOf(iface, struct UDPInterface_pvt, commSock);
     return Iface_next(ctx->pub.generic.iface, m);
 }
 
-static Iface_DEFUN fromBcastSock(struct Message* m, struct Iface* iface)
+static Iface_DEFUN fromBcastSock(Message_t* m, struct Iface* iface)
 {
     struct UDPInterface_pvt* ctx =
         Identity_containerOf(iface, struct UDPInterface_pvt, bcastSock);

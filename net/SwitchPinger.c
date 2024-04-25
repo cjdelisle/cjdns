@@ -82,7 +82,7 @@ struct Ping
 };
 
 // incoming message from network, pointing to the beginning of the switch header.
-static Iface_DEFUN messageFromControlHandler(struct Message* msg, struct Iface* iface)
+static Iface_DEFUN messageFromControlHandler(Message_t* msg, struct Iface* iface)
 {
     struct SwitchPinger_pvt* ctx = Identity_check((struct SwitchPinger_pvt*) iface);
     struct RouteHeader rh;
@@ -262,7 +262,7 @@ static void sendPing(String* data, void* sendPingContext)
 {
     struct Ping* p = Identity_check((struct Ping*) sendPingContext);
 
-    struct Message* msg = Message_new(0, data->len + 512, p->pub.pingAlloc);
+    Message_t* msg = Message_new(0, data->len + 512, p->pub.pingAlloc);
 
     while (((uintptr_t)Message_bytes(msg) - data->len) % 4) {
         Er_assert(Message_epush8(msg, 0));

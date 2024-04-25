@@ -39,7 +39,7 @@ struct ControlHandler_pvt
  * Expects [ Ctrl ][ Error ][ cause SwitchHeader ][ cause handle ][ cause etc.... ]
  */
 #define handleError_MIN_SIZE (Control_Header_SIZE + Control_Error_MIN_SIZE + SwitchHeader_SIZE + 4)
-static Iface_DEFUN handleError(struct Message* msg,
+static Iface_DEFUN handleError(Message_t* msg,
                                struct ControlHandler_pvt* ch,
                                uint64_t label,
                                uint8_t* labelStr,
@@ -60,7 +60,7 @@ static Iface_DEFUN handleError(struct Message* msg,
  * Expects [ SwitchHeader ][ Ctrl ][ (key)Ping ][ data etc.... ]
  */
 #define handlePing_MIN_SIZE (Control_Header_SIZE + Control_Ping_MIN_SIZE)
-static Iface_DEFUN handlePing(struct Message* msg,
+static Iface_DEFUN handlePing(Message_t* msg,
                               struct ControlHandler_pvt* ch,
                               uint64_t label,
                               uint8_t* labelStr,
@@ -139,7 +139,7 @@ static Iface_DEFUN handlePing(struct Message* msg,
  * Expects [ SwitchHeader ][ Ctrl ][ RPath ][ data etc.... ]
  */
 #define handleRPathQuery_MIN_SIZE (Control_Header_SIZE + Control_RPath_HEADER_SIZE)
-static Iface_DEFUN handleRPathQuery(struct Message* msg,
+static Iface_DEFUN handleRPathQuery(Message_t* msg,
                                     struct ControlHandler_pvt* ch,
                                     uint64_t label,
                                     uint8_t* labelStr)
@@ -180,7 +180,7 @@ static Iface_DEFUN handleRPathQuery(struct Message* msg,
  * Expects [ SwitchHeader ][ Ctrl ][ SupernodeQuery ][ data etc.... ]
  */
 #define handleGetSnodeQuery_MIN_SIZE (Control_Header_SIZE + Control_GetSnode_HEADER_SIZE)
-static Iface_DEFUN handleGetSnodeQuery(struct Message* msg,
+static Iface_DEFUN handleGetSnodeQuery(Message_t* msg,
                                        struct ControlHandler_pvt* ch,
                                        uint64_t label,
                                        uint8_t* labelStr)
@@ -251,7 +251,7 @@ static Iface_DEFUN handleGetSnodeQuery(struct Message* msg,
  * @param switchIf the interface which leads to the switch.
  * @param isFormV8 true if the control message is in the form specified by protocol version 8+
  */
-static Iface_DEFUN incomingFromCore(struct Message* msg, struct Iface* coreIf)
+static Iface_DEFUN incomingFromCore(Message_t* msg, struct Iface* coreIf)
 {
     struct ControlHandler_pvt* ch = Identity_check((struct ControlHandler_pvt*) coreIf);
 
@@ -317,14 +317,14 @@ static Iface_DEFUN incomingFromCore(struct Message* msg, struct Iface* coreIf)
 }
 
 // Forward from switch pinger directly to core.
-static Iface_DEFUN incomingFromSwitchPinger(struct Message* msg, struct Iface* switchPingerIf)
+static Iface_DEFUN incomingFromSwitchPinger(Message_t* msg, struct Iface* switchPingerIf)
 {
     struct ControlHandler_pvt* ch =
         Identity_containerOf(switchPingerIf, struct ControlHandler_pvt, pub.switchPingerIf);
     return Iface_next(&ch->pub.coreIf, msg);
 }
 
-static Iface_DEFUN changeSnode(struct Message* msg, struct Iface* eventIf)
+static Iface_DEFUN changeSnode(Message_t* msg, struct Iface* eventIf)
 {
     struct ControlHandler_pvt* ch =
         Identity_containerOf(eventIf, struct ControlHandler_pvt, eventIf);

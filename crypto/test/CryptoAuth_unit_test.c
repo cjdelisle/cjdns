@@ -53,7 +53,7 @@ struct Context
     EventBase_t* base;
 };
 
-static Iface_DEFUN doNothingSuccessfully(struct Message* msg, struct Iface* iface)
+static Iface_DEFUN doNothingSuccessfully(Message_t* msg, struct Iface* iface)
 {
     return NULL;
 }
@@ -91,7 +91,7 @@ static void testHello(uint8_t* password, uint8_t* expectedOutput, enum TestCa_Co
     Assert_true(CString_strlen((char*)expectedOutput) == 264);
     struct Allocator* alloc = Allocator_new(1<<20);
     struct Context* ctx = setUp(NULL, HERPUBKEY, password, alloc, cfg);
-    struct Message* msg = Message_new(0, CryptoHeader_SIZE + 32, alloc);
+    Message_t* msg = Message_new(0, CryptoHeader_SIZE + 32, alloc);
     Er_assert(Message_epush(msg, HELLOWORLD, HELLOWORLDLEN));
 
     Iface_send(&ctx->plaintext, msg);
@@ -132,7 +132,7 @@ static void receiveHelloWithNoAuth(enum TestCa_Config cfg)
         "847c0d2c375234f365e660955187a3735a0f7613d1609d3a6a4d8c53aeaa5a22", 64) > 0);
     struct Allocator* alloc = Allocator_new(1<<20);
     struct Context* ctx = setUp(PRIVATEKEY, herPublic, NULL, alloc, cfg);
-    struct Message* msg = Message_new(132, 32, alloc);
+    Message_t* msg = Message_new(132, 32, alloc);
     Assert_true(Hex_decode(Message_bytes(msg), Message_getLength(msg),
         "0000000000ffffffffffffff7fffffffffffffffffffffffffffffffffffffff"
         "ffffffffffffffff847c0d2c375234f365e660955187a3735a0f7613d1609d3a"
@@ -162,7 +162,7 @@ static void repeatHello(enum TestCa_Config cfg)
 
     struct Allocator* alloc = Allocator_new(1<<20);
     struct Context* ctx = setUp(NULL, HERPUBKEY, "password", alloc, cfg);
-    struct Message* msg = Message_new(0, CryptoHeader_SIZE + HELLOWORLDLEN + 32, alloc);
+    Message_t* msg = Message_new(0, CryptoHeader_SIZE + HELLOWORLDLEN + 32, alloc);
     Er_assert(Message_epush(msg, HELLOWORLD, HELLOWORLDLEN));
 
     Iface_send(&ctx->plaintext, msg);

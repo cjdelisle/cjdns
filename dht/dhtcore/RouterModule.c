@@ -421,7 +421,7 @@ static void sendMsg(String* txid, void* vpingContext)
     Dict_putString(pc->messageDict, CJDHTConstants_TXID, txid, pc->pp->pingAlloc);
 
     struct Allocator* temp = Allocator_child(pc->pp->pingAlloc);
-    struct Message* msg = Message_new(0, DHTMessage_MAX_SIZE + 512, temp);
+    Message_t* msg = Message_new(0, DHTMessage_MAX_SIZE + 512, temp);
     struct DHTMessage* dmesg = Allocator_calloc(temp, sizeof(struct DHTMessage), 1);
     dmesg->binMessage = msg;
     dmesg->address = &pc->address;

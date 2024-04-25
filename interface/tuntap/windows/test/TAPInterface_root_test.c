@@ -30,7 +30,7 @@ int main(int argc, char** argv)
 #include "util/platform/Sockaddr.h"
 #include "util/platform/netdev/NetDev.h"
 
-static uint8_t receiveMessage(struct Message* msg, struct Iface* iface)
+static uint8_t receiveMessage(Message_t* msg, struct Iface* iface)
 {
     struct Allocator* alloc = iface->receiverContext;
     if (Message_getLength(msg) < 20) {

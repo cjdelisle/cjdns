@@ -50,7 +50,7 @@ void RustIface_dropped()
     dropped++;
 }
 
-static Iface_DEFUN sendOutside(struct Message* msg, struct Iface* outside)
+static Iface_DEFUN sendOutside(Message_t* msg, struct Iface* outside)
 {
     printf("sendOutside called\n");
     Assert_true(incomingCount == 1 && outgoingCount == 1 && dropped == 0);
@@ -62,7 +62,7 @@ static Iface_DEFUN sendOutside(struct Message* msg, struct Iface* outside)
     return NULL;
 }
 
-static Iface_DEFUN sendInside(struct Message* msg, struct Iface* inside)
+static Iface_DEFUN sendInside(Message_t* msg, struct Iface* inside)
 {
     printf("sendInside called\n");
     Assert_true(incomingCount == 1 && outgoingCount == 0 && dropped == 0);
@@ -91,7 +91,7 @@ int main()
 
     Assert_true(incomingCount == 0 && outgoingCount == 0 && dropped == 0);
 
-    struct Message* msg = Message_new(256, 256, alloc);
+    Message_t* msg = Message_new(256, 256, alloc);
     Er_assert(Message_epush32be(msg, 0x00000800));
     Iface_send(&ctx->outside, msg);
 

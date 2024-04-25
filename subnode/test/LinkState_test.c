@@ -72,7 +72,7 @@ static void randomLsUpdate(struct Random* rand, struct LinkState* ls)
     ls->samples = samplesNext;
 }
 
-static void applyStateUpdates(struct LinkState* local, struct Message* msg)
+static void applyStateUpdates(struct LinkState* local, Message_t* msg)
 {
     if (!Message_getLength(msg)) { return; }
     uint8_t length = Message_bytes(msg)[0];
@@ -88,7 +88,7 @@ static void applyStateUpdates(struct LinkState* local, struct Message* msg)
 
 static void assertSame(struct LinkState* beforeState,
                        struct LinkState* updated,
-                       struct Message* update)
+                       Message_t* update)
 {
     struct LinkState local;
     Bits_memcpy(&local, beforeState, sizeof(struct LinkState));
@@ -149,7 +149,7 @@ int main(int argc, char* argv[])
     struct Random* rand = Random_new(mainAlloc, NULL, NULL);
 
     int cycles = CYCLES;
-    struct Message* msg = Message_new(0, 2048, mainAlloc);
+    Message_t* msg = Message_new(0, 2048, mainAlloc);
     for (int cycle = 0; cycle < cycles; cycle++) {
 
         uint16_t nodeId = Random_uint16(rand);
