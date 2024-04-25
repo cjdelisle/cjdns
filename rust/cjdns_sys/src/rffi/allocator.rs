@@ -4,6 +4,7 @@ use std::ffi::{c_void, CStr};
 use std::os::raw::c_char;
 use std::any::Any;
 use crate::cffi::Allocator_t;
+use crate::gcl::GCL;
 use std::cell::{RefCell,Ref};
 
 struct Mem {
@@ -331,6 +332,7 @@ impl Allocator {
     }
 
     pub fn free(&mut self, source: &str) {
+        let _l = GCL.lock();
         let (parent, parent_count) = {
             let m = self.inner.m.lock();
             if m.is_freeing {

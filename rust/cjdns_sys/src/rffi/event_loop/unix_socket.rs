@@ -4,7 +4,7 @@ use crate::cffi::{
     Sockaddr_t
 };
 use crate::external::interface::cif;
-use crate::gcl;
+use crate::gcl::Protected;
 use crate::interface::{
     socketiface::{SocketIface, SocketType},
     unixsocketiface::{UnixSocketClient, UnixSocketServer}
@@ -12,7 +12,7 @@ use crate::interface::{
 use crate::rffi::allocator;
 use crate::rtypes::RTypes_Error_t;
 use crate::util::{
-    callable::{self, Callable},
+    callable::Callable,
     identity::{from_c, Identity},
     sockaddr::Sockaddr,
 };
@@ -117,19 +117,12 @@ pub extern "C" fn Rffi_unixSocketServerOnConnect(
     ctx: *mut libc::c_void,
 ) {
     let rss = from_c!(rss);
-    #[derive(Clone)]
-    struct FuncAndCtx {
-        f: extern "C" fn(*mut libc::c_void, *const Sockaddr_t),
-        ctx: *mut libc::c_void,
-    }
-    unsafe impl Send for FuncAndCtx {}
-    unsafe impl Sync for FuncAndCtx {}
     let v: Option<Arc<dyn Callable<_,_>>> = if !ctx.is_null() {
-        Some(Arc::new(callable::new(FuncAndCtx{f, ctx}, |fctx, sa: Sockaddr| async move {
+        Some(Arc::new(<dyn Callable<_,_>>::new(Arc::new(Protected::new((f, ctx))), |fctx, sa: Sockaddr| {
             let mut a = allocator::new!();
             let sa_ptr = sa.c(a.c());
-            let _l = gcl::GCL.lock();
-            (fctx.f)(fctx.ctx, sa_ptr);
+            let l = fctx.lock();
+            (l.0)(l.1, sa_ptr);
         })))
     } else {
         None

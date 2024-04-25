@@ -1,5 +1,6 @@
-use super::{Rffi_EventLoop, GCL};
+use super::Rffi_EventLoop;
 use crate::cffi::{Allocator_t, Allocator__onFree, Allocator_OnFreeJob};
+use crate::gcl::Protected;
 use crate::rffi::allocator;
 use crate::util::identity::from_c;
 use std::ffi::c_void;
@@ -7,15 +8,6 @@ use std::os::raw::{c_int, c_ulong};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
-
-/// Used only internally, to send `*mut c_void` into a tokio task.
-struct TimerCallback {
-    cb: unsafe extern "C" fn(*mut c_void),
-    cb_context: *mut c_void,
-}
-
-// SAFETY: this only holds if the C code is thread-safe, or the tokio Runtime uses only a single thread.
-unsafe impl Send for TimerCallback {}
 
 /// Commands to control a Timer task.
 enum TimerCommand {
@@ -52,7 +44,7 @@ pub extern "C" fn Rffi_setTimeout(
     alloc: *mut Allocator_t,
 ) {
     let cb_int = cb_context as u64;
-    let tcb = TimerCallback { cb, cb_context };
+    let tcb = Protected::new((cb, cb_context));
 
     // it must be unbounded, since its Sender is sync, and can be used directly by the controller methods.
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
@@ -84,9 +76,9 @@ pub extern "C" fn Rffi_setTimeout(
         loop {
             tokio::select! {
                 _ = tokio::time::sleep(Duration::from_millis(timeout_millis.into())) => {
-                    let _guard = GCL.lock();
+                    let l = tcb.lock();
                     if is_active.load(Ordering::Relaxed) {
-                        unsafe { (tcb.cb)(tcb.cb_context); }
+                        unsafe { (l.0)(l.1); }
                     }
                     if !repeat {
                         break;

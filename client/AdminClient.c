@@ -164,14 +164,13 @@ static Iface_DEFUN receiveMessage(struct Message* msg, struct Iface* addrIface)
     return NULL;
 }
 
-static int requestOnFree(struct Allocator_OnFreeJob* job)
+static void requestOnFree(struct Allocator_OnFreeJob* job)
 {
     struct Request* req = Identity_check((struct Request*) job->userData);
     int idx = Map_OfRequestByHandle_indexForHandle(req->handle, &req->ctx->outstandingRequests);
     if (idx > -1) {
         Map_OfRequestByHandle_remove(idx, &req->ctx->outstandingRequests);
     }
-    return 0;
 }
 
 static struct Request* sendRaw(Dict* messageDict,

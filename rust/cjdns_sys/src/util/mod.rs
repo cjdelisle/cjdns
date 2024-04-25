@@ -1,5 +1,6 @@
 pub mod sockaddr;
 pub mod identity;
+pub mod async_callable;
 pub mod callable;
 
 pub mod events {

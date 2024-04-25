@@ -76,7 +76,7 @@ static void timeoutCallback(void* vping)
     callback(NULL, p);
 }
 
-static int freePing(struct Allocator_OnFreeJob* job)
+static void freePing(struct Allocator_OnFreeJob* job)
 {
     struct Ping* p = Identity_check((struct Ping*) job->userData);
 
@@ -88,7 +88,6 @@ static int freePing(struct Allocator_OnFreeJob* job)
                                                     &p->pinger->outstandingPings);
     Assert_true(index > -1);
     Map_OutstandingPings_remove(index, &p->pinger->outstandingPings);
-    return 0;
 }
 
 static void asyncSendPing(void* vping)

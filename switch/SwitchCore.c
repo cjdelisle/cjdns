@@ -222,11 +222,10 @@ static Iface_DEFUN receiveMessage(struct Message* message, struct Iface* iface)
     return Iface_next(&core->interfaces[destIndex].iface, message);
 }
 
-static int removeInterface(struct Allocator_OnFreeJob* job)
+static void removeInterface(struct Allocator_OnFreeJob* job)
 {
     struct SwitchInterface* si = Identity_check((struct SwitchInterface*) job->userData);
     Bits_memset(si, 0, sizeof(struct SwitchInterface));
-    return 0;
 }
 
 void SwitchCore_swapInterfaces(struct Iface* userIf1, struct Iface* userIf2)

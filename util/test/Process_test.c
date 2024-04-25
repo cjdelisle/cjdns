@@ -93,13 +93,12 @@ static void timeout(void* vNULL)
     Assert_true(!"timed out.");
 }
 
-static int childDone(struct Allocator_OnFreeJob* ofj) {
+static void childDone(struct Allocator_OnFreeJob* ofj) {
     printf("Shutdown child\n");
     struct Context* c = Identity_check((struct Context*) ofj->userData);
     EventBase_endLoop(c->base);
     // This causes a segfault because the logger calles into freed memory
     // Allocator_free(c->rootAlloc);
-    return 0;
 }
 
 static Iface_DEFUN receiveMessageChild(struct Message* msg, struct Iface* iface)

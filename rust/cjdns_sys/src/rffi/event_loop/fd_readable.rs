@@ -1,21 +1,12 @@
 use tokio::io::Interest;
 use tokio::io::unix::AsyncFd;
-use super::GCL;
 use crate::cffi::{Allocator_t, Allocator__onFree, Allocator_OnFreeJob};
+use crate::gcl::Protected;
 use crate::rffi::allocator;
 use std::ffi::c_void;
 use std::os::raw::{c_int, c_char};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-
-/// Used only internally, to send `*mut c_void` into a tokio task.
-struct FdReadableCallback {
-    cb: unsafe extern "C" fn(*mut c_void),
-    cb_context: *mut c_void,
-}
-
-// SAFETY: this only holds if the C code is thread-safe, or the tokio Runtime uses only a single thread.
-unsafe impl Send for FdReadableCallback {}
 
 struct FdReadable {
     _kill: tokio::sync::mpsc::UnboundedSender<()>,
@@ -51,7 +42,7 @@ pub extern "C" fn Rffi_pollFdReadable(
         }
     };
 
-    let frc = FdReadableCallback{ cb, cb_context };
+    let frc = Protected::new((cb, cb_context));
 
     let (kill, mut rx_kill) = tokio::sync::mpsc::unbounded_channel();
     let rtx = Arc::new(FdReadable {
@@ -83,9 +74,9 @@ pub extern "C" fn Rffi_pollFdReadable(
                     }
                     match r {
                         Ok(mut x) => {
-                            let guard = GCL.lock();
-                            unsafe { (frc.cb)(frc.cb_context); }
-                            drop(guard);
+                            let l = frc.lock();
+                            unsafe { (l.0)(l.1); }
+                            drop(l);
                             x.clear_ready();
                         }
                         Err(e) => {

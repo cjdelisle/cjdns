@@ -45,11 +45,10 @@ struct ChildCtx
     Identity
 };
 
-static int childMessageSent(struct Allocator_OnFreeJob* j) {
+static void childMessageSent(struct Allocator_OnFreeJob* j) {
     struct ChildCtx* child = Identity_check((struct ChildCtx*) j->userData);
     printf("Child shutting down\n");
     EventBase_endLoop(child->base);
-    return 0;
 }
 
 static void timeout(void* vNULL)

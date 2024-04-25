@@ -97,7 +97,7 @@ impl UnixSocketServerInner {
         };
         self.inner.write().clients.insert(client_n, cli);
         if let Some(onc) = self.on_new_client.lock().await.clone() {
-            onc.call(Sockaddr::from(client_n)).await;
+            onc.call(Sockaddr::from(client_n));
         }
         Ok(())
     }

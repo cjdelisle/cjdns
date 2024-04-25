@@ -87,7 +87,7 @@ static Iface_DEFUN incomingFromInputIf(struct Message* msg, struct Iface* inputI
     return Iface_next(ctx->pub.iface.iface, msg);
 }
 
-static int removeIfaceOnFree(struct Allocator_OnFreeJob* job)
+static void removeIfaceOnFree(struct Allocator_OnFreeJob* job)
 {
     struct AddrIfaceMuxer_Iface* cli = Identity_check((struct AddrIfaceMuxer_Iface*)job->userData);
     struct AddrIfaceMuxer_pvt* m = Identity_check(cli->muxer);
@@ -96,7 +96,6 @@ static int removeIfaceOnFree(struct Allocator_OnFreeJob* job)
     if (idx > -1) {
         Map_Ifaces_remove(idx, &m->ifaces);
     }
-    return 0;
 }
 
 struct Iface* AddrIfaceMuxer_registerIface(struct AddrIfaceMuxer* muxer, struct Allocator* alloc)

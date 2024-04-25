@@ -27,7 +27,7 @@ Linker_require("memory/Allocator.c")
  * This handle is sutable for use with Allocator_notOnFree() to cancel a job.
  */
 struct Allocator_OnFreeJob;
-typedef int (* Allocator_OnFreeCallback)(struct Allocator_OnFreeJob* job);
+typedef void (* Allocator_OnFreeCallback)(struct Allocator_OnFreeJob* job);
 struct Allocator_OnFreeJob
 {
     /** Set by caller. */

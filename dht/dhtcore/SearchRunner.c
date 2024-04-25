@@ -271,7 +271,7 @@ static void searchNextNode(void* vsearch)
     searchStep(search);
 }
 
-static int searchOnFree(struct Allocator_OnFreeJob* job)
+static void searchOnFree(struct Allocator_OnFreeJob* job)
 {
     struct SearchRunner_Search* search =
         Identity_check((struct SearchRunner_Search*)job->userData);
@@ -282,7 +282,6 @@ static int searchOnFree(struct Allocator_OnFreeJob* job)
     }
     Assert_true(search->runner->searches > 0);
     search->runner->searches--;
-    return 0;
 }
 
 struct SearchRunner_SearchData* SearchRunner_showActiveSearch(struct SearchRunner* searchRunner,

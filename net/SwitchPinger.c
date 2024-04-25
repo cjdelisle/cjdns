@@ -369,13 +369,12 @@ String* SwitchPinger_resultString(enum SwitchPinger_Result result)
     };
 }
 
-static int onPingFree(struct Allocator_OnFreeJob* job)
+static void onPingFree(struct Allocator_OnFreeJob* job)
 {
     struct Ping* ping = Identity_check((struct Ping*)job->userData);
     struct SwitchPinger_pvt* ctx = Identity_check(ping->context);
     ctx->outstandingPings--;
     Assert_true(ctx->outstandingPings >= 0);
-    return 0;
 }
 
 struct SwitchPinger_Ping* SwitchPinger_newPing(uint64_t label,

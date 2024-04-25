@@ -107,7 +107,7 @@ static struct PeerInfo_pvt* piForAddr(struct ReachabilityCollector_pvt* rcp, str
     return NULL;
 }
 
-static int piOnFree(struct Allocator_OnFreeJob* j)
+static void piOnFree(struct Allocator_OnFreeJob* j)
 {
     struct PeerInfo_pvt* pi = Identity_check((struct PeerInfo_pvt*) j->userData);
     struct ReachabilityCollector_pvt* rcp = Identity_check(pi->rcp);
@@ -116,7 +116,6 @@ static int piOnFree(struct Allocator_OnFreeJob* j)
         if (pi0 != pi) { continue; }
         ArrayList_OfPeerInfo_pvt_remove(rcp->piList, j);
     }
-    return 0;
 }
 
 static void mkNextRequest(struct ReachabilityCollector_pvt* rcp);

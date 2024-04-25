@@ -6,7 +6,7 @@ use crate::rffi::allocator;
 use crate::rtypes::RTypes_Error_t;
 use crate::external::interface::iface::{self, IfRecv, Iface, IfacePvt};
 use crate::interface::wire::message::Message;
-use crate::gcl::{Protected, GCL};
+use crate::gcl::Protected;
 use crate::util::identity::{Identity,from_c};
 
 struct CRecv {
@@ -21,7 +21,6 @@ impl IfRecv for CRecv {
         }
         let c_msg = m.as_c_message();
         let cif = self.c_iface.lock();
-        let _lock = GCL.lock();
         unsafe {
             (cffi::Iface_incomingFromRust(c_msg, *cif) as *mut RTypes_Error_t).as_mut()
                 .map(|e|e.e.take())

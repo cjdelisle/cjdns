@@ -220,11 +220,10 @@ Er_DEFUN(List* ETHInterface_listDevices(struct Allocator* alloc))
     Er_ret(out);
 }
 
-static int closeSocket(struct Allocator_OnFreeJob* j)
+static void closeSocket(struct Allocator_OnFreeJob* j)
 {
     struct ETHInterface_pvt* ctx = Identity_check((struct ETHInterface_pvt*) j->userData);
     close(ctx->socket);
-    return 0;
 }
 
 static Er_DEFUN(int openBPF(struct Allocator* alloc))

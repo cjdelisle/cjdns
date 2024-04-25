@@ -404,11 +404,10 @@ static Er_DEFUN(void addDeleteRoutes(int sock,
     Er_ret();
 }
 
-static int closeSocket(struct Allocator_OnFreeJob* job)
+static void closeSocket(struct Allocator_OnFreeJob* job)
 {
     long sock = (long) job->userData;
     close((int)sock);
-    return 0;
 }
 
 static Er_DEFUN(int mkSocket(struct Allocator* alloc))

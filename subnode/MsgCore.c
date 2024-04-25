@@ -248,7 +248,7 @@ static Iface_DEFUN queryMsg(struct MsgCore_pvt* mcp,
     return Error(msg, "INVALID");
 }
 
-static int qhOnFree(struct Allocator_OnFreeJob* job)
+static void qhOnFree(struct Allocator_OnFreeJob* job)
 {
     struct QueryHandler* qh = Identity_check((struct QueryHandler*) job->userData);
     struct MsgCore_pvt* mcp = Identity_check((struct MsgCore_pvt*) qh->mcp);
@@ -256,10 +256,9 @@ static int qhOnFree(struct Allocator_OnFreeJob* job)
         struct QueryHandler* qhx = ArrayList_OfQueryHandlers_get(mcp->qh, i);
         if (qhx == qh) {
             ArrayList_OfQueryHandlers_remove(mcp->qh, i);
-            return 0;
+            return;
         }
     }
-    return 0;
 }
 
 struct MsgCore_Handler* MsgCore_onQuery(struct MsgCore* core,
