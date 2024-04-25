@@ -20,6 +20,7 @@
 #endif
 
 #include "benc/Dict.h"
+#include "wire/Message.h"
 
 /**
  * Maximum number of bytes in a message.
@@ -39,7 +40,7 @@ struct DHTMessage
 {
     struct Address* address;
 
-    struct Message* binMessage;
+    Message_t* binMessage;
 
     /** The message as a bencoded dictionary. */
     Dict* asDict;

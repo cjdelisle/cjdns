@@ -31,7 +31,7 @@ Linker_require("admin/angel/InterfaceWaiter.c")
  * @param eh an exception handler in case something goes wrong.
  * @return the message.
  */
-struct Message* InterfaceWaiter_waitForData(struct Iface* iface,
+Message_t* InterfaceWaiter_waitForData(struct Iface* iface,
                                             EventBase_t* eventBase,
                                             struct Allocator* alloc,
                                             struct Except* eh);

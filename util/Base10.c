@@ -17,6 +17,7 @@
 #include "wire/Message.h"
 #include "exception/Except.h"
 #include "util/CString.h"
+#include "rust/cjdns_sys/Rffi.h"
 
 #include <stdbool.h>
 
@@ -41,45 +42,23 @@ Er_DEFUN(void Base10_write(Message_t* msg, int64_t num))
 
 Er_DEFUN(int64_t Base10_read(Message_t* msg))
 {
-    int64_t out = 0;
-    bool negative = false;
-    uint8_t chr = Er(Message_epop8(msg));
-    if (chr == '-') {
-        negative = true;
-        chr = Er(Message_epop8(msg));
+    int64_t numOut = 0;
+    uint32_t bytes = 0;
+    int out = Rffi_parseBase10(
+        Message_bytes(msg), Message_getLength(msg), &numOut, &bytes);
+    if (out != 0) {
+        Er_raise(Message_getAlloc(msg), "Error reading base10: %d", out);
     }
-    if (chr >= '0' && chr <= '9') {
-        while (chr >= '0' && chr <= '9') {
-            out *= 10;
-            out += chr - '0';
-            if (Message_getLength(msg) == 0) {
-                if (negative) { out = -out; }
-                Er_ret(out);
-            }
-            chr = Er(Message_epop8(msg));
-        }
-        Er(Message_epush8(msg, chr));
-        if (negative) { out = -out; }
-        Er_ret(out);
-    } else {
-        Er(Message_epush8(msg, chr));
-        Er_raise(Message_getAlloc(msg), "No base10 characters found");
-    }
+    Er(Message_eshift(msg, -bytes));
+    Er_ret(numOut);
 }
 
 int Base10_fromString(uint8_t* str, int64_t* numOut)
 {
-    int len = CString_strlen(str);
+    int len = CString_strlen((char*)str);
     if (len < 1) {
         return -1;
-    } else if (str[0] == '-') {
-        if (len < 2 || str[1] < '0' || str[1] > '9') {
-            return -1;
-        }
-    } else if (str[0] < '0' || str[0] > '9') {
-        return -1;
     }
-    struct Message msg = Message_foreign(len, str);
-    *numOut = Er_assert(Base10_read(&msg));
-    return 0;
+    uint32_t bytes = 0;
+    return Rffi_parseBase10(str, len, numOut, &bytes);
 }

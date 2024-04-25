@@ -224,6 +224,8 @@ void Rffi_glock(void);
 
 void Rffi_gunlock(void);
 
+int Rffi_parseBase10(const uint8_t *buf, uint32_t max_len, int64_t *num_out, uint32_t *bytes);
+
 /**
  * Create a root level allocator.
  */

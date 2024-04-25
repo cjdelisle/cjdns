@@ -25,11 +25,11 @@ Linker_require("benc/serialization/json/JsonBencMessageReader.c")
 #include <stdbool.h>
 
 Er_DEFUN(Dict* JsonBencMessageReader_read(
-    struct Message* msg,
+    Message_t* msg,
     struct Allocator* alloc,
     bool lax
 ));
 const char* JsonBencMessageReader_readNoExcept(
-    struct Message* msg, struct Allocator* alloc, Dict** outPtr, bool lax);
+    Message_t* msg, struct Allocator* alloc, Dict** outPtr, bool lax);
 
 #endif

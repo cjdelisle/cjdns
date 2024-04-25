@@ -11,6 +11,7 @@ mod network;
 mod time;
 mod util;
 mod glock;
+mod base10;
 pub mod allocator;
 
 use crate::bytestring::ByteString;

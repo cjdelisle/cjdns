@@ -35,7 +35,7 @@ struct LinkState {
 };
 
 static inline int LinkState_encode(
-    struct Message* msg,
+    Message_t* msg,
     struct LinkState* ls,
     uint32_t lastSamples)
 {
@@ -86,7 +86,7 @@ static inline int LinkState_encode(
     return 0;
 }
 
-static inline int LinkState_mkDecoder(struct Message* msg, struct VarInt_Iter* it)
+static inline int LinkState_mkDecoder(Message_t* msg, struct VarInt_Iter* it)
 {
     if (!Message_getLength(msg)) { return 1; }
     uint8_t len = Message_bytes(msg)[0];

@@ -19,7 +19,7 @@
 #include "crypto/random/Random.h"
 #include "wire/Message.h"
 
-void CJDNS_FUZZ_MAIN(void* vctx, struct Message* fuzz);
+void CJDNS_FUZZ_MAIN(void* vctx, Message_t* fuzz);
 void* CJDNS_FUZZ_INIT(struct Allocator* alloc, struct Random* rand);
 
 #endif

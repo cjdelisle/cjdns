@@ -133,7 +133,7 @@ struct CryptoAuth_Session* CryptoAuth_newSession(struct CryptoAuth* ca,
                                                  bool useNoise);
 
 /** @return 0 on success, -1 otherwise. */ // Now only used in unit tests on Rust side
-int CryptoAuth_encrypt(struct CryptoAuth_Session* session, struct Message* msg);
+int CryptoAuth_encrypt(struct CryptoAuth_Session* session, Message_t* msg);
 
 enum CryptoAuth_DecryptErr {
     CryptoAuth_DecryptErr_NONE = 0,
@@ -185,7 +185,7 @@ enum CryptoAuth_DecryptErr {
 // returns 0 if everything if ok, otherwise an encryption error.
 // If there is an error, the content of the message MIGHT already be decrypted !
 // Now only used in unit tests on Rust side
-enum CryptoAuth_DecryptErr CryptoAuth_decrypt(struct CryptoAuth_Session* sess, struct Message* msg);
+enum CryptoAuth_DecryptErr CryptoAuth_decrypt(struct CryptoAuth_Session* sess, Message_t* msg);
 
 /**
  * Choose the authentication credentials to use.

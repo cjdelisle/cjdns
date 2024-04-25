@@ -23,6 +23,6 @@
 Linker_require("crypto/test/CryptoAuthFuzz.c")
 
 void* CryptoAuthFuzz_init(struct Allocator* alloc, struct Random* rand, enum TestCa_Config cfg);
-void CryptoAuthFuzz_main(void* vctx, struct Message* fuzz);
+void CryptoAuthFuzz_main(void* vctx, Message_t* fuzz);
 
 #endif

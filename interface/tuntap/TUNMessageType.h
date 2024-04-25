@@ -18,7 +18,7 @@
 #include "util/Defined.h"
 #include "wire/Message.h"
 
-static inline Er_DEFUN(void TUNMessageType_push(struct Message* message,
+static inline Er_DEFUN(void TUNMessageType_push(Message_t* message,
                                        uint16_t ethertype))
 {
     Er(Message_eshift(message, 4));
@@ -27,7 +27,7 @@ static inline Er_DEFUN(void TUNMessageType_push(struct Message* message,
     Er_ret();
 }
 
-static inline Er_DEFUN(uint16_t TUNMessageType_pop(struct Message* message))
+static inline Er_DEFUN(uint16_t TUNMessageType_pop(Message_t* message))
 {
     Er(Message_eshift(message, -4));
     Er_ret( ((uint16_t*) Message_bytes(message))[-1] );

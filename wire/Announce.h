@@ -71,7 +71,7 @@ struct Announce_EncodingScheme
     uint8_t scheme[2];
 };
 
-static inline void Announce_EncodingScheme_push(struct Message* pushTo, String* compressedScheme)
+static inline void Announce_EncodingScheme_push(Message_t* pushTo, String* compressedScheme)
 {
     Assert_true(compressedScheme->len + 2 < 256);
     Er_assert(Message_epush(pushTo, compressedScheme->bytes, compressedScheme->len));
@@ -173,7 +173,7 @@ struct Announce_LinkState
     uint8_t linkState[1];
 };
 
-static inline void Announce_LinkState_applyHeader(struct Message* pushTo)
+static inline void Announce_LinkState_applyHeader(Message_t* pushTo)
 {
     Assert_failure("todo implement");
 }
@@ -327,7 +327,7 @@ static inline void Announce_Header_setVersion(struct Announce_Header* hdr, int v
     Bits_memcpy(hdr->timeStampVersionFlags_be, &ts_be, sizeof(uint64_t));
 }
 
-static inline struct Announce_ItemHeader* Announce_ItemHeader_next(struct Message* msg, void* last)
+static inline struct Announce_ItemHeader* Announce_ItemHeader_next(Message_t* msg, void* last)
 {
     struct Announce_ItemHeader* ih = (struct Announce_ItemHeader*) last;
     if (ih) {
@@ -395,7 +395,7 @@ static inline bool Announce_ItemHeader_doesReplace(
 }
 
 static inline struct Announce_ItemHeader* Announce_itemInMessage(
-    struct Message* msg,
+    Message_t* msg,
     struct Announce_ItemHeader* ref)
 {
     struct Announce_ItemHeader* ih = NULL;
@@ -405,7 +405,7 @@ static inline struct Announce_ItemHeader* Announce_itemInMessage(
     return ih;
 }
 
-static inline bool Announce_isValid(struct Message* msg)
+static inline bool Announce_isValid(Message_t* msg)
 {
     struct Announce_ItemHeader* ih = NULL;
     for (;;) {
@@ -415,7 +415,7 @@ static inline bool Announce_isValid(struct Message* msg)
     }
 }
 
-static inline struct Announce_Peer* Announce_Peer_next(struct Message* msg, void* last)
+static inline struct Announce_Peer* Announce_Peer_next(Message_t* msg, void* last)
 {
     struct Announce_ItemHeader* ih = (struct Announce_ItemHeader*) last;
     do {

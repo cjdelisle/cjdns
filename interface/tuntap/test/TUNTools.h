@@ -25,9 +25,9 @@ Linker_require("interface/tuntap/test/TUNTools.c")
 
 struct TUNTools;
 
-typedef Iface_DEFUN (* TUNTools_Callback)(struct Message* msg, struct TUNTools* tt);
+typedef Iface_DEFUN (* TUNTools_Callback)(Message_t* msg, struct TUNTools* tt);
 
-Iface_DEFUN TUNTools_genericIP6Echo(struct Message* msg, struct TUNTools* tt);
+Iface_DEFUN TUNTools_genericIP6Echo(Message_t* msg, struct TUNTools* tt);
 
 extern const uint8_t* TUNTools_testIP6AddrA;
 extern const uint8_t* TUNTools_testIP6AddrB;

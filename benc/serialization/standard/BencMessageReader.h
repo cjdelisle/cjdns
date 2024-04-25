@@ -22,9 +22,9 @@
 #include "util/Linker.h"
 Linker_require("benc/serialization/standard/BencMessageReader.c")
 
-Er_DEFUN(Dict* BencMessageReader_read(struct Message* msg, struct Allocator* alloc));
+Er_DEFUN(Dict* BencMessageReader_read(Message_t* msg, struct Allocator* alloc));
 
 const char* BencMessageReader_readNoExcept(
-    struct Message* msg, struct Allocator* alloc, Dict** outPtr);
+    Message_t* msg, struct Allocator* alloc, Dict** outPtr);
 
 #endif

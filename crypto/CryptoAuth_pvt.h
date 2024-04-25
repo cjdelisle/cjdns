@@ -135,14 +135,14 @@ struct CryptoAuth_Session_pvt
 };
 
 
-//uint8_t CryptoAuth_receiveMessage(struct Message* received, struct Iface* interface);
+//uint8_t CryptoAuth_receiveMessage(Message_t* received, struct Iface* interface);
 
-//uint8_t CryptoAuth_encryptHandshake(struct Message* message,
+//uint8_t CryptoAuth_encryptHandshake(Message_t* message,
 //                                    struct CryptoAuth_Wrapper* wrapper,
 //                                    int setupMessage);
 
-int CryptoAuth_decryptRndNonce(const uint8_t nonce[24], struct Message* msg, const uint8_t secret[32]);
+int CryptoAuth_decryptRndNonce(const uint8_t nonce[24], Message_t* msg, const uint8_t secret[32]);
 
-void CryptoAuth_encryptRndNonce(const uint8_t nonce[24], struct Message* msg, const uint8_t secret[32]);
+void CryptoAuth_encryptRndNonce(const uint8_t nonce[24], Message_t* msg, const uint8_t secret[32]);
 
 #endif

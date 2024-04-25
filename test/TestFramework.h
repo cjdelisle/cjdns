@@ -37,13 +37,13 @@ struct TestFramework
     struct EncodingScheme* scheme;
 
     /** The last message which this node sent. */
-    struct Message* lastMsg;
+    Message_t* lastMsg;
 
     /**
      * A backup of the last message which this node sent.
      * Used to check if the framework alters the message after sending it.
      */
-    struct Message* lastMsgBackup;
+    Message_t* lastMsgBackup;
 
     uint8_t* publicKey;
     uint8_t* ip;
@@ -65,7 +65,7 @@ void TestFramework_linkNodes(struct TestFramework* client,
                              struct TestFramework* server,
                              bool beacon);
 
-void TestFramework_craftIPHeader(struct Message* msg, uint8_t srcAddr[16], uint8_t destAddr[16]);
+void TestFramework_craftIPHeader(Message_t* msg, uint8_t srcAddr[16], uint8_t destAddr[16]);
 
 /** Check if the last message sent was altered after having been sent. */
 void TestFramework_assertLastMessageUnaltered(struct TestFramework* tf);

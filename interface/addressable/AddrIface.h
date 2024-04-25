@@ -40,13 +40,13 @@ typedef struct AddrIface
     struct Allocator* alloc;
 } AddrIface_t;
 
-static inline Er_DEFUN(void AddrIface_pushAddr(struct Message* msg, const struct Sockaddr* addr))
+static inline Er_DEFUN(void AddrIface_pushAddr(Message_t* msg, const struct Sockaddr* addr))
 {
     Er(Message_epush(msg, addr, addr->addrLen));
     Er_ret();
 }
 
-static inline Er_DEFUN(struct Sockaddr* AddrIface_popAddr(struct Message* msg))
+static inline Er_DEFUN(struct Sockaddr* AddrIface_popAddr(Message_t* msg))
 {
     struct Sockaddr* out = (struct Sockaddr*) Message_bytes(msg);
     uint16_t len = Er(Message_epop16h(msg));

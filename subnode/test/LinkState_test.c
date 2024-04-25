@@ -13,6 +13,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "crypto/random/Random.h"
+#include "exception/Er.h"
 #include "memory/Allocator.h"
 #include "subnode/LinkState.h"
 #include "util/Assert.h"
@@ -110,7 +111,7 @@ static void assertSame(struct LinkState* beforeState,
     Assert_true(!Bits_memcmp(&local, updated, sizeof(struct LinkState)));
 }
 
-static void testStatic()
+static void testStatic(Allocator_t* alloc)
 {
     uint8_t* hex =
         "\x20\x03\x06\x00\x00\x00\x00\x00\x00"
@@ -124,8 +125,9 @@ static void testStatic()
         "\x13\x00\x01";
     struct LinkState ls = { .nodeId = 0 };
     struct VarInt_Iter it = { .start = 0 };
-    struct Message msg = Message_foreign(32, hex);
-    Assert_true(!LinkState_mkDecoder(&msg, &it));
+    Message_t* msg = Message_new(0, 512, alloc);
+    Er_assert(Message_epush(msg, hex, 32));
+    Assert_true(!LinkState_mkDecoder(msg, &it));
     Assert_true(!LinkState_decode(&it, &ls));
     // printf("%u %u\n", ls.nodeId, ls.samples);
     // for (int i = 0; i < LinkState_SLOTS; i++) {
@@ -144,8 +146,8 @@ static void testStatic()
 
 int main(int argc, char* argv[])
 {
-    testStatic();
     struct Allocator* mainAlloc = Allocator_new(1<<18);
+    testStatic(mainAlloc);
     struct Random* rand = Random_new(mainAlloc, NULL, NULL);
 
     int cycles = CYCLES;

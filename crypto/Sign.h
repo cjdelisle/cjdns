@@ -23,10 +23,10 @@ Linker_require("crypto/Sign.c")
 void Sign_signingKeyPairFromCurve25519(uint8_t keypairOut[64], uint8_t secretCryptoKey[32]);
 
 /** Pushes 64 bit sig to message. */
-void Sign_signMsg(uint8_t keyPair[64], struct Message* msg, struct Random* rand);
+void Sign_signMsg(uint8_t keyPair[64], Message_t* msg, struct Random* rand);
 
 /** returns 0 and pops sig if signature check passes, zeros message content if it fails! */
-int Sign_verifyMsg(uint8_t publicSigningKey[32], struct Message* msg);
+int Sign_verifyMsg(uint8_t publicSigningKey[32], Message_t* msg);
 
 int Sign_publicSigningKeyToCurve25519(uint8_t curve25519keyOut[32], uint8_t publicSigningKey[32]);
 

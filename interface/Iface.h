@@ -30,7 +30,7 @@ struct Iface;
  * @param thisInterface the interface which contains the sendMessage function pointer.
  * @param message the message
  */
-typedef struct RTypes_Error_t* (* Iface_Callback)(struct Message* message, struct Iface* thisInterface);
+typedef struct RTypes_Error_t* (* Iface_Callback)(Message_t* message, struct Iface* thisInterface);
 
 #define Iface_DEFUN __attribute__ ((warn_unused_result)) struct RTypes_Error_t*
 
@@ -41,7 +41,7 @@ struct Iface
 
     #ifdef PARANOIA
         /** This is for checking currentMsg Iface_next() has not been called incorrectly. */
-        struct Message* currentMsg;
+        Message_t* currentMsg;
     #endif
 
     /** Interface to which this one is connected (if connected) */
@@ -51,7 +51,7 @@ struct Iface
 } /* Iface_t defined in RffiPrefix.h */;
 
 // This needs to be in a C file in order to be accessible from Rust
-Iface_DEFUN Iface_incomingFromRust(struct Message* message, struct Iface* thisInterface);
+Iface_DEFUN Iface_incomingFromRust(Message_t* message, struct Iface* thisInterface);
 
 void Iface_setIdentity(struct Iface* iface);
 void Iface_checkIdentity(struct Iface* iface);
@@ -64,7 +64,7 @@ void Iface_checkIdentity(struct Iface* iface);
  * assertion error, in order to forward the message which you received, you must use Iface_next()
  * and it must be a tail-call.
  */
-static inline struct RTypes_Error_t* Iface_send(struct Iface* iface, struct Message* msg)
+static inline struct RTypes_Error_t* Iface_send(struct Iface* iface, Message_t* msg)
 {
     Iface_checkIdentity(iface);
     struct Iface* conn = iface->connectedIf;
@@ -74,7 +74,7 @@ static inline struct RTypes_Error_t* Iface_send(struct Iface* iface, struct Mess
         Assert_true(conn);
         Assert_true(conn->send);
         Assert_true(msg);
-        struct Message* currentMsg = conn->currentMsg;
+        Message_t* currentMsg = conn->currentMsg;
         msg->currentIface = conn;
         conn->currentMsg = msg;
     #endif
@@ -92,11 +92,11 @@ static inline struct RTypes_Error_t* Iface_send(struct Iface* iface, struct Mess
 /**
  * Forward a message from inside of an Iface_Callback function.
  */
-static inline Iface_DEFUN Iface_next(struct Iface* iface, struct Message* msg)
+static inline Iface_DEFUN Iface_next(struct Iface* iface, Message_t* msg)
 {
     #ifdef PARANOIA
         struct Iface* conn = iface->connectedIf;
-        struct Message* currentMsg = conn->currentMsg;
+        Message_t* currentMsg = conn->currentMsg;
         Assert_true(msg->currentIface);
         Assert_true(msg->currentIface->currentMsg == msg);
         msg->currentIface->currentMsg = NULL;

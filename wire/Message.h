@@ -94,16 +94,6 @@ static inline int32_t Message_getCapacity(struct Message* msg)
     return msg->_capacity;
 }
 
-static inline Message_t Message_foreign(uint32_t len, uint8_t* bytes)
-{
-    return (Message_t){ ._length = len, ._msgbytes = bytes, ._capacity = len };
-}
-
-// static inline Er_DEFUN(void Message_ecopy(struct Message* to, struct Message* from, uint32_t amt))
-// {
-    
-// }
-
 struct Message* Message_new(uint32_t messageLength,
                                           uint32_t amountOfPadding,
                                           struct Allocator* alloc);
