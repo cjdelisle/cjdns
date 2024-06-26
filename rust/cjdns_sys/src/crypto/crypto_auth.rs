@@ -1940,7 +1940,7 @@ mod tests {
             };
 
             let res = unsafe {
-                let name = cffi::String_new(name.as_ptr() as *const i8, alloc);
+                let name = cffi::String_new(name.as_ptr() as *const std::os::raw::c_char, alloc);
                 cffi::CryptoAuth_addUser_ipv6(name, name, std::ptr::null_mut(), ca)
             };
             assert_eq!(res, 0, "CryptoAuth_addUser_ipv6() failed: {}", res);
@@ -1951,7 +1951,7 @@ mod tests {
                     alloc,
                     pub_key.as_ptr(),
                     false,
-                    format!("{}'s session", name).as_mut_ptr() as *mut i8,
+                    format!("{}'s session", name).as_mut_ptr() as *mut std::os::raw::c_char,
                     false,
                 )
             }
@@ -1992,7 +1992,7 @@ mod tests {
             };
 
             let res = unsafe {
-                let name = cffi::String_new(name.as_ptr() as *const i8, alloc);
+                let name = cffi::String_new(name.as_ptr() as *const std::os::raw::c_char, alloc);
                 cffi::CryptoAuth_addUser_ipv6(name, name, std::ptr::null_mut(), ca)
             };
             assert_eq!(res, 0, "CryptoAuth_addUser_ipv6() failed: {}", res);
@@ -2003,7 +2003,7 @@ mod tests {
                     alloc,
                     pub_key.as_ptr(),
                     false,
-                    format!("{}'s session", name).as_mut_ptr() as *mut i8,
+                    format!("{}'s session", name).as_mut_ptr() as *mut std::os::raw::c_char,
                     false,
                 )
             }

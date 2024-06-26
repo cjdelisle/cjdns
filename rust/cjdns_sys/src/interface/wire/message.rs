@@ -371,7 +371,7 @@ mod tests {
         use crate::cffi::Allocator;
 
         pub(super) fn new_allocator(size_limit: u64) -> *mut Allocator {
-            unsafe { crate::cffi::MallocAllocator__new(size_limit, "".as_ptr() as *const i8, 0) }
+            unsafe { crate::cffi::MallocAllocator__new(size_limit, "".as_ptr() as *const std::os::raw::c_char, 0) }
         }
     }
 
