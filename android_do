@@ -1,28 +1,41 @@
 #!/bin/sh
 
 # Fedora
-# dnf install wget git make which patch findutils unzip
+# dnf install curl git make which patch findutils unzip
 # Ubuntu
-# apt install wget git build-essential unzip time python
+# apt install curl git build-essential unzip time python
 
 # ./android_do
-die() { echo "Error: $1"; exit 1; }
-need() { which "$1" >/dev/null 2>/dev/null || die "Missing $1"; }
-need which
-need wget
-need git
-need make
-need patch
-need find
-need unzip
-need ls
-need uname
-need pwd
-need mkdir
-need rm
-need time
-need rustc
-need cargo
+
+set -ef
+
+die() { printf "Error: %s\n" "$*"; exit 1; }
+commands="which curl git make patch find unzip time rustc cargo"
+use_curl=true
+
+for i in $commands; do
+  case $i in
+    curl)
+      if ! command -v "$i" > /dev/null 2>&1; then
+        use_curl=false
+        if ! command -v "wget" > /dev/null 2>&1; then
+          commands_failed="[curl || wget] $commands_failed"
+        fi
+      fi
+      ;;
+    *)
+      if ! command -v "$i" > /dev/null 2>&1; then
+        commands_failed="$i $commands_failed"
+      fi
+      ;;
+  esac
+done
+
+if [ -n "$commands_failed" ]; then
+  commands_failed=${commands_failed% *}
+  die "$commands_failed is not found in your \$PATH.
+Please install them and re-run the script.\n"
+fi
 
 BUILD_PATH=$(pwd)/build_android
 NDK_VERSION="android-ndk-r25b"
@@ -39,16 +52,16 @@ case $(uname -s) in
         ;;
 esac
 
-if test "x$CJDNS_NDK_PATH" != "x"; then
-  false # we already have an ndk path...
-elif test "x$TYPE" = xdarwin; then
+if [ -n "$CJDNS_NDK_PATH" ]; then
+  true # we already have an ndk path...
+elif [ "$TYPE" = darwin ]; then
   CJDNS_NDK_PATH_HINT=$(echo "$HOME"/Library/Android/sdk/ndk/* | tail -1)
-elif test "x$TYPE" = xlinux; then
+elif [ "$TYPE" = linux ]; then
   CJDNS_NDK_PATH_HINT=$(echo "$HOME"/Android/Sdk/ndk/* | tail -1)
 fi
 
-if test "x$CJDNS_NDK_PATH" = "x"; then
-  if test "x$CJDNS_NDK_PATH_HINT" != "x" && [ -d "$CJDNS_NDK_PATH_HINT" ]; then
+if [ -z "$CJDNS_NDK_PATH" ]; then
+  if [ -n "$CJDNS_NDK_PATH_HINT" ] && [ -d "$CJDNS_NDK_PATH_HINT" ]; then
     echo "Using NDK at path $CJDNS_NDK_PATH_HINT"
     CJDNS_NDK_PATH=$CJDNS_NDK_PATH_HINT
   elif [ -d "$BUILD_PATH/$NDK_VERSION/" ]; then
@@ -67,17 +80,22 @@ cpu_arch="$(uname -m)"
 [ -z "$cpu_arch" ] && die "NO CPU ARCHITECTURE DETECTED"
 [ "$cpu_arch" = "i686" ] && cpu_arch="x86"
 
-if test "x$CJDNS_NDK_PATH" = "x"; then
-  mkdir "$BUILD_PATH" 2>/dev/null
-  cd "$BUILD_PATH"
+if [ -z "$CJDNS_NDK_PATH" ]; then
+  if ! mkdir -p -- "$BUILD_PATH" || ! cd -- "$BUILD_PATH"; then
+    die "Failed to create directory $BUILD_PATH (maybe no disk space?)"
+  fi
   filename="$NDK_VERSION-${TYPE}.zip"
   echo "$filename"
   if ! [ -f "$filename" ]; then
-    url="https://dl.google.com/android/repository/$NDK_VERSION-${TYPE}.zip"
-    wget "$url" || die "wget $url failed"
+    url="https://dl.google.com/android/repository/$filename"
+    if [ "$use_curl" = true ]; then
+      curl -LfS --tlsv1.3 --output "$filename" -- "$url" || die "curl $url failed"
+    else
+      wget --secure-protocol=TLSv1_3 -O "$filename" -- "$url" || die "wget $url failed"
+    fi
   fi
   if ! [ -d "$NDK_VERSION" ]; then
-    unzip -q "$filename" || die "failed to unzip "
+    unzip -q "$filename" || die "failed to unzip"
   fi
   CJDNS_NDK_PATH="$BUILD_PATH/$NDK_VERSION"
   [ -d "$CJDNS_NDK_PATH" ] || die "NDK zip file does not contain expected content"
@@ -104,15 +122,15 @@ BUILD_3='
 '
 
 # https://github.com/rust-lang/rust/pull/85806
-find "${BUILD_PATH}" -name 'libunwind.a' | \
+find "$BUILD_PATH" -name 'libunwind.a' | \
   sed 's@libunwind.a$@libgcc.a@' | \
-  while read x; do
-    echo "INPUT(-lunwind)" > $x
+  while read -r x; do
+    echo "INPUT(-lunwind)" > "$x"
   done
 
 for i in $(seq 0 100); do
   BUILD=$(eval echo "\$BUILD_$i")
-  if test "x$BUILD" = "x"; then
+  if [ -z "$BUILD" ]; then
     continue
   fi
   RUST_TARGET=
@@ -120,7 +138,7 @@ for i in $(seq 0 100); do
   VERSION=
   EABI=android
   export $BUILD
-  if test "x$RUST_TARGET" = "x"; then
+  if [ -z "$RUST_TARGET" ]; then
     RUST_TARGET="$APP_ABI-linux-$EABI"
   fi
 
@@ -136,21 +154,21 @@ for i in $(seq 0 100); do
   CROSS_PATH=$CJDNS_NDK_PATH/toolchains/llvm/prebuilt/${TYPE}-${cpu_arch}/bin
   CROSS_PREFIX=${CROSS_PATH}/llvm
 
-  export CC=${CROSS_PATH}/${APP_ABI}-linux-${EABI}${VERSION}-clang
+  export CC="${CROSS_PATH}/${APP_ABI}-linux-${EABI}${VERSION}-clang"
 
   # Used by cjdns nodejs build
   export SYSTEM=linux
   export CROSS=1
 
   # Used by cjdns libuv build AND sodiumoxide
-  export AR=${CROSS_PREFIX}-ar
-  export RANLIB=${CROSS_PREFIX}-ranlib
+  export AR="${CROSS_PREFIX}-ar"
+  export RANLIB="${CROSS_PREFIX}-ranlib"
 
   # Whatever target we happen to be using, use CC as the linker
-  export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER=$CC
-  export CARGO_TARGET_I686_LINUX_ANDROID_LINKER=$CC
-  export CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER=$CC
-  export CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER=$CC
+  export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$CC"
+  export CARGO_TARGET_I686_LINUX_ANDROID_LINKER="$CC"
+  export CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER="$CC"
+  export CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER="$CC"
 
   echo "Compiler CC: $CC - $(${CC} --version)"
   cargo build --release -v --target "$RUST_TARGET"
