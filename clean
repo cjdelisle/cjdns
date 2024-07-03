@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 # You may redistribute this program and/or modify it under the terms of
 # the GNU General Public License as published by the Free Software Foundation,
 # either version 3 of the License, or (at your option) any later version.
@@ -11,12 +11,16 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+set -uf
+
 safeclean()
 {
     echo "Oh look, a file called cjdroute.conf! I'll try not to touch it."
-    git clean -dxf -e cjdroute.conf ||
+    if ! git clean -dxf -e cjdroute.conf; then
         echo "Damn, your version of git won't let me do that,
- please move cjdroute.conf to a safe place and try again"
+ please move cjdroute.conf to a safe place and try again."
+        exit 1
+    fi
 }
 
 git reset --hard
