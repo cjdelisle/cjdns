@@ -12,11 +12,11 @@ if [[ "${DEB_BUILD_OPTIONS}" =~ nocheck ]]; then
 fi
 
 # Pass through prefix overrides if they are set
-if [[ ${DEB_ADDRESS_PREFIX} && ${DEB_ADDRESS_PREFIX-x} ]]; then
+if [ -n "${DEB_ADDRESS_PREFIX+x}" ]; then
     export ADDRESS_PREFIX="${DEB_ADDRESS_PREFIX}"
 fi
 
-if [[ ${DEB_ADDRESS_PREFIX_BITS} && ${DEB_ADDRESS_PREFIX_BITS-x} ]]; then
+if [ -n "${DEB_ADDRESS_PREFIX_BITS+x}" ]; then
     export ADDRESS_PREFIX_BITS="${DEB_ADDRESS_PREFIX_BITS}"
 fi
 
