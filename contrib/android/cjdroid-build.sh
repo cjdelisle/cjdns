@@ -48,10 +48,39 @@
 #  Use a different branch:
 #   Run: cjdroid-bulid.sh branchname
 
+die() { printf "Error: %s\n" "$*"; exit 1; }
+commands="install curl git tar"
+use_curl=true
+
+for i in $commands; do
+  case $i in
+    curl)
+      if ! command -v "$i" > /dev/null 2>&1; then
+        use_curl=false
+        if ! command -v "wget" > /dev/null 2>&1; then
+          commands_failed="[curl || wget] $commands_failed"
+        fi
+      fi
+      ;;
+    *)
+      if ! command -v "$i" > /dev/null 2>&1; then
+        commands_failed="$i $commands_failed"
+      fi
+      ;;
+  esac
+done
+
+if [ -n "$commands_failed" ]; then
+  commands_failed=${commands_failed% *}
+  die "$commands_failed is not found in your \$PATH.
+Please install them and re-run the script."
+fi
+
 ##CONFIGURABLE VARIABLES
 cjdns_repo="https://github.com/cjdelisle/cjdns/"
-[[ -n "$1" ]] \
-    && cjdns_repo_branch="-$1"
+if [ -n "$1" ]; then
+  cjdns_repo_branch="-$1"
+fi
 
 build_dir="$PWD/build_android"
 src_dir="$build_dir/source"
