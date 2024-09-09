@@ -33,8 +33,6 @@
 struct Security_Permissions
 {
     int noOpenFiles;
-    int seccompExists;
-    int seccompEnforcing;
     int uid;
 };
 
@@ -54,8 +52,6 @@ Er_DEFUN(void Security_nofiles(struct Allocator* errAlloc));
 Er_DEFUN(void Security_noforks(struct Allocator* errAlloc));
 
 Er_DEFUN(void Security_chroot(char* root, struct Allocator* errAlloc));
-
-Er_DEFUN(void Security_seccomp(struct Allocator* tempAlloc, struct Log* logger));
 
 void Security_setupComplete(struct Security* security);
 

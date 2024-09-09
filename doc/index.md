@@ -71,7 +71,6 @@ You can contribute to its documentaion: https://github.com/hyperboria/docs
 - Troubleshooting
   - [Read this first](bugs/policy.md)
   - [Memory leaks](debugging_memory_leaks.md)
-  - [SecComp](Seccomp.md)
   - [Analyzing network IO](TrafficAnalisys.md)
   - Known issues
     - [Black Hole](bugs/black-hole.md)

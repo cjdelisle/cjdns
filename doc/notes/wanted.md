@@ -27,7 +27,7 @@ If you see something listed here that has been taken care of, please knock it of
     - allows obfsproxy deployment
   + in datacenters (private networking)
   + over iodine
-* Security mechanisms (seccomp, angel/core, etc.)
+* Security mechanisms (angel/core, etc.)
 * WiFi Recommendations
 * cjdns/contrib/ scripts
   + dumpTable

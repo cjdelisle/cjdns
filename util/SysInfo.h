@@ -35,7 +35,6 @@ enum SysInfo_Os
 
 struct SysInfo
 {
-    int seccomp : 1;
     int os : 4;
 };
 Assert_compileTime(sizeof(struct SysInfo) == 4);

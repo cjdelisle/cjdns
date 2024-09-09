@@ -22,7 +22,7 @@ apt install -y nodejs
 cd /opt
 git clone https://github.com/cjdelisle/cjdns.git
 cd cjdns
-NO_TEST=1 Seccomp_NO=1 ./do
+NO_TEST=1 ./do
 ln -s /opt/cjdns/cjdroute /usr/bin
 
 # Generate a config file

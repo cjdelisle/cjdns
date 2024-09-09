@@ -385,20 +385,7 @@ static int genconf(struct Allocator* alloc, struct Random* rand, bool eth, bool 
            "        // Noforks will prevent cjdns from spawning any new processes or threads,\n"
            "        // this prevents many types of exploits from attacking the wider system.\n"
            "        // Default: enabled\n"
-           "        { \"noforks\": 1 },\n"
-           "\n"
-           "        // Seccomp is the most advanced sandboxing feature in cjdns, it uses\n"
-           "        // SECCOMP_BPF to filter the system calls which cjdns is able to make on a\n"
-           "        // linux system, strictly limiting it's access to the outside world\n"
-           "        // This will fail quietly on any non-linux system\n");
-          if (Defined(Cjdns_android)) {
-    printf("        // Default: disabled\n"
-           "        { \"seccomp\": 0 },\n");
-          }
-          else {
-    printf("        // Default: enabled\n"
-           "        { \"seccomp\": 1 },\n");
-          }
+           "        { \"noforks\": 1 },\n");
     printf("\n"
            "        // The client sets up the core using a sequence of RPC calls, the responses\n"
            "        // to these calls are verified but in the event that the client crashes\n"
@@ -786,8 +773,7 @@ int cjdroute2_main(int argc, char** argv)
             break;
         }
         // sleep 50ms
-        struct timespec timeout = { 0, 1000000 * 50 };
-        nanosleep(&timeout, NULL);
+        Rffi_sleep_ms_sync(50);
     }
     if (!exists) {
         Except_throw(eh, "Core did not setup pipe file [%s] within 60 seconds",

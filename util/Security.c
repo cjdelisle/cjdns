@@ -18,7 +18,6 @@
 #include "exception/Except.h"
 #include "util/log/Log.h"
 #include "util/Security.h"
-#include "util/Seccomp.h"
 #include "memory/Allocator.h"
 #include "util/Bits.h"
 #include "util/Setuid.h"
@@ -137,12 +136,6 @@ Er_DEFUN(void Security_chroot(char* root, struct Allocator* errAlloc))
     Er_ret();
 }
 
-Er_DEFUN(void Security_seccomp(struct Allocator* tempAlloc, struct Log* logger))
-{
-    Er(Seccomp_dropPermissions(tempAlloc, logger));
-    Er_ret();
-}
-
 struct Security_pvt
 {
     struct Security pub;
@@ -181,8 +174,6 @@ Er_DEFUN(struct Security_Permissions* Security_checkPermissions(struct Allocator
         Allocator_calloc(alloc, sizeof(struct Security_Permissions), 1);
 
     out->noOpenFiles = !canOpenFiles();
-    out->seccompExists = Seccomp_exists();
-    out->seccompEnforcing = Seccomp_isWorking();
     out->uid = getuid();
 
     Er_ret(out);

@@ -22,3 +22,8 @@ pub extern "C" fn Rffi_now_ms() -> u64 {
 
     (Instant::now() - *BASE_INSTANT).as_millis() as u64 + *INSTANT_OFFSET
 }
+
+#[no_mangle]
+pub extern "C" fn Rffi_sleep_ms_sync(ms: u64) {
+    std::thread::sleep(Duration::from_millis(ms));
+}

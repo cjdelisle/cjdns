@@ -14,7 +14,6 @@
  */
 #include "memory/Allocator.h"
 #include "util/SysInfo.h"
-#include "util/Seccomp.h"
 #include "util/CString.h"
 #include "util/Bits.h"
 #include "util/Defined.h"
@@ -43,8 +42,6 @@ struct SysInfo SysInfo_detect(void)
         out.os = SysInfo_Os_UNKNOWN;
     }
 
-    out.seccomp = Seccomp_exists();
-
     return out;
 }
 
@@ -64,9 +61,8 @@ static char* getName(enum SysInfo_Os os)
 char* SysInfo_describe(struct SysInfo si, struct Allocator* alloc)
 {
     uint8_t buff[BUFF_SZ];
-    snprintf(buff, BUFF_SZ, "%s%s",
-             getName(si.os),
-             (si.seccomp) ? " +seccomp" : "");
+    snprintf(buff, BUFF_SZ, "%s",
+             getName(si.os));
 
     int len = CString_strlen(buff)+1;
     char* out = Allocator_malloc(alloc, len);

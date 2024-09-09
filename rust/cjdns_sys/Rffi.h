@@ -206,6 +206,8 @@ uint64_t Rffi_hrtime(void);
  */
 uint64_t Rffi_now_ms(void);
 
+void Rffi_sleep_ms_sync(uint64_t ms);
+
 RTypes_IfWrapper_t Rffi_testwrapper_create(Allocator_t *a);
 
 RTypes_IfWrapper_t Rffi_android_create(Allocator_t *a);

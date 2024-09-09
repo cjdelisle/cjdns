@@ -129,10 +129,10 @@ impl <const COUNT: usize> IoContext<COUNT> {
                 assert!((d as usize) >= bottom && (d as usize + std::mem::size_of::<i32>()) <= top);
                 *d = send_fd;
                 let len = libc::CMSG_LEN(std::mem::size_of::<i32>() as _);
-                (*cmsg).cmsg_len = len;
+                (*cmsg).cmsg_len = len as _;
                 (*cmsg).cmsg_type = libc::SCM_RIGHTS;
                 (*cmsg).cmsg_level = libc::SOL_SOCKET;
-                hdr.msg_hdr.msg_controllen = len;
+                hdr.msg_hdr.msg_controllen = len as _;
             }
         } else {
             hdr.msg_hdr.msg_control = std::ptr::null_mut();

@@ -52,7 +52,7 @@ Achievements expire, so if at any given time you don't qualify, you lose those p
 40. Configure an authorizedPassword without restarting cjdns.
 41. Find out whether your home router can run cjdns: [OpenWrt table of hardware](http://wiki.openwrt.org/toh/start)
 42. Try out the [Meshbox firmware](https://github.com/seattlemeshnet/meshbox) on your home router.
-43. Harden your cjdns OpenWrt router by building OpenWrt with cjdns from source and make sure [seccomp](http://lwn.net/Articles/475043/), [SSP](http://lwn.net/Articles/584225/) and [RELRO](http://tk-blog.blogspot.de/2009/02/relro-not-so-well-known-memory.html) are enabled. Using [musl](http://www.musl-libc.org/) instead of [uClibc](http://www.uclibc.org/) may make you sleep even better. See [buildsdk.sh](https://github.com/SeattleMeshnet/meshbox/blob/master/buildsdk.sh) to see how this can work.
+43. Harden your cjdns OpenWrt router by building OpenWrt with cjdns from source and make sure [SSP](http://lwn.net/Articles/584225/) and [RELRO](http://tk-blog.blogspot.de/2009/02/relro-not-so-well-known-memory.html) are enabled. Using [musl](http://www.musl-libc.org/) instead of [uClibc](http://www.uclibc.org/) may make you sleep even better. See [buildsdk.sh](https://github.com/SeattleMeshnet/meshbox/blob/master/buildsdk.sh) to see how this can work.
 44. Monitor your nodes' cjdns preformance and make pretty graphs with munin (hint: [here's a nice munin plugin to help](https://github.com/thefinn93/munin-plugins/blob/master/cjdns/cjdns_bandwidth.py))
 
 ## Penalties

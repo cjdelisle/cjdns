@@ -540,7 +540,6 @@ static void ethInterface(Dict* config, struct Context* ctx)
 
 static void security(struct Allocator* tempAlloc, List* conf, struct Log* log, struct Context* ctx)
 {
-    int seccomp = 1;
     int nofiles = 0;
     int noforks = 1;
     int chroot = 1;
@@ -601,10 +600,6 @@ static void security(struct Allocator* tempAlloc, List* conf, struct Log* log, s
             if (!*x) { setuser = 0; }
             continue;
         }
-        if (elem && (x = Dict_getIntC(elem, "seccomp"))) {
-            if (!*x) { seccomp = 0; }
-            continue;
-        }
         if (elem && (x = Dict_getIntC(elem, "noforks"))) {
             if (!*x) { noforks = 0; }
             continue;
@@ -651,11 +646,6 @@ static void security(struct Allocator* tempAlloc, List* conf, struct Log* log, s
         Log_debug(log, "Security_nofiles()");
         Dict* d = Dict_new(tempAlloc);
         rpcCall(String_CONST("Security_nofiles"), d, ctx, tempAlloc);
-    }
-    if (seccomp) {
-        Log_debug(log, "Security_seccomp()");
-        Dict* d = Dict_new(tempAlloc);
-        rpcCall(String_CONST("Security_seccomp"), d, ctx, tempAlloc);
     }
     if (setupComplete) {
         Log_debug(log, "Security_setupComplete()");

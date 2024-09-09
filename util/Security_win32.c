@@ -57,11 +57,6 @@ Er_DEFUN(void Security_chroot(char* root, struct Allocator* errAlloc))
     Er_ret();
 }
 
-Er_DEFUN(void Security_seccomp(struct Allocator* tempAlloc, struct Log* logger))
-{
-    Er_ret();
-}
-
 struct Security_pvt
 {
     struct Security pub;

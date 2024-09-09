@@ -62,8 +62,6 @@ static void checkPermissions(Dict* args, void* vctx, String* txid, struct Alloca
     }
     Dict* out = Dict_new(requestAlloc);
     Dict_putIntC(out, "noOpenFiles", sp->noOpenFiles, requestAlloc);
-    Dict_putIntC(out, "seccompExists", sp->seccompExists, requestAlloc);
-    Dict_putIntC(out, "seccompEnforcing", sp->seccompEnforcing, requestAlloc);
     Dict_putIntC(out, "userId", sp->uid, requestAlloc);
     Dict_putStringCC(out, "error", "none", requestAlloc);
     Admin_sendMessage(out, txid, ctx->admin);
@@ -98,27 +96,6 @@ static void chroot(Dict* args, void* vctx, String* txid, struct Allocator* reque
     struct Er_Ret* er = NULL;
     String* root = Dict_getStringC(args, "root");
     Er_check(&er, Security_chroot(root->bytes, requestAlloc));
-    if (er) {
-        sendError(er->message, txid, ctx->admin);
-        return;
-    }
-    sendError("none", txid, ctx->admin);
-}
-
-static void seccomp(Dict* args, void* vctx, String* txid, struct Allocator* requestAlloc)
-{
-    struct Context* const ctx = Identity_check((struct Context*) vctx);
-    struct Er_Ret* er = NULL;
-    struct Security_Permissions* sp = Er_check(&er, Security_checkPermissions(requestAlloc));
-    if (er) {
-        sendError(er->message, txid, ctx->admin);
-        return;
-    }
-    if (sp->seccompEnforcing) {
-        sendError("seccomp is already enabled", txid, ctx->admin);
-        return;
-    }
-    Er_check(&er, Security_seccomp(requestAlloc, ctx->logger));
     if (er) {
         sendError(er->message, txid, ctx->admin);
         return;
@@ -166,7 +143,6 @@ void Security_admin_register(struct Allocator* alloc,
     Admin_registerFunction("Security_getUser", getUser, ctx, true, ((struct Admin_FunctionArg[]) {
         { .name = "user", .required = 0, .type = "String" }
     }), admin);
-    Admin_registerFunction("Security_seccomp", seccomp, ctx, true, NULL, admin);
     Admin_registerFunction("Security_setupComplete", setupComplete, ctx, true, NULL, admin);
     Admin_registerFunction("Security_checkPermissions", checkPermissions, ctx, true, NULL, admin);
 }
