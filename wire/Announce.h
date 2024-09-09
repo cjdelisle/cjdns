@@ -15,6 +15,8 @@
 #ifndef Announce_H
 #define Announce_H
 
+#include "benc/String.h"
+#include "wire/Message.h"
 #include "util/version/Version.h"
 #include "util/Assert.h"
 #include "util/Endian.h"

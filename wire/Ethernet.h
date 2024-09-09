@@ -16,6 +16,7 @@
 #define Ethernet_H
 
 #include "util/Endian.h"
+#include "util/Assert.h"
 
 /** It's not about to change but it makes for more readable code. */
 #define Ethernet_ADDRLEN 6
