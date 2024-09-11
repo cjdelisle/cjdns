@@ -14,11 +14,19 @@
  */
 #include "dht/Address.h"
 #include "net/ControlHandler.h"
+#include "exception/Er.h"
+#include "memory/Allocator.h"
+#include "net/InterfaceController.h"
+#include "switch/EncodingScheme.h"
+#include "util/Bits.h"
+#include "util/Endian.h"
 #include "util/Identity.h"
 #include "util/AddrTools.h"
 #include "util/Checksum.h"
+#include "util/platform/Sockaddr.h"
 #include "wire/Control.h"
 #include "wire/Error.h"
+#include "wire/Message.h"
 #define NumberCompress_OLD_CODE
 #include "switch/NumberCompress.h"
 
@@ -27,8 +35,10 @@
 struct ControlHandler_pvt
 {
     struct ControlHandler pub;
+    struct EncodingScheme* ourEncodingScheme;
     struct Log* log;
     struct Allocator* alloc;
+    struct InterfaceController* ifc;
     uint8_t myPublicKey[32];
     struct Iface eventIf;
     struct Address activeSnode;
@@ -176,6 +186,106 @@ static Iface_DEFUN handleRPathQuery(Message_t* msg,
     return Iface_next(&ch->pub.coreIf, msg);
 }
 
+static void writeLlAddr(Message_t* msg, Sockaddr_t* sa) {
+    struct Control_LlAddr out = {
+        .magic = Control_LlAddr_REPLY_MAGIC,
+        .version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL),
+    };
+    if (sa->type == Sockaddr_PLATFORM) {
+        int fam = Sockaddr_getFamily(sa);
+        int port = Sockaddr_getPort(sa);
+        if (fam == Sockaddr_AF_INET && port > -1) {
+            out.addr.udp4.type = Control_LlAddr_Udp4_TYPE;
+            out.addr.udp4.len = sizeof(Control_LlAddr_Udp4_t);
+            out.addr.udp4.port = port;
+            uint8_t* p = NULL;
+            int len = Sockaddr_getAddress(sa, &p);
+            Assert_true(len == sizeof out.addr.udp4.addr && p != NULL);
+            Bits_memcpy(&out.addr.udp4.addr, p, sizeof out.addr.udp4.addr);
+            Er_assert(Message_epush(msg, &out, sizeof out));
+            return;
+        } else if (fam == Sockaddr_AF_INET6 && port > -1) {
+            out.addr.udp6.type = Control_LlAddr_Udp6_TYPE;
+            out.addr.udp6.len = sizeof(Control_LlAddr_Udp6_t);
+            out.addr.udp6.port = port;
+            uint8_t* p = NULL;
+            int len = Sockaddr_getAddress(sa, &p);
+            Assert_true(len == sizeof out.addr.udp6.addr && p != NULL);
+            Bits_memcpy(&out.addr.udp6.addr, p, sizeof out.addr.udp6.addr);
+            Er_assert(Message_epush(msg, &out, sizeof out));
+            return;
+        }
+    }
+    out.addr.other.type = Control_LlAddr_Other_TYPE;
+    out.addr.other.len = sizeof(Control_LlAddr_Other_t);
+    unsigned int len = sa->addrLen;
+    if (len > sizeof out.addr.other.sockaddrHeader) {
+        len = sizeof out.addr.other.sockaddrHeader;
+    }
+    Bits_memcpy(&out.addr.other.sockaddrHeader, &sa, len);
+    Er_assert(Message_epush(msg, &out, sizeof out));
+}
+
+/**
+ * Expects [ SwitchHeader ][ Ctrl ][ LlAddr ]
+ */
+#define handleLlAddrQuery_MIN_SIZE (Control_Header_SIZE + Control_LlAddr_HEADER_SIZE)
+static Iface_DEFUN handleLlAddrQuery(Message_t* msg,
+                                     struct ControlHandler_pvt* ch,
+                                     uint64_t label,
+                                     uint8_t* labelStr)
+{
+    Log_debug(ch->log, "Incoming LLADDR query");
+    if (Message_getLength(msg) < handleLlAddrQuery_MIN_SIZE) {
+        Log_info(ch->log, "DROP runt LLADDR query");
+        return Error(msg, "RUNT");
+    }
+
+    struct Control_Header hdr;
+    Er_assert(Message_epop(msg, &hdr, sizeof hdr));
+
+    struct Control_LlAddr lla;
+    Er_assert(Message_epop(msg, &lla, sizeof lla));
+
+    if (lla.magic != Control_LlAddr_QUERY_MAGIC) {
+        Log_debug(ch->log, "DROP LLADDR query (bad magic)");
+        return Error(msg, "INVALID");
+    }
+
+    // If this is not a one-hop packet, it's invalid
+    if (!EncodingScheme_isOneHop(ch->ourEncodingScheme, label)) {
+        Log_debug(ch->log, "DROP LLADDR query from non-peer");
+        return Error(msg, "INVALID");
+    }
+
+    // Get the lladdr from the peer who sent the message
+    struct Sockaddr* sa = InterfaceController_getPeerLlAddr(
+        ch->ifc, Message_getAlloc(msg), label);
+    if (!sa) {
+        Log_info(ch->log, "LLADDR query peer not found");
+        return Error(msg, "INTERNAL");
+    }
+
+    writeLlAddr(msg, sa);
+
+    hdr.type_be = Control_LlAddr_REPLY_be;
+    hdr.checksum_be = 0;
+    Er_assert(Message_epush(msg, &hdr, sizeof hdr));
+    hdr.checksum_be = Checksum_engine_be(Message_bytes(msg), Message_getLength(msg));
+    Er_assert(Message_epop(msg, NULL, sizeof hdr));
+    Er_assert(Message_epush(msg, &hdr, sizeof hdr));
+
+    struct RouteHeader routeHeader = {
+        .sh.label_be = Endian_hostToBigEndian64(label),
+        .flags = RouteHeader_flags_CTRLMSG,
+    };
+    SwitchHeader_setVersion(&routeHeader.sh, SwitchHeader_CURRENT_VERSION);
+
+    Er_assert(Message_eshift(msg, RouteHeader_SIZE));
+
+    return Iface_next(&ch->pub.coreIf, msg);
+}
+
 /**
  * Expects [ SwitchHeader ][ Ctrl ][ SupernodeQuery ][ data etc.... ]
  */
@@ -308,6 +418,9 @@ static Iface_DEFUN incomingFromCore(Message_t* msg, struct Iface* coreIf)
 
     } else if (ctrl->header.type_be == Control_RPATH_QUERY_be) {
         return handleRPathQuery(msg, ch, label, labelStr);
+
+    } else if (ctrl->header.type_be == Control_LlAddr_QUERY_be) {
+        return handleLlAddrQuery(msg, ch, label, labelStr);
     }
 
     Log_info(ch->log, "DROP control packet of unknown type from [%s], type [%d]",
@@ -386,12 +499,15 @@ static Iface_DEFUN changeSnode(Message_t* msg, struct Iface* eventIf)
 struct ControlHandler* ControlHandler_new(struct Allocator* allocator,
                                           struct Log* logger,
                                           struct EventEmitter* ee,
-                                          uint8_t myPublicKey[32])
+                                          uint8_t myPublicKey[32],
+                                          struct InterfaceController* ifc)
 {
     struct Allocator* alloc = Allocator_child(allocator);
     struct ControlHandler_pvt* ch = Allocator_calloc(alloc, sizeof(struct ControlHandler_pvt), 1);
+    ch->ourEncodingScheme = NumberCompress_defineScheme(alloc);
     ch->alloc = alloc;
     ch->log = logger;
+    ch->ifc = ifc;
     Bits_memcpy(ch->myPublicKey, myPublicKey, 32);
     ch->pub.coreIf.send = incomingFromCore;
     ch->pub.switchPingerIf.send = incomingFromSwitchPinger;

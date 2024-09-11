@@ -63,14 +63,18 @@ struct NetCore* NetCore_new(uint8_t* privateKey,
     struct UpperDistributor* upper = nc->upper = UpperDistributor_new(alloc, log, ee, myAddress);
     Iface_plumb(&sm->insideIf, &upper->sessionManagerIf);
 
+    struct SwitchPinger* sp = nc->sp = SwitchPinger_new(base, rand, log, myAddress, alloc);
+
+    struct InterfaceController* ifc = nc->ifController =
+        InterfaceController_new(
+            ca, switchCore, log, base, sp, rand, alloc, ee, enableNoise);
+
     struct ControlHandler* controlHandler = nc->controlHandler =
-        ControlHandler_new(alloc, log, ee, ourPubKey);
+        ControlHandler_new(alloc, log, ee, ourPubKey, ifc);
+
     Iface_plumb(&controlHandler->coreIf, &upper->controlHandlerIf);
 
-    struct SwitchPinger* sp = nc->sp = SwitchPinger_new(base, rand, log, myAddress, alloc);
     Iface_plumb(&controlHandler->switchPingerIf, &sp->controlHandlerIf);
-
-    nc->ifController = InterfaceController_new(ca, switchCore, log, base, sp, rand, alloc, ee, enableNoise);
 
     struct TUNAdapter* tunAdapt = nc->tunAdapt = TUNAdapter_new(alloc, log, myAddress->ip6.bytes);
     Iface_plumb(&tunAdapt->upperDistributorIf, &upper->tunAdapterIf);

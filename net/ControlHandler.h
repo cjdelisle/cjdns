@@ -15,6 +15,7 @@
 #ifndef ControlHandler_H
 #define ControlHandler_H
 
+#include "net/InterfaceController.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
 #include "net/EventEmitter.h"
@@ -36,6 +37,7 @@ struct ControlHandler
 struct ControlHandler* ControlHandler_new(struct Allocator* alloc,
                                           struct Log* logger,
                                           struct EventEmitter* ee,
-                                          uint8_t myPublicKey[32]);
+                                          uint8_t myPublicKey[32],
+                                          struct InterfaceController* ifc);
 
 #endif

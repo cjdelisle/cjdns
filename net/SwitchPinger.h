@@ -22,6 +22,7 @@
 #include "util/events/EventBase.h"
 #include "util/log/Log.h"
 #include "util/Linker.h"
+#include "wire/Control.h"
 Linker_require("net/SwitchPinger.c")
 
 #include <stdint.h>
@@ -78,6 +79,9 @@ struct SwitchPinger_Response
     // relevant only to messages of type RPATH
     uint64_t rpath;
 
+    // If it's an lladdr response, the address
+    struct Control_LlAddr lladdr;
+
     struct SwitchPinger_Ping* ping;
 };
 
@@ -89,7 +93,8 @@ enum SwitchPinger_Type
     SwitchPinger_Type_PING,
     SwitchPinger_Type_KEYPING,
     SwitchPinger_Type_GETSNODE,
-    SwitchPinger_Type_RPATH
+    SwitchPinger_Type_RPATH,
+    SwitchPinger_Type_LLADDR,
 };
 
 struct SwitchPinger_Ping

@@ -219,6 +219,10 @@ void InterfaceController_resetPeering(struct InterfaceController* ifController,
  */
 int InterfaceController_disconnectPeer(struct InterfaceController* ifc, uint8_t herPublicKey[32]);
 
+struct Sockaddr* InterfaceController_getPeerLlAddr(struct InterfaceController* ifController,
+                                                   struct Allocator* alloc,
+                                                   uint64_t peerLabel);
+
 /**
  * Get stats for the connected peers.
  *

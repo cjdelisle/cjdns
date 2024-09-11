@@ -22,6 +22,8 @@
 #include "util/Endian.h"
 #include "util/AddrTools.h"
 #include "crypto/Key.h"
+#include "util/Hex.h"
+#include "util/platform/Sockaddr.h"
 
 #define DEFAULT_TIMEOUT 2000
 
@@ -65,6 +67,30 @@ static void adminPingOnResponse(struct SwitchPinger_Response* resp, void* vping)
         Dict_putStringC(rd, "key", Key_stringify(resp->key, pingAlloc), pingAlloc);
     }
 
+    if (!Bits_isZero(&resp->lladdr, sizeof resp->lladdr)) {
+        struct Sockaddr_storage ss;
+        if (resp->lladdr.addr.udp4.type == Control_LlAddr_Udp4_TYPE) {
+            Sockaddr_t* sa = Sockaddr_initFromBytes(
+                &ss, resp->lladdr.addr.udp4.addr, Sockaddr_AF_INET);
+            Sockaddr_setPort(sa, resp->lladdr.addr.udp4.port);
+            Dict_putStringCC(
+                rd, "lladdr", Sockaddr_print(sa, pingAlloc), pingAlloc);
+        } else if (resp->lladdr.addr.udp4.type == Control_LlAddr_Udp6_TYPE) {
+            Sockaddr_t* sa = Sockaddr_initFromBytes(
+                &ss, resp->lladdr.addr.udp6.addr, Sockaddr_AF_INET6);
+            Sockaddr_setPort(sa, resp->lladdr.addr.udp6.port);
+            Dict_putStringCC(
+                rd, "lladdr", Sockaddr_print(sa, pingAlloc), pingAlloc);
+        } else {
+            Dict_putStringCC(
+                rd,
+                "lladdrUnknown",
+                Hex_print(&resp->lladdr, sizeof resp->lladdr, pingAlloc),
+                pingAlloc
+            );
+        }
+    }
+
     Admin_sendMessage(rd, ping->txid, ping->context->admin);
 }
 
@@ -75,10 +101,13 @@ static void adminPing(Dict* args, void* vcontext, String* txid, struct Allocator
     int64_t* timeoutPtr = Dict_getIntC(args, "timeout");
     String* data = Dict_getStringC(args, "data");
     int64_t* keyPing = Dict_getIntC(args, "keyPing");
+    int64_t* lladdr = Dict_getIntC(args, "lladdr");
     uint32_t timeout = (timeoutPtr) ? *timeoutPtr : DEFAULT_TIMEOUT;
     uint64_t path;
     char* err = NULL;
-    if (pathStr->len != 19 || AddrTools_parsePath(&path, (uint8_t*) pathStr->bytes)) {
+    if (keyPing && *keyPing && lladdr && *lladdr) {
+        err = "Cannot be both keyping and lladdr";
+    } else if (pathStr->len != 19 || AddrTools_parsePath(&path, (uint8_t*) pathStr->bytes)) {
         err = "path was not parsable.";
     } else {
         struct SwitchPinger_Ping* ping = SwitchPinger_newPing(path,
@@ -87,7 +116,11 @@ static void adminPing(Dict* args, void* vcontext, String* txid, struct Allocator
                                                               adminPingOnResponse,
                                                               context->alloc,
                                                               context->switchPinger);
-        if (keyPing && *keyPing) { ping->type = SwitchPinger_Type_KEYPING; }
+        if (keyPing && *keyPing) {
+            ping->type = SwitchPinger_Type_KEYPING;
+        } else if (lladdr && *lladdr) {
+            ping->type = SwitchPinger_Type_LLADDR;
+        }
         if (!ping) {
             err = "no open slots to store ping, try later.";
         } else {
@@ -121,6 +154,7 @@ void SwitchPinger_admin_register(struct SwitchPinger* sp,
             { .name = "path", .required = 1, .type = "String" },
             { .name = "timeout", .required = 0, .type = "Int" },
             { .name = "data", .required = 0, .type = "String" },
-            { .name = "keyPing", .required = 0, .type = "Int" }
+            { .name = "keyPing", .required = 0, .type = "Int" },
+            { .name = "lladdr", .required = 0, .type = "Int" },
         }), admin);
 }

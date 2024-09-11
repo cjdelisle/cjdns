@@ -57,6 +57,8 @@ struct SwitchPinger_pvt
     // If it's an rpath message
     uint64_t rpath;
 
+    struct Control_LlAddr lladdrMsg;
+
     /** The error code if an error has been returned (see Error.h) */
     int error;
 
@@ -93,6 +95,7 @@ static Iface_DEFUN messageFromControlHandler(Message_t* msg, struct Iface* iface
     Bits_memset(ctx->incomingKey, 0, sizeof ctx->incomingKey);
     ctx->incomingSnodeKbps = 0;
     ctx->rpath = 0;
+    Bits_memset(&ctx->lladdrMsg, 0, sizeof ctx->lladdrMsg);
 
     struct Control* ctrl = (struct Control*) Message_bytes(msg);
     if (ctrl->header.type_be == Control_PONG_be) {
@@ -210,6 +213,20 @@ static Iface_DEFUN messageFromControlHandler(Message_t* msg, struct Iface* iface
         }
         Er_assert(Message_eshift(msg, shift));
 
+    } else if (ctrl->header.type_be == Control_LlAddr_REPLY_be) {
+        Er_assert(Message_eshift(msg, -Control_Header_SIZE));
+        ctx->error = Error_NONE;
+
+        if (Message_getLength(msg) < Control_LlAddr_HEADER_SIZE) {
+            Log_debug(ctx->logger, "got runt LlAddr message, length: [%d]", Message_getLength(msg));
+            return Error(msg, "RUNT");
+        }
+        Er_assert(Message_epop(msg, &ctx->lladdrMsg, sizeof ctx->lladdrMsg));
+        if (ctx->lladdrMsg.magic != Control_LlAddr_REPLY_MAGIC) {
+            Log_debug(ctx->logger, "dropped invalid LLADDR reply (bad magic)");
+            return Error(msg, "INVALID");
+        }
+
     } else {
         // If it gets here then Ducttape.c is failing.
         Assert_true(false);
@@ -255,6 +272,7 @@ static void onPingResponse(String* data, uint32_t milliseconds, void* vping)
     resp->kbpsLimit = p->context->incomingSnodeKbps;
     resp->rpath = p->context->rpath;
     resp->ping = &p->pub;
+    Bits_memcpy(&resp->lladdr, &p->context->lladdrMsg, sizeof p->context->lladdrMsg);
     p->onResponse(resp, p->pub.onResponseContext);
 }
 
@@ -304,6 +322,15 @@ static void sendPing(String* data, void* sendPingContext)
         uint64_t path_be = Endian_hostToBigEndian64(p->label);
         Bits_memcpy(hdr->rpath_be, &path_be, 8);
 
+    } else if (p->pub.type == SwitchPinger_Type_LLADDR) {
+        struct Control_LlAddr addr = {
+            .magic = Control_LlAddr_QUERY_MAGIC,
+            .version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL),
+            // Lazy
+            .addr.payload = { .type = 0, .len = 2, }
+        };
+        Er_assert(Message_epush(msg, &addr, sizeof addr));
+
     } else {
         Assert_failure("unexpected ping type");
     }
@@ -319,6 +346,8 @@ static void sendPing(String* data, void* sendPingContext)
         ctrl->header.type_be = Control_GETSNODE_QUERY_be;
     } else if (p->pub.type == SwitchPinger_Type_RPATH) {
         ctrl->header.type_be = Control_RPATH_QUERY_be;
+    } else if (p->pub.type == SwitchPinger_Type_LLADDR) {
+        ctrl->header.type_be = Control_LlAddr_QUERY_be;
     } else {
         Assert_failure("unexpected type");
     }

@@ -1071,6 +1071,25 @@ int InterfaceController_bootstrapPeer(struct InterfaceController* ifc,
     return 0;
 }
 
+struct Sockaddr* InterfaceController_getPeerLlAddr(struct InterfaceController* ifController,
+                                                   struct Allocator* alloc,
+                                                   uint64_t peerLabel)
+{
+    struct InterfaceController_pvt* ic =
+        Identity_check((struct InterfaceController_pvt*) ifController);
+    for (int j = 0; j < ic->icis->length; j++) {
+        struct InterfaceController_Iface_pvt* ici = ArrayList_OfIfaces_get(ic->icis, j);
+        for (int i = 0; i < (int)ici->peerMap.count; i++) {
+            struct Peer* peer = Identity_check((struct Peer*) ici->peerMap.values[i]);
+            if (peer->addr.path != peerLabel) {
+                continue;
+            }
+            return Sockaddr_clone(peer->lladdr, alloc);
+        }
+    }
+    return NULL;
+}
+
 int InterfaceController_getPeerStats(struct InterfaceController* ifController,
                                      struct Allocator* alloc,
                                      struct InterfaceController_PeerStats** statsOut)
