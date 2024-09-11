@@ -281,7 +281,7 @@ static Iface_DEFUN handleLlAddrQuery(Message_t* msg,
     };
     SwitchHeader_setVersion(&routeHeader.sh, SwitchHeader_CURRENT_VERSION);
 
-    Er_assert(Message_eshift(msg, RouteHeader_SIZE));
+    Er_assert(Message_epush(msg, &routeHeader, sizeof routeHeader));
 
     return Iface_next(&ch->pub.coreIf, msg);
 }
