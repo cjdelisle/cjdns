@@ -102,10 +102,9 @@ impl UDPAddrIfaceInternal {
                 }
                 mut recv = self.incoming_recv.lock() => {
                     message = Some(msg);
-                    log::debug!("{:?} UDP receiver thread waiting", self.udp.local_addr());
+                    log::trace!("{:?} UDP receiver thread waiting", self.udp.local_addr());
                     recv.recv_many(&mut recv_msgs, RECV_MSGS_LIMIT).await;
-                    println!("got recv_mang from incoming");
-                    log::debug!("UDP receiver thread got recv_many");
+                    log::trace!("UDP receiver thread got recv_many");
                     for msg in recv_msgs.drain(..) {
                         match self.iface.send(msg) {
                             Ok(()) => {
