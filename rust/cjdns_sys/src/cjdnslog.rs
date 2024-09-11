@@ -36,7 +36,7 @@ pub fn install() {
         Ok(_) => (),
         Err(e) => panic!("Unable to set logger: {}", e),
     }
-    log::set_max_level(log::LevelFilter::Trace);
+    log::set_max_level(env_logger::Logger::from_default_env().filter());
 }
 
 /// Set the native logger, call at least once after calling `install()`.
