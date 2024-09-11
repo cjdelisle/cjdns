@@ -13,7 +13,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "wire/Message.h"
-#include "util/UniqueName.h"
 
 Message_t* Message_new(uint32_t messageLength,
                                           uint32_t amountOfPadding,

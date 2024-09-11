@@ -300,9 +300,11 @@ static Iface_DEFUN afterDecrypt(Message_t* msg, struct Iface* iface)
 }
 
 #define PRIVATEKEY_A \
-    Constant_stringForHex("53ff22b2eb94ce8c5f1852c0f557eb901f067e5273d541e0a21e143c20dff9da")
+    "\x53\xff\x22\xb2\xeb\x94\xce\x8c\x5f\x18\x52\xc0\xf5\x57\xeb\x90\x1f\x06\x7e\x52\x73\xd5\x41\xe0\xa2\x1e\x14\x3c\x20\xdf\xf9\xda"
+    // "53ff22b2eb94ce8c5f1852c0f557eb901f067e5273d541e0a21e143c20dff9da"
 #define PRIVATEKEY_B \
-    Constant_stringForHex("b71c4f43e3d4b1879b5065d44a1cb43eaf07ddba96de6a72ca761c4ef4bd2988")
+    "\xb7\x1c\x4f\x43\xe3\xd4\xb1\x87\x9b\x50\x65\xd4\x4a\x1c\xb4\x3e\xaf\x07\xdd\xba\x96\xde\x6a\x72\xca\x76\x1c\x4e\xf4\xbd\x29\x88"
+    // "b71c4f43e3d4b1879b5065d44a1cb43eaf07ddba96de6a72ca761c4ef4bd2988"
 
 void* CryptoAuthFuzz_init(struct Allocator* alloc, struct Random* rand, enum TestCa_Config cfg)
 {

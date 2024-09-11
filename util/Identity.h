@@ -16,16 +16,12 @@
 #define Identity_H
 
 #include "util/Assert.h"
-#include "util/Constant.h"
-#include "util/Js.h"
 
 #include <stdint.h>
 
 #if defined(Identity_CHECK)
 
-    Js({ this.Identity_hash = "0x" + Constant_randHexString(16) + "ull"; })
-
-    #define Identity_MAGIC ((uintptr_t) Js_or({ return this.Identity_hash }, 1))
+    #define Identity_MAGIC CJDNS_RAND_U64_PER_FILE
 
     /** This goes in each structure which will be checked. */
     #define Identity uintptr_t Identity_verifier;

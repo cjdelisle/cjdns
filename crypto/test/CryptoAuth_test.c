@@ -28,15 +28,20 @@
 #include "crypto/random/test/DeterminentRandomSeed.h"
 #include "util/CString.h"
 
+// console.log(x.replace(/[0-9a-f]{2}/g, (x)=>'\\x'+x))
 #define PRIVATEKEY_A \
-    Constant_stringForHex("53ff22b2eb94ce8c5f1852c0f557eb901f067e5273d541e0a21e143c20dff9da")
+    "\x53\xff\x22\xb2\xeb\x94\xce\x8c\x5f\x18\x52\xc0\xf5\x57\xeb\x90\x1f\x06\x7e\x52\x73\xd5\x41\xe0\xa2\x1e\x14\x3c\x20\xdf\xf9\xda"
+    // "53ff22b2eb94ce8c5f1852c0f557eb901f067e5273d541e0a21e143c20dff9da"
 #define PUBLICKEY_A \
-    Constant_stringForHex("e3ff75af6e4414494df22f200ffeaa56e7976d991d33cc87f52427e27f83235d")
+    "\xe3\xff\x75\xaf\x6e\x44\x14\x49\x4d\xf2\x2f\x20\x0f\xfe\xaa\x56\xe7\x97\x6d\x99\x1d\x33\xcc\x87\xf5\x24\x27\xe2\x7f\x83\x23\x5d"
+    // "e3ff75af6e4414494df22f200ffeaa56e7976d991d33cc87f52427e27f83235d"
 
 #define PRIVATEKEY_B \
-    Constant_stringForHex("b71c4f43e3d4b1879b5065d44a1cb43eaf07ddba96de6a72ca761c4ef4bd2988")
+    "\xb7\x1c\x4f\x43\xe3\xd4\xb1\x87\x9b\x50\x65\xd4\x4a\x1c\xb4\x3e\xaf\x07\xdd\xba\x96\xde\x6a\x72\xca\x76\x1c\x4e\xf4\xbd\x29\x88"
+    // "b71c4f43e3d4b1879b5065d44a1cb43eaf07ddba96de6a72ca761c4ef4bd2988"
 #define PUBLICKEY_B \
-    Constant_stringForHex("27c303cdc1f96e4b28d51c75130aff6cad52098f2d752615b7b6509ed6a89477")
+    "\x27\xc3\x03\xcd\xc1\xf9\x6e\x4b\x28\xd5\x1c\x75\x13\x0a\xff\x6c\xad\x52\x09\x8f\x2d\x75\x26\x15\xb7\xb6\x50\x9e\xd6\xa8\x94\x77"
+    // "27c303cdc1f96e4b28d51c75130aff6cad52098f2d752615b7b6509ed6a89477"
 
 #define USEROBJ "This represents a user"
 

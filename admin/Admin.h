@@ -21,7 +21,6 @@
 #include "exception/Except.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
-#include "util/UniqueName.h"
 #include "util/events/EventBase.h"
 #include "util/Linker.h"
 Linker_require("admin/Admin.c")
@@ -76,6 +75,4 @@ struct Admin* Admin_new(AddrIface_t* ai,
                         struct Log* logger,
                         EventBase_t* eventBase,
                         String* password);
-#else
-#include "util/UniqueName.h"
 #endif

@@ -15,9 +15,6 @@
 #include "util/events/EventBase.h"
 #include "rust/cjdns_sys/Rffi.h"
 #include "memory/Allocator.h"
-#include "util/Assert.h"
-#include "util/Identity.h"
-#include "util/Js.h"
 
 EventBase_t* EventBase_new(struct Allocator* allocator)
 {

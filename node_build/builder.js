@@ -21,6 +21,8 @@ const nThen = require('nthen');
 const Crypto = require('crypto');
 const Saferphore = require('saferphore');
 
+var seed = process.env.SOURCE_DATE_EPOCH || Crypto.randomBytes(32).toString('hex');
+
 /*::
 export type Builder_File_t = {|
     includes: string[],
@@ -438,6 +440,12 @@ const getExeFile = function (ctx, exe /*:Builder_CompileJob_t*/) {
     return outputFile;
 };
 
+var randomHex = function (bytes, fileName) {
+    var material = new Crypto.Hash('sha512').update(seed).update(fileName).digest();
+    if (bytes > 64) { throw new Error("meh, randomHex of over 64 bytes is unimplemented"); }
+    return material.slice(0, bytes).toString('hex');
+};
+
 const getFlags = function (ctx, cFile, includeDirs) {
     const flags = [];
     if (cFile.indexOf('node_build/dependencies/libuv') > -1) {
@@ -451,6 +459,7 @@ const getFlags = function (ctx, cFile, includeDirs) {
         flags.push.apply(flags, ctx.config.cflags);
     }
     flags.push.apply(flags, ctx.builder.fileCflags[cFile] || []);
+    flags.push('-DCJDNS_RAND_U64_PER_FILE=0x' + randomHex(8, cFile) + 'ull');
     if (includeDirs) {
         for (let i = 0; i < ctx.config.includeDirs.length; i++) {
             if (flags[flags.indexOf(ctx.config.includeDirs[i])-1] === '-I') {

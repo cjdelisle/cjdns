@@ -15,7 +15,6 @@
 #ifndef Kbps_H
 #define Kbps_H
 
-#include "util/Constant.h"
 #include "util/Js.h"
 
 // Must be multiples of 2
@@ -24,8 +23,8 @@
 // Must be a multiple of 1024 (1 second)
 #define Kbps_TIMESPAN    1024
 
-#define Kbps_WINDOW_SH Constant_log2(Kbps_WINDOW_SIZE)
-#define Kbps_TIMESPAN_SH Constant_log2(Kbps_TIMESPAN)
+#define Kbps_WINDOW_SH 3 // log2(Kbps_WINDOW_SIZE)
+#define Kbps_TIMESPAN_SH 10 // log2(Kbps_TIMESPAN)
 
 struct Kbps
 {
