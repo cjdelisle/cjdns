@@ -396,9 +396,11 @@ static Iface_DEFUN incomingFromCore(Message_t* msg, struct Iface* coreIf)
         return handlePing(msg, ch, label, labelStr, ctrl->header.type_be);
 
     } else if (ctrl->header.type_be == Control_KEYPONG_be
-            || ctrl->header.type_be == Control_PONG_be)
+            || ctrl->header.type_be == Control_PONG_be
+            || ctrl->header.type_be == Control_LlAddr_REPLY_be)
     {
-        Log_debug(ch->log, "got switch pong from [%s]", labelStr);
+        Log_debug(ch->log, "got switch pong [%d] from [%s]",
+            ctrl->header.type_be, labelStr);
         Er_assert(Message_epush(msg, &routeHdr, RouteHeader_SIZE));
         return Iface_next(&ch->pub.switchPingerIf, msg);
 
