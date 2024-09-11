@@ -21,14 +21,7 @@ Linker_require("util/Assert.c")
 
 #define Assert_STRING(x) #x
 
-/**
- * Assert_compileTime()
- *
- * Prevent compilation if assertion is false or not a compile time constant.
- * Thanks to http://www.jaggersoft.com/pubs/CVu11_3.html
- */
-#define Assert_compileTime(isTrue) \
-    void Assert_compileTime(char x[1 - (!(isTrue))])
+#define Assert_compileTime(isTrue) _Static_assert(isTrue, #isTrue)
 
 Gcc_PRINTF(1, 2)
 Gcc_NORETURN

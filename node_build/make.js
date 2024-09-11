@@ -49,7 +49,7 @@ Builder.configure({
     let optimizeLevel = '-O2';
 
     builder.config.cflags.push(
-        '-std=c99',
+        '-std=c11',
         '-Wall',
         '-Wextra',
         '-Werror',
