@@ -8,14 +8,14 @@ edition = "2021"
 description = "Command line tool for querying cjdns admin API."
 
 [dependencies]
-anyhow = "1"
-cjdns-admin = { git = "https://github.com/cjdelisle/cjdns-route-server", rev = "80f23210fdf7b6e1aeabdbd1eb96b48eef0c59a7", version = "0.1.0" }
-clap = { version = "4", features = ["derive"] }
-const_format = "0.2"
-data-encoding = "2"
-lazy_static = "1"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-sha2 = "0.10"
-sodiumoxide = { git = "https://github.com/cjdelisle/sodiumoxide", rev = "f79b6656b84f02b049470f9ad556a6a0c9980bd7", version = "0.2.6" }
-tokio = { version = "1.27", features = ["fs", "net", "macros", "time", "rt-multi-thread", "sync"] }
+anyhow = { workspace = true }
+cjdns-admin = { workspace = true }
+clap = { workspace = true }
+const_format = { workspace = true }
+data-encoding = { workspace = true }
+lazy_static = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+sodiumoxide = { workspace = true }
+tokio = { workspace = true }

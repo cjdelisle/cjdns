@@ -6,31 +6,31 @@ edition = "2018"
 build = "build.rs"
 
 [dependencies]
-cjdns-keys = { git = "https://github.com/cjdelisle/cjdns-route-server", rev = "80f23210fdf7b6e1aeabdbd1eb96b48eef0c59a7", version = "0.1.0" }
-cjdns-crypto = { git = "https://github.com/cjdelisle/cjdns-route-server", rev = "80f23210fdf7b6e1aeabdbd1eb96b48eef0c59a7", version = "0.1.0" }
-sodiumoxide = { git = "https://github.com/cjdelisle/sodiumoxide", rev = "f79b6656b84f02b049470f9ad556a6a0c9980bd7", version = "0.2" }
-hex = "0.4"
-log = { version = "0.4", features = ["std", "release_max_level_trace"] }
-parking_lot = "0.11"
-thiserror = "1.0"
-anyhow = { version = "1.0", features = ["backtrace"] }
-boringtun = { git = "https://github.com/cjdelisle/boringtun", rev = "f288b2f461e7322a278b63b1ddc4ab705b5b7462", version = "0.3", features = ["additional_data"] }
-slog = { version = "2.7", features = ["release_max_level_trace"] }
-pnet = { version = "0.29" }
-tokio = { version = "1.25", features = ["macros","time","sync","fs","rt-multi-thread","process"], default-features = false }
-once_cell = "1.9"
-async-recursion = "1"
-socket2 = "0"
-libc = "0"
-num_cpus = "1"
-async-trait = "0.1"
-env_logger = "0.11"
+cjdns-crypto = { workspace = true }
+cjdns-keys = { workspace = true }
+sodiumoxide = { workspace = true }
+hex = { workspace = true }
+log = { workspace = true }
+parking_lot = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+boringtun = { workspace = true }
+slog = { workspace = true }
+pnet = { workspace = true }
+tokio = { workspace = true }
+once_cell = { workspace = true }
+async-recursion = { workspace = true }
+socket2 = { workspace = true }
+libc = { workspace = true }
+num_cpus = { workspace = true }
+async-trait = { workspace = true }
+env_logger = { workspace = true }
 
 [build_dependencies]
-cc = "1.0"
-anyhow = "1.0"
-cbindgen = { version = "0.16" }
-bindgen = { version = "0.55", optional = true }
+cc = { workspace = true }
+anyhow = { workspace = true }
+cbindgen = { workspace = true }
+bindgen = { workspace = true, optional = true }
 
 [features]
 generate-cffi = ["bindgen"]
