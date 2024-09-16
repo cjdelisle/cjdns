@@ -4,113 +4,19 @@
 #![allow(dead_code)]
 #![allow(non_camel_case_types)]
 #![allow(clippy::enum_variant_names)]
+use crate::rtypes::*;
 
-extern "C" {
-    pub fn Assert_failure(format: *const ::std::os::raw::c_char, ...);
-}
-pub type Allocator_OnFreeCallback =
-    ::std::option::Option<unsafe extern "C" fn(job: *mut Allocator_OnFreeJob)>;
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct Allocator_OnFreeJob {
-    pub callback: Allocator_OnFreeCallback,
-    pub userData: *mut ::std::os::raw::c_void,
-    pub Identity_verifier: usize,
-}
+pub type __uint8_t = ::std::os::raw::c_uchar;
+pub type __uint16_t = ::std::os::raw::c_ushort;
+pub type __int32_t = ::std::os::raw::c_int;
+pub type __uint32_t = ::std::os::raw::c_uint;
+pub type __uint64_t = ::std::os::raw::c_ulong;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct Allocator {
     _unused: [u8; 0],
 }
 pub type Allocator_t = Allocator;
-extern "C" {
-    pub fn Allocator__malloc(
-        allocator: *mut Allocator,
-        length: ::std::os::raw::c_ulong,
-        fileName: *const ::std::os::raw::c_char,
-        lineNum: ::std::os::raw::c_int,
-    ) -> *mut ::std::os::raw::c_void;
-}
-extern "C" {
-    pub fn Allocator__calloc(
-        alloc: *mut Allocator,
-        length: ::std::os::raw::c_ulong,
-        count: ::std::os::raw::c_ulong,
-        fileName: *const ::std::os::raw::c_char,
-        lineNum: ::std::os::raw::c_int,
-    ) -> *mut ::std::os::raw::c_void;
-}
-extern "C" {
-    pub fn Allocator__realloc(
-        allocator: *mut Allocator,
-        original: *const ::std::os::raw::c_void,
-        size: ::std::os::raw::c_ulong,
-        fileName: *const ::std::os::raw::c_char,
-        lineNum: ::std::os::raw::c_int,
-    ) -> *mut ::std::os::raw::c_void;
-}
-extern "C" {
-    pub fn Allocator__clone(
-        allocator: *mut Allocator,
-        toClone: *const ::std::os::raw::c_void,
-        length: ::std::os::raw::c_ulong,
-        fileName: *const ::std::os::raw::c_char,
-        lineNum: ::std::os::raw::c_int,
-    ) -> *mut ::std::os::raw::c_void;
-}
-extern "C" {
-    pub fn Allocator__child(
-        alloc: *mut Allocator,
-        fileName: *const ::std::os::raw::c_char,
-        lineNum: ::std::os::raw::c_int,
-    ) -> *mut Allocator;
-}
-extern "C" {
-    pub fn Allocator__free(
-        alloc: *mut Allocator,
-        file: *const ::std::os::raw::c_char,
-        line: ::std::os::raw::c_int,
-    );
-}
-extern "C" {
-    pub fn Allocator_isFreeing(alloc: *mut Allocator_t) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn Allocator__onFree(
-        alloc: *mut Allocator,
-        callback: Allocator_OnFreeCallback,
-        context: *mut ::std::os::raw::c_void,
-        file: *const ::std::os::raw::c_char,
-        line: ::std::os::raw::c_int,
-    ) -> *mut Allocator_OnFreeJob;
-}
-extern "C" {
-    pub fn Allocator_cancelOnFree(toRemove: *mut Allocator_OnFreeJob) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn Allocator__adopt(
-        parentAlloc: *mut Allocator,
-        alloc: *mut Allocator,
-        fileName: *const ::std::os::raw::c_char,
-        lineNum: ::std::os::raw::c_int,
-    );
-}
-extern "C" {
-    pub fn Allocator_setCanary(alloc: *mut Allocator, value: usize);
-}
-extern "C" {
-    pub fn Allocator_bytesAllocated(allocator: *mut Allocator) -> ::std::os::raw::c_ulong;
-}
-extern "C" {
-    pub fn Allocator_snapshot(alloc: *mut Allocator, includeAllocations: ::std::os::raw::c_int);
-}
-extern "C" {
-    pub fn Allocator__new(
-        sizeLimit: ::std::os::raw::c_ulong,
-        fileName: *const ::std::os::raw::c_char,
-        lineNum: ::std::os::raw::c_int,
-    ) -> *mut Allocator;
-}
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct String_s {
@@ -119,179 +25,7 @@ pub struct String_s {
 }
 pub type String = String_s;
 pub type String_t = String;
-pub type size_t = ::std::os::raw::c_ulong;
-extern "C" {
-    pub fn CString_strlen(str_: *const ::std::os::raw::c_char) -> ::std::os::raw::c_ulong;
-}
-extern "C" {
-    pub fn CString_strcmp(
-        a: *const ::std::os::raw::c_char,
-        b: *const ::std::os::raw::c_char,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn CString_strncmp(
-        a: *const ::std::os::raw::c_char,
-        b: *const ::std::os::raw::c_char,
-        n: size_t,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn CString_strchr(
-        a: *const ::std::os::raw::c_char,
-        b: ::std::os::raw::c_int,
-    ) -> *mut ::std::os::raw::c_char;
-}
-extern "C" {
-    pub fn CString_strrchr(
-        a: *const ::std::os::raw::c_char,
-        b: ::std::os::raw::c_int,
-    ) -> *mut ::std::os::raw::c_char;
-}
-extern "C" {
-    pub fn CString_strcasecmp(
-        a: *const ::std::os::raw::c_char,
-        b: *const ::std::os::raw::c_char,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn CString_strstr(
-        a: *const ::std::os::raw::c_char,
-        b: *const ::std::os::raw::c_char,
-    ) -> *mut ::std::os::raw::c_char;
-}
-extern "C" {
-    pub fn CString_strcpy(
-        dest: *mut ::std::os::raw::c_char,
-        src: *const ::std::os::raw::c_char,
-    ) -> *mut ::std::os::raw::c_char;
-}
-extern "C" {
-    pub fn CString_safeStrncpy(
-        dest: *mut ::std::os::raw::c_char,
-        src: *const ::std::os::raw::c_char,
-        n: size_t,
-    ) -> *mut ::std::os::raw::c_char;
-}
-extern "C" {
-    pub fn CString_strdup(
-        string: *const ::std::os::raw::c_char,
-        alloc: *mut Allocator,
-    ) -> *mut ::std::os::raw::c_char;
-}
-extern "C" {
-    pub fn String_new(
-        bytes: *const ::std::os::raw::c_char,
-        allocator: *mut Allocator,
-    ) -> *mut String;
-}
-extern "C" {
-    pub fn String_newBinary(
-        bytes: *const ::std::os::raw::c_char,
-        length: usize,
-        allocator: *mut Allocator,
-    ) -> *mut String;
-}
-extern "C" {
-    pub fn String_printf(
-        allocator: *mut Allocator,
-        format: *const ::std::os::raw::c_char,
-        ...
-    ) -> *mut String;
-}
-extern "C" {
-    pub fn String_compare(a: *const String, b: *const String) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn String_equals(a: *const String, b: *const String) -> ::std::os::raw::c_int;
-}
 pub type Iface_t = Iface;
-#[repr(u32)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum RTypes_CryptoAuth2_TryHandshake_Code_t {
-    RTypes_CryptoAuth2_TryHandshake_Code_t_ReplyToPeer = 0,
-    RTypes_CryptoAuth2_TryHandshake_Code_t_RecvPlaintext = 1,
-    RTypes_CryptoAuth2_TryHandshake_Code_t_Error = 2,
-    RTypes_CryptoAuth2_TryHandshake_Code_t_Done = 3,
-}
-#[repr(u32)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum RTypes_CryptoAuth_State_t {
-    RTypes_CryptoAuth_State_t_Init = 0,
-    RTypes_CryptoAuth_State_t_SentHello = 1,
-    RTypes_CryptoAuth_State_t_ReceivedHello = 2,
-    RTypes_CryptoAuth_State_t_SentKey = 3,
-    RTypes_CryptoAuth_State_t_ReceivedKey = 4,
-    RTypes_CryptoAuth_State_t_Established = 100,
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct RTypes_Error_t {
-    _unused: [u8; 0],
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct RTypes_IfWrapper_t {
-    pub internal: *mut Iface_t,
-    pub external: *mut Iface_t,
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct RTypes_StrList_t {
-    pub len: usize,
-    pub items: *mut *mut String_t,
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct RTypes_CryptoStats_t {
-    pub lost_packets: u64,
-    pub received_unexpected: u64,
-    pub received_packets: u64,
-    pub duplicate_packets: u64,
-    pub noise_proto: bool,
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct RTypes_CryptoAuth2_Session_t {
-    pub plaintext: *mut Iface_t,
-    pub ciphertext: *mut Iface_t,
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct RTypes_CryptoAuth2_TryHandshake_Ret_t {
-    pub code: RTypes_CryptoAuth2_TryHandshake_Code_t,
-    pub err: u32,
-    pub sess: *mut RTypes_CryptoAuth2_Session_t,
-    pub alloc: *mut Allocator_t,
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct Er_Ret {
-    pub message: *const ::std::os::raw::c_char,
-}
-extern "C" {
-    pub fn Er__raise(
-        file: *mut ::std::os::raw::c_char,
-        line: ::std::os::raw::c_int,
-        alloc: *mut Allocator,
-        format: *mut ::std::os::raw::c_char,
-        ...
-    ) -> *mut Er_Ret;
-}
-extern "C" {
-    pub fn Er__assertFail(er: *mut Er_Ret);
-}
-extern "C" {
-    pub fn Bits_log2x64_stupid(number: u64) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn Bits_memmem(
-        haystack: *const ::std::os::raw::c_void,
-        haystackLen: size_t,
-        needle: *const ::std::os::raw::c_void,
-        needleLen: size_t,
-    ) -> *mut ::std::os::raw::c_void;
-}
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct Message {
@@ -307,70 +41,37 @@ pub struct Message {
 }
 pub type Message_t = Message;
 extern "C" {
-    pub fn Message_new(
+    pub fn Message_new_fromRust(
         messageLength: u32,
         amountOfPadding: u32,
         alloc: *mut Allocator,
     ) -> *mut Message;
 }
-extern "C" {
-    pub fn Message_setAssociatedFd(msg: *mut Message, fd: ::std::os::raw::c_int);
-}
-extern "C" {
-    pub fn Message_getAssociatedFd(msg: *mut Message) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn Message_clone(toClone: *mut Message, alloc: *mut Allocator) -> *mut Message;
-}
 pub type Iface_Callback = ::std::option::Option<
-    unsafe extern "C" fn(message: *mut Message, thisInterface: *mut Iface) -> *mut RTypes_Error_t,
+    unsafe extern "C" fn(message: *mut Message_t, thisInterface: *mut Iface) -> *mut RTypes_Error_t,
 >;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct Iface {
     pub send: Iface_Callback,
-    pub currentMsg: *mut Message,
+    pub currentMsg: *mut Message_t,
     pub connectedIf: *mut Iface,
     pub Identity_verifier: usize,
 }
 extern "C" {
-    pub fn Iface_incomingFromRust(
-        message: *mut Message,
+    pub fn Iface_incoming_fromRust(
+        message: *mut Message_t,
         thisInterface: *mut Iface,
     ) -> *mut RTypes_Error_t;
 }
 extern "C" {
-    pub fn Iface_setIdentity(iface: *mut Iface);
+    pub fn RustIface_gotIncoming_fromRust();
 }
 extern "C" {
-    pub fn Iface_checkIdentity(iface: *mut Iface);
+    pub fn RustIface_gotOutgoing_fromRust();
 }
 extern "C" {
-    pub fn RustIface_gotIncoming();
-}
-extern "C" {
-    pub fn RustIface_gotOutgoing();
-}
-extern "C" {
-    pub fn RustIface_dropped();
-}
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub struct Except {
-    pub next: *mut Except,
-    pub exception: ::std::option::Option<
-        unsafe extern "C" fn(message: *mut ::std::os::raw::c_char, handler: *mut Except),
-    >,
-    pub message: [::std::os::raw::c_char; 1024usize],
-}
-extern "C" {
-    pub fn Except__throw(
-        file: *mut ::std::os::raw::c_char,
-        line: ::std::os::raw::c_int,
-        eh: *mut Except,
-        format: *mut ::std::os::raw::c_char,
-        ...
-    );
+    pub fn RustIface_dropped_fromRust();
 }
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -390,52 +91,13 @@ pub struct Log {
 }
 pub type Log_t = Log;
 extern "C" {
-    pub fn Log_nameForLevel(logLevel: Log_Level) -> *mut ::std::os::raw::c_char;
-}
-extern "C" {
-    pub fn Log_levelForName(name: *mut ::std::os::raw::c_char) -> Log_Level;
-}
-extern "C" {
-    pub fn Log_print(
-        log: *mut Log,
-        logLevel: Log_Level,
-        file: *const ::std::os::raw::c_char,
-        line: ::std::os::raw::c_int,
-        format: *const ::std::os::raw::c_char,
-        ...
-    );
-}
-extern "C" {
-    pub fn Log_print0(
+    pub fn Log_print_fromRust(
         log: *mut Log,
         lvl: Log_Level,
         file: *const ::std::os::raw::c_char,
         line: ::std::os::raw::c_int,
         msg: *const ::std::os::raw::c_char,
     );
-}
-pub type RandomSeed_t = RandomSeed_s;
-pub type RandomSeed_Provider =
-    ::std::option::Option<unsafe extern "C" fn(alloc: *mut Allocator) -> *mut RandomSeed_t>;
-pub type RandomSeed_Get = ::std::option::Option<
-    unsafe extern "C" fn(context: *mut RandomSeed_t, buff: *mut u64) -> ::std::os::raw::c_int,
->;
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct RandomSeed_s {
-    pub get: RandomSeed_Get,
-    pub name: *const ::std::os::raw::c_char,
-}
-extern "C" {
-    pub fn RandomSeed_new(
-        providers: *mut RandomSeed_Provider,
-        providerCount: ::std::os::raw::c_int,
-        logger: *mut Log,
-        alloc: *mut Allocator,
-    ) -> *mut RandomSeed_t;
-}
-extern "C" {
-    pub fn RandomSeed_get(rs: *mut RandomSeed_t, buffer: *mut u64) -> ::std::os::raw::c_int;
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -444,24 +106,7 @@ pub struct Random {
 }
 pub type Random_t = Random;
 extern "C" {
-    pub fn Random_bytes(rand: *mut Random_t, location: *mut u8, count: u64);
-}
-extern "C" {
-    pub fn Random_base32(rand: *mut Random, output: *mut u8, length: u32);
-}
-extern "C" {
-    pub fn Random_addRandom(rand: *mut Random, randomNumber: u32);
-}
-extern "C" {
-    pub fn Random_newWithSeed(
-        alloc: *mut Allocator,
-        logger: *mut Log,
-        seed: *mut RandomSeed_t,
-        eh: *mut Except,
-    ) -> *mut Random;
-}
-extern "C" {
-    pub fn Random_new(alloc: *mut Allocator, logger: *mut Log, eh: *mut Except) -> *mut Random;
+    pub fn Random_bytes_fromRust(rand: *mut Random_t, location: *mut u8, count: u64);
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -481,31 +126,10 @@ pub struct Sockaddr_storage {
     pub nativeAddr: [u64; 16usize],
 }
 extern "C" {
-    pub fn Sockaddr_addrHandle(addr: *const Sockaddr_t) -> u32;
+    pub fn Sockaddr_getPort_fromRust(sockaddr: *const Sockaddr) -> ::std::os::raw::c_int;
 }
 extern "C" {
-    pub fn Sockaddr_addrFromHandle(addr: *mut Sockaddr_t, handle: u32);
-}
-extern "C" {
-    pub fn Sockaddr_getPrefix(addr: *mut Sockaddr_t) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn Sockaddr_parse(
-        str_: *const ::std::os::raw::c_char,
-        out: *mut Sockaddr_storage,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn Sockaddr_print(
-        addr: *mut Sockaddr_t,
-        alloc: *mut Allocator,
-    ) -> *mut ::std::os::raw::c_char;
-}
-extern "C" {
-    pub fn Sockaddr_getPort(sa: *const Sockaddr_t) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn Sockaddr_setPort(sa: *mut Sockaddr_t, port: u16) -> ::std::os::raw::c_int;
+    pub fn Sockaddr_setPort_fromRust(sockaddr: *mut Sockaddr, port: u16) -> ::std::os::raw::c_int;
 }
 extern "C" {
     pub static Sockaddr_AF_INET: ::std::os::raw::c_int;
@@ -514,571 +138,137 @@ extern "C" {
     pub static Sockaddr_AF_INET6: ::std::os::raw::c_int;
 }
 extern "C" {
-    pub fn Sockaddr_getFamily(sa: *const Sockaddr_t) -> ::std::os::raw::c_int;
+    pub fn Sockaddr_getFamily_fromRust(sockaddr: *const Sockaddr) -> ::std::os::raw::c_int;
 }
 extern "C" {
-    pub fn Sockaddr_getAddress(
-        sa: *mut Sockaddr_t,
-        addrPtr: *mut ::std::os::raw::c_void,
-    ) -> ::std::os::raw::c_int;
+    pub fn Sockaddr_asIp6_fromRust(addrOut: *mut u8, sockaddr: *const Sockaddr);
 }
 extern "C" {
-    pub fn Sockaddr_asIp6(addrOut: *mut u8, sockaddr: *const Sockaddr_t);
-}
-extern "C" {
-    pub fn Sockaddr_initFromBytes(
+    pub fn Sockaddr_initFromBytes_fromRust(
         out: *mut Sockaddr_storage,
         bytes: *const u8,
         addrFamily: ::std::os::raw::c_int,
     ) -> *mut Sockaddr_t;
-}
-extern "C" {
-    pub fn Sockaddr_fromBytes(
-        bytes: *const u8,
-        addrFamily: ::std::os::raw::c_int,
-        alloc: *mut Allocator,
-    ) -> *mut Sockaddr_t;
-}
-extern "C" {
-    pub fn Sockaddr_clone(addr: *const Sockaddr_t, alloc: *mut Allocator) -> *mut Sockaddr_t;
-}
-extern "C" {
-    pub fn Sockaddr_normalizeNative(nativeSockaddr: *mut ::std::os::raw::c_void);
-}
-extern "C" {
-    pub fn Sockaddr_hash(addr: *const Sockaddr_t) -> u32;
-}
-extern "C" {
-    pub fn Sockaddr_compare(a: *const Sockaddr_t, b: *const Sockaddr_t) -> ::std::os::raw::c_int;
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct RTypes_CryptoAuth2_t {
-    _unused: [u8; 0],
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct Rffi_EventLoop {
-    _unused: [u8; 0],
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct Rffi_FdReadableTx {
-    _unused: [u8; 0],
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct Rffi_SocketServer {
-    _unused: [u8; 0],
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct Rffi_TimerTx {
-    _unused: [u8; 0],
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct Rffi_UDPIface_pvt {
-    _unused: [u8; 0],
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct Rffi_UDPIface {
-    pub pvt: *mut Rffi_UDPIface_pvt,
-    pub iface: *mut Iface_t,
-    pub local_addr: *mut Sockaddr_t,
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct Rffi_Address {
-    pub octets: [u8; 16usize],
-    pub netmask: [u8; 16usize],
-    pub is_ipv6: bool,
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct Rffi_NetworkInterface {
-    pub name: *const ::std::os::raw::c_char,
-    pub phys_addr: [u8; 6usize],
-    pub is_internal: bool,
-    pub address: Rffi_Address,
-}
-pub type OnFreeFun = ::std::option::Option<unsafe extern "C" fn(ctx: *mut ::std::os::raw::c_void)>;
-extern "C" {
-    pub fn Rffi_CryptoAuth2_addUser_ipv6(
-        password: *mut String_t,
-        login: *mut String_t,
-        ipv6: *mut u8,
-        ca: *mut RTypes_CryptoAuth2_t,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn Rffi_CryptoAuth2_removeUsers(
-        context: *mut RTypes_CryptoAuth2_t,
-        user: *mut String_t,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn Rffi_CryptoAuth2_getUsers(
-        ca: *const RTypes_CryptoAuth2_t,
-        alloc: *mut Allocator_t,
-    ) -> *mut RTypes_StrList_t;
-}
-extern "C" {
-    pub fn Rffi_CryptoAuth2_new(
-        allocator: *mut Allocator_t,
-        privateKey: *const u8,
-        random: *mut Random_t,
-    ) -> *mut RTypes_CryptoAuth2_t;
-}
-extern "C" {
-    pub fn Rffi_CryptoAuth2_tryHandshake(
-        ca: *mut RTypes_CryptoAuth2_t,
-        c_msg: *mut Message_t,
-        alloc: *mut Allocator_t,
-        requireAuth: bool,
-        ret: *mut RTypes_CryptoAuth2_TryHandshake_Ret_t,
-    );
-}
-extern "C" {
-    pub fn Rffi_CryptoAuth2_newSession(
-        ca: *mut RTypes_CryptoAuth2_t,
-        alloc: *mut Allocator_t,
-        herPublicKey: *const u8,
-        requireAuth: bool,
-        name: *const ::std::os::raw::c_char,
-        useNoise: bool,
-    ) -> *mut RTypes_CryptoAuth2_Session_t;
-}
-extern "C" {
-    pub fn Rffi_CryptoAuth2_noiseTick(
-        sess: *mut RTypes_CryptoAuth2_Session_t,
-        alloc: *mut Allocator_t,
-    ) -> *mut Message_t;
-}
-extern "C" {
-    pub fn Rffi_CryptoAuth2_setAuth(
-        password: *const String_t,
-        login: *const String_t,
-        caSession: *mut RTypes_CryptoAuth2_Session_t,
-    );
-}
-extern "C" {
-    pub fn Rffi_CryptoAuth2_resetIfTimeout(session: *mut RTypes_CryptoAuth2_Session_t);
-}
-extern "C" {
-    pub fn Rffi_CryptoAuth2_reset(caSession: *mut RTypes_CryptoAuth2_Session_t);
-}
-extern "C" {
-    pub fn Rffi_CryptoAuth2_getState(
-        session: *mut RTypes_CryptoAuth2_Session_t,
-    ) -> RTypes_CryptoAuth_State_t;
-}
-extern "C" {
-    pub fn Rffi_CryptoAuth2_getHerPubKey(
-        session: *const RTypes_CryptoAuth2_Session_t,
-        pkOut: *mut u8,
-    );
-}
-extern "C" {
-    pub fn Rffi_CryptoAuth2_getHerIp6(session: *const RTypes_CryptoAuth2_Session_t, ipOut: *mut u8);
-}
-extern "C" {
-    pub fn Rffi_CryptoAuth2_getName(
-        session: *const RTypes_CryptoAuth2_Session_t,
-        alloc: *mut Allocator_t,
-    ) -> *mut String_t;
-}
-extern "C" {
-    pub fn Rffi_CryptoAuth2_getPubKey(ca: *const RTypes_CryptoAuth2_t, pkOut: *mut u8);
-}
-extern "C" {
-    pub fn Rffi_CryptoAuth2_stats(
-        session: *const RTypes_CryptoAuth2_Session_t,
-        statsOut: *mut RTypes_CryptoStats_t,
-    );
-}
-extern "C" {
-    pub fn Rffi_CryptoAuth2_cjdnsVer(session: *const RTypes_CryptoAuth2_Session_t) -> u32;
-}
-extern "C" {
-    pub fn Rffi_stopEventLoop(event_loop: *mut Rffi_EventLoop);
-}
-extern "C" {
-    pub fn Rffi_startEventLoop(event_loop: *mut Rffi_EventLoop);
-}
-extern "C" {
-    pub fn Rffi_mkEventLoop(alloc: *mut Allocator_t) -> *mut Rffi_EventLoop;
-}
-extern "C" {
-    pub fn Rffi_exepath(out: *mut *const ::std::os::raw::c_char, alloc: *mut Allocator_t) -> i32;
-}
-extern "C" {
-    pub fn Rffi_spawn(
-        file: *const ::std::os::raw::c_char,
-        args: *const *const ::std::os::raw::c_char,
-        num_args: ::std::os::raw::c_int,
-        _alloc: *mut Allocator_t,
-        cb: ::std::option::Option<unsafe extern "C" fn(arg1: i64, arg2: ::std::os::raw::c_int)>,
-    ) -> i32;
-}
-extern "C" {
-    pub fn Rffi_setTimeout(
-        out_timer_tx: *mut *mut Rffi_TimerTx,
-        cb: ::std::option::Option<unsafe extern "C" fn(arg1: *mut ::std::os::raw::c_void)>,
-        cb_context: *mut ::std::os::raw::c_void,
-        timeout_millis: ::std::os::raw::c_ulong,
-        repeat: bool,
-        event_loop: *mut Rffi_EventLoop,
-        alloc: *mut Allocator_t,
-    );
-}
-extern "C" {
-    pub fn Rffi_resetTimeout(
-        timer_tx: *const Rffi_TimerTx,
-        timeout_millis: ::std::os::raw::c_ulong,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn Rffi_clearTimeout(timer_tx: *const Rffi_TimerTx) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn Rffi_isTimeoutActive(timer_tx: *const Rffi_TimerTx) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn Rffi_clearAllTimeouts(event_loop: *mut Rffi_EventLoop);
-}
-extern "C" {
-    pub fn Rffi_pollFdReadable(
-        out: *mut *mut Rffi_FdReadableTx,
-        errout: *mut *const ::std::os::raw::c_char,
-        cb: ::std::option::Option<unsafe extern "C" fn(arg1: *mut ::std::os::raw::c_void)>,
-        cb_context: *mut ::std::os::raw::c_void,
-        fd: ::std::os::raw::c_int,
-        alloc: *mut Allocator_t,
-    );
-}
-extern "C" {
-    pub fn Rffi_udpIfaceGetFd(iface: *mut Rffi_UDPIface_pvt) -> i32;
-}
-extern "C" {
-    pub fn Rffi_udpIfaceSetBroadcast(iface: *mut Rffi_UDPIface_pvt, broadcast: bool) -> i32;
-}
-extern "C" {
-    pub fn Rffi_udpIfaceSetDscp(iface: *mut Rffi_UDPIface_pvt, dscp: u8) -> i32;
-}
-extern "C" {
-    pub fn Rffi_udpIfaceNew(
-        outp: *mut *mut Rffi_UDPIface,
-        errout: *mut *const ::std::os::raw::c_char,
-        bind_addr: *const Sockaddr_t,
-        c_alloc: *mut Allocator_t,
-    );
-}
-extern "C" {
-    pub fn Rffi_fileExists(
-        existsOut: *mut bool,
-        path: *const ::std::os::raw::c_char,
-        errorAlloc: *mut Allocator_t,
-    ) -> *mut RTypes_Error_t;
-}
-extern "C" {
-    pub fn Rffi_socketForFd(
-        ifOut: *mut *mut Iface_t,
-        fd: ::std::os::raw::c_int,
-        socket_type: ::std::os::raw::c_int,
-        alloc: *mut Allocator_t,
-    ) -> *mut RTypes_Error_t;
-}
-extern "C" {
-    pub fn Rffi_unixSocketConnect(
-        ifOut: *mut *mut Iface_t,
-        path: *const ::std::os::raw::c_char,
-        alloc: *mut Allocator_t,
-    ) -> *mut RTypes_Error_t;
-}
-extern "C" {
-    pub fn Rffi_unixSocketServerOnConnect(
-        rss: *mut Rffi_SocketServer,
-        f: ::std::option::Option<
-            unsafe extern "C" fn(arg1: *mut ::std::os::raw::c_void, arg2: *const Sockaddr_t),
-        >,
-        ctx: *mut ::std::os::raw::c_void,
-    );
-}
-extern "C" {
-    pub fn Rffi_unixSocketServer(
-        rssOut: *mut *mut Rffi_SocketServer,
-        ifaceOut: *mut *mut Iface_t,
-        path: *const ::std::os::raw::c_char,
-        alloc: *mut Allocator_t,
-    ) -> *mut RTypes_Error_t;
-}
-extern "C" {
-    pub fn Rffi_inet_ntop(
-        is_ip6: bool,
-        addr: *const ::std::os::raw::c_void,
-        dst: *mut u8,
-        dst_sz: u32,
-    ) -> i32;
-}
-extern "C" {
-    pub fn Rffi_inet_pton(is_ip6: bool, src: *const ::std::os::raw::c_char, addr: *mut u8) -> i32;
-}
-extern "C" {
-    pub fn Rffi_interface_addresses(
-        out: *mut *const Rffi_NetworkInterface,
-        alloc: *mut Allocator_t,
-    ) -> i32;
-}
-extern "C" {
-    pub fn Rffi_hrtime() -> u64;
-}
-extern "C" {
-    pub fn Rffi_now_ms() -> u64;
-}
-extern "C" {
-    pub fn Rffi_testwrapper_create(a: *mut Allocator_t) -> RTypes_IfWrapper_t;
-}
-extern "C" {
-    pub fn Rffi_android_create(a: *mut Allocator_t) -> RTypes_IfWrapper_t;
-}
-extern "C" {
-    pub fn Rffi_panic(msg: *const ::std::os::raw::c_char);
-}
-extern "C" {
-    pub fn Rffi_setLogger(l: *mut Log_t);
-}
-extern "C" {
-    pub fn Rffi_error(
-        msg: *const ::std::os::raw::c_char,
-        alloc: *mut Allocator_t,
-    ) -> *mut RTypes_Error_t;
-}
-extern "C" {
-    pub fn Rffi_error_fl(
-        msg: *const ::std::os::raw::c_char,
-        file: *const ::std::os::raw::c_char,
-        line: ::std::os::raw::c_int,
-        alloc: *mut Allocator_t,
-    ) -> *mut RTypes_Error_t;
-}
-extern "C" {
-    pub fn Rffi_printError(
-        e: *mut RTypes_Error_t,
-        alloc: *mut Allocator_t,
-    ) -> *const ::std::os::raw::c_char;
-}
-extern "C" {
-    pub fn Rffi_glock();
-}
-extern "C" {
-    pub fn Rffi_gunlock();
-}
-extern "C" {
-    pub fn Rffi_allocator_newRoot(
-        file: *const ::std::os::raw::c_char,
-        line: usize,
-    ) -> *mut Allocator_t;
-}
-extern "C" {
-    pub fn Rffi_allocator_free(
-        a: *mut Allocator_t,
-        file: *const ::std::os::raw::c_char,
-        line: usize,
-    );
-}
-extern "C" {
-    pub fn Rffi_allocator_isFreeing(a: *mut Allocator_t) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn Rffi_allocator_child(
-        a: *mut Allocator_t,
-        file: *const ::std::os::raw::c_char,
-        line: usize,
-    ) -> *mut Allocator_t;
-}
-extern "C" {
-    pub fn Rffi_allocator_malloc(a: *mut Allocator_t, size: usize) -> *mut u8;
-}
-extern "C" {
-    pub fn Rffi_allocator_calloc(a: *mut Allocator_t, size: usize) -> *mut u8;
-}
-extern "C" {
-    pub fn Rffi_allocator_realloc(a: *mut Allocator_t, ptr: *mut u8, new_size: usize) -> *mut u8;
-}
-extern "C" {
-    pub fn Rffi_allocator_onFree(
-        a: *mut Allocator_t,
-        fun: OnFreeFun,
-        ctx: *mut ::std::os::raw::c_void,
-        file: *const ::std::os::raw::c_char,
-        line: usize,
-    );
-}
-extern "C" {
-    pub fn Rffi_allocator_adopt(a: *mut Allocator_t, to_adopt: *mut Allocator_t);
-}
-pub type EventBase_t = Rffi_EventLoop;
-extern "C" {
-    pub fn EventBase_new(alloc: *mut Allocator) -> *mut EventBase_t;
-}
-extern "C" {
-    pub fn EventBase_beginLoop(eventBase: *mut EventBase_t);
-}
-extern "C" {
-    pub fn EventBase_endLoop(eventBase: *mut EventBase_t);
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct CryptoAuth {
-    pub opaque: ::std::os::raw::c_int,
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct CryptoAuth_Session {
-    pub plaintext: Iface,
-    pub ciphertext: Iface,
 }
 #[repr(i32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum CryptoAuth_addUser_Res {
     CryptoAuth_addUser_DUPLICATE = -3,
 }
-extern "C" {
-    pub fn CryptoAuth_addUser_ipv6(
-        password: *mut String,
-        login: *mut String,
-        ipv6: *mut u8,
-        ca: *mut CryptoAuth,
-    ) -> ::std::os::raw::c_int;
+#[repr(C, packed(4))]
+#[derive(Debug, Copy, Clone)]
+pub struct SwitchHeader {
+    pub label_be: u64,
+    pub congestAndSuppressErrors: u8,
+    pub versionAndLabelShift: u8,
+    pub trafficClass_be: u16,
 }
-extern "C" {
-    pub fn CryptoAuth_removeUsers(
-        context: *mut CryptoAuth,
-        user: *mut String,
-    ) -> ::std::os::raw::c_int;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct RouteHeader {
+    pub publicKey: [u8; 32usize],
+    pub sh: SwitchHeader,
+    pub version_be: u32,
+    pub flags: u8,
+    pub unused: u8,
+    pub alsoUnused: u16,
+    pub ip6: [u8; 16usize],
 }
-extern "C" {
-    pub fn CryptoAuth_getUsers(
-        context: *const CryptoAuth,
-        alloc: *mut Allocator,
-    ) -> *mut RTypes_StrList_t;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct DataHeader {
+    pub versionAndFlags: u8,
+    pub unused: u8,
+    pub contentType_be: u16,
 }
-extern "C" {
-    pub fn CryptoAuth_new(
-        allocator: *mut Allocator,
-        privateKey: *const u8,
-        eventBase: *mut EventBase_t,
-        logger: *mut Log,
-        rand: *mut Random,
-    ) -> *mut CryptoAuth;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct PFChan_Node {
+    pub ip6: [u8; 16usize],
+    pub publicKey: [u8; 32usize],
+    pub path_be: u64,
+    pub metric_be: u32,
+    pub version_be: u32,
 }
-extern "C" {
-    pub fn CryptoAuth_newSession(
-        ca: *mut CryptoAuth,
-        alloc: *mut Allocator,
-        herPublicKey: *const u8,
-        requireAuth: bool,
-        name: *const ::std::os::raw::c_char,
-        useNoise: bool,
-    ) -> *mut CryptoAuth_Session;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct PFChan_Msg {
+    pub route: RouteHeader,
+    pub data: DataHeader,
 }
-extern "C" {
-    pub fn CryptoAuth_encrypt(
-        session: *mut CryptoAuth_Session,
-        msg: *mut Message,
-    ) -> ::std::os::raw::c_int;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct PFChan_Ping {
+    pub cookie: u64,
 }
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct PFChan_Pathfinder_Connect {
+    pub superiority_be: u32,
+    pub version_be: u32,
+    pub userAgent: [u8; 64usize],
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct PFChan_Pathfinder_Superiority {
+    pub superiority_be: u32,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct PFChan_Pathfinder_ConnectPeer {
+    pub ip: [u8; 16usize],
+    pub pubkey: [u8; 32usize],
+    pub login: [u8; 16usize],
+    pub password: [u8; 24usize],
+    pub version: u32,
+}
+pub type PFChan_Pathfinder_ConnectPeer_t = PFChan_Pathfinder_ConnectPeer;
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum CryptoAuth_DecryptErr {
-    CryptoAuth_DecryptErr_NONE = 0,
-    CryptoAuth_DecryptErr_RUNT = 1,
-    CryptoAuth_DecryptErr_NO_SESSION = 2,
-    CryptoAuth_DecryptErr_FINAL_SHAKE_FAIL = 3,
-    CryptoAuth_DecryptErr_FAILED_DECRYPT_RUN_MSG = 4,
-    CryptoAuth_DecryptErr_KEY_PKT_ESTABLISHED_SESSION = 5,
-    CryptoAuth_DecryptErr_WRONG_PERM_PUBKEY = 6,
-    CryptoAuth_DecryptErr_IP_RESTRICTED = 7,
-    CryptoAuth_DecryptErr_AUTH_REQUIRED = 8,
-    CryptoAuth_DecryptErr_UNRECOGNIZED_AUTH = 9,
-    CryptoAuth_DecryptErr_STRAY_KEY = 10,
-    CryptoAuth_DecryptErr_HANDSHAKE_DECRYPT_FAILED = 11,
-    CryptoAuth_DecryptErr_WISEGUY = 12,
-    CryptoAuth_DecryptErr_INVALID_PACKET = 13,
-    CryptoAuth_DecryptErr_REPLAY = 14,
-    CryptoAuth_DecryptErr_DECRYPT = 15,
+pub enum PFChan_Pathfinder {
+    PFChan_Pathfinder__TOO_LOW = 511,
+    PFChan_Pathfinder_CONNECT = 512,
+    PFChan_Pathfinder_SUPERIORITY = 513,
+    PFChan_Pathfinder_NODE = 514,
+    PFChan_Pathfinder_SENDMSG = 515,
+    PFChan_Pathfinder_PING = 516,
+    PFChan_Pathfinder_PONG = 517,
+    PFChan_Pathfinder_SESSIONS = 518,
+    PFChan_Pathfinder_PEERS = 519,
+    PFChan_Pathfinder_PATHFINDERS = 520,
+    PFChan_Pathfinder_CTRL_SENDMSG = 521,
+    PFChan_Pathfinder_SNODE = 522,
+    PFChan_Pathfinder_CONNECT_PEER = 523,
+    PFChan_Pathfinder__TOO_HIGH = 524,
 }
-extern "C" {
-    pub fn CryptoAuth_decrypt(
-        sess: *mut CryptoAuth_Session,
-        msg: *mut Message,
-    ) -> CryptoAuth_DecryptErr;
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct PFChan_FromPathfinder {
+    pub event_be: PFChan_Pathfinder,
+    pub target_be: u8,
+    pub content: PFChan_FromPathfinder__bindgen_ty_1,
 }
-extern "C" {
-    pub fn CryptoAuth_setAuth(
-        password: *const String,
-        login: *const String,
-        caSession: *mut CryptoAuth_Session,
-    );
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub union PFChan_FromPathfinder__bindgen_ty_1 {
+    pub connect: PFChan_Pathfinder_Connect,
+    pub superiority: PFChan_Pathfinder_Superiority,
+    pub node: PFChan_Node,
+    pub sendmsg: PFChan_Msg,
+    pub ping: PFChan_Ping,
+    pub pong: PFChan_Ping,
+    pub cp: PFChan_Pathfinder_ConnectPeer_t,
+    pub bytes: [u8; 1usize],
+    _bindgen_union_align: [u64; 12usize],
 }
-extern "C" {
-    pub fn CryptoAuth_resetIfTimeout(session: *mut CryptoAuth_Session);
-}
-extern "C" {
-    pub fn CryptoAuth_reset(caSession: *mut CryptoAuth_Session);
-}
-extern "C" {
-    pub fn CryptoAuth_getState(session: *mut CryptoAuth_Session) -> RTypes_CryptoAuth_State_t;
-}
-extern "C" {
-    pub fn CryptoAuth_getHerPubKey(session: *const CryptoAuth_Session, pkOut: *mut u8);
-}
-extern "C" {
-    pub fn CryptoAuth_getHerIp6(session: *const CryptoAuth_Session, ipOut: *mut u8);
-}
-extern "C" {
-    pub fn CryptoAuth_getPubKey(ca: *const CryptoAuth, pkOut: *mut u8);
-}
-extern "C" {
-    pub fn CryptoAuth_getName(
-        session: *const CryptoAuth_Session,
-        alloc: *mut Allocator_t,
-    ) -> *mut String_t;
-}
-extern "C" {
-    pub fn CryptoAuth_stats(
-        session: *const CryptoAuth_Session,
-        statsOut: *mut RTypes_CryptoStats_t,
-    );
-}
-extern "C" {
-    pub fn Assert_compileTime(x: *mut ::std::os::raw::c_char);
-}
-extern "C" {
-    pub fn CryptoAuth_decryptRndNonce(
-        nonce: *const u8,
-        msg: *mut Message,
-        secret: *const u8,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn CryptoAuth_encryptRndNonce(nonce: *const u8, msg: *mut Message, secret: *const u8);
-}
-extern "C" {
-    pub fn DeterminentRandomSeed_new(alloc: *mut Allocator, buff: *mut u8) -> *mut RandomSeed_t;
-}
-extern "C" {
-    pub fn Version_isCompatible(one: u32, two: u32) -> ::std::os::raw::c_int;
-}
+pub type PFChan_FromPathfinder_t = PFChan_FromPathfinder;
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum RBindings_Version {
     RBindings_Version_CurrentProtocol = 22,
 }
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Copy, Clone)]
 pub struct RBindings_Whitelist {
     pub b: Iface_t,
     pub c: CryptoAuth_addUser_Res,
@@ -1087,4 +277,10 @@ pub struct RBindings_Whitelist {
     pub f: *mut Log_t,
     pub g: RBindings_Version,
     pub h: Sockaddr_t,
+    pub i: PFChan_FromPathfinder_t,
+    pub j: Log_Level,
+    pub k: *mut Allocator_t,
+    pub l: Sockaddr_storage,
+    pub m: Sockaddr,
+    pub n: *mut Random_t,
 }

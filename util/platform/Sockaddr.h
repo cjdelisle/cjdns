@@ -99,6 +99,7 @@ char* Sockaddr_print(Sockaddr_t* addr, struct Allocator* alloc);
  * @return the port number or -1 if not applicable to this sockaddr.
  */
 int Sockaddr_getPort(const Sockaddr_t* sa);
+int Sockaddr_getPort_fromRust(const struct Sockaddr* sockaddr);
 
 /**
  * Set the port for a sockaddr if applicable.
@@ -108,6 +109,7 @@ int Sockaddr_getPort(const Sockaddr_t* sa);
  * @return 0 if all goes well, -1 if not applicable to this sockaddr.
  */
 int Sockaddr_setPort(Sockaddr_t* sa, uint16_t port);
+int Sockaddr_setPort_fromRust(struct Sockaddr* sockaddr, uint16_t port);
 
 /**
  * Get the address family for the address.
@@ -118,6 +120,7 @@ int Sockaddr_setPort(Sockaddr_t* sa, uint16_t port);
 extern const int Sockaddr_AF_INET;
 extern const int Sockaddr_AF_INET6;
 int Sockaddr_getFamily(const Sockaddr_t* sa);
+int Sockaddr_getFamily_fromRust(const struct Sockaddr* sockaddr);
 
 /**
  * Get the address stored in a sockaddr.
@@ -137,6 +140,7 @@ int Sockaddr_getAddress(Sockaddr_t* sa, void* addrPtr);
  * Other addresses larger than 14 bytes are represented as ffff::<14 bytes of sha256 hash of address>
  */
 void Sockaddr_asIp6(uint8_t addrOut[static 16], const Sockaddr_t* sockaddr);
+void Sockaddr_asIp6_fromRust(uint8_t addrOut[static 16], const struct Sockaddr* sockaddr);
 
 /**
  * Output the native form of a sockaddr.
@@ -155,6 +159,11 @@ static inline void* Sockaddr_asNative(Sockaddr_t* sa)
  * @return Sockaddr_t* which points to the memory of `out`
  */
 Sockaddr_t* Sockaddr_initFromBytes(struct Sockaddr_storage* out, const uint8_t* bytes, int addrFamily);
+Sockaddr_t* Sockaddr_initFromBytes_fromRust(
+    struct Sockaddr_storage* out,
+    const uint8_t* bytes,
+    int addrFamily
+);
 
 /**
  * Sockaddr_fromBytes() takes

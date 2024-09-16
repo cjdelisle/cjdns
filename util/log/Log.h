@@ -68,7 +68,7 @@ void Log_print(struct Log* log,
                const char* format,
                ...);
 
-void Log_print0(struct Log* log, enum Log_Level lvl, const char* file, int line, const char* msg);
+void Log_print_fromRust(struct Log* log, enum Log_Level lvl, const char* file, int line, const char* msg);
 
 #define Log_printf(log, level, ...) \
     do {                                                                   \

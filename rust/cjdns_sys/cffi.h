@@ -23,14 +23,14 @@
 #include "crypto/random/test/DeterminentRandomSeed.h"
 #include "util/platform/Sockaddr.h"
 #include "util/version/Version.h"
-#include "util/events/EventBase.h"
+// #include "util/events/EventBase.h"
+#include "wire/PFChan.h"
 
 enum RBindings_Version {
     RBindings_Version_CurrentProtocol = Version_CURRENT_PROTOCOL,
 };
 
 // This structure is guaranteed to be present in the generated rust code
-// Also all functions in the above headers will be present.
 // Any types which are not transitively included in either this structure
 // or in one of the functions will not be generated. This prevents generating
 // a bunch of platform-specific trash like uint_fast8_t etc.
@@ -42,4 +42,10 @@ struct RBindings_Whitelist {
     Log_t* f;
     enum RBindings_Version g;
     Sockaddr_t h;
+    PFChan_FromPathfinder_t i;
+    enum Log_Level j;
+    Allocator_t* k;
+    struct Sockaddr_storage l;
+    struct Sockaddr m;
+    Random_t* n;
 };

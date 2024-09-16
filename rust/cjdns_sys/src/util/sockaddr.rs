@@ -94,18 +94,18 @@ impl From<*const cffi::Sockaddr> for Sockaddr {
     }
 }
 impl From<&SocketAddr> for Sockaddr {
-    fn from(sa: &SocketAddr) -> Self {
+    fn from(sa: &SocketAddr) -> Self { 
         let mut out = Self{ss: unsafe { std::mem::zeroed::<cffi::Sockaddr_storage>() } };
         match sa.ip() {
             IpAddr::V4(v4) => unsafe {
-                cffi::Sockaddr_initFromBytes(
+                cffi::Sockaddr_initFromBytes_fromRust(
                     &mut out.ss as *mut _,
                     v4.octets()[..].as_ptr(),
                     cffi::Sockaddr_AF_INET,
                 );
             }
             IpAddr::V6(v6) => unsafe {
-                cffi::Sockaddr_initFromBytes(
+                cffi::Sockaddr_initFromBytes_fromRust(
                     &mut out.ss as *mut _,
                     v6.octets()[..].as_ptr(),
                     cffi::Sockaddr_AF_INET6,
@@ -113,7 +113,7 @@ impl From<&SocketAddr> for Sockaddr {
             }
         }
         unsafe {
-            cffi::Sockaddr_setPort(&mut out.ss.addr as *mut _, sa.port());
+            cffi::Sockaddr_setPort_fromRust(&mut out.ss.addr as *mut _, sa.port());
         }
         out
     }
@@ -123,10 +123,10 @@ impl TryFrom<&Sockaddr> for SocketAddr {
     fn try_from(sa: &Sockaddr) -> anyhow::Result<Self> {
         let mut ip = [0u8; 16];
         let (port, is_ip6, is_handle) = unsafe {
-            cffi::Sockaddr_asIp6(&mut ip as *mut _, &sa.ss.addr as *const _);
+            cffi::Sockaddr_asIp6_fromRust(&mut ip as *mut _, &sa.ss.addr as *const _);
             (
-                cffi::Sockaddr_getPort(&sa.ss.addr as *const _),
-                cffi::Sockaddr_getFamily(&sa.ss.addr as *const _) == cffi::Sockaddr_AF_INET6,
+                cffi::Sockaddr_getPort_fromRust(&sa.ss.addr as *const _),
+                cffi::Sockaddr_getFamily_fromRust(&sa.ss.addr as *const _) == cffi::Sockaddr_AF_INET6,
                 sa.ss.addr.type_ != 0
             )
         };

@@ -1,3 +1,4 @@
+use super::allocator::file_line;
 use super::{cstr, strc};
 use crate::bytestring::ByteString;
 use crate::cffi::{self, Allocator_t, Random_t, String_t};
@@ -134,11 +135,7 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_tryHandshake(
         Ok((code, sess)) => {
             (*ret).code = code;
             if let Some(sess) = sess {
-                let child = cffi::Allocator__child(
-                    alloc,
-                    b"rffi_tryHandshake\0".as_ptr() as *const c_char,
-                    163,
-                );
+                let child = allocator::rs(alloc).child(file_line!());
                 (*ret).alloc = child;
                 (*ret).sess = wrap_session(sess, child)
             }

@@ -232,6 +232,10 @@ void Random_bytes(struct Random* rand, uint8_t* location, uint64_t count)
         stir(rand);
     }
 }
+void Random_bytes_fromRust(Random_t* rand, uint8_t* location, uint64_t count)
+{
+    Random_bytes(rand, location, count);
+}
 
 void Random_base32(struct Random* rand, uint8_t* output, uint32_t length)
 {

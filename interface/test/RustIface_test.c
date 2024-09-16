@@ -35,17 +35,17 @@ static int incomingCount = 0;
 static int outgoingCount = 0;
 static int dropped = 0;
 
-void RustIface_gotIncoming()
+void RustIface_gotIncoming_fromRust()
 {
     incomingCount++;
 }
 
-void RustIface_gotOutgoing()
+void RustIface_gotOutgoing_fromRust()
 {
     outgoingCount++;
 }
 
-void RustIface_dropped()
+void RustIface_dropped_fromRust()
 {
     dropped++;
 }

@@ -3,13 +3,13 @@
 pub use cjdns_crypto::random::DefaultRandom as SodiumRandom;
 pub use cjdns_crypto::random::Random as Rand;
 
-use crate::cffi::Random as CRandom;
-use crate::cffi::Random_bytes;
+use crate::cffi::Random_t;
+use crate::cffi::Random_bytes_fromRust;
 use crate::gcl::Protected;
 
 pub enum Random {
     Sodium(SodiumRandom),
-    Legacy(Protected<*mut CRandom>),
+    Legacy(Protected<*mut Random_t>),
     #[cfg(test)]
     Fake,
 }
@@ -21,7 +21,7 @@ impl Random {
     }
 
     #[inline]
-    pub fn wrap_legacy(c_random: *mut CRandom) -> Self {
+    pub fn wrap_legacy(c_random: *mut Random_t) -> Self {
         Random::Legacy(Protected::new(c_random))
     }
 
@@ -40,9 +40,9 @@ impl Random {
 }
 
 #[inline]
-fn c_random_bytes(rand: *mut CRandom, dest: &mut [u8]) {
+fn c_random_bytes(rand: *mut Random_t, dest: &mut [u8]) {
     unsafe {
-        Random_bytes(rand, dest.as_mut_ptr(), dest.len() as u64);
+        Random_bytes_fromRust(rand, dest.as_mut_ptr(), dest.len() as u64);
     }
 }
 

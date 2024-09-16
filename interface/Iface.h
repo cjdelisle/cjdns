@@ -51,7 +51,7 @@ struct Iface
 } /* Iface_t defined in RffiPrefix.h */;
 
 // This needs to be in a C file in order to be accessible from Rust
-Iface_DEFUN Iface_incomingFromRust(Message_t* message, struct Iface* thisInterface);
+Iface_DEFUN Iface_incoming_fromRust(Message_t* message, struct Iface* thisInterface);
 
 void Iface_setIdentity(struct Iface* iface);
 void Iface_checkIdentity(struct Iface* iface);

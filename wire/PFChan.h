@@ -96,6 +96,20 @@ struct PFChan_Pathfinder_Superiority
 Assert_compileTime(
     sizeof(struct PFChan_Pathfinder_Superiority) == PFChan_Pathfinder_Superiority_SIZE);
 
+typedef struct PFChan_Pathfinder_ConnectPeer {
+    // If ::ffff:XXXX:XXXX then is 4 in 6
+    uint8_t ip[16];
+    // Public key of the peer
+    uint8_t pubkey[32];
+    // Null terminated, e.g. "AP_LOGIN: 65535\0"
+    uint8_t login[16];
+    // Null terminated, e.g. "AP_PASS: 4eqnmtOq/Mo\0"
+    uint8_t password[24];
+    // Protocol version of the peer
+    uint32_t version;
+} PFChan_Pathfinder_ConnectPeer_t;
+Assert_compileTime(sizeof(PFChan_Pathfinder_ConnectPeer_t) == 92);
+
 enum PFChan_Pathfinder
 {
     /** Below the lowest valid value. */
@@ -173,10 +187,16 @@ enum PFChan_Pathfinder
      */
     PFChan_Pathfinder_SNODE = 522,
 
-    PFChan_Pathfinder__TOO_HIGH = 523,
+    /**
+     * Send a peer setup request.
+     * (Received by: InterfaceController.c)
+     */
+    PFChan_Pathfinder_CONNECT_PEER = 523,
+
+    PFChan_Pathfinder__TOO_HIGH = 524,
 };
 
-struct PFChan_FromPathfinder
+typedef struct PFChan_FromPathfinder
 {
     enum PFChan_Pathfinder event_be;
 
@@ -190,9 +210,10 @@ struct PFChan_FromPathfinder
         struct PFChan_Msg sendmsg;
         struct PFChan_Ping ping;
         struct PFChan_Ping pong;
+        PFChan_Pathfinder_ConnectPeer_t cp;
         uint8_t bytes[1];
     } content;
-};
+} PFChan_FromPathfinder_t;
 
 //// ------------------------- Core Events ------------------------- ////
 

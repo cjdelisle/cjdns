@@ -20,7 +20,7 @@ struct TestWrapperPvt {
 impl Drop for TestWrapperPvt {
     fn drop(&mut self) {
         let _guard = GCL.lock();
-        unsafe { cffi::RustIface_dropped() };
+        unsafe { cffi::RustIface_dropped_fromRust() };
         println!("TestWrapperPvt dropped");
     }
 }
@@ -34,7 +34,7 @@ impl IfRecv for TestWrapperInt {
         {
             let mut pvt_l = self.pvt.lock();
             pvt_l.outgoing_count += 1;
-            unsafe { cffi::RustIface_gotOutgoing() };
+            unsafe { cffi::RustIface_gotOutgoing_fromRust() };
             println!(
                 "Received outgoing message, total out {} in {}",
                 pvt_l.outgoing_count, pvt_l.incoming_count
@@ -46,7 +46,7 @@ impl IfRecv for TestWrapperInt {
 impl Drop for TestWrapperInt {
     fn drop(&mut self) {
         let _guard = GCL.lock();
-        unsafe { cffi::RustIface_dropped() };
+        unsafe { cffi::RustIface_dropped_fromRust() };
         println!("TestWrapperInt dropped");
     }
 }
@@ -60,7 +60,7 @@ impl IfRecv for TestWrapperExt {
         {
             let mut pvt_l = self.pvt.lock();
             pvt_l.incoming_count += 1;
-            unsafe { cffi::RustIface_gotIncoming() };
+            unsafe { cffi::RustIface_gotIncoming_fromRust() };
             println!(
                 "Received incoming message, total out {} in {}",
                 pvt_l.outgoing_count, pvt_l.incoming_count
@@ -72,7 +72,7 @@ impl IfRecv for TestWrapperExt {
 impl Drop for TestWrapperExt {
     fn drop(&mut self) {
         let _guard = GCL.lock();
-        unsafe { cffi::RustIface_dropped() };
+        unsafe { cffi::RustIface_dropped_fromRust() };
         println!("TestWrapperExt dropped");
     }
 }

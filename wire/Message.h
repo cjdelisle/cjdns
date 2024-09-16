@@ -98,6 +98,10 @@ struct Message* Message_new(uint32_t messageLength,
                                           uint32_t amountOfPadding,
                                           struct Allocator* alloc);
 
+struct Message* Message_new_fromRust(uint32_t messageLength,
+                                          uint32_t amountOfPadding,
+                                          struct Allocator* alloc);
+
 void Message_setAssociatedFd(struct Message* msg, int fd);
 
 int Message_getAssociatedFd(struct Message* msg);

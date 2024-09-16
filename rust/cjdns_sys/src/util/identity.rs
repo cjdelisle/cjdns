@@ -34,3 +34,17 @@ macro_rules! from_c {
     };
 }
 pub(crate) use from_c;
+
+
+macro_rules! from_c_const {
+    ($obj:expr) => {
+        {
+            let o = $obj;
+            unsafe {
+                (*o).identity.check();
+                &(*o)
+            }
+        }
+    };
+}
+pub(crate) use from_c_const;

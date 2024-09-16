@@ -64,7 +64,7 @@ impl Message {
     }
 
     pub fn anew(padding: usize, alloc: &mut Allocator) -> Self {
-        unsafe { Message { msg: cffi::Message_new(0, padding as u32, alloc.c()), alloc: None } }
+        unsafe { Message { msg: cffi::Message_new_fromRust(0, padding as u32, alloc.c()), alloc: None } }
     }
 
     /// Create empty new message with the given amount of free space,
@@ -73,7 +73,7 @@ impl Message {
     /// Note: this function does *NOT* clone original message,
     /// the resulting message will be empty.
     pub fn new_same_alloc(&self, padding: usize) -> Self {
-        unsafe { Message { msg: cffi::Message_new(0, padding as u32, (*self.msg)._alloc), alloc: None } }
+        unsafe { Message { msg: cffi::Message_new_fromRust(0, padding as u32, (*self.msg)._alloc), alloc: None } }
     }
 
     /// Construct a Rust `Message` by wrapping a pointer to C `Message`.
@@ -441,7 +441,7 @@ mod tests {
     #[test]
     fn test_message_bytes() {
         let mut alloc = allocator::new!();
-        let c_msg = unsafe { cffi::Message_new(4, 5, alloc.c()) };
+        let c_msg = unsafe { cffi::Message_new_fromRust(4, 5, alloc.c()) };
         let mut msg = Message::from_c_message(c_msg);
         assert_eq!(msg.len(), 4);
         assert_eq!(msg.pad(), 5);
@@ -467,7 +467,7 @@ mod tests {
     #[test]
     fn test_message_push_pop() {
         let mut alloc = allocator::new!();
-        let c_msg = unsafe { cffi::Message_new(64, 64, alloc.c()) };
+        let c_msg = unsafe { cffi::Message_new_fromRust(64, 64, alloc.c()) };
         let mut msg = Message::from_c_message(c_msg);
         assert_eq!(msg.len(), 64);
         assert_eq!(msg.push(0x12345678_u32), Ok(()));
@@ -482,7 +482,7 @@ mod tests {
     #[test]
     fn test_message_push_pop_unaligned() {
         let mut alloc = allocator::new!();
-        let c_msg = unsafe { cffi::Message_new(64, 64, alloc.c()) };
+        let c_msg = unsafe { cffi::Message_new_fromRust(64, 64, alloc.c()) };
         let mut msg = Message::from_c_message(c_msg);
         assert_eq!(msg.len(), 64);
 

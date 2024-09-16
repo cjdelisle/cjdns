@@ -22,7 +22,7 @@ impl IfRecv for CRecv {
         let c_msg = m.as_c_message();
         let cif = self.c_iface.lock();
         unsafe {
-            (cffi::Iface_incomingFromRust(c_msg, *cif) as *mut RTypes_Error_t).as_mut()
+            (cffi::Iface_incoming_fromRust(c_msg, *cif) as *mut RTypes_Error_t).as_mut()
                 .map(|e|e.e.take())
                 .flatten()
                 .map(Err)
@@ -41,7 +41,7 @@ struct CIface {
     dg: Arc<()>,
 }
 
-unsafe extern "C" fn from_c(msg: *mut cffi::Message, iface_p: *mut cffi::Iface) -> *mut cffi::RTypes_Error_t {
+unsafe extern "C" fn from_c(msg: *mut cffi::Message, iface_p: *mut cffi::Iface) -> *mut RTypes_Error_t {
     let iface = from_c!(iface_p as *mut CIface);
     let alloc = (*msg)._alloc;
     let msg = Message::from_c_message(msg);
@@ -50,7 +50,7 @@ unsafe extern "C" fn from_c(msg: *mut cffi::Message, iface_p: *mut cffi::Iface) 
         Ok(_) => std::ptr::null_mut(),
         Err(e) => {
             let e: *mut RTypes_Error_t = allocator::adopt(alloc, RTypes_Error_t { e: Some(e) });
-            e as *mut cffi::RTypes_Error_t
+            e as *mut RTypes_Error_t
         }
     }
 }

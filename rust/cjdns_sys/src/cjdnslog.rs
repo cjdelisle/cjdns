@@ -90,7 +90,7 @@ impl log::Log for CjdnsLog {
         }
         let cmsg = CString::new(msg).unwrap();
         unsafe {
-            cffi::Log_print0(
+            cffi::Log_print_fromRust(
                 *log,
                 lvl,
                 filebuf.as_ptr() as *const c_char,

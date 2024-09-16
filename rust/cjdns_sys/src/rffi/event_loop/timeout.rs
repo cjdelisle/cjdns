@@ -1,8 +1,8 @@
 use super::Rffi_EventLoop;
-use crate::cffi::{Allocator_t, Allocator__onFree, Allocator_OnFreeJob};
+use crate::cffi::Allocator_t;
 use crate::gcl::Protected;
-use crate::rffi::allocator;
-use crate::util::identity::from_c;
+use crate::rffi::allocator::{self, file_line};
+use crate::util::identity::{from_c, from_c_const, Identity};
 use std::ffi::c_void;
 use std::os::raw::{c_int, c_ulong};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -17,7 +17,10 @@ enum TimerCommand {
 }
 
 /// The handle returned to C, used to talk to the timer task.
-pub struct Rffi_TimerTx(Arc<TimerTx>);
+pub struct Rffi_TimerTx{
+    a: Arc<TimerTx>,
+    identity: Identity<Self>,
+}
 
 /// Internal struct, which we keep weak references to.
 pub struct TimerTx {
@@ -25,10 +28,10 @@ pub struct TimerTx {
     active: Arc<AtomicBool>,
 }
 
-pub extern "C" fn timeout_on_free(j: *mut Allocator_OnFreeJob) {
-    let timer_tx = unsafe { &*((*j).userData as *mut Rffi_TimerTx) };
-    timer_tx.0.active.store(false, Ordering::Relaxed);
-    timer_tx.0.rffi_send(TimerCommand::Free);
+pub extern "C" fn timeout_on_free(j: *mut c_void) {
+    let timer_tx = from_c!(j as *mut Rffi_TimerTx);
+    timer_tx.a.active.store(false, Ordering::Relaxed);
+    timer_tx.a.rffi_send(TimerCommand::Free);
 }
 
 /// Spawn a timer task for a timeout or interval, that calls some callback whenever it triggers.
@@ -59,14 +62,13 @@ pub extern "C" fn Rffi_setTimeout(
     let is_active = rtx.active.clone();
 
     unsafe {
-        let timer_tx = allocator::adopt(alloc, Rffi_TimerTx(rtx));
+        let timer_tx = allocator::adopt(alloc, Rffi_TimerTx{
+            a: rtx,
+            identity: Default::default(),
+        });
         // Note: we must close the event in the allocator onFree rather than in the drop
         // because the drop only happens later, when Rust wants to.
-        Allocator__onFree(alloc,
-            Some(timeout_on_free),
-            timer_tx as *mut c_void,
-            ("timeout.rs\0").as_bytes().as_ptr() as *const ::std::os::raw::c_char,
-            line!() as std::os::raw::c_int);
+        allocator::rs(alloc).on_free(timeout_on_free, timer_tx as _, file_line!());
         *out_timer_tx = timer_tx;
     }
 
@@ -131,23 +133,23 @@ pub extern "C" fn Rffi_resetTimeout(
     timer_tx: *const Rffi_TimerTx,
     timeout_millis: c_ulong,
 ) -> c_int {
-    let timer_tx = unsafe { &*timer_tx };
-    timer_tx.0.rffi_send(TimerCommand::Reset(timeout_millis))
+    let timer_tx = from_c_const!(timer_tx);
+    timer_tx.a.rffi_send(TimerCommand::Reset(timeout_millis))
 }
 
 /// Cancel a timer task.
 #[no_mangle]
 pub extern "C" fn Rffi_clearTimeout(timer_tx: *const Rffi_TimerTx) -> c_int {
-    let timer_tx = unsafe { &*timer_tx };
-    timer_tx.0.active.store(false, Ordering::Relaxed);
-    timer_tx.0.rffi_send(TimerCommand::Cancel)
+    let timer_tx = from_c_const!(timer_tx);
+    timer_tx.a.active.store(false, Ordering::Relaxed);
+    timer_tx.a.rffi_send(TimerCommand::Cancel)
 }
 
 /// Return 1 if a timer task is still running, 0 otherwise.
 #[no_mangle]
 pub extern "C" fn Rffi_isTimeoutActive(timer_tx: *const Rffi_TimerTx) -> c_int {
-    let timer_tx = unsafe { &*timer_tx };
-    timer_tx.0.active.load(Ordering::Relaxed) as _
+    let timer_tx = from_c_const!(timer_tx);
+    timer_tx.a.active.load(Ordering::Relaxed) as _
 }
 
 /// Cancel all timer tasks.

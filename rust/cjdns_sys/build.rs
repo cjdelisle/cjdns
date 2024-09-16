@@ -114,7 +114,7 @@ fn main() -> Result<()> {
         .collect::<Vec<PathBuf>>();
     paths.sort();
     for path in paths {
-        if !path.is_dir() && path.extension().unwrap() == "o" {
+        if !path.is_dir() && path.extension().is_some() && path.extension().unwrap() == "o" {
             build.object(path);
         }
     }
@@ -123,6 +123,7 @@ fn main() -> Result<()> {
     // Generate rust bindings from C
     #[cfg(feature = "generate-cffi")]
     {
+        println!("cargo:warn=Generating-cffi");
         let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
         bindgen::Builder::default()
             .header(out_path.join("rust_cjdns_sys_cffi_h.i").to_str().unwrap())
@@ -135,8 +136,13 @@ fn main() -> Result<()> {
             .raw_line("#![allow(dead_code)]")
             .raw_line("#![allow(non_camel_case_types)]")
             .raw_line("#![allow(clippy::enum_variant_names)]")
-            .whitelist_function(".*")
+            .raw_line("use crate::rtypes::*;")
+            //            .whitelist_function(".*")
+//            .blacklist_function("Rffi_.*")
+            .whitelist_function(".*_fromRust")
             .whitelist_type("RBindings_Whitelist")
+            .blacklist_type("Rffi_.*")
+            .blacklist_type("RTypes_.*")
             .whitelist_var("Sockaddr_AF_INET")
             .whitelist_var("Sockaddr_AF_INET6")
             .generate()

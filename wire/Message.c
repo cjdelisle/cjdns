@@ -29,6 +29,13 @@ Message_t* Message_new(uint32_t messageLength,
     return out;
 }
 
+struct Message* Message_new_fromRust(uint32_t messageLength,
+                                          uint32_t amountOfPadding,
+                                          struct Allocator* alloc)
+{
+    return Message_new(messageLength, amountOfPadding, alloc);
+}
+
 void Message_setAssociatedFd(Message_t* msg, int fd)
 {
     if (fd == -1) {

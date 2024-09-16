@@ -119,13 +119,15 @@ static bool PFChan_Pathfinder_sizeOk(enum PFChan_Pathfinder ev, int size)
             return (size == 8);
         case PFChan_Pathfinder_CTRL_SENDMSG:
             return (size >= 8 + PFChan_CtrlMsg_MIN_SIZE);
+        case PFChan_Pathfinder_CONNECT_PEER:
+            return (size == 8 + sizeof(PFChan_Pathfinder_ConnectPeer_t));
         default:;
     }
     Assert_failure("invalid event [%d]", ev);
 }
 // Forget to add the event here? :)
 Assert_compileTime(PFChan_Pathfinder__TOO_LOW == 511);
-Assert_compileTime(PFChan_Pathfinder__TOO_HIGH == 523);
+Assert_compileTime(PFChan_Pathfinder__TOO_HIGH == 524);
 
 static bool PFChan_Core_sizeOk(enum PFChan_Core ev, int size)
 {

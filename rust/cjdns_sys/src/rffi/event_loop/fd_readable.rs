@@ -1,10 +1,10 @@
 use tokio::io::Interest;
 use tokio::io::unix::AsyncFd;
-use crate::cffi::{Allocator_t, Allocator__onFree, Allocator_OnFreeJob};
+use crate::cffi::Allocator_t;
 use crate::gcl::Protected;
-use crate::rffi::allocator;
-use std::ffi::c_void;
-use std::os::raw::{c_int, c_char};
+use crate::rffi::allocator::{self, file_line};
+use crate::util::identity::{from_c, Identity};
+use std::os::raw::{c_char, c_int, c_void};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
@@ -13,11 +13,14 @@ struct FdReadable {
     active: Arc<AtomicBool>,
 }
 
-pub struct Rffi_FdReadableTx(Arc<FdReadable>);
+pub struct Rffi_FdReadableTx{
+    a: Arc<FdReadable>,
+    identity: Identity<Self>,
+}
 
-pub extern "C" fn fd_readable_on_free(j: *mut Allocator_OnFreeJob) {
-    let timer_tx = unsafe { &*((*j).userData as *mut Rffi_FdReadableTx) };
-    timer_tx.0.active.store(false, Ordering::Relaxed);
+pub extern "C" fn fd_readable_on_free(j: *mut c_void) {
+    let timer_tx = unsafe { from_c!(j as *mut Rffi_FdReadableTx) };
+    timer_tx.a.active.store(false, Ordering::Relaxed);
 }
 
 #[no_mangle]
@@ -52,14 +55,16 @@ pub extern "C" fn Rffi_pollFdReadable(
     let active = Arc::clone(&rtx.active);
 
     unsafe {
-        let event_tx = allocator::adopt(alloc, Rffi_FdReadableTx(rtx));
+        let event_tx = allocator::adopt(alloc,
+            Rffi_FdReadableTx{ a:rtx, identity: Identity::default() }
+        );
         // Note: we must close the event in the allocator onFree rather than in the drop
         // because the drop only happens later, when Rust wants to.
-        Allocator__onFree(alloc,
-            Some(fd_readable_on_free),
+        allocator::rs(alloc).on_free(
+            fd_readable_on_free,
             event_tx as *mut c_void,
-            ("fd_readable.rs\0").as_bytes().as_ptr() as *const ::std::os::raw::c_char,
-            line!() as std::os::raw::c_int);
+            file_line!()
+        );
         *out = event_tx;
     }
 

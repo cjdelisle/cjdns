@@ -14,7 +14,7 @@
  */
 #ifndef RUSTIFACE_H
 #define RUSTIFACE_H
-void RustIface_gotIncoming(void);
-void RustIface_gotOutgoing(void);
-void RustIface_dropped(void);
+void RustIface_gotIncoming_fromRust(void);
+void RustIface_gotOutgoing_fromRust(void);
+void RustIface_dropped_fromRust(void);
 #endif

@@ -257,6 +257,10 @@ int Sockaddr_getPort(const struct Sockaddr* sockaddr)
     const uint16_t* pp = getPortPtr((struct Sockaddr*) sockaddr);
     return (pp) ? Endian_bigEndianToHost16(*pp) : -1;
 }
+int Sockaddr_getPort_fromRust(const struct Sockaddr* sockaddr)
+{
+    return Sockaddr_getPort(sockaddr);
+}
 
 int Sockaddr_setPort(struct Sockaddr* sockaddr, uint16_t port)
 {
@@ -266,6 +270,10 @@ int Sockaddr_setPort(struct Sockaddr* sockaddr, uint16_t port)
         return 0;
     }
     return -1;
+}
+int Sockaddr_setPort_fromRust(struct Sockaddr* sockaddr, uint16_t port)
+{
+    return Sockaddr_setPort(sockaddr, port);
 }
 
 int Sockaddr_getAddress(struct Sockaddr* sockaddr, void* addrPtr)
@@ -299,6 +307,11 @@ int Sockaddr_getFamily(const struct Sockaddr* sockaddr)
     return sa->ss.ss_family;
 }
 
+int Sockaddr_getFamily_fromRust(const struct Sockaddr* sockaddr)
+{
+    return Sockaddr_getFamily(sockaddr);
+}
+
 struct Sockaddr* Sockaddr_initFromBytes(struct Sockaddr_storage* out, const uint8_t* bytes, int addrFamily)
 {
     switch (addrFamily) {
@@ -321,6 +334,14 @@ struct Sockaddr* Sockaddr_initFromBytes(struct Sockaddr_storage* out, const uint
         default: Assert_failure("unrecognized address type [%d]", addrFamily);
     }
     return &out->addr;
+}
+
+Sockaddr_t* Sockaddr_initFromBytes_fromRust(
+    struct Sockaddr_storage* out,
+    const uint8_t* bytes,
+    int addrFamily
+) {
+    return Sockaddr_initFromBytes(out, bytes, addrFamily);
 }
 
 struct Sockaddr* Sockaddr_fromBytes(const uint8_t* bytes, int addrFamily, struct Allocator* alloc)
@@ -382,6 +403,10 @@ void Sockaddr_asIp6(uint8_t addrOut[static 16], const struct Sockaddr* sockaddr)
             }
         }
     }
+}
+void Sockaddr_asIp6_fromRust(uint8_t addrOut[static 16], const struct Sockaddr* sockaddr)
+{
+    Sockaddr_asIp6(addrOut, sockaddr);
 }
 
 int Sockaddr_compare(const struct Sockaddr* a, const struct Sockaddr* b)
