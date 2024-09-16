@@ -11,6 +11,8 @@ typedef struct Rffi_EventLoop Rffi_EventLoop;
 
 typedef struct Rffi_FdReadableTx Rffi_FdReadableTx;
 
+typedef struct Rffi_Seeder Rffi_Seeder;
+
 typedef struct Rffi_SocketServer Rffi_SocketServer;
 
 /**
@@ -220,7 +222,7 @@ RTypes_Error_t *Rffi_error(const char *msg, Allocator_t *alloc);
 
 RTypes_Error_t *Rffi_error_fl(const char *msg, const char *file, int line, Allocator_t *alloc);
 
-const char *Rffi_printError(RTypes_Error_t *e, Allocator_t *alloc);
+char *Rffi_printError(RTypes_Error_t *e, Allocator_t *alloc);
 
 void Rffi_glock(void);
 
@@ -252,5 +254,21 @@ void Rffi_allocator_onFree(Allocator_t *a,
                            uintptr_t line);
 
 void Rffi_allocator_adopt(Allocator_t *a, Allocator_t *to_adopt);
+
+RTypes_Error_t *Rffi_Seeder_addDnsSeed(Rffi_Seeder *seeder,
+                                       const String_t *dns_seed,
+                                       bool trust_snode,
+                                       Allocator_t *alloc);
+
+RTypes_Error_t *Rffi_Seeder_rmDnsSeed(bool *found,
+                                      Rffi_Seeder *seeder,
+                                      const String_t *dns_seed,
+                                      Allocator_t *alloc);
+
+RTypes_Error_t *Rffi_Seeder_listDnsSeeds(RTypes_Seeder_DnsSeeds_t **seeds_out,
+                                         Rffi_Seeder *seeder,
+                                         Allocator_t *alloc);
+
+void Rffi_Seeder_new(Rffi_Seeder **seeder_out, Iface_t **iface_out, Allocator_t *alloc);
 
 #endif /* rffi_H */

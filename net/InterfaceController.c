@@ -14,10 +14,12 @@
  */
 #include "crypto/AddressCalc.h"
 #include "crypto/Ca.h"
+#include "exception/Er.h"
 #include "interface/Iface.h"
 #include "net/InterfaceController.h"
 #include "memory/Allocator.h"
 #include "net/SwitchPinger.h"
+#include "util/platform/Sockaddr.h"
 #include "wire/PFChan.h"
 #include "net/EventEmitter.h"
 #include "util/Base32.h"
@@ -613,6 +615,91 @@ static struct Peer* epFromSess(
     return ep;
 }
 
+static Iface_DEFUN handleConnectPeer(
+    Message_t* msg,
+    struct InterfaceController_pvt* ic)
+{
+    PFChan_Pathfinder_ConnectPeer_t cpt;
+    if (Message_getLength(msg) < (int32_t)sizeof cpt) {
+        return Error(msg, "RUNT %d", Message_getLength(msg));
+    }
+    Er_assert(Message_epop(msg, &cpt, sizeof cpt));
+
+    struct Address addr = {0};
+    Assert_compileTime(sizeof cpt.pubkey == sizeof addr.key);
+    Bits_memcpy(addr.key, cpt.pubkey, sizeof cpt.pubkey);
+    addr.protocolVersion = cpt.version;
+    Address_getPrefix(&addr);
+
+    String* printedAddr = NULL;
+    if (Defined(Log_DEBUG)) {
+        printedAddr = Address_toString(&addr, Message_getAlloc(msg));
+    }
+
+    if (!AddressCalc_validAddress(addr.ip6.bytes)) {
+        Log_debug(ic->logger, "handleConnectPeer invalid key [%s]", printedAddr->bytes);
+        return Error(msg, "invalid key [%s]", printedAddr->bytes);
+    } else if (!Bits_memcmp(ic->ourPubKey, addr.key, 32)) {
+        // receive self, drop silently
+        return Error(msg, "connect to self");
+    }
+
+    if (knownIncompatibleVersion(addr.protocolVersion)) {
+        if (Defined(Log_DEBUG)) {
+            Log_debug(ic->logger, "DROP connectPeer for [%s] which was version [%d] "
+                      "our version is [%d] making them incompatable",
+                      printedAddr->bytes, addr.protocolVersion, Version_CURRENT_PROTOCOL);
+        }
+        return Error(msg, "incompatible version");
+    }
+
+    struct Sockaddr* lladdr = NULL;
+    const char fourInSixPrefix[] = "\0\0\0\0\0\0\0\0\0\0\xff\xff";
+    if (Bits_memcmp(&cpt.ip, fourInSixPrefix, sizeof fourInSixPrefix)) {
+        // ipv4 address
+        lladdr = Sockaddr_fromBytes(&cpt.ip[12], Sockaddr_AF_INET, Message_getAlloc(msg));
+    } else {
+        lladdr = Sockaddr_fromBytes(cpt.ip, Sockaddr_AF_INET6, Message_getAlloc(msg));
+    }
+    int af = Sockaddr_getFamily(lladdr);
+
+    // Select the appropriate interface (first one matching address type)
+    struct InterfaceController_Iface_pvt* ici = NULL;
+    for (int i = 0; i < ic->icis->length; i++) {
+        struct InterfaceController_Iface_pvt* possibleIci = ArrayList_OfIfaces_get(ic->icis, i);
+        if (possibleIci->pub.af == af) {
+            ici = possibleIci;
+            break;
+        }
+    }
+    if (!ici) {
+        Log_debug(ic->logger, "Ignore connectPeer because AF is %d which is unhandled", af);
+        return Error(msg, "AF %d is unhandled", af);
+    }
+
+    String* pass = String_new((const char*)&cpt.password, Message_getAlloc(msg));
+    String* login = String_new((const char*)&cpt.login, Message_getAlloc(msg));
+
+    int epIndex = Map_EndpointsBySockaddr_indexForKey(&lladdr, &ici->peerMap);
+    if (epIndex > -1) {
+        // The password might have changed!
+        struct Peer* ep = ici->peerMap.values[epIndex];
+        Ca_setAuth(pass, login, ep->caSession);
+        return NULL;
+    }
+
+    struct Peer* ep = mkEp(lladdr, ici, cpt.pubkey, false, "seeded_peer", false);
+    int setIndex = Map_EndpointsBySockaddr_put(&ep->lladdr, &ep, &ici->peerMap);
+    ep->handle = ici->peerMap.handles[setIndex];
+    // We will not drop the connection over a non-reply, we'll make the seeder request to disconnect
+    ep->isIncomingConnection = false;
+    ep->addr.protocolVersion = addr.protocolVersion;
+    Ca_setAuth(pass, login, ep->caSession);
+    Log_info(ic->logger, "Connecting to seeded node %s",
+        Sockaddr_print(lladdr, Message_getAlloc(msg)));
+    return NULL;
+}
+
 /**
  * Expects [ struct LLAddress ][ beacon ]
  */
@@ -908,6 +995,7 @@ struct InterfaceController_Iface* InterfaceController_newIface(struct InterfaceC
     ici->alloc = alloc;
     ici->pub.addrIf.send = handleIncomingFromWire;
     ici->pub.ifNum = ArrayList_OfIfaces_add(ic->icis, ici);
+    ici->pub.af = -1;
 
     Identity_set(ici);
 
@@ -1184,17 +1272,21 @@ static Iface_DEFUN incomingFromEventEmitterIf(Message_t* msg, struct Iface* even
 {
     struct InterfaceController_pvt* ic =
          Identity_containerOf(eventEmitterIf, struct InterfaceController_pvt, eventEmitterIf);
-    uint32_t peers = Er_assert(Message_epop32be(msg));
-    Assert_true(peers == PFChan_Pathfinder_PEERS);
-    uint32_t pathfinderId = Er_assert(Message_epop32be(msg));
-    Assert_true(!Message_getLength(msg));
+    uint32_t type = Er_assert(Message_epop32be(msg));
+    if (type == PFChan_Pathfinder_CONNECT_PEER) {
+        return handleConnectPeer(msg, ic);
+    } else {
+        Assert_true(type == PFChan_Pathfinder_PEERS);
+        uint32_t pathfinderId = Er_assert(Message_epop32be(msg));
+        Assert_true(!Message_getLength(msg));
 
-    for (int j = 0; j < ic->icis->length; j++) {
-        struct InterfaceController_Iface_pvt* ici = ArrayList_OfIfaces_get(ic->icis, j);
-        for (int i = 0; i < (int)ici->peerMap.count; i++) {
-            struct Peer* peer = Identity_check((struct Peer*) ici->peerMap.values[i]);
-            if (peer->state != InterfaceController_PeerState_ESTABLISHED) { continue; }
-            sendPeer(pathfinderId, PFChan_Core_PEER, peer, 0xffff);
+        for (int j = 0; j < ic->icis->length; j++) {
+            struct InterfaceController_Iface_pvt* ici = ArrayList_OfIfaces_get(ic->icis, j);
+            for (int i = 0; i < (int)ici->peerMap.count; i++) {
+                struct Peer* peer = Identity_check((struct Peer*) ici->peerMap.values[i]);
+                if (peer->state != InterfaceController_PeerState_ESTABLISHED) { continue; }
+                sendPeer(pathfinderId, PFChan_Core_PEER, peer, 0xffff);
+            }
         }
     }
     return NULL;
@@ -1256,6 +1348,7 @@ struct InterfaceController* InterfaceController_new(Ca_t* ca,
 
     out->eventEmitterIf.send = incomingFromEventEmitterIf;
     EventEmitter_regCore(ee, &out->eventEmitterIf, PFChan_Pathfinder_PEERS);
+    EventEmitter_regCore(ee, &out->eventEmitterIf, PFChan_Pathfinder_CONNECT_PEER);
 
     // Add the beaconing password.
     Random_base32(rand, out->beacon.password, Headers_Beacon_PASSWORD_LEN);

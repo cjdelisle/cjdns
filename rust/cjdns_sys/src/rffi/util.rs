@@ -73,10 +73,10 @@ pub unsafe extern "C" fn Rffi_error_fl(
 pub unsafe extern "C" fn Rffi_printError(
     e: *mut RTypes_Error_t,
     alloc: *mut Allocator_t,
-) -> *const c_char {
+) -> *mut c_char {
     e.as_ref()
         .map(|e| e.e.as_ref())
         .flatten()
         .map(|e| str_to_c(&format!("{:?}", e), alloc))
-        .unwrap_or_else(std::ptr::null)
+        .unwrap_or_else(std::ptr::null_mut)
 }

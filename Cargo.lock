@@ -328,7 +328,7 @@ dependencies = [
 [[package]]
 name = "cjdns-admin"
 version = "0.1.0"
-source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=4ff7cc16ec15d6016b079c55d3923bde7c9bb517#4ff7cc16ec15d6016b079c55d3923bde7c9bb517"
+source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=9ea38312c9a849cf1a0be05332c9e4c96f49a758#9ea38312c9a849cf1a0be05332c9e4c96f49a758"
 dependencies = [
  "anyhow",
  "cjdns-bencode",
@@ -346,7 +346,7 @@ dependencies = [
 [[package]]
 name = "cjdns-bencode"
 version = "0.1.0"
-source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=4ff7cc16ec15d6016b079c55d3923bde7c9bb517#4ff7cc16ec15d6016b079c55d3923bde7c9bb517"
+source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=9ea38312c9a849cf1a0be05332c9e4c96f49a758#9ea38312c9a849cf1a0be05332c9e4c96f49a758"
 dependencies = [
  "bendy",
  "hex",
@@ -356,7 +356,7 @@ dependencies = [
 [[package]]
 name = "cjdns-crypto"
 version = "0.1.0"
-source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=4ff7cc16ec15d6016b079c55d3923bde7c9bb517#4ff7cc16ec15d6016b079c55d3923bde7c9bb517"
+source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=9ea38312c9a849cf1a0be05332c9e4c96f49a758#9ea38312c9a849cf1a0be05332c9e4c96f49a758"
 dependencies = [
  "libsodium-sys",
  "parking_lot 0.11.1",
@@ -366,7 +366,7 @@ dependencies = [
 [[package]]
 name = "cjdns-keys"
 version = "0.1.0"
-source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=4ff7cc16ec15d6016b079c55d3923bde7c9bb517#4ff7cc16ec15d6016b079c55d3923bde7c9bb517"
+source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=9ea38312c9a849cf1a0be05332c9e4c96f49a758#9ea38312c9a849cf1a0be05332c9e4c96f49a758"
 dependencies = [
  "cjdns-crypto",
  "data-encoding",

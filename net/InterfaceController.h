@@ -131,6 +131,9 @@ struct InterfaceController_Iface
     /** Interface number within InterfaceController. */
     int ifNum;
 
+    // Address family, set by caller to InterfaceController_newIface() -1 if unknown.
+    int af;
+
     enum InterfaceController_BeaconState beaconState;
 
     String* name;

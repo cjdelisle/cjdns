@@ -10,9 +10,10 @@ panic = "unwind"
 opt-level = 2
 
 [workspace.dependencies]
-cjdns-admin = { git = "https://github.com/cjdelisle/cjdns-route-server", rev = "4ff7cc16ec15d6016b079c55d3923bde7c9bb517", version = "0.1.0" }
-cjdns-crypto = { git = "https://github.com/cjdelisle/cjdns-route-server", rev = "4ff7cc16ec15d6016b079c55d3923bde7c9bb517", version = "0.1.0" }
-cjdns-keys = { git = "https://github.com/cjdelisle/cjdns-route-server", rev = "4ff7cc16ec15d6016b079c55d3923bde7c9bb517", version = "0.1.0" }
+cjdns-admin = { git = "https://github.com/cjdelisle/cjdns-route-server", rev = "9ea38312c9a849cf1a0be05332c9e4c96f49a758", version = "0.1.0" }
+cjdns-crypto = { git = "https://github.com/cjdelisle/cjdns-route-server", rev = "9ea38312c9a849cf1a0be05332c9e4c96f49a758", version = "0.1.0" }
+cjdns-keys = { git = "https://github.com/cjdelisle/cjdns-route-server", rev = "9ea38312c9a849cf1a0be05332c9e4c96f49a758", version = "0.1.0" }
+cjdns-bytes = { git = "https://github.com/cjdelisle/cjdns-route-server", rev = "9ea38312c9a849cf1a0be05332c9e4c96f49a758", version = "0.1.0" }
 sodiumoxide = { git = "https://github.com/cjdelisle/sodiumoxide", rev = "9f6a18d40a4db253edfebac9f2ce5c22d09b1f47", version = "0.2", default-features = false, features = ["std"] }
 clap = { version = "4", features = ["derive"] }
 const_format = "0.2"

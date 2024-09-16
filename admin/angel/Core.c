@@ -25,6 +25,7 @@
 #include "crypto/random/nanotime/NanotimeEntropyProvider.h"
 #include "crypto/Sign_admin.h"
 #include "subnode/SubnodePathfinder.h"
+#include "subnode/SubnodePathfinder_admin.h"
 #include "subnode/SupernodeHunter_admin.h"
 #include "subnode/ReachabilityCollector_admin.h"
 #ifndef SUBNODE
@@ -353,6 +354,8 @@ void Core_init(struct Allocator* alloc,
     struct ASynchronizer* spfAsync = ASynchronizer_new(alloc, eventBase, logger);
     Iface_plumb(&spfAsync->ifA, &spf->eventIf);
     EventEmitter_regPathfinderIface(nc->ee, &spfAsync->ifB);
+
+    SubnodePathfinder_admin_register(spf, admin, alloc);
 
     #ifndef SUBNODE
         struct Pathfinder* opf = Pathfinder_register(alloc, logger, eventBase, rand, admin);

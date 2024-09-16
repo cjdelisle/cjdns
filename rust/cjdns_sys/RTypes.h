@@ -88,6 +88,16 @@ typedef struct {
 } RTypes_CryptoAuth2_TryHandshake_Ret_t;
 
 typedef struct {
+  char *seed;
+  bool snode_trusted;
+} RTypes_Seeder_DnsSeed_t;
+
+typedef struct {
+  uintptr_t len;
+  RTypes_Seeder_DnsSeed_t *items;
+} RTypes_Seeder_DnsSeeds_t;
+
+typedef struct {
   RTypes_IfWrapper_t a;
   RTypes_StrList_t b;
   RTypes_CryptoAuth_State_t c;
@@ -95,6 +105,7 @@ typedef struct {
   RTypes_CryptoAuth2_Session_t e;
   RTypes_Error_t *f;
   RTypes_CryptoAuth2_TryHandshake_Ret_t g;
+  RTypes_Seeder_DnsSeeds_t h;
 } RTypes_ExportMe;
 
 #endif /* RTypes_H */

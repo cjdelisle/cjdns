@@ -13,6 +13,9 @@ mod util;
 mod glock;
 mod base10;
 pub mod allocator;
+mod seeder;
+
+use anyhow::{bail, Result};
 
 use crate::bytestring::ByteString;
 use crate::cffi::{Allocator_t, String_t};
@@ -39,8 +42,36 @@ fn strc(alloc: *mut Allocator_t, s: ByteString) -> *mut String_t {
     allocator::adopt(alloc, String_t { len, bytes })
 }
 
-fn str_to_c(s: &str, alloc: *mut Allocator_t) -> *const c_char {
+fn str_to_c(s: &str, alloc: *mut Allocator_t) -> *mut c_char {
     let c_str = std::ffi::CString::new(s).unwrap();
     let adopted = allocator::adopt(alloc, c_str);
-    unsafe { (*adopted).as_ptr() }
+    unsafe { (*adopted).as_ptr() as _ }
 }
+
+fn cstr_to_string(c: *const String_t) -> Result<String> {
+    if let Some(s) = cstr(c) {
+        match String::from_utf8(s.0) {
+            Ok(s) => Ok(s),
+            Err(_) => {
+                bail!("cstr_to_string() not valid UTF-8");
+            }
+        }
+    } else {
+        bail!("cstr_to_string() was NULL");
+    }
+}
+
+macro_rules! c_error {
+    ($alloc:expr, $may_err:expr) => {
+        match $may_err {
+            Ok(s) => s,
+            Err(e) => {
+                return allocator::adopt(
+                    $alloc,
+                    crate::rtypes::RTypes_Error_t { e: Some(e) }
+                );
+            }
+        }
+    };
+}
+pub(crate) use c_error;

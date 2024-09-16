@@ -1,6 +1,8 @@
 #![allow(non_snake_case)]
 #![allow(non_camel_case_types)]
 
+use libc::c_char;
+
 use crate::cffi::{self, Iface_t, String_t};
 
 #[repr(C)]
@@ -14,6 +16,18 @@ pub struct RTypes_IfWrapper_t {
 pub struct RTypes_StrList_t {
     pub len: usize,
     pub items: *mut *mut String_t,
+}
+
+#[repr(C)]
+pub struct RTypes_Seeder_DnsSeed_t {
+    pub seed: *mut c_char,
+    pub snode_trusted: bool,
+}
+
+#[repr(C)]
+pub struct RTypes_Seeder_DnsSeeds_t {
+    pub len: usize,
+    pub items: *mut RTypes_Seeder_DnsSeed_t,
 }
 
 #[repr(C)]
@@ -95,4 +109,5 @@ pub struct RTypes_ExportMe {
     e: RTypes_CryptoAuth2_Session_t,
     f: *mut RTypes_Error_t,
     g: RTypes_CryptoAuth2_TryHandshake_Ret_t,
+    h: RTypes_Seeder_DnsSeeds_t,
 }

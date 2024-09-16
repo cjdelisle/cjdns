@@ -180,12 +180,14 @@ static void newInterface2(struct Context* ctx,
     struct UDPInterface* udpif = setupLibuvUDP(ctx, addr, beaconPort, dscp, txid, alloc);
     if (!udpif) { return; }
 
+    int af = Sockaddr_getFamily(addr);
     String* name = String_printf(requestAlloc, "UDP/IPv%d/%s",
-        (Sockaddr_getFamily(addr) == Sockaddr_AF_INET ? 4 : 6),
+        (af == Sockaddr_AF_INET ? 4 : 6),
         Sockaddr_print(addr, requestAlloc));
 
     struct InterfaceController_Iface* ici =
         InterfaceController_newIface(ctx->ic, name, alloc);
+    ici->af = af;
     Iface_plumb(&ici->addrIf, udpif->generic.iface);
     ArrayList_UDPInterface_put(ctx->ifaces, ici->ifNum, udpif);
 

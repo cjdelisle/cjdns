@@ -13,6 +13,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "subnode/SubnodePathfinder.h"
+#include "benc/Object.h"
+#include "interface/Iface.h"
+#include "rust/cjdns_sys/RTypes.h"
+#include "rust/cjdns_sys/Rffi.h"
 #include "subnode/AddrSet.h"
 #include "subnode/MsgCore.h"
 #include "subnode/SupernodeHunter.h"
@@ -84,6 +88,8 @@ struct SubnodePathfinder_pvt
     uint8_t* privateKey;
 
     String* encodingSchemeStr;
+
+    Iface_t seederIf;
 
     Identity
 };
@@ -511,6 +517,14 @@ static Iface_DEFUN incomingFromEventIf(Message_t* msg, struct Iface* eventIf)
     Assert_failure("unexpected event [%d]", ev);
 }
 
+static Iface_DEFUN incomingFromSeeder(Message_t* msg, struct Iface* seederIf)
+{
+    struct SubnodePathfinder_pvt* pf =
+        Identity_containerOf(seederIf, struct SubnodePathfinder_pvt, seederIf);
+    Log_debug(pf->log, "Got message from seeder");
+    return NULL;
+}
+
 static void sendEvent(struct SubnodePathfinder_pvt* pf,
                       enum PFChan_Pathfinder ev,
                       void* data,
@@ -590,6 +604,11 @@ struct SubnodePathfinder* SubnodePathfinder_new(struct Allocator* allocator,
     pf->sp = SwitchPinger_new(base, rand, log, myAddress, alloc);
     pf->switchPingerIf.send = ctrlMsgFromSwitchPinger;
     Iface_plumb(&pf->switchPingerIf, &pf->sp->controlHandlerIf);
+
+    Iface_t* seederIface = NULL;
+    Rffi_Seeder_new(&pf->pub.seeder, &seederIface, alloc);
+    pf->seederIf.send = incomingFromSeeder;
+    Iface_plumb(seederIface, &pf->seederIf);
 
     Timeout_setInterval(sendCurrentSupernode, pf, 3000, base, alloc);
 

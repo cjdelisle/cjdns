@@ -15,7 +15,6 @@
 #ifndef SubnodePathfinder_H
 #define SubnodePathfinder_H
 
-#include "admin/Admin.h"
 #include "interface/Iface.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
@@ -31,6 +30,7 @@ struct SubnodePathfinder
     struct Iface eventIf;
     struct SupernodeHunter* snh;
     struct ReachabilityCollector* rc;
+    Rffi_Seeder* seeder;
 };
 
 void SubnodePathfinder_start(struct SubnodePathfinder*);
