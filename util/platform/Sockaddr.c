@@ -423,6 +423,10 @@ uint32_t Sockaddr_addrHandle(const struct Sockaddr* addr)
     Bits_memcpy(&handle, &((uint8_t*)addr)[4], 4);
     return handle;
 }
+uint32_t Sockaddr_addrHandle_fromRust(const Sockaddr_t* addr)
+{
+    return Sockaddr_addrHandle(addr);
+}
 
 void Sockaddr_addrFromHandle(struct Sockaddr* addr, uint32_t handle)
 {

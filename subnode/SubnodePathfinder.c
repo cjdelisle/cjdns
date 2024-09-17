@@ -25,6 +25,7 @@
 #include "subnode/ReachabilityCollector.h"
 #include "crypto/AddressCalc.h"
 #include "dht/Address.h"
+#include "util/log/Log.h"
 #include "wire/DataHeader.h"
 #include "wire/RouteHeader.h"
 #include "dht/dhtcore/ReplySerializer.h"
@@ -343,8 +344,22 @@ static void pingNode(struct SubnodePathfinder_pvt* pf, struct Address* addr)
     usp->mapHandle = pf->queryMap.handles[index];
 }
 
+static void sendToSeeder(Message_t* msg, struct SubnodePathfinder_pvt* pf, enum PFChan_Core ev)
+{
+    Allocator_t* alloc = Allocator_child(pf->alloc);
+    Message_t* msg2 = Message_clone(msg, alloc);
+    Er_assert(Message_epush32be(msg2, ev));
+    RTypes_Error_t* err = Iface_send(&pf->seederIf, msg2);
+    if (err) {
+        Log_info(pf->log, "Error sending message to Seeder: %s",
+            Rffi_printError(err, alloc));
+    }
+    Allocator_free(alloc);
+}
+
 static Iface_DEFUN peer(Message_t* msg, struct SubnodePathfinder_pvt* pf)
 {
+    sendToSeeder(msg, pf, PFChan_Core_PEER);
     struct Address addr = {0};
     uint32_t metric = addressForNode(&addr, msg);
     String* str = Address_toString(&addr, Message_getAlloc(msg));
@@ -377,6 +392,7 @@ static Iface_DEFUN peer(Message_t* msg, struct SubnodePathfinder_pvt* pf)
 
 static Iface_DEFUN peerGone(Message_t* msg, struct SubnodePathfinder_pvt* pf)
 {
+    sendToSeeder(msg, pf, PFChan_Core_PEER_GONE);
     struct Address addr = {0};
     addressForNode(&addr, msg);
     AddrSet_remove(pf->myPeerAddrs, &addr, AddrSet_Match_BOTH);
@@ -522,7 +538,7 @@ static Iface_DEFUN incomingFromSeeder(Message_t* msg, struct Iface* seederIf)
     struct SubnodePathfinder_pvt* pf =
         Identity_containerOf(seederIf, struct SubnodePathfinder_pvt, seederIf);
     Log_debug(pf->log, "Got message from seeder");
-    return NULL;
+    return Iface_next(&pf->pub.eventIf, msg);
 }
 
 static void sendEvent(struct SubnodePathfinder_pvt* pf,

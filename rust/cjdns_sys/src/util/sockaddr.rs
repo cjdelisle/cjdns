@@ -194,7 +194,7 @@ mod tests {
             //println!("Testing with handle: [{rand_handle:#0x}]");
             let sa = Sockaddr::from(rand_handle);
             assert_eq!(rand_handle, sa.as_handle().unwrap());
-            let c_handle = unsafe { crate::cffi::Sockaddr_addrHandle(&sa.ss.addr as _) };
+            let c_handle = unsafe { crate::cffi::Sockaddr_addrHandle_fromRust(&sa.ss.addr as _) };
             assert_eq!(rand_handle, c_handle);
         }
     }

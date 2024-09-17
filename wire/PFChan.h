@@ -107,8 +107,12 @@ typedef struct PFChan_Pathfinder_ConnectPeer {
     uint8_t password[24];
     // Protocol version of the peer
     uint32_t version;
+    // Port number from the address
+    uint16_t port;
+    // Padding for length
+    uint16_t _pad;
 } PFChan_Pathfinder_ConnectPeer_t;
-Assert_compileTime(sizeof(PFChan_Pathfinder_ConnectPeer_t) == 92);
+Assert_compileTime(sizeof(PFChan_Pathfinder_ConnectPeer_t) == 96);
 
 enum PFChan_Pathfinder
 {
@@ -388,7 +392,7 @@ struct PFChan_Core_SwitchErr
     (SwitchHeader_SIZE + Control_Header_SIZE + Control_Error_MIN_SIZE + SwitchHeader_SIZE)
 Assert_compileTime(sizeof(struct PFChan_Core_SwitchErr) == PFChan_Core_SwitchErr_MIN_SIZE);
 
-struct PFChan_FromCore
+typedef struct PFChan_FromCore
 {
     enum PFChan_Core event_be;
 
@@ -412,7 +416,7 @@ struct PFChan_FromCore
         struct PFChan_LinkState_Entry linkState;
         uint8_t bytes[4];
     } content;
-};
+} PFChan_FromCore_t;
 // PFChan_FromCore contains a union so it's size is not useful.
 #pragma GCC poison PFChan_FromCore_SIZE
 

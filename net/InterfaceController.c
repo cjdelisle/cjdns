@@ -661,6 +661,7 @@ static Iface_DEFUN handleConnectPeer(
     } else {
         lladdr = Sockaddr_fromBytes(cpt.ip, Sockaddr_AF_INET6, Message_getAlloc(msg));
     }
+    Sockaddr_setPort(lladdr, cpt.port);
     int af = Sockaddr_getFamily(lladdr);
 
     // Select the appropriate interface (first one matching address type)

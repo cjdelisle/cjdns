@@ -8,6 +8,7 @@ build = "build.rs"
 [dependencies]
 cjdns-crypto = { workspace = true }
 cjdns-keys = { workspace = true }
+cjdns-bytes = { workspace = true }
 sodiumoxide = { workspace = true }
 hex = { workspace = true }
 log = { workspace = true }
@@ -25,6 +26,8 @@ libc = { workspace = true }
 num_cpus = { workspace = true }
 async-trait = { workspace = true }
 env_logger = { workspace = true }
+byteorder = { workspace = true }
+trust-dns-resolver = { workspace = true }
 
 [build_dependencies]
 cc = { workspace = true }

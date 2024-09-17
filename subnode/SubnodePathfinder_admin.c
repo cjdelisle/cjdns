@@ -110,14 +110,14 @@ void SubnodePathfinder_admin_register(struct SubnodePathfinder* sp,
     }));
     Identity_set(ctx);
 
-    Admin_registerFunction("SupernodeHunter_addDnsSeed", addDnsSeed, ctx, true,
+    Admin_registerFunction("SubnodePathfinder_addDnsSeed", addDnsSeed, ctx, true,
         ((struct Admin_FunctionArg[]) {
             { .name = "seed", .required = true, .type = "String" },
             { .name = "trustSnode", .required = false, .type = "Int" }
         }), admin);
-    Admin_registerFunction("SupernodeHunter_rmDnsSeed", rmDnsSeed, ctx, true,
+    Admin_registerFunction("SubnodePathfinder_rmDnsSeed", rmDnsSeed, ctx, true,
         ((struct Admin_FunctionArg[]) {
             { .name = "seed", .required = true, .type = "String" },
         }), admin);
-    Admin_registerFunction("SupernodeHunter_listDnsSeeds", listDnsSeeds, ctx, true, NULL, admin);
+    Admin_registerFunction("SubnodePathfinder_listDnsSeeds", listDnsSeeds, ctx, true, NULL, admin);
 }

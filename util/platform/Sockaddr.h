@@ -67,6 +67,7 @@ extern const Sockaddr_t* const Sockaddr_LOOPBACK6;
  */
 #define Sockaddr_addrHandle_INVALID 0xffffffffu
 uint32_t Sockaddr_addrHandle(const Sockaddr_t* addr);
+uint32_t Sockaddr_addrHandle_fromRust(const Sockaddr_t* addr);
 
 /**
  * Create a handle sockaddr from a numeric handle, if handle is equal to

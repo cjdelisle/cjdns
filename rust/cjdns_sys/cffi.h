@@ -43,6 +43,7 @@ struct RBindings_Whitelist {
     enum RBindings_Version g;
     Sockaddr_t h;
     PFChan_FromPathfinder_t i;
+    PFChan_FromCore_t ii;
     enum Log_Level j;
     Allocator_t* k;
     struct Sockaddr_storage l;

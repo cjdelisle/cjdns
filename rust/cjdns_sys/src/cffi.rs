@@ -23,6 +23,11 @@ pub struct String_s {
     pub len: usize,
     pub bytes: *mut ::std::os::raw::c_char,
 }
+impl Default for String_s {
+    fn default() -> Self {
+        unsafe { ::std::mem::zeroed() }
+    }
+}
 pub type String = String_s;
 pub type String_t = String;
 pub type Iface_t = Iface;
@@ -38,6 +43,11 @@ pub struct Message {
     pub _associatedFd: ::std::os::raw::c_int,
     pub currentIface: *mut Iface,
     pub _alloc: *mut Allocator,
+}
+impl Default for Message {
+    fn default() -> Self {
+        unsafe { ::std::mem::zeroed() }
+    }
 }
 pub type Message_t = Message;
 extern "C" {
@@ -57,6 +67,11 @@ pub struct Iface {
     pub currentMsg: *mut Message_t,
     pub connectedIf: *mut Iface,
     pub Identity_verifier: usize,
+}
+impl Default for Iface {
+    fn default() -> Self {
+        unsafe { ::std::mem::zeroed() }
+    }
 }
 extern "C" {
     pub fn Iface_incoming_fromRust(
@@ -109,7 +124,7 @@ extern "C" {
     pub fn Random_bytes_fromRust(rand: *mut Random_t, location: *mut u8, count: u64);
 }
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone)]
 pub struct Sockaddr {
     pub addrLen: u16,
     pub flags: u8,
@@ -120,10 +135,13 @@ pub struct Sockaddr {
 }
 pub type Sockaddr_t = Sockaddr;
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone)]
 pub struct Sockaddr_storage {
     pub addr: Sockaddr_t,
     pub nativeAddr: [u64; 16usize],
+}
+extern "C" {
+    pub fn Sockaddr_addrHandle_fromRust(addr: *const Sockaddr_t) -> u32;
 }
 extern "C" {
     pub fn Sockaddr_getPort_fromRust(sockaddr: *const Sockaddr) -> ::std::os::raw::c_int;
@@ -156,7 +174,7 @@ pub enum CryptoAuth_addUser_Res {
     CryptoAuth_addUser_DUPLICATE = -3,
 }
 #[repr(C, packed(4))]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone)]
 pub struct SwitchHeader {
     pub label_be: u64,
     pub congestAndSuppressErrors: u8,
@@ -164,7 +182,7 @@ pub struct SwitchHeader {
     pub trafficClass_be: u16,
 }
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone)]
 pub struct RouteHeader {
     pub publicKey: [u8; 32usize],
     pub sh: SwitchHeader,
@@ -175,14 +193,27 @@ pub struct RouteHeader {
     pub ip6: [u8; 16usize],
 }
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone)]
 pub struct DataHeader {
     pub versionAndFlags: u8,
     pub unused: u8,
     pub contentType_be: u16,
 }
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone)]
+pub struct Control_Error {
+    pub errorType_be: u32,
+    pub cause: SwitchHeader,
+    pub causeHandle: u32,
+}
+#[repr(C)]
+#[derive(Debug, Default, Copy, Clone)]
+pub struct Control_Header {
+    pub checksum_be: u16,
+    pub type_be: u16,
+}
+#[repr(C)]
+#[derive(Debug, Default, Copy, Clone)]
 pub struct PFChan_Node {
     pub ip6: [u8; 16usize],
     pub publicKey: [u8; 32usize],
@@ -191,13 +222,13 @@ pub struct PFChan_Node {
     pub version_be: u32,
 }
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone)]
 pub struct PFChan_Msg {
     pub route: RouteHeader,
     pub data: DataHeader,
 }
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone)]
 pub struct PFChan_Ping {
     pub cookie: u64,
 }
@@ -208,19 +239,26 @@ pub struct PFChan_Pathfinder_Connect {
     pub version_be: u32,
     pub userAgent: [u8; 64usize],
 }
+impl Default for PFChan_Pathfinder_Connect {
+    fn default() -> Self {
+        unsafe { ::std::mem::zeroed() }
+    }
+}
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone)]
 pub struct PFChan_Pathfinder_Superiority {
     pub superiority_be: u32,
 }
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone)]
 pub struct PFChan_Pathfinder_ConnectPeer {
     pub ip: [u8; 16usize],
     pub pubkey: [u8; 32usize],
     pub login: [u8; 16usize],
     pub password: [u8; 24usize],
     pub version: u32,
+    pub port: u16,
+    pub _pad: u16,
 }
 pub type PFChan_Pathfinder_ConnectPeer_t = PFChan_Pathfinder_ConnectPeer;
 #[repr(u32)]
@@ -261,7 +299,119 @@ pub union PFChan_FromPathfinder__bindgen_ty_1 {
     pub bytes: [u8; 1usize],
     _bindgen_union_align: [u64; 12usize],
 }
+impl Default for PFChan_FromPathfinder__bindgen_ty_1 {
+    fn default() -> Self {
+        unsafe { ::std::mem::zeroed() }
+    }
+}
+impl Default for PFChan_FromPathfinder {
+    fn default() -> Self {
+        unsafe { ::std::mem::zeroed() }
+    }
+}
 pub type PFChan_FromPathfinder_t = PFChan_FromPathfinder;
+#[repr(u32)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum PFChan_Core {
+    PFChan_Core__TOO_LOW = 1023,
+    PFChan_Core_CONNECT = 1024,
+    PFChan_Core_PATHFINDER = 1025,
+    PFChan_Core_PATHFINDER_GONE = 1026,
+    PFChan_Core_SWITCH_ERR = 1027,
+    PFChan_Core_SEARCH_REQ = 1028,
+    PFChan_Core_PEER = 1029,
+    PFChan_Core_PEER_GONE = 1030,
+    PFChan_Core_SESSION = 1031,
+    PFChan_Core_SESSION_ENDED = 1032,
+    PFChan_Core_DISCOVERED_PATH = 1033,
+    PFChan_Core_MSG = 1034,
+    PFChan_Core_PING = 1035,
+    PFChan_Core_PONG = 1036,
+    PFChan_Core_CTRL_MSG = 1037,
+    PFChan_Core_UNSETUP_SESSION = 1038,
+    PFChan_Core_LINK_STATE = 1039,
+    PFChan_Core__TOO_HIGH = 1040,
+}
+#[repr(C)]
+#[derive(Debug, Default, Copy, Clone)]
+pub struct PFChan_LinkState_Entry {
+    pub peerLabel: u64,
+    pub sumOfPackets: u64,
+    pub sumOfDrops: u64,
+    pub sumOfKb: u64,
+}
+#[repr(C)]
+#[derive(Debug, Default, Copy, Clone)]
+pub struct PFChan_Core_SearchReq {
+    pub ipv6: [u8; 16usize],
+    pub pad: u32,
+    pub version_be: u32,
+}
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct PFChan_Core_Pathfinder {
+    pub superiority_be: u32,
+    pub pathfinderId_be: u32,
+    pub userAgent: [u8; 64usize],
+}
+impl Default for PFChan_Core_Pathfinder {
+    fn default() -> Self {
+        unsafe { ::std::mem::zeroed() }
+    }
+}
+#[repr(C)]
+#[derive(Debug, Default, Copy, Clone)]
+pub struct PFChan_Core_Connect {
+    pub version_be: u32,
+    pub pathfinderId_be: u32,
+    pub publicKey: [u8; 32usize],
+}
+#[repr(C)]
+#[derive(Debug, Default, Copy, Clone)]
+pub struct PFChan_Core_SwitchErr {
+    pub sh: SwitchHeader,
+    pub ctrlHeader: Control_Header,
+    pub ctrlErr: Control_Error,
+    pub shAtErrorHop: SwitchHeader,
+}
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct PFChan_FromCore {
+    pub event_be: PFChan_Core,
+    pub target_be: u8,
+    pub content: PFChan_FromCore__bindgen_ty_1,
+}
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub union PFChan_FromCore__bindgen_ty_1 {
+    pub connect: PFChan_Core_Connect,
+    pub pathfinder: PFChan_Core_Pathfinder,
+    pub pathfinderGone: PFChan_Core_Pathfinder,
+    pub switchErr: PFChan_Core_SwitchErr,
+    pub searchReq: PFChan_Core_SearchReq,
+    pub peer: PFChan_Node,
+    pub peerGone: PFChan_Node,
+    pub session: PFChan_Node,
+    pub sessionEnded: PFChan_Node,
+    pub discoveredPath: PFChan_Node,
+    pub msg: PFChan_Msg,
+    pub ping: PFChan_Ping,
+    pub pong: PFChan_Ping,
+    pub linkState: PFChan_LinkState_Entry,
+    pub bytes: [u8; 4usize],
+    _bindgen_union_align: [u64; 9usize],
+}
+impl Default for PFChan_FromCore__bindgen_ty_1 {
+    fn default() -> Self {
+        unsafe { ::std::mem::zeroed() }
+    }
+}
+impl Default for PFChan_FromCore {
+    fn default() -> Self {
+        unsafe { ::std::mem::zeroed() }
+    }
+}
+pub type PFChan_FromCore_t = PFChan_FromCore;
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum RBindings_Version {
@@ -278,9 +428,15 @@ pub struct RBindings_Whitelist {
     pub g: RBindings_Version,
     pub h: Sockaddr_t,
     pub i: PFChan_FromPathfinder_t,
+    pub ii: PFChan_FromCore_t,
     pub j: Log_Level,
     pub k: *mut Allocator_t,
     pub l: Sockaddr_storage,
     pub m: Sockaddr,
     pub n: *mut Random_t,
+}
+impl Default for RBindings_Whitelist {
+    fn default() -> Self {
+        unsafe { ::std::mem::zeroed() }
+    }
 }

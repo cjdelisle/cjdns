@@ -52,6 +52,36 @@ impl std::fmt::Debug for Message {
      }
 }
 
+impl std::io::Read for Message {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let len = std::cmp::min(self.len(), buf.len());
+        buf[0..len].copy_from_slice(&Message::bytes(self)[0..len]);
+        self.discard_bytes(len).unwrap();
+        Ok(len)
+    }
+}
+
+impl cjdns_bytes::message::RWrite for Message {
+    fn len(&self) -> usize {
+        Message::len(self)
+    }
+}
+
+impl std::io::Write for Message {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        if let Err(e) = self.push_bytes(buf) {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::OutOfMemory,
+                e,
+            ));
+        }
+        Ok(buf.len())
+    }
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
 impl Message {
     /// Create a new message with a self-contained allocator,
     /// this message is thus "owned" but Rust.
