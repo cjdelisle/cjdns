@@ -104,7 +104,6 @@ impl SeederInner {
             msg.write_u32::<BE>(cffi::PFChan_Pathfinder::PFChan_Pathfinder_PEERS as _)?;
             self.ifacep.send(msg)?;
             self.m.lock().await.last_get_peers = now;
-            return Ok(());
         }
 
         // Need a DNS req?
@@ -133,7 +132,6 @@ impl SeederInner {
                 m.recommended_peers.insert(seed, it.collect());
             }
             m.last_dns_req = now;
-            return Ok(());
         }
 
         // Need to add a peer?
@@ -172,10 +170,6 @@ impl SeederInner {
 
             self.m.lock().await.tried_peers.push((connect,now));
         }
-
-        // Sleep for 10 seconds, but if something else happens while we're sleeping, we'll just
-        // exit early and restart this function again.
-        tokio::time::sleep(Duration::from_secs(10)).await;
         Ok(())
     }
     async fn parse_msg(&self, mut msg: Message) -> Result<()> {
@@ -208,6 +202,11 @@ impl SeederInner {
                         tokio::time::sleep(Duration::from_secs(3)).await;
                     }
                 }
+                _ = tokio::time::sleep(Duration::from_secs(60)) => {
+                    log::warn!("Seeder cycle() timed out after 60 seconds");
+                }
+            }
+            tokio::select! {
                 _ = done.recv() => {
                     log::info!("Seeder shutdown");
                     break;
@@ -216,9 +215,17 @@ impl SeederInner {
                     if let Some(msg) = msg {
                         if let Err(e) = self.parse_msg(msg).await {
                             log::info!("Error in parse_msg() -> {e}");
+                        } else {
+                            while let Ok(m) = recv_message.try_recv() {
+                                if let Err(e) = self.parse_msg(m).await {
+                                    log::info!("Error in parse_msg() -> {e}");
+                                    break;
+                                }
+                            }
                         }
                     }
                 }
+                _ = tokio::time::sleep(Duration::from_secs(10)) => {}
             }
         }
     }
