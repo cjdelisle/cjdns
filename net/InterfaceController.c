@@ -619,6 +619,7 @@ static Iface_DEFUN handleConnectPeer(
     Message_t* msg,
     struct InterfaceController_pvt* ic)
 {
+    Log_debug(ic->logger, "Got ConnectPeer message");
     PFChan_Pathfinder_ConnectPeer_t cpt;
     if (Message_getLength(msg) < (int32_t)sizeof cpt) {
         return Error(msg, "RUNT %d", Message_getLength(msg));
@@ -637,7 +638,8 @@ static Iface_DEFUN handleConnectPeer(
     }
 
     if (!AddressCalc_validAddress(addr.ip6.bytes)) {
-        Log_debug(ic->logger, "handleConnectPeer invalid key [%s]", printedAddr->bytes);
+        char* hex = Hex_print(&cpt, sizeof cpt, Message_getAlloc(msg));
+        Log_debug(ic->logger, "handleConnectPeer invalid key [%s] msg: [%s]", printedAddr->bytes, hex);
         return Error(msg, "invalid key [%s]", printedAddr->bytes);
     } else if (!Bits_memcmp(ic->ourPubKey, addr.key, 32)) {
         // receive self, drop silently
@@ -696,8 +698,23 @@ static Iface_DEFUN handleConnectPeer(
     ep->isIncomingConnection = false;
     ep->addr.protocolVersion = addr.protocolVersion;
     Ca_setAuth(pass, login, ep->caSession);
-    Log_info(ic->logger, "Connecting to seeded node %s",
-        Sockaddr_print(lladdr, Message_getAlloc(msg)));
+
+    if (SwitchCore_addInterface(ic->switchCore, &ep->switchIf, ep->alloc, &ep->addr.path)) {
+        Log_debug(ic->logger, "handleConnectPeer() SwitchCore out of space");
+        return Error(msg, "UNHANDLED");
+    }
+
+    // We want the node to immedietly be pinged but we don't want it to appear unresponsive because
+    // the pinger will only ping every (PING_INTERVAL * 8) so we set timeOfLastMessage to
+    // (now - pingAfterMilliseconds - 1) so it will be considered a "lazy node".
+    ep->timeOfLastMessage =
+        Time_currentTimeMilliseconds() - ic->pingAfterMilliseconds - 1;
+
+    Log_info(ic->logger, "Added peer [%s] from seed ",
+        Address_toString(&ep->addr, Message_getAlloc(msg))->bytes);
+
+    // Ping them immediately, this prevents beacon tests from taking 1 second each
+    sendPing(ep);
     return NULL;
 }
 
@@ -1274,11 +1291,11 @@ static Iface_DEFUN incomingFromEventEmitterIf(Message_t* msg, struct Iface* even
     struct InterfaceController_pvt* ic =
          Identity_containerOf(eventEmitterIf, struct InterfaceController_pvt, eventEmitterIf);
     uint32_t type = Er_assert(Message_epop32be(msg));
+    uint32_t pathfinderId = Er_assert(Message_epop32be(msg));
     if (type == PFChan_Pathfinder_CONNECT_PEER) {
         return handleConnectPeer(msg, ic);
     } else {
         Assert_true(type == PFChan_Pathfinder_PEERS);
-        uint32_t pathfinderId = Er_assert(Message_epop32be(msg));
         Assert_true(!Message_getLength(msg));
 
         for (int j = 0; j < ic->icis->length; j++) {
