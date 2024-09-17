@@ -206,26 +206,25 @@ impl SeederInner {
                     log::warn!("Seeder cycle() timed out after 60 seconds");
                 }
             }
-            tokio::select! {
-                _ = done.recv() => {
-                    log::info!("Seeder shutdown");
-                    break;
-                }
-                msg = recv_message.recv() => {
-                    if let Some(msg) = msg {
-                        if let Err(e) = self.parse_msg(msg).await {
-                            log::info!("Error in parse_msg() -> {e}");
-                        } else {
-                            while let Ok(m) = recv_message.try_recv() {
-                                if let Err(e) = self.parse_msg(m).await {
-                                    log::info!("Error in parse_msg() -> {e}");
-                                    break;
-                                }
+            loop {
+                tokio::select! {
+                    _ = done.recv() => {
+                        log::info!("Seeder shutdown");
+                        return;
+                    }
+                    msg = recv_message.recv() => {
+                        if let Some(msg) = msg {
+                            if let Err(e) = self.parse_msg(msg).await {
+                                log::info!("Error in parse_msg() -> {e}");
+                            } else {
+                                continue;
                             }
                         }
                     }
+                    _ = tokio::time::sleep(Duration::from_secs(10)) => {
+                        break;
+                    }
                 }
-                _ = tokio::time::sleep(Duration::from_secs(10)) => {}
             }
         }
     }
