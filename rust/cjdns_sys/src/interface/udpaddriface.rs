@@ -1,4 +1,4 @@
-use socket2::{Domain, Protocol, Type};
+use socket2::{Domain, Protocol, SockAddr, Type};
 use tokio::net::UdpSocket;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::Mutex;
@@ -136,6 +136,8 @@ impl UDPAddrIface {
             Some(Protocol::UDP),
         )?;
         udp.set_reuse_address(true)?;
+        let sa = SockAddr::from((*bind_addr).clone());
+        udp.bind(&sa)?;
         let udp = UdpSocket::from_std(udp.into())?;
         let real_addr = udp.local_addr()?;
         let (mut iface, iface_pvt) = iface::new("UDPAddrIface");
