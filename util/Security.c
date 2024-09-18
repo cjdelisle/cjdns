@@ -15,11 +15,10 @@
 #define _GNU_SOURCE // chroot(), MAP_ANONYMOUS
 #include "benc/Dict.h"
 #include "benc/String.h"
-#include "exception/Er.h"
+#include "exception/Err.h"
 #include "util/log/Log.h"
 #include "util/Security.h"
 #include "memory/Allocator.h"
-#include "util/Bits.h"
 #include "util/Setuid.h"
 #include "util/events/EventBase.h"
 #include "util/events/Timeout.h"
@@ -56,16 +55,16 @@ Dict* Security_getUser(char* userName, struct Allocator* retAlloc)
     return ret;
 }
 
-Er_DEFUN(void Security_setUser(int uid,
+Err_DEFUN Security_setUser(int uid,
                       int gid,
                       bool keepNetAdmin,
                       struct Log* logger,
-                      struct Allocator* alloc))
+                      struct Allocator* alloc)
 {
     int gidErrno = 0;
     int uidErrno = 0;
     if (keepNetAdmin) {
-        Er(Er_fromErr(Setuid_preSetuid(alloc)));
+        Err(Setuid_preSetuid(alloc));
     }
     if (gid && setgid(gid)) {
         gidErrno = errno;
@@ -75,21 +74,21 @@ Er_DEFUN(void Security_setUser(int uid,
         uidErrno = errno;
     }
     if (keepNetAdmin) {
-        Er(Er_fromErr(Setuid_postSetuid(alloc)));
+        Err(Setuid_postSetuid(alloc));
     }
     if (uidErrno > 0) {
-        Er_raise(alloc, "Failed to set UID [%s]", strerror(uidErrno));
+        Err_raise(alloc, "Failed to set UID [%s]", strerror(uidErrno));
     }
     if (uid != (int) getuid()) {
-        Er_raise(alloc, "Failed to set UID but seemed to succeed");
+        Err_raise(alloc, "Failed to set UID but seemed to succeed");
     }
     if (gidErrno > 0) {
-        Er_raise(alloc, "Failed to set GID [%s]", strerror(gidErrno));
+        Err_raise(alloc, "Failed to set GID [%s]", strerror(gidErrno));
     }
     if (gid != (int) getgid()) {
-        Er_raise(alloc, "Failed to set GID but seemed to succeed");
+        Err_raise(alloc, "Failed to set GID but seemed to succeed");
     }
-    Er_ret();
+    return NULL;
 }
 
 static int canOpenFiles()
@@ -99,41 +98,41 @@ static int canOpenFiles()
     return file >= 0;
 }
 
-Er_DEFUN(void Security_nofiles(struct Allocator* errAlloc))
+Err_DEFUN Security_nofiles(struct Allocator* errAlloc)
 {
     #if !defined(RLIMIT_NOFILE) && defined(RLIMIT_OFILE)
         #define RLIMIT_NOFILE RLIMIT_OFILE
     #endif
 
     if (!canOpenFiles()) {
-        Er_raise(errAlloc, "Unable to dupe stdin");
+        Err_raise(errAlloc, "Unable to dupe stdin");
     }
     if (setrlimit(RLIMIT_NOFILE, &(struct rlimit){ 0, 0 })) {
-        Er_raise(errAlloc, "Failed to set open file limit to 0 [%s]", strerror(errno));
+        Err_raise(errAlloc, "Failed to set open file limit to 0 [%s]", strerror(errno));
     }
     if (canOpenFiles()) {
-        Er_raise(errAlloc, "Still able to dupe stdin after setting number of files to 0!");
+        Err_raise(errAlloc, "Still able to dupe stdin after setting number of files to 0!");
     }
-    Er_ret();
+    return NULL;
 }
 
-Er_DEFUN(void Security_noforks(struct Allocator* errAlloc))
+Err_DEFUN Security_noforks(struct Allocator* errAlloc)
 {
     if (setrlimit(RLIMIT_NPROC, &(struct rlimit){ 0, 0 })) {
-        Er_raise(errAlloc, "Failed to set fork limit to 0 [%s]", strerror(errno));
+        Err_raise(errAlloc, "Failed to set fork limit to 0 [%s]", strerror(errno));
     }
-    Er_ret();
+    return NULL;
 }
 
-Er_DEFUN(void Security_chroot(char* root, struct Allocator* errAlloc))
+Err_DEFUN Security_chroot(char* root, struct Allocator* errAlloc)
 {
     if (chdir(root)) {
-        Er_raise(errAlloc, "chdir(%s) -> [%s]", root, strerror(errno));
+        Err_raise(errAlloc, "chdir(%s) -> [%s]", root, strerror(errno));
     }
     if (chroot(root)) {
-        Er_raise(errAlloc, "chroot(%s) -> [%s]", root, strerror(errno));
+        Err_raise(errAlloc, "chroot(%s) -> [%s]", root, strerror(errno));
     }
-    Er_ret();
+    return NULL;
 }
 
 struct Security_pvt
@@ -168,7 +167,7 @@ struct Security* Security_new(struct Allocator* alloc, struct Log* log, EventBas
     return &sec->pub;
 }
 
-Er_DEFUN(struct Security_Permissions* Security_checkPermissions(struct Allocator* alloc))
+Err_DEFUN Security_checkPermissions(struct Security_Permissions** outP, struct Allocator* alloc)
 {
     struct Security_Permissions* out =
         Allocator_calloc(alloc, sizeof(struct Security_Permissions), 1);
@@ -176,5 +175,6 @@ Er_DEFUN(struct Security_Permissions* Security_checkPermissions(struct Allocator
     out->noOpenFiles = !canOpenFiles();
     out->uid = getuid();
 
-    Er_ret(out);
+    *outP = out;
+    return NULL;
 }

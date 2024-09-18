@@ -15,9 +15,8 @@
 #ifndef Security_H
 #define Security_H
 
-#include "benc/Dict.h"
 #include "memory/Allocator.h"
-#include "exception/Er.h"
+#include "exception/Err.h"
 #include "util/log/Log.h"
 #include "util/events/EventBase.h"
 #include "util/Linker.h"
@@ -41,17 +40,17 @@ struct Security
     bool setupComplete;
 };
 
-Er_DEFUN(void Security_setUser(int uid,
+Err_DEFUN Security_setUser(int uid,
                       int gid,
                       bool keepNetAdmin,
                       struct Log* logger,
-                      struct Allocator* alloc));
+                      struct Allocator* alloc);
 
-Er_DEFUN(void Security_nofiles(struct Allocator* errAlloc));
+Err_DEFUN Security_nofiles(struct Allocator* errAlloc);
 
-Er_DEFUN(void Security_noforks(struct Allocator* errAlloc));
+Err_DEFUN Security_noforks(struct Allocator* errAlloc);
 
-Er_DEFUN(void Security_chroot(char* root, struct Allocator* errAlloc));
+Err_DEFUN Security_chroot(char* root, struct Allocator* errAlloc);
 
 void Security_setupComplete(struct Security* security);
 
@@ -59,6 +58,6 @@ struct Security* Security_new(struct Allocator* alloc, struct Log* log, EventBas
 
 Dict* Security_getUser(char* userName, struct Allocator* retAlloc);
 
-Er_DEFUN(struct Security_Permissions* Security_checkPermissions(struct Allocator* alloc));
+Err_DEFUN Security_checkPermissions(struct Security_Permissions** out, struct Allocator* alloc);
 
 #endif

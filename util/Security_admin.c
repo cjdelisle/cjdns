@@ -15,7 +15,8 @@
 #include "admin/Admin.h"
 #include "benc/String.h"
 #include "benc/Dict.h"
-#include "exception/Er.h"
+#include "rust/cjdns_sys/RTypes.h"
+#include "rust/cjdns_sys/Rffi.h"
 #include "util/log/Log.h"
 #include "util/Security.h"
 #include "util/Security_admin.h"
@@ -28,10 +29,14 @@ struct Context
     Identity
 };
 
-static void sendError(const char* errorMessage, String* txid, struct Admin* admin)
+static void sendError(RTypes_Error_t* er, String* txid, struct Admin* admin, Allocator_t* requestAlloc)
 {
+    char* msg = "none";
+    if (er) {
+        msg = Rffi_printError(er, requestAlloc);
+    }
     Dict error = Dict_CONST(String_CONST("error"),
-        String_OBJ(String_CONST((char*)errorMessage)), NULL);
+        String_OBJ(String_CONST(msg)), NULL);
     Admin_sendMessage(&error, txid, admin);
 }
 
@@ -42,22 +47,21 @@ static void setUser(Dict* args, void* vctx, String* txid, struct Allocator* requ
     int64_t* group = Dict_getIntC(args, "gid");
     int gid = group ? (int)*group : 0;
     int64_t* keepNetAdmin = Dict_getIntC(args, "keepNetAdmin");
-    struct Er_Ret* er = NULL;
-    Er_check(&er, Security_setUser(*user, gid, *keepNetAdmin, ctx->logger, requestAlloc));
+    RTypes_Error_t* er = Security_setUser(*user, gid, *keepNetAdmin, ctx->logger, requestAlloc);
     if (er) {
-        sendError(er->message, txid, ctx->admin);
+        sendError(er, txid, ctx->admin, requestAlloc);
         return;
     }
-    sendError("none", txid, ctx->admin);
+    sendError(NULL, txid, ctx->admin, requestAlloc);
 }
 
 static void checkPermissions(Dict* args, void* vctx, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* const ctx = Identity_check((struct Context*) vctx);
-    struct Er_Ret* er = NULL;
-    struct Security_Permissions* sp = Er_check(&er, Security_checkPermissions(requestAlloc));
+    struct Security_Permissions* sp = NULL;
+    RTypes_Error_t* er = Security_checkPermissions(&sp, requestAlloc);
     if (er) {
-        sendError(er->message, txid, ctx->admin);
+        sendError(er, txid, ctx->admin, requestAlloc);
         return;
     }
     Dict* out = Dict_new(requestAlloc);
@@ -67,47 +71,45 @@ static void checkPermissions(Dict* args, void* vctx, String* txid, struct Alloca
     Admin_sendMessage(out, txid, ctx->admin);
 }
 
-#define NOARG_CALL(vctx, txid, func, requestAlloc) \
-    do {                                                                    \
-        struct Context* const ctx = Identity_check((struct Context*) vctx); \
-        struct Er_Ret* er = NULL;                                           \
-        Er_check(&er, func(requestAlloc));                                  \
-        if (er) {                                                           \
-            sendError(er->message, txid, ctx->admin);                       \
-            return;                                                         \
-        }                                                                   \
-        sendError("none", txid, ctx->admin);                                \
-    } while (0)
-// CHECKFILES_IGNORE expecting { bracket
-
 static void nofiles(Dict* args, void* vctx, String* txid, struct Allocator* requestAlloc)
 {
-    NOARG_CALL(vctx, txid, Security_nofiles, requestAlloc);
+    struct Context* const ctx = Identity_check((struct Context*) vctx);
+    RTypes_Error_t* er = Security_nofiles(requestAlloc);
+    if (er) {
+        sendError(er, txid, ctx->admin, requestAlloc);
+        return;
+    }
+    sendError(NULL, txid, ctx->admin, requestAlloc);
 }
 
 static void noforks(Dict* args, void* vctx, String* txid, struct Allocator* requestAlloc)
 {
-    NOARG_CALL(vctx, txid, Security_noforks, requestAlloc);
+    struct Context* const ctx = Identity_check((struct Context*) vctx);
+    RTypes_Error_t* er = Security_noforks(requestAlloc);
+    if (er) {
+        sendError(er, txid, ctx->admin, requestAlloc);
+        return;
+    }
+    sendError(NULL, txid, ctx->admin, requestAlloc);
 }
 
 static void chroot(Dict* args, void* vctx, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* const ctx = Identity_check((struct Context*) vctx);
-    struct Er_Ret* er = NULL;
     String* root = Dict_getStringC(args, "root");
-    Er_check(&er, Security_chroot(root->bytes, requestAlloc));
+    RTypes_Error_t* er = Security_chroot(root->bytes, requestAlloc);
     if (er) {
-        sendError(er->message, txid, ctx->admin);
+        sendError(er, txid, ctx->admin, requestAlloc);
         return;
     }
-    sendError("none", txid, ctx->admin);
+    sendError(NULL, txid, ctx->admin, requestAlloc);
 }
 
 static void setupComplete(Dict* args, void* vctx, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* const ctx = Identity_check((struct Context*) vctx);
     Security_setupComplete(ctx->sec);
-    sendError("none", txid, ctx->admin);
+    sendError(NULL, txid, ctx->admin, requestAlloc);
 }
 
 static void getUser(Dict* args, void* vctx, String* txid, struct Allocator* requestAlloc)
