@@ -23,28 +23,14 @@
 #include "benc/String.h"
 #include "rust/cjdns_sys/Rffi.h"
 
-Er_DEFUN(Iface_t* Socket_forFd(int fd,
-                               int socketType,
-                               struct Allocator* userAlloc))
+Err_DEFUN Socket_forFd(Iface_t** s, int fd, int socketType, struct Allocator* userAlloc)
 {
-    Iface_t* iface = NULL;
-    RTypes_Error_t* err = Rffi_socketForFd(&iface, fd, socketType, userAlloc);
-    if (err) {
-        Er_raise(userAlloc, "Socket_forFd(%d): %s", fd,
-            Rffi_printError(err, userAlloc));
-    }
-    Er_ret(iface);
+    return Rffi_socketForFd(s, fd, socketType, userAlloc);
 }
 
-Er_DEFUN(Iface_t* Socket_connect(const char* path, Allocator_t* userAlloc))
+Err_DEFUN Socket_connect(Iface_t** iface, const char* path, Allocator_t* userAlloc)
 {
-    Iface_t* iface = NULL;
-    RTypes_Error_t* err = Rffi_unixSocketConnect(&iface, path, userAlloc);
-    if (err) {
-        Er_raise(userAlloc, "Socket_connect(%s): %s", path,
-            Rffi_printError(err, userAlloc));
-    }
-    Er_ret(iface);
+    return Rffi_unixSocketConnect(iface, path, userAlloc);
 }
 
 void Socket_serverOnConnect(

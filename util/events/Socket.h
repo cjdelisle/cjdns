@@ -28,11 +28,9 @@ Linker_require("util/events/libuv/Socket.c")
 #define Socket_forFd_FRAMES 1
 #define Socket_forFd_SENDTO_FRAMES 2
 
-Er_DEFUN(struct Iface* Socket_forFd(int fd,
-                                    int socketType,
-                                    struct Allocator* userAlloc));
+Err_DEFUN Socket_forFd(Iface_t** s, int fd, int socketType, struct Allocator* userAlloc);
 
-Er_DEFUN(Iface_t* Socket_connect(const char* path, Allocator_t* userAlloc));
+Err_DEFUN Socket_connect(Iface_t** iface, const char* path, Allocator_t* userAlloc);
 
 typedef struct Socket_Server {
     Rffi_SocketServer* rustServer;

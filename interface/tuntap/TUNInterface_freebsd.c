@@ -38,12 +38,13 @@
 #include <netinet6/in6_var.h>
 #include <netinet6/nd6.h>
 
-Er_DEFUN(struct Iface* TUNInterface_new(const char* interfaceName,
+Err_DEFUN TUNInterface_new(struct Iface** out,
+                                    const char* interfaceName,
                                    char assignedInterfaceName[TUNInterface_IFNAMSIZ],
                                    int isTapMode,
                                    EventBase_t* base,
                                    struct Log* logger,
-                                   struct Allocator* alloc))
+                                   struct Allocator* alloc)
 {
     char deviceFile[TUNInterface_IFNAMSIZ];
 
@@ -82,7 +83,7 @@ Er_DEFUN(struct Iface* TUNInterface_new(const char* interfaceName,
         } else if (ppa < 0) {
             error = "fdevname/getting number from fdevname";
         }
-        Er_raise(alloc, "%s [%s]", error, strerror(err));
+        Err_raise(alloc, "%s [%s]", error, strerror(err));
     }
 
     // Since devices are numbered rather than named, it's not possible to have tun0 and cjdns0
@@ -109,12 +110,13 @@ Er_DEFUN(struct Iface* TUNInterface_new(const char* interfaceName,
     if (error) {
         int err = errno;
         close(tunFd);
-        Er_raise(alloc, "%s [%s]", error, strerror(err));
+        Err_raise(alloc, "%s [%s]", error, strerror(err));
     }
 
-    struct Iface* s = Er(Socket_forFd(tunFd, Socket_forFd_FRAMES, alloc));
+    struct Iface* s = NULL;
+    Err(Socket_forFd(&s, tunFd, Socket_forFd_FRAMES, alloc));
 
     struct BSDMessageTypeWrapper* bmtw = BSDMessageTypeWrapper_new(alloc, logger);
     Iface_plumb(s, &bmtw->wireSide);
-    Er_ret(&bmtw->inside);
+    *out = &bmtw->inside;
 }

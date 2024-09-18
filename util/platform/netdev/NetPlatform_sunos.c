@@ -13,6 +13,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "exception/Er.h"
+#include "exception/Err.h"
 #include "util/platform/netdev/NetPlatform.h"
 #include "util/Assert.h"
 #include "util/platform/Sockaddr.h"
@@ -56,10 +57,10 @@ struct RouteMessage {
 };
 Assert_compileTime(sizeof(struct RouteMessage) == 172);
 
-static Er_DEFUN(void setupRoute(const uint8_t address[16],
+static Err_DEFUN setupRoute(const uint8_t address[16],
                        int prefixLen,
                        struct Log* logger,
-                       struct Allocator* alloc))
+                       struct Allocator* alloc)
 {
     struct RouteMessage rm = {
         .header = {
@@ -86,34 +87,34 @@ static Er_DEFUN(void setupRoute(const uint8_t address[16],
 
     int sock = socket(PF_ROUTE, SOCK_RAW, 0);
     if (sock == -1) {
-        Er_raise(alloc, "open route socket [%s]", strerror(errno));
+        Err_raise(alloc, "open route socket [%s]", strerror(errno));
     }
 
     ssize_t returnLen = write(sock, (char*) &rm, rm.header.rtm_msglen);
     if (returnLen < 0) {
-        Er_raise(alloc, "insert route [%s]", strerror(errno));
+        Err_raise(alloc, "insert route [%s]", strerror(errno));
     } else if (returnLen < rm.header.rtm_msglen) {
-        Er_raise(alloc, "insert route returned only [%d] of [%d]",
+        Err_raise(alloc, "insert route returned only [%d] of [%d]",
                      (int)returnLen, rm.header.rtm_msglen);
     }
-    Er_ret();
+    return NULL;
 }
 
-static Er_DEFUN(void addIp4Address(const char* interfaceName,
+static Err_DEFUN addIp4Address(const char* interfaceName,
                           const uint8_t address[4],
                           int prefixLen,
                           struct Log* logger,
-                          struct Allocator* alloc))
+                          struct Allocator* alloc)
 {
     // TODO(cjd): implement this and then remove the exception from TUNInterface_ipv4_root_test.c
-    Er_raise(alloc, "unimplemented");
+    Err_raise(alloc, "unimplemented");
 }
 
-static Er_DEFUN(void addIp6Address(const char* interfaceName,
+static Err_DEFUN addIp6Address(const char* interfaceName,
                           const uint8_t address[16],
                           int prefixLen,
                           struct Log* logger,
-                          struct Allocator* alloc))
+                          struct Allocator* alloc)
 {
     struct lifreq ifr = {
         .lifr_ppa = 0,
@@ -157,35 +158,34 @@ static Er_DEFUN(void addIp6Address(const char* interfaceName,
     if (error) {
         int err = errno;
         close(udpSock);
-        Er_raise(alloc, "%s [%s]", error, strerror(err));
+        Err_raise(alloc, "%s [%s]", error, strerror(err));
     }
     close(udpSock);
 
-    Er(setupRoute(address, prefixLen, logger, alloc));
-    Er_ret();
+    Err(setupRoute(address, prefixLen, logger, alloc));
+    return NULL;
 }
 
-Er_DEFUN(void NetPlatform_addAddress(const char* interfaceName,
+Err_DEFUN NetPlatform_addAddress(const char* interfaceName,
                             const uint8_t* address,
                             int prefixLen,
                             int addrFam,
                             struct Log* logger,
-                            struct Allocator* tempAlloc))
+                            struct Allocator* tempAlloc)
 {
     if (addrFam == AF_INET6) {
-        addIp6Address(interfaceName, address, prefixLen, logger, tempAlloc);
+        return addIp6Address(interfaceName, address, prefixLen, logger, tempAlloc);
     } else if (addrFam == AF_INET) {
-        addIp4Address(interfaceName, address, prefixLen, logger, tempAlloc);
+        return addIp4Address(interfaceName, address, prefixLen, logger, tempAlloc);
     } else {
-        Assert_true(0);
+        Err_raise(tempAlloc, "Invalid address family [%d]", addrFam);
     }
-    Er_ret();
 }
 
-Er_DEFUN(void NetPlatform_setMTU(const char* interfaceName,
+Err_DEFUN NetPlatform_setMTU(const char* interfaceName,
                         uint32_t mtu,
                         struct Log* logger,
-                        struct Allocator* errAlloc))
+                        struct Allocator* errAlloc)
 {
     Er_raise(errAlloc, "Not implemented in Illumos");
 }

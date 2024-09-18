@@ -46,10 +46,11 @@ Linker_require("interface/tuntap/TUNInterface_" + builder.config.systemName + ".
  * @param allocator a means of getting memory.
  * @return a Interface.
  */
-Er_DEFUN(struct Iface* TUNInterface_new(const char* interfaceName,
+Err_DEFUN TUNInterface_new(struct Iface** out,
+                                    const char* interfaceName,
                                    char assignedInterfaceName[TUNInterface_IFNAMSIZ],
                                    int isTapMode,
                                    EventBase_t* base,
                                    struct Log* logger,
-                                   struct Allocator* alloc));
+                                   struct Allocator* alloc);
 #endif

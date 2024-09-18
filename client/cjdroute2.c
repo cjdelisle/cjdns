@@ -787,7 +787,8 @@ int cjdroute2_main(int argc, char** argv)
     }
 
     // --------------------- Connect to socket ------------------------- //
-    Iface_t* corePipe = Except_er(eh, Socket_connect(pipePath->bytes, allocator));
+    Iface_t* corePipe = NULL;
+    Err_assert(Socket_connect(&corePipe, pipePath->bytes, allocator));
 
     // --------------------- Pre-Configure Core ------------------------- //
     Dict* preConf = Dict_new(allocator);

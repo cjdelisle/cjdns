@@ -12,6 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+#include "exception/Er.h"
 #include "interface/Iface.h"
 #include "interface/tuntap/TUNInterface.h"
 #include "interface/tuntap/windows/TAPInterface.h"
@@ -20,14 +21,15 @@
 #include "interface/tuntap/ARPServer.h"
 #include "util/CString.h"
 
-Er_DEFUN(struct Iface* TUNInterface_new(const char* interfaceName,
+Err_DEFUN TUNInterface_new(struct Iface** out,
+                                    const char* interfaceName,
                                    char assignedInterfaceName[TUNInterface_IFNAMSIZ],
                                    int isTapMode,
                                    EventBase_t* base,
                                    struct Log* logger,
-                                   struct Allocator* alloc))
+                                   struct Allocator* alloc)
 {
-    struct TAPInterface* tap = Er(TAPInterface_new(interfaceName, logger, base, alloc));
+    struct TAPInterface* tap = Er_assert(TAPInterface_new(interfaceName, logger, base, alloc));
     CString_safeStrncpy(assignedInterfaceName, tap->assignedName, TUNInterface_IFNAMSIZ);
     if (isTapMode) { Er_ret(&tap->generic); }
     struct TAPWrapper* tapWrapper = TAPWrapper_new(&tap->generic, logger, alloc);
@@ -35,5 +37,5 @@ Er_DEFUN(struct Iface* TUNInterface_new(const char* interfaceName,
         NDPServer_new(&tapWrapper->internal, logger, TAPWrapper_LOCAL_MAC, alloc);
     struct ARPServer* arp =
         ARPServer_new(&ndp->internal, logger, TAPWrapper_LOCAL_MAC, alloc);
-    Er_ret(&arp->internal);
+    *out = &arp->internal;
 }

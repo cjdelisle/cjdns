@@ -23,6 +23,8 @@
 #include "interface/tuntap/TUNMessageType.h"
 #include "memory/Allocator.h"
 #include "tunnel/IpTunnel.h"
+#include "rust/cjdns_sys/RTypes.h"
+#include "rust/cjdns_sys/Rffi.h"
 #include "tunnel/RouteGen.h"
 #include "crypto/AddressCalc.h"
 #include "util/platform/netdev/NetDev.h"
@@ -428,10 +430,10 @@ static void addAddress(char* printedAddr, uint8_t prefixLen,
     ss.addr.flags |= Sockaddr_flags_PREFIX;
 
     ss.addr.prefix = allocSize;
-    struct Er_Ret* er = NULL;
-    Er_check(&er, NetDev_addAddress(tunName->bytes, &ss.addr, ctx->logger, tempAlloc));
+    RTypes_Error_t* er = NetDev_addAddress(tunName->bytes, &ss.addr, ctx->logger, tempAlloc);
     if (er) {
-        Log_error(ctx->logger, "Error setting ip address on TUN [%s]", er->message);
+        Log_error(ctx->logger, "Error setting ip address on TUN [%s]",
+            Rffi_printError(er, tempAlloc));
         return;
     }
 

@@ -149,7 +149,8 @@ static Iface_DEFUN receiveMessageChild(Message_t* msg, struct Iface* iface)
 
 static void child(char* name, struct Context* ctx)
 {
-    Iface_t* iface = Er_assert(Socket_connect(name, ctx->alloc));
+    Iface_t* iface = NULL;
+    Err_assert(Socket_connect(&iface, name, ctx->alloc));
     ctx->iface.send = receiveMessageChild;
     ctx->name = name;
     Iface_plumb(&ctx->iface, iface);

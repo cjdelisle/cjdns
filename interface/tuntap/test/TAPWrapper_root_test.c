@@ -33,7 +33,8 @@ int main(int argc, char** argv)
     struct Sockaddr* addrB = Sockaddr_fromBytes(TUNTools_testIP6AddrB, Sockaddr_AF_INET6, alloc);
 
     char assignedIfName[TUNInterface_IFNAMSIZ];
-    struct Iface* tap = Er_assert(TUNInterface_new(NULL, assignedIfName, 1, base, log, alloc));
+    struct Iface* tap = NULL;
+    Err_assert(TUNInterface_new(&tap, NULL, assignedIfName, 1, base, log, alloc));
     struct TAPWrapper* tapWrapper = TAPWrapper_new(tap, log, alloc);
 
     // Now setup the NDP server so the tun will work correctly.
@@ -42,7 +43,7 @@ int main(int argc, char** argv)
 
     addrA->flags |= Sockaddr_flags_PREFIX;
     addrA->prefix = 126;
-    Er_assert(NetDev_addAddress(assignedIfName, addrA, log, alloc));
+    Err_assert(NetDev_addAddress(assignedIfName, addrA, log, alloc));
 
     TUNTools_echoTest(addrA, addrB, TUNTools_genericIP6Echo, &arp->internal, base, log, alloc);
     Allocator_free(alloc);

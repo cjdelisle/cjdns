@@ -31,10 +31,10 @@ Linker_require("util/platform/netdev/NetDev.c")
  * @param logger
  * @param alloc allocator for errors.
  */
-Er_DEFUN(void NetDev_addAddress(const char* ifName,
+Err_DEFUN NetDev_addAddress(const char* ifName,
                        struct Sockaddr* sa,
                        struct Log* logger,
-                       struct Allocator* alloc));
+                       struct Allocator* alloc);
 
 /**
  * Set the MTU of an interface.
@@ -44,10 +44,10 @@ Er_DEFUN(void NetDev_addAddress(const char* ifName,
  * @param logger where to write information.
  * @param eh an exception handler.
  */
-Er_DEFUN(void NetDev_setMTU(const char* interfaceName,
+Err_DEFUN NetDev_setMTU(const char* interfaceName,
                    uint32_t mtu,
                    struct Log* logger,
-                   struct Allocator* alloc));
+                   struct Allocator* alloc);
 
 Er_DEFUN(void NetDev_flushAddresses(const char* deviceName, struct Allocator* alloc));
 

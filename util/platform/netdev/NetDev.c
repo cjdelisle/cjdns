@@ -12,6 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+#include "exception/Er.h"
 #include "util/platform/Sockaddr.h"
 #include "util/log/Log.h"
 #include "exception/Except.h"
@@ -19,57 +20,61 @@
 #include "util/platform/netdev/NetDev.h"
 #include "util/platform/netdev/NetPlatform.h"
 
-static Er_DEFUN(void checkAddressAndPrefix(struct Sockaddr* sa,
+static Err_DEFUN checkAddressAndPrefix(struct Sockaddr* sa,
                                   int* addrFam,
                                   char** printedAddr,
                                   void** addr,
-                                  struct Allocator* alloc))
+                                  struct Allocator* alloc)
 {
     *printedAddr = Sockaddr_print(sa, alloc);
     *addrFam = Sockaddr_getFamily(sa);
     if (*addrFam != Sockaddr_AF_INET && *addrFam != Sockaddr_AF_INET6) {
-        Er_raise(alloc, "Unknown address type for address [%s]", *printedAddr);
+        Err_raise(alloc, "Unknown address type for address [%s]", *printedAddr);
     }
     int prefixMax = (*addrFam == Sockaddr_AF_INET6) ? 128 : 32;
     if (!(sa->flags & Sockaddr_flags_PREFIX)) {
         sa->prefix = prefixMax;
     }
     if (sa->prefix > prefixMax) {
-        Er_raise(alloc, "prefix [%u] must be less than %d", sa->prefix, prefixMax);
+        Err_raise(alloc, "prefix [%u] must be less than %d", sa->prefix, prefixMax);
     }
 
     int len = Sockaddr_getAddress(sa, addr);
     if (len < 0 || len != prefixMax / 8) {
-        Er_raise(alloc, "Invalid sockaddr [%s]", *printedAddr);
+        Err_raise(alloc, "Invalid sockaddr [%s]", *printedAddr);
     }
-    Er_ret();
+    return NULL;
 }
 
-Er_DEFUN(void NetDev_addAddress(const char* ifName,
+Err_DEFUN NetDev_addAddress(const char* ifName,
                        struct Sockaddr* sa,
                        struct Log* logger,
-                       struct Allocator* alloc))
+                       struct Allocator* alloc)
 {
-    int addrFam;
-    char* printedAddr;
-    void* addr;
+    int addrFam = -1;
+    char* printedAddr = NULL;
+    void* addr = NULL;
 
-    Er(checkAddressAndPrefix(sa, &addrFam, &printedAddr, &addr, alloc));
+    Err(checkAddressAndPrefix(sa, &addrFam, &printedAddr, &addr, alloc));
 
     Log_info(logger, "Setting IP address [%s] on interface [%s]",
              printedAddr, ifName);
 
-    Er(NetPlatform_addAddress(ifName, addr, sa->prefix, addrFam, logger, alloc));
-    Er_ret();
+    return NetPlatform_addAddress(
+        ifName,
+        addr,
+        sa->prefix,
+        addrFam,
+        logger,
+        alloc);
 }
 
-Er_DEFUN(void NetDev_setMTU(const char* interfaceName,
+Err_DEFUN NetDev_setMTU(const char* interfaceName,
                    uint32_t mtu,
                    struct Log* logger,
-                   struct Allocator* alloc))
+                   struct Allocator* alloc)
 {
-     Er(NetPlatform_setMTU(interfaceName, mtu, logger, alloc));
-     Er_ret();
+    return NetPlatform_setMTU(interfaceName, mtu, logger, alloc);
 }
 
 Er_DEFUN(void NetDev_flushAddresses(const char* deviceName, struct Allocator* alloc))
@@ -92,7 +97,7 @@ void NetDev_addRoute(const char* ifName,
     struct Allocator* alloc;
     BufferAllocator_STACK(alloc, 4096);
 
-    checkAddressAndPrefix(sa, prefixLen, &addrFam, &printedAddr, &addr, alloc, eh);
+    Err_assert(checkAddressAndPrefix(sa, prefixLen, &addrFam, &printedAddr, &addr, alloc, eh));
 
     Log_info(logger, "Setting route [%s/%d on interface [%s]",
             printedAddr, prefixLen, ifName);
@@ -111,7 +116,7 @@ Er_DEFUN(void NetDev_setRoutes(const char* ifName,
         int addrFam;
         char* printedAddr;
         void* addr;
-        Er(checkAddressAndPrefix(prefixSet[i], &addrFam, &printedAddr, &addr, alloc));
+        Er(Er_fromErr(checkAddressAndPrefix(prefixSet[i], &addrFam, &printedAddr, &addr, alloc)));
         Allocator_free(alloc);
     }
 

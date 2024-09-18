@@ -88,7 +88,8 @@ static Iface_DEFUN incomingFromUs(Message_t* message, struct Iface* internalIf)
     return Iface_next(&ctx->externalIf, message);
 }
 
-Er_DEFUN(struct Iface* TUNInterface_new(const char* interfaceName,
+Err_DEFUN TUNInterface_new(struct Iface** out,
+                                    const char* interfaceName,
                                    char assignedInterfaceName[TUNInterface_IFNAMSIZ],
                                    int isTapMode,
                                    EventBase_t* base,
@@ -96,7 +97,7 @@ Er_DEFUN(struct Iface* TUNInterface_new(const char* interfaceName,
                                    struct Allocator* alloc))
 {
     // tap mode is not supported at all by the sunos tun driver.
-    if (isTapMode) { Er_raise(alloc, "tap mode not supported on this platform"); }
+    if (isTapMode) { Err_raise(alloc, "tap mode not supported on this platform"); }
 
     // Extract the number eg: 0 from tun0
     int ppa = 0;
@@ -177,12 +178,13 @@ Er_DEFUN(struct Iface* TUNInterface_new(const char* interfaceName,
         close(ipFd);
         close(tunFd2);
         close(tunFd);
-        Er_raise(alloc, "%s [%s]", error, strerror(err));
+        Err_raise(alloc, "%s [%s]", error, strerror(err));
     }
 
     close(ipFd);
 
-    struct Iface* s = Er(Socket_forFd(tunFd, Socket_forFd_FRAMES, alloc));
+    struct Iface* s = NULL;
+    Err(Socket_forFd(&s, tunFd, Socket_forFd_FRAMES, alloc));
 
     struct TUNInterface_Illumos_pvt* ctx =
         Allocator_clone(alloc, (&(struct TUNInterface_Illumos_pvt) {
@@ -193,5 +195,6 @@ Er_DEFUN(struct Iface* TUNInterface_new(const char* interfaceName,
     Identity_set(ctx);
 
     // TODO(cjd): This needs to be tested
-    Er_ret(&ctx->internalIf);
+    *out = &ctx->internalIf;
+    return NULL;
 }

@@ -100,11 +100,11 @@ Er_DEFUN(void NetPlatform_flushAddresses(const char* deviceName, struct Allocato
 #include "util/Hex.h"
 #include <stdio.h>
 
-static Er_DEFUN(void setupRoute(const char* deviceName,
+static Err_DEFUN setupRoute(const char* deviceName,
                        const uint8_t* addrBytes,
                        int prefixLen,
                        int addrFam,
-                       struct Allocator* alloc))
+                       struct Allocator* alloc)
 {
     void WINAPI InitializeIpForwardEntry(PMIB_IPFORWARD_ROW2 Row);
 
@@ -158,15 +158,15 @@ static Er_DEFUN(void setupRoute(const char* deviceName,
 //    printf("%s %d<\n", buff, row.SitePrefixLength);
 
     WinEr_check(alloc, CreateIpForwardEntry2(&row));
-    Er_ret();
+    return NULL;
 }
 
-Er_DEFUN(void NetPlatform_addAddress(const char* interfaceName,
+Err_DEFUN NetPlatform_addAddress(const char* interfaceName,
                             const uint8_t* address,
                             int prefixLen,
                             int addrFam,
                             struct Log* logger,
-                            struct Allocator* tempAlloc))
+                            struct Allocator* tempAlloc)
 {
     MIB_UNICASTIPADDRESS_ROW ipRow = {
         .PrefixOrigin = IpPrefixOriginUnchanged,
@@ -192,15 +192,15 @@ Er_DEFUN(void NetPlatform_addAddress(const char* interfaceName,
     WinEr_check(tempAlloc, CreateUnicastIpAddressEntry(&ipRow));
     if (0) {
         // setupRoute was disabled in d7f5b302ac9215221428de81b9a496b40dcb3884
-        Er(setupRoute(interfaceName, address, prefixLen, addrFam, tempAlloc));
+        Err(setupRoute(interfaceName, address, prefixLen, addrFam, tempAlloc));
     }
-    Er_ret();
+    return NULL;
 }
 
-Er_DEFUN(void NetPlatform_setMTU(const char* interfaceName,
+Err_DEFUN NetPlatform_setMTU(const char* interfaceName,
                         uint32_t mtu,
                         struct Log* logger,
-                        struct Allocator* errAlloc))
+                        struct Allocator* errAlloc)
 {
 
     // I looked all through the Windows API and setting the MTU is beyond me.
@@ -237,7 +237,7 @@ Er_DEFUN(void NetPlatform_setMTU(const char* interfaceName,
     snprintf(buffer, totalSize, format1, interfaceName, mtu);
     Log_debug(logger, "Going to run command: %s", buffer);
     WinEr_check(errAlloc, system(buffer));
-    Er_ret();
+    return NULL;
 }
 
 Er_DEFUN(void NetPlatform_setRoutes(const char* ifName,

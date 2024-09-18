@@ -24,6 +24,7 @@
 #include "crypto/random/Random.h"
 #include "crypto/random/nanotime/NanotimeEntropyProvider.h"
 #include "crypto/Sign_admin.h"
+#include "rust/cjdns_sys/RTypes.h"
 #include "subnode/SubnodePathfinder.h"
 #include "subnode/SubnodePathfinder_admin.h"
 #include "subnode/SupernodeHunter_admin.h"
@@ -152,9 +153,9 @@ static void sendResponse(String* error,
     Admin_sendMessage(output, txid, admin);
 }
 
-static Er_DEFUN(void initSocket2(String* socketFullPath,
+static Err_DEFUN initSocket2(String* socketFullPath,
                           struct Context* ctx,
-                          uint8_t addressPrefix))
+                          uint8_t addressPrefix)
 {
     Log_debug(ctx->logger, "Initializing socket: %s;", socketFullPath->bytes);
 
@@ -165,23 +166,24 @@ static Er_DEFUN(void initSocket2(String* socketFullPath,
     }
     ctx->tunAlloc = Allocator_child(ctx->alloc);
 
-    struct Iface* rawSocketIf = Er(Socket_connect(socketFullPath->bytes, ctx->tunAlloc));
+    struct Iface* rawSocketIf = NULL;
+    Err(Socket_connect(&rawSocketIf, socketFullPath->bytes, ctx->tunAlloc));
     struct SocketWrapper* sw = SocketWrapper_new(ctx->tunAlloc, ctx->logger);
     Iface_plumb(&sw->externalIf, rawSocketIf);
 
     ctx->tunDevice = &sw->internalIf;
     Iface_plumb(ctx->tunDevice, &ctx->nc->tunAdapt->tunIf);
 
-    Er(SocketWrapper_addAddress(
+    Err(SocketWrapper_addAddress(
         &sw->externalIf, ctx->nc->myAddress->ip6.bytes, ctx->logger, ctx->alloc));
-    Er(SocketWrapper_setMTU(&sw->externalIf, DEFAULT_MTU, ctx->logger, ctx->alloc));
-    Er_ret();
+    Err(SocketWrapper_setMTU(&sw->externalIf, DEFAULT_MTU, ctx->logger, ctx->alloc));
+    return NULL;
 }
 
-static Er_DEFUN(void initTunnel2(String* desiredDeviceName,
+static Err_DEFUN initTunnel2(String* desiredDeviceName,
                         struct Context* ctx,
                         uint8_t addressPrefix,
-                        struct Allocator* errAlloc))
+                        struct Allocator* errAlloc)
 {
     Log_debug(ctx->logger, "Initializing TUN device [%s]",
               (desiredDeviceName) ? desiredDeviceName->bytes : "<auto>");
@@ -195,8 +197,14 @@ static Er_DEFUN(void initTunnel2(String* desiredDeviceName,
         ctx->tunDevice = NULL;
     }
     ctx->tunAlloc = Allocator_child(ctx->alloc);
-    ctx->tunDevice = Er(TUNInterface_new(
-        desiredName, assignedTunName, 0, ctx->base, ctx->logger, ctx->tunAlloc));
+    Err(TUNInterface_new(
+        &ctx->tunDevice,
+        desiredName,
+        assignedTunName,
+        0,
+        ctx->base,
+        ctx->logger,
+        ctx->tunAlloc));
 
     Iface_plumb(ctx->tunDevice, &ctx->nc->tunAdapt->tunIf);
 
@@ -206,9 +214,8 @@ static Er_DEFUN(void initTunnel2(String* desiredDeviceName,
         Sockaddr_fromBytes(ctx->nc->myAddress->ip6.bytes, Sockaddr_AF_INET6, ctx->tunAlloc);
     myAddr->prefix = addressPrefix;
     myAddr->flags |= Sockaddr_flags_PREFIX;
-    Er(NetDev_addAddress(assignedTunName, myAddr, ctx->logger, errAlloc));
-    Er(NetDev_setMTU(assignedTunName, DEFAULT_MTU, ctx->logger, errAlloc));
-    Er_ret();
+    Err(NetDev_addAddress(assignedTunName, myAddr, ctx->logger, errAlloc));
+    return NetDev_setMTU(assignedTunName, DEFAULT_MTU, ctx->logger, errAlloc);
 }
 
 static void initTunfd(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
@@ -225,12 +232,13 @@ static void initTunfd(Dict* args, void* vcontext, String* txid, struct Allocator
     int type = (tuntype) ? *tuntype : TUNMessageType_guess();
 
     struct Allocator* tunAlloc = Allocator_child(ctx->alloc);
-    struct Er_Ret* er = NULL;
-    struct Iface* socketIf = Er_check(&er, Socket_forFd(fileno, Socket_forFd_FRAMES, tunAlloc));
+    Iface_t* socketIf = NULL;
+    RTypes_Error_t* er = Socket_forFd(&socketIf, fileno, Socket_forFd_FRAMES, tunAlloc);
     if (er) {
-        Log_debug(ctx->logger, "Failed to create pipe [%s]", er->message);
+        const char* err = Rffi_printError(er, requestAlloc);
+        Log_debug(ctx->logger, "Failed to create pipe [%s]", err);
         String* error =
-            String_printf(requestAlloc, "Failed to configure tunnel [%s]", er->message);
+            String_printf(requestAlloc, "Failed to configure tunnel [%s]", err);
         sendResponse(error, ctx->admin, txid, requestAlloc);
         return;
     }
@@ -277,10 +285,10 @@ static void initTunnel(Dict* args, void* vcontext, String* txid, struct Allocato
 {
     struct Context* const ctx = Identity_check((struct Context*) vcontext);
     String* desiredName = Dict_getStringC(args, "desiredTunName");
-    struct Er_Ret* er = NULL;
-    Er_check(&er, initTunnel2(desiredName, ctx, AddressCalc_ADDRESS_PREFIX_BITS, requestAlloc));
-    if (er) {
-        String* error = String_printf(requestAlloc, "Failed to configure tunnel [%s]", er->message);
+    RTypes_Error_t* err = initTunnel2(desiredName, ctx, AddressCalc_ADDRESS_PREFIX_BITS, requestAlloc);
+    if (err) {
+        String* error = String_printf(requestAlloc, "Failed to configure tunnel [%s]",
+            Rffi_printError(err, requestAlloc));
         sendResponse(error, ctx->admin, txid, requestAlloc);
         return;
     }
@@ -292,11 +300,10 @@ static void initSocket(Dict* args, void* vcontext, String* txid, struct Allocato
 {
     struct Context* const ctx = Identity_check((struct Context*) vcontext);
     String* socketFullPath = Dict_getStringC(args, "socketFullPath");
-    struct Er_Ret* er = NULL;
-    Er_check(&er, initSocket2(socketFullPath, ctx, AddressCalc_ADDRESS_PREFIX_BITS));
-    if (er) {
+    RTypes_Error_t* err = initSocket2(socketFullPath, ctx, AddressCalc_ADDRESS_PREFIX_BITS);
+    if (err) {
         String* error = String_printf(requestAlloc, "Failed to configure socket [%s]",
-            er->message);
+            Rffi_printError(err, requestAlloc));
         sendResponse(error, ctx->admin, txid, requestAlloc);
         return;
     }

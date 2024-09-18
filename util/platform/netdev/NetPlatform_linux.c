@@ -12,6 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+#include "exception/Er.h"
 #include "util/platform/netdev/NetPlatform.h"
 #include "util/platform/Sockaddr.h"
 #include "memory/Allocator.h"
@@ -67,15 +68,15 @@ struct Cjdns_in6_ifreq
  * @param ifRequestOut an ifreq which will be populated with the interface index of the interface.
  * @return a socket for interacting with this interface.
  */
-static Er_DEFUN(int socketForIfName(const char* interfaceName,
+static Err_DEFUN socketForIfName(int* out, const char* interfaceName,
                            int af,
                            struct Allocator* alloc,
-                           struct ifreq* ifRequestOut))
+                           struct ifreq* ifRequestOut)
 {
     int s;
 
     if ((s = socket(af, SOCK_DGRAM, 0)) < 0) {
-        Er_raise(alloc, "socket() [%s]", strerror(errno));
+        Err_raise(alloc, "socket() [%s]", strerror(errno));
     }
 
     memset(ifRequestOut, 0, sizeof(struct ifreq));
@@ -84,34 +85,37 @@ static Er_DEFUN(int socketForIfName(const char* interfaceName,
     if (ioctl(s, SIOCGIFINDEX, ifRequestOut) < 0) {
         int err = errno;
         close(s);
-        Er_raise(alloc, "ioctl(SIOCGIFINDEX) [%s]", strerror(err));
+        Err_raise(alloc, "ioctl(SIOCGIFINDEX) [%s]", strerror(err));
     }
-    Er_ret(s);
+    *out = s;
+    return NULL;
 }
 
 /** don't use if_nametoindex() because it accesses the filesystem. */
-static Er_DEFUN(int ifIndexForName(const char* interfaceName, struct Allocator* alloc))
+static Err_DEFUN ifIndexForName(int* out, const char* interfaceName, struct Allocator* alloc)
 {
     struct ifreq ifRequest;
-    int s = Er(socketForIfName(interfaceName, AF_INET, alloc, &ifRequest));
+    int s = -1;
+    Err(socketForIfName(&s, interfaceName, AF_INET, alloc, &ifRequest));
     close(s);
-    Er_ret(ifRequest.ifr_ifindex);
+    *out = ifRequest.ifr_ifindex;
+    return NULL;
 }
 
-static Er_DEFUN(void checkInterfaceUp(int socket,
+static Err_DEFUN checkInterfaceUp(int socket,
                              struct ifreq* ifRequest,
                              struct Log* logger,
-                             struct Allocator* alloc))
+                             struct Allocator* alloc)
 {
     if (ioctl(socket, SIOCGIFFLAGS, ifRequest) < 0) {
         int err = errno;
         close(socket);
-        Er_raise(alloc, "ioctl(SIOCGIFFLAGS) [%s]", strerror(err));
+        Err_raise(alloc, "ioctl(SIOCGIFFLAGS) [%s]", strerror(err));
     }
 
     if (ifRequest->ifr_flags & IFF_UP & IFF_RUNNING) {
         // already up.
-        Er_ret();
+        return NULL;
     }
 
     Log_info(logger, "Bringing up interface [%s]", ifRequest->ifr_name);
@@ -120,24 +124,25 @@ static Er_DEFUN(void checkInterfaceUp(int socket,
     if (ioctl(socket, SIOCSIFFLAGS, ifRequest) < 0) {
         int err = errno;
         close(socket);
-        Er_raise(alloc, "ioctl(SIOCSIFFLAGS) [%s]", strerror(err));
+        Err_raise(alloc, "ioctl(SIOCSIFFLAGS) [%s]", strerror(err));
     }
-    Er_ret();
+    return NULL;
 }
 
-Er_DEFUN(void NetPlatform_addAddress(const char* interfaceName,
+Err_DEFUN NetPlatform_addAddress(const char* interfaceName,
                             const uint8_t* address,
                             int prefixLen,
                             int addrFam,
                             struct Log* logger,
-                            struct Allocator* tempAlloc))
+                            struct Allocator* tempAlloc)
 {
     struct ifreq ifRequest;
-    int s = Er(socketForIfName(interfaceName, addrFam, tempAlloc, &ifRequest));
+    int s = -1;
+    Err(socketForIfName(&s, interfaceName, addrFam, tempAlloc, &ifRequest));
     int ifIndex = ifRequest.ifr_ifindex;
 
     // checkInterfaceUp() clobbers the ifindex.
-    Er(checkInterfaceUp(s, &ifRequest, logger, tempAlloc));
+    Err(checkInterfaceUp(s, &ifRequest, logger, tempAlloc));
 
     if (addrFam == AF_INET6) {
         struct Cjdns_in6_ifreq ifr6 = {
@@ -150,9 +155,9 @@ Er_DEFUN(void NetPlatform_addAddress(const char* interfaceName,
             int err = errno;
             close(s);
             if (err == EPERM) {
-                Er_raise(tempAlloc, "ioctl permission denied, Are you root and is ipv6 enabled?");
+                Err_raise(tempAlloc, "ioctl permission denied, Are you root and is ipv6 enabled?");
             } else {
-                Er_raise(tempAlloc, "ioctl(SIOCSIFADDR) failed: [%s]", strerror(err));
+                Err_raise(tempAlloc, "ioctl(SIOCSIFADDR) failed: [%s]", strerror(err));
             }
         }
 
@@ -165,7 +170,7 @@ Er_DEFUN(void NetPlatform_addAddress(const char* interfaceName,
         if (ioctl(s, SIOCSIFADDR, &ifRequest) < 0) {
             int err = errno;
             close(s);
-            Er_raise(tempAlloc, "ioctl(SIOCSIFADDR) failed: [%s]", strerror(err));
+            Err_raise(tempAlloc, "ioctl(SIOCSIFADDR) failed: [%s]", strerror(err));
         }
 
         uint32_t x = (uint32_t)~0 << (32 - prefixLen);
@@ -176,23 +181,24 @@ Er_DEFUN(void NetPlatform_addAddress(const char* interfaceName,
         if (ioctl(s, SIOCSIFNETMASK, &ifRequest) < 0) {
             int err = errno;
             close(s);
-            Er_raise(tempAlloc, "ioctl(SIOCSIFNETMASK) failed: [%s]", strerror(err));
+            Err_raise(tempAlloc, "ioctl(SIOCSIFNETMASK) failed: [%s]", strerror(err));
         }
     } else {
-        Assert_true(0);
+        Err_raise(tempAlloc, "Invalid address family [%d]", addrFam);
     }
 
     close(s);
-    Er_ret();
+    return NULL;
 }
 
-Er_DEFUN(void NetPlatform_setMTU(const char* interfaceName,
+Err_DEFUN NetPlatform_setMTU(const char* interfaceName,
                         uint32_t mtu,
                         struct Log* logger,
-                        struct Allocator* alloc))
+                        struct Allocator* errAlloc)
 {
     struct ifreq ifRequest;
-    int s = Er(socketForIfName(interfaceName, AF_INET6, alloc, &ifRequest));
+    int s = -1;
+    Err(socketForIfName(&s, interfaceName, AF_INET6, errAlloc, &ifRequest));
 
     Log_info(logger, "Setting MTU for device [%s] to [%u] bytes.", interfaceName, mtu);
 
@@ -200,11 +206,11 @@ Er_DEFUN(void NetPlatform_setMTU(const char* interfaceName,
     if (ioctl(s, SIOCSIFMTU, &ifRequest) < 0) {
         int err = errno;
         close(s);
-        Er_raise(alloc, "ioctl(SIOCSIFMTU) [%s]", strerror(err));
+        Err_raise(errAlloc, "ioctl(SIOCSIFMTU) [%s]", strerror(err));
     }
 
     close(s);
-    Er_ret();
+    return NULL;
 }
 
 struct IfIndexAttr {
@@ -462,7 +468,8 @@ Er_DEFUN(void NetPlatform_setRoutes(const char* ifName,
                            struct Log* logger,
                            struct Allocator* tempAlloc))
 {
-    int ifIndex = Er(ifIndexForName(ifName, tempAlloc));
+    int ifIndex = -1;
+    Er(Er_fromErr(ifIndexForName(&ifIndex, ifName, tempAlloc)));
     struct RouteInfo* newRi = riForSockaddrs(prefixSet, prefixCount, ifIndex, tempAlloc);
     int sock = Er(mkSocket(tempAlloc));
     struct RouteInfo* oldRi = Er(getRoutes(sock, ifIndex, tempAlloc));

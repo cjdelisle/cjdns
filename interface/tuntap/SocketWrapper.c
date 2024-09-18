@@ -86,30 +86,28 @@ struct SocketWrapper* SocketWrapper_new(struct Allocator* alloc, struct Log* log
     return &context->pub;
 }
 
-Er_DEFUN(void SocketWrapper_addAddress(struct Iface* rawSocketIf,
+Err_DEFUN SocketWrapper_addAddress(struct Iface* rawSocketIf,
                                 uint8_t* ipv6Addr,
                                 struct Log* logger,
-                                struct Allocator* alloc))
+                                struct Allocator* alloc)
 {
     size_t len = 16 /* IPv6 Address length */ + 1 /* Type prefix length */;
     Message_t* out = Message_new(0, len, alloc);
-    Er(Er_fromErr(Message_epush(out, ipv6Addr, 16)));
-    Er(Er_fromErr(Message_epush8(out, SocketWrapper_TYPE_CONF_ADD_IPV6_ADDRESS)));
+    Err(Message_epush(out, ipv6Addr, 16));
+    Err(Message_epush8(out, SocketWrapper_TYPE_CONF_ADD_IPV6_ADDRESS));
 
-    Iface_send(rawSocketIf, out);
-    Er_ret();
+    return Iface_next(rawSocketIf, out);
 }
 
-Er_DEFUN(void SocketWrapper_setMTU(struct Iface* rawSocketIf,
+Err_DEFUN SocketWrapper_setMTU(struct Iface* rawSocketIf,
                             uint32_t mtu,
                             struct Log* logger,
-                            struct Allocator* alloc))
+                            struct Allocator* alloc)
 {
     size_t len = 4 /* MTU var size */ + 1 /* Type prefix length */;
     Message_t* out = Message_new(0, len, alloc);
-    Er(Er_fromErr(Message_epush32be(out, mtu)));
-    Er(Er_fromErr(Message_epush8(out, SocketWrapper_TYPE_CONF_SET_MTU)));
+    Err(Message_epush32be(out, mtu));
+    Err(Message_epush8(out, SocketWrapper_TYPE_CONF_SET_MTU));
 
-    Iface_send(rawSocketIf, out);
-    Er_ret();
+    return Iface_next(rawSocketIf, out);
 }

@@ -116,7 +116,7 @@ printf("init test");
 
     struct Sockaddr_storage ss;
     Assert_true(!Sockaddr_parse("fd00::1", &ss));
-    NetDev_addAddress(ifName, &ss.addr, AddressCalc_ADDRESS_PREFIX_BITS, logger, NULL);
+    Err_assert(NetDev_addAddress(ifName, &ss.addr, AddressCalc_ADDRESS_PREFIX_BITS, logger, NULL));
 
     Timeout_setTimeout(fail, alloc, 10000, base, alloc);
 

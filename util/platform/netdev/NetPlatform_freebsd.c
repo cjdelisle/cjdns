@@ -39,11 +39,11 @@
 #include <netinet6/nd6.h>
 #include <arpa/inet.h>
 
-static Er_DEFUN(void addIp4Address(const char* interfaceName,
+static Err_DEFUN addIp4Address(const char* interfaceName,
                           const uint8_t address[4],
                           int prefixLen,
                           struct Log* logger,
-                          struct Allocator* alloc))
+                          struct Allocator* alloc)
 {
     struct ifaliasreq ifaliasreq;
     struct sockaddr_in* in;
@@ -65,7 +65,7 @@ static Er_DEFUN(void addIp4Address(const char* interfaceName,
 
     int err = inet_aton(myIp, &in->sin_addr);
     if (err == 0){
-      Er_raise(alloc, "inet_aton(myIp) failed");
+      Err_raise(alloc, "inet_aton(myIp) failed");
     }
 
     in = (struct sockaddr_in *) &ifaliasreq.ifra_mask;
@@ -74,7 +74,7 @@ static Er_DEFUN(void addIp4Address(const char* interfaceName,
 
     err = inet_aton(myMask, &in->sin_addr);
     if (err == 0){
-      Er_raise(alloc, "inet_aton(myMask) failed");
+      Err_raise(alloc, "inet_aton(myMask) failed");
     }
 
     in = (struct sockaddr_in *) &ifaliasreq.ifra_broadaddr;
@@ -89,21 +89,21 @@ static Er_DEFUN(void addIp4Address(const char* interfaceName,
     if (ioctl(s, SIOCAIFADDR, &ifaliasreq) == -1){
       int err = errno;
       close(s);
-      Er_raise(alloc, "ioctl(SIOCAIFADDR) [%s] for [%s]", strerror(err), interfaceName);
+      Err_raise(alloc, "ioctl(SIOCAIFADDR) [%s] for [%s]", strerror(err), interfaceName);
     }
 
     Log_info(logger, "Configured IPv4 [%s/%s] for [%s]", myIp, myMask, interfaceName);
 
     close(s);
 
-    Er_ret();
+    return NULL;
 }
 
-static Er_DEFUN(void addIp6Address(const char* interfaceName,
+static Err_DEFUN addIp6Address(const char* interfaceName,
                           const uint8_t address[16],
                           int prefixLen,
                           struct Log* logger,
-                          struct Allocator* alloc))
+                          struct Allocator* alloc)
 {
     /* stringify our IP address */
     char myIp[40];
@@ -123,7 +123,7 @@ static Er_DEFUN(void addIp6Address(const char* interfaceName,
     int err = getaddrinfo((const char *)myIp, NULL, &hints, &result);
     if (err) {
         // Should never happen since the address is specified as binary.
-        Er_raise(alloc, "bad IPv6 address [%s]", gai_strerror(err));
+        Err_raise(alloc, "bad IPv6 address [%s]", gai_strerror(err));
     }
 
     memcpy(&in6_addreq.ifra_addr, result->ai_addr, result->ai_addrlen);
@@ -149,47 +149,46 @@ static Er_DEFUN(void addIp6Address(const char* interfaceName,
     /* do the actual assignment ioctl */
     int s = socket(AF_INET6, SOCK_DGRAM, 0);
     if (s < 0) {
-        Er_raise(alloc, "socket() [%s]", strerror(errno));
+        Err_raise(alloc, "socket() [%s]", strerror(errno));
     }
 
     if (ioctl(s, SIOCAIFADDR_IN6, &in6_addreq) < 0) {
         int err = errno;
         close(s);
-        Er_raise(alloc, "ioctl(SIOCAIFADDR) [%s]", strerror(err));
+        Err_raise(alloc, "ioctl(SIOCAIFADDR) [%s]", strerror(err));
     }
 
     Log_info(logger, "Configured IPv6 [%s/%i] for [%s]", myIp, prefixLen, interfaceName);
 
     close(s);
-    Er_ret();
+    return NULL;
 }
 
-Er_DEFUN(void NetPlatform_addAddress(const char* interfaceName,
+Err_DEFUN NetPlatform_addAddress(const char* interfaceName,
                             const uint8_t* address,
                             int prefixLen,
                             int addrFam,
                             struct Log* logger,
-                            struct Allocator* tempAlloc))
+                            struct Allocator* tempAlloc)
 {
     if (addrFam == AF_INET6) {
-        Er(addIp6Address(interfaceName, address, prefixLen, logger, tempAlloc));
+        return addIp6Address(interfaceName, address, prefixLen, logger, tempAlloc);
     } else if (addrFam == AF_INET) {
-        Er(addIp4Address(interfaceName, address, prefixLen, logger, tempAlloc));
+        return addIp4Address(interfaceName, address, prefixLen, logger, tempAlloc);
     } else {
-        Assert_true(0);
+        Err_raise(tempAlloc, "Invalid address family [%d]", addrFam);
     }
-    Er_ret();
 }
 
-Er_DEFUN(void NetPlatform_setMTU(const char* interfaceName,
+Err_DEFUN NetPlatform_setMTU(const char* interfaceName,
                         uint32_t mtu,
                         struct Log* logger,
-                        struct Allocator* errAlloc))
+                        struct Allocator* errAlloc)
 {
     int s = socket(AF_INET6, SOCK_DGRAM, 0);
 
     if (s < 0) {
-        Er_raise(errAlloc, "socket() [%s]", strerror(errno));
+        Err_raise(errAlloc, "socket() [%s]", strerror(errno));
     }
 
 
@@ -203,9 +202,9 @@ Er_DEFUN(void NetPlatform_setMTU(const char* interfaceName,
     if (ioctl(s, SIOCSIFMTU, &ifRequest) < 0) {
        int err = errno;
        close(s);
-       Er_raise(errAlloc, "ioctl(SIOCSIFMTU) failed [%s]", strerror(err));
+       Err_raise(errAlloc, "ioctl(SIOCSIFMTU) failed [%s]", strerror(err));
     }
-    Er_ret();
+    return NULL;
 }
 
 Er_DEFUN(void NetPlatform_setRoutes(const char* ifName,

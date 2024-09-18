@@ -69,10 +69,11 @@ int main(int argc, char** argv)
     struct Sockaddr* addrB = Sockaddr_fromBytes(testAddrB, Sockaddr_AF_INET, alloc);
 
     char assignedIfName[TUNInterface_IFNAMSIZ];
-    struct Iface* tun = Er_assert(TUNInterface_new(NULL, assignedIfName, 0, base, logger, alloc));
+    struct Iface* tun = NULL;
+    Err_assert(TUNInterface_new(&tun, NULL, assignedIfName, 0, base, logger, alloc));
     addrA->flags |= Sockaddr_flags_PREFIX;
     addrA->prefix = 30;
-    Er_assert(NetDev_addAddress(assignedIfName, addrA, logger, alloc));
+    Err_assert(NetDev_addAddress(assignedIfName, addrA, logger, alloc));
 
     TUNTools_echoTest(addrA, addrB, receiveMessageTUN, tun, base, logger, alloc);
     Allocator_free(alloc);

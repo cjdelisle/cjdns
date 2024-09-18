@@ -22,7 +22,7 @@ Linker_require("exception/WinEr.c")
 char* WinEr_strerror(long status);
 
 #define WinEr_fail(alloc, msg, status) \
-    Er_raise(alloc, "%s [%s]", msg, WinEr_strerror(status));
+    Err_raise(alloc, "%s [%s]", msg, WinEr_strerror(status));
 
 #define WinEr_check(alloc, expr) \
     do {                                              \

@@ -34,13 +34,14 @@ struct SocketWrapper
 
 struct SocketWrapper* SocketWrapper_new(struct Allocator* alloc, struct Log* log);
 
-Er_DEFUN(void SocketWrapper_addAddress(struct Iface* rawSocketIf,
+Err_DEFUN SocketWrapper_addAddress(struct Iface* rawSocketIf,
                                 uint8_t* ipv6Addr,
                                 struct Log* logger,
-                                struct Allocator* alloc));
+                                struct Allocator* alloc);
 
-Er_DEFUN(void SocketWrapper_setMTU(struct Iface* rawSocketIf,
+Err_DEFUN SocketWrapper_setMTU(struct Iface* rawSocketIf,
                             uint32_t mtu,
                             struct Log* logger,
-                            struct Allocator* alloc));
+                            struct Allocator* alloc);
+
 #endif

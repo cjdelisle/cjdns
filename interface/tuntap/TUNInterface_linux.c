@@ -41,12 +41,13 @@
   #define DEVICE_PATH "/dev/net/tun"
 #endif
 
-Er_DEFUN(struct Iface* TUNInterface_new(const char* interfaceName,
+Err_DEFUN TUNInterface_new(struct Iface** out,
+                                    const char* interfaceName,
                                    char assignedInterfaceName[TUNInterface_IFNAMSIZ],
                                    int isTapMode,
                                    EventBase_t* base,
                                    struct Log* logger,
-                                   struct Allocator* alloc))
+                                   struct Allocator* alloc)
 {
     uint32_t maxNameSize = (IFNAMSIZ < TUNInterface_IFNAMSIZ) ? IFNAMSIZ : TUNInterface_IFNAMSIZ;
     Log_info(logger, "Initializing tun device [%s]", ((interfaceName) ? interfaceName : "auto"));
@@ -54,26 +55,24 @@ Er_DEFUN(struct Iface* TUNInterface_new(const char* interfaceName,
     struct ifreq ifRequest = { .ifr_flags = (isTapMode) ? IFF_TAP : IFF_TUN };
     if (interfaceName) {
         if (strlen(interfaceName) > maxNameSize) {
-            Er_raise(alloc, "tunnel name too big, limit is [%d] characters", maxNameSize);
+            Err_raise(alloc, "tunnel name too big, limit is [%d] characters", maxNameSize);
         }
         CString_safeStrncpy(ifRequest.ifr_name, interfaceName, maxNameSize);
     }
     int tunFd = open(DEVICE_PATH, O_RDWR);
 
     if (tunFd < 0) {
-        Er_raise(alloc, "open(\"%s\") [%s]", DEVICE_PATH, strerror(errno));
+        Err_raise(alloc, "open(\"%s\") [%s]", DEVICE_PATH, strerror(errno));
     }
 
     if (ioctl(tunFd, TUNSETIFF, &ifRequest) < 0) {
         int err = errno;
         close(tunFd);
-        Er_raise(alloc, "ioctl(TUNSETIFF) [%s]", strerror(err));
+        Err_raise(alloc, "ioctl(TUNSETIFF) [%s]", strerror(err));
     }
     if (assignedInterfaceName) {
         CString_safeStrncpy(assignedInterfaceName, ifRequest.ifr_name, maxNameSize);
     }
 
-    struct Iface* s = Er(Socket_forFd(tunFd, Socket_forFd_FRAMES, alloc));
-
-    Er_ret(s);
+    return Socket_forFd(out, tunFd, Socket_forFd_FRAMES, alloc);
 }
