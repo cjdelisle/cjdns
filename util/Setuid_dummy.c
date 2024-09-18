@@ -14,16 +14,16 @@
  */
 #include "util/Setuid_impl.h"
 #include "memory/Allocator.h"
-#include "exception/Er.h"
+#include "exception/Err.h"
 
 // This implementation does nothing
 
-Er_DEFUN(void Setuid_preSetuid(struct Allocator* alloc))
+Err_DEFUN Setuid_preSetuid(struct Allocator* alloc)
 {
-    Er_ret();
+    return NULL;
 }
 
-Er_DEFUN(void Setuid_postSetuid(struct Allocator* alloc))
+Err_DEFUN Setuid_postSetuid(struct Allocator* alloc)
 {
-    Er_ret();
+    return NULL;
 }

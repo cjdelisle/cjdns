@@ -65,7 +65,7 @@ Er_DEFUN(void Security_setUser(int uid,
     int gidErrno = 0;
     int uidErrno = 0;
     if (keepNetAdmin) {
-        Er(Setuid_preSetuid(alloc));
+        Er(Er_fromErr(Setuid_preSetuid(alloc)));
     }
     if (gid && setgid(gid)) {
         gidErrno = errno;
@@ -75,7 +75,7 @@ Er_DEFUN(void Security_setUser(int uid,
         uidErrno = errno;
     }
     if (keepNetAdmin) {
-        Er(Setuid_postSetuid(alloc));
+        Er(Er_fromErr(Setuid_postSetuid(alloc)));
     }
     if (uidErrno > 0) {
         Er_raise(alloc, "Failed to set UID [%s]", strerror(uidErrno));

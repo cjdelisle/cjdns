@@ -16,6 +16,8 @@
 #include "admin/Admin.h"
 #include "memory/Allocator.h"
 #include "net/InterfaceController.h"
+#include "rust/cjdns_sys/RTypes.h"
+#include "rust/cjdns_sys/Rffi.h"
 #include "util/events/EventBase.h"
 #include "util/platform/Sockaddr.h"
 #include "crypto/Key.h"
@@ -152,12 +154,19 @@ static struct UDPInterface* setupLibuvUDP(struct Context* ctx,
                                        String* txid,
                                        struct Allocator* alloc)
 {
-    struct Er_Ret* er = NULL;
-    struct UDPInterface* udpIf = Er_check(&er, UDPInterface_new(
-        ctx->eventBase, addr, beaconPort, alloc, ctx->logger, ctx->globalConf));
+    struct UDPInterface* udpIf = NULL;
+    RTypes_Error_t* er = UDPInterface_new(
+        &udpIf,
+        ctx->eventBase,
+        addr,
+        beaconPort,
+        alloc,
+        ctx->logger,
+        ctx->globalConf);
     if (er) {
         Dict* out = Dict_new(alloc);
-        Dict_putStringCC(out, "error", er->message, alloc);
+        const char* emsg = Rffi_printError(er, alloc);
+        Dict_putStringCC(out, "error", emsg, alloc);
         Admin_sendMessage(out, txid, ctx->admin);
         Allocator_free(alloc);
         return NULL;
@@ -226,10 +235,11 @@ static void listDevices(Dict* args, void* vcontext, String* txid, struct Allocat
 {
     struct Context* ctx = Identity_check((struct Context*) vcontext);
     Dict* out = Dict_new(requestAlloc);
-    struct Er_Ret* er = NULL;
-    List* list = Er_check(&er, UDPInterface_listDevices(requestAlloc));
+    List* list = NULL;
+    RTypes_Error_t* er = UDPInterface_listDevices(&list, requestAlloc);
     if (er) {
-        Dict_putStringCC(out, "error", er->message, requestAlloc);
+        const char* emsg = Rffi_printError(er, requestAlloc);
+        Dict_putStringCC(out, "error", emsg, requestAlloc);
     } else {
         Dict_putListC(out, "ret", list, requestAlloc);
     }

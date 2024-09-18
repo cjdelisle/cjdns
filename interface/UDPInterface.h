@@ -66,19 +66,21 @@ struct UDPInterface
  * @param logger
  * @param globalConf for getting the name of the TUN device to avoid bcasting to it
  */
-Er_DEFUN(struct UDPInterface* UDPInterface_new(EventBase_t* eventBase,
-                                      struct Sockaddr* bindAddr,
-                                      uint16_t beaconPort,
-                                      struct Allocator* alloc,
-                                      struct Log* logger,
-                                      struct GlobalConfig* globalConf));
+Err_DEFUN UDPInterface_new(
+    struct UDPInterface** out,
+    EventBase_t* eventBase,
+    struct Sockaddr* bindAddr,
+    uint16_t beaconPort,
+    struct Allocator* alloc,
+    struct Log* logger,
+    struct GlobalConfig* globalConf);
 
 /**
  * List all devices which can be broadcasted to, this will provide the name of the devices.
  *
  * @param alloc
  */
-Er_DEFUN(List* UDPInterface_listDevices(struct Allocator* alloc));
+Err_DEFUN UDPInterface_listDevices(List** out, struct Allocator* alloc);
 
 /**
  * Specify broadcast devices, this function accepts device names, address names and
