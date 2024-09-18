@@ -19,7 +19,6 @@
 #include "crypto/Key.h"
 #include "crypto/Sign.h"
 #include "dht/Address.h"
-#include "exception/Er.h"
 #include "memory/Allocator.h"
 #include "util/Base32.h"
 #include "util/Identity.h"

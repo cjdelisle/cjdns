@@ -19,7 +19,7 @@
 #define SocketWrapper_TYPE_CONF_ADD_IPV6_ADDRESS 0x1
 #define SocketWrapper_TYPE_CONF_SET_MTU 0x2
 
-#include "exception/Er.h"
+#include "exception/Err.h"
 #include "interface/Iface.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"

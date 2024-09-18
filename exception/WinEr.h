@@ -15,7 +15,7 @@
 #ifndef WinEr_H
 #define WinEr_H
 
-#include "exception/Er.h"
+#include "exception/Err.h"
 #include "util/Gcc.h"
 Linker_require("exception/WinEr.c")
 

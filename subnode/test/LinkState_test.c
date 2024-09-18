@@ -13,7 +13,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "crypto/random/Random.h"
-#include "exception/Er.h"
+#include "exception/Err.h"
 #include "memory/Allocator.h"
 #include "subnode/LinkState.h"
 #include "util/Assert.h"

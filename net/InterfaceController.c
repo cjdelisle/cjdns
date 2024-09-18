@@ -14,7 +14,7 @@
  */
 #include "crypto/AddressCalc.h"
 #include "crypto/Ca.h"
-#include "exception/Er.h"
+#include "exception/Err.h"
 #include "interface/Iface.h"
 #include "net/InterfaceController.h"
 #include "memory/Allocator.h"

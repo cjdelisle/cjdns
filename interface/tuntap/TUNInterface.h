@@ -15,7 +15,7 @@
 #ifndef TUNInterface_H
 #define TUNInterface_H
 
-#include "exception/Er.h"
+#include "exception/Err.h"
 #include "interface/Iface.h"
 #include "memory/Allocator.h"
 #include "util/events/EventBase.h"

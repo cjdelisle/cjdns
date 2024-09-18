@@ -50,7 +50,9 @@ static Iface_DEFUN incomingFromAddrIf(Message_t* msg, struct Iface* addrIf)
     struct AddrIfaceMuxer_pvt* ctx =
         Identity_containerOf(addrIf, struct AddrIfaceMuxer_pvt, iface);
 
-    struct Sockaddr* addr = Er_assert(AddrIface_popAddr(msg));
+    struct Sockaddr_storage addrStore;
+    Err(AddrIface_popAddr(&addrStore, msg));
+    struct Sockaddr* addr = &addrStore.addr;
     if (addr->addrLen > sizeof(struct Sockaddr)) {
         // There's another address packed under this one
         struct Sockaddr* subaddr = &addr[1];

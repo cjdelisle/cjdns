@@ -14,7 +14,7 @@
  */
 #include "dht/Address.h"
 #include "net/ControlHandler.h"
-#include "exception/Er.h"
+#include "exception/Err.h"
 #include "memory/Allocator.h"
 #include "net/InterfaceController.h"
 #include "switch/EncodingScheme.h"

@@ -473,10 +473,11 @@ static Iface_DEFUN receiveMessage(Message_t* message, struct Iface* iface)
 {
     struct Admin_pvt* admin = Identity_containerOf(iface, struct Admin_pvt, iface);
     struct Allocator* alloc = Allocator_child(admin->allocator);
-    struct Sockaddr* addrPtr = Er_assert(AddrIface_popAddr(message));
+    struct Sockaddr_storage addrStore;
+    Err(AddrIface_popAddr(&addrStore, message));
 
     admin->currentRequest = message;
-    RTypes_Error_t* err = handleMessage(message, Sockaddr_clone(addrPtr, alloc), alloc, admin);
+    RTypes_Error_t* err = handleMessage(message, Sockaddr_clone(&addrStore.addr, alloc), alloc, admin);
     admin->currentRequest = NULL;
     Allocator_free(alloc);
     return err;

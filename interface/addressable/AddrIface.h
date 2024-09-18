@@ -15,6 +15,7 @@
 #ifndef AddrIface_H
 #define AddrIface_H
 
+#include "exception/Err.h"
 #include "interface/Iface.h"
 #include "util/platform/Sockaddr.h"
 #include "exception/Except.h"
@@ -45,13 +46,15 @@ static inline Err_DEFUN AddrIface_pushAddr(Message_t* msg, const struct Sockaddr
     return Message_epush(msg, addr, addr->addrLen);
 }
 
-static inline Er_DEFUN(struct Sockaddr* AddrIface_popAddr(Message_t* msg))
+static inline Err_DEFUN AddrIface_popAddr(struct Sockaddr_storage* out, Message_t* msg)
 {
-    struct Sockaddr* out = (struct Sockaddr*) Message_bytes(msg);
     uint16_t len = 0;
-    Er(Er_fromErr(Message_epop16h(&len, msg)));
-    Er(Er_fromErr(Message_epop(msg, NULL, len - 2)));
-    Er_ret(out);
+    Err(Message_epop16h(&len, msg));
+    Err(Message_epush16h(msg, len));
+    if (len > sizeof *out) {
+        Err_raise(Message_getAlloc(msg), "Sockaddr len in msg is too big: %d", len);
+    }
+    return Message_epop(msg, out, len);
 }
 
 #endif

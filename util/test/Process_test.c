@@ -76,7 +76,7 @@ static struct Context* g_context = NULL;
 static Iface_DEFUN receiveMessageParent(Message_t* msg, struct Iface* iface)
 {
     struct Context* c = Identity_check((struct Context*) iface);
-    Er_assert(AddrIface_popAddr(msg));
+    Err_assert(AddrIface_popAddr(NULL, msg));
     printf("msg length is %d\n", Message_getLength(msg));
     Assert_true(Message_getLength(msg) == (int)CString_strlen(MESSAGEB)+1);
     Assert_true(!Bits_memcmp(Message_bytes(msg), MESSAGEB, CString_strlen(MESSAGEB)+1));

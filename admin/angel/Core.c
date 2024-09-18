@@ -29,10 +29,11 @@
 #include "subnode/SubnodePathfinder_admin.h"
 #include "subnode/SupernodeHunter_admin.h"
 #include "subnode/ReachabilityCollector_admin.h"
+#include "util/platform/Sockaddr.h"
 #ifndef SUBNODE
 #include "dht/Pathfinder.h"
 #endif
-#include "exception/Er.h"
+#include "exception/Err.h"
 #include "interface/Iface.h"
 #include "util/events/UDPAddrIface.h"
 #include "interface/tuntap/TUNInterface.h"
@@ -465,7 +466,8 @@ int Core_main(int argc, char** argv)
     Message_t* preConf =
         InterfaceWaiter_waitForData(ss->iface, eventBase, tempAlloc, eh);
     Log_debug(logger, "Finished getting pre-configuration from client");
-    struct Sockaddr* addr = Sockaddr_clone(Er_assert(AddrIface_popAddr(preConf)), tempAlloc);
+    struct Sockaddr_storage addr;
+    Err_assert(AddrIface_popAddr(&addr, preConf));
     Dict* config = Except_er(eh, BencMessageReader_read(preConf, tempAlloc));
 
     String* privateKeyHex = Dict_getStringC(config, "privateKey");
@@ -533,7 +535,7 @@ int Core_main(int argc, char** argv)
     // This always times out because the angel doesn't respond.
     Message_t* clientResponse = Message_new(0, 512, tempAlloc);
     Err_assert(BencMessageWriter_write(&response, clientResponse));
-    Err_assert(AddrIface_pushAddr(clientResponse, addr));
+    Err_assert(AddrIface_pushAddr(clientResponse, &addr.addr));
     Iface_CALL(ss->iface->send, clientResponse, ss->iface);
 
     Allocator_free(tempAlloc);

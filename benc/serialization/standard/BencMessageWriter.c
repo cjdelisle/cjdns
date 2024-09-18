@@ -18,7 +18,7 @@
 #include "benc/Dict.h"
 #include "benc/List.h"
 #include "benc/serialization/standard/BencMessageWriter.h"
-#include "exception/Er.h"
+#include "exception/Err.h"
 #include "wire/Message.h"
 #include "util/Base10.h"
 
