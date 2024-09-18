@@ -64,7 +64,8 @@ struct TwoNodes
 static Iface_DEFUN incomingTunB(Message_t* msg, struct Iface* tunB)
 {
     struct TwoNodes* tn = Identity_containerOf(tunB, struct TwoNodes, tunB);
-    uint16_t t = Er_assert(TUNMessageType_pop(msg));
+    uint16_t t = -1;
+    Err(TUNMessageType_pop(&t, msg));
     Assert_true(t == Ethernet_TYPE_IP6);
     Err(Message_eshift(msg, -Headers_IP6Header_SIZE));
     printf("Message from TUN in node B [%s]\n", Message_bytes(msg));
@@ -75,7 +76,8 @@ static Iface_DEFUN incomingTunB(Message_t* msg, struct Iface* tunB)
 static Iface_DEFUN incomingTunA(Message_t* msg, struct Iface* tunA)
 {
     struct TwoNodes* tn = Identity_containerOf(tunA, struct TwoNodes, tunA);
-    uint16_t t = Er_assert(TUNMessageType_pop(msg));
+    uint16_t t = -1;
+    Err(TUNMessageType_pop(&t, msg));
     Assert_true(t == Ethernet_TYPE_IP6);
     Err(Message_eshift(msg, -Headers_IP6Header_SIZE));
     uint8_t buff[1024];
@@ -202,7 +204,7 @@ static void sendMessage(struct TwoNodes* tn,
         Assert_true(false);
     }
 
-    Er_assert(TUNMessageType_push(msg, Ethernet_TYPE_IP6));
+    Err_assert(TUNMessageType_push(msg, Ethernet_TYPE_IP6));
     RTypes_Error_t* err = Iface_send(fromIf, msg);
     if (err) {
         Assert_failure("%s\n", Rffi_printError(err, tn->alloc));

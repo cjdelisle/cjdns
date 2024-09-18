@@ -15,23 +15,22 @@
 #ifndef TUNMessageType_H
 #define TUNMessageType_H
 
-#include "exception/Er.h"
+#include "exception/Err.h"
 #include "util/Defined.h"
 #include "wire/Message.h"
 
-static inline Er_DEFUN(void TUNMessageType_push(Message_t* message,
-                                       uint16_t ethertype))
+static inline Err_DEFUN TUNMessageType_push(Message_t* message, uint16_t ethertype)
 {
-    Er(Er_fromErr(Message_eshift(message, 4)));
-    ((uint16_t*) Message_bytes(message))[0] = 0;
-    ((uint16_t*) Message_bytes(message))[1] = ethertype;
-    Er_ret();
+    Err(Message_epush16h(message, ethertype));
+    Err(Message_epush16h(message, 0));
+    return NULL;
 }
 
-static inline Er_DEFUN(uint16_t TUNMessageType_pop(Message_t* message))
+static inline Err_DEFUN TUNMessageType_pop(uint16_t* out, Message_t* message)
 {
-    Er(Er_fromErr(Message_eshift(message, -4)));
-    Er_ret( ((uint16_t*) Message_bytes(message))[-1] );
+    Err(Message_epop(message, NULL, 2));
+    Err(Message_epop16h(out, message));
+    return NULL;
 }
 
 enum TUNMessageType {

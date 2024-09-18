@@ -749,7 +749,7 @@ static Iface_DEFUN ip6FromNode(Message_t* message,
         return Error(message, "INVALID");
     }
 
-    Er_assert(TUNMessageType_push(message, Ethernet_TYPE_IP6));
+    Err(TUNMessageType_push(message, Ethernet_TYPE_IP6));
     return Iface_next(&context->pub.tunInterface, message);
 }
 
@@ -772,7 +772,7 @@ static Iface_DEFUN ip4FromNode(Message_t* message,
         return Error(message, "INVALID");
     }
 
-    Er_assert(TUNMessageType_push(message, Ethernet_TYPE_IP4));
+    Err(TUNMessageType_push(message, Ethernet_TYPE_IP4));
     return Iface_next(&context->pub.tunInterface, message);
 }
 

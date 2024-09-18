@@ -69,7 +69,7 @@ static Iface_DEFUN receiveMessage(Message_t* msg, struct Iface* external)
             return Error(msg, "INVALID");
         }
     }
-    Er_assert(TUNMessageType_push(msg, eth.ethertype));
+    Err(TUNMessageType_push(msg, eth.ethertype));
     return Iface_next(&tw->pub.internal, msg);
 }
 
@@ -77,7 +77,8 @@ static Iface_DEFUN sendMessage(Message_t* msg, struct Iface* internal)
 {
     struct TAPWrapper_pvt* tw = Identity_containerOf(internal, struct TAPWrapper_pvt, pub.internal);
 
-    uint16_t etherType = Er_assert(TUNMessageType_pop(msg));
+    uint16_t etherType = -1;
+    Err(TUNMessageType_pop(&etherType, msg));
     struct Ethernet eth = { .ethertype = etherType };
     Bits_memcpy(eth.srcAddr, TAPWrapper_LOCAL_MAC, Ethernet_ADDRLEN);
     Bits_memcpy(eth.destAddr, tw->pub.peerAddress, Ethernet_ADDRLEN);

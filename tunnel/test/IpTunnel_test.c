@@ -102,7 +102,8 @@ static Iface_DEFUN responseWithIpCallback(Message_t* message, struct Iface* ifac
 static Iface_DEFUN messageToTun(Message_t* msg, struct Iface* iface)
 {
     struct Context* ctx = Identity_check(((struct IfaceContext*)iface)->ctx);
-    uint16_t type = Er_assert(TUNMessageType_pop(msg));
+    uint16_t type = -1;
+    Err(TUNMessageType_pop(&type, msg));
     if (type == Ethernet_TYPE_IP6) {
         struct Headers_IP6Header* ip = (struct Headers_IP6Header*) Message_bytes(msg);
         Assert_true(Headers_getIpVersion(ip) == 6);

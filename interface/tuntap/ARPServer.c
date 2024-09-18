@@ -73,7 +73,7 @@ static Iface_DEFUN answerARP(Message_t* msg, struct ARPServer_pvt* as)
     arp.prefix.operation = ARPHeader_OP_A;
 
     Err(Message_epush(msg, &arp, ARPHeader_6_4_SIZE));
-    Er_assert(TUNMessageType_push(msg, Ethernet_TYPE_ARP));
+    Err(TUNMessageType_push(msg, Ethernet_TYPE_ARP));
 
     Log_debug(as->log, "Sending ARP answer.");
 
@@ -85,13 +85,14 @@ static Iface_DEFUN receiveMessage(Message_t* msg, struct Iface* external)
     struct ARPServer_pvt* as = Identity_containerOf(external, struct ARPServer_pvt, external);
     // Length should be ARP + Ethertype
     if (Message_getLength(msg) >= ARPHeader_6_4_SIZE + 4) {
-        uint16_t ethertype = Er_assert(TUNMessageType_pop(msg));
+        uint16_t ethertype = -1;
+        Err(TUNMessageType_pop(&ethertype, msg));
         if (ethertype == Ethernet_TYPE_ARP) {
             if (isValidARP(msg)) {
                 return answerARP(msg, as);
             }
         }
-        Er_assert(TUNMessageType_push(msg, ethertype));
+        Err(TUNMessageType_push(msg, ethertype));
     }
     return Iface_next(&as->pub.internal, msg);
 }

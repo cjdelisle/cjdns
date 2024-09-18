@@ -182,7 +182,7 @@ void CJDNS_FUZZ_MAIN(void* vctx, Message_t* msg)
     TestFramework_craftIPHeader(msg, srcAndDest, &srcAndDest[16]);
     ((struct Headers_IP6Header*) Message_bytes(msg))->nextHeader = 17;
 
-    Er_assert(TUNMessageType_push(msg, Ethernet_TYPE_IP6));
+    Err_assert(TUNMessageType_push(msg, Ethernet_TYPE_IP6));
 
     Iface_send(&ctx->tunA, Message_clone(msg, from->alloc));
 

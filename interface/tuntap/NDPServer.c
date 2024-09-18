@@ -110,7 +110,7 @@ static Iface_DEFUN answerNeighborSolicitation(Message_t* msg, struct NDPServer_p
 
     Err(Message_epush(msg, &ip6, sizeof(struct Headers_IP6Header)));
 
-    Er_assert(TUNMessageType_push(msg, Ethernet_TYPE_IP6));
+    Err(TUNMessageType_push(msg, Ethernet_TYPE_IP6));
 
     Log_debug(ns->log, "Sending neighbor advert");
 
@@ -122,13 +122,14 @@ static Iface_DEFUN receiveMessage(Message_t* msg, struct Iface* external)
     struct NDPServer_pvt* ns = Identity_containerOf(external, struct NDPServer_pvt, external);
 
     if (Message_getLength(msg) > Headers_IP6Header_SIZE + 4) {
-        uint16_t ethertype = Er_assert(TUNMessageType_pop(msg));
+        uint16_t ethertype = -1;
+        Err(TUNMessageType_pop(&ethertype, msg));
         if (ethertype != Ethernet_TYPE_IP6) {
         } else if (isNeighborSolicitation(msg, ns)) {
             //TODO(cjdns, Kubuxu): Filtering basing on cjdns network and tunnels.
             return answerNeighborSolicitation(msg, ns);
         }
-        Er_assert(TUNMessageType_push(msg, ethertype));
+        Err(TUNMessageType_push(msg, ethertype));
     }
     return Iface_next(&ns->pub.internal, msg);
 }

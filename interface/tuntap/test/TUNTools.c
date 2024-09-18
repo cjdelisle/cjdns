@@ -87,7 +87,8 @@ const uint8_t* TUNTools_testIP6AddrC = (uint8_t[])
 
 Iface_DEFUN TUNTools_genericIP6Echo(Message_t* msg, struct TUNTools* tt)
 {
-    uint16_t ethertype = Er_assert(TUNMessageType_pop(msg));
+    uint16_t ethertype = -1;
+    Err(TUNMessageType_pop(&ethertype, msg));
     if (ethertype != Ethernet_TYPE_IP6) {
         Log_debug(tt->log, "Spurious packet with ethertype [%04x]\n",
                   Endian_bigEndianToHost16(ethertype));
@@ -113,7 +114,7 @@ Iface_DEFUN TUNTools_genericIP6Echo(Message_t* msg, struct TUNTools* tt)
     Sockaddr_getAddress(tt->tunDestAddr, &address);
     Bits_memcpy(header->sourceAddr, address, 16);
 
-    Er_assert(TUNMessageType_push(msg, ethertype));
+    Err(TUNMessageType_push(msg, ethertype));
 
     return Iface_next(&tt->tunIface, msg);
 }

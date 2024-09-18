@@ -38,7 +38,8 @@ static Iface_DEFUN incomingFromTunIf(Message_t* msg, struct Iface* tunIf)
 {
     struct TUNAdapter_pvt* ud = Identity_containerOf(tunIf, struct TUNAdapter_pvt, pub.tunIf);
 
-    uint16_t ethertype = Er_assert(TUNMessageType_pop(msg));
+    uint16_t ethertype = -1;
+    Err(TUNMessageType_pop(&ethertype, msg));
 
     int version = Headers_getIpVersion(Message_bytes(msg));
     if ((ethertype == Ethernet_TYPE_IP4 && version != 4)
@@ -81,7 +82,7 @@ static Iface_DEFUN incomingFromTunIf(Message_t* msg, struct Iface* tunIf)
     }
     if (!Bits_memcmp(header->destinationAddr, ud->myIp6, 16)) {
         // I'm Gonna Sit Right Down and Write Myself a Letter
-        Er_assert(TUNMessageType_push(msg, ethertype));
+        Err(TUNMessageType_push(msg, ethertype));
         return Iface_next(tunIf, msg);
     }
 
@@ -152,7 +153,7 @@ static Iface_DEFUN incomingFromUpperDistributorIf(Message_t* msg,
     ip6->payloadLength_be = Endian_bigEndianToHost16(Message_getLength(msg) - Headers_IP6Header_SIZE);
     ip6->nextHeader = type;
     ip6->hopLimit = 42;
-    Er_assert(TUNMessageType_push(msg, Ethernet_TYPE_IP6));
+    Err(TUNMessageType_push(msg, Ethernet_TYPE_IP6));
     return sendToTunIf(msg, ud);
 }
 
