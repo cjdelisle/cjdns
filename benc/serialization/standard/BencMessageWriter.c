@@ -85,7 +85,7 @@ static Err_DEFUN writeGeneric(Object* obj, Message_t* msg)
     return NULL;
 }
 
-Err_DEFUN BencMessageWriter_write1(Dict* toWrite, Message_t* msg)
+Err_DEFUN BencMessageWriter_write(Dict* toWrite, Message_t* msg)
 {
     Err(writeDict(toWrite, msg));
 
@@ -104,9 +104,4 @@ Err_DEFUN BencMessageWriter_write1(Dict* toWrite, Message_t* msg)
     Err(Message_epop8(&d, msg));
     Err(Message_epush8(msg, 'd'));
     return NULL;
-}
-
-Er_DEFUN(void BencMessageWriter_write(Dict* toWrite, Message_t* msg))
-{
-    return Er_fromErr(BencMessageWriter_write1(toWrite, msg));
 }

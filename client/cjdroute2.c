@@ -802,7 +802,7 @@ int cjdroute2_main(int argc, char** argv)
     }
 
     Message_t* toCoreMsg = Message_new(0, 1024, allocator);
-    Er_assert(BencMessageWriter_write(preConf, toCoreMsg));
+    Err_assert(BencMessageWriter_write(preConf, toCoreMsg));
     Iface_CALL(corePipe->send, toCoreMsg, corePipe);
 
     Log_debug(logger, "Sent [%d] bytes to core", Message_getLength(toCoreMsg));

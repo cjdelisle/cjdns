@@ -214,7 +214,7 @@ static String* getExpectedResponse(struct Sockaddr* sa4, int prefix4, int alloc4
     Dict_putDict(output, String_new("addresses", alloc), addresses, alloc);
     Dict_putString(output, String_new("txid", alloc), String_new("abcd", alloc), alloc);
     Message_t* msg = Message_new(0, 512, alloc);
-    Er_assert(BencMessageWriter_write(output, msg));
+    Err_assert(BencMessageWriter_write(output, msg));
 
     String* outStr = String_newBinary(Message_bytes(msg), Message_getLength(msg), allocator);
     Allocator_free(alloc);

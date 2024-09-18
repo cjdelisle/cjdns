@@ -21,8 +21,6 @@
 #include "util/Linker.h"
 Linker_require("benc/serialization/standard/BencMessageWriter.c")
 
-Err_DEFUN BencMessageWriter_write1(Dict* toWrite, Message_t* msg);
-
-Er_DEFUN(void BencMessageWriter_write(Dict* toWrite, Message_t* msg));
+Err_DEFUN BencMessageWriter_write(Dict* toWrite, Message_t* msg);
 
 #endif

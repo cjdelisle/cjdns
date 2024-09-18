@@ -213,7 +213,7 @@ static void sendControlMessage(Dict* dict,
                                struct IpTunnel_pvt* context)
 {
     Message_t* msg = Message_new(0, 1024, requestAlloc);
-    Er_assert(BencMessageWriter_write(dict, msg));
+    Err_assert(BencMessageWriter_write(dict, msg));
 
     int length = Message_getLength(msg);
 

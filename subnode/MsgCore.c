@@ -152,7 +152,7 @@ static void sendMsg(struct MsgCore_pvt* mcp,
     }
 
     Message_t* msg = Message_new(0, 2048, alloc);
-    Er_assert(BencMessageWriter_write(msgDict, msg));
+    Err_assert(BencMessageWriter_write(msgDict, msg));
 
     //Log_debug(mcp->log, "Sending msg [%s]", Escape_getEscaped(msg->bytes, Message_getLength(msg), alloc));
 

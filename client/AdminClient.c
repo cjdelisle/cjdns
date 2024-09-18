@@ -91,7 +91,7 @@ static int calculateAuth(Dict* message,
 
     // serialize the message with the password hash
     Message_t* msg = Message_new(0, AdminClient_MAX_MESSAGE_SIZE, alloc);
-    Er_assert(BencMessageWriter_write(message, msg));
+    Err_assert(BencMessageWriter_write(message, msg));
 
     // calculate the hash of the message with the password hash
     crypto_hash_sha256(hash, Message_bytes(msg), Message_getLength(msg));
@@ -200,7 +200,7 @@ static struct Request* sendRaw(Dict* messageDict,
 
     struct Allocator* child = Allocator_child(req->alloc);
     Message_t* msg = Message_new(0, AdminClient_MAX_MESSAGE_SIZE + 256, child);
-    Er_assert(BencMessageWriter_write(messageDict, msg));
+    Err_assert(BencMessageWriter_write(messageDict, msg));
 
     req->timeoutAlloc = Allocator_child(req->alloc);
     req->timeout = Timeout_setTimeout(timeout,

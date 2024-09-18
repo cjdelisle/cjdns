@@ -132,7 +132,7 @@ static Err_DEFUN sendBenc(Dict* message,
                                int fd)
 {
     Message_reset(admin->tempSendMsg);
-    Err(BencMessageWriter_write1(message, admin->tempSendMsg));
+    Err(BencMessageWriter_write(message, admin->tempSendMsg));
     Message_t* msg = Message_new(0, Message_getLength(admin->tempSendMsg) + 32, alloc);
     Err(Message_epush(msg, Message_bytes(admin->tempSendMsg), Message_getLength(admin->tempSendMsg)));
     Message_setAssociatedFd(msg, fd);
