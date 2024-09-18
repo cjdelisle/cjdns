@@ -132,9 +132,10 @@ impl UDPAddrIface {
     pub fn new(bind_addr: &SocketAddr) -> Result<(Self,Iface)> {
         let udp = socket2::Socket::new(
             Domain::for_address(bind_addr.clone()),
-            Type::DGRAM.nonblocking(),
+            Type::DGRAM,
             Some(Protocol::UDP),
         )?;
+        udp.set_nonblocking(true)?;
         udp.set_reuse_address(true)?;
         let sa = SockAddr::from((*bind_addr).clone());
         udp.bind(&sa)?;
