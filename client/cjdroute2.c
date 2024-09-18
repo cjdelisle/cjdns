@@ -12,6 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+#include "rust/cjdns_sys/RTypes.h"
 #include "util/events/Socket.h"
 #define _POSIX_C_SOURCE 200112L
 #include "client/AdminClient.h"
@@ -486,21 +487,26 @@ static void checkRunningInstanceCallback(struct AdminClient_Promise* p,
     EventBase_endLoop(ctx->base);
 }
 
-static void checkRunningInstance(struct Allocator* allocator,
+static Err_DEFUN checkRunningInstance(struct Allocator* allocator,
                                  EventBase_t* base,
                                  String* addr,
                                  String* password,
-                                 struct Log* logger,
-                                 struct Except* eh)
+                                 struct Log* logger)
 {
     struct Allocator* alloc = Allocator_child(allocator);
     struct Sockaddr_storage pingAddrStorage;
     if (Sockaddr_parse(addr->bytes, &pingAddrStorage)) {
-        Except_throw(eh, "Unable to parse [%s] as an ip address port, eg: 127.0.0.1:11234",
+        Allocator_free(alloc);
+        Err_raise(allocator, "Unable to parse [%s] as an ip address port, eg: 127.0.0.1:11234",
                      addr->bytes);
     }
 
-    struct UDPAddrIface* udp = Except_er(eh, UDPAddrIface_new(base, NULL, alloc, logger));
+    struct UDPAddrIface* udp = NULL;
+    RTypes_Error_t* err = UDPAddrIface_new(&udp, base, NULL, alloc, logger);
+    if (err) {
+        Allocator_free(alloc);
+        return err;
+    }
     struct AdminClient* adminClient =
         AdminClient_new(&udp->generic, &pingAddrStorage.addr, password, base, logger, alloc);
 
@@ -526,11 +532,11 @@ static void checkRunningInstance(struct Allocator* allocator,
     EventBase_beginLoop(base);
 
     Assert_true(ctx->res);
-    if (ctx->res->err != AdminClient_Error_TIMEOUT) {
-        Except_throw(eh, "Startup failed: cjdroute is already running. [%d]", ctx->res->err);
-    }
-
     Allocator_free(alloc);
+    if (ctx->res->err != AdminClient_Error_TIMEOUT) {
+        Err_raise(allocator, "Startup failed: cjdroute is already running. [%d]", ctx->res->err);
+    }
+    return NULL;
 }
 
 static void onCoreExit(int64_t exit_status, int term_signal)
@@ -732,7 +738,7 @@ int cjdroute2_main(int argc, char** argv)
     // --------------------- Check for running instance  --------------------- //
 
     Log_info(logger, "Checking for running instance...");
-    checkRunningInstance(allocator, eventBase, adminBind, adminPass, logger, eh);
+    Err_assert(checkRunningInstance(allocator, eventBase, adminBind, adminPass, logger));
 
     // --------------------- Setup Pipes to Angel --------------------- //
     struct Allocator* corePipeAlloc = Allocator_child(allocator);

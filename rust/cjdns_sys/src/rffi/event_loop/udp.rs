@@ -1,6 +1,7 @@
 use crate::cffi::{Allocator_t, Sockaddr_t, Iface_t};
 use crate::external::interface::cif;
 use crate::rffi::allocator;
+use crate::rtypes::RTypes_Error_t;
 use std::os::raw::c_char;
 use crate::util::sockaddr::Sockaddr;
 use crate::interface::udpaddriface::UDPAddrIface;
@@ -48,10 +49,9 @@ pub extern "C" fn Rffi_udpIfaceSetDscp(iface: *mut Rffi_UDPIface_pvt, dscp: u8) 
 #[no_mangle]
 pub extern "C" fn Rffi_udpIfaceNew(
     outp: *mut *mut Rffi_UDPIface,
-    errout: *mut *const c_char,
     bind_addr: *const Sockaddr_t,
     c_alloc: *mut Allocator_t,
-) {
+) -> *mut RTypes_Error_t {
     let addr = if bind_addr.is_null() {
         "0.0.0.0:0".parse().unwrap()
     } else {
@@ -61,10 +61,7 @@ pub extern "C" fn Rffi_udpIfaceNew(
     let (udp, mut iface) = match UDPAddrIface::new(&addr) {
         Ok(uai) => uai,
         Err(e) => {
-            let e = e.to_string();
-            let e = allocator::adopt(c_alloc, e);
-            unsafe { *errout = (*e).as_bytes().as_ptr() as *const c_char };
-            return;
+            return allocator::adopt(c_alloc, RTypes_Error_t{ e: Some(e) });
         }
     };
     log::info!("Bound UDP socket: {}", &udp.local_addr);
@@ -85,4 +82,5 @@ pub extern "C" fn Rffi_udpIfaceNew(
     unsafe {
         *outp = out;
     }
+    std::ptr::null_mut()
 }

@@ -12,6 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+#include "exception/Er.h"
 #include "rust/cjdns_sys/Rffi.h"
 #include "benc/StringList.h"
 #include "interface/UDPInterface.h"
@@ -217,7 +218,8 @@ Er_DEFUN(struct UDPInterface* UDPInterface_new(EventBase_t* eventBase,
         Er_raise(alloc, "UDP broadcast port must be different from communication port.");
     }
 
-    struct UDPAddrIface* uai = Er(UDPAddrIface_new(eventBase, bindAddr, alloc, logger));
+    struct UDPAddrIface* uai = NULL;
+    Er(Er_fromErr(UDPAddrIface_new(&uai, eventBase, bindAddr, alloc, logger)));
 
     uint16_t commPort = Sockaddr_getPort(uai->generic.addr);
 
@@ -240,8 +242,8 @@ Er_DEFUN(struct UDPInterface* UDPInterface_new(EventBase_t* eventBase,
     if (beaconPort) {
         struct Sockaddr* bcastAddr = Sockaddr_clone(bindAddr, alloc);
         Sockaddr_setPort(bcastAddr, beaconPort);
-        struct UDPAddrIface* bcast =
-            Er(UDPAddrIface_new(eventBase, bcastAddr, alloc, logger));
+        struct UDPAddrIface* bcast = NULL;
+        Er(Er_fromErr(UDPAddrIface_new(&bcast, eventBase, bcastAddr, alloc, logger)));
         UDPAddrIface_setBroadcast(bcast, 1);
         Iface_plumb(bcast->generic.iface, &context->bcastSock);
         context->bcastIf = bcast;

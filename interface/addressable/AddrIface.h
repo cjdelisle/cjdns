@@ -18,7 +18,6 @@
 #include "exception/Err.h"
 #include "interface/Iface.h"
 #include "util/platform/Sockaddr.h"
-#include "exception/Except.h"
 #include "wire/Message.h"
 
 /**

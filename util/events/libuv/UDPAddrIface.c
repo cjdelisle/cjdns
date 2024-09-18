@@ -48,17 +48,15 @@ int UDPAddrIface_setBroadcast(struct UDPAddrIface* iface, bool enable)
     return (int) Rffi_udpIfaceSetBroadcast(ifp->internal->pvt, enable);
 }
 
-Er_DEFUN(struct UDPAddrIface* UDPAddrIface_new(EventBase_t* eventBase,
-                                      struct Sockaddr* addr,
-                                      struct Allocator* userAlloc,
-                                      struct Log* logger))
+Err_DEFUN UDPAddrIface_new(
+    struct UDPAddrIface** outP,
+    EventBase_t* eventBase,
+    struct Sockaddr* addr,
+    struct Allocator* userAlloc,
+    struct Log* logger)
 {
     Rffi_UDPIface* internal = NULL;
-    const char* err = NULL;
-    Rffi_udpIfaceNew(&internal, &err, addr, userAlloc);
-    if (err != NULL) {
-        Er_raise(userAlloc, "Failed to create UDP interface: %s", err);
-    }
+    Err(Rffi_udpIfaceNew(&internal, addr, userAlloc));
     struct UDPAddrIface_pvt* out =
         Allocator_calloc(userAlloc, sizeof(struct UDPAddrIface_pvt), 1);
     out->pub.generic.iface = internal->iface;
@@ -66,5 +64,6 @@ Er_DEFUN(struct UDPAddrIface* UDPAddrIface_new(EventBase_t* eventBase,
     out->pub.generic.alloc = userAlloc;
     out->internal = internal;
     Identity_set(out);
-    Er_ret(&out->pub);
+    *outP = &out->pub;
+    return NULL;
 }

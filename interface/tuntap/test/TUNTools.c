@@ -14,6 +14,7 @@
  */
 #include "interface/tuntap/TUNMessageType.h"
 #include "interface/tuntap/test/TUNTools.h"
+#include "rust/cjdns_sys/RTypes.h"
 #include "util/events/UDPAddrIface.h"
 #include "exception/Er.h"
 #include "util/events/Timeout.h"
@@ -36,15 +37,21 @@ static AddrIface_t* setupUDP(EventBase_t* base,
     // Mac OSX and BSD do not set up their TUN devices synchronously.
     // We'll just keep on trying until this works.
     struct UDPAddrIface* udp = NULL;
-    struct Er_Ret* er = NULL;
+    RTypes_Error_t* er = NULL;
     for (int i = 0; i < 20; i++) {
-        udp = Er_check(&er, UDPAddrIface_new(base, bindAddr, allocator, logger));
+        er = UDPAddrIface_new(&udp, base, bindAddr, allocator, logger);
         if (udp) {
             break;
         }
         sleep(1);
     }
-    Assert_true(udp);
+    if (!udp) {
+        if (er) {
+            Err_assert(er);
+        } else {
+            Assert_failure("setupUDP unable to get working UDPAddrIface");
+        }
+    }
     return &udp->generic;
 }
 

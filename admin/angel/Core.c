@@ -500,8 +500,8 @@ int Core_main(int argc, char** argv)
     }
 
     // --------------------- Bind Admin UDP --------------------- //
-    struct UDPAddrIface* udpAdmin =
-        Except_er(eh, UDPAddrIface_new(eventBase, &bindAddr.addr, alloc, logger));
+    struct UDPAddrIface* udpAdmin = NULL;
+    Err_assert(UDPAddrIface_new(&udpAdmin, eventBase, &bindAddr.addr, alloc, logger));
 
     // ---- Setup a muxer so we can get admin from socket or UDP ---- //
     struct AddrIfaceMuxer* muxer = AddrIfaceMuxer_new(logger, alloc);

@@ -163,10 +163,9 @@ int32_t Rffi_udpIfaceSetBroadcast(Rffi_UDPIface_pvt *iface, bool broadcast);
 
 int32_t Rffi_udpIfaceSetDscp(Rffi_UDPIface_pvt *iface, uint8_t dscp);
 
-void Rffi_udpIfaceNew(Rffi_UDPIface **outp,
-                      const char **errout,
-                      const Sockaddr_t *bind_addr,
-                      Allocator_t *c_alloc);
+RTypes_Error_t *Rffi_udpIfaceNew(Rffi_UDPIface **outp,
+                                 const Sockaddr_t *bind_addr,
+                                 Allocator_t *c_alloc);
 
 RTypes_Error_t *Rffi_fileExists(bool *existsOut, const char *path, Allocator_t *errorAlloc);
 

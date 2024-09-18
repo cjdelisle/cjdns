@@ -15,8 +15,7 @@
 #ifndef UDPAddrIface_H
 #define UDPAddrIface_H
 
-#include "exception/Er.h"
-#include "interface/Iface.h"
+#include "exception/Err.h"
 #include "interface/addressable/AddrIface.h"
 #include "memory/Allocator.h"
 #include "util/events/EventBase.h"
@@ -44,10 +43,12 @@ struct UDPAddrIface
  * @param logger
  * @return a new UDPInterfaceBase.
  */
-Er_DEFUN(struct UDPAddrIface* UDPAddrIface_new(EventBase_t* eventBase,
-                                      struct Sockaddr* addr,
-                                      struct Allocator* alloc,
-                                      struct Log* logger));
+Err_DEFUN UDPAddrIface_new(
+    struct UDPAddrIface** out,
+    EventBase_t* eventBase,
+    struct Sockaddr* addr,
+    struct Allocator* alloc,
+    struct Log* logger);
 
 int UDPAddrIface_setDSCP(struct UDPAddrIface* iface, uint8_t dscp);
 
