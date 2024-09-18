@@ -12,15 +12,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#include "exception/Er.h"
+#include "exception/Err.h"
 #include "memory/Allocator.h"
 #include "util/events/Socket.h"
-#include "util/log/Log.h"
-#include "util/Identity.h"
-#include "util/CString.h"
-#include "wire/Message.h"
-#include "wire/Error.h"
-#include "benc/String.h"
 #include "rust/cjdns_sys/Rffi.h"
 
 Err_DEFUN Socket_forFd(Iface_t** s, int fd, int socketType, struct Allocator* userAlloc)
@@ -39,28 +33,19 @@ void Socket_serverOnConnect(
     Rffi_unixSocketServerOnConnect(server->rustServer, callback, callbackContext);
 }
 
-Er_DEFUN(Socket_Server_t* Socket_server(const char* path, Allocator_t* userAlloc))
+Err_DEFUN Socket_server(Socket_Server_t** outP, const char* path, Allocator_t* userAlloc)
 {
     Socket_Server_t* out = Allocator_calloc(userAlloc, sizeof(Socket_Server_t), 1);
-    RTypes_Error_t* err = Rffi_unixSocketServer(
+    Err(Rffi_unixSocketServer(
         &out->rustServer,
         &out->iface, path,
         userAlloc
-    );
-    if (err) {
-        Er_raise(userAlloc, "Socket_server(%s): %s", path,
-            Rffi_printError(err, userAlloc));
-    }
-    Er_ret(out);
+    ));
+    *outP = out;
+    return NULL;
 }
 
-Er_DEFUN(bool Socket_fileExists(const char* path, Allocator_t* errAlloc))
+Err_DEFUN Socket_fileExists(bool* out, const char* path, Allocator_t* errAlloc)
 {
-    bool exists = false;
-    RTypes_Error_t* err = Rffi_fileExists(&exists, path, errAlloc);
-    if (err) {
-        Er_raise(errAlloc, "Socket_fileExists(%s): %s", path,
-            Rffi_printError(err, errAlloc));
-    }
-    Er_ret(exists);
+    return Rffi_fileExists(out, path, errAlloc);
 }

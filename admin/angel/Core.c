@@ -461,7 +461,8 @@ int Core_main(int argc, char** argv)
 
     struct Allocator* tempAlloc = Allocator_child(alloc);
     // Not using tempalloc because we're going to keep this pipe around for admin
-    Socket_Server_t* ss = Except_er(eh, Socket_server(argv[2], alloc));
+    Socket_Server_t* ss = NULL;
+    Err_assert(Socket_server(&ss, argv[2], alloc));
     Log_debug(logger, "Getting pre-configuration from client");
     Message_t* preConf =
         InterfaceWaiter_waitForData(ss->iface, eventBase, tempAlloc, eh);

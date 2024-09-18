@@ -205,7 +205,8 @@ int main(int argc, char** argv)
         unlink(textName->bytes);
     }
 
-    Socket_Server_t* ss = Er_assert(Socket_server(name->bytes, alloc));
+    Socket_Server_t* ss = NULL;
+    Err_assert(Socket_server(&ss, name->bytes, alloc));
     Socket_serverOnConnect(ss, onConnectionParent, ctx);
     Iface_plumb(&ctx->iface, ss->iface);
 

@@ -16,7 +16,7 @@
 #define Socket_H
 
 #include "rust/cjdns_sys/Rffi.h"
-#include "exception/Except.h"
+#include "exception/Err.h"
 #include "interface/Iface.h"
 #include "memory/Allocator.h"
 #include "util/events/EventBase.h"
@@ -42,8 +42,8 @@ typedef void (* Socket_ServerOnConnect)(void*, const Sockaddr_t*);
 void Socket_serverOnConnect(
     Socket_Server_t* server, Socket_ServerOnConnect callback, void* callbackContext);
 
-Er_DEFUN(Socket_Server_t* Socket_server(const char* path, Allocator_t* userAlloc));
+Err_DEFUN Socket_server(Socket_Server_t** out, const char* path, Allocator_t* userAlloc);
 
-Er_DEFUN(bool Socket_fileExists(const char* path, Allocator_t* errAlloc));
+Err_DEFUN Socket_fileExists(bool* out, const char* path, Allocator_t* errAlloc);
 
 #endif

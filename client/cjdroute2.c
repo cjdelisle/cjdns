@@ -12,6 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+#include "exception/Err.h"
 #include "rust/cjdns_sys/RTypes.h"
 #include "util/events/Socket.h"
 #define _POSIX_C_SOURCE 200112L
@@ -778,10 +779,10 @@ int cjdroute2_main(int argc, char** argv)
 
     // --------------------- Wait for socket ------------------------- //
     // cycle for up to 1 minute
-    int exists = 0;
+    bool exists = false;
     for (int i = 0; i < 2 * 10 * 60; i++) {
-        if (Except_er(eh, Socket_fileExists(pipePath->bytes, allocator))) {
-            exists = 1;
+        Err_assert(Socket_fileExists(&exists, pipePath->bytes, allocator));
+        if (exists) {
             break;
         }
         // sleep 50ms
