@@ -150,12 +150,11 @@ int Rffi_isTimeoutActive(const Rffi_TimerTx *timer_tx);
  */
 void Rffi_clearAllTimeouts(Rffi_EventLoop *event_loop);
 
-void Rffi_pollFdReadable(Rffi_FdReadableTx **out,
-                         const char **errout,
-                         void (*cb)(void*),
-                         void *cb_context,
-                         int fd,
-                         Allocator_t *alloc);
+RTypes_Error_t *Rffi_pollFdReadable(Rffi_FdReadableTx **out,
+                                    void (*cb)(void*),
+                                    void *cb_context,
+                                    int fd,
+                                    Allocator_t *alloc);
 
 int32_t Rffi_udpIfaceGetFd(Rffi_UDPIface_pvt *iface);
 

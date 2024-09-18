@@ -12,27 +12,22 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#include "exception/Er.h"
+#include "exception/Err.h"
 #include "rust/cjdns_sys/Rffi.h"
 #include "memory/Allocator.h"
 #include "util/events/Event.h"
 
-Er_DEFUN(void Event_socketRead(void (* const callback)(void* callbackContext),
+Err_DEFUN Event_socketRead(void (* const callback)(void* callbackContext),
                       void* const callbackContext,
                       int s,
-                      struct Allocator* userAlloc))
+                      struct Allocator* userAlloc)
 {
     Rffi_FdReadableTx* out = NULL;
-    const char* errout = NULL;
-    Rffi_pollFdReadable(
+    Err(Rffi_pollFdReadable(
         &out,
-        &errout,
         callback,
         callbackContext,
         s,
-        userAlloc);
-    if (errout != NULL) {
-        Er_raise(userAlloc, "Event_socketRead error: %s", errout);
-    }
-    Er_ret();
+        userAlloc));
+    return NULL;
 }

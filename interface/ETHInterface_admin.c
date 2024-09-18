@@ -92,12 +92,12 @@ static void newInterface(Dict* args, void* vcontext, String* txid, struct Alloca
     String* const bindDevice = Dict_getStringC(args, "bindDevice");
     struct Allocator* const alloc = Allocator_child(ctx->alloc);
 
-    struct Er_Ret* er = NULL;
-    struct ETHInterface* ethIf =
-        Er_check(&er, ETHInterface_new(ctx->eventBase, bindDevice->bytes, alloc, ctx->logger));
+    struct ETHInterface* ethIf = NULL;
+    RTypes_Error_t* er = ETHInterface_new(&ethIf, ctx->eventBase, bindDevice->bytes, alloc, ctx->logger);
     if (er) {
         Dict* out = Dict_new(requestAlloc);
-        Dict_putStringCC(out, "error", er->message, requestAlloc);
+        const char* emsg = Rffi_printError(er, requestAlloc);
+        Dict_putStringCC(out, "error", emsg, requestAlloc);
         Admin_sendMessage(out, txid, ctx->admin);
         Allocator_free(alloc);
         return;

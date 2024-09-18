@@ -16,7 +16,7 @@
 #define ETHInterface_H
 
 #include "interface/addressable/AddrIface.h"
-#include "exception/Er.h"
+#include "exception/Err.h"
 #include "benc/List.h"
 #include "util/events/EventBase.h"
 #include "net/InterfaceController.h"
@@ -65,10 +65,12 @@ struct ETHInterface
     AddrIface_t generic;
 };
 
-Er_DEFUN(struct ETHInterface* ETHInterface_new(EventBase_t* eventBase,
-                                      const char* bindDevice,
-                                      struct Allocator* alloc,
-                                      struct Log* logger));
+Err_DEFUN ETHInterface_new(
+    struct ETHInterface** out,
+    EventBase_t* eventBase,
+    const char* bindDevice,
+    struct Allocator* alloc,
+    struct Log* logger);
 
 Err_DEFUN ETHInterface_listDevices(List** out, struct Allocator* alloc);
 

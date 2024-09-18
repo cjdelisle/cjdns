@@ -3,6 +3,7 @@ use tokio::io::unix::AsyncFd;
 use crate::cffi::Allocator_t;
 use crate::gcl::Protected;
 use crate::rffi::allocator::{self, file_line};
+use crate::rtypes::RTypes_Error_t;
 use crate::util::identity::{from_c, Identity};
 use std::os::raw::{c_char, c_int, c_void};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -26,21 +27,15 @@ pub extern "C" fn fd_readable_on_free(j: *mut c_void) {
 #[no_mangle]
 pub extern "C" fn Rffi_pollFdReadable(
     out: *mut *mut Rffi_FdReadableTx,
-    errout: *mut *const c_char,
     cb: unsafe extern "C" fn(*mut c_void),
     cb_context: *mut c_void,
     fd: c_int,
     alloc: *mut Allocator_t,
-) {
+) -> *mut RTypes_Error_t {
     let fd = match AsyncFd::with_interest(fd, Interest::READABLE) {
         Ok(fd) => fd,
         Err(e) => {
-            let out = allocator::adopt(alloc, format!("Error making AsyncFd: {e}"));
-            let out = unsafe { (*out).as_bytes().as_ptr() } as *const c_char;
-            unsafe {
-                *errout = out;
-            }
-            return;
+            return allocator::adopt(alloc, RTypes_Error_t { e: Some(e.into()) });
         }
     };
 
@@ -95,4 +90,6 @@ pub extern "C" fn Rffi_pollFdReadable(
             }
         }
     });
+
+    std::ptr::null_mut()
 }

@@ -20,7 +20,6 @@
 #include "util/platform/Socket.h"
 #include "util/events/Event.h"
 #include "util/Identity.h"
-#include "util/version/Version.h"
 
 #include <ifaddrs.h>
 #include <string.h>
@@ -227,44 +226,48 @@ static void closeSocket(struct Allocator_OnFreeJob* j)
     close(ctx->socket);
 }
 
-static Er_DEFUN(int openBPF(struct Allocator* alloc))
+static Err_DEFUN openBPF(int* out, struct Allocator* alloc)
 {
     for (int retry = 0; retry < 100; retry++) {
         for (int i = 0; i < 256; i++) {
             char buf[21] = { 0 };
             snprintf(buf, 20, "/dev/bpf%i", i);
             int bpf = open(buf, O_RDWR);
-            if (bpf != -1) { Er_ret(bpf); }
+            if (bpf != -1) {
+                *out = bpf;
+                return NULL;
+            }
         }
         // sleep for 0.1 seconds
         usleep(1000 * 100);
     }
-    Er_raise(alloc, "Could not find available /dev/bpf device");
+    Err_raise(alloc, "Could not find available /dev/bpf device");
 }
 
-static Er_DEFUN(void macaddr(const char* ifname, uint8_t addrOut[6], struct Allocator* alloc))
+static Err_DEFUN macaddr(const char* ifname, uint8_t addrOut[6], struct Allocator* alloc)
 {
     struct ifaddrs* ifa;
     if (getifaddrs(&ifa)) {
-        Er_raise(alloc, "getifaddrs() -> [%s]", strerror(errno));
+        Err_raise(alloc, "getifaddrs() -> [%s]", strerror(errno));
     } else {
         for (struct ifaddrs* ifap = ifa; ifap; ifap = ifap->ifa_next) {
             if (!strcmp(ifap->ifa_name, ifname) && ifap->ifa_addr->sa_family == AF_LINK) {
                 Bits_memcpy(addrOut, LLADDR((struct sockaddr_dl*) ifap->ifa_addr), 6);
                 freeifaddrs(ifa);
-                Er_ret();
+                return NULL;
             }
         }
     }
     freeifaddrs(ifa);
-    Er_raise(alloc, "Could not find mac address for [%s]", ifname);
-    Er_ret();
+    Err_raise(alloc, "Could not find mac address for [%s]", ifname);
 }
 
-Er_DEFUN(struct ETHInterface* ETHInterface_new(EventBase_t* eventBase,
-                                      const char* bindDevice,
-                                      struct Allocator* alloc,
-                                      struct Log* logger))
+Err_DEFUN ETHInterface_new(
+    struct ETHInterface* out,
+    EventBase_t* eventBase,
+    const char* bindDevice,
+    struct Allocator* alloc,
+    struct Log* logger)
 {
     struct ETHInterface_pvt* ctx = Allocator_calloc(alloc, sizeof(struct ETHInterface_pvt), 1);
     Identity_set(ctx);
@@ -273,25 +276,25 @@ Er_DEFUN(struct ETHInterface* ETHInterface_new(EventBase_t* eventBase,
     ctx->pub.generic.alloc = alloc;
     ctx->logger = logger;
 
-    ctx->socket = Er(openBPF(alloc));
-
-    Er(macaddr(bindDevice, ctx->myMac, alloc));
+    ctx->socket = -1;
+    Err(openBPF(&ctx->socket, alloc));
+    Err(macaddr(bindDevice, ctx->myMac, alloc));
 
     struct ifreq ifr = { .ifr_name = { 0 } };
     CString_strcpy(ifr.ifr_name, bindDevice);
     if (ioctl(ctx->socket, BIOCSETIF, &ifr) > 0) {
-        Er_raise(alloc, "ioctl(BIOCSETIF, [%s]) [%s]", bindDevice, strerror(errno));
+        Err_raise(alloc, "ioctl(BIOCSETIF, [%s]) [%s]", bindDevice, strerror(errno));
     }
 
     // activate immediate mode (therefore, bufLen is initially set to "1")
     int bufLen = 1;
     if (ioctl(ctx->socket, BIOCIMMEDIATE, &bufLen) == -1) {
-        Er_raise(alloc, "ioctl(BIOCIMMEDIATE) [%s]", strerror(errno));
+        Err_raise(alloc, "ioctl(BIOCIMMEDIATE) [%s]", strerror(errno));
     }
 
     // request buffer length
     if (ioctl(ctx->socket, BIOCGBLEN, &bufLen) == -1) {
-        Er_raise(alloc, "ioctl(BIOCGBLEN) [%s]", strerror(errno));
+        Err_raise(alloc, "ioctl(BIOCGBLEN) [%s]", strerror(errno));
     }
     Log_debug(logger, "ioctl(BIOCGBLEN) -> bufLen=%i", bufLen);
     ctx->buffer = Allocator_malloc(alloc, bufLen);
@@ -311,14 +314,15 @@ Er_DEFUN(struct ETHInterface* ETHInterface_new(EventBase_t* eventBase,
         .bf_insns = cjdnsFilter,
     };
     if (ioctl(ctx->socket, BIOCSETF, &cjdnsFilterProgram) == -1) {
-        Er_raise(alloc, "ioctl(BIOCSETF) [%s]", strerror(errno));
+        Err_raise(alloc, "ioctl(BIOCSETF) [%s]", strerror(errno));
     }
 
     Socket_makeNonBlocking(ctx->socket);
 
-    Er(Event_socketRead(handleEvent, ctx, ctx->socket, alloc));
+    Err(Event_socketRead(handleEvent, ctx, ctx->socket, alloc));
 
     Allocator_onFree(alloc, closeSocket, ctx);
 
-    Er_ret(&ctx->pub);
+    *out = &ctx->pub;
+    return NULL;
 }

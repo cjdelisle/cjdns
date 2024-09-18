@@ -225,10 +225,12 @@ static void closeSocket(struct Allocator_OnFreeJob* j)
     close(ctx->socket);
 }
 
-Er_DEFUN(struct ETHInterface* ETHInterface_new(EventBase_t* eventBase,
-                                      const char* bindDevice,
-                                      struct Allocator* alloc,
-                                      struct Log* logger))
+Err_DEFUN ETHInterface_new(
+    struct ETHInterface** out,
+    EventBase_t* eventBase,
+    const char* bindDevice,
+    struct Allocator* alloc,
+    struct Log* logger)
 {
     struct ETHInterface_pvt* ctx = Allocator_calloc(alloc, sizeof(struct ETHInterface_pvt), 1);
     Identity_set(ctx);
@@ -241,7 +243,7 @@ Er_DEFUN(struct ETHInterface* ETHInterface_new(EventBase_t* eventBase,
 
     ctx->socket = socket(AF_PACKET, SOCK_DGRAM, Ethernet_TYPE_CJDNS);
     if (ctx->socket == -1) {
-        Er_raise(alloc, "call to socket() failed. [%s]", strerror(errno));
+        Err_raise(alloc, "call to socket() failed. [%s]", strerror(errno));
     }
     Allocator_onFree(alloc, closeSocket, ctx);
 
@@ -249,18 +251,18 @@ Er_DEFUN(struct ETHInterface* ETHInterface_new(EventBase_t* eventBase,
     ctx->ifName = String_new(bindDevice, alloc);
 
     if (ioctl(ctx->socket, SIOCGIFINDEX, &ifr) == -1) {
-        Er_raise(alloc, "failed to find interface index [%s]", strerror(errno));
+        Err_raise(alloc, "failed to find interface index [%s]", strerror(errno));
     }
     ctx->ifindex = ifr.ifr_ifindex;
 
     if (ioctl(ctx->socket, SIOCGIFFLAGS, &ifr) < 0) {
-        Er_raise(alloc, "ioctl(SIOCGIFFLAGS) [%s]", strerror(errno));
+        Err_raise(alloc, "ioctl(SIOCGIFFLAGS) [%s]", strerror(errno));
     }
     if (!((ifr.ifr_flags & IFF_UP) && (ifr.ifr_flags & IFF_RUNNING))) {
         Log_info(logger, "Bringing up interface [%s]", ifr.ifr_name);
         ifr.ifr_flags |= IFF_UP | IFF_RUNNING;
         if (ioctl(ctx->socket, SIOCSIFFLAGS, &ifr) < 0) {
-            Er_raise(alloc, "ioctl(SIOCSIFFLAGS) [%s]", strerror(errno));
+            Err_raise(alloc, "ioctl(SIOCSIFFLAGS) [%s]", strerror(errno));
         }
     }
 
@@ -274,12 +276,13 @@ Er_DEFUN(struct ETHInterface* ETHInterface_new(EventBase_t* eventBase,
     };
 
     if (bind(ctx->socket, (struct sockaddr*) &ctx->addrBase, sizeof(struct sockaddr_ll))) {
-        Er_raise(alloc, "call to bind() failed [%s]", strerror(errno));
+        Err_raise(alloc, "call to bind() failed [%s]", strerror(errno));
     }
 
     Socket_makeNonBlocking(ctx->socket);
 
-    Er(Event_socketRead(handleEvent, ctx, ctx->socket, alloc));
+    Err(Event_socketRead(handleEvent, ctx, ctx->socket, alloc));
 
-    Er_ret(&ctx->pub);
+    *out = &ctx->pub;
+    return NULL;
 }
