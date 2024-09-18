@@ -70,6 +70,6 @@ Er_DEFUN(struct ETHInterface* ETHInterface_new(EventBase_t* eventBase,
                                       struct Allocator* alloc,
                                       struct Log* logger));
 
-Er_DEFUN(List* ETHInterface_listDevices(struct Allocator* alloc));
+Err_DEFUN ETHInterface_listDevices(List** out, struct Allocator* alloc);
 
 #endif

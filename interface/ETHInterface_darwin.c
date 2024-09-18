@@ -200,12 +200,12 @@ static void handleEvent(void* vcontext)
     }
 }
 
-Er_DEFUN(List* ETHInterface_listDevices(struct Allocator* alloc))
+Err_DEFUN ETHInterface_listDevices(List** outP, struct Allocator* alloc)
 {
     List* out = List_new(alloc);
     struct ifaddrs* ifaddr = NULL;
     if (getifaddrs(&ifaddr) || ifaddr == NULL) {
-        Er_raise(alloc, "getifaddrs() -> errno:%d [%s]", errno, strerror(errno));
+        Err_raise(alloc, "getifaddrs() -> errno:%d [%s]", errno, strerror(errno));
     }
     for (struct ifaddrs* ifa = ifaddr; ifa; ifa = ifa->ifa_next) {
         if (!ifa->ifa_addr) {
@@ -217,7 +217,8 @@ Er_DEFUN(List* ETHInterface_listDevices(struct Allocator* alloc))
         }
     }
     freeifaddrs(ifaddr);
-    Er_ret(out);
+    *outP = out;
+    return NULL;
 }
 
 static void closeSocket(struct Allocator_OnFreeJob* j)

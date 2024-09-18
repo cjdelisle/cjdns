@@ -20,6 +20,8 @@
 #include "crypto/Key.h"
 #include "memory/Allocator.h"
 #include "net/InterfaceController.h"
+#include "rust/cjdns_sys/RTypes.h"
+#include "rust/cjdns_sys/Rffi.h"
 #include "util/AddrTools.h"
 #include "util/Identity.h"
 
@@ -156,11 +158,12 @@ static void beacon(Dict* args, void* vcontext, String* txid, struct Allocator* r
 static void listDevices(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* ctx = Identity_check((struct Context*) vcontext);
-    struct Er_Ret* er = NULL;
-    List* devices = Er_check(&er, ETHInterface_listDevices(requestAlloc));
+    List* devices = NULL;
+    RTypes_Error_t* er = ETHInterface_listDevices(&devices, requestAlloc);
     if (er) {
         Dict* out = Dict_new(requestAlloc);
-        Dict_putStringCC(out, "error", er->message, requestAlloc);
+        const char* errp = Rffi_printError(er, requestAlloc);
+        Dict_putStringCC(out, "error", errp, requestAlloc);
         Admin_sendMessage(out, txid, ctx->admin);
         return;
     }
