@@ -14,11 +14,10 @@
  */
 #include "benc/Dict.h"
 #include "benc/String.h"
-#include "exception/Er.h"
+#include "exception/Err.h"
 #include "util/log/Log.h"
 #include "util/Security.h"
 #include "memory/Allocator.h"
-#include "util/Bits.h"
 #include "util/events/EventBase.h"
 #include "util/events/Timeout.h"
 
@@ -33,28 +32,28 @@ Dict* Security_getUser(char* userName, struct Allocator* retAlloc)
     return ret;
 }
 
-Er_DEFUN(void Security_setUser(int uid,
+Err_DEFUN Security_setUser(int uid,
                       int gid,
                       bool keepNetAdmin,
                       struct Log* logger,
-                      struct Allocator* alloc))
+                      struct Allocator* alloc)
 {
-    Er_ret();
+    return NULL;
 }
 
-Er_DEFUN(void Security_nofiles(struct Allocator* errAlloc))
+Err_DEFUN Security_nofiles(struct Allocator* errAlloc)
 {
-    Er_ret();
+    return NULL;
 }
 
-Er_DEFUN(void Security_noforks(struct Allocator* errAlloc))
+Err_DEFUN Security_noforks(struct Allocator* errAlloc)
 {
-    Er_ret();
+    return NULL;
 }
 
-Er_DEFUN(void Security_chroot(char* root, struct Allocator* errAlloc))
+Err_DEFUN Security_chroot(char* root, struct Allocator* errAlloc)
 {
-    Er_ret();
+    return NULL;
 }
 
 struct Security_pvt
@@ -89,9 +88,10 @@ struct Security* Security_new(struct Allocator* alloc, struct Log* log, EventBas
     return &sec->pub;
 }
 
-Er_DEFUN(struct Security_Permissions* Security_checkPermissions(struct Allocator* alloc))
+Err_DEFUN Security_checkPermissions(struct Security_Permissions** outP, struct Allocator* alloc)
 {
     struct Security_Permissions* out =
         Allocator_calloc(alloc, sizeof(struct Security_Permissions), 1);
-    Er_ret(out);
+    *outP = out;
+    return NULL;
 }
