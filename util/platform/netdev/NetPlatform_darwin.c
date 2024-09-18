@@ -338,7 +338,7 @@ Err_DEFUN NetPlatform_addAddress(const char* interfaceName,
                             int prefixLen,
                             int addrFam,
                             struct Log* logger,
-                            struct Allocator* tempAlloc))
+                            struct Allocator* tempAlloc)
 {
     if (addrFam == Sockaddr_AF_INET6) {
         return addIp6Address(interfaceName, address, prefixLen, logger, tempAlloc);

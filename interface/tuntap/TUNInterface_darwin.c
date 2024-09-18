@@ -81,7 +81,7 @@ Err_DEFUN TUNInterface_new(struct Iface** out,
     if (ioctl(tunFd, CTLIOCGINFO, &info) < 0) {
         int err = errno;
         close(tunFd);
-        Er_raise(alloc, "getting utun device id [%s]", strerror(err));
+        Err_raise(alloc, "getting utun device id [%s]", strerror(err));
     }
 
     /* connect the utun device */
@@ -118,4 +118,5 @@ Err_DEFUN TUNInterface_new(struct Iface** out,
     struct BSDMessageTypeWrapper* bmtw = BSDMessageTypeWrapper_new(alloc, logger);
     Iface_plumb(iface, &bmtw->wireSide);
     *out = &bmtw->inside;
+    return NULL;
 }
