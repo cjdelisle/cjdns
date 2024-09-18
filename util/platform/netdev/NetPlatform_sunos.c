@@ -12,7 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#include "exception/Er.h"
 #include "exception/Err.h"
 #include "util/platform/netdev/NetPlatform.h"
 #include "util/Assert.h"
@@ -187,14 +186,14 @@ Err_DEFUN NetPlatform_setMTU(const char* interfaceName,
                         struct Log* logger,
                         struct Allocator* errAlloc)
 {
-    Er_raise(errAlloc, "Not implemented in Illumos");
+    Err_raise(errAlloc, "Not implemented in Illumos");
 }
 
-Er_DEFUN(void NetPlatform_setRoutes(const char* ifName,
+Err_DEFUN NetPlatform_setRoutes(const char* ifName,
                            struct Sockaddr** prefixSet,
                            int prefixCount,
                            struct Log* logger,
-                           struct Allocator* tempAlloc))
+                           struct Allocator* tempAlloc)
 {
-    Er_raise(tempAlloc, "NetPlatform_setRoutes is not implemented in this platform.");
+    Err_raise(tempAlloc, "NetPlatform_setRoutes is not implemented in this platform.");
 }

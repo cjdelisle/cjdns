@@ -16,8 +16,7 @@
 #define RouteGen_H
 
 #include "util/platform/Sockaddr.h"
-#include "exception/Er.h"
-#include "benc/List.h"
+#include "exception/Err.h"
 #include "util/log/Log.h"
 #include "util/Linker.h"
 Linker_require("tunnel/RouteGen.c")
@@ -35,9 +34,9 @@ void RouteGen_addPrefix(struct RouteGen* rg, struct Sockaddr* destination);
 
 void RouteGen_addLocalPrefix(struct RouteGen* rg, struct Sockaddr* destination);
 
-Er_DEFUN(void RouteGen_commit(struct RouteGen* rg,
+Err_DEFUN RouteGen_commit(struct RouteGen* rg,
                               const char* tunName,
-                              struct Allocator* tempAlloc));
+                              struct Allocator* tempAlloc);
 
 Dict* RouteGen_getPrefixes(struct RouteGen* rg, struct Allocator* alloc);
 

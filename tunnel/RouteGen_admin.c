@@ -15,12 +15,12 @@
 #include "benc/String.h"
 #include "benc/Dict.h"
 #include "benc/List.h"
-#include "exception/Er.h"
 #include "memory/Allocator.h"
+#include "rust/cjdns_sys/RTypes.h"
+#include "rust/cjdns_sys/Rffi.h"
 #include "tunnel/RouteGen.h"
 #include "admin/Admin.h"
 #include "tunnel/RouteGen_admin.h"
-#include "util/Base10.h"
 #include "util/Identity.h"
 
 struct RouteGen_admin_Ctx
@@ -180,10 +180,9 @@ static void commit(Dict* args,
     Dict* const ret = Dict_new(requestAlloc);
     const char* error = "none";
 
-    struct Er_Ret* er = NULL;
-    Er_check(&er, RouteGen_commit(ctx->rg, tunName->bytes, requestAlloc));
+    RTypes_Error_t* er = RouteGen_commit(ctx->rg, tunName->bytes, requestAlloc);
     if (er) {
-        error = er->message;
+        error = Rffi_printError(er, requestAlloc);
     }
     Dict_putStringCC(ret, "error", error, requestAlloc);
     Admin_sendMessage(ret, txid, ctx->admin);

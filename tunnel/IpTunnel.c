@@ -561,12 +561,7 @@ static Iface_DEFUN incomingAddresses(Dict* d,
             Log_error(context->logger, "Failed to set routes because TUN interface is not setup");
             return Rffi_error("INVALID", alloc);
         }
-        struct Er_Ret* er = NULL;
-        Er_check(&er, RouteGen_commit(context->rg, tunName->bytes, alloc));
-        if (er) {
-            Log_error(context->logger, "Error setting routes for TUN [%s]", er->message);
-            return Rffi_error("INVALID", alloc);
-        }
+        Err(RouteGen_commit(context->rg, tunName->bytes, alloc));
     }
     return NULL;
 }

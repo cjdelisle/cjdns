@@ -12,7 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#include "exception/Er.h"
+#include "exception/Err.h"
 #include "interface/Iface.h"
 #include "interface/tuntap/TUNInterface.h"
 #include "interface/tuntap/windows/TAPInterface.h"
@@ -31,11 +31,15 @@ Err_DEFUN TUNInterface_new(struct Iface** out,
 {
     struct TAPInterface* tap = Er_assert(TAPInterface_new(interfaceName, logger, base, alloc));
     CString_safeStrncpy(assignedInterfaceName, tap->assignedName, TUNInterface_IFNAMSIZ);
-    if (isTapMode) { Er_ret(&tap->generic); }
+    if (isTapMode) {
+        *out = &tap->generic;
+        return NULL;
+    }
     struct TAPWrapper* tapWrapper = TAPWrapper_new(&tap->generic, logger, alloc);
     struct NDPServer* ndp =
         NDPServer_new(&tapWrapper->internal, logger, TAPWrapper_LOCAL_MAC, alloc);
     struct ARPServer* arp =
         ARPServer_new(&ndp->internal, logger, TAPWrapper_LOCAL_MAC, alloc);
     *out = &arp->internal;
+    return NULL;
 }

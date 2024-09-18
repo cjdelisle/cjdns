@@ -251,7 +251,7 @@ Er_DEFUN(struct TAPInterface* TAPInterface_new(const char* preferredName,
 
     struct TAPDevice* dev = Er(TAPDevice_find(preferredName, alloc));
 
-    Er(NetDev_flushAddresses(dev->name, alloc));
+    Er(Er_fromErr(NetDev_flushAddresses(dev->name, alloc)));
 
     Log_debug(logger, "Opening TAP-Windows device [%s] at location [%s]", dev->name, dev->path);
 

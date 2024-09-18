@@ -15,7 +15,7 @@
 #ifndef NetDev_H
 #define NetDev_H
 
-#include "exception/Er.h"
+#include "exception/Err.h"
 #include "util/log/Log.h"
 #include "util/platform/Sockaddr.h"
 #include "util/Linker.h"
@@ -49,14 +49,14 @@ Err_DEFUN NetDev_setMTU(const char* interfaceName,
                    struct Log* logger,
                    struct Allocator* alloc);
 
-Er_DEFUN(void NetDev_flushAddresses(const char* deviceName, struct Allocator* alloc));
+Err_DEFUN NetDev_flushAddresses(const char* deviceName, struct Allocator* alloc);
 
 /**
  * Set a route to an interface.
  */
-Er_DEFUN(void NetDev_setRoutes(const char* ifName,
+Err_DEFUN NetDev_setRoutes(const char* ifName,
                       struct Sockaddr** prefixSet,
                       int prefixCount,
                       struct Log* logger,
-                      struct Allocator* tempAlloc));
+                      struct Allocator* tempAlloc);
 #endif

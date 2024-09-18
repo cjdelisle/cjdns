@@ -12,7 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#include "exception/Er.h"
+#include "exception/Err.h"
 #include "util/platform/netdev/NetPlatform.h"
 #include "util/AddrTools.h"
 #include "util/platform/Sockaddr.h"
@@ -43,7 +43,7 @@ static Err_DEFUN addIp4Address(const char* interfaceName,
                           struct Log* logger,
                           struct Allocator* alloc)
 {
-    Er_raise(alloc, "unimplemented");
+    Err_raise(alloc, "unimplemented");
 }
 
 static Err_DEFUN addIp6Address(const char* interfaceName,
@@ -153,11 +153,11 @@ Err_DEFUN NetPlatform_setMTU(const char* interfaceName,
     }
 }
 
-Er_DEFUN(void NetPlatform_setRoutes(const char* ifName,
+Err_DEFUN NetPlatform_setRoutes(const char* ifName,
                            struct Sockaddr** prefixSet,
                            int prefixCount,
                            struct Log* logger,
-                           struct Allocator* tempAlloc))
+                           struct Allocator* tempAlloc)
 {
-    Er_raise(tempAlloc, "NetPlatform_setRoutes is not implemented in this platform.");
+    Err_raise(tempAlloc, "NetPlatform_setRoutes is not implemented in this platform.");
 }

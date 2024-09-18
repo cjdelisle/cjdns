@@ -15,7 +15,7 @@
 #include "benc/String.h"
 #include "benc/Dict.h"
 #include "util/platform/Sockaddr.h"
-#include "exception/Er.h"
+#include "exception/Err.h"
 #include "benc/List.h"
 #include "tunnel/RouteGen.h"
 #include "util/log/Log.h"
@@ -679,9 +679,9 @@ Dict* RouteGen_getGeneratedRoutes(struct RouteGen* rg, struct Allocator* alloc)
     return getSomething(rp, alloc, p46->prefix6, p46->prefix4);
 }
 
-Er_DEFUN(void RouteGen_commit(struct RouteGen* rg,
+Err_DEFUN RouteGen_commit(struct RouteGen* rg,
                               const char* tunName,
-                              struct Allocator* tempAlloc))
+                              struct Allocator* tempAlloc)
 {
     struct RouteGen_pvt* rp = Identity_check((struct RouteGen_pvt*) rg);
     struct Prefix46* p46 = getGeneratedRoutes(rp, tempAlloc);
@@ -697,9 +697,9 @@ Er_DEFUN(void RouteGen_commit(struct RouteGen* rg,
         prefixSet[prefixNum++] = sockaddrForPrefix6(tempAlloc, pfx6);
     }
     Assert_true(prefixNum == p46->prefix4->length + p46->prefix6->length);
-    Er(NetDev_setRoutes(tunName, prefixSet, prefixNum, rp->log, tempAlloc));
+    Err(NetDev_setRoutes(tunName, prefixSet, prefixNum, rp->log, tempAlloc));
     rp->pub.hasUncommittedChanges = false;
-    Er_ret();
+    return NULL;
 }
 
 static void setupDefaultLocalPrefixes(struct RouteGen_pvt* rp)

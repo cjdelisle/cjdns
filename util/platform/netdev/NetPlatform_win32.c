@@ -53,15 +53,14 @@ typedef NET_LUID IF_LUID, *PIF_LUID;
 #include <ifdef.h>
 #include <iphlpapi.h>
 
-static Er_DEFUN(NET_LUID getLuid(const char* name, struct Allocator* alloc))
+static Err_DEFUN getLuid(NET_LUID* out, const char* name, struct Allocator* alloc))
 {
     uint16_t ifName[IF_MAX_STRING_SIZE + 1] = {0};
     WinEr_check(alloc,
         (!MultiByteToWideChar(CP_ACP, 0, name, strlen(name), ifName, IF_MAX_STRING_SIZE + 1))
     );
-    NET_LUID out;
     WinEr_check(alloc, ConvertInterfaceAliasToLuid(ifName, &out));
-    Er_ret(out);
+    return NULL;
 }
 
 static LONG flushAddresses(NET_LUID luid, MIB_UNICASTIPADDRESS_TABLE* table)
@@ -77,9 +76,10 @@ static LONG flushAddresses(NET_LUID luid, MIB_UNICASTIPADDRESS_TABLE* table)
     return out;
 }
 
-Er_DEFUN(void NetPlatform_flushAddresses(const char* deviceName, struct Allocator* alloc))
+Err_DEFUN NetPlatform_flushAddresses(const char* deviceName, struct Allocator* alloc)
 {
-    NET_LUID luid = Er(getLuid(deviceName, alloc));
+    NET_LUID luid = -1;
+    Err(getLuid(&luid, deviceName, alloc));
     MIB_UNICASTIPADDRESS_TABLE* table;
 
     WinEr_check(alloc, GetUnicastIpAddressTable(AF_INET, &table));
@@ -95,7 +95,7 @@ Er_DEFUN(void NetPlatform_flushAddresses(const char* deviceName, struct Allocato
     if (ret) {
         WinEr_fail(alloc, "DeleteUnicastIpAddressEntry(&table->Table[i])", ret);
     }
-    Er_ret();
+    return NULL;
 }
 #include "util/Hex.h"
 #include <stdio.h>
@@ -240,11 +240,11 @@ Err_DEFUN NetPlatform_setMTU(const char* interfaceName,
     return NULL;
 }
 
-Er_DEFUN(void NetPlatform_setRoutes(const char* ifName,
+Err_DEFUN NetPlatform_setRoutes(const char* ifName,
                            struct Sockaddr** prefixSet,
                            int prefixCount,
                            struct Log* logger,
-                           struct Allocator* tempAlloc))
+                           struct Allocator* tempAlloc)
 {
-    Er_raise(tempAlloc, "NetPlatform_setRoutes is not implemented in this platform.");
+    Err_raise(tempAlloc, "NetPlatform_setRoutes is not implemented in this platform.");
 }

@@ -12,7 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#include "exception/Er.h"
+#include "exception/Err.h"
 #include "util/platform/netdev/NetPlatform.h"
 #include "util/platform/Sockaddr.h"
 #include "memory/Allocator.h"
@@ -239,37 +239,40 @@ struct RouteInfo {
 
 #define BUFF_SZ 16384
 
-static Er_DEFUN(bool getMoreMessages(struct RouteInfo** rio,
-                            int sock,
-                            int ifIndex,
-                            struct Allocator* alloc))
+static Err_DEFUN getMoreMessages(
+    bool* out,
+    struct RouteInfo** rio,
+    int sock,
+    int ifIndex,
+    struct Allocator* alloc)
 {
     bool retVal = false;
     struct Allocator* tempAlloc = Allocator_child(alloc);
     Message_t* msg = Message_new(BUFF_SZ, 0, tempAlloc);
     ssize_t sz = recv(sock, Message_bytes(msg), BUFF_SZ, MSG_TRUNC);
     if (sz < (ssize_t)sizeof(struct nlmsghdr)) {
-        Er_raise(tempAlloc, "recv() -> %s", strerror(errno));
+        Err_raise(tempAlloc, "recv() -> %s", strerror(errno));
     } else if (sz > BUFF_SZ) {
-        Er_raise(tempAlloc, "recv() -> buffer too small");
+        Err_raise(tempAlloc, "recv() -> buffer too small");
     }
 
-    Err_assert(Message_truncate(msg, sz));
+    Err(Message_truncate(msg, sz));
     //printf("%s\n", Hex_print(msg->bytes, Message_getLength(msg), tempAlloc));
 
     while (Message_getLength(msg)) {
         struct RouteInfo ri = { .protocol = 0 };
         int initMsgLen = Message_getLength(msg);
         struct nlmsghdr hdr;
-        Er(Er_fromErr(Message_epop(msg, &hdr, sizeof(struct nlmsghdr))));
+        Err(Message_epop(msg, &hdr, sizeof(struct nlmsghdr)));
         //printf("\nHEADER %04x %04x\n", hdr.nlmsg_type, hdr.nlmsg_flags);
         if (hdr.nlmsg_flags & NLM_F_MULTI) { retVal = true; }
         if (hdr.nlmsg_type == NLMSG_DONE) {
             Allocator_free(tempAlloc);
-            Er_ret(false);
+            *out = false;
+            return NULL;
         }
         struct rtmsg rtm;
-        Er(Er_fromErr(Message_epop(msg, &rtm, sizeof(struct rtmsg))));
+        Err(Message_epop(msg, &rtm, sizeof(struct rtmsg)));
         ri.prefix = rtm.rtm_dst_len;
         ri.af = rtm.rtm_family;
         ri.protocol = rtm.rtm_protocol;
@@ -278,35 +281,35 @@ static Er_DEFUN(bool getMoreMessages(struct RouteInfo** rio,
             if (remainingLen <= (int)sizeof(struct rtattr)) { break; }
             struct rtattr attrHead;
             //printf(">%s %d\n", Hex_print(msg->bytes, Message_getLength(msg), tempAlloc), remainingLen);
-            Er(Er_fromErr(Message_epop(msg, &attrHead, sizeof(struct rtattr))));
+            Err(Message_epop(msg, &attrHead, sizeof(struct rtattr)));
             switch (attrHead.rta_type) {
                 case RTA_OIF: {
                     if (attrHead.rta_len != 8) {
-                        Er_raise(alloc, "unexpected rta_len for ifIndex");
+                        Err_raise(alloc, "unexpected rta_len for ifIndex");
                     }
-                    Er(Er_fromErr(Message_epop(msg, &ri.ifIndex, 4)));
+                    Err(Message_epop(msg, &ri.ifIndex, 4));
                     break;
                 }
                 case RTA_DST: {
                     if (rtm.rtm_family == AF_INET6) {
                         if (attrHead.rta_len != 20) {
-                            Er_raise(alloc, "unexpected rta_len for RTA_DST (ipv6)");
+                            Err_raise(alloc, "unexpected rta_len for RTA_DST (ipv6)");
                         }
-                        Er(Er_fromErr(Message_epop(msg, ri.dstAddr, 16)));
+                        Err(Message_epop(msg, ri.dstAddr, 16));
                     } else if (rtm.rtm_family == AF_INET) {
                         if (attrHead.rta_len != 8) {
-                            Er_raise(alloc, "unexpected rta_len for RTA_DST (ipv4)");
+                            Err_raise(alloc, "unexpected rta_len for RTA_DST (ipv4)");
                         }
-                        Er(Er_fromErr(Message_epop(msg, ri.dstAddr, 4)));
+                        Err(Message_epop(msg, ri.dstAddr, 4));
                     } else {
-                        Er_raise(alloc, "unexpected af %d", rtm.rtm_family);
+                        Err_raise(alloc, "unexpected af %d", rtm.rtm_family);
                     }
                     break;
                 }
                 default: {
                     int effectiveLen = RTA_ALIGN(attrHead.rta_len);
                     //printf("unrecognized %d (length %d)\n", attrHead.rta_type, effectiveLen);
-                    Er(Er_fromErr(Message_epop(msg, NULL, effectiveLen - sizeof(struct rtattr))));
+                    Err(Message_epop(msg, NULL, effectiveLen - sizeof(struct rtattr)));
                     break;
                 }
             }
@@ -322,12 +325,15 @@ static Er_DEFUN(bool getMoreMessages(struct RouteInfo** rio,
         *rio = outRi;
     }
     Allocator_free(tempAlloc);
-    Er_ret(retVal);
+    *out = retVal;
+    return NULL;
 }
 
-static Er_DEFUN(struct RouteInfo* getRoutes(int sock,
-                                   int ifIndex,
-                                   struct Allocator* alloc))
+static Err_DEFUN getRoutes(
+    struct RouteInfo** out,
+    int sock,
+    int ifIndex,
+    struct Allocator* alloc)
 {
     struct RouteRequest req = {
         .hdr = {
@@ -341,11 +347,15 @@ static Er_DEFUN(struct RouteInfo* getRoutes(int sock,
     };
     ssize_t sz = send(sock, &req, req.hdr.nlmsg_len, 0);
     if (sz < 0) {
-        Er_raise(alloc, "send() -> %s", strerror(errno));
+        Err_raise(alloc, "send() -> %s", strerror(errno));
     }
     struct RouteInfo* ri = NULL;
-    while (Er(getMoreMessages(&ri, sock, ifIndex, alloc))) ;
-    Er_ret(ri);
+    bool hasMore = true;
+    while (hasMore) {
+        Err(getMoreMessages(&hasMore, &ri, sock, ifIndex, alloc));
+    }
+    *out = ri;
+    return NULL;
 }
 
 static void bitShave(uint8_t* address, int prefix, int af)
@@ -366,10 +376,10 @@ static void bitShave(uint8_t* address, int prefix, int af)
     }
 }
 
-static Er_DEFUN(void addDeleteRoutes(int sock,
+static Err_DEFUN addDeleteRoutes(int sock,
                             bool delete,
                             struct RouteInfo* ri,
-                            struct Allocator* tempAlloc))
+                            struct Allocator* tempAlloc)
 {
     Message_t* msg = Message_new(0, 512, tempAlloc);
     for (;ri;ri = ri->next) {
@@ -380,12 +390,12 @@ static Er_DEFUN(void addDeleteRoutes(int sock,
             },
             .ifIndex = ri->ifIndex
         };
-        Er(Er_fromErr(Message_epush(msg, &ifa, sizeof(struct IfIndexAttr))));
+        Err(Message_epush(msg, &ifa, sizeof(struct IfIndexAttr)));
         int addrLen = (ri->af == AF_INET6) ? 16 : 4;
-        Er(Er_fromErr(Message_epush(msg, ri->dstAddr, addrLen)));
+        Err(Message_epush(msg, ri->dstAddr, addrLen));
         bitShave(Message_bytes(msg), ri->prefix, ri->af);
         struct rtattr rta = { .rta_len = sizeof(struct rtattr) + addrLen, .rta_type = RTA_DST };
-        Er(Er_fromErr(Message_epush(msg, &rta, sizeof(struct rtattr))));
+        Err(Message_epush(msg, &rta, sizeof(struct rtattr)));
         struct rtmsg route = {
             .rtm_family = ri->af,
             .rtm_dst_len = ri->prefix,
@@ -394,20 +404,20 @@ static Er_DEFUN(void addDeleteRoutes(int sock,
             .rtm_protocol = (delete) ? RTPROT_UNSPEC : ri->protocol,
             .rtm_type = (delete) ? RTN_UNSPEC : RTN_UNICAST
         };
-        Er(Er_fromErr(Message_epush(msg, &route, sizeof(struct rtmsg))));
+        Err(Message_epush(msg, &route, sizeof(struct rtmsg)));
         struct nlmsghdr hdr = {
             .nlmsg_len = Message_getLength(msg) + sizeof(struct nlmsghdr),
             .nlmsg_type = (delete) ? RTM_DELROUTE : RTM_NEWROUTE,
             .nlmsg_flags = NLM_F_REQUEST | ((delete) ? 0 : NLM_F_CREATE) // | NLM_F_ACK,
         };
-        Er(Er_fromErr(Message_epush(msg, &hdr, sizeof(struct nlmsghdr))));
+        Err(Message_epush(msg, &hdr, sizeof(struct nlmsghdr)));
         ssize_t sz = send(sock, Message_bytes(msg), Message_getLength(msg), 0);
         if (sz < 0) {
-            Er_raise(tempAlloc, "send() -> %s", strerror(errno));
+            Err_raise(tempAlloc, "send() -> %s", strerror(errno));
         }
         Message_reset(msg);
     }
-    Er_ret();
+    return NULL;
 }
 
 static void closeSocket(struct Allocator_OnFreeJob* job)
@@ -416,14 +426,15 @@ static void closeSocket(struct Allocator_OnFreeJob* job)
     close((int)sock);
 }
 
-static Er_DEFUN(int mkSocket(struct Allocator* alloc))
+static Err_DEFUN mkSocket(int* out, struct Allocator* alloc)
 {
     int sock = socket(PF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
     if (sock < 0) {
-        Er_raise(alloc, "socket(PF_NETLINK) -> %s", strerror(errno));
+        Err_raise(alloc, "socket(PF_NETLINK) -> %s", strerror(errno));
     }
     Allocator_onFree(alloc, closeSocket, (void*) ((long) sock));
-    Er_ret(sock);
+    *out = sock;
+    return NULL;
 }
 
 static struct RouteInfo* riForSockaddrs(struct Sockaddr** prefixSet,
@@ -462,20 +473,22 @@ static void logRis(struct RouteInfo* ri, struct Log* logger, char* msg)
     }
 }
 
-Er_DEFUN(void NetPlatform_setRoutes(const char* ifName,
+Err_DEFUN NetPlatform_setRoutes(const char* ifName,
                            struct Sockaddr** prefixSet,
                            int prefixCount,
                            struct Log* logger,
-                           struct Allocator* tempAlloc))
+                           struct Allocator* tempAlloc)
 {
     int ifIndex = -1;
-    Er(Er_fromErr(ifIndexForName(&ifIndex, ifName, tempAlloc)));
+    Err(ifIndexForName(&ifIndex, ifName, tempAlloc));
     struct RouteInfo* newRi = riForSockaddrs(prefixSet, prefixCount, ifIndex, tempAlloc);
-    int sock = Er(mkSocket(tempAlloc));
-    struct RouteInfo* oldRi = Er(getRoutes(sock, ifIndex, tempAlloc));
+    int sock = -1;
+    Err(mkSocket(&sock, tempAlloc));
+    struct RouteInfo* oldRi = NULL;
+    Err(getRoutes(&oldRi, sock, ifIndex, tempAlloc));
     logRis(oldRi, logger, "DELETE ROUTE");
-    Er(addDeleteRoutes(sock, true, oldRi, tempAlloc));
+    Err(addDeleteRoutes(sock, true, oldRi, tempAlloc));
     logRis(newRi, logger, "ADD ROUTE");
-    Er(addDeleteRoutes(sock, false, newRi, tempAlloc));
-    Er_ret();
+    Err(addDeleteRoutes(sock, false, newRi, tempAlloc));
+    return NULL;
 }

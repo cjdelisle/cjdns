@@ -12,7 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#include "exception/Er.h"
+#include "exception/Err.h"
 #include "util/platform/netdev/NetPlatform.h"
 #include "util/AddrTools.h"
 #include "util/platform/Sockaddr.h"
@@ -67,15 +67,15 @@ Assert_compileTime(sizeof(struct sockaddr_in) == 16);
 Assert_compileTime(sizeof(struct sockaddr_dl) == 20);
 Assert_compileTime(sizeof(struct RouteMessage4) == 144);
 
-static Er_DEFUN(void mkRouteMsg(Message_t* msg,
+static Err_DEFUN mkRouteMsg(Message_t* msg,
                        struct Prefix* addRoute,
                        int ifIndex,
                        const char* ifName,
                        int seq,
-                       bool delete))
+                       bool delete)
 {
     if (CString_strlen(ifName) >= 12) {
-        Er_raise(Message_getAlloc(msg), "ifName [%s] too long, limit 11 chars", ifName);
+        Err_raise(Message_getAlloc(msg), "ifName [%s] too long, limit 11 chars", ifName);
     }
     int lengthBegin = Message_getLength(msg);
     bool ipv6 = addRoute->ss.ss_family == AF_INET6;
@@ -86,14 +86,14 @@ static Er_DEFUN(void mkRouteMsg(Message_t* msg,
         };
         Bits_memset((void *)&mask.sin6_addr, 0xff, addRoute->prefix >> 3);
         ((uint8_t*)&mask.sin6_addr)[addRoute->prefix >> 3] = 0xff << (8 - (addRoute->prefix % 8));
-        Er(Er_fromErr(Message_epush(msg, &mask, sizeof(struct sockaddr_in6))));
+        Err(Message_epush(msg, &mask, sizeof(struct sockaddr_in6)));
     } else {
         struct sockaddr_in mask = {
             .sin_family = AF_INET,
             .sin_len = sizeof(struct sockaddr_in)
         };
         mask.sin_addr.s_addr = Endian_hostToBigEndian32(~0u << (32 - addRoute->prefix));
-        Er(Er_fromErr(Message_epush(msg, &mask, sizeof(struct sockaddr_in))));
+        Err(Message_epush(msg, &mask, sizeof(struct sockaddr_in)));
     }
     if (!delete) {
         struct sockaddr_dl link = {
@@ -104,11 +104,11 @@ static Er_DEFUN(void mkRouteMsg(Message_t* msg,
             .sdl_nlen = CString_strlen(ifName)
         };
         CString_safeStrncpy(link.sdl_data, ifName, 12);
-        Er(Er_fromErr(Message_epush(msg, &link, sizeof(struct sockaddr_dl))));
+        Err(Message_epush(msg, &link, sizeof(struct sockaddr_dl)));
     }
     int len = (ipv6) ? sizeof(struct sockaddr_in6) : sizeof(struct sockaddr_in);
     Assert_true(addRoute->ss.ss_len == len);
-    Er(Er_fromErr(Message_epush(msg, &addRoute->ss, len)));
+    Err(Message_epush(msg, &addRoute->ss, len));
     struct rt_msghdr hdr = {
         .rtm_type = (delete) ? RTM_DELETE : RTM_ADD,
         .rtm_flags = RTF_UP | RTF_STATIC,
@@ -118,23 +118,23 @@ static Er_DEFUN(void mkRouteMsg(Message_t* msg,
         .rtm_addrs = RTA_DST | RTA_NETMASK | ((delete) ? 0 : RTA_GATEWAY),
         .rtm_msglen = sizeof(struct rt_msghdr) + (Message_getLength(msg) - lengthBegin)
     };
-    Er(Er_fromErr(Message_epush(msg, &hdr, sizeof(struct rt_msghdr))));
-    Er_ret();
+    Err(Message_epush(msg, &hdr, sizeof(struct rt_msghdr)));
+    return NULL;
 }
 
-static Er_DEFUN(void setRoutes(uint32_t ifIndex,
+static Err_DEFUN setRoutes(uint32_t ifIndex,
                       const char* ifName,
                       struct ArrayList_OfPrefix* toRemove,
                       struct ArrayList_OfPrefix* toAdd,
                       struct Log* logger,
-                      struct Allocator* alloc))
+                      struct Allocator* alloc)
 {
     int seq = 0;
     int sock = socket(PF_ROUTE, SOCK_RAW, 0);
     if (sock == -1) {
         int err = errno;
         close(sock);
-        Er_raise(alloc, "open route socket [%s]", strerror(err));
+        Err_raise(alloc, "open route socket [%s]", strerror(err));
     }
     bool err = false;
     ssize_t returnLen = 0;
@@ -142,7 +142,7 @@ static Er_DEFUN(void setRoutes(uint32_t ifIndex,
     for (int i = 0; !err && i < toRemove->length; i++) {
         struct Prefix* pfx = ArrayList_OfPrefix_get(toRemove, i);
         Message_t* msg = Message_new(0, 1024, alloc);
-        Er(mkRouteMsg(msg, pfx, ifIndex, ifName, seq++, true));
+        Err(mkRouteMsg(msg, pfx, ifIndex, ifName, seq++, true));
         //printf("DELETE ROUTE %s\n", Hex_print(msg->bytes, Message_getLength(msg), alloc));
         returnLen = write(sock, Message_bytes(msg), Message_getLength(msg));
         if (returnLen < Message_getLength(msg)) { err = true; break; }
@@ -150,7 +150,7 @@ static Er_DEFUN(void setRoutes(uint32_t ifIndex,
     for (int i = 0; !err && i < toAdd->length; i++) {
         struct Prefix* pfx = ArrayList_OfPrefix_get(toAdd, i);
         Message_t* msg = Message_new(0, 1024, alloc);
-        Er(mkRouteMsg(msg, pfx, ifIndex, ifName, seq++, false));
+        Err(mkRouteMsg(msg, pfx, ifIndex, ifName, seq++, false));
         //printf("ADD ROUTE %s\n", Hex_print(msg->bytes, Message_getLength(msg), alloc));
         returnLen = write(sock, Message_bytes(msg), Message_getLength(msg));
         if (returnLen < Message_getLength(msg)) { err = true; break; }
@@ -159,13 +159,13 @@ static Er_DEFUN(void setRoutes(uint32_t ifIndex,
     if (returnLen < 0) {
         int error = errno;
         close(sock);
-        Er_raise(alloc, "setRoutes() [%s]", strerror(error));
+        Err_raise(alloc, "setRoutes() [%s]", strerror(error));
     } else if (err) {
         close(sock);
-        Er_raise(alloc, "setRoutes() returned short");
+        Err_raise(alloc, "setRoutes() returned short");
     }
     close(sock);
-    Er_ret();
+    return NULL;
 }
 
 static int prefixFromWeirdBSDMask(uint8_t* weirdBsdMask, bool ipv6)
@@ -185,19 +185,21 @@ static int prefixFromWeirdBSDMask(uint8_t* weirdBsdMask, bool ipv6)
     return out + Bits_popCountx32(weirdBsdMask[len - 1]);
 }
 
-static Er_DEFUN(struct ArrayList_OfPrefix* getRoutes(uint32_t ifIndex,
-                                              struct Log* logger,
-                                              struct Allocator* allocator))
+static Err_DEFUN getRoutes(
+    struct ArrayList_OfPrefix** out,
+    uint32_t ifIndex,
+    struct Log* logger,
+    struct Allocator* allocator)
 {
     size_t needed;
     int mib[] = { CTL_NET, PF_ROUTE, 0, 0, NET_RT_DUMP, 0 };
     if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0) {
-        Er_raise(allocator, "sysctl(net.route.0.0.dump) estimate");
+        Err_raise(allocator, "sysctl(net.route.0.0.dump) estimate");
     }
     struct Allocator* tempAlloc = Allocator_child(allocator);
     uint8_t* buf = Allocator_malloc(tempAlloc, needed);
     if (sysctl(mib, 6, buf, &needed, NULL, 0) < 0) {
-        Er_raise(allocator, "sysctl(net.route.0.0.dump)");
+        Err_raise(allocator, "sysctl(net.route.0.0.dump)");
     }
     struct ArrayList_OfPrefix* addrList = ArrayList_OfPrefix_new(allocator);
     for (int i = 0; i < (int)needed;) {
@@ -228,7 +230,7 @@ static Er_DEFUN(struct ArrayList_OfPrefix* getRoutes(uint32_t ifIndex,
         ArrayList_OfPrefix_add(addrList, pfx);
     }
     Allocator_free(tempAlloc);
-    Er_ret(addrList);
+    *out = addrList;
 }
 
 static Err_DEFUN addIp4Address(const char* interfaceName,
@@ -376,11 +378,11 @@ Err_DEFUN NetPlatform_setMTU(const char* interfaceName,
     return NULL;
 }
 
-Er_DEFUN(void NetPlatform_setRoutes(const char* ifName,
+Err_DEFUN NetPlatform_setRoutes(const char* ifName,
                            struct Sockaddr** prefixSet,
                            int prefixCount,
                            struct Log* logger,
-                           struct Allocator* tempAlloc))
+                           struct Allocator* tempAlloc)
 {
     struct ArrayList_OfPrefix* newRoutes = ArrayList_OfPrefix_new(tempAlloc);
     for (int i = 0; i < prefixCount; i++) {
@@ -401,15 +403,16 @@ Er_DEFUN(void NetPlatform_setRoutes(const char* ifName,
             Assert_compileTime(sizeof(in6->sin6_addr) == 16);
             Assert_true(Sockaddr_getAddress(prefixSet[i], &in6->sin6_addr) == AF_INET6);
         } else {
-            Er_raise(tempAlloc, "Unrecognized address type %d", addrFam);
+            Err_raise(tempAlloc, "Unrecognized address type %d", addrFam);
         }
         ArrayList_OfPrefix_add(newRoutes, prefixSet[i]);
     }
     uint32_t ifIndex = if_nametoindex(ifName);
     if (!ifIndex) {
-        Er_raise(tempAlloc, "tunName not recognized");
+        Err_raise(tempAlloc, "tunName not recognized");
     }
-    struct ArrayList_OfPrefix* oldRoutes = Er(getRoutes(ifIndex, logger, tempAlloc));
-    Er(setRoutes(ifIndex, ifName, oldRoutes, newRoutes, logger, tempAlloc));
-    Er_ret();
+    struct ArrayList_OfPrefix* oldRoutes = NULL;
+    Err(getRoutes(&oldRoutes, ifIndex, logger, tempAlloc));
+    Err(setRoutes(ifIndex, ifName, oldRoutes, newRoutes, logger, tempAlloc));
+    return NULL;
 }

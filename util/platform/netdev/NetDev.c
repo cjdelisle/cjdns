@@ -12,7 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#include "exception/Er.h"
+#include "exception/Err.h"
 #include "util/platform/Sockaddr.h"
 #include "util/log/Log.h"
 #include "exception/Err.h"
@@ -77,12 +77,12 @@ Err_DEFUN NetDev_setMTU(const char* interfaceName,
     return NetPlatform_setMTU(interfaceName, mtu, logger, alloc);
 }
 
-Er_DEFUN(void NetDev_flushAddresses(const char* deviceName, struct Allocator* alloc))
+Err_DEFUN NetDev_flushAddresses(const char* deviceName, struct Allocator* alloc)
 {
     #ifdef win32
-        Er(NetPlatform_flushAddresses(deviceName, alloc));
+        Err(NetPlatform_flushAddresses(deviceName, alloc));
     #endif
-    Er_ret();
+    return NULL;
 }
 /*
 void NetDev_addRoute(const char* ifName,
@@ -104,21 +104,21 @@ void NetDev_addRoute(const char* ifName,
     NetPlatform_addRoute(ifName, addr, prefixLen, addrFam, logger, eh);
 }*/
 
-Er_DEFUN(void NetDev_setRoutes(const char* ifName,
+Err_DEFUN NetDev_setRoutes(const char* ifName,
                       struct Sockaddr** prefixSet,
                       int prefixCount,
                       struct Log* logger,
-                      struct Allocator* tempAlloc))
+                      struct Allocator* tempAlloc)
 {
     for (int i = 0; i < prefixCount; i++) {
         struct Allocator* alloc = Allocator_child(tempAlloc);
         int addrFam;
         char* printedAddr;
         void* addr;
-        Er(Er_fromErr(checkAddressAndPrefix(prefixSet[i], &addrFam, &printedAddr, &addr, alloc)));
+        Err(checkAddressAndPrefix(prefixSet[i], &addrFam, &printedAddr, &addr, alloc));
         Allocator_free(alloc);
     }
 
-    Er(NetPlatform_setRoutes(ifName, prefixSet, prefixCount, logger, tempAlloc));
-    Er_ret();
+    Err(NetPlatform_setRoutes(ifName, prefixSet, prefixCount, logger, tempAlloc));
+    return NULL;
 }

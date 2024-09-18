@@ -16,7 +16,7 @@
 #include "interface/tuntap/test/TUNTools.h"
 #include "rust/cjdns_sys/RTypes.h"
 #include "util/events/UDPAddrIface.h"
-#include "exception/Er.h"
+#include "exception/Err.h"
 #include "util/events/Timeout.h"
 #include "wire/Ethernet.h"
 #include "wire/Headers.h"

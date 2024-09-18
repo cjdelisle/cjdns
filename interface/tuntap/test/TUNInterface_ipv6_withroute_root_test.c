@@ -42,7 +42,7 @@ int main(int argc, char** argv)
     Err_assert(NetDev_addAddress(assignedIfName, addrA, logger, alloc));
     addrC->flags |= Sockaddr_flags_PREFIX;
     addrC->prefix = 125;
-    Er_assert(NetDev_setRoutes(assignedIfName, ((struct Sockaddr*[]) { addrC }), 1, logger, alloc));
+    Err_assert(NetDev_setRoutes(assignedIfName, ((struct Sockaddr*[]) { addrC }), 1, logger, alloc));
 
     TUNTools_echoTest(addrA, addrC, TUNTools_genericIP6Echo, tun, base, logger, alloc);
     Allocator_free(alloc);

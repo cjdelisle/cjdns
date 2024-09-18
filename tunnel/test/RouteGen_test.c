@@ -12,15 +12,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#include "benc/String.h"
+#include "benc/List.h"
 #include "benc/Dict.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
 #include "util/log/FileWriterLog.h"
 #include "util/platform/Sockaddr.h"
-#include "crypto/random/Random.h"
 #include "tunnel/RouteGen.h"
-#include "util/Base10.h"
 
 static struct Sockaddr* mkSockaddr(char* str, struct Allocator* alloc)
 {
