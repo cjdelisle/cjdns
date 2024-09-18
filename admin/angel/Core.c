@@ -526,7 +526,7 @@ int Core_main(int argc, char** argv)
     // This always times out because the angel doesn't respond.
     Message_t* clientResponse = Message_new(0, 512, tempAlloc);
     Er_assert(BencMessageWriter_write(&response, clientResponse));
-    Er_assert(AddrIface_pushAddr(clientResponse, addr));
+    Err_assert(AddrIface_pushAddr(clientResponse, addr));
     Iface_CALL(ss->iface->send, clientResponse, ss->iface);
 
     Allocator_free(tempAlloc);

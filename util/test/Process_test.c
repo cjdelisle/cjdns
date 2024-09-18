@@ -61,7 +61,7 @@ static void onConnectionParent(void* context, const struct Sockaddr* addr)
     struct Allocator* alloc = Allocator_child(c->alloc);
     Message_t* msg = Message_new(0, 256, alloc);
     Err_assert(Message_epush(msg, MESSAGE, CString_strlen(MESSAGE) + 1));
-    Er_assert(AddrIface_pushAddr(msg, addr));
+    Err_assert(AddrIface_pushAddr(msg, addr));
     if (!Defined(win32)) {
         Message_setAssociatedFd(msg, c->fd);
     }
