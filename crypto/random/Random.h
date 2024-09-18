@@ -16,7 +16,7 @@
 #define Random_H
 
 #include "memory/Allocator.h"
-#include "exception/Except.h"
+#include "exception/Err.h"
 #include "util/log/Log.h"
 #include "crypto/random/seed/RandomSeed.h"
 #include "util/Linker.h"
@@ -102,11 +102,15 @@ static inline uint64_t Random_uint64(struct Random* rand)
     return ret;
 }
 
-struct Random* Random_newWithSeed(struct Allocator* alloc,
-                                  struct Log* logger,
-                                  RandomSeed_t* seed,
-                                  struct Except* eh);
+Err_DEFUN Random_newWithSeed(
+    struct Random** out,
+    struct Allocator* alloc,
+    struct Log* logger,
+    RandomSeed_t* seed);
 
-struct Random* Random_new(struct Allocator* alloc, struct Log* logger, struct Except* eh);
+Err_DEFUN Random_new(
+    struct Random** out,
+    struct Allocator* alloc,
+    struct Log* logger);
 
 #endif

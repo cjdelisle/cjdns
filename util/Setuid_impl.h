@@ -16,7 +16,7 @@
 #define Setuid_impl_H
 
 #include "memory/Allocator.h"
-#include "exception/Except.h"
+#include "exception/Er.h"
 
 Er_DEFUN(void Setuid_preSetuid(struct Allocator* alloc));
 Er_DEFUN(void Setuid_postSetuid(struct Allocator* alloc));

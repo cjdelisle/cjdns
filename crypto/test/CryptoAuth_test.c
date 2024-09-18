@@ -74,7 +74,9 @@ static struct Random* evilRandom(struct Allocator* alloc, struct Log* logger, co
     Assert_true(CString_strlen(seed) < 60);
     CString_strcpy(buf, seed);
     RandomSeed_t* evilSeed = DeterminentRandomSeed_new(alloc, buf);
-    return Random_newWithSeed(alloc, logger, evilSeed, NULL);
+    struct Random* out = NULL;
+    Err_assert(Random_newWithSeed(&out, alloc, logger, evilSeed));
+    return out;
 }
 
 static Iface_DEFUN afterDecrypt(Message_t* msg, struct Iface* if1)

@@ -15,13 +15,6 @@
 #ifndef Pipe_H
 #define Pipe_H
 
-#include "exception/Except.h"
-#include "interface/Iface.h"
-#include "memory/Allocator.h"
-#include "util/events/EventBase.h"
-#include "util/log/Log.h"
-#include "util/Linker.h"
-
 #define Pipe_PADDING_AMOUNT 512
 #define Pipe_BUFFER_CAP 4000
 

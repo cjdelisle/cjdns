@@ -14,6 +14,7 @@
  */
 #include "crypto/random/Random.h"
 #include "crypto/random/test/DeterminentRandomSeed.h"
+#include "exception/Err.h"
 #include "io/FileWriter.h"
 #include "memory/Allocator.h"
 #include "util/Assert.h"
@@ -77,8 +78,10 @@ static void test179(struct Allocator* alloc, struct Log* logger)
     uint8_t buff[32] = {0};
     uint8_t buff2[32] = {0};
 
-    struct Random* rand = Random_new(alloc, logger, NULL);
-    struct Random* rand2 = Random_new(alloc, logger, NULL);
+    struct Random* rand = NULL;
+    Err_assert(Random_new(&rand, alloc, logger));
+    struct Random* rand2 = NULL;
+    Err_assert(Random_new(&rand2, alloc, logger));
 
     Random_bytes(rand, buff, 32);
     Random_bytes(rand2, buff, 32);
@@ -92,7 +95,8 @@ int main()
     RandomSeed_t* seed = DeterminentRandomSeed_new(alloc, NULL);
     struct Writer* w = FileWriter_new(stdout, alloc);
     struct Log* logger = WriterLog_new(w, alloc);
-    struct Random* rand = Random_newWithSeed(alloc, logger, seed, NULL);
+    struct Random* rand = NULL;
+    Err_assert(Random_newWithSeed(&rand, alloc, logger, seed));
 
     // < 8 length
     checkBytes(rand, 0, 3);

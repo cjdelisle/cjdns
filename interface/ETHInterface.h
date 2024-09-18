@@ -16,6 +16,7 @@
 #define ETHInterface_H
 
 #include "interface/addressable/AddrIface.h"
+#include "exception/Er.h"
 #include "benc/List.h"
 #include "util/events/EventBase.h"
 #include "net/InterfaceController.h"

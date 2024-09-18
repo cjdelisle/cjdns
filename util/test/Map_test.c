@@ -30,7 +30,8 @@
 int main()
 {
     struct Allocator* mainAlloc = Allocator_new(20000);
-    struct Random* rand = Random_new(mainAlloc, NULL, NULL);
+    struct Random* rand = NULL;
+    Err_assert(Random_new(&rand, mainAlloc, NULL));
 
     for (int cycles = 0; cycles < CYCLES; cycles++) {
         struct Allocator* alloc = Allocator_new(1<<18);

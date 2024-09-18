@@ -148,7 +148,8 @@ int main(int argc, char* argv[])
 {
     struct Allocator* mainAlloc = Allocator_new(1<<18);
     testStatic(mainAlloc);
-    struct Random* rand = Random_new(mainAlloc, NULL, NULL);
+    struct Random* rand = NULL;
+    Err_assert(Random_new(&rand, mainAlloc, NULL));
 
     int cycles = CYCLES;
     Message_t* msg = Message_new(0, 2048, mainAlloc);

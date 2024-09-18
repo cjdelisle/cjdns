@@ -20,7 +20,7 @@ int main(int argc, char** argv)
 #else
 #include "crypto/AddressCalc.h"
 #include "interface/tuntap/windows/NDPServer.h"
-#include "exception/Except.h"
+#include "exception/Er.h"
 #include "memory/Allocator.h"
 #include "util/events/EventBase.h"
 #include "util/log/Log.h"

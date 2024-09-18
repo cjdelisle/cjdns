@@ -109,7 +109,7 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
     }
 
     if (!rand) {
-        rand = Random_new(allocator, logger, NULL);
+        Err_assert(Random_new(&rand, allocator, logger));
     }
 
     if (!base) {

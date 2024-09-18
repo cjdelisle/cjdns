@@ -28,9 +28,10 @@ void NanotimeEntropyProvider_start(struct Random* provideTo,
                                 struct Log* logger,
                                 struct Allocator* alloc);
 
-struct Random* NanotimeEntropyProvider_newDefaultRandom(EventBase_t* base,
-                                                     struct Log* logger,
-                                                     struct Except* eh,
-                                                     struct Allocator* alloc);
+Err_DEFUN NanotimeEntropyProvider_newDefaultRandom(
+    struct Random** out,
+    EventBase_t* base,
+    struct Log* logger,
+    struct Allocator* alloc);
 
 #endif

@@ -13,7 +13,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "interface/ETHInterface.h"
-#include "exception/Except.h"
+#include "exception/Err.h"
 #include "memory/Allocator.h"
 #include "net/InterfaceController.h"
 #include "wire/Headers.h"

@@ -112,7 +112,8 @@ int main(int argc, char** argv)
     struct Allocator* alloc = Allocator_new(1<<20);
     struct Log* logger = FileWriterLog_new(stdout, alloc);
     EventBase_t* base = EventBase_new(alloc);
-    struct Random* rand = Random_new(alloc, NULL, NULL);
+    struct Random* rand = NULL;
+    Err_assert(Random_new(&rand, alloc, NULL));
 
 #if defined(ADDRESS_PREFIX) || defined(ADDRESS_PREFIX_BITS)
     // Make all addresses writeable

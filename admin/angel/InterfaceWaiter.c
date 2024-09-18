@@ -14,7 +14,7 @@
  */
 
 #include "admin/angel/InterfaceWaiter.h"
-#include "exception/Except.h"
+#include "exception/Err.h"
 #include "memory/Allocator.h"
 #include "util/events/EventBase.h"
 #include "util/log/Log.h"
@@ -54,10 +54,11 @@ static Iface_DEFUN receiveMessage(Message_t* message, struct Iface* iface)
     return NULL;
 }
 
-Message_t* InterfaceWaiter_waitForData(struct Iface* iface,
-                                            EventBase_t* eventBase,
-                                            struct Allocator* alloc,
-                                            struct Except* eh)
+Err_DEFUN InterfaceWaiter_waitForData(
+    Message_t** out,
+    struct Iface* iface,
+    EventBase_t* eventBase,
+    struct Allocator* alloc)
 {
     struct Context ctx = {
         .iface = { .send = receiveMessage },
@@ -75,11 +76,12 @@ Message_t* InterfaceWaiter_waitForData(struct Iface* iface,
 
     Allocator_free(tempAlloc);
     if (ctx.timedOut) {
-        Except_throw(eh, "InterfaceWaiter Timed out waiting for data.");
+        Err_raise(alloc, "InterfaceWaiter Timed out waiting for data.");
     }
 
     Assert_true(!iface->connectedIf);
     Assert_true(ctx.message);
-    return ctx.message;
+    *out = ctx.message;
+    return NULL;
 }
 

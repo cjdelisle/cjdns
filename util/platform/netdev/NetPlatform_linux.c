@@ -16,7 +16,7 @@
 #include "util/platform/netdev/NetPlatform.h"
 #include "util/platform/Sockaddr.h"
 #include "memory/Allocator.h"
-#include "exception/Except.h"
+#include "exception/Err.h"
 #include "wire/Message.h"
 #include "util/AddrTools.h"
 #include "util/Assert.h"

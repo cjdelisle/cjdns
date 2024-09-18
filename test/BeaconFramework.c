@@ -252,7 +252,8 @@ int BeaconFramework_test(bool noiseA, bool noiseB)
     struct Allocator* alloc = Allocator_new(1<<22);
     struct Writer* logwriter = FileWriter_new(stdout, alloc);
     struct Log* logger = WriterLog_new(logwriter, alloc);
-    struct Random* rand = Random_new(alloc, logger, NULL);
+    struct Random* rand = NULL;
+    Err_assert(Random_new(&rand, alloc, logger));
     EventBase_t* base = EventBase_new(alloc);
     start(Allocator_child(alloc), logger, base, rand, runTest, noiseA, noiseB);
 

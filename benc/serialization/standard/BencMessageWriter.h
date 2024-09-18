@@ -16,7 +16,7 @@
 #define BencMessageWriter_H
 
 #include "benc/Dict.h"
-#include "exception/Except.h"
+#include "exception/Err.h"
 #include "wire/Message.h"
 #include "util/Linker.h"
 Linker_require("benc/serialization/standard/BencMessageWriter.c")

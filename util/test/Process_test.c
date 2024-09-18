@@ -191,7 +191,8 @@ int main(int argc, char** argv)
         return 0;
     }
 
-    struct Random* rand = Random_new(alloc, log, NULL);
+    struct Random* rand = NULL;
+    Err_assert(Random_new(&rand, alloc, log));
     char randName[32] = {0};
     Random_base32(rand, (uint8_t*)randName, 31);
     String* name = String_printf(alloc, "%s%scjdns-test-%s", Pipe_PATH, Pipe_PATH_SEP, randName);

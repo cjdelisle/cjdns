@@ -331,13 +331,12 @@ static void nodeInfo(Dict* args, void* vcontext, String* txid, struct Allocator*
     Admin_sendMessage(out, txid, ctx->admin);
 }
 
-void Core_init(struct Allocator* alloc,
+Err_DEFUN Core_init(struct Allocator* alloc,
                struct Log* logger,
                EventBase_t* eventBase,
                uint8_t privateKey[32],
                struct Admin* admin,
                struct Random* rand,
-               struct Except* eh,
                bool noSec)
 {
     struct Security* sec = NULL;
@@ -433,15 +432,15 @@ void Core_init(struct Allocator* alloc,
             { .name = "socketFullPath", .required = 1, .type = "String" },
             { .name = "socketAttemptToCreate", .required = 0, .type = "Int" }
         }), admin);
+    return NULL;
 }
 
 int Core_main(int argc, char** argv)
 {
     Glock_init();
-    struct Except* eh = NULL;
 
     if (argc != 3) {
-        Except_throw(eh, "This is internal to cjdns and shouldn't started manually.");
+        Assert_failure( "This is internal to cjdns and shouldn't started manually.");
     }
 
     struct Allocator* alloc = Allocator_new(ALLOCATOR_FAILSAFE);
@@ -454,7 +453,8 @@ int Core_main(int argc, char** argv)
     IndirectLog_set(logger, preLogger);
 
     // -------------------- Setup the PRNG ---------------------- //
-    struct Random* rand = NanotimeEntropyProvider_newDefaultRandom(eventBase, logger, eh, alloc);
+    struct Random* rand = NULL;
+    Err_assert(NanotimeEntropyProvider_newDefaultRandom(&rand, eventBase, logger, alloc));
 
     // -------------------- Change Canary Value ---------------------- //
     Allocator_setCanary(alloc, (uintptr_t)Random_uint64(rand));
@@ -464,12 +464,12 @@ int Core_main(int argc, char** argv)
     Socket_Server_t* ss = NULL;
     Err_assert(Socket_server(&ss, argv[2], alloc));
     Log_debug(logger, "Getting pre-configuration from client");
-    Message_t* preConf =
-        InterfaceWaiter_waitForData(ss->iface, eventBase, tempAlloc, eh);
+    Message_t* preConf = NULL;
+    Err_assert(InterfaceWaiter_waitForData(&preConf, ss->iface, eventBase, tempAlloc));
     Log_debug(logger, "Finished getting pre-configuration from client");
     struct Sockaddr_storage addr;
     Err_assert(AddrIface_popAddr(&addr, preConf));
-    Dict* config = Except_er(eh, BencMessageReader_read(preConf, tempAlloc));
+    Dict* config = Er_assert(BencMessageReader_read(preConf, tempAlloc));
 
     String* privateKeyHex = Dict_getStringC(config, "privateKey");
     Dict* adminConf = Dict_getDictC(config, "admin");
@@ -477,27 +477,27 @@ int Core_main(int argc, char** argv)
     String* bind = Dict_getStringC(adminConf, "bind");
     if (!(pass && privateKeyHex && bind)) {
         if (!pass) {
-            Except_throw(eh, "Expected 'pass'");
+            Assert_failure( "Expected 'pass'");
         }
         if (!bind) {
-            Except_throw(eh, "Expected 'bind'");
+            Assert_failure("Expected 'bind'");
         }
         if (!privateKeyHex) {
-            Except_throw(eh, "Expected 'privateKey'");
+            Assert_failure("Expected 'privateKey'");
         }
-        Except_throw(eh, "Expected 'pass', 'privateKey' and 'bind' in configuration.");
+        Assert_failure("Expected 'pass', 'privateKey' and 'bind' in configuration.");
     }
     Log_keys(logger, "Starting core with admin password [%s]", pass->bytes);
     uint8_t privateKey[32];
     if (privateKeyHex->len != 64
         || Hex_decode(privateKey, 32, (uint8_t*) privateKeyHex->bytes, 64) != 32)
     {
-        Except_throw(eh, "privateKey must be 64 bytes of hex.");
+        Assert_failure("privateKey must be 64 bytes of hex.");
     }
 
     struct Sockaddr_storage bindAddr;
     if (Sockaddr_parse(bind->bytes, &bindAddr)) {
-        Except_throw(eh, "bind address [%s] unparsable", bind->bytes);
+        Assert_failure("bind address [%s] unparsable", bind->bytes);
     }
 
     // --------------------- Bind Admin UDP --------------------- //
@@ -541,7 +541,7 @@ int Core_main(int argc, char** argv)
 
     Allocator_free(tempAlloc);
 
-    Core_init(alloc, logger, eventBase, privateKey, admin, rand, eh, false);
+    Err_assert(Core_init(alloc, logger, eventBase, privateKey, admin, rand, false));
     EventBase_beginLoop(eventBase);
     return 0;
 }

@@ -39,7 +39,9 @@
 static struct Random* evilRandom(struct Allocator* alloc, struct Log* logger)
 {
     RandomSeed_t* evilSeed = DeterminentRandomSeed_new(alloc, NULL);
-    return Random_newWithSeed(alloc, logger, evilSeed, NULL);
+    struct Random* out = NULL;
+    Err_assert(Random_newWithSeed(&out, alloc, logger, evilSeed));
+    return out;
 }
 
 struct Context

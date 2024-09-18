@@ -367,7 +367,8 @@ static void bitsUsed(struct EncodingScheme* es, DecodeNum getBits, struct Random
 int main()
 {
     struct Allocator* alloc = Allocator_new(20000000);
-    struct Random* rand = Random_new(alloc, NULL, NULL);
+    struct Random* rand = NULL;
+    Err_assert(Random_new(&rand, alloc, NULL));
 
     encoding(alloc);
     isOneHopScheme(alloc);

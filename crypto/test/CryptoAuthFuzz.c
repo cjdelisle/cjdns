@@ -318,8 +318,10 @@ void* CryptoAuthFuzz_init(struct Allocator* alloc, struct Random* rand, enum Tes
 
     uint8_t buf[64];
     Random_bytes(rand, buf, 64);
-    Random_t* r0 = Random_newWithSeed(alloc, NULL, DeterminentRandomSeed_new(alloc, buf), NULL);
-    Random_t* r1 = Random_newWithSeed(alloc, NULL, DeterminentRandomSeed_new(alloc, buf), NULL);
+    Random_t* r0 = NULL;
+    Err_assert(Random_newWithSeed(&r0, alloc, NULL, DeterminentRandomSeed_new(alloc, buf)));
+    Random_t* r1 = NULL;
+    Err_assert(Random_newWithSeed(&r1, alloc, NULL, DeterminentRandomSeed_new(alloc, buf)));
 
     ctx->nodeA.ca = TestCa_new(alloc, PRIVATEKEY_A, base, NULL, r0, r1, cfg);
     ctx->nodeB.ca = TestCa_new(alloc, PRIVATEKEY_B, base, NULL, r0, r1, cfg);
@@ -350,7 +352,7 @@ void CryptoAuthFuzz_main(void* vctx, Message_t* fuzz)
 
     // This is not ideal, but this test was already written before AFL.
     RandomSeed_t* rs = DeterminentRandomSeed_new(ctx->alloc, Message_bytes(fuzz));
-    ctx->rand = Random_newWithSeed(ctx->alloc, NULL, rs, NULL);
+    Err_assert(Random_newWithSeed(&ctx->rand, ctx->alloc, NULL, rs));
 
     if (maybe(ctx, 2)) {
         TestCa_addUser_ipv6(String_CONST("pass"), String_CONST("user"), NULL, ctx->nodeB.ca);

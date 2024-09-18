@@ -15,7 +15,7 @@
 #include "exception/Er.h"
 #include "util/platform/Sockaddr.h"
 #include "util/log/Log.h"
-#include "exception/Except.h"
+#include "exception/Err.h"
 #include "memory/Allocator.h"
 #include "util/platform/netdev/NetDev.h"
 #include "util/platform/netdev/NetPlatform.h"
@@ -88,8 +88,7 @@ Er_DEFUN(void NetDev_flushAddresses(const char* deviceName, struct Allocator* al
 void NetDev_addRoute(const char* ifName,
                      struct Sockaddr* sa,
                      int prefixLen,
-                     struct Log* logger,
-                     struct Except* eh)
+                     struct Log* logger)
 {
     int addrFam;
     char* printedAddr;
@@ -97,7 +96,7 @@ void NetDev_addRoute(const char* ifName,
     struct Allocator* alloc;
     BufferAllocator_STACK(alloc, 4096);
 
-    Err_assert(checkAddressAndPrefix(sa, prefixLen, &addrFam, &printedAddr, &addr, alloc, eh));
+    Err_assert(checkAddressAndPrefix(sa, prefixLen, &addrFam, &printedAddr, &addr, alloc));
 
     Log_info(logger, "Setting route [%s/%d on interface [%s]",
             printedAddr, prefixLen, ifName);

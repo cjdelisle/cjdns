@@ -16,7 +16,7 @@
 #include "benc/serialization/standard/BencMessageReader.h"
 #include "benc/serialization/standard/BencMessageWriter.h"
 #include "benc/serialization/cloner/Cloner.h"
-#include "exception/Except.h"
+#include "exception/Err.h"
 #include "util/Bits.h"
 #include "util/Endian.h"
 #include "util/Hex.h"

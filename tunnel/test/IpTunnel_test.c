@@ -370,7 +370,8 @@ int main()
     struct Allocator* alloc = Allocator_new(1<<20);
     EventBase_t* eb = EventBase_new(alloc);
     struct Log* logger = FileWriterLog_new(stdout, alloc);
-    struct Random* rand = Random_new(alloc, logger, NULL);
+    struct Random* rand = NULL;
+    Err_assert(Random_new(&rand, alloc, logger));
     struct Context* ctx = Allocator_calloc(alloc, sizeof(struct Context), 1);
     uint8_t privateKey[32];
     Identity_set(ctx);

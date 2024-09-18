@@ -25,7 +25,8 @@ int main()
 {
     struct Allocator* alloc = Allocator_new(1048576);
     struct Log* logger = FileWriterLog_new(stdout, alloc);
-    struct Random* rand = Random_new(alloc, logger, NULL);
+    struct Random* rand = NULL;
+    Err_assert(Random_new(&rand, alloc, logger));
 
     uint8_t curve25519private[32];
     Random_bytes(rand, curve25519private, 32);

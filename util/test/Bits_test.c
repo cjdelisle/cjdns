@@ -35,7 +35,8 @@ static void log2x64(struct Random* rand)
 int main()
 {
     struct Allocator* alloc = Allocator_new(20000);
-    struct Random* rand = Random_new(alloc, NULL, NULL);
+    struct Random* rand = NULL;
+    Err_assert(Random_new(&rand, alloc, NULL));
 
     log2x64(rand);
 

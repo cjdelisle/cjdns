@@ -18,7 +18,6 @@
 #include "interface/Iface.h"
 #include "interface/addressable/AddrIface.h"
 #include "benc/Dict.h"
-#include "exception/Except.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
 #include "util/events/EventBase.h"

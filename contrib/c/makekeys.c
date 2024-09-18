@@ -28,7 +28,8 @@ int makekeys_main(int argc, char** argv);
 int makekeys_main(int argc, char** argv)
 {
     struct Allocator* alloc = Allocator_new(1<<22);
-    struct Random* rand = Random_new(alloc, NULL, NULL);
+    struct Random* rand = NULL;
+    Err_assert(Random_new(&rand, alloc, NULL));
 
     uint8_t privateKey[32];
     uint8_t publicKey[32];

@@ -17,28 +17,26 @@
 
 #include "admin/Admin.h"
 #include "benc/String.h"
-#include "exception/Except.h"
+#include "exception/Err.h"
 #include "memory/Allocator.h"
 #include "tunnel/IpTunnel.h"
 #include "util/Linker.h"
 Linker_require("admin/angel/Core.c")
 
-void Core_initTunnel(String* desiredDeviceName,
+Err_DEFUN Core_initTunnel(String* desiredDeviceName,
                      struct Sockaddr* addr,
                      uint8_t addressPrefix,
                      struct Log* logger,
                      struct IpTunnel* ipTunnel,
                      EventBase_t* eventBase,
-                     struct Allocator* alloc,
-                     struct Except* eh);
+                     struct Allocator* alloc);
 
-void Core_init(struct Allocator* alloc,
+Err_DEFUN Core_init(struct Allocator* alloc,
                struct Log* logger,
                EventBase_t* eventBase,
                uint8_t privateKey[32],
                struct Admin* admin,
                struct Random* rand,
-               struct Except* eh,
                bool noSec);
 
 int Core_main(int argc, char** argv);

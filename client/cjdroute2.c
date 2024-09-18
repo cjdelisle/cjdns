@@ -33,7 +33,7 @@
 #include "crypto/AddressCalc.h"
 #include "crypto/Ca.h"
 #include "dht/Address.h"
-#include "exception/Except.h"
+#include "exception/Err.h"
 #include "interface/Iface.h"
 #include "io/ArrayReader.h"
 #include "io/FileWriter.h"
@@ -79,7 +79,7 @@ static int genconf(struct Allocator* alloc, struct Random* rand, bool eth, bool 
         Bits_memset(seedbuf, 0, 64);
         Assert_true(64 == read(STDIN_FILENO, seedbuf, 64));
         RandomSeed_t* rs = DeterminentRandomSeed_new(alloc, seedbuf);
-        rand = Random_newWithSeed(alloc, NULL, rs, NULL);
+        Err_assert(Random_newWithSeed(&rand, alloc, NULL, rs));
     }
 
     uint8_t password[32];
@@ -611,11 +611,11 @@ int cjdroute2_main(int argc, char** argv)
     }
 
     Assert_ifParanoid(argc > 0);
-    struct Except* eh = NULL;
 
     // Allow it to allocate 8MB
     struct Allocator* allocator = Allocator_new(1<<23);
-    struct Random* rand = Random_new(allocator, NULL, eh);
+    struct Random* rand = NULL;
+    Err_assert(Random_new(&rand, allocator, NULL));
     EventBase_t* eventBase = EventBase_new(allocator);
 
     if (argc == 2) {
@@ -695,7 +695,7 @@ int cjdroute2_main(int argc, char** argv)
             fprintf(stderr, "Failed to parse configuration.\n%s\n", err);
             return -1;
         }
-        uint64_t* version = Dict_getIntC(config, "version");
+        int64_t* version = Dict_getIntC(config, "version");
         if (version && *version >= 2) {
             fprintf(stderr, "Invalid cjdroute.conf\n%s\n", err);
             return -1;
@@ -729,7 +729,7 @@ int cjdroute2_main(int argc, char** argv)
         adminPass->len = CString_strlen(adminPass->bytes);
     }
     if (!adminBind) {
-        Except_throw(eh, "You must specify admin.bind in the cjdroute.conf file.");
+        Assert_failure("You must specify admin.bind in the cjdroute.conf file.");
     }
 
     // --------------------- Welcome to cjdns ---------------------- //
@@ -752,10 +752,10 @@ int cjdroute2_main(int argc, char** argv)
         int ret = access(pipePath->bytes, W_OK);
         *lastsep = '/';
         if (ret) {
-            Except_throw(eh, "Pipe directory not writable: [%s]", pipePath->bytes);
+            Assert_failure("Pipe directory not writable: [%s]", pipePath->bytes);
         }
         if (unlink(pipePath->bytes) && (errno != ENOENT)) {
-            Except_throw(eh, "Unable to delete existing pipe at path [%s] err [%s]",
+            Assert_failure("Unable to delete existing pipe at path [%s] err [%s]",
                 pipePath->bytes, strerror(errno));
         }
     }
@@ -768,12 +768,12 @@ int cjdroute2_main(int argc, char** argv)
     const char* corePath = Process_getPath(allocator);
 
     if (!corePath) {
-        Except_throw(eh, "Can't find a usable cjdns core executable, "
+        Assert_failure("Can't find a usable cjdns core executable, "
                          "make sure it is in the same directory as cjdroute");
     }
 
     if (!privateKey) {
-        Except_throw(eh, "Need to specify privateKey.");
+        Assert_failure("Need to specify privateKey.");
     }
     Process_spawn(corePath, args, allocator, onCoreExit);
 
@@ -789,7 +789,7 @@ int cjdroute2_main(int argc, char** argv)
         Rffi_sleep_ms_sync(50);
     }
     if (!exists) {
-        Except_throw(eh, "Core did not setup pipe file [%s] within 60 seconds",
+        Assert_failure("Core did not setup pipe file [%s] within 60 seconds",
             pipePath->bytes);
     }
 
@@ -817,9 +817,9 @@ int cjdroute2_main(int argc, char** argv)
 
     // --------------------- Get Response from Core --------------------- //
 
-    Message_t* fromCoreMsg =
-        InterfaceWaiter_waitForData(corePipe, eventBase, allocator, eh);
-    Dict* responseFromCore = Except_er(eh, BencMessageReader_read(fromCoreMsg, allocator));
+    Message_t* fromCoreMsg = NULL;
+    Err_assert(InterfaceWaiter_waitForData(&fromCoreMsg, corePipe, eventBase, allocator));
+    Dict* responseFromCore = Er_assert(BencMessageReader_read(fromCoreMsg, allocator));
 
     // --------------------- Close the Core Pipe --------------------- //
     Allocator_free(corePipeAlloc);
@@ -830,11 +830,11 @@ int cjdroute2_main(int argc, char** argv)
     adminBind = Dict_getStringC(responseFromCoreAdmin, "bind");
 
     if (!adminBind) {
-        Except_throw(eh, "didn't get address and port back from core");
+        Assert_failure("didn't get address and port back from core");
     }
     struct Sockaddr_storage adminAddr;
     if (Sockaddr_parse(adminBind->bytes, &adminAddr)) {
-        Except_throw(eh, "Unable to parse [%s] as an ip address port, eg: 127.0.0.1:11234",
+        Assert_failure("Unable to parse [%s] as an ip address port, eg: 127.0.0.1:11234",
                      adminBind->bytes);
     }
 

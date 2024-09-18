@@ -26,7 +26,8 @@
 int main()
 {
     struct Allocator* alloc = Allocator_new(1<<22);
-    struct Random* rand = Random_new(alloc, NULL, NULL);
+    struct Random* rand = NULL;
+    Err_assert(Random_new(&rand, alloc, NULL));
     struct Log* log = FileWriterLog_new(stdout, alloc);
 
     uint8_t ip[16];

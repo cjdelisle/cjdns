@@ -13,7 +13,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "interface/tuntap/TUNInterface.h"
-#include "exception/Except.h"
+#include "exception/Err.h"
 #include "memory/Allocator.h"
 #include "util/events/EventBase.h"
 #include "util/CString.h"

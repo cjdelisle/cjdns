@@ -275,7 +275,8 @@ int testcjdroute_main(int argc, char** argv)
     Allocator_free(alloc);
     alloc = Allocator_new(1<<24);
     RandomSeed_t* rs = DeterminentRandomSeed_new(alloc, RANDOM_SEED);
-    struct Random* detRand = Random_newWithSeed(alloc, NULL, rs, NULL);
+    struct Random* detRand = NULL;
+    Err_assert(Random_newWithSeed(&detRand, alloc, NULL, rs));
     int out = main2(argc, argv, alloc, detRand);
     Allocator_free(alloc);
     // We need to drop the lock before we exit, otherwise the rust thread can't complete.

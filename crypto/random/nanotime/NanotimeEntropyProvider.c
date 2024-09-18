@@ -64,12 +64,13 @@ void NanotimeEntropyProvider_start(struct Random* provideTo,
     Identity_set(lep);
 }
 
-struct Random* NanotimeEntropyProvider_newDefaultRandom(EventBase_t* base,
-                                                     struct Log* logger,
-                                                     struct Except* eh,
-                                                     struct Allocator* alloc)
+Err_DEFUN NanotimeEntropyProvider_newDefaultRandom(
+    struct Random** out,
+    EventBase_t* base,
+    struct Log* logger,
+    struct Allocator* alloc)
 {
-    struct Random* rand = Random_new(alloc, logger, eh);
-    NanotimeEntropyProvider_start(rand, base, logger, alloc);
-    return rand;
+    Err(Random_new(out, alloc, logger));
+    NanotimeEntropyProvider_start(*out, base, logger, alloc);
+    return NULL;
 }

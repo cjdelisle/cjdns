@@ -15,7 +15,7 @@
 
 #include "util/Base10.h"
 #include "wire/Message.h"
-#include "exception/Except.h"
+#include "exception/Er.h"
 #include "util/CString.h"
 #include "rust/cjdns_sys/Rffi.h"
 

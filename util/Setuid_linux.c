@@ -14,7 +14,6 @@
  */
 #include "util/Setuid_impl.h"
 #include "memory/Allocator.h"
-#include "exception/Except.h"
 
 #include <stdlib.h>
 #include <unistd.h>

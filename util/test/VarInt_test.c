@@ -25,7 +25,8 @@
 static void fidelityTest()
 {
     struct Allocator* alloc = Allocator_new(1<<20);
-    struct Random* rand = Random_new(alloc, NULL, NULL);
+    struct Random* rand = NULL;
+    Err_assert(Random_new(&rand, alloc, NULL));
     uint64_t* buf = Allocator_malloc(alloc, BUF_SZ*8);
     Random_bytes(rand, (uint8_t*) buf, BUF_SZ*8);
 

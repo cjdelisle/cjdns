@@ -48,7 +48,8 @@ static void testDuplicates(struct Random* rand)
 int main()
 {
     struct Allocator* alloc = Allocator_new(4096);
-    struct Random* rand = Random_new(alloc, NULL, NULL);
+    struct Random* rand = NULL;
+    Err_assert(Random_new(&rand, alloc, NULL));
     for (int i = 0; i < CYCLES; i++) {
         testDuplicates(rand);
     }

@@ -253,15 +253,16 @@ void Random_base32(struct Random* rand, uint8_t* output, uint32_t length)
     output[length - 1] = '\0';
 }
 
-struct Random* Random_newWithSeed(struct Allocator* alloc,
-                                  struct Log* logger,
-                                  RandomSeed_t* seed,
-                                  struct Except* eh)
+Err_DEFUN Random_newWithSeed(
+    struct Random** out,
+    struct Allocator* alloc,
+    struct Log* logger,
+    RandomSeed_t* seed)
 {
     union Random_SeedGen* seedGen = Allocator_calloc(alloc, sizeof(union Random_SeedGen), 1);
 
     if (RandomSeed_get(seed, seedGen->buff)) {
-        Except_throw(eh, "Unable to initialize secure random number generator");
+        Err_raise(alloc, "Unable to initialize secure random number generator");
     }
 
     struct Random* rand = Allocator_calloc(alloc, sizeof(struct Random), 1);
@@ -277,11 +278,12 @@ struct Random* Random_newWithSeed(struct Allocator* alloc,
     Random_addRandom(rand, 0);
     stir(rand);
 
-    return rand;
+    *out = rand;
+    return NULL;
 }
 
-struct Random* Random_new(struct Allocator* alloc, struct Log* logger, struct Except* eh)
+Err_DEFUN Random_new(struct Random** out, struct Allocator* alloc, struct Log* logger)
 {
     RandomSeed_t* rs = SystemRandomSeed_new(NULL, 0, logger, alloc);
-    return Random_newWithSeed(alloc, logger, rs, eh);
+    return Random_newWithSeed(out, alloc, logger, rs);
 }

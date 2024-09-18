@@ -24,7 +24,8 @@
 int main()
 {
     struct Allocator* alloc = Allocator_new(1<<20);
-    struct Random* rand = Random_new(alloc, NULL, NULL);
+    struct Random* rand = NULL;
+    Err_assert(Random_new(&rand, alloc, NULL));
 
     for (int cycles = 0; cycles < 1; cycles++) {
         for (int bytes = 1; bytes < 5; bytes++) {
