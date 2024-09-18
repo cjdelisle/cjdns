@@ -231,6 +231,7 @@ static Err_DEFUN getRoutes(
     }
     Allocator_free(tempAlloc);
     *out = addrList;
+    return NULL;
 }
 
 static Err_DEFUN addIp4Address(const char* interfaceName,
