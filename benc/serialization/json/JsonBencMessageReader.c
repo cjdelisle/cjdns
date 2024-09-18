@@ -63,7 +63,7 @@ static Er_DEFUN(void skip(struct Context* ctx, int num))
             ctx->line++;
         }
     }
-    Er(Message_eshift(ctx->msg, -num));
+    Er(Er_fromErr(Message_eshift(ctx->msg, -num)));
     Er_ret();
 }
 
@@ -149,7 +149,7 @@ static Er_DEFUN(String* parseString(struct Context* ctx))
                 // got the length, reset and then copy the string next cycle
                 ctx->line = line;
                 ctx->beginningLastLine = beginningLastLine;
-                Er(Message_eshift(ctx->msg, msgLen - Message_getLength(ctx->msg)));
+                Er(Er_fromErr(Message_eshift(ctx->msg, msgLen - Message_getLength(ctx->msg))));
                 out = String_newBinary(NULL, pos, ctx->alloc);
                 pos = 0;
                 continue;

@@ -73,9 +73,9 @@ static bool isNeighborSolicitation(Message_t* msg, struct NDPServer_pvt* ns)
 static Iface_DEFUN answerNeighborSolicitation(Message_t* msg, struct NDPServer_pvt* ns)
 {
     struct Headers_IP6Header ip6;
-    Er_assert(Message_epop(msg, &ip6, Headers_IP6Header_SIZE));
+    Err(Message_epop(msg, &ip6, Headers_IP6Header_SIZE));
     struct NDPHeader_NeighborSolicitation sol;
-    Er_assert(Message_epop(msg, &sol, NDPHeader_NeighborSolicitation_SIZE));
+    Err(Message_epop(msg, &sol, NDPHeader_NeighborSolicitation_SIZE));
     if (Message_getLength(msg)) {
         /* Right now we ignore any ICMP options. Windows will send them. */
         Log_debug(ns->log, "%d extra bytes (ICMP options?) in neighbor solicitation",
@@ -87,7 +87,7 @@ static Iface_DEFUN answerNeighborSolicitation(Message_t* msg, struct NDPServer_p
         .one = 1
     };
     Bits_memcpy(macOpt.mac, ns->localMac, Ethernet_ADDRLEN);
-    Er_assert(Message_epush(msg, &macOpt, sizeof(struct NDPHeader_MacOpt)));
+    Err(Message_epush(msg, &macOpt, sizeof(struct NDPHeader_MacOpt)));
 
     struct NDPHeader_NeighborAdvert na = {
         .oneThirtySix = 136,
@@ -98,7 +98,7 @@ static Iface_DEFUN answerNeighborSolicitation(Message_t* msg, struct NDPServer_p
             | NDPHeader_NeighborAdvert_bits_OVERRIDE
     };
     Bits_memcpy(na.targetAddr, sol.targetAddr, 16);
-    Er_assert(Message_epush(msg, &na, sizeof(struct NDPHeader_NeighborAdvert)));
+    Err(Message_epush(msg, &na, sizeof(struct NDPHeader_NeighborAdvert)));
 
     Bits_memcpy(ip6.destinationAddr, ip6.sourceAddr, 16);
     Bits_memcpy(ip6.sourceAddr, sol.targetAddr, 16);
@@ -108,7 +108,7 @@ static Iface_DEFUN answerNeighborSolicitation(Message_t* msg, struct NDPServer_p
     struct NDPHeader_RouterAdvert* adv = (struct NDPHeader_RouterAdvert*) Message_bytes(msg);
     adv->checksum = Checksum_icmp6_be(ip6.sourceAddr, Message_bytes(msg), Message_getLength(msg));
 
-    Er_assert(Message_epush(msg, &ip6, sizeof(struct Headers_IP6Header)));
+    Err(Message_epush(msg, &ip6, sizeof(struct Headers_IP6Header)));
 
     Er_assert(TUNMessageType_push(msg, Ethernet_TYPE_IP6));
 

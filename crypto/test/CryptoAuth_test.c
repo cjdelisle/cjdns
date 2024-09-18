@@ -81,7 +81,8 @@ static Iface_DEFUN afterDecrypt(Message_t* msg, struct Iface* if1)
 {
     struct Node* n = Identity_containerOf(if1, struct Node, plaintext);
     Log_debug(n->log, "Got message from afterDecrypt");
-    enum CryptoAuth_DecryptErr e = Er_assert(Message_epop32h(msg));
+    enum CryptoAuth_DecryptErr e = 0;
+    Err(Message_epop32h(&e, msg));
     if (e != n->expectErr) {
         Assert_failure("expected decrypt error [%d], got [%d]\n", n->expectErr, e);
     }
@@ -167,7 +168,7 @@ static Message_t* encryptMsg(struct Context* ctx,
     int len = (((CString_strlen(x)+1) / 8) + 1) * 8;
     Message_t* msg = Message_new(len, CryptoHeader_SIZE + 32, alloc);
     CString_strcpy(Message_bytes(msg), x);
-    Er_assert(Message_truncate(msg, CString_strlen(x)));
+    Err_assert(Message_truncate(msg, CString_strlen(x)));
     //msg->bytes[Message_getLength(msg)] = 0;
     struct RTypes_Error_t* e = Iface_send(&n->plaintext, msg);
     if (e) {
@@ -187,7 +188,7 @@ static Message_t* decryptMsg(struct Context* ctx,
     Assert_true(!n->expectPlaintext && !n->expectErr);
     n->expectPlaintext = expectResult;
     n->expectErr = expectErr;
-    Er_assert(Message_epush(msg, NULL, 16)); // peer ipv6
+    Err_assert(Message_epush(msg, NULL, 16)); // peer ipv6
     Iface_send(&n->ciphertext, msg);
     Assert_true(!n->expectPlaintext && !n->expectErr);
     return msg;

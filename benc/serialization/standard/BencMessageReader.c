@@ -27,7 +27,9 @@ static Er_DEFUN(Object* readGeneric(Message_t* msg, struct Allocator* alloc));
 static Er_DEFUN(int64_t readInt(Message_t* msg, struct Allocator* alloc))
 {
     int64_t num = Er(Base10_read(msg));
-    if (Er(Message_epop8(msg)) != 'e') {
+    uint8_t e = '\0';
+    Er(Er_fromErr(Message_epop8(&e, msg)));
+    if (e != 'e') {
         Er_raise(Message_getAlloc(msg), "Int not terminated with 'e'");
     }
     Er_ret(num);
@@ -39,14 +41,16 @@ static Er_DEFUN(String* readString(Message_t* msg, struct Allocator* alloc))
     if (len < 0) {
         Er_raise(alloc, "Negative string length");
     }
-    if (Er(Message_epop8(msg)) != ':') {
+    uint8_t flag = '\0';
+    Er(Er_fromErr(Message_epop8(&flag, msg)));
+    if (flag != ':') {
         Er_raise(alloc, "String not deliniated with a ':'");
     }
     if (len > Message_getLength(msg)) {
         Er_raise(alloc, "String too long");
     }
     String* str = String_newBinary(NULL, len, alloc);
-    Er(Message_epop(msg, str->bytes, len));
+    Er(Er_fromErr(Message_epop(msg, str->bytes, len)));
     Er_ret(str);
 }
 
@@ -54,13 +58,14 @@ static Er_DEFUN(List* readList(Message_t* msg, struct Allocator* alloc))
 {
     struct List_Item* last = NULL;
     for (;;) {
-        uint8_t chr = Er(Message_epop8(msg));
+        uint8_t chr = '\0';
+        Er(Er_fromErr(Message_epop8(&chr, msg)));
         if (chr == 'e') {
             List* out = Allocator_malloc(alloc, sizeof(List));
             *out = last;
             Er_ret(out);
         }
-        Er(Message_epush8(msg, chr));
+        Er(Er_fromErr(Message_epush8(msg, chr)));
 
         struct List_Item* item = Allocator_malloc(alloc, sizeof(struct List_Item));
         item->elem = Er(readGeneric(msg, alloc));
@@ -73,13 +78,14 @@ static Er_DEFUN(Dict* readDict(Message_t* msg, struct Allocator* alloc))
 {
     struct Dict_Entry* last = NULL;
     for (;;) {
-        uint8_t chr = Er(Message_epop8(msg));
+        uint8_t chr = '\0';
+        Er(Er_fromErr(Message_epop8(&chr, msg)));
         if (chr == 'e') {
             Dict* out = Allocator_malloc(alloc, sizeof(Dict));
             *out = last;
             Er_ret(out);
         }
-        Er(Message_epush8(msg, chr));
+        Er(Er_fromErr(Message_epush8(msg, chr)));
 
         struct Dict_Entry* entry = Allocator_malloc(alloc, sizeof(struct Dict_Entry));
         entry->key = Er(readString(msg, alloc));
@@ -91,7 +97,8 @@ static Er_DEFUN(Dict* readDict(Message_t* msg, struct Allocator* alloc))
 
 static Er_DEFUN(Object* readGeneric(Message_t* msg, struct Allocator* alloc))
 {
-    uint8_t chr = Er(Message_epop8(msg));
+    uint8_t chr = '\0';
+    Er(Er_fromErr(Message_epop8(&chr, msg)));
     Object* out = Allocator_calloc(alloc, sizeof(Object), 1);
     switch (chr) {
         case 'l': {
@@ -120,7 +127,7 @@ static Er_DEFUN(Object* readGeneric(Message_t* msg, struct Allocator* alloc))
         case '8':
         case '9': {
             out->type = Object_STRING;
-            Er(Message_epush8(msg, chr));
+            Er(Er_fromErr(Message_epush8(msg, chr)));
             out->as.string = Er(readString(msg, alloc));
             break;
         }
@@ -131,7 +138,9 @@ static Er_DEFUN(Object* readGeneric(Message_t* msg, struct Allocator* alloc))
 
 Er_DEFUN(Dict* BencMessageReader_read(Message_t* msg, struct Allocator* alloc))
 {
-    if (Er(Message_epop8h(msg)) != 'd') {
+    uint8_t d = '\0';
+    Er(Er_fromErr(Message_epop8(&d, msg)));
+    if (d != 'd') {
         Er_raise(alloc, "Message does not begin with a 'd' to open the dictionary");
     }
     Dict* out = Er(readDict(msg, alloc));

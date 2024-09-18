@@ -55,7 +55,8 @@ static Iface_DEFUN sendOutside(Message_t* msg, struct Iface* outside)
     printf("sendOutside called\n");
     Assert_true(incomingCount == 1 && outgoingCount == 1 && dropped == 0);
     struct Context* ctx = Identity_containerOf(outside, struct Context, outside);
-    uint32_t top = Er_assert(Message_epop32be(msg));
+    uint32_t top = 0;
+    Err(Message_epop32be(&top, msg));
     Assert_true(top == 0x00000800);
     Assert_true(!(ctx->received & 1));
     ctx->received |= 1;
@@ -92,7 +93,7 @@ int main()
     Assert_true(incomingCount == 0 && outgoingCount == 0 && dropped == 0);
 
     Message_t* msg = Message_new(256, 256, alloc);
-    Er_assert(Message_epush32be(msg, 0x00000800));
+    Err_assert(Message_epush32be(msg, 0x00000800));
     Iface_send(&ctx->outside, msg);
 
     Assert_true(ctx->received == 3);

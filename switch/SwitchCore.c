@@ -83,11 +83,11 @@ static inline Iface_DEFUN sendError(struct SwitchInterface* iface,
 
     // limit of 256 bytes
     if (Message_getLength(cause) > Control_Error_MAX_SIZE) {
-        Er_assert(Message_truncate(cause, Control_Error_MAX_SIZE));
+        Err(Message_truncate(cause, Control_Error_MAX_SIZE));
     }
 
     // Shift back so we can add another header.
-    Er_assert(Message_epush(cause,
+    Err(Message_epush(cause,
                  NULL,
                  SwitchHeader_SIZE + 4 + Control_Header_SIZE + Control_Error_HEADER_SIZE));
     struct ErrorPacket8* err = (struct ErrorPacket8*) Message_bytes(cause);

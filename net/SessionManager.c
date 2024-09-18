@@ -139,9 +139,9 @@ static void sendSession(struct SessionManager_Session_pvt* sess,
 
     struct Allocator* alloc = Allocator_child(sess->alloc);
     Message_t* msg = Message_new(0, PFChan_Node_SIZE + 512, alloc);
-    Er_assert(Message_epush(msg, &session, PFChan_Node_SIZE));
-    Er_assert(Message_epush32be(msg, destPf));
-    Er_assert(Message_epush32be(msg, ev));
+    Err_assert(Message_epush(msg, &session, PFChan_Node_SIZE));
+    Err_assert(Message_epush32be(msg, destPf));
+    Err_assert(Message_epush32be(msg, ev));
     Iface_send(&sess->sessionManager->eventIf, msg);
     Allocator_free(alloc);
 }
@@ -312,21 +312,21 @@ static Iface_DEFUN failedDecrypt(Message_t* msg,
                                  uint64_t label_be,
                                  struct SessionManager_pvt* sm)
 {
-    Er_assert(Message_epush32be(msg, Error_AUTHENTICATION));
-    Er_assert(Message_epush16be(msg, Control_ERROR));
-    Er_assert(Message_epush16be(msg, 0));
+    Err(Message_epush32be(msg, Error_AUTHENTICATION));
+    Err(Message_epush16be(msg, Control_ERROR));
+    Err(Message_epush16be(msg, 0));
     uint16_t csum_be = Checksum_engine_be(Message_bytes(msg), Message_getLength(msg));
-    Er_assert(Message_epop16h(msg));
-    Er_assert(Message_epush16h(msg, csum_be));
+    Err(Message_epop(msg, NULL, 2));
+    Err(Message_epush16h(msg, csum_be));
 
-    Er_assert(Message_epush32be(msg, 0xffffffff));
+    Err(Message_epush32be(msg, 0xffffffff));
 
     struct SwitchHeader sh;
     Bits_memset(&sh, 0, SwitchHeader_SIZE);
     SwitchHeader_setSuppressErrors(&sh, true);
     SwitchHeader_setVersion(&sh, SwitchHeader_CURRENT_VERSION);
     sh.label_be = label_be;
-    Er_assert(Message_epush(msg, &sh, SwitchHeader_SIZE));
+    Err(Message_epush(msg, &sh, SwitchHeader_SIZE));
 
     return Iface_next(&sm->pub.switchIf, msg);
 }
@@ -338,17 +338,18 @@ static Iface_DEFUN postDecryption(Message_t* msg, struct Iface* iface)
 
     // The switch header is pushed as associated data
     uint32_t nonceOrHandle = 0xffffffff;
-    Er_assert(Message_epopAd(msg, &nonceOrHandle, 4));
+    Err(Message_epopAd(msg, &nonceOrHandle, 4));
     struct RouteHeader header = {
         .flags = RouteHeader_flags_INCOMING,
         .version_be = Endian_hostToBigEndian32(session->pub.version),
     };
-    Er_assert(Message_epopAd(msg, &header.sh, SwitchHeader_SIZE));
+    Err(Message_epopAd(msg, &header.sh, SwitchHeader_SIZE));
     Ca_getHerPubKey(session->pub.caSession, header.publicKey);
     Ca_getHerIp6(session->pub.caSession, header.ip6);
     uint64_t label = Endian_bigEndianToHost64(header.sh.label_be);
 
-    enum Ca_DecryptErr ret = Er_assert(Message_epop32h(msg));
+    enum Ca_DecryptErr ret = -1;
+    Err(Message_epop32h(&ret, msg));
     if (ret) {
         // If CryptoAuth fails to decrypt then it gives us:
         // * Ca_DecryptErr - we already popped this
@@ -363,18 +364,18 @@ static Iface_DEFUN postDecryption(Message_t* msg, struct Iface* iface)
         uint64_t label_be = header.sh.label_be;
         // We want to preserve it "as it was" here
         header.sh.label_be = Bits_bitReverse64(header.sh.label_be);
-        Er_assert(Message_epush(msg, &header.sh, SwitchHeader_SIZE));
+        Err(Message_epush(msg, &header.sh, SwitchHeader_SIZE));
         return failedDecrypt(msg, label_be, session->sessionManager);
     }
 
     if (nonceOrHandle <= 3) {
-        session->pub.sendHandle = Er_assert(Message_epop32be(msg));
+        Err(Message_epop32be(&session->pub.sendHandle, msg));
         debugHandlesAndLabel0(
             session->sessionManager->log, session, label, "received start message");
     }
 
     session->pub.bytesIn += Message_getLength(msg);
-    Er_assert(Message_epush(msg, &header, sizeof header));
+    Err(Message_epush(msg, &header, sizeof header));
 
     discoverPath(session, label, Metric_SM_INCOMING);
     return Iface_next(&session->sessionManager->pub.insideIf, msg);
@@ -387,7 +388,7 @@ static Iface_DEFUN afterEncrypt(Message_t* msg, struct Iface* iface)
         Identity_containerOf(iface, struct SessionManager_Session_pvt, ciphertext);
 
     struct RouteHeader header;
-    Er_assert(Message_epopAd(msg, &header, RouteHeader_SIZE));
+    Err(Message_epopAd(msg, &header, RouteHeader_SIZE));
 
     if (Ca_getState(sess->pub.caSession) >= Ca_State_RECEIVED_KEY) {
         if (0) { // Noisy
@@ -396,7 +397,7 @@ static Iface_DEFUN afterEncrypt(Message_t* msg, struct Iface* iface)
                                   Endian_bigEndianToHost64(header.sh.label_be),
                                   "sending run message");
         }
-        Er_assert(Message_epush32be(msg, sess->pub.sendHandle));
+        Err(Message_epush32be(msg, sess->pub.sendHandle));
     } else {
         debugHandlesAndLabel0(sess->sessionManager->log,
                               sess,
@@ -410,7 +411,7 @@ static Iface_DEFUN afterEncrypt(Message_t* msg, struct Iface* iface)
         SwitchHeader_setVersion(&header.sh, SwitchHeader_CURRENT_VERSION);
     }
 
-    Er_assert(Message_epush(msg, &header.sh, SwitchHeader_SIZE));
+    Err_assert(Message_epush(msg, &header.sh, SwitchHeader_SIZE));
 
     return Iface_next(&sess->sessionManager->pub.switchIf, msg);
 }
@@ -476,10 +477,10 @@ static Iface_DEFUN ctrlFrame(Message_t* msg, struct SessionManager_pvt* sm)
 {
     struct RouteHeader rh;
     Bits_memset(&rh, 0, RouteHeader_SIZE);
-    Er_assert(Message_epop(msg, &rh.sh, SwitchHeader_SIZE));
-    Er_assert(Message_epop(msg, NULL, 4));
+    Err(Message_epop(msg, &rh.sh, SwitchHeader_SIZE));
+    Err(Message_epop(msg, NULL, 4));
     rh.flags = RouteHeader_flags_INCOMING | RouteHeader_flags_CTRLMSG;
-    Er_assert(Message_epush(msg, &rh, RouteHeader_SIZE));
+    Err(Message_epush(msg, &rh, RouteHeader_SIZE));
     return Iface_next(&sm->pub.insideIf, msg);
 }
 
@@ -497,7 +498,7 @@ static Iface_DEFUN incomingFromSwitchIf(Message_t* msg, struct Iface* iface)
     }
 
     struct SwitchHeader switchHeader;
-    Er_assert(Message_epop(msg, &switchHeader, SwitchHeader_SIZE));
+    Err(Message_epop(msg, &switchHeader, SwitchHeader_SIZE));
 
     // The label comes in reversed from the switch because the switch doesn't know that we aren't
     // another switch ready to parse more bits, bit reversing the label yields the source address.
@@ -507,7 +508,7 @@ static Iface_DEFUN incomingFromSwitchIf(Message_t* msg, struct Iface* iface)
     struct SessionManager_Session_pvt* session = NULL;
     uint32_t nonceOrHandle = Endian_bigEndianToHost32(((uint32_t*)Message_bytes(msg))[0]);
     if (nonceOrHandle == 0xffffffff) {
-        Er_assert(Message_epush(msg, &switchHeader, SwitchHeader_SIZE));
+        Err(Message_epush(msg, &switchHeader, SwitchHeader_SIZE));
         return ctrlFrame(msg, sm);
     }
 
@@ -524,7 +525,7 @@ static Iface_DEFUN incomingFromSwitchIf(Message_t* msg, struct Iface* iface)
             Log_debug(sm->log, "DROP message with unrecognized handle [%u]", nonceOrHandle);
             return Error(msg, "INVALID");
         }
-        Er_assert(Message_eshift(msg, -4));
+        Err(Message_eshift(msg, -4));
         uint32_t nonce = Endian_bigEndianToHost32(((uint32_t*)Message_bytes(msg))[0]);
         if (nonce < 4) {
             Log_debug(sm->log, "DROP setup message [%u] with specified handle [%u]",
@@ -556,11 +557,11 @@ static Iface_DEFUN incomingFromSwitchIf(Message_t* msg, struct Iface* iface)
         debugHandlesAndLabel(sm->log, session, label, "new session nonce[%d]", nonceOrHandle);
     }
 
-    Er_assert(Message_epushAd(msg, &switchHeader, SwitchHeader_SIZE));
-    Er_assert(Message_epushAd(msg, &nonceOrHandle, 4));
+    Err(Message_epushAd(msg, &switchHeader, SwitchHeader_SIZE));
+    Err(Message_epushAd(msg, &nonceOrHandle, 4));
 
-    Er_assert(Message_epush(msg, &switchHeader.label_be, 8));
-    Er_assert(Message_epush(msg, ADDR_PFX, 8));
+    Err(Message_epush(msg, &switchHeader.label_be, 8));
+    Err(Message_epush(msg, ADDR_PFX, 8));
 
     return Iface_next(&session->ciphertext, msg);
 }
@@ -592,9 +593,9 @@ static void unsetupSession(struct SessionManager_pvt* sm, struct SessionManager_
     n.metric_be = Endian_bigEndianToHost32(sess->pub.paths[0].metric);
     Ca_getHerPubKey(sess->pub.caSession, n.publicKey);
     Ca_getHerIp6(sess->pub.caSession, n.ip6);
-    Er_assert(Message_epush(eventMsg, &n, PFChan_Node_SIZE));
-    Er_assert(Message_epush32be(eventMsg, 0xffffffff));
-    Er_assert(Message_epush32be(eventMsg, PFChan_Core_UNSETUP_SESSION));
+    Err_assert(Message_epush(eventMsg, &n, PFChan_Node_SIZE));
+    Err_assert(Message_epush32be(eventMsg, 0xffffffff));
+    Err_assert(Message_epush32be(eventMsg, PFChan_Core_UNSETUP_SESSION));
     Iface_send(&sm->eventIf, eventMsg);
     Allocator_free(eventAlloc);
 }
@@ -603,11 +604,11 @@ static void triggerSearch(struct SessionManager_pvt* sm, uint8_t target[16], uin
 {
     struct Allocator* eventAlloc = Allocator_child(sm->alloc);
     Message_t* eventMsg = Message_new(0, 512, eventAlloc);
-    Er_assert(Message_epush32be(eventMsg, version));
-    Er_assert(Message_epush32be(eventMsg, 0));
-    Er_assert(Message_epush(eventMsg, target, 16));
-    Er_assert(Message_epush32be(eventMsg, 0xffffffff));
-    Er_assert(Message_epush32be(eventMsg, PFChan_Core_SEARCH_REQ));
+    Err_assert(Message_epush32be(eventMsg, version));
+    Err_assert(Message_epush32be(eventMsg, 0));
+    Err_assert(Message_epush(eventMsg, target, 16));
+    Err_assert(Message_epush32be(eventMsg, 0xffffffff));
+    Err_assert(Message_epush32be(eventMsg, PFChan_Core_SEARCH_REQ));
     Iface_send(&sm->eventIf, eventMsg);
     Allocator_free(eventAlloc);
 }
@@ -722,20 +723,20 @@ static Iface_DEFUN readyToSend(Message_t* msg,
                                struct SessionManager_Session_pvt* sess)
 {
     struct RouteHeader header;
-    Er_assert(Message_epop(msg, &header, RouteHeader_SIZE));
+    Err(Message_epop(msg, &header, RouteHeader_SIZE));
 
     Assert_true(header.sh.label_be != 0xffffffffffffffffull);
 
     Ca_resetIfTimeout(sess->pub.caSession);
     if (Ca_getState(sess->pub.caSession) < Ca_State_RECEIVED_KEY) {
         // Put the handle into the message so that the other end knows how to address the session
-        Er_assert(Message_epush32be(msg, sess->pub.receiveHandle));
+        Err(Message_epush32be(msg, sess->pub.receiveHandle));
     }
 
     sess->pub.bytesOut += Message_getLength(msg);
 
     // Move the route header to additional data
-    Er_assert(Message_epushAd(msg, &header, RouteHeader_SIZE));
+    Err(Message_epushAd(msg, &header, RouteHeader_SIZE));
 
     return Iface_next(&sess->plaintext, msg); // --> afterEncrypt
 }
@@ -754,9 +755,9 @@ static Iface_DEFUN outgoingCtrlFrame(Message_t* msg, struct SessionManager_pvt* 
     }
     struct SwitchHeader sh;
     Bits_memcpy(&sh, &header->sh, SwitchHeader_SIZE);
-    Er_assert(Message_epop(msg, NULL, RouteHeader_SIZE));
-    Er_assert(Message_epush32be(msg, 0xffffffff));
-    Er_assert(Message_epush(msg, &sh, SwitchHeader_SIZE));
+    Err(Message_epop(msg, NULL, RouteHeader_SIZE));
+    Err(Message_epush32be(msg, 0xffffffff));
+    Err(Message_epush(msg, &sh, SwitchHeader_SIZE));
     return Iface_next(&sm->pub.switchIf, msg);
 }
 
@@ -845,8 +846,10 @@ static Iface_DEFUN sessions(struct SessionManager_pvt* sm,
 static Iface_DEFUN incomingFromEventIf(Message_t* msg, struct Iface* iface)
 {
     struct SessionManager_pvt* sm = Identity_containerOf(iface, struct SessionManager_pvt, eventIf);
-    enum PFChan_Pathfinder ev = Er_assert(Message_epop32be(msg));
-    uint32_t sourcePf = Er_assert(Message_epop32be(msg));
+    enum PFChan_Pathfinder ev = 0;
+    Err(Message_epop32be(&ev, msg));
+    uint32_t sourcePf = 0;
+    Err(Message_epop32be(&sourcePf, msg));
     if (ev == PFChan_Pathfinder_SESSIONS) {
         Assert_true(!Message_getLength(msg));
         return sessions(sm, sourcePf, Message_getAlloc(msg));
@@ -854,7 +857,7 @@ static Iface_DEFUN incomingFromEventIf(Message_t* msg, struct Iface* iface)
     Assert_true(ev == PFChan_Pathfinder_NODE);
 
     struct PFChan_Node node;
-    Er_assert(Message_epop(msg, &node, PFChan_Node_SIZE));
+    Err(Message_epop(msg, &node, PFChan_Node_SIZE));
     Assert_true(!Message_getLength(msg));
     int index = Map_BufferedMessages_indexForKey((struct Ip6*)node.ip6, &sm->bufMap);
     struct SessionManager_Session_pvt* sess = sessionForIp6(node.ip6, sm);

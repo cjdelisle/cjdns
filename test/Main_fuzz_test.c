@@ -171,7 +171,7 @@ void CJDNS_FUZZ_MAIN(void* vctx, Message_t* msg)
         .length_be = Endian_hostToBigEndian16(Message_getLength(msg) + Headers_UDPHeader_SIZE),
         .checksum_be = 0,
     };
-    Er_assert(Message_epush(msg, &udp, Headers_UDPHeader_SIZE));
+    Err_assert(Message_epush(msg, &udp, Headers_UDPHeader_SIZE));
     uint8_t srcAndDest[32] = { [31] = 1 };
     // fc00::1
     AddressCalc_makeValidAddress(&srcAndDest[16]);

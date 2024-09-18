@@ -12,10 +12,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#define _POSIX_C_SOURCE 200112L
-
-#include "exception/Er.h"
-#include "util/CString.h"
+#include "exception/Err.h"
+#include "memory/Allocator.h"
 #include "rust/cjdns_sys/Rffi.h"
 
 #include <stdarg.h>
@@ -23,7 +21,7 @@
 #include <stdlib.h>
 
 Gcc_USE_RET
-struct Er_Ret* Er__raise(char* file, int line, struct Allocator* alloc, char* format, ...)
+RTypes_Error_t* Err__raise(char* file, int line, struct Allocator* alloc, char* format, ...)
 {
     va_list args;
     va_start(args, format);
@@ -44,8 +42,7 @@ struct Er_Ret* Er__raise(char* file, int line, struct Allocator* alloc, char* fo
 
         snprintf(buf, len, "%s:%d ", file, line);
         vsnprintf(&buf[written], len - written, format, args);
-        struct Er_Ret* res = Allocator_calloc(alloc, sizeof(struct Er_Ret), 1);
-        res->message = buf;
+        RTypes_Error_t* res = Rffi_error_fl(buf, file, line, alloc);
         va_end(args);
         return res;
     } else {
@@ -57,19 +54,11 @@ struct Er_Ret* Er__raise(char* file, int line, struct Allocator* alloc, char* fo
     exit(100);
 }
 
-void Er__assertFail(struct Er_Ret* er)
+void Err_assertFail(RTypes_Error_t* e)
 {
-    if (!er) { return; }
-    Assert_failure("%s", er->message);
-}
-
-Er_DEFUN(void Er_fromErr(RTypes_Error_t* err)) {
-    if (err) {
-        Allocator_t* alloc = Allocator_new(8192);
-        char* p = Rffi_printError(err, alloc);
-        struct Er_Ret* res = Allocator_calloc(alloc, sizeof(struct Er_Ret), 1);
-        res->message = p;
-        return res;
-    }
-    return NULL;
+    Allocator_t* alloc = Allocator_new(8192);
+    char* p = Rffi_printError(e, alloc);
+    Rffi_panic(p);
+    abort();
+    exit(100);
 }

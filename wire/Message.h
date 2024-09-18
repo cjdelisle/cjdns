@@ -15,7 +15,7 @@
 #ifndef Message_H
 #define Message_H
 
-#include "exception/Er.h"
+#include "exception/Err.h"
 #include "memory/Allocator.h"
 #include "util/Bits.h"
 #include "util/Endian.h"
@@ -75,13 +75,13 @@ static inline int32_t Message_getLength(struct Message* msg)
     return msg->_length;
 }
 
-static inline Er_DEFUN(void Message_truncate(struct Message* msg, int32_t newLen))
+static inline Err_DEFUN Message_truncate(struct Message* msg, int32_t newLen)
 {
     if (newLen > msg->_length) {
-        Er_raise(msg->_alloc, "Message_truncate(%d) message length is %d", newLen, msg->_length);
+        Err_raise(msg->_alloc, "Message_truncate(%d) message length is %d", newLen, msg->_length);
     }
     msg->_length = newLen;
-    Er_ret();
+    return NULL;
 }
 
 static inline int32_t Message_getPadding(struct Message* msg)
@@ -108,25 +108,26 @@ int Message_getAssociatedFd(struct Message* msg);
 
 struct Message* Message_clone(struct Message* toClone, struct Allocator* alloc);
 
-static inline Er_DEFUN(uint8_t* Message_peakBytes(struct Message* msg, int32_t len))
+static inline Err_DEFUN Message_peakBytes(uint8_t** out, struct Message* msg, int32_t len)
 {
     if (len > msg->_length) {
-        Er_raise(msg->_alloc, "peakBytes(%d) too big, message length is %d", len, msg->_length);
+        Err_raise(msg->_alloc, "peakBytes(%d) too big, message length is %d", len, msg->_length);
     }
-    Er_ret(msg->_msgbytes);
+    *out = msg->_msgbytes;
+    return NULL;
 }
 
 /**
  * Pretend to shift the content forward by amount.
  * Really it shifts the bytes value backward.
  */
-static inline Er_DEFUN(void Message_eshift(struct Message* toShift, int32_t amount))
+static inline Err_DEFUN Message_eshift(struct Message* toShift, int32_t amount)
 {
     if (amount > 0 && toShift->_padding < amount) {
-        Er_raise(toShift->_alloc, "buffer overflow adding %d to length %d",
+        Err_raise(toShift->_alloc, "buffer overflow adding %d to length %d",
             amount, toShift->_length);
     } else if (toShift->_length < (-amount)) {
-        Er_raise(toShift->_alloc, "buffer underflow");
+        Err_raise(toShift->_alloc, "buffer underflow");
     }
 
     toShift->_length += amount;
@@ -134,15 +135,15 @@ static inline Er_DEFUN(void Message_eshift(struct Message* toShift, int32_t amou
     toShift->_msgbytes -= amount;
     toShift->_padding -= amount;
 
-    Er_ret();
+    return NULL;
 }
 
-static inline Er_DEFUN(void Message_epushAd(struct Message* restrict msg,
+static inline Err_DEFUN Message_epushAd(struct Message* restrict msg,
                                             const void* restrict object,
-                                            size_t size))
+                                            size_t size)
 {
     if (msg->_padding < (int)size) {
-        Er_raise(msg->_alloc, "not enough padding to push ad");
+        Err_raise(msg->_alloc, "not enough padding to push ad");
     }
     if (object) {
         Bits_memcpy(msg->_ad, object, size);
@@ -152,15 +153,15 @@ static inline Er_DEFUN(void Message_epushAd(struct Message* restrict msg,
     msg->_adLen += size;
     msg->_padding -= size;
     msg->_ad = &msg->_ad[size];
-    Er_ret();
+    return NULL;
 }
 
-static inline Er_DEFUN(void Message_epopAd(struct Message* restrict msg,
+static inline Err_DEFUN Message_epopAd(struct Message* restrict msg,
                                            void* restrict object,
-                                           size_t size))
+                                           size_t size)
 {
     if (msg->_adLen < (int)size) {
-        Er_raise(msg->_alloc, "underflow, cannot pop ad");
+        Err_raise(msg->_alloc, "underflow, cannot pop ad");
     }
     msg->_adLen -= size;
     msg->_padding += size;
@@ -168,70 +169,69 @@ static inline Er_DEFUN(void Message_epopAd(struct Message* restrict msg,
     if (object) {
         Bits_memcpy(object, msg->_ad, size);
     }
-    Er_ret();
+    return NULL;
 }
 
 static inline void Message_reset(struct Message* toShift)
 {
     Assert_true(toShift->_length <= toShift->_capacity);
-    Er_assert(Message_epopAd(toShift, NULL, toShift->_adLen));
+    Err_assert(Message_epopAd(toShift, NULL, toShift->_adLen));
     toShift->_length = toShift->_capacity;
-    Er_assert(Message_eshift(toShift, -toShift->_length));
+    Err_assert(Message_eshift(toShift, -toShift->_length));
 }
 
-static inline Er_DEFUN(void Message_epush(struct Message* restrict msg,
+static inline Err_DEFUN Message_epush(struct Message* restrict msg,
                                           const void* restrict object,
-                                          size_t size))
+                                          size_t size)
 {
-    Er(Message_eshift(msg, (int)size));
+    Err(Message_eshift(msg, (int)size));
     if (object) {
         Bits_memcpy(msg->_msgbytes, object, size);
     } else {
         Bits_memset(msg->_msgbytes, 0x00, size);
     }
-    Er_ret();
+    return NULL;
 }
 
-static inline Er_DEFUN(void Message_epop(struct Message* restrict msg,
+static inline Err_DEFUN Message_epop(struct Message* restrict msg,
                                          void* restrict object,
-                                         size_t size))
+                                         size_t size)
 {
-    Er(Message_eshift(msg, -(int)size));
+    Err(Message_eshift(msg, -(int)size));
     if (object) {
         Bits_memcpy(object, &msg->_msgbytes[-((int)size)], size);
     }
-    Er_ret();
+    return NULL;
 }
 
 #define Message_pushH(size) \
-    static inline Er_DEFUN(void Message_epush ## size ## h                                \
-        (struct Message* msg, uint ## size ## _t dat))                                    \
+    static inline Err_DEFUN Message_epush ## size ## h                                \
+        (struct Message* msg, uint ## size ## _t dat)                                    \
     {                                                                                     \
-        Er(Message_epush(msg, &dat, (size)/8));                                           \
-        Er_ret(); \
+        Err(Message_epush(msg, &dat, (size)/8));                                           \
+        return NULL; \
     }
 #define Message_popH(size) \
-    static inline Er_DEFUN(uint ## size ## _t Message_epop ## size ## h(struct Message* msg))     \
+    static inline Err_DEFUN Message_epop ## size ## h(uint ## size ## _t* out, struct Message* msg)     \
     {                                                                                             \
-        uint ## size ## _t out;                                                                   \
-        Er(Message_epop(msg, &out, (size)/8));                                                    \
-        Er_ret(out); \
+        Err(Message_epop(msg, out, (size)/8));                                                    \
+        return NULL; \
     }
 
 #define Message_popBE(size) \
-    static inline Er_DEFUN(uint ## size ## _t Message_epop ## size ## be(struct Message* msg)) \
+    static inline Err_DEFUN Message_epop ## size ## be(uint ## size ## _t* out, struct Message* msg) \
     {                                                                                             \
-        uint ## size ## _t out = Er(Message_epop ## size ## h(msg));                              \
-        uint ## size ## _t out1 = Endian_bigEndianToHost ## size (out);                           \
-        Er_ret(out1);                                                                             \
+        Err(Message_epop ## size ## h(out, msg));                              \
+        *out = Endian_bigEndianToHost ## size (*out);                           \
+        return NULL;                                                                             \
     }
 
 #define Message_popLE(size) \
-    static inline Er_DEFUN(uint ## size ## _t Message_epop ## size ## le(struct Message* msg)) \
+    static inline Err_DEFUN Message_epop ## size ## le(uint ## size ## _t* out, struct Message* msg) \
     {                                                                                             \
-        uint ## size ## _t out = Er(Message_epop ## size ## h(msg));                              \
-        uint ## size ## _t out1 = Endian_littleEndianToHost ## size (out);                        \
-        Er_ret(out1);                                                                             \
+        Err(Message_epop ## size ## h(out, msg));                              \
+        *out = Endian_littleEndianToHost ## size (*out);                        \
+        return NULL;                                                                             \
     }
 
 #define Message_pushPop(size) \

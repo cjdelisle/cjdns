@@ -149,7 +149,7 @@ static void readCallbackB(struct TAPInterface_pvt* tap)
     if (!GetOverlappedResult(tap->handle, readol, &bytesRead, FALSE)) {
         Assert_failure("GetOverlappedResult(read, tap): %s\n", WinEr_strerror(GetLastError()));
     }
-    Er_assert(Message_truncate(msg, bytesRead));
+    Err_assert(Message_truncate(msg, bytesRead));
     Log_debug(tap->log, "Read [%d] bytes", Message_getLength(msg));
     Iface_send(&tap->pub.generic, msg);
     Allocator_free(Message_getAlloc(msg));

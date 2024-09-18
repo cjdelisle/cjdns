@@ -21,23 +21,23 @@
 
 #include <stdbool.h>
 
-Er_DEFUN(void Base10_write(Message_t* msg, int64_t num))
+Err_DEFUN Base10_write(Message_t* msg, int64_t num)
 {
     bool negative = num < 0;
     if (negative) {
         num = -num;
     } else if (num == 0) {
-        Er(Message_epush8(msg, '0'));
-        Er_ret();
+        Err(Message_epush8(msg, '0'));
+        return NULL;
     }
     while (num > 0) {
-        Er(Message_epush8(msg, '0' + (num % 10)));
+        Err(Message_epush8(msg, '0' + (num % 10)));
         num /= 10;
     }
     if (negative) {
-        Er(Message_epush8(msg, '-'));
+        Err(Message_epush8(msg, '-'));
     }
-    Er_ret();
+    return NULL;
 }
 
 Er_DEFUN(int64_t Base10_read(Message_t* msg))
@@ -49,7 +49,7 @@ Er_DEFUN(int64_t Base10_read(Message_t* msg))
     if (out != 0) {
         Er_raise(Message_getAlloc(msg), "Error reading base10: %d", out);
     }
-    Er(Message_eshift(msg, -bytes));
+    Er(Er_fromErr(Message_eshift(msg, -bytes)));
     Er_ret(numOut);
 }
 

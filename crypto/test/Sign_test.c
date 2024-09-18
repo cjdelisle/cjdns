@@ -35,7 +35,7 @@ int main()
     uint8_t signingKeyPair[64];
     Sign_signingKeyPairFromCurve25519(signingKeyPair, curve25519private);
     Message_t* msg = Message_new(0, 512, alloc);
-    Er_assert(Message_epush(msg, "hello world", 12));
+    Err_assert(Message_epush(msg, "hello world", 12));
     Sign_signMsg(signingKeyPair, msg, rand);
 
     uint8_t curve25519publicB[32];

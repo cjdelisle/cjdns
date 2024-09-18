@@ -89,9 +89,9 @@ static Iface_DEFUN sendToPathfinder(Message_t* msg, struct Pathfinder* pf)
     if (!pf || pf->state != Pathfinder_state_CONNECTED) { return NULL; }
     if (pf->bytesSinceLastPing < 8192 && pf->bytesSinceLastPing + Message_getLength(msg) >= 8192) {
         Message_t* ping = Message_new(0, 512, Message_getAlloc(msg));
-        Er_assert(Message_epush32be(ping, pf->bytesSinceLastPing));
-        Er_assert(Message_epush32be(ping, PING_MAGIC));
-        Er_assert(Message_epush32be(ping, PFChan_Core_PING));
+        Err(Message_epush32be(ping, pf->bytesSinceLastPing));
+        Err(Message_epush32be(ping, PING_MAGIC));
+        Err(Message_epush32be(ping, PFChan_Core_PING));
         Iface_send(&pf->iface, ping);
     }
     pf->bytesSinceLastPing += Message_getLength(msg);
@@ -179,10 +179,12 @@ static Iface_DEFUN incomingFromCore(Message_t* msg, struct Iface* trickIf)
 {
     struct EventEmitter_pvt* ee = Identity_containerOf(trickIf, struct EventEmitter_pvt, trickIf);
     Assert_true(!((uintptr_t)Message_bytes(msg) % 4) && "alignment");
-    enum PFChan_Core ev = Er_assert(Message_epop32be(msg));
+    enum PFChan_Core ev = -1;
+    Err(Message_epop32be(&ev, msg));
     Assert_true(PFChan_Core_sizeOk(ev, Message_getLength(msg)+4));
-    uint32_t pathfinderNum = Er_assert(Message_epop32be(msg));
-    Er_assert(Message_epush32be(msg, ev));
+    uint32_t pathfinderNum = 0;
+    Err(Message_epop32be(&pathfinderNum, msg));
+    Err(Message_epush32be(msg, ev));
     if (pathfinderNum != 0xffffffff) {
         struct Pathfinder* pf = ArrayList_Pathfinders_get(ee->pathfinders, pathfinderNum);
         Assert_true(pf && pf->state == Pathfinder_state_CONNECTED);
@@ -207,8 +209,8 @@ static Message_t* pathfinderMsg(enum PFChan_Core ev,
     pathfinder->superiority_be = Endian_hostToBigEndian32(pf->superiority);
     pathfinder->pathfinderId_be = Endian_hostToBigEndian32(pf->pathfinderId);
     Bits_memcpy(pathfinder->userAgent, pf->userAgent, 64);
-    Er_assert(Message_epush32be(msg, 0xffffffff));
-    Er_assert(Message_epush32be(msg, ev));
+    Err_assert(Message_epush32be(msg, 0xffffffff));
+    Err_assert(Message_epush32be(msg, ev));
     return msg;
 }
 
@@ -222,8 +224,8 @@ static int handleFromPathfinder(enum PFChan_Pathfinder ev,
 
         case PFChan_Pathfinder_CONNECT: {
             struct PFChan_Pathfinder_Connect connect;
-            Er_assert(Message_eshift(msg, -8));
-            Er_assert(Message_epop(msg, &connect, PFChan_Pathfinder_Connect_SIZE));
+            Err_assert(Message_eshift(msg, -8));
+            Err_assert(Message_epop(msg, &connect, PFChan_Pathfinder_Connect_SIZE));
             pf->superiority = Endian_bigEndianToHost32(connect.superiority_be);
             pf->version = Endian_bigEndianToHost32(connect.version_be);
             Bits_memcpy(pf->userAgent, connect.userAgent, 64);
@@ -233,15 +235,15 @@ static int handleFromPathfinder(enum PFChan_Pathfinder ev,
             resp.version_be = Endian_bigEndianToHost32(Version_CURRENT_PROTOCOL);
             resp.pathfinderId_be = Endian_hostToBigEndian32(pf->pathfinderId);
             Bits_memcpy(resp.publicKey, ee->publicKey, 32);
-            Er_assert(Message_epush(msg, &resp, PFChan_Core_Connect_SIZE));
-            Er_assert(Message_epush32be(msg, PFChan_Core_CONNECT));
+            Err_assert(Message_epush(msg, &resp, PFChan_Core_Connect_SIZE));
+            Err_assert(Message_epush32be(msg, PFChan_Core_CONNECT));
             Message_t* sendMsg = Message_clone(msg, Message_getAlloc(msg));
             Iface_CALL(sendToPathfinder, sendMsg, pf);
             break;
         }
         case PFChan_Pathfinder_SUPERIORITY: {
-            Er_assert(Message_eshift(msg, -8));
-            pf->superiority = Er_assert(Message_epop32be(msg));
+            Err_assert(Message_eshift(msg, -8));
+            Err_assert(Message_epop32be(&pf->superiority, msg));
             Message_t* resp = pathfinderMsg(PFChan_Core_PATHFINDER, pf, Message_getAlloc(msg));
             Iface_CALL(incomingFromCore, resp, &ee->trickIf);
             break;
@@ -253,9 +255,11 @@ static int handleFromPathfinder(enum PFChan_Pathfinder ev,
             break;
         }
         case PFChan_Pathfinder_PONG: {
-            Er_assert(Message_eshift(msg, -8));
-            uint32_t cookie = Er_assert(Message_epop32be(msg));
-            uint32_t count = Er_assert(Message_epop32be(msg));
+            Err_assert(Message_eshift(msg, -8));
+            uint32_t cookie = 0;
+            Err_assert(Message_epop32be(&cookie, msg));
+            uint32_t count = 0;
+            Err_assert(Message_epop32be(&count, msg));
             if (cookie != PING_MAGIC || count > pf->bytesSinceLastPing) {
                 pf->state = Pathfinder_state_ERROR;
                 Message_t* resp = pathfinderMsg(PFChan_Core_PATHFINDER_GONE, pf, Message_getAlloc(msg));
@@ -288,9 +292,10 @@ static Iface_DEFUN incomingFromPathfinder(Message_t* msg, struct Iface* iface)
         Log_debug(ee->log, "DROPPF runt");
         return Error(msg, "RUNT");
     }
-    enum PFChan_Pathfinder ev = Er_assert(Message_epop32be(msg));
-    Er_assert(Message_epush32be(msg, pf->pathfinderId));
-    Er_assert(Message_epush32be(msg, ev));
+    enum PFChan_Pathfinder ev = 0;
+    Err(Message_epop32be(&ev, msg));
+    Err(Message_epush32be(msg, pf->pathfinderId));
+    Err(Message_epush32be(msg, ev));
     if (ev <= PFChan_Pathfinder__TOO_LOW || ev >= PFChan_Pathfinder__TOO_HIGH) {
         Log_debug(ee->log, "DROPPF invalid type [%d]", ev);
         return Error(msg, "INVALID");

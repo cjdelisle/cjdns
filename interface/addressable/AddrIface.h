@@ -42,15 +42,16 @@ typedef struct AddrIface
 
 static inline Er_DEFUN(void AddrIface_pushAddr(Message_t* msg, const struct Sockaddr* addr))
 {
-    Er(Message_epush(msg, addr, addr->addrLen));
+    Er(Er_fromErr(Message_epush(msg, addr, addr->addrLen)));
     Er_ret();
 }
 
 static inline Er_DEFUN(struct Sockaddr* AddrIface_popAddr(Message_t* msg))
 {
     struct Sockaddr* out = (struct Sockaddr*) Message_bytes(msg);
-    uint16_t len = Er(Message_epop16h(msg));
-    Er(Message_epop(msg, NULL, len - 2));
+    uint16_t len = 0;
+    Er(Er_fromErr(Message_epop16h(&len, msg)));
+    Er(Er_fromErr(Message_epop(msg, NULL, len - 2)));
     Er_ret(out);
 }
 

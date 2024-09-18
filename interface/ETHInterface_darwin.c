@@ -79,7 +79,7 @@ static Iface_DEFUN sendMessage(Message_t* msg, struct Iface* iface)
     Assert_true(sa->addrLen <= ETHInterface_Sockaddr_SIZE);
 
     struct ETHInterface_Sockaddr sockaddr = { .generic = { .addrLen = 0 } };
-    Er_assert(Message_epop(msg, &sockaddr, sa->addrLen));
+    Err(Message_epop(msg, &sockaddr, sa->addrLen));
 
     struct ETHInterface_Header hdr = {
         .version = ETHInterface_CURRENT_VERSION,
@@ -87,7 +87,7 @@ static Iface_DEFUN sendMessage(Message_t* msg, struct Iface* iface)
         .length_be = Endian_hostToBigEndian16(Message_getLength(msg) + ETHInterface_Header_SIZE),
         .fc00_be = Endian_hostToBigEndian16(0xfc00)
     };
-    Er_assert(Message_epush(msg, &hdr, ETHInterface_Header_SIZE));
+    Err(Message_epush(msg, &hdr, ETHInterface_Header_SIZE));
 
     struct ethernet_frame ethFr = {
         .type = Ethernet_TYPE_CJDNS
@@ -98,14 +98,14 @@ static Iface_DEFUN sendMessage(Message_t* msg, struct Iface* iface)
         Bits_memcpy(ethFr.dest, sockaddr.mac, 6);
     }
     Bits_memcpy(ethFr.src, ctx->myMac, 6);
-    Er_assert(Message_epush(msg, &ethFr, ethernet_frame_SIZE));
+    Err(Message_epush(msg, &ethFr, ethernet_frame_SIZE));
   /*
     struct bpf_hdr bpfPkt = {
         .bh_caplen = Message_getLength(msg),
         .bh_datalen = Message_getLength(msg),
         .bh_hdrlen = BPF_WORDALIGN(sizeof(struct bpf_hdr))
     };
-    Er_assert(Message_epush(msg, &bpfPkt, bpfPkt.bh_hdrlen));
+    Err(Message_epush(msg, &bpfPkt, bpfPkt.bh_hdrlen));
 */
     if (Message_getLength(msg) != write(ctx->socket, Message_bytes(msg), Message_getLength(msg))) {
         Log_debug(ctx->logger, "Error writing to eth device [%s]", strerror(errno));
@@ -146,7 +146,7 @@ static void handleEvent2(struct ETHInterface_pvt* context,
             Log_debug(context->logger, "DROP size field is larger than frame");
             return;
         }
-        Er_assert(Message_truncate(msg, reportedLength));
+        Err_assert(Message_truncate(msg, reportedLength));
     }
     if (hdr.fc00_be != Endian_hostToBigEndian16(0xfc00)) {
         Log_debug(context->logger, "DROP bad magic");
@@ -160,7 +160,7 @@ static void handleEvent2(struct ETHInterface_pvt* context,
         sockaddr.generic.flags |= Sockaddr_flags_BCAST;
     }
 
-    Er_assert(Message_epush(msg, &sockaddr, ETHInterface_Sockaddr_SIZE));
+    Err_assert(Message_epush(msg, &sockaddr, ETHInterface_Sockaddr_SIZE));
 
     Assert_true(!((uintptr_t)Message_bytes(msg) % 4) && "Alignment fault");
 

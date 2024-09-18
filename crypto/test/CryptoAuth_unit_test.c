@@ -92,7 +92,7 @@ static void testHello(uint8_t* password, uint8_t* expectedOutput, enum TestCa_Co
     struct Allocator* alloc = Allocator_new(1<<20);
     struct Context* ctx = setUp(NULL, HERPUBKEY, password, alloc, cfg);
     Message_t* msg = Message_new(0, CryptoHeader_SIZE + 32, alloc);
-    Er_assert(Message_epush(msg, HELLOWORLD, HELLOWORLDLEN));
+    Err_assert(Message_epush(msg, HELLOWORLD, HELLOWORLDLEN));
 
     Iface_send(&ctx->plaintext, msg);
 
@@ -139,10 +139,11 @@ static void receiveHelloWithNoAuth(enum TestCa_Config cfg)
         "6a4d8c53aeaa5a22ea9cf275eee0185edf7f211192f12e8e642a325ed76925fe"
         "3c76d313b767a10aca584ca0b979dee990a737da7d68366fa3846d43d541de91"
         "29ea3e12", 132*2) > 0);
-    Er_assert(Message_epush(msg, NULL, 16)); // peer ipv6
+    Err_assert(Message_epush(msg, NULL, 16)); // peer ipv6
 
     Iface_send(&ctx->ciphertext, msg);
-    uint32_t err = Er_assert(Message_epop32h(msg));
+    uint32_t err = 0;
+    Err_assert(Message_epop32h(&err, msg));
     Assert_true(!err);
 
     Assert_true(Message_getLength(msg) == HELLOWORLDLEN);
@@ -163,12 +164,12 @@ static void repeatHello(enum TestCa_Config cfg)
     struct Allocator* alloc = Allocator_new(1<<20);
     struct Context* ctx = setUp(NULL, HERPUBKEY, "password", alloc, cfg);
     Message_t* msg = Message_new(0, CryptoHeader_SIZE + HELLOWORLDLEN + 32, alloc);
-    Er_assert(Message_epush(msg, HELLOWORLD, HELLOWORLDLEN));
+    Err_assert(Message_epush(msg, HELLOWORLD, HELLOWORLDLEN));
 
     Iface_send(&ctx->plaintext, msg);
 
     Message_reset(msg);
-    Er_assert(Message_epush(msg, HELLOWORLD, HELLOWORLDLEN));
+    Err_assert(Message_epush(msg, HELLOWORLD, HELLOWORLDLEN));
 
     Iface_send(&ctx->plaintext, msg);
 

@@ -47,9 +47,11 @@ void CJDNS_FUZZ_MAIN(void* vctx, Message_t* fuzz)
 {
     struct Context* ctx = Identity_check((struct Context*) vctx);
     if (Message_getLength(fuzz) <= 2) { return; }
-    ctx->messageLen = Er_assert(Message_epop16be(fuzz)) % BUF_SZ;
-    Er_assert(Message_truncate(ctx->buf, ctx->messageLen));
-    Er_assert(Message_epush32be(ctx->buf, ctx->messageLen));
+    uint16_t len16 = 0;
+    Err_assert(Message_epop16be(&len16, fuzz));
+    ctx->messageLen = len16 % BUF_SZ;
+    Err_assert(Message_truncate(ctx->buf, ctx->messageLen));
+    Err_assert(Message_epush32be(ctx->buf, ctx->messageLen));
     for (int i = 0; ; i++) {
         uint8_t len = Message_bytes(fuzz)[i % Message_getLength(fuzz)] + 1;
         if (len > Message_getLength(ctx->buf)) {
@@ -57,7 +59,7 @@ void CJDNS_FUZZ_MAIN(void* vctx, Message_t* fuzz)
         }
         struct Allocator* a = Allocator_child(ctx->alloc);
         Message_t* m = Message_new(len, 0, a);
-        Er_assert(Message_epop(ctx->buf, Message_bytes(m), len));
+        Err_assert(Message_epop(ctx->buf, Message_bytes(m), len));
         Iface_send(&ctx->outer, m);
         Allocator_free(a);
         if (ctx->success) {

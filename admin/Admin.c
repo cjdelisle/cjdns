@@ -18,7 +18,10 @@
 #include "benc/Dict.h"
 #include "benc/serialization/standard/BencMessageWriter.h"
 #include "benc/serialization/standard/BencMessageReader.h"
+#include "exception/Err.h"
 #include "memory/Allocator.h"
+#include "rust/cjdns_sys/RTypes.h"
+#include "rust/cjdns_sys/Rffi.h"
 #include "util/Assert.h"
 #include "util/Bits.h"
 #include "util/Hex.h"
@@ -113,25 +116,25 @@ struct Admin_pvt
     Identity
 };
 
-static struct RTypes_Error_t* sendMessage(
+static Err_DEFUN sendMessage(
     Message_t* message, struct Sockaddr* dest, struct Admin_pvt* admin)
 {
     // stack overflow when used with admin logger.
     //Log_keys(admin->logger, "sending message to angel [%s]", message->bytes);
-    Er_assert(Message_epush(message, dest, dest->addrLen));
+    Err(Message_epush(message, dest, dest->addrLen));
     return Iface_send(&admin->iface, message);
 }
 
-static struct RTypes_Error_t* sendBenc(Dict* message,
+static Err_DEFUN sendBenc(Dict* message,
                                struct Sockaddr* dest,
                                struct Allocator* alloc,
                                struct Admin_pvt* admin,
                                int fd)
 {
     Message_reset(admin->tempSendMsg);
-    Er_assert(BencMessageWriter_write(message, admin->tempSendMsg));
+    Err(BencMessageWriter_write1(message, admin->tempSendMsg));
     Message_t* msg = Message_new(0, Message_getLength(admin->tempSendMsg) + 32, alloc);
-    Er_assert(Message_epush(msg, Message_bytes(admin->tempSendMsg), Message_getLength(admin->tempSendMsg)));
+    Err(Message_epush(msg, Message_bytes(admin->tempSendMsg), Message_getLength(admin->tempSendMsg)));
     Message_setAssociatedFd(msg, fd);
     return sendMessage(msg, dest, admin);
 }
@@ -193,6 +196,7 @@ static int sendMessage0(Dict* message, String* txid, struct Admin* adminPub, int
         int index = Map_LastMessageTimeByAddr_indexForKey(&addr, &admin->map);
         uint64_t now = Time_currentTimeMilliseconds();
         if (index < 0 || checkAddress(admin, index, now)) {
+            Allocator_free(alloc);
             return Admin_sendMessage_CHANNEL_CLOSED;
         }
     }
@@ -204,7 +208,10 @@ static int sendMessage0(Dict* message, String* txid, struct Admin* adminPub, int
         Dict_putString(message, TXID, userTxid, alloc);
     }
 
-    sendBenc(message, addr, alloc, admin, fd);
+    RTypes_Error_t* err = sendBenc(message, addr, alloc, admin, fd);
+    if (err) {
+        Log_warn(admin->logger, "Error sending benc: %s", Rffi_printError(err, alloc));
+    }
 
     Dict_remove(message, TXID);
 
@@ -318,7 +325,7 @@ static void availableFunctions(Dict* args, void* vAdmin, String* txid, struct Al
     Admin_sendMessage(d, txid, &admin->pub);
 }
 
-static void handleRequest(Dict* messageDict,
+static Err_DEFUN handleRequest(Dict* messageDict,
                           Message_t* message,
                           struct Sockaddr* src,
                           struct Allocator* allocator,
@@ -327,7 +334,7 @@ static void handleRequest(Dict* messageDict,
     String* query = Dict_getStringC(messageDict, "q");
     if (!query) {
         Log_info(admin->logger, "Got a non-query from admin interface");
-        return;
+        return NULL;
     }
 
     // txid becomes the user supplied txid combined with the channel num.
@@ -349,7 +356,7 @@ static void handleRequest(Dict* messageDict,
         String* theCookie = &(String) { .len = CString_strlen(bytes), .bytes = bytes };
         Dict_putString(d, cookie, theCookie, allocator);
         Admin_sendMessage(d, txid, &admin->pub);
-        return;
+        return NULL;
     }
 
     // If this is a permitted query, make sure the cookie is right.
@@ -360,7 +367,7 @@ static void handleRequest(Dict* messageDict,
             Dict* d = Dict_new(allocator);
             Dict_putStringCC(d, "error", "Auth failed.", allocator);
             Admin_sendMessage(d, txid, &admin->pub);
-            return;
+            return NULL;
         }
         query = Dict_getStringC(messageDict, "aq");
         authed = true;
@@ -412,10 +419,10 @@ static void handleRequest(Dict* messageDict,
         Admin_sendMessage(&d, txid, &admin->pub);
     }
 
-    return;
+    return NULL;
 }
 
-static void handleMessage(Message_t* message,
+static Err_DEFUN handleMessage(Message_t* message,
                           struct Sockaddr* src,
                           struct Allocator* alloc,
                           struct Admin_pvt* admin)
@@ -433,9 +440,8 @@ static void handleMessage(Message_t* message,
         #define TOO_BIG "d5:error16:Request too big.e"
         #define TOO_BIG_STRLEN (sizeof(TOO_BIG) - 1)
         Bits_memcpy(Message_bytes(message), TOO_BIG, TOO_BIG_STRLEN);
-        Er_assert(Message_truncate(message, TOO_BIG_STRLEN));
-        sendMessage(message, src, admin);
-        return;
+        Err(Message_truncate(message, TOO_BIG_STRLEN));
+        return sendMessage(message, src, admin);
     }
 
     int origMessageLen = Message_getLength(message);
@@ -447,20 +453,20 @@ static void handleMessage(Message_t* message,
                  Sockaddr_print(src, alloc),
                  Hex_print(Message_bytes(message), Message_getLength(message), alloc),
                  err);
-        return;
+        return NULL;
     }
 
     if (Message_getLength(message)) {
         Log_warn(admin->logger,
                  "Message from [%s] contained garbage after byte [%d] content: [%s]",
                  Sockaddr_print(src, alloc), Message_getLength(message), Message_bytes(message));
-        return;
+        return NULL;
     }
 
     // put the data back in the front of the message because it is used by the auth checker.
-    Er_assert(Message_eshift(message, origMessageLen));
+    Err(Message_eshift(message, origMessageLen));
 
-    handleRequest(messageDict, message, src, alloc, admin);
+    return handleRequest(messageDict, message, src, alloc, admin);
 }
 
 static Iface_DEFUN receiveMessage(Message_t* message, struct Iface* iface)
@@ -470,13 +476,10 @@ static Iface_DEFUN receiveMessage(Message_t* message, struct Iface* iface)
     struct Sockaddr* addrPtr = Er_assert(AddrIface_popAddr(message));
 
     admin->currentRequest = message;
-    handleMessage(message, Sockaddr_clone(addrPtr, alloc), alloc, admin);
-
+    RTypes_Error_t* err = handleMessage(message, Sockaddr_clone(addrPtr, alloc), alloc, admin);
     admin->currentRequest = NULL;
     Allocator_free(alloc);
-    // We don't return errors here because the caller can't make use of them
-    // instead we reply with anything which went wrong.
-    return NULL;
+    return err;
 }
 
 void Admin_registerFunctionWithArgCount(char* name,

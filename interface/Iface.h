@@ -17,6 +17,7 @@
 
 #include <stdint.h>
 
+#include "exception/Err.h"
 #include "rust/cjdns_sys/RTypes.h"
 #include "wire/Message.h"
 #include "util/Defined.h"
@@ -32,7 +33,7 @@ struct Iface;
  */
 typedef struct RTypes_Error_t* (* Iface_Callback)(Message_t* message, struct Iface* thisInterface);
 
-#define Iface_DEFUN __attribute__ ((warn_unused_result)) struct RTypes_Error_t*
+#define Iface_DEFUN Err_DEFUN
 
 struct Iface
 {

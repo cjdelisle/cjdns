@@ -60,7 +60,7 @@ static void onConnectionParent(void* context, const struct Sockaddr* addr)
     struct Context* c = Identity_check((struct Context*) context);
     struct Allocator* alloc = Allocator_child(c->alloc);
     Message_t* msg = Message_new(0, 256, alloc);
-    Er_assert(Message_epush(msg, MESSAGE, CString_strlen(MESSAGE) + 1));
+    Err_assert(Message_epush(msg, MESSAGE, CString_strlen(MESSAGE) + 1));
     Er_assert(AddrIface_pushAddr(msg, addr));
     if (!Defined(win32)) {
         Message_setAssociatedFd(msg, c->fd);
@@ -130,8 +130,8 @@ static Iface_DEFUN receiveMessageChild(Message_t* msg, struct Iface* iface)
         }
     }
 
-    Er_assert(Message_eshift(m, -((int)CString_strlen(MESSAGE))));
-    Er_assert(Message_epush(m, MESSAGEB, CString_strlen(MESSAGEB)));
+    Err_assert(Message_eshift(m, -((int)CString_strlen(MESSAGE))));
+    Err_assert(Message_epush(m, MESSAGEB, CString_strlen(MESSAGEB)));
 
     Allocator_onFree(alloc1, childDone, c);
 

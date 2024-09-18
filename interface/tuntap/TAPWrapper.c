@@ -40,10 +40,10 @@ static Iface_DEFUN receiveMessage(Message_t* msg, struct Iface* external)
     }
 
     // wacky 14 byte headers, back off into outer-space to create the padding...
-    Er_assert(Message_eshift(msg, 2));
+    Err(Message_eshift(msg, 2));
 
     struct Ethernet eth;
-    Er_assert(Message_epop(msg, &eth, sizeof(struct Ethernet)));
+    Err(Message_epop(msg, &eth, sizeof(struct Ethernet)));
 
     // Not for us and not multicast...
     if (Bits_memcmp(eth.destAddr, TAPWrapper_LOCAL_MAC, Ethernet_ADDRLEN)
@@ -86,10 +86,10 @@ static Iface_DEFUN sendMessage(Message_t* msg, struct Iface* internal)
         return Error(msg, "INVALID");
     }
 
-    Er_assert(Message_epush(msg, &eth, sizeof(struct Ethernet)));
+    Err(Message_epush(msg, &eth, sizeof(struct Ethernet)));
 
     // struct Ethernet contains 2 bytes of padding at the beginning.
-    Er_assert(Message_eshift(msg, -2));
+    Err(Message_eshift(msg, -2));
 
     return Iface_next(&tw->external, msg);
 }

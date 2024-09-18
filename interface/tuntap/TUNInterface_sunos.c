@@ -67,7 +67,7 @@ static Iface_DEFUN incomingFromWire(Message_t* message, struct Iface* externalIf
         return 0;
     }
 
-    Er_assert(Message_eshift(message, 4));
+    Err(Message_eshift(message, 4));
     ((uint16_t*) Message_bytes(message))[0] = 0;
     ((uint16_t*) Message_bytes(message))[1] = ethertypeForPacketType(Message_bytes(message)[4]);
 
@@ -79,7 +79,7 @@ static Iface_DEFUN incomingFromUs(Message_t* message, struct Iface* internalIf)
     struct TUNInterface_Illumos_pvt* ctx =
         Identity_containerOf(internalIf, struct TUNInterface_Illumos_pvt, internalIf);
 
-    Er_assert(Message_eshift(message, -4));
+    Err(Message_eshift(message, -4));
     uint16_t ethertype = ((uint16_t*) Message_bytes(message))[-1];
     if (ethertype != Ethernet_TYPE_IP6 && ethertype != Ethernet_TYPE_IP4) {
         Assert_true(!"Unsupported ethertype");

@@ -109,9 +109,9 @@ static void hashMsgList(struct ArrayList_OfMessages* msgList, uint8_t out[64])
     uint8_t hash[64] = {0};
     for (int i = 0; i < msgList->length; i++) {
         Message_t* msg = ArrayList_OfMessages_get(msgList, i);
-        Er_assert(Message_epush(msg, hash, 64));
+        Err_assert(Message_epush(msg, hash, 64));
         crypto_hash_sha512(hash, Message_bytes(msg), Message_getLength(msg));
-        Er_assert(Message_epop(msg, NULL, 64));
+        Err_assert(Message_epop(msg, NULL, 64));
     }
     Bits_memcpy(out, hash, 64);
 }
@@ -292,7 +292,7 @@ static bool pushLinkState(struct ReachabilityAnnouncer_pvt* rap,
                 Address_toString(&pi->addr, Message_getAlloc(msg))->bytes);
         }
         if (Message_getLength(msg) > MSG_SIZE_LIMIT) {
-            Er_assert(Message_epop(msg, NULL, Message_getLength(msg) - lastLen));
+            Err_assert(Message_epop(msg, NULL, Message_getLength(msg) - lastLen));
             Log_debug(rap->log, "Couldn't add link state for [%s] (out of space)",
                 Address_toString(&pi->addr, Message_getAlloc(msg))->bytes);
             return true;
@@ -357,10 +357,10 @@ static int updateItem(struct ReachabilityAnnouncer_pvt* rap,
         return updateItem_ENOSPACE;
     }
 
-    Er_assert(Message_epush(msg, refItem, refItem->length));
+    Err_assert(Message_epush(msg, refItem, refItem->length));
     while ((uintptr_t)Message_bytes(msg) % 4) {
         // Ensure alignment
-        Er_assert(Message_epush8(msg, 1));
+        Err_assert(Message_epush8(msg, 1));
     }
     return (item) ? updateItem_UPDATE : updateItem_ADD;
 }
@@ -684,7 +684,7 @@ static void onAnnounceCycle(void* vRap)
         if (rap->timeBetweenAnns < 500) { rap->timeBetweenAnns = 500; }
     } while (0);
 
-    Er_assert(Message_epush(msg, NULL, Announce_Header_SIZE));
+    Err_assert(Message_epush(msg, NULL, Announce_Header_SIZE));
 
     struct Announce_Header* hdr = (struct Announce_Header*) Message_bytes(msg);
     Bits_memset(hdr, 0, Announce_Header_SIZE);
@@ -694,7 +694,7 @@ static void onAnnounceCycle(void* vRap)
     Announce_Header_setTimestamp(hdr, snNow);
     Bits_memcpy(hdr->pubSigningKey, rap->pubSigningKey, 32);
     Bits_memcpy(hdr->snodeIp, rap->snode.ip6.bytes, 16);
-    Er_assert(Message_epop(msg, NULL, 64));
+    Err_assert(Message_epop(msg, NULL, 64));
     Sign_signMsg(rap->signingKeypair, msg, rap->rand);
 
     Dict* dict = qp->msg = Dict_new(qp->alloc);
@@ -768,9 +768,9 @@ static struct Announce_ItemHeader* mkEncodingSchemeItem(
     Message_t* esMsg = Message_new(0, 256, tmpAlloc);
 
     Assert_true(compressedScheme->len + 2 < 256);
-    Er_assert(Message_epush(esMsg, compressedScheme->bytes, compressedScheme->len));
-    Er_assert(Message_epush8(esMsg, Announce_Type_ENCODING_SCHEME));
-    Er_assert(Message_epush8(esMsg, compressedScheme->len + 2));
+    Err_assert(Message_epush(esMsg, compressedScheme->bytes, compressedScheme->len));
+    Err_assert(Message_epush8(esMsg, Announce_Type_ENCODING_SCHEME));
+    Err_assert(Message_epush8(esMsg, compressedScheme->len + 2));
 
     struct Announce_ItemHeader* item = Allocator_calloc(alloc, Message_getLength(esMsg), 1);
     Bits_memcpy(item, Message_bytes(esMsg), Message_getLength(esMsg));

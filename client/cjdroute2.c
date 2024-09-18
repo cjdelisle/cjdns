@@ -559,7 +559,7 @@ static Message_t* readToMsg(FILE* f, struct Allocator* alloc)
     } while (c->length == Chunk_MAX_LEN);
     Message_t* out = Message_new(0, totalLength, alloc);
     while (c) {
-        Er_assert(Message_epush(out, c->buf, c->length));
+        Err_assert(Message_epush(out, c->buf, c->length));
         c = c->next;
     }
     Allocator_free(child);

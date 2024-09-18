@@ -86,14 +86,14 @@ static Er_DEFUN(void mkRouteMsg(Message_t* msg,
         };
         Bits_memset((void *)&mask.sin6_addr, 0xff, addRoute->prefix >> 3);
         ((uint8_t*)&mask.sin6_addr)[addRoute->prefix >> 3] = 0xff << (8 - (addRoute->prefix % 8));
-        Er(Message_epush(msg, &mask, sizeof(struct sockaddr_in6)));
+        Er(Er_fromErr(Message_epush(msg, &mask, sizeof(struct sockaddr_in6))));
     } else {
         struct sockaddr_in mask = {
             .sin_family = AF_INET,
             .sin_len = sizeof(struct sockaddr_in)
         };
         mask.sin_addr.s_addr = Endian_hostToBigEndian32(~0u << (32 - addRoute->prefix));
-        Er(Message_epush(msg, &mask, sizeof(struct sockaddr_in)));
+        Er(Er_fromErr(Message_epush(msg, &mask, sizeof(struct sockaddr_in))));
     }
     if (!delete) {
         struct sockaddr_dl link = {
@@ -104,11 +104,11 @@ static Er_DEFUN(void mkRouteMsg(Message_t* msg,
             .sdl_nlen = CString_strlen(ifName)
         };
         CString_safeStrncpy(link.sdl_data, ifName, 12);
-        Er(Message_epush(msg, &link, sizeof(struct sockaddr_dl)));
+        Er(Er_fromErr(Message_epush(msg, &link, sizeof(struct sockaddr_dl))));
     }
     int len = (ipv6) ? sizeof(struct sockaddr_in6) : sizeof(struct sockaddr_in);
     Assert_true(addRoute->ss.ss_len == len);
-    Er(Message_epush(msg, &addRoute->ss, len));
+    Er(Er_fromErr(Message_epush(msg, &addRoute->ss, len)));
     struct rt_msghdr hdr = {
         .rtm_type = (delete) ? RTM_DELETE : RTM_ADD,
         .rtm_flags = RTF_UP | RTF_STATIC,
@@ -118,7 +118,7 @@ static Er_DEFUN(void mkRouteMsg(Message_t* msg,
         .rtm_addrs = RTA_DST | RTA_NETMASK | ((delete) ? 0 : RTA_GATEWAY),
         .rtm_msglen = sizeof(struct rt_msghdr) + (Message_getLength(msg) - lengthBegin)
     };
-    Er(Message_epush(msg, &hdr, sizeof(struct rt_msghdr)));
+    Er(Er_fromErr(Message_epush(msg, &hdr, sizeof(struct rt_msghdr))));
     Er_ret();
 }
 

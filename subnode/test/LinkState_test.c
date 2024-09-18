@@ -82,7 +82,7 @@ static void applyStateUpdates(struct LinkState* local, Message_t* msg)
     uint32_t id = 0;
     Assert_true(!LinkState_getNodeId(&it, &id));
     Assert_true(id == local->nodeId);
-    Er_assert(Message_eshift(msg, -length));
+    Err_assert(Message_eshift(msg, -length));
     applyStateUpdates(local, msg);
     Assert_true(!LinkState_decode(&it, local));
 }
@@ -126,7 +126,7 @@ static void testStatic(Allocator_t* alloc)
     struct LinkState ls = { .nodeId = 0 };
     struct VarInt_Iter it = { .start = 0 };
     Message_t* msg = Message_new(0, 512, alloc);
-    Er_assert(Message_epush(msg, hex, 32));
+    Err_assert(Message_epush(msg, hex, 32));
     Assert_true(!LinkState_mkDecoder(msg, &it));
     Assert_true(!LinkState_decode(&it, &ls));
     // printf("%u %u\n", ls.nodeId, ls.samples);

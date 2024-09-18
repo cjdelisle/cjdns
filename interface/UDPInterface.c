@@ -133,14 +133,14 @@ static Iface_DEFUN sendPacket(Message_t* m, struct Iface* iface)
         .zero = 0,
         .commPort_be = ctx->commPort_be
     };
-    Er_assert(Message_eshift(m, -sa->addrLen));
-    Er_assert(Message_epush(m, &hdr, UDPInterface_BroadcastHeader_SIZE));
+    Err(Message_eshift(m, -sa->addrLen));
+    Err(Message_epush(m, &hdr, UDPInterface_BroadcastHeader_SIZE));
 
     for (int i = 0; i < ctx->bcastAddrs->length; i++) {
         struct Allocator* tmpAlloc = Allocator_child(ctx->allocator);
         Message_t* mm = Message_clone(m, tmpAlloc);
         struct Sockaddr* addr = ArrayList_Sockaddr_get(ctx->bcastAddrs, i);
-        Er_assert(Message_epush(mm, addr, addr->addrLen));
+        Err(Message_epush(mm, addr, addr->addrLen));
         Iface_send(&ctx->bcastSock, mm);
         Allocator_free(tmpAlloc);
     }
@@ -166,15 +166,15 @@ static Iface_DEFUN fromBcastSock(Message_t* m, struct Iface* iface)
     }
 
     struct Sockaddr_storage ss;
-    Er_assert(Message_epop(m, &ss, Sockaddr_OVERHEAD));
+    Err(Message_epop(m, &ss, Sockaddr_OVERHEAD));
     if (Message_getLength(m) < UDPInterface_BroadcastHeader_SIZE + ss.addr.addrLen - Sockaddr_OVERHEAD) {
         Log_debug(ctx->log, "DROP runt bcast");
         return Error(m, "RUNT bcast");
     }
-    Er_assert(Message_epop(m, &ss.nativeAddr, ss.addr.addrLen - Sockaddr_OVERHEAD));
+    Err(Message_epop(m, &ss.nativeAddr, ss.addr.addrLen - Sockaddr_OVERHEAD));
 
     struct UDPInterface_BroadcastHeader hdr;
-    Er_assert(Message_epop(m, &hdr, UDPInterface_BroadcastHeader_SIZE));
+    Err(Message_epop(m, &hdr, UDPInterface_BroadcastHeader_SIZE));
 
     if (hdr.fffffffc_be != Endian_hostToBigEndian32(0xfffffffc)) {
         Log_debug(ctx->log, "DROP bcast bad magic, expected 0xfffffffc got [%08x]",
@@ -198,7 +198,7 @@ static Iface_DEFUN fromBcastSock(Message_t* m, struct Iface* iface)
     Sockaddr_setPort(&ss.addr, commPort);
     ss.addr.flags |= Sockaddr_flags_BCAST;
 
-    Er_assert(Message_epush(m, &ss.addr, ss.addr.addrLen));
+    Err(Message_epush(m, &ss.addr, ss.addr.addrLen));
 
     return Iface_next(ctx->pub.generic.iface, m);
 }

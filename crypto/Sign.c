@@ -145,7 +145,7 @@ void Sign_signMsg(uint8_t keyPair[64], Message_t* msg, struct Random* rand)
 
     // hash message + secret number, this is the same as crypto_sign()
     // If there isn't enough space in the message, we abort the process
-    Er_assert(Message_epush(msg, &az[32], 32));
+    Err_assert(Message_epush(msg, &az[32], 32));
     crypto_hash_sha512(r, Message_bytes(msg), Message_getLength(msg));
 
     // Replace secret number with public key, this is the same as crypto_sign()
@@ -156,7 +156,7 @@ void Sign_signMsg(uint8_t keyPair[64], Message_t* msg, struct Random* rand)
     sc_reduce(r);
     ge_scalarmult_base(&R,r);
     // If there isn't enough space in the message, we abort the process
-    Er_assert(Message_eshift(msg, 32));
+    Err_assert(Message_eshift(msg, 32));
     ge_p3_tobytes(Message_bytes(msg),&R);
 
     // This final step is the same as crypto_sign()
@@ -179,7 +179,7 @@ int Sign_verifyMsg(uint8_t publicSigningKey[32], Message_t* msg)
     if (ret) {
         return -1;
     }
-    Er_assert(Message_epop(msg, NULL, 64));
+    Err_assert(Message_epop(msg, NULL, 64));
     return 0;
 }
 

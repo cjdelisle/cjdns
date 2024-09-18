@@ -248,14 +248,14 @@ static Er_DEFUN(bool getMoreMessages(struct RouteInfo** rio,
         Er_raise(tempAlloc, "recv() -> buffer too small");
     }
 
-    Er_assert(Message_truncate(msg, sz));
+    Err_assert(Message_truncate(msg, sz));
     //printf("%s\n", Hex_print(msg->bytes, Message_getLength(msg), tempAlloc));
 
     while (Message_getLength(msg)) {
         struct RouteInfo ri = { .protocol = 0 };
         int initMsgLen = Message_getLength(msg);
         struct nlmsghdr hdr;
-        Er(Message_epop(msg, &hdr, sizeof(struct nlmsghdr)));
+        Er(Er_fromErr(Message_epop(msg, &hdr, sizeof(struct nlmsghdr))));
         //printf("\nHEADER %04x %04x\n", hdr.nlmsg_type, hdr.nlmsg_flags);
         if (hdr.nlmsg_flags & NLM_F_MULTI) { retVal = true; }
         if (hdr.nlmsg_type == NLMSG_DONE) {
@@ -263,7 +263,7 @@ static Er_DEFUN(bool getMoreMessages(struct RouteInfo** rio,
             Er_ret(false);
         }
         struct rtmsg rtm;
-        Er(Message_epop(msg, &rtm, sizeof(struct rtmsg)));
+        Er(Er_fromErr(Message_epop(msg, &rtm, sizeof(struct rtmsg))));
         ri.prefix = rtm.rtm_dst_len;
         ri.af = rtm.rtm_family;
         ri.protocol = rtm.rtm_protocol;
@@ -272,13 +272,13 @@ static Er_DEFUN(bool getMoreMessages(struct RouteInfo** rio,
             if (remainingLen <= (int)sizeof(struct rtattr)) { break; }
             struct rtattr attrHead;
             //printf(">%s %d\n", Hex_print(msg->bytes, Message_getLength(msg), tempAlloc), remainingLen);
-            Er(Message_epop(msg, &attrHead, sizeof(struct rtattr)));
+            Er(Er_fromErr(Message_epop(msg, &attrHead, sizeof(struct rtattr))));
             switch (attrHead.rta_type) {
                 case RTA_OIF: {
                     if (attrHead.rta_len != 8) {
                         Er_raise(alloc, "unexpected rta_len for ifIndex");
                     }
-                    Er(Message_epop(msg, &ri.ifIndex, 4));
+                    Er(Er_fromErr(Message_epop(msg, &ri.ifIndex, 4)));
                     break;
                 }
                 case RTA_DST: {
@@ -286,12 +286,12 @@ static Er_DEFUN(bool getMoreMessages(struct RouteInfo** rio,
                         if (attrHead.rta_len != 20) {
                             Er_raise(alloc, "unexpected rta_len for RTA_DST (ipv6)");
                         }
-                        Er(Message_epop(msg, ri.dstAddr, 16));
+                        Er(Er_fromErr(Message_epop(msg, ri.dstAddr, 16)));
                     } else if (rtm.rtm_family == AF_INET) {
                         if (attrHead.rta_len != 8) {
                             Er_raise(alloc, "unexpected rta_len for RTA_DST (ipv4)");
                         }
-                        Er(Message_epop(msg, ri.dstAddr, 4));
+                        Er(Er_fromErr(Message_epop(msg, ri.dstAddr, 4)));
                     } else {
                         Er_raise(alloc, "unexpected af %d", rtm.rtm_family);
                     }
@@ -300,7 +300,7 @@ static Er_DEFUN(bool getMoreMessages(struct RouteInfo** rio,
                 default: {
                     int effectiveLen = RTA_ALIGN(attrHead.rta_len);
                     //printf("unrecognized %d (length %d)\n", attrHead.rta_type, effectiveLen);
-                    Er(Message_epop(msg, NULL, effectiveLen - sizeof(struct rtattr)));
+                    Er(Er_fromErr(Message_epop(msg, NULL, effectiveLen - sizeof(struct rtattr))));
                     break;
                 }
             }
@@ -374,12 +374,12 @@ static Er_DEFUN(void addDeleteRoutes(int sock,
             },
             .ifIndex = ri->ifIndex
         };
-        Er(Message_epush(msg, &ifa, sizeof(struct IfIndexAttr)));
+        Er(Er_fromErr(Message_epush(msg, &ifa, sizeof(struct IfIndexAttr))));
         int addrLen = (ri->af == AF_INET6) ? 16 : 4;
-        Er(Message_epush(msg, ri->dstAddr, addrLen));
+        Er(Er_fromErr(Message_epush(msg, ri->dstAddr, addrLen)));
         bitShave(Message_bytes(msg), ri->prefix, ri->af);
         struct rtattr rta = { .rta_len = sizeof(struct rtattr) + addrLen, .rta_type = RTA_DST };
-        Er(Message_epush(msg, &rta, sizeof(struct rtattr)));
+        Er(Er_fromErr(Message_epush(msg, &rta, sizeof(struct rtattr))));
         struct rtmsg route = {
             .rtm_family = ri->af,
             .rtm_dst_len = ri->prefix,
@@ -388,13 +388,13 @@ static Er_DEFUN(void addDeleteRoutes(int sock,
             .rtm_protocol = (delete) ? RTPROT_UNSPEC : ri->protocol,
             .rtm_type = (delete) ? RTN_UNSPEC : RTN_UNICAST
         };
-        Er(Message_epush(msg, &route, sizeof(struct rtmsg)));
+        Er(Er_fromErr(Message_epush(msg, &route, sizeof(struct rtmsg))));
         struct nlmsghdr hdr = {
             .nlmsg_len = Message_getLength(msg) + sizeof(struct nlmsghdr),
             .nlmsg_type = (delete) ? RTM_DELROUTE : RTM_NEWROUTE,
             .nlmsg_flags = NLM_F_REQUEST | ((delete) ? 0 : NLM_F_CREATE) // | NLM_F_ACK,
         };
-        Er(Message_epush(msg, &hdr, sizeof(struct nlmsghdr)));
+        Er(Er_fromErr(Message_epush(msg, &hdr, sizeof(struct nlmsghdr))));
         ssize_t sz = send(sock, Message_bytes(msg), Message_getLength(msg), 0);
         if (sz < 0) {
             Er_raise(tempAlloc, "send() -> %s", strerror(errno));

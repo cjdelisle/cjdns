@@ -59,10 +59,10 @@ static Iface_DEFUN handleError(Message_t* msg,
         Log_info(ch->log, "DROP runt error packet from [%s]", labelStr);
         return Error(msg, "RUNT");
     }
-    Er_assert(Message_truncate(msg, handleError_MIN_SIZE));
-    Er_assert(Message_epush(msg, &rh->sh, SwitchHeader_SIZE));
-    Er_assert(Message_epush32be(msg, 0xffffffff));
-    Er_assert(Message_epush32be(msg, PFChan_Core_SWITCH_ERR));
+    Err(Message_truncate(msg, handleError_MIN_SIZE));
+    Err(Message_epush(msg, &rh->sh, SwitchHeader_SIZE));
+    Err(Message_epush32be(msg, 0xffffffff));
+    Err(Message_epush32be(msg, PFChan_Core_SWITCH_ERR));
     return Iface_next(&ch->eventIf, msg);
 }
 
@@ -82,7 +82,7 @@ static Iface_DEFUN handlePing(Message_t* msg,
     }
 
     struct Control* ctrl = (struct Control*) Message_bytes(msg);
-    Er_assert(Message_eshift(msg, -Control_Header_SIZE));
+    Err(Message_eshift(msg, -Control_Header_SIZE));
 
     // Ping and keyPing share version location
     struct Control_Ping* ping = (struct Control_Ping*) Message_bytes(msg);
@@ -129,12 +129,12 @@ static Iface_DEFUN handlePing(Message_t* msg,
 
     ping->version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL);
 
-    Er_assert(Message_eshift(msg, Control_Header_SIZE));
+    Err(Message_eshift(msg, Control_Header_SIZE));
 
     ctrl->header.checksum_be = 0;
     ctrl->header.checksum_be = Checksum_engine_be(Message_bytes(msg), Message_getLength(msg));
 
-    Er_assert(Message_eshift(msg, RouteHeader_SIZE));
+    Err(Message_eshift(msg, RouteHeader_SIZE));
 
     struct RouteHeader* routeHeader = (struct RouteHeader*) Message_bytes(msg);
     Bits_memset(routeHeader, 0, RouteHeader_SIZE);
@@ -177,7 +177,7 @@ static Iface_DEFUN handleRPathQuery(Message_t* msg,
     ctrl->header.checksum_be = 0;
     ctrl->header.checksum_be = Checksum_engine_be(Message_bytes(msg), Message_getLength(msg));
 
-    Er_assert(Message_eshift(msg, RouteHeader_SIZE));
+    Err(Message_eshift(msg, RouteHeader_SIZE));
     struct RouteHeader* routeHeader = (struct RouteHeader*) Message_bytes(msg);
     Bits_memset(routeHeader, 0, RouteHeader_SIZE);
     SwitchHeader_setVersion(&routeHeader->sh, SwitchHeader_CURRENT_VERSION);
@@ -186,7 +186,7 @@ static Iface_DEFUN handleRPathQuery(Message_t* msg,
     return Iface_next(&ch->pub.coreIf, msg);
 }
 
-static void writeLlAddr(Message_t* msg, Sockaddr_t* sa) {
+static Err_DEFUN writeLlAddr(Message_t* msg, Sockaddr_t* sa) {
     struct Control_LlAddr out = {
         .magic = Control_LlAddr_REPLY_MAGIC,
         .version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL),
@@ -202,8 +202,7 @@ static void writeLlAddr(Message_t* msg, Sockaddr_t* sa) {
             int len = Sockaddr_getAddress(sa, &p);
             Assert_true(len == sizeof out.addr.udp4.addr && p != NULL);
             Bits_memcpy(&out.addr.udp4.addr, p, sizeof out.addr.udp4.addr);
-            Er_assert(Message_epush(msg, &out, sizeof out));
-            return;
+            return Message_epush(msg, &out, sizeof out);
         } else if (fam == Sockaddr_AF_INET6 && port > -1) {
             out.addr.udp6.type = Control_LlAddr_Udp6_TYPE;
             out.addr.udp6.len = sizeof(Control_LlAddr_Udp6_t);
@@ -212,8 +211,7 @@ static void writeLlAddr(Message_t* msg, Sockaddr_t* sa) {
             int len = Sockaddr_getAddress(sa, &p);
             Assert_true(len == sizeof out.addr.udp6.addr && p != NULL);
             Bits_memcpy(&out.addr.udp6.addr, p, sizeof out.addr.udp6.addr);
-            Er_assert(Message_epush(msg, &out, sizeof out));
-            return;
+            return Message_epush(msg, &out, sizeof out);
         }
     }
     out.addr.other.type = Control_LlAddr_Other_TYPE;
@@ -223,7 +221,7 @@ static void writeLlAddr(Message_t* msg, Sockaddr_t* sa) {
         len = sizeof out.addr.other.sockaddrHeader;
     }
     Bits_memcpy(&out.addr.other.sockaddrHeader, &sa, len);
-    Er_assert(Message_epush(msg, &out, sizeof out));
+    return Message_epush(msg, &out, sizeof out);
 }
 
 /**
@@ -242,10 +240,10 @@ static Iface_DEFUN handleLlAddrQuery(Message_t* msg,
     }
 
     struct Control_Header hdr;
-    Er_assert(Message_epop(msg, &hdr, sizeof hdr));
+    Err(Message_epop(msg, &hdr, sizeof hdr));
 
     struct Control_LlAddr lla;
-    Er_assert(Message_epop(msg, &lla, sizeof lla));
+    Err(Message_epop(msg, &lla, sizeof lla));
 
     if (lla.magic != Control_LlAddr_QUERY_MAGIC) {
         Log_debug(ch->log, "DROP LLADDR query (bad magic)");
@@ -266,14 +264,14 @@ static Iface_DEFUN handleLlAddrQuery(Message_t* msg,
         return Error(msg, "INTERNAL");
     }
 
-    writeLlAddr(msg, sa);
+    Err(writeLlAddr(msg, sa));
 
     hdr.type_be = Control_LlAddr_REPLY_be;
     hdr.checksum_be = 0;
-    Er_assert(Message_epush(msg, &hdr, sizeof hdr));
+    Err(Message_epush(msg, &hdr, sizeof hdr));
     hdr.checksum_be = Checksum_engine_be(Message_bytes(msg), Message_getLength(msg));
-    Er_assert(Message_epop(msg, NULL, sizeof hdr));
-    Er_assert(Message_epush(msg, &hdr, sizeof hdr));
+    Err(Message_epop(msg, NULL, sizeof hdr));
+    Err(Message_epush(msg, &hdr, sizeof hdr));
 
     struct RouteHeader routeHeader = {
         .sh.label_be = Endian_hostToBigEndian64(label),
@@ -281,7 +279,7 @@ static Iface_DEFUN handleLlAddrQuery(Message_t* msg,
     };
     SwitchHeader_setVersion(&routeHeader.sh, SwitchHeader_CURRENT_VERSION);
 
-    Er_assert(Message_epush(msg, &routeHeader, sizeof routeHeader));
+    Err(Message_epush(msg, &routeHeader, sizeof routeHeader));
 
     return Iface_next(&ch->pub.coreIf, msg);
 }
@@ -338,7 +336,7 @@ static Iface_DEFUN handleGetSnodeQuery(Message_t* msg,
     ctrl->header.checksum_be = 0;
     ctrl->header.checksum_be = Checksum_engine_be(Message_bytes(msg), Message_getLength(msg));
 
-    Er_assert(Message_eshift(msg, RouteHeader_SIZE));
+    Err(Message_eshift(msg, RouteHeader_SIZE));
     struct RouteHeader* routeHeader = (struct RouteHeader*) Message_bytes(msg);
     Bits_memset(routeHeader, 0, RouteHeader_SIZE);
     SwitchHeader_setVersion(&routeHeader->sh, SwitchHeader_CURRENT_VERSION);
@@ -366,7 +364,7 @@ static Iface_DEFUN incomingFromCore(Message_t* msg, struct Iface* coreIf)
     struct ControlHandler_pvt* ch = Identity_check((struct ControlHandler_pvt*) coreIf);
 
     struct RouteHeader routeHdr;
-    Er_assert(Message_epop(msg, &routeHdr, RouteHeader_SIZE));
+    Err(Message_epop(msg, &routeHdr, RouteHeader_SIZE));
     uint8_t labelStr[20];
     uint64_t label = Endian_bigEndianToHost64(routeHdr.sh.label_be);
     AddrTools_printPath(labelStr, label);
@@ -401,7 +399,7 @@ static Iface_DEFUN incomingFromCore(Message_t* msg, struct Iface* coreIf)
     {
         Log_debug(ch->log, "got switch pong [%d] from [%s]",
             ctrl->header.type_be, labelStr);
-        Er_assert(Message_epush(msg, &routeHdr, RouteHeader_SIZE));
+        Err(Message_epush(msg, &routeHdr, RouteHeader_SIZE));
         return Iface_next(&ch->pub.switchPingerIf, msg);
 
     } else if (ctrl->header.type_be == Control_GETSNODE_QUERY_be) {
@@ -413,9 +411,9 @@ static Iface_DEFUN incomingFromCore(Message_t* msg, struct Iface* coreIf)
         Log_debug(ch->log, "got %s REPLY from [%s]",
             (ctrl->header.type_be == Control_GETSNODE_REPLY_be) ? "GETSNODE" : "RPATH",
             labelStr);
-        Er_assert(Message_epush(msg, &routeHdr, RouteHeader_SIZE));
-        Er_assert(Message_epush32be(msg, 0xffffffff));
-        Er_assert(Message_epush32be(msg, PFChan_Core_CTRL_MSG));
+        Err(Message_epush(msg, &routeHdr, RouteHeader_SIZE));
+        Err(Message_epush32be(msg, 0xffffffff));
+        Err(Message_epush32be(msg, PFChan_Core_CTRL_MSG));
         return Iface_next(&ch->eventIf, msg);
 
     } else if (ctrl->header.type_be == Control_RPATH_QUERY_be) {
@@ -443,12 +441,14 @@ static Iface_DEFUN changeSnode(Message_t* msg, struct Iface* eventIf)
 {
     struct ControlHandler_pvt* ch =
         Identity_containerOf(eventIf, struct ControlHandler_pvt, eventIf);
-    enum PFChan_Pathfinder ev = Er_assert(Message_epop32be(msg));
+    enum PFChan_Pathfinder ev = 0;
+    Err(Message_epop32be(&ev, msg));
     Assert_true(ev == PFChan_Pathfinder_SNODE);
-    Er_assert(Message_epop32be(msg));
+    uint32_t discard = 0;
+    Err(Message_epop32be(&discard, msg));
 
     struct PFChan_Node node;
-    Er_assert(Message_epop(msg, &node, PFChan_Node_SIZE));
+    Err(Message_epop(msg, &node, PFChan_Node_SIZE));
     Assert_true(!Message_getLength(msg));
 
     uint64_t path = Endian_bigEndianToHost64(node.path_be);

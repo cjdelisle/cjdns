@@ -66,7 +66,7 @@ static Iface_DEFUN incomingTunB(Message_t* msg, struct Iface* tunB)
     struct TwoNodes* tn = Identity_containerOf(tunB, struct TwoNodes, tunB);
     uint16_t t = Er_assert(TUNMessageType_pop(msg));
     Assert_true(t == Ethernet_TYPE_IP6);
-    Er_assert(Message_eshift(msg, -Headers_IP6Header_SIZE));
+    Err(Message_eshift(msg, -Headers_IP6Header_SIZE));
     printf("Message from TUN in node B [%s]\n", Message_bytes(msg));
     tn->messageFrom = TUNB;
     return NULL;
@@ -77,7 +77,7 @@ static Iface_DEFUN incomingTunA(Message_t* msg, struct Iface* tunA)
     struct TwoNodes* tn = Identity_containerOf(tunA, struct TwoNodes, tunA);
     uint16_t t = Er_assert(TUNMessageType_pop(msg));
     Assert_true(t == Ethernet_TYPE_IP6);
-    Er_assert(Message_eshift(msg, -Headers_IP6Header_SIZE));
+    Err(Message_eshift(msg, -Headers_IP6Header_SIZE));
     uint8_t buff[1024];
     Hex_encode(buff, 1024, Message_bytes(msg), Message_getLength(msg));
     printf("Message from TUN in node A [%s] [%d] [%s]\n", Message_bytes(msg), Message_getLength(msg), buff);
@@ -185,9 +185,10 @@ static void sendMessage(struct TwoNodes* tn,
                         struct TestFramework* to)
 {
     Message_t* msg = Message_new(64, 512, from->alloc);
-    uint8_t* b = Er_assert(Message_peakBytes(msg, 64));
+    uint8_t* b = NULL;
+    Err_assert(Message_peakBytes(&b, msg, 64));
     CString_strcpy(b, message);
-    Er_assert(Message_truncate(msg, CString_strlen(message) + 1));
+    Err_assert(Message_truncate(msg, CString_strlen(message) + 1));
 
     TestFramework_craftIPHeader(msg, from->ip, to->ip);
 

@@ -163,7 +163,7 @@ static void sendMsg(struct MsgCore_pvt* mcp,
     Bits_memset(&data, 0, sizeof(struct DataHeader));
     DataHeader_setVersion(&data, DataHeader_CURRENT_VERSION);
     DataHeader_setContentType(&data, ContentType_CJDHT);
-    Er_assert(Message_epush(msg, &data, sizeof(struct DataHeader)));
+    Err_assert(Message_epush(msg, &data, sizeof(struct DataHeader)));
 
     struct RouteHeader route;
     Bits_memset(&route, 0, sizeof(struct RouteHeader));
@@ -173,7 +173,7 @@ static void sendMsg(struct MsgCore_pvt* mcp,
     Assert_true(route.sh.label_be != 0xffffffffffffffffull);
     route.flags |= RouteHeader_flags_PATHFINDER;
     Bits_memcpy(route.publicKey, addr->key, 32);
-    Er_assert(Message_epush(msg, &route, sizeof(struct RouteHeader)));
+    Err_assert(Message_epush(msg, &route, sizeof(struct RouteHeader)));
 
     Iface_send(&mcp->pub.interRouterIf, msg);
 }
@@ -284,7 +284,7 @@ static Iface_DEFUN incoming(Message_t* msg, struct Iface* interRouterIf)
 
     struct Address addr = { .padding = 0 };
     struct RouteHeader* hdr = (struct RouteHeader*) Message_bytes(msg);
-    Er_assert(Message_eshift(msg, -(RouteHeader_SIZE + DataHeader_SIZE)));
+    Err_assert(Message_eshift(msg, -(RouteHeader_SIZE + DataHeader_SIZE)));
     Bits_memcpy(addr.ip6.bytes, hdr->ip6, 16);
     Bits_memcpy(addr.key, hdr->publicKey, 32);
     addr.protocolVersion = Endian_bigEndianToHost32(hdr->version_be);

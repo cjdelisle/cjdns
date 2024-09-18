@@ -68,19 +68,19 @@ static inline int LinkState_encode(
     Assert_true(!VarInt_push(&iter, ls->nodeId));
 
     int beginLength = Message_getLength(msg);
-    Er_assert(Message_eshift(msg, (Message_bytes(msg) - iter.ptr)));
+    Err_assert(Message_eshift(msg, (Message_bytes(msg) - iter.ptr)));
     Assert_true(Message_bytes(msg) == iter.ptr);
 
     int padCount = 0;
     while ((uintptr_t)(&Message_bytes(msg)[-3]) & 7) {
-        Er_assert(Message_epush8(msg, 0));
+        Err_assert(Message_epush8(msg, 0));
         padCount++;
     }
-    Er_assert(Message_epush8(msg, padCount));
+    Err_assert(Message_epush8(msg, padCount));
 
-    Er_assert(Message_epush8(msg, Announce_Type_LINK_STATE));
+    Err_assert(Message_epush8(msg, Announce_Type_LINK_STATE));
     int finalLength = Message_getLength(msg) - beginLength;
-    Er_assert(Message_epush8(msg, finalLength + 1));
+    Err_assert(Message_epush8(msg, finalLength + 1));
 
     Assert_true(!(((uintptr_t)Message_bytes(msg)) & 7));
     return 0;

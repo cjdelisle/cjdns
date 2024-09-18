@@ -120,7 +120,7 @@ static Iface_DEFUN receiveMessage(Message_t* msg, struct Iface* addrIface)
     struct Context* ctx = Identity_containerOf(addrIface, struct Context, addrIface);
 
     struct Sockaddr_storage source;
-    Er_assert(Message_epop(msg, &source, ctx->targetAddr->addrLen));
+    Err_assert(Message_epop(msg, &source, ctx->targetAddr->addrLen));
     if (Bits_memcmp(&source, ctx->targetAddr, ctx->targetAddr->addrLen)) {
         Log_info(ctx->logger, "Got spurious message from [%s], expecting messages from [%s]",
                  Sockaddr_print(&source.addr, Message_getAlloc(msg)),
@@ -137,7 +137,7 @@ static Iface_DEFUN receiveMessage(Message_t* msg, struct Iface* addrIface)
     Dict* d = NULL;
     const char* err = BencMessageReader_readNoExcept(msg, alloc, &d);
     if (err) { return Error(msg, "Error decoding benc: %s", err); }
-    Er_assert(Message_eshift(msg, origLen));
+    Err_assert(Message_eshift(msg, origLen));
 
     String* txid = Dict_getStringC(d, "txid");
     if (!txid || txid->len != 8) { return Error(msg, "INVALID missing or wrong size txid"); }
@@ -212,7 +212,7 @@ static struct Request* sendRaw(Dict* messageDict,
 
     req->callback = callback;
 
-    Er_assert(Message_epush(msg, ctx->targetAddr, ctx->targetAddr->addrLen));
+    Err_assert(Message_epush(msg, ctx->targetAddr, ctx->targetAddr->addrLen));
 
     Iface_send(&ctx->addrIface, msg);
     Allocator_free(child);

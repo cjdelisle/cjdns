@@ -56,7 +56,7 @@ static Iface_DEFUN incomingFromAddrIf(Message_t* msg, struct Iface* addrIf)
         struct Sockaddr* subaddr = &addr[1];
         Assert_true(subaddr->addrLen == addr->addrLen - sizeof(struct Sockaddr));
         // Move the needle back to include it
-        Er_assert(Message_eshift(msg, subaddr->addrLen));
+        Err(Message_eshift(msg, subaddr->addrLen));
         addr->addrLen -= subaddr->addrLen;
     }
     uint32_t handle = Sockaddr_addrHandle(addr);

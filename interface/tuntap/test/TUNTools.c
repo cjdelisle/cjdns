@@ -59,8 +59,8 @@ static void sendHello(void* vctx)
     struct TUNTools_pvt* ctx = Identity_check((struct TUNTools_pvt*) vctx);
     struct Allocator* tempAlloc = Allocator_child(ctx->pub.alloc);
     Message_t* msg = Message_new(0, 64, tempAlloc);
-    Er_assert(Message_epush(msg, "Hello World", 12));
-    Er_assert(Message_epush(msg, ctx->pub.tunDestAddr, ctx->pub.tunDestAddr->addrLen));
+    Err_assert(Message_epush(msg, "Hello World", 12));
+    Err_assert(Message_epush(msg, ctx->pub.tunDestAddr, ctx->pub.tunDestAddr->addrLen));
     Iface_send(&ctx->pub.udpIface, msg);
     Allocator_free(tempAlloc);
 }

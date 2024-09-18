@@ -129,16 +129,16 @@ static Iface_DEFUN messagePlaintext(Message_t *msg, struct Iface* iface)
     struct RTypes_Error_t* i1 = NULL;
     if (sess->s) {
         int flag = sess->s2 ? STOP : PASS;
-        Er_assert(Message_epushAd(msg, &flag, sizeof flag));
+        Err(Message_epushAd(msg, &flag, sizeof flag));
         printf("Send [%d]\n", flag);
         i1 = Iface_send(&sess->sPlain, msg);
     }
     if (sess->s2) {
         if (sess->s) {
-            Er_assert(Message_epushAd(m2, &msg, sizeof &msg));
+            Err(Message_epushAd(m2, &msg, sizeof &msg));
         }
         int flag = sess->s ? VERIFY : PASS;
-        Er_assert(Message_epushAd(m2, &flag, sizeof flag));
+        Err(Message_epushAd(m2, &flag, sizeof flag));
         printf("Send2 [%d]\n", flag);
         struct RTypes_Error_t* i2 = Iface_send(&sess->s2Plain, m2);
         if (sess->s) {
@@ -165,17 +165,17 @@ static Iface_DEFUN messageCiphertext(Message_t *msg, struct Iface* iface)
     struct RTypes_Error_t* i1 = NULL;
     if (sess->s) {
         int flag = sess->s2 ? STOP : PASS;
-        Er_assert(Message_epushAd(msg, &flag, sizeof flag));
+        Err(Message_epushAd(msg, &flag, sizeof flag));
         i1 = Iface_send(&sess->sCipher, msg);
     }
     if (sess->s2) {
         int flag = PASS;
         if (sess->s) {
             uintptr_t mp = (uintptr_t)msg;
-            Er_assert(Message_epushAd(m2, &mp, sizeof &mp));
+            Err(Message_epushAd(m2, &mp, sizeof &mp));
             flag = VERIFY;
         }
-        Er_assert(Message_epushAd(m2, &flag, sizeof flag));
+        Err(Message_epushAd(m2, &flag, sizeof flag));
         struct RTypes_Error_t* i2 = Iface_send(&sess->s2Cipher, m2);
         if (sess->s) {
             Assert_true((i2 == NULL) == (i1 == NULL));
@@ -188,7 +188,7 @@ static Iface_DEFUN messageCiphertext(Message_t *msg, struct Iface* iface)
 static bool check(Message_t *msg, TestCa_Session_pvt_t* sess)
 {
     int flag = 0;
-    Er_assert(Message_epopAd(msg, &flag, sizeof flag));
+    Err(Message_epopAd(msg, &flag, sizeof flag));
     if (flag == PASS) {
         printf("Passing message\n");
     } else if (flag == STOP) {
@@ -197,7 +197,7 @@ static bool check(Message_t *msg, TestCa_Session_pvt_t* sess)
         return true;
     } else if (flag == VERIFY) {
         uintptr_t m2p = 0;
-        Er_assert(Message_epopAd(msg, &m2p, sizeof m2p));
+        Err(Message_epopAd(msg, &m2p, sizeof m2p));
         printf("Verifying message %lx\n", (unsigned long) m2p);
         Message_t* m2 = (Message_t*) m2p;
         if (Message_getLength(msg) != Message_getLength(m2)) {

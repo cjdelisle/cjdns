@@ -76,11 +76,11 @@ struct Announce_EncodingScheme
 static inline void Announce_EncodingScheme_push(Message_t* pushTo, String* compressedScheme)
 {
     Assert_true(compressedScheme->len + 2 < 256);
-    Er_assert(Message_epush(pushTo, compressedScheme->bytes, compressedScheme->len));
-    Er_assert(Message_epush8(pushTo, Announce_Type_ENCODING_SCHEME));
-    Er_assert(Message_epush8(pushTo, compressedScheme->len + 2));
+    Err_assert(Message_epush(pushTo, compressedScheme->bytes, compressedScheme->len));
+    Err_assert(Message_epush8(pushTo, Announce_Type_ENCODING_SCHEME));
+    Err_assert(Message_epush8(pushTo, compressedScheme->len + 2));
     while ((uintptr_t)Message_bytes(pushTo) % 4) {
-        Er_assert(Message_epush8(pushTo, 1));
+        Err_assert(Message_epush8(pushTo, 1));
     }
 }
 

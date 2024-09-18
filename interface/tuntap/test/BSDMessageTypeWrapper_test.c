@@ -30,7 +30,8 @@ struct Context
 static Iface_DEFUN sendInside(Message_t* msg, struct Iface* inside)
 {
     struct Context* ctx = Identity_containerOf(inside, struct Context, inside);
-    uint32_t top = Er_assert(Message_epop32be(msg));
+    uint32_t top = 0;
+    Err(Message_epop32be(&top, msg));
     Assert_true(top == 0x00000800);
     Assert_true(!(ctx->received & 1));
     ctx->received |= 1;
@@ -57,7 +58,7 @@ int main()
     Iface_plumb(&ctx->outside, &wrapper->wireSide);
 
     Message_t* msg = Message_new(256, 256, alloc);
-    Er_assert(Message_epush32be(msg, 0x00000800));
+    Err_assert(Message_epush32be(msg, 0x00000800));
     Iface_send(&ctx->inside, msg);
 
     Assert_true(ctx->received == 3);

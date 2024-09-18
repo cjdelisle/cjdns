@@ -93,7 +93,7 @@ static Iface_DEFUN incomingFromTunIf(Message_t* msg, struct Iface* tunIf)
     Bits_memmove(header->destinationAddr - DataHeader_SIZE, header->destinationAddr, 16);
     #pragma GCC diagnostic pop
 
-    Er_assert(Message_eshift(msg, DataHeader_SIZE + RouteHeader_SIZE - Headers_IP6Header_SIZE));
+    Err(Message_eshift(msg, DataHeader_SIZE + RouteHeader_SIZE - Headers_IP6Header_SIZE));
     struct RouteHeader* rh = (struct RouteHeader*) Message_bytes(msg);
 
     struct DataHeader* dh = (struct DataHeader*) &rh[1];
@@ -145,7 +145,7 @@ static Iface_DEFUN incomingFromUpperDistributorIf(Message_t* msg,
     // put my address as destination.
     Bits_memcpy(&hdr->ip6[DataHeader_SIZE], ud->myIp6, 16);
 
-    Er_assert(Message_eshift(msg, Headers_IP6Header_SIZE - DataHeader_SIZE - RouteHeader_SIZE));
+    Err(Message_eshift(msg, Headers_IP6Header_SIZE - DataHeader_SIZE - RouteHeader_SIZE));
     struct Headers_IP6Header* ip6 = (struct Headers_IP6Header*) Message_bytes(msg);
     Bits_memset(ip6, 0, Headers_IP6Header_SIZE - 32);
     Headers_setIpVersion(ip6);

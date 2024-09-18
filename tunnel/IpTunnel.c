@@ -199,11 +199,11 @@ static Iface_DEFUN sendToNode(Message_t* message,
                               struct IpTunnel_Connection* connection,
                               struct IpTunnel_pvt* context)
 {
-    Er_assert(Message_epush(message, NULL, DataHeader_SIZE));
+    Err(Message_epush(message, NULL, DataHeader_SIZE));
     struct DataHeader* dh = (struct DataHeader*) Message_bytes(message);
     DataHeader_setContentType(dh, ContentType_IPTUN);
     DataHeader_setVersion(dh, DataHeader_CURRENT_VERSION);
-    Er_assert(Message_epush(message, &connection->routeHeader, RouteHeader_SIZE));
+    Err(Message_epush(message, &connection->routeHeader, RouteHeader_SIZE));
     return Iface_next(&context->pub.nodeInterface, message);
 }
 
@@ -218,7 +218,7 @@ static void sendControlMessage(Dict* dict,
     int length = Message_getLength(msg);
 
     // do UDP header.
-    Er_assert(Message_eshift(msg, Headers_UDPHeader_SIZE));
+    Err_assert(Message_eshift(msg, Headers_UDPHeader_SIZE));
     struct Headers_UDPHeader* uh = (struct Headers_UDPHeader*) Message_bytes(msg);
     uh->srcPort_be = 0;
     uh->destPort_be = 0;
@@ -227,7 +227,7 @@ static void sendControlMessage(Dict* dict,
 
     uint16_t payloadLength = Message_getLength(msg);
 
-    Er_assert(Message_eshift(msg, Headers_IP6Header_SIZE));
+    Err_assert(Message_eshift(msg, Headers_IP6Header_SIZE));
     struct Headers_IP6Header* header = (struct Headers_IP6Header*) Message_bytes(msg);
     header->versionClassAndFlowLabel = 0;
     header->flowLabelLow_be = 0;
@@ -325,7 +325,7 @@ static bool isControlMessageInvalid(Message_t* message, struct IpTunnel_pvt* con
         return true;
     }
 
-    Er_assert(Message_eshift(message, -Headers_IP6Header_SIZE));
+    Err_assert(Message_eshift(message, -Headers_IP6Header_SIZE));
     struct Headers_UDPHeader* udp = (struct Headers_UDPHeader*) Message_bytes(message);
 
     if (Checksum_udpIp6_be(header->sourceAddr, Message_bytes(message), length)) {
@@ -342,9 +342,9 @@ static bool isControlMessageInvalid(Message_t* message, struct IpTunnel_pvt* con
         return true;
     }
 
-    Er_assert(Message_eshift(message, -Headers_UDPHeader_SIZE));
+    Err_assert(Message_eshift(message, -Headers_UDPHeader_SIZE));
 
-    Er_assert(Message_truncate(message, length));
+    Err_assert(Message_truncate(message, length));
     return false;
 }
 
@@ -795,7 +795,7 @@ static Iface_DEFUN incomingFromNode(Message_t* message, struct Iface* nodeIf)
         return NULL;
     }
 
-    Er_assert(Message_eshift(message, -(RouteHeader_SIZE + DataHeader_SIZE)));
+    Err(Message_eshift(message, -(RouteHeader_SIZE + DataHeader_SIZE)));
 
     if (Message_getLength(message) > 40 && Headers_getIpVersion(Message_bytes(message)) == 6) {
         return ip6FromNode(message, conn, context);

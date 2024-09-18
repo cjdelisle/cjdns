@@ -41,12 +41,14 @@ static Iface_DEFUN incomingFromSocket(Message_t* msg, struct Iface* externalIf)
     }
 
     // get ess packet type
-    uint8_t type = Er_assert(Message_epop8h(msg));
+    uint8_t type = 0;
+    Err(Message_epop8h(&type, msg));
     Log_debug(ctx->logger, "Packet type [%d]", type);
 
     if (type == SocketWrapper_TYPE_TUN_PACKET) {
         // skip tun packet length
-        Er_assert(Message_epop32be(msg));
+        uint32_t discard = 0;
+        Err(Message_epop32be(&discard, msg));
         return Iface_next(&ctx->pub.internalIf, msg);
     }
 
@@ -65,9 +67,9 @@ static Iface_DEFUN incomingFromUs(Message_t* msg, struct Iface* internalIf)
     }
 
     // send payload length
-    Er_assert(Message_epush32be(msg, Message_getLength(msg)));
+    Err(Message_epush32be(msg, Message_getLength(msg)));
     // mark this as a normal tun packet
-    Er_assert(Message_epush8(msg, SocketWrapper_TYPE_TUN_PACKET));
+    Err(Message_epush8(msg, SocketWrapper_TYPE_TUN_PACKET));
 
     return Iface_next(&ctx->pub.externalIf, msg);
 }
@@ -91,8 +93,8 @@ Er_DEFUN(void SocketWrapper_addAddress(struct Iface* rawSocketIf,
 {
     size_t len = 16 /* IPv6 Address length */ + 1 /* Type prefix length */;
     Message_t* out = Message_new(0, len, alloc);
-    Er(Message_epush(out, ipv6Addr, 16));
-    Er(Message_epush8(out, SocketWrapper_TYPE_CONF_ADD_IPV6_ADDRESS));
+    Er(Er_fromErr(Message_epush(out, ipv6Addr, 16)));
+    Er(Er_fromErr(Message_epush8(out, SocketWrapper_TYPE_CONF_ADD_IPV6_ADDRESS)));
 
     Iface_send(rawSocketIf, out);
     Er_ret();
@@ -105,8 +107,8 @@ Er_DEFUN(void SocketWrapper_setMTU(struct Iface* rawSocketIf,
 {
     size_t len = 4 /* MTU var size */ + 1 /* Type prefix length */;
     Message_t* out = Message_new(0, len, alloc);
-    Er(Message_epush32be(out, mtu));
-    Er(Message_epush8(out, SocketWrapper_TYPE_CONF_SET_MTU));
+    Er(Er_fromErr(Message_epush32be(out, mtu)));
+    Er(Er_fromErr(Message_epush8(out, SocketWrapper_TYPE_CONF_SET_MTU)));
 
     Iface_send(rawSocketIf, out);
     Er_ret();

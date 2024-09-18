@@ -37,8 +37,8 @@ struct ARPServer_pvt
 static bool isValidARP(Message_t* msg)
 {
     struct ARPHeader_6_4 arp;
-    Er_assert(Message_epop(msg, &arp, ARPHeader_6_4_SIZE));
-    Er_assert(Message_eshift(msg, ARPHeader_6_4_SIZE)); // Get copy and restore.
+    Err_assert(Message_epop(msg, &arp, ARPHeader_6_4_SIZE));
+    Err_assert(Message_eshift(msg, ARPHeader_6_4_SIZE)); // Get copy and restore.
     if (!ARPHeader_isEthIP4(&arp.prefix)) {
         return false; // not ARP.
     }
@@ -57,7 +57,7 @@ static bool isValidARP(Message_t* msg)
 static Iface_DEFUN answerARP(Message_t* msg, struct ARPServer_pvt* as)
 {
     struct ARPHeader_6_4 arp;
-    Er_assert(Message_epop(msg, &arp, ARPHeader_6_4_SIZE));
+    Err(Message_epop(msg, &arp, ARPHeader_6_4_SIZE));
     if (Message_getLength(msg)) {
         Log_warn(as->log, "%d extra bytes in ARP, weird", Message_getLength(msg));
     }
@@ -72,7 +72,7 @@ static Iface_DEFUN answerARP(Message_t* msg, struct ARPServer_pvt* as)
     // Set answer opcode.
     arp.prefix.operation = ARPHeader_OP_A;
 
-    Er_assert(Message_epush(msg, &arp, ARPHeader_6_4_SIZE));
+    Err(Message_epush(msg, &arp, ARPHeader_6_4_SIZE));
     Er_assert(TUNMessageType_push(msg, Ethernet_TYPE_ARP));
 
     Log_debug(as->log, "Sending ARP answer.");

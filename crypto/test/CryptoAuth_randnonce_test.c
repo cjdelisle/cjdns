@@ -32,9 +32,9 @@ static void encryptRndNonceTest()
 
     Allocator_t* alloc = Allocator_new(1<<14);
     Message_t* m = Message_new(0, 512, alloc);
-    Er_assert(Message_epush(m, NULL, 44));
-    Er_assert(Message_epop(m, NULL, 44));
-    Er_assert(Message_epush(m, HELLOWORLDLOWER, CString_strlen(HELLOWORLDLOWER)+1));
+    Err_assert(Message_epush(m, NULL, 44));
+    Err_assert(Message_epop(m, NULL, 44));
+    Err_assert(Message_epush(m, HELLOWORLDLOWER, CString_strlen(HELLOWORLDLOWER)+1));
 
     CryptoAuth_encryptRndNonce(nonce, m, secret);
 

@@ -38,18 +38,18 @@ static uint8_t receiveMessage(Message_t* msg, struct Iface* iface)
         return 0;
     }
     // ethernet padding.
-    Er_assert(Message_eshift(msg, -2));
+    Err_assert(Message_eshift(msg, -2));
 
     uint8_t from[13];
     uint8_t to[13];
     Hex_encode(from, 13, msg->bytes, 6);
-    Er_assert(Message_eshift(msg, -6));
+    Err_assert(Message_eshift(msg, -6));
     Hex_encode(to, 13, msg->bytes, 6);
-    Er_assert(Message_eshift(msg, -6));
+    Err_assert(Message_eshift(msg, -6));
 
     uint8_t type[5];
     Hex_encode(type, 5, msg->bytes, 2);
-    Er_assert(Message_eshift(msg, -2));
+    Err_assert(Message_eshift(msg, -2));
 
     int subsubtype = -1;
     int subtype = -1;

@@ -15,7 +15,9 @@
 #ifndef Er_H
 #define Er_H
 
+#include "exception/Err.h"
 #include "memory/Allocator.h"
+#include "rust/cjdns_sys/RTypes.h"
 #include "util/Gcc.h"
 #include "util/Js.h"
 
@@ -58,5 +60,7 @@ static inline struct Er_Ret* Er_unwind(const char* file, int line, struct Er_Ret
 }
 
 void Er__assertFail(struct Er_Ret* er);
+
+Er_DEFUN(void Er_fromErr(RTypes_Error_t* err));
 
 #endif

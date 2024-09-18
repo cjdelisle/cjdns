@@ -60,8 +60,8 @@ static void checkSig(Dict* args, void* vctx, String* txid, struct Allocator* req
             "malformed signature, failed to decode signature", requestAlloc);
     } else {
         Message_t* msg = Message_new(0, msgHash->len + 64, requestAlloc);
-        Er_assert(Message_epush(msg, msgHash->bytes, msgHash->len));
-        Er_assert(Message_epush(msg, sigBytes, 64));
+        Err_assert(Message_epush(msg, msgHash->bytes, msgHash->len));
+        Err_assert(Message_epush(msg, sigBytes, 64));
         uint8_t curve25519key[32];
         if (Sign_verifyMsg(publicSigningKey, msg)) {
             Dict_putStringCC(out, "error", "invalid signature", requestAlloc);
@@ -90,7 +90,7 @@ static void sign(Dict* args, void* vctx, String* txid, struct Allocator* request
         Dict_putStringCC(out, "error", "msgHash too long, max 64 bytes", requestAlloc);
     } else {
         Message_t* msg = Message_new(0, msgHash->len + 64, requestAlloc);
-        Er_assert(Message_epush(msg, msgHash->bytes, msgHash->len));
+        Err_assert(Message_epush(msg, msgHash->bytes, msgHash->len));
         Sign_signMsg(ctx->signingKeypair, msg, ctx->rand);
         uint8_t signB64[128];
         Assert_true(Base32_encode(signB64, 128, Message_bytes(msg), 64) > 0);

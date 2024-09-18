@@ -217,8 +217,8 @@ static void sendFrom(struct Context* ctx, struct Node* from, Message_t* msg)
         flippedImmutable = true;
     }
 
-    Er_assert(Message_epushAd(msg, &flippedImmutable, sizeof flippedImmutable));
-    Er_assert(Message_epush(msg, NULL, 16)); // peer ipv6
+    Err_assert(Message_epushAd(msg, &flippedImmutable, sizeof flippedImmutable));
+    Err_assert(Message_epush(msg, NULL, 16)); // peer ipv6
 
     Iface_send(&to->ciphertext, msg); // --> afterDecrypt (hopefully)
 }
@@ -253,7 +253,7 @@ static void mainLoop(struct Context* ctx)
 
         struct Allocator* alloc = Allocator_child(ctx->alloc);
         Message_t* msg = Message_new(0, 512, alloc);
-        Er_assert(Message_epush(msg, "hey", 4));
+        Err_assert(Message_epush(msg, "hey", 4));
         Iface_send(&ctx->nodeA.plaintext, msg);
         //Assert_true(!TestCa_encrypt(ctx->nodeA.session, msg));
         //sendFrom(ctx, &ctx->nodeA, msg);
@@ -273,11 +273,12 @@ static Iface_DEFUN afterEncrypt(Message_t* msg, struct Iface* iface)
 static Iface_DEFUN afterDecrypt(Message_t* msg, struct Iface* iface)
 {
     bool flippedImmutable = false;
-    Er_assert(Message_epopAd(msg, &flippedImmutable, sizeof flippedImmutable));
+    Err(Message_epopAd(msg, &flippedImmutable, sizeof flippedImmutable));
 
     struct Node* to = Identity_containerOf(iface, struct Node, plaintext);
 
-    enum CryptoAuth_DecryptErr e = Er_assert(Message_epop32h(msg));
+    enum CryptoAuth_DecryptErr e = -1;
+    Err(Message_epop32h(&e, msg));
     if (!e) {
         Assert_true(!flippedImmutable);
         Assert_true(Message_getLength(msg) == 4 && !Bits_memcmp(Message_bytes(msg), "hey", 4));

@@ -229,7 +229,7 @@ void TestFramework_linkNodes(struct TestFramework* client,
 
 void TestFramework_craftIPHeader(Message_t* msg, uint8_t srcAddr[16], uint8_t destAddr[16])
 {
-    Er_assert(Message_eshift(msg, Headers_IP6Header_SIZE));
+    Err_assert(Message_eshift(msg, Headers_IP6Header_SIZE));
     struct Headers_IP6Header* ip = (struct Headers_IP6Header*) Message_bytes(msg);
 
     ip->versionClassAndFlowLabel = 0;
