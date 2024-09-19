@@ -263,7 +263,7 @@ static Err_DEFUN macaddr(const char* ifname, uint8_t addrOut[6], struct Allocato
 }
 
 Err_DEFUN ETHInterface_new(
-    struct ETHInterface* out,
+    struct ETHInterface** out,
     EventBase_t* eventBase,
     const char* bindDevice,
     struct Allocator* alloc,
