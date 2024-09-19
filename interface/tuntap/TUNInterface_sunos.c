@@ -94,7 +94,7 @@ Err_DEFUN TUNInterface_new(struct Iface** out,
                                    int isTapMode,
                                    EventBase_t* base,
                                    struct Log* logger,
-                                   struct Allocator* alloc))
+                                   struct Allocator* alloc)
 {
     // tap mode is not supported at all by the sunos tun driver.
     if (isTapMode) { Err_raise(alloc, "tap mode not supported on this platform"); }
@@ -139,7 +139,7 @@ Err_DEFUN TUNInterface_new(struct Iface** out,
         } else if (tunFd2 < 0) {
             error = "open(\"/dev/tun\") (opening for plumbing interface)";
         }
-        Er_raise(alloc, "%s [%s]", error, strerror(err));
+        Err_raise(alloc, "%s [%s]", error, strerror(err));
     }
 
     struct lifreq ifr = {

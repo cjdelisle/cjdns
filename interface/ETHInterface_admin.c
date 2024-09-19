@@ -13,7 +13,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "interface/ETHInterface_admin.h"
-#include "exception/Er.h"
+#include "exception/Err.h"
 #include "interface/ETHInterface.h"
 #include "benc/Int.h"
 #include "admin/Admin.h"

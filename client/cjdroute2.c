@@ -15,6 +15,7 @@
 #include "exception/Err.h"
 #include "rust/cjdns_sys/RTypes.h"
 #include "util/events/Socket.h"
+#include "wire/Message.h"
 #define _POSIX_C_SOURCE 200112L
 #include "client/AdminClient.h"
 #include "admin/angel/Core.h"
@@ -25,7 +26,6 @@
 #include "benc/Int.h"
 #include "benc/List.h"
 #include "benc/serialization/BencSerializer.h"
-#include "benc/serialization/json/JsonBencSerializer.h"
 #include "benc/serialization/json/JsonBencMessageReader.h"
 #include "benc/serialization/standard/BencMessageReader.h"
 #include "benc/serialization/standard/BencMessageWriter.h"
@@ -681,32 +681,34 @@ int cjdroute2_main(int argc, char** argv)
     // and if the old parser fails or the parsed content contains "version": 2,
     // fail to launch
     Message_t* confMsg = readToMsg(stdin, allocator);
-    struct Reader* confReader = ArrayReader_new(Message_bytes(confMsg), Message_getLength(confMsg), allocator);
-    Dict _config;
-    Dict* config = &_config;
-    const char* err = JsonBencMessageReader_readNoExcept(confMsg, allocator, &config, false);
-    if (!err) {
-        // If old version is specified, always use old parser so there is no possible error
-        int64_t* v = Dict_getIntC(config, "version");
-        if (!v || *v < 2) { err = "using old parser"; }
-    }
+    Dict* config = NULL;
+    RTypes_Error_t* err = JsonBencMessageReader_read(
+        &config,
+        Message_clone(confMsg, allocator),
+        allocator,
+        false
+    );
     if (err) {
-        if (JsonBencSerializer_get()->parseDictionary(confReader, allocator, &_config)) {
-            fprintf(stderr, "Failed to parse configuration.\n%s\n", err);
-            return -1;
-        }
-        int64_t* version = Dict_getIntC(config, "version");
-        if (version && *version >= 2) {
-            fprintf(stderr, "Invalid cjdroute.conf\n%s\n", err);
-            return -1;
+        // Try again with lax parsing to check if version is < 2
+        Err_assert(JsonBencMessageReader_read(
+            &config,
+            Message_clone(confMsg, allocator),
+            allocator,
+            true
+        ));
+        int64_t* ver = Dict_getIntC(config, "version");
+        if (ver && *ver > 1) {
+            Err_assert(err);
         }
     }
 
     if (argc == 2 && CString_strcmp(argv[1], "--cleanconf") == 0) {
         // Slip a v2 in there because at this point, the conf file is definitely v2 valid
         Dict_putIntC(config, "version", 2, allocator);
+        struct Message* msg = Message_new(0, 10000, allocator);
+        Err_assert(JsonBencMessageReader_write(config, msg, allocator));
         struct Writer* stdoutWriter = FileWriter_new(stdout, allocator);
-        JsonBencSerializer_get()->serializeDictionary(stdoutWriter, config);
+        stdoutWriter->write(stdoutWriter, Message_bytes(msg), Message_getLength(msg));
         printf("\n");
         return 0;
     }
@@ -819,7 +821,8 @@ int cjdroute2_main(int argc, char** argv)
 
     Message_t* fromCoreMsg = NULL;
     Err_assert(InterfaceWaiter_waitForData(&fromCoreMsg, corePipe, eventBase, allocator));
-    Dict* responseFromCore = Er_assert(BencMessageReader_read(fromCoreMsg, allocator));
+    Dict* responseFromCore = NULL;
+    Err_assert(BencMessageReader_read(&responseFromCore, fromCoreMsg, allocator));
 
     // --------------------- Close the Core Pipe --------------------- //
     Allocator_free(corePipeAlloc);

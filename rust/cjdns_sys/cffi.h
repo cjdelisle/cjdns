@@ -15,7 +15,9 @@
 
 // This file is used to generate src/cffi.rs using bindgen
 
-#include "benc/String.h"
+#include "benc/Object.h"
+#include "benc/List.h"
+#include "benc/Dict.h"
 #include "interface/Iface.h"
 #include "interface/test/RustIface_test.h"
 #include "crypto/CryptoAuth.h"
@@ -38,7 +40,9 @@ struct RBindings_Whitelist {
     Iface_t b;
     enum CryptoAuth_addUser_Res c;
     Message_t d;
-    String_t e;
+    List_Item_t e;
+    Dict_Entry_t ee;
+    Object_t eee;
     Log_t* f;
     enum RBindings_Version g;
     Sockaddr_t h;

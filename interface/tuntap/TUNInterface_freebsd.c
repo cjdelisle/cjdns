@@ -48,7 +48,7 @@ Err_DEFUN TUNInterface_new(struct Iface** out,
 {
     char deviceFile[TUNInterface_IFNAMSIZ];
 
-    if (isTapMode) { Er_raise(alloc, "tap mode not supported on this platform"); }
+    if (isTapMode) { Err_raise(alloc, "tap mode not supported on this platform"); }
 
     // We are on FreeBSD so we just need to read /dev/tunxx to create the tun interface
     if (interfaceName) {

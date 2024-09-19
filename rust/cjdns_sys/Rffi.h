@@ -269,4 +269,11 @@ RTypes_Error_t *Rffi_Seeder_listDnsSeeds(RTypes_Seeder_DnsSeeds_t **seeds_out,
 
 void Rffi_Seeder_new(Rffi_Seeder **seeder_out, Iface_t **iface_out, Allocator_t *alloc);
 
+RTypes_Error_t *Rffi_Benc_decodeJson(Dict_t **out,
+                                     Message_t *msg,
+                                     bool lax_mode,
+                                     Allocator_t *alloc);
+
+RTypes_Error_t *Rffi_Benc_encodeJson(Dict_t *input, Message_t *msg, Allocator_t *alloc);
+
 #endif /* rffi_H */

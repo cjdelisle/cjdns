@@ -15,7 +15,7 @@
 
 #include "util/Base10.h"
 #include "wire/Message.h"
-#include "exception/Er.h"
+#include "exception/Err.h"
 #include "util/CString.h"
 #include "rust/cjdns_sys/Rffi.h"
 
@@ -40,17 +40,18 @@ Err_DEFUN Base10_write(Message_t* msg, int64_t num)
     return NULL;
 }
 
-Er_DEFUN(int64_t Base10_read(Message_t* msg))
+Err_DEFUN Base10_read(int64_t* outP, Message_t* msg)
 {
     int64_t numOut = 0;
     uint32_t bytes = 0;
     int out = Rffi_parseBase10(
         Message_bytes(msg), Message_getLength(msg), &numOut, &bytes);
     if (out != 0) {
-        Er_raise(Message_getAlloc(msg), "Error reading base10: %d", out);
+        Err_raise(Message_getAlloc(msg), "Error reading base10: %d", out);
     }
-    Er(Er_fromErr(Message_eshift(msg, -bytes)));
-    Er_ret(numOut);
+    Err(Message_eshift(msg, -bytes));
+    *outP = numOut;
+    return NULL;
 }
 
 int Base10_fromString(uint8_t* str, int64_t* numOut)

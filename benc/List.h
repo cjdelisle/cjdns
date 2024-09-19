@@ -20,9 +20,9 @@
 #include "util/Linker.h"
 Linker_require("benc/List.c")
 
-struct List_Item;
+typedef struct List_Item List_Item_t;
 struct List_Item {
-    struct List_Item* next;
+    List_Item_t* next;
     Object* elem;
 };
 

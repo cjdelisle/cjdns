@@ -15,7 +15,7 @@
 #ifndef UDPInterface_H
 #define UDPInterface_H
 
-#include "exception/Er.h"
+#include "exception/Err.h"
 #include "interface/addressable/AddrIface.h"
 #include "benc/List.h"
 #include "util/events/EventBase.h"

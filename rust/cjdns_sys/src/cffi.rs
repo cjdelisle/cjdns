@@ -10,13 +10,10 @@ pub type __uint8_t = ::std::os::raw::c_uchar;
 pub type __uint16_t = ::std::os::raw::c_ushort;
 pub type __int32_t = ::std::os::raw::c_int;
 pub type __uint32_t = ::std::os::raw::c_uint;
+pub type __int64_t = ::std::os::raw::c_long;
 pub type __uint64_t = ::std::os::raw::c_ulong;
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct Allocator {
-    _unused: [u8; 0],
-}
-pub type Allocator_t = Allocator;
+pub type Dict = *mut Dict_Entry;
+pub type List = *mut List_Item;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct String_s {
@@ -30,6 +27,74 @@ impl Default for String_s {
 }
 pub type String = String_s;
 pub type String_t = String;
+pub type Dict_t = Dict;
+pub type List_t = List;
+#[repr(u32)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum Object_Type {
+    Object_INTEGER = 0,
+    Object_STRING = 1,
+    Object_LIST = 2,
+    Object_DICT = 3,
+    Object_UNPARSABLE = 4,
+}
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct Object {
+    pub type_: Object_Type,
+    pub as_: Object__bindgen_ty_1,
+}
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub union Object__bindgen_ty_1 {
+    pub number: i64,
+    pub string: *mut String_t,
+    pub list: *mut List_t,
+    pub dictionary: *mut Dict_t,
+    _bindgen_union_align: u64,
+}
+impl Default for Object__bindgen_ty_1 {
+    fn default() -> Self {
+        unsafe { ::std::mem::zeroed() }
+    }
+}
+impl Default for Object {
+    fn default() -> Self {
+        unsafe { ::std::mem::zeroed() }
+    }
+}
+pub type Object_t = Object;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct Allocator {
+    _unused: [u8; 0],
+}
+pub type Allocator_t = Allocator;
+pub type List_Item_t = List_Item;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct List_Item {
+    pub next: *mut List_Item_t,
+    pub elem: *mut Object,
+}
+impl Default for List_Item {
+    fn default() -> Self {
+        unsafe { ::std::mem::zeroed() }
+    }
+}
+pub type Dict_Entry_t = Dict_Entry;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct Dict_Entry {
+    pub next: *mut Dict_Entry_t,
+    pub key: *mut String,
+    pub val: *mut Object,
+}
+impl Default for Dict_Entry {
+    fn default() -> Self {
+        unsafe { ::std::mem::zeroed() }
+    }
+}
 pub type Iface_t = Iface;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -423,7 +488,9 @@ pub struct RBindings_Whitelist {
     pub b: Iface_t,
     pub c: CryptoAuth_addUser_Res,
     pub d: Message_t,
-    pub e: String_t,
+    pub e: List_Item_t,
+    pub ee: Dict_Entry_t,
+    pub eee: Object_t,
     pub f: *mut Log_t,
     pub g: RBindings_Version,
     pub h: Sockaddr_t,

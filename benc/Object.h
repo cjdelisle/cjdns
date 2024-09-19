@@ -17,8 +17,6 @@
 
 #include <stdint.h>
 
-#include "memory/Allocator.h"
-
 // Dictionaries and lists are pointers to the head entry so that the head can change.
 typedef struct Dict_Entry* Dict;
 typedef struct List_Item* List;
@@ -28,6 +26,8 @@ typedef struct String_s {
 } String;
 
 typedef String String_t;
+typedef Dict Dict_t;
+typedef List List_t;
 
 enum Object_Type {
     Object_INTEGER,
@@ -41,14 +41,12 @@ typedef struct {
     enum Object_Type type;
     union {
         int64_t number;
-        String* string;
-        List* list;
-        Dict* dictionary;
+        String_t* string;
+        List_t* list;
+        Dict_t* dictionary;
     } as;
 } Object;
 
-//#include "benc/List.h"
-//#include "benc/Dict.h"
-
+typedef Object Object_t;
 
 #endif

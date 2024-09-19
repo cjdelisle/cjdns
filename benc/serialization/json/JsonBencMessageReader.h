@@ -15,8 +15,8 @@
 #ifndef JsonBencMessageReader_H
 #define JsonBencMessageReader_H
 
-#include "benc/Dict.h"
-#include "exception/Er.h"
+#include "benc/Object.h"
+#include "exception/Err.h"
 #include "memory/Allocator.h"
 #include "wire/Message.h"
 #include "util/Linker.h"
@@ -24,12 +24,23 @@ Linker_require("benc/serialization/json/JsonBencMessageReader.c")
 
 #include <stdbool.h>
 
-Er_DEFUN(Dict* JsonBencMessageReader_read(
+Err_DEFUN JsonBencMessageReader_read(
+    Dict_t** out,
     Message_t* msg,
     struct Allocator* alloc,
     bool lax
-));
+);
+
+Err_DEFUN JsonBencMessageReader_write(
+    Dict_t* input,
+    Message_t* msg,
+    struct Allocator* alloc
+);
+
 const char* JsonBencMessageReader_readNoExcept(
-    Message_t* msg, struct Allocator* alloc, Dict** outPtr, bool lax);
+    Message_t* msg,
+    struct Allocator* alloc,
+    Dict** out,
+    bool lax);
 
 #endif

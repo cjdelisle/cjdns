@@ -20,9 +20,9 @@
 #include "util/Linker.h"
 Linker_require("benc/Dict.c")
 
-struct Dict_Entry;
+typedef struct Dict_Entry Dict_Entry_t;
 struct Dict_Entry {
-    struct Dict_Entry* next;
+    Dict_Entry_t* next;
     String* key;
     Object* val;
 };

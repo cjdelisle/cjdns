@@ -469,7 +469,8 @@ int Core_main(int argc, char** argv)
     Log_debug(logger, "Finished getting pre-configuration from client");
     struct Sockaddr_storage addr;
     Err_assert(AddrIface_popAddr(&addr, preConf));
-    Dict* config = Er_assert(BencMessageReader_read(preConf, tempAlloc));
+    Dict* config = NULL;
+    Err_assert(BencMessageReader_read(&config, preConf, tempAlloc));
 
     String* privateKeyHex = Dict_getStringC(config, "privateKey");
     Dict* adminConf = Dict_getDictC(config, "admin");

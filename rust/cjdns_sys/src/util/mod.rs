@@ -5,6 +5,7 @@ pub mod sockaddr;
 pub mod identity;
 pub mod async_callable;
 pub mod callable;
+pub mod serialization;
 
 pub mod events {
     use std::time::{SystemTime, UNIX_EPOCH};

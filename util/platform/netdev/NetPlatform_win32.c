@@ -109,7 +109,7 @@ static Err_DEFUN setupRoute(const char* deviceName,
     void WINAPI InitializeIpForwardEntry(PMIB_IPFORWARD_ROW2 Row);
 
     MIB_IPFORWARD_ROW2 row = {
-        .InterfaceLuid = Er(getLuid(deviceName, alloc)),
+        .InterfaceLuid = 0,
         .ValidLifetime = WSA_INFINITE,
         .PreferredLifetime = WSA_INFINITE,
         .Metric = 0xffffffff,
@@ -129,6 +129,7 @@ static Err_DEFUN setupRoute(const char* deviceName,
         .Age = 0,
         .Origin = 0
     };
+    Err(getLuid(&row.InterfaceLuid deviceName, alloc));
 
     if (addrFam == AF_INET6) {
         Bits_memcpy(&row.DestinationPrefix.Prefix.Ipv6.sin6_addr, addrBytes, 15);
@@ -176,7 +177,7 @@ Err_DEFUN NetPlatform_addAddress(const char* interfaceName,
         .OnLinkPrefixLength = 0xFF
     };
 
-    ipRow.InterfaceLuid = Er(getLuid(interfaceName, tempAlloc));
+    Err(getLuid(&ipRow.InterfaceLuid, interfaceName, tempAlloc));
 
     ipRow.Address.si_family = addrFam;
     if (addrFam == AF_INET6) {

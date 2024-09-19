@@ -1818,9 +1818,9 @@ mod tests {
 
     fn fake_random(alloc: &mut Allocator) -> *mut cffi::Random_t {
         unsafe {
-            let fake_seed = cffi::DeterminentRandomSeed_new(alloc.c(), std::ptr::null_mut());
-            let mut out: *mut cffi::Random_t = std::ptr::null_mut();
-            let err = cffi::Random_newWithSeed(&out, alloc.c(), std::ptr::null_mut(), fake_seed);
+            // let fake_seed = cffi::DeterminentRandomSeed_new(alloc.c(), std::ptr::null_mut());
+            // let mut out: *mut cffi::Random_t = std::ptr::null_mut();
+            // let err = cffi::Random_newWithSeed(&out, alloc.c(), std::ptr::null_mut(), fake_seed);
             todo!()
         }
     }

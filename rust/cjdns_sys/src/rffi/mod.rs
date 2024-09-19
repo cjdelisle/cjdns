@@ -14,6 +14,7 @@ mod glock;
 mod base10;
 pub mod allocator;
 mod seeder;
+mod benc;
 
 use anyhow::{bail, Result};
 
