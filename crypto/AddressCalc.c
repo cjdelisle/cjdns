@@ -15,8 +15,7 @@
 #include "util/Bits.h"
 #include "util/Endian.h"
 #include "crypto/AddressCalc.h"
-
-#include <sodium/crypto_hash_sha512.h>
+#include "rust/cjdns_sys/Rffi.h"
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -49,9 +48,9 @@ void AddressCalc_makeValidAddress(uint8_t address[16])
 
 bool AddressCalc_addressForPublicKey(uint8_t addressOut[16], const uint8_t key[32])
 {
-    uint8_t hash[crypto_hash_sha512_BYTES];
-    crypto_hash_sha512(hash, key, 32);
-    crypto_hash_sha512(hash, hash, crypto_hash_sha512_BYTES);
+    uint8_t hash[64];
+    Rffi_crypto_hash_sha512(hash, key, 32);
+    Rffi_crypto_hash_sha512(hash, hash, sizeof hash);
     if (addressOut) {
         Bits_memcpy(addressOut, hash, 16);
     }

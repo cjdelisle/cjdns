@@ -23,8 +23,7 @@
 #include "util/AddrTools.h"
 #include "util/Hex.h"
 #include "util/Hash.h"
-
-#include <sodium/crypto_hash_sha512.h>
+#include "rust/cjdns_sys/Rffi.h"
 
 #include <inttypes.h>
 
@@ -110,7 +109,7 @@ static void hashMsgList(struct ArrayList_OfMessages* msgList, uint8_t out[64])
     for (int i = 0; i < msgList->length; i++) {
         Message_t* msg = ArrayList_OfMessages_get(msgList, i);
         Err_assert(Message_epush(msg, hash, 64));
-        crypto_hash_sha512(hash, Message_bytes(msg), Message_getLength(msg));
+        Rffi_crypto_hash_sha512(hash, Message_bytes(msg), Message_getLength(msg));
         Err_assert(Message_epop(msg, NULL, 64));
     }
     Bits_memcpy(out, hash, 64);

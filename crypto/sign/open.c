@@ -2,7 +2,8 @@
 #include "ge.h"
 #include "sc.h"
 
-#include <sodium/crypto_hash_sha512.h>
+#include "rust/cjdns_sys/Rffi.h"
+
 #include <sodium/crypto_verify_32.h>
 
 int crypto_sign_open(
@@ -24,7 +25,7 @@ int crypto_sign_open(
 
   for (i = 0;i < smlen;++i) m[i] = sm[i];
   for (i = 0;i < 32;++i) m[32 + i] = pk[i];
-  crypto_hash_sha512(h,m,smlen);
+  Rffi_crypto_hash_sha512(h,m,smlen);
   sc_reduce(h);
 
   ge_double_scalarmult_vartime(&R,h,&A,sm + 32);

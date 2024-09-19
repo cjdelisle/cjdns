@@ -17,7 +17,7 @@
 #include "util/log/Log.h"
 #include "util/Bits.h"
 
-#include <sodium/crypto_hash_sha512.h>
+#include "rust/cjdns_sys/Rffi.h"
 
 struct RandomSeed_pvt
 {
@@ -48,7 +48,7 @@ static int get(RandomSeed_t* rs, uint64_t buffer[8])
     for (int i = 0; i < ctx->rsCount; i++) {
         if (!ctx->rsList[i]->get(ctx->rsList[i], buff.input)) {
             Log_info(ctx->logger, "Trying random seed [%s] Success", ctx->rsList[i]->name);
-            crypto_hash_sha512((uint8_t*)buff.output,
+            Rffi_crypto_hash_sha512((uint8_t*)buff.output,
                                (uint8_t*)&buff,
                                RandomSeed_Buffer_SIZE);
             successCount++;

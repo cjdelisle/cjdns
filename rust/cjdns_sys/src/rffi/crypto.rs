@@ -1,3 +1,8 @@
+use std::sync::Arc;
+
+use libc::{c_char, c_int, c_uchar, c_ulonglong};
+use sodiumoxide::crypto::hash::sha512;
+
 use super::allocator::file_line;
 use super::{cstr, strc};
 use crate::bytestring::ByteString;
@@ -10,8 +15,6 @@ use crate::external::interface::cif;
 use crate::rffi::allocator;
 use crate::interface::wire::message::Message;
 use crate::rtypes::*;
-use std::os::raw::{c_char, c_int};
-use std::sync::Arc;
 
 #[repr(C)]
 pub struct Rffi_CryptoAuth2_Session_t {
@@ -283,4 +286,21 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_cjdnsVer(
     session: *const RTypes_CryptoAuth2_Session_t,
 ) -> u32 {
     ffi_sess(session).s.cjdns_ver()
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn Rffi_crypto_hash_sha512(
+    out: *mut c_uchar, // Output buffer (hash result)
+    input: *const c_uchar, // Input buffer (data to hash)
+    inlen: c_ulonglong // Length of input data
+) -> c_int {
+    let input_slice = std::slice::from_raw_parts(input, inlen as usize);
+
+    // Perform the SHA-512 hash
+    let hash = sha512::hash(input_slice);
+
+    // Copy the result to the output buffer
+    std::ptr::copy_nonoverlapping(hash.0.as_ptr(), out, hash.0.len());
+
+    0 // Success
 }

@@ -56,7 +56,7 @@ Linker_require("crypto/sign/sc_muladd.c")
 Linker_require("crypto/sign/sc_reduce.c")
 Linker_require("crypto/sign/open.c")
 
-#include <sodium/crypto_hash_sha512.h>
+#include "rust/cjdns_sys/Rffi.h"
 
 // This is fairly streight forward, we're taking a curve25519 private key and
 // interpreting it as an ed25519 key. This works in conjunction with the public
@@ -131,7 +131,7 @@ void Sign_signMsg(uint8_t keyPair[64], Message_t* msg, struct Random* rand)
     // the hash of the secret key that is input to it.
     Bits_memcpy(az, keyPair, 32);
     Random_bytes(rand, &az[32], 32);
-    crypto_hash_sha512(az,az,64);
+    Rffi_crypto_hash_sha512(az,az,64);
 
     // Ok, now az contains 64 bytes of unique random value, the upper 32 bytes needs to
     // be set to the actual secret key that we're going to use for signing.
@@ -146,7 +146,7 @@ void Sign_signMsg(uint8_t keyPair[64], Message_t* msg, struct Random* rand)
     // hash message + secret number, this is the same as crypto_sign()
     // If there isn't enough space in the message, we abort the process
     Err_assert(Message_epush(msg, &az[32], 32));
-    crypto_hash_sha512(r, Message_bytes(msg), Message_getLength(msg));
+    Rffi_crypto_hash_sha512(r, Message_bytes(msg), Message_getLength(msg));
 
     // Replace secret number with public key, this is the same as crypto_sign()
     Bits_memcpy(Message_bytes(msg), &keyPair[32], 32);
@@ -162,7 +162,7 @@ void Sign_signMsg(uint8_t keyPair[64], Message_t* msg, struct Random* rand)
     // This final step is the same as crypto_sign()
     // Overwrite the public key which the verifier will replace in order to recompute
     // the hash.
-    crypto_hash_sha512(hram, Message_bytes(msg), Message_getLength(msg));
+    Rffi_crypto_hash_sha512(hram, Message_bytes(msg), Message_getLength(msg));
     sc_reduce(hram);
     sc_muladd(&Message_bytes(msg)[32], hram, az, r);
 }

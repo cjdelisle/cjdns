@@ -96,6 +96,10 @@ void Rffi_CryptoAuth2_stats(const RTypes_CryptoAuth2_Session_t *session,
 
 uint32_t Rffi_CryptoAuth2_cjdnsVer(const RTypes_CryptoAuth2_Session_t *session);
 
+int Rffi_crypto_hash_sha512(unsigned char *out,
+                            const unsigned char *input,
+                            unsigned long long inlen);
+
 void Rffi_stopEventLoop(Rffi_EventLoop *event_loop);
 
 void Rffi_startEventLoop(Rffi_EventLoop *event_loop);
