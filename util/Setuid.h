@@ -15,8 +15,17 @@
 #ifndef Setuid_H
 #define Setuid_H
 
-#include "util/Setuid_impl.h"
+#include "memory/Allocator.h"
+#include "exception/Err.h"
 #include "util/Linker.h"
-Linker_require("util/Setuid.c")
+
+#ifdef linux
+    Linker_require("util/Setuid_linux.c")
+#else
+    Linker_require("util/Setuid_dummy.c")
+#endif
+
+Err_DEFUN Setuid_preSetuid(Allocator_t* alloc);
+Err_DEFUN Setuid_postSetuid(Allocator_t* alloc);
 
 #endif

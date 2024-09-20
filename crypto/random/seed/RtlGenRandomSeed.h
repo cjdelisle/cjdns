@@ -21,5 +21,6 @@
 
 Linker_require("crypto/random/seed/RtlGenRandomSeed.c")
 RandomSeed_t* RtlGenRandomSeed_new(struct Allocator* alloc);
+#define RtlGenRandomSeed_EXISTS
 
 #endif

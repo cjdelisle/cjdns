@@ -16,7 +16,6 @@
 #define SystemRandomSeed_H
 
 #include "crypto/random/seed/RandomSeed.h"
-#include "crypto/random/seed/SystemRandomSeed.h"
 #include "util/Linker.h"
 Linker_require("crypto/random/seed/SystemRandomSeed.c")
 

@@ -21,5 +21,6 @@
 
 Linker_require("crypto/random/seed/BsdKernArndSysctlRandomSeed.c")
 RandomSeed_t* BsdKernArndSysctlRandomSeed_new(struct Allocator* alloc);
+#define BsdKernArndSysctlRandomSeed_EXISTS
 
 #endif

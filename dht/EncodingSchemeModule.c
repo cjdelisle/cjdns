@@ -78,7 +78,7 @@ static int handleIncoming(struct DHTMessage* message, void* vcontext)
         Assert_ifTesting(0);
         return -1;
     }
-    if (!Version_isCompatible(Version_CURRENT_PROTOCOL, *version)) {
+    if (!Version_compatibleWithCurrent(*version)) {
         Log_debug(ctx->logger, "Incompatible version");
         Assert_ifTesting(0);
         return -1;

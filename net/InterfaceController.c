@@ -243,7 +243,7 @@ static bool knownIncompatibleVersion(uint32_t version)
         // Subnode doesn't talk to peers with less than v21
         return true;
     }
-    return !Version_isCompatible(version, Version_CURRENT_PROTOCOL);
+    return !Version_compatibleWithCurrent(version);
 }
 
 static void sendPeer(uint32_t pathfinderId,

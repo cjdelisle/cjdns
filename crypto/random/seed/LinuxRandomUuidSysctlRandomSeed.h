@@ -21,5 +21,6 @@
 
 Linker_require("crypto/random/seed/LinuxRandomUuidSysctlRandomSeed.c")
 RandomSeed_t* LinuxRandomUuidSysctlRandomSeed_new(struct Allocator* alloc);
+#define LinuxRandomUuidSysctlRandomSeed_EXISTS
 
 #endif

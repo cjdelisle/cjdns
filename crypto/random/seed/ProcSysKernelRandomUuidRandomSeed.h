@@ -21,5 +21,6 @@
 
 Linker_require("crypto/random/seed/ProcSysKernelRandomUuidRandomSeed.c")
 RandomSeed_t* ProcSysKernelRandomUuidRandomSeed_new(struct Allocator* alloc);
+#define ProcSysKernelRandomUuidRandomSeed_EXISTS
 
 #endif

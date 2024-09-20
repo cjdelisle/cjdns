@@ -87,7 +87,7 @@ static Iface_DEFUN handlePing(Message_t* msg,
     // Ping and keyPing share version location
     struct Control_Ping* ping = (struct Control_Ping*) Message_bytes(msg);
     uint32_t herVersion = Endian_bigEndianToHost32(ping->version_be);
-    if (!Version_isCompatible(Version_CURRENT_PROTOCOL, herVersion)) {
+    if (!Version_compatibleWithCurrent(herVersion)) {
         Log_debug(ch->log, "DROP ping from incompatible version [%d]", herVersion);
         return Error(msg, "INVALID");
     }
@@ -308,7 +308,7 @@ static Iface_DEFUN handleGetSnodeQuery(Message_t* msg,
     }
 
     uint32_t herVersion = Endian_bigEndianToHost32(snq->version_be);
-    if (!Version_isCompatible(Version_CURRENT_PROTOCOL, herVersion)) {
+    if (!Version_compatibleWithCurrent(herVersion)) {
         Log_debug(ch->log, "DROP getSupernode query from incompatible version [%d]", herVersion);
         // Nothing wrong with the query but we're just not going to answer it
         return NULL;

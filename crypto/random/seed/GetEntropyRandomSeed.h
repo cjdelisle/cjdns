@@ -21,5 +21,6 @@
 
 Linker_require("crypto/random/seed/GetEntropyRandomSeed.c")
 RandomSeed_t* GetEntropyRandomSeed_new(struct Allocator* alloc);
+#define GetEntropyRandomSeed_EXISTS
 
 #endif

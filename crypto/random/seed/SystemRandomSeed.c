@@ -16,39 +16,49 @@
 #include "crypto/random/seed/SystemRandomSeed.h"
 #include "util/log/Log.h"
 
-Js({ this.RandomSeedProvider_providers = []; })
-#define RandomSeedProvider_register(name) Js({ this.RandomSeedProvider_providers.push(#name) })
-#define RandomSeedProvider_list() Js({ return this.RandomSeedProvider_providers.join(','); })
-
 #ifdef win32
     #include "crypto/random/seed/RtlGenRandomSeed.h"
-    RandomSeedProvider_register(RtlGenRandomSeed_new)
 #else
     #include "crypto/random/seed/DevUrandomRandomSeed.h"
-    RandomSeedProvider_register(DevUrandomRandomSeed_new)
     #ifdef linux
         #include "crypto/random/seed/ProcSysKernelRandomUuidRandomSeed.h"
-        RandomSeedProvider_register(ProcSysKernelRandomUuidRandomSeed_new)
         #if !defined(__ILP32__) && !defined(__aarch64__) && defined(__GLIBC__)
             #include "crypto/random/seed/LinuxRandomUuidSysctlRandomSeed.h"
-            RandomSeedProvider_register(LinuxRandomUuidSysctlRandomSeed_new)
         #endif
     #else
         #ifdef freebsd
             #include "crypto/random/seed/BsdKernArndSysctlRandomSeed.h"
-            RandomSeedProvider_register(BsdKernArndSysctlRandomSeed_new)
         #endif
     #endif
     #include <sys/syscall.h>
     #if defined(__OPENBSD__) || (defined(SYS_getrandom) && \
         (SYS_getrandom != __NR_getrandom || defined(__NR_getrandom)))
         #include "crypto/random/seed/GetEntropyRandomSeed.h"
-        RandomSeedProvider_register(GetEntropyRandomSeed_new)
     #endif
 #endif
 
-static RandomSeed_Provider PROVIDERS[] = { RandomSeedProvider_list() };
-#define PROVIDERS_COUNT ((int)(sizeof(PROVIDERS) / sizeof(RandomSeed_Provider)))
+static RandomSeed_Provider RandomSeedProvider_PROVIDERS[] = {
+    #ifdef RtlGenRandomSeed_EXISTS
+        RtlGenRandomSeed_new,
+    #endif
+    #ifdef DevUrandomRandomSeed_EXISTS
+        DevUrandomRandomSeed_new,
+    #endif
+    #ifdef ProcSysKernelRandomUuidRandomSeed_EXISTS
+        ProcSysKernelRandomUuidRandomSeed_new,
+    #endif
+    #ifdef LinuxRandomUuidSysctlRandomSeed_EXISTS
+        LinuxRandomUuidSysctlRandomSeed_new,
+    #endif
+    #ifdef BsdKernArndSysctlRandomSeed_EXISTS
+        BsdKernArndSysctlRandomSeed_new,
+    #endif
+    #ifdef GetEntropyRandomSeed_EXISTS
+        GetEntropyRandomSeed_new,
+    #endif
+};
+
+#define PROVIDERS_COUNT ((int)(sizeof RandomSeedProvider_PROVIDERS / sizeof *RandomSeedProvider_PROVIDERS))
 
 RandomSeed_t* SystemRandomSeed_new(RandomSeed_Provider* additionalProviders,
                                         int additionalProviderCount,
@@ -56,7 +66,6 @@ RandomSeed_t* SystemRandomSeed_new(RandomSeed_Provider* additionalProviders,
                                         struct Allocator* alloc)
 {
     int providerCount = PROVIDERS_COUNT + additionalProviderCount;
-
     RandomSeed_Provider* allProviders =
         Allocator_calloc(alloc, sizeof(RandomSeed_Provider), providerCount+1);
     int i = 0;
@@ -64,7 +73,7 @@ RandomSeed_t* SystemRandomSeed_new(RandomSeed_Provider* additionalProviders,
         allProviders[i++] = additionalProviders[j];
     }
     for (int j = 0; j < PROVIDERS_COUNT; j++) {
-        allProviders[i++] = PROVIDERS[j];
+        allProviders[i++] = RandomSeedProvider_PROVIDERS[j];
     }
     return RandomSeed_new(allProviders, providerCount, logger, alloc);
 }
