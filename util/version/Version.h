@@ -34,7 +34,7 @@ Linker_require("util/version/Version.c")
 // NOTE: The version table has been moved to Version.c
 
 static inline bool Version_compatibleWithCurrent(uint32_t version) {
-    return version > Version_MINIMUM_COMPATIBLE;
+    return version >= Version_MINIMUM_COMPATIBLE;
 }
 
 /**
