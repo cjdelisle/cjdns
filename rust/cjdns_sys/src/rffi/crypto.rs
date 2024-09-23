@@ -15,6 +15,7 @@ use crate::external::interface::cif;
 use crate::rffi::allocator;
 use crate::interface::wire::message::Message;
 use crate::rtypes::*;
+use crate::util::identity::{from_c_const, Identity};
 
 #[repr(C)]
 pub struct Rffi_CryptoAuth2_Session_t {
@@ -22,14 +23,17 @@ pub struct Rffi_CryptoAuth2_Session_t {
     s: Arc<dyn session::SessionTrait>,
 }
 
-pub struct RTypes_CryptoAuth2_t(pub Arc<crypto_auth::CryptoAuth>);
+pub struct RTypes_CryptoAuth2_t{
+    ca: Arc<crypto_auth::CryptoAuth>,
+    identity: Identity<Self>,
+}
 
 #[no_mangle]
 pub unsafe extern "C" fn Rffi_CryptoAuth2_addUser_ipv6(
     password: *mut String_t,
     login: *mut String_t,
     ipv6: *mut u8,
-    ca: *mut RTypes_CryptoAuth2_t,
+    ca: *const RTypes_CryptoAuth2_t,
 ) -> c_int {
     let ip6 = if ipv6.is_null() {
         None
@@ -38,9 +42,8 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_addUser_ipv6(
         ip.copy_from_slice(std::slice::from_raw_parts(ipv6, 16));
         Some(ip)
     };
-    match (*ca)
-        .0
-        .add_user_ipv6(cstr(password).expect("password"), cstr(login), ip6)
+    let ca = &from_c_const!(ca).ca;
+    match ca.add_user_ipv6(cstr(password).expect("password"), cstr(login), ip6)
     {
         Ok(_) => 0,
         Err(crypto_auth::AddUserError::Duplicate { .. }) => {
@@ -51,10 +54,11 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_addUser_ipv6(
 
 #[no_mangle]
 pub unsafe extern "C" fn Rffi_CryptoAuth2_removeUsers(
-    context: *mut RTypes_CryptoAuth2_t,
+    context: *const RTypes_CryptoAuth2_t,
     user: *mut String_t,
 ) -> c_int {
-    (*context).0.remove_users(cstr(user)) as c_int
+    let ca = &from_c_const!(context).ca;
+    ca.remove_users(cstr(user)) as c_int
 }
 
 #[no_mangle]
@@ -62,7 +66,8 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_getUsers(
     ca: *const RTypes_CryptoAuth2_t,
     alloc: *mut Allocator_t,
 ) -> *mut RTypes_StrList_t {
-    let mut users = (*ca).0.get_users();
+    let ca = &from_c_const!(ca).ca;
+    let mut users = ca.get_users();
     let mut str_users = users.drain(..).map(|u| strc(alloc, u)).collect::<Vec<_>>();
     let out = RTypes_StrList_t {
         len: str_users.len(),
@@ -80,18 +85,21 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_new(
 ) -> *mut RTypes_CryptoAuth2_t {
     allocator::adopt(
         allocator,
-        RTypes_CryptoAuth2_t(Arc::new(crypto_auth::CryptoAuth::new(
-            if privateKey.is_null() {
-                None
-            } else {
-                let mut bytes = [0_u8; 32];
-                bytes.copy_from_slice(std::slice::from_raw_parts(privateKey, 32));
-                Some(PrivateKey::from(bytes))
-            },
-            crate::util::events::EventBase {},
-            //crate::crypto::random::Random::new_sodium().expect("libsodium init() failed"),
-            crate::crypto::random::Random::wrap_legacy(random),
-        ))),
+        RTypes_CryptoAuth2_t{
+            ca: Arc::new(crypto_auth::CryptoAuth::new(
+                if privateKey.is_null() {
+                    None
+                } else {
+                    let mut bytes = [0_u8; 32];
+                    bytes.copy_from_slice(std::slice::from_raw_parts(privateKey, 32));
+                    Some(PrivateKey::from(bytes))
+                },
+                crate::util::events::EventBase {},
+                //crate::crypto::random::Random::new_sodium().expect("libsodium init() failed"),
+                crate::crypto::random::Random::wrap_legacy(random),
+            )),
+            identity: Default::default(),
+        },
     )
 }
 
@@ -115,14 +123,15 @@ fn wrap_session(
 
 #[no_mangle]
 pub unsafe extern "C" fn Rffi_CryptoAuth2_tryHandshake(
-    ca: *mut RTypes_CryptoAuth2_t,
+    ca: *const RTypes_CryptoAuth2_t,
     c_msg: *mut cffi::Message_t,
     alloc: *mut Allocator_t,
     requireAuth: bool,
     ret: *mut RTypes_CryptoAuth2_TryHandshake_Ret_t,
 ) {
     let msg = Message::from_c_message(c_msg);
-    match crypto_auth::try_handshake(&(*ca).0, msg, requireAuth) {
+    let ca = &from_c_const!(ca).ca;
+    match crypto_auth::try_handshake(ca, msg, requireAuth) {
         Err(e) => {
             let ee = match e.downcast_ref::<DecryptError>() {
                 Some(ee) => match ee {
@@ -148,15 +157,16 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_tryHandshake(
 
 #[no_mangle]
 pub unsafe extern "C" fn Rffi_CryptoAuth2_newSession(
-    ca: *mut RTypes_CryptoAuth2_t,
+    ca: *const RTypes_CryptoAuth2_t,
     alloc: *mut Allocator_t,
     herPublicKey: *const u8,
     requireAuth: bool,
     name: *const c_char,
     useNoise: bool,
 ) -> *mut RTypes_CryptoAuth2_Session_t {
+    let ca = &from_c_const!(ca).ca;
     let session = crypto_auth::new_session(
-        &(*ca).0,
+        ca,
         if herPublicKey.is_null() {
             panic!("public key is null");
         } else {
@@ -268,7 +278,8 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_getPubKey(
     ca: *const RTypes_CryptoAuth2_t,
     pkOut: *mut u8,
 ) {
-    let p = (*ca).0.public_key.raw();
+    let ca = &from_c_const!(ca).ca;
+    let p = ca.public_key.raw();
     std::slice::from_raw_parts_mut(pkOut, 32).copy_from_slice(&p[..]);
 }
 

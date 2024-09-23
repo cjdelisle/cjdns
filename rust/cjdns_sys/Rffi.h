@@ -48,9 +48,9 @@ extern const uintptr_t Rffi_CURRENT_PROTOCOL;
 int Rffi_CryptoAuth2_addUser_ipv6(String_t *password,
                                   String_t *login,
                                   uint8_t *ipv6,
-                                  RTypes_CryptoAuth2_t *ca);
+                                  const RTypes_CryptoAuth2_t *ca);
 
-int Rffi_CryptoAuth2_removeUsers(RTypes_CryptoAuth2_t *context, String_t *user);
+int Rffi_CryptoAuth2_removeUsers(const RTypes_CryptoAuth2_t *context, String_t *user);
 
 RTypes_StrList_t *Rffi_CryptoAuth2_getUsers(const RTypes_CryptoAuth2_t *ca, Allocator_t *alloc);
 
@@ -58,13 +58,13 @@ RTypes_CryptoAuth2_t *Rffi_CryptoAuth2_new(Allocator_t *allocator,
                                            const uint8_t *privateKey,
                                            Random_t *random);
 
-void Rffi_CryptoAuth2_tryHandshake(RTypes_CryptoAuth2_t *ca,
+void Rffi_CryptoAuth2_tryHandshake(const RTypes_CryptoAuth2_t *ca,
                                    Message_t *c_msg,
                                    Allocator_t *alloc,
                                    bool requireAuth,
                                    RTypes_CryptoAuth2_TryHandshake_Ret_t *ret);
 
-RTypes_CryptoAuth2_Session_t *Rffi_CryptoAuth2_newSession(RTypes_CryptoAuth2_t *ca,
+RTypes_CryptoAuth2_Session_t *Rffi_CryptoAuth2_newSession(const RTypes_CryptoAuth2_t *ca,
                                                           Allocator_t *alloc,
                                                           const uint8_t *herPublicKey,
                                                           bool requireAuth,
