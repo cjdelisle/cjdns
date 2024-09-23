@@ -1,4 +1,4 @@
-use super::{Rffi_EventLoop, GCL};
+use super::GCL;
 use crate::cffi::Allocator_t;
 use crate::rffi::str_to_c;
 use std::ffi::CStr;

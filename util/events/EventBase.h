@@ -15,12 +15,12 @@
 #ifndef EventBase_H
 #define EventBase_H
 
-#include "rust/cjdns_sys/Rffi.h"
+#include "rust/cjdns_sys/RTypes.h"
 #include "memory/Allocator.h"
 #include "util/Linker.h"
 Linker_require("util/events/libuv/EventBase.c")
 
-typedef Rffi_EventLoop EventBase_t;
+typedef RTypes_EventLoop_t EventBase_t;
 
 EventBase_t* EventBase_new(struct Allocator* alloc);
 

@@ -15,6 +15,7 @@
 #ifndef SubnodePathfinder_H
 #define SubnodePathfinder_H
 
+#include "rust/cjdns_sys/Rffi.h"
 #include "interface/Iface.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"

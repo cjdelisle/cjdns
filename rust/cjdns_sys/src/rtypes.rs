@@ -1,9 +1,11 @@
 #![allow(non_snake_case)]
 #![allow(non_camel_case_types)]
 
+use std::sync::Arc;
+
 use libc::c_char;
 
-use crate::cffi::{self, Iface_t, String_t};
+use crate::{cffi::{self, Iface_t, String_t}, rffi::event_loop::EventLoop, util::identity::Identity};
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -99,6 +101,11 @@ pub struct RTypes_CryptoAuth2_TryHandshake_Ret_t {
     pub alloc: *mut cffi::Allocator_t,
 }
 
+pub struct RTypes_EventLoop_t {
+    pub inner: Arc<EventLoop>,
+    pub identity: Identity<Self>,
+}
+
 #[allow(dead_code)]
 #[repr(C)]
 pub struct RTypes_ExportMe {
@@ -110,4 +117,5 @@ pub struct RTypes_ExportMe {
     f: *mut RTypes_Error_t,
     g: RTypes_CryptoAuth2_TryHandshake_Ret_t,
     h: RTypes_Seeder_DnsSeeds_t,
+    i: *mut RTypes_EventLoop_t,
 }

@@ -1,7 +1,7 @@
-use super::Rffi_EventLoop;
 use crate::cffi::Allocator_t;
 use crate::gcl::Protected;
 use crate::rffi::allocator::{self, file_line};
+use crate::rtypes::RTypes_EventLoop_t;
 use crate::util::identity::{from_c, from_c_const, Identity};
 use std::ffi::c_void;
 use std::os::raw::{c_int, c_ulong};
@@ -42,7 +42,7 @@ pub extern "C" fn Rffi_setTimeout(
     cb_context: *mut c_void,
     timeout_millis: c_ulong,
     repeat: bool,
-    event_loop: *mut Rffi_EventLoop,
+    event_loop: *mut RTypes_EventLoop_t,
     alloc: *mut Allocator_t,
 ) {
     let cb_int = cb_context as u64;
@@ -58,7 +58,7 @@ pub extern "C" fn Rffi_setTimeout(
     from_c!(event_loop).inner.timers.lock().push(Arc::downgrade(&rtx));
 
     // do not clone rtx so we don't keep another tx around, so the "Allocator freed" detection works.
-    // although with the new Drop impl for Rffi_EventLoop, the Cancel msg should get there first.
+    // although with the new Drop impl for RTypes_EventLoop, the Cancel msg should get there first.
     let is_active = rtx.active.clone();
 
     unsafe {
@@ -154,7 +154,7 @@ pub extern "C" fn Rffi_isTimeoutActive(timer_tx: *const Rffi_TimerTx) -> c_int {
 
 /// Cancel all timer tasks.
 #[no_mangle]
-pub extern "C" fn Rffi_clearAllTimeouts(event_loop: *mut Rffi_EventLoop) {
+pub extern "C" fn Rffi_clearAllTimeouts(event_loop: *mut RTypes_EventLoop_t) {
     from_c!(event_loop)
         .inner
         .timers

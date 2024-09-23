@@ -42,6 +42,8 @@ typedef enum {
 
 typedef struct RTypes_Error_t RTypes_Error_t;
 
+typedef struct RTypes_EventLoop_t RTypes_EventLoop_t;
+
 typedef struct {
   Iface_t *internal;
   Iface_t *external;
@@ -106,6 +108,7 @@ typedef struct {
   RTypes_Error_t *f;
   RTypes_CryptoAuth2_TryHandshake_Ret_t g;
   RTypes_Seeder_DnsSeeds_t h;
+  RTypes_EventLoop_t *i;
 } RTypes_ExportMe;
 
 #endif /* RTypes_H */

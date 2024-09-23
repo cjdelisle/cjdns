@@ -6,7 +6,7 @@
 #![allow(non_camel_case_types)]
 
 mod crypto;
-mod event_loop;
+pub mod event_loop;
 mod network;
 mod time;
 mod util;

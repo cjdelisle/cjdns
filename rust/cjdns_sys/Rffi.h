@@ -7,8 +7,6 @@
 
 typedef struct RTypes_CryptoAuth2_t RTypes_CryptoAuth2_t;
 
-typedef struct Rffi_EventLoop Rffi_EventLoop;
-
 typedef struct Rffi_FdReadableTx Rffi_FdReadableTx;
 
 typedef struct Rffi_Seeder Rffi_Seeder;
@@ -100,14 +98,14 @@ int Rffi_crypto_hash_sha512(unsigned char *out,
                             const unsigned char *input,
                             unsigned long long inlen);
 
-void Rffi_stopEventLoop(Rffi_EventLoop *event_loop);
+void Rffi_stopEventLoop(RTypes_EventLoop_t *event_loop);
 
-void Rffi_startEventLoop(Rffi_EventLoop *event_loop);
+void Rffi_startEventLoop(RTypes_EventLoop_t *event_loop);
 
 /**
  * Create a new EventLoop data repository.
  */
-Rffi_EventLoop *Rffi_mkEventLoop(Allocator_t *alloc);
+RTypes_EventLoop_t *Rffi_mkEventLoop(Allocator_t *alloc);
 
 /**
  * Get the full filesystem path of the current running executable.
@@ -131,7 +129,7 @@ void Rffi_setTimeout(Rffi_TimerTx **out_timer_tx,
                      void *cb_context,
                      unsigned long timeout_millis,
                      bool repeat,
-                     Rffi_EventLoop *event_loop,
+                     RTypes_EventLoop_t *event_loop,
                      Allocator_t *alloc);
 
 /**
@@ -152,7 +150,7 @@ int Rffi_isTimeoutActive(const Rffi_TimerTx *timer_tx);
 /**
  * Cancel all timer tasks.
  */
-void Rffi_clearAllTimeouts(Rffi_EventLoop *event_loop);
+void Rffi_clearAllTimeouts(RTypes_EventLoop_t *event_loop);
 
 RTypes_Error_t *Rffi_pollFdReadable(Rffi_FdReadableTx **out,
                                     void (*cb)(void*),
