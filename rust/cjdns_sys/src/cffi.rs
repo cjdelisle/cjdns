@@ -4,8 +4,162 @@
 #![allow(dead_code)]
 #![allow(non_camel_case_types)]
 #![allow(clippy::enum_variant_names)]
+#![allow(non_upper_case_globals)]
 use crate::rtypes::*;
 
+pub const _STDINT_H: u32 = 1;
+pub const _FEATURES_H: u32 = 1;
+pub const _DEFAULT_SOURCE: u32 = 1;
+pub const __GLIBC_USE_ISOC2X: u32 = 0;
+pub const __USE_ISOC11: u32 = 1;
+pub const __USE_ISOC99: u32 = 1;
+pub const __USE_ISOC95: u32 = 1;
+pub const __USE_POSIX_IMPLICITLY: u32 = 1;
+pub const _POSIX_SOURCE: u32 = 1;
+pub const _POSIX_C_SOURCE: u32 = 200809;
+pub const __USE_POSIX: u32 = 1;
+pub const __USE_POSIX2: u32 = 1;
+pub const __USE_POSIX199309: u32 = 1;
+pub const __USE_POSIX199506: u32 = 1;
+pub const __USE_XOPEN2K: u32 = 1;
+pub const __USE_XOPEN2K8: u32 = 1;
+pub const _ATFILE_SOURCE: u32 = 1;
+pub const __WORDSIZE: u32 = 64;
+pub const __WORDSIZE_TIME64_COMPAT32: u32 = 1;
+pub const __SYSCALL_WORDSIZE: u32 = 64;
+pub const __TIMESIZE: u32 = 64;
+pub const __USE_MISC: u32 = 1;
+pub const __USE_ATFILE: u32 = 1;
+pub const __USE_FORTIFY_LEVEL: u32 = 0;
+pub const __GLIBC_USE_DEPRECATED_GETS: u32 = 0;
+pub const __GLIBC_USE_DEPRECATED_SCANF: u32 = 0;
+pub const _STDC_PREDEF_H: u32 = 1;
+pub const __STDC_IEC_559__: u32 = 1;
+pub const __STDC_IEC_60559_BFP__: u32 = 201404;
+pub const __STDC_IEC_559_COMPLEX__: u32 = 1;
+pub const __STDC_IEC_60559_COMPLEX__: u32 = 201404;
+pub const __STDC_ISO_10646__: u32 = 201706;
+pub const __GNU_LIBRARY__: u32 = 6;
+pub const __GLIBC__: u32 = 2;
+pub const __GLIBC_MINOR__: u32 = 36;
+pub const _SYS_CDEFS_H: u32 = 1;
+pub const __glibc_c99_flexarr_available: u32 = 1;
+pub const __LDOUBLE_REDIRECTS_TO_FLOAT128_ABI: u32 = 0;
+pub const __HAVE_GENERIC_SELECTION: u32 = 1;
+pub const __GLIBC_USE_LIB_EXT2: u32 = 0;
+pub const __GLIBC_USE_IEC_60559_BFP_EXT: u32 = 0;
+pub const __GLIBC_USE_IEC_60559_BFP_EXT_C2X: u32 = 0;
+pub const __GLIBC_USE_IEC_60559_EXT: u32 = 0;
+pub const __GLIBC_USE_IEC_60559_FUNCS_EXT: u32 = 0;
+pub const __GLIBC_USE_IEC_60559_FUNCS_EXT_C2X: u32 = 0;
+pub const __GLIBC_USE_IEC_60559_TYPES_EXT: u32 = 0;
+pub const _BITS_TYPES_H: u32 = 1;
+pub const _BITS_TYPESIZES_H: u32 = 1;
+pub const __OFF_T_MATCHES_OFF64_T: u32 = 1;
+pub const __INO_T_MATCHES_INO64_T: u32 = 1;
+pub const __RLIM_T_MATCHES_RLIM64_T: u32 = 1;
+pub const __STATFS_MATCHES_STATFS64: u32 = 1;
+pub const __KERNEL_OLD_TIMEVAL_MATCHES_TIMEVAL64: u32 = 1;
+pub const __FD_SETSIZE: u32 = 1024;
+pub const _BITS_TIME64_H: u32 = 1;
+pub const _BITS_WCHAR_H: u32 = 1;
+pub const _BITS_STDINT_INTN_H: u32 = 1;
+pub const _BITS_STDINT_UINTN_H: u32 = 1;
+pub const INT8_MIN: i32 = -128;
+pub const INT16_MIN: i32 = -32768;
+pub const INT32_MIN: i32 = -2147483648;
+pub const INT8_MAX: u32 = 127;
+pub const INT16_MAX: u32 = 32767;
+pub const INT32_MAX: u32 = 2147483647;
+pub const UINT8_MAX: u32 = 255;
+pub const UINT16_MAX: u32 = 65535;
+pub const UINT32_MAX: u32 = 4294967295;
+pub const INT_LEAST8_MIN: i32 = -128;
+pub const INT_LEAST16_MIN: i32 = -32768;
+pub const INT_LEAST32_MIN: i32 = -2147483648;
+pub const INT_LEAST8_MAX: u32 = 127;
+pub const INT_LEAST16_MAX: u32 = 32767;
+pub const INT_LEAST32_MAX: u32 = 2147483647;
+pub const UINT_LEAST8_MAX: u32 = 255;
+pub const UINT_LEAST16_MAX: u32 = 65535;
+pub const UINT_LEAST32_MAX: u32 = 4294967295;
+pub const INT_FAST8_MIN: i32 = -128;
+pub const INT_FAST16_MIN: i64 = -9223372036854775808;
+pub const INT_FAST32_MIN: i64 = -9223372036854775808;
+pub const INT_FAST8_MAX: u32 = 127;
+pub const INT_FAST16_MAX: u64 = 9223372036854775807;
+pub const INT_FAST32_MAX: u64 = 9223372036854775807;
+pub const UINT_FAST8_MAX: u32 = 255;
+pub const UINT_FAST16_MAX: i32 = -1;
+pub const UINT_FAST32_MAX: i32 = -1;
+pub const INTPTR_MIN: i64 = -9223372036854775808;
+pub const INTPTR_MAX: u64 = 9223372036854775807;
+pub const UINTPTR_MAX: i32 = -1;
+pub const PTRDIFF_MIN: i64 = -9223372036854775808;
+pub const PTRDIFF_MAX: u64 = 9223372036854775807;
+pub const SIG_ATOMIC_MIN: i32 = -2147483648;
+pub const SIG_ATOMIC_MAX: u32 = 2147483647;
+pub const SIZE_MAX: i32 = -1;
+pub const WINT_MIN: u32 = 0;
+pub const WINT_MAX: u32 = 4294967295;
+pub const true_: u32 = 1;
+pub const false_: u32 = 0;
+pub const __bool_true_false_are_defined: u32 = 1;
+pub const CryptoAuth_DEFAULT_RESET_AFTER_INACTIVITY_SECONDS: u32 = 60;
+pub const CryptoAuth_DEFAULT_SETUP_RESET_AFTER_INACTIVITY_SECONDS: u32 = 10;
+pub const CryptoHeader_Challenge_SIZE: u32 = 12;
+pub const CryptoHeader_Challenge_KEYSIZE: u32 = 8;
+pub const CryptoHeader_SIZE: u32 = 120;
+pub const Sockaddr_flags_BCAST: u32 = 1;
+pub const Sockaddr_flags_PREFIX: u32 = 2;
+pub const Sockaddr_PLATFORM: u32 = 0;
+pub const Sockaddr_HANDLE: u32 = 1;
+pub const Sockaddr_OVERHEAD: u32 = 8;
+pub const Sockaddr_MAXSIZE: u32 = 128;
+pub const Sockaddr_addrHandle_INVALID: u32 = 4294967295;
+pub const Version_CURRENT_PROTOCOL: u32 = 22;
+pub const Version_MINIMUM_COMPATIBLE: u32 = 20;
+pub const Version_DEFAULT_ASSUMPTION: u32 = 20;
+pub const SwitchHeader_SIZE: u32 = 12;
+pub const SwitchHeader_CURRENT_VERSION: u32 = 1;
+pub const RouteHeader_flags_INCOMING: u32 = 1;
+pub const RouteHeader_flags_CTRLMSG: u32 = 2;
+pub const RouteHeader_flags_PATHFINDER: u32 = 4;
+pub const RouteHeader_SIZE: u32 = 68;
+pub const DataHeader_SIZE: u32 = 4;
+pub const DataHeader_CURRENT_VERSION: u32 = 1;
+pub const Control_ERROR: u32 = 2;
+pub const Control_Error_HEADER_SIZE: u32 = 4;
+pub const Control_Error_MIN_SIZE: u32 = 20;
+pub const Control_Error_MAX_SIZE: u32 = 256;
+pub const Control_Ping_HEADER_SIZE: u32 = 8;
+pub const Control_Ping_MIN_SIZE: u32 = 8;
+pub const Control_Ping_MAX_SIZE: u32 = 256;
+pub const Control_Pong_HEADER_SIZE: u32 = 8;
+pub const Control_Pong_MIN_SIZE: u32 = 8;
+pub const Control_Pong_MAX_SIZE: u32 = 256;
+pub const Control_KeyPing_HEADER_SIZE: u32 = 40;
+pub const Control_KeyPing_MAX_SIZE: u32 = 104;
+pub const Control_KeyPong_HEADER_SIZE: u32 = 40;
+pub const Control_KeyPong_MAX_SIZE: u32 = 104;
+pub const Control_GetSnode_HEADER_SIZE: u32 = 56;
+pub const Control_RPath_HEADER_SIZE: u32 = 16;
+pub const Control_LlAddr_Udp4_TYPE: u32 = 1;
+pub const Control_LlAddr_Udp6_TYPE: u32 = 2;
+pub const Control_LlAddr_Other_TYPE: u32 = 3;
+pub const Control_LlAddr_HEADER_SIZE: u32 = 40;
+pub const Control_Header_SIZE: u32 = 4;
+pub const PFChan_Node_SIZE: u32 = 64;
+pub const PFChan_Msg_MIN_SIZE: u32 = 72;
+pub const PFChan_CtrlMsg_MIN_SIZE: u32 = 72;
+pub const PFChan_Ping_SIZE: u32 = 8;
+pub const PFChan_Pathfinder_Connect_SIZE: u32 = 72;
+pub const PFChan_Pathfinder_Superiority_SIZE: u32 = 4;
+pub const PFChan_LinkState_Entry_SIZE: u32 = 32;
+pub const PFChan_Core_SearchReq_SIZE: u32 = 24;
+pub const PFChan_Core_Pathfinder_SIZE: u32 = 72;
+pub const PFChan_Core_Connect_SIZE: u32 = 40;
+pub const PFChan_Core_SwitchErr_MIN_SIZE: u32 = 48;
 pub type __uint8_t = ::std::os::raw::c_uchar;
 pub type __uint16_t = ::std::os::raw::c_ushort;
 pub type __int32_t = ::std::os::raw::c_int;
@@ -188,6 +342,11 @@ pub type Random_t = Random;
 extern "C" {
     pub fn Random_bytes_fromRust(rand: *mut Random_t, location: *mut u8, count: u64);
 }
+#[repr(i32)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum CryptoAuth_addUser_Res {
+    CryptoAuth_addUser_DUPLICATE = -3,
+}
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
 pub struct Sockaddr {
@@ -204,6 +363,15 @@ pub type Sockaddr_t = Sockaddr;
 pub struct Sockaddr_storage {
     pub addr: Sockaddr_t,
     pub nativeAddr: [u64; 16usize],
+}
+extern "C" {
+    pub static Sockaddr_LOOPBACK_be: *const Sockaddr_t;
+}
+extern "C" {
+    pub static Sockaddr_LOOPBACK_le: *const Sockaddr_t;
+}
+extern "C" {
+    pub static Sockaddr_LOOPBACK6: *const Sockaddr_t;
 }
 extern "C" {
     pub fn Sockaddr_addrHandle_fromRust(addr: *const Sockaddr_t) -> u32;
@@ -232,11 +400,6 @@ extern "C" {
         bytes: *const u8,
         addrFamily: ::std::os::raw::c_int,
     ) -> *mut Sockaddr_t;
-}
-#[repr(i32)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum CryptoAuth_addUser_Res {
-    CryptoAuth_addUser_DUPLICATE = -3,
 }
 #[repr(C, packed(4))]
 #[derive(Debug, Default, Copy, Clone)]

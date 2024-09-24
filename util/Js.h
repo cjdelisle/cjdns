@@ -22,7 +22,7 @@
 
 #define Js(x)
 
-#if !defined(__INTELLISENSE__)
+#if !defined(__INTELLISENSE__) && !defined(BINDGEN)
     #undef Js
     #define Js(x) <?js do x while (0); ?>
     #undef Js_or

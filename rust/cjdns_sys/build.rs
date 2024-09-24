@@ -124,9 +124,12 @@ fn main() -> Result<()> {
     #[cfg(feature = "generate-cffi")]
     {
         println!("cargo:warn=Generating-cffi");
-        let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
         bindgen::Builder::default()
-            .header(out_path.join("rust_cjdns_sys_cffi_h.i").to_str().unwrap())
+            .header("./cffi.h")
+            .clang_arg("-I../../")
+            .clang_arg("-DBINDGEN=1")
+            .clang_arg("-DPARANOIA=1")
+            .clang_arg("-DIdentity_CHECK=1")
             .generate_comments(false)
             .layout_tests(false)
             .default_enum_style(bindgen::EnumVariation::Rust {
@@ -136,13 +139,13 @@ fn main() -> Result<()> {
             .raw_line("#![allow(dead_code)]")
             .raw_line("#![allow(non_camel_case_types)]")
             .raw_line("#![allow(clippy::enum_variant_names)]")
+            .raw_line("#![allow(non_upper_case_globals)]")
             .raw_line("use crate::rtypes::*;")
             .whitelist_function(".*_fromRust")
             .whitelist_type("RBindings_Whitelist")
             .blacklist_type("Rffi_.*")
             .blacklist_type("RTypes_.*")
-            .whitelist_var("Sockaddr_AF_INET")
-            .whitelist_var("Sockaddr_AF_INET6")
+            .whitelist_var(".*")
             .derive_default(true)
             .generate()
             .expect("Unable to generate rbindings")
