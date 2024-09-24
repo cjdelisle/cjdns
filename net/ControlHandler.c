@@ -385,42 +385,39 @@ static Iface_DEFUN incomingFromCore(Message_t* msg, struct Iface* coreIf)
 
     struct Control* ctrl = (struct Control*) Message_bytes(msg);
 
-    if (ctrl->header.type_be == Control_ERROR_be) {
+    const uint16_t t = ctrl->header.type_be;
+    if (t == Control_ERROR_be) {
         return handleError(msg, ch, label, labelStr, &routeHdr);
-
-    } else if (ctrl->header.type_be == Control_KEYPING_be
-            || ctrl->header.type_be == Control_PING_be)
-    {
-        return handlePing(msg, ch, label, labelStr, ctrl->header.type_be);
-
-    } else if (ctrl->header.type_be == Control_KEYPONG_be
-            || ctrl->header.type_be == Control_PONG_be
-            || ctrl->header.type_be == Control_LlAddr_REPLY_be)
-    {
-        Log_debug(ch->log, "got switch pong [%d] from [%s]",
-            ctrl->header.type_be, labelStr);
-        Err(Message_epush(msg, &routeHdr, RouteHeader_SIZE));
-        return Iface_next(&ch->pub.switchPingerIf, msg);
-
-    } else if (ctrl->header.type_be == Control_GETSNODE_QUERY_be) {
+    } else if (t == Control_KEYPING_be || t == Control_PING_be) {
+        return handlePing(msg, ch, label, labelStr, t);
+    } else if (t == Control_GETSNODE_QUERY_be) {
         return handleGetSnodeQuery(msg, ch, label, labelStr);
-
-    } else if (ctrl->header.type_be == Control_GETSNODE_REPLY_be
-            || ctrl->header.type_be == Control_RPATH_REPLY_be)
+    } else if (t == Control_RPATH_QUERY_be) {
+        return handleRPathQuery(msg, ch, label, labelStr);
+    } else if (t == Control_LlAddr_QUERY_be) {
+        return handleLlAddrQuery(msg, ch, label, labelStr);
+    } else if (
+        t == Control_PONG_be ||
+        t == Control_KEYPONG_be ||
+        t == Control_LlAddr_REPLY_be ||
+        t == Control_GETSNODE_REPLY_be ||
+        t == Control_RPATH_REPLY_be)
     {
-        Log_debug(ch->log, "got %s REPLY from [%s]",
-            (ctrl->header.type_be == Control_GETSNODE_REPLY_be) ? "GETSNODE" : "RPATH",
-            labelStr);
+        if (t == Control_PONG_be) {
+            // Special case for IfController which has it's own pinger
+            int32_t offset = Message_getLength(msg) - 12;
+            uint8_t* ptr = &Message_bytes(msg)[offset];
+            if (!Bits_memcmp(ptr, "IFACE_CNTRLR", 12)) {
+                Log_debug(ch->log, "IFC switch pong from [%s]", labelStr);
+                Err(Message_epush(msg, &routeHdr, RouteHeader_SIZE));
+                return Iface_next(&ch->pub.ifcSwitchPingerIf, msg);
+            }
+        }
+        Log_debug(ch->log, "Got [%d] REPLY from [%s]", t, labelStr);
         Err(Message_epush(msg, &routeHdr, RouteHeader_SIZE));
         Err(Message_epush32be(msg, 0xffffffff));
         Err(Message_epush32be(msg, PFChan_Core_CTRL_MSG));
         return Iface_next(&ch->eventIf, msg);
-
-    } else if (ctrl->header.type_be == Control_RPATH_QUERY_be) {
-        return handleRPathQuery(msg, ch, label, labelStr);
-
-    } else if (ctrl->header.type_be == Control_LlAddr_QUERY_be) {
-        return handleLlAddrQuery(msg, ch, label, labelStr);
     }
 
     Log_info(ch->log, "DROP control packet of unknown type from [%s], type [%d]",
@@ -433,7 +430,7 @@ static Iface_DEFUN incomingFromCore(Message_t* msg, struct Iface* coreIf)
 static Iface_DEFUN incomingFromSwitchPinger(Message_t* msg, struct Iface* switchPingerIf)
 {
     struct ControlHandler_pvt* ch =
-        Identity_containerOf(switchPingerIf, struct ControlHandler_pvt, pub.switchPingerIf);
+        Identity_containerOf(switchPingerIf, struct ControlHandler_pvt, pub.ifcSwitchPingerIf);
     return Iface_next(&ch->pub.coreIf, msg);
 }
 
@@ -512,7 +509,7 @@ struct ControlHandler* ControlHandler_new(struct Allocator* allocator,
     ch->ifc = ifc;
     Bits_memcpy(ch->myPublicKey, myPublicKey, 32);
     ch->pub.coreIf.send = incomingFromCore;
-    ch->pub.switchPingerIf.send = incomingFromSwitchPinger;
+    ch->pub.ifcSwitchPingerIf.send = incomingFromSwitchPinger;
     ch->eventIf.send = changeSnode;
     EventEmitter_regCore(ee, &ch->eventIf, PFChan_Pathfinder_SNODE);
     Identity_set(ch);

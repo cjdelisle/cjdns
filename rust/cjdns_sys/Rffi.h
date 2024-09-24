@@ -290,6 +290,12 @@ RTypes_Error_t *Rffi_Seeder_public_peer(Rffi_Seeder *seeder,
                                         const String_t *code,
                                         Allocator_t *alloc);
 
+RTypes_Error_t *Rffi_Seeder_public_status(Rffi_Seeder *seeder,
+                                          String_t **ipv4_out,
+                                          String_t **ipv6_out,
+                                          String_t **peer_id_out,
+                                          Allocator_t *alloc);
+
 RTypes_Error_t *Rffi_Seeder_got_peers(Rffi_Seeder *seeder,
                                       const String_t *peers,
                                       Allocator_t *alloc);

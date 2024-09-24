@@ -108,4 +108,6 @@ static inline void Gcc_checkPrintf(const char* format, ...)
     // This does nothing except to trigger warnings if the format is wrong.
 }
 
+#define Gcc_UNUSED __attribute__((unused))
+
 #endif

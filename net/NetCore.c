@@ -23,7 +23,6 @@
 #include "net/ControlHandler.h"
 #include "net/InterfaceController.h"
 #include "interface/Iface.h"
-#include "tunnel/IpTunnel.h"
 #include "net/EventEmitter.h"
 #include "net/SessionManager.h"
 #include "net/UpperDistributor.h"
@@ -63,7 +62,10 @@ struct NetCore* NetCore_new(uint8_t* privateKey,
     struct UpperDistributor* upper = nc->upper = UpperDistributor_new(alloc, log, ee, myAddress);
     Iface_plumb(&sm->insideIf, &upper->sessionManagerIf);
 
-    struct SwitchPinger* sp = nc->sp = SwitchPinger_new(base, rand, log, myAddress, alloc);
+    // NEVER USE THIS SWITCHPINGER
+    // It is legacy and only for iface controller.
+    // Replies will NOT be routed to this sp unless they are PING and have the code "IFACE_CNTRLR" in them.
+    struct SwitchPinger* sp = SwitchPinger_new(base, rand, log, myAddress, alloc);
 
     struct InterfaceController* ifc = nc->ifController =
         InterfaceController_new(
@@ -74,7 +76,7 @@ struct NetCore* NetCore_new(uint8_t* privateKey,
 
     Iface_plumb(&controlHandler->coreIf, &upper->controlHandlerIf);
 
-    Iface_plumb(&controlHandler->switchPingerIf, &sp->controlHandlerIf);
+    Iface_plumb(&controlHandler->ifcSwitchPingerIf, &sp->controlHandlerIf);
 
     struct TUNAdapter* tunAdapt = nc->tunAdapt = TUNAdapter_new(alloc, log, myAddress->ip6.bytes);
     Iface_plumb(&tunAdapt->upperDistributorIf, &upper->tunAdapterIf);

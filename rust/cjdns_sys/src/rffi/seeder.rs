@@ -149,6 +149,28 @@ pub unsafe extern "C" fn Rffi_Seeder_public_peer(
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn Rffi_Seeder_public_status(
+    seeder: *mut Rffi_Seeder,
+    ipv4_out: *mut *mut String_t,
+    ipv6_out: *mut *mut String_t,
+    peer_id_out: *mut *mut String_t,
+    alloc: *mut Allocator_t,
+) -> *mut RTypes_Error_t {
+    let s = identity::from_c!(seeder);
+    let st = s.seeder.get_status();
+    if let Some(v4) = st.v4 {
+        *ipv4_out = strc(alloc, v4);
+    }
+    if let Some(v6) = st.v6 {
+        *ipv6_out = strc(alloc, v6);
+    }
+    if let Some(peer_id) = st.peer_id {
+        *peer_id_out = strc(alloc, peer_id);
+    }
+    std::ptr::null_mut()
+}
+
+#[no_mangle]
 pub extern "C" fn Rffi_Seeder_got_peers(
     seeder: *mut Rffi_Seeder,
     peers: *const String_t,

@@ -116,14 +116,14 @@ static void adminPing(Dict* args, void* vcontext, String* txid, struct Allocator
                                                               adminPingOnResponse,
                                                               context->alloc,
                                                               context->switchPinger);
-        if (keyPing && *keyPing) {
-            ping->type = SwitchPinger_Type_KEYPING;
-        } else if (lladdr && *lladdr) {
-            ping->type = SwitchPinger_Type_LLADDR;
-        }
         if (!ping) {
             err = "no open slots to store ping, try later.";
         } else {
+            if (keyPing && *keyPing) {
+                ping->type = SwitchPinger_Type_KEYPING;
+            } else if (lladdr && *lladdr) {
+                ping->type = SwitchPinger_Type_LLADDR;
+            }
             ping->onResponseContext = Allocator_clone(ping->pingAlloc, (&(struct Ping) {
                 .context = context,
                 .txid = String_clone(txid, ping->pingAlloc),

@@ -376,7 +376,7 @@ Err_DEFUN Core_init(struct Allocator* alloc,
     UpperDistributor_admin_register(nc->upper, admin, alloc);
     RouteGen_admin_register(rg, admin, alloc);
     InterfaceController_admin_register(nc->ifController, admin, alloc);
-    SwitchPinger_admin_register(nc->sp, admin, alloc);
+    SwitchPinger_admin_register(spf->sp, admin, alloc);
     UDPInterface_admin_register(
         eventBase, alloc, logger, admin, nc->ifController, globalConf);
 #ifdef HAS_ETH_INTERFACE

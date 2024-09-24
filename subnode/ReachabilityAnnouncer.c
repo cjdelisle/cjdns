@@ -13,13 +13,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "subnode/ReachabilityAnnouncer.h"
+#include "subnode/PeeringSeeder.h"
 #include "util/events/Timeout.h"
 #include "util/Identity.h"
 #include "util/events/Time.h"
 #include "wire/Announce.h"
 #include "crypto/AddressCalc.h"
 #include "crypto/Sign.h"
-#include "switch/LabelSplicer.h"
 #include "util/AddrTools.h"
 #include "util/Hex.h"
 #include "util/Hash.h"
@@ -196,6 +196,7 @@ struct ReachabilityAnnouncer_pvt
     struct SupernodeHunter* snh;
     struct EncodingScheme* myScheme;
     struct ReachabilityCollector* rc;
+    PeeringSeeder_t* ps;
     String* encodingSchemeStr;
     struct Announce_ItemHeader* mySchemeItem;
 
@@ -751,10 +752,12 @@ static void onSnodeChange(struct SupernodeHunter* sh,
         AddrTools_printPath(newPath, sh->snodeAddr.path);
         Log_debug(rap->log, "Change Supernode path [%s] -> [%s]", oldPath, newPath);
         Bits_memcpy(&rap->snode, &sh->snodeAddr, Address_SIZE);
+        PeeringSeeder_setSnode(rap->ps, &rap->snode);
         return;
     }
 
     Bits_memcpy(&rap->snode, &sh->snodeAddr, Address_SIZE);
+    PeeringSeeder_setSnode(rap->ps, &rap->snode);
     rap->clockSkew = clockSkew;
     stateReset(rap);
 }
@@ -785,7 +788,8 @@ struct ReachabilityAnnouncer* ReachabilityAnnouncer_new(struct Allocator* alloca
                                                         struct SupernodeHunter* snh,
                                                         uint8_t* privateKey,
                                                         struct EncodingScheme* myScheme,
-                                                        struct ReachabilityCollector* rc)
+                                                        struct ReachabilityCollector* rc,
+                                                        PeeringSeeder_t* ps)
 {
     struct Allocator* alloc = Allocator_child(allocator);
     struct ReachabilityAnnouncer_pvt* rap =
@@ -801,6 +805,7 @@ struct ReachabilityAnnouncer* ReachabilityAnnouncer_new(struct Allocator* alloca
     rap->myScheme = myScheme;
     rap->encodingSchemeStr = EncodingScheme_serialize(myScheme, alloc);
     rap->rc = rc;
+    rap->ps = ps;
     rap->mySchemeItem =
         (struct Announce_ItemHeader*) mkEncodingSchemeItem(alloc, rap->encodingSchemeStr);
 

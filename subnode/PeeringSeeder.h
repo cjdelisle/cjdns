@@ -31,6 +31,16 @@ typedef struct PeeringSeeder {
     Iface_t* seederIface;
 } PeeringSeeder_t;
 
+typedef struct PeeringSeeder_PublicStatus {
+    bool active;
+    String_t* peerId;
+    String_t* ipv4;
+    String_t* ipv6;
+    String_t* snode;
+} PeeringSeeder_PublicStatus_t;
+
+Err_DEFUN PeeringSeeder_publicStatus(PeeringSeeder_PublicStatus_t** outP, PeeringSeeder_t* self, Allocator_t* alloc);
+
 void PeeringSeeder_setSnode(PeeringSeeder_t* self, struct Address* snode);
 
 #define PeeringSeeder_publicPeer_ID_MAX_LEN 30

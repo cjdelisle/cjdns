@@ -4,11 +4,12 @@ use cjdns_keys::{CJDNSPublicKey, PublicKey};
 use parking_lot::Mutex;
 use tokio::sync::mpsc;
 use byteorder::{ReadBytesExt,WriteBytesExt,BE};
+use ipnetwork::{Ipv4Network,Ipv6Network};
 
 use cjdns::bytes::{dnsseed::{CjdnsPeer, CjdnsTxtRecord}, message::Message as RMessage};
 use trust_dns_resolver::config::{ResolverConfig, ResolverOpts};
 
-use crate::{cffi::{self, Control_LlAddr_Udp4_t, Control_LlAddr_Udp6_t, Control_LlAddr_t, PFChan_Node}, external::interface::iface::{Iface, IfacePvt}, interface::wire::message::Message, util::now_ms};
+use crate::{bytestring::ByteString, cffi::{self, Control_LlAddr_Udp4_t, Control_LlAddr_Udp6_t, Control_LlAddr_t, PFChan_Node}, external::interface::iface::{Iface, IfacePvt}, interface::wire::message::Message, util::now_ms};
 
 #[derive(Default)]
 struct SeederState {
@@ -261,7 +262,15 @@ struct MyPeeringInfo {
     v6: Option<SocketAddrV6>,
 }
 
+pub struct SeederStatus {
+    pub v4: Option<String>,
+    pub v6: Option<String>,
+    pub peer_id: Option<String>,
+}
+
 pub struct Seeder {
+    special_ranges6: Vec<Ipv6Network>,
+    special_ranges4: Vec<Ipv4Network>,
     my_pubkey: PublicKey,
     inner: Arc<SeederInner>,
     mpi: Mutex<MyPeeringInfo>,
@@ -277,6 +286,12 @@ impl Seeder {
     fn got_lladdr4(&self, lla: &Control_LlAddr_Udp4_t) -> bool {
         let sa =
             SocketAddrV4::new(lla.addr.into(), u16::from_be(lla.port_be));
+        for r in &self.special_ranges4 {
+            if (*r).contains(*sa.ip()) {
+                log::debug!("got_lladdr() discard {} because it's local", sa.to_string());
+                return false;
+            }
+        }
         let mut m = self.mpi.lock();
         if let Some(v4) = &mut m.v4 {
             if v4 == &sa {
@@ -295,6 +310,12 @@ impl Seeder {
     fn got_lladdr6(&self, lla: &Control_LlAddr_Udp6_t) -> bool {
         let sa = SocketAddrV6::new(
             lla.addr.into(), u16::from_be(lla.port_be), 0, 0);
+        for r in &self.special_ranges6 {
+            if (*r).contains(*sa.ip()) {
+                log::debug!("got_lladdr() discard {} because it's local", sa.to_string());
+                return false;
+            }
+        }
         let mut m = self.mpi.lock();
         if let Some(v6) = &mut m.v6 {
             if v6 == &sa {
@@ -398,6 +419,26 @@ impl Seeder {
         );
     }
 
+    pub fn get_status(&self) -> SeederStatus {
+        let m = self.mpi.lock();
+        let v4 = m.v4.map(|x|x.to_string());
+        let v6 = m.v6.map(|x|x.to_string());
+        let peer_id = m.passwd.as_ref().map(|p|p.code.clone());
+        drop(m);
+        let peer_id = if let Some(peer_id) = peer_id {
+            let len = peer_id.len();
+            let ds = ByteString(peer_id).into_debug_string();
+            if ds.len() > len {
+                Some(String::new() + "hex(" + &ds + ")")
+            } else {
+                Some(ds)
+            }
+        } else {
+            None
+        };
+        SeederStatus{ v4, v6, peer_id }
+    }
+
     pub fn add_dns_seed(&self, seed: String, trust_snode: bool) {
         let mut ds = self.inner.dns_seeds.lock();
         for (s, t) in ds.iter_mut() {
@@ -418,6 +459,44 @@ impl Seeder {
         self.inner.dns_seeds.lock().clone()
     }
     pub fn new(my_pubkey: CJDNSPublicKey) -> (Self, Iface) {
+        let special_ranges6: Vec<Ipv6Network> = vec![
+            "::/128".parse().unwrap(),
+            "::1/128".parse().unwrap(),
+            "::ffff:0:0/96".parse().unwrap(),
+            "::ffff:0:0:0/96".parse().unwrap(),
+            "64:ff9b::/96".parse().unwrap(),
+            "64:ff9b:1::/48".parse().unwrap(),
+            "100::/64".parse().unwrap(),
+            "2001::/32".parse().unwrap(),
+            "2001:20::/28".parse().unwrap(),
+            "2001:db8::/32".parse().unwrap(),
+            "2002::/16".parse().unwrap(),
+            "3fff::/20".parse().unwrap(),
+            "5f00::/16".parse().unwrap(),
+            "fc00::/7".parse().unwrap(),
+            "fe80::/64".parse().unwrap(),
+            "ff00::/8".parse().unwrap(),
+        ];
+        let special_ranges4: Vec<Ipv4Network> = vec![
+            "0.0.0.0/8".parse().unwrap(),
+            "10.0.0.0/8".parse().unwrap(),
+            "100.64.0.0/10".parse().unwrap(),
+            "127.0.0.0/8".parse().unwrap(),
+            "169.254.0.0/16".parse().unwrap(),
+            "172.16.0.0/12".parse().unwrap(),
+            "192.0.0.0/24".parse().unwrap(),
+            "192.0.2.0/24".parse().unwrap(),
+            "192.88.99.0/24".parse().unwrap(),
+            "192.168.0.0/16".parse().unwrap(),
+            "198.18.0.0/15".parse().unwrap(),
+            "198.51.100.0/24".parse().unwrap(),
+            "203.0.113.0/24".parse().unwrap(),
+            "224.0.0.0/4".parse().unwrap(),
+            "233.252.0.0/24".parse().unwrap(),
+            "240.0.0.0/4".parse().unwrap(),
+            "255.255.255.255/32".parse().unwrap(),
+        ];
+
         let (_done, done_r) = mpsc::channel(1);
         let (send_message, recv_message) = mpsc::channel(512);
         let (mut iface, ifacep) = Iface::new(format!("Seeder()"));
@@ -431,6 +510,8 @@ impl Seeder {
         tokio::task::spawn(Arc::clone(&inner).run(recv_message, done_r));
         (
             Self {
+                special_ranges4,
+                special_ranges6,
                 my_pubkey,
                 inner,
                 _done,

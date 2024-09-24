@@ -331,7 +331,7 @@ static void sendPing(struct Peer* ep)
 
     struct SwitchPinger_Ping* ping =
         SwitchPinger_newPing(ep->addr.path,
-                             String_CONST(""),
+                             String_CONST("IFACE_CNTRLR"),
                              ic->timeoutMilliseconds,
                              onPingResponse,
                              ep->alloc,

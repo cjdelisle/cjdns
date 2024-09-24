@@ -50,3 +50,4 @@ cbindgen = { version = "0.16" }
 bindgen = { version = "0.55" }
 byteorder = "1.5"
 trust-dns-resolver = "0.23.2"
+ipnetwork = "0.20"

@@ -44,7 +44,6 @@ struct NetCore
     struct Address* myAddress;
     struct SwitchCore* switchCore;
     struct ControlHandler* controlHandler;
-    struct SwitchPinger* sp;
     struct InterfaceController* ifController;
     struct SessionManager* sm;
     struct UpperDistributor* upper;

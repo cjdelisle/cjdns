@@ -514,6 +514,7 @@ dependencies = [
  "cjdns-keys",
  "env_logger 0.11.5",
  "hex",
+ "ipnetwork 0.20.0",
  "libc",
  "log",
  "num_cpus",
@@ -1091,6 +1092,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ipnetwork"
+version = "0.20.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bf466541e9d546596ee94f9f69590f89473455f88372423e0008fc1a7daf100e"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "is_terminal_polyfill"
 version = "1.70.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1436,7 +1446,7 @@ version = "0.29.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8750e073f82219c01e771133c64718d7685aef922da8a0d430a46aed05b6341a"
 dependencies = [
- "ipnetwork",
+ "ipnetwork 0.18.0",
  "pnet_base",
  "pnet_datalink",
  "pnet_packet",
@@ -1456,7 +1466,7 @@ version = "0.29.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6f85aef5e52e22ff06b1b11f2eb6d52959a9e0ecad3cb3f5cc2d78cadc077f0e"
 dependencies = [
- "ipnetwork",
+ "ipnetwork 0.18.0",
  "libc",
  "pnet_base",
  "pnet_sys",

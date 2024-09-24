@@ -33,6 +33,7 @@ struct SubnodePathfinder
     struct SupernodeHunter* snh;
     struct ReachabilityCollector* rc;
     PeeringSeeder_t* ps;
+    struct SwitchPinger* sp;
 };
 
 void SubnodePathfinder_start(struct SubnodePathfinder*);

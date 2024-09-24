@@ -39,6 +39,7 @@
 #include "wire/DataHeader.h"
 #include "util/CString.h"
 #include "wire/Metric.h"
+#include "util/Gcc.h"
 
 #include "subnode/ReachabilityAnnouncer.h"
 
@@ -80,7 +81,6 @@ struct SubnodePathfinder_pvt
 
     struct Map_OfPromiseByQuery queryMap;
 
-    struct SwitchPinger* sp;
     struct Iface switchPingerIf;
 
     struct EncodingScheme* myScheme;
@@ -121,7 +121,7 @@ static Iface_DEFUN sendNode(Message_t* msg,
     return Iface_next(&pf->pub.eventIf, msg);
 }
 
-static Iface_DEFUN connected(struct SubnodePathfinder_pvt* pf, Message_t* msg)
+static Iface_DEFUN connected(struct SubnodePathfinder_pvt* pf, Gcc_UNUSED Message_t* msg)
 {
     Log_debug(pf->log, "INIT");
     pf->state = SubnodePathfinder_pvt_state_RUNNING;
@@ -293,7 +293,7 @@ struct Ping {
     Identity
 };
 
-static void pingReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom)
+static void pingReply(Gcc_UNUSED Dict* msg, struct Address* src, struct MsgCore_Promise* prom)
 {
     struct Ping* usp = Identity_check((struct Ping*) prom->userData);
     struct SubnodePathfinder_pvt* pf = Identity_check(usp->pf);
@@ -421,7 +421,7 @@ static Iface_DEFUN sessionEnded(Message_t* msg, struct SubnodePathfinder_pvt* pf
     return NULL;
 }
 
-static Iface_DEFUN discoveredPath(Message_t* msg, struct SubnodePathfinder_pvt* pf)
+static Iface_DEFUN discoveredPath(Gcc_UNUSED Message_t* msg, Gcc_UNUSED struct SubnodePathfinder_pvt* pf)
 {
     //struct Address addr = {0};
     //addressForNode(&addr, msg);
@@ -437,8 +437,9 @@ static Iface_DEFUN handlePing(Message_t* msg, struct SubnodePathfinder_pvt* pf)
     return Iface_next(&pf->pub.eventIf, msg);
 }
 
-static Iface_DEFUN handlePong(Message_t* msg, struct SubnodePathfinder_pvt* pf)
+static Iface_DEFUN handlePong(Gcc_UNUSED Message_t* msg, Gcc_UNUSED struct SubnodePathfinder_pvt* pf)
 {
+    
     //Log_debug(pf->log, "Received pong");
     return NULL;
 }
@@ -566,12 +567,12 @@ void SubnodePathfinder_start(struct SubnodePathfinder* sp)
     PingResponder_new(pf->alloc, pf->log, msgCore, pf->br, pf->myScheme);
 
     struct ReachabilityCollector* rc = pf->pub.rc = ReachabilityCollector_new(
-        pf->alloc, msgCore, pf->log, pf->base, pf->br, pf->myAddress, pf->myScheme, pf->sp);
+        pf->alloc, msgCore, pf->log, pf->base, pf->br, pf->myAddress, pf->myScheme, pf->pub.sp);
     rc->userData = pf;
     rc->onChange = rcChange;
 
     PeeringSeeder_t* ps = pf->pub.ps = PeeringSeeder_new(
-        pf->sp,
+        pf->pub.sp,
         rc,
         pf->alloc,
         pf->log,
@@ -581,10 +582,10 @@ void SubnodePathfinder_start(struct SubnodePathfinder* sp)
     Iface_plumb(ps->seederIface, &pf->seederIf);
 
     struct SupernodeHunter* snh = pf->pub.snh = SupernodeHunter_new(
-        pf->alloc, pf->log, pf->base, pf->sp, pf->myPeerAddrs, msgCore, pf->myAddress, rc);
+        pf->alloc, pf->log, pf->base, pf->pub.sp, pf->myPeerAddrs, msgCore, pf->myAddress, rc);
 
     pf->ra = ReachabilityAnnouncer_new(
-        pf->alloc, pf->log, pf->base, pf->rand, msgCore, snh, pf->privateKey, pf->myScheme, rc);
+        pf->alloc, pf->log, pf->base, pf->rand, msgCore, snh, pf->privateKey, pf->myScheme, rc, ps);
 
     struct PFChan_Pathfinder_Connect conn = {
         .superiority_be = Endian_hostToBigEndian32(1),
@@ -630,9 +631,9 @@ struct SubnodePathfinder* SubnodePathfinder_new(struct Allocator* allocator,
     pf->myScheme = myScheme;
     pf->br = BoilerplateResponder_new(myScheme, alloc);
 
-    pf->sp = SwitchPinger_new(base, rand, log, myAddress, alloc);
+    pf->pub.sp = SwitchPinger_new(base, rand, log, myAddress, alloc);
     pf->switchPingerIf.send = ctrlMsgFromSwitchPinger;
-    Iface_plumb(&pf->switchPingerIf, &pf->sp->controlHandlerIf);
+    Iface_plumb(&pf->switchPingerIf, &pf->pub.sp->controlHandlerIf);
 
     pf->seederIf.send = incomingFromSeeder;
     pf->ca = ca;

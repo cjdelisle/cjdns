@@ -31,7 +31,8 @@ struct ControlHandler
      * This interface expects and sends [ SwitchHeader ][ 0xffffffff ][ CTRL frame ]
      * May send a pong or an error caused by a ping.
      */
-    struct Iface switchPingerIf;
+    // ONLY receives ping messages which have "IFACE_CNTRLR" in the payload, everything else is an event.
+    struct Iface ifcSwitchPingerIf;
 };
 
 struct ControlHandler* ControlHandler_new(struct Allocator* alloc,

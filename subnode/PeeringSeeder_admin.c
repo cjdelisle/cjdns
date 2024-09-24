@@ -19,6 +19,7 @@
 #include "rust/cjdns_sys/RTypes.h"
 #include "rust/cjdns_sys/Rffi.h"
 #include "subnode/PeeringSeeder.h"
+#include "util/Gcc.h"
 #include "util/Identity.h"
 
 struct Context {
@@ -76,7 +77,7 @@ static void rmDnsSeed(Dict* args, void* vcontext, String* txid, struct Allocator
     }
 }
 
-static void listDnsSeeds(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
+static void listDnsSeeds(Gcc_UNUSED Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* ctx = Identity_check((struct Context*) vcontext);
     Rffi_Seeder* rs = PeeringSeeder_getRsSeeder(ctx->sp);
@@ -116,6 +117,34 @@ static void publicPeer(Dict* args, void* vcontext, String* txid, struct Allocato
     reply(ctx, txid, requestAlloc, err);
 }
 
+static void publicStatus(Gcc_UNUSED Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
+{
+    struct Context* ctx = Identity_check((struct Context*) vcontext);
+
+    PeeringSeeder_PublicStatus_t* out = NULL;
+    RTypes_Error_t* er = PeeringSeeder_publicStatus(&out, ctx->sp, requestAlloc);
+    if (er) {
+        char* err = Rffi_printError(er, requestAlloc);
+        reply(ctx, txid, requestAlloc, err);
+        return;
+    }
+    Dict_t* reply = Dict_new(requestAlloc);
+    if (out->ipv4) {
+        Dict_putStringC(reply, "ipv4", out->ipv4, requestAlloc);
+    }
+    if (out->ipv6) {
+        Dict_putStringC(reply, "ipv6", out->ipv6, requestAlloc);
+    }
+    if (out->peerId) {
+        Dict_putStringC(reply, "peerId", out->peerId, requestAlloc);
+    }
+    if (out->snode) {
+        Dict_putStringC(reply, "snode", out->snode, requestAlloc);
+    }
+    Dict_putStringCC(reply, "error", "none", requestAlloc);
+    Admin_sendMessage(reply, txid, ctx->admin);
+}
+
 void PeeringSeeder_admin_register(PeeringSeeder_t* sp,
                                     struct Admin* admin,
                                     struct Allocator* alloc)
@@ -144,4 +173,6 @@ void PeeringSeeder_admin_register(PeeringSeeder_t* sp,
         ((struct Admin_FunctionArg[]) {
             { .name = "peerID", .required = false, .type = "String" }
         }), admin);
+    
+    Admin_registerFunctionNoArgs("PeeringSeeder_publicStatus", publicStatus, ctx, true, admin);
 }

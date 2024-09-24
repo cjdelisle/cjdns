@@ -15,8 +15,8 @@
 #ifndef ReachabilityAnnouncer_H
 #define ReachabilityAnnouncer_H
 
-#include "benc/String.h"
 #include "dht/Address.h"
+#include "subnode/PeeringSeeder.h"
 #include "util/events/EventBase.h"
 #include "util/log/Log.h"
 #include "crypto/random/Random.h"
@@ -45,6 +45,7 @@ struct ReachabilityAnnouncer* ReachabilityAnnouncer_new(struct Allocator* alloca
                                                         struct SupernodeHunter* snh,
                                                         uint8_t* privateKey,
                                                         struct EncodingScheme* myScheme,
-                                                        struct ReachabilityCollector* rc);
+                                                        struct ReachabilityCollector* rc,
+                                                        PeeringSeeder_t* ps);
 
 #endif

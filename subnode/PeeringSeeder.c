@@ -81,7 +81,7 @@ static void ipQueryResp(struct SwitchPinger_Response* resp, void* userData)
                 // Since there was a change, post ASAP.
                 pq->lastPostTimeSec = 0;
             }
-            break;
+            return;
         case SwitchPinger_Result_LABEL_MISMATCH: err = "LABEL_MISMATCH"; break;
         case SwitchPinger_Result_WRONG_DATA: err = "WRONG_DATA"; break;
         case SwitchPinger_Result_ERROR_RESPONSE: err = "ERROR_RESPONSE"; break;
@@ -99,17 +99,20 @@ static void publicIPQuery(PeeringSeeder_pvt_t* pq) {
     }
 
     uint64_t now = Time_currentTimeSeconds();
-    if (pq->lastQueryTimeSec + 10 < now) {
+    if (pq->lastQueryTimeSec + 10 > now) {
+        Log_debug(pq->log, "Last query within 10 seconds");
         return;
     }
     if (Rffi_Seeder_has_lladdr(pq->seeder)) {
-        if (pq->lastQueryTimeSec + 300 < now) {
+        if (pq->lastQueryTimeSec + 300 > now) {
+            Log_debug(pq->log, "Last query within 5 minutes and we have our lladdr");
             return;
         }
     }
 
     int peerCount = ReachabilityCollector_peerCount(pq->rc);
     if (!peerCount) {
+        Log_debug(pq->log, "No peers");
         return;
     }
     int tryPeerN = (pq->lastPeerQueried + 1) % peerCount;
@@ -117,13 +120,12 @@ static void publicIPQuery(PeeringSeeder_pvt_t* pq) {
     struct ReachabilityCollector_PeerInfo* tryPeer =
         ReachabilityCollector_getPeerInfo(pq->rc, tryPeerN);
     
-    struct Allocator* alloc = Allocator_child(pq->alloc);
     struct SwitchPinger_Ping* q = SwitchPinger_newPing(
         tryPeer->addr.path,
-        String_new("", alloc),
+        NULL,
         10000,
         ipQueryResp,
-        alloc,
+        pq->alloc,
         pq->sp);
     q->onResponseContext = pq;
     q->type = SwitchPinger_Type_LLADDR;
@@ -133,7 +135,7 @@ static void publicIPQuery(PeeringSeeder_pvt_t* pq) {
     Log_debug(pq->log, "Sent LlAddr query to [%s]", peerAddr->bytes);
 }
 
-static void snodeResp(Dict* msg, struct Address* src, struct MsgCore_Promise* prom)
+static void snodeResp(Dict* msg, Gcc_UNUSED struct Address* src, struct MsgCore_Promise* prom)
 {
     PeeringSeeder_pvt_t* pq = Identity_check((PeeringSeeder_pvt_t*) prom->userData);
     String* peers = Dict_getStringC(msg, "pr");
@@ -152,7 +154,7 @@ static void cycle(void* vpq)
         return;
     }
 
-    Log_debug(pq->log, "cycle()");
+    // Log_debug(pq->log, "cycle()");
 
     // Try to get our IP if we can
     publicIPQuery(pq);
@@ -209,6 +211,20 @@ void PeeringSeeder_setSnode(PeeringSeeder_t* self, struct Address* snode)
         }
         pq->snode = esnode;
     }
+}
+
+Err_DEFUN PeeringSeeder_publicStatus(PeeringSeeder_PublicStatus_t** outP, PeeringSeeder_t* self, Allocator_t* alloc)
+{
+    PeeringSeeder_pvt_t* pq = Identity_check((PeeringSeeder_pvt_t*) self);
+    PeeringSeeder_PublicStatus_t* out = Allocator_calloc(alloc, sizeof(PeeringSeeder_PublicStatus_t), 1);
+    out->active = pq->active;
+    if (!Bits_isZero(&pq->snode, sizeof pq->snode)) {
+        out->snode = Address_toString(&pq->snode, alloc);
+    }
+    Err(Rffi_Seeder_public_status(
+        pq->seeder, &out->ipv4, &out->ipv6, &out->peerId, alloc));
+    *outP = out;
+    return NULL;
 }
 
 Err_DEFUN PeeringSeeder_publicPeer(PeeringSeeder_t* self, String_t* code, Allocator_t* reqAlloc)
