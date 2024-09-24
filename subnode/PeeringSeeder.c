@@ -152,6 +152,8 @@ static void cycle(void* vpq)
         return;
     }
 
+    Log_debug(pq->log, "cycle()");
+
     // Try to get our IP if we can
     publicIPQuery(pq);
 
