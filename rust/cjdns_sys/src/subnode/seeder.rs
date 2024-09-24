@@ -28,6 +28,7 @@ struct SeederInner {
     snode_peers: Mutex<Vec<(CjdnsPeer,u64)>>,
     ifacep: IfacePvt,
     send_message: mpsc::Sender<Message>,
+    my_pubkey: PublicKey,
 }
 impl SeederInner {
 
@@ -40,7 +41,9 @@ impl SeederInner {
                 continue;
             }
             for (rp, _) in rps.iter() {
-                if st.current_peers.iter()
+                if &rp.pubkey == self.my_pubkey.raw() {
+                    // self-seed, possible with dns seeds which don't know you
+                } else if st.current_peers.iter()
                     .find(|(cp,_)|cp.publicKey == rp.pubkey)
                     .is_some()
                 {
@@ -271,7 +274,6 @@ pub struct SeederStatus {
 pub struct Seeder {
     special_ranges6: Vec<Ipv6Network>,
     special_ranges4: Vec<Ipv4Network>,
-    my_pubkey: PublicKey,
     inner: Arc<SeederInner>,
     mpi: Mutex<MyPeeringInfo>,
     _done: mpsc::Sender<()>,
@@ -376,7 +378,7 @@ impl Seeder {
         for address in addrs.into_iter() {
             cjdns::bytes::dnsseed::CjdnsPeer {
                 address,
-                pubkey: *self.my_pubkey.raw(),
+                pubkey: *self.inner.my_pubkey.raw(),
                 login: passwd.user_num,
                 password: passwd.passwd.to_be_bytes(),
                 version: cffi::Version_CURRENT_PROTOCOL,
@@ -502,6 +504,7 @@ impl Seeder {
         let (mut iface, ifacep) = Iface::new(format!("Seeder()"));
         let inner = Arc::new(SeederInner{
             send_message,
+            my_pubkey,
             snode_peers: Default::default(),
             dns_seeds: Default::default(),
             ifacep,
@@ -512,7 +515,6 @@ impl Seeder {
             Self {
                 special_ranges4,
                 special_ranges6,
-                my_pubkey,
                 inner,
                 _done,
                 mpi: Default::default(),
