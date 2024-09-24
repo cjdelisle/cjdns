@@ -1259,7 +1259,7 @@ impl IfRecv for CiphertextRecv {
         first16.copy_from_slice(&m.pop_bytes(16)?);
 
         first16.copy_from_slice(m.peek_bytes(16)?);
-        log::debug!("Decrypt msg {}", m.len());
+        // log::debug!("Decrypt msg {}", m.len());
 
         match SessionMut::decrypt(&self.0, &mut m) {
             Ok(()) => {

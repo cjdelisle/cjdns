@@ -128,6 +128,9 @@ static void publicIPQuery(PeeringSeeder_pvt_t* pq) {
     q->onResponseContext = pq;
     q->type = SwitchPinger_Type_LLADDR;
     pq->requestOutstanding = q;
+
+    String_t* peerAddr = Address_toString(&tryPeer->addr, q->pingAlloc);
+    Log_debug(pq->log, "Sent LlAddr query to [%s]", peerAddr->bytes);
 }
 
 static void snodeResp(Dict* msg, struct Address* src, struct MsgCore_Promise* prom)

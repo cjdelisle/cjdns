@@ -77,10 +77,10 @@ impl UDPAddrIfaceInternal {
             };
             tokio::select! {
                 res = self.udp.recv_from(msg.bytes_mut()) => {
-                    log::debug!("recv_worker got a recv_from");
+                    log::trace!("recv_worker got a recv_from");
                     match res {
                         Ok((byte_count,from)) => {
-                            log::debug!("Ok UDP packet from {from} with {byte_count} bytes");
+                            log::trace!("Ok UDP packet from {from} with {byte_count} bytes");
                             if byte_count == BUFFER_CAP {
                                 log::warn!("Truncated incoming message from {from}");
                             }
@@ -89,7 +89,7 @@ impl UDPAddrIfaceInternal {
                             msg.push_bytes(addr.bytes()).unwrap();
                             match self.incoming_send.send(msg).await {
                                 Ok(()) => {
-                                    log::debug!("UDP packet forwarded to receiver");
+                                    log::trace!("UDP packet forwarded to receiver");
                                 }
                                 Err(e) => {
                                     log::info!("Lost message from {from} because: {e}");
@@ -109,7 +109,7 @@ impl UDPAddrIfaceInternal {
                     for msg in recv_msgs.drain(..) {
                         match self.iface.send(msg) {
                             Ok(()) => {
-                                log::debug!("UDP receiver thread sent packet successfully");
+                                log::trace!("UDP receiver thread sent packet successfully");
                             },
                             Err(e) => {
                                 log::debug!("Error processing packet: {e}");

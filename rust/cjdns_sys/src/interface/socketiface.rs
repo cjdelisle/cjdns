@@ -270,9 +270,7 @@ impl <const COUNT: usize> IoContext<COUNT> {
             i += 1;
         }
 
-        log::debug!("Calling recvmmsg");
         let res = recvmmsg(self.sockfd, &mut self.hdrs[0..i], libc::MSG_DONTWAIT);
-        log::debug!("Calling recvmmsg done");
 
         i = 0;
         for ((msg, hdr), add) in
@@ -281,7 +279,7 @@ impl <const COUNT: usize> IoContext<COUNT> {
             if hdr.msg_len == !0 {
                 break;
             }
-            log::debug!("Received message");
+            log::trace!("Received message");
             i += 1;
             msg.set_len(hdr.msg_len as _).unwrap();
             if self.st == SocketType::SendToFrames {
@@ -359,14 +357,14 @@ impl<T: AsRawFd + Sync + Send + 'static> SocketIfaceInternal<T> {
             tokio::select! {
                 _ = self.send_worker(n) => {},
                 _ = done.recv() => {
-                    println!("Send worker [{n}] received done");
+                    log::info!("Send worker [{n}] received done");
                 },
             }
         } else {
             tokio::select! {
                 _ = self.recv_worker(n) => {},
                 _ = done.recv() => {
-                    println!("Recv worker [{n}] received done");
+                    log::info!("Recv worker [{n}] received done");
                 },
             }
         }
@@ -467,7 +465,7 @@ impl<T: AsRawFd + Sync + Send + 'static> SocketIfaceInternal<T> {
                     let mlen = msg.len();
                     match self.iface.send(msg) {
                         Ok(()) => {
-                            log::debug!("Socket receiver thread sent packet of len {mlen}");
+                            log::trace!("Socket receiver thread sent packet of len {mlen}");
                         },
                         Err(e) => {
                             log::debug!("Error processing packet: {e}");
