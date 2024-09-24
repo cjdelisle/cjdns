@@ -40,6 +40,8 @@ fn cstr(s: *const String_t) -> Option<ByteString> {
 fn strc(alloc: *mut Allocator_t, s: impl Into<Vec<u8>>) -> *mut String_t {
     let mut s: Vec<u8> = s.into();
     let len = s.len();
+    // Always always make sure it's zero terminated
+    s.push(0);
     let bytes = s.as_mut_ptr() as *mut c_char;
     allocator::adopt(alloc, s);
     allocator::adopt(alloc, String_t { len, bytes })

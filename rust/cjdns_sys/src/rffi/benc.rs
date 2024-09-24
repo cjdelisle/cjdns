@@ -20,7 +20,7 @@ use crate::{
     util::serialization::jsonbenc,
 };
 
-use super::allocator;
+use super::{allocator, strc};
 
 pub fn dict_to_c<'a>(alloc: *mut Allocator_t, v: &BTreeMap<Cow<'a, [u8]>, Value<'a>>) -> *mut Dict_t {
     let mut de = std::ptr::null_mut();
@@ -47,12 +47,8 @@ pub fn list_to_c<'a>(alloc: *mut Allocator_t, v: &Vec<Value<'a>>) -> *mut List_t
 
 pub fn string_to_c<'a>(alloc: *mut Allocator_t, v: impl Into<&'a[u8]>) -> *mut String_t {
     let v: &'a[u8] = v.into();
-    let bytes = allocator::adopt(alloc, Vec::from(v));
-    let bytes = unsafe { (*bytes)[..].as_mut_ptr() };
-    allocator::adopt(alloc, String_t{
-        len: v.len(),
-        bytes: bytes as _,
-    })
+    let mut v: Vec<u8> = v.into();
+    strc(alloc, v)
 }
 
 pub fn value_to_c<'a>(alloc: *mut Allocator_t, v: &Value<'a>) -> *mut Object_t {
