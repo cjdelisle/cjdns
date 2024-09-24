@@ -136,7 +136,7 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
     Iface_plumb(&nc->upper->ipTunnelIf, &ipTunnel->nodeInterface);
 
     struct SubnodePathfinder* spf = SubnodePathfinder_new(
-        allocator, logger, base, rand, nc->myAddress, privateKey, scheme);
+        allocator, logger, base, rand, nc->myAddress, privateKey, scheme, nc->ca);
     EventEmitter_regPathfinderIface(nc->ee, &spf->eventIf);
 
     #ifndef SUBNODE

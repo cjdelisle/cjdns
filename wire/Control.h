@@ -168,25 +168,25 @@ typedef struct Control_LlAddr_Payload {
 } Control_LlAddr_Payload_t;
 Assert_compileTime(sizeof(Control_LlAddr_Payload_t) == 2);
 
-#define Control_LlAddr_Udp4_TYPE 1
+static const uint8_t Control_LlAddr_Udp4_TYPE = 1;
 typedef struct Control_LlAddr_Udp4 {
-    uint8_t type; // 1
+    uint8_t type; // Control_LlAddr_Udp4_TYPE
     uint8_t len; // 8 
-    uint16_t port;
+    uint16_t port_be;
     uint8_t addr[4];
 } Control_LlAddr_Udp4_t;
 Assert_compileTime(sizeof(Control_LlAddr_Udp4_t) == 8);
 
-#define Control_LlAddr_Udp6_TYPE 2
+static const uint8_t Control_LlAddr_Udp6_TYPE = 2;
 typedef struct Control_LlAddr_Udp6 {
     uint8_t type; // Control_LlAddr_Udp6_TYPE
     uint8_t len; // 20
-    uint16_t port;
+    uint16_t port_be;
     uint8_t addr[16];
 } Control_LlAddr_Udp6_t;
 Assert_compileTime(sizeof(Control_LlAddr_Udp6_t) == 20);
 
-#define Control_LlAddr_Other_TYPE 3
+static const uint8_t Control_LlAddr_Other_TYPE = 3;
 typedef struct Control_LlAddr_Other {
     uint8_t type; // Control_LlAddr_Other_TYPE
     uint8_t len; // 32
@@ -197,10 +197,10 @@ Assert_compileTime(sizeof(Control_LlAddr_Other_t) == 32);
 #define Control_LlAddr_QUERY_be Endian_hostToBigEndian16(11)
 #define Control_LlAddr_QUERY_MAGIC Endian_hostToBigEndian32(0x6c6c6171) // llaq
 #define Control_LlAddr_REPLY_be Endian_hostToBigEndian16(12)
-#define Control_LlAddr_REPLY_MAGIC Endian_hostToBigEndian32(0x6c6c6172) // llar
+static const uint32_t Control_LlAddr_REPLY_MAGIC = Endian_hostToBigEndian32(0x6c6c6172); // llar
 #define Control_LlAddr_HEADER_SIZE 40
 // Following the LlAddr message, there is additional opaque data that is reflected back.
-struct Control_LlAddr
+typedef struct Control_LlAddr
 {
     // Control_LlAddr_QUERY_MAGIC for queries
     // Control_LlAddr_REPLY_MAGIC for replies
@@ -216,8 +216,8 @@ struct Control_LlAddr
         Control_LlAddr_Udp6_t udp6;
         Control_LlAddr_Other_t other;
     } addr;
-};
-Assert_compileTime(sizeof(struct Control_LlAddr) == Control_LlAddr_HEADER_SIZE);
+} Control_LlAddr_t;
+Assert_compileTime(sizeof(Control_LlAddr_t) == Control_LlAddr_HEADER_SIZE);
 
 static inline char* Control_typeString(uint16_t type_be)
 {

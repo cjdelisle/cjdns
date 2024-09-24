@@ -12,18 +12,19 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#include "subnode/SubnodePathfinder_admin.h"
+#include "subnode/PeeringSeeder_admin.h"
 
 #include "admin/Admin.h"
 #include "benc/Dict.h"
 #include "rust/cjdns_sys/RTypes.h"
 #include "rust/cjdns_sys/Rffi.h"
+#include "subnode/PeeringSeeder.h"
 #include "util/Identity.h"
 
 struct Context {
     struct Admin* admin;
     struct Allocator* alloc;
-    struct SubnodePathfinder* sp;
+    PeeringSeeder_t* sp;
     Identity
 };
 
@@ -37,13 +38,14 @@ static void reply(struct Context* ctx, String* txid, struct Allocator* requestAl
 static void addDnsSeed(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* ctx = Identity_check((struct Context*) vcontext);
+    Rffi_Seeder* rs = PeeringSeeder_getRsSeeder(ctx->sp);
     String* seed = Dict_getStringC(args, "seed");
     int64_t* trustSnodeP = Dict_getIntC(args, "trustSnode");
     bool trustSnode = trustSnodeP && *trustSnodeP != 0;
 
     RTypes_Error_t* err =
         Rffi_Seeder_addDnsSeed(
-            ctx->sp->seeder,
+            rs,
             seed,
             trustSnode,
             requestAlloc);
@@ -57,11 +59,12 @@ static void addDnsSeed(Dict* args, void* vcontext, String* txid, struct Allocato
 static void rmDnsSeed(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* ctx = Identity_check((struct Context*) vcontext);
+    Rffi_Seeder* rs = PeeringSeeder_getRsSeeder(ctx->sp);
     String* seed = Dict_getStringC(args, "seed");
     bool found = false;
     RTypes_Error_t* err = Rffi_Seeder_rmDnsSeed(
         &found,
-        ctx->sp->seeder,
+        rs,
         seed,
         requestAlloc);
     if (err) {
@@ -76,10 +79,11 @@ static void rmDnsSeed(Dict* args, void* vcontext, String* txid, struct Allocator
 static void listDnsSeeds(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* ctx = Identity_check((struct Context*) vcontext);
+    Rffi_Seeder* rs = PeeringSeeder_getRsSeeder(ctx->sp);
     RTypes_Seeder_DnsSeeds_t* seeds = NULL;
     RTypes_Error_t* err = Rffi_Seeder_listDnsSeeds(
         &seeds,
-        ctx->sp->seeder,
+        rs,
         requestAlloc);
     if (err) {
         reply(ctx, txid, requestAlloc, Rffi_printError(err, requestAlloc));
@@ -99,25 +103,45 @@ static void listDnsSeeds(Dict* args, void* vcontext, String* txid, struct Alloca
     Admin_sendMessage(out, txid, ctx->admin);
 }
 
-void SubnodePathfinder_admin_register(struct SubnodePathfinder* sp,
+static void publicPeer(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
+{
+    struct Context* ctx = Identity_check((struct Context*) vcontext);
+    String* peerCode = Dict_getStringC(args, "peerID");
+    char* err = "none";
+    RTypes_Error_t* er =
+        PeeringSeeder_publicPeer(ctx->sp, peerCode, requestAlloc);
+    if (er) {
+        err = Rffi_printError(er, requestAlloc);
+    }
+    reply(ctx, txid, requestAlloc, err);
+}
+
+void PeeringSeeder_admin_register(PeeringSeeder_t* sp,
                                     struct Admin* admin,
                                     struct Allocator* alloc)
 {
-        struct Context* ctx = Allocator_clone(alloc, (&(struct Context) {
+    struct Context* ctx = Allocator_clone(alloc, (&(struct Context) {
         .admin = admin,
         .alloc = alloc,
         .sp = sp
     }));
     Identity_set(ctx);
 
-    Admin_registerFunction("SubnodePathfinder_addDnsSeed", addDnsSeed, ctx, true,
+    Admin_registerFunction("PeeringSeeder_addDnsSeed", addDnsSeed, ctx, true,
         ((struct Admin_FunctionArg[]) {
             { .name = "seed", .required = true, .type = "String" },
             { .name = "trustSnode", .required = false, .type = "Int" }
         }), admin);
-    Admin_registerFunction("SubnodePathfinder_rmDnsSeed", rmDnsSeed, ctx, true,
+
+    Admin_registerFunction("PeeringSeeder_rmDnsSeed", rmDnsSeed, ctx, true,
         ((struct Admin_FunctionArg[]) {
             { .name = "seed", .required = true, .type = "String" },
         }), admin);
-    Admin_registerFunction("SubnodePathfinder_listDnsSeeds", listDnsSeeds, ctx, true, NULL, admin);
+
+    Admin_registerFunctionNoArgs("PeeringSeeder_listDnsSeeds", listDnsSeeds, ctx, true, admin);
+
+    Admin_registerFunction("PeeringSeeder_publicPeer", publicPeer, ctx, true,
+        ((struct Admin_FunctionArg[]) {
+            { .name = "peerID", .required = false, .type = "String" }
+        }), admin);
 }

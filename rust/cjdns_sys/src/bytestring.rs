@@ -43,10 +43,24 @@ impl ByteString {
     }
 }
 
+impl From<Vec<u8>> for ByteString {
+    #[inline]
+    fn from(s: Vec<u8>) -> Self {
+        ByteString(s)
+    }
+}
+
 impl From<String> for ByteString {
     #[inline]
     fn from(s: String) -> Self {
         ByteString(s.into_bytes())
+    }
+}
+
+impl From<ByteString> for Vec<u8> {
+    #[inline]
+    fn from(s: ByteString) -> Self {
+        s.0
     }
 }
 

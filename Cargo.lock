@@ -281,7 +281,7 @@ checksum = "9344318b9c787667b95cd2c5124f5eaf2bde35e959dd01ea04fc5b234c542c11"
 dependencies = [
  "clap 2.33.3",
  "heck 0.3.2",
- "indexmap",
+ "indexmap 1.6.1",
  "log",
  "proc-macro2",
  "quote",
@@ -342,9 +342,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "cjdns"
+version = "0.1.0"
+source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=b8285ebf5b9ffcb864075a20afffc0651856c181#b8285ebf5b9ffcb864075a20afffc0651856c181"
+dependencies = [
+ "cjdns-admin",
+ "cjdns-ann",
+ "cjdns-bencode",
+ "cjdns-bytes",
+ "cjdns-core",
+ "cjdns-crypto",
+ "cjdns-ctrl",
+ "cjdns-hdr",
+ "cjdns-keys",
+ "cjdns-sniff",
+ "netchecksum",
+]
+
+[[package]]
 name = "cjdns-admin"
 version = "0.1.0"
-source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=9ea38312c9a849cf1a0be05332c9e4c96f49a758#9ea38312c9a849cf1a0be05332c9e4c96f49a758"
+source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=b8285ebf5b9ffcb864075a20afffc0651856c181#b8285ebf5b9ffcb864075a20afffc0651856c181"
 dependencies = [
  "anyhow",
  "cjdns-bencode",
@@ -360,9 +378,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "cjdns-ann"
+version = "0.1.0"
+source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=b8285ebf5b9ffcb864075a20afffc0651856c181#b8285ebf5b9ffcb864075a20afffc0651856c181"
+dependencies = [
+ "cjdns-bytes",
+ "cjdns-core",
+ "cjdns-crypto",
+ "cjdns-keys",
+ "hex",
+ "libsodium-sys",
+ "sodiumoxide",
+ "thiserror",
+]
+
+[[package]]
 name = "cjdns-bencode"
 version = "0.1.0"
-source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=9ea38312c9a849cf1a0be05332c9e4c96f49a758#9ea38312c9a849cf1a0be05332c9e4c96f49a758"
+source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=b8285ebf5b9ffcb864075a20afffc0651856c181#b8285ebf5b9ffcb864075a20afffc0651856c181"
 dependencies = [
  "bendy 0.3.2 (git+https://github.com/CJDNS-Development-Team/bendy-cjdns?tag=v0.3.2-cjdns)",
  "hex",
@@ -372,7 +405,7 @@ dependencies = [
 [[package]]
 name = "cjdns-bytes"
 version = "0.1.0"
-source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=9ea38312c9a849cf1a0be05332c9e4c96f49a758#9ea38312c9a849cf1a0be05332c9e4c96f49a758"
+source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=b8285ebf5b9ffcb864075a20afffc0651856c181#b8285ebf5b9ffcb864075a20afffc0651856c181"
 dependencies = [
  "anyhow",
  "base64 0.21.7",
@@ -382,19 +415,55 @@ dependencies = [
 ]
 
 [[package]]
+name = "cjdns-core"
+version = "0.1.0"
+source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=b8285ebf5b9ffcb864075a20afffc0651856c181#b8285ebf5b9ffcb864075a20afffc0651856c181"
+dependencies = [
+ "lazy_static",
+ "regex",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
 name = "cjdns-crypto"
 version = "0.1.0"
-source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=9ea38312c9a849cf1a0be05332c9e4c96f49a758#9ea38312c9a849cf1a0be05332c9e4c96f49a758"
+source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=b8285ebf5b9ffcb864075a20afffc0651856c181#b8285ebf5b9ffcb864075a20afffc0651856c181"
 dependencies = [
+ "ed25519",
  "libsodium-sys",
  "parking_lot 0.11.1",
  "sodiumoxide",
 ]
 
 [[package]]
+name = "cjdns-ctrl"
+version = "0.1.0"
+source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=b8285ebf5b9ffcb864075a20afffc0651856c181#b8285ebf5b9ffcb864075a20afffc0651856c181"
+dependencies = [
+ "cjdns-bytes",
+ "cjdns-core",
+ "cjdns-hdr",
+ "cjdns-keys",
+ "netchecksum",
+ "num_enum",
+]
+
+[[package]]
+name = "cjdns-hdr"
+version = "0.1.0"
+source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=b8285ebf5b9ffcb864075a20afffc0651856c181#b8285ebf5b9ffcb864075a20afffc0651856c181"
+dependencies = [
+ "cjdns-bytes",
+ "cjdns-core",
+ "cjdns-keys",
+ "num_enum",
+]
+
+[[package]]
 name = "cjdns-keys"
 version = "0.1.0"
-source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=9ea38312c9a849cf1a0be05332c9e4c96f49a758#9ea38312c9a849cf1a0be05332c9e4c96f49a758"
+source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=b8285ebf5b9ffcb864075a20afffc0651856c181#b8285ebf5b9ffcb864075a20afffc0651856c181"
 dependencies = [
  "cjdns-crypto",
  "data-encoding",
@@ -403,6 +472,26 @@ dependencies = [
  "regex",
  "serde",
  "thiserror",
+]
+
+[[package]]
+name = "cjdns-sniff"
+version = "0.1.0"
+source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=b8285ebf5b9ffcb864075a20afffc0651856c181#b8285ebf5b9ffcb864075a20afffc0651856c181"
+dependencies = [
+ "anyhow",
+ "cjdns-admin",
+ "cjdns-bencode",
+ "cjdns-bytes",
+ "cjdns-ctrl",
+ "cjdns-hdr",
+ "cjdns-keys",
+ "hex",
+ "log",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
 ]
 
 [[package]]
@@ -418,6 +507,7 @@ dependencies = [
  "byteorder",
  "cbindgen",
  "cc",
+ "cjdns",
  "cjdns-bencode",
  "cjdns-bytes",
  "cjdns-crypto",
@@ -658,9 +748,9 @@ dependencies = [
 
 [[package]]
 name = "ed25519"
-version = "1.0.3"
+version = "1.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "37c66a534cbb46ab4ea03477eae19d5c22c01da8258030280b7bd9d8433fb6ef"
+checksum = "91cff35c70bba8a626e3185d8cd48cc11b5437e1a5bcd15b9b5fa3c64b6dfee7"
 dependencies = [
  "signature",
 ]
@@ -718,6 +808,12 @@ dependencies = [
  "humantime 2.1.0",
  "log",
 ]
+
+[[package]]
+name = "equivalent"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5443807d6dff69373d433ab9ef5378ad8df50ca6298caf15de6e52e24aaf54d5"
 
 [[package]]
 name = "error-chain"
@@ -851,6 +947,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d7afe4a420e3fe79967a00898cc1f4db7c8a49a9333a29f8a4bd76a253d5cd04"
 
 [[package]]
+name = "hashbrown"
+version = "0.14.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e5274423e17b7c9fc20b6e7e208532f9b19825d82dfd615708b70edd83df41f1"
+
+[[package]]
 name = "heck"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -939,7 +1041,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4fb1fa934250de4de8aef298d81c729a7d33d8c239daa3a7575e6b92bfc7313b"
 dependencies = [
  "autocfg",
- "hashbrown",
+ "hashbrown 0.9.1",
+]
+
+[[package]]
+name = "indexmap"
+version = "2.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "68b900aa2f7301e21c36462b170ee99994de34dff39a4a6a528e80e7376d07e5"
+dependencies = [
+ "equivalent",
+ "hashbrown 0.14.5",
 ]
 
 [[package]]
@@ -1106,9 +1218,9 @@ checksum = "ffbee8634e0d45d258acb448e7eaab3fce7a0a467395d4d9f228e3c1f01fb2e4"
 
 [[package]]
 name = "memchr"
-version = "2.4.1"
+version = "2.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "308cc39be01b73d0d18f82a0e7b2a3df85245f84af96fdddc5d202d27e47b86a"
+checksum = "78ca9ab1a0babb1e7d5695e3530886289c18cf2f87ec19a575a0abdce112e3a3"
 
 [[package]]
 name = "miniz_oxide"
@@ -1129,6 +1241,11 @@ dependencies = [
  "wasi 0.11.0+wasi-snapshot-preview1",
  "windows-sys",
 ]
+
+[[package]]
+name = "netchecksum"
+version = "0.1.0"
+source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=b8285ebf5b9ffcb864075a20afffc0651856c181#b8285ebf5b9ffcb864075a20afffc0651856c181"
 
 [[package]]
 name = "nom"
@@ -1167,6 +1284,27 @@ checksum = "19e64526ebdee182341572e50e9ad03965aa510cd94427a4549448f285e957a1"
 dependencies = [
  "hermit-abi",
  "libc",
+]
+
+[[package]]
+name = "num_enum"
+version = "0.7.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4e613fc340b2220f734a8595782c551f1250e969d87d3be1ae0579e8d4065179"
+dependencies = [
+ "num_enum_derive",
+]
+
+[[package]]
+name = "num_enum_derive"
+version = "0.7.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af1844ef2428cc3e1cb900be36181049ef3d3193c63e43026cfe202983b27a56"
+dependencies = [
+ "proc-macro-crate",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.39",
 ]
 
 [[package]]
@@ -1385,6 +1523,15 @@ name = "ppv-lite86"
 version = "0.2.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ac74c624d6b2d21f425f752262f42188365d7b8ff1aff74c82e45136510a4857"
+
+[[package]]
+name = "proc-macro-crate"
+version = "3.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8ecf48c7ca261d60b74ab1a7b20da18bede46776b2e55535cb958eb595c5fa7b"
+dependencies = [
+ "toml_edit",
+]
 
 [[package]]
 name = "proc-macro2"
@@ -1683,9 +1830,9 @@ dependencies = [
 
 [[package]]
 name = "signature"
-version = "1.3.0"
+version = "1.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0f0242b8e50dd9accdd56170e94ca1ebd223b098eb9c83539a6e367d0f36ae68"
+checksum = "74233d3b3b2f6d4b006dc19dee745e73e2a6bfb6f93607cd3b02bd5b00797d7c"
 
 [[package]]
 name = "slab"
@@ -1927,6 +2074,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a31142970826733df8241ef35dc040ef98c679ab14d7c3e54d827099b3acecaa"
 dependencies = [
  "serde",
+]
+
+[[package]]
+name = "toml_datetime"
+version = "0.6.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0dd7358ecb8fc2f8d014bf86f6f638ce72ba252a2c3a2572f2a795f1d23efb41"
+
+[[package]]
+name = "toml_edit"
+version = "0.22.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3b072cee73c449a636ffd6f32bd8de3a9f7119139aff882f44943ce2986dc5cf"
+dependencies = [
+ "indexmap 2.5.0",
+ "toml_datetime",
+ "winnow",
 ]
 
 [[package]]
@@ -2369,6 +2533,15 @@ name = "windows_x86_64_msvc"
 version = "0.52.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "589f6da84c646204747d1270a2a5661ea66ed1cced2631d546fdfb155959f9ec"
+
+[[package]]
+name = "winnow"
+version = "0.6.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "68a9bda4691f099d435ad181000724da8e5899daa10713c2d432552b9ccd3a6f"
+dependencies = [
+ "memchr",
+]
 
 [[package]]
 name = "winreg"

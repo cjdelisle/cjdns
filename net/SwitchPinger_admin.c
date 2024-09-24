@@ -72,13 +72,13 @@ static void adminPingOnResponse(struct SwitchPinger_Response* resp, void* vping)
         if (resp->lladdr.addr.udp4.type == Control_LlAddr_Udp4_TYPE) {
             Sockaddr_t* sa = Sockaddr_initFromBytes(
                 &ss, resp->lladdr.addr.udp4.addr, Sockaddr_AF_INET);
-            Sockaddr_setPort(sa, resp->lladdr.addr.udp4.port);
+            Sockaddr_setPort(sa, Endian_bigEndianToHost16(resp->lladdr.addr.udp4.port_be));
             Dict_putStringCC(
                 rd, "lladdr", Sockaddr_print(sa, pingAlloc), pingAlloc);
         } else if (resp->lladdr.addr.udp4.type == Control_LlAddr_Udp6_TYPE) {
             Sockaddr_t* sa = Sockaddr_initFromBytes(
                 &ss, resp->lladdr.addr.udp6.addr, Sockaddr_AF_INET6);
-            Sockaddr_setPort(sa, resp->lladdr.addr.udp6.port);
+            Sockaddr_setPort(sa, Endian_bigEndianToHost16(resp->lladdr.addr.udp6.port_be));
             Dict_putStringCC(
                 rd, "lladdr", Sockaddr_print(sa, pingAlloc), pingAlloc);
         } else {

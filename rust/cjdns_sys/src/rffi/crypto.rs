@@ -1,10 +1,11 @@
+use std::slice::from_raw_parts_mut;
 use std::sync::Arc;
 
 use libc::{c_char, c_int, c_uchar, c_ulonglong};
 use sodiumoxide::crypto::hash::sha512;
 
 use super::allocator::file_line;
-use super::{cstr, strc};
+use super::{cstr, cstr_to_string, strc};
 use crate::bytestring::ByteString;
 use crate::cffi::{self, Allocator_t, Random_t, String_t};
 use crate::crypto::crypto_auth;
@@ -297,6 +298,25 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_cjdnsVer(
     session: *const RTypes_CryptoAuth2_Session_t,
 ) -> u32 {
     ffi_sess(session).s.cjdns_ver()
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn Rffi_CryptoAuth2_getSecret(
+    ca: *const RTypes_CryptoAuth2_t,
+    name: *const String_t,
+    secretOut: *mut u8,
+) -> c_int {
+    let ca = &from_c_const!(ca).ca;
+    let s = match cstr_to_string(name) {
+        Ok(x) => x,
+        Err(_) => {
+            return -1;
+        }
+    };
+    let sec = ca.get_secret(&s);
+    let buf_out = from_raw_parts_mut(secretOut, 64);
+    buf_out.copy_from_slice(&sec[..]);
+    0
 }
 
 #[no_mangle]

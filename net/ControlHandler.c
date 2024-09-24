@@ -197,7 +197,7 @@ static Err_DEFUN writeLlAddr(Message_t* msg, Sockaddr_t* sa) {
         if (fam == Sockaddr_AF_INET && port > -1) {
             out.addr.udp4.type = Control_LlAddr_Udp4_TYPE;
             out.addr.udp4.len = sizeof(Control_LlAddr_Udp4_t);
-            out.addr.udp4.port = port;
+            out.addr.udp4.port_be = Endian_hostToBigEndian16(port);
             uint8_t* p = NULL;
             int len = Sockaddr_getAddress(sa, &p);
             Assert_true(len == sizeof out.addr.udp4.addr && p != NULL);
@@ -206,7 +206,7 @@ static Err_DEFUN writeLlAddr(Message_t* msg, Sockaddr_t* sa) {
         } else if (fam == Sockaddr_AF_INET6 && port > -1) {
             out.addr.udp6.type = Control_LlAddr_Udp6_TYPE;
             out.addr.udp6.len = sizeof(Control_LlAddr_Udp6_t);
-            out.addr.udp6.port = port;
+            out.addr.udp6.port_be = Endian_hostToBigEndian16(port);
             uint8_t* p = NULL;
             int len = Sockaddr_getAddress(sa, &p);
             Assert_true(len == sizeof out.addr.udp6.addr && p != NULL);

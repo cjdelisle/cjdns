@@ -94,6 +94,10 @@ void Rffi_CryptoAuth2_stats(const RTypes_CryptoAuth2_Session_t *session,
 
 uint32_t Rffi_CryptoAuth2_cjdnsVer(const RTypes_CryptoAuth2_Session_t *session);
 
+int Rffi_CryptoAuth2_getSecret(const RTypes_CryptoAuth2_t *ca,
+                               const String_t *name,
+                               uint8_t *secretOut);
+
 int Rffi_crypto_hash_sha512(unsigned char *out,
                             const unsigned char *input,
                             unsigned long long inlen);
@@ -269,7 +273,28 @@ RTypes_Error_t *Rffi_Seeder_listDnsSeeds(RTypes_Seeder_DnsSeeds_t **seeds_out,
                                          Rffi_Seeder *seeder,
                                          Allocator_t *alloc);
 
-void Rffi_Seeder_new(Rffi_Seeder **seeder_out, Iface_t **iface_out, Allocator_t *alloc);
+void Rffi_Seeder_new(Rffi_Seeder **seeder_out,
+                     Iface_t **iface_out,
+                     const uint8_t *my_pubkey,
+                     Allocator_t *alloc);
+
+bool Rffi_Seeder_got_lladdr(Rffi_Seeder *seeder, const Control_LlAddr_t *lladdr);
+
+RTypes_Error_t *Rffi_Seeder_mk_creds(Rffi_Seeder *seeder, String_t **creds, Allocator_t *alloc);
+
+RTypes_Error_t *Rffi_Seeder_public_peer(Rffi_Seeder *seeder,
+                                        String_t **user_out,
+                                        String_t **pass_out,
+                                        uint16_t user_num,
+                                        uint64_t passwd,
+                                        const String_t *code,
+                                        Allocator_t *alloc);
+
+RTypes_Error_t *Rffi_Seeder_got_peers(Rffi_Seeder *seeder,
+                                      const String_t *peers,
+                                      Allocator_t *alloc);
+
+bool Rffi_Seeder_has_lladdr(Rffi_Seeder *seeder);
 
 RTypes_Error_t *Rffi_Benc_decodeJson(Dict_t **out,
                                      Message_t *msg,

@@ -25,8 +25,8 @@
 #include "crypto/random/nanotime/NanotimeEntropyProvider.h"
 #include "crypto/Sign_admin.h"
 #include "rust/cjdns_sys/RTypes.h"
+#include "subnode/PeeringSeeder_admin.h"
 #include "subnode/SubnodePathfinder.h"
-#include "subnode/SubnodePathfinder_admin.h"
 #include "subnode/SupernodeHunter_admin.h"
 #include "subnode/ReachabilityCollector_admin.h"
 #include "util/platform/Sockaddr.h"
@@ -357,12 +357,10 @@ Err_DEFUN Core_init(struct Allocator* alloc,
 
     // The link between the Pathfinder and the core needs to be asynchronous.
     struct SubnodePathfinder* spf = SubnodePathfinder_new(
-        alloc, logger, eventBase, rand, nc->myAddress, privateKey, encodingScheme);
+        alloc, logger, eventBase, rand, nc->myAddress, privateKey, encodingScheme, nc->ca);
     struct ASynchronizer* spfAsync = ASynchronizer_new(alloc, eventBase, logger);
     Iface_plumb(&spfAsync->ifA, &spf->eventIf);
     EventEmitter_regPathfinderIface(nc->ee, &spfAsync->ifB);
-
-    SubnodePathfinder_admin_register(spf, admin, alloc);
 
     #ifndef SUBNODE
         struct Pathfinder* opf = Pathfinder_register(alloc, logger, eventBase, rand, admin);
@@ -374,6 +372,7 @@ Err_DEFUN Core_init(struct Allocator* alloc,
     SubnodePathfinder_start(spf);
 
     // ------------------- Register RPC functions ----------------------- //
+    PeeringSeeder_admin_register(spf->ps, admin, alloc);
     UpperDistributor_admin_register(nc->upper, admin, alloc);
     RouteGen_admin_register(rg, admin, alloc);
     InterfaceController_admin_register(nc->ifController, admin, alloc);

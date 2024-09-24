@@ -6,5 +6,6 @@
 #include "crypto/random/Random.h"
 #include "wire/Message.h"
 #include "util/platform/Sockaddr.h"
+#include "wire/Control.h"
 
 #endif

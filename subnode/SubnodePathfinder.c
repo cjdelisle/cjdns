@@ -19,6 +19,7 @@
 #include "rust/cjdns_sys/Rffi.h"
 #include "subnode/AddrSet.h"
 #include "subnode/MsgCore.h"
+#include "subnode/PeeringSeeder.h"
 #include "subnode/SupernodeHunter.h"
 #include "subnode/PingResponder.h"
 #include "subnode/BoilerplateResponder.h"
@@ -73,8 +74,6 @@ struct SubnodePathfinder_pvt
 
     struct MsgCore* msgCore;
 
-    struct Admin* admin;
-
     struct BoilerplateResponder* br;
 
     struct ReachabilityAnnouncer* ra;
@@ -91,6 +90,7 @@ struct SubnodePathfinder_pvt
     String* encodingSchemeStr;
 
     Iface_t seederIf;
+    Ca_t* ca;
 
     Identity
 };
@@ -570,6 +570,16 @@ void SubnodePathfinder_start(struct SubnodePathfinder* sp)
     rc->userData = pf;
     rc->onChange = rcChange;
 
+    PeeringSeeder_t* ps = pf->pub.ps = PeeringSeeder_new(
+        pf->sp,
+        rc,
+        pf->alloc,
+        pf->log,
+        msgCore,
+        pf->base,
+        pf->ca);
+    Iface_plumb(ps->seederIface, &pf->seederIf);
+
     struct SupernodeHunter* snh = pf->pub.snh = SupernodeHunter_new(
         pf->alloc, pf->log, pf->base, pf->sp, pf->myPeerAddrs, msgCore, pf->myAddress, rc);
 
@@ -599,7 +609,8 @@ struct SubnodePathfinder* SubnodePathfinder_new(struct Allocator* allocator,
                                                 struct Random* rand,
                                                 struct Address* myAddress,
                                                 uint8_t* privateKey,
-                                                struct EncodingScheme* myScheme)
+                                                struct EncodingScheme* myScheme,
+                                                Ca_t* ca)
 {
     struct Allocator* alloc = Allocator_child(allocator);
     struct SubnodePathfinder_pvt* pf =
@@ -623,10 +634,8 @@ struct SubnodePathfinder* SubnodePathfinder_new(struct Allocator* allocator,
     pf->switchPingerIf.send = ctrlMsgFromSwitchPinger;
     Iface_plumb(&pf->switchPingerIf, &pf->sp->controlHandlerIf);
 
-    Iface_t* seederIface = NULL;
-    Rffi_Seeder_new(&pf->pub.seeder, &seederIface, alloc);
     pf->seederIf.send = incomingFromSeeder;
-    Iface_plumb(seederIface, &pf->seederIf);
+    pf->ca = ca;
 
     Timeout_setInterval(sendCurrentSupernode, pf, 3000, base, alloc);
 

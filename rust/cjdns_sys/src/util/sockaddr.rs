@@ -30,7 +30,7 @@ impl Sockaddr {
         SocketAddr::try_from(self)
     }
     pub fn as_handle(&self) -> Option<u32> {
-        if self.ss.addr.addrLen != OVERHEAD as _ || self.ss.addr.type_ != TYPE_HANDLE {
+        if self.ss.addr.addrLen != OVERHEAD as u16 || self.ss.addr.type_ != TYPE_HANDLE {
             None
         } else {
             let mut buf = [

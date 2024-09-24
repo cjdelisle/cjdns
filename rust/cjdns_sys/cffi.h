@@ -27,6 +27,7 @@
 #include "util/version/Version.h"
 // #include "util/events/EventBase.h"
 #include "wire/PFChan.h"
+#include "wire/Control.h"
 
 enum RBindings_Version {
     RBindings_Version_CurrentProtocol = Version_CURRENT_PROTOCOL,
@@ -53,4 +54,5 @@ struct RBindings_Whitelist {
     struct Sockaddr_storage l;
     struct Sockaddr m;
     Random_t* n;
+    Control_LlAddr_t o;
 };

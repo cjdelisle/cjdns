@@ -6,6 +6,7 @@ edition = "2018"
 build = "build.rs"
 
 [dependencies]
+cjdns = { workspace = true }
 cjdns-crypto = { workspace = true }
 cjdns-keys = { workspace = true }
 cjdns-bytes = { workspace = true }

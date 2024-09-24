@@ -430,7 +430,7 @@ static void seeders(List* seeders, struct Allocator* tempAlloc, struct Context* 
         Log_debug(ctx->logger, "Loading seeder [%s]", s->bytes);
         Dict* reqDict = Dict_new(tempAlloc);
         Dict_putStringC(reqDict, "seed", s, tempAlloc);
-        rpcCall0(String_CONST("SubnodePathfinder_addDnsSeed"), reqDict, ctx, tempAlloc, NULL, true);
+        rpcCall0(String_CONST("PeeringSeeder_addDnsSeed"), reqDict, ctx, tempAlloc, NULL, true);
     }
 }
 

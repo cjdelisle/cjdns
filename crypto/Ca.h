@@ -15,8 +15,8 @@
 #ifndef Ca_H
 #define Ca_H
 
+#include "benc/Object.h"
 #include "rust/cjdns_sys/RTypes.h"
-#include "benc/String.h"
 #include "crypto/random/Random.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
@@ -111,6 +111,10 @@ static inline String_t *Ca_getName(const Ca_Session_t* session, Allocator_t *all
 static inline void Ca_stats(const Ca_Session_t* session, RTypes_CryptoStats_t *statsOut)
 {
     Ca_IMPL(stats)(session, statsOut);
+}
+static inline int Ca_getSecret(const Ca_t* ca, const String_t* name, uint8_t secretOut[static 64])
+{
+    return Ca_IMPL(getSecret)(ca, name, secretOut);
 }
 
 

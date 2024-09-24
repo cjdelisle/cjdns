@@ -15,9 +15,10 @@
 #ifndef SubnodePathfinder_H
 #define SubnodePathfinder_H
 
-#include "rust/cjdns_sys/Rffi.h"
+#include "crypto/Ca.h"
 #include "interface/Iface.h"
 #include "memory/Allocator.h"
+#include "subnode/PeeringSeeder.h"
 #include "util/log/Log.h"
 #include "util/events/EventBase.h"
 #include "crypto/random/Random.h"
@@ -31,7 +32,7 @@ struct SubnodePathfinder
     struct Iface eventIf;
     struct SupernodeHunter* snh;
     struct ReachabilityCollector* rc;
-    Rffi_Seeder* seeder;
+    PeeringSeeder_t* ps;
 };
 
 void SubnodePathfinder_start(struct SubnodePathfinder*);
@@ -42,6 +43,7 @@ struct SubnodePathfinder* SubnodePathfinder_new(struct Allocator* allocator,
                                                 struct Random* rand,
                                                 struct Address* myAddress,
                                                 uint8_t* privateKey,
-                                                struct EncodingScheme* myScheme);
+                                                struct EncodingScheme* myScheme,
+                                                Ca_t* ca);
 
 #endif

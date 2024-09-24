@@ -4,6 +4,8 @@
 
 #![allow(non_snake_case)]
 #![allow(non_camel_case_types)]
+#![allow(non_upper_case_globals)]
+#![allow(unused)]
 
 mod crypto;
 pub mod event_loop;
@@ -35,8 +37,8 @@ fn cstr(s: *const String_t) -> Option<ByteString> {
     }
 }
 
-fn strc(alloc: *mut Allocator_t, s: ByteString) -> *mut String_t {
-    let ByteString(mut s) = s;
+fn strc(alloc: *mut Allocator_t, s: impl Into<Vec<u8>>) -> *mut String_t {
+    let mut s: Vec<u8> = s.into();
     let len = s.len();
     let bytes = s.as_mut_ptr() as *mut c_char;
     allocator::adopt(alloc, s);
@@ -61,6 +63,16 @@ fn cstr_to_string(c: *const String_t) -> Result<String> {
         bail!("cstr_to_string() was NULL");
     }
 }
+
+macro_rules! c_bail {
+    ($alloc:expr, $err:expr) => {
+        return allocator::adopt(
+            $alloc,
+            crate::rtypes::RTypes_Error_t { e: Some($err) }
+        )
+    };
+}
+pub(crate) use c_bail;
 
 macro_rules! c_error {
     ($alloc:expr, $may_err:expr) => {

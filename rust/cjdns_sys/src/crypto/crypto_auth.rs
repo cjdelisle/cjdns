@@ -394,6 +394,14 @@ impl CryptoAuth {
         log::debug!("Got unrecognized auth, password count = [{}]", count);
         None
     }
+
+    pub fn get_secret(&self, name: &str) -> [u8;64] {
+        let mut s = sodiumoxide::crypto::hash::sha512::State::new();
+        s.update(&self.private_key[..16]);
+        s.update(b"CJDNS_GET_SECRET");
+        s.update(name.as_bytes());
+        s.finalize().0
+    }
 }
 
 pub fn new_session(

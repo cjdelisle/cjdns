@@ -144,9 +144,6 @@ pub const Control_KeyPong_HEADER_SIZE: u32 = 40;
 pub const Control_KeyPong_MAX_SIZE: u32 = 104;
 pub const Control_GetSnode_HEADER_SIZE: u32 = 56;
 pub const Control_RPath_HEADER_SIZE: u32 = 16;
-pub const Control_LlAddr_Udp4_TYPE: u32 = 1;
-pub const Control_LlAddr_Udp6_TYPE: u32 = 2;
-pub const Control_LlAddr_Other_TYPE: u32 = 3;
 pub const Control_LlAddr_HEADER_SIZE: u32 = 40;
 pub const Control_Header_SIZE: u32 = 4;
 pub const PFChan_Node_SIZE: u32 = 64;
@@ -436,6 +433,70 @@ pub struct Control_Error {
 }
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
+pub struct Control_LlAddr_Payload {
+    pub type_: u8,
+    pub len: u8,
+}
+pub type Control_LlAddr_Payload_t = Control_LlAddr_Payload;
+pub const Control_LlAddr_Udp4_TYPE: u8 = 1;
+#[repr(C)]
+#[derive(Debug, Default, Copy, Clone)]
+pub struct Control_LlAddr_Udp4 {
+    pub type_: u8,
+    pub len: u8,
+    pub port_be: u16,
+    pub addr: [u8; 4usize],
+}
+pub type Control_LlAddr_Udp4_t = Control_LlAddr_Udp4;
+pub const Control_LlAddr_Udp6_TYPE: u8 = 2;
+#[repr(C)]
+#[derive(Debug, Default, Copy, Clone)]
+pub struct Control_LlAddr_Udp6 {
+    pub type_: u8,
+    pub len: u8,
+    pub port_be: u16,
+    pub addr: [u8; 16usize],
+}
+pub type Control_LlAddr_Udp6_t = Control_LlAddr_Udp6;
+pub const Control_LlAddr_Other_TYPE: u8 = 3;
+#[repr(C)]
+#[derive(Debug, Default, Copy, Clone)]
+pub struct Control_LlAddr_Other {
+    pub type_: u8,
+    pub len: u8,
+    pub sockaddrHeader: [u8; 30usize],
+}
+pub type Control_LlAddr_Other_t = Control_LlAddr_Other;
+pub const Control_LlAddr_REPLY_MAGIC: u32 = 1918987372;
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct Control_LlAddr {
+    pub magic: u32,
+    pub version_be: u32,
+    pub addr: Control_LlAddr__bindgen_ty_1,
+}
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub union Control_LlAddr__bindgen_ty_1 {
+    pub payload: Control_LlAddr_Payload_t,
+    pub udp4: Control_LlAddr_Udp4_t,
+    pub udp6: Control_LlAddr_Udp6_t,
+    pub other: Control_LlAddr_Other_t,
+    _bindgen_union_align: [u16; 16usize],
+}
+impl Default for Control_LlAddr__bindgen_ty_1 {
+    fn default() -> Self {
+        unsafe { ::std::mem::zeroed() }
+    }
+}
+impl Default for Control_LlAddr {
+    fn default() -> Self {
+        unsafe { ::std::mem::zeroed() }
+    }
+}
+pub type Control_LlAddr_t = Control_LlAddr;
+#[repr(C)]
+#[derive(Debug, Default, Copy, Clone)]
 pub struct Control_Header {
     pub checksum_be: u16,
     pub type_be: u16,
@@ -664,6 +725,7 @@ pub struct RBindings_Whitelist {
     pub l: Sockaddr_storage,
     pub m: Sockaddr,
     pub n: *mut Random_t,
+    pub o: Control_LlAddr_t,
 }
 impl Default for RBindings_Whitelist {
     fn default() -> Self {

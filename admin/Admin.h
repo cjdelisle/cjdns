@@ -67,6 +67,9 @@ void Admin_registerFunctionWithArgCount(char* name,
     Admin_registerFunctionWithArgCount(                                                           \
         name, cb, ctx, needsAuth, args, (sizeof(args) / sizeof(struct Admin_FunctionArg)), admin)
 
+#define Admin_registerFunctionNoArgs(name, cb, ctx, needsAuth, admin) \
+    Admin_registerFunctionWithArgCount(name, cb, ctx, needsAuth, NULL, 0, admin)
+
 #define Admin_sendMessage_CHANNEL_CLOSED -1
 int Admin_sendMessage(Dict* message, String* txid, struct Admin* admin);
 

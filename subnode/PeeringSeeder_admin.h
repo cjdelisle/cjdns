@@ -12,16 +12,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef SubnodePathfinder_admin_H
-#define SubnodePathfinder_admin_H
+#ifndef PeeringSeeder_admin_H
+#define PeeringSeeder_admin_H
 
 #include "admin/Admin.h"
-#include "subnode/SubnodePathfinder.h"
+#include "subnode/PeeringSeeder.h"
 #include "util/Linker.h"
-Linker_require("subnode/SubnodePathfinder_admin.c")
+Linker_require("subnode/PeeringSeeder_admin.c")
 
-void SubnodePathfinder_admin_register(struct SubnodePathfinder* sp,
-                                    struct Admin* admin,
-                                    struct Allocator* alloc);
+void PeeringSeeder_admin_register(PeeringSeeder_t* ps, struct Admin* admin, Allocator_t* alloc);
 
 #endif

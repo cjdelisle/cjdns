@@ -23,24 +23,30 @@
 #include "dht/Address.h"
 #include "net/SwitchPinger.h"
 #include "subnode/MsgCore.h"
+#include "subnode/ReachabilityCollector.h"
 #include "util/Linker.h"
-Linker_require("subnode/PeeringQuerier.c");
+Linker_require("subnode/PeeringSeeder.c")
 
-typedef struct PeeringQuerier {
-    int unused;
-} PeeringQuerier_t;
+typedef struct PeeringSeeder {
+    Iface_t* seederIface;
+} PeeringSeeder_t;
 
-void PeeringQuerier_setSnode(
-    PeeringQuerier_t* self,
-    struct Address* snode);
+void PeeringSeeder_setSnode(PeeringSeeder_t* self, struct Address* snode);
 
-void PeeringQuerier_setActive(PeeringQuerier_t* self, bool active);
+#define PeeringSeeder_publicPeer_ID_MAX_LEN 30
 
-struct PeeringQuerier* PeeringQuerier_new(
+Err_DEFUN PeeringSeeder_publicPeer(PeeringSeeder_t* self, String* code, Allocator_t* reqAlloc);
+
+// Get as a void pointer so that we don't need to pull in Rffi
+void* PeeringSeeder_getRsSeeder(PeeringSeeder_t* self);
+
+PeeringSeeder_t* PeeringSeeder_new(
     struct SwitchPinger* sp,
-    Allocator_t* allocator,
+    struct ReachabilityCollector* rc,
+    Allocator_t* alloc,
     Log_t* log,
     struct MsgCore* mc,
+    EventBase_t* base,
     Ca_t* ca);
 
 #endif
