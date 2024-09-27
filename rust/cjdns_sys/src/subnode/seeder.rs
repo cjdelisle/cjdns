@@ -7,7 +7,9 @@ use byteorder::{ReadBytesExt,WriteBytesExt,BE};
 use ipnetwork::{Ipv4Network,Ipv6Network};
 
 use cjdns::bytes::{dnsseed::{CjdnsPeer, CjdnsTxtRecord}, message::Message as RMessage};
-use trust_dns_resolver::config::{ResolverConfig, ResolverOpts};
+use trust_dns_resolver::{
+    config::{ResolverConfig, ResolverOpts}, name_server::{GenericConnector,TokioRuntimeProvider}, AsyncResolver
+};
 
 use crate::{bytestring::ByteString, cffi::{self, Control_LlAddr_Udp4_t, Control_LlAddr_Udp6_t, Control_LlAddr_t, PFChan_Node}, external::interface::iface::{Iface, IfacePvt}, interface::wire::message::Message, util::now_ms};
 
@@ -19,6 +21,7 @@ struct SeederState {
     tried_peers: Vec<(CjdnsPeer,u64)>,
     last_get_peers: u64,
     last_dns_req: u64,
+    dns_attempt_n: usize,
 
     recommended_snode: Option<CJDNSPublicKey>,
 }
@@ -29,6 +32,12 @@ struct SeederInner {
     ifacep: IfacePvt,
     send_message: mpsc::Sender<Message>,
     my_pubkey: PublicKey,
+    // TODO(cjd): We can only read /etc/resolv.conf BEFORE we chroot(), so we're reading it at startup.
+    //            If it changes while we're running, we're SOL for further seeding. The effect of this is
+    //            if you launch while offline, then you connect to an environment where google/cf/quad9 is
+    //            blocked but DNS does work, it will not pick up the DNS and use it.
+    //            The fix for this is to use a separate process which is not chrooted and does necessary tasks.
+    system_resolver: std::io::Result<(ResolverConfig, ResolverOpts)>,
 }
 impl SeederInner {
 
@@ -81,6 +90,27 @@ impl SeederInner {
         }
     }
 
+    fn get_resolver(self: &Arc<Self>, st: &mut SeederState) -> Result<AsyncResolver<GenericConnector<TokioRuntimeProvider>>> {
+        let mut n = st.dns_attempt_n % 4;
+        st.dns_attempt_n += 1;
+        if n == 0 {
+            if let Ok((cfg, opts)) = &self.system_resolver {
+                return Ok(AsyncResolver::tokio(cfg.clone(), *opts));
+            } else {
+                st.dns_attempt_n += 1;
+                n += 1;
+            }
+        }
+        let mut ro = ResolverOpts::default();
+        ro.try_tcp_on_error = true;
+        Ok(match n {
+            1 => AsyncResolver::tokio(ResolverConfig::google(), ro),
+            2 => AsyncResolver::tokio(ResolverConfig::cloudflare(), ro),
+            3 => AsyncResolver::tokio(ResolverConfig::quad9(), ro),
+            _ => bail!("Logic error in get_resolver()"),
+        })
+    }
+
     async fn cycle(self: &Arc<Self>, st: &mut SeederState) -> Result<()> {
 
         // Sync locks
@@ -126,10 +156,7 @@ impl SeederInner {
             }.cloned()
         } {
             log::debug!("Trying seed {seed}");
-            let resolver =
-                trust_dns_resolver::AsyncResolver::tokio(
-                    ResolverConfig::default(),
-                    ResolverOpts::default());
+            let resolver = self.get_resolver(st)?;
 
             let res = resolver.txt_lookup(&seed).await
                 .with_context(||format!("Failed dns lookup for {seed}"))?;
@@ -508,6 +535,7 @@ impl Seeder {
             snode_peers: Default::default(),
             dns_seeds: Default::default(),
             ifacep,
+            system_resolver: trust_dns_resolver::system_conf::read_system_conf(),
         });
         iface.set_receiver_f(incoming_event, Arc::clone(&inner));
         tokio::task::spawn(Arc::clone(&inner).run(recv_message, done_r));
