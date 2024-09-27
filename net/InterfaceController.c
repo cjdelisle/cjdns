@@ -836,7 +836,7 @@ static Iface_DEFUN handleIncomingFromWire(Message_t* msg, struct Iface* addrIf)
 
     char* printedAddr = "<unknown>";
     if (Defined(Log_DEBUG)) {
-        printedAddr = Hex_print(&lladdr[1], lladdr->addrLen - Sockaddr_OVERHEAD, Message_getAlloc(msg));
+        printedAddr = Sockaddr_print(lladdr, Message_getAlloc(msg));
     }
     // noisy
     if (Defined(Log_DEBUG) && false) {
