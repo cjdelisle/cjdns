@@ -16,6 +16,7 @@
 #include "exception/Err.h"
 #include "memory/Allocator.h"
 #include "net/InterfaceController.h"
+#include "util/platform/Sockaddr.h"
 #include "wire/Headers.h"
 #include "wire/Message.h"
 #include "wire/Error.h"
@@ -103,20 +104,18 @@ static Iface_DEFUN sendMessage(Message_t* msg, struct Iface* iface)
 {
     struct ETHInterface_pvt* ctx = Identity_containerOf(iface, struct ETHInterface_pvt, iface);
 
-    struct Sockaddr* sa = (struct Sockaddr*) Message_bytes(msg);
-    Assert_true(Message_getLength(msg) >= Sockaddr_OVERHEAD);
-    Assert_true(sa->addrLen <= ETHInterface_Sockaddr_SIZE);
-
-    struct ETHInterface_Sockaddr sockaddr = { .generic = { .addrLen = 0 } };
-    Err(Message_epop(msg, &sockaddr, sa->addrLen));
+    struct Sockaddr_storage ss = { .addr.addrLen = 0 };
+    Err(Sockaddr_read(&ss, msg));
 
     struct sockaddr_ll addr;
     Bits_memcpy(&addr, &ctx->addrBase, sizeof(struct sockaddr_ll));
 
-    if (sockaddr.generic.flags & Sockaddr_flags_BCAST) {
+    if (ss.addr.flags & Sockaddr_flags_BCAST) {
         Bits_memset(addr.sll_addr, 0xff, 6);
     } else {
-        Bits_memcpy(addr.sll_addr, sockaddr.mac, 6);
+        if (Sockaddr_getMac(addr.sll_addr, &ss.addr)) {
+            Err_raise(Message_getAlloc(msg), "Sockaddr on message not ETH type");
+        }
     }
 
     struct ETHInterface_Header hdr = {
@@ -180,14 +179,13 @@ static void handleEvent2(struct ETHInterface_pvt* context, struct Allocator* mes
         return;
     }
 
-    struct ETHInterface_Sockaddr  sockaddr = { .zero = 0 };
-    Bits_memcpy(sockaddr.mac, addr.sll_addr, 6);
-    sockaddr.generic.addrLen = ETHInterface_Sockaddr_SIZE;
+    struct Sockaddr_storage ss;
+    Sockaddr_initFromEth(&ss, addr.sll_addr);
     if (addr.sll_pkttype == PACKET_BROADCAST) {
-        sockaddr.generic.flags |= Sockaddr_flags_BCAST;
+        ss.addr.flags |= Sockaddr_flags_BCAST;
     }
 
-    Err_assert(Message_epush(msg, &sockaddr, ETHInterface_Sockaddr_SIZE));
+    Err_assert(Sockaddr_write(&ss.addr, msg));
 
     Assert_true(!((uintptr_t)Message_bytes(msg) % 4) && "Alignment fault");
 

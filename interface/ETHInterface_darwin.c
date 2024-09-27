@@ -14,6 +14,7 @@
  */
 #include "interface/ETHInterface.h"
 #include "exception/Err.h"
+#include "util/platform/Sockaddr.h"
 #include "wire/Message.h"
 #include "wire/Ethernet.h"
 #include "util/Assert.h"
@@ -73,12 +74,8 @@ static Iface_DEFUN sendMessage(Message_t* msg, struct Iface* iface)
 {
     struct ETHInterface_pvt* ctx = Identity_containerOf(iface, struct ETHInterface_pvt, iface);
 
-    struct Sockaddr* sa = (struct Sockaddr*) Message_bytes(msg);
-    Assert_true(Message_getLength(msg) >= Sockaddr_OVERHEAD);
-    Assert_true(sa->addrLen <= ETHInterface_Sockaddr_SIZE);
-
-    struct ETHInterface_Sockaddr sockaddr = { .generic = { .addrLen = 0 } };
-    Err(Message_epop(msg, &sockaddr, sa->addrLen));
+    struct Sockaddr_storage ss = { .addr.addrLen = 0 };
+    Err(Sockaddr_read(&ss, msg));
 
     struct ETHInterface_Header hdr = {
         .version = ETHInterface_CURRENT_VERSION,
@@ -91,10 +88,12 @@ static Iface_DEFUN sendMessage(Message_t* msg, struct Iface* iface)
     struct ethernet_frame ethFr = {
         .type = Ethernet_TYPE_CJDNS
     };
-    if (sockaddr.generic.flags & Sockaddr_flags_BCAST) {
+    if (ss.addr.flags & Sockaddr_flags_BCAST) {
         Bits_memset(ethFr.dest, 0xff, 6);
     } else {
-        Bits_memcpy(ethFr.dest, sockaddr.mac, 6);
+        if (Sockaddr_getMac(ethFr.dest, &ss.addr)) {
+            Err_raise(Message_getAlloc(msg), "Sockaddr on message not ETH type");
+        }
     }
     Bits_memcpy(ethFr.src, ctx->myMac, 6);
     Err(Message_epush(msg, &ethFr, ethernet_frame_SIZE));
@@ -152,14 +151,9 @@ static void handleEvent2(struct ETHInterface_pvt* context,
         return;
     }
 
-    struct ETHInterface_Sockaddr sockaddr = { .zero = 0 };
-    Bits_memcpy(sockaddr.mac, src, 6);
-    sockaddr.generic.addrLen = ETHInterface_Sockaddr_SIZE;
-    if (dst[0] == 0xff) {
-        sockaddr.generic.flags |= Sockaddr_flags_BCAST;
-    }
-
-    Err_assert(Message_epush(msg, &sockaddr, ETHInterface_Sockaddr_SIZE));
+    struct Sockaddr_storage ss = { .addr.addrLen = 0 };
+    struct Sockaddr* sa = Sockaddr_initFromEth(&ss, src);
+    Err_assert(Sockaddr_write(sa, msg));
 
     Assert_true(!((uintptr_t)Message_bytes(msg) % 4) && "Alignment fault");
 

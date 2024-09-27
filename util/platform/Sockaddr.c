@@ -12,15 +12,18 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+#include "exception/Err.h"
 #include "rust/cjdns_sys/Rffi.h"
 #include "benc/String.h"
 #include "memory/Allocator.h"
 #include "util/platform/Sockaddr.h"
+#include "util/AddrTools.h"
 #include "util/CString.h"
 #include "util/Bits.h"
 #include "util/Hex.h"
 #include "util/Hash.h"
 #include "util/Base10.h"
+#include "wire/Message.h"
 
 #include <sodium/crypto_hash_sha256.h>
 
@@ -53,6 +56,13 @@ struct Sockaddr_in6_pvt
     struct Sockaddr pub;
     struct sockaddr_in6 si;
 };
+typedef struct Sockaddr_eth_pvt
+{
+    struct Sockaddr pub;
+    uint16_t zero;
+    uint8_t mac[6];
+} Sockaddr_eth_pvt_t;
+Assert_compileTime(sizeof(Sockaddr_eth_pvt_t) == 16);
 
 const struct Sockaddr* const Sockaddr_LOOPBACK_be =
     (const struct Sockaddr*) &((const struct Sockaddr_in_pvt) {
@@ -105,6 +115,18 @@ int Sockaddr_parse(const char* input, struct Sockaddr_storage* out)
         return -1;
     }
     CString_safeStrncpy(buff, input, 63);
+
+    if (CString_strlen(buff) == 17) {
+        // 17 bytes long, try it as a MAC
+        Bits_memset(out, 0, sizeof(struct Sockaddr_storage));
+        Sockaddr_eth_pvt_t* eth = (Sockaddr_eth_pvt_t*) out;
+        if (AddrTools_parseMac(eth->mac, buff) == 0) {
+            out->addr.addrLen = sizeof *eth;
+            out->addr.type = Sockaddr_ETHERNET;
+            return 0;
+        }
+        // not a MaC, keep trying, lots of things are 17 bytes.
+    }
 
     int64_t port = 0;
     char* lastColon = CString_strrchr(buff, ':');
@@ -191,6 +213,16 @@ char* Sockaddr_print(struct Sockaddr* sockaddr, struct Allocator* alloc)
         return out->bytes;
     }
 
+    if (sockaddr->type == Sockaddr_ETHERNET) {
+        if (sockaddr->addrLen != sizeof(Sockaddr_eth_pvt_t)) {
+            return "eth/invalid";
+        }
+        Sockaddr_eth_pvt_t* eth = (Sockaddr_eth_pvt_t*) sockaddr;
+        String* out = String_printf(alloc, "%02x:%02x:%02x:%02x:%02x:%02x",
+            eth->mac[0], eth->mac[1], eth->mac[2], eth->mac[3], eth->mac[4], eth->mac[5]);
+        return out->bytes;
+    }
+
     struct Sockaddr_pvt* addr = (struct Sockaddr_pvt*) sockaddr;
 
     void* inAddr;
@@ -244,6 +276,9 @@ static uint16_t* getPortPtr(struct Sockaddr* sockaddr)
     if (sockaddr->addrLen < (2 + Sockaddr_OVERHEAD)) {
         return NULL;
     }
+    if (sockaddr->type != Sockaddr_PLATFORM) {
+        return NULL;
+    }
     struct Sockaddr_pvt* sa = (struct Sockaddr_pvt*) sockaddr;
     switch (sa->ss.ss_family) {
         case AF_INET: return &((struct sockaddr_in*)&sa->ss)->sin_port;
@@ -281,6 +316,9 @@ int Sockaddr_getAddress(struct Sockaddr* sockaddr, void* addrPtr)
     if (sockaddr->addrLen < (2 + Sockaddr_OVERHEAD)) {
         return -1;
     }
+    if (sockaddr->type != Sockaddr_PLATFORM) {
+        return -2;
+    }
     struct Sockaddr_pvt* sa = (struct Sockaddr_pvt*) sockaddr;
     if (addrPtr) {
         void** ap = (void**) addrPtr;
@@ -303,6 +341,9 @@ int Sockaddr_getFamily(const struct Sockaddr* sockaddr)
     if (sockaddr->addrLen < (2 + Sockaddr_OVERHEAD)) {
         return -1;
     }
+    if (sockaddr->type != Sockaddr_PLATFORM) {
+        return -2;
+    }
     const struct Sockaddr_pvt* sa = (const struct Sockaddr_pvt*) sockaddr;
     return sa->ss.ss_family;
 }
@@ -310,6 +351,27 @@ int Sockaddr_getFamily(const struct Sockaddr* sockaddr)
 int Sockaddr_getFamily_fromRust(const struct Sockaddr* sockaddr)
 {
     return Sockaddr_getFamily(sockaddr);
+}
+
+struct Sockaddr* Sockaddr_initFromEth(struct Sockaddr_storage* out, const uint8_t mac[static 6]) {
+    Sockaddr_eth_pvt_t* eth = (Sockaddr_eth_pvt_t*) out;
+    Bits_memset(eth, 0, sizeof *eth);
+    Bits_memcpy(eth->mac, mac, 6);
+    eth->pub.addrLen = sizeof *eth;
+    eth->pub.type = Sockaddr_ETHERNET;
+    if (mac[0] == 0xff) {
+        eth->pub.flags |= Sockaddr_flags_BCAST;
+    }
+    return &out->addr;
+}
+
+int Sockaddr_getMac(uint8_t out[static 6], const struct Sockaddr* sockaddr) {
+    if (sockaddr->addrLen != sizeof(Sockaddr_eth_pvt_t) || sockaddr->type != Sockaddr_ETHERNET) {
+        return -1;
+    }
+    Sockaddr_eth_pvt_t* eth = (Sockaddr_eth_pvt_t*) sockaddr;
+    Bits_memcpy(out, eth->mac, 6);
+    return 0;
 }
 
 struct Sockaddr* Sockaddr_initFromBytes(struct Sockaddr_storage* out, const uint8_t* bytes, int addrFamily)
@@ -351,13 +413,6 @@ struct Sockaddr* Sockaddr_fromBytes(const uint8_t* bytes, int addrFamily, struct
     return Sockaddr_clone(sa, alloc);
 }
 
-void Sockaddr_normalizeNative(void* nativeSockaddr)
-{
-#if defined(freebsd) || defined(openbsd) || defined(netbsd) || defined(darwin)
-    ((struct sockaddr*)nativeSockaddr)->sa_len = 0;
-#endif
-}
-
 uint32_t Sockaddr_hash(const struct Sockaddr* addr)
 {
     return Hash_compute((uint8_t*)addr, addr->addrLen);
@@ -375,7 +430,7 @@ void Sockaddr_asIp6(uint8_t addrOut[static 16], const struct Sockaddr* sockaddr)
     }
     struct Sockaddr_pvt* sa = (struct Sockaddr_pvt*) sockaddr;
     Bits_memset(addrOut, 0, 16);
-    switch (sa->ss.ss_family) {
+    switch (Sockaddr_getFamily(sockaddr)) {
         case AF_INET: {
             // IPv4 in 6
             addrOut[10] = 0xff;
@@ -392,7 +447,7 @@ void Sockaddr_asIp6(uint8_t addrOut[static 16], const struct Sockaddr* sockaddr)
             uint16_t len = sa->pub.addrLen - Sockaddr_OVERHEAD;
             if (len <= 14) {
                 addrOut[0] = 0xff;
-                addrOut[1] = 0xfe;
+                addrOut[1] = 0xfe - sockaddr->type;
                 Bits_memcpy(&addrOut[16-len], &sa->ss, len);
             } else {
                 uint8_t hash[32];
@@ -411,7 +466,13 @@ void Sockaddr_asIp6_fromRust(uint8_t addrOut[static 16], const struct Sockaddr* 
 
 int Sockaddr_compare(const struct Sockaddr* a, const struct Sockaddr* b)
 {
-    return Bits_memcmp(a, b, a->addrLen);
+    if (a->addrLen < b->addrLen) {
+        return -1;
+    } else if (a->addrLen > b->addrLen) {
+        return 1;
+    } else {
+        return Bits_memcmp(a, b, a->addrLen);
+    }
 }
 
 uint32_t Sockaddr_addrHandle(const struct Sockaddr* addr)
@@ -435,4 +496,22 @@ void Sockaddr_addrFromHandle(struct Sockaddr* addr, uint32_t handle)
     addr->type = Sockaddr_HANDLE;
     addr->addrLen = sizeof(struct Sockaddr);
     Bits_memcpy(&((uint8_t*)addr)[4], &handle, 4);
+}
+
+Err_DEFUN Sockaddr_read(struct Sockaddr_storage* out, Message_t* readFrom) {
+    if (Message_getLength(readFrom) < Sockaddr_OVERHEAD) {
+        Err_raise(Message_getAlloc(readFrom), 
+            "Error: Message len [%d] too short to contain Sockaddr",
+            Message_getLength(readFrom));
+    }
+    Err(Message_epop(readFrom, &out->addr, sizeof out->addr));
+    if (out->addr.addrLen < Sockaddr_OVERHEAD) {
+        Err_raise(Message_getAlloc(readFrom), 
+            "Invalid addrLen in Sockaddr: [%d]", out->addr.addrLen);
+    }
+    Err(Message_epop(readFrom, &out->nativeAddr, out->addr.addrLen - Sockaddr_OVERHEAD));
+    return NULL;
+}
+Err_DEFUN Sockaddr_write(const struct Sockaddr* from, Message_t* writeTo) {
+    return Message_epush(writeTo, from, from->addrLen);
 }

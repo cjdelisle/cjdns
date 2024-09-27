@@ -13,7 +13,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "interface/ETHInterface_admin.h"
-#include "exception/Err.h"
 #include "interface/ETHInterface.h"
 #include "benc/Int.h"
 #include "admin/Admin.h"
@@ -22,8 +21,8 @@
 #include "net/InterfaceController.h"
 #include "rust/cjdns_sys/RTypes.h"
 #include "rust/cjdns_sys/Rffi.h"
-#include "util/AddrTools.h"
 #include "util/Identity.h"
+#include "util/platform/Sockaddr.h"
 
 struct Context
 {
@@ -56,19 +55,16 @@ static void beginConnection(Dict* args,
 
     uint8_t pkBytes[32];
 
-    struct ETHInterface_Sockaddr sockaddr = {
-        .generic = {
-            .addrLen = ETHInterface_Sockaddr_SIZE
-        }
-    };
-
+    struct Sockaddr_storage ss;
     if (Key_parse(publicKey, pkBytes, NULL)) {
         error = "invalid publicKey";
-    } else if (macAddress->len < 17 || AddrTools_parseMac(sockaddr.mac, macAddress->bytes)) {
+    } else if (Sockaddr_parse(macAddress->bytes, &ss)) {
+        error = "invalid macAddress";
+    } else if (ss.addr.type != Sockaddr_ETHERNET) {
         error = "invalid macAddress";
     } else {
         int ret = InterfaceController_bootstrapPeer(
-            ctx->ic, ifNum, pkBytes, &sockaddr.generic, password, login, peerName, version);
+            ctx->ic, ifNum, pkBytes, &ss.addr, password, login, peerName, version);
 
         if (ret == InterfaceController_bootstrapPeer_BAD_IFNUM) {
             error = "invalid interfaceNumber";

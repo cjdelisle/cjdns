@@ -44,20 +44,6 @@ struct ETHInterface_Header
 #define ETHInterface_Header_SIZE 6
 Assert_compileTime(sizeof(struct ETHInterface_Header) == ETHInterface_Header_SIZE);
 
-/** The content of a Sockaddr emitted from ETHInterface. */
-struct ETHInterface_Sockaddr
-{
-    struct Sockaddr generic;
-    /*
-     * We need to make the first byte following the Sockaddr be 0 because
-     * Sockaddr_normalizeNative will zero it.
-     */
-    uint16_t zero;
-    uint8_t mac[6];
-};
-#define ETHInterface_Sockaddr_SIZE 16
-Assert_compileTime(sizeof(struct ETHInterface_Sockaddr) == ETHInterface_Sockaddr_SIZE);
-
 #define ETHInterface_CURRENT_VERSION 0
 
 struct ETHInterface

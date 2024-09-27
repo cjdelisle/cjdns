@@ -15,9 +15,11 @@
 #ifndef Sockaddr_H
 #define Sockaddr_H
 
+#include "exception/Err.h"
 #include "memory/Allocator.h"
 #include "util/Endian.h"
 #include "util/Linker.h"
+#include "wire/Message.h"
 Linker_require("util/platform/Sockaddr.c")
 
 #include <stdint.h>
@@ -33,6 +35,7 @@ typedef struct Sockaddr
 
     #define Sockaddr_PLATFORM 0
     #define Sockaddr_HANDLE 1
+    #define Sockaddr_ETHERNET 2
     uint8_t type;
 
     /** Only applies if flags & Sockaddr_flags_PREFIX is true. */
@@ -178,11 +181,6 @@ Sockaddr_t* Sockaddr_fromBytes(const uint8_t* bytes, int addrFamily, struct Allo
 Sockaddr_t* Sockaddr_clone(const Sockaddr_t* addr, struct Allocator* alloc);
 
 /**
- * Normalize inconsistent native sockaddr implementations
- */
-void Sockaddr_normalizeNative(void* nativeSockaddr);
-
-/**
  * Get a hash for hashtable lookup.
  */
 uint32_t Sockaddr_hash(const Sockaddr_t* addr);
@@ -191,5 +189,12 @@ uint32_t Sockaddr_hash(const Sockaddr_t* addr);
  * Compare two sockaddrs for sorting, comparison does not put them in any specific order.
  */
 int Sockaddr_compare(const Sockaddr_t* a, const Sockaddr_t* b);
+
+struct Sockaddr* Sockaddr_initFromEth(struct Sockaddr_storage* out, const uint8_t mac[static 6]);
+
+int Sockaddr_getMac(uint8_t out[static 6], const struct Sockaddr* sockaddr);
+
+Err_DEFUN Sockaddr_read(struct Sockaddr_storage* out, Message_t* readFrom);
+Err_DEFUN Sockaddr_write(const struct Sockaddr* out, Message_t* writeTo);
 
 #endif
