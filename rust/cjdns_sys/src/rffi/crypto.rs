@@ -1,6 +1,7 @@
 use std::slice::from_raw_parts_mut;
 use std::sync::Arc;
 
+use cjdns_crypto::hash::sha256;
 use libc::{c_char, c_int, c_uchar, c_ulonglong};
 use sodiumoxide::crypto::hash::sha512;
 
@@ -329,6 +330,23 @@ pub unsafe extern "C" fn Rffi_crypto_hash_sha512(
 
     // Perform the SHA-512 hash
     let hash = sha512::hash(input_slice);
+
+    // Copy the result to the output buffer
+    std::ptr::copy_nonoverlapping(hash.0.as_ptr(), out, hash.0.len());
+
+    0 // Success
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn Rffi_crypto_hash_sha256(
+    out: *mut c_uchar, // Output buffer (hash result)
+    input: *const c_uchar, // Input buffer (data to hash)
+    inlen: c_ulonglong // Length of input data
+) -> c_int {
+    let input_slice = std::slice::from_raw_parts(input, inlen as usize);
+
+    // Perform the SHA-256 hash
+    let hash = sha256::hash(input_slice);
 
     // Copy the result to the output buffer
     std::ptr::copy_nonoverlapping(hash.0.as_ptr(), out, hash.0.len());

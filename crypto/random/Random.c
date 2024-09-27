@@ -12,6 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+#include "rust/cjdns_sys/Rffi.h"
 #include "crypto/random/Random.h"
 #include "crypto/random/seed/RandomSeed.h"
 #include "crypto/random/seed/SystemRandomSeed.h"
@@ -25,7 +26,6 @@
 #include "util/Defined.h"
 #include "util/log/Log.h"
 
-#include <sodium/crypto_hash_sha256.h>
 #include <sodium/crypto_stream_salsa20.h>
 
 /**
@@ -162,7 +162,7 @@ void Random_addRandom(struct Random* rand, uint32_t randomNumber)
     rand->seedGen->elements.collectedEntropy[rand->addRandomCounter % 8] ^=
         rotl(randomNumber, rand->addRandomCounter / 8);
     if (++rand->addRandomCounter >= 256) {
-        crypto_hash_sha256((uint8_t*)rand->tempSeed,
+        Rffi_crypto_hash_sha256((uint8_t*)rand->tempSeed,
                            (uint8_t*)rand->seedGen->buff,
                            sizeof(union Random_SeedGen));
         rand->addRandomCounter = 0;

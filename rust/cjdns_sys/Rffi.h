@@ -102,6 +102,10 @@ int Rffi_crypto_hash_sha512(unsigned char *out,
                             const unsigned char *input,
                             unsigned long long inlen);
 
+int Rffi_crypto_hash_sha256(unsigned char *out,
+                            const unsigned char *input,
+                            unsigned long long inlen);
+
 void Rffi_stopEventLoop(RTypes_EventLoop_t *event_loop);
 
 void Rffi_startEventLoop(RTypes_EventLoop_t *event_loop);

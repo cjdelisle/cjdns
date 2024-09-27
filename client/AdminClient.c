@@ -25,8 +25,6 @@
 #include "wire/Message.h"
 #include "wire/Error.h"
 
-#include <sodium/crypto_hash_sha256.h>
-
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -83,7 +81,7 @@ static int calculateAuth(Dict* message,
     uint32_t cookie = (cookieStr != NULL) ? strtoll(cookieStr->bytes, NULL, 10) : 0;
     snprintf((char*) passAndCookie, 64, "%s%u", password->bytes, cookie);
     uint8_t hash[32];
-    crypto_hash_sha256(hash, passAndCookie, CString_strlen((char*) passAndCookie));
+    Rffi_crypto_hash_sha256(hash, passAndCookie, CString_strlen((char*) passAndCookie));
     Hex_encode((uint8_t*)hashHex->bytes, 64, hash, 32);
 
     Dict_putString(message, String_new("hash", alloc), hashHex, alloc);
@@ -94,7 +92,7 @@ static int calculateAuth(Dict* message,
     Err_assert(BencMessageWriter_write(message, msg));
 
     // calculate the hash of the message with the password hash
-    crypto_hash_sha256(hash, Message_bytes(msg), Message_getLength(msg));
+    Rffi_crypto_hash_sha256(hash, Message_bytes(msg), Message_getLength(msg));
 
     // swap the hash of the message with the password hash into the location
     // where the password hash was.

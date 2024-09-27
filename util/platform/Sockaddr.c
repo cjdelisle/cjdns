@@ -25,8 +25,6 @@
 #include "util/Base10.h"
 #include "wire/Message.h"
 
-#include <sodium/crypto_hash_sha256.h>
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
@@ -451,7 +449,7 @@ void Sockaddr_asIp6(uint8_t addrOut[static 16], const struct Sockaddr* sockaddr)
                 Bits_memcpy(&addrOut[16-len], &sa->ss, len);
             } else {
                 uint8_t hash[32];
-                crypto_hash_sha256(hash, (uint8_t*) &sa->ss, len);
+                Rffi_crypto_hash_sha256(hash, (uint8_t*) &sa->ss, len);
                 addrOut[0] = 0xff;
                 addrOut[1] = 0xff;
                 Bits_memcpy(&addrOut[2], hash, 14);

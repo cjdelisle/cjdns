@@ -32,7 +32,6 @@
 #include "util/platform/Sockaddr.h"
 #include "util/Defined.h"
 
-#include <sodium/crypto_hash_sha256.h>
 #include <sodium/crypto_verify_32.h>
 
 #include <stdlib.h>
@@ -250,10 +249,10 @@ static inline bool authValid(Dict* message, Message_t* messageBytes, struct Admi
     uint8_t passAndCookie[64];
     snprintf((char*) passAndCookie, 64, "%s%u", admin->password->bytes, cookie);
     uint8_t hash[32];
-    crypto_hash_sha256(hash, passAndCookie, CString_strlen((char*) passAndCookie));
+    Rffi_crypto_hash_sha256(hash, passAndCookie, CString_strlen((char*) passAndCookie));
     Hex_encode(hashPtr, 64, hash, 32);
 
-    crypto_hash_sha256(hash, Message_bytes(messageBytes), Message_getLength(messageBytes));
+    Rffi_crypto_hash_sha256(hash, Message_bytes(messageBytes), Message_getLength(messageBytes));
     Hex_encode(hashPtr, 64, hash, 32);
     int res = crypto_verify_32(hashPtr, submittedHash->bytes);
     res |= crypto_verify_32(hashPtr + 32, submittedHash->bytes + 32);
