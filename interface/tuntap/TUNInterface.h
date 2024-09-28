@@ -16,12 +16,10 @@
 #define TUNInterface_H
 
 #include "exception/Err.h"
-#include "interface/Iface.h"
 #include "memory/Allocator.h"
-#include "util/events/EventBase.h"
 #include "util/log/Log.h"
 #include "util/Linker.h"
-Linker_require("interface/tuntap/TUNInterface_" + builder.config.systemName + ".c")
+Linker_require("interface/tuntap/TUNInterface.c")
 
 /**
  * This is the maximum size that will be accepted as an interface name.
@@ -34,23 +32,35 @@ Linker_require("interface/tuntap/TUNInterface_" + builder.config.systemName + ".
     #define TUNInterface_IFNAMSIZ 16
 #endif
 
+typedef struct TUNInterface {
+    Iface_t* iface;
+} TUNInterface_t;
+
 /**
  * Create a new TUNInterface.
  *
  * @param interfaceName the interface name you *want* to use or NULL to let the kernel decide.
  * @param assignedInterfaceName an empty buffer which will be filled in with the interface
  *                              name that is assigned.
- * @param isTapMode if true, the TUN device will be initialized in TAP mode if supported.
- * @param base the libevent event base to use for listening for incoming packet events.
  * @param logger for logging messages about the tun device.
  * @param allocator a means of getting memory.
  * @return a Interface.
  */
-Err_DEFUN TUNInterface_new(struct Iface** out,
-                                    const char* interfaceName,
-                                   char assignedInterfaceName[TUNInterface_IFNAMSIZ],
-                                   int isTapMode,
-                                   EventBase_t* base,
-                                   struct Log* logger,
-                                   struct Allocator* alloc);
+Err_DEFUN TUNInterface_new(
+    TUNInterface_t** out,
+    const char* interfaceName,
+    char assignedInterfaceName[TUNInterface_IFNAMSIZ],
+    struct Log* logger,
+    struct Allocator* alloc);
+
+Err_DEFUN TUNInterface_workerStates(
+    Object_t** out,
+    TUNInterface_t* tt,
+    Allocator_t* alloc);
+
+Err_DEFUN TUNInterface_forFd(
+    TUNInterface_t** out,
+    int fd,
+    struct Allocator* alloc);
+
 #endif

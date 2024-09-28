@@ -12,10 +12,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#include "interface/tuntap/TUNInterface.h"
+#include "interface/tuntap/TUNInterface_pvt.h"
 #include "exception/Err.h"
 #include "interface/tuntap/BSDMessageTypeWrapper.h"
-#include "util/AddrTools.h"
+#include "rust/cjdns_sys/RTypes.h"
 #include "util/events/Socket.h"
 #include "util/CString.h"
 
@@ -41,16 +41,14 @@
 #define APPLE_UTUN_CONTROL "com.apple.net.utun_control"
 #define UTUN_OPT_IFNAME 2
 
-Err_DEFUN TUNInterface_new(struct Iface** out,
-                                    const char* interfaceName,
-                                   char assignedInterfaceName[TUNInterface_IFNAMSIZ],
-                                   int isTapMode,
-                                   EventBase_t* base,
-                                   struct Log* logger,
-                                   struct Allocator* alloc)
+Err_DEFUN TUNInterface_newImpl(
+    Rffi_SocketIface_t** sout,
+    struct Iface** out,
+    const char* interfaceName,
+    char assignedInterfaceName[TUNInterface_IFNAMSIZ],
+    struct Log* logger,
+    struct Allocator* alloc)
 {
-    if (isTapMode) { Err_raise(alloc, "tap mode not supported on this platform"); }
-
     int maxNameSize = (IFNAMSIZ < TUNInterface_IFNAMSIZ) ? IFNAMSIZ : TUNInterface_IFNAMSIZ;
     int tunUnit = 0; /* allocate dynamically by default */
 
@@ -113,7 +111,7 @@ Err_DEFUN TUNInterface_new(struct Iface** out,
     }
 
     struct Iface* iface = NULL;
-    Err(Socket_forFd(&iface, tunFd, Socket_forFd_FRAMES, alloc));
+    Err(Rffi_socketForFd(&iface, sout, tunFd, RTypes_SocketType_Frames, alloc));
 
     struct BSDMessageTypeWrapper* bmtw = BSDMessageTypeWrapper_new(alloc, logger);
     Iface_plumb(iface, &bmtw->wireSide);

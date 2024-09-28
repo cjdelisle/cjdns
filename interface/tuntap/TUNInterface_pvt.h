@@ -12,24 +12,20 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef ARPServer_H
-#define ARPServer_H
+#ifndef TUNInterface_pvt_H
+#define TUNInterface_pvt_H
 
-#include "interface/Iface.h"
-#include "memory/Allocator.h"
-#include "util/log/Log.h"
-#include "wire/Ethernet.h"
+#include "interface/tuntap/TUNInterface.h"
+#include "rust/cjdns_sys/Rffi.h"
 #include "util/Linker.h"
-Linker_require("interface/tuntap/ARPServer.c")
+Linker_require("interface/tuntap/TUNInterface_" + builder.config.systemName + ".c")
 
-struct ARPServer
-{
-    struct Iface internal;
-};
-
-struct ARPServer* ARPServer_new(struct Iface* external,
-                                struct Log* log,
-                                uint8_t localMac[Ethernet_ADDRLEN],
-                                struct Allocator* alloc);
+Err_DEFUN TUNInterface_newImpl(
+    Rffi_SocketIface_t** sout,
+    struct Iface** out,
+    const char* interfaceName,
+    char assignedInterfaceName[TUNInterface_IFNAMSIZ],
+    struct Log* logger,
+    struct Allocator* alloc);
 
 #endif

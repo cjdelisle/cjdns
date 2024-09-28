@@ -1,6 +1,8 @@
-use crate::cffi::{Allocator_t, Sockaddr_t, Iface_t};
+use cjdns_bencode::BValue;
+
+use crate::cffi::{Allocator_t, Dict_t, Iface_t, Object_t, Sockaddr_t};
 use crate::external::interface::cif;
-use crate::rffi::allocator;
+use crate::rffi::{allocator, benc};
 use crate::rtypes::RTypes_Error_t;
 use std::os::raw::c_char;
 use crate::util::sockaddr::Sockaddr;
@@ -33,6 +35,37 @@ pub extern "C" fn Rffi_udpIfaceSetBroadcast(iface: *mut Rffi_UDPIface_pvt, broad
             -1
         }
     }
+}
+
+#[no_mangle]
+pub extern "C" fn Rffi_udpIface_worker_states(
+    outP: *mut *mut Object_t,
+    iface: *mut Rffi_UDPIface_pvt,
+    alloc: *mut Allocator_t,
+) -> *mut RTypes_Error_t {
+    let (sws, rws) = from_c!(iface).udp.worker_states();
+    let bv = BValue::builder()
+        .set_dict()
+        .add_dict_entry("send", |mut b|{
+            b = b.set_dict();
+            for (i, s) in sws.iter().enumerate() {
+                b = b.add_dict_entry(i.to_string(), |b|b.set_str(format!("{s:?}")));
+            }
+            b
+        })
+        .add_dict_entry("recv", |mut b|{
+            b = b.set_dict();
+            for (i, r) in rws.iter().enumerate() {
+                b = b.add_dict_entry(i.to_string(), |b|b.set_str(format!("{r:?}")));
+            }
+            b
+        })
+        .build();
+    let out = benc::value_to_c(alloc, bv.inner());
+    unsafe {
+        *outP = out;
+    }
+    std::ptr::null_mut()
 }
 
 #[no_mangle]

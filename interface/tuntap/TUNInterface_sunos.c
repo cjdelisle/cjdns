@@ -13,6 +13,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "interface/tuntap/TUNInterface.h"
+#include "rust/cjdns_sys/RTypes.h"
+#include "rust/cjdns_sys/Rffi.h"
 #include "util/AddrTools.h"
 #include "util/Identity.h"
 #include "util/events/Socket.h"
@@ -88,17 +90,14 @@ static Iface_DEFUN incomingFromUs(Message_t* message, struct Iface* internalIf)
     return Iface_next(&ctx->externalIf, message);
 }
 
-Err_DEFUN TUNInterface_new(struct Iface** out,
-                                    const char* interfaceName,
-                                   char assignedInterfaceName[TUNInterface_IFNAMSIZ],
-                                   int isTapMode,
-                                   EventBase_t* base,
-                                   struct Log* logger,
-                                   struct Allocator* alloc)
+Err_DEFUN TUNInterface_newImpl(
+    Rffi_SocketIface_t** sout,
+    struct Iface** out,
+    const char* interfaceName,
+    char assignedInterfaceName[TUNInterface_IFNAMSIZ],
+    struct Log* logger,
+    struct Allocator* alloc)
 {
-    // tap mode is not supported at all by the sunos tun driver.
-    if (isTapMode) { Err_raise(alloc, "tap mode not supported on this platform"); }
-
     // Extract the number eg: 0 from tun0
     int ppa = 0;
     if (interfaceName) {
@@ -184,7 +183,7 @@ Err_DEFUN TUNInterface_new(struct Iface** out,
     close(ipFd);
 
     struct Iface* s = NULL;
-    Err(Socket_forFd(&s, tunFd, Socket_forFd_FRAMES, alloc));
+    Err(Rffi_socketForFd(&s, sout, tunFd, RTypes_SocketType_Frames, alloc));
 
     struct TUNInterface_Illumos_pvt* ctx =
         Allocator_clone(alloc, (&(struct TUNInterface_Illumos_pvt) {

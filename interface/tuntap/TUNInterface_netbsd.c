@@ -12,7 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#include "interface/tuntap/TUNInterface.h"
+#include "interface/tuntap/TUNInterface_pvt.h"
 #include "exception/Err.h"
 #include "interface/tuntap/BSDMessageTypeWrapper.h"
 #include "util/events/Socket.h"
@@ -38,15 +38,14 @@
 
 /* Tun Configurator for NetBSD. */
 
-Err_DEFUN TUNInterface_new(struct Iface** out,
-                                    const char* interfaceName,
-                                   char assignedInterfaceName[TUNInterface_IFNAMSIZ],
-                                   int isTapMode,
-                                   EventBase_t* base,
-                                   struct Log* logger,
-                                   struct Allocator* alloc)
+Err_DEFUN TUNInterface_newImpl(
+    Rffi_SocketIface_t** sout,
+    struct Iface** out,
+    const char* interfaceName,
+    char assignedInterfaceName[TUNInterface_IFNAMSIZ],
+    struct Log* logger,
+    struct Allocator* alloc)
 {
-    if (isTapMode) { Err_raise(alloc, "tap mode not supported on this platform"); }
     int err;
     char file[TUNInterface_IFNAMSIZ];
     int i;
@@ -88,7 +87,7 @@ Err_DEFUN TUNInterface_new(struct Iface** out,
         }
     }
     struct Iface* s = NULL;
-    Err(Socket_forFd(&s, tunFd, Socket_forFd_FRAMES, alloc));
+    Err(Rffi_socketForFd(&s, sout, tunFd, RTypes_SocketType_Frames, alloc));
 
     struct BSDMessageTypeWrapper* bmtw = BSDMessageTypeWrapper_new(alloc, logger);
     Iface_plumb(s, &bmtw->wireSide);

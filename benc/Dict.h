@@ -106,6 +106,11 @@ List* Dict_getList(const Dict* dictionary, const String* key);
 
 /*----------------------- Dictionary Put Functions -----------------------*/
 
+Object* Dict_putObject(Dict* dictionary,
+                         const String* key,
+                         Object* value,
+                         struct Allocator* allocator);
+
 /**
  * Insert an integer into a dictionary.
  *

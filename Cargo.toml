@@ -14,13 +14,12 @@ panic = "unwind"
 opt-level = 2
 
 [workspace.dependencies]
-cjdns = { git = "https://github.com/cjdelisle/cjdns-route-server", rev = "4925a6cd65dc0c2186889363e0bb62182c5d83c5", version = "0.1.0" }
-cjdns-admin = { git = "https://github.com/cjdelisle/cjdns-route-server", rev = "4925a6cd65dc0c2186889363e0bb62182c5d83c5", version = "0.1.0" }
-cjdns-crypto = { git = "https://github.com/cjdelisle/cjdns-route-server", rev = "4925a6cd65dc0c2186889363e0bb62182c5d83c5", version = "0.1.0" }
-cjdns-keys = { git = "https://github.com/cjdelisle/cjdns-route-server", rev = "4925a6cd65dc0c2186889363e0bb62182c5d83c5", version = "0.1.0" }
-cjdns-bytes = { git = "https://github.com/cjdelisle/cjdns-route-server", rev = "4925a6cd65dc0c2186889363e0bb62182c5d83c5", version = "0.1.0" }
-cjdns-bencode = { git = "https://github.com/cjdelisle/cjdns-route-server", rev = "4925a6cd65dc0c2186889363e0bb62182c5d83c5", version = "0.1.0" }
-bendy = { git = "https://github.com/cjdelisle/bendy-cjdns", tag = "v0.3.2-cjdns", features = ["std", "serde"] }
+cjdns = { git = "https://github.com/cjdelisle/cjdns-route-server", rev = "d19d5f03c6336f0ae637694968a40e511f3882eb", version = "0.1.0" }
+cjdns-admin = { git = "https://github.com/cjdelisle/cjdns-route-server", rev = "d19d5f03c6336f0ae637694968a40e511f3882eb", version = "0.1.0" }
+cjdns-crypto = { git = "https://github.com/cjdelisle/cjdns-route-server", rev = "d19d5f03c6336f0ae637694968a40e511f3882eb", version = "0.1.0" }
+cjdns-keys = { git = "https://github.com/cjdelisle/cjdns-route-server", rev = "d19d5f03c6336f0ae637694968a40e511f3882eb", version = "0.1.0" }
+cjdns-bytes = { git = "https://github.com/cjdelisle/cjdns-route-server", rev = "d19d5f03c6336f0ae637694968a40e511f3882eb", version = "0.1.0" }
+cjdns-bencode = { git = "https://github.com/cjdelisle/cjdns-route-server", rev = "d19d5f03c6336f0ae637694968a40e511f3882eb", version = "0.1.0" }
 sodiumoxide = { git = "https://github.com/cjdelisle/sodiumoxide", rev = "9f6a18d40a4db253edfebac9f2ce5c22d09b1f47", version = "0.2", default-features = false, features = ["std"] }
 clap = { version = "4", features = ["derive"] }
 const_format = "0.2"
@@ -51,3 +50,4 @@ bindgen = { version = "0.55" }
 byteorder = "1.5"
 trust-dns-resolver = "0.23.2"
 ipnetwork = "0.20"
+num_enum = "0.7"

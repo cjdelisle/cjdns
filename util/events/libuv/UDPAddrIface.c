@@ -43,12 +43,19 @@ int UDPAddrIface_setBroadcast(struct UDPAddrIface* iface, bool enable)
     return (int) Rffi_udpIfaceSetBroadcast(ifp->internal->pvt, enable);
 }
 
+Err_DEFUN UDPAddrIface_workerStates(
+    Object_t** out,
+    struct UDPAddrIface* iface,
+    Allocator_t* alloc)
+{
+    struct UDPAddrIface_pvt* ifp = Identity_check((struct UDPAddrIface_pvt*)iface);
+    return Rffi_udpIface_worker_states(out, ifp->internal->pvt, alloc);
+}
+
 Err_DEFUN UDPAddrIface_new(
     struct UDPAddrIface** outP,
-    EventBase_t* eventBase,
     struct Sockaddr* addr,
-    struct Allocator* userAlloc,
-    struct Log* logger)
+    struct Allocator* userAlloc)
 {
     Rffi_UDPIface* internal = NULL;
     Err(Rffi_udpIfaceNew(&internal, addr, userAlloc));

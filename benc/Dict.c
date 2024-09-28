@@ -110,7 +110,7 @@ Dict* Dict_new(struct Allocator* allocator)
  *         Otherwise: if the key already exists in the dictionary then the value which was
  *         displaced by the put, if not then NULL.
  */
-static Object* putObject(Dict* dictionary,
+Object* Dict_putObject(Dict* dictionary,
                          const String* key,
                          Object* value,
                          struct Allocator* allocator)
@@ -148,7 +148,7 @@ Object* Dict_putInt(Dict* dictionary,
         .type = Object_INTEGER,
         .as.number = value
     }));
-    return putObject(dictionary, key, v, allocator);
+    return Dict_putObject(dictionary, key, v, allocator);
 }
 
 /** @see Object.h */
@@ -164,7 +164,7 @@ Object* Dict_putString(Dict* dictionary,
         .type = Object_STRING,
         .as.string = value
     }));
-    return putObject(dictionary, key, v, allocator);
+    return Dict_putObject(dictionary, key, v, allocator);
 }
 
 /** @see Object.h */
@@ -181,7 +181,7 @@ Object* Dict_putList(Dict* dictionary,
         /* Lists and dictionaries are double pointers so they have to be loaded. */
         .as.list = value
     }));
-    return putObject(dictionary, key, v, allocator);
+    return Dict_putObject(dictionary, key, v, allocator);
 }
 
 Object* Dict_putDict(Dict* dictionary,
@@ -197,7 +197,7 @@ Object* Dict_putDict(Dict* dictionary,
         /* Lists and dictionaries are double pointers so they have to be loaded. */
         .as.dictionary = value
     }));
-    return putObject(dictionary, key, v, allocator);
+    return Dict_putObject(dictionary, key, v, allocator);
 }
 
 /** @see Object.h */

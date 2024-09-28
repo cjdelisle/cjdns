@@ -18,8 +18,6 @@
 #include "exception/Err.h"
 #include "interface/addressable/AddrIface.h"
 #include "memory/Allocator.h"
-#include "util/events/EventBase.h"
-#include "util/log/Log.h"
 #include "util/Linker.h"
 Linker_require("util/events/libuv/UDPAddrIface.c")
 
@@ -45,15 +43,18 @@ struct UDPAddrIface
  */
 Err_DEFUN UDPAddrIface_new(
     struct UDPAddrIface** out,
-    EventBase_t* eventBase,
     struct Sockaddr* addr,
-    struct Allocator* alloc,
-    struct Log* logger);
+    struct Allocator* alloc);
 
 int UDPAddrIface_setDSCP(struct UDPAddrIface* iface, uint8_t dscp);
 
 int UDPAddrIface_setBroadcast(struct UDPAddrIface* iface, bool enable);
 
 int UDPAddrIface_getFd(struct UDPAddrIface*);
+
+Err_DEFUN UDPAddrIface_workerStates(
+    Object_t** out,
+    struct UDPAddrIface* iface,
+    Allocator_t* alloc);
 
 #endif

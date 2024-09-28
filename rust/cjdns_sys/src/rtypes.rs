@@ -4,6 +4,7 @@
 use std::sync::Arc;
 
 use libc::c_char;
+use num_enum::{IntoPrimitive, TryFromPrimitive};
 
 use crate::{cffi::{self, Iface_t, String_t}, rffi::event_loop::EventLoop, util::identity::Identity};
 
@@ -106,6 +107,14 @@ pub struct RTypes_EventLoop_t {
     pub identity: Identity<Self>,
 }
 
+#[derive(PartialEq,Clone,Copy,IntoPrimitive,TryFromPrimitive)]
+#[repr(i32)]
+pub enum RTypes_SocketType {
+    SendToFrames,
+    Frames,
+    Stream,
+}
+
 #[allow(dead_code)]
 #[repr(C)]
 pub struct RTypes_ExportMe {
@@ -118,4 +127,5 @@ pub struct RTypes_ExportMe {
     g: RTypes_CryptoAuth2_TryHandshake_Ret_t,
     h: RTypes_Seeder_DnsSeeds_t,
     i: *mut RTypes_EventLoop_t,
+    j: RTypes_SocketType,
 }

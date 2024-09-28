@@ -1,9 +1,11 @@
+use num_enum::{IntoPrimitive, TryFromPrimitive};
 use socket2::{Domain, Protocol, SockAddr, Type};
 use tokio::net::UdpSocket;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::Mutex;
 use crate::util::sockaddr::Sockaddr;
 use std::convert::TryFrom;
+use std::sync::atomic::AtomicI32;
 use std::sync::Arc;
 use crate::interface::wire::message::Message;
 use crate::external::interface::iface::{self, IfRecv, Iface, IfacePvt};
@@ -19,7 +21,26 @@ const INCOMING_QUEUE: usize = 64;
 const BUFFER_CAP: usize = 3496;
 const PADDING_AMOUNT: usize = 512;
 
-const WORKERS: usize = 16;
+#[derive(Debug,IntoPrimitive,TryFromPrimitive)]
+#[repr(i32)]
+pub enum SendWorkerState {
+    Invalid = -1,
+    Initializing = 0,
+    WaitLock = 1,
+    RecvBatch = 2,
+    SendBatch = 3,
+}
+
+#[derive(Debug,IntoPrimitive,TryFromPrimitive)]
+#[repr(i32)]
+pub enum RecvWorkerState {
+    Invalid = -1,
+    Initializing = 0,
+    RecvBatch = 1,
+    RecievedBatch = 2,
+    IfaceSendOne = 3,
+    IfaceSendTwo = 4,
+}
 
 struct UDPAddrIfaceInternal {
     iface: IfacePvt,
@@ -29,6 +50,9 @@ struct UDPAddrIfaceInternal {
 
     incoming_recv: Mutex<Receiver<Message>>,
     incoming_send: Sender<Message>,
+
+    send_worker_states: Vec<AtomicI32>,
+    recv_worker_states: Vec<AtomicI32>,
 }
 impl IfRecv for Arc<UDPAddrIfaceInternal> {
     fn recv(&self, mut m: Message) -> Result<()> {
@@ -41,18 +65,24 @@ impl IfRecv for Arc<UDPAddrIfaceInternal> {
     }
 }
 impl UDPAddrIfaceInternal {
-    async fn send_worker(self: Arc<Self>) {
+    fn send_worker_set_state(self: &Arc<Self>, n: usize, state: SendWorkerState) {
+        self.send_worker_states[n].store(state as i32, std::sync::atomic::Ordering::Relaxed);
+    }
+    async fn send_worker(self: Arc<Self>, n: usize) {
         let mut send_msgs = Vec::with_capacity(SEND_MSGS_LIMIT);
         loop {
+            self.send_worker_set_state(n, SendWorkerState::WaitLock);
             let mut tgo = self.to_go_out_recv.lock().await;
+            self.send_worker_set_state(n, SendWorkerState::RecvBatch);
             tgo.recv_many(&mut send_msgs, SEND_MSGS_LIMIT).await;
-            drop(tgo);    
+            drop(tgo);
+            self.send_worker_set_state(n, SendWorkerState::SendBatch);
             for (msg, sa) in send_msgs.drain(..) {
                 // println!("got message with length: {}", msg.len());
                 let bytes = msg.bytes();
-                match self.udp.send_to(bytes, sa).await {
+                match self.udp.send_to(bytes, &sa).await {
                     Ok(_) => {
-                        // println!("sent message ok");
+                        log::trace!("Message to {sa} sent ok");
                     },
                     Err(e) => {
                         log::info!("Unable to send message (len: {}): {e} to: {}",
@@ -62,7 +92,10 @@ impl UDPAddrIfaceInternal {
             }
         }
     }
-    async fn recv_worker(self: Arc<Self>) {
+    fn recv_worker_set_state(self: &Arc<Self>, n: usize, state: RecvWorkerState) {
+        self.recv_worker_states[n].store(state as i32, std::sync::atomic::Ordering::Relaxed);
+    }
+    async fn recv_worker(self: Arc<Self>, n: usize) {
         let mut recv_msgs = Vec::with_capacity(RECV_MSGS_LIMIT);
         let mut message = None;
         loop {
@@ -75,8 +108,10 @@ impl UDPAddrIfaceInternal {
                 msg.allocate_uninitialized(BUFFER_CAP).unwrap();
                 msg
             };
+            self.recv_worker_set_state(n, RecvWorkerState::RecvBatch);
             tokio::select! {
                 res = self.udp.recv_from(msg.bytes_mut()) => {
+                    self.recv_worker_set_state(n, RecvWorkerState::RecievedBatch);
                     log::trace!("recv_worker got a recv_from");
                     match res {
                         Ok((byte_count,from)) => {
@@ -102,10 +137,12 @@ impl UDPAddrIfaceInternal {
                     }
                 }
                 mut recv = self.incoming_recv.lock() => {
+                    self.recv_worker_set_state(n, RecvWorkerState::IfaceSendOne);
                     message = Some(msg);
                     log::trace!("{:?} UDP receiver thread waiting", self.udp.local_addr());
                     recv.recv_many(&mut recv_msgs, RECV_MSGS_LIMIT).await;
                     log::trace!("UDP receiver thread got recv_many");
+                    self.recv_worker_set_state(n, RecvWorkerState::IfaceSendTwo);
                     for msg in recv_msgs.drain(..) {
                         match self.iface.send(msg) {
                             Ok(()) => {
@@ -146,6 +183,15 @@ impl UDPAddrIface {
             tokio::sync::mpsc::channel(TO_GO_OUT_QUEUE);
         let (incoming, incoming_r) =
             tokio::sync::mpsc::channel(INCOMING_QUEUE);
+
+        let workers = num_cpus::get();
+        let workers = if workers < 2 {
+            log::warn!("UDPAddrIface WORKERS = {workers} is too few, using 2");
+            2
+        } else {
+            workers
+        };
+
         let internal = Arc::new(UDPAddrIfaceInternal {
             iface: iface_pvt,
             udp,
@@ -153,19 +199,14 @@ impl UDPAddrIface {
             to_go_out_send: tgo,
             incoming_recv: Mutex::new(incoming_r),
             incoming_send: incoming,
+            send_worker_states: (0..workers).map(|_|AtomicI32::new(0)).collect(),
+            recv_worker_states: (0..workers).map(|_|AtomicI32::new(0)).collect(),
         });
         iface.set_receiver(Arc::clone(&internal));
 
-        let workers = WORKERS;
-        let workers = if workers < 2 {
-            log::warn!("UDPAddrIface WORKERS = {workers} is too few, using 2");
-            2
-        } else {
-            workers
-        };
-        for _ in 0..workers {
-            tokio::task::spawn(Arc::clone(&internal).recv_worker());
-            tokio::task::spawn(Arc::clone(&internal).send_worker());
+        for i in 0..workers {
+            tokio::task::spawn(Arc::clone(&internal).recv_worker(i));
+            tokio::task::spawn(Arc::clone(&internal).send_worker(i));
         }
         Ok((
             UDPAddrIface{
@@ -203,5 +244,27 @@ impl UDPAddrIface {
         use std::os::fd::AsRawFd;
         let bfd = self.internal.udp.as_fd();
         bfd.as_raw_fd()
+    }
+
+    pub fn worker_states(&self) -> (Vec<SendWorkerState>,Vec<RecvWorkerState>) {
+        let mut rout = Vec::with_capacity(self.internal.recv_worker_states.len());
+        let mut sout = Vec::with_capacity(self.internal.send_worker_states.len());
+        for r in &self.internal.recv_worker_states {
+            let n = r.load(std::sync::atomic::Ordering::Relaxed);
+            let x = match RecvWorkerState::try_from(n) {
+                Ok(x) => x,
+                Err(_) => RecvWorkerState::Invalid,
+            };
+            rout.push(x);
+        }
+        for s in &self.internal.send_worker_states {
+            let n = s.load(std::sync::atomic::Ordering::Relaxed);
+            let x = match SendWorkerState::try_from(n) {
+                Ok(x) => x,
+                Err(_) => SendWorkerState::Invalid,
+            };
+            sout.push(x);
+        }
+        (sout, rout)
     }
 }

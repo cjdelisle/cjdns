@@ -11,7 +11,6 @@ cjdns-crypto = { workspace = true }
 cjdns-keys = { workspace = true }
 cjdns-bytes = { workspace = true }
 cjdns-bencode = { workspace = true }
-bendy = { workspace = true }
 sodiumoxide = { workspace = true }
 hex = { workspace = true }
 log = { workspace = true }
@@ -32,6 +31,7 @@ env_logger = { workspace = true }
 byteorder = { workspace = true }
 trust-dns-resolver = { workspace = true }
 ipnetwork = { workspace = true }
+num_enum = { workspace = true }
 
 [build_dependencies]
 cc = { workspace = true }

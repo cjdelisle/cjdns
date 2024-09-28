@@ -12,7 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#include "interface/tuntap/TUNInterface.h"
+#include "interface/tuntap/TUNInterface_pvt.h"
 #include "exception/Err.h"
 #include "memory/Allocator.h"
 #include "util/events/EventBase.h"
@@ -41,13 +41,13 @@
   #define DEVICE_PATH "/dev/net/tun"
 #endif
 
-Err_DEFUN TUNInterface_new(struct Iface** out,
-                                    const char* interfaceName,
-                                   char assignedInterfaceName[TUNInterface_IFNAMSIZ],
-                                   int isTapMode,
-                                   EventBase_t* base,
-                                   struct Log* logger,
-                                   struct Allocator* alloc)
+Err_DEFUN TUNInterface_newImpl(
+    Rffi_SocketIface_t** sout,
+    struct Iface** out,
+    const char* interfaceName,
+    char assignedInterfaceName[TUNInterface_IFNAMSIZ],
+    struct Log* logger,
+    struct Allocator* alloc)
 {
     uint32_t maxNameSize = (IFNAMSIZ < TUNInterface_IFNAMSIZ) ? IFNAMSIZ : TUNInterface_IFNAMSIZ;
     Log_info(logger, "Initializing tun device [%s]", ((interfaceName) ? interfaceName : "auto"));
@@ -74,5 +74,5 @@ Err_DEFUN TUNInterface_new(struct Iface** out,
         CString_safeStrncpy(assignedInterfaceName, ifRequest.ifr_name, maxNameSize);
     }
 
-    return Socket_forFd(out, tunFd, Socket_forFd_FRAMES, alloc);
+    return Rffi_socketForFd(out, sout, tunFd, RTypes_SocketType_Frames, alloc);
 }

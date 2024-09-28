@@ -12,10 +12,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#include "interface/tuntap/TUNInterface.h"
+#include "interface/tuntap/TUNInterface_pvt.h"
 #include "exception/Err.h"
 #include "interface/tuntap/BSDMessageTypeWrapper.h"
-#include "util/AddrTools.h"
 #include "util/events/Socket.h"
 
 #include <errno.h>
@@ -38,17 +37,15 @@
 #include <netinet6/in6_var.h>
 #include <netinet6/nd6.h>
 
-Err_DEFUN TUNInterface_new(struct Iface** out,
-                                    const char* interfaceName,
-                                   char assignedInterfaceName[TUNInterface_IFNAMSIZ],
-                                   int isTapMode,
-                                   EventBase_t* base,
-                                   struct Log* logger,
-                                   struct Allocator* alloc)
+Err_DEFUN TUNInterface_newImpl(
+    Rffi_SocketIface_t** sout,
+    struct Iface** out,
+    const char* interfaceName,
+    char assignedInterfaceName[TUNInterface_IFNAMSIZ],
+    struct Log* logger,
+    struct Allocator* alloc)
 {
     char deviceFile[TUNInterface_IFNAMSIZ];
-
-    if (isTapMode) { Err_raise(alloc, "tap mode not supported on this platform"); }
 
     // We are on FreeBSD so we just need to read /dev/tunxx to create the tun interface
     if (interfaceName) {
@@ -114,7 +111,7 @@ Err_DEFUN TUNInterface_new(struct Iface** out,
     }
 
     struct Iface* s = NULL;
-    Err(Socket_forFd(&s, tunFd, Socket_forFd_FRAMES, alloc));
+    Err(Rffi_socketForFd(&s, sout, tunFd, RTypes_SocketType_Frames, alloc));
 
     struct BSDMessageTypeWrapper* bmtw = BSDMessageTypeWrapper_new(alloc, logger);
     Iface_plumb(s, &bmtw->wireSide);

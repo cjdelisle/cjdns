@@ -493,7 +493,7 @@ static Err_DEFUN checkRunningInstance(struct Allocator* allocator,
     }
 
     struct UDPAddrIface* udp = NULL;
-    RTypes_Error_t* err = UDPAddrIface_new(&udp, base, NULL, alloc, logger);
+    RTypes_Error_t* err = UDPAddrIface_new(&udp, NULL, alloc);
     if (err) {
         Allocator_free(alloc);
         return err;

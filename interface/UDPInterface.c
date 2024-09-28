@@ -221,7 +221,7 @@ Err_DEFUN UDPInterface_new(
     }
 
     struct UDPAddrIface* uai = NULL;
-    Err(UDPAddrIface_new(&uai, eventBase, bindAddr, alloc, logger));
+    Err(UDPAddrIface_new(&uai, bindAddr, alloc));
 
     uint16_t commPort = Sockaddr_getPort(uai->generic.addr);
 
@@ -245,7 +245,7 @@ Err_DEFUN UDPInterface_new(
         struct Sockaddr* bcastAddr = Sockaddr_clone(bindAddr, alloc);
         Sockaddr_setPort(bcastAddr, beaconPort);
         struct UDPAddrIface* bcast = NULL;
-        Err(UDPAddrIface_new(&bcast, eventBase, bcastAddr, alloc, logger));
+        Err(UDPAddrIface_new(&bcast, bcastAddr, alloc));
         UDPAddrIface_setBroadcast(bcast, 1);
         Iface_plumb(bcast->generic.iface, &context->bcastSock);
         context->bcastIf = bcast;
@@ -306,6 +306,15 @@ List* UDPInterface_getBroadcastAddrs(struct UDPInterface* udpif, struct Allocato
         List_addStringC(out, addr, alloc);
     }
     return out;
+}
+
+Err_DEFUN UDPInterface_workerStates(
+    Object_t** out,
+    struct UDPInterface* udpif,
+    Allocator_t* alloc)
+{
+    struct UDPInterface_pvt* ctx = Identity_check((struct UDPInterface_pvt*) udpif);
+    return UDPAddrIface_workerStates(out, ctx->commIf, alloc);
 }
 
 int UDPInterface_setDSCP(struct UDPInterface* udpif, uint8_t dscp)

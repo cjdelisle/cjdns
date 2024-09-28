@@ -40,6 +40,13 @@ typedef enum {
   RTypes_CryptoAuth_State_t_Established = 100,
 } RTypes_CryptoAuth_State_t;
 
+enum RTypes_SocketType {
+  RTypes_SocketType_SendToFrames,
+  RTypes_SocketType_Frames,
+  RTypes_SocketType_Stream,
+};
+typedef int32_t RTypes_SocketType;
+
 typedef struct RTypes_Error_t RTypes_Error_t;
 
 typedef struct RTypes_EventLoop_t RTypes_EventLoop_t;
@@ -109,6 +116,7 @@ typedef struct {
   RTypes_CryptoAuth2_TryHandshake_Ret_t g;
   RTypes_Seeder_DnsSeeds_t h;
   RTypes_EventLoop_t *i;
+  RTypes_SocketType j;
 } RTypes_ExportMe;
 
 #endif /* RTypes_H */

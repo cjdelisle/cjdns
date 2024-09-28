@@ -231,7 +231,7 @@ static void newInterface(Dict* args, void* vcontext, String* txid, struct Alloca
     newInterface2(ctx, &addr.addr, dscp, txid, requestAlloc, beaconPort);
 }
 
-static void listDevices(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
+static void listDevices(Gcc_UNUSED Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* ctx = Identity_check((struct Context*) vcontext);
     Dict* out = Dict_new(requestAlloc);
@@ -338,6 +338,22 @@ static void getFd(Dict* args, void* vcontext, String* txid, struct Allocator* re
     Admin_sendMessage(out, txid, ctx->admin);
 }
 
+static void workerStates(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc) {
+    struct Context* ctx = Identity_check((struct Context*) vcontext);
+    struct UDPInterface* udpif = getIface(ctx, args, txid, requestAlloc, NULL);
+    Object_t* ws = NULL;
+    RTypes_Error_t* err = UDPInterface_workerStates(&ws, udpif, requestAlloc);
+    Dict* out = Dict_new(requestAlloc);
+    if (err) {
+        char* ers = Rffi_printError(err, requestAlloc);
+        Dict_putStringCC(out, "error", ers, requestAlloc);
+    } else {
+        Dict_putStringCC(out, "error", "none", requestAlloc);
+        Dict_putObject(out, String_CONST("workers"), ws, requestAlloc);
+    }
+    Admin_sendMessage(out, txid, ctx->admin);
+}
+
 void UDPInterface_admin_register(EventBase_t* base,
                                  struct Allocator* alloc,
                                  struct Log* logger,
@@ -374,7 +390,7 @@ void UDPInterface_admin_register(EventBase_t* base,
             { .name = "version", .required = 0, .type = "Int" },
         }), admin);
 
-    Admin_registerFunction("UDPInterface_listDevices", listDevices, ctx, true, NULL, admin);
+    Admin_registerFunctionNoArgs("UDPInterface_listDevices", listDevices, ctx, true, admin);
 
     Admin_registerFunction("UDPInterface_setBroadcastDevices", setBroadcastDevices, ctx, true,
         ((struct Admin_FunctionArg[]) {
@@ -399,6 +415,11 @@ void UDPInterface_admin_register(EventBase_t* base,
         }), admin);
 
     Admin_registerFunction("UDPInterface_getFd", getFd, ctx, true,
+        ((struct Admin_FunctionArg[]) {
+            { .name = "interfaceNumber", .required = 0, .type = "Int" },
+        }), admin);
+
+    Admin_registerFunction("UDPInterface_workerStates", workerStates, ctx, true,
         ((struct Admin_FunctionArg[]) {
             { .name = "interfaceNumber", .required = 0, .type = "Int" },
         }), admin);

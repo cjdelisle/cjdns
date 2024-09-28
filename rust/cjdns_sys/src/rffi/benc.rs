@@ -1,7 +1,7 @@
 use std::{borrow::Cow, collections::BTreeMap};
 
 use anyhow::{anyhow, bail, Result};
-use bendy::value::Value;
+use cjdns_bencode::bendy::value::Value;
 
 use crate::{
     cffi::{

@@ -116,4 +116,9 @@ int UDPInterface_setDSCP(struct UDPInterface* udpif, uint8_t dscp);
 
 int UDPInterface_getFd(struct UDPInterface* udpif);
 
+Err_DEFUN UDPInterface_workerStates(
+    Object_t** out,
+    struct UDPInterface* udpif,
+    Allocator_t* alloc);
+
 #endif

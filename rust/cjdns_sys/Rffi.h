@@ -11,6 +11,8 @@ typedef struct Rffi_FdReadableTx Rffi_FdReadableTx;
 
 typedef struct Rffi_Seeder Rffi_Seeder;
 
+typedef struct Rffi_SocketIface_t Rffi_SocketIface_t;
+
 typedef struct Rffi_SocketServer Rffi_SocketServer;
 
 /**
@@ -170,6 +172,10 @@ int32_t Rffi_udpIfaceGetFd(Rffi_UDPIface_pvt *iface);
 
 int32_t Rffi_udpIfaceSetBroadcast(Rffi_UDPIface_pvt *iface, bool broadcast);
 
+RTypes_Error_t *Rffi_udpIface_worker_states(Object_t **outP,
+                                            Rffi_UDPIface_pvt *iface,
+                                            Allocator_t *alloc);
+
 int32_t Rffi_udpIfaceSetDscp(Rffi_UDPIface_pvt *iface, uint8_t dscp);
 
 RTypes_Error_t *Rffi_udpIfaceNew(Rffi_UDPIface **outp,
@@ -178,7 +184,15 @@ RTypes_Error_t *Rffi_udpIfaceNew(Rffi_UDPIface **outp,
 
 RTypes_Error_t *Rffi_fileExists(bool *existsOut, const char *path, Allocator_t *errorAlloc);
 
-RTypes_Error_t *Rffi_socketForFd(Iface_t **ifOut, int fd, int socket_type, Allocator_t *alloc);
+RTypes_Error_t *Rffi_socketWorkerStates(Object_t **outP,
+                                        const Rffi_SocketIface_t *si,
+                                        Allocator_t *alloc);
+
+RTypes_Error_t *Rffi_socketForFd(Iface_t **ifOut,
+                                 Rffi_SocketIface_t **so_out,
+                                 int fd,
+                                 RTypes_SocketType st,
+                                 Allocator_t *alloc);
 
 RTypes_Error_t *Rffi_unixSocketConnect(Iface_t **ifOut, const char *path, Allocator_t *alloc);
 

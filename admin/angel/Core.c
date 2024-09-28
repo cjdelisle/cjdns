@@ -99,13 +99,21 @@
 /** The default MTU, assuming the external MTU is 1492 (common for PPPoE DSL) */
 #define DEFAULT_MTU ( 1492 - WORST_CASE_OVERHEAD )
 
-static void adminPing(Dict* input, void* vadmin, String* txid, struct Allocator* requestAlloc)
+static void adminPing(
+    Gcc_UNUSED Dict* input,
+    void* vadmin,
+    String* txid,
+    Gcc_UNUSED struct Allocator* requestAlloc)
 {
     Dict d = Dict_CONST(String_CONST("q"), String_OBJ(String_CONST("pong")), NULL);
     Admin_sendMessage(&d, txid, (struct Admin*) vadmin);
 }
 
-static void adminPid(Dict* input, void* vadmin, String* txid, struct Allocator* requestAlloc)
+static void adminPid(
+    Gcc_UNUSED Dict* input,
+    void* vadmin,
+    String* txid,
+    Gcc_UNUSED struct Allocator* requestAlloc)
 {
     int pid = getpid();
     Dict d = Dict_CONST(String_CONST("pid"), Int_OBJ(pid), NULL);
@@ -123,7 +131,8 @@ struct Context
     struct EncodingScheme* encodingScheme;
     struct GlobalConfig* globalConf;
 
-    struct Iface* tunDevice;
+    Iface_t* tunIface;
+    TUNInterface_t* tun;
     struct Allocator* tunAlloc;
 
     Identity
@@ -135,7 +144,11 @@ static void shutdown(void* vcontext)
     Allocator_free(context->alloc);
 }
 
-static void adminExit(Dict* input, void* vcontext, String* txid, struct Allocator* requestAlloc)
+static void adminExit(
+    Gcc_UNUSED Dict* input,
+    void* vcontext,
+    String* txid,
+    Gcc_UNUSED struct Allocator* requestAlloc)
 {
     struct Context* context = Identity_check((struct Context*) vcontext);
     Log_info(context->logger, "Got request to exit");
@@ -154,16 +167,15 @@ static void sendResponse(String* error,
     Admin_sendMessage(output, txid, admin);
 }
 
-static Err_DEFUN initSocket2(String* socketFullPath,
-                          struct Context* ctx,
-                          uint8_t addressPrefix)
+static Err_DEFUN initSocket2(String* socketFullPath, struct Context* ctx)
 {
     Log_debug(ctx->logger, "Initializing socket: %s;", socketFullPath->bytes);
 
-    if (ctx->tunDevice) {
-        Iface_unplumb(ctx->tunDevice, &ctx->nc->tunAdapt->tunIf);
+    if (ctx->tunIface) {
+        Iface_unplumb(ctx->tunIface, &ctx->nc->tunAdapt->tunIf);
         Allocator_free(ctx->tunAlloc);
-        ctx->tunDevice = NULL;
+        ctx->tunIface = NULL;
+        ctx->tun = NULL;
     }
     ctx->tunAlloc = Allocator_child(ctx->alloc);
 
@@ -172,8 +184,8 @@ static Err_DEFUN initSocket2(String* socketFullPath,
     struct SocketWrapper* sw = SocketWrapper_new(ctx->tunAlloc, ctx->logger);
     Iface_plumb(&sw->externalIf, rawSocketIf);
 
-    ctx->tunDevice = &sw->internalIf;
-    Iface_plumb(ctx->tunDevice, &ctx->nc->tunAdapt->tunIf);
+    ctx->tunIface = &sw->internalIf;
+    Iface_plumb(ctx->tunIface, &ctx->nc->tunAdapt->tunIf);
 
     Err(SocketWrapper_addAddress(
         &sw->externalIf, ctx->nc->myAddress->ip6.bytes, ctx->logger, ctx->alloc));
@@ -192,22 +204,22 @@ static Err_DEFUN initTunnel2(String* desiredDeviceName,
     char assignedTunName[TUNInterface_IFNAMSIZ];
     char* desiredName = (desiredDeviceName) ? desiredDeviceName->bytes : NULL;
 
-    if (ctx->tunDevice) {
-        Iface_unplumb(&ctx->nc->tunAdapt->tunIf, ctx->tunDevice);
+    if (ctx->tunIface) {
+        Iface_unplumb(&ctx->nc->tunAdapt->tunIf, ctx->tunIface);
         Allocator_free(ctx->tunAlloc);
-        ctx->tunDevice = NULL;
+        ctx->tunIface = NULL;
+        ctx->tun = NULL;
     }
     ctx->tunAlloc = Allocator_child(ctx->alloc);
     Err(TUNInterface_new(
-        &ctx->tunDevice,
+        &ctx->tun,
         desiredName,
         assignedTunName,
-        0,
-        ctx->base,
         ctx->logger,
         ctx->tunAlloc));
 
-    Iface_plumb(ctx->tunDevice, &ctx->nc->tunAdapt->tunIf);
+    ctx->tunIface = ctx->tun->iface;
+    Iface_plumb(ctx->tunIface, &ctx->nc->tunAdapt->tunIf);
 
     GlobalConfig_setTunName(ctx->globalConf, String_CONST(assignedTunName));
 
@@ -233,8 +245,8 @@ static void initTunfd(Dict* args, void* vcontext, String* txid, struct Allocator
     int type = (tuntype) ? *tuntype : TUNMessageType_guess();
 
     struct Allocator* tunAlloc = Allocator_child(ctx->alloc);
-    Iface_t* socketIf = NULL;
-    RTypes_Error_t* er = Socket_forFd(&socketIf, fileno, Socket_forFd_FRAMES, tunAlloc);
+    TUNInterface_t* tun = NULL;
+    RTypes_Error_t* er = TUNInterface_forFd(&tun, fileno, tunAlloc);
     if (er) {
         const char* err = Rffi_printError(er, requestAlloc);
         Log_debug(ctx->logger, "Failed to create pipe [%s]", err);
@@ -243,39 +255,68 @@ static void initTunfd(Dict* args, void* vcontext, String* txid, struct Allocator
         sendResponse(error, ctx->admin, txid, requestAlloc);
         return;
     }
-    struct Iface* iface = NULL;
+    Iface_t* iface = tun->iface;
     if (type == TUNMessageType_NONE) {
         RTypes_IfWrapper_t aw = Rffi_android_create(tunAlloc);
-        Iface_plumb(aw.external, socketIf);
+        Iface_plumb(aw.external, tun->iface);
         iface = aw.internal;
-    } else {
-        iface = socketIf;
     }
 
-    if (ctx->tunDevice) {
-        Iface_unplumb(&ctx->nc->tunAdapt->tunIf, ctx->tunDevice);
+    if (ctx->tunIface) {
+        Iface_unplumb(&ctx->nc->tunAdapt->tunIf, ctx->tunIface);
         Allocator_free(ctx->tunAlloc);
-        ctx->tunDevice = NULL;
+        ctx->tunIface = NULL;
+        ctx->tun = NULL;
     }
     Assert_true(!ctx->nc->tunAdapt->tunIf.connectedIf);
     ctx->tunAlloc = tunAlloc;
-    ctx->tunDevice = iface;
-    Iface_plumb(ctx->tunDevice, &ctx->nc->tunAdapt->tunIf);
+    ctx->tun = tun;
+    ctx->tunIface = iface;
+    Iface_plumb(iface, &ctx->nc->tunAdapt->tunIf);
 
     sendResponse(String_CONST("none"), ctx->admin, txid, requestAlloc);
 }
 
-static void stopTun(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
+static void stopTun(Gcc_UNUSED Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* ctx = Identity_check((struct Context*) vcontext);
-    if (ctx->tunDevice) {
-        Iface_unplumb(&ctx->nc->tunAdapt->tunIf, ctx->tunDevice);
+    if (ctx->tunIface) {
+        Iface_unplumb(&ctx->nc->tunAdapt->tunIf, ctx->tunIface);
         Allocator_free(ctx->tunAlloc);
-        ctx->tunDevice = NULL;
+        ctx->tunIface = NULL;
+        ctx->tun = NULL;
         sendResponse(String_new("none", requestAlloc), ctx->admin, txid, requestAlloc);
     } else {
         sendResponse(
             String_new("no tun currently configured", requestAlloc),
+            ctx->admin,
+            txid,
+            requestAlloc);
+    }
+}
+
+static void tunWorkers(Dict* Gcc_UNUSED args, void* vcontext, String* txid, struct Allocator* requestAlloc)
+{
+    struct Context* ctx = Identity_check((struct Context*) vcontext);
+    if (ctx->tun) {
+        Object_t* workers = NULL;
+        RTypes_Error_t* err = TUNInterface_workerStates(&workers, ctx->tun, requestAlloc);
+        if (err) {
+            char* error = Rffi_printError(err, requestAlloc);
+            sendResponse(
+                String_new(error, requestAlloc),
+                ctx->admin,
+                txid,
+                requestAlloc);
+        } else {
+            Dict* output = Dict_new(requestAlloc);
+            Dict_putStringCC(output, "error", "none", requestAlloc);
+            Dict_putObject(output, String_CONST("workers"), workers, requestAlloc);
+            Admin_sendMessage(output, txid, ctx->admin);
+        }
+    } else {
+        sendResponse(
+            String_new("TUN device missing or does not use workers", requestAlloc),
             ctx->admin,
             txid,
             requestAlloc);
@@ -301,7 +342,7 @@ static void initSocket(Dict* args, void* vcontext, String* txid, struct Allocato
 {
     struct Context* const ctx = Identity_check((struct Context*) vcontext);
     String* socketFullPath = Dict_getStringC(args, "socketFullPath");
-    RTypes_Error_t* err = initSocket2(socketFullPath, ctx, AddressCalc_ADDRESS_PREFIX_BITS);
+    RTypes_Error_t* err = initSocket2(socketFullPath, ctx);
     if (err) {
         String* error = String_printf(requestAlloc, "Failed to configure socket [%s]",
             Rffi_printError(err, requestAlloc));
@@ -311,7 +352,7 @@ static void initSocket(Dict* args, void* vcontext, String* txid, struct Allocato
     sendResponse(String_CONST("none"), ctx->admin, txid, requestAlloc);
 }
 
-static void nodeInfo(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
+static void nodeInfo(Gcc_UNUSED Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* const ctx = Identity_check((struct Context*) vcontext);
     String* myAddr = Address_toStringKey(ctx->nc->myAddress, requestAlloc);
@@ -387,7 +428,7 @@ Err_DEFUN Core_init(struct Allocator* alloc,
     ReachabilityCollector_admin_register(spf->rc, admin, alloc);
 
     AuthorizedPasswords_init(admin, nc->ca, alloc);
-    Admin_registerFunction("ping", adminPing, admin, false, NULL, admin);
+    Admin_registerFunctionNoArgs("ping", adminPing, admin, false, admin);
     if (!noSec) {
         Security_admin_register(alloc, logger, sec, admin);
     }
@@ -407,9 +448,9 @@ Err_DEFUN Core_init(struct Allocator* alloc,
     ctx->encodingScheme = encodingScheme;
     ctx->globalConf = globalConf;
 
-    Admin_registerFunction("Core_exit", adminExit, ctx, true, NULL, admin);
+    Admin_registerFunctionNoArgs("Core_exit", adminExit, ctx, true, admin);
 
-    Admin_registerFunction("Core_pid", adminPid, admin, false, NULL, admin);
+    Admin_registerFunctionNoArgs("Core_pid", adminPid, admin, false, admin);
 
     Admin_registerFunction("Core_initTunnel", initTunnel, ctx, true,
         ((struct Admin_FunctionArg[]) {
@@ -422,15 +463,17 @@ Err_DEFUN Core_init(struct Allocator* alloc,
             { .name = "type", .required = 0, .type = "Int" }
         }), admin);
 
-    Admin_registerFunction("Core_stopTun", stopTun, ctx, true, NULL, admin);
+    Admin_registerFunctionNoArgs("Core_stopTun", stopTun, ctx, true, admin);
 
-    Admin_registerFunction("Core_nodeInfo", nodeInfo, ctx, false, NULL, admin);
+    Admin_registerFunctionNoArgs("Core_nodeInfo", nodeInfo, ctx, false, admin);
 
     Admin_registerFunction("Core_initSocket", initSocket, ctx, true,
         ((struct Admin_FunctionArg[]) {
             { .name = "socketFullPath", .required = 1, .type = "String" },
             { .name = "socketAttemptToCreate", .required = 0, .type = "Int" }
         }), admin);
+
+    Admin_registerFunctionNoArgs("Core_tunWorkers", tunWorkers, ctx, true, admin);
     return NULL;
 }
 
@@ -502,7 +545,7 @@ int Core_main(int argc, char** argv)
 
     // --------------------- Bind Admin UDP --------------------- //
     struct UDPAddrIface* udpAdmin = NULL;
-    Err_assert(UDPAddrIface_new(&udpAdmin, eventBase, &bindAddr.addr, alloc, logger));
+    Err_assert(UDPAddrIface_new(&udpAdmin, &bindAddr.addr, alloc));
 
     // ---- Setup a muxer so we can get admin from socket or UDP ---- //
     struct AddrIfaceMuxer* muxer = AddrIfaceMuxer_new(logger, alloc);

@@ -1,4 +1,4 @@
-use bendy::value::Value;
+use cjdns_bencode::bendy::value::Value;
 use std::collections::BTreeMap;
 use std::io::Read;
 use std::borrow::Cow;
@@ -359,7 +359,7 @@ pub fn serialize<'a, W: RWrite>(writer: &mut W, obj: &Value<'a>) -> IoResult<()>
 #[cfg(test)]
 mod test {
     use anyhow::bail;
-    use bendy::value::Value;
+    use cjdns_bencode::bendy::value::Value;
 
     use crate::interface::wire::message::Message;
 
@@ -676,7 +676,7 @@ mod test {
         msg.push_bytes(conf.as_bytes()).unwrap();
         let res = parse(msg, false).unwrap();
         let _ = match res {
-            bendy::value::Value::Dict(d) => d,
+            cjdns_bencode::bendy::value::Value::Dict(d) => d,
             _ => panic!("Wrong type"),
         };
     }

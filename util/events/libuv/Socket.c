@@ -17,11 +17,6 @@
 #include "util/events/Socket.h"
 #include "rust/cjdns_sys/Rffi.h"
 
-Err_DEFUN Socket_forFd(Iface_t** s, int fd, int socketType, struct Allocator* userAlloc)
-{
-    return Rffi_socketForFd(s, fd, socketType, userAlloc);
-}
-
 Err_DEFUN Socket_connect(Iface_t** iface, const char* path, Allocator_t* userAlloc)
 {
     return Rffi_unixSocketConnect(iface, path, userAlloc);

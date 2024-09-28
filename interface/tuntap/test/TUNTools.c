@@ -39,7 +39,7 @@ static AddrIface_t* setupUDP(EventBase_t* base,
     struct UDPAddrIface* udp = NULL;
     RTypes_Error_t* er = NULL;
     for (int i = 0; i < 20; i++) {
-        er = UDPAddrIface_new(&udp, base, bindAddr, allocator, logger);
+        er = UDPAddrIface_new(&udp, bindAddr, allocator);
         if (udp) {
             break;
         }
