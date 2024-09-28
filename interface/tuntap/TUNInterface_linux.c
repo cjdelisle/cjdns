@@ -37,6 +37,8 @@
   #define DEVICE_PATH "/dev/net/tun"
 #endif
 
+#include <stdio.h>
+
 Err_DEFUN TUNInterface_newImpl(
     Rffi_SocketIface_t** sout,
     struct Iface** out,
@@ -69,6 +71,8 @@ Err_DEFUN TUNInterface_newImpl(
     if (assignedInterfaceName) {
         CString_safeStrncpy(assignedInterfaceName, ifRequest.ifr_name, maxNameSize);
     }
+
+    printf("\n\n\nTHE TUN DEVICE FD IS %d\n\n\n", tunFd);
 
     return Rffi_socketForFd(out, sout, tunFd, RTypes_SocketType_Frames, alloc);
 }

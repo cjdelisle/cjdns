@@ -487,6 +487,8 @@ impl<T: AsRawFd + Sync + Send + 'static> SocketIfaceInternal<T> {
             self.recv_worker_set_state(n, RecvWorkerState::RecvBatch);
             let (received, err) = ctx.recv(&mut batch);
             self.recv_worker_set_state(n, RecvWorkerState::RecievedBatch);
+            println!("recv_worker[{n}] fd {} read {} bytes {:?}", self.afds[fd_num].as_raw_fd(),
+                received, err);
             // If err is EAGAIN / EWOULDBLOCK then we clear the readable state
             // If received is more than zero, we pop and forward those messages
             // If err is EINTER then we ignore and repeat
