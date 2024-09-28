@@ -16,6 +16,7 @@
 #include "exception/Err.h"
 #include "memory/Allocator.h"
 #include "util/CString.h"
+#include "util/platform/Socket.h"
 
 #include <net/if.h>
 #include <errno.h>
@@ -73,6 +74,8 @@ Err_DEFUN TUNInterface_newImpl(
     }
 
     printf("\n\n\nTHE TUN DEVICE FD IS %d\n\n\n", tunFd);
+
+    Socket_makeNonBlocking(tunFd);
 
     return Rffi_socketForFd(out, sout, tunFd, RTypes_SocketType_ReadFrames, alloc);
 }
