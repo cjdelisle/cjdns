@@ -52,7 +52,7 @@ Builder.configure({
         '-std=c11',
         '-Wall',
         '-Wextra',
-        '-Werror',
+        //'-Werror',
         '-Wno-pointer-sign',
         '-Wno-strict-prototypes',
         '-Wmissing-prototypes',

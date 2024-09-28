@@ -12,6 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+#include "benc/List.h"
 #include "interface/ETHInterface.h"
 #include "exception/Err.h"
 #include "util/platform/Sockaddr.h"
