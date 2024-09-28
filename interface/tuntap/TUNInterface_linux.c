@@ -73,8 +73,6 @@ Err_DEFUN TUNInterface_newImpl(
         CString_safeStrncpy(assignedInterfaceName, ifRequest.ifr_name, maxNameSize);
     }
 
-    printf("\n\n\nTHE TUN DEVICE FD IS %d\n\n\n", tunFd);
-
     Socket_makeNonBlocking(tunFd);
 
     return Rffi_socketForFd(out, sout, tunFd, RTypes_SocketType_ReadFrames, alloc);

@@ -522,9 +522,7 @@ impl<T: AsRawFd + Sync + Send + 'static> SocketIfaceInternal<T> {
     }
     async fn recv_worker(self: Arc<Self>, n: usize) {
         let fd_num = n % self.afds.len();
-        println!("recv_worker[{n}] with fd_num {fd_num}");
         let mut ctx: IoContext<RECV_BATCH> = IoContext::new(self.afds[fd_num].as_raw_fd(), self.st);
-        println!("recv_worker[{n}] with fd {}", self.afds[fd_num].as_raw_fd());
         let mut batch = VecDeque::with_capacity(RECV_BATCH);
         loop {
             while batch.len() < RECV_BATCH {
@@ -533,7 +531,6 @@ impl<T: AsRawFd + Sync + Send + 'static> SocketIfaceInternal<T> {
                 batch.push_back(msg);
             }
             self.recv_worker_set_state(n, RecvWorkerState::WaitFdReadable);
-            println!("recv_worker[{n}] waiting for fd {} readable", self.afds[fd_num].as_raw_fd());
             let mut readable = match self.afds[fd_num].readable().await {
                 Ok(r) => r,
                 Err(e) => {
@@ -543,7 +540,6 @@ impl<T: AsRawFd + Sync + Send + 'static> SocketIfaceInternal<T> {
                     continue;
                 }
             };
-            println!("recv_worker[{n}] fd {} readable returned ok", self.afds[fd_num].as_raw_fd());
             self.recv_worker_set_state(n, RecvWorkerState::RecvBatch);
             let (received, err) = if self.st == SocketType::ReadFrames {
                 ctx.read(&mut batch)
@@ -551,8 +547,6 @@ impl<T: AsRawFd + Sync + Send + 'static> SocketIfaceInternal<T> {
                 ctx.recv(&mut batch)
             };
             self.recv_worker_set_state(n, RecvWorkerState::RecievedBatch);
-            println!("recv_worker[{n}] fd {} read {} bytes {:?}", self.afds[fd_num].as_raw_fd(),
-                received, err);
             // If err is EAGAIN / EWOULDBLOCK then we clear the readable state
             // If received is more than zero, we pop and forward those messages
             // If err is EINTER then we ignore and repeat
