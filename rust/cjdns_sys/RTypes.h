@@ -43,6 +43,7 @@ typedef enum {
 enum RTypes_SocketType {
   RTypes_SocketType_SendToFrames,
   RTypes_SocketType_Frames,
+  RTypes_SocketType_ReadFrames,
   RTypes_SocketType_Stream,
 };
 typedef int32_t RTypes_SocketType;

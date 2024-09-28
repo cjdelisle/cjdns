@@ -74,5 +74,5 @@ Err_DEFUN TUNInterface_newImpl(
 
     printf("\n\n\nTHE TUN DEVICE FD IS %d\n\n\n", tunFd);
 
-    return Rffi_socketForFd(out, sout, tunFd, RTypes_SocketType_Frames, alloc);
+    return Rffi_socketForFd(out, sout, tunFd, RTypes_SocketType_ReadFrames, alloc);
 }

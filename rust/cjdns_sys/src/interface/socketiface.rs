@@ -45,6 +45,28 @@ fn recvmmsg(
     Ok(())
 }
 
+fn read(
+    sockfd: libc::c_int,
+    buf: &mut [u8],
+) -> Result<usize, std::io::Error> {
+    let ret = unsafe { libc::read(sockfd, buf.as_mut_ptr() as _, buf.len()) };
+    if ret < 0 {
+        return Err(std::io::Error::last_os_error());
+    }
+    Ok(ret as usize)
+}
+
+fn write(
+    sockfd: libc::c_int,
+    buf: &[u8],
+) -> Result<usize, std::io::Error> {
+    let ret = unsafe { libc::write(sockfd, buf.as_ptr() as _, buf.len()) };
+    if ret < 0 {
+        return Err(std::io::Error::last_os_error());
+    }
+    Ok(ret as usize)
+}
+
 fn sendmmsg(
     sockfd: libc::c_int,
     msgvec: &mut [Mmsghdr],
@@ -229,12 +251,50 @@ impl <const COUNT: usize> IoContext<COUNT> {
         ret.err()
     }
 
+    fn write_frames(&mut self, messages: &mut VecDeque<Message>) -> Option<std::io::Error> {
+        for m in messages.iter_mut() {
+            match write(self.sockfd, m.bytes()) {
+                Ok(l) if l == m.len() => {
+                    m.clear();
+                },
+                Ok(l) => {
+                    log::warn!("write_frames: message truncated from {} to {}",
+                        m.len(), l);
+                    m.clear();
+                    return None;
+                }
+                Err(e) => {
+                    return Some(e);
+                }
+            }
+        }
+        None
+    }
+
     fn send(&mut self, messages: &mut VecDeque<Message>) -> Option<std::io::Error> {
         if self.st == SocketType::Stream {
             self.send_stream(messages)
+        } else if self.st == SocketType::ReadFrames {
+            self.write_frames(messages)
         } else {
             self.send_frames(messages)
         }
+    }
+
+    fn read(&mut self, messages: &mut VecDeque<Message>) -> (usize, Option<std::io::Error>) {
+        let mut i = 0;
+        for msg in messages.iter_mut() {
+            match read(self.sockfd, msg.bytes_mut()) {
+                Ok(c) => {
+                    msg.set_len(c).unwrap();
+                    i += 1;
+                }
+                Err(e) => {
+                    return (i, Some(e));
+                }
+            }
+        }
+        (i, None)
     }
 
     /// Receive either stream bytes OR frames
@@ -485,7 +545,11 @@ impl<T: AsRawFd + Sync + Send + 'static> SocketIfaceInternal<T> {
             };
             println!("recv_worker[{n}] fd {} readable returned ok", self.afds[fd_num].as_raw_fd());
             self.recv_worker_set_state(n, RecvWorkerState::RecvBatch);
-            let (received, err) = ctx.recv(&mut batch);
+            let (received, err) = if self.st == SocketType::ReadFrames {
+                ctx.read(&mut batch)
+            } else {
+                ctx.recv(&mut batch)
+            };
             self.recv_worker_set_state(n, RecvWorkerState::RecievedBatch);
             println!("recv_worker[{n}] fd {} read {} bytes {:?}", self.afds[fd_num].as_raw_fd(),
                 received, err);

@@ -112,6 +112,7 @@ pub struct RTypes_EventLoop_t {
 pub enum RTypes_SocketType {
     SendToFrames,
     Frames,
+    ReadFrames,
     Stream,
 }
 
