@@ -52,7 +52,7 @@ Err_DEFUN TUNInterface_newImpl(
     uint32_t maxNameSize = (IFNAMSIZ < TUNInterface_IFNAMSIZ) ? IFNAMSIZ : TUNInterface_IFNAMSIZ;
     Log_info(logger, "Initializing tun device [%s]", ((interfaceName) ? interfaceName : "auto"));
 
-    struct ifreq ifRequest = { .ifr_flags = (isTapMode) ? IFF_TAP : IFF_TUN };
+    struct ifreq ifRequest = { .ifr_flags = IFF_TUN };
     if (interfaceName) {
         if (strlen(interfaceName) > maxNameSize) {
             Err_raise(alloc, "tunnel name too big, limit is [%d] characters", maxNameSize);
