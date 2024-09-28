@@ -16,8 +16,6 @@
 #define AdminClient_H
 
 #include "interface/addressable/AddrIface.h"
-#include "benc/String.h"
-#include "benc/Dict.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
 #include "util/events/EventBase.h"

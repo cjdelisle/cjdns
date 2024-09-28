@@ -15,7 +15,6 @@
 #ifndef VarInt_H
 #define VarInt_H
 
-#include "util/Bits.h"
 #include "util/Gcc.h"
 
 #include <stdint.h>

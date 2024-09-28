@@ -16,8 +16,6 @@
 #include "memory/Allocator.h"
 #include "rust/cjdns_sys/Rffi.h"
 
-#include <stdio.h>
-
 void Allocator__free(struct Allocator* alloc, const char* file, int line)
 {
     Rffi_allocator_free(alloc, file, (uintptr_t) line);

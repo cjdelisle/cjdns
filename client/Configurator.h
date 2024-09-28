@@ -15,8 +15,6 @@
 #ifndef Configurator_H
 #define Configurator_H
 
-#include "benc/String.h"
-#include "benc/Dict.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
 #include "util/events/EventBase.h"

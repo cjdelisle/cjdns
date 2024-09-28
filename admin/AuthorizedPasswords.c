@@ -13,7 +13,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "admin/AuthorizedPasswords.h"
-#include "benc/Int.h"
+#include "benc/Dict.h"
 #include "benc/List.h"
 #include "benc/String.h"
 #include "util/AddrTools.h"

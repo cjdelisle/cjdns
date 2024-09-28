@@ -24,6 +24,8 @@
 #include "util/Hex.h"
 #include "util/Hash.h"
 #include "rust/cjdns_sys/Rffi.h"
+#include "util/Defined.h"
+#include "benc/Dict.h"
 
 #include <inttypes.h>
 

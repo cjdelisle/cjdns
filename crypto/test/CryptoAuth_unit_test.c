@@ -12,18 +12,15 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#include "benc/List.h"
 #include "benc/String.h"
 #include "crypto/random/Random.h"
 #include "crypto/random/test/DeterminentRandomSeed.h"
-#include "io/FileWriter.h"
 #include "memory/Allocator.h"
 #include "util/events/EventBase.h"
 #include "util/Assert.h"
 #include "util/Bits.h"
 #include "util/Hex.h"
 #include "util/log/FileWriterLog.h"
-#include "wire/Error.h"
 #include "wire/Message.h"
 #include "wire/CryptoHeader.h"
 #include "crypto/test/TestCa.h"

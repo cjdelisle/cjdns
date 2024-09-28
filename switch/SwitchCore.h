@@ -16,7 +16,6 @@
 #define SwitchCore_H
 
 #include "util/log/Log.h"
-#include "wire/Message.h"
 #include "util/events/EventBase.h"
 #include "interface/Iface.h"
 #include "util/Linker.h"

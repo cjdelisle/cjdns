@@ -15,25 +15,21 @@
 #include "interface/tuntap/TUNInterface_pvt.h"
 #include "exception/Err.h"
 #include "memory/Allocator.h"
-#include "util/events/EventBase.h"
 #include "util/CString.h"
-#include "util/events/Socket.h"
 
+#include <net/if.h>
 #include <errno.h>
-#include <stdio.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/types.h>
-#include <stdlib.h>
 #include <stddef.h>
 #include <arpa/inet.h>
 #include <string.h>
 #include <linux/if.h>
 #include <linux/if_tun.h>
 #include <linux/if_ether.h>
-#include <net/if.h>
 
 #if defined(Cjdns_android)
   #define DEVICE_PATH "/dev/tun"

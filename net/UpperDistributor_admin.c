@@ -13,7 +13,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "benc/Dict.h"
-#include "benc/String.h"
 #include "benc/List.h"
 #include "admin/Admin.h"
 #include "memory/Allocator.h"

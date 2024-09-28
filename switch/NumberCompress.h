@@ -24,7 +24,6 @@
 #endif
 
 #include "switch/EncodingScheme.h"
-#include "util/Bits.h"
 #include <stdint.h>
 
 /* right now 4 implementations:

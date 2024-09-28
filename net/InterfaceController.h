@@ -15,7 +15,6 @@
 #ifndef InterfaceController_H
 #define InterfaceController_H
 
-#include "benc/String.h"
 #include "crypto/Ca.h"
 #include "dht/Address.h"
 #include "interface/Iface.h"

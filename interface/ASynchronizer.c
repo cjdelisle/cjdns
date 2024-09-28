@@ -18,7 +18,6 @@
 #include "util/Identity.h"
 #include "util/events/Timeout.h"
 #include "util/log/Log.h"
-#include "util/Hex.h"
 
 #define MAX_DRY_CYCLES 16
 

@@ -13,7 +13,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "switch/LabelSplicer.h"
-#include "util/Endian.h"
 
 #include "util/Assert.h"
 #include <stdio.h>

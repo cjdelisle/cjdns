@@ -14,6 +14,7 @@
  */
 #include "util/GlobalConfig.h"
 #include "util/Identity.h"
+#include "benc/String.h"
 
 struct GlobalConfig_pvt {
     struct GlobalConfig pub;

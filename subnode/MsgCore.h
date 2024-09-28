@@ -18,7 +18,6 @@
 #include "interface/Iface.h"
 #include "crypto/random/Random.h"
 #include "util/events/EventBase.h"
-#include "benc/Dict.h"
 #include "memory/Allocator.h"
 #include "dht/Address.h"
 #include "switch/EncodingScheme.h"

@@ -14,8 +14,6 @@
  */
 #include "benc/String.h"
 #include "benc/Dict.h"
-#include "benc/List.h"
-#include "benc/Int.h"
 #include "benc/serialization/standard/BencMessageWriter.h"
 #include "benc/serialization/standard/BencMessageReader.h"
 #include "crypto/AddressCalc.h"

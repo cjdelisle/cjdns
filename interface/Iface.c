@@ -13,7 +13,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "interface/Iface.h"
-#include "memory/Allocator.h"
 #include "util/Identity.h"
 #include "wire/Error.h"
 

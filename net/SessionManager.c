@@ -13,6 +13,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "memory/Allocator.h"
+#include "wire/CryptoHeader.h"
 #include "wire/PFChan.h"
 #include "net/SessionManager.h"
 #include "crypto/AddressCalc.h"

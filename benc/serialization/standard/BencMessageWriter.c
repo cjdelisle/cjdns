@@ -14,7 +14,6 @@
  */
 
 #include "benc/Object.h"
-#include "benc/String.h"
 #include "benc/Dict.h"
 #include "benc/List.h"
 #include "benc/serialization/standard/BencMessageWriter.h"

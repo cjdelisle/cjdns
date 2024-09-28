@@ -14,6 +14,7 @@
  */
 #include "benc/String.h"
 #include "benc/Dict.h"
+#include "benc/List.h"
 #include "memory/Allocator.h"
 #include "switch/EncodingScheme.h"
 #include "util/Bits.h"

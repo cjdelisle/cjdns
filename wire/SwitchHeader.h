@@ -17,7 +17,6 @@
 
 #include "util/Assert.h"
 #include "util/Endian.h"
-#include "util/version/Version.h"
 
 #include <stdint.h>
 #include <stdbool.h>

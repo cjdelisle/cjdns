@@ -16,11 +16,9 @@
 #include "crypto/random/test/DeterminentRandomSeed.h"
 #include "util/Assert.h"
 #include "util/events/Time.h"
-#include "util/events/EventBase.h"
 #include "util/CString.h"
 #include "memory/Allocator.h"
 #include "wire/Message.h"
-#include "test/FuzzTest.h"
 #include "util/Js.h"
 #include "util/events/libuv/Glock.h"
 

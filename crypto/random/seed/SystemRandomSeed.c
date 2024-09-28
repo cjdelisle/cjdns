@@ -22,9 +22,6 @@
     #include "crypto/random/seed/DevUrandomRandomSeed.h"
     #ifdef linux
         #include "crypto/random/seed/ProcSysKernelRandomUuidRandomSeed.h"
-        #if !defined(__ILP32__) && !defined(__aarch64__) && defined(__GLIBC__)
-            #include "crypto/random/seed/LinuxRandomUuidSysctlRandomSeed.h"
-        #endif
     #else
         #ifdef freebsd
             #include "crypto/random/seed/BsdKernArndSysctlRandomSeed.h"

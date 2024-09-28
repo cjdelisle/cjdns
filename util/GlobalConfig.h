@@ -15,7 +15,7 @@
 #ifndef GlobalConfig_H
 #define GlobalConfig_H
 
-#include "benc/String.h"
+#include "benc/Object.h"
 #include "memory/Allocator.h"
 #include "util/Linker.h"
 Linker_require("util/GlobalConfig.c")

@@ -14,6 +14,7 @@
  */
 #include "admin/Admin.h"
 #include "benc/Dict.h"
+#include "benc/List.h"
 #include "benc/String.h"
 #include "dht/Address.h"
 #include "dht/dhtcore/SearchRunner_admin.h"

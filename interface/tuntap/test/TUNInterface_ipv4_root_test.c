@@ -18,7 +18,6 @@
 #include "util/Assert.h"
 #include "util/log/Log.h"
 #include "util/log/FileWriterLog.h"
-#include "util/events/Timeout.h"
 #include "wire/Error.h"
 #include "wire/Ethernet.h"
 #include "wire/Headers.h"

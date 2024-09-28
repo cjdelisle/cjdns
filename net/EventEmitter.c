@@ -18,6 +18,7 @@
 #include "util/Identity.h"
 #include "util/log/Log.h"
 #include "wire/Error.h"
+#include "util/version/Version.h"
 
 #include <stdbool.h>
 

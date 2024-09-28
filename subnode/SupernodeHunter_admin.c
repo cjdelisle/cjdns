@@ -18,6 +18,7 @@
 #include "subnode/SupernodeHunter.h"
 #include "subnode/SupernodeHunter_admin.h"
 #include "util/Identity.h"
+#include "benc/Dict.h"
 
 struct Context {
     struct Admin* admin;

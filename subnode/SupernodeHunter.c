@@ -13,12 +13,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "crypto/AddressCalc.h"
-#include "crypto/Key.h"
 #include "dht/dhtcore/ReplySerializer.h"
 #include "subnode/SupernodeHunter.h"
 #include "subnode/AddrSet.h"
 #include "util/Identity.h"
-#include "util/platform/Sockaddr.h"
 #include "util/events/Timeout.h"
 #include "util/AddrTools.h"
 #include "util/events/Time.h"

@@ -25,7 +25,6 @@
 #include "util/Endian.h"
 #include "wire/Control.h"
 #include "wire/Error.h"
-#include "wire/Headers.h"
 #include "wire/SwitchHeader.h"
 #include "wire/Message.h"
 

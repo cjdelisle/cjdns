@@ -17,11 +17,8 @@
 
 #include "rust/cjdns_sys/RTypes.h"
 #include "interface/Iface.h"
-#include "benc/String.h"
 #include "crypto/random/Random.h"
-#include "crypto/ReplayProtector.h"
 #include "memory/Allocator.h"
-#include "util/Endian.h"
 #include "util/log/Log.h"
 #include "util/events/EventBase.h"
 #include "wire/Message.h"

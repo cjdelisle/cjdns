@@ -15,7 +15,7 @@
 #ifndef TUNTools_H
 #define TUNTools_H
 
-#include "interface/addressable/AddrIface.h"
+#include "interface/Iface.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
 #include "util/platform/Sockaddr.h"

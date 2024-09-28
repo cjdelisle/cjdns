@@ -16,8 +16,6 @@
 #include "benc/String.h"
 #include "benc/Dict.h"
 #include "benc/List.h"
-#include "crypto/Key.h"
-#include "crypto/ReplayProtector.h"
 #include "dht/Address.h"
 #include "net/SessionManager.h"
 #include "net/SessionManager_admin.h"

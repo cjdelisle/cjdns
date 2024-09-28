@@ -13,16 +13,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "test/BeaconFramework.h"
-#include "crypto/Key.h"
 #include "io/FileWriter.h"
 #include "memory/Allocator.h"
 #include "crypto/random/Random.h"
 #include "interface/Iface.h"
-#include "util/Base32.h"
-#include "util/Checksum.h"
 #include "util/events/EventBase.h"
 #include "util/log/WriterLog.h"
-#include "subnode/SubnodePathfinder.h"
 #include "test/TestFramework.h"
 #include "wire/Headers.h"
 #include "wire/Ethernet.h"

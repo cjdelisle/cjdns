@@ -13,7 +13,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "crypto/random/seed/DevUrandomRandomSeed.h"
-#include "util/Identity.h"
 #include "util/Bits.h"
 
 #include <sys/types.h>

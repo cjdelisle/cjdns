@@ -17,10 +17,7 @@
 
 #include "rust/cjdns_sys/Rffi.h"
 #include "exception/Err.h"
-#include "interface/Iface.h"
 #include "memory/Allocator.h"
-#include "util/events/EventBase.h"
-#include "util/log/Log.h"
 #include "util/Linker.h"
 Linker_require("util/events/libuv/Socket.c")
 

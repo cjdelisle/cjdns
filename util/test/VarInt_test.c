@@ -16,7 +16,6 @@
 #include "crypto/random/Random.h"
 #include "util/VarInt.h"
 #include "util/Assert.h"
-#include "util/Bits.h"
 
 #include <stdio.h>
 

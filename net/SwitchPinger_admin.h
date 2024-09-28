@@ -16,12 +16,7 @@
 #define SwitchPinger_admin_H
 
 #include "admin/Admin.h"
-#include "benc/String.h"
-#include "benc/Dict.h"
-#include "benc/Int.h"
-#include "dht/Address.h"
 #include "net/SwitchPinger.h"
-#include "util/Endian.h"
 #include "util/Linker.h"
 Linker_require("net/SwitchPinger_admin.c")
 

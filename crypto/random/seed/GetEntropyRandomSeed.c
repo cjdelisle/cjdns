@@ -14,7 +14,6 @@
  */
 #define _GNU_SOURCE
 #include "crypto/random/seed/GetEntropyRandomSeed.h"
-#include "util/Identity.h"
 #include "util/Bits.h"
 
 #include <unistd.h>

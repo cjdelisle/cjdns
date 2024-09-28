@@ -28,8 +28,6 @@
 #define ADDRESS_PREFIX_MASK (Endian_hostToBigEndian64( \
             UINT64_MAX << (64 - AddressCalc_ADDRESS_PREFIX_BITS)))
 
-#include <stdio.h>
-
 bool AddressCalc_validAddress(const uint8_t address[16])
 {
     uint64_t significant_bits;

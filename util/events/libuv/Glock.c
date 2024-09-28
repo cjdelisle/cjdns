@@ -15,7 +15,6 @@
 
 #include "util/events/libuv/Glock.h"
 #include "rust/cjdns_sys/Rffi.h"
-#include "util/Assert.h"
 
 void Glock_init() {
     Rffi_glock();

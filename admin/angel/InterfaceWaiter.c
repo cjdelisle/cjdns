@@ -17,10 +17,7 @@
 #include "exception/Err.h"
 #include "memory/Allocator.h"
 #include "util/events/EventBase.h"
-#include "util/log/Log.h"
-#include "io/FileWriter.h"
 #include "util/events/Timeout.h"
-
 
 struct Context
 {
@@ -43,7 +40,6 @@ static void timeout(void* vcontext)
 
 static Iface_DEFUN receiveMessage(Message_t* message, struct Iface* iface)
 {
-    printf("interfacewaiter got a message\n");
     struct Context* ctx = Identity_check((struct Context*) iface);
     if (ctx->messageReceived) { return NULL; }
     ctx->message = Message_clone(message, ctx->alloc);

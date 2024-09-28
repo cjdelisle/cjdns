@@ -13,6 +13,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "client/AdminClient.h"
+#include "benc/Dict.h"
 #include "benc/serialization/standard/BencMessageReader.h"
 #include "benc/serialization/standard/BencMessageWriter.h"
 #include "benc/serialization/cloner/Cloner.h"
@@ -24,6 +25,7 @@
 #include "util/Identity.h"
 #include "wire/Message.h"
 #include "wire/Error.h"
+#include "util/CString.h"
 
 #include <stdio.h>
 #include <stdlib.h>

@@ -15,7 +15,6 @@
 #ifndef BoilerplateResponder_H
 #define BoilerplateResponder_H
 
-#include "benc/Dict.h"
 #include "dht/Address.h"
 #include "memory/Allocator.h"
 #include "switch/EncodingScheme.h"

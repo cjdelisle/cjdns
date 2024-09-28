@@ -16,8 +16,6 @@
 #define Cloner_H
 
 #include "memory/Allocator.h"
-#include "benc/List.h"
-#include "benc/Dict.h"
 #include "benc/String.h"
 #include "util/Linker.h"
 Linker_require("benc/serialization/cloner/Cloner.c")

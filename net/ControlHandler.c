@@ -24,6 +24,7 @@
 #include "util/AddrTools.h"
 #include "util/Checksum.h"
 #include "util/platform/Sockaddr.h"
+#include "util/version/Version.h"
 #include "wire/Control.h"
 #include "wire/Error.h"
 #include "wire/Message.h"

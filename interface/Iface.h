@@ -20,7 +20,6 @@
 #include "exception/Err.h"
 #include "rust/cjdns_sys/RTypes.h"
 #include "wire/Message.h"
-#include "util/Defined.h"
 #include "util/Identity.h"
 #include "util/Linker.h"
 Linker_require("interface/Iface.c")

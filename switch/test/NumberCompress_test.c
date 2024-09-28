@@ -17,8 +17,8 @@
 #include "switch/EncodingScheme.h"
 #include "memory/Allocator.h"
 #include "util/Assert.h"
+#include "util/Bits.h"
 
-#include <stdio.h>
 #include <inttypes.h>
 
 static void numberCompressions_generic(

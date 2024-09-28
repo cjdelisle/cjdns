@@ -15,7 +15,6 @@
 #ifndef LinkState_H
 #define LinkState_H
 
-#include "benc/String.h"
 #include "util/VarInt.h"
 #include "wire/Message.h"
 #include "wire/Announce.h"

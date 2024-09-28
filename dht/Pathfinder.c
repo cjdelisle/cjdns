@@ -16,6 +16,7 @@
 #include "dht/Pathfinder.h"
 #include "dht/DHTModule.h"
 #include "dht/Address.h"
+#include "util/version/Version.h"
 #include "wire/DataHeader.h"
 #include "wire/RouteHeader.h"
 #include "dht/ReplyModule.h"

@@ -15,11 +15,8 @@
 #include "interface/tuntap/TUNInterface.h"
 #include "rust/cjdns_sys/RTypes.h"
 #include "rust/cjdns_sys/Rffi.h"
-#include "util/AddrTools.h"
 #include "util/Identity.h"
-#include "util/events/Socket.h"
 #include "wire/Ethernet.h"
-#include "wire/Error.h"
 
 #include <errno.h>
 #include <stdio.h>

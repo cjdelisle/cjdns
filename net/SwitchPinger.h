@@ -15,7 +15,6 @@
 #ifndef SwitchPinger_H
 #define SwitchPinger_H
 
-#include "benc/String.h"
 #include "dht/Address.h"
 #include "crypto/random/Random.h"
 #include "interface/Iface.h"

@@ -15,6 +15,7 @@
 #include "interface/ETHInterface_admin.h"
 #include "interface/ETHInterface.h"
 #include "benc/Int.h"
+#include "benc/Dict.h"
 #include "admin/Admin.h"
 #include "crypto/Key.h"
 #include "memory/Allocator.h"
@@ -23,6 +24,7 @@
 #include "rust/cjdns_sys/Rffi.h"
 #include "util/Identity.h"
 #include "util/platform/Sockaddr.h"
+#include "util/version/Version.h"
 
 struct Context
 {

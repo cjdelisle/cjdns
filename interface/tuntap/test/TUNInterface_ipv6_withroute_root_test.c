@@ -13,14 +13,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "interface/tuntap/TUNInterface.h"
-#include "interface/tuntap/TUNMessageType.h"
 #include "memory/Allocator.h"
-#include "util/Assert.h"
 #include "util/log/Log.h"
 #include "util/log/FileWriterLog.h"
-#include "util/events/Timeout.h"
-#include "wire/Ethernet.h"
-#include "wire/Headers.h"
 #include "util/platform/netdev/NetDev.h"
 #include "test/RootTest.h"
 #include "interface/tuntap/test/TUNTools.h"

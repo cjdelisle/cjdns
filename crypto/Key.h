@@ -15,7 +15,6 @@
 #ifndef Key_H
 #define Key_H
 
-#include "benc/String.h"
 #include "crypto/random/Random.h"
 #include "memory/Allocator.h"
 #include "util/Linker.h"

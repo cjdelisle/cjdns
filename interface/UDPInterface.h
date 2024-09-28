@@ -17,15 +17,11 @@
 
 #include "exception/Err.h"
 #include "interface/addressable/AddrIface.h"
-#include "benc/List.h"
 #include "util/events/EventBase.h"
-#include "net/InterfaceController.h"
-#include "util/Gcc.h"
 #include "util/Assert.h"
 #include "util/log/Log.h"
 #include "util/GlobalConfig.h"
 #include "memory/Allocator.h"
-#include "util/events/UDPAddrIface.h"
 #include "util/Linker.h"
 Linker_require("interface/UDPInterface.c")
 

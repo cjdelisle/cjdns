@@ -15,7 +15,6 @@
 #include "interface/tuntap/TUNInterface_pvt.h"
 #include "exception/Err.h"
 #include "interface/tuntap/BSDMessageTypeWrapper.h"
-#include "util/events/Socket.h"
 
 #include <errno.h>
 #include <ctype.h>

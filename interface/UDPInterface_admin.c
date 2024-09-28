@@ -12,6 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+#include "benc/Dict.h"
 #include "benc/Int.h"
 #include "admin/Admin.h"
 #include "memory/Allocator.h"
@@ -24,6 +25,7 @@
 #include "interface/UDPInterface_admin.h"
 #include "interface/UDPInterface.h"
 #include "util/Identity.h"
+#include "util/version/Version.h"
 
 #define ArrayList_TYPE struct UDPInterface
 #define ArrayList_NAME UDPInterface

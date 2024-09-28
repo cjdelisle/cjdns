@@ -13,15 +13,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "crypto/random/Random.h"
-#include "crypto/Ca.h"
+#include "rust/cjdns_sys/Rffi.h"
 #include "crypto/CryptoAuth.h"
 #include "benc/String.h"
 #include "memory/Allocator.h"
 #include "util/events/EventBase.h"
 #include "util/Assert.h"
 #include "util/Bits.h"
-#include "util/Hex.h"
-#include "util/Endian.h"
 #include "util/log/FileWriterLog.h"
 #include "wire/CryptoHeader.h"
 #include "crypto/test/TestCa.h"

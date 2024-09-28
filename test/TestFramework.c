@@ -14,7 +14,6 @@
  */
 #include "crypto/random/Random.h"
 #include "crypto/Ca.h"
-#include "crypto/AddressCalc.h"
 #ifndef SUBNODE
 #include "dht/Pathfinder.h"
 #endif
@@ -22,16 +21,12 @@
 #include "io/FileWriter.h"
 #include "util/log/Log.h"
 #include "memory/Allocator.h"
-#include "switch/SwitchCore.h"
 #include "subnode/SubnodePathfinder.h"
 #include "test/TestFramework.h"
 #include "util/log/WriterLog.h"
 #include "util/events/EventBase.h"
-#include "net/SwitchPinger.h"
-#include "net/ControlHandler.h"
 #include "net/InterfaceController.h"
 #include "net/SessionManager.h"
-#include "interface/ASynchronizer.h"
 #include "interface/Iface.h"
 #include "tunnel/IpTunnel.h"
 #include "net/EventEmitter.h"

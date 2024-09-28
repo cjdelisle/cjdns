@@ -18,10 +18,7 @@
 #include "crypto/random/Random.h"
 #include "crypto/Ca.h"
 #include "memory/Allocator.h"
-#include "wire/PFChan.h"
 #include "net/EventEmitter.h"
-#include "wire/SwitchHeader.h"
-#include "wire/CryptoHeader.h"
 #include "util/Linker.h"
 Linker_require("net/SessionManager.c")
 

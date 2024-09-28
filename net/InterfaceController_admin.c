@@ -16,15 +16,9 @@
 #include "benc/String.h"
 #include "benc/Dict.h"
 #include "benc/List.h"
-#include "benc/Int.h"
-#include "crypto/AddressCalc.h"
 #include "crypto/Key.h"
-#ifdef HAS_ETH_INTERFACE
-#include "interface/ETHInterface.h"
-#endif
 #include "net/InterfaceController.h"
 #include "net/InterfaceController_admin.h"
-#include "util/AddrTools.h"
 
 struct Context
 {

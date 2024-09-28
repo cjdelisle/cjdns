@@ -16,7 +16,6 @@
 #define Core_H
 
 #include "admin/Admin.h"
-#include "benc/String.h"
 #include "exception/Err.h"
 #include "memory/Allocator.h"
 #include "tunnel/IpTunnel.h"

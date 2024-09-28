@@ -15,7 +15,6 @@
 #ifndef Time_H
 #define Time_H
 
-#include "util/events/EventBase.h"
 #include "util/Linker.h"
 Linker_require("util/events/libuv/Time.c")
 

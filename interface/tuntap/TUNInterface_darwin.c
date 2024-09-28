@@ -16,7 +16,6 @@
 #include "exception/Err.h"
 #include "interface/tuntap/BSDMessageTypeWrapper.h"
 #include "rust/cjdns_sys/RTypes.h"
-#include "util/events/Socket.h"
 #include "util/CString.h"
 
 #include <errno.h>

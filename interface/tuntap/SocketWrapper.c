@@ -14,12 +14,8 @@
  */
 #include "interface/Iface.h"
 #include "interface/tuntap/SocketWrapper.h"
-#include "util/platform/Sockaddr.h"
 #include "memory/Allocator.h"
-#include "util/Assert.h"
 #include "util/Identity.h"
-#include "wire/Ethernet.h"
-#include "wire/Headers.h"
 #include "wire/Message.h"
 #include "wire/Error.h"
 

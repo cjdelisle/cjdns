@@ -18,7 +18,6 @@
 #include "crypto/random/seed/SystemRandomSeed.h"
 #include "memory/Allocator.h"
 #include "util/Bits.h"
-#include "util/Assert.h"
 #include "util/Base32.h"
 #include "util/Identity.h"
 #include "util/Endian.h"

@@ -15,7 +15,7 @@
 #include "benc/Dict.h"
 #include "subnode/PingResponder.h"
 #include "util/Identity.h"
-#include "wire/Error.h"
+#include "rust/cjdns_sys/Rffi.h"
 
 struct PingResponder_pvt
 {

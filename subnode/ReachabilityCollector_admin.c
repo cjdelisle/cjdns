@@ -14,11 +14,11 @@
  */
 #include "admin/Admin.h"
 #include "benc/List.h"
-#include "crypto/Key.h"
 #include "subnode/ReachabilityCollector.h"
 #include "subnode/ReachabilityCollector_admin.h"
 #include "util/AddrTools.h"
 #include "util/Identity.h"
+#include "benc/Dict.h"
 
 struct Context {
     struct Admin* admin;

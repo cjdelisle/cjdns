@@ -18,7 +18,7 @@
 #include <stdint.h>
 
 /** The DJB2a hash (equivilant to DJB2 but using XOR instead of +) */
-static uint32_t Hash_compute(uint8_t* str, int length)
+static inline uint32_t Hash_compute(uint8_t* str, int length)
 {
     uint32_t hash = 5381;
     for (int i = 0; i < length; i++) {

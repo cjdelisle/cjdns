@@ -22,7 +22,6 @@
 #include "util/platform/Sockaddr.h"
 #include "wire/PFChan.h"
 #include "net/EventEmitter.h"
-#include "util/Base32.h"
 #include "util/Bits.h"
 #include "util/events/Time.h"
 #include "util/events/Timeout.h"
@@ -30,14 +29,12 @@
 #include "util/version/Version.h"
 #include "util/AddrTools.h"
 #include "util/Defined.h"
-#include "util/Checksum.h"
 #include "util/Hex.h"
 #include "util/Kbps.h"
 #include "wire/Error.h"
 #include "wire/Message.h"
 #include "wire/Headers.h"
 #include "wire/Metric.h"
-#include "wire/CryptoHeader.h"
 
 /** After this number of milliseconds, a node will be regarded as unresponsive. */
 #define UNRESPONSIVE_AFTER_MILLISECONDS (20*1024)

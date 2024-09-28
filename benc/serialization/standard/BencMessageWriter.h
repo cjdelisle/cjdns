@@ -15,7 +15,6 @@
 #ifndef BencMessageWriter_H
 #define BencMessageWriter_H
 
-#include "benc/Dict.h"
 #include "exception/Err.h"
 #include "wire/Message.h"
 #include "util/Linker.h"

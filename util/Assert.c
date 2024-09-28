@@ -21,7 +21,6 @@ Gcc_NORETURN
 extern void Rffi_panic(const char* msg); // CHECKFILES_IGNORE
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <stdarg.h>
 
 Gcc_PRINTF(1, 2)

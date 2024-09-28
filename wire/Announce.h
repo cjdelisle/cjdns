@@ -15,13 +15,11 @@
 #ifndef Announce_H
 #define Announce_H
 
-#include "benc/String.h"
 #include "wire/Message.h"
 #include "util/version/Version.h"
 #include "util/Assert.h"
 #include "util/Endian.h"
 #include "util/Bits.h"
-#include "util/Gcc.h"
 
 // NOTE: Length of 0 in a Announce message is invalid.
 //       Length of 1 is by definition a pad byte.

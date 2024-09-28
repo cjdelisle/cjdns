@@ -16,7 +16,6 @@
 #include "util/Assert.h"
 #include "wire/Message.h"
 #include "test/FuzzTest.h"
-#include "util/events/EventBase.h"
 
 #define Map_NAME OfLongsByInteger
 #define Map_KEY_TYPE uint32_t

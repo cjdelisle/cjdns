@@ -20,7 +20,6 @@
 #include "benc/List.h"
 #include "benc/String.h"
 #include "crypto/random/Random.h"
-#include "io/Writer.h"
 #include "util/log/Log.h"
 #include "util/log/Log_impl.h"
 #include "util/Hex.h"

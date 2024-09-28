@@ -20,8 +20,6 @@
 #include "wire/Message.h"
 #include "wire/Error.h"
 
-#include "util/Hex.h"
-
 struct AddrIfaceMuxer_pvt;
 struct AddrIfaceMuxer_Iface {
     struct Iface iface;

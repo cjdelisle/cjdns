@@ -18,7 +18,6 @@
 #include "subnode/LinkState.h"
 #include "util/Assert.h"
 #include "wire/Message.h"
-#include "util/Hex.h"
 
 #define CYCLES 10
 

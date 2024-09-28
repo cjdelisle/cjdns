@@ -15,8 +15,6 @@
 #include "rust/cjdns_sys/Rffi.h"
 #include "memory/Allocator.h"
 #include "util/events/Process.h"
-#include "util/Bits.h"
-#include "util/Identity.h"
 
 int Process_spawn(const char* binaryPath,
                   const char* const* args,

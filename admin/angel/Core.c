@@ -17,6 +17,7 @@
 #include "admin/angel/Core.h"
 #include "admin/angel/InterfaceWaiter.h"
 #include "admin/AuthorizedPasswords.h"
+#include "benc/Dict.h"
 #include "benc/Int.h"
 #include "benc/serialization/standard/BencMessageReader.h"
 #include "benc/serialization/standard/BencMessageWriter.h"

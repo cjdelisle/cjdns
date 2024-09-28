@@ -15,7 +15,6 @@
 #ifndef Pinger_H
 #define Pinger_H
 
-#include "benc/String.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
 #include "crypto/random/Random.h"

@@ -13,6 +13,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "subnode/BoilerplateResponder.h"
+#include "benc/Dict.h"
 #include "util/Identity.h"
 
 struct BoilerplateResponder_pvt

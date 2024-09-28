@@ -15,6 +15,7 @@
 #include "benc/String.h"
 #include "crypto/random/Random.h"
 #include "rust/cjdns_sys/Rffi.h"
+#include "util/Defined.h"
 #include "util/events/EventBase.h"
 #include "util/events/Pipe.h"
 #include "util/events/Socket.h"
@@ -26,7 +27,6 @@
 #include "util/CString.h"
 #include "util/Assert.h"
 #include "wire/Message.h"
-#include "wire/Error.h"
 #include "interface/addressable/AddrIface.h"
 
 #include <errno.h>
