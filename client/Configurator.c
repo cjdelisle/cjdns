@@ -432,6 +432,15 @@ static void seeders(List* seeders, struct Allocator* tempAlloc, struct Context* 
     }
 }
 
+static void publicPeer(String_t* peerID, Allocator_t* tempAlloc, struct Context* ctx)
+{
+    if (!peerID) { return; }
+    Log_debug(ctx->logger, "Setting PeerID [%s]", peerID->bytes);
+    Dict* reqDict = Dict_new(tempAlloc);
+    Dict_putStringC(reqDict, "peerID", peerID, tempAlloc);
+    rpcCall0(String_CONST("PeeringSeeder_publicPeer"), reqDict, ctx, tempAlloc, NULL, true);
+}
+
 static void routerConfig(Dict* routerConf, struct Allocator* tempAlloc, struct Context* ctx)
 {
     tunInterface(Dict_getDictC(routerConf, "interface"), tempAlloc, ctx);
@@ -439,6 +448,7 @@ static void routerConfig(Dict* routerConf, struct Allocator* tempAlloc, struct C
     ipTunnel(Dict_getDictC(routerConf, "ipTunnel"), tempAlloc, ctx);
     supernodes(Dict_getListC(routerConf, "supernodes"), tempAlloc, ctx);
     seeders(Dict_getListC(routerConf, "dnsSeeds"), tempAlloc, ctx);
+    publicPeer(Dict_getStringC(routerConf, "publicPeer"), tempAlloc, ctx);
 }
 
 static void ethInterfaceSetBeacon(int ifNum, Dict* eth, struct Context* ctx)
