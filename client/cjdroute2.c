@@ -270,7 +270,7 @@ static int genconf(struct Allocator* alloc, struct Random* rand, bool eth, bool 
            "        // shared, allowing you to use the snode's peer tester on an otherwise private\n"
            "        // node.\n"
            "        //\n"
-           "        // \"publicPeer\": \"PUB_XXX\","
+           "        // \"publicPeer\": \"PUB_XXX\",\n"
            "\n"
            "        // supernodes, if none are specified they'll be taken from your peers\n"
            "        \"supernodes\": [\n"
