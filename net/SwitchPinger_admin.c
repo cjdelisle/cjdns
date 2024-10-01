@@ -100,11 +100,13 @@ static void adminPing(Dict* args, void* vcontext, String* txid, struct Allocator
     String* data = Dict_getStringC(args, "data");
     int64_t* keyPing = Dict_getIntC(args, "keyPing");
     int64_t* lladdr = Dict_getIntC(args, "lladdr");
+    int64_t* snode = Dict_getIntC(args, "snode");
+    int64_t* rpath = Dict_getIntC(args, "rpath");
     uint32_t timeout = (timeoutPtr) ? *timeoutPtr : DEFAULT_TIMEOUT;
     uint64_t path;
     char* err = NULL;
-    if (keyPing && *keyPing && lladdr && *lladdr) {
-        err = "Cannot be both keyping and lladdr";
+    if ((keyPing && *keyPing != 0) + (lladdr && *lladdr != 0) + (snode && *snode != 0) > 1) {
+        err = "Can only be one of keyPing, lladdr, OR snode";
     } else if (pathStr->len != 19 || AddrTools_parsePath(&path, (uint8_t*) pathStr->bytes)) {
         err = "path was not parsable.";
     } else {
@@ -121,6 +123,10 @@ static void adminPing(Dict* args, void* vcontext, String* txid, struct Allocator
                 ping->type = SwitchPinger_Type_KEYPING;
             } else if (lladdr && *lladdr) {
                 ping->type = SwitchPinger_Type_LLADDR;
+            } else if (snode && *snode) {
+                ping->type = SwitchPinger_Type_GETSNODE;
+            } else if (rpath && *rpath) {
+                ping->type = SwitchPinger_Type_RPATH;
             }
             ping->onResponseContext = Allocator_clone(ping->pingAlloc, (&(struct Ping) {
                 .context = context,
@@ -154,5 +160,7 @@ void SwitchPinger_admin_register(struct SwitchPinger* sp,
             { .name = "data", .required = 0, .type = "String" },
             { .name = "keyPing", .required = 0, .type = "Int" },
             { .name = "lladdr", .required = 0, .type = "Int" },
+            { .name = "snode", .required = 0, .type = "Int" },
+            { .name = "rpath", .required = 0, .type = "Int" },
         }), admin);
 }
