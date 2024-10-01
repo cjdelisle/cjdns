@@ -15,8 +15,10 @@
 #include "admin/Admin.h"
 #include "benc/String.h"
 #include "benc/Dict.h"
+#include "dht/Address.h"
 #include "net/SwitchPinger.h"
 #include "net/SwitchPinger_admin.h"
+#include "util/Bits.h"
 #include "util/Endian.h"
 #include "util/AddrTools.h"
 #include "crypto/Key.h"
@@ -50,7 +52,7 @@ static void adminPingOnResponse(struct SwitchPinger_Response* resp, void* vping)
         uint8_t path[20] = {0};
         AddrTools_printPath(path, resp->label);
         String* pathStr = String_new(path, pingAlloc);
-        Dict_putStringC(rd, "rpath", pathStr, pingAlloc);
+        Dict_putStringC(rd, "responsePath", pathStr, pingAlloc);
     }
 
     Dict_putIntC(rd, "version", resp->version, pingAlloc);
@@ -63,6 +65,17 @@ static void adminPingOnResponse(struct SwitchPinger_Response* resp, void* vping)
 
     if (!Bits_isZero(resp->key, 32)) {
         Dict_putStringC(rd, "key", Key_stringify(resp->key, pingAlloc), pingAlloc);
+    }
+
+    if (!Bits_isZero(&resp->snode, sizeof resp->snode)) {
+        Dict_putStringC(rd, "snode", Address_toString(&resp->snode, pingAlloc), pingAlloc);
+    }
+
+    if (resp->rpath) {
+        uint8_t path[20] = {0};
+        AddrTools_printPath(path, resp->rpath);
+        String* pathStr = String_new(path, pingAlloc);
+        Dict_putStringC(rd, "rpath", pathStr, pingAlloc);
     }
 
     if (!Bits_isZero(&resp->lladdr, sizeof resp->lladdr)) {
