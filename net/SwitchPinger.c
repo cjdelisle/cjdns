@@ -263,18 +263,20 @@ static void onPingResponse(String* data, uint32_t milliseconds, void* vping)
     uint32_t version = p->context->incomingVersion;
     struct SwitchPinger_Response* resp =
         Allocator_calloc(p->pub.pingAlloc, sizeof(struct SwitchPinger_Response), 1);
-    resp->version = p->context->incomingVersion;
     resp->res = err;
     resp->label = label;
-    resp->data = data;
     resp->milliseconds = milliseconds;
-    resp->version = version;
-    Bits_memcpy(resp->key, p->context->incomingKey, 32);
-    Bits_memcpy(&resp->snode, &p->context->incomingSnodeAddr, sizeof(struct Address));
-    resp->kbpsLimit = p->context->incomingSnodeKbps;
-    resp->rpath = p->context->rpath;
     resp->ping = &p->pub;
-    Bits_memcpy(&resp->lladdr, &p->context->lladdrMsg, sizeof p->context->lladdrMsg);
+    if (err != SwitchPinger_Result_TIMEOUT) {
+        resp->version = p->context->incomingVersion;
+        resp->data = data;
+        resp->version = version;
+        Bits_memcpy(resp->key, p->context->incomingKey, 32);
+        Bits_memcpy(&resp->snode, &p->context->incomingSnodeAddr, sizeof(struct Address));
+        resp->kbpsLimit = p->context->incomingSnodeKbps;
+        resp->rpath = p->context->rpath;
+        Bits_memcpy(&resp->lladdr, &p->context->lladdrMsg, sizeof p->context->lladdrMsg);
+    }
     p->onResponse(resp, p->pub.onResponseContext);
 }
 

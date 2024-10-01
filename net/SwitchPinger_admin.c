@@ -55,7 +55,9 @@ static void adminPingOnResponse(struct SwitchPinger_Response* resp, void* vping)
         Dict_putStringC(rd, "responsePath", pathStr, pingAlloc);
     }
 
-    Dict_putIntC(rd, "version", resp->version, pingAlloc);
+    if (resp->version) {
+        Dict_putIntC(rd, "version", resp->version, pingAlloc);
+    }
     Dict_putIntC(rd, "ms", resp->milliseconds, pingAlloc);
     Dict_putStringC(rd, "result", SwitchPinger_resultString(resp->res), pingAlloc);
     Dict_putStringC(rd, "path", ping->path, pingAlloc);
