@@ -13,12 +13,15 @@ BINDIR="$SYSDISK"/bin
 INITDIR="$SYSDISK"/etc/init.d
 
 # Change to the script directory
-cd `dirname "$0"`
+if ! cd "$(dirname -- "$0")"; then
+    printf "Error: cannot cd to directory of command %s\n" "$0"
+    exit 1
+fi
 
 # Set the name of this script
 APPNAME="${0##*/}"
 
-function _sysrw() {
+_sysrw() {
     # Remount $SYSDISK read/write if necessary
     mount | grep " $SYSDISK " | grep ro >/dev/null \
         && REMOUNT=1 \
@@ -26,12 +29,12 @@ function _sysrw() {
 
     if [ "$REMOUNT" = 1 ]; then
         mount | grep " $SYSDISK " | grep ro >/dev/null \
-            && echo -e "Error: couldn't remount ${SYSDISK} read/write\n" \
+            && printf "Error: couldn't remount %s read/write\n\n" "$SYSDISK" \
             && exit 1
     fi
 }
 
-function _sysro() {
+_sysro() {
     # Remount $SYSDISK read-only if it was previously remounted
     if [ "$REMOUNT" = 1 ]; then
         mount | grep " $SYSDISK " | grep rw >/dev/null \
@@ -44,20 +47,20 @@ function _sysro() {
 
 # The help output functionality
 if [ -n "$1" ]; then
-    if [ "$1" = "-h" -o "$1" = "--help" ]; then
-        echo -e "\nUsage:\n\t${APPNAME} [option]\n"
-        echo -e "\t* This script requires root permissions to run"
-        echo -e "\t* Run this script with no arguments to install cjdns"
-        echo -e "\t* Install cjdns again after flashing new/upated ROMs"
-        echo -e "\nOptions:"
-        echo -e "\t-u|--uninstall: uninstall from ${SYSDISK}"
-        echo -e "\t-h|--help: display this help output\n"
+    if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
+        printf "\nUsage:\n\t%s [option]\n\n" "$APPNAME"
+        printf "\t* This script requires root permissions to run\n"
+        printf "\t* Run this script with no arguments to install cjdns\n"
+        printf "\t* Install cjdns again after flashing new/upated ROMs\n"
+        printf "\nOptions:\n"
+        printf "\t-u|--uninstall: uninstall from %s\n" "$SYSDISK"
+        printf "\t-h|--help: display this help output\n\n"
         exit 0
     fi
 fi
 
 # Fail if user isn't root (it's needed from here on out)
-if [ ! `whoami` = "root" ]; then
+if [ "$(whoami)" != "root" ]; then
     echo
     echo "Error: this script must be run as root"
     echo
@@ -70,7 +73,7 @@ if [ ! -c /dev/tun ]; then
 fi
 
 # Set the device block for the system partition
-SYSBLOCK=`mount | grep " $SYSDISK " | grep -oe "^[^\ ]*" | head -n 1`
+SYSBLOCK=$(mount | grep " $SYSDISK " | grep -oe "^[^\ ]*" | head -n 1)
 if [ ! -e "$SYSBLOCK" ]; then
     echo
     echo "Error: Couldn't detect the device ${SYSDISK} is mounted on"
@@ -79,7 +82,7 @@ if [ ! -e "$SYSBLOCK" ]; then
 fi
 
 # Stop cjdroute if it's running
-if [ `pgrep cjdroute | wc -l` -gt 0 ]; then
+if [ "$(pgrep cjdroute | wc -l)" -gt 0 ]; then
     echo
     echo "Killing cjdroute..."
     echo
@@ -88,7 +91,7 @@ fi
 
 # The uninstall functionality and a catch for invalid arguments
 if [ -n "$1" ]; then
-    if [ "$1" = "-u" -o "$1" = "--uninstall" ]; then
+    if [ "$1" = "-u" ] || [ "$1" = "--uninstall" ]; then
         # Remount the system partition read/write
         _sysrw
 
@@ -96,28 +99,28 @@ if [ -n "$1" ]; then
 
         # Remove cjdaemon
         if [ -f "$BINDIR"/cjdaemon ]; then
-            rm "$BINDIR"/cjdaemon
+            rm -rf -- "$BINDIR"/cjdaemon
         else
             echo " Warning: ${BINDIR}/cjdaemon is not present to be removed"
         fi
 
         # Remove cjdctl
         if [ -f "$BINDIR"/cjdctl ]; then
-            rm "$BINDIR"/cjdctl
+            rm -rf -- "$BINDIR"/cjdctl
         else
             echo " Warning: ${BINDIR}/cjdctl is not present to be removed"
         fi
 
         # Remove cjdroute
         if [ -f "$BINDIR"/cjdroute ]; then
-            rm "$BINDIR"/cjdroute
+            rm -rf -- "$BINDIR"/cjdroute
         else
             echo " Warning: ${BINDIR}/cjdroute is not present to be removed"
         fi
 
         # Remove 99cjdroute
         if [ -f "$INITDIR"/99cjdroute ]; then
-            rm "$INITDIR"/99cjdroute
+            rm -rf -- "$INITDIR"/99cjdroute
         else
             echo " Warning: ${INITDIR}/99cjdroute is not present to be removed"
         fi
@@ -126,7 +129,8 @@ if [ -n "$1" ]; then
         _sysro
 
         # Exit successfully if all the cjdroid files are gone, otherwise complain
-        if [ ! -f "$BINDIR"/cjdaemon -a ! -f "$BINDIR"/cjdctl -a ! -f "$BINDIR"/cjdroute -a ! -f "$INITDIR"/99cjdroute ]; then
+        if [ ! -f "$BINDIR"/cjdaemon ] && [ ! -f "$BINDIR"/cjdctl ] &&
+           [ ! -f "$BINDIR"/cjdroute ] && [ ! -f "$INITDIR"/99cjdroute ]; then
             echo
             echo "Uninstallation successfully completed!"
             echo
@@ -150,7 +154,8 @@ _sysrw
 # Copy cjdns-related-files to $SYSDISK
 echo
 echo "Copying files to the ${SYSDISK} partition..."
-if [ ! -f "files/cjdaemon" -o ! -f "files/cjdctl" -o ! -f "files/cjdroute" -o ! -f "files/99cjdroute" ]; then
+if [ ! -f "files/cjdaemon" ] || [ ! -f "files/cjdctl" ] ||
+   [ ! -f "files/cjdroute" ] || [ ! -f "files/99cjdroute" ]; then
     echo "Error: one or more of the required files in 'files/' are missing"
     echo
     exit 1
@@ -164,7 +169,8 @@ install -D -m755 files/99cjdroute "$INITDIR"/99cjdroute
 _sysro
 
 # Exit successfully if all the files are where they should be, otherwise complain
-if [ -f "$BINDIR"/cjdaemon -a -f "$BINDIR"/cjdctl -a -f "$BINDIR"/cjdroute -a -f "$INITDIR"/99cjdroute ]; then
+if [ -f "$BINDIR"/cjdaemon ] && [ -f "$BINDIR"/cjdctl ] &&
+   [ -f "$BINDIR"/cjdroute ] && [ -f "$INITDIR"/99cjdroute ]; then
     # Create the config directory if it doesn't already exist
     if [ ! -d "$CJDPATH" ]; then
         echo

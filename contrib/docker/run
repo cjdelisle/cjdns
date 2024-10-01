@@ -1,6 +1,6 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 
-set -ex
+set -exuf
 
 # Usage:
 #   contrib/docker/run [<name>]
@@ -14,10 +14,14 @@ set -ex
 # Location of cjdroute.conf within the container
 CONF_DIR="/etc/cjdns"
 
-[ "$1" = "" ] && name="cjdns" || name="cjdns-$1"
+if [ -z "$1" ]; then
+  name="cjdns"
+else
+  name="cjdns-$1"
+fi
 
-docker build -f contrib/docker/Dockerfile -t $name .
+docker build -f contrib/docker/Dockerfile -t "$name" .
 
-exec docker run -it --rm --name=$name \
+exec docker run -it --rm --name="$name" \
                 --cap-add=NET_ADMIN --device=/dev/net/tun \
-                --volume="$(pwd)/contrib/docker/$name:$CONF_DIR" $name
+                --volume="$(pwd)/contrib/docker/$name:$CONF_DIR" "$name"

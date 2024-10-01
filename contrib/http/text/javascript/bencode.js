@@ -48,9 +48,9 @@ function bparse(str) {
 
 // parse a bencoded string
 function bparseString(str) {
-    str2 = str.split(":", 1)[0];
+    var str2 = str.split(":", 1)[0];
     if(isNum(str2)) {
-        len = parseInt(str2);
+        var len = parseInt(str2);
         return [str.substr(str2.length+1, len),
                 str.substr(str2.length+1+len)];
     }
@@ -144,7 +144,7 @@ function bint(num) {
 function blist(list) {
     var str, enclist;
     enclist = [];
-    for(key in list) {
+    for(var key in list) {
         enclist.push(bencode(list[key]));
     }
     enclist.sort();
@@ -160,13 +160,13 @@ function blist(list) {
 function bdict(dict) {
     var str, enclist;
     enclist = []
-    for(key in dict) {
+    for(var key in dict) {
         enclist.push(bstring(key) + bencode(dict[key]));
     }
     enclist.sort();
 
     str = "d";
-    for(key in enclist) {
+    for(var key in enclist) {
         str += enclist[key];
     }
     return str + "e";

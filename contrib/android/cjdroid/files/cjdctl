@@ -1,5 +1,7 @@
 #!/system/bin/sh
 
+die() { printf "Error: %s\n" "$*"; exit 1; }
+
 # Config and runtime directory (if changed, also change in cjdaemon and 99cjdroute)
 CJDPATH="/sdcard/cjdns"
 
@@ -7,19 +9,18 @@ CJDPATH="/sdcard/cjdns"
 APPNAME="${0##*/}"
 
 # Exit with an error if the user isn't root
-if [ ! `whoami` = "root" ]; then
-    echo "Error: ${APPNAME} must be run as root"
-    exit 1
+if [ ! "$(whoami)" = "root" ]; then
+    die "${APPNAME} must be run as root"
 fi
 
 # Create the daemon folder if it doesn't exist
 if [ ! -e "$CJDPATH" ]; then
-    install -d "$CJDPATH" || exit 1
+    install -d "$CJDPATH" || die "Cannot install $CJDPATH"
 fi
 
 # Source cjdaemon.conf to load user settings if it exists
 if [ -f "$CJDPATH"/cjdaemon.conf ]; then
-    source "$CJDPATH"/cjdaemon.conf
+    . "$CJDPATH"/cjdaemon.conf
 fi
 
 # Set $CJDCFG to the default if it wasn't set by cjdaemon.conf
@@ -27,22 +28,24 @@ if [ -z "$CJDCFG" ]; then
     CJDCFG="cjdroute.conf"
 fi
 
+cjdaemon_pid="$CJDPATH"/.cjdaemon.pid
+
 # Create the lock file and start (or if running, restart) cjdaemon
 enable_cjdaemon() {
-    echo -n "${APPNAME}: Enabling cjdns... "
+    printf "%s: Enabling cjdns... " "$APPNAME"
 
     # Create the lock file, enabling cjdaemon
     if [ ! -f "$CJDPATH"/.lock ]; then
-        touch "$CJDPATH"/.lock
+        touch "$CJDPATH"/.lock || die "Cannot create file $CJDPATH/.lock"
     fi
 
     # If running, kill cjdaemon (it'll start cjdroute when restarted)
-    if [ -f "$CJDPATH"/.cjdaemon.pid ]; then
-        if [ -d /proc/`cat "$CJDPATH"/.cjdaemon.pid` ]; then
-            kill `cat "$CJDPATH"/.cjdaemon.pid`
+    if [ -f "$cjdaemon_pid" ]; then
+        if [ -d "/proc/$(cat "$cjdaemon_pid")" ]; then
+            kill "$(cat "$cjdaemon_pid")"
             sleep 1
         fi
-        rm "$CJDPATH"/.cjdaemon.pid
+        rm -rf -- "$cjdaemon_pid"
     fi
 
     # Start cjdaemon (which will start cjdroute if the phone is awake)
@@ -50,45 +53,43 @@ enable_cjdaemon() {
     sleep 1
 
     # Exit successfully if cjdaemon started, otherwise exit with an error
-    if [ -f "$CJDPATH"/.cjdaemon.pid ]; then
-        if [ -d /proc/`cat "$CJDPATH"/.cjdaemon.pid` ]; then
-            echo "Done!"
+    if [ -f "$cjdaemon_pid" ]; then
+        if [ -d "/proc/$(cat "$cjdaemon_pid")" ]; then
+            printf "Done!\n"
             exit 0
         fi
     fi
-    echo "Error! Couldn't start cjdaemon."
-    exit 1
+    die "Couldn't start cjdaemon."
 }
 
 # Remove the lock file then kill cjdaemon and cjdroute if either is running
 disable_cjdaemon() {
-    echo -n "${APPNAME}: Disabling cjdns... "
+    printf "%s: Disabling cjdns... " "${APPNAME}"
 
     # Remove the lock file, disabling cjdaemon
     if [ -f "$CJDPATH"/.lock ]; then
-        rm "$CJDPATH"/.lock
+        rm -rf -- "$CJDPATH"/.lock
     fi
 
     # If cjdaemon is running, kill it
-    if [ -f "$CJDPATH"/.cjdaemon.pid ]; then
-        if [ -d /proc/`cat "$CJDPATH"/.cjdaemon.pid` ]; then
-            kill `cat "$CJDPATH"/.cjdaemon.pid`
+    if [ -f "$cjdaemon_pid" ]; then
+        if [ -d "/proc/$(cat "$cjdaemon_pid")" ]; then
+            kill "$(cat "$cjdaemon_pid")"
             sleep 1
         fi
-        rm "$CJDPATH"/.cjdaemon.pid
+        rm -rf -- "$cjdaemon_pid"
     fi
 
     # If cjdroute is running, kill it
-    if [ `pgrep cjdroute | wc -l` -gt 0 ]; then
+    if [ "$(pgrep cjdroute | wc -l)" -gt 0 ]; then
         killall cjdroute
         sleep 1
 
-        if [ ! `pgrep cjdroute | wc -l` -eq 0 ]; then
-            echo "Error! cjdroute still running"
-            exit 1
+        if [ ! "$(pgrep cjdroute | wc -l)" -eq 0 ]; then
+            die "cjdroute still running."
         fi
     fi
-    echo "Done!"
+    printf "Done!\n"
 }
 
 # Parse commandline arguments and behave accordingly
@@ -104,10 +105,10 @@ case "$1" in
         enable_cjdaemon
         ;;
     *)
-        echo -e "Usage:\n\t${APPNAME} [option]\n"
-        echo -e "Options:"
-        echo -e "\te|enable: start cjdns and enable at boot"
-        echo -e "\td|disable: stop cjdns and disable at boot"
-        echo -e "\tr|restart: stop+disable, then start+enable cjdns"
+        printf "Usage:\n\t%s [option]\n\n" "$APPNAME"
+        printf "Options:\n"
+        printf "\te|enable: start cjdns and enable at boot\n"
+        printf "\td|disable: stop cjdns and disable at boot\n"
+        printf "\tr|restart: stop+disable, then start+enable cjdns\n"
         ;;
 esac

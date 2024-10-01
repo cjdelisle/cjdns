@@ -90,6 +90,10 @@ function array_to_hex_string(ary) {
    function before calling the SHA256_write function.
 */
 
+var SHA256_H;
+var SHA256_buf;
+var SHA256_len;
+
 function SHA256_init() {
   SHA256_H = new Array(0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
     0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19);
@@ -177,6 +181,8 @@ function SHA256_hash(msg) {
    may be given as string or as byte array and may have arbitrary length.
 */
 
+var HMAC_SHA256_key;
+
 function HMAC_SHA256_init(key) {
   if (typeof(key) == "string")
     HMAC_SHA256_key = string_to_array(key);
@@ -244,10 +250,10 @@ function HMAC_SHA256_MAC(key, msg) {
 
 /* The following lookup tables and functions are for internal use only! */
 
-SHA256_hexchars = new Array('0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+var SHA256_hexchars = new Array('0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
   'a', 'b', 'c', 'd', 'e', 'f');
 
-SHA256_K = new Array(
+var SHA256_K = new Array(
   0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1,
   0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
   0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786,
