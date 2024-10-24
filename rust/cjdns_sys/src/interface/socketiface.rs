@@ -661,7 +661,7 @@ impl SocketIface {
         // In this scenario, half the core count will be receiving and the other half will be
         // sending.
         let workers = match num_cpus::get() / 2 {
-            n if n < fds.len() => fds.len(),
+            n if n < afds.len() => afds.len(),
             n => n,
         };
 
