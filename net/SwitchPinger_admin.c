@@ -15,8 +15,10 @@
 #include "admin/Admin.h"
 #include "benc/String.h"
 #include "benc/Dict.h"
+#include "dht/Address.h"
 #include "net/SwitchPinger.h"
 #include "net/SwitchPinger_admin.h"
+#include "util/Bits.h"
 #include "util/Endian.h"
 #include "util/AddrTools.h"
 #include "crypto/Key.h"
@@ -50,10 +52,12 @@ static void adminPingOnResponse(struct SwitchPinger_Response* resp, void* vping)
         uint8_t path[20] = {0};
         AddrTools_printPath(path, resp->label);
         String* pathStr = String_new(path, pingAlloc);
-        Dict_putStringC(rd, "rpath", pathStr, pingAlloc);
+        Dict_putStringC(rd, "responsePath", pathStr, pingAlloc);
     }
 
-    Dict_putIntC(rd, "version", resp->version, pingAlloc);
+    if (resp->version) {
+        Dict_putIntC(rd, "version", resp->version, pingAlloc);
+    }
     Dict_putIntC(rd, "ms", resp->milliseconds, pingAlloc);
     Dict_putStringC(rd, "result", SwitchPinger_resultString(resp->res), pingAlloc);
     Dict_putStringC(rd, "path", ping->path, pingAlloc);
@@ -63,6 +67,17 @@ static void adminPingOnResponse(struct SwitchPinger_Response* resp, void* vping)
 
     if (!Bits_isZero(resp->key, 32)) {
         Dict_putStringC(rd, "key", Key_stringify(resp->key, pingAlloc), pingAlloc);
+    }
+
+    if (!Bits_isZero(&resp->snode, sizeof resp->snode)) {
+        Dict_putStringC(rd, "snode", Address_toString(&resp->snode, pingAlloc), pingAlloc);
+    }
+
+    if (resp->rpath) {
+        uint8_t path[20] = {0};
+        AddrTools_printPath(path, resp->rpath);
+        String* pathStr = String_new(path, pingAlloc);
+        Dict_putStringC(rd, "rpath", pathStr, pingAlloc);
     }
 
     if (!Bits_isZero(&resp->lladdr, sizeof resp->lladdr)) {
@@ -100,11 +115,13 @@ static void adminPing(Dict* args, void* vcontext, String* txid, struct Allocator
     String* data = Dict_getStringC(args, "data");
     int64_t* keyPing = Dict_getIntC(args, "keyPing");
     int64_t* lladdr = Dict_getIntC(args, "lladdr");
+    int64_t* snode = Dict_getIntC(args, "snode");
+    int64_t* rpath = Dict_getIntC(args, "rpath");
     uint32_t timeout = (timeoutPtr) ? *timeoutPtr : DEFAULT_TIMEOUT;
     uint64_t path;
     char* err = NULL;
-    if (keyPing && *keyPing && lladdr && *lladdr) {
-        err = "Cannot be both keyping and lladdr";
+    if ((keyPing && *keyPing != 0) + (lladdr && *lladdr != 0) + (snode && *snode != 0) > 1) {
+        err = "Can only be one of keyPing, lladdr, OR snode";
     } else if (pathStr->len != 19 || AddrTools_parsePath(&path, (uint8_t*) pathStr->bytes)) {
         err = "path was not parsable.";
     } else {
@@ -121,6 +138,10 @@ static void adminPing(Dict* args, void* vcontext, String* txid, struct Allocator
                 ping->type = SwitchPinger_Type_KEYPING;
             } else if (lladdr && *lladdr) {
                 ping->type = SwitchPinger_Type_LLADDR;
+            } else if (snode && *snode) {
+                ping->type = SwitchPinger_Type_GETSNODE;
+            } else if (rpath && *rpath) {
+                ping->type = SwitchPinger_Type_RPATH;
             }
             ping->onResponseContext = Allocator_clone(ping->pingAlloc, (&(struct Ping) {
                 .context = context,
@@ -154,5 +175,7 @@ void SwitchPinger_admin_register(struct SwitchPinger* sp,
             { .name = "data", .required = 0, .type = "String" },
             { .name = "keyPing", .required = 0, .type = "Int" },
             { .name = "lladdr", .required = 0, .type = "Int" },
+            { .name = "snode", .required = 0, .type = "Int" },
+            { .name = "rpath", .required = 0, .type = "Int" },
         }), admin);
 }

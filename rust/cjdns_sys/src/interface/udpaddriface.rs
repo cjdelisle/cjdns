@@ -13,10 +13,7 @@ use anyhow::{Context, Result};
 use std::net::SocketAddr;
 
 const SEND_MSGS_LIMIT: usize = 16;
-const RECV_MSGS_LIMIT: usize = 16;
-
 const TO_GO_OUT_QUEUE: usize = 64;
-const INCOMING_QUEUE: usize = 64;
 
 const BUFFER_CAP: usize = 3496;
 const PADDING_AMOUNT: usize = 512;
@@ -47,9 +44,6 @@ struct UDPAddrIfaceInternal {
     udp: UdpSocket,
     to_go_out_recv: Mutex<Receiver<(Message,SocketAddr)>>,
     to_go_out_send: Sender<(Message,SocketAddr)>,
-
-    incoming_recv: Mutex<Receiver<Message>>,
-    incoming_send: Sender<Message>,
 
     send_worker_states: Vec<AtomicI32>,
     recv_worker_states: Vec<AtomicI32>,
@@ -96,7 +90,6 @@ impl UDPAddrIfaceInternal {
         self.recv_worker_states[n].store(state as i32, std::sync::atomic::Ordering::Relaxed);
     }
     async fn recv_worker(self: Arc<Self>, n: usize) {
-        let mut recv_msgs = Vec::with_capacity(RECV_MSGS_LIMIT);
         let mut message = None;
         loop {
             // If we get the lock on the receive channel, drain it and send back until it's empty
@@ -109,50 +102,29 @@ impl UDPAddrIfaceInternal {
                 msg
             };
             self.recv_worker_set_state(n, RecvWorkerState::RecvBatch);
-            tokio::select! {
-                res = self.udp.recv_from(msg.bytes_mut()) => {
-                    self.recv_worker_set_state(n, RecvWorkerState::RecievedBatch);
-                    log::trace!("recv_worker got a recv_from");
-                    match res {
-                        Ok((byte_count,from)) => {
-                            log::trace!("Ok UDP packet from {from} with {byte_count} bytes");
-                            if byte_count == BUFFER_CAP {
-                                log::warn!("Truncated incoming message from {from}");
-                            }
-                            msg.set_len(byte_count).unwrap();
-                            let addr = Sockaddr::from(&from);
-                            msg.push_bytes(addr.bytes()).unwrap();
-                            match self.incoming_send.send(msg).await {
-                                Ok(()) => {
-                                    log::trace!("UDP packet forwarded to receiver");
-                                }
-                                Err(e) => {
-                                    log::info!("Lost message from {from} because: {e}");
-                                }
-                            }
-                        }
+            let res = self.udp.recv_from(msg.bytes_mut()).await;
+            self.recv_worker_set_state(n, RecvWorkerState::RecievedBatch);
+            log::trace!("recv_worker got a recv_from");
+            match res {
+                Ok((byte_count,from)) => {
+                    log::trace!("Ok UDP packet from {from} with {byte_count} bytes");
+                    if byte_count == BUFFER_CAP {
+                        log::warn!("Truncated incoming message from {from}");
+                    }
+                    msg.set_len(byte_count).unwrap();
+                    let addr = Sockaddr::from(&from);
+                    msg.push_bytes(addr.bytes()).unwrap();
+                    match self.iface.send(msg) {
+                        Ok(()) => {
+                            log::trace!("UDP receiver thread sent packet successfully");
+                        },
                         Err(e) => {
-                            log::warn!("Error receiving UDP message {e}");
+                            log::debug!("Error processing packet: {e}");
                         }
                     }
                 }
-                mut recv = self.incoming_recv.lock() => {
-                    self.recv_worker_set_state(n, RecvWorkerState::IfaceSendOne);
-                    message = Some(msg);
-                    log::trace!("{:?} UDP receiver thread waiting", self.udp.local_addr());
-                    recv.recv_many(&mut recv_msgs, RECV_MSGS_LIMIT).await;
-                    log::trace!("UDP receiver thread got recv_many");
-                    self.recv_worker_set_state(n, RecvWorkerState::IfaceSendTwo);
-                    for msg in recv_msgs.drain(..) {
-                        match self.iface.send(msg) {
-                            Ok(()) => {
-                                log::trace!("UDP receiver thread sent packet successfully");
-                            },
-                            Err(e) => {
-                                log::debug!("Error processing packet: {e}");
-                            }
-                        }
-                    }
+                Err(e) => {
+                    log::warn!("Error receiving UDP message {e}");
                 }
             }
         }
@@ -181,8 +153,6 @@ impl UDPAddrIface {
         let (mut iface, iface_pvt) = iface::new("UDPAddrIface");
         let (tgo, tgo_r) =
             tokio::sync::mpsc::channel(TO_GO_OUT_QUEUE);
-        let (incoming, incoming_r) =
-            tokio::sync::mpsc::channel(INCOMING_QUEUE);
 
         let workers = num_cpus::get();
         let workers = if workers < 2 {
@@ -197,8 +167,6 @@ impl UDPAddrIface {
             udp,
             to_go_out_recv: Mutex::new(tgo_r),
             to_go_out_send: tgo,
-            incoming_recv: Mutex::new(incoming_r),
-            incoming_send: incoming,
             send_worker_states: (0..workers).map(|_|AtomicI32::new(0)).collect(),
             recv_worker_states: (0..workers).map(|_|AtomicI32::new(0)).collect(),
         });

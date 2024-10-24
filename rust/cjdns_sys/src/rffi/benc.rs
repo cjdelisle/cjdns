@@ -47,10 +47,13 @@ pub fn list_to_c<'a>(alloc: *mut Allocator_t, v: &Vec<Value<'a>>) -> *mut List_t
 
 pub fn string_to_c<'a>(alloc: *mut Allocator_t, v: impl Into<&'a[u8]>) -> *mut String_t {
     let v: &'a[u8] = v.into();
-    let bytes = allocator::adopt(alloc, Vec::from(v));
+    let mut v = Vec::from(v);
+    let len = v.len();
+    v.push(0);
+    let bytes = allocator::adopt(alloc, v);
     let bytes = unsafe { (*bytes)[..].as_mut_ptr() };
     allocator::adopt(alloc, String_t{
-        len: v.len(),
+        len,
         bytes: bytes as _,
     })
 }
