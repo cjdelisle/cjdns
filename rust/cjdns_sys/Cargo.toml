@@ -33,7 +33,7 @@ trust-dns-resolver = { workspace = true }
 ipnetwork = { workspace = true }
 num_enum = { workspace = true }
 
-[build_dependencies]
+[build-dependencies]
 cc = { workspace = true }
 anyhow = { workspace = true }
 cbindgen = { workspace = true }

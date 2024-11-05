@@ -45,7 +45,12 @@ void PeeringSeeder_setSnode(PeeringSeeder_t* self, struct Address* snode);
 
 #define PeeringSeeder_publicPeer_ID_MAX_LEN 30
 
-Err_DEFUN PeeringSeeder_publicPeer(PeeringSeeder_t* self, String* code, Allocator_t* reqAlloc);
+Err_DEFUN PeeringSeeder_publicPeer(
+    PeeringSeeder_t* self,
+    String_t* code,
+    String_t* addr4,
+    String_t* addr6,
+    Allocator_t* reqAlloc);
 
 // Get as a void pointer so that we don't need to pull in Rffi
 void* PeeringSeeder_getRsSeeder(PeeringSeeder_t* self);

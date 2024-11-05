@@ -306,6 +306,8 @@ RTypes_Error_t *Rffi_Seeder_public_peer(Rffi_Seeder *seeder,
                                         uint16_t user_num,
                                         uint64_t passwd,
                                         const String_t *code,
+                                        const String_t *addr4,
+                                        const String_t *addr6,
                                         Allocator_t *alloc);
 
 RTypes_Error_t *Rffi_Seeder_public_status(Rffi_Seeder *seeder,

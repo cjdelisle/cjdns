@@ -1,4 +1,6 @@
-use anyhow::anyhow;
+use std::{net::{SocketAddrV4, SocketAddrV6}, str::FromStr};
+
+use anyhow::{anyhow, Result};
 use cjdns_keys::CJDNSPublicKey;
 
 use crate::{
@@ -127,6 +129,19 @@ pub unsafe extern "C" fn Rffi_Seeder_mk_creds(
     std::ptr::null_mut()
 }
 
+fn parse_addr<T: FromStr>(s: *const String_t) -> Result<Option<T>>
+    where <T as FromStr>::Err: 'static + std::error::Error + Send + Sync, 
+{
+    let code = match cstr(s) {
+        Some(code) => String::from_utf8(code.0)?,
+        None => {
+            return Ok(None);
+        }
+    };
+    let out: T = code.parse()?;
+    Ok(Some(out))
+}
+
 #[no_mangle]
 pub unsafe extern "C" fn Rffi_Seeder_public_peer(
     seeder: *mut Rffi_Seeder,
@@ -135,6 +150,8 @@ pub unsafe extern "C" fn Rffi_Seeder_public_peer(
     user_num: u16,
     passwd: u64,
     code: *const String_t,
+    addr4: *const String_t,
+    addr6: *const String_t,
     alloc: *mut Allocator_t,
 ) -> *mut RTypes_Error_t {
     let s = identity::from_c!(seeder);
@@ -142,7 +159,21 @@ pub unsafe extern "C" fn Rffi_Seeder_public_peer(
         Some(code) => code,
         None => c_bail!(alloc, anyhow!("code must not be null")),
     };
-    let (user, pass) = s.seeder.public_peer(user_num, passwd, code.0);
+    let addr4: Option<SocketAddrV4> = match parse_addr(addr4) {
+        Ok(x) => x,
+        Err(e) => c_bail!(alloc, e),
+    };
+    let addr6: Option<SocketAddrV6> = match parse_addr(addr6) {
+        Ok(x) => x,
+        Err(e) => c_bail!(alloc, e),
+    };
+    let (user, pass) = s.seeder.public_peer(
+        user_num,
+        passwd,
+        code.0,
+        addr4,
+        addr6,
+    );
     *user_out = strc(alloc, user);
     *pass_out = strc(alloc, pass);
     std::ptr::null_mut()

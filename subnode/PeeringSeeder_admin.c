@@ -108,9 +108,11 @@ static void publicPeer(Dict* args, void* vcontext, String* txid, struct Allocato
 {
     struct Context* ctx = Identity_check((struct Context*) vcontext);
     String* peerCode = Dict_getStringC(args, "peerID");
+    String* ipv4 = Dict_getStringC(args, "ipv4");
+    String* ipv6 = Dict_getStringC(args, "ipv6");
     char* err = "none";
     RTypes_Error_t* er =
-        PeeringSeeder_publicPeer(ctx->sp, peerCode, requestAlloc);
+        PeeringSeeder_publicPeer(ctx->sp, peerCode, ipv4, ipv6, requestAlloc);
     if (er) {
         err = Rffi_printError(er, requestAlloc);
     }
@@ -171,7 +173,9 @@ void PeeringSeeder_admin_register(PeeringSeeder_t* sp,
 
     Admin_registerFunction("PeeringSeeder_publicPeer", publicPeer, ctx, true,
         ((struct Admin_FunctionArg[]) {
-            { .name = "peerID", .required = false, .type = "String" }
+            { .name = "peerID", .required = false, .type = "String" },
+            { .name = "ipv4", .required = false, .type = "String" },
+            { .name = "ipv6", .required = false, .type = "String" }
         }), admin);
     
     Admin_registerFunctionNoArgs("PeeringSeeder_publicStatus", publicStatus, ctx, true, admin);

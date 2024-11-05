@@ -1,5 +1,6 @@
 use std::{collections::HashMap, net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4, SocketAddrV6}, sync::Arc, time::Duration};
 use anyhow::{anyhow, bail, Result, Context};
+use boringtun::device::Sock;
 use cjdns_keys::{CJDNSPublicKey, PublicKey};
 use parking_lot::Mutex;
 use tokio::sync::mpsc;
@@ -285,11 +286,56 @@ struct MyPeeringPasswd {
     code: Vec<u8>,
 }
 
+macro_rules! split_ip {
+    ($ip:expr) => {
+        if let Some(ip) = $ip {
+            (
+                if !ip.ip().is_unspecified() {
+                    Some(ip.ip())
+                } else {
+                    None
+                },
+                if ip.port() > 0 {
+                    Some(ip.port())
+                } else {
+                    None
+                }
+            )
+        } else {
+            Default::default()
+        }
+    }
+}
+
 #[derive(Default)]
 struct MyPeeringInfo {
     passwd: Option<MyPeeringPasswd>,
     v4: Option<SocketAddrV4>,
     v6: Option<SocketAddrV6>,
+    manual_v4: Option<SocketAddrV4>,
+    manual_v6: Option<SocketAddrV6>,
+}
+impl MyPeeringInfo {
+    fn get_lladdr4(&self) -> Option<SocketAddrV4> {
+        match (split_ip!(&self.manual_v4), split_ip!(&self.v4)) {
+            ((_, None), (_, None)) => None,
+            ((None, _), (None, _)) => None,
+            ((Some(ip), Some(port)), (_, _)) => Some(SocketAddrV4::new(ip.clone(), port)),
+            ((None, Some(port)), (Some(ip), _)) => Some(SocketAddrV4::new(ip.clone(), port)),
+            ((Some(ip), None), (_, Some(port))) => Some(SocketAddrV4::new(ip.clone(), port)),
+            ((None, None), (Some(ip), Some(port))) => Some(SocketAddrV4::new(ip.clone(), port)),
+        }
+    }
+    fn get_lladdr6(&self) -> Option<SocketAddrV6> {
+        match (split_ip!(&self.manual_v6), split_ip!(&self.v6)) {
+            ((_, None), (_, None)) => None,
+            ((None, _), (None, _)) => None,
+            ((Some(ip), Some(port)), (_, _)) => Some(SocketAddrV6::new(ip.clone(), port, 0, 0)),
+            ((None, Some(port)), (Some(ip), _)) => Some(SocketAddrV6::new(ip.clone(), port, 0, 0)),
+            ((Some(ip), None), (_, Some(port))) => Some(SocketAddrV6::new(ip.clone(), port, 0, 0)),
+            ((None, None), (Some(ip), Some(port))) => Some(SocketAddrV6::new(ip.clone(), port, 0, 0)),
+        }
+    }
 }
 
 pub struct SeederStatus {
@@ -310,7 +356,7 @@ impl Seeder {
     /// Whether we have an address from got_lladdr
     pub fn has_lladdr(&self) -> bool {
         let m = self.mpi.lock();
-        m.v4.is_some() || m.v6.is_some()
+        m.get_lladdr4().is_some() || m.get_lladdr6().is_some()
     }
     fn got_lladdr4(&self, lla: &Control_LlAddr_Udp4_t) -> bool {
         let sa =
@@ -392,10 +438,10 @@ impl Seeder {
             bail!("Missing passwd");
         };
         let mut addrs = Vec::new();
-        if let Some(x) = &m.v4 {
+        if let Some(x) = &m.get_lladdr4() {
             addrs.push(SocketAddr::V4(x.clone()));
         }
-        if let Some(x) = &m.v6 {
+        if let Some(x) = &m.get_lladdr6() {
             addrs.push(SocketAddr::V6(x.clone()));
         }
         if addrs.is_empty() {
@@ -421,9 +467,13 @@ impl Seeder {
         user_num: u16,
         passwd: u64,
         code: Vec<u8>,
+        sa4: Option<SocketAddrV4>,
+        sa6: Option<SocketAddrV6>,
     ) -> (String, String) {
         let mut m = self.mpi.lock();
         m.passwd = Some(MyPeeringPasswd { user_num, passwd, code });
+        m.manual_v4 = sa4;
+        m.manual_v6 = sa6;
         let p = cjdns_bytes::dnsseed::CjdnsPeer {
             address: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(1,1,1,1)), 1),
             pubkey: [0_u8; 32],
@@ -450,8 +500,8 @@ impl Seeder {
 
     pub fn get_status(&self) -> SeederStatus {
         let m = self.mpi.lock();
-        let v4 = m.v4.map(|x|x.to_string());
-        let v6 = m.v6.map(|x|x.to_string());
+        let v4 = m.get_lladdr4().map(|x|x.to_string());
+        let v6 = m.get_lladdr6().map(|x|x.to_string());
         let peer_id = m.passwd.as_ref().map(|p|p.code.clone());
         drop(m);
         let peer_id = if let Some(peer_id) = peer_id {

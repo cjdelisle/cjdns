@@ -227,7 +227,12 @@ Err_DEFUN PeeringSeeder_publicStatus(PeeringSeeder_PublicStatus_t** outP, Peerin
     return NULL;
 }
 
-Err_DEFUN PeeringSeeder_publicPeer(PeeringSeeder_t* self, String_t* code, Allocator_t* reqAlloc)
+Err_DEFUN PeeringSeeder_publicPeer(
+    PeeringSeeder_t* self,
+    String_t* code,
+    String_t* addr4,
+    String_t* addr6,
+    Allocator_t* reqAlloc)
 {
     PeeringSeeder_pvt_t* pq = Identity_check((PeeringSeeder_pvt_t*) self);
     if (code == NULL) {
@@ -250,6 +255,8 @@ Err_DEFUN PeeringSeeder_publicPeer(PeeringSeeder_t* self, String_t* code, Alloca
         pq->userNum,
         pq->pass,
         code,
+        addr4,
+        addr6,
         reqAlloc));
 
     Assert_true(user->len < sizeof pq->login);
