@@ -21,7 +21,6 @@ routage.  Il fournit un réseau quasiment sans configuration et évite la majori
 des problèmes de sécurité et de passage à l'échelle (_scalability_) des réseaux
 actuels.
 
-[![Statut de compilation](https://api.travis-ci.org/cjdelisle/cjdns.svg?branch=master)](https://travis-ci.org/cjdelisle/cjdns)
 [![Bonnes pratiques CII](https://bestpractices.coreinfrastructure.org/projects/387/badge)](https://bestpractices.coreinfrastructure.org/projects/387)
 [![Pourboire pour le prochain commit](https://tip4commit.com/projects/941.svg)](https://tip4commit.com/github/cjdelisle/cjdns)
 [![IRC](https://img.shields.io/badge/irc%20chat-%23cjdns-blue.svg)](https://kiwiirc.com/client/irc.efnet.org/?nick=visitor|?#cjdns)
