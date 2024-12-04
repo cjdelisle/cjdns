@@ -15,7 +15,6 @@
 
 Cjdns 利用「加密的IPv6」及「公钥加密」來分配网络地址并利用「Distributed Hash Table」进行路由。它能提供近似「零配置网络（Zero-Configuration Networking）」，並且能防范在現有网络中存在的很多和安全、可拓展性相关的问题。
 
-[![Build Status](https://travis-ci.org/cjdelisle/cjdns.svg?branch=master)](https://travis-ci.org/cjdelisle/cjdns)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/387/badge)](https://bestpractices.coreinfrastructure.org/projects/387)
 [![tip for next commit](https://tip4commit.com/projects/941.svg)](https://tip4commit.com/github/cjdelisle/cjdns)
 [![irc](https://img.shields.io/badge/irc%20chat-%23cjdns-blue.svg)](https://kiwiirc.com/client/irc.efnet.org/?nick=visitor|?#cjdns)
