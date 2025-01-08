@@ -23,10 +23,6 @@ const GetVersion = require('./GetVersion');
 
 var CFLAGS = process.env['CFLAGS'];
 var LDFLAGS = process.env['LDFLAGS'];
-// march=native really only makes a lot of sense on x86/amd64 where the available features
-// are a hodgepodge per-CPU. On arm (32) you may or may not have NEON available but in any
-// case clang doesn't reliably support march except on x86/amd64.
-var NO_MARCH_FLAG = ['arm', 'ppc', 'ppc64', 'arm64'];
 
 if (process.version.replace('v','').split('.').map(Number)[0] >= 12) {
     // OK
@@ -106,10 +102,8 @@ Builder.configure({
         builder.config.cflags.push('-D', 'ADDRESS_PREFIX_BITS=' + process.env['ADDRESS_PREFIX_BITS']);
     }
 
-    if (!builder.config.crossCompiling) {
-        if (NO_MARCH_FLAG.indexOf(process.arch) == -1) {
-            builder.config.cflags.push('-march=native');
-        }
+    if (process.env['MARCH_NATIVE']) {
+        builder.config.cflags.push('-march=native');
     }
 
     if (builder.config.systemName === 'win32') {
