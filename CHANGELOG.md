@@ -1,5 +1,26 @@
 # Cjdns Changelog
 
+## Version 22.1 - Seedy
+January 8, 2025
+
+This is a point version so there are no changes to the inter-node protocol but introduces a number of new features.
+
+### Major Changes
+1. DNS Seeding allows auto-peering, so manually adding peers is now optional, new RPCs:
+  - `PeeringSeeder_publicStatus`: Shows status
+  - `PeeringSeeder_publicPeer`: Enables becoming a public node
+  - `PeeringSeeder_listDnsSeeds`: List the active DNS seed nodes
+  - `PeeringSeeder_rmDnsSeed`: Remove a DNS seed node
+  - `PeeringSeeder_addDnsSeed`: Add a DNS seed node
+2. cjdnstool is compiled with cjdroute making it easier to do node administration.
+
+### Minor Changes
+1. `Security_seccomp` removed, SECCOMP BPF filter because is too strict for the 3rd party Rust libraries.
+2. Libuv is gone from the project, all interfaces with the OS are through Rust code.
+3. UDP and TUN interfaces now use tokio worker pools, new RPCs:
+  - `UDPInterface_workerStates`: Check the status of UDP Interface workers.
+  - `Core_tunWorkers`: Check the status of TUN Interface workers.
+
 ## Version 22 - Noisemaker
 February 3, 2023
 
