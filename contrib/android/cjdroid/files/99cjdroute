@@ -4,7 +4,7 @@
 CJDPATH="/sdcard/cjdns"
 
 if [ -f "$CJDPATH"/.cjdaemon.pid ]; then
-    rm "$CJDPATH"/.cjdaemon.pid
+    rm -f -- "$CJDPATH"/.cjdaemon.pid
 fi
 
 cjdaemon

@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 
 # http://cjdns.ca/cjdns-droid.sh
 
@@ -48,10 +48,42 @@
 #  Use a different branch:
 #   Run: cjdroid-bulid.sh branchname
 
+die() { printf "Error: %s\n" "$*"; exit 1; }
+commands="install curl git tar"
+use_curl=true
+
+for i in $commands; do
+  case $i in
+    curl)
+      if ! command -v "$i" > /dev/null 2>&1; then
+        use_curl=false
+        if ! command -v "wget" > /dev/null 2>&1; then
+          commands_failed="[curl || wget] $commands_failed"
+        fi
+      fi
+      ;;
+    *)
+      if ! command -v "$i" > /dev/null 2>&1; then
+        commands_failed="$i $commands_failed"
+      fi
+      ;;
+  esac
+done
+
+if [ -n "$commands_failed" ]; then
+  commands_failed=${commands_failed% *}
+  die "$commands_failed is not found in your \$PATH.
+Please install them and re-run the script."
+fi
+
+
+
+
 ##CONFIGURABLE VARIABLES
 cjdns_repo="https://github.com/cjdelisle/cjdns/"
-[[ -n "$1" ]] \
-    && cjdns_repo_branch="-$1"
+if [ -n "$1" ]; then
+  cjdns_repo_branch="-$1"
+fi
 
 build_dir="$PWD/build_android"
 src_dir="$build_dir/source"
@@ -60,105 +92,120 @@ work_dir="$build_dir/workspace"
 
 ndkver="android-ndk-r10e"
 cpu_arch="$(uname -m)"
-[[ -z "$cpu_arch" ]] && {
-    echo "ERROR: NO CPU ARCHITECTURE DETECTED"
-    exit 1
-}
-[[ "$cpu_arch" = "i686" ]] \
-    && cpu_arch="x86"
+if [ -z "$cpu_arch" ]; then
+    die "NO CPU ARCHITECTURE DETECTED"
+fi
+if [ "$cpu_arch" = "i686" ]; then
+  cpu_arch="x86"
+fi
 
 ##CREATE REQUIRED DIRECTORIES
-install -d "$src_dir"
-install -d "$work_dir"
+install -d "$src_dir" || die "Cannot install $src_dir"
+install -d "$work_dir" || die "Cannot install $work_dir"
 
 ##SETUP NDK
-cd "$src_dir"
-[[ -z "$NDK" ]] && {
+cd -- "$src_dir" || die "Cannot cd to $src_dir"
+if [ -z "$NDK" ]; then
     if [ -z "$ANDROID_NDK" ]; then
-        echo "$ndkver-linux-${cpu_arch}.bin"
-        [[ -f "$ndkver-linux-${cpu_arch}.bin" ]] \
-            || wget "http://dl.google.com/android/ndk/$ndkver-linux-${cpu_arch}.bin" \
-            || (echo "Can't find download for your system" && exit 1)
-        [[ -d "$ndkver" ]] || (chmod a+x $ndkver-linux-${cpu_arch}.bin && ./$ndkver-linux-${cpu_arch}.bin || exit 1)
+        android_ndk_bin="${ndkver}-linux-${cpu_arch}.bin"
+        printf "%s\n" "$android_ndk_bin"
+        if [ ! -f "$android_ndk_bin" ]; then
+            url="https://dl.google.com/android/ndk/$android_ndk_bin"
+            if [ $use_curl = true ]; then
+                curl -LfS --tlsv1.3 --output "$android_ndk_bin" -- "$url" || die "curl $url failed."
+            else
+                wget --secure-protocol=TLSv1_3 -O "$android_ndk_bin" -- "$url" || die "wget $url failed."
+            fi
+        fi
+        if [ ! -d "$ndkver" ]; then
+            chmod a+x "$android_ndk_bin" || die "Please check permissions of file $android_ndk_bin"
+            if ! ./"$android_ndk_bin"; then
+                rm -rf -- "$ndkver"
+                die "Cannot run ndk $android_ndk_bin. Please install manually."
+            fi
+        fi
         NDK="$ndkver"
     else
         NDK="$ANDROID_NDK"
     fi
-}
-[[ ! -d "$NDK" ]] && {
-    echo "The NDK variable is not pointing to a valid directory"
-    exit 1
-}
-[[ -h "$ndk_dir" ]] \
-    && rm "$ndk_dir"
-[[ ! -e "$ndk_dir" ]] \
-    && ln -sf "$NDK" "$ndk_dir"
+fi
+if [ ! -d "$NDK" ]; then
+    die "The NDK variable is not pointing to a valid directory."
+fi
+if [ -h "$ndk_dir" ]; then
+    rm -- "$ndk_dir"
+fi
+if [ ! -e "$ndk_dir" ]; then
+    ln -sf "$NDK" "$ndk_dir"
+fi
 
-GCC=$work_dir/android-arm-toolchain/bin/arm-linux-androideabi-gcc
-TOOLCHAIN=arm-linux-androideabi-4.9
-COMPILER=arm-linux-androideabi-
-[[ "x$TARGET_ARCH" == "xarm64" ]] \
-    && GCC=$work_dir/android-arm-toolchain/bin/aarch64-linux-android-gcc \
-    && TOOLCHAIN=aarch64-linux-android-4.9 \
-    && COMPILER=aarch64-linux-android-
+
+if [ "$TARGET_ARCH" = "arm64" ]; then
+    GCC="$work_dir/android-arm-toolchain/bin/aarch64-linux-android-gcc"
+    TOOLCHAIN="aarch64-linux-android-4.9"
+    COMPILER="aarch64-linux-android-"
+else
+    GCC="$work_dir/android-arm-toolchain/bin/arm-linux-androideabi-gcc"
+    TOOLCHAIN="arm-linux-androideabi-4.9"
+    COMPILER="arm-linux-androideabi-"
+fi
 
 
 ##BUILD TOOLCHAIN: build gcc toolchain
-[[ ! -x "$GCC" ]] && {
-    cd "$src_dir"
+if [ ! -x "$GCC" ]; then
+    cd -- "$src_dir" || die "Cannot cd to $src_dir"
     "$ndk_dir/build/tools/make-standalone-toolchain.sh" \
         --platform=android-21 \
-        --toolchain=$TOOLCHAIN \
+        --toolchain="$TOOLCHAIN" \
         --install-dir="$work_dir/android-arm-toolchain/" \
-        --system=linux-$cpu_arch \
-            || exit 1
-}
+        --system="linux-$cpu_arch" \
+            || die "Cannot run $ndk_dir/build/tools/make-standalone-toolchain.sh. Please re-run the script."
+fi
 
 ##CLONE or PULL: the repo and change branch if requested
-cd "$build_dir"
-[[ -d cjdns ]] && {
-    cd cjdns
+cd -- "$build_dir" || die "Cannot cd to $src_dir"
+
+if cd cjdns; then
     git pull --ff-only
-} || {
-    git clone $cjdns_repo cjdns
-    [[ ! -d cjdns ]] && {
-        echo "ERROR: Couldn't clone $cjdns_repo"
-        exit 1
-    }
-    cd cjdns
-}
-[[ -n "$1" ]] \
-    && git checkout "$1"
-./clean
+else
+    git clone -- "$cjdns_repo" cjdns || die "Cannot clone $cjdns_repo"
+    cd cjdns || die "Cannot cd to cjdns"
+fi
+if [ -n "$1" ]; then
+    git checkout -- "$1" || die "Invalid commit $1"
+fi
+./clean || die "Too old version of git."
 
 ##SETUP TOOLCHAIN VARS
 export PATH="$work_dir/android-arm-toolchain/bin:$PATH"
 
 ##BUILD cjdns (without tests)
-CROSS_COMPILE=$COMPILER ./cross-do 2>&1 \
-    | tee cjdns-build.log
-[[ ! -f 'cjdroute' ]] && {
-    echo -e "\nBUILD FAILED :("
-    exit 1
-}
-echo -e "\nBUILD COMPLETE! @ $build_dir/cjdns/cjdroute"
+log="$(CROSS_COMPILE="$COMPILER" ./cross-do 2>&1)"
+success=$?
+
+printf "%s" "$log" | tee cjdns-build.log
+
+if ! $success || [ ! -f 'cjdroute' ]; then
+    die "BUILD FAILED :("
+fi
+printf "\nBUILD COMPLETE! @ %s/cjdns/cjdroute\n" "$build_dir"
+unset success log
 
 ##PACKAGE CJDROUTE AND ASSOCIATED SCRIPTS FOR DEPLOYMENT
-cd "$build_dir"
-cjdns_version=$(git -C cjdns describe --always | sed 's|-|.|g;s|[^\.]*\.||;s|\.[^\.]*$||')
-[[ -f ../cjdroid-$cjdns_version${cjdns_repo_branch}.tar.gz ]] && {
-    echo "Error: Package not built because $(readlink -f ../cjdroid-$cjdns_version${cjdns_repo_branch}.tar.gz) already exists"
-    exit 1
-}
-[[ ! -f cjdns/cjdroute ]] && {
-    echo "Error: Package not built because $PWD/cjdns/cjdroute does not exist"
-    exit 1
-}
-[[ ! -d cjdns/contrib/android/cjdroid ]] && {
-    echo "Error: Package not built because $PWD/cjdns/contrib/android/cjdroid does not exist"
-    exit 1
-}
+cd -- "$build_dir" || die "Cannot cd to $build_dir"
+cjdns_version="$(git -C cjdns describe --always | sed 's|-|.|g;s|[^\.]*\.||;s|\.[^\.]*$||')"
+file="../cjdroid-${cjdns_version}${cjdns_repo_branch}.tar.gz"
+if [ -f "$file" ]; then
+    die "Package not built because $(readlink -f "$file") already exists."
+fi
+if [ ! -f cjdns/cjdroute ]; then
+    die "Package not built because $PWD/cjdns/cjdroute does not exist."
+fi
+if [ ! -d cjdns/contrib/android/cjdroid ]; then
+    die "Package not built because $PWD/cjdns/contrib/android/cjdroid does not exist."
+fi
+
 cp -R cjdns/contrib/android/cjdroid .
 install -Dm755 cjdns/cjdroute cjdroid/files/cjdroute
-tar cfz ../cjdroid-$cjdns_version${cjdns_repo_branch}.tar.gz cjdroid
-echo -e "\nSuccess: A deployable package has been created @ $(readlink -f ../cjdroid-$cjdns_version${cjdns_repo_branch}.tar.gz)"
+tar cfz "$file" cjdroid
+printf "\nSuccess: A deployable package has been created @ %s\n" "$(readlink -f "$file")"

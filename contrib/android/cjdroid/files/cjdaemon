@@ -6,21 +6,21 @@ CJDPATH="/sdcard/cjdns"
 # Function to output status messages and log if configured to do so
 logmessage() {
     if [ -n "$CJDLOG" ]; then
-        echo "`date` - $1" >> "$CJDPATH"/cjdaemon.log
+        echo "$(date) - $1" >> "$CJDPATH"/cjdaemon.log
     fi
 }
 
+die() { logmessage "$1"; exit 1; }
+
 # Create the daemon folder if it doesn't exist
 if [ ! -e "$CJDPATH" ]; then
-    install -d "$CJDPATH" \
-        || exit 1
+    install -d "$CJDPATH" || die "Cannot install $CJDPATH"
 fi
 
 # Fail if the daemon is already running
 if [ -f "$CJDPATH"/.cjdaemon.pid ]; then
-    if [ -d /proc/`cat "$CJDPATH"/.cjdaemon.pid` ]; then
-        logmessage "Error! Daemon already running"
-        exit 1
+    if [ -d "/proc/$(cat "$CJDPATH"/.cjdaemon.pid)" ]; then
+        die "Daemon already running!"
     fi
 fi
 
@@ -29,15 +29,15 @@ echo "$$" > "$CJDPATH"/.cjdaemon.pid
 
 # Create cjdaemon.conf if it's missing
 if [ ! -f "$CJDPATH"/cjdaemon.conf ]; then
-    touch "$CJDPATH"/cjdaemon.conf \
-        || exit 1
+    touch "$CJDPATH"/cjdaemon.conf ||
+        die "Cannot create file $CJDPATH/cjdaemon.conf"
 
-    echo -e 'CJDCFG="cjdroute.conf"\nCJDLOG=0' \
+    printf 'CJDCFG="cjdroute.conf"\nCJLOG=0' \
         > "$CJDPATH"/cjdaemon.conf
 fi
 
 # Source cjdaemon.conf to load user settings
-source "$CJDPATH"/cjdaemon.conf
+. "$CJDPATH"/cjdaemon.conf
 
 # Set $CJDCFG to the default if it wasn't set by cjdaemon.conf
 if [ -z "$CJDCFG" ]; then
@@ -61,12 +61,12 @@ cjdstart() {
 
     # Start cjdroute and output/log results
     if [ -f "${CJDPATH}/${CJDCFG}" ]; then
-        if [ `pgrep cjdroute | wc -l` -eq 0 ]; then
+        if [ "$(pgrep cjdroute | wc -l)" -eq 0 ]; then
             LOGMSG="Running: cjdroute < ${CJDPATH}/${CJDCFG}..."
-            cjdroute < "${CJDPATH}/${CJDCFG}" &> /dev/null 2>&1
+            cjdroute < "${CJDPATH}/${CJDCFG}" >/dev/null 2>&1
             sleep 1
 
-            if [ `pgrep cjdroute | wc -l` -gt 0 ]; then
+            if [ "$(pgrep cjdroute | wc -l)" -gt 0 ]; then
                 LOGMSG="${LOGMSG} Success!"
             else
                 LOGMSG="${LOGMSG} Error! Failed to start cjdroute"
@@ -90,12 +90,12 @@ cjdstop() {
     fi
 
     # Kill cjdroute and output/log results
-    if [ `pgrep cjdroute | wc -l` -gt 0 ]; then
+    if [ "$(pgrep cjdroute | wc -l)" -gt 0 ]; then
         LOGMSG="Running: killall cjdroute..."
         killall cjdroute
         sleep 1
 
-        if [ `pgrep cjdroute | wc -l` -eq 0 ]; then
+        if [ "$(pgrep cjdroute | wc -l)" -eq 0 ]; then
             LOGMSG="${LOGMSG} Success!"
         else
             LOGMSG="${LOGMSG} Error! Failed to stop cjdroute"
