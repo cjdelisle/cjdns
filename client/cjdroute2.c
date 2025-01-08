@@ -259,7 +259,7 @@ static int genconf(struct Allocator* alloc, struct Random* rand, bool eth, bool 
            "        // DNS Seeds, these will be used to add peers automatically.\n"
            "        // The first seed in the list is trusted to provide the snode.\n"
            "        \"dnsSeeds\": [\n"
-           "            \"seed.cjdns.fr\"\n"
+           "            \"seed.pns.cjdns.fr\"\n"
            "        ],\n"
            "\n"
            "        // When publicPeer id is set, this node will post its public peering credentials\n"

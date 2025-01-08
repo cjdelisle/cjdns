@@ -12,9 +12,6 @@ The top part of the file specifies where the cjdns executable is, your encryptio
 
 ````javascript
 {
-    // The path to the cjdns core executable.
-    "corePath": "/opt/cjdns/cjdns",
-
     // Private key:
     // Your confidentiality and data integrity depend on this key, keep it secret!
     "privateKey": "823e4EXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEc70",
@@ -24,7 +21,6 @@ The top part of the file specifies where the cjdns executable is, your encryptio
     "ipv6": "fcff:a215:1e7b:a4e9:c00d:0813:93b3:7c87",
 ````
 
-- `corePath`: This specifies where the core cjdns executable file is. If you downloaded the source to /opt/cjdns, then the default is fine. If you downloaded it somewhere else, like your home directory for example, then this needs to be updated accordingly.
 - `privateKey`: Your private key is part of the system that ensures all the data coming and going out of your computer is encrypted. You must protect your private key. Do not give it out to anyone.
 - `publicKey`: The public key is what your computer gives to other computers to encrypt data with. This data can then only be decrypted with your private key, that way no one can access your information as it moves across the network.
 - `ipv6`: This is your IP address on the cjdns network. It is unique to you and is created by securely hashing your public key.
@@ -87,7 +83,7 @@ The `admin ` section defines the settings for the administrative interface of cj
 ````
 
 - `bind`: This tells cjdns what IP and port the admin interface should bind to. Since you don't want random people connecting to your admin interface, it is probably fine to leave it like this.
-- `password`: This is the password that is needed in order to perform certain functions through the admin interface. If you wish to expose the admin interface to the network, then you should use a password like the one above. If you are binding only to a local address, then you can use `"NONE"` as a password. This is the new default behaviour on the `crashey` branch, so as to provide an easier default configuration to work with.
+- `password`: This is the password that is needed in order to perform certain functions through the admin interface. If you wish to expose the admin interface to the network, then you should use a password like the one above. If you are binding only to a local address, then you can use `"NONE"` as a password. This is the new default behaviour so as to provide an easier default configuration to work with.
 
 Connection Interface(s)
 -----------------------
@@ -202,6 +198,49 @@ This is where you configure routing settings of your cjdns node.
     // Configuration for the router.
     "router":
     {
+        // DNS Seeds, these will be used to add peers automatically.
+        // The first seed in the list is trusted to provide the snode.
+        "dnsSeeds": [
+            "seed.pns.cjdns.fr"
+        ],
+
+        // When publicPeer id is set, this node will post its public peering credentials
+        // to its supernode. The specified peerID will be used to identify itself.
+        // For PKT yielding this must be set to the registered peerID, otherwise
+        // you can set it to anything. By *convention*, peerIDs that begin with "PUB_"
+        // are shared publicly and those which do not are tested by the snode but not
+        // shared, allowing you to use the snode's peer tester on an otherwise private
+        // node. If you leave "id" commented, your peering credentials will remain
+        // entirely private.
+        //
+        "publicPeer": {
+            // "id": "PUB_XXX",
+
+            // If you set the public peer, you may also hardcode the IPv4 address.
+            // By default, cjdns will request its public IP address from its peers, but
+            // in cases with non-standard routing, you may have a different IP address
+            // for traffic initiated from outside. In this case, you must manually enter
+            // the IP address. If the address is entered in the form of "x.x.x.x", then
+            // the IP address will be used, but the port will be detected. If it is entered
+            // as "0.0.0.0:xxx" then the port will be used, but the address will be detected
+            // finally, if it is in the form of "x.x.x.x:xxx" then the address AND port will
+            // be used.
+            //
+            // "ipv4": "1.2.3.4:56789",
+
+            // If you have a public IPv6 address which cannot be detected, you may hard-code
+            // it here. The same rules apply as IPv4 addresses: "xxxx:xxxx::" means use ip
+            // but detect port. "[::]:xxx" means use port but detect ip, and
+            // "[xxxx:xxxx::]:xxx" means use ip and port from configuration.
+            //
+            // "ipv6": "[1234:5678::]:9012",
+        },
+
+        // supernodes, if none are specified they'll be taken from your peers
+        "supernodes": [
+            //"6743gf5tw80ExampleExampleExampleExamplevlyb23zfnuzv0.k",
+        ],
+
         // The interface which is used for connecting to the cjdns network.
         "interface":
         {
@@ -215,8 +254,17 @@ This is where you configure routing settings of your cjdns node.
         },
 ````
 
-- `type`: This specifies the type of interface cjdns should use to connect to the network. Only TUNInterface is supported at the moment.
-- `tunDevice`: This specifies which TUN device cjdns should use to connect to the network. Most users do not need this.
+- `dnsSeeds`: If specified, cjdns will run a DNS TXT record lookup on these domains to get peers and an snode.
+If unspecified, peers must be added manually.
+- `publicPeer`
+  - `id`: If specified, cjdns will create a "public" AuthorizedPassword, probe its peers to get
+     its public IP address, and report that address and the password to the supernode.
+  - `ipv4`: If specified and if `id` is specified, this will override the detected IPv4.
+  - `ipv6`: If specified and if `id` is specified, this will override the detected IPv6.
+- `supernodes`: If specified this will force a certain supernode, otherwise it's learned from the DNS seed or your peers.
+- `interface`
+  - `type`: This specifies the type of interface cjdns should use to connect to the network. Only TUNInterface is supported at the moment.
+  - `tunDevice`: This specifies which TUN device cjdns should use to connect to the network. Most users do not need this.
 
 IP Tunneling
 ------------
@@ -234,19 +282,30 @@ IP Tunneling will allow you to connect from the cjdns network to another outside
             [
                 // Give the client an address on 192.168.1.0/24, and an address
                 // it thinks has all of IPv6 behind it.
+                // ip4Prefix is the set of addresses which are routable from the tun
+                // for example, if you're advertizing a VPN into a company network
+                // which exists in 10.123.45.0/24 space, ip4Prefix should be 24
+                // default is 32 for ipv4 and 128 for ipv6
+                // so by default it will not install a route
+                // ip4Alloc is the block of addresses which are allocated to the
+                // for example if you want to issue 4 addresses to the client, those
+                // being 192.168.123.0 to 192.168.123.3, you would set this to 30
+                // default is 32 for ipv4 and 128 for ipv6 (1 address)
                 // {
                 //     "publicKey": "f64hfl7c4uxt6krmhPutTheRealAddressOfANodeHere7kfm5m0.k",
                 //     "ip4Address": "192.168.1.24",
-                //     "ip4Prefix": 24,
+                //     "ip4Prefix": 0,
+                //     "ip4Alloc": 32,
                 //     "ip6Address": "2001:123:ab::10",
                 //     "ip6Prefix": 0
+                //     "ip6Alloc": 64,
                 // },
 
-                // It's ok to only specify one address.
+                // It's ok to only specify one address and prefix/alloc are optional.
                 // {
                 //     "publicKey": "ydq8csdk8p8ThisIsJustAnExampleAddresstxuyqdf27hvn2z0.k",
                 //     "ip4Address": "192.168.1.25",
-                //     "ip4Prefix": 24
+                //     "ip4Prefix": 0,
                 // }
             ],
 
@@ -261,13 +320,15 @@ IP Tunneling will allow you to connect from the cjdns network to another outside
     },
 ````
 
-- `allowedConnections`:
-- `outgoingConnections`:
+- `allowedConnections`: The pubkeys of nodes which we allow to connect to our node and what IP addresses
+we will issue to them.
+- `outgoingConnections`: Cjdns VPN exits to connect to.
 
 Miscellaneous
 -------------
 
-This section contains the security section for configuring program options and a few other miscellaneous things that don't fit in with a broader category elsewhere.
+This section contains the security section for configuring program options and a few other miscellaneous
+things that don't fit in with a broader category elsewhere.
 ````javascript
     // Dropping permissions.
     "security":
