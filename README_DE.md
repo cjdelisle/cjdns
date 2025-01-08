@@ -6,6 +6,7 @@
 [Svenska](README_SV.md)
 [Ελληνικά](README_GR.md)
 [繁體中文](README_ZHT.md)
+[简体中文](README_ZHCN.md)
 [Español](README_ES.md)
 [Français](README_FR.md)
 [Português brasileiro](README_PT-BR.md)
