@@ -1,6 +1,5 @@
 use std::{collections::HashMap, net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4, SocketAddrV6}, sync::Arc, time::Duration};
 use anyhow::{anyhow, bail, Result, Context};
-use boringtun::device::Sock;
 use cjdns_keys::{CJDNSPublicKey, PublicKey};
 use parking_lot::Mutex;
 use tokio::sync::mpsc;
