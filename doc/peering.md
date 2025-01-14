@@ -115,6 +115,6 @@ Please note that you and your friend can *initiate* a
 connection either outbound (from YOU --> FRIEND) or inbound (from FRIEND --> YOU)
 but traffic flows both ways once the connection is established.
 
-See [doc/configure.md](doc/configure.md) for more details on configuration,
+See [doc/configure.md](./configure.md) for more details on configuration,
 including how to peer with other cjdns nodes over ethernet and wifi.
 
