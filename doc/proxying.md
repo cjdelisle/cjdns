@@ -44,7 +44,7 @@ function FindProxyForURL(url, host) {
     return "DIRECT";
 }
 ```
-Also available as a file in this repo: [cjdns.pac](/cjdns.pac)
+Also available as a file in this repo: [cjdns.pac](/doc/cjdns.pac)
 
 This PAC file uses SOCKS5 connection with proxy server on `localhost` at port `8080`.
 If you'd like to use a different port, you have to change it accordingly.
