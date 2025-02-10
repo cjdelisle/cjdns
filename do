@@ -16,7 +16,9 @@ if echo "$@" | grep -q '\-\-debug'; then
     path="debug"
 fi 
 RUSTFLAGS="$RUSTFLAGS -g" $CARGO build $release
-RUST_BACKTRACE=1 "./target/$path/testcjdroute" all >/dev/null
+if [ -n "$NO_TEST" ]; then
+  RUST_BACKTRACE=1 "./target/$path/testcjdroute" all >/dev/null
+fi
 if ! mv -- "./target/$path/cjdroute" "./target/$path/cjdnstool" ./; then
   printf "Cannot find executables at %s\n" "./target/$path"
   exit 1
