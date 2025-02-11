@@ -3,7 +3,7 @@ use crate::common::{
     utils::{self, PushField},
     wire,
 };
-use anyhow::Result;
+use eyre::Result;
 use serde::{Deserialize, Serialize};
 
 pub async fn show(common: CommonArgs, ip6: bool) -> Result<()> {
@@ -12,7 +12,7 @@ pub async fn show(common: CommonArgs, ip6: bool) -> Result<()> {
         addr.split_once('.').map(|(_, s)| s).unwrap_or(addr)
     }
 
-    let mut cjdns = cjdns_admin::connect(Some(common.as_anon())).await?;
+    let mut cjdns = cjdns::admin::connect(Some(common.as_anon())).await?;
     let mut handles = vec![];
     let mut page = 0;
     loop {

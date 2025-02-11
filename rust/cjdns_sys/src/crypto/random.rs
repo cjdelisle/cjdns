@@ -1,7 +1,7 @@
 //! Random numbers
 
-pub use cjdns_crypto::random::DefaultRandom as SodiumRandom;
-pub use cjdns_crypto::random::Random as Rand;
+pub use cjdns::crypto::random::DefaultRandom as SodiumRandom;
+pub use cjdns::crypto::random::Random as Rand;
 
 use crate::cffi::Random_t;
 use crate::cffi::Random_bytes_fromRust;

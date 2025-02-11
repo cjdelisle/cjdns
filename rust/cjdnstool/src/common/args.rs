@@ -1,4 +1,4 @@
-use cjdns_admin::Opts;
+use cjdns::admin::Opts;
 use clap::Args;
 
 #[derive(Args)]

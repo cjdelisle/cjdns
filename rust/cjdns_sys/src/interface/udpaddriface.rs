@@ -9,7 +9,7 @@ use std::sync::atomic::AtomicI32;
 use std::sync::Arc;
 use crate::interface::wire::message::Message;
 use crate::external::interface::iface::{self, IfRecv, Iface, IfacePvt};
-use anyhow::{Context, Result};
+use eyre::{Context, Result};
 use std::net::SocketAddr;
 
 const SEND_MSGS_LIMIT: usize = 16;

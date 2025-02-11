@@ -9,7 +9,7 @@ use std::sync::atomic::AtomicU32;
 use std::sync::{Arc, Weak};
 use crate::interface::wire::message::Message;
 use crate::external::interface::iface::{IfRecv, Iface, IfacePvt};
-use anyhow::{anyhow, Context, Result};
+use eyre::{eyre, Result};
 use super::socketiface::{SocketIface, SocketType};
 
 struct ClientRecv {
@@ -52,10 +52,11 @@ struct UnixSocketServerMut {
 impl IfRecv for Arc<RwLock<UnixSocketServerMut>> {
     fn recv(&self, mut m: Message) -> Result<()> {
         let sa = Sockaddr::try_from(m.bytes())?;
-        let handle = sa.as_handle().ok_or_else(||anyhow!("Sockaddr not a handle type"))?;
+        let handle = sa.as_handle().ok_or_else(||eyre!("Sockaddr not a handle type"))?;
         m.discard_bytes(sa.byte_len())?;
         let l = self.read();
-        let cli = l.clients.get(&handle).with_context(||format!("No client found for handle: {handle}"))?;
+        let cli = l.clients.get(&handle)
+            .ok_or_else(||eyre::eyre!("No client found for handle: {handle}"))?;
         let iface = Arc::clone(&cli.ifacep);
         drop(l);
         iface.send(m)

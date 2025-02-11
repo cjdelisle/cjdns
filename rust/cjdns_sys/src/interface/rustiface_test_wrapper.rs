@@ -6,7 +6,7 @@ use crate::gcl::GCL;
 use std::sync::Arc;
 use parking_lot::Mutex;
 
-use anyhow::Result;
+use eyre::Result;
 
 use crate::cffi;
 use crate::external::interface::iface::{self, Iface, IfacePvt, IfRecv};

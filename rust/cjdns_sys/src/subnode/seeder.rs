@@ -1,6 +1,6 @@
 use std::{collections::HashMap, net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4, SocketAddrV6}, sync::Arc, time::Duration};
-use anyhow::{anyhow, bail, Result, Context};
-use cjdns_keys::{CJDNSPublicKey, PublicKey};
+use eyre::{eyre, bail, Result, Context};
+use cjdns::keys::{CJDNSPublicKey, PublicKey};
 use parking_lot::Mutex;
 use tokio::sync::mpsc;
 use byteorder::{ReadBytesExt,WriteBytesExt,BE};
@@ -160,7 +160,7 @@ impl SeederInner {
 
             let res = resolver.txt_lookup(&seed).await
                 .with_context(||format!("Failed dns lookup for {seed}"))?;
-            let txt = res.iter().next().ok_or_else(||anyhow!("No TXT records found"))?;
+            let txt = res.iter().next().ok_or_else(||eyre!("No TXT records found"))?;
             let txt = txt.to_string();
             let ctr = CjdnsTxtRecord::decode(&txt)
                 .with_context(||format!("Unable to decode seed TXT record {txt}"))?;
@@ -473,7 +473,7 @@ impl Seeder {
         m.passwd = Some(MyPeeringPasswd { user_num, passwd, code });
         m.manual_v4 = sa4;
         m.manual_v6 = sa6;
-        let p = cjdns_bytes::dnsseed::CjdnsPeer {
+        let p = cjdns::bytes::dnsseed::CjdnsPeer {
             address: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(1,1,1,1)), 1),
             pubkey: [0_u8; 32],
             login: user_num,

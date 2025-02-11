@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use eyre::{bail, Result};
 use std::env;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};

@@ -18,7 +18,7 @@ pub mod allocator;
 mod seeder;
 mod benc;
 
-use anyhow::{bail, Result};
+use eyre::{bail, Result};
 
 use crate::bytestring::ByteString;
 use crate::cffi::{Allocator_t, String_t};

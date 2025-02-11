@@ -3,7 +3,7 @@ use crate::external::interface::iface::Iface;
 use crate::rffi::allocator::Allocator;
 use crate::interface::wire::message::Message;
 
-use anyhow::Result;
+use eyre::Result;
 
 mod types {
     pub use crate::rtypes::RTypes_CryptoAuth_State_t as State;

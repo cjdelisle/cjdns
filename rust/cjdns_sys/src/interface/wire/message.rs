@@ -61,7 +61,7 @@ impl std::io::Read for Message {
     }
 }
 
-impl cjdns_bytes::message::RWrite for Message {
+impl cjdns::bytes::message::RWrite for Message {
     fn len(&self) -> usize {
         Message::len(self)
     }

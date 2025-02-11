@@ -7,16 +7,11 @@ build = "build.rs"
 
 [dependencies]
 cjdns = { workspace = true }
-cjdns-crypto = { workspace = true }
-cjdns-keys = { workspace = true }
-cjdns-bytes = { workspace = true }
-cjdns-bencode = { workspace = true }
-sodiumoxide = { workspace = true }
 hex = { workspace = true }
 log = { workspace = true }
 parking_lot = { workspace = true }
 thiserror = { workspace = true }
-anyhow = { workspace = true }
+eyre = { workspace = true }
 boringtun = { workspace = true }
 slog = { workspace = true }
 pnet = { workspace = true }
@@ -35,7 +30,7 @@ num_enum = { workspace = true }
 
 [build-dependencies]
 cc = { workspace = true }
-anyhow = { workspace = true }
+eyre = { workspace = true }
 cbindgen = { workspace = true }
 bindgen = { workspace = true, optional = true }
 

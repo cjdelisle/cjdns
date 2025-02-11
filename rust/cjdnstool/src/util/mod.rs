@@ -2,7 +2,7 @@ mod key2ip6;
 mod keygen;
 mod priv2pub;
 
-use anyhow::Result;
+use eyre::Result;
 use clap::Subcommand;
 
 pub async fn util(command: Command) -> Result<()> {

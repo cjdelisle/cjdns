@@ -2,8 +2,8 @@ use crate::common::{
     args::CommonArgs,
     utils::{self, PushField},
 };
-use anyhow::{bail, Result};
-use cjdns_admin::{ArgType, ArgValue, ArgValues, Func, ReturnValue};
+use eyre::{bail, Result};
+use cjdns::admin::{ArgType, ArgValue, ArgValues, Func, ReturnValue};
 use const_format::formatcp;
 use std::collections::{hash_map::Entry, HashMap};
 
@@ -24,7 +24,7 @@ See: {FUNCTION_DOCS}"
 );
 
 pub async fn cexec(common: CommonArgs, rpc: Option<String>, rpc_args: Vec<String>) -> Result<()> {
-    let mut cjdns = cjdns_admin::connect(Some(common.with_auth())).await?;
+    let mut cjdns = cjdns::admin::connect(Some(common.with_auth())).await?;
     if let Some(rpc) = rpc {
         if let Some(func) = cjdns.functions.find(&rpc) {
             let args = parse_rpc_args(func, &rpc_args)?;

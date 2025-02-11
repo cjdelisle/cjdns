@@ -8,8 +8,8 @@ edition = "2021"
 description = "Command line tool for querying cjdns admin API."
 
 [dependencies]
-anyhow = { workspace = true }
-cjdns-admin = { workspace = true }
+eyre = { workspace = true }
+cjdns = { workspace = true }
 clap = { workspace = true }
 const_format = { workspace = true }
 data-encoding = { workspace = true }
@@ -17,5 +17,4 @@ lazy_static = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
-sodiumoxide = { workspace = true }
 tokio = { workspace = true }

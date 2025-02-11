@@ -16,8 +16,8 @@ use crate::util::{
     sockaddr::Sockaddr,
 };
 use std::sync::Arc;
-use anyhow::anyhow;
-use cjdns_bencode::BValue;
+use eyre::eyre;
+use cjdns::bencode::BValue;
 use libc::c_char;
 use std::ffi::CStr;
 
@@ -41,7 +41,7 @@ pub extern "C" fn Rffi_fileExists(
             allocator::adopt(
                 errorAlloc,
                 RTypes_Error_t{
-                    e: Some(anyhow::anyhow!("input did not decode as utf8")),
+                    e: Some(eyre::eyre!("input did not decode as utf8")),
                 },
             )
         }
@@ -126,7 +126,7 @@ pub extern "C" fn Rffi_unixSocketConnect(
             }
         }
     } else {
-        return allocator::adopt(alloc, RTypes_Error_t { e: Some(anyhow!("Failed to decode path as utf8")) });
+        return allocator::adopt(alloc, RTypes_Error_t { e: Some(eyre!("Failed to decode path as utf8")) });
     };
     let iface = cif::wrap(alloc, usc.iface());
     unsafe {
@@ -176,7 +176,7 @@ pub extern "C" fn Rffi_unixSocketServer(
             }
         }
     } else {
-        return allocator::adopt(alloc, RTypes_Error_t { e: Some(anyhow!("Failed to decode path as utf8")) });
+        return allocator::adopt(alloc, RTypes_Error_t { e: Some(eyre!("Failed to decode path as utf8")) });
     };
     let iface_out = cif::wrap(alloc, &mut usc.iface);
     let out = allocator::adopt(alloc, Rffi_SocketServer{

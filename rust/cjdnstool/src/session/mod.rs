@@ -1,7 +1,7 @@
 mod show;
 
 use crate::common::args::CommonArgs;
-use anyhow::Result;
+use eyre::Result;
 use clap::Subcommand;
 
 pub async fn session(common: CommonArgs, command: Command) -> Result<()> {

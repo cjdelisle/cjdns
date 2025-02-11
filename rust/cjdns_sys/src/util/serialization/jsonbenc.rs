@@ -1,8 +1,8 @@
-use cjdns_bencode::bendy::value::Value;
+use cjdns::bencode::bendy::value::Value;
 use std::collections::BTreeMap;
 use std::io::Read;
 use std::borrow::Cow;
-use cjdns_bytes::message::RWrite;
+use cjdns::bytes::message::RWrite;
 use std::io::Result as IoResult;
 
 #[derive(Debug)]
@@ -358,8 +358,8 @@ pub fn serialize<'a, W: RWrite>(writer: &mut W, obj: &Value<'a>) -> IoResult<()>
 
 #[cfg(test)]
 mod test {
-    use anyhow::bail;
-    use cjdns_bencode::bendy::value::Value;
+    use eyre::bail;
+    use cjdns::bencode::bendy::value::Value;
 
     use crate::interface::wire::message::Message;
 
@@ -676,7 +676,7 @@ mod test {
         msg.push_bytes(conf.as_bytes()).unwrap();
         let res = parse(msg, false).unwrap();
         let _ = match res {
-            cjdns_bencode::bendy::value::Value::Dict(d) => d,
+            cjdns::bencode::bendy::value::Value::Dict(d) => d,
             _ => panic!("Wrong type"),
         };
     }

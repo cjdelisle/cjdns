@@ -1,7 +1,7 @@
 use std::{borrow::Cow, collections::BTreeMap};
 
-use anyhow::{anyhow, bail, Result};
-use cjdns_bencode::bendy::value::Value;
+use eyre::{eyre, bail, Result};
+use cjdns::bencode::bendy::value::Value;
 
 use crate::{
     cffi::{
@@ -140,14 +140,14 @@ pub extern "C" fn Rffi_Benc_decodeJson(
         Ok(x) => x,
         Err(e) => {
             return allocator::adopt(alloc, RTypes_Error_t{
-                e: Some(anyhow!("Error decoding json: {:?}", e)),
+                e: Some(eyre!("Error decoding json: {:?}", e)),
             });
         }
     };
     let d = match val {
         Value::Dict(d) => dict_to_c(alloc, &d),
         _ => {
-            return allocator::adopt(alloc, RTypes_Error_t{ e: Some(anyhow!("Json not a dict")) });
+            return allocator::adopt(alloc, RTypes_Error_t{ e: Some(eyre!("Json not a dict")) });
         }
     };
     unsafe {
@@ -165,12 +165,12 @@ pub extern "C" fn Rffi_Benc_encodeJson(
     let mut msg = message::Message::from_c_message(msg);
     let input = match dict_from_c(input) {
         Err(e) => {
-            return allocator::adopt(alloc, RTypes_Error_t{ e: Some(anyhow!("Error converting benc: {}", e)) });
+            return allocator::adopt(alloc, RTypes_Error_t{ e: Some(eyre!("Error converting benc: {}", e)) });
         }
         Ok(input) => input,
     };
     if let Err(e) = jsonbenc::serialize(&mut msg, &Value::Dict(input)) {
-        return allocator::adopt(alloc, RTypes_Error_t{ e: Some(anyhow!("Error decoding json: {}", e)) });
+        return allocator::adopt(alloc, RTypes_Error_t{ e: Some(eyre!("Error decoding json: {}", e)) });
     }
     std::ptr::null_mut()
 }

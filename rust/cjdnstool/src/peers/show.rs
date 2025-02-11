@@ -3,11 +3,11 @@ use crate::common::{
     utils::{self, PushField},
     wire,
 };
-use anyhow::Result;
+use eyre::Result;
 use serde::{Deserialize, Serialize};
 
 pub async fn show(common: CommonArgs, ip6: bool) -> Result<()> {
-    let mut cjdns = cjdns_admin::connect(Some(common.as_anon())).await?;
+    let mut cjdns = cjdns::admin::connect(Some(common.as_anon())).await?;
     let mut lines = vec![];
     let mut page = 0;
     loop {

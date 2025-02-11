@@ -13,7 +13,7 @@ use std::convert::TryFrom;
 use std::sync::Arc;
 use crate::interface::wire::message::Message;
 use crate::external::interface::iface::{self, IfRecv, Iface, IfacePvt};
-use anyhow::{Context, Result};
+use eyre::{Context, Result};
 
 const RECV_BATCH: usize = 8;
 const SEND_BATCH: usize = 8;
@@ -644,7 +644,7 @@ impl Drop for SocketIface {
 impl SocketIface {
     pub fn new<T: AsRawFd + Sync + Send + 'static>(mut fds: Vec<T>, st: SocketType) -> Result<Self> {
         if fds.is_empty() {
-            anyhow::bail!("Cannot create a SocketIface with no file descriptors");
+            eyre::bail!("Cannot create a SocketIface with no file descriptors");
         }
         let mut afds = Vec::with_capacity(fds.len());
         for fd in fds.drain(..) {

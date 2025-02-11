@@ -26,7 +26,7 @@ impl Sockaddr {
         let ss = allocator::adopt(a, self.ss.clone());
         unsafe { &mut (*ss).addr as *mut _ }
     }
-    pub fn rs(&self) -> anyhow::Result<SocketAddr> {
+    pub fn rs(&self) -> eyre::Result<SocketAddr> {
         SocketAddr::try_from(self)
     }
     pub fn as_handle(&self) -> Option<u32> {
@@ -60,14 +60,14 @@ impl From<u32> for Sockaddr {
     }
 }
 impl TryFrom<&[u8]> for Sockaddr {
-    type Error = anyhow::Error;
+    type Error = eyre::Error;
     fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
         if bytes.len() < 2 {
-            anyhow::bail!("Sockaddr::try_from(&[u8]): RUNT < 2");
+            eyre::bail!("Sockaddr::try_from(&[u8]): RUNT < 2");
         }
         let len = u16::from_ne_bytes((&bytes[0..2]).try_into().unwrap());
         if bytes.len() < len as usize {
-            anyhow::bail!("Sockaddr::try_from(&[u8]): RUNT: {} < {}", bytes.len(), len);
+            eyre::bail!("Sockaddr::try_from(&[u8]): RUNT: {} < {}", bytes.len(), len);
         }
         let from = &bytes[0..len as usize];
         let mut out = Self{ss: unsafe { std::mem::zeroed::<cffi::Sockaddr_storage>() } };
@@ -119,8 +119,8 @@ impl From<&SocketAddr> for Sockaddr {
     }
 }
 impl TryFrom<&Sockaddr> for SocketAddr {
-    type Error = anyhow::Error;
-    fn try_from(sa: &Sockaddr) -> anyhow::Result<Self> {
+    type Error = eyre::Error;
+    fn try_from(sa: &Sockaddr) -> eyre::Result<Self> {
         let mut ip = [0u8; 16];
         let (port, is_ip6, is_handle) = unsafe {
             cffi::Sockaddr_asIp6_fromRust(&mut ip as *mut _, &sa.ss.addr as *const _);
@@ -131,7 +131,7 @@ impl TryFrom<&Sockaddr> for SocketAddr {
             )
         };
         if is_handle {
-            anyhow::bail!("Cannot convert handle type Sockaddr to SocketAddr");
+            eyre::bail!("Cannot convert handle type Sockaddr to SocketAddr");
         }
         if is_ip6 {
             Ok(SocketAddr::V6(SocketAddrV6::new(
@@ -153,8 +153,8 @@ impl TryFrom<&Sockaddr> for SocketAddr {
 
 #[cfg(test)]
 mod tests {
-    use anyhow::Result;
-    use cjdns_crypto::hash::sha256;
+    use eyre::Result;
+    use cjdns::crypto::hash::sha256;
     use std::convert::TryFrom;
     use super::SocketAddr;
     use super::Sockaddr;

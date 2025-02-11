@@ -3,7 +3,7 @@
 use std::sync::Arc;
 use std::net::Ipv6Addr;
 
-use anyhow::Result;
+use eyre::Result;
 use parking_lot::{Mutex, RwLock, RwLockUpgradableReadGuard, RwLockWriteGuard};
 use thiserror::Error;
 
@@ -396,7 +396,7 @@ impl CryptoAuth {
     }
 
     pub fn get_secret(&self, name: &str) -> [u8;64] {
-        let mut s = sodiumoxide::crypto::hash::sha512::State::new();
+        let mut s = cjdns::sodiumoxide::crypto::hash::sha512::State::new();
         s.update(&self.private_key[..16]);
         s.update(b"CJDNS_GET_SECRET");
         s.update(name.as_bytes());
@@ -1237,16 +1237,16 @@ impl SessionMut {
 }
 
 pub fn ip6_from_key(key: &[u8; 32]) -> [u8; 16] {
-    let x = sodiumoxide::crypto::hash::sha512::hash(&key[..]);
+    let x = cjdns::sodiumoxide::crypto::hash::sha512::hash(&key[..]);
     let mut out = [0u8; 16];
-    out.copy_from_slice(&sodiumoxide::crypto::hash::sha512::hash(&x.0[..])[0..16]);
+    out.copy_from_slice(&cjdns::sodiumoxide::crypto::hash::sha512::hash(&x.0[..])[0..16]);
     out
 }
 
 pub struct PlaintextRecv(Arc<SessionInner>);
 impl IfRecv for PlaintextRecv {
     fn recv(&self, mut m: Message) -> Result<()> {
-        anyhow::ensure!(m.len() > 0, "Zero-length message is prohibited"); // No real message can be 0 bytes in length
+        eyre::ensure!(m.len() > 0, "Zero-length message is prohibited"); // No real message can be 0 bytes in length
         SessionMut::encrypt(&self.0, &mut m)?;
         self.0.cipher_pvt.send(m)
     }
@@ -1446,7 +1446,7 @@ fn get_shared_secret(
     password_hash: Option<[u8; 32]>,
 ) -> [u8; 32] {
     let output_secret = if let Some(password_hash) = password_hash {
-        use sodiumoxide::crypto::scalarmult::curve25519::*;
+        use cjdns::sodiumoxide::crypto::scalarmult::curve25519::*;
 
         #[repr(C)]
         #[derive(Copy, Clone)]
@@ -1477,7 +1477,7 @@ fn get_shared_secret(
         let bytes = unsafe { buff.bytes };
         crypto_hash_sha256(&bytes)
     } else {
-        use sodiumoxide::crypto::box_::curve25519xsalsa20poly1305::*;
+        use cjdns::sodiumoxide::crypto::box_::curve25519xsalsa20poly1305::*;
 
         let pk = PublicKey(her_public_key);
         let sk = SecretKey(my_private_key);
@@ -1567,7 +1567,7 @@ fn encrypt_rnd_nonce(nonce: [u8; 24], msg: &mut Message, secret: [u8; 32]) {
     //msg.push_bytes(&[0; 32]).expect("pad >= 32");
 
     {
-        use sodiumoxide::crypto::box_::curve25519xsalsa20poly1305::*;
+        use cjdns::sodiumoxide::crypto::box_::curve25519xsalsa20poly1305::*;
         let bytes = msg.bytes_mut();
         let nonce = Nonce(nonce);
         let key = PrecomputedKey(secret);
@@ -1594,7 +1594,7 @@ fn decrypt_rnd_nonce(nonce: [u8; 24], msg: &mut Message, secret: [u8; 32]) -> Re
     //msg.push_bytes(&[0; 16]).expect("pad >= 16");
 
     {
-        use sodiumoxide::crypto::box_::curve25519xsalsa20poly1305::*;
+        use cjdns::sodiumoxide::crypto::box_::curve25519xsalsa20poly1305::*;
         let bytes = msg.bytes_mut();
         let nonce = Nonce(nonce);
         let key = PrecomputedKey(secret);
@@ -1614,7 +1614,7 @@ fn decrypt_rnd_nonce(nonce: [u8; 24], msg: &mut Message, secret: [u8; 32]) -> Re
 mod debug {
     use std::convert::TryFrom;
 
-    use cjdns_keys::{IpV6, PrivateKey};
+    use cjdns::keys::{IpV6, PrivateKey};
 
     use crate::crypto::utils::crypto_scalarmult_curve25519_base;
     use crate::crypto::zero::IsZero;
@@ -1687,7 +1687,7 @@ mod tests {
     use std::sync::Arc;
     use parking_lot::Mutex;
 
-    use cjdns_keys::{CJDNSKeysApi, PrivateKey, PublicKey};
+    use cjdns::keys::{CJDNSKeysApi, PrivateKey, PublicKey};
 
     use crate::gcl::Protected;
     use crate::bytestring::ByteString;
@@ -1874,7 +1874,7 @@ mod tests {
             // Plaintext receiver
             struct Plaintext(Arc<Mutex<Vec<u8>>>);
             impl IfRecv for Plaintext {
-                fn recv(&self, mut m: Message) -> anyhow::Result<()> {
+                fn recv(&self, mut m: Message) -> eyre::Result<()> {
                     assert!(m.len() > 4, "empty message received");
                     m.discard_bytes(4)?; // Extra zeroes added by CiphertextRecv
                     self.0.lock().extend_from_slice(m.peek_bytes(m.len())?);
@@ -1949,7 +1949,7 @@ mod tests {
             // Plaintext receiver
             struct Plaintext(Arc<Mutex<Vec<u8>>>);
             impl IfRecv for Plaintext {
-                fn recv(&self, mut m: Message) -> anyhow::Result<()> {
+                fn recv(&self, mut m: Message) -> eyre::Result<()> {
                     assert!(m.len() > 4, "empty message received");
                     m.discard_bytes(4)?; // Extra zeroes added by CiphertextRecv
                     self.0.lock().extend_from_slice(m.peek_bytes(m.len())?);

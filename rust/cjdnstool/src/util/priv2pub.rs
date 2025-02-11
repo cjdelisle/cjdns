@@ -1,6 +1,6 @@
 use crate::common::base32;
-use anyhow::{bail, Result};
-use sodiumoxide::{crypto::box_::SecretKey, hex};
+use eyre::{bail, Result};
+use cjdns::sodiumoxide::{crypto::box_::SecretKey, hex};
 use std::fmt::Write;
 
 pub async fn priv2pub(privkeys: Vec<String>) -> Result<()> {

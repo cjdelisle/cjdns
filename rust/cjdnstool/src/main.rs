@@ -73,7 +73,7 @@ async fn main() -> MainResult {
 enum MainResult {
     Success,
     ClapError(clap::error::Error),
-    AnyhowError(anyhow::Error),
+    AnyhowError(eyre::Error),
 }
 
 impl From<clap::error::Error> for MainResult {
@@ -82,8 +82,8 @@ impl From<clap::error::Error> for MainResult {
     }
 }
 
-impl From<anyhow::Error> for MainResult {
-    fn from(value: anyhow::Error) -> Self {
+impl From<eyre::Error> for MainResult {
+    fn from(value: eyre::Error) -> Self {
         MainResult::AnyhowError(value)
     }
 }

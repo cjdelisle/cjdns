@@ -1,9 +1,9 @@
 use std::slice::from_raw_parts_mut;
 use std::sync::Arc;
 
-use cjdns_crypto::hash::sha256;
+use cjdns::crypto::hash::sha256;
 use libc::{c_char, c_int, c_uchar, c_ulonglong};
-use sodiumoxide::crypto::hash::sha512;
+use cjdns::sodiumoxide::crypto::hash::sha512;
 
 use super::allocator::file_line;
 use super::{cstr, cstr_to_string, strc};

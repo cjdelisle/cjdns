@@ -1,3 +1,3 @@
 //! Public and private keys
 
-pub use cjdns_keys::{IpV6, PrivateKey, PublicKey};
+pub use cjdns::keys::{IpV6, PrivateKey, PublicKey};

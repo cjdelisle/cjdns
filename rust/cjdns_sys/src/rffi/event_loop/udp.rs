@@ -1,4 +1,4 @@
-use cjdns_bencode::BValue;
+use cjdns::bencode::BValue;
 
 use crate::cffi::{Allocator_t, Dict_t, Iface_t, Object_t, Sockaddr_t};
 use crate::external::interface::cif;

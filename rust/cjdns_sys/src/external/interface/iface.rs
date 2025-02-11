@@ -3,7 +3,7 @@
 use std::sync::{atomic::AtomicU32, Arc, Weak};
 use parking_lot::RwLock;
 
-use anyhow::{bail, Result};
+use eyre::{bail, Result};
 
 use crate::interface::wire::message::Message;
 

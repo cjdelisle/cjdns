@@ -2,7 +2,7 @@ use crate::interface::wire::message::Message;
 use crate::crypto::crypto_header::Challenge2;
 use boringtun::noise::make_array;
 
-use anyhow::{bail,Result};
+use eyre::{bail,Result};
 
 /// padding in order to make the length of the data fall on an even memory boundary
 /// all passing bytes must be zero.

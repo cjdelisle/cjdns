@@ -12,8 +12,8 @@ pub mod replay_protector;
 pub mod session;
 
 mod utils {
-    use sodiumoxide::crypto::hash::sha256;
-    use sodiumoxide::crypto::scalarmult::curve25519;
+    use cjdns::sodiumoxide::crypto::hash::sha256;
+    use cjdns::sodiumoxide::crypto::scalarmult::curve25519;
 
     use super::keys::{PrivateKey, PublicKey};
     use super::wipe::Wipe;
@@ -37,7 +37,7 @@ mod wipe {
     use std::ptr;
     use std::sync::atomic;
 
-    use sodiumoxide::crypto::scalarmult::curve25519::Scalar;
+    use cjdns::sodiumoxide::crypto::scalarmult::curve25519::Scalar;
 
     use crate::crypto::crypto_header::CryptoHeader;
 
