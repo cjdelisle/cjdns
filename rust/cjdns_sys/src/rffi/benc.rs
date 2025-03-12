@@ -114,7 +114,6 @@ pub fn list_from_c(list: *mut List_t) -> Result<Vec<Value<'static>>> {
             l = (*l).next;
         }
     }
-    out.reverse();
     Ok(out)
 }
 
