@@ -358,8 +358,7 @@ pub fn serialize<'a, W: RWrite>(writer: &mut W, obj: &Value<'a>) -> IoResult<()>
 
 #[cfg(test)]
 mod test {
-    use eyre::bail;
-    use cjdns::bencode::bendy::value::Value;
+    use cjdns::bencode::bendy::encoding::ToBencode;
 
     use crate::interface::wire::message::Message;
 
@@ -674,10 +673,31 @@ mod test {
         "#;
         let mut msg = Message::new(20000);
         msg.push_bytes(conf.as_bytes()).unwrap();
-        let res = parse(msg, false).unwrap();
-        let _ = match res {
+        let res = parse(&mut msg, false).unwrap();
+        let d = match res.clone() {
             cjdns::bencode::bendy::value::Value::Dict(d) => d,
             _ => panic!("Wrong type"),
         };
+        let sec = d.get(&b"security"[..]).unwrap();
+        let sec = match sec {
+            cjdns::bencode::bendy::value::Value::List(d) => d,
+            _ => panic!("Wrong type"),
+        };
+        let sec0 = sec.get(0).unwrap();
+        let sec0 = match sec0 {
+            cjdns::bencode::bendy::value::Value::Dict(d) => d,
+            _ => panic!("Wrong type"),
+        };
+        // check that sec0 has "setuser" key
+        let _ = sec0.get(&b"setuser"[..]).unwrap();
+
+        msg.clear();
+        serialize(&mut msg, &res).unwrap();
+        println!("{}", String::from_utf8_lossy(msg.bytes()));
+
+        let res2 = parse(&mut msg, false).unwrap();
+        let bres = res.to_bencode().unwrap();
+        let bres2 = res2.to_bencode().unwrap();
+        assert_eq!(bres, bres2);
     }
 }
