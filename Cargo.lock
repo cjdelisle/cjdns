@@ -325,7 +325,7 @@ dependencies = [
 [[package]]
 name = "cjdns"
 version = "0.1.0"
-source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=14a6f093334ea5e6bae571ef8100c3306a1ca8ec#14a6f093334ea5e6bae571ef8100c3306a1ca8ec"
+source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=c51778a53c0d9c569fb4716fc7143981004d6be7#c51778a53c0d9c569fb4716fc7143981004d6be7"
 dependencies = [
  "cjdns-admin",
  "cjdns-ann",
@@ -346,7 +346,7 @@ dependencies = [
 [[package]]
 name = "cjdns-admin"
 version = "0.1.0"
-source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=14a6f093334ea5e6bae571ef8100c3306a1ca8ec#14a6f093334ea5e6bae571ef8100c3306a1ca8ec"
+source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=c51778a53c0d9c569fb4716fc7143981004d6be7#c51778a53c0d9c569fb4716fc7143981004d6be7"
 dependencies = [
  "cjdns-bencode",
  "dirs",
@@ -364,7 +364,7 @@ dependencies = [
 [[package]]
 name = "cjdns-ann"
 version = "0.1.0"
-source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=14a6f093334ea5e6bae571ef8100c3306a1ca8ec#14a6f093334ea5e6bae571ef8100c3306a1ca8ec"
+source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=c51778a53c0d9c569fb4716fc7143981004d6be7#c51778a53c0d9c569fb4716fc7143981004d6be7"
 dependencies = [
  "cjdns-bytes",
  "cjdns-core",
@@ -379,7 +379,7 @@ dependencies = [
 [[package]]
 name = "cjdns-bencode"
 version = "0.1.0"
-source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=14a6f093334ea5e6bae571ef8100c3306a1ca8ec#14a6f093334ea5e6bae571ef8100c3306a1ca8ec"
+source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=c51778a53c0d9c569fb4716fc7143981004d6be7#c51778a53c0d9c569fb4716fc7143981004d6be7"
 dependencies = [
  "bendy",
  "hex",
@@ -389,7 +389,7 @@ dependencies = [
 [[package]]
 name = "cjdns-bytes"
 version = "0.1.0"
-source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=14a6f093334ea5e6bae571ef8100c3306a1ca8ec#14a6f093334ea5e6bae571ef8100c3306a1ca8ec"
+source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=c51778a53c0d9c569fb4716fc7143981004d6be7#c51778a53c0d9c569fb4716fc7143981004d6be7"
 dependencies = [
  "base64 0.21.7",
  "byteorder",
@@ -403,7 +403,7 @@ dependencies = [
 [[package]]
 name = "cjdns-core"
 version = "0.1.0"
-source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=14a6f093334ea5e6bae571ef8100c3306a1ca8ec#14a6f093334ea5e6bae571ef8100c3306a1ca8ec"
+source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=c51778a53c0d9c569fb4716fc7143981004d6be7#c51778a53c0d9c569fb4716fc7143981004d6be7"
 dependencies = [
  "lazy_static",
  "regex",
@@ -414,7 +414,7 @@ dependencies = [
 [[package]]
 name = "cjdns-crypto"
 version = "0.1.0"
-source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=14a6f093334ea5e6bae571ef8100c3306a1ca8ec#14a6f093334ea5e6bae571ef8100c3306a1ca8ec"
+source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=c51778a53c0d9c569fb4716fc7143981004d6be7#c51778a53c0d9c569fb4716fc7143981004d6be7"
 dependencies = [
  "ed25519",
  "libsodium-sys",
@@ -425,7 +425,7 @@ dependencies = [
 [[package]]
 name = "cjdns-ctrl"
 version = "0.1.0"
-source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=14a6f093334ea5e6bae571ef8100c3306a1ca8ec#14a6f093334ea5e6bae571ef8100c3306a1ca8ec"
+source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=c51778a53c0d9c569fb4716fc7143981004d6be7#c51778a53c0d9c569fb4716fc7143981004d6be7"
 dependencies = [
  "cjdns-bytes",
  "cjdns-core",
@@ -438,7 +438,7 @@ dependencies = [
 [[package]]
 name = "cjdns-hdr"
 version = "0.1.0"
-source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=14a6f093334ea5e6bae571ef8100c3306a1ca8ec#14a6f093334ea5e6bae571ef8100c3306a1ca8ec"
+source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=c51778a53c0d9c569fb4716fc7143981004d6be7#c51778a53c0d9c569fb4716fc7143981004d6be7"
 dependencies = [
  "cjdns-bytes",
  "cjdns-core",
@@ -449,7 +449,7 @@ dependencies = [
 [[package]]
 name = "cjdns-keys"
 version = "0.1.0"
-source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=14a6f093334ea5e6bae571ef8100c3306a1ca8ec#14a6f093334ea5e6bae571ef8100c3306a1ca8ec"
+source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=c51778a53c0d9c569fb4716fc7143981004d6be7#c51778a53c0d9c569fb4716fc7143981004d6be7"
 dependencies = [
  "cjdns-crypto",
  "data-encoding",
@@ -463,7 +463,7 @@ dependencies = [
 [[package]]
 name = "cjdns-sniff"
 version = "0.1.0"
-source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=14a6f093334ea5e6bae571ef8100c3306a1ca8ec#14a6f093334ea5e6bae571ef8100c3306a1ca8ec"
+source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=c51778a53c0d9c569fb4716fc7143981004d6be7#c51778a53c0d9c569fb4716fc7143981004d6be7"
 dependencies = [
  "cjdns-admin",
  "cjdns-bencode",
@@ -483,7 +483,7 @@ dependencies = [
 [[package]]
 name = "cjdns-snode-wire"
 version = "0.1.0"
-source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=14a6f093334ea5e6bae571ef8100c3306a1ca8ec#14a6f093334ea5e6bae571ef8100c3306a1ca8ec"
+source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=c51778a53c0d9c569fb4716fc7143981004d6be7#c51778a53c0d9c569fb4716fc7143981004d6be7"
 dependencies = [
  "cjdns-bytes",
  "serde",
@@ -492,7 +492,7 @@ dependencies = [
 [[package]]
 name = "cjdns-util"
 version = "0.1.0"
-source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=14a6f093334ea5e6bae571ef8100c3306a1ca8ec#14a6f093334ea5e6bae571ef8100c3306a1ca8ec"
+source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=c51778a53c0d9c569fb4716fc7143981004d6be7#c51778a53c0d9c569fb4716fc7143981004d6be7"
 
 [[package]]
 name = "cjdns_sys"
@@ -1256,7 +1256,7 @@ dependencies = [
 [[package]]
 name = "netchecksum"
 version = "0.1.0"
-source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=14a6f093334ea5e6bae571ef8100c3306a1ca8ec#14a6f093334ea5e6bae571ef8100c3306a1ca8ec"
+source = "git+https://github.com/cjdelisle/cjdns-route-server?rev=c51778a53c0d9c569fb4716fc7143981004d6be7#c51778a53c0d9c569fb4716fc7143981004d6be7"
 
 [[package]]
 name = "no-std-net"

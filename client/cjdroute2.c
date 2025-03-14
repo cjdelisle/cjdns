@@ -22,14 +22,11 @@
 #include "client/Configurator.h"
 #include "crypto/Key.h"
 #include "benc/Dict.h"
-#include "benc/serialization/json/JsonBencMessageReader.h"
 #include "benc/serialization/standard/BencMessageReader.h"
 #include "benc/serialization/standard/BencMessageWriter.h"
 #include "crypto/random/test/DeterminentRandomSeed.h"
 #include "exception/Err.h"
 #include "interface/Iface.h"
-#include "io/FileWriter.h"
-#include "io/Writer.h"
 #include "memory/Allocator.h"
 #include "util/AddrTools.h"
 #include "util/ArchInfo.h"
@@ -463,7 +460,7 @@ static int usage(struct Allocator* alloc, char* appName)
            "                                   be enabled. Caution it can interfere with UDP\n"
            "                                   beaconing\n"
            "    cjdroute --genconf-seed [--eth] Generate a configuration file from a 64 byte seed\n"
-           "                                   which is read in from stdin."
+           "                                   which is read in from stdin.\n"
            "    cjdroute --version             Print the protocol version which this node speaks.\n"
            "    cjdroute --cleanconf < conf    Print a clean (valid json) version of the config.\n"
            "    cjdroute --nobg                Never fork to the background no matter the config.\n"
@@ -567,33 +564,6 @@ static void onCoreExit(int64_t exit_status, int term_signal)
     exit(exit_status);
 }
 
-#define Chunk_MAX_LEN 4000
-struct Chunk {
-    uint32_t length;
-    struct Chunk* next;
-    uint8_t buf[Chunk_MAX_LEN];
-};
-static Message_t* readToMsg(FILE* f, struct Allocator* alloc)
-{
-    struct Allocator* child = Allocator_child(alloc);
-    struct Chunk* c = NULL;
-    uint32_t totalLength = 0;
-    do {
-        struct Chunk* cc = Allocator_calloc(child, sizeof(struct Chunk), 1);
-        cc->length = fread(cc->buf, 1, Chunk_MAX_LEN, f);
-        totalLength += cc->length;
-        cc->next = c;
-        c = cc;
-    } while (c->length == Chunk_MAX_LEN);
-    Message_t* out = Message_new(0, totalLength, alloc);
-    while (c) {
-        Err_assert(Message_epush(out, c->buf, c->length));
-        c = c->next;
-    }
-    Allocator_free(child);
-    return out;
-}
-
 static String* getPipePath(Dict* config, struct Allocator* alloc)
 {
     String* pipePath = Dict_getStringC(config, "pipe");
@@ -654,7 +624,7 @@ int cjdroute2_main(int argc, char** argv)
             printf("Cjdns protocol version: %d\n", Version_CURRENT_PROTOCOL);
             return 0;
         } else if (CString_strcmp(argv[1], "--cleanconf") == 0) {
-            // Performed after reading configuration
+            return Rffi_Benc_cleanConf();
         } else if (CString_strcmp(argv[1], "--nobg") == 0) {
             // Performed while reading configuration
         } else {
@@ -698,41 +668,8 @@ int cjdroute2_main(int argc, char** argv)
         // start routing
     }
 
-    // First try reading the conf with the new parser, then try the old parser
-    // and if the old parser fails or the parsed content contains "version": 2,
-    // fail to launch
-    Message_t* confMsg = readToMsg(stdin, allocator);
     Dict* config = NULL;
-    RTypes_Error_t* err = JsonBencMessageReader_read(
-        &config,
-        Message_clone(confMsg, allocator),
-        allocator,
-        false
-    );
-    if (err) {
-        // Try again with lax parsing to check if version is < 2
-        Err_assert(JsonBencMessageReader_read(
-            &config,
-            Message_clone(confMsg, allocator),
-            allocator,
-            true
-        ));
-        int64_t* ver = Dict_getIntC(config, "version");
-        if (ver && *ver > 1) {
-            Err_assert(err);
-        }
-    }
-
-    if (argc == 2 && CString_strcmp(argv[1], "--cleanconf") == 0) {
-        // Slip a v2 in there because at this point, the conf file is definitely v2 valid
-        Dict_putIntC(config, "version", 2, allocator);
-        struct Message* msg = Message_new(0, 10000, allocator);
-        Err_assert(JsonBencMessageReader_write(config, msg, allocator));
-        struct Writer* stdoutWriter = FileWriter_new(stdout, allocator);
-        stdoutWriter->write(stdoutWriter, Message_bytes(msg), Message_getLength(msg));
-        printf("\n");
-        return 0;
-    }
+    Err_assert(Rffi_Benc_readConfFromStdin(&config, allocator));
 
     int forceNoBackground = 0;
     if (argc == 2 && CString_strcmp(argv[1], "--nobg") == 0) {

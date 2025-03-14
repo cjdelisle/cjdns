@@ -1,13 +1,23 @@
 use cjdns::bencode::bendy::value::Value;
+use eyre::bail;
 use std::collections::BTreeMap;
 use std::io::Read;
 use std::borrow::Cow;
-use cjdns::bytes::message::RWrite;
+use cjdns::bytes::message::{Message, RWrite};
 use std::io::Result as IoResult;
+use std::io::Write;
 
 #[derive(Debug)]
 pub enum ParseError {
     MalformedInput(String, usize), // Error with description and line number
+}
+impl From<ParseError> for eyre::ErrReport {
+    fn from(pe: ParseError) -> Self {
+        match pe {
+            ParseError::MalformedInput(desc, line) =>
+                eyre::eyre!("{} at line {}", desc, line),
+        }
+    }
 }
 
 struct JsonParser<R: Read> {
@@ -356,17 +366,96 @@ pub fn serialize<'a, W: RWrite>(writer: &mut W, obj: &Value<'a>) -> IoResult<()>
     serialize_reverse(writer, obj, 0)
 }
 
+pub fn read_conf(conf: &[u8]) -> eyre::Result<Value<'static>> {
+    // Read json conf from stdin
+    let conf = match parse(conf, false) {
+        Ok(x) => {
+            return Ok(x);
+        },
+        Err(_) => {
+            // If there's an error, re-attempt with lax_mode = true
+            parse(conf, true)?
+        }
+    };
+    let d = match &conf {
+        Value::Dict(d) => Ok(d),
+        _ => Err(eyre::eyre!("Expected dict as top-level object"))
+    }?;
+    let ver = match d.get(&b"version"[..]) {
+        Some(Value::Integer(x)) => Ok(*x),
+        None => Ok(0),
+        _ => Err(eyre::eyre!("Expected integer version field"))
+    }?;
+    if ver > 1 {
+        bail!("Conf version is {} but it does not parse correctly", ver);
+    }
+    Ok(conf)
+}
+
+fn conf_fix_list_order_quirk(conf: &mut Value<'static>) -> eyre::Result<()> {
+    match conf {
+        Value::Dict(d) => {
+            for (_, v) in d.iter_mut() {
+                conf_fix_list_order_quirk(v)?;
+            }
+        }
+        Value::List(l) => {
+            for v in l.iter_mut() {
+                conf_fix_list_order_quirk(v)?;
+            }
+            l.reverse();
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+fn conf_check_fix_list_order_quirk(conf: &mut Value<'static>) -> eyre::Result<()> {
+    // Check that it's a dict, if so, check that it has "security", if so check if
+    // the "setupComplete" is the FIRST item, if so reverse.
+    let should_swap = match conf {
+        Value::Dict(d) => {
+            if let Some(Value::List(security)) = d.get_mut(&b"security"[..]) {
+                if let Some(Value::Dict(first)) = security.get_mut(0) {
+                    first.get(&b"setupComplete"[..]).is_some()
+                } else {
+                    bail!("Expected dict as first item in security list");
+                }
+            } else {
+                bail!("Expected list as security field");
+            }
+        }
+        _ => { bail!("Expected dict as top-level object"); }
+    };
+    if should_swap {
+        conf_fix_list_order_quirk(conf)?;
+        eprintln!("Fixed list order quirk");
+    }
+    Ok(())
+}
+
+pub fn clean_conf() -> eyre::Result<()> {
+    let mut conf = Vec::new();
+    std::io::stdin().read_to_end(&mut conf)?;
+    let mut conf = read_conf(&conf)?;
+    conf_check_fix_list_order_quirk(&mut conf)?;
+    let mut msg = Message::new();
+    serialize(&mut msg, &conf)?;
+    std::io::stdout().write_all(&msg.as_vec()[..])?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod test {
+    use std::io::Write;
     use cjdns::bencode::bendy::encoding::ToBencode;
+    use cjdns::bytes::message::Message;
 
-    use crate::interface::wire::message::Message;
+    // use crate::interface::wire::message::Message;
 
-    use super::{parse, serialize};
+    use super::{parse, serialize, read_conf};
 
-    #[test]
-    fn test() {
-        let conf = r#"
+    const CONF: &str = r#"
 {
     // Private key:
     // Your confidentiality and data integrity depend on this key, keep it secret!
@@ -670,9 +759,12 @@ mod test {
     // it to be edited externally using cjdnsconf.
     "version": 2
 }
-        "#;
-        let mut msg = Message::new(20000);
-        msg.push_bytes(conf.as_bytes()).unwrap();
+    "#;
+
+    #[test]
+    fn test() {
+        let mut msg = Message::new();
+        msg.write_all(CONF.as_bytes()).unwrap();
         let res = parse(&mut msg, false).unwrap();
         let d = match res.clone() {
             cjdns::bencode::bendy::value::Value::Dict(d) => d,
@@ -693,11 +785,30 @@ mod test {
 
         msg.clear();
         serialize(&mut msg, &res).unwrap();
-        println!("{}", String::from_utf8_lossy(msg.bytes()));
+        println!("{}", String::from_utf8_lossy(&msg.as_vec()));
 
         let res2 = parse(&mut msg, false).unwrap();
         let bres = res.to_bencode().unwrap();
         let bres2 = res2.to_bencode().unwrap();
         assert_eq!(bres, bres2);
+    }
+
+    #[test]
+    fn test_read_conf_invalid() {
+        let mut s = CONF.to_string();
+        // Drop a comma
+        s = s.replace("\"pipe\": \"cjdroute.sock\",", "\"pipe\": \"cjdroute.sock\"");
+
+        let mut msg = Message::new();
+        msg.write_all(s.as_bytes()).unwrap();
+        
+        let res = read_conf(&msg.as_vec());
+        assert!(res.is_err());
+
+        s = s.replace("\"version\": 2", "\"version\": 1");
+        msg.clear();
+        msg.write_all(s.as_bytes()).unwrap();
+
+        read_conf(&msg.as_vec()).unwrap();
     }
 }

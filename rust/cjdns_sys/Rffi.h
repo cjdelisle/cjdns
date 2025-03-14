@@ -322,11 +322,8 @@ RTypes_Error_t *Rffi_Seeder_got_peers(Rffi_Seeder *seeder,
 
 bool Rffi_Seeder_has_lladdr(Rffi_Seeder *seeder);
 
-RTypes_Error_t *Rffi_Benc_decodeJson(Dict_t **out,
-                                     Message_t *msg,
-                                     bool lax_mode,
-                                     Allocator_t *alloc);
+int Rffi_Benc_cleanConf(void);
 
-RTypes_Error_t *Rffi_Benc_encodeJson(Dict_t *input, Message_t *msg, Allocator_t *alloc);
+RTypes_Error_t *Rffi_Benc_readConfFromStdin(Dict_t **out, Allocator_t *alloc);
 
 #endif /* rffi_H */

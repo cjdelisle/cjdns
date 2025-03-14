@@ -1,4 +1,9 @@
-use std::{borrow::Cow, collections::BTreeMap};
+use std::{
+    borrow::Cow,
+    collections::BTreeMap,
+    ffi::c_int,
+    io::Read,
+};
 
 use eyre::{eyre, bail, Result};
 use cjdns::bencode::bendy::value::Value;
@@ -128,22 +133,39 @@ pub fn value_from_c(obj: *mut Object_t) -> Result<Value<'static>> {
 }
 
 #[no_mangle]
-pub extern "C" fn Rffi_Benc_decodeJson(
+pub extern "C" fn Rffi_Benc_cleanConf() -> c_int {
+    match jsonbenc::clean_conf() {
+        Ok(_) => 0,
+        Err(e) => {
+            eprintln!("Error cleaning conf: {:?}", e);
+            100
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn Rffi_Benc_readConfFromStdin(
     out: *mut *mut Dict_t,
-    msg: *mut Message_t,
-    lax_mode: bool,
     alloc: *mut Allocator_t,
 ) -> *mut RTypes_Error_t {
-    let mut msg = message::Message::from_c_message(msg);
-    let val = match jsonbenc::parse(&mut msg, lax_mode) {
+    let mut conf = Vec::new();
+    match std::io::stdin().read_to_end(&mut conf) {
+        Ok(_) => (),
+        Err(e) => {
+            return allocator::adopt(alloc, RTypes_Error_t{
+                e: Some(eyre!("Error reading conf from stdin: {:?}", e)),
+            });
+        }
+    }
+    let conf = match jsonbenc::read_conf(&conf) {
         Ok(x) => x,
         Err(e) => {
             return allocator::adopt(alloc, RTypes_Error_t{
-                e: Some(eyre!("Error decoding json: {:?}", e)),
+                e: Some(eyre!("Error reading conf from stdin: {:?}", e)),
             });
         }
     };
-    let d = match val {
+    let d = match conf {
         Value::Dict(d) => dict_to_c(alloc, &d),
         _ => {
             return allocator::adopt(alloc, RTypes_Error_t{ e: Some(eyre!("Json not a dict")) });
@@ -151,25 +173,6 @@ pub extern "C" fn Rffi_Benc_decodeJson(
     };
     unsafe {
         *out = d;
-    }
-    std::ptr::null_mut()
-}
-
-#[no_mangle]
-pub extern "C" fn Rffi_Benc_encodeJson(
-    input: *mut Dict_t,
-    msg: *mut Message_t,
-    alloc: *mut Allocator_t,
-) -> *mut RTypes_Error_t {
-    let mut msg = message::Message::from_c_message(msg);
-    let input = match dict_from_c(input) {
-        Err(e) => {
-            return allocator::adopt(alloc, RTypes_Error_t{ e: Some(eyre!("Error converting benc: {}", e)) });
-        }
-        Ok(input) => input,
-    };
-    if let Err(e) = jsonbenc::serialize(&mut msg, &Value::Dict(input)) {
-        return allocator::adopt(alloc, RTypes_Error_t{ e: Some(eyre!("Error decoding json: {}", e)) });
     }
     std::ptr::null_mut()
 }
