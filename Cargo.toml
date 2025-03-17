@@ -14,7 +14,8 @@ panic = "unwind"
 opt-level = 2
 
 [workspace.dependencies]
-cjdns = { git = "https://github.com/cjdelisle/cjdns-route-server", rev = "c51778a53c0d9c569fb4716fc7143981004d6be7", version = "0.1.0" }
+cjdns = { git = "https://github.com/cjdelisle/cjdns-route-server", rev = "8cfdf38dcf179cfbe701a7926edfe8ee2fd9f314", version = "0.1.0" }
+#cjdns = { path = "../cjdns-route-server/cjdns" }
 clap = { version = "4", features = ["derive"] }
 const_format = "0.2"
 data-encoding = "2"
@@ -45,3 +46,4 @@ byteorder = "1.5"
 trust-dns-resolver = "0.23.2"
 ipnetwork = "0.20"
 num_enum = "0.7"
+rand = "0.7"

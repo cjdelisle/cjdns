@@ -28,6 +28,7 @@
 #include "rust/cjdns_sys/RTypes.h"
 #include "subnode/PeeringSeeder_admin.h"
 #include "subnode/SubnodePathfinder.h"
+#include "subnode/SubnodePathfinder_admin.h"
 #include "subnode/SupernodeHunter_admin.h"
 #include "subnode/ReachabilityCollector_admin.h"
 #include "util/platform/Sockaddr.h"
@@ -414,6 +415,7 @@ Err_DEFUN Core_init(struct Allocator* alloc,
     SubnodePathfinder_start(spf);
 
     // ------------------- Register RPC functions ----------------------- //
+    SubnodePathfinder_admin_register(spf, admin, alloc);
     PeeringSeeder_admin_register(spf->ps, admin, alloc);
     UpperDistributor_admin_register(nc->upper, admin, alloc);
     RouteGen_admin_register(rg, admin, alloc);

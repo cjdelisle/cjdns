@@ -13,6 +13,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "benc/Dict.h"
+#include "benc/String.h"
 #include "crypto/AddressCalc.h"
 #include "memory/Allocator.h"
 #include "dht/Address.h"
@@ -192,7 +193,15 @@ static void pingerSendPing(String* data, void* context)
     struct MsgCore_Promise_pvt* pp = Identity_check((struct MsgCore_Promise_pvt*) context);
     Assert_true(pp->pub.target);
     Assert_true(pp->pub.msg);
-    Dict_putStringC(pp->pub.msg, "txid", data, pp->pub.alloc);
+    String* txid = Dict_getStringC(pp->pub.msg, "txid");
+    if (txid && txid->len) {
+        String* ntxid = String_newBinary(NULL, txid->len + data->len, pp->pub.alloc);
+        Bits_memcpy(ntxid->bytes, data->bytes, data->len);
+        Bits_memcpy(&ntxid->bytes[data->len], txid->bytes, txid->len);
+        Dict_putStringC(pp->pub.msg, "txid", ntxid, pp->pub.alloc);
+    } else {
+        Dict_putStringC(pp->pub.msg, "txid", data, pp->pub.alloc);
+    }
     sendMsg(pp->mcp, pp->pub.msg, pp->pub.target, pp->pub.alloc);
 }
 

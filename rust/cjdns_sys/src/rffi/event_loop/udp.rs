@@ -1,4 +1,4 @@
-use cjdns::bencode::BValue;
+use cjdns::bencode::object::Dict;
 
 use crate::cffi::{Allocator_t, Dict_t, Iface_t, Object_t, Sockaddr_t};
 use crate::external::interface::cif;
@@ -44,24 +44,18 @@ pub extern "C" fn Rffi_udpIface_worker_states(
     alloc: *mut Allocator_t,
 ) -> *mut RTypes_Error_t {
     let (sws, rws) = from_c!(iface).udp.worker_states();
-    let bv = BValue::builder()
-        .set_dict()
-        .add_dict_entry("send", |mut b|{
-            b = b.set_dict();
-            for (i, s) in sws.iter().enumerate() {
-                b = b.add_dict_entry(i.to_string(), |b|b.set_str(format!("{s:?}")));
-            }
-            b
-        })
-        .add_dict_entry("recv", |mut b|{
-            b = b.set_dict();
-            for (i, r) in rws.iter().enumerate() {
-                b = b.add_dict_entry(i.to_string(), |b|b.set_str(format!("{r:?}")));
-            }
-            b
-        })
-        .build();
-    let out = benc::value_to_c(alloc, bv.inner());
+    let mut bv = Dict::new();
+    bv.insert("send", sws.iter()
+        .enumerate()
+        .map(|(i,s)|(i.to_string(), format!("{s:?}")))
+        .collect::<Dict<'_>>(),
+    );
+    bv.insert("recv", rws.iter()
+        .enumerate()
+        .map(|(i,r)|(i.to_string(), format!("{r:?}")))
+        .collect::<Dict<'_>>(),
+    );
+    let out = benc::value_to_c(alloc, &bv.obj());
     unsafe {
         *outP = out;
     }

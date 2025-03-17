@@ -326,4 +326,8 @@ int Rffi_Benc_cleanConf(void);
 
 RTypes_Error_t *Rffi_Benc_readConfFromStdin(Dict_t **out, Allocator_t *alloc);
 
+RTypes_Error_t *Rffi_Benc_read(Dict_t **out, Message_t *c_msg, Allocator_t *alloc);
+
+RTypes_Error_t *Rffi_Benc_write(Dict_t *benc, Message_t *c_msg, Allocator_t *alloc);
+
 #endif /* rffi_H */

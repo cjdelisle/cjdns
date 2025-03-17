@@ -17,7 +17,7 @@ use crate::util::{
 };
 use std::sync::Arc;
 use eyre::eyre;
-use cjdns::bencode::BValue;
+use cjdns::bencode::object::Dict;
 use libc::c_char;
 use std::ffi::CStr;
 
@@ -63,25 +63,18 @@ pub extern "C" fn Rffi_socketWorkerStates(
 ) -> *mut RTypes_Error_t {
     let si = from_c_const!(si);
     let (sws, rws) = si.si.worker_states();
-
-    let bv = BValue::builder()
-        .set_dict()
-        .add_dict_entry("send", |mut b|{
-            b = b.set_dict();
-            for (i, s) in sws.iter().enumerate() {
-                b = b.add_dict_entry(i.to_string(), |b|b.set_str(format!("{s:?}")));
-            }
-            b
-        })
-        .add_dict_entry("recv", |mut b|{
-            b = b.set_dict();
-            for (i, r) in rws.iter().enumerate() {
-                b = b.add_dict_entry(i.to_string(), |b|b.set_str(format!("{r:?}")));
-            }
-            b
-        })
-        .build();
-    let out = benc::value_to_c(alloc, bv.inner());
+    let mut bv = Dict::new();
+    bv.insert("send", sws.iter()
+        .enumerate()
+        .map(|(i,s)|(i.to_string(), format!("{s:?}")))
+        .collect::<Dict<'_>>(),
+    );
+    bv.insert("recv", rws.iter()
+        .enumerate()
+        .map(|(i,r)|(i.to_string(), format!("{r:?}")))
+        .collect::<Dict<'_>>(),
+    );
+    let out = benc::value_to_c(alloc, &bv.obj());
     unsafe {
         *outP = out;
     }

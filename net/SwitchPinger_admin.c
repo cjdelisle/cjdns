@@ -34,7 +34,7 @@ struct Context
     struct Allocator* alloc;
 };
 
-struct Ping
+struct Request
 {
     struct Context* context;
     String* txid;
@@ -44,7 +44,7 @@ struct Ping
 static void adminPingOnResponse(struct SwitchPinger_Response* resp, void* vping)
 {
     struct Allocator* pingAlloc = resp->ping->pingAlloc;
-    struct Ping* ping = vping;
+    struct Request* ping = vping;
 
     Dict* rd = Dict_new(pingAlloc);
 
@@ -70,7 +70,7 @@ static void adminPingOnResponse(struct SwitchPinger_Response* resp, void* vping)
     }
 
     if (!Bits_isZero(&resp->snode, sizeof resp->snode)) {
-        Dict_putStringC(rd, "snode", Address_toString(&resp->snode, pingAlloc), pingAlloc);
+        Dict_putStringC(rd, "snode", Address_toStringKey(&resp->snode, pingAlloc), pingAlloc);
     }
 
     if (resp->rpath) {
@@ -143,7 +143,7 @@ static void adminPing(Dict* args, void* vcontext, String* txid, struct Allocator
             } else if (rpath && *rpath) {
                 ping->type = SwitchPinger_Type_RPATH;
             }
-            ping->onResponseContext = Allocator_clone(ping->pingAlloc, (&(struct Ping) {
+            ping->onResponseContext = Allocator_clone(ping->pingAlloc, (&(struct Request) {
                 .context = context,
                 .txid = String_clone(txid, ping->pingAlloc),
                 .path = String_clone(pathStr, ping->pingAlloc)

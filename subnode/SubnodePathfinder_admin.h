@@ -12,28 +12,17 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef BencMessageReader_H
-#define BencMessageReader_H
+#ifndef SubnodePathfinder_admin_H
+#define SubnodePathfinder_admin_H
 
-#include "rust/cjdns_sys/Rffi.h"
-#include "benc/Object.h"
-#include "exception/Err.h"
-#include "memory/Allocator.h"
-#include "wire/Message.h"
+#include "admin/Admin.h"
+#include "subnode/SubnodePathfinder.h"
+#include "util/Linker.h"
+Linker_require("subnode/SubnodePathfinder_admin.c")
 
-static inline Err_DEFUN BencMessageReader_read(Dict** outP, Message_t* msg, struct Allocator* alloc)
-{
-    return Rffi_Benc_read(outP, msg, alloc);
-}
+void SubnodePathfinder_admin_register(struct SubnodePathfinder* snh,
+                                      struct Admin* admin,
+                                      struct Allocator* alloc);
 
-static inline const char* BencMessageReader_readNoExcept(
-    Message_t* msg, struct Allocator* alloc, Dict** outPtr)
-{
-    RTypes_Error_t* er = BencMessageReader_read(outPtr, msg, alloc);
-    if (er) {
-        return Rffi_printError(er, alloc);
-    }
-    return NULL;
-}
 
 #endif

@@ -1,4 +1,5 @@
 mod show;
+pub mod util;
 
 use crate::common::args::CommonArgs;
 use eyre::Result;

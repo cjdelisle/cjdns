@@ -13,7 +13,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "subnode/SubnodePathfinder.h"
+#include "benc/Dict.h"
 #include "benc/Object.h"
+#include "benc/serialization/cloner/Cloner.h"
 #include "interface/Iface.h"
 #include "rust/cjdns_sys/RTypes.h"
 #include "rust/cjdns_sys/Rffi.h"
@@ -43,13 +45,13 @@
 
 #include "subnode/ReachabilityAnnouncer.h"
 
-struct Query {
+struct Dedupe {
     struct Address target;
     uint8_t routeFrom[16];
     uint8_t routeTo[16];
 };
 #define Map_NAME OfPromiseByQuery
-#define Map_KEY_TYPE struct Query
+#define Map_KEY_TYPE struct Dedupe
 #define Map_VALUE_TYPE struct MsgCore_Promise*
 #define Map_ENABLE_HANDLES
 #include "util/Map.h"
@@ -169,19 +171,87 @@ static Iface_DEFUN switchErr(Message_t* msg, struct SubnodePathfinder_pvt* pf)
     return NULL;
 }
 
-struct SnodeQuery {
+struct Request {
     struct SubnodePathfinder_pvt* pf;
-    uint32_t mapHandle;
+    int32_t mapHandle;
+    SubnodePathfinder_queryNode_callback onReply;
+    void* vcontext;
+    String* optTxid;
     Identity
 };
 
-static void getRouteReply(Dict* msg, struct Address* src, struct MsgCore_Promise* prom)
+static void reply(Gcc_UNUSED Dict* msg, struct Address* src, struct MsgCore_Promise* prom)
 {
-    struct SnodeQuery* snq = Identity_check((struct SnodeQuery*) prom->userData);
-    struct SubnodePathfinder_pvt* pf = Identity_check(snq->pf);
-    int index = Map_OfPromiseByQuery_indexForHandle(snq->mapHandle, &pf->queryMap);
-    Assert_true(index > -1);
-    Map_OfPromiseByQuery_remove(index, &pf->queryMap);
+    struct Request* usp = Identity_check((struct Request*) prom->userData);
+    struct SubnodePathfinder_pvt* pf = Identity_check(usp->pf);
+    if (usp->mapHandle > -1) {
+        int index = Map_OfPromiseByQuery_indexForHandle(usp->mapHandle, &pf->queryMap);
+        Assert_true(index > -1);
+        Map_OfPromiseByQuery_remove(index, &pf->queryMap);
+    }
+
+    if (!src) {
+        Log_debug(pf->log, "Ping timeout pinging [%s]",
+            Address_toString(prom->target, prom->alloc)->bytes);
+        return;
+    }
+    Log_debug(pf->log, "Ping reply from [%s]", Address_toString(src, prom->alloc)->bytes);
+    Message_t* msgToCore = Message_new(0, 512, prom->alloc);
+    Iface_CALL(sendNode, msgToCore, src, Metric_PING_REPLY, PFChan_Pathfinder_NODE, pf);
+    if (usp->onReply) {
+        usp->onReply(msg, src, usp->vcontext, prom, usp->optTxid);
+    }
+}
+
+static void queryNode(
+    struct SubnodePathfinder_pvt* pf,
+    struct Address* addr,
+    struct MsgCore_Promise* qp,
+    SubnodePathfinder_queryNode_callback onReplyOrTimeout,
+    void* vcontext,
+    struct Dedupe* deduplicate,
+    String_t* optTxid
+) {
+    struct Request* usp = Allocator_calloc(qp->alloc, sizeof(struct Request), 1);
+    Identity_set(usp);
+    usp->pf = pf;
+    usp->onReply = onReplyOrTimeout;
+    usp->vcontext = vcontext;
+
+    if (optTxid) {
+        usp->optTxid = String_clone(optTxid, qp->alloc);
+    }
+
+    qp->cb = reply;
+    qp->userData = usp;
+
+    Assert_true(AddressCalc_validAddress(addr->ip6.bytes));
+    Assert_true(addr->path);
+    qp->target = Address_clone(addr, qp->alloc);
+
+    Log_debug(pf->log, "Sending ping to [%s]",
+        Address_toString(qp->target, qp->alloc)->bytes);
+
+    BoilerplateResponder_addBoilerplate(pf->br, qp->msg, addr, qp->alloc);
+
+    if (deduplicate) {
+        int index = Map_OfPromiseByQuery_put(deduplicate, &qp, &pf->queryMap);
+        usp->mapHandle = pf->queryMap.handles[index];
+    } else {
+        usp->mapHandle = -1;
+    }
+
+    return;
+}
+
+static void getRouteReply(
+    Dict* msg,
+    struct Address* src,
+    void* vcontext,
+    struct MsgCore_Promise* prom,
+    Gcc_UNUSED String* optTxid
+) {
+    struct SubnodePathfinder_pvt* pf = Identity_check((struct SubnodePathfinder_pvt*) vcontext);
 
     if (!src) {
         Log_debug(pf->log, "GetRoute timeout");
@@ -209,7 +279,7 @@ static void queryRs(struct SubnodePathfinder_pvt* pf, uint8_t addr[16], uint8_t 
         Log_debug(pf->log, "Search for [%s] impossible because we have no snode", printedAddr);
         return;
     }
-    struct Query q = { .routeFrom = { 0 } };
+    struct Dedupe q = { .routeFrom = { 0 } };
     Bits_memcpy(&q.target, &pf->pub.snh->snodeAddr, sizeof(struct Address));
     Bits_memcpy(q.routeFrom, pf->myAddress->ip6.bytes, 16);
     Bits_memcpy(q.routeFrom, addr, 16);
@@ -219,18 +289,7 @@ static void queryRs(struct SubnodePathfinder_pvt* pf, uint8_t addr[16], uint8_t 
     }
 
     struct MsgCore_Promise* qp = MsgCore_createQuery(pf->msgCore, 0, pf->alloc);
-
-    struct SnodeQuery* snq = Allocator_calloc(qp->alloc, sizeof(struct SnodeQuery), 1);
-    Identity_set(snq);
-    snq->pf = pf;
-
     Dict* dict = qp->msg = Dict_new(qp->alloc);
-    qp->cb = getRouteReply;
-    qp->userData = snq;
-
-    Assert_true(AddressCalc_validAddress(pf->pub.snh->snodeAddr.ip6.bytes));
-    qp->target = &pf->pub.snh->snodeAddr;
-
     Log_debug(pf->log, "Sending getRoute to snode [%s] for [%s]",
         Address_toString(qp->target, qp->alloc)->bytes,
         printedAddr);
@@ -240,8 +299,9 @@ static void queryRs(struct SubnodePathfinder_pvt* pf, uint8_t addr[16], uint8_t 
     String* target = String_newBinary(addr, 16, qp->alloc);
     Dict_putStringC(dict, "tar", target, qp->alloc);
 
-    int index = Map_OfPromiseByQuery_put(&q, &qp, &pf->queryMap);
-    snq->mapHandle = pf->queryMap.handles[index];
+    Assert_true(AddressCalc_validAddress(pf->pub.snh->snodeAddr.ip6.bytes));
+
+    queryNode(pf, &pf->pub.snh->snodeAddr, qp, getRouteReply, pf, &q, NULL);
 }
 
 static Iface_DEFUN searchReq(Message_t* msg, struct SubnodePathfinder_pvt* pf)
@@ -287,62 +347,37 @@ static void rcChange(struct ReachabilityCollector* rc,
     ReachabilityAnnouncer_updatePeer(pf->ra, nodeAddr, pi);
 }
 
-struct Ping {
-    struct SubnodePathfinder_pvt* pf;
-    uint32_t mapHandle;
-    Identity
-};
-
-static void pingReply(Gcc_UNUSED Dict* msg, struct Address* src, struct MsgCore_Promise* prom)
-{
-    struct Ping* usp = Identity_check((struct Ping*) prom->userData);
-    struct SubnodePathfinder_pvt* pf = Identity_check(usp->pf);
-    int index = Map_OfPromiseByQuery_indexForHandle(usp->mapHandle, &pf->queryMap);
-    Assert_true(index > -1);
-    Map_OfPromiseByQuery_remove(index, &pf->queryMap);
-
-    if (!src) {
-        Log_debug(pf->log, "Ping timeout pinging [%s]",
-            Address_toString(prom->target, prom->alloc)->bytes);
-        return;
-    }
-    Log_debug(pf->log, "Ping reply from [%s]", Address_toString(src, prom->alloc)->bytes);
-    Message_t* msgToCore = Message_new(0, 512, prom->alloc);
-    Iface_CALL(sendNode, msgToCore, src, Metric_PING_REPLY, PFChan_Pathfinder_NODE, pf);
+struct Allocator* SubnodePathfinder_queryNode(
+    struct SubnodePathfinder* spf,
+    struct Address* addr,
+    Dict* query,
+    uint64_t timeoutMilliseconds,
+    SubnodePathfinder_queryNode_callback onReplyOrTimeout,
+    void* vcontext,
+    String* optTxid
+) {
+    struct SubnodePathfinder_pvt* pf = Identity_check((struct SubnodePathfinder_pvt*)spf);
+    struct MsgCore_Promise* qp = MsgCore_createQuery(pf->msgCore, timeoutMilliseconds, pf->alloc);
+    qp->msg = Cloner_cloneDict(query, qp->alloc);
+    queryNode(pf, addr, qp, onReplyOrTimeout, vcontext, NULL, optTxid);
+    return qp->alloc;
 }
 
 static void pingNode(struct SubnodePathfinder_pvt* pf, struct Address* addr)
 {
-    struct Query q = { .routeFrom = { 0 } };
+    struct Dedupe q = { .routeFrom = { 0 } };
     Bits_memcpy(&q.target, addr, sizeof(struct Address));
     if (Map_OfPromiseByQuery_indexForKey(&q, &pf->queryMap) > -1) {
         Log_debug(pf->log, "Skipping ping because one is already outstanding");
         return;
     }
-
-    // We have a path to the node but the session is not setup, lets ping them...
     struct MsgCore_Promise* qp = MsgCore_createQuery(pf->msgCore, 0, pf->alloc);
 
-    struct Ping* usp = Allocator_calloc(qp->alloc, sizeof(struct Ping), 1);
-    Identity_set(usp);
-    usp->pf = pf;
-
     Dict* dict = qp->msg = Dict_new(qp->alloc);
-    qp->cb = pingReply;
-    qp->userData = usp;
-
-    Assert_true(AddressCalc_validAddress(addr->ip6.bytes));
-    Assert_true(addr->path);
-    qp->target = Address_clone(addr, qp->alloc);
-
-    Log_debug(pf->log, "Sending ping to [%s]",
-        Address_toString(qp->target, qp->alloc)->bytes);
+    Log_debug(pf->log, "Sending ping to [%s]", Address_toString(addr, qp->alloc)->bytes);
     Dict_putStringCC(dict, "q", "pn", qp->alloc);
 
-    BoilerplateResponder_addBoilerplate(pf->br, dict, addr, qp->alloc);
-
-    int index = Map_OfPromiseByQuery_put(&q, &qp, &pf->queryMap);
-    usp->mapHandle = pf->queryMap.handles[index];
+    queryNode(pf, addr, qp, NULL, NULL, &q, NULL);
 }
 
 static void sendToSeeder(Message_t* msg, struct SubnodePathfinder_pvt* pf, enum PFChan_Core ev)
