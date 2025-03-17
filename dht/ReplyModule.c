@@ -13,6 +13,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "benc/String.h"
 #include "dht/CJDHTConstants.h"
 #include "dht/DHTMessage.h"
 #include "dht/DHTModule.h"
@@ -58,7 +59,8 @@ void ReplyModule_register(struct DHTModuleRegistry* registry, struct Allocator* 
 static int handleIncoming(struct DHTMessage* message, void* vcontext)
 {
     String* q = Dict_getString(message->asDict, CJDHTConstants_QUERY);
-    if (Dict_getString(message->asDict, CJDHTConstants_QUERY) == NULL) {
+    // Do not reply to sq queries, otherwise we end up speaking on behalf of the snode
+    if (q == NULL || String_equals(q, String_CONST("sq"))) {
         return 0;
     }
 
