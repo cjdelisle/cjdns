@@ -291,7 +291,7 @@ static void queryRs(struct SubnodePathfinder_pvt* pf, uint8_t addr[16], uint8_t 
     struct MsgCore_Promise* qp = MsgCore_createQuery(pf->msgCore, 0, pf->alloc);
     Dict* dict = qp->msg = Dict_new(qp->alloc);
     Log_debug(pf->log, "Sending getRoute to snode [%s] for [%s]",
-        Address_toString(qp->target, qp->alloc)->bytes,
+        Address_toString(&q.target, qp->alloc)->bytes,
         printedAddr);
     Dict_putStringCC(dict, "sq", "gr", qp->alloc);
     String* src = String_newBinary(pf->myAddress->ip6.bytes, 16, qp->alloc);
