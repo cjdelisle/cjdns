@@ -2,9 +2,8 @@
 
 set -e
 export PATH="$HOME/.cargo/bin:$PATH"
-CARGO="$(command -v cargo)"
 
-if [ -z "$CARGO" ]; then
+if ! CARGO="$(command -v cargo)"; then
     printf "Rust & Cargo are required in order to build cjdns\n"
     printf "See https://rustup.rs/ for install instructions\n"
     exit 1
