@@ -51,7 +51,11 @@ pub fn string_to_c<'a>(alloc: *mut Allocator_t, v: impl Into<&'a[u8]>) -> *mut S
     let len = v.len();
     v.push(0);
     let bytes = allocator::adopt(alloc, v);
-    let bytes = unsafe { (*bytes)[..].as_mut_ptr() };
+    // Avoid implicit autoref of raw pointer (*bytes) by taking an explicit mutable reference first
+    let bytes = unsafe {
+        let v_ref: &mut Vec<u8> = &mut *bytes;
+        v_ref.as_mut_ptr()
+    };
     allocator::adopt(alloc, String_t{
         len,
         bytes: bytes as _,
