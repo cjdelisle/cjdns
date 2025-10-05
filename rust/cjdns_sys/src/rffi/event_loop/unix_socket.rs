@@ -66,12 +66,12 @@ pub extern "C" fn Rffi_socketWorkerStates(
     let mut bv = Dict::new();
     bv.insert("send", sws.iter()
         .enumerate()
-        .map(|(i,s)|(i.to_string(), format!("{s:?}")))
+        .map(|(i,(s, c))|(i.to_string(), format!("{s:?}:{c}")))
         .collect::<Dict<'_>>(),
     );
     bv.insert("recv", rws.iter()
         .enumerate()
-        .map(|(i,r)|(i.to_string(), format!("{r:?}")))
+        .map(|(i,(r, c))|(i.to_string(), format!("{r:?}:{c}")))
         .collect::<Dict<'_>>(),
     );
     let out = benc::value_to_c(alloc, &bv.obj());
