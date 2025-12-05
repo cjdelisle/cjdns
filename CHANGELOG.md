@@ -1,5 +1,18 @@
 # Cjdns Changelog
 
+## Version 22.2 - Two
+December 5, 2025
+
+### Major Changes
+1. cjdnstool: Added ping and route (get) commands
+2. cjdnstool: Session: print route metric in human readable form
+3. New RPC: `SubnodePathfinder_queryNode` to perform a DHT query without legacy RouterModule
+
+### Minor Changes
+1. Moved all bencoding to Rust
+2. Bugfix route server sending empty replies
+
+
 ## Version 22.1 - Seedy
 January 8, 2025
 
