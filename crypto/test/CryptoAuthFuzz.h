@@ -16,13 +16,12 @@
 #define CRYPTOAUTHFUZZ_H
 
 #include "crypto/random/Random.h"
-#include "crypto/test/TestCa.h"
 #include "memory/Allocator.h"
 #include "wire/Message.h"
 #include "util/Linker.h"
 Linker_require("crypto/test/CryptoAuthFuzz.c")
 
-void* CryptoAuthFuzz_init(struct Allocator* alloc, struct Random* rand, enum TestCa_Config cfg);
+void* CryptoAuthFuzz_init(struct Allocator* alloc, struct Random* rand);
 void CryptoAuthFuzz_main(void* vctx, Message_t* fuzz);
 
 #endif

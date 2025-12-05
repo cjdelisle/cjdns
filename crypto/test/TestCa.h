@@ -17,7 +17,6 @@
 
 #include "rust/cjdns_sys/RTypes.h"
 #include "interface/Iface.h"
-#include "util/events/EventBase.h"
 #include "crypto/random/Random.h"
 #include "util/Linker.h"
 Linker_require("crypto/test/TestCa.c")
@@ -28,20 +27,10 @@ typedef struct TestCa_Session_s {
     struct Iface ciphertext;
 } TestCa_Session_t;
 
-enum TestCa_Config {
-    TestCa_Config_OLD,
-    TestCa_Config_OLD_NEW,
-    TestCa_Config_NOISE
-};
-
 TestCa_t* TestCa_new(
     Allocator_t *allocator,
     const uint8_t *privateKey,
-    EventBase_t* eventBase,
-    struct Log* logger,
-    struct Random* rand0,
-    struct Random* rand1,
-    enum TestCa_Config cfg);
+    struct Random* rand0);
 
 int TestCa_addUser_ipv6(
     String_t *password,

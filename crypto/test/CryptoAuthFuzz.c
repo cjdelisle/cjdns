@@ -17,13 +17,12 @@
 #include "crypto/test/TestCa.h"
 #include "benc/String.h"
 #include "memory/Allocator.h"
-#include "util/events/EventBase.h"
 #include "util/Assert.h"
 #include "util/Bits.h"
 #include "crypto/random/test/DeterminentRandomSeed.h"
 #include "crypto/random/Random.h"
 #include "crypto/AddressCalc.h"
-#include "crypto/CryptoAuth.h"
+#include "crypto/Ca.h"
 
 struct DelayedMsg {
     Message_t* msg;
@@ -274,7 +273,7 @@ static Iface_DEFUN afterDecrypt(Message_t* msg, struct Iface* iface)
 
     struct Node* to = Identity_containerOf(iface, struct Node, plaintext);
 
-    enum CryptoAuth_DecryptErr e = -1;
+    enum Ca_DecryptErr e = -1;
     Err(Message_epop32h(&e, msg));
     if (!e) {
         Assert_true(!flippedImmutable);
@@ -304,13 +303,12 @@ static Iface_DEFUN afterDecrypt(Message_t* msg, struct Iface* iface)
     "\xb7\x1c\x4f\x43\xe3\xd4\xb1\x87\x9b\x50\x65\xd4\x4a\x1c\xb4\x3e\xaf\x07\xdd\xba\x96\xde\x6a\x72\xca\x76\x1c\x4e\xf4\xbd\x29\x88"
     // "b71c4f43e3d4b1879b5065d44a1cb43eaf07ddba96de6a72ca761c4ef4bd2988"
 
-void* CryptoAuthFuzz_init(struct Allocator* alloc, struct Random* rand, enum TestCa_Config cfg)
+void* CryptoAuthFuzz_init(struct Allocator* alloc, struct Random* rand)
 {
     struct Context* ctx = Allocator_calloc(alloc, sizeof(struct Context), 1);
     Identity_set(ctx);
     Identity_set(&ctx->nodeA);
     Identity_set(&ctx->nodeB);
-    EventBase_t* base = EventBase_new(alloc);
     ctx->alloc = alloc;
 
     uint8_t buf[64];
@@ -320,8 +318,8 @@ void* CryptoAuthFuzz_init(struct Allocator* alloc, struct Random* rand, enum Tes
     Random_t* r1 = NULL;
     Err_assert(Random_newWithSeed(&r1, alloc, NULL, DeterminentRandomSeed_new(alloc, buf)));
 
-    ctx->nodeA.ca = TestCa_new(alloc, PRIVATEKEY_A, base, NULL, r0, r1, cfg);
-    ctx->nodeB.ca = TestCa_new(alloc, PRIVATEKEY_B, base, NULL, r0, r1, cfg);
+    ctx->nodeA.ca = TestCa_new(alloc, PRIVATEKEY_A, r1);
+    ctx->nodeB.ca = TestCa_new(alloc, PRIVATEKEY_B, r1);
     TestCa_getPubKey(ctx->nodeA.ca, ctx->nodeA.pubKey);
     TestCa_getPubKey(ctx->nodeB.ca, ctx->nodeB.pubKey);
 
