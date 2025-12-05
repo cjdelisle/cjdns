@@ -12,15 +12,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#include "crypto/test/TestCa.h"
 #include "crypto/test/CryptoAuthFuzz.h"
 #include "test/FuzzTest.h"
 
 void* CJDNS_FUZZ_INIT(struct Allocator* alloc, struct Random* rand)
 {
-    return CryptoAuthFuzz_init(alloc, rand, TestCa_Config_NOISE);
+    return CryptoAuthFuzz_init(alloc, rand);
 }
 void CJDNS_FUZZ_MAIN(void* vctx, Message_t* fuzz)
 {
-    // TODO(cjd): DISABLED TEST CryptoAuthFuzz_main(vctx, fuzz);
+    CryptoAuthFuzz_main(vctx, fuzz);
 }

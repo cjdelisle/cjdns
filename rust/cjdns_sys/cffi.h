@@ -20,12 +20,10 @@
 #include "benc/Dict.h"
 #include "interface/Iface.h"
 #include "interface/test/RustIface_test.h"
-#include "crypto/CryptoAuth.h"
-#include "crypto/CryptoAuth_pvt.h" // encryptRndNonce
+#include "crypto/random/Random.h"
 #include "crypto/random/test/DeterminentRandomSeed.h"
 #include "util/platform/Sockaddr.h"
 #include "util/version/Version.h"
-// #include "util/events/EventBase.h"
 #include "wire/PFChan.h"
 #include "wire/Control.h"
 
@@ -39,7 +37,6 @@ enum RBindings_Version {
 // a bunch of platform-specific trash like uint_fast8_t etc.
 struct RBindings_Whitelist {
     Iface_t b;
-    enum CryptoAuth_addUser_Res c;
     Message_t d;
     List_Item_t e;
     Dict_Entry_t ee;

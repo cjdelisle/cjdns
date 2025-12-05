@@ -14,7 +14,6 @@
  */
 #include "crypto/random/Random.h"
 #include "rust/cjdns_sys/Rffi.h"
-#include "crypto/CryptoAuth.h"
 #include "benc/String.h"
 #include "memory/Allocator.h"
 #include "util/events/EventBase.h"
@@ -25,6 +24,7 @@
 #include "crypto/test/TestCa.h"
 #include "crypto/random/test/DeterminentRandomSeed.h"
 #include "util/CString.h"
+#include "crypto/Ca.h"
 
 // console.log(x.replace(/[0-9a-f]{2}/g, (x)=>'\\x'+x))
 #define PRIVATEKEY_A \
@@ -50,7 +50,7 @@ struct Node
     struct Iface plaintext;
     struct Iface ciphertext;
     const char* expectPlaintext;
-    enum CryptoAuth_DecryptErr expectErr;
+    enum Ca_DecryptErr expectErr;
     struct Log* log;
     Identity
 };
@@ -81,12 +81,12 @@ static Iface_DEFUN afterDecrypt(Message_t* msg, struct Iface* if1)
 {
     struct Node* n = Identity_containerOf(if1, struct Node, plaintext);
     Log_debug(n->log, "Got message from afterDecrypt");
-    enum CryptoAuth_DecryptErr e = 0;
+    enum Ca_DecryptErr e = 0;
     Err(Message_epop32h(&e, msg));
     if (e != n->expectErr) {
         Assert_failure("expected decrypt error [%d], got [%d]\n", n->expectErr, e);
     }
-    n->expectErr = CryptoAuth_DecryptErr_NONE;
+    n->expectErr = Ca_DecryptErr_NONE;
     if (!n->expectPlaintext) {
         if (e) {
             return NULL;
@@ -112,8 +112,7 @@ static struct Context* init(uint8_t* privateKeyA,
                             uint8_t* publicKeyA,
                             uint8_t* password,
                             uint8_t* privateKeyB,
-                            uint8_t* publicKeyB,
-                            enum TestCa_Config cfg)
+                            uint8_t* publicKeyB)
 {
     struct Allocator* alloc = Allocator_new(1048576);
     struct Context* ctx = Allocator_calloc(alloc, sizeof(struct Context), 1);
@@ -127,18 +126,15 @@ static struct Context* init(uint8_t* privateKeyA,
     ctx->node2.ciphertext.send = afterEncrypt;
     struct Log* logger = ctx->log = FileWriterLog_new(stdout, alloc);
     struct Random* randA = evilRandom(alloc, logger, "ALPHA");
-    struct Random* randB = evilRandom(alloc, logger, "ALPHA");
     struct Random* randC = evilRandom(alloc, logger, "BRAVO");
-    struct Random* randD = evilRandom(alloc, logger, "BRAVO");
-    EventBase_t* base = ctx->base = EventBase_new(alloc);
 
     ctx->node1.log = logger;
     ctx->node2.log = logger;
 
-    ctx->node1.ca = TestCa_new(alloc, privateKeyA, base, logger, randA, randB, cfg);
+    ctx->node1.ca = TestCa_new(alloc, privateKeyA, randA);
     ctx->node1.sess = TestCa_newSession(ctx->node1.ca, alloc, publicKeyB, false, "cif1", true);
 
-    ctx->node2.ca = TestCa_new(alloc, privateKeyB, base, logger, randC, randD, cfg);
+    ctx->node2.ca = TestCa_new(alloc, privateKeyB, randC);
     if (password) {
         String* passStr = String_CONST(password);
         TestCa_setAuth(passStr, NULL, ctx->node1.sess);
@@ -155,9 +151,9 @@ static struct Context* init(uint8_t* privateKeyA,
     return ctx;
 }
 
-static struct Context* simpleInit(enum TestCa_Config cfg)
+static struct Context* simpleInit()
 {
-    return init(PRIVATEKEY_A, PUBLICKEY_A, NULL, PRIVATEKEY_B, PUBLICKEY_B, cfg);
+    return init(PRIVATEKEY_A, PUBLICKEY_A, NULL, PRIVATEKEY_B, PUBLICKEY_B);
 }
 
 static Message_t* encryptMsg(struct Context* ctx,
@@ -183,7 +179,7 @@ static Message_t* decryptMsg(struct Context* ctx,
                                   Message_t* msg,
                                   struct Node* n,
                                   const char* expectResult,
-                                  enum CryptoAuth_DecryptErr expectErr)
+                                  enum Ca_DecryptErr expectErr)
 {
     Assert_true(!n->expectPlaintext && !n->expectErr);
     n->expectPlaintext = expectResult;
@@ -197,20 +193,20 @@ static Message_t* decryptMsg(struct Context* ctx,
 static void sendToIf1(struct Context* ctx, const char* x)
 {
     Message_t* msg = encryptMsg(ctx, &ctx->node2, x);
-    decryptMsg(ctx, msg, &ctx->node1, x, CryptoAuth_DecryptErr_NONE);
+    decryptMsg(ctx, msg, &ctx->node1, x, Ca_DecryptErr_NONE);
     Allocator_free(Message_getAlloc(msg));
 }
 
 static void sendToIf2(struct Context* ctx, const char* x)
 {
     Message_t* msg = encryptMsg(ctx, &ctx->node1, x);
-    decryptMsg(ctx, msg, &ctx->node2, x, CryptoAuth_DecryptErr_NONE);
+    decryptMsg(ctx, msg, &ctx->node2, x, Ca_DecryptErr_NONE);
     Allocator_free(Message_getAlloc(msg));
 }
 
-static void normal(enum TestCa_Config cfg)
+static void normal()
 {
-    struct Context* ctx = simpleInit(cfg);
+    struct Context* ctx = simpleInit();
     sendToIf2(ctx, "hello world");
     sendToIf1(ctx, "hello cjdns");
     sendToIf2(ctx, "hai");
@@ -218,20 +214,9 @@ static void normal(enum TestCa_Config cfg)
     Allocator_free(ctx->alloc);
 }
 
-static void repeatKey(enum TestCa_Config cfg)
+static void repeatKey()
 {
-    struct Context* ctx = simpleInit(cfg);
-    sendToIf2(ctx, "hello world");
-    sendToIf2(ctx, "r u thar?");
-    sendToIf1(ctx, "hello cjdns");
-    sendToIf2(ctx, "hai");
-    sendToIf1(ctx, "goodbye");
-    Allocator_free(ctx->alloc);
-}
-
-static void repeatHello(enum TestCa_Config cfg)
-{
-    struct Context* ctx = simpleInit(cfg);
+    struct Context* ctx = simpleInit();
     sendToIf2(ctx, "hello world");
     sendToIf2(ctx, "r u thar?");
     sendToIf1(ctx, "hello cjdns");
@@ -240,9 +225,20 @@ static void repeatHello(enum TestCa_Config cfg)
     Allocator_free(ctx->alloc);
 }
 
-static void chatter(enum TestCa_Config cfg)
+static void repeatHello()
 {
-    struct Context* ctx = simpleInit(cfg);
+    struct Context* ctx = simpleInit();
+    sendToIf2(ctx, "hello world");
+    sendToIf2(ctx, "r u thar?");
+    sendToIf1(ctx, "hello cjdns");
+    sendToIf2(ctx, "hai");
+    sendToIf1(ctx, "goodbye");
+    Allocator_free(ctx->alloc);
+}
+
+static void chatter()
+{
+    struct Context* ctx = simpleInit();
     sendToIf2(ctx, "hello world");
     sendToIf1(ctx, "hello cjdns");
     sendToIf2(ctx, "hai");
@@ -259,10 +255,10 @@ static void chatter(enum TestCa_Config cfg)
     Allocator_free(ctx->alloc);
 }
 
-static void auth(enum TestCa_Config cfg)
+static void auth()
 {
     struct Context* ctx = init(
-        PRIVATEKEY_A, PUBLICKEY_A, "password", PRIVATEKEY_B, PUBLICKEY_B, cfg);
+        PRIVATEKEY_A, PUBLICKEY_A, "password", PRIVATEKEY_B, PUBLICKEY_B);
     sendToIf2(ctx, "hello world");
     sendToIf1(ctx, "hello cjdns");
     sendToIf2(ctx, "hai");
@@ -270,32 +266,32 @@ static void auth(enum TestCa_Config cfg)
     Allocator_free(ctx->alloc);
 }
 
-static void replayKeyPacket(int scenario, enum TestCa_Config cfg)
+static void replayKeyPacket(int scenario)
 {
-    struct Context* ctx = simpleInit(cfg);
+    struct Context* ctx = simpleInit();
 
     sendToIf2(ctx, "hello world");
 
     Message_t* msg = encryptMsg(ctx, &ctx->node2, "hello replay key");
     Message_t* toReplay = Message_clone(msg, ctx->alloc);
-    decryptMsg(ctx, msg, &ctx->node1, "hello replay key", CryptoAuth_DecryptErr_NONE);
+    decryptMsg(ctx, msg, &ctx->node1, "hello replay key", Ca_DecryptErr_NONE);
 
     if (scenario == 1) {
         // the packet is failed because we know it's a dupe from the temp key.
-        decryptMsg(ctx, toReplay, &ctx->node1, NULL, CryptoAuth_DecryptErr_INVALID_PACKET);
+        decryptMsg(ctx, toReplay, &ctx->node1, NULL, Ca_DecryptErr_INVALID_PACKET);
     }
 
     sendToIf2(ctx, "first traffic packet");
 
     if (scenario == 2) {
-        decryptMsg(ctx, toReplay, &ctx->node1, NULL, CryptoAuth_DecryptErr_INVALID_PACKET);
+        decryptMsg(ctx, toReplay, &ctx->node1, NULL, Ca_DecryptErr_INVALID_PACKET);
     }
 
     sendToIf1(ctx, "second traffic packet");
 
     if (scenario == 3) {
         // If we replay at this stage, the packet is dropped as a stray key
-        decryptMsg(ctx, toReplay, &ctx->node1, NULL, CryptoAuth_DecryptErr_KEY_PKT_ESTABLISHED_SESSION);
+        decryptMsg(ctx, toReplay, &ctx->node1, NULL, Ca_DecryptErr_KEY_PKT_ESTABLISHED_SESSION);
     }
 
     Allocator_free(ctx->alloc);
@@ -306,9 +302,9 @@ static void replayKeyPacket(int scenario, enum TestCa_Config cfg)
  * This means two Hello packets crossed on the wire. Both arrived at their destination but
  * if each triggers a re-initialization of the CA session, nobody will be synchronized!
  */
-static void hellosCrossedOnTheWire(enum TestCa_Config cfg)
+static void hellosCrossedOnTheWire()
 {
-    struct Context* ctx = simpleInit(cfg);
+    struct Context* ctx = simpleInit();
     uint8_t pk1[32];
     TestCa_getPubKey(ctx->node1.ca, pk1);
     uint8_t hpk2[32];
@@ -329,24 +325,24 @@ static void hellosCrossedOnTheWire(enum TestCa_Config cfg)
     Allocator_free(ctx->alloc);
 }
 
-static void reset(enum TestCa_Config cfg)
+static void reset()
 {
-    struct Context* ctx = simpleInit(cfg);
+    struct Context* ctx = simpleInit();
     sendToIf2(ctx, "hello world");
     sendToIf1(ctx, "hello cjdns");
     sendToIf2(ctx, "hai");
     sendToIf1(ctx, "brb");
 
-    Assert_true(TestCa_getState(ctx->node1.sess) == CryptoAuth_State_ESTABLISHED);
-    Assert_true(TestCa_getState(ctx->node2.sess) == CryptoAuth_State_ESTABLISHED);
+    Assert_true(TestCa_getState(ctx->node1.sess) == RTypes_CryptoAuth_State_t_Established);
+    Assert_true(TestCa_getState(ctx->node2.sess) == RTypes_CryptoAuth_State_t_Established);
 
     TestCa_reset(ctx->node1.sess);
 
     // sess2 still talking to sess1 but sess1 is reset and cannot read the packets.
     decryptMsg(ctx, encryptMsg(ctx, &ctx->node2, "will be lost"), &ctx->node1, NULL,
-        CryptoAuth_DecryptErr_NO_SESSION);
+        Ca_DecryptErr_NO_SESSION);
     decryptMsg(ctx, encryptMsg(ctx, &ctx->node2, "lost"), &ctx->node1, NULL,
-        CryptoAuth_DecryptErr_NO_SESSION);
+        Ca_DecryptErr_NO_SESSION);
 
     // This is because we want to prevent replay attacks from tearing down a session.
     decryptMsg(ctx, encryptMsg(ctx, &ctx->node1, "hello"), &ctx->node2, "hello", 0);
@@ -356,17 +352,17 @@ static void reset(enum TestCa_Config cfg)
     sendToIf1(ctx, "ok works");
     sendToIf2(ctx, "yup");
 
-    Assert_true(TestCa_getState(ctx->node1.sess) == CryptoAuth_State_ESTABLISHED);
-    Assert_true(TestCa_getState(ctx->node2.sess) == CryptoAuth_State_ESTABLISHED);
+    Assert_true(TestCa_getState(ctx->node1.sess) == RTypes_CryptoAuth_State_t_Established);
+    Assert_true(TestCa_getState(ctx->node2.sess) == RTypes_CryptoAuth_State_t_Established);
 
     Allocator_free(ctx->alloc);
 }
 
 // This is slightly different from replayKeyPacket because the second key packet is valid,
 // it's just delayed.
-static void twoKeyPackets(int scenario, enum TestCa_Config cfg)
+static void twoKeyPackets(int scenario)
 {
-    struct Context* ctx = simpleInit(cfg);
+    struct Context* ctx = simpleInit();
 
     sendToIf2(ctx, "hello world");
     sendToIf1(ctx, "key packet 1");
@@ -383,32 +379,30 @@ static void twoKeyPackets(int scenario, enum TestCa_Config cfg)
     } else if (scenario == 3) {
         sendToIf2(ctx, "initial data packet");
         sendToIf1(ctx, "second data packet");
-        decryptMsg(ctx, key2, &ctx->node1, NULL, CryptoAuth_DecryptErr_KEY_PKT_ESTABLISHED_SESSION);
+        decryptMsg(ctx, key2, &ctx->node1, NULL, Ca_DecryptErr_KEY_PKT_ESTABLISHED_SESSION);
     }
     Allocator_free(ctx->alloc);
 }
 
-static void iteration(enum TestCa_Config cfg)
+static void iteration()
 {
-    normal(cfg);
-    repeatKey(cfg);
-    repeatHello(cfg);
-    chatter(cfg);
-    auth(cfg);
-    replayKeyPacket(1, cfg);
-    replayKeyPacket(2, cfg);
-    replayKeyPacket(3, cfg);
-    hellosCrossedOnTheWire(cfg);
-    reset(cfg);
-    twoKeyPackets(1, cfg);
-    twoKeyPackets(2, cfg);
-    twoKeyPackets(3, cfg);
+    normal();
+    repeatKey();
+    repeatHello();
+    chatter();
+    auth();
+    replayKeyPacket(1);
+    replayKeyPacket(2);
+    replayKeyPacket(3);
+    hellosCrossedOnTheWire();
+    reset();
+    twoKeyPackets(1);
+    twoKeyPackets(2);
+    twoKeyPackets(3);
 }
 
 int main()
 {
-    iteration(TestCa_Config_OLD);
-    iteration(TestCa_Config_OLD_NEW);
-    //iteration(TestCa_Config_NOISE); // TODO(cjd): re-enable this
+    iteration();
     return 0;
 }

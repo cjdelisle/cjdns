@@ -36,11 +36,7 @@ static inline Ca_t* Ca_new(struct Allocator* allocator,
     return Rffi_CryptoAuth2_new(allocator, privateKey, rand);
 }
 #else
-#include "crypto/CryptoAuth.h"
-typedef struct CryptoAuth Ca_t;
-typedef struct CryptoAuth_Session Ca_Session_t;
-#define Ca_IMPL(x) CryptoAuth_ ## x
-#define Ca_new CryptoAuth_new
+#error "Old CA is nolonger supported"
 #endif
 
 enum Ca_addUser_Res {

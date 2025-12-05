@@ -30,6 +30,12 @@ pub struct RTypes_CryptoAuth2_t{
     identity: Identity<Self>,
 }
 
+#[repr(i32)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum CryptoAuth_addUser_Res {
+    DUPLICATE = -3,
+}
+
 #[no_mangle]
 pub unsafe extern "C" fn Rffi_CryptoAuth2_addUser_ipv6(
     password: *mut String_t,
@@ -49,7 +55,7 @@ pub unsafe extern "C" fn Rffi_CryptoAuth2_addUser_ipv6(
     {
         Ok(_) => 0,
         Err(crypto_auth::AddUserError::Duplicate { .. }) => {
-            cffi::CryptoAuth_addUser_Res::CryptoAuth_addUser_DUPLICATE as i32
+            CryptoAuth_addUser_Res::DUPLICATE as i32
         }
     }
 }
