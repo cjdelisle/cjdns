@@ -12,23 +12,17 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#include "crypto/random/Random.h"
-#include "memory/Allocator.h"
+#ifndef SubnodePathfinder_admin_H
+#define SubnodePathfinder_admin_H
 
-#include <stdio.h>
-#include <unistd.h>
+#include "admin/Admin.h"
+#include "subnode/SubnodePathfinder.h"
+#include "util/Linker.h"
+Linker_require("subnode/SubnodePathfinder_admin.c")
 
-// This is invoked from mkpasswd.rs
-int mkpasswd_main(int argc, char** argv);
-int mkpasswd_main(int argc, char** argv)
-{
-    fprintf(stderr, "mkpasswd is deprecated and will be removed from the next release\n");
-    struct Allocator* alloc = Allocator_new(1<<22);
-    struct Random* rand = Random_new(alloc, NULL, NULL);
+void SubnodePathfinder_admin_register(struct SubnodePathfinder* snh,
+                                      struct Admin* admin,
+                                      struct Allocator* alloc);
 
-    uint8_t password[32];
-    Random_base32(rand, password, 32);
-    printf("%s\n", password);
-    return 0;
-}
 
+#endif

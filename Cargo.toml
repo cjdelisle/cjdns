@@ -14,13 +14,8 @@ panic = "unwind"
 opt-level = 2
 
 [workspace.dependencies]
-cjdns = { git = "https://github.com/cjdelisle/cjdns-route-server", rev = "d19d5f03c6336f0ae637694968a40e511f3882eb", version = "0.1.0" }
-cjdns-admin = { git = "https://github.com/cjdelisle/cjdns-route-server", rev = "d19d5f03c6336f0ae637694968a40e511f3882eb", version = "0.1.0" }
-cjdns-crypto = { git = "https://github.com/cjdelisle/cjdns-route-server", rev = "d19d5f03c6336f0ae637694968a40e511f3882eb", version = "0.1.0" }
-cjdns-keys = { git = "https://github.com/cjdelisle/cjdns-route-server", rev = "d19d5f03c6336f0ae637694968a40e511f3882eb", version = "0.1.0" }
-cjdns-bytes = { git = "https://github.com/cjdelisle/cjdns-route-server", rev = "d19d5f03c6336f0ae637694968a40e511f3882eb", version = "0.1.0" }
-cjdns-bencode = { git = "https://github.com/cjdelisle/cjdns-route-server", rev = "d19d5f03c6336f0ae637694968a40e511f3882eb", version = "0.1.0" }
-sodiumoxide = { git = "https://github.com/cjdelisle/sodiumoxide", rev = "9f6a18d40a4db253edfebac9f2ce5c22d09b1f47", version = "0.2", default-features = false, features = ["std"] }
+cjdns = { git = "https://github.com/cjdelisle/cjdns-route-server", rev = "8cfdf38dcf179cfbe701a7926edfe8ee2fd9f314", version = "0.1.0" }
+#cjdns = { path = "../cjdns-route-server/cjdns" }
 clap = { version = "4", features = ["derive"] }
 const_format = "0.2"
 data-encoding = "2"
@@ -33,10 +28,10 @@ hex = "0.4"
 log = { version = "0.4", features = ["std", "release_max_level_trace"] }
 parking_lot = "0.12"
 thiserror = "1.0"
-anyhow = { version = "1.0", features = ["backtrace"] }
+eyre = { version = "0.6.12" }
 boringtun = { git = "https://github.com/cjdelisle/boringtun", rev = "f288b2f461e7322a278b63b1ddc4ab705b5b7462", version = "0.3", features = ["additional_data"] }
 slog = { version = "2.7", features = ["release_max_level_trace"] }
-pnet = { version = "0.29" }
+pnet = { version = "0.35" }
 once_cell = "1.9"
 async-recursion = "1"
 socket2 = "0"
@@ -51,3 +46,4 @@ byteorder = "1.5"
 trust-dns-resolver = "0.23.2"
 ipnetwork = "0.20"
 num_enum = "0.7"
+rand = "0.7"

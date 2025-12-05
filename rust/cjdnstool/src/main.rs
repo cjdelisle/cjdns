@@ -3,6 +3,8 @@ mod common;
 mod peers;
 mod session;
 mod util;
+mod route;
+mod ping;
 
 use clap::{Parser, Subcommand};
 use std::process::{ExitCode, Termination};
@@ -36,6 +38,42 @@ enum Command {
         command: Option<peers::Command>,
     },
 
+    #[command(long_about = Some(ping::LONG_ABOUT))]
+    Ping {
+        /// Send this type of ping message, default: "router"
+        #[arg(short = 't', long = "type")]
+        typ: Option<ping::Type>,
+
+        /// resolve the path using this method, default: "default"
+        #[arg(short = 'r', long)]
+        resolve: Option<ping::Resolve>,
+ 
+        /// stop after <count> replies
+        #[arg(short = 'c', long)]
+        count: Option<u32>,
+
+        /// number of data bytes to be sent, default: pattern.len() or zero
+        #[arg(short = 'l', long)]
+        length: Option<u16>,
+
+        /// hex data pattern, default: --length random bytes, if length > pattern.len(), pattern is repeated
+        #[arg(short = 'p', long)]
+        pattern: Option<String>,
+
+        /// Display additional data, including the entire response in the case of router ping
+        #[arg(short = 'v', long)]
+        verbose: bool,
+
+        /// destination path, address, or IPv6
+        dest: String,
+    },
+
+    /// Get route to destination
+    Route {
+        #[command(subcommand)]
+        command: route::Command,
+    },
+
     /// Perform operations with cjdns sessions (show current sessions by default).
     Session {
         #[command(subcommand)]
@@ -61,6 +99,10 @@ async fn main() -> MainResult {
             Peers { command } => peers::peers(args.common, command.unwrap_or_default())
                 .await
                 .into(),
+            Ping { typ, resolve, count, length, pattern, dest, verbose } => {
+                ping::ping(args.common, typ, resolve, count, length, pattern, verbose, dest).await.into()
+            },
+            Route { command } => route::route(args.common, command).await.into(),
             Session { command } => session::session(args.common, command.unwrap_or_default())
                 .await
                 .into(),
@@ -73,7 +115,7 @@ async fn main() -> MainResult {
 enum MainResult {
     Success,
     ClapError(clap::error::Error),
-    AnyhowError(anyhow::Error),
+    AnyhowError(eyre::Error),
 }
 
 impl From<clap::error::Error> for MainResult {
@@ -82,8 +124,8 @@ impl From<clap::error::Error> for MainResult {
     }
 }
 
-impl From<anyhow::Error> for MainResult {
-    fn from(value: anyhow::Error) -> Self {
+impl From<eyre::Error> for MainResult {
+    fn from(value: eyre::Error) -> Self {
         MainResult::AnyhowError(value)
     }
 }
@@ -108,6 +150,9 @@ impl Termination for MainResult {
             Self::AnyhowError(err) => {
                 let exe = common::utils::exe_name();
                 eprintln!("{exe}: {err}");
+                for cause in err.chain().skip(1) {
+                    eprintln!(" - {cause}");
+                }
                 ExitCode::FAILURE
             }
         }

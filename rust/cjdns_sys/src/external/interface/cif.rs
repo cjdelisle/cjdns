@@ -1,7 +1,7 @@
 use std::os::raw::c_void;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
-use anyhow::{Result,bail};
+use eyre::{Result,bail};
 
 use crate::cffi::{self, Allocator_t};
 use crate::rffi::allocator::{self, file_line};

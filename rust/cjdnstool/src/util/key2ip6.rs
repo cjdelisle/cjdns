@@ -1,5 +1,5 @@
 use crate::common::utils;
-use anyhow::{anyhow, bail, Result};
+use eyre::{eyre, bail, Result};
 use std::fmt::Write;
 
 pub async fn key2ip6(pubkeys: Vec<String>) -> Result<()> {
@@ -22,7 +22,7 @@ pub async fn key2ip6(pubkeys: Vec<String>) -> Result<()> {
             );
         }
         let ip6 = utils::key_to_ip6(&pubkey, false)
-            .map_err(|e| anyhow!("argument {} [{}]: {}", index, pubkey, e))?;
+            .map_err(|e| eyre!("argument {} [{}]: {}", index, pubkey, e))?;
         writeln!(output, "{pubkey} {ip6}")?;
     }
 

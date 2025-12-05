@@ -217,9 +217,11 @@ impl Allocator {
         // This "as" does not cast, but it fails if we're wrong
         let a = Box::into_raw(a);
         unsafe {
-            (*a).inner.ident.replace(format!("{}/{:p}", file_line.print(), a));
-            (*a).inner.mebox.replace(a);
-            log::trace!("New allocator {} <- {}", (*a).ident(), parent);
+            // Avoid creating implicit references from raw pointer field chaining; take an explicit ref.
+            let alloc_ref: &mut Allocator = &mut *a;
+            alloc_ref.inner.ident.replace(format!("{}/{:p}", file_line.print(), a));
+            alloc_ref.inner.mebox.replace(a);
+            log::trace!("New allocator {} <- {}", alloc_ref.ident(), parent);
         }
         a as *mut Allocator_t
     }
@@ -234,7 +236,7 @@ impl Allocator {
         Self::new_int(file_line, Vec::new())
     }
 
-    pub fn ident(&self) -> Ref<String> {
+    pub fn ident(&self) -> Ref<'_, String> {
         self.inner.ident.borrow()
     }
 

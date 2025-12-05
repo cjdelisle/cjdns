@@ -1,7 +1,7 @@
 use std::{net::{SocketAddrV4, SocketAddrV6}, str::FromStr};
 
-use anyhow::{anyhow, Result};
-use cjdns_keys::CJDNSPublicKey;
+use eyre::{eyre, Result};
+use cjdns::keys::CJDNSPublicKey;
 
 use crate::{
     cffi::{
@@ -157,7 +157,7 @@ pub unsafe extern "C" fn Rffi_Seeder_public_peer(
     let s = identity::from_c!(seeder);
     let code = match cstr(code) {
         Some(code) => code,
-        None => c_bail!(alloc, anyhow!("code must not be null")),
+        None => c_bail!(alloc, eyre!("code must not be null")),
     };
     let addr4: Option<SocketAddrV4> = match parse_addr(addr4) {
         Ok(x) => x,
@@ -210,7 +210,7 @@ pub extern "C" fn Rffi_Seeder_got_peers(
     let s = identity::from_c!(seeder);
     let peers = match cstr(peers) {
         Some(x) => x,
-        None => c_bail!(alloc, anyhow!("peers must not be null")),
+        None => c_bail!(alloc, eyre!("peers must not be null")),
     };
     s.seeder.got_peers(peers.0);
     std::ptr::null_mut()

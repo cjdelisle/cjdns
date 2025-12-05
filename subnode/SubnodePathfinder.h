@@ -38,6 +38,34 @@ struct SubnodePathfinder
 
 void SubnodePathfinder_start(struct SubnodePathfinder*);
 
+typedef void (*SubnodePathfinder_queryNode_callback)(
+    Dict* msg,
+    struct Address* src,
+    void* vcontext,
+    struct MsgCore_Promise* prom,
+    String* optTxid);
+
+/**
+ * @brief Query a node for information.
+ * @param spf The SubnodePathfinder.
+ * @param addr The address of the node to query.
+ * @param query The query to send.
+ * @param timeoutMilliseconds The time to wait for a reply.
+ * @param onReplyOrTimeout The callback to call when a reply is received or the timeout is reached.
+ * @param vcontext The context to pass to the callback.
+ * @param optTxid The transaction id to use for this query.
+ * @return An allocator which can be used to allocate more memory with query lifetime.
+ */
+struct Allocator* SubnodePathfinder_queryNode(
+    struct SubnodePathfinder* spf,
+    struct Address* addr,
+    Dict* query,
+    uint64_t timeoutMilliseconds,
+    SubnodePathfinder_queryNode_callback onReplyOrTimeout,
+    void* vcontext,
+    String_t* optTxid
+);
+
 struct SubnodePathfinder* SubnodePathfinder_new(struct Allocator* allocator,
                                                 struct Log* log,
                                                 EventBase_t* base,

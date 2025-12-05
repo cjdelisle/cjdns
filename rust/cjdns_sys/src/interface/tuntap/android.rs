@@ -4,7 +4,7 @@
 //! file description opened by system process rather than in the cjd process,
 //! this InterfaceWrapper handle this case.
 
-use anyhow::{bail, Result};
+use eyre::{bail, Result};
 
 use crate::external::interface::iface::{self, Iface, IfacePvt, IfRecv};
 use crate::interface::wire::{ethernet, headers};

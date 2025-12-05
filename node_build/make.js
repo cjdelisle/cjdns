@@ -307,7 +307,6 @@ Builder.configure({
     builder.buildLibrary('contrib/c/publictoip6.c');
     builder.buildLibrary('contrib/c/privatetopublic.c');
     builder.buildLibrary('contrib/c/makekeys.c');
-    builder.buildLibrary('contrib/c/mkpasswd.c');
     builder.buildLibrary('crypto/random/randombytes.c');
     builder.buildLibrary('rust/cjdns_sys/cffi.h');
     builder.buildLibrary('test/testcjdroute.c');

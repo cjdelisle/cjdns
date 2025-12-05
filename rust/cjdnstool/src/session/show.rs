@@ -1,10 +1,12 @@
-use crate::common::{
-    args::CommonArgs,
-    utils::{self, PushField},
-    wire,
+use crate::{
+    common::{
+        args::CommonArgs,
+        utils::{self, PushField},
+    },
+    session::util::print_metric,
 };
-use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use cjdns::bencode::object::{Dict,Get};
+use eyre::Result;
 
 pub async fn show(common: CommonArgs, ip6: bool) -> Result<()> {
     fn no_v(session: &Session) -> &str {
@@ -12,27 +14,31 @@ pub async fn show(common: CommonArgs, ip6: bool) -> Result<()> {
         addr.split_once('.').map(|(_, s)| s).unwrap_or(addr)
     }
 
-    let mut cjdns = cjdns_admin::connect(Some(common.as_anon())).await?;
-    let mut handles = vec![];
+    let mut cjdns = cjdns::admin::connect(Some(common.as_anon())).await?;
+    let mut handles: Vec<u32> = Vec::new();
     let mut page = 0;
     loop {
-        let mut resp: Handles = cjdns
-            .invoke("SessionManager_getHandles", HandlesArgs { page })
+        let mut args = Dict::new();
+        args.insert("page", page);
+        let resp = cjdns
+            .invoke("SessionManager_getHandles", args)
             .await?;
-        handles.append(&mut resp.handles);
-        if resp.more {
+        for handle in resp.get_list("handles")?.iter() {
+            handles.push(handle.try_into()?);
+        }
+        if resp.has("more") {
             page += 1;
         } else {
             break;
         }
     }
 
-    let mut sessions = vec![];
+    let mut sessions: Vec<Session> = Vec::new();
     for handle in handles {
-        let resp: Session = cjdns
-            .invoke("SessionManager_sessionStats", SessionArgs { handle })
-            .await?;
-        sessions.push(resp);
+        let mut args = Dict::new();
+        args.insert("handle", handle);
+        let resp = cjdns.invoke("SessionManager_sessionStats", args).await?;
+        sessions.push(resp.try_into()?);
     }
     sessions.sort_by(|a, b| no_v(a).cmp(no_v(b)));
 
@@ -58,7 +64,7 @@ pub async fn show(common: CommonArgs, ip6: bool) -> Result<()> {
             session.state,
             session.handle.to_string(),
             session.send_handle.to_string(),
-            format!("{:08x}", session.metric),
+            print_metric(session.metric),
             last,
         ]);
     }
@@ -66,32 +72,29 @@ pub async fn show(common: CommonArgs, ip6: bool) -> Result<()> {
     Ok(())
 }
 
-#[derive(Serialize)]
-struct HandlesArgs {
-    page: u32,
-}
-
-#[derive(Deserialize)]
-struct Handles {
-    handles: Vec<u32>,
-    #[serde(deserialize_with = "wire::as_bool", default)]
-    more: bool,
-}
-
-#[derive(Serialize)]
-struct SessionArgs {
-    handle: u32,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
 struct Session {
     addr: String,
     duplicates: u32,
     handle: u32,
-    lost_packets: u64,
-    metric: u64,
-    received_out_of_range: u64,
+    lost_packets: i64,
+    metric: i64,
+    received_out_of_range: i64,
     send_handle: u32,
     state: String,
+}
+impl TryFrom<Dict<'_>> for Session {
+    type Error = eyre::Error;
+
+    fn try_from(value: Dict) -> Result<Self> {
+        Ok(Session {
+            addr: value.get("addr")?,
+            duplicates: value.get("duplicates")?,
+            handle: value.get("handle")?,
+            lost_packets: value.get("lostPackets")?,
+            metric: value.get("metric")?,
+            received_out_of_range: value.get("receivedOutOfRange")?,
+            send_handle: value.get("sendHandle")?,
+            state: value.get("state")?,
+        })
+    }
 }

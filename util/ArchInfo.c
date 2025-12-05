@@ -88,20 +88,20 @@ gcc arch.c
     #define ARCH ArchInfo_AUDIT_ARCH_AARCH64
     #define ARCHSTR "arm64"
 #elif defined(__ARM_EABI__) || defined(__arm__)
-    #if defined(Endian_BIG)
+    #if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
         #define ARCH ArchInfo_AUDIT_ARCH_ARMEB
         #define ARCHSTR "armeb"
-    #elif defined(Endian_LITTLE)
+    #elif __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
         #define ARCH ArchInfo_AUDIT_ARCH_ARM
         #define ARCHSTR "armel"
     #else
         #error unknown endian
     #endif
 #elif defined(__powerpc64__) || defined(__ppc64__) || defined(__PPC64__) || defined(_ARCH_PPC64)
-    #if defined(Endian_BIG)
+    #if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
         #define ARCH ArchInfo_AUDIT_ARCH_PPC64
         #define ARCHSTR "ppc64"
-    #elif defined(Endian_LITTLE)
+    #elif __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
         #define ARCH ArchInfo_AUDIT_ARCH_PPC64LE
         #define ARCHSTR "ppc64le"
     #else
@@ -130,20 +130,20 @@ gcc arch.c
     #endif
 #elif defined(__mips__) || defined(__mips) || defined(__MIPS__)
     #if defined(__SIZEOF_POINTER__) && __SIZEOF_POINTER__ == 8
-        #if defined(Endian_BIG)
+        #if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
             #define ARCH ArchInfo_AUDIT_ARCH_MIPS64
             #define ARCHSTR "mips64"
-        #elif defined(Endian_LITTLE)
+        #elif __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
             #define ARCH ArchInfo_AUDIT_ARCH_MIPSEL64
             #define ARCHSTR "mipsel64"
         #else
             #error unknown endian
         #endif
     #elif defined(__SIZEOF_POINTER__) && __SIZEOF_POINTER__ == 4
-        #if defined(Endian_BIG)
+        #if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
             #define ARCH ArchInfo_AUDIT_ARCH_MIPS
             #define ARCHSTR "mips"
-        #elif defined(Endian_LITTLE)
+        #elif __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
             #define ARCH ArchInfo_AUDIT_ARCH_MIPSEL
             #define ARCHSTR "mipsel"
         #else

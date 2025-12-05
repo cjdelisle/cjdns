@@ -1,10 +1,10 @@
 use crate::common::{base32, utils};
-use anyhow::{bail, Result};
+use eyre::{bail, Result};
 use sha2::{Digest, Sha512};
-use sodiumoxide::{crypto::box_, hex};
+use cjdns::sodiumoxide::{crypto::box_, hex};
 
 pub async fn keygen() -> Result<()> {
-    if sodiumoxide::init().is_err() {
+    if cjdns::sodiumoxide::init().is_err() {
         bail!("failed to initialize sodium library")
     }
 

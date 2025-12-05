@@ -39,7 +39,7 @@ struct Admin_FunctionArg
     bool required;
 };
 
-#define Admin_MAX_REQUEST_SIZE 512
+#define Admin_MAX_REQUEST_SIZE 2048
 
 // This must not exceed PipeInterface_MAX_MESSAGE_SIZE
 #define Admin_MAX_RESPONSE_SIZE 65536

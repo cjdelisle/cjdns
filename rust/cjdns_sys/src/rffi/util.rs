@@ -46,7 +46,7 @@ pub unsafe extern "C" fn Rffi_error(
     allocator::adopt(
         alloc,
         RTypes_Error_t {
-            e: Some(anyhow::anyhow!(s)),
+            e: Some(eyre::eyre!(s)),
         },
     )
 }
@@ -64,7 +64,7 @@ pub unsafe extern "C" fn Rffi_error_fl(
     allocator::adopt(
         alloc,
         RTypes_Error_t {
-            e: Some(anyhow::anyhow!(ss)),
+            e: Some(eyre::eyre!(ss)),
         },
     )
 }

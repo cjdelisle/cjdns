@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 use std::os::fd::AsRawFd;
-use std::sync::atomic::AtomicI32;
+use std::sync::atomic::{AtomicI32, AtomicU32};
 use std::time::Duration;
 use libc::cmsghdr;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
@@ -13,7 +13,7 @@ use std::convert::TryFrom;
 use std::sync::Arc;
 use crate::interface::wire::message::Message;
 use crate::external::interface::iface::{self, IfRecv, Iface, IfacePvt};
-use anyhow::{Context, Result};
+use eyre::{Context, Result};
 
 const RECV_BATCH: usize = 8;
 const SEND_BATCH: usize = 8;
@@ -418,6 +418,12 @@ pub enum RecvWorkerState {
     Yield = 6,
 }
 
+#[derive(Default)]
+struct WorkerState {
+    state: AtomicI32,
+    counter: AtomicU32,
+}
+
 struct SocketIfaceInternal<T: AsRawFd + Sync + Send> {
     iface: IfacePvt,
     st: SocketType,
@@ -427,8 +433,8 @@ struct SocketIfaceInternal<T: AsRawFd + Sync + Send> {
     to_go_out_send: Sender<Message>,
     done_r: tokio::sync::broadcast::Receiver<()>,
 
-    send_worker_states: Vec<AtomicI32>,
-    recv_worker_states: Vec<AtomicI32>,
+    send_worker_states: Vec<WorkerState>,
+    recv_worker_states: Vec<WorkerState>,
 }
 impl<T: AsRawFd + Sync + Send> IfRecv for Arc<SocketIfaceInternal<T>> {
     fn recv(&self, m: Message) -> Result<()> {
@@ -457,7 +463,8 @@ impl<T: AsRawFd + Sync + Send + 'static> SocketIfaceInternal<T> {
         }
     }
     fn send_worker_set_state(self: &Arc<Self>, n: usize, state: SendWorkerState) {
-        self.send_worker_states[n].store(state as i32, std::sync::atomic::Ordering::Relaxed);
+        self.send_worker_states[n].state.store(state as i32, std::sync::atomic::Ordering::Relaxed);
+        self.send_worker_states[n].counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     }
     async fn send_worker(self: Arc<Self>, n: usize) {
         let fd_num = n % self.afds.len();
@@ -518,7 +525,8 @@ impl<T: AsRawFd + Sync + Send + 'static> SocketIfaceInternal<T> {
         }
     }
     fn recv_worker_set_state(self: &Arc<Self>, n: usize, state: RecvWorkerState) {
-        self.recv_worker_states[n].store(state as i32, std::sync::atomic::Ordering::Relaxed);
+        self.recv_worker_states[n].state.store(state as i32, std::sync::atomic::Ordering::Relaxed);
+        self.recv_worker_states[n].counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     }
     async fn recv_worker(self: Arc<Self>, n: usize) {
         let fd_num = n % self.afds.len();
@@ -604,27 +612,29 @@ impl<T: AsRawFd + Sync + Send + 'static> SocketIfaceInternal<T> {
 }
 
 trait SocketIfaceInternalT: Send + Sync {
-    fn worker_states(&self) -> (Vec<SendWorkerState>,Vec<RecvWorkerState>);
+    fn worker_states(&self) -> (Vec<(SendWorkerState, u32)>,Vec<(RecvWorkerState, u32)>);
 }
 impl<T: AsRawFd + Sync + Send> SocketIfaceInternalT for SocketIfaceInternal<T> {
-    fn worker_states(&self) -> (Vec<SendWorkerState>,Vec<RecvWorkerState>) {
+    fn worker_states(&self) -> (Vec<(SendWorkerState, u32)>,Vec<(RecvWorkerState, u32)>) {
         let mut rout = Vec::with_capacity(self.recv_worker_states.len());
         let mut sout = Vec::with_capacity(self.send_worker_states.len());
         for r in &self.recv_worker_states {
-            let n = r.load(std::sync::atomic::Ordering::Relaxed);
+            let n = r.state.load(std::sync::atomic::Ordering::Relaxed);
             let x = match RecvWorkerState::try_from(n) {
                 Ok(x) => x,
                 Err(_) => RecvWorkerState::Invalid,
             };
-            rout.push(x);
+            let c = r.counter.load(std::sync::atomic::Ordering::Relaxed);
+            rout.push((x, c));
         }
         for s in &self.send_worker_states {
-            let n = s.load(std::sync::atomic::Ordering::Relaxed);
+            let n = s.state.load(std::sync::atomic::Ordering::Relaxed);
             let x = match SendWorkerState::try_from(n) {
                 Ok(x) => x,
                 Err(_) => SendWorkerState::Invalid,
             };
-            sout.push(x);
+            let c = s.counter.load(std::sync::atomic::Ordering::Relaxed);
+            sout.push((x, c));
         }
         (sout, rout)
     }
@@ -644,7 +654,7 @@ impl Drop for SocketIface {
 impl SocketIface {
     pub fn new<T: AsRawFd + Sync + Send + 'static>(mut fds: Vec<T>, st: SocketType) -> Result<Self> {
         if fds.is_empty() {
-            anyhow::bail!("Cannot create a SocketIface with no file descriptors");
+            eyre::bail!("Cannot create a SocketIface with no file descriptors");
         }
         let mut afds = Vec::with_capacity(fds.len());
         for fd in fds.drain(..) {
@@ -672,8 +682,8 @@ impl SocketIface {
             to_go_out_recv: Mutex::new(tgo_r),
             to_go_out_send: tgo,
             done_r,
-            send_worker_states: (0..workers).map(|_|AtomicI32::new(0)).collect(),
-            recv_worker_states: (0..workers).map(|_|AtomicI32::new(0)).collect(),
+            send_worker_states: (0..workers).map(|_|Default::default()).collect(),
+            recv_worker_states: (0..workers).map(|_|Default::default()).collect(),
         });
         iface.set_receiver(Arc::clone(&out));
 
@@ -685,7 +695,7 @@ impl SocketIface {
         Ok(Self{ iface, _done, inner: out, })
     }
 
-    pub fn worker_states(&self) -> (Vec<SendWorkerState>,Vec<RecvWorkerState>) {
+    pub fn worker_states(&self) -> (Vec<(SendWorkerState, u32)>,Vec<(RecvWorkerState, u32)>) {
         self.inner.worker_states()
     }
 }

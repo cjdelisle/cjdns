@@ -64,7 +64,7 @@ mod tests {
     use crate::rffi::allocator;
 
     #[test]
-    fn test_exepath() -> anyhow::Result<()> {
+    fn test_exepath() -> eyre::Result<()> {
         let mut alloc = allocator::new!();
 
         let out = unsafe {

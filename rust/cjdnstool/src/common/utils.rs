@@ -1,5 +1,5 @@
 use super::base32;
-use anyhow::{anyhow, bail, Result};
+use eyre::{eyre, bail, Result};
 use sha2::{
     digest::{Digest, Output},
     Sha512,
@@ -70,14 +70,14 @@ pub fn key_to_ip6(with_key: &str, with_prefix: bool) -> Result<String> {
         if with_prefix {
             let (l, r) = key
                 .rsplit_once('.')
-                .ok_or_else(|| anyhow!("expected prefix before key"))?;
+                .ok_or_else(|| eyre!("expected prefix before key"))?;
             prefix = Some(l);
             key = r;
         } else {
             prefix = None;
         }
         let raw_key =
-            base32::decode(key.as_bytes()).map_err(|e| anyhow!("invalid key format: {}", e))?;
+            base32::decode(key.as_bytes()).map_err(|e| eyre!("invalid key format: {}", e))?;
         let ipv6 = hash_to_ip6(Sha512::digest(Sha512::digest(raw_key)));
         Ok(if let Some(prefix) = prefix {
             format!("{prefix}.{ipv6}")

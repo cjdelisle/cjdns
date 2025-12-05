@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::sync::atomic::{self, AtomicUsize};
 use std::str::FromStr;
 
-use anyhow::{bail, Result};
+use eyre::{bail, Result};
 use boringtun::crypto::blake2s::Blake2s;
 use boringtun::crypto::x25519::{X25519PublicKey, X25519SecretKey};
 use boringtun::noise::{self, Tunn, TunnResult, rate_limiter::RateLimiter};
@@ -230,7 +230,7 @@ impl SessionInner {
     }
 
     fn send_crypto(&self, mut msg: Message) -> Result<()> {
-        anyhow::ensure!(msg.is_aligned_to(4), "Alignment fault");
+        eyre::ensure!(msg.is_aligned_to(4), "Alignment fault");
         let msg_type = cnoise::cjdns_from_wg(&mut msg)?;
         log::debug!("send_crypto message type {} length {}", msg_type, msg.len());
         self.cipher_pvt.send(msg)
@@ -242,8 +242,8 @@ impl IfRecv for PlaintextRecv {
     fn recv(&self, mut msg: Message) -> Result<()> {
         // No real message can be 0 bytes in length
         //log::debug!("Encrypt msg len {}", msg.len());
-        anyhow::ensure!(msg.len() > 0, "Zero-length message is prohibited");
-        anyhow::ensure!(msg.is_aligned_to(4), "Alignment fault");
+        eyre::ensure!(msg.len() > 0, "Zero-length message is prohibited");
+        eyre::ensure!(msg.is_aligned_to(4), "Alignment fault");
         THREAD_CTX.with(|tc| {
             let mut tc = tc.borrow_mut();
             let add = &self.0.m.read().additional_data;
@@ -293,7 +293,7 @@ impl IfRecv for CiphertextRecv {
             (TryMsgReply::ReplyToPeer, None, msg_type, m) => {
                 let m = m.unwrap();
                 log::debug!("Replying to msg_type {}", msg_type);
-                anyhow::ensure!(m.is_aligned_to(4), "Alignment fault");
+                eyre::ensure!(m.is_aligned_to(4), "Alignment fault");
                 self.0.cipher_pvt.send(m)
             },
             (TryMsgReply::Done, None, msg_type, _) => {
@@ -527,7 +527,7 @@ impl SessionTrait for Session {
                 let msg_type = cnoise::cjdns_from_wg(&mut msg)?;
                 log::debug!("Tick {} sending packet type {} len {}",
                     Ipv6Addr::from(self.her_ip6), msg_type, packet.len());
-                anyhow::ensure!(msg.is_aligned_to(4), "Alignment fault");
+                eyre::ensure!(msg.is_aligned_to(4), "Alignment fault");
                 Ok(Some(msg))
             } else {
                 Ok(None)
@@ -677,7 +677,7 @@ fn handle_incoming1(
     } else {
         let ret = handle_init_msg(ca, &mut msg, peer_id, require_auth, session_hint)?;
         cnoise::cjdns_from_wg(&mut msg)?;
-        anyhow::ensure!(msg.is_aligned_to(4), "Alignment fault");
+        eyre::ensure!(msg.is_aligned_to(4), "Alignment fault");
         Ok((TryMsgReply::ReplyToPeer, ret, msg_type, Some(msg)))
     }
 }

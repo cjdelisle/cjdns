@@ -16,8 +16,8 @@ use crate::util::{
     sockaddr::Sockaddr,
 };
 use std::sync::Arc;
-use anyhow::anyhow;
-use cjdns_bencode::BValue;
+use eyre::eyre;
+use cjdns::bencode::object::Dict;
 use libc::c_char;
 use std::ffi::CStr;
 
@@ -41,7 +41,7 @@ pub extern "C" fn Rffi_fileExists(
             allocator::adopt(
                 errorAlloc,
                 RTypes_Error_t{
-                    e: Some(anyhow::anyhow!("input did not decode as utf8")),
+                    e: Some(eyre::eyre!("input did not decode as utf8")),
                 },
             )
         }
@@ -63,25 +63,18 @@ pub extern "C" fn Rffi_socketWorkerStates(
 ) -> *mut RTypes_Error_t {
     let si = from_c_const!(si);
     let (sws, rws) = si.si.worker_states();
-
-    let bv = BValue::builder()
-        .set_dict()
-        .add_dict_entry("send", |mut b|{
-            b = b.set_dict();
-            for (i, s) in sws.iter().enumerate() {
-                b = b.add_dict_entry(i.to_string(), |b|b.set_str(format!("{s:?}")));
-            }
-            b
-        })
-        .add_dict_entry("recv", |mut b|{
-            b = b.set_dict();
-            for (i, r) in rws.iter().enumerate() {
-                b = b.add_dict_entry(i.to_string(), |b|b.set_str(format!("{r:?}")));
-            }
-            b
-        })
-        .build();
-    let out = benc::value_to_c(alloc, bv.inner());
+    let mut bv = Dict::new();
+    bv.insert("send", sws.iter()
+        .enumerate()
+        .map(|(i,(s, c))|(i.to_string(), format!("{s:?}:{c}")))
+        .collect::<Dict<'_>>(),
+    );
+    bv.insert("recv", rws.iter()
+        .enumerate()
+        .map(|(i,(r, c))|(i.to_string(), format!("{r:?}:{c}")))
+        .collect::<Dict<'_>>(),
+    );
+    let out = benc::value_to_c(alloc, &bv.obj());
     unsafe {
         *outP = out;
     }
@@ -126,7 +119,7 @@ pub extern "C" fn Rffi_unixSocketConnect(
             }
         }
     } else {
-        return allocator::adopt(alloc, RTypes_Error_t { e: Some(anyhow!("Failed to decode path as utf8")) });
+        return allocator::adopt(alloc, RTypes_Error_t { e: Some(eyre!("Failed to decode path as utf8")) });
     };
     let iface = cif::wrap(alloc, usc.iface());
     unsafe {
@@ -176,7 +169,7 @@ pub extern "C" fn Rffi_unixSocketServer(
             }
         }
     } else {
-        return allocator::adopt(alloc, RTypes_Error_t { e: Some(anyhow!("Failed to decode path as utf8")) });
+        return allocator::adopt(alloc, RTypes_Error_t { e: Some(eyre!("Failed to decode path as utf8")) });
     };
     let iface_out = cif::wrap(alloc, &mut usc.iface);
     let out = allocator::adopt(alloc, Rffi_SocketServer{

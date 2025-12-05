@@ -15,11 +15,12 @@
 #ifndef BencMessageWriter_H
 #define BencMessageWriter_H
 
+#include "rust/cjdns_sys/Rffi.h"
 #include "exception/Err.h"
 #include "wire/Message.h"
-#include "util/Linker.h"
-Linker_require("benc/serialization/standard/BencMessageWriter.c")
 
-Err_DEFUN BencMessageWriter_write(Dict* toWrite, Message_t* msg);
+static inline Err_DEFUN BencMessageWriter_write(Dict* toWrite, Message_t* msg) {
+    return Rffi_Benc_write(toWrite, msg, Message_getAlloc(msg));
+}
 
 #endif

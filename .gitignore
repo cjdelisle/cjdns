@@ -18,7 +18,6 @@
 /privatetopublic*
 /publictoip6*
 /makekeys*
-/mkpasswd*
 /node_build/node_modules/jshint
 /node_build/node_modules/.bin
 /randombytes*

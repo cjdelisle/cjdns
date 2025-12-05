@@ -82,7 +82,7 @@ pub struct RTypes_CryptoAuth2_Session_t {
 }
 
 pub struct RTypes_Error_t {
-    pub e: Option<anyhow::Error>,
+    pub e: Option<eyre::Error>,
 }
 
 #[repr(C)]
