@@ -32,14 +32,15 @@
     #define Identity_check(pointer) \
         (__extension__ ({                                                      \
             __typeof__(pointer) Identity_ptr = (pointer);                      \
-            Assert_true(Identity_ptr->Identity_verifier == Identity_MAGIC);  \
+            Assert_true(Identity_ptr->Identity_verifier == (Identity_MAGIC & UINTPTR_MAX));  \
             Identity_ptr;                                                      \
         }))
 
     #define Identity_ncheck(pointer) \
         (__extension__ ({                                                                       \
             __typeof__(pointer) Identity_ptr = (pointer);                                       \
-            Assert_true(!Identity_ptr || Identity_ptr->Identity_verifier == Identity_MAGIC);  \
+            Assert_true(!Identity_ptr ||                                                        \
+                Identity_ptr->Identity_verifier == (Identity_MAGIC & UINTPTR_MAX));             \
             Identity_ptr;                                                                       \
         }))
 
