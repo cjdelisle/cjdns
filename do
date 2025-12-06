@@ -13,19 +13,16 @@ path="release"
 if echo "$@" | grep -q '\-\-debug'; then
     release=""
     path="debug"
-fi 
+fi
 RUSTFLAGS="$RUSTFLAGS -g" $CARGO build $release
 if [ "$NO_TEST" = '' ]; then
   RUST_BACKTRACE=1 "./target/$path/testcjdroute" all >/dev/null
 fi
 
 move() {
-  # Rust build system uses hard links
-  if ! [ "$(stat -c %i "$1")" = "$(stat -c %i "$2")" ]; then
-    if ! mv -- "$1" "$2"; then
-      printf "Cannot find %s\n" "$1"
-      exit 1
-    fi
+  if ! mv -- "$1" "$2"; then
+    printf "Cannot find %s\n" "$1"
+    exit 1
   fi
 }
 move "./target/$path/cjdroute" ./cjdroute
