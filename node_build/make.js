@@ -17,6 +17,7 @@
 var Fs = require('fs');
 var nThen = require('nthen');
 var Cp = require('./Cp');
+var ChildProcess = require('child_process');
 var Builder = require('./builder');
 const CjdnsTest = require('./CjdnsTest');
 const GetVersion = require('./GetVersion');
@@ -247,26 +248,58 @@ Builder.configure({
     let foundSodium = false;
     nThen(function (waitFor) {
 
-        const dir = `${builder.config.buildDir}/../..`;
-        Fs.readdir(dir, waitFor((err, ret) => {
-            if (err) { throw err; }
-            ret.forEach((f) => {
-                if (!/^libsodium-sys-/.test(f)) { return; }
-                const inclPath = `${dir}/${f}/out/source/libsodium/src/libsodium/include`;
-                Fs.readdir(inclPath, waitFor((err, ret) => {
-                    if (foundSodium) { return; }
-                    if (err && err.code === 'ENOENT') { return; }
-                    if (err) { throw err; }
-                    builder.config.includeDirs.push(inclPath);
-                    foundSodium = true;
-                }));
-            });
-        }));
+        // Try pkg-config first if SODIUM_USE_PKG_CONFIG is set
+        if (process.env.SODIUM_USE_PKG_CONFIG) {
+            try {
+                const cflags = ChildProcess
+                    .execSync('pkg-config --cflags-only-I libsodium', { encoding: 'utf8' })
+                    .trim();
+
+                if (cflags) {
+                    const includePaths = cflags
+                        .split(/\s+/)
+                        .filter(flag => flag.startsWith('-I'))
+                        .map(flag => flag.substring(2));
+
+                    includePaths.forEach(p => builder.config.includeDirs.push(p));
+                    if (includePaths.length > 0) {
+                        foundSodium = true;
+                        if (process.env.CJDNS_VERBOSE) {
+                            console.log('Found libsodium via pkg-config: ' + includePaths.join(', '));
+                        }
+                    }
+                }
+            } catch (err) {
+                // pkg-config not available or libsodium.pc missing; fall back to vendored search
+            }
+        }
+
+        // Fall back to searching for vendored libsodium if pkg-config didn't work
+        if (!foundSodium) {
+            const dir = `${builder.config.buildDir}/../..`;
+            Fs.readdir(dir, waitFor((err, ret) => {
+                if (err) { throw err; }
+                ret.forEach((f) => {
+                    if (!/^libsodium-sys-/.test(f)) { return; }
+                    const inclPath = `${dir}/${f}/out/source/libsodium/src/libsodium/include`;
+                    Fs.readdir(inclPath, waitFor((err, ret) => {
+                        if (foundSodium) { return; }
+                        if (err && err.code === 'ENOENT') { return; }
+                        if (err) { throw err; }
+                        builder.config.includeDirs.push(inclPath);
+                        foundSodium = true;
+                    }));
+                });
+            }));
+        }
 
     }).nThen(function (waitFor) {
 
         if (!foundSodium) {
-            throw new Error("Unable to find a path to libsodium headers");
+            throw new Error(
+                "Unable to find a path to libsodium headers. " +
+                "If you have system libsodium installed, try setting SODIUM_USE_PKG_CONFIG=1."
+            );
         }
 
         if (!android) {
