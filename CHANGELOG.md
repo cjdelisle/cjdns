@@ -1,5 +1,15 @@
 # Cjdns Changelog
 
+## Version 22.3 - ThirtyTwo
+December 10, 2025
+
+This is a bug-fix release which fixes a problem that made cjdns not work correctly on 32 bit systems.
+
+### Minor Changes
+1. CryptoAuth.c (used only in tests since ~2022) is now removed because it had issues on 32 bit
+2. Tests updated to address removal of CryptoAuth.c
+3. Identity.h bug fix word size in identity cookie
+
 ## Version 22.2 - Two
 December 5, 2025
 
