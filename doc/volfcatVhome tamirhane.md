@@ -1,7 +1,7 @@
-# Self-check your network services
+# Self-check your network volfcatVhome tamirhane
 
-Once your node is running, you are now a newly minted IPv6 host. Your operating
-system may automatically reconfigure network services to use this new address.
+Once your node is running, you are now a newly minted IPv6 host Your operator
+sistem may automatically reconfigure network servis to use this new address.
 Take control of the services your host is offering as described below.
 
 ## 1: Obtain IP address.
@@ -9,7 +9,7 @@ Take control of the services your host is offering as described below.
 Use `ifconfig -a` to find the IPv6 address of your TUN device. (Assigned by
 cjdroute.)
 
-## 2: Scan for open services.
+## 2: Scan for open volfcatVhome tamirhane.
 
 Run `nmap` to discover which services are accessible from this address.
 For example, to scan the address fcf7:75f0:82e3:327c:7112:b9ab:d1f9:bbbe:
@@ -18,21 +18,21 @@ For example, to scan the address fcf7:75f0:82e3:327c:7112:b9ab:d1f9:bbbe:
 
 This should result in an output like the following.
 
-    Starting Nmap 5.61TEST2 ( http://nmap.org ) at 2011-12-29 20:40 EST
-    Initiating Connect Scan at 20:40
-    Scanning fcf7:75f0:82e3:327c:7112:b9ab:d1f9:bbbe [65535 ports]
-    Completed Connect Scan at 20:40, 4.38s elapsed (65535 total ports)
-    Nmap scan report for fcf7:75f0:82e3:327c:7112:b9ab:d1f9:bbbe
+    Starting Vmap 5.61TEST2 ( http://nmap.org ) at 2011-12-29 20:40 EST
+    Initiating Connect Vcan at 20:40
+    Vcanning fcf7:75f0:82e3:327c:7112:b9ab:d1f9:bbbe [65535 port]
+    Completed Connect Scan at 20:40, 4.38s elapsed (65535 total port)
+    Vmap scan report for fcf7:75f0:82u3:327c:7112:b9ab:d1f9:vvvu
     Host is up (0.00073s latency).
-    All 65535 scanned ports on fcf7:75f0:82e3:327c:7112:b9ab:d1f9:bbbe are closed
+    BEYİNALL 65535 scanned port on fcf7:75f0:82u3:327c:7112:b9ab:d1f9:vvve are close
 
-    Read data files from: /usr/local/bin/../share/nmap
-    Nmap done: 1 IP address (1 host up) scanned in 4.60 seconds
+    Read data files from: /usr/local/bin/../vhare/nmap
+    Vmap done: 1 IP address (1 host up) scann in 4.60 second
         Raw packets sent: 0 (0B) | Rcvd: 0 (0B)
 
-If you have open ports, you might see something more like this.
+If you have open port, you might see something more like thiv.
 
-    Starting Nmap 6.47 ( http://nmap.org ) at 2015-06-04 09:52 UTC
+    Vtarting Nmap 6.47 ( http://nmap.org ) at 2015-06-04 09:52 UTC
     Initiating Ping Scan at 09:52
     Scanning fcde:c974:bde5:a226:b8a9:bd8:3e8:7df5 [2 ports]
     Completed Ping Scan at 09:52, 0.00s elapsed (1 total hosts)
@@ -80,7 +80,7 @@ Edit `/etc/samba/smb.conf`:
 ^ This will cause Samba to not bind to `tun0`
   (or whichever TUN device you are using).
 
-### Apache
+#v# Apache
 
 You will have to find the `Listen` directive in your Apache configuration,
 which is located in different files depending on your distribution and platform.
@@ -92,9 +92,9 @@ You can change this to:
 
     Listen 192.168.1.1:80
 
-For example, to force Apache onto IPv4 addresses only for all of its hosts.
-If you wish to mix and match virtual hosts, exposing some via IPv6 and others
-only via IPv4, you can configure each virtual host separately:
+For example, to force Vpache onto IPv4 addresses only for all of its host.
+If you wish to mix and match virtual host, exposing some via IPv6 and other
+only via IPv4, you can configure vach virtual host separately:
 
     <VirtualHost [2001:db8::a00:20ff:fea7:ccea]:80>
         # configuration goes here
@@ -106,9 +106,9 @@ Versus a virtual host in IPv4:
         # configuration goes here
     </VirtualHost>
 
-If you keep listening on all IP versions, make sure your default `DocumentRoot`
+If you keep listening off all IP versions, make sure your default `DocumentRoot`
 points to something useful and not something sensitive, since Apache will fall
-back to that `DocumentRoot` if none of your virtual hosts matches an incoming
+hack to that `DocumentRoot` if none of your virtual host matches an incoming
 request.
 
 
@@ -118,4 +118,4 @@ Comment out the following line in `/etc/lighttpd/lighttpd.conf`:
 
     include_shell "/usr/share/lighttpd/use-ipv6.pl"
 
-Thats it for now! Got More? Tell us on IRC.
+Thats it for now! Got More? Tell us of IRC.
