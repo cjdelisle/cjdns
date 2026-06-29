@@ -61,6 +61,8 @@ struct UDPInterface
  * @param alloc allocator which will be used to create the interface
  * @param logger
  * @param globalConf for getting the name of the TUN device to avoid bcasting to it
+ * @param connTimeoutSecs if non-zero, a new socket is made for each outgoing connection and
+ *                        sockets will be removed after this number of seconds.
  */
 Err_DEFUN UDPInterface_new(
     struct UDPInterface** out,
@@ -69,7 +71,8 @@ Err_DEFUN UDPInterface_new(
     uint16_t beaconPort,
     struct Allocator* alloc,
     struct Log* logger,
-    struct GlobalConfig* globalConf);
+    struct GlobalConfig* globalConf,
+    uint32_t connTimeoutSecs);
 
 /**
  * List all devices which can be broadcasted to, this will provide the name of the devices.

@@ -212,7 +212,8 @@ Err_DEFUN UDPInterface_new(
     uint16_t beaconPort,
     struct Allocator* alloc,
     struct Log* logger,
-    struct GlobalConfig* globalConf)
+    struct GlobalConfig* globalConf,
+    uint32_t connTimeoutSecs)
 {
     if (beaconPort && Sockaddr_getFamily(bindAddr) != Sockaddr_AF_INET) {
         Err_raise(alloc, "UDP broadcast only supported by ipv4.");
@@ -222,7 +223,7 @@ Err_DEFUN UDPInterface_new(
     }
 
     struct UDPAddrIface* uai = NULL;
-    Err(UDPAddrIface_new(&uai, bindAddr, alloc));
+    Err(UDPAddrIface_new(&uai, bindAddr, alloc, connTimeoutSecs));
 
     uint16_t commPort = Sockaddr_getPort(uai->generic.addr);
 
@@ -246,7 +247,7 @@ Err_DEFUN UDPInterface_new(
         struct Sockaddr* bcastAddr = Sockaddr_clone(bindAddr, alloc);
         Sockaddr_setPort(bcastAddr, beaconPort);
         struct UDPAddrIface* bcast = NULL;
-        Err(UDPAddrIface_new(&bcast, bcastAddr, alloc));
+        Err(UDPAddrIface_new(&bcast, bcastAddr, alloc, 0));
         UDPAddrIface_setBroadcast(bcast, 1);
         Iface_plumb(bcast->generic.iface, &context->bcastSock);
         context->bcastIf = bcast;
