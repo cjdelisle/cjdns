@@ -154,7 +154,8 @@ static struct UDPInterface* setupLibuvUDP(struct Context* ctx,
                                        uint16_t beaconPort,
                                        uint8_t dscp,
                                        String* txid,
-                                       struct Allocator* alloc)
+                                       struct Allocator* alloc,
+                                       uint32_t connTimeoutSecs)
 {
     struct UDPInterface* udpIf = NULL;
     RTypes_Error_t* er = UDPInterface_new(
@@ -164,7 +165,8 @@ static struct UDPInterface* setupLibuvUDP(struct Context* ctx,
         beaconPort,
         alloc,
         ctx->logger,
-        ctx->globalConf);
+        ctx->globalConf,
+        connTimeoutSecs);
     if (er) {
         Dict* out = Dict_new(alloc);
         const char* emsg = Rffi_printError(er, alloc);
@@ -185,10 +187,11 @@ static void newInterface2(struct Context* ctx,
                           uint8_t dscp,
                           String* txid,
                           struct Allocator* requestAlloc,
-                          uint16_t beaconPort)
+                          uint16_t beaconPort,
+                          uint32_t cts)
 {
     struct Allocator* const alloc = Allocator_child(ctx->alloc);
-    struct UDPInterface* udpif = setupLibuvUDP(ctx, addr, beaconPort, dscp, txid, alloc);
+    struct UDPInterface* udpif = setupLibuvUDP(ctx, addr, beaconPort, dscp, txid, alloc, cts);
     if (!udpif) { return; }
 
     int af = Sockaddr_getFamily(addr);
@@ -222,6 +225,8 @@ static void newInterface(Dict* args, void* vcontext, String* txid, struct Alloca
     uint8_t dscp = dscpValue ? ((uint8_t) *dscpValue) : 0;
     int64_t* beaconPort_p = Dict_getIntC(args, "beaconPort");
     uint16_t beaconPort = beaconPort_p ? ((uint16_t) *beaconPort_p) : 0;
+    uint64_t* cts_p = Dict_getIntC(args, "connectTimeoutSecs");
+    uint32_t cts = (cts_p == NULL) ? 0 : *cts_p;
     struct Sockaddr_storage addr;
     if (Sockaddr_parse((bindAddress) ? bindAddress->bytes : "0.0.0.0", &addr)) {
         Dict out = Dict_CONST(
@@ -230,7 +235,7 @@ static void newInterface(Dict* args, void* vcontext, String* txid, struct Alloca
         Admin_sendMessage(&out, txid, ctx->admin);
         return;
     }
-    newInterface2(ctx, &addr.addr, dscp, txid, requestAlloc, beaconPort);
+    newInterface2(ctx, &addr.addr, dscp, txid, requestAlloc, beaconPort, cts);
 }
 
 static void listDevices(Gcc_UNUSED Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)

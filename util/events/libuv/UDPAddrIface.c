@@ -55,10 +55,11 @@ Err_DEFUN UDPAddrIface_workerStates(
 Err_DEFUN UDPAddrIface_new(
     struct UDPAddrIface** outP,
     struct Sockaddr* addr,
-    struct Allocator* userAlloc)
+    struct Allocator* userAlloc,
+    uint32_t connTimeoutSecs)
 {
     Rffi_UDPIface* internal = NULL;
-    Err(Rffi_udpIfaceNew(&internal, addr, userAlloc));
+    Err(Rffi_udpIfaceNew(&internal, addr, userAlloc, connTimeoutSecs));
     struct UDPAddrIface_pvt* out =
         Allocator_calloc(userAlloc, sizeof(struct UDPAddrIface_pvt), 1);
     out->pub.generic.iface = internal->iface;

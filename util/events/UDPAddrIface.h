@@ -34,17 +34,11 @@ struct UDPAddrIface
     AddrIface_t generic;
 };
 
-/**
- * @param base the event loop context.
- * @param bindAddr the address/port to bind to.
- * @param allocator the memory allocator for this message.
- * @param logger
- * @return a new UDPInterfaceBase.
- */
 Err_DEFUN UDPAddrIface_new(
     struct UDPAddrIface** out,
     struct Sockaddr* addr,
-    struct Allocator* alloc);
+    struct Allocator* alloc,
+    uint32_t connTimeoutSecs);
 
 int UDPAddrIface_setDSCP(struct UDPAddrIface* iface, uint8_t dscp);
 

@@ -229,6 +229,15 @@ static void udpInterface(Dict* config, struct Context* ctx)
         if (dscp) {
             Dict_putIntC(d, "dscp", *dscp, ctx->alloc);
         }
+        int64_t* cts = Dict_getIntC(udp, "connectTimeoutSecs");
+        if (cts) {
+            if (*cts < 0 || *cts > 0xffff) {
+                Log_warn(ctx->logger,
+                         "UDPInterface [%d] connectTimeoutSecs out of range, ignoring", i);
+            } else {
+                Dict_putIntC(d, "connectTimeoutSecs", *cts, ctx->alloc);
+            }
+        }
         int64_t* beaconPort_p = Dict_getIntC(udp, "beaconPort");
         uint16_t beaconPort = (beaconPort_p) ? *beaconPort_p : 0;
         int64_t* beaconP = Dict_getIntC(udp, "beacon");
@@ -740,7 +749,7 @@ void Configurator_config(Dict* config,
 {
     struct Allocator* tempAlloc = Allocator_child(alloc);
     struct UDPAddrIface* udp = NULL;
-    Err_assert(UDPAddrIface_new(&udp, NULL, alloc));
+    Err_assert(UDPAddrIface_new(&udp, NULL, alloc, 0));
     struct AdminClient* client =
         AdminClient_new(&udp->generic, sockAddr, adminPassword, eventBase, logger, tempAlloc);
 

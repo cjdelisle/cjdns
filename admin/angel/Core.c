@@ -548,7 +548,7 @@ int Core_main(int argc, char** argv)
 
     // --------------------- Bind Admin UDP --------------------- //
     struct UDPAddrIface* udpAdmin = NULL;
-    Err_assert(UDPAddrIface_new(&udpAdmin, &bindAddr.addr, alloc));
+    Err_assert(UDPAddrIface_new(&udpAdmin, &bindAddr.addr, alloc, 0));
 
     // ---- Setup a muxer so we can get admin from socket or UDP ---- //
     struct AddrIfaceMuxer* muxer = AddrIfaceMuxer_new(logger, alloc);

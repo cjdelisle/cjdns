@@ -78,6 +78,7 @@ pub extern "C" fn Rffi_udpIfaceNew(
     outp: *mut *mut Rffi_UDPIface,
     bind_addr: *const Sockaddr_t,
     c_alloc: *mut Allocator_t,
+    conn_timeout_secs: u32,
 ) -> *mut RTypes_Error_t {
     let addr = if bind_addr.is_null() {
         "0.0.0.0:0".parse().unwrap()
@@ -85,7 +86,7 @@ pub extern "C" fn Rffi_udpIfaceNew(
         Sockaddr::from(bind_addr).rs().unwrap()
     };
     log::info!("Binding UDP socket: {addr}");
-    let (udp, mut iface) = match UDPAddrIface::new(&addr) {
+    let (udp, mut iface) = match UDPAddrIface::new(&addr, conn_timeout_secs) {
         Ok(uai) => uai,
         Err(e) => {
             return allocator::adopt(c_alloc, RTypes_Error_t{ e: Some(e) });

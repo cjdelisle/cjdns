@@ -183,6 +183,12 @@ static int genconf(struct Allocator* alloc, struct Random* rand, bool eth, bool 
            "                \"beaconDevices\": [ \"all\" ],\n"
            "                \"beaconPort\": 64512,\n");
     printf("\n"
+           "                // Connect Timeout Seconds - if specified and non-zero, each\n"
+           "                // outgoing UDP connection will be allocated its own socket\n"
+           "                // and this is the number of seconds before a socket is removed.\n"
+           "                // Otherwise, all communications will use the main \"bind\" socket.\n"
+           "                \"connectTimeoutSecs\": 60,\n");
+    printf("\n"
            "                // Nodes to connect to (IPv4 only).\n"
            "                \"connectTo\": {\n"
            "                    // Add connection credentials here to join the network\n"
@@ -522,7 +528,7 @@ static Err_DEFUN checkRunningInstance(struct Allocator* allocator,
     }
 
     struct UDPAddrIface* udp = NULL;
-    RTypes_Error_t* err = UDPAddrIface_new(&udp, NULL, alloc);
+    RTypes_Error_t* err = UDPAddrIface_new(&udp, NULL, alloc, 0);
     if (err) {
         Allocator_free(alloc);
         return err;
