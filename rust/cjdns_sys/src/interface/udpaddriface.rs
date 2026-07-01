@@ -271,9 +271,9 @@ impl UDPAddrIfaceInternal {
             if js_need_update {
                 js.abort_all();
                 for conn in conns.iter().cloned() {
-                    js.spawn_local(conn.readable());
+                    js.spawn(conn.readable());
                 }
-                js.spawn_local(Arc::clone(&self).mainsock_readable());
+                js.spawn(Arc::clone(&self).mainsock_readable());
             }
 
             self.recv_worker_set_state(n, RecvWorkerState::RecvBatch);
@@ -299,7 +299,7 @@ impl UDPAddrIfaceInternal {
                             if x.is_ok() {
                                 conn.notify_received();
                             }
-                            js.spawn_local(conn.readable());
+                            js.spawn(conn.readable());
                             Some(x)
                         } else {
                             None
@@ -314,7 +314,7 @@ impl UDPAddrIfaceInternal {
                     if let Ok((_, sa)) = &x {
                         self.notify_received_main(sa).await;
                     }
-                    js.spawn_local(Arc::clone(&self).mainsock_readable());
+                    js.spawn(Arc::clone(&self).mainsock_readable());
                     x
                 };
 
