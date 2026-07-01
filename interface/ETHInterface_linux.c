@@ -134,10 +134,6 @@ static int handleEvent2(struct ETHInterface_pvt* context)
 
     Message_t* msg = context->currentMsg;
 
-    // Knock it out of alignment by 2 bytes so that it will be
-    // aligned when the idAndPadding is shifted off.
-    Err_assert(Message_eshift(msg, 2));
-
     int rc = recvfrom(context->socket,
                       Message_bytes(msg),
                       Message_getLength(msg),
@@ -208,6 +204,10 @@ static void handleEvent(void* vcontext)
         }
         if (!context->currentMsg) {
             context->currentMsg = Message_new(MAX_PACKET_SIZE, PADDING, context->currentMsgAlloc);
+
+            // Knock it out of alignment by 2 bytes so that it will be
+            // aligned when the idAndPadding is shifted off.
+            Err_assert(Message_eshift(context->currentMsg, 2));
         }
         ret = handleEvent2(context);
     }
