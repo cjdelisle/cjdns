@@ -142,10 +142,11 @@ static int handleEvent2(struct ETHInterface_pvt* context)
                       &addrLen);
 
     if (rc < ETHInterface_Header_SIZE) {
-        if (rc != EAGAIN) {
-            Log_debug(context->logger, "Failed to receive eth frame");
+        int err = errno;
+        if (err != EAGAIN) {
+            Log_debug(context->logger, "Failed to receive eth frame: [%d]", err);
         }
-        return rc;
+        return err;
     }
 
     Err_assert(Message_truncate(msg, rc));
