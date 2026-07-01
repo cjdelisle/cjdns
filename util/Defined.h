@@ -28,6 +28,6 @@
  * CAUTION: Because of limitations of detection, if you `#define X X` then
  * Defined(X) will be false!
  */
-#define Defined(macro) Pp_expr(1, "defined", Pp_Q ## macro ## Pp_Q, #macro)
+#define Defined(macro) Pp_expr(1, "defined", Pp_Q macro Pp_Q, #macro)
 
 #endif

@@ -299,7 +299,10 @@ const execJs = function (js, ctx, file, fileName, callback, thisObj) {
 
     const functions = Object.freeze({
         shortFile: (x) => '"' + x.substring(x.lastIndexOf('/')+1) + '"',
-        defined: (x, y) => x === y ? '0' : '1',
+        defined: (x, y) => {
+            x = x.trim();
+            return x === y ? '0' : '1';
+        },
         linkerDependency,
         get: (name) => print(get(name)),
         getAsString: (name) => print('"' + get(name) + '"'),
