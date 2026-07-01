@@ -61,6 +61,9 @@ struct ETHInterface_pvt
 
     String* ifName;
 
+    Message_t* currentMsg;
+    struct Allocator* currentMsgAlloc;
+
     Identity
 };
 
@@ -124,12 +127,12 @@ static Iface_DEFUN sendMessage(Message_t* msg, struct Iface* iface)
     return NULL;
 }
 
-static void handleEvent2(struct ETHInterface_pvt* context, struct Allocator* messageAlloc)
+static int handleEvent2(struct ETHInterface_pvt* context)
 {
-    Message_t* msg = Message_new(MAX_PACKET_SIZE, PADDING, messageAlloc);
-
     struct sockaddr_ll addr;
     uint32_t addrLen = sizeof(struct sockaddr_ll);
+
+    Message_t* msg = context->currentMsg;
 
     // Knock it out of alignment by 2 bytes so that it will be
     // aligned when the idAndPadding is shifted off.
@@ -143,8 +146,10 @@ static void handleEvent2(struct ETHInterface_pvt* context, struct Allocator* mes
                       &addrLen);
 
     if (rc < ETHInterface_Header_SIZE) {
-        Log_debug(context->logger, "Failed to receive eth frame");
-        return;
+        if (rc != EAGAIN) {
+            Log_debug(context->logger, "Failed to receive eth frame");
+        }
+        return rc;
     }
 
     Err_assert(Message_truncate(msg, rc));
@@ -157,7 +162,7 @@ static void handleEvent2(struct ETHInterface_pvt* context, struct Allocator* mes
     // here we could put a switch statement to handle different versions differently.
     if (hdr.version != ETHInterface_CURRENT_VERSION) {
         Log_debug(context->logger, "DROP unknown version");
-        return;
+        return 0;
     }
 
     uint16_t reportedLength = Endian_bigEndianToHost16(hdr.length_be);
@@ -165,13 +170,13 @@ static void handleEvent2(struct ETHInterface_pvt* context, struct Allocator* mes
     if (Message_getLength(msg) != reportedLength) {
         if (Message_getLength(msg) < reportedLength) {
             Log_debug(context->logger, "DROP size field is larger than frame");
-            return;
+            return 0;
         }
         Err_assert(Message_truncate(msg, reportedLength));
     }
     if (hdr.fc00_be != Endian_hostToBigEndian16(0xfc00)) {
         Log_debug(context->logger, "DROP bad magic");
-        return;
+        return 0;
     }
 
     struct Sockaddr_storage ss;
@@ -185,14 +190,27 @@ static void handleEvent2(struct ETHInterface_pvt* context, struct Allocator* mes
     Assert_true(!((uintptr_t)Message_bytes(msg) % 4) && "Alignment fault");
 
     Iface_send(context->pub.generic.iface, msg);
+
+    Allocator_free(context->currentMsgAlloc);
+    context->currentMsgAlloc = NULL;
+    context->currentMsg = NULL;
+
+    return 0;
 }
 
 static void handleEvent(void* vcontext)
 {
     struct ETHInterface_pvt* context = Identity_check((struct ETHInterface_pvt*) vcontext);
-    struct Allocator* messageAlloc = Allocator_child(context->pub.generic.alloc);
-    handleEvent2(context, messageAlloc);
-    Allocator_free(messageAlloc);
+    int ret = 0;
+    while (!ret) {
+        if (!context->currentMsgAlloc) {
+            context->currentMsgAlloc = Allocator_child(context->pub.generic.alloc);
+        }
+        if (!context->currentMsg) {
+            context->currentMsg = Message_new(MAX_PACKET_SIZE, PADDING, context->currentMsgAlloc);
+        }
+        ret = handleEvent2(context);
+    }
 }
 
 Err_DEFUN ETHInterface_listDevices(List** outP, struct Allocator* alloc)
