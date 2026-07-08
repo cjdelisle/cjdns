@@ -35,7 +35,6 @@ struct Context
     struct Allocator* alloc;
     struct Log* logger;
     struct Admin* admin;
-    struct ArrayList_WsInterface* ifaces;
     struct InterfaceController* ic;
     Identity
 };
@@ -148,7 +147,6 @@ static void newInterface2(struct Context* ctx,
         InterfaceController_newIface(ctx->ic, name, alloc);
     ici->af = af;
     Iface_plumb(&ici->addrIf, wsif->iface);
-    ArrayList_WsInterface_put(ctx->ifaces, ici->ifNum, wsif);
 
     Dict* out = Dict_new(requestAlloc);
     Dict_putStringCC(out, "error", "none", requestAlloc);
@@ -191,7 +189,6 @@ void WsInterface_admin_register(struct Allocator* alloc,
         .ic = ic,
     }));
     Identity_set(ctx);
-    ctx->ifaces = ArrayList_WsInterface_new(alloc);
 
     Admin_registerFunction("WsInterface_new", newInterface, ctx, true,
         ((struct Admin_FunctionArg[]) {
