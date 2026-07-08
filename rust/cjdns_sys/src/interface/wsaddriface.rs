@@ -6,9 +6,10 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::select;
 use tokio::sync::mpsc::{self, Sender};
 use tokio::sync::oneshot;
+use tokio_tungstenite::tungstenite::handshake::server::Request;
 use tokio_tungstenite::tungstenite::protocol::WebSocketConfig;
 use tokio_tungstenite::tungstenite::Message as WsMessage;
-use tokio_tungstenite::{accept_async_with_config, connect_async_with_config, WebSocketStream};
+use tokio_tungstenite::{accept_hdr_async_with_config, connect_async_with_config, WebSocketStream};
 
 use crate::external::interface::iface::{self, IfRecv, Iface, IfacePvt};
 use crate::interface::socketiface::RecvWorkerState;
@@ -316,13 +317,22 @@ impl WSAddrIfaceInternal {
 	}
 
 	async fn accept(self: Arc<Self>, stream: TcpStream, peer: SocketAddr) {
-		let ws = match accept_async_with_config(stream, Some(ws_config())).await {
+		let cb = |req: &Request, res|{
+			for (hn, hv) in req.headers() {
+				println!("HEADER: {hn} = {}", hv.to_str().unwrap_or("<ERROR>"));
+			}
+			Ok(res)
+		};
+		let res = accept_hdr_async_with_config(stream, cb, Some(ws_config())).await;
+		let ws = match res {
 			Ok(ws) => ws,
 			Err(e) => {
 				log::info!("WS handshake failed from {peer}: {e}");
 				return;
 			}
 		};
+		let peer = peer.to_string();
+		log::debug!("Incoming WS connection from {peer}");
 		self.run_conn(ws, None, peer.to_string(), None).await
 	}
 
@@ -330,15 +340,15 @@ impl WSAddrIfaceInternal {
 	/// fresh u32 id which becomes its Sockaddr via `From<u32>`.
 	async fn listen_worker(self: Arc<Self>, listener: TcpListener) {
 		loop {
-		    let (stream, peer) = match listener.accept().await {
-		        Ok(x) => x,
+		    match listener.accept().await {
+		        Ok((stream, peer)) => {
+				tokio::spawn(Arc::clone(&self).accept(stream, peer));
+			}
 		        Err(e) => {
 		            log::warn!("WS accept error: {e}");
 		            tokio::time::sleep(Duration::from_millis(100)).await;
-		            continue;
 		        }
-		    };
-		    tokio::spawn(Arc::clone(&self).accept(stream, peer));
+		    }
 		}
 	}
 }
