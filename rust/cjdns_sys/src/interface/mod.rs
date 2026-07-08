@@ -4,3 +4,4 @@ pub mod rustiface_test_wrapper;
 pub mod udpaddriface;
 pub mod socketiface;
 pub mod unixsocketiface;
+pub mod wsaddriface;

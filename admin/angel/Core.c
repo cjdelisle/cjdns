@@ -44,6 +44,7 @@
 #ifdef HAS_ETH_INTERFACE
 #include "interface/ETHInterface_admin.h"
 #endif
+#include "interface/WsInterface_admin.h"
 #include "net/InterfaceController_admin.h"
 #include "interface/addressable/AddrIfaceMuxer.h"
 #include "interface/tuntap/TUNMessageType.h"
@@ -426,6 +427,7 @@ Err_DEFUN Core_init(struct Allocator* alloc,
 #ifdef HAS_ETH_INTERFACE
     ETHInterface_admin_register(eventBase, alloc, logger, admin, nc->ifController);
 #endif
+    WsInterface_admin_register(alloc, logger, admin, nc->ifController);
 
     SupernodeHunter_admin_register(spf->snh, admin, alloc);
     ReachabilityCollector_admin_register(spf->rc, admin, alloc);

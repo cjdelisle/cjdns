@@ -22,11 +22,19 @@ typedef struct Rffi_TimerTx Rffi_TimerTx;
 
 typedef struct Rffi_UDPIface_pvt Rffi_UDPIface_pvt;
 
+typedef struct Rffi_WsIface_pvt Rffi_WsIface_pvt;
+
 typedef struct {
   Rffi_UDPIface_pvt *pvt;
   Iface_t *iface;
   Sockaddr_t *local_addr;
 } Rffi_UDPIface;
+
+typedef struct {
+  Rffi_WsIface_pvt *pvt;
+  Iface_t *iface;
+  Sockaddr_t *local_addr;
+} Rffi_WsIface;
 
 typedef struct {
   uint8_t octets[16];
@@ -205,6 +213,11 @@ RTypes_Error_t *Rffi_unixSocketServer(Rffi_SocketServer **rssOut,
                                       Iface_t **ifaceOut,
                                       const char *path,
                                       Allocator_t *alloc);
+
+RTypes_Error_t *Rffi_wsIfaceNew(Rffi_WsIface **outp,
+                                const Sockaddr_t *bind_addr,
+                                Allocator_t *c_alloc,
+                                uint32_t conn_timeout_secs);
 
 /**
  * Convert IPv4 and IPv6 addresses from binary to text form.

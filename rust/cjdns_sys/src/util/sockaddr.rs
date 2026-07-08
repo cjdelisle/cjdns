@@ -4,13 +4,42 @@ use crate::rffi::allocator;
 use crate::cffi;
 use std::convert::TryFrom;
 use std::convert::TryInto;
+use std::str::FromStr;
+use std::hash::{Hash, Hasher};
 
 pub const OVERHEAD: usize = std::mem::size_of::<crate::cffi::Sockaddr>();
 pub const TYPE_PLATFORM: u8 = 0;
 pub const TYPE_HANDLE: u8 = 1;
+pub const TYPE_ETHERNET: u8 = 2;
+pub const TYPE_URL: u8 = 3;
 
+#[derive(Clone)]
 pub struct Sockaddr {
     ss: cffi::Sockaddr_storage
+}
+impl Eq for Sockaddr {}
+impl PartialEq for Sockaddr {
+    fn eq(&self, other: &Self) -> bool {
+        let mut same = self.ss.addr.addrLen == other.ss.addr.addrLen;
+        same &= self.ss.addr.flags == other.ss.addr.flags;
+        same &= self.ss.addr.type_ == other.ss.addr.type_;
+        same &= self.ss.addr.prefix == other.ss.addr.prefix;
+        for i in 0..self.ss.addr.addrLen.div_ceil(8) as usize {
+            same &= self.ss.nativeAddr[i] == other.ss.nativeAddr[i];
+        }
+        same
+    }
+}
+impl Hash for Sockaddr {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.ss.addr.addrLen.hash(state);
+        self.ss.addr.flags.hash(state);
+        self.ss.addr.type_.hash(state);
+        self.ss.addr.prefix.hash(state);
+        for i in 0..self.ss.addr.addrLen.div_ceil(8) as usize {
+            self.ss.nativeAddr[i].hash(state);
+        }
+    }
 }
 impl Sockaddr {
     pub fn bytes(&self) -> &[u8] {
@@ -44,6 +73,40 @@ impl Sockaddr {
             buf[3] = pad2[1];
             Some(u32::from_le_bytes(buf))
         }
+    }
+    pub fn as_url(&self) -> Option<String> {
+        if self.ss.addr.addrLen < OVERHEAD as u16 || self.ss.addr.type_ != TYPE_URL {
+            None
+        } else {
+            let len = (self.ss.addr.addrLen as usize) - OVERHEAD;
+            let from_ptr = &self.ss as *const cffi::Sockaddr_storage as *const u8;
+            unsafe {
+                let from = std::slice::from_raw_parts(from_ptr, len);
+                Some(String::from_utf8_lossy(from).to_string())
+            }
+        }
+    }
+    pub fn type_of(&self) -> u8 {
+        self.ss.addr.type_
+    }
+}
+impl FromStr for Sockaddr {
+    type Err = eyre::Error;
+    fn from_str(s: &str) -> eyre::Result<Self> {
+        let from = s.as_bytes();
+        let mut out = Self{ss: unsafe { std::mem::zeroed() } };
+        if from.len() >= size_of_val(&out.ss.nativeAddr) {
+            eyre::bail!("String length is too long: {}", from.len());
+        }
+        let to_ptr = &mut out.ss as *mut cffi::Sockaddr_storage as *mut u8;
+        unsafe {
+            let to = std::slice::from_raw_parts_mut(to_ptr, from.len());
+            to.copy_from_slice(from);
+        }
+        out.ss.addr.addrLen = (OVERHEAD + from.len()) as _;
+        out.ss.addr.type_ = TYPE_URL;
+
+        Ok(out)
     }
 }
 impl From<u32> for Sockaddr {

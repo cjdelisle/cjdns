@@ -36,6 +36,7 @@ typedef struct Sockaddr
     #define Sockaddr_PLATFORM 0
     #define Sockaddr_HANDLE 1
     #define Sockaddr_ETHERNET 2
+    #define Sockaddr_URL 3
     uint8_t type;
 
     /** Only applies if flags & Sockaddr_flags_PREFIX is true. */
@@ -90,6 +91,8 @@ int Sockaddr_getPrefix(Sockaddr_t* addr);
  * @return 0 if all goes well, -1 if there is an error.
  */
 int Sockaddr_parse(const char* str, struct Sockaddr_storage* out);
+
+int Sockaddr_fromUrl(const char* url, struct Sockaddr_storage* out);
 
 /**
  * Convert a sockaddr to a printable string.

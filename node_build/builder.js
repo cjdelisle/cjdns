@@ -285,7 +285,7 @@ const execJs = function (js, ctx, file, fileName, callback, thisObj) {
     let err;
 
     const linkerDependency = (cFile) => {
-        cFile = cFile.replaceAll('$PLATFORM', ctx.config.systemName);
+        cFile = cFile.replace(/\$PLATFORM/g, ctx.config.systemName);
         file.links.push(cFile);
     };
 
@@ -917,9 +917,13 @@ module.exports.configure = function (
             if (!exists) { return; }
             Fs.readFile(buildDir + '/state.json', waitFor(function (err, ret) {
                 if (err) { throw err; }
-                state = ( JSON.parse(ret) /*:Builder_State_t*/ );
-                hasState = true;
-                debug("Loaded state file");
+                try {
+                    state = ( JSON.parse(ret) /*:Builder_State_t*/ );
+                    hasState = true;
+                    debug("Loaded state file");
+                } catch (e) {
+                    debug("Invalid state file: " + e);
+                }
             }));
         }));
 
