@@ -81,14 +81,25 @@ impl log::Log for CjdnsLog {
             filebuf[0..file_slice.len()].copy_from_slice(file_slice);
         }
         let line = record.line().unwrap_or(0);
-        let msg = format!("{}", record.args());
+        let mut vmsg = format!("{}", record.args()).as_bytes().to_vec();
+        for chr in &mut vmsg {
+            if *chr == 0 {
+                *chr = b'.';
+            }
+        }
         let log = self.log.lock();
         if log.is_null() {
             // Suppress logs when no logger is yet configured.
             // println!("{} {}:{} {}", record.level().as_str(), file, line, msg);
             return;
         }
-        let cmsg = CString::new(msg).unwrap();
+        let cmsg = match CString::new(vmsg) {
+            Ok(cmsg) => cmsg,
+            Err(e) => {
+                println!("Error making log message: {e}");
+                return;
+            }
+        };
         unsafe {
             cffi::Log_print_fromRust(
                 *log,
