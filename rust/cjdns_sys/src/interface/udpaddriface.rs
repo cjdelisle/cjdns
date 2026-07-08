@@ -261,7 +261,9 @@ impl UDPAddrIfaceInternal {
                     conns.clear();
                     let l = self.destmap.read().await;
                     for conn in l.values().cloned() {
-                        conns.push(conn);
+                        if conn.sock.is_some() {
+                            conns.push(conn);
+                        }
                     }
                     drop(l);
                     destmap_ver = dv;
@@ -270,6 +272,7 @@ impl UDPAddrIfaceInternal {
             }
             if js_need_update {
                 js.abort_all();
+                while let Some(_) = js.join_next().await {}
                 for conn in conns.iter().cloned() {
                     js.spawn(conn.readable());
                 }
