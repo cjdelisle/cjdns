@@ -154,7 +154,7 @@ impl WSAddrIfaceInternal {
 		    }
 		};
 
-		self.run_conn(ws, sa, url, Some(m)).await
+		self.run_conn(ws, Some(sa), url, Some(m)).await
 	}
 
 	async fn poll_stream<S>(
@@ -216,24 +216,40 @@ impl WSAddrIfaceInternal {
 		}
 	}
 
-	fn replace_conn(self: &Arc<Self>, sa: &Sockaddr, wsconn: Arc<WsConn>) {
+	fn replace_conn(self: &Arc<Self>, sa: &Option<Sockaddr>, wsconn: Arc<WsConn>) -> Sockaddr {
 		let mut remove = Vec::new();
 		let oa = self.oldest_allowed();
 		let mut l = self.conns.write();
+		let mut out = None;
 		l.retain(|k, conn| {
-			if conn.last_recv_sec() < oa || k == sa {
-				remove.push(Arc::clone(conn));
-				false
+			if conn.last_recv_sec() < oa {
+			} else if let Some(sa) = sa {
+				if k == sa {
+					out = Some(k.clone());
+				} else {
+					return true;
+				}
+			} else if conn.peer == wsconn.peer {
+				out = Some(k.clone());
 			} else {
-				true
+				return true;
 			}
+			remove.push(Arc::clone(conn));
+			false
 		});
-		l.insert(sa.clone(), wsconn);
+		let out = if let Some(out) = out {
+			out
+		} else {
+			let id = self.next_id.fetch_add(1, Relaxed);
+			Sockaddr::from(id)
+		};
+		l.insert(out.clone(), wsconn);
 		drop(l);
 		for a in remove {
 			// Drop sender, receiver exits
 			a.done.lock().take();
 		}
+		out
 	}
 
 	/// Runs one established connection to completion: splits the stream,
@@ -243,7 +259,7 @@ impl WSAddrIfaceInternal {
 	async fn run_conn<S>(
 		self: Arc<Self>,
 		ws: WebSocketStream<S>,
-		sa: Sockaddr,
+		sa: Option<Sockaddr>,
 		peer: String,
 		msg: Option<Message>,
 	) where
@@ -259,7 +275,7 @@ impl WSAddrIfaceInternal {
 
 		let wsconn = WsConn::new(send, done, peer);
 
-		self.replace_conn(&sa, Arc::clone(&wsconn));
+		let sa = self.replace_conn(&sa, Arc::clone(&wsconn));
 
 		let (mut sink, mut stream) = ws.split();
 
@@ -307,9 +323,7 @@ impl WSAddrIfaceInternal {
 				return;
 			}
 		};
-		let id = self.next_id.fetch_add(1, Relaxed);
-		let sa = Sockaddr::from(id);
-		self.run_conn(ws, sa, peer.to_string(), None).await
+		self.run_conn(ws, None, peer.to_string(), None).await
 	}
 
 	/// Accept loop for incoming connections. Each accepted socket gets a
