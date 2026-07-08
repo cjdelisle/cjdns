@@ -1,3 +1,4 @@
+use std::ffi::CStr;
 use std::net::{SocketAddr, SocketAddrV6, SocketAddrV4, IpAddr, Ipv4Addr, Ipv6Addr};
 use crate::cffi::Allocator_t;
 use crate::rffi::allocator;
@@ -78,11 +79,11 @@ impl Sockaddr {
         if self.ss.addr.addrLen < OVERHEAD as u16 || self.ss.addr.type_ != TYPE_URL {
             None
         } else {
-            let len = (self.ss.addr.addrLen as usize) - OVERHEAD;
             let from_ptr = &self.ss.nativeAddr as *const [u64; 16] as *const u8;
             unsafe {
-                let from = std::slice::from_raw_parts(from_ptr, len);
-                Some(String::from_utf8_lossy(from).to_string())
+                Some(CStr::from_ptr(from_ptr.cast())
+                    .to_string_lossy()
+                    .into_owned())
             }
         }
     }
@@ -103,7 +104,8 @@ impl FromStr for Sockaddr {
             let to = std::slice::from_raw_parts_mut(to_ptr, from.len());
             to.copy_from_slice(from);
         }
-        out.ss.addr.addrLen = (OVERHEAD + from.len()) as _;
+        let total_len = (from.len() + 3) & !3;
+        out.ss.addr.addrLen = (OVERHEAD + total_len) as _;
         out.ss.addr.type_ = TYPE_URL;
 
         Ok(out)
