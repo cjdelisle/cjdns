@@ -19,13 +19,13 @@
 #include "memory/Allocator.h"
 #include "net/InterfaceController.h"
 #include "util/log/Log.h"
-#include "util/events/EventBase.h"
 #include "util/Linker.h"
 Linker_require("interface/WsInterface_admin.c")
 
 void WsInterface_admin_register(struct Allocator* allocator,
                                 struct Log* logger,
                                 struct Admin* admin,
-                                struct InterfaceController* ic);
+                                struct InterfaceController* ic,
+                                String* peerId);
 
 #endif

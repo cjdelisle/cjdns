@@ -1,12 +1,15 @@
+use cjdns::crypto::random;
 use futures_util::stream::SplitStream;
 use futures_util::{SinkExt, StreamExt};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
-use tokio::io::{AsyncRead, AsyncWrite};
+use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::select;
 use tokio::sync::mpsc::{self, Sender};
 use tokio::sync::oneshot;
+use tokio_tungstenite::tungstenite::Error::Url;
 use tokio_tungstenite::tungstenite::handshake::server::Request;
+use tokio_tungstenite::tungstenite::http::Uri;
 use tokio_tungstenite::tungstenite::protocol::WebSocketConfig;
 use tokio_tungstenite::tungstenite::Message as WsMessage;
 use tokio_tungstenite::{accept_hdr_async_with_config, connect_async_with_config, WebSocketStream};
@@ -18,7 +21,7 @@ use crate::util::{now_ms, sockaddr};
 use crate::util::sockaddr::Sockaddr;
 use eyre::{Context, Result};
 use std::collections::HashMap;
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::atomic::Ordering::Relaxed;
@@ -100,6 +103,7 @@ struct WSAddrIfaceInternal {
 	conns: parking_lot::RwLock<HashMap<Sockaddr, Arc<WsConn>>>,
 	next_id: AtomicU32,
 	conn_timeout_secs: u32,
+	peer_id: String,
 }
 
 impl IfRecv for Arc<WSAddrIfaceInternal> {
@@ -146,7 +150,12 @@ impl WSAddrIfaceInternal {
 			log::error!("Got connect_send with non-url SA");
 			return;
 		};
-		let res = connect_async_with_config(url.clone(), Some(ws_config()), true).await;
+		let full_url = if url.contains('?') {
+			url.clone() + "&" + "cjdns-peer-id=" + &self.peer_id
+		} else {
+			url.clone() + "?" + "cjdns-peer-id=" + &self.peer_id
+		};
+		let res = connect_async_with_config(full_url, Some(ws_config()), true).await;
 		let ws = match res {
 		    Ok((ws, _resp)) => ws,
 		    Err(e) => {
@@ -317,23 +326,38 @@ impl WSAddrIfaceInternal {
 	}
 
 	async fn accept(self: Arc<Self>, stream: TcpStream, peer: SocketAddr) {
+		let mut peer_id = None;
 		let cb = |req: &Request, res|{
-			for (hn, hv) in req.headers() {
-				println!("HEADER: {hn} = {}", hv.to_str().unwrap_or("<ERROR>"));
-			}
+			peer_id = req
+				.uri()
+				.query()
+				.and_then(|q| {
+					url::form_urlencoded::parse(q.as_bytes())
+						.find_map(|(k, v)| {
+							if k == "cjdns-peer-id" {
+								Some(v.into_owned())
+							} else {
+								None
+							}
+						})
+				});
 			Ok(res)
 		};
 		let res = accept_hdr_async_with_config(stream, cb, Some(ws_config())).await;
-		let ws = match res {
+		let mut ws = match res {
 			Ok(ws) => ws,
 			Err(e) => {
 				log::info!("WS handshake failed from {peer}: {e}");
 				return;
 			}
 		};
-		let peer = peer.to_string();
-		log::debug!("Incoming WS connection from {peer}");
-		self.run_conn(ws, None, peer.to_string(), None).await
+		let Some(peer_id) = peer_id else {
+			log::debug!("WS request from {peer} with no peer_id");
+			ws.close(None);
+			return;
+		};
+		log::debug!("Incoming WS connection from {peer} with id {peer_id}");
+		self.run_conn(ws, None, peer_id, None).await
 	}
 
 	/// Accept loop for incoming connections. Each accepted socket gets a
@@ -359,7 +383,7 @@ pub struct WsAddrIface {
 }
 
 impl WsAddrIface {
-	pub fn new(bind_addr: &SocketAddr, conn_timeout_secs: u32) -> Result<(Self, Iface)> {
+	pub fn new(bind_addr: &SocketAddr, conn_timeout_secs: u32, peer_id: String) -> Result<(Self, Iface)> {
 		let listener = std::net::TcpListener::bind(bind_addr)
 		    .with_context(|| format!("Binding WS listener to {bind_addr}"))?;
 		listener.set_nonblocking(true)?;
@@ -373,6 +397,7 @@ impl WsAddrIface {
 		    conns: Default::default(),
 		    next_id: AtomicU32::new(0),
 		    conn_timeout_secs,
+		    peer_id,
 		});
 		iface.set_receiver(Arc::clone(&internal));
 

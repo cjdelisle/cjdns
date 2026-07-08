@@ -217,7 +217,8 @@ RTypes_Error_t *Rffi_unixSocketServer(Rffi_SocketServer **rssOut,
 RTypes_Error_t *Rffi_wsIfaceNew(Rffi_WsIface **outp,
                                 const Sockaddr_t *bind_addr,
                                 Allocator_t *c_alloc,
-                                uint32_t conn_timeout_secs);
+                                uint32_t conn_timeout_secs,
+                                const String_t *peer_id);
 
 /**
  * Convert IPv4 and IPv6 addresses from binary to text form.

@@ -29,6 +29,7 @@ byteorder = { workspace = true }
 trust-dns-resolver = { workspace = true }
 ipnetwork = { workspace = true }
 num_enum = { workspace = true }
+url = { workspace = true }
 
 [build-dependencies]
 cc = { workspace = true }

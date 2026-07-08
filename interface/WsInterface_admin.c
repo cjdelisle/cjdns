@@ -15,6 +15,7 @@
 #include "benc/Dict.h"
 #include "benc/Int.h"
 #include "admin/Admin.h"
+#include "benc/String.h"
 #include "memory/Allocator.h"
 #include "net/InterfaceController.h"
 #include "rust/cjdns_sys/RTypes.h"
@@ -36,6 +37,7 @@ struct Context
     struct Log* logger;
     struct Admin* admin;
     struct InterfaceController* ic;
+    String* peerId;
     Identity
 };
 
@@ -116,7 +118,8 @@ static Rffi_WsIface* setupWs(struct Context* ctx,
         &wsif,
         addr,
         alloc,
-        connTimeoutSecs);
+        connTimeoutSecs,
+        ctx->peerId);
     if (er) {
         Dict* out = Dict_new(alloc);
         const char* emsg = Rffi_printError(er, alloc);
@@ -165,7 +168,7 @@ static void newInterface(Dict* args, void* vcontext, String* txid, struct Alloca
     struct Context* ctx = Identity_check((struct Context*) vcontext);
     String* bindAddress = Dict_getStringC(args, "bindAddress");
     uint64_t* cts_p = Dict_getIntC(args, "connectTimeoutSecs");
-    uint32_t cts = (cts_p == NULL) ? 0 : *cts_p;
+    uint32_t cts = (cts_p == NULL) ? 120 : *cts_p;
     struct Sockaddr_storage addr;
     if (Sockaddr_parse((bindAddress) ? bindAddress->bytes : "0.0.0.0", &addr)) {
         Dict out = Dict_CONST(
@@ -180,13 +183,15 @@ static void newInterface(Dict* args, void* vcontext, String* txid, struct Alloca
 void WsInterface_admin_register(struct Allocator* alloc,
                                 struct Log* logger,
                                 struct Admin* admin,
-                                struct InterfaceController* ic)
+                                struct InterfaceController* ic,
+                                String* peerId)
 {
     struct Context* ctx = Allocator_clone(alloc, (&(struct Context) {
         .alloc = alloc,
         .logger = logger,
         .admin = admin,
         .ic = ic,
+        .peerId = String_clone(peerId, alloc),
     }));
     Identity_set(ctx);
 
