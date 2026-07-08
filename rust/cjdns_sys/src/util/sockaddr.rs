@@ -79,7 +79,7 @@ impl Sockaddr {
             None
         } else {
             let len = (self.ss.addr.addrLen as usize) - OVERHEAD;
-            let from_ptr = &self.ss as *const cffi::Sockaddr_storage as *const u8;
+            let from_ptr = &self.ss.nativeAddr as *const [u64; 16] as *const u8;
             unsafe {
                 let from = std::slice::from_raw_parts(from_ptr, len);
                 Some(String::from_utf8_lossy(from).to_string())
@@ -98,7 +98,7 @@ impl FromStr for Sockaddr {
         if from.len() >= size_of_val(&out.ss.nativeAddr) {
             eyre::bail!("String length is too long: {}", from.len());
         }
-        let to_ptr = &mut out.ss as *mut cffi::Sockaddr_storage as *mut u8;
+        let to_ptr = &mut out.ss.nativeAddr as *mut [u64; 16] as *mut u8;
         unsafe {
             let to = std::slice::from_raw_parts_mut(to_ptr, from.len());
             to.copy_from_slice(from);
