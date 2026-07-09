@@ -585,6 +585,163 @@ static void ethInterface(Dict* config, struct Context* ctx)
     }
 }
 
+/**
+ * @brief Attempt to extract an IP address from an IP based websocket URL
+ * @ipOut: Output buffer to place address
+ * @outLen: Length of usable output buffer
+ * @url: String { char* bytes; int len; } with websocket URL
+ *
+ * ws://1.2.3.4:56789 -> 1.2.3.4
+ * wss://1.2.3.4/x -> 1.2.3.4
+ * wss://[::1]/x -> ::1
+ *
+ * Returns 0 on success, -1 on failure.
+ */
+static int extractIp(char* ipOut, int outLen, String* url)
+{
+    if (!ipOut || outLen <= 0 || !url || !url->bytes) {
+        return -1;
+    }
+
+    const char* p = url->bytes;
+    const char* end = p + url->len;
+
+    if (url->len >= 5 && !CString_strncmp(p, "ws://", 5)) {
+        p += 5;
+    } else if (url->len >= 6 && !CString_strncmp(p, "wss://", 6)) {
+        p += 6;
+    } else {
+        return -1;
+    }
+
+    /* IPv6 literal: [....] */
+    if (p < end && *p == '[') {
+        p++;
+        const char* start = p;
+
+        while (p < end && *p != ']') {
+            p++;
+        }
+
+        if (p == end) {
+            return -1; /* Missing closing ] */
+        }
+
+        int len = (int)(p - start);
+        if (len >= outLen) {
+            return -1;
+        }
+
+        Bits_memcpy(ipOut, start, len);
+        ipOut[len] = '\0';
+        return 0;
+    }
+
+    /* IPv4 (or hostname) */
+    const char* start = p;
+    while (p < end &&
+           *p != ':' &&
+           *p != '/' &&
+           *p != '?' &&
+           *p != '#')
+    {
+        p++;
+    }
+
+    int len = (int)(p - start);
+    if (len <= 0 || len >= outLen) {
+        return -1;
+    }
+
+    Bits_memcpy(ipOut, start, len);
+    ipOut[len] = '\0';
+
+    return 0;
+}
+
+static void wsInterface(Dict* config, struct Context* ctx)
+{
+    List* ifaces = Dict_getListC(config, "WsInterface");
+    if (!ifaces) {
+        return;
+    }
+
+    uint32_t count = List_size(ifaces);
+
+    for (uint32_t i = 0; i < count; i++) {
+        Dict *ws = List_getDict(ifaces, i);
+        if (!ws) { continue; }
+
+        String* bindStr = Dict_getStringC(ws, "bind");
+        Dict* d = Dict_new(ctx->alloc);
+        if (bindStr) {
+            Dict_putStringC(d, "bindAddress", bindStr, ctx->alloc);
+        }
+
+        int64_t* cts = Dict_getIntC(ws, "connectTimeoutSecs");
+        if (cts) {
+            if (*cts < 0 || *cts > 0xffff) {
+                Log_warn(ctx->logger,
+                         "WsInterface [%d] connectTimeoutSecs out of range, ignoring", i);
+            } else {
+                Dict_putIntC(d, "connectTimeoutSecs", *cts, ctx->alloc);
+            }
+        }
+
+        Dict* resp = NULL;
+        rpcCall0(String_CONST("WsInterface_new"), d, ctx, ctx->alloc, &resp, true);
+        int ifNum = *(Dict_getIntC(resp, "interfaceNumber"));
+
+        // Make the connections.
+        Dict* connectTo = Dict_getDictC(ws, "connectTo");
+        if (connectTo) {
+            struct Dict_Entry* entry = *connectTo;
+            struct Allocator* perCallAlloc = Allocator_child(ctx->alloc);
+            while (entry != NULL) {
+                String* key = (String*) entry->key;
+                if (entry->val->type != Object_DICT) {
+                    Log_critical(ctx->logger, "interfaces.WsInterface.connectTo: entry [%s] "
+                                               "is not a dictionary type.", key->bytes);
+                    entry = entry->next;
+                    continue;
+                }
+                Dict* value = entry->val->as.dictionary;
+                Log_keys(ctx->logger, "Attempting to connect to node [%s].", key->bytes);
+                key = String_clone(key, perCallAlloc);
+
+                if (key->len >= Sockaddr_MAXSIZE) {
+                    Log_error(ctx->logger, "Ws node URL [%s] too long, max is %d",
+                              key->bytes, Sockaddr_MAXSIZE - 1);
+                    entry = entry->next;
+                    continue;
+                }
+
+                String* ip = String_newBinary(NULL, 50, perCallAlloc);
+                if (extractIp(ip->bytes, ip->len, key)) {
+                    Log_error(ctx->logger, "Ws node URL [%s] must be in IP format, not DNS",
+                              key->bytes);
+                    entry = entry->next;
+                    continue;
+                }
+
+                Dict_putIntC(value, "interfaceNumber", ifNum, perCallAlloc);
+                Dict_putStringC(value, "url", key, perCallAlloc);
+                rpcCall(String_CONST("WsInterface_beginConnection"), value, ctx, perCallAlloc);
+
+                ip->len = CString_strlen(ip->bytes);
+
+                // Make a IPTunnel exception for this node
+                Dict* aed = Dict_new(perCallAlloc);
+                Dict_putStringC(aed, "route", ip, perCallAlloc);
+                rpcCall(String_CONST("RouteGen_addException"), aed, ctx, perCallAlloc);
+
+                entry = entry->next;
+            }
+            Allocator_free(perCallAlloc);
+        }
+    }
+}
+
 static void security(struct Allocator* tempAlloc, List* conf, struct Log* log, struct Context* ctx)
 {
     int nofiles = 0;
@@ -769,6 +926,8 @@ void Configurator_config(Dict* config,
 
     Dict* ifaces = Dict_getDictC(config, "interfaces");
     udpInterface(ifaces, &ctx);
+
+    wsInterface(ifaces, &ctx);
 
     if (Defined(HAS_ETH_INTERFACE)) {
         ethInterface(ifaces, &ctx);

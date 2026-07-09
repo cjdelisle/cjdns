@@ -198,6 +198,7 @@ void WsInterface_admin_register(struct Allocator* alloc,
     Admin_registerFunction("WsInterface_new", newInterface, ctx, true,
         ((struct Admin_FunctionArg[]) {
             { .name = "bindAddress", .required = 0, .type = "String" },
+            { .name = "connectTimeoutSecs", .required = 0, .type = "Int" },
         }), admin);
 
     Admin_registerFunction("WsInterface_beginConnection", beginConnection, ctx, true,
