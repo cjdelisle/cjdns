@@ -1,18 +1,25 @@
-use cjdns::crypto::random;
 use futures_util::stream::SplitStream;
 use futures_util::{SinkExt, StreamExt};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
-use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
+use rustls::{DigitallySignedStruct, SignatureScheme};
+use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::select;
 use tokio::sync::mpsc::{self, Sender};
 use tokio::sync::oneshot;
-use tokio_tungstenite::tungstenite::Error::Url;
 use tokio_tungstenite::tungstenite::handshake::server::Request;
-use tokio_tungstenite::tungstenite::http::Uri;
 use tokio_tungstenite::tungstenite::protocol::WebSocketConfig;
 use tokio_tungstenite::tungstenite::Message as WsMessage;
-use tokio_tungstenite::{accept_hdr_async_with_config, connect_async_with_config, WebSocketStream};
+use tokio_tungstenite::{
+	accept_hdr_async_with_config,
+	connect_async_with_config,
+	connect_async_tls_with_config,
+	WebSocketStream,
+	Connector,
+};
+use rustls::client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier};
+use rustls::pki_types::{CertificateDer, ServerName, UnixTime};
+use rustls::Error as TLSError;
 
 use crate::external::interface::iface::{self, IfRecv, Iface, IfacePvt};
 use crate::interface::socketiface::RecvWorkerState;
@@ -21,16 +28,14 @@ use crate::util::{now_ms, sockaddr};
 use crate::util::sockaddr::Sockaddr;
 use eyre::{Context, Result};
 use std::collections::HashMap;
-use std::convert::{TryFrom, TryInto};
+use std::convert::TryFrom;
 use std::net::SocketAddr;
-use std::str::FromStr;
 use std::sync::atomic::Ordering::Relaxed;
-use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU32};
+use std::sync::atomic::{AtomicI32, AtomicU32};
 use std::sync::Arc;
 use std::time::Duration;
 
 const TO_GO_OUT_QUEUE: usize = 64;
-const PER_CONN_QUEUE: usize = 64;
 
 /// Headroom left at the front of incoming Messages so that the Sockaddr and
 /// any further downstream headers can be pushed without reallocation.
@@ -39,9 +44,6 @@ const PADDING_AMOUNT: usize = 512;
 /// Maximum accepted WebSocket message size, matching the UDP BUFFER_CAP.
 /// Frames larger than this are rejected by tungstenite during read.
 const MAX_FRAME_SIZE: usize = 3496;
-
-const RECONNECT_MIN_MS: u64 = 1_000;
-const RECONNECT_MAX_MS: u64 = 60_000;
 
 #[derive(Debug, IntoPrimitive, TryFromPrimitive)]
 #[repr(i32)]
@@ -139,6 +141,60 @@ impl IfRecv for Arc<WSAddrIfaceInternal> {
 	}
 }
 
+#[derive(Debug)]
+struct NoVerifier;
+
+// Credit to reqwest for this:
+impl ServerCertVerifier for NoVerifier {
+    fn verify_server_cert(
+        &self,
+        _end_entity: &rustls_pki_types::CertificateDer,
+        _intermediates: &[rustls_pki_types::CertificateDer],
+        _server_name: &ServerName,
+        _ocsp_response: &[u8],
+        _now: UnixTime,
+    ) -> Result<ServerCertVerified, TLSError> {
+        Ok(ServerCertVerified::assertion())
+    }
+
+    fn verify_tls12_signature(
+        &self,
+        _message: &[u8],
+        _cert: &rustls_pki_types::CertificateDer,
+        _dss: &DigitallySignedStruct,
+    ) -> Result<HandshakeSignatureValid, TLSError> {
+        Ok(HandshakeSignatureValid::assertion())
+    }
+
+    fn verify_tls13_signature(
+        &self,
+        _message: &[u8],
+        _cert: &rustls_pki_types::CertificateDer,
+        _dss: &DigitallySignedStruct,
+    ) -> Result<HandshakeSignatureValid, TLSError> {
+        Ok(HandshakeSignatureValid::assertion())
+    }
+
+    fn supported_verify_schemes(&self) -> Vec<SignatureScheme> {
+        vec![
+            SignatureScheme::RSA_PKCS1_SHA1,
+            SignatureScheme::ECDSA_SHA1_Legacy,
+            SignatureScheme::RSA_PKCS1_SHA256,
+            SignatureScheme::ECDSA_NISTP256_SHA256,
+            SignatureScheme::RSA_PKCS1_SHA384,
+            SignatureScheme::ECDSA_NISTP384_SHA384,
+            SignatureScheme::RSA_PKCS1_SHA512,
+            SignatureScheme::ECDSA_NISTP521_SHA512,
+            SignatureScheme::RSA_PSS_SHA256,
+            SignatureScheme::RSA_PSS_SHA384,
+            SignatureScheme::RSA_PSS_SHA512,
+            SignatureScheme::ED25519,
+            SignatureScheme::ED448,
+        ]
+    }
+}
+
+
 impl WSAddrIfaceInternal {
 
 	fn oldest_allowed(&self) -> u32 {
@@ -150,24 +206,40 @@ impl WSAddrIfaceInternal {
 			log::error!("Got connect_send with non-url SA");
 			return;
 		};
-		let mut full_url = match url::Url::parse(&url) {
-			Ok(u) => u,
-			Err(e) => {
-				log::debug!("DROP Unable to connect to WS: invalid url: {url}: {e}");
-				return;
-			}
-		};
-		full_url.query_pairs_mut().append_pair("cjdns-peer-id", &self.peer_id);
-		let res = connect_async_with_config(full_url.as_str(), Some(ws_config()), true).await;
-		let ws = match res {
-		    Ok((ws, _resp)) => ws,
+		match self.connect_send1(sa, m, &url).await {
+		    Ok(()) => (),
 		    Err(e) => {
 		        log::debug!("DROP Unable to connect to WS: {url}: {e}");
 			return;
 		    }
 		};
+	}
 
-		self.run_conn(ws, Some(sa), url, Some(m)).await
+	async fn connect_send1(self: Arc<Self>, sa: Sockaddr, m: Message, url: &String) -> Result<()> {
+		let mut full_url = match url::Url::parse(&url)?;
+		full_url.query_pairs_mut().append_pair("cjdns-peer-id", &self.peer_id);
+
+		let (ws, _resp) = if url.starts_with("wss://") {
+			let config = rustls::ClientConfig::builder()
+				.dangerous()
+				.with_custom_certificate_verifier(Arc::new(NoVerifier))
+				.with_no_client_auth();
+			connect_async_tls_with_config(
+				full_url.as_str(),
+				Some(ws_config()),
+				true,
+				Some(Connector::Rustls(Arc::new(config))),
+			).await?
+		} else {
+			connect_async_with_config(
+				full_url.as_str(),
+				Some(ws_config()),
+				true
+			).await?
+		};
+
+		self.run_conn(ws, Some(sa), url.clone(), Some(m)).await;
+		Ok(())
 	}
 
 	async fn poll_stream<S>(

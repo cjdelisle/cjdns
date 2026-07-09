@@ -17,6 +17,8 @@ slog = { workspace = true }
 pnet = { workspace = true }
 tokio = { workspace = true }
 tokio-tungstenite = { workspace = true }
+rustls = { workspace = true }
+rustls-pki-types = { workspace = true }
 futures-util = { workspace = true }
 once_cell = { workspace = true }
 async-recursion = { workspace = true }
