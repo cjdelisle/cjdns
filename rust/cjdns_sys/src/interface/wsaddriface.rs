@@ -421,8 +421,9 @@ impl WSAddrIfaceInternal {
 				});
 			Ok(res)
 		};
+		stream.set_nodelay(true);
 		let res = accept_hdr_async_with_config(stream, cb, Some(ws_config())).await;
-		let mut ws = match res {
+		let ws = match res {
 			Ok(ws) => ws,
 			Err(e) => {
 				log::info!("WS handshake failed from {peer}: {e}");
