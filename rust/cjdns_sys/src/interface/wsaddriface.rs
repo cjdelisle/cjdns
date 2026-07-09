@@ -150,12 +150,15 @@ impl WSAddrIfaceInternal {
 			log::error!("Got connect_send with non-url SA");
 			return;
 		};
-		let full_url = if url.contains('?') {
-			url.clone() + "&" + "cjdns-peer-id=" + &self.peer_id
-		} else {
-			url.clone() + "?" + "cjdns-peer-id=" + &self.peer_id
+		let mut full_url = match url::Url::parse(&url) {
+			Ok(u) => u,
+			Err(e) => {
+				log::debug!("DROP Unable to connect to WS: invalid url: {url}: {e}");
+				return;
+			}
 		};
-		let res = connect_async_with_config(full_url, Some(ws_config()), true).await;
+		full_url.query_pairs_mut().append_pair("cjdns-peer-id", &self.peer_id);
+		let res = connect_async_with_config(full_url.as_str(), Some(ws_config()), true).await;
 		let ws = match res {
 		    Ok((ws, _resp)) => ws,
 		    Err(e) => {
@@ -229,8 +232,8 @@ impl WSAddrIfaceInternal {
 	fn replace_conn(self: &Arc<Self>, sa: &Option<Sockaddr>, wsconn: Arc<WsConn>) -> Sockaddr {
 		let mut remove = Vec::new();
 		let oa = self.oldest_allowed();
-		let mut l = self.conns.write();
 		let mut out = None;
+		let mut l = self.conns.write();
 		l.retain(|k, conn| {
 			if conn.last_recv_sec() < oa {
 			} else if let Some(sa) = sa {
@@ -249,8 +252,11 @@ impl WSAddrIfaceInternal {
 		});
 		let out = if let Some(out) = out {
 			out
+		} else if let Some(sa) = sa {
+			sa.clone()
 		} else {
 			let id = self.next_id.fetch_add(1, Relaxed);
+			println!("\n\nCREATING HANDLE {id}\n\n");
 			Sockaddr::from(id)
 		};
 		l.insert(out.clone(), wsconn);
@@ -287,7 +293,7 @@ impl WSAddrIfaceInternal {
 
 		let sa = self.replace_conn(&sa, Arc::clone(&wsconn));
 
-		let (mut sink, mut stream) = ws.split();
+		let (mut sink, stream) = ws.split();
 
 		let wsconn_sender = Arc::clone(&wsconn);
 		tokio::spawn(async move {
@@ -353,7 +359,6 @@ impl WSAddrIfaceInternal {
 		};
 		let Some(peer_id) = peer_id else {
 			log::debug!("WS request from {peer} with no peer_id");
-			ws.close(None);
 			return;
 		};
 		log::debug!("Incoming WS connection from {peer} with id {peer_id}");
