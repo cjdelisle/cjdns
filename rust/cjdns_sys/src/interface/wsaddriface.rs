@@ -421,7 +421,9 @@ impl WSAddrIfaceInternal {
 				});
 			Ok(res)
 		};
-		stream.set_nodelay(true);
+		if let Err(e) = stream.set_nodelay(true) {
+			log::info!("Unable to set nodelay on incoming WS connection: {e}");
+		}
 		let res = accept_hdr_async_with_config(stream, cb, Some(ws_config())).await;
 		let ws = match res {
 			Ok(ws) => ws,
