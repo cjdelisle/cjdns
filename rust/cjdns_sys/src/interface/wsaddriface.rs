@@ -216,7 +216,7 @@ impl WSAddrIfaceInternal {
 	}
 
 	async fn connect_send1(self: Arc<Self>, sa: Sockaddr, m: Message, url: &String) -> Result<()> {
-		let mut full_url = match url::Url::parse(&url)?;
+		let mut full_url = url::Url::parse(&url)?;
 		full_url.query_pairs_mut().append_pair("cjdns-peer-id", &self.peer_id);
 
 		let (ws, _resp) = if url.starts_with("wss://") {
