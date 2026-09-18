@@ -27,5 +27,5 @@ uint64_t Time_currentTimeMilliseconds()
 
 uint64_t Time_currentTimeSeconds()
 {
-    return Time_currentTimeMilliseconds() / 1024;
+    return Time_currentTimeMilliseconds() / 1000;
 }

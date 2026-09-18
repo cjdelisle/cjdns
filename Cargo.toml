@@ -5,6 +5,11 @@ members = [
     "rust/cjdnstool",
 ]
 
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+
 [profile.release]
 opt-level = 2
 panic = "unwind"
@@ -14,21 +19,24 @@ panic = "unwind"
 opt-level = 2
 
 [workspace.dependencies]
-cjdns = { git = "https://github.com/cjdelisle/cjdns-route-server", rev = "8cfdf38dcf179cfbe701a7926edfe8ee2fd9f314", version = "0.1.0" }
+cjdns = { git = "https://github.com/cjdelisle/cjdns-route-server", rev = "26c91dc19328fbbcb2a8274b4f94fcfdc852592f", version = "0.1.0" }
 #cjdns = { path = "../cjdns-route-server/cjdns" }
+chrono = "0.4.42"
 clap = { version = "4", features = ["derive"] }
 const_format = "0.2"
 data-encoding = "2"
-lazy_static = "1"
+dotenvy = "0.15"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+strum = { version = "0.28", features = ["derive"] }
 sha2 = "0.10"
-tokio = { version = "1.27", features = ["fs", "process", "net", "macros", "time", "rt-multi-thread", "sync"] }
+tokio = { version = "1.27", features = ["fs", "net", "process", "signal", "sync", "time"] }
 hex = "0.4"
 log = { version = "0.4", features = ["std", "release_max_level_trace"] }
 parking_lot = "0.12"
 thiserror = "1.0"
 eyre = { version = "0.6.12" }
+color-eyre = { version = "0.6" }
 boringtun = { git = "https://github.com/cjdelisle/boringtun", rev = "f288b2f461e7322a278b63b1ddc4ab705b5b7462", version = "0.3", features = ["additional_data"] }
 slog = { version = "2.7", features = ["release_max_level_trace"] }
 pnet = { version = "0.35" }

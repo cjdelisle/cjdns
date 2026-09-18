@@ -1,8 +1,9 @@
-use data_encoding::{BitOrder, DecodeError, Encoding, Specification, Translate, Wrap};
-use lazy_static::lazy_static;
+use std::sync::LazyLock;
 
-lazy_static! {
-    static ref BASE32: Encoding = Specification {
+use data_encoding::{BitOrder, DecodeError, Encoding, Specification, Translate, Wrap};
+
+static BASE32: LazyLock<Encoding> = LazyLock::new(|| {
+    Specification {
         symbols: "0123456789bcdfghjklmnpqrstuvwxyz".to_owned(),
         bit_order: BitOrder::LeastSignificantFirst,
         check_trailing_bits: true,
@@ -10,7 +11,7 @@ lazy_static! {
         ignore: String::new(),
         wrap: Wrap {
             width: 0,
-            separator: String::new()
+            separator: String::new(),
         },
         translate: Translate {
             from: "BCDFGHJKLMNPQRSTUVWXYZ".to_owned(),
@@ -18,8 +19,8 @@ lazy_static! {
         },
     }
     .encoding()
-    .expect("invalid encoding specification");
-}
+    .expect("invalid encoding specification")
+});
 
 pub fn decode(input: &[u8]) -> Result<Vec<u8>, DecodeError> {
     BASE32.decode(input)

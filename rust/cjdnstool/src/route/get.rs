@@ -1,35 +1,37 @@
-use std::{net::Ipv6Addr, str::FromStr};
+use std::{net::Ipv6Addr, str::FromStr as _};
 
-use crate::{
-    common::args::CommonArgs,
-    session::util::{print_metric, SNODE_SAYS},
+use cjdns::{
+    admin::{Connection, cjdns_invoke, dict},
+    bencode::object::Get as _,
+    core::{Address, DefaultRoutingLabel},
+    keys::{CJDNS_IP6, CJDNSPublicKey},
 };
-use cjdns::{admin::Connection, core::{Address, DefaultRoutingLabel}, keys::{CJDNSPublicKey, CJDNS_IP6}};
-use cjdns::bencode::object::{Dict,Get};
-use eyre::{bail, eyre, Context, OptionExt, Result};
+use eyre::{OptionExt as _, Result, WrapErr as _, bail, eyre};
 
 use super::ResolveFrom;
+use crate::{
+    common::args::CommonArgs,
+    // session::util::{SNODE_SAYS, print_metric},
+};
 
 pub struct Route {
     pub full_addr: Address,
-    pub metric: String,
+    // pub metric: String, // TODO handle metrics
     pub src: &'static str,
 }
 
 pub async fn get_snode(cjdns: &mut Connection) -> Result<Option<String>> {
-    let ret = cjdns.invoke("SupernodeHunter_status", Dict::new()).await?;
+    let ret = cjdns_invoke!(cjdns, "SupernodeHunter_status").await?;
     ret.try_get_string("activeSnode")
 }
 
 pub async fn get_self_addr(cjdns: &mut Connection) -> Result<String> {
-    let ret = cjdns.invoke("Core_nodeInfo", Dict::new()).await?;
+    let ret = cjdns_invoke!(cjdns, "Core_nodeInfo").await?;
     ret.get_string("myIp6")
 }
 
 pub async fn route_from_session(cjdns: &mut Connection, ip6: &str) -> Result<Option<Route>> {
-    let mut args = Dict::new();
-    args.insert("ip6", ip6);
-    let resp = match cjdns.invoke("SessionManager_sessionStatsByIP", args).await {
+    let resp = match cjdns_invoke!(cjdns, "SessionManager_sessionStatsByIP", ip6).await {
         Ok(resp) => resp,
         Err(e) => {
             if e.to_string().contains("no such session") {
@@ -40,16 +42,20 @@ pub async fn route_from_session(cjdns: &mut Connection, ip6: &str) -> Result<Opt
         }
     };
     let addr = resp.get_str("addr")?;
-    let metric = resp.get_int("metric")?;
+    // let metric = resp.get_int("metric")?;
 
-    Ok(Some(Route{
+    Ok(Some(Route {
         full_addr: Address::try_from(addr)?,
-        metric: print_metric(metric),
+        // metric: print_metric(metric),
         src: "session",
     }))
 }
 
-pub async fn route_from_snode(cjdns: &mut Connection, ip6: &str, src: Option<String>) -> Result<Option<Route>> {
+pub async fn route_from_snode(
+    cjdns: &mut Connection,
+    ip6: &str,
+    src: Option<String>,
+) -> Result<Option<Route>> {
     let Some(snode) = get_snode(cjdns).await? else {
         bail!("No active supernode found");
     };
@@ -60,20 +66,20 @@ pub async fn route_from_snode(cjdns: &mut Connection, ip6: &str, src: Option<Str
         get_self_addr(cjdns).await?
     };
 
-    let dst = Ipv6Addr::from_str(ip6).map_err(|_| eyre!("Invalid dest IPv6 address"))?.octets();
-    let src = Ipv6Addr::from_str(&src).map_err(|_| eyre!("Invalid src IPv6 address"))?.octets();
+    let dst = Ipv6Addr::from_str(ip6)
+        .map_err(|_| eyre!("Invalid dest IPv6 address"))?
+        .octets();
+    let src = Ipv6Addr::from_str(&src)
+        .map_err(|_| eyre!("Invalid src IPv6 address"))?
+        .octets();
 
-    let mut sargs = Dict::new();
-    sargs.insert("q","sq");
-    sargs.insert("sq","gr");
-    sargs.insert("src",&src[..]);
-    sargs.insert("tar",&dst[..]);
-
-    let mut args = Dict::new();
-    args.insert("address", snode);
-    args.insert("args", sargs);
-
-    let resp = cjdns.invoke("SubnodePathfinder_queryNode", args).await?;
+    let resp = cjdns_invoke!(
+        cjdns,
+        "SubnodePathfinder_queryNode",
+        address = snode,
+        args = dict!(q = "sq", sq = "gr", src = &src[..], tar = &dst[..]),
+    )
+    .await?;
 
     let sres = resp.get_dict("response")?;
     if !sres.has("recvTime") {
@@ -97,25 +103,24 @@ pub async fn route_from_snode(cjdns: &mut Connection, ip6: &str, src: Option<Str
     });
     let ip6 = CJDNS_IP6::try_from(&k)
         .context("Bad response from snode: computed IPv6 does not start with fc")?;
-    if &ip6[..] != dst {
+    if ip6[..] != dst {
         bail!("Snode returned wrong IP6: {}", ip6);
     }
 
     let mut b = [0_u8; 8];
     b.copy_from_slice(&path[..8]);
     let p = u64::from_be_bytes(b);
-    let path = DefaultRoutingLabel::try_new(p)
-        .ok_or_eyre("Snode provided route is zero")?;
+    let path = DefaultRoutingLabel::try_new(p).ok_or_eyre("Snode provided route is zero")?;
 
-    let addr = Address{
+    let addr = Address {
         label: path,
         pubkey: k,
         version: version as u16,
     };
 
-    Ok(Some(Route{
+    Ok(Some(Route {
         full_addr: addr,
-        metric: print_metric(SNODE_SAYS as _),
+        // metric: print_metric(SNODE_SAYS as _),
         src: "snode",
     }))
 }
@@ -133,16 +138,19 @@ pub async fn resolve(
 
     let r = match (r, from) {
         (Some(r), _) => Some(r),
-        (None, None | Some(ResolveFrom::Snode)) => {
-            route_from_snode(cjdns, dest, src).await?
-        }
+        (None, None | Some(ResolveFrom::Snode)) => route_from_snode(cjdns, dest, src).await?,
         _ => None,
     };
 
     Ok(r)
 }
 
-pub async fn get(common: CommonArgs, dest: String, src: Option<String>, from: Option<ResolveFrom>) -> Result<()> {
+pub async fn get(
+    common: CommonArgs,
+    dest: String,
+    src: Option<String>,
+    from: Option<ResolveFrom>,
+) -> Result<()> {
     let mut cjdns = cjdns::admin::connect(Some(common.as_anon())).await?;
 
     if let Some(r) = resolve(&mut cjdns, &dest, src, from).await? {

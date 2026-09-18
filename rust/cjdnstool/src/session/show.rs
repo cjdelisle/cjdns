@@ -1,3 +1,9 @@
+use cjdns::{
+    admin::cjdns_invoke,
+    bencode::object::{Dict, Get as _},
+};
+use eyre::Result;
+
 use crate::{
     common::{
         args::CommonArgs,
@@ -5,8 +11,6 @@ use crate::{
     },
     session::util::print_metric,
 };
-use cjdns::bencode::object::{Dict,Get};
-use eyre::Result;
 
 pub async fn show(common: CommonArgs, ip6: bool) -> Result<()> {
     fn no_v(session: &Session) -> &str {
@@ -14,15 +18,11 @@ pub async fn show(common: CommonArgs, ip6: bool) -> Result<()> {
         addr.split_once('.').map(|(_, s)| s).unwrap_or(addr)
     }
 
-    let mut cjdns = cjdns::admin::connect(Some(common.as_anon())).await?;
+    let cjdns = cjdns::admin::connect(Some(common.as_anon())).await?;
     let mut handles: Vec<u32> = Vec::new();
     let mut page = 0;
     loop {
-        let mut args = Dict::new();
-        args.insert("page", page);
-        let resp = cjdns
-            .invoke("SessionManager_getHandles", args)
-            .await?;
+        let resp = cjdns_invoke!(cjdns, "SessionManager_getHandles", page).await?;
         for handle in resp.get_list("handles")?.iter() {
             handles.push(handle.try_into()?);
         }
@@ -35,9 +35,7 @@ pub async fn show(common: CommonArgs, ip6: bool) -> Result<()> {
 
     let mut sessions: Vec<Session> = Vec::new();
     for handle in handles {
-        let mut args = Dict::new();
-        args.insert("handle", handle);
-        let resp = cjdns.invoke("SessionManager_sessionStats", args).await?;
+        let resp = cjdns_invoke!(cjdns, "SessionManager_sessionStats", handle).await?;
         sessions.push(resp.try_into()?);
     }
     sessions.sort_by(|a, b| no_v(a).cmp(no_v(b)));

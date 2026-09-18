@@ -1,8 +1,10 @@
-use crate::common::utils;
-use eyre::{eyre, bail, Result};
 use std::fmt::Write;
 
-pub async fn key2ip6(pubkeys: Vec<String>) -> Result<()> {
+use eyre::{Result, bail, eyre};
+
+use crate::common::utils;
+
+pub fn key2ip6(pubkeys: Vec<String>) -> Result<()> {
     const KEY_LEN: usize = 54;
 
     let mut output = String::new();

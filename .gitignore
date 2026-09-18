@@ -26,9 +26,12 @@
 .clang_complete
 *~
 .DS_Store
+.env
+.idea
 /node_modules/jshint
 /node_modules/.bin
 /contrib/docker/cjdns*/
 .vscode
+.zed
 /target
 /cjdnstool

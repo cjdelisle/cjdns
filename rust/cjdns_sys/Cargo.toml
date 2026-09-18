@@ -1,8 +1,8 @@
 [package]
 name = "cjdns_sys"
-version = "0.1.0"
 authors = ["Caleb James DeLisle <cjd@cjdns.fr>"]
-edition = "2018"
+version = { workspace = true }
+edition = "2018"                                 # TODO upgrade with { workspace = true }
 build = "build.rs"
 
 [dependencies]

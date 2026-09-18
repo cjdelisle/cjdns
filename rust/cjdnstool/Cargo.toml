@@ -1,22 +1,29 @@
 [package]
 name = "cjdnstool"
-version = "0.1.0"
 authors = [
-    "Ilyas Gasanov <torso.nafi@gmail.com>",
+    "Ilyas Gasanov <public@gsnoff.com>",
+    "Caleb James DeLisle <cjd@cjdns.fr>",
 ]
-edition = "2021"
+version = { workspace = true }
+edition = { workspace = true }
 description = "Command line tool for querying cjdns admin API."
+rust-version = { workspace = true }
 
 [dependencies]
-eyre = { workspace = true }
+chrono = { workspace = true }
 cjdns = { workspace = true }
 clap = { workspace = true }
+color-eyre = { workspace = true }
 const_format = { workspace = true }
 data-encoding = { workspace = true }
-lazy_static = { workspace = true }
+dotenvy = { workspace = true }
+env_logger = { workspace = true }
+eyre = { workspace = true }
+hex = { workspace = true }
+log = { workspace = true }
+rand = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
-tokio = { workspace = true }
-hex = { workspace = true }
-rand = { workspace = true }
+strum = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread"] }

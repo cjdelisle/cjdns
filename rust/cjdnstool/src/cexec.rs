@@ -1,19 +1,20 @@
-use std::collections::{hash_map::Entry, HashMap};
+use std::collections::{HashMap, hash_map::Entry};
 
-use crate::common::{
-    args::CommonArgs,
-    utils::{self, PushField},
-};
-use eyre::{bail, Result, Context};
 use cjdns::{
     admin::{ArgType, Func},
     bencode::{
         json,
-        object::{Dict,Object},
+        object::{Dict, Object},
     },
     bytes::message::Message,
 };
 use const_format::formatcp;
+use eyre::{Result, WrapErr as _, bail};
+
+use crate::common::{
+    args::CommonArgs,
+    utils::{self, PushField as _},
+};
 
 pub const FUNCTION_DOCS: &str =
     "https://github.com/cjdelisle/cjdns/blob/crashey/doc/admin-api.md#funcs";
@@ -32,11 +33,13 @@ See: {FUNCTION_DOCS}"
 );
 
 pub async fn cexec(common: CommonArgs, rpc: Option<String>, rpc_args: Vec<String>) -> Result<()> {
-    let mut cjdns = cjdns::admin::connect(Some(common.with_auth())).await?;
+    let cjdns = cjdns::admin::connect(Some(common.with_auth())).await?;
     if let Some(rpc) = rpc {
         if let Some(func) = cjdns.functions.find(&rpc) {
             let args = parse_rpc_args(func, &rpc_args)?;
-            let retv: Dict<'_> = cjdns.invoke(&rpc, args).await
+            let retv: Dict<'_> = cjdns
+                .invoke(&rpc, args)
+                .await
                 .context("Error calling cjdns.invoke")?;
             let mut msg = Message::new();
             cjdns::bencode::json::serialize(&mut msg, &retv.obj())?;
@@ -63,7 +66,7 @@ pub async fn cexec(common: CommonArgs, rpc: Option<String>, rpc_args: Vec<String
     Ok(())
 }
 
-fn parse_rpc_args(func: &Func, rpc_args: &Vec<String>) -> Result<Dict<'static>> {
+fn parse_rpc_args(func: &Func, rpc_args: &[String]) -> Result<Dict<'static>> {
     struct FoundArg {
         value: String,
         t: Option<ArgType>,
@@ -71,20 +74,19 @@ fn parse_rpc_args(func: &Func, rpc_args: &Vec<String>) -> Result<Dict<'static>> 
 
     let mut found_args = HashMap::new();
     for arg in rpc_args {
-        let mut arg_value = None;
-        if arg.starts_with("--") {
-            if let Some(av) = arg[2..].split_once('=') {
-                arg_value = Some((av.0.to_owned(), av.1.to_owned()));
-            }
-        }
-        if let Some((name, value)) = arg_value {
-            match found_args.entry(name) {
+        if let Some(arg_body) = arg.strip_prefix("--")
+            && let Some((name, value)) = arg_body.split_once('=')
+        {
+            match found_args.entry(name.to_owned()) {
                 Entry::Occupied(e) => {
                     let key = e.key();
                     bail!("repeated argument {key} (--{key}={})", value);
                 }
                 Entry::Vacant(e) => {
-                    e.insert(FoundArg { value, t: None });
+                    e.insert(FoundArg {
+                        value: value.to_owned(),
+                        t: None,
+                    });
                 }
             }
         } else {
@@ -126,7 +128,10 @@ fn parse_rpc_args(func: &Func, rpc_args: &Vec<String>) -> Result<Dict<'static>> 
             }
             arg_values.insert(name, v);
         } else {
-            bail!("argument {name} (--{name}={}) is not expected", found_arg.value);
+            bail!(
+                "argument {name} (--{name}={}) is not expected",
+                found_arg.value
+            );
         }
     }
     Ok(arg_values)

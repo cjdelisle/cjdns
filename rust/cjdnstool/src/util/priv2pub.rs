@@ -1,9 +1,11 @@
-use crate::common::base32;
-use eyre::{bail, Result};
-use cjdns::sodiumoxide::{crypto::box_::SecretKey, hex};
 use std::fmt::Write;
 
-pub async fn priv2pub(privkeys: Vec<String>) -> Result<()> {
+use cjdns::sodiumoxide::{crypto::box_::SecretKey, hex};
+use eyre::{Result, bail};
+
+use crate::common::base32;
+
+pub fn priv2pub(privkeys: Vec<String>) -> Result<()> {
     const KEY_LEN: usize = 64;
 
     let mut output = String::new();

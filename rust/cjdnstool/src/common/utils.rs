@@ -1,10 +1,12 @@
-use super::base32;
-use eyre::{eyre, bail, Result};
-use sha2::{
-    digest::{Digest, Output},
-    Sha512,
-};
 use std::{env, fmt::Write, path::MAIN_SEPARATOR};
+
+use eyre::{Result, bail, eyre};
+use sha2::{
+    Sha512,
+    digest::{Digest, Output},
+};
+
+use super::base32;
 
 pub fn exe_name() -> String {
     env::args()
@@ -64,8 +66,7 @@ pub fn print_padded<const N: usize>(lines: Vec<[String; N]>) {
 }
 
 pub fn key_to_ip6(with_key: &str, with_prefix: bool) -> Result<String> {
-    if with_key.ends_with(".k") {
-        let mut key = &with_key[..(with_key.len() - 2)];
+    if let Some(mut key) = with_key.strip_suffix(".k") {
         let prefix;
         if with_prefix {
             let (l, r) = key
@@ -105,7 +106,7 @@ pub fn hash_to_ip6(hash: Output<Sha512>) -> String {
 #[cfg(test)]
 mod test {
     fn test_key_to_ip6_samples(samples: &[(&str, &str)], with_prefix: bool) {
-        for (&ref key, &ref ip6) in samples {
+        for &(key, ip6) in samples {
             assert_eq!(super::key_to_ip6(key, with_prefix).unwrap(), ip6);
         }
     }

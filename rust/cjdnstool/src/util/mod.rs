@@ -2,15 +2,15 @@ mod key2ip6;
 mod keygen;
 mod priv2pub;
 
-use eyre::Result;
 use clap::Subcommand;
+use eyre::Result;
 
-pub async fn util(command: Command) -> Result<()> {
+pub fn util(command: Command) -> Result<()> {
     use Command::*;
     match command {
-        Key2Ip6 { pubkeys } => key2ip6::key2ip6(pubkeys).await,
-        Priv2Pub { privkeys } => priv2pub::priv2pub(privkeys).await,
-        Keygen => keygen::keygen().await,
+        Key2Ip6 { pubkeys } => key2ip6::key2ip6(pubkeys),
+        Priv2Pub { privkeys } => priv2pub::priv2pub(privkeys),
+        Keygen => keygen::keygen(),
     }
 }
 

@@ -1,8 +1,9 @@
 mod show;
 
-use crate::common::args::CommonArgs;
-use eyre::Result;
 use clap::Subcommand;
+use eyre::Result;
+
+use crate::common::args::CommonArgs;
 
 pub async fn peers(common: CommonArgs, command: Command) -> Result<()> {
     use Command::*;

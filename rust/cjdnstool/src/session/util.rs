@@ -1,21 +1,26 @@
+#[rustfmt::skip]
+mod constants {
+    pub const SNODE_SAYS: u32   = 0xff100000;
+    pub const PF_PEER: u32      = 0xff200000;
+    pub const SNODE: u32        = 0xff300000;
+    pub const DHT_PEER: u32     = 0xff400000;
+    pub const PING_REPLY: u32   = 0xff500000;
+    pub const DHT_INCOMING: u32 = 0xff510000;
+    pub const DHT: u32          = 0xff600000;
+    // pub const DHT_MASK: u32     = 0x000fffff;
+    pub const SM_INCOMING: u32  = 0xff700000;
+    pub const SM_SEND: u32      = 0xff710000;
+    pub const NO_INFO: u32      = 0xfffffffe;
+    pub const DEAD_LINK: u32    = 0xffffffff;
+    pub const IC_PEER: u32      = 0xffff0000;
+    // pub const IC_PEER_MASK: u32 = 0x0000ffff;
+}
 
-pub const SNODE_SAYS: u32   = 0xff100000;
-pub const PF_PEER: u32      = 0xff200000;
-pub const SNODE: u32        = 0xff300000;
-pub const DHT_PEER: u32     = 0xff400000;
-pub const PING_REPLY: u32   = 0xff500000;
-pub const DHT_INCOMING: u32 = 0xff510000;
-pub const DHT: u32          = 0xff600000;
-// pub const DHT_MASK: u32     = 0x000fffff;
-pub const SM_INCOMING: u32  = 0xff700000;
-pub const SM_SEND: u32      = 0xff710000;
-pub const NO_INFO: u32      = 0xfffffffe;
-pub const DEAD_LINK: u32    = 0xffffffff;
-pub const IC_PEER: u32      = 0xffff0000;
-// pub const IC_PEER_MASK: u32 = 0x0000ffff;
+pub use self::constants::*;
 
+#[rustfmt::skip]
 pub fn print_metric(metric: i64) -> String {
-    if metric > 0xffffffff && metric < 0 {
+    if !(0..=0xffffffff).contains(&metric) {
         return "INVALID".to_string();
     }
     let metric = metric as u32;

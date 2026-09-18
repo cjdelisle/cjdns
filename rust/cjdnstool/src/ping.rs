@@ -1,15 +1,18 @@
 use std::{net::Ipv6Addr, time::Duration};
 
-use crate::{
-    common::args::CommonArgs,
-    route::ResolveFrom,
-};
-use eyre::{bail, Result, Context};
 use cjdns::{
-    bencode::object::{Dict, Get}, bytes::message::Message, core::{Address, DefaultRoutingLabel}, keys::{CJDNSPublicKey, CJDNS_IP6}, sniff::Connection
+    admin::{cjdns_invoke, dict},
+    bencode::object::{Dict, Get as _},
+    bytes::message::Message,
+    core::{Address, DefaultRoutingLabel},
+    keys::{CJDNS_IP6, CJDNSPublicKey},
+    sniff::Connection,
 };
 use clap::ValueEnum;
-use rand::RngCore;
+use eyre::{Result, WrapErr as _, bail};
+use rand::RngCore as _;
+
+use crate::{common::args::CommonArgs, route::ResolveFrom};
 
 #[derive(Debug, Clone, PartialEq, ValueEnum)]
 #[value(rename_all = "lower")]
@@ -78,16 +81,20 @@ pub async fn router_ping(
     let ip6str = ip6.to_string();
     let astr = addr.to_string();
     for i in 0..count {
-        let mut nargs = Dict::new();
-        nargs.insert("q", "pn");
-        if !data.is_empty() {
-            nargs.insert("txid", &data[..]);
+        if i > 0 {
+            tokio::time::sleep(Duration::from_secs(1)).await;
         }
-        let mut args = Dict::new();
-        args.insert("address", &astr);
-        args.insert("args", nargs);
-        // println!("Query Node");
-        let res = match cjdns.invoke("SubnodePathfinder_queryNode", args).await {
+
+        let txid = (!data.is_empty()).then(|| &data[..]);
+        log::trace!("Query Node");
+        let res = match cjdns_invoke!(
+            cjdns,
+            "SubnodePathfinder_queryNode",
+            address = &astr,
+            args = dict!(q = "pn", txid?),
+        )
+        .await
+        {
             Ok(res) => res,
             Err(e) => {
                 if e.to_string().contains("Timeout") {
@@ -113,17 +120,25 @@ pub async fn router_ping(
             let resp = res.get_dict("response")?;
             let txid = resp.get_bytes("txid")?;
             if txid != data {
-                println!("Payload mismatch: sent: 0x{}, got 0x{}", hex::encode(&data), hex::encode(txid));
+                println!(
+                    "Payload mismatch: sent: 0x{}, got 0x{}",
+                    hex::encode(&data),
+                    hex::encode(txid)
+                );
             }
             let address = res.get_str("address")?;
             if address != astr {
                 println!("Address mismatch: sent: {astr}, got {address}");
             }
             let lag = res.get_int("lag")?;
-            println!("{} bytes from {} ({}): seq={i} time={} ms", txid.len(), ip6str, address, lag);
+            println!(
+                "{} bytes from {} ({}): seq={i} time={} ms",
+                txid.len(),
+                ip6str,
+                address,
+                lag
+            );
         }
-
-        tokio::time::sleep(Duration::from_secs(1)).await;
     }
     Ok(())
 }
@@ -135,9 +150,10 @@ pub async fn switch_ping(
     verbose: bool,
 ) -> Result<()> {
     for i in 0..count {
-        if i != 0 {
+        if i > 0 {
             tokio::time::sleep(Duration::from_secs(1)).await;
         }
+
         let res = cjdns.invoke("SwitchPinger_ping", args.clone()).await?;
         if verbose {
             let mut msg = Message::new();
@@ -160,8 +176,11 @@ pub async fn switch_ping(
         let bytes = if let Some(data) = args.try_get_bytes("data")? {
             if let Some(resdata) = res.try_get_bytes("data")? {
                 if data != resdata {
-                    println!("Payload mismatch: sent: 0x{}, got 0x{}",
-                        hex::encode(resdata), hex::encode(data));
+                    println!(
+                        "Payload mismatch: sent: 0x{}, got 0x{}",
+                        hex::encode(resdata),
+                        hex::encode(data)
+                    );
                 }
             } else {
                 println!("Didn't receive back pattern with ping");
@@ -172,22 +191,50 @@ pub async fn switch_ping(
         };
         let path = res.get_str("path")?;
         if path != args.get_str("path")? {
-            println!("Path mismatch: sent: {}, got {}", args.get_str("path")?, path);
+            println!(
+                "Path mismatch: sent: {}, got {}",
+                args.get_str("path")?,
+                path
+            );
         }
         if let Some(key) = res.try_get_str("key")? {
             let version = res.get_int("version")?;
             let pubkey = CJDNSPublicKey::try_from(key).context("Invalid cjdns key")?;
             let label = DefaultRoutingLabel::try_from(path).context("Invalid path")?;
             let ip6 = CJDNS_IP6::try_from(&pubkey).context("Invalid key")?;
-            let addr = Address { pubkey, label, version: version as _ };
-            println!("{} bytes from {} ({}): seq={} time={} ms", bytes, ip6.to_string(), addr.to_string(), i, ms);
+            let addr = Address {
+                pubkey,
+                label,
+                version: version as _,
+            };
+            println!(
+                "{} bytes from {} ({}): seq={} time={} ms",
+                bytes,
+                ip6,
+                addr.to_string(),
+                i,
+                ms
+            );
         } else {
-            println!("{} bytes from {}:{}{}{} seq={} time={} ms",
+            println!(
+                "{} bytes from {}:{}{}{} seq={} time={} ms",
                 bytes,
                 path,
-                if let Some(snode) = res.try_get_str("snode")? { format!(" snode={snode}") } else { "".into() },
-                if let Some(rpath) = res.try_get_str("rpath")? { format!(" rpath={rpath}") } else { "".into() },
-                if let Some(lladdr) = res.try_get_str("lladdr")? { format!(" lladdr={lladdr}") } else { "".into() },
+                if let Some(snode) = res.try_get_str("snode")? {
+                    format!(" snode={snode}")
+                } else {
+                    "".into()
+                },
+                if let Some(rpath) = res.try_get_str("rpath")? {
+                    format!(" rpath={rpath}")
+                } else {
+                    "".into()
+                },
+                if let Some(lladdr) = res.try_get_str("lladdr")? {
+                    format!(" lladdr={lladdr}")
+                } else {
+                    "".into()
+                },
                 i,
                 ms,
             );
@@ -196,6 +243,7 @@ pub async fn switch_ping(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn ping(
     common: CommonArgs,
     typ: Option<Type>,
@@ -215,7 +263,11 @@ pub async fn ping(
             let pattern = hex::decode(pattern).context("Invalid hex pattern")?;
             if let Some(length) = length {
                 if pattern.len() > length as usize {
-                    bail!("pattern length {} is longer than length: {}", pattern.len(), length);
+                    bail!(
+                        "pattern length {} is longer than length: {}",
+                        pattern.len(),
+                        length
+                    );
                 }
                 let mut v = Vec::new();
                 while v.len() < length as usize {
@@ -237,7 +289,7 @@ pub async fn ping(
 
     let (addr, path, from_ip6) = if let Ok(a) = Address::try_from(&dest[..]) {
         let label = a.label;
-        (Some((a,"provided")), Some(label), false)
+        (Some((a, "provided")), Some(label), false)
     } else if dest.parse::<Ipv6Addr>().is_ok() {
         let from = match resolve {
             Resolve::No => bail!("Cannot resolve IPv6 address, --resolve=no"),
@@ -272,7 +324,11 @@ pub async fn ping(
             };
             let (addr, src) = addr;
             if from_ip6 {
-                println!("PING {dest} ({}) {} bytes of data", addr.to_string(), pattern.len());
+                println!(
+                    "PING {dest} ({}) {} bytes of data",
+                    addr.to_string(),
+                    pattern.len()
+                );
                 println!("Address resolved from: {src}");
             } else {
                 println!("PING {} {} bytes of data", addr.to_string(), pattern.len());
@@ -283,8 +339,8 @@ pub async fn ping(
             let Some(path) = path else {
                 bail!("No known path, cannot switch ping");
             };
-            let mut args = Dict::new();
-            args.insert("path", path.to_string());
+            let data = (!pattern.is_empty()).then_some(pattern);
+            let mut args = dict!(path = path.to_string(), data?);
             // cjdnstool cexec SwitchPinger_ping --path=<String> [--data=<String>] [--keyPing=<Int>] [--lladdr=<Int>] [--rpath=<Int>] [--snode=<Int>] [--timeout=<Int>]
             match typ {
                 Type::Getkey => args.insert("keyPing", 1),
@@ -292,9 +348,6 @@ pub async fn ping(
                 Type::Rpath => args.insert("rpath", 1),
                 Type::Snode => args.insert("snode", 1),
                 _ => (),
-            }
-            if !pattern.is_empty() {
-                args.insert("data", pattern);
             }
             return switch_ping(&mut cjdns, args, count, verbose).await;
         }
