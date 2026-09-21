@@ -15,6 +15,8 @@
 #ifndef WsInterface_admin_H
 #define WsInterface_admin_H
 
+#ifdef HAS_WS_INTERFACE
+
 #include "admin/Admin.h"
 #include "memory/Allocator.h"
 #include "net/InterfaceController.h"
@@ -27,5 +29,7 @@ void WsInterface_admin_register(struct Allocator* allocator,
                                 struct Admin* admin,
                                 struct InterfaceController* ic,
                                 String* peerId);
+
+#endif
 
 #endif

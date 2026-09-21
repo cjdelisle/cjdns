@@ -464,10 +464,25 @@ pub struct WsAddrIface {
 
 impl WsAddrIface {
 	pub fn new(bind_addr: &SocketAddr, conn_timeout_secs: u32, peer_id: String) -> Result<(Self, Iface)> {
-		let listener = std::net::TcpListener::bind(bind_addr)
-		    .with_context(|| format!("Binding WS listener to {bind_addr}"))?;
-		listener.set_nonblocking(true)?;
-		let listener = TcpListener::from_std(listener)?;
+		let sa = socket2::SockAddr::from(*bind_addr);
+		let sock = socket2::Socket::new(
+			socket2::Domain::for_address(*bind_addr),
+			socket2::Type::STREAM,
+			Some(socket2::Protocol::TCP),
+		).with_context(|| format!("Creating WS socket for {bind_addr}"))?;
+		sock.set_nonblocking(true)?;
+		sock.set_reuse_address(true)?;
+		if bind_addr.is_ipv6() {
+			// IPV6_V6ONLY: without this the [::]:port listener may also bind the
+			// IPv4 wildcard so it would then conflict with a 0.0.0.0:port listener.
+			// Ignore failure, the option may be unavailable on some target systems.
+			if let Err(e) = sock.set_only_v6(true) {
+				log::warn!("Unable to set IPV6_V6ONLY on WS listener {bind_addr}: {e}");
+			}
+		}
+		sock.bind(&sa).with_context(|| format!("Binding WS listener to {bind_addr}"))?;
+		sock.listen(1024).with_context(|| format!("Listening WS on {bind_addr}"))?;
+		let listener = TcpListener::from_std(sock.into())?;
 		let local_addr = listener.local_addr()?;
 
 		let (mut iface, iface_pvt) = iface::new("WSAddrIface");

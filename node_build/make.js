@@ -106,6 +106,12 @@ Builder.configure({
         builder.config.cflags.push('-march=native');
     }
 
+    if (process.env['CARGO_FEATURE_WS']) {
+        builder.config.cflags.push('-DHAS_WS_INTERFACE=1');
+    } else {
+        console.log("Building without the ws feature, WsInterface_admin.c will be excluded");
+    }
+
     if (builder.config.systemName === 'win32') {
         builder.config.cflags.push('-Wno-format');
     } else if (builder.config.systemName === 'linux') {

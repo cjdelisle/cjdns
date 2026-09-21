@@ -199,7 +199,7 @@ impl UDPAddrIfaceInternal {
                 &self.mainsock
             }.send_to(bytes, &sa).await {
                 Ok(_) => {
-                    log::trace!("Message to {sa} sent ok");
+                    // log::trace!("Message to {sa} sent ok"); // Will flood normal cjdnstool log operation
                 },
                 Err(e) => {
                     log::info!("Unable to send message (len: {}): {e} to: {}",

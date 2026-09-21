@@ -45,7 +45,9 @@
 #ifdef HAS_ETH_INTERFACE
 #include "interface/ETHInterface_admin.h"
 #endif
+#ifdef HAS_WS_INTERFACE
 #include "interface/WsInterface_admin.h"
+#endif
 #include "net/InterfaceController_admin.h"
 #include "interface/addressable/AddrIfaceMuxer.h"
 #include "interface/tuntap/TUNMessageType.h"
@@ -429,7 +431,9 @@ Err_DEFUN Core_init(struct Allocator* alloc,
     ETHInterface_admin_register(eventBase, alloc, logger, admin, nc->ifController);
 #endif
     String* peerId = Address_toStringKey(nc->myAddress, alloc);
+#ifdef HAS_WS_INTERFACE
     WsInterface_admin_register(alloc, logger, admin, nc->ifController, peerId);
+#endif
 
     SupernodeHunter_admin_register(spf->snh, admin, alloc);
     ReachabilityCollector_admin_register(spf->rc, admin, alloc);

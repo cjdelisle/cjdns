@@ -927,7 +927,9 @@ void Configurator_config(Dict* config,
     Dict* ifaces = Dict_getDictC(config, "interfaces");
     udpInterface(ifaces, &ctx);
 
-    wsInterface(ifaces, &ctx);
+    if (Defined(HAS_WS_INTERFACE)) {
+        wsInterface(ifaces, &ctx);
+    }
 
     if (Defined(HAS_ETH_INTERFACE)) {
         ethInterface(ifaces, &ctx);
