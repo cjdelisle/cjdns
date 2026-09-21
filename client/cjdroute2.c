@@ -215,6 +215,35 @@ static int genconf(struct Allocator* alloc, struct Random* rand, bool eth, bool 
            "                    // Ask somebody who is already connected.\n"
            "                }\n"
            "            }\n");
+    printf("        ],\n\n"
+           "\n"
+           "        // The interface which allows peering using WebSocket\n"
+           "        \"WsInterface\": [\n"
+           "            {\n"
+           "                // Bind to this port.\n"
+           "                \"bind\": \"0.0.0.0:%u\",\n", port);
+    printf("\n"
+           "                // Timeout before re-attempting connection\n"
+           "                \"connectTimeoutSecs\": 60,\n");
+    printf("\n"
+           "                \"connectTo\": {\n"
+           "                    // Add IPv4 WebSocket connection credentials here\n"
+           "                    // If you have several, don't forget the separating commas\n"
+           "                }\n"
+           "            },\n"
+           "            {\n"
+           "                // IPv6 Websocket.\n"
+           "                \"bind\": \"[::]:%u\",\n", port);
+    printf("\n"
+           "                // Timeout before re-attempting connection\n"
+           "                \"connectTimeoutSecs\": 60,\n");
+    printf("\n"
+           "                \"connectTo\": {\n"
+           "                    // Add IPv6 WebSocket connection credentials here\n"
+           "                    // If you have several, don't forget the separating commas\n"
+           "                }\n"
+           "            }\n"
+    );
 #ifdef HAS_ETH_INTERFACE
 
     printf("        ],\n\n"

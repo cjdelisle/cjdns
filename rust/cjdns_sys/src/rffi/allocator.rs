@@ -72,17 +72,17 @@ fn get_to_free(
         if let Some(parent) = parent {
             m.parents.retain(|p| p.ident != parent.ident);
             if !m.parents.is_empty() {
-                log::trace!("Continuing from child {} of {} because it has {} other parent(s):",
-                    alloc.ident.borrow(), parent.ident.borrow(), m.parents.len());
-                for p in m.parents.iter() {
-                    log::trace!("  {}", p.ident.borrow());
-                }
+                // log::trace!("Continuing from child {} of {} because it has {} other parent(s):",
+                //     alloc.ident.borrow(), parent.ident.borrow(), m.parents.len());
+                // for p in m.parents.iter() {
+                //     log::trace!("  {}", p.ident.borrow());
+                // }
                 return;
             }
         }
         assert!(!m.is_freeing);
-        log::trace!("Freeing allocator [{}] (depth: [{}]) because of: {}",
-            alloc.ident.borrow(), depth, orig_free_ident);
+        // log::trace!("Freeing allocator [{}] (depth: [{}]) because of: {}",
+        //     alloc.ident.borrow(), depth, orig_free_ident);
         m.is_freeing = true;
         std::mem::take(&mut m.children)
     };
@@ -103,8 +103,8 @@ fn free_allocs(mut allocs: Vec<(Arc<AllocatorInner>, i32)>) {
         let mut i = 0;
         let jl = jobs.len();
         for job in jobs {
-            log::trace!("Freeing job {} {}/{} depth {}",
-                job.file_line.print(), i, jl, depth);
+            // log::trace!("Freeing job {} {}/{} depth {}",
+            //     job.file_line.print(), i, jl, depth);
             i += 1;
             {
                 (job.f)(job.c);
@@ -112,7 +112,7 @@ fn free_allocs(mut allocs: Vec<(Arc<AllocatorInner>, i32)>) {
         }
     }
     for (alloc, _) in allocs {
-        log::trace!("Freeing {} 2", alloc.ident.borrow());
+        // log::trace!("Freeing {} 2", alloc.ident.borrow());
         let mems = alloc.m.lock().mem.drain(..).collect::<Vec<_>>();
         let ident = alloc.ident.borrow();
         for mut mem in mems {
@@ -221,7 +221,7 @@ impl Allocator {
             let alloc_ref: &mut Allocator = &mut *a;
             alloc_ref.inner.ident.replace(format!("{}/{:p}", file_line.print(), a));
             alloc_ref.inner.mebox.replace(a);
-            log::trace!("New allocator {} <- {}", alloc_ref.ident(), parent);
+            // log::trace!("New allocator {} <- {}", alloc_ref.ident(), parent);
         }
         a as *mut Allocator_t
     }
@@ -309,13 +309,13 @@ impl Allocator {
             return;
         }
         if m.children.iter().find(|c|c.ident == a.inner.ident).is_some() {
-            log::trace!("Allocator [{}] being adopted by [{}] but it is already a parent", a.ident(), self.ident());
+            // log::trace!("Allocator [{}] being adopted by [{}] but it is already a parent", a.ident(), self.ident());
             return;
         } else if a.inner.ident == self.inner.ident {
-            log::trace!("Allocator [{}] attempting to adopt itself", self.ident());
+            // log::trace!("Allocator [{}] attempting to adopt itself", self.ident());
             return;
         }
-        log::trace!("Allocator [{}] being adopted by [{}]", a.ident(), self.ident());
+        // log::trace!("Allocator [{}] being adopted by [{}]", a.ident(), self.ident());
         m.children.push(Arc::clone(&a.inner));
         am.parents.push(Arc::clone(&self.inner));
     }
@@ -338,7 +338,7 @@ impl Allocator {
         let (parent, parent_count) = {
             let m = self.inner.m.lock();
             if m.is_freeing {
-                log::trace!("Alloc {} is already freeing", self.ident());
+                // log::trace!("Alloc {} is already freeing", self.ident());
                 return;
             }
             (m.parents.get(0).map(Arc::clone), m.parents.len())
@@ -347,8 +347,8 @@ impl Allocator {
         if let Some(p) = &parent {
             p.m.lock().children.retain(|c| c.ident != self.inner.ident);
             if parent_count > 1 {
-                log::trace!("Skip freeing [{}] at [{}] because it has [{}] more parents",
-                    self.inner.ident.borrow(), source, parent_count - 1);
+                // log::trace!("Skip freeing [{}] at [{}] because it has [{}] more parents",
+                //     self.inner.ident.borrow(), source, parent_count - 1);
                 let mut m = self.inner.m.lock();
                 let l0 = m.parents.len();
                 m.parents.retain(|p0|p0.as_ref() as *const _ != (p.as_ref() as *const _));
@@ -357,7 +357,7 @@ impl Allocator {
             }
         }
         let mut v = Vec::new();
-        log::trace!("Freeing [{}] because [{}]", self.inner.ident.borrow(), source);
+        // log::trace!("Freeing [{}] because [{}]", self.inner.ident.borrow(), source);
         get_to_free(parent.as_ref(), &self.inner, 0, &mut v, &self.inner.ident.borrow());
         free_allocs(v);
     }

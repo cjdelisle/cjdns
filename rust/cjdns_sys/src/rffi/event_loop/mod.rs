@@ -16,6 +16,7 @@ mod timeout;
 mod fd_readable;
 mod udp;
 mod unix_socket;
+mod ws;
 
 struct Quit {
     recv: broadcast::Receiver<()>,

@@ -16,6 +16,10 @@ boringtun = { workspace = true }
 slog = { workspace = true }
 pnet = { workspace = true }
 tokio = { workspace = true }
+tokio-tungstenite = { workspace = true }
+rustls = { workspace = true }
+rustls-pki-types = { workspace = true }
+futures-util = { workspace = true }
 once_cell = { workspace = true }
 async-recursion = { workspace = true }
 socket2 = { workspace = true }
@@ -27,6 +31,7 @@ byteorder = { workspace = true }
 trust-dns-resolver = { workspace = true }
 ipnetwork = { workspace = true }
 num_enum = { workspace = true }
+url = { workspace = true }
 
 [build-dependencies]
 cc = { workspace = true }

@@ -25,6 +25,7 @@
 #include "crypto/random/Random.h"
 #include "crypto/random/nanotime/NanotimeEntropyProvider.h"
 #include "crypto/Sign_admin.h"
+#include "dht/Address.h"
 #include "rust/cjdns_sys/RTypes.h"
 #include "subnode/PeeringSeeder_admin.h"
 #include "subnode/SubnodePathfinder.h"
@@ -44,6 +45,7 @@
 #ifdef HAS_ETH_INTERFACE
 #include "interface/ETHInterface_admin.h"
 #endif
+#include "interface/WsInterface_admin.h"
 #include "net/InterfaceController_admin.h"
 #include "interface/addressable/AddrIfaceMuxer.h"
 #include "interface/tuntap/TUNMessageType.h"
@@ -426,6 +428,8 @@ Err_DEFUN Core_init(struct Allocator* alloc,
 #ifdef HAS_ETH_INTERFACE
     ETHInterface_admin_register(eventBase, alloc, logger, admin, nc->ifController);
 #endif
+    String* peerId = Address_toStringKey(nc->myAddress, alloc);
+    WsInterface_admin_register(alloc, logger, admin, nc->ifController, peerId);
 
     SupernodeHunter_admin_register(spf->snh, admin, alloc);
     ReachabilityCollector_admin_register(spf->rc, admin, alloc);

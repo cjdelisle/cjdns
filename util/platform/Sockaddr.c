@@ -181,6 +181,24 @@ int Sockaddr_parse(const char* input, struct Sockaddr_storage* out)
     return 0;
 }
 
+int Sockaddr_fromUrl(const char* url, struct Sockaddr_storage* out)
+{
+    int len = CString_strlen(url);
+    // Include zero pad
+    len++;
+    // Sockaddrs need to be a multiple of 4 length
+    len = (len + 3) & ~3;
+    if (len > Sockaddr_MAXSIZE) {
+        return -1;
+    }
+    Bits_memset(&out->addr, 0, sizeof out->addr);
+    Bits_memset(&out->nativeAddr, 0, len);
+    CString_safeStrncpy((char*)out->nativeAddr, url, Sockaddr_MAXSIZE);
+    out->addr.addrLen = len + Sockaddr_OVERHEAD;
+    out->addr.type = Sockaddr_URL;
+    return 0;
+}
+
 struct Sockaddr* Sockaddr_clone(const struct Sockaddr* addr, struct Allocator* alloc)
 {
     struct Sockaddr* out = Allocator_malloc(alloc, addr->addrLen);
@@ -218,6 +236,16 @@ char* Sockaddr_print(struct Sockaddr* sockaddr, struct Allocator* alloc)
         Sockaddr_eth_pvt_t* eth = (Sockaddr_eth_pvt_t*) sockaddr;
         String* out = String_printf(alloc, "%02x:%02x:%02x:%02x:%02x:%02x",
             eth->mac[0], eth->mac[1], eth->mac[2], eth->mac[3], eth->mac[4], eth->mac[5]);
+        return out->bytes;
+    }
+
+    if (sockaddr->type == Sockaddr_URL) {
+        const uint8_t* url = ((const uint8_t*) sockaddr) + Sockaddr_OVERHEAD;
+        if (sockaddr->addrLen > Sockaddr_MAXSIZE) {
+            return "url/invalid";
+        }
+        String* out = String_newBinary(NULL, sockaddr->addrLen, alloc);
+        Bits_memcpy(out->bytes, url, sockaddr->addrLen);
         return out->bytes;
     }
 

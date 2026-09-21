@@ -221,7 +221,7 @@ static Err_DEFUN writeLlAddr(Message_t* msg, Sockaddr_t* sa) {
     if (len > sizeof out.addr.other.sockaddrHeader) {
         len = sizeof out.addr.other.sockaddrHeader;
     }
-    Bits_memcpy(&out.addr.other.sockaddrHeader, &sa, len);
+    Bits_memcpy(&out.addr.other.sockaddrHeader, sa, len);
     return Message_epush(msg, &out, sizeof out);
 }
 
