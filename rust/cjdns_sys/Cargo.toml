@@ -16,10 +16,10 @@ boringtun = { workspace = true }
 slog = { workspace = true }
 pnet = { workspace = true }
 tokio = { workspace = true }
-tokio-tungstenite = { workspace = true }
-rustls = { workspace = true }
-rustls-pki-types = { workspace = true }
-futures-util = { workspace = true }
+tokio-tungstenite = { workspace = true, optional = true }
+rustls = { workspace = true, optional = true }
+rustls-pki-types = { workspace = true, optional = true }
+futures-util = { workspace = true, optional = true }
 once_cell = { workspace = true }
 async-recursion = { workspace = true }
 socket2 = { workspace = true }
@@ -31,7 +31,7 @@ byteorder = { workspace = true }
 trust-dns-resolver = { workspace = true }
 ipnetwork = { workspace = true }
 num_enum = { workspace = true }
-url = { workspace = true }
+url = { workspace = true, optional = true }
 
 [build-dependencies]
 cc = { workspace = true }
@@ -41,3 +41,4 @@ bindgen = { workspace = true, optional = true }
 
 [features]
 generate-cffi = ["bindgen"]
+ws = ["rustls", "rustls-pki-types", "tokio-tungstenite", "futures-util", "url"]

@@ -16,6 +16,8 @@ mod timeout;
 mod fd_readable;
 mod udp;
 mod unix_socket;
+
+#[cfg(feature = "ws")]
 mod ws;
 
 struct Quit {

@@ -8,14 +8,18 @@ if ! CARGO="$(command -v cargo)"; then
     printf "See https://rustup.rs/ for install instructions\n"
     exit 1
 fi
-release="--release"
+flags="--release"
 path="release"
 if echo "$@" | grep -q '\-\-debug'; then
-    release=""
+    flags=""
     path="debug"
-fi 
-RUSTFLAGS="$RUSTFLAGS -g" $CARGO build $release
-if [ "$NO_TEST" = '' ]; then
+fi
+if [ -n "$CJDNS_WS" ]; then
+  flags="$flags --features cjdns_sys/ws"
+fi
+
+RUSTFLAGS="$RUSTFLAGS -g" $CARGO build $flags
+if [ -z "$NO_TEST" ]; then
   RUST_BACKTRACE=1 "./target/$path/testcjdroute" all >/dev/null
 fi
 

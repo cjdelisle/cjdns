@@ -106,6 +106,10 @@ Builder.configure({
         builder.config.cflags.push('-march=native');
     }
 
+    if (process.env['CARGO_FEATURE_WS']) {
+        builder.config.cflags.push('-DHAS_WS_INTERFACE=1');
+    }
+
     if (builder.config.systemName === 'win32') {
         builder.config.cflags.push('-Wno-format');
     } else if (builder.config.systemName === 'linux') {

@@ -215,6 +215,8 @@ static int genconf(struct Allocator* alloc, struct Random* rand, bool eth, bool 
            "                    // Ask somebody who is already connected.\n"
            "                }\n"
            "            }\n");
+#ifdef HAS_WS_INTERFACE
+
     printf("        ],\n\n"
            "\n"
            "        // The interface which allows peering using WebSocket\n"
@@ -244,6 +246,7 @@ static int genconf(struct Allocator* alloc, struct Random* rand, bool eth, bool 
            "                }\n"
            "            }\n"
     );
+#endif
 #ifdef HAS_ETH_INTERFACE
 
     printf("        ],\n\n"
