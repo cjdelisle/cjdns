@@ -1,10 +1,10 @@
-# Installing cjdns on Ubuntu 16.04
+# Installing cjdns on Ubuntu 24.04
 
 This is a short guide how to setup an Ubuntu cjdns box.
 
 ## Install packages
 
-	sudo apt-get install nodejs git build-essential python2.7 make
+	sudo apt-get install nodejs git build-essential python3 make
 
 ## Clone, compile, install
 
