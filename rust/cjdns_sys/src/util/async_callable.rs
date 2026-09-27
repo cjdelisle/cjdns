@@ -52,13 +52,19 @@ impl<T: Arg, O: Out> dyn AsyncCallable<T, O> {
     /// Args:
     ///   ctx: The context (Ctx)
     ///   f: The function
-    /// ```rust
+    /// ```ignore
+    /// use cjdns_sys::util::async_callable::AsyncCallable;
+    ///
+    /// #[derive(Clone)]
+    /// struct Ctx { num: usize }
+    ///
     /// async fn xxx(ctx: Ctx, msg: String) {
     ///     println!("num = {}, msg = {}", ctx.num, msg);
     /// }
+    ///
     /// async fn test_fn() {
-    ///     let ctx = Ctx{ num: 3};
-    ///     let callable = super::new(ctx, xxx);
+    ///     let ctx = Ctx { num: 3 };
+    ///     let callable = AsyncCallable::new(ctx, xxx);
     ///     callable.call("hi".into()).await;
     /// }
     /// ```
