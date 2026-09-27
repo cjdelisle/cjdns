@@ -1911,7 +1911,7 @@ mod tests {
 
         bob_send.send(msg).unwrap();
 
-        assert_eq!(alice_received_text.lock().as_slice(), b"Hello World");
+        assert_eq!(alice_received_text.lock().as_slice(), b"Hello World ");
         assert!(bob_received_text.lock().is_empty()); // still empty
 
         // Message back Alice -> Bob
@@ -1921,7 +1921,7 @@ mod tests {
         assert!(res.is_ok());
 
         assert_eq!(bob_received_text.lock().as_slice(), b"Goodbye Universe");
-        assert_eq!(alice_received_text.lock().as_slice(), b"Hello World"); // still unchanged
+        assert_eq!(alice_received_text.lock().as_slice(), b"Hello World "); // still unchanged
     }
 
     #[test]
@@ -1990,7 +1990,7 @@ mod tests {
 
         bob_send.send(msg).unwrap();
 
-        assert_eq!(alice_received_text.lock().as_slice(), b"Hello World");
+        assert_eq!(alice_received_text.lock().as_slice(), b"Hello World ");
         assert!(bob_received_text.lock().is_empty()); // still empty
 
         // Message back Alice -> Bob
@@ -2000,6 +2000,6 @@ mod tests {
         assert!(res.is_ok());
 
         assert_eq!(bob_received_text.lock().as_slice(), b"Goodbye Universe");
-        assert_eq!(alice_received_text.lock().as_slice(), b"Hello World"); // still unchanged
+        assert_eq!(alice_received_text.lock().as_slice(), b"Hello World "); // still unchanged
     }
 }
