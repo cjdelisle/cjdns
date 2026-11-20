@@ -367,7 +367,7 @@ impl CryptoAuth {
 
     /// Search the authorized passwords for one matching this auth header.
     fn get_auth(&self, auth: &Challenge) -> Option<User> {
-        if auth.auth_type == AuthType::Zero {
+        if !matches!(auth.auth_type, AuthType::One | AuthType::Two) {
             return None;
         }
 
@@ -387,7 +387,7 @@ impl CryptoAuth {
                         return Some(u.clone());
                     }
                 }
-                _ => unreachable!(),
+                _ => return None,
             }
         }
 
