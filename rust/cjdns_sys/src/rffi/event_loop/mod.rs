@@ -59,6 +59,7 @@ pub extern "C" fn Rffi_startEventLoop(event_loop: *mut RTypes_EventLoop_t) {
     // This should be called with the c lock held because it's being called from C
     glock::Rffi_gunlock();
     let _ = quit_recv.blocking_recv();
+    glock::Rffi_glock();
 }
 
 /// Create a new EventLoop data repository.
