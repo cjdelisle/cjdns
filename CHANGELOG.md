@@ -1,5 +1,24 @@
 # Cjdns Changelog
 
+## Version 22.4 - Wussy
+November 20, 2026
+
+### Security
+1. Fix remote crash bug in crypto_auth.rs. Thanks Dickson Wu (SEAL & CertiK) for the report and patch.
+
+### Major Changes
+1. Introduce WsInterface for WebSocket based peering, to build with WebSocket capability use `CJDNS_WS=1 ./do`, new RPCs:
+  * `WsInterface_beginConnection`: Start a WebSocket connection
+  * `WsInterface_new`: Create and bind a WebSocket interface
+2. `cjdnstool` can now read logs from cjdns, and can connect over UNIX socket
+
+Thanks Ilyas Gasanov <public@gsnoff.com> for WsInterface and cjdnstool work.
+
+### Minor Changes
+1. Create new sockets per `UDPInterface` connection, this helps work around rate limiting firewalls.
+2. Inline Javascript templating removed from C code (replaced by macros)
+
+
 ## Version 22.3 - ThirtyTwo
 December 10, 2025
 
